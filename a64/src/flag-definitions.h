@@ -190,8 +190,6 @@ DEFINE_implication(harmony_observation, harmony_collections)
 // Flags for experimental implementation features.
 DEFINE_bool(packed_arrays, true, "optimizes arrays that have no holes")
 DEFINE_bool(smi_only_arrays, true, "tracks arrays with only smi values")
-DEFINE_bool(compiled_transitions, true, "use optimizing compiler to "
-            "generate array elements transition stubs")
 DEFINE_bool(compiled_keyed_stores, true, "use optimizing compiler to "
             "generate keyed store stubs")
 DEFINE_bool(clever_optimizations,
@@ -208,6 +206,7 @@ DEFINE_bool(track_computed_fields, true, "track computed boilerplate fields")
 DEFINE_implication(track_double_fields, track_fields)
 DEFINE_implication(track_heap_object_fields, track_fields)
 DEFINE_implication(track_computed_fields, track_fields)
+DEFINE_bool(smi_binop, true, "support smi representation in binary operations")
 
 // Flags for data representation optimizations
 DEFINE_bool(unbox_double_arrays, true, "automatically unbox arrays of doubles")
@@ -236,7 +235,9 @@ DEFINE_bool(collect_megamorphic_maps_from_stub_cache,
             "crankshaft harvests type feedback from stub cache")
 DEFINE_bool(hydrogen_stats, false, "print statistics for hydrogen")
 DEFINE_bool(trace_hydrogen, false, "trace generated hydrogen to file")
-DEFINE_string(trace_phase, "Z", "trace generated IR for specified phases")
+DEFINE_bool(trace_hydrogen_stubs, false, "trace generated hydrogen for stubs")
+DEFINE_string(trace_hydrogen_file, NULL, "trace hydrogen to given file name")
+DEFINE_string(trace_phase, "HLZ", "trace generated IR for specified phases")
 DEFINE_bool(trace_inlining, false, "trace inlining decisions")
 DEFINE_bool(trace_alloc, false, "trace register allocator")
 DEFINE_bool(trace_all_uses, false, "trace all use positions")
@@ -265,6 +266,8 @@ DEFINE_bool(use_osr, true, "use on-stack replacement")
 DEFINE_bool(idefs, false, "use informative definitions")
 DEFINE_bool(array_bounds_checks_elimination, true,
             "perform array bounds checks elimination")
+DEFINE_bool(array_bounds_checks_hoisting, false,
+            "perform array bounds checks hoisting")
 DEFINE_bool(array_index_dehoisting, true,
             "perform array index dehoisting")
 DEFINE_bool(analyze_environment_liveness, true,
@@ -306,6 +309,9 @@ DEFINE_int(parallel_recompilation_delay, 0,
            "artificial compilation delay in ms")
 DEFINE_bool(omit_prototype_checks_for_leaf_maps, true,
             "do not emit prototype checks if all prototypes have leaf maps, "
+            "deoptimize the optimized code if the layout of the maps changes.")
+DEFINE_bool(omit_map_checks_for_leaf_maps, true,
+            "do not emit check maps for constant values that have a leaf map, "
             "deoptimize the optimized code if the layout of the maps changes.")
 
 // Experimental profiler changes.
@@ -752,11 +758,9 @@ DEFINE_bool(log_snapshot_positions, false,
 DEFINE_bool(log_suspect, false, "Log suspect operations.")
 DEFINE_bool(prof, false,
             "Log statistical profiling information (implies --log-code).")
-DEFINE_bool(prof_auto, true,
-            "Used with --prof, starts profiling automatically")
 DEFINE_bool(prof_lazy, false,
             "Used with --prof, only does sampling and logging"
-            " when profiler is active (implies --noprof_auto).")
+            " when profiler is active.")
 DEFINE_bool(prof_browser_mode, true,
             "Used with --prof, turns on browser-compatible mode for profiling.")
 DEFINE_bool(log_regexp, false, "Log regular expression execution.")

@@ -1340,59 +1340,6 @@ void KeyedStoreIC::GenerateSlow(MacroAssembler* masm) {
 }
 
 
-void KeyedStoreIC::GenerateTransitionElementsSmiToDouble(MacroAssembler* masm) {
-  ASM_LOCATION("KeyedStoreIC::GenerateTransitionElementsSmiToDouble");
-  // ---------- S t a t e --------------
-  //  -- lr     : return address
-  //  -- x0     : value
-  //  -- x1     : key
-  //  -- x2     : receiver
-  //  -- x3     : target map
-  // -----------------------------------
-  // Must return the modified receiver in x0.
-  Register receiver = x2;
-
-  if (!FLAG_trace_elements_transitions) {
-    Label fail;
-    AllocationSiteMode mode = AllocationSite::GetMode(FAST_SMI_ELEMENTS,
-                                                      FAST_DOUBLE_ELEMENTS);
-    ElementsTransitionGenerator::GenerateSmiToDouble(masm, mode, &fail);
-    __ Mov(x0, receiver);
-    __ Ret();
-    __ Bind(&fail);
-  }
-
-  __ Push(receiver);
-  __ TailCallRuntime(Runtime::kTransitionElementsSmiToDouble, 1, 1);
-}
-
-
-void KeyedStoreIC::GenerateTransitionElementsDoubleToObject(
-    MacroAssembler* masm) {
-  ASM_LOCATION("KeyedStoreIC::GenerateTransitionElementsDoubleToObject");
-  // ---------- S t a t e --------------
-  //  -- x2     : receiver
-  //  -- x3     : target map
-  //  -- lr     : return address
-  // -----------------------------------
-  // Must return the modified receiver in r0.
-  Register receiver = x2;
-
-  if (!FLAG_trace_elements_transitions) {
-    Label fail;
-    AllocationSiteMode mode = AllocationSite::GetMode(FAST_DOUBLE_ELEMENTS,
-                                                      FAST_ELEMENTS);
-    ElementsTransitionGenerator::GenerateDoubleToObject(masm, mode, &fail);
-    __ Mov(x0, receiver);
-    __ Ret();
-    __ Bind(&fail);
-  }
-
-  __ Push(receiver);
-  __ TailCallRuntime(Runtime::kTransitionElementsDoubleToObject, 1, 1);
-}
-
-
 void KeyedStoreIC::GenerateRuntimeSetProperty(MacroAssembler* masm,
                                               StrictModeFlag strict_mode) {
   ASM_LOCATION("KeyedStoreIC::GenerateRuntimeSetProperty");

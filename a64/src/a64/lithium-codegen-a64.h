@@ -127,7 +127,7 @@ class LCodeGen BASE_EMBEDDED {
   bool IsInteger32Constant(LConstantOperand* op) const;
   bool IsSmi(LConstantOperand* op) const;
 
-  int ToInteger32(LConstantOperand* op) const;
+  int32_t ToInteger32(LConstantOperand* op) const;
   Smi* ToSmi(LConstantOperand* op) const;
   double ToDouble(LConstantOperand* op) const;
   DoubleRegister ToDoubleRegister(LOperand* op) const;
@@ -246,7 +246,6 @@ class LCodeGen BASE_EMBEDDED {
   void Deoptimize(LEnvironment* environment);
   void Deoptimize(LEnvironment* environment,
                   Deoptimizer::BailoutType bailout_type);
-  void SoftDeoptimize(LEnvironment* environment);
   void DeoptimizeIf(Condition cc, LEnvironment* environment);
   void DeoptimizeIfZero(Register rt, LEnvironment* environment);
   void DeoptimizeIfNegative(Register rt, LEnvironment* environment);
@@ -258,6 +257,7 @@ class LCodeGen BASE_EMBEDDED {
   void DeoptimizeIfNotRoot(Register rt,
                            Heap::RootListIndex index,
                            LEnvironment* environment);
+  void ApplyCheckIf(Condition cc, LBoundsCheck* check);
 
   MemOperand PrepareKeyedExternalArrayOperand(Register key,
                                               Register base,

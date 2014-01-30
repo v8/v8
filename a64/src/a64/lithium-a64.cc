@@ -834,6 +834,8 @@ LInstruction* LChunkBuilder::DoArithmeticT(Token::Value op,
   HValue* left = instr->left();
   HValue* right = instr->right();
 
+  // TODO(jbramley): Once we've implemented smi support for all arithmetic
+  // operations, these assertions should check IsTagged().
   ASSERT(instr->representation().IsSmiOrTagged());
   ASSERT(left->representation().IsSmiOrTagged());
   ASSERT(right->representation().IsSmiOrTagged());
@@ -895,15 +897,15 @@ LInstruction* LChunkBuilder::DoAccessArgumentsAt(HAccessArgumentsAt* instr) {
 
 
 LInstruction* LChunkBuilder::DoAdd(HAdd* instr) {
-  if (instr->representation().IsInteger32()) {
-    // TODO(all): LAddI instruction should also handle the addition of
-    // two SMI values.
-    ASSERT(instr->left()->representation().IsInteger32());
-    ASSERT(instr->right()->representation().IsInteger32());
+  if (instr->representation().IsSmiOrInteger32()) {
+    ASSERT(instr->left()->representation().Equals(instr->representation()));
+    ASSERT(instr->right()->representation().Equals(instr->representation()));
     LOperand* left = UseRegisterAtStart(instr->BetterLeftOperand());
     LOperand* right =
         UseRegisterOrConstantAtStart(instr->BetterRightOperand());
-    LInstruction* result = DefineAsRegister(new(zone()) LAddI(left, right));
+    LInstruction* result = instr->representation().IsSmi() ?
+        DefineAsRegister(new(zone()) LAddS(left, right)) :
+        DefineAsRegister(new(zone()) LAddI(left, right));
     if (instr->CheckFlag(HValue::kCanOverflow)) {
       result = AssignEnvironment(result);
     }
@@ -911,7 +913,7 @@ LInstruction* LChunkBuilder::DoAdd(HAdd* instr) {
   } else if (instr->representation().IsDouble()) {
     return DoArithmeticD(Token::ADD, instr);
   } else {
-    ASSERT(instr->representation().IsSmiOrTagged());
+    ASSERT(instr->representation().IsTagged());
     return DoArithmeticT(Token::ADD, instr);
   }
 }
@@ -964,15 +966,16 @@ LInstruction* LChunkBuilder::DoArgumentsObject(HArgumentsObject* instr) {
 
 
 LInstruction* LChunkBuilder::DoBitwise(HBitwise* instr) {
-  // TODO(all): The latest bleeding_edge handles smi representations too.
-  if (instr->representation().IsInteger32()) {
-    ASSERT(instr->left()->representation().IsInteger32());
-    ASSERT(instr->right()->representation().IsInteger32());
+  if (instr->representation().IsSmiOrInteger32()) {
+    ASSERT(instr->left()->representation().Equals(instr->representation()));
+    ASSERT(instr->right()->representation().Equals(instr->representation()));
 
     LOperand* left = UseRegisterAtStart(instr->BetterLeftOperand());
     LOperand* right =
         UseRegisterOrConstantAtStart(instr->BetterRightOperand());
-    return DefineAsRegister(new(zone()) LBitI(left, right));
+    return instr->representation().IsSmi() ?
+        DefineAsRegister(new(zone()) LBitS(left, right)) :
+        DefineAsRegister(new(zone()) LBitI(left, right));
   } else {
     return DoArithmeticT(instr->op(), instr);
   }
@@ -1248,10 +1251,15 @@ LInstruction* LChunkBuilder::DoCheckInstanceType(HCheckInstanceType* instr) {
 
 
 LInstruction* LChunkBuilder::DoCheckMaps(HCheckMaps* instr) {
-  LOperand* value = UseRegister(instr->value());
-  LOperand* temp = TempRegister();
-  LInstruction* result = new(zone()) LCheckMaps(value, temp);
-  return AssignEnvironment(result);
+  if (instr->CanOmitMapChecks()) {
+    LOperand* value = UseRegisterAtStart(instr->value());
+    return new(zone()) LCheckMaps(value);
+  } else {
+    LOperand* value = UseRegister(instr->value());
+    LOperand* temp = TempRegister();
+    LInstruction* result = new(zone()) LCheckMaps(value, temp);
+    return AssignEnvironment(result);
+  }
 }
 
 
@@ -1262,11 +1270,13 @@ LInstruction* LChunkBuilder::DoCheckHeapObject(HCheckHeapObject* instr) {
 
 
 LInstruction* LChunkBuilder::DoCheckPrototypeMaps(HCheckPrototypeMaps* instr) {
-  // TODO(jbramley): The scratch registers are not needed if
-  // instr->CanOmitPrototypeChecks(). Can we safely test that here?
-  LOperand* temp1 = TempRegister();
-  LOperand* temp2 = TempRegister();
-  return AssignEnvironment(new(zone()) LCheckPrototypeMaps(temp1, temp2));
+  if (instr->CanOmitPrototypeChecks()) {
+    return new(zone()) LCheckPrototypeMaps();
+  } else {
+    LOperand* temp1 = TempRegister();
+    LOperand* temp2 = TempRegister();
+    return AssignEnvironment(new(zone()) LCheckPrototypeMaps(temp1, temp2));
+  }
 }
 
 
@@ -1366,12 +1376,6 @@ LInstruction* LChunkBuilder::DoCompareMap(HCompareMap* instr) {
   LOperand* value = UseRegisterAtStart(instr->value());
   LOperand* temp = TempRegister();
   return new(zone()) LCmpMapAndBranch(value, temp);
-}
-
-
-LInstruction* LChunkBuilder::DoCompareConstantEqAndBranch(
-    HCompareConstantEqAndBranch* instr) {
-  UNIMPLEMENTED_INSTRUCTION();
 }
 
 
@@ -1694,8 +1698,7 @@ LInstruction* LChunkBuilder::DoLoadGlobalGeneric(HLoadGlobalGeneric* instr) {
 
 
 LInstruction* LChunkBuilder::DoLoadKeyed(HLoadKeyed* instr) {
-  ASSERT(instr->key()->representation().IsInteger32() ||
-         instr->key()->representation().IsSmi());
+  ASSERT(instr->key()->representation().IsSmiOrInteger32());
   ElementsKind elements_kind = instr->elements_kind();
   LOperand* elements = UseRegister(instr->elements());
   LOperand* key = UseRegisterOrConstantAtStart(instr->key());
@@ -1820,7 +1823,7 @@ LInstruction* LChunkBuilder::DoMathFloorOfDiv(HMathFloorOfDiv* instr) {
 LInstruction* LChunkBuilder::DoMathMinMax(HMathMinMax* instr) {
   LOperand* left = NULL;
   LOperand* right = NULL;
-  if (instr->representation().IsInteger32()) {
+  if (instr->representation().IsSmiOrInteger32()) {
     ASSERT(instr->left()->representation().IsInteger32());
     ASSERT(instr->right()->representation().IsInteger32());
     left = UseRegisterAtStart(instr->BetterLeftOperand());
@@ -1840,6 +1843,7 @@ LInstruction* LChunkBuilder::DoMod(HMod* hmod) {
   HValue* hleft = hmod->left();
   HValue* hright = hmod->right();
 
+  // TODO(jbramley): Add smi support.
   if (hmod->representation().IsInteger32()) {
     ASSERT(hleft->representation().IsInteger32());
     ASSERT(hleft->representation().IsInteger32());
@@ -1872,9 +1876,25 @@ LInstruction* LChunkBuilder::DoMod(HMod* hmod) {
 
 
 LInstruction* LChunkBuilder::DoMul(HMul* instr) {
-  if (instr->representation().IsInteger32()) {
-    ASSERT(instr->left()->representation().IsInteger32());
-    ASSERT(instr->right()->representation().IsInteger32());
+  if (instr->representation().IsSmi()) {
+    // TODO(jbramley): Implement LMulConstS, then merge this into the Integer32
+    // case.
+    ASSERT(instr->left()->representation().Equals(instr->representation()));
+    ASSERT(instr->right()->representation().Equals(instr->representation()));
+
+    bool can_overflow = instr->CheckFlag(HValue::kCanOverflow);
+    bool bailout_on_minus_zero = instr->CheckFlag(HValue::kBailoutOnMinusZero);
+    bool needs_environment = can_overflow || bailout_on_minus_zero;
+
+    LOperand* left = UseRegister(instr->BetterLeftOperand());
+    LOperand* right = UseRegister(instr->BetterRightOperand());
+
+    LMulS* mul = new(zone()) LMulS(left, right);
+    if (needs_environment) AssignEnvironment(mul);
+    return DefineAsRegister(mul);
+  } else if (instr->representation().IsSmiOrInteger32()) {
+    ASSERT(instr->left()->representation().Equals(instr->representation()));
+    ASSERT(instr->right()->representation().Equals(instr->representation()));
 
     bool can_overflow = instr->CheckFlag(HValue::kCanOverflow);
     bool bailout_on_minus_zero = instr->CheckFlag(HValue::kBailoutOnMinusZero);
@@ -2006,13 +2026,14 @@ LInstruction* LChunkBuilder::DoSeqStringSetChar(HSeqStringSetChar* instr) {
 
 LInstruction* LChunkBuilder::DoShift(Token::Value op,
                                      HBitwiseBinaryOperation* instr) {
+  // TODO(jbramley): Support smis inline, like integers.
   if (instr->representation().IsSmiOrTagged()) {
     return DoArithmeticT(op, instr);
   }
 
   ASSERT(instr->representation().IsInteger32());
-  ASSERT(instr->left()->representation().IsInteger32());
-  ASSERT(instr->right()->representation().IsInteger32());
+  ASSERT(instr->left()->representation().Equals(instr->representation()));
+  ASSERT(instr->right()->representation().Equals(instr->representation()));
   LOperand* left = UseRegisterAtStart(instr->left());
 
   HValue* right_value = instr->right();
@@ -2099,11 +2120,6 @@ LInstruction* LChunkBuilder::DoSimulate(HSimulate* instr) {
   }
 
   return NULL;
-}
-
-
-LInstruction* LChunkBuilder::DoSoftDeoptimize(HSoftDeoptimize* instr) {
-  return AssignEnvironment(new(zone()) LDeoptimize);
 }
 
 
@@ -2291,6 +2307,7 @@ LInstruction* LChunkBuilder::DoStringLength(HStringLength* instr) {
 
 
 LInstruction* LChunkBuilder::DoSub(HSub* instr) {
+  // TODO(jbramley): Add smi support.
   if (instr->representation().IsInteger32()) {
     ASSERT(instr->left()->representation().IsInteger32());
     ASSERT(instr->right()->representation().IsInteger32());
@@ -2344,22 +2361,16 @@ LInstruction* LChunkBuilder::DoToFastProperties(HToFastProperties* instr) {
 
 LInstruction* LChunkBuilder::DoTransitionElementsKind(
     HTransitionElementsKind* instr) {
+  LOperand* object = UseRegister(instr->object());
   if (IsSimpleMapChangeTransition(instr->from_kind(), instr->to_kind())) {
-    LOperand* object = UseRegister(instr->object());
     LTransitionElementsKind* result =
         new(zone()) LTransitionElementsKind(object, TempRegister(),
                                             TempRegister());
     return result;
-  } else if (FLAG_compiled_transitions) {
-    LOperand* object = UseRegister(instr->object());
-    LTransitionElementsKind* result =
-        new(zone()) LTransitionElementsKind(object, NULL, NULL);
-    return AssignPointerMap(result);
   } else {
-    LOperand* object = UseFixed(instr->object(), x0);
     LTransitionElementsKind* result =
-        new(zone()) LTransitionElementsKind(object, NULL, NULL);
-    return MarkAsCall(result, instr);
+        new(zone()) LTransitionElementsKind(object, TempRegister());
+    return AssignPointerMap(result);
   }
 }
 

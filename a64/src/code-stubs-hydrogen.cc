@@ -129,7 +129,7 @@ bool CodeStubGraphBuilderBase::BuildGraph() {
   // Update the static counter each time a new code stub is generated.
   isolate()->counters()->code_stubs()->Increment();
 
-  if (FLAG_trace_hydrogen) {
+  if (FLAG_trace_hydrogen_stubs) {
     const char* name = CodeStub::MajorName(stub()->MajorKey(), false);
     PrintF("-----------------------------------------------------------\n");
     PrintF("Compiling stub %s using hydrogen\n", name);
@@ -178,7 +178,7 @@ bool CodeStubGraphBuilderBase::BuildGraph() {
   AddInstruction(context_);
   start_environment->BindContext(context_);
 
-  AddSimulate(BailoutId::StubEntry());
+  Add<HSimulate>(BailoutId::StubEntry());
 
   NoObservableSideEffectsScope no_effects(this);
 
@@ -397,9 +397,10 @@ HValue* CodeStubGraphBuilder<FastCloneShallowArrayStub>::BuildCodeStub() {
                                                length));
   }
 
-  HValue* result = environment()->Pop();
   checker.ElseDeopt();
-  return result;
+  checker.End();
+
+  return environment()->Pop();
 }
 
 
@@ -447,8 +448,11 @@ HValue* CodeStubGraphBuilder<FastCloneShallowObjectStub>::BuildCodeStub() {
     AddStore(object, access, AddLoad(boilerplate, access));
   }
 
+  environment()->Push(object);
   checker.ElseDeopt();
-  return object;
+  checker.End();
+
+  return environment()->Pop();
 }
 
 
@@ -517,11 +521,11 @@ Handle<Code> KeyedLoadFastElementStub::GenerateCode() {
 
 template<>
 HValue* CodeStubGraphBuilder<LoadFieldStub>::BuildCodeStub() {
+  Representation rep = casted_stub()->representation();
   HObjectAccess access = casted_stub()->is_inobject() ?
-      HObjectAccess::ForJSObjectOffset(casted_stub()->offset()) :
-      HObjectAccess::ForBackingStoreOffset(casted_stub()->offset());
-  return AddInstruction(BuildLoadNamedField(GetParameter(0), access,
-      casted_stub()->representation()));
+      HObjectAccess::ForJSObjectOffset(casted_stub()->offset(), rep) :
+      HObjectAccess::ForBackingStoreOffset(casted_stub()->offset(), rep);
+  return AddInstruction(BuildLoadNamedField(GetParameter(0), access));
 }
 
 
@@ -532,11 +536,11 @@ Handle<Code> LoadFieldStub::GenerateCode() {
 
 template<>
 HValue* CodeStubGraphBuilder<KeyedLoadFieldStub>::BuildCodeStub() {
+  Representation rep = casted_stub()->representation();
   HObjectAccess access = casted_stub()->is_inobject() ?
-      HObjectAccess::ForJSObjectOffset(casted_stub()->offset()) :
-      HObjectAccess::ForBackingStoreOffset(casted_stub()->offset());
-  return AddInstruction(BuildLoadNamedField(GetParameter(0), access,
-      casted_stub()->representation()));
+      HObjectAccess::ForJSObjectOffset(casted_stub()->offset(), rep) :
+      HObjectAccess::ForBackingStoreOffset(casted_stub()->offset(), rep);
+  return AddInstruction(BuildLoadNamedField(GetParameter(0), access));
 }
 
 
@@ -884,7 +888,8 @@ HValue* CodeStubGraphBuilder<StoreGlobalStub>::BuildCodeInitializedStub() {
   // Check that the map of the global has not changed: use a placeholder map
   // that will be replaced later with the global object's map.
   Handle<Map> placeholder_map = isolate()->factory()->meta_map();
-  AddInstruction(HCheckMaps::New(receiver, placeholder_map, zone()));
+  AddInstruction(HCheckMaps::New(
+      receiver, placeholder_map, zone(), top_info()));
 
   HValue* cell = Add<HConstant>(placeholder_cell, Representation::Tagged());
   HObjectAccess access(HObjectAccess::ForCellPayload(isolate()));
@@ -928,8 +933,7 @@ HValue* CodeStubGraphBuilder<ElementsTransitionAndStoreStub>::BuildCodeStub() {
 
   if (FLAG_trace_elements_transitions) {
     // Tracing elements transitions is the job of the runtime.
-    current_block()->FinishExitWithDeoptimization(HDeoptimize::kUseAll);
-    set_current_block(NULL);
+    Add<HDeoptimize>(Deoptimizer::EAGER);
   } else {
     info()->MarkAsSavesCallerDoubles();
 

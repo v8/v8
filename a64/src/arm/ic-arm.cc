@@ -1221,51 +1221,6 @@ void KeyedStoreIC::GenerateSlow(MacroAssembler* masm) {
 }
 
 
-void KeyedStoreIC::GenerateTransitionElementsSmiToDouble(MacroAssembler* masm) {
-  // ---------- S t a t e --------------
-  //  -- r2     : receiver
-  //  -- r3     : target map
-  //  -- lr     : return address
-  // -----------------------------------
-  // Must return the modified receiver in r0.
-  if (!FLAG_trace_elements_transitions) {
-    Label fail;
-    AllocationSiteMode mode = AllocationSite::GetMode(FAST_SMI_ELEMENTS,
-                                                      FAST_DOUBLE_ELEMENTS);
-    ElementsTransitionGenerator::GenerateSmiToDouble(masm, mode, &fail);
-    __ mov(r0, r2);
-    __ Ret();
-    __ bind(&fail);
-  }
-
-  __ push(r2);
-  __ TailCallRuntime(Runtime::kTransitionElementsSmiToDouble, 1, 1);
-}
-
-
-void KeyedStoreIC::GenerateTransitionElementsDoubleToObject(
-    MacroAssembler* masm) {
-  // ---------- S t a t e --------------
-  //  -- r2     : receiver
-  //  -- r3     : target map
-  //  -- lr     : return address
-  // -----------------------------------
-  // Must return the modified receiver in r0.
-  if (!FLAG_trace_elements_transitions) {
-    Label fail;
-    AllocationSiteMode mode = AllocationSite::GetMode(FAST_DOUBLE_ELEMENTS,
-                                                      FAST_ELEMENTS);
-    ElementsTransitionGenerator::GenerateDoubleToObject(masm, mode, &fail);
-    __ mov(r0, r2);
-    __ Ret();
-    __ bind(&fail);
-  }
-
-  __ push(r2);
-  __ TailCallRuntime(Runtime::kTransitionElementsDoubleToObject, 1, 1);
-}
-
-
 void KeyedStoreIC::GenerateRuntimeSetProperty(MacroAssembler* masm,
                                               StrictModeFlag strict_mode) {
   // ---------- S t a t e --------------
@@ -1361,7 +1316,7 @@ static void KeyedStoreGenerateGenericHelper(
     __ b(ne, slow);
   }
   __ bind(&fast_double_without_map_check);
-  __ StoreNumberToDoubleElements(value, key, elements, r3,
+  __ StoreNumberToDoubleElements(value, key, elements, r3, d0,
                                  &transition_double_elements);
   if (increment_length == kIncrementLength) {
     // Add 1 to receiver->length.

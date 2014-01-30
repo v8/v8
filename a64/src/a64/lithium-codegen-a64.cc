@@ -945,12 +945,6 @@ void LCodeGen::Deoptimize(LEnvironment* environment) {
 }
 
 
-void LCodeGen::SoftDeoptimize(LEnvironment* environment) {
-  ASSERT(!info()->IsStub());
-  Deoptimize(environment, Deoptimizer::SOFT);
-}
-
-
 void LCodeGen::DeoptimizeIf(Condition cond, LEnvironment* environment) {
   Label dont_deopt;
   __ B(InvertCondition(cond), &dont_deopt);
@@ -1070,7 +1064,10 @@ Operand LCodeGen::ToOperand(LOperand* op) {
     LConstantOperand* const_op = LConstantOperand::cast(op);
     HConstant* constant = chunk()->LookupConstant(const_op);
     Representation r = chunk_->LookupLiteralRepresentation(const_op);
-    if (r.IsInteger32()) {
+    if (r.IsSmi()) {
+      ASSERT(constant->HasSmiValue());
+      return Operand(Smi::FromInt(constant->Integer32Value()));
+    } else if (r.IsInteger32()) {
       ASSERT(constant->HasInteger32Value());
       return Operand(constant->Integer32Value());
     } else if (r.IsDouble()) {
@@ -1291,6 +1288,20 @@ void LCodeGen::DoAddI(LAddI* instr) {
   Register result = ToRegister32(instr->result());
   Register left = ToRegister32(instr->left());
   Operand right = ToOperand32(instr->right());
+  if (can_overflow) {
+    __ Adds(result, left, right);
+    DeoptimizeIf(vs, instr->environment());
+  } else {
+    __ Add(result, left, right);
+  }
+}
+
+
+void LCodeGen::DoAddS(LAddS* instr) {
+  bool can_overflow = instr->hydrogen()->CheckFlag(HValue::kCanOverflow);
+  Register result = ToRegister(instr->result());
+  Register left = ToRegister(instr->left());
+  Operand right = ToOperand(instr->right());
   if (can_overflow) {
     __ Adds(result, left, right);
     DeoptimizeIf(vs, instr->environment());
@@ -1539,13 +1550,25 @@ void LCodeGen::DoArithmeticT(LArithmeticT* instr) {
 
 
 void LCodeGen::DoBitI(LBitI* instr) {
-  LOperand* left_op = instr->left();
-  LOperand* right_op = instr->right();
-  Register left = ToRegister(left_op);
-  Register result = ToRegister(instr->result());
+  Register result = ToRegister32(instr->result());
+  Register left = ToRegister32(instr->left());
+  Operand right = ToOperand32(instr->right());
 
-  ASSERT(right_op->IsRegister() || right_op->IsConstantOperand());
-  Operand right = ToOperand(right_op);
+  switch (instr->op()) {
+    case Token::BIT_AND: __ And(result, left, right); break;
+    case Token::BIT_OR:  __ Orr(result, left, right); break;
+    case Token::BIT_XOR: __ Eor(result, left, right); break;
+    default:
+      UNREACHABLE();
+      break;
+  }
+}
+
+
+void LCodeGen::DoBitS(LBitS* instr) {
+  Register result = ToRegister(instr->result());
+  Register left = ToRegister(instr->left());
+  Operand right = ToOperand(instr->right());
 
   switch (instr->op()) {
     case Token::BIT_AND: __ And(result, left, right); break;
@@ -1562,6 +1585,15 @@ void LCodeGen::DoBitNotI(LBitNotI* instr) {
   Register input = ToRegister(instr->value()).W();
   Register result = ToRegister(instr->result()).W();
   __ Mvn(result, input);
+}
+
+
+void LCodeGen::ApplyCheckIf(Condition cc, LBoundsCheck* check) {
+  if (FLAG_debug_code && check->hydrogen()->skip_check()) {
+    __ Assert(InvertCondition(cc), "eliminated bounds check failed");
+  } else {
+    DeoptimizeIf(cc, check->environment());
+  }
 }
 
 
@@ -1582,7 +1614,8 @@ void LCodeGen::DoBoundsCheck(LBoundsCheck *instr) {
   } else {
     __ Cmp(length, ToRegister(instr->index()));
   }
-  DeoptimizeIf(ls, instr->environment());
+  Condition condition = instr->hydrogen()->allow_equality() ? lo : ls;
+  ApplyCheckIf(condition, instr);
 }
 
 
@@ -1901,6 +1934,11 @@ void LCodeGen::DoUnknownOSRValue(LUnknownOSRValue* instr) {
 
 
 void LCodeGen::DoCheckMaps(LCheckMaps* instr) {
+  if (instr->hydrogen()->CanOmitMapChecks()) {
+    ASSERT(instr->temp() == NULL);
+    return;
+  }
+
   Register object = ToRegister(instr->value());
   Register map_reg = ToRegister(instr->temp());
 
@@ -1931,25 +1969,28 @@ void LCodeGen::DoCheckNonSmi(LCheckNonSmi* instr) {
 
 
 void LCodeGen::DoCheckPrototypeMaps(LCheckPrototypeMaps* instr) {
+  if (instr->hydrogen()->CanOmitPrototypeChecks()) {
+    ASSERT(instr->temp1() == NULL);
+    ASSERT(instr->temp2() == NULL);
+    return;
+  }
+
   ZoneList<Handle<JSObject> >* prototypes = instr->prototypes();
   ZoneList<Handle<Map> >* maps = instr->maps();
   ASSERT(prototypes->length() == maps->length());
 
-  if (!instr->hydrogen()->CanOmitPrototypeChecks()) {
-    // TODO(jbramley): The temp registers are only needed in this case.
-    Label success, deopt;
-    Register temp1 = ToRegister(instr->temp1());
-    Register temp2 = ToRegister(instr->temp2());
-    for (int i = 0; i < prototypes->length(); i++) {
-      __ LoadHeapObject(temp1, prototypes->at(i));
-      __ Ldr(temp2, FieldMemOperand(temp1, HeapObject::kMapOffset));
-      __ CompareMap(temp2, maps->at(i), &success);
-      __ B(eq, &success);
-    }
-    // If we didn't match a map, deoptimize.
-    Deoptimize(instr->environment());
-    __ Bind(&success);
+  Label success, deopt;
+  Register temp1 = ToRegister(instr->temp1());
+  Register temp2 = ToRegister(instr->temp2());
+  for (int i = 0; i < prototypes->length(); i++) {
+    __ LoadHeapObject(temp1, prototypes->at(i));
+    __ Ldr(temp2, FieldMemOperand(temp1, HeapObject::kMapOffset));
+    __ CompareMap(temp2, maps->at(i), &success);
+    __ B(eq, &success);
   }
+  // If we didn't match a map, deoptimize.
+  Deoptimize(instr->environment());
+  __ Bind(&success);
 }
 
 
@@ -2248,12 +2289,7 @@ void LCodeGen::DoConstantS(LConstantS* instr) {
 void LCodeGen::DoConstantT(LConstantT* instr) {
   Handle<Object> value = instr->value();
   AllowDeferredHandleDereference smi_check;
-  if (value->IsSmi()) {
-    __ Mov(ToRegister(instr->result()), Operand(value));
-  } else {
-    __ LoadHeapObject(ToRegister(instr->result()),
-                      Handle<HeapObject>::cast(value));
-  }
+  __ LoadObject(ToRegister(instr->result()), value);
 }
 
 
@@ -2342,11 +2378,15 @@ void LCodeGen::DoDateField(LDateField* instr) {
 
 
 void LCodeGen::DoDeoptimize(LDeoptimize* instr) {
-  if (instr->hydrogen_value()->IsSoftDeoptimize()) {
-    SoftDeoptimize(instr->environment());
-  } else {
-    Deoptimize(instr->environment());
+  Deoptimizer::BailoutType type = instr->hydrogen()->type();
+  // TODO(danno): Stubs expect all deopts to be lazy for historical reasons (the
+  // needed return address), even though the implementation of LAZY and EAGER is
+  // now identical. When LAZY is eventually completely folded into EAGER, remove
+  // the special case below.
+  if (info()->IsStub() && (type == Deoptimizer::EAGER)) {
+    type = Deoptimizer::LAZY;
   }
+  Deoptimize(instr->environment(), type);
 }
 
 
@@ -3404,9 +3444,9 @@ void LCodeGen::EmitLoadFieldOrConstantFunction(Register result,
       __ Ldr(result, FieldMemOperand(object, JSObject::kPropertiesOffset));
       __ Ldr(result, FieldMemOperand(result, offset + FixedArray::kHeaderSize));
     }
-  } else if (lookup.IsConstantFunction()) {
-    Handle<JSFunction> function(lookup.GetConstantFunctionFromMap(*type));
-    __ LoadHeapObject(result, function);
+  } else if (lookup.IsConstant()) {
+    Handle<Object> constant(lookup.GetConstantFromMap(*type), isolate());
+    __ LoadObject(result, constant);
   } else {
     // Negative lookup. Check prototypes.
     Handle<HeapObject> current(HeapObject::cast((*type)->prototype()));
@@ -3972,6 +4012,13 @@ void LCodeGen::DoMathMinMax(LMathMinMax* instr) {
 
     __ Cmp(left, right);
     __ Csel(result, left, right, (op == HMathMinMax::kMathMax) ? ge : le);
+  } else if (instr->hydrogen()->representation().IsSmi()) {
+    Register result = ToRegister(instr->result());
+    Register left = ToRegister(instr->left());
+    Operand right = ToOperand(instr->right());
+
+    __ Cmp(left, right);
+    __ Csel(result, left, right, (op == HMathMinMax::kMathMax) ? ge : le);
   } else {
     ASSERT(instr->hydrogen()->representation().IsDouble());
     DoubleRegister result = ToDoubleRegister(instr->result());
@@ -4047,6 +4094,8 @@ void LCodeGen::DoModI(LModI* instr) {
 
 
 void LCodeGen::DoMulConstI(LMulConstI* instr) {
+  // TODO(jbramley): Support smi operations (or make a separate DoMulConstS).
+
   Register result = ToRegister32(instr->result());
   Register left = ToRegister32(instr->left());
   int32_t right = ToInteger32(instr->right());
@@ -4139,12 +4188,12 @@ void LCodeGen::DoMulConstI(LMulConstI* instr) {
 void LCodeGen::DoMulI(LMulI* instr) {
   Register result = ToRegister32(instr->result());
   Register left = ToRegister32(instr->left());
+  Register right = ToRegister32(instr->right());
 
   bool can_overflow = instr->hydrogen()->CheckFlag(HValue::kCanOverflow);
   bool bailout_on_minus_zero =
     instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero);
 
-  Register right = ToRegister32(instr->right());
   if (bailout_on_minus_zero) {
     // If one operand is zero and the other is negative, the result is -0.
     //  - Set Z (eq) if either left or right, or both, are 0.
@@ -4162,6 +4211,41 @@ void LCodeGen::DoMulI(LMulI* instr) {
     DeoptimizeIf(ne, instr->environment());
   } else {
     __ Mul(result, left, right);
+  }
+}
+
+
+void LCodeGen::DoMulS(LMulS* instr) {
+  Register result = ToRegister(instr->result());
+  Register left = ToRegister(instr->left());
+  Register right = ToRegister(instr->right());
+
+  bool can_overflow = instr->hydrogen()->CheckFlag(HValue::kCanOverflow);
+  bool bailout_on_minus_zero =
+    instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero);
+
+  if (bailout_on_minus_zero) {
+    // If one operand is zero and the other is negative, the result is -0.
+    //  - Set Z (eq) if either left or right, or both, are 0.
+    __ Cmp(left, 0);
+    __ Ccmp(right, 0, ZFlag, ne);
+    //  - If so (eq), set N (mi) if left + right is negative.
+    //  - Otherwise, clear N.
+    __ Ccmn(left, right, NoFlag, eq);
+    DeoptimizeIf(mi, instr->environment());
+  }
+
+  STATIC_ASSERT((kSmiShift == 32) && (kSmiTag == 0));
+  if (can_overflow) {
+    __ Smulh(result, left, right);
+    __ Cmp(result, Operand(result.W(), SXTW));
+    __ SmiTag(result);
+    DeoptimizeIf(ne, instr->environment());
+  } else {
+    // TODO(jbramley): This could be rewritten to support UseRegisterAtStart.
+    ASSERT(!AreAliased(result, right));
+    __ SmiUntag(result, left);
+    __ Mul(result, result, right);
   }
 }
 
@@ -5269,32 +5353,24 @@ void LCodeGen::DoThrow(LThrow* instr) {
 
 void LCodeGen::DoTransitionElementsKind(LTransitionElementsKind* instr) {
   Register object = ToRegister(instr->object());
+  Register temp1 = ToRegister(instr->temp1());
 
   Handle<Map> from_map = instr->original_map();
   Handle<Map> to_map = instr->transitioned_map();
   ElementsKind from_kind = instr->from_kind();
   ElementsKind to_kind = instr->to_kind();
 
-  Register scratch;
-  if (IsSimpleMapChangeTransition(from_kind, to_kind)) {
-    scratch = ToRegister(instr->temp1());
-  } else {
-    ASSERT(FLAG_compiled_transitions || instr->IsMarkedAsCall());
-    scratch = x10;
-  }
-
   Label not_applicable;
-  __ CompareMap(object, scratch, from_map);
-  __ B(ne, &not_applicable);
+  __ CheckMap(object, temp1, from_map, &not_applicable, DONT_DO_SMI_CHECK);
 
   if (IsSimpleMapChangeTransition(from_kind, to_kind)) {
     Register new_map = ToRegister(instr->temp2());
     __ Mov(new_map, Operand(to_map));
     __ Str(new_map, FieldMemOperand(object, HeapObject::kMapOffset));
     // Write barrier.
-    __ RecordWriteField(object, HeapObject::kMapOffset, new_map, scratch,
+    __ RecordWriteField(object, HeapObject::kMapOffset, new_map, temp1,
                         GetLinkRegisterState(), kDontSaveFPRegs);
-  } else if (FLAG_compiled_transitions) {
+  } else {
     PushSafepointRegistersScope scope(this, Safepoint::kWithRegisters);
     __ Mov(x0, object);
     __ Mov(x1, Operand(to_map));
@@ -5302,22 +5378,6 @@ void LCodeGen::DoTransitionElementsKind(LTransitionElementsKind* instr) {
     __ CallStub(&stub);
     RecordSafepointWithRegisters(
         instr->pointer_map(), 0, Safepoint::kNoLazyDeopt);
-  } else if ((IsFastSmiElementsKind(from_kind) &&
-              IsFastDoubleElementsKind(to_kind)) ||
-             (IsFastDoubleElementsKind(from_kind) &&
-              IsFastObjectElementsKind(to_kind))) {
-    ASSERT((instr->temp1() == NULL) && (instr->temp2() == NULL));
-    __ Mov(x2, object);
-    __ Mov(x3, Operand(to_map));
-    if (IsFastSmiElementsKind(from_kind)) {
-      CallCode(isolate()->builtins()->TransitionElementsSmiToDouble(),
-               RelocInfo::CODE_TARGET, instr);
-    } else if (IsFastDoubleElementsKind(from_kind)) {
-      CallCode(isolate()->builtins()->TransitionElementsDoubleToObject(),
-               RelocInfo::CODE_TARGET, instr);
-    }
-  } else {
-    UNREACHABLE();
   }
   __ Bind(&not_applicable);
 }

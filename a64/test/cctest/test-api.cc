@@ -49,6 +49,7 @@
 #include "snapshot.h"
 #include "unicode-inl.h"
 #include "utils.h"
+#include "vm-state.h"
 
 static const bool kLogThreading = false;
 
@@ -620,6 +621,41 @@ TEST(MakingExternalAsciiStringConditions) {
 }
 
 
+TEST(MakingExternalUnalignedAsciiString) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+  CompileRun("function cons(a, b) { return a + b; }"
+             "function slice(a) { return a.substring(1); }");
+  // Create a cons string that will land in old pointer space.
+  Local<String> cons = Local<String>::Cast(CompileRun(
+      "cons('abcdefghijklm', 'nopqrstuvwxyz');"));
+  // Create a sliced string that will land in old pointer space.
+  Local<String> slice = Local<String>::Cast(CompileRun(
+      "slice('abcdefghijklmnopqrstuvwxyz');"));
+
+  // Trigger GCs so that the newly allocated string moves to old gen.
+  SimulateFullSpace(HEAP->old_pointer_space());
+  HEAP->CollectGarbage(i::NEW_SPACE);  // in survivor space now
+  HEAP->CollectGarbage(i::NEW_SPACE);  // in old gen now
+
+  // Turn into external string with unaligned resource data.
+  int dispose_count = 0;
+  const char* c_cons = "_abcdefghijklmnopqrstuvwxyz";
+  bool success = cons->MakeExternal(
+      new TestAsciiResource(i::StrDup(c_cons) + 1, &dispose_count));
+  CHECK(success);
+  const char* c_slice = "_bcdefghijklmnopqrstuvwxyz";
+  success = slice->MakeExternal(
+      new TestAsciiResource(i::StrDup(c_slice) + 1, &dispose_count));
+  CHECK(success);
+
+  // Trigger GCs and force evacuation.
+  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
+  HEAP->CollectAllGarbage(i::Heap::kReduceMemoryFootprintMask);
+}
+
+
 THREADED_TEST(UsingExternalString) {
   i::Factory* factory = i::Isolate::Current()->factory();
   {
@@ -848,8 +884,8 @@ static void CheckReturnValue(const T& t, i::Address callback) {
   // VMState is set to EXTERNAL.
   if (isolate->cpu_profiler()->is_profiling()) {
     CHECK_EQ(i::EXTERNAL, isolate->current_vm_state());
-    CHECK(isolate->external_callback());
-    CHECK_EQ(callback, isolate->external_callback());
+    CHECK(isolate->external_callback_scope());
+    CHECK_EQ(callback, isolate->external_callback_scope()->callback());
   }
 }
 

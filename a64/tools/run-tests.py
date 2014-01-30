@@ -312,7 +312,8 @@ def Execute(arch, mode, args, options, suites, workspace):
     "arch": arch,
     "system": utils.GuessOS(),
     "isolates": options.isolates,
-    "simulator_run": simulator_run
+    "simulator_run": simulator_run,
+    "deopt_fuzzer": False,
   }
   all_tests = []
   num_tests = 0

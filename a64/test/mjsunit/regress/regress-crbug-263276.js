@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2013 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,26 +25,22 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Platform and architecture specific thread local store functions.
+// Flags: --allow-natives-syntax
 
-#ifndef V8_PLATFORM_TLS_H_
-#define V8_PLATFORM_TLS_H_
+var array1 = [];
+array1.foo = true;
 
-#ifndef V8_NO_FAST_TLS
+var array2 = [];
+array2.bar = true;
 
-// When fast TLS is requested we include the appropriate
-// implementation header.
-//
-// The implementation header defines V8_FAST_TLS_SUPPORTED if it
-// provides fast TLS support for the current platform and architecture
-// combination.
+function bad(array) {
+  array[array.length] = 1;
+}
 
-#if defined(_MSC_VER) && (defined(_WIN32) || defined(_WIN64))
-#include "platform-tls-win32.h"
-#elif defined(__APPLE__)
-#include "platform-tls-mac.h"
-#endif
-
-#endif
-
-#endif  // V8_PLATFORM_TLS_H_
+bad(array1);
+bad(array1);
+bad(array2);  // Length is now 1.
+bad(array2);  // Length is now 2.
+%OptimizeFunctionOnNextCall(bad);
+bad(array2);  // Length is now 3.
+assertEquals(3, array2.length);

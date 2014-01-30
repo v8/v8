@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2013 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,38 +25,25 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_PLATFORM_TLS_WIN32_H_
-#define V8_PLATFORM_TLS_WIN32_H_
-
-#include "checks.h"
-#include "globals.h"
-#include "win32-headers.h"
-
-namespace v8 {
-namespace internal {
-
-#if defined(_WIN32) && !defined(_WIN64)
-
-#define V8_FAST_TLS_SUPPORTED 1
-
-inline intptr_t InternalGetExistingThreadLocal(intptr_t index) {
-  const intptr_t kTibInlineTlsOffset = 0xE10;
-  const intptr_t kTibExtraTlsOffset = 0xF94;
-  const intptr_t kMaxInlineSlots = 64;
-  const intptr_t kMaxSlots = kMaxInlineSlots + 1024;
-  ASSERT(0 <= index && index < kMaxSlots);
-  if (index < kMaxInlineSlots) {
-    return static_cast<intptr_t>(__readfsdword(kTibInlineTlsOffset +
-                                               kPointerSize * index));
+function testPrepareStackTrace(closure) {
+  var error = undefined;
+  try {
+    closure();
+    assertUnreachable();
+  } catch (e) {
+    error = e;
   }
-  intptr_t extra = static_cast<intptr_t>(__readfsdword(kTibExtraTlsOffset));
-  ASSERT(extra != 0);
-  return *reinterpret_cast<intptr_t*>(extra +
-                                      kPointerSize * (index - kMaxInlineSlots));
+
+  // We expect custom formatting to be lazy. Setting the custom
+  // function right before calling error.stack should be fine.
+  Error.prepareStackTrace = function(e, frames) {
+    return "bar";
+  }
+
+  assertEquals("bar", error.stack);
+  Error.prepareStackTrace = undefined;
 }
 
-#endif
+testPrepareStackTrace(function() { throw new Error("foo"); });
+testPrepareStackTrace(function f() { f(); });
 
-} }  // namespace v8::internal
-
-#endif  // V8_PLATFORM_TLS_WIN32_H_

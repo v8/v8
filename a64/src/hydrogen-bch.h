@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2013 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,38 +25,31 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_PLATFORM_TLS_MAC_H_
-#define V8_PLATFORM_TLS_MAC_H_
+#ifndef V8_HYDROGEN_BCH_H_
+#define V8_HYDROGEN_BCH_H_
 
-#include "globals.h"
+#include "hydrogen.h"
 
 namespace v8 {
 namespace internal {
 
-#if V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64
 
-#define V8_FAST_TLS_SUPPORTED 1
+class HBoundsCheckHoistingPhase : public HPhase {
+ public:
+  explicit HBoundsCheckHoistingPhase(HGraph* graph)
+      : HPhase("H_Bounds checks hoisting", graph) { }
 
-extern intptr_t kMacTlsBaseOffset;
+  void Run() {
+    HoistRedundantBoundsChecks();
+  }
 
-INLINE(intptr_t InternalGetExistingThreadLocal(intptr_t index));
+ private:
+  void HoistRedundantBoundsChecks();
 
-inline intptr_t InternalGetExistingThreadLocal(intptr_t index) {
-  intptr_t result;
-#if V8_HOST_ARCH_IA32
-  asm("movl %%gs:(%1,%2,4), %0;"
-      :"=r"(result)  // Output must be a writable register.
-      :"r"(kMacTlsBaseOffset), "r"(index));
-#else
-  asm("movq %%gs:(%1,%2,8), %0;"
-      :"=r"(result)
-      :"r"(kMacTlsBaseOffset), "r"(index));
-#endif
-  return result;
-}
+  DISALLOW_COPY_AND_ASSIGN(HBoundsCheckHoistingPhase);
+};
 
-#endif
 
 } }  // namespace v8::internal
 
-#endif  // V8_PLATFORM_TLS_MAC_H_
+#endif  // V8_HYDROGEN_BCE_H_

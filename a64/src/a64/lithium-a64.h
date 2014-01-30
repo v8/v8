@@ -40,15 +40,10 @@ namespace internal {
 // Forward declarations.
 class LCodeGen;
 
-#define LITHIUM_ALL_INSTRUCTION_LIST(V)         \
-  V(ControlInstruction)                         \
-  V(Call)                                       \
-  LITHIUM_CONCRETE_INSTRUCTION_LIST(V)
-
-
 #define LITHIUM_CONCRETE_INSTRUCTION_LIST(V)    \
   V(AccessArgumentsAt)                          \
   V(AddI)                                       \
+  V(AddS)                                       \
   V(Allocate)                                   \
   V(ApplyArguments)                             \
   V(ArgumentsElements)                          \
@@ -56,6 +51,7 @@ class LCodeGen;
   V(ArithmeticD)                                \
   V(ArithmeticT)                                \
   V(BitI)                                       \
+  V(BitS)                                       \
   V(BitNotI)                                    \
   V(BoundsCheck)                                \
   V(Branch)                                     \
@@ -71,18 +67,19 @@ class LCodeGen;
   V(CallStub)                                   \
   V(CheckFunction)                              \
   V(CheckInstanceType)                          \
-  V(CheckNonSmi)                                \
   V(CheckMaps)                                  \
+  V(CheckMapValue)                              \
+  V(CheckNonSmi)                                \
   V(CheckPrototypeMaps)                         \
   V(CheckSmi)                                   \
   V(ClampDToUint8)                              \
   V(ClampIToUint8)                              \
   V(ClampTToUint8)                              \
   V(ClassOfTestAndBranch)                       \
-  V(CompareNumericAndBranch)                    \
   V(CmpMapAndBranch)                            \
   V(CmpObjectEqAndBranch)                       \
   V(CmpT)                                       \
+  V(CompareNumericAndBranch)                    \
   V(ConstantD)                                  \
   V(ConstantI)                                  \
   V(ConstantS)                                  \
@@ -117,14 +114,15 @@ class LCodeGen;
   V(IsConstructCallAndBranch)                   \
   V(IsNumberAndBranch)                          \
   V(IsObjectAndBranch)                          \
-  V(IsStringAndBranch)                          \
   V(IsSmiAndBranch)                             \
+  V(IsStringAndBranch)                          \
   V(IsUndetectableAndBranch)                    \
   V(Label)                                      \
   V(LazyBailout)                                \
   V(LinkObjectInList)                           \
   V(LoadContextSlot)                            \
   V(LoadExternalArrayPointer)                   \
+  V(LoadFieldByIndex)                           \
   V(LoadFunctionPrototype)                      \
   V(LoadGlobalCell)                             \
   V(LoadGlobalGeneric)                          \
@@ -137,8 +135,8 @@ class LCodeGen;
   V(LoadNamedGeneric)                           \
   V(MapEnumLength)                              \
   V(MathAbs)                                    \
-  V(MathCos)                                    \
   V(MathAbsTagged)                              \
+  V(MathCos)                                    \
   V(MathExp)                                    \
   V(MathFloor)                                  \
   V(MathFloorOfDiv)                             \
@@ -152,6 +150,7 @@ class LCodeGen;
   V(ModI)                                       \
   V(MulConstI)                                  \
   V(MulI)                                       \
+  V(MulS)                                       \
   V(NumberTagD)                                 \
   V(NumberTagU)                                 \
   V(NumberUntagD)                               \
@@ -195,8 +194,6 @@ class LCodeGen;
   V(Uint32ToDouble)                             \
   V(UnknownOSRValue)                            \
   V(ValueOf)                                    \
-  V(CheckMapValue)                              \
-  V(LoadFieldByIndex)                           \
   V(WrapReceiver)
 
 
@@ -584,6 +581,21 @@ class LAddI: public LTemplateInstruction<1, 2, 0> {
 };
 
 
+class LAddS: public LTemplateInstruction<1, 2, 0> {
+ public:
+  LAddS(LOperand* left, LOperand* right) {
+    inputs_[0] = left;
+    inputs_[1] = right;
+  }
+
+  LOperand* left() { return inputs_[0]; }
+  LOperand* right() { return inputs_[1]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(AddS, "add-s")
+  DECLARE_HYDROGEN_ACCESSOR(Add)
+};
+
+
 class LAllocate: public LTemplateInstruction<1, 1, 2> {
  public:
   // TODO(jbramley): On ia32, this takes a context, and it is used by the
@@ -720,6 +732,23 @@ class LBitI: public LTemplateInstruction<1, 2, 0> {
   Token::Value op() const { return hydrogen()->op(); }
 
   DECLARE_CONCRETE_INSTRUCTION(BitI, "bit-i")
+  DECLARE_HYDROGEN_ACCESSOR(Bitwise)
+};
+
+
+class LBitS: public LTemplateInstruction<1, 2, 0> {
+ public:
+  LBitS(LOperand* left, LOperand* right) {
+    inputs_[0] = left;
+    inputs_[1] = right;
+  }
+
+  LOperand* left() { return inputs_[0]; }
+  LOperand* right() { return inputs_[1]; }
+
+  Token::Value op() const { return hydrogen()->op(); }
+
+  DECLARE_CONCRETE_INSTRUCTION(BitS, "bit-s")
   DECLARE_HYDROGEN_ACCESSOR(Bitwise)
 };
 
@@ -921,7 +950,7 @@ class LCheckInstanceType: public LTemplateInstruction<0, 1, 1> {
 
 class LCheckMaps: public LTemplateInstruction<0, 1, 1> {
  public:
-  explicit LCheckMaps(LOperand* value, LOperand* temp) {
+  explicit LCheckMaps(LOperand* value, LOperand* temp = NULL) {
     inputs_[0] = value;
     temps_[0] = temp;
   }
@@ -949,7 +978,7 @@ class LCheckNonSmi: public LTemplateInstruction<0, 1, 0> {
 
 class LCheckPrototypeMaps: public LTemplateInstruction<0, 0, 2> {
  public:
-  explicit LCheckPrototypeMaps(LOperand* temp1, LOperand* temp2) {
+  LCheckPrototypeMaps(LOperand* temp1 = NULL, LOperand* temp2 = NULL) {
     temps_[0] = temp1;
     temps_[1] = temp2;
   }
@@ -1188,6 +1217,7 @@ class LDeclareGlobals: public LTemplateInstruction<0, 0, 0> {
 class LDeoptimize: public LTemplateInstruction<0, 0, 0> {
  public:
   DECLARE_CONCRETE_INSTRUCTION(Deoptimize, "deoptimize")
+  DECLARE_HYDROGEN_ACCESSOR(Deoptimize)
 };
 
 
@@ -1971,6 +2001,21 @@ class LMulI: public LTemplateInstruction<1, 2, 0> {
 };
 
 
+class LMulS: public LTemplateInstruction<1, 2, 0> {
+ public:
+  LMulS(LOperand* left, LOperand* right) {
+    inputs_[0] = left;
+    inputs_[1] = right;
+  }
+
+  LOperand* left() { return inputs_[0]; }
+  LOperand* right() { return inputs_[1]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(MulI, "mul-s")
+  DECLARE_HYDROGEN_ACCESSOR(Mul)
+};
+
+
 class LNumberTagD: public LTemplateInstruction<1, 1, 2> {
  public:
   LNumberTagD(LOperand* value, LOperand* temp1, LOperand* temp2) {
@@ -2547,7 +2592,7 @@ class LTransitionElementsKind: public LTemplateInstruction<0, 1, 2> {
  public:
   LTransitionElementsKind(LOperand* object,
                           LOperand* temp1,
-                          LOperand* temp2) {
+                          LOperand* temp2 = NULL) {
     inputs_[0] = object;
     temps_[0] = temp1;
     temps_[1] = temp2;
