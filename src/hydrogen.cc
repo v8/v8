@@ -5697,10 +5697,15 @@ void HOptimizedGraphBuilder::HandlePolymorphicLoadNamedField(
   int count = 0;
   HBasicBlock* join = NULL;
   HBasicBlock* number_block = NULL;
+  bool handled_string = false;
 
   bool handle_smi = false;
   for (int i = 0; i < types->length() && count < kMaxLoadPolymorphism; ++i) {
     PropertyAccessInfo info(this, IC::MapToType(types->at(i)), name);
+    if (info.type()->Is(HeapType::String())) {
+      if (handled_string) continue;
+      handled_string = true;
+    }
     if (info.CanLoadMonomorphic()) {
       count++;
       if (info.type()->Is(HeapType::Number())) {
@@ -5711,8 +5716,8 @@ void HOptimizedGraphBuilder::HandlePolymorphicLoadNamedField(
   }
 
   count = 0;
-  bool handled_string = false;
   HControlInstruction* smi_check = NULL;
+  handled_string = false;
 
   for (int i = 0; i < types->length() && count < kMaxLoadPolymorphism; ++i) {
     PropertyAccessInfo info(this, IC::MapToType(types->at(i)), name);
