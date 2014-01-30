@@ -3675,12 +3675,29 @@ typename Traits::ElementType FixedTypedArray<Traits>::get_scalar(int index) {
   return ptr[index];
 }
 
+
+template<> inline
+FixedTypedArray<Float64ArrayTraits>::ElementType
+    FixedTypedArray<Float64ArrayTraits>::get_scalar(int index) {
+  ASSERT((index >= 0) && (index < this->length()));
+  return READ_DOUBLE_FIELD(this, ElementOffset(index));
+}
+
+
 template <class Traits>
 void FixedTypedArray<Traits>::set(int index, ElementType value) {
   ASSERT((index >= 0) && (index < this->length()));
   ElementType* ptr = reinterpret_cast<ElementType*>(
       FIELD_ADDR(this, kDataOffset));
   ptr[index] = value;
+}
+
+
+template<> inline
+void FixedTypedArray<Float64ArrayTraits>::set(
+    int index, Float64ArrayTraits::ElementType value) {
+  ASSERT((index >= 0) && (index < this->length()));
+  WRITE_DOUBLE_FIELD(this, ElementOffset(index), value);
 }
 
 
