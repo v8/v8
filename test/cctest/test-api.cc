@@ -488,11 +488,14 @@ class TestResource: public String::ExternalStringResource {
 
 class TestAsciiResource: public String::ExternalAsciiStringResource {
  public:
-  explicit TestAsciiResource(const char* data, int* counter = NULL)
-    : data_(data), length_(strlen(data)), counter_(counter) { }
+  TestAsciiResource(const char* data, int* counter = NULL, size_t offset = 0)
+      : orig_data_(data),
+        data_(data + offset),
+        length_(strlen(data) - offset),
+        counter_(counter) { }
 
   ~TestAsciiResource() {
-    i::DeleteArray(data_);
+    i::DeleteArray(orig_data_);
     if (counter_ != NULL) ++*counter_;
   }
 
@@ -503,7 +506,9 @@ class TestAsciiResource: public String::ExternalAsciiStringResource {
   size_t length() const {
     return length_;
   }
+
  private:
+  const char* orig_data_;
   const char* data_;
   size_t length_;
   int* counter_;
@@ -733,11 +738,11 @@ TEST(MakingExternalUnalignedAsciiString) {
   int dispose_count = 0;
   const char* c_cons = "_abcdefghijklmnopqrstuvwxyz";
   bool success = cons->MakeExternal(
-      new TestAsciiResource(i::StrDup(c_cons) + 1, &dispose_count));
+      new TestAsciiResource(i::StrDup(c_cons), &dispose_count, 1));
   CHECK(success);
   const char* c_slice = "_bcdefghijklmnopqrstuvwxyz";
   success = slice->MakeExternal(
-      new TestAsciiResource(i::StrDup(c_slice) + 1, &dispose_count));
+      new TestAsciiResource(i::StrDup(c_slice), &dispose_count, 1));
   CHECK(success);
 
   // Trigger GCs and force evacuation.
