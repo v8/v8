@@ -1287,6 +1287,13 @@ HValue* HGraphBuilder::BuildCheckString(HValue* string) {
 
 HValue* HGraphBuilder::BuildWrapReceiver(HValue* object, HValue* function) {
   if (object->type().IsJSObject()) return object;
+  if (function->IsConstant() &&
+      HConstant::cast(function)->handle(isolate())->IsJSFunction()) {
+    Handle<JSFunction> f = Handle<JSFunction>::cast(
+        HConstant::cast(function)->handle(isolate()));
+    SharedFunctionInfo* shared = f->shared();
+    if (!shared->is_classic_mode() || shared->native()) return object;
+  }
   return Add<HWrapReceiver>(object, function);
 }
 

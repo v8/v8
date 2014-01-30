@@ -3692,6 +3692,8 @@ class HWrapReceiver V8_FINAL : public HTemplateInstruction<2> {
  public:
   DECLARE_INSTRUCTION_FACTORY_P2(HWrapReceiver, HValue*, HValue*);
 
+  virtual bool DataEquals(HValue* other) V8_OVERRIDE { return true; }
+
   virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
     return Representation::Tagged();
   }
@@ -3702,15 +3704,21 @@ class HWrapReceiver V8_FINAL : public HTemplateInstruction<2> {
   virtual HValue* Canonicalize() V8_OVERRIDE;
 
   virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
+  bool known_function() const { return known_function_; }
 
   DECLARE_CONCRETE_INSTRUCTION(WrapReceiver)
 
  private:
   HWrapReceiver(HValue* receiver, HValue* function) {
+    known_function_ = function->IsConstant() &&
+        HConstant::cast(function)->handle(function->isolate())->IsJSFunction();
     set_representation(Representation::Tagged());
     SetOperandAt(0, receiver);
     SetOperandAt(1, function);
+    SetFlag(kUseGVN);
   }
+
+  bool known_function_;
 };
 
 

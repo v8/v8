@@ -3581,26 +3581,28 @@ void LCodeGen::DoArgumentsLength(LArgumentsLength* instr) {
 void LCodeGen::DoWrapReceiver(LWrapReceiver* instr) {
   Register receiver = ToRegister(instr->receiver());
   Register function = ToRegister(instr->function());
-  Register scratch = ToRegister(instr->temp());
 
   // If the receiver is null or undefined, we have to pass the global
   // object as a receiver to normal functions. Values have to be
   // passed unchanged to builtins and strict-mode functions.
   Label receiver_ok, global_object;
   Label::Distance dist = DeoptEveryNTimes() ? Label::kFar : Label::kNear;
+  Register scratch = ToRegister(instr->temp());
 
-  // Do not transform the receiver to object for strict mode
-  // functions.
-  __ mov(scratch,
-         FieldOperand(function, JSFunction::kSharedFunctionInfoOffset));
-  __ test_b(FieldOperand(scratch, SharedFunctionInfo::kStrictModeByteOffset),
-            1 << SharedFunctionInfo::kStrictModeBitWithinByte);
-  __ j(not_equal, &receiver_ok, dist);
+  if (!instr->hydrogen()->known_function()) {
+    // Do not transform the receiver to object for strict mode
+    // functions.
+    __ mov(scratch,
+           FieldOperand(function, JSFunction::kSharedFunctionInfoOffset));
+    __ test_b(FieldOperand(scratch, SharedFunctionInfo::kStrictModeByteOffset),
+              1 << SharedFunctionInfo::kStrictModeBitWithinByte);
+    __ j(not_equal, &receiver_ok, dist);
 
-  // Do not transform the receiver to object for builtins.
-  __ test_b(FieldOperand(scratch, SharedFunctionInfo::kNativeByteOffset),
-            1 << SharedFunctionInfo::kNativeBitWithinByte);
-  __ j(not_equal, &receiver_ok, dist);
+    // Do not transform the receiver to object for builtins.
+    __ test_b(FieldOperand(scratch, SharedFunctionInfo::kNativeByteOffset),
+              1 << SharedFunctionInfo::kNativeBitWithinByte);
+    __ j(not_equal, &receiver_ok, dist);
+  }
 
   // Normal function. Replace undefined or null with global receiver.
   __ cmp(receiver, factory()->null_value());
@@ -3613,14 +3615,14 @@ void LCodeGen::DoWrapReceiver(LWrapReceiver* instr) {
   DeoptimizeIf(equal, instr->environment());
   __ CmpObjectType(receiver, FIRST_SPEC_OBJECT_TYPE, scratch);
   DeoptimizeIf(below, instr->environment());
-  __ jmp(&receiver_ok, Label::kNear);
 
+  __ jmp(&receiver_ok, Label::kNear);
   __ bind(&global_object);
   __ mov(receiver, FieldOperand(function, JSFunction::kContextOffset));
-  __ mov(receiver,
-         Operand(receiver, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
-  __ mov(receiver, FieldOperand(receiver, GlobalObject::kGlobalReceiverOffset));
-
+  const int global_offset = Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX);
+  __ mov(receiver, Operand(receiver, global_offset));
+  const int receiver_offset = GlobalObject::kGlobalReceiverOffset;
+  __ mov(receiver, FieldOperand(receiver, receiver_offset));
   __ bind(&receiver_ok);
 }
 
