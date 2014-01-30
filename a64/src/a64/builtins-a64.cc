@@ -1115,7 +1115,6 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   // x4: call type (0: JS function, 1: function proxy, 2: non-function)
   { Label function, non_proxy;
     __ Cbz(x4, &function);
-    ASM_UNIMPLEMENTED("Builtins::Generate_FunctionCall non-function");
     // Expected number of arguments is 0 for CALL_NON_FUNCTION.
     __ Mov(x2, 0);
     __ SetCallKind(x5, CALL_AS_METHOD);
