@@ -3304,19 +3304,21 @@ void LCodeGen::DoWrapReceiver(LWrapReceiver* instr) {
   // passed unchanged to builtins and strict-mode functions.
   Label global_object, result_in_receiver;
 
-  // Do not transform the receiver to object for strict mode
-  // functions.
-  __ lw(scratch,
-         FieldMemOperand(function, JSFunction::kSharedFunctionInfoOffset));
-  __ lw(scratch,
-         FieldMemOperand(scratch, SharedFunctionInfo::kCompilerHintsOffset));
+  if (!instr->hydrogen()->known_function()) {
+    // Do not transform the receiver to object for strict mode
+    // functions.
+    __ lw(scratch,
+           FieldMemOperand(function, JSFunction::kSharedFunctionInfoOffset));
+    __ lw(scratch,
+           FieldMemOperand(scratch, SharedFunctionInfo::kCompilerHintsOffset));
 
-  // Do not transform the receiver to object for builtins.
-  int32_t strict_mode_function_mask =
-                  1 <<  (SharedFunctionInfo::kStrictModeFunction + kSmiTagSize);
-  int32_t native_mask = 1 << (SharedFunctionInfo::kNative + kSmiTagSize);
-  __ And(scratch, scratch, Operand(strict_mode_function_mask | native_mask));
-  __ Branch(&result_in_receiver, ne, scratch, Operand(zero_reg));
+    // Do not transform the receiver to object for builtins.
+    int32_t strict_mode_function_mask =
+        1 <<  (SharedFunctionInfo::kStrictModeFunction + kSmiTagSize);
+    int32_t native_mask = 1 << (SharedFunctionInfo::kNative + kSmiTagSize);
+    __ And(scratch, scratch, Operand(strict_mode_function_mask | native_mask));
+    __ Branch(&result_in_receiver, ne, scratch, Operand(zero_reg));
+  }
 
   // Normal function. Replace undefined or null with global receiver.
   __ LoadRoot(scratch, Heap::kNullValueRootIndex);
@@ -3331,8 +3333,8 @@ void LCodeGen::DoWrapReceiver(LWrapReceiver* instr) {
   __ GetObjectType(receiver, scratch, scratch);
   DeoptimizeIf(lt, instr->environment(),
                scratch, Operand(FIRST_SPEC_OBJECT_TYPE));
-  __ Branch(&result_in_receiver);
 
+  __ Branch(&result_in_receiver);
   __ bind(&global_object);
   __ lw(result, FieldMemOperand(function, JSFunction::kContextOffset));
   __ lw(result,
