@@ -1132,8 +1132,13 @@ void V8HeapExplorer::ExtractJSObjectReferences(
                          "native_context", global_obj->native_context(),
                          GlobalObject::kNativeContextOffset);
     SetInternalReference(global_obj, entry,
+                         "global_context", global_obj->global_context(),
+                         GlobalObject::kGlobalContextOffset);
+    SetInternalReference(global_obj, entry,
                          "global_receiver", global_obj->global_receiver(),
                          GlobalObject::kGlobalReceiverOffset);
+    STATIC_CHECK(GlobalObject::kHeaderSize - JSObject::kHeaderSize ==
+                 4 * kPointerSize);
   } else if (obj->IsJSArrayBufferView()) {
     JSArrayBufferView* view = JSArrayBufferView::cast(obj);
     SetInternalReference(view, entry, "buffer", view->buffer(),

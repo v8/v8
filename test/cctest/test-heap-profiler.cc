@@ -1537,6 +1537,30 @@ TEST(GlobalObjectName) {
 }
 
 
+TEST(GlobalObjectFields) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+  v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
+  CompileRun("obj = {};");
+  const v8::HeapSnapshot* snapshot =
+      heap_profiler->TakeHeapSnapshot(v8_str("snapshot"));
+  CHECK(ValidateSnapshot(snapshot));
+  const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
+  const v8::HeapGraphNode* builtins =
+      GetProperty(global, v8::HeapGraphEdge::kInternal, "builtins");
+  CHECK_NE(NULL, builtins);
+  const v8::HeapGraphNode* native_context =
+      GetProperty(global, v8::HeapGraphEdge::kInternal, "native_context");
+  CHECK_NE(NULL, native_context);
+  const v8::HeapGraphNode* global_context =
+      GetProperty(global, v8::HeapGraphEdge::kInternal, "global_context");
+  CHECK_NE(NULL, global_context);
+  const v8::HeapGraphNode* global_receiver =
+      GetProperty(global, v8::HeapGraphEdge::kInternal, "global_receiver");
+  CHECK_NE(NULL, global_receiver);
+}
+
+
 TEST(NoHandleLeaks) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
