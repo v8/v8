@@ -245,14 +245,18 @@ void StubCompiler::GenerateDirectLoadGlobalFunctionPrototype(
     Register prototype,
     Label* miss) {
   Isolate* isolate = masm->isolate();
-  // Check we're still in the same context.
-  __ Move(prototype, isolate->global_object());
-  __ cmpq(Operand(rsi, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)),
-          prototype);
-  __ j(not_equal, miss);
   // Get the global function with the given index.
   Handle<JSFunction> function(
       JSFunction::cast(isolate->native_context()->get(index)));
+
+  // Check we're still in the same context.
+  Register scratch = prototype;
+  const int offset = Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX);
+  __ movp(scratch, Operand(rsi, offset));
+  __ movp(scratch, FieldOperand(scratch, GlobalObject::kNativeContextOffset));
+  __ Cmp(Operand(scratch, Context::SlotOffset(index)), function);
+  __ j(not_equal, miss);
+
   // Load its initial map. The global functions all have initial maps.
   __ Move(prototype, Handle<Map>(function->initial_map()));
   // Load the prototype from the initial map.
