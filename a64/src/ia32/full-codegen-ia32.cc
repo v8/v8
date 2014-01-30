@@ -3685,7 +3685,7 @@ void FullCodeGenerator::EmitStringAdd(CallRuntime* expr) {
   VisitForStackValue(args->at(0));
   VisitForStackValue(args->at(1));
 
-  StringAddStub stub(NO_STRING_ADD_FLAGS);
+  StringAddStub stub(STRING_ADD_CHECK_BOTH);
   __ CallStub(&stub);
   context()->Plug(eax);
 }
@@ -4045,7 +4045,7 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) {
   __ movzx_b(scratch, FieldOperand(scratch, Map::kInstanceTypeOffset));
   __ and_(scratch, Immediate(
       kIsNotStringMask | kStringEncodingMask | kStringRepresentationMask));
-  __ cmp(scratch, ASCII_STRING_TYPE);
+  __ cmp(scratch, kStringTag | kOneByteStringTag | kSeqStringTag);
   __ j(not_equal, &bailout);
 
   // Add (separator length times array_length) - separator length

@@ -3471,7 +3471,7 @@ void FullCodeGenerator::EmitStringAdd(CallRuntime* expr) {
   VisitForStackValue(args->at(0));
   VisitForStackValue(args->at(1));
 
-  StringAddStub stub(NO_STRING_ADD_FLAGS);
+  StringAddStub stub(STRING_ADD_CHECK_BOTH);
   __ CallStub(&stub);
   context()->Plug(x0);
 }
@@ -4171,7 +4171,9 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
 
   // Call ToNumber only if operand is not a smi.
   Label no_conversion;
-  __ JumpIfSmi(x0, &no_conversion);
+  if (ShouldInlineSmiCase(expr->op())) {
+    __ JumpIfSmi(x0, &no_conversion);
+  }
   ToNumberStub convert_stub;
   __ CallStub(&convert_stub);
   __ Bind(&no_conversion);

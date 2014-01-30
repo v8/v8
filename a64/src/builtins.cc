@@ -211,15 +211,15 @@ static MaybeObject* ArrayCodeGenericCommon(Arguments* args,
     MaybeObject* maybe_array = array->Initialize(0);
     if (maybe_array->IsFailure()) return maybe_array;
 
-    AllocationSiteInfo* info = AllocationSiteInfo::FindForJSObject(array);
-    if (info != NULL && info->IsValid()) {
-      AllocationSite* site = info->GetAllocationSite();
+    AllocationMemento* memento = AllocationMemento::FindForJSObject(array);
+    if (memento != NULL && memento->IsValid()) {
+      AllocationSite* site = memento->GetAllocationSite();
       ElementsKind to_kind = site->GetElementsKind();
       if (IsMoreGeneralElementsKindTransition(array->GetElementsKind(),
                                               to_kind)) {
         // We have advice that we should change the elements kind
         if (FLAG_trace_track_allocation_sites) {
-          PrintF("AllocationSiteInfo: pre-transitioning array %p(%s->%s)\n",
+          PrintF("AllocationSite: pre-transitioning array %p(%s->%s)\n",
                  reinterpret_cast<void*>(array),
                  ElementsKindToString(array->GetElementsKind()),
                  ElementsKindToString(to_kind));

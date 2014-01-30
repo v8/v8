@@ -673,7 +673,7 @@ void StubFrame::Iterate(ObjectVisitor* v) const {
 
 
 Code* StubFrame::unchecked_code() const {
-  return static_cast<Code*>(isolate()->heap()->FindCodeObject(pc()));
+  return static_cast<Code*>(isolate()->FindCodeObject(pc()));
 }
 
 
@@ -783,7 +783,7 @@ void JavaScriptFrame::PrintTop(Isolate* isolate,
       SharedFunctionInfo* shared = fun->shared();
       if (print_line_number) {
         Code* code = Code::cast(
-            v8::internal::Isolate::Current()->heap()->FindCodeObject(pc));
+            v8::internal::Isolate::Current()->FindCodeObject(pc));
         int source_pos = code->SourcePosition(pc);
         Object* maybe_script = shared->script();
         if (maybe_script->IsScript()) {

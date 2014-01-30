@@ -921,11 +921,6 @@ void LCodeGen::DoCallStub(LCallStub* instr) {
       CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
       break;
     }
-    case CodeStub::StringAdd: {
-      StringAddStub stub(NO_STRING_ADD_FLAGS);
-      CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
-      break;
-    }
     case CodeStub::StringCompare: {
       StringCompareStub stub;
       CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
@@ -2600,6 +2595,16 @@ void LCodeGen::DoStoreGlobalGeneric(LStoreGlobalGeneric* instr) {
       ? isolate()->builtins()->StoreIC_Initialize_Strict()
       : isolate()->builtins()->StoreIC_Initialize();
   CallCode(ic, RelocInfo::CODE_TARGET_CONTEXT, instr);
+}
+
+
+void LCodeGen::DoLinkObjectInList(LLinkObjectInList* instr) {
+  Register object = ToRegister(instr->object());
+  ExternalReference sites_list_address = instr->GetReference(isolate());
+  __ Load(kScratchRegister, sites_list_address);
+  __ movq(FieldOperand(object, instr->hydrogen()->store_field().offset()),
+          kScratchRegister);
+  __ Store(sites_list_address, object);
 }
 
 
@@ -4306,7 +4311,7 @@ void LCodeGen::DoTransitionElementsKind(LTransitionElementsKind* instr) {
 void LCodeGen::DoTrapAllocationMemento(LTrapAllocationMemento* instr) {
   Register object = ToRegister(instr->object());
   Register temp = ToRegister(instr->temp());
-  __ TestJSArrayForAllocationSiteInfo(object, temp);
+  __ TestJSArrayForAllocationMemento(object, temp);
   DeoptimizeIf(equal, instr->environment());
 }
 
@@ -4314,7 +4319,7 @@ void LCodeGen::DoTrapAllocationMemento(LTrapAllocationMemento* instr) {
 void LCodeGen::DoStringAdd(LStringAdd* instr) {
   EmitPushTaggedOperand(instr->left());
   EmitPushTaggedOperand(instr->right());
-  StringAddStub stub(NO_STRING_CHECK_IN_STUB);
+  StringAddStub stub(instr->hydrogen()->flags());
   CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
 }
 
@@ -5070,6 +5075,23 @@ void LCodeGen::DoAllocate(LAllocate* instr) {
   }
 
   __ bind(deferred->exit());
+
+  if (instr->hydrogen()->MustPrefillWithFiller()) {
+    if (instr->size()->IsConstantOperand()) {
+      int32_t size = ToInteger32(LConstantOperand::cast(instr->size()));
+      __ movl(temp, Immediate((size / kPointerSize) - 1));
+    } else {
+      temp = ToRegister(instr->size());
+      __ sar(temp, Immediate(kPointerSizeLog2));
+      __ decl(temp);
+    }
+    Label loop;
+    __ bind(&loop);
+    __ Move(FieldOperand(result, temp, times_pointer_size, 0),
+        isolate()->factory()->one_pointer_filler_map());
+    __ decl(temp);
+    __ j(not_zero, &loop);
+  }
 }
 
 

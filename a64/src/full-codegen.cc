@@ -379,7 +379,7 @@ unsigned FullCodeGenerator::EmitBackEdgeTable() {
   for (unsigned i = 0; i < length; ++i) {
     __ dd(back_edges_[i].id.ToInt());
     __ dd(back_edges_[i].pc);
-    __ db(back_edges_[i].loop_depth);
+    __ dd(back_edges_[i].loop_depth);
   }
   return offset;
 }
@@ -1605,7 +1605,7 @@ bool FullCodeGenerator::TryLiteralCompare(CompareOperation* expr) {
     return true;
   }
 
-  if (expr->IsLiteralCompareUndefined(&sub_expr)) {
+  if (expr->IsLiteralCompareUndefined(&sub_expr, isolate())) {
     EmitLiteralCompareNil(expr, sub_expr, kUndefinedValue);
     return true;
   }

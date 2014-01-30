@@ -563,16 +563,15 @@ Handle<Code> StubCache::ComputeStoreGlobal(Handle<Name> name,
       Code::STORE_IC, Code::NORMAL, stub.GetExtraICState());
   if (!code.is_null()) return code;
 
-  if (is_constant) return stub.GetCode(isolate_);
-
   // Replace the placeholder cell and global object map with the actual global
   // cell and receiver map.
-  Handle<Map> cell_map(isolate_->heap()->global_property_cell_map());
   Handle<Map> meta_map(isolate_->heap()->meta_map());
   Handle<Object> receiver_map(receiver->map(), isolate_);
   code = stub.GetCodeCopyFromTemplate(isolate_);
   code->ReplaceNthObject(1, *meta_map, *receiver_map);
+  Handle<Map> cell_map(isolate_->heap()->global_property_cell_map());
   code->ReplaceNthObject(1, *cell_map, *cell);
+
   JSObject::UpdateMapCodeCache(receiver, name, code);
 
   return code;
@@ -1539,7 +1538,7 @@ Handle<Code> StubCompiler::GetCodeWithFlags(Code::Flags flags,
                                             Handle<Name> name) {
   return (FLAG_print_code_stubs && !name.is_null() && name->IsString())
       ? GetCodeWithFlags(flags, *Handle<String>::cast(name)->ToCString())
-      : GetCodeWithFlags(flags, reinterpret_cast<char*>(NULL));
+      : GetCodeWithFlags(flags, NULL);
 }
 
 
@@ -1993,12 +1992,21 @@ Handle<Code> KeyedStoreStubCompiler::CompileStoreElementPolymorphic(
     bool is_js_array = receiver_map->instance_type() == JS_ARRAY_TYPE;
     ElementsKind elements_kind = receiver_map->elements_kind();
     if (!transitioned_map.is_null()) {
-      cached_stub = ElementsTransitionAndStoreStub(
-          elements_kind,
-          transitioned_map->elements_kind(),
-          is_js_array,
-          strict_mode(),
-          store_mode_).GetCode(isolate());
+      if (FLAG_compiled_transitions) {
+        cached_stub = ElementsTransitionAndStoreStub(
+            elements_kind,
+            transitioned_map->elements_kind(),
+            is_js_array,
+            store_mode_).GetCode(isolate());
+      } else {
+        // TODO(bmeurer) Remove this when compiled transitions is enabled
+        cached_stub = ElementsTransitionAndStorePlatformStub(
+            elements_kind,
+            transitioned_map->elements_kind(),
+            is_js_array,
+            strict_mode(),
+            store_mode_).GetCode(isolate());
+      }
     } else {
       if (FLAG_compiled_keyed_stores &&
           (receiver_map->has_fast_elements() ||

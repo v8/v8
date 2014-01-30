@@ -3209,9 +3209,13 @@ void MacroAssembler::AllocateAsciiSlicedString(Register result,
 
 void MacroAssembler::JumpIfNotUniqueName(Register reg,
                                          Label* not_unique_name) {
-  STATIC_ASSERT(((SYMBOL_TYPE - 1) & kIsInternalizedMask) == kInternalizedTag);
-  Branch(not_unique_name, lt, reg, Operand(kIsInternalizedMask));
-  Branch(not_unique_name, gt, reg, Operand(SYMBOL_TYPE));
+  STATIC_ASSERT(kInternalizedTag == 0 && kStringTag == 0);
+  Label succeed;
+  And(at, reg, Operand(kIsNotStringMask | kIsNotInternalizedMask));
+  Branch(&succeed, eq, at, Operand(zero_reg));
+  Branch(not_unique_name, ne, reg, Operand(SYMBOL_TYPE));
+
+  bind(&succeed);
 }
 
 
@@ -4964,9 +4968,10 @@ void MacroAssembler::JumpIfBothInstanceTypesAreNotSequentialAscii(
     Register scratch1,
     Register scratch2,
     Label* failure) {
-  int kFlatAsciiStringMask =
+  const int kFlatAsciiStringMask =
       kIsNotStringMask | kStringEncodingMask | kStringRepresentationMask;
-  int kFlatAsciiStringTag = ASCII_STRING_TYPE;
+  const int kFlatAsciiStringTag =
+      kStringTag | kOneByteStringTag | kSeqStringTag;
   ASSERT(kFlatAsciiStringTag <= 0xffff);  // Ensure this fits 16-bit immed.
   andi(scratch1, first, kFlatAsciiStringMask);
   Branch(failure, ne, scratch1, Operand(kFlatAsciiStringTag));
@@ -4978,9 +4983,10 @@ void MacroAssembler::JumpIfBothInstanceTypesAreNotSequentialAscii(
 void MacroAssembler::JumpIfInstanceTypeIsNotSequentialAscii(Register type,
                                                             Register scratch,
                                                             Label* failure) {
-  int kFlatAsciiStringMask =
+  const int kFlatAsciiStringMask =
       kIsNotStringMask | kStringEncodingMask | kStringRepresentationMask;
-  int kFlatAsciiStringTag = ASCII_STRING_TYPE;
+  const int kFlatAsciiStringTag =
+      kStringTag | kOneByteStringTag | kSeqStringTag;
   And(scratch, type, Operand(kFlatAsciiStringMask));
   Branch(failure, ne, scratch, Operand(kFlatAsciiStringTag));
 }
@@ -5478,26 +5484,26 @@ void MacroAssembler::ClampDoubleToUint8(Register result_reg,
 }
 
 
-void MacroAssembler::TestJSArrayForAllocationSiteInfo(
+void MacroAssembler::TestJSArrayForAllocationMemento(
     Register receiver_reg,
     Register scratch_reg,
     Condition cond,
-    Label* allocation_info_present) {
-  Label no_info_available;
+    Label* allocation_memento_present) {
+  Label no_memento_available;
   ExternalReference new_space_start =
       ExternalReference::new_space_start(isolate());
   ExternalReference new_space_allocation_top =
       ExternalReference::new_space_allocation_top_address(isolate());
   Addu(scratch_reg, receiver_reg,
-       Operand(JSArray::kSize + AllocationSiteInfo::kSize - kHeapObjectTag));
-  Branch(&no_info_available, lt, scratch_reg, Operand(new_space_start));
+       Operand(JSArray::kSize + AllocationMemento::kSize - kHeapObjectTag));
+  Branch(&no_memento_available, lt, scratch_reg, Operand(new_space_start));
   li(at, Operand(new_space_allocation_top));
   lw(at, MemOperand(at));
-  Branch(&no_info_available, gt, scratch_reg, Operand(at));
-  lw(scratch_reg, MemOperand(scratch_reg, -AllocationSiteInfo::kSize));
-  Branch(allocation_info_present, cond, scratch_reg,
-      Operand(Handle<Map>(isolate()->heap()->allocation_site_info_map())));
-  bind(&no_info_available);
+  Branch(&no_memento_available, gt, scratch_reg, Operand(at));
+  lw(scratch_reg, MemOperand(scratch_reg, -AllocationMemento::kSize));
+  Branch(allocation_memento_present, cond, scratch_reg,
+      Operand(Handle<Map>(isolate()->heap()->allocation_memento_map())));
+  bind(&no_memento_available);
 }
 
 

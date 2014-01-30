@@ -1205,6 +1205,10 @@ Register StubCompiler::CheckPrototypes(Handle<JSObject> object,
                                        int save_at_depth,
                                        Label* miss,
                                        PrototypeCheckType check) {
+  // Make sure that the type feedback oracle harvests the receiver map.
+  // TODO(svenpanne) Remove this hack when all ICs are reworked.
+  __ Mov(scratch1, Operand(Handle<Map>(object->map())));
+
   Handle<JSObject> first = object;
 
   // object_reg and holder_reg registers can alias.

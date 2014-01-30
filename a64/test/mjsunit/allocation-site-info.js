@@ -362,9 +362,9 @@ if (support_smi_only_arrays) {
   // No de-opt will occur because HCallNewArray wasn't selected, on account of
   // the call site not being monomorphic to Array.
   instanceof_check(Array);
-  assertTrue(2 != %GetOptimizationStatus(instanceof_check));
+  assertOptimized(instanceof_check);
   instanceof_check(realmBArray);
-  assertTrue(2 != %GetOptimizationStatus(instanceof_check));
+  assertOptimized(instanceof_check);
 
   // Try to optimize again, but first clear all type feedback, and allow it
   // to be monomorphic on first call. Only after crankshafting do we introduce
@@ -375,8 +375,8 @@ if (support_smi_only_arrays) {
   instanceof_check(Array);
   %OptimizeFunctionOnNextCall(instanceof_check);
   instanceof_check(Array);
-  assertTrue(2 != %GetOptimizationStatus(instanceof_check));
+  assertOptimized(instanceof_check);
 
   instanceof_check(realmBArray);
-  assertTrue(1 != %GetOptimizationStatus(instanceof_check));
+  assertUnoptimized(instanceof_check);
 }

@@ -277,6 +277,7 @@ bool LCodeGen::GenerateBody() {
     instr->CompileToNative(this);
   }
   EnsureSpaceForLazyDeopt();
+  last_lazy_deopt_pc_ = masm()->pc_offset();
   return !is_aborted();
 }
 
@@ -676,6 +677,7 @@ void LCodeGen::CallCodeGeneric(Handle<Code> code,
                                LInstruction* instr,
                                SafepointMode safepoint_mode,
                                TargetAddressStorageMode storage_mode) {
+  EnsureSpaceForLazyDeopt();
   ASSERT(instr != NULL);
   // Block literal pool emission to ensure nop indicating no inlined smi code
   // is in the correct position.
@@ -1038,11 +1040,6 @@ void LCodeGen::DoCallStub(LCallStub* instr) {
     }
     case CodeStub::NumberToString: {
       NumberToStringStub stub;
-      CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
-      break;
-    }
-    case CodeStub::StringAdd: {
-      StringAddStub stub(NO_STRING_ADD_FLAGS);
       CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
       break;
     }
@@ -2928,6 +2925,19 @@ void LCodeGen::DoStoreGlobalGeneric(LStoreGlobalGeneric* instr) {
 }
 
 
+void LCodeGen::DoLinkObjectInList(LLinkObjectInList* instr) {
+  Register object = ToRegister(instr->object());
+  ExternalReference sites_list_address = instr->GetReference(isolate());
+
+  __ mov(ip, Operand(sites_list_address));
+  __ ldr(ip, MemOperand(ip));
+  __ str(ip, FieldMemOperand(object,
+                             instr->hydrogen()->store_field().offset()));
+  __ mov(ip, Operand(sites_list_address));
+  __ str(object, MemOperand(ip));
+}
+
+
 void LCodeGen::DoLoadContextSlot(LLoadContextSlot* instr) {
   Register context = ToRegister(instr->context());
   Register result = ToRegister(instr->result());
@@ -4518,7 +4528,7 @@ void LCodeGen::DoTransitionElementsKind(LTransitionElementsKind* instr) {
 void LCodeGen::DoTrapAllocationMemento(LTrapAllocationMemento* instr) {
   Register object = ToRegister(instr->object());
   Register temp = ToRegister(instr->temp());
-  __ TestJSArrayForAllocationSiteInfo(object, temp);
+  __ TestJSArrayForAllocationMemento(object, temp);
   DeoptimizeIf(eq, instr->environment());
 }
 
@@ -4526,7 +4536,7 @@ void LCodeGen::DoTrapAllocationMemento(LTrapAllocationMemento* instr) {
 void LCodeGen::DoStringAdd(LStringAdd* instr) {
   __ push(ToRegister(instr->left()));
   __ push(ToRegister(instr->right()));
-  StringAddStub stub(NO_STRING_CHECK_IN_STUB);
+  StringAddStub stub(instr->hydrogen()->flags());
   CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
 }
 
@@ -5356,6 +5366,25 @@ void LCodeGen::DoAllocate(LAllocate* instr) {
   }
 
   __ bind(deferred->exit());
+
+  if (instr->hydrogen()->MustPrefillWithFiller()) {
+    if (instr->size()->IsConstantOperand()) {
+      int32_t size = ToInteger32(LConstantOperand::cast(instr->size()));
+      __ mov(scratch, Operand(size));
+    } else {
+      scratch = ToRegister(instr->size());
+    }
+    __ sub(scratch, scratch, Operand(kPointerSize));
+    __ sub(result, result, Operand(kHeapObjectTag));
+    Label loop;
+    __ bind(&loop);
+    __ mov(scratch2, Operand(isolate()->factory()->one_pointer_filler_map()));
+    __ str(scratch2, MemOperand(result, scratch));
+    __ sub(scratch, scratch, Operand(kPointerSize));
+    __ cmp(scratch, Operand(0));
+    __ b(ge, &loop);
+    __ add(result, result, Operand(kHeapObjectTag));
+  }
 }
 
 
@@ -5602,12 +5631,12 @@ void LCodeGen::EnsureSpaceForLazyDeopt() {
       padding_size -= Assembler::kInstrSize;
     }
   }
-  last_lazy_deopt_pc_ = masm()->pc_offset();
 }
 
 
 void LCodeGen::DoLazyBailout(LLazyBailout* instr) {
   EnsureSpaceForLazyDeopt();
+  last_lazy_deopt_pc_ = masm()->pc_offset();
   ASSERT(instr->HasEnvironment());
   LEnvironment* env = instr->environment();
   RegisterEnvironmentForDeoptimization(env, Safepoint::kLazyDeopt);
@@ -5665,6 +5694,7 @@ void LCodeGen::DoStackCheck(LStackCheck* instr) {
     PredictableCodeSizeScope predictable(masm_, 2 * Assembler::kInstrSize);
     CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
     EnsureSpaceForLazyDeopt();
+    last_lazy_deopt_pc_ = masm()->pc_offset();
     __ bind(&done);
     RegisterEnvironmentForDeoptimization(env, Safepoint::kLazyDeopt);
     safepoints_.RecordLazyDeoptimizationIndex(env->deoptimization_index());
@@ -5677,6 +5707,7 @@ void LCodeGen::DoStackCheck(LStackCheck* instr) {
     __ cmp(sp, Operand(ip));
     __ b(lo, deferred_stack_check->entry());
     EnsureSpaceForLazyDeopt();
+    last_lazy_deopt_pc_ = masm()->pc_offset();
     __ bind(instr->done_label());
     deferred_stack_check->SetExit(instr->done_label());
     RegisterEnvironmentForDeoptimization(env, Safepoint::kLazyDeopt);

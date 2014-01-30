@@ -139,7 +139,7 @@ class FullCodeGenerator: public AstVisitor {
 #error Unsupported target architecture.
 #endif
 
-  static const int kBackEdgeEntrySize = 2 * kIntSize + kOneByteSize;
+  static const int kBackEdgeEntrySize = 3 * kIntSize;
 
  private:
   class Breakable;
@@ -651,7 +651,7 @@ class FullCodeGenerator: public AstVisitor {
   struct BackEdgeEntry {
     BailoutId id;
     unsigned pc;
-    uint8_t loop_depth;
+    uint32_t loop_depth;
   };
 
   struct TypeFeedbackCellEntry {

@@ -38,9 +38,9 @@ function opt_me() {
   deopt();
 }
 
+// Make sure we don't inline this function
+%NeverOptimizeFunction(deopt);
 function deopt() {
-  // Make sure we don't inline this function
-  %NeverOptimize();
   %DeoptimizeFunction(opt_me);
   gc();
 }

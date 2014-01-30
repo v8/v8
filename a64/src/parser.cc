@@ -563,6 +563,7 @@ Parser::Parser(CompilationInfo* info)
   set_allow_lazy(false);  // Must be explicitly enabled.
   set_allow_generators(FLAG_harmony_generators);
   set_allow_for_of(FLAG_harmony_iteration);
+  set_allow_harmony_numeric_literals(FLAG_harmony_numeric_literals);
 }
 
 
@@ -3573,7 +3574,8 @@ Expression* Parser::ParsePrimaryExpression(bool* ok) {
       ASSERT(scanner().is_literal_ascii());
       double value = StringToDouble(isolate()->unicode_cache(),
                                     scanner().literal_ascii_string(),
-                                    ALLOW_HEX | ALLOW_OCTALS);
+                                    ALLOW_HEX | ALLOW_OCTAL |
+                                        ALLOW_IMPLICIT_OCTAL | ALLOW_BINARY);
       result = factory()->NewNumberLiteral(value);
       break;
     }
@@ -4026,7 +4028,8 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
         ASSERT(scanner().is_literal_ascii());
         double value = StringToDouble(isolate()->unicode_cache(),
                                       scanner().literal_ascii_string(),
-                                      ALLOW_HEX | ALLOW_OCTALS);
+                                      ALLOW_HEX | ALLOW_OCTAL |
+                                          ALLOW_IMPLICIT_OCTAL | ALLOW_BINARY);
         key = factory()->NewNumberLiteral(value);
         break;
       }
@@ -4581,6 +4584,8 @@ preparser::PreParser::PreParseResult Parser::LazyParseFunctionLiteral(
     reusable_preparser_->set_allow_lazy(true);
     reusable_preparser_->set_allow_generators(allow_generators());
     reusable_preparser_->set_allow_for_of(allow_for_of());
+    reusable_preparser_->set_allow_harmony_numeric_literals(
+        allow_harmony_numeric_literals());
   }
   preparser::PreParser::PreParseResult result =
       reusable_preparser_->PreParseLazyFunction(top_scope_->language_mode(),
@@ -5850,6 +5855,7 @@ ScriptDataImpl* PreParserApi::PreParse(Utf16CharacterStream* source) {
   preparser.set_allow_generators(FLAG_harmony_generators);
   preparser.set_allow_for_of(FLAG_harmony_iteration);
   preparser.set_allow_harmony_scoping(FLAG_harmony_scoping);
+  preparser.set_allow_harmony_numeric_literals(FLAG_harmony_numeric_literals);
   scanner.Initialize(source);
   preparser::PreParser::PreParseResult result = preparser.PreParseProgram();
   if (result == preparser::PreParser::kPreParseStackOverflow) {

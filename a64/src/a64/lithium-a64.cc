@@ -263,6 +263,24 @@ void LGap::PrintDataTo(StringStream* stream) {
 }
 
 
+ExternalReference LLinkObjectInList::GetReference(Isolate* isolate) {
+  switch (hydrogen()->known_list()) {
+    case HLinkObjectInList::ALLOCATION_SITE_LIST:
+      return ExternalReference::allocation_sites_list_address(isolate);
+  }
+
+  UNREACHABLE();
+  // Return a dummy value
+  return ExternalReference::isolate_address(isolate);
+}
+
+
+void LLinkObjectInList::PrintDataTo(StringStream* stream) {
+  object()->PrintTo(stream);
+  stream->Add(" offset %d", hydrogen()->store_field().offset());
+}
+
+
 void LLoadContextSlot::PrintDataTo(StringStream* stream) {
   context()->PrintTo(stream);
   stream->Add("[%d]", slot_index());
@@ -1598,6 +1616,14 @@ LInstruction* LChunkBuilder::DoLeaveInlined(HLeaveInlined* instr) {
   current_block_->UpdateEnvironment(outer);
 
   return pop;
+}
+
+
+LInstruction* LChunkBuilder::DoLinkObjectInList(HLinkObjectInList* instr) {
+  LOperand* object = UseRegister(instr->value());
+  LOperand* temp = TempRegister();
+  LLinkObjectInList* result = new(zone()) LLinkObjectInList(object, temp);
+  return result;
 }
 
 

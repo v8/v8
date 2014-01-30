@@ -852,7 +852,7 @@ void RelocInfo::Verify() {
       CHECK(addr != NULL);
       // Check that we can find the right code object.
       Code* code = Code::GetCodeFromTargetAddress(addr);
-      Object* found = HEAP->FindCodeObject(addr);
+      Object* found = code->GetIsolate()->FindCodeObject(addr);
       CHECK(found->IsCode());
       CHECK(code->address() == HeapObject::cast(found)->address());
       break;
@@ -1076,6 +1076,11 @@ ExternalReference ExternalReference::date_cache_stamp(Isolate* isolate) {
 }
 
 
+ExternalReference ExternalReference::stress_deopt_count(Isolate* isolate) {
+  return ExternalReference(isolate->stress_deopt_count_address());
+}
+
+
 ExternalReference ExternalReference::transcendental_cache_array_address(
     Isolate* isolate) {
   return ExternalReference(
@@ -1125,6 +1130,12 @@ ExternalReference ExternalReference::keyed_lookup_cache_field_offsets(
 
 ExternalReference ExternalReference::roots_array_start(Isolate* isolate) {
   return ExternalReference(isolate->heap()->roots_array_start());
+}
+
+
+ExternalReference ExternalReference::allocation_sites_list_address(
+    Isolate* isolate) {
+  return ExternalReference(isolate->heap()->allocation_sites_list_address());
 }
 
 

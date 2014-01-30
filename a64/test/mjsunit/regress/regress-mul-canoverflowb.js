@@ -30,8 +30,8 @@
 function boom(a) {
   return ((a | 0) * (a | 0)) | 0;
 }
+%NeverOptimizeFunction(boom_unoptimized);
 function boom_unoptimized(a) {
-  %NeverOptimize();
   return ((a | 0) * (a | 0)) | 0;
 }
 

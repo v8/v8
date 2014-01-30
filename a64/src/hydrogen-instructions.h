@@ -131,6 +131,7 @@ class LChunkBuilder;
   V(IsSmiAndBranch)                            \
   V(IsUndetectableAndBranch)                   \
   V(LeaveInlined)                              \
+  V(LinkObjectInList)                          \
   V(LoadContextSlot)                           \
   V(LoadExternalArrayPointer)                  \
   V(LoadFunctionPrototype)                     \
@@ -2837,6 +2838,8 @@ class HCheckFunction: public HUnaryOperation {
   virtual void PrintDataTo(StringStream* stream);
   virtual HType CalculateInferredType();
 
+  virtual HValue* Canonicalize();
+
 #ifdef DEBUG
   virtual void Verify();
 #endif
@@ -3408,6 +3411,10 @@ class HConstant: public HTemplateInstruction<0> {
       ASSERT(!handle_.is_null());
       unique_id_ = UniqueValueId(handle_);
     }
+  }
+
+  bool UniqueValueIdsMatch(UniqueValueId other) {
+    return !has_double_value_ && unique_id_ == other;
   }
 
 #ifdef DEBUG
@@ -4957,7 +4964,8 @@ class HAllocate: public HTemplateInstruction<2> {
     CAN_ALLOCATE_IN_NEW_SPACE = 1 << 0,
     CAN_ALLOCATE_IN_OLD_DATA_SPACE = 1 << 1,
     CAN_ALLOCATE_IN_OLD_POINTER_SPACE = 1 << 2,
-    ALLOCATE_DOUBLE_ALIGNED = 1 << 3
+    ALLOCATE_DOUBLE_ALIGNED = 1 << 3,
+    PREFILL_WITH_FILLER = 1 << 4
   };
 
   HAllocate(HValue* context, HValue* size, HType type, Flags flags)
@@ -5032,6 +5040,14 @@ class HAllocate: public HTemplateInstruction<2> {
 
   bool MustAllocateDoubleAligned() const {
     return (flags_ & ALLOCATE_DOUBLE_ALIGNED) != 0;
+  }
+
+  bool MustPrefillWithFiller() const {
+    return (flags_ & PREFILL_WITH_FILLER) != 0;
+  }
+
+  void SetFlags(Flags flags) {
+    flags_ = static_cast<HAllocate::Flags>(flags_ | flags);
   }
 
   void UpdateSize(HValue* size) {
@@ -5326,6 +5342,10 @@ class HObjectAccess {
     return HObjectAccess(kInobject, AllocationSite::kTransitionInfoOffset);
   }
 
+  static HObjectAccess ForAllocationSiteWeakNext() {
+    return HObjectAccess(kInobject, AllocationSite::kWeakNextOffset);
+  }
+
   static HObjectAccess ForFixedArrayLength() {
     return HObjectAccess(kArrayLengths, FixedArray::kLengthOffset);
   }
@@ -5350,8 +5370,8 @@ class HObjectAccess {
     return HObjectAccess(kInobject, Cell::kValueOffset);
   }
 
-  static HObjectAccess ForAllocationSiteInfoSite() {
-    return HObjectAccess(kInobject, AllocationSiteInfo::kAllocationSiteOffset);
+  static HObjectAccess ForAllocationMementoSite() {
+    return HObjectAccess(kInobject, AllocationMemento::kAllocationSiteOffset);
   }
 
   // Create an access to an offset in a fixed array header.
@@ -5413,6 +5433,38 @@ class HObjectAccess {
   inline Portion portion() const {
     return PortionField::decode(value_);
   }
+};
+
+
+class HLinkObjectInList: public HUnaryOperation {
+ public:
+  // There needs to be a mapping from every KnownList to an external reference
+  enum KnownList {
+    ALLOCATION_SITE_LIST
+  };
+
+  HLinkObjectInList(HValue* object, HObjectAccess store_field,
+                    KnownList known_list)
+      : HUnaryOperation(object),
+        store_field_(store_field),
+        known_list_(known_list) {
+    set_representation(Representation::Tagged());
+  }
+
+  HObjectAccess store_field() const { return store_field_; }
+  KnownList known_list() const { return known_list_; }
+
+  virtual Representation RequiredInputRepresentation(int index) {
+    return Representation::Tagged();
+  }
+
+  virtual void PrintDataTo(StringStream* stream);
+
+  DECLARE_CONCRETE_INSTRUCTION(LinkObjectInList)
+
+ private:
+  HObjectAccess store_field_;
+  KnownList known_list_;
 };
 
 
@@ -6138,7 +6190,10 @@ class HStringAdd: public HBinaryOperation {
   static HInstruction* New(Zone* zone,
                            HValue* context,
                            HValue* left,
-                           HValue* right);
+                           HValue* right,
+                           StringAddFlags flags = STRING_ADD_CHECK_NONE);
+
+  StringAddFlags flags() const { return flags_; }
 
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::Tagged();
@@ -6153,10 +6208,9 @@ class HStringAdd: public HBinaryOperation {
  protected:
   virtual bool DataEquals(HValue* other) { return true; }
 
-
  private:
-  HStringAdd(HValue* context, HValue* left, HValue* right)
-      : HBinaryOperation(context, left, right) {
+  HStringAdd(HValue* context, HValue* left, HValue* right, StringAddFlags flags)
+      : HBinaryOperation(context, left, right), flags_(flags) {
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
     SetGVNFlag(kDependsOnMaps);
@@ -6165,6 +6219,8 @@ class HStringAdd: public HBinaryOperation {
 
   // TODO(svenpanne) Might be safe, but leave it out until we know for sure.
   //  virtual bool IsDeletable() const { return true; }
+
+  const StringAddFlags flags_;
 };
 
 

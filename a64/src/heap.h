@@ -1053,7 +1053,7 @@ class Heap {
   // Allocate a 'with' context.
   MUST_USE_RESULT MaybeObject* AllocateWithContext(JSFunction* function,
                                                    Context* previous,
-                                                   JSObject* extension);
+                                                   JSReceiver* extension);
 
   // Allocate a block context.
   MUST_USE_RESULT MaybeObject* AllocateBlockContext(JSFunction* function,
@@ -1376,6 +1376,11 @@ class Heap {
   }
   Object* array_buffers_list() { return array_buffers_list_; }
 
+  void set_allocation_sites_list(Object* object) {
+    allocation_sites_list_ = object;
+  }
+  Object* allocation_sites_list() { return allocation_sites_list_; }
+  Object** allocation_sites_list_address() { return &allocation_sites_list_; }
 
   // Number of mark-sweeps.
   unsigned int ms_count() { return ms_count_; }
@@ -1514,9 +1519,6 @@ class Heap {
 
   // Write barrier support for address[start : start + len[ = o.
   INLINE(void RecordWrites(Address address, int start, int len));
-
-  // Given an address occupied by a live code object, return that object.
-  Object* FindCodeObject(Address a);
 
   enum HeapState { NOT_IN_GC, SCAVENGE, MARK_COMPACT };
   inline HeapState gc_state() { return gc_state_; }
@@ -2045,9 +2047,10 @@ class Heap {
   // last GC.
   bool old_gen_exhausted_;
 
+  // Weak list heads, threaded through the objects.
   Object* native_contexts_list_;
-
   Object* array_buffers_list_;
+  Object* allocation_sites_list_;
 
   StoreBufferRebuilder store_buffer_rebuilder_;
 
@@ -2197,6 +2200,7 @@ class Heap {
 
   void ProcessNativeContexts(WeakObjectRetainer* retainer, bool record_slots);
   void ProcessArrayBuffers(WeakObjectRetainer* retainer, bool record_slots);
+  void ProcessAllocationSites(WeakObjectRetainer* retainer, bool record_slots);
 
   // Called on heap tear-down.
   void TearDownArrayBuffers();
@@ -2754,8 +2758,8 @@ class GCTracer BASE_EMBEDDED {
       MC_UPDATE_POINTERS_TO_EVACUATED,
       MC_UPDATE_POINTERS_BETWEEN_EVACUATED,
       MC_UPDATE_MISC_POINTERS,
-      MC_WEAKMAP_PROCESS,
-      MC_WEAKMAP_CLEAR,
+      MC_WEAKCOLLECTION_PROCESS,
+      MC_WEAKCOLLECTION_CLEAR,
       MC_FLUSH_CODE,
       kNumberOfScopes
     };

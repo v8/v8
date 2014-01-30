@@ -1086,6 +1086,7 @@ enum ParserFlag {
   kAllowModules,
   kAllowGenerators,
   kAllowForOf,
+  kAllowHarmonyNumericLiterals,
   kParserFlagCount
 };
 
@@ -1103,7 +1104,9 @@ static bool checkParserFlag(unsigned flags, ParserFlag flag) {
                                                    kAllowHarmonyScoping)); \
   parser.set_allow_modules(checkParserFlag(flags, kAllowModules)); \
   parser.set_allow_generators(checkParserFlag(flags, kAllowGenerators)); \
-  parser.set_allow_for_of(checkParserFlag(flags, kAllowForOf));
+  parser.set_allow_for_of(checkParserFlag(flags, kAllowForOf)); \
+  parser.set_allow_harmony_numeric_literals( \
+      checkParserFlag(flags, kAllowHarmonyNumericLiterals));
 
 void TestParserSyncWithFlags(i::Handle<i::String> source, unsigned flags) {
   i::Isolate* isolate = i::Isolate::Current();

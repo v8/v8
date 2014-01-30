@@ -1046,24 +1046,6 @@ class HGraphBuilder {
   HValue* BuildCheckMap(HValue* obj, Handle<Map> map);
 
   // Building common constructs
-  HInstruction* BuildExternalArrayElementAccess(
-      HValue* external_elements,
-      HValue* checked_key,
-      HValue* val,
-      HValue* dependency,
-      ElementsKind elements_kind,
-      bool is_store);
-
-  HInstruction* BuildFastElementAccess(
-      HValue* elements,
-      HValue* checked_key,
-      HValue* val,
-      HValue* dependency,
-      ElementsKind elements_kind,
-      bool is_store,
-      LoadKeyedHoleMode load_mode,
-      KeyedAccessStoreMode store_mode);
-
   HValue* BuildCheckForCapacityGrow(HValue* object,
                                     HValue* elements,
                                     ElementsKind kind,
@@ -1075,6 +1057,12 @@ class HGraphBuilder {
                                    HValue* elements,
                                    ElementsKind kind,
                                    HValue* length);
+
+  void BuildTransitionElementsKind(HValue* object,
+                                   HValue* map,
+                                   ElementsKind from_kind,
+                                   ElementsKind to_kind,
+                                   bool is_jsarray);
 
   HInstruction* BuildUncheckedMonomorphicElementAccess(
       HValue* object,
@@ -1097,6 +1085,24 @@ class HGraphBuilder {
       HValue* object,
       HObjectAccess access,
       Representation representation);
+
+  HInstruction* AddExternalArrayElementAccess(
+      HValue* external_elements,
+      HValue* checked_key,
+      HValue* val,
+      HValue* dependency,
+      ElementsKind elements_kind,
+      bool is_store);
+
+  HInstruction* AddFastElementAccess(
+      HValue* elements,
+      HValue* checked_key,
+      HValue* val,
+      HValue* dependency,
+      ElementsKind elements_kind,
+      bool is_store,
+      LoadKeyedHoleMode load_mode,
+      KeyedAccessStoreMode store_mode);
 
   HStoreNamedField* AddStore(
       HValue *object,
@@ -1361,7 +1367,7 @@ class HGraphBuilder {
                                                            HValue* capacity);
 
   // array must have been allocated with enough room for
-  // 1) the JSArray, 2) a AllocationSiteInfo if mode requires it,
+  // 1) the JSArray, 2) a AllocationMemento if mode requires it,
   // 3) a FixedArray or FixedDoubleArray.
   // A pointer to the Fixed(Double)Array is returned.
   HInnerAllocatedObject* BuildJSArrayHeader(HValue* array,
@@ -1407,9 +1413,9 @@ class HGraphBuilder {
       int position,
       HIfContinuation* continuation);
 
-  HValue* BuildCreateAllocationSiteInfo(HValue* previous_object,
-                                        int previous_object_size,
-                                        HValue* payload);
+  HValue* BuildCreateAllocationMemento(HValue* previous_object,
+                                       int previous_object_size,
+                                       HValue* payload);
 
   HInstruction* BuildGetNativeContext(HValue* context);
   HInstruction* BuildGetArrayFunction(HValue* context);
@@ -1735,8 +1741,7 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
                                                 HValue* object,
                                                 SmallMapList* types,
                                                 Handle<String> name);
-  void HandlePolymorphicStoreNamedField(BailoutId id,
-                                        int position,
+  void HandlePolymorphicStoreNamedField(int position,
                                         BailoutId assignment_id,
                                         HValue* object,
                                         HValue* value,
@@ -1759,10 +1764,10 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
                                        SmallMapList* types,
                                        Handle<String> name);
   void HandleLiteralCompareTypeof(CompareOperation* expr,
-                                  HTypeof* typeof_expr,
+                                  Expression* sub_expr,
                                   Handle<String> check);
   void HandleLiteralCompareNil(CompareOperation* expr,
-                               HValue* value,
+                               Expression* sub_expr,
                                NilValue nil);
 
   HInstruction* BuildStringCharCodeAt(HValue* context,
@@ -1832,7 +1837,7 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
                        Property* prop,
                        HValue* object,
                        HValue* store_value,
-                       HValue* result_value = NULL);
+                       HValue* result_value);
 
   HInstruction* BuildStoreNamedField(HValue* object,
                                      Handle<String> name,

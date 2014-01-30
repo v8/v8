@@ -94,6 +94,7 @@ var kMessages = {
   proxy_non_object_prop_names:   ["Trap '", "%1", "' returned non-object ", "%0"],
   proxy_repeated_prop_name:      ["Trap '", "%1", "' returned repeated property name '", "%2", "'"],
   invalid_weakmap_key:           ["Invalid value used as weak map key"],
+  invalid_weakset_value:         ["Invalid value used in weak set"],
   not_date_object:               ["this is not a Date object."],
   observe_non_object:            ["Object.", "%0", " cannot ", "%0", " non-object"],
   observe_non_function:          ["Object.", "%0", " cannot deliver to non-function"],

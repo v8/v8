@@ -935,7 +935,7 @@ Handle<JSFunction> Factory::NewFunctionWithPrototype(Handle<String> name,
     initial_map->set_constructor(*function);
   }
 
-  SetPrototypeProperty(function, prototype);
+  JSFunction::SetPrototype(function, prototype);
   return function;
 }
 

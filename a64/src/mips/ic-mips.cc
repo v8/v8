@@ -330,9 +330,9 @@ static void GenerateKeyNameCheck(MacroAssembler* masm,
   // bit test is enough.
   // map: key map
   __ lbu(hash, FieldMemOperand(map, Map::kInstanceTypeOffset));
-  STATIC_ASSERT(kInternalizedTag != 0);
-  __ And(at, hash, Operand(kIsInternalizedMask));
-  __ Branch(not_unique, eq, at, Operand(zero_reg));
+  STATIC_ASSERT(kInternalizedTag == 0);
+  __ And(at, hash, Operand(kIsNotInternalizedMask));
+  __ Branch(not_unique, ne, at, Operand(zero_reg));
 
   __ bind(&unique);
 }

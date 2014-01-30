@@ -38,6 +38,17 @@ namespace v8 {
 namespace internal {
 
 
+void ToNumberStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  // x0: value
+  static Register registers[] = { x0 };
+  descriptor->register_param_count_ = sizeof(registers) / sizeof(registers[0]);
+  descriptor->register_params_ = registers;
+  descriptor->deoptimization_handler_ = NULL;
+}
+
+
 void FastCloneShallowArrayStub::InitializeInterfaceDescriptor(
     Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
@@ -276,9 +287,6 @@ void StoreGlobalStub::InitializeInterfaceDescriptor(
 }
 
 
-#if 0
-// TODO(jbramley): This was added in r15635, then reverted in r15674, but it
-// will come back again in r15713.
 void ElementsTransitionAndStoreStub::InitializeInterfaceDescriptor(
     Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
@@ -292,7 +300,6 @@ void ElementsTransitionAndStoreStub::InitializeInterfaceDescriptor(
   descriptor->deoptimization_handler_ =
       FUNCTION_ADDR(ElementsTransitionAndStoreIC_Miss);
 }
-#endif
 
 
 #define __ ACCESS_MASM(masm)
@@ -319,46 +326,6 @@ void HydrogenCodeStub::GenerateLightweightMiss(MacroAssembler* masm) {
     __ CallExternalReference(miss, descriptor->register_param_count_);
   }
 
-  __ Ret();
-}
-
-
-// Input:
-//   x0: object to convert.
-// Output:
-//   x0: result number.
-void ToNumberStub::Generate(MacroAssembler* masm) {
-  // See ECMA-262 section 9.3.
-
-  // If it is a Smi or a HeapNumber, just return the value.
-  Label done;
-  __ JumpIfSmi(x0, &done);
-  __ JumpIfHeapNumber(x0, &done);
-
-  // Inline checks for specific values that we can easily convert.
-  Label return_zero, return_one;
-
-  // Check for 'true', 'false', and 'null'.
-  __ JumpIfRoot(x0, Heap::kTrueValueRootIndex, &return_one);
-  __ JumpIfRoot(x0, Heap::kFalseValueRootIndex, &return_zero);
-  __ JumpIfRoot(x0, Heap::kNullValueRootIndex, &return_zero);
-
-  // Call a builtin to do the job.
-  __ Push(x0);
-  __ InvokeBuiltin(Builtins::TO_NUMBER, JUMP_FUNCTION);
-
-  // We never fall through here.
-  if (FLAG_debug_code) {
-    __ Abort("We should never reach this code.");
-  }
-
-  __ Bind(&return_zero);
-  __ Mov(x0, Operand(Smi::FromInt(0)));
-  __ Ret();
-
-  __ Bind(&return_one);
-  __ Mov(x0, Operand(Smi::FromInt(1)));
-  __ Bind(&done);
   __ Ret();
 }
 
@@ -782,11 +749,10 @@ static void EmitStrictTwoHeapObjectCompare(MacroAssembler* masm,
   // Internalized strings are unique, so they can only be equal if they are the
   // same object. We have already tested that case, so if left and right are
   // both internalized strings, they cannot be equal.
-  __ And(scratch, right_type, kIsNotStringMask | kIsInternalizedMask);
-  __ Cmp(scratch, kInternalizedTag | kStringTag);
-  __ And(scratch, left_type, kIsNotStringMask | kIsInternalizedMask);
-  __ Ccmp(scratch, kInternalizedTag | kStringTag, NoFlag, eq);
-  __ B(eq, &return_not_equal);
+  STATIC_ASSERT((kInternalizedTag == 0) && (kStringTag == 0));
+  __ Orr(scratch, left_type, right_type);
+  __ TestAndBranchIfAllClear(
+      scratch, kIsNotStringMask | kIsNotInternalizedMask, &return_not_equal);
 }
 
 
@@ -878,14 +844,13 @@ static void EmitCheckForInternalizedStringsOrObjects(MacroAssembler* masm,
   Register result = x0;
 
   Label object_test;
-  STATIC_ASSERT(kStringTag == 0);
-  STATIC_ASSERT(kInternalizedTag != 0);
+  STATIC_ASSERT((kInternalizedTag == 0) && (kStringTag == 0));
   // TODO(all): reexamine this branch sequence for optimisation wrt branch
   // prediction.
   __ Tbnz(right_type, MaskToBit(kIsNotStringMask), &object_test);
-  __ Tbz(right_type, MaskToBit(kIsInternalizedMask), possible_strings);
+  __ Tbnz(right_type, MaskToBit(kIsNotInternalizedMask), possible_strings);
   __ Tbnz(left_type, MaskToBit(kIsNotStringMask), not_both_strings);
-  __ Tbz(left_type, MaskToBit(kIsInternalizedMask), possible_strings);
+  __ Tbnz(left_type, MaskToBit(kIsNotInternalizedMask), possible_strings);
 
   // Both are internalized. We already checked that they weren't the same
   // pointer, so they are not equal.
@@ -1651,7 +1616,8 @@ void BinaryOpStub::GenerateBothStringStub(MacroAssembler* masm) {
                       ge);
 
   StringAddStub string_add_stub(
-      static_cast<StringAddFlags>(ERECT_FRAME | NO_STRING_CHECK_IN_STUB));
+      static_cast<StringAddFlags>(STRING_ADD_CHECK_NONE |
+                                  STRING_ADD_ERECT_FRAME));
   GenerateRegisterArgsPush(masm);
   __ TailCallStub(&string_add_stub);
 
@@ -1764,7 +1730,8 @@ void BinaryOpStub::GenerateAddStrings(MacroAssembler* masm) {
   __ JumpIfObjectType(left, x2, x2, FIRST_NONSTRING_TYPE, &left_not_string, ge);
 
   StringAddStub string_add_left_stub(
-      static_cast<StringAddFlags>(ERECT_FRAME | NO_STRING_CHECK_LEFT_IN_STUB));
+      static_cast<StringAddFlags>(STRING_ADD_CHECK_RIGHT |
+                                  STRING_ADD_ERECT_FRAME));
   GenerateRegisterArgsPush(masm);
   __ TailCallStub(&string_add_left_stub);
 
@@ -1774,7 +1741,8 @@ void BinaryOpStub::GenerateAddStrings(MacroAssembler* masm) {
   __ JumpIfObjectType(right, x2, x2, FIRST_NONSTRING_TYPE, &call_runtime, ge);
 
   StringAddStub string_add_right_stub(
-      static_cast<StringAddFlags>(ERECT_FRAME | NO_STRING_CHECK_RIGHT_IN_STUB));
+      static_cast<StringAddFlags>(STRING_ADD_CHECK_LEFT |
+                                  STRING_ADD_ERECT_FRAME));
   GenerateRegisterArgsPush(masm);
   __ TailCallStub(&string_add_right_stub);
 
@@ -4731,11 +4699,10 @@ void ICCompareStub::GenerateInternalizedStrings(MacroAssembler* masm) {
   __ Ldrb(lhs_type, FieldMemOperand(lhs_map, Map::kInstanceTypeOffset));
   __ Ldrb(rhs_type, FieldMemOperand(rhs_map, Map::kInstanceTypeOffset));
 
-  __ And(x12, rhs_type, kIsNotStringMask | kIsInternalizedMask);
-  __ And(x13, lhs_type, kIsNotStringMask | kIsInternalizedMask);
-  __ Cmp(x12, kInternalizedTag | kStringTag);
-  __ Ccmp(x13, kInternalizedTag | kStringTag, NoFlag, eq);
-  __ B(ne, &miss);
+  STATIC_ASSERT((kInternalizedTag == 0) && (kStringTag == 0));
+  __ Orr(x12, lhs_type, rhs_type);
+  __ TestAndBranchIfAnySet(
+      x12, kIsNotStringMask | kIsNotInternalizedMask, &miss);
 
   // Internalized strings are compared by identity.
   STATIC_ASSERT(EQUAL == 0);
@@ -4830,10 +4797,11 @@ void ICCompareStub::GenerateStrings(MacroAssembler* masm) {
   // strings.
   if (equality) {
     ASSERT(GetCondition() == eq);
-    STATIC_ASSERT(kInternalizedTag != 0);
+    STATIC_ASSERT(kInternalizedTag == 0);
     Label not_internalized_strings;
-    __ And(x12, lhs_type, rhs_type);
-    __ Tbz(x12, MaskToBit(kIsInternalizedMask), &not_internalized_strings);
+    __ Orr(x12, lhs_type, rhs_type);
+    __ TestAndBranchIfAnySet(
+        x12, kIsNotInternalizedMask, &not_internalized_strings);
     // Result is in rhs (x0), and not EQUAL, as rhs is not a smi.
     __ Ret();
     __ Bind(&not_internalized_strings);
@@ -4961,7 +4929,6 @@ void NumberToStringStub::GenerateLookupNumberStringCache(MacroAssembler* masm,
                                                          Register scratch1,
                                                          Register scratch2,
                                                          Register scratch3,
-                                                         ObjectType object_type,
                                                          Label* not_found) {
   ASSERT(!AreAliased(object, result, scratch1, scratch2, scratch3));
 
@@ -4986,31 +4953,30 @@ void NumberToStringStub::GenerateLookupNumberStringCache(MacroAssembler* masm,
   Isolate* isolate = masm->isolate();
   Label is_smi;
   Label load_result_from_cache;
-  if (object_type == OBJECT_IS_NOT_SMI) {
-    __ JumpIfSmi(object, &is_smi);
-    __ CheckMap(object, scratch1, Heap::kHeapNumberMapRootIndex, not_found,
-                DONT_DO_SMI_CHECK);
 
-    STATIC_ASSERT(kDoubleSize == (kWRegSizeInBytes * 2));
-    __ Add(scratch1, object, HeapNumber::kValueOffset - kHeapObjectTag);
-    __ Ldp(scratch1.W(), scratch2.W(), MemOperand(scratch1));
-    __ Eor(scratch1, scratch1, scratch2);
-    __ And(scratch1, scratch1, mask);
+  __ JumpIfSmi(object, &is_smi);
+  __ CheckMap(object, scratch1, Heap::kHeapNumberMapRootIndex, not_found,
+              DONT_DO_SMI_CHECK);
 
-    // Calculate address of entry in string cache: each entry consists of two
-    // pointer sized fields.
-    __ Add(scratch1, number_string_cache,
-           Operand(scratch1, LSL, kPointerSizeLog2 + 1));
+  STATIC_ASSERT(kDoubleSize == (kWRegSizeInBytes * 2));
+  __ Add(scratch1, object, HeapNumber::kValueOffset - kHeapObjectTag);
+  __ Ldp(scratch1.W(), scratch2.W(), MemOperand(scratch1));
+  __ Eor(scratch1, scratch1, scratch2);
+  __ And(scratch1, scratch1, mask);
 
-    Register probe = mask;
-    __ Ldr(probe, FieldMemOperand(scratch1, FixedArray::kHeaderSize));
-    __ JumpIfSmi(probe, not_found);
-    __ Ldr(d0, FieldMemOperand(object, HeapNumber::kValueOffset));
-    __ Ldr(d1, FieldMemOperand(probe, HeapNumber::kValueOffset));
-    __ Fcmp(d0, d1);
-    __ B(ne, not_found);
-    __ B(&load_result_from_cache);
-  }
+  // Calculate address of entry in string cache: each entry consists of two
+  // pointer sized fields.
+  __ Add(scratch1, number_string_cache,
+         Operand(scratch1, LSL, kPointerSizeLog2 + 1));
+
+  Register probe = mask;
+  __ Ldr(probe, FieldMemOperand(scratch1, FixedArray::kHeaderSize));
+  __ JumpIfSmi(probe, not_found);
+  __ Ldr(d0, FieldMemOperand(object, HeapNumber::kValueOffset));
+  __ Ldr(d1, FieldMemOperand(probe, HeapNumber::kValueOffset));
+  __ Fcmp(d0, d1);
+  __ B(ne, not_found);
+  __ B(&load_result_from_cache);
 
   __ Bind(&is_smi);
   Register scratch = scratch1;
@@ -5022,7 +4988,6 @@ void NumberToStringStub::GenerateLookupNumberStringCache(MacroAssembler* masm,
          Operand(scratch, LSL, kPointerSizeLog2 + 1));
 
   // Check if the entry is the smi we are looking for.
-  Register probe = mask;
   __ Ldr(probe, FieldMemOperand(scratch, FixedArray::kHeaderSize));
   __ Cmp(object, probe);
   __ B(ne, not_found);
@@ -5044,9 +5009,7 @@ void NumberToStringStub::Generate(MacroAssembler* masm) {
   __ Pop(object);
 
   // Generate code to lookup number in the number string cache.
-  GenerateLookupNumberStringCache(masm, object, result, x2, x3, x4,
-                                  NumberToStringStub::OBJECT_IS_NOT_SMI,
-                                  &runtime);
+  GenerateLookupNumberStringCache(masm, object, result, x2, x3, x4, &runtime);
   __ Ret();
 
   // Handle number to string in the runtime system if not found in the cache.
@@ -5699,7 +5662,11 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ Pop(right, left);
 
   // Make sure that both arguments are strings if not known in advance.
-  if ((flags_ & NO_STRING_ADD_FLAGS) != 0) {
+  // Otherwise, at least one of the arguments is definitely a string,
+  // and we convert the one that is not known to be a string.
+  if ((flags_ & STRING_ADD_CHECK_BOTH) == STRING_ADD_CHECK_BOTH) {
+    ASSERT((flags_ & STRING_ADD_CHECK_LEFT) == STRING_ADD_CHECK_LEFT);
+    ASSERT((flags_ & STRING_ADD_CHECK_RIGHT) == STRING_ADD_CHECK_RIGHT);
     __ JumpIfEitherSmi(right, left, &call_runtime);
     // Load instance types.
     StringHelper::LoadPairInstanceTypes(masm, left_type, right_type, left,
@@ -5708,30 +5675,22 @@ void StringAddStub::Generate(MacroAssembler* masm) {
     // If either is not a string, go to runtime.
     __ Tbnz(left_type, MaskToBit(kIsNotStringMask), &call_runtime);
     __ Tbnz(right_type, MaskToBit(kIsNotStringMask), &call_runtime);
-  } else {
-    // Here at least one of the arguments is definitely a string.
-    // We convert the one that is not known to be a string.
-    if ((flags_ & NO_STRING_CHECK_LEFT_IN_STUB) == 0) {
-      // NO_STRING_CHECK_LEFT flag is clear: convert the left string.
-      ASSERT((flags_ & NO_STRING_CHECK_RIGHT_IN_STUB) != 0);
-      GenerateConvertArgument(masm, left, x12, x13, x14, x15, &call_builtin);
-      builtin_id = Builtins::STRING_ADD_RIGHT;
-    } else if ((flags_ & NO_STRING_CHECK_RIGHT_IN_STUB) == 0) {
-      // NO_STRING_CHECK_RIGHT flag is clear: convert the right string.
-      ASSERT((flags_ & NO_STRING_CHECK_LEFT_IN_STUB) != 0);
-      GenerateConvertArgument(masm, right, x12, x13, x14, x15, &call_builtin);
-      builtin_id = Builtins::STRING_ADD_LEFT;
-    }
+  } else if ((flags_ & STRING_ADD_CHECK_LEFT) == STRING_ADD_CHECK_LEFT) {
+    ASSERT((flags_ & STRING_ADD_CHECK_RIGHT) == 0);
+    GenerateConvertArgument(masm, left, x12, x13, x14, x15, &call_builtin);
+    builtin_id = Builtins::STRING_ADD_RIGHT;
+  } else if ((flags_ & STRING_ADD_CHECK_RIGHT) == STRING_ADD_CHECK_RIGHT) {
+    ASSERT((flags_ & STRING_ADD_CHECK_LEFT) == 0);
+    GenerateConvertArgument(masm, right, x12, x13, x14, x15, &call_builtin);
+    builtin_id = Builtins::STRING_ADD_LEFT;
   }
 
   // Both arguments are strings.
   //   x0   result      pointer to result string object (uninit)
   //   x10  left        pointer to first string object
   //   x11  right       pointer to second string object
-  // if (flags_ == NO_STRING_ADD_FLAGS) {
-  //   x12  left_type   first string instance type
-  //   x13  right_type  second string instance type
-  // }
+  //   x12  left_type   first string instance type (if STRING_ADD_CHECK_BOTH)
+  //   x13  right_type  second string instance type (if STRING_ADD_CHECK_BOTH)
   Register left_len = x14;
   Register right_len = x15;
   {
@@ -5757,7 +5716,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   }
 
   // Load string instance types.
-  if (flags_ != NO_STRING_ADD_FLAGS) {
+  if ((flags_ & STRING_ADD_CHECK_BOTH) != STRING_ADD_CHECK_BOTH) {
     StringHelper::LoadPairInstanceTypes(masm, left_type, right_type, left,
                                         right);
   }
@@ -6015,7 +5974,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ Bind(&call_runtime);
   // Restore stack arguments.
   __ Push(left, right);
-  if ((flags_ & ERECT_FRAME) != 0) {
+  if ((flags_ & STRING_ADD_ERECT_FRAME) != 0) {
     GenerateRegisterArgsPop(masm);
     // Build a frame
     {
@@ -6032,7 +5991,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
     __ Bind(&call_builtin);
     // Restore stack arguments.
     __ Push(left, right);
-    if ((flags_ & ERECT_FRAME) != 0) {
+    if ((flags_ & STRING_ADD_ERECT_FRAME) != 0) {
       GenerateRegisterArgsPop(masm);
       // Build a frame
       {
@@ -6073,7 +6032,6 @@ void StringAddStub::GenerateConvertArgument(MacroAssembler* masm,
       scratch2,
       scratch3,
       scratch4,
-      NumberToStringStub::OBJECT_IS_NOT_SMI,
       &not_cached);
   __ Mov(arg, scratch1);
   __ B(&done);

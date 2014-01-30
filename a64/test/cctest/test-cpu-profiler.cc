@@ -27,15 +27,12 @@
 //
 // Tests of profiles generator and utilities.
 
-#define V8_DISABLE_DEPRECATIONS 1
 #include "v8.h"
 #include "cpu-profiler-inl.h"
 #include "cctest.h"
 #include "platform.h"
 #include "utils.h"
 #include "../include/v8-profiler.h"
-#undef V8_DISABLE_DEPRECATIONS
-
 using i::CodeEntry;
 using i::CpuProfile;
 using i::CpuProfiler;
@@ -662,16 +659,15 @@ class TestApiCallbacks {
       : min_duration_ms_(min_duration_ms),
         is_warming_up_(false) {}
 
-  static v8::Handle<v8::Value> Getter(v8::Local<v8::String> name,
-                                      const v8::AccessorInfo& info) {
+  static void Getter(v8::Local<v8::String> name,
+                     const v8::PropertyCallbackInfo<v8::Value>& info) {
     TestApiCallbacks* data = fromInfo(info);
     data->Wait();
-    return v8::Int32::New(2013);
   }
 
   static void Setter(v8::Local<v8::String> name,
                      v8::Local<v8::Value> value,
-                     const v8::AccessorInfo& info) {
+                     const v8::PropertyCallbackInfo<void>& info) {
     TestApiCallbacks* data = fromInfo(info);
     data->Wait();
   }
@@ -694,13 +690,8 @@ class TestApiCallbacks {
     }
   }
 
-  static TestApiCallbacks* fromInfo(const v8::AccessorInfo& info) {
-    void* data = v8::External::Cast(*info.Data())->Value();
-    return reinterpret_cast<TestApiCallbacks*>(data);
-  }
-
-  static TestApiCallbacks* fromInfo(
-      const v8::FunctionCallbackInfo<v8::Value>& info) {
+  template<typename T>
+  static TestApiCallbacks* fromInfo(const T& info) {
     void* data = v8::External::Cast(*info.Data())->Value();
     return reinterpret_cast<TestApiCallbacks*>(data);
   }

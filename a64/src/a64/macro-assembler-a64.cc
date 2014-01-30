@@ -992,30 +992,30 @@ void MacroAssembler::CheckEnumCache(Register object,
 }
 
 
-void MacroAssembler::TestJSArrayForAllocationSiteInfo(Register receiver,
+void MacroAssembler::TestJSArrayForAllocationMemento(Register receiver,
                                                       Register scratch1,
                                                       Register scratch2) {
-  Label no_info_available;
+  Label no_memento_available;
   ExternalReference new_space_start =
       ExternalReference::new_space_start(isolate());
   ExternalReference new_space_allocation_top =
       ExternalReference::new_space_allocation_top_address(isolate());
 
   Add(scratch1, receiver,
-      JSArray::kSize + AllocationSiteInfo::kSize - kHeapObjectTag);
+      JSArray::kSize + AllocationMemento::kSize - kHeapObjectTag);
   Cmp(scratch1, Operand(new_space_start));
-  B(lt, &no_info_available);
+  B(lt, &no_memento_available);
 
   Mov(scratch2, Operand(new_space_allocation_top));
   Ldr(scratch2, MemOperand(scratch2));
   Cmp(scratch1, scratch2);
-  B(gt, &no_info_available);
+  B(gt, &no_memento_available);
 
-  Ldr(scratch1, MemOperand(scratch1, -AllocationSiteInfo::kSize));
+  Ldr(scratch1, MemOperand(scratch1, -AllocationMemento::kSize));
   Cmp(scratch1,
-      Operand(Handle<Map>(isolate()->heap()->allocation_site_info_map())));
+      Operand(Handle<Map>(isolate()->heap()->allocation_memento_map())));
 
-  Bind(&no_info_available);
+  Bind(&no_memento_available);
 }
 
 
@@ -2140,9 +2140,10 @@ void MacroAssembler::JumpIfEitherInstanceTypeIsNotSequentialAscii(
 void MacroAssembler::JumpIfInstanceTypeIsNotSequentialAscii(Register type,
                                                             Register scratch,
                                                             Label* failure) {
-  static const int kFlatAsciiStringMask =
+  const int kFlatAsciiStringMask =
       kIsNotStringMask | kStringEncodingMask | kStringRepresentationMask;
-  static const int kFlatAsciiStringTag = ASCII_STRING_TYPE;
+  const int kFlatAsciiStringTag =
+      kStringTag | kOneByteStringTag | kSeqStringTag;
   And(scratch, type, kFlatAsciiStringMask);
   Cmp(scratch, kFlatAsciiStringTag);
   B(ne, failure);
@@ -2156,9 +2157,10 @@ void MacroAssembler::JumpIfBothInstanceTypesAreNotSequentialAscii(
     Register scratch2,
     Label* failure) {
   ASSERT(!AreAliased(first, second, scratch1, scratch2));
-  static const int kFlatAsciiStringMask =
+  const int kFlatAsciiStringMask =
       kIsNotStringMask | kStringEncodingMask | kStringRepresentationMask;
-  static const int kFlatAsciiStringTag = ASCII_STRING_TYPE;
+  const int kFlatAsciiStringTag =
+      kStringTag | kOneByteStringTag | kSeqStringTag;
   And(scratch1, first, kFlatAsciiStringMask);
   And(scratch2, second, kFlatAsciiStringMask);
   Cmp(scratch1, kFlatAsciiStringTag);
@@ -2169,13 +2171,15 @@ void MacroAssembler::JumpIfBothInstanceTypesAreNotSequentialAscii(
 
 void MacroAssembler::JumpIfNotUniqueName(Register type,
                                          Label* not_unique_name) {
-  STATIC_ASSERT(((SYMBOL_TYPE - 1) & kIsInternalizedMask) == kInternalizedTag);
-  // if ((type < kInternalizedTag) || (type > SYMBOL_TYPE)) {
-  //   goto not_unique_name;
+  STATIC_ASSERT((kInternalizedTag == 0) && (kStringTag == 0));
+  // if ((type is string && type is internalized) || type == SYMBOL_TYPE) {
+  //   continue
+  // } else {
+  //   goto not_unique_name
   // }
-  Cmp(type, kInternalizedTag);
-  Ccmp(type, SYMBOL_TYPE, NVFlag, ge);
-  B(gt, not_unique_name);
+  Tst(type, kIsNotStringMask | kIsNotInternalizedMask);
+  Ccmp(type, SYMBOL_TYPE, ZFlag, ne);
+  B(ne, not_unique_name);
 }
 
 

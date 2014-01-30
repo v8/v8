@@ -40,6 +40,11 @@ namespace internal {
 static const char* TypeToString(InstanceType type);
 
 
+void MaybeObject::Print() {
+  Print(stdout);
+}
+
+
 void MaybeObject::Print(FILE* out) {
   Object* this_as_object;
   if (ToObject(&this_as_object)) {
@@ -52,6 +57,11 @@ void MaybeObject::Print(FILE* out) {
     Failure::cast(this)->FailurePrint(out);
   }
   Flush(out);
+}
+
+
+void MaybeObject::PrintLn() {
+  PrintLn(stdout);
 }
 
 
@@ -172,6 +182,9 @@ void HeapObject::HeapObjectPrint(FILE* out) {
       break;
     case JS_WEAK_MAP_TYPE:
       JSWeakMap::cast(this)->JSWeakMapPrint(out);
+      break;
+    case JS_WEAK_SET_TYPE:
+      JSWeakSet::cast(this)->JSWeakSetPrint(out);
       break;
     case FOREIGN_TYPE:
       Foreign::cast(this)->ForeignPrint(out);
@@ -549,6 +562,7 @@ static const char* TypeToString(InstanceType type) {
     case JS_ARRAY_TYPE: return "JS_ARRAY";
     case JS_PROXY_TYPE: return "JS_PROXY";
     case JS_WEAK_MAP_TYPE: return "JS_WEAK_MAP";
+    case JS_WEAK_SET_TYPE: return "JS_WEAK_SET";
     case JS_REGEXP_TYPE: return "JS_REGEXP";
     case JS_VALUE_TYPE: return "JS_VALUE";
     case JS_GLOBAL_OBJECT_TYPE: return "JS_GLOBAL_OBJECT";
@@ -807,6 +821,15 @@ void JSFunctionProxy::JSFunctionProxyPrint(FILE* out) {
 
 void JSWeakMap::JSWeakMapPrint(FILE* out) {
   HeapObject::PrintHeader(out, "JSWeakMap");
+  PrintF(out, " - map = 0x%p\n", reinterpret_cast<void*>(map()));
+  PrintF(out, " - table = ");
+  table()->ShortPrint(out);
+  PrintF(out, "\n");
+}
+
+
+void JSWeakSet::JSWeakSetPrint(FILE* out) {
+  HeapObject::PrintHeader(out, "JSWeakSet");
   PrintF(out, " - map = 0x%p\n", reinterpret_cast<void*>(map()));
   PrintF(out, " - table = ");
   table()->ShortPrint(out);
@@ -1119,6 +1142,10 @@ void TypeSwitchInfo::TypeSwitchInfoPrint(FILE* out) {
 
 void AllocationSite::AllocationSitePrint(FILE* out) {
   HeapObject::PrintHeader(out, "AllocationSite");
+  PrintF(out, " - weak_next: ");
+  weak_next()->ShortPrint(out);
+  PrintF(out, "\n");
+
   PrintF(out, " - transition_info: ");
   if (transition_info()->IsCell()) {
     Cell* cell = Cell::cast(transition_info());
@@ -1144,8 +1171,8 @@ void AllocationSite::AllocationSitePrint(FILE* out) {
 }
 
 
-void AllocationSiteInfo::AllocationSiteInfoPrint(FILE* out) {
-  HeapObject::PrintHeader(out, "AllocationSiteInfo");
+void AllocationMemento::AllocationMementoPrint(FILE* out) {
+  HeapObject::PrintHeader(out, "AllocationMemento");
   PrintF(out, " - allocation site: ");
   if (IsValid()) {
     GetAllocationSite()->Print();

@@ -196,7 +196,6 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
       x10,        // Scratch.
       x11,        // Scratch.
       x12,        // Scratch.
-      NumberToStringStub::OBJECT_IS_NOT_SMI,  // Is it a Smi?
       &not_cached);
   __ IncrementCounter(counters->string_ctor_cached_number(), 1, x10, x11);
   __ Bind(&argument_is_string);

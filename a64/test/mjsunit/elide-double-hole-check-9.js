@@ -29,8 +29,8 @@
 
 var do_set = false;
 
+%NeverOptimizeFunction(set_proto_elements);
 function set_proto_elements() {
-  %NeverOptimize();
   if (do_set) Array.prototype[1] = 1.5;
 }
 

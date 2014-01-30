@@ -169,12 +169,6 @@ void SetExpectedNofProperties(Handle<JSFunction> func, int nof) {
 }
 
 
-void SetPrototypeProperty(Handle<JSFunction> func, Handle<JSObject> value) {
-  CALL_HEAP_FUNCTION_VOID(func->GetIsolate(),
-                          func->SetPrototype(*value));
-}
-
-
 static int ExpectedNofPropertiesFromEstimate(int estimate) {
   // If no properties are added in the constructor, they are more likely
   // to be added later.

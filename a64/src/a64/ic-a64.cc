@@ -331,9 +331,8 @@ static void GenerateKeyNameCheck(MacroAssembler* masm,
   // Is the string internalized? We know it's a string, so a single bit test is
   // enough.
   __ Ldrb(hash_scratch, FieldMemOperand(map_scratch, Map::kInstanceTypeOffset));
-  STATIC_ASSERT(kInternalizedTag != 0);
-  __ TestAndBranchIfAllClear(hash_scratch, kIsInternalizedMask,
-                             not_unique);
+  STATIC_ASSERT(kInternalizedTag == 0);
+  __ TestAndBranchIfAnySet(hash_scratch, kIsNotInternalizedMask, not_unique);
 
   __ Bind(&unique);
   // Fall through if the key is a unique name.

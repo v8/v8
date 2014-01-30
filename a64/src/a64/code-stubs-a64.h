@@ -126,21 +126,6 @@ class StringHelper : public AllStatic {
 };
 
 
-// Flag that indicates how to generate code for the stub StringAddStub.
-enum StringAddFlags {
-  NO_STRING_ADD_FLAGS = 1 << 0,
-  // Omit left string check in stub (left is definitely a string.)
-  NO_STRING_CHECK_LEFT_IN_STUB = 1 << 1,
-  // Omit right string check in stub (right is definitely a string.)
-  NO_STRING_CHECK_RIGHT_IN_STUB = 1 << 2,
-  // Stub needs a frame before calling the runtime
-  ERECT_FRAME = 1 << 3,
-  // Omit both string checks in stub.
-  NO_STRING_CHECK_IN_STUB =
-      NO_STRING_CHECK_LEFT_IN_STUB | NO_STRING_CHECK_RIGHT_IN_STUB
-};
-
-
 class StringAddStub: public PlatformCodeStub {
  public:
   explicit StringAddStub(StringAddFlags flags) : flags_(flags) {}
@@ -170,11 +155,6 @@ class NumberToStringStub: public PlatformCodeStub {
  public:
   NumberToStringStub() { }
 
-  enum ObjectType {
-    OBJECT_IS_SMI = 0,
-    OBJECT_IS_NOT_SMI = 1
-  };
-
   // Generate code to do a lookup in the number string cache. If the number in
   // the register object is found in the cache the generated code falls through
   // with the result in the result register. The object and the result register
@@ -186,7 +166,6 @@ class NumberToStringStub: public PlatformCodeStub {
                                               Register scratch1,
                                               Register scratch2,
                                               Register scratch3,
-                                              ObjectType object_type,
                                               Label* not_found);
 
  private:

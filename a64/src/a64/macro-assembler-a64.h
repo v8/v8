@@ -1499,13 +1499,13 @@ class MacroAssembler : public Assembler {
                       Register scratch3,
                       Label* call_runtime);
 
-  // AllocationSiteInfo support. Arrays may have an associated
-  // AllocationSiteInfo object that can be checked for in order to pretransition
+  // AllocationMemento support. Arrays may have an associated
+  // AllocationMemento object that can be checked for in order to pretransition
   // to another type.
   // On entry, receiver should point to the array object.
   // If allocation info is present, the Z flag is set (so that the eq
   // condition will pass).
-  void TestJSArrayForAllocationSiteInfo(Register receiver,
+  void TestJSArrayForAllocationMemento(Register receiver,
                                         Register scratch1,
                                         Register scratch2);
 

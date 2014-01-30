@@ -135,7 +135,7 @@ void StubRuntimeCallHelper::AfterCall(MacroAssembler* masm) const {
 
 void ElementsTransitionGenerator::GenerateMapChangeElementsTransition(
     MacroAssembler* masm, AllocationSiteMode mode,
-    Label* allocation_site_info_found) {
+    Label* allocation_memento_found) {
   // ----------- S t a t e -------------
   //  -- x2    : receiver
   //  -- x3    : target map
@@ -144,9 +144,9 @@ void ElementsTransitionGenerator::GenerateMapChangeElementsTransition(
   Register map = x3;
 
   if (mode == TRACK_ALLOCATION_SITE) {
-    ASSERT(allocation_site_info_found != NULL);
-    __ TestJSArrayForAllocationSiteInfo(receiver, x10, x11);
-    __ B(eq, allocation_site_info_found);
+    ASSERT(allocation_memento_found != NULL);
+    __ TestJSArrayForAllocationMemento(receiver, x10, x11);
+    __ B(eq, allocation_memento_found);
   }
 
   // Set transitioned map.
@@ -178,7 +178,7 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   Label gc_required, only_change_map;
 
   if (mode == TRACK_ALLOCATION_SITE) {
-    __ TestJSArrayForAllocationSiteInfo(receiver, x10, x11);
+    __ TestJSArrayForAllocationMemento(receiver, x10, x11);
     __ B(eq, fail);
   }
 
@@ -284,7 +284,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   Register target_map = x3;
 
   if (mode == TRACK_ALLOCATION_SITE) {
-    __ TestJSArrayForAllocationSiteInfo(receiver, x10, x11);
+    __ TestJSArrayForAllocationMemento(receiver, x10, x11);
     __ B(eq, fail);
   }
 

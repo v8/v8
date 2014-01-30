@@ -44,12 +44,12 @@ ObservationWeakMap.prototype = {
   get: function(key) {
     key = %UnwrapGlobalProxy(key);
     if (!IS_SPEC_OBJECT(key)) return void 0;
-    return %WeakMapGet(this.map_, key);
+    return %WeakCollectionGet(this.map_, key);
   },
   set: function(key, value) {
     key = %UnwrapGlobalProxy(key);
     if (!IS_SPEC_OBJECT(key)) return void 0;
-    %WeakMapSet(this.map_, key, value);
+    %WeakCollectionSet(this.map_, key, value);
   },
   has: function(key) {
     return !IS_UNDEFINED(this.get(key));

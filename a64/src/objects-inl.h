@@ -221,9 +221,9 @@ bool Object::IsSpecFunction() {
 bool Object::IsInternalizedString() {
   if (!this->IsHeapObject()) return false;
   uint32_t type = HeapObject::cast(this)->map()->instance_type();
-  STATIC_ASSERT(kInternalizedTag != 0);
-  return (type & (kIsNotStringMask | kIsInternalizedMask)) ==
-      (kInternalizedTag | kStringTag);
+  STATIC_ASSERT(kNotInternalizedTag != 0);
+  return (type & (kIsNotStringMask | kIsNotInternalizedMask)) ==
+      (kStringTag | kInternalizedTag);
 }
 
 
@@ -319,9 +319,9 @@ StringShape::StringShape(InstanceType t)
 
 bool StringShape::IsInternalized() {
   ASSERT(valid());
-  STATIC_ASSERT(kInternalizedTag != 0);
-  return (type_ & (kIsNotStringMask | kIsInternalizedMask)) ==
-      (kInternalizedTag | kStringTag);
+  STATIC_ASSERT(kNotInternalizedTag != 0);
+  return (type_ & (kIsNotStringMask | kIsNotInternalizedMask)) ==
+      (kStringTag | kInternalizedTag);
 }
 
 
@@ -567,10 +567,16 @@ TYPE_CHECKER(JSFunctionProxy, JS_FUNCTION_PROXY_TYPE)
 TYPE_CHECKER(JSSet, JS_SET_TYPE)
 TYPE_CHECKER(JSMap, JS_MAP_TYPE)
 TYPE_CHECKER(JSWeakMap, JS_WEAK_MAP_TYPE)
+TYPE_CHECKER(JSWeakSet, JS_WEAK_SET_TYPE)
 TYPE_CHECKER(JSContextExtensionObject, JS_CONTEXT_EXTENSION_OBJECT_TYPE)
 TYPE_CHECKER(Map, MAP_TYPE)
 TYPE_CHECKER(FixedArray, FIXED_ARRAY_TYPE)
 TYPE_CHECKER(FixedDoubleArray, FIXED_DOUBLE_ARRAY_TYPE)
+
+
+bool Object::IsJSWeakCollection() {
+  return IsJSWeakMap() || IsJSWeakSet();
+}
 
 
 bool Object::IsDescriptorArray() {
@@ -1688,6 +1694,8 @@ int JSObject::GetHeaderSize() {
       return JSMap::kSize;
     case JS_WEAK_MAP_TYPE:
       return JSWeakMap::kSize;
+    case JS_WEAK_SET_TYPE:
+      return JSWeakSet::kSize;
     case JS_REGEXP_TYPE:
       return JSRegExp::kSize;
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
@@ -2569,6 +2577,7 @@ CAST_ACCESSOR(JSFunctionProxy)
 CAST_ACCESSOR(JSSet)
 CAST_ACCESSOR(JSMap)
 CAST_ACCESSOR(JSWeakMap)
+CAST_ACCESSOR(JSWeakSet)
 CAST_ACCESSOR(Foreign)
 CAST_ACCESSOR(ByteArray)
 CAST_ACCESSOR(FreeSpace)
@@ -3617,6 +3626,11 @@ bool Map::is_frozen() {
 }
 
 
+bool Map::has_code_cache() {
+  return code_cache() != GetIsolate()->heap()->empty_fixed_array();
+}
+
+
 bool Map::CanBeDeprecated() {
   int descriptor = LastAdded();
   for (int i = 0; i <= descriptor; i++) {
@@ -4450,7 +4464,8 @@ ACCESSORS(SignatureInfo, args, Object, kArgsOffset)
 ACCESSORS(TypeSwitchInfo, types, Object, kTypesOffset)
 
 ACCESSORS(AllocationSite, transition_info, Object, kTransitionInfoOffset)
-ACCESSORS(AllocationSiteInfo, allocation_site, Object, kAllocationSiteOffset)
+ACCESSORS(AllocationSite, weak_next, Object, kWeakNextOffset)
+ACCESSORS(AllocationMemento, allocation_site, Object, kAllocationSiteOffset)
 
 ACCESSORS(Script, source, Object, kSourceOffset)
 ACCESSORS(Script, name, Object, kNameOffset)
@@ -4541,9 +4556,7 @@ SMI_ACCESSORS(SharedFunctionInfo, compiler_hints,
               kCompilerHintsOffset)
 SMI_ACCESSORS(SharedFunctionInfo, opt_count, kOptCountOffset)
 SMI_ACCESSORS(SharedFunctionInfo, counters, kCountersOffset)
-SMI_ACCESSORS(SharedFunctionInfo,
-              stress_deopt_counter,
-              kStressDeoptCounterOffset)
+
 #else
 
 #define PSEUDO_SMI_ACCESSORS_LO(holder, name, offset)             \
@@ -4593,9 +4606,7 @@ PSEUDO_SMI_ACCESSORS_HI(SharedFunctionInfo,
 PSEUDO_SMI_ACCESSORS_LO(SharedFunctionInfo, opt_count, kOptCountOffset)
 
 PSEUDO_SMI_ACCESSORS_HI(SharedFunctionInfo, counters, kCountersOffset)
-PSEUDO_SMI_ACCESSORS_LO(SharedFunctionInfo,
-                        stress_deopt_counter,
-                        kStressDeoptCounterOffset)
+
 #endif
 
 
@@ -5090,8 +5101,8 @@ void JSProxy::InitializeBody(int object_size, Object* value) {
 
 ACCESSORS(JSSet, table, Object, kTableOffset)
 ACCESSORS(JSMap, table, Object, kTableOffset)
-ACCESSORS(JSWeakMap, table, Object, kTableOffset)
-ACCESSORS(JSWeakMap, next, Object, kNextOffset)
+ACCESSORS(JSWeakCollection, table, Object, kTableOffset)
+ACCESSORS(JSWeakCollection, next, Object, kNextOffset)
 
 
 Address Foreign::foreign_address() {

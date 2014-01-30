@@ -350,6 +350,7 @@ void LCodeGen::CallCodeGeneric(Handle<Code> code,
                                RelocInfo::Mode mode,
                                LInstruction* instr,
                                SafepointMode safepoint_mode) {
+  EnsureSpaceForLazyDeopt();
   ASSERT(instr != NULL);
 
   Assembler::BlockConstPoolScope scope(masm_);
@@ -682,6 +683,7 @@ bool LCodeGen::GenerateBody() {
     instr->CompileToNative(this);
   }
   EnsureSpaceForLazyDeopt();
+  last_lazy_deopt_pc_ = masm()->pc_offset();
   return !is_aborted();
 }
 
@@ -1010,7 +1012,6 @@ void LCodeGen::EnsureSpaceForLazyDeopt() {
       padding_size -= kInstructionSize;
     }
   }
-  last_lazy_deopt_pc_ = masm()->pc_offset();
 }
 
 
@@ -1312,6 +1313,26 @@ void LCodeGen::DoAllocate(LAllocate* instr) {
   }
 
   __ Bind(deferred->exit());
+
+  if (instr->hydrogen()->MustPrefillWithFiller()) {
+    if (instr->size()->IsConstantOperand()) {
+      int32_t size = ToInteger32(LConstantOperand::cast(instr->size()));
+      __ Mov(temp1, size - kPointerSize);
+    } else {
+      __ Sub(temp1, ToRegister(instr->size()), kPointerSize);
+    }
+    __ Sub(result, result, kHeapObjectTag);
+
+    // TODO(jbramley): Optimize this loop using stp.
+    Label loop;
+    __ Bind(&loop);
+    __ Mov(temp2, Operand(isolate()->factory()->one_pointer_filler_map()));
+    __ Str(temp2, MemOperand(result, temp1));
+    __ Subs(temp1, temp1, kPointerSize);
+    __ B(ge, &loop);
+
+    __ Add(result, result, kHeapObjectTag);
+  }
 }
 
 
@@ -1829,12 +1850,6 @@ void LCodeGen::DoCallStub(LCallStub* instr) {
       CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
       break;
     }
-    case CodeStub::StringAdd: {
-      // TODO(jbramley): In bleeding_edge, there is no StringAdd case here.
-      StringAddStub stub(NO_STRING_ADD_FLAGS);
-      CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
-      break;
-    }
     case CodeStub::StringCompare: {
       StringCompareStub stub;
       CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
@@ -2249,6 +2264,7 @@ void LCodeGen::DoCheckFunction(LCheckFunction* instr) {
 
 void LCodeGen::DoLazyBailout(LLazyBailout* instr) {
   EnsureSpaceForLazyDeopt();
+  last_lazy_deopt_pc_ = masm()->pc_offset();
   ASSERT(instr->HasEnvironment());
   LEnvironment* env = instr->environment();
   RegisterEnvironmentForDeoptimization(env, Safepoint::kLazyDeopt);
@@ -2977,6 +2993,20 @@ void LCodeGen::DoLabel(LLabel* label) {
   __ Bind(label->label());
   current_block_ = label->block_id();
   DoGap(label);
+}
+
+
+void LCodeGen::DoLinkObjectInList(LLinkObjectInList* instr) {
+  Register object = ToRegister(instr->object());
+  Register temp = ToRegister(instr->temp());
+  ExternalReference sites_list_address = instr->GetReference(isolate());
+
+  __ Mov(temp, Operand(sites_list_address));
+  __ Ldr(temp, MemOperand(temp));
+  __ Str(temp, FieldMemOperand(object,
+                               instr->hydrogen()->store_field().offset()));
+  __ Mov(temp, Operand(sites_list_address));
+  __ Str(object, MemOperand(temp));
 }
 
 
@@ -4545,11 +4575,15 @@ void LCodeGen::DoStackCheck(LStackCheck* instr) {
     __ CompareRoot(masm()->StackPointer(), Heap::kStackLimitRootIndex);
     __ B(hs, &done);
 
+    // TODO(jbramley): This PredictableCodeSizeScope fails sometimes. Sometimes
+    // the code tries to generate 3 instructions, and sometimes it tries to
+    // generate 2. Work out why, and fix it.
     PredictableCodeSizeScope predictable(masm_,
                                          Assembler::kCallSizeWithRelocation);
     StackCheckStub stub;
     CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
     EnsureSpaceForLazyDeopt();
+    last_lazy_deopt_pc_ = masm()->pc_offset();
 
     __ Bind(&done);
     RegisterEnvironmentForDeoptimization(env, Safepoint::kLazyDeopt);
@@ -4563,6 +4597,7 @@ void LCodeGen::DoStackCheck(LStackCheck* instr) {
     __ B(lo, deferred_stack_check->entry());
 
     EnsureSpaceForLazyDeopt();
+    last_lazy_deopt_pc_ = masm()->pc_offset();
     __ Bind(instr->done_label());
     deferred_stack_check->SetExit(instr->done_label());
     RegisterEnvironmentForDeoptimization(env, Safepoint::kLazyDeopt);
@@ -4886,9 +4921,7 @@ void LCodeGen::DoStringAdd(LStringAdd* instr) {
   Register left = ToRegister(instr->left());
   Register right = ToRegister(instr->right());
   __ Push(left, right);
-  // TODO(jbramley): Once we haved rebased, use instr->hydrogen->flags() to get
-  // the flags for the stub.
-  StringAddStub stub(NO_STRING_CHECK_IN_STUB);
+  StringAddStub stub(instr->hydrogen()->flags());
   CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
 }
 
@@ -5241,7 +5274,7 @@ void LCodeGen::DoTrapAllocationMemento(LTrapAllocationMemento* instr) {
   Register object = ToRegister(instr->object());
   Register temp1 = ToRegister(instr->temp1());
   Register temp2 = ToRegister(instr->temp2());
-  __ TestJSArrayForAllocationSiteInfo(object, temp1, temp2);
+  __ TestJSArrayForAllocationMemento(object, temp1, temp2);
   DeoptimizeIf(eq, instr->environment());
 }
 
