@@ -4575,9 +4575,13 @@ void LCodeGen::DoStackCheck(LStackCheck* instr) {
     __ CompareRoot(masm()->StackPointer(), Heap::kStackLimitRootIndex);
     __ B(hs, &done);
 
-    // TODO(jbramley): This PredictableCodeSizeScope fails sometimes. Sometimes
-    // the code tries to generate 3 instructions, and sometimes it tries to
-    // generate 2. Work out why, and fix it.
+    // TODO(bafsa): Make sure that the EnsureSpaceForLazyDeopt inside
+    // CallCodeGeneric will not insert any nop while calling the stub by
+    // inserting them now. The EnsureSpaceForLazyDeopt in CallCodeGeneric
+    // will go away at some point during the rebase (r18642) so this will become
+    // unecessary and should be removed at this point.
+    EnsureSpaceForLazyDeopt();
+
     PredictableCodeSizeScope predictable(masm_,
                                          Assembler::kCallSizeWithRelocation);
     StackCheckStub stub;
