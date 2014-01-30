@@ -87,7 +87,9 @@
 ['system == macos', {
 
   # BUG(3125).
-  'test-debug/*': [PASS, FLAKY],
+  'test-debug/DebugGetLoadedScripts': [PASS, FLAKY],
+  'test-debug/DebugStepLinear': [PASS, FLAKY],
+  'test-debug/DebuggerClearMessageHandler': [PASS, FLAKY],
 }],  # 'system == macos'
 
 ##############################################################################
