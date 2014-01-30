@@ -1322,40 +1322,20 @@ void LoadStubCompiler::GenerateLoadCallback(
   __ Push(scratch4(), reg);
   __ mov(scratch2(), sp);  // scratch2 = PropertyAccessorInfo::args_
   __ push(name());
-  __ mov(r0, sp);  // r0 = Handle<Name>
 
-  const int kApiStackSpace = 1;
-  FrameScope frame_scope(masm(), StackFrame::MANUAL);
-  __ EnterExitFrame(false, kApiStackSpace);
+  // Abi for CallApiGetter
+  Register getter_address_reg = r3;
+  Register thunk_last_arg = r2;
 
-  // Create PropertyAccessorInfo instance on the stack above the exit frame with
-  // scratch2 (internal::Object** args_) as the data.
-  __ str(scratch2(), MemOperand(sp, 1 * kPointerSize));
-  __ add(r1, sp, Operand(1 * kPointerSize));  // r1 = AccessorInfo&
-
-  const int kStackUnwindSpace = PropertyCallbackArguments::kArgsLength + 1;
   Address getter_address = v8::ToCData<Address>(callback->getter());
-
   ApiFunction fun(getter_address);
   ExternalReference::Type type = ExternalReference::DIRECT_GETTER_CALL;
   ExternalReference ref = ExternalReference(&fun, type, isolate());
-  Register getter_address_reg = r3;
-  Register thunk_last_arg = r2;
   __ mov(getter_address_reg, Operand(ref));
   __ mov(thunk_last_arg, Operand(reinterpret_cast<int32_t>(getter_address)));
 
-  Address thunk_address = FUNCTION_ADDR(&InvokeAccessorGetterCallback);
-  ExternalReference::Type thunk_type =
-      ExternalReference::PROFILING_GETTER_CALL;
-  ApiFunction thunk_fun(thunk_address);
-  ExternalReference thunk_ref = ExternalReference(&thunk_fun, thunk_type,
-      isolate());
-  __ CallApiFunctionAndReturn(getter_address_reg,
-                              thunk_ref,
-                              thunk_last_arg,
-                              kStackUnwindSpace,
-                              MemOperand(fp, 6 * kPointerSize),
-                              NULL);
+  CallApiGetterStub stub;
+  __ TailCallStub(&stub);
 }
 
 

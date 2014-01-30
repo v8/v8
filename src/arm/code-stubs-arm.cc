@@ -5383,10 +5383,10 @@ void CallApiFunctionStub::Generate(MacroAssembler* masm) {
   //  -- r1                  : thunk_arg
   //  -- cp                  : context
   //  --
-  //  -- esp[0]              : last argument
+  //  -- sp[0]               : last argument
   //  -- ...
-  //  -- esp[(argc - 1)* 4]  : first argument
-  //  -- esp[argc * 4]       : receiver
+  //  -- sp[(argc - 1)* 4]   : first argument
+  //  -- sp[argc * 4]        : receiver
   // -----------------------------------
 
   Register callee = r0;
@@ -5485,6 +5485,47 @@ void CallApiFunctionStub::Generate(MacroAssembler* masm) {
                               return_value_operand,
                               restore_context ?
                                   &context_restore_operand : NULL);
+}
+
+
+void CallApiGetterStub::Generate(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- sp[0]                  : name
+  //  -- sp[4 - kArgsLength*4]  : PropertyCallbackArguments object
+  //  -- ...
+  //  -- r3                    : api_function_address
+  //  -- r2                    : thunk_last_arg
+  // -----------------------------------
+
+  Register api_function_address = r3;
+  Register thunk_last_arg = r2;
+
+  __ mov(r0, sp);  // r0 = Handle<Name>
+  __ add(r1, r0, Operand(1 * kPointerSize));  // r1 = PCA
+
+  const int kApiStackSpace = 1;
+  FrameScope frame_scope(masm, StackFrame::MANUAL);
+  __ EnterExitFrame(false, kApiStackSpace);
+
+  // Create PropertyAccessorInfo instance on the stack above the exit frame with
+  // r1 (internal::Object** args_) as the data.
+  __ str(r1, MemOperand(sp, 1 * kPointerSize));
+  __ add(r1, sp, Operand(1 * kPointerSize));  // r1 = AccessorInfo&
+
+  const int kStackUnwindSpace = PropertyCallbackArguments::kArgsLength + 1;
+
+  Address thunk_address = FUNCTION_ADDR(&InvokeAccessorGetterCallback);
+  ExternalReference::Type thunk_type =
+      ExternalReference::PROFILING_GETTER_CALL;
+  ApiFunction thunk_fun(thunk_address);
+  ExternalReference thunk_ref = ExternalReference(&thunk_fun, thunk_type,
+      masm->isolate());
+  __ CallApiFunctionAndReturn(api_function_address,
+                              thunk_ref,
+                              thunk_last_arg,
+                              kStackUnwindSpace,
+                              MemOperand(fp, 6 * kPointerSize),
+                              NULL);
 }
 
 

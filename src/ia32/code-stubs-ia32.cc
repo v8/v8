@@ -5358,6 +5358,44 @@ void CallApiFunctionStub::Generate(MacroAssembler* masm) {
 }
 
 
+void CallApiGetterStub::Generate(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- esp[0]                  : return address
+  //  -- esp[4]                  : name
+  //  -- esp[8 - kArgsLength*4]  : PropertyCallbackArguments object
+  //  -- ...
+  //  -- edx                    : api_function_address
+  // -----------------------------------
+
+  // array for v8::Arguments::values_, handler for name and pointer
+  // to the values (it considered as smi in GC).
+  const int kStackSpace = PropertyCallbackArguments::kArgsLength + 2;
+  // Allocate space for opional callback address parameter in case
+  // CPU profiler is active.
+  const int kApiArgc = 2 + 1;
+
+  Register api_function_address = edx;
+  Register scratch = ebx;
+
+  // load address of name
+  __ lea(scratch, Operand(esp, 1 * kPointerSize));
+
+  __ PrepareCallApiFunction(kApiArgc);
+  __ mov(ApiParameterOperand(0), scratch);  // name.
+  __ add(scratch, Immediate(kPointerSize));
+  __ mov(ApiParameterOperand(1), scratch);  // arguments pointer.
+
+  Address thunk_address = FUNCTION_ADDR(&InvokeAccessorGetterCallback);
+
+  __ CallApiFunctionAndReturn(api_function_address,
+                              thunk_address,
+                              ApiParameterOperand(2),
+                              kStackSpace,
+                              Operand(ebp, 7 * kPointerSize),
+                              NULL);
+}
+
+
 #undef __
 
 } }  // namespace v8::internal

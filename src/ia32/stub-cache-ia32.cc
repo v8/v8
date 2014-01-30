@@ -1313,39 +1313,16 @@ void LoadStubCompiler::GenerateLoadCallback(
   __ push(esp);
 
   __ push(name());  // name
-  __ mov(ebx, esp);  // esp points to reference to name (handler).
 
   __ push(scratch3());  // Restore return address.
 
-  // array for v8::Arguments::values_, handler for name and pointer
-  // to the values (it considered as smi in GC).
-  const int kStackSpace = PropertyCallbackArguments::kArgsLength + 2;
-  // Allocate space for opional callback address parameter in case
-  // CPU profiler is active.
-  const int kApiArgc = 2 + 1;
-
-  __ PrepareCallApiFunction(kApiArgc);
-  __ mov(ApiParameterOperand(0), ebx);  // name.
-  __ add(ebx, Immediate(kPointerSize));
-  __ mov(ApiParameterOperand(1), ebx);  // arguments pointer.
-
-  // Emitting a stub call may try to allocate (if the code is not
-  // already generated).  Do not allow the assembler to perform a
-  // garbage collection but instead return the allocation failure
-  // object.
-
+  // Abi for CallApiGetter
   Register getter_address = edx;
   Address function_address = v8::ToCData<Address>(callback->getter());
   __ mov(getter_address, Immediate(function_address));
 
-  Address thunk_address = FUNCTION_ADDR(&InvokeAccessorGetterCallback);
-
-  __ CallApiFunctionAndReturn(getter_address,
-                              thunk_address,
-                              ApiParameterOperand(2),
-                              kStackSpace,
-                              Operand(ebp, 7 * kPointerSize),
-                              NULL);
+  CallApiGetterStub stub;
+  __ TailCallStub(&stub);
 }
 
 

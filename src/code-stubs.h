@@ -96,6 +96,7 @@ namespace internal {
   V(ProfileEntryHook)                    \
   V(StoreGlobal)                         \
   V(CallApiFunction)                     \
+  V(CallApiGetter)                       \
   /* IC Handler stubs */                 \
   V(LoadField)                           \
   V(KeyedLoadField)                      \
@@ -1041,6 +1042,19 @@ class CallApiFunctionStub : public PlatformCodeStub {
   int bit_field_;
 
   DISALLOW_COPY_AND_ASSIGN(CallApiFunctionStub);
+};
+
+
+class CallApiGetterStub : public PlatformCodeStub {
+ public:
+  CallApiGetterStub() {}
+
+ private:
+  virtual void Generate(MacroAssembler* masm) V8_OVERRIDE;
+  virtual Major MajorKey() V8_OVERRIDE { return CallApiGetter; }
+  virtual int MinorKey() V8_OVERRIDE { return 0; }
+
+  DISALLOW_COPY_AND_ASSIGN(CallApiGetterStub);
 };
 
 

@@ -1218,59 +1218,15 @@ void LoadStubCompiler::GenerateLoadCallback(
   // Save a pointer to where we pushed the arguments pointer.  This will be
   // passed as the const PropertyAccessorInfo& to the C++ callback.
 
-  Address getter_address = v8::ToCData<Address>(callback->getter());
-
-#if defined(__MINGW64__) || defined(_WIN64)
-  Register getter_arg = r8;
-  Register accessor_info_arg = rdx;
-  Register name_arg = rcx;
-#else
-  Register getter_arg = rdx;
-  Register accessor_info_arg = rsi;
-  Register name_arg = rdi;
-#endif
-
-  ASSERT(!name_arg.is(scratch4()));
-  __ movp(name_arg, rsp);
   __ PushReturnAddressFrom(scratch4());
 
-  // v8::Arguments::values_ and handler for name.
-  const int kStackSpace = PropertyCallbackArguments::kArgsLength + 1;
-
-  // Allocate v8::AccessorInfo in non-GCed stack space.
-  const int kArgStackSpace = 1;
-
-  __ PrepareCallApiFunction(kArgStackSpace);
-  __ lea(rax, Operand(name_arg, 1 * kPointerSize));
-
-  // v8::PropertyAccessorInfo::args_.
-  __ movp(StackSpaceOperand(0), rax);
-
-  // The context register (rsi) has been saved in PrepareCallApiFunction and
-  // could be used to pass arguments.
-  __ lea(accessor_info_arg, StackSpaceOperand(0));
-
-  Address thunk_address = FUNCTION_ADDR(&InvokeAccessorGetterCallback);
-
+  // Abi for CallApiGetter
   Register api_function_address = r8;
-  // It's okay if api_function_address == getter_arg
-  // but not accessor_info_arg or name_arg
-  ASSERT(!api_function_address.is(accessor_info_arg) &&
-         !api_function_address.is(name_arg));
-
+  Address getter_address = v8::ToCData<Address>(callback->getter());
   __ Move(api_function_address, getter_address, RelocInfo::EXTERNAL_REFERENCE);
 
-  // The name handler is counted as an argument.
-  StackArgumentsAccessor args(rbp, PropertyCallbackArguments::kArgsLength);
-  Operand return_value_operand = args.GetArgumentOperand(
-      PropertyCallbackArguments::kArgsLength - 1 -
-      PropertyCallbackArguments::kReturnValueOffset);
-  __ CallApiFunctionAndReturn(api_function_address,
-                              thunk_address,
-                              getter_arg,
-                              kStackSpace,
-                              return_value_operand,
-                              NULL);
+  CallApiGetterStub stub;
+  __ TailCallStub(&stub);
 }
 
 
