@@ -70,6 +70,13 @@
 }],  # ALWAYS
 
 ##############################################################################
+['asan == True', {
+  # Skip tests not suitable for ASAN.
+  'test-assembler-x64/AssemblerX64XchglOperations': [SKIP],
+  'test-lockers/MultithreadedParallelIsolates': [SKIP],
+}],  # 'asan == True'
+
+##############################################################################
 ['system == windows', {
 
   # BUG(2999).

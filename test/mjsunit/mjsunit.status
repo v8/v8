@@ -133,6 +133,14 @@
 }],  # 'gc_stress == True'
 
 ##############################################################################
+['asan == True', {
+  # Skip tests not suitable for ASAN.
+  'big-array-literal': [SKIP],
+  'big-object-literal': [SKIP],
+  'regress/regress-crbug-178790': [SKIP],
+}],  # 'asan == True'
+
+##############################################################################
 ['arch == arm or arch == android_arm', {
 
   # Slow tests which times out in debug mode.
