@@ -189,6 +189,8 @@ void OS::Abort() {
 void OS::DebugBreak() {
 #if (defined(__arm__) || defined(__thumb__))
   asm("bkpt 0");
+#elif defined(__aarch64__)
+  asm("brk 0");
 #else
   asm("int $3");
 #endif

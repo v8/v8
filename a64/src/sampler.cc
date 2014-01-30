@@ -46,7 +46,8 @@
 // GLibc on ARM defines mcontext_t has a typedef for 'struct sigcontext'.
 // Old versions of the C library <signal.h> didn't define the type.
 #if defined(__ANDROID__) && !defined(__BIONIC_HAVE_UCONTEXT_T) && \
-    defined(__arm__) && !defined(__BIONIC_HAVE_STRUCT_SIGCONTEXT)
+    (defined(__arm__) || defined(__aarch64__)) && \
+    !defined(__BIONIC_HAVE_STRUCT_SIGCONTEXT)
 #include <asm/sigcontext.h>
 #endif
 
@@ -80,9 +81,6 @@
 //
 // See http://code.google.com/p/android/issues/detail?id=34784
 
-// TODO(jbramley): This is not (and has never been) defined for A64. Does A64's
-// Android provide ucontext_t? Should we add an A64 variant?
-
 #if defined(__arm__)
 
 typedef struct sigcontext mcontext_t;
@@ -90,6 +88,18 @@ typedef struct sigcontext mcontext_t;
 typedef struct ucontext {
   uint32_t uc_flags;
   struct ucontext* uc_link;
+  stack_t uc_stack;
+  mcontext_t uc_mcontext;
+  // Other fields are not used by V8, don't define them here.
+} ucontext_t;
+
+#elif defined(__aarch64__)
+
+typedef struct sigcontext mcontext_t;
+
+typedef struct ucontext {
+  uint64_t uc_flags;
+  struct ucontext *uc_link;
   stack_t uc_stack;
   mcontext_t uc_mcontext;
   // Other fields are not used by V8, don't define them here.
@@ -376,10 +386,10 @@ void SignalHandler::HandleProfilerSignal(int signal, siginfo_t* info,
 #endif  // defined(__GLIBC__) && !defined(__UCLIBC__) &&
         // (__GLIBC__ < 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ <= 3))
 #elif V8_HOST_ARCH_A64
-  sample->pc = reinterpret_cast<Address>(mcontext.pc);
-  sample->sp = reinterpret_cast<Address>(mcontext.sp);
+  state.pc = reinterpret_cast<Address>(mcontext.pc);
+  state.sp = reinterpret_cast<Address>(mcontext.sp);
   // FP is an alias for x29.
-  sample->fp = reinterpret_cast<Address>(mcontext.regs[29]);
+  state.fp = reinterpret_cast<Address>(mcontext.regs[29]);
 #elif V8_HOST_ARCH_MIPS
   state.pc = reinterpret_cast<Address>(mcontext.pc);
   state.sp = reinterpret_cast<Address>(mcontext.gregs[29]);

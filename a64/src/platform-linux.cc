@@ -58,7 +58,8 @@
 // GLibc on ARM defines mcontext_t has a typedef for 'struct sigcontext'.
 // Old versions of the C library <signal.h> didn't define the type.
 #if defined(__ANDROID__) && !defined(__BIONIC_HAVE_UCONTEXT_T) && \
-    defined(__arm__) && !defined(__BIONIC_HAVE_STRUCT_SIGCONTEXT)
+    (defined(__arm__) || defined(__aarch64__)) && \
+    !defined(__BIONIC_HAVE_STRUCT_SIGCONTEXT)
 #include <asm/sigcontext.h>
 #endif
 
@@ -438,10 +439,10 @@ void OS::Abort() {
 void OS::DebugBreak() {
 // TODO(lrn): Introduce processor define for runtime system (!= V8_ARCH_x,
 //  which is the architecture of generated code).
-#if defined(__aarch64__)
-  asm("hlt 0");
-#elif defined(__arm__) || defined(__thumb__)
+#if defined(__arm__) || defined(__thumb__)
   asm("bkpt 0");
+#elif defined(__aarch64__)
+  asm("brk 0");
 #elif defined(__mips__)
   asm("break");
 #elif defined(__native_client__)
