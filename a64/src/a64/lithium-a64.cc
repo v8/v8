@@ -42,6 +42,27 @@ namespace internal {
 LITHIUM_CONCRETE_INSTRUCTION_LIST(DEFINE_COMPILE)
 #undef DEFINE_COMPILE
 
+#ifdef DEBUG
+void LInstruction::VerifyCall() {
+  // Call instructions can use only fixed registers as temporaries and
+  // outputs because all registers are blocked by the calling convention.
+  // Inputs operands must use a fixed register or use-at-start policy or
+  // a non-register policy.
+  ASSERT(Output() == NULL ||
+         LUnallocated::cast(Output())->HasFixedPolicy() ||
+         !LUnallocated::cast(Output())->HasRegisterPolicy());
+  for (UseIterator it(this); !it.Done(); it.Advance()) {
+    LUnallocated* operand = LUnallocated::cast(it.Current());
+    ASSERT(operand->HasFixedPolicy() ||
+           operand->IsUsedAtStart());
+  }
+  for (TempIterator it(this); !it.Done(); it.Advance()) {
+    LUnallocated* operand = LUnallocated::cast(it.Current());
+    ASSERT(operand->HasFixedPolicy() ||!operand->HasRegisterPolicy());
+  }
+}
+#endif
+
 
 void LLabel::PrintDataTo(StringStream* stream) {
   LGap::PrintDataTo(stream);
@@ -504,7 +525,9 @@ LInstruction* LChunkBuilder::MarkAsCall(LInstruction* instr,
                                         HInstruction* hinstr,
                                         CanDeoptimize can_deoptimize) {
   info()->MarkAsNonDeferredCalling();
-  // TODO(all): Verify call in debug mode.
+#ifdef DEBUG
+  instr->VerifyCall();
+#endif
   instr->MarkAsCall();
   instr = AssignPointerMap(instr);
 
