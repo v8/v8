@@ -5210,7 +5210,6 @@ void LCodeGen::DoThisFunction(LThisFunction* instr) {
 void LCodeGen::DoToFastProperties(LToFastProperties* instr) {
   ASSERT(ToRegister(instr->value()).Is(x0));
   ASSERT(ToRegister(instr->result()).Is(x0));
-  ASM_UNIMPLEMENTED_BREAK("DoToFastProperties");
   __ Push(x0);
   CallRuntime(Runtime::kToFastProperties, 1, instr);
 }
