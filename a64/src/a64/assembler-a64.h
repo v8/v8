@@ -1694,6 +1694,10 @@ class Assembler : public AssemblerBase {
   // Check if is time to emit a constant pool.
   void CheckConstPool(bool force_emit, bool require_jump);
 
+  // Available for constrained code generation scopes. Prefer
+  // MacroAssembler::Mov() when possible.
+  inline void LoadRelocated(const CPURegister& rt, const Operand& operand);
+
  protected:
   inline const Register& AppropriateZeroRegFor(const CPURegister& reg) const;
 
@@ -1749,8 +1753,6 @@ class Assembler : public AssemblerBase {
               FlagsUpdate S,
               AddSubOp op);
   static bool IsImmAddSub(int64_t immediate);
-
-  inline void LoadRelocated(const CPURegister& rt, const Operand& operand);
 
   static bool IsImmFP32(float imm);
   static bool IsImmFP64(double imm);

@@ -176,8 +176,7 @@ class LCodeGen BASE_EMBEDDED {
                            LOperand* temp2);
   void DoDeferredAllocate(LAllocate* instr);
 
-  void DoDeferredInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr,
-                                       Label* map_check);
+  void DoDeferredInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr);
 
   static Condition TokenToCondition(Token::Value op, bool is_unsigned);
   void EmitGoto(int block);

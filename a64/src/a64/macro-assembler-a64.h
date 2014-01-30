@@ -1594,6 +1594,12 @@ class MacroAssembler : public Assembler {
     Poke(src, SafepointRegisterStackIndex(dst.code()) * kPointerSize);
   }
 
+  // Load the value of the src register from its safepoint stack slot
+  // into register dst.
+  void LoadFromSafepointRegisterSlot(Register dst, Register src) {
+    Peek(src, SafepointRegisterStackIndex(dst.code()) * kPointerSize);
+  }
+
   void CheckPageFlagSet(const Register& object,
                         const Register& scratch,
                         int mask,
@@ -1713,6 +1719,12 @@ class MacroAssembler : public Assembler {
                    Register scratch0,
                    Register scratch1,
                    Label* on_black);
+
+
+  // Get the location of a relocated constant (its address in the constant pool)
+  // from its load site.
+  void GetRelocatedValueLocation(Register ldr_location,
+                                 Register result);
 
 
   // ---------------------------------------------------------------------------

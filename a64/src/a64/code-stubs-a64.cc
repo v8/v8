@@ -3002,25 +3002,39 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   // Returns result in x0. Zero indicates instanceof, smi 1 indicates not
   // instanceof.
 
-  // Instanceof supports the kArgsInRegisters flag but not the others, ie.
-  //  No call site inlining.
-  //  No return of true/false objects.
-  ASSERT((flags_ == kNoFlags) || (flags_ == kArgsInRegisters));
-
   Register result = x0;
   Register function = right();
   Register object = left();
+  Register scratch1 = x6;
+  Register scratch2 = x7;
+  Register res_true = x8;
+  Register res_false = x9;
+  // Only used if there was an inline map check site. (See
+  // LCodeGen::DoInstanceOfKnownGlobal().)
+  Register map_check_site = x4;
+  // Delta for the instructions generated between the inline map check and the
+  // instruction setting the result.
+  const int32_t kDeltaToLoadBoolResult = 4 * kInstructionSize;
+
   Label not_js_object, slow;
 
   if (!HasArgsInRegisters()) {
     __ Pop(function, object);
   }
 
+  if (ReturnTrueFalseObject()) {
+    __ LoadTrueFalseRoots(res_true, res_false);
+  } else {
+    // This is counter-intuitive, but correct.
+    __ Mov(res_true, Operand(Smi::FromInt(0)));
+    __ Mov(res_false, Operand(Smi::FromInt(1)));
+  }
+
   // Check that the left hand side is a JS object and load its map as a side
   // effect.
   Register map = x12;
   __ JumpIfSmi(object, &not_js_object);
-  __ IsObjectJSObjectType(object, map, x7, &not_js_object);
+  __ IsObjectJSObjectType(object, map, scratch2, &not_js_object);
 
   // If there is a call site cache, don't look in the global cache, but do the
   // real lookup and update the call site cache.
@@ -3035,23 +3049,27 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
 
   // Get the prototype of the function.
   Register prototype = x13;
-  __ TryGetFunctionPrototype(function, prototype, x7, &slow,
+  __ TryGetFunctionPrototype(function, prototype, scratch2, &slow,
                              MacroAssembler::kMissOnBoundFunction);
 
   // Check that the function prototype is a JS object.
   __ JumpIfSmi(prototype, &slow);
-  __ IsObjectJSObjectType(prototype, x6, x7, &slow);
+  __ IsObjectJSObjectType(prototype, scratch1, scratch2, &slow);
 
   // Update the global instanceof or call site inlined cache with the current
   // map and function. The cached answer will be set when it is known below.
-  if (!HasCallSiteInlineCheck()) {
+  if (HasCallSiteInlineCheck()) {
+    // Patch the (relocated) inlined map check.
+    __ GetRelocatedValueLocation(map_check_site, scratch1);
+    // We have a cell, so need another level of dereferencing.
+    __ Ldr(scratch1, MemOperand(scratch1));
+    __ Str(map, FieldMemOperand(scratch1, Cell::kValueOffset));
+  } else {
     __ StoreRoot(function, Heap::kInstanceofCacheFunctionRootIndex);
     __ StoreRoot(map, Heap::kInstanceofCacheMapRootIndex);
-  } else {
-    ASM_UNIMPLEMENTED("InstanceofStub inline patching");
   }
 
-  Label return_result;
+  Label return_true, return_result;
   {
     // Loop through the prototype chain looking for the function prototype.
     Register chain_map = x1;
@@ -3061,18 +3079,16 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
     __ Ldr(chain_prototype, FieldMemOperand(map, Map::kPrototypeOffset));
     __ LoadRoot(null_value, Heap::kNullValueRootIndex);
     // Speculatively set a result.
-    __ Mov(result, Operand(Smi::FromInt(1)));
+    __ Mov(result, res_false);
 
     __ Bind(&loop);
 
-    // If the chain prototype is the object prototype, return smi(0).
+    // If the chain prototype is the object prototype, return true.
     __ Cmp(chain_prototype, prototype);
-    ASSERT(Smi::FromInt(0) == 0UL);
-    __ CzeroX(result, eq);
-    __ B(eq, &return_result);
+    __ B(eq, &return_true);
 
     // If the chain prototype is null, we've reached the end of the chain, so
-    // return smi(1).
+    // return false.
     __ Cmp(chain_prototype, null_value);
     __ B(eq, &return_result);
 
@@ -3083,11 +3099,17 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   }
 
   // Return sequence when no arguments are on the stack.
+  // We cannot fall through to here.
+  __ Bind(&return_true);
+  __ Mov(result, res_true);
   __ Bind(&return_result);
-  if (!HasCallSiteInlineCheck()) {
-    __ StoreRoot(result, Heap::kInstanceofCacheAnswerRootIndex);
+  if (HasCallSiteInlineCheck()) {
+    ASSERT(ReturnTrueFalseObject());
+    __ Add(map_check_site, map_check_site, kDeltaToLoadBoolResult);
+    __ GetRelocatedValueLocation(map_check_site, scratch2);
+    __ Str(result, MemOperand(scratch2));
   } else {
-    ASM_UNIMPLEMENTED("InstanceofStub call site patcher");
+    __ StoreRoot(result, Heap::kInstanceofCacheAnswerRootIndex);
   }
   __ Ret();
 
@@ -3103,36 +3125,38 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   // Before null, smi and string checks, check that the rhs is a function.
   // For a non-function rhs, an exception must be thrown.
   __ JumpIfSmi(function, &slow);
-  __ JumpIfNotObjectType(function, x6, object_type, JS_FUNCTION_TYPE, &slow);
+  __ JumpIfNotObjectType(
+      function, scratch1, object_type, JS_FUNCTION_TYPE, &slow);
+
+  __ Mov(result, res_false);
 
   // Null is not instance of anything.
   __ Cmp(object_type, Operand(masm->isolate()->factory()->null_value()));
   __ B(ne, &object_not_null);
-  __ Mov(result, Operand(Smi::FromInt(1)));
   __ Ret();
 
   __ Bind(&object_not_null);
   // Smi values are not instances of anything.
   __ JumpIfNotSmi(object, &object_not_null_or_smi);
-  __ Mov(result, Operand(Smi::FromInt(1)));
   __ Ret();
 
   __ Bind(&object_not_null_or_smi);
   // String values are not instances of anything.
-  __ IsObjectJSStringType(object, x7, &slow);
-  __ Mov(result, Operand(Smi::FromInt(1)));
+  __ IsObjectJSStringType(object, scratch2, &slow);
   __ Ret();
 
   // Slow-case. Tail call builtin.
   __ Bind(&slow);
-  if (!ReturnTrueFalseObject()) {
+  {
     FrameScope scope(masm, StackFrame::INTERNAL);
     // Arguments have either been passed into registers or have been previously
     // popped. We need to push them before calling builtin.
     __ Push(object, function);
     __ InvokeBuiltin(Builtins::INSTANCE_OF, CALL_FUNCTION);
-  } else {
-    ASM_UNIMPLEMENTED("InstanceofStub call builtin and return object");
+  }
+  if (ReturnTrueFalseObject()) {
+    __ Cmp(result, 0);
+    __ Csel(result, res_true, res_false, eq);
   }
   __ Ret();
 }

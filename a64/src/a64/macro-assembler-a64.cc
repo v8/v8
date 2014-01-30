@@ -4089,6 +4089,24 @@ void MacroAssembler::JumpIfBlack(Register object,
 }
 
 
+void MacroAssembler::GetRelocatedValueLocation(Register ldr_location,
+                                               Register result) {
+  ASSERT(!result.Is(ldr_location));
+  const uint32_t kLdrLitOffset_lsb = 5;
+  const uint32_t kLdrLitOffset_width = 19;
+  Ldr(result, MemOperand(ldr_location));
+  if (emit_debug_code()) {
+    And(result, result, LoadLiteralFMask);
+    Cmp(result, LoadLiteralFixed);
+    Check(eq, "The instruction to patch should be a load literal.");
+    // The instruction was clobbered. Reload it.
+    Ldr(result, MemOperand(ldr_location));
+  }
+  Sbfx(result, result, kLdrLitOffset_lsb, kLdrLitOffset_width);
+  Add(result, ldr_location, Operand(result, LSL, kWordSizeInBytesLog2));
+}
+
+
 void MacroAssembler::EnsureNotWhite(
     Register value,
     Register bitmap_scratch,
