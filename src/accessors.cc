@@ -91,10 +91,19 @@ static V8_INLINE bool CheckForName(Handle<String> name,
 }
 
 
-bool Accessors::IsJSObjectFieldAccessor(
-      Handle<Map> map, Handle<String> name,
-      int* object_offset) {
-  Isolate* isolate = map->GetIsolate();
+bool Accessors::IsJSObjectFieldAccessor(Handle<HeapType> type,
+                                        Handle<String> name,
+                                        int* object_offset) {
+  Isolate* isolate = name->GetIsolate();
+
+  if (type->Is(HeapType::String())) {
+    return CheckForName(name, isolate->heap()->length_string(),
+                        String::kLengthOffset, object_offset);
+  }
+
+  if (!type->IsClass()) return false;
+  Handle<Map> map = type->AsClass();
+
   switch (map->instance_type()) {
     case JS_ARRAY_TYPE:
       return
@@ -122,14 +131,8 @@ bool Accessors::IsJSObjectFieldAccessor(
                      JSDataView::kByteOffsetOffset, object_offset) ||
         CheckForName(name, isolate->heap()->buffer_string(),
                      JSDataView::kBufferOffset, object_offset);
-    default: {
-      if (map->instance_type() < FIRST_NONSTRING_TYPE) {
-        return
-          CheckForName(name, isolate->heap()->length_string(),
-                       String::kLengthOffset, object_offset);
-      }
+    default:
       return false;
-    }
   }
 }
 

@@ -4269,6 +4269,9 @@ class HIsStringAndBranch V8_FINAL : public HUnaryControlInstruction {
 
   DECLARE_CONCRETE_INSTRUCTION(IsStringAndBranch)
 
+ protected:
+  virtual int RedefinedOperandIndex() { return 0; }
+
  private:
   HIsStringAndBranch(HValue* value,
                      HBasicBlock* true_target = NULL,
@@ -4291,6 +4294,7 @@ class HIsSmiAndBranch V8_FINAL : public HUnaryControlInstruction {
 
  protected:
   virtual bool DataEquals(HValue* other) V8_OVERRIDE { return true; }
+  virtual int RedefinedOperandIndex() { return 0; }
 
  private:
   HIsSmiAndBranch(HValue* value,
