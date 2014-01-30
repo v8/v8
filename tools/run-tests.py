@@ -33,6 +33,7 @@ import multiprocessing
 import optparse
 import os
 from os.path import join
+import platform
 import shlex
 import subprocess
 import sys
@@ -387,6 +388,13 @@ def Execute(arch, mode, args, options, suites, workspace):
                         options.no_i18n)
 
   # Find available test suites and read test cases from them.
+  machine = platform.machine()
+  if (machine and
+      (arch == "mipsel" or arch == "arm") and
+      not arch.startswith(machine)):
+    use_simulator = True
+  else:
+    use_simulator = False
   variables = {
     "arch": arch,
     "asan": options.asan,
@@ -396,6 +404,7 @@ def Execute(arch, mode, args, options, suites, workspace):
     "mode": mode,
     "no_i18n": options.no_i18n,
     "system": utils.GuessOS(),
+    "simulator": use_simulator,
   }
   all_tests = []
   num_tests = 0
