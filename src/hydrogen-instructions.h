@@ -3410,6 +3410,7 @@ class HConstant V8_FINAL : public HTemplateInstruction<0> {
     ASSERT(!object_.IsKnownGlobal(heap->nan_value()));
     return
         object_.IsKnownGlobal(heap->undefined_value()) ||
+        object_.IsKnownGlobal(heap->uninitialized_value()) ||
         object_.IsKnownGlobal(heap->null_value()) ||
         object_.IsKnownGlobal(heap->true_value()) ||
         object_.IsKnownGlobal(heap->false_value()) ||
