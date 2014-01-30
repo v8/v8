@@ -1,3 +1,8 @@
+2014-01-30: Version 3.24.27
+
+        Performance and stability improvements on all platforms.
+
+
 2014-01-29: Version 3.24.26
 
         ES6: Map and Set needs to normalize minus zero (issue 3069).
