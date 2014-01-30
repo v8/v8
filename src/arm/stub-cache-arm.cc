@@ -788,8 +788,7 @@ static void GenerateFastApiCallBody(MacroAssembler* masm,
   Register callee = r0;
   Register call_data = r4;
   Register holder = r2;
-  Register api_function_address = r3;
-  Register thunk_arg = r1;
+  Register api_function_address = r1;
 
   // Put holder in place.
   __ Move(holder, holder_in);
@@ -822,52 +821,10 @@ static void GenerateFastApiCallBody(MacroAssembler* masm,
                                             type,
                                             masm->isolate());
   __ mov(api_function_address, Operand(ref));
-  __ mov(thunk_arg, Operand(reinterpret_cast<int32_t>(function_address)));
 
   // Jump to stub.
   CallApiFunctionStub stub(restore_context, call_data_undefined, argc);
   __ TailCallStub(&stub);
-}
-
-
-// Generates call to API function.
-static void GenerateFastApiCall(MacroAssembler* masm,
-                                const CallOptimization& optimization,
-                                int argc,
-                                Handle<Map> map_to_holder,
-                                CallOptimization::HolderLookup holder_lookup) {
-  Counters* counters = masm->isolate()->counters();
-  __ IncrementCounter(counters->call_const_fast_api(), 1, r0, r1);
-
-  // Move holder to a register
-  Register holder_reg = r2;
-  switch (holder_lookup) {
-    case CallOptimization::kHolderIsReceiver:
-      {
-        ASSERT(map_to_holder.is_null());
-        __ ldr(holder_reg, MemOperand(sp, argc * kPointerSize));
-      }
-      break;
-    case CallOptimization::kHolderIsPrototypeOfMap:
-      {
-        Handle<JSObject> holder(JSObject::cast(map_to_holder->prototype()));
-        if (!masm->isolate()->heap()->InNewSpace(*holder)) {
-          __ Move(holder_reg, holder);
-        } else {
-          __ Move(holder_reg, map_to_holder);
-          __ ldr(holder_reg,
-                 FieldMemOperand(holder_reg, Map::kPrototypeOffset));
-        }
-      }
-     break;
-    case CallOptimization::kHolderNotFound:
-      UNREACHABLE();
-  }
-  GenerateFastApiCallBody(masm,
-                          optimization,
-                          argc,
-                          holder_reg,
-                          false);
 }
 
 
@@ -975,36 +932,9 @@ class CallInterceptorCompiler BASE_EMBEDDED {
           name, miss_label);
     }
 
-    Handle<Map> lookup_map;
-    CallOptimization::HolderLookup holder_lookup =
-        CallOptimization::kHolderNotFound;
-    if (optimization.is_simple_api_call() &&
-        !lookup->holder()->IsGlobalObject()) {
-      lookup_map = optimization.LookupHolderOfExpectedType(
-          object, object, interceptor_holder, &holder_lookup);
-      if (holder_lookup == CallOptimization::kHolderNotFound) {
-        lookup_map =
-            optimization.LookupHolderOfExpectedType(
-                object,
-                interceptor_holder,
-                Handle<JSObject>(lookup->holder()),
-                &holder_lookup);
-      }
-    }
-
-    // Invoke function.
-    if (holder_lookup != CallOptimization::kHolderNotFound) {
-      int argc = arguments_.immediate();
-      GenerateFastApiCall(masm,
-                          optimization,
-                          argc,
-                          lookup_map,
-                          holder_lookup);
-    } else {
-      Handle<JSFunction> function = optimization.constant_function();
-      __ Move(r0, receiver);
-      stub_compiler_->GenerateJumpFunction(object, function);
-    }
+    Handle<JSFunction> function = optimization.constant_function();
+    __ Move(r0, receiver);
+    stub_compiler_->GenerateJumpFunction(object, function);
 
     // Invoke a regular function.
     __ bind(&regular_invoke);
@@ -1324,15 +1254,13 @@ void LoadStubCompiler::GenerateLoadCallback(
   __ push(name());
 
   // Abi for CallApiGetter
-  Register getter_address_reg = r3;
-  Register thunk_last_arg = r2;
+  Register getter_address_reg = r2;
 
   Address getter_address = v8::ToCData<Address>(callback->getter());
   ApiFunction fun(getter_address);
   ExternalReference::Type type = ExternalReference::DIRECT_GETTER_CALL;
   ExternalReference ref = ExternalReference(&fun, type, isolate());
   __ mov(getter_address_reg, Operand(ref));
-  __ mov(thunk_last_arg, Operand(reinterpret_cast<int32_t>(getter_address)));
 
   CallApiGetterStub stub;
   __ TailCallStub(&stub);
@@ -1500,57 +1428,6 @@ Handle<Code> CallStubCompiler::CompileCallField(Handle<JSObject> object,
 }
 
 
-Handle<Code> CallStubCompiler::CompileFastApiCall(
-    const CallOptimization& optimization,
-    Handle<Object> object,
-    Handle<JSObject> holder,
-    Handle<Cell> cell,
-    Handle<JSFunction> function,
-    Handle<String> name) {
-  Counters* counters = isolate()->counters();
-
-  ASSERT(optimization.is_simple_api_call());
-  // Bail out if object is a global object as we don't want to
-  // repatch it to global receiver.
-  if (object->IsGlobalObject()) return Handle<Code>::null();
-  if (!cell.is_null()) return Handle<Code>::null();
-  if (!object->IsJSObject()) return Handle<Code>::null();
-  Handle<JSObject> receiver = Handle<JSObject>::cast(object);
-  CallOptimization::HolderLookup holder_lookup =
-      CallOptimization::kHolderNotFound;
-  Handle<Map> lookup_map = optimization.LookupHolderOfExpectedType(
-      receiver, receiver, holder, &holder_lookup);
-  if (holder_lookup == CallOptimization::kHolderNotFound) {
-    return Handle<Code>::null();
-  }
-
-  Label miss;
-  GenerateNameCheck(name, &miss);
-
-  // Get the receiver from the stack.
-  const int argc = arguments().immediate();
-  __ ldr(r1, MemOperand(sp, argc * kPointerSize));
-
-  // Check that the receiver isn't a smi.
-  __ JumpIfSmi(r1, &miss);
-
-  __ IncrementCounter(counters->call_const(), 1, r0, r3);
-
-  // Check that the maps haven't changed and find a Holder as a side effect.
-  CheckPrototypes(
-      IC::CurrentTypeOf(object, isolate()),
-      r1, holder, r0, r3, r4, name, &miss);
-
-  GenerateFastApiCall(
-      masm(), optimization, argc, lookup_map, holder_lookup);
-
-  HandlerFrontendFooter(&miss);
-
-  // Return the generated code.
-  return GetCode(function);
-}
-
-
 void StubCompiler::GenerateBooleanCheck(Register object, Label* miss) {
   Label success;
   // Check that the object is a boolean.
@@ -1712,14 +1589,6 @@ Handle<Code> CallStubCompiler::CompileCallGlobal(
     Handle<PropertyCell> cell,
     Handle<JSFunction> function,
     Handle<Name> name) {
-  if (HasCustomCallGenerator(function)) {
-    Handle<Code> code = CompileCustomCall(
-        object, holder, cell, function, Handle<String>::cast(name),
-        Code::NORMAL);
-    // A null handle means bail out to the regular compiler code below.
-    if (!code.is_null()) return code;
-  }
-
   Label miss;
   HandlerFrontendHeader(object, holder, name, RECEIVER_MAP_CHECK, &miss);
   // Potentially loads a closure that matches the shared function info of the

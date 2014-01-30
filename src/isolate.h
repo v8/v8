@@ -1082,6 +1082,7 @@ class Isolate {
     NamedCall,
     CallHandler,
     ArgumentAdaptorCall,
+    ApiFunctionCall,
     NUMBER_OF_CALL_DESCRIPTORS
   };
 

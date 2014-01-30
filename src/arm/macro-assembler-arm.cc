@@ -2300,7 +2300,6 @@ static int AddressOffset(ExternalReference ref0, ExternalReference ref1) {
 void MacroAssembler::CallApiFunctionAndReturn(
     Register function_address,
     ExternalReference thunk_ref,
-    Register thunk_last_arg,
     int stack_space,
     MemOperand return_value_operand,
     MemOperand* context_restore_operand) {
@@ -2314,8 +2313,7 @@ void MacroAssembler::CallApiFunctionAndReturn(
       ExternalReference::handle_scope_level_address(isolate()),
       next_address);
 
-  ASSERT(function_address.is(r3));
-  ASSERT(thunk_last_arg.is(r1) || thunk_last_arg.is(r2));
+  ASSERT(function_address.is(r1) || function_address.is(r2));
 
   Label profiler_disabled;
   Label end_profiler_check;

@@ -921,26 +921,7 @@ class CallStubCompiler: public StubCompiler {
                                  Handle<JSFunction> function,
                                  Handle<Name> name);
 
-  static bool HasCustomCallGenerator(Handle<JSFunction> function);
-
  private:
-  // Compiles a custom call constant/global IC.  For constant calls cell is
-  // NULL.  Returns an empty handle if there is no custom call code for the
-  // given function.
-  Handle<Code> CompileCustomCall(Handle<Object> object,
-                                 Handle<JSObject> holder,
-                                 Handle<Cell> cell,
-                                 Handle<JSFunction> function,
-                                 Handle<String> name,
-                                 Code::StubType type);
-
-  Handle<Code> CompileFastApiCall(const CallOptimization& optimization,
-                                  Handle<Object> object,
-                                  Handle<JSObject> holder,
-                                  Handle<Cell> cell,
-                                  Handle<JSFunction> function,
-                                  Handle<String> name);
-
   Handle<Code> GetCode(Code::StubType type, Handle<Name> name);
   Handle<Code> GetCode(Handle<JSFunction> function);
 
@@ -998,16 +979,11 @@ class CallOptimization BASE_EMBEDDED {
   enum HolderLookup {
     kHolderNotFound,
     kHolderIsReceiver,
-    kHolderIsPrototypeOfMap
+    kHolderFound
   };
-  // Returns a map whose prototype has the expected type in the
-  // prototype chain between the two arguments
-  // null will be returned if the first argument has that property
-  // lookup will be set accordingly
-  Handle<Map> LookupHolderOfExpectedType(Handle<JSObject> receiver,
-                                         Handle<JSObject> object,
-                                         Handle<JSObject> holder,
-                                         HolderLookup* holder_lookup) const;
+  Handle<JSObject> LookupHolderOfExpectedType(
+      Handle<Map> receiver_map,
+      HolderLookup* holder_lookup) const;
 
   bool IsCompatibleReceiver(Object* receiver) {
     ASSERT(is_simple_api_call());

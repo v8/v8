@@ -446,6 +446,26 @@ void CallDescriptors::InitializeForIsolate(Isolate* isolate) {
     descriptor->register_params_ = registers;
     descriptor->param_representations_ = representations;
   }
+  {
+    CallInterfaceDescriptor* descriptor =
+        isolate->call_descriptor(Isolate::ApiFunctionCall);
+    static Register registers[] = { eax,  // callee
+                                    ebx,  // call_data
+                                    ecx,  // holder
+                                    edx,  // api_function_address
+                                    esi,  // context
+    };
+    static Representation representations[] = {
+        Representation::Tagged(),    // callee
+        Representation::Tagged(),    // call_data
+        Representation::Tagged(),    // holder
+        Representation::External(),  // api_function_address
+        Representation::Tagged(),    // context
+    };
+    descriptor->register_param_count_ = 5;
+    descriptor->register_params_ = registers;
+    descriptor->param_representations_ = representations;
+  }
 }
 
 

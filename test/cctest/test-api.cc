@@ -21845,3 +21845,132 @@ TEST(Regress239669) {
       "  new C1();"
       "}");
 }
+
+
+class ApiCallOptimizationChecker {
+ private:
+  static Local<Object> data;
+  static Local<Object> receiver;
+  static Local<Object> holder;
+  static Local<Object> callee;
+  static int count;
+
+  static void OptimizationCallback(
+      const v8::FunctionCallbackInfo<v8::Value>& info) {
+    CHECK(callee == info.Callee());
+    CHECK(data == info.Data());
+    CHECK(receiver == info.This());
+    CHECK(holder == info.Holder());
+    count++;
+  }
+
+  public:
+    void Run(bool use_signature, bool global) {
+      v8::Isolate* isolate = CcTest::isolate();
+      v8::HandleScope scope(isolate);
+      // Build a template for signature checks.
+      Local<v8::ObjectTemplate> signature_template;
+      Local<v8::Signature> signature;
+      {
+        Local<v8::FunctionTemplate> parent_template =
+          FunctionTemplate::New(isolate);
+        parent_template->SetHiddenPrototype(true);
+        Local<v8::FunctionTemplate> function_template
+            = FunctionTemplate::New(isolate);
+        function_template->Inherit(parent_template);
+        if (use_signature) {
+          signature = v8::Signature::New(isolate, parent_template);
+        }
+        signature_template = function_template->InstanceTemplate();
+      }
+      // Global object must pass checks.
+      Local<v8::Context> context =
+          v8::Context::New(isolate, NULL, signature_template);
+      v8::Context::Scope context_scope(context);
+      // Install regular object that can pass signature checks.
+      Local<Object> function_receiver = signature_template->NewInstance();
+      context->Global()->Set(v8_str("function_receiver"), function_receiver);
+      // Get the holder objects.
+      Local<Object> inner_global =
+          Local<Object>::Cast(context->Global()->GetPrototype());
+      Local<Object> function_holder =
+          Local<Object>::Cast(function_receiver->GetPrototype());
+      // Install function on hidden prototype object.
+      data = Object::New(isolate);
+      Local<FunctionTemplate> function_template = FunctionTemplate::New(
+          isolate, OptimizationCallback, data, signature);
+      Local<Function> function = function_template->GetFunction();
+      Local<Object>::Cast(
+          inner_global->GetPrototype())->Set(v8_str("global_f"), function);
+      function_holder->Set(v8_str("f"), function);
+      // Initialize expected values.
+      callee = function;
+      count = 0;
+      if (global) {
+        receiver = context->Global();
+        holder = inner_global;
+      } else {
+        holder = function_receiver;
+        // If not using a signature, add something else to the prototype chain
+        // to test the case that holder != receiver
+        if (!use_signature) {
+          receiver = Local<Object>::Cast(CompileRun(
+              "var receiver_subclass = {};\n"
+              "receiver_subclass.__proto__ = function_receiver;\n"
+              "receiver_subclass"));
+        } else {
+          receiver = Local<Object>::Cast(CompileRun(
+            "var receiver_subclass = function_receiver;\n"
+            "receiver_subclass"));
+        }
+      }
+      // With no signature, the holder is not set.
+      if (!use_signature) holder = receiver;
+      // build wrap_function
+      int key = (use_signature ? 1 : 0) + 2 * (global ? 1 : 0);
+      i::ScopedVector<char> wrap_function(100);
+      if (global) {
+        i::OS::SNPrintF(
+            wrap_function,
+           "function wrap_%d() { var f = global_f; return f(); }\n",
+            key);
+      } else {
+        i::OS::SNPrintF(
+            wrap_function,
+            "function wrap_%d() { return receiver_subclass.f(); }\n",
+            key);
+      }
+      // build source string
+      i::ScopedVector<char> source(500);
+      i::OS::SNPrintF(
+          source,
+          "%s\n"  // wrap_function
+          "function wrap2() { wrap_%d(); }\n"
+          "wrap2();\n"
+          "wrap2();\n"
+          "%%OptimizeFunctionOnNextCall(wrap_%d);\n"
+          "wrap2();\n",
+          wrap_function.start(), key, key);
+      v8::TryCatch try_catch;
+      CompileRun(source.start());
+      ASSERT(!try_catch.HasCaught());
+      CHECK_EQ(3, count);
+    }
+};
+
+
+Local<Object> ApiCallOptimizationChecker::data;
+Local<Object> ApiCallOptimizationChecker::receiver;
+Local<Object> ApiCallOptimizationChecker::holder;
+Local<Object> ApiCallOptimizationChecker::callee;
+int ApiCallOptimizationChecker::count = 0;
+
+
+TEST(TestFunctionCallOptimization) {
+  i::FLAG_allow_natives_syntax = true;
+  ApiCallOptimizationChecker checker;
+  checker.Run(true, true);
+  checker.Run(false, true);
+  checker.Run(true, false);
+  checker.Run(false, false);
+}

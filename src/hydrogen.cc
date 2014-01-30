@@ -7952,6 +7952,118 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
 }
 
 
+bool HOptimizedGraphBuilder::TryInlineApiFunctionCall(Call* expr,
+                                                      HValue* receiver,
+                                                      bool drop_extra) {
+  return TryInlineApiCall(
+      expr, receiver, Handle<Map>::null(), drop_extra, true);
+}
+
+
+bool HOptimizedGraphBuilder::TryInlineApiMethodCall(Call* expr,
+                                                    HValue* receiver,
+                                                    Handle<Map> receiver_map) {
+  return TryInlineApiCall(expr, receiver, receiver_map, false, false);
+}
+
+bool HOptimizedGraphBuilder::TryInlineApiCall(Call* expr,
+                                              HValue* receiver,
+                                              Handle<Map> receiver_map,
+                                              bool drop_extra,
+                                              bool is_function_call) {
+  if (!expr->IsMonomorphic() || expr->check_type() != RECEIVER_MAP_CHECK) {
+    return false;
+  }
+  CallOptimization optimization(expr->target());
+  if (!optimization.is_simple_api_call()) return false;
+  Handle<Map> holder_map;
+  if (is_function_call) {
+    // Cannot embed a direct reference to the global proxy map
+    // as it maybe dropped on deserialization.
+    CHECK(!Serializer::enabled());
+    receiver_map = Handle<Map>(
+        expr->target()->context()->global_object()->global_receiver()->map());
+  }
+  CallOptimization::HolderLookup holder_lookup =
+      CallOptimization::kHolderNotFound;
+  Handle<JSObject> api_holder = optimization.LookupHolderOfExpectedType(
+      receiver_map, &holder_lookup);
+  if (holder_lookup == CallOptimization::kHolderNotFound) return false;
+
+  if (FLAG_trace_inlining) {
+    PrintF("Inlining api function ");
+    expr->target()->ShortPrint();
+    PrintF("\n");
+  }
+
+  // Need to ensure the chain between receiver and api_holder is intact
+  AddCheckMap(receiver, receiver_map);
+  if (holder_lookup == CallOptimization::kHolderFound) {
+    AddCheckPrototypeMaps(api_holder, receiver_map);
+  } else {
+    ASSERT_EQ(holder_lookup, CallOptimization::kHolderIsReceiver);
+  }
+
+  // TODO(verwaest): remove.
+  if (!is_function_call) {
+    AddCheckConstantFunction(expr->holder(), receiver, receiver_map);
+  }
+
+  HValue* holder = NULL;
+  switch (holder_lookup) {
+    case CallOptimization::kHolderFound:
+      holder = Add<HConstant>(api_holder);
+      break;
+    case CallOptimization::kHolderIsReceiver:
+      holder = environment()->ExpressionStackAt(expr->arguments()->length());
+      break;
+    case CallOptimization::kHolderNotFound:
+      UNREACHABLE();
+      break;
+  }
+  Handle<CallHandlerInfo> api_call_info = optimization.api_call_info();
+  Handle<Object> call_data_obj(api_call_info->data(), isolate());
+  bool call_data_is_undefined = call_data_obj->IsUndefined();
+  HValue* call_data = Add<HConstant>(call_data_obj);
+  ApiFunction fun(v8::ToCData<Address>(api_call_info->callback()));
+  ExternalReference ref = ExternalReference(&fun,
+                                            ExternalReference::DIRECT_API_CALL,
+                                            isolate());
+  HValue* api_function_address = Add<HConstant>(ExternalReference(ref));
+
+  HValue* op_vals[] = {
+    // callee
+    Add<HConstant>(expr->target()),
+    call_data,
+    holder,
+    api_function_address,
+    context()
+  };
+
+  const int argc = expr->arguments()->length();
+  // Includes receiver.
+  PushArgumentsFromEnvironment(argc + 1);
+
+  CallInterfaceDescriptor* descriptor =
+      isolate()->call_descriptor(Isolate::ApiFunctionCall);
+
+  CallApiFunctionStub stub(true, call_data_is_undefined, argc);
+  Handle<Code> code = stub.GetCode(isolate());
+  HConstant* code_value = Add<HConstant>(code);
+
+  ASSERT((sizeof(op_vals) / kPointerSize) ==
+         descriptor->environment_length());
+
+  HInstruction* call = New<HCallWithDescriptor>(
+      code_value, argc + 1, descriptor,
+      Vector<HValue*>(op_vals, descriptor->environment_length()));
+
+  if (drop_extra) Drop(1);  // Drop function.
+  ast_context()->ReturnInstruction(call, expr->id());
+  return true;
+}
+
+
 bool HOptimizedGraphBuilder::TryCallApply(Call* expr) {
   Expression* callee = expr->expression();
   Property* prop = callee->AsProperty();
@@ -8040,16 +8152,12 @@ HValue* HOptimizedGraphBuilder::ImplicitReceiverFor(HValue* function,
                                                     Handle<JSFunction> target) {
   SharedFunctionInfo* shared = target->shared();
   if (shared->is_classic_mode() && !shared->native()) {
-    HValue* context = Add<HLoadNamedField>(
-        function, static_cast<HValue*>(NULL),
-        HObjectAccess::ForJSObjectOffset(JSFunction::kContextOffset));
-    HValue* global_object = Add<HLoadNamedField>(
-        context, static_cast<HValue*>(NULL),
-        HObjectAccess::ForContextSlot(Context::GLOBAL_OBJECT_INDEX));
-    return Add<HLoadNamedField>(
-        global_object, static_cast<HValue*>(NULL),
-        HObjectAccess::ForJSObjectOffset(
-            GlobalObject::kGlobalReceiverOffset));
+    // Cannot embed a direct reference to the global proxy
+    // as is it dropped on deserialization.
+    CHECK(!Serializer::enabled());
+    Handle<JSObject> global_receiver(
+        target->context()->global_object()->global_receiver());
+    return Add<HConstant>(global_receiver);
   }
   return graph()->GetConstantUndefined();
 }
@@ -8122,12 +8230,9 @@ void HOptimizedGraphBuilder::VisitCall(Call* expr) {
         }
         return;
       }
+      if (TryInlineApiMethodCall(expr, receiver, map)) return;
 
-      if (CallStubCompiler::HasCustomCallGenerator(expr->target()) ||
-          expr->check_type() != RECEIVER_MAP_CHECK) {
-        // When the target has a custom call IC generator, use the IC,
-        // because it is likely to generate better code.  Also use the IC
-        // when a primitive receiver check is required.
+      if (expr->check_type() != RECEIVER_MAP_CHECK) {
         call = NewCallNamed(name, argument_count);
         PushArgumentsFromEnvironment(argument_count);
       } else {
@@ -8193,28 +8298,15 @@ void HOptimizedGraphBuilder::VisitCall(Call* expr) {
           }
           return;
         }
+        if (TryInlineApiFunctionCall(expr, receiver, false)) return;
         if (TryInlineCall(expr)) return;
 
         if (expr->target().is_identical_to(current_info()->closure())) {
           graph()->MarkRecursive();
         }
 
-        if (CallStubCompiler::HasCustomCallGenerator(expr->target())) {
-          // We're about to install a contextual IC, which expects the global
-          // object as receiver rather than the global proxy.
-          HValue* global_object = Add<HLoadNamedField>(
-              context(), static_cast<HValue*>(NULL),
-              HObjectAccess::ForContextSlot(Context::GLOBAL_OBJECT_INDEX));
-          const int receiver_index = argument_count - 1;
-          environment()->SetExpressionStackAt(receiver_index, global_object);
-          // When the target has a custom call IC generator, use the IC,
-          // because it is likely to generate better code.
-          call = NewCallNamed(var->name(), argument_count);
-          PushArgumentsFromEnvironment(argument_count);
-        } else {
-          call = BuildCallConstantFunction(expr->target(), argument_count);
-          PushArgumentsFromEnvironment(argument_count);
-        }
+        call = BuildCallConstantFunction(expr->target(), argument_count);
+        PushArgumentsFromEnvironment(argument_count);
       } else {
         HValue* receiver = Add<HLoadNamedField>(
             context(), static_cast<HValue*>(NULL),
@@ -8247,6 +8339,7 @@ void HOptimizedGraphBuilder::VisitCall(Call* expr) {
         }
         return;
       }
+      if (TryInlineApiFunctionCall(expr, receiver, true)) return;
 
       if (TryInlineCall(expr, true)) {   // Drop function from environment.
         return;

@@ -2227,6 +2227,14 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
                                   Handle<Map> receiver_map,
                                   CheckType check_type);
   bool TryInlineBuiltinFunctionCall(Call* expr, bool drop_extra);
+  bool TryInlineApiMethodCall(
+      Call* expr, HValue* receiver, Handle<Map> receiver_map);
+  bool TryInlineApiFunctionCall(Call* expr, HValue* receiver, bool drop_extra);
+  bool TryInlineApiCall(Call* expr,
+                        HValue* receiver,
+                        Handle<Map> receiver_map,
+                        bool drop_extra,
+                        bool is_function_call);
 
   // If --trace-inlining, print a line of the inlining trace.  Inlining
   // succeeded if the reason string is NULL and failed if there is a

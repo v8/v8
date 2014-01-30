@@ -443,6 +443,26 @@ void CallDescriptors::InitializeForIsolate(Isolate* isolate) {
     descriptor->register_params_ = registers;
     descriptor->param_representations_ = representations;
   }
+  {
+    CallInterfaceDescriptor* descriptor =
+        isolate->call_descriptor(Isolate::ApiFunctionCall);
+    static Register registers[] = { rax,  // callee
+                                    rbx,  // call_data
+                                    rcx,  // holder
+                                    rdx,  // api_function_address
+                                    rsi,  // context
+    };
+    static Representation representations[] = {
+        Representation::Tagged(),    // callee
+        Representation::Tagged(),    // call_data
+        Representation::Tagged(),    // holder
+        Representation::External(),  // api_function_address
+        Representation::Tagged(),    // context
+    };
+    descriptor->register_param_count_ = 5;
+    descriptor->register_params_ = registers;
+    descriptor->param_representations_ = representations;
+  }
 }
 
 
