@@ -717,8 +717,12 @@ void LChunkBuilder::VisitInstruction(HInstruction* current) {
     }
 #endif
 
-    // TODO(all): Add support for FLAG_stress_pointer_maps and
-    // FLAG_stress_environments.
+    if (FLAG_stress_pointer_maps && !instr->HasPointerMap()) {
+      instr = AssignPointerMap(instr);
+    }
+    if (FLAG_stress_environments && !instr->HasEnvironment()) {
+      instr = AssignEnvironment(instr);
+    }
     instr->set_hydrogen_value(current);
     chunk_->AddInstruction(instr, current_block_);
   }
