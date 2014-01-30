@@ -5659,6 +5659,47 @@ void CallApiFunctionStub::Generate(MacroAssembler* masm) {
 }
 
 
+void CallApiGetterStub::Generate(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- sp[0]                  : name
+  //  -- sp[4 - kArgsLength*4]  : PropertyCallbackArguments object
+  //  -- ...
+  //  -- a3                    : api_function_address
+  //  -- a2                    : thunk_last_arg
+  // -----------------------------------
+
+  Register api_function_address = a3;
+  Register thunk_last_arg = a2;
+
+  __ mov(a0, sp);  // a0 = Handle<Name>
+  __ Addu(a1, a0, Operand(1 * kPointerSize));  // a1 = PCA
+
+  const int kApiStackSpace = 1;
+  FrameScope frame_scope(masm, StackFrame::MANUAL);
+  __ EnterExitFrame(false, kApiStackSpace);
+
+  // Create PropertyAccessorInfo instance on the stack above the exit frame with
+  // a1 (internal::Object** args_) as the data.
+  __ sw(a1, MemOperand(sp, 1 * kPointerSize));
+  __ Addu(a1, sp, Operand(1 * kPointerSize));  // a1 = AccessorInfo&
+
+  const int kStackUnwindSpace = PropertyCallbackArguments::kArgsLength + 1;
+
+  Address thunk_address = FUNCTION_ADDR(&InvokeAccessorGetterCallback);
+  ExternalReference::Type thunk_type =
+      ExternalReference::PROFILING_GETTER_CALL;
+  ApiFunction thunk_fun(thunk_address);
+  ExternalReference thunk_ref = ExternalReference(&thunk_fun, thunk_type,
+      masm->isolate());
+  __ CallApiFunctionAndReturn(api_function_address,
+                              thunk_ref,
+                              thunk_last_arg,
+                              kStackUnwindSpace,
+                              MemOperand(fp, 6 * kPointerSize),
+                              NULL);
+}
+
+
 #undef __
 
 } }  // namespace v8::internal
