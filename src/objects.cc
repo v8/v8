@@ -6682,7 +6682,9 @@ MaybeObject* Map::RawCopy(int instance_size) {
   new_bit_field3 = EnumLengthBits::update(new_bit_field3,
                                           kInvalidEnumCacheSentinel);
   new_bit_field3 = Deprecated::update(new_bit_field3, false);
-  new_bit_field3 = IsUnstable::update(new_bit_field3, false);
+  if (!is_dictionary_map()) {
+    new_bit_field3 = IsUnstable::update(new_bit_field3, false);
+  }
   result->set_bit_field3(new_bit_field3);
   return result;
 }

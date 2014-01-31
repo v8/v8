@@ -3988,8 +3988,9 @@ bool Map::is_shared() {
 
 
 void Map::set_dictionary_map(bool value) {
-  if (value) mark_unstable();
-  set_bit_field3(DictionaryMap::update(bit_field3(), value));
+  uint32_t new_bit_field3 = DictionaryMap::update(bit_field3(), value);
+  new_bit_field3 = IsUnstable::update(new_bit_field3, value);
+  set_bit_field3(new_bit_field3);
 }
 
 
