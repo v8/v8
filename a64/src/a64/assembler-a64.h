@@ -342,6 +342,8 @@ const Register wzr = w31;
 
 // Crankshaft double scratch register.
 const FPRegister crankshaft_fp_scratch = d29;
+// Keeps the 0 double value.
+const FPRegister fp_zero = d30;
 // MacroAssembler double scratch register.
 const FPRegister fp_scratch = d31;
 

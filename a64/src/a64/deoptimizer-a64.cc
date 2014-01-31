@@ -382,7 +382,7 @@ void Deoptimizer::EntryGenerator::Generate() {
 
   // Save all allocatable floating point registers.
   CPURegList saved_fp_registers(CPURegister::kFPRegister, kDRegSize,
-                                0, FPRegister::NumAllocatableRegisters());
+                                0, FPRegister::NumAllocatableRegisters() - 1);
   __ PushCPURegList(saved_fp_registers);
 
   // We save all the registers expcept jssp, sp and lr.
@@ -485,13 +485,13 @@ void Deoptimizer::EntryGenerator::Generate() {
     __ CallCFunction(
         ExternalReference::compute_output_frames_function(isolate()), 1);
   }
-  __ Pop(x0);  // Restore deoptimizer object (class Deoptimizer).
+  __ Pop(x4);  // Restore deoptimizer object (class Deoptimizer).
 
   // Replace the current (input) frame with the output frames.
   Label outer_push_loop, inner_push_loop,
       outer_loop_header, inner_loop_header;
-  __ Ldrsw(x1, MemOperand(x0, Deoptimizer::output_count_offset()));
-  __ Ldr(x0, MemOperand(x0, Deoptimizer::output_offset()));
+  __ Ldrsw(x1, MemOperand(x4, Deoptimizer::output_count_offset()));
+  __ Ldr(x0, MemOperand(x4, Deoptimizer::output_offset()));
   __ Add(x1, x0, Operand(x1, LSL, kPointerSizeLog2));
   __ B(&outer_loop_header);
 
@@ -514,8 +514,16 @@ void Deoptimizer::EntryGenerator::Generate() {
   __ Cmp(x0, x1);
   __ B(lt, &outer_push_loop);
 
-  // TODO(jbramley): The ARM code restores FP registers here.
-  TODO_UNIMPLEMENTED("EntryGenerator::Generate: Restore FP registers.");
+  __ Ldr(x1, MemOperand(x4, Deoptimizer::input_offset()));
+  ASSERT(!saved_fp_registers.IncludesAliasOf(crankshaft_fp_scratch) &&
+         !saved_fp_registers.IncludesAliasOf(fp_zero) &&
+         !saved_fp_registers.IncludesAliasOf(fp_scratch));
+  int src_offset = FrameDescription::double_registers_offset();
+  while (!saved_fp_registers.IsEmpty()) {
+    const CPURegister reg = saved_fp_registers.PopLowestIndex();
+    __ Ldr(reg, MemOperand(x1, src_offset));
+    src_offset += kDoubleSize;
+  }
 
   // Push state, pc, and continuation from the last output frame.
   if (type() != OSR) {
