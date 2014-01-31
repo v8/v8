@@ -424,8 +424,6 @@ void IC::Clear(Isolate* isolate, Address address) {
     case Code::STORE_IC: return StoreIC::Clear(isolate, address, target);
     case Code::KEYED_STORE_IC:
       return KeyedStoreIC::Clear(isolate, address, target);
-    case Code::CALL_IC: return CallIC::Clear(address, target);
-    case Code::KEYED_CALL_IC:  return KeyedCallIC::Clear(address, target);
     case Code::COMPARE_IC: return CompareIC::Clear(isolate, address, target);
     case Code::COMPARE_NIL_IC: return CompareNilIC::Clear(address, target);
     case Code::BINARY_OP_IC:
@@ -435,14 +433,6 @@ void IC::Clear(Isolate* isolate, Address address) {
       return;
     default: UNREACHABLE();
   }
-}
-
-
-void CallICBase::Clear(Address address, Code* target) {
-  if (IsCleared(target)) return;
-  Code* code = target->GetIsolate()->stub_cache()->FindCallInitialize(
-      target->arguments_count(), target->kind());
-  SetTargetAtAddress(address, code);
 }
 
 
@@ -492,298 +482,12 @@ void CompareIC::Clear(Isolate* isolate, Address address, Code* target) {
 }
 
 
-Handle<Object> CallICBase::TryCallAsFunction(Handle<Object> object) {
-  Handle<Object> delegate = Execution::GetFunctionDelegate(isolate(), object);
-
-  if (delegate->IsJSFunction() && !object->IsJSFunctionProxy()) {
-    // Patch the receiver and use the delegate as the function to
-    // invoke. This is used for invoking objects as if they were functions.
-    const int argc = target()->arguments_count();
-    StackFrameLocator locator(isolate());
-    JavaScriptFrame* frame = locator.FindJavaScriptFrame(0);
-    int index = frame->ComputeExpressionsCount() - (argc + 1);
-    frame->SetExpression(index, *object);
-  }
-
-  return delegate;
-}
-
-
-void CallICBase::ReceiverToObjectIfRequired(Handle<Object> callee,
-                                            Handle<Object> object) {
-  while (callee->IsJSFunctionProxy()) {
-    callee = Handle<Object>(JSFunctionProxy::cast(*callee)->call_trap(),
-                            isolate());
-  }
-
-  if (callee->IsJSFunction()) {
-    Handle<JSFunction> function = Handle<JSFunction>::cast(callee);
-    if (!function->shared()->is_classic_mode() || function->IsBuiltin()) {
-      // Do not wrap receiver for strict mode functions or for builtins.
-      return;
-    }
-  }
-
-  // And only wrap string, number or boolean.
-  if (object->IsString() || object->IsNumber() || object->IsBoolean()) {
-    // Change the receiver to the result of calling ToObject on it.
-    const int argc = this->target()->arguments_count();
-    StackFrameLocator locator(isolate());
-    JavaScriptFrame* frame = locator.FindJavaScriptFrame(0);
-    int index = frame->ComputeExpressionsCount() - (argc + 1);
-    frame->SetExpression(index, *isolate()->factory()->ToObject(object));
-  }
-}
-
-
 static bool MigrateDeprecated(Handle<Object> object) {
   if (!object->IsJSObject()) return false;
   Handle<JSObject> receiver = Handle<JSObject>::cast(object);
   if (!receiver->map()->is_deprecated()) return false;
   JSObject::MigrateInstance(Handle<JSObject>::cast(object));
   return true;
-}
-
-
-MaybeObject* CallICBase::LoadFunction(Handle<Object> object,
-                                      Handle<String> name) {
-  bool use_ic = MigrateDeprecated(object) ? false : FLAG_use_ic;
-
-  // If the object is undefined or null it's illegal to try to get any
-  // of its properties; throw a TypeError in that case.
-  if (object->IsUndefined() || object->IsNull()) {
-    return TypeError("non_object_property_call", object, name);
-  }
-
-  // Check if the name is trivially convertible to an index and get
-  // the element if so.
-  uint32_t index;
-  if (name->AsArrayIndex(&index)) {
-    Handle<Object> result = Object::GetElement(isolate(), object, index);
-    RETURN_IF_EMPTY_HANDLE(isolate(), result);
-    if (result->IsJSFunction()) return *result;
-
-    // Try to find a suitable function delegate for the object at hand.
-    result = TryCallAsFunction(result);
-    if (result->IsJSFunction()) return *result;
-
-    // Otherwise, it will fail in the lookup step.
-  }
-
-  // Lookup the property in the object.
-  LookupResult lookup(isolate());
-  LookupForRead(object, name, &lookup);
-
-  if (!lookup.IsFound()) {
-    // If the object does not have the requested property, check which
-    // exception we need to throw.
-    return object->IsGlobalObject()
-        ? ReferenceError("not_defined", name)
-        : TypeError("undefined_method", object, name);
-  }
-
-  // Lookup is valid: Update inline cache and stub cache.
-  if (use_ic) UpdateCaches(&lookup, object, name);
-
-  // Get the property.
-  PropertyAttributes attr;
-  Handle<Object> result =
-      Object::GetProperty(object, object, &lookup, name, &attr);
-  RETURN_IF_EMPTY_HANDLE(isolate(), result);
-
-  if (lookup.IsInterceptor() && attr == ABSENT) {
-    // If the object does not have the requested property, check which
-    // exception we need to throw.
-    return object->IsGlobalObject()
-        ? ReferenceError("not_defined", name)
-        : TypeError("undefined_method", object, name);
-  }
-
-  ASSERT(!result->IsTheHole());
-
-  // Make receiver an object if the callee requires it. Strict mode or builtin
-  // functions do not wrap the receiver, non-strict functions and objects
-  // called as functions do.
-  ReceiverToObjectIfRequired(result, object);
-
-  if (result->IsJSFunction()) {
-    Handle<JSFunction> function = Handle<JSFunction>::cast(result);
-#ifdef ENABLE_DEBUGGER_SUPPORT
-    // Handle stepping into a function if step into is active.
-    Debug* debug = isolate()->debug();
-    if (debug->StepInActive()) {
-      // Protect the result in a handle as the debugger can allocate and might
-      // cause GC.
-      debug->HandleStepIn(function, object, fp(), false);
-    }
-#endif
-    return *function;
-  }
-
-  // Try to find a suitable function delegate for the object at hand.
-  result = TryCallAsFunction(result);
-  if (result->IsJSFunction()) return *result;
-
-  return TypeError("property_not_function", object, name);
-}
-
-
-Handle<Code> CallICBase::ComputeMonomorphicStub(LookupResult* lookup,
-                                                Handle<Object> object,
-                                                Handle<String> name) {
-  int argc = target()->arguments_count();
-  Handle<JSObject> holder(lookup->holder(), isolate());
-  switch (lookup->type()) {
-    case FIELD: {
-      PropertyIndex index = lookup->GetFieldIndex();
-      return isolate()->stub_cache()->ComputeCallField(
-          argc, kind_, extra_ic_state(), name, object, holder, index);
-    }
-    case CONSTANT: {
-      if (!lookup->IsConstantFunction()) return Handle<Code>::null();
-      // Get the constant function and compute the code stub for this
-      // call; used for rewriting to monomorphic state and making sure
-      // that the code stub is in the stub cache.
-      Handle<JSFunction> function(lookup->GetConstantFunction(), isolate());
-      return isolate()->stub_cache()->ComputeCallConstant(
-          argc, kind_, extra_ic_state(), name, object, holder, function);
-    }
-    case NORMAL: {
-      // If we return a null handle, the IC will not be patched.
-      if (!object->IsJSObject()) return Handle<Code>::null();
-      Handle<JSObject> receiver = Handle<JSObject>::cast(object);
-
-      if (holder->IsGlobalObject()) {
-        Handle<GlobalObject> global = Handle<GlobalObject>::cast(holder);
-        Handle<PropertyCell> cell(
-            global->GetPropertyCell(lookup), isolate());
-        if (!cell->value()->IsJSFunction()) return Handle<Code>::null();
-        Handle<JSFunction> function(JSFunction::cast(cell->value()));
-        return isolate()->stub_cache()->ComputeCallGlobal(
-            argc, kind_, extra_ic_state(), name,
-            receiver, global, cell, function);
-      } else {
-        // There is only one shared stub for calling normalized
-        // properties. It does not traverse the prototype chain, so the
-        // property must be found in the receiver for the stub to be
-        // applicable.
-        if (!holder.is_identical_to(receiver)) return Handle<Code>::null();
-        return isolate()->stub_cache()->ComputeCallNormal(
-            argc, kind_, extra_ic_state());
-      }
-      break;
-    }
-    case INTERCEPTOR:
-      ASSERT(HasInterceptorGetter(*holder));
-      return isolate()->stub_cache()->ComputeCallInterceptor(
-          argc, kind_, extra_ic_state(), name, object, holder);
-    default:
-      return Handle<Code>::null();
-  }
-}
-
-
-Handle<Code> CallICBase::megamorphic_stub() {
-  return isolate()->stub_cache()->ComputeCallMegamorphic(
-      target()->arguments_count(), kind_, extra_ic_state());
-}
-
-
-Handle<Code> CallICBase::pre_monomorphic_stub() {
-  return isolate()->stub_cache()->ComputeCallPreMonomorphic(
-      target()->arguments_count(), kind_, extra_ic_state());
-}
-
-
-void CallICBase::UpdateCaches(LookupResult* lookup,
-                              Handle<Object> object,
-                              Handle<String> name) {
-  // Bail out if we didn't find a result.
-  if (!lookup->IsProperty() || !lookup->IsCacheable()) return;
-
-  if (state() == UNINITIALIZED) {
-    set_target(*pre_monomorphic_stub());
-    TRACE_IC("CallIC", name);
-    return;
-  }
-
-  Handle<Code> code = ComputeMonomorphicStub(lookup, object, name);
-  // If there's no appropriate stub we simply avoid updating the caches.
-  // TODO(verwaest): Install a slow fallback in this case to avoid not learning,
-  // and deopting Crankshaft code.
-  if (code.is_null()) return;
-
-  Handle<JSObject> cache_object = object->IsJSObject()
-      ? Handle<JSObject>::cast(object)
-      : Handle<JSObject>(JSObject::cast(object->GetPrototype(isolate())),
-                         isolate());
-
-  PatchCache(CurrentTypeOf(cache_object, isolate()), name, code);
-  TRACE_IC("CallIC", name);
-}
-
-
-MaybeObject* KeyedCallIC::LoadFunction(Handle<Object> object,
-                                       Handle<Object> key) {
-  if (key->IsInternalizedString()) {
-    return CallICBase::LoadFunction(object, Handle<String>::cast(key));
-  }
-
-  if (object->IsUndefined() || object->IsNull()) {
-    return TypeError("non_object_property_call", object, key);
-  }
-
-  bool use_ic = MigrateDeprecated(object)
-      ? false : FLAG_use_ic && !object->IsAccessCheckNeeded();
-
-  if (use_ic && state() != MEGAMORPHIC) {
-    ASSERT(!object->IsJSGlobalProxy());
-    int argc = target()->arguments_count();
-    Handle<Code> stub;
-
-    // Use the KeyedArrayCallStub if the call is of the form array[smi](...),
-    // where array is an instance of one of the initial array maps (without
-    // extra named properties).
-    // TODO(verwaest): Also support keyed calls on instances of other maps.
-    if (object->IsJSArray() && key->IsSmi()) {
-      Handle<JSArray> array = Handle<JSArray>::cast(object);
-      ElementsKind kind = array->map()->elements_kind();
-      if (IsFastObjectElementsKind(kind) &&
-          array->map() == isolate()->get_initial_js_array_map(kind)) {
-        KeyedArrayCallStub stub_gen(IsHoleyElementsKind(kind), argc);
-        stub = stub_gen.GetCode(isolate());
-      }
-    }
-
-    if (stub.is_null()) {
-      stub = isolate()->stub_cache()->ComputeCallMegamorphic(
-          argc, Code::KEYED_CALL_IC, kNoExtraICState);
-      if (object->IsJSObject()) {
-        Handle<JSObject> receiver = Handle<JSObject>::cast(object);
-        if (receiver->elements()->map() ==
-            isolate()->heap()->non_strict_arguments_elements_map()) {
-          stub = isolate()->stub_cache()->ComputeCallArguments(argc);
-        }
-      }
-      ASSERT(!stub.is_null());
-    }
-    set_target(*stub);
-    TRACE_IC("CallIC", key);
-  }
-
-  Handle<Object> result = GetProperty(isolate(), object, key);
-  RETURN_IF_EMPTY_HANDLE(isolate(), result);
-
-  // Make receiver an object if the callee requires it. Strict mode or builtin
-  // functions do not wrap the receiver, non-strict functions and objects
-  // called as functions do.
-  ReceiverToObjectIfRequired(result, object);
-  if (result->IsJSFunction()) return *result;
-
-  result = TryCallAsFunction(result);
-  if (result->IsJSFunction()) return *result;
-
-  return TypeError("property_not_function", object, key);
 }
 
 
@@ -880,6 +584,7 @@ MaybeObject* LoadIC::Load(Handle<Object> object,
       attr == ABSENT && IsUndeclaredGlobal(object)) {
     return ReferenceError("not_defined", name);
   }
+
   return *result;
 }
 
@@ -1027,9 +732,7 @@ void IC::PatchCache(Handle<HeapType> type,
     case MONOMORPHIC: {
       // For now, call stubs are allowed to rewrite to the same stub. This
       // happens e.g., when the field does not contain a function.
-      ASSERT(target()->is_call_stub() ||
-             target()->is_keyed_call_stub() ||
-             !target().is_identical_to(code));
+      ASSERT(!target().is_identical_to(code));
       Code* old_handler = target()->FindFirstHandler();
       if (old_handler == *code && IsTransitionOfMonomorphicTarget(type)) {
         UpdateMonomorphicIC(type, code, name);
@@ -1056,23 +759,20 @@ void IC::PatchCache(Handle<HeapType> type,
 }
 
 
-Handle<Code> LoadIC::initialize_stub(Isolate* isolate, ContextualMode mode) {
-  Handle<Code> ic = isolate->stub_cache()->ComputeLoad(
-      UNINITIALIZED, ComputeExtraICState(mode));
-  return ic;
+Handle<Code> LoadIC::initialize_stub(Isolate* isolate,
+                                     ExtraICState extra_state) {
+  return isolate->stub_cache()->ComputeLoad(UNINITIALIZED, extra_state);
 }
 
 
 Handle<Code> LoadIC::pre_monomorphic_stub(Isolate* isolate,
-                                          ContextualMode mode) {
-  return isolate->stub_cache()->ComputeLoad(
-      PREMONOMORPHIC, ComputeExtraICState(mode));
+                                          ExtraICState extra_state) {
+  return isolate->stub_cache()->ComputeLoad(PREMONOMORPHIC, extra_state);
 }
 
 
 Handle<Code> LoadIC::megamorphic_stub() {
-  return isolate()->stub_cache()->ComputeLoad(
-      MEGAMORPHIC, extra_ic_state());
+  return isolate()->stub_cache()->ComputeLoad(MEGAMORPHIC, extra_ic_state());
 }
 
 
@@ -2025,51 +1725,6 @@ MaybeObject* KeyedStoreIC::Store(Handle<Object> object,
 //
 
 // Used from ic-<arch>.cc.
-RUNTIME_FUNCTION(MaybeObject*, CallIC_Miss) {
-  HandleScope scope(isolate);
-  ASSERT(args.length() == 2);
-  CallIC ic(isolate);
-  Handle<Object> receiver = args.at<Object>(0);
-  Handle<String> key = args.at<String>(1);
-  ic.UpdateState(receiver, key);
-  MaybeObject* maybe_result = ic.LoadFunction(receiver, key);
-  JSFunction* raw_function;
-  if (!maybe_result->To(&raw_function)) return maybe_result;
-
-  // The first time the inline cache is updated may be the first time the
-  // function it references gets called. If the function is lazily compiled
-  // then the first call will trigger a compilation. We check for this case
-  // and we do the compilation immediately, instead of waiting for the stub
-  // currently attached to the JSFunction object to trigger compilation.
-  if (raw_function->is_compiled()) return raw_function;
-
-  Handle<JSFunction> function(raw_function);
-  Compiler::EnsureCompiled(function, CLEAR_EXCEPTION);
-  return *function;
-}
-
-
-// Used from ic-<arch>.cc.
-RUNTIME_FUNCTION(MaybeObject*, KeyedCallIC_Miss) {
-  HandleScope scope(isolate);
-  ASSERT(args.length() == 2);
-  KeyedCallIC ic(isolate);
-  Handle<Object> receiver = args.at<Object>(0);
-  Handle<Object> key = args.at<Object>(1);
-  ic.UpdateState(receiver, key);
-  MaybeObject* maybe_result = ic.LoadFunction(receiver, key);
-  // Result could be a function or a failure.
-  JSFunction* raw_function = NULL;
-  if (!maybe_result->To(&raw_function)) return maybe_result;
-
-  if (raw_function->is_compiled()) return raw_function;
-
-  Handle<JSFunction> function(raw_function, isolate);
-  Compiler::EnsureCompiled(function, CLEAR_EXCEPTION);
-  return *function;
-}
-
-
 // Used from ic-<arch>.cc.
 RUNTIME_FUNCTION(MaybeObject*, LoadIC_Miss) {
   HandleScope scope(isolate);
@@ -2125,28 +1780,6 @@ RUNTIME_FUNCTION(MaybeObject*, StoreIC_MissFromStubFailure) {
   Handle<String> key = args.at<String>(1);
   ic.UpdateState(receiver, key);
   return ic.Store(receiver, key, args.at<Object>(2));
-}
-
-
-RUNTIME_FUNCTION(MaybeObject*, KeyedCallIC_MissFromStubFailure) {
-  HandleScope scope(isolate);
-  ASSERT(args.length() == 2);
-  KeyedCallIC ic(isolate);
-  Arguments* caller_args = reinterpret_cast<Arguments*>(args[0]);
-  Handle<Object> key = args.at<Object>(1);
-  Handle<Object> receiver((*caller_args)[0], isolate);
-
-  ic.UpdateState(receiver, key);
-  MaybeObject* maybe_result = ic.LoadFunction(receiver, key);
-  // Result could be a function or a failure.
-  JSFunction* raw_function = NULL;
-  if (!maybe_result->To(&raw_function)) return maybe_result;
-
-  if (raw_function->is_compiled()) return raw_function;
-
-  Handle<JSFunction> function(raw_function, isolate);
-  Compiler::EnsureCompiled(function, CLEAR_EXCEPTION);
-  return *function;
 }
 
 

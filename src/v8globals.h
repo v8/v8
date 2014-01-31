@@ -279,19 +279,14 @@ enum InlineCacheState {
 };
 
 
-enum CheckType {
-  RECEIVER_MAP_CHECK,
-  STRING_CHECK,
-  SYMBOL_CHECK,
-  NUMBER_CHECK,
-  BOOLEAN_CHECK
-};
-
-
 enum CallFunctionFlags {
   NO_CALL_FUNCTION_FLAGS,
   // The call target is cached in the instruction stream.
-  RECORD_CALL_TARGET
+  RECORD_CALL_TARGET,
+  CALL_AS_METHOD,
+  // Always wrap the receiver and call to the JSFunction. Only use this flag
+  // both the receiver type and the target method are statically known.
+  WRAP_AND_CALL
 };
 
 

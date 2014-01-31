@@ -2049,9 +2049,9 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       // catch (e) { receiver = iter; f = 'throw'; arg = e; goto l_call; }
       __ bind(&l_catch);
       handler_table()->set(expr->index(), Smi::FromInt(l_catch.pos()));
-      __ LoadRoot(r2, Heap::kthrow_stringRootIndex);     // "throw"
-      __ ldr(r3, MemOperand(sp, 1 * kPointerSize));      // iter
-      __ Push(r3, r0);                                   // iter, exception
+      __ LoadRoot(r2, Heap::kthrow_stringRootIndex);  // "throw"
+      __ ldr(r3, MemOperand(sp, 1 * kPointerSize));   // iter
+      __ Push(r2, r3, r0);                            // "throw", iter, except
       __ jmp(&l_call);
 
       // try { received = %yield result }
@@ -2078,22 +2078,30 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
                           kLRHasBeenSaved, kDontSaveFPRegs);
       __ CallRuntime(Runtime::kSuspendJSGeneratorObject, 1);
       __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
-      __ pop(r0);                                        // result
+      __ pop(r0);                                      // result
       EmitReturnSequence();
-      __ bind(&l_resume);                                // received in r0
+      __ bind(&l_resume);                              // received in r0
       __ PopTryHandler();
 
       // receiver = iter; f = 'next'; arg = received;
       __ bind(&l_next);
-      __ LoadRoot(r2, Heap::knext_stringRootIndex);      // "next"
-      __ ldr(r3, MemOperand(sp, 1 * kPointerSize));      // iter
-      __ Push(r3, r0);                                   // iter, received
+      __ LoadRoot(r2, Heap::knext_stringRootIndex);    // "next"
+      __ ldr(r3, MemOperand(sp, 1 * kPointerSize));    // iter
+      __ Push(r2, r3, r0);                             // "next", iter, received
 
       // result = receiver[f](arg);
       __ bind(&l_call);
-      Handle<Code> ic = isolate()->stub_cache()->ComputeKeyedCallInitialize(1);
-      CallIC(ic);
+      __ ldr(r1, MemOperand(sp, kPointerSize));
+      __ ldr(r0, MemOperand(sp, 2 * kPointerSize));
+      Handle<Code> ic = isolate()->builtins()->KeyedLoadIC_Initialize();
+      CallIC(ic, NOT_CONTEXTUAL, TypeFeedbackId::None());
+      __ mov(r1, r0);
+      __ str(r1, MemOperand(sp, 2 * kPointerSize));
+      CallFunctionStub stub(1, CALL_AS_METHOD);
+      __ CallStub(&stub);
+
       __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
+      __ Drop(1);  // The function is still on the stack; drop it.
 
       // if (!result.done) goto l_try;
       __ bind(&l_loop);
@@ -2601,63 +2609,97 @@ void FullCodeGenerator::CallIC(Handle<Code> code,
           NEVER_INLINE_TARGET_ADDRESS);
 }
 
-void FullCodeGenerator::EmitCallWithIC(Call* expr,
-                                       Handle<Object> name,
-                                       ContextualMode mode) {
-  // Code common for calls using the IC.
+
+// Code common for calls using the IC.
+void FullCodeGenerator::EmitCallWithIC(Call* expr) {
+  Expression* callee = expr->expression();
   ZoneList<Expression*>* args = expr->arguments();
   int arg_count = args->length();
+
+  CallFunctionFlags flags;
+  // Get the target function.
+  if (callee->IsVariableProxy()) {
+    { StackValueContext context(this);
+      EmitVariableLoad(callee->AsVariableProxy());
+      PrepareForBailout(callee, NO_REGISTERS);
+    }
+    // Push undefined as receiver. This is patched in the method prologue if it
+    // is a classic mode method.
+    __ Push(isolate()->factory()->undefined_value());
+    flags = NO_CALL_FUNCTION_FLAGS;
+  } else {
+    // Load the function from the receiver.
+    ASSERT(callee->IsProperty());
+    __ ldr(r0, MemOperand(sp, 0));
+    EmitNamedPropertyLoad(callee->AsProperty());
+    PrepareForBailoutForId(callee->AsProperty()->LoadId(), TOS_REG);
+    // Push the target function under the receiver.
+    __ ldr(ip, MemOperand(sp, 0));
+    __ push(ip);
+    __ str(r0, MemOperand(sp, kPointerSize));
+    flags = CALL_AS_METHOD;
+  }
+
+  // Load the arguments.
   { PreservePositionScope scope(masm()->positions_recorder());
     for (int i = 0; i < arg_count; i++) {
       VisitForStackValue(args->at(i));
     }
-    __ mov(r2, Operand(name));
   }
+
   // Record source position for debugger.
   SetSourcePosition(expr->position());
-  // Call the IC initialization code.
-  Handle<Code> ic = isolate()->stub_cache()->ComputeCallInitialize(arg_count);
-  TypeFeedbackId ast_id = mode == CONTEXTUAL
-      ? TypeFeedbackId::None()
-      : expr->CallFeedbackId();
-  CallIC(ic, mode, ast_id);
+  CallFunctionStub stub(arg_count, flags);
+  __ ldr(r1, MemOperand(sp, (arg_count + 1) * kPointerSize));
+  __ CallStub(&stub);
+
   RecordJSReturnSite(expr);
+
   // Restore context register.
   __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
-  context()->Plug(r0);
+
+  context()->DropAndPlug(1, r0);
 }
 
 
+// Code common for calls using the IC.
 void FullCodeGenerator::EmitKeyedCallWithIC(Call* expr,
                                             Expression* key) {
   // Load the key.
   VisitForAccumulatorValue(key);
 
-  // Swap the name of the function and the receiver on the stack to follow
-  // the calling convention for call ICs.
-  __ pop(r1);
-  __ push(r0);
-  __ push(r1);
-
-  // Code common for calls using the IC.
+  Expression* callee = expr->expression();
   ZoneList<Expression*>* args = expr->arguments();
   int arg_count = args->length();
+
+  // Load the function from the receiver.
+  ASSERT(callee->IsProperty());
+  __ ldr(r1, MemOperand(sp, 0));
+  EmitKeyedPropertyLoad(callee->AsProperty());
+  PrepareForBailoutForId(callee->AsProperty()->LoadId(), TOS_REG);
+
+  // Push the target function under the receiver.
+  __ ldr(ip, MemOperand(sp, 0));
+  __ push(ip);
+  __ str(r0, MemOperand(sp, kPointerSize));
+
   { PreservePositionScope scope(masm()->positions_recorder());
     for (int i = 0; i < arg_count; i++) {
       VisitForStackValue(args->at(i));
     }
   }
+
   // Record source position for debugger.
   SetSourcePosition(expr->position());
-  // Call the IC initialization code.
-  Handle<Code> ic =
-      isolate()->stub_cache()->ComputeKeyedCallInitialize(arg_count);
-  __ ldr(r2, MemOperand(sp, (arg_count + 1) * kPointerSize));  // Key.
-  CallIC(ic, NOT_CONTEXTUAL, expr->CallFeedbackId());
+  CallFunctionStub stub(arg_count, CALL_AS_METHOD);
+  __ ldr(r1, MemOperand(sp, (arg_count + 1) * kPointerSize));
+  __ CallStub(&stub);
+
   RecordJSReturnSite(expr);
   // Restore context register.
   __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
-  context()->DropAndPlug(1, r0);  // Drop the key still on the stack.
+
+  context()->DropAndPlug(1, r0);
 }
 
 
@@ -2765,11 +2807,8 @@ void FullCodeGenerator::VisitCall(Call* expr) {
     __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
     context()->DropAndPlug(1, r0);
   } else if (call_type == Call::GLOBAL_CALL) {
-    // Push global object as receiver for the call IC.
-    __ ldr(r0, GlobalObjectOperand());
-    __ push(r0);
-    VariableProxy* proxy = callee->AsVariableProxy();
-    EmitCallWithIC(expr, proxy->name(), CONTEXTUAL);
+    EmitCallWithIC(expr);
+
   } else if (call_type == Call::LOOKUP_SLOT_CALL) {
     // Call to a lookup slot (dynamically introduced variable).
     VariableProxy* proxy = callee->AsVariableProxy();
@@ -2815,9 +2854,7 @@ void FullCodeGenerator::VisitCall(Call* expr) {
       VisitForStackValue(property->obj());
     }
     if (property->key()->IsPropertyName()) {
-      EmitCallWithIC(expr,
-                     property->key()->AsLiteral()->value(),
-                     NOT_CONTEXTUAL);
+      EmitCallWithIC(expr);
     } else {
       EmitKeyedCallWithIC(expr, property->key());
     }
@@ -4093,32 +4130,49 @@ void FullCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
 
   Comment cmnt(masm_, "[ CallRuntime");
   ZoneList<Expression*>* args = expr->arguments();
+  int arg_count = args->length();
 
   if (expr->is_jsruntime()) {
-    // Prepare for calling JS runtime function.
+    // Push the builtins object as the receiver.
     __ ldr(r0, GlobalObjectOperand());
     __ ldr(r0, FieldMemOperand(r0, GlobalObject::kBuiltinsOffset));
     __ push(r0);
-  }
 
-  // Push the arguments ("left-to-right").
-  int arg_count = args->length();
-  for (int i = 0; i < arg_count; i++) {
-    VisitForStackValue(args->at(i));
-  }
-
-  if (expr->is_jsruntime()) {
-    // Call the JS runtime function.
+    // Load the function from the receiver.
     __ mov(r2, Operand(expr->name()));
-    Handle<Code> ic = isolate()->stub_cache()->ComputeCallInitialize(arg_count);
-    CallIC(ic, NOT_CONTEXTUAL, expr->CallRuntimeFeedbackId());
+    CallLoadIC(NOT_CONTEXTUAL, expr->CallRuntimeFeedbackId());
+
+    // Push the target function under the receiver.
+    __ ldr(ip, MemOperand(sp, 0));
+    __ push(ip);
+    __ str(r0, MemOperand(sp, kPointerSize));
+
+    // Push the arguments ("left-to-right").
+    int arg_count = args->length();
+    for (int i = 0; i < arg_count; i++) {
+      VisitForStackValue(args->at(i));
+    }
+
+    // Record source position of the IC call.
+    SetSourcePosition(expr->position());
+    CallFunctionStub stub(arg_count, NO_CALL_FUNCTION_FLAGS);
+    __ ldr(r1, MemOperand(sp, (arg_count + 1) * kPointerSize));
+    __ CallStub(&stub);
+
     // Restore context register.
     __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
+
+    context()->DropAndPlug(1, r0);
   } else {
+    // Push the arguments ("left-to-right").
+    for (int i = 0; i < arg_count; i++) {
+      VisitForStackValue(args->at(i));
+    }
+
     // Call the C runtime function.
     __ CallRuntime(expr->function(), arg_count);
+    context()->Plug(r0);
   }
-  context()->Plug(r0);
 }
 
 

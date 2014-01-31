@@ -5133,8 +5133,6 @@ class Code: public HeapObject {
 #define IC_KIND_LIST(V) \
   V(LOAD_IC)            \
   V(KEYED_LOAD_IC)      \
-  V(CALL_IC)            \
-  V(KEYED_CALL_IC)      \
   V(STORE_IC)           \
   V(KEYED_STORE_IC)     \
   V(BINARY_OP_IC)       \
@@ -5259,8 +5257,6 @@ class Code: public HeapObject {
   inline bool is_keyed_load_stub() { return kind() == KEYED_LOAD_IC; }
   inline bool is_store_stub() { return kind() == STORE_IC; }
   inline bool is_keyed_store_stub() { return kind() == KEYED_STORE_IC; }
-  inline bool is_call_stub() { return kind() == CALL_IC; }
-  inline bool is_keyed_call_stub() { return kind() == KEYED_CALL_IC; }
   inline bool is_binary_op_stub() { return kind() == BINARY_OP_IC; }
   inline bool is_compare_ic_stub() { return kind() == COMPARE_IC; }
   inline bool is_compare_nil_ic_stub() { return kind() == COMPARE_NIL_IC; }
@@ -5328,11 +5324,6 @@ class Code: public HeapObject {
 
   inline bool back_edges_patched_for_osr();
   inline void set_back_edges_patched_for_osr(bool value);
-
-  // [check type]: For kind CALL_IC, tells how to check if the
-  // receiver is valid for the given call.
-  inline CheckType check_type();
-  inline void set_check_type(CheckType value);
 
   // [to_boolean_foo]: For kind TO_BOOLEAN_IC tells what state the stub is in.
   inline byte to_boolean_state();
@@ -5560,7 +5551,6 @@ class Code: public HeapObject {
 
   // Byte offsets within kKindSpecificFlags1Offset.
   static const int kOptimizableOffset = kKindSpecificFlags1Offset;
-  static const int kCheckTypeOffset = kKindSpecificFlags1Offset;
 
   static const int kFullCodeFlags = kOptimizableOffset + 1;
   class FullCodeFlagsHasDeoptimizationSupportField:

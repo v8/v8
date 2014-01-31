@@ -82,31 +82,11 @@ bool TypeFeedbackOracle::LoadIsUninitialized(TypeFeedbackId id) {
 }
 
 
-bool TypeFeedbackOracle::LoadIsPreMonomorphic(TypeFeedbackId id) {
-  Handle<Object> maybe_code = GetInfo(id);
-  if (maybe_code->IsCode()) {
-    Handle<Code> code = Handle<Code>::cast(maybe_code);
-    return code->is_inline_cache_stub() && code->ic_state() == PREMONOMORPHIC;
-  }
-  return false;
-}
-
-
 bool TypeFeedbackOracle::StoreIsUninitialized(TypeFeedbackId ast_id) {
   Handle<Object> maybe_code = GetInfo(ast_id);
   if (!maybe_code->IsCode()) return false;
   Handle<Code> code = Handle<Code>::cast(maybe_code);
   return code->ic_state() == UNINITIALIZED;
-}
-
-
-bool TypeFeedbackOracle::StoreIsPreMonomorphic(TypeFeedbackId ast_id) {
-  Handle<Object> maybe_code = GetInfo(ast_id);
-  if (maybe_code->IsCode()) {
-    Handle<Code> code = Handle<Code>::cast(maybe_code);
-    return code->ic_state() == PREMONOMORPHIC;
-  }
-  return false;
 }
 
 
@@ -123,15 +103,7 @@ bool TypeFeedbackOracle::StoreIsKeyedPolymorphic(TypeFeedbackId ast_id) {
 
 bool TypeFeedbackOracle::CallIsMonomorphic(TypeFeedbackId id) {
   Handle<Object> value = GetInfo(id);
-  return value->IsAllocationSite() || value->IsJSFunction() || value->IsSmi() ||
-      (value->IsCode() && Handle<Code>::cast(value)->ic_state() == MONOMORPHIC);
-}
-
-
-bool TypeFeedbackOracle::KeyedArrayCallIsHoley(TypeFeedbackId id) {
-  Handle<Object> value = GetInfo(id);
-  Handle<Code> code = Handle<Code>::cast(value);
-  return KeyedArrayCallStub::IsHoley(code);
+  return value->IsAllocationSite() || value->IsJSFunction();
 }
 
 
@@ -159,25 +131,6 @@ KeyedAccessStoreMode TypeFeedbackOracle::GetStoreMode(
     }
   }
   return STANDARD_STORE;
-}
-
-
-void TypeFeedbackOracle::CallReceiverTypes(TypeFeedbackId id,
-                                           Handle<String> name,
-                                           int arity,
-                                           SmallMapList* types) {
-  Code::Flags flags = Code::ComputeMonomorphicFlags(
-      Code::CALL_IC, kNoExtraICState, OWN_MAP, Code::NORMAL, arity);
-  CollectReceiverTypes(id, name, flags, types);
-}
-
-
-CheckType TypeFeedbackOracle::GetCallCheckType(TypeFeedbackId id) {
-  Handle<Object> value = GetInfo(id);
-  if (!value->IsSmi()) return RECEIVER_MAP_CHECK;
-  CheckType check = static_cast<CheckType>(Smi::cast(*value)->value());
-  ASSERT(check != RECEIVER_MAP_CHECK);
-  return check;
 }
 
 
@@ -504,15 +457,8 @@ void TypeFeedbackOracle::ProcessRelocInfos(ZoneList<RelocInfo>* infos) {
         TypeFeedbackId(static_cast<unsigned>((*infos)[i].data()));
     Code* target = Code::GetCodeFromTargetAddress(target_address);
     switch (target->kind()) {
-      case Code::CALL_IC:
-        if (target->ic_state() == MONOMORPHIC &&
-            target->check_type() != RECEIVER_MAP_CHECK) {
-          SetInfo(ast_id, Smi::FromInt(target->check_type()));
-          break;
-        }
       case Code::LOAD_IC:
       case Code::STORE_IC:
-      case Code::KEYED_CALL_IC:
       case Code::KEYED_LOAD_IC:
       case Code::KEYED_STORE_IC:
       case Code::BINARY_OP_IC:

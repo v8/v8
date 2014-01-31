@@ -351,8 +351,8 @@ DEFINE_bool(omit_map_checks_for_leaf_maps, true,
 
 // Profiler flags.
 DEFINE_int(frame_count, 1, "number of stack frames inspected by the profiler")
-           // 0x1700 fits in the immediate field of an ARM instruction.
-DEFINE_int(interrupt_budget, 0x1700,
+           // 0x1800 fits in the immediate field of an ARM instruction.
+DEFINE_int(interrupt_budget, 0x1800,
            "execution budget before interrupt is triggered")
 DEFINE_int(type_info_threshold, 25,
            "percentage of ICs that must have type info to allow optimization")

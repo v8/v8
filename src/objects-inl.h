@@ -4174,10 +4174,6 @@ void DependentCode::ExtendGroup(DependencyGroup group) {
 
 void Code::set_flags(Code::Flags flags) {
   STATIC_ASSERT(Code::NUMBER_OF_KINDS <= KindField::kMax + 1);
-  // Make sure that all call stubs have an arguments count.
-  ASSERT((ExtractKindFromFlags(flags) != CALL_IC &&
-          ExtractKindFromFlags(flags) != KEYED_CALL_IC) ||
-         ExtractArgumentsCountFromFlags(flags) >= 0);
   WRITE_INT_FIELD(this, kFlagsOffset, flags);
 }
 
@@ -4219,8 +4215,7 @@ Code::StubType Code::type() {
 
 
 int Code::arguments_count() {
-  ASSERT(is_call_stub() || is_keyed_call_stub() ||
-         kind() == STUB || is_handler());
+  ASSERT(kind() == STUB || is_handler());
   return ExtractArgumentsCountFromFlags(flags());
 }
 
@@ -4275,7 +4270,6 @@ bool Code::has_major_key() {
       kind() == KEYED_LOAD_IC ||
       kind() == STORE_IC ||
       kind() == KEYED_STORE_IC ||
-      kind() == KEYED_CALL_IC ||
       kind() == TO_BOOLEAN_IC;
 }
 
@@ -4428,19 +4422,6 @@ void Code::set_back_edges_patched_for_osr(bool value) {
 
 
 
-CheckType Code::check_type() {
-  ASSERT(is_call_stub() || is_keyed_call_stub());
-  byte type = READ_BYTE_FIELD(this, kCheckTypeOffset);
-  return static_cast<CheckType>(type);
-}
-
-
-void Code::set_check_type(CheckType value) {
-  ASSERT(is_call_stub() || is_keyed_call_stub());
-  WRITE_BYTE_FIELD(this, kCheckTypeOffset, value);
-}
-
-
 byte Code::to_boolean_state() {
   return extended_extra_ic_state();
 }
@@ -4488,7 +4469,7 @@ bool Code::is_inline_cache_stub() {
 
 
 bool Code::is_keyed_stub() {
-  return is_keyed_load_stub() || is_keyed_store_stub() || is_keyed_call_stub();
+  return is_keyed_load_stub() || is_keyed_store_stub();
 }
 
 
@@ -4516,11 +4497,6 @@ Code::Flags Code::ComputeFlags(Kind kind,
                                int argc,
                                InlineCacheHolderFlag holder) {
   ASSERT(argc <= Code::kMaxArguments);
-  // Since the extended extra ic state overlaps with the argument count
-  // for CALL_ICs, do so checks to make sure that they don't interfere.
-  ASSERT((kind != Code::CALL_IC &&
-          kind != Code::KEYED_CALL_IC) ||
-         (ExtraICStateField::encode(extra_ic_state) | true));
   // Compute the bit mask.
   unsigned int bits = KindField::encode(kind)
       | ICStateField::encode(ic_state)
