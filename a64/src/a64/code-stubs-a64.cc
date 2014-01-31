@@ -3151,6 +3151,8 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
     __ InvokeBuiltin(Builtins::INSTANCE_OF, CALL_FUNCTION);
   }
   if (ReturnTrueFalseObject()) {
+    // Reload true/false because they were clobbered in the builtin call.
+    __ LoadTrueFalseRoots(res_true, res_false);
     __ Cmp(result, 0);
     __ Csel(result, res_true, res_false, eq);
   }
