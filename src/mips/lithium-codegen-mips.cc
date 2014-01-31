@@ -4800,8 +4800,9 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr) {
     // Performs a truncating conversion of a floating point number as used by
     // the JS bitwise operations.
     Label no_heap_number, check_bools, check_false;
-    __ Branch(&no_heap_number, ne, scratch1, Operand(at));  // HeapNumber map?
-    __ mov(scratch2, input_reg);
+    // Check HeapNumber map.
+    __ Branch(USE_DELAY_SLOT, &no_heap_number, ne, scratch1, Operand(at));
+    __ mov(scratch2, input_reg);  // In delay slot.
     __ TruncateHeapNumberToI(input_reg, scratch2);
     __ Branch(&done);
 
