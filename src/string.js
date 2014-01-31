@@ -186,6 +186,28 @@ function StringMatch(regexp) {
 }
 
 
+var NORMALIZATION_FORMS = ['NFC', 'NFD', 'NFKC', 'NFKD'];
+
+
+// ECMA-262 v6, section 21.1.3.12
+//
+// For now we do nothing, as proper normalization requires big tables.
+// If Intl is enabled, then i18n.js will override it and provide the the
+// proper functionality.
+function StringNormalize(form) {
+  CHECK_OBJECT_COERCIBLE(this, "String.prototype.normalize");
+
+  var form = form ? TO_STRING_INLINE(form) : 'NFC';
+  var normalizationForm = NORMALIZATION_FORMS.indexOf(form);
+  if (normalizationForm === -1) {
+    throw new $RangeError('The normalization form should be one of '
+        + NORMALIZATION_FORMS.join(', ') + '.');
+  }
+
+  return %_ValueOf(this);
+}
+
+
 // This has the same size as the lastMatchInfo array, and can be used for
 // functions that expect that structure to be returned.  It is used when the
 // needle is a string rather than a regexp.  In this case we can't update
@@ -942,6 +964,7 @@ function SetUpString() {
     "lastIndexOf", StringLastIndexOf,
     "localeCompare", StringLocaleCompare,
     "match", StringMatch,
+    "normalize", StringNormalize,
     "replace", StringReplace,
     "search", StringSearch,
     "slice", StringSlice,
