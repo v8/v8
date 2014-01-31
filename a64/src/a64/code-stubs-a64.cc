@@ -1327,7 +1327,7 @@ void BinaryOpStub_GenerateFPOperation(MacroAssembler* masm,
   FPRegister result_d = d0;
   Register right = x0;
   Register left = x1;
-  Register heap_result = x19;
+  Register heap_result = x21;
 
   ASSERT(smi_operands || (not_numbers != NULL));
   if (smi_operands) {
