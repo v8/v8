@@ -71,12 +71,12 @@ class CPURegister {
     kNoRegister
   };
 
-  inline CPURegister() : code_(0), size_(0), type_(kNoRegister) {
+  CPURegister() : code_(0), size_(0), type_(kNoRegister) {
     ASSERT(!IsValid());
     ASSERT(IsNone());
   }
 
-  inline CPURegister(unsigned code, unsigned size, RegisterType type)
+  CPURegister(unsigned code, unsigned size, RegisterType type)
       : code_(code), size_(size), type_(type) {
     ASSERT(IsValidOrNone());
   }
@@ -87,7 +87,7 @@ class CPURegister {
   // the accessor methods don't allow NoCPUReg. Unfortunately, it cannot be
   // explicit because otherwise the simple (FP)Register->CPURegister casts do
   // not work.
-  inline CPURegister(const CPURegister& other)
+  CPURegister(const CPURegister& other)
       : code_(other.code_), size_(other.size_), type_(other.type_) {
     ASSERT(IsValidOrNone());
   }
@@ -131,11 +131,11 @@ class CPURegister {
 
 class Register : public CPURegister {
  public:
-  inline Register() : CPURegister() {}
-  inline explicit Register(const CPURegister& other) : CPURegister(other) {
+  Register() : CPURegister() {}
+  explicit Register(const CPURegister& other) : CPURegister(other) {
     ASSERT(IsValidRegister() || IsNone());
   }
-  inline Register(unsigned code, unsigned size)
+  Register(unsigned code, unsigned size)
       : CPURegister(code, size, kRegister) {}
 
   bool IsValid() const {
@@ -230,11 +230,11 @@ class Register : public CPURegister {
 
 class FPRegister : public CPURegister {
  public:
-  inline FPRegister() : CPURegister() {}
-  inline explicit FPRegister(const CPURegister& other) : CPURegister(other) {
+  FPRegister() : CPURegister() {}
+  explicit FPRegister(const CPURegister& other) : CPURegister(other) {
     ASSERT(IsValidFPRegister() || IsNone());
   }
-  inline FPRegister(unsigned code, unsigned size)
+  FPRegister(unsigned code, unsigned size)
       : CPURegister(code, size, kFPRegister) {}
 
   bool IsValid() const {
@@ -379,23 +379,23 @@ typedef FPRegister DoubleRegister;
 // Lists of registers.
 class CPURegList {
  public:
-  inline explicit CPURegList(CPURegister reg1,
-                             CPURegister reg2 = NoCPUReg,
-                             CPURegister reg3 = NoCPUReg,
-                             CPURegister reg4 = NoCPUReg)
+  explicit CPURegList(CPURegister reg1,
+                      CPURegister reg2 = NoCPUReg,
+                      CPURegister reg3 = NoCPUReg,
+                      CPURegister reg4 = NoCPUReg)
       : list_(reg1.Bit() | reg2.Bit() | reg3.Bit() | reg4.Bit()),
         size_(reg1.SizeInBits()), type_(reg1.type()) {
     ASSERT(AreSameSizeAndType(reg1, reg2, reg3, reg4));
     ASSERT(IsValid());
   }
 
-  inline CPURegList(CPURegister::RegisterType type, unsigned size, RegList list)
+  CPURegList(CPURegister::RegisterType type, unsigned size, RegList list)
       : list_(list), size_(size), type_(type) {
     ASSERT(IsValid());
   }
 
-  inline CPURegList(CPURegister::RegisterType type, unsigned size,
-                    unsigned first_reg, unsigned last_reg)
+  CPURegList(CPURegister::RegisterType type, unsigned size,
+             unsigned first_reg, unsigned last_reg)
       : size_(size), type_(type) {
     ASSERT(((type == CPURegister::kRegister) &&
             (last_reg < kNumberOfRegisters)) ||
@@ -407,12 +407,12 @@ class CPURegList {
     ASSERT(IsValid());
   }
 
-  inline CPURegister::RegisterType type() const {
+  CPURegister::RegisterType type() const {
     ASSERT(IsValid());
     return type_;
   }
 
-  inline RegList list() const {
+  RegList list() const {
     ASSERT(IsValid());
     return list_;
   }
@@ -420,21 +420,21 @@ class CPURegList {
   // Combine another CPURegList into this one. Registers that already exist in
   // this list are left unchanged. The type and size of the registers in the
   // 'other' list must match those in this list.
-  inline void Combine(const CPURegList& other);
+  void Combine(const CPURegList& other);
 
   // Remove every register in the other CPURegList from this one. Registers that
   // do not exist in this list are ignored. The type and size of the registers
   // in the 'other' list must match those in this list.
-  inline void Remove(const CPURegList& other);
+  void Remove(const CPURegList& other);
 
   // Variants of Combine and Remove which take a single register.
-  inline void Combine(const CPURegister& other);
-  inline void Remove(const CPURegister& other);
+  void Combine(const CPURegister& other);
+  void Remove(const CPURegister& other);
 
   // Variants of Combine and Remove which take a single register by its code;
   // the type and size of the register is inferred from this list.
-  inline void Combine(int code);
-  inline void Remove(int code);
+  void Combine(int code);
+  void Remove(int code);
 
   // Remove all callee-saved registers from the list. This can be useful when
   // preparing registers for an AAPCS64 function call, for example.
@@ -454,27 +454,27 @@ class CPURegList {
   // Registers saved as safepoints.
   static CPURegList GetSafepointSavedRegisters();
 
-  inline bool IsEmpty() const {
+  bool IsEmpty() const {
     ASSERT(IsValid());
     return list_ == 0;
   }
 
-  inline bool IncludesAliasOf(const CPURegister& other) const {
+  bool IncludesAliasOf(const CPURegister& other) const {
     ASSERT(IsValid());
     return (type_ == other.type()) && (other.Bit() & list_);
   }
 
-  inline int Count() const {
+  int Count() const {
     ASSERT(IsValid());
     return CountSetBits(list_, kRegListSizeInBits);
   }
 
-  inline unsigned RegisterSizeInBits() const {
+  unsigned RegisterSizeInBits() const {
     ASSERT(IsValid());
     return size_;
   }
 
-  inline unsigned RegisterSizeInBytes() const {
+  unsigned RegisterSizeInBytes() const {
     int size_in_bits = RegisterSizeInBits();
     ASSERT((size_in_bits % kBitsPerByte) == 0);
     return size_in_bits / kBitsPerByte;
@@ -545,7 +545,7 @@ class Operand {
       RelocInfo::Mode rmode = RelocInfo::NONE32);    // NOLINT(runtime/explicit)
 
 
-  // rm, {<shift> #<shift_amount>}
+  // rm, {<shift> {#<shift_amount>}}
   // where <shift> is one of {LSL, LSR, ASR, ROR}.
   //       <shift_amount> is uint6_t.
   // This is allowed to be an implicit constructor because Operand is
@@ -555,12 +555,12 @@ class Operand {
                  Shift shift = LSL,
                  unsigned shift_amount = 0);  // NOLINT(runtime/explicit)
 
-  // rm, {<extend> {#<shift_amount>}}
+  // rm, <extend> {#<shift_amount>}
   // where <extend> is one of {UXTB, UXTH, UXTW, UXTX, SXTB, SXTH, SXTW, SXTX}.
   //       <shift_amount> is uint2_t.
-  inline explicit Operand(Register reg,
-                          Extend extend,
-                          unsigned shift_amount = 0);
+  inline Operand(Register reg,
+                 Extend extend,
+                 unsigned shift_amount = 0);
 
   inline explicit Operand(Smi* value);
   explicit Operand(const ExternalReference& f);
@@ -582,8 +582,8 @@ class Operand {
   inline unsigned shift_amount() const;
 
   // Relocation information.
-  inline RelocInfo::Mode rmode() const { return rmode_; }
-  inline void set_rmode(RelocInfo::Mode rmode) { rmode_ = rmode; }
+  RelocInfo::Mode rmode() const { return rmode_; }
+  void set_rmode(RelocInfo::Mode rmode) { rmode_ = rmode; }
   bool NeedsRelocation() const;
 
   // Helpers
@@ -618,13 +618,13 @@ class MemOperand {
                              const Operand& offset,
                              AddrMode addrmode = Offset);
 
-  inline const Register& base() const { return base_; }
-  inline const Register& regoffset() const { return regoffset_; }
-  inline ptrdiff_t offset() const { return offset_; }
-  inline AddrMode addrmode() const { return addrmode_; }
-  inline Shift shift() const { return shift_; }
-  inline Extend extend() const { return extend_; }
-  inline unsigned shift_amount() const { return shift_amount_; }
+  const Register& base() const { return base_; }
+  const Register& regoffset() const { return regoffset_; }
+  ptrdiff_t offset() const { return offset_; }
+  AddrMode addrmode() const { return addrmode_; }
+  Shift shift() const { return shift_; }
+  Extend extend() const { return extend_; }
+  unsigned shift_amount() const { return shift_amount_; }
   inline bool IsImmediateOffset() const;
   inline bool IsRegisterOffset() const;
   inline bool IsPreIndex() const;
@@ -1034,20 +1034,20 @@ class Assembler : public AssemblerBase {
 
   // Bfm aliases.
   // Bitfield insert.
-  inline void bfi(const Register& rd,
-                  const Register& rn,
-                  unsigned lsb,
-                  unsigned width) {
+  void bfi(const Register& rd,
+           const Register& rn,
+           unsigned lsb,
+           unsigned width) {
     ASSERT(width >= 1);
     ASSERT(lsb + width <= rn.SizeInBits());
     bfm(rd, rn, (rd.SizeInBits() - lsb) & (rd.SizeInBits() - 1), width - 1);
   }
 
   // Bitfield extract and insert low.
-  inline void bfxil(const Register& rd,
-                    const Register& rn,
-                    unsigned lsb,
-                    unsigned width) {
+  void bfxil(const Register& rd,
+             const Register& rn,
+             unsigned lsb,
+             unsigned width) {
     ASSERT(width >= 1);
     ASSERT(lsb + width <= rn.SizeInBits());
     bfm(rd, rn, lsb, lsb + width - 1);
@@ -1055,92 +1055,92 @@ class Assembler : public AssemblerBase {
 
   // Sbfm aliases.
   // Arithmetic shift right.
-  inline void asr(const Register& rd, const Register& rn, unsigned shift) {
+  void asr(const Register& rd, const Register& rn, unsigned shift) {
     ASSERT(shift < rd.SizeInBits());
     sbfm(rd, rn, shift, rd.SizeInBits() - 1);
   }
 
   // Signed bitfield insert in zero.
-  inline void sbfiz(const Register& rd,
-                    const Register& rn,
-                    unsigned lsb,
-                    unsigned width) {
+  void sbfiz(const Register& rd,
+             const Register& rn,
+             unsigned lsb,
+             unsigned width) {
     ASSERT(width >= 1);
     ASSERT(lsb + width <= rn.SizeInBits());
     sbfm(rd, rn, (rd.SizeInBits() - lsb) & (rd.SizeInBits() - 1), width - 1);
   }
 
   // Signed bitfield extract.
-  inline void sbfx(const Register& rd,
-                   const Register& rn,
-                   unsigned lsb,
-                   unsigned width) {
+  void sbfx(const Register& rd,
+            const Register& rn,
+            unsigned lsb,
+            unsigned width) {
     ASSERT(width >= 1);
     ASSERT(lsb + width <= rn.SizeInBits());
     sbfm(rd, rn, lsb, lsb + width - 1);
   }
 
   // Signed extend byte.
-  inline void sxtb(const Register& rd, const Register& rn) {
+  void sxtb(const Register& rd, const Register& rn) {
     sbfm(rd, rn, 0, 7);
   }
 
   // Signed extend halfword.
-  inline void sxth(const Register& rd, const Register& rn) {
+  void sxth(const Register& rd, const Register& rn) {
     sbfm(rd, rn, 0, 15);
   }
 
   // Signed extend word.
-  inline void sxtw(const Register& rd, const Register& rn) {
+  void sxtw(const Register& rd, const Register& rn) {
     sbfm(rd, rn, 0, 31);
   }
 
   // Ubfm aliases.
   // Logical shift left.
-  inline void lsl(const Register& rd, const Register& rn, unsigned shift) {
+  void lsl(const Register& rd, const Register& rn, unsigned shift) {
     unsigned reg_size = rd.SizeInBits();
     ASSERT(shift < reg_size);
     ubfm(rd, rn, (reg_size - shift) % reg_size, reg_size - shift - 1);
   }
 
   // Logical shift right.
-  inline void lsr(const Register& rd, const Register& rn, unsigned shift) {
+  void lsr(const Register& rd, const Register& rn, unsigned shift) {
     ASSERT(shift < rd.SizeInBits());
     ubfm(rd, rn, shift, rd.SizeInBits() - 1);
   }
 
   // Unsigned bitfield insert in zero.
-  inline void ubfiz(const Register& rd,
-                    const Register& rn,
-                    unsigned lsb,
-                    unsigned width) {
+  void ubfiz(const Register& rd,
+             const Register& rn,
+             unsigned lsb,
+             unsigned width) {
     ASSERT(width >= 1);
     ASSERT(lsb + width <= rn.SizeInBits());
     ubfm(rd, rn, (rd.SizeInBits() - lsb) & (rd.SizeInBits() - 1), width - 1);
   }
 
   // Unsigned bitfield extract.
-  inline void ubfx(const Register& rd,
-                   const Register& rn,
-                   unsigned lsb,
-                   unsigned width) {
+  void ubfx(const Register& rd,
+            const Register& rn,
+            unsigned lsb,
+            unsigned width) {
     ASSERT(width >= 1);
     ASSERT(lsb + width <= rn.SizeInBits());
     ubfm(rd, rn, lsb, lsb + width - 1);
   }
 
   // Unsigned extend byte.
-  inline void uxtb(const Register& rd, const Register& rn) {
+  void uxtb(const Register& rd, const Register& rn) {
     ubfm(rd, rn, 0, 7);
   }
 
   // Unsigned extend halfword.
-  inline void uxth(const Register& rd, const Register& rn) {
+  void uxth(const Register& rd, const Register& rn) {
     ubfm(rd, rn, 0, 15);
   }
 
   // Unsigned extend word.
-  inline void uxtw(const Register& rd, const Register& rn) {
+  void uxtw(const Register& rd, const Register& rn) {
     ubfm(rd, rn, 0, 31);
   }
 
@@ -1190,7 +1190,7 @@ class Assembler : public AssemblerBase {
   void cneg(const Register& rd, const Register& rn, Condition cond);
 
   // Extr aliases.
-  inline void ror(const Register& rd, const Register& rs, unsigned shift) {
+  void ror(const Register& rd, const Register& rs, unsigned shift) {
     extr(rd, rs, rs, shift);
   }
 
@@ -1396,7 +1396,7 @@ class Assembler : public AssemblerBase {
     LAST_NOP_MARKER = INTERRUPT_CODE_NOP
   };
 
-  inline void nop(NopMarkerTypes n) {
+  void nop(NopMarkerTypes n) {
     ASSERT((FIRST_NOP_MARKER <= n) && (n <= LAST_NOP_MARKER));
     mov(Register::XRegFromCode(n), Register::XRegFromCode(n));
   }
@@ -1538,16 +1538,16 @@ class Assembler : public AssemblerBase {
 
   // Instruction functions used only for test, debug, and patching.
   // Emit raw instructions in the instruction stream.
-  inline void dci(Instr raw_inst) { Emit(raw_inst); }
+  void dci(Instr raw_inst) { Emit(raw_inst); }
 
   // Emit 8 bits of data in the instruction stream.
-  inline void dc8(uint8_t data) { EmitData(&data, sizeof(data)); }
+  void dc8(uint8_t data) { EmitData(&data, sizeof(data)); }
 
   // Emit 32 bits of data in the instruction stream.
-  inline void dc32(uint32_t data) { EmitData(&data, sizeof(data)); }
+  void dc32(uint32_t data) { EmitData(&data, sizeof(data)); }
 
   // Emit 64 bits of data in the instruction stream.
-  inline void dc64(uint64_t data) { EmitData(&data, sizeof(data)); }
+  void dc64(uint64_t data) { EmitData(&data, sizeof(data)); }
 
   // Copy a string into the instruction stream, including the terminating NULL
   // character. The instruction pointer (pc_) is then aligned correctly for
@@ -1569,56 +1569,56 @@ class Assembler : public AssemblerBase {
   void debug(const char* message, uint32_t code, Instr params = BREAK);
 
   // Required by V8.
-  inline void dd(uint32_t data) { dc32(data); }
+  void dd(uint32_t data) { dc32(data); }
   void db(uint8_t data) { dc8(data); }
 
   // Code generation helpers --------------------------------------------------
 
   unsigned num_pending_reloc_info() const { return num_pending_reloc_info_; }
 
-  inline Instruction* InstructionAt(int offset) const {
+  Instruction* InstructionAt(int offset) const {
     return reinterpret_cast<Instruction*>(buffer_ + offset);
   }
 
   // Register encoding.
-  static inline Instr Rd(CPURegister rd) {
+  static Instr Rd(CPURegister rd) {
     ASSERT(rd.code() != kSPRegInternalCode);
     return rd.code() << Rd_offset;
   }
 
-  static inline Instr Rn(CPURegister rn) {
+  static Instr Rn(CPURegister rn) {
     ASSERT(rn.code() != kSPRegInternalCode);
     return rn.code() << Rn_offset;
   }
 
-  static inline Instr Rm(CPURegister rm) {
+  static Instr Rm(CPURegister rm) {
     ASSERT(rm.code() != kSPRegInternalCode);
     return rm.code() << Rm_offset;
   }
 
-  static inline Instr Ra(CPURegister ra) {
+  static Instr Ra(CPURegister ra) {
     ASSERT(ra.code() != kSPRegInternalCode);
     return ra.code() << Ra_offset;
   }
 
-  static inline Instr Rt(CPURegister rt) {
+  static Instr Rt(CPURegister rt) {
     ASSERT(rt.code() != kSPRegInternalCode);
     return rt.code() << Rt_offset;
   }
 
-  static inline Instr Rt2(CPURegister rt2) {
+  static Instr Rt2(CPURegister rt2) {
     ASSERT(rt2.code() != kSPRegInternalCode);
     return rt2.code() << Rt2_offset;
   }
 
   // These encoding functions allow the stack pointer to be encoded, and
   // disallow the zero register.
-  static inline Instr RdSP(Register rd) {
+  static Instr RdSP(Register rd) {
     ASSERT(!rd.IsZero());
     return (rd.code() & kRegCodeMask) << Rd_offset;
   }
 
-  static inline Instr RnSP(Register rn) {
+  static Instr RnSP(Register rn) {
     ASSERT(!rn.IsZero());
     return (rn.code() & kRegCodeMask) << Rn_offset;
   }
@@ -1670,7 +1670,7 @@ class Assembler : public AssemblerBase {
   inline static Instr ShiftMoveWide(int64_t shift);
 
   // FP Immediates.
-  inline static Instr ImmFP32(float imm);
+  static Instr ImmFP32(float imm);
   static Instr ImmFP64(double imm);
   inline static Instr FPScale(unsigned scale);
 
@@ -1850,7 +1850,7 @@ class Assembler : public AssemblerBase {
   void BlockConstPoolFor(int instructions);
 
   // Emit the instruction at pc_.
-  inline void Emit(Instr instruction) {
+  void Emit(Instr instruction) {
     STATIC_ASSERT(sizeof(*pc_) == 1);
     STATIC_ASSERT(sizeof(instruction) == kInstructionSize);
     ASSERT((pc_ + sizeof(instruction)) <= (buffer_ + buffer_size_));

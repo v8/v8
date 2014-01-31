@@ -232,7 +232,7 @@ int64_t Simulator::CallRegExp(byte* entry,
 }
 
 
-inline void Simulator::CheckPCSComplianceAndRun() {
+void Simulator::CheckPCSComplianceAndRun() {
 #ifdef DEBUG
   CHECK_EQ(kNumberOfCalleeSavedRegisters, kCalleeSaved.Count());
   CHECK_EQ(kNumberOfCalleeSavedFPRegisters, kCalleeSavedFP.Count());

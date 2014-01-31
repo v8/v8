@@ -367,7 +367,7 @@ void Assembler::Align(int m) {
 }
 
 
-inline void Assembler::CheckLabelLinkChain(Label const * label) {
+void Assembler::CheckLabelLinkChain(Label const * label) {
 #ifdef DEBUG
   if (label->is_linked()) {
     int linkoffset = label->pos();

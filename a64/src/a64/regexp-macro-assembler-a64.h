@@ -181,43 +181,43 @@ class RegExpMacroAssemblerA64: public NativeRegExpMacroAssembler {
 
   // Register holding the current input position as negative offset from
   // the end of the string.
-  inline Register current_input_offset() { return w21; }
+  Register current_input_offset() { return w21; }
 
   // The register containing the current character after LoadCurrentCharacter.
-  inline Register current_character() { return w22; }
+  Register current_character() { return w22; }
 
   // Register holding address of the end of the input string.
-  inline Register input_end() { return x25; }
+  Register input_end() { return x25; }
 
   // Register holding address of the start of the input string.
-  inline Register input_start() { return x26; }
+  Register input_start() { return x26; }
 
   // Register holding the offset from the start of the string where we should
   // start matching.
-  inline Register start_offset() { return w27; }
+  Register start_offset() { return w27; }
 
   // Pointer to the output array's first element.
-  inline Register output_array() { return x28; }
+  Register output_array() { return x28; }
 
   // Register holding the frame address. Local variables, parameters and
   // regexp registers are addressed relative to this.
-  inline Register frame_pointer() { return fp; }
+  Register frame_pointer() { return fp; }
 
   // The register containing the backtrack stack top. Provides a meaningful
   // name to the register.
-  inline Register backtrack_stackpointer() { return x23; }
+  Register backtrack_stackpointer() { return x23; }
 
   // Register holding pointer to the current code object.
-  inline Register code_pointer() { return x20; }
+  Register code_pointer() { return x20; }
 
   // Register holding the value used for clearing capture registers.
-  inline Register non_position_value() { return w24; }
+  Register non_position_value() { return w24; }
   // The top 32 bit of this register is used to store this value
   // twice. This is used for clearing more than one register at a time.
-  inline Register twice_non_position_value() { return x24; }
+  Register twice_non_position_value() { return x24; }
 
   // Byte size of chars in the string to match (decided by the Mode argument)
-  inline int char_size() { return static_cast<int>(mode_); }
+  int char_size() { return static_cast<int>(mode_); }
 
   // Equivalent to a conditional branch to the label, unless the label
   // is NULL, in which case it is a conditional Backtrack.
@@ -252,7 +252,7 @@ class RegExpMacroAssemblerA64: public NativeRegExpMacroAssembler {
     CACHED_MSW   // Most Significant Word of a 64 bit hardware register.
   };
 
-  inline RegisterState GetRegisterState(int register_index) {
+  RegisterState GetRegisterState(int register_index) {
     ASSERT(register_index >= 0);
     if (register_index >= kNumCachedRegisters) {
       return STACKED;

@@ -179,18 +179,6 @@ Instruction* Instruction::ImmPCOffsetTarget() {
 }
 
 
-inline int Instruction::ImmBranch() const {
-  switch (BranchType()) {
-    case CondBranchType: return ImmCondBranch();
-    case UncondBranchType: return ImmUncondBranch();
-    case CompareBranchType: return ImmCmpBranch();
-    case TestBranchType: return ImmTestBranch();
-    default: UNREACHABLE();
-  }
-  return 0;
-}
-
-
 void Instruction::SetImmPCOffsetTarget(Instruction* target) {
   if (IsPCRelAddressing()) {
     SetPCRelImmTarget(target);

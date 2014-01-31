@@ -99,43 +99,43 @@ enum Reg31Mode {
 
 class Instruction {
  public:
-  inline Instr InstructionBits() const {
+  Instr InstructionBits() const {
     Instr bits;
     memcpy(&bits, this, sizeof(bits));
     return bits;
   }
 
-  inline void SetInstructionBits(Instr new_instr) {
+  void SetInstructionBits(Instr new_instr) {
     memcpy(this, &new_instr, sizeof(new_instr));
   }
 
-  inline int Bit(int pos) const {
+  int Bit(int pos) const {
     return (InstructionBits() >> pos) & 1;
   }
 
-  inline uint32_t Bits(int msb, int lsb) const {
+  uint32_t Bits(int msb, int lsb) const {
     return unsigned_bitextract_32(msb, lsb, InstructionBits());
   }
 
-  inline int32_t SignedBits(int msb, int lsb) const {
+  int32_t SignedBits(int msb, int lsb) const {
     int32_t bits = *(reinterpret_cast<const int32_t*>(this));
     return signed_bitextract_32(msb, lsb, bits);
   }
 
-  inline Instr Mask(uint32_t mask) const {
+  Instr Mask(uint32_t mask) const {
     return InstructionBits() & mask;
   }
 
-  inline Instruction* following(int count = 1) {
+  Instruction* following(int count = 1) {
     return this + count * kInstructionSize;
   }
 
-  inline Instruction* preceding(int count = 1) {
+  Instruction* preceding(int count = 1) {
     return this - count * kInstructionSize;
   }
 
   #define DEFINE_GETTER(Name, HighBit, LowBit, Func)             \
-  inline int64_t Name() const { return Func(HighBit, LowBit); }
+  int64_t Name() const { return Func(HighBit, LowBit); }
   INSTRUCTION_FIELDS_LIST(DEFINE_GETTER)
   #undef DEFINE_GETTER
 
@@ -151,59 +151,59 @@ class Instruction {
   float ImmFP32();
   double ImmFP64();
 
-  inline LSDataSize SizeLSPair() const {
+  LSDataSize SizeLSPair() const {
     return CalcLSPairDataSize(
-             static_cast<LoadStorePairOp>(Mask(LoadStorePairMask)));
+        static_cast<LoadStorePairOp>(Mask(LoadStorePairMask)));
   }
 
   // Helpers.
-  inline bool IsCondBranchImm() const {
+  bool IsCondBranchImm() const {
     return Mask(ConditionalBranchFMask) == ConditionalBranchFixed;
   }
 
-  inline bool IsUncondBranchImm() const {
+  bool IsUncondBranchImm() const {
     return Mask(UnconditionalBranchFMask) == UnconditionalBranchFixed;
   }
 
-  inline bool IsCompareBranch() const {
+  bool IsCompareBranch() const {
     return Mask(CompareBranchFMask) == CompareBranchFixed;
   }
 
-  inline bool IsTestBranch() const {
+  bool IsTestBranch() const {
     return Mask(TestBranchFMask) == TestBranchFixed;
   }
 
-  inline bool IsLdrLiteral() const {
+  bool IsLdrLiteral() const {
     return Mask(LoadLiteralFMask) == LoadLiteralFixed;
   }
 
-  inline bool IsLdrLiteralX() const {
+  bool IsLdrLiteralX() const {
     return Mask(LoadLiteralMask) == LDR_x_lit;
   }
 
-  inline bool IsPCRelAddressing() const {
+  bool IsPCRelAddressing() const {
     return Mask(PCRelAddressingFMask) == PCRelAddressingFixed;
   }
 
-  inline bool IsLogicalImmediate() const {
+  bool IsLogicalImmediate() const {
     return Mask(LogicalImmediateFMask) == LogicalImmediateFixed;
   }
 
-  inline bool IsAddSubImmediate() const {
+  bool IsAddSubImmediate() const {
     return Mask(AddSubImmediateFMask) == AddSubImmediateFixed;
   }
 
-  inline bool IsAddSubExtended() const {
+  bool IsAddSubExtended() const {
     return Mask(AddSubExtendedFMask) == AddSubExtendedFixed;
   }
 
-  inline bool IsLoadOrStore() const {
+  bool IsLoadOrStore() const {
     return Mask(LoadStoreAnyFMask) == LoadStoreAnyFixed;
   }
 
   // Indicate whether Rd can be the stack pointer or the zero register. This
   // does not check that the instruction actually has an Rd field.
-  inline Reg31Mode RdMode() const {
+  Reg31Mode RdMode() const {
     // The following instructions use csp or wsp as Rd:
     //  Add/sub (immediate) when not setting the flags.
     //  Add/sub (extended) when not setting the flags.
@@ -232,7 +232,7 @@ class Instruction {
 
   // Indicate whether Rn can be the stack pointer or the zero register. This
   // does not check that the instruction actually has an Rn field.
-  inline Reg31Mode RnMode() const {
+  Reg31Mode RnMode() const {
     // The following instructions use csp or wsp as Rn:
     //  All loads and stores.
     //  Add/sub (immediate).
@@ -244,7 +244,7 @@ class Instruction {
     return Reg31IsZeroRegister;
   }
 
-  inline ImmBranchType BranchType() const {
+  ImmBranchType BranchType() const {
     if (IsCondBranchImm()) {
       return CondBranchType;
     } else if (IsUncondBranchImm()) {
@@ -258,26 +258,37 @@ class Instruction {
     }
   }
 
-  inline bool IsBranchAndLinkToRegister() const {
+  int ImmBranch() const {
+    switch (BranchType()) {
+      case CondBranchType: return ImmCondBranch();
+      case UncondBranchType: return ImmUncondBranch();
+      case CompareBranchType: return ImmCmpBranch();
+      case TestBranchType: return ImmTestBranch();
+      default: UNREACHABLE();
+    }
+    return 0;
+  }
+
+  bool IsBranchAndLinkToRegister() const {
     return Mask(UnconditionalBranchToRegisterMask) == BLR;
   }
 
-  inline bool IsMovz() const {
+  bool IsMovz() const {
     return (Mask(MoveWideImmediateMask) == MOVZ_x) ||
            (Mask(MoveWideImmediateMask) == MOVZ_w);
   }
 
-  inline bool IsMovk() const {
+  bool IsMovk() const {
     return (Mask(MoveWideImmediateMask) == MOVK_x) ||
            (Mask(MoveWideImmediateMask) == MOVK_w);
   }
 
-  inline bool IsMovn() const {
+  bool IsMovn() const {
     return (Mask(MoveWideImmediateMask) == MOVN_x) ||
            (Mask(MoveWideImmediateMask) == MOVN_w);
   }
 
-  inline bool IsNop(int n) {
+  bool IsNop(int n) {
     // A marking nop is an instruction
     //   mov r<n>,  r<n>
     // which is encoded as
@@ -302,49 +313,47 @@ class Instruction {
   // Patch a literal load instruction to load from 'source'.
   void SetImmLLiteral(Instruction* source);
 
-  inline uint8_t* LiteralAddress() {
+  uint8_t* LiteralAddress() {
     int offset = ImmLLiteral() << kLiteralEntrySizeLog2;
     return reinterpret_cast<uint8_t*>(this) + offset;
   }
 
-  inline uint32_t Literal32() {
+  uint32_t Literal32() {
     uint32_t literal;
     memcpy(&literal, LiteralAddress(), sizeof(literal));
 
     return literal;
   }
 
-  inline uint64_t Literal64() {
+  uint64_t Literal64() {
     uint64_t literal;
     memcpy(&literal, LiteralAddress(), sizeof(literal));
 
     return literal;
   }
 
-  inline float LiteralFP32() {
+  float LiteralFP32() {
     return rawbits_to_float(Literal32());
   }
 
-  inline double LiteralFP64() {
+  double LiteralFP64() {
     return rawbits_to_double(Literal64());
   }
 
-  inline Instruction* NextInstruction() {
+  Instruction* NextInstruction() {
     return this + kInstructionSize;
   }
 
-  inline Instruction* InstructionAtOffset(int64_t offset) {
+  Instruction* InstructionAtOffset(int64_t offset) {
     ASSERT(IsAligned(reinterpret_cast<uintptr_t>(this) + offset,
                      kInstructionSize));
     return this + offset;
   }
 
-  template<typename T> static inline Instruction* Cast(T src) {
+  template<typename T> static Instruction* Cast(T src) {
     return reinterpret_cast<Instruction*>(src);
   }
 
- private:
-  inline int ImmBranch() const;
 
   void SetPCRelImmTarget(Instruction* target);
   void SetBranchImmTarget(Instruction* target);

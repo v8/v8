@@ -2066,15 +2066,15 @@ class InlineSmiCheckInfo {
  public:
   explicit InlineSmiCheckInfo(Address info);
 
-  inline bool HasSmiCheck() const {
+  bool HasSmiCheck() const {
     return smi_check_ != NULL;
   }
 
-  inline const Register& SmiRegister() const {
+  const Register& SmiRegister() const {
     return reg_;
   }
 
-  inline Instruction* SmiCheck() const {
+  Instruction* SmiCheck() const {
     return smi_check_;
   }
 

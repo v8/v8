@@ -327,8 +327,7 @@ class RecordWriteStub: public PlatformCodeStub {
       }
     }
 
-    inline void RestoreCallerSaveRegisters(MacroAssembler*masm,
-                                           SaveFPRegsMode mode) {
+    void RestoreCallerSaveRegisters(MacroAssembler*masm, SaveFPRegsMode mode) {
       // TODO(all): This can be very expensive, and it is likely that not every
       // register will need to be preserved. Can we improve this?
       if (mode == kSaveFPRegs) {
@@ -337,11 +336,11 @@ class RecordWriteStub: public PlatformCodeStub {
       masm->PopCPURegList(saved_regs_);
     }
 
-    inline Register object() { return object_; }
-    inline Register address() { return address_; }
-    inline Register scratch0() { return scratch0_; }
-    inline Register scratch1() { return scratch1_; }
-    inline Register scratch2() { return scratch2_; }
+    Register object() { return object_; }
+    Register address() { return address_; }
+    Register scratch0() { return scratch0_; }
+    Register scratch1() { return scratch1_; }
+    Register scratch2() { return scratch2_; }
 
    private:
     Register object_;

@@ -83,17 +83,17 @@ typedef int (*a64_regexp_matcher)(String* input,
 // Running without a simulator there is nothing to do.
 class SimulatorStack : public v8::internal::AllStatic {
  public:
-  static inline uintptr_t JsLimitFromCLimit(v8::internal::Isolate* isolate,
+  static uintptr_t JsLimitFromCLimit(v8::internal::Isolate* isolate,
                                             uintptr_t c_limit) {
     USE(isolate);
     return c_limit;
   }
 
-  static inline uintptr_t RegisterCTryCatch(uintptr_t try_catch_address) {
+  static uintptr_t RegisterCTryCatch(uintptr_t try_catch_address) {
     return try_catch_address;
   }
 
-  static inline void UnregisterCTryCatch() { }
+  static void UnregisterCTryCatch() { }
 };
 
 #else  // !defined(USE_SIMULATOR)
@@ -114,19 +114,19 @@ class SimSystemRegister {
   // It is not possible to set its value to anything other than 0.
   SimSystemRegister() : value_(0), write_ignore_mask_(0xffffffff) { }
 
-  inline uint32_t RawValue() const {
+  uint32_t RawValue() const {
     return value_;
   }
 
-  inline void SetRawValue(uint32_t new_value) {
+  void SetRawValue(uint32_t new_value) {
     value_ = (value_ & write_ignore_mask_) | (new_value & ~write_ignore_mask_);
   }
 
-  inline uint32_t Bits(int msb, int lsb) const {
+  uint32_t Bits(int msb, int lsb) const {
     return unsigned_bitextract_32(msb, lsb, value_);
   }
 
-  inline int32_t SignedBits(int msb, int lsb) const {
+  int32_t SignedBits(int msb, int lsb) const {
     return signed_bitextract_32(msb, lsb, value_);
   }
 
@@ -136,8 +136,8 @@ class SimSystemRegister {
   static SimSystemRegister DefaultValueFor(SystemRegister id);
 
 #define DEFINE_GETTER(Name, HighBit, LowBit, Func)                            \
-  inline uint32_t Name() const { return Func(HighBit, LowBit); }              \
-  inline void Set##Name(uint32_t bits) { SetBits(HighBit, LowBit, bits); }
+  uint32_t Name() const { return Func(HighBit, LowBit); }              \
+  void Set##Name(uint32_t bits) { SetBits(HighBit, LowBit, bits); }
 #define DEFINE_WRITE_IGNORE_MASK(Name, Mask)                                  \
   static const uint32_t Name##WriteIgnoreMask = ~static_cast<uint32_t>(Mask);
 
@@ -316,14 +316,14 @@ class Simulator : public DecoderVisitor {
 
   // Simulation helpers.
   template <typename T>
-  inline void set_pc(T new_pc) {
+  void set_pc(T new_pc) {
     ASSERT(sizeof(T) == sizeof(pc_));
     memcpy(&pc_, &new_pc, sizeof(T));
     pc_modified_ = true;
   }
-  inline Instruction* pc() { return pc_; }
+  Instruction* pc() { return pc_; }
 
-  inline void increment_pc() {
+  void increment_pc() {
     if (!pc_modified_) {
       pc_ = pc_->NextInstruction();
     }
@@ -331,7 +331,7 @@ class Simulator : public DecoderVisitor {
     pc_modified_ = false;
   }
 
-  inline void ExecuteInstruction() {
+  void ExecuteInstruction() {
     ASSERT(IsAligned(reinterpret_cast<uintptr_t>(pc_), kInstructionSize));
     CheckBreakNext();
     decoder_->Decode(pc_);
@@ -352,8 +352,8 @@ class Simulator : public DecoderVisitor {
   //
   // The only supported values of 'size' are kXRegSize and kWRegSize.
   template<typename T>
-  inline T reg(unsigned size, unsigned code,
-               Reg31Mode r31mode = Reg31IsZeroRegister) const {
+  T reg(unsigned size, unsigned code,
+        Reg31Mode r31mode = Reg31IsZeroRegister) const {
     unsigned size_in_bytes = size / 8;
     ASSERT(size_in_bytes <= sizeof(T));
     ASSERT((size == kXRegSize) || (size == kWRegSize));
@@ -369,23 +369,23 @@ class Simulator : public DecoderVisitor {
 
   // Like reg(), but infer the access size from the template type.
   template<typename T>
-  inline T reg(unsigned code, Reg31Mode r31mode = Reg31IsZeroRegister) const {
+  T reg(unsigned code, Reg31Mode r31mode = Reg31IsZeroRegister) const {
     return reg<T>(sizeof(T) * 8, code, r31mode);
   }
 
   // Common specialized accessors for the reg() template.
-  inline int32_t wreg(unsigned code,
-                      Reg31Mode r31mode = Reg31IsZeroRegister) const {
+  int32_t wreg(unsigned code,
+               Reg31Mode r31mode = Reg31IsZeroRegister) const {
     return reg<int32_t>(code, r31mode);
   }
 
-  inline int64_t xreg(unsigned code,
-                      Reg31Mode r31mode = Reg31IsZeroRegister) const {
+  int64_t xreg(unsigned code,
+               Reg31Mode r31mode = Reg31IsZeroRegister) const {
     return reg<int64_t>(code, r31mode);
   }
 
-  inline int64_t reg(unsigned size, unsigned code,
-                     Reg31Mode r31mode = Reg31IsZeroRegister) const {
+  int64_t reg(unsigned size, unsigned code,
+              Reg31Mode r31mode = Reg31IsZeroRegister) const {
     return reg<int64_t>(size, code, r31mode);
   }
 
@@ -394,8 +394,8 @@ class Simulator : public DecoderVisitor {
   //
   // The only supported values of 'size' are kXRegSize and kWRegSize.
   template<typename T>
-  inline void set_reg(unsigned size, unsigned code, T value,
-                      Reg31Mode r31mode = Reg31IsZeroRegister) {
+  void set_reg(unsigned size, unsigned code, T value,
+               Reg31Mode r31mode = Reg31IsZeroRegister) {
     unsigned size_in_bytes = size / 8;
     ASSERT(size_in_bytes <= sizeof(T));
     ASSERT((size == kXRegSize) || (size == kWRegSize));
@@ -409,48 +409,48 @@ class Simulator : public DecoderVisitor {
 
   // Like set_reg(), but infer the access size from the template type.
   template<typename T>
-  inline void set_reg(unsigned code, T value,
-                      Reg31Mode r31mode = Reg31IsZeroRegister) {
+  void set_reg(unsigned code, T value,
+               Reg31Mode r31mode = Reg31IsZeroRegister) {
     set_reg(sizeof(value) * 8, code, value, r31mode);
   }
 
   // Common specialized accessors for the set_reg() template.
-  inline void set_wreg(unsigned code, int32_t value,
-                       Reg31Mode r31mode = Reg31IsZeroRegister) {
+  void set_wreg(unsigned code, int32_t value,
+                Reg31Mode r31mode = Reg31IsZeroRegister) {
     set_reg(kWRegSize, code, value, r31mode);
   }
 
-  inline void set_xreg(unsigned code, int64_t value,
-                       Reg31Mode r31mode = Reg31IsZeroRegister) {
+  void set_xreg(unsigned code, int64_t value,
+                Reg31Mode r31mode = Reg31IsZeroRegister) {
     set_reg(kXRegSize, code, value, r31mode);
   }
 
   // Commonly-used special cases.
   template<typename T>
-  inline void set_lr(T value) {
+  void set_lr(T value) {
     ASSERT(sizeof(T) == kPointerSize);
     set_reg(kLinkRegCode, value);
   }
 
   template<typename T>
-  inline void set_sp(T value) {
+  void set_sp(T value) {
     ASSERT(sizeof(T) == kPointerSize);
     set_reg(31, value, Reg31IsStackPointer);
   }
 
-  inline int64_t sp() { return xreg(31, Reg31IsStackPointer); }
-  inline int64_t jssp() { return xreg(kJSSPCode, Reg31IsStackPointer); }
-  inline int64_t fp() {
+  int64_t sp() { return xreg(31, Reg31IsStackPointer); }
+  int64_t jssp() { return xreg(kJSSPCode, Reg31IsStackPointer); }
+  int64_t fp() {
       return xreg(kFramePointerRegCode, Reg31IsStackPointer);
   }
-  inline Instruction* lr() { return reg<Instruction*>(kLinkRegCode); }
+  Instruction* lr() { return reg<Instruction*>(kLinkRegCode); }
 
   // Return 'size' bits of the value of a floating-point register, as the
   // specified type. The value is zero-extended to fill the result.
   //
   // The only supported values of 'size' are kDRegSize and kSRegSize.
   template<typename T>
-  inline T fpreg(unsigned size, unsigned code) const {
+  T fpreg(unsigned size, unsigned code) const {
     unsigned size_in_bytes = size / 8;
     ASSERT(size_in_bytes <= sizeof(T));
     ASSERT((size == kDRegSize) || (size == kSRegSize));
@@ -460,28 +460,28 @@ class Simulator : public DecoderVisitor {
 
   // Like fpreg(), but infer the access size from the template type.
   template<typename T>
-  inline T fpreg(unsigned code) const {
+  T fpreg(unsigned code) const {
     return fpreg<T>(sizeof(T) * 8, code);
   }
 
   // Common specialized accessors for the fpreg() template.
-  inline float sreg(unsigned code) const {
+  float sreg(unsigned code) const {
     return fpreg<float>(code);
   }
 
-  inline uint32_t sreg_bits(unsigned code) const {
+  uint32_t sreg_bits(unsigned code) const {
     return fpreg<uint32_t>(code);
   }
 
-  inline double dreg(unsigned code) const {
+  double dreg(unsigned code) const {
     return fpreg<double>(code);
   }
 
-  inline uint64_t dreg_bits(unsigned code) const {
+  uint64_t dreg_bits(unsigned code) const {
     return fpreg<uint64_t>(code);
   }
 
-  inline double fpreg(unsigned size, unsigned code) const {
+  double fpreg(unsigned size, unsigned code) const {
     switch (size) {
       case kSRegSize: return sreg(code);
       case kDRegSize: return dreg(code);
@@ -494,7 +494,7 @@ class Simulator : public DecoderVisitor {
   // Write 'value' into a floating-point register. The value is zero-extended.
   // This behaviour matches AArch64 register writes.
   template<typename T>
-  inline void set_fpreg(unsigned code, T value) {
+  void set_fpreg(unsigned code, T value) {
     ASSERT((sizeof(value) == kDRegSizeInBytes) ||
            (sizeof(value) == kSRegSizeInBytes));
     ASSERT(code < kNumberOfFPRegisters);
@@ -502,19 +502,19 @@ class Simulator : public DecoderVisitor {
   }
 
   // Common specialized accessors for the set_fpreg() template.
-  inline void set_sreg(unsigned code, float value) {
+  void set_sreg(unsigned code, float value) {
     set_fpreg(code, value);
   }
 
-  inline void set_sreg_bits(unsigned code, uint32_t value) {
+  void set_sreg_bits(unsigned code, uint32_t value) {
     set_fpreg(code, value);
   }
 
-  inline void set_dreg(unsigned code, double value) {
+  void set_dreg(unsigned code, double value) {
     set_fpreg(code, value);
   }
 
-  inline void set_dreg_bits(unsigned code, uint64_t value) {
+  void set_dreg_bits(unsigned code, uint64_t value) {
     set_fpreg(code, value);
   }
 
@@ -557,16 +557,16 @@ class Simulator : public DecoderVisitor {
   void PrintFPRegisters(bool print_all_regs = false);
   void PrintProcessorState();
   void PrintWrite(uint8_t* address, uint64_t value, unsigned num_bytes);
-  inline void LogSystemRegisters() {
+  void LogSystemRegisters() {
     if (log_parameters_ & LOG_SYS_REGS) PrintSystemRegisters();
   }
-  inline void LogRegisters() {
+  void LogRegisters() {
     if (log_parameters_ & LOG_REGS) PrintRegisters();
   }
-  inline void LogFPRegisters() {
+  void LogFPRegisters() {
     if (log_parameters_ & LOG_FP_REGS) PrintFPRegisters();
   }
-  inline void LogProcessorState() {
+  void LogProcessorState() {
     LogSystemRegisters();
     LogRegisters();
     LogFPRegisters();
@@ -575,7 +575,7 @@ class Simulator : public DecoderVisitor {
     if (log_parameters_ & LOG_WRITE) PrintWrite(address, value, num_bytes);
   }
 
-  inline int log_parameters() { return log_parameters_; }
+  int log_parameters() { return log_parameters_; }
   void set_log_parameters(int new_parameters) {
     if (new_parameters & LOG_DISASM) {
       decoder_->InsertVisitorBefore(print_disasm_, this);
@@ -770,11 +770,11 @@ class Simulator : public DecoderVisitor {
     // is irrelevant, and is not checked here.
   }
 
-  static inline int CalcNFlag(uint64_t result, unsigned reg_size) {
+  static int CalcNFlag(uint64_t result, unsigned reg_size) {
     return (result >> (reg_size - 1)) & 1;
   }
 
-  static inline int CalcZFlag(uint64_t result) {
+  static int CalcZFlag(uint64_t result) {
     return result == 0;
   }
 
@@ -837,17 +837,17 @@ class Simulator : public DecoderVisitor {
 // See also 'class SimulatorStack' in arm/simulator-arm.h.
 class SimulatorStack : public v8::internal::AllStatic {
  public:
-  static inline uintptr_t JsLimitFromCLimit(v8::internal::Isolate* isolate,
+  static uintptr_t JsLimitFromCLimit(v8::internal::Isolate* isolate,
                                             uintptr_t c_limit) {
     return Simulator::current(isolate)->StackLimit();
   }
 
-  static inline uintptr_t RegisterCTryCatch(uintptr_t try_catch_address) {
+  static uintptr_t RegisterCTryCatch(uintptr_t try_catch_address) {
     Simulator* sim = Simulator::current(Isolate::Current());
     return sim->PushAddress(try_catch_address);
   }
 
-  static inline void UnregisterCTryCatch() {
+  static void UnregisterCTryCatch() {
     Simulator::current(Isolate::Current())->PopAddress();
   }
 };

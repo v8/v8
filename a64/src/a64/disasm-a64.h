@@ -70,19 +70,19 @@ class Disassembler: public DecoderVisitor {
   int SubstitutePrefetchField(Instruction* instr, const char* format);
   int SubstituteBarrierField(Instruction* instr, const char* format);
 
-  inline bool RdIsZROrSP(Instruction* instr) const {
+  bool RdIsZROrSP(Instruction* instr) const {
     return (instr->Rd() == kZeroRegCode);
   }
 
-  inline bool RnIsZROrSP(Instruction* instr) const {
+  bool RnIsZROrSP(Instruction* instr) const {
     return (instr->Rn() == kZeroRegCode);
   }
 
-  inline bool RmIsZROrSP(Instruction* instr) const {
+  bool RmIsZROrSP(Instruction* instr) const {
     return (instr->Rm() == kZeroRegCode);
   }
 
-  inline bool RaIsZROrSP(Instruction* instr) const {
+  bool RaIsZROrSP(Instruction* instr) const {
     return (instr->Ra() == kZeroRegCode);
   }
 
