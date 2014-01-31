@@ -4333,11 +4333,10 @@ void LCodeGen::DoNumberTagD(LNumberTagD* instr) {
 }
 
 
-void LCodeGen::DoDeferredNumberTagI(LInstruction* instr,
+void LCodeGen::DoDeferredNumberTagU(LInstruction* instr,
                                     LOperand* value,
                                     LOperand* temp1,
-                                    LOperand* temp2,
-                                    IntegerSignedness signedness) {
+                                    LOperand* temp2) {
   Label slow, convert_and_store;
   Register src = ToRegister32(value);
   Register dst = ToRegister(instr->result());
@@ -4375,12 +4374,7 @@ void LCodeGen::DoDeferredNumberTagI(LInstruction* instr,
   // number.
   __ Bind(&convert_and_store);
   DoubleRegister dbl_scratch = double_scratch();
-  if (signedness == SIGNED_INT32) {
-    ASM_UNIMPLEMENTED_BREAK("DeferredNumberTagI - signed int32 case.");
-  } else {
-    ASSERT(signedness == UNSIGNED_INT32);
-    __ Ucvtf(dbl_scratch, src);
-  }
+  __ Ucvtf(dbl_scratch, src);
   __ Str(dbl_scratch, FieldMemOperand(dst, HeapNumber::kValueOffset));
 }
 
@@ -4391,11 +4385,10 @@ void LCodeGen::DoNumberTagU(LNumberTagU* instr) {
     DeferredNumberTagU(LCodeGen* codegen, LNumberTagU* instr)
         : LDeferredCode(codegen), instr_(instr) { }
     virtual void Generate() {
-      codegen()->DoDeferredNumberTagI(instr_,
+      codegen()->DoDeferredNumberTagU(instr_,
                                       instr_->value(),
                                       instr_->temp1(),
-                                      instr_->temp2(),
-                                      UNSIGNED_INT32);
+                                      instr_->temp2());
     }
     virtual LInstruction* instr() { return instr_; }
    private:
