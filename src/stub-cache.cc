@@ -1288,15 +1288,6 @@ Handle<Code> CallStubCompiler::CompileCallConstant(
     Handle<Name> name,
     CheckType check,
     Handle<JSFunction> function) {
-  if (HasCustomCallGenerator(function)) {
-    Handle<Code> code = CompileCustomCall(object, holder,
-                                          Handle<Cell>::null(),
-                                          function, Handle<String>::cast(name),
-                                          Code::FAST);
-    // A null handle means bail out to the regular compiler code below.
-    if (!code.is_null()) return code;
-  }
-
   Label miss;
   HandlerFrontendHeader(object, holder, name, check, &miss);
   GenerateJumpFunction(object, function);
@@ -1877,31 +1868,6 @@ CallStubCompiler::CallStubCompiler(Isolate* isolate,
 }
 
 
-bool CallStubCompiler::HasCustomCallGenerator(Handle<JSFunction> function) {
-  CallOptimization optimization(function);
-  return optimization.is_simple_api_call();
-}
-
-
-Handle<Code> CallStubCompiler::CompileCustomCall(
-    Handle<Object> object,
-    Handle<JSObject> holder,
-    Handle<Cell> cell,
-    Handle<JSFunction> function,
-    Handle<String> fname,
-    Code::StubType type) {
-  ASSERT(HasCustomCallGenerator(function));
-  CallOptimization optimization(function);
-  ASSERT(optimization.is_simple_api_call());
-  return CompileFastApiCall(optimization,
-                            object,
-                            holder,
-                            cell,
-                            function,
-                            fname);
-}
-
-
 Handle<Code> CallStubCompiler::GetCode(Code::StubType type,
                                        Handle<Name> name) {
   int argc = arguments_.immediate();
@@ -1937,44 +1903,32 @@ CallOptimization::CallOptimization(Handle<JSFunction> function) {
 }
 
 
-Handle<Map> CallOptimization::LookupHolderOfExpectedType(
-    Handle<JSObject> receiver,
-    Handle<JSObject> object,
-    Handle<JSObject> holder,
+Handle<JSObject> CallOptimization::LookupHolderOfExpectedType(
+    Handle<Map> object_map,
     HolderLookup* holder_lookup) const {
   ASSERT(is_simple_api_call());
   ASSERT_EQ(kHolderNotFound, *holder_lookup);
-  *holder_lookup = kHolderIsReceiver;
-  Handle<Map> map_to_holder;
-  if (expected_receiver_type_.is_null()) {
-    // no expected type, load from receiver.
-    return map_to_holder;
+  if (!object_map->IsJSObjectMap()) {
+    *holder_lookup = kHolderNotFound;
+    return Handle<JSObject>::null();
   }
-  // walk down the prototype chain to the object
-  while (!receiver.is_identical_to(object)) {
-    *holder_lookup = kHolderIsPrototypeOfMap;
-    map_to_holder = Handle<Map>(receiver->map());
-    receiver = Handle<JSObject>(JSObject::cast(map_to_holder->prototype()));
+  if (expected_receiver_type_.is_null() ||
+      expected_receiver_type_->IsTemplateFor(*object_map)) {
+    *holder_lookup = kHolderIsReceiver;
+    return Handle<JSObject>::null();
   }
-  // start looking for the holder
-  while (!object.is_identical_to(holder)) {
-    Handle<Map> object_map(object->map());
+  while (true) {
+    if (!object_map->prototype()->IsJSObject()) break;
+    Handle<JSObject> prototype(JSObject::cast(object_map->prototype()));
+    if (!prototype->map()->is_hidden_prototype()) break;
+    object_map = handle(prototype->map());
     if (expected_receiver_type_->IsTemplateFor(*object_map)) {
-      return map_to_holder;
+      *holder_lookup = kHolderFound;
+      return prototype;
     }
-    if (!object_map->is_hidden_prototype()) {
-      *holder_lookup = kHolderNotFound;
-      return Handle<Map>::null();
-    }
-    *holder_lookup = kHolderIsPrototypeOfMap;
-    map_to_holder = object_map;
-    object = Handle<JSObject>(JSObject::cast(object_map->prototype()));
-  }
-  if (expected_receiver_type_->IsTemplateFor(holder->map())) {
-    return map_to_holder;
   }
   *holder_lookup = kHolderNotFound;
-  return Handle<Map>::null();
+  return Handle<JSObject>::null();
 }
 
 

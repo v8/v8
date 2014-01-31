@@ -287,15 +287,19 @@ void StubCompiler::GenerateDirectLoadGlobalFunctionPrototype(
     Register prototype,
     Label* miss) {
   Isolate* isolate = masm->isolate();
-  // Check we're still in the same context.
-  __ lw(prototype,
-        MemOperand(cp, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
-  ASSERT(!prototype.is(at));
-  __ li(at, isolate->global_object());
-  __ Branch(miss, ne, prototype, Operand(at));
   // Get the global function with the given index.
   Handle<JSFunction> function(
       JSFunction::cast(isolate->native_context()->get(index)));
+
+  // Check we're still in the same context.
+  Register scratch = prototype;
+  const int offset = Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX);
+  __ lw(scratch, MemOperand(cp, offset));
+  __ lw(scratch, FieldMemOperand(scratch, GlobalObject::kNativeContextOffset));
+  __ lw(scratch, MemOperand(scratch, Context::SlotOffset(index)));
+  __ li(at, function);
+  __ Branch(miss, ne, at, Operand(scratch));
+
   // Load its initial map. The global functions all have initial maps.
   __ li(prototype, Handle<Map>(function->initial_map()));
   // Load the prototype from the initial map.
@@ -776,8 +780,7 @@ static void GenerateFastApiCallBody(MacroAssembler* masm,
   Register callee = a0;
   Register call_data = t0;
   Register holder = a2;
-  Register api_function_address = a3;
-  Register thunk_arg = a1;
+  Register api_function_address = a1;
 
   // Put holder in place.
   __ mov(holder, holder_in);
@@ -810,52 +813,10 @@ static void GenerateFastApiCallBody(MacroAssembler* masm,
                         type,
                         masm->isolate());
   __ li(api_function_address, Operand(ref));
-  __ li(thunk_arg, Operand(reinterpret_cast<int32_t>(function_address)));
 
   // Jump to stub.
   CallApiFunctionStub stub(restore_context, call_data_undefined, argc);
   __ TailCallStub(&stub);
-}
-
-
-// Generates call to API function.
-static void GenerateFastApiCall(MacroAssembler* masm,
-                                const CallOptimization& optimization,
-                                int argc,
-                                Handle<Map> map_to_holder,
-                                CallOptimization::HolderLookup holder_lookup) {
-  Counters* counters = masm->isolate()->counters();
-  __ IncrementCounter(counters->call_const_fast_api(), 1, a0, a1);
-
-  // Move holder to a register.
-  Register holder_reg = a2;
-  switch (holder_lookup) {
-    case CallOptimization::kHolderIsReceiver:
-      {
-        ASSERT(map_to_holder.is_null());
-        __ lw(holder_reg, MemOperand(sp, argc * kPointerSize));
-      }
-      break;
-    case CallOptimization::kHolderIsPrototypeOfMap:
-      {
-        Handle<JSObject> holder(JSObject::cast(map_to_holder->prototype()));
-        if (!masm->isolate()->heap()->InNewSpace(*holder)) {
-          __ li(holder_reg, holder);
-        } else {
-          __ li(holder_reg, map_to_holder);
-          __ lw(holder_reg,
-                FieldMemOperand(holder_reg, Map::kPrototypeOffset));
-        }
-      }
-     break;
-    case CallOptimization::kHolderNotFound:
-      UNREACHABLE();
-  }
-  GenerateFastApiCallBody(masm,
-                          optimization,
-                          argc,
-                          holder_reg,
-                          false);
 }
 
 
@@ -888,10 +849,8 @@ static void GenerateFastApiCall(MacroAssembler* masm,
 class CallInterceptorCompiler BASE_EMBEDDED {
  public:
   CallInterceptorCompiler(CallStubCompiler* stub_compiler,
-                          const ParameterCount& arguments,
                           Register name)
       : stub_compiler_(stub_compiler),
-        arguments_(arguments),
         name_(name) {}
 
   void Compile(MacroAssembler* masm,
@@ -964,36 +923,9 @@ class CallInterceptorCompiler BASE_EMBEDDED {
           name, miss_label);
     }
 
-    Handle<Map> lookup_map;
-    CallOptimization::HolderLookup holder_lookup =
-        CallOptimization::kHolderNotFound;
-    if (optimization.is_simple_api_call() &&
-        !lookup->holder()->IsGlobalObject()) {
-      lookup_map = optimization.LookupHolderOfExpectedType(
-          object, object, interceptor_holder, &holder_lookup);
-      if (holder_lookup == CallOptimization::kHolderNotFound) {
-        lookup_map =
-            optimization.LookupHolderOfExpectedType(
-                object,
-                interceptor_holder,
-                Handle<JSObject>(lookup->holder()),
-                &holder_lookup);
-      }
-    }
-
-    // Invoke function.
-    if (holder_lookup != CallOptimization::kHolderNotFound) {
-      int argc = arguments_.immediate();
-      GenerateFastApiCall(masm,
-                          optimization,
-                          argc,
-                          lookup_map,
-                          holder_lookup);
-    } else {
-      Handle<JSFunction> function = optimization.constant_function();
-      __ Move(a0, receiver);
-      stub_compiler_->GenerateJumpFunction(object, function);
-    }
+    Handle<JSFunction> function = optimization.constant_function();
+    __ Move(a0, receiver);
+    stub_compiler_->GenerateJumpFunction(object, function);
 
     // Invoke a regular function.
     __ bind(&regular_invoke);
@@ -1050,7 +982,6 @@ class CallInterceptorCompiler BASE_EMBEDDED {
   }
 
   CallStubCompiler* stub_compiler_;
-  const ParameterCount& arguments_;
   Register name_;
 };
 
@@ -1313,40 +1244,17 @@ void LoadStubCompiler::GenerateLoadCallback(
   __ Addu(scratch2(), sp, 1 * kPointerSize);
 
   __ mov(a2, scratch2());  // Saved in case scratch2 == a1.
-  __ mov(a0, sp);  // (first argument - a0) = Handle<Name>
+  // Abi for CallApiGetter.
+  Register getter_address_reg = a2;
 
-  const int kApiStackSpace = 1;
-  FrameScope frame_scope(masm(), StackFrame::MANUAL);
-  __ EnterExitFrame(false, kApiStackSpace);
-
-  // Create PropertyAccessorInfo instance on the stack above the exit frame with
-  // scratch2 (internal::Object** args_) as the data.
-  __ sw(a2, MemOperand(sp, kPointerSize));
-  // (second argument - a1) = AccessorInfo&
-  __ Addu(a1, sp, kPointerSize);
-
-  const int kStackUnwindSpace = PropertyCallbackArguments::kArgsLength + 1;
   Address getter_address = v8::ToCData<Address>(callback->getter());
   ApiFunction fun(getter_address);
   ExternalReference::Type type = ExternalReference::DIRECT_GETTER_CALL;
   ExternalReference ref = ExternalReference(&fun, type, isolate());
-  Register getter_address_reg = a3;
-  Register thunk_last_arg = a2;
   __ li(getter_address_reg, Operand(ref));
-  __ li(thunk_last_arg, Operand(reinterpret_cast<int32_t>(getter_address)));
 
-  Address thunk_address = FUNCTION_ADDR(&InvokeAccessorGetterCallback);
-  ExternalReference::Type thunk_type =
-      ExternalReference::PROFILING_GETTER_CALL;
-  ApiFunction thunk_fun(thunk_address);
-  ExternalReference thunk_ref = ExternalReference(&thunk_fun, thunk_type,
-      isolate());
-  __ CallApiFunctionAndReturn(getter_address_reg,
-                              thunk_ref,
-                              thunk_last_arg,
-                              kStackUnwindSpace,
-                              MemOperand(fp, 6 * kPointerSize),
-                              NULL);
+  CallApiGetterStub stub;
+  __ TailCallStub(&stub);
 }
 
 
@@ -1506,58 +1414,6 @@ Handle<Code> CallStubCompiler::CompileCallField(Handle<JSObject> object,
 }
 
 
-Handle<Code> CallStubCompiler::CompileFastApiCall(
-    const CallOptimization& optimization,
-    Handle<Object> object,
-    Handle<JSObject> holder,
-    Handle<Cell> cell,
-    Handle<JSFunction> function,
-    Handle<String> name) {
-
-  Counters* counters = isolate()->counters();
-
-  ASSERT(optimization.is_simple_api_call());
-  // Bail out if object is a global object as we don't want to
-  // repatch it to global receiver.
-  if (object->IsGlobalObject()) return Handle<Code>::null();
-  if (!cell.is_null()) return Handle<Code>::null();
-  if (!object->IsJSObject()) return Handle<Code>::null();
-  Handle<JSObject> receiver = Handle<JSObject>::cast(object);
-  CallOptimization::HolderLookup holder_lookup =
-      CallOptimization::kHolderNotFound;
-  Handle<Map> lookup_map = optimization.LookupHolderOfExpectedType(
-      receiver, receiver, holder, &holder_lookup);
-  if (holder_lookup == CallOptimization::kHolderNotFound) {
-    return Handle<Code>::null();
-  }
-
-  Label miss;
-  GenerateNameCheck(name, &miss);
-
-  // Get the receiver from the stack.
-  const int argc = arguments().immediate();
-  __ lw(a1, MemOperand(sp, argc * kPointerSize));
-
-  // Check that the receiver isn't a smi.
-  __ JumpIfSmi(a1, &miss);
-
-  __ IncrementCounter(counters->call_const(), 1, a0, a3);
-
-  // Check that the maps haven't changed and find a Holder as a side effect.
-  CheckPrototypes(
-      IC::CurrentTypeOf(object, isolate()),
-      a1, holder, a0, a3, t0, name, &miss);
-
-  GenerateFastApiCall(
-      masm(), optimization, argc, lookup_map, holder_lookup);
-
-  HandlerFrontendFooter(&miss);
-
-  // Return the generated code.
-  return GetCode(function);
-}
-
-
 void StubCompiler::GenerateBooleanCheck(Register object, Label* miss) {
   Label success;
   // Check that the object is a boolean.
@@ -1694,7 +1550,7 @@ Handle<Code> CallStubCompiler::CompileCallInterceptor(Handle<JSObject> object,
   // Get the receiver from the stack.
   __ lw(a1, MemOperand(sp, argc * kPointerSize));
 
-  CallInterceptorCompiler compiler(this, arguments(), a2);
+  CallInterceptorCompiler compiler(this, a2);
   compiler.Compile(masm(), object, holder, name, &lookup, a1, a3, t0, a0,
                    &miss);
 
@@ -1718,14 +1574,6 @@ Handle<Code> CallStubCompiler::CompileCallGlobal(
     Handle<PropertyCell> cell,
     Handle<JSFunction> function,
     Handle<Name> name) {
-  if (HasCustomCallGenerator(function)) {
-    Handle<Code> code = CompileCustomCall(
-        object, holder, cell, function, Handle<String>::cast(name),
-        Code::NORMAL);
-    // A null handle means bail out to the regular compiler code below.
-    if (!code.is_null()) return code;
-  }
-
   Label miss;
   HandlerFrontendHeader(object, holder, name, RECEIVER_MAP_CHECK, &miss);
   // Potentially loads a closure that matches the shared function info of the

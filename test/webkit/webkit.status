@@ -42,4 +42,7 @@
   'reentrant-caching': [SKIP],
   'sort-large-array': [SKIP],
 }],  # 'mode == debug'
+['simulator', {
+  'function-apply-aliased': [SKIP],
+}],  # 'simulator'
 ]

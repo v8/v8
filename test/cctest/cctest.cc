@@ -199,6 +199,7 @@ int main(int argc, char* argv[]) {
   }
   if (print_run_count && tests_run != 1)
     printf("Ran %i tests.\n", tests_run);
+  CcTest::TearDown();
   if (!disable_automatic_dispose_) v8::V8::Dispose();
   return 0;
 }

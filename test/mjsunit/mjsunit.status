@@ -111,6 +111,9 @@
   'compiler/alloc-number-debug': [PASS, ['mode == release', SKIP]],
   'regress/regress-634': [PASS, ['mode == debug', SKIP]],
   'regress/regress-634-debug': [PASS, ['mode == release', SKIP]],
+
+  # BUG(336820). TODO(bmeurer): Investigate.
+  'regress/regress-336820': [PASS, FAIL],
 }],  # ALWAYS
 
 ##############################################################################
@@ -127,10 +130,15 @@
   'osr-elements-kind': [SKIP],
   'regress/regress-165637': [SKIP],
   'regress/regress-2249': [SKIP],
-
-  # TODO(hpayer): Investigate.
-  'tools/profviz': [PASS, FLAKY],
 }],  # 'gc_stress == True'
+
+##############################################################################
+['asan == True', {
+  # Skip tests not suitable for ASAN.
+  'big-array-literal': [SKIP],
+  'big-object-literal': [SKIP],
+  'regress/regress-crbug-178790': [SKIP],
+}],  # 'asan == True'
 
 ##############################################################################
 ['arch == arm or arch == android_arm', {

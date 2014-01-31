@@ -201,11 +201,57 @@ namespace internal {
   V(Symbol, elements_transition_symbol, ElementsTransitionSymbol)              \
   V(SeededNumberDictionary, empty_slow_element_dictionary,                     \
       EmptySlowElementDictionary)                                              \
-  V(Symbol, observed_symbol, ObservedSymbol)
+  V(Symbol, observed_symbol, ObservedSymbol)                                   \
+  V(FixedArray, materialized_objects, MaterializedObjects)
 
 #define ROOT_LIST(V)                                  \
   STRONG_ROOT_LIST(V)                                 \
   V(StringTable, string_table, StringTable)
+
+// Heap roots that are known to be immortal immovable, for which we can safely
+// skip write barriers.
+#define IMMORTAL_IMMOVABLE_ROOT_LIST(V)   \
+  V(byte_array_map)                       \
+  V(free_space_map)                       \
+  V(one_pointer_filler_map)               \
+  V(two_pointer_filler_map)               \
+  V(undefined_value)                      \
+  V(the_hole_value)                       \
+  V(null_value)                           \
+  V(true_value)                           \
+  V(false_value)                          \
+  V(uninitialized_value)                  \
+  V(cell_map)                             \
+  V(global_property_cell_map)             \
+  V(shared_function_info_map)             \
+  V(meta_map)                             \
+  V(heap_number_map)                      \
+  V(native_context_map)                   \
+  V(fixed_array_map)                      \
+  V(code_map)                             \
+  V(scope_info_map)                       \
+  V(fixed_cow_array_map)                  \
+  V(fixed_double_array_map)               \
+  V(constant_pool_array_map)              \
+  V(no_interceptor_result_sentinel)       \
+  V(hash_table_map)                       \
+  V(empty_fixed_array)                    \
+  V(empty_byte_array)                     \
+  V(empty_descriptor_array)               \
+  V(empty_constant_pool_array)            \
+  V(arguments_marker)                     \
+  V(symbol_map)                           \
+  V(non_strict_arguments_elements_map)    \
+  V(function_context_map)                 \
+  V(catch_context_map)                    \
+  V(with_context_map)                     \
+  V(block_context_map)                    \
+  V(module_context_map)                   \
+  V(global_context_map)                   \
+  V(oddball_map)                          \
+  V(message_object_map)                   \
+  V(foreign_map)                          \
+  V(neander_map)
 
 #define INTERNALIZED_STRING_LIST(V)                                      \
   V(Array_string, "Array")                                               \
@@ -1365,6 +1411,10 @@ class Heap {
 
   void public_set_store_buffer_top(Address* top) {
     roots_[kStoreBufferTopRootIndex] = reinterpret_cast<Smi*>(top);
+  }
+
+  void public_set_materialized_objects(FixedArray* objects) {
+    roots_[kMaterializedObjectsRootIndex] = objects;
   }
 
   // Generated code can embed this address to get access to the roots.

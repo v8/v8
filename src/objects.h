@@ -489,7 +489,7 @@ const int kStubMinorKeyBits = kBitsPerInt - kSmiTagSize - kStubMajorKeyBits;
     ExternalAsciiString)                                                       \
   V(EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE,                                   \
     ExternalTwoByteString::kSize,                                              \
-    external_string_with_one_bytei_data,                                       \
+    external_string_with_one_byte_data,                                        \
     ExternalStringWithOneByteData)                                             \
   V(SHORT_EXTERNAL_STRING_TYPE,                                                \
     ExternalTwoByteString::kShortSize,                                         \
@@ -4895,8 +4895,12 @@ class FixedTypedArray: public FixedTypedArrayBase {
   // Casting:
   static inline FixedTypedArray<Traits>* cast(Object* obj);
 
+  static inline int ElementOffset(int index) {
+    return kDataOffset + index * sizeof(ElementType);
+  }
+
   static inline int SizeFor(int length) {
-    return kDataOffset + length * sizeof(ElementType);
+    return ElementOffset(length);
   }
 
   inline ElementType get_scalar(int index);

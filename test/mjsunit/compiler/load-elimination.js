@@ -43,6 +43,26 @@ function test_load() {
   return a.x + a.x + a.x + a.x;
 }
 
+
+function test_load_from_different_contexts() {
+  var r = 1;
+  this.f = function() {
+    var fr = r;
+    this.g = function(flag) {
+      var gr;
+      if (flag) {
+        gr = r;
+      } else {
+        gr = r;
+      }
+      return gr + r + fr;
+    };
+  };
+  this.f();
+  return this.g(true);
+}
+
+
 function test_store_load() {
   var a = new B(1, 2);
   a.x = 4;
@@ -128,6 +148,7 @@ function test(x, f) {
 }
 
 test(4, test_load);
+test(3, new test_load_from_different_contexts().g);
 test(22, test_store_load);
 test(8, test_nonaliasing_store1);
 test(5, test_transitioning_store1);

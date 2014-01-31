@@ -112,6 +112,7 @@ class HBasicBlock V8_FINAL : public ZoneObject {
   void RemovePhi(HPhi* phi);
   void AddInstruction(HInstruction* instr, int position);
   bool Dominates(HBasicBlock* other) const;
+  bool EqualToOrDominates(HBasicBlock* other) const;
   int LoopNestingDepth() const;
 
   void SetInitialEnvironment(HEnvironment* env);
@@ -2227,6 +2228,14 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
                                   Handle<Map> receiver_map,
                                   CheckType check_type);
   bool TryInlineBuiltinFunctionCall(Call* expr, bool drop_extra);
+  bool TryInlineApiMethodCall(
+      Call* expr, HValue* receiver, Handle<Map> receiver_map);
+  bool TryInlineApiFunctionCall(Call* expr, HValue* receiver, bool drop_extra);
+  bool TryInlineApiCall(Call* expr,
+                        HValue* receiver,
+                        Handle<Map> receiver_map,
+                        bool drop_extra,
+                        bool is_function_call);
 
   // If --trace-inlining, print a line of the inlining trace.  Inlining
   // succeeded if the reason string is NULL and failed if there is a
@@ -2256,9 +2265,12 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
 
   class PropertyAccessInfo {
    public:
-    PropertyAccessInfo(Isolate* isolate, Handle<Map> map, Handle<String> name)
-        : lookup_(isolate),
-          map_(map),
+    PropertyAccessInfo(HOptimizedGraphBuilder* builder,
+                       Handle<HeapType> type,
+                       Handle<String> name)
+        : lookup_(builder->isolate()),
+          builder_(builder),
+          type_(type),
           name_(name),
           access_(HObjectAccess::ForMap()) { }
 
@@ -2275,32 +2287,48 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
     // PropertyAccessInfo is built for types->first().
     bool CanLoadAsMonomorphic(SmallMapList* types);
 
+    Handle<Map> map() {
+      if (type_->Is(HeapType::Number())) {
+        Context* context = current_info()->closure()->context();
+        context = context->native_context();
+        return handle(context->number_function()->initial_map());
+      } else if (type_->Is(HeapType::String())) {
+        Context* context = current_info()->closure()->context();
+        context = context->native_context();
+        return handle(context->string_function()->initial_map());
+      } else {
+        return type_->AsClass();
+      }
+    }
+    Handle<HeapType> type() const { return type_; }
+    Handle<String> name() const { return name_; }
+
     bool IsJSObjectFieldAccessor() {
       int offset;  // unused
-      return Accessors::IsJSObjectFieldAccessor(map_, name_, &offset);
+      return Accessors::IsJSObjectFieldAccessor(type_, name_, &offset);
     }
 
     bool GetJSObjectFieldAccess(HObjectAccess* access) {
-      if (IsStringLength()) {
-        *access = HObjectAccess::ForStringLength();
+      if (IsArrayLength()) {
+        *access = HObjectAccess::ForArrayLength(map()->elements_kind());
         return true;
-      } else if (IsArrayLength()) {
-        *access = HObjectAccess::ForArrayLength(map_->elements_kind());
-        return true;
-      } else {
-        int offset;
-        if (Accessors::IsJSObjectFieldAccessor(map_, name_, &offset)) {
-          *access = HObjectAccess::ForJSObjectOffset(offset);
-          return true;
-        }
-        return false;
       }
+      int offset;
+      if (Accessors::IsJSObjectFieldAccessor(type_, name_, &offset)) {
+        if (type_->Is(HeapType::String())) {
+          ASSERT(name_->Equals(isolate()->heap()->length_string()));
+          *access = HObjectAccess::ForStringLength();
+        } else {
+          *access = HObjectAccess::ForJSObjectOffset(offset);
+        }
+        return true;
+      }
+      return false;
     }
 
     bool has_holder() { return !holder_.is_null(); }
 
     LookupResult* lookup() { return &lookup_; }
-    Handle<Map> map() { return map_; }
     Handle<JSObject> holder() { return holder_; }
     Handle<JSFunction> accessor() { return accessor_; }
     Handle<Object> constant() { return constant_; }
@@ -2308,14 +2336,10 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
 
    private:
     Isolate* isolate() { return lookup_.isolate(); }
-
-    bool IsStringLength() {
-      return map_->instance_type() < FIRST_NONSTRING_TYPE &&
-          name_->Equals(isolate()->heap()->length_string());
-    }
+    CompilationInfo* current_info() { return builder_->current_info(); }
 
     bool IsArrayLength() {
-      return map_->instance_type() == JS_ARRAY_TYPE &&
+      return map()->instance_type() == JS_ARRAY_TYPE &&
           name_->Equals(isolate()->heap()->length_string());
     }
 
@@ -2330,7 +2354,8 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
     }
 
     LookupResult lookup_;
-    Handle<Map> map_;
+    HOptimizedGraphBuilder* builder_;
+    Handle<HeapType> type_;
     Handle<String> name_;
     Handle<JSObject> holder_;
     Handle<JSFunction> accessor_;
@@ -2340,7 +2365,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
 
   HInstruction* BuildLoadMonomorphic(PropertyAccessInfo* info,
                                      HValue* object,
-                                     HInstruction* checked_object,
+                                     HValue* checked_object,
                                      BailoutId ast_id,
                                      BailoutId return_id,
                                      bool can_inline_accessor = true);

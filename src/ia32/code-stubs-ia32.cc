@@ -446,6 +446,26 @@ void CallDescriptors::InitializeForIsolate(Isolate* isolate) {
     descriptor->register_params_ = registers;
     descriptor->param_representations_ = representations;
   }
+  {
+    CallInterfaceDescriptor* descriptor =
+        isolate->call_descriptor(Isolate::ApiFunctionCall);
+    static Register registers[] = { eax,  // callee
+                                    ebx,  // call_data
+                                    ecx,  // holder
+                                    edx,  // api_function_address
+                                    esi,  // context
+    };
+    static Representation representations[] = {
+        Representation::Tagged(),    // callee
+        Representation::Tagged(),    // call_data
+        Representation::Tagged(),    // holder
+        Representation::External(),  // api_function_address
+        Representation::Tagged(),    // context
+    };
+    descriptor->register_param_count_ = 5;
+    descriptor->register_params_ = registers;
+    descriptor->param_representations_ = representations;
+  }
 }
 
 
@@ -5355,6 +5375,44 @@ void CallApiFunctionStub::Generate(MacroAssembler* masm) {
                               return_value_operand,
                               restore_context ?
                                   &context_restore_operand : NULL);
+}
+
+
+void CallApiGetterStub::Generate(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- esp[0]                  : return address
+  //  -- esp[4]                  : name
+  //  -- esp[8 - kArgsLength*4]  : PropertyCallbackArguments object
+  //  -- ...
+  //  -- edx                    : api_function_address
+  // -----------------------------------
+
+  // array for v8::Arguments::values_, handler for name and pointer
+  // to the values (it considered as smi in GC).
+  const int kStackSpace = PropertyCallbackArguments::kArgsLength + 2;
+  // Allocate space for opional callback address parameter in case
+  // CPU profiler is active.
+  const int kApiArgc = 2 + 1;
+
+  Register api_function_address = edx;
+  Register scratch = ebx;
+
+  // load address of name
+  __ lea(scratch, Operand(esp, 1 * kPointerSize));
+
+  __ PrepareCallApiFunction(kApiArgc);
+  __ mov(ApiParameterOperand(0), scratch);  // name.
+  __ add(scratch, Immediate(kPointerSize));
+  __ mov(ApiParameterOperand(1), scratch);  // arguments pointer.
+
+  Address thunk_address = FUNCTION_ADDR(&InvokeAccessorGetterCallback);
+
+  __ CallApiFunctionAndReturn(api_function_address,
+                              thunk_address,
+                              ApiParameterOperand(2),
+                              kStackSpace,
+                              Operand(ebp, 7 * kPointerSize),
+                              NULL);
 }
 
 

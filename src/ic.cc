@@ -1208,9 +1208,9 @@ Handle<Code> LoadIC::CompileHandler(LookupResult* lookup,
       // Use simple field loads for some well-known callback properties.
       if (object->IsJSObject()) {
         Handle<JSObject> receiver = Handle<JSObject>::cast(object);
-        Handle<Map> map(receiver->map());
+        Handle<HeapType> type = IC::MapToType(handle(receiver->map()));
         int object_offset;
-        if (Accessors::IsJSObjectFieldAccessor(map, name, &object_offset)) {
+        if (Accessors::IsJSObjectFieldAccessor(type, name, &object_offset)) {
           return SimpleFieldLoad(object_offset / kPointerSize);
         }
       }

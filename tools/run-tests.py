@@ -33,6 +33,7 @@ import multiprocessing
 import optparse
 import os
 from os.path import join
+import platform
 import shlex
 import subprocess
 import sys
@@ -395,6 +396,7 @@ def Execute(arch, mode, args, options, suites, workspace):
     "isolates": options.isolates,
     "mode": mode,
     "no_i18n": options.no_i18n,
+    "simulator": utils.UseSimulator(arch),
     "system": utils.GuessOS(),
   }
   all_tests = []

@@ -3161,20 +3161,22 @@ void LCodeGen::DoWrapReceiver(LWrapReceiver* instr) {
   Label global_object, receiver_ok;
   Label::Distance dist = DeoptEveryNTimes() ? Label::kFar : Label::kNear;
 
-  // Do not transform the receiver to object for strict mode
-  // functions.
-  __ movp(kScratchRegister,
-          FieldOperand(function, JSFunction::kSharedFunctionInfoOffset));
-  __ testb(FieldOperand(kScratchRegister,
-                        SharedFunctionInfo::kStrictModeByteOffset),
-           Immediate(1 << SharedFunctionInfo::kStrictModeBitWithinByte));
-  __ j(not_equal, &receiver_ok, dist);
+  if (!instr->hydrogen()->known_function()) {
+    // Do not transform the receiver to object for strict mode
+    // functions.
+    __ movp(kScratchRegister,
+            FieldOperand(function, JSFunction::kSharedFunctionInfoOffset));
+    __ testb(FieldOperand(kScratchRegister,
+                          SharedFunctionInfo::kStrictModeByteOffset),
+             Immediate(1 << SharedFunctionInfo::kStrictModeBitWithinByte));
+    __ j(not_equal, &receiver_ok, dist);
 
-  // Do not transform the receiver to object for builtins.
-  __ testb(FieldOperand(kScratchRegister,
-                        SharedFunctionInfo::kNativeByteOffset),
-           Immediate(1 << SharedFunctionInfo::kNativeBitWithinByte));
-  __ j(not_equal, &receiver_ok, dist);
+    // Do not transform the receiver to object for builtins.
+    __ testb(FieldOperand(kScratchRegister,
+                          SharedFunctionInfo::kNativeByteOffset),
+             Immediate(1 << SharedFunctionInfo::kNativeBitWithinByte));
+    __ j(not_equal, &receiver_ok, dist);
+  }
 
   // Normal function. Replace undefined or null with global receiver.
   __ CompareRoot(receiver, Heap::kNullValueRootIndex);
@@ -3187,14 +3189,16 @@ void LCodeGen::DoWrapReceiver(LWrapReceiver* instr) {
   DeoptimizeIf(is_smi, instr->environment());
   __ CmpObjectType(receiver, FIRST_SPEC_OBJECT_TYPE, kScratchRegister);
   DeoptimizeIf(below, instr->environment());
-  __ jmp(&receiver_ok, Label::kNear);
 
+  __ jmp(&receiver_ok, Label::kNear);
   __ bind(&global_object);
   __ movp(receiver, FieldOperand(function, JSFunction::kContextOffset));
   __ movp(receiver,
-          Operand(receiver, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
+          Operand(receiver,
+                  Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
   __ movp(receiver,
           FieldOperand(receiver, GlobalObject::kGlobalReceiverOffset));
+
   __ bind(&receiver_ok);
 }
 

@@ -78,6 +78,13 @@ def GuessOS():
     return None
 
 
+def UseSimulator(arch):
+  machine = platform.machine()
+  return (machine and
+      (arch == "mipsel" or arch == "arm") and
+      not arch.startswith(machine))
+
+
 # This will default to building the 32 bit VM even on machines that are
 # capable of running the 64 bit VM.
 def DefaultArch():

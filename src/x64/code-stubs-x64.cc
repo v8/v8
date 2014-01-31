@@ -443,6 +443,26 @@ void CallDescriptors::InitializeForIsolate(Isolate* isolate) {
     descriptor->register_params_ = registers;
     descriptor->param_representations_ = representations;
   }
+  {
+    CallInterfaceDescriptor* descriptor =
+        isolate->call_descriptor(Isolate::ApiFunctionCall);
+    static Register registers[] = { rax,  // callee
+                                    rbx,  // call_data
+                                    rcx,  // holder
+                                    rdx,  // api_function_address
+                                    rsi,  // context
+    };
+    static Representation representations[] = {
+        Representation::Tagged(),    // callee
+        Representation::Tagged(),    // call_data
+        Representation::Tagged(),    // holder
+        Representation::External(),  // api_function_address
+        Representation::Tagged(),    // context
+    };
+    descriptor->register_param_count_ = 5;
+    descriptor->register_params_ = registers;
+    descriptor->param_representations_ = representations;
+  }
 }
 
 
@@ -5197,6 +5217,66 @@ void CallApiFunctionStub::Generate(MacroAssembler* masm) {
       argc + FCA::kArgsLength + 1,
       return_value_operand,
       restore_context ? &context_restore_operand : NULL);
+}
+
+
+void CallApiGetterStub::Generate(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- rsp[0]                  : return address
+  //  -- rsp[8]                  : name
+  //  -- rsp[16 - kArgsLength*8] : PropertyCallbackArguments object
+  //  -- ...
+  //  -- r8                    : api_function_address
+  // -----------------------------------
+
+#if defined(__MINGW64__) || defined(_WIN64)
+  Register getter_arg = r8;
+  Register accessor_info_arg = rdx;
+  Register name_arg = rcx;
+#else
+  Register getter_arg = rdx;
+  Register accessor_info_arg = rsi;
+  Register name_arg = rdi;
+#endif
+  Register api_function_address = r8;
+  Register scratch = rax;
+
+  // v8::Arguments::values_ and handler for name.
+  const int kStackSpace = PropertyCallbackArguments::kArgsLength + 1;
+
+  // Allocate v8::AccessorInfo in non-GCed stack space.
+  const int kArgStackSpace = 1;
+
+  __ lea(name_arg, Operand(rsp, 1 * kPointerSize));
+
+  __ PrepareCallApiFunction(kArgStackSpace);
+  __ lea(scratch, Operand(name_arg, 1 * kPointerSize));
+
+  // v8::PropertyAccessorInfo::args_.
+  __ movp(StackSpaceOperand(0), scratch);
+
+  // The context register (rsi) has been saved in PrepareCallApiFunction and
+  // could be used to pass arguments.
+  __ lea(accessor_info_arg, StackSpaceOperand(0));
+
+  Address thunk_address = FUNCTION_ADDR(&InvokeAccessorGetterCallback);
+
+  // It's okay if api_function_address == getter_arg
+  // but not accessor_info_arg or name_arg
+  ASSERT(!api_function_address.is(accessor_info_arg) &&
+         !api_function_address.is(name_arg));
+
+  // The name handler is counted as an argument.
+  StackArgumentsAccessor args(rbp, PropertyCallbackArguments::kArgsLength);
+  Operand return_value_operand = args.GetArgumentOperand(
+      PropertyCallbackArguments::kArgsLength - 1 -
+      PropertyCallbackArguments::kReturnValueOffset);
+  __ CallApiFunctionAndReturn(api_function_address,
+                              thunk_address,
+                              getter_arg,
+                              kStackSpace,
+                              return_value_operand,
+                              NULL);
 }
 
 

@@ -549,6 +549,7 @@ class LWrapReceiver V8_FINAL : public LTemplateInstruction<1, 2, 0> {
   }
 
   DECLARE_CONCRETE_INSTRUCTION(WrapReceiver, "wrap-receiver")
+  DECLARE_HYDROGEN_ACCESSOR(WrapReceiver)
 
   LOperand* receiver() { return inputs_[0]; }
   LOperand* function() { return inputs_[1]; }

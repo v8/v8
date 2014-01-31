@@ -3815,6 +3815,7 @@ void FullCodeGenerator::EmitRegExpConstructResult(CallRuntime* expr) {
   VisitForStackValue(args->at(0));
   VisitForStackValue(args->at(1));
   VisitForAccumulatorValue(args->at(2));
+  __ mov(a0, result_register());
   __ pop(a1);
   __ pop(a2);
   __ CallStub(&stub);
