@@ -114,6 +114,9 @@
 
   # BUG(336820). TODO(bmeurer): Investigate.
   'regress/regress-336820': [PASS, FAIL],
+
+  # BUG(v8:2989).
+  'regress/regress-2989': [FAIL, NO_VARIANTS],
 }],  # ALWAYS
 
 ##############################################################################

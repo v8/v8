@@ -33,10 +33,10 @@
   ##############################################################################
   # Flaky tests.
   # BUG(v8:2989).
-  'dfg-inline-arguments-become-double': [PASS, FLAKY],
-  'dfg-inline-arguments-become-int32': [PASS, FLAKY],
-  'dfg-inline-arguments-reset': [PASS, FLAKY],
-  'dfg-inline-arguments-reset-changetype': [PASS, FLAKY],
+  'dfg-inline-arguments-become-double': [PASS, FAIL],
+  'dfg-inline-arguments-become-int32': [PASS, FAIL],
+  'dfg-inline-arguments-reset': [PASS, FAIL],
+  'dfg-inline-arguments-reset-changetype': [PASS, FAIL],
 }],  # ALWAYS
 ['mode == debug', {
   # Too slow in debug mode.
