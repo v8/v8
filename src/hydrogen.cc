@@ -6714,7 +6714,7 @@ HValue* HOptimizedGraphBuilder::HandleKeyedElementAccess(
 
   if (monomorphic) {
     Handle<Map> map = types->first();
-    if (map->has_slow_elements_kind()) {
+    if (map->has_slow_elements_kind() || !map->IsJSObjectMap()) {
       instr = is_store ? BuildStoreKeyedGeneric(obj, key, val)
                        : BuildLoadKeyedGeneric(obj, key);
       AddInstruction(instr);
