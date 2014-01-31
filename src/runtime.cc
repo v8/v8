@@ -7263,7 +7263,7 @@ static void JoinSparseArrayWithSeparator(FixedArray* elements,
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_SparseJoinWithSeparator) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 3);
   CONVERT_ARG_CHECKED(JSArray, elements_array, 0);
   RUNTIME_ASSERT(elements_array->HasFastSmiOrObjectElements());
@@ -7323,8 +7323,12 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SparseJoinWithSeparator) {
     }
   }
   if (overflow) {
-    // Throw OutOfMemory exception for creating too large a string.
-    V8::FatalProcessOutOfMemory("Array join result too large.");
+    // Throw an exception if the resulting string is too large. See
+    // https://code.google.com/p/chromium/issues/detail?id=336820
+    // for details.
+    return isolate->Throw(*isolate->factory()->
+                          NewRangeError("invalid_string_length",
+                                        HandleVector<Object>(NULL, 0)));
   }
 
   if (is_ascii) {
