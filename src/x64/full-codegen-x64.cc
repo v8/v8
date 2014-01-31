@@ -3758,45 +3758,6 @@ void FullCodeGenerator::EmitGetFromCache(CallRuntime* expr) {
 }
 
 
-void FullCodeGenerator::EmitIsRegExpEquivalent(CallRuntime* expr) {
-  ZoneList<Expression*>* args = expr->arguments();
-  ASSERT_EQ(2, args->length());
-
-  Register right = rax;
-  Register left = rbx;
-  Register tmp = rcx;
-
-  VisitForStackValue(args->at(0));
-  VisitForAccumulatorValue(args->at(1));
-  __ pop(left);
-
-  Label done, fail, ok;
-  __ cmpq(left, right);
-  __ j(equal, &ok, Label::kNear);
-  // Fail if either is a non-HeapObject.
-  Condition either_smi = masm()->CheckEitherSmi(left, right, tmp);
-  __ j(either_smi, &fail, Label::kNear);
-  __ j(zero, &fail, Label::kNear);
-  __ movp(tmp, FieldOperand(left, HeapObject::kMapOffset));
-  __ cmpb(FieldOperand(tmp, Map::kInstanceTypeOffset),
-          Immediate(JS_REGEXP_TYPE));
-  __ j(not_equal, &fail, Label::kNear);
-  __ cmpq(tmp, FieldOperand(right, HeapObject::kMapOffset));
-  __ j(not_equal, &fail, Label::kNear);
-  __ movp(tmp, FieldOperand(left, JSRegExp::kDataOffset));
-  __ cmpq(tmp, FieldOperand(right, JSRegExp::kDataOffset));
-  __ j(equal, &ok, Label::kNear);
-  __ bind(&fail);
-  __ Move(rax, isolate()->factory()->false_value());
-  __ jmp(&done, Label::kNear);
-  __ bind(&ok);
-  __ Move(rax, isolate()->factory()->true_value());
-  __ bind(&done);
-
-  context()->Plug(rax);
-}
-
-
 void FullCodeGenerator::EmitHasCachedArrayIndex(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   ASSERT(args->length() == 1);

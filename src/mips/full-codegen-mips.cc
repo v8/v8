@@ -3877,43 +3877,6 @@ void FullCodeGenerator::EmitGetFromCache(CallRuntime* expr) {
 }
 
 
-void FullCodeGenerator::EmitIsRegExpEquivalent(CallRuntime* expr) {
-  ZoneList<Expression*>* args = expr->arguments();
-  ASSERT_EQ(2, args->length());
-
-  Register right = v0;
-  Register left = a1;
-  Register tmp = a2;
-  Register tmp2 = a3;
-
-  VisitForStackValue(args->at(0));
-  VisitForAccumulatorValue(args->at(1));  // Result (right) in v0.
-  __ pop(left);
-
-  Label done, fail, ok;
-  __ Branch(&ok, eq, left, Operand(right));
-  // Fail if either is a non-HeapObject.
-  __ And(tmp, left, Operand(right));
-  __ JumpIfSmi(tmp, &fail);
-  __ lw(tmp, FieldMemOperand(left, HeapObject::kMapOffset));
-  __ lbu(tmp2, FieldMemOperand(tmp, Map::kInstanceTypeOffset));
-  __ Branch(&fail, ne, tmp2, Operand(JS_REGEXP_TYPE));
-  __ lw(tmp2, FieldMemOperand(right, HeapObject::kMapOffset));
-  __ Branch(&fail, ne, tmp, Operand(tmp2));
-  __ lw(tmp, FieldMemOperand(left, JSRegExp::kDataOffset));
-  __ lw(tmp2, FieldMemOperand(right, JSRegExp::kDataOffset));
-  __ Branch(&ok, eq, tmp, Operand(tmp2));
-  __ bind(&fail);
-  __ LoadRoot(v0, Heap::kFalseValueRootIndex);
-  __ jmp(&done);
-  __ bind(&ok);
-  __ LoadRoot(v0, Heap::kTrueValueRootIndex);
-  __ bind(&done);
-
-  context()->Plug(v0);
-}
-
-
 void FullCodeGenerator::EmitHasCachedArrayIndex(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   VisitForAccumulatorValue(args->at(0));

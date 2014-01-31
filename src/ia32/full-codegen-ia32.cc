@@ -3777,44 +3777,6 @@ void FullCodeGenerator::EmitGetFromCache(CallRuntime* expr) {
 }
 
 
-void FullCodeGenerator::EmitIsRegExpEquivalent(CallRuntime* expr) {
-  ZoneList<Expression*>* args = expr->arguments();
-  ASSERT_EQ(2, args->length());
-
-  Register right = eax;
-  Register left = ebx;
-  Register tmp = ecx;
-
-  VisitForStackValue(args->at(0));
-  VisitForAccumulatorValue(args->at(1));
-  __ pop(left);
-
-  Label done, fail, ok;
-  __ cmp(left, right);
-  __ j(equal, &ok);
-  // Fail if either is a non-HeapObject.
-  __ mov(tmp, left);
-  __ and_(tmp, right);
-  __ JumpIfSmi(tmp, &fail);
-  __ mov(tmp, FieldOperand(left, HeapObject::kMapOffset));
-  __ CmpInstanceType(tmp, JS_REGEXP_TYPE);
-  __ j(not_equal, &fail);
-  __ cmp(tmp, FieldOperand(right, HeapObject::kMapOffset));
-  __ j(not_equal, &fail);
-  __ mov(tmp, FieldOperand(left, JSRegExp::kDataOffset));
-  __ cmp(tmp, FieldOperand(right, JSRegExp::kDataOffset));
-  __ j(equal, &ok);
-  __ bind(&fail);
-  __ mov(eax, Immediate(isolate()->factory()->false_value()));
-  __ jmp(&done);
-  __ bind(&ok);
-  __ mov(eax, Immediate(isolate()->factory()->true_value()));
-  __ bind(&done);
-
-  context()->Plug(eax);
-}
-
-
 void FullCodeGenerator::EmitHasCachedArrayIndex(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   ASSERT(args->length() == 1);

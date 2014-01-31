@@ -1192,8 +1192,6 @@ class MaybeObject BASE_EMBEDDED {
     "Inlined runtime function: GetFromCache")                                 \
   V(kInlinedRuntimeFunctionIsNonNegativeSmi,                                  \
     "Inlined runtime function: IsNonNegativeSmi")                             \
-  V(kInlinedRuntimeFunctionIsRegExpEquivalent,                                \
-    "Inlined runtime function: IsRegExpEquivalent")                           \
   V(kInlinedRuntimeFunctionIsStringWrapperSafeForDefaultValueOf,              \
     "Inlined runtime function: IsStringWrapperSafeForDefaultValueOf")         \
   V(kInliningBailedOut, "Inlining bailed out")                                \
