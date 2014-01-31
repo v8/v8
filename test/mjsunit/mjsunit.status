@@ -111,6 +111,9 @@
   'compiler/alloc-number-debug': [PASS, ['mode == release', SKIP]],
   'regress/regress-634': [PASS, ['mode == debug', SKIP]],
   'regress/regress-634-debug': [PASS, ['mode == release', SKIP]],
+
+  # BUG(336820). TODO(bmeurer): Investigate.
+  'regress/regress-336820': [PASS, FAIL],
 }],  # ALWAYS
 
 ##############################################################################
