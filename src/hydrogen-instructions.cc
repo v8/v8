@@ -2611,6 +2611,41 @@ void HConstant::Initialize(Representation r) {
 }
 
 
+bool HConstant::ImmortalImmovable() const {
+  if (has_int32_value_) {
+    return false;
+  }
+  if (has_double_value_) {
+    if (IsSpecialDouble()) {
+      return true;
+    }
+    return false;
+  }
+  if (has_external_reference_value_) {
+    return false;
+  }
+
+  ASSERT(!object_.handle().is_null());
+  Heap* heap = isolate()->heap();
+  ASSERT(!object_.IsKnownGlobal(heap->minus_zero_value()));
+  ASSERT(!object_.IsKnownGlobal(heap->nan_value()));
+  return
+#define IMMORTAL_IMMOVABLE_ROOT(name) \
+      object_.IsKnownGlobal(heap->name()) ||
+      IMMORTAL_IMMOVABLE_ROOT_LIST(IMMORTAL_IMMOVABLE_ROOT)
+#undef IMMORTAL_IMMOVABLE_ROOT
+#define INTERNALIZED_STRING(name, value) \
+      object_.IsKnownGlobal(heap->name()) ||
+      INTERNALIZED_STRING_LIST(INTERNALIZED_STRING)
+#undef INTERNALIZED_STRING
+#define STRING_TYPE(NAME, size, name, Name) \
+      object_.IsKnownGlobal(heap->name##_map()) ||
+      STRING_TYPE_LIST(STRING_TYPE)
+#undef STRING_TYPE
+      false;
+}
+
+
 bool HConstant::EmitAtUses() {
   ASSERT(IsLinked());
   if (block()->graph()->has_osr() &&

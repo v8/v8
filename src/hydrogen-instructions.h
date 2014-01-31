@@ -3390,34 +3390,7 @@ class HConstant V8_FINAL : public HTemplateInstruction<0> {
     return is_not_in_new_space_;
   }
 
-  bool ImmortalImmovable() const {
-    if (has_int32_value_) {
-      return false;
-    }
-    if (has_double_value_) {
-      if (IsSpecialDouble()) {
-        return true;
-      }
-      return false;
-    }
-    if (has_external_reference_value_) {
-      return false;
-    }
-
-    ASSERT(!object_.handle().is_null());
-    Heap* heap = isolate()->heap();
-    ASSERT(!object_.IsKnownGlobal(heap->minus_zero_value()));
-    ASSERT(!object_.IsKnownGlobal(heap->nan_value()));
-    return
-        object_.IsKnownGlobal(heap->undefined_value()) ||
-        object_.IsKnownGlobal(heap->uninitialized_value()) ||
-        object_.IsKnownGlobal(heap->null_value()) ||
-        object_.IsKnownGlobal(heap->true_value()) ||
-        object_.IsKnownGlobal(heap->false_value()) ||
-        object_.IsKnownGlobal(heap->the_hole_value()) ||
-        object_.IsKnownGlobal(heap->empty_string()) ||
-        object_.IsKnownGlobal(heap->empty_fixed_array());
-  }
+  bool ImmortalImmovable() const;
 
   bool IsCell() const {
     return is_cell_;
