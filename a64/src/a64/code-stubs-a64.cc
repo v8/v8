@@ -1327,7 +1327,7 @@ void BinaryOpStub_GenerateFPOperation(MacroAssembler* masm,
   FPRegister result_d = d0;
   Register right = x0;
   Register left = x1;
-  Register heap_result = x3;
+  Register heap_result = x19;
 
   ASSERT(smi_operands || (not_numbers != NULL));
   if (smi_operands) {
@@ -1350,8 +1350,8 @@ void BinaryOpStub_GenerateFPOperation(MacroAssembler* masm,
     case Token::MUL:
     case Token::DIV:
     case Token::MOD: {
-      FPRegister right_d = d0;
-      FPRegister left_d = d1;
+      FPRegister left_d = d0;
+      FPRegister right_d = d1;
       Label do_operation;
 
       __ SmiUntagToDouble(left_d, left, kSpeculativeUntag);
@@ -1383,20 +1383,27 @@ void BinaryOpStub_GenerateFPOperation(MacroAssembler* masm,
 
       // Left and right are doubles in left_d and right_d. Calculate the result.
       __ Bind(&do_operation);
+
+      BinaryOpStub_GenerateHeapResultAllocation(
+          masm, heap_result, heap_number_map, x10, x11, gc_required, mode);
+
       switch (op) {
         case Token::ADD: __ Fadd(result_d, left_d, right_d); break;
         case Token::SUB: __ Fsub(result_d, left_d, right_d); break;
         case Token::MUL: __ Fmul(result_d, left_d, right_d); break;
         case Token::DIV: __ Fdiv(result_d, left_d, right_d); break;
-        case Token::MOD:
-          ASM_UNIMPLEMENTED("Implement HeapNumber modulo");
-          __ B(miss);
+        case Token::MOD: {
+          Register saved_lr = x20;
+          __ Mov(saved_lr, lr);
+          AllowExternalCallThatCantCauseGC scope(masm);
+          __ CallCFunction(
+              ExternalReference::double_fp_operation(op, masm->isolate()),
+              0, 2);
+          __ Mov(lr, saved_lr);
           break;
+        }
         default: UNREACHABLE();
       }
-
-      BinaryOpStub_GenerateHeapResultAllocation(
-          masm, heap_result, heap_number_map, x10, x11, gc_required, mode);
 
       __ Str(result_d, FieldMemOperand(heap_result, HeapNumber::kValueOffset));
       __ Mov(result, heap_result);
