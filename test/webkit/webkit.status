@@ -27,6 +27,9 @@
 
 [
 [ALWAYS, {
+  # BUG(237872). TODO(bmeurer): Investigate.
+  'string-replacement-outofmemory': [FAIL],
+
   ##############################################################################
   # Flaky tests.
   # BUG(v8:2989).
