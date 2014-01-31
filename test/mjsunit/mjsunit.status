@@ -127,9 +127,6 @@
   'osr-elements-kind': [SKIP],
   'regress/regress-165637': [SKIP],
   'regress/regress-2249': [SKIP],
-
-  # TODO(hpayer): Investigate.
-  'tools/profviz': [PASS, FLAKY],
 }],  # 'gc_stress == True'
 
 ##############################################################################
