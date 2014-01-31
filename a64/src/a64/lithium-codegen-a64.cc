@@ -1087,7 +1087,17 @@ Operand LCodeGen::ToOperand(LOperand* op) {
 }
 
 
-Operand LCodeGen::ToOperand32(LOperand* op) {
+Operand LCodeGen::ToOperand32I(LOperand* op) {
+  return ToOperand32(op, SIGNED_INT32);
+}
+
+
+Operand LCodeGen::ToOperand32U(LOperand* op) {
+  return ToOperand32(op, UNSIGNED_INT32);
+}
+
+
+Operand LCodeGen::ToOperand32(LOperand* op, IntegerSignedness signedness) {
   ASSERT(op != NULL);
   if (op->IsRegister()) {
     return Operand(ToRegister32(op));
@@ -1097,7 +1107,9 @@ Operand LCodeGen::ToOperand32(LOperand* op) {
     Representation r = chunk_->LookupLiteralRepresentation(const_op);
     if (r.IsInteger32()) {
       ASSERT(constant->HasInteger32Value());
-      return Operand(constant->Integer32Value());
+      return Operand(signedness == SIGNED_INT32
+                     ? constant->Integer32Value()
+                     : static_cast<uint32_t>(constant->Integer32Value()));
     } else {
       // Other constants not implemented.
       Abort("ToOperand32 unsupported immediate.");
@@ -1273,7 +1285,7 @@ void LCodeGen::DoAccessArgumentsAt(LAccessArgumentsAt* instr) {
     ASSERT(instr->temp() != NULL);
     Register temp = ToRegister32(instr->temp());
     Register length = ToRegister32(instr->length());
-    Operand index = ToOperand32(instr->index());
+    Operand index = ToOperand32I(instr->index());
     // There are two words between the frame pointer and the last arguments.
     // Subtracting from length accounts for only one, so we add one more.
     __ Sub(temp, length, index);
@@ -1287,7 +1299,7 @@ void LCodeGen::DoAddI(LAddI* instr) {
   bool can_overflow = instr->hydrogen()->CheckFlag(HValue::kCanOverflow);
   Register result = ToRegister32(instr->result());
   Register left = ToRegister32(instr->left());
-  Operand right = ToOperand32(instr->right());
+  Operand right = ToOperand32I(instr->right());
   if (can_overflow) {
     __ Adds(result, left, right);
     DeoptimizeIf(vs, instr->environment());
@@ -1552,7 +1564,7 @@ void LCodeGen::DoArithmeticT(LArithmeticT* instr) {
 void LCodeGen::DoBitI(LBitI* instr) {
   Register result = ToRegister32(instr->result());
   Register left = ToRegister32(instr->left());
-  Operand right = ToOperand32(instr->right());
+  Operand right = ToOperand32U(instr->right());
 
   switch (instr->op()) {
     case Token::BIT_AND: __ And(result, left, right); break;
@@ -2207,13 +2219,13 @@ void LCodeGen::DoCompareNumericAndBranch(LCompareNumericAndBranch* instr) {
           EmitCompareAndBranch(instr,
                                cond,
                                ToRegister32(left),
-                               ToOperand32(right));
+                               ToOperand32I(right));
         } else {
           // Transpose the operands and reverse the condition.
           EmitCompareAndBranch(instr,
                                ReverseConditionForCmp(cond),
                                ToRegister32(right),
-                               ToOperand32(left));
+                               ToOperand32I(left));
         }
       } else {
         ASSERT(instr->hydrogen_value()->representation().IsSmi());
@@ -4008,7 +4020,7 @@ void LCodeGen::DoMathMinMax(LMathMinMax* instr) {
   if (instr->hydrogen()->representation().IsInteger32()) {
     Register result = ToRegister32(instr->result());
     Register left = ToRegister32(instr->left());
-    Operand right = ToOperand32(instr->right());
+    Operand right = ToOperand32I(instr->right());
 
     __ Cmp(left, right);
     __ Csel(result, left, right, (op == HMathMinMax::kMathMax) ? ge : le);
@@ -5181,7 +5193,7 @@ void LCodeGen::DoSubI(LSubI* instr) {
   bool can_overflow = instr->hydrogen()->CheckFlag(HValue::kCanOverflow);
   Register result = ToRegister32(instr->result());
   Register left = ToRegister32(instr->left());
-  Operand right = ToOperand32(instr->right());
+  Operand right = ToOperand32I(instr->right());
   if (can_overflow) {
     __ Subs(result, left, right);
     DeoptimizeIf(vs, instr->environment());

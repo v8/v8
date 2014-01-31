@@ -118,7 +118,8 @@ class LCodeGen BASE_EMBEDDED {
   Register ToRegister(LOperand* op) const;
   Register ToRegister32(LOperand* op) const;
   Operand ToOperand(LOperand* op);
-  Operand ToOperand32(LOperand* op);
+  Operand ToOperand32I(LOperand* op);
+  Operand ToOperand32U(LOperand* op);
   MemOperand ToMemOperand(LOperand* op) const;
   Handle<Object> ToHandle(LConstantOperand* op) const;
 
@@ -177,6 +178,8 @@ class LCodeGen BASE_EMBEDDED {
   void DoDeferredAllocate(LAllocate* instr);
 
   void DoDeferredInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr);
+
+  Operand ToOperand32(LOperand* op, IntegerSignedness signedness);
 
   static Condition TokenToCondition(Token::Value op, bool is_unsigned);
   void EmitGoto(int block);
