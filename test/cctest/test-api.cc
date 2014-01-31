@@ -18951,8 +18951,9 @@ TEST(ContainsOnlyOneByte) {
   }
   string_contents[length-1] = 0;
   // Simple case.
-  Handle<String> string;
-  string = String::NewExternal(isolate, new TestResource(string_contents));
+  Handle<String> string =
+      String::NewExternal(isolate,
+                          new TestResource(string_contents, NULL, false));
   CHECK(!string->IsOneByte() && string->ContainsOnlyOneByte());
   // Counter example.
   string = String::NewFromTwoByte(isolate, string_contents);
@@ -18969,7 +18970,9 @@ TEST(ContainsOnlyOneByte) {
   balanced = String::Concat(balanced, right);
   Handle<String> cons_strings[] = {left, balanced, right};
   Handle<String> two_byte =
-      String::NewExternal(isolate, new TestResource(string_contents));
+      String::NewExternal(isolate,
+                          new TestResource(string_contents, NULL, false));
+  USE(two_byte); USE(cons_strings);
   for (size_t i = 0; i < ARRAY_SIZE(cons_strings); i++) {
     // Base assumptions.
     string = cons_strings[i];
@@ -18990,7 +18993,8 @@ TEST(ContainsOnlyOneByte) {
         int shift = 8 + (i % 7);
         string_contents[alignment + i] = 1 << shift;
         string = String::NewExternal(
-            isolate, new TestResource(string_contents + alignment));
+            isolate,
+            new TestResource(string_contents + alignment, NULL, false));
         CHECK_EQ(size, string->Length());
         CHECK(!string->ContainsOnlyOneByte());
         string_contents[alignment + i] = 0x41;

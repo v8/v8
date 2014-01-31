@@ -746,9 +746,9 @@ TEST(HeapSnapshotJSONSerialization) {
   stream.WriteTo(json);
 
   // Verify that snapshot string is valid JSON.
-  AsciiResource json_res(json);
+  AsciiResource* json_res = new AsciiResource(json);
   v8::Local<v8::String> json_string =
-      v8::String::NewExternal(env->GetIsolate(), &json_res);
+      v8::String::NewExternal(env->GetIsolate(), json_res);
   env->Global()->Set(v8_str("json_snapshot"), json_string);
   v8::Local<v8::Value> snapshot_parse_result = CompileRun(
       "var parsed = JSON.parse(json_snapshot); true;");
