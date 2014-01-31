@@ -853,14 +853,6 @@ LInstruction* LChunkBuilder::DoArithmeticT(Token::Value op,
 }
 
 
-#define UNIMPLEMENTED_INSTRUCTION()                                     \
-  do {                                                                  \
-    info_->set_bailout_reason(kUnimplementedHydrogenInstruction);       \
-    status_ = ABORTED;                                                  \
-    return NULL;                                                        \
-  } while (0)
-
-
 LInstruction* LChunkBuilder::DoBoundsCheckBaseIndexInformation(
     HBoundsCheckBaseIndexInformation* instr) {
   UNREACHABLE();
@@ -1491,7 +1483,10 @@ LInstruction* LChunkBuilder::DoEnvironmentMarker(HEnvironmentMarker* instr) {
 
 LInstruction* LChunkBuilder::DoForceRepresentation(
     HForceRepresentation* instr) {
-  UNIMPLEMENTED_INSTRUCTION();
+  // All HForceRepresentation instructions should be eliminated in the
+  // representation change phase of Hydrogen.
+  UNREACHABLE();
+  return NULL;
 }
 
 
