@@ -112,6 +112,7 @@ class HBasicBlock V8_FINAL : public ZoneObject {
   void RemovePhi(HPhi* phi);
   void AddInstruction(HInstruction* instr, int position);
   bool Dominates(HBasicBlock* other) const;
+  bool EqualToOrDominates(HBasicBlock* other) const;
   int LoopNestingDepth() const;
 
   void SetInitialEnvironment(HEnvironment* env);

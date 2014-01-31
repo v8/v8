@@ -302,6 +302,12 @@ bool HBasicBlock::Dominates(HBasicBlock* other) const {
 }
 
 
+bool HBasicBlock::EqualToOrDominates(HBasicBlock* other) const {
+  if (this == other) return true;
+  return Dominates(other);
+}
+
+
 int HBasicBlock::LoopNestingDepth() const {
   const HBasicBlock* current = this;
   int result  = (current->IsLoopHeader()) ? 1 : 0;

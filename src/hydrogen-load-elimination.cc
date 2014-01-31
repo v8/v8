@@ -203,9 +203,12 @@ class HLoadEliminationTable : public ZoneObject {
       // Load is not redundant. Fill out a new entry.
       approx->last_value_ = instr;
       return instr;
-    } else {
+    } else if (approx->last_value_->block()->EqualToOrDominates(
+        instr->block())) {
       // Eliminate the load. Reuse previously stored value or load instruction.
       return approx->last_value_;
+    } else {
+      return instr;
     }
   }
 
