@@ -247,10 +247,7 @@ function ObjectToString() {
 
 // ECMA-262 - 15.2.4.3
 function ObjectToLocaleString() {
-  if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
-    throw MakeTypeError("called_on_null_or_undefined",
-                        ["Object.prototype.toLocaleString"]);
-  }
+  CHECK_OBJECT_COERCIBLE(this, "Object.prototype.toLocaleString");
   return this.toString();
 }
 
@@ -276,10 +273,7 @@ function ObjectHasOwnProperty(V) {
 
 // ECMA-262 - 15.2.4.6
 function ObjectIsPrototypeOf(V) {
-  if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
-    throw MakeTypeError("called_on_null_or_undefined",
-                        ["Object.prototype.isPrototypeOf"]);
-  }
+  CHECK_OBJECT_COERCIBLE(this, "Object.prototype.isPrototypeOf");
   if (!IS_SPEC_OBJECT(V)) return false;
   return %IsInPrototypeChain(this, V);
 }
