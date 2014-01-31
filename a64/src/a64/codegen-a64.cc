@@ -479,7 +479,10 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
   }
   // Rule out short external strings.
   STATIC_CHECK(kShortExternalStringTag != 0);
-  __ TestAndBranchIfAnySet(result, kShortExternalStringMask, call_runtime);
+  // TestAndBranchIfAnySet can emit Tbnz. Do not use it because call_runtime
+  // can be bound far away in deferred code.
+  __ Tst(result, kShortExternalStringMask);
+  __ B(ne, call_runtime);
   __ Ldr(string, FieldMemOperand(string, ExternalString::kResourceDataOffset));
 
   Label ascii, done;
