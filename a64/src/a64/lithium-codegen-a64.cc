@@ -2609,7 +2609,6 @@ void LCodeGen::DoDoubleToIntOrSmi(LDoubleToIntOrSmi* instr) {
 
 
 void LCodeGen::DoDrop(LDrop* instr) {
-  TODO_UNIMPLEMENTED("DoDrop is untested.");
   __ Drop(instr->count());
 }
 
