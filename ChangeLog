@@ -1,3 +1,13 @@
+2014-01-31: Version 3.24.28
+
+        Don't crash in Array.join() if the resulting string exceeds the max
+        string length (Chromium issue 336820).
+
+        Implements ES6 String.prototype.normalize method (issue 2943).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-01-30: Version 3.24.27
 
         Performance and stability improvements on all platforms.
