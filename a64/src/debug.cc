@@ -786,6 +786,7 @@ bool Debug::CompileDebuggerScript(int index) {
   function_info = Compiler::Compile(source_code,
                                     script_name,
                                     0, 0,
+                                    false,
                                     context,
                                     NULL, NULL,
                                     Handle<String>::null(),
@@ -2044,10 +2045,6 @@ void Debug::PrepareForBreakPoints() {
   // If preparing for the first break point make sure to deoptimize all
   // functions as debugging does not work with optimized code.
   if (!has_break_points_) {
-    if (FLAG_parallel_recompilation) {
-      isolate_->optimizing_compiler_thread()->Flush();
-    }
-
     Deoptimizer::DeoptimizeAll(isolate_);
 
     Handle<Code> lazy_compile =

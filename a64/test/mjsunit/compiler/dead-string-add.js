@@ -25,12 +25,41 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Make sure that v8Intl is mapped into Intl for backward compatibility.
+function dead1(a, b) {
+    var x = "a" + "b";
+    return a; // x, "a", and "b" are dead code
+}
 
-assertEquals(v8Intl, Intl);
+function dead2(a, b) {
+    var x = a + "0";
+    var y = b + "0";
+    return a; // x and y are both dead
+}
 
-// Extra checks.
-assertTrue(v8Intl.hasOwnProperty('DateTimeFormat'));
-assertTrue(v8Intl.hasOwnProperty('NumberFormat'));
-assertTrue(v8Intl.hasOwnProperty('Collator'));
-assertTrue(v8Intl.hasOwnProperty('v8BreakIterator'));
+function dead3(a, b) {
+    a = a ? "1" : "0";
+    b = b ? "1" : "0";
+    var x = a + "0";
+    var y = b + "0";
+    return a; // x and y are both dead
+}
+
+assertEquals(33, dead1(33, 32));
+assertEquals(33, dead2(33, 32));
+assertEquals("1", dead3(33, 32));
+
+assertEquals(31, dead1(31, 30));
+assertEquals(31, dead2(31, 30));
+assertEquals("1", dead3(31, 32));
+
+assertEquals(0, dead1(0, 30));
+assertEquals(0, dead2(0, 30));
+assertEquals("0", dead3(0, 32));
+
+assertEquals(true, dead1(true, 0));
+assertEquals(true, dead2(true, 0));
+assertEquals("1", dead3(true, 0));
+
+assertEquals("true", dead1("true", 0));
+assertEquals("true", dead2("true", 0));
+assertEquals("1", dead3("true", 0));

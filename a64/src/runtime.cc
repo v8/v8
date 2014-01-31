@@ -66,6 +66,15 @@
 #include "v8threads.h"
 #include "vm-state-inl.h"
 
+#ifdef V8_I18N_SUPPORT
+#include "unicode/brkiter.h"
+#include "unicode/coll.h"
+#include "unicode/datefmt.h"
+#include "unicode/numfmt.h"
+#include "unicode/uloc.h"
+#include "unicode/uversion.h"
+#endif
+
 #ifndef _STLP_VENDOR_CSTD
 // STLPort doesn't import fpclassify and isless into the std namespace.
 using std::fpclassify;
@@ -712,13 +721,18 @@ void Runtime::SetupArrayBuffer(Isolate* isolate,
 bool Runtime::SetupArrayBufferAllocatingData(
     Isolate* isolate,
     Handle<JSArrayBuffer> array_buffer,
-    size_t allocated_length) {
+    size_t allocated_length,
+    bool initialize) {
   void* data;
   CHECK(V8::ArrayBufferAllocator() != NULL);
   if (allocated_length != 0) {
-    data = V8::ArrayBufferAllocator()->Allocate(allocated_length);
+    if (initialize) {
+      data = V8::ArrayBufferAllocator()->Allocate(allocated_length);
+    } else {
+      data =
+        V8::ArrayBufferAllocator()->AllocateUninitialized(allocated_length);
+    }
     if (data == NULL) return false;
-    memset(data, 0, allocated_length);
   } else {
     data = NULL;
   }
@@ -805,6 +819,50 @@ enum TypedArrayId {
   ARRAY_ID_UINT8C = 9
 };
 
+static void ArrayIdToTypeAndSize(
+    int arrayId, ExternalArrayType* array_type, size_t* element_size) {
+  switch (arrayId) {
+    case ARRAY_ID_UINT8:
+      *array_type = kExternalUnsignedByteArray;
+      *element_size = 1;
+      break;
+    case ARRAY_ID_INT8:
+      *array_type = kExternalByteArray;
+      *element_size = 1;
+      break;
+    case ARRAY_ID_UINT16:
+      *array_type = kExternalUnsignedShortArray;
+      *element_size = 2;
+      break;
+    case ARRAY_ID_INT16:
+      *array_type = kExternalShortArray;
+      *element_size = 2;
+      break;
+    case ARRAY_ID_UINT32:
+      *array_type = kExternalUnsignedIntArray;
+      *element_size = 4;
+      break;
+    case ARRAY_ID_INT32:
+      *array_type = kExternalIntArray;
+      *element_size = 4;
+      break;
+    case ARRAY_ID_FLOAT32:
+      *array_type = kExternalFloatArray;
+      *element_size = 4;
+      break;
+    case ARRAY_ID_FLOAT64:
+      *array_type = kExternalDoubleArray;
+      *element_size = 8;
+      break;
+    case ARRAY_ID_UINT8C:
+      *array_type = kExternalPixelArray;
+      *element_size = 1;
+      break;
+    default:
+      UNREACHABLE();
+  }
+}
+
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_TypedArrayInitialize) {
   HandleScope scope(isolate);
@@ -821,49 +879,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_TypedArrayInitialize) {
     holder->SetInternalField(i, Smi::FromInt(0));
   }
 
-  ExternalArrayType arrayType;
-  size_t elementSize;
-  switch (arrayId) {
-    case ARRAY_ID_UINT8:
-      arrayType = kExternalUnsignedByteArray;
-      elementSize = 1;
-      break;
-    case ARRAY_ID_INT8:
-      arrayType = kExternalByteArray;
-      elementSize = 1;
-      break;
-    case ARRAY_ID_UINT16:
-      arrayType = kExternalUnsignedShortArray;
-      elementSize = 2;
-      break;
-    case ARRAY_ID_INT16:
-      arrayType = kExternalShortArray;
-      elementSize = 2;
-      break;
-    case ARRAY_ID_UINT32:
-      arrayType = kExternalUnsignedIntArray;
-      elementSize = 4;
-      break;
-    case ARRAY_ID_INT32:
-      arrayType = kExternalIntArray;
-      elementSize = 4;
-      break;
-    case ARRAY_ID_FLOAT32:
-      arrayType = kExternalFloatArray;
-      elementSize = 4;
-      break;
-    case ARRAY_ID_FLOAT64:
-      arrayType = kExternalDoubleArray;
-      elementSize = 8;
-      break;
-    case ARRAY_ID_UINT8C:
-      arrayType = kExternalPixelArray;
-      elementSize = 1;
-      break;
-    default:
-      UNREACHABLE();
-      return NULL;
-  }
+  ExternalArrayType array_type = kExternalByteArray;  // Bogus initialization.
+  size_t element_size = 1;  // Bogus initialization.
+  ArrayIdToTypeAndSize(arrayId, &array_type, &element_size);
 
   holder->set_buffer(*buffer);
   holder->set_byte_offset(*byte_offset_object);
@@ -871,8 +889,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_TypedArrayInitialize) {
 
   size_t byte_offset = NumberToSize(isolate, *byte_offset_object);
   size_t byte_length = NumberToSize(isolate, *byte_length_object);
-  ASSERT(byte_length % elementSize == 0);
-  size_t length = byte_length / elementSize;
+  ASSERT(byte_length % element_size == 0);
+  size_t length = byte_length / element_size;
 
   Handle<Object> length_obj = isolate->factory()->NewNumberFromSize(length);
   holder->set_length(*length_obj);
@@ -881,10 +899,96 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_TypedArrayInitialize) {
 
   Handle<ExternalArray> elements =
       isolate->factory()->NewExternalArray(
-          static_cast<int>(length), arrayType,
+          static_cast<int>(length), array_type,
           static_cast<uint8_t*>(buffer->backing_store()) + byte_offset);
   holder->set_elements(*elements);
   return isolate->heap()->undefined_value();
+}
+
+
+// Initializes a typed array from an array-like object.
+// If an array-like object happens to be a typed array of the same type,
+// initializes backing store using memove.
+//
+// Returns true if backing store was initialized or false otherwise.
+RUNTIME_FUNCTION(MaybeObject*, Runtime_TypedArrayInitializeFromArrayLike) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 4);
+  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, holder, 0);
+  CONVERT_SMI_ARG_CHECKED(arrayId, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, source, 2);
+  CONVERT_ARG_HANDLE_CHECKED(Object, length_obj, 3);
+
+  ASSERT(holder->GetInternalFieldCount() ==
+      v8::ArrayBufferView::kInternalFieldCount);
+  for (int i = 0; i < v8::ArrayBufferView::kInternalFieldCount; i++) {
+    holder->SetInternalField(i, Smi::FromInt(0));
+  }
+
+  ExternalArrayType array_type = kExternalByteArray;  // Bogus initialization.
+  size_t element_size = 1;  // Bogus initialization.
+  ArrayIdToTypeAndSize(arrayId, &array_type, &element_size);
+
+  Handle<JSArrayBuffer> buffer = isolate->factory()->NewJSArrayBuffer();
+  size_t length = NumberToSize(isolate, *length_obj);
+  size_t byte_length = length * element_size;
+  if (byte_length < length) {  // Overflow
+    return isolate->Throw(*isolate->factory()->
+          NewRangeError("invalid_array_buffer_length",
+            HandleVector<Object>(NULL, 0)));
+  }
+
+  // We assume that the caller of this function will initialize holder
+  // with the loop
+  //      for(i = 0; i < length; i++) { holder[i] = source[i]; }
+  // If source is a typed array, this loop will always run to completion,
+  // so we are sure that the backing store will be initialized.
+  // Otherwise, we do not know (the indexing operation might throw).
+  // Hence we require zero initialization unless our source is a typed array.
+  bool should_zero_initialize = !source->IsJSTypedArray();
+
+  if (!Runtime::SetupArrayBufferAllocatingData(
+        isolate, buffer, byte_length, should_zero_initialize)) {
+    return isolate->Throw(*isolate->factory()->
+          NewRangeError("invalid_array_buffer_length",
+            HandleVector<Object>(NULL, 0)));
+  }
+
+  holder->set_buffer(*buffer);
+  holder->set_byte_offset(Smi::FromInt(0));
+  Handle<Object> byte_length_obj(
+      isolate->factory()->NewNumberFromSize(byte_length));
+  holder->set_byte_length(*byte_length_obj);
+  holder->set_length(*length_obj);
+  holder->set_weak_next(buffer->weak_first_view());
+  buffer->set_weak_first_view(*holder);
+
+  Handle<ExternalArray> elements =
+      isolate->factory()->NewExternalArray(
+          static_cast<int>(length), array_type,
+          static_cast<uint8_t*>(buffer->backing_store()));
+  holder->set_elements(*elements);
+
+  if (source->IsJSTypedArray()) {
+    Handle<JSTypedArray> typed_array(JSTypedArray::cast(*source));
+
+    if (typed_array->type() == holder->type()) {
+      uint8_t* backing_store =
+        static_cast<uint8_t*>(
+          JSArrayBuffer::cast(typed_array->buffer())->backing_store());
+      size_t source_byte_offset =
+          NumberToSize(isolate, typed_array->byte_offset());
+      OS::MemCopy(
+          buffer->backing_store(),
+          backing_store + source_byte_offset,
+          byte_length);
+      return *isolate->factory()->true_value();
+    } else {
+      return *isolate->factory()->false_value();
+    }
+  }
+
+  return *isolate->factory()->false_value();
 }
 
 
@@ -907,6 +1011,21 @@ TYPED_ARRAY_GETTER(Length, length)
 
 #undef TYPED_ARRAY_GETTER
 
+// Return codes for Runtime_TypedArraySetFastCases.
+// Should be synchronized with typedarray.js natives.
+enum TypedArraySetResultCodes {
+  // Set from typed array of the same type.
+  // This is processed by TypedArraySetFastCases
+  TYPED_ARRAY_SET_TYPED_ARRAY_SAME_TYPE = 0,
+  // Set from typed array of the different type, overlapping in memory.
+  TYPED_ARRAY_SET_TYPED_ARRAY_OVERLAPPING = 1,
+  // Set from typed array of the different type, non-overlapping.
+  TYPED_ARRAY_SET_TYPED_ARRAY_NONOVERLAPPING = 2,
+  // Set from non-typed array.
+  TYPED_ARRAY_SET_NON_TYPED_ARRAY = 3
+};
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_TypedArraySetFastCases) {
   HandleScope scope(isolate);
   CONVERT_ARG_HANDLE_CHECKED(Object, target_obj, 0);
@@ -918,7 +1037,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_TypedArraySetFastCases) {
         "not_typed_array", HandleVector<Object>(NULL, 0)));
 
   if (!source_obj->IsJSTypedArray())
-    return isolate->heap()->false_value();
+    return Smi::FromInt(TYPED_ARRAY_SET_NON_TYPED_ARRAY);
 
   Handle<JSTypedArray> target(JSTypedArray::cast(*target_obj));
   Handle<JSTypedArray> source(JSTypedArray::cast(*source_obj));
@@ -933,20 +1052,20 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_TypedArraySetFastCases) {
     return isolate->Throw(*isolate->factory()->NewRangeError(
           "typed_array_set_source_too_large", HandleVector<Object>(NULL, 0)));
 
-  Handle<JSArrayBuffer> target_buffer(JSArrayBuffer::cast(target->buffer()));
-  Handle<JSArrayBuffer> source_buffer(JSArrayBuffer::cast(source->buffer()));
   size_t target_offset = NumberToSize(isolate, target->byte_offset());
   size_t source_offset = NumberToSize(isolate, source->byte_offset());
   uint8_t* target_base =
-      static_cast<uint8_t*>(target_buffer->backing_store()) + target_offset;
+      static_cast<uint8_t*>(
+        JSArrayBuffer::cast(target->buffer())->backing_store()) + target_offset;
   uint8_t* source_base =
-      static_cast<uint8_t*>(source_buffer->backing_store()) + source_offset;
+      static_cast<uint8_t*>(
+        JSArrayBuffer::cast(source->buffer())->backing_store()) + source_offset;
 
   // Typed arrays of the same type: use memmove.
   if (target->type() == source->type()) {
     memmove(target_base + offset * target->element_size(),
         source_base, source_byte_length);
-    return isolate->heap()->true_value();
+    return Smi::FromInt(TYPED_ARRAY_SET_TYPED_ARRAY_SAME_TYPE);
   }
 
   // Typed arrays of different types over the same backing store
@@ -954,78 +1073,14 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_TypedArraySetFastCases) {
         source_base + source_byte_length > target_base) ||
       (target_base <= source_base &&
         target_base + target_byte_length > source_base)) {
-    size_t target_element_size = target->element_size();
-    size_t source_element_size = source->element_size();
-
-    size_t source_length = NumberToSize(isolate, source->length());
-
-    // Copy left part
-    size_t left_index;
-    {
-      // First un-mutated byte after the next write
-      uint8_t* target_ptr = target_base + (offset + 1) * target_element_size;
-      // Next read at source_ptr. We do not care for memory changing before
-      // source_ptr - we have already copied it.
-      uint8_t* source_ptr = source_base;
-      for (left_index = 0;
-           left_index < source_length && target_ptr <= source_ptr;
-           left_index++) {
-        Handle<Object> v = Object::GetElement(
-            source, static_cast<uint32_t>(left_index));
-        JSObject::SetElement(
-            target, static_cast<uint32_t>(offset + left_index), v,
-            NONE, kNonStrictMode);
-        target_ptr += target_element_size;
-        source_ptr += source_element_size;
-      }
-    }
-    // Copy right part
-    size_t right_index;
-    {
-      // First unmutated byte before the next write
-      uint8_t* target_ptr =
-        target_base + (offset + source_length - 1) * target_element_size;
-      // Next read before source_ptr. We do not care for memory changing after
-      // source_ptr - we have already copied it.
-      uint8_t* source_ptr =
-        source_base + source_length * source_element_size;
-      for (right_index = source_length - 1;
-           right_index >= left_index && target_ptr >= source_ptr;
-           right_index--) {
-        Handle<Object> v = Object::GetElement(
-            source, static_cast<uint32_t>(right_index));
-        JSObject::SetElement(
-            target, static_cast<uint32_t>(offset + right_index), v,
-            NONE, kNonStrictMode);
-        target_ptr -= target_element_size;
-        source_ptr -= source_element_size;
-      }
-    }
-    // There can be at most 8 entries left in the middle that need buffering
-    // (because the largest element_size is 8 times the smallest).
-    ASSERT((right_index + 1) - left_index <= 8);
-    Handle<Object> temp[8];
-    size_t idx;
-    for (idx = left_index; idx <= right_index; idx++) {
-      temp[idx - left_index] = Object::GetElement(
-          source, static_cast<uint32_t>(idx));
-    }
-    for (idx = left_index; idx <= right_index; idx++) {
-      JSObject::SetElement(
-          target, static_cast<uint32_t>(offset + idx), temp[idx-left_index],
-          NONE, kNonStrictMode);
-    }
+    // We do not support overlapping ArrayBuffers
+    ASSERT(
+      JSArrayBuffer::cast(target->buffer())->backing_store() ==
+      JSArrayBuffer::cast(source->buffer())->backing_store());
+    return Smi::FromInt(TYPED_ARRAY_SET_TYPED_ARRAY_OVERLAPPING);
   } else {  // Non-overlapping typed arrays
-    for (size_t idx = 0; idx < source_length; idx++) {
-      Handle<Object> value = Object::GetElement(
-          source, static_cast<uint32_t>(idx));
-      JSObject::SetElement(
-          target, static_cast<uint32_t>(offset + idx), value,
-          NONE, kNonStrictMode);
-    }
+    return Smi::FromInt(TYPED_ARRAY_SET_TYPED_ARRAY_NONOVERLAPPING);
   }
-
-  return isolate->heap()->true_value();
 }
 
 
@@ -2948,7 +3003,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ResumeJSGeneratorObject) {
   JavaScriptFrame* frame = stack_iterator.frame();
 
   ASSERT_EQ(frame->function(), generator_object->function());
-  ASSERT(frame->function()->is_compiled());
 
   STATIC_ASSERT(JSGeneratorObject::kGeneratorExecuting <= 0);
   STATIC_ASSERT(JSGeneratorObject::kGeneratorClosed <= 0);
@@ -8432,7 +8486,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetOptimizationStatus) {
   }
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
   if (FLAG_parallel_recompilation && sync_with_compiler_thread) {
-    while (function->IsInRecompileQueue() ||
+    while (function->IsMarkedForParallelRecompilation() ||
+           function->IsInRecompileQueue() ||
            function->IsMarkedForInstallingRecompiledCode()) {
       isolate->optimizing_compiler_thread()->InstallOptimizedFunctions();
       OS::Sleep(50);
@@ -12887,7 +12942,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugSetScriptSource) {
   RUNTIME_ASSERT(script_wrapper->value()->IsScript());
   Handle<Script> script(Script::cast(script_wrapper->value()));
 
-  int compilation_state = Smi::cast(script->compilation_state())->value();
+  int compilation_state = script->compilation_state();
   RUNTIME_ASSERT(compilation_state == Script::COMPILATION_STATE_INITIAL);
   script->set_source(*source);
 
@@ -13314,6 +13369,200 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetHeapUsage) {
 }
 
 #endif  // ENABLE_DEBUGGER_SUPPORT
+
+
+#ifdef V8_I18N_SUPPORT
+RUNTIME_FUNCTION(MaybeObject*, Runtime_CanonicalizeLanguageTag) {
+  HandleScope scope(isolate);
+
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(String, locale_id_str, 0);
+
+  v8::String::Utf8Value locale_id(v8::Utils::ToLocal(locale_id_str));
+
+  // Return value which denotes invalid language tag.
+  const char* const kInvalidTag = "invalid-tag";
+
+  UErrorCode error = U_ZERO_ERROR;
+  char icu_result[ULOC_FULLNAME_CAPACITY];
+  int icu_length = 0;
+
+  uloc_forLanguageTag(*locale_id, icu_result, ULOC_FULLNAME_CAPACITY,
+                      &icu_length, &error);
+  if (U_FAILURE(error) || icu_length == 0) {
+    return isolate->heap()->AllocateStringFromOneByte(CStrVector(kInvalidTag));
+  }
+
+  char result[ULOC_FULLNAME_CAPACITY];
+
+  // Force strict BCP47 rules.
+  uloc_toLanguageTag(icu_result, result, ULOC_FULLNAME_CAPACITY, TRUE, &error);
+
+  if (U_FAILURE(error)) {
+    return isolate->heap()->AllocateStringFromOneByte(CStrVector(kInvalidTag));
+  }
+
+  return isolate->heap()->AllocateStringFromOneByte(CStrVector(result));
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_AvailableLocalesOf) {
+  HandleScope scope(isolate);
+
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(String, service, 0);
+
+  const icu::Locale* available_locales = NULL;
+  int32_t count = 0;
+
+  if (service->IsUtf8EqualTo(CStrVector("collator"))) {
+    available_locales = icu::Collator::getAvailableLocales(count);
+  } else if (service->IsUtf8EqualTo(CStrVector("numberformat"))) {
+    available_locales = icu::NumberFormat::getAvailableLocales(count);
+  } else if (service->IsUtf8EqualTo(CStrVector("dateformat"))) {
+    available_locales = icu::DateFormat::getAvailableLocales(count);
+  } else if (service->IsUtf8EqualTo(CStrVector("breakiterator"))) {
+    available_locales = icu::BreakIterator::getAvailableLocales(count);
+  }
+
+  UErrorCode error = U_ZERO_ERROR;
+  char result[ULOC_FULLNAME_CAPACITY];
+  Handle<JSObject> locales =
+      isolate->factory()->NewJSObject(isolate->object_function());
+
+  for (int32_t i = 0; i < count; ++i) {
+    const char* icu_name = available_locales[i].getName();
+
+    error = U_ZERO_ERROR;
+    // No need to force strict BCP47 rules.
+    uloc_toLanguageTag(icu_name, result, ULOC_FULLNAME_CAPACITY, FALSE, &error);
+    if (U_FAILURE(error)) {
+      // This shouldn't happen, but lets not break the user.
+      continue;
+    }
+
+    RETURN_IF_EMPTY_HANDLE(isolate,
+        JSObject::SetLocalPropertyIgnoreAttributes(
+            locales,
+            isolate->factory()->NewStringFromAscii(CStrVector(result)),
+            isolate->factory()->NewNumber(i),
+            NONE));
+  }
+
+  return *locales;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_GetDefaultICULocale) {
+  SealHandleScope shs(isolate);
+
+  ASSERT(args.length() == 0);
+
+  icu::Locale default_locale;
+
+  // Set the locale
+  char result[ULOC_FULLNAME_CAPACITY];
+  UErrorCode status = U_ZERO_ERROR;
+  uloc_toLanguageTag(
+      default_locale.getName(), result, ULOC_FULLNAME_CAPACITY, FALSE, &status);
+  if (U_SUCCESS(status)) {
+    return isolate->heap()->AllocateStringFromOneByte(CStrVector(result));
+  }
+
+  return isolate->heap()->AllocateStringFromOneByte(CStrVector("und"));
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_GetLanguageTagVariants) {
+  HandleScope scope(isolate);
+
+  ASSERT(args.length() == 1);
+
+  CONVERT_ARG_HANDLE_CHECKED(JSArray, input, 0);
+
+  uint32_t length = static_cast<uint32_t>(input->length()->Number());
+  Handle<FixedArray> output = isolate->factory()->NewFixedArray(length);
+  Handle<Name> maximized =
+      isolate->factory()->NewStringFromAscii(CStrVector("maximized"));
+  Handle<Name> base =
+      isolate->factory()->NewStringFromAscii(CStrVector("base"));
+  for (unsigned int i = 0; i < length; ++i) {
+    MaybeObject* maybe_string = input->GetElement(i);
+    Object* locale_id;
+    if (!maybe_string->ToObject(&locale_id) || !locale_id->IsString()) {
+      return isolate->Throw(isolate->heap()->illegal_argument_string());
+    }
+
+    v8::String::Utf8Value utf8_locale_id(
+        v8::Utils::ToLocal(Handle<String>(String::cast(locale_id))));
+
+    UErrorCode error = U_ZERO_ERROR;
+
+    // Convert from BCP47 to ICU format.
+    // de-DE-u-co-phonebk -> de_DE@collation=phonebook
+    char icu_locale[ULOC_FULLNAME_CAPACITY];
+    int icu_locale_length = 0;
+    uloc_forLanguageTag(*utf8_locale_id, icu_locale, ULOC_FULLNAME_CAPACITY,
+                        &icu_locale_length, &error);
+    if (U_FAILURE(error) || icu_locale_length == 0) {
+      return isolate->Throw(isolate->heap()->illegal_argument_string());
+    }
+
+    // Maximize the locale.
+    // de_DE@collation=phonebook -> de_Latn_DE@collation=phonebook
+    char icu_max_locale[ULOC_FULLNAME_CAPACITY];
+    uloc_addLikelySubtags(
+        icu_locale, icu_max_locale, ULOC_FULLNAME_CAPACITY, &error);
+
+    // Remove extensions from maximized locale.
+    // de_Latn_DE@collation=phonebook -> de_Latn_DE
+    char icu_base_max_locale[ULOC_FULLNAME_CAPACITY];
+    uloc_getBaseName(
+        icu_max_locale, icu_base_max_locale, ULOC_FULLNAME_CAPACITY, &error);
+
+    // Get original name without extensions.
+    // de_DE@collation=phonebook -> de_DE
+    char icu_base_locale[ULOC_FULLNAME_CAPACITY];
+    uloc_getBaseName(
+        icu_locale, icu_base_locale, ULOC_FULLNAME_CAPACITY, &error);
+
+    // Convert from ICU locale format to BCP47 format.
+    // de_Latn_DE -> de-Latn-DE
+    char base_max_locale[ULOC_FULLNAME_CAPACITY];
+    uloc_toLanguageTag(icu_base_max_locale, base_max_locale,
+                       ULOC_FULLNAME_CAPACITY, FALSE, &error);
+
+    // de_DE -> de-DE
+    char base_locale[ULOC_FULLNAME_CAPACITY];
+    uloc_toLanguageTag(
+        icu_base_locale, base_locale, ULOC_FULLNAME_CAPACITY, FALSE, &error);
+
+    if (U_FAILURE(error)) {
+      return isolate->Throw(isolate->heap()->illegal_argument_string());
+    }
+
+    Handle<JSObject> result =
+        isolate->factory()->NewJSObject(isolate->object_function());
+    RETURN_IF_EMPTY_HANDLE(isolate,
+        JSObject::SetLocalPropertyIgnoreAttributes(
+            result,
+            maximized,
+            isolate->factory()->NewStringFromAscii(CStrVector(base_max_locale)),
+            NONE));
+    RETURN_IF_EMPTY_HANDLE(isolate,
+        JSObject::SetLocalPropertyIgnoreAttributes(
+            result,
+            base,
+            isolate->factory()->NewStringFromAscii(CStrVector(base_locale)),
+            NONE));
+    output->set(i, *result);
+  }
+
+  Handle<JSArray> result = isolate->factory()->NewJSArrayWithElements(output);
+  result->set_length(Smi::FromInt(length));
+  return *result;
+}
+#endif  // V8_I18N_SUPPORT
 
 
 // Finds the script object from the script data. NOTE: This operation uses

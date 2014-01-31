@@ -3563,6 +3563,7 @@ bool Map::is_shared() {
 
 
 void Map::set_dictionary_map(bool value) {
+  if (value) mark_unstable();
   set_bit_field3(DictionaryMap::update(bit_field3(), value));
 }
 
@@ -3626,6 +3627,16 @@ bool Map::is_frozen() {
 }
 
 
+void Map::mark_unstable() {
+  set_bit_field3(IsUnstable::update(bit_field3(), true));
+}
+
+
+bool Map::is_stable() {
+  return !IsUnstable::decode(bit_field3());
+}
+
+
 bool Map::has_code_cache() {
   return code_cache() != GetIsolate()->heap()->empty_fixed_array();
 }
@@ -3657,21 +3668,22 @@ bool Map::CanBeDeprecated() {
 
 
 void Map::NotifyLeafMapLayoutChange() {
-  dependent_code()->DeoptimizeDependentCodeGroup(
-      GetIsolate(),
-      DependentCode::kPrototypeCheckGroup);
+  if (is_stable()) {
+    mark_unstable();
+    dependent_code()->DeoptimizeDependentCodeGroup(
+        GetIsolate(),
+        DependentCode::kPrototypeCheckGroup);
+  }
 }
 
 
 bool Map::CanOmitPrototypeChecks() {
-  return !HasTransitionArray() && !is_dictionary_map() &&
-         FLAG_omit_prototype_checks_for_leaf_maps;
+  return is_stable() && FLAG_omit_prototype_checks_for_leaf_maps;
 }
 
 
 bool Map::CanOmitMapChecks() {
-  return !HasTransitionArray() && !is_dictionary_map() &&
-         FLAG_omit_map_checks_for_leaf_maps;
+  return is_stable() && FLAG_omit_map_checks_for_leaf_maps;
 }
 
 
@@ -4257,7 +4269,8 @@ bool Map::HasTransitionArray() {
 
 
 Map* Map::elements_transition_map() {
-  return transitions()->elements_transition();
+  int index = transitions()->Search(GetHeap()->elements_transition_symbol());
+  return transitions()->GetTarget(index);
 }
 
 
@@ -4288,10 +4301,14 @@ Map* Map::GetTransition(int transition_index) {
 
 
 MaybeObject* Map::set_elements_transition_map(Map* transitioned_map) {
-  MaybeObject* allow_elements = EnsureHasTransitionArray(this);
-  if (allow_elements->IsFailure()) return allow_elements;
-  transitions()->set_elements_transition(transitioned_map);
-  return this;
+  TransitionArray* transitions;
+  MaybeObject* maybe_transitions = AddTransition(
+      GetHeap()->elements_transition_symbol(),
+      transitioned_map,
+      FULL_TRANSITION);
+  if (!maybe_transitions->To(&transitions)) return maybe_transitions;
+  set_transitions(transitions);
+  return transitions;
 }
 
 
@@ -4482,12 +4499,30 @@ ACCESSORS(Script, data, Object, kDataOffset)
 ACCESSORS(Script, context_data, Object, kContextOffset)
 ACCESSORS(Script, wrapper, Foreign, kWrapperOffset)
 ACCESSORS_TO_SMI(Script, type, kTypeOffset)
-ACCESSORS_TO_SMI(Script, compilation_type, kCompilationTypeOffset)
-ACCESSORS_TO_SMI(Script, compilation_state, kCompilationStateOffset)
 ACCESSORS(Script, line_ends, Object, kLineEndsOffset)
 ACCESSORS(Script, eval_from_shared, Object, kEvalFromSharedOffset)
 ACCESSORS_TO_SMI(Script, eval_from_instructions_offset,
                  kEvalFrominstructionsOffsetOffset)
+ACCESSORS_TO_SMI(Script, flags, kFlagsOffset)
+BOOL_ACCESSORS(Script, flags, is_shared_cross_origin, kIsSharedCrossOriginBit)
+
+Script::CompilationType Script::compilation_type() {
+  return BooleanBit::get(flags(), kCompilationTypeBit) ?
+      COMPILATION_TYPE_EVAL : COMPILATION_TYPE_HOST;
+}
+void Script::set_compilation_type(CompilationType type) {
+  set_flags(BooleanBit::set(flags(), kCompilationTypeBit,
+      type == COMPILATION_TYPE_EVAL));
+}
+Script::CompilationState Script::compilation_state() {
+  return BooleanBit::get(flags(), kCompilationStateBit) ?
+      COMPILATION_STATE_COMPILED : COMPILATION_STATE_INITIAL;
+}
+void Script::set_compilation_state(CompilationState state) {
+  set_flags(BooleanBit::set(flags(), kCompilationStateBit,
+      state == COMPILATION_STATE_COMPILED));
+}
+
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
 ACCESSORS(DebugInfo, shared, SharedFunctionInfo, kSharedFunctionInfoIndex)

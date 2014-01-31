@@ -716,11 +716,6 @@ Logger::Logger(Isolate* isolate)
     jit_logger_(NULL),
     listeners_(5),
     is_initialized_(false),
-    last_address_(NULL),
-    prev_sp_(NULL),
-    prev_function_(NULL),
-    prev_to_(NULL),
-    prev_code_(NULL),
     epoch_(0) {
 }
 

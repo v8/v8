@@ -671,7 +671,7 @@ void KeyedCallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
 
   // It should not be possible for execution to fall through a tail call.
   if (__ emit_debug_code()) {
-    __ Abort("Unreachable code.");
+    __ Unreachable();
   }
 
   __ Bind(&not_fast_array);

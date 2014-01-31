@@ -127,7 +127,7 @@ void CompilationInfo::Initialize(Isolate* isolate,
     ASSERT(language_mode() == CLASSIC_MODE);
     SetLanguageMode(shared_info_->language_mode());
   }
-  set_bailout_reason("unknown");
+  set_bailout_reason(kUnknown);
 }
 
 
@@ -351,7 +351,7 @@ OptimizingCompiler::Status OptimizingCompiler::CreateGraph() {
   const int kMaxOptCount =
       FLAG_deopt_every_n_times == 0 ? FLAG_max_opt_count : 1000;
   if (info()->opt_count() > kMaxOptCount) {
-    info()->set_bailout_reason("optimized too many times");
+    info()->set_bailout_reason(kOptimizedTooManyTimes);
     return AbortOptimization();
   }
 
@@ -365,14 +365,14 @@ OptimizingCompiler::Status OptimizingCompiler::CreateGraph() {
   const int parameter_limit = -LUnallocated::kMinFixedSlotIndex;
   Scope* scope = info()->scope();
   if ((scope->num_parameters() + 1) > parameter_limit) {
-    info()->set_bailout_reason("too many parameters");
+    info()->set_bailout_reason(kTooManyParameters);
     return AbortOptimization();
   }
 
   const int locals_limit = LUnallocated::kMaxFixedSlotIndex;
   if (!info()->osr_ast_id().IsNone() &&
       scope->num_parameters() + 1 + scope->num_stack_slots() > locals_limit) {
-    info()->set_bailout_reason("too many parameters/locals");
+    info()->set_bailout_reason(kTooManyParametersLocals);
     return AbortOptimization();
   }
 
@@ -467,9 +467,9 @@ OptimizingCompiler::Status OptimizingCompiler::OptimizeGraph() {
   ASSERT(last_status() == SUCCEEDED);
   Timer t(this, &time_taken_to_optimize_);
   ASSERT(graph_ != NULL);
-  SmartArrayPointer<char> bailout_reason;
+  BailoutReason bailout_reason = kNoReason;
   if (!graph_->Optimize(&bailout_reason)) {
-    if (!bailout_reason.is_empty()) graph_builder_->Bailout(*bailout_reason);
+    if (bailout_reason == kNoReason) graph_builder_->Bailout(bailout_reason);
     return SetLastStatus(BAILED_OUT);
   } else {
     chunk_ = LChunk::NewChunk(graph_);
@@ -494,7 +494,9 @@ OptimizingCompiler::Status OptimizingCompiler::GenerateAndInstallCode() {
     DisallowDeferredHandleDereference no_deferred_handle_deref;
     Handle<Code> optimized_code = chunk_->Codegen();
     if (optimized_code.is_null()) {
-      info()->set_bailout_reason("code generation failed");
+      if (info()->bailout_reason() != kNoReason) {
+        info()->set_bailout_reason(kCodeGenerationFailed);
+      }
       return AbortOptimization();
     }
     info()->SetCode(optimized_code);
@@ -567,8 +569,7 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(CompilationInfo* info) {
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   if (info->is_eval()) {
-    Script::CompilationType compilation_type = Script::COMPILATION_TYPE_EVAL;
-    script->set_compilation_type(Smi::FromInt(compilation_type));
+    script->set_compilation_type(Script::COMPILATION_TYPE_EVAL);
     // For eval scripts add information on the function from which eval was
     // called.
     if (info->is_eval()) {
@@ -659,8 +660,7 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(CompilationInfo* info) {
   // the instances of the function.
   SetExpectedNofPropertiesFromEstimate(result, lit->expected_property_count());
 
-  script->set_compilation_state(
-      Smi::FromInt(Script::COMPILATION_STATE_COMPILED));
+  script->set_compilation_state(Script::COMPILATION_STATE_COMPILED);
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // Notify debugger
@@ -678,6 +678,7 @@ Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
                                              Handle<Object> script_name,
                                              int line_offset,
                                              int column_offset,
+                                             bool is_shared_cross_origin,
                                              Handle<Context> context,
                                              v8::Extension* extension,
                                              ScriptDataImpl* pre_data,
@@ -700,6 +701,7 @@ Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
                                              script_name,
                                              line_offset,
                                              column_offset,
+                                             is_shared_cross_origin,
                                              context);
   }
 
@@ -723,6 +725,7 @@ Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
       script->set_line_offset(Smi::FromInt(line_offset));
       script->set_column_offset(Smi::FromInt(column_offset));
     }
+    script->set_is_shared_cross_origin(is_shared_cross_origin);
 
     script->set_data(script_data.is_null() ? HEAP->undefined_value()
                                            : *script_data);
@@ -788,7 +791,7 @@ Handle<SharedFunctionInfo> Compiler::CompileEval(Handle<String> source,
     if (!result.is_null()) {
       // Explicitly disable optimization for eval code. We're not yet prepared
       // to handle eval-code in the optimizing compiler.
-      result->DisableOptimization("eval");
+      result->DisableOptimization(kEval);
 
       // If caller is strict mode, the result must be in strict mode or
       // extended mode as well, but not the other way around. Consider:
@@ -978,9 +981,7 @@ void Compiler::RecompileParallel(Handle<JSFunction> closure) {
 
   if (!isolate->optimizing_compiler_thread()->IsQueueAvailable()) {
     if (FLAG_trace_parallel_recompilation) {
-      PrintF("  ** Compilation queue full, will retry optimizing ");
-      closure->PrintName();
-      PrintF(" on next run.\n");
+      PrintF("  ** Compilation queue, will retry opting on next run.\n");
     }
     return;
   }
@@ -1065,13 +1066,13 @@ void Compiler::InstallOptimizedCode(OptimizingCompiler* optimizing_compiler) {
   // the unoptimized code.
   OptimizingCompiler::Status status = optimizing_compiler->last_status();
   if (info->HasAbortedDueToDependencyChange()) {
-    info->set_bailout_reason("bailed out due to dependent map");
+    info->set_bailout_reason(kBailedOutDueToDependentMap);
     status = optimizing_compiler->AbortOptimization();
   } else if (status != OptimizingCompiler::SUCCEEDED) {
-    info->set_bailout_reason("failed/bailed out last time");
+    info->set_bailout_reason(kFailedBailedOutLastTime);
     status = optimizing_compiler->AbortOptimization();
   } else if (isolate->DebuggerHasBreakPoints()) {
-    info->set_bailout_reason("debugger is active");
+    info->set_bailout_reason(kDebuggerIsActive);
     status = optimizing_compiler->AbortOptimization();
   } else {
     status = optimizing_compiler->GenerateAndInstallCode();

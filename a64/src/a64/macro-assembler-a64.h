@@ -704,8 +704,6 @@ class MacroAssembler : public Assembler {
 
   static int SafepointRegisterStackIndex(int reg_code);
 
-  void CheckForInvalidValuesInCalleeSavedRegs(RegList list);
-
   // This is required for compatibility with architecture independant code.
   // Remove if not needed.
   inline void Move(Register dst, Register src) { Mov(dst, src); }
@@ -761,22 +759,14 @@ class MacroAssembler : public Assembler {
                                Label* not_smi_label);
 
   // Abort execution if argument is a smi, enabled via --debug-code.
-  void AssertNotSmi(Register object,
-                    const char* fail_message = "Operand is a smi");
-  void AssertSmi(Register object,
-                 const char* fail_message = "Operand is not a smi");
+  void AssertNotSmi(Register object, BailoutReason reason = kOperandIsASmi);
+  void AssertSmi(Register object, BailoutReason reason = kOperandIsNotASmi);
 
   // Abort execution if argument is not a name, enabled via --debug-code.
   void AssertName(Register object);
 
   // Abort execution if argument is not a string, enabled via --debug-code.
   void AssertString(Register object);
-
-  // Abort execution if argument is not the root value with the given index,
-  // enabled via --debug-code.
-  void AssertRootValue(Register src,
-                       Heap::RootListIndex root_value_index,
-                       const char* message);
 
   void JumpForHeapNumber(Register object,
                          Register heap_number_map,
@@ -1732,8 +1722,8 @@ class MacroAssembler : public Assembler {
 
   // Calls Abort(msg) if the condition cond is not satisfied.
   // Use --debug_code to enable.
-  void Assert(Condition cond, const char* msg);
-  void AssertRegisterIsClear(Register reg, const char* msg);
+  void Assert(Condition cond, BailoutReason reason);
+  void AssertRegisterIsClear(Register reg, BailoutReason reason);
   void AssertRegisterIsRoot(Register reg, Heap::RootListIndex index);
   void AssertFastElements(Register elements);
 
@@ -1749,11 +1739,11 @@ class MacroAssembler : public Assembler {
   void AssertIsString(const Register& object);
 
   // Like Assert(), but always enabled.
-  void Check(Condition cond, const char* msg);
-  void CheckRegisterIsClear(Register reg, const char* msg);
+  void Check(Condition cond, BailoutReason reason);
+  void CheckRegisterIsClear(Register reg, BailoutReason reason);
 
   // Print a message to stderr and abort execution.
-  void Abort(const char* msg);
+  void Abort(BailoutReason reason);
 
   // Conditionally load the cached Array transitioned map of type
   // transitioned_kind from the native context if the map in register

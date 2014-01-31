@@ -428,7 +428,7 @@ LChunk* LChunk::NewChunk(HGraph* graph) {
   int values = graph->GetMaximumValueID();
   CompilationInfo* info = graph->info();
   if (values > LUnallocated::kMaxVirtualRegisters) {
-    info->set_bailout_reason("not enough virtual registers for values");
+    info->set_bailout_reason(kNotEnoughVirtualRegistersForValues);
     return NULL;
   }
   LAllocator allocator(values, graph);
@@ -437,7 +437,7 @@ LChunk* LChunk::NewChunk(HGraph* graph) {
   if (chunk == NULL) return NULL;
 
   if (!allocator.Allocate(chunk)) {
-    info->set_bailout_reason("not enough virtual registers (regalloc)");
+    info->set_bailout_reason(kNotEnoughVirtualRegistersRegalloc);
     return NULL;
   }
 

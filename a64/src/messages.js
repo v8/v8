@@ -126,6 +126,7 @@ var kMessages = {
 
   stack_overflow:                ["Maximum call stack size exceeded"],
   invalid_time_value:            ["Invalid time value"],
+  invalid_count_value:           ["Invalid count value"],
   // SyntaxError
   paren_in_arg_string:           ["Function arg string contains parenthesis"],
   not_isvar:                     ["builtin %IS_VAR: not a variable"],

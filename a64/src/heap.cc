@@ -703,16 +703,6 @@ bool Heap::CollectGarbage(AllocationSpace space,
 }
 
 
-int Heap::NotifyContextDisposed() {
-  if (FLAG_parallel_recompilation) {
-    // Flush the queued recompilation tasks.
-    isolate()->optimizing_compiler_thread()->Flush();
-  }
-  flush_monomorphic_ics_ = true;
-  return ++contexts_disposed_;
-}
-
-
 void Heap::PerformScavenge() {
   GCTracer tracer(this, NULL, NULL);
   if (incremental_marking()->IsStopped()) {
@@ -3216,6 +3206,11 @@ bool Heap::CreateInitialObjects() {
     if (!maybe_obj->ToObject(&obj)) return false;
   }
   set_frozen_symbol(Symbol::cast(obj));
+
+  { MaybeObject* maybe_obj = AllocateSymbol();
+    if (!maybe_obj->ToObject(&obj)) return false;
+  }
+  set_elements_transition_symbol(Symbol::cast(obj));
 
   { MaybeObject* maybe_obj = SeededNumberDictionary::Allocate(this, 0, TENURED);
     if (!maybe_obj->ToObject(&obj)) return false;
@@ -6959,6 +6954,8 @@ void Heap::TearDown() {
   isolate_->global_handles()->TearDown();
 
   external_string_table_.TearDown();
+
+  mark_compact_collector()->TearDown();
 
   new_space_.TearDown();
 

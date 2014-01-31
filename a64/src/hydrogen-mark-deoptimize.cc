@@ -25,38 +25,47 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --expose-debug-as debug --allow-natives-syntax
-// Flags: --parallel-recompilation-delay=300
+#include "hydrogen-mark-deoptimize.h"
 
-if (!%IsParallelRecompilationSupported()) {
-  print("Parallel recompilation is disabled. Skipping this test.");
-  quit();
+namespace v8 {
+namespace internal {
+
+void HMarkDeoptimizeOnUndefinedPhase::Run() {
+  const ZoneList<HPhi*>* phi_list = graph()->phi_list();
+  for (int i = 0; i < phi_list->length(); i++) {
+    HPhi* phi = phi_list->at(i);
+    if (phi->CheckFlag(HValue::kAllowUndefinedAsNaN)) {
+      for (HUseIterator it(phi->uses()); !it.Done(); it.Advance()) {
+        HValue* use_value = it.value();
+        if (!use_value->CheckFlag(HValue::kAllowUndefinedAsNaN)) {
+          ProcessPhi(phi);
+          break;
+        }
+      }
+    }
+  }
 }
 
-Debug = debug.Debug
 
-function foo() {
-  var x = 1;
-  return x;
+void HMarkDeoptimizeOnUndefinedPhase::ProcessPhi(HPhi* phi) {
+  ASSERT(phi->CheckFlag(HValue::kAllowUndefinedAsNaN));
+  ASSERT(worklist_.is_empty());
+
+  // Push the phi onto the worklist
+  phi->ClearFlag(HValue::kAllowUndefinedAsNaN);
+  worklist_.Add(phi, zone());
+
+  // Process all phis that can reach this phi
+  while (!worklist_.is_empty()) {
+    phi = worklist_.RemoveLast();
+    for (int i = phi->OperandCount() - 1; i >= 0; --i) {
+      HValue* input = phi->OperandAt(i);
+      if (input->IsPhi() && input->CheckFlag(HValue::kAllowUndefinedAsNaN)) {
+        input->ClearFlag(HValue::kAllowUndefinedAsNaN);
+        worklist_.Add(HPhi::cast(input), zone());
+      }
+    }
+  }
 }
 
-function bar() {
-  var x = 2;
-  return x;
-}
-
-foo();
-// Mark and trigger parallel optimization.
-%OptimizeFunctionOnNextCall(foo, "parallel");
-foo();
-
-// Set break points on an unrelated function. This clears both optimized
-// and (shared) unoptimized code on foo, and sets both to lazy-compile builtin.
-// Clear the break point immediately after to deactivate the debugger.
-Debug.setBreakPoint(bar, 0, 0);
-Debug.clearAllBreakPoints();
-
-// Install optimized code when parallel optimization finishes.
-// This needs to be able to deal with shared code being a builtin.
-assertUnoptimized(foo, "sync");
-
+} }  // namespace v8::internal

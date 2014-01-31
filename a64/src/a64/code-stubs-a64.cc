@@ -579,7 +579,7 @@ void FastNewBlockContextStub::Generate(MacroAssembler* masm) {
   __ JumpIfNotSmi(function, &after_sentinel);
   if (FLAG_debug_code) {
     __ Cmp(function, 0);
-    __ Assert(eq, "Expected 0 as a Smi sentinel");
+    __ Assert(eq, kExpected0AsASmiSentinel);
   }
 
   Register global_ctx = x14;
@@ -695,7 +695,7 @@ static void EmitIdenticalObjectComparison(MacroAssembler* masm,
 
   // No fall through here.
   if (FLAG_debug_code) {
-    __ Abort("We should never reach this code.");
+    __ Unreachable();
   }
 
   __ Bind(&not_identical);
@@ -714,7 +714,7 @@ static void EmitStrictTwoHeapObjectCompare(MacroAssembler* masm,
   if (masm->emit_debug_code()) {
     // We assume that the arguments are not identical.
     __ Cmp(left, right);
-    __ Assert(ne, "Expected non-identical objects.");
+    __ Assert(ne, kExpectedNonIdenticalObjects);
   }
 
   // If either operand is a JS object or an oddball value, then they are not
@@ -1036,7 +1036,7 @@ void ICCompareStub::GenerateGeneric(MacroAssembler* masm) {
 
   // Never fall through to here.
   if (FLAG_debug_code) {
-    __ Abort("We should never reach this code.");
+    __ Unreachable();
   }
 
   __ Bind(&slow);
@@ -1586,9 +1586,9 @@ void BinaryOpStub::GenerateSmiStub(MacroAssembler* masm) {
 #ifdef DEBUG
   if (masm->emit_debug_code()) {
     __ Cmp(saved_left, x1);
-    __ Assert(eq, "lhs has been clobbered.");
+    __ Assert(eq, kLhsHasBeenClobbered);
     __ Cmp(saved_right, x0);
-    __ Assert(eq, "lhs has been clobbered.");
+    __ Assert(eq, kRhsHasBeenClobbered);
   }
 #endif
   {
@@ -1776,7 +1776,7 @@ void BinaryOpStub_GenerateHeapResultAllocation(MacroAssembler* masm,
       Label ok;
       __ JumpIfSmi(overwritable_operand, &ok);
       __ JumpIfHeapNumber(overwritable_operand, &ok);
-      __ Abort("The overwritable operand should be a HeapNumber");
+      __ Abort(kExpectedSmiOrHeapNumber);
       __ Bind(&ok);
     }
     // If the overwritable operand is already a HeapNumber, we can skip
@@ -2153,14 +2153,14 @@ void MathPowStub::Generate(MacroAssembler* masm) {
         //  bits(+0.0) = 0x0000000000000000
         //  bits(-0.0) = 0x8000000000000000
         __ Fmov(temp, zero_double);
-        __ CheckRegisterIsClear(temp, "Could not generate +0.0.");
+        __ CheckRegisterIsClear(temp, kCouldNotGenerateZero);
         __ Fmov(temp, scratch0_double);
         __ Eor(temp, temp, kDSignMask);
-        __ CheckRegisterIsClear(temp, "Could not generate -0.0.");
+        __ CheckRegisterIsClear(temp, kCouldNotGenerateNegativeZero);
         // Check that -0.0 + 0.0 == +0.0.
         __ Fadd(scratch0_double, scratch0_double, zero_double);
         __ Fmov(temp, scratch0_double);
-        __ CheckRegisterIsClear(temp, "-0.0 + 0.0 did not produce +0.0.");
+        __ CheckRegisterIsClear(temp, kExpectedPositiveZero);
       }
 
       // If base is -INFINITY, make it +INFINITY.
@@ -2432,7 +2432,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
     __ Ldr(temp, MemOperand(fp, ExitFrameConstants::kSPOffset));
     __ Ldr(temp, MemOperand(temp, -static_cast<int64_t>(kXRegSizeInBytes)));
     __ Cmp(temp, x12);
-    __ Check(eq, "fp[kSPOffset]-8 does not hold the return address.");
+    __ Check(eq, kReturnAddressNotFoundInFrame);
   }
 
   // Call the builtin.
@@ -3757,9 +3757,9 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   if (FLAG_debug_code) {
     STATIC_ASSERT(kSmiTag == 0);
     __ Tst(regexp_data, kSmiTagMask);
-    __ Check(ne, "Unexpected type for RegExp data, FixedArray expected");
+    __ Check(ne, kUnexpectedTypeForRegExpDataFixedArrayExpected);
     __ CompareObjectType(regexp_data, x10, x10, FIXED_ARRAY_TYPE);
-    __ Check(eq, "Unexpected type for RegExp data, FixedArray expected");
+    __ Check(eq, kUnexpectedTypeForRegExpDataFixedArrayExpected);
   }
 
   // Check the type of the RegExp. Only continue if type is JSRegExp::IRREGEXP.
@@ -4159,10 +4159,10 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
     __ Ldr(x10, FieldMemOperand(subject, HeapObject::kMapOffset));
     __ Ldrb(x10, FieldMemOperand(x10, Map::kInstanceTypeOffset));
     __ Tst(x10, kIsIndirectStringMask);
-    __ Check(eq, "external string expected, but cons or sliced string found");
+    __ Check(eq, kExternalStringExpectedButNotFound);
     __ And(x10, x10, kStringRepresentationMask);
     __ Cmp(x10, 0);
-    __ Check(ne, "external string expected, but sequential string found");
+    __ Check(ne, kExternalStringExpectedButNotFound);
   }
   __ Ldr(subject,
          FieldMemOperand(subject, ExternalString::kResourceDataOffset));
@@ -4535,7 +4535,7 @@ void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
 void StringCharCodeAtGenerator::GenerateSlow(
     MacroAssembler* masm,
     const RuntimeCallHelper& call_helper) {
-  __ Abort("Unexpected fallthrough to CharCodeAt slow case");
+  __ Abort(kUnexpectedFallthroughToCharCodeAtSlowCase);
 
   __ Bind(&index_not_smi_);
   // If index is a heap number, try converting it to an integer.
@@ -4580,7 +4580,7 @@ void StringCharCodeAtGenerator::GenerateSlow(
   call_helper.AfterCall(masm);
   __ B(&exit_);
 
-  __ Abort("Unexpected fallthrough from CharCodeAt slow case");
+  __ Abort(kUnexpectedFallthroughFromCharCodeAtSlowCase);
 }
 
 
@@ -4602,7 +4602,7 @@ void StringCharFromCodeGenerator::GenerateFast(MacroAssembler* masm) {
 void StringCharFromCodeGenerator::GenerateSlow(
     MacroAssembler* masm,
     const RuntimeCallHelper& call_helper) {
-  __ Abort("Unexpected fallthrough to CharFromCode slow case");
+  __ Abort(kUnexpectedFallthroughToCharFromCodeSlowCase);
 
   __ Bind(&slow_case_);
   call_helper.BeforeCall(masm);
@@ -4612,7 +4612,7 @@ void StringCharFromCodeGenerator::GenerateSlow(
   call_helper.AfterCall(masm);
   __ B(&exit_);
 
-  __ Abort("Unexpected fallthrough from CharFromCode slow case");
+  __ Abort(kUnexpectedFallthroughFromCharFromCodeSlowCase);
 }
 
 
@@ -5151,7 +5151,7 @@ void StringHelper::GenerateTwoCharacterStringTableProbe(MacroAssembler* masm,
     // Must be the hole (deleted entry).
     if (FLAG_debug_code) {
       __ CompareRoot(candidate, Heap::kTheHoleValueRootIndex);
-      __ Assert(eq, "oddball in string table is not undefined or the hole");
+      __ Assert(eq, kOddballInStringTableIsNotUndefinedOrTheHole);
     }
     __ B(&next_probe[i]);
 
@@ -6783,7 +6783,7 @@ static void CreateArrayDispatch(MacroAssembler* masm) {
   }
 
   // If we reached this point there is a problem.
-  __ Abort("Unexpected ElementsKind in array constructor");
+  __ Abort(kUnexpectedElementsKindInArrayConstructor);
 }
 
 
@@ -6846,7 +6846,7 @@ static void CreateArrayDispatchOneArgument(MacroAssembler* masm) {
   }
 
   // If we reached this point there is a problem.
-  __ Abort("Unexpected ElementsKind in array constructor");
+  __ Abort(kUnexpectedElementsKindInArrayConstructor);
 }
 
 
@@ -6915,7 +6915,7 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
     __ JumpIfSmi(x10, &unexpected_map);
     __ JumpIfObjectType(x10, x10, x11, MAP_TYPE, &map_ok);
     __ Bind(&unexpected_map);
-    __ Abort("Unexpected initial map for Array function");
+    __ Abort(kUnexpectedInitialMapForArrayFunction);
     __ Bind(&map_ok);
 
     // In type_info_cell, we expect either undefined or a valid Cell.
@@ -6924,7 +6924,7 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
     __ JumpIfRoot(type_info_cell, Heap::kUndefinedValueRootIndex, &okay_here);
     __ Ldr(x10, FieldMemOperand(type_info_cell, Cell::kMapOffset));
     __ Cmp(x10, Operand(cell_map));
-    __ Assert(eq, "Expected property cell in type_info_cell");
+    __ Assert(eq, kExpectedPropertyCellInTypeInfoCell);
     __ Bind(&okay_here);
   }
 
@@ -7040,7 +7040,7 @@ void InternalArrayConstructorStub::Generate(MacroAssembler* masm) {
     __ JumpIfSmi(x10, &unexpected_map);
     __ JumpIfObjectType(x10, x10, x11, MAP_TYPE, &map_ok);
     __ Bind(&unexpected_map);
-    __ Abort("Unexpected initial map for Array function");
+    __ Abort(kUnexpectedInitialMapForArrayFunction);
     __ Bind(&map_ok);
   }
 
@@ -7060,8 +7060,7 @@ void InternalArrayConstructorStub::Generate(MacroAssembler* masm) {
     Label done;
     __ Cmp(x3, FAST_ELEMENTS);
     __ Ccmp(x3, FAST_HOLEY_ELEMENTS, ZFlag, ne);
-    __ Assert(eq,
-              "Invalid ElementsKind for InternalArray or InternalPackedArray");
+    __ Assert(eq, kInvalidElementsKindForInternalArrayOrInternalPackedArray);
   }
 
   Label fast_elements_case;

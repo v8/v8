@@ -81,6 +81,7 @@ class LCodeGen;
   V(CmpT)                                       \
   V(CompareNumericAndBranch)                    \
   V(ConstantD)                                  \
+  V(ConstantE)                                  \
   V(ConstantI)                                  \
   V(ConstantS)                                  \
   V(ConstantT)                                  \
@@ -119,7 +120,6 @@ class LCodeGen;
   V(IsUndetectableAndBranch)                    \
   V(Label)                                      \
   V(LazyBailout)                                \
-  V(LinkObjectInList)                           \
   V(LoadContextSlot)                            \
   V(LoadExternalArrayPointer)                   \
   V(LoadFieldByIndex)                           \
@@ -180,7 +180,6 @@ class LCodeGen;
   V(StringCharCodeAt)                           \
   V(StringCharFromCode)                         \
   V(StringCompareAndBranch)                     \
-  V(StringLength)                               \
   V(SubI)                                       \
   V(TaggedToI)                                  \
   V(ThisFunction)                               \
@@ -271,7 +270,7 @@ class LInstruction: public ZoneObject {
   bool IsMarkedAsCall() const { return is_call_; }
 
   virtual bool HasResult() const = 0;
-  virtual LOperand* result() = 0;
+  virtual LOperand* result() const = 0;
 
   virtual int InputCount() = 0;
   virtual LOperand* InputAt(int i) = 0;
@@ -303,9 +302,9 @@ class LTemplateInstruction: public LInstruction {
  public:
   // Allow 0 or 1 output operands.
   STATIC_ASSERT(R == 0 || R == 1);
-  virtual bool HasResult() const { return R != 0; }
+  virtual bool HasResult() const { return (R != 0) && (result() != NULL); }
   void set_result(LOperand* operand) { results_[0] = operand; }
-  LOperand* result() { return results_[0]; }
+  LOperand* result() const { return results_[0]; }
 
   int InputCount() { return I; }
   LOperand* InputAt(int i) { return inputs_[i]; }
@@ -1150,6 +1149,17 @@ class LConstantD: public LTemplateInstruction<1, 0, 0> {
 };
 
 
+class LConstantE: public LTemplateInstruction<1, 0, 0> {
+ public:
+  DECLARE_CONCRETE_INSTRUCTION(ConstantE, "constant-e")
+  DECLARE_HYDROGEN_ACCESSOR(Constant)
+
+  ExternalReference value() const {
+    return hydrogen()->ExternalReferenceValue();
+  }
+};
+
+
 class LConstantI: public LTemplateInstruction<1, 0, 0> {
  public:
   DECLARE_CONCRETE_INSTRUCTION(ConstantI, "constant-i")
@@ -1556,25 +1566,6 @@ class LIsUndetectableAndBranch: public LControlInstruction<1, 1> {
   DECLARE_CONCRETE_INSTRUCTION(IsUndetectableAndBranch,
                                "is-undetectable-and-branch")
   DECLARE_HYDROGEN_ACCESSOR(IsUndetectableAndBranch)
-
-  virtual void PrintDataTo(StringStream* stream);
-};
-
-
-class LLinkObjectInList: public LTemplateInstruction<0, 1, 1> {
- public:
-  explicit LLinkObjectInList(LOperand* object, LOperand* temp) {
-    inputs_[0] = object;
-    temps_[0] = temp;
-  }
-
-  LOperand* object() { return inputs_[0]; }
-  LOperand* temp() { return temps_[0]; }
-
-  ExternalReference GetReference(Isolate* isolate);
-
-  DECLARE_CONCRETE_INSTRUCTION(LinkObjectInList, "link-object-in-list")
-  DECLARE_HYDROGEN_ACCESSOR(LinkObjectInList)
 
   virtual void PrintDataTo(StringStream* stream);
 };
@@ -2431,19 +2422,6 @@ class LStringCompareAndBranch: public LControlInstruction<2, 0> {
 };
 
 
-class LStringLength: public LTemplateInstruction<1, 1, 0> {
- public:
-  explicit LStringLength(LOperand* string) {
-    inputs_[0] = string;
-  }
-
-  LOperand* string() { return inputs_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(StringLength, "string-length")
-  DECLARE_HYDROGEN_ACCESSOR(StringLength)
-};
-
-
 // Truncating conversion from a tagged value to an int32.
 class LTaggedToI: public LTemplateInstruction<1, 1, 2> {
  public:
@@ -2816,7 +2794,7 @@ class LChunkBuilder BASE_EMBEDDED {
   CompilationInfo* info() const { return info_; }
   Heap* heap() const { return isolate()->heap(); }
 
-  void Abort(const char* reason);
+  void Abort(BailoutReason reason);
 
   // Methods for getting operands for Use / Define / Temp.
   LUnallocated* ToUnallocated(Register reg);

@@ -3450,11 +3450,7 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
   // This stub is meant to be tail-jumped to, the receiver must already
   // have been verified by the caller to not be a smi.
   if (__ emit_debug_code()) {
-    Label ok;
-    __ JumpIfNotSmi(receiver, &ok);
-    __ Abort("KeyedStoreStubCompiler::GenerateStoreExternalArray: "
-             "receiver is a SMI\n");
-    __ Bind(&ok);
+    __ AssertNotSmi(receiver);
   }
 
   // Check that the key is a smi or a heap number convertible to a smi.
@@ -3552,10 +3548,7 @@ static void GenerateStoreFastSmiOrDoubleElement(
   // This stub is meant to be tail-jumped to, the receiver must already
   // have been verified by the caller to not be a smi.
   if (__ emit_debug_code()) {
-    Label ok;
-    __ JumpIfNotSmi(receiver, &ok);
-    __ Abort("GenerateStoreFastSmiOrDoubleElement: receiver is a SMI\n");
-    __ Bind(&ok);
+    __ AssertNotSmi(receiver);
   }
 
   // Check that the key is a smi or a heap number convertible to a smi.
@@ -3647,8 +3640,7 @@ static void GenerateStoreFastSmiOrDoubleElement(
       // by one element.
       __ Ccmp(x1, x4, NoFlag, eq);
 
-      __ Check(eq, "GenerateStoreFastSmiOrDoubleElement [grow]: "
-                   "Preconditions were not met.");
+      __ Check(eq, kPreconditionsWereNotMet);
     }
 
     __ JumpIfNotRoot(elements, Heap::kEmptyFixedArrayRootIndex,

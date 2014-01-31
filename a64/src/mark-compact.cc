@@ -337,6 +337,11 @@ static void VerifyNativeContextSeparation(Heap* heap) {
 #endif
 
 
+void MarkCompactCollector::TearDown() {
+  AbortCompaction();
+}
+
+
 void MarkCompactCollector::AddEvacuationCandidate(Page* p) {
   p->MarkEvacuationCandidate();
   evacuation_candidates_.Add(p);

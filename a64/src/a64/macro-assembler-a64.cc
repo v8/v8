@@ -765,7 +765,7 @@ void MacroAssembler::Poke(const CPURegister& src, const Operand& offset) {
     ASSERT(offset.immediate() >= 0);
   } else if (emit_debug_code()) {
     Cmp(xzr, offset);
-    Check(le, "Poke offset is negative.");
+    Check(le, kStackAccessBelowStackPointer);
   }
 
   Str(src, MemOperand(StackPointer(), offset));
@@ -777,7 +777,7 @@ void MacroAssembler::Peek(const CPURegister& dst, const Operand& offset) {
     ASSERT(offset.immediate() >= 0);
   } else if (emit_debug_code()) {
     Cmp(xzr, offset);
-    Check(le, "Peek offset is negative.");
+    Check(le, kStackAccessBelowStackPointer);
   }
 
   Ldr(dst, MemOperand(StackPointer(), offset));
@@ -841,7 +841,7 @@ void MacroAssembler::AssertStackConsistency() {
       // some calling code assumes that the flags are preserved. For an example,
       // look at Builtins::Generate_ArgumentsAdaptorTrampoline.
       Cmp(csp, StackPointer());
-      Check(ls, "The current stack pointer is below csp.");
+      Check(ls, kTheCurrentStackPointerIsBelowCsp);
     }
   }
 }
@@ -878,38 +878,6 @@ void MacroAssembler::LoadHeapObject(Register result,
     Ldr(result, FieldMemOperand(result, Cell::kValueOffset));
   } else {
     Mov(result, Operand(object));
-  }
-}
-
-
-void MacroAssembler::CheckForInvalidValuesInCalleeSavedRegs(RegList list) {
-  if (emit_debug_code()) {
-    // Only check for callee-saved registers.
-    // TODO(jbramley): Why? We still don't want caller-saved registers to be
-    // pushed with invalid values. Perhaps we need a
-    // CheckForInvalidValuesInRegs for other cases.
-    Label invalid, ok;
-    list &= kJSCalleeSavedRegList;
-    for (unsigned i = kFirstCalleeSavedRegisterIndex; list != 0; i++) {
-      if (list & (1 << i)) {
-        // Clear the current register from the list.
-        list &= ~(1 << i);
-        Register current = Register(i, kXRegSize);
-        Label smi;
-        JumpIfSmi(current, &smi);
-        // TODO(all): Better check for invalid values in callee-saved registers.
-        // Check that the register is not in [0, 4 KB].
-        // This catches odd (untagged) integers.
-        // We should actually check that the pointer is valid.
-        Cmp(current, 4 * KB);
-        B(hs, &invalid);
-        Bind(&smi);
-      }
-    }
-    B(&ok);
-    Bind(&invalid);
-    Abort("Invalid value in a callee saved register.");
-    Bind(&ok);
   }
 }
 
@@ -1169,20 +1137,20 @@ void MacroAssembler::SmiAbs(Register smi, Register scratch, Label *slow) {
 }
 
 
-void MacroAssembler::AssertSmi(Register object, char const* fail_message) {
+void MacroAssembler::AssertSmi(Register object, BailoutReason reason) {
   if (emit_debug_code()) {
     STATIC_ASSERT(kSmiTag == 0);
     Tst(object, kSmiTagMask);
-    Check(eq, fail_message);
+    Check(eq, reason);
   }
 }
 
 
-void MacroAssembler::AssertNotSmi(Register object, char const* fail_message) {
+void MacroAssembler::AssertNotSmi(Register object, BailoutReason reason) {
   if (emit_debug_code()) {
     STATIC_ASSERT(kSmiTag == 0);
     Tst(object, kSmiTagMask);
-    Check(ne, fail_message);
+    Check(ne, reason);
   }
 }
 
@@ -1193,12 +1161,12 @@ void MacroAssembler::AssertName(Register object) {
     // TODO(jbramley): Add AbortIfSmi and related functions.
     Label not_smi;
     JumpIfNotSmi(object, &not_smi);
-    Abort("Operand is a smi and not a name");
+    Abort(kOperandIsASmiAndNotAName);
     Bind(&not_smi);
 
     Ldr(Tmp1(), FieldMemOperand(object, HeapObject::kMapOffset));
     CompareInstanceType(Tmp1(), Tmp1(), LAST_NAME_TYPE);
-    Check(ls, "Operand is not a name");
+    Check(ls, kOperandIsNotAName);
   }
 }
 
@@ -1208,20 +1176,10 @@ void MacroAssembler::AssertString(Register object) {
     Register temp = Tmp1();
     STATIC_ASSERT(kSmiTag == 0);
     Tst(object, kSmiTagMask);
-    Check(ne, "Operand is a smi and not a string");
+    Check(ne, kOperandIsASmiAndNotAString);
     Ldr(temp, FieldMemOperand(object, HeapObject::kMapOffset));
     CompareInstanceType(temp, temp, FIRST_NONSTRING_TYPE);
-    Check(lo, "Operand is not a string");
-  }
-}
-
-
-void MacroAssembler::AssertRootValue(Register src,
-                                     Heap::RootListIndex root_value_index,
-                                     const char* message) {
-  if (emit_debug_code()) {
-    CompareRoot(src, root_value_index);
-    Check(eq, message);
+    Check(lo, kOperandIsNotAString);
   }
 }
 
@@ -1393,7 +1351,7 @@ void MacroAssembler::CallApiFunctionAndReturn(ExternalReference function,
   if (emit_debug_code()) {
     Ldr(w1, MemOperand(handle_scope_base, kLevelOffset));
     Cmp(w1, level_reg);
-    Check(eq, "Unexpected level after return from api call");
+    Check(eq, kUnexpectedLevelAfterReturnFromApiCall);
   }
   Sub(level_reg, level_reg, 1);
   Str(level_reg, MemOperand(handle_scope_base, kLevelOffset));
@@ -1617,7 +1575,7 @@ void MacroAssembler::CallCFunction(Register function,
       // We want temp <= 0 && temp >= -12.
       Cmp(temp, 0);
       Ccmp(temp, -12, NFlag, le);
-      Check(ge, "The stack was corrupted by MacroAssembler::Call().");
+      Check(ge, kTheStackWasCorruptedByMacroAssemblerCall);
     }
     SetStackPointer(old_stack_pointer);
   }
@@ -2014,7 +1972,7 @@ void MacroAssembler::CopyFields(Register dst, Register src, CPURegList temps,
 
   if (emit_debug_code()) {
     Cmp(dst, src);
-    Check(ne, "In CopyFields, the destination is the same as the source.");
+    Check(ne, kTheSourceAndDestinationAreTheSame);
   }
 
   // The value of 'count' at which a loop will be generated (if there are
@@ -2050,14 +2008,18 @@ void MacroAssembler::CopyBytes(Register dst,
   if (emit_debug_code()) {
     // Check copy length.
     Cmp(length, 0);
-    Assert(ge, "Copy length < 0");
+    // TODO(all): Add this error code to objects.h.
+    // Assert(ge, kCopyLengthIsBelowZero);
+    Assert(ge, kUnknown);
 
     // Check src and dst buffers don't overlap.
     Add(scratch, src, length);  // Calculate end of src buffer.
     Cmp(scratch, dst);
     Add(scratch, dst, length);  // Calculate end of dst buffer.
     Ccmp(scratch, src, ZFlag, gt);
-    Assert(le, "CopyBytes src and dst buffers overlap");
+    // TODO(all): Add this error code to objects.h.
+    // Assert(le, kCopyBytesSrcAndDstBuffersOverlap);
+    Assert(le, kUnknown);
   }
 
   Label loop, done;
@@ -2100,7 +2062,11 @@ void MacroAssembler::JumpIfEitherIsNotSequentialAsciiStrings(
     ASSERT(smi_check == DONT_DO_SMI_CHECK);
     Label not_smi;
     JumpIfEitherSmi(first, second, NULL, &not_smi);
-    Abort("At least one input is a smi.");
+
+    // TODO(all): Add this error code to objects.h.
+    // Abort(kAtLeastOneInputIsASmi);
+    Abort(kUnknown);
+
     Bind(&not_smi);
   }
 
@@ -2557,7 +2523,9 @@ void MacroAssembler::ECMA262ToInt32(Register result,
 
   if (emit_debug_code()) {
     Cmp(exponent, HeapNumber::kExponentBias + 63);
-    Check(ge, "This input should have been handled by the FPU.");
+    // TODO(all): Add this error code to objects.h.
+    // Check(ge, kThisInputShouldHaveBeenHandledByTheFPU);
+    Check(ge, kUnknown);
   }
 
   // Isolate the mantissa bits, and set the implicit '1'.
@@ -2606,7 +2574,9 @@ void MacroAssembler::HeapNumberECMA262ToInt32(Register result,
     // Verify we indeed have a HeapNumber.
     Label ok;
     JumpIfHeapNumber(heap_number, &ok);
-    Abort("A HeapNumber is expected as input.");
+    // TODO(all): Add this error code to objects.h.
+    // Abort(kExpectedHeapNumber);
+    Abort(kUnknown);
     Bind(&ok);
   }
 
@@ -2921,7 +2891,7 @@ void MacroAssembler::Allocate(int object_size,
       // Assert that result actually contains top on entry.
       Ldr(Tmp0(), MemOperand(top_address));
       Cmp(result, Tmp0());
-      Check(eq, "Unexpected allocation top.");
+      Check(eq, kUnexpectedAllocationTop);
     }
     // Load the allocation limit. 'result' already contains the allocation top.
     Ldr(allocation_limit, MemOperand(top_address, limit - top));
@@ -2990,7 +2960,7 @@ void MacroAssembler::Allocate(Register object_size,
       // Assert that result actually contains top on entry.
       Ldr(Tmp0(), MemOperand(top_address));
       Cmp(result, Tmp0());
-      Check(eq, "Unexpected allocation top.");
+      Check(eq, kUnexpectedAllocationTop);
     }
     // Load the allocation limit. 'result' already contains the allocation top.
     Ldr(allocation_limit, MemOperand(top_address, limit - top));
@@ -3009,7 +2979,7 @@ void MacroAssembler::Allocate(Register object_size,
 
   if (emit_debug_code()) {
     Tst(Tmp1(), kObjectAlignmentMask);
-    Check(eq, "Unaligned allocation in new space");
+    Check(eq, kUnalignedAllocationInNewSpace);
   }
 
   B(vs, gc_required);
@@ -3036,7 +3006,9 @@ void MacroAssembler::UndoAllocationInNewSpace(Register object,
   Mov(scratch, Operand(new_space_allocation_top));
   Ldr(scratch, MemOperand(scratch));
   Cmp(object, scratch);
-  Check(lt, "Trying to undo allocation of non allocated memory.");
+  // TODO(all): Add this error code to objects.h.
+  // Check(lt, kTryingToUndoAllocationOfNonAllocatedMemory);
+  Check(lt, kUnknown);
 #endif
   // Write the address of the object to un-allocate as the current top.
   Mov(scratch, Operand(new_space_allocation_top));
@@ -3603,7 +3575,7 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
   // In debug mode, make sure the lexical context is set.
 #ifdef DEBUG
   Cmp(scratch, 0);
-  Check(ne, "we should not have an empty lexical context");
+  Check(ne, kWeShouldNotHaveAnEmptyLexicalContext);
 #endif
 
   // Load the native context of the current context.
@@ -3618,7 +3590,9 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
     Register temp = Tmp1();
     Ldr(temp, FieldMemOperand(scratch, HeapObject::kMapOffset));
     CompareRoot(temp, Heap::kNativeContextMapRootIndex);
-    Check(eq, "JSGlobalObject::native_context should be a native context.");
+    // TODO(all): Add this error code to objects.h.
+    // Check(eq, kExpectedNativeContext);
+    Check(eq, kUnknown);
   }
 
   // Check if both contexts are the same.
@@ -3632,11 +3606,15 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
     Register temp = Tmp1();
     mov(temp, Tmp0());
     CompareRoot(temp, Heap::kNullValueRootIndex);
-    Check(ne, "JSGlobalProxy::context() should not be null.");
+    // TODO(all): Add this error code to objects.h.
+    // Check(ne, kExpectedNonNullContext);
+    Check(ne, kUnknown);
 
     Ldr(temp, FieldMemOperand(temp, HeapObject::kMapOffset));
     CompareRoot(temp, Heap::kNativeContextMapRootIndex);
-    Check(eq, "JSGlobalObject::native_context should be a native context.");
+    // TODO(all): Add this error code to objects.h.
+    // Check(eq, kExpectedNativeContext);
+    Check(eq, kUnknown);
 
     // Let's consider that Tmp0() has been cloberred by the MacroAssembler.
     // We reload it with its value.
@@ -3764,7 +3742,9 @@ void MacroAssembler::RememberedSetHelper(Register object,  // For debug tests.
   if (emit_debug_code()) {
     Label ok;
     JumpIfNotInNewSpace(object, &ok);
-    Abort("Remembered set pointer is in new space");
+    // TODO(all): Add this error code to objects.h.
+    // Abort(kRememberedSetPointerIsInNewSpace);
+    Abort(kUnknown);
     bind(&ok);
   }
   // Load store buffer top.
@@ -3896,7 +3876,9 @@ void MacroAssembler::RecordWriteField(
     Label ok;
     Tst(scratch, (1 << kPointerSizeLog2) - 1);
     B(eq, &ok);
-    Abort("Unaligned cell in write barrier");
+    // TODO(all): Add this error code to objects.h.
+    // Abort(kUnalignedCellInWriteBarrier);
+    Abort(kUnknown);
     Bind(&ok);
   }
 
@@ -3947,7 +3929,7 @@ void MacroAssembler::RecordWrite(Register object,
   if (emit_debug_code()) {
     Ldr(Tmp0(), MemOperand(address));
     Cmp(Tmp0(), value);
-    Check(eq, "Wrong address or value passed to RecordWrite.");
+    Check(eq, kWrongAddressOrValuePassedToRecordWrite);
   }
 
   Label done;
@@ -4002,7 +3984,9 @@ void MacroAssembler::AssertHasValidColor(const Register& reg) {
     Label color_is_valid;
     Tbnz(reg, 0, &color_is_valid);
     Tbz(reg, 1, &color_is_valid);
-    Abort("Impossible color bit pattern found.");
+    // TODO(all): Add this error code to objects.h.
+    // Abort(kImpossibleColorBitPatternFound);
+    Abort(kUnknown);
     Bind(&color_is_valid);
   }
 }
@@ -4099,7 +4083,9 @@ void MacroAssembler::GetRelocatedValueLocation(Register ldr_location,
   if (emit_debug_code()) {
     And(result, result, LoadLiteralFMask);
     Cmp(result, LoadLiteralFixed);
-    Check(eq, "The instruction to patch should be a load literal.");
+    // TODO(all): Add this error code to objects.h.
+    // Check(eq, kTheInstructionToPatchShouldBeALoadLiteral);
+    Check(eq, kUnknown);
     // The instruction was clobbered. Reload it.
     Ldr(result, MemOperand(ldr_location));
   }
@@ -4201,17 +4187,17 @@ void MacroAssembler::EnsureNotWhite(
 }
 
 
-void MacroAssembler::Assert(Condition cond, const char* msg) {
+void MacroAssembler::Assert(Condition cond, BailoutReason reason) {
   if (emit_debug_code()) {
-    Check(cond, msg);
+    Check(cond, reason);
   }
 }
 
 
 
-void MacroAssembler::AssertRegisterIsClear(Register reg, const char* msg) {
+void MacroAssembler::AssertRegisterIsClear(Register reg, BailoutReason reason) {
   if (emit_debug_code()) {
-    CheckRegisterIsClear(reg, msg);
+    CheckRegisterIsClear(reg, reason);
   }
 }
 
@@ -4222,7 +4208,7 @@ void MacroAssembler::AssertRegisterIsRoot(Register reg,
   ASSERT(!reg.Is(Tmp0()));
   if (emit_debug_code()) {
     CompareRoot(reg, index);
-    Check(eq, "Register did not match expected root");
+    Check(eq, kRegisterDidNotMatchExpectedRoot);
   }
 }
 
@@ -4235,7 +4221,7 @@ void MacroAssembler::AssertFastElements(Register elements) {
     JumpIfRoot(temp, Heap::kFixedArrayMapRootIndex, &ok);
     JumpIfRoot(temp, Heap::kFixedDoubleArrayMapRootIndex, &ok);
     JumpIfRoot(temp, Heap::kFixedCOWArrayMapRootIndex, &ok);
-    Abort("JSObject with fast elements map has slow elements");
+    Abort(kJSObjectWithFastElementsMapHasSlowElements);
     Bind(&ok);
   }
 }
@@ -4246,38 +4232,36 @@ void MacroAssembler::AssertIsString(const Register& object) {
     Register temp = Tmp1();
     STATIC_ASSERT(kSmiTag == 0);
     Tst(object, Operand(kSmiTagMask));
-    Check(ne, "Operand is not a string");
+    Check(ne, kOperandIsNotAString);
     Ldr(temp, FieldMemOperand(object, HeapObject::kMapOffset));
     CompareInstanceType(temp, temp, FIRST_NONSTRING_TYPE);
-    Check(lo, "Operand is not a string");
+    Check(lo, kOperandIsNotAString);
   }
 }
 
 
-void MacroAssembler::Check(Condition cond, const char* msg) {
+void MacroAssembler::Check(Condition cond, BailoutReason reason) {
   Label ok;
   B(cond, &ok);
-  Abort(msg);
+  Abort(reason);
   // Will not return here.
   Bind(&ok);
 }
 
 
-void MacroAssembler::CheckRegisterIsClear(Register reg, const char* msg) {
+void MacroAssembler::CheckRegisterIsClear(Register reg, BailoutReason reason) {
   Label ok;
   Cbz(reg, &ok);
-  Abort(msg);
+  Abort(reason);
   // Will not return here.
   Bind(&ok);
 }
 
 
-void MacroAssembler::Abort(const char* msg) {
+void MacroAssembler::Abort(BailoutReason reason) {
 #ifdef DEBUG
-  if (msg != NULL) {
-    RecordComment("Abort message: ");
-    RecordComment(msg);
-  }
+  RecordComment("Abort message: ");
+  RecordComment(GetBailoutReason(reason));
 #endif
 
   Label msg_address;
@@ -4321,7 +4305,9 @@ void MacroAssembler::Abort(const char* msg) {
   {
     BlockConstPoolScope scope(this);
     Bind(&msg_address);
-    EmitStringData(msg);
+    // TODO(jbramley): Since the reason is an enum, why do we still encode the
+    // string (and a pointer to it) in the instruction stream?
+    EmitStringData(GetBailoutReason(reason));
   }
 }
 
@@ -4404,7 +4390,9 @@ void MacroAssembler::LoadGlobalFunctionInitialMap(Register function,
     CheckMap(map, scratch, Heap::kMetaMapRootIndex, &fail, DO_SMI_CHECK);
     B(&ok);
     Bind(&fail);
-    Abort("Global function must have initial map");
+    // TODO(all): Add this error code to objects.h.
+    // Abort(kGlobalFunctionMustHaveInitialMap);
+    Abort(kUnknown);
     Bind(&ok);
   }
 }

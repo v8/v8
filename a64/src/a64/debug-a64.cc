@@ -372,12 +372,12 @@ void Debug::GenerateSlotDebugBreak(MacroAssembler* masm) {
 
 
 void Debug::GeneratePlainReturnLiveEdit(MacroAssembler* masm) {
-  masm->Abort("LiveEdit frame dropping is not supported on a64.");
+  masm->Abort(kLiveEditFrameDroppingIsNotSupportedOnA64);
 }
 
 
 void Debug::GenerateFrameDropperLiveEdit(MacroAssembler* masm) {
-  masm->Abort("LiveEdit frame dropping is not supported on a64.");
+  masm->Abort(kLiveEditFrameDroppingIsNotSupportedOnA64);
 }
 
 const bool Debug::kFrameDropperSupported = false;

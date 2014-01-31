@@ -233,16 +233,22 @@ static bool TryRemoveInvalidPrototypeDependentStub(Code* target,
 
   // The stub is not in the cache. We've ruled out all other kinds of failure
   // except for proptotype chain changes, a deprecated map, a map that's
-  // different from the one that the stub expects, or a constant global property
-  // that will become mutable. Threat all those situations as prototype failures
-  // (stay monomorphic if possible).
+  // different from the one that the stub expects, elements kind changes, or a
+  // constant global property that will become mutable. Threat all those
+  // situations as prototype failures (stay monomorphic if possible).
 
   // If the IC is shared between multiple receivers (slow dictionary mode), then
   // the map cannot be deprecated and the stub invalidated.
   if (cache_holder == OWN_MAP) {
     Map* old_map = target->FindFirstMap();
     if (old_map == map) return true;
-    if (old_map != NULL && old_map->is_deprecated()) return true;
+    if (old_map != NULL) {
+      if (old_map->is_deprecated()) return true;
+      if (IsMoreGeneralElementsKindTransition(old_map->elements_kind(),
+                                              map->elements_kind())) {
+        return true;
+      }
+    }
   }
 
   if (receiver->IsGlobalObject()) {

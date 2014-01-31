@@ -24,33 +24,40 @@
 // THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-// limitations under the License.
 
-#ifndef V8_EXTENSIONS_I18N_SRC_LOCALE_H_
-#define V8_EXTENSIONS_I18N_SRC_LOCALE_H_
+#ifndef V8_HYDROGEN_MARK_DEOPTIMIZE_H_
+#define V8_HYDROGEN_MARK_DEOPTIMIZE_H_
 
-#include "unicode/uversion.h"
-#include "v8.h"
+#include "hydrogen.h"
 
-namespace v8_i18n {
+namespace v8 {
+namespace internal {
 
-// Canonicalizes the BCP47 language tag using BCP47 rules.
-// Returns 'invalid-tag' in case input was not well formed.
-void JSCanonicalizeLanguageTag(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-// Returns a list of available locales for collator, date or number formatter.
-void JSAvailableLocalesOf(const v8::FunctionCallbackInfo<v8::Value>& args);
+// Compute DeoptimizeOnUndefined flag for phis.  Any phi that can reach a use
+// with DeoptimizeOnUndefined set must have DeoptimizeOnUndefined set.
+// Currently only HCompareNumericAndBranch, with double input representation,
+// has this flag set.  The flag is used by HChange tagged->double, which must
+// deoptimize if one of its uses has this flag set.
+class HMarkDeoptimizeOnUndefinedPhase : public HPhase {
+ public:
+  explicit HMarkDeoptimizeOnUndefinedPhase(HGraph* graph)
+      : HPhase("H_Mark deoptimize on undefined", graph),
+        worklist_(16, zone()) {}
 
-// Returns default ICU locale.
-void JSGetDefaultICULocale(const v8::FunctionCallbackInfo<v8::Value>& args);
+  void Run();
 
-// Returns an array of objects, that have maximized and base names of inputs.
-// Unicode extensions are dropped from both.
-// Input: ['zh-TW-u-nu-thai', 'sr']
-// Output: [{maximized: 'zh-Hant-TW', base: 'zh-TW'},
-//          {maximized: 'sr-Cyrl-RS', base: 'sr'}]
-void JSGetLanguageTagVariants(const v8::FunctionCallbackInfo<v8::Value>& args);
+ private:
+  void ProcessPhi(HPhi* phi);
 
-}  // namespace v8_i18n
+  // Preallocated worklist used as an optimization so we don't have
+  // to allocate a new ZoneList for every ProcessPhi() invocation.
+  ZoneList<HPhi*> worklist_;
 
-#endif  // V8_EXTENSIONS_I18N_LOCALE_H_
+  DISALLOW_COPY_AND_ASSIGN(HMarkDeoptimizeOnUndefinedPhase);
+};
+
+
+} }  // namespace v8::internal
+
+#endif  // V8_HYDROGEN_MARK_DEOPTIMIZE_H_

@@ -790,9 +790,9 @@ void FullCodeGenerator::EmitDebugCheckDeclarationContext(Variable* variable) {
     // Check that we're not inside a with or catch context.
     __ Ldr(x1, FieldMemOperand(cp, HeapObject::kMapOffset));
     __ CompareRoot(x1, Heap::kWithContextMapRootIndex);
-    __ Check(ne, "Declaration in with context.");
+    __ Check(ne, kDeclarationInWithContext);
     __ CompareRoot(x1, Heap::kCatchContextMapRootIndex);
-    __ Check(ne, "Declaration in catch context.");
+    __ Check(ne, kDeclarationInCatchContext);
   }
 }
 
@@ -2239,7 +2239,7 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
       if (FLAG_debug_code && op == Token::INIT_LET) {
         __ Ldr(x10, location);
         __ CompareRoot(x10, Heap::kTheHoleValueRootIndex);
-        __ Check(eq, "Let binding re-initialization.");
+        __ Check(eq, kLetBindingReInitialization);
       }
       // Perform the assignment.
       __ Str(x0, location);
@@ -3223,22 +3223,22 @@ void FullCodeGenerator::EmitSeqStringSetCharCheck(Register string,
   Register scratch = __ Tmp1();
   ASSERT(!AreAliased(string, index, value, scratch));
 
-  __ AssertSmi(index, "Non-smi index");
-  __ AssertSmi(value, "Non-smi value");
+  __ AssertSmi(index);
+  __ AssertSmi(value);
 
   __ Ldr(scratch, FieldMemOperand(string, String::kLengthOffset));
   __ Cmp(index, scratch);
-  __ Check(lt, "Index is too large");
+  __ Check(lt, kIndexIsTooLarge);
 
   __ Cmp(index, Operand(Smi::FromInt(0)));
-  __ Check(ge, "Index is negative");
+  __ Check(ge, kIndexIsNegative);
 
   __ Ldr(scratch, FieldMemOperand(string, HeapObject::kMapOffset));
   __ Ldrb(scratch, FieldMemOperand(scratch, Map::kInstanceTypeOffset));
   __ And(scratch, scratch, kStringRepresentationMask | kStringEncodingMask);
 
   __ Cmp(scratch, encoding_mask);
-  __ Check(eq, "Unexpected string type");
+  __ Check(eq, kUnexpectedStringType);
 }
 
 
@@ -3601,7 +3601,7 @@ void FullCodeGenerator::EmitGetFromCache(CallRuntime* expr) {
   Handle<FixedArray> jsfunction_result_caches(
       isolate()->native_context()->jsfunction_result_caches());
   if (jsfunction_result_caches->length() <= cache_id) {
-    __ Abort("Attempt to use undefined cache.");
+    __ Abort(kAttemptToUseUndefinedCache);
     __ LoadRoot(x0, Heap::kUndefinedValueRootIndex);
     context()->Plug(x0);
     return;
@@ -3791,7 +3791,7 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) {
   //   elements_end: Array end.
   if (FLAG_debug_code) {
     __ Cmp(array_length, Operand(0));
-    __ Assert(gt, "No empty arrays here in EmitFastAsciiArrayJoin");
+    __ Assert(gt, kNoEmptyArraysHereInEmitFastAsciiArrayJoin);
   }
   __ Bind(&loop);
   __ Ldr(string, MemOperand(element, kPointerSize, PostIndex));
