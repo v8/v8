@@ -471,10 +471,8 @@ static void GenerateFastApiCall(MacroAssembler* masm,
 class CallInterceptorCompiler BASE_EMBEDDED {
  public:
   CallInterceptorCompiler(CallStubCompiler* stub_compiler,
-                          const ParameterCount& arguments,
                           Register name)
       : stub_compiler_(stub_compiler),
-        arguments_(arguments),
         name_(name) {}
 
   void Compile(MacroAssembler* masm,
@@ -609,7 +607,6 @@ class CallInterceptorCompiler BASE_EMBEDDED {
   }
 
   CallStubCompiler* stub_compiler_;
-  const ParameterCount& arguments_;
   Register name_;
 };
 
@@ -1465,7 +1462,7 @@ Handle<Code> CallStubCompiler::CompileCallInterceptor(Handle<JSObject> object,
   StackArgumentsAccessor args(rsp, arguments());
   __ movp(rdx, args.GetReceiverOperand());
 
-  CallInterceptorCompiler compiler(this, arguments(), rcx);
+  CallInterceptorCompiler compiler(this, rcx);
   compiler.Compile(masm(), object, holder, name, &lookup, rdx, rbx, rdi, rax,
                    &miss);
 
