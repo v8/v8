@@ -1278,7 +1278,6 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
   // the additional space allocated for the fast call).
   void CallApiFunctionAndReturn(Register function_address,
                                 ExternalReference thunk_ref,
-                                Register thunk_last_arg,
                                 int stack_space,
                                 MemOperand return_value_operand,
                                 MemOperand* context_restore_operand);
