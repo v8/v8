@@ -155,7 +155,7 @@ int MacroAssembler::LoadAddressSize(ExternalReference source) {
     }
   }
   // Size of movq(destination, src);
-  return 10;
+  return Assembler::kMoveAddressIntoScratchRegisterInstructionLength;
 }
 
 
@@ -2511,8 +2511,8 @@ void MacroAssembler::Jump(Handle<Code> code_object, RelocInfo::Mode rmode) {
 
 int MacroAssembler::CallSize(ExternalReference ext) {
   // Opcode for call kScratchRegister is: Rex.B FF D4 (three bytes).
-  const int kCallInstructionSize = 3;
-  return LoadAddressSize(ext) + kCallInstructionSize;
+  return LoadAddressSize(ext) +
+         Assembler::kCallScratchRegisterInstructionLength;
 }
 
 
@@ -2799,9 +2799,9 @@ void MacroAssembler::Ret(int bytes_dropped, Register scratch) {
   if (is_uint16(bytes_dropped)) {
     ret(bytes_dropped);
   } else {
-    pop(scratch);
+    PopReturnAddressTo(scratch);
     addq(rsp, Immediate(bytes_dropped));
-    push(scratch);
+    PushReturnAddressFrom(scratch);
     ret(0);
   }
 }
@@ -3568,8 +3568,7 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles) {
   // from the caller stack.
   lea(rsp, Operand(r15, 1 * kPointerSize));
 
-  // Push the return address to get ready to return.
-  push(rcx);
+  PushReturnAddressFrom(rcx);
 
   LeaveExitFrameEpilogue();
 }

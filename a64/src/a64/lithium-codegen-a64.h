@@ -67,7 +67,8 @@ class LCodeGen BASE_EMBEDDED {
         frame_is_built_(false),
         safepoints_(info->zone()),
         resolver_(this),
-        expected_safepoint_kind_(Safepoint::kSimple) {
+        expected_safepoint_kind_(Safepoint::kSimple),
+        old_position_(RelocInfo::kNoPosition) {
     PopulateDeoptimizationLiteralsWithInlinedFunctions();
   }
 
@@ -175,8 +176,8 @@ class LCodeGen BASE_EMBEDDED {
                            LOperand* temp1,
                            LOperand* temp2);
   void DoDeferredAllocate(LAllocate* instr);
-
   void DoDeferredInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr);
+  void DoDeferredInstanceMigration(LCheckMaps* instr, Register object);
 
   Operand ToOperand32(LOperand* op, IntegerSignedness signedness);
 
@@ -288,10 +289,13 @@ class LCodeGen BASE_EMBEDDED {
   // Emit frame translation commands for an environment.
   void WriteTranslation(LEnvironment* environment, Translation* translation);
 
-  void AddToTranslation(Translation* translation,
+  void AddToTranslation(LEnvironment* environment,
+                        Translation* translation,
                         LOperand* op,
                         bool is_tagged,
-                        bool is_uint32);
+                        bool is_uint32,
+                        int* object_index_pointer,
+                        int* dematerialized_index_pointer);
 
   // Code generation steps.  Returns true if code generation should continue.
   bool GeneratePrologue();
@@ -342,6 +346,7 @@ class LCodeGen BASE_EMBEDDED {
 
   // Support for recording safepoint and position information.
   void RecordPosition(int position);
+  void RecordAndUpdatePosition(int position);
   void RecordSafepoint(LPointerMap* pointers,
                        Safepoint::Kind kind,
                        int arguments,
@@ -384,6 +389,8 @@ class LCodeGen BASE_EMBEDDED {
   LGapResolver resolver_;
 
   Safepoint::Kind expected_safepoint_kind_;
+
+  int old_position_;
 
   class PushSafepointRegistersScope BASE_EMBEDDED {
    public:

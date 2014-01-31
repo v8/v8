@@ -823,6 +823,10 @@ class MacroAssembler: public Assembler {
   void Drop(int stack_elements);
 
   void Call(Label* target) { call(target); }
+  void Push(Register src) { push(src); }
+  void Pop(Register dst) { pop(dst); }
+  void PushReturnAddressFrom(Register src) { push(src); }
+  void PopReturnAddressTo(Register dst) { pop(dst); }
 
   // Control Flow
   void Jump(Address destination, RelocInfo::Mode rmode);
@@ -837,7 +841,7 @@ class MacroAssembler: public Assembler {
 
   // The size of the code generated for different call instructions.
   int CallSize(Address destination, RelocInfo::Mode rmode) {
-    return kCallInstructionLength;
+    return kCallSequenceLength;
   }
   int CallSize(ExternalReference ext);
   int CallSize(Handle<Code> code_object) {

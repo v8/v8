@@ -335,6 +335,7 @@ const int kStubMinorKeyBits = kBitsPerInt - kSmiTagSize - kStubMajorKeyBits;
   V(CONS_STRING_TYPE)                                                          \
   V(CONS_ASCII_STRING_TYPE)                                                    \
   V(SLICED_STRING_TYPE)                                                        \
+  V(SLICED_ASCII_STRING_TYPE)                                                  \
   V(EXTERNAL_STRING_TYPE)                                                      \
   V(EXTERNAL_ASCII_STRING_TYPE)                                                \
   V(EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE)                                   \
@@ -418,6 +419,8 @@ const int kStubMinorKeyBits = kBitsPerInt - kSmiTagSize - kStubMajorKeyBits;
   V(JS_TYPED_ARRAY_TYPE)                                                       \
   V(JS_DATA_VIEW_TYPE)                                                         \
   V(JS_PROXY_TYPE)                                                             \
+  V(JS_SET_TYPE)                                                               \
+  V(JS_MAP_TYPE)                                                               \
   V(JS_WEAK_MAP_TYPE)                                                          \
   V(JS_WEAK_SET_TYPE)                                                          \
   V(JS_REGEXP_TYPE)                                                            \
@@ -785,7 +788,6 @@ enum InstanceType {
   // Pseudo-types
   FIRST_TYPE = 0x0,
   LAST_TYPE = JS_FUNCTION_TYPE,
-  INVALID_TYPE = FIRST_TYPE - 1,
   FIRST_NAME_TYPE = FIRST_TYPE,
   LAST_NAME_TYPE = SYMBOL_TYPE,
   FIRST_UNIQUE_NAME_TYPE = INTERNALIZED_STRING_TYPE,
@@ -4806,7 +4808,6 @@ class Code: public HeapObject {
   V(KEYED_CALL_IC)      \
   V(STORE_IC)           \
   V(KEYED_STORE_IC)     \
-  V(UNARY_OP_IC)        \
   V(BINARY_OP_IC)       \
   V(COMPARE_IC)         \
   V(COMPARE_NIL_IC)     \
@@ -4925,8 +4926,7 @@ class Code: public HeapObject {
     // TODO(danno): This is a bit of a hack right now since there are still
     // clients of this API that pass "extra" values in for argc. These clients
     // should be retrofitted to used ExtendedExtraICState.
-    return kind == COMPARE_NIL_IC || kind == TO_BOOLEAN_IC ||
-           kind == UNARY_OP_IC;
+    return kind == COMPARE_NIL_IC || kind == TO_BOOLEAN_IC;
   }
 
   inline StubType type();  // Only valid for monomorphic IC stubs.
@@ -4941,7 +4941,6 @@ class Code: public HeapObject {
   inline bool is_keyed_store_stub() { return kind() == KEYED_STORE_IC; }
   inline bool is_call_stub() { return kind() == CALL_IC; }
   inline bool is_keyed_call_stub() { return kind() == KEYED_CALL_IC; }
-  inline bool is_unary_op_stub() { return kind() == UNARY_OP_IC; }
   inline bool is_binary_op_stub() { return kind() == BINARY_OP_IC; }
   inline bool is_compare_ic_stub() { return kind() == COMPARE_IC; }
   inline bool is_compare_nil_ic_stub() { return kind() == COMPARE_NIL_IC; }
@@ -5014,10 +5013,6 @@ class Code: public HeapObject {
   // receiver is valid for the given call.
   inline CheckType check_type();
   inline void set_check_type(CheckType value);
-
-  // [type-recording unary op type]: For kind UNARY_OP_IC.
-  inline byte unary_op_type();
-  inline void set_unary_op_type(byte value);
 
   // [to_boolean_foo]: For kind TO_BOOLEAN_IC tells what state the stub is in.
   inline byte to_boolean_state();
@@ -5257,9 +5252,6 @@ class Code: public HeapObject {
   // KindSpecificFlags1 layout (STUB and OPTIMIZED_FUNCTION)
   static const int kStackSlotsFirstBit = 0;
   static const int kStackSlotsBitCount = 24;
-  static const int kUnaryOpTypeFirstBit =
-      kStackSlotsFirstBit + kStackSlotsBitCount;
-  static const int kUnaryOpTypeBitCount = 3;
   static const int kHasFunctionCacheFirstBit =
       kStackSlotsFirstBit + kStackSlotsBitCount;
   static const int kHasFunctionCacheBitCount = 1;
@@ -5268,15 +5260,12 @@ class Code: public HeapObject {
   static const int kMarkedForDeoptimizationBitCount = 1;
 
   STATIC_ASSERT(kStackSlotsFirstBit + kStackSlotsBitCount <= 32);
-  STATIC_ASSERT(kUnaryOpTypeFirstBit + kUnaryOpTypeBitCount <= 32);
   STATIC_ASSERT(kHasFunctionCacheFirstBit + kHasFunctionCacheBitCount <= 32);
   STATIC_ASSERT(kMarkedForDeoptimizationFirstBit +
                 kMarkedForDeoptimizationBitCount <= 32);
 
   class StackSlotsField: public BitField<int,
       kStackSlotsFirstBit, kStackSlotsBitCount> {};  // NOLINT
-  class UnaryOpTypeField: public BitField<int,
-      kUnaryOpTypeFirstBit, kUnaryOpTypeBitCount> {};  // NOLINT
   class HasFunctionCacheField: public BitField<bool,
       kHasFunctionCacheFirstBit, kHasFunctionCacheBitCount> {};  // NOLINT
   class MarkedForDeoptimizationField: public BitField<bool,
@@ -5481,8 +5470,8 @@ class Map: public HeapObject {
   inline void set_bit_field2(byte value);
 
   // Bit field 3.
-  inline int bit_field3();
-  inline void set_bit_field3(int value);
+  inline uint32_t bit_field3();
+  inline void set_bit_field3(uint32_t bits);
 
   class EnumLengthBits:             public BitField<int,   0, 11> {};
   class NumberOfOwnDescriptorsBits: public BitField<int,  11, 11> {};
@@ -5494,6 +5483,7 @@ class Map: public HeapObject {
   class Deprecated:                 public BitField<bool, 27,  1> {};
   class IsFrozen:                   public BitField<bool, 28,  1> {};
   class IsUnstable:                 public BitField<bool, 29,  1> {};
+  class IsMigrationTarget:          public BitField<bool, 30,  1> {};
 
   // Tells whether the object in the prototype property will be used
   // for instances created from this function.  If the prototype
@@ -5800,6 +5790,8 @@ class Map: public HeapObject {
   inline bool is_frozen();
   inline void mark_unstable();
   inline bool is_stable();
+  inline void set_migration_target(bool value);
+  inline bool is_migration_target();
   inline void deprecate();
   inline bool is_deprecated();
   inline bool CanBeDeprecated();
@@ -5946,7 +5938,6 @@ class Map: public HeapObject {
   // the descriptor array.
   inline void NotifyLeafMapLayoutChange();
 
-  inline bool CanOmitPrototypeChecks();
   inline bool CanOmitMapChecks();
 
   void AddDependentCompilationInfo(DependentCode::DependencyGroup group,
@@ -5963,7 +5954,7 @@ class Map: public HeapObject {
 
 #ifdef VERIFY_HEAP
   void SharedMapVerify();
-  void VerifyOmittedPrototypeChecks();
+  void VerifyOmittedMapChecks();
 #endif
 
   inline int visitor_id();
@@ -10092,6 +10083,7 @@ class BreakPointInfo: public Struct {
   V(kHandleScope, "handlescope", "(Handle scope)")                      \
   V(kBuiltins, "builtins", "(Builtins)")                                \
   V(kGlobalHandles, "globalhandles", "(Global handles)")                \
+  V(kEternalHandles, "eternalhandles", "(Eternal handles)")             \
   V(kThreadManager, "threadmanager", "(Thread manager)")                \
   V(kExtensions, "Extensions", "(Extensions)")
 

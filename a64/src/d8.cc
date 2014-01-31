@@ -1583,9 +1583,9 @@ static void DumpHeapConstants(i::Isolate* isolate) {
   // Dump the KNOWN_MAP table to the console.
   printf("\n# List of known V8 maps.\n");
 #define ROOT_LIST_CASE(type, name, camel_name) \
-  if (o == heap->name()) n = #camel_name;
+  if (n == NULL && o == heap->name()) n = #camel_name;
 #define STRUCT_LIST_CASE(upper_name, camel_name, name) \
-  if (o == heap->name##_map()) n = #camel_name "Map";
+  if (n == NULL && o == heap->name##_map()) n = #camel_name "Map";
   i::HeapObjectIterator it(heap->map_space());
   printf("KNOWN_MAPS = {\n");
   for (i::Object* o = it.Next(); o != NULL; o = it.Next()) {
@@ -1605,7 +1605,7 @@ static void DumpHeapConstants(i::Isolate* isolate) {
   // Dump the KNOWN_OBJECTS table to the console.
   printf("\n# List of known V8 objects.\n");
 #define ROOT_LIST_CASE(type, name, camel_name) \
-  if (o == heap->name()) n = #camel_name;
+  if (n == NULL && o == heap->name()) n = #camel_name;
   i::OldSpaces spit(heap);
   printf("KNOWN_OBJECTS = {\n");
   for (i::PagedSpace* s = spit.next(); s != NULL; s = spit.next()) {
@@ -1635,7 +1635,13 @@ class ShellArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
   virtual void* AllocateUninitialized(size_t length) {
     return malloc(length);
   }
-  virtual void Free(void* data) { free(data); }
+  virtual void Free(void* data, size_t) { free(data); }
+  // TODO(dslomov): Remove when v8:2823 is fixed.
+  virtual void Free(void* data) {
+#ifndef V8_SHARED
+    UNREACHABLE();
+#endif
+  }
 };
 
 

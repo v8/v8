@@ -189,9 +189,7 @@ namespace internal {
   V(Symbol, elements_transition_symbol, ElementsTransitionSymbol)              \
   V(SeededNumberDictionary, empty_slow_element_dictionary,                     \
       EmptySlowElementDictionary)                                              \
-  V(Symbol, observed_symbol, ObservedSymbol)                                   \
-  V(HeapObject, i18n_template_one, I18nTemplateOne)                            \
-  V(HeapObject, i18n_template_two, I18nTemplateTwo)
+  V(Symbol, observed_symbol, ObservedSymbol)
 
 #define ROOT_LIST(V)                                  \
   STRONG_ROOT_LIST(V)                                 \
@@ -738,7 +736,7 @@ class Heap {
   // failed.
   // Please note this does not perform a garbage collection.
   MUST_USE_RESULT MaybeObject* AllocateJSObjectFromMap(
-      Map* map, PretenureFlag pretenure = NOT_TENURED);
+      Map* map, PretenureFlag pretenure = NOT_TENURED, bool alloc_props = true);
 
   MUST_USE_RESULT MaybeObject* AllocateJSObjectFromMapWithAllocationSite(
       Map* map, Handle<AllocationSite> allocation_site);
@@ -1256,10 +1254,7 @@ class Heap {
   void EnsureHeapIsIterable();
 
   // Notify the heap that a context has been disposed.
-  int NotifyContextDisposed() {
-    flush_monomorphic_ics_ = true;
-    return ++contexts_disposed_;
-  }
+  int NotifyContextDisposed();
 
   // Utility to invoke the scavenger. This is needed in test code to
   // ensure correct callback for weak global handles.
@@ -1301,12 +1296,6 @@ class Heap {
   void SetGlobalGCEpilogueCallback(GCCallback callback) {
     ASSERT((callback == NULL) ^ (global_gc_epilogue_callback_ == NULL));
     global_gc_epilogue_callback_ = callback;
-  }
-  void SetI18nTemplateOne(ObjectTemplateInfo* tmpl) {
-    set_i18n_template_one(tmpl);
-  }
-  void SetI18nTemplateTwo(ObjectTemplateInfo* tmpl) {
-    set_i18n_template_two(tmpl);
   }
 
   // Heap root getters.  We have versions with and without type::cast() here.

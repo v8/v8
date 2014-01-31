@@ -760,6 +760,14 @@ class MinidumpReader(object):
     elif self.arch == MD_CPU_ARCHITECTURE_X86:
       return self.exception_context.esp
 
+  def ExceptionFP(self):
+    if self.arch == MD_CPU_ARCHITECTURE_AMD64:
+      return self.exception_context.rbp
+    elif self.arch == MD_CPU_ARCHITECTURE_ARM:
+      return None
+    elif self.arch == MD_CPU_ARCHITECTURE_X86:
+      return self.exception_context.ebp
+
   def FormatIntPtr(self, value):
     if self.arch == MD_CPU_ARCHITECTURE_AMD64:
       return "%016x" % value
@@ -1951,11 +1959,15 @@ def AnalyzeMinidump(options, minidump_name):
       print "Kthxbye."
   elif not options.command:
     if reader.exception is not None:
+      frame_pointer = reader.ExceptionFP()
       print "Annotated stack (from exception.esp to bottom):"
       for slot in xrange(stack_top, stack_bottom, reader.PointerSize()):
         maybe_address = reader.ReadUIntPtr(slot)
         heap_object = heap.FindObject(maybe_address)
         maybe_symbol = reader.FindSymbol(maybe_address)
+        if slot == frame_pointer:
+          maybe_symbol = "<---- frame pointer"
+          frame_pointer = maybe_address
         print "%s: %s %s" % (reader.FormatIntPtr(slot),
                              reader.FormatIntPtr(maybe_address),
                              maybe_symbol or "")

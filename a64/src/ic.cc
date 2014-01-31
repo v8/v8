@@ -390,7 +390,6 @@ void IC::Clear(Address address) {
     case Code::KEYED_CALL_IC:  return KeyedCallIC::Clear(address, target);
     case Code::COMPARE_IC: return CompareIC::Clear(address, target);
     case Code::COMPARE_NIL_IC: return CompareNilIC::Clear(address, target);
-    case Code::UNARY_OP_IC:
     case Code::BINARY_OP_IC:
     case Code::TO_BOOLEAN_IC:
       // Clearing these is tricky and does not
@@ -2586,27 +2585,6 @@ void BinaryOpIC::StubInfoToType(int minor_key,
   *left = TypeInfoToType(left_typeinfo, isolate);
   *right = TypeInfoToType(right_typeinfo, isolate);
   *result = TypeInfoToType(result_typeinfo, isolate);
-}
-
-
-MaybeObject* UnaryOpIC::Transition(Handle<Object> object) {
-  Code::ExtraICState extra_ic_state = target()->extended_extra_ic_state();
-  UnaryOpStub stub(extra_ic_state);
-
-  stub.UpdateStatus(object);
-
-  Handle<Code> code = stub.GetCode(isolate());
-  set_target(*code);
-
-  return stub.Result(object, isolate());
-}
-
-
-RUNTIME_FUNCTION(MaybeObject*, UnaryOpIC_Miss) {
-  HandleScope scope(isolate);
-  Handle<Object> object = args.at<Object>(0);
-  UnaryOpIC ic(isolate);
-  return ic.Transition(object);
 }
 
 

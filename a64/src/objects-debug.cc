@@ -366,9 +366,12 @@ void Map::SharedMapVerify() {
 }
 
 
-void Map::VerifyOmittedPrototypeChecks() {
-  if (!FLAG_omit_prototype_checks_for_leaf_maps) return;
-  if (HasTransitionArray() || is_dictionary_map()) {
+void Map::VerifyOmittedMapChecks() {
+  if (!FLAG_omit_map_checks_for_leaf_maps) return;
+  if (!is_stable() ||
+      is_deprecated() ||
+      HasTransitionArray() ||
+      is_dictionary_map()) {
     CHECK_EQ(0, dependent_code()->number_of_entries(
         DependentCode::kPrototypeCheckGroup));
   }

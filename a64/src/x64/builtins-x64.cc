@@ -59,9 +59,9 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm,
   int num_extra_args = 0;
   if (extra_args == NEEDS_CALLED_FUNCTION) {
     num_extra_args = 1;
-    __ pop(kScratchRegister);  // Save return address.
+    __ PopReturnAddressTo(kScratchRegister);
     __ push(rdi);
-    __ push(kScratchRegister);  // Restore return address.
+    __ PushReturnAddressFrom(kScratchRegister);
   } else {
     ASSERT(extra_args == NO_EXTRA_ARGUMENTS);
   }
@@ -429,10 +429,10 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
   }
 
   // Remove caller arguments from the stack and return.
-  __ pop(rcx);
+  __ PopReturnAddressTo(rcx);
   SmiIndex index = masm->SmiToIndex(rbx, rbx, kPointerSizeLog2);
   __ lea(rsp, Operand(rsp, index.reg, index.scale, 1 * kPointerSize));
-  __ push(rcx);
+  __ PushReturnAddressFrom(rcx);
   Counters* counters = masm->isolate()->counters();
   __ IncrementCounter(counters->constructed_objects(), 1);
   __ ret(0);
@@ -772,9 +772,9 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   { Label done;
     __ testq(rax, rax);
     __ j(not_zero, &done);
-    __ pop(rbx);
+    __ PopReturnAddressTo(rbx);
     __ Push(masm->isolate()->factory()->undefined_value());
-    __ push(rbx);
+    __ PushReturnAddressFrom(rbx);
     __ incq(rax);
     __ bind(&done);
   }
@@ -895,9 +895,9 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ cmpq(rdx, Immediate(1));
     __ j(not_equal, &non_proxy);
 
-    __ pop(rdx);   // return address
+    __ PopReturnAddressTo(rdx);
     __ push(rdi);  // re-add proxy object as additional argument
-    __ push(rdx);
+    __ PushReturnAddressFrom(rdx);
     __ incq(rax);
     __ GetBuiltinEntry(rdx, Builtins::CALL_FUNCTION_PROXY);
     __ jmp(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
@@ -1182,9 +1182,9 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
   __ testq(rax, rax);
   __ j(zero, &no_arguments);
   __ movq(rbx, Operand(rsp, rax, times_pointer_size, 0));
-  __ pop(rcx);
+  __ PopReturnAddressTo(rcx);
   __ lea(rsp, Operand(rsp, rax, times_pointer_size, kPointerSize));
-  __ push(rcx);
+  __ PushReturnAddressFrom(rcx);
   __ movq(rax, rbx);
 
   // Lookup the argument in the number to string cache.
@@ -1268,9 +1268,9 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
   // stack, and jump back to the case where the argument is a string.
   __ bind(&no_arguments);
   __ LoadRoot(rbx, Heap::kempty_stringRootIndex);
-  __ pop(rcx);
+  __ PopReturnAddressTo(rcx);
   __ lea(rsp, Operand(rsp, kPointerSize));
-  __ push(rcx);
+  __ PushReturnAddressFrom(rcx);
   __ jmp(&argument_is_string);
 
   // At this point the argument is already a string. Call runtime to
@@ -1313,10 +1313,10 @@ static void LeaveArgumentsAdaptorFrame(MacroAssembler* masm) {
   __ pop(rbp);
 
   // Remove caller arguments from the stack.
-  __ pop(rcx);
+  __ PopReturnAddressTo(rcx);
   SmiIndex index = masm->SmiToIndex(rbx, rbx, kPointerSizeLog2);
   __ lea(rsp, Operand(rsp, index.reg, index.scale, 1 * kPointerSize));
-  __ push(rcx);
+  __ PushReturnAddressFrom(rcx);
 }
 
 

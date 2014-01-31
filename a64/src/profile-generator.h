@@ -209,12 +209,15 @@ class CpuProfile {
   void AddPath(const Vector<CodeEntry*>& path);
   void CalculateTotalTicksAndSamplingRate();
 
-  INLINE(const char* title() const) { return title_; }
-  INLINE(unsigned uid() const) { return uid_; }
-  INLINE(const ProfileTree* top_down() const) { return &top_down_; }
+  const char* title() const { return title_; }
+  unsigned uid() const { return uid_; }
+  const ProfileTree* top_down() const { return &top_down_; }
 
-  INLINE(int samples_count() const) { return samples_.length(); }
-  INLINE(ProfileNode* sample(int index) const) { return samples_.at(index); }
+  int samples_count() const { return samples_.length(); }
+  ProfileNode* sample(int index) const { return samples_.at(index); }
+
+  int64_t start_time_us() const { return start_time_us_; }
+  int64_t end_time_us() const { return end_time_us_; }
 
   void UpdateTicksScale();
 
@@ -225,8 +228,8 @@ class CpuProfile {
   const char* title_;
   unsigned uid_;
   bool record_samples_;
-  double start_time_ms_;
-  double end_time_ms_;
+  int64_t start_time_us_;
+  int64_t end_time_us_;
   List<ProfileNode*> samples_;
   ProfileTree top_down_;
 
@@ -339,6 +342,7 @@ class ProfileGenerator {
 
   static const char* const kAnonymousFunctionName;
   static const char* const kProgramEntryName;
+  static const char* const kIdleEntryName;
   static const char* const kGarbageCollectorEntryName;
   // Used to represent frames for which we have no reliable way to
   // detect function.
@@ -350,6 +354,7 @@ class ProfileGenerator {
   CpuProfilesCollection* profiles_;
   CodeMap code_map_;
   CodeEntry* program_entry_;
+  CodeEntry* idle_entry_;
   CodeEntry* gc_entry_;
   CodeEntry* unresolved_entry_;
 

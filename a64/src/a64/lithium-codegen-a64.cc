@@ -258,37 +258,58 @@ void LCodeGen::WriteTranslation(LEnvironment* environment,
       UNREACHABLE();
   }
 
+  int object_index = 0;
+  int dematerialized_index = 0;
   for (int i = 0; i < translation_size; ++i) {
     LOperand* value = environment->values()->at(i);
 
-    // TODO(mstarzinger): Introduce marker operands to indicate that this value
-    // is not present and must be reconstructed from the deoptimizer. Currently
-    // this is only used for the arguments object.
-    if (value == NULL) {
-      int arguments_count = environment->values()->length() - translation_size;
-      translation->BeginArgumentsObject(arguments_count);
-      for (int i = 0; i < arguments_count; ++i) {
-        LOperand* value = environment->values()->at(translation_size + i);
-        AddToTranslation(translation,
-                         value,
-                         environment->HasTaggedValueAt(translation_size + i),
-                         environment->HasUint32ValueAt(translation_size + i));
-      }
-      continue;
-    }
-
-    AddToTranslation(translation,
+    AddToTranslation(environment,
+                     translation,
                      value,
                      environment->HasTaggedValueAt(i),
-                     environment->HasUint32ValueAt(i));
+                     environment->HasUint32ValueAt(i),
+                     &object_index,
+                     &dematerialized_index);
   }
 }
 
 
-void LCodeGen::AddToTranslation(Translation* translation,
+void LCodeGen::AddToTranslation(LEnvironment* environment,
+                                Translation* translation,
                                 LOperand* op,
                                 bool is_tagged,
-                                bool is_uint32) {
+                                bool is_uint32,
+                                int* object_index_pointer,
+                                int* dematerialized_index_pointer) {
+  if (op == LEnvironment::materialization_marker()) {
+    int object_index = (*object_index_pointer)++;
+    if (environment->ObjectIsDuplicateAt(object_index)) {
+      int dupe_of = environment->ObjectDuplicateOfAt(object_index);
+      translation->DuplicateObject(dupe_of);
+      return;
+    }
+    int object_length = environment->ObjectLengthAt(object_index);
+    if (environment->ObjectIsArgumentsAt(object_index)) {
+      translation->BeginArgumentsObject(object_length);
+    } else {
+      translation->BeginCapturedObject(object_length);
+    }
+    int dematerialized_index = *dematerialized_index_pointer;
+    int env_offset = environment->translation_size() + dematerialized_index;
+    *dematerialized_index_pointer += object_length;
+    for (int i = 0; i < object_length; ++i) {
+      LOperand* value = environment->values()->at(env_offset + i);
+      AddToTranslation(environment,
+                       translation,
+                       value,
+                       environment->HasTaggedValueAt(env_offset + i),
+                       environment->HasUint32ValueAt(env_offset + i),
+                       object_index_pointer,
+                       dematerialized_index_pointer);
+    }
+    return;
+  }
+
   if (op->IsStackSlot()) {
     if (is_tagged) {
       translation->StoreStackSlot(op->index());
@@ -485,6 +506,14 @@ void LCodeGen::CallRuntimeFromDeferred(Runtime::FunctionId id,
 void LCodeGen::RecordPosition(int position) {
   if (position == RelocInfo::kNoPosition) return;
   masm()->positions_recorder()->RecordPosition(position);
+}
+
+
+void LCodeGen::RecordAndUpdatePosition(int position) {
+  if (position >= 0 && position != old_position_) {
+    masm()->positions_recorder()->RecordPosition(position);
+    old_position_ = position;
+  }
 }
 
 
@@ -698,6 +727,8 @@ bool LCodeGen::GenerateBody() {
               instr->Mnemonic());
     }
 
+    RecordAndUpdatePosition(instr->position());
+
     instr->CompileToNative(this);
   }
   EnsureSpaceForLazyDeopt();
@@ -711,6 +742,9 @@ bool LCodeGen::GenerateDeferredCode() {
   if (deferred_.length() > 0) {
     for (int i = 0; !is_aborted() && (i < deferred_.length()); i++) {
       LDeferredCode* code = deferred_[i];
+
+      int pos = instructions_->at(code->instruction_index())->position();
+      RecordAndUpdatePosition(pos);
 
       Comment(";;; <@%d,#%d> "
               "-------------------- Deferred %s --------------------",
@@ -913,7 +947,7 @@ void LCodeGen::Deoptimize(LEnvironment* environment,
     return;
   }
 
-  if (FLAG_trap_on_deopt && info()->IsOptimizing()) {
+  if (info()->ShouldTrapOnDeopt()) {
     __ Debug("trap_on_deopt", __LINE__, BREAK);
   }
 
@@ -1599,13 +1633,6 @@ void LCodeGen::DoBitS(LBitS* instr) {
 }
 
 
-void LCodeGen::DoBitNotI(LBitNotI* instr) {
-  Register input = ToRegister(instr->value()).W();
-  Register result = ToRegister(instr->result()).W();
-  __ Mvn(result, input);
-}
-
-
 void LCodeGen::ApplyCheckIf(Condition cc, LBoundsCheck* check) {
   if (FLAG_debug_code && check->hydrogen()->skip_check()) {
     // TODO(all): Add this error code to objects.h.
@@ -1955,8 +1982,38 @@ void LCodeGen::DoUnknownOSRValue(LUnknownOSRValue* instr) {
 }
 
 
+void LCodeGen::DoDeferredInstanceMigration(LCheckMaps* instr, Register object) {
+  Register temp = ToRegister(instr->temp());
+  {
+    PushSafepointRegistersScope scope(this, Safepoint::kWithRegisters);
+    __ Push(object);
+    CallRuntimeFromDeferred(Runtime::kMigrateInstance, 1, instr);
+    __ StoreToSafepointRegisterSlot(x0, temp);
+  }
+  DeoptimizeIfSmi(temp, instr->environment());
+}
+
+
 void LCodeGen::DoCheckMaps(LCheckMaps* instr) {
+  class DeferredCheckMaps: public LDeferredCode {
+   public:
+    DeferredCheckMaps(LCodeGen* codegen, LCheckMaps* instr, Register object)
+        : LDeferredCode(codegen), instr_(instr), object_(object) {
+      SetExit(check_maps());
+    }
+    virtual void Generate() {
+      codegen()->DoDeferredInstanceMigration(instr_, object_);
+    }
+    Label* check_maps() { return &check_maps_; }
+    virtual LInstruction* instr() { return instr_; }
+   private:
+    LCheckMaps* instr_;
+    Label check_maps_;
+    Register object_;
+  };
+
   if (instr->hydrogen()->CanOmitMapChecks()) {
+    ASSERT(instr->value() == NULL);
     ASSERT(instr->temp() == NULL);
     return;
   }
@@ -1964,17 +2021,28 @@ void LCodeGen::DoCheckMaps(LCheckMaps* instr) {
   Register object = ToRegister(instr->value());
   Register map_reg = ToRegister(instr->temp());
 
-  Label success;
   SmallMapList* map_set = instr->hydrogen()->map_set();
   __ Ldr(map_reg, FieldMemOperand(object, HeapObject::kMapOffset));
+
+  DeferredCheckMaps* deferred = NULL;
+  if (instr->hydrogen()->has_migration_target()) {
+    deferred = new(zone()) DeferredCheckMaps(this, instr, object);
+    __ Bind(deferred->check_maps());
+  }
+
+  Label success;
   for (int i = 0; i < map_set->length(); i++) {
     Handle<Map> map = map_set->at(i);
     __ CompareMap(map_reg, map, &success);
     __ B(eq, &success);
   }
 
-  // If we didn't match a map, deoptimize.
-  Deoptimize(instr->environment());
+  // We didn't match a map.
+  if (instr->hydrogen()->has_migration_target()) {
+    __ B(deferred->entry());
+  } else {
+    Deoptimize(instr->environment());
+  }
 
   __ Bind(&success);
 }
@@ -1987,32 +2055,6 @@ void LCodeGen::DoCheckNonSmi(LCheckNonSmi* instr) {
     // we could use tbz here and produce less code to support this instruction.
     DeoptimizeIfSmi(ToRegister(instr->value()), instr->environment());
   }
-}
-
-
-void LCodeGen::DoCheckPrototypeMaps(LCheckPrototypeMaps* instr) {
-  if (instr->hydrogen()->CanOmitPrototypeChecks()) {
-    ASSERT(instr->temp1() == NULL);
-    ASSERT(instr->temp2() == NULL);
-    return;
-  }
-
-  ZoneList<Handle<JSObject> >* prototypes = instr->prototypes();
-  ZoneList<Handle<Map> >* maps = instr->maps();
-  ASSERT(prototypes->length() == maps->length());
-
-  Label success, deopt;
-  Register temp1 = ToRegister(instr->temp1());
-  Register temp2 = ToRegister(instr->temp2());
-  for (int i = 0; i < prototypes->length(); i++) {
-    __ LoadHeapObject(temp1, prototypes->at(i));
-    __ Ldr(temp2, FieldMemOperand(temp1, HeapObject::kMapOffset));
-    __ CompareMap(temp2, maps->at(i), &success);
-    __ B(eq, &success);
-  }
-  // If we didn't match a map, deoptimize.
-  Deoptimize(instr->environment());
-  __ Bind(&success);
 }
 
 

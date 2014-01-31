@@ -4388,7 +4388,7 @@ TEST(APIThrowMessageOverwrittenToString) {
 }
 
 
-static void check_custom_error_message(
+static void check_custom_error_tostring(
     v8::Handle<v8::Message> message,
     v8::Handle<v8::Value> data) {
   const char* uncaught_error = "Uncaught MyError toString";
@@ -4399,7 +4399,7 @@ static void check_custom_error_message(
 TEST(CustomErrorToString) {
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
-  v8::V8::AddMessageListener(check_custom_error_message);
+  v8::V8::AddMessageListener(check_custom_error_tostring);
   CompileRun(
     "function MyError(name, message) {                   "
     "  this.name = name;                                 "
@@ -4410,6 +4410,58 @@ TEST(CustomErrorToString) {
     "  return 'MyError toString';                        "
     "};                                                  "
     "throw new MyError('my name', 'my message');         ");
+  v8::V8::RemoveMessageListeners(check_custom_error_tostring);
+}
+
+
+static void check_custom_error_message(
+    v8::Handle<v8::Message> message,
+    v8::Handle<v8::Value> data) {
+  const char* uncaught_error = "Uncaught MyError: my message";
+  printf("%s\n", *v8::String::Utf8Value(message->Get()));
+  CHECK(message->Get()->Equals(v8_str(uncaught_error)));
+}
+
+
+TEST(CustomErrorMessage) {
+  LocalContext context;
+  v8::HandleScope scope(context->GetIsolate());
+  v8::V8::AddMessageListener(check_custom_error_message);
+
+  // Handlebars.
+  CompileRun(
+    "function MyError(msg) {                             "
+    "  this.name = 'MyError';                            "
+    "  this.message = msg;                               "
+    "}                                                   "
+    "MyError.prototype = new Error();                    "
+    "throw new MyError('my message');                    ");
+
+  // Closure.
+  CompileRun(
+    "function MyError(msg) {                             "
+    "  this.name = 'MyError';                            "
+    "  this.message = msg;                               "
+    "}                                                   "
+    "inherits = function(childCtor, parentCtor) {        "
+    "    function tempCtor() {};                         "
+    "    tempCtor.prototype = parentCtor.prototype;      "
+    "    childCtor.superClass_ = parentCtor.prototype;   "
+    "    childCtor.prototype = new tempCtor();           "
+    "    childCtor.prototype.constructor = childCtor;    "
+    "};                                                  "
+    "inherits(MyError, Error);                           "
+    "throw new MyError('my message');                    ");
+
+  // Object.create.
+  CompileRun(
+    "function MyError(msg) {                             "
+    "  this.name = 'MyError';                            "
+    "  this.message = msg;                               "
+    "}                                                   "
+    "MyError.prototype = Object.create(Error.prototype); "
+    "throw new MyError('my message');                    ");
+
   v8::V8::RemoveMessageListeners(check_custom_error_message);
 }
 
@@ -19860,6 +19912,26 @@ THREADED_TEST(Regress260106) {
   Local<Function> function = templ->GetFunction();
   CHECK(!function.IsEmpty());
   CHECK(function->IsFunction());
+}
+
+
+THREADED_TEST(JSONParseObject) {
+  LocalContext context;
+  HandleScope scope(context->GetIsolate());
+  Local<Value> obj = v8::JSON::Parse(v8_str("{\"x\":42}"));
+  Handle<Object> global = context->Global();
+  global->Set(v8_str("obj"), obj);
+  ExpectString("JSON.stringify(obj)", "{\"x\":42}");
+}
+
+
+THREADED_TEST(JSONParseNumber) {
+  LocalContext context;
+  HandleScope scope(context->GetIsolate());
+  Local<Value> obj = v8::JSON::Parse(v8_str("42"));
+  Handle<Object> global = context->Global();
+  global->Set(v8_str("obj"), obj);
+  ExpectString("JSON.stringify(obj)", "42");
 }
 
 

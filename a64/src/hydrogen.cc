@@ -959,8 +959,9 @@ void HGraphBuilder::LoopBuilder::EndBody() {
 
   // Push the new increment value on the expression stack to merge into the phi.
   builder_->environment()->Push(increment_);
-  builder_->current_block()->GotoNoSimulate(header_block_);
-  header_block_->loop_information()->RegisterBackEdge(body_block_);
+  HBasicBlock* last_block = builder_->current_block();
+  last_block->GotoNoSimulate(header_block_);
+  header_block_->loop_information()->RegisterBackEdge(last_block);
 
   builder_->set_current_block(exit_block_);
   // Pop the phi from the expression stack
@@ -1051,12 +1052,14 @@ void HGraphBuilder::PadEnvironmentForContinuation(
     HBasicBlock* continuation) {
   if (continuation->last_environment() != NULL) {
     // When merging from a deopt block to a continuation, resolve differences in
-    // environment by pushing undefined and popping extra values so that the
-    // environments match during the join.
+    // environment by pushing constant 0 and popping extra values so that the
+    // environments match during the join. Push 0 since it has the most specific
+    // representation, and will not influence representation inference of the
+    // phi.
     int continuation_env_length = continuation->last_environment()->length();
     while (continuation_env_length != from->last_environment()->length()) {
       if (continuation_env_length > from->last_environment()->length()) {
-        from->last_environment()->Push(graph()->GetConstantUndefined());
+        from->last_environment()->Push(graph()->GetConstant0());
       } else {
         from->last_environment()->Pop();
       }
@@ -1715,38 +1718,6 @@ HValue* HGraphBuilder::BuildCloneShallowArray(HValue* boilerplate,
   }
 
   return object;
-}
-
-
-HInstruction* HGraphBuilder::BuildUnaryMathOp(
-    HValue* input, Handle<Type> type, Token::Value operation) {
-  // We only handle the numeric cases here
-  type = handle(
-      Type::Intersect(type, handle(Type::Number(), isolate())), isolate());
-
-  switch (operation) {
-    default:
-      UNREACHABLE();
-    case Token::SUB: {
-        HInstruction* instr =
-            NewUncasted<HMul>(input, graph()->GetConstantMinus1());
-        Representation rep = Representation::FromType(type);
-        if (type->Is(Type::None())) {
-          Add<HDeoptimize>(Deoptimizer::SOFT);
-        }
-        if (instr->IsBinaryOperation()) {
-          HBinaryOperation* binop = HBinaryOperation::cast(instr);
-          binop->set_observed_input_representation(1, rep);
-          binop->set_observed_input_representation(2, rep);
-        }
-        return instr;
-      }
-    case Token::BIT_NOT:
-      if (type->Is(Type::None())) {
-        Add<HDeoptimize>(Deoptimizer::SOFT);
-      }
-      return New<HBitNot>(input);
-  }
 }
 
 
@@ -2947,6 +2918,9 @@ bool HGraph::Optimize(BailoutReason* bailout_reason) {
 
   // Remove dead code and phis
   if (FLAG_dead_code_elimination) Run<HDeadCodeEliminationPhase>();
+
+  if (FLAG_use_escape_analysis) Run<HEscapeAnalysisPhase>();
+
   CollectPhis();
 
   if (has_osr()) osr()->FinishOsrValues();
@@ -2970,8 +2944,6 @@ bool HGraph::Optimize(BailoutReason* bailout_reason) {
 
   if (FLAG_use_canonicalizing) Run<HCanonicalizePhase>();
 
-  if (FLAG_use_escape_analysis) Run<HEscapeAnalysisPhase>();
-
   if (FLAG_use_gvn) Run<HGlobalValueNumberingPhase>();
 
   if (FLAG_use_range) Run<HRangeAnalysisPhase>();
@@ -2981,11 +2953,10 @@ bool HGraph::Optimize(BailoutReason* bailout_reason) {
   // Eliminate redundant stack checks on backwards branches.
   Run<HStackCheckEliminationPhase>();
 
-  if (FLAG_idefs) SetupInformativeDefinitions();
-  if (FLAG_array_bounds_checks_elimination && !FLAG_idefs) {
+  if (FLAG_array_bounds_checks_elimination) {
     Run<HBoundsCheckEliminationPhase>();
   }
-  if (FLAG_array_bounds_checks_hoisting && !FLAG_idefs) {
+  if (FLAG_array_bounds_checks_hoisting) {
     Run<HBoundsCheckHoistingPhase>();
   }
   if (FLAG_array_index_dehoisting) Run<HDehoistIndexComputationsPhase>();
@@ -2994,50 +2965,6 @@ bool HGraph::Optimize(BailoutReason* bailout_reason) {
   RestoreActualValues();
 
   return true;
-}
-
-
-void HGraph::SetupInformativeDefinitionsInBlock(HBasicBlock* block) {
-  for (int phi_index = 0; phi_index < block->phis()->length(); phi_index++) {
-    HPhi* phi = block->phis()->at(phi_index);
-    phi->AddInformativeDefinitions();
-    phi->SetFlag(HValue::kIDefsProcessingDone);
-    // We do not support phis that "redefine just one operand".
-    ASSERT(!phi->IsInformativeDefinition());
-  }
-
-  for (HInstructionIterator it(block); !it.Done(); it.Advance()) {
-    HInstruction* i = it.Current();
-    i->AddInformativeDefinitions();
-    i->SetFlag(HValue::kIDefsProcessingDone);
-    i->UpdateRedefinedUsesWhileSettingUpInformativeDefinitions();
-  }
-}
-
-
-// This method is recursive, so if its stack frame is large it could
-// cause a stack overflow.
-// To keep the individual stack frames small we do the actual work inside
-// SetupInformativeDefinitionsInBlock();
-void HGraph::SetupInformativeDefinitionsRecursively(HBasicBlock* block) {
-  SetupInformativeDefinitionsInBlock(block);
-  for (int i = 0; i < block->dominated_blocks()->length(); ++i) {
-    SetupInformativeDefinitionsRecursively(block->dominated_blocks()->at(i));
-  }
-
-  for (HInstructionIterator it(block); !it.Done(); it.Advance()) {
-    HInstruction* i = it.Current();
-    if (i->IsBoundsCheck()) {
-      HBoundsCheck* check = HBoundsCheck::cast(i);
-      check->ApplyIndexChange();
-    }
-  }
-}
-
-
-void HGraph::SetupInformativeDefinitions() {
-  HPhase phase("H_Setup informative definitions", this);
-  SetupInformativeDefinitionsRecursively(entry_block());
 }
 
 
@@ -4112,8 +4039,7 @@ static bool IsFastLiteral(Handle<JSObject> boilerplate,
                           int* data_size,
                           int* pointer_size) {
   if (boilerplate->map()->is_deprecated()) {
-    Handle<Object> result =
-        JSObject::TryMigrateInstance(boilerplate);
+    Handle<Object> result = JSObject::TryMigrateInstance(boilerplate);
     if (result->IsSmi()) return false;
   }
 
@@ -4513,9 +4439,9 @@ HInstruction* HOptimizedGraphBuilder::BuildStoreNamedField(
       ASSERT(proto->GetPrototype(isolate())->IsNull());
     }
     ASSERT(proto->IsJSObject());
-    Add<HCheckPrototypeMaps>(
+    BuildCheckPrototypeMaps(
         Handle<JSObject>(JSObject::cast(map->prototype())),
-        Handle<JSObject>(JSObject::cast(proto)), top_info());
+        Handle<JSObject>(JSObject::cast(proto)));
   }
 
   HObjectAccess field_access = HObjectAccess::ForField(map, lookup, name);
@@ -4553,7 +4479,8 @@ HInstruction* HOptimizedGraphBuilder::BuildStoreNamedField(
 
   if (transition_to_field) {
     Handle<Map> transition(lookup->GetTransitionMapFromMap(*map));
-    instr->SetTransition(transition, top_info());
+    HConstant* transition_constant = Add<HConstant>(transition);
+    instr->SetTransition(transition_constant, top_info());
     // TODO(fschneider): Record the new map type of the object in the IR to
     // enable elimination of redundant checks after the transition store.
     instr->SetGVNFlag(kChangesMaps);
@@ -4669,8 +4596,7 @@ HInstruction* HOptimizedGraphBuilder::TryLoadPolymorphicAsMonomorphic(
 
   Handle<JSObject> holder(lookup.holder());
   Handle<Map> holder_map(holder->map());
-  Add<HCheckPrototypeMaps>(
-      Handle<JSObject>::cast(prototype), holder, top_info());
+  BuildCheckPrototypeMaps(Handle<JSObject>::cast(prototype), holder);
   HValue* holder_value = Add<HConstant>(holder);
   return BuildLoadNamedField(holder_value,
       HObjectAccess::ForField(holder_map, &lookup, name));
@@ -5115,7 +5041,7 @@ void HOptimizedGraphBuilder::HandleCompoundAssignment(Assignment* expr) {
         Add<HSimulate>(operation->id(), REMOVABLE_SIMULATE);
       }
 
-      return BuildStoreNamed(prop, expr->id(), expr->position(),
+      return BuildStoreNamed(expr, expr->id(), expr->position(),
                              expr->AssignmentId(), prop, object, instr, instr);
     } else {
       // Keyed property.
@@ -5404,7 +5330,7 @@ HInstruction* HOptimizedGraphBuilder::BuildLoadNamedMonomorphic(
     Handle<JSObject> holder(lookup.holder());
     Handle<Map> holder_map(holder->map());
     AddCheckMap(object, map);
-    Add<HCheckPrototypeMaps>(prototype, holder, top_info());
+    BuildCheckPrototypeMaps(prototype, holder);
     HValue* holder_value = Add<HConstant>(holder);
     return BuildLoadNamedField(holder_value,
         HObjectAccess::ForField(holder_map, &lookup, name));
@@ -5416,7 +5342,7 @@ HInstruction* HOptimizedGraphBuilder::BuildLoadNamedMonomorphic(
     Handle<JSObject> holder(lookup.holder());
     Handle<Map> holder_map(holder->map());
     AddCheckMap(object, map);
-    Add<HCheckPrototypeMaps>(prototype, holder, top_info());
+    BuildCheckPrototypeMaps(prototype, holder);
     Handle<Object> constant(lookup.GetConstantFromMap(*holder_map), isolate());
     return New<HConstant>(constant);
   }
@@ -5452,7 +5378,7 @@ HInstruction* HOptimizedGraphBuilder::BuildMonomorphicElementAccess(
       isolate()->IsFastArrayConstructorPrototypeChainIntact()) {
     Handle<JSObject> prototype(JSObject::cast(map->prototype()), isolate());
     Handle<JSObject> object_prototype = isolate()->initial_object_prototype();
-    Add<HCheckPrototypeMaps>(prototype, object_prototype, top_info());
+    BuildCheckPrototypeMaps(prototype, object_prototype);
     load_mode = ALLOW_RETURN_HOLE;
     graph()->MarkDependsOnEmptyArrayProtoElements();
   }
@@ -5898,11 +5824,38 @@ void HOptimizedGraphBuilder::VisitProperty(Property* expr) {
 }
 
 
+void HGraphBuilder::BuildConstantMapCheck(Handle<JSObject> constant,
+                                          CompilationInfo* info) {
+  HConstant* constant_value = New<HConstant>(constant);
+
+  if (constant->map()->CanOmitMapChecks()) {
+    constant->map()->AddDependentCompilationInfo(
+        DependentCode::kPrototypeCheckGroup, info);
+    return;
+  }
+
+  AddInstruction(constant_value);
+  HCheckMaps* check =
+      Add<HCheckMaps>(constant_value, handle(constant->map()), info);
+  check->ClearGVNFlag(kDependsOnElementsKind);
+}
+
+
+void HGraphBuilder::BuildCheckPrototypeMaps(Handle<JSObject> prototype,
+                                            Handle<JSObject> holder) {
+  BuildConstantMapCheck(prototype, top_info());
+  while (!prototype.is_identical_to(holder)) {
+    prototype = handle(JSObject::cast(prototype->GetPrototype()));
+    BuildConstantMapCheck(prototype, top_info());
+  }
+}
+
+
 void HOptimizedGraphBuilder::AddCheckPrototypeMaps(Handle<JSObject> holder,
                                                    Handle<Map> receiver_map) {
   if (!holder.is_null()) {
     Handle<JSObject> prototype(JSObject::cast(receiver_map->prototype()));
-    Add<HCheckPrototypeMaps>(prototype, holder, top_info());
+    BuildCheckPrototypeMaps(prototype, holder);
   }
 }
 
@@ -6643,9 +6596,9 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
         HValue* string = Pop();
         HValue* context = environment()->context();
         ASSERT(!expr->holder().is_null());
-        Add<HCheckPrototypeMaps>(Call::GetPrototypeForPrimitiveCheck(
+        BuildCheckPrototypeMaps(Call::GetPrototypeForPrimitiveCheck(
                 STRING_CHECK, expr->holder()->GetIsolate()),
-            expr->holder(), top_info());
+            expr->holder());
         HInstruction* char_code =
             BuildStringCharCodeAt(string, index);
         if (id == kStringCharCodeAt) {
@@ -7266,8 +7219,6 @@ void HOptimizedGraphBuilder::VisitUnaryOperation(UnaryOperation* expr) {
     case Token::DELETE: return VisitDelete(expr);
     case Token::VOID: return VisitVoid(expr);
     case Token::TYPEOF: return VisitTypeof(expr);
-    case Token::SUB: return VisitSub(expr);
-    case Token::BIT_NOT: return VisitBitNot(expr);
     case Token::NOT: return VisitNot(expr);
     default: UNREACHABLE();
   }
@@ -7325,24 +7276,6 @@ void HOptimizedGraphBuilder::VisitTypeof(UnaryOperation* expr) {
   HValue* value = Pop();
   HValue* context = environment()->context();
   HInstruction* instr = new(zone()) HTypeof(context, value);
-  return ast_context()->ReturnInstruction(instr, expr->id());
-}
-
-
-void HOptimizedGraphBuilder::VisitSub(UnaryOperation* expr) {
-  CHECK_ALIVE(VisitForValue(expr->expression()));
-  Handle<Type> operand_type = expr->expression()->bounds().lower;
-  HValue* value = TruncateToNumber(Pop(), &operand_type);
-  HInstruction* instr = BuildUnaryMathOp(value, operand_type, Token::SUB);
-  return ast_context()->ReturnInstruction(instr, expr->id());
-}
-
-
-void HOptimizedGraphBuilder::VisitBitNot(UnaryOperation* expr) {
-  CHECK_ALIVE(VisitForValue(expr->expression()));
-  Handle<Type> operand_type = expr->expression()->bounds().lower;
-  HValue* value = TruncateToNumber(Pop(), &operand_type);
-  HInstruction* instr = BuildUnaryMathOp(value, operand_type, Token::BIT_NOT);
   return ast_context()->ReturnInstruction(instr, expr->id());
 }
 
@@ -7543,7 +7476,7 @@ void HOptimizedGraphBuilder::VisitCountOperation(CountOperation* expr) {
       after = BuildIncrement(returns_original_input, expr);
       HValue* result = returns_original_input ? Pop() : after;
 
-      return BuildStoreNamed(prop, expr->id(), expr->position(),
+      return BuildStoreNamed(expr, expr->id(), expr->position(),
                              expr->AssignmentId(), prop, object, after, result);
     } else {
       // Keyed property.

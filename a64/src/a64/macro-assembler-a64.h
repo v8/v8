@@ -1082,25 +1082,6 @@ class MacroAssembler : public Assembler {
 
   // ---- Code generation helpers ----
 
-  // Generate a runtime call or jump for a unary operation.
-  // Caller-saved registers are not preserved.
-  // Expected on entry:
-  // x0: operand
-  // Returns with:
-  // x0: result
-  // sp on exit == sp before entry.
-  void GenerateNumberUnaryOperation(Token::Value op, InvokeFlag flag);
-
-  // Generate a runtime call or jump for a binary operation.
-  // Caller-saved registers are not preserved.
-  // Expected on entry:
-  // x0: right
-  // x1: left
-  // Returns with:
-  // x0: result
-  // sp on exit == sp before entry.
-  void GenerateNumberNumberBinaryOperation(Token::Value op, InvokeFlag flag);
-
   void set_generating_stub(bool value) { generating_stub_ = value; }
   bool generating_stub() const { return generating_stub_; }
   void set_allow_stub_calls(bool value) { allow_stub_calls_ = value; }

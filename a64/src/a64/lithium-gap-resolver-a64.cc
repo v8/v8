@@ -263,7 +263,7 @@ void LGapResolver::EmitMove(int index) {
       } else {
         __ LoadObject(dst, cgen_->ToHandle(constant_source));
       }
-    } else if (source->IsDoubleRegister()) {
+    } else if (destination->IsDoubleRegister()) {
       DoubleRegister result = cgen_->ToDoubleRegister(destination);
       __ Fmov(result, cgen_->ToDouble(constant_source));
     } else {

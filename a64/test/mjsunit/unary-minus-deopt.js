@@ -24,46 +24,32 @@
 // THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-// limitations under the License.
 
-#ifndef V8_EXTENSIONS_I18N_NUMBER_FORMAT_H_
-#define V8_EXTENSIONS_I18N_NUMBER_FORMAT_H_
+// Flags: --allow-natives-syntax
 
-#include "unicode/uversion.h"
-#include "v8.h"
+// This is a boiled-down example happening in the Epic Citadel demo:
+// After deopting, the multiplication for unary minus stayed in Smi
+// mode instead of going to double mode, leading to deopt loops.
 
-namespace U_ICU_NAMESPACE {
-class DecimalFormat;
+function unaryMinusTest(x) {
+  var g = (1 << x) | 0;
+  // Optimized code will contain a LMulI with -1 as right operand.
+  return (g & -g) - 1 | 0;
 }
 
-namespace v8_i18n {
+unaryMinusTest(3);
+unaryMinusTest(3);
+%OptimizeFunctionOnNextCall(unaryMinusTest);
+unaryMinusTest(3);
+assertOptimized(unaryMinusTest);
 
-class NumberFormat {
- public:
-  static void JSCreateNumberFormat(
-      const v8::FunctionCallbackInfo<v8::Value>& args);
+// Deopt on kMinInt
+unaryMinusTest(31);
+// The following is normally true, but not with --stress-opt. :-/
+// assertUnoptimized(unaryMinusTest);
 
-  // Helper methods for various bindings.
-
-  // Unpacks date format object from corresponding JavaScript object.
-  static icu::DecimalFormat* UnpackNumberFormat(v8::Handle<v8::Object> obj);
-
-  // Release memory we allocated for the NumberFormat once the JS object that
-  // holds the pointer gets garbage collected.
-  static void DeleteNumberFormat(v8::Isolate* isolate,
-                                 v8::Persistent<v8::Object>* object,
-                                 void* param);
-
-  // Formats number and returns corresponding string.
-  static void JSInternalFormat(const v8::FunctionCallbackInfo<v8::Value>& args);
-
-  // Parses a string and returns a number.
-  static void JSInternalParse(const v8::FunctionCallbackInfo<v8::Value>& args);
-
- private:
-  NumberFormat();
-};
-
-}  // namespace v8_i18n
-
-#endif  // V8_EXTENSIONS_I18N_NUMBER_FORMAT_H_
+// We should have learned something from the deopt.
+unaryMinusTest(31);
+%OptimizeFunctionOnNextCall(unaryMinusTest);
+unaryMinusTest(31);
+assertOptimized(unaryMinusTest);

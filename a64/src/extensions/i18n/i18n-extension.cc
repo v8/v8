@@ -30,9 +30,7 @@
 
 #include "break-iterator.h"
 #include "collator.h"
-#include "date-format.h"
 #include "natives.h"
-#include "number-format.h"
 
 using v8::internal::I18NNatives;
 
@@ -48,24 +46,6 @@ Extension::Extension()
 
 v8::Handle<v8::FunctionTemplate> Extension::GetNativeFunction(
     v8::Handle<v8::String> name) {
-  // Date format and parse.
-  if (name->Equals(v8::String::New("NativeJSCreateDateTimeFormat"))) {
-    return v8::FunctionTemplate::New(DateFormat::JSCreateDateTimeFormat);
-  } else if (name->Equals(v8::String::New("NativeJSInternalDateFormat"))) {
-    return v8::FunctionTemplate::New(DateFormat::JSInternalFormat);
-  } else if (name->Equals(v8::String::New("NativeJSInternalDateParse"))) {
-    return v8::FunctionTemplate::New(DateFormat::JSInternalParse);
-  }
-
-  // Number format and parse.
-  if (name->Equals(v8::String::New("NativeJSCreateNumberFormat"))) {
-    return v8::FunctionTemplate::New(NumberFormat::JSCreateNumberFormat);
-  } else if (name->Equals(v8::String::New("NativeJSInternalNumberFormat"))) {
-    return v8::FunctionTemplate::New(NumberFormat::JSInternalFormat);
-  } else if (name->Equals(v8::String::New("NativeJSInternalNumberParse"))) {
-    return v8::FunctionTemplate::New(NumberFormat::JSInternalParse);
-  }
-
   // Collator.
   if (name->Equals(v8::String::New("NativeJSCreateCollator"))) {
     return v8::FunctionTemplate::New(Collator::JSCreateCollator);

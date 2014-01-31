@@ -699,6 +699,7 @@ void LChunkBuilder::VisitInstruction(HInstruction* current) {
     }
 #endif
 
+    instr->set_position(position_);
     if (FLAG_stress_pointer_maps && !instr->HasPointerMap()) {
       instr = AssignPointerMap(instr);
     }
@@ -715,19 +716,23 @@ void LChunkBuilder::VisitInstruction(HInstruction* current) {
 LInstruction* LChunkBuilder::AssignEnvironment(LInstruction* instr) {
   HEnvironment* hydrogen_env = current_block_->last_environment();
   int argument_index_accumulator = 0;
+  ZoneList<HValue*> objects_to_materialize(0, zone());
   instr->set_environment(CreateEnvironment(hydrogen_env,
-                                           &argument_index_accumulator));
+                                           &argument_index_accumulator,
+                                           &objects_to_materialize));
   return instr;
 }
 
 
 LEnvironment* LChunkBuilder::CreateEnvironment(
     HEnvironment* hydrogen_env,
-    int* argument_index_accumulator) {
+    int* argument_index_accumulator,
+    ZoneList<HValue*>* objects_to_materialize) {
   if (hydrogen_env == NULL) return NULL;
 
-  LEnvironment* outer =
-      CreateEnvironment(hydrogen_env->outer(), argument_index_accumulator);
+  LEnvironment* outer = CreateEnvironment(hydrogen_env->outer(),
+                                          argument_index_accumulator,
+                                          objects_to_materialize);
   BailoutId ast_id = hydrogen_env->ast_id();
   ASSERT(!ast_id.IsNone() || (hydrogen_env->frame_type() != JS_FUNCTION));
   int value_count = hydrogen_env->length() - hydrogen_env->specials_count();
@@ -743,16 +748,16 @@ LEnvironment* LChunkBuilder::CreateEnvironment(
       hydrogen_env->entry(),
       zone());
 
-  bool needs_arguments_object_materialization = false;
   int argument_index = *argument_index_accumulator;
+  int object_index = objects_to_materialize->length();
   for (int i = 0; i < hydrogen_env->length(); ++i) {
     if (hydrogen_env->is_special_index(i)) continue;
 
+    LOperand* op;
     HValue* value = hydrogen_env->values()->at(i);
-    LOperand* op = NULL;
-    if (value->IsArgumentsObject()) {
-      needs_arguments_object_materialization = true;
-      op = NULL;
+    if (value->IsArgumentsObject() || value->IsCapturedObject()) {
+      objects_to_materialize->Add(value, zone());
+      op = LEnvironment::materialization_marker();
     } else if (value->IsPushArgument()) {
       op = new(zone()) LArgument(argument_index++);
     } else {
@@ -763,15 +768,33 @@ LEnvironment* LChunkBuilder::CreateEnvironment(
                      value->CheckFlag(HInstruction::kUint32));
   }
 
-  if (needs_arguments_object_materialization) {
-    HArgumentsObject* arguments = hydrogen_env->entry() == NULL
-        ? graph()->GetArgumentsObject()
-        : hydrogen_env->entry()->arguments_object();
-    ASSERT(arguments->IsLinked());
-    for (int i = 1; i < arguments->arguments_count(); ++i) {
-      HValue* value = arguments->arguments_values()->at(i);
-      ASSERT(!value->IsArgumentsObject() && !value->IsPushArgument());
-      LOperand* op = UseAny(value);
+  for (int i = object_index; i < objects_to_materialize->length(); ++i) {
+    HValue* object_to_materialize = objects_to_materialize->at(i);
+    int previously_materialized_object = -1;
+    for (int prev = 0; prev < i; ++prev) {
+      if (objects_to_materialize->at(prev) == objects_to_materialize->at(i)) {
+        previously_materialized_object = prev;
+        break;
+      }
+    }
+    int length = object_to_materialize->OperandCount();
+    bool is_arguments = object_to_materialize->IsArgumentsObject();
+    if (previously_materialized_object >= 0) {
+      result->AddDuplicateObject(previously_materialized_object);
+      continue;
+    } else {
+      result->AddNewObject(is_arguments ? length - 1 : length, is_arguments);
+    }
+    for (int i = is_arguments ? 1 : 0; i < length; ++i) {
+      LOperand* op;
+      HValue* value = object_to_materialize->OperandAt(i);
+      if (value->IsArgumentsObject() || value->IsCapturedObject()) {
+        objects_to_materialize->Add(value, zone());
+        op = LEnvironment::materialization_marker();
+      } else {
+        ASSERT(!value->IsPushArgument());
+        op = UseAny(value);
+      }
       result->AddValue(op,
                        value->representation(),
                        value->CheckFlag(HInstruction::kUint32));
@@ -961,15 +984,6 @@ LInstruction* LChunkBuilder::DoBitwise(HBitwise* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoBitNot(HBitNot* instr) {
-  ASSERT(instr->value()->representation().IsInteger32());
-  ASSERT(instr->representation().IsInteger32());
-  if (instr->HasNoUses()) return NULL;
-  LOperand* value = UseRegisterAtStart(instr->value());
-  return DefineAsRegister(new(zone()) LBitNotI(value));
-}
-
-
 LInstruction* LChunkBuilder::DoBlockEntry(HBlockEntry* instr) {
   // V8 expects a label to be generated for each basic block.
   // This is used in some places like LAllocator::IsBlockBoundary
@@ -1107,6 +1121,12 @@ LInstruction* LChunkBuilder::DoCallStub(HCallStub* instr) {
 }
 
 
+LInstruction* LChunkBuilder::DoCapturedObject(HCapturedObject* instr) {
+  // There are no real uses of a captured object.
+  return NULL;
+}
+
+
 LInstruction* LChunkBuilder::DoChange(HChange* instr) {
   Representation from = instr->from();
   Representation to = instr->to();
@@ -1231,13 +1251,19 @@ LInstruction* LChunkBuilder::DoCheckInstanceType(HCheckInstanceType* instr) {
 
 LInstruction* LChunkBuilder::DoCheckMaps(HCheckMaps* instr) {
   if (instr->CanOmitMapChecks()) {
-    LOperand* value = UseRegisterAtStart(instr->value());
-    return new(zone()) LCheckMaps(value);
+    // LCheckMaps does nothing in this case.
+    return new(zone()) LCheckMaps(NULL);
   } else {
-    LOperand* value = UseRegister(instr->value());
+    LOperand* value = UseRegisterAtStart(instr->value());
     LOperand* temp = TempRegister();
-    LInstruction* result = new(zone()) LCheckMaps(value, temp);
-    return AssignEnvironment(result);
+
+    if (instr->has_migration_target()) {
+      info()->MarkAsDeferredCalling();
+      LInstruction* result = new(zone()) LCheckMaps(value, temp);
+      return AssignPointerMap(AssignEnvironment(result));
+    } else {
+      return AssignEnvironment(new(zone()) LCheckMaps(value, temp));
+    }
   }
 }
 
@@ -1245,17 +1271,6 @@ LInstruction* LChunkBuilder::DoCheckMaps(HCheckMaps* instr) {
 LInstruction* LChunkBuilder::DoCheckHeapObject(HCheckHeapObject* instr) {
   LOperand* value = UseRegisterAtStart(instr->value());
   return AssignEnvironment(new(zone()) LCheckNonSmi(value));
-}
-
-
-LInstruction* LChunkBuilder::DoCheckPrototypeMaps(HCheckPrototypeMaps* instr) {
-  if (instr->CanOmitPrototypeChecks()) {
-    return new(zone()) LCheckPrototypeMaps();
-  } else {
-    LOperand* temp1 = TempRegister();
-    LOperand* temp2 = TempRegister();
-    return AssignEnvironment(new(zone()) LCheckPrototypeMaps(temp1, temp2));
-  }
 }
 
 
@@ -1523,12 +1538,6 @@ LInstruction* LChunkBuilder::DoHasInstanceTypeAndBranch(
   ASSERT(instr->value()->representation().IsTagged());
   LOperand* value = UseRegisterAtStart(instr->value());
   return new(zone()) LHasInstanceTypeAndBranch(value, TempRegister());
-}
-
-
-LInstruction* LChunkBuilder::DoInductionVariableAnnotation(
-    HInductionVariableAnnotation* instr) {
-  return NULL;
 }
 
 
@@ -1910,11 +1919,6 @@ LInstruction* LChunkBuilder::DoMul(HMul* instr) {
   } else {
     return DoArithmeticT(Token::MUL, instr);
   }
-}
-
-
-LInstruction* LChunkBuilder::DoNumericConstraint(HNumericConstraint* instr) {
-  return NULL;
 }
 
 
