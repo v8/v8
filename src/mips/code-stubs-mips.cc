@@ -3257,25 +3257,22 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   if (CallAsMethod()) {
     if (NeedsChecks()) {
       // Do not transform the receiver for strict mode functions and natives.
-      __ lw(a2, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
-      __ lw(a3, FieldMemOperand(a2, SharedFunctionInfo::kCompilerHintsOffset));
+      __ lw(a3, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
+      __ lw(a4, FieldMemOperand(a3, SharedFunctionInfo::kCompilerHintsOffset));
       int32_t strict_mode_function_mask =
           1 <<  (SharedFunctionInfo::kStrictModeFunction + kSmiTagSize);
       int32_t native_mask = 1 << (SharedFunctionInfo::kNative + kSmiTagSize);
-      __ And(at, a3, Operand(strict_mode_function_mask | native_mask));
+      __ And(at, a4, Operand(strict_mode_function_mask | native_mask));
       __ Branch(&cont, ne, at, Operand(zero_reg));
     }
 
     // Compute the receiver in non-strict mode.
-    __ lw(a2, MemOperand(sp, argc_ * kPointerSize));
+    __ lw(a3, MemOperand(sp, argc_ * kPointerSize));
 
     if (NeedsChecks()) {
-      // a0: actual number of arguments
-      // a1: function
-      // a2: first argument
-      __ JumpIfSmi(a2, &wrap);
-      __ GetObjectType(a2, a3, a3);
-      __ Branch(&wrap, lt, a3, Operand(FIRST_SPEC_OBJECT_TYPE));
+      __ JumpIfSmi(a3, &wrap);
+      __ GetObjectType(a3, a4, a4);
+      __ Branch(&wrap, lt, a4, Operand(FIRST_SPEC_OBJECT_TYPE));
     } else {
       __ jmp(&wrap);
     }
@@ -3323,7 +3320,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
     __ bind(&wrap);
     // Wrap the receiver and patch it back onto the stack.
     { FrameScope frame_scope(masm, StackFrame::INTERNAL);
-      __ Push(a1, a2);
+      __ Push(a1, a3);
       __ InvokeBuiltin(Builtins::TO_OBJECT, CALL_FUNCTION);
       __ pop(a1);
     }

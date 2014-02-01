@@ -3111,26 +3111,23 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   if (CallAsMethod()) {
     if (NeedsChecks()) {
       // Do not transform the receiver for strict mode functions.
-      __ ldr(r2, FieldMemOperand(r1, JSFunction::kSharedFunctionInfoOffset));
-      __ ldr(r3, FieldMemOperand(r2, SharedFunctionInfo::kCompilerHintsOffset));
-      __ tst(r3, Operand(1 << (SharedFunctionInfo::kStrictModeFunction +
+      __ ldr(r3, FieldMemOperand(r1, JSFunction::kSharedFunctionInfoOffset));
+      __ ldr(r4, FieldMemOperand(r3, SharedFunctionInfo::kCompilerHintsOffset));
+      __ tst(r4, Operand(1 << (SharedFunctionInfo::kStrictModeFunction +
                                kSmiTagSize)));
       __ b(ne, &cont);
 
       // Do not transform the receiver for native (Compilerhints already in r3).
-      __ tst(r3, Operand(1 << (SharedFunctionInfo::kNative + kSmiTagSize)));
+      __ tst(r4, Operand(1 << (SharedFunctionInfo::kNative + kSmiTagSize)));
       __ b(ne, &cont);
     }
 
     // Compute the receiver in non-strict mode.
-    __ ldr(r2, MemOperand(sp, argc_ * kPointerSize));
+    __ ldr(r3, MemOperand(sp, argc_ * kPointerSize));
 
     if (NeedsChecks()) {
-      // r0: actual number of arguments
-      // r1: function
-      // r2: first argument
-      __ JumpIfSmi(r2, &wrap);
-      __ CompareObjectType(r2, r3, r3, FIRST_SPEC_OBJECT_TYPE);
+      __ JumpIfSmi(r3, &wrap);
+      __ CompareObjectType(r3, r4, r4, FIRST_SPEC_OBJECT_TYPE);
       __ b(lt, &wrap);
     } else {
       __ jmp(&wrap);
@@ -3180,8 +3177,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
     __ bind(&wrap);
     // Wrap the receiver and patch it back onto the stack.
     { FrameScope frame_scope(masm, StackFrame::INTERNAL);
-      __ push(r1);
-      __ push(r2);
+      __ Push(r1, r3);
       __ InvokeBuiltin(Builtins::TO_OBJECT, CALL_FUNCTION);
       __ pop(r1);
     }
