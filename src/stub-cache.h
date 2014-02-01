@@ -104,62 +104,6 @@ class StubCache {
                                         StrictModeFlag strict_mode,
                                         KeyedAccessStoreMode store_mode);
 
-  Handle<Code> ComputeCallField(int argc,
-                                Code::Kind,
-                                ExtraICState extra_state,
-                                Handle<Name> name,
-                                Handle<Object> object,
-                                Handle<JSObject> holder,
-                                PropertyIndex index);
-
-  Handle<Code> ComputeCallConstant(int argc,
-                                   Code::Kind,
-                                   ExtraICState extra_state,
-                                   Handle<Name> name,
-                                   Handle<Object> object,
-                                   Handle<JSObject> holder,
-                                   Handle<JSFunction> function);
-
-  Handle<Code> ComputeCallInterceptor(int argc,
-                                      Code::Kind,
-                                      ExtraICState extra_state,
-                                      Handle<Name> name,
-                                      Handle<Object> object,
-                                      Handle<JSObject> holder);
-
-  Handle<Code> ComputeCallGlobal(int argc,
-                                 Code::Kind,
-                                 ExtraICState extra_state,
-                                 Handle<Name> name,
-                                 Handle<JSObject> object,
-                                 Handle<GlobalObject> holder,
-                                 Handle<PropertyCell> cell,
-                                 Handle<JSFunction> function);
-
-  // ---
-
-  Handle<Code> ComputeCallInitialize(int argc);
-
-  Handle<Code> ComputeKeyedCallInitialize(int argc);
-
-  Handle<Code> ComputeCallPreMonomorphic(int argc,
-                                         Code::Kind kind,
-                                         ExtraICState extra_state);
-
-  Handle<Code> ComputeCallNormal(int argc,
-                                 Code::Kind kind,
-                                 ExtraICState state);
-
-  Handle<Code> ComputeCallArguments(int argc);
-
-  Handle<Code> ComputeCallMegamorphic(int argc,
-                                      Code::Kind kind,
-                                      ExtraICState state);
-
-  Handle<Code> ComputeCallMiss(int argc,
-                               Code::Kind kind,
-                               ExtraICState state);
-
   // ---
 
   Handle<Code> ComputeLoad(InlineCacheState ic_state, ExtraICState extra_state);
@@ -185,14 +129,7 @@ class StubCache {
                                     ExtraICState extra_ic_state);
 
   // Finds the Code object stored in the Heap::non_monomorphic_cache().
-  Code* FindCallInitialize(int argc, Code::Kind kind);
   Code* FindPreMonomorphicIC(Code::Kind kind, ExtraICState extra_ic_state);
-
-#ifdef ENABLE_DEBUGGER_SUPPORT
-  Handle<Code> ComputeCallDebugBreak(int argc, Code::Kind kind);
-
-  Handle<Code> ComputeCallDebugPrepareStepIn(int argc, Code::Kind kind);
-#endif
 
   // Update cache for entry hash(name, map).
   Code* Set(Name* name, Map* map, Code* code);
@@ -268,8 +205,6 @@ class StubCache {
 
  private:
   explicit StubCache(Isolate* isolate);
-
-  Handle<Code> ComputeCallInitialize(int argc, Code::Kind kind);
 
   // The stub cache has a primary and secondary level.  The two levels have
   // different hashing algorithms in order to avoid simultaneous collisions
@@ -358,7 +293,6 @@ DECLARE_RUNTIME_FUNCTION(MaybeObject*, LoadPropertyWithInterceptorOnly);
 DECLARE_RUNTIME_FUNCTION(MaybeObject*, LoadPropertyWithInterceptorForLoad);
 DECLARE_RUNTIME_FUNCTION(MaybeObject*, LoadPropertyWithInterceptorForCall);
 DECLARE_RUNTIME_FUNCTION(MaybeObject*, StoreInterceptorProperty);
-DECLARE_RUNTIME_FUNCTION(MaybeObject*, CallInterceptorProperty);
 DECLARE_RUNTIME_FUNCTION(MaybeObject*, KeyedLoadPropertyWithInterceptor);
 
 
@@ -374,15 +308,6 @@ class StubCompiler BASE_EMBEDDED {
       : isolate_(isolate), extra_ic_state_(extra_ic_state),
         masm_(isolate, NULL, 256), failure_(NULL) { }
 
-  // Functions to compile either CallIC or KeyedCallIC.  The specific kind
-  // is extracted from the code flags.
-  Handle<Code> CompileCallInitialize(Code::Flags flags);
-  Handle<Code> CompileCallPreMonomorphic(Code::Flags flags);
-  Handle<Code> CompileCallNormal(Code::Flags flags);
-  Handle<Code> CompileCallMegamorphic(Code::Flags flags);
-  Handle<Code> CompileCallArguments(Code::Flags flags);
-  Handle<Code> CompileCallMiss(Code::Flags flags);
-
   Handle<Code> CompileLoadInitialize(Code::Flags flags);
   Handle<Code> CompileLoadPreMonomorphic(Code::Flags flags);
   Handle<Code> CompileLoadMegamorphic(Code::Flags flags);
@@ -391,11 +316,6 @@ class StubCompiler BASE_EMBEDDED {
   Handle<Code> CompileStorePreMonomorphic(Code::Flags flags);
   Handle<Code> CompileStoreGeneric(Code::Flags flags);
   Handle<Code> CompileStoreMegamorphic(Code::Flags flags);
-
-#ifdef ENABLE_DEBUGGER_SUPPORT
-  Handle<Code> CompileCallDebugBreak(Code::Flags flags);
-  Handle<Code> CompileCallDebugPrepareStepIn(Code::Flags flags);
-#endif
 
   // Static functions for generating parts of stubs.
   static void GenerateLoadGlobalFunctionPrototype(MacroAssembler* masm,
@@ -865,84 +785,6 @@ class KeyedStoreStubCompiler: public StoreStubCompiler {
   }
 
   friend class BaseLoadStoreStubCompiler;
-};
-
-
-class CallStubCompiler: public StubCompiler {
- public:
-  CallStubCompiler(Isolate* isolate,
-                   int argc,
-                   Code::Kind kind,
-                   ExtraICState extra_state,
-                   InlineCacheHolderFlag cache_holder = OWN_MAP);
-
-  Handle<Code> CompileCallField(Handle<JSObject> object,
-                                Handle<JSObject> holder,
-                                PropertyIndex index,
-                                Handle<Name> name);
-
-  // Patch the implicit receiver over the global object if the global object is
-  // the receiver.
-  void PatchImplicitReceiver(Handle<Object> object);
-
-  // Returns the register containing the holder of |name|.
-  Register HandlerFrontendHeader(Handle<Object> object,
-                                 Handle<JSObject> holder,
-                                 Handle<Name> name,
-                                 CheckType check,
-                                 Label* miss);
-  void HandlerFrontendFooter(Label* miss);
-
-  void GenerateJumpFunctionIgnoreReceiver(Handle<JSFunction> function);
-  void GenerateJumpFunction(Handle<Object> object,
-                            Handle<JSFunction> function);
-  void GenerateJumpFunction(Handle<Object> object,
-                            Register function,
-                            Label* miss);
-  // Use to call |actual_closure|, a closure with the same shared function info
-  // as |function|.
-  void GenerateJumpFunction(Handle<Object> object,
-                            Register actual_closure,
-                            Handle<JSFunction> function);
-
-  Handle<Code> CompileCallConstant(Handle<Object> object,
-                                   Handle<JSObject> holder,
-                                   Handle<Name> name,
-                                   CheckType check,
-                                   Handle<JSFunction> function);
-
-  Handle<Code> CompileCallInterceptor(Handle<JSObject> object,
-                                      Handle<JSObject> holder,
-                                      Handle<Name> name);
-
-  Handle<Code> CompileCallGlobal(Handle<JSObject> object,
-                                 Handle<GlobalObject> holder,
-                                 Handle<PropertyCell> cell,
-                                 Handle<JSFunction> function,
-                                 Handle<Name> name);
-
- private:
-  Handle<Code> GetCode(Code::StubType type, Handle<Name> name);
-  Handle<Code> GetCode(Handle<JSFunction> function);
-
-  const ParameterCount& arguments() { return arguments_; }
-
-  void GenerateNameCheck(Handle<Name> name, Label* miss);
-
-  // Generates code to load the function from the cell checking that
-  // it still contains the same function.
-  void GenerateLoadFunctionFromCell(Handle<Cell> cell,
-                                    Handle<JSFunction> function,
-                                    Label* miss);
-
-  void GenerateFunctionCheck(Register function, Register scratch, Label* miss);
-
-  // Generates a jump to CallIC miss stub.
-  void GenerateMissBranch();
-
-  const ParameterCount arguments_;
-  const Code::Kind kind_;
-  const InlineCacheHolderFlag cache_holder_;
 };
 
 

@@ -1955,8 +1955,7 @@ class HStackCheck V8_FINAL : public HTemplateInstruction<1> {
 
 
 enum InliningKind {
-  NORMAL_RETURN,          // Normal function/method call and return.
-  DROP_EXTRA_ON_RETURN,   // Drop an extra value from the environment on return.
+  NORMAL_RETURN,          // Drop the function from the environment on return.
   CONSTRUCT_CALL_RETURN,  // Either use allocated receiver or return value.
   GETTER_CALL_RETURN,     // Returning from a getter, need to restore context.
   SETTER_CALL_RETURN      // Use the RHS of the assignment as the return value.
@@ -2373,39 +2372,28 @@ class HInvokeFunction V8_FINAL : public HBinaryCall {
 };
 
 
-enum CallMode {
-  NORMAL_CALL,
-  TAIL_CALL,
-  NORMAL_CONTEXTUAL_CALL
-};
-
-
 class HCallFunction V8_FINAL : public HBinaryCall {
  public:
   DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P2(HCallFunction, HValue*, int);
   DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P3(
-      HCallFunction, HValue*, int, CallMode);
+      HCallFunction, HValue*, int, CallFunctionFlags);
 
-  bool IsTailCall() const { return call_mode_ == TAIL_CALL; }
-  bool IsContextualCall() const { return call_mode_ == NORMAL_CONTEXTUAL_CALL; }
   HValue* context() { return first(); }
   HValue* function() { return second(); }
+  CallFunctionFlags function_flags() const { return function_flags_; }
 
   DECLARE_CONCRETE_INSTRUCTION(CallFunction)
 
-  virtual int argument_delta() const V8_OVERRIDE {
-    if (IsTailCall()) return 0;
-    return -argument_count();
-  }
+  virtual int argument_delta() const V8_OVERRIDE { return -argument_count(); }
 
  private:
   HCallFunction(HValue* context,
                 HValue* function,
                 int argument_count,
-                CallMode mode = NORMAL_CALL)
-      : HBinaryCall(context, function, argument_count), call_mode_(mode) {
+                CallFunctionFlags flags = NO_CALL_FUNCTION_FLAGS)
+      : HBinaryCall(context, function, argument_count), function_flags_(flags) {
   }
-  CallMode call_mode_;
+  CallFunctionFlags function_flags_;
 };
 
 

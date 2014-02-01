@@ -1695,14 +1695,14 @@ class Property V8_FINAL : public Expression {
     return STANDARD_STORE;
   }
   bool IsUninitialized() { return is_uninitialized_; }
-  bool IsPreMonomorphic() { return is_pre_monomorphic_; }
   bool HasNoTypeInformation() {
-    return is_uninitialized_ || is_pre_monomorphic_;
+    return is_uninitialized_;
   }
   void set_is_uninitialized(bool b) { is_uninitialized_ = b; }
-  void set_is_pre_monomorphic(bool b) { is_pre_monomorphic_ = b; }
   void set_is_string_access(bool b) { is_string_access_ = b; }
   void set_is_function_prototype(bool b) { is_function_prototype_ = b; }
+  void mark_for_call() { is_for_call_ = true; }
+  bool IsForCall() { return is_for_call_; }
 
   TypeFeedbackId PropertyFeedbackId() { return reuse(id()); }
 
@@ -1715,7 +1715,7 @@ class Property V8_FINAL : public Expression {
         obj_(obj),
         key_(key),
         load_id_(GetNextId(zone)),
-        is_pre_monomorphic_(false),
+        is_for_call_(false),
         is_uninitialized_(false),
         is_string_access_(false),
         is_function_prototype_(false) { }
@@ -1726,7 +1726,7 @@ class Property V8_FINAL : public Expression {
   const BailoutId load_id_;
 
   SmallMapList receiver_types_;
-  bool is_pre_monomorphic_ : 1;
+  bool is_for_call_ : 1;
   bool is_uninitialized_ : 1;
   bool is_string_access_ : 1;
   bool is_function_prototype_ : 1;
@@ -1742,39 +1742,26 @@ class Call V8_FINAL : public Expression {
 
   // Type feedback information.
   TypeFeedbackId CallFeedbackId() const { return reuse(id()); }
-  void RecordTypeFeedback(TypeFeedbackOracle* oracle);
+
   virtual SmallMapList* GetReceiverTypes() V8_OVERRIDE {
-    return &receiver_types_;
-  }
-  virtual bool IsMonomorphic() V8_OVERRIDE { return is_monomorphic_; }
-  bool KeyedArrayCallIsHoley() { return keyed_array_call_is_holey_; }
-  CheckType check_type() const { return check_type_; }
-
-  void set_string_check(Handle<JSObject> holder) {
-    holder_ = holder;
-    check_type_ = STRING_CHECK;
+    if (expression()->IsProperty()) {
+      return expression()->AsProperty()->GetReceiverTypes();
+    }
+    return NULL;
   }
 
-  void set_number_check(Handle<JSObject> holder) {
-    holder_ = holder;
-    check_type_ = NUMBER_CHECK;
-  }
-
-  void set_map_check() {
-    holder_ = Handle<JSObject>::null();
-    check_type_ = RECEIVER_MAP_CHECK;
+  virtual bool IsMonomorphic() V8_OVERRIDE {
+    if (expression()->IsProperty()) {
+      return expression()->AsProperty()->IsMonomorphic();
+    }
+    return !target_.is_null();
   }
 
   Handle<JSFunction> target() { return target_; }
 
-  // A cache for the holder, set as a side effect of computing the target of the
-  // call. Note that it contains the null handle when the receiver is the same
-  // as the holder!
-  Handle<JSObject> holder() { return holder_; }
-
   Handle<Cell> cell() { return cell_; }
 
-  bool ComputeTarget(Handle<Map> type, Handle<String> name);
+  void set_target(Handle<JSFunction> target) { target_ = target; }
   bool ComputeGlobalTarget(Handle<GlobalObject> global, LookupResult* lookup);
 
   BailoutId ReturnId() const { return return_id_; }
@@ -1790,11 +1777,6 @@ class Call V8_FINAL : public Expression {
   // Helpers to determine how to handle the call.
   CallType GetCallType(Isolate* isolate) const;
 
-  // TODO(rossberg): this should really move somewhere else (and be merged with
-  // various similar methods in objets.cc), but for now...
-  static Handle<JSObject> GetPrototypeForPrimitiveCheck(
-      CheckType check, Isolate* isolate);
-
 #ifdef DEBUG
   // Used to assert that the FullCodeGenerator records the return site.
   bool return_is_recorded_;
@@ -1808,21 +1790,17 @@ class Call V8_FINAL : public Expression {
       : Expression(zone, pos),
         expression_(expression),
         arguments_(arguments),
-        is_monomorphic_(false),
-        keyed_array_call_is_holey_(true),
-        check_type_(RECEIVER_MAP_CHECK),
-        return_id_(GetNextId(zone)) { }
+        return_id_(GetNextId(zone)) {
+    if (expression->IsProperty()) {
+      expression->AsProperty()->mark_for_call();
+    }
+  }
 
  private:
   Expression* expression_;
   ZoneList<Expression*>* arguments_;
 
-  bool is_monomorphic_;
-  bool keyed_array_call_is_holey_;
-  CheckType check_type_;
-  SmallMapList receiver_types_;
   Handle<JSFunction> target_;
-  Handle<JSObject> holder_;
   Handle<Cell> cell_;
 
   const BailoutId return_id_;
@@ -2154,9 +2132,8 @@ class Assignment V8_FINAL : public Expression {
     return receiver_types_.length() == 1;
   }
   bool IsUninitialized() { return is_uninitialized_; }
-  bool IsPreMonomorphic() { return is_pre_monomorphic_; }
   bool HasNoTypeInformation() {
-    return is_uninitialized_ || is_pre_monomorphic_;
+    return is_uninitialized_;
   }
   virtual SmallMapList* GetReceiverTypes() V8_OVERRIDE {
     return &receiver_types_;
@@ -2165,7 +2142,6 @@ class Assignment V8_FINAL : public Expression {
     return store_mode_;
   }
   void set_is_uninitialized(bool b) { is_uninitialized_ = b; }
-  void set_is_pre_monomorphic(bool b) { is_pre_monomorphic_ = b; }
   void set_store_mode(KeyedAccessStoreMode mode) { store_mode_ = mode; }
 
  protected:
@@ -2192,7 +2168,6 @@ class Assignment V8_FINAL : public Expression {
   const BailoutId assignment_id_;
 
   bool is_uninitialized_ : 1;
-  bool is_pre_monomorphic_ : 1;
   KeyedAccessStoreMode store_mode_ : 5;  // Windows treats as signed,
                                          // must have extra bit.
   SmallMapList receiver_types_;

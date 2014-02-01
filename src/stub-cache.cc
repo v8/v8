@@ -195,7 +195,7 @@ Handle<Code> StubCache::ComputeLoadNonexistent(Handle<Name> name,
       cache_name, stub_holder, Code::LOAD_IC, flag);
   if (!handler.is_null()) return handler;
 
-  LoadStubCompiler compiler(isolate_, flag);
+  LoadStubCompiler compiler(isolate_, kNoExtraICState, flag);
   handler = compiler.CompileLoadNonexistent(type, last, cache_name);
   Map::UpdateCodeCache(stub_holder, cache_name, handler);
   return handler;
@@ -247,163 +247,7 @@ Handle<Code> StubCache::ComputeKeyedStoreElement(
 }
 
 
-#define CALL_LOGGER_TAG(kind, type) \
-    (kind == Code::CALL_IC ? Logger::type : Logger::KEYED_##type)
-
-Handle<Code> StubCache::ComputeCallConstant(int argc,
-                                            Code::Kind kind,
-                                            ExtraICState extra_state,
-                                            Handle<Name> name,
-                                            Handle<Object> object,
-                                            Handle<JSObject> holder,
-                                            Handle<JSFunction> function) {
-  // Compute the check type and the map.
-  InlineCacheHolderFlag cache_holder = IC::GetCodeCacheForObject(*object);
-  Handle<HeapObject> stub_holder(IC::GetCodeCacheHolder(
-      isolate_, *object, cache_holder));
-
-  // Compute check type based on receiver/holder.
-  CheckType check = RECEIVER_MAP_CHECK;
-  if (object->IsString()) {
-    check = STRING_CHECK;
-  } else if (object->IsSymbol()) {
-    check = SYMBOL_CHECK;
-  } else if (object->IsNumber()) {
-    check = NUMBER_CHECK;
-  } else if (object->IsBoolean()) {
-    check = BOOLEAN_CHECK;
-  }
-
-  if (check != RECEIVER_MAP_CHECK &&
-      !function->IsBuiltin() &&
-      function->shared()->is_classic_mode()) {
-    // Calling non-strict non-builtins with a value as the receiver
-    // requires boxing.
-    return Handle<Code>::null();
-  }
-
-  Code::Flags flags = Code::ComputeMonomorphicFlags(
-      kind, extra_state, cache_holder, Code::FAST, argc);
-  Handle<Object> probe(stub_holder->map()->FindInCodeCache(*name, flags),
-                       isolate_);
-  if (probe->IsCode()) return Handle<Code>::cast(probe);
-
-  CallStubCompiler compiler(isolate_, argc, kind, extra_state, cache_holder);
-  Handle<Code> code =
-      compiler.CompileCallConstant(object, holder, name, check, function);
-  code->set_check_type(check);
-  ASSERT(flags == code->flags());
-  PROFILE(isolate_,
-          CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_IC_TAG), *code, *name));
-  GDBJIT(AddCode(GDBJITInterface::CALL_IC, *name, *code));
-
-  HeapObject::UpdateMapCodeCache(stub_holder, name, code);
-  return code;
-}
-
-
-Handle<Code> StubCache::ComputeCallField(int argc,
-                                         Code::Kind kind,
-                                         ExtraICState extra_state,
-                                         Handle<Name> name,
-                                         Handle<Object> object,
-                                         Handle<JSObject> holder,
-                                         PropertyIndex index) {
-  // Compute the check type and the map.
-  InlineCacheHolderFlag cache_holder = IC::GetCodeCacheForObject(*object);
-  Handle<HeapObject> stub_holder(IC::GetCodeCacheHolder(
-      isolate_, *object, cache_holder));
-
-  // TODO(1233596): We cannot do receiver map check for non-JS objects
-  // because they may be represented as immediates without a
-  // map. Instead, we check against the map in the holder.
-  if (object->IsNumber() || object->IsSymbol() ||
-      object->IsBoolean() || object->IsString()) {
-    object = holder;
-  }
-
-  Code::Flags flags = Code::ComputeMonomorphicFlags(
-      kind, extra_state, cache_holder, Code::FAST, argc);
-  Handle<Object> probe(stub_holder->map()->FindInCodeCache(*name, flags),
-                       isolate_);
-  if (probe->IsCode()) return Handle<Code>::cast(probe);
-
-  CallStubCompiler compiler(isolate_, argc, kind, extra_state, cache_holder);
-  Handle<Code> code =
-      compiler.CompileCallField(Handle<JSObject>::cast(object),
-                                holder, index, name);
-  ASSERT(flags == code->flags());
-  PROFILE(isolate_,
-          CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_IC_TAG), *code, *name));
-  GDBJIT(AddCode(GDBJITInterface::CALL_IC, *name, *code));
-  HeapObject::UpdateMapCodeCache(stub_holder, name, code);
-  return code;
-}
-
-
-Handle<Code> StubCache::ComputeCallInterceptor(int argc,
-                                               Code::Kind kind,
-                                               ExtraICState extra_state,
-                                               Handle<Name> name,
-                                               Handle<Object> object,
-                                               Handle<JSObject> holder) {
-  // Compute the check type and the map.
-  InlineCacheHolderFlag cache_holder = IC::GetCodeCacheForObject(*object);
-  Handle<HeapObject> stub_holder(IC::GetCodeCacheHolder(
-      isolate_, *object, cache_holder));
-
-  // TODO(1233596): We cannot do receiver map check for non-JS objects
-  // because they may be represented as immediates without a
-  // map. Instead, we check against the map in the holder.
-  if (object->IsNumber() || object->IsSymbol() ||
-      object->IsBoolean() || object->IsString()) {
-    object = holder;
-  }
-
-  Code::Flags flags = Code::ComputeMonomorphicFlags(
-      kind, extra_state, cache_holder, Code::FAST, argc);
-  Handle<Object> probe(stub_holder->map()->FindInCodeCache(*name, flags),
-                       isolate_);
-  if (probe->IsCode()) return Handle<Code>::cast(probe);
-
-  CallStubCompiler compiler(isolate(), argc, kind, extra_state, cache_holder);
-  Handle<Code> code =
-      compiler.CompileCallInterceptor(Handle<JSObject>::cast(object),
-                                      holder, name);
-  ASSERT(flags == code->flags());
-  PROFILE(isolate(),
-          CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_IC_TAG), *code, *name));
-  GDBJIT(AddCode(GDBJITInterface::CALL_IC, *name, *code));
-  HeapObject::UpdateMapCodeCache(stub_holder, name, code);
-  return code;
-}
-
-
-Handle<Code> StubCache::ComputeCallGlobal(int argc,
-                                          Code::Kind kind,
-                                          ExtraICState extra_state,
-                                          Handle<Name> name,
-                                          Handle<JSObject> receiver,
-                                          Handle<GlobalObject> holder,
-                                          Handle<PropertyCell> cell,
-                                          Handle<JSFunction> function) {
-  Code::Flags flags = Code::ComputeMonomorphicFlags(
-      kind, extra_state, OWN_MAP, Code::NORMAL, argc);
-  Handle<Object> probe(receiver->map()->FindInCodeCache(*name, flags),
-                       isolate_);
-  if (probe->IsCode()) return Handle<Code>::cast(probe);
-
-  CallStubCompiler compiler(isolate(), argc, kind, extra_state);
-  Handle<Code> code =
-      compiler.CompileCallGlobal(receiver, holder, cell, function, name);
-  ASSERT(flags == code->flags());
-  PROFILE(isolate(),
-          CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_IC_TAG), *code, *name));
-  GDBJIT(AddCode(GDBJITInterface::CALL_IC, *name, *code));
-  HeapObject::UpdateMapCodeCache(receiver, name, code);
-  return code;
-}
-
+#define CALL_LOGGER_TAG(kind, type) (Logger::KEYED_##type)
 
 static void FillCache(Isolate* isolate, Handle<Code> code) {
   Handle<UnseededNumberDictionary> dictionary =
@@ -411,20 +255,6 @@ static void FillCache(Isolate* isolate, Handle<Code> code) {
                                     code->flags(),
                                     code);
   isolate->heap()->public_set_non_monomorphic_cache(*dictionary);
-}
-
-
-Code* StubCache::FindCallInitialize(int argc, Code::Kind kind) {
-  Code::Flags flags = Code::ComputeFlags(
-      kind, UNINITIALIZED, kNoExtraICState, Code::NORMAL, argc);
-  UnseededNumberDictionary* dictionary =
-      isolate()->heap()->non_monomorphic_cache();
-  int entry = dictionary->FindEntry(isolate(), flags);
-  ASSERT(entry != -1);
-  Object* code = dictionary->ValueAt(entry);
-  // This might be called during the marking phase of the collector
-  // hence the unchecked cast.
-  return reinterpret_cast<Code*>(code);
 }
 
 
@@ -438,101 +268,6 @@ Code* StubCache::FindPreMonomorphicIC(Code::Kind kind, ExtraICState state) {
   // This might be called during the marking phase of the collector
   // hence the unchecked cast.
   return reinterpret_cast<Code*>(code);
-}
-
-
-Handle<Code> StubCache::ComputeCallInitialize(int argc, Code::Kind kind) {
-  Code::Flags flags = Code::ComputeFlags(
-      kind, UNINITIALIZED, kNoExtraICState, Code::NORMAL, argc);
-  Handle<UnseededNumberDictionary> cache =
-      isolate_->factory()->non_monomorphic_cache();
-  int entry = cache->FindEntry(isolate_, flags);
-  if (entry != -1) return Handle<Code>(Code::cast(cache->ValueAt(entry)));
-
-  StubCompiler compiler(isolate_);
-  Handle<Code> code = compiler.CompileCallInitialize(flags);
-  FillCache(isolate_, code);
-  return code;
-}
-
-
-Handle<Code> StubCache::ComputeCallInitialize(int argc) {
-  return ComputeCallInitialize(argc, Code::CALL_IC);
-}
-
-
-Handle<Code> StubCache::ComputeKeyedCallInitialize(int argc) {
-  return ComputeCallInitialize(argc, Code::KEYED_CALL_IC);
-}
-
-
-Handle<Code> StubCache::ComputeCallPreMonomorphic(
-    int argc,
-    Code::Kind kind,
-    ExtraICState extra_state) {
-  Code::Flags flags =
-      Code::ComputeFlags(kind, PREMONOMORPHIC, extra_state, Code::NORMAL, argc);
-  Handle<UnseededNumberDictionary> cache =
-      isolate_->factory()->non_monomorphic_cache();
-  int entry = cache->FindEntry(isolate_, flags);
-  if (entry != -1) return Handle<Code>(Code::cast(cache->ValueAt(entry)));
-
-  StubCompiler compiler(isolate_);
-  Handle<Code> code = compiler.CompileCallPreMonomorphic(flags);
-  FillCache(isolate_, code);
-  return code;
-}
-
-
-Handle<Code> StubCache::ComputeCallNormal(int argc,
-                                          Code::Kind kind,
-                                          ExtraICState extra_state) {
-  Code::Flags flags =
-      Code::ComputeFlags(kind, MONOMORPHIC, extra_state, Code::NORMAL, argc);
-  Handle<UnseededNumberDictionary> cache =
-      isolate_->factory()->non_monomorphic_cache();
-  int entry = cache->FindEntry(isolate_, flags);
-  if (entry != -1) return Handle<Code>(Code::cast(cache->ValueAt(entry)));
-
-  StubCompiler compiler(isolate_);
-  Handle<Code> code = compiler.CompileCallNormal(flags);
-  FillCache(isolate_, code);
-  return code;
-}
-
-
-Handle<Code> StubCache::ComputeCallArguments(int argc) {
-  Code::Flags flags =
-      Code::ComputeFlags(Code::KEYED_CALL_IC, MEGAMORPHIC,
-                         kNoExtraICState, Code::NORMAL, argc);
-  Handle<UnseededNumberDictionary> cache =
-      isolate_->factory()->non_monomorphic_cache();
-  int entry = cache->FindEntry(isolate_, flags);
-  if (entry != -1) return Handle<Code>(Code::cast(cache->ValueAt(entry)));
-
-  StubCompiler compiler(isolate_);
-  Handle<Code> code = compiler.CompileCallArguments(flags);
-  FillCache(isolate_, code);
-  return code;
-}
-
-
-Handle<Code> StubCache::ComputeCallMegamorphic(
-    int argc,
-    Code::Kind kind,
-    ExtraICState extra_state) {
-  Code::Flags flags =
-      Code::ComputeFlags(kind, MEGAMORPHIC, extra_state,
-                         Code::NORMAL, argc);
-  Handle<UnseededNumberDictionary> cache =
-      isolate_->factory()->non_monomorphic_cache();
-  int entry = cache->FindEntry(isolate_, flags);
-  if (entry != -1) return Handle<Code>(Code::cast(cache->ValueAt(entry)));
-
-  StubCompiler compiler(isolate_);
-  Handle<Code> code = compiler.CompileCallMegamorphic(flags);
-  FillCache(isolate_, code);
-  return code;
 }
 
 
@@ -582,26 +317,6 @@ Handle<Code> StubCache::ComputeStore(InlineCacheState ic_state,
     UNREACHABLE();
   }
 
-  FillCache(isolate_, code);
-  return code;
-}
-
-
-Handle<Code> StubCache::ComputeCallMiss(int argc,
-                                        Code::Kind kind,
-                                        ExtraICState extra_state) {
-  // MONOMORPHIC_PROTOTYPE_FAILURE state is used to make sure that miss stubs
-  // and monomorphic stubs are not mixed up together in the stub cache.
-  Code::Flags flags =
-      Code::ComputeFlags(kind, MONOMORPHIC_PROTOTYPE_FAILURE, extra_state,
-                         Code::NORMAL, argc, OWN_MAP);
-  Handle<UnseededNumberDictionary> cache =
-      isolate_->factory()->non_monomorphic_cache();
-  int entry = cache->FindEntry(isolate_, flags);
-  if (entry != -1) return Handle<Code>(Code::cast(cache->ValueAt(entry)));
-
-  StubCompiler compiler(isolate_);
-  Handle<Code> code = compiler.CompileCallMiss(flags);
   FillCache(isolate_, code);
   return code;
 }
@@ -699,46 +414,6 @@ Handle<Code> StubCache::ComputeStoreElementPolymorphic(
   PolymorphicCodeCache::Update(cache, receiver_maps, flags, code);
   return code;
 }
-
-
-#ifdef ENABLE_DEBUGGER_SUPPORT
-Handle<Code> StubCache::ComputeCallDebugBreak(int argc,
-                                              Code::Kind kind) {
-  // Extra IC state is irrelevant for debug break ICs. They jump to
-  // the actual call ic to carry out the work.
-  Code::Flags flags =
-      Code::ComputeFlags(kind, DEBUG_STUB, DEBUG_BREAK,
-                         Code::NORMAL, argc);
-  Handle<UnseededNumberDictionary> cache =
-      isolate_->factory()->non_monomorphic_cache();
-  int entry = cache->FindEntry(isolate_, flags);
-  if (entry != -1) return Handle<Code>(Code::cast(cache->ValueAt(entry)));
-
-  StubCompiler compiler(isolate_);
-  Handle<Code> code = compiler.CompileCallDebugBreak(flags);
-  FillCache(isolate_, code);
-  return code;
-}
-
-
-Handle<Code> StubCache::ComputeCallDebugPrepareStepIn(int argc,
-                                                      Code::Kind kind) {
-  // Extra IC state is irrelevant for debug break ICs. They jump to
-  // the actual call ic to carry out the work.
-  Code::Flags flags =
-      Code::ComputeFlags(kind, DEBUG_STUB, DEBUG_PREPARE_STEP_IN,
-                         Code::NORMAL, argc);
-  Handle<UnseededNumberDictionary> cache =
-      isolate_->factory()->non_monomorphic_cache();
-  int entry = cache->FindEntry(isolate_, flags);
-  if (entry != -1) return Handle<Code>(Code::cast(cache->ValueAt(entry)));
-
-  StubCompiler compiler(isolate_);
-  Handle<Code> code = compiler.CompileCallDebugPrepareStepIn(flags);
-  FillCache(isolate_, code);
-  return code;
-}
-#endif
 
 
 void StubCache::Clear() {
@@ -994,83 +669,6 @@ RUNTIME_FUNCTION(MaybeObject*, KeyedLoadPropertyWithInterceptor) {
 }
 
 
-Handle<Code> StubCompiler::CompileCallInitialize(Code::Flags flags) {
-  int argc = Code::ExtractArgumentsCountFromFlags(flags);
-  Code::Kind kind = Code::ExtractKindFromFlags(flags);
-  ExtraICState extra_state = Code::ExtractExtraICStateFromFlags(flags);
-  if (kind == Code::CALL_IC) {
-    CallIC::GenerateInitialize(masm(), argc, extra_state);
-  } else {
-    KeyedCallIC::GenerateInitialize(masm(), argc);
-  }
-  Handle<Code> code = GetCodeWithFlags(flags, "CompileCallInitialize");
-  isolate()->counters()->call_initialize_stubs()->Increment();
-  PROFILE(isolate(),
-          CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_INITIALIZE_TAG),
-                          *code, code->arguments_count()));
-  GDBJIT(AddCode(GDBJITInterface::CALL_INITIALIZE, *code));
-  return code;
-}
-
-
-Handle<Code> StubCompiler::CompileCallPreMonomorphic(Code::Flags flags) {
-  int argc = Code::ExtractArgumentsCountFromFlags(flags);
-  // The code of the PreMonomorphic stub is the same as the code
-  // of the Initialized stub.  They just differ on the code object flags.
-  Code::Kind kind = Code::ExtractKindFromFlags(flags);
-  ExtraICState extra_state = Code::ExtractExtraICStateFromFlags(flags);
-  if (kind == Code::CALL_IC) {
-    CallIC::GenerateInitialize(masm(), argc, extra_state);
-  } else {
-    KeyedCallIC::GenerateInitialize(masm(), argc);
-  }
-  Handle<Code> code = GetCodeWithFlags(flags, "CompileCallPreMonomorphic");
-  isolate()->counters()->call_premonomorphic_stubs()->Increment();
-  PROFILE(isolate(),
-          CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_PRE_MONOMORPHIC_TAG),
-                          *code, code->arguments_count()));
-  GDBJIT(AddCode(GDBJITInterface::CALL_PRE_MONOMORPHIC, *code));
-  return code;
-}
-
-
-Handle<Code> StubCompiler::CompileCallNormal(Code::Flags flags) {
-  int argc = Code::ExtractArgumentsCountFromFlags(flags);
-  Code::Kind kind = Code::ExtractKindFromFlags(flags);
-  if (kind == Code::CALL_IC) {
-    CallIC::GenerateNormal(masm(), argc);
-  } else {
-    KeyedCallIC::GenerateNormal(masm(), argc);
-  }
-  Handle<Code> code = GetCodeWithFlags(flags, "CompileCallNormal");
-  isolate()->counters()->call_normal_stubs()->Increment();
-  PROFILE(isolate(),
-          CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_NORMAL_TAG),
-                          *code, code->arguments_count()));
-  GDBJIT(AddCode(GDBJITInterface::CALL_NORMAL, *code));
-  return code;
-}
-
-
-Handle<Code> StubCompiler::CompileCallMegamorphic(Code::Flags flags) {
-  int argc = Code::ExtractArgumentsCountFromFlags(flags);
-  Code::Kind kind = Code::ExtractKindFromFlags(flags);
-  ExtraICState extra_state = Code::ExtractExtraICStateFromFlags(flags);
-  if (kind == Code::CALL_IC) {
-    CallIC::GenerateMegamorphic(masm(), argc, extra_state);
-  } else {
-    KeyedCallIC::GenerateMegamorphic(masm(), argc);
-  }
-  Handle<Code> code = GetCodeWithFlags(flags, "CompileCallMegamorphic");
-  isolate()->counters()->call_megamorphic_stubs()->Increment();
-  PROFILE(isolate(),
-          CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_MEGAMORPHIC_TAG),
-                          *code, code->arguments_count()));
-  GDBJIT(AddCode(GDBJITInterface::CALL_MEGAMORPHIC, *code));
-  return code;
-}
-
-
 Handle<Code> StubCompiler::CompileLoadInitialize(Code::Flags flags) {
   LoadIC::GenerateInitialize(masm());
   Handle<Code> code = GetCodeWithFlags(flags, "CompileLoadInitialize");
@@ -1146,71 +744,6 @@ Handle<Code> StubCompiler::CompileStoreMegamorphic(Code::Flags flags) {
 }
 
 
-Handle<Code> StubCompiler::CompileCallArguments(Code::Flags flags) {
-  int argc = Code::ExtractArgumentsCountFromFlags(flags);
-  KeyedCallIC::GenerateNonStrictArguments(masm(), argc);
-  Handle<Code> code = GetCodeWithFlags(flags, "CompileCallArguments");
-  PROFILE(isolate(),
-          CodeCreateEvent(CALL_LOGGER_TAG(Code::ExtractKindFromFlags(flags),
-                                          CALL_MEGAMORPHIC_TAG),
-                          *code, code->arguments_count()));
-  GDBJIT(AddCode(GDBJITInterface::CALL_MEGAMORPHIC, *code));
-  return code;
-}
-
-
-Handle<Code> StubCompiler::CompileCallMiss(Code::Flags flags) {
-  int argc = Code::ExtractArgumentsCountFromFlags(flags);
-  Code::Kind kind = Code::ExtractKindFromFlags(flags);
-  ExtraICState extra_state = Code::ExtractExtraICStateFromFlags(flags);
-  if (kind == Code::CALL_IC) {
-    CallIC::GenerateMiss(masm(), argc, extra_state);
-  } else {
-    KeyedCallIC::GenerateMiss(masm(), argc);
-  }
-  Handle<Code> code = GetCodeWithFlags(flags, "CompileCallMiss");
-  isolate()->counters()->call_megamorphic_stubs()->Increment();
-  PROFILE(isolate(),
-          CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_MISS_TAG),
-                          *code, code->arguments_count()));
-  GDBJIT(AddCode(GDBJITInterface::CALL_MISS, *code));
-  return code;
-}
-
-
-#ifdef ENABLE_DEBUGGER_SUPPORT
-Handle<Code> StubCompiler::CompileCallDebugBreak(Code::Flags flags) {
-  Debug::GenerateCallICDebugBreak(masm());
-  Handle<Code> code = GetCodeWithFlags(flags, "CompileCallDebugBreak");
-  PROFILE(isolate(),
-          CodeCreateEvent(CALL_LOGGER_TAG(Code::ExtractKindFromFlags(flags),
-                                          CALL_DEBUG_BREAK_TAG),
-                          *code, code->arguments_count()));
-  return code;
-}
-
-
-Handle<Code> StubCompiler::CompileCallDebugPrepareStepIn(Code::Flags flags) {
-  // Use the same code for the the step in preparations as we do for the
-  // miss case.
-  int argc = Code::ExtractArgumentsCountFromFlags(flags);
-  Code::Kind kind = Code::ExtractKindFromFlags(flags);
-  if (kind == Code::CALL_IC) {
-    // For the debugger extra ic state is irrelevant.
-    CallIC::GenerateMiss(masm(), argc, kNoExtraICState);
-  } else {
-    KeyedCallIC::GenerateMiss(masm(), argc);
-  }
-  Handle<Code> code = GetCodeWithFlags(flags, "CompileCallDebugPrepareStepIn");
-  PROFILE(isolate(),
-          CodeCreateEvent(
-              CALL_LOGGER_TAG(kind, CALL_DEBUG_PREPARE_STEP_IN_TAG),
-              *code,
-              code->arguments_count()));
-  return code;
-}
-#endif  // ENABLE_DEBUGGER_SUPPORT
-
 #undef CALL_LOGGER_TAG
 
 
@@ -1249,53 +782,6 @@ void StubCompiler::LookupPostInterceptor(Handle<JSObject> holder,
 
 
 #define __ ACCESS_MASM(masm())
-
-
-void CallStubCompiler::HandlerFrontendFooter(Label* miss) {
-  __ bind(miss);
-  GenerateMissBranch();
-}
-
-
-void CallStubCompiler::GenerateJumpFunctionIgnoreReceiver(
-    Handle<JSFunction> function) {
-  ParameterCount expected(function);
-  __ InvokeFunction(function, expected, arguments(),
-                    JUMP_FUNCTION, NullCallWrapper());
-}
-
-
-void CallStubCompiler::GenerateJumpFunction(Handle<Object> object,
-                                            Handle<JSFunction> function) {
-  PatchImplicitReceiver(object);
-  GenerateJumpFunctionIgnoreReceiver(function);
-}
-
-
-void CallStubCompiler::GenerateJumpFunction(Handle<Object> object,
-                                            Register actual_closure,
-                                            Handle<JSFunction> function) {
-  PatchImplicitReceiver(object);
-  ParameterCount expected(function);
-  __ InvokeFunction(actual_closure, expected, arguments(),
-                    JUMP_FUNCTION, NullCallWrapper());
-}
-
-
-Handle<Code> CallStubCompiler::CompileCallConstant(
-    Handle<Object> object,
-    Handle<JSObject> holder,
-    Handle<Name> name,
-    CheckType check,
-    Handle<JSFunction> function) {
-  Label miss;
-  HandlerFrontendHeader(object, holder, name, check, &miss);
-  GenerateJumpFunction(object, function);
-  HandlerFrontendFooter(&miss);
-
-  // Return the generated code.
-  return GetCode(function);
-}
 
 
 Register LoadStubCompiler::HandlerFrontendHeader(
@@ -1422,14 +908,8 @@ Handle<Code> LoadStubCompiler::CompileLoadField(
     Handle<Name> name,
     PropertyIndex field,
     Representation representation) {
-  Label miss;
-
-  Register reg = HandlerFrontendHeader(type, receiver(), holder, name, &miss);
-
+  Register reg = HandlerFrontend(type, receiver(), holder, name);
   GenerateLoadField(reg, holder, field, representation);
-
-  __ bind(&miss);
-  TailCallBuiltin(masm(), MissBuiltin(kind()));
 
   // Return the generated code.
   return GetCode(kind(), Code::FAST, name);
@@ -1853,36 +1333,6 @@ Handle<Code> KeyedStoreStubCompiler::CompileStoreElementPolymorphic(
 void KeyedStoreStubCompiler::GenerateStoreDictionaryElement(
     MacroAssembler* masm) {
   KeyedStoreIC::GenerateSlow(masm);
-}
-
-
-CallStubCompiler::CallStubCompiler(Isolate* isolate,
-                                   int argc,
-                                   Code::Kind kind,
-                                   ExtraICState extra_state,
-                                   InlineCacheHolderFlag cache_holder)
-    : StubCompiler(isolate, extra_state),
-      arguments_(argc),
-      kind_(kind),
-      cache_holder_(cache_holder) {
-}
-
-
-Handle<Code> CallStubCompiler::GetCode(Code::StubType type,
-                                       Handle<Name> name) {
-  int argc = arguments_.immediate();
-  Code::Flags flags = Code::ComputeMonomorphicFlags(
-      kind_, extra_state(), cache_holder_, type, argc);
-  return GetCodeWithFlags(flags, name);
-}
-
-
-Handle<Code> CallStubCompiler::GetCode(Handle<JSFunction> function) {
-  Handle<String> function_name;
-  if (function->shared()->name()->IsString()) {
-    function_name = Handle<String>(String::cast(function->shared()->name()));
-  }
-  return GetCode(Code::FAST, function_name);
 }
 
 

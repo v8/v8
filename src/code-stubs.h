@@ -90,7 +90,6 @@ namespace internal {
   V(TransitionElementsKind)              \
   V(StoreArrayLiteralElement)            \
   V(StubFailureTrampoline)               \
-  V(StubFailureTailCallTrampoline)       \
   V(ArrayConstructor)                    \
   V(InternalArrayConstructor)            \
   V(ProfileEntryHook)                    \
@@ -99,8 +98,7 @@ namespace internal {
   V(CallApiGetter)                       \
   /* IC Handler stubs */                 \
   V(LoadField)                           \
-  V(KeyedLoadField)                      \
-  V(KeyedArrayCall)
+  V(KeyedLoadField)
 
 // List of code stubs only used on ARM platforms.
 #if V8_TARGET_ARCH_ARM
@@ -164,7 +162,6 @@ class CodeStub BASE_EMBEDDED {
   virtual ~CodeStub() {}
 
   static void GenerateStubsAheadOfTime(Isolate* isolate);
-  static void GenerateStubsRequiringBuiltinsAheadOfTime(Isolate* isolate);
   static void GenerateFPStubs(Isolate* isolate);
 
   // Some stubs put untagged junk on the stack that cannot be scanned by the
@@ -275,9 +272,6 @@ class PlatformCodeStub : public CodeStub {
 enum StubFunctionMode { NOT_JS_FUNCTION_STUB_MODE, JS_FUNCTION_STUB_MODE };
 enum HandlerArgumentsMode { DONT_PASS_ARGUMENTS, PASS_ARGUMENTS };
 
-enum ContinuationType { NORMAL_CONTINUATION, TAIL_CALL_CONTINUATION };
-
-
 struct CodeStubInterfaceDescriptor {
   CodeStubInterfaceDescriptor();
   int register_param_count_;
@@ -286,7 +280,6 @@ struct CodeStubInterfaceDescriptor {
   // if hint_stack_parameter_count_ > 0, the code stub can optimize the
   // return sequence. Default value is -1, which means it is ignored.
   int hint_stack_parameter_count_;
-  ContinuationType continuation_type_;
   StubFunctionMode function_mode_;
   Register* register_params_;
 
@@ -294,10 +287,6 @@ struct CodeStubInterfaceDescriptor {
   HandlerArgumentsMode handler_arguments_mode_;
 
   bool initialized() const { return register_param_count_ >= 0; }
-
-  bool HasTailCallContinuation() const {
-    return continuation_type_ == TAIL_CALL_CONTINUATION;
-  }
 
   int environment_length() const {
     return register_param_count_;
@@ -1076,47 +1065,6 @@ class KeyedLoadFieldStub: public LoadFieldStub {
 };
 
 
-class KeyedArrayCallStub: public HICStub {
- public:
-  KeyedArrayCallStub(bool holey, int argc) : HICStub(), argc_(argc) {
-    bit_field_ = HoleyBits::encode(holey);
-  }
-
-  virtual Code::Kind kind() const { return Code::KEYED_CALL_IC; }
-  virtual ExtraICState GetExtraICState() { return bit_field_; }
-
-  ElementsKind elements_kind() {
-    return HoleyBits::decode(bit_field_) ? FAST_HOLEY_ELEMENTS : FAST_ELEMENTS;
-  }
-
-  int argc() { return argc_; }
-  virtual int GetStubFlags() { return argc(); }
-
-  static bool IsHoley(Handle<Code> code) {
-    ExtraICState state = code->extra_ic_state();
-    return HoleyBits::decode(state);
-  }
-
-  virtual void InitializeInterfaceDescriptor(
-      Isolate* isolate,
-      CodeStubInterfaceDescriptor* descriptor);
-
-  virtual Handle<Code> GenerateCode(Isolate* isolate);
-
- private:
-  virtual int NotMissMinorKey() {
-    return GetExtraICState() | ArgcBits::encode(argc_);
-  }
-
-  class HoleyBits: public BitField<bool, 0, 1> {};
-  STATIC_ASSERT(Code::kArgumentsBits <= kStubMinorKeyBits - 1);
-  class ArgcBits: public BitField<int, 1, Code::kArgumentsBits> {};
-  virtual CodeStub::Major MajorKey() { return KeyedArrayCall; }
-  int bit_field_;
-  int argc_;
-};
-
-
 class BinaryOpICStub : public HydrogenCodeStub {
  public:
   BinaryOpICStub(Token::Value op, OverwriteMode mode)
@@ -1654,8 +1602,8 @@ class CallFunctionStub: public PlatformCodeStub {
   virtual void PrintName(StringStream* stream);
 
   // Minor key encoding in 32 bits with Bitfield <Type, shift, size>.
-  class FlagBits: public BitField<CallFunctionFlags, 0, 1> {};
-  class ArgcBits: public BitField<unsigned, 1, 32 - 1> {};
+  class FlagBits: public BitField<CallFunctionFlags, 0, 2> {};
+  class ArgcBits: public BitField<unsigned, 2, 32 - 2> {};
 
   Major MajorKey() { return CallFunction; }
   int MinorKey() {
@@ -1664,7 +1612,15 @@ class CallFunctionStub: public PlatformCodeStub {
   }
 
   bool RecordCallTarget() {
-    return (flags_ & RECORD_CALL_TARGET) != 0;
+    return flags_ == RECORD_CALL_TARGET;
+  }
+
+  bool CallAsMethod() {
+    return flags_ == CALL_AS_METHOD || flags_ == WRAP_AND_CALL;
+  }
+
+  bool NeedsChecks() {
+    return flags_ != WRAP_AND_CALL;
   }
 };
 
@@ -1689,6 +1645,10 @@ class CallConstructStub: public PlatformCodeStub {
 
   bool RecordCallTarget() {
     return (flags_ & RECORD_CALL_TARGET) != 0;
+  }
+
+  bool CallAsMethod() {
+    return (flags_ & CALL_AS_METHOD) != 0;
   }
 };
 
@@ -2488,25 +2448,6 @@ class StubFailureTrampolineStub : public PlatformCodeStub {
   StubFunctionMode function_mode_;
 
   DISALLOW_COPY_AND_ASSIGN(StubFailureTrampolineStub);
-};
-
-
-class StubFailureTailCallTrampolineStub : public PlatformCodeStub {
- public:
-  StubFailureTailCallTrampolineStub() : fp_registers_(CanUseFPRegisters()) {}
-
-  static void GenerateAheadOfTime(Isolate* isolate);
-
- private:
-  class FPRegisters: public BitField<bool, 0, 1> {};
-  Major MajorKey() { return StubFailureTailCallTrampoline; }
-  int MinorKey() { return FPRegisters::encode(fp_registers_); }
-
-  void Generate(MacroAssembler* masm);
-
-  bool fp_registers_;
-
-  DISALLOW_COPY_AND_ASSIGN(StubFailureTailCallTrampolineStub);
 };
 
 

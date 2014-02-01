@@ -11076,9 +11076,6 @@ void Code::Disassemble(const char* name, FILE* out) {
     if (ic_state() == MONOMORPHIC) {
       PrintF(out, "type = %s\n", StubType2String(type()));
     }
-    if (is_call_stub() || is_keyed_call_stub()) {
-      PrintF(out, "argc = %d\n", arguments_count());
-    }
     if (is_compare_ic_stub()) {
       ASSERT(major_key() == CodeStub::CompareIC);
       CompareIC::State left_state, right_state, handler_state;

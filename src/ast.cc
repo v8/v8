@@ -138,7 +138,6 @@ Assignment::Assignment(Zone* zone,
       binary_operation_(NULL),
       assignment_id_(GetNextId(zone)),
       is_uninitialized_(false),
-      is_pre_monomorphic_(false),
       store_mode_(STANDARD_STORE) { }
 
 
@@ -611,59 +610,6 @@ Call::CallType Call::GetCallType(Isolate* isolate) const {
 }
 
 
-bool Call::ComputeTarget(Handle<Map> type, Handle<String> name) {
-  // If there is an interceptor, we can't compute the target for a direct call.
-  if (type->has_named_interceptor()) return false;
-
-  if (check_type_ == RECEIVER_MAP_CHECK) {
-    // For primitive checks the holder is set up to point to the corresponding
-    // prototype object, i.e. one step of the algorithm below has been already
-    // performed. For non-primitive checks we clear it to allow computing
-    // targets for polymorphic calls.
-    holder_ = Handle<JSObject>::null();
-  }
-  LookupResult lookup(type->GetIsolate());
-  while (true) {
-    // If a dictionary map is found in the prototype chain before the actual
-    // target, a new target can always appear. In that case, bail out.
-    // TODO(verwaest): Alternatively a runtime negative lookup on the normal
-    // receiver or prototype could be added.
-    if (type->is_dictionary_map()) return false;
-    type->LookupDescriptor(NULL, *name, &lookup);
-    if (lookup.IsFound()) {
-      switch (lookup.type()) {
-        case CONSTANT: {
-          // We surely know the target for a constant function.
-          Handle<Object> constant(lookup.GetConstantFromMap(*type),
-                                  type->GetIsolate());
-          if (constant->IsJSFunction()) {
-            target_ = Handle<JSFunction>::cast(constant);
-            return true;
-          }
-          // Fall through.
-        }
-        case NORMAL:
-        case FIELD:
-        case CALLBACKS:
-        case HANDLER:
-        case INTERCEPTOR:
-          // We don't know the target.
-          return false;
-        case TRANSITION:
-        case NONEXISTENT:
-          UNREACHABLE();
-          break;
-      }
-    }
-    // If we reach the end of the prototype chain, we don't know the target.
-    if (!type->prototype()->IsJSObject()) return false;
-    // Go up the prototype chain, recording where we are currently.
-    holder_ = Handle<JSObject>(JSObject::cast(type->prototype()));
-    type = Handle<Map>(holder()->map());
-  }
-}
-
-
 bool Call::ComputeGlobalTarget(Handle<GlobalObject> global,
                                LookupResult* lookup) {
   target_ = Handle<JSFunction>::null();
@@ -682,75 +628,6 @@ bool Call::ComputeGlobalTarget(Handle<GlobalObject> global,
     }
   }
   return false;
-}
-
-
-Handle<JSObject> Call::GetPrototypeForPrimitiveCheck(
-    CheckType check, Isolate* isolate) {
-  v8::internal::Context* native_context = isolate->context()->native_context();
-  JSFunction* function = NULL;
-  switch (check) {
-    case RECEIVER_MAP_CHECK:
-      UNREACHABLE();
-      break;
-    case STRING_CHECK:
-      function = native_context->string_function();
-      break;
-    case SYMBOL_CHECK:
-      function = native_context->symbol_function();
-      break;
-    case NUMBER_CHECK:
-      function = native_context->number_function();
-      break;
-    case BOOLEAN_CHECK:
-      function = native_context->boolean_function();
-      break;
-  }
-  ASSERT(function != NULL);
-  return Handle<JSObject>(JSObject::cast(function->instance_prototype()));
-}
-
-
-void Call::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
-  is_monomorphic_ = oracle->CallIsMonomorphic(CallFeedbackId());
-  Property* property = expression()->AsProperty();
-  if (property == NULL) {
-    // Function call.  Specialize for monomorphic calls.
-    if (is_monomorphic_) target_ = oracle->GetCallTarget(CallFeedbackId());
-  } else if (property->key()->IsPropertyName()) {
-    // Method call.  Specialize for the receiver types seen at runtime.
-    Literal* key = property->key()->AsLiteral();
-    ASSERT(key != NULL && key->value()->IsString());
-    Handle<String> name = Handle<String>::cast(key->value());
-    check_type_ = oracle->GetCallCheckType(CallFeedbackId());
-    receiver_types_.Clear();
-    if (check_type_ == RECEIVER_MAP_CHECK) {
-      oracle->CallReceiverTypes(CallFeedbackId(),
-          name, arguments()->length(), &receiver_types_);
-      is_monomorphic_ = is_monomorphic_ && receiver_types_.length() > 0;
-    } else {
-      holder_ = GetPrototypeForPrimitiveCheck(check_type_, oracle->isolate());
-      receiver_types_.Add(handle(holder_->map()), oracle->zone());
-    }
-#ifdef ENABLE_SLOW_ASSERTS
-    if (FLAG_enable_slow_asserts) {
-      int length = receiver_types_.length();
-      for (int i = 0; i < length; i++) {
-        Handle<Map> map = receiver_types_.at(i);
-        ASSERT(!map.is_null() && *map != NULL);
-      }
-    }
-#endif
-    if (is_monomorphic_) {
-      Handle<Map> map = receiver_types_.first();
-      is_monomorphic_ = ComputeTarget(map, name);
-    }
-  } else {
-    if (is_monomorphic_) {
-      keyed_array_call_is_holey_ =
-          oracle->KeyedArrayCallIsHoley(CallFeedbackId());
-    }
-  }
 }
 
 

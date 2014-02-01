@@ -3079,69 +3079,6 @@ TEST(ReleaseStackTraceData) {
 }
 
 
-TEST(Regression144230) {
-  i::FLAG_stress_compaction = false;
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  Heap* heap = isolate->heap();
-  HandleScope scope(isolate);
-
-  // First make sure that the uninitialized CallIC stub is on a single page
-  // that will later be selected as an evacuation candidate.
-  {
-    HandleScope inner_scope(isolate);
-    AlwaysAllocateScope always_allocate;
-    SimulateFullSpace(heap->code_space());
-    isolate->stub_cache()->ComputeCallInitialize(9);
-  }
-
-  // Second compile a CallIC and execute it once so that it gets patched to
-  // the pre-monomorphic stub. These code objects are on yet another page.
-  {
-    HandleScope inner_scope(isolate);
-    AlwaysAllocateScope always_allocate;
-    SimulateFullSpace(heap->code_space());
-    CompileRun("var o = { f:function(a,b,c,d,e,f,g,h,i) {}};"
-               "function call() { o.f(1,2,3,4,5,6,7,8,9); };"
-               "call();");
-  }
-
-  // Third we fill up the last page of the code space so that it does not get
-  // chosen as an evacuation candidate.
-  {
-    HandleScope inner_scope(isolate);
-    AlwaysAllocateScope always_allocate;
-    CompileRun("for (var i = 0; i < 2000; i++) {"
-               "  eval('function f' + i + '() { return ' + i +'; };' +"
-               "       'f' + i + '();');"
-               "}");
-  }
-  heap->CollectAllGarbage(Heap::kNoGCFlags);
-
-  // Fourth is the tricky part. Make sure the code containing the CallIC is
-  // visited first without clearing the IC. The shared function info is then
-  // visited later, causing the CallIC to be cleared.
-  Handle<String> name = isolate->factory()->InternalizeUtf8String("call");
-  Handle<GlobalObject> global(isolate->context()->global_object());
-  Handle<Smi> zero(Smi::FromInt(0), isolate);
-  MaybeObject* maybe_call = global->GetProperty(*name);
-  JSFunction* call = JSFunction::cast(maybe_call->ToObjectChecked());
-  JSReceiver::SetProperty(global, name, zero, NONE, kNonStrictMode);
-  isolate->compilation_cache()->Clear();
-  call->shared()->set_ic_age(heap->global_ic_age() + 1);
-  Handle<Object> call_code(call->code(), isolate);
-  Handle<Object> call_function(call, isolate);
-
-  // Now we are ready to mess up the heap.
-  heap->CollectAllGarbage(Heap::kReduceMemoryFootprintMask);
-
-  // Either heap verification caught the problem already or we go kaboom once
-  // the CallIC is executed the next time.
-  JSReceiver::SetProperty(global, name, call_function, NONE, kNonStrictMode);
-  CompileRun("call();");
-}
-
-
 TEST(Regress159140) {
   i::FLAG_allow_natives_syntax = true;
   i::FLAG_flush_code_incrementally = true;

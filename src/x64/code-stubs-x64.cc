@@ -166,19 +166,6 @@ void KeyedLoadFieldStub::InitializeInterfaceDescriptor(
 }
 
 
-void KeyedArrayCallStub::InitializeInterfaceDescriptor(
-    Isolate* isolate,
-    CodeStubInterfaceDescriptor* descriptor) {
-  static Register registers[] = { rcx };
-  descriptor->register_param_count_ = 1;
-  descriptor->register_params_ = registers;
-  descriptor->continuation_type_ = TAIL_CALL_CONTINUATION;
-  descriptor->handler_arguments_mode_ = PASS_ARGUMENTS;
-  descriptor->deoptimization_handler_ =
-      FUNCTION_ADDR(KeyedCallIC_MissFromStubFailure);
-}
-
-
 void KeyedStoreFastElementStub::InitializeInterfaceDescriptor(
     Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
@@ -2262,59 +2249,105 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   // rbx : cache cell for call target
   // rdi : the function to call
   Isolate* isolate = masm->isolate();
-  Label slow, non_function;
+  Label slow, non_function, wrap, cont;
   StackArgumentsAccessor args(rsp, argc_);
 
-  // Check that the function really is a JavaScript function.
-  __ JumpIfSmi(rdi, &non_function);
+  if (NeedsChecks()) {
+    // Check that the function really is a JavaScript function.
+    __ JumpIfSmi(rdi, &non_function);
 
-  // Goto slow case if we do not have a function.
-  __ CmpObjectType(rdi, JS_FUNCTION_TYPE, rcx);
-  __ j(not_equal, &slow);
+    // Goto slow case if we do not have a function.
+    __ CmpObjectType(rdi, JS_FUNCTION_TYPE, rcx);
+    __ j(not_equal, &slow);
 
-  if (RecordCallTarget()) {
-    GenerateRecordCallTarget(masm);
+    if (RecordCallTarget()) {
+      GenerateRecordCallTarget(masm);
+    }
   }
 
   // Fast-case: Just invoke the function.
   ParameterCount actual(argc_);
 
+  if (CallAsMethod()) {
+    if (NeedsChecks()) {
+      // Do not transform the receiver for strict mode functions.
+      __ movp(rcx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
+      __ testb(FieldOperand(rcx, SharedFunctionInfo::kStrictModeByteOffset),
+               Immediate(1 << SharedFunctionInfo::kStrictModeBitWithinByte));
+      __ j(not_equal, &cont);
+
+      // Do not transform the receiver for natives.
+      // SharedFunctionInfo is already loaded into rcx.
+      __ testb(FieldOperand(rcx, SharedFunctionInfo::kNativeByteOffset),
+               Immediate(1 << SharedFunctionInfo::kNativeBitWithinByte));
+      __ j(not_equal, &cont);
+    }
+
+    // Load the receiver from the stack.
+    __ movp(rax, Operand(rsp, (argc_ + 1) * kPointerSize));
+
+    if (NeedsChecks()) {
+      __ JumpIfSmi(rax, &wrap);
+
+      __ CmpObjectType(rax, FIRST_SPEC_OBJECT_TYPE, rcx);
+      __ j(below, &wrap);
+    } else {
+      __ jmp(&wrap);
+    }
+
+    __ bind(&cont);
+  }
   __ InvokeFunction(rdi, actual, JUMP_FUNCTION, NullCallWrapper());
 
-  // Slow-case: Non-function called.
-  __ bind(&slow);
-  if (RecordCallTarget()) {
-    // If there is a call target cache, mark it megamorphic in the
-    // non-function case.  MegamorphicSentinel is an immortal immovable
-    // object (undefined) so no write barrier is needed.
-    __ Move(FieldOperand(rbx, Cell::kValueOffset),
-            TypeFeedbackCells::MegamorphicSentinel(isolate));
-  }
-  // Check for function proxy.
-  __ CmpInstanceType(rcx, JS_FUNCTION_PROXY_TYPE);
-  __ j(not_equal, &non_function);
-  __ PopReturnAddressTo(rcx);
-  __ push(rdi);  // put proxy as additional argument under return address
-  __ PushReturnAddressFrom(rcx);
-  __ Set(rax, argc_ + 1);
-  __ Set(rbx, 0);
-  __ GetBuiltinEntry(rdx, Builtins::CALL_FUNCTION_PROXY);
-  {
+  if (NeedsChecks()) {
+    // Slow-case: Non-function called.
+    __ bind(&slow);
+    if (RecordCallTarget()) {
+      // If there is a call target cache, mark it megamorphic in the
+      // non-function case.  MegamorphicSentinel is an immortal immovable
+      // object (undefined) so no write barrier is needed.
+      __ Move(FieldOperand(rbx, Cell::kValueOffset),
+              TypeFeedbackCells::MegamorphicSentinel(isolate));
+    }
+    // Check for function proxy.
+    __ CmpInstanceType(rcx, JS_FUNCTION_PROXY_TYPE);
+    __ j(not_equal, &non_function);
+    __ PopReturnAddressTo(rcx);
+    __ push(rdi);  // put proxy as additional argument under return address
+    __ PushReturnAddressFrom(rcx);
+    __ Set(rax, argc_ + 1);
+    __ Set(rbx, 0);
+    __ GetBuiltinEntry(rdx, Builtins::CALL_FUNCTION_PROXY);
+    {
+      Handle<Code> adaptor =
+        masm->isolate()->builtins()->ArgumentsAdaptorTrampoline();
+      __ jmp(adaptor, RelocInfo::CODE_TARGET);
+    }
+
+    // CALL_NON_FUNCTION expects the non-function callee as receiver (instead
+    // of the original receiver from the call site).
+    __ bind(&non_function);
+    __ movp(args.GetReceiverOperand(), rdi);
+    __ Set(rax, argc_);
+    __ Set(rbx, 0);
+    __ GetBuiltinEntry(rdx, Builtins::CALL_NON_FUNCTION);
     Handle<Code> adaptor =
-      masm->isolate()->builtins()->ArgumentsAdaptorTrampoline();
-    __ jmp(adaptor, RelocInfo::CODE_TARGET);
+        isolate->builtins()->ArgumentsAdaptorTrampoline();
+    __ Jump(adaptor, RelocInfo::CODE_TARGET);
   }
 
-  // CALL_NON_FUNCTION expects the non-function callee as receiver (instead
-  // of the original receiver from the call site).
-  __ bind(&non_function);
-  __ movp(args.GetReceiverOperand(), rdi);
-  __ Set(rax, argc_);
-  __ Set(rbx, 0);
-  __ GetBuiltinEntry(rdx, Builtins::CALL_NON_FUNCTION);
-  Handle<Code> adaptor =
-      isolate->builtins()->ArgumentsAdaptorTrampoline();
-  __ Jump(adaptor, RelocInfo::CODE_TARGET);
+  if (CallAsMethod()) {
+    __ bind(&wrap);
+    // Wrap the receiver and patch it back onto the stack.
+    { FrameScope frame_scope(masm, StackFrame::INTERNAL);
+      __ push(rdi);
+      __ push(rax);
+      __ InvokeBuiltin(Builtins::TO_OBJECT, CALL_FUNCTION);
+      __ pop(rdi);
+    }
+    __ movp(Operand(rsp, (argc_ + 1) * kPointerSize), rax);
+    __ jmp(&cont);
+  }
 }
 
 
@@ -4713,23 +4746,6 @@ void StubFailureTrampolineStub::Generate(MacroAssembler* masm) {
       : 0;
   __ lea(rsp, MemOperand(rsp, rbx, times_pointer_size, additional_offset));
   __ jmp(rcx);  // Return to IC Miss stub, continuation still on stack.
-}
-
-
-void StubFailureTailCallTrampolineStub::Generate(MacroAssembler* masm) {
-  CEntryStub ces(1, fp_registers_ ? kSaveFPRegs : kDontSaveFPRegs);
-  __ Call(ces.GetCode(masm->isolate()), RelocInfo::CODE_TARGET);
-  __ movp(rdi, rax);
-  int parameter_count_offset =
-      StubFailureTrampolineFrame::kCallerStackParameterCountFrameOffset;
-  __ movp(rax, MemOperand(rbp, parameter_count_offset));
-  // The parameter count above includes the receiver for the arguments passed to
-  // the deoptimization handler. Subtract the receiver for the parameter count
-  // for the call.
-  __ subl(rax, Immediate(1));
-  masm->LeaveFrame(StackFrame::STUB_FAILURE_TRAMPOLINE);
-  ParameterCount argument_count(rax);
-  __ InvokeFunction(rdi, argument_count, JUMP_FUNCTION, NullCallWrapper());
 }
 
 

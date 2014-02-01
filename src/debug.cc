@@ -86,13 +86,6 @@ static void PrintLn(v8::Local<v8::Value> value) {
 }
 
 
-static Handle<Code> ComputeCallDebugPrepareStepIn(Isolate* isolate,
-                                                  int argc,
-                                                  Code::Kind kind) {
-  return isolate->stub_cache()->ComputeCallDebugPrepareStepIn(argc, kind);
-}
-
-
 static v8::Handle<v8::Context> GetDebugEventContext(Isolate* isolate) {
   Handle<Context> context = isolate->debug()->debugger_entry()->GetContext();
   // Isolate::context() may have been NULL when "script collected" event
@@ -413,59 +406,41 @@ bool BreakLocationIterator::IsStepInLocation(Isolate* isolate) {
     if (target_code->kind() == Code::STUB) {
       return target_code->major_key() == CodeStub::CallFunction;
     }
-    return target_code->is_call_stub() || target_code->is_keyed_call_stub();
-  } else {
-    return false;
   }
+  return false;
 }
 
 
 void BreakLocationIterator::PrepareStepIn(Isolate* isolate) {
+#ifdef DEBUG
   HandleScope scope(isolate);
-
   // Step in can only be prepared if currently positioned on an IC call,
   // construct call or CallFunction stub call.
   Address target = rinfo()->target_address();
   Handle<Code> target_code(Code::GetCodeFromTargetAddress(target));
-  if (target_code->is_call_stub() || target_code->is_keyed_call_stub()) {
-    // Step in through IC call is handled by the runtime system. Therefore make
-    // sure that the any current IC is cleared and the runtime system is
-    // called. If the executing code has a debug break at the location change
-    // the call in the original code as it is the code there that will be
-    // executed in place of the debug break call.
-    Handle<Code> stub = ComputeCallDebugPrepareStepIn(
-        isolate, target_code->arguments_count(), target_code->kind());
-    if (IsDebugBreak()) {
-      original_rinfo()->set_target_address(stub->entry());
-    } else {
-      rinfo()->set_target_address(stub->entry());
-    }
-  } else {
-#ifdef DEBUG
-    // All the following stuff is needed only for assertion checks so the code
-    // is wrapped in ifdef.
-    Handle<Code> maybe_call_function_stub = target_code;
-    if (IsDebugBreak()) {
-      Address original_target = original_rinfo()->target_address();
-      maybe_call_function_stub =
-          Handle<Code>(Code::GetCodeFromTargetAddress(original_target));
-    }
-    bool is_call_function_stub =
-        (maybe_call_function_stub->kind() == Code::STUB &&
-         maybe_call_function_stub->major_key() == CodeStub::CallFunction);
-
-    // Step in through construct call requires no changes to the running code.
-    // Step in through getters/setters should already be prepared as well
-    // because caller of this function (Debug::PrepareStep) is expected to
-    // flood the top frame's function with one shot breakpoints.
-    // Step in through CallFunction stub should also be prepared by caller of
-    // this function (Debug::PrepareStep) which should flood target function
-    // with breakpoints.
-    ASSERT(RelocInfo::IsConstructCall(rmode()) ||
-           target_code->is_inline_cache_stub() ||
-           is_call_function_stub);
-#endif
+  // All the following stuff is needed only for assertion checks so the code
+  // is wrapped in ifdef.
+  Handle<Code> maybe_call_function_stub = target_code;
+  if (IsDebugBreak()) {
+    Address original_target = original_rinfo()->target_address();
+    maybe_call_function_stub =
+        Handle<Code>(Code::GetCodeFromTargetAddress(original_target));
   }
+  bool is_call_function_stub =
+      (maybe_call_function_stub->kind() == Code::STUB &&
+       maybe_call_function_stub->major_key() == CodeStub::CallFunction);
+
+  // Step in through construct call requires no changes to the running code.
+  // Step in through getters/setters should already be prepared as well
+  // because caller of this function (Debug::PrepareStep) is expected to
+  // flood the top frame's function with one shot breakpoints.
+  // Step in through CallFunction stub should also be prepared by caller of
+  // this function (Debug::PrepareStep) which should flood target function
+  // with breakpoints.
+  ASSERT(RelocInfo::IsConstructCall(rmode()) ||
+         target_code->is_inline_cache_stub() ||
+         is_call_function_stub);
+#endif
 }
 
 
@@ -1450,9 +1425,6 @@ void Debug::PrepareStep(StepAction step_action,
       bool is_call_target = false;
       Address target = it.rinfo()->target_address();
       Code* code = Code::GetCodeFromTargetAddress(target);
-      if (code->is_call_stub() || code->is_keyed_call_stub()) {
-        is_call_target = true;
-      }
       if (code->is_inline_cache_stub()) {
         is_inline_cache_stub = true;
         is_load_or_store = !is_call_target;
@@ -1556,6 +1528,20 @@ void Debug::PrepareStep(StepAction step_action,
       ASSERT(expressions_count - 2 - call_function_arg_count >= 0);
       Object* fun = frame->GetExpression(
           expressions_count - 2 - call_function_arg_count);
+
+      // Flood the actual target of call/apply.
+      if (fun->IsJSFunction()) {
+        Isolate* isolate = JSFunction::cast(fun)->GetIsolate();
+        Code* apply = isolate->builtins()->builtin(Builtins::kFunctionApply);
+        Code* call = isolate->builtins()->builtin(Builtins::kFunctionCall);
+        while (fun->IsJSFunction()) {
+          Code* code = JSFunction::cast(fun)->shared()->code();
+          if (code != apply && code != call) break;
+          fun = frame->GetExpression(
+              expressions_count - 1 - call_function_arg_count);
+        }
+      }
+
       if (fun->IsJSFunction()) {
         Handle<JSFunction> js_function(JSFunction::cast(fun));
         if (js_function->shared()->bound()) {
@@ -1657,11 +1643,6 @@ Handle<Code> Debug::FindDebugBreak(Handle<Code> code, RelocInfo::Mode mode) {
   // used by the call site.
   if (code->is_inline_cache_stub()) {
     switch (code->kind()) {
-      case Code::CALL_IC:
-      case Code::KEYED_CALL_IC:
-        return isolate->stub_cache()->ComputeCallDebugBreak(
-            code->arguments_count(), code->kind());
-
       case Code::LOAD_IC:
         return isolate->builtins()->LoadIC_DebugBreak();
 

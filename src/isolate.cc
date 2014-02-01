@@ -2005,8 +2005,6 @@ bool Isolate::Init(Deserializer* des) {
   bootstrapper_->Initialize(create_heap_objects);
   builtins_.SetUp(this, create_heap_objects);
 
-  if (create_heap_objects) heap_.CreateStubsRequiringBuiltins();
-
   // Set default value if not yet set.
   // TODO(yangguo): move this to ResourceConstraints::ConfigureDefaults
   // once ResourceConstraints becomes an argument to the Isolate constructor.
@@ -2101,7 +2099,6 @@ bool Isolate::Init(Deserializer* des) {
     CodeStub::GenerateFPStubs(this);
     StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime(this);
     StubFailureTrampolineStub::GenerateAheadOfTime(this);
-    StubFailureTailCallTrampolineStub::GenerateAheadOfTime(this);
     // TODO(mstarzinger): The following is an ugly hack to make sure the
     // interface descriptor is initialized even when stubs have been
     // deserialized out of the snapshot without the graph builder.

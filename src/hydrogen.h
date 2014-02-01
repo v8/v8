@@ -2211,7 +2211,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
                  BailoutId return_id,
                  InliningKind inlining_kind);
 
-  bool TryInlineCall(Call* expr, bool drop_extra = false);
+  bool TryInlineCall(Call* expr);
   bool TryInlineConstruct(CallNew* expr, HValue* implicit_return_value);
   bool TryInlineGetter(Handle<JSFunction> getter,
                        BailoutId ast_id,
@@ -2225,16 +2225,15 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
                       int arguments_count);
   bool TryInlineBuiltinMethodCall(Call* expr,
                                   HValue* receiver,
-                                  Handle<Map> receiver_map,
-                                  CheckType check_type);
-  bool TryInlineBuiltinFunctionCall(Call* expr, bool drop_extra);
-  bool TryInlineApiMethodCall(
-      Call* expr, HValue* receiver, Handle<Map> receiver_map);
-  bool TryInlineApiFunctionCall(Call* expr, HValue* receiver, bool drop_extra);
+                                  Handle<Map> receiver_map);
+  bool TryInlineBuiltinFunctionCall(Call* expr);
+  bool TryInlineApiMethodCall(Call* expr,
+                              HValue* receiver,
+                              Handle<Map> receiver_map);
+  bool TryInlineApiFunctionCall(Call* expr, HValue* receiver);
   bool TryInlineApiCall(Call* expr,
                         HValue* receiver,
                         Handle<Map> receiver_map,
-                        bool drop_extra,
                         bool is_function_call);
 
   // If --trace-inlining, print a line of the inlining trace.  Inlining
@@ -2384,10 +2383,6 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
                                   HValue* receiver,
                                   SmallMapList* types,
                                   Handle<String> name);
-  bool TryCallPolymorphicAsMonomorphic(Call* expr,
-                                       HValue* receiver,
-                                       SmallMapList* types,
-                                       Handle<String> name);
   void HandleLiteralCompareTypeof(CompareOperation* expr,
                                   Expression* sub_expr,
                                   Handle<String> check);
@@ -2522,10 +2517,6 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   void AddCheckPrototypeMaps(Handle<JSObject> holder,
                              Handle<Map> receiver_map);
 
-  void AddCheckConstantFunction(Handle<JSObject> holder,
-                                HValue* receiver,
-                                Handle<Map> receiver_map);
-
   HInstruction* NewPlainFunctionCall(HValue* fun,
                                      int argument_count,
                                      bool pass_argument_count);
@@ -2536,10 +2527,6 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
 
   HInstruction* BuildCallConstantFunction(Handle<JSFunction> target,
                                           int argument_count);
-
-  HInstruction* NewCallKeyed(HValue* key, int argument_count);
-
-  HInstruction* NewCallNamed(Handle<String> name, int argument_count);
 
   // The translation state of the currently-being-translated function.
   FunctionState* function_state_;

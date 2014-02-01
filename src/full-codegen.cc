@@ -445,9 +445,11 @@ void FullCodeGenerator::PrepareForBailout(Expression* node, State state) {
 }
 
 
-void FullCodeGenerator::CallLoadIC(ContextualMode mode, TypeFeedbackId id) {
-  Handle<Code> ic = LoadIC::initialize_stub(isolate(), mode);
-  CallIC(ic, mode, id);
+void FullCodeGenerator::CallLoadIC(ContextualMode contextual_mode,
+                                   TypeFeedbackId id) {
+  ExtraICState extra_state = LoadIC::ComputeExtraICState(contextual_mode);
+  Handle<Code> ic = LoadIC::initialize_stub(isolate(), extra_state);
+  CallIC(ic, contextual_mode, id);
 }
 
 
