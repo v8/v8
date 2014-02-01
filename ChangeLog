@@ -1,3 +1,8 @@
+2014-02-01: Version 3.24.29
+
+        Performance and stability improvements on all platforms.
+
+
 2014-01-31: Version 3.24.28
 
         Don't crash in Array.join() if the resulting string exceeds the max
