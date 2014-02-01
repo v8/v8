@@ -1189,9 +1189,7 @@ LInstruction* LChunkBuilder::DoCallFunction(HCallFunction* instr) {
   LOperand* context = UseFixed(instr->context(), cp);
   LOperand* function = UseFixed(instr->function(), a1);
   LCallFunction* call = new(zone()) LCallFunction(context, function);
-  LInstruction* result = DefineFixed(call, v0);
-  if (instr->IsTailCall()) return result;
-  return MarkAsCall(result, instr);
+  return MarkAsCall(DefineFixed(call, v0), instr);
 }
 
 

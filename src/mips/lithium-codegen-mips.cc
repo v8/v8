@@ -3863,13 +3863,8 @@ void LCodeGen::DoCallFunction(LCallFunction* instr) {
   ASSERT(ToRegister(instr->result()).is(v0));
 
   int arity = instr->arity();
-  CallFunctionStub stub(arity, NO_CALL_FUNCTION_FLAGS);
-  if (instr->hydrogen()->IsTailCall()) {
-    if (NeedsEagerFrame()) __ mov(sp, fp);
-    __ Jump(stub.GetCode(isolate()), RelocInfo::CODE_TARGET);
-  } else {
-    CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
-  }
+  CallFunctionStub stub(arity, instr->hydrogen()->function_flags());
+  CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
 }
 
 

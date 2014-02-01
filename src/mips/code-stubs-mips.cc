@@ -166,19 +166,6 @@ void KeyedLoadFieldStub::InitializeInterfaceDescriptor(
 }
 
 
-void KeyedArrayCallStub::InitializeInterfaceDescriptor(
-    Isolate* isolate,
-    CodeStubInterfaceDescriptor* descriptor) {
-  static Register registers[] = { a2 };
-  descriptor->register_param_count_ = 1;
-  descriptor->register_params_ = registers;
-  descriptor->continuation_type_ = TAIL_CALL_CONTINUATION;
-  descriptor->handler_arguments_mode_ = PASS_ARGUMENTS;
-  descriptor->deoptimization_handler_ =
-      FUNCTION_ADDR(KeyedCallIC_MissFromStubFailure);
-}
-
-
 void KeyedStoreFastElementStub::InitializeInterfaceDescriptor(
     Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
@@ -3247,58 +3234,103 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
 void CallFunctionStub::Generate(MacroAssembler* masm) {
   // a1 : the function to call
   // a2 : cache cell for call target
-  Label slow, non_function;
+  Label slow, non_function, wrap, cont;
 
-  // Check that the function is really a JavaScript function.
-  // a1: pushed function (to be verified)
-  __ JumpIfSmi(a1, &non_function);
+  if (NeedsChecks()) {
+    // Check that the function is really a JavaScript function.
+    // a1: pushed function (to be verified)
+    __ JumpIfSmi(a1, &non_function);
 
-  // Goto slow case if we do not have a function.
-  __ GetObjectType(a1, a3, a3);
-  __ Branch(&slow, ne, a3, Operand(JS_FUNCTION_TYPE));
+    // Goto slow case if we do not have a function.
+    __ GetObjectType(a1, a3, a3);
+    __ Branch(&slow, ne, a3, Operand(JS_FUNCTION_TYPE));
 
-  if (RecordCallTarget()) {
-    GenerateRecordCallTarget(masm);
+    if (RecordCallTarget()) {
+      GenerateRecordCallTarget(masm);
+    }
   }
 
   // Fast-case: Invoke the function now.
   // a1: pushed function
   ParameterCount actual(argc_);
 
+  if (CallAsMethod()) {
+    if (NeedsChecks()) {
+      // Do not transform the receiver for strict mode functions and natives.
+      __ lw(a2, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
+      __ lw(a3, FieldMemOperand(a2, SharedFunctionInfo::kCompilerHintsOffset));
+      int32_t strict_mode_function_mask =
+          1 <<  (SharedFunctionInfo::kStrictModeFunction + kSmiTagSize);
+      int32_t native_mask = 1 << (SharedFunctionInfo::kNative + kSmiTagSize);
+      __ And(at, a3, Operand(strict_mode_function_mask | native_mask));
+      __ Branch(&cont, ne, at, Operand(zero_reg));
+    }
+
+    // Compute the receiver in non-strict mode.
+    __ lw(a2, MemOperand(sp, argc_ * kPointerSize));
+
+    if (NeedsChecks()) {
+      // a0: actual number of arguments
+      // a1: function
+      // a2: first argument
+      __ JumpIfSmi(a2, &wrap);
+      __ GetObjectType(a2, a3, a3);
+      __ Branch(&wrap, lt, a3, Operand(FIRST_SPEC_OBJECT_TYPE));
+    } else {
+      __ jmp(&wrap);
+    }
+
+    __ bind(&cont);
+  }
   __ InvokeFunction(a1, actual, JUMP_FUNCTION, NullCallWrapper());
 
-  // Slow-case: Non-function called.
-  __ bind(&slow);
-  if (RecordCallTarget()) {
-    // If there is a call target cache, mark it megamorphic in the
-    // non-function case.  MegamorphicSentinel is an immortal immovable
-    // object (undefined) so no write barrier is needed.
-    ASSERT_EQ(*TypeFeedbackCells::MegamorphicSentinel(masm->isolate()),
-              masm->isolate()->heap()->undefined_value());
-    __ LoadRoot(at, Heap::kUndefinedValueRootIndex);
-    __ sw(at, FieldMemOperand(a2, Cell::kValueOffset));
-  }
-  // Check for function proxy.
-  __ Branch(&non_function, ne, a3, Operand(JS_FUNCTION_PROXY_TYPE));
-  __ push(a1);  // Put proxy as additional argument.
-  __ li(a0, Operand(argc_ + 1, RelocInfo::NONE32));
-  __ li(a2, Operand(0, RelocInfo::NONE32));
-  __ GetBuiltinFunction(a1, Builtins::CALL_FUNCTION_PROXY);
-  {
-    Handle<Code> adaptor =
-      masm->isolate()->builtins()->ArgumentsAdaptorTrampoline();
-    __ Jump(adaptor, RelocInfo::CODE_TARGET);
+  if (NeedsChecks()) {
+    // Slow-case: Non-function called.
+    __ bind(&slow);
+    if (RecordCallTarget()) {
+      // If there is a call target cache, mark it megamorphic in the
+      // non-function case.  MegamorphicSentinel is an immortal immovable
+      // object (undefined) so no write barrier is needed.
+      ASSERT_EQ(*TypeFeedbackCells::MegamorphicSentinel(masm->isolate()),
+                masm->isolate()->heap()->undefined_value());
+      __ LoadRoot(at, Heap::kUndefinedValueRootIndex);
+      __ sw(at, FieldMemOperand(a2, Cell::kValueOffset));
+    }
+    // Check for function proxy.
+    __ Branch(&non_function, ne, a3, Operand(JS_FUNCTION_PROXY_TYPE));
+    __ push(a1);  // Put proxy as additional argument.
+    __ li(a0, Operand(argc_ + 1, RelocInfo::NONE32));
+    __ li(a2, Operand(0, RelocInfo::NONE32));
+    __ GetBuiltinFunction(a1, Builtins::CALL_FUNCTION_PROXY);
+    {
+      Handle<Code> adaptor =
+        masm->isolate()->builtins()->ArgumentsAdaptorTrampoline();
+      __ Jump(adaptor, RelocInfo::CODE_TARGET);
+    }
+
+    // CALL_NON_FUNCTION expects the non-function callee as receiver (instead
+    // of the original receiver from the call site).
+    __ bind(&non_function);
+    __ sw(a1, MemOperand(sp, argc_ * kPointerSize));
+    __ li(a0, Operand(argc_));  // Set up the number of arguments.
+    __ li(a2, Operand(0, RelocInfo::NONE32));
+    __ GetBuiltinFunction(a1, Builtins::CALL_NON_FUNCTION);
+    __ Jump(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
+            RelocInfo::CODE_TARGET);
   }
 
-  // CALL_NON_FUNCTION expects the non-function callee as receiver (instead
-  // of the original receiver from the call site).
-  __ bind(&non_function);
-  __ sw(a1, MemOperand(sp, argc_ * kPointerSize));
-  __ li(a0, Operand(argc_));  // Set up the number of arguments.
-  __ mov(a2, zero_reg);
-  __ GetBuiltinFunction(a1, Builtins::CALL_NON_FUNCTION);
-  __ Jump(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
-          RelocInfo::CODE_TARGET);
+  if (CallAsMethod()) {
+    __ bind(&wrap);
+    // Wrap the receiver and patch it back onto the stack.
+    { FrameScope frame_scope(masm, StackFrame::INTERNAL);
+      __ Push(a1, a2);
+      __ InvokeBuiltin(Builtins::TO_OBJECT, CALL_FUNCTION);
+      __ pop(a1);
+    }
+    __ mov(a0, v0);
+    __ sw(a0, MemOperand(sp, argc_ * kPointerSize));
+    __ jmp(&cont);
+  }
 }
 
 
@@ -5191,23 +5223,6 @@ void StubFailureTrampolineStub::Generate(MacroAssembler* masm) {
   __ sll(a1, a1, kPointerSizeLog2);
   __ Ret(USE_DELAY_SLOT);
   __ Addu(sp, sp, a1);
-}
-
-
-void StubFailureTailCallTrampolineStub::Generate(MacroAssembler* masm) {
-  CEntryStub ces(1, fp_registers_ ? kSaveFPRegs : kDontSaveFPRegs);
-  __ Call(ces.GetCode(masm->isolate()), RelocInfo::CODE_TARGET);
-  __ mov(a1, v0);
-  int parameter_count_offset =
-      StubFailureTrampolineFrame::kCallerStackParameterCountFrameOffset;
-  __ lw(a0, MemOperand(fp, parameter_count_offset));
-  // The parameter count above includes the receiver for the arguments passed to
-  // the deoptimization handler. Subtract the receiver for the parameter count
-  // for the call.
-  __ Subu(a0, a0, 1);
-  masm->LeaveFrame(StackFrame::STUB_FAILURE_TRAMPOLINE);
-  ParameterCount argument_count(a0);
-  __ InvokeFunction(a1, argument_count, JUMP_FUNCTION, NullCallWrapper());
 }
 
 
