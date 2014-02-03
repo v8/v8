@@ -147,7 +147,7 @@ class LCodeGen;
   V(MathSqrt)                                   \
   V(MathTan)                                    \
   V(ModI)                                       \
-  V(MulConstI)                                  \
+  V(MulConstIS)                                  \
   V(MulI)                                       \
   V(MulS)                                       \
   V(NumberTagD)                                 \
@@ -1961,9 +1961,9 @@ class LModI: public LTemplateInstruction<1, 2, 0> {
 };
 
 
-class LMulConstI: public LTemplateInstruction<1, 2, 0> {
+class LMulConstIS: public LTemplateInstruction<1, 2, 0> {
  public:
-  LMulConstI(LOperand* left, LConstantOperand* right) {
+  LMulConstIS(LOperand* left, LConstantOperand* right) {
     inputs_[0] = left;
     inputs_[1] = right;
   }
@@ -1971,7 +1971,7 @@ class LMulConstI: public LTemplateInstruction<1, 2, 0> {
   LOperand* left() { return inputs_[0]; }
   LConstantOperand* right() { return LConstantOperand::cast(inputs_[1]); }
 
-  DECLARE_CONCRETE_INSTRUCTION(MulConstI, "mul-const-i")
+  DECLARE_CONCRETE_INSTRUCTION(MulConstIS, "mul-const-i-s")
   DECLARE_HYDROGEN_ACCESSOR(Mul)
 };
 

@@ -4117,11 +4117,13 @@ void LCodeGen::DoModI(LModI* instr) {
 }
 
 
-void LCodeGen::DoMulConstI(LMulConstI* instr) {
-  // TODO(jbramley): Support smi operations (or make a separate DoMulConstS).
-
-  Register result = ToRegister32(instr->result());
-  Register left = ToRegister32(instr->left());
+void LCodeGen::DoMulConstIS(LMulConstIS* instr) {
+  ASSERT(instr->hydrogen()->representation().IsSmiOrInteger32());
+  bool is_smi = instr->hydrogen()->representation().IsSmi();
+  Register result =
+      is_smi ? ToRegister(instr->result()) : ToRegister32(instr->result());
+  Register left =
+      is_smi ? ToRegister(instr->left()) : ToRegister32(instr->left()) ;
   int32_t right = ToInteger32(instr->right());
 
   bool can_overflow = instr->hydrogen()->CheckFlag(HValue::kCanOverflow);

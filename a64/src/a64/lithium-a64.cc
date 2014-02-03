@@ -1858,23 +1858,7 @@ LInstruction* LChunkBuilder::DoMod(HMod* hmod) {
 
 
 LInstruction* LChunkBuilder::DoMul(HMul* instr) {
-  if (instr->representation().IsSmi()) {
-    // TODO(jbramley): Implement LMulConstS, then merge this into the Integer32
-    // case.
-    ASSERT(instr->left()->representation().Equals(instr->representation()));
-    ASSERT(instr->right()->representation().Equals(instr->representation()));
-
-    bool can_overflow = instr->CheckFlag(HValue::kCanOverflow);
-    bool bailout_on_minus_zero = instr->CheckFlag(HValue::kBailoutOnMinusZero);
-    bool needs_environment = can_overflow || bailout_on_minus_zero;
-
-    LOperand* left = UseRegister(instr->BetterLeftOperand());
-    LOperand* right = UseRegister(instr->BetterRightOperand());
-
-    LMulS* mul = new(zone()) LMulS(left, right);
-    if (needs_environment) AssignEnvironment(mul);
-    return DefineAsRegister(mul);
-  } else if (instr->representation().IsSmiOrInteger32()) {
+  if (instr->representation().IsSmiOrInteger32()) {
     ASSERT(instr->left()->representation().Equals(instr->representation()));
     ASSERT(instr->right()->representation().Equals(instr->representation()));
 
@@ -1902,18 +1886,25 @@ LInstruction* LChunkBuilder::DoMul(HMul* instr) {
                              IsPowerOf2(constant_abs + 1) ||
                              IsPowerOf2(constant_abs - 1)))) {
         LConstantOperand* right = UseConstant(most_const);
-        LMulConstI* mul = new(zone()) LMulConstI(left, right);
+        LMulConstIS* mul = new(zone()) LMulConstIS(left, right);
         if (needs_environment) AssignEnvironment(mul);
         return DefineAsRegister(mul);
       }
     }
 
-    // LMulI can handle all cases, but it requires that a register is allocated
-    // for the second operand.
-    LOperand* right = UseRegisterAtStart(most_const);
-    LMulI* mul = new(zone()) LMulI(left, right);
-    if (needs_environment) AssignEnvironment(mul);
-    return DefineAsRegister(mul);
+    // LMulI/S can handle all cases, but it requires that a register is
+    // allocated for the second operand.
+    LInstruction* result;
+    if (instr->representation().IsSmi()) {
+      // TODO(jbramley/rmcilroy): Fix LMulS so we can UseRegisterAtStart here.
+      LOperand* right = UseRegister(most_const);
+      result = DefineAsRegister(new(zone()) LMulS(left, right));
+    } else {
+      LOperand* right = UseRegisterAtStart(most_const);
+      result = DefineAsRegister(new(zone()) LMulI(left, right));
+    }
+    if (needs_environment) AssignEnvironment(result);
+    return result;
   } else if (instr->representation().IsDouble()) {
     return DoArithmeticD(Token::MUL, instr);
   } else {
