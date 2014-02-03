@@ -37,9 +37,6 @@ class Extension : public v8::Extension {
  public:
   Extension();
 
-  virtual v8::Handle<v8::FunctionTemplate> GetNativeFunction(
-      v8::Handle<v8::String> name);
-
   static void Register();
 
  private:

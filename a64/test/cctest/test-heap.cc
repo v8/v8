@@ -3068,12 +3068,6 @@ TEST(Regress169209) {
   i::FLAG_allow_natives_syntax = true;
   i::FLAG_flush_code_incrementally = true;
 
-  // Experimental natives are compiled during snapshot deserialization.
-  // This test breaks because heap layout changes in a way that closure
-  // is visited before shared function info.
-  i::FLAG_harmony_typed_arrays = false;
-  i::FLAG_harmony_array_buffer = false;
-
   // Disable loading the i18n extension which breaks the assumptions of this
   // test about the heap layout.
   i::FLAG_enable_i18n = false;

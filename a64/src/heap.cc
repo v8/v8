@@ -3268,6 +3268,12 @@ bool Heap::RootCanBeWrittenAfterInitialization(Heap::RootListIndex root_index) {
 }
 
 
+bool Heap::RootCanBeTreatedAsConstant(RootListIndex root_index) {
+  return !RootCanBeWrittenAfterInitialization(root_index) &&
+      !InNewSpace(roots_array_start()[root_index]);
+}
+
+
 Object* RegExpResultsCache::Lookup(Heap* heap,
                                    String* key_string,
                                    Object* key_pattern,
@@ -4012,10 +4018,10 @@ MaybeObject* Heap::AllocateByteArray(int length, PretenureFlag pretenure) {
     return AllocateByteArray(length);
   }
   int size = ByteArray::SizeFor(length);
+  AllocationSpace space =
+      (size > Page::kMaxNonCodeHeapObjectSize) ? LO_SPACE : OLD_DATA_SPACE;
   Object* result;
-  { MaybeObject* maybe_result = (size <= Page::kMaxNonCodeHeapObjectSize)
-                   ? old_data_space_->AllocateRaw(size)
-                   : lo_space_->AllocateRaw(size, NOT_EXECUTABLE);
+  { MaybeObject* maybe_result = AllocateRaw(size, space, space);
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
 

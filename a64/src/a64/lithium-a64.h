@@ -74,6 +74,8 @@ class LCodeGen;
   V(ClampIToUint8)                              \
   V(ClampTToUint8)                              \
   V(ClassOfTestAndBranch)                       \
+  V(CmpHoleAndBranchD)                          \
+  V(CmpHoleAndBranchT)                          \
   V(CmpMapAndBranch)                            \
   V(CmpObjectEqAndBranch)                       \
   V(CmpT)                                       \
@@ -129,7 +131,6 @@ class LCodeGen;
   V(LoadKeyedFixedDouble)                       \
   V(LoadKeyedGeneric)                           \
   V(LoadNamedField)                             \
-  V(LoadNamedFieldPolymorphic)                  \
   V(LoadNamedGeneric)                           \
   V(MapEnumLength)                              \
   V(MathAbs)                                    \
@@ -1049,6 +1050,34 @@ class LClassOfTestAndBranch: public LControlInstruction<1, 2> {
 };
 
 
+class LCmpHoleAndBranchD: public LControlInstruction<1, 1> {
+ public:
+  explicit LCmpHoleAndBranchD(LOperand* object, LOperand* temp) {
+    inputs_[0] = object;
+    temps_[0] = temp;
+  }
+
+  LOperand* object() { return inputs_[0]; }
+  LOperand* temp() { return temps_[0]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(CmpHoleAndBranchD, "cmp-hole-and-branch-d")
+  DECLARE_HYDROGEN_ACCESSOR(CompareHoleAndBranch)
+};
+
+
+class LCmpHoleAndBranchT: public LControlInstruction<1, 0> {
+ public:
+  explicit LCmpHoleAndBranchT(LOperand* object) {
+    inputs_[0] = object;
+  }
+
+  LOperand* object() { return inputs_[0]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(CmpHoleAndBranchT, "cmp-hole-and-branch-t")
+  DECLARE_HYDROGEN_ACCESSOR(CompareHoleAndBranch)
+};
+
+
 class LCmpMapAndBranch: public LControlInstruction<1, 1> {
  public:
   LCmpMapAndBranch(LOperand* value, LOperand* temp) {
@@ -1076,8 +1105,7 @@ class LCmpObjectEqAndBranch: public LControlInstruction<2, 0> {
   LOperand* left() { return inputs_[0]; }
   LOperand* right() { return inputs_[1]; }
 
-  DECLARE_CONCRETE_INSTRUCTION(CmpObjectEqAndBranch,
-                               "cmp-object-eq-and-branch")
+  DECLARE_CONCRETE_INSTRUCTION(CmpObjectEqAndBranch, "cmp-object-eq-and-branch")
   DECLARE_HYDROGEN_ACCESSOR(CompareObjectEqAndBranch)
 };
 
@@ -1580,19 +1608,6 @@ class LLoadNamedField: public LTemplateInstruction<1, 1, 0> {
 
   DECLARE_CONCRETE_INSTRUCTION(LoadNamedField, "load-named-field")
   DECLARE_HYDROGEN_ACCESSOR(LoadNamedField)
-};
-
-
-class LLoadNamedFieldPolymorphic: public LTemplateInstruction<1, 1, 0> {
- public:
-  explicit LLoadNamedFieldPolymorphic(LOperand* object) {
-    inputs_[0] = object;
-  }
-
-  LOperand* object() { return inputs_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(LoadNamedField, "load-named-field-polymorphic")
-  DECLARE_HYDROGEN_ACCESSOR(LoadNamedFieldPolymorphic)
 };
 
 

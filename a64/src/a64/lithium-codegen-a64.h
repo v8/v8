@@ -218,6 +218,11 @@ class LCodeGen BASE_EMBEDDED {
   void EmitBranchIfHeapNumber(InstrType instr,
                               const Register& value);
 
+  template<class InstrType>
+  void EmitBranchIfRoot(InstrType instr,
+                        const Register& value,
+                        Heap::RootListIndex index);
+
   // Emits optimized code to deep-copy the contents of statically known object
   // graphs (e.g. object literal boilerplate). Expects a pointer to the
   // allocated destination object in the result register, and a pointer to the
@@ -234,12 +239,6 @@ class LCodeGen BASE_EMBEDDED {
   // true and false label should be made, to optimize fallthrough.
   Condition EmitIsString(Register input, Register temp1, Label* is_not_string,
                          SmiCheck check_needed);
-
-  void EmitLoadFieldOrConstantFunction(Register result,
-                                       Register object,
-                                       Handle<Map> type,
-                                       Handle<String> name,
-                                       LEnvironment* env);
 
   void RegisterDependentCodeForEmbeddedMaps(Handle<Code> code);
   int DefineDeoptimizationLiteral(Handle<Object> literal);
@@ -356,6 +355,9 @@ class LCodeGen BASE_EMBEDDED {
   void RecordSafepointWithRegisters(LPointerMap* pointers,
                                     int arguments,
                                     Safepoint::DeoptMode mode);
+  void RecordSafepointWithRegistersAndDoubles(LPointerMap* pointers,
+                                              int arguments,
+                                              Safepoint::DeoptMode mode);
   void RecordSafepointWithLazyDeopt(LInstruction* instr,
                                     SafepointMode safepoint_mode);
 

@@ -390,7 +390,7 @@ HUseListNode* HUseListNode::tail() {
 }
 
 
-bool HValue::CheckUsesForFlag(Flag f) {
+bool HValue::CheckUsesForFlag(Flag f) const {
   for (HUseIterator it(uses()); !it.Done(); it.Advance()) {
     if (it.value()->IsSimulate()) continue;
     if (!it.value()->CheckFlag(f)) return false;
@@ -399,7 +399,7 @@ bool HValue::CheckUsesForFlag(Flag f) {
 }
 
 
-bool HValue::HasAtLeastOneUseWithFlagAndNoneWithout(Flag f) {
+bool HValue::HasAtLeastOneUseWithFlagAndNoneWithout(Flag f) const {
   bool return_value = false;
   for (HUseIterator it(uses()); !it.Done(); it.Advance()) {
     if (it.value()->IsSimulate()) continue;
@@ -1287,19 +1287,28 @@ static HValue* SimplifiedDividendForMathFloorOfDiv(HValue* dividend) {
 
 
 HValue* HUnaryMathOperation::Canonicalize() {
-  if (op() == kMathFloor) {
+  if (op() == kMathRound || op() == kMathFloor) {
     HValue* val = value();
     if (val->IsChange()) val = HChange::cast(val)->value();
 
-    // If the input is integer32 then we replace the floor instruction
-    // with its input.
-    if (val->representation().IsSmiOrInteger32()) return val;
+    // If the input is smi or integer32 then we replace the instruction with its
+    // input.
+    if (val->representation().IsSmiOrInteger32()) {
+      if (!val->representation().Equals(representation())) {
+        HChange* result = new(block()->zone()) HChange(
+            val, representation(), false, false);
+        result->InsertBefore(this);
+        return result;
+      }
+      return val;
+    }
+  }
 
-#if defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_IA32) || \
-        defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_A64)
-    if (value()->IsDiv() && (value()->UseCount() == 1)) {
-      // TODO(2038): Implement this optimization for non ARM architectures.
-      HDiv* hdiv = HDiv::cast(value());
+  if (op() == kMathFloor) {
+    HValue* val = value();
+    if (val->IsChange()) val = HChange::cast(val)->value();
+    if (val->IsDiv() && (val->UseCount() == 1)) {
+      HDiv* hdiv = HDiv::cast(val);
       HValue* left = hdiv->left();
       HValue* right = hdiv->right();
       // Try to simplify left and right values of the division.
@@ -1307,7 +1316,7 @@ HValue* HUnaryMathOperation::Canonicalize() {
       if (new_left == NULL &&
           hdiv->observed_input_representation(1).IsSmiOrInteger32()) {
         new_left = new(block()->zone()) HChange(
-            left, Representation::Integer32(), false, false, false);
+            left, Representation::Integer32(), false, false);
         HChange::cast(new_left)->InsertBefore(this);
       }
       HValue* new_right =
@@ -1318,7 +1327,7 @@ HValue* HUnaryMathOperation::Canonicalize() {
 #endif
           hdiv->observed_input_representation(2).IsSmiOrInteger32()) {
         new_right = new(block()->zone()) HChange(
-            right, Representation::Integer32(), false, false, false);
+            right, Representation::Integer32(), false, false);
         HChange::cast(new_right)->InsertBefore(this);
       }
 
@@ -1348,7 +1357,6 @@ HValue* HUnaryMathOperation::Canonicalize() {
       // Return NULL to remove this instruction from the graph.
       return NULL;
     }
-#endif
   }
   return this;
 }
@@ -2779,6 +2787,18 @@ void HCompareObjectEqAndBranch::PrintDataTo(StringStream* stream) {
 }
 
 
+void HCompareHoleAndBranch::PrintDataTo(StringStream* stream) {
+  object()->PrintNameTo(stream);
+  HControlInstruction::PrintDataTo(stream);
+}
+
+
+void HCompareHoleAndBranch::InferRepresentation(
+    HInferRepresentationPhase* h_infer) {
+  ChangeRepresentation(object()->representation());
+}
+
+
 void HGoto::PrintDataTo(StringStream* stream) {
   stream->Add("B%d", SuccessorAt(0)->block_id());
 }
@@ -2838,119 +2858,6 @@ void HLoadNamedField::PrintDataTo(StringStream* stream) {
 }
 
 
-// Returns true if an instance of this map can never find a property with this
-// name in its prototype chain.  This means all prototypes up to the top are
-// fast and don't have the name in them.  It would be good if we could optimize
-// polymorphic loads where the property is sometimes found in the prototype
-// chain.
-static bool PrototypeChainCanNeverResolve(
-    Handle<Map> map, Handle<String> name) {
-  Isolate* isolate = map->GetIsolate();
-  Object* current = map->prototype();
-  while (current != isolate->heap()->null_value()) {
-    if (current->IsJSGlobalProxy() ||
-        current->IsGlobalObject() ||
-        !current->IsJSObject() ||
-        JSObject::cast(current)->map()->has_named_interceptor() ||
-        JSObject::cast(current)->IsAccessCheckNeeded() ||
-        !JSObject::cast(current)->HasFastProperties()) {
-      return false;
-    }
-
-    LookupResult lookup(isolate);
-    Map* map = JSObject::cast(current)->map();
-    map->LookupDescriptor(NULL, *name, &lookup);
-    if (lookup.IsFound()) return false;
-    if (!lookup.IsCacheable()) return false;
-    current = JSObject::cast(current)->GetPrototype();
-  }
-  return true;
-}
-
-
-HLoadNamedFieldPolymorphic::HLoadNamedFieldPolymorphic(HValue* context,
-                                                       HValue* object,
-                                                       SmallMapList* types,
-                                                       Handle<String> name,
-                                                       Zone* zone)
-    : types_(Min(types->length(), kMaxLoadPolymorphism), zone),
-      name_(name),
-      types_unique_ids_(0, zone),
-      name_unique_id_(),
-      need_generic_(false) {
-  SetOperandAt(0, context);
-  SetOperandAt(1, object);
-  set_representation(Representation::Tagged());
-  SetGVNFlag(kDependsOnMaps);
-  SmallMapList negative_lookups;
-  for (int i = 0;
-       i < types->length() && types_.length() < kMaxLoadPolymorphism;
-       ++i) {
-    Handle<Map> map = types->at(i);
-    // Deprecated maps are updated to the current map in the type oracle.
-    ASSERT(!map->is_deprecated());
-    LookupResult lookup(map->GetIsolate());
-    map->LookupDescriptor(NULL, *name, &lookup);
-    if (lookup.IsFound()) {
-      switch (lookup.type()) {
-        case FIELD: {
-          int index = lookup.GetLocalFieldIndexFromMap(*map);
-          if (index < 0) {
-            SetGVNFlag(kDependsOnInobjectFields);
-          } else {
-            SetGVNFlag(kDependsOnBackingStoreFields);
-          }
-          if (FLAG_track_double_fields &&
-              lookup.representation().IsDouble()) {
-            // Since the value needs to be boxed, use a generic handler for
-            // loading doubles.
-            continue;
-          }
-          types_.Add(types->at(i), zone);
-          break;
-        }
-        case CONSTANT:
-          types_.Add(types->at(i), zone);
-          break;
-        case CALLBACKS:
-          break;
-        case TRANSITION:
-        case INTERCEPTOR:
-        case NONEXISTENT:
-        case NORMAL:
-        case HANDLER:
-          UNREACHABLE();
-          break;
-      }
-    } else if (lookup.IsCacheable() &&
-               // For dicts the lookup on the map will fail, but the object may
-               // contain the property so we cannot generate a negative lookup
-               // (which would just be a map check and return undefined).
-               !map->is_dictionary_map() &&
-               !map->has_named_interceptor() &&
-               PrototypeChainCanNeverResolve(map, name)) {
-      negative_lookups.Add(types->at(i), zone);
-    }
-  }
-
-  bool need_generic =
-      (types->length() != negative_lookups.length() + types_.length());
-  if (!need_generic && FLAG_deoptimize_uncommon_cases) {
-    SetFlag(kUseGVN);
-    for (int i = 0; i < negative_lookups.length(); i++) {
-      types_.Add(negative_lookups.at(i), zone);
-    }
-  } else {
-    // We don't have an easy way to handle both a call (to the generic stub) and
-    // a deopt in the same hydrogen instruction, so in this case we don't add
-    // the negative lookups which can deopt - just let the generic stub handle
-    // them.
-    SetAllSideEffects();
-    need_generic_ = true;
-  }
-}
-
-
 HCheckMaps* HCheckMaps::New(Zone* zone,
                             HValue* context,
                             HValue* value,
@@ -2958,8 +2865,7 @@ HCheckMaps* HCheckMaps::New(Zone* zone,
                             CompilationInfo* info,
                             HValue* typecheck) {
   HCheckMaps* check_map = new(zone) HCheckMaps(value, zone, typecheck);
-  check_map->map_set_.Add(map, zone);
-  check_map->has_migration_target_ = map->is_migration_target();
+  check_map->Add(map, zone);
   if (map->CanOmitMapChecks() &&
       value->IsConstant() &&
       HConstant::cast(value)->InstanceOf(map)) {
@@ -2976,46 +2882,6 @@ void HCheckMaps::FinalizeUniqueValueId() {
   for (int i = 0; i < map_set_.length(); i++) {
     map_unique_ids_.Add(UniqueValueId(map_set_.at(i)), zone);
   }
-}
-
-
-void HLoadNamedFieldPolymorphic::FinalizeUniqueValueId() {
-  if (!types_unique_ids_.is_empty()) return;
-  Zone* zone = block()->zone();
-  types_unique_ids_.Initialize(types_.length(), zone);
-  for (int i = 0; i < types_.length(); i++) {
-    types_unique_ids_.Add(UniqueValueId(types_.at(i)), zone);
-  }
-  name_unique_id_ = UniqueValueId(name_);
-}
-
-
-bool HLoadNamedFieldPolymorphic::DataEquals(HValue* value) {
-  ASSERT_EQ(types_.length(), types_unique_ids_.length());
-  HLoadNamedFieldPolymorphic* other = HLoadNamedFieldPolymorphic::cast(value);
-  if (name_unique_id_ != other->name_unique_id_) return false;
-  if (types_unique_ids_.length() != other->types_unique_ids_.length()) {
-    return false;
-  }
-  if (need_generic_ != other->need_generic_) return false;
-  for (int i = 0; i < types_unique_ids_.length(); i++) {
-    bool found = false;
-    for (int j = 0; j < types_unique_ids_.length(); j++) {
-      if (types_unique_ids_.at(j) == other->types_unique_ids_.at(i)) {
-        found = true;
-        break;
-      }
-    }
-    if (!found) return false;
-  }
-  return true;
-}
-
-
-void HLoadNamedFieldPolymorphic::PrintDataTo(StringStream* stream) {
-  object()->PrintNameTo(stream);
-  stream->Add(".");
-  stream->Add(*String::cast(*name())->ToCString());
 }
 
 
@@ -3091,18 +2957,8 @@ bool HLoadKeyed::UsesMustHandleHole() const {
 
 
 bool HLoadKeyed::AllUsesCanTreatHoleAsNaN() const {
-  if (!IsFastDoubleElementsKind(elements_kind())) {
-    return false;
-  }
-
-  for (HUseIterator it(uses()); !it.Done(); it.Advance()) {
-    HValue* use = it.value();
-    if (!use->CheckFlag(HValue::kAllowUndefinedAsNaN)) {
-      return false;
-    }
-  }
-
-  return true;
+  return IsFastDoubleElementsKind(elements_kind()) &&
+      CheckUsesForFlag(HValue::kAllowUndefinedAsNaN);
 }
 
 
@@ -3231,6 +3087,7 @@ void HTransitionElementsKind::PrintDataTo(StringStream* stream) {
               ElementsAccessor::ForKind(from_kind)->name(),
               *transitioned_map(),
               ElementsAccessor::ForKind(to_kind)->name());
+  if (IsSimpleMapChangeTransition(from_kind, to_kind)) stream->Add(" (simple)");
 }
 
 
@@ -3319,7 +3176,9 @@ Representation HUnaryMathOperation::RepresentationFromInputs() {
   // If any of the actual input representation is more general than what we
   // have so far but not Tagged, use that representation instead.
   Representation input_rep = value()->representation();
-  if (!input_rep.IsTagged()) rep = rep.generalize(input_rep);
+  if (!input_rep.IsTagged()) {
+    rep = rep.generalize(input_rep);
+  }
   return rep;
 }
 
@@ -3875,10 +3734,10 @@ void HPhi::SimplifyConstantInputs() {
                          DoubleToInt32(operand->DoubleValue()));
       integer_input->InsertAfter(operand);
       SetOperandAt(i, integer_input);
-    } else if (operand == graph->GetConstantTrue()) {
-      SetOperandAt(i, graph->GetConstant1());
-    } else {
-      // This catches |false|, |undefined|, strings and objects.
+    } else if (operand->HasBooleanValue()) {
+      SetOperandAt(i, operand->BooleanValue() ? graph->GetConstant1()
+                                              : graph->GetConstant0());
+    } else if (operand->ImmortalImmovable()) {
       SetOperandAt(i, graph->GetConstant0());
     }
   }

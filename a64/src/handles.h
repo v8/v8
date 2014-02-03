@@ -322,9 +322,6 @@ Handle<JSGlobalProxy> ReinitializeJSGlobalProxy(
     Handle<JSFunction> constructor,
     Handle<JSGlobalProxy> global);
 
-Handle<Object> SetPrototype(Handle<JSFunction> function,
-                            Handle<Object> prototype);
-
 Handle<ObjectHashSet> ObjectHashSetAdd(Handle<ObjectHashSet> table,
                                        Handle<Object> key);
 

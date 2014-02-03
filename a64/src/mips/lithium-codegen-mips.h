@@ -42,7 +42,7 @@ namespace internal {
 class LDeferredCode;
 class SafepointGenerator;
 
-class LCodeGen BASE_EMBEDDED {
+class LCodeGen V8_FINAL  BASE_EMBEDDED {
  public:
   LCodeGen(LChunk* chunk, MacroAssembler* assembler, CompilationInfo* info)
       : zone_(info->zone()),
@@ -277,16 +277,16 @@ class LCodeGen BASE_EMBEDDED {
 
   void RegisterEnvironmentForDeoptimization(LEnvironment* environment,
                                             Safepoint::DeoptMode mode);
-  void DeoptimizeIf(Condition cc,
+  void DeoptimizeIf(Condition condition,
                     LEnvironment* environment,
                     Deoptimizer::BailoutType bailout_type,
                     Register src1 = zero_reg,
                     const Operand& src2 = Operand(zero_reg));
-  void DeoptimizeIf(Condition cc,
+  void DeoptimizeIf(Condition condition,
                     LEnvironment* environment,
                     Register src1 = zero_reg,
                     const Operand& src2 = Operand(zero_reg));
-  void ApplyCheckIf(Condition cc,
+  void ApplyCheckIf(Condition condition,
                     LBoundsCheck* check,
                     Register src1 = zero_reg,
                     const Operand& src2 = Operand(zero_reg));
@@ -329,14 +329,19 @@ class LCodeGen BASE_EMBEDDED {
   void EmitGoto(int block);
   template<class InstrType>
   void EmitBranch(InstrType instr,
-                  Condition cc,
+                  Condition condition,
                   Register src1,
                   const Operand& src2);
   template<class InstrType>
   void EmitBranchF(InstrType instr,
-                   Condition cc,
+                   Condition condition,
                    FPURegister src1,
                    FPURegister src2);
+  template<class InstrType>
+  void EmitFalseBranchF(InstrType instr,
+                        Condition condition,
+                        FPURegister src1,
+                        FPURegister src2);
   void EmitCmpI(LOperand* left, LOperand* right);
   void EmitNumberUntagD(Register input,
                         DoubleRegister result,
@@ -377,12 +382,6 @@ class LCodeGen BASE_EMBEDDED {
   // Emits optimized code for %_IsConstructCall().
   // Caller should branch on equal condition.
   void EmitIsConstructCall(Register temp1, Register temp2);
-
-  void EmitLoadFieldOrConstantFunction(Register result,
-                                       Register object,
-                                       Handle<Map> type,
-                                       Handle<String> name,
-                                       LEnvironment* env);
 
   // Emits optimized code to deep-copy the contents of statically known
   // object graphs (e.g. object literal boilerplate).
@@ -442,7 +441,7 @@ class LCodeGen BASE_EMBEDDED {
 
   int old_position_;
 
-  class PushSafepointRegistersScope BASE_EMBEDDED {
+  class PushSafepointRegistersScope V8_FINAL  BASE_EMBEDDED {
    public:
     PushSafepointRegistersScope(LCodeGen* codegen,
                                 Safepoint::Kind kind)
@@ -490,7 +489,7 @@ class LCodeGen BASE_EMBEDDED {
 };
 
 
-class LDeferredCode: public ZoneObject {
+class LDeferredCode : public ZoneObject {
  public:
   explicit LDeferredCode(LCodeGen* codegen)
       : codegen_(codegen),
@@ -499,7 +498,7 @@ class LDeferredCode: public ZoneObject {
     codegen->AddDeferredCode(this);
   }
 
-  virtual ~LDeferredCode() { }
+  virtual ~LDeferredCode() {}
   virtual void Generate() = 0;
   virtual LInstruction* instr() = 0;
 

@@ -5544,14 +5544,14 @@ class Internals {
 
   V8_INLINE(static uint8_t GetNodeFlag(internal::Object** obj, int shift)) {
       uint8_t* addr = reinterpret_cast<uint8_t*>(obj) + kNodeFlagsOffset;
-      return *addr & (1 << shift);
+      return *addr & static_cast<uint8_t>(1U << shift);
   }
 
   V8_INLINE(static void UpdateNodeFlag(internal::Object** obj,
                                        bool value, int shift)) {
       uint8_t* addr = reinterpret_cast<uint8_t*>(obj) + kNodeFlagsOffset;
-      uint8_t mask = 1 << shift;
-      *addr = (*addr & ~mask) | (value << shift);
+      uint8_t mask = static_cast<uint8_t>(1 << shift);
+      *addr = static_cast<uint8_t>((*addr & ~mask) | (value << shift));
   }
 
   V8_INLINE(static uint8_t GetNodeState(internal::Object** obj)) {
@@ -5562,7 +5562,7 @@ class Internals {
   V8_INLINE(static void UpdateNodeState(internal::Object** obj,
                                         uint8_t value)) {
     uint8_t* addr = reinterpret_cast<uint8_t*>(obj) + kNodeFlagsOffset;
-    *addr = (*addr & ~kNodeStateMask) | value;
+    *addr = static_cast<uint8_t>((*addr & ~kNodeStateMask) | value);
   }
 
   V8_INLINE(static void SetEmbedderData(v8::Isolate* isolate, void* data)) {
@@ -5927,7 +5927,7 @@ void ReturnValue<T>::Set(uint32_t i) {
   TYPE_CHECK(T, Integer);
   typedef internal::Internals I;
   // Can't simply use INT32_MAX here for whatever reason.
-  bool fits_into_int32_t = (i & (1 << 31)) == 0;
+  bool fits_into_int32_t = (i & (1U << 31)) == 0;
   if (V8_LIKELY(fits_into_int32_t)) {
     Set(static_cast<int32_t>(i));
     return;

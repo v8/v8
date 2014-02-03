@@ -101,6 +101,7 @@ namespace internal {
   F(GetOptimizationStatus, -1, 1) \
   F(GetOptimizationCount, 1, 1) \
   F(CompileForOnStackReplacement, 1, 1) \
+  F(SetAllocationTimeout, 2, 1) \
   F(AllocateInNewSpace, 1, 1) \
   F(AllocateInOldPointerSpace, 1, 1) \
   F(AllocateInOldDataSpace, 1, 1) \
@@ -553,6 +554,18 @@ namespace internal {
   F(CreateNumberFormat, 3, 1) \
   F(InternalNumberFormat, 2, 1) \
   F(InternalNumberParse, 2, 1) \
+  \
+  /* Collator. */ \
+  F(CreateCollator, 3, 1) \
+  F(InternalCompare, 3, 1) \
+  \
+  /* Break iterator. */ \
+  F(CreateBreakIterator, 3, 1) \
+  F(BreakIteratorAdoptText, 2, 1) \
+  F(BreakIteratorFirst, 1, 1) \
+  F(BreakIteratorNext, 1, 1) \
+  F(BreakIteratorCurrent, 1, 1) \
+  F(BreakIteratorBreakType, 1, 1) \
 
 #else
 #define RUNTIME_FUNCTION_LIST_I18N_SUPPORT(F)

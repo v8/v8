@@ -1675,7 +1675,8 @@ Handle<Object> Deoptimizer::MaterializeNextHeapObject() {
     arguments->set_elements(*array);
     materialized_objects_->Add(arguments);
     for (int i = 0; i < length; ++i) {
-      array->set(i, *MaterializeNextValue());
+      Handle<Object> value = MaterializeNextValue();
+      array->set(i, *value);
     }
   } else {
     // Dispatch on the instance type of the object to be materialized.
@@ -1692,10 +1693,13 @@ Handle<Object> Deoptimizer::MaterializeNextHeapObject() {
         Handle<JSObject> object =
             isolate_->factory()->NewJSObjectFromMap(map, NOT_TENURED, false);
         materialized_objects_->Add(object);
-        object->set_properties(FixedArray::cast(*MaterializeNextValue()));
-        object->set_elements(FixedArray::cast(*MaterializeNextValue()));
+        Handle<Object> properties = MaterializeNextValue();
+        Handle<Object> elements = MaterializeNextValue();
+        object->set_properties(FixedArray::cast(*properties));
+        object->set_elements(FixedArray::cast(*elements));
         for (int i = 0; i < length - 3; ++i) {
-          object->FastPropertyAtPut(i, *MaterializeNextValue());
+          Handle<Object> value = MaterializeNextValue();
+          object->FastPropertyAtPut(i, *value);
         }
         break;
       }

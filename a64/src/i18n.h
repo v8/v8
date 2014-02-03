@@ -33,6 +33,8 @@
 #include "v8.h"
 
 namespace U_ICU_NAMESPACE {
+class BreakIterator;
+class Collator;
 class DecimalFormat;
 class SimpleDateFormat;
 }
@@ -70,7 +72,7 @@ class DateFormat {
   // Release memory we allocated for the DateFormat once the JS object that
   // holds the pointer gets garbage collected.
   static void DeleteDateFormat(v8::Isolate* isolate,
-                               Persistent<v8::Object>* object,
+                               Persistent<v8::Value>* object,
                                void* param);
  private:
   DateFormat();
@@ -94,10 +96,57 @@ class NumberFormat {
   // Release memory we allocated for the NumberFormat once the JS object that
   // holds the pointer gets garbage collected.
   static void DeleteNumberFormat(v8::Isolate* isolate,
-                                 Persistent<v8::Object>* object,
+                                 Persistent<v8::Value>* object,
                                  void* param);
  private:
   NumberFormat();
+};
+
+
+class Collator {
+ public:
+  // Create a collator for the specificied locale and options. Returns the
+  // resolved settings for the locale / options.
+  static icu::Collator* InitializeCollator(
+      Isolate* isolate,
+      Handle<String> locale,
+      Handle<JSObject> options,
+      Handle<JSObject> resolved);
+
+  // Unpacks collator object from corresponding JavaScript object.
+  static icu::Collator* UnpackCollator(Isolate* isolate, Handle<JSObject> obj);
+
+  // Release memory we allocated for the Collator once the JS object that holds
+  // the pointer gets garbage collected.
+  static void DeleteCollator(v8::Isolate* isolate,
+                             Persistent<v8::Value>* object,
+                             void* param);
+ private:
+  Collator();
+};
+
+class BreakIterator {
+ public:
+  // Create a BreakIterator for the specificied locale and options. Returns the
+  // resolved settings for the locale / options.
+  static icu::BreakIterator* InitializeBreakIterator(
+      Isolate* isolate,
+      Handle<String> locale,
+      Handle<JSObject> options,
+      Handle<JSObject> resolved);
+
+  // Unpacks break iterator object from corresponding JavaScript object.
+  static icu::BreakIterator* UnpackBreakIterator(Isolate* isolate,
+                                                 Handle<JSObject> obj);
+
+  // Release memory we allocated for the BreakIterator once the JS object that
+  // holds the pointer gets garbage collected.
+  static void DeleteBreakIterator(v8::Isolate* isolate,
+                                  Persistent<v8::Value>* object,
+                                  void* param);
+
+ private:
+  BreakIterator();
 };
 
 } }  // namespace v8::internal

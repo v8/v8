@@ -929,6 +929,7 @@ class Assembler : public AssemblerBase {
   void fld_d(const Operand& adr);
 
   void fstp_s(const Operand& adr);
+  void fst_s(const Operand& adr);
   void fstp_d(const Operand& adr);
   void fst_d(const Operand& adr);
 

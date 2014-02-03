@@ -1078,7 +1078,7 @@ class MaybeObject BASE_EMBEDDED {
     "bad value context for arguments object value")                           \
   V(kBadValueContextForArgumentsValue,                                        \
     "bad value context for arguments value")                                  \
-  V(kBailedOutDueToDependentMap, "bailed out due to dependent map")           \
+  V(kBailedOutDueToDependencyChange, "bailed out due to dependency change")   \
   V(kBailoutWasNotPrepared, "bailout was not prepared")                       \
   V(kBinaryStubGenerateFloatingPointCode,                                     \
     "BinaryStub_GenerateFloatingPointCode")                                   \
@@ -2696,6 +2696,8 @@ class JSObject: public JSReceiver {
   void PrintElementsTransition(
       FILE* file, ElementsKind from_kind, FixedArrayBase* from_elements,
       ElementsKind to_kind, FixedArrayBase* to_elements);
+
+  void PrintInstanceMigration(FILE* file, Map* original_map, Map* new_map);
 
 #ifdef DEBUG
   // Structure for collecting spill information about JSObjects.
@@ -5647,6 +5649,17 @@ class Map: public HeapObject {
       int modify_index,
       Representation representation);
   MUST_USE_RESULT MaybeObject* CopyGeneralizeAllRepresentations();
+
+  void PrintGeneralization(FILE* file,
+                           int modify_index,
+                           int split,
+                           int descriptors,
+                           Representation old_representation,
+                           Representation new_representation);
+
+  // Returns the constructor name (the name (possibly, inferred name) of the
+  // function that was used to instantiate the object).
+  String* constructor_name();
 
   // Tells whether the map is attached to SharedFunctionInfo
   // (for inobject slack tracking).

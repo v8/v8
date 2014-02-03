@@ -350,21 +350,17 @@ bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
   code->set_back_edge_table_offset(table_offset);
   code->set_back_edges_patched_for_osr(false);
   CodeGenerator::PrintCode(code, info);
-  info->SetCode(code);  // May be an empty handle.
+  info->SetCode(code);
 #ifdef ENABLE_GDB_JIT_INTERFACE
-  if (FLAG_gdbjit && !code.is_null()) {
+  if (FLAG_gdbjit) {
     GDBJITLineInfo* lineinfo =
         masm.positions_recorder()->DetachGDBJITLineInfo();
-
     GDBJIT(RegisterDetailedLineInfo(*code, lineinfo));
   }
 #endif
-  if (!code.is_null()) {
-    void* line_info =
-        masm.positions_recorder()->DetachJITHandlerData();
-    LOG_CODE_EVENT(isolate, CodeEndLinePosInfoRecordEvent(*code, line_info));
-  }
-  return !code.is_null();
+  void* line_info = masm.positions_recorder()->DetachJITHandlerData();
+  LOG_CODE_EVENT(isolate, CodeEndLinePosInfoRecordEvent(*code, line_info));
+  return true;
 }
 
 

@@ -80,9 +80,11 @@
 #include "unicode/locid.h"
 #include "unicode/numfmt.h"
 #include "unicode/numsys.h"
+#include "unicode/rbbi.h"
 #include "unicode/smpdtfmt.h"
 #include "unicode/timezone.h"
 #include "unicode/uchar.h"
+#include "unicode/ucol.h"
 #include "unicode/ucurr.h"
 #include "unicode/uloc.h"
 #include "unicode/unum.h"
@@ -994,7 +996,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_TypedArrayInitializeFromArrayLike) {
           JSArrayBuffer::cast(typed_array->buffer())->backing_store());
       size_t source_byte_offset =
           NumberToSize(isolate, typed_array->byte_offset());
-      OS::MemCopy(
+      memcpy(
           buffer->backing_store(),
           backing_store + source_byte_offset,
           byte_length);
@@ -2779,16 +2781,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_FunctionSetLength) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_FunctionSetPrototype) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 2);
 
-  CONVERT_ARG_CHECKED(JSFunction, fun, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, fun, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
   ASSERT(fun->should_have_prototype());
-  Object* obj;
-  { MaybeObject* maybe_obj =
-        Accessors::FunctionSetPrototype(fun, args[1], NULL);
-    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-  }
+  Accessors::FunctionSetPrototype(fun, value);
   return args[0];  // return TOS
 }
 
@@ -8634,6 +8633,19 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CompileForOnStackReplacement) {
 }
 
 
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SetAllocationTimeout) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 2);
+#ifdef DEBUG
+  CONVERT_SMI_ARG_CHECKED(interval, 0);
+  CONVERT_SMI_ARG_CHECKED(timeout, 1);
+  isolate->heap()->set_allocation_timeout(timeout);
+  FLAG_gc_interval = interval;
+#endif
+  return isolate->heap()->undefined_value();
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_CheckIsBootstrapping) {
   SealHandleScope shs(isolate);
   RUNTIME_ASSERT(isolate->bootstrapper()->IsActive());
@@ -11226,6 +11238,7 @@ static Handle<JSObject> MaterializeStackLocalsWithFrameInspector(
                              ? frame_inspector->GetParameter(i)
                              : isolate->heap()->undefined_value(),
                          isolate);
+    ASSERT(!value->IsTheHole());
 
     RETURN_IF_EMPTY_HANDLE_VALUE(
         isolate,
@@ -11240,12 +11253,15 @@ static Handle<JSObject> MaterializeStackLocalsWithFrameInspector(
 
   // Second fill all stack locals.
   for (int i = 0; i < scope_info->StackLocalCount(); ++i) {
+    Handle<Object> value(frame_inspector->GetExpression(i), isolate);
+    if (value->IsTheHole()) continue;
+
     RETURN_IF_EMPTY_HANDLE_VALUE(
         isolate,
         SetProperty(isolate,
                     target,
                     Handle<String>(scope_info->StackLocalName(i)),
-                    Handle<Object>(frame_inspector->GetExpression(i), isolate),
+                    value,
                     NONE,
                     kNonStrictMode),
         Handle<JSObject>());
@@ -11272,6 +11288,7 @@ static void UpdateStackLocalsFromMaterializedObject(Isolate* isolate,
 
   // Parameters.
   for (int i = 0; i < scope_info->ParameterCount(); ++i) {
+    ASSERT(!frame->GetParameter(i)->IsTheHole());
     HandleScope scope(isolate);
     Handle<Object> value = GetProperty(
         isolate, target, Handle<String>(scope_info->ParameterName(i)));
@@ -11280,6 +11297,7 @@ static void UpdateStackLocalsFromMaterializedObject(Isolate* isolate,
 
   // Stack locals.
   for (int i = 0; i < scope_info->StackLocalCount(); ++i) {
+    if (frame->GetExpression(i)->IsTheHole()) continue;
     HandleScope scope(isolate);
     Handle<Object> value = GetProperty(
         isolate, target, Handle<String>(scope_info->StackLocalName(i)));
@@ -13614,13 +13632,12 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateDateTimeFormat) {
           isolate->factory()->NewStringFromAscii(CStrVector("valid")),
           NONE));
 
-  Persistent<v8::Object> wrapper(reinterpret_cast<v8::Isolate*>(isolate),
-                                 v8::Utils::ToLocal(local_object));
   // Make object handle weak so we can delete the data format once GC kicks in.
-  wrapper.MakeWeak<void>(NULL, &DateFormat::DeleteDateFormat);
-  Handle<Object> result = Utils::OpenPersistent(wrapper);
-  wrapper.ClearAndLeak();
-  return *result;
+  Handle<Object> wrapper = isolate->global_handles()->Create(*local_object);
+  GlobalHandles::MakeWeak(reinterpret_cast<Object**>(wrapper.location()),
+                          NULL,
+                          DateFormat::DeleteDateFormat);
+  return *local_object;
 }
 
 
@@ -13633,7 +13650,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InternalDateFormat) {
   CONVERT_ARG_HANDLE_CHECKED(JSDate, date, 1);
 
   bool has_pending_exception = false;
-  double millis = Execution::ToNumber(date, &has_pending_exception)->Number();
+  Handle<Object> value = Execution::ToNumber(date, &has_pending_exception);
   if (has_pending_exception) {
     ASSERT(isolate->has_pending_exception());
     return Failure::Exception();
@@ -13644,7 +13661,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InternalDateFormat) {
   if (!date_format) return isolate->ThrowIllegalOperation();
 
   icu::UnicodeString result;
-  date_format->format(millis, result);
+  date_format->format(value->Number(), result);
 
   return *isolate->factory()->NewStringFromTwoByte(
       Vector<const uint16_t>(
@@ -13718,14 +13735,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateNumberFormat) {
           isolate->factory()->NewStringFromAscii(CStrVector("valid")),
           NONE));
 
-  Persistent<v8::Object> wrapper(reinterpret_cast<v8::Isolate*>(isolate),
-                                 v8::Utils::ToLocal(local_object));
-  // Make object handle weak so we can delete the number format once GC kicks
-  // in.
-  wrapper.MakeWeak<void>(NULL, &NumberFormat::DeleteNumberFormat);
-  Handle<Object> result = Utils::OpenPersistent(wrapper);
-  wrapper.ClearAndLeak();
-  return *result;
+  Handle<Object> wrapper = isolate->global_handles()->Create(*local_object);
+  GlobalHandles::MakeWeak(reinterpret_cast<Object**>(wrapper.location()),
+                          NULL,
+                          NumberFormat::DeleteNumberFormat);
+  return *local_object;
 }
 
 
@@ -13738,7 +13752,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InternalNumberFormat) {
   CONVERT_ARG_HANDLE_CHECKED(Object, number, 1);
 
   bool has_pending_exception = false;
-  double value = Execution::ToNumber(number, &has_pending_exception)->Number();
+  Handle<Object> value = Execution::ToNumber(number, &has_pending_exception);
   if (has_pending_exception) {
     ASSERT(isolate->has_pending_exception());
     return Failure::Exception();
@@ -13749,7 +13763,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InternalNumberFormat) {
   if (!number_format) return isolate->ThrowIllegalOperation();
 
   icu::UnicodeString result;
-  number_format->format(value, result);
+  number_format->format(value->Number(), result);
 
   return *isolate->factory()->NewStringFromTwoByte(
       Vector<const uint16_t>(
@@ -13793,6 +13807,229 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InternalNumberParse) {
         static_cast<double>(result.getInt64()));
   default:
     return isolate->heap()->undefined_value();
+  }
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateCollator) {
+  HandleScope scope(isolate);
+
+  ASSERT(args.length() == 3);
+
+  CONVERT_ARG_HANDLE_CHECKED(String, locale, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, options, 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, resolved, 2);
+
+  Handle<ObjectTemplateInfo> collator_template = I18N::GetTemplate(isolate);
+
+  // Create an empty object wrapper.
+  bool has_pending_exception = false;
+  Handle<JSObject> local_object = Execution::InstantiateObject(
+      collator_template, &has_pending_exception);
+  if (has_pending_exception) {
+    ASSERT(isolate->has_pending_exception());
+    return Failure::Exception();
+  }
+
+  // Set collator as internal field of the resulting JS object.
+  icu::Collator* collator = Collator::InitializeCollator(
+      isolate, locale, options, resolved);
+
+  if (!collator) return isolate->ThrowIllegalOperation();
+
+  local_object->SetInternalField(0, reinterpret_cast<Smi*>(collator));
+
+  RETURN_IF_EMPTY_HANDLE(isolate,
+      JSObject::SetLocalPropertyIgnoreAttributes(
+          local_object,
+          isolate->factory()->NewStringFromAscii(CStrVector("collator")),
+          isolate->factory()->NewStringFromAscii(CStrVector("valid")),
+          NONE));
+
+  Handle<Object> wrapper = isolate->global_handles()->Create(*local_object);
+  GlobalHandles::MakeWeak(reinterpret_cast<Object**>(wrapper.location()),
+                          NULL,
+                          Collator::DeleteCollator);
+  return *local_object;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_InternalCompare) {
+  HandleScope scope(isolate);
+
+  ASSERT(args.length() == 3);
+
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, collator_holder, 0);
+  CONVERT_ARG_HANDLE_CHECKED(String, string1, 1);
+  CONVERT_ARG_HANDLE_CHECKED(String, string2, 2);
+
+  icu::Collator* collator = Collator::UnpackCollator(isolate, collator_holder);
+  if (!collator) return isolate->ThrowIllegalOperation();
+
+  v8::String::Value string_value1(v8::Utils::ToLocal(string1));
+  v8::String::Value string_value2(v8::Utils::ToLocal(string2));
+  const UChar* u_string1 = reinterpret_cast<const UChar*>(*string_value1);
+  const UChar* u_string2 = reinterpret_cast<const UChar*>(*string_value2);
+  UErrorCode status = U_ZERO_ERROR;
+  UCollationResult result = collator->compare(u_string1,
+                                              string_value1.length(),
+                                              u_string2,
+                                              string_value2.length(),
+                                              status);
+  if (U_FAILURE(status)) return isolate->ThrowIllegalOperation();
+
+  return *isolate->factory()->NewNumberFromInt(result);
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateBreakIterator) {
+  HandleScope scope(isolate);
+
+  ASSERT(args.length() == 3);
+
+  CONVERT_ARG_HANDLE_CHECKED(String, locale, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, options, 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, resolved, 2);
+
+  Handle<ObjectTemplateInfo> break_iterator_template =
+      I18N::GetTemplate2(isolate);
+
+  // Create an empty object wrapper.
+  bool has_pending_exception = false;
+  Handle<JSObject> local_object = Execution::InstantiateObject(
+      break_iterator_template, &has_pending_exception);
+  if (has_pending_exception) {
+    ASSERT(isolate->has_pending_exception());
+    return Failure::Exception();
+  }
+
+  // Set break iterator as internal field of the resulting JS object.
+  icu::BreakIterator* break_iterator = BreakIterator::InitializeBreakIterator(
+      isolate, locale, options, resolved);
+
+  if (!break_iterator) return isolate->ThrowIllegalOperation();
+
+  local_object->SetInternalField(0, reinterpret_cast<Smi*>(break_iterator));
+  // Make sure that the pointer to adopted text is NULL.
+  local_object->SetInternalField(1, reinterpret_cast<Smi*>(NULL));
+
+  RETURN_IF_EMPTY_HANDLE(isolate,
+      JSObject::SetLocalPropertyIgnoreAttributes(
+          local_object,
+          isolate->factory()->NewStringFromAscii(CStrVector("breakIterator")),
+          isolate->factory()->NewStringFromAscii(CStrVector("valid")),
+          NONE));
+
+  // Make object handle weak so we can delete the break iterator once GC kicks
+  // in.
+  Handle<Object> wrapper = isolate->global_handles()->Create(*local_object);
+  GlobalHandles::MakeWeak(reinterpret_cast<Object**>(wrapper.location()),
+                          NULL,
+                          BreakIterator::DeleteBreakIterator);
+  return *local_object;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_BreakIteratorAdoptText) {
+  HandleScope scope(isolate);
+
+  ASSERT(args.length() == 2);
+
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, break_iterator_holder, 0);
+  CONVERT_ARG_HANDLE_CHECKED(String, text, 1);
+
+  icu::BreakIterator* break_iterator =
+      BreakIterator::UnpackBreakIterator(isolate, break_iterator_holder);
+  if (!break_iterator) return isolate->ThrowIllegalOperation();
+
+  icu::UnicodeString* u_text = reinterpret_cast<icu::UnicodeString*>(
+      break_iterator_holder->GetInternalField(1));
+  delete u_text;
+
+  v8::String::Value text_value(v8::Utils::ToLocal(text));
+  u_text = new icu::UnicodeString(
+      reinterpret_cast<const UChar*>(*text_value), text_value.length());
+  break_iterator_holder->SetInternalField(1, reinterpret_cast<Smi*>(u_text));
+
+  break_iterator->setText(*u_text);
+
+  return isolate->heap()->undefined_value();
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_BreakIteratorFirst) {
+  HandleScope scope(isolate);
+
+  ASSERT(args.length() == 1);
+
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, break_iterator_holder, 0);
+
+  icu::BreakIterator* break_iterator =
+      BreakIterator::UnpackBreakIterator(isolate, break_iterator_holder);
+  if (!break_iterator) return isolate->ThrowIllegalOperation();
+
+  return *isolate->factory()->NewNumberFromInt(break_iterator->first());
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_BreakIteratorNext) {
+  HandleScope scope(isolate);
+
+  ASSERT(args.length() == 1);
+
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, break_iterator_holder, 0);
+
+  icu::BreakIterator* break_iterator =
+      BreakIterator::UnpackBreakIterator(isolate, break_iterator_holder);
+  if (!break_iterator) return isolate->ThrowIllegalOperation();
+
+  return *isolate->factory()->NewNumberFromInt(break_iterator->next());
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_BreakIteratorCurrent) {
+  HandleScope scope(isolate);
+
+  ASSERT(args.length() == 1);
+
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, break_iterator_holder, 0);
+
+  icu::BreakIterator* break_iterator =
+      BreakIterator::UnpackBreakIterator(isolate, break_iterator_holder);
+  if (!break_iterator) return isolate->ThrowIllegalOperation();
+
+  return *isolate->factory()->NewNumberFromInt(break_iterator->current());
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_BreakIteratorBreakType) {
+  HandleScope scope(isolate);
+
+  ASSERT(args.length() == 1);
+
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, break_iterator_holder, 0);
+
+  icu::BreakIterator* break_iterator =
+      BreakIterator::UnpackBreakIterator(isolate, break_iterator_holder);
+  if (!break_iterator) return isolate->ThrowIllegalOperation();
+
+  // TODO(cira): Remove cast once ICU fixes base BreakIterator class.
+  icu::RuleBasedBreakIterator* rule_based_iterator =
+      static_cast<icu::RuleBasedBreakIterator*>(break_iterator);
+  int32_t status = rule_based_iterator->getRuleStatus();
+  // Keep return values in sync with JavaScript BreakType enum.
+  if (status >= UBRK_WORD_NONE && status < UBRK_WORD_NONE_LIMIT) {
+    return *isolate->factory()->NewStringFromAscii(CStrVector("none"));
+  } else if (status >= UBRK_WORD_NUMBER && status < UBRK_WORD_NUMBER_LIMIT) {
+    return *isolate->factory()->NewStringFromAscii(CStrVector("number"));
+  } else if (status >= UBRK_WORD_LETTER && status < UBRK_WORD_LETTER_LIMIT) {
+    return *isolate->factory()->NewStringFromAscii(CStrVector("letter"));
+  } else if (status >= UBRK_WORD_KANA && status < UBRK_WORD_KANA_LIMIT) {
+    return *isolate->factory()->NewStringFromAscii(CStrVector("kana"));
+  } else if (status >= UBRK_WORD_IDEO && status < UBRK_WORD_IDEO_LIMIT) {
+    return *isolate->factory()->NewStringFromAscii(CStrVector("ideo"));
+  } else {
+    return *isolate->factory()->NewStringFromAscii(CStrVector("unknown"));
   }
 }
 #endif  // V8_I18N_SUPPORT

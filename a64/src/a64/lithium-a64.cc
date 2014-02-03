@@ -628,7 +628,7 @@ void LChunkBuilder::DoBasicBlock(HBasicBlock* block) {
     HEnvironment* last_environment = pred->last_environment();
     for (int i = 0; i < block->phis()->length(); ++i) {
       HPhi* phi = block->phis()->at(i);
-      if (phi->merged_index() < last_environment->length()) {
+      if (phi->HasMergedIndex()) {
         last_environment->SetValueAt(phi->merged_index(), phi);
       }
     }
@@ -1349,6 +1349,18 @@ LInstruction* LChunkBuilder::DoCompareGeneric(HCompareGeneric* instr) {
 }
 
 
+LInstruction* LChunkBuilder::DoCompareHoleAndBranch(
+    HCompareHoleAndBranch* instr) {
+  LOperand* object = UseRegister(instr->object());
+  if (instr->representation().IsTagged()) {
+    return new(zone()) LCmpHoleAndBranchT(object);
+  } else {
+    LOperand* temp = TempRegister();
+    return new(zone()) LCmpHoleAndBranchD(object, temp);
+  }
+}
+
+
 LInstruction* LChunkBuilder::DoCompareObjectEqAndBranch(
     HCompareObjectEqAndBranch* instr) {
   LOperand* left = UseRegisterAtStart(instr->left());
@@ -1734,23 +1746,6 @@ LInstruction* LChunkBuilder::DoLoadKeyedGeneric(HLoadKeyedGeneric* instr) {
 LInstruction* LChunkBuilder::DoLoadNamedField(HLoadNamedField* instr) {
   LOperand* object = UseRegisterAtStart(instr->object());
   return DefineAsRegister(new(zone()) LLoadNamedField(object));
-}
-
-
-LInstruction* LChunkBuilder::DoLoadNamedFieldPolymorphic(
-    HLoadNamedFieldPolymorphic* instr) {
-  ASSERT(instr->representation().IsTagged());
-  if (instr->need_generic()) {
-    LOperand* obj = UseFixed(instr->object(), x0);
-    LLoadNamedFieldPolymorphic* result =
-        new(zone()) LLoadNamedFieldPolymorphic(obj);
-    return MarkAsCall(DefineFixed(result, x0), instr);
-  } else {
-    LOperand* obj = UseRegister(instr->object());
-    LLoadNamedFieldPolymorphic* result =
-        new(zone()) LLoadNamedFieldPolymorphic(obj);
-    return AssignEnvironment(DefineAsRegister(result));
-  }
 }
 
 

@@ -120,6 +120,7 @@ void CompilationInfo::Initialize(Isolate* isolate,
     return;
   }
   mode_ = V8::UseCrankshaft() ? mode : NONOPT;
+  abort_due_to_dependency_ = false;
   if (script_->type()->value() == Script::TYPE_NATIVE) {
     MarkAsNative();
   }
@@ -231,12 +232,6 @@ bool CompilationInfo::ShouldSelfOptimize() {
 }
 
 
-void CompilationInfo::AbortOptimization() {
-  Handle<Code> code(shared_info()->code());
-  SetCode(code);
-}
-
-
 // Determine whether to use the full compiler for all code. If the flag
 // --always-full-compiler is specified this is the case. For the virtual frame
 // based compiler the full compiler is also used if a debugger is connected, as
@@ -322,8 +317,7 @@ OptimizingCompiler::Status OptimizingCompiler::CreateGraph() {
 
   // We should never arrive here if there is no code object on the
   // shared function object.
-  Handle<Code> code(info()->shared_info()->code());
-  ASSERT(code->kind() == Code::FUNCTION);
+  ASSERT(info()->shared_info()->code()->kind() == Code::FUNCTION);
 
   if (FLAG_trace_opt) {
     // TODO(jbramley): This was added to help analyse the behaviour of
@@ -342,7 +336,7 @@ OptimizingCompiler::Status OptimizingCompiler::CreateGraph() {
   // to use the Hydrogen-based optimizing compiler. We already have
   // generated code for this from the shared function object.
   if (AlwaysFullCompiler(isolate())) {
-    info()->SetCode(code);
+    info()->AbortOptimization();
     return SetLastStatus(BAILED_OUT);
   }
 
@@ -378,8 +372,8 @@ OptimizingCompiler::Status OptimizingCompiler::CreateGraph() {
 
   // Take --hydrogen-filter into account.
   if (!info()->closure()->PassesHydrogenFilter()) {
-      info()->SetCode(code);
-      return SetLastStatus(BAILED_OUT);
+    info()->AbortOptimization();
+    return SetLastStatus(BAILED_OUT);
   }
 
   // Recompile the unoptimized version of the code if the current version
@@ -419,7 +413,7 @@ OptimizingCompiler::Status OptimizingCompiler::CreateGraph() {
   // optimizable marker in the code object and optimize anyway. This
   // is safe as long as the unoptimized code has deoptimization
   // support.
-  ASSERT(FLAG_always_opt || code->optimizable());
+  ASSERT(FLAG_always_opt || info()->shared_info()->code()->optimizable());
   ASSERT(info()->shared_info()->has_deoptimization_support());
 
   if (FLAG_trace_hydrogen) {
@@ -455,6 +449,12 @@ OptimizingCompiler::Status OptimizingCompiler::CreateGraph() {
     }
   }
 
+  if (info()->HasAbortedDueToDependencyChange()) {
+    info_->set_bailout_reason(kBailedOutDueToDependencyChange);
+    info_->AbortOptimization();
+    return SetLastStatus(BAILED_OUT);
+  }
+
   return SetLastStatus(SUCCEEDED);
 }
 
@@ -463,6 +463,7 @@ OptimizingCompiler::Status OptimizingCompiler::OptimizeGraph() {
   DisallowHeapAllocation no_allocation;
   DisallowHandleAllocation no_handles;
   DisallowHandleDereference no_deref;
+  DisallowCodeDependencyChange no_dependency_change;
 
   ASSERT(last_status() == SUCCEEDED);
   Timer t(this, &time_taken_to_optimize_);
@@ -483,6 +484,8 @@ OptimizingCompiler::Status OptimizingCompiler::OptimizeGraph() {
 
 OptimizingCompiler::Status OptimizingCompiler::GenerateAndInstallCode() {
   ASSERT(last_status() == SUCCEEDED);
+  ASSERT(!info()->HasAbortedDueToDependencyChange());
+  DisallowCodeDependencyChange no_dependency_change;
   {  // Scope for timer.
     Timer timer(this, &time_taken_to_codegen_);
     ASSERT(chunk_ != NULL);
@@ -494,7 +497,7 @@ OptimizingCompiler::Status OptimizingCompiler::GenerateAndInstallCode() {
     DisallowDeferredHandleDereference no_deferred_handle_deref;
     Handle<Code> optimized_code = chunk_->Codegen();
     if (optimized_code.is_null()) {
-      if (info()->bailout_reason() != kNoReason) {
+      if (info()->bailout_reason() == kNoReason) {
         info()->set_bailout_reason(kCodeGenerationFailed);
       }
       return AbortOptimization();
@@ -824,6 +827,7 @@ static bool InstallFullCode(CompilationInfo* info) {
   // was flushed. By setting the code object last we avoid this.
   Handle<SharedFunctionInfo> shared = info->shared_info();
   Handle<Code> code = info->code();
+  CHECK(code->kind() == Code::FUNCTION);
   Handle<JSFunction> function = info->closure();
   Handle<ScopeInfo> scope_info =
       ScopeInfo::Create(info->scope(), info->zone());
@@ -1068,7 +1072,7 @@ void Compiler::InstallOptimizedCode(OptimizingCompiler* optimizing_compiler) {
   // the unoptimized code.
   OptimizingCompiler::Status status = optimizing_compiler->last_status();
   if (info->HasAbortedDueToDependencyChange()) {
-    info->set_bailout_reason(kBailedOutDueToDependentMap);
+    info->set_bailout_reason(kBailedOutDueToDependencyChange);
     status = optimizing_compiler->AbortOptimization();
   } else if (status != OptimizingCompiler::SUCCEEDED) {
     info->set_bailout_reason(kFailedBailedOutLastTime);
@@ -1097,7 +1101,7 @@ void Compiler::InstallOptimizedCode(OptimizingCompiler* optimizing_compiler) {
       PrintF(" installed.\n");
     }
   } else {
-    info->SetCode(Handle<Code>(info->shared_info()->code()));
+    info->AbortOptimization();
     InstallFullCode(*info);
   }
   // Optimized code is finally replacing unoptimized code.  Reset the latter's

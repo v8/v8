@@ -375,16 +375,13 @@ void MacroAssembler::LoadRoot(Register destination,
                               Heap::RootListIndex index,
                               Condition cond) {
   if (CpuFeatures::IsSupported(MOVW_MOVT_IMMEDIATE_LOADS) &&
-      !Heap::RootCanBeWrittenAfterInitialization(index) &&
+      isolate()->heap()->RootCanBeTreatedAsConstant(index) &&
       !predictable_code_size()) {
-    Handle<Object> root(isolate()->heap()->roots_array_start()[index],
-                        isolate());
-    if (!isolate()->heap()->InNewSpace(*root)) {
-      // The CPU supports fast immediate values, and this root will never
-      // change. We will load it as a relocatable immediate value.
-      mov(destination, Operand(root), LeaveCC, cond);
-      return;
-    }
+    // The CPU supports fast immediate values, and this root will never
+    // change. We will load it as a relocatable immediate value.
+    Handle<Object> root(&isolate()->heap()->roots_array_start()[index]);
+    mov(destination, Operand(root), LeaveCC, cond);
+    return;
   }
   ldr(destination, MemOperand(kRootRegister, index << kPointerSizeLog2), cond);
 }
@@ -1705,15 +1702,9 @@ void MacroAssembler::Allocate(int object_size,
   ASSERT((limit - top) == kPointerSize);
   ASSERT(result.code() < ip.code());
 
-  // Set up allocation top address and object size registers.
+  // Set up allocation top address register.
   Register topaddr = scratch1;
-  Register obj_size_reg = scratch2;
   mov(topaddr, Operand(allocation_top));
-  Operand obj_size_operand = Operand(object_size);
-  if (!obj_size_operand.is_single_instruction(this)) {
-    // We are about to steal IP, so we need to load this value first
-    mov(obj_size_reg, obj_size_operand);
-  }
 
   // This code stores a temporary value in ip. This is OK, as the code below
   // does not need ip for implicit literal generation.
@@ -1735,25 +1726,41 @@ void MacroAssembler::Allocate(int object_size,
 
   if ((flags & DOUBLE_ALIGNMENT) != 0) {
     // Align the next allocation. Storing the filler map without checking top is
-    // always safe because the limit of the heap is always aligned.
+    // safe in new-space because the limit of the heap is aligned there.
     ASSERT((flags & PRETENURE_OLD_POINTER_SPACE) == 0);
-    ASSERT(kPointerAlignment * 2 == kDoubleAlignment);
+    STATIC_ASSERT(kPointerAlignment * 2 == kDoubleAlignment);
     and_(scratch2, result, Operand(kDoubleAlignmentMask), SetCC);
     Label aligned;
     b(eq, &aligned);
+    if ((flags & PRETENURE_OLD_DATA_SPACE) != 0) {
+      cmp(result, Operand(ip));
+      b(hs, gc_required);
+    }
     mov(scratch2, Operand(isolate()->factory()->one_pointer_filler_map()));
     str(scratch2, MemOperand(result, kDoubleSize / 2, PostIndex));
     bind(&aligned);
   }
 
   // Calculate new top and bail out if new space is exhausted. Use result
-  // to calculate the new top.
-  if (obj_size_operand.is_single_instruction(this)) {
-    // We can add the size as an immediate
-    add(scratch2, result, obj_size_operand, SetCC);
-  } else {
-    // Doesn't fit in an immediate, we have to use the register
-    add(scratch2, result, obj_size_reg, SetCC);
+  // to calculate the new top. We must preserve the ip register at this
+  // point, so we cannot just use add().
+  ASSERT(object_size > 0);
+  Register source = result;
+  Condition cond = al;
+  int shift = 0;
+  while (object_size != 0) {
+    if (((object_size >> shift) & 0x03) == 0) {
+      shift += 2;
+    } else {
+      int bits = object_size & (0xff << shift);
+      object_size -= bits;
+      shift += 8;
+      Operand bits_operand(bits);
+      ASSERT(bits_operand.is_single_instruction(this));
+      add(scratch2, source, bits_operand, SetCC, cond);
+      source = scratch2;
+      cond = cc;
+    }
   }
   b(cs, gc_required);
   cmp(scratch2, Operand(ip));
@@ -1833,12 +1840,16 @@ void MacroAssembler::Allocate(Register object_size,
 
   if ((flags & DOUBLE_ALIGNMENT) != 0) {
     // Align the next allocation. Storing the filler map without checking top is
-    // always safe because the limit of the heap is always aligned.
+    // safe in new-space because the limit of the heap is aligned there.
     ASSERT((flags & PRETENURE_OLD_POINTER_SPACE) == 0);
     ASSERT(kPointerAlignment * 2 == kDoubleAlignment);
     and_(scratch2, result, Operand(kDoubleAlignmentMask), SetCC);
     Label aligned;
     b(eq, &aligned);
+    if ((flags & PRETENURE_OLD_DATA_SPACE) != 0) {
+      cmp(result, Operand(ip));
+      b(hs, gc_required);
+    }
     mov(scratch2, Operand(isolate()->factory()->one_pointer_filler_map()));
     str(scratch2, MemOperand(result, kDoubleSize / 2, PostIndex));
     bind(&aligned);

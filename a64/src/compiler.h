@@ -235,9 +235,10 @@ class CompilationInfo {
   // Determines whether or not to insert a self-optimization header.
   bool ShouldSelfOptimize();
 
-  // Disable all optimization attempts of this info for the rest of the
-  // current compilation pipeline.
-  void AbortOptimization();
+  // Reset code to the unoptimized version when optimization is aborted.
+  void AbortOptimization() {
+    SetCode(handle(shared_info()->code()));
+  }
 
   void set_deferred_handles(DeferredHandles* deferred_handles) {
     ASSERT(deferred_handles_ == NULL);
@@ -298,11 +299,13 @@ class CompilationInfo {
   }
 
   void AbortDueToDependencyChange() {
-    mode_ = DEPENDENCY_CHANGE_ABORT;
+    ASSERT(!isolate()->optimizing_compiler_thread()->IsOptimizerThread());
+    abort_due_to_dependency_ = true;
   }
 
   bool HasAbortedDueToDependencyChange() {
-    return mode_ == DEPENDENCY_CHANGE_ABORT;
+    ASSERT(!isolate()->optimizing_compiler_thread()->IsOptimizerThread());
+    return abort_due_to_dependency_;
   }
 
  protected:
@@ -326,8 +329,7 @@ class CompilationInfo {
     BASE,
     OPTIMIZE,
     NONOPT,
-    STUB,
-    DEPENDENCY_CHANGE_ABORT
+    STUB
   };
 
   void Initialize(Isolate* isolate, Mode mode, Zone* zone);
@@ -400,6 +402,9 @@ class CompilationInfo {
   // Compilation mode flag and whether deoptimization is allowed.
   Mode mode_;
   BailoutId osr_ast_id_;
+
+  // Flag whether compilation needs to be aborted due to dependency change.
+  bool abort_due_to_dependency_;
 
   // The zone from which the compilation pipeline working on this
   // CompilationInfo allocates.

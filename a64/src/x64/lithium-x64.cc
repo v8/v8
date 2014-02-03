@@ -814,7 +814,7 @@ void LChunkBuilder::DoBasicBlock(HBasicBlock* block, HBasicBlock* next_block) {
     HEnvironment* last_environment = pred->last_environment();
     for (int i = 0; i < block->phis()->length(); ++i) {
       HPhi* phi = block->phis()->at(i);
-      if (phi->merged_index() < last_environment->length()) {
+      if (phi->HasMergedIndex()) {
         last_environment->SetValueAt(phi->merged_index(), phi);
       }
     }
@@ -1612,9 +1612,8 @@ LInstruction* LChunkBuilder::DoCompareNumericAndBranch(
     HCompareNumericAndBranch* instr) {
   Representation r = instr->representation();
   if (r.IsSmiOrInteger32()) {
-    ASSERT(instr->left()->representation().IsSmiOrInteger32());
-    ASSERT(instr->left()->representation().Equals(
-        instr->right()->representation()));
+    ASSERT(instr->left()->representation().Equals(r));
+    ASSERT(instr->right()->representation().Equals(r));
     LOperand* left = UseRegisterOrConstantAtStart(instr->left());
     LOperand* right = UseOrConstantAtStart(instr->right());
     return new(zone()) LCompareNumericAndBranch(left, right);
@@ -1641,6 +1640,13 @@ LInstruction* LChunkBuilder::DoCompareObjectEqAndBranch(
   LOperand* left = UseRegisterAtStart(instr->left());
   LOperand* right = UseRegisterOrConstantAtStart(instr->right());
   return new(zone()) LCmpObjectEqAndBranch(left, right);
+}
+
+
+LInstruction* LChunkBuilder::DoCompareHoleAndBranch(
+    HCompareHoleAndBranch* instr) {
+  LOperand* object = UseRegisterAtStart(instr->object());
+  return new(zone()) LCmpHoleAndBranch(object);
 }
 
 
@@ -2056,23 +2062,6 @@ LInstruction* LChunkBuilder::DoLoadNamedField(HLoadNamedField* instr) {
   }
   LOperand* obj = UseRegisterAtStart(instr->object());
   return DefineAsRegister(new(zone()) LLoadNamedField(obj));
-}
-
-
-LInstruction* LChunkBuilder::DoLoadNamedFieldPolymorphic(
-    HLoadNamedFieldPolymorphic* instr) {
-  ASSERT(instr->representation().IsTagged());
-  if (instr->need_generic()) {
-    LOperand* obj = UseFixed(instr->object(), rax);
-    LLoadNamedFieldPolymorphic* result =
-        new(zone()) LLoadNamedFieldPolymorphic(obj);
-    return MarkAsCall(DefineFixed(result, rax), instr);
-  } else {
-    LOperand* obj = UseRegisterAtStart(instr->object());
-    LLoadNamedFieldPolymorphic* result =
-        new(zone()) LLoadNamedFieldPolymorphic(obj);
-    return AssignEnvironment(DefineAsRegister(result));
-  }
 }
 
 

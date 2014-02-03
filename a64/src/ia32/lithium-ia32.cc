@@ -870,7 +870,7 @@ void LChunkBuilder::DoBasicBlock(HBasicBlock* block, HBasicBlock* next_block) {
     HEnvironment* last_environment = pred->last_environment();
     for (int i = 0; i < block->phis()->length(); ++i) {
       HPhi* phi = block->phis()->at(i);
-      if (phi->merged_index() < last_environment->length()) {
+      if (phi->HasMergedIndex()) {
         last_environment->SetValueAt(phi->merged_index(), phi);
       }
     }
@@ -1415,9 +1415,8 @@ LInstruction* LChunkBuilder::DoShl(HShl* instr) {
 
 LInstruction* LChunkBuilder::DoBitwise(HBitwise* instr) {
   if (instr->representation().IsSmiOrInteger32()) {
-    ASSERT(instr->left()->representation().IsSmiOrInteger32());
-    ASSERT(instr->right()->representation().Equals(
-        instr->left()->representation()));
+    ASSERT(instr->left()->representation().Equals(instr->representation()));
+    ASSERT(instr->right()->representation().Equals(instr->representation()));
 
     LOperand* left = UseRegisterAtStart(instr->BetterLeftOperand());
     LOperand* right = UseOrConstantAtStart(instr->BetterRightOperand());
@@ -1525,8 +1524,8 @@ LInstruction* LChunkBuilder::DoMod(HMod* instr) {
   HValue* left = instr->left();
   HValue* right = instr->right();
   if (instr->representation().IsSmiOrInteger32()) {
-    ASSERT(left->representation().IsSmiOrInteger32());
-    ASSERT(right->representation().Equals(left->representation()));
+    ASSERT(instr->left()->representation().Equals(instr->representation()));
+    ASSERT(instr->right()->representation().Equals(instr->representation()));
 
     if (instr->HasPowerOf2Divisor()) {
       ASSERT(!right->CanBeZero());
@@ -1602,9 +1601,8 @@ LInstruction* LChunkBuilder::DoMul(HMul* instr) {
 
 LInstruction* LChunkBuilder::DoSub(HSub* instr) {
   if (instr->representation().IsSmiOrInteger32()) {
-    ASSERT(instr->left()->representation().IsSmiOrInteger32());
-    ASSERT(instr->right()->representation().Equals(
-        instr->left()->representation()));
+    ASSERT(instr->left()->representation().Equals(instr->representation()));
+    ASSERT(instr->right()->representation().Equals(instr->representation()));
     LOperand* left = UseRegisterAtStart(instr->left());
     LOperand* right = UseOrConstantAtStart(instr->right());
     LSubI* sub = new(zone()) LSubI(left, right);
@@ -1624,9 +1622,8 @@ LInstruction* LChunkBuilder::DoSub(HSub* instr) {
 
 LInstruction* LChunkBuilder::DoAdd(HAdd* instr) {
   if (instr->representation().IsSmiOrInteger32()) {
-    ASSERT(instr->left()->representation().IsSmiOrInteger32());
-    ASSERT(instr->right()->representation().Equals(
-        instr->left()->representation()));
+    ASSERT(instr->left()->representation().Equals(instr->representation()));
+    ASSERT(instr->right()->representation().Equals(instr->representation()));
     // Check to see if it would be advantageous to use an lea instruction rather
     // than an add. This is the case when no overflow check is needed and there
     // are multiple uses of the add's inputs, so using a 3-register add will
@@ -1659,9 +1656,8 @@ LInstruction* LChunkBuilder::DoMathMinMax(HMathMinMax* instr) {
   LOperand* left = NULL;
   LOperand* right = NULL;
   if (instr->representation().IsSmiOrInteger32()) {
-    ASSERT(instr->left()->representation().IsSmiOrInteger32());
-    ASSERT(instr->right()->representation().Equals(
-        instr->left()->representation()));
+    ASSERT(instr->left()->representation().Equals(instr->representation()));
+    ASSERT(instr->right()->representation().Equals(instr->representation()));
     left = UseRegisterAtStart(instr->BetterLeftOperand());
     right = UseOrConstantAtStart(instr->BetterRightOperand());
   } else {
@@ -1716,9 +1712,8 @@ LInstruction* LChunkBuilder::DoCompareNumericAndBranch(
     HCompareNumericAndBranch* instr) {
   Representation r = instr->representation();
   if (r.IsSmiOrInteger32()) {
-    ASSERT(instr->left()->representation().IsSmiOrInteger32());
-    ASSERT(instr->left()->representation().Equals(
-        instr->right()->representation()));
+    ASSERT(instr->left()->representation().Equals(r));
+    ASSERT(instr->right()->representation().Equals(r));
     LOperand* left = UseRegisterOrConstantAtStart(instr->left());
     LOperand* right = UseOrConstantAtStart(instr->right());
     return new(zone()) LCompareNumericAndBranch(left, right);
@@ -1745,6 +1740,13 @@ LInstruction* LChunkBuilder::DoCompareObjectEqAndBranch(
   LOperand* left = UseRegisterAtStart(instr->left());
   LOperand* right = UseOrConstantAtStart(instr->right());
   return new(zone()) LCmpObjectEqAndBranch(left, right);
+}
+
+
+LInstruction* LChunkBuilder::DoCompareHoleAndBranch(
+    HCompareHoleAndBranch* instr) {
+  LOperand* object = UseRegisterAtStart(instr->object());
+  return new(zone()) LCmpHoleAndBranch(object);
 }
 
 
@@ -2202,25 +2204,6 @@ LInstruction* LChunkBuilder::DoLoadNamedField(HLoadNamedField* instr) {
       ? UseRegisterOrConstantAtStart(instr->object())
       : UseRegisterAtStart(instr->object());
   return DefineAsRegister(new(zone()) LLoadNamedField(obj));
-}
-
-
-LInstruction* LChunkBuilder::DoLoadNamedFieldPolymorphic(
-    HLoadNamedFieldPolymorphic* instr) {
-  ASSERT(instr->representation().IsTagged());
-  if (instr->need_generic()) {
-    LOperand* context = UseFixed(instr->context(), esi);
-    LOperand* obj = UseFixed(instr->object(), edx);
-    LLoadNamedFieldPolymorphic* result =
-        new(zone()) LLoadNamedFieldPolymorphic(context, obj);
-    return MarkAsCall(DefineFixed(result, eax), instr);
-  } else {
-    LOperand* context = UseAny(instr->context());  // Not actually used.
-    LOperand* obj = UseRegisterAtStart(instr->object());
-    LLoadNamedFieldPolymorphic* result =
-        new(zone()) LLoadNamedFieldPolymorphic(context, obj);
-    return AssignEnvironment(DefineAsRegister(result));
-  }
 }
 
 

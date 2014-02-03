@@ -215,6 +215,27 @@ class BranchIfHeapNumber : public BranchGenerator {
 };
 
 
+// Test the input and branch if it is the specified root value.
+class BranchIfRoot : public BranchGenerator {
+ public:
+  BranchIfRoot(LCodeGen* codegen, const Register& value,
+               Heap::RootListIndex index)
+      : BranchGenerator(codegen), value_(value), index_(index) { }
+
+  virtual void Emit(Label* label) const {
+    __ JumpIfRoot(value_, index_, label);
+  }
+
+  virtual void EmitInverted(Label* label) const {
+    __ JumpIfNotRoot(value_, index_, label);
+  }
+
+ private:
+  const Register& value_;
+  const Heap::RootListIndex index_;
+};
+
+
 void LCodeGen::WriteTranslation(LEnvironment* environment,
                                 Translation* translation) {
   if (environment == NULL) return;
@@ -569,8 +590,14 @@ void LCodeGen::RecordSafepoint(Safepoint::DeoptMode deopt_mode) {
 void LCodeGen::RecordSafepointWithRegisters(LPointerMap* pointers,
                                             int arguments,
                                             Safepoint::DeoptMode deopt_mode) {
+  RecordSafepoint(pointers, Safepoint::kWithRegisters, arguments, deopt_mode);
+}
+
+
+void LCodeGen::RecordSafepointWithRegistersAndDoubles(
+    LPointerMap* pointers, int arguments, Safepoint::DeoptMode deopt_mode) {
   RecordSafepoint(
-      pointers, Safepoint::kWithRegisters, arguments, deopt_mode);
+      pointers, Safepoint::kWithRegistersAndDoubles, arguments, deopt_mode);
 }
 
 
@@ -1289,6 +1316,15 @@ template<class InstrType>
 void LCodeGen::EmitBranchIfHeapNumber(InstrType instr,
                                       const Register& value) {
   BranchIfHeapNumber branch(this, value);
+  EmitBranchGeneric(instr, branch);
+}
+
+
+template<class InstrType>
+void LCodeGen::EmitBranchIfRoot(InstrType instr,
+                                const Register& value,
+                                Heap::RootListIndex index) {
+  BranchIfRoot branch(this, value, index);
   EmitBranchGeneric(instr, branch);
 }
 
@@ -2226,6 +2262,30 @@ void LCodeGen::DoClassOfTestAndBranch(LClassOfTestAndBranch* instr) {
 }
 
 
+void LCodeGen::DoCmpHoleAndBranchD(LCmpHoleAndBranchD* instr) {
+  ASSERT(instr->hydrogen()->representation().IsDouble());
+  FPRegister object = ToDoubleRegister(instr->object());
+  Register temp = ToRegister(instr->temp());
+
+  // If we don't have a NaN, we don't have the hole, so branch now to avoid the
+  // (relatively expensive) hole-NaN check.
+  __ Fcmp(object, object);
+  __ B(vc, instr->FalseLabel(chunk_));
+
+  // We have a NaN, but is it the hole?
+  __ Fmov(temp, object);
+  EmitCompareAndBranch(instr, eq, temp, kHoleNanInt64);
+}
+
+
+void LCodeGen::DoCmpHoleAndBranchT(LCmpHoleAndBranchT* instr) {
+  ASSERT(instr->hydrogen()->representation().IsTagged());
+  Register object = ToRegister(instr->object());
+
+  EmitBranchIfRoot(instr, object, Heap::kTheHoleValueRootIndex);
+}
+
+
 void LCodeGen::DoCmpMapAndBranch(LCmpMapAndBranch* instr) {
   Register value = ToRegister(instr->value());
   Register map = ToRegister(instr->temp());
@@ -2382,7 +2442,7 @@ void LCodeGen::DoCheckFunction(LCheckFunction* instr) {
   AllowDeferredHandleDereference smi_check;
   if (isolate()->heap()->InNewSpace(*target)) {
     Register temp = ToRegister(instr->temp());
-    Handle<Cell> cell = isolate()->factory()->NewPropertyCell(target);
+    Handle<Cell> cell = isolate()->factory()->NewCell(target);
     __ Mov(temp, Operand(Handle<Object>(cell)));
     __ Ldr(temp, FieldMemOperand(temp, Cell::kValueOffset));
     __ Cmp(reg, temp);
@@ -2455,6 +2515,8 @@ void LCodeGen::DoDeoptimize(LDeoptimize* instr) {
   if (info()->IsStub() && (type == Deoptimizer::EAGER)) {
     type = Deoptimizer::LAZY;
   }
+
+  Comment(";;; deoptimize: %s", instr->hydrogen()->reason());
   Deoptimize(instr->environment(), type);
 }
 
@@ -3483,103 +3545,6 @@ void LCodeGen::DoLoadNamedField(LLoadNamedField* instr) {
 }
 
 
-void LCodeGen::EmitLoadFieldOrConstantFunction(Register result,
-                                               Register object,
-                                               Handle<Map> type,
-                                               Handle<String> name,
-                                               LEnvironment* env) {
-  LookupResult lookup(isolate());
-  type->LookupDescriptor(NULL, *name, &lookup);
-  ASSERT(lookup.IsFound() || lookup.IsCacheable());
-
-  if (lookup.IsField()) {
-    int index = lookup.GetLocalFieldIndexFromMap(*type);
-    int offset = index * kPointerSize;
-    if (index < 0) {
-      // Negative property indices are in-object properties, indexed from the
-      // end of the fixed part of the object.
-      __ Ldr(result, FieldMemOperand(object, offset + type->instance_size()));
-    } else {
-      // Non-negative property indices are in the properties array.
-      __ Ldr(result, FieldMemOperand(object, JSObject::kPropertiesOffset));
-      __ Ldr(result, FieldMemOperand(result, offset + FixedArray::kHeaderSize));
-    }
-  } else if (lookup.IsConstant()) {
-    Handle<Object> constant(lookup.GetConstantFromMap(*type), isolate());
-    __ LoadObject(result, constant);
-  } else {
-    // Negative lookup. Check prototypes.
-    Handle<HeapObject> current(HeapObject::cast((*type)->prototype()));
-    Heap* heap = type->GetHeap();
-    while (*current != heap->null_value()) {
-      __ LoadHeapObject(result, current);
-      __ CompareMap(result, result, Handle<Map>(current->map()));
-      DeoptimizeIf(ne, env);
-      current =
-          Handle<HeapObject>(HeapObject::cast(current->map()->prototype()));
-    }
-    __ LoadRoot(result, Heap::kUndefinedValueRootIndex);
-  }
-}
-
-
-void LCodeGen::DoLoadNamedFieldPolymorphic(LLoadNamedFieldPolymorphic* instr) {
-  Register object = ToRegister(instr->object());
-  Register result = ToRegister(instr->result());
-  // The result register is loaded with its value when the object's map has been
-  // found. At this point we don't need to hold the map in object_map anymore,
-  // so both values can share the same register.
-  // However when we need to go through the generic code path, the instruction
-  // is MarkedAsCall and both object and result registers will be allocated to
-  // x0. Object should not be clobbered until the call to LoadIC. We choose a
-  // different arbitrary register for object_map in this case.
-  Register object_map = instr->IsMarkedAsCall()
-      ? x10
-      : result;
-
-  int map_count = instr->hydrogen()->types()->length();
-  bool need_generic = instr->hydrogen()->need_generic();
-
-  if ((map_count == 0) && !need_generic) {
-    Deoptimize(instr->environment());
-    return;
-  }
-
-  Handle<String> name = instr->hydrogen()->name();
-  Label done;
-  __ Ldr(object_map, FieldMemOperand(object, HeapObject::kMapOffset));
-  for (int i = 0; i < map_count; i++) {
-    bool last = (i == (map_count - 1));
-    Handle<Map> map = instr->hydrogen()->types()->at(i);
-    Label check_passed;
-    __ CompareMap(object_map, map, &check_passed);
-    if (last && !need_generic) {
-      DeoptimizeIf(ne, instr->environment());
-      __ Bind(&check_passed);
-      EmitLoadFieldOrConstantFunction(result, object, map, name,
-                                      instr->environment());
-    } else {
-      Label next;
-      __ B(ne, &next);
-      __ Bind(&check_passed);
-      EmitLoadFieldOrConstantFunction(result, object, map, name,
-                                      instr->environment());
-      __ B(&done);
-      __ Bind(&next);
-    }
-  }
-  if (need_generic) {
-    ASSERT(instr->IsMarkedAsCall());
-    // LoadIC expects x2 to hold the name, and x0 to hold the receiver.
-    ASSERT(object.Is(x0));
-    __ Mov(x2, Operand(name));
-    Handle<Code> ic = isolate()->builtins()->LoadIC_Initialize();
-    CallCode(ic, RelocInfo::CODE_TARGET, instr);
-  }
-  __ Bind(&done);
-}
-
-
 void LCodeGen::DoLoadNamedGeneric(LLoadNamedGeneric* instr) {
   // LoadIC expects x2 to hold the name, and x0 to hold the receiver.
   ASSERT(ToRegister(instr->object()).is(x0));
@@ -4338,35 +4303,6 @@ void LCodeGen::DoNumberTagD(LNumberTagD* instr) {
   Register result = ToRegister(instr->result());
   Register temp1 = ToRegister(instr->temp1());
   Register temp2 = ToRegister(instr->temp2());
-  Label done;
-
-  bool convert_hole = false;
-  HValue* change_input = instr->hydrogen()->value();
-  if (change_input->IsLoadKeyed()) {
-    HLoadKeyed* load = HLoadKeyed::cast(change_input);
-    convert_hole = load->UsesMustHandleHole();
-  }
-
-  if (convert_hole) {
-    Label no_special_nan_handling, canonicalize;
-    // TODO(jbramley): This special case does not exist in bleeding_edge.
-    // * Non-NaN inputs are handled as usual.
-    // * If the input is the hole, the output is the hole.
-    // * If the input is any other NaN, the output is the canonical NaN.
-    __ Fcmp(input, 0.0);
-    __ B(vc, &no_special_nan_handling);
-    __ Fmov(temp1, input);
-    __ Cmp(temp1, kHoleNanInt64);
-    __ B(ne, &canonicalize);
-    __ Mov(result, Operand(factory()->the_hole_value()));
-    __ B(&done);
-    __ Bind(&canonicalize);
-    // TODO(jbramley): Overwriting the input is probably a mistake, but this
-    // code is removed in bleeding_edge anyway so it won't be here for long.
-    TODO_UNIMPLEMENTED("DoNumberTagD: Fix NaN canonicalization logic.");
-    __ Fmov(input, FixedDoubleArray::canonical_not_the_hole_nan_as_double());
-    __ Bind(&no_special_nan_handling);
-  }
 
   DeferredNumberTagD* deferred = new(zone()) DeferredNumberTagD(this, instr);
   if (FLAG_inline_new) {
@@ -4377,7 +4313,6 @@ void LCodeGen::DoNumberTagD(LNumberTagD* instr) {
 
   __ Bind(deferred->exit());
   __ Str(input, FieldMemOperand(result, HeapNumber::kValueOffset));
-  __ Bind(&done);
 }
 
 
@@ -4460,34 +4395,24 @@ void LCodeGen::DoNumberUntagD(LNumberUntagD* instr) {
   Register input = ToRegister(instr->value());
   Register scratch = ToRegister(instr->temp());
   DoubleRegister result = ToDoubleRegister(instr->result());
-  bool allow_undefined_as_nan = instr->hydrogen()->allow_undefined_as_nan();
+  bool can_convert_undefined_to_nan =
+      instr->hydrogen()->can_convert_undefined_to_nan();
 
   Label done, load_smi;
 
   // Work out what untag mode we're working with.
-  NumberUntagDMode mode = NUMBER_CANDIDATE_IS_ANY_TAGGED;
   HValue* value = instr->hydrogen()->value();
-  if (value->type().IsSmi()) {
-    mode = NUMBER_CANDIDATE_IS_SMI;
-  } else if (value->IsLoadKeyed()) {
-    HLoadKeyed* load = HLoadKeyed::cast(value);
-    if (load->UsesMustHandleHole()) {
-      if (load->hole_mode() == ALLOW_RETURN_HOLE) {
-        mode = NUMBER_CANDIDATE_IS_ANY_TAGGED_CONVERT_HOLE;
-      }
-    }
-  }
+  NumberUntagDMode mode = value->representation().IsSmi()
+      ? NUMBER_CANDIDATE_IS_SMI : NUMBER_CANDIDATE_IS_ANY_TAGGED;
 
-  STATIC_ASSERT(NUMBER_CANDIDATE_IS_ANY_TAGGED_CONVERT_HOLE >
-                NUMBER_CANDIDATE_IS_ANY_TAGGED);
-  if (mode >= NUMBER_CANDIDATE_IS_ANY_TAGGED) {
+  if (mode == NUMBER_CANDIDATE_IS_ANY_TAGGED) {
     __ JumpIfSmi(input, &load_smi);
 
     Label convert_undefined, deopt;
 
     // Heap number map check.
-    Label* not_heap_number = allow_undefined_as_nan ? &convert_undefined
-                                                    : &deopt;
+    Label* not_heap_number = can_convert_undefined_to_nan ? &convert_undefined
+                                                          : &deopt;
     __ Ldr(scratch, FieldMemOperand(input, HeapObject::kMapOffset));
     __ JumpIfNotRoot(scratch, Heap::kHeapNumberMapRootIndex, not_heap_number);
 
@@ -4498,20 +4423,10 @@ void LCodeGen::DoNumberUntagD(LNumberUntagD* instr) {
     }
     __ B(&done);
 
-    if (allow_undefined_as_nan) {
-      Label load_nan;
-
+    if (can_convert_undefined_to_nan) {
       __ Bind(&convert_undefined);
-      // Convert undefined (and hole) to NaN.
-      if (mode == NUMBER_CANDIDATE_IS_ANY_TAGGED_CONVERT_HOLE) {
-        __ JumpIfRoot(input, Heap::kUndefinedValueRootIndex, &load_nan);
-        __ JumpIfNotRoot(input, Heap::kTheHoleValueRootIndex, &deopt);
-      } else {
-        ASSERT(mode == NUMBER_CANDIDATE_IS_ANY_TAGGED);
-        __ JumpIfNotRoot(input, Heap::kUndefinedValueRootIndex, &deopt);
-      }
+      __ JumpIfNotRoot(input, Heap::kUndefinedValueRootIndex, &deopt);
 
-      __ Bind(&load_nan);
       __ LoadRoot(scratch, Heap::kNanValueRootIndex);
       __ Ldr(result, FieldMemOperand(scratch, HeapNumber::kValueOffset));
       __ B(&done);
@@ -5427,12 +5342,13 @@ void LCodeGen::DoTransitionElementsKind(LTransitionElementsKind* instr) {
     __ RecordWriteField(object, HeapObject::kMapOffset, new_map, temp1,
                         GetLinkRegisterState(), kDontSaveFPRegs);
   } else {
-    PushSafepointRegistersScope scope(this, Safepoint::kWithRegisters);
+    PushSafepointRegistersScope scope(
+        this, Safepoint::kWithRegistersAndDoubles);
     __ Mov(x0, object);
     __ Mov(x1, Operand(to_map));
     TransitionElementsKindStub stub(from_kind, to_kind);
     __ CallStub(&stub);
-    RecordSafepointWithRegisters(
+    RecordSafepointWithRegistersAndDoubles(
         instr->pointer_map(), 0, Safepoint::kNoLazyDeopt);
   }
   __ Bind(&not_applicable);

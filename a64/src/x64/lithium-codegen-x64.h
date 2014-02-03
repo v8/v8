@@ -44,7 +44,7 @@ namespace internal {
 class LDeferredCode;
 class SafepointGenerator;
 
-class LCodeGen BASE_EMBEDDED {
+class LCodeGen V8_FINAL BASE_EMBEDDED {
  public:
   LCodeGen(LChunk* chunk, MacroAssembler* assembler, CompilationInfo* info)
       : zone_(info->zone()),
@@ -289,6 +289,8 @@ class LCodeGen BASE_EMBEDDED {
   void EmitGoto(int block);
   template<class InstrType>
   void EmitBranch(InstrType instr, Condition cc);
+  template<class InstrType>
+  void EmitFalseBranch(InstrType instr, Condition cc);
   void EmitNumberUntagD(
       Register input,
       XMMRegister result,
@@ -323,12 +325,6 @@ class LCodeGen BASE_EMBEDDED {
   // Emits optimized code for %_IsConstructCall().
   // Caller should branch on equal condition.
   void EmitIsConstructCall(Register temp);
-
-  void EmitLoadFieldOrConstantFunction(Register result,
-                                       Register object,
-                                       Handle<Map> type,
-                                       Handle<String> name,
-                                       LEnvironment* env);
 
   // Emits code for pushing either a tagged constant, a (non-double)
   // register, or a stack slot operand.
@@ -388,7 +384,7 @@ class LCodeGen BASE_EMBEDDED {
 
   int old_position_;
 
-  class PushSafepointRegistersScope BASE_EMBEDDED {
+  class PushSafepointRegistersScope V8_FINAL BASE_EMBEDDED {
    public:
     explicit PushSafepointRegistersScope(LCodeGen* codegen)
         : codegen_(codegen) {
@@ -424,7 +420,7 @@ class LDeferredCode: public ZoneObject {
     codegen->AddDeferredCode(this);
   }
 
-  virtual ~LDeferredCode() { }
+  virtual ~LDeferredCode() {}
   virtual void Generate() = 0;
   virtual LInstruction* instr() = 0;
 

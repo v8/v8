@@ -1490,6 +1490,10 @@ class Heap {
   inline bool IsInGCPostProcessing() { return gc_post_processing_depth_ > 0; }
 
 #ifdef DEBUG
+  void set_allocation_timeout(int timeout) {
+    allocation_timeout_ = timeout;
+  }
+
   bool disallow_allocation_failure() {
     return disallow_allocation_failure_;
   }
@@ -1615,6 +1619,8 @@ class Heap {
   // Generated code can embed direct references to non-writable roots if
   // they are in new space.
   static bool RootCanBeWrittenAfterInitialization(RootListIndex root_index);
+  // Generated code can treat direct references to this root as constant.
+  bool RootCanBeTreatedAsConstant(RootListIndex root_index);
 
   MUST_USE_RESULT MaybeObject* NumberToString(
       Object* number, bool check_number_string_cache = true,

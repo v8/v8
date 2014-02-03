@@ -43,7 +43,7 @@ namespace internal {
 class LDeferredCode;
 class SafepointGenerator;
 
-class LCodeGen BASE_EMBEDDED {
+class LCodeGen V8_FINAL BASE_EMBEDDED {
  public:
   LCodeGen(LChunk* chunk, MacroAssembler* assembler, CompilationInfo* info)
       : zone_(info->zone()),
@@ -281,11 +281,11 @@ class LCodeGen BASE_EMBEDDED {
 
   void RegisterEnvironmentForDeoptimization(LEnvironment* environment,
                                             Safepoint::DeoptMode mode);
-  void DeoptimizeIf(Condition cc,
+  void DeoptimizeIf(Condition condition,
                     LEnvironment* environment,
                     Deoptimizer::BailoutType bailout_type);
-  void DeoptimizeIf(Condition cc, LEnvironment* environment);
-  void ApplyCheckIf(Condition cc, LBoundsCheck* check);
+  void DeoptimizeIf(Condition condition, LEnvironment* environment);
+  void ApplyCheckIf(Condition condition, LBoundsCheck* check);
 
   void AddToTranslation(LEnvironment* environment,
                         Translation* translation,
@@ -324,7 +324,9 @@ class LCodeGen BASE_EMBEDDED {
   static Condition TokenToCondition(Token::Value op, bool is_unsigned);
   void EmitGoto(int block);
   template<class InstrType>
-  void EmitBranch(InstrType instr, Condition cc);
+  void EmitBranch(InstrType instr, Condition condition);
+  template<class InstrType>
+  void EmitFalseBranch(InstrType instr, Condition condition);
   void EmitNumberUntagD(Register input,
                         DwVfpRegister result,
                         bool allow_undefined_as_nan,
@@ -359,12 +361,6 @@ class LCodeGen BASE_EMBEDDED {
   // Emits optimized code for %_IsConstructCall().
   // Caller should branch on equal condition.
   void EmitIsConstructCall(Register temp1, Register temp2);
-
-  void EmitLoadFieldOrConstantFunction(Register result,
-                                       Register object,
-                                       Handle<Map> type,
-                                       Handle<String> name,
-                                       LEnvironment* env);
 
   // Emits optimized code to deep-copy the contents of statically known
   // object graphs (e.g. object literal boilerplate).
@@ -424,7 +420,7 @@ class LCodeGen BASE_EMBEDDED {
 
   int old_position_;
 
-  class PushSafepointRegistersScope BASE_EMBEDDED {
+  class PushSafepointRegistersScope V8_FINAL BASE_EMBEDDED {
    public:
     PushSafepointRegistersScope(LCodeGen* codegen,
                                 Safepoint::Kind kind)
@@ -472,7 +468,7 @@ class LCodeGen BASE_EMBEDDED {
 };
 
 
-class LDeferredCode: public ZoneObject {
+class LDeferredCode : public ZoneObject {
  public:
   explicit LDeferredCode(LCodeGen* codegen)
       : codegen_(codegen),
@@ -481,7 +477,7 @@ class LDeferredCode: public ZoneObject {
     codegen->AddDeferredCode(this);
   }
 
-  virtual ~LDeferredCode() { }
+  virtual ~LDeferredCode() {}
   virtual void Generate() = 0;
   virtual LInstruction* instr() = 0;
 
