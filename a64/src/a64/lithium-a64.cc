@@ -2267,11 +2267,9 @@ LInstruction* LChunkBuilder::DoStringCompareAndBranch(
 
 
 LInstruction* LChunkBuilder::DoSub(HSub* instr) {
-  // TODO(jbramley): Add smi support.
-  if (instr->representation().IsInteger32()) {
-    ASSERT(instr->left()->representation().IsInteger32());
-    ASSERT(instr->right()->representation().IsInteger32());
-
+  if (instr->representation().IsSmiOrInteger32()) {
+    ASSERT(instr->left()->representation().Equals(instr->representation()));
+    ASSERT(instr->right()->representation().Equals(instr->representation()));
     LOperand *left;
     if (instr->left()->IsConstant() &&
        (HConstant::cast(instr->left())->Integer32Value() == 0)) {
@@ -2280,8 +2278,9 @@ LInstruction* LChunkBuilder::DoSub(HSub* instr) {
       left = UseRegisterAtStart(instr->left());
     }
     LOperand* right = UseRegisterOrConstantAtStart(instr->right());
-    LSubI* sub = new(zone()) LSubI(left, right);
-    LInstruction* result = DefineAsRegister(sub);
+    LInstruction* result = instr->representation().IsSmi() ?
+        DefineAsRegister(new(zone()) LSubS(left, right)) :
+        DefineAsRegister(new(zone()) LSubI(left, right));
     if (instr->CheckFlag(HValue::kCanOverflow)) {
       result = AssignEnvironment(result);
     }

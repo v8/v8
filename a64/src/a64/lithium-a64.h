@@ -181,6 +181,7 @@ class LCodeGen;
   V(StringCharFromCode)                         \
   V(StringCompareAndBranch)                     \
   V(SubI)                                       \
+  V(SubS)                                       \
   V(TaggedToI)                                  \
   V(ThisFunction)                               \
   V(Throw)                                      \
@@ -2548,6 +2549,21 @@ class LSubI: public LTemplateInstruction<1, 2, 0> {
   LOperand* right() { return inputs_[1]; }
 
   DECLARE_CONCRETE_INSTRUCTION(SubI, "sub-i")
+  DECLARE_HYDROGEN_ACCESSOR(Sub)
+};
+
+
+class LSubS: public LTemplateInstruction<1, 2, 0> {
+ public:
+  LSubS(LOperand* left, LOperand* right) {
+    inputs_[0] = left;
+    inputs_[1] = right;
+  }
+
+  LOperand* left() { return inputs_[0]; }
+  LOperand* right() { return inputs_[1]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(SubS, "sub-s")
   DECLARE_HYDROGEN_ACCESSOR(Sub)
 };
 

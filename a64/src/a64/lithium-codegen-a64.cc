@@ -5170,6 +5170,20 @@ void LCodeGen::DoSubI(LSubI* instr) {
 }
 
 
+void LCodeGen::DoSubS(LSubS* instr) {
+  bool can_overflow = instr->hydrogen()->CheckFlag(HValue::kCanOverflow);
+  Register result = ToRegister(instr->result());
+  Register left = ToRegister(instr->left());
+  Operand right = ToOperand(instr->right());
+  if (can_overflow) {
+    __ Subs(result, left, right);
+    DeoptimizeIf(vs, instr->environment());
+  } else {
+    __ Sub(result, left, right);
+  }
+}
+
+
 void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr,
                                    LOperand* value,
                                    LOperand* temp1,
