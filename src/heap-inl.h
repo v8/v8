@@ -488,7 +488,7 @@ void Heap::ScavengePointer(HeapObject** p) {
 
 void Heap::UpdateAllocationSiteFeedback(HeapObject* object) {
   Heap* heap = object->GetHeap();
-  ASSERT(heap->InNewSpace(object));
+  ASSERT(heap->InFromSpace(object));
 
   if (!FLAG_allocation_site_pretenuring ||
       !AllocationSite::CanTrack(object->map()->instance_type())) return;
