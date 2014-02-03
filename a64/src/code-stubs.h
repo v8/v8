@@ -497,20 +497,29 @@ class ToNumberStub: public HydrogenCodeStub {
 };
 
 
-class FastNewClosureStub : public PlatformCodeStub {
+class FastNewClosureStub : public HydrogenCodeStub {
  public:
   explicit FastNewClosureStub(LanguageMode language_mode, bool is_generator)
     : language_mode_(language_mode),
       is_generator_(is_generator) { }
 
-  void Generate(MacroAssembler* masm);
+  virtual Handle<Code> GenerateCode();
+
+  virtual void InitializeInterfaceDescriptor(
+      Isolate* isolate,
+      CodeStubInterfaceDescriptor* descriptor);
+
+  static void InstallDescriptors(Isolate* isolate);
+
+  LanguageMode language_mode() const { return language_mode_; }
+  bool is_generator() const { return is_generator_; }
 
  private:
   class StrictModeBits: public BitField<bool, 0, 1> {};
   class IsGeneratorBits: public BitField<bool, 1, 1> {};
 
   Major MajorKey() { return FastNewClosure; }
-  int MinorKey() {
+  int NotMissMinorKey() {
     return StrictModeBits::encode(language_mode_ != CLASSIC_MODE) |
       IsGeneratorBits::encode(is_generator_);
   }
@@ -1712,19 +1721,22 @@ class DoubleToIStub : public PlatformCodeStub {
   DoubleToIStub(Register source,
                 Register destination,
                 int offset,
-                bool is_truncating) : bit_field_(0) {
+                bool is_truncating,
+                bool skip_fastpath = false) : bit_field_(0) {
 #if V8_TARGET_ARCH_A64
     // TODO(jbramley): Make A64's Register type compatible with the normal code,
     // so we don't need this special case.
     bit_field_ = SourceRegisterBits::encode(source.code()) |
       DestinationRegisterBits::encode(destination.code()) |
       OffsetBits::encode(offset) |
-      IsTruncatingBits::encode(is_truncating);
+      IsTruncatingBits::encode(is_truncating) |
+      SkipFastPathBits::encode(skip_fastpath);
 #else
     bit_field_ = SourceRegisterBits::encode(source.code_) |
       DestinationRegisterBits::encode(destination.code_) |
       OffsetBits::encode(offset) |
-      IsTruncatingBits::encode(is_truncating);
+      IsTruncatingBits::encode(is_truncating) |
+      SkipFastPathBits::encode(skip_fastpath);
 #endif
   }
 
@@ -1754,11 +1766,17 @@ class DoubleToIStub : public PlatformCodeStub {
     return IsTruncatingBits::decode(bit_field_);
   }
 
+  bool skip_fastpath() {
+    return SkipFastPathBits::decode(bit_field_);
+  }
+
   int offset() {
     return OffsetBits::decode(bit_field_);
   }
 
   void Generate(MacroAssembler* masm);
+
+  virtual bool SometimesSetsUpAFrame() { return false; }
 
  private:
   static const int kBitsPerRegisterNumber = 6;
@@ -1772,6 +1790,8 @@ class DoubleToIStub : public PlatformCodeStub {
       public BitField<bool, 2 * kBitsPerRegisterNumber, 1> {};  // NOLINT
   class OffsetBits:
       public BitField<int, 2 * kBitsPerRegisterNumber + 1, 3> {};  // NOLINT
+  class SkipFastPathBits:
+      public BitField<int, 2 * kBitsPerRegisterNumber + 4, 1> {};  // NOLINT
 
   Major MajorKey() { return DoubleToI; }
   int MinorKey() { return bit_field_; }

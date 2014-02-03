@@ -532,8 +532,9 @@ v8::Handle<v8::Array> GetKeysForNamedInterceptor(Handle<JSReceiver> receiver,
       args(isolate, interceptor->data(), *receiver, *object);
   v8::Handle<v8::Array> result;
   if (!interceptor->enumerator()->IsUndefined()) {
-    v8::NamedPropertyEnumerator enum_fun =
-        v8::ToCData<v8::NamedPropertyEnumerator>(interceptor->enumerator());
+    v8::NamedPropertyEnumeratorCallback enum_fun =
+        v8::ToCData<v8::NamedPropertyEnumeratorCallback>(
+            interceptor->enumerator());
     LOG(isolate, ApiObjectAccess("interceptor-named-enum", *object));
     result = args.Call(enum_fun);
   }
@@ -554,8 +555,9 @@ v8::Handle<v8::Array> GetKeysForIndexedInterceptor(Handle<JSReceiver> receiver,
       args(isolate, interceptor->data(), *receiver, *object);
   v8::Handle<v8::Array> result;
   if (!interceptor->enumerator()->IsUndefined()) {
-    v8::IndexedPropertyEnumerator enum_fun =
-        v8::ToCData<v8::IndexedPropertyEnumerator>(interceptor->enumerator());
+    v8::IndexedPropertyEnumeratorCallback enum_fun =
+        v8::ToCData<v8::IndexedPropertyEnumeratorCallback>(
+            interceptor->enumerator());
     LOG(isolate, ApiObjectAccess("interceptor-indexed-enum", *object));
     result = args.Call(enum_fun);
 #if ENABLE_EXTRA_CHECKS

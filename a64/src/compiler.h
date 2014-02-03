@@ -601,7 +601,7 @@ class Compiler : public AllStatic {
   // success and false if the compilation resulted in a stack overflow.
   static bool CompileLazy(CompilationInfo* info);
 
-  static void RecompileParallel(Handle<JSFunction> function);
+  static void RecompileConcurrent(Handle<JSFunction> function);
 
   // Compile a shared function info object (the function is possibly lazily
   // compiled).

@@ -320,7 +320,6 @@ class HGraph V8_FINAL : public ZoneObject {
   bool ProcessArgumentsObject();
   void OrderBlocks();
   void AssignDominators();
-  void SetupInformativeDefinitions();
   void RestoreActualValues();
 
   // Returns false if there are phi-uses of the arguments-object
@@ -468,9 +467,6 @@ class HGraph V8_FINAL : public ZoneObject {
     phase.Run();
   }
 
-  void CheckForBackEdge(HBasicBlock* block, HBasicBlock* successor);
-  void SetupInformativeDefinitionsInBlock(HBasicBlock* block);
-  void SetupInformativeDefinitionsRecursively(HBasicBlock* block);
   void EliminateRedundantBoundsChecksUsingInductionVariables();
 
   Isolate* isolate_;
@@ -1062,7 +1058,7 @@ class HGraphBuilder {
 
   template<class I, class P1, class P2>
   I* Add(P1 p1, P2 p2) {
-    return static_cast<I*>(AddUncasted<I>(p1, p2));
+    return I::cast(AddUncasted<I>(p1, p2));
   }
 
   template<class I, class P1, class P2, class P3>
@@ -1229,10 +1225,9 @@ class HGraphBuilder {
                                    bool is_jsarray);
 
   HInstruction* BuildUncheckedMonomorphicElementAccess(
-      HValue* object,
+      HValue* checked_object,
       HValue* key,
       HValue* val,
-      HCheckMaps* mapcheck,
       bool is_js_array,
       ElementsKind elements_kind,
       bool is_store,
@@ -1257,13 +1252,10 @@ class HGraphBuilder {
       LoadKeyedHoleMode load_mode,
       KeyedAccessStoreMode store_mode);
 
-  HLoadNamedField* BuildLoadNamedField(
-      HValue* object,
-      HObjectAccess access,
-      HValue* typecheck);
-  HInstruction* BuildLoadStringLength(HValue* object, HValue* typecheck);
-  HStoreNamedField* AddStoreMapConstant(HValue *object, Handle<Map>);
-  HLoadNamedField* AddLoadElements(HValue *object, HValue *typecheck);
+  HLoadNamedField* BuildLoadNamedField(HValue* object, HObjectAccess access);
+  HInstruction* BuildLoadStringLength(HValue* object, HValue* checked_value);
+  HStoreNamedField* AddStoreMapConstant(HValue* object, Handle<Map>);
+  HLoadNamedField* AddLoadElements(HValue* object);
   HLoadNamedField* AddLoadFixedArrayLength(HValue *object);
 
   HValue* AddLoadJSBuiltin(Builtins::JavaScript builtin);
@@ -1420,6 +1412,11 @@ class HGraphBuilder {
     LoopBuilder(HGraphBuilder* builder,
                 HValue* context,
                 Direction direction);
+    LoopBuilder(HGraphBuilder* builder,
+                HValue* context,
+                Direction direction,
+                HValue* increment_amount);
+
     ~LoopBuilder() {
       ASSERT(finished_);
     }
@@ -1428,6 +1425,9 @@ class HGraphBuilder {
         HValue* initial,
         HValue* terminating,
         Token::Value token);
+
+    void Break();
+
     void EndBody();
 
    private:
@@ -1435,11 +1435,13 @@ class HGraphBuilder {
 
     HGraphBuilder* builder_;
     HValue* context_;
+    HValue* increment_amount_;
     HInstruction* increment_;
     HPhi* phi_;
     HBasicBlock* header_block_;
     HBasicBlock* body_block_;
     HBasicBlock* exit_block_;
+    HBasicBlock* exit_trampoline_block_;
     Direction direction_;
     bool finished_;
   };
@@ -1549,9 +1551,10 @@ class HGraphBuilder {
                                        int previous_object_size,
                                        HValue* payload);
 
-  void BuildConstantMapCheck(Handle<JSObject> constant, CompilationInfo* info);
-  void BuildCheckPrototypeMaps(Handle<JSObject> prototype,
-                               Handle<JSObject> holder);
+  HInstruction* BuildConstantMapCheck(Handle<JSObject> constant,
+                                      CompilationInfo* info);
+  HInstruction* BuildCheckPrototypeMaps(Handle<JSObject> prototype,
+                                        Handle<JSObject> holder);
 
   HInstruction* BuildGetNativeContext();
   HInstruction* BuildGetArrayFunction();
@@ -1601,22 +1604,6 @@ inline HInstruction* HGraphBuilder::AddUncasted<HSimulate>(
   HSimulate* instr = current_block()->CreateSimulate(id, removable);
   AddInstruction(instr);
   return instr;
-}
-
-
-template<>
-inline HInstruction* HGraphBuilder::NewUncasted<HLoadNamedField>(
-    HValue* object, HObjectAccess access) {
-  return NewUncasted<HLoadNamedField>(object, access,
-                                      static_cast<HValue*>(NULL));
-}
-
-
-template<>
-inline HInstruction* HGraphBuilder::AddUncasted<HLoadNamedField>(
-    HValue* object, HObjectAccess access) {
-  return AddUncasted<HLoadNamedField>(object, access,
-                                      static_cast<HValue*>(NULL));
 }
 
 
@@ -2003,6 +1990,8 @@ class HOptimizedGraphBuilder V8_FINAL
                                                 HValue* key,
                                                 HValue* val,
                                                 SmallMapList* maps);
+
+  LoadKeyedHoleMode BuildKeyedHoleMode(Handle<Map> map);
 
   HInstruction* BuildMonomorphicElementAccess(HValue* object,
                                               HValue* key,

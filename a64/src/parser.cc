@@ -542,6 +542,7 @@ Parser::Parser(CompilationInfo* info)
       scanner_(isolate_->unicode_cache()),
       reusable_preparser_(NULL),
       top_scope_(NULL),
+      original_scope_(NULL),
       current_function_state_(NULL),
       target_stack_(NULL),
       extension_(info->extension()),
@@ -622,6 +623,7 @@ FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info,
     if (!info->context().is_null()) {
       scope = Scope::DeserializeScopeChain(*info->context(), scope, zone());
     }
+    original_scope_ = scope;
     if (info->is_eval()) {
       if (!scope->is_global_scope() || info->language_mode() != CLASSIC_MODE) {
         scope = NewScope(scope, EVAL_SCOPE);
@@ -749,6 +751,7 @@ FunctionLiteral* Parser::ParseLazy(Utf16CharacterStream* source) {
       scope = Scope::DeserializeScopeChain(info()->closure()->context(), scope,
                                            zone());
     }
+    original_scope_ = scope;
     FunctionState function_state(this, scope, isolate());
     ASSERT(scope->language_mode() != STRICT_MODE || !info()->is_classic_mode());
     ASSERT(scope->language_mode() != EXTENDED_MODE ||
@@ -4279,10 +4282,38 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   // Function declarations are function scoped in normal mode, so they are
   // hoisted. In harmony block scoping mode they are block scoped, so they
   // are not hoisted.
+  //
+  // One tricky case are function declarations in a local sloppy-mode eval:
+  // their declaration is hoisted, but they still see the local scope. E.g.,
+  //
+  // function() {
+  //   var x = 0
+  //   try { throw 1 } catch (x) { eval("function g() { return x }") }
+  //   return g()
+  // }
+  //
+  // needs to return 1. To distinguish such cases, we need to detect
+  // (1) whether a function stems from a sloppy eval, and
+  // (2) whether it actually hoists across the eval.
+  // Unfortunately, we do not represent sloppy eval scopes, so we do not have
+  // either information available directly, especially not when lazily compiling
+  // a function like 'g'. We hence rely on the following invariants:
+  // - (1) is the case iff the innermost scope of the deserialized scope chain
+  //   under which we compile is _not_ a declaration scope. This holds because
+  //   in all normal cases, function declarations are fully hoisted to a
+  //   declaration scope and compiled relative to that.
+  // - (2) is the case iff the current declaration scope is still the original
+  //   one relative to the deserialized scope chain. Otherwise we must be
+  //   compiling a function in an inner declaration scope in the eval, e.g. a
+  //   nested function, and hoisting works normally relative to that.
+  Scope* declaration_scope = top_scope_->DeclarationScope();
+  Scope* original_declaration_scope = original_scope_->DeclarationScope();
   Scope* scope =
-      (function_type == FunctionLiteral::DECLARATION && !is_extended_mode())
-      ? NewScope(top_scope_->DeclarationScope(), FUNCTION_SCOPE)
-      : NewScope(top_scope_, FUNCTION_SCOPE);
+      function_type == FunctionLiteral::DECLARATION && !is_extended_mode() &&
+      (original_scope_ == original_declaration_scope ||
+       declaration_scope != original_declaration_scope)
+          ? NewScope(declaration_scope, FUNCTION_SCOPE)
+          : NewScope(top_scope_, FUNCTION_SCOPE);
   ZoneList<Statement*>* body = NULL;
   int materialized_literal_count = -1;
   int expected_property_count = -1;

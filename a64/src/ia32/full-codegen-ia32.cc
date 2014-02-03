@@ -1268,7 +1268,7 @@ void FullCodeGenerator::EmitNewClosure(Handle<SharedFunctionInfo> info,
       scope()->is_function_scope() &&
       info->num_literals() == 0) {
     FastNewClosureStub stub(info->language_mode(), info->is_generator());
-    __ push(Immediate(info));
+    __ mov(ebx, Immediate(info));
     __ CallStub(&stub);
   } else {
     __ push(esi);
@@ -3030,10 +3030,6 @@ void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
          ContextOperand(edx,
                         Context::STRING_FUNCTION_PROTOTYPE_MAP_INDEX));
   __ j(not_equal, if_false);
-  // Set the bit in the map to indicate that it has been checked safe for
-  // default valueOf and set true result.
-  __ or_(FieldOperand(ebx, Map::kBitField2Offset),
-         Immediate(1 << Map::kStringWrapperSafeForDefaultValueOf));
   __ jmp(if_true);
 
   PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);

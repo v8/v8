@@ -138,15 +138,6 @@ void CPU::FlushICache(void* address, size_t length) {
 }
 
 
-void CPU::DebugBreak() {
-#if defined(USE_SIMULATOR)
-  asm volatile("int $3");
-#else
-  asm volatile("hlt 0");
-#endif
-}
-
-
 void CpuFeatures::Probe() {
   // Compute I and D cache line size. The cache type register holds
   // information about the caches.

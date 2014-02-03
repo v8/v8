@@ -400,8 +400,8 @@ class Shell : public i::AllStatic {
   static void RunShell(Isolate* isolate);
   static bool SetOptions(int argc, char* argv[]);
   static Handle<ObjectTemplate> CreateGlobalTemplate(Isolate* isolate);
-  static Handle<FunctionTemplate> CreateArrayBufferTemplate(InvocationCallback);
-  static Handle<FunctionTemplate> CreateArrayTemplate(InvocationCallback);
+  static Handle<FunctionTemplate> CreateArrayBufferTemplate(FunctionCallback);
+  static Handle<FunctionTemplate> CreateArrayTemplate(FunctionCallback);
   static Handle<Value> CreateExternalArrayBuffer(Isolate* isolate,
                                                  Handle<Object> buffer,
                                                  int32_t size);

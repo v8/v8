@@ -290,6 +290,14 @@ void LLoadContextSlot::PrintDataTo(StringStream* stream) {
 }
 
 
+void LStoreCodeEntry::PrintDataTo(StringStream* stream) {
+  stream->Add(" = ");
+  function()->PrintTo(stream);
+  stream->Add(".code_entry = ");
+  code_object()->PrintTo(stream);
+}
+
+
 void LStoreContextSlot::PrintDataTo(StringStream* stream) {
   context()->PrintTo(stream);
   stream->Add("[%d] <- ", slot_index());
@@ -1114,6 +1122,8 @@ LInstruction* LChunkBuilder::DoCallStub(HCallStub* instr) {
 
 
 LInstruction* LChunkBuilder::DoCapturedObject(HCapturedObject* instr) {
+  instr->ReplayEnvironment(current_block_->last_environment());
+
   // There are no real uses of a captured object.
   return NULL;
 }
@@ -2021,12 +2031,7 @@ LInstruction* LChunkBuilder::DoShift(Token::Value op,
     if (FLAG_opt_safe_uint32_operations) {
       does_deopt = !instr->CheckFlag(HInstruction::kUint32);
     } else {
-      for (HUseIterator it(instr->uses()); !it.Done(); it.Advance()) {
-        if (!it.value()->CheckFlag(HValue::kTruncatingToInt32)) {
-          does_deopt = true;
-          break;
-        }
-      }
+      does_deopt = !instr->CheckUsesForFlag(HValue::kTruncatingToInt32);
     }
   }
 
@@ -2057,20 +2062,7 @@ LInstruction* LChunkBuilder::DoShr(HShr* instr) {
 
 
 LInstruction* LChunkBuilder::DoSimulate(HSimulate* instr) {
-  HEnvironment* env = current_block_->last_environment();
-  ASSERT(env != NULL);
-
-  env->set_ast_id(instr->ast_id());
-
-  env->Drop(instr->pop_count());
-  for (int i = instr->values()->length() - 1; i >= 0; --i) {
-    HValue* value = instr->values()->at(i);
-    if (instr->HasAssignedIndexAt(i)) {
-      env->Bind(instr->GetAssignedIndexAt(i), value);
-    } else {
-      env->Push(value);
-    }
-  }
+  instr->ReplayEnvironment(current_block_->last_environment());
 
   // If there is an instruction pending deoptimization environment create a
   // lazy bailout instruction to capture the environment.
@@ -2097,6 +2089,14 @@ LInstruction* LChunkBuilder::DoStackCheck(HStackCheck* instr) {
     ASSERT(instr->is_backwards_branch());
     return AssignEnvironment(AssignPointerMap(new(zone()) LStackCheck));
   }
+}
+
+
+LInstruction* LChunkBuilder::DoStoreCodeEntry(HStoreCodeEntry* instr) {
+  LOperand* function = UseRegister(instr->function());
+  LOperand* code_object = UseRegisterAtStart(instr->code_object());
+  LOperand* temp = TempRegister();
+  return new(zone()) LStoreCodeEntry(function, code_object, temp);
 }
 
 

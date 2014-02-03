@@ -75,7 +75,7 @@ class V8_EXPORT CpuProfileNode {
   /** DEPRECATED. Please use GetHitCount instead.
     * Returns the count of samples where function was currently executing.
     */
-  double GetSelfSamplesCount() const;
+  V8_DEPRECATED(double GetSelfSamplesCount() const);
 
   /**
     * Returns the count of samples where the function was currently executing.

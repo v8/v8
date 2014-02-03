@@ -2852,8 +2852,7 @@ void FixedSpace::PrepareForMarkCompact() {
 // the VerifyObject definition behind VERIFY_HEAP.
 
 void MapSpace::VerifyObject(HeapObject* object) {
-  // The object should be a map or a free-list node.
-  CHECK(object->IsMap() || object->IsFreeSpace());
+  CHECK(object->IsMap());
 }
 
 
@@ -2864,16 +2863,12 @@ void MapSpace::VerifyObject(HeapObject* object) {
 // the VerifyObject definition behind VERIFY_HEAP.
 
 void CellSpace::VerifyObject(HeapObject* object) {
-  // The object should be a global object property cell or a free-list node.
-  CHECK(object->IsCell() ||
-         object->map() == heap()->two_pointer_filler_map());
+  CHECK(object->IsCell());
 }
 
 
 void PropertyCellSpace::VerifyObject(HeapObject* object) {
-  // The object should be a global object property cell or a free-list node.
-  CHECK(object->IsPropertyCell() ||
-         object->map() == heap()->two_pointer_filler_map());
+  CHECK(object->IsPropertyCell());
 }
 
 

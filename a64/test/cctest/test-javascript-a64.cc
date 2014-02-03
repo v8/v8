@@ -40,8 +40,6 @@
 #include "parser.h"
 #include "unicode-inl.h"
 
-using ::v8::AccessorInfo;
-using ::v8::Arguments;
 using ::v8::Context;
 using ::v8::Extension;
 using ::v8::Function;

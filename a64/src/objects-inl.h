@@ -1569,7 +1569,7 @@ MaybeObject* JSObject::MigrateInstance() {
   // transition that matches the object. This achieves what is needed.
   Map* original_map = map();
   MaybeObject* maybe_result = GeneralizeFieldRepresentation(
-      0, Representation::None());
+      0, Representation::None(), ALLOW_AS_CONSTANT);
   JSObject* result;
   if (FLAG_trace_migration && maybe_result->To(&result)) {
     PrintInstanceMigration(stdout, original_map, result->map());
@@ -1865,14 +1865,15 @@ bool JSObject::HasFastProperties() {
 }
 
 
-bool JSObject::TooManyFastProperties(int properties,
-                                     JSObject::StoreFromKeyed store_mode) {
+bool JSObject::TooManyFastProperties(StoreFromKeyed store_mode) {
   // Allow extra fast properties if the object has more than
-  // kFastPropertiesSoftLimit in-object properties. When this is the case,
-  // it is very unlikely that the object is being used as a dictionary
-  // and there is a good chance that allowing more map transitions
-  // will be worth it.
-  int inobject = map()->inobject_properties();
+  // kFastPropertiesSoftLimit in-object properties. When this is the case, it is
+  // very unlikely that the object is being used as a dictionary and there is a
+  // good chance that allowing more map transitions will be worth it.
+  Map* map = this->map();
+  if (map->unused_property_fields() != 0) return false;
+
+  int inobject = map->inobject_properties();
 
   int limit;
   if (store_mode == CERTAINLY_NOT_STORE_FROM_KEYED) {
@@ -1880,7 +1881,7 @@ bool JSObject::TooManyFastProperties(int properties,
   } else {
     limit = Max(inobject, kFastPropertiesSoftLimit);
   }
-  return properties > limit;
+  return properties()->length() > limit;
 }
 
 
@@ -2361,6 +2362,7 @@ PropertyType DescriptorArray::GetType(int descriptor_number) {
 
 
 int DescriptorArray::GetFieldIndex(int descriptor_number) {
+  ASSERT(GetDetails(descriptor_number).type() == FIELD);
   return GetDetails(descriptor_number).field_index();
 }
 
@@ -4084,8 +4086,8 @@ bool Code::is_inline_cache_stub() {
 }
 
 
-bool Code::is_debug_break() {
-  return ic_state() == DEBUG_STUB && extra_ic_state() == DEBUG_BREAK;
+bool Code::is_debug_stub() {
+  return ic_state() == DEBUG_STUB;
 }
 
 
@@ -4453,6 +4455,7 @@ ACCESSORS(Box, value, Object, kValueOffset)
 
 ACCESSORS(AccessorPair, getter, Object, kGetterOffset)
 ACCESSORS(AccessorPair, setter, Object, kSetterOffset)
+ACCESSORS_TO_SMI(AccessorPair, access_flags, kAccessFlagsOffset)
 
 ACCESSORS(AccessCheckInfo, named_callback, Object, kNamedCallbackOffset)
 ACCESSORS(AccessCheckInfo, indexed_callback, Object, kIndexedCallbackOffset)
@@ -4573,6 +4576,8 @@ BOOL_ACCESSORS(FunctionTemplateInfo, flag, needs_access_check,
                kNeedsAccessCheckBit)
 BOOL_ACCESSORS(FunctionTemplateInfo, flag, read_only_prototype,
                kReadOnlyPrototypeBit)
+BOOL_ACCESSORS(FunctionTemplateInfo, flag, remove_prototype,
+               kRemovePrototypeBit)
 BOOL_ACCESSORS(SharedFunctionInfo, start_position_and_type, is_expression,
                kIsExpressionBit)
 BOOL_ACCESSORS(SharedFunctionInfo, start_position_and_type, is_toplevel,
@@ -4958,9 +4963,9 @@ bool JSFunction::IsMarkedForInstallingRecompiledCode() {
 }
 
 
-bool JSFunction::IsMarkedForParallelRecompilation() {
+bool JSFunction::IsMarkedForConcurrentRecompilation() {
   return code() == GetIsolate()->builtins()->builtin(
-      Builtins::kParallelRecompile);
+      Builtins::kConcurrentRecompile);
 }
 
 
@@ -5846,6 +5851,36 @@ bool AccessorInfo::IsCompatibleReceiver(Object* receiver) {
   Object* function_template = expected_receiver_type();
   if (!function_template->IsFunctionTemplateInfo()) return true;
   return receiver->IsInstanceOf(FunctionTemplateInfo::cast(function_template));
+}
+
+
+void AccessorPair::set_access_flags(v8::AccessControl access_control) {
+  int current = access_flags()->value();
+  current = BooleanBit::set(current,
+                            kProhibitsOverwritingBit,
+                            access_control & PROHIBITS_OVERWRITING);
+  current = BooleanBit::set(current,
+                            kAllCanReadBit,
+                            access_control & ALL_CAN_READ);
+  current = BooleanBit::set(current,
+                            kAllCanWriteBit,
+                            access_control & ALL_CAN_WRITE);
+  set_access_flags(Smi::FromInt(current));
+}
+
+
+bool AccessorPair::all_can_read() {
+  return BooleanBit::get(access_flags(), kAllCanReadBit);
+}
+
+
+bool AccessorPair::all_can_write() {
+  return BooleanBit::get(access_flags(), kAllCanWriteBit);
+}
+
+
+bool AccessorPair::prohibits_overwriting() {
+  return BooleanBit::get(access_flags(), kProhibitsOverwritingBit);
 }
 
 

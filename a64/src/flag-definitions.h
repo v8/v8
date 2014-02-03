@@ -41,15 +41,12 @@
   extern ctype FLAG_##nam;
 #define FLAG_READONLY(ftype, ctype, nam, def, cmt) \
   static ctype const FLAG_##nam = def;
-#define DEFINE_implication(whenflag, thenflag)
 
 // We want to supply the actual storage and value for the flag variable in the
 // .cc file.  We only do this for writable flags.
 #elif defined(FLAG_MODE_DEFINE)
 #define FLAG_FULL(ftype, ctype, nam, def, cmt) \
   ctype FLAG_##nam = def;
-#define FLAG_READONLY(ftype, ctype, nam, def, cmt)
-#define DEFINE_implication(whenflag, thenflag)
 
 // We need to define all of our default values so that the Flag structure can
 // access them by pointer.  These are just used internally inside of one .cc,
@@ -57,27 +54,42 @@
 #elif defined(FLAG_MODE_DEFINE_DEFAULTS)
 #define FLAG_FULL(ftype, ctype, nam, def, cmt) \
   static ctype const FLAGDEFAULT_##nam = def;
-#define FLAG_READONLY(ftype, ctype, nam, def, cmt)
-#define DEFINE_implication(whenflag, thenflag)
 
 // We want to write entries into our meta data table, for internal parsing and
 // printing / etc in the flag parser code.  We only do this for writable flags.
 #elif defined(FLAG_MODE_META)
 #define FLAG_FULL(ftype, ctype, nam, def, cmt) \
   { Flag::TYPE_##ftype, #nam, &FLAG_##nam, &FLAGDEFAULT_##nam, cmt, false },
-#define FLAG_READONLY(ftype, ctype, nam, def, cmt)
-#define DEFINE_implication(whenflag, thenflag)
+#define FLAG_ALIAS(ftype, ctype, alias, nam) \
+  { Flag::TYPE_##ftype, #alias, &FLAG_##nam, &FLAGDEFAULT_##nam, \
+    "alias for --"#nam, false },
 
 // We produce the code to set flags when it is implied by another flag.
 #elif defined(FLAG_MODE_DEFINE_IMPLICATIONS)
-#define FLAG_FULL(ftype, ctype, nam, def, cmt)
-#define FLAG_READONLY(ftype, ctype, nam, def, cmt)
 #define DEFINE_implication(whenflag, thenflag) \
   if (FLAG_##whenflag) FLAG_##thenflag = true;
 
 #else
 #error No mode supplied when including flags.defs
 #endif
+
+// Dummy defines for modes where it is not relevant.
+#ifndef FLAG_FULL
+#define FLAG_FULL(ftype, ctype, nam, def, cmt)
+#endif
+
+#ifndef FLAG_READONLY
+#define FLAG_READONLY(ftype, ctype, nam, def, cmt)
+#endif
+
+#ifndef FLAG_ALIAS
+#define FLAG_ALIAS(ftype, ctype, alias, nam)
+#endif
+
+#ifndef DEFINE_implication
+#define DEFINE_implication(whenflag, thenflag)
+#endif
+
 
 #ifdef FLAG_MODE_DECLARE
 // Structure used to hold a collection of arguments to the JavaScript code.
@@ -135,11 +147,18 @@ public:
 # define ENABLE_32DREGS_DEFAULT false
 #endif
 
-#define DEFINE_bool(nam, def, cmt) FLAG(BOOL, bool, nam, def, cmt)
-#define DEFINE_int(nam, def, cmt) FLAG(INT, int, nam, def, cmt)
-#define DEFINE_float(nam, def, cmt) FLAG(FLOAT, double, nam, def, cmt)
+#define DEFINE_bool(nam, def, cmt)   FLAG(BOOL, bool, nam, def, cmt)
+#define DEFINE_int(nam, def, cmt)    FLAG(INT, int, nam, def, cmt)
+#define DEFINE_float(nam, def, cmt)  FLAG(FLOAT, double, nam, def, cmt)
 #define DEFINE_string(nam, def, cmt) FLAG(STRING, const char*, nam, def, cmt)
-#define DEFINE_args(nam, def, cmt) FLAG(ARGS, JSArguments, nam, def, cmt)
+#define DEFINE_args(nam, def, cmt)   FLAG(ARGS, JSArguments, nam, def, cmt)
+
+#define DEFINE_ALIAS_bool(alias, nam)  FLAG_ALIAS(BOOL, bool, alias, nam)
+#define DEFINE_ALIAS_int(alias, nam)   FLAG_ALIAS(INT, int, alias, nam)
+#define DEFINE_ALIAS_float(alias, nam) FLAG_ALIAS(FLOAT, double, alias, nam)
+#define DEFINE_ALIAS_string(alias, nam) \
+  FLAG_ALIAS(STRING, const char*, alias, nam)
+#define DEFINE_ALIAS_args(alias, nam)  FLAG_ALIAS(ARGS, JSArguments, alias, nam)
 
 //
 // Flags in all modes.
@@ -237,6 +256,7 @@ DEFINE_bool(collect_megamorphic_maps_from_stub_cache,
             "crankshaft harvests type feedback from stub cache")
 DEFINE_bool(hydrogen_stats, false, "print statistics for hydrogen")
 DEFINE_bool(trace_hydrogen, false, "trace generated hydrogen to file")
+DEFINE_string(trace_hydrogen_filter, "*", "hydrogen tracing filter")
 DEFINE_bool(trace_hydrogen_stubs, false, "trace generated hydrogen for stubs")
 DEFINE_string(trace_hydrogen_file, NULL, "trace hydrogen to given file name")
 DEFINE_string(trace_phase, "HLZ", "trace generated IR for specified phases")
@@ -303,13 +323,15 @@ DEFINE_bool(opt_safe_uint32_operations, true,
             "allow uint32 values on optimize frames if they are used only in "
             "safe operations")
 
-DEFINE_bool(parallel_recompilation, true,
+DEFINE_bool(concurrent_recompilation, true,
             "optimizing hot functions asynchronously on a separate thread")
-DEFINE_bool(trace_parallel_recompilation, false, "track parallel recompilation")
-DEFINE_int(parallel_recompilation_queue_length, 8,
-           "the length of the parallel compilation queue")
-DEFINE_int(parallel_recompilation_delay, 0,
+DEFINE_bool(trace_concurrent_recompilation, false,
+            "track concurrent recompilation")
+DEFINE_int(concurrent_recompilation_queue_length, 8,
+           "the length of the concurrent compilation queue")
+DEFINE_int(concurrent_recompilation_delay, 0,
            "artificial compilation delay in ms")
+
 DEFINE_bool(omit_map_checks_for_leaf_maps, true,
             "do not emit check maps for constant values that have a leaf map, "
             "deoptimize the optimized code if the layout of the maps changes.")
@@ -356,8 +378,6 @@ DEFINE_bool(enable_sse4_1, true,
             "enable use of SSE4.1 instructions if available")
 DEFINE_bool(enable_cmov, true,
             "enable use of CMOV instruction if available")
-DEFINE_bool(enable_rdtsc, true,
-            "enable use of RDTSC instruction if available")
 DEFINE_bool(enable_sahf, true,
             "enable use of SAHF instruction if available (X64 only)")
 DEFINE_bool(enable_vfp3, ENABLE_VFP3_DEFAULT,
@@ -433,6 +453,18 @@ DEFINE_int(max_opt_count, 10,
 DEFINE_bool(compilation_cache, true, "enable compilation cache")
 
 DEFINE_bool(cache_prototype_transitions, true, "cache prototype transitions")
+
+// cpu-profiler.cc
+#if defined(ANDROID)
+// Phones and tablets have processors that are much slower than desktop
+// and laptop computers for which current heuristics are tuned.
+#define DEFAULT_INTERVAL 5000
+#else
+#define DEFAULT_INTERVAL 1000
+#endif
+DEFINE_int(cpu_profiler_sampling_interval, DEFAULT_INTERVAL,
+           "CPU profiler sampling interval in microseconds")
+#undef DEFAULT_INTERVAL
 
 // debug.cc
 DEFINE_bool(trace_debug_json, false, "trace debugging JSON request/response")
@@ -679,13 +711,14 @@ DEFINE_bool(stress_compaction, false,
 DEFINE_bool(enable_slow_asserts, false,
             "enable asserts that are slow to execute")
 
-// codegen-ia32.cc / codegen-arm.cc
+// codegen-ia32.cc / codegen-arm.cc / macro-assembler-*.cc
 DEFINE_bool(print_source, false, "pretty print source code")
 DEFINE_bool(print_builtin_source, false,
             "pretty print source code for builtins")
 DEFINE_bool(print_ast, false, "print source AST")
 DEFINE_bool(print_builtin_ast, false, "print source AST for builtins")
 DEFINE_string(stop_at, "", "function name where to insert a breakpoint")
+DEFINE_bool(trap_on_abort, false, "replace aborts by breakpoints")
 
 // compiler.cc
 DEFINE_bool(print_builtin_scopes, false, "print scopes for builtins")
@@ -828,11 +861,19 @@ DEFINE_implication(print_all_code, trace_codegen)
 #undef FLAG_FULL
 #undef FLAG_READONLY
 #undef FLAG
+#undef FLAG_ALIAS
 
 #undef DEFINE_bool
 #undef DEFINE_int
 #undef DEFINE_string
+#undef DEFINE_float
+#undef DEFINE_args
 #undef DEFINE_implication
+#undef DEFINE_ALIAS_bool
+#undef DEFINE_ALIAS_int
+#undef DEFINE_ALIAS_string
+#undef DEFINE_ALIAS_float
+#undef DEFINE_ALIAS_args
 
 #undef FLAG_MODE_DECLARE
 #undef FLAG_MODE_DEFINE

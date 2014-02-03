@@ -75,7 +75,7 @@ class OptimizingCompilerThread : public Thread {
     // only one thread can run inside an Isolate at one time, a direct
     // doesn't introduce a race -- queue_length_ may decreased in
     // meantime, but not increased.
-    return (current_length < FLAG_parallel_recompilation_queue_length);
+    return (current_length < FLAG_concurrent_recompilation_queue_length);
   }
 
 #ifdef DEBUG

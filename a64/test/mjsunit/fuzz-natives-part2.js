@@ -150,7 +150,7 @@ var knownProblems = {
   "PushModuleContext": true,
   "LazyCompile": true,
   "LazyRecompile": true,
-  "ParallelRecompile": true,
+  "ConcurrentRecompile": true,
   "InstallRecompiledCode": true,
   "NotifyDeoptimized": true,
   "NotifyStubFailure": true,
@@ -165,6 +165,7 @@ var knownProblems = {
   "DeclareGlobals": true,
   "ArrayConstructor": true,
   "InternalArrayConstructor": true,
+  "SetAccessorProperty": true,
 
   "PromoteScheduledException": true,
   "DeleteHandleScopeExtensions": true,

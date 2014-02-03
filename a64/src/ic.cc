@@ -379,7 +379,7 @@ void IC::Clear(Address address) {
   Code* target = GetTargetAtAddress(address);
 
   // Don't clear debug break inline cache as it will remove the break point.
-  if (target->is_debug_break()) return;
+  if (target->is_debug_stub()) return;
 
   switch (target->kind()) {
     case Code::LOAD_IC: return LoadIC::Clear(address, target);
@@ -1615,7 +1615,8 @@ static bool LookupForWrite(Handle<JSObject> receiver,
   if (!value->FitsRepresentation(target_details.representation())) {
     Handle<Map> target(lookup->GetTransitionMapFromMap(receiver->map()));
     Map::GeneralizeRepresentation(
-        target, target->LastAdded(), value->OptimalRepresentation());
+        target, target->LastAdded(),
+        value->OptimalRepresentation(), FORCE_FIELD);
     // Lookup the transition again since the transition tree may have changed
     // entirely by the migration above.
     receiver->map()->LookupTransition(*holder, *name, lookup);

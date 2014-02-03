@@ -38,6 +38,18 @@ namespace v8 {
 namespace internal {
 
 
+void FastNewClosureStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  // x2: function info
+  static Register registers[] = { x2 };
+  descriptor->register_param_count_ = sizeof(registers) / sizeof(registers[0]);
+  descriptor->register_params_ = registers;
+  descriptor->deoptimization_handler_ =
+      Runtime::FunctionForId(Runtime::kNewClosureFromStubFailure)->entry;
+}
+
+
 void ToNumberStub::InitializeInterfaceDescriptor(
     Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
@@ -316,167 +328,6 @@ void HydrogenCodeStub::GenerateLightweightMiss(MacroAssembler* masm) {
   }
 
   __ Ret();
-}
-
-
-void FastNewClosureStub::Generate(MacroAssembler* masm) {
-  // Create a new closure from the given function info in new space. Set the
-  // context to the current context in cp.
-  Register new_fn = x0;
-  Register function = x1;
-
-  Counters* counters = masm->isolate()->counters();
-
-  Label gc;
-
-  // Pop the function info from the stack.
-  __ Pop(function);
-
-  // Attempt to allocate new JSFunction in new space.
-  __ Allocate(JSFunction::kSize, new_fn, x6, x7, &gc, TAG_OBJECT);
-
-  __ IncrementCounter(counters->fast_new_closure_total(), 1, x6, x7);
-
-  int map_index = Context::FunctionMapIndex(language_mode_, is_generator_);
-
-  // Compute the function map in the current native context and set that as the
-  // map of the allocated object.
-  Register global_object = x2;
-  Register global_ctx = x5;
-  Register global_fn_map = x2;
-  __ Ldr(global_object, GlobalObjectMemOperand());
-  __ Ldr(global_ctx, FieldMemOperand(global_object,
-                                     GlobalObject::kNativeContextOffset));
-  __ Ldr(global_fn_map, ContextMemOperand(global_ctx, map_index));
-  __ Str(global_fn_map, FieldMemOperand(new_fn, HeapObject::kMapOffset));
-
-  // Initialize the rest of the function. We don't have to update the write
-  // barrier because the allocated object is in new space.
-  Register empty_array = x2;
-  Register the_hole = x3;
-  __ LoadRoot(empty_array, Heap::kEmptyFixedArrayRootIndex);
-  __ LoadRoot(the_hole, Heap::kTheHoleValueRootIndex);
-
-  __ Str(empty_array, FieldMemOperand(new_fn, JSObject::kPropertiesOffset));
-  __ Str(empty_array, FieldMemOperand(new_fn, JSObject::kElementsOffset));
-  __ Str(the_hole, FieldMemOperand(new_fn,
-                                   JSFunction::kPrototypeOrInitialMapOffset));
-  __ Str(function, FieldMemOperand(new_fn,
-                                   JSFunction::kSharedFunctionInfoOffset));
-  __ Str(cp, FieldMemOperand(new_fn, JSFunction::kContextOffset));
-  __ Str(empty_array, FieldMemOperand(new_fn, JSFunction::kLiteralsOffset));
-
-  // Initialize the code pointer in the new function to be the one found in the
-  // shared function info object.
-  // But first check if there is an optimized version for our context.
-  Label check_optimized;
-  Label install_unoptimized;
-  Register opt_code_map = x4;
-  if (FLAG_cache_optimized_code) {
-    __ Ldr(opt_code_map,
-           FieldMemOperand(function,
-                           SharedFunctionInfo::kOptimizedCodeMapOffset));
-    __ Cbnz(opt_code_map, &check_optimized);
-  }
-
-  __ Bind(&install_unoptimized);
-  Register undef = x4;
-  __ LoadRoot(undef, Heap::kUndefinedValueRootIndex);
-  __ Str(undef, FieldMemOperand(new_fn, JSFunction::kNextFunctionLinkOffset));
-
-  Register fn_code = x2;
-  __ Ldr(fn_code, FieldMemOperand(function, SharedFunctionInfo::kCodeOffset));
-  __ Add(fn_code, fn_code, Code::kHeaderSize - kHeapObjectTag);
-  __ Str(fn_code, FieldMemOperand(new_fn, JSFunction::kCodeEntryOffset));
-
-  // Return result. The argument function info has been popped already.
-  __ Ret();
-
-  // This code is never reached if FLAG_cache_optimized_code is false.
-  __ Bind(&check_optimized);
-
-  __ IncrementCounter(counters->fast_new_closure_try_optimized(), 1, x6, x7);
-
-  // x4  opt_code_map  pointer to optimized code map
-  // x5  global_ctx    pointer to global context
-
-  // The optimized code map must never be empty, so check the first elements.
-  Label install_optimized;
-  // Speculatively move code object into opt_code.
-  Register opt_code = x11;
-  Register opt_code_ctx = x12;
-  __ Ldr(opt_code, FieldMemOperand(opt_code_map,
-                                   SharedFunctionInfo::kFirstCodeSlot));
-  __ Ldr(opt_code_ctx, FieldMemOperand(opt_code_map,
-                                       SharedFunctionInfo::kFirstContextSlot));
-  __ Cmp(opt_code_ctx, global_ctx);
-  __ B(eq, &install_optimized);
-
-  // Iterate through the rest of the map backwards.
-  Label loop;
-  Register index = x10;
-  Register array_base = x13;
-  Register entry = x14;
-  __ Ldrsw(index, UntagSmiFieldMemOperand(opt_code_map,
-                                          FixedArray::kLengthOffset));
-  __ Add(array_base, opt_code_map, FixedArray::kHeaderSize - kHeapObjectTag);
-  __ Bind(&loop);
-
-  // Do not double check first entry.
-  __ Cmp(index, SharedFunctionInfo::kSecondEntryIndex);
-  __ B(eq, &install_unoptimized);
-  // TODO(all) Optimise this to use addressing mode to update the pointer.
-  __ Sub(index, index, SharedFunctionInfo::kEntryLength);
-  __ Add(entry, array_base, Operand(index, LSL, kPointerSizeLog2));
-  __ Ldr(opt_code_ctx, MemOperand(entry));
-  __ Cmp(global_ctx, opt_code_ctx);
-  __ B(ne, &loop);
-
-  // Hit: fetch the optimized code. Register entry already contains pointer to
-  // the first element (context) of the triple.
-  __ Ldr(opt_code, MemOperand(entry, kPointerSize));
-
-  __ Bind(&install_optimized);
-  __ IncrementCounter(counters->fast_new_closure_install_optimized(),
-                      1, x6, x7);
-
-  Register opt_code_entry = x10;
-  __ Add(opt_code_entry, opt_code, Code::kHeaderSize - kHeapObjectTag);
-  __ Str(opt_code_entry, FieldMemOperand(new_fn, JSFunction::kCodeEntryOffset));
-
-  // Now link a function into a list of optimized functions.
-  Register opt_fn_list = x10;
-  __ Ldr(opt_fn_list, ContextMemOperand(global_ctx,
-                                        Context::OPTIMIZED_FUNCTIONS_LIST));
-  __ Str(opt_fn_list, FieldMemOperand(new_fn,
-                                      JSFunction::kNextFunctionLinkOffset));
-  // No need for write barrier as JSFunction is in the new space.
-
-  // Store JSFunction before issuing write barrier as it clobbers all of the
-  // registers passed.
-  __ Str(new_fn, ContextMemOperand(global_ctx,
-                                   Context::OPTIMIZED_FUNCTIONS_LIST));
-
-  // Move value to a temporary, to prevent RecordWriteContextSlot()
-  // corrupting the return value.
-  __ Mov(x4, new_fn);
-  __ RecordWriteContextSlot(
-      global_ctx,
-      Context::SlotOffset(Context::OPTIMIZED_FUNCTIONS_LIST),
-      x4,
-      x1,
-      kLRHasNotBeenSaved,
-      kDontSaveFPRegs);
-
-  // Return result. The argument function info has been popped already.
-  __ Ret();
-
-  // Create a new closure through the slower runtime call.
-  __ Bind(&gc);
-  Register false_val = x2;
-  __ LoadRoot(false_val, Heap::kFalseValueRootIndex);
-  __ Push(cp, function, false_val);
-  __ TailCallRuntime(Runtime::kNewClosure, 3, 1);
 }
 
 

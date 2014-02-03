@@ -215,21 +215,6 @@ double OS::nan_value() {
 }
 
 
-CpuImplementer OS::GetCpuImplementer() {
-  UNIMPLEMENTED();
-}
-
-
-CpuPart OS::GetCpuPart(CpuImplementer implementer) {
-  UNIMPLEMENTED();
-}
-
-
-bool OS::ArmCpuHasFeature(CpuFeature feature) {
-  UNIMPLEMENTED();
-}
-
-
 bool OS::ArmUsingHardFloat() {
   UNIMPLEMENTED();
 }

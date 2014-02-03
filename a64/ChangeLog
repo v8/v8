@@ -1,3 +1,64 @@
+2013-08-26: Version 3.21.4
+
+        Lowered kInitialMaxFastElementArray constant to 95K (issue 2790).
+
+        Use signals for cpu profiling on Mac OS X (issue 2814).
+
+        Deprecated CpuProfileNode::GetSelfSamplesCount (Chromium issue 267595).
+
+        Added support for higher CPU profiler sampling rate on posix systems
+        (issue 2814).
+
+        Worked around 'inlining failed' build error with older GCC 4.x releases.
+
+        Added source map support to tick processor.
+
+        Stability improvements on all platforms.
+
+
+2013-08-23: Version 3.21.3
+
+        Temporarily disabled optimization for StringWrappers to use native
+        valueOf. (issue 2855)
+
+        Fixed crash on function declarations in eval inside non-trivial local
+        scope. (issue 2594)
+
+        Rewrote SamplingCircularQueue. (issue 2814)
+
+        Fixed hidden properties on object with frozen prototype. (issue 2829)
+
+        Fix deoptimization bug. (Chromium issue 274164)
+
+        Stability improvements on all platforms.
+
+
+2013-08-22: Version 3.21.2
+
+        Stability improvements on all platforms.
+
+
+2013-08-21: Version 3.21.1
+
+        Promoted ArrayBuffer, DataView and typed arrays to non-experimental.
+        (Chromium issue 270527)
+
+        Replaced OS::MemCopy with memcpy in typed array initialization.
+        (Chromium issue 270642)
+
+        Moved i18n break iterator C++ code to runtime (issue 2745)
+
+        Fixed invalid out-of-bounds store in MacroAssembler::Allocate.
+        (Chromium issue 263515)
+
+        Fixed register misuse in Allocate() on ARM. (issue 2851)
+
+        Fixed empty handle dereference in Runtime_InternalNumberFormat.
+        (Chromium issue 275467)
+
+        Performance and stability improvements on all platforms.
+
+
 2013-08-19: Version 3.21.0
 
         Fixed GC-related crasher (Chromium issue 274438)

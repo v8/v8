@@ -346,8 +346,8 @@ class EternalHandles {
 
   int NumberOfHandles() { return size_; }
 
-  // Create an EternalHandle, returning the index.
-  int Create(Isolate* isolate, Object* object);
+  // Create an EternalHandle, overwriting the index.
+  void Create(Isolate* isolate, Object* object, int* index);
 
   // Grab the handle for an existing EternalHandle.
   inline Handle<Object> Get(int index) {
@@ -369,8 +369,7 @@ class EternalHandles {
   Handle<Object> CreateSingleton(Isolate* isolate,
                                  Object* object,
                                  SingletonHandle singleton) {
-    ASSERT(singleton_handles_[singleton] == kInvalidIndex);
-    singleton_handles_[singleton] = Create(isolate, object);
+    Create(isolate, object, &singleton_handles_[singleton]);
     return Get(singleton_handles_[singleton]);
   }
 

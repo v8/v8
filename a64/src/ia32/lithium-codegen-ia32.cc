@@ -1787,8 +1787,8 @@ void LCodeGen::DoShiftI(LShiftI* instr) {
       case Token::ROR:
         __ ror_cl(ToRegister(left));
         if (instr->can_deopt()) {
-          __ test(ToRegister(left), Immediate(0x80000000));
-          DeoptimizeIf(not_zero, instr->environment());
+          __ test(ToRegister(left), ToRegister(left));
+          DeoptimizeIf(sign, instr->environment());
         }
         break;
       case Token::SAR:
@@ -1797,8 +1797,8 @@ void LCodeGen::DoShiftI(LShiftI* instr) {
       case Token::SHR:
         __ shr_cl(ToRegister(left));
         if (instr->can_deopt()) {
-          __ test(ToRegister(left), Immediate(0x80000000));
-          DeoptimizeIf(not_zero, instr->environment());
+          __ test(ToRegister(left), ToRegister(left));
+          DeoptimizeIf(sign, instr->environment());
         }
         break;
       case Token::SHL:
@@ -1814,8 +1814,8 @@ void LCodeGen::DoShiftI(LShiftI* instr) {
     switch (instr->op()) {
       case Token::ROR:
         if (shift_count == 0 && instr->can_deopt()) {
-          __ test(ToRegister(left), Immediate(0x80000000));
-          DeoptimizeIf(not_zero, instr->environment());
+          __ test(ToRegister(left), ToRegister(left));
+          DeoptimizeIf(sign, instr->environment());
         } else {
           __ ror(ToRegister(left), shift_count);
         }
@@ -1827,8 +1827,8 @@ void LCodeGen::DoShiftI(LShiftI* instr) {
         break;
       case Token::SHR:
         if (shift_count == 0 && instr->can_deopt()) {
-          __ test(ToRegister(left), Immediate(0x80000000));
-          DeoptimizeIf(not_zero, instr->environment());
+          __ test(ToRegister(left), ToRegister(left));
+          DeoptimizeIf(sign, instr->environment());
         } else {
           __ shr(ToRegister(left), shift_count);
         }
@@ -4349,6 +4349,14 @@ void LCodeGen::DoCallRuntime(LCallRuntime* instr) {
 }
 
 
+void LCodeGen::DoStoreCodeEntry(LStoreCodeEntry* instr) {
+  Register function = ToRegister(instr->function());
+  Register code_object = ToRegister(instr->code_object());
+  __ lea(code_object, FieldOperand(code_object, Code::kHeaderSize));
+  __ mov(FieldOperand(function, JSFunction::kCodeEntryOffset), code_object);
+}
+
+
 void LCodeGen::DoInnerAllocatedObject(LInnerAllocatedObject* instr) {
   Register result = ToRegister(instr->result());
   Register base = ToRegister(instr->base_object());
@@ -6209,7 +6217,7 @@ void LCodeGen::DoFunctionLiteral(LFunctionLiteral* instr) {
   if (!pretenure && instr->hydrogen()->has_no_literals()) {
     FastNewClosureStub stub(instr->hydrogen()->language_mode(),
                             instr->hydrogen()->is_generator());
-    __ push(Immediate(instr->hydrogen()->shared_info()));
+    __ mov(ebx, Immediate(instr->hydrogen()->shared_info()));
     CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
   } else {
     __ push(esi);

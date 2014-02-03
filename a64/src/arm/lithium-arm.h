@@ -162,6 +162,7 @@ class LCodeGen;
   V(SmiTag)                                     \
   V(SmiUntag)                                   \
   V(StackCheck)                                 \
+  V(StoreCodeEntry)                             \
   V(StoreContextSlot)                           \
   V(StoreGlobalCell)                            \
   V(StoreGlobalGeneric)                         \
@@ -1753,7 +1754,24 @@ class LDrop V8_FINAL : public LTemplateInstruction<0, 0, 0> {
 };
 
 
-class LInnerAllocatedObject V8_FINAL : public LTemplateInstruction<1, 1, 0> {
+class LStoreCodeEntry V8_FINAL: public LTemplateInstruction<0, 1, 1> {
+ public:
+  LStoreCodeEntry(LOperand* function, LOperand* code_object) {
+    inputs_[0] = function;
+    temps_[0] = code_object;
+  }
+
+  LOperand* function() { return inputs_[0]; }
+  LOperand* code_object() { return temps_[0]; }
+
+  virtual void PrintDataTo(StringStream* stream);
+
+  DECLARE_CONCRETE_INSTRUCTION(StoreCodeEntry, "store-code-entry")
+  DECLARE_HYDROGEN_ACCESSOR(StoreCodeEntry)
+};
+
+
+class LInnerAllocatedObject V8_FINAL: public LTemplateInstruction<1, 1, 0> {
  public:
   explicit LInnerAllocatedObject(LOperand* base_object) {
     inputs_[0] = base_object;
@@ -2045,17 +2063,13 @@ class LNumberTagD V8_FINAL : public LTemplateInstruction<1, 1, 2> {
 };
 
 
-class LDoubleToSmi V8_FINAL : public LTemplateInstruction<1, 1, 2> {
+class LDoubleToSmi V8_FINAL : public LTemplateInstruction<1, 1, 0> {
  public:
-  LDoubleToSmi(LOperand* value, LOperand* temp, LOperand* temp2) {
+  explicit LDoubleToSmi(LOperand* value) {
     inputs_[0] = value;
-    temps_[0] = temp;
-    temps_[1] = temp2;
   }
 
   LOperand* value() { return inputs_[0]; }
-  LOperand* temp() { return temps_[0]; }
-  LOperand* temp2() { return temps_[1]; }
 
   DECLARE_CONCRETE_INSTRUCTION(DoubleToSmi, "double-to-smi")
   DECLARE_HYDROGEN_ACCESSOR(UnaryOperation)
@@ -2065,17 +2079,13 @@ class LDoubleToSmi V8_FINAL : public LTemplateInstruction<1, 1, 2> {
 
 
 // Sometimes truncating conversion from a tagged value to an int32.
-class LDoubleToI V8_FINAL : public LTemplateInstruction<1, 1, 2> {
+class LDoubleToI V8_FINAL : public LTemplateInstruction<1, 1, 0> {
  public:
-  LDoubleToI(LOperand* value, LOperand* temp, LOperand* temp2) {
+  explicit LDoubleToI(LOperand* value) {
     inputs_[0] = value;
-    temps_[0] = temp;
-    temps_[1] = temp2;
   }
 
   LOperand* value() { return inputs_[0]; }
-  LOperand* temp() { return temps_[0]; }
-  LOperand* temp2() { return temps_[1]; }
 
   DECLARE_CONCRETE_INSTRUCTION(DoubleToI, "double-to-i")
   DECLARE_HYDROGEN_ACCESSOR(UnaryOperation)
@@ -2085,22 +2095,19 @@ class LDoubleToI V8_FINAL : public LTemplateInstruction<1, 1, 2> {
 
 
 // Truncating conversion from a tagged value to an int32.
-class LTaggedToI V8_FINAL : public LTemplateInstruction<1, 1, 3> {
+class LTaggedToI V8_FINAL : public LTemplateInstruction<1, 1, 2> {
  public:
   LTaggedToI(LOperand* value,
              LOperand* temp,
-             LOperand* temp2,
-             LOperand* temp3) {
+             LOperand* temp2) {
     inputs_[0] = value;
     temps_[0] = temp;
     temps_[1] = temp2;
-    temps_[2] = temp3;
   }
 
   LOperand* value() { return inputs_[0]; }
   LOperand* temp() { return temps_[0]; }
   LOperand* temp2() { return temps_[1]; }
-  LOperand* temp3() { return temps_[2]; }
 
   DECLARE_CONCRETE_INSTRUCTION(TaggedToI, "tagged-to-i")
   DECLARE_HYDROGEN_ACCESSOR(UnaryOperation)

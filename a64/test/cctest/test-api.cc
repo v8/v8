@@ -53,8 +53,6 @@
 
 static const bool kLogThreading = false;
 
-using ::v8::AccessorInfo;
-using ::v8::Arguments;
 using ::v8::Boolean;
 using ::v8::BooleanObject;
 using ::v8::Context;
@@ -3176,6 +3174,44 @@ THREADED_TEST(GlobalHandleUpcast) {
   CHECK(v8::Local<v8::Value>::New(isolate, global_value)->IsString());
   CHECK(global_string == v8::Persistent<String>::Cast(global_value));
   global_string.Dispose();
+}
+
+
+THREADED_TEST(HandleEquality) {
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::Persistent<String> global1;
+  v8::Persistent<String> global2;
+  {
+    v8::HandleScope scope(isolate);
+    global1.Reset(isolate, v8_str("str"));
+    global2.Reset(isolate, v8_str("str2"));
+  }
+  CHECK_EQ(global1 == global1, true);
+  CHECK_EQ(global1 != global1, false);
+  {
+    v8::HandleScope scope(isolate);
+    Local<String> local1 = Local<String>::New(isolate, global1);
+    Local<String> local2 = Local<String>::New(isolate, global2);
+
+    CHECK_EQ(global1 == local1, true);
+    CHECK_EQ(global1 != local1, false);
+    CHECK_EQ(local1 == global1, true);
+    CHECK_EQ(local1 != global1, false);
+
+    CHECK_EQ(global1 == local2, false);
+    CHECK_EQ(global1 != local2, true);
+    CHECK_EQ(local2 == global1, false);
+    CHECK_EQ(local2 != global1, true);
+
+    CHECK_EQ(local1 == local2, false);
+    CHECK_EQ(local1 != local2, true);
+
+    Local<String> anotherLocal1 = Local<String>::New(isolate, global1);
+    CHECK_EQ(local1 == anotherLocal1, true);
+    CHECK_EQ(local1 != anotherLocal1, false);
+  }
+  global1.Dispose();
+  global2.Dispose();
 }
 
 
@@ -8219,11 +8255,19 @@ static bool IndexedAccessBlocker(Local<v8::Object> global,
 }
 
 
-static int g_echo_value = -1;
+static int g_echo_value_1 = -1;
+static int g_echo_value_2 = -1;
+
+
 static void EchoGetter(
     Local<String> name,
     const v8::PropertyCallbackInfo<v8::Value>& info) {
-  info.GetReturnValue().Set(v8_num(g_echo_value));
+  info.GetReturnValue().Set(v8_num(g_echo_value_1));
+}
+
+
+static void EchoGetter(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  info.GetReturnValue().Set(v8_num(g_echo_value_2));
 }
 
 
@@ -8231,7 +8275,14 @@ static void EchoSetter(Local<String> name,
                        Local<Value> value,
                        const v8::PropertyCallbackInfo<void>&) {
   if (value->IsNumber())
-    g_echo_value = value->Int32Value();
+    g_echo_value_1 = value->Int32Value();
+}
+
+
+static void EchoSetter(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  v8::Handle<v8::Value> value = info[0];
+  if (value->IsNumber())
+    g_echo_value_2 = value->Int32Value();
 }
 
 
@@ -8246,6 +8297,12 @@ static void UnreachableSetter(Local<String>,
                               Local<Value>,
                               const v8::PropertyCallbackInfo<void>&) {
   CHECK(false);  // This function should nto be called.
+}
+
+
+static void UnreachableFunction(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(false);  // This function should not be called..
 }
 
 
@@ -8264,11 +8321,26 @@ TEST(AccessControl) {
       v8::Handle<Value>(),
       v8::AccessControl(v8::ALL_CAN_READ | v8::ALL_CAN_WRITE));
 
+
+  global_template->SetAccessorProperty(
+      v8_str("accessible_js_prop"),
+      v8::FunctionTemplate::New(EchoGetter),
+      v8::FunctionTemplate::New(EchoSetter),
+      v8::None,
+      v8::AccessControl(v8::ALL_CAN_READ | v8::ALL_CAN_WRITE));
+
   // Add an accessor that is not accessible by cross-domain JS code.
   global_template->SetAccessor(v8_str("blocked_prop"),
                                UnreachableGetter, UnreachableSetter,
                                v8::Handle<Value>(),
                                v8::DEFAULT);
+
+  global_template->SetAccessorProperty(
+      v8_str("blocked_js_prop"),
+      v8::FunctionTemplate::New(UnreachableFunction),
+      v8::FunctionTemplate::New(UnreachableFunction),
+      v8::None,
+      v8::DEFAULT);
 
   // Create an environment
   v8::Local<Context> context0 = Context::New(isolate, NULL, global_template);
@@ -8462,9 +8534,19 @@ TEST(AccessControl) {
   value = CompileRun("other.accessible_prop = 3");
   CHECK(value->IsNumber());
   CHECK_EQ(3, value->Int32Value());
-  CHECK_EQ(3, g_echo_value);
+  CHECK_EQ(3, g_echo_value_1);
+
+  // Access accessible js property
+  value = CompileRun("other.accessible_js_prop = 3");
+  CHECK(value->IsNumber());
+  CHECK_EQ(3, value->Int32Value());
+  CHECK_EQ(3, g_echo_value_2);
 
   value = CompileRun("other.accessible_prop");
+  CHECK(value->IsNumber());
+  CHECK_EQ(3, value->Int32Value());
+
+  value = CompileRun("other.accessible_js_prop");
   CHECK(value->IsNumber());
   CHECK_EQ(3, value->Int32Value());
 
@@ -8473,7 +8555,15 @@ TEST(AccessControl) {
   CHECK(value->IsNumber());
   CHECK_EQ(3, value->Int32Value());
 
+  value = CompileRun(
+      "Object.getOwnPropertyDescriptor(other, 'accessible_js_prop').get()");
+  CHECK(value->IsNumber());
+  CHECK_EQ(3, value->Int32Value());
+
   value = CompileRun("propertyIsEnumerable.call(other, 'accessible_prop')");
+  CHECK(value->IsTrue());
+
+  value = CompileRun("propertyIsEnumerable.call(other, 'accessible_js_prop')");
   CHECK(value->IsTrue());
 
   // Enumeration doesn't enumerate accessors from inaccessible objects in
@@ -8481,7 +8571,10 @@ TEST(AccessControl) {
   value =
       CompileRun("(function(){var obj = {'__proto__':other};"
                  "for (var p in obj)"
-                 "   if (p == 'accessible_prop' || p == 'blocked_prop') {"
+                 "   if (p == 'accessible_prop' ||"
+                 "       p == 'accessible_js_prop' ||"
+                 "       p == 'blocked_js_prop' ||"
+                 "       p == 'blocked_js_prop') {"
                  "     return false;"
                  "   }"
                  "return true;})()");
@@ -8553,7 +8646,7 @@ TEST(AccessControlES5) {
   // Make sure that we can set the accessible accessors value using normal
   // assignment.
   CompileRun("other.accessible_prop = 42");
-  CHECK_EQ(42, g_echo_value);
+  CHECK_EQ(42, g_echo_value_1);
 
   v8::Handle<Value> value;
   // We follow Safari in ignoring assignments to host object accessors.
@@ -9510,6 +9603,26 @@ THREADED_TEST(SetPrototypeThrows) {
   ASSERT(!i::Isolate::Current()->has_pending_exception());
 
   CHECK_EQ(42, CompileRun("function f() { return 42; }; f()")->Int32Value());
+}
+
+
+THREADED_TEST(FunctionRemovePrototype) {
+  LocalContext context;
+  v8::HandleScope handle_scope(context->GetIsolate());
+
+  Local<v8::FunctionTemplate> t1 = v8::FunctionTemplate::New();
+  t1->RemovePrototype();
+  Local<v8::Function> fun = t1->GetFunction();
+  context->Global()->Set(v8_str("fun"), fun);
+  CHECK(!CompileRun("'prototype' in fun")->BooleanValue());
+
+  v8::TryCatch try_catch;
+  CompileRun("new fun()");
+  CHECK(try_catch.HasCaught());
+
+  try_catch.Reset();
+  fun->NewInstance();
+  CHECK(try_catch.HasCaught());
 }
 
 
@@ -12249,9 +12362,6 @@ void ApiTestFuzzer::TearDown() {
 
 // Lets not be needlessly self-referential.
 TEST(Threading1) {
-  // TODO(mstarzinger): Disabled in GC stress mode for now, we should find the
-  // correct timeout for this an re-enable this test again
-  if (i::FLAG_stress_compaction) return;
   ApiTestFuzzer::SetUp(ApiTestFuzzer::FIRST_PART);
   ApiTestFuzzer::RunAllTests();
   ApiTestFuzzer::TearDown();

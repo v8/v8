@@ -272,10 +272,10 @@ void V8::InitializeOncePerProcessImpl() {
     FLAG_max_new_space_size = (1 << (kPageSizeBits - 10)) * 2;
   }
 
-  if (FLAG_parallel_recompilation &&
+  if (FLAG_concurrent_recompilation &&
       (FLAG_trace_hydrogen || FLAG_trace_hydrogen_stubs)) {
-    FLAG_parallel_recompilation = false;
-    PrintF("Parallel recompilation has been disabled for tracing.\n");
+    FLAG_concurrent_recompilation = false;
+    PrintF("Concurrent recompilation has been disabled for tracing.\n");
   }
 
   if (FLAG_sweeper_threads <= 0) {
@@ -309,10 +309,10 @@ void V8::InitializeOncePerProcessImpl() {
     FLAG_marking_threads = 0;
   }
 
-  if (FLAG_parallel_recompilation &&
+  if (FLAG_concurrent_recompilation &&
       SystemThreadManager::NumberOfParallelSystemThreads(
           SystemThreadManager::PARALLEL_RECOMPILATION) == 0) {
-    FLAG_parallel_recompilation = false;
+    FLAG_concurrent_recompilation = false;
   }
 
   OS::SetUp();

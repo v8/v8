@@ -1143,12 +1143,12 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
                            JSObject::SetLocalPropertyIgnoreAttributes(
                                result, factory->length_string(),
                                factory->undefined_value(), DONT_ENUM,
-                               Object::FORCE_TAGGED, JSReceiver::FORCE_FIELD));
+                               Object::FORCE_TAGGED, FORCE_FIELD));
     CHECK_NOT_EMPTY_HANDLE(isolate,
                            JSObject::SetLocalPropertyIgnoreAttributes(
                                result, factory->callee_string(),
                                factory->undefined_value(), DONT_ENUM,
-                               Object::FORCE_TAGGED, JSReceiver::FORCE_FIELD));
+                               Object::FORCE_TAGGED, FORCE_FIELD));
 
 #ifdef DEBUG
     LookupResult lookup(isolate);

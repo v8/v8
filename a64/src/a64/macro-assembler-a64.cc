@@ -4186,6 +4186,11 @@ void MacroAssembler::Abort(BailoutReason reason) {
 #ifdef DEBUG
   RecordComment("Abort message: ");
   RecordComment(GetBailoutReason(reason));
+
+  if (FLAG_trap_on_abort) {
+    Brk(0);
+    return;
+  }
 #endif
 
   Label msg_address;

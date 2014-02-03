@@ -246,7 +246,6 @@
         '../../src/checks.cc',
         '../../src/checks.h',
         '../../src/circular-queue-inl.h',
-        '../../src/circular-queue.cc',
         '../../src/circular-queue.h',
         '../../src/code-stubs.cc',
         '../../src/code-stubs.h',
@@ -268,6 +267,7 @@
         '../../src/cpu-profiler-inl.h',
         '../../src/cpu-profiler.cc',
         '../../src/cpu-profiler.h',
+        '../../src/cpu.cc',
         '../../src/cpu.h',
         '../../src/data-flow.cc',
         '../../src/data-flow.h',
@@ -736,10 +736,6 @@
                 }],
               ],
             },
-            'defines': [
-              'V8_OS_LINUX=1',
-              'V8_OS_POSIX=1'
-            ],
             'sources': [  ### gcmole(os:linux) ###
               '../../src/platform-linux.cc',
               '../../src/platform-posix.cc'
@@ -757,29 +753,16 @@
               ['host_os=="mac"', {
                 'target_conditions': [
                   ['_toolset=="host"', {
-                    'defines': [
-                      'V8_OS_BSD=1',
-                      'V8_OS_MACOSX=1',
-                      'V8_OS_POSIX=1'
-                    ],
                     'sources': [
                       '../../src/platform-macos.cc'
                     ]
                   }, {
-                    'defines': [
-                      'V8_OS_LINUX=1',
-                      'V8_OS_POSIX=1'
-                    ],
                     'sources': [
                       '../../src/platform-linux.cc'
                     ]
                   }],
                 ],
               }, {
-                'defines': [
-                  'V8_OS_LINUX=1',
-                  'V8_OS_POSIX=1'
-                ],
                 'sources': [
                   '../../src/platform-linux.cc'
                 ]
@@ -788,11 +771,6 @@
           },
         ],
         ['OS=="freebsd"', {
-            'defines': [
-              'V8_OS_BSD=1',
-              'V8_OS_FREEBSD=1',
-              'V8_OS_POSIX=1'
-            ],
             'link_settings': {
               'libraries': [
                 '-L/usr/local/lib -lexecinfo',
@@ -804,11 +782,6 @@
           }
         ],
         ['OS=="openbsd"', {
-            'defines': [
-              'V8_OS_BSD=1',
-              'V8_OS_OPENBSD=1',
-              'V8_OS_POSIX=1'
-            ],
             'link_settings': {
               'libraries': [
                 '-L/usr/local/lib -lexecinfo',
@@ -820,11 +793,6 @@
           }
         ],
         ['OS=="netbsd"', {
-            'defines': [
-              'V8_OS_BSD=1',
-              'V8_OS_NETBSD=1',
-              'V8_OS_POSIX=1'
-            ],
             'link_settings': {
               'libraries': [
                 '-L/usr/pkg/lib -Wl,-R/usr/pkg/lib -lexecinfo',
@@ -836,10 +804,6 @@
           }
         ],
         ['OS=="solaris"', {
-            'defines': [
-              'V8_OS_POSIX=1',
-              'V8_OS_SOLARIS=1'
-            ],
             'link_settings': {
               'libraries': [
                 '-lsocket -lnsl',
@@ -851,11 +815,6 @@
           }
         ],
         ['OS=="mac"', {
-          'defines': [
-            'V8_OS_BSD=1',
-            'V8_OS_MACOSX=1',
-            'V8_OS_POSIX=1'
-          ],
           'sources': [
             '../../src/platform-macos.cc',
             '../../src/platform-posix.cc'
@@ -872,18 +831,11 @@
               },
               'conditions': [
                 ['build_env=="Cygwin"', {
-                  'defines': [
-                    'V8_OS_CYGWIN=1',
-                    'V8_OS_POSIX=1'
-                  ],
                   'sources': [
                     '../../src/platform-cygwin.cc',
                     '../../src/platform-posix.cc',
                   ],
                 }, {
-                  'defines': [
-                    'V8_OS_WIN=1'
-                  ],
                   'sources': [
                     '../../src/platform-win32.cc',
                     '../../src/win32-math.h',
@@ -895,9 +847,6 @@
                 'libraries': [ '-lwinmm', '-lws2_32' ],
               },
             }, {
-              'defines': [
-                'V8_OS_WIN=1'
-              ],
               'sources': [
                 '../../src/platform-win32.cc',
                 '../../src/win32-math.h',

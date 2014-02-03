@@ -855,6 +855,7 @@ class Parser BASE_EMBEDDED {
   Scanner scanner_;
   preparser::PreParser* reusable_preparser_;
   Scope* top_scope_;
+  Scope* original_scope_;  // for ES5 function declarations in sloppy eval
   FunctionState* current_function_state_;
   Target* target_stack_;  // for break, continue statements
   v8::Extension* extension_;

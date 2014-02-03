@@ -166,6 +166,7 @@ class LCodeGen;
   V(SmiTag)                                     \
   V(SmiUntag)                                   \
   V(StackCheck)                                 \
+  V(StoreCodeEntry)                             \
   V(StoreContextSlot)                           \
   V(StoreGlobalCell)                            \
   V(StoreGlobalGeneric)                         \
@@ -2457,6 +2458,26 @@ class LShiftI: public LTemplateInstruction<1, 2, 0> {
  private:
   Token::Value op_;
   bool can_deopt_;
+};
+
+
+class LStoreCodeEntry V8_FINAL: public LTemplateInstruction<0, 2, 1> {
+ public:
+  LStoreCodeEntry(LOperand* function, LOperand* code_object,
+                  LOperand* temp) {
+    inputs_[0] = function;
+    inputs_[1] = code_object;
+    temps_[0] = temp;
+  }
+
+  LOperand* function() { return inputs_[0]; }
+  LOperand* code_object() { return inputs_[1]; }
+  LOperand* temp() { return temps_[0]; }
+
+  virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
+
+  DECLARE_CONCRETE_INSTRUCTION(StoreCodeEntry, "store-code-entry")
+  DECLARE_HYDROGEN_ACCESSOR(StoreCodeEntry)
 };
 
 

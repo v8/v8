@@ -333,7 +333,7 @@ void Builtins::Generate_InstallRecompiledCode(MacroAssembler* masm) {
 }
 
 
-void Builtins::Generate_ParallelRecompile(MacroAssembler* masm) {
+void Builtins::Generate_ConcurrentRecompile(MacroAssembler* masm) {
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
 
@@ -343,7 +343,7 @@ void Builtins::Generate_ParallelRecompile(MacroAssembler* masm) {
     __ push(r5);
 
     __ push(r1);  // Function is also the parameter to the runtime call.
-    __ CallRuntime(Runtime::kParallelRecompile, 1);
+    __ CallRuntime(Runtime::kConcurrentRecompile, 1);
 
     // Restore call kind information.
     __ pop(r5);

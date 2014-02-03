@@ -1253,8 +1253,8 @@ MUST_USE_RESULT static MaybeObject* HandleApiCallHelper(
   if (!raw_call_data->IsUndefined()) {
     CallHandlerInfo* call_data = CallHandlerInfo::cast(raw_call_data);
     Object* callback_obj = call_data->callback();
-    v8::InvocationCallback callback =
-        v8::ToCData<v8::InvocationCallback>(callback_obj);
+    v8::FunctionCallback callback =
+        v8::ToCData<v8::FunctionCallback>(callback_obj);
     Object* data_obj = call_data->data();
     Object* result;
 
@@ -1322,8 +1322,8 @@ MUST_USE_RESULT static MaybeObject* HandleApiCallAsFunctionOrConstructor(
   ASSERT(!handler->IsUndefined());
   CallHandlerInfo* call_data = CallHandlerInfo::cast(handler);
   Object* callback_obj = call_data->callback();
-  v8::InvocationCallback callback =
-      v8::ToCData<v8::InvocationCallback>(callback_obj);
+  v8::FunctionCallback callback =
+      v8::ToCData<v8::FunctionCallback>(callback_obj);
 
   // Get the data for the call and perform the callback.
   Object* result;

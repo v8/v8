@@ -234,6 +234,13 @@ static inline bool IsGrowStoreMode(KeyedAccessStoreMode store_mode) {
 enum WriteBarrierMode { SKIP_WRITE_BARRIER, UPDATE_WRITE_BARRIER };
 
 
+// Indicates whether a value can be loaded as a constant.
+enum StoreMode {
+  ALLOW_AS_CONSTANT,
+  FORCE_FIELD
+};
+
+
 // PropertyNormalizationMode is used to specify whether to keep
 // inobject properties when normalizing properties of a JSObject.
 enum PropertyNormalizationMode {
@@ -260,7 +267,6 @@ enum CreationFlag {
 // Indicates whether transitions can be added to a source map or not.
 enum TransitionFlag {
   INSERT_TRANSITION,
-  OMIT_TRANSITION_KEEP_REPRESENTATIONS,
   OMIT_TRANSITION
 };
 
@@ -1951,12 +1957,6 @@ class JSReceiver: public HeapObject {
     CERTAINLY_NOT_STORE_FROM_KEYED
   };
 
-  // Indicates whether a value can be loaded as a constant.
-  enum StoreMode {
-    ALLOW_AS_CONSTANT,
-    FORCE_FIELD
-  };
-
   // Internal properties (e.g. the hidden properties dictionary) might
   // be added even though the receiver is non-extensible.
   enum ExtensibilityCheck {
@@ -2184,7 +2184,6 @@ class JSObject: public JSReceiver {
       Object* value,
       PropertyAttributes attributes,
       StrictModeFlag strict_mode,
-      ExtensibilityCheck extensibility_check,
       StoreMode mode = ALLOW_AS_CONSTANT);
 
   static Handle<Object> SetLocalPropertyIgnoreAttributes(
@@ -2222,7 +2221,8 @@ class JSObject: public JSReceiver {
       Object* value,
       PropertyAttributes attributes,
       ValueType value_type = OPTIMAL_REPRESENTATION,
-      StoreMode mode = ALLOW_AS_CONSTANT);
+      StoreMode mode = ALLOW_AS_CONSTANT,
+      ExtensibilityCheck extensibility_check = PERFORM_EXTENSIBILITY_CHECK);
 
   // Retrieve a value in a normalized object given a lookup result.
   // Handles the special representation of JS global objects.
@@ -2277,7 +2277,8 @@ class JSObject: public JSReceiver {
                              Handle<Name> name,
                              Handle<Object> getter,
                              Handle<Object> setter,
-                             PropertyAttributes attributes);
+                             PropertyAttributes attributes,
+                             v8::AccessControl access_control = v8::DEFAULT);
 
   MaybeObject* LookupAccessor(Name* name, AccessorComponent component);
 
@@ -2524,7 +2525,8 @@ class JSObject: public JSReceiver {
   MUST_USE_RESULT MaybeObject* AddConstantProperty(
       Name* name,
       Object* constant,
-      PropertyAttributes attributes);
+      PropertyAttributes attributes,
+      TransitionFlag flag);
 
   MUST_USE_RESULT MaybeObject* ReplaceSlowProperty(
       Name* name,
@@ -2547,25 +2549,11 @@ class JSObject: public JSReceiver {
   MUST_USE_RESULT MaybeObject* TransitionElementsKind(ElementsKind to_kind);
   MUST_USE_RESULT MaybeObject* UpdateAllocationSite(ElementsKind to_kind);
 
-  // Replaces an existing transition with a transition to a map with a FIELD.
-  MUST_USE_RESULT MaybeObject* ConvertTransitionToMapTransition(
-      int transition_index,
-      Name* name,
-      Object* new_value,
-      PropertyAttributes attributes);
-
-  // Converts a descriptor of any other type to a real field, backed by the
-  // properties array.
-  MUST_USE_RESULT MaybeObject* ConvertDescriptorToField(
-      Name* name,
-      Object* new_value,
-      PropertyAttributes attributes,
-      TransitionFlag flag = OMIT_TRANSITION);
-
   MUST_USE_RESULT MaybeObject* MigrateToMap(Map* new_map);
   MUST_USE_RESULT MaybeObject* GeneralizeFieldRepresentation(
       int modify_index,
-      Representation new_representation);
+      Representation new_representation,
+      StoreMode store_mode);
 
   // Add a property to a fast-case object.
   MUST_USE_RESULT MaybeObject* AddFastProperty(
@@ -2573,7 +2561,8 @@ class JSObject: public JSReceiver {
       Object* value,
       PropertyAttributes attributes,
       StoreFromKeyed store_mode = MAY_BE_STORE_FROM_KEYED,
-      ValueType value_type = OPTIMAL_REPRESENTATION);
+      ValueType value_type = OPTIMAL_REPRESENTATION,
+      TransitionFlag flag = INSERT_TRANSITION);
 
   // Add a property to a slow-case object.
   MUST_USE_RESULT MaybeObject* AddSlowProperty(Name* name,
@@ -2589,7 +2578,8 @@ class JSObject: public JSReceiver {
       StoreFromKeyed store_mode = MAY_BE_STORE_FROM_KEYED,
       ExtensibilityCheck extensibility_check = PERFORM_EXTENSIBILITY_CHECK,
       ValueType value_type = OPTIMAL_REPRESENTATION,
-      StoreMode mode = ALLOW_AS_CONSTANT);
+      StoreMode mode = ALLOW_AS_CONSTANT,
+      TransitionFlag flag = INSERT_TRANSITION);
 
   // Convert the object to use the canonical dictionary
   // representation. If the object is expected to have additional properties
@@ -2725,7 +2715,8 @@ class JSObject: public JSReceiver {
   // Maximal number of fast properties for the JSObject. Used to
   // restrict the number of map transitions to avoid an explosion in
   // the number of maps for objects used as dictionaries.
-  inline bool TooManyFastProperties(int properties, StoreFromKeyed store_mode);
+  inline bool TooManyFastProperties(
+      StoreFromKeyed store_mode = MAY_BE_STORE_FROM_KEYED);
 
   // Maximal number of elements (numbered 0 .. kMaxElementCount - 1).
   // Also maximal value of JSArray's length property.
@@ -2746,7 +2737,11 @@ class JSObject: public JSReceiver {
   // don't want to be wasteful with long lived objects.
   static const int kMaxUncheckedOldFastElementsLength = 500;
 
-  static const int kInitialMaxFastElementArray = 100000;
+  // TODO(2790): HAllocate currently always allocates fast backing stores
+  // in new space, where on x64 we can only fit ~98K elements. Keep this
+  // limit lower than that until HAllocate is made smarter.
+  static const int kInitialMaxFastElementArray = 95000;
+
   static const int kFastPropertiesSoftLimit = 12;
   static const int kMaxFastProperties = 64;
   static const int kMaxInstanceSize = 255 * kPointerSize;
@@ -2867,14 +2862,16 @@ class JSObject: public JSReceiver {
                                     uint32_t index,
                                     Handle<Object> getter,
                                     Handle<Object> setter,
-                                    PropertyAttributes attributes);
+                                    PropertyAttributes attributes,
+                                    v8::AccessControl access_control);
   static Handle<AccessorPair> CreateAccessorPairFor(Handle<JSObject> object,
                                                     Handle<Name> name);
   static void DefinePropertyAccessor(Handle<JSObject> object,
                                      Handle<Name> name,
                                      Handle<Object> getter,
                                      Handle<Object> setter,
-                                     PropertyAttributes attributes);
+                                     PropertyAttributes attributes,
+                                     v8::AccessControl access_control);
 
   // Try to define a single accessor paying attention to map transitions.
   // Returns false if this was not possible and we have to use the slow case.
@@ -3215,6 +3212,8 @@ class DescriptorArray: public FixedArray {
   MUST_USE_RESULT MaybeObject* Merge(int verbatim,
                                      int valid,
                                      int new_size,
+                                     int modify_index,
+                                     StoreMode store_mode,
                                      DescriptorArray* other);
 
   bool IsMoreGeneralThan(int verbatim,
@@ -4936,7 +4935,7 @@ class Code: public HeapObject {
 
   // Testers for IC stub kinds.
   inline bool is_inline_cache_stub();
-  inline bool is_debug_break();
+  inline bool is_debug_stub();
   inline bool is_load_stub() { return kind() == LOAD_IC; }
   inline bool is_keyed_load_stub() { return kind() == KEYED_LOAD_IC; }
   inline bool is_store_stub() { return kind() == STORE_IC; }
@@ -5644,16 +5643,24 @@ class Map: public HeapObject {
   static Handle<Map> GeneralizeRepresentation(
       Handle<Map> map,
       int modify_index,
-      Representation new_representation);
+      Representation new_representation,
+      StoreMode store_mode);
   MUST_USE_RESULT MaybeObject* GeneralizeRepresentation(
       int modify_index,
-      Representation representation);
-  MUST_USE_RESULT MaybeObject* CopyGeneralizeAllRepresentations();
+      Representation representation,
+      StoreMode store_mode);
+  MUST_USE_RESULT MaybeObject* CopyGeneralizeAllRepresentations(
+      int modify_index,
+      StoreMode store_mode,
+      PropertyAttributes attributes,
+      const char* reason);
 
   void PrintGeneralization(FILE* file,
+                           const char* reason,
                            int modify_index,
                            int split,
                            int descriptors,
+                           bool constant_to_field,
                            Representation old_representation,
                            Representation new_representation);
 
@@ -6991,7 +6998,7 @@ class JSFunction: public JSObject {
   // Mark this function for lazy recompilation. The function will be
   // recompiled the next time it is executed.
   void MarkForLazyRecompilation();
-  void MarkForParallelRecompilation();
+  void MarkForConcurrentRecompilation();
   void MarkForInstallingRecompiledCode();
   void MarkInRecompileQueue();
 
@@ -7008,11 +7015,10 @@ class JSFunction: public JSObject {
   // Tells whether or not the function is already marked for lazy
   // recompilation.
   inline bool IsMarkedForLazyRecompilation();
-  inline bool IsMarkedForParallelRecompilation();
+  inline bool IsMarkedForConcurrentRecompilation();
   inline bool IsMarkedForInstallingRecompiledCode();
 
-  // Tells whether or not the function is on the parallel
-  // recompilation queue.
+  // Tells whether or not the function is on the concurrent recompilation queue.
   inline bool IsInRecompileQueue();
 
   // Check whether or not this function is inlineable.
@@ -7104,7 +7110,8 @@ class JSFunction: public JSObject {
   // Retrieve the native context from a function's literal array.
   static Context* NativeContextFromLiterals(FixedArray* literals);
 
-  bool PassesHydrogenFilter();
+  // Used for flags such as --hydrogen-filter.
+  bool PassesFilter(const char* raw_filter);
 
   // Layout descriptors. The last property (from kNonWeakFieldsEndOffset to
   // kSize) is weak and has special handling during garbage collection.
@@ -9711,10 +9718,18 @@ class ExecutableAccessorInfo: public AccessorInfo {
 //   * undefined: considered an accessor by the spec, too, strangely enough
 //   * the hole: an accessor which has not been set
 //   * a pointer to a map: a transition used to ensure map sharing
+// access_flags provides the ability to override access checks on access check
+// failure.
 class AccessorPair: public Struct {
  public:
   DECL_ACCESSORS(getter, Object)
   DECL_ACCESSORS(setter, Object)
+  DECL_ACCESSORS(access_flags, Smi)
+
+  inline void set_access_flags(v8::AccessControl access_control);
+  inline bool all_can_read();
+  inline bool all_can_write();
+  inline bool prohibits_overwriting();
 
   static inline AccessorPair* cast(Object* obj);
 
@@ -9751,9 +9766,14 @@ class AccessorPair: public Struct {
 
   static const int kGetterOffset = HeapObject::kHeaderSize;
   static const int kSetterOffset = kGetterOffset + kPointerSize;
-  static const int kSize = kSetterOffset + kPointerSize;
+  static const int kAccessFlagsOffset = kSetterOffset + kPointerSize;
+  static const int kSize = kAccessFlagsOffset + kPointerSize;
 
  private:
+  static const int kAllCanReadBit = 0;
+  static const int kAllCanWriteBit = 1;
+  static const int kProhibitsOverwritingBit = 2;
+
   // Strangely enough, in addition to functions and harmony proxies, the spec
   // requires us to consider undefined as a kind of accessor, too:
   //    var obj = {};
@@ -9879,6 +9899,7 @@ class FunctionTemplateInfo: public TemplateInfo {
   // requires access check.
   DECL_BOOLEAN_ACCESSORS(needs_access_check)
   DECL_BOOLEAN_ACCESSORS(read_only_prototype)
+  DECL_BOOLEAN_ACCESSORS(remove_prototype)
 
   static inline FunctionTemplateInfo* cast(Object* obj);
 
@@ -9914,6 +9935,7 @@ class FunctionTemplateInfo: public TemplateInfo {
   static const int kUndetectableBit      = 1;
   static const int kNeedsAccessCheckBit  = 2;
   static const int kReadOnlyPrototypeBit = 3;
+  static const int kRemovePrototypeBit   = 4;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(FunctionTemplateInfo);
 };

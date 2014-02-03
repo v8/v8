@@ -4146,6 +4146,15 @@ void LCodeGen::DoCallRuntime(LCallRuntime* instr) {
 }
 
 
+void LCodeGen::DoStoreCodeEntry(LStoreCodeEntry* instr) {
+  Register function = ToRegister(instr->function());
+  Register code_object = ToRegister(instr->code_object());
+  __ add(code_object, code_object, Operand(Code::kHeaderSize - kHeapObjectTag));
+  __ str(code_object,
+         FieldMemOperand(function, JSFunction::kCodeEntryOffset));
+}
+
+
 void LCodeGen::DoInnerAllocatedObject(LInnerAllocatedObject* instr) {
   Register result = ToRegister(instr->result());
   Register base = ToRegister(instr->base_object());
@@ -4908,7 +4917,7 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr) {
   Register scratch1 = scratch0();
   Register scratch2 = ToRegister(instr->temp());
   LowDwVfpRegister double_scratch = double_scratch0();
-  DwVfpRegister double_scratch2 = ToDoubleRegister(instr->temp3());
+  DwVfpRegister double_scratch2 = ToDoubleRegister(instr->temp2());
 
   ASSERT(!scratch1.is(input_reg) && !scratch1.is(scratch2));
   ASSERT(!scratch2.is(input_reg) && !scratch2.is(scratch1));
@@ -4919,18 +4928,14 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr) {
   // The carry flag is set when we reach this deferred code as we just executed
   // SmiUntag(heap_object, SetCC)
   STATIC_ASSERT(kHeapObjectTag == 1);
-  __ adc(input_reg, input_reg, Operand(input_reg));
+  __ adc(scratch2, input_reg, Operand(input_reg));
 
   // Heap number map check.
-  __ ldr(scratch1, FieldMemOperand(input_reg, HeapObject::kMapOffset));
+  __ ldr(scratch1, FieldMemOperand(scratch2, HeapObject::kMapOffset));
   __ LoadRoot(ip, Heap::kHeapNumberMapRootIndex);
   __ cmp(scratch1, Operand(ip));
 
   if (instr->truncating()) {
-    Register scratch3 = ToRegister(instr->temp2());
-    ASSERT(!scratch3.is(input_reg) &&
-           !scratch3.is(scratch1) &&
-           !scratch3.is(scratch2));
     // Performs a truncating conversion of a floating point number as used by
     // the JS bitwise operations.
     Label heap_number;
@@ -4938,23 +4943,18 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr) {
     // Check for undefined. Undefined is converted to zero for truncating
     // conversions.
     __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
-    __ cmp(input_reg, Operand(ip));
+    __ cmp(scratch2, Operand(ip));
     DeoptimizeIf(ne, instr->environment());
     __ mov(input_reg, Operand::Zero());
     __ b(&done);
 
     __ bind(&heap_number);
-    __ sub(scratch1, input_reg, Operand(kHeapObjectTag));
-    __ vldr(double_scratch2, scratch1, HeapNumber::kValueOffset);
-
-    __ ECMAToInt32(input_reg, double_scratch2,
-                   scratch1, scratch2, scratch3, double_scratch);
-
+    __ TruncateHeapNumberToI(input_reg, scratch2);
   } else {
     // Deoptimize if we don't have a heap number.
     DeoptimizeIf(ne, instr->environment());
 
-    __ sub(ip, input_reg, Operand(kHeapObjectTag));
+    __ sub(ip, scratch2, Operand(kHeapObjectTag));
     __ vldr(double_scratch2, ip, HeapNumber::kValueOffset);
     __ TryDoubleToInt32Exact(input_reg, double_scratch2, double_scratch);
     DeoptimizeIf(ne, instr->environment());
@@ -5026,14 +5026,11 @@ void LCodeGen::DoNumberUntagD(LNumberUntagD* instr) {
 void LCodeGen::DoDoubleToI(LDoubleToI* instr) {
   Register result_reg = ToRegister(instr->result());
   Register scratch1 = scratch0();
-  Register scratch2 = ToRegister(instr->temp());
   DwVfpRegister double_input = ToDoubleRegister(instr->value());
   LowDwVfpRegister double_scratch = double_scratch0();
 
   if (instr->truncating()) {
-    Register scratch3 = ToRegister(instr->temp2());
-    __ ECMAToInt32(result_reg, double_input,
-                   scratch1, scratch2, scratch3, double_scratch);
+    __ TruncateDoubleToI(result_reg, double_input);
   } else {
     __ TryDoubleToInt32Exact(result_reg, double_input, double_scratch);
     // Deoptimize if the input wasn't a int32 (inside a double).
@@ -5054,14 +5051,11 @@ void LCodeGen::DoDoubleToI(LDoubleToI* instr) {
 void LCodeGen::DoDoubleToSmi(LDoubleToSmi* instr) {
   Register result_reg = ToRegister(instr->result());
   Register scratch1 = scratch0();
-  Register scratch2 = ToRegister(instr->temp());
   DwVfpRegister double_input = ToDoubleRegister(instr->value());
   LowDwVfpRegister double_scratch = double_scratch0();
 
   if (instr->truncating()) {
-    Register scratch3 = ToRegister(instr->temp2());
-    __ ECMAToInt32(result_reg, double_input,
-                   scratch1, scratch2, scratch3, double_scratch);
+    __ TruncateDoubleToI(result_reg, double_input);
   } else {
     __ TryDoubleToInt32Exact(result_reg, double_input, double_scratch);
     // Deoptimize if the input wasn't a int32 (inside a double).
@@ -5432,8 +5426,7 @@ void LCodeGen::DoFunctionLiteral(LFunctionLiteral* instr) {
   if (!pretenure && instr->hydrogen()->has_no_literals()) {
     FastNewClosureStub stub(instr->hydrogen()->language_mode(),
                             instr->hydrogen()->is_generator());
-    __ mov(r1, Operand(instr->hydrogen()->shared_info()));
-    __ push(r1);
+    __ mov(r2, Operand(instr->hydrogen()->shared_info()));
     CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
   } else {
     __ mov(r2, Operand(instr->hydrogen()->shared_info()));

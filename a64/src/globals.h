@@ -28,36 +28,21 @@
 #ifndef V8_GLOBALS_H_
 #define V8_GLOBALS_H_
 
-// Define V8_INFINITY
-#define V8_INFINITY INFINITY
-
-// GCC specific stuff
-#ifdef __GNUC__
-
-#define __GNUC_VERSION_FOR_INFTY__ (__GNUC__ * 10000 + __GNUC_MINOR__ * 100)
+#include "../include/v8stdint.h"
 
 // Unfortunately, the INFINITY macro cannot be used with the '-pedantic'
 // warning flag and certain versions of GCC due to a bug:
 // http://gcc.gnu.org/bugzilla/show_bug.cgi?id=11931
 // For now, we use the more involved template-based version from <limits>, but
 // only when compiling with GCC versions affected by the bug (2.96.x - 4.0.x)
-// __GNUC_PREREQ is not defined in GCC for Mac OS X, so we define our own macro
-#if __GNUC_VERSION_FOR_INFTY__ >= 29600 && __GNUC_VERSION_FOR_INFTY__ < 40100
-#include <limits>
-#undef V8_INFINITY
-#define V8_INFINITY std::numeric_limits<double>::infinity()
+#if V8_CC_GNU && V8_GNUC_PREREQ(2, 96, 0) && !V8_GNUC_PREREQ(4, 1, 0)
+# include <limits>  // NOLINT
+# define V8_INFINITY std::numeric_limits<double>::infinity()
+#elif V8_CC_MSVC
+# define V8_INFINITY HUGE_VAL
+#else
+# define V8_INFINITY INFINITY
 #endif
-#undef __GNUC_VERSION_FOR_INFTY__
-
-#endif  // __GNUC__
-
-#ifdef _MSC_VER
-#undef V8_INFINITY
-#define V8_INFINITY HUGE_VAL
-#endif
-
-
-#include "../include/v8stdint.h"
 
 namespace v8 {
 namespace internal {
@@ -306,6 +291,10 @@ const int kOneByteSize    = kCharSize;
 const int kUC16Size     = sizeof(uc16);      // NOLINT
 
 
+// Round up n to be a multiple of sz, where sz is a power of 2.
+#define ROUND_UP(n, sz) (((n) + ((sz) - 1)) & ~((sz) - 1))
+
+
 // The expression OFFSET_OF(type, field) computes the byte-offset
 // of the specified field relative to the containing type. This
 // corresponds to 'offsetof' (in stddef.h), except that it doesn't
@@ -344,62 +333,11 @@ F FUNCTION_CAST(Address addr) {
 }
 
 
-// Compiler feature detection.
-#if defined(__clang__)
-
-# if __has_feature(cxx_override_control)
-#  define V8_HAVE_CXX11_FINAL
-#  define V8_HAVE_CXX11_OVERRIDE
-# endif
-
-#elif defined(__GNUC__)
-
-// g++ requires -std=c++0x or -std=gnu++0x to support C++11 functionality
-// without warnings (functionality used by the macros below).  These modes
-// are detectable by checking whether __GXX_EXPERIMENTAL_CXX0X__ is defined or,
-// more standardly, by checking whether __cplusplus has a C++11 or greater
-// value. Current versions of g++ do not correctly set __cplusplus, so we check
-// both for forward compatibility.
-# if defined(__GXX_EXPERIMENTAL_CXX0X__) || __cplusplus >= 201103L
-#  if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 7)
-#   define V8_HAVE_CXX11_OVERRIDE
-#   define V8_HAVE_CXX11_FINAL
-#  endif
-# else
-// '__final' is a non-C++11 GCC synonym for 'final', per GCC r176655.
-#  if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 7)
-#   define V8_HAVE_GXX_FINAL
-#  endif
-# endif
-
-#elif defined(_MSC_VER)
-
-// Override control was added with Visual Studio 2005.
-# if _MSC_VER >= 1400
-#  if _MSC_VER >= 1700
-#   define V8_HAVE_CXX11_FINAL
-#  else
-// Visual Studio 2010 and earlier spell "final" as "sealed".
-#   define V8_HAVE_MSVC_SEALED
-#  endif
-#  define V8_HAVE_CXX11_OVERRIDE
-# endif
-
-#endif
-
-
-#if __cplusplus >= 201103L
-#define DISALLOW_BY_DELETE = delete
-#else
-#define DISALLOW_BY_DELETE
-#endif
-
-
 // A macro to disallow the evil copy constructor and operator= functions
 // This should be used in the private: declarations for a class
-#define DISALLOW_COPY_AND_ASSIGN(TypeName)           \
-  TypeName(const TypeName&) DISALLOW_BY_DELETE;      \
-  void operator=(const TypeName&) DISALLOW_BY_DELETE
+#define DISALLOW_COPY_AND_ASSIGN(TypeName)  \
+  TypeName(const TypeName&) V8_DELETE;      \
+  void operator=(const TypeName&) V8_DELETE
 
 
 // A macro to disallow all the implicit constructors, namely the
@@ -408,63 +346,18 @@ F FUNCTION_CAST(Address addr) {
 // This should be used in the private: declarations for a class
 // that wants to prevent anyone from instantiating it. This is
 // especially useful for classes containing only static methods.
-#define DISALLOW_IMPLICIT_CONSTRUCTORS(TypeName) \
-  TypeName() DISALLOW_BY_DELETE;                 \
+#define DISALLOW_IMPLICIT_CONSTRUCTORS(TypeName)  \
+  TypeName() V8_DELETE;                           \
   DISALLOW_COPY_AND_ASSIGN(TypeName)
 
 
-// Define used for helping GCC to make better inlining. Don't bother for debug
-// builds. On GCC 3.4.5 using __attribute__((always_inline)) causes compilation
-// errors in debug build.
-#if defined(__GNUC__) && !defined(DEBUG)
-#if (__GNUC__ >= 4)
-#define INLINE(header) inline header  __attribute__((always_inline))
-#define NO_INLINE(header) header __attribute__((noinline))
-#else
-#define INLINE(header) inline __attribute__((always_inline)) header
-#define NO_INLINE(header) __attribute__((noinline)) header
-#endif
-#elif defined(_MSC_VER) && !defined(DEBUG)
-#define INLINE(header) __forceinline header
-#define NO_INLINE(header) header
-#else
-#define INLINE(header) inline header
-#define NO_INLINE(header) header
-#endif
+// Newly written code should use V8_INLINE() and V8_NOINLINE() directly.
+#define INLINE(declarator)    V8_INLINE(declarator)
+#define NO_INLINE(declarator) V8_NOINLINE(declarator)
 
 
-// Annotate a virtual method indicating it must be overriding a virtual
-// method in the parent class.
-// Use like:
-//   virtual void bar() V8_OVERRIDE;
-#if defined(V8_HAVE_CXX11_OVERRIDE)
-#define V8_OVERRIDE override
-#else
-#define V8_OVERRIDE
-#endif
-
-
-// Annotate a virtual method indicating that subclasses must not override it,
-// or annotate a class to indicate that it cannot be subclassed.
-// Use like:
-//   class B V8_FINAL : public A {};
-//   virtual void bar() V8_FINAL;
-#if defined(V8_HAVE_CXX11_FINAL)
-#define V8_FINAL final
-#elif defined(V8_HAVE_GXX_FINAL)
-#define V8_FINAL __final
-#elif defined(V8_HAVE_MSVC_SEALED)
-#define V8_FINAL sealed
-#else
-#define V8_FINAL
-#endif
-
-
-#if defined(__GNUC__) && __GNUC__ >= 4
-#define MUST_USE_RESULT __attribute__ ((warn_unused_result))
-#else
-#define MUST_USE_RESULT
-#endif
+// Newly written code should use V8_WARN_UNUSED_RESULT.
+#define MUST_USE_RESULT V8_WARN_UNUSED_RESULT
 
 
 // Define DISABLE_ASAN macros.

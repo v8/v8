@@ -516,9 +516,8 @@ static void GenerateFastApiCall(MacroAssembler* masm,
 
   // Function address is a foreign pointer outside V8's heap.
   Address function_address = v8::ToCData<Address>(api_call_info->callback());
-  bool returns_handle =
-    !CallbackTable::ReturnsVoid(masm->isolate(),
-                                reinterpret_cast<void*>(function_address));
+  // TODO(dcarney): fix signatures using returns_handle
+  const bool returns_handle = false;
   __ PrepareCallApiFunction(kApiArgc + kApiStackSpace, returns_handle);
 
   // v8::Arguments::implicit_args_.
@@ -535,9 +534,7 @@ static void GenerateFastApiCall(MacroAssembler* masm,
   __ lea(eax, ApiParameterOperand(2, returns_handle));
   __ mov(ApiParameterOperand(0, returns_handle), eax);
 
-  Address thunk_address = returns_handle
-      ? FUNCTION_ADDR(&InvokeInvocationCallback)
-      : FUNCTION_ADDR(&InvokeFunctionCallback);
+  Address thunk_address = FUNCTION_ADDR(&InvokeFunctionCallback);
 
   __ CallApiFunctionAndReturn(function_address,
                               thunk_address,
@@ -1400,9 +1397,8 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
   const int kApiArgc = 2 + 1;
 
   Address getter_address = v8::ToCData<Address>(callback->getter());
-  bool returns_handle =
-    !CallbackTable::ReturnsVoid(isolate(),
-                                reinterpret_cast<void*>(getter_address));
+  // TODO(dcarney): fix signatures using returns_handle
+  const bool returns_handle = false;
   __ PrepareCallApiFunction(kApiArgc, returns_handle);
   __ mov(ApiParameterOperand(0, returns_handle), ebx);  // name.
   __ add(ebx, Immediate(kPointerSize));
@@ -1413,9 +1409,7 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
   // garbage collection but instead return the allocation failure
   // object.
 
-  Address thunk_address = returns_handle
-      ? FUNCTION_ADDR(&InvokeAccessorGetter)
-      : FUNCTION_ADDR(&InvokeAccessorGetterCallback);
+  Address thunk_address = FUNCTION_ADDR(&InvokeAccessorGetterCallback);
 
   __ CallApiFunctionAndReturn(getter_address,
                               thunk_address,

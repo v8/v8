@@ -290,9 +290,7 @@ static Handle<Object> CreateObjectLiteralBoilerplate(
     }
     Handle<Object> result;
     uint32_t element_index = 0;
-    JSReceiver::StoreMode mode = value->IsJSObject()
-        ? JSReceiver::FORCE_FIELD
-        : JSReceiver::ALLOW_AS_CONSTANT;
+    StoreMode mode = value->IsJSObject() ? FORCE_FIELD : ALLOW_AS_CONSTANT;
     if (key->IsInternalizedString()) {
       if (Handle<String>::cast(key)->AsArrayIndex(&element_index)) {
         // Array index as string (uint32).
@@ -1664,6 +1662,14 @@ static bool CheckAccessException(Object* callback,
         (access_type == v8::ACCESS_GET && info->all_can_read()) ||
         (access_type == v8::ACCESS_SET && info->all_can_write());
   }
+  if (callback->IsAccessorPair()) {
+    AccessorPair* info = AccessorPair::cast(callback);
+    return
+        (access_type == v8::ACCESS_HAS &&
+           (info->all_can_read() || info->all_can_write())) ||
+        (access_type == v8::ACCESS_GET && info->all_can_read()) ||
+        (access_type == v8::ACCESS_SET && info->all_can_write());
+  }
   return false;
 }
 
@@ -1941,6 +1947,35 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_EnableAccessChecks) {
     new_map->set_is_access_check_needed(true);
     object->set_map(new_map);
   }
+  return isolate->heap()->undefined_value();
+}
+
+
+// Transform getter or setter into something DefineAccessor can handle.
+static Handle<Object> InstantiateAccessorComponent(Isolate* isolate,
+                                                   Handle<Object> component) {
+  if (component->IsUndefined()) return isolate->factory()->null_value();
+  Handle<FunctionTemplateInfo> info =
+      Handle<FunctionTemplateInfo>::cast(component);
+  return Utils::OpenHandle(*Utils::ToLocal(info)->GetFunction());
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SetAccessorProperty) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 6);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Name, name, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, getter, 2);
+  CONVERT_ARG_HANDLE_CHECKED(Object, setter, 3);
+  CONVERT_SMI_ARG_CHECKED(attribute, 4);
+  CONVERT_SMI_ARG_CHECKED(access_control, 5);
+  JSObject::DefineAccessor(object,
+                           name,
+                           InstantiateAccessorComponent(isolate, getter),
+                           InstantiateAccessorComponent(isolate, setter),
+                           static_cast<PropertyAttributes>(attribute),
+                           static_cast<v8::AccessControl>(access_control));
   return isolate->heap()->undefined_value();
 }
 
@@ -7916,6 +7951,20 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NewStrictArgumentsFast) {
 }
 
 
+RUNTIME_FUNCTION(MaybeObject*, Runtime_NewClosureFromStubFailure) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(SharedFunctionInfo, shared, 0);
+  Handle<Context> context(isolate->context());
+  PretenureFlag pretenure_flag = NOT_TENURED;
+  Handle<JSFunction> result =
+      isolate->factory()->NewFunctionFromSharedFunctionInfo(shared,
+                                                            context,
+                                                            pretenure_flag);
+  return *result;
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_NewClosure) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 3);
@@ -8265,7 +8314,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_LazyRecompile) {
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_ParallelRecompile) {
+RUNTIME_FUNCTION(MaybeObject*, Runtime_ConcurrentRecompile) {
   HandleScope handle_scope(isolate);
   ASSERT(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
@@ -8274,8 +8323,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ParallelRecompile) {
     return isolate->heap()->undefined_value();
   }
   function->shared()->code()->set_profiler_ticks(0);
-  ASSERT(FLAG_parallel_recompilation);
-  Compiler::RecompileParallel(function);
+  ASSERT(FLAG_concurrent_recompilation);
+  Compiler::RecompileConcurrent(function);
   return isolate->heap()->undefined_value();
 }
 
@@ -8284,7 +8333,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InstallRecompiledCode) {
   HandleScope handle_scope(isolate);
   ASSERT(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
-  ASSERT(V8::UseCrankshaft() && FLAG_parallel_recompilation);
+  ASSERT(V8::UseCrankshaft() && FLAG_concurrent_recompilation);
   isolate->optimizing_compiler_thread()->InstallOptimizedFunctions();
   return function->code();
 }
@@ -8292,26 +8341,24 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InstallRecompiledCode) {
 
 class ActivationsFinder : public ThreadVisitor {
  public:
-  explicit ActivationsFinder(JSFunction* function)
-      : function_(function), has_activations_(false) {}
+  Code* code_;
+  bool has_code_activations_;
+
+  explicit ActivationsFinder(Code* code)
+    : code_(code),
+      has_code_activations_(false) { }
 
   void VisitThread(Isolate* isolate, ThreadLocalTop* top) {
-    if (has_activations_) return;
-
-    for (JavaScriptFrameIterator it(isolate, top); !it.done(); it.Advance()) {
-      JavaScriptFrame* frame = it.frame();
-      if (frame->is_optimized() && frame->function() == function_) {
-        has_activations_ = true;
-        return;
-      }
-    }
+    JavaScriptFrameIterator it(isolate, top);
+    VisitFrames(&it);
   }
 
-  bool has_activations() { return has_activations_; }
-
- private:
-  JSFunction* function_;
-  bool has_activations_;
+  void VisitFrames(JavaScriptFrameIterator* it) {
+    for (; !it->done(); it->Advance()) {
+      JavaScriptFrame* frame = it->frame();
+      if (code_->contains(frame->pc())) has_code_activations_ = true;
+    }
+  }
 };
 
 
@@ -8334,7 +8381,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NotifyDeoptimized) {
   Deoptimizer* deoptimizer = Deoptimizer::Grab(isolate);
   ASSERT(AllowHeapAllocation::IsAllowed());
 
-  ASSERT(deoptimizer->compiled_code_kind() == Code::OPTIMIZED_FUNCTION);
+  Handle<JSFunction> function = deoptimizer->function();
+  Handle<Code> optimized_code = deoptimizer->compiled_code();
+
+  ASSERT(optimized_code->kind() == Code::OPTIMIZED_FUNCTION);
+  ASSERT(type == deoptimizer->bailout_type());
 
   // Make sure to materialize objects before causing any allocation.
   JavaScriptFrameIterator it(isolate);
@@ -8343,10 +8394,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NotifyDeoptimized) {
 
   JavaScriptFrame* frame = it.frame();
   RUNTIME_ASSERT(frame->function()->IsJSFunction());
-  Handle<JSFunction> function(frame->function(), isolate);
-  Handle<Code> optimized_code(function->code());
-  RUNTIME_ASSERT((type != Deoptimizer::EAGER &&
-                  type != Deoptimizer::SOFT) || function->IsOptimized());
 
   // Avoid doing too much work when running with --always-opt and keep
   // the optimized code around.
@@ -8354,33 +8401,24 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NotifyDeoptimized) {
     return isolate->heap()->undefined_value();
   }
 
-  // Find other optimized activations of the function or functions that
-  // share the same optimized code.
-  bool has_other_activations = false;
-  while (!it.done()) {
-    JavaScriptFrame* frame = it.frame();
-    JSFunction* other_function = frame->function();
-    if (frame->is_optimized() && other_function->code() == function->code()) {
-      has_other_activations = true;
-      break;
-    }
-    it.Advance();
-  }
+  // Search for other activations of the same function and code.
+  ActivationsFinder activations_finder(*optimized_code);
+  activations_finder.VisitFrames(&it);
+  isolate->thread_manager()->IterateArchivedThreads(&activations_finder);
 
-  if (!has_other_activations) {
-    ActivationsFinder activations_finder(*function);
-    isolate->thread_manager()->IterateArchivedThreads(&activations_finder);
-    has_other_activations = activations_finder.has_activations();
-  }
-
-  if (!has_other_activations) {
-    if (FLAG_trace_deopt) {
-      PrintF("[removing optimized code for: ");
-      function->PrintName();
-      PrintF("]\n");
+  if (!activations_finder.has_code_activations_) {
+    if (function->code() == *optimized_code) {
+      if (FLAG_trace_deopt) {
+        PrintF("[removing optimized code for: ");
+        function->PrintName();
+        PrintF("]\n");
+      }
+      function->ReplaceCode(function->shared()->code());
     }
-    function->ReplaceCode(function->shared()->code());
   } else {
+    // TODO(titzer): we should probably do DeoptimizeCodeList(code)
+    // unconditionally if the code is not already marked for deoptimization.
+    // If there is an index by shared function info, all the better.
     Deoptimizer::DeoptimizeFunction(*function);
   }
   // Evict optimized code for this function from the cache so that it doesn't
@@ -8435,9 +8473,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_RunningInSimulator) {
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_IsParallelRecompilationSupported) {
+RUNTIME_FUNCTION(MaybeObject*, Runtime_IsConcurrentRecompilationSupported) {
   HandleScope scope(isolate);
-  return FLAG_parallel_recompilation
+  return FLAG_concurrent_recompilation
       ? isolate->heap()->true_value() : isolate->heap()->false_value();
 }
 
@@ -8459,8 +8497,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_OptimizeFunctionOnNextCall) {
         unoptimized->set_allow_osr_at_loop_nesting_level(i);
         isolate->runtime_profiler()->AttemptOnStackReplacement(*function);
       }
-    } else if (type->IsOneByteEqualTo(STATIC_ASCII_VECTOR("parallel"))) {
-      function->MarkForParallelRecompilation();
+    } else if (type->IsOneByteEqualTo(STATIC_ASCII_VECTOR("concurrent"))) {
+      function->MarkForConcurrentRecompilation();
     }
   }
 
@@ -8492,7 +8530,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetOptimizationStatus) {
     }
   }
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
-  if (FLAG_parallel_recompilation && sync_with_compiler_thread) {
+  if (FLAG_concurrent_recompilation && sync_with_compiler_thread) {
     while (function->IsInRecompileQueue() ||
            function->IsMarkedForInstallingRecompiledCode()) {
       isolate->optimizing_compiler_thread()->InstallOptimizedFunctions();
@@ -12985,7 +13023,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugSetScriptSource) {
 RUNTIME_FUNCTION(MaybeObject*, Runtime_SystemBreak) {
   SealHandleScope shs(isolate);
   ASSERT(args.length() == 0);
-  CPU::DebugBreak();
+  OS::DebugBreak();
   return isolate->heap()->undefined_value();
 }
 
@@ -14149,6 +14187,14 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_FlattenString) {
   ASSERT(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(String, str, 0);
   FlattenString(str);
+  return isolate->heap()->undefined_value();
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_NotifyContextDisposed) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 0);
+  isolate->heap()->NotifyContextDisposed();
   return isolate->heap()->undefined_value();
 }
 

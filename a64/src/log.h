@@ -248,7 +248,7 @@ class Logger {
                        Code* code,
                        SharedFunctionInfo* shared,
                        CompilationInfo* info,
-                       Name* source, int line);
+                       Name* source, int line, int column);
   void CodeCreateEvent(LogEventsAndTags tag, Code* code, int args_count);
   void CodeMovingGCEvent();
   // Emits a code create event for a RegExp.
@@ -321,7 +321,7 @@ class Logger {
     void LogTimerEvent(StartEnd se);
 
     static const char* v8_recompile_synchronous;
-    static const char* v8_recompile_parallel;
+    static const char* v8_recompile_concurrent;
     static const char* v8_compile_full_code;
     static const char* v8_execute;
     static const char* v8_external;

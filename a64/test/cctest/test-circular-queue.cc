@@ -35,40 +35,33 @@ using i::SamplingCircularQueue;
 
 
 TEST(SamplingCircularQueue) {
-  typedef SamplingCircularQueue::Cell Record;
-  const int kRecordsPerChunk = 4;
-  SamplingCircularQueue scq(sizeof(Record),
-                            kRecordsPerChunk * sizeof(Record),
-                            3);
+  typedef i::AtomicWord Record;
+  const int kMaxRecordsInQueue = 4;
+  SamplingCircularQueue<Record, kMaxRecordsInQueue> scq;
 
   // Check that we are using non-reserved values.
   // Fill up the first chunk.
   CHECK_EQ(NULL, scq.StartDequeue());
-  for (Record i = 1; i < 1 + kRecordsPerChunk; ++i) {
-    Record* rec = reinterpret_cast<Record*>(scq.Enqueue());
+  for (Record i = 1; i < 1 + kMaxRecordsInQueue; ++i) {
+    Record* rec = reinterpret_cast<Record*>(scq.StartEnqueue());
     CHECK_NE(NULL, rec);
     *rec = i;
-    CHECK_EQ(NULL, scq.StartDequeue());
+    scq.FinishEnqueue();
   }
 
-  // Fill up the second chunk. Consumption must still be unavailable.
-  CHECK_EQ(NULL, scq.StartDequeue());
-  for (Record i = 10; i < 10 + kRecordsPerChunk; ++i) {
-    Record* rec = reinterpret_cast<Record*>(scq.Enqueue());
-    CHECK_NE(NULL, rec);
-    *rec = i;
-    CHECK_EQ(NULL, scq.StartDequeue());
-  }
+  // The queue is full, enqueue is not allowed.
+  CHECK_EQ(NULL, scq.StartEnqueue());
 
-  Record* rec = reinterpret_cast<Record*>(scq.Enqueue());
-  CHECK_NE(NULL, rec);
-  *rec = 20;
-  // Now as we started filling up the third chunk, consumption
-  // must become possible.
+  // Try to enqueue when the the queue is full. Consumption must be available.
   CHECK_NE(NULL, scq.StartDequeue());
+  for (int i = 0; i < 10; ++i) {
+    Record* rec = reinterpret_cast<Record*>(scq.StartEnqueue());
+    CHECK_EQ(NULL, rec);
+    CHECK_NE(NULL, scq.StartDequeue());
+  }
 
-  // Consume the first chunk.
-  for (Record i = 1; i < 1 + kRecordsPerChunk; ++i) {
+  // Consume all records.
+  for (Record i = 1; i < 1 + kMaxRecordsInQueue; ++i) {
     Record* rec = reinterpret_cast<Record*>(scq.StartDequeue());
     CHECK_NE(NULL, rec);
     CHECK_EQ(static_cast<int64_t>(i), static_cast<int64_t>(*rec));
@@ -76,16 +69,21 @@ TEST(SamplingCircularQueue) {
     scq.FinishDequeue();
     CHECK_NE(rec, reinterpret_cast<Record*>(scq.StartDequeue()));
   }
-  // Now consumption must not be possible, as consumer now polls
-  // the first chunk for emptinness.
+  // The queue is empty.
   CHECK_EQ(NULL, scq.StartDequeue());
 
-  scq.FlushResidualRecords();
-  // From now, consumer no more polls ahead of the current chunk,
-  // so it's possible to consume the second chunk.
+
+  CHECK_EQ(NULL, scq.StartDequeue());
+  for (Record i = 0; i < kMaxRecordsInQueue / 2; ++i) {
+    Record* rec = reinterpret_cast<Record*>(scq.StartEnqueue());
+    CHECK_NE(NULL, rec);
+    *rec = i;
+    scq.FinishEnqueue();
+  }
+
+  // Consume all available kMaxRecordsInQueue / 2 records.
   CHECK_NE(NULL, scq.StartDequeue());
-  // Consume the second chunk
-  for (Record i = 10; i < 10 + kRecordsPerChunk; ++i) {
+  for (Record i = 0; i < kMaxRecordsInQueue / 2; ++i) {
     Record* rec = reinterpret_cast<Record*>(scq.StartDequeue());
     CHECK_NE(NULL, rec);
     CHECK_EQ(static_cast<int64_t>(i), static_cast<int64_t>(*rec));
@@ -93,19 +91,20 @@ TEST(SamplingCircularQueue) {
     scq.FinishDequeue();
     CHECK_NE(rec, reinterpret_cast<Record*>(scq.StartDequeue()));
   }
-  // Consumption must still be possible as the first cell of the
-  // last chunk is not clean.
-  CHECK_NE(NULL, scq.StartDequeue());
+
+  // The queue is empty.
+  CHECK_EQ(NULL, scq.StartDequeue());
 }
 
 
 namespace {
 
+typedef i::AtomicWord Record;
+typedef SamplingCircularQueue<Record, 12> TestSampleQueue;
+
 class ProducerThread: public i::Thread {
  public:
-  typedef SamplingCircularQueue::Cell Record;
-
-  ProducerThread(SamplingCircularQueue* scq,
+  ProducerThread(TestSampleQueue* scq,
                  int records_per_chunk,
                  Record value,
                  i::Semaphore* finished)
@@ -117,16 +116,17 @@ class ProducerThread: public i::Thread {
 
   virtual void Run() {
     for (Record i = value_; i < value_ + records_per_chunk_; ++i) {
-      Record* rec = reinterpret_cast<Record*>(scq_->Enqueue());
+      Record* rec = reinterpret_cast<Record*>(scq_->StartEnqueue());
       CHECK_NE(NULL, rec);
       *rec = i;
+      scq_->FinishEnqueue();
     }
 
     finished_->Signal();
   }
 
  private:
-  SamplingCircularQueue* scq_;
+  TestSampleQueue* scq_;
   const int records_per_chunk_;
   Record value_;
   i::Semaphore* finished_;
@@ -140,17 +140,10 @@ TEST(SamplingCircularQueueMultithreading) {
   // to the case of profiling under Linux, where signal handler that
   // does sampling is called in the context of different VM threads.
 
-  typedef ProducerThread::Record Record;
   const int kRecordsPerChunk = 4;
-  SamplingCircularQueue scq(sizeof(Record),
-                            kRecordsPerChunk * sizeof(Record),
-                            3);
+  TestSampleQueue scq;
   i::Semaphore* semaphore = i::OS::CreateSemaphore(0);
-  // Don't poll ahead, making possible to check data in the buffer
-  // immediately after enqueuing.
-  scq.FlushResidualRecords();
 
-  // Check that we are using non-reserved values.
   ProducerThread producer1(&scq, kRecordsPerChunk, 1, semaphore);
   ProducerThread producer2(&scq, kRecordsPerChunk, 10, semaphore);
   ProducerThread producer3(&scq, kRecordsPerChunk, 20, semaphore);

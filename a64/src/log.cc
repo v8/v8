@@ -560,6 +560,14 @@ class Profiler: public Thread {
     }
   }
 
+  virtual void Run();
+
+  // Pause and Resume TickSample data collection.
+  bool paused() const { return paused_; }
+  void pause() { paused_ = true; }
+  void resume() { paused_ = false; }
+
+ private:
   // Waits for a signal and removes profiling data.
   bool Remove(TickSample* sample) {
     buffer_semaphore_->Wait();  // Wait for an element.
@@ -570,14 +578,6 @@ class Profiler: public Thread {
     return result;
   }
 
-  void Run();
-
-  // Pause and Resume TickSample data collection.
-  bool paused() const { return paused_; }
-  void pause() { paused_ = true; }
-  void resume() { paused_ = false; }
-
- private:
   // Returns the next index in the cyclic buffer.
   int Succ(int index) { return (index + 1) % kBufferSize; }
 
@@ -589,7 +589,8 @@ class Profiler: public Thread {
   int head_;  // Index to the buffer head.
   int tail_;  // Index to the buffer tail.
   bool overflow_;  // Tell whether a buffer overflow has occurred.
-  Semaphore* buffer_semaphore_;  // Sempahore used for buffer synchronization.
+  // Sempahore used for buffer synchronization.
+  SmartPointer<Semaphore> buffer_semaphore_;
 
   // Tells whether profiler is engaged, that is, processing thread is stated.
   bool engaged_;
@@ -906,8 +907,8 @@ void Logger::TimerEventScope::LogTimerEvent(StartEnd se) {
 
 const char* Logger::TimerEventScope::v8_recompile_synchronous =
     "V8.RecompileSynchronous";
-const char* Logger::TimerEventScope::v8_recompile_parallel =
-    "V8.RecompileParallel";
+const char* Logger::TimerEventScope::v8_recompile_concurrent =
+    "V8.RecompileConcurrent";
 const char* Logger::TimerEventScope::v8_compile_full_code =
     "V8.CompileFullCode";
 const char* Logger::TimerEventScope::v8_execute = "V8.Execute";
@@ -1233,7 +1234,7 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
                              Code* code,
                              SharedFunctionInfo* shared,
                              CompilationInfo* info,
-                             Name* source, int line) {
+                             Name* source, int line, int column) {
   PROFILER_LOG(CodeCreateEvent(tag, code, shared, info, source, line));
 
   if (!is_logging_code_events()) return;
@@ -1252,7 +1253,7 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
   } else {
     msg.AppendSymbolName(Symbol::cast(source));
   }
-  msg.Append(":%d\",", line);
+  msg.Append(":%d:%d\",", line, column);
   msg.AppendAddress(shared->address());
   msg.Append(",%s", ComputeMarker(code));
   msg.Append('\n');
@@ -1712,6 +1713,8 @@ void Logger::LogExistingFunction(Handle<SharedFunctionInfo> shared,
   if (shared->script()->IsScript()) {
     Handle<Script> script(Script::cast(shared->script()));
     int line_num = GetScriptLineNumber(script, shared->start_position()) + 1;
+    int column_num =
+        GetScriptColumnNumber(script, shared->start_position()) + 1;
     if (script->name()->IsString()) {
       Handle<String> script_name(String::cast(script->name()));
       if (line_num > 0) {
@@ -1719,7 +1722,7 @@ void Logger::LogExistingFunction(Handle<SharedFunctionInfo> shared,
                 CodeCreateEvent(
                     Logger::ToNativeByScript(Logger::LAZY_COMPILE_TAG, *script),
                     *code, *shared, NULL,
-                    *script_name, line_num));
+                    *script_name, line_num, column_num));
       } else {
         // Can't distinguish eval and script here, so always use Script.
         PROFILE(isolate_,
@@ -1732,7 +1735,7 @@ void Logger::LogExistingFunction(Handle<SharedFunctionInfo> shared,
               CodeCreateEvent(
                   Logger::ToNativeByScript(Logger::LAZY_COMPILE_TAG, *script),
                   *code, *shared, NULL,
-                  isolate_->heap()->empty_string(), line_num));
+                  isolate_->heap()->empty_string(), line_num, column_num));
     }
   } else if (shared->IsApiFunction()) {
     // API function.

@@ -1333,8 +1333,7 @@ void FullCodeGenerator::EmitNewClosure(Handle<SharedFunctionInfo> info,
       scope()->is_function_scope() &&
       info->num_literals() == 0) {
     FastNewClosureStub stub(info->language_mode(), info->is_generator());
-    __ Mov(x11, Operand(info));
-    __ Push(x11);
+    __ Mov(x2, Operand(info));
     __ CallStub(&stub);
   } else {
     __ Mov(x11, Operand(info));
@@ -2835,10 +2834,6 @@ void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
   __ Cmp(proto_map, string_proto);
   __ B(ne, if_false);
 
-  // Set the bit in the map to indicate that it has been checked safe for
-  // default valueOf and set true result.
-  __ Orr(bitfield2, bitfield2, 1 << Map::kStringWrapperSafeForDefaultValueOf);
-  __ Strb(bitfield2, FieldMemOperand(map, Map::kBitField2Offset));
   __ B(if_true);
 
   PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);

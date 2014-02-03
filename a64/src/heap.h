@@ -1391,6 +1391,10 @@ class Heap {
   inline OldSpace* TargetSpace(HeapObject* object);
   static inline AllocationSpace TargetSpaceId(InstanceType type);
 
+  // Checks whether the given object is allowed to be migrated from it's
+  // current space into the given destination space. Used for debugging.
+  inline bool AllowedToBeMigrated(HeapObject* object, AllocationSpace dest);
+
   // Sets the stub_cache_ (only used when expanding the dictionary).
   void public_set_code_stubs(UnseededNumberDictionary* value) {
     roots_[kCodeStubsRootIndex] = value;
@@ -1868,13 +1872,13 @@ class Heap {
   void CheckpointObjectStats();
 
   // We don't use a ScopedLock here since we want to lock the heap
-  // only when FLAG_parallel_recompilation is true.
+  // only when FLAG_concurrent_recompilation is true.
   class RelocationLock {
    public:
     explicit RelocationLock(Heap* heap);
 
     ~RelocationLock() {
-      if (FLAG_parallel_recompilation) {
+      if (FLAG_concurrent_recompilation) {
 #ifdef DEBUG
         heap_->relocation_mutex_locked_by_optimizer_thread_ = false;
 #endif  // DEBUG

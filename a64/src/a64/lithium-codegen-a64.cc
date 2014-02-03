@@ -2707,8 +2707,7 @@ void LCodeGen::DoFunctionLiteral(LFunctionLiteral* instr) {
   if (!pretenure && instr->hydrogen()->has_no_literals()) {
     FastNewClosureStub stub(instr->hydrogen()->language_mode(),
                             instr->hydrogen()->is_generator());
-    __ Mov(x1, Operand(instr->hydrogen()->shared_info()));
-    __ Push(x1);
+    __ Mov(x2, Operand(instr->hydrogen()->shared_info()));
     CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
   } else {
     __ Mov(x2, Operand(instr->hydrogen()->shared_info()));
@@ -4715,6 +4714,15 @@ void LCodeGen::DoStackCheck(LStackCheck* instr) {
     // This will be done explicitly when emitting call and the safepoint in
     // the deferred code.
   }
+}
+
+
+void LCodeGen::DoStoreCodeEntry(LStoreCodeEntry* instr) {
+  Register function = ToRegister(instr->function());
+  Register code_object = ToRegister(instr->code_object());
+  Register temp = ToRegister(instr->temp());
+  __ Add(temp, code_object, Code::kHeaderSize - kHeapObjectTag);
+  __ Str(temp, FieldMemOperand(function, JSFunction::kCodeEntryOffset));
 }
 
 

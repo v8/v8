@@ -3146,6 +3146,9 @@ void Simulator::VisitException(Instruction* instr) {
         }
 
         switch (redirection->type()) {
+          // TODO(jbramley): The old-style callbacks (returning a Handle) have
+          // been removed. We should remove their handlers from here, too.
+
           default:
             TraceSim("Type: Unknown.\n");
             UNREACHABLE();
