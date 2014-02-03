@@ -1,4 +1,4 @@
-# Copyright 2013 the V8 project authors. All rights reserved.
+# Copyright 2014 the V8 project authors. All rights reserved.
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
 # met:
@@ -25,24 +25,27 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from unittest import TestLoader, TextTestRunner, TestSuite
+import unittest
+from automaton import Term
 
-from term_test import *
-from automata_test import *
-from code_generator_test import *
-from lexer_test import *
-from rule_parser_test import *
-from transition_key_test import *
+class TermTestCase(unittest.TestCase):
 
-if __name__ == "__main__":
-  loader = TestLoader()
-  suite = TestSuite((
-    loader.loadTestsFromTestCase(TermTestCase),
-    loader.loadTestsFromTestCase(TransitionKeyTestCase),
-    loader.loadTestsFromTestCase(AutomataTestCase),
-    loader.loadTestsFromTestCase(RuleParserTestCase),
-    loader.loadTestsFromTestCase(LexerTestCase),
-    loader.loadTestsFromTestCase(CodeGeneratorTestCase),
-  ))
-  runner = TextTestRunner(verbosity = 2)
-  runner.run(suite)
+  def test_basic(self):
+
+    t = Term('a')
+    self.assertEqual('a', t.name())
+    self.assertEqual((), t.args())
+    self.assertEqual("(a)", str(t))
+    self.assertEqual(Term('a'), t)
+
+    t = Term('a', 'b', 'c')
+    self.assertEqual('a', t.name())
+    self.assertEqual(('b', 'c'), t.args())
+    self.assertEqual("(a,b,c)", str(t))
+    self.assertEqual(Term('a', 'b', 'c'), t)
+
+    t = Term('a', Term('b', 'c'))
+    self.assertEqual('a', t.name())
+    self.assertEqual((Term('b', 'c'), ), t.args())
+    self.assertEqual("(a,(b,c))", str(t))
+    self.assertEqual(Term('a', Term('b', 'c')), t)

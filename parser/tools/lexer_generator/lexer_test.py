@@ -26,13 +26,13 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import unittest
-from automaton import Action
+from automaton import Term, Action
 from rule_parser import RuleProcessor
 
 class LexerTestCase(unittest.TestCase):
 
   def __verify_action_stream(self, rules, string, expected):
-    expected = map(lambda (action, s) : (Action(None, (action, None)), s),
+    expected = map(lambda (action, s) : (Action(None, Term(action)), s),
                    expected)
     rule_processor = RuleProcessor.parse(rules, 'latin1')
     automata = rule_processor.default_automata()
@@ -44,7 +44,7 @@ class LexerTestCase(unittest.TestCase):
 
   @staticmethod
   def __terminate():
-    return (Action(None, ('terminate', None)), '\0')
+    return ('terminate', '\0')
 
   def test_simple(self):
     rules = '''

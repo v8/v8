@@ -30,6 +30,7 @@ import sys
 import jinja2
 from copy import deepcopy
 from dfa import Dfa
+from automaton import Term
 from transition_keys import TransitionKey
 
 class CodeGenerator:
@@ -297,9 +298,9 @@ class CodeGenerator:
     states = self.__dfa_states
     for state in states:
       if (state['match_action'] and
-          state['match_action'][0] == 'do_stored_token'):
-        assert not state['match_action'][1] in goto_map
-        goto_map[state['match_action'][1]] = state['node_number']
+          state['match_action'].name() == 'do_stored_token'):
+        assert not state['match_action'].args()[0] in goto_map
+        goto_map[state['match_action'].args()[0]] = state['node_number']
     mapped_actions = set([
       'store_harmony_token_and_goto',
       'store_token_and_goto',
@@ -307,9 +308,9 @@ class CodeGenerator:
     for state in states:
       if not state['match_action']:
         continue
-      action = state['match_action'][0]
+      action = state['match_action'].name()
       if action in mapped_actions:
-        value = state['match_action'][1]
+        value = state['match_action'].args()
         target_id = goto_map[value[-1]]
         states[target_id]['must_not_inline'] = True
         if action != 'goto_start':
@@ -319,7 +320,8 @@ class CodeGenerator:
           states[target_id]['can_elide_read'] = False
           label = 'state_entry'
         jump_label = self.__register_jump(target_id, label)
-        state['match_action'] = (action, tuple(list(value[:-1]) + [jump_label]))
+        new_args = list(value[:-1]) + [str(jump_label)]
+        state['match_action'] = Term(action, *new_args)
 
   def __inlined_state(self, target_id):
     state = deepcopy(self.__dfa_states[target_id])

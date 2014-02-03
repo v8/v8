@@ -65,11 +65,11 @@
 
 {#- entry actions must not change the value of the cursor
     unless they jump -#}
-{% macro dispatch_entry_action(type, value) -%}
+{% macro dispatch_entry_action(type, args) -%}
   {% if type == 'store_token' %}
-    stored_token = Token::{{value}};
+    stored_token = Token::{{args[0]}};
   {% elif type == 'set_marker' %}
-    marker = cursor_ - {{value}};
+    marker = cursor_ - {{args[0]}};
   {% elif type == 'set_has_escapes' %}
     next_.has_escapes = true;
   {% elif type == 'octal_inside_string' %}
@@ -85,16 +85,16 @@
     next_.has_escapes = true;
   {% elif type == 'if_line_terminator_backtrack' %}
     if (!has_line_terminator_before_next_) {
-      {{dispatch_match_action('backtrack', value)}}
+      {{dispatch_match_action('backtrack', args)}}
     }
   {% else %}
-    uncompilable code for {{type}} {{value}}
+    uncompilable code for {{type}} {{args}}
   {% endif -%}
 {%- endmacro -%}
 
 
 {#- match actions must all explicitly jump or return -#}
-{% macro dispatch_match_action(type, value) -%}
+{% macro dispatch_match_action(type, args) -%}
   {% if type == 'terminate' %}
     {{dispatch_match_action('backtrack', ('1', 'EOS'))}}
   {% elif type == 'terminate_illegal' %}
@@ -118,45 +118,45 @@
     has_line_terminator_before_next_ = true;
     goto state_entry_0;
   {% elif type == 'token' %}
-    DO_TOKEN(Token::{{value}})
+    DO_TOKEN(Token::{{args[0]}})
     return;
   {% elif type == 'goto_start' %}
-    {{ jump(value[0]) }}
+    {{ jump(args[0]|int) }}
   {% elif type == 'store_token_and_goto' %}
-    stored_token = Token::{{value[0]}};
-    {{ jump(value[1]) }}
+    stored_token = Token::{{args[0]}};
+    {{ jump(args[1]|int) }}
   {% elif type == 'do_stored_token' %}
     DO_TOKEN(stored_token)
     return;
   {% elif type == 'do_token_and_go_forward' %}
-    DO_TOKEN(Token::{{value}});
+    DO_TOKEN(Token::{{args[0]}});
     FORWARD();
     RESET_START();
     return;
   {% elif type == 'harmony_token' %}
-    if (harmony_{{value[0]}}_) {
-      DO_TOKEN(Token::{{value[1]}});
+    if (harmony_{{args[0]}}_) {
+      DO_TOKEN(Token::{{args[1]}});
     } else {
-      DO_TOKEN(Token::{{value[2]}});
+      DO_TOKEN(Token::{{args[2]}});
     }
     return;
   {% elif type == 'store_harmony_token_and_goto' %}
-    if (harmony_{{value[0]}}_) {
-      stored_token = Token::{{value[1]}};
+    if (harmony_{{args[0]}}_) {
+      stored_token = Token::{{args[1]}};
     } else {
-      stored_token = Token::{{value[2]}};
+      stored_token = Token::{{args[2]}};
     }
-    {{ jump(value[3]) }}
+    {{ jump(args[3]|int) }}
   {% elif type == 'octal_number' %}
     last_octal_end_ = cursor_;
     DO_TOKEN(Token::NUMBER);
     return;
   {% elif type == 'backtrack' %}
-    BACKWARD({{value[0]}});
-    DO_TOKEN(Token::{{value[1]}});
+    BACKWARD({{args[0]}});
+    DO_TOKEN(Token::{{args[1]}});
     return;
   {% else %}
-    uncompilable code for {{type}} {{value}}
+    uncompilable code for {{type}} {{args}}
   {% endif -%}
 {%- endmacro -%}
 
@@ -219,7 +219,7 @@
 
   {%- set entry_action = state.entry_action -%}
   {%- if entry_action %}
-    {{ dispatch_entry_action(entry_action[0], entry_action[1]) }}
+    {{ dispatch_entry_action(entry_action.name(), entry_action.args()) }}
   {%- endif %}
 
   {{ write_label('after_entry_code', node_number) }}
@@ -279,7 +279,7 @@
 
   {%- set match_action = state.match_action -%}
   {%- if match_action %}
-    {{ dispatch_match_action(match_action[0], match_action[1]) }}
+    {{ dispatch_match_action(match_action.name(), match_action.args()) }}
     CRASH();
   {% else %}
     goto default_action;
@@ -343,7 +343,7 @@ void ExperimentalScanner<{{char_type}}>::Scan() {
 {%- if debug_print %}
     fprintf(stderr, "default action\n");
 {% endif -%}
-    {{dispatch_match_action(default_action[0], default_action[1])}}
+    {{dispatch_match_action(default_action.name(), default_action.args())}}
   CRASH();
 
   if (false) {

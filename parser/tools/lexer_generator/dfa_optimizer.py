@@ -26,7 +26,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from transition_keys import TransitionKey
-from automaton import Action
+from automaton import Term, Action
 from dfa import Dfa
 
 # --- Optimization: Replacing tokens with gotos ---
@@ -175,8 +175,8 @@ class DfaOptimizer(object):
       action = state.action()
       if not action or not action.match_action():
         return False
-      if (action.match_action()[0] == 'token' or
-          action.match_action()[0] == 'harmony_token'):
+      if (action.match_action().name() == 'token' or
+          action.match_action().name() == 'harmony_token'):
         return True
       return False
 
@@ -225,22 +225,19 @@ class DfaOptimizer(object):
     def replacement_action(old_action, transition_state):
       assert old_action.match_action()
       state_id = name(transition_state)
-      if old_action.match_action()[0] == 'token':
-        old_token = old_action.match_action()[1]
-        if (transition_state.action().match_action()[0] == 'token' and
-            transition_state.action().match_action()[1] == old_token):
+      if old_action.match_action().name() == 'token':
+        old_token = old_action.match_action().args()[0]
+        if (transition_state.action().match_action().name() == 'token' and
+            transition_state.action().match_action().args()[0] == old_token):
           # no need to store token
-          match_action = ('goto_start', (state_id,))
+          match_action = Term('goto_start', state_id)
           counters['goto_start'] += 1
         else:
           counters['store_token_and_goto'] += 1
-          match_action = ('store_token_and_goto', (old_token, state_id))
-      elif old_action.match_action()[0] == 'harmony_token':
-        match_action = ('store_harmony_token_and_goto',
-                        (old_action.match_action()[1][0],
-                         old_action.match_action()[1][1],
-                         old_action.match_action()[1][2],
-                         state_id))
+          match_action = Term('store_token_and_goto', old_token, state_id)
+      elif old_action.match_action().name() == 'harmony_token':
+        new_args = list(old_action.match_action().args()) + [state_id]
+        match_action = Term('store_harmony_token_and_goto', *new_args)
         counters['store_harmony_token_and_goto'] += 1
       else:
         raise Exception(old_action.match_action())
@@ -278,9 +275,9 @@ class DfaOptimizer(object):
     for state_id in store_states:
       old_action = states[state_id]['action']
       assert not old_action.entry_action()
-      assert old_action.match_action()[0] == 'token', 'unimplemented'
-      entry_action = ('store_token', old_action.match_action()[1])
-      match_action = ('do_stored_token', state_id)
+      assert old_action.match_action().name() == 'token', 'unimplemented'
+      entry_action = Term('store_token', old_action.match_action().args()[0])
+      match_action = Term('do_stored_token', state_id)
       precedence = old_action.precedence()
       states[state_id]['action'] = Action(
         entry_action, match_action, precedence)

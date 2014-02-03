@@ -25,9 +25,47 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from types import TupleType, ListType
+from types import TupleType, ListType, StringType
 from itertools import chain
 from transition_keys import TransitionKey
+
+class Term(object):
+  '''A class representing a function and its arguments.
+  f(a,b,c) would be represented as ('f', a, b, c) where
+  a, b, and c are strings or Terms.'''
+
+  @staticmethod
+  def __verify_string(v):
+    assert (not ',' in v) and (not '(' in v)
+
+  def __init__(self, name, *args):
+    assert type(name) == StringType
+    self.__verify_string(name)
+    for v in args:
+      if type(v) == StringType:
+        self.__verify_string(v)
+      else:
+        assert isinstance(v, self.__class__)
+    self.__tuple = tuple([name] + list(args))
+    self.__str = None
+
+  def name(self):
+    return self.__tuple[0]
+
+  def args(self):
+    return self.__tuple[1:]
+
+  def  __hash__(self):
+    return hash(self.__tuple)
+
+  def __eq__(self, other):
+    return (isinstance(other, self.__class__) and
+            self.__tuple == other.__tuple)
+
+  def __str__(self):
+    if self.__str == None:
+      self.__str = '(%s)' % ','.join(map(str, self.__tuple))
+    return self.__str
 
 class Action(object):
 
@@ -50,8 +88,7 @@ class Action(object):
     for action in [entry_action, match_action]:
       if action == None:
         continue
-      assert type(action) == TupleType and len(action)
-      assert action[0] != None
+      assert isinstance(action, Term)
     assert entry_action or match_action
     self.__entry_action = entry_action
     self.__match_action = match_action
@@ -79,9 +116,7 @@ class Action(object):
     for action in [self.__entry_action, self.__match_action]:
       part = ""
       if action:
-        part += action[0]
-        if action[1]:
-          part += "(%s)" % str(action[1])
+        part += str(action)
       parts.append(part)
     return "action< %s >" % " | ".join(parts)
 

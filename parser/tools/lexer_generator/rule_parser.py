@@ -26,7 +26,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import ply.yacc as yacc
-from automaton import Action
+from automaton import Term, Action
 from rule_lexer import RuleLexer
 from regex_parser import RegexParser
 from nfa_builder import NfaBuilder
@@ -148,12 +148,9 @@ class RuleParser:
                          | IDENTIFIER LEFT_PARENTHESIS RIGHT_PARENTHESIS
                          | IDENTIFIER LEFT_PARENTHESIS action_params RIGHT_PARENTHESIS'''
     if len(p) == 2 or len(p) == 4:
-      p[0] = (p[1], None)
+      p[0] = Term(p[1])
     elif len(p) == 5:
-      if len(p[3]) == 1:
-        p[0] = (p[1], p[3][0])
-      else:
-        p[0] = (p[1], p[3])
+        p[0] = Term(p[1], *p[3])
     else:
       raise Exception()
 
