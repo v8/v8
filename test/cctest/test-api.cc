@@ -15298,7 +15298,6 @@ TEST(RegExpInterruption) {
 
   timeout_thread.Join();
 
-  delete regexp_interruption_data.string_resource;
   regexp_interruption_data.string.Reset();
 }
 
