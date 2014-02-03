@@ -12838,15 +12838,26 @@ MaybeObject* JSObject::UpdateAllocationSite(ElementsKind to_kind) {
   Heap* heap = GetHeap();
   if (!heap->InNewSpace(this)) return this;
 
+  // Check if there is potentially a memento behind the object. If
+  // the last word of the momento is on another page we return
+  // immediatelly.
+  Address object_address = address();
+  Address memento_address = object_address + JSArray::kSize;
+  Address last_memento_word_address = memento_address + kPointerSize;
+  if (!NewSpacePage::OnSamePage(object_address,
+                                last_memento_word_address)) {
+    return this;
+  }
+
   // Either object is the last object in the new space, or there is another
   // object of at least word size (the header map word) following it, so
   // suffices to compare ptr and top here.
-  Address ptr = address() + JSArray::kSize;
   Address top = heap->NewSpaceTop();
-  ASSERT(ptr == top || ptr + HeapObject::kHeaderSize <= top);
-  if (ptr == top) return this;
+  ASSERT(memento_address == top ||
+         memento_address + HeapObject::kHeaderSize <= top);
+  if (memento_address == top) return this;
 
-  HeapObject* candidate = HeapObject::FromAddress(ptr);
+  HeapObject* candidate = HeapObject::FromAddress(memento_address);
   if (candidate->map() != heap->allocation_memento_map()) return this;
 
   AllocationMemento* memento = AllocationMemento::cast(candidate);

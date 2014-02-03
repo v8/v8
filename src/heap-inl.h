@@ -493,15 +493,21 @@ void Heap::UpdateAllocationSiteFeedback(HeapObject* object) {
   if (!FLAG_allocation_site_pretenuring ||
       !AllocationSite::CanTrack(object->map()->instance_type())) return;
 
-  // Either object is the last object in the from space, or there is another
-  // object of at least word size (the header map word) following it, so
-  // suffices to compare ptr and top here.
-  Address ptr = object->address() + object->Size();
-  Address top = heap->new_space()->FromSpacePageHigh();
-  ASSERT(ptr == top || ptr + HeapObject::kHeaderSize <= top);
-  if (ptr == top) return;
+  // Check if there is potentially a memento behind the object. If
+  // the last word of the momento is on another page we return
+  // immediatelly. Note that we do not have to compare with the current
+  // top pointer of the from space page, since we always install filler
+  // objects above the top pointer of a from space page when performing
+  // a garbage collection.
+  Address object_address = object->address();
+  Address memento_address = object_address + object->Size();
+  Address last_memento_word_address = memento_address + kPointerSize;
+  if (!NewSpacePage::OnSamePage(object_address,
+                                last_memento_word_address)) {
+    return;
+  }
 
-  HeapObject* candidate = HeapObject::FromAddress(ptr);
+  HeapObject* candidate = HeapObject::FromAddress(memento_address);
   if (candidate->map() != heap->allocation_memento_map()) return;
 
   AllocationMemento* memento = AllocationMemento::cast(candidate);
