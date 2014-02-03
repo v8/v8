@@ -418,11 +418,30 @@ static void CompileCallLoadPropertyWithInterceptor(
 }
 
 
-static void GenerateFastApiCallBody(MacroAssembler* masm,
-                                    const CallOptimization& optimization,
-                                    int argc,
-                                    Register holder_in,
-                                    bool restore_context) {
+// Generate call to api function.
+// This function uses push() to generate smaller, faster code than
+// the version above. It is an optimization that should will be removed
+// when api call ICs are generated in hydrogen.
+static void GenerateFastApiCall(MacroAssembler* masm,
+                                const CallOptimization& optimization,
+                                Handle<Map> receiver_map,
+                                Register receiver,
+                                Register scratch_in,
+                                int argc,
+                                Register* values) {
+  // Copy return value.
+  __ pop(scratch_in);
+  // receiver
+  __ push(receiver);
+  // Write the arguments to stack frame.
+  for (int i = 0; i < argc; i++) {
+    Register arg = values[argc-1-i];
+    ASSERT(!receiver.is(arg));
+    ASSERT(!scratch_in.is(arg));
+    __ push(arg);
+  }
+  __ push(scratch_in);
+  // Stack now matches JSFunction abi.
   ASSERT(optimization.is_simple_api_call());
 
   // Abi for CallApiFunctionStub.
@@ -430,11 +449,24 @@ static void GenerateFastApiCallBody(MacroAssembler* masm,
   Register call_data = ebx;
   Register holder = ecx;
   Register api_function_address = edx;
+  Register scratch = edi;  // scratch_in is no longer valid.
 
   // Put holder in place.
-  __ Move(holder, holder_in);
-
-  Register scratch = edi;
+  CallOptimization::HolderLookup holder_lookup;
+  Handle<JSObject> api_holder = optimization.LookupHolderOfExpectedType(
+      receiver_map,
+      &holder_lookup);
+  switch (holder_lookup) {
+    case CallOptimization::kHolderIsReceiver:
+      __ Move(holder, receiver);
+      break;
+    case CallOptimization::kHolderFound:
+      __ LoadHeapObject(holder, api_holder);
+     break;
+    case CallOptimization::kHolderNotFound:
+      UNREACHABLE();
+      break;
+  }
 
   Isolate* isolate = masm->isolate();
   Handle<JSFunction> function = optimization.constant_function();
@@ -461,39 +493,8 @@ static void GenerateFastApiCallBody(MacroAssembler* masm,
   __ mov(api_function_address, Immediate(function_address));
 
   // Jump to stub.
-  CallApiFunctionStub stub(restore_context, call_data_undefined, argc);
+  CallApiFunctionStub stub(true, call_data_undefined, argc);
   __ TailCallStub(&stub);
-}
-
-
-// Generate call to api function.
-// This function uses push() to generate smaller, faster code than
-// the version above. It is an optimization that should will be removed
-// when api call ICs are generated in hydrogen.
-static void GenerateFastApiCall(MacroAssembler* masm,
-                                const CallOptimization& optimization,
-                                Register receiver,
-                                Register scratch1,
-                                int argc,
-                                Register* values) {
-  // Copy return value.
-  __ pop(scratch1);
-  // receiver
-  __ push(receiver);
-  // Write the arguments to stack frame.
-  for (int i = 0; i < argc; i++) {
-    Register arg = values[argc-1-i];
-    ASSERT(!receiver.is(arg));
-    ASSERT(!scratch1.is(arg));
-    __ push(arg);
-  }
-  __ push(scratch1);
-  // Stack now matches JSFunction abi.
-  GenerateFastApiCallBody(masm,
-                          optimization,
-                          argc,
-                          receiver,
-                          true);
 }
 
 
@@ -1065,10 +1066,11 @@ void LoadStubCompiler::GenerateLoadField(Register reg,
 
 
 void LoadStubCompiler::GenerateLoadCallback(
-    const CallOptimization& call_optimization) {
+    const CallOptimization& call_optimization,
+    Handle<Map> receiver_map) {
   GenerateFastApiCall(
-      masm(), call_optimization, receiver(),
-      scratch1(), 0, NULL);
+      masm(), call_optimization, receiver_map,
+      receiver(), scratch1(), 0, NULL);
 }
 
 
@@ -1271,8 +1273,8 @@ Handle<Code> StoreStubCompiler::CompileStoreCallback(
 
   Register values[] = { value() };
   GenerateFastApiCall(
-      masm(), call_optimization, receiver(),
-      scratch1(), 1, values);
+      masm(), call_optimization, handle(object->map()),
+      receiver(), scratch1(), 1, values);
 
   // Return the generated code.
   return GetCode(kind(), Code::FAST, name);

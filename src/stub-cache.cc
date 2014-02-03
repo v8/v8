@@ -951,7 +951,7 @@ Handle<Code> LoadStubCompiler::CompileLoadCallback(
   ASSERT(call_optimization.is_simple_api_call());
   Handle<JSFunction> callback = call_optimization.constant_function();
   CallbackHandlerFrontend(type, receiver(), holder, name, callback);
-  GenerateLoadCallback(call_optimization);
+  GenerateLoadCallback(call_optimization, IC::TypeToMap(*type, isolate()));
 
   // Return the generated code.
   return GetCode(kind(), Code::FAST, name);
@@ -1357,7 +1357,6 @@ Handle<JSObject> CallOptimization::LookupHolderOfExpectedType(
     Handle<Map> object_map,
     HolderLookup* holder_lookup) const {
   ASSERT(is_simple_api_call());
-  ASSERT_EQ(kHolderNotFound, *holder_lookup);
   if (!object_map->IsJSObjectMap()) {
     *holder_lookup = kHolderNotFound;
     return Handle<JSObject>::null();
@@ -1379,6 +1378,38 @@ Handle<JSObject> CallOptimization::LookupHolderOfExpectedType(
   }
   *holder_lookup = kHolderNotFound;
   return Handle<JSObject>::null();
+}
+
+
+bool CallOptimization::IsCompatibleReceiver(Handle<Object> receiver,
+                                            Handle<JSObject> holder) const {
+  ASSERT(is_simple_api_call());
+  if (!receiver->IsJSObject()) return false;
+  Handle<Map> map(JSObject::cast(*receiver)->map());
+  HolderLookup holder_lookup;
+  Handle<JSObject> api_holder =
+      LookupHolderOfExpectedType(map, &holder_lookup);
+  switch (holder_lookup) {
+    case kHolderNotFound:
+      return false;
+    case kHolderIsReceiver:
+      return true;
+    case kHolderFound:
+      if (api_holder.is_identical_to(holder)) return true;
+      // Check if holder is in prototype chain of api_holder.
+      {
+        JSObject* object = *api_holder;
+        while (true) {
+          Object* prototype = object->map()->prototype();
+          if (!prototype->IsJSObject()) return false;
+          if (prototype == *holder) return true;
+          object = JSObject::cast(prototype);
+        }
+      }
+      break;
+  }
+  UNREACHABLE();
+  return false;
 }
 
 

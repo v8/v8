@@ -611,7 +611,8 @@ class LoadStubCompiler: public BaseLoadStoreStubCompiler {
   void GenerateLoadConstant(Handle<Object> value);
   void GenerateLoadCallback(Register reg,
                             Handle<ExecutableAccessorInfo> callback);
-  void GenerateLoadCallback(const CallOptimization& call_optimization);
+  void GenerateLoadCallback(const CallOptimization& call_optimization,
+                            Handle<Map> receiver_map);
   void GenerateLoadInterceptor(Register holder_reg,
                                Handle<Object> object,
                                Handle<JSObject> holder,
@@ -827,11 +828,9 @@ class CallOptimization BASE_EMBEDDED {
       Handle<Map> receiver_map,
       HolderLookup* holder_lookup) const;
 
-  bool IsCompatibleReceiver(Object* receiver) {
-    ASSERT(is_simple_api_call());
-    if (expected_receiver_type_.is_null()) return true;
-    return expected_receiver_type_->IsTemplateFor(receiver);
-  }
+  // Check if the api holder is between the receiver and the holder.
+  bool IsCompatibleReceiver(Handle<Object> receiver,
+                            Handle<JSObject> holder) const;
 
  private:
   void Initialize(Handle<JSFunction> function);
