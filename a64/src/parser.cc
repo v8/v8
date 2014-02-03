@@ -687,6 +687,8 @@ FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info,
           FunctionLiteral::kNotParenthesized,
           FunctionLiteral::kNotGenerator);
       result->set_ast_properties(factory()->visitor()->ast_properties());
+      result->set_dont_optimize_reason(
+          factory()->visitor()->dont_optimize_reason());
     } else if (stack_overflow_) {
       isolate()->StackOverflow();
     }
@@ -3744,8 +3746,9 @@ bool CompileTimeValue::IsCompileTimeValue(Expression* expression) {
 }
 
 
-Handle<FixedArray> CompileTimeValue::GetValue(Expression* expression) {
-  Factory* factory = Isolate::Current()->factory();
+Handle<FixedArray> CompileTimeValue::GetValue(Isolate* isolate,
+                                              Expression* expression) {
+  Factory* factory = isolate->factory();
   ASSERT(IsCompileTimeValue(expression));
   Handle<FixedArray> result = factory->NewFixedArray(2, TENURED);
   ObjectLiteral* object_literal = expression->AsObjectLiteral();
@@ -3784,7 +3787,7 @@ Handle<Object> Parser::GetBoilerplateValue(Expression* expression) {
     return expression->AsLiteral()->value();
   }
   if (CompileTimeValue::IsCompileTimeValue(expression)) {
-    return CompileTimeValue::GetValue(expression);
+    return CompileTimeValue::GetValue(isolate(), expression);
   }
   return isolate()->factory()->uninitialized_value();
 }
@@ -4333,6 +4336,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
       ? FunctionLiteral::kIsGenerator
       : FunctionLiteral::kNotGenerator;
   AstProperties ast_properties;
+  BailoutReason dont_optimize_reason = kNoReason;
   // Parse function body.
   { FunctionState function_state(this, scope, isolate());
     top_scope_->SetScopeName(function_name);
@@ -4592,6 +4596,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
                         CHECK_OK);
     }
     ast_properties = *factory()->visitor()->ast_properties();
+    dont_optimize_reason = factory()->visitor()->dont_optimize_reason();
   }
 
   if (is_extended_mode()) {
@@ -4613,6 +4618,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
                                     generator);
   function_literal->set_function_token_position(function_token_position);
   function_literal->set_ast_properties(&ast_properties);
+  function_literal->set_dont_optimize_reason(dont_optimize_reason);
 
   if (fni_ != NULL && should_infer_name) fni_->AddFunction(function_literal);
   return function_literal;
@@ -5023,7 +5029,7 @@ RegExpParser::RegExpParser(FlatStringReader* in,
                            Handle<String>* error,
                            bool multiline,
                            Zone* zone)
-    : isolate_(Isolate::Current()),
+    : isolate_(zone->isolate()),
       zone_(zone),
       error_(error),
       captures_(NULL),
@@ -5895,9 +5901,9 @@ int ScriptDataImpl::ReadNumber(byte** source) {
 
 
 // Create a Scanner for the preparser to use as input, and preparse the source.
-ScriptDataImpl* PreParserApi::PreParse(Utf16CharacterStream* source) {
+ScriptDataImpl* PreParserApi::PreParse(Isolate* isolate,
+                                       Utf16CharacterStream* source) {
   CompleteParserRecorder recorder;
-  Isolate* isolate = Isolate::Current();
   HistogramTimerScope timer(isolate->counters()->pre_parse());
   Scanner scanner(isolate->unicode_cache());
   intptr_t stack_limit = isolate->stack_guard()->real_climit();

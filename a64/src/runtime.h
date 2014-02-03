@@ -504,7 +504,7 @@ namespace internal {
   F(ClearBreakPoint, 1, 1) \
   F(ChangeBreakOnException, 2, 1) \
   F(IsBreakOnException, 1, 1) \
-  F(PrepareStep, 3, 1) \
+  F(PrepareStep, 4, 1) \
   F(ClearStepping, 0, 1) \
   F(DebugEvaluate, 6, 1) \
   F(DebugEvaluateGlobal, 4, 1) \

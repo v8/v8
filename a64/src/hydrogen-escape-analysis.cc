@@ -306,4 +306,13 @@ void HEscapeAnalysisPhase::PerformScalarReplacement() {
 }
 
 
+void HEscapeAnalysisPhase::Run() {
+  // TODO(mstarzinger): We disable escape analysis with OSR for now, because
+  // spill slots might be uninitialized. Needs investigation.
+  if (graph()->has_osr()) return;
+  CollectCapturedValues();
+  PerformScalarReplacement();
+}
+
+
 } }  // namespace v8::internal

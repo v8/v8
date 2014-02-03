@@ -162,6 +162,8 @@ enum BuiltinExtraArguments {
                                                                         \
   V(StoreIC_Initialize,             STORE_IC, UNINITIALIZED,            \
                                     Code::kNoExtraICState)              \
+  V(StoreIC_PreMonomorphic,         STORE_IC, PREMONOMORPHIC,           \
+                                    Code::kNoExtraICState)              \
   V(StoreIC_Normal,                 STORE_IC, MONOMORPHIC,              \
                                     Code::kNoExtraICState)              \
   V(StoreIC_Megamorphic,            STORE_IC, MEGAMORPHIC,              \
@@ -174,6 +176,8 @@ enum BuiltinExtraArguments {
                                     Code::kNoExtraICState)              \
   V(StoreIC_Initialize_Strict,      STORE_IC, UNINITIALIZED,            \
                                     kStrictMode)                        \
+  V(StoreIC_PreMonomorphic_Strict,  STORE_IC, PREMONOMORPHIC,           \
+                                    kStrictMode)                        \
   V(StoreIC_Normal_Strict,          STORE_IC, MONOMORPHIC,              \
                                     kStrictMode)                        \
   V(StoreIC_Megamorphic_Strict,     STORE_IC, MEGAMORPHIC,              \
@@ -185,10 +189,14 @@ enum BuiltinExtraArguments {
                                                                         \
   V(KeyedStoreIC_Initialize,        KEYED_STORE_IC, UNINITIALIZED,      \
                                     Code::kNoExtraICState)              \
+  V(KeyedStoreIC_PreMonomorphic,    KEYED_STORE_IC, PREMONOMORPHIC,     \
+                                    Code::kNoExtraICState)              \
   V(KeyedStoreIC_Generic,           KEYED_STORE_IC, GENERIC,            \
                                     Code::kNoExtraICState)              \
                                                                         \
   V(KeyedStoreIC_Initialize_Strict, KEYED_STORE_IC, UNINITIALIZED,      \
+                                    kStrictMode)                        \
+  V(KeyedStoreIC_PreMonomorphic_Strict, KEYED_STORE_IC, PREMONOMORPHIC, \
                                     kStrictMode)                        \
   V(KeyedStoreIC_Generic_Strict,    KEYED_STORE_IC, GENERIC,            \
                                     kStrictMode)                        \

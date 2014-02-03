@@ -1201,11 +1201,11 @@ TEST(HeapSnapshotRetainedObjectInfo) {
   heap_profiler->SetWrapperClassInfoProvider(
       2, TestRetainedObjectInfo::WrapperInfoCallback);
   v8::Persistent<v8::String> p_AAA(isolate, v8_str("AAA"));
-  p_AAA.SetWrapperClassId(isolate, 1);
+  p_AAA.SetWrapperClassId(1);
   v8::Persistent<v8::String> p_BBB(isolate, v8_str("BBB"));
-  p_BBB.SetWrapperClassId(isolate, 1);
+  p_BBB.SetWrapperClassId(1);
   v8::Persistent<v8::String> p_CCC(isolate, v8_str("CCC"));
-  p_CCC.SetWrapperClassId(isolate, 2);
+  p_CCC.SetWrapperClassId(2);
   CHECK_EQ(0, TestRetainedObjectInfo::instances.length());
   const v8::HeapSnapshot* snapshot =
       heap_profiler->TakeHeapSnapshot(v8_str("retained"));
@@ -1711,7 +1711,7 @@ bool HasWeakGlobalHandle() {
 static void PersistentHandleCallback(v8::Isolate* isolate,
                                      v8::Persistent<v8::Value>* handle,
                                      void*) {
-  handle->Dispose(isolate);
+  handle->Dispose();
 }
 
 

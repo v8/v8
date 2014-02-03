@@ -174,7 +174,8 @@ class BreakLocationIterator {
 // the cache is the script id.
 class ScriptCache : private HashMap {
  public:
-  ScriptCache() : HashMap(ScriptMatch), collected_scripts_(10) {}
+  explicit ScriptCache(Isolate* isolate)
+    : HashMap(ScriptMatch), isolate_(isolate), collected_scripts_(10) {}
   virtual ~ScriptCache() { Clear(); }
 
   // Add script to the cache.
@@ -203,6 +204,7 @@ class ScriptCache : private HashMap {
                                v8::Persistent<v8::Value>* obj,
                                void* data);
 
+  Isolate* isolate_;
   // List used during GC to temporarily store id's of collected scripts.
   List<int> collected_scripts_;
 };
@@ -259,7 +261,9 @@ class Debug {
   void FloodHandlerWithOneShot();
   void ChangeBreakOnException(ExceptionBreakType type, bool enable);
   bool IsBreakOnException(ExceptionBreakType type);
-  void PrepareStep(StepAction step_action, int step_count);
+  void PrepareStep(StepAction step_action,
+                   int step_count,
+                   StackFrame::Id frame_id);
   void ClearStepping();
   void ClearStepOut();
   bool IsStepping() { return thread_local_.step_count_ > 0; }
@@ -532,7 +536,7 @@ class Debug {
   explicit Debug(Isolate* isolate);
   ~Debug();
 
-  static bool CompileDebuggerScript(int index);
+  static bool CompileDebuggerScript(Isolate* isolate, int index);
   void ClearOneShot();
   void ActivateStepIn(StackFrame* frame);
   void ClearStepIn();
@@ -955,7 +959,7 @@ class Debugger {
 // some reason could not be entered FailedToEnter will return true.
 class EnterDebugger BASE_EMBEDDED {
  public:
-  EnterDebugger();
+  explicit EnterDebugger(Isolate* isolate);
   ~EnterDebugger();
 
   // Check whether the debugger could be entered.
@@ -982,12 +986,12 @@ class EnterDebugger BASE_EMBEDDED {
 // Stack allocated class for disabling break.
 class DisableBreak BASE_EMBEDDED {
  public:
-  explicit DisableBreak(bool disable_break) : isolate_(Isolate::Current()) {
+  explicit DisableBreak(Isolate* isolate, bool disable_break)
+    : isolate_(isolate) {
     prev_disable_break_ = isolate_->debug()->disable_break();
     isolate_->debug()->set_disable_break(disable_break);
   }
   ~DisableBreak() {
-    ASSERT(Isolate::Current() == isolate_);
     isolate_->debug()->set_disable_break(prev_disable_break_);
   }
 

@@ -945,6 +945,35 @@ static void GenerateFastApiDirectCall(MacroAssembler* masm,
 }
 
 
+// Generate call to api function.
+static void GenerateFastApiCall(MacroAssembler* masm,
+                                const CallOptimization& optimization,
+                                Register receiver,
+                                Register scratch,
+                                int argc,
+                                Register* values) {
+  ASSERT(optimization.is_simple_api_call());
+  ASSERT(!AreAliased(receiver, scratch));
+
+  const int stack_space = kFastApiCallArguments + argc + 1;
+  // Assign stack space for the call arguments.
+  __ Claim(stack_space);
+  // Write holder to stack frame.
+  __ Poke(receiver, 0);
+  // Write receiver to stack frame.
+  int index = stack_space - 1;
+  __ Poke(receiver, index * kPointerSize);
+  // Write the arguments to stack frame.
+  for (int i = 0; i < argc; i++) {
+    // TODO(jbramley): This is broken, but it is broken on ARM too.
+    ASSERT(!AreAliased(receiver, scratch, values[i]));
+    __ Poke(receiver, index-- * kPointerSize);
+  }
+
+  GenerateFastApiDirectCall(masm, optimization, argc);
+}
+
+
 class CallInterceptorCompiler BASE_EMBEDDED {
  public:
   CallInterceptorCompiler(StubCompiler* stub_compiler,
@@ -1295,7 +1324,7 @@ Register BaseLoadStubCompiler::CallbackHandlerFrontend(
     Handle<JSObject> holder,
     Handle<Name> name,
     Label* success,
-    Handle<ExecutableAccessorInfo> callback) {
+    Handle<Object> callback) {
   Label miss;
 
   Register reg = HandlerFrontendHeader(object, object_reg, holder, name, &miss);
@@ -1382,6 +1411,13 @@ void BaseLoadStubCompiler::GenerateLoadConstant(Handle<Object> value) {
   // Return the constant value.
   __ LoadObject(x0, value);
   __ Ret();
+}
+
+
+void BaseLoadStubCompiler::GenerateLoadCallback(
+    const CallOptimization& call_optimization) {
+  GenerateFastApiCall(
+      masm(), call_optimization, receiver(), scratch3(), 0, NULL);
 }
 
 
@@ -2937,7 +2973,7 @@ Handle<Code> StoreStubCompiler::CompileStoreInterceptor(
   TailCallBuiltin(masm(), MissBuiltin(kind()));
 
   // Return the generated code.
-  return GetICCode(kind(), Code::INTERCEPTOR, name);
+  return GetCode(kind(), Code::INTERCEPTOR, name);
 }
 
 
@@ -3197,6 +3233,24 @@ Handle<Code> KeyedStoreStubCompiler::CompileStorePolymorphic(
 
   return GetICCode(
       kind(), Code::NORMAL, factory()->empty_string(), POLYMORPHIC);
+}
+
+
+Handle<Code> StoreStubCompiler::CompileStoreCallback(
+    Handle<JSObject> object,
+    Handle<JSObject> holder,
+    Handle<Name> name,
+    const CallOptimization& call_optimization) {
+  Label success;
+  HandlerFrontend(object, receiver(), holder, name, &success);
+  __ Bind(&success);
+
+  Register values[] = { value() };
+  GenerateFastApiCall(
+      masm(), call_optimization, receiver(), scratch3(), 1, values);
+
+  // Return the generated code.
+  return GetCode(kind(), Code::CALLBACKS, name);
 }
 
 

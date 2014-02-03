@@ -375,20 +375,22 @@ void IC::PostPatching(Address address, Code* target, Code* old_target) {
 }
 
 
-void IC::Clear(Address address) {
+void IC::Clear(Isolate* isolate, Address address) {
   Code* target = GetTargetAtAddress(address);
 
   // Don't clear debug break inline cache as it will remove the break point.
   if (target->is_debug_stub()) return;
 
   switch (target->kind()) {
-    case Code::LOAD_IC: return LoadIC::Clear(address, target);
-    case Code::KEYED_LOAD_IC: return KeyedLoadIC::Clear(address, target);
-    case Code::STORE_IC: return StoreIC::Clear(address, target);
-    case Code::KEYED_STORE_IC: return KeyedStoreIC::Clear(address, target);
+    case Code::LOAD_IC: return LoadIC::Clear(isolate, address, target);
+    case Code::KEYED_LOAD_IC:
+      return KeyedLoadIC::Clear(isolate, address, target);
+    case Code::STORE_IC: return StoreIC::Clear(isolate, address, target);
+    case Code::KEYED_STORE_IC:
+      return KeyedStoreIC::Clear(isolate, address, target);
     case Code::CALL_IC: return CallIC::Clear(address, target);
     case Code::KEYED_CALL_IC:  return KeyedCallIC::Clear(address, target);
-    case Code::COMPARE_IC: return CompareIC::Clear(address, target);
+    case Code::COMPARE_IC: return CompareIC::Clear(isolate, address, target);
     case Code::COMPARE_NIL_IC: return CompareNilIC::Clear(address, target);
     case Code::BINARY_OP_IC:
     case Code::TO_BOOLEAN_IC:
@@ -404,7 +406,7 @@ void CallICBase::Clear(Address address, Code* target) {
   if (target->ic_state() == UNINITIALIZED) return;
   bool contextual = CallICBase::Contextual::decode(target->extra_ic_state());
   Code* code =
-      Isolate::Current()->stub_cache()->FindCallInitialize(
+      target->GetIsolate()->stub_cache()->FindCallInitialize(
           target->arguments_count(),
           contextual ? RelocInfo::CODE_TARGET_CONTEXT : RelocInfo::CODE_TARGET,
           target->kind());
@@ -412,40 +414,40 @@ void CallICBase::Clear(Address address, Code* target) {
 }
 
 
-void KeyedLoadIC::Clear(Address address, Code* target) {
+void KeyedLoadIC::Clear(Isolate* isolate, Address address, Code* target) {
   if (target->ic_state() == UNINITIALIZED) return;
   // Make sure to also clear the map used in inline fast cases.  If we
   // do not clear these maps, cached code can keep objects alive
   // through the embedded maps.
-  SetTargetAtAddress(address, *initialize_stub());
+  SetTargetAtAddress(address, *initialize_stub(isolate));
 }
 
 
-void LoadIC::Clear(Address address, Code* target) {
+void LoadIC::Clear(Isolate* isolate, Address address, Code* target) {
   if (target->ic_state() == UNINITIALIZED) return;
-  SetTargetAtAddress(address, *initialize_stub());
+  SetTargetAtAddress(address, *initialize_stub(isolate));
 }
 
 
-void StoreIC::Clear(Address address, Code* target) {
-  if (target->ic_state() == UNINITIALIZED) return;
-  SetTargetAtAddress(address,
-      (Code::GetStrictMode(target->extra_ic_state()) == kStrictMode)
-        ? *initialize_stub_strict()
-        : *initialize_stub());
-}
-
-
-void KeyedStoreIC::Clear(Address address, Code* target) {
+void StoreIC::Clear(Isolate* isolate, Address address, Code* target) {
   if (target->ic_state() == UNINITIALIZED) return;
   SetTargetAtAddress(address,
       (Code::GetStrictMode(target->extra_ic_state()) == kStrictMode)
-        ? *initialize_stub_strict()
-        : *initialize_stub());
+        ? *initialize_stub_strict(isolate)
+        : *initialize_stub(isolate));
 }
 
 
-void CompareIC::Clear(Address address, Code* target) {
+void KeyedStoreIC::Clear(Isolate* isolate, Address address, Code* target) {
+  if (target->ic_state() == UNINITIALIZED) return;
+  SetTargetAtAddress(address,
+      (Code::GetStrictMode(target->extra_ic_state()) == kStrictMode)
+        ? *initialize_stub_strict(isolate)
+        : *initialize_stub(isolate));
+}
+
+
+void CompareIC::Clear(Isolate* isolate, Address address, Code* target) {
   ASSERT(target->major_key() == CodeStub::CompareIC);
   CompareIC::State handler_state;
   Token::Value op;
@@ -453,7 +455,7 @@ void CompareIC::Clear(Address address, Code* target) {
                                 &handler_state, &op);
   // Only clear CompareICs that can retain objects.
   if (handler_state != KNOWN_OBJECT) return;
-  SetTargetAtAddress(address, GetRawUninitialized(op));
+  SetTargetAtAddress(address, GetRawUninitialized(isolate, op));
   PatchInlinedSmiCode(address, DISABLE_INLINED_SMI_CHECK);
 }
 
@@ -500,7 +502,7 @@ static void LookupForRead(Handle<Object> object,
 
 
 Handle<Object> CallICBase::TryCallAsFunction(Handle<Object> object) {
-  Handle<Object> delegate = Execution::GetFunctionDelegate(object);
+  Handle<Object> delegate = Execution::GetFunctionDelegate(isolate(), object);
 
   if (delegate->IsJSFunction() && !object->IsJSFunctionProxy()) {
     // Patch the receiver and use the delegate as the function to
@@ -564,7 +566,7 @@ MaybeObject* CallICBase::LoadFunction(State state,
   // the element if so.
   uint32_t index;
   if (name->AsArrayIndex(&index)) {
-    Handle<Object> result = Object::GetElement(object, index);
+    Handle<Object> result = Object::GetElement(isolate(), object, index);
     RETURN_IF_EMPTY_HANDLE(isolate(), result);
     if (result->IsJSFunction()) return *result;
 
@@ -1355,8 +1357,15 @@ Handle<Code> LoadIC::ComputeLoadHandler(LookupResult* lookup,
         if (!getter->IsJSFunction()) break;
         if (holder->IsGlobalObject()) break;
         if (!holder->HasFastProperties()) break;
+        Handle<JSFunction> function = Handle<JSFunction>::cast(getter);
+        CallOptimization call_optimization(function);
+        if (call_optimization.is_simple_api_call() &&
+            call_optimization.IsCompatibleReceiver(*receiver)) {
+          return isolate()->stub_cache()->ComputeLoadCallback(
+              name, receiver, holder, call_optimization);
+        }
         return isolate()->stub_cache()->ComputeLoadViaGetter(
-            name, receiver, holder, Handle<JSFunction>::cast(getter));
+            name, receiver, holder, function);
       } else if (receiver->IsJSArray() &&
           name->Equals(isolate()->heap()->length_string())) {
         PropertyIndex lengthIndex =
@@ -1542,13 +1551,29 @@ Handle<Code> KeyedLoadIC::ComputeLoadHandler(LookupResult* lookup,
     case CALLBACKS: {
       Handle<Object> callback_object(lookup->GetCallbackObject(), isolate());
       // TODO(dcarney): Handle DeclaredAccessorInfo correctly.
-      if (!callback_object->IsExecutableAccessorInfo()) break;
-      Handle<ExecutableAccessorInfo> callback =
-          Handle<ExecutableAccessorInfo>::cast(callback_object);
-      if (v8::ToCData<Address>(callback->getter()) == 0) break;
-      if (!callback->IsCompatibleReceiver(*receiver)) break;
-      return isolate()->stub_cache()->ComputeKeyedLoadCallback(
-          name, receiver, holder, callback);
+      if (callback_object->IsExecutableAccessorInfo()) {
+        Handle<ExecutableAccessorInfo> callback =
+            Handle<ExecutableAccessorInfo>::cast(callback_object);
+        if (v8::ToCData<Address>(callback->getter()) == 0) break;
+        if (!callback->IsCompatibleReceiver(*receiver)) break;
+        return isolate()->stub_cache()->ComputeKeyedLoadCallback(
+            name, receiver, holder, callback);
+      } else if (callback_object->IsAccessorPair()) {
+        Handle<Object> getter(
+            Handle<AccessorPair>::cast(callback_object)->getter(),
+            isolate());
+        if (!getter->IsJSFunction()) break;
+        if (holder->IsGlobalObject()) break;
+        if (!holder->HasFastProperties()) break;
+        Handle<JSFunction> function = Handle<JSFunction>::cast(getter);
+        CallOptimization call_optimization(function);
+        if (call_optimization.is_simple_api_call() &&
+            call_optimization.IsCompatibleReceiver(*receiver)) {
+          return isolate()->stub_cache()->ComputeKeyedLoadCallback(
+              name, receiver, holder, call_optimization);
+        }
+      }
+      break;
     }
     case INTERCEPTOR:
       ASSERT(HasInterceptorGetter(lookup->holder()));
@@ -1709,22 +1734,30 @@ MaybeObject* StoreIC::Store(State state,
   }
 
   LookupResult lookup(isolate());
-  if (LookupForWrite(receiver, name, value, &lookup, &state)) {
-    if (FLAG_use_ic) {
-      UpdateCaches(&lookup, state, strict_mode, receiver, name, value);
-    }
-  } else if (strict_mode == kStrictMode &&
-             !(lookup.IsProperty() && lookup.IsReadOnly()) &&
-             IsUndeclaredGlobal(object)) {
+  bool can_store = LookupForWrite(receiver, name, value, &lookup, &state);
+  if (!can_store &&
+      strict_mode == kStrictMode &&
+      !(lookup.IsProperty() && lookup.IsReadOnly()) &&
+      IsUndeclaredGlobal(object)) {
     // Strict mode doesn't allow setting non-existent global property.
     return ReferenceError("not_defined", name);
-  } else if (FLAG_use_ic &&
-             (!name->IsCacheable(isolate()) ||
-              lookup.IsNormal() ||
-              (lookup.IsField() && lookup.CanHoldValue(value)))) {
-    Handle<Code> stub = strict_mode == kStrictMode
-        ? generic_stub_strict() : generic_stub();
-    set_target(*stub);
+  }
+  if (FLAG_use_ic) {
+    if (state == UNINITIALIZED) {
+      Handle<Code> stub = (strict_mode == kStrictMode)
+          ? pre_monomorphic_stub_strict()
+          : pre_monomorphic_stub();
+      set_target(*stub);
+      TRACE_IC("StoreIC", name, state, *stub);
+    } else if (can_store) {
+      UpdateCaches(&lookup, state, strict_mode, receiver, name, value);
+    } else if (!name->IsCacheable(isolate()) ||
+               lookup.IsNormal() ||
+               (lookup.IsField() && lookup.CanHoldValue(value))) {
+      Handle<Code> stub = (strict_mode == kStrictMode) ? generic_stub_strict()
+                                                       : generic_stub();
+      set_target(*stub);
+    }
   }
 
   // Set the property.
@@ -1798,6 +1831,13 @@ Handle<Code> StoreIC::ComputeStoreMonomorphic(LookupResult* lookup,
         if (!setter->IsJSFunction()) break;
         if (holder->IsGlobalObject()) break;
         if (!holder->HasFastProperties()) break;
+        Handle<JSFunction> function = Handle<JSFunction>::cast(setter);
+        CallOptimization call_optimization(function);
+        if (call_optimization.is_simple_api_call() &&
+            call_optimization.IsCompatibleReceiver(*receiver)) {
+          return isolate()->stub_cache()->ComputeStoreCallback(
+              name, receiver, holder, call_optimization, strict_mode);
+        }
         return isolate()->stub_cache()->ComputeStoreViaSetter(
             name, receiver, holder, Handle<JSFunction>::cast(setter),
             strict_mode);
@@ -2759,7 +2799,8 @@ RUNTIME_FUNCTION(MaybeObject*, BinaryOp_Patch) {
 
   bool caught_exception;
   Handle<Object> builtin_args[] = { right };
-  Handle<Object> result = Execution::Call(builtin_function,
+  Handle<Object> result = Execution::Call(isolate,
+                                          builtin_function,
                                           left,
                                           ARRAY_SIZE(builtin_args),
                                           builtin_args,
@@ -2771,10 +2812,10 @@ RUNTIME_FUNCTION(MaybeObject*, BinaryOp_Patch) {
 }
 
 
-Code* CompareIC::GetRawUninitialized(Token::Value op) {
+Code* CompareIC::GetRawUninitialized(Isolate* isolate, Token::Value op) {
   ICCompareStub stub(op, UNINITIALIZED, UNINITIALIZED, UNINITIALIZED);
   Code* code = NULL;
-  CHECK(stub.FindCodeInCache(&code, Isolate::Current()));
+  CHECK(stub.FindCodeInCache(&code, isolate));
   return code;
 }
 

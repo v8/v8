@@ -82,11 +82,6 @@ class V8 : public AllStatic {
   // empty heap.
   static bool Initialize(Deserializer* des);
   static void TearDown();
-  static bool UseCrankshaft() { return use_crankshaft_; }
-  // To be dead you have to have lived
-  // TODO(isolates): move IsDead to Isolate.
-  static bool IsDead() { return has_fatal_error_ || has_been_disposed_; }
-  static void SetFatalError();
 
   // Report process out of memory. Implementation found in api.cc.
   static void FatalProcessOutOfMemory(const char* location,
@@ -110,9 +105,6 @@ class V8 : public AllStatic {
   static Object* FillHeapNumberWithRandom(Object* heap_number,
                                           Context* context);
 
-  // Idle notification directly from the API.
-  static bool IdleNotification(int hint);
-
   static void AddCallCompletedCallback(CallCompletedCallback callback);
   static void RemoveCallCompletedCallback(CallCompletedCallback callback);
   static void FireCallCompletedCallback(Isolate* isolate);
@@ -130,16 +122,6 @@ class V8 : public AllStatic {
   static void InitializeOncePerProcessImpl();
   static void InitializeOncePerProcess();
 
-  // True if V8 has ever been run
-  static bool has_been_set_up_;
-  // True if error has been signaled for current engine
-  // (reset to false if engine is restarted)
-  static bool has_fatal_error_;
-  // True if engine has been shut down
-  // (reset if engine is restarted)
-  static bool has_been_disposed_;
-  // True if we are using the crankshaft optimizing compiler.
-  static bool use_crankshaft_;
   // List of callbacks when a Call completes.
   static List<CallCompletedCallback>* call_completed_callbacks_;
   // Allocator for external array buffers.

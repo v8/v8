@@ -132,7 +132,6 @@ BUILTIN_LIST_C(DEF_ARG_TYPE)
   MUST_USE_RESULT static MaybeObject* Builtin_##name(            \
       int args_length, Object** args_object, Isolate* isolate) { \
     name##ArgumentsType args(args_length, args_object);          \
-    ASSERT(isolate == Isolate::Current());                       \
     args.Verify();                                               \
     return Builtin_Impl_##name(args, isolate);                   \
   }                                                              \
@@ -448,7 +447,8 @@ MUST_USE_RESULT static MaybeObject* CallJsBuiltin(
     argv[i] = args.at<Object>(i + 1);
   }
   bool pending_exception;
-  Handle<Object> result = Execution::Call(function,
+  Handle<Object> result = Execution::Call(isolate,
+                                          function,
                                           args.receiver(),
                                           argc,
                                           argv.start(),
@@ -594,7 +594,7 @@ BUILTIN(ArrayPop) {
   if (accessor->HasElement(array, array, new_length, elms_obj)) {
     maybe_result = accessor->Get(array, array, new_length, elms_obj);
   } else {
-    maybe_result = array->GetPrototype()->GetElement(len - 1);
+    maybe_result = array->GetPrototype()->GetElement(isolate, len - 1);
   }
   if (maybe_result->IsFailure()) return maybe_result;
   MaybeObject* maybe_failure =
@@ -1461,6 +1461,16 @@ static void Generate_StoreIC_Initialize_Strict(MacroAssembler* masm) {
 }
 
 
+static void Generate_StoreIC_PreMonomorphic(MacroAssembler* masm) {
+  StoreIC::GeneratePreMonomorphic(masm);
+}
+
+
+static void Generate_StoreIC_PreMonomorphic_Strict(MacroAssembler* masm) {
+  StoreIC::GeneratePreMonomorphic(masm);
+}
+
+
 static void Generate_StoreIC_Miss(MacroAssembler* masm) {
   StoreIC::GenerateMiss(masm);
 }
@@ -1543,6 +1553,16 @@ static void Generate_KeyedStoreIC_Initialize(MacroAssembler* masm) {
 
 static void Generate_KeyedStoreIC_Initialize_Strict(MacroAssembler* masm) {
   KeyedStoreIC::GenerateInitialize(masm);
+}
+
+
+static void Generate_KeyedStoreIC_PreMonomorphic(MacroAssembler* masm) {
+  KeyedStoreIC::GeneratePreMonomorphic(masm);
+}
+
+
+static void Generate_KeyedStoreIC_PreMonomorphic_Strict(MacroAssembler* masm) {
+  KeyedStoreIC::GeneratePreMonomorphic(masm);
 }
 
 

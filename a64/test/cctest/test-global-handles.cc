@@ -338,9 +338,9 @@ TEST(EternalHandles) {
     eternal_handles->Create(
         isolate, *v8::Utils::OpenHandle(*object), &indices[i]);
     // Create with external api
-    CHECK(!eternals[i].IsEmpty());
-    eternals[i].Set(v8_isolate, object);
     CHECK(eternals[i].IsEmpty());
+    eternals[i].Set(v8_isolate, object);
+    CHECK(!eternals[i].IsEmpty());
   }
 
   isolate->heap()->CollectAllAvailableGarbage();
@@ -370,7 +370,7 @@ TEST(EternalHandles) {
     HandleScope scope(isolate);
     v8::Local<v8::Object> object = v8::Object::New();
     v8::Eternal<v8::Object> eternal(v8_isolate, object);
-    CHECK(eternal.IsEmpty());
+    CHECK(!eternal.IsEmpty());
     CHECK(object == eternal.Get(v8_isolate));
   }
 

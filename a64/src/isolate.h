@@ -1064,6 +1064,11 @@ class Isolate {
     thread_local_top_.top_lookup_result_ = top;
   }
 
+  bool IsDead() { return has_fatal_error_; }
+  void SignalFatalError() { has_fatal_error_ = true; }
+
+  bool use_crankshaft() const { return use_crankshaft_; }
+
   bool initialized_from_snapshot() { return initialized_from_snapshot_; }
 
   double time_millis_since_init() {
@@ -1155,7 +1160,6 @@ class Isolate {
 
     PerIsolateThreadData* Lookup(Isolate* isolate, ThreadId thread_id);
     void Insert(PerIsolateThreadData* data);
-    void Remove(Isolate* isolate, ThreadId thread_id);
     void Remove(PerIsolateThreadData* data);
     void RemoveAllThreads(Isolate* isolate);
 
@@ -1190,7 +1194,7 @@ class Isolate {
 
   // This mutex protects highest_thread_id_, thread_data_table_ and
   // default_isolate_.
-  static RecursiveMutex process_wide_mutex_;
+  static Mutex process_wide_mutex_;
 
   static Thread::LocalStorageKey per_isolate_thread_data_key_;
   static Thread::LocalStorageKey isolate_key_;
@@ -1205,10 +1209,6 @@ class Isolate {
 
   static void SetIsolateThreadLocals(Isolate* isolate,
                                      PerIsolateThreadData* data);
-
-  // Allocate and insert PerIsolateThreadData into the ThreadDataTable
-  // (regardless of whether such data already exists).
-  PerIsolateThreadData* AllocatePerIsolateThreadData(ThreadId thread_id);
 
   // Find the PerThread for this particular (isolate, thread) combination.
   // If one does not yet exist, allocate a new one.
@@ -1305,6 +1305,12 @@ class Isolate {
   unibrow::Mapping<unibrow::Ecma262Canonicalize> interp_canonicalize_mapping_;
   CodeStubInterfaceDescriptor* code_stub_interface_descriptors_;
 
+  // True if fatal error has been signaled for this isolate.
+  bool has_fatal_error_;
+
+  // True if we are using the Crankshaft optimizing compiler.
+  bool use_crankshaft_;
+
   // True if this isolate was initialized from a snapshot.
   bool initialized_from_snapshot_;
 
@@ -1391,15 +1397,8 @@ class SaveContext BASE_EMBEDDED {
   inline explicit SaveContext(Isolate* isolate);
 
   ~SaveContext() {
-    if (context_.is_null()) {
-      Isolate* isolate = Isolate::Current();
-      isolate->set_context(NULL);
-      isolate->set_save_context(prev_);
-    } else {
-      Isolate* isolate = context_->GetIsolate();
-      isolate->set_context(*context_);
-      isolate->set_save_context(prev_);
-    }
+    isolate_->set_context(context_.is_null() ? NULL : *context_);
+    isolate_->set_save_context(prev_);
   }
 
   Handle<Context> context() { return context_; }
@@ -1411,6 +1410,7 @@ class SaveContext BASE_EMBEDDED {
   }
 
  private:
+  Isolate* isolate_;
   Handle<Context> context_;
   SaveContext* prev_;
   Address c_entry_fp_;

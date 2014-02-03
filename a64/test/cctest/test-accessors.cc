@@ -49,6 +49,12 @@ static void handle_property(Local<String> name,
   info.GetReturnValue().Set(v8_num(900));
 }
 
+static void handle_property_2(Local<String> name,
+                              const v8::PropertyCallbackInfo<v8::Value>& info) {
+  ApiTestFuzzer::Fuzz();
+  info.GetReturnValue().Set(v8_num(902));
+}
+
 
 static void handle_property(const v8::FunctionCallbackInfo<v8::Value>& info) {
   ApiTestFuzzer::Fuzz();
@@ -67,16 +73,27 @@ THREADED_TEST(PropertyHandler) {
   getter_templ->SetLength(0);
   fun_templ->
       InstanceTemplate()->SetAccessorProperty(v8_str("bar"), getter_templ);
+  fun_templ->InstanceTemplate()->
+      SetNativeDataProperty(v8_str("instance_foo"), handle_property);
+  fun_templ->SetNativeDataProperty(v8_str("object_foo"), handle_property_2);
   Local<Function> fun = fun_templ->GetFunction();
   env->Global()->Set(v8_str("Fun"), fun);
-  Local<Script> getter = v8_compile("var obj = new Fun(); obj.foo;");
+  Local<Script> getter;
+  Local<Script> setter;
+  // check function instance accessors
+  getter = v8_compile("var obj = new Fun(); obj.instance_foo;");
   CHECK_EQ(900, getter->Run()->Int32Value());
-  Local<Script> setter = v8_compile("obj.foo = 901;");
+  setter = v8_compile("obj.instance_foo = 901;");
   CHECK_EQ(901, setter->Run()->Int32Value());
   getter = v8_compile("obj.bar;");
   CHECK_EQ(907, getter->Run()->Int32Value());
   setter = v8_compile("obj.bar = 908;");
   CHECK_EQ(908, setter->Run()->Int32Value());
+  // check function static accessors
+  getter = v8_compile("Fun.object_foo;");
+  CHECK_EQ(902, getter->Run()->Int32Value());
+  setter = v8_compile("Fun.object_foo = 903;");
+  CHECK_EQ(903, setter->Run()->Int32Value());
 }
 
 
@@ -146,6 +163,7 @@ static void XGetter(Local<String> name,
 
 
 static void XGetter(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK_EQ(x_receiver, info.Holder());
   XGetter(info, 1);
 }
 
@@ -155,6 +173,7 @@ static void XSetter(Local<Value> value, const Info& info, int offset) {
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
   CHECK_EQ(isolate, info.GetIsolate());
   CHECK_EQ(x_holder, info.This());
+  CHECK_EQ(x_holder, info.Holder());
   x_register[offset] = value->Int32Value();
 }
 
@@ -162,7 +181,6 @@ static void XSetter(Local<Value> value, const Info& info, int offset) {
 static void XSetter(Local<String> name,
                     Local<Value> value,
                     const v8::PropertyCallbackInfo<void>& info) {
-  CHECK_EQ(x_holder, info.Holder());
   XSetter(value, info, 0);
 }
 
@@ -188,17 +206,23 @@ THREADED_TEST(AccessorIC) {
   v8::Handle<v8::Array> array = v8::Handle<v8::Array>::Cast(CompileRun(
     "obj.__proto__ = holder;"
     "var result = [];"
+    "var key_0 = 'x0';"
+    "var key_1 = 'x1';"
     "for (var i = 0; i < 10; i++) {"
     "  holder.x0 = i;"
-    "  holder.x1 = i;"
     "  result.push(obj.x0);"
+    "  holder.x1 = i;"
     "  result.push(obj.x1);"
+    "  holder[key_0] = i;"
+    "  result.push(obj[key_0]);"
+    "  holder[key_1] = i;"
+    "  result.push(obj[key_1]);"
     "}"
     "result"));
-  CHECK_EQ(20, array->Length());
-  for (int i = 0; i < 20; i++) {
+  CHECK_EQ(40, array->Length());
+  for (int i = 0; i < 40; i++) {
     v8::Handle<Value> entry = array->Get(v8::Integer::New(i));
-    CHECK_EQ(v8::Integer::New(i/2), entry);
+    CHECK_EQ(v8::Integer::New(i/4), entry);
   }
 }
 
@@ -464,7 +488,8 @@ THREADED_TEST(StackIteration) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
   v8::Handle<v8::ObjectTemplate> obj = ObjectTemplate::New();
-  i::StringStream::ClearMentionedObjectCache();
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(env->GetIsolate());
+  i::StringStream::ClearMentionedObjectCache(isolate);
   obj->SetAccessor(v8_str("xxx"), StackCheck);
   env->Global()->Set(v8_str("obj"), obj->NewInstance());
   Script::Compile(String::New(

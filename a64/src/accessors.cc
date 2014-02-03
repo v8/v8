@@ -127,9 +127,11 @@ MaybeObject* Accessors::ArraySetLength(Isolate* isolate,
   Handle<Object> value_handle(value, isolate);
 
   bool has_exception;
-  Handle<Object> uint32_v = Execution::ToUint32(value_handle, &has_exception);
+  Handle<Object> uint32_v =
+      Execution::ToUint32(isolate, value_handle, &has_exception);
   if (has_exception) return Failure::Exception();
-  Handle<Object> number_v = Execution::ToNumber(value_handle, &has_exception);
+  Handle<Object> number_v =
+      Execution::ToNumber(isolate, value_handle, &has_exception);
   if (has_exception) return Failure::Exception();
 
   if (uint32_v->Number() == number_v->Number()) {

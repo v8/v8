@@ -538,7 +538,7 @@ class NativeGroupRetainedObjectInfo;
 class NativeObjectsExplorer {
  public:
   NativeObjectsExplorer(HeapSnapshot* snapshot,
-                      SnapshottingProgressReportingInterface* progress);
+                        SnapshottingProgressReportingInterface* progress);
   virtual ~NativeObjectsExplorer();
   void AddRootEntries(SnapshotFillerInterface* filler);
   int EstimateObjectsCount();
@@ -570,6 +570,7 @@ class NativeObjectsExplorer {
 
   NativeGroupRetainedObjectInfo* FindOrAddGroupInfo(const char* label);
 
+  Isolate* isolate_;
   HeapSnapshot* snapshot_;
   HeapSnapshotsCollection* collection_;
   SnapshottingProgressReportingInterface* progress_;

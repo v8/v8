@@ -133,6 +133,7 @@ size_t StringsStorage::GetUsedMemorySize() const {
 
 const char* const CodeEntry::kEmptyNamePrefix = "";
 const char* const CodeEntry::kEmptyResourceName = "";
+const char* const CodeEntry::kEmptyBailoutReason = "";
 
 
 CodeEntry::~CodeEntry() {
@@ -210,13 +211,14 @@ ProfileNode* ProfileNode::FindOrAddChild(CodeEntry* entry) {
 
 
 void ProfileNode::Print(int indent) {
-  OS::Print("%5u %*c %s%s %d #%d",
+  OS::Print("%5u %*c %s%s %d #%d %s",
             self_ticks_,
             indent, ' ',
             entry_->name_prefix(),
             entry_->name(),
             entry_->script_id(),
-            id());
+            id(),
+            entry_->bailout_reason());
   if (entry_->resource_name()[0] != '\0')
     OS::Print(" %s:%d", entry_->resource_name(), entry_->line_number());
   OS::Print("\n");

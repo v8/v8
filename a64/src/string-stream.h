@@ -148,7 +148,7 @@ class StringStream {
   void OutputToFile(FILE* out);
   void OutputToStdOut() { OutputToFile(stdout); }
   void Log();
-  Handle<String> ToString();
+  Handle<String> ToString(Isolate* isolate);
   SmartArrayPointer<const char> ToCString() const;
   int length() const { return length_; }
 
@@ -169,10 +169,10 @@ class StringStream {
   }
 
   // Mentioned object cache support.
-  void PrintMentionedObjectCache();
-  static void ClearMentionedObjectCache();
+  void PrintMentionedObjectCache(Isolate* isolate);
+  static void ClearMentionedObjectCache(Isolate* isolate);
 #ifdef DEBUG
-  static bool IsMentionedObjectCacheClear();
+  static bool IsMentionedObjectCacheClear(Isolate* isolate);
 #endif
 
 

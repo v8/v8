@@ -596,9 +596,9 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
 }
 
 
-ExternalReferenceEncoder::ExternalReferenceEncoder()
+ExternalReferenceEncoder::ExternalReferenceEncoder(Isolate* isolate)
     : encodings_(Match),
-      isolate_(Isolate::Current()) {
+      isolate_(isolate) {
   ExternalReferenceTable* external_references =
       ExternalReferenceTable::instance(isolate_);
   for (int i = 0; i < external_references->size(); ++i) {
@@ -638,9 +638,9 @@ void ExternalReferenceEncoder::Put(Address key, int index) {
 }
 
 
-ExternalReferenceDecoder::ExternalReferenceDecoder()
+ExternalReferenceDecoder::ExternalReferenceDecoder(Isolate* isolate)
     : encodings_(NewArray<Address*>(kTypeCodeCount)),
-      isolate_(Isolate::Current()) {
+      isolate_(isolate) {
   ExternalReferenceTable* external_references =
       ExternalReferenceTable::instance(isolate_);
   for (int type = kFirstTypeCode; type < kTypeCodeCount; ++type) {
@@ -780,13 +780,12 @@ class CodeAddressMap: public CodeEventLogger {
 CodeAddressMap* Serializer::code_address_map_ = NULL;
 
 
-void Serializer::Enable() {
+void Serializer::Enable(Isolate* isolate) {
   if (!serialization_enabled_) {
     ASSERT(!too_late_to_enable_now_);
   }
   if (serialization_enabled_) return;
   serialization_enabled_ = true;
-  i::Isolate* isolate = Isolate::Current();
   isolate->InitializeLoggingAndCounters();
   code_address_map_ = new CodeAddressMap(isolate);
 }
@@ -810,8 +809,8 @@ Deserializer::Deserializer(SnapshotByteSource* source)
 }
 
 
-void Deserializer::Deserialize() {
-  isolate_ = Isolate::Current();
+void Deserializer::Deserialize(Isolate* isolate) {
+  isolate_ = isolate;
   ASSERT(isolate_ != NULL);
   isolate_->heap()->ReserveSpace(reservations_, &high_water_[0]);
   // No active threads.
@@ -819,7 +818,7 @@ void Deserializer::Deserialize() {
   // No active handles.
   ASSERT(isolate_->handle_scope_implementer()->blocks()->is_empty());
   ASSERT_EQ(NULL, external_reference_decoder_);
-  external_reference_decoder_ = new ExternalReferenceDecoder();
+  external_reference_decoder_ = new ExternalReferenceDecoder(isolate);
   isolate_->heap()->IterateStrongRoots(this, VISIT_ONLY_STRONG);
   isolate_->heap()->RepairFreeListsAfterBoot();
   isolate_->heap()->IterateWeakRoots(this, VISIT_ALL);
@@ -850,14 +849,14 @@ void Deserializer::Deserialize() {
 }
 
 
-void Deserializer::DeserializePartial(Object** root) {
-  isolate_ = Isolate::Current();
+void Deserializer::DeserializePartial(Isolate* isolate, Object** root) {
+  isolate_ = isolate;
   for (int i = NEW_SPACE; i < kNumberOfSpaces; i++) {
     ASSERT(reservations_[i] != kUninitializedReservation);
   }
   isolate_->heap()->ReserveSpace(reservations_, &high_water_[0]);
   if (external_reference_decoder_ == NULL) {
-    external_reference_decoder_ = new ExternalReferenceDecoder();
+    external_reference_decoder_ = new ExternalReferenceDecoder(isolate);
   }
 
   // Keep track of the code space start and end pointers in case new
@@ -1277,12 +1276,12 @@ void SnapshotByteSink::PutInt(uintptr_t integer, const char* description) {
 }
 
 
-Serializer::Serializer(SnapshotByteSink* sink)
-    : sink_(sink),
+Serializer::Serializer(Isolate* isolate, SnapshotByteSink* sink)
+    : isolate_(isolate),
+      sink_(sink),
       current_root_index_(0),
-      external_reference_encoder_(new ExternalReferenceEncoder),
+      external_reference_encoder_(new ExternalReferenceEncoder(isolate)),
       root_index_wave_front_(0) {
-  isolate_ = Isolate::Current();
   // The serializer is meant to be used only to generate initial heap images
   // from a context in which there is only one isolate.
   ASSERT(isolate_->IsDefaultIsolate());
@@ -1298,9 +1297,9 @@ Serializer::~Serializer() {
 
 
 void StartupSerializer::SerializeStrongReferences() {
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = this->isolate();
   // No active threads.
-  CHECK_EQ(NULL, Isolate::Current()->thread_manager()->FirstThreadStateInUse());
+  CHECK_EQ(NULL, isolate->thread_manager()->FirstThreadStateInUse());
   // No active or weak handles.
   CHECK(isolate->handle_scope_implementer()->blocks()->is_empty());
   CHECK_EQ(0, isolate->global_handles()->NumberOfWeakHandles());
@@ -1319,7 +1318,7 @@ void PartialSerializer::Serialize(Object** object) {
 
 
 void Serializer::VisitPointers(Object** start, Object** end) {
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = this->isolate();;
 
   for (Object** current = start; current < end; current++) {
     if (start == isolate->heap()->roots_array_start()) {
@@ -1350,9 +1349,9 @@ void Serializer::VisitPointers(Object** start, Object** end) {
 // that correspond to the elements of this cache array.  On deserialization we
 // therefore need to visit the cache array.  This fills it up with pointers to
 // deserialized objects.
-void SerializerDeserializer::Iterate(ObjectVisitor* visitor) {
+void SerializerDeserializer::Iterate(Isolate* isolate,
+                                     ObjectVisitor* visitor) {
   if (Serializer::enabled()) return;
-  Isolate* isolate = Isolate::Current();
   for (int i = 0; ; i++) {
     if (isolate->serialize_partial_snapshot_cache_length() <= i) {
       // Extend the array ready to get a value from the visitor when
@@ -1371,7 +1370,7 @@ void SerializerDeserializer::Iterate(ObjectVisitor* visitor) {
 
 
 int PartialSerializer::PartialSnapshotCacheIndex(HeapObject* heap_object) {
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = this->isolate();
 
   for (int i = 0;
        i < isolate->serialize_partial_snapshot_cache_length();
@@ -1394,7 +1393,7 @@ int PartialSerializer::PartialSnapshotCacheIndex(HeapObject* heap_object) {
 
 
 int Serializer::RootIndex(HeapObject* heap_object, HowToCode from) {
-  Heap* heap = HEAP;
+  Heap* heap = isolate()->heap();
   if (heap->InNewSpace(heap_object)) return kInvalidRootIndex;
   for (int i = 0; i < root_index_wave_front_; i++) {
     Object* root = heap->roots_array_start()[i];
@@ -1484,8 +1483,7 @@ void StartupSerializer::SerializeWeakReferences() {
   // will contain some references needed to decode the partial snapshot.  We
   // add one entry with 'undefined' which is the sentinel that the deserializer
   // uses to know it is done deserializing the array.
-  Isolate* isolate = Isolate::Current();
-  Object* undefined = isolate->heap()->undefined_value();
+  Object* undefined = isolate()->heap()->undefined_value();
   VisitPointer(&undefined);
   HEAP->IterateWeakRoots(this, VISIT_ALL);
   Pad();

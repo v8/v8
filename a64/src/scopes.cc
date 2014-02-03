@@ -129,7 +129,7 @@ Scope::Scope(Scope* inner_scope,
              ScopeType scope_type,
              Handle<ScopeInfo> scope_info,
              Zone* zone)
-    : isolate_(Isolate::Current()),
+    : isolate_(zone->isolate()),
       inner_scopes_(4, zone),
       variables_(zone),
       internals_(4, zone),
@@ -152,7 +152,7 @@ Scope::Scope(Scope* inner_scope,
 
 
 Scope::Scope(Scope* inner_scope, Handle<String> catch_variable_name, Zone* zone)
-    : isolate_(Isolate::Current()),
+    : isolate_(zone->isolate()),
       inner_scopes_(1, zone),
       variables_(zone),
       internals_(0, zone),
@@ -1092,7 +1092,7 @@ bool Scope::ResolveVariable(CompilationInfo* info,
     // Assignment to const. Throw a syntax error.
     MessageLocation location(
         info->script(), proxy->position(), proxy->position());
-    Isolate* isolate = Isolate::Current();
+    Isolate* isolate = info->isolate();
     Factory* factory = isolate->factory();
     Handle<JSArray> array = factory->NewJSArray(0);
     Handle<Object> result =
@@ -1123,7 +1123,7 @@ bool Scope::ResolveVariable(CompilationInfo* info,
       // TODO(rossberg): generate more helpful error message.
       MessageLocation location(
           info->script(), proxy->position(), proxy->position());
-      Isolate* isolate = Isolate::Current();
+      Isolate* isolate = info->isolate();
       Factory* factory = isolate->factory();
       Handle<JSArray> array = factory->NewJSArray(1);
       USE(JSObject::SetElement(array, 0, var->name(), NONE, kStrictMode));

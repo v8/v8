@@ -103,50 +103,54 @@ bool ProfilerEventsProcessor::ProcessCodeEvent() {
   return false;
 }
 
-
-bool ProfilerEventsProcessor::ProcessTicks() {
-  while (true) {
-    while (!ticks_from_vm_buffer_.IsEmpty()
-        && ticks_from_vm_buffer_.Peek()->order ==
-           last_processed_code_event_id_) {
-      TickSampleEventRecord record;
-      ticks_from_vm_buffer_.Dequeue(&record);
-      generator_->RecordTickSample(record.sample);
-    }
-
-    const TickSampleEventRecord* record = ticks_buffer_.StartDequeue();
-    if (record == NULL) return !ticks_from_vm_buffer_.IsEmpty();
-    if (record->order != last_processed_code_event_id_) return true;
-    generator_->RecordTickSample(record->sample);
-    ticks_buffer_.FinishDequeue();
+ProfilerEventsProcessor::SampleProcessingResult
+    ProfilerEventsProcessor::ProcessOneSample() {
+  if (!ticks_from_vm_buffer_.IsEmpty()
+      && ticks_from_vm_buffer_.Peek()->order ==
+         last_processed_code_event_id_) {
+    TickSampleEventRecord record;
+    ticks_from_vm_buffer_.Dequeue(&record);
+    generator_->RecordTickSample(record.sample);
+    return OneSampleProcessed;
   }
-}
 
-
-void ProfilerEventsProcessor::ProcessEventsAndDoSample() {
-  ElapsedTimer timer;
-  timer.Start();
-  // Keep processing existing events until we need to do next sample.
-  while (!timer.HasExpired(period_)) {
-    if (ProcessTicks()) {
-      // All ticks of the current dequeue_order are processed,
-      // proceed to the next code event.
-      ProcessCodeEvent();
-    }
+  const TickSampleEventRecord* record = ticks_buffer_.Peek();
+  if (record == NULL) {
+    if (ticks_from_vm_buffer_.IsEmpty()) return NoSamplesInQueue;
+    return FoundSampleForNextCodeEvent;
   }
-  // Schedule next sample. sampler_ is NULL in tests.
-  if (sampler_) sampler_->DoSample();
+  if (record->order != last_processed_code_event_id_) {
+    return FoundSampleForNextCodeEvent;
+  }
+  generator_->RecordTickSample(record->sample);
+  ticks_buffer_.Remove();
+  return OneSampleProcessed;
 }
 
 
 void ProfilerEventsProcessor::Run() {
   while (running_) {
-    ProcessEventsAndDoSample();
+    ElapsedTimer timer;
+    timer.Start();
+    // Keep processing existing events until we need to do next sample.
+    do {
+      if (FoundSampleForNextCodeEvent == ProcessOneSample()) {
+        // All ticks of the current last_processed_code_event_id_ are
+        // processed, proceed to the next code event.
+        ProcessCodeEvent();
+      }
+    } while (!timer.HasExpired(period_));
+
+    // Schedule next sample. sampler_ is NULL in tests.
+    if (sampler_) sampler_->DoSample();
   }
 
   // Process remaining tick events.
   do {
-    ProcessTicks();
+    SampleProcessingResult result;
+    do {
+      result = ProcessOneSample();
+    } while (result == OneSampleProcessed);
   } while (ProcessCodeEvent());
 }
 
@@ -243,6 +247,8 @@ void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag,
     ASSERT(Script::cast(shared->script()));
     Script* script = Script::cast(shared->script());
     rec->entry->set_script_id(script->id()->value());
+    rec->entry->set_bailout_reason(
+        GetBailoutReason(shared->DisableOptimizationReason()));
   }
   rec->size = code->ExecutableSize();
   rec->shared = shared->address();
@@ -273,6 +279,8 @@ void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag,
   rec->entry->set_script_id(script->id()->value());
   rec->size = code->ExecutableSize();
   rec->shared = shared->address();
+  rec->entry->set_bailout_reason(
+      GetBailoutReason(shared->DisableOptimizationReason()));
   processor_->Enqueue(evt_rec);
 }
 
@@ -363,6 +371,8 @@ void CpuProfiler::SetterCallbackEvent(Name* name, Address entry_point) {
 
 CpuProfiler::CpuProfiler(Isolate* isolate)
     : isolate_(isolate),
+      sampling_interval_(TimeDelta::FromMicroseconds(
+          FLAG_cpu_profiler_sampling_interval)),
       profiles_(new CpuProfilesCollection()),
       next_profile_uid_(1),
       generator_(NULL),
@@ -376,6 +386,8 @@ CpuProfiler::CpuProfiler(Isolate* isolate,
                          ProfileGenerator* test_generator,
                          ProfilerEventsProcessor* test_processor)
     : isolate_(isolate),
+      sampling_interval_(TimeDelta::FromMicroseconds(
+          FLAG_cpu_profiler_sampling_interval)),
       profiles_(test_profiles),
       next_profile_uid_(1),
       generator_(test_generator),
@@ -387,6 +399,12 @@ CpuProfiler::CpuProfiler(Isolate* isolate,
 CpuProfiler::~CpuProfiler() {
   ASSERT(!is_profiling_);
   delete profiles_;
+}
+
+
+void CpuProfiler::set_sampling_interval(TimeDelta value) {
+  ASSERT(!is_profiling_);
+  sampling_interval_ = value;
 }
 
 
@@ -418,8 +436,7 @@ void CpuProfiler::StartProcessorIfNotStarted() {
     generator_ = new ProfileGenerator(profiles_);
     Sampler* sampler = logger->sampler();
     processor_ = new ProfilerEventsProcessor(
-        generator_, sampler,
-        TimeDelta::FromMicroseconds(FLAG_cpu_profiler_sampling_interval));
+        generator_, sampler, sampling_interval_);
     is_profiling_ = true;
     // Enumerate stuff we already have in the heap.
     ASSERT(isolate_->heap()->HasBeenSetUp());

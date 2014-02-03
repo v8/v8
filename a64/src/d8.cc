@@ -271,10 +271,10 @@ PerIsolateData::RealmScope::RealmScope(PerIsolateData* data) : data_(data) {
 PerIsolateData::RealmScope::~RealmScope() {
   // Drop realms to avoid keeping them alive.
   for (int i = 0; i < data_->realm_count_; ++i)
-    data_->realms_[i].Dispose(data_->isolate_);
+    data_->realms_[i].Dispose();
   delete[] data_->realms_;
   if (!data_->realm_shared_.IsEmpty())
-    data_->realm_shared_.Dispose(data_->isolate_);
+    data_->realm_shared_.Dispose();
 }
 
 
@@ -361,7 +361,7 @@ void Shell::RealmDispose(const v8::FunctionCallbackInfo<v8::Value>& args) {
     Throw("Invalid realm index");
     return;
   }
-  data->realms_[index].Dispose(isolate);
+  data->realms_[index].Dispose();
   data->realms_[index].Clear();
 }
 
@@ -420,7 +420,7 @@ void Shell::RealmSharedSet(Local<String> property,
                            const PropertyCallbackInfo<void>& info) {
   Isolate* isolate = info.GetIsolate();
   PerIsolateData* data = PerIsolateData::Get(isolate);
-  if (!data->realm_shared_.IsEmpty()) data->realm_shared_.Dispose(isolate);
+  if (!data->realm_shared_.IsEmpty()) data->realm_shared_.Dispose();
   data->realm_shared_.Reset(isolate, value);
 }
 
@@ -766,7 +766,7 @@ void Shell::InstallUtilityScript(Isolate* isolate) {
 #ifdef ENABLE_DEBUGGER_SUPPORT
   if (i::FLAG_debugger) printf("JavaScript debugger enabled\n");
   // Install the debugger object in the utility scope
-  i::Debug* debug = i::Isolate::Current()->debug();
+  i::Debug* debug = reinterpret_cast<i::Isolate*>(isolate)->debug();
   debug->Load();
   i::Handle<i::JSObject> js_debug
       = i::Handle<i::JSObject>(debug->debug_context()->global_object());
@@ -935,7 +935,7 @@ Local<Context> Shell::CreateEvaluationContext(Isolate* isolate) {
   Context::Scope scope(context);
 
 #ifndef V8_SHARED
-  i::Factory* factory = i::Isolate::Current()->factory();
+  i::Factory* factory = reinterpret_cast<i::Isolate*>(isolate)->factory();
   i::JSArguments js_args = i::FLAG_js_arguments;
   i::Handle<i::FixedArray> arguments_array =
       factory->NewFixedArray(js_args.argc());

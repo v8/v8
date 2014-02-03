@@ -1552,7 +1552,7 @@ bool Genesis::CompileScriptCached(Isolate* isolate,
                      : top_context->global_object(),
                      isolate);
   bool has_pending_exception;
-  Execution::Call(fun, receiver, 0, NULL, &has_pending_exception);
+  Execution::Call(isolate, fun, receiver, 0, NULL, &has_pending_exception);
   if (has_pending_exception) return false;
   return true;
 }
@@ -2604,7 +2604,7 @@ Genesis::Genesis(Isolate* isolate,
   // We can only de-serialize a context if the isolate was initialized from
   // a snapshot. Otherwise we have to build the context from scratch.
   if (isolate->initialized_from_snapshot()) {
-    native_context_ = Snapshot::NewContextFromSnapshot();
+    native_context_ = Snapshot::NewContextFromSnapshot(isolate);
   } else {
     native_context_ = Handle<Context>();
   }

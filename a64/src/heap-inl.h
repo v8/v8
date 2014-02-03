@@ -766,7 +766,7 @@ void Heap::CompletelyClearInstanceofCache() {
 MaybeObject* TranscendentalCache::Get(Type type, double input) {
   SubCache* cache = caches_[type];
   if (cache == NULL) {
-    caches_[type] = cache = new SubCache(type);
+    caches_[type] = cache = new SubCache(isolate_, type);
   }
   return cache->Get(input);
 }

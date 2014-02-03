@@ -32,6 +32,7 @@
 #include "arguments.h"
 #include "bootstrapper.h"
 #include "codegen.h"
+#include "cpu-profiler.h"
 #include "debug.h"
 #include "deoptimizer.h"
 #include "date.h"
@@ -40,6 +41,7 @@
 #include "full-codegen.h"
 #include "hydrogen.h"
 #include "isolate-inl.h"
+#include "log.h"
 #include "objects-inl.h"
 #include "objects-visiting.h"
 #include "objects-visiting-inl.h"
@@ -83,23 +85,19 @@ MaybeObject* Object::ToObject(Context* native_context) {
 }
 
 
-MaybeObject* Object::ToObject() {
+MaybeObject* Object::ToObject(Isolate* isolate) {
   if (IsJSReceiver()) {
     return this;
   } else if (IsNumber()) {
-    Isolate* isolate = Isolate::Current();
     Context* native_context = isolate->context()->native_context();
     return CreateJSValue(native_context->number_function(), this);
   } else if (IsBoolean()) {
-    Isolate* isolate = HeapObject::cast(this)->GetIsolate();
     Context* native_context = isolate->context()->native_context();
     return CreateJSValue(native_context->boolean_function(), this);
   } else if (IsString()) {
-    Isolate* isolate = HeapObject::cast(this)->GetIsolate();
     Context* native_context = isolate->context()->native_context();
     return CreateJSValue(native_context->string_function(), this);
   } else if (IsSymbol()) {
-    Isolate* isolate = HeapObject::cast(this)->GetIsolate();
     Context* native_context = isolate->context()->native_context();
     return CreateJSValue(native_context->symbol_function(), this);
   }
@@ -135,7 +133,7 @@ void Object::Lookup(Name* name, LookupResult* result) {
     } else if (IsBoolean()) {
       holder = native_context->boolean_function()->instance_prototype();
     } else {
-      Isolate::Current()->PushStackTraceAndDie(
+      result->isolate()->PushStackTraceAndDie(
           0xDEAD0000, this, JSReceiver::cast(this)->map(), 0xDEAD0001);
     }
   }
@@ -422,24 +420,22 @@ MaybeObject* JSProxy::GetPropertyWithHandler(Object* receiver_raw,
 }
 
 
-Handle<Object> Object::GetProperty(Handle<Object> object, Handle<Name> name) {
+Handle<Object> Object::GetProperty(Handle<Object> object,
+                                   Handle<Name> name) {
   // TODO(rossberg): The index test should not be here but in the GetProperty
   // method (or somewhere else entirely). Needs more global clean-up.
   uint32_t index;
+  Isolate* isolate = name->GetIsolate();
   if (name->AsArrayIndex(&index))
-    return GetElement(object, index);
-  Isolate* isolate = object->IsHeapObject()
-      ? Handle<HeapObject>::cast(object)->GetIsolate()
-      : Isolate::Current();
+    return GetElement(isolate, object, index);
   CALL_HEAP_FUNCTION(isolate, object->GetProperty(*name), Object);
 }
 
 
-Handle<Object> Object::GetElement(Handle<Object> object, uint32_t index) {
-  Isolate* isolate = object->IsHeapObject()
-      ? Handle<HeapObject>::cast(object)->GetIsolate()
-      : Isolate::Current();
-  CALL_HEAP_FUNCTION(isolate, object->GetElement(index), Object);
+Handle<Object> Object::GetElement(Isolate* isolate,
+                                  Handle<Object> object,
+                                  uint32_t index) {
+  CALL_HEAP_FUNCTION(isolate, object->GetElement(isolate, index), Object);
 }
 
 
@@ -491,8 +487,8 @@ MaybeObject* Object::GetPropertyWithDefinedGetter(Object* receiver,
 #endif
 
   bool has_pending_exception;
-  Handle<Object> result =
-      Execution::Call(fun, self, 0, NULL, &has_pending_exception, true);
+  Handle<Object> result = Execution::Call(
+      isolate, fun, self, 0, NULL, &has_pending_exception, true);
   // Check for pending exception and return the result.
   if (has_pending_exception) return Failure::Exception();
   return *result;
@@ -801,9 +797,7 @@ Handle<Object> Object::GetProperty(Handle<Object> object,
                                    LookupResult* result,
                                    Handle<Name> key,
                                    PropertyAttributes* attributes) {
-  Isolate* isolate = object->IsHeapObject()
-      ? Handle<HeapObject>::cast(object)->GetIsolate()
-      : Isolate::Current();
+  Isolate* isolate = result->isolate();
   CALL_HEAP_FUNCTION(
       isolate,
       object->GetProperty(*receiver, result, *key, attributes),
@@ -816,9 +810,7 @@ MaybeObject* Object::GetPropertyOrFail(Handle<Object> object,
                                        LookupResult* result,
                                        Handle<Name> key,
                                        PropertyAttributes* attributes) {
-  Isolate* isolate = object->IsHeapObject()
-      ? Handle<HeapObject>::cast(object)->GetIsolate()
-      : Isolate::Current();
+  Isolate* isolate = result->isolate();
   CALL_HEAP_FUNCTION_PASS_EXCEPTION(
       isolate,
       object->GetProperty(*receiver, result, *key, attributes));
@@ -910,10 +902,9 @@ MaybeObject* Object::GetProperty(Object* receiver,
 }
 
 
-MaybeObject* Object::GetElementWithReceiver(Object* receiver, uint32_t index) {
-  Isolate* isolate = IsSmi()
-      ? Isolate::Current()
-      : HeapObject::cast(this)->GetIsolate();
+MaybeObject* Object::GetElementWithReceiver(Isolate* isolate,
+                                            Object* receiver,
+                                            uint32_t index) {
   Heap* heap = isolate->heap();
   Object* holder = this;
 
@@ -2100,7 +2091,8 @@ void JSObject::EnqueueChangeRecord(Handle<JSObject> object,
   }
   Handle<Object> args[] = { type, object, name, old_value };
   bool threw;
-  Execution::Call(Handle<JSFunction>(isolate->observers_notify_change()),
+  Execution::Call(isolate,
+                  Handle<JSFunction>(isolate->observers_notify_change()),
                   isolate->factory()->undefined_value(),
                   old_value->IsTheHole() ? 3 : 4, args,
                   &threw);
@@ -2112,6 +2104,7 @@ void JSObject::DeliverChangeRecords(Isolate* isolate) {
   ASSERT(isolate->observer_delivery_pending());
   bool threw = false;
   Execution::Call(
+      isolate,
       isolate->observers_deliver_changes(),
       isolate->factory()->undefined_value(),
       0,
@@ -2888,7 +2881,8 @@ MaybeObject* JSReceiver::SetPropertyWithDefinedSetter(JSReceiver* setter,
 #endif
   bool has_pending_exception;
   Handle<Object> argv[] = { value_handle };
-  Execution::Call(fun, self, ARRAY_SIZE(argv), argv, &has_pending_exception);
+  Execution::Call(
+      isolate, fun, self, ARRAY_SIZE(argv), argv, &has_pending_exception);
   // Check for pending exception and return the result.
   if (has_pending_exception) return Failure::Exception();
   return *value_handle;
@@ -3012,45 +3006,98 @@ void Map::EnsureDescriptorSlack(Handle<Map> map, int slack) {
 }
 
 
-void Map::AppendCallbackDescriptors(Handle<Map> map,
-                                    Handle<Object> descriptors) {
-  Isolate* isolate = map->GetIsolate();
-  Handle<DescriptorArray> array(map->instance_descriptors());
-  NeanderArray callbacks(descriptors);
-  int nof_callbacks = callbacks.length();
+template<class T>
+static int AppendUniqueCallbacks(NeanderArray* callbacks,
+                                 Handle<typename T::Array> array,
+                                 int valid_descriptors) {
+  int nof_callbacks = callbacks->length();
 
-  ASSERT(array->NumberOfSlackDescriptors() >= nof_callbacks);
-
+  Isolate* isolate = array->GetIsolate();
   // Ensure the keys are unique names before writing them into the
   // instance descriptor. Since it may cause a GC, it has to be done before we
   // temporarily put the heap in an invalid state while appending descriptors.
   for (int i = 0; i < nof_callbacks; ++i) {
-    Handle<AccessorInfo> entry(AccessorInfo::cast(callbacks.get(i)));
-    if (!entry->name()->IsUniqueName()) {
-      Handle<String> key =
-          isolate->factory()->InternalizedStringFromString(
-              Handle<String>(String::cast(entry->name())));
-      entry->set_name(*key);
-    }
+    Handle<AccessorInfo> entry(AccessorInfo::cast(callbacks->get(i)));
+    if (entry->name()->IsUniqueName()) continue;
+    Handle<String> key =
+        isolate->factory()->InternalizedStringFromString(
+            Handle<String>(String::cast(entry->name())));
+    entry->set_name(*key);
   }
-
-  int nof = map->NumberOfOwnDescriptors();
 
   // Fill in new callback descriptors.  Process the callbacks from
   // back to front so that the last callback with a given name takes
   // precedence over previously added callbacks with that name.
   for (int i = nof_callbacks - 1; i >= 0; i--) {
-    AccessorInfo* entry = AccessorInfo::cast(callbacks.get(i));
+    AccessorInfo* entry = AccessorInfo::cast(callbacks->get(i));
     Name* key = Name::cast(entry->name());
     // Check if a descriptor with this name already exists before writing.
-    if (array->Search(key, nof) == DescriptorArray::kNotFound) {
-      CallbacksDescriptor desc(key, entry, entry->property_attributes());
-      array->Append(&desc);
-      nof += 1;
+    if (!T::Contains(key, entry, valid_descriptors, array)) {
+      T::Insert(key, entry, valid_descriptors, array);
+      valid_descriptors++;
     }
   }
 
+  return valid_descriptors;
+}
+
+struct DescriptorArrayAppender {
+  typedef DescriptorArray Array;
+  static bool Contains(Name* key,
+                       AccessorInfo* entry,
+                       int valid_descriptors,
+                       Handle<DescriptorArray> array) {
+    return array->Search(key, valid_descriptors) != DescriptorArray::kNotFound;
+  }
+  static void Insert(Name* key,
+                     AccessorInfo* entry,
+                     int valid_descriptors,
+                     Handle<DescriptorArray> array) {
+    CallbacksDescriptor desc(key, entry, entry->property_attributes());
+    array->Append(&desc);
+  }
+};
+
+
+struct FixedArrayAppender {
+  typedef FixedArray Array;
+  static bool Contains(Name* key,
+                       AccessorInfo* entry,
+                       int valid_descriptors,
+                       Handle<FixedArray> array) {
+    for (int i = 0; i < valid_descriptors; i++) {
+      if (key == AccessorInfo::cast(array->get(i))->name()) return true;
+    }
+    return false;
+  }
+  static void Insert(Name* key,
+                     AccessorInfo* entry,
+                     int valid_descriptors,
+                     Handle<FixedArray> array) {
+    array->set(valid_descriptors, entry);
+  }
+};
+
+
+void Map::AppendCallbackDescriptors(Handle<Map> map,
+                                    Handle<Object> descriptors) {
+  int nof = map->NumberOfOwnDescriptors();
+  Handle<DescriptorArray> array(map->instance_descriptors());
+  NeanderArray callbacks(descriptors);
+  ASSERT(array->NumberOfSlackDescriptors() >= callbacks.length());
+  nof = AppendUniqueCallbacks<DescriptorArrayAppender>(&callbacks, array, nof);
   map->SetNumberOfOwnDescriptors(nof);
+}
+
+
+int AccessorInfo::AppendUnique(Handle<Object> descriptors,
+                               Handle<FixedArray> array,
+                               int valid_descriptors) {
+  NeanderArray callbacks(descriptors);
+  ASSERT(array->length() >= callbacks.length() + valid_descriptors);
+  return AppendUniqueCallbacks<FixedArrayAppender>(&callbacks,
+                                                   array,
+                                                   valid_descriptors);
 }
 
 
@@ -3450,9 +3497,9 @@ MUST_USE_RESULT MaybeObject* JSProxy::SetPropertyViaPrototypesWithHandler(
   // Emulate [[GetProperty]] semantics for proxies.
   bool has_pending_exception;
   Handle<Object> argv[] = { result };
-  Handle<Object> desc =
-      Execution::Call(isolate->to_complete_property_descriptor(), result,
-                      ARRAY_SIZE(argv), argv, &has_pending_exception);
+  Handle<Object> desc = Execution::Call(
+      isolate, isolate->to_complete_property_descriptor(), result,
+      ARRAY_SIZE(argv), argv, &has_pending_exception);
   if (has_pending_exception) return Failure::Exception();
 
   // [[GetProperty]] requires to check that all properties are configurable.
@@ -3575,9 +3622,9 @@ MUST_USE_RESULT PropertyAttributes JSProxy::GetPropertyAttributeWithHandler(
 
   bool has_pending_exception;
   Handle<Object> argv[] = { result };
-  Handle<Object> desc =
-      Execution::Call(isolate->to_complete_property_descriptor(), result,
-                      ARRAY_SIZE(argv), argv, &has_pending_exception);
+  Handle<Object> desc = Execution::Call(
+      isolate, isolate->to_complete_property_descriptor(), result,
+      ARRAY_SIZE(argv), argv, &has_pending_exception);
   if (has_pending_exception) return NONE;
 
   // Convert result to PropertyAttributes.
@@ -3675,7 +3722,7 @@ MUST_USE_RESULT Handle<Object> JSProxy::CallTrap(const char* name,
   }
 
   bool threw;
-  return Execution::Call(trap, handler, argc, argv, &threw);
+  return Execution::Call(isolate, trap, handler, argc, argv, &threw);
 }
 
 
@@ -4067,7 +4114,8 @@ MaybeObject* JSObject::SetLocalPropertyIgnoreAttributes(
   PropertyAttributes old_attributes = ABSENT;
   bool is_observed = FLAG_harmony_observation && self->map()->is_observed();
   if (is_observed && lookup.IsProperty()) {
-    if (lookup.IsDataProperty()) old_value = Object::GetProperty(self, name);
+    if (lookup.IsDataProperty()) old_value =
+        Object::GetProperty(self, name);
     old_attributes = lookup.GetAttributes();
   }
 
@@ -5093,7 +5141,7 @@ Handle<Object> JSObject::DeleteElement(Handle<JSObject> object,
     if (should_enqueue_change_record) {
       old_value = object->GetLocalElementAccessorPair(index) != NULL
           ? Handle<Object>::cast(factory->the_hole_value())
-          : Object::GetElement(object, index);
+          : Object::GetElement(isolate, object, index);
     }
   }
 
@@ -6129,7 +6177,7 @@ void JSObject::DefineAccessor(Handle<JSObject> object,
     if (is_element) {
       preexists = object->HasLocalElement(index);
       if (preexists && object->GetLocalElementAccessorPair(index) == NULL) {
-        old_value = Object::GetElement(object, index);
+        old_value = Object::GetElement(isolate, object, index);
       }
     } else {
       LookupResult lookup(isolate);
@@ -6541,7 +6589,7 @@ MaybeObject* Map::ShareDescriptor(DescriptorArray* descriptors,
   } else {
     // Descriptor arrays grow by 50%.
     MaybeObject* maybe_descriptors = DescriptorArray::Allocate(
-        old_size, old_size < 4 ? 1 : old_size / 2);
+        GetIsolate(), old_size, old_size < 4 ? 1 : old_size / 2);
     if (!maybe_descriptors->To(&new_descriptors)) return maybe_descriptors;
 
     DescriptorArray::WhitenessWitness witness(new_descriptors);
@@ -6791,7 +6839,8 @@ MaybeObject* Map::CopyAddDescriptor(Descriptor* descriptor,
   }
 
   DescriptorArray* new_descriptors;
-  MaybeObject* maybe_descriptors = DescriptorArray::Allocate(old_size, 1);
+  MaybeObject* maybe_descriptors =
+      DescriptorArray::Allocate(GetIsolate(), old_size, 1);
   if (!maybe_descriptors->To(&new_descriptors)) return maybe_descriptors;
 
   DescriptorArray::WhitenessWitness witness(new_descriptors);
@@ -6838,7 +6887,7 @@ MaybeObject* DescriptorArray::CopyUpToAddAttributes(
   int size = enumeration_index;
 
   DescriptorArray* descriptors;
-  MaybeObject* maybe_descriptors = Allocate(size);
+  MaybeObject* maybe_descriptors = Allocate(GetIsolate(), size);
   if (!maybe_descriptors->To(&descriptors)) return maybe_descriptors;
   DescriptorArray::WhitenessWitness witness(descriptors);
 
@@ -6885,7 +6934,8 @@ MaybeObject* Map::CopyReplaceDescriptor(DescriptorArray* descriptors,
   ASSERT_LT(insertion_index, new_size);
 
   DescriptorArray* new_descriptors;
-  MaybeObject* maybe_descriptors = DescriptorArray::Allocate(new_size);
+  MaybeObject* maybe_descriptors =
+      DescriptorArray::Allocate(GetIsolate(), new_size);
   if (!maybe_descriptors->To(&new_descriptors)) return maybe_descriptors;
   DescriptorArray::WhitenessWitness witness(new_descriptors);
 
@@ -7675,8 +7725,10 @@ bool FixedArray::IsEqualTo(FixedArray* other) {
 #endif
 
 
-MaybeObject* DescriptorArray::Allocate(int number_of_descriptors, int slack) {
-  Heap* heap = Isolate::Current()->heap();
+MaybeObject* DescriptorArray::Allocate(Isolate* isolate,
+                                       int number_of_descriptors,
+                                       int slack) {
+  Heap* heap = isolate->heap();
   // Do not use DescriptorArray::cast on incomplete object.
   int size = number_of_descriptors + slack;
   if (size == 0) return heap->empty_descriptor_array();
@@ -7744,7 +7796,8 @@ MaybeObject* DescriptorArray::Merge(int verbatim,
   // Allocate a new descriptor array large enough to hold the required
   // descriptors, with minimally the exact same size as this descriptor array.
   MaybeObject* maybe_descriptors = DescriptorArray::Allocate(
-      new_size, Max(new_size, other->number_of_descriptors()) - new_size);
+      GetIsolate(), new_size,
+      Max(new_size, other->number_of_descriptors()) - new_size);
   if (!maybe_descriptors->To(&result)) return maybe_descriptors;
   ASSERT(result->length() > length() ||
          result->NumberOfSlackDescriptors() > 0 ||
@@ -7960,7 +8013,7 @@ bool Name::IsCacheable(Isolate* isolate) {
 
 
 bool String::LooksValid() {
-  if (!Isolate::Current()->heap()->Contains(this)) return false;
+  if (!GetIsolate()->heap()->Contains(this)) return false;
   return true;
 }
 
@@ -8120,8 +8173,7 @@ const uc16* SeqTwoByteString::SeqTwoByteStringGetData(unsigned start) {
 }
 
 
-void Relocatable::PostGarbageCollectionProcessing() {
-  Isolate* isolate = Isolate::Current();
+void Relocatable::PostGarbageCollectionProcessing(Isolate* isolate) {
   Relocatable* current = isolate->relocatable_top();
   while (current != NULL) {
     current->PostGarbageCollection();
@@ -8132,7 +8184,7 @@ void Relocatable::PostGarbageCollectionProcessing() {
 
 // Reserve space for statics needing saving and restoring.
 int Relocatable::ArchiveSpacePerThread() {
-  return sizeof(Isolate::Current()->relocatable_top());
+  return sizeof(Relocatable*);  // NOLINT
 }
 
 
@@ -8158,8 +8210,7 @@ char* Relocatable::Iterate(ObjectVisitor* v, char* thread_storage) {
 }
 
 
-void Relocatable::Iterate(ObjectVisitor* v) {
-  Isolate* isolate = Isolate::Current();
+void Relocatable::Iterate(Isolate* isolate, ObjectVisitor* v) {
   Iterate(v, isolate->relocatable_top());
 }
 
@@ -9273,7 +9324,7 @@ static bool CompileLazyHelper(CompilationInfo* info,
   ASSERT(info->IsOptimizing() || !info->shared_info()->is_compiled());
   ASSERT(!info->isolate()->has_pending_exception());
   bool result = Compiler::CompileLazy(info);
-  ASSERT(result != Isolate::Current()->has_pending_exception());
+  ASSERT(result != info->isolate()->has_pending_exception());
   if (!result && flag == CLEAR_EXCEPTION) {
     info->isolate()->clear_pending_exception();
   }
@@ -9663,12 +9714,13 @@ bool JSFunction::PassesFilter(const char* raw_filter) {
 }
 
 
-MaybeObject* Oddball::Initialize(const char* to_string,
+MaybeObject* Oddball::Initialize(Heap* heap,
+                                 const char* to_string,
                                  Object* to_number,
                                  byte kind) {
   String* internalized_to_string;
   { MaybeObject* maybe_string =
-      Isolate::Current()->heap()->InternalizeUtf8String(
+      heap->InternalizeUtf8String(
           CStrVector(to_string));
     if (!maybe_string->To(&internalized_to_string)) return maybe_string;
   }
@@ -9802,12 +9854,16 @@ void SharedFunctionInfo::DisableOptimization(BailoutReason reason) {
   // non-optimizable if optimization is disabled for the shared
   // function info.
   set_optimization_disabled(true);
+  set_bailout_reason(reason);
   // Code should be the lazy compilation stub or else unoptimized.  If the
   // latter, disable optimization for the code too.
   ASSERT(code()->kind() == Code::FUNCTION || code()->kind() == Code::BUILTIN);
   if (code()->kind() == Code::FUNCTION) {
     code()->set_optimizable(false);
   }
+  PROFILE(Isolate::Current(),
+      LogExistingFunction(Handle<SharedFunctionInfo>(this),
+                          Handle<Code>(code())));
   if (FLAG_trace_opt) {
     PrintF("[disabled optimization for ");
     ShortPrint();
@@ -10305,7 +10361,7 @@ void Code::ClearInlineCaches() {
     RelocInfo* info = it.rinfo();
     Code* target(Code::GetCodeFromTargetAddress(info->target_address()));
     if (target->is_inline_cache_stub()) {
-      IC::Clear(info->pc());
+      IC::Clear(this->GetIsolate(), info->pc());
     }
   }
 }
@@ -10326,6 +10382,18 @@ void Code::ClearTypeFeedbackCells(Heap* heap) {
       }
     }
   }
+}
+
+
+BailoutId Code::TranslatePcOffsetToAstId(uint32_t pc_offset) {
+  DisallowHeapAllocation no_gc;
+  ASSERT(kind() == FUNCTION);
+  for (FullCodeGenerator::BackEdgeTableIterator it(this, &no_gc);
+       !it.Done();
+       it.Next()) {
+    if (it.pc_offset() == pc_offset) return it.ast_id();
+  }
+  return BailoutId::None();
 }
 
 
@@ -10389,7 +10457,7 @@ int Code::GetAge() {
 
 void Code::GetCodeAgeAndParity(Code* code, Age* age,
                                MarkingParity* parity) {
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = code->GetIsolate();
   Builtins* builtins = isolate->builtins();
   Code* stub = NULL;
 #define HANDLE_CODE_AGE(AGE)                                            \
@@ -10789,7 +10857,8 @@ void Code::Disassemble(const char* name, FILE* out) {
     // If there is no back edge table, the "table start" will be at or after
     // (due to alignment) the end of the instruction stream.
     if (static_cast<int>(offset) < instruction_size()) {
-      FullCodeGenerator::BackEdgeTableIterator back_edges(this);
+      DisallowHeapAllocation no_gc;
+      FullCodeGenerator::BackEdgeTableIterator back_edges(this, &no_gc);
 
       PrintF(out, "Back edges (size = %u)\n", back_edges.table_length());
       PrintF(out, "ast_id  pc_offset  loop_depth\n");
@@ -10965,7 +11034,7 @@ static bool GetOldValue(Isolate* isolate,
   ASSERT(attributes != ABSENT);
   if (attributes == DONT_DELETE) return false;
   old_values->Add(object->GetLocalElementAccessorPair(index) == NULL
-      ? Object::GetElement(object, index)
+      ? Object::GetElement(isolate, object, index)
       : Handle<Object>::cast(isolate->factory()->the_hole_value()));
   indices->Add(index);
   return true;
@@ -10985,7 +11054,8 @@ static void EnqueueSpliceRecord(Handle<JSArray> object,
       { object, index_object, deleted, add_count_object };
 
   bool threw;
-  Execution::Call(Handle<JSFunction>(isolate->observers_enqueue_splice()),
+  Execution::Call(isolate,
+                  Handle<JSFunction>(isolate->observers_enqueue_splice()),
                   isolate->factory()->undefined_value(), ARRAY_SIZE(args), args,
                   &threw);
   ASSERT(!threw);
@@ -10998,7 +11068,8 @@ static void BeginPerformSplice(Handle<JSArray> object) {
   Handle<Object> args[] = { object };
 
   bool threw;
-  Execution::Call(Handle<JSFunction>(isolate->observers_begin_perform_splice()),
+  Execution::Call(isolate,
+                  Handle<JSFunction>(isolate->observers_begin_perform_splice()),
                   isolate->factory()->undefined_value(), ARRAY_SIZE(args), args,
                   &threw);
   ASSERT(!threw);
@@ -11011,7 +11082,8 @@ static void EndPerformSplice(Handle<JSArray> object) {
   Handle<Object> args[] = { object };
 
   bool threw;
-  Execution::Call(Handle<JSFunction>(isolate->observers_end_perform_splice()),
+  Execution::Call(isolate,
+                  Handle<JSFunction>(isolate->observers_end_perform_splice()),
                   isolate->factory()->undefined_value(), ARRAY_SIZE(args), args,
                   &threw);
   ASSERT(!threw);
@@ -11350,13 +11422,15 @@ void DependentCode::DeoptimizeDependentCodeGroup(
   int code_entries = starts.number_of_entries();
   if (start == end) return;
 
-  // Collect all the code to deoptimize.
-  Zone zone(isolate);
-  ZoneList<Code*> codes(end - start, &zone);
+  // Mark all the code that needs to be deoptimized.
+  bool marked = false;
   for (int i = start; i < end; i++) {
     if (is_code_at(i)) {
       Code* code = code_at(i);
-      if (!code->marked_for_deoptimization()) codes.Add(code, &zone);
+      if (!code->marked_for_deoptimization()) {
+        code->set_marked_for_deoptimization(true);
+        marked = true;
+      }
     } else {
       CompilationInfo* info = compilation_info_at(i);
       info->AbortDueToDependencyChange();
@@ -11372,7 +11446,8 @@ void DependentCode::DeoptimizeDependentCodeGroup(
     clear_at(i);
   }
   set_number_of_entries(group, 0);
-  Deoptimizer::DeoptimizeCodeList(isolate, &codes);
+
+  if (marked) Deoptimizer::DeoptimizeMarkedCode(isolate);
 }
 
 
@@ -12127,7 +12202,8 @@ Handle<Object> JSObject::SetElement(Handle<JSObject> object,
   if (object->HasExternalArrayElements()) {
     if (!value->IsNumber() && !value->IsUndefined()) {
       bool has_exception;
-      Handle<Object> number = Execution::ToNumber(value, &has_exception);
+      Handle<Object> number =
+          Execution::ToNumber(object->GetIsolate(), value, &has_exception);
       if (has_exception) return Handle<Object>();
       value = number;
     }
@@ -12204,7 +12280,7 @@ MaybeObject* JSObject::SetElement(uint32_t index,
 
   if (old_attributes != ABSENT) {
     if (self->GetLocalElementAccessorPair(index) == NULL)
-      old_value = Object::GetElement(self, index);
+      old_value = Object::GetElement(isolate, self, index);
   } else if (self->IsJSArray()) {
     // Store old array length in case adding an element grows the array.
     old_length_handle = handle(Handle<JSArray>::cast(self)->length(), isolate);
@@ -12246,7 +12322,7 @@ MaybeObject* JSObject::SetElement(uint32_t index,
   } else if (old_value->IsTheHole()) {
     EnqueueChangeRecord(self, "reconfigured", name, old_value);
   } else {
-    Handle<Object> new_value = Object::GetElement(self, index);
+    Handle<Object> new_value = Object::GetElement(isolate, self, index);
     bool value_changed = !old_value->SameValue(*new_value);
     if (old_attributes != new_attributes) {
       if (!value_changed) old_value = isolate->factory()->the_hole_value();
@@ -12574,7 +12650,7 @@ MaybeObject* JSObject::GetElementWithInterceptor(Object* receiver,
 
   Object* pt = holder_handle->GetPrototype();
   if (pt == heap->null_value()) return heap->undefined_value();
-  return pt->GetElementWithReceiver(*this_handle, index);
+  return pt->GetElementWithReceiver(isolate, *this_handle, index);
 }
 
 
@@ -15219,7 +15295,7 @@ MaybeObject* NameDictionary::TransformPropertiesToFastFor(
   // Allocate the instance descriptor.
   DescriptorArray* descriptors;
   MaybeObject* maybe_descriptors =
-      DescriptorArray::Allocate(instance_descriptor_length);
+      DescriptorArray::Allocate(GetIsolate(), instance_descriptor_length);
   if (!maybe_descriptors->To(&descriptors)) {
     return maybe_descriptors;
   }
@@ -15512,7 +15588,7 @@ void DebugInfo::ClearBreakPoint(Handle<DebugInfo> debug_info,
                                 int code_position,
                                 Handle<Object> break_point_object) {
   Handle<Object> break_point_info(debug_info->GetBreakPointInfo(code_position),
-                                  Isolate::Current());
+                                  debug_info->GetIsolate());
   if (break_point_info->IsUndefined()) return;
   BreakPointInfo::ClearBreakPoint(
       Handle<BreakPointInfo>::cast(break_point_info),
@@ -15525,7 +15601,7 @@ void DebugInfo::SetBreakPoint(Handle<DebugInfo> debug_info,
                               int source_position,
                               int statement_position,
                               Handle<Object> break_point_object) {
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = debug_info->GetIsolate();
   Handle<Object> break_point_info(debug_info->GetBreakPointInfo(code_position),
                                   isolate);
   if (!break_point_info->IsUndefined()) {
@@ -15639,7 +15715,7 @@ int DebugInfo::GetBreakPointInfoIndex(int code_position) {
 // Remove the specified break point object.
 void BreakPointInfo::ClearBreakPoint(Handle<BreakPointInfo> break_point_info,
                                      Handle<Object> break_point_object) {
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = break_point_info->GetIsolate();
   // If there are no break points just ignore.
   if (break_point_info->break_point_objects()->IsUndefined()) return;
   // If there is a single break point clear it if it is the same.

@@ -101,32 +101,32 @@ static V8_INLINE(bool TryLockNativeHandle(pthread_mutex_t* mutex)) {
 
 #elif V8_OS_WIN
 
-static V8_INLINE(void InitializeNativeHandle(CRITICAL_SECTION* cs)) {
+static V8_INLINE(void InitializeNativeHandle(PCRITICAL_SECTION cs)) {
   InitializeCriticalSection(cs);
 }
 
 
-static V8_INLINE(void InitializeRecursiveNativeHandle(CRITICAL_SECTION* cs)) {
+static V8_INLINE(void InitializeRecursiveNativeHandle(PCRITICAL_SECTION cs)) {
   InitializeCriticalSection(cs);
 }
 
 
-static V8_INLINE(void DestroyNativeHandle(CRITICAL_SECTION* cs)) {
+static V8_INLINE(void DestroyNativeHandle(PCRITICAL_SECTION cs)) {
   DeleteCriticalSection(cs);
 }
 
 
-static V8_INLINE(void LockNativeHandle(CRITICAL_SECTION* cs)) {
+static V8_INLINE(void LockNativeHandle(PCRITICAL_SECTION cs)) {
   EnterCriticalSection(cs);
 }
 
 
-static V8_INLINE(void UnlockNativeHandle(CRITICAL_SECTION* cs)) {
+static V8_INLINE(void UnlockNativeHandle(PCRITICAL_SECTION cs)) {
   LeaveCriticalSection(cs);
 }
 
 
-static V8_INLINE(bool TryLockNativeHandle(CRITICAL_SECTION* cs)) {
+static V8_INLINE(bool TryLockNativeHandle(PCRITICAL_SECTION cs)) {
   return TryEnterCriticalSection(cs);
 }
 
@@ -149,18 +149,12 @@ Mutex::~Mutex() {
 
 void Mutex::Lock() {
   LockNativeHandle(&native_handle_);
-#ifdef DEBUG
-  ASSERT_EQ(0, level_);
-  level_++;
-#endif
+  AssertUnheldAndMark();
 }
 
 
 void Mutex::Unlock() {
-#ifdef DEBUG
-  ASSERT_EQ(1, level_);
-  level_--;
-#endif
+  AssertHeldAndUnmark();
   UnlockNativeHandle(&native_handle_);
 }
 
@@ -169,10 +163,7 @@ bool Mutex::TryLock() {
   if (!TryLockNativeHandle(&native_handle_)) {
     return false;
   }
-#ifdef DEBUG
-  ASSERT_EQ(0, level_);
-  level_++;
-#endif
+  AssertUnheldAndMark();
   return true;
 }
 

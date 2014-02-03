@@ -36,7 +36,9 @@ namespace v8 {
 namespace internal {
 
 
-SaveContext::SaveContext(Isolate* isolate) : prev_(isolate->save_context()) {
+SaveContext::SaveContext(Isolate* isolate)
+  : isolate_(isolate),
+    prev_(isolate->save_context()) {
   if (isolate->context() != NULL) {
     context_ = Handle<Context>(isolate->context());
   }

@@ -34,6 +34,10 @@ test-api/Bug*: FAIL
 # BUG(382): Weird test. Can't guarantee that it never times out.
 test-api/ApplyInterruption: PASS || TIMEOUT
 
+# TODO(mstarzinger): Fail gracefully on multiple V8::Dispose calls.
+test-api/InitializeAndDisposeOnce: SKIP
+test-api/InitializeAndDisposeMultiple: SKIP
+
 # These tests always fail.  They are here to test test.py.  If
 # they don't fail then test.py has failed.
 test-serialize/TestThatAlwaysFails: FAIL
@@ -139,7 +143,7 @@ test-log/ProfLazyMode: SKIP
 # Native Client doesn't support sockets.
 test-debug/DebuggerAgent: SKIP
 test-debug/DebuggerAgentProtocolOverflowHeader: SKIP
-test-sockets/Socket: SKIP
+test-socket/Socket: SKIP
 
 # Profiling doesn't work on Native Client.
 test-cpu-profiler/*: SKIP

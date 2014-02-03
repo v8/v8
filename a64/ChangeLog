@@ -1,3 +1,24 @@
+2013-09-05: Version 3.21.11
+
+        Performance and stability improvements on all platforms.
+
+
+2013-09-04: Version 3.21.10
+
+        Fixed Eternal::IsEmpty logic (issue 2870).
+
+        Performance and stability improvements on all platforms.
+
+
+2013-09-03: Version 3.21.9
+
+        Deprecated Persistent functions which were marked to be deprecated.
+
+        Allowed uncacheable identifiers to go generic (issue 2867).
+
+        Performance and stability improvements on all platforms.
+
+
 2013-09-02: Version 3.21.8
 
         Added scriptId to StackTrace frames (issue 2865).

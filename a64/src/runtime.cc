@@ -2469,7 +2469,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_RegExpConstructResult) {
   }
   Object* new_object;
   { MaybeObject* maybe_new_object =
-        isolate->heap()->AllocateFixedArrayWithHoles(elements_count);
+        isolate->heap()->AllocateFixedArray(elements_count);
     if (!maybe_new_object->ToObject(&new_object)) return maybe_new_object;
   }
   FixedArray* elements = FixedArray::cast(new_object);
@@ -2621,8 +2621,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_IsClassicModeFunction) {
   if (!callable->IsJSFunction()) {
     HandleScope scope(isolate);
     bool threw = false;
-    Handle<Object> delegate =
-        Execution::TryGetFunctionDelegate(Handle<JSReceiver>(callable), &threw);
+    Handle<Object> delegate = Execution::TryGetFunctionDelegate(
+        isolate, Handle<JSReceiver>(callable), &threw);
     if (threw) return Failure::Exception();
     callable = JSFunction::cast(*delegate);
   }
@@ -2640,8 +2640,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetDefaultReceiver) {
   if (!callable->IsJSFunction()) {
     HandleScope scope(isolate);
     bool threw = false;
-    Handle<Object> delegate =
-        Execution::TryGetFunctionDelegate(Handle<JSReceiver>(callable), &threw);
+    Handle<Object> delegate = Execution::TryGetFunctionDelegate(
+        isolate, Handle<JSReceiver>(callable), &threw);
     if (threw) return Failure::Exception();
     callable = JSFunction::cast(*delegate);
   }
@@ -4774,10 +4774,10 @@ MaybeObject* Runtime::GetElementOrCharAt(Isolate* isolate,
   }
 
   if (object->IsString() || object->IsNumber() || object->IsBoolean()) {
-    return object->GetPrototype(isolate)->GetElement(index);
+    return object->GetPrototype(isolate)->GetElement(isolate, index);
   }
 
-  return object->GetElement(index);
+  return object->GetElement(isolate, index);
 }
 
 
@@ -4799,7 +4799,7 @@ MaybeObject* Runtime::HasObjectProperty(Isolate* isolate,
   } else {
     bool has_pending_exception = false;
     Handle<Object> converted =
-        Execution::ToString(key, &has_pending_exception);
+        Execution::ToString(isolate, key, &has_pending_exception);
     if (has_pending_exception) return Failure::Exception();
     name = Handle<Name>::cast(converted);
   }
@@ -4841,7 +4841,7 @@ MaybeObject* Runtime::GetObjectProperty(Isolate* isolate,
   } else {
     bool has_pending_exception = false;
     Handle<Object> converted =
-        Execution::ToString(key, &has_pending_exception);
+        Execution::ToString(isolate, key, &has_pending_exception);
     if (has_pending_exception) return Failure::Exception();
     name = Handle<Name>::cast(converted);
   }
@@ -5139,7 +5139,7 @@ MaybeObject* Runtime::SetObjectProperty(Isolate* isolate,
   if (object->IsJSProxy()) {
     bool has_pending_exception = false;
     Handle<Object> name = key->IsSymbol()
-        ? key : Execution::ToString(key, &has_pending_exception);
+        ? key : Execution::ToString(isolate, key, &has_pending_exception);
     if (has_pending_exception) return Failure::Exception();
     return JSProxy::cast(*object)->SetProperty(
         Name::cast(*name), *value, attr, strict_mode);
@@ -5168,7 +5168,8 @@ MaybeObject* Runtime::SetObjectProperty(Isolate* isolate,
     if (js_object->HasExternalArrayElements()) {
       if (!value->IsNumber() && !value->IsUndefined()) {
         bool has_exception;
-        Handle<Object> number = Execution::ToNumber(value, &has_exception);
+        Handle<Object> number =
+            Execution::ToNumber(isolate, value, &has_exception);
         if (has_exception) return Failure::Exception();
         value = number;
       }
@@ -5187,7 +5188,8 @@ MaybeObject* Runtime::SetObjectProperty(Isolate* isolate,
       if (js_object->HasExternalArrayElements()) {
         if (!value->IsNumber() && !value->IsUndefined()) {
           bool has_exception;
-          Handle<Object> number = Execution::ToNumber(value, &has_exception);
+          Handle<Object> number =
+              Execution::ToNumber(isolate, value, &has_exception);
           if (has_exception) return Failure::Exception();
           value = number;
         }
@@ -5204,7 +5206,8 @@ MaybeObject* Runtime::SetObjectProperty(Isolate* isolate,
 
   // Call-back into JavaScript to convert the key to a string.
   bool has_pending_exception = false;
-  Handle<Object> converted = Execution::ToString(key, &has_pending_exception);
+  Handle<Object> converted =
+      Execution::ToString(isolate, key, &has_pending_exception);
   if (has_pending_exception) return Failure::Exception();
   Handle<String> name = Handle<String>::cast(converted);
 
@@ -5255,7 +5258,8 @@ MaybeObject* Runtime::ForceSetObjectProperty(Isolate* isolate,
 
   // Call-back into JavaScript to convert the key to a string.
   bool has_pending_exception = false;
-  Handle<Object> converted = Execution::ToString(key, &has_pending_exception);
+  Handle<Object> converted =
+      Execution::ToString(isolate, key, &has_pending_exception);
   if (has_pending_exception) return Failure::Exception();
   Handle<String> name = Handle<String>::cast(converted);
 
@@ -5298,7 +5302,8 @@ MaybeObject* Runtime::DeleteObjectProperty(Isolate* isolate,
   } else {
     // Call-back into JavaScript to convert the key to a string.
     bool has_pending_exception = false;
-    Handle<Object> converted = Execution::ToString(key, &has_pending_exception);
+    Handle<Object> converted = Execution::ToString(
+        isolate, key, &has_pending_exception);
     if (has_pending_exception) return Failure::Exception();
     name = Handle<String>::cast(converted);
   }
@@ -5890,7 +5895,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetArgumentsProperty) {
   HandleScope scope(isolate);
   bool exception = false;
   Handle<Object> converted =
-      Execution::ToString(args.at<Object>(0), &exception);
+      Execution::ToString(isolate, args.at<Object>(0), &exception);
   if (exception) return Failure::Exception();
   Handle<String> key = Handle<String>::cast(converted);
 
@@ -5899,7 +5904,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetArgumentsProperty) {
     if (index < n) {
       return frame->GetParameter(index);
     } else {
-      return isolate->initial_object_prototype()->GetElement(index);
+      return isolate->initial_object_prototype()->GetElement(isolate, index);
     }
   }
 
@@ -6674,7 +6679,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NewStringWrapper) {
   SealHandleScope shs(isolate);
   ASSERT(args.length() == 1);
   CONVERT_ARG_CHECKED(String, value, 0);
-  return value->ToObject();
+  return value->ToObject(isolate);
 }
 
 
@@ -7523,7 +7528,7 @@ static Object* FlatStringCompare(String* x, String* y) {
     result = (r < 0) ? Smi::FromInt(LESS) : Smi::FromInt(GREATER);
   }
   ASSERT(result ==
-      StringCharacterStreamCompare(Isolate::Current()->runtime_state(), x, y));
+      StringCharacterStreamCompare(x->GetIsolate()->runtime_state(), x, y));
   return result;
 }
 
@@ -8151,7 +8156,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NewObjectFromBound) {
 
   if (!bound_function->IsJSFunction()) {
     bool exception_thrown;
-    bound_function = Execution::TryGetConstructorDelegate(bound_function,
+    bound_function = Execution::TryGetConstructorDelegate(isolate,
+                                                          bound_function,
                                                           &exception_thrown);
     if (exception_thrown) return Failure::Exception();
   }
@@ -8337,7 +8343,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ConcurrentRecompile) {
   }
   function->shared()->code()->set_profiler_ticks(0);
   ASSERT(FLAG_concurrent_recompilation);
-  Compiler::RecompileConcurrent(function);
+  if (!Compiler::RecompileConcurrent(function)) {
+    function->ReplaceCode(function->shared()->code());
+  }
   return isolate->heap()->undefined_value();
 }
 
@@ -8346,7 +8354,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InstallRecompiledCode) {
   HandleScope handle_scope(isolate);
   ASSERT(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
-  ASSERT(V8::UseCrankshaft() && FLAG_concurrent_recompilation);
+  ASSERT(isolate->use_crankshaft() && FLAG_concurrent_recompilation);
   isolate->optimizing_compiler_thread()->InstallOptimizedFunctions();
   return function->code();
 }
@@ -8506,7 +8514,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_OptimizeFunctionOnNextCall) {
       unoptimized->kind() == Code::FUNCTION) {
     CONVERT_ARG_HANDLE_CHECKED(String, type, 1);
     if (type->IsOneByteEqualTo(STATIC_ASCII_VECTOR("osr"))) {
-      for (int i = 0; i <= Code::kMaxLoopNestingMarker; i++) {
+      // Start patching from the currently patched loop nesting level.
+      int current_level = unoptimized->allow_osr_at_loop_nesting_level();
+      ASSERT(Deoptimizer::VerifyInterruptCode(
+                 isolate, unoptimized, current_level));
+      for (int i = current_level + 1; i <= Code::kMaxLoopNestingMarker; i++) {
         unoptimized->set_allow_osr_at_loop_nesting_level(i);
         isolate->runtime_profiler()->AttemptOnStackReplacement(*function);
       }
@@ -8532,7 +8544,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NeverOptimizeFunction) {
 RUNTIME_FUNCTION(MaybeObject*, Runtime_GetOptimizationStatus) {
   HandleScope scope(isolate);
   RUNTIME_ASSERT(args.length() == 1 || args.length() == 2);
-  if (!V8::UseCrankshaft()) {
+  if (!isolate->use_crankshaft()) {
     return Smi::FromInt(4);  // 4 == "never".
   }
   bool sync_with_compiler_thread = true;
@@ -8580,98 +8592,19 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CompileForOnStackReplacement) {
   // We're not prepared to handle a function with arguments object.
   ASSERT(!function->shared()->uses_arguments());
 
-  // We have hit a back edge in an unoptimized frame for a function that was
-  // selected for on-stack replacement.  Find the unoptimized code object.
-  Handle<Code> unoptimized(function->shared()->code(), isolate);
-  // Keep track of whether we've succeeded in optimizing.
-  bool succeeded = unoptimized->optimizable();
-  if (succeeded) {
-    // If we are trying to do OSR when there are already optimized
-    // activations of the function, it means (a) the function is directly or
-    // indirectly recursive and (b) an optimized invocation has been
-    // deoptimized so that we are currently in an unoptimized activation.
-    // Check for optimized activations of this function.
-    JavaScriptFrameIterator it(isolate);
-    while (succeeded && !it.done()) {
-      JavaScriptFrame* frame = it.frame();
-      succeeded = !frame->is_optimized() || frame->function() != *function;
-      it.Advance();
-    }
-  }
-
-  BailoutId ast_id = BailoutId::None();
-  if (succeeded) {
-    // The top JS function is this one, the PC is somewhere in the
-    // unoptimized code.
-    JavaScriptFrameIterator it(isolate);
-    JavaScriptFrame* frame = it.frame();
-    ASSERT(frame->function() == *function);
-    ASSERT(frame->LookupCode() == *unoptimized);
-    ASSERT(unoptimized->contains(frame->pc()));
-
-    // Use linear search of the unoptimized code's back edge table to find
-    // the AST id matching the PC.
-    uint32_t target_pc_offset =
-      static_cast<uint32_t>(frame->pc() - unoptimized->instruction_start());
-    uint32_t loop_depth = 0;
-
-    for (FullCodeGenerator::BackEdgeTableIterator back_edges(*unoptimized);
-         !back_edges.Done();
-         back_edges.Next()) {
-      if (back_edges.pc_offset() == target_pc_offset) {
-        ast_id = back_edges.ast_id();
-        loop_depth = back_edges.loop_depth();
-        break;
-      }
-    }
-    ASSERT(!ast_id.IsNone());
-
-    if (FLAG_trace_osr) {
-      PrintF("[replacing on-stack at AST id %d, loop depth %d in ",
-              ast_id.ToInt(), loop_depth);
-      function->PrintName();
-      PrintF("]\n");
-    }
-
-    // Try to compile the optimized code.  A true return value from
-    // CompileOptimized means that compilation succeeded, not necessarily
-    // that optimization succeeded.
-    if (JSFunction::CompileOptimized(function, ast_id, CLEAR_EXCEPTION) &&
-        function->IsOptimized()) {
-      DeoptimizationInputData* data = DeoptimizationInputData::cast(
-          function->code()->deoptimization_data());
-      if (data->OsrPcOffset()->value() >= 0) {
-        if (FLAG_trace_osr) {
-          PrintF("[on-stack replacement offset %d in optimized code]\n",
-               data->OsrPcOffset()->value());
-        }
-        ASSERT(BailoutId(data->OsrAstId()->value()) == ast_id);
-      } else {
-        // We may never generate the desired OSR entry if we emit an
-        // early deoptimize.
-        succeeded = false;
-      }
-    } else {
-      succeeded = false;
-    }
-  }
-
-  // Revert to the original interrupt calls in the original unoptimized code.
-  if (FLAG_trace_osr) {
-    PrintF("[restoring original interrupt calls in ");
-    function->PrintName();
-    PrintF("]\n");
-  }
-  Deoptimizer::RevertInterruptCode(isolate, *unoptimized);
-
   // If the optimization attempt succeeded, return the AST id tagged as a
   // smi. This tells the builtin that we need to translate the unoptimized
   // frame to an optimized one.
-  if (succeeded) {
+  BailoutId ast_id =
+      (FLAG_concurrent_recompilation && FLAG_concurrent_osr)
+          ? Compiler::CompileForConcurrentOSR(function)
+          : Compiler::CompileForOnStackReplacement(function);
+  if (!ast_id.IsNone()) {
     ASSERT(function->code()->kind() == Code::OPTIMIZED_FUNCTION);
     return Smi::FromInt(ast_id.ToInt());
   } else {
-    if (function->IsMarkedForLazyRecompilation()) {
+    if (function->IsMarkedForLazyRecompilation() ||
+        function->IsMarkedForConcurrentRecompilation()) {
       function->ReplaceCode(function->shared()->code());
     }
     return Smi::FromInt(-1);
@@ -8734,8 +8667,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Call) {
   bool threw;
   Handle<JSReceiver> hfun(fun);
   Handle<Object> hreceiver(receiver, isolate);
-  Handle<Object> result =
-      Execution::Call(hfun, hreceiver, argc, argv, &threw, true);
+  Handle<Object> result = Execution::Call(
+      isolate, hfun, hreceiver, argc, argv, &threw, true);
 
   if (threw) return Failure::Exception();
   return *result;
@@ -8765,12 +8698,12 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Apply) {
   }
 
   for (int i = 0; i < argc; ++i) {
-    argv[i] = Object::GetElement(arguments, offset + i);
+    argv[i] = Object::GetElement(isolate, arguments, offset + i);
   }
 
   bool threw;
-  Handle<Object> result =
-      Execution::Call(fun, receiver, argc, argv, &threw, true);
+  Handle<Object> result = Execution::Call(
+      isolate, fun, receiver, argc, argv, &threw, true);
 
   if (threw) return Failure::Exception();
   return *result;
@@ -8781,7 +8714,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFunctionDelegate) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);
   RUNTIME_ASSERT(!args[0]->IsJSFunction());
-  return *Execution::GetFunctionDelegate(args.at<Object>(0));
+  return *Execution::GetFunctionDelegate(isolate, args.at<Object>(0));
 }
 
 
@@ -8789,7 +8722,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetConstructorDelegate) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);
   RUNTIME_ASSERT(!args[0]->IsJSFunction());
-  return *Execution::GetConstructorDelegate(args.at<Object>(0));
+  return *Execution::GetConstructorDelegate(isolate, args.at<Object>(0));
 }
 
 
@@ -8838,7 +8771,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_PushWithContext) {
     extension_object = JSReceiver::cast(args[0]);
   } else {
     // Convert the object to a proper JavaScript object.
-    MaybeObject* maybe_js_object = args[0]->ToObject();
+    MaybeObject* maybe_js_object = args[0]->ToObject(isolate);
     if (!maybe_js_object->To(&extension_object)) {
       if (Failure::cast(maybe_js_object)->IsInternalError()) {
         HandleScope scope(isolate);
@@ -10152,7 +10085,7 @@ static bool IterateElements(Isolate* isolate,
         } else if (receiver->HasElement(j)) {
           // Call GetElement on receiver, not its prototype, or getters won't
           // have the correct receiver.
-          element_value = Object::GetElement(receiver, j);
+          element_value = Object::GetElement(isolate, receiver, j);
           RETURN_IF_EMPTY_HANDLE_VALUE(isolate, element_value, false);
           visitor->visit(j, element_value);
         }
@@ -10177,7 +10110,8 @@ static bool IterateElements(Isolate* isolate,
         } else if (receiver->HasElement(j)) {
           // Call GetElement on receiver, not its prototype, or getters won't
           // have the correct receiver.
-          Handle<Object> element_value = Object::GetElement(receiver, j);
+          Handle<Object> element_value =
+              Object::GetElement(isolate, receiver, j);
           RETURN_IF_EMPTY_HANDLE_VALUE(isolate, element_value, false);
           visitor->visit(j, element_value);
         }
@@ -10196,7 +10130,7 @@ static bool IterateElements(Isolate* isolate,
       while (j < n) {
         HandleScope loop_scope(isolate);
         uint32_t index = indices[j];
-        Handle<Object> element = Object::GetElement(receiver, index);
+        Handle<Object> element = Object::GetElement(isolate, receiver, index);
         RETURN_IF_EMPTY_HANDLE_VALUE(isolate, element, false);
         visitor->visit(index, element);
         // Skip to next different index (i.e., omit duplicates).
@@ -10576,7 +10510,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_LookupAccessor) {
 RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugBreak) {
   SealHandleScope shs(isolate);
   ASSERT(args.length() == 0);
-  return Execution::DebugBreakHelper();
+  return Execution::DebugBreakHelper(isolate);
 }
 
 
@@ -12550,7 +12484,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_IsBreakOnException) {
 //          of frames to step down.
 RUNTIME_FUNCTION(MaybeObject*, Runtime_PrepareStep) {
   HandleScope scope(isolate);
-  ASSERT(args.length() == 3);
+  ASSERT(args.length() == 4);
   // Check arguments.
   Object* check;
   { MaybeObject* maybe_check = Runtime_CheckExecutionState(
@@ -12561,6 +12495,15 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_PrepareStep) {
     return isolate->Throw(isolate->heap()->illegal_argument_string());
   }
 
+  CONVERT_NUMBER_CHECKED(int, wrapped_frame_id, Int32, args[3]);
+
+  StackFrame::Id frame_id;
+  if (wrapped_frame_id == 0) {
+    frame_id = StackFrame::NO_ID;
+  } else {
+    frame_id = UnwrapFrameId(wrapped_frame_id);
+  }
+
   // Get the step action and check validity.
   StepAction step_action = static_cast<StepAction>(NumberToInt32(args[1]));
   if (step_action != StepIn &&
@@ -12569,6 +12512,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_PrepareStep) {
       step_action != StepInMin &&
       step_action != StepMin) {
     return isolate->Throw(isolate->heap()->illegal_argument_string());
+  }
+
+  if (frame_id != StackFrame::NO_ID && step_action != StepNext &&
+      step_action != StepMin && step_action != StepOut) {
+    return isolate->ThrowIllegalOperation();
   }
 
   // Get the number of steps.
@@ -12582,7 +12530,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_PrepareStep) {
 
   // Prepare step.
   isolate->debug()->PrepareStep(static_cast<StepAction>(step_action),
-                                step_count);
+                                step_count,
+                                frame_id);
   return isolate->heap()->undefined_value();
 }
 
@@ -12648,7 +12597,7 @@ static MaybeObject* DebugEvaluate(Isolate* isolate,
           shared, context, NOT_TENURED);
   bool pending_exception;
   Handle<Object> result = Execution::Call(
-      eval_fun, receiver, 0, NULL, &pending_exception);
+      isolate, eval_fun, receiver, 0, NULL, &pending_exception);
 
   if (pending_exception) return Failure::Exception();
 
@@ -12687,7 +12636,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugEvaluate) {
   Handle<Object> context_extension(args[5], isolate);
 
   // Handle the processing of break.
-  DisableBreak disable_break_save(disable_break);
+  DisableBreak disable_break_save(isolate, disable_break);
 
   // Get the frame where the debugging is performed.
   StackFrame::Id id = UnwrapFrameId(wrapped_id);
@@ -12754,7 +12703,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugEvaluateGlobal) {
   Handle<Object> context_extension(args[3], isolate);
 
   // Handle the processing of break.
-  DisableBreak disable_break_save(disable_break);
+  DisableBreak disable_break_save(isolate, disable_break);
 
   // Enter the top context from before the debugger was invoked.
   SaveContext save(isolate);
@@ -13419,11 +13368,19 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ExecuteInDebugContext) {
   bool pending_exception;
   {
     if (without_debugger) {
-      result = Execution::Call(function, isolate->global_object(), 0, NULL,
+      result = Execution::Call(isolate,
+                               function,
+                               isolate->global_object(),
+                               0,
+                               NULL,
                                &pending_exception);
     } else {
-      EnterDebugger enter_debugger;
-      result = Execution::Call(function, isolate->global_object(), 0, NULL,
+      EnterDebugger enter_debugger(isolate);
+      result = Execution::Call(isolate,
+                               function,
+                               isolate->global_object(),
+                               0,
+                               NULL,
                                &pending_exception);
     }
   }
@@ -13584,7 +13541,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetLanguageTagVariants) {
   Handle<Name> base =
       isolate->factory()->NewStringFromAscii(CStrVector("base"));
   for (unsigned int i = 0; i < length; ++i) {
-    MaybeObject* maybe_string = input->GetElement(i);
+    MaybeObject* maybe_string = input->GetElement(isolate, i);
     Object* locale_id;
     if (!maybe_string->ToObject(&locale_id) || !locale_id->IsString()) {
       return isolate->Throw(isolate->heap()->illegal_argument_string());
@@ -13715,7 +13672,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InternalDateFormat) {
   CONVERT_ARG_HANDLE_CHECKED(JSDate, date, 1);
 
   bool has_pending_exception = false;
-  Handle<Object> value = Execution::ToNumber(date, &has_pending_exception);
+  Handle<Object> value =
+      Execution::ToNumber(isolate, date, &has_pending_exception);
   if (has_pending_exception) {
     ASSERT(isolate->has_pending_exception());
     return Failure::Exception();
@@ -13755,7 +13713,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InternalDateParse) {
 
   bool has_pending_exception = false;
   Handle<JSDate> result = Handle<JSDate>::cast(
-      Execution::NewDate(static_cast<double>(date), &has_pending_exception));
+      Execution::NewDate(
+          isolate, static_cast<double>(date), &has_pending_exception));
   if (has_pending_exception) {
     ASSERT(isolate->has_pending_exception());
     return Failure::Exception();
@@ -13817,7 +13776,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InternalNumberFormat) {
   CONVERT_ARG_HANDLE_CHECKED(Object, number, 1);
 
   bool has_pending_exception = false;
-  Handle<Object> value = Execution::ToNumber(number, &has_pending_exception);
+  Handle<Object> value = Execution::ToNumber(
+      isolate, number, &has_pending_exception);
   if (has_pending_exception) {
     ASSERT(isolate->has_pending_exception());
     return Failure::Exception();
@@ -14287,7 +14247,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFromCache) {
     // This handle is nor shared, nor used later, so it's safe.
     Handle<Object> argv[] = { key_handle };
     bool pending_exception;
-    value = Execution::Call(factory,
+    value = Execution::Call(isolate,
+                            factory,
                             receiver,
                             ARRAY_SIZE(argv),
                             argv,
@@ -14656,7 +14617,6 @@ static const Runtime::Function kIntrinsicFunctions[] = {
 
 MaybeObject* Runtime::InitializeIntrinsicFunctionNames(Heap* heap,
                                                        Object* dictionary) {
-  ASSERT(Isolate::Current()->heap() == heap);
   ASSERT(dictionary != NULL);
   ASSERT(NameDictionary::cast(dictionary)->NumberOfElements() == 0);
   for (int i = 0; i < kNumFunctions; ++i) {

@@ -30,6 +30,7 @@
 
 #include "atomicops.h"
 #include "flags.h"
+#include "list.h"
 #include "platform.h"
 #include "platform/mutex.h"
 #include "platform/time.h"
@@ -51,7 +52,11 @@ class OptimizingCompilerThread : public Thread {
 #endif
       isolate_(isolate),
       stop_semaphore_(0),
-      input_queue_semaphore_(0) {
+      input_queue_semaphore_(0),
+      osr_candidates_(2),
+      ready_for_osr_(2),
+      osr_hits_(0),
+      osr_attempts_(0) {
     NoBarrier_Store(&stop_thread_, static_cast<AtomicWord>(CONTINUE));
     NoBarrier_Store(&queue_length_, static_cast<AtomicWord>(0));
   }
@@ -62,6 +67,13 @@ class OptimizingCompilerThread : public Thread {
   void Flush();
   void QueueForOptimization(OptimizingCompiler* optimizing_compiler);
   void InstallOptimizedFunctions();
+  OptimizingCompiler* FindReadyOSRCandidate(Handle<JSFunction> function,
+                                            uint32_t osr_pc_offset);
+  bool IsQueuedForOSR(Handle<JSFunction> function, uint32_t osr_pc_offset);
+
+  // Remove the oldest OSR candidates that are ready so that we
+  // only have |limit| left waiting.
+  void RemoveStaleOSRCandidates(int limit = kReadyForOSRLimit);
 
   inline bool IsQueueAvailable() {
     // We don't need a barrier since we have a data dependency right
@@ -86,7 +98,6 @@ class OptimizingCompilerThread : public Thread {
 
   void FlushInputQueue(bool restore_function_code);
   void FlushOutputQueue(bool restore_function_code);
-
   void CompileNext();
 
 #ifdef DEBUG
@@ -97,13 +108,27 @@ class OptimizingCompilerThread : public Thread {
   Isolate* isolate_;
   Semaphore stop_semaphore_;
   Semaphore input_queue_semaphore_;
+
+  // Queue of incoming recompilation tasks (including OSR).
   UnboundQueue<OptimizingCompiler*> input_queue_;
+  // Queue of recompilation tasks ready to be installed (excluding OSR).
   UnboundQueue<OptimizingCompiler*> output_queue_;
+  // List of all OSR related recompilation tasks (both incoming and ready ones).
+  List<OptimizingCompiler*> osr_candidates_;
+  // List of recompilation tasks ready for OSR.
+  List<OptimizingCompiler*> ready_for_osr_;
+
   Mutex install_mutex_;
   volatile AtomicWord stop_thread_;
   volatile Atomic32 queue_length_;
   TimeDelta time_spent_compiling_;
   TimeDelta time_spent_total_;
+
+  Mutex osr_list_mutex_;
+  int osr_hits_;
+  int osr_attempts_;
+
+  static const int kReadyForOSRLimit = 4;
 };
 
 } }  // namespace v8::internal

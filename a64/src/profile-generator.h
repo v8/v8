@@ -88,6 +88,10 @@ class CodeEntry {
   INLINE(void set_shared_id(int shared_id)) { shared_id_ = shared_id; }
   INLINE(int script_id() const) { return script_id_; }
   INLINE(void set_script_id(int script_id)) { script_id_ = script_id; }
+  INLINE(void set_bailout_reason(const char* bailout_reason)) {
+    bailout_reason_ = bailout_reason;
+  }
+  INLINE(const char* bailout_reason() const) { return bailout_reason_; }
 
   INLINE(static bool is_js_function_tag(Logger::LogEventsAndTags tag));
 
@@ -105,6 +109,7 @@ class CodeEntry {
 
   static const char* const kEmptyNamePrefix;
   static const char* const kEmptyResourceName;
+  static const char* const kEmptyBailoutReason;
 
  private:
   Logger::LogEventsAndTags tag_ : 8;
@@ -116,6 +121,7 @@ class CodeEntry {
   int shared_id_;
   int script_id_;
   List<OffsetRange>* no_frame_ranges_;
+  const char* bailout_reason_;
 
   DISALLOW_COPY_AND_ASSIGN(CodeEntry);
 };

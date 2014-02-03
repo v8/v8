@@ -57,6 +57,11 @@ class V8_EXPORT CpuProfileNode {
    */
   int GetLineNumber() const;
 
+  /** Returns bailout reason for the function
+    * if the optimization was disabled for it.
+    */
+  const char* GetBailoutReason() const;
+
   /** DEPRECATED. Please use GetHitCount instead.
     * Returns the count of samples where function was currently executing.
     */
@@ -141,13 +146,11 @@ class V8_EXPORT CpuProfile {
 class V8_EXPORT CpuProfiler {
  public:
   /**
-   * A note on security tokens usage. As scripts from different
-   * origins can run inside a single V8 instance, it is possible to
-   * have functions from different security contexts intermixed in a
-   * single CPU profile. To avoid exposing function names belonging to
-   * other contexts, filtering by security token is performed while
-   * obtaining profiling results.
+   * Changes default CPU profiler sampling interval to the specified number
+   * of microseconds. Default interval is 1000us. This method must be called
+   * when there are no profiles being recorded.
    */
+  void SetSamplingInterval(int us);
 
   /**
    * Returns the number of profiles collected (doesn't include

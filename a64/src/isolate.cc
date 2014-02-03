@@ -345,35 +345,23 @@ Thread::LocalStorageKey Isolate::per_isolate_thread_data_key_;
 #ifdef DEBUG
 Thread::LocalStorageKey PerThreadAssertScopeBase::thread_local_key;
 #endif  // DEBUG
-RecursiveMutex Isolate::process_wide_mutex_;
+Mutex Isolate::process_wide_mutex_;
 Isolate::ThreadDataTable* Isolate::thread_data_table_ = NULL;
 Atomic32 Isolate::isolate_counter_ = 0;
-
-Isolate::PerIsolateThreadData* Isolate::AllocatePerIsolateThreadData(
-    ThreadId thread_id) {
-  ASSERT(!thread_id.Equals(ThreadId::Invalid()));
-  PerIsolateThreadData* per_thread = new PerIsolateThreadData(this, thread_id);
-  {
-    LockGuard<RecursiveMutex> lock_guard(&process_wide_mutex_);
-    ASSERT(thread_data_table_->Lookup(this, thread_id) == NULL);
-    thread_data_table_->Insert(per_thread);
-    ASSERT(thread_data_table_->Lookup(this, thread_id) == per_thread);
-  }
-  return per_thread;
-}
-
 
 Isolate::PerIsolateThreadData*
     Isolate::FindOrAllocatePerThreadDataForThisThread() {
   ThreadId thread_id = ThreadId::Current();
   PerIsolateThreadData* per_thread = NULL;
   {
-    LockGuard<RecursiveMutex> lock_guard(&process_wide_mutex_);
+    LockGuard<Mutex> lock_guard(&process_wide_mutex_);
     per_thread = thread_data_table_->Lookup(this, thread_id);
     if (per_thread == NULL) {
-      per_thread = AllocatePerIsolateThreadData(thread_id);
+      per_thread = new PerIsolateThreadData(this, thread_id);
+      thread_data_table_->Insert(per_thread);
     }
   }
+  ASSERT(thread_data_table_->Lookup(this, thread_id) == per_thread);
   return per_thread;
 }
 
@@ -388,7 +376,7 @@ Isolate::PerIsolateThreadData* Isolate::FindPerThreadDataForThread(
     ThreadId thread_id) {
   PerIsolateThreadData* per_thread = NULL;
   {
-    LockGuard<RecursiveMutex> lock_guard(&process_wide_mutex_);
+    LockGuard<Mutex> lock_guard(&process_wide_mutex_);
     per_thread = thread_data_table_->Lookup(this, thread_id);
   }
   return per_thread;
@@ -396,7 +384,7 @@ Isolate::PerIsolateThreadData* Isolate::FindPerThreadDataForThread(
 
 
 void Isolate::EnsureDefaultIsolate() {
-  LockGuard<RecursiveMutex> lock_guard(&process_wide_mutex_);
+  LockGuard<Mutex> lock_guard(&process_wide_mutex_);
   if (default_isolate_ == NULL) {
     isolate_key_ = Thread::CreateThreadLocalKey();
     thread_id_key_ = Thread::CreateThreadLocalKey();
@@ -569,11 +557,11 @@ Handle<String> Isolate::StackTraceString() {
   if (stack_trace_nesting_level_ == 0) {
     stack_trace_nesting_level_++;
     HeapStringAllocator allocator;
-    StringStream::ClearMentionedObjectCache();
+    StringStream::ClearMentionedObjectCache(this);
     StringStream accumulator(&allocator);
     incomplete_message_ = &accumulator;
     PrintStack(&accumulator);
-    Handle<String> stack_trace = accumulator.ToString();
+    Handle<String> stack_trace = accumulator.ToString(this);
     incomplete_message_ = NULL;
     stack_trace_nesting_level_ = 0;
     return stack_trace;
@@ -873,7 +861,7 @@ void Isolate::PrintStack(FILE* out) {
       allocator = preallocated_message_space_;
     }
 
-    StringStream::ClearMentionedObjectCache();
+    StringStream::ClearMentionedObjectCache(this);
     StringStream accumulator(allocator);
     incomplete_message_ = &accumulator;
     PrintStack(&accumulator);
@@ -917,7 +905,7 @@ void Isolate::PrintStack(StringStream* accumulator) {
   }
   // The MentionedObjectCache is not GC-proof at the moment.
   DisallowHeapAllocation no_gc;
-  ASSERT(StringStream::IsMentionedObjectCacheClear());
+  ASSERT(StringStream::IsMentionedObjectCacheClear(this));
 
   // Avoid printing anything if there are no frames.
   if (c_entry_fp(thread_local_top()) == 0) return;
@@ -930,7 +918,7 @@ void Isolate::PrintStack(StringStream* accumulator) {
       "\n==== Details ================================================\n\n");
   PrintFrames(this, accumulator, StackFrame::DETAILS);
 
-  accumulator->PrintMentionedObjectCache();
+  accumulator->PrintMentionedObjectCache(this);
   accumulator->Add("=====================\n\n");
 }
 
@@ -1371,7 +1359,8 @@ void Isolate::DoThrow(Object* exception, MessageLocation* location) {
       // exception object to be set later must not be turned into a string.
       if (exception_arg->IsJSObject() && !IsErrorObject(exception_arg)) {
         bool failed = false;
-        exception_arg = Execution::ToDetailString(exception_arg, &failed);
+        exception_arg =
+            Execution::ToDetailString(this, exception_arg, &failed);
         if (failed) {
           exception_arg = factory()->InternalizeOneByteString(
               STATIC_ASCII_VECTOR("exception"));
@@ -1720,15 +1709,6 @@ void Isolate::ThreadDataTable::Remove(PerIsolateThreadData* data) {
 }
 
 
-void Isolate::ThreadDataTable::Remove(Isolate* isolate,
-                                      ThreadId thread_id) {
-  PerIsolateThreadData* data = Lookup(isolate, thread_id);
-  if (data != NULL) {
-    Remove(data);
-  }
-}
-
-
 void Isolate::ThreadDataTable::RemoveAllThreads(Isolate* isolate) {
   PerIsolateThreadData* data = list_;
   while (data != NULL) {
@@ -1796,6 +1776,8 @@ Isolate::Isolate()
       regexp_stack_(NULL),
       date_cache_(NULL),
       code_stub_interface_descriptors_(NULL),
+      has_fatal_error_(false),
+      use_crankshaft_(true),
       initialized_from_snapshot_(false),
       cpu_profiler_(NULL),
       heap_profiler_(NULL),
@@ -1866,7 +1848,7 @@ void Isolate::TearDown() {
 
   Deinit();
 
-  { LockGuard<RecursiveMutex> lock_guard(&process_wide_mutex_);
+  { LockGuard<Mutex> lock_guard(&process_wide_mutex_);
     thread_data_table_->RemoveAllThreads(this);
   }
 
@@ -2147,10 +2129,15 @@ void Isolate::InitializeDebugger() {
 
 bool Isolate::Init(Deserializer* des) {
   ASSERT(state_ != INITIALIZED);
-  ASSERT(Isolate::Current() == this);
   TRACE_ISOLATE(init);
 
   stress_deopt_count_ = FLAG_deopt_every_n_times;
+
+  has_fatal_error_ = false;
+
+  use_crankshaft_ = FLAG_crankshaft
+      && !Serializer::enabled()
+      && CPU::SupportsCrankshaft();
 
   if (function_entry_hook() != NULL) {
     // When function entry hooking is in effect, we have to create the code
@@ -2170,8 +2157,7 @@ bool Isolate::Init(Deserializer* des) {
   memory_allocator_ = new MemoryAllocator(this);
   code_range_ = new CodeRange(this);
 
-  // Safe after setting Heap::isolate_, initializing StackGuard and
-  // ensuring that Isolate::Current() == this.
+  // Safe after setting Heap::isolate_, and initializing StackGuard
   heap_.SetStackLimits();
 
 #define ASSIGN_ELEMENT(CamelName, hacker_name)                  \
@@ -2183,7 +2169,7 @@ bool Isolate::Init(Deserializer* des) {
   string_tracker_ = new StringTracker();
   string_tracker_->isolate_ = this;
   compilation_cache_ = new CompilationCache(this);
-  transcendental_cache_ = new TranscendentalCache();
+  transcendental_cache_ = new TranscendentalCache(this);
   keyed_lookup_cache_ = new KeyedLookupCache();
   context_slot_cache_ = new ContextSlotCache();
   descriptor_lookup_cache_ = new DescriptorLookupCache();
@@ -2268,7 +2254,7 @@ bool Isolate::Init(Deserializer* des) {
 
   // If we are deserializing, read the state into the now-empty heap.
   if (!create_heap_objects) {
-    des->Deserialize();
+    des->Deserialize(this);
   }
   stub_cache_->Initialize();
 

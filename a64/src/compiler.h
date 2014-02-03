@@ -60,11 +60,10 @@ class CompilationInfo {
   CompilationInfo(Handle<JSFunction> closure, Zone* zone);
   virtual ~CompilationInfo();
 
-  Isolate* isolate() {
-    ASSERT(Isolate::Current() == isolate_);
+  Isolate* isolate() const {
     return isolate_;
   }
-  Zone* zone() { return zone_; }
+  Zone* zone() const { return zone_; }
   bool is_lazy() const { return IsLazy::decode(flags_); }
   bool is_eval() const { return IsEval::decode(flags_); }
   bool is_global() const { return IsGlobal::decode(flags_); }
@@ -308,6 +307,14 @@ class CompilationInfo {
     return abort_due_to_dependency_;
   }
 
+  void set_osr_pc_offset(uint32_t pc_offset) {
+    osr_pc_offset_ = pc_offset;
+  }
+
+  bool HasSameOsrEntry(Handle<JSFunction> function, uint32_t pc_offset) {
+    return osr_pc_offset_ == pc_offset && function.is_identical_to(closure_);
+  }
+
  protected:
   CompilationInfo(Handle<Script> script,
                   Zone* zone);
@@ -335,7 +342,7 @@ class CompilationInfo {
   void Initialize(Isolate* isolate, Mode mode, Zone* zone);
 
   void SetMode(Mode mode) {
-    ASSERT(V8::UseCrankshaft());
+    ASSERT(isolate()->use_crankshaft());
     mode_ = mode;
   }
 
@@ -402,6 +409,9 @@ class CompilationInfo {
   // Compilation mode flag and whether deoptimization is allowed.
   Mode mode_;
   BailoutId osr_ast_id_;
+  // The pc_offset corresponding to osr_ast_id_ in unoptimized code.
+  // We can look this up in the back edge table, but cache it for quick access.
+  uint32_t osr_pc_offset_;
 
   // Flag whether compilation needs to be aborted due to dependency change.
   bool abort_due_to_dependency_;
@@ -600,7 +610,8 @@ class Compiler : public AllStatic {
   // success and false if the compilation resulted in a stack overflow.
   static bool CompileLazy(CompilationInfo* info);
 
-  static void RecompileConcurrent(Handle<JSFunction> function);
+  static bool RecompileConcurrent(Handle<JSFunction> function,
+                                  uint32_t osr_pc_offset = 0);
 
   // Compile a shared function info object (the function is possibly lazily
   // compiled).
@@ -613,7 +624,11 @@ class Compiler : public AllStatic {
                               bool is_toplevel,
                               Handle<Script> script);
 
-  static void InstallOptimizedCode(OptimizingCompiler* info);
+  static bool InstallOptimizedCode(OptimizingCompiler* info);
+
+  static BailoutId CompileForOnStackReplacement(Handle<JSFunction> function);
+
+  static BailoutId CompileForConcurrentOSR(Handle<JSFunction> function);
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   static bool MakeCodeForLiveEdit(CompilationInfo* info);

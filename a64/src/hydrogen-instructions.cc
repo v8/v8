@@ -2577,12 +2577,13 @@ Maybe<HConstant*> HConstant::CopyToTruncatedInt32(Zone* zone) {
 
 Maybe<HConstant*> HConstant::CopyToTruncatedNumber(Zone* zone) {
   HConstant* res = NULL;
-  if (handle()->IsBoolean()) {
-    res = handle()->BooleanValue() ?
+  Handle<Object> handle = this->handle(zone->isolate());
+  if (handle->IsBoolean()) {
+    res = handle->BooleanValue() ?
       new(zone) HConstant(1) : new(zone) HConstant(0);
-  } else if (handle()->IsUndefined()) {
+  } else if (handle->IsUndefined()) {
     res = new(zone) HConstant(OS::nan_value());
-  } else if (handle()->IsNull()) {
+  } else if (handle->IsNull()) {
     res = new(zone) HConstant(0);
   }
   return Maybe<HConstant*>(res != NULL, res);
@@ -2598,7 +2599,7 @@ void HConstant::PrintDataTo(StringStream* stream) {
     stream->Add("%p ", reinterpret_cast<void*>(
             external_reference_value_.address()));
   } else {
-    handle()->ShortPrint(stream);
+    handle(Isolate::Current())->ShortPrint(stream);
   }
 }
 
@@ -3670,7 +3671,7 @@ HInstruction* HStringCharFromCode::New(
     Zone* zone, HValue* context, HValue* char_code) {
   if (FLAG_fold_constants && char_code->IsConstant()) {
     HConstant* c_code = HConstant::cast(char_code);
-    Isolate* isolate = Isolate::Current();
+    Isolate* isolate = zone->isolate();
     if (c_code->HasNumberValue()) {
       if (std::isfinite(c_code->DoubleValue())) {
         uint32_t code = c_code->NumberValueAsInteger32() & 0xffff;
@@ -3995,6 +3996,9 @@ Representation HPhi::RepresentationFromInputs() {
 Representation HValue::RepresentationFromUseRequirements() {
   Representation rep = Representation::None();
   for (HUseIterator it(uses()); !it.Done(); it.Advance()) {
+    // Ignore the use requirement from never run code
+    if (it.value()->block()->IsDeoptimizing()) continue;
+
     // We check for observed_input_representation elsewhere.
     Representation use_rep =
         it.value()->RequiredInputRepresentation(it.index());

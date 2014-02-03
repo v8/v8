@@ -2881,7 +2881,7 @@ class TranscendentalCache {
   class SubCache {
     static const int kCacheSize = 512;
 
-    explicit SubCache(Type t);
+    explicit SubCache(Isolate* isolate, Type t);
 
     MUST_USE_RESULT inline MaybeObject* Get(double input);
 
@@ -2918,7 +2918,7 @@ class TranscendentalCache {
     DISALLOW_COPY_AND_ASSIGN(SubCache);
   };
 
-  TranscendentalCache() {
+  explicit TranscendentalCache(Isolate* isolate) : isolate_(isolate) {
     for (int i = 0; i < kNumberOfCaches; ++i) caches_[i] = NULL;
   }
 
@@ -2936,6 +2936,7 @@ class TranscendentalCache {
   // Allow access to the caches_ array as an ExternalReference.
   friend class ExternalReference;
 
+  Isolate* isolate_;
   SubCache* caches_[kNumberOfCaches];
   DISALLOW_COPY_AND_ASSIGN(TranscendentalCache);
 };

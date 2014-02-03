@@ -63,8 +63,11 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
   __ Push(r7, r6, r5, r4);
   __ Push(lr);
 
+  // For softfp, move the input value into d0.
+  if (!masm.use_eabi_hardfloat()) {
+    __ vmov(d0, r0, r1);
+  }
   // Push the double argument.
-  __ vmov(d0, r0, r1);
   __ sub(sp, sp, Operand(kDoubleSize));
   __ vstr(d0, sp, 0);
   if (!source_reg.is(sp)) {
@@ -124,6 +127,7 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
 
   CodeDesc desc;
   masm.GetCode(&desc);
+  CPU::FlushICache(buffer, actual_size);
   return (reinterpret_cast<ConvertDToIFunc>(
       reinterpret_cast<intptr_t>(buffer)));
 }

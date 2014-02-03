@@ -1195,7 +1195,9 @@ class LConstantT: public LTemplateInstruction<1, 0, 0> {
   DECLARE_CONCRETE_INSTRUCTION(ConstantT, "constant-t")
   DECLARE_HYDROGEN_ACCESSOR(Constant)
 
-  Handle<Object> value() const { return hydrogen()->handle(); }
+  Handle<Object> value(Isolate* isolate) const {
+    return hydrogen()->handle(isolate);
+  }
 };
 
 

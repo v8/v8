@@ -758,17 +758,6 @@ class MacroAssembler: public Assembler {
     BranchF(target, nan, cc, cmp1, cmp2, bd);
   };
 
-  // Convert the HeapNumber pointed to by source to a 32bits signed integer
-  // dest. If the HeapNumber does not fit into a 32bits signed integer branch
-  // to not_int32 label. If FPU is available double_scratch is used but not
-  // scratch2.
-  void ConvertToInt32(Register source,
-                      Register dest,
-                      Register scratch,
-                      Register scratch2,
-                      FPURegister double_scratch,
-                      Label *not_int32);
-
   // Truncates a double using a specific rounding mode, and writes the value
   // to the result register.
   // The except_flag will contain any exceptions caused by the instruction.
@@ -782,17 +771,6 @@ class MacroAssembler: public Assembler {
                        Register except_flag,
                        CheckForInexactConversion check_inexact
                            = kDontCheckForInexactConversion);
-
-  // Helper for EmitECMATruncate.
-  // This will truncate a floating-point value outside of the singed 32bit
-  // integer range to a 32bit signed integer.
-  // Expects the double value loaded in input_high and input_low.
-  // Exits with the answer in 'result'.
-  // Note that this code does not work for values in the 32bit range!
-  void EmitOutOfInt32RangeTruncate(Register result,
-                                   Register input_high,
-                                   Register input_low,
-                                   Register scratch);
 
   // Performs a truncating conversion of a floating point number as used by
   // the JS bitwise operations. See ECMA-262 9.5: ToInt32. Goes to 'done' if it
@@ -821,9 +799,7 @@ class MacroAssembler: public Assembler {
   void TruncateNumberToI(Register object,
                          Register result,
                          Register heap_number_map,
-                         Register scratch1,
-                         Register scratch2,
-                         Register scratch3,
+                         Register scratch,
                          Label* not_int32);
 
   // Loads the number from object into dst register.

@@ -1136,6 +1136,7 @@ class MaybeObject BASE_EMBEDDED {
   V(kExpectedSmiOrHeapNumber, "expected smi or HeapNumber")                   \
   V(kExpectingAlignmentForCopyBytes,                                          \
     "Expecting alignment for CopyBytes")                                      \
+  V(kExportDeclaration, "Export declaration")                                 \
   V(kExternalStringExpectedButNotFound,                                       \
     "external string expected, but not found")                                \
   V(kFailedBailedOutLastTime, "failed/bailed out last time")                  \
@@ -1155,6 +1156,7 @@ class MaybeObject BASE_EMBEDDED {
   V(kGlobalFunctionsMustHaveInitialMap,                                       \
     "Global functions must have initial map")                                 \
   V(kHeapNumberMapRegisterClobbered, "HeapNumberMap register clobbered")      \
+  V(kImportDeclaration, "Import declaration")                                 \
   V(kImproperObjectOnPrototypeChainForStore,                                  \
     "improper object on prototype chain for store")                           \
   V(kIndexIsNegative, "Index is negative")                                    \
@@ -1216,6 +1218,12 @@ class MaybeObject BASE_EMBEDDED {
   V(kLookupVariableInCountOperation,                                          \
     "lookup variable in count operation")                                     \
   V(kMapIsNoLongerInEax, "Map is no longer in eax")                           \
+  V(kModuleDeclaration, "Module declaration")                                 \
+  V(kModuleLiteral, "Module literal")                                         \
+  V(kModulePath, "Module path")                                               \
+  V(kModuleStatement, "Module statement")                                     \
+  V(kModuleVariable, "Module variable")                                       \
+  V(kModuleUrl, "Module url")                                                 \
   V(kNoCasesLeft, "no cases left")                                            \
   V(kNoEmptyArraysHereInEmitFastAsciiArrayJoin,                               \
     "No empty arrays here in EmitFastAsciiArrayJoin")                         \
@@ -1262,7 +1270,7 @@ class MaybeObject BASE_EMBEDDED {
   V(kReturnAddressNotFoundInFrame, "return address not found in frame")       \
   V(kRhsHasBeenClobbered, "rhs has been clobbered")                           \
   V(kScopedBlock, "ScopedBlock")                                              \
-  V(kSharedFunctionInfoLiteral, "SharedFunctionInfoLiteral")                  \
+  V(kSharedFunctionInfoLiteral, "Shared function info literal")               \
   V(kSmiAdditionOverflow, "Smi addition overflow")                            \
   V(kSmiSubtractionOverflow, "Smi subtraction overflow")                      \
   V(kStackAccessBelowStackPointer, "stack access below stack pointer")        \
@@ -1363,7 +1371,8 @@ class MaybeObject BASE_EMBEDDED {
     "we should not have an empty lexical context")                            \
   V(kWithStatement, "WithStatement")                                          \
   V(kWrongAddressOrValuePassedToRecordWrite,                                  \
-    "Wrong address or value passed to RecordWrite")
+    "Wrong address or value passed to RecordWrite")                           \
+  V(kYield, "Yield")
 
 
 #define ERROR_MESSAGES_CONSTANTS(C, T) C,
@@ -1476,8 +1485,8 @@ class Object : public MaybeObject {
 
   inline bool HasSpecificClassOf(String* name);
 
-  MUST_USE_RESULT MaybeObject* ToObject();             // ECMA-262 9.9.
-  bool BooleanValue();                                 // ECMA-262 9.2.
+  MUST_USE_RESULT MaybeObject* ToObject(Isolate* isolate);  // ECMA-262 9.9.
+  bool BooleanValue();                                      // ECMA-262 9.2.
 
   // Convert to a JSObject if needed.
   // native_context is used when creating wrapper object.
@@ -1499,7 +1508,8 @@ class Object : public MaybeObject {
       Name* key,
       PropertyAttributes* attributes);
 
-  static Handle<Object> GetProperty(Handle<Object> object, Handle<Name> key);
+  static Handle<Object> GetProperty(Handle<Object> object,
+                                    Handle<Name> key);
   static Handle<Object> GetProperty(Handle<Object> object,
                                     Handle<Object> receiver,
                                     LookupResult* result,
@@ -1521,11 +1531,15 @@ class Object : public MaybeObject {
   MUST_USE_RESULT MaybeObject* GetPropertyWithDefinedGetter(Object* receiver,
                                                             JSReceiver* getter);
 
-  static Handle<Object> GetElement(Handle<Object> object, uint32_t index);
-  MUST_USE_RESULT inline MaybeObject* GetElement(uint32_t index);
+  static Handle<Object> GetElement(Isolate* isolate,
+                                   Handle<Object> object,
+                                   uint32_t index);
+  MUST_USE_RESULT inline MaybeObject* GetElement(Isolate* isolate,
+                                                 uint32_t index);
   // For use when we know that no exception can be thrown.
-  inline Object* GetElementNoExceptionThrown(uint32_t index);
-  MUST_USE_RESULT MaybeObject* GetElementWithReceiver(Object* receiver,
+  inline Object* GetElementNoExceptionThrown(Isolate* isolate, uint32_t index);
+  MUST_USE_RESULT MaybeObject* GetElementWithReceiver(Isolate* isolate,
+                                                      Object* receiver,
                                                       uint32_t index);
 
   // Return the object's prototype (might be Heap::null_value()).
@@ -1748,9 +1762,7 @@ class HeapObject: public Object {
   // The Heap the object was allocated in. Used also to access Isolate.
   inline Heap* GetHeap();
 
-  // Convenience method to get current isolate. This method can be
-  // accessed only when its result is the same as
-  // Isolate::Current(), it ASSERTs this. See also comment for GetHeap.
+  // Convenience method to get current isolate.
   inline Isolate* GetIsolate();
 
   // Converts an address to a HeapObject pointer.
@@ -3221,7 +3233,8 @@ class DescriptorArray: public FixedArray {
 
   // Allocates a DescriptorArray, but returns the singleton
   // empty descriptor array object if number_of_descriptors is 0.
-  MUST_USE_RESULT static MaybeObject* Allocate(int number_of_descriptors,
+  MUST_USE_RESULT static MaybeObject* Allocate(Isolate* isolate,
+                                               int number_of_descriptors,
                                                int slack = 0);
 
   // Casting.
@@ -4847,21 +4860,19 @@ class Code: public HeapObject {
   // [deoptimization_data]: Array containing data for deopt.
   DECL_ACCESSORS(deoptimization_data, FixedArray)
 
-  // [type_feedback_info]: Struct containing type feedback information for
-  // unoptimized code. Optimized code can temporarily store the head of
-  // the list of code to be deoptimized during mark-compact GC.
-  // STUBs can use this slot to store arbitrary information as a Smi.
-  // Will contain either a TypeFeedbackInfo object, or JSFunction object,
-  // or undefined, or a Smi.
+  // [type_feedback_info]: This field stores various things, depending on the
+  // kind of the code object.
+  //   FUNCTION           => type feedback information.
+  //   STUB               => various things, e.g. a SMI
+  //   OPTIMIZED_FUNCTION => the next_code_link for optimized code list.
   DECL_ACCESSORS(type_feedback_info, Object)
   inline void InitializeTypeFeedbackInfoNoWriteBarrier(Object* value);
   inline int stub_info();
   inline void set_stub_info(int info);
 
-  // Used during GC to code a list of code objects to deoptimize.
-  inline Object* code_to_deoptimize_link();
-  inline void set_code_to_deoptimize_link(Object* value);
-  inline Object** code_to_deoptimize_link_slot();
+  // [next_code_link]: Link for lists of optimized or deoptimized code.
+  // Note that storage for this field is overlapped with typefeedback_info.
+  DECL_ACCESSORS(next_code_link, Object)
 
   // [gc_metadata]: Field used to hold GC related metadata. The contents of this
   // field does not have to be traced during garbage collection since
@@ -5141,6 +5152,8 @@ class Code: public HeapObject {
   void ClearInlineCaches();
   void ClearTypeFeedbackCells(Heap* heap);
 
+  BailoutId TranslatePcOffsetToAstId(uint32_t pc_offset);
+
 #define DECLARE_CODE_AGE_ENUM(X) k##X##CodeAge,
   enum Age {
     kNoAge = 0,
@@ -5180,6 +5193,7 @@ class Code: public HeapObject {
       kHandlerTableOffset + kPointerSize;
   static const int kTypeFeedbackInfoOffset =
       kDeoptimizationDataOffset + kPointerSize;
+  static const int kNextCodeLinkOffset = kTypeFeedbackInfoOffset;  // Shared.
   static const int kGCMetadataOffset = kTypeFeedbackInfoOffset + kPointerSize;
   static const int kICAgeOffset =
       kGCMetadataOffset + kPointerSize;
@@ -6593,6 +6607,8 @@ class SharedFunctionInfo: public HeapObject {
   // shared function info.
   void DisableOptimization(BailoutReason reason);
 
+  inline BailoutReason DisableOptimizationReason();
+
   // Lookup the bailout ID and ASSERT that it exists in the non-optimized
   // code, returns whether it asserted (i.e., always true if assertions are
   // disabled).
@@ -6621,6 +6637,21 @@ class SharedFunctionInfo: public HeapObject {
   // Stores deopt_count, opt_reenable_tries and ic_age as bit-fields.
   inline void set_counters(int value);
   inline int counters();
+
+  // Stores opt_count and bailout_reason as bit-fields.
+  inline void set_opt_count_and_bailout_reason(int value);
+  inline int opt_count_and_bailout_reason();
+
+  void set_bailout_reason(BailoutReason reason) {
+    set_opt_count_and_bailout_reason(
+        DisabledOptimizationReasonBits::update(opt_count_and_bailout_reason(),
+                                               reason));
+  }
+
+  void set_dont_optimize_reason(BailoutReason reason) {
+    set_bailout_reason(reason);
+    set_dont_optimize(reason != kNoReason);
+  }
 
   // Source size of this function.
   int SourceSize();
@@ -6688,8 +6719,10 @@ class SharedFunctionInfo: public HeapObject {
       kEndPositionOffset + kPointerSize;
   static const int kCompilerHintsOffset =
       kFunctionTokenPositionOffset + kPointerSize;
-  static const int kOptCountOffset = kCompilerHintsOffset + kPointerSize;
-  static const int kCountersOffset = kOptCountOffset + kPointerSize;
+  static const int kOptCountAndBailoutReasonOffset =
+      kCompilerHintsOffset + kPointerSize;
+  static const int kCountersOffset =
+      kOptCountAndBailoutReasonOffset + kPointerSize;
 
   // Total size.
   static const int kSize = kCountersOffset + kPointerSize;
@@ -6723,9 +6756,11 @@ class SharedFunctionInfo: public HeapObject {
   static const int kCompilerHintsOffset =
       kFunctionTokenPositionOffset + kIntSize;
 
-  static const int kOptCountOffset = kCompilerHintsOffset + kIntSize;
+  static const int kOptCountAndBailoutReasonOffset =
+      kCompilerHintsOffset + kIntSize;
 
-  static const int kCountersOffset = kOptCountOffset + kIntSize;
+  static const int kCountersOffset =
+      kOptCountAndBailoutReasonOffset + kIntSize;
 
   // Total size.
   static const int kSize = kCountersOffset + kIntSize;
@@ -6783,6 +6818,9 @@ class SharedFunctionInfo: public HeapObject {
   class DeoptCountBits: public BitField<int, 0, 4> {};
   class OptReenableTriesBits: public BitField<int, 4, 18> {};
   class ICAgeBits: public BitField<int, 22, 8> {};
+
+  class OptCountBits: public BitField<int, 0, 22> {};
+  class DisabledOptimizationReasonBits: public BitField<int, 22, 8> {};
 
  private:
 #if V8_HOST_ARCH_32_BIT
@@ -7053,8 +7091,10 @@ class JSFunction: public JSObject {
   // Returns if this function has been compiled to native code yet.
   inline bool is_compiled();
 
-  // [next_function_link]: Field for linking functions. This list is treated as
-  // a weak list by the GC.
+  // [next_function_link]: Links functions into various lists, e.g. the list
+  // of optimized functions hanging off the native_context. The CodeFlusher
+  // uses this link to chain together flushing candidates. Treated weakly
+  // by the garbage collector.
   DECL_ACCESSORS(next_function_link, Object)
 
   // Prints the name of the function using PrintF.
@@ -8759,13 +8799,14 @@ class Relocatable BASE_EMBEDDED {
   virtual void IterateInstance(ObjectVisitor* v) { }
   virtual void PostGarbageCollection() { }
 
-  static void PostGarbageCollectionProcessing();
+  static void PostGarbageCollectionProcessing(Isolate* isolate);
   static int ArchiveSpacePerThread();
   static char* ArchiveState(Isolate* isolate, char* to);
   static char* RestoreState(Isolate* isolate, char* from);
-  static void Iterate(ObjectVisitor* v);
+  static void Iterate(Isolate* isolate, ObjectVisitor* v);
   static void Iterate(ObjectVisitor* v, Relocatable* top);
   static char* Iterate(ObjectVisitor* v, char* t);
+
  private:
   Isolate* isolate_;
   Relocatable* prev_;
@@ -8901,7 +8942,8 @@ class Oddball: public HeapObject {
   DECLARE_VERIFIER(Oddball)
 
   // Initialize the fields.
-  MUST_USE_RESULT MaybeObject* Initialize(const char* to_string,
+  MUST_USE_RESULT MaybeObject* Initialize(Heap* heap,
+                                          const char* to_string,
                                           Object* to_number,
                                           byte kind);
 
@@ -9524,6 +9566,11 @@ class AccessorInfo: public Struct {
   // Dispatched behavior.
   DECLARE_VERIFIER(AccessorInfo)
 
+  // Append all descriptors to the array that are not already there.
+  // Return number added.
+  static int AppendUnique(Handle<Object> descriptors,
+                          Handle<FixedArray> array,
+                          int valid_descriptors);
 
   static const int kNameOffset = HeapObject::kHeaderSize;
   static const int kFlagOffset = kNameOffset + kPointerSize;
@@ -9830,12 +9877,15 @@ class TemplateInfo: public Struct {
  public:
   DECL_ACCESSORS(tag, Object)
   DECL_ACCESSORS(property_list, Object)
+  DECL_ACCESSORS(property_accessors, Object)
 
   DECLARE_VERIFIER(TemplateInfo)
 
-  static const int kTagOffset          = HeapObject::kHeaderSize;
+  static const int kTagOffset = HeapObject::kHeaderSize;
   static const int kPropertyListOffset = kTagOffset + kPointerSize;
-  static const int kHeaderSize         = kPropertyListOffset + kPointerSize;
+  static const int kPropertyAccessorsOffset =
+      kPropertyListOffset + kPointerSize;
+  static const int kHeaderSize = kPropertyAccessorsOffset + kPointerSize;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(TemplateInfo);
@@ -9846,7 +9896,6 @@ class FunctionTemplateInfo: public TemplateInfo {
  public:
   DECL_ACCESSORS(serial_number, Object)
   DECL_ACCESSORS(call_code, Object)
-  DECL_ACCESSORS(property_accessors, Object)
   DECL_ACCESSORS(prototype_template, Object)
   DECL_ACCESSORS(parent_template, Object)
   DECL_ACCESSORS(named_property_handler, Object)
@@ -9869,6 +9918,7 @@ class FunctionTemplateInfo: public TemplateInfo {
   DECL_BOOLEAN_ACCESSORS(needs_access_check)
   DECL_BOOLEAN_ACCESSORS(read_only_prototype)
   DECL_BOOLEAN_ACCESSORS(remove_prototype)
+  DECL_BOOLEAN_ACCESSORS(do_not_cache)
 
   static inline FunctionTemplateInfo* cast(Object* obj);
 
@@ -9878,9 +9928,8 @@ class FunctionTemplateInfo: public TemplateInfo {
 
   static const int kSerialNumberOffset = TemplateInfo::kHeaderSize;
   static const int kCallCodeOffset = kSerialNumberOffset + kPointerSize;
-  static const int kPropertyAccessorsOffset = kCallCodeOffset + kPointerSize;
   static const int kPrototypeTemplateOffset =
-      kPropertyAccessorsOffset + kPointerSize;
+      kCallCodeOffset + kPointerSize;
   static const int kParentTemplateOffset =
       kPrototypeTemplateOffset + kPointerSize;
   static const int kNamedPropertyHandlerOffset =
@@ -9905,6 +9954,7 @@ class FunctionTemplateInfo: public TemplateInfo {
   static const int kNeedsAccessCheckBit  = 2;
   static const int kReadOnlyPrototypeBit = 3;
   static const int kRemovePrototypeBit   = 4;
+  static const int kDoNotCacheBit        = 5;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(FunctionTemplateInfo);
 };

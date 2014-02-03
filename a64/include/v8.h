@@ -458,7 +458,7 @@ template <class T> class Eternal {
   }
   // Can only be safely called if already set.
   V8_INLINE(Local<T> Get(Isolate* isolate));
-  V8_INLINE(bool IsEmpty()) { return index_ != kInitialValue; }
+  V8_INLINE(bool IsEmpty()) { return index_ == kInitialValue; }
   template<class S>
   V8_INLINE(void Set(Isolate* isolate, Local<S> handle));
 
@@ -634,8 +634,7 @@ template <class T> class Persistent // NOLINT
    * This handle's reference, and any other references to the storage
    * cell remain and IsEmpty will still return false.
    */
-  // TODO(dcarney): deprecate
-  V8_INLINE(void Dispose(Isolate* isolate)) { Dispose(); }
+  V8_DEPRECATED(V8_INLINE(void Dispose(Isolate* isolate))) { Dispose(); }
 
   /**
    * Make the reference to this object weak.  When only weak handles
@@ -667,8 +666,7 @@ template <class T> class Persistent // NOLINT
 
   V8_INLINE(void ClearWeak());
 
-  // TODO(dcarney): deprecate
-  V8_INLINE(void ClearWeak(Isolate* isolate)) { ClearWeak(); }
+  V8_DEPRECATED(V8_INLINE(void ClearWeak(Isolate* isolate))) { ClearWeak(); }
 
   /**
    * Marks the reference to this object independent. Garbage collector is free
@@ -678,8 +676,9 @@ template <class T> class Persistent // NOLINT
    */
   V8_INLINE(void MarkIndependent());
 
-  // TODO(dcarney): deprecate
-  V8_INLINE(void MarkIndependent(Isolate* isolate)) { MarkIndependent(); }
+  V8_DEPRECATED(V8_INLINE(void MarkIndependent(Isolate* isolate))) {
+    MarkIndependent();
+  }
 
   /**
    * Marks the reference to this object partially dependent. Partially dependent
@@ -691,29 +690,29 @@ template <class T> class Persistent // NOLINT
    */
   V8_INLINE(void MarkPartiallyDependent());
 
-  // TODO(dcarney): deprecate
-  V8_INLINE(void MarkPartiallyDependent(Isolate* isolate)) {
+  V8_DEPRECATED(V8_INLINE(void MarkPartiallyDependent(Isolate* isolate))) {
     MarkPartiallyDependent();
   }
 
   V8_INLINE(bool IsIndependent() const);
 
-  // TODO(dcarney): deprecate
-  V8_INLINE(bool IsIndependent(Isolate* isolate) const) {
+  V8_DEPRECATED(V8_INLINE(bool IsIndependent(Isolate* isolate)) const) {
     return IsIndependent();
   }
 
   /** Checks if the handle holds the only reference to an object. */
   V8_INLINE(bool IsNearDeath() const);
 
-  // TODO(dcarney): deprecate
-  V8_INLINE(bool IsNearDeath(Isolate* isolate) const) { return IsNearDeath(); }
+  V8_DEPRECATED(V8_INLINE(bool IsNearDeath(Isolate* isolate)) const) {
+    return IsNearDeath();
+  }
 
   /** Returns true if the handle's reference is weak.  */
   V8_INLINE(bool IsWeak() const);
 
-  // TODO(dcarney): deprecate
-  V8_INLINE(bool IsWeak(Isolate* isolate) const) { return IsWeak(); }
+  V8_DEPRECATED(V8_INLINE(bool IsWeak(Isolate* isolate)) const) {
+    return IsWeak();
+  }
 
   /**
    * Assigns a wrapper class ID to the handle. See RetainedObjectInfo interface
@@ -721,8 +720,8 @@ template <class T> class Persistent // NOLINT
    */
   V8_INLINE(void SetWrapperClassId(uint16_t class_id));
 
-  // TODO(dcarney): deprecate
-  V8_INLINE(void SetWrapperClassId(Isolate* isolate, uint16_t class_id)) {
+  V8_DEPRECATED(
+      V8_INLINE(void SetWrapperClassId(Isolate * isolate, uint16_t class_id))) {
     SetWrapperClassId(class_id);
   }
 
@@ -732,8 +731,7 @@ template <class T> class Persistent // NOLINT
    */
   V8_INLINE(uint16_t WrapperClassId() const);
 
-  // TODO(dcarney): deprecate
-  V8_INLINE(uint16_t WrapperClassId(Isolate* isolate) const) {
+  V8_DEPRECATED(V8_INLINE(uint16_t WrapperClassId(Isolate* isolate)) const) {
     return WrapperClassId();
   }
 
@@ -2125,10 +2123,10 @@ class V8_EXPORT Object : public Value {
                    PropertyAttribute attribute = None);
 
   // This function is not yet stable and should not be used at this time.
-  bool SetAccessor(Handle<String> name,
-                   Handle<DeclaredAccessorDescriptor> descriptor,
-                   AccessControl settings = DEFAULT,
-                   PropertyAttribute attribute = None);
+  bool SetDeclaredAccessor(Local<String> name,
+                           Local<DeclaredAccessorDescriptor> descriptor,
+                           PropertyAttribute attribute = None,
+                           AccessControl settings = DEFAULT);
 
   /**
    * Returns an array containing the names of the enumerable properties
@@ -2363,11 +2361,129 @@ class V8_EXPORT Array : public Object {
 };
 
 
+template<typename T>
+class ReturnValue {
+ public:
+  template <class S> V8_INLINE(ReturnValue(const ReturnValue<S>& that))
+      : value_(that.value_) {
+    TYPE_CHECK(T, S);
+  }
+  // Handle setters
+  template <typename S> V8_INLINE(void Set(const Persistent<S>& handle));
+  template <typename S> V8_INLINE(void Set(const Handle<S> handle));
+  // Fast primitive setters
+  V8_INLINE(void Set(bool value));
+  V8_INLINE(void Set(double i));
+  V8_INLINE(void Set(int32_t i));
+  V8_INLINE(void Set(uint32_t i));
+  // Fast JS primitive setters
+  V8_INLINE(void SetNull());
+  V8_INLINE(void SetUndefined());
+  V8_INLINE(void SetEmptyString());
+  // Convenience getter for Isolate
+  V8_INLINE(Isolate* GetIsolate());
+
+ private:
+  template<class F> friend class ReturnValue;
+  template<class F> friend class FunctionCallbackInfo;
+  template<class F> friend class PropertyCallbackInfo;
+  V8_INLINE(internal::Object* GetDefaultValue());
+  V8_INLINE(explicit ReturnValue(internal::Object** slot));
+  internal::Object** value_;
+};
+
+
+/**
+ * The argument information given to function call callbacks.  This
+ * class provides access to information about the context of the call,
+ * including the receiver, the number and values of arguments, and
+ * the holder of the function.
+ */
+template<typename T>
+class FunctionCallbackInfo {
+ public:
+  V8_INLINE(int Length() const);
+  V8_INLINE(Local<Value> operator[](int i) const);
+  V8_INLINE(Local<Function> Callee() const);
+  V8_INLINE(Local<Object> This() const);
+  V8_INLINE(Local<Object> Holder() const);
+  V8_INLINE(bool IsConstructCall() const);
+  V8_INLINE(Local<Value> Data() const);
+  V8_INLINE(Isolate* GetIsolate() const);
+  V8_INLINE(ReturnValue<T> GetReturnValue() const);
+  // This shouldn't be public, but the arm compiler needs it.
+  static const int kArgsLength = 6;
+
+ protected:
+  friend class internal::FunctionCallbackArguments;
+  friend class internal::CustomArguments<FunctionCallbackInfo>;
+  static const int kReturnValueIndex = 0;
+  static const int kReturnValueDefaultValueIndex = -1;
+  static const int kIsolateIndex = -2;
+  static const int kDataIndex = -3;
+  static const int kCalleeIndex = -4;
+  static const int kHolderIndex = -5;
+
+  V8_INLINE(FunctionCallbackInfo(internal::Object** implicit_args,
+                   internal::Object** values,
+                   int length,
+                   bool is_construct_call));
+  internal::Object** implicit_args_;
+  internal::Object** values_;
+  int length_;
+  bool is_construct_call_;
+};
+
+
+/**
+ * The information passed to a property callback about the context
+ * of the property access.
+ */
+template<typename T>
+class PropertyCallbackInfo {
+ public:
+  V8_INLINE(Isolate* GetIsolate() const);
+  V8_INLINE(Local<Value> Data() const);
+  V8_INLINE(Local<Object> This() const);
+  V8_INLINE(Local<Object> Holder() const);
+  V8_INLINE(ReturnValue<T> GetReturnValue() const);
+  // This shouldn't be public, but the arm compiler needs it.
+  static const int kArgsLength = 6;
+
+ protected:
+  friend class MacroAssembler;
+  friend class internal::PropertyCallbackArguments;
+  friend class internal::CustomArguments<PropertyCallbackInfo>;
+  static const int kThisIndex = 0;
+  static const int kHolderIndex = -1;
+  static const int kDataIndex = -2;
+  static const int kReturnValueIndex = -3;
+  static const int kReturnValueDefaultValueIndex = -4;
+  static const int kIsolateIndex = -5;
+
+  V8_INLINE(PropertyCallbackInfo(internal::Object** args))
+      : args_(args) { }
+  internal::Object** args_;
+};
+
+
+typedef void (*FunctionCallback)(const FunctionCallbackInfo<Value>& info);
+
+
 /**
  * A JavaScript function object (ECMA-262, 15.3).
  */
 class V8_EXPORT Function : public Object {
  public:
+  /**
+   * Create a function in the current execution context
+   * for a given FunctionCallback.
+   */
+  static Local<Function> New(Isolate* isolate,
+                             FunctionCallback callback,
+                             Local<Value> data = Local<Value>(),
+                             int length = 0);
+
   Local<Object> NewInstance() const;
   Local<Object> NewInstance(int argc, Handle<Value> argv[]) const;
   Local<Value> Call(Handle<Object> recv, int argc, Handle<Value> argv[]);
@@ -2983,6 +3099,51 @@ class V8_EXPORT Template : public Data {
      PropertyAttribute attribute = None,
      AccessControl settings = DEFAULT);
 
+  /**
+   * Whenever the property with the given name is accessed on objects
+   * created from this Template the getter and setter callbacks
+   * are called instead of getting and setting the property directly
+   * on the JavaScript object.
+   *
+   * \param name The name of the property for which an accessor is added.
+   * \param getter The callback to invoke when getting the property.
+   * \param setter The callback to invoke when setting the property.
+   * \param data A piece of data that will be passed to the getter and setter
+   *   callbacks whenever they are invoked.
+   * \param settings Access control settings for the accessor. This is a bit
+   *   field consisting of one of more of
+   *   DEFAULT = 0, ALL_CAN_READ = 1, or ALL_CAN_WRITE = 2.
+   *   The default is to not allow cross-context access.
+   *   ALL_CAN_READ means that all cross-context reads are allowed.
+   *   ALL_CAN_WRITE means that all cross-context writes are allowed.
+   *   The combination ALL_CAN_READ | ALL_CAN_WRITE can be used to allow all
+   *   cross-context access.
+   * \param attribute The attributes of the property for which an accessor
+   *   is added.
+   * \param signature The signature describes valid receivers for the accessor
+   *   and is used to perform implicit instance checks against them. If the
+   *   receiver is incompatible (i.e. is not an instance of the constructor as
+   *   defined by FunctionTemplate::HasInstance()), an implicit TypeError is
+   *   thrown and no callback is invoked.
+   */
+  void SetNativeDataProperty(Local<String> name,
+                             AccessorGetterCallback getter,
+                             AccessorSetterCallback setter = 0,
+                             // TODO(dcarney): gcc can't handle Local below
+                             Handle<Value> data = Handle<Value>(),
+                             PropertyAttribute attribute = None,
+                             Local<AccessorSignature> signature =
+                                 Local<AccessorSignature>(),
+                             AccessControl settings = DEFAULT);
+
+  // This function is not yet stable and should not be used at this time.
+  bool SetDeclaredAccessor(Local<String> name,
+                           Local<DeclaredAccessorDescriptor> descriptor,
+                           PropertyAttribute attribute = None,
+                           Local<AccessorSignature> signature =
+                               Local<AccessorSignature>(),
+                           AccessControl settings = DEFAULT);
+
  private:
   Template();
 
@@ -2990,114 +3151,6 @@ class V8_EXPORT Template : public Data {
   friend class FunctionTemplate;
 };
 
-
-template<typename T>
-class ReturnValue {
- public:
-  template <class S> V8_INLINE(ReturnValue(const ReturnValue<S>& that))
-      : value_(that.value_) {
-    TYPE_CHECK(T, S);
-  }
-  // Handle setters
-  template <typename S> V8_INLINE(void Set(const Persistent<S>& handle));
-  template <typename S> V8_INLINE(void Set(const Handle<S> handle));
-  // Fast primitive setters
-  V8_INLINE(void Set(bool value));
-  V8_INLINE(void Set(double i));
-  V8_INLINE(void Set(int32_t i));
-  V8_INLINE(void Set(uint32_t i));
-  // Fast JS primitive setters
-  V8_INLINE(void SetNull());
-  V8_INLINE(void SetUndefined());
-  V8_INLINE(void SetEmptyString());
-  // Convenience getter for Isolate
-  V8_INLINE(Isolate* GetIsolate());
-
- private:
-  template<class F> friend class ReturnValue;
-  template<class F> friend class FunctionCallbackInfo;
-  template<class F> friend class PropertyCallbackInfo;
-  V8_INLINE(internal::Object* GetDefaultValue());
-  V8_INLINE(explicit ReturnValue(internal::Object** slot));
-  internal::Object** value_;
-};
-
-
-/**
- * The argument information given to function call callbacks.  This
- * class provides access to information about the context of the call,
- * including the receiver, the number and values of arguments, and
- * the holder of the function.
- */
-template<typename T>
-class FunctionCallbackInfo {
- public:
-  V8_INLINE(int Length() const);
-  V8_INLINE(Local<Value> operator[](int i) const);
-  V8_INLINE(Local<Function> Callee() const);
-  V8_INLINE(Local<Object> This() const);
-  V8_INLINE(Local<Object> Holder() const);
-  V8_INLINE(bool IsConstructCall() const);
-  V8_INLINE(Local<Value> Data() const);
-  V8_INLINE(Isolate* GetIsolate() const);
-  V8_INLINE(ReturnValue<T> GetReturnValue() const);
-  // This shouldn't be public, but the arm compiler needs it.
-  static const int kArgsLength = 6;
-
- protected:
-  friend class internal::FunctionCallbackArguments;
-  friend class internal::CustomArguments<FunctionCallbackInfo>;
-  static const int kReturnValueIndex = 0;
-  static const int kReturnValueDefaultValueIndex = -1;
-  static const int kIsolateIndex = -2;
-  static const int kDataIndex = -3;
-  static const int kCalleeIndex = -4;
-  static const int kHolderIndex = -5;
-
-  V8_INLINE(FunctionCallbackInfo(internal::Object** implicit_args,
-                   internal::Object** values,
-                   int length,
-                   bool is_construct_call));
-  internal::Object** implicit_args_;
-  internal::Object** values_;
-  int length_;
-  bool is_construct_call_;
-};
-
-
-/**
- * The information passed to a property callback about the context
- * of the property access.
- */
-template<typename T>
-class PropertyCallbackInfo {
- public:
-  V8_INLINE(Isolate* GetIsolate() const);
-  V8_INLINE(Local<Value> Data() const);
-  V8_INLINE(Local<Object> This() const);
-  V8_INLINE(Local<Object> Holder() const);
-  V8_INLINE(ReturnValue<T> GetReturnValue() const);
-  // This shouldn't be public, but the arm compiler needs it.
-  static const int kArgsLength = 6;
-
- protected:
-  friend class MacroAssembler;
-  friend class internal::PropertyCallbackArguments;
-  friend class internal::CustomArguments<PropertyCallbackInfo>;
-  static const int kThisIndex = 0;
-  static const int kHolderIndex = -1;
-  static const int kDataIndex = -2;
-  static const int kReturnValueIndex = -3;
-  static const int kReturnValueDefaultValueIndex = -4;
-  static const int kIsolateIndex = -5;
-
-  V8_INLINE(PropertyCallbackInfo(internal::Object** args))
-      : args_(args) { }
-  internal::Object** args_;
-};
-
-
-typedef void (*FunctionCallback)(const FunctionCallbackInfo<Value>& info);
 
 /**
  * NamedProperty[Getter|Setter] are used as interceptors on object.
@@ -3444,14 +3497,6 @@ class V8_EXPORT ObjectTemplate : public Template {
                    AccessorGetterCallback getter,
                    AccessorSetterCallback setter = 0,
                    Handle<Value> data = Handle<Value>(),
-                   AccessControl settings = DEFAULT,
-                   PropertyAttribute attribute = None,
-                   Handle<AccessorSignature> signature =
-                       Handle<AccessorSignature>());
-
-  // This function is not yet stable and should not be used at this time.
-  bool SetAccessor(Handle<String> name,
-                   Handle<DeclaredAccessorDescriptor> descriptor,
                    AccessControl settings = DEFAULT,
                    PropertyAttribute attribute = None,
                    Handle<AccessorSignature> signature =
@@ -4555,40 +4600,6 @@ class V8_EXPORT V8 {
   /** Deprecated. Use Isolate::AdjustAmountOfExternalAllocatedMemory instead. */
   static intptr_t AdjustAmountOfExternalAllocatedMemory(
       intptr_t change_in_bytes);
-
-  /**
-   * Retrieve the V8 thread id of the calling thread.
-   *
-   * The thread id for a thread should only be retrieved after the V8
-   * lock has been acquired with a Locker object with that thread.
-   */
-  static int GetCurrentThreadId();
-
-  /**
-   * Forcefully terminate execution of a JavaScript thread.  This can
-   * be used to terminate long-running scripts.
-   *
-   * TerminateExecution should only be called when then V8 lock has
-   * been acquired with a Locker object.  Therefore, in order to be
-   * able to terminate long-running threads, preemption must be
-   * enabled to allow the user of TerminateExecution to acquire the
-   * lock.
-   *
-   * The termination is achieved by throwing an exception that is
-   * uncatchable by JavaScript exception handlers.  Termination
-   * exceptions act as if they were caught by a C++ TryCatch exception
-   * handler.  If forceful termination is used, any C++ TryCatch
-   * exception handler that catches an exception should check if that
-   * exception is a termination exception and immediately return if
-   * that is the case.  Returning immediately in that case will
-   * continue the propagation of the termination exception if needed.
-   *
-   * The thread id passed to TerminateExecution must have been
-   * obtained by calling GetCurrentThreadId on the thread in question.
-   *
-   * \param thread_id The thread id of the thread to terminate.
-   */
-  static void TerminateExecution(int thread_id);
 
   /**
    * Forcefully terminate the current thread of JavaScript execution
@@ -5736,7 +5747,7 @@ void Persistent<T>::MarkPartiallyDependent() {
 
 template <class T>
 void Persistent<T>::Reset(Isolate* isolate, const Handle<T>& other) {
-  Dispose(isolate);
+  Dispose();
 #ifdef V8_USE_UNSAFE_HANDLES
   *this = *New(isolate, other);
 #else
@@ -5754,7 +5765,7 @@ void Persistent<T>::Reset(Isolate* isolate, const Handle<T>& other) {
 #ifndef V8_USE_UNSAFE_HANDLES
 template <class T>
 void Persistent<T>::Reset(Isolate* isolate, const Persistent<T>& other) {
-  Dispose(isolate);
+  Dispose();
   if (other.IsEmpty()) {
     this->val_ = NULL;
     return;

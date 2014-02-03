@@ -45,9 +45,7 @@ namespace internal {
 
 
 StubCache::StubCache(Isolate* isolate)
-    : isolate_(isolate) {
-  ASSERT(isolate == Isolate::Current());
-}
+    : isolate_(isolate) { }
 
 
 void StubCache::Initialize() {
@@ -315,6 +313,24 @@ Handle<Code> StubCache::ComputeLoadCallback(
 }
 
 
+Handle<Code> StubCache::ComputeLoadCallback(
+    Handle<Name> name,
+    Handle<JSObject> receiver,
+    Handle<JSObject> holder,
+    const CallOptimization& call_optimization) {
+  Handle<JSObject> stub_holder = StubHolder(receiver, holder);
+  Handle<Code> stub = FindLoadHandler(
+      name, receiver, stub_holder, Code::LOAD_IC, Code::CALLBACKS);
+  if (!stub.is_null()) return stub;
+
+  LoadStubCompiler compiler(isolate_);
+  Handle<Code> handler =
+      compiler.CompileLoadCallback(receiver, holder, name, call_optimization);
+  JSObject::UpdateMapCodeCache(stub_holder, name, handler);
+  return handler;
+}
+
+
 Handle<Code> StubCache::ComputeLoadViaGetter(Handle<Name> name,
                                              Handle<JSObject> receiver,
                                              Handle<JSObject> holder,
@@ -465,6 +481,24 @@ Handle<Code> StubCache::ComputeKeyedLoadCallback(
 }
 
 
+Handle<Code> StubCache::ComputeKeyedLoadCallback(
+    Handle<Name> name,
+    Handle<JSObject> receiver,
+    Handle<JSObject> holder,
+    const CallOptimization& call_optimization) {
+  Handle<JSObject> stub_holder = StubHolder(receiver, holder);
+  Handle<Code> stub = FindLoadHandler(
+      name, receiver, stub_holder, Code::KEYED_LOAD_IC, Code::CALLBACKS);
+  if (!stub.is_null()) return stub;
+
+  KeyedLoadStubCompiler compiler(isolate_);
+  Handle<Code> handler =
+      compiler.CompileLoadCallback(receiver, holder, name, call_optimization);
+  JSObject::UpdateMapCodeCache(stub_holder, name, handler);
+  return handler;
+}
+
+
 Handle<Code> StubCache::ComputeStoreField(Handle<Name> name,
                                           Handle<JSObject> receiver,
                                           LookupResult* lookup,
@@ -592,6 +626,24 @@ Handle<Code> StubCache::ComputeStoreCallback(
   StoreStubCompiler compiler(isolate_, strict_mode);
   Handle<Code> handler = compiler.CompileStoreCallback(
       receiver, holder, name, callback);
+  JSObject::UpdateMapCodeCache(receiver, name, handler);
+  return handler;
+}
+
+
+Handle<Code> StubCache::ComputeStoreCallback(
+    Handle<Name> name,
+    Handle<JSObject> receiver,
+    Handle<JSObject> holder,
+    const CallOptimization& call_optimization,
+    StrictModeFlag strict_mode) {
+  Handle<Code> stub = FindStoreHandler(
+      name, receiver, Code::STORE_IC, Code::CALLBACKS, strict_mode);
+  if (!stub.is_null()) return stub;
+
+  StoreStubCompiler compiler(isolate_, strict_mode);
+  Handle<Code> handler = compiler.CompileStoreCallback(
+      receiver, holder, name, call_optimization);
   JSObject::UpdateMapCodeCache(receiver, name, handler);
   return handler;
 }
@@ -1642,6 +1694,25 @@ Handle<Code> BaseLoadStubCompiler::CompileLoadCallback(
       object, receiver(), holder, name, &success, callback);
   __ bind(&success);
   GenerateLoadCallback(reg, callback);
+
+  // Return the generated code.
+  return GetCode(kind(), Code::CALLBACKS, name);
+}
+
+
+Handle<Code> BaseLoadStubCompiler::CompileLoadCallback(
+    Handle<JSObject> object,
+    Handle<JSObject> holder,
+    Handle<Name> name,
+    const CallOptimization& call_optimization) {
+  ASSERT(call_optimization.is_simple_api_call());
+  Label success;
+
+  Handle<JSFunction> callback = call_optimization.constant_function();
+  CallbackHandlerFrontend(
+      object, receiver(), holder, name, &success, callback);
+  __ bind(&success);
+  GenerateLoadCallback(call_optimization);
 
   // Return the generated code.
   return GetCode(kind(), Code::CALLBACKS, name);
