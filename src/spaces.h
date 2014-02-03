@@ -2061,6 +2061,12 @@ class NewSpacePage : public MemoryChunk {
     return NewSpacePage::FromAddress(address_limit - 1);
   }
 
+  // Checks if address1 and address2 are on the same new space page.
+  static inline bool OnSamePage(Address address1, Address address2) {
+    return NewSpacePage::FromAddress(address1) ==
+           NewSpacePage::FromAddress(address2);
+  }
+
  private:
   // Create a NewSpacePage object that is only used as anchor
   // for the doubly-linked list of real pages.
@@ -2453,6 +2459,12 @@ class NewSpace : public Space {
   void set_top(Address top) {
     ASSERT(to_space_.current_page()->ContainsLimit(top));
     allocation_info_.set_top(top);
+  }
+
+  // Return the address of the allocation pointer limit in the active semispace.
+  Address limit() {
+    ASSERT(to_space_.current_page()->ContainsLimit(allocation_info_.limit()));
+    return allocation_info_.limit();
   }
 
   // Return the address of the first object in the active semispace.

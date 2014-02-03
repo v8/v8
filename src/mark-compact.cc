@@ -3007,20 +3007,6 @@ void MarkCompactCollector::EvacuateNewSpace() {
   new_space->Flip();
   new_space->ResetAllocationInfo();
 
-  // UpdateAllocationSiteFeedback expects that only objects at the end of
-  // newspace are not guaranteed to have the next word clear. It relies on
-  // FromSpacePageHigh to check whether an object is at the end of newspace.
-  // However, it is possible that newspace is being evacuated without it being
-  // full, e.g. to make the heap iterable, hence top will not equal high. In
-  // that case, fill up newspace with a filler to ensure the next word is
-  // cleared.
-  if (FLAG_allocation_site_pretenuring &&
-      from_top < new_space->FromSpacePageHigh()) {
-    Address limit = NewSpacePage::FromLimit(from_top)->area_end();
-    int remaining_in_page = static_cast<int>(limit - from_top);
-    heap()->CreateFillerObjectAt(from_top, remaining_in_page);
-  }
-
   int survivors_size = 0;
 
   // First pass: traverse all objects in inactive semispace, remove marks,
