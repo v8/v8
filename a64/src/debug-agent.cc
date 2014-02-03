@@ -46,8 +46,6 @@ void DebuggerAgentMessageHandler(const v8::Debug::Message& message) {
 
 // Debugger agent main thread.
 void DebuggerAgent::Run() {
-  const int kOneSecondInMicros = 1000000;
-
   // Allow this socket to reuse port even if still in TIME_WAIT.
   server_->SetReuseAddress(true);
 
@@ -60,16 +58,20 @@ void DebuggerAgent::Run() {
     // would be that the port is already in use so this avoids a busy loop and
     // make the agent take over the port when it becomes free.
     if (!bound) {
+      const TimeDelta kTimeout = TimeDelta::FromSeconds(1);
       PrintF("Failed to open socket on port %d, "
-          "waiting %d ms before retrying\n", port_, kOneSecondInMicros / 1000);
-      terminate_now_->Wait(kOneSecondInMicros);
+          "waiting %d ms before retrying\n", port_,
+          static_cast<int>(kTimeout.InMilliseconds()));
+      if (!terminate_now_.WaitFor(kTimeout)) {
+        if (terminate_) return;
+      }
     }
   }
 
   // Accept connections on the bound port.
   while (!terminate_) {
     bool ok = server_->Listen(1);
-    listening_->Signal();
+    listening_.Signal();
     if (ok) {
       // Accept the new connection.
       Socket* client = server_->Accept();
@@ -89,7 +91,7 @@ void DebuggerAgent::Shutdown() {
 
   // Signal termination and make the server exit either its listen call or its
   // binding loop. This makes sure that no new sessions can be established.
-  terminate_now_->Signal();
+  terminate_now_.Signal();
   server_->Shutdown();
   Join();
 
@@ -99,14 +101,14 @@ void DebuggerAgent::Shutdown() {
 
 
 void DebuggerAgent::WaitUntilListening() {
-  listening_->Wait();
+  listening_.Wait();
 }
 
 static const char* kCreateSessionMessage =
     "Remote debugging session already active\r\n";
 
 void DebuggerAgent::CreateSession(Socket* client) {
-  ScopedLock with(session_access_);
+  LockGuard<RecursiveMutex> session_access_guard(&session_access_);
 
   // If another session is already established terminate this one.
   if (session_ != NULL) {
@@ -123,7 +125,7 @@ void DebuggerAgent::CreateSession(Socket* client) {
 
 
 void DebuggerAgent::CloseSession() {
-  ScopedLock with(session_access_);
+  LockGuard<RecursiveMutex> session_access_guard(&session_access_);
 
   // Terminate the session.
   if (session_ != NULL) {
@@ -136,7 +138,7 @@ void DebuggerAgent::CloseSession() {
 
 
 void DebuggerAgent::DebuggerMessage(const v8::Debug::Message& message) {
-  ScopedLock with(session_access_);
+  LockGuard<RecursiveMutex> session_access_guard(&session_access_);
 
   // Forward the message handling to the session.
   if (session_ != NULL) {
@@ -154,7 +156,7 @@ void DebuggerAgent::OnSessionClosed(DebuggerAgentSession* session) {
   }
 
   // Terminate the session.
-  ScopedLock with(session_access_);
+  LockGuard<RecursiveMutex> session_access_guard(&session_access_);
   ASSERT(session == session_);
   if (session == session_) {
     session_->Shutdown();

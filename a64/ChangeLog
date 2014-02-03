@@ -1,3 +1,41 @@
+2013-09-02: Version 3.21.8
+
+        Added scriptId to StackTrace frames (issue 2865).
+
+        Performance and stability improvements on all platforms.
+
+
+2013-08-30: Version 3.21.7
+
+        Fixed casts of eternal handles.
+
+        Turned on global handle zapping.
+
+        Always visit branches during HGraph building (Chromium issue 280333).
+
+        Profiler changes: removed deprecated API, support higher sampling
+        rate on Windows.
+
+        Performance and stability improvements on all platforms.
+
+
+2013-08-29: Version 3.21.6
+
+        Fixed inlined 'throw' statements interfering with live range
+        computation. (issue 2843)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-08-28: Version 3.21.5
+
+        Fixed compilation with recent MinGW64 versions. (issue 2300)
+
+        Added RemovePrototype to FunctionTemplate. (Chromium issue 272440)
+
+        Performance and stability improvements on all platforms.
+
+
 2013-08-26: Version 3.21.4
 
         Lowered kInitialMaxFastElementArray constant to 95K (issue 2790).
@@ -101,7 +139,7 @@
         Performance and stability improvements on all platforms.
 
 
-2013-08-07: Version 3.20.14
+2013-08-07: Version 3.20.15
 
         Exposed eternal handle api.
 

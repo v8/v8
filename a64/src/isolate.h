@@ -321,7 +321,6 @@ class SystemThreadManager {
 #ifdef ENABLE_DEBUGGER_SUPPORT
 
 #define ISOLATE_DEBUGGER_INIT_LIST(V)                                          \
-  V(v8::Debug::EventCallback, debug_event_callback, NULL)                      \
   V(DebuggerAgent*, debugger_agent_instance, NULL)
 #else
 
@@ -361,7 +360,6 @@ typedef List<HeapObject*, PreallocatedStorageAllocationPolicy> DebugObjectCache;
   V(byte*, assembler_spare_buffer, NULL)                                       \
   V(FatalErrorCallback, exception_behavior, NULL)                              \
   V(AllowCodeGenerationFromStringsCallback, allow_code_gen_callback, NULL)     \
-  V(v8::Debug::MessageHandler, message_handler, NULL)                          \
   /* To distinguish the function templates, so that we can find them in the */ \
   /* function cache of the native context. */                                  \
   V(int, next_serial_number, 0)                                                \
@@ -547,10 +545,10 @@ class Isolate {
   static void EnterDefaultIsolate();
 
   // Mutex for serializing access to break control structures.
-  Mutex* break_access() { return break_access_; }
+  RecursiveMutex* break_access() { return &break_access_; }
 
   // Mutex for serializing access to debugger.
-  Mutex* debugger_access() { return debugger_access_; }
+  RecursiveMutex* debugger_access() { return &debugger_access_; }
 
   Address get_address_from_id(AddressId id);
 
@@ -1192,7 +1190,7 @@ class Isolate {
 
   // This mutex protects highest_thread_id_, thread_data_table_ and
   // default_isolate_.
-  static Mutex* process_wide_mutex_;
+  static RecursiveMutex process_wide_mutex_;
 
   static Thread::LocalStorageKey per_isolate_thread_data_key_;
   static Thread::LocalStorageKey isolate_key_;
@@ -1260,9 +1258,9 @@ class Isolate {
   CompilationCache* compilation_cache_;
   Counters* counters_;
   CodeRange* code_range_;
-  Mutex* break_access_;
+  RecursiveMutex break_access_;
   Atomic32 debugger_initialized_;
-  Mutex* debugger_access_;
+  RecursiveMutex debugger_access_;
   Logger* logger_;
   StackGuard stack_guard_;
   StatsTable* stats_table_;
@@ -1414,9 +1412,6 @@ class SaveContext BASE_EMBEDDED {
 
  private:
   Handle<Context> context_;
-#if __GNUC_VERSION__ >= 40100 && __GNUC_VERSION__ < 40300
-  Handle<Context> dummy_;
-#endif
   SaveContext* prev_;
   Address c_entry_fp_;
 };
@@ -1425,12 +1420,30 @@ class SaveContext BASE_EMBEDDED {
 class AssertNoContextChange BASE_EMBEDDED {
 #ifdef DEBUG
  public:
-  AssertNoContextChange() :
+  AssertNoContextChange() : context_(Isolate::Current()->context()) { }
+  ~AssertNoContextChange() {
+    ASSERT(Isolate::Current()->context() == *context_);
+  }
+
+ private:
+  Handle<Context> context_;
+#else
+ public:
+  AssertNoContextChange() { }
+#endif
+};
+
+
+// TODO(mstarzinger): Depracate as soon as everything is handlified.
+class AssertNoContextChangeWithHandleScope BASE_EMBEDDED {
+#ifdef DEBUG
+ public:
+  AssertNoContextChangeWithHandleScope() :
       scope_(Isolate::Current()),
       context_(Isolate::Current()->context(), Isolate::Current()) {
   }
 
-  ~AssertNoContextChange() {
+  ~AssertNoContextChangeWithHandleScope() {
     ASSERT(Isolate::Current()->context() == *context_);
   }
 
@@ -1439,7 +1452,7 @@ class AssertNoContextChange BASE_EMBEDDED {
   Handle<Context> context_;
 #else
  public:
-  AssertNoContextChange() { }
+  AssertNoContextChangeWithHandleScope() { }
 #endif
 };
 
@@ -1451,11 +1464,11 @@ class ExecutionAccess BASE_EMBEDDED {
   }
   ~ExecutionAccess() { Unlock(isolate_); }
 
-  static void Lock(Isolate* isolate) { isolate->break_access_->Lock(); }
-  static void Unlock(Isolate* isolate) { isolate->break_access_->Unlock(); }
+  static void Lock(Isolate* isolate) { isolate->break_access()->Lock(); }
+  static void Unlock(Isolate* isolate) { isolate->break_access()->Unlock(); }
 
   static bool TryLock(Isolate* isolate) {
-    return isolate->break_access_->TryLock();
+    return isolate->break_access()->TryLock();
   }
 
  private:

@@ -1111,7 +1111,6 @@ class MacroAssembler: public Assembler {
                                 ExternalReference thunk_ref,
                                 Register thunk_last_arg,
                                 int stack_space,
-                                bool returns_handle,
                                 int return_value_offset_from_fp);
 
   // Jump to a runtime routine.

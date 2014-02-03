@@ -46,7 +46,7 @@ CodeStubInterfaceDescriptor::CodeStubInterfaceDescriptor()
       function_mode_(NOT_JS_FUNCTION_STUB_MODE),
       register_params_(NULL),
       deoptimization_handler_(NULL),
-      miss_handler_(IC_Utility(IC::kUnreachable), Isolate::Current()),
+      miss_handler_(),
       has_miss_handler_(false) { }
 
 
@@ -93,8 +93,7 @@ Handle<Code> CodeStub::GetCodeCopyFromTemplate(Isolate* isolate) {
 }
 
 
-Handle<Code> PlatformCodeStub::GenerateCode() {
-  Isolate* isolate = Isolate::Current();
+Handle<Code> PlatformCodeStub::GenerateCode(Isolate* isolate) {
   Factory* factory = isolate->factory();
 
   // Generate the new code.
@@ -144,7 +143,7 @@ Handle<Code> CodeStub::GetCode(Isolate* isolate) {
   {
     HandleScope scope(isolate);
 
-    Handle<Code> new_object = GenerateCode();
+    Handle<Code> new_object = GenerateCode(isolate);
     new_object->set_major_key(MajorKey());
     FinishCode(new_object);
     RecordCodeGeneration(*new_object, isolate);

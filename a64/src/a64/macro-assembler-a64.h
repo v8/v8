@@ -961,7 +961,6 @@ class MacroAssembler : public Assembler {
                                 Register thunk_last_arg,
                                 int stack_space,
                                 int spill_offset,
-                                bool returns_handle,
                                 int return_value_offset_from_fp);
 
   // The number of register that CallApiFunctionAndReturn will need to save on

@@ -93,7 +93,7 @@ static void* highest_ever_allocated = reinterpret_cast<void*>(0);
 
 static void UpdateAllocatedSpaceLimits(void* address, int size) {
   ASSERT(limit_mutex != NULL);
-  ScopedLock lock(limit_mutex);
+  LockGuard<Mutex> lock(limit_mutex);
 
   lowest_ever_allocated = Min(lowest_ever_allocated, address);
   highest_ever_allocated =
@@ -392,58 +392,11 @@ bool VirtualMemory::HasLazyCommits() {
 }
 
 
-class MacOSSemaphore : public Semaphore {
- public:
-  explicit MacOSSemaphore(int count) {
-    int r;
-    r = semaphore_create(mach_task_self(),
-                         &semaphore_,
-                         SYNC_POLICY_FIFO,
-                         count);
-    ASSERT(r == KERN_SUCCESS);
-  }
-
-  ~MacOSSemaphore() {
-    int r;
-    r = semaphore_destroy(mach_task_self(), semaphore_);
-    ASSERT(r == KERN_SUCCESS);
-  }
-
-  void Wait() {
-    int r;
-    do {
-      r = semaphore_wait(semaphore_);
-      ASSERT(r == KERN_SUCCESS || r == KERN_ABORTED);
-    } while (r == KERN_ABORTED);
-  }
-
-  bool Wait(int timeout);
-
-  void Signal() { semaphore_signal(semaphore_); }
-
- private:
-  semaphore_t semaphore_;
-};
-
-
-bool MacOSSemaphore::Wait(int timeout) {
-  mach_timespec_t ts;
-  ts.tv_sec = timeout / 1000000;
-  ts.tv_nsec = (timeout % 1000000) * 1000;
-  return semaphore_timedwait(semaphore_, ts) != KERN_OPERATION_TIMED_OUT;
-}
-
-
-Semaphore* OS::CreateSemaphore(int count) {
-  return new MacOSSemaphore(count);
-}
-
-
 void OS::SetUp() {
   // Seed the random number generator. We preserve microsecond resolution.
-  uint64_t seed = Ticks() ^ (getpid() << 16);
+  uint64_t seed = static_cast<uint64_t>(TimeCurrentMillis()) ^ (getpid() << 16);
   srandom(static_cast<unsigned int>(seed));
-  limit_mutex = CreateMutex();
+  limit_mutex = new Mutex();
 }
 
 

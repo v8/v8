@@ -62,12 +62,12 @@ class LCodeGen;
   V(CallNewArray)                               \
   V(CallRuntime)                                \
   V(CallStub)                                   \
-  V(CheckFunction)                              \
   V(CheckInstanceType)                          \
   V(CheckMaps)                                  \
   V(CheckMapValue)                              \
   V(CheckNonSmi)                                \
   V(CheckSmi)                                   \
+  V(CheckValue)                                 \
   V(ClampDToUint8)                              \
   V(ClampIToUint8)                              \
   V(ClampTToUint8)                              \
@@ -175,7 +175,6 @@ class LCodeGen;
   V(StringCompareAndBranch)                     \
   V(SubI)                                       \
   V(TaggedToI)                                  \
-  V(TaggedToINoSSE2)                            \
   V(ThisFunction)                               \
   V(Throw)                                      \
   V(ToFastProperties)                           \
@@ -2171,31 +2170,6 @@ class LTaggedToI V8_FINAL : public LTemplateInstruction<1, 1, 1> {
 };
 
 
-// Truncating conversion from a tagged value to an int32.
-class LTaggedToINoSSE2 V8_FINAL : public LTemplateInstruction<1, 1, 3> {
- public:
-  LTaggedToINoSSE2(LOperand* value,
-                   LOperand* temp1,
-                   LOperand* temp2,
-                   LOperand* temp3) {
-    inputs_[0] = value;
-    temps_[0] = temp1;
-    temps_[1] = temp2;
-    temps_[2] = temp3;
-  }
-
-  LOperand* value() { return inputs_[0]; }
-  LOperand* scratch() { return temps_[0]; }
-  LOperand* scratch2() { return temps_[1]; }
-  LOperand* scratch3() { return temps_[2]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(TaggedToINoSSE2, "tagged-to-i-nosse2")
-  DECLARE_HYDROGEN_ACCESSOR(UnaryOperation)
-
-  bool truncating() { return hydrogen()->CanTruncateToInt32(); }
-};
-
-
 class LSmiTag V8_FINAL : public LTemplateInstruction<1, 1, 0> {
  public:
   explicit LSmiTag(LOperand* value) {
@@ -2437,16 +2411,16 @@ class LStringCharFromCode V8_FINAL : public LTemplateInstruction<1, 2, 0> {
 };
 
 
-class LCheckFunction V8_FINAL : public LTemplateInstruction<0, 1, 0> {
+class LCheckValue V8_FINAL : public LTemplateInstruction<0, 1, 0> {
  public:
-  explicit LCheckFunction(LOperand* value) {
+  explicit LCheckValue(LOperand* value) {
     inputs_[0] = value;
   }
 
   LOperand* value() { return inputs_[0]; }
 
-  DECLARE_CONCRETE_INSTRUCTION(CheckFunction, "check-function")
-  DECLARE_HYDROGEN_ACCESSOR(CheckFunction)
+  DECLARE_CONCRETE_INSTRUCTION(CheckValue, "check-value")
+  DECLARE_HYDROGEN_ACCESSOR(CheckValue)
 };
 
 

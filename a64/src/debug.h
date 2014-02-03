@@ -762,7 +762,6 @@ class MessageDispatchHelperThread;
 class LockingCommandMessageQueue BASE_EMBEDDED {
  public:
   LockingCommandMessageQueue(Logger* logger, int size);
-  ~LockingCommandMessageQueue();
   bool IsEmpty() const;
   CommandMessage Get();
   void Put(const CommandMessage& message);
@@ -770,7 +769,7 @@ class LockingCommandMessageQueue BASE_EMBEDDED {
  private:
   Logger* logger_;
   CommandMessageQueue queue_;
-  Mutex* lock_;
+  mutable Mutex mutex_;
   DISALLOW_COPY_AND_ASSIGN(LockingCommandMessageQueue);
 };
 
@@ -821,7 +820,7 @@ class Debugger {
   void SetEventListener(Handle<Object> callback, Handle<Object> data);
   void SetMessageHandler(v8::Debug::MessageHandler2 handler);
   void SetHostDispatchHandler(v8::Debug::HostDispatchHandler handler,
-                              int period);
+                              TimeDelta period);
   void SetDebugMessageDispatchHandler(
       v8::Debug::DebugMessageDispatchHandler handler,
       bool provide_locker);
@@ -863,7 +862,7 @@ class Debugger {
   friend void ForceUnloadDebugger();  // In test-debug.cc
 
   inline bool EventActive(v8::DebugEvent event) {
-    ScopedLock with(debugger_access_);
+    LockGuard<RecursiveMutex> lock_guard(debugger_access_);
 
     // Check whether the message handler was been cleared.
     if (debugger_unload_pending_) {
@@ -918,7 +917,7 @@ class Debugger {
                            Handle<Object> event_data);
   void ListenersChanged();
 
-  Mutex* debugger_access_;  // Mutex guarding debugger variables.
+  RecursiveMutex* debugger_access_;  // Mutex guarding debugger variables.
   Handle<Object> event_listener_;  // Global handle to listener.
   Handle<Object> event_listener_data_;
   bool compiling_natives_;  // Are we compiling natives?
@@ -929,16 +928,16 @@ class Debugger {
   v8::Debug::MessageHandler2 message_handler_;
   bool debugger_unload_pending_;  // Was message handler cleared?
   v8::Debug::HostDispatchHandler host_dispatch_handler_;
-  Mutex* dispatch_handler_access_;  // Mutex guarding dispatch handler.
+  Mutex dispatch_handler_access_;  // Mutex guarding dispatch handler.
   v8::Debug::DebugMessageDispatchHandler debug_message_dispatch_handler_;
   MessageDispatchHelperThread* message_dispatch_helper_thread_;
-  int host_dispatch_micros_;
+  TimeDelta host_dispatch_period_;
 
   DebuggerAgent* agent_;
 
   static const int kQueueInitialSize = 4;
   LockingCommandMessageQueue command_queue_;
-  Semaphore* command_received_;  // Signaled for each command received.
+  Semaphore command_received_;  // Signaled for each command received.
   LockingCommandMessageQueue event_command_queue_;
 
   Isolate* isolate_;
@@ -1047,7 +1046,7 @@ class Debug_Address {
 class MessageDispatchHelperThread: public Thread {
  public:
   explicit MessageDispatchHelperThread(Isolate* isolate);
-  ~MessageDispatchHelperThread();
+  ~MessageDispatchHelperThread() {}
 
   void Schedule();
 
@@ -1055,8 +1054,8 @@ class MessageDispatchHelperThread: public Thread {
   void Run();
 
   Isolate* isolate_;
-  Semaphore* const sem_;
-  Mutex* const mutex_;
+  Semaphore sem_;
+  Mutex mutex_;
   bool already_signalled_;
 
   DISALLOW_COPY_AND_ASSIGN(MessageDispatchHelperThread);

@@ -142,15 +142,15 @@ TEST(SamplingCircularQueueMultithreading) {
 
   const int kRecordsPerChunk = 4;
   TestSampleQueue scq;
-  i::Semaphore* semaphore = i::OS::CreateSemaphore(0);
+  i::Semaphore semaphore(0);
 
-  ProducerThread producer1(&scq, kRecordsPerChunk, 1, semaphore);
-  ProducerThread producer2(&scq, kRecordsPerChunk, 10, semaphore);
-  ProducerThread producer3(&scq, kRecordsPerChunk, 20, semaphore);
+  ProducerThread producer1(&scq, kRecordsPerChunk, 1, &semaphore);
+  ProducerThread producer2(&scq, kRecordsPerChunk, 10, &semaphore);
+  ProducerThread producer3(&scq, kRecordsPerChunk, 20, &semaphore);
 
   CHECK_EQ(NULL, scq.StartDequeue());
   producer1.Start();
-  semaphore->Wait();
+  semaphore.Wait();
   for (Record i = 1; i < 1 + kRecordsPerChunk; ++i) {
     Record* rec = reinterpret_cast<Record*>(scq.StartDequeue());
     CHECK_NE(NULL, rec);
@@ -162,7 +162,7 @@ TEST(SamplingCircularQueueMultithreading) {
 
   CHECK_EQ(NULL, scq.StartDequeue());
   producer2.Start();
-  semaphore->Wait();
+  semaphore.Wait();
   for (Record i = 10; i < 10 + kRecordsPerChunk; ++i) {
     Record* rec = reinterpret_cast<Record*>(scq.StartDequeue());
     CHECK_NE(NULL, rec);
@@ -174,7 +174,7 @@ TEST(SamplingCircularQueueMultithreading) {
 
   CHECK_EQ(NULL, scq.StartDequeue());
   producer3.Start();
-  semaphore->Wait();
+  semaphore.Wait();
   for (Record i = 20; i < 20 + kRecordsPerChunk; ++i) {
     Record* rec = reinterpret_cast<Record*>(scq.StartDequeue());
     CHECK_NE(NULL, rec);
@@ -185,6 +185,4 @@ TEST(SamplingCircularQueueMultithreading) {
   }
 
   CHECK_EQ(NULL, scq.StartDequeue());
-
-  delete semaphore;
 }

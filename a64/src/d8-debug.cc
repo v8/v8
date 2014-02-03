@@ -201,7 +201,7 @@ void RemoteDebugger::Run() {
   // Process events received from debugged VM and from the keyboard.
   bool terminate = false;
   while (!terminate) {
-    event_available_->Wait();
+    event_available_.Wait();
     RemoteDebuggerEvent* event = GetEvent();
     switch (event->type()) {
       case RemoteDebuggerEvent::kMessage:
@@ -248,7 +248,7 @@ void RemoteDebugger::ConnectionClosed() {
 
 
 void RemoteDebugger::AddEvent(RemoteDebuggerEvent* event) {
-  i::ScopedLock lock(event_access_);
+  i::LockGuard<i::Mutex> lock_guard(&event_access_);
   if (head_ == NULL) {
     ASSERT(tail_ == NULL);
     head_ = event;
@@ -258,12 +258,12 @@ void RemoteDebugger::AddEvent(RemoteDebuggerEvent* event) {
     tail_->set_next(event);
     tail_ = event;
   }
-  event_available_->Signal();
+  event_available_.Signal();
 }
 
 
 RemoteDebuggerEvent* RemoteDebugger::GetEvent() {
-  i::ScopedLock lock(event_access_);
+  i::LockGuard<i::Mutex> lock_guard(&event_access_);
   ASSERT(head_ != NULL);
   RemoteDebuggerEvent* result = head_;
   head_ = head_->next();

@@ -1867,16 +1867,6 @@ Runtime::FunctionId TranscendentalCacheStub::RuntimeFunction() {
 }
 
 
-void StackCheckStub::Generate(MacroAssembler* masm) {
-  __ TailCallRuntime(Runtime::kStackGuard, 0, 1);
-}
-
-
-void InterruptStub::Generate(MacroAssembler* masm) {
-  __ TailCallRuntime(Runtime::kInterrupt, 0, 1);
-}
-
-
 void MathPowStub::Generate(MacroAssembler* masm) {
   // Stack on entry:
   // jssp[0]: Exponent (as a tagged value).
@@ -4179,9 +4169,14 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
     CreateAllocationSiteStub create_stub;
+
+    __ SmiTag(x0);
     __ Push(x0, x1, x2);
+
     __ CallStub(&create_stub);
+
     __ Pop(x2, x1, x0);
+    __ SmiUntag(x0);
   }
   __ B(&done);
 

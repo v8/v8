@@ -152,7 +152,7 @@ static void* highest_ever_allocated = reinterpret_cast<void*>(0);
 
 static void UpdateAllocatedSpaceLimits(void* address, int size) {
   ASSERT(limit_mutex != NULL);
-  ScopedLock lock(limit_mutex);
+  LockGuard<Mutex> lock_guard(limit_mutex);
 
   lowest_ever_allocated = Min(lowest_ever_allocated, address);
   highest_ever_allocated =
@@ -498,81 +498,11 @@ bool VirtualMemory::HasLazyCommits() {
 }
 
 
-class LinuxSemaphore : public Semaphore {
- public:
-  explicit LinuxSemaphore(int count) {  sem_init(&sem_, 0, count); }
-  virtual ~LinuxSemaphore() { sem_destroy(&sem_); }
-
-  virtual void Wait();
-  virtual bool Wait(int timeout);
-  virtual void Signal() { sem_post(&sem_); }
- private:
-  sem_t sem_;
-};
-
-
-void LinuxSemaphore::Wait() {
-  while (true) {
-    int result = sem_wait(&sem_);
-    if (result == 0) return;  // Successfully got semaphore.
-    CHECK(result == -1 && errno == EINTR);  // Signal caused spurious wakeup.
-  }
-}
-
-
-#ifndef TIMEVAL_TO_TIMESPEC
-#define TIMEVAL_TO_TIMESPEC(tv, ts) do {                            \
-    (ts)->tv_sec = (tv)->tv_sec;                                    \
-    (ts)->tv_nsec = (tv)->tv_usec * 1000;                           \
-} while (false)
-#endif
-
-
-bool LinuxSemaphore::Wait(int timeout) {
-  const long kOneSecondMicros = 1000000;  // NOLINT
-
-  // Split timeout into second and nanosecond parts.
-  struct timeval delta;
-  delta.tv_usec = timeout % kOneSecondMicros;
-  delta.tv_sec = timeout / kOneSecondMicros;
-
-  struct timeval current_time;
-  // Get the current time.
-  if (gettimeofday(&current_time, NULL) == -1) {
-    return false;
-  }
-
-  // Calculate time for end of timeout.
-  struct timeval end_time;
-  timeradd(&current_time, &delta, &end_time);
-
-  struct timespec ts;
-  TIMEVAL_TO_TIMESPEC(&end_time, &ts);
-  // Wait for semaphore signalled or timeout.
-  while (true) {
-    int result = sem_timedwait(&sem_, &ts);
-    if (result == 0) return true;  // Successfully got semaphore.
-    if (result > 0) {
-      // For glibc prior to 2.3.4 sem_timedwait returns the error instead of -1.
-      errno = result;
-      result = -1;
-    }
-    if (result == -1 && errno == ETIMEDOUT) return false;  // Timeout.
-    CHECK(result == -1 && errno == EINTR);  // Signal caused spurious wakeup.
-  }
-}
-
-
-Semaphore* OS::CreateSemaphore(int count) {
-  return new LinuxSemaphore(count);
-}
-
-
 void OS::SetUp() {
   // Seed the random number generator. We preserve microsecond resolution.
-  uint64_t seed = Ticks() ^ (getpid() << 16);
+  uint64_t seed = static_cast<uint64_t>(TimeCurrentMillis()) ^ (getpid() << 16);
   srandom(static_cast<unsigned int>(seed));
-  limit_mutex = CreateMutex();
+  limit_mutex = new Mutex();
 }
 
 

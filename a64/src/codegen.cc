@@ -89,12 +89,12 @@ void CodeGenerator::MakeCodePrologue(CompilationInfo* info, const char* kind) {
 #ifdef DEBUG
   if (!info->IsStub() && print_source) {
     PrintF("--- Source from AST ---\n%s\n",
-           PrettyPrinter().PrintProgram(info->function()));
+           PrettyPrinter(info->isolate()).PrintProgram(info->function()));
   }
 
   if (!info->IsStub() && print_ast) {
     PrintF("--- AST ---\n%s\n",
-           AstPrinter().PrintProgram(info->function()));
+           AstPrinter(info->isolate()).PrintProgram(info->function()));
   }
 #endif  // DEBUG
 }
@@ -124,7 +124,7 @@ Handle<Code> CodeGenerator::MakeCodeEpilogue(MacroAssembler* masm,
 void CodeGenerator::PrintCode(Handle<Code> code, CompilationInfo* info) {
 #ifdef ENABLE_DISASSEMBLER
   AllowDeferredHandleDereference allow_deference_for_print_code;
-  bool print_code = Isolate::Current()->bootstrapper()->IsActive()
+  bool print_code = info->isolate()->bootstrapper()->IsActive()
       ? FLAG_print_builtin_code
       : (FLAG_print_code ||
          (info->IsStub() && FLAG_print_code_stubs) ||
@@ -171,9 +171,8 @@ void CodeGenerator::PrintCode(Handle<Code> code, CompilationInfo* info) {
 }
 
 
-bool CodeGenerator::ShouldGenerateLog(Expression* type) {
+bool CodeGenerator::ShouldGenerateLog(Isolate* isolate, Expression* type) {
   ASSERT(type != NULL);
-  Isolate* isolate = Isolate::Current();
   if (!isolate->logger()->is_logging() &&
       !isolate->cpu_profiler()->is_profiling()) {
     return false;

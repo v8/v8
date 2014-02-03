@@ -341,7 +341,7 @@ MaybeObject* JSObject::GetPropertyWithCallback(Object* receiver,
     AccessorDescriptor* callback =
         reinterpret_cast<AccessorDescriptor*>(
             Foreign::cast(structure)->foreign_address());
-    MaybeObject* value = (callback->getter)(receiver, callback->data);
+    MaybeObject* value = (callback->getter)(isolate, receiver, callback->data);
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     return value;
   }
@@ -452,14 +452,17 @@ MaybeObject* JSProxy::GetElementWithHandler(Object* receiver,
 }
 
 
-MaybeObject* JSProxy::SetElementWithHandler(JSReceiver* receiver,
-                                            uint32_t index,
-                                            Object* value,
-                                            StrictModeFlag strict_mode) {
-  String* name;
-  MaybeObject* maybe = GetHeap()->Uint32ToString(index);
-  if (!maybe->To<String>(&name)) return maybe;
-  return SetPropertyWithHandler(receiver, name, value, NONE, strict_mode);
+Handle<Object> JSProxy::SetElementWithHandler(Handle<JSProxy> proxy,
+                                              Handle<JSReceiver> receiver,
+                                              uint32_t index,
+                                              Handle<Object> value,
+                                              StrictModeFlag strict_mode) {
+  Isolate* isolate = proxy->GetIsolate();
+  Handle<String> name = isolate->factory()->Uint32ToString(index);
+  CALL_HEAP_FUNCTION(isolate,
+                     proxy->SetPropertyWithHandler(
+                         *receiver, *name, *value, NONE, strict_mode),
+                     Object);
 }
 
 
@@ -828,7 +831,8 @@ MaybeObject* Object::GetProperty(Object* receiver,
                                  PropertyAttributes* attributes) {
   // Make sure that the top context does not change when doing
   // callbacks or interceptor calls.
-  AssertNoContextChange ncc;
+  AssertNoContextChangeWithHandleScope ncc;
+
   Isolate* isolate = name->GetIsolate();
   Heap* heap = isolate->heap();
 
@@ -1905,25 +1909,6 @@ MaybeObject* JSObject::AddFastPropertyUsingMap(Map* new_map,
 }
 
 
-static bool IsIdentifier(UnicodeCache* cache, Name* name) {
-  // Checks whether the buffer contains an identifier (no escape).
-  if (!name->IsString()) return false;
-  String* string = String::cast(name);
-  if (string->length() == 0) return false;
-  ConsStringIteratorOp op;
-  StringCharacterStream stream(string, &op);
-  if (!cache->IsIdentifierStart(stream.GetNext())) {
-    return false;
-  }
-  while (stream.HasMore()) {
-    if (!cache->IsIdentifierPart(stream.GetNext())) {
-      return false;
-    }
-  }
-  return true;
-}
-
-
 MaybeObject* JSObject::AddFastProperty(Name* name,
                                        Object* value,
                                        PropertyAttributes attributes,
@@ -1939,10 +1924,7 @@ MaybeObject* JSObject::AddFastProperty(Name* name,
   // hidden strings) and is not a real identifier.
   // Normalize the object if it will have too many fast properties.
   Isolate* isolate = GetHeap()->isolate();
-  if ((!name->IsSymbol() &&
-       !IsIdentifier(isolate->unicode_cache(), name) &&
-       name != isolate->heap()->hidden_string()) ||
-      TooManyFastProperties(store_mode)) {
+  if (!name->IsCacheable(isolate) || TooManyFastProperties(store_mode)) {
     MaybeObject* maybe_failure =
         NormalizeProperties(CLEAR_INOBJECT_PROPERTIES, 0);
     if (maybe_failure->IsFailure()) return maybe_failure;
@@ -1958,46 +1940,17 @@ MaybeObject* JSObject::AddFastProperty(Name* name,
 
   FieldDescriptor new_field(name, index, attributes, representation);
 
-  ASSERT(index < map()->inobject_properties() ||
-         (index - map()->inobject_properties()) < properties()->length() ||
-         map()->unused_property_fields() == 0);
-
-  FixedArray* values = NULL;
-
-  // TODO(verwaest): Merge with AddFastPropertyUsingMap.
-  if (map()->unused_property_fields() == 0) {
-    // Make room for the new value
-    MaybeObject* maybe_values =
-        properties()->CopySize(properties()->length() + kFieldsAdded);
-    if (!maybe_values->To(&values)) return maybe_values;
-  }
-
-  Heap* heap = isolate->heap();
-
-  Object* storage;
-  MaybeObject* maybe_storage =
-      value->AllocateNewStorageFor(heap, representation);
-  if (!maybe_storage->To(&storage)) return maybe_storage;
-
-  // Note that Map::CopyAddDescriptor has side-effects, the new map is already
-  // inserted in the transition tree. No more allocations that might fail are
-  // allowed after this point.
   Map* new_map;
   MaybeObject* maybe_new_map = map()->CopyAddDescriptor(&new_field, flag);
   if (!maybe_new_map->To(&new_map)) return maybe_new_map;
 
-  if (map()->unused_property_fields() == 0) {
-    ASSERT(values != NULL);
-    set_properties(values);
-    new_map->set_unused_property_fields(kFieldsAdded - 1);
-  } else {
-    new_map->set_unused_property_fields(map()->unused_property_fields() - 1);
+  int unused_property_fields = map()->unused_property_fields() - 1;
+  if (unused_property_fields < 0) {
+    unused_property_fields += kFieldsAdded;
   }
+  new_map->set_unused_property_fields(unused_property_fields);
 
-  set_map(new_map);
-
-  FastPropertyAtPut(index, storage);
-  return value;
+  return AddFastPropertyUsingMap(new_map, name, value, index, representation);
 }
 
 
@@ -2853,7 +2806,8 @@ MaybeObject* JSObject::SetPropertyWithCallback(Object* structure,
     AccessorDescriptor* callback =
         reinterpret_cast<AccessorDescriptor*>(
             Foreign::cast(structure)->foreign_address());
-    MaybeObject* obj = (callback->setter)(this,  value, callback->data);
+    MaybeObject* obj = (callback->setter)(
+        isolate, this,  value, callback->data);
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     if (obj->IsFailure()) return obj;
     return *value_handle;
@@ -3565,20 +3519,20 @@ MUST_USE_RESULT MaybeObject* JSProxy::SetPropertyViaPrototypesWithHandler(
 
 
 Handle<Object> JSProxy::DeletePropertyWithHandler(
-    Handle<JSProxy> object, Handle<Name> name, DeleteMode mode) {
-  Isolate* isolate = object->GetIsolate();
+    Handle<JSProxy> proxy, Handle<Name> name, DeleteMode mode) {
+  Isolate* isolate = proxy->GetIsolate();
 
   // TODO(rossberg): adjust once there is a story for symbols vs proxies.
   if (name->IsSymbol()) return isolate->factory()->false_value();
 
   Handle<Object> args[] = { name };
-  Handle<Object> result = object->CallTrap(
+  Handle<Object> result = proxy->CallTrap(
       "delete", Handle<Object>(), ARRAY_SIZE(args), args);
   if (isolate->has_pending_exception()) return Handle<Object>();
 
   bool result_bool = result->BooleanValue();
   if (mode == STRICT_DELETION && !result_bool) {
-    Handle<Object> handler(object->handler(), isolate);
+    Handle<Object> handler(proxy->handler(), isolate);
     Handle<String> trap_name = isolate->factory()->InternalizeOneByteString(
         STATIC_ASCII_VECTOR("delete"));
     Handle<Object> args[] = { handler, trap_name };
@@ -3592,10 +3546,10 @@ Handle<Object> JSProxy::DeletePropertyWithHandler(
 
 
 Handle<Object> JSProxy::DeleteElementWithHandler(
-    Handle<JSProxy> object, uint32_t index, DeleteMode mode) {
-  Isolate* isolate = object->GetIsolate();
+    Handle<JSProxy> proxy, uint32_t index, DeleteMode mode) {
+  Isolate* isolate = proxy->GetIsolate();
   Handle<String> name = isolate->factory()->Uint32ToString(index);
-  return JSProxy::DeletePropertyWithHandler(object, name, mode);
+  return JSProxy::DeletePropertyWithHandler(proxy, name, mode);
 }
 
 
@@ -3677,27 +3631,23 @@ MUST_USE_RESULT PropertyAttributes JSProxy::GetElementAttributeWithHandler(
 }
 
 
-void JSProxy::Fix() {
-  Isolate* isolate = GetIsolate();
-  HandleScope scope(isolate);
-  Handle<JSProxy> self(this);
+void JSProxy::Fix(Handle<JSProxy> proxy) {
+  Isolate* isolate = proxy->GetIsolate();
 
   // Save identity hash.
-  MaybeObject* maybe_hash = GetIdentityHash(OMIT_CREATION);
+  Handle<Object> hash = JSProxy::GetIdentityHash(proxy, OMIT_CREATION);
 
-  if (IsJSFunctionProxy()) {
-    isolate->factory()->BecomeJSFunction(self);
+  if (proxy->IsJSFunctionProxy()) {
+    isolate->factory()->BecomeJSFunction(proxy);
     // Code will be set on the JavaScript side.
   } else {
-    isolate->factory()->BecomeJSObject(self);
+    isolate->factory()->BecomeJSObject(proxy);
   }
-  ASSERT(self->IsJSObject());
+  ASSERT(proxy->IsJSObject());
 
   // Inherit identity, if it was present.
-  Object* hash;
-  if (maybe_hash->To<Object>(&hash) && hash->IsSmi()) {
-    Handle<JSObject> new_self(JSObject::cast(*self));
-    isolate->factory()->SetIdentityHash(new_self, Smi::cast(hash));
+  if (hash->IsSmi()) {
+    JSObject::SetIdentityHash(Handle<JSObject>::cast(proxy), Smi::cast(*hash));
   }
 }
 
@@ -3903,9 +3853,10 @@ MaybeObject* JSObject::SetPropertyForResult(LookupResult* lookup,
                                             StoreFromKeyed store_mode) {
   Heap* heap = GetHeap();
   Isolate* isolate = heap->isolate();
+
   // Make sure that the top context does not change when doing callbacks or
   // interceptor calls.
-  AssertNoContextChange ncc;
+  AssertNoContextChangeWithHandleScope ncc;
 
   // Optimization for 2-byte strings often used as keys in a decompression
   // dictionary.  We internalize these short keys to avoid constantly
@@ -4064,7 +4015,7 @@ MaybeObject* JSObject::SetLocalPropertyIgnoreAttributes(
     ExtensibilityCheck extensibility_check) {
   // Make sure that the top context does not change when doing callbacks or
   // interceptor calls.
-  AssertNoContextChange ncc;
+  AssertNoContextChangeWithHandleScope ncc;
   Isolate* isolate = GetIsolate();
   LookupResult lookup(isolate);
   LocalLookup(name_raw, &lookup, true);
@@ -4091,6 +4042,11 @@ MaybeObject* JSObject::SetLocalPropertyIgnoreAttributes(
         value_type,
         mode,
         extensibility_check);
+  }
+
+  if (lookup.IsFound() &&
+      (lookup.type() == INTERCEPTOR || lookup.type() == CALLBACKS)) {
+    LocalLookupRealNamedProperty(name_raw, &lookup);
   }
 
   // Check for accessor in prototype chain removed here in clone.
@@ -4134,31 +4090,14 @@ MaybeObject* JSObject::SetLocalPropertyIgnoreAttributes(
       }
       break;
     case CALLBACKS:
-      // Callbacks are not guaranteed to be installed on the receiver. Also
-      // perform a local lookup again. Fall through.
-    case INTERCEPTOR:
-      self->LocalLookupRealNamedProperty(*name, &lookup);
-      if (lookup.IsFound()) {
-        if (lookup.IsPropertyCallbacks()) {
-          result = ConvertAndSetLocalProperty(
-              &lookup, *name, *value, attributes);
-        } else if (lookup.IsNormal()) {
-          result = self->ReplaceSlowProperty(*name, *value, attributes);
-        } else {
-          result = SetPropertyToFieldWithAttributes(
-              &lookup, name, value, attributes);
-        }
-      } else {
-        result = self->AddProperty(
-            *name, *value, attributes, kNonStrictMode, MAY_BE_STORE_FROM_KEYED,
-            extensibility_check, value_type, mode);
-      }
+      result = ConvertAndSetLocalProperty(&lookup, *name, *value, attributes);
       break;
     case TRANSITION:
       result = SetPropertyUsingTransition(&lookup, name, value, attributes);
       break;
-    case HANDLER:
     case NONEXISTENT:
+    case HANDLER:
+    case INTERCEPTOR:
       UNREACHABLE();
   }
 
@@ -4220,12 +4159,12 @@ PropertyAttributes JSObject::GetPropertyAttributeWithInterceptor(
   if (name->IsSymbol()) return ABSENT;
 
   Isolate* isolate = GetIsolate();
+  HandleScope scope(isolate);
 
   // Make sure that the top context does not change when doing
   // callbacks or interceptor calls.
   AssertNoContextChange ncc;
 
-  HandleScope scope(isolate);
   Handle<InterceptorInfo> interceptor(GetNamedInterceptor());
   Handle<JSObject> receiver_handle(receiver);
   Handle<JSObject> holder_handle(this);
@@ -4355,10 +4294,12 @@ PropertyAttributes JSObject::GetElementAttributeWithReceiver(
 PropertyAttributes JSObject::GetElementAttributeWithInterceptor(
     JSReceiver* receiver, uint32_t index, bool continue_search) {
   Isolate* isolate = GetIsolate();
+  HandleScope scope(isolate);
+
   // Make sure that the top context does not change when doing
   // callbacks or interceptor calls.
   AssertNoContextChange ncc;
-  HandleScope scope(isolate);
+
   Handle<InterceptorInfo> interceptor(GetIndexedInterceptor());
   Handle<JSReceiver> hreceiver(receiver);
   Handle<JSObject> holder(this);
@@ -4749,17 +4690,16 @@ Smi* JSReceiver::GenerateIdentityHash() {
 }
 
 
-MaybeObject* JSObject::SetIdentityHash(Smi* hash, CreationFlag flag) {
-  MaybeObject* maybe = SetHiddenProperty(GetHeap()->identity_hash_string(),
-                                         hash);
-  if (maybe->IsFailure()) return maybe;
-  return this;
+void JSObject::SetIdentityHash(Handle<JSObject> object, Smi* hash) {
+  CALL_HEAP_FUNCTION_VOID(object->GetIsolate(),
+                          object->SetHiddenProperty(
+                              object->GetHeap()->identity_hash_string(), hash));
 }
 
 
-int JSObject::GetIdentityHash(Handle<JSObject> obj) {
-  CALL_AND_RETRY_OR_DIE(obj->GetIsolate(),
-                        obj->GetIdentityHash(ALLOW_CREATION),
+int JSObject::GetIdentityHash(Handle<JSObject> object) {
+  CALL_AND_RETRY_OR_DIE(object->GetIsolate(),
+                        object->GetIdentityHash(ALLOW_CREATION),
                         return Smi::cast(__object__)->value(),
                         return 0);
 }
@@ -4781,6 +4721,12 @@ MaybeObject* JSObject::GetIdentityHash(CreationFlag flag) {
     return Smi::FromInt(0);
   }
   return hash;
+}
+
+
+Handle<Object> JSProxy::GetIdentityHash(Handle<JSProxy> proxy,
+                                        CreationFlag flag) {
+  CALL_HEAP_FUNCTION(proxy->GetIsolate(), proxy->GetIdentityHash(flag), Object);
 }
 
 
@@ -4876,30 +4822,27 @@ MaybeObject* JSObject::SetHiddenProperty(Name* key, Object* value) {
 }
 
 
-void JSObject::DeleteHiddenProperty(Name* key) {
+void JSObject::DeleteHiddenProperty(Handle<JSObject> object, Handle<Name> key) {
+  Isolate* isolate = object->GetIsolate();
   ASSERT(key->IsUniqueName());
-  if (IsJSGlobalProxy()) {
-    // For a proxy, use the prototype as target object.
-    Object* proxy_parent = GetPrototype();
-    // If the proxy is detached, return immediately.
-    if (proxy_parent->IsNull()) return;
-    ASSERT(proxy_parent->IsJSGlobalObject());
-    JSObject::cast(proxy_parent)->DeleteHiddenProperty(key);
-    return;
+
+  if (object->IsJSGlobalProxy()) {
+    Handle<Object> proto(object->GetPrototype(), isolate);
+    if (proto->IsNull()) return;
+    ASSERT(proto->IsJSGlobalObject());
+    return DeleteHiddenProperty(Handle<JSObject>::cast(proto), key);
   }
-  ASSERT(!IsJSGlobalProxy());
+
   MaybeObject* hidden_lookup =
-      GetHiddenPropertiesHashTable(ONLY_RETURN_INLINE_VALUE);
+      object->GetHiddenPropertiesHashTable(ONLY_RETURN_INLINE_VALUE);
   Object* inline_value = hidden_lookup->ToObjectUnchecked();
 
   // We never delete (inline-stored) identity hashes.
-  ASSERT(key != GetHeap()->identity_hash_string());
+  ASSERT(*key != isolate->heap()->identity_hash_string());
   if (inline_value->IsUndefined() || inline_value->IsSmi()) return;
 
-  ObjectHashTable* hashtable = ObjectHashTable::cast(inline_value);
-  MaybeObject* delete_result = hashtable->Put(key, GetHeap()->the_hole_value());
-  USE(delete_result);
-  ASSERT(!delete_result->IsFailure());  // Delete does not cause GC.
+  Handle<ObjectHashTable> hashtable(ObjectHashTable::cast(inline_value));
+  PutIntoObjectHashTable(hashtable, key, isolate->factory()->the_hole_value());
 }
 
 
@@ -5064,111 +5007,110 @@ Handle<Object> JSObject::DeletePropertyWithInterceptor(Handle<JSObject> object,
 }
 
 
-MaybeObject* JSObject::DeleteElementWithInterceptor(uint32_t index) {
-  Isolate* isolate = GetIsolate();
-  Heap* heap = isolate->heap();
-  // Make sure that the top context does not change when doing
-  // callbacks or interceptor calls.
-  AssertNoContextChange ncc;
-  HandleScope scope(isolate);
-  Handle<InterceptorInfo> interceptor(GetIndexedInterceptor());
-  if (interceptor->deleter()->IsUndefined()) return heap->false_value();
-  v8::IndexedPropertyDeleterCallback deleter =
-      v8::ToCData<v8::IndexedPropertyDeleterCallback>(interceptor->deleter());
-  Handle<JSObject> this_handle(this);
-  LOG(isolate,
-      ApiIndexedPropertyAccess("interceptor-indexed-delete", this, index));
-  PropertyCallbackArguments args(isolate, interceptor->data(), this, this);
-  v8::Handle<v8::Boolean> result = args.Call(deleter, index);
-  RETURN_IF_SCHEDULED_EXCEPTION(isolate);
-  if (!result.IsEmpty()) {
-    ASSERT(result->IsBoolean());
-    Handle<Object> result_internal = v8::Utils::OpenHandle(*result);
-    result_internal->VerifyApiCallResultType();
-    return *result_internal;
-  }
-  MaybeObject* raw_result = this_handle->GetElementsAccessor()->Delete(
-      *this_handle,
-      index,
-      NORMAL_DELETION);
-  RETURN_IF_SCHEDULED_EXCEPTION(isolate);
-  return raw_result;
-}
-
-
-Handle<Object> JSObject::DeleteElement(Handle<JSObject> obj,
-                                       uint32_t index,
-                                       DeleteMode mode) {
-  CALL_HEAP_FUNCTION(obj->GetIsolate(),
-                     obj->DeleteElement(index, mode),
+// TODO(mstarzinger): Temporary wrapper until handlified.
+static Handle<Object> AccessorDelete(Handle<JSObject> object,
+                                     uint32_t index,
+                                     JSObject::DeleteMode mode) {
+  CALL_HEAP_FUNCTION(object->GetIsolate(),
+                     object->GetElementsAccessor()->Delete(*object,
+                                                           index,
+                                                           mode),
                      Object);
 }
 
 
-MaybeObject* JSObject::DeleteElement(uint32_t index, DeleteMode mode) {
-  Isolate* isolate = GetIsolate();
+Handle<Object> JSObject::DeleteElementWithInterceptor(Handle<JSObject> object,
+                                                      uint32_t index) {
+  Isolate* isolate = object->GetIsolate();
+  Factory* factory = isolate->factory();
+
+  // Make sure that the top context does not change when doing
+  // callbacks or interceptor calls.
+  AssertNoContextChange ncc;
+
+  Handle<InterceptorInfo> interceptor(object->GetIndexedInterceptor());
+  if (interceptor->deleter()->IsUndefined()) return factory->false_value();
+  v8::IndexedPropertyDeleterCallback deleter =
+      v8::ToCData<v8::IndexedPropertyDeleterCallback>(interceptor->deleter());
+  LOG(isolate,
+      ApiIndexedPropertyAccess("interceptor-indexed-delete", *object, index));
+  PropertyCallbackArguments args(
+      isolate, interceptor->data(), *object, *object);
+  v8::Handle<v8::Boolean> result = args.Call(deleter, index);
+  RETURN_HANDLE_IF_SCHEDULED_EXCEPTION(isolate, Object);
+  if (!result.IsEmpty()) {
+    ASSERT(result->IsBoolean());
+    Handle<Object> result_internal = v8::Utils::OpenHandle(*result);
+    result_internal->VerifyApiCallResultType();
+    // Rebox CustomArguments::kReturnValueOffset before returning.
+    return handle(*result_internal, isolate);
+  }
+  Handle<Object> delete_result = AccessorDelete(object, index, NORMAL_DELETION);
+  RETURN_HANDLE_IF_SCHEDULED_EXCEPTION(isolate, Object);
+  return delete_result;
+}
+
+
+Handle<Object> JSObject::DeleteElement(Handle<JSObject> object,
+                                       uint32_t index,
+                                       DeleteMode mode) {
+  Isolate* isolate = object->GetIsolate();
+  Factory* factory = isolate->factory();
+
   // Check access rights if needed.
-  if (IsAccessCheckNeeded() &&
-      !isolate->MayIndexedAccess(this, index, v8::ACCESS_DELETE)) {
-    isolate->ReportFailedAccessCheck(this, v8::ACCESS_DELETE);
-    RETURN_IF_SCHEDULED_EXCEPTION(isolate);
-    return isolate->heap()->false_value();
+  if (object->IsAccessCheckNeeded() &&
+      !isolate->MayIndexedAccess(*object, index, v8::ACCESS_DELETE)) {
+    isolate->ReportFailedAccessCheck(*object, v8::ACCESS_DELETE);
+    RETURN_HANDLE_IF_SCHEDULED_EXCEPTION(isolate, Object);
+    return factory->false_value();
   }
 
-  if (IsStringObjectWithCharacterAt(index)) {
+  if (object->IsStringObjectWithCharacterAt(index)) {
     if (mode == STRICT_DELETION) {
       // Deleting a non-configurable property in strict mode.
-      HandleScope scope(isolate);
-      Handle<Object> holder(this, isolate);
-      Handle<Object> name = isolate->factory()->NewNumberFromUint(index);
-      Handle<Object> args[2] = { name, holder };
+      Handle<Object> name = factory->NewNumberFromUint(index);
+      Handle<Object> args[2] = { name, object };
       Handle<Object> error =
-          isolate->factory()->NewTypeError("strict_delete_property",
-                                           HandleVector(args, 2));
-      return isolate->Throw(*error);
+          factory->NewTypeError("strict_delete_property",
+                                HandleVector(args, 2));
+      isolate->Throw(*error);
+      return Handle<Object>();
     }
-    return isolate->heap()->false_value();
+    return factory->false_value();
   }
 
-  if (IsJSGlobalProxy()) {
-    Object* proto = GetPrototype();
-    if (proto->IsNull()) return isolate->heap()->false_value();
+  if (object->IsJSGlobalProxy()) {
+    Handle<Object> proto(object->GetPrototype(), isolate);
+    if (proto->IsNull()) return factory->false_value();
     ASSERT(proto->IsJSGlobalObject());
-    return JSGlobalObject::cast(proto)->DeleteElement(index, mode);
+    return DeleteElement(Handle<JSObject>::cast(proto), index, mode);
   }
-
-  // From this point on everything needs to be handlified.
-  HandleScope scope(isolate);
-  Handle<JSObject> self(this);
 
   Handle<Object> old_value;
   bool should_enqueue_change_record = false;
-  if (FLAG_harmony_observation && self->map()->is_observed()) {
-    should_enqueue_change_record = self->HasLocalElement(index);
+  if (FLAG_harmony_observation && object->map()->is_observed()) {
+    should_enqueue_change_record = object->HasLocalElement(index);
     if (should_enqueue_change_record) {
-      old_value = self->GetLocalElementAccessorPair(index) != NULL
-          ? Handle<Object>::cast(isolate->factory()->the_hole_value())
-          : Object::GetElement(self, index);
+      old_value = object->GetLocalElementAccessorPair(index) != NULL
+          ? Handle<Object>::cast(factory->the_hole_value())
+          : Object::GetElement(object, index);
     }
   }
 
-  MaybeObject* result;
   // Skip interceptor if forcing deletion.
-  if (self->HasIndexedInterceptor() && mode != FORCE_DELETION) {
-    result = self->DeleteElementWithInterceptor(index);
+  Handle<Object> result;
+  if (object->HasIndexedInterceptor() && mode != FORCE_DELETION) {
+    result = DeleteElementWithInterceptor(object, index);
   } else {
-    result = self->GetElementsAccessor()->Delete(*self, index, mode);
+    result = AccessorDelete(object, index, mode);
   }
 
-  Handle<Object> hresult;
-  if (!result->ToHandle(&hresult, isolate)) return result;
-
-  if (should_enqueue_change_record && !self->HasLocalElement(index)) {
-    Handle<String> name = isolate->factory()->Uint32ToString(index);
-    EnqueueChangeRecord(self, "deleted", name, old_value);
+  if (should_enqueue_change_record && !object->HasLocalElement(index)) {
+    Handle<String> name = factory->Uint32ToString(index);
+    EnqueueChangeRecord(object, "deleted", name, old_value);
   }
 
-  return *hresult;
+  return result;
 }
 
 
@@ -6002,8 +5944,7 @@ void JSObject::DefineElementAccessor(Handle<JSObject> object,
   accessors->SetComponents(*getter, *setter);
   accessors->set_access_flags(access_control);
 
-  CALL_HEAP_FUNCTION_VOID(
-      isolate, object->SetElementCallback(index, *accessors, attributes));
+  SetElementCallback(object, index, accessors, attributes);
 }
 
 
@@ -6052,9 +5993,7 @@ void JSObject::DefinePropertyAccessor(Handle<JSObject> object,
   accessors->SetComponents(*getter, *setter);
   accessors->set_access_flags(access_control);
 
-  CALL_HEAP_FUNCTION_VOID(
-      object->GetIsolate(),
-      object->SetPropertyCallback(*name, *accessors, attributes));
+  SetPropertyCallback(object, name, accessors, attributes);
 }
 
 
@@ -6083,72 +6022,64 @@ bool JSObject::CanSetCallback(Name* name) {
 }
 
 
-MaybeObject* JSObject::SetElementCallback(uint32_t index,
-                                          Object* structure,
-                                          PropertyAttributes attributes) {
+void JSObject::SetElementCallback(Handle<JSObject> object,
+                                  uint32_t index,
+                                  Handle<Object> structure,
+                                  PropertyAttributes attributes) {
+  Heap* heap = object->GetHeap();
   PropertyDetails details = PropertyDetails(attributes, CALLBACKS, 0);
 
   // Normalize elements to make this operation simple.
-  SeededNumberDictionary* dictionary;
-  { MaybeObject* maybe_dictionary = NormalizeElements();
-    if (!maybe_dictionary->To(&dictionary)) return maybe_dictionary;
-  }
-  ASSERT(HasDictionaryElements() || HasDictionaryArgumentsElements());
+  Handle<SeededNumberDictionary> dictionary = NormalizeElements(object);
+  ASSERT(object->HasDictionaryElements() ||
+         object->HasDictionaryArgumentsElements());
 
   // Update the dictionary with the new CALLBACKS property.
-  { MaybeObject* maybe_dictionary = dictionary->Set(index, structure, details);
-    if (!maybe_dictionary->To(&dictionary)) return maybe_dictionary;
-  }
-
+  dictionary = SeededNumberDictionary::Set(dictionary, index, structure,
+                                           details);
   dictionary->set_requires_slow_elements();
+
   // Update the dictionary backing store on the object.
-  if (elements()->map() == GetHeap()->non_strict_arguments_elements_map()) {
+  if (object->elements()->map() == heap->non_strict_arguments_elements_map()) {
     // Also delete any parameter alias.
     //
     // TODO(kmillikin): when deleting the last parameter alias we could
     // switch to a direct backing store without the parameter map.  This
     // would allow GC of the context.
-    FixedArray* parameter_map = FixedArray::cast(elements());
+    FixedArray* parameter_map = FixedArray::cast(object->elements());
     if (index < static_cast<uint32_t>(parameter_map->length()) - 2) {
-      parameter_map->set(index + 2, GetHeap()->the_hole_value());
+      parameter_map->set(index + 2, heap->the_hole_value());
     }
-    parameter_map->set(1, dictionary);
+    parameter_map->set(1, *dictionary);
   } else {
-    set_elements(dictionary);
+    object->set_elements(*dictionary);
   }
-
-  return GetHeap()->undefined_value();
 }
 
 
-MaybeObject* JSObject::SetPropertyCallback(Name* name,
-                                           Object* structure,
-                                           PropertyAttributes attributes) {
+void JSObject::SetPropertyCallback(Handle<JSObject> object,
+                                   Handle<Name> name,
+                                   Handle<Object> structure,
+                                   PropertyAttributes attributes) {
   // Normalize object to make this operation simple.
-  MaybeObject* maybe_ok = NormalizeProperties(CLEAR_INOBJECT_PROPERTIES, 0);
-  if (maybe_ok->IsFailure()) return maybe_ok;
+  NormalizeProperties(object, CLEAR_INOBJECT_PROPERTIES, 0);
 
   // For the global object allocate a new map to invalidate the global inline
   // caches which have a global property cell reference directly in the code.
-  if (IsGlobalObject()) {
-    Map* new_map;
-    MaybeObject* maybe_new_map = map()->CopyDropDescriptors();
-    if (!maybe_new_map->To(&new_map)) return maybe_new_map;
+  if (object->IsGlobalObject()) {
+    Handle<Map> new_map = Map::CopyDropDescriptors(handle(object->map()));
     ASSERT(new_map->is_dictionary_map());
+    object->set_map(*new_map);
 
-    set_map(new_map);
     // When running crankshaft, changing the map is not enough. We
     // need to deoptimize all functions that rely on this global
     // object.
-    Deoptimizer::DeoptimizeGlobalObject(this);
+    Deoptimizer::DeoptimizeGlobalObject(*object);
   }
 
   // Update the dictionary with the new CALLBACKS property.
   PropertyDetails details = PropertyDetails(attributes, CALLBACKS, 0);
-  maybe_ok = SetNormalizedProperty(name, structure, details);
-  if (maybe_ok->IsFailure()) return maybe_ok;
-
-  return GetHeap()->undefined_value();
+  SetNormalizedProperty(object, name, structure, details);
 }
 
 
@@ -6181,7 +6112,7 @@ void JSObject::DefineAccessor(Handle<JSObject> object,
 
   // Make sure that the top context does not change when doing callbacks or
   // interceptor calls.
-  AssertNoContextChange ncc;
+  AssertNoContextChangeWithHandleScope ncc;
 
   // Try to flatten before operating on the string.
   if (name->IsString()) String::cast(*name)->TryFlatten();
@@ -6344,22 +6275,25 @@ bool JSObject::DefineFastAccessor(Handle<JSObject> object,
 }
 
 
-MaybeObject* JSObject::DefineAccessor(AccessorInfo* info) {
-  Isolate* isolate = GetIsolate();
-  Name* name = Name::cast(info->name());
+Handle<Object> JSObject::SetAccessor(Handle<JSObject> object,
+                                     Handle<AccessorInfo> info) {
+  Isolate* isolate = object->GetIsolate();
+  Factory* factory = isolate->factory();
+  Handle<Name> name(Name::cast(info->name()));
+
   // Check access rights if needed.
-  if (IsAccessCheckNeeded() &&
-      !isolate->MayNamedAccess(this, name, v8::ACCESS_SET)) {
-    isolate->ReportFailedAccessCheck(this, v8::ACCESS_SET);
-    RETURN_IF_SCHEDULED_EXCEPTION(isolate);
-    return isolate->heap()->undefined_value();
+  if (object->IsAccessCheckNeeded() &&
+      !isolate->MayNamedAccess(*object, *name, v8::ACCESS_SET)) {
+    isolate->ReportFailedAccessCheck(*object, v8::ACCESS_SET);
+    RETURN_HANDLE_IF_SCHEDULED_EXCEPTION(isolate, Object);
+    return factory->undefined_value();
   }
 
-  if (IsJSGlobalProxy()) {
-    Object* proto = GetPrototype();
-    if (proto->IsNull()) return this;
+  if (object->IsJSGlobalProxy()) {
+    Handle<Object> proto(object->GetPrototype(), isolate);
+    if (proto->IsNull()) return object;
     ASSERT(proto->IsJSGlobalObject());
-    return JSObject::cast(proto)->DefineAccessor(info);
+    return SetAccessor(Handle<JSObject>::cast(proto), info);
   }
 
   // Make sure that the top context does not change when doing callbacks or
@@ -6367,18 +6301,18 @@ MaybeObject* JSObject::DefineAccessor(AccessorInfo* info) {
   AssertNoContextChange ncc;
 
   // Try to flatten before operating on the string.
-  if (name->IsString()) String::cast(name)->TryFlatten();
+  if (name->IsString()) FlattenString(Handle<String>::cast(name));
 
-  if (!CanSetCallback(name)) return isolate->heap()->undefined_value();
+  if (!object->CanSetCallback(*name)) return factory->undefined_value();
 
   uint32_t index = 0;
   bool is_element = name->AsArrayIndex(&index);
 
   if (is_element) {
-    if (IsJSArray()) return isolate->heap()->undefined_value();
+    if (object->IsJSArray()) return factory->undefined_value();
 
     // Accessors overwrite previous callbacks (cf. with getters/setters).
-    switch (GetElementsKind()) {
+    switch (object->GetElementsKind()) {
       case FAST_SMI_ELEMENTS:
       case FAST_ELEMENTS:
       case FAST_DOUBLE_ELEMENTS:
@@ -6397,7 +6331,7 @@ MaybeObject* JSObject::DefineAccessor(AccessorInfo* info) {
       case EXTERNAL_DOUBLE_ELEMENTS:
         // Ignore getters and setters on pixel and external array
         // elements.
-        return isolate->heap()->undefined_value();
+        return factory->undefined_value();
       case DICTIONARY_ELEMENTS:
         break;
       case NON_STRICT_ARGUMENTS_ELEMENTS:
@@ -6405,25 +6339,21 @@ MaybeObject* JSObject::DefineAccessor(AccessorInfo* info) {
         break;
     }
 
-    MaybeObject* maybe_ok =
-        SetElementCallback(index, info, info->property_attributes());
-    if (maybe_ok->IsFailure()) return maybe_ok;
+    SetElementCallback(object, index, info, info->property_attributes());
   } else {
     // Lookup the name.
     LookupResult result(isolate);
-    LocalLookup(name, &result, true);
+    object->LocalLookup(*name, &result, true);
     // ES5 forbids turning a property into an accessor if it's not
     // configurable (that is IsDontDelete in ES3 and v8), see 8.6.1 (Table 5).
     if (result.IsFound() && (result.IsReadOnly() || result.IsDontDelete())) {
-      return isolate->heap()->undefined_value();
+      return factory->undefined_value();
     }
 
-    MaybeObject* maybe_ok =
-        SetPropertyCallback(name, info, info->property_attributes());
-    if (maybe_ok->IsFailure()) return maybe_ok;
+    SetPropertyCallback(object, name, info, info->property_attributes());
   }
 
-  return this;
+  return object;
 }
 
 
@@ -6432,7 +6362,7 @@ MaybeObject* JSObject::LookupAccessor(Name* name, AccessorComponent component) {
 
   // Make sure that the top context does not change when doing callbacks or
   // interceptor calls.
-  AssertNoContextChange ncc;
+  AssertNoContextChangeWithHandleScope ncc;
 
   // Check access rights if needed.
   if (IsAccessCheckNeeded() &&
@@ -7829,7 +7759,7 @@ MaybeObject* DescriptorArray::Merge(int verbatim,
   int current_offset = 0;
   for (descriptor = 0; descriptor < verbatim; descriptor++) {
     if (GetDetails(descriptor).type() == FIELD) current_offset++;
-    result->CopyFrom(descriptor, this, descriptor, witness);
+    result->CopyFrom(descriptor, other, descriptor, witness);
   }
 
   // |verbatim| -> |valid|
@@ -8001,6 +7931,32 @@ bool DescriptorArray::IsEqualTo(DescriptorArray* other) {
   return true;
 }
 #endif
+
+
+static bool IsIdentifier(UnicodeCache* cache, Name* name) {
+  // Checks whether the buffer contains an identifier (no escape).
+  if (!name->IsString()) return false;
+  String* string = String::cast(name);
+  if (string->length() == 0) return false;
+  ConsStringIteratorOp op;
+  StringCharacterStream stream(string, &op);
+  if (!cache->IsIdentifierStart(stream.GetNext())) {
+    return false;
+  }
+  while (stream.HasMore()) {
+    if (!cache->IsIdentifierPart(stream.GetNext())) {
+      return false;
+    }
+  }
+  return true;
+}
+
+
+bool Name::IsCacheable(Isolate* isolate) {
+  return IsSymbol() ||
+      IsIdentifier(isolate->unicode_cache(), this) ||
+      this == isolate->heap()->hidden_string();
+}
 
 
 bool String::LooksValid() {
@@ -11571,10 +11527,12 @@ MaybeObject* JSObject::SetElementWithInterceptor(uint32_t index,
                                                  bool check_prototype,
                                                  SetPropertyMode set_mode) {
   Isolate* isolate = GetIsolate();
+  HandleScope scope(isolate);
+
   // Make sure that the top context does not change when doing
   // callbacks or interceptor calls.
   AssertNoContextChange ncc;
-  HandleScope scope(isolate);
+
   Handle<InterceptorInfo> interceptor(GetIndexedInterceptor());
   Handle<JSObject> this_handle(this);
   Handle<Object> value_handle(value, isolate);
@@ -12134,18 +12092,17 @@ MUST_USE_RESULT MaybeObject* JSObject::SetFastDoubleElement(
 }
 
 
-MaybeObject* JSReceiver::SetElement(uint32_t index,
-                                    Object* value,
-                                    PropertyAttributes attributes,
-                                    StrictModeFlag strict_mode,
-                                    bool check_proto) {
-  if (IsJSProxy()) {
-    return JSProxy::cast(this)->SetElementWithHandler(
-        this, index, value, strict_mode);
-  } else {
-    return JSObject::cast(this)->SetElement(
-        index, value, attributes, strict_mode, check_proto);
+Handle<Object> JSReceiver::SetElement(Handle<JSReceiver> object,
+                                      uint32_t index,
+                                      Handle<Object> value,
+                                      PropertyAttributes attributes,
+                                      StrictModeFlag strict_mode) {
+  if (object->IsJSProxy()) {
+    return JSProxy::SetElementWithHandler(
+        Handle<JSProxy>::cast(object), object, index, value, strict_mode);
   }
+  return JSObject::SetElement(
+      Handle<JSObject>::cast(object), index, value, attributes, strict_mode);
 }
 
 
@@ -12581,10 +12538,12 @@ MaybeObject* JSArray::JSArrayUpdateLengthFromIndex(uint32_t index,
 MaybeObject* JSObject::GetElementWithInterceptor(Object* receiver,
                                                  uint32_t index) {
   Isolate* isolate = GetIsolate();
+  HandleScope scope(isolate);
+
   // Make sure that the top context does not change when doing
   // callbacks or interceptor calls.
   AssertNoContextChange ncc;
-  HandleScope scope(isolate);
+
   Handle<InterceptorInfo> interceptor(GetIndexedInterceptor(), isolate);
   Handle<Object> this_handle(receiver, isolate);
   Handle<JSObject> holder_handle(this, isolate);

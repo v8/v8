@@ -44,6 +44,13 @@
 #ifndef V8_PLATFORM_H_
 #define V8_PLATFORM_H_
 
+#include <cstdarg>
+
+#include "platform/mutex.h"
+#include "platform/semaphore.h"
+#include "utils.h"
+#include "v8globals.h"
+
 #ifdef __sun
 # ifndef signbit
 namespace std {
@@ -52,22 +59,8 @@ int signbit(double x);
 # endif
 #endif
 
-// GCC specific stuff
-#ifdef __GNUC__
-
-// Needed for va_list on at least MinGW and Android.
-#include <stdarg.h>
-
-#define __GNUC_VERSION__ (__GNUC__ * 10000 + __GNUC_MINOR__ * 100)
-
-#endif  // __GNUC__
-
-
-// Windows specific stuff.
-#ifdef WIN32
-
 // Microsoft Visual C++ specific stuff.
-#ifdef _MSC_VER
+#if V8_CC_MSVC
 
 #include "win32-headers.h"
 #include "win32-math.h"
@@ -76,7 +69,7 @@ int strncasecmp(const char* s1, const char* s2, int n);
 
 inline int lrint(double flt) {
   int intgr;
-#if defined(V8_TARGET_ARCH_IA32)
+#if V8_TARGET_ARCH_IA32
   __asm {
     fld flt
     fistp intgr
@@ -91,24 +84,15 @@ inline int lrint(double flt) {
   return intgr;
 }
 
-#endif  // _MSC_VER
+#endif  // V8_CC_MSVC
 
-#ifndef __CYGWIN__
 // Random is missing on both Visual Studio and MinGW.
+#if V8_CC_MSVC || V8_CC_MINGW
 int random();
-#endif
-
-#endif  // WIN32
-
-#include "lazy-instance.h"
-#include "utils.h"
-#include "v8globals.h"
+#endif  // V8_CC_MSVC || V8_CC_MINGW
 
 namespace v8 {
 namespace internal {
-
-class Semaphore;
-class Mutex;
 
 double ceiling(double x);
 double modulo(double x, double y);
@@ -206,10 +190,6 @@ class OS {
   // micro-second resolution.
   static int GetUserTime(uint32_t* secs,  uint32_t* usecs);
 
-  // Get a tick counter normalized to one tick per microsecond.
-  // Used for calculating time intervals.
-  static int64_t Ticks();
-
   // Returns current time as the number of milliseconds since
   // 00:00:00 UTC, January 1, 1970.
   static double TimeCurrentMillis();
@@ -287,8 +267,6 @@ class OS {
   // Sleep for a number of milliseconds.
   static void Sleep(const int milliseconds);
 
-  static int NumberOfCores();
-
   // Abort the current process.
   static void Abort();
 
@@ -308,14 +286,6 @@ class OS {
   };
 
   static int StackWalk(Vector<StackFrame> frames);
-
-  // Factory method for creating platform dependent Mutex.
-  // Please use delete to reclaim the storage for the returned Mutex.
-  static Mutex* CreateMutex();
-
-  // Factory method for creating platform dependent Semaphore.
-  // Please use delete to reclaim the storage for the returned Semaphore.
-  static Semaphore* CreateSemaphore(int count);
 
   // Factory method for creating platform dependent Socket.
   // Please use delete to reclaim the storage for the returned Socket.
@@ -535,59 +505,6 @@ class VirtualMemory {
 
 
 // ----------------------------------------------------------------------------
-// Semaphore
-//
-// A semaphore object is a synchronization object that maintains a count. The
-// count is decremented each time a thread completes a wait for the semaphore
-// object and incremented each time a thread signals the semaphore. When the
-// count reaches zero,  threads waiting for the semaphore blocks until the
-// count becomes non-zero.
-
-class Semaphore {
- public:
-  virtual ~Semaphore() {}
-
-  // Suspends the calling thread until the semaphore counter is non zero
-  // and then decrements the semaphore counter.
-  virtual void Wait() = 0;
-
-  // Suspends the calling thread until the counter is non zero or the timeout
-  // time has passed. If timeout happens the return value is false and the
-  // counter is unchanged. Otherwise the semaphore counter is decremented and
-  // true is returned. The timeout value is specified in microseconds.
-  virtual bool Wait(int timeout) = 0;
-
-  // Increments the semaphore counter.
-  virtual void Signal() = 0;
-};
-
-template <int InitialValue>
-struct CreateSemaphoreTrait {
-  static Semaphore* Create() {
-    return OS::CreateSemaphore(InitialValue);
-  }
-};
-
-// POD Semaphore initialized lazily (i.e. the first time Pointer() is called).
-// Usage:
-//   // The following semaphore starts at 0.
-//   static LazySemaphore<0>::type my_semaphore = LAZY_SEMAPHORE_INITIALIZER;
-//
-//   void my_function() {
-//     // Do something with my_semaphore.Pointer().
-//   }
-//
-template <int InitialValue>
-struct LazySemaphore {
-  typedef typename LazyDynamicInstance<
-      Semaphore, CreateSemaphoreTrait<InitialValue>,
-      ThreadSafeInitOnceTrait>::type type;
-};
-
-#define LAZY_SEMAPHORE_INITIALIZER LAZY_DYNAMIC_INSTANCE_INITIALIZER
-
-
-// ----------------------------------------------------------------------------
 // Thread
 //
 // Thread objects are used for creating and running threads. When the start()
@@ -629,7 +546,7 @@ class Thread {
 
   // Start new thread and wait until Run() method is called on the new thread.
   void StartSynchronously() {
-    start_semaphore_ = OS::CreateSemaphore(0);
+    start_semaphore_ = new Semaphore(0);
     Start();
     start_semaphore_->Wait();
     delete start_semaphore_;
@@ -700,72 +617,6 @@ class Thread {
   Semaphore* start_semaphore_;
 
   DISALLOW_COPY_AND_ASSIGN(Thread);
-};
-
-
-// ----------------------------------------------------------------------------
-// Mutex
-//
-// Mutexes are used for serializing access to non-reentrant sections of code.
-// The implementations of mutex should allow for nested/recursive locking.
-
-class Mutex {
- public:
-  virtual ~Mutex() {}
-
-  // Locks the given mutex. If the mutex is currently unlocked, it becomes
-  // locked and owned by the calling thread, and immediately. If the mutex
-  // is already locked by another thread, suspends the calling thread until
-  // the mutex is unlocked.
-  virtual int Lock() = 0;
-
-  // Unlocks the given mutex. The mutex is assumed to be locked and owned by
-  // the calling thread on entrance.
-  virtual int Unlock() = 0;
-
-  // Tries to lock the given mutex. Returns whether the mutex was
-  // successfully locked.
-  virtual bool TryLock() = 0;
-};
-
-struct CreateMutexTrait {
-  static Mutex* Create() {
-    return OS::CreateMutex();
-  }
-};
-
-// POD Mutex initialized lazily (i.e. the first time Pointer() is called).
-// Usage:
-//   static LazyMutex my_mutex = LAZY_MUTEX_INITIALIZER;
-//
-//   void my_function() {
-//     ScopedLock my_lock(my_mutex.Pointer());
-//     // Do something.
-//   }
-//
-typedef LazyDynamicInstance<
-    Mutex, CreateMutexTrait, ThreadSafeInitOnceTrait>::type LazyMutex;
-
-#define LAZY_MUTEX_INITIALIZER LAZY_DYNAMIC_INSTANCE_INITIALIZER
-
-// ----------------------------------------------------------------------------
-// ScopedLock
-//
-// Stack-allocated ScopedLocks provide block-scoped locking and
-// unlocking of a mutex.
-class ScopedLock {
- public:
-  explicit ScopedLock(Mutex* mutex): mutex_(mutex) {
-    ASSERT(mutex_ != NULL);
-    mutex_->Lock();
-  }
-  ~ScopedLock() {
-    mutex_->Unlock();
-  }
-
- private:
-  Mutex* mutex_;
-  DISALLOW_COPY_AND_ASSIGN(ScopedLock);
 };
 
 

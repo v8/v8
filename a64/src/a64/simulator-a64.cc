@@ -3021,20 +3021,13 @@ typedef double (*SimulatorRuntimeFPIntCall)(double arg1, int32_t arg2);
 
 // This signature supports direct call in to API function native callback
 // (refer to InvocationCallback in v8.h).
-typedef v8::Handle<v8::Value> (*SimulatorRuntimeDirectApiCall)(int64_t arg0);
-typedef void (*SimulatorRuntimeDirectApiCallNew)(int64_t arg0);
-typedef v8::Handle<v8::Value> (*SimulatorRuntimeProfilingApiCall)(int64_t arg0,
-                                                                  int64_t arg1);
-typedef void (*SimulatorRuntimeProfilingApiCallNew)(int64_t arg0, int64_t arg1);
+typedef void (*SimulatorRuntimeDirectApiCall)(int64_t arg0);
+typedef void (*SimulatorRuntimeProfilingApiCall)(int64_t arg0, int64_t arg1);
 
 // This signature supports direct call to accessor getter callback.
-typedef v8::Handle<v8::Value> (*SimulatorRuntimeDirectGetterCall)(int64_t arg0,
-                                                                  int64_t arg1);
-typedef void (*SimulatorRuntimeDirectGetterCallNew)(int64_t arg0, int64_t arg1);
-typedef v8::Handle<v8::Value> (*SimulatorRuntimeProfilingGetterCall)(
-    int64_t arg0, int64_t arg1, int64_t arg2);
-typedef void (*SimulatorRuntimeProfilingGetterCallNew)(
-    int64_t arg0, int64_t arg1, int64_t arg2);
+typedef void (*SimulatorRuntimeDirectGetterCall)(int64_t arg0, int64_t arg1);
+typedef void (*SimulatorRuntimeProfilingGetterCall)(int64_t arg0, int64_t arg1,
+                                                    int64_t arg2);
 
 void Simulator::VisitException(Instruction* instr) {
   // Define some colour codes to use for log messages.
@@ -3146,9 +3139,6 @@ void Simulator::VisitException(Instruction* instr) {
         }
 
         switch (redirection->type()) {
-          // TODO(jbramley): The old-style callbacks (returning a Handle) have
-          // been removed. We should remove their handlers from here, too.
-
           default:
             TraceSim("Type: Unknown.\n");
             UNREACHABLE();
@@ -3183,25 +3173,10 @@ void Simulator::VisitException(Instruction* instr) {
           }
 
           case ExternalReference::DIRECT_API_CALL: {
-            // Handle<Value> f(v8::Arguments&)
+            // void f(v8::Arguments&)
             TraceSim("Type: DIRECT_API_CALL\n");
             SimulatorRuntimeDirectApiCall target =
                 reinterpret_cast<SimulatorRuntimeDirectApiCall>(external);
-            TraceSim("Arguments: 0x%016" PRIx64 "\n", xreg(0));
-            v8::Handle<v8::Value> result = target(xreg(0));
-            TraceSim("Returned %p\n", reinterpret_cast<void *>(*result));
-#ifdef DEBUG
-            CorruptAllCallerSavedCPURegisters();
-#endif
-            set_reg(0, *result);
-            break;
-          }
-
-          case ExternalReference::DIRECT_API_CALL_NEW: {
-            // void f(v8::Arguments&)
-            TraceSim("Type: DIRECT_API_CALL_NEW\n");
-            SimulatorRuntimeDirectApiCallNew target =
-                reinterpret_cast<SimulatorRuntimeDirectApiCallNew>(external);
             TraceSim("Arguments: 0x%016" PRIx64 "\n", xreg(0));
             target(xreg(0));
             TraceSim("No return value.");
@@ -3272,26 +3247,10 @@ void Simulator::VisitException(Instruction* instr) {
           }
 
           case ExternalReference::DIRECT_GETTER_CALL: {
-            // Handle<value> f(Local<String> property, AccessorInfo& info)
+            // void f(Local<String> property, AccessorInfo& info)
             TraceSim("Type: DIRECT_GETTER_CALL\n");
             SimulatorRuntimeDirectGetterCall target =
                 reinterpret_cast<SimulatorRuntimeDirectGetterCall>(external);
-            TraceSim("Arguments: 0x%016" PRIx64 ", 0x%016" PRIx64 "\n",
-                     xreg(0), xreg(1));
-            v8::Handle<v8::Value> result = target(xreg(0), xreg(1));
-            TraceSim("Returned: %p\n", reinterpret_cast<void *>(*result));
-#ifdef DEBUG
-            CorruptAllCallerSavedCPURegisters();
-#endif
-            set_reg(0, *result);
-            break;
-          }
-
-          case ExternalReference::DIRECT_GETTER_CALL_NEW: {
-            // void f(Local<String> property, AccessorInfo& info)
-            TraceSim("Type: DIRECT_GETTER_CALL_NEW\n");
-            SimulatorRuntimeDirectGetterCallNew target =
-                reinterpret_cast<SimulatorRuntimeDirectGetterCallNew>(external);
             TraceSim("Arguments: 0x%016" PRIx64 ", 0x%016" PRIx64 "\n",
                      xreg(0), xreg(1));
             target(xreg(0), xreg(1));
@@ -3303,26 +3262,10 @@ void Simulator::VisitException(Instruction* instr) {
           }
 
           case ExternalReference::PROFILING_API_CALL: {
+            // void f(v8::Arguments&, v8::FunctionCallback)
             TraceSim("Type: PROFILING_API_CALL\n");
-            // Handle<Value> f(v8::Arguments&, v8::InvocationCallback)
             SimulatorRuntimeProfilingApiCall target =
                 reinterpret_cast<SimulatorRuntimeProfilingApiCall>(external);
-            TraceSim("Arguments: 0x%016" PRIx64 ", 0x%016" PRIx64 "\n",
-                     xreg(0), xreg(1));
-            v8::Handle<v8::Value> result = target(xreg(0), xreg(1));
-            TraceSim("Returned: %p\n", reinterpret_cast<void *>(*result));
-#ifdef DEBUG
-            CorruptAllCallerSavedCPURegisters();
-#endif
-            set_reg(0, *result);
-            break;
-          }
-
-          case ExternalReference::PROFILING_API_CALL_NEW: {
-            // void f(v8::Arguments&, v8::FunctionCallback)
-            TraceSim("Type: PROFILING_API_CALL_NEW\n");
-            SimulatorRuntimeProfilingApiCallNew target =
-                reinterpret_cast<SimulatorRuntimeProfilingApiCallNew>(external);
             TraceSim("Arguments: 0x%016" PRIx64 ", 0x%016" PRIx64 "\n",
                      xreg(0), xreg(1));
             target(xreg(0), xreg(1));
@@ -3334,29 +3277,11 @@ void Simulator::VisitException(Instruction* instr) {
           }
 
           case ExternalReference::PROFILING_GETTER_CALL: {
-            // Handle<value> f(Local<String> property, AccessorInfo& info,
-            //                 AccessorGetter getter)
-            TraceSim("Type: PROFILING_GETTER_CALL\n");
-            SimulatorRuntimeProfilingGetterCall target =
-                reinterpret_cast<SimulatorRuntimeProfilingGetterCall>(external);
-            TraceSim("Arguments: "
-                     "0x%016" PRIx64 ", 0x%016" PRIx64 ", 0x%016" PRIx64 "\n",
-                     xreg(0), xreg(1), xreg(2));
-            v8::Handle<v8::Value> result = target(xreg(0), xreg(1), xreg(2));
-            TraceSim("Returned: %p\n", reinterpret_cast<void *>(*result));
-#ifdef DEBUG
-            CorruptAllCallerSavedCPURegisters();
-#endif
-            set_reg(0, *result);
-            break;
-          }
-
-          case ExternalReference::PROFILING_GETTER_CALL_NEW: {
             // void f(Local<String> property, AccessorInfo& info,
             //        AccessorGetterCallback callback)
-            TraceSim("Type: PROFILING_GETTER_CALL_NEW\n");
-            SimulatorRuntimeProfilingGetterCallNew target =
-                reinterpret_cast<SimulatorRuntimeProfilingGetterCallNew>(
+            TraceSim("Type: PROFILING_GETTER_CALL\n");
+            SimulatorRuntimeProfilingGetterCall target =
+                reinterpret_cast<SimulatorRuntimeProfilingGetterCall>(
                     external);
             TraceSim("Arguments: "
                      "0x%016" PRIx64 ", 0x%016" PRIx64 ", 0x%016" PRIx64 "\n",

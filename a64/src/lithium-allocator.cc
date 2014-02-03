@@ -2191,7 +2191,7 @@ LAllocatorPhase::~LAllocatorPhase() {
   if (FLAG_hydrogen_stats) {
     unsigned size = allocator_->zone()->allocation_size() -
                     allocator_zone_start_allocation_size_;
-    isolate()->GetHStatistics()->SaveTiming(name(), 0, size);
+    isolate()->GetHStatistics()->SaveTiming(name(), TimeDelta(), size);
   }
 
   if (ShouldProduceTraceOutput()) {

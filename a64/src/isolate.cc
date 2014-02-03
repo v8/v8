@@ -139,7 +139,7 @@ v8::TryCatch* ThreadLocalTop::TryCatchHandler() {
 
 int SystemThreadManager::NumberOfParallelSystemThreads(
     ParallelSystemComponent type) {
-  int number_of_threads = Min(OS::NumberOfCores(), kMaxThreads);
+  int number_of_threads = Min(CPU::NumberOfProcessorsOnline(), kMaxThreads);
   ASSERT(number_of_threads > 0);
   if (number_of_threads ==  1) {
     return 0;
@@ -228,8 +228,8 @@ class PreallocatedMemoryThread: public Thread {
   PreallocatedMemoryThread()
       : Thread("v8:PreallocMem"),
         keep_running_(true),
-        wait_for_ever_semaphore_(OS::CreateSemaphore(0)),
-        data_ready_semaphore_(OS::CreateSemaphore(0)),
+        wait_for_ever_semaphore_(new Semaphore(0)),
+        data_ready_semaphore_(new Semaphore(0)),
         data_(NULL),
         length_(0) {
   }
@@ -345,7 +345,7 @@ Thread::LocalStorageKey Isolate::per_isolate_thread_data_key_;
 #ifdef DEBUG
 Thread::LocalStorageKey PerThreadAssertScopeBase::thread_local_key;
 #endif  // DEBUG
-Mutex* Isolate::process_wide_mutex_ = OS::CreateMutex();
+RecursiveMutex Isolate::process_wide_mutex_;
 Isolate::ThreadDataTable* Isolate::thread_data_table_ = NULL;
 Atomic32 Isolate::isolate_counter_ = 0;
 
@@ -354,7 +354,7 @@ Isolate::PerIsolateThreadData* Isolate::AllocatePerIsolateThreadData(
   ASSERT(!thread_id.Equals(ThreadId::Invalid()));
   PerIsolateThreadData* per_thread = new PerIsolateThreadData(this, thread_id);
   {
-    ScopedLock lock(process_wide_mutex_);
+    LockGuard<RecursiveMutex> lock_guard(&process_wide_mutex_);
     ASSERT(thread_data_table_->Lookup(this, thread_id) == NULL);
     thread_data_table_->Insert(per_thread);
     ASSERT(thread_data_table_->Lookup(this, thread_id) == per_thread);
@@ -368,7 +368,7 @@ Isolate::PerIsolateThreadData*
   ThreadId thread_id = ThreadId::Current();
   PerIsolateThreadData* per_thread = NULL;
   {
-    ScopedLock lock(process_wide_mutex_);
+    LockGuard<RecursiveMutex> lock_guard(&process_wide_mutex_);
     per_thread = thread_data_table_->Lookup(this, thread_id);
     if (per_thread == NULL) {
       per_thread = AllocatePerIsolateThreadData(thread_id);
@@ -388,7 +388,7 @@ Isolate::PerIsolateThreadData* Isolate::FindPerThreadDataForThread(
     ThreadId thread_id) {
   PerIsolateThreadData* per_thread = NULL;
   {
-    ScopedLock lock(process_wide_mutex_);
+    LockGuard<RecursiveMutex> lock_guard(&process_wide_mutex_);
     per_thread = thread_data_table_->Lookup(this, thread_id);
   }
   return per_thread;
@@ -396,7 +396,7 @@ Isolate::PerIsolateThreadData* Isolate::FindPerThreadDataForThread(
 
 
 void Isolate::EnsureDefaultIsolate() {
-  ScopedLock lock(process_wide_mutex_);
+  LockGuard<RecursiveMutex> lock_guard(&process_wide_mutex_);
   if (default_isolate_ == NULL) {
     isolate_key_ = Thread::CreateThreadLocalKey();
     thread_id_key_ = Thread::CreateThreadLocalKey();
@@ -736,7 +736,9 @@ Handle<JSArray> Isolate::CaptureCurrentStackTrace(
       factory()->InternalizeOneByteString(STATIC_ASCII_VECTOR("column"));
   Handle<String> line_key =
       factory()->InternalizeOneByteString(STATIC_ASCII_VECTOR("lineNumber"));
-  Handle<String> script_key =
+  Handle<String> script_id_key =
+      factory()->InternalizeOneByteString(STATIC_ASCII_VECTOR("scriptId"));
+  Handle<String> script_name_key =
       factory()->InternalizeOneByteString(STATIC_ASCII_VECTOR("scriptName"));
   Handle<String> script_name_or_source_url_key =
       factory()->InternalizeOneByteString(
@@ -792,11 +794,20 @@ Handle<JSArray> Isolate::CaptureCurrentStackTrace(
                 Handle<Smi>(Smi::FromInt(line_number + 1), this), NONE));
       }
 
+      if (options & StackTrace::kScriptId) {
+        Handle<Smi> script_id(script->id(), this);
+        CHECK_NOT_EMPTY_HANDLE(this,
+                               JSObject::SetLocalPropertyIgnoreAttributes(
+                                   stack_frame, script_id_key, script_id,
+                                   NONE));
+      }
+
       if (options & StackTrace::kScriptName) {
         Handle<Object> script_name(script->name(), this);
         CHECK_NOT_EMPTY_HANDLE(this,
                                JSObject::SetLocalPropertyIgnoreAttributes(
-                                   stack_frame, script_key, script_name, NONE));
+                                   stack_frame, script_name_key, script_name,
+                                   NONE));
       }
 
       if (options & StackTrace::kScriptNameOrSourceURL) {
@@ -1754,11 +1765,7 @@ Isolate::Isolate()
       compilation_cache_(NULL),
       counters_(NULL),
       code_range_(NULL),
-      // Must be initialized early to allow v8::SetResourceConstraints calls.
-      break_access_(OS::CreateMutex()),
       debugger_initialized_(false),
-      // Must be initialized early to allow v8::Debug calls.
-      debugger_access_(OS::CreateMutex()),
       logger_(NULL),
       stats_table_(NULL),
       stub_cache_(NULL),
@@ -1859,7 +1866,7 @@ void Isolate::TearDown() {
 
   Deinit();
 
-  { ScopedLock lock(process_wide_mutex_);
+  { LockGuard<RecursiveMutex> lock_guard(&process_wide_mutex_);
     thread_data_table_->RemoveAllThreads(this);
   }
 
@@ -2030,10 +2037,6 @@ Isolate::~Isolate() {
 
   delete handle_scope_implementer_;
   handle_scope_implementer_ = NULL;
-  delete break_access_;
-  break_access_ = NULL;
-  delete debugger_access_;
-  debugger_access_ = NULL;
 
   delete compilation_cache_;
   compilation_cache_ = NULL;
@@ -2132,7 +2135,7 @@ void Isolate::InitializeLoggingAndCounters() {
 
 void Isolate::InitializeDebugger() {
 #ifdef ENABLE_DEBUGGER_SUPPORT
-  ScopedLock lock(debugger_access_);
+  LockGuard<RecursiveMutex> lock_guard(debugger_access());
   if (NoBarrier_Load(&debugger_initialized_)) return;
   InitializeLoggingAndCounters();
   debug_ = new Debug(this);
@@ -2241,7 +2244,7 @@ bool Isolate::Init(Deserializer* des) {
   InitializeThreadLocal();
 
   bootstrapper_->Initialize(create_heap_objects);
-  builtins_.SetUp(create_heap_objects);
+  builtins_.SetUp(this, create_heap_objects);
 
   // Only preallocate on the first initialization.
   if (FLAG_preallocate_message_memory && preallocated_message_space_ == NULL) {

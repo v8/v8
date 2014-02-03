@@ -1157,6 +1157,7 @@ class V8_EXPORT Message {
 
   static const int kNoLineNumberInfo = 0;
   static const int kNoColumnInfo = 0;
+  static const int kNoScriptIdInfo = 0;
 };
 
 
@@ -1179,6 +1180,7 @@ class V8_EXPORT StackTrace {
     kIsEval = 1 << 4,
     kIsConstructor = 1 << 5,
     kScriptNameOrSourceURL = 1 << 6,
+    kScriptId = 1 << 7,
     kOverview = kLineNumber | kColumnOffset | kScriptName | kFunctionName,
     kDetailed = kOverview | kIsEval | kIsConstructor | kScriptNameOrSourceURL
   };
@@ -1232,6 +1234,14 @@ class V8_EXPORT StackFrame {
    * capturing the StackTrace.
    */
   int GetColumn() const;
+
+  /**
+   * Returns the id of the script for the function for this StackFrame.
+   * This method will return Message::kNoScriptIdInfo if it is unable to
+   * retrieve the script id, or if kScriptId was not passed as an option when
+   * capturing the StackTrace.
+   */
+  int GetScriptId() const;
 
   /**
    * Returns the name of the resource that contains the script for the
@@ -4547,28 +4557,6 @@ class V8_EXPORT V8 {
       intptr_t change_in_bytes);
 
   /**
-   * Suspends recording of tick samples in the profiler.
-   * When the V8 profiling mode is enabled (usually via command line
-   * switches) this function suspends recording of tick samples.
-   * Profiling ticks are discarded until ResumeProfiler() is called.
-   *
-   * See also the --prof and --prof_auto command line switches to
-   * enable V8 profiling.
-   */
-  V8_DEPRECATED(static void PauseProfiler());
-
-  /**
-   * Resumes recording of tick samples in the profiler.
-   * See also PauseProfiler().
-   */
-  V8_DEPRECATED(static void ResumeProfiler());
-
-  /**
-   * Return whether profiler is currently paused.
-   */
-  V8_DEPRECATED(static bool IsProfilerPaused());
-
-  /**
    * Retrieve the V8 thread id of the calling thread.
    *
    * The thread id for a thread should only be retrieved after the V8
@@ -5383,6 +5371,8 @@ template <> struct SmiTagging<8> {
 typedef SmiTagging<kApiPointerSize> PlatformSmiTagging;
 const int kSmiShiftSize = PlatformSmiTagging::kSmiShiftSize;
 const int kSmiValueSize = PlatformSmiTagging::kSmiValueSize;
+V8_INLINE(static bool SmiValuesAre31Bits()) { return kSmiValueSize == 31; }
+V8_INLINE(static bool SmiValuesAre32Bits()) { return kSmiValueSize == 32; }
 
 /**
  * This class exports constants and functionality from within v8 that
@@ -5598,13 +5588,13 @@ template<class T>
 template<class S>
 void Eternal<T>::Set(Isolate* isolate, Local<S> handle) {
   TYPE_CHECK(T, S);
-  V8::Eternalize(isolate, Value::Cast(*handle), &this->index_);
+  V8::Eternalize(isolate, reinterpret_cast<Value*>(*handle), &this->index_);
 }
 
 
 template<class T>
 Local<T> Eternal<T>::Get(Isolate* isolate) {
-  return Local<T>::Cast(V8::GetEternal(isolate, index_));
+  return Local<T>(reinterpret_cast<T*>(*V8::GetEternal(isolate, index_)));
 }
 
 

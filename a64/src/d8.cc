@@ -157,7 +157,7 @@ CounterMap* Shell::counter_map_;
 i::OS::MemoryMappedFile* Shell::counters_file_ = NULL;
 CounterCollection Shell::local_counters_;
 CounterCollection* Shell::counters_ = &local_counters_;
-i::Mutex* Shell::context_mutex_(i::OS::CreateMutex());
+i::Mutex Shell::context_mutex_;
 Persistent<Context> Shell::utility_context_;
 #endif  // V8_SHARED
 
@@ -925,7 +925,7 @@ void Shell::InitializeDebugger(Isolate* isolate) {
 Local<Context> Shell::CreateEvaluationContext(Isolate* isolate) {
 #ifndef V8_SHARED
   // This needs to be a critical section since this is not thread-safe
-  i::ScopedLock lock(context_mutex_);
+  i::LockGuard<i::Mutex> lock_guard(&context_mutex_);
 #endif  // V8_SHARED
   // Initialize the global objects
   Handle<ObjectTemplate> global_template = CreateGlobalTemplate(isolate);
@@ -1011,7 +1011,6 @@ void Shell::OnExit() {
            "-------------+\n");
     delete [] counters;
   }
-  delete context_mutex_;
   delete counters_file_;
   delete counter_map_;
 #endif  // V8_SHARED
@@ -1221,10 +1220,6 @@ void ShellThread::Run() {
 
 SourceGroup::~SourceGroup() {
 #ifndef V8_SHARED
-  delete next_semaphore_;
-  next_semaphore_ = NULL;
-  delete done_semaphore_;
-  done_semaphore_ = NULL;
   delete thread_;
   thread_ = NULL;
 #endif  // V8_SHARED
@@ -1285,7 +1280,7 @@ i::Thread::Options SourceGroup::GetThreadOptions() {
 void SourceGroup::ExecuteInThread() {
   Isolate* isolate = Isolate::New();
   do {
-    if (next_semaphore_ != NULL) next_semaphore_->Wait();
+    next_semaphore_.Wait();
     {
       Isolate::Scope iscope(isolate);
       Locker lock(isolate);
@@ -1305,7 +1300,7 @@ void SourceGroup::ExecuteInThread() {
         V8::IdleNotification(kLongIdlePauseInMs);
       }
     }
-    if (done_semaphore_ != NULL) done_semaphore_->Signal();
+    done_semaphore_.Signal();
   } while (!Shell::options.last_run);
   isolate->Dispose();
 }
@@ -1316,7 +1311,7 @@ void SourceGroup::StartExecuteInThread() {
     thread_ = new IsolateThread(this);
     thread_->Start();
   }
-  next_semaphore_->Signal();
+  next_semaphore_.Signal();
 }
 
 
@@ -1325,7 +1320,7 @@ void SourceGroup::WaitForThread() {
   if (Shell::options.last_run) {
     thread_->Join();
   } else {
-    done_semaphore_->Wait();
+    done_semaphore_.Wait();
   }
 }
 #endif  // V8_SHARED

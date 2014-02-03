@@ -221,7 +221,8 @@ namespace internal {
   F(NumberToRadixString, 2, 1) \
   F(NumberToFixed, 2, 1) \
   F(NumberToExponential, 2, 1) \
-  F(NumberToPrecision, 2, 1)
+  F(NumberToPrecision, 2, 1) \
+  F(IsValidSmi, 1, 1)
 
 
 #define RUNTIME_FUNCTION_LIST_ALWAYS_2(F) \

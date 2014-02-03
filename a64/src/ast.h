@@ -123,10 +123,6 @@ namespace internal {
   STATEMENT_NODE_LIST(V)                        \
   EXPRESSION_NODE_LIST(V)
 
-#ifdef WIN32
-#undef Yield
-#endif
-
 // Forward declarations
 class AstConstructionVisitor;
 template<class> class AstNodeFactory;
@@ -1385,12 +1381,15 @@ class Literal V8_FINAL : public Expression {
  protected:
   Literal(Isolate* isolate, Handle<Object> value)
       : Expression(isolate),
-        value_(value) { }
+        value_(value),
+        isolate_(isolate) { }
 
  private:
   Handle<String> ToString();
 
   Handle<Object> value_;
+  // TODO(dcarney): remove.  this is only needed for Match and Hash.
+  Isolate* isolate_;
 };
 
 
@@ -2815,8 +2814,8 @@ public:                                                             \
   }                                                                 \
                                                                     \
 private:                                                            \
-  void InitializeAstVisitor() {                                     \
-    isolate_ = Isolate::Current();                                  \
+  void InitializeAstVisitor(Isolate* isolate) {                     \
+    isolate_ = isolate;                                             \
     stack_overflow_ = false;                                        \
   }                                                                 \
   Isolate* isolate() { return isolate_; }                           \

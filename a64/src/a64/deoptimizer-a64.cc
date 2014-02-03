@@ -96,13 +96,7 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
 //  .. .. .. ..       blr x16
 void Deoptimizer::PatchInterruptCodeAt(Code* unoptimized_code,
                                        Address pc_after,
-                                       Code* interrupt_code,
                                        Code* replacement_code) {
-  ASSERT(!InterruptCodeIsPatched(unoptimized_code,
-                                 pc_after,
-                                 interrupt_code,
-                                 replacement_code));
-
   // Turn the jump into a nop.
   Instruction* jump = Instruction::Cast(pc_after)->preceding(3);
   PatchingAssembler patcher(jump, 1);
@@ -122,13 +116,7 @@ void Deoptimizer::PatchInterruptCodeAt(Code* unoptimized_code,
 
 void Deoptimizer::RevertInterruptCodeAt(Code* unoptimized_code,
                                         Address pc_after,
-                                        Code* interrupt_code,
-                                        Code* replacement_code) {
-  ASSERT(InterruptCodeIsPatched(unoptimized_code,
-                                pc_after,
-                                interrupt_code,
-                                replacement_code));
-
+                                        Code* interrupt_code) {
   // Turn the nop into a jump.
   Instruction* jump = Instruction::Cast(pc_after)->preceding(3);
   PatchingAssembler patcher(jump, 1);
@@ -147,12 +135,16 @@ void Deoptimizer::RevertInterruptCodeAt(Code* unoptimized_code,
 
 
 #ifdef DEBUG
-bool Deoptimizer::InterruptCodeIsPatched(Code* unoptimized_code,
-                                         Address pc_after,
-                                         Code* interrupt_code,
-                                         Code* replacement_code) {
+Deoptimizer::InterruptPatchState Deoptimizer::GetInterruptPatchState(
+    Isolate* isolate,
+    Code* unoptimized_code,
+    Address pc_after) {
+  // TODO(jbramley): There should be some extra assertions here (as in the ARM
+  // back-end), but this function is gone in bleeding_edge so it might not
+  // matter anyway.
   Instruction* jump_or_nop = Instruction::Cast(pc_after)->preceding(3);
-  return jump_or_nop->IsNop(Assembler::INTERRUPT_CODE_NOP);
+  return jump_or_nop->IsNop(Assembler::INTERRUPT_CODE_NOP) ? PATCHED_FOR_OSR
+                                                           : NOT_PATCHED;
 }
 #endif
 

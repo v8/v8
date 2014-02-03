@@ -73,7 +73,6 @@ bool CodeEntry::is_js_function_tag(Logger::LogEventsAndTags tag) {
 ProfileNode::ProfileNode(ProfileTree* tree, CodeEntry* entry)
     : tree_(tree),
       entry_(entry),
-      total_ticks_(0),
       self_ticks_(0),
       children_(CodeEntriesMatch),
       id_(tree->next_node_id()) {

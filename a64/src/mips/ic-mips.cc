@@ -1238,7 +1238,6 @@ static void KeyedStoreGenerateGenericHelper(
                                  a3,        // Scratch regs...
                                  t0,
                                  t1,
-                                 t2,
                                  &transition_double_elements);
   if (increment_length == kIncrementLength) {
     // Add 1 to receiver->length.

@@ -99,6 +99,9 @@ class CPU V8_FINAL BASE_EMBEDDED {
   bool has_vfp3() const { return has_vfp3_; }
   bool has_vfp3_d32() const { return has_vfp3_d32_; }
 
+  // Returns the number of processors online.
+  static int NumberOfProcessorsOnline() V8_WARN_UNUSED_RESULT;
+
   // Initializes the cpu architecture support. Called once at VM startup.
   static void SetUp();
 

@@ -1264,7 +1264,7 @@ int TypeSwitch::match(v8::Handle<Value> value) {
 
 
 #define SET_FIELD_WRAPPED(obj, setter, cdata) do {    \
-    i::Handle<i::Object> foreign = FromCData(cdata);  \
+    i::Handle<i::Object> foreign = FromCData(obj->GetIsolate(), cdata);  \
     (obj)->setter(*foreign);                          \
   } while (false)
 
@@ -2353,6 +2353,22 @@ int StackFrame::GetColumn() const {
     return Message::kNoColumnInfo;
   }
   return i::Smi::cast(*column)->value();
+}
+
+
+int StackFrame::GetScriptId() const {
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  if (IsDeadCheck(isolate, "v8::StackFrame::GetScriptId()")) {
+    return Message::kNoScriptIdInfo;
+  }
+  ENTER_V8(isolate);
+  i::HandleScope scope(isolate);
+  i::Handle<i::JSObject> self = Utils::OpenHandle(this);
+  i::Handle<i::Object> scriptId = GetProperty(self, "scriptId");
+  if (!scriptId->IsSmi()) {
+    return Message::kNoScriptIdInfo;
+  }
+  return i::Smi::cast(*scriptId)->value();
 }
 
 
@@ -3571,7 +3587,7 @@ bool v8::Object::Delete(uint32_t index) {
   ENTER_V8(isolate);
   HandleScope scope(reinterpret_cast<Isolate*>(isolate));
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
-  return i::JSObject::DeleteElement(self, index)->IsTrue();
+  return i::JSReceiver::DeleteElement(self, index)->IsTrue();
 }
 
 
@@ -3600,7 +3616,8 @@ static inline bool ObjectSetAccessor(Object* obj,
       name, getter, setter, data, settings, attributes, signature);
   if (info.is_null()) return false;
   bool fast = Utils::OpenHandle(obj)->HasFastProperties();
-  i::Handle<i::Object> result = i::SetAccessor(Utils::OpenHandle(obj), info);
+  i::Handle<i::Object> result =
+      i::JSObject::SetAccessor(Utils::OpenHandle(obj), info);
   if (result.is_null() || result->IsUndefined()) return false;
   if (fast) i::JSObject::TransformToFastProperties(Utils::OpenHandle(obj), 0);
   return true;
@@ -3851,7 +3868,7 @@ bool v8::Object::DeleteHiddenValue(v8::Handle<v8::String> key) {
   i::Handle<i::String> key_obj = Utils::OpenHandle(*key);
   i::Handle<i::String> key_string =
       isolate->factory()->InternalizeString(key_obj);
-  self->DeleteHiddenProperty(*key_string);
+  i::JSObject::DeleteHiddenProperty(self, key_string);
   return true;
 }
 
@@ -6735,24 +6752,6 @@ void V8::RemoveCallCompletedCallback(CallCompletedCallback callback) {
 }
 
 
-void V8::PauseProfiler() {
-  i::Isolate* isolate = i::Isolate::Current();
-  isolate->logger()->PauseProfiler();
-}
-
-
-void V8::ResumeProfiler() {
-  i::Isolate* isolate = i::Isolate::Current();
-  isolate->logger()->ResumeProfiler();
-}
-
-
-bool V8::IsProfilerPaused() {
-  i::Isolate* isolate = i::Isolate::Current();
-  return isolate->logger()->IsProfilerPaused();
-}
-
-
 int V8::GetCurrentThreadId() {
   i::Isolate* isolate = i::Isolate::Current();
   EnsureInitializedForIsolate(isolate, "V8::GetCurrentThreadId()");
@@ -7009,37 +7008,6 @@ Local<Value> Exception::Error(v8::Handle<v8::String> raw_message) {
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
 
-static void EventCallbackWrapper(const v8::Debug::EventDetails& event_details) {
-  i::Isolate* isolate = i::Isolate::Current();
-  if (isolate->debug_event_callback() != NULL) {
-    isolate->debug_event_callback()(event_details.GetEvent(),
-                                    event_details.GetExecutionState(),
-                                    event_details.GetEventData(),
-                                    event_details.GetCallbackData());
-  }
-}
-
-
-bool Debug::SetDebugEventListener(EventCallback that, Handle<Value> data) {
-  i::Isolate* isolate = i::Isolate::Current();
-  EnsureInitializedForIsolate(isolate, "v8::Debug::SetDebugEventListener()");
-  ON_BAILOUT(isolate, "v8::Debug::SetDebugEventListener()", return false);
-  ENTER_V8(isolate);
-
-  isolate->set_debug_event_callback(that);
-
-  i::HandleScope scope(isolate);
-  i::Handle<i::Object> foreign = isolate->factory()->undefined_value();
-  if (that != NULL) {
-    foreign =
-        isolate->factory()->NewForeign(FUNCTION_ADDR(EventCallbackWrapper));
-  }
-  isolate->debugger()->SetEventListener(foreign,
-                                        Utils::OpenHandle(*data, true));
-  return true;
-}
-
-
 bool Debug::SetDebugEventListener2(EventCallback2 that, Handle<Value> data) {
   i::Isolate* isolate = i::Isolate::Current();
   EnsureInitializedForIsolate(isolate, "v8::Debug::SetDebugEventListener2()");
@@ -7099,35 +7067,6 @@ void Debug::DebugBreakForCommand(ClientData* data, Isolate* isolate) {
 }
 
 
-static void MessageHandlerWrapper(const v8::Debug::Message& message) {
-  i::Isolate* isolate = i::Isolate::Current();
-  if (isolate->message_handler()) {
-    v8::String::Value json(message.GetJSON());
-    (isolate->message_handler())(*json, json.length(), message.GetClientData());
-  }
-}
-
-
-void Debug::SetMessageHandler(v8::Debug::MessageHandler handler,
-                              bool message_handler_thread) {
-  i::Isolate* isolate = i::Isolate::Current();
-  EnsureInitializedForIsolate(isolate, "v8::Debug::SetMessageHandler");
-  ENTER_V8(isolate);
-
-  // Message handler thread not supported any more. Parameter temporally left in
-  // the API for client compatibility reasons.
-  CHECK(!message_handler_thread);
-
-  // TODO(sgjesse) support the old message handler API through a simple wrapper.
-  isolate->set_message_handler(handler);
-  if (handler != NULL) {
-    isolate->debugger()->SetMessageHandler(MessageHandlerWrapper);
-  } else {
-    isolate->debugger()->SetMessageHandler(NULL);
-  }
-}
-
-
 void Debug::SetMessageHandler2(v8::Debug::MessageHandler2 handler) {
   i::Isolate* isolate = i::Isolate::Current();
   EnsureInitializedForIsolate(isolate, "v8::Debug::SetMessageHandler");
@@ -7156,7 +7095,8 @@ void Debug::SetHostDispatchHandler(HostDispatchHandler handler,
   i::Isolate* isolate = i::Isolate::Current();
   EnsureInitializedForIsolate(isolate, "v8::Debug::SetHostDispatchHandler");
   ENTER_V8(isolate);
-  isolate->debugger()->SetHostDispatchHandler(handler, period);
+  isolate->debugger()->SetHostDispatchHandler(
+      handler, i::TimeDelta::FromMilliseconds(period));
 }
 
 
@@ -7295,27 +7235,6 @@ int CpuProfileNode::GetLineNumber() const {
 }
 
 
-double CpuProfileNode::GetTotalTime() const {
-  i::Isolate* isolate = i::Isolate::Current();
-  IsDeadCheck(isolate, "v8::CpuProfileNode::GetTotalTime");
-  return reinterpret_cast<const i::ProfileNode*>(this)->GetTotalMillis();
-}
-
-
-double CpuProfileNode::GetSelfTime() const {
-  i::Isolate* isolate = i::Isolate::Current();
-  IsDeadCheck(isolate, "v8::CpuProfileNode::GetSelfTime");
-  return reinterpret_cast<const i::ProfileNode*>(this)->GetSelfMillis();
-}
-
-
-double CpuProfileNode::GetTotalSamplesCount() const {
-  i::Isolate* isolate = i::Isolate::Current();
-  IsDeadCheck(isolate, "v8::CpuProfileNode::GetTotalSamplesCount");
-  return reinterpret_cast<const i::ProfileNode*>(this)->total_ticks();
-}
-
-
 double CpuProfileNode::GetSelfSamplesCount() const {
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::CpuProfileNode::GetSelfSamplesCount");
@@ -7391,13 +7310,13 @@ const CpuProfileNode* CpuProfile::GetSample(int index) const {
 
 int64_t CpuProfile::GetStartTime() const {
   const i::CpuProfile* profile = reinterpret_cast<const i::CpuProfile*>(this);
-  return profile->start_time_us();
+  return (profile->start_time() - i::Time::UnixEpoch()).InMicroseconds();
 }
 
 
 int64_t CpuProfile::GetEndTime() const {
   const i::CpuProfile* profile = reinterpret_cast<const i::CpuProfile*>(this);
-  return profile->end_time_us();
+  return (profile->end_time() - i::Time::UnixEpoch()).InMicroseconds();
 }
 
 

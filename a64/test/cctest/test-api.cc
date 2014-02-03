@@ -25,16 +25,16 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include <limits.h>
-
-#ifndef WIN32
-#include <signal.h>  // kill
-#include <unistd.h>  // getpid
-#endif  // WIN32
+#include <climits>
+#include <csignal>
 #include <string>
 #include <map>
 
 #include "v8.h"
+
+#if V8_OS_POSIX
+#include <unistd.h>  // NOLINT
+#endif
 
 #include "api.h"
 #include "arguments.h"
@@ -1358,7 +1358,7 @@ THREADED_TEST(BigSmiInteger) {
 
   int32_t value = i::Smi::kMaxValue;
   // We cannot add one to a Smi::kMaxValue without wrapping.
-  if (i::kSmiValueSize < 32) {
+  if (i::SmiValuesAre31Bits()) {
     CHECK(i::Smi::IsValid(value));
     CHECK(!i::Smi::IsValid(value + 1));
 
@@ -1377,7 +1377,7 @@ THREADED_TEST(BigInteger) {
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
 
   // We cannot add one to a Smi::kMaxValue without wrapping.
-  if (i::kSmiValueSize < 32) {
+  if (i::SmiValuesAre31Bits()) {
     // The casts allow this to compile, even if Smi::kMaxValue is 2^31-1.
     // The code will not be run in that case, due to the "if" guard.
     int32_t value =
@@ -12237,8 +12237,7 @@ THREADED_TEST(ObjectGetConstructorName) {
 
 
 bool ApiTestFuzzer::fuzzing_ = false;
-i::Semaphore* ApiTestFuzzer::all_tests_done_=
-  i::OS::CreateSemaphore(0);
+i::Semaphore ApiTestFuzzer::all_tests_done_(0);
 int ApiTestFuzzer::active_tests_;
 int ApiTestFuzzer::tests_being_run_;
 int ApiTestFuzzer::current_;
@@ -12269,14 +12268,14 @@ bool ApiTestFuzzer::NextThread() {
            RegisterThreadedTest::nth(test_position)->name());
   }
   current_ = test_position;
-  RegisterThreadedTest::nth(current_)->fuzzer_->gate_->Signal();
+  RegisterThreadedTest::nth(current_)->fuzzer_->gate_.Signal();
   return true;
 }
 
 
 void ApiTestFuzzer::Run() {
   // When it is our turn...
-  gate_->Wait();
+  gate_.Wait();
   {
     // ... get the V8 lock and start running the test.
     v8::Locker locker(CcTest::default_isolate());
@@ -12287,7 +12286,7 @@ void ApiTestFuzzer::Run() {
   active_tests_--;
   // If it was the last then signal that fact.
   if (active_tests_ == 0) {
-    all_tests_done_->Signal();
+    all_tests_done_.Signal();
   } else {
     // Otherwise select a new test and start that.
     NextThread();
@@ -12324,7 +12323,7 @@ void ApiTestFuzzer::RunAllTests() {
   current_ = -1;
   NextThread();
   // Wait till they are all done.
-  all_tests_done_->Wait();
+  all_tests_done_.Wait();
 }
 
 
@@ -12345,7 +12344,7 @@ void ApiTestFuzzer::ContextSwitch() {
     // Now it can start.
     v8::Unlocker unlocker(CcTest::default_isolate());
     // Wait till someone starts us again.
-    gate_->Wait();
+    gate_.Wait();
     // And we're off.
   }
 }
@@ -14061,10 +14060,9 @@ THREADED_TEST(CrossContextNew) {
 
 class RegExpInterruptTest {
  public:
-  RegExpInterruptTest() : block_(NULL) {}
-  ~RegExpInterruptTest() { delete block_; }
+  RegExpInterruptTest() : block_(0) {}
+  ~RegExpInterruptTest() {}
   void RunTest() {
-    block_ = i::OS::CreateSemaphore(0);
     gc_count_ = 0;
     gc_during_regexp_ = 0;
     regexp_success_ = false;
@@ -14099,7 +14097,7 @@ class RegExpInterruptTest {
   };
 
   void CollectGarbage() {
-    block_->Wait();
+    block_.Wait();
     while (gc_during_regexp_ < kRequiredGCs) {
       {
         v8::Locker lock(CcTest::default_isolate());
@@ -14113,7 +14111,7 @@ class RegExpInterruptTest {
   }
 
   void LongRunningRegExp() {
-    block_->Signal();  // Enable garbage collection thread on next preemption.
+    block_.Signal();  // Enable garbage collection thread on next preemption.
     int rounds = 0;
     while (gc_during_regexp_ < kRequiredGCs) {
       int gc_before = gc_count_;
@@ -14151,7 +14149,7 @@ class RegExpInterruptTest {
     regexp_success_ = true;
   }
 
-  i::Semaphore* block_;
+  i::Semaphore block_;
   int gc_count_;
   int gc_during_regexp_;
   bool regexp_success_;
@@ -14184,10 +14182,9 @@ TEST(RegExpInterruption) {
 
 class ApplyInterruptTest {
  public:
-  ApplyInterruptTest() : block_(NULL) {}
-  ~ApplyInterruptTest() { delete block_; }
+  ApplyInterruptTest() : block_(0) {}
+  ~ApplyInterruptTest() {}
   void RunTest() {
-    block_ = i::OS::CreateSemaphore(0);
     gc_count_ = 0;
     gc_during_apply_ = 0;
     apply_success_ = false;
@@ -14222,7 +14219,7 @@ class ApplyInterruptTest {
   };
 
   void CollectGarbage() {
-    block_->Wait();
+    block_.Wait();
     while (gc_during_apply_ < kRequiredGCs) {
       {
         v8::Locker lock(CcTest::default_isolate());
@@ -14235,7 +14232,7 @@ class ApplyInterruptTest {
   }
 
   void LongRunningApply() {
-    block_->Signal();
+    block_.Signal();
     int rounds = 0;
     while (gc_during_apply_ < kRequiredGCs) {
       int gc_before = gc_count_;
@@ -14260,7 +14257,7 @@ class ApplyInterruptTest {
     apply_success_ = true;
   }
 
-  i::Semaphore* block_;
+  i::Semaphore block_;
   int gc_count_;
   int gc_during_apply_;
   bool apply_success_;
@@ -14473,12 +14470,12 @@ TEST(CompileExternalTwoByteSource) {
 class RegExpStringModificationTest {
  public:
   RegExpStringModificationTest()
-      : block_(i::OS::CreateSemaphore(0)),
+      : block_(0),
         morphs_(0),
         morphs_during_regexp_(0),
         ascii_resource_(i::Vector<const char>("aaaaaaaaaaaaaab", 15)),
         uc16_resource_(i::Vector<const uint16_t>(two_byte_content_, 15)) {}
-  ~RegExpStringModificationTest() { delete block_; }
+  ~RegExpStringModificationTest() {}
   void RunTest() {
     i::Factory* factory = i::Isolate::Current()->factory();
 
@@ -14535,7 +14532,7 @@ class RegExpStringModificationTest {
   };
 
   void MorphString() {
-    block_->Wait();
+    block_.Wait();
     while (morphs_during_regexp_ < kRequiredModifications &&
            morphs_ < kMaxModifications) {
       {
@@ -14551,7 +14548,7 @@ class RegExpStringModificationTest {
   }
 
   void LongRunningRegExp() {
-    block_->Signal();  // Enable morphing thread on next preemption.
+    block_.Signal();  // Enable morphing thread on next preemption.
     while (morphs_during_regexp_ < kRequiredModifications &&
            morphs_ < kMaxModifications) {
       int morphs_before = morphs_;
@@ -14573,7 +14570,7 @@ class RegExpStringModificationTest {
   }
 
   i::uc16 two_byte_content_[15];
-  i::Semaphore* block_;
+  i::Semaphore block_;
   int morphs_;
   int morphs_during_regexp_;
   bool regexp_success_;
@@ -16662,6 +16659,42 @@ TEST(SourceURLInStackTrace) {
   CHECK(CompileRun(code.start())->IsUndefined());
   i::OS::SNPrintF(code, source, "//@ sourceURL=eval_url");
   CHECK(CompileRun(code.start())->IsUndefined());
+}
+
+
+static int scriptIdInStack[2];
+
+void AnalyzeScriptIdInStack(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  v8::HandleScope scope(args.GetIsolate());
+  v8::Handle<v8::StackTrace> stackTrace =
+      v8::StackTrace::CurrentStackTrace(10, v8::StackTrace::kScriptId);
+  CHECK_EQ(2, stackTrace->GetFrameCount());
+  for (int i = 0; i < 2; i++) {
+    scriptIdInStack[i] = stackTrace->GetFrame(i)->GetScriptId();
+  }
+}
+
+
+TEST(ScriptIdInStackTrace) {
+  v8::HandleScope scope(v8::Isolate::GetCurrent());
+  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  templ->Set(v8_str("AnalyzeScriptIdInStack"),
+             v8::FunctionTemplate::New(AnalyzeScriptIdInStack));
+  LocalContext context(0, templ);
+
+  v8::Handle<v8::String> scriptSource = v8::String::New(
+    "function foo() {\n"
+    "  AnalyzeScriptIdInStack();"
+    "}\n"
+    "foo();\n");
+  v8::ScriptOrigin origin = v8::ScriptOrigin(v8::String::New("test"));
+  v8::Local<v8::Script> script(v8::Script::Compile(scriptSource, &origin));
+  script->Run();
+  for (int i = 0; i < 2; i++) {
+    CHECK(scriptIdInStack[i] != v8::Message::kNoScriptIdInfo);
+    CHECK_EQ(scriptIdInStack[i], script->GetId());
+  }
 }
 
 
@@ -20031,19 +20064,17 @@ THREADED_TEST(JSONParseNumber) {
 }
 
 
-#ifndef WIN32
+#if V8_OS_POSIX
 class ThreadInterruptTest {
  public:
-  ThreadInterruptTest() : sem_(NULL), sem_value_(0) { }
-  ~ThreadInterruptTest() { delete sem_; }
+  ThreadInterruptTest() : sem_(0), sem_value_(0) { }
+  ~ThreadInterruptTest() {}
 
   void RunTest() {
-    sem_ = i::OS::CreateSemaphore(0);
-
     InterruptThread i_thread(this);
     i_thread.Start();
 
-    sem_->Wait();
+    sem_.Wait();
     CHECK_EQ(kExpectedValue, sem_value_);
   }
 
@@ -20074,7 +20105,7 @@ class ThreadInterruptTest {
 
       // Set value and signal semaphore
       test_->sem_value_ = 1;
-      test_->sem_->Signal();
+      test_->sem_.Signal();
     }
 
     static void SignalHandler(int signal) {
@@ -20084,7 +20115,7 @@ class ThreadInterruptTest {
      ThreadInterruptTest* test_;
   };
 
-  i::Semaphore* sem_;
+  i::Semaphore sem_;
   volatile int sem_value_;
 };
 
@@ -20273,4 +20304,20 @@ TEST(AccessCheckThrows) {
   v8::V8::SetFailedAccessCheckCallbackFunction(NULL);
 }
 
-#endif  // WIN32
+
+THREADED_TEST(Regress256330) {
+  i::FLAG_allow_natives_syntax = true;
+  LocalContext context;
+  v8::HandleScope scope(context->GetIsolate());
+  Handle<FunctionTemplate> templ = FunctionTemplate::New();
+  AddInterceptor(templ, EmptyInterceptorGetter, EmptyInterceptorSetter);
+  context->Global()->Set(v8_str("Bug"), templ->GetFunction());
+  CompileRun("\"use strict\"; var o = new Bug;"
+             "function f(o) { o.x = 10; };"
+             "f(o); f(o); f(o);"
+             "%OptimizeFunctionOnNextCall(f);"
+             "f(o);");
+  ExpectBoolean("%GetOptimizationStatus(f) != 2", true);
+}
+
+#endif  // V8_OS_POSIX

@@ -62,12 +62,12 @@ class LCodeGen;
   V(CallNewArray)                               \
   V(CallRuntime)                                \
   V(CallStub)                                   \
-  V(CheckFunction)                              \
   V(CheckInstanceType)                          \
   V(CheckNonSmi)                                \
   V(CheckMaps)                                  \
   V(CheckMapValue)                              \
   V(CheckSmi)                                   \
+  V(CheckValue)                                 \
   V(ClampDToUint8)                              \
   V(ClampIToUint8)                              \
   V(ClampTToUint8)                              \
@@ -2338,16 +2338,16 @@ class LStringCharFromCode V8_FINAL : public LTemplateInstruction<1, 1, 0> {
 };
 
 
-class LCheckFunction V8_FINAL : public LTemplateInstruction<0, 1, 0> {
+class LCheckValue V8_FINAL : public LTemplateInstruction<0, 1, 0> {
  public:
-  explicit LCheckFunction(LOperand* value) {
+  explicit LCheckValue(LOperand* value) {
     inputs_[0] = value;
   }
 
   LOperand* value() { return inputs_[0]; }
 
-  DECLARE_CONCRETE_INSTRUCTION(CheckFunction, "check-function")
-  DECLARE_HYDROGEN_ACCESSOR(CheckFunction)
+  DECLARE_CONCRETE_INSTRUCTION(CheckValue, "check-value")
+  DECLARE_HYDROGEN_ACCESSOR(CheckValue)
 };
 
 

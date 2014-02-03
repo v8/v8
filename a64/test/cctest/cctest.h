@@ -144,10 +144,10 @@ class ApiTestFuzzer: public v8::internal::Thread {
   explicit ApiTestFuzzer(int num)
       : Thread("ApiTestFuzzer"),
         test_number_(num),
-        gate_(v8::internal::OS::CreateSemaphore(0)),
+        gate_(0),
         active_(true) {
   }
-  ~ApiTestFuzzer() { delete gate_; }
+  ~ApiTestFuzzer() {}
 
   static bool fuzzing_;
   static int tests_being_run_;
@@ -155,11 +155,11 @@ class ApiTestFuzzer: public v8::internal::Thread {
   static int active_tests_;
   static bool NextThread();
   int test_number_;
-  v8::internal::Semaphore* gate_;
+  v8::internal::Semaphore gate_;
   bool active_;
   void ContextSwitch();
   static int GetNextTestNumber();
-  static v8::internal::Semaphore* all_tests_done_;
+  static v8::internal::Semaphore all_tests_done_;
 };
 
 

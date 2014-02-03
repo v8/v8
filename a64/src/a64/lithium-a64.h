@@ -64,12 +64,12 @@ class LCodeGen;
   V(CallNewArray)                               \
   V(CallRuntime)                                \
   V(CallStub)                                   \
-  V(CheckFunction)                              \
   V(CheckInstanceType)                          \
   V(CheckMaps)                                  \
   V(CheckMapValue)                              \
   V(CheckNonSmi)                                \
   V(CheckSmi)                                   \
+  V(CheckValue)                                 \
   V(ClampDToUint8)                              \
   V(ClampIToUint8)                              \
   V(ClampTToUint8)                              \
@@ -922,21 +922,6 @@ class LCallStub: public LTemplateInstruction<1, 0, 0> {
 };
 
 
-class LCheckFunction: public LTemplateInstruction<0, 1, 1> {
- public:
-  LCheckFunction(LOperand* value, LOperand* temp) {
-    inputs_[0] = value;
-    temps_[0] = temp;
-  }
-
-  LOperand* value() { return inputs_[0]; }
-  LOperand* temp() { return temps_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(CheckFunction, "check-function")
-  DECLARE_HYDROGEN_ACCESSOR(CheckFunction)
-};
-
-
 class LCheckInstanceType: public LTemplateInstruction<0, 1, 1> {
  public:
   explicit LCheckInstanceType(LOperand* value, LOperand* temp) {
@@ -989,6 +974,21 @@ class LCheckSmi: public LTemplateInstruction<1, 1, 0> {
   LOperand* value() { return inputs_[0]; }
 
   DECLARE_CONCRETE_INSTRUCTION(CheckSmi, "check-smi")
+};
+
+
+class LCheckValue: public LTemplateInstruction<0, 1, 1> {
+ public:
+  LCheckValue(LOperand* value, LOperand* temp) {
+    inputs_[0] = value;
+    temps_[0] = temp;
+  }
+
+  LOperand* value() { return inputs_[0]; }
+  LOperand* temp() { return temps_[0]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(CheckValue, "check-value")
+  DECLARE_HYDROGEN_ACCESSOR(CheckValue)
 };
 
 

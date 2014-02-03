@@ -1268,7 +1268,6 @@ void MacroAssembler::CallApiFunctionAndReturn(ExternalReference function,
                                               Register thunk_last_arg,
                                               int stack_space,
                                               int spill_offset,
-                                              bool returns_handle,
                                               int return_value_offset_from_fp) {
   ASM_LOCATION("CallApiFunctionAndReturn");
   ExternalReference next_address =
@@ -1352,14 +1351,6 @@ void MacroAssembler::CallApiFunctionAndReturn(ExternalReference function,
   Label result_is_not_null;
   Label return_value_loaded;
 
-  if (returns_handle) {
-    Label load_return_value;
-    Cbz(x0, &load_return_value);
-    // Dereference returned value.
-    Ldr(x0, MemOperand(x0));
-    B(&return_value_loaded);
-    Bind(&load_return_value);
-  }
   // load value from ReturnValue
   Ldr(x0, MemOperand(fp, return_value_offset_from_fp * kPointerSize));
   Bind(&return_value_loaded);

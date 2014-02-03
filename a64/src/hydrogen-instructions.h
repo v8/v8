@@ -63,7 +63,6 @@ class LChunkBuilder;
 
 
 #define HYDROGEN_CONCRETE_INSTRUCTION_LIST(V)  \
-  V(AbnormalExit)                              \
   V(AccessArgumentsAt)                         \
   V(Add)                                       \
   V(Allocate)                                  \
@@ -88,12 +87,12 @@ class LChunkBuilder;
   V(CallStub)                                  \
   V(CapturedObject)                            \
   V(Change)                                    \
-  V(CheckFunction)                             \
   V(CheckHeapObject)                           \
   V(CheckInstanceType)                         \
   V(CheckMaps)                                 \
   V(CheckMapValue)                             \
   V(CheckSmi)                                  \
+  V(CheckValue)                                \
   V(ClampToUint8)                              \
   V(ClassOfTestAndBranch)                      \
   V(CompareNumericAndBranch)                   \
@@ -807,6 +806,8 @@ class HValue : public ZoneObject {
 
   // Returns true if the flag specified is set for all uses, false otherwise.
   bool CheckUsesForFlag(Flag f) const;
+  // Same as before and the first one without the flag is returned in value.
+  bool CheckUsesForFlag(Flag f, HValue** value) const;
   // Returns true if the flag specified is set for all uses, and this set
   // of uses is non-empty.
   bool HasAtLeastOneUseWithFlagAndNoneWithout(Flag f) const;
@@ -944,6 +945,11 @@ class HValue : public ZoneObject {
   // ToNumber() operation on this value.
   bool ToNumberCanBeObserved() const {
     return type().ToStringOrToNumberCanBeObserved(representation());
+  }
+
+  MinusZeroMode GetMinusZeroMode() {
+    return CheckFlag(kBailoutOnMinusZero)
+        ? FAIL_ON_MINUS_ZERO : TREAT_MINUS_ZERO_AS_ZERO;
   }
 
  protected:
@@ -1441,16 +1447,6 @@ class HReturn V8_FINAL : public HTemplateControlInstruction<0, 3> {
 };
 
 
-class HAbnormalExit V8_FINAL : public HTemplateControlInstruction<0, 0> {
- public:
-  virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
-    return Representation::None();
-  }
-
-  DECLARE_CONCRETE_INSTRUCTION(AbnormalExit)
-};
-
-
 class HUnaryOperation : public HTemplateInstruction<1> {
  public:
   HUnaryOperation(HValue* value, HType type = HType::Tagged())
@@ -1545,7 +1541,10 @@ class HChange V8_FINAL : public HUnaryOperation {
     ASSERT(!value->representation().Equals(to));
     set_representation(to);
     SetFlag(kUseGVN);
-    if (is_truncating_to_smi) SetFlag(kTruncatingToSmi);
+    if (is_truncating_to_smi) {
+      SetFlag(kTruncatingToSmi);
+      SetFlag(kTruncatingToInt32);
+    }
     if (is_truncating_to_int32) SetFlag(kTruncatingToInt32);
     if (value->representation().IsSmi() || value->type().IsSmi()) {
       set_type(HType::Smi());
@@ -2557,6 +2556,7 @@ class HCheckMaps V8_FINAL : public HTemplateInstruction<2> {
 
   HValue* value() { return OperandAt(0); }
   SmallMapList* map_set() { return &map_set_; }
+  ZoneList<UniqueValueId>* map_unique_ids() { return &map_unique_ids_; }
 
   bool has_migration_target() {
     return has_migration_target_;
@@ -2625,9 +2625,20 @@ class HCheckMaps V8_FINAL : public HTemplateInstruction<2> {
 };
 
 
-class HCheckFunction V8_FINAL : public HUnaryOperation {
+class HCheckValue V8_FINAL : public HUnaryOperation {
  public:
-  DECLARE_INSTRUCTION_FACTORY_P2(HCheckFunction, HValue*, Handle<JSFunction>);
+  static HCheckValue* New(Zone* zone, HValue* context,
+                          HValue* value, Handle<JSFunction> target) {
+    bool in_new_space = Isolate::Current()->heap()->InNewSpace(*target);
+    HCheckValue* check = new(zone) HCheckValue(value, target, in_new_space);
+    return check;
+  }
+  static HCheckValue* New(Zone* zone, HValue* context,
+                          HValue* value, Handle<Map> map, UniqueValueId id) {
+    HCheckValue* check = new(zone) HCheckValue(value, map, false);
+    check->object_unique_id_ = id;
+    return check;
+  }
 
   virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
     return Representation::Tagged();
@@ -2641,32 +2652,31 @@ class HCheckFunction V8_FINAL : public HUnaryOperation {
 #endif
 
   virtual void FinalizeUniqueValueId() V8_OVERRIDE {
-    target_unique_id_ = UniqueValueId(target_);
+    object_unique_id_ = UniqueValueId(object_);
   }
 
-  Handle<JSFunction> target() const { return target_; }
-  bool target_in_new_space() const { return target_in_new_space_; }
+  Handle<HeapObject> object() const { return object_; }
+  bool object_in_new_space() const { return object_in_new_space_; }
 
-  DECLARE_CONCRETE_INSTRUCTION(CheckFunction)
+  DECLARE_CONCRETE_INSTRUCTION(CheckValue)
 
  protected:
   virtual bool DataEquals(HValue* other) V8_OVERRIDE {
-    HCheckFunction* b = HCheckFunction::cast(other);
-    return target_unique_id_ == b->target_unique_id_;
+    HCheckValue* b = HCheckValue::cast(other);
+    return object_unique_id_ == b->object_unique_id_;
   }
 
  private:
-  HCheckFunction(HValue* value, Handle<JSFunction> function)
+  HCheckValue(HValue* value, Handle<HeapObject> object, bool in_new_space)
       : HUnaryOperation(value, value->type()),
-        target_(function), target_unique_id_() {
+        object_(object), object_in_new_space_(in_new_space) {
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
-    target_in_new_space_ = Isolate::Current()->heap()->InNewSpace(*function);
   }
 
-  Handle<JSFunction> target_;
-  UniqueValueId target_unique_id_;
-  bool target_in_new_space_;
+  Handle<HeapObject> object_;
+  UniqueValueId object_unique_id_;
+  bool object_in_new_space_;
 };
 
 
@@ -3225,6 +3235,15 @@ class HCapturedObject V8_FINAL : public HDematerializedObject {
   int length() const { return values_.length(); }
   int capture_id() const { return capture_id_; }
 
+  // Shortcut for the map value of this captured object.
+  HValue* map_value() const { return values()->first(); }
+
+  void ReuseSideEffectsFromStore(HInstruction* store) {
+    ASSERT(store->HasObservableSideEffects());
+    ASSERT(store->IsStoreNamedField());
+    gvn_flags_.Add(store->gvn_flags());
+  }
+
   // Replay effects of this instruction on the given environment.
   void ReplayEnvironment(HEnvironment* env);
 
@@ -3330,7 +3349,7 @@ class HConstant V8_FINAL : public HTemplateInstruction<0> {
   }
 
   virtual Representation KnownOptimalRepresentation() V8_OVERRIDE {
-    if (HasSmiValue() && kSmiValueSize == 31) return Representation::Smi();
+    if (HasSmiValue() && SmiValuesAre31Bits()) return Representation::Smi();
     if (HasInteger32Value()) return Representation::Integer32();
     if (HasNumberValue()) return Representation::Double();
     if (HasExternalReferenceValue()) return Representation::External();
@@ -4514,7 +4533,6 @@ class HMul V8_FINAL : public HArithmeticBinaryOperation {
   virtual void UpdateRepresentation(Representation new_rep,
                                     HInferRepresentationPhase* h_infer,
                                     const char* reason) V8_OVERRIDE {
-    if (new_rep.IsSmi()) new_rep = Representation::Integer32();
     HArithmeticBinaryOperation::UpdateRepresentation(new_rep, h_infer, reason);
   }
 
@@ -4724,6 +4742,7 @@ class HBitwise V8_FINAL : public HBitwiseBinaryOperation {
           right->representation().IsSmi() &&
           HConstant::cast(right)->Integer32Value() >= 0))) {
       SetFlag(kTruncatingToSmi);
+      SetFlag(kTruncatingToInt32);
     // BIT_OR with a smi-range negative value will always set the entire
     // sign-extension of the smi-sign.
     } else if (op == Token::BIT_OR &&
@@ -4734,6 +4753,7 @@ class HBitwise V8_FINAL : public HBitwiseBinaryOperation {
           right->representation().IsSmi() &&
           HConstant::cast(right)->Integer32Value() < 0))) {
       SetFlag(kTruncatingToSmi);
+      SetFlag(kTruncatingToInt32);
     }
   }
 
@@ -5160,7 +5180,8 @@ class HAllocate V8_FINAL : public HTemplateInstruction<2> {
             InstanceType instance_type)
       : HTemplateInstruction<2>(type),
         dominating_allocate_(NULL),
-        filler_free_space_size_(NULL) {
+        filler_free_space_size_(NULL),
+        clear_next_map_word_(false) {
     SetOperandAt(0, context);
     SetOperandAt(1, size);
     set_representation(Representation::Tagged());
@@ -5172,9 +5193,18 @@ class HAllocate V8_FINAL : public HTemplateInstruction<2> {
             ? ALLOCATE_IN_OLD_POINTER_SPACE : ALLOCATE_IN_OLD_DATA_SPACE)
         : ALLOCATE_IN_NEW_SPACE;
     if (instance_type == FIXED_DOUBLE_ARRAY_TYPE) {
-      flags_ = static_cast<HAllocate::Flags>(flags_ |
-          ALLOCATE_DOUBLE_ALIGNED);
+      flags_ = static_cast<HAllocate::Flags>(flags_ | ALLOCATE_DOUBLE_ALIGNED);
     }
+    // We have to fill the allocated object with one word fillers if we do
+    // not use allocation folding since some allocations may depend on each
+    // other, i.e., have a pointer to each other. A GC in between these
+    // allocations may leave such objects behind in a not completely initialized
+    // state.
+    if (!FLAG_use_gvn || !FLAG_use_allocation_folding) {
+      flags_ = static_cast<HAllocate::Flags>(flags_ | PREFILL_WITH_FILLER);
+    }
+    clear_next_map_word_ = pretenure_flag == NOT_TENURED &&
+        AllocationSite::CanTrack(instance_type);
   }
 
   void UpdateSize(HValue* size) {
@@ -5194,10 +5224,13 @@ class HAllocate V8_FINAL : public HTemplateInstruction<2> {
             allocate->IsOldPointerSpaceAllocation());
   }
 
+  void ClearNextMapWord(int offset);
+
   Flags flags_;
   Handle<Map> known_initial_map_;
   HAllocate* dominating_allocate_;
   HStoreNamedField* filler_free_space_size_;
+  bool clear_next_map_word_;
 };
 
 
@@ -5828,7 +5861,7 @@ class ArrayInstructionInterface {
   virtual ~ArrayInstructionInterface() { };
 
   static Representation KeyedAccessIndexRequirement(Representation r) {
-    return r.IsInteger32() || kSmiValueSize != 31
+    return r.IsInteger32() || SmiValuesAre32Bits()
         ? Representation::Integer32() : Representation::Smi();
   }
 };

@@ -52,7 +52,7 @@ class HEscapeAnalysisPhase : public HPhase {
 
  private:
   void CollectCapturedValues();
-  void CollectIfNoEscapingUses(HInstruction* instr);
+  bool HasNoEscapingUses(HValue* value);
   void PerformScalarReplacement();
   void AnalyzeDataFlow(HInstruction* instr);
 
@@ -62,6 +62,8 @@ class HEscapeAnalysisPhase : public HPhase {
   HCapturedObject* NewStateCopy(HInstruction* prev, HCapturedObject* state);
 
   HPhi* NewPhiAndInsert(HBasicBlock* block, HValue* incoming_value, int index);
+
+  HValue* NewMapCheckAndInsert(HCapturedObject* state, HCheckMaps* mapcheck);
 
   HCapturedObject* StateAt(HBasicBlock* block) {
     return block_states_.at(block->block_id());

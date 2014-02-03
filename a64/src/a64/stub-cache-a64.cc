@@ -921,20 +921,12 @@ static void GenerateFastApiDirectCall(MacroAssembler* masm,
   const int kStackUnwindSpace = argc + kFastApiCallArguments + 1;
 
   Address function_address = v8::ToCData<Address>(api_call_info->callback());
-  // TODO(dcarney): fix signatures using returns_handle
-  const bool returns_handle = false;
   ApiFunction fun(function_address);
-  ExternalReference::Type type =
-      returns_handle ?
-          ExternalReference::DIRECT_API_CALL :
-          ExternalReference::DIRECT_API_CALL_NEW;
+  ExternalReference::Type type = ExternalReference::DIRECT_API_CALL;
   ExternalReference ref = ExternalReference(&fun, type, masm->isolate());
 
   Address thunk_address = FUNCTION_ADDR(&InvokeFunctionCallback);
-  ExternalReference::Type thunk_type =
-      returns_handle ?
-          ExternalReference::PROFILING_API_CALL :
-          ExternalReference::PROFILING_API_CALL_NEW;
+  ExternalReference::Type thunk_type = ExternalReference::PROFILING_API_CALL;
   ApiFunction thunk_fun(thunk_address);
   ExternalReference thunk_ref =
       ExternalReference(&thunk_fun, thunk_type, masm->isolate());
@@ -949,7 +941,6 @@ static void GenerateFastApiDirectCall(MacroAssembler* masm,
                               x1,
                               kStackUnwindSpace,
                               spill_offset,
-                              returns_handle,
                               kFastApiCallArguments + 1);
 }
 
@@ -1452,19 +1443,13 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
 
   // Do the API call.
   Address getter_address = v8::ToCData<Address>(callback->getter());
-  // TODO(dcarney): fix signatures using returns_handle
-  const bool returns_handle = false;
 
   ApiFunction fun(getter_address);
-  ExternalReference::Type type =
-      returns_handle ?
-          ExternalReference::DIRECT_GETTER_CALL :
-          ExternalReference::DIRECT_GETTER_CALL_NEW;
+  ExternalReference::Type type = ExternalReference::DIRECT_GETTER_CALL;
   ExternalReference ref = ExternalReference(&fun, type, isolate());
 
   Address thunk_address = FUNCTION_ADDR(&InvokeAccessorGetterCallback);
-  ExternalReference::Type thunk_type =
-      ExternalReference::PROFILING_GETTER_CALL_NEW;
+  ExternalReference::Type thunk_type = ExternalReference::PROFILING_GETTER_CALL;
   ApiFunction thunk_fun(thunk_address);
   ExternalReference thunk_ref =
       ExternalReference(&thunk_fun, thunk_type, isolate());
@@ -1477,7 +1462,6 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
                               x2,
                               kStackUnwindSpace,
                               spill_offset,
-                              returns_handle,
                               5);
 }
 

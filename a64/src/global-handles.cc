@@ -118,14 +118,12 @@ class GlobalHandles::Node {
   void Release() {
     ASSERT(state() != FREE);
     set_state(FREE);
-#ifdef ENABLE_EXTRA_CHECKS
     // Zap the values for eager trapping.
     object_ = reinterpret_cast<Object*>(kGlobalHandleZapValue);
     class_id_ = v8::HeapProfiler::kPersistentHandleNoClassId;
     set_independent(false);
     set_partially_dependent(false);
     weak_reference_callback_ = NULL;
-#endif
     DecreaseBlockUses();
   }
 

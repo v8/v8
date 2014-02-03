@@ -2588,8 +2588,8 @@ Genesis::Genesis(Isolate* isolate,
     : isolate_(isolate),
       active_(isolate->bootstrapper()) {
   result_ = Handle<Context>::null();
-  // If V8 isn't running and cannot be initialized, just return.
-  if (!V8::IsRunning() && !V8::Initialize(NULL)) return;
+  // If V8 cannot be initialized, just return.
+  if (!V8::Initialize(NULL)) return;
 
   // Before creating the roots we must save the context and restore it
   // on all function exits.

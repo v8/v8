@@ -131,14 +131,10 @@ class ProfileNode {
   ProfileNode* FindOrAddChild(CodeEntry* entry);
   INLINE(void IncrementSelfTicks()) { ++self_ticks_; }
   INLINE(void IncreaseSelfTicks(unsigned amount)) { self_ticks_ += amount; }
-  INLINE(void IncreaseTotalTicks(unsigned amount)) { total_ticks_ += amount; }
 
   INLINE(CodeEntry* entry() const) { return entry_; }
   INLINE(unsigned self_ticks() const) { return self_ticks_; }
-  INLINE(unsigned total_ticks() const) { return total_ticks_; }
   INLINE(const List<ProfileNode*>* children() const) { return &children_list_; }
-  double GetSelfMillis() const;
-  double GetTotalMillis() const;
   unsigned id() const { return id_; }
 
   void Print(int indent);
@@ -155,7 +151,6 @@ class ProfileNode {
 
   ProfileTree* tree_;
   CodeEntry* entry_;
-  unsigned total_ticks_;
   unsigned self_ticks_;
   // Mapping from CodeEntry* to ProfileNode*
   HashMap children_;
@@ -173,17 +168,9 @@ class ProfileTree {
 
   ProfileNode* AddPathFromEnd(const Vector<CodeEntry*>& path);
   void AddPathFromStart(const Vector<CodeEntry*>& path);
-  void CalculateTotalTicks();
-
-  double TicksToMillis(unsigned ticks) const {
-    return ticks * ms_to_ticks_scale_;
-  }
   ProfileNode* root() const { return root_; }
-  void SetTickRatePerMs(double ticks_per_ms);
-
   unsigned next_node_id() { return next_node_id_++; }
 
-  void ShortPrint();
   void Print() {
     root_->Print(0);
   }
@@ -195,7 +182,6 @@ class ProfileTree {
   CodeEntry root_entry_;
   unsigned next_node_id_;
   ProfileNode* root_;
-  double ms_to_ticks_scale_;
 
   DISALLOW_COPY_AND_ASSIGN(ProfileTree);
 };
@@ -216,20 +202,20 @@ class CpuProfile {
   int samples_count() const { return samples_.length(); }
   ProfileNode* sample(int index) const { return samples_.at(index); }
 
-  int64_t start_time_us() const { return start_time_us_; }
-  int64_t end_time_us() const { return end_time_us_; }
+  Time start_time() const { return start_time_; }
+  Time end_time() const { return end_time_; }
 
   void UpdateTicksScale();
 
-  void ShortPrint();
   void Print();
 
  private:
   const char* title_;
   unsigned uid_;
   bool record_samples_;
-  int64_t start_time_us_;
-  int64_t end_time_us_;
+  Time start_time_;
+  Time end_time_;
+  ElapsedTimer timer_;
   List<ProfileNode*> samples_;
   ProfileTree top_down_;
 
@@ -326,7 +312,7 @@ class CpuProfilesCollection {
 
   // Accessed by VM thread and profile generator thread.
   List<CpuProfile*> current_profiles_;
-  Semaphore* current_profiles_semaphore_;
+  Semaphore current_profiles_semaphore_;
 
   DISALLOW_COPY_AND_ASSIGN(CpuProfilesCollection);
 };

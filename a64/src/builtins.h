@@ -211,6 +211,10 @@ enum BuiltinExtraArguments {
                                                                         \
   V(OnStackReplacement,             BUILTIN, UNINITIALIZED,             \
                                     Code::kNoExtraICState)              \
+  V(InterruptCheck,                 BUILTIN, UNINITIALIZED,             \
+                                    Code::kNoExtraICState)              \
+  V(StackCheck,                     BUILTIN, UNINITIALIZED,             \
+                                    Code::kNoExtraICState)              \
   CODE_AGE_LIST_WITH_ARG(DECLARE_CODE_AGE_BUILTIN, V)
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
@@ -288,7 +292,7 @@ class Builtins {
 
   // Generate all builtin code objects. Should be called once during
   // isolate initialization.
-  void SetUp(bool create_heap_objects);
+  void SetUp(Isolate* isolate, bool create_heap_objects);
   void TearDown();
 
   // Garbage collection support.
@@ -394,6 +398,9 @@ class Builtins {
 
   static void Generate_StringConstructCode(MacroAssembler* masm);
   static void Generate_OnStackReplacement(MacroAssembler* masm);
+
+  static void Generate_InterruptCheck(MacroAssembler* masm);
+  static void Generate_StackCheck(MacroAssembler* masm);
 
 #define DECLARE_CODE_AGE_BUILTIN_GENERATOR(C)                \
   static void Generate_Make##C##CodeYoungAgainEvenMarking(   \

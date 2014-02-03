@@ -41,19 +41,18 @@ class SocketListenerThread : public Thread {
         data_size_(data_size),
         server_(NULL),
         client_(NULL),
-        listening_(OS::CreateSemaphore(0)) {
+        listening_(0) {
     data_ = new char[data_size_];
   }
   ~SocketListenerThread() {
     // Close both sockets.
     delete client_;
     delete server_;
-    delete listening_;
     delete[] data_;
   }
 
   void Run();
-  void WaitForListening() { listening_->Wait(); }
+  void WaitForListening() { listening_.Wait(); }
   char* data() { return data_; }
 
  private:
@@ -62,7 +61,7 @@ class SocketListenerThread : public Thread {
   int data_size_;
   Socket* server_;  // Server socket used for bind/accept.
   Socket* client_;  // Single client connection used by the test.
-  Semaphore* listening_;  // Signalled when the server socket is in listen mode.
+  Semaphore listening_;  // Signalled when the server socket is in listen mode.
 };
 
 
@@ -79,7 +78,7 @@ void SocketListenerThread::Run() {
   // Listen for new connections.
   ok = server_->Listen(1);
   CHECK(ok);
-  listening_->Signal();
+  listening_.Signal();
 
   // Accept a connection.
   client_ = server_->Accept();

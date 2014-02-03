@@ -868,13 +868,6 @@ LInstruction* LChunkBuilder::DoBoundsCheckBaseIndexInformation(
 }
 
 
-LInstruction* LChunkBuilder::DoAbnormalExit(HAbnormalExit* instr) {
-  // The control instruction marking the end of a block that completed abruptly
-  // (e.g., threw an exception). There is nothing specific to do.
-  return NULL;
-}
-
-
 LInstruction* LChunkBuilder::DoAccessArgumentsAt(HAccessArgumentsAt* instr) {
   info()->MarkAsRequiresFrame();
   LOperand* args = NULL;
@@ -1158,7 +1151,8 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
       ASSERT(to.IsInteger32());
       LInstruction* res = NULL;
 
-      if (instr->value()->type().IsSmi()) {
+      if (instr->value()->type().IsSmi() ||
+          instr->value()->representation().IsSmi()) {
         LOperand* value = UseRegisterAtStart(instr->value());
         res = DefineAsRegister(new(zone()) LSmiUntag(value, false));
       } else {
@@ -1234,12 +1228,13 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoCheckFunction(HCheckFunction* instr) {
+LInstruction* LChunkBuilder::DoCheckValue(HCheckValue* instr) {
   // We only need a temp register if the target is in new space, but we can't
   // dereference the handle to test that here.
+  // TODO(all): Check these constraints. The temp register is not always used.
   LOperand* value = UseRegister(instr->value());
   LOperand* temp = TempRegister();
-  return AssignEnvironment(new(zone()) LCheckFunction(value, temp));
+  return AssignEnvironment(new(zone()) LCheckValue(value, temp));
 }
 
 

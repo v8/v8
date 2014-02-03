@@ -375,6 +375,11 @@ class MacroAssembler: public Assembler {
   // ---------------------------------------------------------------------------
   // Smi tagging, untagging and operations on tagged smis.
 
+  // Support for constant splitting.
+  bool IsUnsafeInt(const int32_t x);
+  void SafeMove(Register dst, Smi* src);
+  void SafePush(Smi* src);
+
   void InitializeSmiConstantRegister() {
     movq(kSmiConstantRegister,
          reinterpret_cast<uint64_t>(Smi::FromInt(kSmiConstantRegisterValue)),
@@ -720,6 +725,14 @@ class MacroAssembler: public Assembler {
   }
 
   void Push(Smi* smi);
+
+  // Save away a 64-bit integer on the stack as two 32-bit integers
+  // masquerading as smis so that the garbage collector skips visiting them.
+  void PushInt64AsTwoSmis(Register src, Register scratch = kScratchRegister);
+  // Reconstruct a 64-bit integer from two 32-bit integers masquerading as
+  // smis on the top of stack.
+  void PopInt64AsTwoSmis(Register dst, Register scratch = kScratchRegister);
+
   void Test(const Operand& dst, Smi* source);
 
 
@@ -773,11 +786,6 @@ class MacroAssembler: public Assembler {
 
   // Move if the registers are not identical.
   void Move(Register target, Register source);
-
-  // Support for constant splitting.
-  bool IsUnsafeInt(const int x);
-  void SafeMove(Register dst, Smi* src);
-  void SafePush(Smi* src);
 
   // Bit-field support.
   void TestBit(const Operand& dst, int bit_index);
@@ -1242,7 +1250,7 @@ class MacroAssembler: public Assembler {
   // rcx (rcx must be preserverd until CallApiFunctionAndReturn).  Saves
   // context (rsi).  Clobbers rax.  Allocates arg_stack_space * kPointerSize
   // inside the exit frame (not GCed) accessible via StackSpaceOperand.
-  void PrepareCallApiFunction(int arg_stack_space, bool returns_handle);
+  void PrepareCallApiFunction(int arg_stack_space);
 
   // Calls an API function.  Allocates HandleScope, extracts returned value
   // from handle and propagates exceptions.  Clobbers r14, r15, rbx and
@@ -1252,7 +1260,6 @@ class MacroAssembler: public Assembler {
                                 Address thunk_address,
                                 Register thunk_last_arg,
                                 int stack_space,
-                                bool returns_handle,
                                 int return_value_offset_from_rbp);
 
   // Before calling a C-function from generated code, align arguments on stack.

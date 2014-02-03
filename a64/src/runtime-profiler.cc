@@ -177,18 +177,7 @@ void RuntimeProfiler::AttemptOnStackReplacement(JSFunction* function) {
     PrintF(" for on-stack replacement]\n");
   }
 
-  // Get the interrupt stub code object to match against.  We aren't
-  // prepared to generate it, but we don't expect to have to.
-  Code* interrupt_code = NULL;
-  InterruptStub interrupt_stub;
-  bool found_code = interrupt_stub.FindCodeInCache(&interrupt_code, isolate_);
-  if (found_code) {
-    Code* replacement_code =
-        isolate_->builtins()->builtin(Builtins::kOnStackReplacement);
-    Code* unoptimized_code = shared->code();
-    Deoptimizer::PatchInterruptCode(
-        unoptimized_code, interrupt_code, replacement_code);
-  }
+  Deoptimizer::PatchInterruptCode(isolate_, shared->code());
 }
 
 

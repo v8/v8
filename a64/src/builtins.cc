@@ -1717,9 +1717,8 @@ void Builtins::InitBuiltinFunctionTable() {
 }
 
 
-void Builtins::SetUp(bool create_heap_objects) {
+void Builtins::SetUp(Isolate* isolate, bool create_heap_objects) {
   ASSERT(!initialized_);
-  Isolate* isolate = Isolate::Current();
   Heap* heap = isolate->heap();
 
   // Create a scope for the handles in the builtins.
@@ -1812,6 +1811,16 @@ const char* Builtins::Lookup(byte* pc) {
     }
   }
   return NULL;
+}
+
+
+void Builtins::Generate_InterruptCheck(MacroAssembler* masm) {
+  masm->TailCallRuntime(Runtime::kInterrupt, 0, 1);
+}
+
+
+void Builtins::Generate_StackCheck(MacroAssembler* masm) {
+  masm->TailCallRuntime(Runtime::kStackGuard, 0, 1);
 }
 
 

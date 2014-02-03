@@ -346,8 +346,6 @@ class Factory {
   void BecomeJSObject(Handle<JSReceiver> object);
   void BecomeJSFunction(Handle<JSReceiver> object);
 
-  void SetIdentityHash(Handle<JSObject> object, Smi* hash);
-
   Handle<JSFunction> NewFunction(Handle<String> name,
                                  Handle<Object> prototype);
 

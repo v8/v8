@@ -74,7 +74,7 @@ Context* Context::native_context() {
 
   // During bootstrapping, the global object might not be set and we
   // have to search the context chain to find the native context.
-  ASSERT(Isolate::Current()->bootstrapper()->IsActive());
+  ASSERT(this->GetIsolate()->bootstrapper()->IsActive());
   Context* current = this;
   while (!current->IsNativeContext()) {
     JSFunction* closure = JSFunction::cast(current->closure());
@@ -352,10 +352,9 @@ bool Context::IsBootstrappingOrValidParentContext(
 }
 
 
-bool Context::IsBootstrappingOrGlobalObject(Object* object) {
+bool Context::IsBootstrappingOrGlobalObject(Isolate* isolate, Object* object) {
   // During bootstrapping we allow all objects to pass as global
   // objects. This is necessary to fix circular dependencies.
-  Isolate* isolate = Isolate::Current();
   return isolate->heap()->gc_state() != Heap::NOT_IN_GC ||
       isolate->bootstrapper()->IsActive() ||
       object->IsGlobalObject();
