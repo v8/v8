@@ -26,7 +26,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import ply.yacc as yacc
-from automaton import Term, Action
+from action import Term, Action
 from rule_lexer import RuleLexer
 from regex_parser import RegexParser
 from nfa_builder import NfaBuilder
@@ -67,13 +67,13 @@ class RuleParser:
     'alias_rule : IDENTIFIER EQUALS composite_regex SEMICOLON'
     state = self.__state
     assert not p[1] in state.aliases
-    graph = p[3]
-    state.aliases[p[1]] = graph
-    if graph[0] == 'CLASS' or graph[0] == 'NOT_CLASS':
+    term = p[3]
+    state.aliases[p[1]] = term
+    if term.name() == 'CLASS' or term.name() == 'NOT_CLASS':
       classes = state.character_classes
-      assert not p[1] in classes
+      assert not p[1] in classes, "cannot reassign alias"
       encoding = state.encoding
-      classes[p[1]] = TransitionKey.character_class(encoding, graph, classes)
+      classes[p[1]] = TransitionKey.character_class(encoding, term, classes)
 
   def p_rules(self, p):
     '''rules : state_change transition_rules rules
@@ -171,12 +171,12 @@ class RuleParser:
     if len(p) == 2:
       p[0] = p[1]
     else:
-      p[0] = NfaBuilder.or_graphs([p[1], p[3]])
+      p[0] = NfaBuilder.or_terms([p[1], p[3]])
 
   def p_regex_parts(self, p):
     '''regex_parts : regex_part
                    | regex_part regex_parts'''
-    p[0] = NfaBuilder.cat_graphs(p[1:])
+    p[0] = NfaBuilder.cat_terms(p[1:])
 
   def p_regex_part(self, p):
     '''regex_part : LEFT_PARENTHESIS composite_regex RIGHT_PARENTHESIS modifier
@@ -185,11 +185,11 @@ class RuleParser:
                   | regex modifier
                   | regex_alias modifier'''
     modifier = p[len(p)-1]
-    graph = p[2] if len(p) == 5 else p[1]
+    term = p[2] if len(p) == 5 else p[1]
     if modifier:
-      p[0] = NfaBuilder.apply_modifier(modifier, graph)
+      p[0] = NfaBuilder.apply_modifier(modifier, term)
     else:
-      p[0] = graph
+      p[0] = term
 
   def p_regex_string_literal(self, p):
     'regex_string_literal : STRING'
@@ -197,7 +197,6 @@ class RuleParser:
     escape_char = lambda string, char: string.replace(char, "\\" + char)
     string = reduce(escape_char, "+?*|.[](){}", string).replace("\\\"", "\"")
     p[0] = RegexParser.parse(string)
-
   def p_regex(self, p):
     'regex : REGEX'
     string = p[1][1:-1].replace("\\/", "/")
@@ -251,6 +250,7 @@ class RuleProcessor(object):
   def __init__(self, parser_state):
     self.__automata = {}
     self.__rule_trees = {}
+    self.__default_action = None
     self.__process_parser_state(parser_state)
 
   @staticmethod
@@ -265,24 +265,26 @@ class RuleProcessor(object):
   def default_automata(self):
     return self.__automata['default']
 
-  def rule_tree_dots(self):
-    result = {}
-    for rule in self.__rule_trees:
-      result[rule] = NfaBuilder.rule_tree_dot(self.__rule_trees[rule])
-    return result
+  def default_action(self):
+    return self.__default_action
 
   class Automata(object):
 
-    def __init__(self, builder, graph):
-      self.__builder = builder
-      self.__graph = graph
+    def __init__(self, encoding, character_classes, rule_term):
+      self.__encoding = encoding
+      self.__character_classes = character_classes
+      self.__rule_term = rule_term
       self.__nfa = None
       self.__dfa = None
       self.__minimial_dfa = None
 
+    def rule_term(self):
+      return self.__rule_term
+
     def nfa(self):
       if not self.__nfa:
-        self.__nfa = self.__builder.nfa(self.__graph)
+        self.__nfa = NfaBuilder.nfa(
+          self.__encoding, self.__character_classes, self.__rule_term)
       return self.__nfa
 
     def dfa(self):
@@ -302,15 +304,14 @@ class RuleProcessor(object):
 
   def __process_parser_state(self, parser_state):
     rule_map = {}
-    builder = NfaBuilder(parser_state.encoding, parser_state.character_classes)
     assert 'default' in parser_state.rules
     def process(subgraph, v):
       graphs = []
       for graph, precedence, action in v['regex']:
         (entry_action, match_action, transition) = action
         if entry_action or match_action:
-          action = Action(entry_action, match_action, precedence)
-          graph = NfaBuilder.add_action(graph, action)
+          graph = NfaBuilder.add_action(
+            graph, Action(entry_action, match_action, precedence))
         if not transition:
           pass
         elif transition == 'continue':
@@ -321,7 +322,7 @@ class RuleProcessor(object):
           graph = NfaBuilder.join_subgraph(
             graph, transition, rule_map[transition])
         graphs.append(graph)
-      graph = NfaBuilder.or_graphs(graphs)
+      graph = NfaBuilder.or_terms(graphs)
       rule_map[subgraph] = graph
     # process first the subgraphs, then the default graph
     for k, v in parser_state.rules.items():
@@ -330,8 +331,9 @@ class RuleProcessor(object):
     process('default', parser_state.rules['default'])
     # build the automata
     for rule_name, graph in rule_map.items():
-      self.__automata[rule_name] = RuleProcessor.Automata(builder, graph)
+      self.__automata[rule_name] = RuleProcessor.Automata(
+        parser_state.encoding, parser_state.character_classes, graph)
       self.__rule_trees[rule_name] = graph
     # process default_action
     default_action = parser_state.rules['default']['default_action']
-    self.default_action = Action(Term.empty_term(), default_action)
+    self.__default_action = Action(Term.empty_term(), default_action)

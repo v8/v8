@@ -27,6 +27,7 @@
 
 from types import TupleType
 from inspect import getmembers
+from action import *
 from nfa import *
 
 # Nfa is built in two stages:
@@ -40,7 +41,7 @@ from nfa import *
 
 class NfaBuilder(object):
 
-  def __init__(self, encoding, character_classes = {}):
+  def __init__(self, encoding, character_classes):
     self.__node_number = 0
     self.__operation_map = {}
     self.__members = getmembers(self)
@@ -58,39 +59,39 @@ class NfaBuilder(object):
       self.__global_end_node = self.__new_state()
     return self.__global_end_node
 
-  def __or(self, graph):
+  def __or(self, args):
     start = self.__new_state()
     ends = []
-    for x in [self.__process(graph[1]), self.__process(graph[2])]:
+    for x in [self.__process(args[0]), self.__process(args[1])]:
       start.add_epsilon_transition(x[0])
       ends += x[1]
     start.close(None)
     return (start, ends)
 
-  def __one_or_more(self, graph):
-    (start, ends) = self.__process(graph[1])
+  def __one_or_more(self, args):
+    (start, ends) = self.__process(args[0])
     end =  self.__new_state()
     end.add_epsilon_transition(start)
     self.__patch_ends(ends, end)
     return (start, [end])
 
-  def __zero_or_more(self, graph):
-    (node, ends) = self.__process(graph[1])
+  def __zero_or_more(self, args):
+    (node, ends) = self.__process(args[0])
     start =  self.__new_state()
     start.add_epsilon_transition(node)
     self.__patch_ends(ends, start)
     return (start, [start])
 
-  def __zero_or_one(self, graph):
-    (node, ends) = self.__process(graph[1])
+  def __zero_or_one(self, args):
+    (node, ends) = self.__process(args[0])
     start =  self.__new_state()
     start.add_epsilon_transition(node)
     return (start, ends + [start])
 
-  def __repeat(self, graph):
-    param_min = int(graph[1])
-    param_max = int(graph[2])
-    subgraph = graph[3]
+  def __repeat(self, args):
+    param_min = int(args[0])
+    param_max = int(args[1])
+    subgraph = args[2]
     (start, ends) = self.__process(subgraph)
     for i in xrange(1, param_min):
       (start2, ends2) = self.__process(subgraph)
@@ -109,8 +110,8 @@ class NfaBuilder(object):
 
     return (start, ends + midpoints)
 
-  def __cat(self, graph):
-    (left, right) = (self.__process(graph[1]), self.__process(graph[2]))
+  def __cat(self, args):
+    (left, right) = (self.__process(args[0]), self.__process(args[1]))
     self.__patch_ends(left[1], right[0])
     return (left[0], right[1])
 
@@ -119,30 +120,27 @@ class NfaBuilder(object):
     state.add_unclosed_transition(key)
     return (state, [state])
 
-  def __literal(self, graph):
+  def __literal(self, args):
+    assert len(args) == 1
     return self.__key_state(
-      TransitionKey.single_char(self.__encoding, graph[1]))
+      TransitionKey.single_char(self.__encoding, args[0]))
 
-  def __class(self, graph):
+  def __class(self, args):
+    assert len(args) == 1
     return self.__key_state(TransitionKey.character_class(
-      self.__encoding, graph, self.__character_classes))
+      self.__encoding, Term('CLASS', args[0]), self.__character_classes))
 
-  def __not_class(self, graph):
+  def __not_class(self, args):
+    assert len(args) == 1
     return self.__key_state(TransitionKey.character_class(
-      self.__encoding, graph, self.__character_classes))
+      self.__encoding, Term('NOT_CLASS', args[0]), self.__character_classes))
 
-  def __any(self, graph):
+  def __any(self, args):
     return self.__key_state(TransitionKey.any(self.__encoding))
 
-  def __epsilon(self, graph):
-    start = self.__new_state()
-    end = self.__new_state()
-    start.close(end)
-    return (start, [end])
-
-  def __action(self, graph):
-    (start, ends) = self.__process(graph[1])
-    action = graph[2]
+  def __action(self, args):
+    (start, ends) = self.__process(args[0])
+    action = Action.from_term(args[1])
     end = self.__new_state()
     self.__patch_ends(ends, end)
     end.set_action(action)
@@ -151,19 +149,18 @@ class NfaBuilder(object):
       end.add_epsilon_transition(global_end)
     return (start, [end])
 
-  def __continue(self, graph):
-    (start, ends) = self.__process(graph[1])
+  def __continue(self, args):
+    (start, ends) = self.__process(args[0])
     state = self.__peek_state()
     if not state['start_node']:
       state['start_node'] = self.__new_state()
     self.__patch_ends(ends, state['start_node'])
     return (start, [])
 
-  def __unique_key(self, graph):
-    return self.__key_state(TransitionKey.unique(graph[1]))
+  def __unique_key(self, args):
+    return self.__key_state(TransitionKey.unique(args[0]))
 
-  def __join(self, graph):
-    (graph, name, subgraph) = graph[1:]
+  def __join(self, (graph, name, subgraph)):
     subgraphs = self.__peek_state()['subgraphs']
     if not name in subgraphs:
       subgraphs[name] = self.__nfa(subgraph)
@@ -177,14 +174,14 @@ class NfaBuilder(object):
     else:
       return (start, [])
 
-  def __process(self, graph):
-    assert type(graph) == TupleType
-    method = "_NfaBuilder__" + graph[0].lower()
+  def __process(self, term):
+    assert isinstance(term, Term)
+    method = "_NfaBuilder__" + term.name().lower()
     if not method in self.__operation_map:
       matches = filter(lambda (name, func): name == method, self.__members)
       assert len(matches) == 1
       self.__operation_map[method] = matches[0][1]
-    return self.__operation_map[method](graph)
+    return self.__operation_map[method](term.args())
 
   def __patch_ends(self, ends, new_end):
     for end in ends:
@@ -203,10 +200,10 @@ class NfaBuilder(object):
   def __peek_state(self):
     return self.__states[-1]
 
-  def __nfa(self, graph):
+  def __nfa(self, term):
     start_node_number = self.__node_number
     self.__push_state()
-    (start, ends) = self.__process(graph)
+    (start, ends) = self.__process(term)
     state = self.__pop_state()
     if state['start_node']:
       state['start_node'].close(start)
@@ -257,8 +254,11 @@ class NfaBuilder(object):
       transitions[inverse_key] = transitions[catch_all]
     del transitions[catch_all]
 
-  def nfa(self, graph):
-    (start, end, nodes_created) = self.__nfa(graph)
+  @staticmethod
+  def nfa(encoding, character_classes, rule_term):
+
+    self = NfaBuilder(encoding, character_classes)
+    (start, end, nodes_created) = self.__nfa(rule_term)
 
     global_end_to_return = self.__global_end_node or end
     assert global_end_to_return
@@ -267,10 +267,6 @@ class NfaBuilder(object):
 
     global_end_to_return.close(None)
 
-    # FIXME: the same NfaBuilder should not be called twice, so this cleanup
-    # should be unnecessary.
-    self.__global_end_node = None
-
     self.__compute_epsilon_closures(start)
     f = lambda node, state: self.__replace_catch_all(self.__encoding, node)
     Automaton.visit_states(set([start]), f)
@@ -278,63 +274,28 @@ class NfaBuilder(object):
     return Nfa(self.__encoding, start, global_end_to_return, nodes_created)
 
   @staticmethod
-  def rule_tree_dot(graph):
-    node_ix = [0]
-    node_template = 'node [label="%s"]; N_%d;'
-    edge_template = 'N_%d -> N_%d'
-    nodes = []
-    edges = []
-
-    def escape(v):
-      v = str(v)
-      v = v.replace('\r', '\\\\r').replace('\t', '\\\\t').replace('\n', '\\\\n')
-      v = v.replace('\\', '\\\\').replace('\"', '\\\"')
-      return v
-
-    def process_thing(thing):
-      if isinstance(thing, str):
-        node_ix[0] += 1
-        nodes.append(node_template % (escape(thing), node_ix[0]))
-        return node_ix[0]
-      if isinstance(thing, tuple):
-        child_ixs = map(process_thing, list(thing)[1:])
-        node_ix[0] += 1
-        nodes.append(node_template % (escape(thing[0]), node_ix[0]))
-        for child_ix in child_ixs:
-          edges.append(edge_template % (node_ix[0], child_ix))
-        return node_ix[0]
-      if isinstance(thing, Action):
-        node_ix[0] += 1
-        nodes.append(node_template % (str(thing), node_ix[0]))
-        return node_ix[0]
-      raise Exception
-
-    process_thing(graph)
-    return 'digraph { %s %s }' % ('\n'.join(nodes), '\n'.join(edges))
+  def add_action(term, action):
+    return Term('ACTION', term, action.to_term())
 
   @staticmethod
-  def add_action(graph, action):
-    return ('ACTION', graph, action)
-
-  @staticmethod
-  def add_continue(graph):
-    return ('CONTINUE', graph)
+  def add_continue(term):
+    return Term('CONTINUE', term)
 
   @staticmethod
   def unique_key(name):
-    return ('UNIQUE_KEY', name)
+    return Term('UNIQUE_KEY', name)
 
   @staticmethod
-  def join_subgraph(graph, name, subgraph):
-    return ('JOIN', graph, name, subgraph)
+  def join_subgraph(term, name, subgraph_term):
+    return Term('JOIN', term, name, subgraph_term)
 
   @staticmethod
-  def or_graphs(graphs):
-    return reduce(lambda acc, g: ('OR', acc, g), graphs)
+  def or_terms(terms):
+    return reduce(lambda acc, g: Term('OR', acc, g), terms)
 
   @staticmethod
-  def cat_graphs(graphs):
-    return reduce(lambda acc, g: ('CAT', acc, g), graphs)
+  def cat_terms(terms):
+    return reduce(lambda acc, g: Term('CAT', acc, g), terms)
 
   __modifer_map = {
     '+': 'ONE_OR_MORE',
@@ -343,5 +304,5 @@ class NfaBuilder(object):
   }
 
   @staticmethod
-  def apply_modifier(modifier, graph):
-    return (NfaBuilder.__modifer_map[modifier], graph)
+  def apply_modifier(modifier, term):
+    return Term(NfaBuilder.__modifer_map[modifier], term)

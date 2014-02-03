@@ -182,17 +182,18 @@ class TransitionKey(object):
     return TransitionKey.__cached_key(None, name, get_bounds)
 
   @staticmethod
-  def __process_graph(encoding, graph, ranges, key_map):
-    key = graph[0]
+  def __process_term(encoding, term, ranges, key_map):
+    key = term.name()
+    args = term.args()
     if key == 'RANGE':
-      ranges.append((ord(graph[1]), ord(graph[2])))
+      ranges.append((ord(args[0]), ord(args[1])))
     elif key == 'LITERAL':
-      ranges.append((ord(graph[1]), ord(graph[1])))
+      ranges.append((ord(args[0]), ord(args[0])))
     elif key == 'CAT':
-      for x in [graph[1], graph[2]]:
-        TransitionKey.__process_graph(encoding, x, ranges, key_map)
+      for x in [args[0], args[1]]:
+        TransitionKey.__process_term(encoding, x, ranges, key_map)
     elif key == 'CHARACTER_CLASS':
-      class_name = graph[1]
+      class_name = args[0]
       if encoding.class_range(class_name):
         r = encoding.class_range(class_name)
         if class_name in key_map:
@@ -206,13 +207,13 @@ class TransitionKey(object):
       elif class_name in key_map:
         ranges += key_map[class_name].__ranges
       else:
-        raise Exception('unknown character class [%s]' % graph[1])
+        raise Exception('unknown character class [%s]' % args[0])
     else:
       raise Exception('bad key [%s]' % key)
 
   @staticmethod
-  def character_class(encoding, graph, key_map):
-    '''Processes 'graph' (a representation of a character class in the rule
+  def character_class(encoding, term, key_map):
+    '''Processes 'term' (a representation of a character class in the rule
     file), and constructs a TransitionKey based on it. 'key_map' contains
     already constructed aliases for character classes (they can be used in the
     new character class). It is a map from strings (character class names) to
@@ -220,9 +221,10 @@ class TransitionKey(object):
     [a-z:digit:] where 'digit' is a previously constructed character class found
     in "key_map".'''
     ranges = []
-    assert graph[0] == 'CLASS' or graph[0] == 'NOT_CLASS'
-    invert = graph[0] == 'NOT_CLASS'
-    TransitionKey.__process_graph(encoding, graph[1], ranges, key_map)
+    assert term.name() == 'CLASS' or term.name() == 'NOT_CLASS'
+    invert = term.name() == 'NOT_CLASS'
+    assert len(term.args()) == 1
+    TransitionKey.__process_term(encoding, term.args()[0], ranges, key_map)
     return TransitionKey.__key_from_ranges(encoding, invert, ranges)
 
   def matches_char(self, char):

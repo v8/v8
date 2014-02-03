@@ -26,8 +26,9 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import ply.yacc as yacc
-from regex_lexer import RegexLexer
 from types import ListType, TupleType
+from regex_lexer import RegexLexer
+from action import Term
 
 class RegexParser:
 
@@ -47,7 +48,7 @@ class RegexParser:
     if len(p) == 2:
       p[0] = p[1]
     else:
-      p[0] = (self.token_map[p[2]], p[1], p[3])
+      p[0] = Term(self.token_map[p[2]], p[1], p[3])
 
   def p_fragments(self, p):
     '''fragments : fragment
@@ -65,9 +66,9 @@ class RegexParser:
     '''
     if p[2] != None:
       if isinstance(p[2], tuple) and p[2][0] == 'REPEAT':
-        p[0] = (p[2][0], p[2][1], p[2][2], p[1])
+        p[0] = Term(p[2][0], p[2][1], p[2][2], p[1])
       else:
-        p[0] = (p[2], p[1])
+        p[0] = Term(p[2], p[1])
     else:
       p[0] = p[1]
 
@@ -91,19 +92,19 @@ class RegexParser:
 
   def p_literal(self, p):
     '''literal : LITERAL'''
-    p[0] = ('LITERAL', p[1])
+    p[0] = Term('LITERAL', p[1])
 
   def p_any(self, p):
     '''any : ANY'''
-    p[0] = (self.token_map[p[1]],)
+    p[0] = Term(self.token_map[p[1]])
 
   def p_class(self, p):
     '''class : CLASS_BEGIN class_content CLASS_END
              | CLASS_BEGIN NOT class_content CLASS_END'''
     if len(p) == 4:
-      p[0] = ("CLASS", p[2])
+      p[0] = Term("CLASS", p[2])
     else:
-      p[0] = ("NOT_CLASS", p[3])
+      p[0] = Term("NOT_CLASS", p[3])
 
   def p_group(self, p):
     '''group : GROUP_BEGIN start GROUP_END'''
@@ -116,14 +117,14 @@ class RegexParser:
                      | CLASS_LITERAL_AS_OCTAL maybe_class_content
     '''
     if len(p) == 5:
-      left = ("RANGE", p[1], p[3])
+      left = Term("RANGE", p[1], p[3])
     else:
       if len(p[1]) == 1:
-        left = ('LITERAL', p[1])
+        left = Term('LITERAL', p[1])
       elif p[1][0] == '\\':
-        left = ('LITERAL', chr(int(p[1][1:], 8)))
+        left = Term('LITERAL', chr(int(p[1][1:], 8)))
       else:
-        left = ('CHARACTER_CLASS', p[1][1:-1])
+        left = Term('CHARACTER_CLASS', p[1][1:-1])
     p[0] = self.__cat(left, p[len(p)-1])
 
   def p_maybe_class_content(self, p):
@@ -139,9 +140,8 @@ class RegexParser:
 
   @staticmethod
   def __cat(left, right):
-    if right == None:
-      return left
-    return ('CAT', left, right)
+    assert left
+    return left if not right else Term('CAT', left, right)
 
   def build(self, **kwargs):
     self.parser = yacc.yacc(module=self, debug=0, write_tables=0, **kwargs)

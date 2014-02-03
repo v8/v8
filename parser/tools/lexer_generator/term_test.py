@@ -26,7 +26,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import unittest
-from automaton import Term
+from action import Term
 
 class TermTestCase(unittest.TestCase):
 

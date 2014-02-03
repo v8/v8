@@ -66,9 +66,9 @@ class TransitionKeyTestCase(unittest.TestCase):
         else:
           regex = "[%s]" % string
           token = "CLASS"
-        graph = RegexParser.parse(regex)
-        assert graph[0] == token
-        key = TransitionKey.character_class(encoding, graph, classes)
+        term = RegexParser.parse(regex)
+        assert term.name() == token
+        key = TransitionKey.character_class(encoding, term, classes)
         for c in match:
           self.assertEqual(invert, not key.matches_char(c))
         for c in no_match:

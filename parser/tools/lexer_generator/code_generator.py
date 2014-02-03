@@ -47,7 +47,7 @@ class CodeGenerator:
     else:
       dfa = rule_processor.default_automata().dfa()
     self.__dfa = dfa
-    self.__default_action = rule_processor.default_action
+    self.__default_action = rule_processor.default_action()
     self.__debug_print = debug_print
     self.__start_node_number = self.__dfa.start_state().node_number()
     self.__log = log

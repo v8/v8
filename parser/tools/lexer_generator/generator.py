@@ -86,11 +86,11 @@ def generate_html(rule_processor, minimize_default):
 def generate_rule_tree_html(rule_processor):
   scripts = []
   loads = []
-  rule_tree_dots = rule_processor.rule_tree_dots()
-  for i, (rule, dot) in enumerate(rule_tree_dots.items()):
+  for i, (name, automata) in enumerate(list(rule_processor.automata_iter())):
     rule_i = "rule_%d" % i
+    dot = automata.rule_term().to_dot()
     scripts.append(script_template % (rule_i, dot))
-    loads.append(load_template % ("rules [%s]" % rule, rule_i))
+    loads.append(load_template % ("rules [%s]" % name, rule_i))
   body = "\n".join(scripts) + (load_outer_template % "\n".join(loads))
   return file_template % body
 

@@ -25,120 +25,13 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from types import TupleType, ListType, StringType
+from types import TupleType, ListType
 from itertools import chain
+from action import Term, Action
 from transition_keys import TransitionKey
 
-class Term(object):
-  '''A class representing a function and its arguments.
-  f(a,b,c) would be represented as ('f', a, b, c) where
-  a, b, and c are strings or Terms.'''
-
-  __empty_term = None
-
-  @staticmethod
-  def empty_term():
-    if Term.__empty_term == None:
-      Term.__empty_term = Term('')
-    return Term.__empty_term
-
-  @staticmethod
-  def __verify_string(v):
-    assert (not ',' in v) and (not '(' in v)
-
-  def __init__(self, name, *args):
-    assert type(name) == StringType
-    self.__verify_string(name)
-    if not name:
-      assert not args, 'empty term must not have args'
-    for v in args:
-      assert v, 'args must be non empty'
-      if type(v) == StringType:
-        self.__verify_string(v)
-      else:
-        assert isinstance(v, self.__class__)
-    self.__tuple = tuple([name] + list(args))
-    self.__str = None
-
-  def name(self):
-    return self.__tuple[0]
-
-  def args(self):
-    return self.__tuple[1:]
-
-  def  __hash__(self):
-    return hash(self.__tuple)
-
-  def __nonzero__(self):
-    return bool(self.__tuple[0])
-
-  def __eq__(self, other):
-    return (isinstance(other, self.__class__) and self.__tuple == other.__tuple)
-
-  def __str__(self):
-    if self.__str == None:
-      self.__str = '(%s)' % ','.join(map(str, self.__tuple))
-    return self.__str
-
-class Action(object):
-
-  __empty_action = None
-
-  @staticmethod
-  def empty_action():
-    if Action.__empty_action == None:
-      Action.__empty_action = Action(Term.empty_term(), Term.empty_term())
-    return Action.__empty_action
-
-  @staticmethod
-  def dominant_action(state_set):
-    action = Action.empty_action()
-    for state in state_set:
-      if not state.action():
-        continue
-      if not action:
-        action = state.action()
-        continue
-      if state.action().precedence() == action.precedence():
-        assert state.action() == action
-      elif state.action().precedence() < action.precedence():
-        action = state.action()
-    return action
-
-  def __init__(self, entry_action, match_action, precedence = -1):
-    for action in [entry_action, match_action]:
-      assert isinstance(action, Term)
-    self.__entry_action = entry_action
-    self.__match_action = match_action
-    self.__precedence = precedence
-
-  def entry_action(self):
-    return self.__entry_action
-
-  def match_action(self):
-    return self.__match_action
-
-  def precedence(self):
-    return self.__precedence
-
-  def __nonzero__(self):
-    return bool(self.__entry_action) or bool(self.__match_action)
-
-  def __hash__(self):
-    return hash((self.__entry_action, self.__match_action))
-
-  def __eq__(self, other):
-    return (isinstance(other, self.__class__) and
-            self.__entry_action == other.__entry_action and
-            self.__match_action == other.__match_action)
-
-  def __str__(self):
-    parts = []
-    for action in [self.__entry_action, self.__match_action]:
-      parts.append('' if not action else str(action))
-    return "action< %s >" % " | ".join(parts)
-
 class AutomatonState(object):
+  '''A base class for dfa and nfa states.  Immutable'''
 
   __node_number_counter = 0
 
