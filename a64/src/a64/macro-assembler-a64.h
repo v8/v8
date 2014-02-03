@@ -539,6 +539,21 @@ class MacroAssembler : public Assembler {
   // csp must be aligned to 16 bytes.
   void Peek(const CPURegister& dst, const Operand& offset);
 
+  // Poke 'src1' and 'src2' onto the stack. The values written will be adjacent
+  // with 'src2' at a higher address than 'src1'. The offset is in bytes.
+  //
+  // If the current stack pointer (according to StackPointer()) is csp, then
+  // csp must be aligned to 16 bytes.
+  void PokePair(const CPURegister& src1, const CPURegister& src2, int offset);
+
+  // Peek at two values on the stack, and put them in 'dst1' and 'dst2'. The
+  // values peeked will be adjacent, with the value in 'dst2' being from a
+  // higher address than 'dst1'. The offset is in bytes.
+  //
+  // If the current stack pointer (according to StackPointer()) is csp, then
+  // csp must be aligned to 16 bytes.
+  void PeekPair(const CPURegister& dst1, const CPURegister& dst2, int offset);
+
   // Claim or drop stack space without actually accessing memory.
   //
   // In debug mode, both of these will write invalid data into the claimed or

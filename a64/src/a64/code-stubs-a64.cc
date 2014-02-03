@@ -6357,9 +6357,7 @@ void StoreArrayLiteralElementStub::Generate(MacroAssembler* masm) {
   Register array = x1;
   Register array_map = x2;
   Register array_index_smi = x4;
-  // TODO(jbramley): Implement PeekPair and use it here.
-  __ Peek(array, 1 * kPointerSize);
-  __ Peek(array_index_smi, 0 * kPointerSize);
+  __ PeekPair(array_index_smi, array, 0);
   __ Ldr(array_map, FieldMemOperand(array, JSObject::kMapOffset));
 
   Label double_elements, smi_element, fast_elements, slow_elements;

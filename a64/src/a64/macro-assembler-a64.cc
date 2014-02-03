@@ -784,6 +784,24 @@ void MacroAssembler::Peek(const CPURegister& dst, const Operand& offset) {
 }
 
 
+void MacroAssembler::PokePair(const CPURegister& src1,
+                              const CPURegister& src2,
+                              int offset) {
+  ASSERT(AreSameSizeAndType(src1, src2));
+  ASSERT((offset >= 0) && ((offset % src1.SizeInBytes()) == 0));
+  Stp(src1, src2, MemOperand(StackPointer(), offset));
+}
+
+
+void MacroAssembler::PeekPair(const CPURegister& dst1,
+                              const CPURegister& dst2,
+                              int offset) {
+  ASSERT(AreSameSizeAndType(dst1, dst2));
+  ASSERT((offset >= 0) && ((offset % dst1.SizeInBytes()) == 0));
+  Ldp(dst1, dst2, MemOperand(StackPointer(), offset));
+}
+
+
 void MacroAssembler::PushCalleeSavedRegisters() {
   // Ensure that the macro-assembler doesn't use any scratch registers.
   InstructionAccurateScope scope(this);

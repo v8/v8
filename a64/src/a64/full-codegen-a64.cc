@@ -1191,8 +1191,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   PrepareForBailoutForId(stmt->BodyId(), NO_REGISTERS);
   __ Bind(&loop);
   // Load the current count to x0, load the length to x1.
-  // TODO(jbramley): Consider making something like PeekPair.
-  __ Ldp(x0, x1, MemOperand(jssp));
+  __ PeekPair(x0, x1, 0);
   __ Cmp(x0, x1);  // Compare to the array length.
   __ B(hs, loop_statement.break_label());
 
@@ -2494,8 +2493,7 @@ void FullCodeGenerator::VisitCall(Call* expr) {
 
       // The runtime call returns a pair of values in x0 (function) and
       // x1 (receiver). Touch up the stack with the right values.
-      // TODO(jbramley): Consider adding PokePair.
-      __ Stp(x1, x0, MemOperand(jssp, arg_count * kPointerSize));
+      __ PokePair(x1, x0, arg_count * kPointerSize);
     }
 
     // Record source position for debugger.
