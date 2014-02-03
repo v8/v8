@@ -61,8 +61,8 @@ class CodeGenerator:
   def __transform_state(encoding, state):
     # action data
     action = state.action()
-    entry_action = None if not action else action.entry_action()
-    match_action = None if not action else action.match_action()
+    entry_action = action.entry_action()
+    match_action = action.match_action()
     # generate ordered transitions
     transitions = map(lambda (k, v) : (k, v.node_number()),
                       state.transitions().items())
@@ -297,8 +297,7 @@ class CodeGenerator:
     goto_map = {}
     states = self.__dfa_states
     for state in states:
-      if (state['match_action'] and
-          state['match_action'].name() == 'do_stored_token'):
+      if (state['match_action'].name() == 'do_stored_token'):
         assert not state['match_action'].args()[0] in goto_map
         goto_map[state['match_action'].args()[0]] = state['node_number']
     mapped_actions = set([

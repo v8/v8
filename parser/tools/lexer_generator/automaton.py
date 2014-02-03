@@ -34,6 +34,14 @@ class Term(object):
   f(a,b,c) would be represented as ('f', a, b, c) where
   a, b, and c are strings or Terms.'''
 
+  __empty_term = None
+
+  @staticmethod
+  def empty_term():
+    if Term.__empty_term == None:
+      Term.__empty_term = Term('')
+    return Term.__empty_term
+
   @staticmethod
   def __verify_string(v):
     assert (not ',' in v) and (not '(' in v)
@@ -41,7 +49,10 @@ class Term(object):
   def __init__(self, name, *args):
     assert type(name) == StringType
     self.__verify_string(name)
+    if not name:
+      assert not args, 'empty term must not have args'
     for v in args:
+      assert v, 'args must be non empty'
       if type(v) == StringType:
         self.__verify_string(v)
       else:
@@ -58,9 +69,11 @@ class Term(object):
   def  __hash__(self):
     return hash(self.__tuple)
 
+  def __nonzero__(self):
+    return bool(self.__tuple[0])
+
   def __eq__(self, other):
-    return (isinstance(other, self.__class__) and
-            self.__tuple == other.__tuple)
+    return (isinstance(other, self.__class__) and self.__tuple == other.__tuple)
 
   def __str__(self):
     if self.__str == None:
@@ -69,9 +82,17 @@ class Term(object):
 
 class Action(object):
 
+  __empty_action = None
+
+  @staticmethod
+  def empty_action():
+    if Action.__empty_action == None:
+      Action.__empty_action = Action(Term.empty_term(), Term.empty_term())
+    return Action.__empty_action
+
   @staticmethod
   def dominant_action(state_set):
-    action = None
+    action = Action.empty_action()
     for state in state_set:
       if not state.action():
         continue
@@ -86,10 +107,7 @@ class Action(object):
 
   def __init__(self, entry_action, match_action, precedence = -1):
     for action in [entry_action, match_action]:
-      if action == None:
-        continue
       assert isinstance(action, Term)
-    assert entry_action or match_action
     self.__entry_action = entry_action
     self.__match_action = match_action
     self.__precedence = precedence
@@ -103,6 +121,9 @@ class Action(object):
   def precedence(self):
     return self.__precedence
 
+  def __nonzero__(self):
+    return bool(self.__entry_action) or bool(self.__match_action)
+
   def __hash__(self):
     return hash((self.__entry_action, self.__match_action))
 
@@ -114,10 +135,7 @@ class Action(object):
   def __str__(self):
     parts = []
     for action in [self.__entry_action, self.__match_action]:
-      part = ""
-      if action:
-        part += str(action)
-      parts.append(part)
+      parts.append('' if not action else str(action))
     return "action< %s >" % " | ".join(parts)
 
 class AutomatonState(object):

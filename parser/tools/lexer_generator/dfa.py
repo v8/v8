@@ -36,6 +36,7 @@ class DfaState(AutomatonState):
     self.__name = name
     self.__transitions = {}
     self.__action = action
+    assert isinstance(action, Action)
 
   def transitions_to_multiple_states(self):
     return False

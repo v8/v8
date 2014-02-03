@@ -86,7 +86,7 @@ class RuleParser:
     assert state.current_state
     if not state.current_state in state.rules:
       state.rules[state.current_state] = {
-        'default_action': None,
+        'default_action': Term.empty_term(),
         'uniques' : {},
         'regex' : []
       }
@@ -112,7 +112,8 @@ class RuleParser:
     if p[1] == 'default_action':
       assert self.__state.current_state == 'default'
       assert not rules['default_action']
-      rules['default_action'] = action
+      assert not entry_action
+      rules['default_action'] = match_action
     elif p[1] == 'eos' or p[1] == 'catch_all':
       assert p[1] not in rules['uniques']
       rules['uniques'][p[1]] = True
@@ -127,16 +128,16 @@ class RuleParser:
 
   def p_default_action(self, p):
     'default_action : ACTION_OPEN identifier_action ACTION_CLOSE'
-    p[0] = (None, p[2], None)
+    p[0] = (Term.empty_term(), p[2], None)
 
   def p_eos(self, p):
     'eos : ACTION_OPEN identifier_action ACTION_CLOSE'
-    p[0] = (None, p[2], None)
+    p[0] = (Term.empty_term(), p[2], None)
 
   def p_maybe_identifier_action(self, p):
     '''maybe_identifier_action : identifier_action
                          | empty'''
-    p[0] = p[1]
+    p[0] = p[1] if p[1] else Term.empty_term()
 
   def p_maybe_transition(self, p):
     '''maybe_transition : IDENTIFIER
@@ -313,10 +314,10 @@ class RuleProcessor(object):
         if not transition:
           pass
         elif transition == 'continue':
-          assert not subgraph == 'default'
+          assert not subgraph == 'default', 'unimplemented'
           graph = NfaBuilder.add_continue(graph)
         else:
-          assert subgraph == 'default'
+          assert subgraph == 'default', 'unimplemented'
           graph = NfaBuilder.join_subgraph(
             graph, transition, rule_map[transition])
         graphs.append(graph)
@@ -333,4 +334,4 @@ class RuleProcessor(object):
       self.__rule_trees[rule_name] = graph
     # process default_action
     default_action = parser_state.rules['default']['default_action']
-    self.default_action = Action(None, default_action[1]) if default_action else None
+    self.default_action = Action(Term.empty_term(), default_action)

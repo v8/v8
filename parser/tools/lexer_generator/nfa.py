@@ -35,7 +35,7 @@ class NfaState(AutomatonState):
     self.__transitions = {}
     self.__unclosed = set()
     self.__epsilon_closure = None
-    self.__action = None
+    self.__action = Action.empty_action()
 
   def transitions_to_multiple_states(self):
     return True
@@ -55,6 +55,7 @@ class NfaState(AutomatonState):
   def set_action(self, action):
     assert not self.is_closed()
     assert not self.__action
+    assert isinstance(action, Action)
     self.__action = action
 
   def transitions(self):

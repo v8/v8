@@ -172,13 +172,8 @@ class DfaOptimizer(object):
     dfa.visit_all_states(build_incoming_transitions)
 
     def is_replacement_candidate(state):
-      action = state.action()
-      if not action or not action.match_action():
-        return False
-      if (action.match_action().name() == 'token' or
-          action.match_action().name() == 'harmony_token'):
-        return True
-      return False
+      return (state.action().match_action().name() == 'token' or
+              state.action().match_action().name() == 'harmony_token')
 
     replacements = {}
     for state, incoming in incoming_transitions.items():
@@ -241,7 +236,8 @@ class DfaOptimizer(object):
         counters['store_harmony_token_and_goto'] += 1
       else:
         raise Exception(old_action.match_action())
-      return Action(old_action.entry_action(), match_action,
+      return Action(old_action.entry_action(),
+                    match_action,
                     old_action.precedence())
     # map the old state to the new state, with fewer transitions and
     # goto actions
