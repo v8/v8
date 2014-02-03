@@ -2291,6 +2291,10 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
         Context* context = current_info()->closure()->context();
         context = context->native_context();
         return handle(context->number_function()->initial_map());
+      } else if (type_->Is(HeapType::Boolean())) {
+        Context* context = current_info()->closure()->context();
+        context = context->native_context();
+        return handle(context->boolean_function()->initial_map());
       } else if (type_->Is(HeapType::String())) {
         Context* context = current_info()->closure()->context();
         context = context->native_context();
