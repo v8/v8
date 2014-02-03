@@ -384,9 +384,7 @@ void RegExpMacroAssemblerA64::CheckNotBackReferenceIgnoreCase(
       __ Cmp(current_input_offset().X(), Operand(current_input_offset(), SXTW));
       __ Ccmp(current_input_offset(), 0, NoFlag, eq);
       // The current input offset should be <= 0, and fit in a W register.
-      // TODO(all): Add this error code to objects.h.
-      // __ Check(le, kCurrentInputOffsetOutOfRange);
-      __ Check(le, kUnknown);
+      __ Check(le, kOffsetOutOfRange);
     }
   } else {
     ASSERT(mode_ == UC16);
@@ -487,9 +485,7 @@ void RegExpMacroAssemblerA64::CheckNotBackReference(
     __ Cmp(current_input_offset().X(), Operand(current_input_offset(), SXTW));
     __ Ccmp(current_input_offset(), 0, NoFlag, eq);
     // The current input offset should be <= 0, and fit in a W register.
-    // TODO(all): Add this error code to objects.h.
-    // __ Check(le, kCurrentInputOffsetOutOfRange);
-    __ Check(le, kUnknown);
+    __ Check(le, kOffsetOutOfRange);
   }
   __ Bind(&fallthrough);
 }
@@ -777,9 +773,7 @@ Handle<HeapObject> RegExpMacroAssemblerA64::GetCode(Handle<String> source) {
     // Check that the input string length is < 2^30.
     __ Neg(x11, x10);
     __ Cmp(x11, (1<<30) - 1);
-    // TODO(all): Add this error code to objects.h.
-    // __ Check(ls, kInputStringTooLong);
-    __ Check(ls, kUnknown);
+    __ Check(ls, kInputStringTooLong);
   }
   __ Mov(current_input_offset(), w10);
 
@@ -844,9 +838,7 @@ Handle<HeapObject> RegExpMacroAssemblerA64::GetCode(Handle<String> source) {
       if (masm_->emit_debug_code()) {
         // Check that the input string length is < 2^30.
         __ Cmp(x10, (1<<30) - 1);
-        // TODO(all): Add this error code to objects.h.
-        // __ Check(ls, kInputStringTooLong);
-        __ Check(ls, kUnknown);
+        __ Check(ls, kInputStringTooLong);
       }
       // input_start has a start_offset offset on entry. We need to include
       // it when computing the length of the whole string.
@@ -1144,9 +1136,7 @@ void RegExpMacroAssemblerA64::PushBacktrack(Label* label) {
     if (masm_->emit_debug_code()) {
       __ Cmp(x10, kWRegMask);
       // The code offset has to fit in a W register.
-      // TODO(all): Add this error code to objects.h.
-      // __ Check(ls, kCodeOffsetOutOfRange);
-      __ Check(ls, kUnknown);
+      __ Check(ls, kOffsetOutOfRange);
     }
   }
   Push(w10);
@@ -1304,9 +1294,7 @@ void RegExpMacroAssemblerA64::WriteStackPointerToRegister(int reg) {
   if (masm_->emit_debug_code()) {
     __ Cmp(x10, Operand(w10, SXTW));
     // The stack offset needs to fit in a W register.
-    // TODO(all): Add this error code to objects.h.
-    // __ Check(eq, kStackOffsetIsTooLarge);
-    __ Check(eq, kUnknown);
+    __ Check(eq, kOffsetOutOfRange);
   }
   StoreRegister(reg, w10);
 }
@@ -1709,9 +1697,7 @@ void RegExpMacroAssemblerA64::LoadCurrentCharacterUnchecked(int cp_offset,
       __ Add(x10, x10, Operand(current_input_offset(), SXTW));
       __ Cmp(x10, Operand(w10, SXTW));
       // The offset needs to fit in a W register.
-      // TODO(all): Add this error code to objects.h.
-      // __ Check(eq, kCurrentInputOffsetOutOfRange);
-      __ Check(eq, kUnknown);
+      __ Check(eq, kOffsetOutOfRange);
     } else {
       __ Add(w10, current_input_offset(), cp_offset * char_size());
     }

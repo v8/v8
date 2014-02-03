@@ -2017,18 +2017,14 @@ void MacroAssembler::CopyBytes(Register dst,
   if (emit_debug_code()) {
     // Check copy length.
     Cmp(length, 0);
-    // TODO(all): Add this error code to objects.h.
-    // Assert(ge, kCopyLengthIsBelowZero);
-    Assert(ge, kUnknown);
+    Assert(ge, kUnexpectedNegativeValue);
 
     // Check src and dst buffers don't overlap.
     Add(scratch, src, length);  // Calculate end of src buffer.
     Cmp(scratch, dst);
     Add(scratch, dst, length);  // Calculate end of dst buffer.
     Ccmp(scratch, src, ZFlag, gt);
-    // TODO(all): Add this error code to objects.h.
-    // Assert(le, kCopyBytesSrcAndDstBuffersOverlap);
-    Assert(le, kUnknown);
+    Assert(le, kCopyBuffersOverlap);
   }
 
   Label loop, done;
@@ -2072,9 +2068,9 @@ void MacroAssembler::JumpIfEitherIsNotSequentialAsciiStrings(
     Label not_smi;
     JumpIfEitherSmi(first, second, NULL, &not_smi);
 
-    // TODO(all): Add this error code to objects.h.
-    // Abort(kAtLeastOneInputIsASmi);
-    Abort(kUnknown);
+    // At least one input is a smi, but the flags indicated a smi check wasn't
+    // needed.
+    Abort(kUnexpectedSmi);
 
     Bind(&not_smi);
   }
@@ -2438,9 +2434,8 @@ void MacroAssembler::ECMA262ToInt32(Register result,
 
   if (emit_debug_code()) {
     Cmp(exponent, HeapNumber::kExponentBias + 63);
-    // TODO(all): Add this error code to objects.h.
-    // Check(ge, kThisInputShouldHaveBeenHandledByTheFPU);
-    Check(ge, kUnknown);
+    // Exponents less than this should have been handled by the Fcvt case.
+    Check(ge, kUnexpectedValue);
   }
 
   // Isolate the mantissa bits, and set the implicit '1'.
@@ -2489,9 +2484,7 @@ void MacroAssembler::HeapNumberECMA262ToInt32(Register result,
     // Verify we indeed have a HeapNumber.
     Label ok;
     JumpIfHeapNumber(heap_number, &ok);
-    // TODO(all): Add this error code to objects.h.
-    // Abort(kExpectedHeapNumber);
-    Abort(kUnknown);
+    Abort(kExpectedHeapNumber);
     Bind(&ok);
   }
 
@@ -2921,9 +2914,7 @@ void MacroAssembler::UndoAllocationInNewSpace(Register object,
   Mov(scratch, Operand(new_space_allocation_top));
   Ldr(scratch, MemOperand(scratch));
   Cmp(object, scratch);
-  // TODO(all): Add this error code to objects.h.
-  // Check(lt, kTryingToUndoAllocationOfNonAllocatedMemory);
-  Check(lt, kUnknown);
+  Check(lt, kUndoAllocationOfNonAllocatedMemory);
 #endif
   // Write the address of the object to un-allocate as the current top.
   Mov(scratch, Operand(new_space_allocation_top));
@@ -3505,9 +3496,7 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
     Register temp = Tmp1();
     Ldr(temp, FieldMemOperand(scratch, HeapObject::kMapOffset));
     CompareRoot(temp, Heap::kNativeContextMapRootIndex);
-    // TODO(all): Add this error code to objects.h.
-    // Check(eq, kExpectedNativeContext);
-    Check(eq, kUnknown);
+    Check(eq, kExpectedNativeContext);
   }
 
   // Check if both contexts are the same.
@@ -3521,15 +3510,11 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
     Register temp = Tmp1();
     mov(temp, Tmp0());
     CompareRoot(temp, Heap::kNullValueRootIndex);
-    // TODO(all): Add this error code to objects.h.
-    // Check(ne, kExpectedNonNullContext);
-    Check(ne, kUnknown);
+    Check(ne, kExpectedNonNullContext);
 
     Ldr(temp, FieldMemOperand(temp, HeapObject::kMapOffset));
     CompareRoot(temp, Heap::kNativeContextMapRootIndex);
-    // TODO(all): Add this error code to objects.h.
-    // Check(eq, kExpectedNativeContext);
-    Check(eq, kUnknown);
+    Check(eq, kExpectedNativeContext);
 
     // Let's consider that Tmp0() has been cloberred by the MacroAssembler.
     // We reload it with its value.
@@ -3657,9 +3642,7 @@ void MacroAssembler::RememberedSetHelper(Register object,  // For debug tests.
   if (emit_debug_code()) {
     Label ok;
     JumpIfNotInNewSpace(object, &ok);
-    // TODO(all): Add this error code to objects.h.
-    // Abort(kRememberedSetPointerIsInNewSpace);
-    Abort(kUnknown);
+    Abort(kRememberedSetPointerInNewSpace);
     bind(&ok);
   }
   // Load store buffer top.
@@ -3791,9 +3774,7 @@ void MacroAssembler::RecordWriteField(
     Label ok;
     Tst(scratch, (1 << kPointerSizeLog2) - 1);
     B(eq, &ok);
-    // TODO(all): Add this error code to objects.h.
-    // Abort(kUnalignedCellInWriteBarrier);
-    Abort(kUnknown);
+    Abort(kUnalignedCellInWriteBarrier);
     Bind(&ok);
   }
 
@@ -3899,9 +3880,7 @@ void MacroAssembler::AssertHasValidColor(const Register& reg) {
     Label color_is_valid;
     Tbnz(reg, 0, &color_is_valid);
     Tbz(reg, 1, &color_is_valid);
-    // TODO(all): Add this error code to objects.h.
-    // Abort(kImpossibleColorBitPatternFound);
-    Abort(kUnknown);
+    Abort(kUnexpectedColorFound);
     Bind(&color_is_valid);
   }
 }
@@ -3998,9 +3977,7 @@ void MacroAssembler::GetRelocatedValueLocation(Register ldr_location,
   if (emit_debug_code()) {
     And(result, result, LoadLiteralFMask);
     Cmp(result, LoadLiteralFixed);
-    // TODO(all): Add this error code to objects.h.
-    // Check(eq, kTheInstructionToPatchShouldBeALoadLiteral);
-    Check(eq, kUnknown);
+    Check(eq, kTheInstructionToPatchShouldBeAnLdrLiteral);
     // The instruction was clobbered. Reload it.
     Ldr(result, MemOperand(ldr_location));
   }
@@ -4310,9 +4287,7 @@ void MacroAssembler::LoadGlobalFunctionInitialMap(Register function,
     CheckMap(map, scratch, Heap::kMetaMapRootIndex, &fail, DO_SMI_CHECK);
     B(&ok);
     Bind(&fail);
-    // TODO(all): Add this error code to objects.h.
-    // Abort(kGlobalFunctionMustHaveInitialMap);
-    Abort(kUnknown);
+    Abort(kGlobalFunctionsMustHaveInitialMap);
     Bind(&ok);
   }
 }

@@ -1173,9 +1173,7 @@ Operand LCodeGen::ToOperand32(LOperand* op, IntegerSignedness signedness) {
                      : static_cast<uint32_t>(constant->Integer32Value()));
     } else {
       // Other constants not implemented.
-      // TODO(all): Add this error code to objects.h.
-      // Abort(kToOperand32UnsupportedImmediate);
-      Abort(kUnknown);
+      Abort(kToOperand32UnsupportedImmediate);
     }
   }
   // Other cases are not implemented.
@@ -1671,9 +1669,7 @@ void LCodeGen::DoBitS(LBitS* instr) {
 
 void LCodeGen::ApplyCheckIf(Condition cc, LBoundsCheck* check) {
   if (FLAG_debug_code && check->hydrogen()->skip_check()) {
-    // TODO(all): Add this error code to objects.h.
-    // __ Assert(InvertCondition(cc), kEliminatedBoundsCheckFailed);
-    __ Assert(InvertCondition(cc), kUnknown);
+    __ Assert(InvertCondition(cc), kEliminatedBoundsCheckFailed);
   } else {
     DeoptimizeIf(cc, check->environment());
   }
@@ -1873,9 +1869,7 @@ void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
     Label is_not_smi;
     // Try to confirm that function_reg (x1) is a tagged pointer.
     __ JumpIfNotSmi(function_reg, &is_not_smi);
-    // TODO(all): Add this error code to objects.h.
-    // __ Abort(kExpectedFunctionObject);
-    __ Abort(kUnknown);
+    __ Abort(kExpectedFunctionObject);
     __ Bind(&is_not_smi);
   }
 
@@ -4343,9 +4337,7 @@ void LCodeGen::DoDeferredNumberTagU(LInstruction* instr,
     __ Mov(scratch1, Operand(new_space_allocation_top));
     __ Ldr(scratch1, MemOperand(scratch1));
     __ Cmp(dst, scratch1);
-    // TODO(all): Add this error code to objects.h.
-    // __ Check(eq, kRegisterDstDoesNotContainAllocationTop);
-    __ Check(eq, kUnknown);
+    __ Check(eq, kUnexpectedAllocationTop);
   }
 
   {
@@ -4480,9 +4472,7 @@ void LCodeGen::DoParameter(LParameter* instr) {
 void LCodeGen::DoPushArgument(LPushArgument* instr) {
   LOperand* argument = instr->value();
   if (argument->IsDoubleRegister() || argument->IsDoubleStackSlot()) {
-    // TODO(all): Add this error code to objects.h.
-    // Abort(kDoPushArgumentNotImplementedForDoubleTypes);
-    Abort(kUnknown);
+    Abort(kDoPushArgumentNotImplementedForDoubleType);
   } else {
     __ Push(ToRegister(argument));
   }

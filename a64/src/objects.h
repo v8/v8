@@ -1098,6 +1098,7 @@ class MaybeObject BASE_EMBEDDED {
   V(kCodeObjectNotProperlyPatched, "code object not properly patched")        \
   V(kCompoundAssignmentToLookupSlot, "compound assignment to lookup slot")    \
   V(kContextAllocatedArguments, "context-allocated arguments")                \
+  V(kCopyBuffersOverlap, "copy buffers overlap")                              \
   V(kCouldNotGenerateZero, "could not generate +0.0")                         \
   V(kCouldNotGenerateNegativeZero, "could not generate -0.0")                 \
   V(kDebuggerIsActive, "debugger is active")                                  \
@@ -1112,12 +1113,17 @@ class MaybeObject BASE_EMBEDDED {
     "DontDelete cells can't contain the hole")                                \
   V(kDoPushArgumentNotImplementedForDoubleType,                               \
     "DoPushArgument not implemented for double type")                         \
+  V(kEliminatedBoundsCheckFailed, "eliminated bounds check failed")           \
   V(kEmitLoadRegisterUnsupportedDoubleImmediate,                              \
     "EmitLoadRegister: Unsupported double immediate")                         \
   V(kEval, "eval")                                                            \
   V(kExpected0AsASmiSentinel, "Expected 0 as a Smi sentinel")                 \
   V(kExpectedAlignmentMarker, "expected alignment marker")                    \
+  V(kExpectedFunctionObject, "expected function object in register")          \
+  V(kExpectedHeapNumber, "expected HeapNumber")                               \
+  V(kExpectedNativeContext, "expected native context")                        \
   V(kExpectedNonIdenticalObjects, "expected non-identical objects")           \
+  V(kExpectedNonNullContext, "expected non-null context")                     \
   V(kExpectedPositiveZero, "expected +0.0")                                   \
   V(kExpectedPropertyCellInTypeInfoCell,                                      \
     "Expected property cell in type_info_cell")                               \
@@ -1171,6 +1177,7 @@ class MaybeObject BASE_EMBEDDED {
   V(kInliningBailedOut, "inlining bailed out")                                \
   V(kInputGPRIsExpectedToHaveUpper32Cleared,                                  \
     "input GPR is expected to have upper32 cleared")                          \
+  V(kInputStringTooLong, "input string too long")                             \
   V(kInstanceofStubUnexpectedCallSiteCacheCheck,                              \
     "InstanceofStub unexpected call site cache (check)")                      \
   V(kInstanceofStubUnexpectedCallSiteCacheCmp1,                               \
@@ -1226,6 +1233,7 @@ class MaybeObject BASE_EMBEDDED {
     "Object literal with complex property")                                   \
   V(kOddballInStringTableIsNotUndefinedOrTheHole,                             \
     "oddball in string table is not undefined or the hole")                   \
+  V(kOffsetOutOfRange, "offset out of range")                                 \
   V(kOperandIsASmiAndNotAName, "Operand is a smi and not a name")             \
   V(kOperandIsASmiAndNotAString, "Operand is a smi and not a string")         \
   V(kOperandIsASmi, "Operand is a smi")                                       \
@@ -1250,6 +1258,7 @@ class MaybeObject BASE_EMBEDDED {
   V(kReferenceToUninitializedVariable, "reference to uninitialized variable") \
   V(kRegisterDidNotMatchExpectedRoot, "Register did not match expected root") \
   V(kRegisterWasClobbered, "register was clobbered")                          \
+  V(kRememberedSetPointerInNewSpace, "remembered set pointer is in new space") \
   V(kReturnAddressNotFoundInFrame, "return address not found in frame")       \
   V(kRhsHasBeenClobbered, "rhs has been clobbered")                           \
   V(kScopedBlock, "ScopedBlock")                                              \
@@ -1267,6 +1276,8 @@ class MaybeObject BASE_EMBEDDED {
   V(kTheInstructionShouldBeAnOri, "The instruction should be an ori")         \
   V(kTheInstructionToPatchShouldBeALoadFromPc,                                \
     "The instruction to patch should be a load from pc")                      \
+  V(kTheInstructionToPatchShouldBeAnLdrLiteral,                               \
+    "The instruction to patch should be a ldr literal")                       \
   V(kTheInstructionToPatchShouldBeALui,                                       \
     "The instruction to patch should be a lui")                               \
   V(kTheInstructionToPatchShouldBeAnOri,                                      \
@@ -1278,6 +1289,7 @@ class MaybeObject BASE_EMBEDDED {
   V(kTooManyParametersLocals, "too many parameters/locals")                   \
   V(kTooManyParameters, "too many parameters")                                \
   V(kTooManySpillSlotsNeededForOSR, "Too many spill slots needed for OSR")    \
+  V(kToOperand32UnsupportedImmediate, "ToOperand32 unsupported immediate.")   \
   V(kToOperandIsDoubleRegisterUnimplemented,                                  \
     "ToOperand IsDoubleRegister unimplemented")                               \
   V(kToOperandUnsupportedDoubleImmediate,                                     \
@@ -1286,10 +1298,12 @@ class MaybeObject BASE_EMBEDDED {
   V(kTryFinallyStatement, "TryFinallyStatement")                              \
   V(kUnableToEncodeValueAsSmi, "Unable to encode value as smi")               \
   V(kUnalignedAllocationInNewSpace, "Unaligned allocation in new space")      \
+  V(kUnalignedCellInWriteBarrier, "Unaligned cell in write barrier")          \
   V(kUndefinedValueNotLoaded, "Undefined value not loaded")                   \
   V(kUndoAllocationOfNonAllocatedMemory,                                      \
     "Undo allocation of non allocated memory")                                \
   V(kUnexpectedAllocationTop, "Unexpected allocation top")                    \
+  V(kUnexpectedColorFound, "Unexpected color bit pattern found")              \
   V(kUnexpectedElementsKindInArrayConstructor,                                \
     "Unexpected ElementsKind in array constructor")                           \
   V(kUnexpectedFallthroughFromCharCodeAtSlowCase,                             \
@@ -1316,18 +1330,19 @@ class MaybeObject BASE_EMBEDDED {
     "Unexpected initial map for InternalArray function")                      \
   V(kUnexpectedLevelAfterReturnFromApiCall,                                   \
     "Unexpected level after return from api call")                            \
+  V(kUnexpectedNegativeValue, "Unexpected negative value")                    \
   V(kUnexpectedNumberOfPreAllocatedPropertyFields,                            \
     "Unexpected number of pre-allocated property fields")                     \
+  V(kUnexpectedSmi, "Unexpected smi value")                                   \
   V(kUnexpectedStringFunction, "Unexpected String function")                  \
   V(kUnexpectedStringType, "Unexpected string type")                          \
   V(kUnexpectedStringWrapperInstanceSize,                                     \
     "Unexpected string wrapper instance size")                                \
   V(kUnexpectedTypeForRegExpDataFixedArrayExpected,                           \
     "Unexpected type for RegExp data, FixedArray expected")                   \
+  V(kUnexpectedValue, "Unexpected value")                                     \
   V(kUnexpectedUnusedPropertiesOfStringWrapper,                               \
     "Unexpected unused properties of string wrapper")                         \
-  V(kUnimplementedHydrogenInstruction,                                        \
-    "unimplemented Hydrogen instruction")                                     \
   V(kUninitializedKSmiConstantRegister, "Uninitialized kSmiConstantRegister") \
   V(kUnknown, "unknown")                                                      \
   V(kUnsupportedConstCompoundAssignment,                                      \
