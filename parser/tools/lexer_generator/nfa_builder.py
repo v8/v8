@@ -59,42 +59,41 @@ class NfaBuilder(object):
       self.__global_end_node = self.__new_state()
     return self.__global_end_node
 
-  def __or(self, args):
+  def __or(self, left, right):
     start = self.__new_state()
     ends = []
-    for x in [self.__process(args[0]), self.__process(args[1])]:
-      start.add_epsilon_transition(x[0])
-      ends += x[1]
+    for (sub_start, sub_end) in [self.__process(left), self.__process(right)]:
+      start.add_epsilon_transition(sub_start)
+      ends += sub_end
     start.close(None)
     return (start, ends)
 
-  def __one_or_more(self, args):
-    (start, ends) = self.__process(args[0])
+  def __one_or_more(self, subtree):
+    (start, ends) = self.__process(subtree)
     end =  self.__new_state()
     end.add_epsilon_transition(start)
     self.__patch_ends(ends, end)
     return (start, [end])
 
-  def __zero_or_more(self, args):
-    (node, ends) = self.__process(args[0])
+  def __zero_or_more(self, subtree):
+    (node, ends) = self.__process(subtree)
     start =  self.__new_state()
     start.add_epsilon_transition(node)
     self.__patch_ends(ends, start)
     return (start, [start])
 
-  def __zero_or_one(self, args):
-    (node, ends) = self.__process(args[0])
+  def __zero_or_one(self, subtree):
+    (node, ends) = self.__process(subtree)
     start =  self.__new_state()
     start.add_epsilon_transition(node)
     return (start, ends + [start])
 
-  def __repeat(self, args):
-    param_min = int(args[0])
-    param_max = int(args[1])
-    subgraph = args[2]
-    (start, ends) = self.__process(subgraph)
+  def __repeat(self, param_min, param_max, subtree):
+    param_min = int(param_min)
+    param_max = int(param_max)
+    (start, ends) = self.__process(subtree)
     for i in xrange(1, param_min):
-      (start2, ends2) = self.__process(subgraph)
+      (start2, ends2) = self.__process(subtree)
       self.__patch_ends(ends, start2)
       ends = ends2
     if param_min == param_max:
@@ -104,14 +103,14 @@ class NfaBuilder(object):
     for i in xrange(param_min, param_max):
       midpoint =  self.__new_state()
       self.__patch_ends(ends, midpoint)
-      (start2, ends) = self.__process(subgraph)
+      (start2, ends) = self.__process(subtree)
       midpoint.add_epsilon_transition(start2)
       midpoints.append(midpoint)
 
     return (start, ends + midpoints)
 
-  def __cat(self, args):
-    (left, right) = (self.__process(args[0]), self.__process(args[1]))
+  def __cat(self, left_tree, right_tree):
+    (left, right) = (self.__process(left_tree), self.__process(right_tree))
     self.__patch_ends(left[1], right[0])
     return (left[0], right[1])
 
@@ -120,27 +119,24 @@ class NfaBuilder(object):
     state.add_unclosed_transition(key)
     return (state, [state])
 
-  def __literal(self, args):
-    assert len(args) == 1
+  def __literal(self, char):
     return self.__key_state(
-      TransitionKey.single_char(self.__encoding, args[0]))
+      TransitionKey.single_char(self.__encoding, char))
 
-  def __class(self, args):
-    assert len(args) == 1
+  def __class(self, subtree):
     return self.__key_state(TransitionKey.character_class(
-      self.__encoding, Term('CLASS', args[0]), self.__character_classes))
+      self.__encoding, Term('CLASS', subtree), self.__character_classes))
 
-  def __not_class(self, args):
-    assert len(args) == 1
+  def __not_class(self, subtree):
     return self.__key_state(TransitionKey.character_class(
-      self.__encoding, Term('NOT_CLASS', args[0]), self.__character_classes))
+      self.__encoding, Term('NOT_CLASS', subtree), self.__character_classes))
 
-  def __any(self, args):
+  def __any(self):
     return self.__key_state(TransitionKey.any(self.__encoding))
 
-  def __action(self, args):
-    (start, ends) = self.__process(args[0])
-    action = Action.from_term(args[1])
+  def __action(self, subtree, action_term):
+    (start, ends) = self.__process(subtree)
+    action = Action.from_term(action_term)
     end = self.__new_state()
     self.__patch_ends(ends, end)
     end.set_action(action)
@@ -149,18 +145,18 @@ class NfaBuilder(object):
       end.add_epsilon_transition(global_end)
     return (start, [end])
 
-  def __continue(self, args):
-    (start, ends) = self.__process(args[0])
+  def __continue(self, subtree):
+    (start, ends) = self.__process(subtree)
     state = self.__peek_state()
     if not state['start_node']:
       state['start_node'] = self.__new_state()
     self.__patch_ends(ends, state['start_node'])
     return (start, [])
 
-  def __unique_key(self, args):
-    return self.__key_state(TransitionKey.unique(args[0]))
+  def __unique_key(self, name):
+    return self.__key_state(TransitionKey.unique(name))
 
-  def __join(self, (graph, name, subgraph)):
+  def __join(self, graph, name, subgraph):
     subgraphs = self.__peek_state()['subgraphs']
     if not name in subgraphs:
       subgraphs[name] = self.__nfa(subgraph)
@@ -181,7 +177,7 @@ class NfaBuilder(object):
       matches = filter(lambda (name, func): name == method, self.__members)
       assert len(matches) == 1
       self.__operation_map[method] = matches[0][1]
-    return self.__operation_map[method](term.args())
+    return self.__operation_map[method](*term.args())
 
   def __patch_ends(self, ends, new_end):
     for end in ends:
