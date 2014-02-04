@@ -63,6 +63,7 @@ if (IS_UNDEFINED(observationState.callbackInfoMap)) {
   observationState.notifierObjectInfoMap = %ObservationWeakMapCreate();
   observationState.pendingObservers = null;
   observationState.nextCallbackPriority = 0;
+  observationState.microtaskScheduled = false;
 }
 
 function ObservationWeakMap(map) {
@@ -394,7 +395,7 @@ function ObserverEnqueueIfActive(observer, objectInfo, changeRecord,
     observationState.pendingObservers = nullProtoObject();
   observationState.pendingObservers[callbackInfo.priority] = callback;
   callbackInfo.push(changeRecord);
-  %SetMicrotaskPending(true);
+  EnqueueObserveMicrotask();
 }
 
 function ObjectInfoEnqueueExternalChangeRecord(objectInfo, changeRecord, type) {
@@ -575,6 +576,7 @@ function ObjectDeliverChangeRecords(callback) {
 }
 
 function ObserveMicrotaskRunner() {
+  observationState.microtaskScheduled = false;
   var pendingObservers = observationState.pendingObservers;
   if (pendingObservers) {
     observationState.pendingObservers = null;
@@ -583,7 +585,15 @@ function ObserveMicrotaskRunner() {
     }
   }
 }
-RunMicrotasks.runners.push(ObserveMicrotaskRunner);
+
+function EnqueueObserveMicrotask() {
+  if (observationState.microtaskScheduled)
+    return;
+
+  RunMicrotasks.queue.push(ObserveMicrotaskRunner);
+  %SetMicrotaskPending(true);
+  observationState.microtaskScheduled = true;
+}
 
 function SetupObjectObserve() {
   %CheckIsBootstrapping();
