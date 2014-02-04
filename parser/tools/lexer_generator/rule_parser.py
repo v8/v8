@@ -295,7 +295,9 @@ class RuleProcessor(object):
 
     def optimize_dfa(self, log = False):
       assert not self.__dfa
-      self.__dfa = DfaOptimizer.optimize(self.dfa(), log)
+      assert not self.__minimial_dfa
+      self.__dfa = DfaOptimizer.optimize(self.minimal_dfa(), log)
+      self.__minimial_dfa = None
 
     def minimal_dfa(self):
       if not self.__minimial_dfa:
@@ -320,7 +322,7 @@ class RuleProcessor(object):
         else:
           assert subgraph == 'default', 'unimplemented'
           graph = NfaBuilder.join_subgraph(
-            graph, transition, rule_map[transition])
+            graph, rule_map[transition])
         graphs.append(graph)
       graph = NfaBuilder.or_terms(graphs)
       rule_map[subgraph] = graph

@@ -156,17 +156,12 @@ class NfaBuilder(object):
   def __unique_key(self, name):
     return self.__key_state(TransitionKey.unique(name))
 
-  def __join(self, graph, name, subgraph):
-    subgraphs = self.__peek_state()['subgraphs']
-    if not name in subgraphs:
-      subgraphs[name] = self.__nfa(subgraph)
-    (subgraph_start, subgraph_end, nodes_in_subgraph) = subgraphs[name]
-    (start, ends) = self.__process(graph)
-    self.__patch_ends(ends, subgraph_start)
-    if subgraph_end:
-      end = self.__new_state()
-      subgraph_end.add_epsilon_transition(end)
-      return (start, [end])
+  def __join(self, tree, subtree):
+    (subtree_start, subtree_end, nodes_in_subtree) = self.__nfa(subtree)
+    (start, ends) = self.__process(tree)
+    self.__patch_ends(ends, subtree_start)
+    if subtree_end:
+      return (start, [subtree_end])
     else:
       return (start, [])
 
@@ -186,8 +181,6 @@ class NfaBuilder(object):
   def __push_state(self):
     self.__states.append({
       'start_node' : None,
-      'subgraphs' : {},
-      'unpatched_ends' : [],
     })
 
   def __pop_state(self):
@@ -204,10 +197,6 @@ class NfaBuilder(object):
     if state['start_node']:
       state['start_node'].close(start)
       start = state['start_node']
-    for k, subgraph in state['subgraphs'].items():
-      if subgraph[1]:
-        subgraph[1].close(None)
-
     # Don't create an end node for the subgraph if it would be unused (ends can
     # be an empty list e.g., in the case when everything inside the subgraph is
     # "continue").
@@ -215,7 +204,6 @@ class NfaBuilder(object):
     if ends:
       end = self.__new_state()
       self.__patch_ends(ends, end)
-
     return (start, end, self.__node_number - start_node_number)
 
   @staticmethod
@@ -282,8 +270,8 @@ class NfaBuilder(object):
     return Term('UNIQUE_KEY', name)
 
   @staticmethod
-  def join_subgraph(term, name, subgraph_term):
-    return Term('JOIN', term, name, subgraph_term)
+  def join_subgraph(tree, subtree):
+    return Term('JOIN', tree, subtree)
 
   @staticmethod
   def or_terms(terms):
