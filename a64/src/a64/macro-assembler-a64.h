@@ -1589,6 +1589,9 @@ class MacroAssembler : public Assembler {
   void PushSafepointRegisters();
   void PopSafepointRegisters();
 
+  void PushSafepointFPRegisters();
+  void PopSafepointFPRegisters();
+
   // Store value in register src in the safepoint stack slot for register dst.
   void StoreToSafepointRegisterSlot(Register src, Register dst) {
     Poke(src, SafepointRegisterStackIndex(dst.code()) * kPointerSize);

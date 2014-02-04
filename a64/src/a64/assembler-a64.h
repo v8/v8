@@ -256,6 +256,8 @@ class FPRegister : public CPURegister {
   static const int kMaxNumAllocatableRegisters =
       kNumberOfFPRegisters - kNumReservedRegisters;
   static int NumAllocatableRegisters() { return kMaxNumAllocatableRegisters; }
+  static const RegList kAllocatableFPRegisters =
+      (1 << kMaxNumAllocatableRegisters) - 1;
 
   static FPRegister FromAllocationIndex(int index) {
     ASSERT((index >= 0) && (index < NumAllocatableRegisters()));

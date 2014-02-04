@@ -3786,6 +3786,18 @@ void MacroAssembler::PushSafepointRegisters() {
 }
 
 
+void MacroAssembler::PushSafepointFPRegisters() {
+  PushCPURegList(CPURegList(CPURegister::kFPRegister, kDRegSize,
+                            FPRegister::kAllocatableFPRegisters));
+}
+
+
+void MacroAssembler::PopSafepointFPRegisters() {
+  PopCPURegList(CPURegList(CPURegister::kFPRegister, kDRegSize,
+                           FPRegister::kAllocatableFPRegisters));
+}
+
+
 int MacroAssembler::SafepointRegisterStackIndex(int reg_code) {
   // Make sure the safepoint registers list is what we expect.
   ASSERT(CPURegList::GetSafepointSavedRegisters().list() == 0x6ffcffff);

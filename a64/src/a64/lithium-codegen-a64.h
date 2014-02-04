@@ -411,7 +411,8 @@ class LCodeGen BASE_EMBEDDED {
           codegen_->masm_->PushSafepointRegisters();
           break;
         case Safepoint::kWithRegistersAndDoubles:
-          UNIMPLEMENTED();
+          codegen_->masm_->PushSafepointFPRegisters();
+          codegen_->masm_->PushSafepointRegisters();
           break;
         default:
           UNREACHABLE();
@@ -426,7 +427,8 @@ class LCodeGen BASE_EMBEDDED {
           codegen_->masm_->PopSafepointRegisters();
           break;
         case Safepoint::kWithRegistersAndDoubles:
-          UNIMPLEMENTED();
+          codegen_->masm_->PopSafepointRegisters();
+          codegen_->masm_->PopSafepointFPRegisters();
           break;
         default:
           UNREACHABLE();
