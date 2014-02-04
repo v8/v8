@@ -739,7 +739,7 @@ void Heap::CollectAllAvailableGarbage(const char* gc_reason) {
   const int kMaxNumberOfAttempts = 7;
   const int kMinNumberOfAttempts = 2;
   for (int attempt = 0; attempt < kMaxNumberOfAttempts; attempt++) {
-    if (!CollectGarbage(OLD_POINTER_SPACE, MARK_COMPACTOR, gc_reason, NULL) &&
+    if (!CollectGarbage(MARK_COMPACTOR, gc_reason, NULL) &&
         attempt + 1 >= kMinNumberOfAttempts) {
       break;
     }
@@ -751,8 +751,7 @@ void Heap::CollectAllAvailableGarbage(const char* gc_reason) {
 }
 
 
-bool Heap::CollectGarbage(AllocationSpace space,
-                          GarbageCollector collector,
+bool Heap::CollectGarbage(GarbageCollector collector,
                           const char* gc_reason,
                           const char* collector_reason,
                           const v8::GCCallbackFlags gc_callback_flags) {
