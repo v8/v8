@@ -139,9 +139,12 @@ class IC {
   //   well as smis.
   // - The oddball map is only used for booleans.
   static Handle<Map> TypeToMap(HeapType* type, Isolate* isolate);
-  static Handle<HeapType> MapToType(Handle<Map> map);
-  static Handle<HeapType> CurrentTypeOf(
-      Handle<Object> object, Isolate* isolate);
+  template <class T>
+  static typename T::TypeHandle MapToType(Handle<Map> map,
+                                          typename T::Region* region);
+
+  static Handle<HeapType> CurrentTypeOf(Handle<Object> object,
+                                        Isolate* isolate);
 
  protected:
   // Get the call-site target; used for determining the state.

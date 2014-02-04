@@ -4918,8 +4918,8 @@ void HOptimizedGraphBuilder::VisitRegExpLiteral(RegExpLiteral* expr) {
 }
 
 
-static bool CanInlinePropertyAccess(Handle<HeapType> type) {
-  if (type->Is(HeapType::NumberOrString())) return true;
+static bool CanInlinePropertyAccess(Type* type) {
+  if (type->Is(Type::NumberOrString())) return true;
   if (!type->IsClass()) return false;
   Handle<Map> map = type->AsClass();
   return map->IsJSObjectMap() &&
@@ -4930,11 +4930,12 @@ static bool CanInlinePropertyAccess(Handle<HeapType> type) {
 
 static void LookupInPrototypes(Handle<Map> map,
                                Handle<String> name,
-                               LookupResult* lookup) {
+                               LookupResult* lookup,
+                               Zone* zone) {
   while (map->prototype()->IsJSObject()) {
     Handle<JSObject> holder(JSObject::cast(map->prototype()));
     map = handle(holder->map());
-    if (!CanInlinePropertyAccess(IC::MapToType(map))) break;
+    if (!CanInlinePropertyAccess(IC::MapToType<Type>(map, zone))) break;
     map->LookupDescriptor(*holder, *name, lookup);
     if (lookup->IsFound()) return;
   }
@@ -4949,7 +4950,8 @@ static void LookupInPrototypes(Handle<Map> map,
 static bool LookupAccessorPair(Handle<Map> map,
                                Handle<String> name,
                                Handle<AccessorPair>* accessors,
-                               Handle<JSObject>* holder) {
+                               Handle<JSObject>* holder,
+                               Zone* zone) {
   Isolate* isolate = map->GetIsolate();
   LookupResult lookup(isolate);
 
@@ -4967,7 +4969,7 @@ static bool LookupAccessorPair(Handle<Map> map,
   if (lookup.IsFound()) return false;
 
   // Check for a JavaScript accessor somewhere in the proto chain.
-  LookupInPrototypes(map, name, &lookup);
+  LookupInPrototypes(map, name, &lookup, zone);
   if (lookup.IsPropertyCallbacks()) {
     Handle<Object> callback(lookup.GetValue(), isolate);
     if (!callback->IsAccessorPair()) return false;
@@ -4984,9 +4986,10 @@ static bool LookupAccessorPair(Handle<Map> map,
 static bool LookupSetter(Handle<Map> map,
                          Handle<String> name,
                          Handle<JSFunction>* setter,
-                         Handle<JSObject>* holder) {
+                         Handle<JSObject>* holder,
+                         Zone* zone) {
   Handle<AccessorPair> accessors;
-  if (LookupAccessorPair(map, name, &accessors, holder) &&
+  if (LookupAccessorPair(map, name, &accessors, holder, zone) &&
       accessors->setter()->IsJSFunction()) {
     Handle<JSFunction> func(JSFunction::cast(accessors->setter()));
     CallOptimization call_optimization(func);
@@ -5147,7 +5150,7 @@ void HOptimizedGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
 #if DEBUG
               Handle<JSFunction> setter;
               Handle<JSObject> holder;
-              ASSERT(!LookupSetter(map, name, &setter, &holder));
+              ASSERT(!LookupSetter(map, name, &setter, &holder, zone()));
 #endif
               CHECK_ALIVE(store = BuildStoreNamedMonomorphic(literal,
                                                              name,
@@ -5429,24 +5432,24 @@ HInstruction* HOptimizedGraphBuilder::BuildStoreNamedGeneric(
 
 
 // Sets the lookup result and returns true if the load/store can be inlined.
-static bool ComputeStoreField(Handle<Map> type,
+static bool ComputeStoreField(Type* type,
                               Handle<String> name,
                               LookupResult* lookup,
                               bool lookup_transition = true) {
-  ASSERT(!type->is_observed());
-  if (!CanInlinePropertyAccess(IC::MapToType(type))) {
+  if (!CanInlinePropertyAccess(type) || !type->IsClass()) {
     lookup->NotFound();
     return false;
   }
+  Handle<Map> map = type->AsClass();
+  ASSERT(!map->is_observed());
   // If we directly find a field, the access can be inlined.
-  type->LookupDescriptor(NULL, *name, lookup);
+  map->LookupDescriptor(NULL, *name, lookup);
   if (lookup->IsField()) return true;
 
   if (!lookup_transition) return false;
 
-  type->LookupTransition(NULL, *name, lookup);
-  return lookup->IsTransitionToField(*type) &&
-      (type->unused_property_fields() > 0);
+  map->LookupTransition(NULL, *name, lookup);
+  return lookup->IsTransitionToField(*map) && map->unused_property_fields() > 0;
 }
 
 
@@ -5457,7 +5460,7 @@ HInstruction* HOptimizedGraphBuilder::BuildStoreNamedMonomorphic(
     Handle<Map> map) {
   // Handle a store to a known field.
   LookupResult lookup(isolate());
-  if (ComputeStoreField(map, name, &lookup)) {
+  if (ComputeStoreField(ToType(map), name, &lookup)) {
     HCheckMaps* checked_object = AddCheckMap(object, map);
     return BuildStoreNamedField(checked_object, name, value, map, &lookup);
   }
@@ -5471,17 +5474,17 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::IsCompatibleForLoad(
     PropertyAccessInfo* info) {
   if (!CanInlinePropertyAccess(type_)) return false;
 
-  // Currently only handle HeapType::Number as a polymorphic case.
+  // Currently only handle Type::Number as a polymorphic case.
   // TODO(verwaest): Support monomorphic handling of numbers with a HCheckNumber
   // instruction.
-  if (type_->Is(HeapType::Number())) return false;
+  if (type_->Is(Type::Number())) return false;
 
   // Values are only compatible for monomorphic load if they all behave the same
   // regarding value wrappers.
-  if (type_->Is(HeapType::NumberOrString())) {
-    if (!info->type_->Is(HeapType::NumberOrString())) return false;
+  if (type_->Is(Type::NumberOrString())) {
+    if (!info->type_->Is(Type::NumberOrString())) return false;
   } else {
-    if (info->type_->Is(HeapType::NumberOrString())) return false;
+    if (info->type_->Is(Type::NumberOrString())) return false;
   }
 
   if (!LookupDescriptor()) return false;
@@ -5552,7 +5555,7 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::LookupInPrototypes() {
       JSObject::TryMigrateInstance(holder_);
     }
     map = Handle<Map>(holder_->map());
-    if (!CanInlinePropertyAccess(IC::MapToType(map))) {
+    if (!CanInlinePropertyAccess(ToType(map))) {
       lookup_.NotFound();
       return false;
     }
@@ -5575,7 +5578,7 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::CanLoadMonomorphic() {
 
 bool HOptimizedGraphBuilder::PropertyAccessInfo::CanLoadAsMonomorphic(
     SmallMapList* types) {
-  ASSERT(type_->Is(IC::MapToType(types->first())));
+  ASSERT(type_->Is(ToType(types->first())));
   if (!CanLoadMonomorphic()) return false;
   if (types->length() > kMaxLoadPolymorphism) return false;
 
@@ -5594,8 +5597,7 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::CanLoadAsMonomorphic(
   HObjectAccess access = HObjectAccess::ForMap();  // bogus default
   if (GetJSObjectFieldAccess(&access)) {
     for (int i = 1; i < types->length(); ++i) {
-      PropertyAccessInfo test_info(
-          builder_, IC::MapToType(types->at(i)), name_);
+      PropertyAccessInfo test_info(builder_, ToType(types->at(i)), name_);
       HObjectAccess test_access = HObjectAccess::ForMap();  // bogus default
       if (!test_info.GetJSObjectFieldAccess(&test_access)) return false;
       if (!access.Equals(test_access)) return false;
@@ -5603,13 +5605,13 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::CanLoadAsMonomorphic(
     return true;
   }
 
-  // Currently only handle HeapType::Number as a polymorphic case.
+  // Currently only handle Type::Number as a polymorphic case.
   // TODO(verwaest): Support monomorphic handling of numbers with a HCheckNumber
   // instruction.
-  if (type_->Is(HeapType::Number())) return false;
+  if (type_->Is(Type::Number())) return false;
 
   for (int i = 1; i < types->length(); ++i) {
-    PropertyAccessInfo test_info(builder_, IC::MapToType(types->at(i)), name_);
+    PropertyAccessInfo test_info(builder_, ToType(types->at(i)), name_);
     if (!test_info.IsCompatibleForLoad(this)) return false;
   }
 
@@ -5617,8 +5619,8 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::CanLoadAsMonomorphic(
 }
 
 
-static bool NeedsWrappingFor(Handle<HeapType> type, Handle<JSFunction> target) {
-  return type->Is(HeapType::NumberOrString()) &&
+static bool NeedsWrappingFor(Type* type, Handle<JSFunction> target) {
+  return type->Is(Type::NumberOrString()) &&
       target->shared()->is_classic_mode() &&
       !target->shared()->native();
 }
@@ -5686,14 +5688,14 @@ void HOptimizedGraphBuilder::HandlePolymorphicLoadNamedField(
 
   bool handle_smi = false;
   for (int i = 0; i < types->length() && count < kMaxLoadPolymorphism; ++i) {
-    PropertyAccessInfo info(this, IC::MapToType(types->at(i)), name);
-    if (info.type()->Is(HeapType::String())) {
+    PropertyAccessInfo info(this, ToType(types->at(i)), name);
+    if (info.type()->Is(Type::String())) {
       if (handled_string) continue;
       handled_string = true;
     }
     if (info.CanLoadMonomorphic()) {
       count++;
-      if (info.type()->Is(HeapType::Number())) {
+      if (info.type()->Is(Type::Number())) {
         handle_smi = true;
         break;
       }
@@ -5705,8 +5707,8 @@ void HOptimizedGraphBuilder::HandlePolymorphicLoadNamedField(
   handled_string = false;
 
   for (int i = 0; i < types->length() && count < kMaxLoadPolymorphism; ++i) {
-    PropertyAccessInfo info(this, IC::MapToType(types->at(i)), name);
-    if (info.type()->Is(HeapType::String())) {
+    PropertyAccessInfo info(this, ToType(types->at(i)), name);
+    if (info.type()->Is(Type::String())) {
       if (handled_string) continue;
       handled_string = true;
     }
@@ -5733,11 +5735,11 @@ void HOptimizedGraphBuilder::HandlePolymorphicLoadNamedField(
     HUnaryControlInstruction* compare;
 
     HValue* dependency;
-    if (info.type()->Is(HeapType::Number())) {
+    if (info.type()->Is(Type::Number())) {
       Handle<Map> heap_number_map = isolate()->factory()->heap_number_map();
       compare = New<HCompareMap>(object, heap_number_map, if_true, if_false);
       dependency = smi_check;
-    } else if (info.type()->Is(HeapType::String())) {
+    } else if (info.type()->Is(Type::String())) {
       compare = New<HIsStringAndBranch>(object, if_true, if_false);
       dependency = compare;
     } else {
@@ -5746,7 +5748,7 @@ void HOptimizedGraphBuilder::HandlePolymorphicLoadNamedField(
     }
     FinishCurrentBlock(compare);
 
-    if (info.type()->Is(HeapType::Number())) {
+    if (info.type()->Is(Type::Number())) {
       Goto(if_true, number_block);
       if_true = number_block;
       number_block->SetJoinId(ast_id);
@@ -5816,7 +5818,7 @@ bool HOptimizedGraphBuilder::TryStorePolymorphicAsMonomorphic(
   for (count = 0; count < types->length(); ++count) {
     Handle<Map> map = types->at(count);
     // Pass false to ignore transitions.
-    if (!ComputeStoreField(map, name, &lookup, false)) break;
+    if (!ComputeStoreField(ToType(map), name, &lookup, false)) break;
     ASSERT(!map->is_observed());
 
     HObjectAccess new_access = HObjectAccess::ForField(map, &lookup, name);
@@ -5876,7 +5878,7 @@ void HOptimizedGraphBuilder::HandlePolymorphicStoreNamedField(
   for (int i = 0; i < types->length() && count < kMaxStorePolymorphism; ++i) {
     Handle<Map> map = types->at(i);
     LookupResult lookup(isolate());
-    if (ComputeStoreField(map, name, &lookup)) {
+    if (ComputeStoreField(ToType(map), name, &lookup)) {
       if (count == 0) {
         BuildCheckHeapObject(object);
         join = graph()->CreateBasicBlock();
@@ -5942,7 +5944,8 @@ void HOptimizedGraphBuilder::HandlePolymorphicStoreNamedField(
 
 static bool ComputeReceiverTypes(Expression* expr,
                                  HValue* receiver,
-                                 SmallMapList** t) {
+                                 SmallMapList** t,
+                                 Zone* zone) {
   SmallMapList* types = expr->GetReceiverTypes();
   *t = types;
   bool monomorphic = expr->IsMonomorphic();
@@ -5951,7 +5954,8 @@ static bool ComputeReceiverTypes(Expression* expr,
     types->FilterForPossibleTransitions(root_map);
     monomorphic = types->length() == 1;
   }
-  return monomorphic && CanInlinePropertyAccess(IC::MapToType(types->first()));
+  return monomorphic && CanInlinePropertyAccess(
+      IC::MapToType<Type>(types->first(), zone));
 }
 
 
@@ -5991,16 +5995,16 @@ void HOptimizedGraphBuilder::BuildStore(Expression* expr,
   HInstruction* instr = NULL;
 
   SmallMapList* types;
-  bool monomorphic = ComputeReceiverTypes(expr, object, &types);
+  bool monomorphic = ComputeReceiverTypes(expr, object, &types, zone());
 
   if (monomorphic) {
     Handle<Map> map = types->first();
     Handle<JSFunction> setter;
     Handle<JSObject> holder;
-    if (LookupSetter(map, name, &setter, &holder)) {
+    if (LookupSetter(map, name, &setter, &holder, zone())) {
       AddCheckMap(object, map);
       AddCheckPrototypeMaps(holder, map);
-      bool needs_wrapping = NeedsWrappingFor(IC::MapToType(map), setter);
+      bool needs_wrapping = NeedsWrappingFor(ToType(map), setter);
       bool try_inline = FLAG_inline_accessors && !needs_wrapping;
       if (try_inline && TryInlineSetter(setter, ast_id, return_id, value)) {
         return;
@@ -6680,7 +6684,7 @@ HValue* HOptimizedGraphBuilder::HandleKeyedElementAccess(
   HInstruction* instr = NULL;
 
   SmallMapList* types;
-  bool monomorphic = ComputeReceiverTypes(expr, obj, &types);
+  bool monomorphic = ComputeReceiverTypes(expr, obj, &types, zone());
 
   bool force_generic = false;
   if (is_store && (monomorphic || (types != NULL && !types->is_empty()))) {
@@ -6862,19 +6866,19 @@ void HOptimizedGraphBuilder::BuildLoad(Property* expr,
     HValue* object = Pop();
 
     SmallMapList* types;
-    ComputeReceiverTypes(expr, object, &types);
+    ComputeReceiverTypes(expr, object, &types, zone());
     ASSERT(types != NULL);
 
     if (types->length() > 0) {
-      PropertyAccessInfo info(this, IC::MapToType(types->first()), name);
+      PropertyAccessInfo info(this, ToType(types->first()), name);
       if (!info.CanLoadAsMonomorphic(types)) {
         return HandlePolymorphicLoadNamedField(
             ast_id, expr->LoadId(), object, types, name);
       }
 
       HValue* checked_object;
-      // HeapType::Number() is only supported by polymorphic load/call handling.
-      ASSERT(!info.type()->Is(HeapType::Number()));
+      // Type::Number() is only supported by polymorphic load/call handling.
+      ASSERT(!info.type()->Is(Type::Number()));
       BuildCheckHeapObject(object);
       if (AreStringTypes(types)) {
         checked_object =
@@ -7074,16 +7078,16 @@ void HOptimizedGraphBuilder::HandlePolymorphicCallNamed(
   for (int i = 0;
        i < types->length() && ordered_functions < kMaxCallPolymorphism;
        ++i) {
-    PropertyAccessInfo info(this, IC::MapToType(types->at(i)), name);
+    PropertyAccessInfo info(this, ToType(types->at(i)), name);
     if (info.CanLoadMonomorphic() &&
         info.lookup()->IsConstant() &&
         info.constant()->IsJSFunction()) {
-      if (info.type()->Is(HeapType::String())) {
+      if (info.type()->Is(Type::String())) {
         if (handled_string) continue;
         handled_string = true;
       }
       Handle<JSFunction> target = Handle<JSFunction>::cast(info.constant());
-      if (info.type()->Is(HeapType::Number())) {
+      if (info.type()->Is(Type::Number())) {
         handle_smi = true;
       }
       expr->set_target(target);
@@ -7104,8 +7108,8 @@ void HOptimizedGraphBuilder::HandlePolymorphicCallNamed(
 
   for (int fn = 0; fn < ordered_functions; ++fn) {
     int i = order[fn].index();
-    PropertyAccessInfo info(this, IC::MapToType(types->at(i)), name);
-    if (info.type()->Is(HeapType::String())) {
+    PropertyAccessInfo info(this, ToType(types->at(i)), name);
+    if (info.type()->Is(Type::String())) {
       if (handled_string) continue;
       handled_string = true;
     }
@@ -7135,17 +7139,17 @@ void HOptimizedGraphBuilder::HandlePolymorphicCallNamed(
     HUnaryControlInstruction* compare;
 
     Handle<Map> map = info.map();
-    if (info.type()->Is(HeapType::Number())) {
+    if (info.type()->Is(Type::Number())) {
       Handle<Map> heap_number_map = isolate()->factory()->heap_number_map();
       compare = New<HCompareMap>(receiver, heap_number_map, if_true, if_false);
-    } else if (info.type()->Is(HeapType::String())) {
+    } else if (info.type()->Is(Type::String())) {
       compare = New<HIsStringAndBranch>(receiver, if_true, if_false);
     } else {
       compare = New<HCompareMap>(receiver, map, if_true, if_false);
     }
     FinishCurrentBlock(compare);
 
-    if (info.type()->Is(HeapType::Number())) {
+    if (info.type()->Is(Type::Number())) {
       Goto(if_true, number_block);
       if_true = number_block;
       number_block->SetJoinId(expr->id());
@@ -8093,11 +8097,11 @@ void HOptimizedGraphBuilder::VisitCall(Call* expr) {
     HValue* receiver = Top();
 
     SmallMapList* types;
-    ComputeReceiverTypes(expr, receiver, &types);
+    ComputeReceiverTypes(expr, receiver, &types, zone());
 
     if (prop->key()->IsPropertyName() && types->length() > 0) {
       Handle<String> name = prop->key()->AsLiteral()->AsPropertyName();
-      PropertyAccessInfo info(this, IC::MapToType(types->first()), name);
+      PropertyAccessInfo info(this, ToType(types->first()), name);
       if (!info.CanLoadAsMonomorphic(types)) {
         HandlePolymorphicCallNamed(expr, receiver, types, name);
         return;
@@ -8139,7 +8143,7 @@ void HOptimizedGraphBuilder::VisitCall(Call* expr) {
       if (TryInlineApiMethodCall(expr, receiver, map)) return;
 
       // Wrap the receiver if necessary.
-      if (NeedsWrappingFor(IC::MapToType(types->first()), known_function)) {
+      if (NeedsWrappingFor(ToType(types->first()), known_function)) {
         // Since HWrapReceiver currently cannot actually wrap numbers and
         // strings, use the regular CallFunctionStub for method calls to wrap
         // the receiver.

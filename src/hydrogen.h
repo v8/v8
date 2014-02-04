@@ -2184,6 +2184,8 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   AST_NODE_LIST(DECLARE_VISIT)
 #undef DECLARE_VISIT
 
+  Type* ToType(Handle<Map> map) { return IC::MapToType<Type>(map, zone()); }
+
  private:
   // Helpers for flow graph construction.
   enum GlobalPropertyAccess {
@@ -2265,7 +2267,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   class PropertyAccessInfo {
    public:
     PropertyAccessInfo(HOptimizedGraphBuilder* builder,
-                       Handle<HeapType> type,
+                       Type* type,
                        Handle<String> name)
         : lookup_(builder->isolate()),
           builder_(builder),
@@ -2287,15 +2289,15 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
     bool CanLoadAsMonomorphic(SmallMapList* types);
 
     Handle<Map> map() {
-      if (type_->Is(HeapType::Number())) {
+      if (type_->Is(Type::Number())) {
         Context* context = current_info()->closure()->context();
         context = context->native_context();
         return handle(context->number_function()->initial_map());
-      } else if (type_->Is(HeapType::Boolean())) {
+      } else if (type_->Is(Type::Boolean())) {
         Context* context = current_info()->closure()->context();
         context = context->native_context();
         return handle(context->boolean_function()->initial_map());
-      } else if (type_->Is(HeapType::String())) {
+      } else if (type_->Is(Type::String())) {
         Context* context = current_info()->closure()->context();
         context = context->native_context();
         return handle(context->string_function()->initial_map());
@@ -2303,12 +2305,12 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
         return type_->AsClass();
       }
     }
-    Handle<HeapType> type() const { return type_; }
+    Type* type() const { return type_; }
     Handle<String> name() const { return name_; }
 
     bool IsJSObjectFieldAccessor() {
       int offset;  // unused
-      return Accessors::IsJSObjectFieldAccessor(type_, name_, &offset);
+      return Accessors::IsJSObjectFieldAccessor<Type>(type_, name_, &offset);
     }
 
     bool GetJSObjectFieldAccess(HObjectAccess* access) {
@@ -2317,8 +2319,8 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
         return true;
       }
       int offset;
-      if (Accessors::IsJSObjectFieldAccessor(type_, name_, &offset)) {
-        if (type_->Is(HeapType::String())) {
+      if (Accessors::IsJSObjectFieldAccessor<Type>(type_, name_, &offset)) {
+        if (type_->Is(Type::String())) {
           ASSERT(name_->Equals(isolate()->heap()->length_string()));
           *access = HObjectAccess::ForStringLength();
         } else {
@@ -2338,6 +2340,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
     HObjectAccess access() { return access_; }
 
    private:
+    Type* ToType(Handle<Map> map) { return builder_->ToType(map); }
     Isolate* isolate() { return lookup_.isolate(); }
     CompilationInfo* current_info() { return builder_->current_info(); }
 
@@ -2358,7 +2361,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
 
     LookupResult lookup_;
     HOptimizedGraphBuilder* builder_;
-    Handle<HeapType> type_;
+    Type* type_;
     Handle<String> name_;
     Handle<JSObject> holder_;
     Handle<JSFunction> accessor_;

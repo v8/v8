@@ -670,17 +670,26 @@ Handle<Map> IC::TypeToMap(HeapType* type, Isolate* isolate) {
 }
 
 
-Handle<HeapType> IC::MapToType(Handle<Map> map) {
-  Isolate* isolate = map->GetIsolate();
+template <class T>
+typename T::TypeHandle IC::MapToType(Handle<Map> map,
+                                     typename T::Region* region) {
   if (map->instance_type() == HEAP_NUMBER_TYPE) {
-    return HeapType::Number(isolate);
+    return T::Number(region);
   } else if (map->instance_type() == ODDBALL_TYPE) {
     // The only oddballs that can be recorded in ICs are booleans.
-    return HeapType::Boolean(isolate);
+    return T::Boolean(region);
   } else {
-    return HeapType::Class(map, isolate);
+    return T::Class(map, region);
   }
 }
+
+
+template
+Type* IC::MapToType<Type>(Handle<Map> map, Zone* zone);
+
+
+template
+Handle<HeapType> IC::MapToType<HeapType>(Handle<Map> map, Isolate* region);
 
 
 void IC::UpdateMonomorphicIC(Handle<HeapType> type,
@@ -908,9 +917,11 @@ Handle<Code> LoadIC::CompileHandler(LookupResult* lookup,
       // Use simple field loads for some well-known callback properties.
       if (object->IsJSObject()) {
         Handle<JSObject> receiver = Handle<JSObject>::cast(object);
-        Handle<HeapType> type = IC::MapToType(handle(receiver->map()));
+        Handle<HeapType> type = IC::MapToType<HeapType>(
+            handle(receiver->map()), isolate());
         int object_offset;
-        if (Accessors::IsJSObjectFieldAccessor(type, name, &object_offset)) {
+        if (Accessors::IsJSObjectFieldAccessor<HeapType>(
+                type, name, &object_offset)) {
           return SimpleFieldLoad(object_offset / kPointerSize);
         }
       }
@@ -1436,7 +1447,8 @@ Handle<Code> KeyedStoreIC::StoreElementStub(Handle<JSObject> receiver,
       transitioned_receiver_map =
           ComputeTransitionedMap(receiver, store_mode);
     }
-    if (IsTransitionOfMonomorphicTarget(MapToType(transitioned_receiver_map))) {
+    if (IsTransitionOfMonomorphicTarget(
+            MapToType<HeapType>(transitioned_receiver_map, isolate()))) {
       // Element family is the same, use the "worst" case map.
       store_mode = GetNonTransitioningStoreMode(store_mode);
       return isolate()->stub_cache()->ComputeKeyedStoreElement(
