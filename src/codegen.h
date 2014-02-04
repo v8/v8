@@ -83,6 +83,34 @@ enum TypeofState { INSIDE_TYPEOF, NOT_INSIDE_TYPEOF };
 namespace v8 {
 namespace internal {
 
+
+class CompilationInfo;
+
+
+class CodeGenerator {
+ public:
+  // Printing of AST, etc. as requested by flags.
+  static void MakeCodePrologue(CompilationInfo* info, const char* kind);
+
+  // Allocate and install the code.
+  static Handle<Code> MakeCodeEpilogue(MacroAssembler* masm,
+                                       Code::Flags flags,
+                                       CompilationInfo* info);
+
+  // Print the code after compiling it.
+  static void PrintCode(Handle<Code> code, CompilationInfo* info);
+
+  static bool ShouldGenerateLog(Isolate* isolate, Expression* type);
+
+  static bool RecordPositions(MacroAssembler* masm,
+                              int pos,
+                              bool right_here = false);
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(CodeGenerator);
+};
+
+
 // Results of the library implementation of transcendental functions may differ
 // from the one we use in our generated code.  Therefore we use the same
 // generated code both in runtime and compiled code.

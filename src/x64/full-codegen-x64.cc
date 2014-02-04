@@ -3765,9 +3765,9 @@ void FullCodeGenerator::EmitGetFromCache(CallRuntime* expr) {
           FieldOperand(cache, FixedArray::OffsetOfElementAt(cache_id)));
 
   Label done, not_found;
-  // tmp now holds finger offset as a smi.
   STATIC_ASSERT(kSmiTag == 0 && kSmiTagSize == 1);
   __ movp(tmp, FieldOperand(cache, JSFunctionResultCache::kFingerOffset));
+  // tmp now holds finger offset as a smi.
   SmiIndex index =
       __ SmiToIndex(kScratchRegister, tmp, kPointerSizeLog2);
   __ cmpq(key, FieldOperand(cache,

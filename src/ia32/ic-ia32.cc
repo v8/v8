@@ -738,7 +738,7 @@ static void KeyedStoreGenerateGenericHelper(
   // We have to go to the runtime if the current value is the hole because
   // there may be a callback on the element
   Label holecheck_passed1;
-  __ cmp(CodeGenerator::FixedArrayElementOperand(ebx, ecx),
+  __ cmp(FixedArrayElementOperand(ebx, ecx),
          masm->isolate()->factory()->the_hole_value());
   __ j(not_equal, &holecheck_passed1);
   __ JumpIfDictionaryInPrototypeChain(edx, ebx, edi, slow);
@@ -755,7 +755,7 @@ static void KeyedStoreGenerateGenericHelper(
            Immediate(Smi::FromInt(1)));
   }
   // It's irrelevant whether array is smi-only or not when writing a smi.
-  __ mov(CodeGenerator::FixedArrayElementOperand(ebx, ecx), eax);
+  __ mov(FixedArrayElementOperand(ebx, ecx), eax);
   __ ret(0);
 
   __ bind(&non_smi_value);
@@ -770,7 +770,7 @@ static void KeyedStoreGenerateGenericHelper(
     __ add(FieldOperand(edx, JSArray::kLengthOffset),
            Immediate(Smi::FromInt(1)));
   }
-  __ mov(CodeGenerator::FixedArrayElementOperand(ebx, ecx), eax);
+  __ mov(FixedArrayElementOperand(ebx, ecx), eax);
   // Update write barrier for the elements array address.
   __ mov(edx, eax);  // Preserve the value which is returned.
   __ RecordWriteArray(
