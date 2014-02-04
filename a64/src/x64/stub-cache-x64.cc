@@ -2233,13 +2233,6 @@ Handle<Code> CallStubCompiler::CompileMathFloorCall(
   //  -- ...
   //  -- rsp[(argc + 1) * 4] : receiver
   // -----------------------------------
-
-  if (!CpuFeatures::IsSupported(SSE2)) {
-    return Handle<Code>::null();
-  }
-
-  CpuFeatureScope use_sse2(masm(), SSE2);
-
   const int argc = arguments().immediate();
 
   // If the object is not a JSObject or we got an unexpected number of
@@ -2894,48 +2887,6 @@ Handle<Code> StoreStubCompiler::CompileStoreInterceptor(
 
   // Return the generated code.
   return GetCode(kind(), Code::INTERCEPTOR, name);
-}
-
-
-Handle<Code> StoreStubCompiler::CompileStoreGlobal(
-    Handle<GlobalObject> object,
-    Handle<PropertyCell> cell,
-    Handle<Name> name) {
-  Label miss;
-
-  // Check that the map of the global has not changed.
-  __ Cmp(FieldOperand(receiver(), HeapObject::kMapOffset),
-         Handle<Map>(object->map()));
-  __ j(not_equal, &miss);
-
-  // Compute the cell operand to use.
-  __ Move(scratch1(), cell);
-  Operand cell_operand =
-      FieldOperand(scratch1(), PropertyCell::kValueOffset);
-
-  // Check that the value in the cell is not the hole. If it is, this
-  // cell could have been deleted and reintroducing the global needs
-  // to update the property details in the property dictionary of the
-  // global object. We bail out to the runtime system to do that.
-  __ CompareRoot(cell_operand, Heap::kTheHoleValueRootIndex);
-  __ j(equal, &miss);
-
-  // Store the value in the cell.
-  __ movq(cell_operand, value());
-  // Cells are always rescanned, so no write barrier here.
-
-  // Return the value (register rax).
-  Counters* counters = isolate()->counters();
-  __ IncrementCounter(counters->named_store_global_inline(), 1);
-  __ ret(0);
-
-  // Handle store cache miss.
-  __ bind(&miss);
-  __ IncrementCounter(counters->named_store_global_inline_miss(), 1);
-  TailCallBuiltin(masm(), MissBuiltin(kind()));
-
-  // Return the generated code.
-  return GetICCode(kind(), Code::NORMAL, name);
 }
 
 

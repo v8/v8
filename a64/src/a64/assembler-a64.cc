@@ -270,15 +270,12 @@ Operand::Operand(const ExternalReference& f)
 
 
 Operand::Operand(Handle<Object> handle) : reg_(NoReg) {
-#ifdef DEBUG
-  Isolate* isolate = Isolate::Current();
-#endif
   AllowDeferredHandleDereference using_raw_address;
 
   // Verify all Objects referred by code are NOT in new space.
   Object* obj = *handle;
-  ASSERT(!isolate->heap()->InNewSpace(obj));
   if (obj->IsHeapObject()) {
+    ASSERT(!HeapObject::cast(obj)->GetHeap()->InNewSpace(obj));
     immediate_ = reinterpret_cast<intptr_t>(handle.location());
     rmode_ = RelocInfo::EMBEDDED_OBJECT;
   } else {

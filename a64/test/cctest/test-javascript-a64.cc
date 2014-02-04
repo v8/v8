@@ -86,24 +86,24 @@ static void ExpectUndefined(Local<Value> result) {
 // Tests are sorted by order of implementation.
 
 TEST(simple_value) {
-  v8::HandleScope scope;
   LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
   Local<Value> result = CompileRun("0x271828;");
   ExpectInt32(0x271828, result);
 }
 
 
 TEST(global_variable) {
-  v8::HandleScope scope;
   LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
   Local<Value> result = CompileRun("var my_global_var = 0x123; my_global_var;");
   ExpectInt32(0x123, result);
 }
 
 
 TEST(simple_function_call) {
-  v8::HandleScope scope;
   LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
   Local<Value> result = CompileRun(
       "function foo() { return 0x314; }"
       "foo();");
@@ -112,8 +112,8 @@ TEST(simple_function_call) {
 
 
 TEST(binary_op) {
-  v8::HandleScope scope;
   LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
   Local<Value> result = CompileRun(
       "function foo() {"
       "  var a = 0x1200;"
@@ -175,8 +175,8 @@ static void if_comparison_helper(
 
 
 TEST(if_comparison) {
-  v8::HandleScope scope;
   LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
 
   if_comparison_helper("<",   1, 0, 0);
   if_comparison_helper("<=",  1, 1, 0);
@@ -190,8 +190,8 @@ TEST(if_comparison) {
 
 
 TEST(unary_plus) {
-  v8::HandleScope scope;
   LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
   Local<Value> result;
   // SMI
   result = CompileRun("var a = 1234; +a");
@@ -212,8 +212,8 @@ TEST(unary_plus) {
 
 
 TEST(unary_minus) {
-  v8::HandleScope scope;
   LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
   Local<Value> result;
   result = CompileRun("var a = 1234; -a");
   ExpectInt32(-1234, result);
@@ -229,8 +229,8 @@ TEST(unary_minus) {
 
 
 TEST(unary_void) {
-  v8::HandleScope scope;
   LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
   Local<Value> result;
   result = CompileRun("var a = 1234; void (a);");
   ExpectUndefined(result);
@@ -242,8 +242,8 @@ TEST(unary_void) {
 
 
 TEST(unary_not) {
-  v8::HandleScope scope;
   LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
   Local<Value> result;
   result = CompileRun("var a = 1234; !a");
   ExpectBoolean(false, result);

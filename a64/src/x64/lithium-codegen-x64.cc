@@ -373,6 +373,7 @@ bool LCodeGen::GenerateDeferredCode() {
       }
       code->Generate();
       if (NeedsDeferredFrame()) {
+        __ bind(code->done());
         Comment(";;; Destroy frame");
         ASSERT(frame_is_built_);
         frame_is_built_ = false;
@@ -4698,50 +4699,35 @@ void LCodeGen::EmitNumberUntagD(Register input_reg,
 }
 
 
-void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr) {
-  Label done, heap_number;
+void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr, Label* done) {
+  Label heap_number;
   Register input_reg = ToRegister(instr->value());
 
-  // Heap number map check.
-  __ CompareRoot(FieldOperand(input_reg, HeapObject::kMapOffset),
-                 Heap::kHeapNumberMapRootIndex);
 
   if (instr->truncating()) {
+    // Heap number map check.
+    __ CompareRoot(FieldOperand(input_reg, HeapObject::kMapOffset),
+                   Heap::kHeapNumberMapRootIndex);
     __ j(equal, &heap_number, Label::kNear);
     // Check for undefined. Undefined is converted to zero for truncating
     // conversions.
     __ CompareRoot(input_reg, Heap::kUndefinedValueRootIndex);
     DeoptimizeIf(not_equal, instr->environment());
     __ Set(input_reg, 0);
-    __ jmp(&done, Label::kNear);
+    __ jmp(done);
 
     __ bind(&heap_number);
-
-    __ movsd(xmm0, FieldOperand(input_reg, HeapNumber::kValueOffset));
-    __ cvttsd2siq(input_reg, xmm0);
-    __ Set(kScratchRegister, V8_UINT64_C(0x8000000000000000));
-    __ cmpq(input_reg, kScratchRegister);
-    DeoptimizeIf(equal, instr->environment());
+    __ TruncateHeapNumberToI(input_reg, input_reg);
   } else {
-    // Deoptimize if we don't have a heap number.
-    DeoptimizeIf(not_equal, instr->environment());
-
+    Label bailout;
     XMMRegister xmm_temp = ToDoubleRegister(instr->temp());
-    __ movsd(xmm0, FieldOperand(input_reg, HeapNumber::kValueOffset));
-    __ cvttsd2si(input_reg, xmm0);
-    __ cvtlsi2sd(xmm_temp, input_reg);
-    __ ucomisd(xmm0, xmm_temp);
-    DeoptimizeIf(not_equal, instr->environment());
-    DeoptimizeIf(parity_even, instr->environment());  // NaN.
-    if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
-      __ testl(input_reg, input_reg);
-      __ j(not_zero, &done);
-      __ movmskpd(input_reg, xmm0);
-      __ andl(input_reg, Immediate(1));
-      DeoptimizeIf(not_zero, instr->environment());
-    }
+    __ TaggedToI(input_reg, input_reg, xmm_temp,
+        instr->hydrogen()->GetMinusZeroMode(), &bailout, Label::kNear);
+
+    __ jmp(done);
+    __ bind(&bailout);
+    DeoptimizeIf(no_condition, instr->environment());
   }
-  __ bind(&done);
 }
 
 
@@ -4751,7 +4737,7 @@ void LCodeGen::DoTaggedToI(LTaggedToI* instr) {
     DeferredTaggedToI(LCodeGen* codegen, LTaggedToI* instr)
         : LDeferredCode(codegen), instr_(instr) { }
     virtual void Generate() V8_OVERRIDE {
-      codegen()->DoDeferredTaggedToI(instr_);
+      codegen()->DoDeferredTaggedToI(instr_, done());
     }
     virtual LInstruction* instr() V8_OVERRIDE { return instr_; }
    private:
@@ -4801,34 +4787,16 @@ void LCodeGen::DoDoubleToI(LDoubleToI* instr) {
   Register result_reg = ToRegister(result);
 
   if (instr->truncating()) {
-    // Performs a truncating conversion of a floating point number as used by
-    // the JS bitwise operations.
-    __ cvttsd2siq(result_reg, input_reg);
-    __ movq(kScratchRegister,
-            V8_INT64_C(0x8000000000000000),
-            RelocInfo::NONE64);
-    __ cmpq(result_reg, kScratchRegister);
-    DeoptimizeIf(equal, instr->environment());
+    __ TruncateDoubleToI(result_reg, input_reg);
   } else {
-    __ cvttsd2si(result_reg, input_reg);
-    __ cvtlsi2sd(xmm0, result_reg);
-    __ ucomisd(xmm0, input_reg);
-    DeoptimizeIf(not_equal, instr->environment());
-    DeoptimizeIf(parity_even, instr->environment());  // NaN.
-    if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
-      Label done;
-      // The integer converted back is equal to the original. We
-      // only have to test if we got -0 as an input.
-      __ testl(result_reg, result_reg);
-      __ j(not_zero, &done, Label::kNear);
-      __ movmskpd(result_reg, input_reg);
-      // Bit 0 contains the sign of the double in input_reg.
-      // If input was positive, we are ok and return 0, otherwise
-      // deoptimize.
-      __ andl(result_reg, Immediate(1));
-      DeoptimizeIf(not_zero, instr->environment());
-      __ bind(&done);
-    }
+    Label bailout, done;
+    __ DoubleToI(result_reg, input_reg, xmm0,
+        instr->hydrogen()->GetMinusZeroMode(), &bailout, Label::kNear);
+
+    __ jmp(&done, Label::kNear);
+    __ bind(&bailout);
+    DeoptimizeIf(no_condition, instr->environment());
+    __ bind(&done);
   }
 }
 
@@ -4838,31 +4806,19 @@ void LCodeGen::DoDoubleToSmi(LDoubleToSmi* instr) {
   ASSERT(input->IsDoubleRegister());
   LOperand* result = instr->result();
   ASSERT(result->IsRegister());
-  CpuFeatureScope scope(masm(), SSE2);
 
   XMMRegister input_reg = ToDoubleRegister(input);
   Register result_reg = ToRegister(result);
 
-  Label done;
-  __ cvttsd2si(result_reg, input_reg);
-  __ cvtlsi2sd(xmm0, result_reg);
-  __ ucomisd(xmm0, input_reg);
-  DeoptimizeIf(not_equal, instr->environment());
-  DeoptimizeIf(parity_even, instr->environment());  // NaN.
+  Label bailout, done;
+  __ DoubleToI(result_reg, input_reg, xmm0,
+      instr->hydrogen()->GetMinusZeroMode(), &bailout, Label::kNear);
 
-  if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
-    // The integer converted back is equal to the original. We
-    // only have to test if we got -0 as an input.
-    __ testl(result_reg, result_reg);
-    __ j(not_zero, &done, Label::kNear);
-    __ movmskpd(result_reg, input_reg);
-    // Bit 0 contains the sign of the double in input_reg.
-    // If input was positive, we are ok and return 0, otherwise
-    // deoptimize.
-    __ andl(result_reg, Immediate(1));
-    DeoptimizeIf(not_zero, instr->environment());
-    __ bind(&done);
-  }
+  __ jmp(&done, Label::kNear);
+  __ bind(&bailout);
+  DeoptimizeIf(no_condition, instr->environment());
+  __ bind(&done);
+
   __ Integer32ToSmi(result_reg, result_reg);
   DeoptimizeIf(overflow, instr->environment());
 }

@@ -954,6 +954,16 @@ void LChunkBuilder::VisitInstruction(HInstruction* current) {
     if (FLAG_stress_environments && !instr->HasEnvironment()) {
       instr = AssignEnvironment(instr);
     }
+    if (!CpuFeatures::IsSafeForSnapshot(SSE2) && instr->IsGoto() &&
+        LGoto::cast(instr)->jumps_to_join()) {
+      // TODO(olivf) Since phis of spilled values are joined as registers
+      // (not in the stack slot), we need to allow the goto gaps to keep one
+      // x87 register alive. To ensure all other values are still spilled, we
+      // insert a fpu register barrier right before.
+      LClobberDoubles* clobber = new(zone()) LClobberDoubles();
+      clobber->set_hydrogen_value(current);
+      chunk_->AddInstruction(clobber, current_block_);
+    }
     instr->set_hydrogen_value(current);
     chunk_->AddInstruction(instr, current_block_);
   }
@@ -1046,7 +1056,7 @@ LEnvironment* LChunkBuilder::CreateEnvironment(
 
 
 LInstruction* LChunkBuilder::DoGoto(HGoto* instr) {
-  return new(zone()) LGoto(instr->FirstSuccessor()->block_id());
+  return new(zone()) LGoto(instr->FirstSuccessor());
 }
 
 
@@ -1058,7 +1068,7 @@ LInstruction* LChunkBuilder::DoBranch(HBranch* instr) {
     HBasicBlock* successor = HConstant::cast(value)->BooleanValue()
         ? instr->FirstSuccessor()
         : instr->SecondSuccessor();
-    return new(zone()) LGoto(successor->block_id());
+    return new(zone()) LGoto(successor);
   }
 
   ToBooleanStub::Types expected = instr->expected_input_types();

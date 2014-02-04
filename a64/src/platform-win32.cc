@@ -43,6 +43,7 @@
 #include "v8.h"
 
 #include "codegen.h"
+#include "isolate-inl.h"
 #include "platform.h"
 #include "simulator.h"
 #include "vm-state-inl.h"
@@ -123,13 +124,6 @@ int strncpy_s(char* dest, size_t dest_size, const char* source, size_t count) {
 }
 
 #endif  // __MINGW32__
-
-// Generate a pseudo-random number in the range 0-2^31-1. Usually
-// defined in stdlib.h. Missing in both Microsoft Visual Studio C++ and MinGW.
-int random() {
-  return rand();
-}
-
 
 namespace v8 {
 namespace internal {
@@ -794,8 +788,9 @@ void* OS::GetRandomMmapAddr() {
     static const intptr_t kAllocationRandomAddressMin = 0x04000000;
     static const intptr_t kAllocationRandomAddressMax = 0x3FFF0000;
 #endif
-    uintptr_t address = (V8::RandomPrivate(isolate) << kPageSizeBits)
-        | kAllocationRandomAddressMin;
+    uintptr_t address =
+        (isolate->random_number_generator()->NextInt() << kPageSizeBits) |
+        kAllocationRandomAddressMin;
     address &= kAllocationRandomAddressMax;
     return reinterpret_cast<void *>(address);
   }
@@ -834,7 +829,7 @@ void* OS::Allocate(const size_t requested,
                                         prot);
 
   if (mbase == NULL) {
-    LOG(ISOLATE, StringEvent("OS::Allocate", "VirtualAlloc failed"));
+    LOG(Isolate::Current(), StringEvent("OS::Allocate", "VirtualAlloc failed"));
     return NULL;
   }
 
@@ -865,7 +860,7 @@ void OS::ProtectCode(void* address, const size_t size) {
 
 void OS::Guard(void* address, const size_t size) {
   DWORD oldprotect;
-  VirtualProtect(address, size, PAGE_READONLY | PAGE_GUARD, &oldprotect);
+  VirtualProtect(address, size, PAGE_NOACCESS, &oldprotect);
 }
 
 
@@ -1134,7 +1129,7 @@ TLHELP32_FUNCTION_LIST(DLL_FUNC_LOADED)
 
 
 // Load the symbols for generating stack traces.
-static bool LoadSymbols(HANDLE process_handle) {
+static bool LoadSymbols(Isolate* isolate, HANDLE process_handle) {
   static bool symbols_loaded = false;
 
   if (symbols_loaded) return true;
@@ -1183,7 +1178,7 @@ static bool LoadSymbols(HANDLE process_handle) {
       if (err != ERROR_MOD_NOT_FOUND &&
           err != ERROR_INVALID_HANDLE) return false;
     }
-    LOG(i::Isolate::Current(),
+    LOG(isolate,
         SharedLibraryEvent(
             module_entry.szExePath,
             reinterpret_cast<unsigned int>(module_entry.modBaseAddr),
@@ -1198,14 +1193,14 @@ static bool LoadSymbols(HANDLE process_handle) {
 }
 
 
-void OS::LogSharedLibraryAddresses() {
+void OS::LogSharedLibraryAddresses(Isolate* isolate) {
   // SharedLibraryEvents are logged when loading symbol information.
   // Only the shared libraries loaded at the time of the call to
   // LogSharedLibraryAddresses are logged.  DLLs loaded after
   // initialization are not accounted for.
   if (!LoadDbgHelpAndTlHelp32()) return;
   HANDLE process_handle = GetCurrentProcess();
-  LoadSymbols(process_handle);
+  LoadSymbols(isolate, process_handle);
 }
 
 
@@ -1231,7 +1226,7 @@ int OS::StackWalk(Vector<OS::StackFrame> frames) {
   HANDLE thread_handle = GetCurrentThread();
 
   // Read the symbols.
-  if (!LoadSymbols(process_handle)) return kStackWalkError;
+  if (!LoadSymbols(Isolate::Current(), process_handle)) return kStackWalkError;
 
   // Capture current context.
   CONTEXT context;
@@ -1337,7 +1332,7 @@ int OS::StackWalk(Vector<OS::StackFrame> frames) {
 #pragma warning(pop)
 
 #else  // __MINGW32__
-void OS::LogSharedLibraryAddresses() { }
+void OS::LogSharedLibraryAddresses(Isolate* isolate) { }
 void OS::SignalCodeMovingGC() { }
 int OS::StackWalk(Vector<OS::StackFrame> frames) { return 0; }
 #endif  // __MINGW32__
@@ -1441,7 +1436,7 @@ bool VirtualMemory::Guard(void* address) {
   if (NULL == VirtualAlloc(address,
                            OS::CommitPageSize(),
                            MEM_COMMIT,
-                           PAGE_READONLY | PAGE_GUARD)) {
+                           PAGE_NOACCESS)) {
     return false;
   }
   return true;
@@ -1578,17 +1573,6 @@ void Thread::SetThreadLocal(LocalStorageKey key, void* value) {
 
 void Thread::YieldCPU() {
   Sleep(0);
-}
-
-
-void OS::SetUp() {
-  // Seed the random number generator.
-  // Convert the current time to a 64-bit integer first, before converting it
-  // to an unsigned. Going directly can cause an overflow and the seed to be
-  // set to all ones. The seed will be identical for different instances that
-  // call this setup code within the same millisecond.
-  uint64_t seed = static_cast<uint64_t>(TimeCurrentMillis());
-  srand(static_cast<unsigned int>(seed));
 }
 
 } }  // namespace v8::internal

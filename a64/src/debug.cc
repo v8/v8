@@ -3624,6 +3624,11 @@ v8::Handle<v8::Object> MessageImpl::GetExecutionState() const {
 }
 
 
+v8::Isolate* MessageImpl::GetIsolate() const {
+  return reinterpret_cast<v8::Isolate*>(exec_state_->GetIsolate());
+}
+
+
 v8::Handle<v8::Object> MessageImpl::GetEventData() const {
   return v8::Utils::ToLocal(event_data_);
 }

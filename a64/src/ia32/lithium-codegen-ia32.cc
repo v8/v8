@@ -382,9 +382,13 @@ bool LCodeGen::GenerateBody() {
 
     instr->CompileToNative(this);
 
-    if (!CpuFeatures::IsSupported(SSE2) &&
-        FLAG_debug_code && FLAG_enable_slow_asserts) {
+    if (!CpuFeatures::IsSupported(SSE2)) {
+      if (instr->IsGoto()) {
+        x87_stack_.LeavingBlock(current_block_, LGoto::cast(instr));
+      } else if (FLAG_debug_code && FLAG_enable_slow_asserts &&
+                 !instr->IsGap() && !instr->IsReturn()) {
         __ VerifyX87StackDepth(x87_stack_.depth());
+      }
     }
   }
   EnsureSpaceForLazyDeopt();
@@ -471,8 +475,8 @@ bool LCodeGen::GenerateDeferredCode() {
         Comment(";;; Deferred code");
       }
       code->Generate();
-      __ bind(code->done());
       if (NeedsDeferredFrame()) {
+        __ bind(code->done());
         Comment(";;; Destroy frame");
         ASSERT(frame_is_built_);
         frame_is_built_ = false;
@@ -682,6 +686,21 @@ void LCodeGen::X87Stack::FlushIfNecessary(LInstruction* instr, LCodeGen* cgen) {
       __ fstp(0);
       stack_depth_--;
     }
+    __ VerifyX87StackDepth(0);
+  }
+}
+
+
+void LCodeGen::X87Stack::LeavingBlock(int current_block_id, LGoto* goto_instr) {
+  ASSERT(stack_depth_ <= 1);
+  // If ever used for new stubs producing two pairs of doubles joined into two
+  // phis this assert hits. That situation is not handled, since the two stacks
+  // might have st0 and st1 swapped.
+  if (current_block_id + 1 != goto_instr->block_id()) {
+    // If we have a value on the x87 stack on leaving a block, it must be a
+    // phi input. If the next block we compile is not the join block, we have
+    // to discard the stack state.
+    stack_depth_ = 0;
   }
 }
 
@@ -2232,11 +2251,36 @@ void LCodeGen::DoArithmeticD(LArithmeticD* instr) {
     X87Register left = ToX87Register(instr->left());
     X87Register right = ToX87Register(instr->right());
     X87Register result = ToX87Register(instr->result());
-    X87PrepareBinaryOp(left, right, result);
+    if (instr->op() != Token::MOD) {
+      X87PrepareBinaryOp(left, right, result);
+    }
     switch (instr->op()) {
+      case Token::ADD:
+        __ fadd_i(1);
+        break;
+      case Token::SUB:
+        __ fsub_i(1);
+        break;
       case Token::MUL:
         __ fmul_i(1);
         break;
+      case Token::DIV:
+        __ fdiv_i(1);
+        break;
+      case Token::MOD: {
+        // Pass two doubles as arguments on the stack.
+        __ PrepareCallCFunction(4, eax);
+        X87Mov(Operand(esp, 1 * kDoubleSize), right);
+        X87Mov(Operand(esp, 0), left);
+        X87PrepareToWrite(result);
+        __ CallCFunction(
+            ExternalReference::double_fp_operation(Token::MOD, isolate()),
+            4);
+
+        // Return value is in st(0) on ia32.
+        X87CommitWrite(result);
+        break;
+      }
       default:
         UNREACHABLE();
         break;
@@ -2458,6 +2502,10 @@ void LCodeGen::EmitGoto(int block) {
   if (!IsNextEmittedBlock(block)) {
     __ jmp(chunk_->GetAssemblyLabel(LookupDestination(block)));
   }
+}
+
+
+void LCodeGen::DoClobberDoubles(LClobberDoubles* instr) {
 }
 
 

@@ -147,7 +147,7 @@ class StringStream {
   // Getting the message out.
   void OutputToFile(FILE* out);
   void OutputToStdOut() { OutputToFile(stdout); }
-  void Log();
+  void Log(Isolate* isolate);
   Handle<String> ToString(Isolate* isolate);
   SmartArrayPointer<const char> ToCString() const;
   int length() const { return length_; }

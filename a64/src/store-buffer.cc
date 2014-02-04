@@ -221,7 +221,7 @@ void StoreBuffer::ExemptPopularPages(int prime_sample_step, int threshold) {
     if (previous_chunk != NULL && previous_chunk->Contains(addr)) {
       containing_chunk = previous_chunk;
     } else {
-      containing_chunk = MemoryChunk::FromAnyPointerAddress(addr);
+      containing_chunk = MemoryChunk::FromAnyPointerAddress(heap_, addr);
     }
     int old_counter = containing_chunk->store_buffer_counter();
     if (old_counter == threshold) {
@@ -247,7 +247,7 @@ void StoreBuffer::Filter(int flag) {
     if (previous_chunk != NULL && previous_chunk->Contains(addr)) {
       containing_chunk = previous_chunk;
     } else {
-      containing_chunk = MemoryChunk::FromAnyPointerAddress(addr);
+      containing_chunk = MemoryChunk::FromAnyPointerAddress(heap_, addr);
       previous_chunk = containing_chunk;
     }
     if (!containing_chunk->IsFlagSet(flag)) {

@@ -1963,7 +1963,7 @@ bool FixedArray::is_the_hole(int index) {
 
 
 void FixedArray::set(int index, Smi* value) {
-  ASSERT(map() != HEAP->fixed_cow_array_map());
+  ASSERT(map() != GetHeap()->fixed_cow_array_map());
   ASSERT(index >= 0 && index < this->length());
   ASSERT(reinterpret_cast<Object*>(value)->IsSmi());
   int offset = kHeaderSize + index * kPointerSize;
@@ -1972,7 +1972,7 @@ void FixedArray::set(int index, Smi* value) {
 
 
 void FixedArray::set(int index, Object* value) {
-  ASSERT(map() != HEAP->fixed_cow_array_map());
+  ASSERT(map() != GetHeap()->fixed_cow_array_map());
   ASSERT(index >= 0 && index < this->length());
   int offset = kHeaderSize + index * kPointerSize;
   WRITE_FIELD(this, offset, value);
@@ -1998,8 +1998,8 @@ inline double FixedDoubleArray::canonical_not_the_hole_nan_as_double() {
 
 
 double FixedDoubleArray::get_scalar(int index) {
-  ASSERT(map() != HEAP->fixed_cow_array_map() &&
-         map() != HEAP->fixed_array_map());
+  ASSERT(map() != GetHeap()->fixed_cow_array_map() &&
+         map() != GetHeap()->fixed_array_map());
   ASSERT(index >= 0 && index < this->length());
   double result = READ_DOUBLE_FIELD(this, kHeaderSize + index * kDoubleSize);
   ASSERT(!is_the_hole_nan(result));
@@ -2007,8 +2007,8 @@ double FixedDoubleArray::get_scalar(int index) {
 }
 
 int64_t FixedDoubleArray::get_representation(int index) {
-  ASSERT(map() != HEAP->fixed_cow_array_map() &&
-         map() != HEAP->fixed_array_map());
+  ASSERT(map() != GetHeap()->fixed_cow_array_map() &&
+         map() != GetHeap()->fixed_array_map());
   ASSERT(index >= 0 && index < this->length());
   return READ_INT64_FIELD(this, kHeaderSize + index * kDoubleSize);
 }
@@ -2023,8 +2023,8 @@ MaybeObject* FixedDoubleArray::get(int index) {
 
 
 void FixedDoubleArray::set(int index, double value) {
-  ASSERT(map() != HEAP->fixed_cow_array_map() &&
-         map() != HEAP->fixed_array_map());
+  ASSERT(map() != GetHeap()->fixed_cow_array_map() &&
+         map() != GetHeap()->fixed_array_map());
   int offset = kHeaderSize + index * kDoubleSize;
   if (std::isnan(value)) value = canonical_not_the_hole_nan_as_double();
   WRITE_DOUBLE_FIELD(this, offset, value);
@@ -2032,8 +2032,8 @@ void FixedDoubleArray::set(int index, double value) {
 
 
 void FixedDoubleArray::set_the_hole(int index) {
-  ASSERT(map() != HEAP->fixed_cow_array_map() &&
-         map() != HEAP->fixed_array_map());
+  ASSERT(map() != GetHeap()->fixed_cow_array_map() &&
+         map() != GetHeap()->fixed_array_map());
   int offset = kHeaderSize + index * kDoubleSize;
   WRITE_DOUBLE_FIELD(this, offset, hole_nan_as_double());
 }
@@ -2057,7 +2057,7 @@ WriteBarrierMode HeapObject::GetWriteBarrierMode(
 void FixedArray::set(int index,
                      Object* value,
                      WriteBarrierMode mode) {
-  ASSERT(map() != HEAP->fixed_cow_array_map());
+  ASSERT(map() != GetHeap()->fixed_cow_array_map());
   ASSERT(index >= 0 && index < this->length());
   int offset = kHeaderSize + index * kPointerSize;
   WRITE_FIELD(this, offset, value);
@@ -2068,7 +2068,7 @@ void FixedArray::set(int index,
 void FixedArray::NoIncrementalWriteBarrierSet(FixedArray* array,
                                               int index,
                                               Object* value) {
-  ASSERT(array->map() != HEAP->fixed_cow_array_map());
+  ASSERT(array->map() != array->GetHeap()->fixed_cow_array_map());
   ASSERT(index >= 0 && index < array->length());
   int offset = kHeaderSize + index * kPointerSize;
   WRITE_FIELD(array, offset, value);
@@ -2082,9 +2082,9 @@ void FixedArray::NoIncrementalWriteBarrierSet(FixedArray* array,
 void FixedArray::NoWriteBarrierSet(FixedArray* array,
                                    int index,
                                    Object* value) {
-  ASSERT(array->map() != HEAP->fixed_cow_array_map());
+  ASSERT(array->map() != array->GetHeap()->fixed_cow_array_map());
   ASSERT(index >= 0 && index < array->length());
-  ASSERT(!HEAP->InNewSpace(value));
+  ASSERT(!array->GetHeap()->InNewSpace(value));
   WRITE_FIELD(array, kHeaderSize + index * kPointerSize, value);
 }
 
@@ -2109,9 +2109,9 @@ void FixedArray::set_null(int index) {
 
 
 void FixedArray::set_the_hole(int index) {
-  ASSERT(map() != HEAP->fixed_cow_array_map());
+  ASSERT(map() != GetHeap()->fixed_cow_array_map());
   ASSERT(index >= 0 && index < this->length());
-  ASSERT(!HEAP->InNewSpace(HEAP->the_hole_value()));
+  ASSERT(!GetHeap()->InNewSpace(GetHeap()->the_hole_value()));
   WRITE_FIELD(this,
               kHeaderSize + index * kPointerSize,
               GetHeap()->the_hole_value());
@@ -2130,7 +2130,7 @@ Object** FixedArray::data_start() {
 
 bool DescriptorArray::IsEmpty() {
   ASSERT(length() >= kFirstIndex ||
-         this == HEAP->empty_descriptor_array());
+         this == GetHeap()->empty_descriptor_array());
   return length() < kFirstIndex;
 }
 
@@ -4995,7 +4995,7 @@ Code* JSFunction::code() {
 
 
 void JSFunction::set_code(Code* value) {
-  ASSERT(!HEAP->InNewSpace(value));
+  ASSERT(!GetHeap()->InNewSpace(value));
   Address entry = value->entry();
   WRITE_INTPTR_FIELD(this, kCodeEntryOffset, reinterpret_cast<intptr_t>(entry));
   GetHeap()->incremental_marking()->RecordWriteOfCodeEntry(
@@ -5006,7 +5006,7 @@ void JSFunction::set_code(Code* value) {
 
 
 void JSFunction::set_code_no_write_barrier(Code* value) {
-  ASSERT(!HEAP->InNewSpace(value));
+  ASSERT(!GetHeap()->InNewSpace(value));
   Address entry = value->entry();
   WRITE_INTPTR_FIELD(this, kCodeEntryOffset, reinterpret_cast<intptr_t>(entry));
 }
@@ -5156,7 +5156,7 @@ void JSBuiltinsObject::set_javascript_builtin_code(Builtins::JavaScript id,
                                                    Code* value) {
   ASSERT(id < kJSBuiltinsCount);  // id is unsigned.
   WRITE_FIELD(this, OffsetOfCodeWithId(id), value);
-  ASSERT(!HEAP->InNewSpace(value));
+  ASSERT(!GetHeap()->InNewSpace(value));
 }
 
 

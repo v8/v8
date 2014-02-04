@@ -96,14 +96,5 @@ TEST(CrankshaftRandom) {
   // Test with some random values.
   TestSeeds(fun, context, 0xC0C0AFFE, 0x31415926);
   TestSeeds(fun, context, 0x01020304, 0xFFFFFFFF);
-  TestSeeds(fun, context, 0x00000001, 0x00000000);
-
-  // Test that we bail out to runtime when seeds are uninitialized (zeros).
-  SetSeeds(seeds, 0, 0);
-  Handle<Object> value =
-      Execution::Call(isolate, fun, global, 0, NULL, &has_pending_exception);
-  CHECK(value->IsHeapNumber());
-  CHECK(fun->IsOptimized());
-  double crankshaft_value = HeapNumber::cast(*value)->value();
-  CHECK_NE(0.0, crankshaft_value);
+  TestSeeds(fun, context, 0x00000001, 0x00000001);
 }

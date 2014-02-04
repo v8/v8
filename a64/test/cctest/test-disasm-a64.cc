@@ -45,10 +45,11 @@ using namespace v8::internal;
 #define INSTR_SIZE (1024)
 #define SET_UP_CLASS(ASMCLASS)                                                 \
   InitializeVM();                                                              \
-  v8::HandleScope scope;                                                       \
+  Isolate* isolate = Isolate::Current();                                       \
+  HandleScope scope(isolate);                                                  \
   byte* buf = static_cast<byte*>(malloc(INSTR_SIZE));                          \
   uint32_t encoding = 0;                                                       \
-  ASMCLASS* assm = new ASMCLASS(Isolate::Current(), buf, INSTR_SIZE);          \
+  ASMCLASS* assm = new ASMCLASS(isolate, buf, INSTR_SIZE);                     \
   Decoder* decoder = new Decoder();                                            \
   Disassembler* disasm = new Disassembler();                                   \
   decoder->AppendVisitor(disasm)

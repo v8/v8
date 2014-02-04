@@ -53,10 +53,6 @@ V8_DECLARE_ONCE(init_once);
 List<CallCompletedCallback>* V8::call_completed_callbacks_ = NULL;
 v8::ArrayBuffer::Allocator* V8::array_buffer_allocator_ = NULL;
 
-static LazyMutex entropy_mutex = LAZY_MUTEX_INITIALIZER;
-
-static EntropySource entropy_source;
-
 
 bool V8::Initialize(Deserializer* des) {
   InitializeOncePerProcess();
@@ -107,41 +103,6 @@ void V8::TearDown() {
 }
 
 
-static void seed_random(uint32_t* state) {
-  for (int i = 0; i < 2; ++i) {
-    if (FLAG_random_seed != 0) {
-      state[i] = FLAG_random_seed;
-    } else if (entropy_source != NULL) {
-      uint32_t val;
-      LockGuard<Mutex> lock_guard(entropy_mutex.Pointer());
-      entropy_source(reinterpret_cast<unsigned char*>(&val), sizeof(uint32_t));
-      state[i] = val;
-    } else {
-      state[i] = random();
-    }
-  }
-}
-
-
-// Random number generator using George Marsaglia's MWC algorithm.
-static uint32_t random_base(uint32_t* state) {
-  // Initialize seed using the system random().
-  // No non-zero seed will ever become zero again.
-  if (state[0] == 0) seed_random(state);
-
-  // Mix the bits.  Never replaces state[i] with 0 if it is nonzero.
-  state[0] = 18273 * (state[0] & 0xFFFF) + (state[0] >> 16);
-  state[1] = 36969 * (state[1] & 0xFFFF) + (state[1] >> 16);
-
-  return (state[0] << 14) + (state[1] & 0x3FFFF);
-}
-
-
-void V8::SetEntropySource(EntropySource source) {
-  entropy_source = source;
-}
-
-
 void V8::SetReturnAddressLocationResolver(
       ReturnAddressLocationResolver resolver) {
   StackFrame::SetReturnAddressLocationResolver(resolver);
@@ -152,15 +113,18 @@ void V8::SetReturnAddressLocationResolver(
 uint32_t V8::Random(Context* context) {
   ASSERT(context->IsNativeContext());
   ByteArray* seed = context->random_seed();
-  return random_base(reinterpret_cast<uint32_t*>(seed->GetDataStartAddress()));
-}
+  uint32_t* state = reinterpret_cast<uint32_t*>(seed->GetDataStartAddress());
 
+  // When we get here, the RNG must have been initialized,
+  // see the Genesis constructor in file bootstrapper.cc.
+  ASSERT_NE(0, state[0]);
+  ASSERT_NE(0, state[1]);
 
-// Used internally by the JIT and memory allocator for security
-// purposes. So, we keep a different state to prevent informations
-// leaks that could be used in an exploit.
-uint32_t V8::RandomPrivate(Isolate* isolate) {
-  return random_base(isolate->private_random_seed());
+  // Mix the bits.  Never replaces state[i] with 0 if it is nonzero.
+  state[0] = 18273 * (state[0] & 0xFFFF) + (state[0] >> 16);
+  state[1] = 36969 * (state[1] & 0xFFFF) + (state[1] >> 16);
+
+  return (state[0] << 14) + (state[1] & 0x3FFFF);
 }
 
 
@@ -282,7 +246,6 @@ void V8::InitializeOncePerProcessImpl() {
     FLAG_concurrent_recompilation = false;
   }
 
-  OS::SetUp();
   Sampler::SetUp();
   CPU::SetUp();
   OS::PostSetUp();

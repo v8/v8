@@ -303,11 +303,11 @@ static FixedArrayBase* LeftTrimFixedArray(Heap* heap,
   } else {
     entry_size = kDoubleSize;
   }
-  ASSERT(elms->map() != HEAP->fixed_cow_array_map());
+  ASSERT(elms->map() != heap->fixed_cow_array_map());
   // For now this trick is only applied to fixed arrays in new and paged space.
   // In large object space the object's start must coincide with chunk
   // and thus the trick is just not applicable.
-  ASSERT(!HEAP->lo_space()->Contains(elms));
+  ASSERT(!heap->lo_space()->Contains(elms));
 
   STATIC_ASSERT(FixedArrayBase::kMapOffset == 0);
   STATIC_ASSERT(FixedArrayBase::kLengthOffset == kPointerSize);

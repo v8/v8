@@ -100,7 +100,7 @@ namespace internal {
   F(NeverOptimizeFunction, 1, 1) \
   F(GetOptimizationStatus, -1, 1) \
   F(GetOptimizationCount, 1, 1) \
-  F(CompileForOnStackReplacement, 1, 1) \
+  F(CompileForOnStackReplacement, 2, 1) \
   F(SetAllocationTimeout, 2, 1) \
   F(AllocateInNewSpace, 1, 1) \
   F(AllocateInOldPointerSpace, 1, 1) \
@@ -358,6 +358,7 @@ namespace internal {
   F(GetObservationState, 0, 1) \
   F(ObservationWeakMapCreate, 0, 1) \
   F(UnwrapGlobalProxy, 1, 1) \
+  F(IsAccessAllowedForObserver, 3, 1) \
   \
   /* Harmony typed arrays */ \
   F(ArrayBufferInitialize, 2, 1)\
@@ -469,7 +470,8 @@ namespace internal {
   F(HasExternalDoubleElements, 1, 1) \
   F(HasFastProperties, 1, 1) \
   F(TransitionElementsKind, 2, 1) \
-  F(HaveSameMap, 2, 1)
+  F(HaveSameMap, 2, 1) \
+  F(IsAccessCheckNeeded, 1, 1)
 
 
 #ifdef ENABLE_DEBUGGER_SUPPORT

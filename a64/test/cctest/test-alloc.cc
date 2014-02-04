@@ -90,7 +90,7 @@ static MaybeObject* AllocateAfterFailures() {
 
 
 static Handle<Object> Test() {
-  CALL_HEAP_FUNCTION(ISOLATE, AllocateAfterFailures(), Object);
+  CALL_HEAP_FUNCTION(Isolate::Current(), AllocateAfterFailures(), Object);
 }
 
 

@@ -136,7 +136,7 @@ Handle<Code> CodeStub::GetCode(Isolate* isolate) {
   if (UseSpecialCache()
       ? FindCodeInSpecialCache(&code, isolate)
       : FindCodeInCache(&code, isolate)) {
-    ASSERT(IsPregenerated() == code->is_pregenerated());
+    ASSERT(IsPregenerated(isolate) == code->is_pregenerated());
     return Handle<Code>(code);
   }
 
@@ -731,8 +731,9 @@ void StubFailureTrampolineStub::GenerateAheadOfTime(Isolate* isolate) {
 
 
 void ProfileEntryHookStub::EntryHookTrampoline(intptr_t function,
-                                               intptr_t stack_pointer) {
-  FunctionEntryHook entry_hook = Isolate::Current()->function_entry_hook();
+                                               intptr_t stack_pointer,
+                                               Isolate* isolate) {
+  FunctionEntryHook entry_hook = isolate->function_entry_hook();
   ASSERT(entry_hook != NULL);
   entry_hook(function, stack_pointer);
 }

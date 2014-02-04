@@ -668,6 +668,7 @@ class MessageImpl: public v8::Debug::Message {
   virtual v8::Handle<v8::String> GetJSON() const;
   virtual v8::Handle<v8::Context> GetEventContext() const;
   virtual v8::Debug::ClientData* GetClientData() const;
+  virtual v8::Isolate* GetIsolate() const;
 
  private:
   MessageImpl(bool is_event,

@@ -848,8 +848,9 @@ void Code::CodeIterateBody(ObjectVisitor* v) {
   IteratePointer(v, kTypeFeedbackInfoOffset);
 
   RelocIterator it(this, mode_mask);
+  Isolate* isolate = this->GetIsolate();
   for (; !it.done(); it.next()) {
-    it.rinfo()->Visit(v);
+    it.rinfo()->Visit(isolate, v);
   }
 }
 

@@ -1061,7 +1061,7 @@ Handle<HeapObject> RegExpMacroAssemblerA64::GetCode(Handle<String> source) {
   masm_->GetCode(&code_desc);
   Handle<Code> code = isolate()->factory()->NewCode(
       code_desc, Code::ComputeFlags(Code::REGEXP), masm_->CodeObject());
-  PROFILE(Isolate::Current(), RegExpCodeCreateEvent(*code, *source));
+  PROFILE(masm_->isolate(), RegExpCodeCreateEvent(*code, *source));
   return Handle<HeapObject>::cast(code);
 }
 
@@ -1314,7 +1314,6 @@ int RegExpMacroAssemblerA64::CheckStackGuardState(Address* return_address,
                                                   const byte** input_start,
                                                   const byte** input_end) {
   Isolate* isolate = frame_entry<Isolate*>(re_frame, kIsolate);
-  ASSERT(isolate == Isolate::Current());
   if (isolate->stack_guard()->IsStackOverflow()) {
     isolate->StackOverflow();
     return EXCEPTION;

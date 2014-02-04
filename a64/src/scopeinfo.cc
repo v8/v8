@@ -445,7 +445,8 @@ void ContextSlotCache::Update(Object* data,
                               int slot_index) {
   String* internalized_name;
   ASSERT(slot_index > kNotFound);
-  if (HEAP->InternalizeStringIfExists(name, &internalized_name)) {
+  if (name->GetIsolate()->heap()->InternalizeStringIfExists(
+          name, &internalized_name)) {
     int index = Hash(data, internalized_name);
     Key& key = keys_[index];
     key.data = data;
@@ -472,7 +473,8 @@ void ContextSlotCache::ValidateEntry(Object* data,
                                      InitializationFlag init_flag,
                                      int slot_index) {
   String* internalized_name;
-  if (HEAP->InternalizeStringIfExists(name, &internalized_name)) {
+  if (name->GetIsolate()->heap()->InternalizeStringIfExists(
+          name, &internalized_name)) {
     int index = Hash(data, name);
     Key& key = keys_[index];
     ASSERT(key.data == data);

@@ -3853,7 +3853,7 @@ void MacroAssembler::RecordWrite(Register object,
     // If we expected a pregenerated stub, ensure that we get one.
     // A failure at this assertion probably indicates that the
     // RecordWriteStub::kAheadOfTime list needs to be updated.
-    ASSERT(stub.IsPregenerated());
+    ASSERT(stub.IsPregenerated(isolate()));
   }
   CallStub(&stub);
   if (lr_status == kLRHasNotBeenSaved) {

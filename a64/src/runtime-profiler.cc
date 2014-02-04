@@ -139,7 +139,16 @@ void RuntimeProfiler::Optimize(JSFunction* function, const char* reason) {
     PrintF("]\n");
   }
 
+
   if (FLAG_concurrent_recompilation && !isolate_->bootstrapper()->IsActive()) {
+    if (FLAG_concurrent_osr &&
+        isolate_->optimizing_compiler_thread()->IsQueuedForOSR(function)) {
+      // Do not attempt regular recompilation if we already queued this for OSR.
+      // TODO(yangguo): This is necessary so that we don't install optimized
+      // code on a function that is already optimized, since OSR and regular
+      // recompilation race.  This goes away as soon as OSR becomes one-shot.
+      return;
+    }
     ASSERT(!function->IsMarkedForInstallingRecompiledCode());
     ASSERT(!function->IsInRecompileQueue());
     function->MarkForConcurrentRecompilation();
@@ -223,6 +232,8 @@ void RuntimeProfiler::OptimizeNow() {
     // output queue so that it does not unnecessarily keep objects alive.
     isolate_->optimizing_compiler_thread()->InstallOptimizedFunctions();
   }
+
+  DisallowHeapAllocation no_gc;
 
   // Run through the JavaScript frames and collect them. If we already
   // have a sample of the function, we mark it for optimizations

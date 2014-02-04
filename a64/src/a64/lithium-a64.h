@@ -1694,7 +1694,7 @@ class LLoadGlobalGeneric V8_FINAL : public LTemplateInstruction<1, 1, 0> {
 
 
 template<int T>
-class LLoadKeyed V8_FINAL : public LTemplateInstruction<1, 2, T> {
+class LLoadKeyed : public LTemplateInstruction<1, 2, T> {
  public:
   LLoadKeyed(LOperand* elements, LOperand* key) {
     this->inputs_[0] = elements;
@@ -1808,7 +1808,7 @@ class LMapEnumLength V8_FINAL : public LTemplateInstruction<1, 1, 0> {
 
 
 template<int T>
-class LUnaryMathOperation V8_FINAL : public LTemplateInstruction<1, 1, T> {
+class LUnaryMathOperation : public LTemplateInstruction<1, 1, T> {
  public:
   explicit LUnaryMathOperation(LOperand* value) {
     this->inputs_[0] = value;
@@ -2224,7 +2224,7 @@ class LStackCheck V8_FINAL : public LTemplateInstruction<0, 0, 0> {
 
 
 template<int T>
-class LStoreKeyed V8_FINAL : public LTemplateInstruction<0, 3, T> {
+class LStoreKeyed : public LTemplateInstruction<0, 3, T> {
  public:
   LStoreKeyed(LOperand* elements, LOperand* key, LOperand* value) {
     this->inputs_[0] = elements;

@@ -2165,7 +2165,8 @@ bool CEntryStub::NeedsImmovableCode() {
 }
 
 
-bool CEntryStub::IsPregenerated() {
+bool CEntryStub::IsPregenerated(Isolate* isolate) {
+  USE(isolate);
   return result_size_ == 1;
 }
 
@@ -5994,7 +5995,8 @@ bool CodeStub::CanUseFPRegisters() {
 }
 
 
-bool RecordWriteStub::IsPregenerated() {
+bool RecordWriteStub::IsPregenerated(Isolate* isolate) {
+  USE(isolate);
   // If the stub exists in the kAheadOfTime list, it is pregenerated.
   for (const int* entry = kAheadOfTime; *entry != 0; entry++) {
     if (*entry == MinorKeyFor(object_, value_, address_,
@@ -6307,6 +6309,8 @@ void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
   __ Mov(x10, Operand(ExternalReference(&dispatcher,
                                         ExternalReference::BUILTIN_CALL,
                                         masm->isolate())));
+  // It additionally takes an isolate as a third parameter
+  __ Mov(x2, Operand(ExternalReference::isolate_address(masm->isolate())));
 #endif
 
   // The caller's return address is above the saved temporaries.

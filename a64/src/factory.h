@@ -639,6 +639,24 @@ class IdempotentPointerToHandleCodeTrampoline {
         : reinterpret_cast<MaybeObject*>(Failure::RetryAfterGC());
   }
 
+  template<typename R, typename P1, typename P2, typename P3, typename P4,
+           typename P5, typename P6, typename P7>
+  MUST_USE_RESULT MaybeObject* CallWithReturnValue(
+      R (*function)(P1, P2, P3, P4, P5, P6, P7),
+      P1 p1,
+      P2 p2,
+      P3 p3,
+      P4 p4,
+      P5 p5,
+      P6 p6,
+      P7 p7) {
+    int collections = isolate_->heap()->gc_count();
+    Handle<Object> result = (*function)(p1, p2, p3, p4, p5, p6, p7);
+    return (collections == isolate_->heap()->gc_count())
+        ? *result
+        : reinterpret_cast<MaybeObject*>(Failure::RetryAfterGC());
+  }
+
  private:
   Isolate* isolate_;
 };

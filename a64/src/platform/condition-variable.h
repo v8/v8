@@ -105,10 +105,10 @@ class ConditionVariable V8_FINAL {
   };
 #endif
 
-  NativeHandle& native_handle() V8_WARN_UNUSED_RESULT {
+  NativeHandle& native_handle() {
     return native_handle_;
   }
-  const NativeHandle& native_handle() const V8_WARN_UNUSED_RESULT {
+  const NativeHandle& native_handle() const {
     return native_handle_;
   }
 

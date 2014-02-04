@@ -1307,7 +1307,7 @@ void StartupSerializer::SerializeStrongReferences() {
   // We don't support serializing installed extensions.
   CHECK(!isolate->has_installed_extensions());
 
-  HEAP->IterateStrongRoots(this, VISIT_ONLY_STRONG);
+  isolate->heap()->IterateStrongRoots(this, VISIT_ONLY_STRONG);
 }
 
 
@@ -1485,7 +1485,7 @@ void StartupSerializer::SerializeWeakReferences() {
   // uses to know it is done deserializing the array.
   Object* undefined = isolate()->heap()->undefined_value();
   VisitPointer(&undefined);
-  HEAP->IterateWeakRoots(this, VISIT_ALL);
+  isolate()->heap()->IterateWeakRoots(this, VISIT_ALL);
   Pad();
 }
 
@@ -1498,7 +1498,7 @@ void Serializer::PutRoot(int root_index,
   if (how_to_code == kPlain &&
       where_to_point == kStartOfObject &&
       root_index < kRootArrayNumberOfConstantEncodings &&
-      !HEAP->InNewSpace(object)) {
+      !isolate()->heap()->InNewSpace(object)) {
     if (skip == 0) {
       sink_->Put(kRootArrayConstants + kNoSkipDistance + root_index,
                  "RootConstant");
@@ -1631,7 +1631,7 @@ void Serializer::ObjectSerializer::VisitPointers(Object** start,
           root_index != kInvalidRootIndex &&
           root_index < kRootArrayNumberOfConstantEncodings &&
           current_contents == current[-1]) {
-        ASSERT(!HEAP->InNewSpace(current_contents));
+        ASSERT(!serializer_->isolate()->heap()->InNewSpace(current_contents));
         int repeat_count = 1;
         while (current < end - 1 && current[repeat_count] == current_contents) {
           repeat_count++;
@@ -1748,7 +1748,8 @@ void Serializer::ObjectSerializer::VisitExternalAsciiString(
   Address references_start = reinterpret_cast<Address>(resource_pointer);
   OutputRawData(references_start);
   for (int i = 0; i < Natives::GetBuiltinsCount(); i++) {
-    Object* source = HEAP->natives_source_cache()->get(i);
+    Object* source =
+        serializer_->isolate()->heap()->natives_source_cache()->get(i);
     if (!source->IsUndefined()) {
       ExternalAsciiString* string = ExternalAsciiString::cast(source);
       typedef v8::String::ExternalAsciiStringResource Resource;
@@ -1817,7 +1818,7 @@ int Serializer::ObjectSerializer::OutputRawData(
 int Serializer::SpaceOfObject(HeapObject* object) {
   for (int i = FIRST_SPACE; i <= LAST_SPACE; i++) {
     AllocationSpace s = static_cast<AllocationSpace>(i);
-    if (HEAP->InSpace(object, s)) {
+    if (object->GetHeap()->InSpace(object, s)) {
       ASSERT(i < kNumberOfSpaces);
       return i;
     }

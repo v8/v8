@@ -3422,7 +3422,7 @@ TEST(DeferredHandles) {
   CcTest::InitializeVM();
   Isolate* isolate = Isolate::Current();
   Heap* heap = isolate->heap();
-  v8::HandleScope scope;
+  v8::HandleScope scope(reinterpret_cast<v8::Isolate*>(isolate));
   v8::ImplementationUtilities::HandleScopeData* data =
       isolate->handle_scope_data();
   Handle<Object> init(heap->empty_string(), isolate);

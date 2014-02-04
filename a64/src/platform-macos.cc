@@ -173,7 +173,7 @@ PosixMemoryMappedFile::~PosixMemoryMappedFile() {
 }
 
 
-void OS::LogSharedLibraryAddresses() {
+void OS::LogSharedLibraryAddresses(Isolate* isolate) {
   unsigned int images_count = _dyld_image_count();
   for (unsigned int i = 0; i < images_count; ++i) {
     const mach_header* header = _dyld_get_image_header(i);
@@ -192,7 +192,7 @@ void OS::LogSharedLibraryAddresses() {
     if (code_ptr == NULL) continue;
     const uintptr_t slide = _dyld_get_image_vmaddr_slide(i);
     const uintptr_t start = reinterpret_cast<uintptr_t>(code_ptr) + slide;
-    LOG(Isolate::Current(),
+    LOG(isolate,
         SharedLibraryEvent(_dyld_get_image_name(i), start, start + size));
   }
 }
@@ -359,13 +359,5 @@ bool VirtualMemory::ReleaseRegion(void* address, size_t size) {
 bool VirtualMemory::HasLazyCommits() {
   return false;
 }
-
-
-void OS::SetUp() {
-  // Seed the random number generator. We preserve microsecond resolution.
-  uint64_t seed = static_cast<uint64_t>(TimeCurrentMillis()) ^ (getpid() << 16);
-  srandom(static_cast<unsigned int>(seed));
-}
-
 
 } }  // namespace v8::internal

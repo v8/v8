@@ -1721,9 +1721,21 @@ void Assembler::fadd(int i) {
 }
 
 
+void Assembler::fadd_i(int i) {
+  EnsureSpace ensure_space(this);
+  emit_farith(0xD8, 0xC0, i);
+}
+
+
 void Assembler::fsub(int i) {
   EnsureSpace ensure_space(this);
   emit_farith(0xDC, 0xE8, i);
+}
+
+
+void Assembler::fsub_i(int i) {
+  EnsureSpace ensure_space(this);
+  emit_farith(0xD8, 0xE0, i);
 }
 
 
@@ -1749,6 +1761,12 @@ void Assembler::fmul(int i) {
 void Assembler::fdiv(int i) {
   EnsureSpace ensure_space(this);
   emit_farith(0xDC, 0xF8, i);
+}
+
+
+void Assembler::fdiv_i(int i) {
+  EnsureSpace ensure_space(this);
+  emit_farith(0xD8, 0xF0, i);
 }
 
 

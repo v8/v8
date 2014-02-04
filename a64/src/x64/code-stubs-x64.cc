@@ -1136,6 +1136,7 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
   const bool tagged = (argument_type_ == TAGGED);
   if (tagged) {
     Label input_not_smi, loaded;
+
     // Test that rax is a number.
     StackArgumentsAccessor args(rsp, 1, ARGUMENTS_DONT_CONTAIN_RECEIVER);
     __ movq(rax, args.GetArgumentOperand(0));
@@ -1199,7 +1200,7 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
       ExternalReference::transcendental_cache_array_address(masm->isolate());
   __ movq(rax, cache_array);
   int cache_array_index =
-      type_ * sizeof(Isolate::Current()->transcendental_cache()->caches_[0]);
+      type_ * sizeof(masm->isolate()->transcendental_cache()->caches_[0]);
   __ movq(rax, Operand(rax, cache_array_index));
   // rax points to the cache for the type type_.
   // If NULL, the cache hasn't been initialized yet, so go through runtime.
@@ -1446,10 +1447,8 @@ void FloatingPointHelper::LoadAsIntegers(MacroAssembler* masm,
   __ bind(&arg1_is_object);
   __ cmpq(FieldOperand(rdx, HeapObject::kMapOffset), heap_number_map);
   __ j(not_equal, &check_undefined_arg1);
-  // Get the untagged integer version of the rdx heap number in rcx.
-  DoubleToIStub stub1(rdx, r8, HeapNumber::kValueOffset - kHeapObjectTag,
-                      true);
-  __ call(stub1.GetCode(masm->isolate()), RelocInfo::CODE_TARGET);
+  // Get the untagged integer version of the rdx heap number in r8.
+  __ TruncateHeapNumberToI(r8, rdx);
 
   // Here r8 has the untagged integer, rax has a Smi or a heap number.
   __ bind(&load_arg2);
@@ -1469,9 +1468,7 @@ void FloatingPointHelper::LoadAsIntegers(MacroAssembler* masm,
   __ cmpq(FieldOperand(rax, HeapObject::kMapOffset), heap_number_map);
   __ j(not_equal, &check_undefined_arg2);
   // Get the untagged integer version of the rax heap number in rcx.
-  DoubleToIStub stub2(rax, rcx, HeapNumber::kValueOffset - kHeapObjectTag,
-                      true);
-  __ call(stub2.GetCode(masm->isolate()), RelocInfo::CODE_TARGET);
+  __ TruncateHeapNumberToI(rcx, rax);
 
   __ bind(&done);
   __ movl(rax, r8);
@@ -1648,16 +1645,17 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   }
 
   if (exponent_type_ != INTEGER) {
-    Label fast_power;
+    Label fast_power, try_arithmetic_simplification;
     // Detect integer exponents stored as double.
+    __ DoubleToI(exponent, double_exponent, double_scratch,
+                 TREAT_MINUS_ZERO_AS_ZERO, &try_arithmetic_simplification);
+    __ jmp(&int_exponent);
+
+    __ bind(&try_arithmetic_simplification);
     __ cvttsd2si(exponent, double_exponent);
     // Skip to runtime if possibly NaN (indicated by the indefinite integer).
     __ cmpl(exponent, Immediate(0x80000000u));
     __ j(equal, &call_runtime);
-    __ cvtlsi2sd(double_scratch, exponent);
-    // Already ruled out NaNs for exponent.
-    __ ucomisd(double_exponent, double_scratch);
-    __ j(equal, &int_exponent);
 
     if (exponent_type_ == ON_STACK) {
       // Detect square root case.  Crankshaft detects constant +/-0.5 at
@@ -3492,7 +3490,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   __ SetCallKind(rcx, CALL_AS_METHOD);
   __ GetBuiltinEntry(rdx, Builtins::CALL_NON_FUNCTION);
   Handle<Code> adaptor =
-      Isolate::Current()->builtins()->ArgumentsAdaptorTrampoline();
+      isolate->builtins()->ArgumentsAdaptorTrampoline();
   __ Jump(adaptor, RelocInfo::CODE_TARGET);
 }
 
@@ -3547,7 +3545,7 @@ bool CEntryStub::NeedsImmovableCode() {
 }
 
 
-bool CEntryStub::IsPregenerated() {
+bool CEntryStub::IsPregenerated(Isolate* isolate) {
 #ifdef _WIN64
   return result_size_ == 1;
 #else
@@ -5901,8 +5899,6 @@ struct AheadOfTimeWriteBarrierStubList kAheadOfTime[] = {
   { REG(rbx), REG(rax), REG(rdi), EMIT_REMEMBERED_SET },
   // Used in CompileArrayPushCall.
   { REG(rbx), REG(rcx), REG(rdx), EMIT_REMEMBERED_SET },
-  // Used in CompileStoreGlobal.
-  { REG(rbx), REG(rcx), REG(rdx), OMIT_REMEMBERED_SET },
   // Used in StoreStubCompiler::CompileStoreField and
   // KeyedStoreStubCompiler::CompileStoreField via GenerateStoreField.
   { REG(rdx), REG(rcx), REG(rbx), EMIT_REMEMBERED_SET },
@@ -5939,7 +5935,7 @@ struct AheadOfTimeWriteBarrierStubList kAheadOfTime[] = {
 
 #undef REG
 
-bool RecordWriteStub::IsPregenerated() {
+bool RecordWriteStub::IsPregenerated(Isolate* isolate) {
   for (AheadOfTimeWriteBarrierStubList* entry = kAheadOfTime;
        !entry->object.is(no_reg);
        entry++) {

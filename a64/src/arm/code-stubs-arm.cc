@@ -622,7 +622,7 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
 }
 
 
-bool WriteInt32ToHeapNumberStub::IsPregenerated() {
+bool WriteInt32ToHeapNumberStub::IsPregenerated(Isolate* isolate) {
   // These variants are compiled ahead of time.  See next method.
   if (the_int_.is(r1) && the_heap_number_.is(r0) && scratch_.is(r2)) {
     return true;
@@ -2694,8 +2694,8 @@ bool CEntryStub::NeedsImmovableCode() {
 }
 
 
-bool CEntryStub::IsPregenerated() {
-  return (!save_doubles_ || ISOLATE->fp_stubs_generated()) &&
+bool CEntryStub::IsPregenerated(Isolate* isolate) {
+  return (!save_doubles_ || isolate->fp_stubs_generated()) &&
           result_size_ == 1;
 }
 
@@ -6143,6 +6143,11 @@ void ICCompareStub::GenerateMiss(MacroAssembler* masm) {
 
 
 void DirectCEntryStub::Generate(MacroAssembler* masm) {
+  // Place the return address on the stack, making the call
+  // GC safe. The RegExp backend also relies on this.
+  __ str(lr, MemOperand(sp, 0));
+  __ blx(ip);  // Call the C++ function.
+  __ VFPEnsureFPSCRState(r2);
   __ ldr(pc, MemOperand(sp, 0));
 }
 
@@ -6151,21 +6156,9 @@ void DirectCEntryStub::GenerateCall(MacroAssembler* masm,
                                     Register target) {
   intptr_t code =
       reinterpret_cast<intptr_t>(GetCode(masm->isolate()).location());
+  __ Move(ip, target);
   __ mov(lr, Operand(code, RelocInfo::CODE_TARGET));
-
-  // Prevent literal pool emission during calculation of return address.
-  Assembler::BlockConstPoolScope block_const_pool(masm);
-
-  // Push return address (accessible to GC through exit frame pc).
-  // Note that using pc with str is deprecated.
-  Label start;
-  __ bind(&start);
-  __ add(ip, pc, Operand(Assembler::kInstrSize));
-  __ str(ip, MemOperand(sp, 0));
-  __ Jump(target);  // Call the C++ function.
-  ASSERT_EQ(Assembler::kInstrSize + Assembler::kPcLoadDelta,
-            masm->SizeOfCodeGeneratedSince(&start));
-  __ VFPEnsureFPSCRState(r2);
+  __ blx(lr);  // Call the stub.
 }
 
 
@@ -6431,8 +6424,6 @@ static const AheadOfTimeWriteBarrierStubList kAheadOfTime[] = {
   // Also used in StoreIC::GenerateNormal via GenerateDictionaryStore.
   // Also used in KeyedStoreIC::GenerateGeneric.
   { REG(r3), REG(r4), REG(r5), EMIT_REMEMBERED_SET },
-  // Used in CompileStoreGlobal.
-  { REG(r4), REG(r1), REG(r2), OMIT_REMEMBERED_SET },
   // Used in StoreStubCompiler::CompileStoreField via GenerateStoreField.
   { REG(r1), REG(r2), REG(r3), EMIT_REMEMBERED_SET },
   { REG(r3), REG(r2), REG(r1), EMIT_REMEMBERED_SET },
@@ -6464,7 +6455,7 @@ static const AheadOfTimeWriteBarrierStubList kAheadOfTime[] = {
 #undef REG
 
 
-bool RecordWriteStub::IsPregenerated() {
+bool RecordWriteStub::IsPregenerated(Isolate* isolate) {
   for (const AheadOfTimeWriteBarrierStubList* entry = kAheadOfTime;
        !entry->object.is(no_reg);
        entry++) {
@@ -6843,6 +6834,9 @@ void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
 #else
   // Under the simulator we need to indirect the entry hook through a
   // trampoline function at a known address.
+  // It additionally takes an isolate as a third parameter
+  __ mov(r2, Operand(ExternalReference::isolate_address(masm->isolate())));
+
   ApiFunction dispatcher(FUNCTION_ADDR(EntryHookTrampoline));
   __ mov(ip, Operand(ExternalReference(&dispatcher,
                                        ExternalReference::BUILTIN_CALL,

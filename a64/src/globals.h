@@ -356,9 +356,9 @@ F FUNCTION_CAST(Address addr) {
   DISALLOW_COPY_AND_ASSIGN(TypeName)
 
 
-// Newly written code should use V8_INLINE() and V8_NOINLINE() directly.
-#define INLINE(declarator)    V8_INLINE(declarator)
-#define NO_INLINE(declarator) V8_NOINLINE(declarator)
+// Newly written code should use V8_INLINE and V8_NOINLINE directly.
+#define INLINE(declarator)    V8_INLINE declarator
+#define NO_INLINE(declarator) V8_NOINLINE declarator
 
 
 // Newly written code should use V8_WARN_UNUSED_RESULT.
@@ -404,18 +404,6 @@ enum LanguageMode {
   CLASSIC_MODE,
   STRICT_MODE,
   EXTENDED_MODE
-};
-
-
-// A simple Maybe type, that can be passed by value.
-template<class T>
-struct Maybe {
-  Maybe() : has_value(false) {}
-  explicit Maybe(T t) : has_value(true), value(t) {}
-  Maybe(bool has, T t) : has_value(has), value(t) {}
-
-  bool has_value;
-  T value;
 };
 
 

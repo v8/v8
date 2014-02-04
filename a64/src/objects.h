@@ -2203,7 +2203,8 @@ class JSObject: public JSReceiver {
       Handle<Object> value,
       PropertyAttributes attributes,
       ValueType value_type = OPTIMAL_REPRESENTATION,
-      StoreMode mode = ALLOW_AS_CONSTANT);
+      StoreMode mode = ALLOW_AS_CONSTANT,
+      ExtensibilityCheck extensibility_check = PERFORM_EXTENSIBILITY_CHECK);
 
   static inline Handle<String> ExpectedTransitionKey(Handle<Map> map);
   static inline Handle<Map> ExpectedTransitionTarget(Handle<Map> map);
@@ -2228,6 +2229,13 @@ class JSObject: public JSReceiver {
 
   // Can cause GC.
   MUST_USE_RESULT MaybeObject* SetLocalPropertyIgnoreAttributes(
+      Name* key,
+      Object* value,
+      PropertyAttributes attributes,
+      ValueType value_type = OPTIMAL_REPRESENTATION,
+      StoreMode mode = ALLOW_AS_CONSTANT,
+      ExtensibilityCheck extensibility_check = PERFORM_EXTENSIBILITY_CHECK);
+  MUST_USE_RESULT MaybeObject* SetLocalPropertyIgnoreAttributesTrampoline(
       Name* key,
       Object* value,
       PropertyAttributes attributes,
@@ -3505,6 +3513,9 @@ class HashTable: public FixedArray {
   inline int FindEntry(Key key);
   int FindEntry(Isolate* isolate, Key key);
 
+  // Rehashes the table in-place.
+  void Rehash(Key key);
+
  protected:
   // Find the entry at which to insert element with the given key that
   // has the given hash value.
@@ -3550,6 +3561,13 @@ class HashTable: public FixedArray {
       uint32_t last, uint32_t number, uint32_t size) {
     return (last + number) & (size - 1);
   }
+
+  // Returns _expected_ if one of entries given by the first _probe_ probes is
+  // equal to  _expected_. Otherwise, returns the entry given by the probe
+  // number _probe_.
+  uint32_t EntryForProbe(Key key, Object* k, int probe, uint32_t expected);
+
+  void Swap(uint32_t entry1, uint32_t entry2, WriteBarrierMode mode);
 
   // Rehashes this hash-table into the new table.
   MUST_USE_RESULT MaybeObject* Rehash(HashTable* new_table, Key key);
@@ -4667,7 +4685,8 @@ class DeoptimizationInputData: public FixedArray {
   }
 
   // Allocates a DeoptimizationInputData.
-  MUST_USE_RESULT static MaybeObject* Allocate(int deopt_entry_count,
+  MUST_USE_RESULT static MaybeObject* Allocate(Isolate* isolate,
+                                               int deopt_entry_count,
                                                PretenureFlag pretenure);
 
   // Casting.
@@ -4713,7 +4732,8 @@ class DeoptimizationOutputData: public FixedArray {
   }
 
   // Allocates a DeoptimizationOutputData.
-  MUST_USE_RESULT static MaybeObject* Allocate(int number_of_deopt_points,
+  MUST_USE_RESULT static MaybeObject* Allocate(Isolate* isolate,
+                                               int number_of_deopt_points,
                                                PretenureFlag pretenure);
 
   // Casting.

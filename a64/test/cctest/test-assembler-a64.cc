@@ -107,9 +107,9 @@ static void InitializeVM() {
 #define SETUP() SETUP_SIZE(BUF_SIZE)
 
 #define INIT_V8()                                                              \
-  v8::HandleScope handle_scope;                                                \
   CcTest::InitializeVM();                                                      \
   Isolate* isolate = Isolate::Current();                                       \
+  HandleScope scope(isolate);                                                  \
   ASSERT(isolate != NULL);
 
 #ifdef USE_SIMULATOR

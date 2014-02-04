@@ -250,6 +250,6 @@ KNOWN_OBJECTS = {
   ("OLD_DATA_SPACE", 0x082c9): "EmptyExternalPixelArray",
   ("OLD_DATA_SPACE", 0x082d5): "InfinityValue",
   ("OLD_DATA_SPACE", 0x082e1): "MinusZeroValue",
-  ("CODE_SPACE", 0x11ce1): "JsConstructEntryCode",
-  ("CODE_SPACE", 0x193e1): "JsEntryCode",
+  ("CODE_SPACE", 0x11141): "JsConstructEntryCode",
+  ("CODE_SPACE", 0x18da1): "JsEntryCode",
 }

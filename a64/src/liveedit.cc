@@ -1233,7 +1233,9 @@ static bool IsInlined(JSFunction* function, SharedFunctionInfo* candidate) {
   DeoptimizationInputData* data =
       DeoptimizationInputData::cast(function->code()->deoptimization_data());
 
-  if (data == HEAP->empty_fixed_array()) return false;
+  if (data == function->GetIsolate()->heap()->empty_fixed_array()) {
+    return false;
+  }
 
   FixedArray* literals = data->LiteralArray();
 
@@ -1549,7 +1551,7 @@ MaybeObject* LiveEdit::PatchFunctionPositions(
   info->set_end_position(new_function_end);
   info->set_function_token_position(new_function_token_pos);
 
-  HEAP->EnsureHeapIsIterable();
+  info->GetIsolate()->heap()->EnsureHeapIsIterable();
 
   if (IsJSFunctionCode(info->code())) {
     // Patch relocation info section of the code.
@@ -1565,7 +1567,7 @@ MaybeObject* LiveEdit::PatchFunctionPositions(
     }
   }
 
-  return HEAP->undefined_value();
+  return info->GetIsolate()->heap()->undefined_value();
 }
 
 
@@ -1611,7 +1613,7 @@ Object* LiveEdit::ChangeScriptSource(Handle<Script> original_script,
   original_script->set_source(*new_source);
 
   // Drop line ends so that they will be recalculated.
-  original_script->set_line_ends(HEAP->undefined_value());
+  original_script->set_line_ends(isolate->heap()->undefined_value());
 
   return *old_script_object;
 }

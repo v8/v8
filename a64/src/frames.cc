@@ -489,7 +489,7 @@ Address StackFrame::UnpaddedFP() const {
 
 
 Code* EntryFrame::unchecked_code() const {
-  return HEAP->js_entry_code();
+  return isolate()->heap()->js_entry_code();
 }
 
 
@@ -512,7 +512,7 @@ StackFrame::Type EntryFrame::GetCallerState(State* state) const {
 
 
 Code* EntryConstructFrame::unchecked_code() const {
-  return HEAP->js_construct_entry_code();
+  return isolate()->heap()->js_construct_entry_code();
 }
 
 

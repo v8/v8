@@ -307,7 +307,7 @@ class MemoryChunk {
   }
 
   // Only works for addresses in pointer spaces, not data or code spaces.
-  static inline MemoryChunk* FromAnyPointerAddress(Address addr);
+  static inline MemoryChunk* FromAnyPointerAddress(Heap* heap, Address addr);
 
   Address address() { return reinterpret_cast<Address>(this); }
 
@@ -1085,7 +1085,7 @@ class MemoryAllocator {
 
   // Returns an indication of whether a pointer is in a space that has
   // been allocated by this MemoryAllocator.
-  V8_INLINE(bool IsOutsideAllocatedSpace(const void* address)) const {
+  V8_INLINE bool IsOutsideAllocatedSpace(const void* address) const {
     return address < lowest_ever_allocated_ ||
         address >= highest_ever_allocated_;
   }

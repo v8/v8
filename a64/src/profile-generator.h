@@ -41,7 +41,7 @@ struct OffsetRange;
 // forever, even if they disappear from JS heap or external storage.
 class StringsStorage {
  public:
-  StringsStorage();
+  explicit StringsStorage(Heap* heap);
   ~StringsStorage();
 
   const char* GetCopy(const char* src);
@@ -63,6 +63,7 @@ class StringsStorage {
   const char* AddOrDisposeString(char* str, uint32_t hash);
 
   // Mapping of strings by String::Hash to const char* strings.
+  uint32_t hash_seed_;
   HashMap names_;
 
   DISALLOW_COPY_AND_ASSIGN(StringsStorage);
@@ -277,7 +278,7 @@ class CodeMap {
 
 class CpuProfilesCollection {
  public:
-  CpuProfilesCollection();
+  explicit CpuProfilesCollection(Heap* heap);
   ~CpuProfilesCollection();
 
   bool StartProfiling(const char* title, unsigned uid, bool record_samples);

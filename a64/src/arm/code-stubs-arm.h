@@ -68,7 +68,7 @@ class StoreBufferOverflowStub: public PlatformCodeStub {
 
   void Generate(MacroAssembler* masm);
 
-  virtual bool IsPregenerated() { return true; }
+  virtual bool IsPregenerated(Isolate* isolate) V8_OVERRIDE { return true; }
   static void GenerateFixedRegStubsAheadOfTime(Isolate* isolate);
   virtual bool SometimesSetsUpAFrame() { return false; }
 
@@ -232,7 +232,7 @@ class WriteInt32ToHeapNumberStub : public PlatformCodeStub {
         the_heap_number_(the_heap_number),
         scratch_(scratch) { }
 
-  bool IsPregenerated();
+  virtual bool IsPregenerated(Isolate* isolate) V8_OVERRIDE;
   static void GenerateFixedRegStubsAheadOfTime(Isolate* isolate);
 
  private:
@@ -305,7 +305,7 @@ class RecordWriteStub: public PlatformCodeStub {
     INCREMENTAL_COMPACTION
   };
 
-  virtual bool IsPregenerated();
+  virtual bool IsPregenerated(Isolate* isolate) V8_OVERRIDE;
   static void GenerateFixedRegStubsAheadOfTime(Isolate* isolate);
   virtual bool SometimesSetsUpAFrame() { return false; }
 
@@ -462,23 +462,6 @@ class RecordWriteStub: public PlatformCodeStub {
   SaveFPRegsMode save_fp_regs_mode_;
   Label slow_;
   RegisterAllocation regs_;
-};
-
-
-// Enter C code from generated RegExp code in a way that allows
-// the C code to fix the return address in case of a GC.
-// Currently only needed on ARM.
-class RegExpCEntryStub: public PlatformCodeStub {
- public:
-  RegExpCEntryStub() {}
-  virtual ~RegExpCEntryStub() {}
-  void Generate(MacroAssembler* masm);
-
- private:
-  Major MajorKey() { return RegExpCEntry; }
-  int MinorKey() { return 0; }
-
-  bool NeedsImmovableCode() { return true; }
 };
 
 

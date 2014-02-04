@@ -734,7 +734,7 @@ Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
     }
     script->set_is_shared_cross_origin(is_shared_cross_origin);
 
-    script->set_data(script_data.is_null() ? HEAP->undefined_value()
+    script->set_data(script_data.is_null() ? isolate->heap()->undefined_value()
                                            : *script_data);
 
     // Compile the function and add it to the cache.
@@ -751,8 +751,8 @@ Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
       compilation_cache->PutScript(source, context, result);
     }
   } else {
-    if (result->ic_age() != HEAP->global_ic_age()) {
-      result->ResetForNewContext(HEAP->global_ic_age());
+    if (result->ic_age() != isolate->heap()->global_ic_age()) {
+      result->ResetForNewContext(isolate->heap()->global_ic_age());
     }
   }
 
@@ -814,8 +814,8 @@ Handle<SharedFunctionInfo> Compiler::CompileEval(Handle<String> source,
       }
     }
   } else {
-    if (result->ic_age() != HEAP->global_ic_age()) {
-      result->ResetForNewContext(HEAP->global_ic_age());
+    if (result->ic_age() != isolate->heap()->global_ic_age()) {
+      result->ResetForNewContext(isolate->heap()->global_ic_age());
     }
   }
 
@@ -1063,7 +1063,8 @@ bool Compiler::RecompileConcurrent(Handle<JSFunction> closure,
 }
 
 
-bool Compiler::InstallOptimizedCode(OptimizingCompiler* optimizing_compiler) {
+Handle<Code> Compiler::InstallOptimizedCode(
+    OptimizingCompiler* optimizing_compiler) {
   SmartPointer<CompilationInfo> info(optimizing_compiler->info());
   // The function may have already been optimized by OSR.  Simply continue.
   // Except when OSR already disabled optimization for some reason.
@@ -1076,7 +1077,7 @@ bool Compiler::InstallOptimizedCode(OptimizingCompiler* optimizing_compiler) {
       PrintF(" as it has been disabled.\n");
     }
     ASSERT(!info->closure()->IsMarkedForInstallingRecompiledCode());
-    return false;
+    return Handle<Code>::null();
   }
 
   Isolate* isolate = info->isolate();
@@ -1123,168 +1124,8 @@ bool Compiler::InstallOptimizedCode(OptimizingCompiler* optimizing_compiler) {
   // profiler ticks to prevent too soon re-opt after a deopt.
   info->shared_info()->code()->set_profiler_ticks(0);
   ASSERT(!info->closure()->IsMarkedForInstallingRecompiledCode());
-  return status == OptimizingCompiler::SUCCEEDED;
-}
-
-
-static uint32_t CurrentPcOffset(Isolate* isolate,
-                                Handle<JSFunction> function,
-                                Handle<Code> unoptimized) {
-  JavaScriptFrameIterator it(isolate);
-  JavaScriptFrame* frame = it.frame();
-  ASSERT(frame->function() == *function);
-  ASSERT(frame->LookupCode() == *unoptimized);
-  ASSERT(unoptimized->contains(frame->pc()));
-
-  // Use linear search of the unoptimized code's back edge table to find
-  // the AST id matching the PC.
-  return static_cast<uint32_t>(frame->pc() - unoptimized->instruction_start());
-}
-
-
-static bool IsSuitableForOnStackReplacement(Isolate* isolate,
-                                            Handle<JSFunction> function,
-                                            Handle<Code> unoptimized) {
-  // Keep track of whether we've succeeded in optimizing.
-  if (!unoptimized->optimizable()) return false;
-  // If we are trying to do OSR when there are already optimized
-  // activations of the function, it means (a) the function is directly or
-  // indirectly recursive and (b) an optimized invocation has been
-  // deoptimized so that we are currently in an unoptimized activation.
-  // Check for optimized activations of this function.
-  for (JavaScriptFrameIterator it(isolate); !it.done(); it.Advance()) {
-    JavaScriptFrame* frame = it.frame();
-    if (frame->is_optimized() && frame->function() == *function) return false;
-  }
-
-  return true;
-}
-
-
-Handle<Code> Compiler::CompileForOnStackReplacement(
-      Handle<JSFunction> function) {
-  Isolate* isolate = function->GetIsolate();
-  Handle<Code> unoptimized(function->shared()->code(), isolate);
-
-  Deoptimizer::RevertInterruptCode(isolate, *unoptimized);
-  if (FLAG_trace_osr) {
-    PrintF("[OSR - restored original interrupt calls in ");
-    function->PrintName();
-    PrintF("]\n");
-  }
-
-  if (IsSuitableForOnStackReplacement(isolate, function, unoptimized)) {
-    // Find the PC offset in unoptimized code and translate to an AST id.
-    uint32_t pc_offset = CurrentPcOffset(isolate, function, unoptimized);
-    BailoutId ast_id = unoptimized->TranslatePcOffsetToAstId(pc_offset);
-    ASSERT(!ast_id.IsNone());
-    if (FLAG_trace_osr) {
-      PrintF("[OSR - replacing at AST id %d in ", ast_id.ToInt());
-      function->PrintName();
-      PrintF("]\n");
-    }
-
-    // Attempt OSR compilation.
-    Handle<Code> result = JSFunction::CompileOsr(
-        function, ast_id, CLEAR_EXCEPTION);
-
-    if (!result.is_null() && result->kind() == Code::OPTIMIZED_FUNCTION) {
-      // OSR compilation succeeded.
-      DeoptimizationInputData* data =
-          DeoptimizationInputData::cast(result->deoptimization_data());
-      if (FLAG_trace_osr) {
-        PrintF("[OSR - entry, offset %d in optimized code]\n",
-            data->OsrPcOffset()->value());
-      }
-      ASSERT(BailoutId(data->OsrAstId()->value()) == ast_id);
-      return result;
-    }
-  }
-
-  if (FLAG_trace_osr) {
-    PrintF("[OSR - attempt failed for ");
-    function->PrintName();
-    PrintF("]\n");
-  }
-  return Handle<Code>::null();
-}
-
-
-Handle<Code> Compiler::CompileForConcurrentOSR(Handle<JSFunction> function) {
-  Isolate* isolate = function->GetIsolate();
-  Handle<Code> unoptimized(function->shared()->code(), isolate);
-
-  uint32_t pc_offset = CurrentPcOffset(isolate, function, unoptimized);
-
-  if (isolate->optimizing_compiler_thread()->
-          IsQueuedForOSR(function, pc_offset)) {
-    // Still waiting for the optimizing compiler thread to finish.  Carry on.
-    if (FLAG_trace_osr) {
-      PrintF("[COSR - polling recompile tasks for ");
-      function->PrintName();
-      PrintF("]\n");
-    }
-    return Handle<Code>::null();
-  }
-
-  OptimizingCompiler* compiler = isolate->optimizing_compiler_thread()->
-                                     FindReadyOSRCandidate(function, pc_offset);
-
-  if (compiler != NULL) {
-    if (FLAG_trace_osr) {
-      PrintF("[COSR - optimization complete for ");
-      function->PrintName();
-      PrintF(", restoring interrupt calls]\n");
-    }
-    Deoptimizer::RevertInterruptCode(isolate, *unoptimized);
-
-    // TODO(titzer): don't install the OSR code into the function.
-    bool succeeded = InstallOptimizedCode(compiler);
-
-    isolate->optimizing_compiler_thread()->RemoveStaleOSRCandidates();
-
-    if (!succeeded) {
-      if (FLAG_trace_osr) {
-        PrintF("[COSR - optimization failed for ");
-        function->PrintName();
-        PrintF("]\n");
-      }
-      return Handle<Code>::null();
-    }
-    Handle<Code> result = compiler->info()->code();
-
-    // Check the result matches our expectations, and don't use it otherwise.
-    if (result->kind() == Code::OPTIMIZED_FUNCTION) {
-      DeoptimizationInputData* data =
-          DeoptimizationInputData::cast(result->deoptimization_data());
-
-      if (data->OsrPcOffset()->value() >= 0) {
-        BailoutId ast_id = compiler->info()->osr_ast_id();
-        ASSERT(BailoutId(data->OsrAstId()->value()) == ast_id);
-        if (FLAG_trace_osr) {
-          PrintF("[COSR - entry at AST id %d, offset %d in optimized code]\n",
-                 ast_id.ToInt(), data->OsrPcOffset()->value());
-        }
-        return result;
-      }
-    }
-    return Handle<Code>::null();
-  }
-
-  if (!IsSuitableForOnStackReplacement(isolate, function, unoptimized)) {
-    if (FLAG_trace_osr) {
-      PrintF("[COSR - ");
-      function->PrintName();
-      PrintF(" is unsuitable, restoring interrupt calls]\n");
-    }
-    Deoptimizer::RevertInterruptCode(isolate, *unoptimized);
-    return Handle<Code>::null();
-  }
-
-  if (!RecompileConcurrent(function, pc_offset)) {
-    Deoptimizer::RevertInterruptCode(isolate, *unoptimized);
-  }
-  return Handle<Code>::null();
+  return (status == OptimizingCompiler::SUCCEEDED) ? info->code()
+                                                   : Handle<Code>::null();
 }
 
 

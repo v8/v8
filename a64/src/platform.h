@@ -86,11 +86,6 @@ inline int lrint(double flt) {
 
 #endif  // V8_CC_MSVC
 
-// Random is missing on both Visual Studio and MinGW.
-#if V8_CC_MSVC || V8_CC_MINGW
-int random();
-#endif  // V8_CC_MSVC || V8_CC_MINGW
-
 namespace v8 {
 namespace internal {
 
@@ -171,9 +166,6 @@ inline intptr_t InternalGetExistingThreadLocal(intptr_t index) {
 
 class OS {
  public:
-  // Initializes the platform OS support. Called once at VM startup.
-  static void SetUp();
-
   // Initializes the platform OS support that depend on CPU features. This is
   // called after CPU initialization.
   static void PostSetUp();
@@ -295,7 +287,7 @@ class OS {
 
   // Support for the profiler.  Can do nothing, in which case ticks
   // occuring in shared libraries will not be properly accounted for.
-  static void LogSharedLibraryAddresses();
+  static void LogSharedLibraryAddresses(Isolate* isolate);
 
   // Support for the profiler.  Notifies the external profiling
   // process that a code moving garbage collection starts.  Can do

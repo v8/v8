@@ -2188,9 +2188,9 @@ static void ZapEndOfFixedArray(Address new_end, int to_trim) {
 
 template<RightTrimMode trim_mode>
 static void RightTrimFixedArray(Heap* heap, FixedArray* elms, int to_trim) {
-  ASSERT(elms->map() != HEAP->fixed_cow_array_map());
+  ASSERT(elms->map() != heap->fixed_cow_array_map());
   // For now this trick is only applied to fixed arrays in new and paged space.
-  ASSERT(!HEAP->lo_space()->Contains(elms));
+  ASSERT(!heap->lo_space()->Contains(elms));
 
   const int len = elms->length();
 
@@ -4029,6 +4029,29 @@ MaybeObject* JSObject::SetPropertyForResult(LookupResult* lookup,
 }
 
 
+MaybeObject* JSObject::SetLocalPropertyIgnoreAttributesTrampoline(
+    Name* key,
+    Object* value,
+    PropertyAttributes attributes,
+    ValueType value_type,
+    StoreMode mode,
+    ExtensibilityCheck extensibility_check) {
+  // TODO(mstarzinger): The trampoline is a giant hack, don't use it anywhere
+  // else or handlification people will start hating you for all eternity.
+  HandleScope scope(GetIsolate());
+  IdempotentPointerToHandleCodeTrampoline trampoline(GetIsolate());
+  return trampoline.CallWithReturnValue(
+      &JSObject::SetLocalPropertyIgnoreAttributes,
+      Handle<JSObject>(this),
+      Handle<Name>(key),
+      Handle<Object>(value, GetIsolate()),
+      attributes,
+      value_type,
+      mode,
+      extensibility_check);
+}
+
+
 // Set a real local property, even if it is READ_ONLY.  If the property is not
 // present, add it with attributes NONE.  This code is an exact clone of
 // SetProperty, with the check for IsReadOnly and the check for a
@@ -4044,11 +4067,12 @@ Handle<Object> JSObject::SetLocalPropertyIgnoreAttributes(
     Handle<Object> value,
     PropertyAttributes attributes,
     ValueType value_type,
-    StoreMode mode) {
+    StoreMode mode,
+    ExtensibilityCheck extensibility_check) {
   CALL_HEAP_FUNCTION(
     object->GetIsolate(),
     object->SetLocalPropertyIgnoreAttributes(
-        *key, *value, attributes, value_type, mode),
+        *key, *value, attributes, value_type, mode, extensibility_check),
     Object);
 }
 
@@ -4719,7 +4743,7 @@ Smi* JSReceiver::GenerateIdentityHash() {
   do {
     // Generate a random 32-bit hash value but limit range to fit
     // within a smi.
-    hash_value = V8::RandomPrivate(isolate) & Smi::kMaxValue;
+    hash_value = isolate->random_number_generator()->NextInt() & Smi::kMaxValue;
     attempts++;
   } while (hash_value == 0 && attempts < 30);
   hash_value = hash_value != 0 ? hash_value : 1;  // never return 0
@@ -4951,13 +4975,13 @@ MaybeObject* JSObject::GetHiddenPropertiesHashTable(
     ASSERT_EQ(hashtable, new_table);
   }
 
-  MaybeObject* store_result =
-      SetLocalPropertyIgnoreAttributes(GetHeap()->hidden_string(),
-                                       hashtable,
-                                       DONT_ENUM,
-                                       OPTIMAL_REPRESENTATION,
-                                       ALLOW_AS_CONSTANT,
-                                       OMIT_EXTENSIBILITY_CHECK);
+  MaybeObject* store_result = SetLocalPropertyIgnoreAttributesTrampoline(
+      GetHeap()->hidden_string(),
+      hashtable,
+      DONT_ENUM,
+      OPTIMAL_REPRESENTATION,
+      ALLOW_AS_CONSTANT,
+      OMIT_EXTENSIBILITY_CHECK);
   if (store_result->IsFailure()) return store_result;
   return hashtable;
 }
@@ -4984,13 +5008,13 @@ MaybeObject* JSObject::SetHiddenPropertiesHashTable(Object* value) {
       }
     }
   }
-  MaybeObject* store_result =
-      SetLocalPropertyIgnoreAttributes(GetHeap()->hidden_string(),
-                                       value,
-                                       DONT_ENUM,
-                                       OPTIMAL_REPRESENTATION,
-                                       ALLOW_AS_CONSTANT,
-                                       OMIT_EXTENSIBILITY_CHECK);
+  MaybeObject* store_result = SetLocalPropertyIgnoreAttributesTrampoline(
+      GetHeap()->hidden_string(),
+      value,
+      DONT_ENUM,
+      OPTIMAL_REPRESENTATION,
+      ALLOW_AS_CONSTANT,
+      OMIT_EXTENSIBILITY_CHECK);
   if (store_result->IsFailure()) return store_result;
   return this;
 }
@@ -7956,19 +7980,21 @@ Object* AccessorPair::GetComponent(AccessorComponent component) {
 }
 
 
-MaybeObject* DeoptimizationInputData::Allocate(int deopt_entry_count,
+MaybeObject* DeoptimizationInputData::Allocate(Isolate* isolate,
+                                               int deopt_entry_count,
                                                PretenureFlag pretenure) {
   ASSERT(deopt_entry_count > 0);
-  return HEAP->AllocateFixedArray(LengthFor(deopt_entry_count),
-                                  pretenure);
+  return isolate->heap()->AllocateFixedArray(LengthFor(deopt_entry_count),
+                                             pretenure);
 }
 
 
-MaybeObject* DeoptimizationOutputData::Allocate(int number_of_deopt_points,
+MaybeObject* DeoptimizationOutputData::Allocate(Isolate* isolate,
+                                                int number_of_deopt_points,
                                                 PretenureFlag pretenure) {
-  if (number_of_deopt_points == 0) return HEAP->empty_fixed_array();
-  return HEAP->AllocateFixedArray(LengthOfFixedArray(number_of_deopt_points),
-                                  pretenure);
+  if (number_of_deopt_points == 0) return isolate->heap()->empty_fixed_array();
+  return isolate->heap()->AllocateFixedArray(
+      LengthOfFixedArray(number_of_deopt_points), pretenure);
 }
 
 
@@ -8985,6 +9011,8 @@ AllocationMemento* AllocationMemento::FindForJSObject(JSObject* object) {
   // involves carefully checking the object immediately after the JSArray
   // (if there is one) to see if it's an AllocationMemento.
   if (FLAG_track_allocation_sites && object->GetHeap()->InNewSpace(object)) {
+    // TODO(mvstanton): CHECK to diagnose chromium bug 284577, remove after.
+    CHECK(object->GetHeap()->InToSpace(object));
     Address ptr_end = (reinterpret_cast<Address>(object) - kHeapObjectTag) +
         object->Size();
     if ((ptr_end + AllocationMemento::kSize) <=
@@ -8994,8 +9022,14 @@ AllocationMemento* AllocationMemento::FindForJSObject(JSObject* object) {
           reinterpret_cast<Map**>(ptr_end);
       if (*possible_allocation_memento_map ==
           object->GetHeap()->allocation_memento_map()) {
+        Address ptr_object = reinterpret_cast<Address>(object);
+        // TODO(mvstanton): CHECK to diagnose chromium bug 284577, remove after.
+        // If this check fails it points to the very unlikely case that we've
+        // misinterpreted a page header as an allocation memento. Follow up
+        // with a real fix.
+        CHECK(Page::FromAddress(ptr_object) == Page::FromAddress(ptr_end));
         AllocationMemento* memento = AllocationMemento::cast(
-            reinterpret_cast<Object*>(ptr_end + 1));
+            reinterpret_cast<Object*>(ptr_end + kHeapObjectTag));
         return memento;
       }
     }
@@ -9866,7 +9900,7 @@ void SharedFunctionInfo::DisableOptimization(BailoutReason reason) {
   if (code()->kind() == Code::FUNCTION) {
     code()->set_optimizable(false);
   }
-  PROFILE(Isolate::Current(),
+  PROFILE(GetIsolate(),
       LogExistingFunction(Handle<SharedFunctionInfo>(this),
                           Handle<Code>(code())));
   if (FLAG_trace_opt) {
@@ -11408,8 +11442,9 @@ void DependentCode::RemoveCompilationInfo(DependentCode::DependencyGroup group,
 
 bool DependentCode::Contains(DependencyGroup group, Code* code) {
   GroupStartIndexes starts(this);
-  int number_of_entries = starts.number_of_entries();
-  for (int i = 0; i < number_of_entries; i++) {
+  int start = starts.at(group);
+  int end = starts.at(group + 1);
+  for (int i = start; i < end; i++) {
     if (object_at(i) == code) return true;
   }
   return false;
@@ -13767,6 +13802,74 @@ MaybeObject* HashTable<Shape, Key>::Rehash(HashTable* new_table, Key key) {
   new_table->SetNumberOfElements(NumberOfElements());
   new_table->SetNumberOfDeletedElements(0);
   return new_table;
+}
+
+
+template<typename Shape, typename Key>
+uint32_t HashTable<Shape, Key>::EntryForProbe(Key key,
+                                              Object* k,
+                                              int probe,
+                                              uint32_t expected) {
+  uint32_t hash = HashTable<Shape, Key>::HashForObject(key, k);
+  uint32_t capacity = Capacity();
+  uint32_t entry = FirstProbe(hash, capacity);
+  for (int i = 1; i < probe; i++) {
+    if (entry == expected) return expected;
+    entry = NextProbe(entry, i, capacity);
+  }
+  return entry;
+}
+
+
+template<typename Shape, typename Key>
+void HashTable<Shape, Key>::Swap(uint32_t entry1,
+                                 uint32_t entry2,
+                                 WriteBarrierMode mode) {
+  int index1 = EntryToIndex(entry1);
+  int index2 = EntryToIndex(entry2);
+  Object* temp[Shape::kEntrySize];
+  for (int j = 0; j < Shape::kEntrySize; j++) {
+    temp[j] = get(index1 + j);
+  }
+  for (int j = 0; j < Shape::kEntrySize; j++) {
+    set(index1 + j, get(index2 + j), mode);
+  }
+  for (int j = 0; j < Shape::kEntrySize; j++) {
+    set(index2 + j, temp[j], mode);
+  }
+}
+
+
+template<typename Shape, typename Key>
+void HashTable<Shape, Key>::Rehash(Key key) {
+  DisallowHeapAllocation no_gc;
+  WriteBarrierMode mode = GetWriteBarrierMode(no_gc);
+  uint32_t capacity = Capacity();
+  bool done = false;
+  for (int probe = 1; !done; probe++) {
+    // All elements at entries given by one of the first _probe_ probes
+    // are placed correctly. Other elements might need to be moved.
+    done = true;
+    for (uint32_t current = 0; current < capacity; current++) {
+      Object* current_key = get(EntryToIndex(current));
+      if (IsKey(current_key)) {
+        uint32_t target = EntryForProbe(key, current_key, probe, current);
+        if (current == target) continue;
+        Object* target_key = get(EntryToIndex(target));
+        if (!IsKey(target_key) ||
+            EntryForProbe(key, target_key, probe, target) != target) {
+          // Put the current element into the correct position.
+          Swap(current, target, mode);
+          // The other element will be processed on the next iteration.
+          current--;
+        } else {
+          // The place for the current element is occupied. Leave the element
+          // for the next probe.
+          done = false;
+        }
+      }
+    }
+  }
 }
 
 

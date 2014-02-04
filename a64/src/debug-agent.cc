@@ -38,7 +38,8 @@ namespace internal {
 // Public V8 debugger API message handler function. This function just delegates
 // to the debugger agent through it's data parameter.
 void DebuggerAgentMessageHandler(const v8::Debug::Message& message) {
-  DebuggerAgent* agent = Isolate::Current()->debugger_agent_instance();
+  Isolate* isolate = reinterpret_cast<Isolate*>(message.GetIsolate());
+  DebuggerAgent* agent = isolate->debugger_agent_instance();
   ASSERT(agent != NULL);
   agent->DebuggerMessage(message);
 }

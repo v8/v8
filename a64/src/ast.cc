@@ -599,7 +599,7 @@ bool Call::ComputeGlobalTarget(Handle<GlobalObject> global,
     Handle<JSFunction> candidate(JSFunction::cast(cell_->value()));
     // If the function is in new space we assume it's more likely to
     // change and thus prefer the general IC code.
-    if (!HEAP->InNewSpace(*candidate)) {
+    if (!lookup->isolate()->heap()->InNewSpace(*candidate)) {
       target_ = candidate;
       return true;
     }
