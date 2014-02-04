@@ -416,6 +416,13 @@ bool LCodeGen::GenerateBody() {
         x87_stack_.LeavingBlock(current_block_, LGoto::cast(instr));
       } else if (FLAG_debug_code && FLAG_enable_slow_asserts &&
                  !instr->IsGap() && !instr->IsReturn()) {
+        if (instr->ClobbersDoubleRegisters()) {
+          if (instr->HasDoubleRegisterResult()) {
+            ASSERT_EQ(1, x87_stack_.depth());
+          } else {
+            ASSERT_EQ(0, x87_stack_.depth());
+          }
+        }
         __ VerifyX87StackDepth(x87_stack_.depth());
       }
     }
@@ -557,6 +564,16 @@ XMMRegister LCodeGen::ToDoubleRegister(int index) const {
 void LCodeGen::X87LoadForUsage(X87Register reg) {
   ASSERT(x87_stack_.Contains(reg));
   x87_stack_.Fxch(reg);
+  x87_stack_.pop();
+}
+
+
+void LCodeGen::X87LoadForUsage(X87Register reg1, X87Register reg2) {
+  ASSERT(x87_stack_.Contains(reg1));
+  ASSERT(x87_stack_.Contains(reg2));
+  x87_stack_.Fxch(reg1, 1);
+  x87_stack_.Fxch(reg2);
+  x87_stack_.pop();
   x87_stack_.pop();
 }
 
@@ -1362,11 +1379,6 @@ void LCodeGen::DoCallStub(LCallStub* instr) {
     }
     case CodeStub::SubString: {
       SubStringStub stub;
-      CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
-      break;
-    }
-    case CodeStub::NumberToString: {
-      NumberToStringStub stub;
       CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
       break;
     }
@@ -2572,10 +2584,7 @@ void LCodeGen::DoCompareNumericAndBranch(LCompareNumericAndBranch* instr) {
         CpuFeatureScope scope(masm(), SSE2);
         __ ucomisd(ToDoubleRegister(left), ToDoubleRegister(right));
       } else {
-        X87Fxch(ToX87Register(right));
-        X87Fxch(ToX87Register(left), 1);
-        __ fld(0);
-        __ fld(2);
+        X87LoadForUsage(ToX87Register(right), ToX87Register(left));
         __ FCmp();
       }
       // Don't base result on EFLAGS when a NaN is involved. Instead
@@ -3151,7 +3160,7 @@ void LCodeGen::DoReturn(LReturn* instr) {
 
 void LCodeGen::DoLoadGlobalCell(LLoadGlobalCell* instr) {
   Register result = ToRegister(instr->result());
-  __ mov(result, Operand::ForCell(instr->hydrogen()->cell()));
+  __ mov(result, Operand::ForCell(instr->hydrogen()->cell().handle()));
   if (instr->hydrogen()->RequiresHoleCheck()) {
     __ cmp(result, factory()->the_hole_value());
     DeoptimizeIf(equal, instr->environment());
@@ -3174,7 +3183,7 @@ void LCodeGen::DoLoadGlobalGeneric(LLoadGlobalGeneric* instr) {
 
 void LCodeGen::DoStoreGlobalCell(LStoreGlobalCell* instr) {
   Register value = ToRegister(instr->value());
-  Handle<PropertyCell> cell_handle = instr->hydrogen()->cell();
+  Handle<PropertyCell> cell_handle = instr->hydrogen()->cell().handle();
 
   // If the cell we are storing to contains the hole it could have
   // been deleted from the property dictionary. In that case, we need
@@ -4853,9 +4862,8 @@ void LCodeGen::DoTransitionElementsKind(LTransitionElementsKind* instr) {
   __ j(not_equal, &not_applicable, branch_distance);
   if (is_simple_map_transition) {
     Register new_map_reg = ToRegister(instr->new_map_temp());
-    Handle<Map> map = instr->hydrogen()->transitioned_map();
     __ mov(FieldOperand(object_reg, HeapObject::kMapOffset),
-           Immediate(map));
+           Immediate(to_map));
     // Write barrier.
     ASSERT_NE(instr->temp(), NULL);
     __ RecordWriteForMap(object_reg, to_map, new_map_reg,

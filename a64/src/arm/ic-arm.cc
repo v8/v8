@@ -1394,7 +1394,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   Register receiver = r2;
   Register receiver_map = r3;
   Register elements_map = r6;
-  Register elements = r7;  // Elements array of the receiver.
+  Register elements = r9;  // Elements array of the receiver.
   // r4 and r5 are used as general scratch registers.
 
   // Check that the key is a smi.

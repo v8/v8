@@ -41,7 +41,6 @@
 
 #include "v8.h"
 
-#include "platform-posix.h"
 #include "platform.h"
 #include "simulator.h"
 #include "v8threads.h"
@@ -85,11 +84,6 @@ void* OS::Allocate(const size_t requested,
   }
   *allocated = msize;
   return mbase;
-}
-
-
-void OS::DumpBacktrace() {
-  // Currently unsupported.
 }
 
 

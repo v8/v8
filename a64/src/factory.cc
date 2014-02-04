@@ -1083,16 +1083,6 @@ void Factory::SetContent(Handle<JSArray> array,
 }
 
 
-void Factory::EnsureCanContainElements(Handle<JSArray> array,
-                                       Handle<FixedArrayBase> elements,
-                                       uint32_t length,
-                                       EnsureElementsMode mode) {
-  CALL_HEAP_FUNCTION_VOID(
-      isolate(),
-      array->EnsureCanContainElements(*elements, length, mode));
-}
-
-
 Handle<JSArrayBuffer> Factory::NewJSArrayBuffer() {
   Handle<JSFunction> array_buffer_fun(
       isolate()->context()->native_context()->array_buffer_fun());

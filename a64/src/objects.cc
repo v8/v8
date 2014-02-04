@@ -2270,11 +2270,6 @@ bool Map::InstancesNeedRewriting(Map* target,
 }
 
 
-void JSObject::MigrateToMap(Handle<JSObject> object, Handle<Map> new_map) {
-  CALL_HEAP_FUNCTION_VOID(object->GetIsolate(), object->MigrateToMap(*new_map));
-}
-
-
 // To migrate an instance to a map:
 // - First check whether the instance needs to be rewritten. If not, simply
 //   change the map.
@@ -2290,28 +2285,27 @@ void JSObject::MigrateToMap(Handle<JSObject> object, Handle<Map> new_map) {
 //     to temporarily store the inobject properties.
 //   * If there are properties left in the backing store, install the backing
 //     store.
-MaybeObject* JSObject::MigrateToMap(Map* new_map) {
-  Heap* heap = GetHeap();
-  Map* old_map = map();
+void JSObject::MigrateToMap(Handle<JSObject> object, Handle<Map> new_map) {
+  Isolate* isolate = object->GetIsolate();
+  Handle<Map> old_map(object->map());
   int number_of_fields = new_map->NumberOfFields();
   int inobject = new_map->inobject_properties();
   int unused = new_map->unused_property_fields();
 
-  // Nothing to do if no functions were converted to fields.
+  // Nothing to do if no functions were converted to fields and no smis were
+  // converted to doubles.
   if (!old_map->InstancesNeedRewriting(
-          new_map, number_of_fields, inobject, unused)) {
-    set_map(new_map);
-    return this;
+          *new_map, number_of_fields, inobject, unused)) {
+    object->set_map(*new_map);
+    return;
   }
 
   int total_size = number_of_fields + unused;
   int external = total_size - inobject;
-  FixedArray* array;
-  MaybeObject* maybe_array = heap->AllocateFixedArray(total_size);
-  if (!maybe_array->To(&array)) return maybe_array;
+  Handle<FixedArray> array = isolate->factory()->NewFixedArray(total_size);
 
-  DescriptorArray* old_descriptors = old_map->instance_descriptors();
-  DescriptorArray* new_descriptors = new_map->instance_descriptors();
+  Handle<DescriptorArray> old_descriptors(old_map->instance_descriptors());
+  Handle<DescriptorArray> new_descriptors(new_map->instance_descriptors());
   int descriptors = new_map->NumberOfOwnDescriptors();
 
   for (int i = 0; i < descriptors; i++) {
@@ -2324,55 +2318,51 @@ MaybeObject* JSObject::MigrateToMap(Map* new_map) {
     }
     ASSERT(old_details.type() == CONSTANT ||
            old_details.type() == FIELD);
-    Object* value = old_details.type() == CONSTANT
+    Object* raw_value = old_details.type() == CONSTANT
         ? old_descriptors->GetValue(i)
-        : RawFastPropertyAt(old_descriptors->GetFieldIndex(i));
+        : object->RawFastPropertyAt(old_descriptors->GetFieldIndex(i));
+    Handle<Object> value(raw_value, isolate);
     if (FLAG_track_double_fields &&
         !old_details.representation().IsDouble() &&
         details.representation().IsDouble()) {
-      if (old_details.representation().IsNone()) value = Smi::FromInt(0);
-      // Objects must be allocated in the old object space, since the
-      // overall number of HeapNumbers needed for the conversion might
-      // exceed the capacity of new space, and we would fail repeatedly
-      // trying to migrate the instance.
-      MaybeObject* maybe_storage =
-          value->AllocateNewStorageFor(heap, details.representation(), TENURED);
-      if (!maybe_storage->To(&value)) return maybe_storage;
+      if (old_details.representation().IsNone()) {
+        value = handle(Smi::FromInt(0), isolate);
+      }
+      value = NewStorageFor(isolate, value, details.representation());
     }
     ASSERT(!(FLAG_track_double_fields &&
              details.representation().IsDouble() &&
              value->IsSmi()));
     int target_index = new_descriptors->GetFieldIndex(i) - inobject;
     if (target_index < 0) target_index += total_size;
-    array->set(target_index, value);
+    array->set(target_index, *value);
   }
 
-  // From here on we cannot fail anymore.
+  // From here on we cannot fail and we shouldn't GC anymore.
+  DisallowHeapAllocation no_allocation;
 
   // Copy (real) inobject properties. If necessary, stop at number_of_fields to
   // avoid overwriting |one_pointer_filler_map|.
   int limit = Min(inobject, number_of_fields);
   for (int i = 0; i < limit; i++) {
-    FastPropertyAtPut(i, array->get(external + i));
+    object->FastPropertyAtPut(i, array->get(external + i));
   }
 
   // Create filler object past the new instance size.
   int new_instance_size = new_map->instance_size();
   int instance_size_delta = old_map->instance_size() - new_instance_size;
   ASSERT(instance_size_delta >= 0);
-  Address address = this->address() + new_instance_size;
-  heap->CreateFillerObjectAt(address, instance_size_delta);
+  Address address = object->address() + new_instance_size;
+  isolate->heap()->CreateFillerObjectAt(address, instance_size_delta);
 
   // If there are properties in the new backing store, trim it to the correct
   // size and install the backing store into the object.
   if (external > 0) {
-    RightTrimFixedArray<FROM_MUTATOR>(heap, array, inobject);
-    set_properties(array);
+    RightTrimFixedArray<FROM_MUTATOR>(isolate->heap(), *array, inobject);
+    object->set_properties(*array);
   }
 
-  set_map(new_map);
-
-  return this;
+  object->set_map(*new_map);
 }
 
 
@@ -3708,10 +3698,39 @@ MUST_USE_RESULT Handle<Object> JSProxy::CallTrap(const char* name,
 }
 
 
+// TODO(mstarzinger): Temporary wrapper until handlified.
+static Handle<Map> MapAsElementsKind(Handle<Map> map, ElementsKind kind) {
+  CALL_HEAP_FUNCTION(map->GetIsolate(), map->AsElementsKind(kind), Map);
+}
+
+
 void JSObject::AllocateStorageForMap(Handle<JSObject> object, Handle<Map> map) {
-  CALL_HEAP_FUNCTION_VOID(
-      object->GetIsolate(),
-      object->AllocateStorageForMap(*map));
+  ASSERT(object->map()->inobject_properties() == map->inobject_properties());
+  ElementsKind obj_kind = object->map()->elements_kind();
+  ElementsKind map_kind = map->elements_kind();
+  if (map_kind != obj_kind) {
+    ElementsKind to_kind = map_kind;
+    if (IsMoreGeneralElementsKindTransition(map_kind, obj_kind) ||
+        IsDictionaryElementsKind(obj_kind)) {
+      to_kind = obj_kind;
+    }
+    if (IsDictionaryElementsKind(to_kind)) {
+      NormalizeElements(object);
+    } else {
+      TransitionElementsKind(object, to_kind);
+    }
+    map = MapAsElementsKind(map, to_kind);
+  }
+  int total_size =
+      map->NumberOfOwnDescriptors() + map->unused_property_fields();
+  int out_of_object = total_size - map->inobject_properties();
+  if (out_of_object != object->properties()->length()) {
+    Isolate* isolate = object->GetIsolate();
+    Handle<FixedArray> new_properties = isolate->factory()->CopySizeFixedArray(
+        handle(object->properties()), out_of_object);
+    object->set_properties(*new_properties);
+  }
+  object->set_map(*map);
 }
 
 
@@ -3729,7 +3748,13 @@ void JSObject::MigrateInstance(Handle<JSObject> object) {
 
 
 Handle<Object> JSObject::TryMigrateInstance(Handle<JSObject> object) {
-  MigrateInstance(object);
+  Map* new_map = object->map()->CurrentMapForDeprecated();
+  if (new_map == NULL) return Handle<Object>();
+  Handle<Map> original_map(object->map());
+  JSObject::MigrateToMap(object, handle(new_map));
+  if (FLAG_trace_migration) {
+    object->PrintInstanceMigration(stdout, *original_map, object->map());
+  }
   return object;
 }
 
@@ -4348,12 +4373,12 @@ PropertyAttributes JSObject::GetElementAttributeWithoutInterceptor(
 }
 
 
-MaybeObject* NormalizedMapCache::Get(JSObject* obj,
-                                     PropertyNormalizationMode mode) {
-  Isolate* isolate = obj->GetIsolate();
+Handle<Map> NormalizedMapCache::Get(Handle<NormalizedMapCache> cache,
+                                    Handle<JSObject> obj,
+                                    PropertyNormalizationMode mode) {
   Map* fast = obj->map();
   int index = fast->Hash() % kEntries;
-  Object* result = get(index);
+  Object* result = cache->get(index);
   if (result->IsMap() &&
       Map::cast(result)->EquivalentToForNormalization(fast, mode)) {
 #ifdef VERIFY_HEAP
@@ -4382,18 +4407,17 @@ MaybeObject* NormalizedMapCache::Get(JSObject* obj,
       }
     }
 #endif
-    return result;
+    return handle(Map::cast(result));
   }
 
-  { MaybeObject* maybe_result =
-        fast->CopyNormalized(mode, SHARED_NORMALIZED_MAP);
-    if (!maybe_result->ToObject(&result)) return maybe_result;
-  }
-  ASSERT(Map::cast(result)->is_dictionary_map());
-  set(index, result);
+  Isolate* isolate = cache->GetIsolate();
+  Handle<Map> map = Map::CopyNormalized(handle(fast), mode,
+                                        SHARED_NORMALIZED_MAP);
+  ASSERT(map->is_dictionary_map());
+  cache->set(index, *map);
   isolate->counters()->normalized_maps()->Increment();
 
-  return result;
+  return map;
 }
 
 
@@ -4426,65 +4450,55 @@ void HeapObject::UpdateMapCodeCache(Handle<HeapObject> object,
 void JSObject::NormalizeProperties(Handle<JSObject> object,
                                    PropertyNormalizationMode mode,
                                    int expected_additional_properties) {
-  CALL_HEAP_FUNCTION_VOID(object->GetIsolate(),
-                          object->NormalizeProperties(
-                              mode, expected_additional_properties));
-}
-
-
-MaybeObject* JSObject::NormalizeProperties(PropertyNormalizationMode mode,
-                                           int expected_additional_properties) {
-  if (!HasFastProperties()) return this;
+  if (!object->HasFastProperties()) return;
 
   // The global object is always normalized.
-  ASSERT(!IsGlobalObject());
+  ASSERT(!object->IsGlobalObject());
   // JSGlobalProxy must never be normalized
-  ASSERT(!IsJSGlobalProxy());
+  ASSERT(!object->IsJSGlobalProxy());
 
-  Map* map_of_this = map();
+  Isolate* isolate = object->GetIsolate();
+  HandleScope scope(isolate);
+  Handle<Map> map(object->map());
 
   // Allocate new content.
-  int real_size = map_of_this->NumberOfOwnDescriptors();
+  int real_size = map->NumberOfOwnDescriptors();
   int property_count = real_size;
   if (expected_additional_properties > 0) {
     property_count += expected_additional_properties;
   } else {
     property_count += 2;  // Make space for two more properties.
   }
-  NameDictionary* dictionary;
-  MaybeObject* maybe_dictionary =
-      NameDictionary::Allocate(GetHeap(), property_count);
-  if (!maybe_dictionary->To(&dictionary)) return maybe_dictionary;
+  Handle<NameDictionary> dictionary =
+      isolate->factory()->NewNameDictionary(property_count);
 
-  DescriptorArray* descs = map_of_this->instance_descriptors();
+  Handle<DescriptorArray> descs(map->instance_descriptors());
   for (int i = 0; i < real_size; i++) {
     PropertyDetails details = descs->GetDetails(i);
     switch (details.type()) {
       case CONSTANT: {
+        Handle<Name> key(descs->GetKey(i));
+        Handle<Object> value(descs->GetConstant(i), isolate);
         PropertyDetails d = PropertyDetails(
             details.attributes(), NORMAL, i + 1);
-        Object* value = descs->GetConstant(i);
-        MaybeObject* maybe_dictionary =
-            dictionary->Add(descs->GetKey(i), value, d);
-        if (!maybe_dictionary->To(&dictionary)) return maybe_dictionary;
+        dictionary = NameDictionaryAdd(dictionary, key, value, d);
         break;
       }
       case FIELD: {
+        Handle<Name> key(descs->GetKey(i));
+        Handle<Object> value(
+            object->RawFastPropertyAt(descs->GetFieldIndex(i)), isolate);
         PropertyDetails d =
             PropertyDetails(details.attributes(), NORMAL, i + 1);
-        Object* value = RawFastPropertyAt(descs->GetFieldIndex(i));
-        MaybeObject* maybe_dictionary =
-            dictionary->Add(descs->GetKey(i), value, d);
-        if (!maybe_dictionary->To(&dictionary)) return maybe_dictionary;
+        dictionary = NameDictionaryAdd(dictionary, key, value, d);
         break;
       }
       case CALLBACKS: {
-        Object* value = descs->GetCallbacksObject(i);
+        Handle<Name> key(descs->GetKey(i));
+        Handle<Object> value(descs->GetCallbacksObject(i), isolate);
         PropertyDetails d = PropertyDetails(
             details.attributes(), CALLBACKS, i + 1);
-        MaybeObject* maybe_dictionary =
-            dictionary->Add(descs->GetKey(i), value, d);
-        if (!maybe_dictionary->To(&dictionary)) return maybe_dictionary;
+        dictionary = NameDictionaryAdd(dictionary, key, value, d);
         break;
       }
       case INTERCEPTOR:
@@ -4498,62 +4512,52 @@ MaybeObject* JSObject::NormalizeProperties(PropertyNormalizationMode mode,
     }
   }
 
-  Heap* current_heap = GetHeap();
-
   // Copy the next enumeration index from instance descriptor.
   dictionary->SetNextEnumerationIndex(real_size + 1);
 
-  Map* new_map;
-  MaybeObject* maybe_map =
-      current_heap->isolate()->context()->native_context()->
-      normalized_map_cache()->Get(this, mode);
-  if (!maybe_map->To(&new_map)) return maybe_map;
+  Handle<NormalizedMapCache> cache(
+      isolate->context()->native_context()->normalized_map_cache());
+  Handle<Map> new_map = NormalizedMapCache::Get(cache, object, mode);
   ASSERT(new_map->is_dictionary_map());
 
-  // We have now successfully allocated all the necessary objects.
-  // Changes can now be made with the guarantee that all of them take effect.
+  // From here on we cannot fail and we shouldn't GC anymore.
+  DisallowHeapAllocation no_allocation;
 
   // Resize the object in the heap if necessary.
   int new_instance_size = new_map->instance_size();
-  int instance_size_delta = map_of_this->instance_size() - new_instance_size;
+  int instance_size_delta = map->instance_size() - new_instance_size;
   ASSERT(instance_size_delta >= 0);
-  current_heap->CreateFillerObjectAt(this->address() + new_instance_size,
-                                     instance_size_delta);
-  if (Marking::IsBlack(Marking::MarkBitFrom(this))) {
-    MemoryChunk::IncrementLiveBytesFromMutator(this->address(),
+  isolate->heap()->CreateFillerObjectAt(object->address() + new_instance_size,
+                                        instance_size_delta);
+  if (Marking::IsBlack(Marking::MarkBitFrom(*object))) {
+    MemoryChunk::IncrementLiveBytesFromMutator(object->address(),
                                                -instance_size_delta);
   }
 
-  set_map(new_map);
-  map_of_this->NotifyLeafMapLayoutChange();
+  object->set_map(*new_map);
+  map->NotifyLeafMapLayoutChange();
 
-  set_properties(dictionary);
+  object->set_properties(*dictionary);
 
-  current_heap->isolate()->counters()->props_to_dictionary()->Increment();
+  isolate->counters()->props_to_dictionary()->Increment();
 
 #ifdef DEBUG
   if (FLAG_trace_normalization) {
     PrintF("Object properties have been normalized:\n");
-    Print();
+    object->Print();
   }
 #endif
-  return this;
 }
 
 
 void JSObject::TransformToFastProperties(Handle<JSObject> object,
                                          int unused_property_fields) {
+  if (object->HasFastProperties()) return;
+  ASSERT(!object->IsGlobalObject());
   CALL_HEAP_FUNCTION_VOID(
       object->GetIsolate(),
-      object->TransformToFastProperties(unused_property_fields));
-}
-
-
-MaybeObject* JSObject::TransformToFastProperties(int unused_property_fields) {
-  if (HasFastProperties()) return this;
-  ASSERT(!IsGlobalObject());
-  return property_dictionary()->
-      TransformPropertiesToFastFor(this, unused_property_fields);
+      object->property_dictionary()->TransformPropertiesToFastFor(
+          *object, unused_property_fields));
 }
 
 
@@ -5343,59 +5347,50 @@ bool JSObject::ReferencesObject(Object* obj) {
 
 
 Handle<Object> JSObject::PreventExtensions(Handle<JSObject> object) {
-  CALL_HEAP_FUNCTION(object->GetIsolate(), object->PreventExtensions(), Object);
-}
-
-
-MaybeObject* JSObject::PreventExtensions() {
-  Isolate* isolate = GetIsolate();
-  if (IsAccessCheckNeeded() &&
-      !isolate->MayNamedAccess(this,
+  Isolate* isolate = object->GetIsolate();
+  if (object->IsAccessCheckNeeded() &&
+      !isolate->MayNamedAccess(*object,
                                isolate->heap()->undefined_value(),
                                v8::ACCESS_KEYS)) {
-    isolate->ReportFailedAccessCheck(this, v8::ACCESS_KEYS);
-    RETURN_IF_SCHEDULED_EXCEPTION(isolate);
-    return isolate->heap()->false_value();
+    isolate->ReportFailedAccessCheck(*object, v8::ACCESS_KEYS);
+    RETURN_HANDLE_IF_SCHEDULED_EXCEPTION(isolate, Object);
+    return isolate->factory()->false_value();
   }
 
-  if (IsJSGlobalProxy()) {
-    Object* proto = GetPrototype();
-    if (proto->IsNull()) return this;
+  if (object->IsJSGlobalProxy()) {
+    Handle<Object> proto(object->GetPrototype(), isolate);
+    if (proto->IsNull()) return object;
     ASSERT(proto->IsJSGlobalObject());
-    return JSObject::cast(proto)->PreventExtensions();
+    return PreventExtensions(Handle<JSObject>::cast(proto));
   }
 
   // It's not possible to seal objects with external array elements
-  if (HasExternalArrayElements()) {
-    HandleScope scope(isolate);
-    Handle<Object> object(this, isolate);
+  if (object->HasExternalArrayElements()) {
     Handle<Object> error  =
         isolate->factory()->NewTypeError(
             "cant_prevent_ext_external_array_elements",
             HandleVector(&object, 1));
-    return isolate->Throw(*error);
+    isolate->Throw(*error);
+    return Handle<Object>();
   }
 
   // If there are fast elements we normalize.
-  SeededNumberDictionary* dictionary = NULL;
-  { MaybeObject* maybe = NormalizeElements();
-    if (!maybe->To<SeededNumberDictionary>(&dictionary)) return maybe;
-  }
-  ASSERT(HasDictionaryElements() || HasDictionaryArgumentsElements());
+  Handle<SeededNumberDictionary> dictionary = NormalizeElements(object);
+  ASSERT(object->HasDictionaryElements() ||
+         object->HasDictionaryArgumentsElements());
+
   // Make sure that we never go back to fast case.
   dictionary->set_requires_slow_elements();
 
   // Do a map transition, other objects with this map may still
   // be extensible.
   // TODO(adamk): Extend the NormalizedMapCache to handle non-extensible maps.
-  Map* new_map;
-  MaybeObject* maybe = map()->Copy();
-  if (!maybe->To(&new_map)) return maybe;
+  Handle<Map> new_map = Map::Copy(handle(object->map()));
 
   new_map->set_is_extensible(false);
-  set_map(new_map);
-  ASSERT(!map()->is_extensible());
-  return new_map;
+  object->set_map(*new_map);
+  ASSERT(!object->map()->is_extensible());
+  return object;
 }
 
 
@@ -12438,11 +12433,10 @@ MaybeObject* JSObject::SetElementWithoutInterceptor(uint32_t index,
 }
 
 
-Handle<Object> JSObject::TransitionElementsKind(Handle<JSObject> object,
-                                                ElementsKind to_kind) {
-  CALL_HEAP_FUNCTION(object->GetIsolate(),
-                     object->TransitionElementsKind(to_kind),
-                     Object);
+void JSObject::TransitionElementsKind(Handle<JSObject> object,
+                                      ElementsKind to_kind) {
+  CALL_HEAP_FUNCTION_VOID(object->GetIsolate(),
+                          object->TransitionElementsKind(to_kind));
 }
 
 

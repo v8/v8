@@ -1999,11 +1999,6 @@ void LCodeGen::DoCallStub(LCallStub* instr) {
       CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
       break;
     }
-    case CodeStub::NumberToString: {
-      NumberToStringStub stub;
-      CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
-      break;
-    }
     case CodeStub::StringCompare: {
       StringCompareStub stub;
       CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
@@ -3281,7 +3276,7 @@ void LCodeGen::DoLoadFunctionPrototype(LLoadFunctionPrototype* instr) {
 
 void LCodeGen::DoLoadGlobalCell(LLoadGlobalCell* instr) {
   Register result = ToRegister(instr->result());
-  __ Mov(result, Operand(Handle<Object>(instr->hydrogen()->cell())));
+  __ Mov(result, Operand(Handle<Object>(instr->hydrogen()->cell().handle())));
   __ Ldr(result, FieldMemOperand(result, Cell::kValueOffset));
   if (instr->hydrogen()->RequiresHoleCheck()) {
     DeoptimizeIfRoot(
@@ -4765,7 +4760,7 @@ void LCodeGen::DoStoreGlobalCell(LStoreGlobalCell* instr) {
   Register cell = ToRegister(instr->temp1());
 
   // Load the cell.
-  __ Mov(cell, Operand(instr->hydrogen()->cell()));
+  __ Mov(cell, Operand(instr->hydrogen()->cell().handle()));
 
   // If the cell we are storing to contains the hole it could have
   // been deleted from the property dictionary. In that case, we need

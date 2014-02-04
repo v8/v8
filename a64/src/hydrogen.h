@@ -316,7 +316,7 @@ class HGraph V8_FINAL : public ZoneObject {
   HBasicBlock* entry_block() const { return entry_block_; }
   HEnvironment* start_environment() const { return start_environment_; }
 
-  void FinalizeUniqueValueIds();
+  void FinalizeUniqueness();
   bool ProcessArgumentsObject();
   void OrderBlocks();
   void AssignDominators();
@@ -941,7 +941,12 @@ class FunctionState V8_FINAL {
 
 class HIfContinuation V8_FINAL {
  public:
-  HIfContinuation() { continuation_captured_ = false; }
+  HIfContinuation() : continuation_captured_(false) {}
+  HIfContinuation(HBasicBlock* true_branch,
+                  HBasicBlock* false_branch,
+                  int position = RelocInfo::kNoPosition)
+      : continuation_captured_(true), true_branch_(true_branch),
+        false_branch_(false_branch), position_(position) {}
   ~HIfContinuation() { ASSERT(!continuation_captured_); }
 
   void Capture(HBasicBlock* true_branch,
@@ -970,6 +975,10 @@ class HIfContinuation V8_FINAL {
     return IsTrueReachable() || IsFalseReachable();
   }
 
+  HBasicBlock* true_branch() const { return true_branch_; }
+  HBasicBlock* false_branch() const { return false_branch_; }
+
+ private:
   bool continuation_captured_;
   HBasicBlock* true_branch_;
   HBasicBlock* false_branch_;
@@ -1228,6 +1237,15 @@ class HGraphBuilder {
                                    ElementsKind to_kind,
                                    bool is_jsarray);
 
+  // Do lookup in the number string cache. If the object is not found
+  // in the cache, the false branch of the continuation is taken;
+  // otherwise the true branch is taken and the returned value contains
+  // the cache value for the object. The returned value must NOT be used
+  // on the false branch.
+  HValue* BuildLookupNumberStringCache(HValue* object,
+                                       HIfContinuation* continuation);
+  HValue* BuildNumberToString(HValue* number);
+
   HInstruction* BuildUncheckedMonomorphicElementAccess(
       HValue* checked_object,
       HValue* key,
@@ -1272,8 +1290,7 @@ class HGraphBuilder {
                                      Handle<Type> left_type,
                                      Handle<Type> right_type,
                                      Handle<Type> result_type,
-                                     Maybe<int> fixed_right_arg,
-                                     HValue* context);
+                                     Maybe<int> fixed_right_arg);
 
   HLoadNamedField* AddLoadFixedArrayLength(HValue *object);
 
@@ -1381,7 +1398,49 @@ class HGraphBuilder {
     void Or();
     void And();
 
+    // Captures the current state of this IfBuilder in the specified
+    // continuation and ends this IfBuilder.
     void CaptureContinuation(HIfContinuation* continuation);
+
+    // Joins the specified continuation from this IfBuilder and ends this
+    // IfBuilder. This appends a Goto instruction from the true branch of
+    // this IfBuilder to the true branch of the continuation unless the
+    // true branch of this IfBuilder is already finished. And vice versa
+    // for the false branch.
+    //
+    // The basic idea is as follows: You have several nested IfBuilder's
+    // that you want to join based on two possible outcomes (i.e. success
+    // and failure, or whatever). You can do this easily using this method
+    // now, for example:
+    //
+    //   HIfContinuation cont(graph()->CreateBasicBlock(),
+    //                        graph()->CreateBasicBlock());
+    //   ...
+    //     IfBuilder if_whatever(this);
+    //     if_whatever.If<Condition>(arg);
+    //     if_whatever.Then();
+    //     ...
+    //     if_whatever.Else();
+    //     ...
+    //     if_whatever.JoinContinuation(&cont);
+    //   ...
+    //     IfBuilder if_something(this);
+    //     if_something.If<Condition>(arg1, arg2);
+    //     if_something.Then();
+    //     ...
+    //     if_something.Else();
+    //     ...
+    //     if_something.JoinContinuation(&cont);
+    //   ...
+    //   IfBuilder if_finally(this, &cont);
+    //   if_finally.Then();
+    //   // continues after then code of if_whatever or if_something.
+    //   ...
+    //   if_finally.Else();
+    //   // continues after else code of if_whatever or if_something.
+    //   ...
+    //   if_finally.End();
+    void JoinContinuation(HIfContinuation* continuation);
 
     void Then();
     void Else();

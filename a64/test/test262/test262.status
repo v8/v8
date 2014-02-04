@@ -36,6 +36,8 @@ def FAIL_OK = FAIL, OKAY
 # V8 Bug: http://code.google.com/p/v8/issues/detail?id=691
 11.2.3-3_3: FAIL
 
+15.5.4.9_CE: SKIP if $no_i18n
+
 ######################## NEEDS INVESTIGATION ###########################
 
 # These test failures are specific to the intl402 suite and need investigation

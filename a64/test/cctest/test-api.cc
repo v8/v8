@@ -4661,7 +4661,8 @@ void CThrowCountDown(const v8::FunctionCallbackInfo<v8::Value>& args) {
     v8::ThrowException(v8_str("FromC"));
     return;
   } else {
-    Local<v8::Object> global = Context::GetCurrent()->Global();
+    Local<v8::Object> global =
+        args.GetIsolate()->GetCurrentContext()->Global();
     Local<Value> fun = global->Get(v8_str("JSThrowCountDown"));
     v8::Handle<Value> argv[] = { v8_num(count - 1),
                                  args[1],
@@ -7078,7 +7079,8 @@ static void PGetter(Local<String> name,
                     const v8::PropertyCallbackInfo<v8::Value>& info) {
   ApiTestFuzzer::Fuzz();
   p_getter_count++;
-  v8::Handle<v8::Object> global = Context::GetCurrent()->Global();
+  v8::Handle<v8::Object> global =
+      info.GetIsolate()->GetCurrentContext()->Global();
   CHECK_EQ(info.Holder(), global->Get(v8_str("o1")));
   if (name->Equals(v8_str("p1"))) {
     CHECK_EQ(info.This(), global->Get(v8_str("o1")));
@@ -7112,7 +7114,8 @@ static void PGetter2(Local<String> name,
                      const v8::PropertyCallbackInfo<v8::Value>& info) {
   ApiTestFuzzer::Fuzz();
   p_getter_count2++;
-  v8::Handle<v8::Object> global = Context::GetCurrent()->Global();
+  v8::Handle<v8::Object> global =
+      info.GetIsolate()->GetCurrentContext()->Global();
   CHECK_EQ(info.Holder(), global->Get(v8_str("o1")));
   if (name->Equals(v8_str("p1"))) {
     CHECK_EQ(info.This(), global->Get(v8_str("o1")));
@@ -7218,7 +7221,7 @@ THREADED_TEST(StringWrite) {
       "for (var i = 0; i < 0xd800; i += 4) {"
       "  right = String.fromCharCode(i) + right;"
       "}");
-  v8::Handle<v8::Object> global = Context::GetCurrent()->Global();
+  v8::Handle<v8::Object> global = context->Global();
   Handle<String> left_tree = global->Get(v8_str("left")).As<String>();
   Handle<String> right_tree = global->Get(v8_str("right")).As<String>();
 
@@ -7805,7 +7808,8 @@ static void TroubleCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
   trouble_nesting++;
 
   // Call a JS function that throws an uncaught exception.
-  Local<v8::Object> arg_this = Context::GetCurrent()->Global();
+  Local<v8::Object> arg_this =
+      args.GetIsolate()->GetCurrentContext()->Global();
   Local<Value> trouble_callee = (trouble_nesting == 3) ?
     arg_this->Get(v8_str("trouble_callee")) :
     arg_this->Get(v8_str("trouble_caller"));
@@ -8327,7 +8331,7 @@ static bool NamedAccessBlocker(Local<v8::Object> global,
                                Local<Value> name,
                                v8::AccessType type,
                                Local<Value> data) {
-  return Context::GetCurrent()->Global()->Equals(global) ||
+  return CcTest::isolate()->GetCurrentContext()->Global()->Equals(global) ||
       allowed_access_type[type];
 }
 
@@ -8336,7 +8340,7 @@ static bool IndexedAccessBlocker(Local<v8::Object> global,
                                  uint32_t key,
                                  v8::AccessType type,
                                  Local<Value> data) {
-  return Context::GetCurrent()->Global()->Equals(global) ||
+  return CcTest::isolate()->GetCurrentContext()->Global()->Equals(global) ||
       allowed_access_type[type];
 }
 
@@ -12446,28 +12450,28 @@ void ApiTestFuzzer::TearDown() {
 
 
 // Lets not be needlessly self-referential.
-UNINITIALIZED_TEST(Threading1) {
+TEST(Threading1) {
   ApiTestFuzzer::SetUp(ApiTestFuzzer::FIRST_PART);
   ApiTestFuzzer::RunAllTests();
   ApiTestFuzzer::TearDown();
 }
 
 
-UNINITIALIZED_TEST(Threading2) {
+TEST(Threading2) {
   ApiTestFuzzer::SetUp(ApiTestFuzzer::SECOND_PART);
   ApiTestFuzzer::RunAllTests();
   ApiTestFuzzer::TearDown();
 }
 
 
-UNINITIALIZED_TEST(Threading3) {
+TEST(Threading3) {
   ApiTestFuzzer::SetUp(ApiTestFuzzer::THIRD_PART);
   ApiTestFuzzer::RunAllTests();
   ApiTestFuzzer::TearDown();
 }
 
 
-UNINITIALIZED_TEST(Threading4) {
+TEST(Threading4) {
   ApiTestFuzzer::SetUp(ApiTestFuzzer::FOURTH_PART);
   ApiTestFuzzer::RunAllTests();
   ApiTestFuzzer::TearDown();
@@ -12475,6 +12479,7 @@ UNINITIALIZED_TEST(Threading4) {
 
 
 void ApiTestFuzzer::CallTest() {
+  v8::Isolate::Scope scope(CcTest::isolate());
   if (kLogThreading)
     printf("Start test %d\n", test_number_);
   CallTestNumber(test_number_);
@@ -12675,17 +12680,6 @@ TEST(DontLeakGlobalObjects) {
   }
 }
 
-template<class T>
-struct CopyablePersistentTraits {
-  typedef Persistent<T, CopyablePersistentTraits<T> > CopyablePersistent;
-  static const bool kResetInDestructor = true;
-  template<class S, class M>
-  static V8_INLINE void Copy(const Persistent<S, M>& source,
-                             CopyablePersistent* dest) {
-    // do nothing, just allow copy
-  }
-};
-
 
 TEST(CopyablePersistent) {
   LocalContext context;
@@ -12693,19 +12687,20 @@ TEST(CopyablePersistent) {
   i::GlobalHandles* globals =
       reinterpret_cast<i::Isolate*>(isolate)->global_handles();
   int initial_handles = globals->global_handles_count();
+  typedef v8::Persistent<v8::Object, v8::CopyablePersistentTraits<v8::Object> >
+      CopyableObject;
   {
-    v8::Persistent<v8::Object, CopyablePersistentTraits<v8::Object> > handle1;
+    CopyableObject handle1;
     {
       v8::HandleScope scope(isolate);
       handle1.Reset(isolate, v8::Object::New());
     }
     CHECK_EQ(initial_handles + 1, globals->global_handles_count());
-    v8::Persistent<v8::Object, CopyablePersistentTraits<v8::Object> > handle2;
+    CopyableObject  handle2;
     handle2 = handle1;
     CHECK(handle1 == handle2);
     CHECK_EQ(initial_handles + 2, globals->global_handles_count());
-    v8::Persistent<v8::Object, CopyablePersistentTraits<v8::Object> >
-    handle3(handle2);
+    CopyableObject handle3(handle2);
     CHECK(handle1 == handle3);
     CHECK_EQ(initial_handles + 3, globals->global_handles_count());
   }
@@ -13483,28 +13478,6 @@ THREADED_TEST(ExternalAllocatedMemory) {
 }
 
 
-THREADED_TEST(DisposeEnteredContext) {
-  LocalContext outer;
-  v8::Isolate* isolate = outer->GetIsolate();
-  v8::Persistent<v8::Context> inner;
-  {
-    v8::HandleScope scope(isolate);
-    inner.Reset(isolate, v8::Context::New(isolate));
-  }
-  v8::HandleScope scope(isolate);
-  {
-    // Don't want a handle here, so do this unsafely
-    v8::Handle<v8::Context> inner_local =
-        v8::Utils::Convert<i::Object, v8::Context>(
-            v8::Utils::OpenPersistent(inner));
-    inner_local->Enter();
-    inner.Dispose();
-    inner.Clear();
-    inner_local->Exit();
-  }
-}
-
-
 // Regression test for issue 54, object templates with internal fields
 // but no accessors or interceptors did not get their internal field
 // count set on instances.
@@ -14257,6 +14230,7 @@ class RegExpInterruptTest {
     while (gc_during_regexp_ < kRequiredGCs) {
       {
         v8::Locker lock(CcTest::isolate());
+        v8::Isolate::Scope isolate_scope(CcTest::isolate());
         // TODO(lrn): Perhaps create some garbage before collecting.
         CcTest::heap()->CollectAllGarbage(i::Heap::kNoGCFlags);
         gc_count_++;
@@ -14315,9 +14289,8 @@ class RegExpInterruptTest {
 
 // Test that a regular expression execution can be interrupted and
 // survive a garbage collection.
-UNINITIALIZED_TEST(RegExpInterruption) {
+TEST(RegExpInterruption) {
   v8::Locker lock(CcTest::isolate());
-  v8::V8::Initialize();
   v8::HandleScope scope(CcTest::isolate());
   Local<Context> local_env;
   {
@@ -14379,6 +14352,7 @@ class ApplyInterruptTest {
     while (gc_during_apply_ < kRequiredGCs) {
       {
         v8::Locker lock(CcTest::isolate());
+        v8::Isolate::Scope isolate_scope(CcTest::isolate());
         CcTest::heap()->CollectAllGarbage(i::Heap::kNoGCFlags);
         gc_count_++;
       }
@@ -14423,7 +14397,7 @@ class ApplyInterruptTest {
 
 // Test that nothing bad happens if we get a preemption just when we were
 // about to do an apply().
-UNINITIALIZED_TEST(ApplyInterruption) {
+TEST(ApplyInterruption) {
   v8::Locker lock(CcTest::isolate());
   v8::V8::Initialize();
   v8::HandleScope scope(CcTest::isolate());
@@ -14694,6 +14668,7 @@ class RegExpStringModificationTest {
            morphs_ < kMaxModifications) {
       {
         v8::Locker lock(CcTest::isolate());
+        v8::Isolate::Scope isolate_scope(CcTest::isolate());
         // Swap string between ascii and two-byte representation.
         i::String* string = *input_;
         MorphAString(string, &ascii_resource_, &uc16_resource_);
@@ -14740,9 +14715,8 @@ class RegExpStringModificationTest {
 
 // Test that a regular expression execution can be interrupted and
 // the string changed without failing.
-UNINITIALIZED_TEST(RegExpStringModification) {
+TEST(RegExpStringModification) {
   v8::Locker lock(CcTest::isolate());
-  v8::V8::Initialize();
   v8::HandleScope scope(CcTest::isolate());
   Local<Context> local_env;
   {
@@ -15039,10 +15013,9 @@ static v8::Local<Context> calling_context2;
 static void GetCallingContextCallback(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
   ApiTestFuzzer::Fuzz();
-  CHECK(Context::GetCurrent() == calling_context0);
   CHECK(args.GetIsolate()->GetCurrentContext() == calling_context0);
-  CHECK(Context::GetCalling() == calling_context1);
-  CHECK(Context::GetEntered() == calling_context2);
+  CHECK(args.GetIsolate()->GetCallingContext() == calling_context1);
+  CHECK(args.GetIsolate()->GetEnteredContext() == calling_context2);
   args.GetReturnValue().Set(42);
 }
 
@@ -19738,7 +19711,9 @@ TEST(StaticGetters) {
 
 
 UNINITIALIZED_TEST(IsolateEmbedderData) {
-  v8::Isolate* isolate = CcTest::isolate();
+  CcTest::DisableAutomaticDispose();
+  v8::Isolate* isolate = v8::Isolate::New();
+  isolate->Enter();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   CHECK_EQ(NULL, isolate->GetData());
   CHECK_EQ(NULL, i_isolate->GetData());
@@ -19750,9 +19725,8 @@ UNINITIALIZED_TEST(IsolateEmbedderData) {
   i_isolate->SetData(data2);
   CHECK_EQ(data2, isolate->GetData());
   CHECK_EQ(data2, i_isolate->GetData());
-  i_isolate->TearDown();
-  CHECK_EQ(data2, isolate->GetData());
-  CHECK_EQ(data2, i_isolate->GetData());
+  isolate->Exit();
+  isolate->Dispose();
 }
 
 

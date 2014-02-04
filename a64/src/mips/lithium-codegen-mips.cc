@@ -2805,7 +2805,7 @@ void LCodeGen::DoReturn(LReturn* instr) {
 
 void LCodeGen::DoLoadGlobalCell(LLoadGlobalCell* instr) {
   Register result = ToRegister(instr->result());
-  __ li(at, Operand(Handle<Object>(instr->hydrogen()->cell())));
+  __ li(at, Operand(Handle<Object>(instr->hydrogen()->cell().handle())));
   __ lw(result, FieldMemOperand(at, Cell::kValueOffset));
   if (instr->hydrogen()->RequiresHoleCheck()) {
     __ LoadRoot(at, Heap::kTheHoleValueRootIndex);
@@ -2831,7 +2831,7 @@ void LCodeGen::DoStoreGlobalCell(LStoreGlobalCell* instr) {
   Register cell = scratch0();
 
   // Load the cell.
-  __ li(cell, Operand(instr->hydrogen()->cell()));
+  __ li(cell, Operand(instr->hydrogen()->cell().handle()));
 
   // If the cell we are storing to contains the hole it could have
   // been deleted from the property dictionary. In that case, we need
@@ -4801,34 +4801,19 @@ void LCodeGen::EmitNumberUntagD(Register input_reg,
                                 LEnvironment* env,
                                 NumberUntagDMode mode) {
   Register scratch = scratch0();
-
-  Label load_smi, heap_number, done;
-
+  Label convert, load_smi, done;
   if (mode == NUMBER_CANDIDATE_IS_ANY_TAGGED) {
     // Smi check.
     __ UntagAndJumpIfSmi(scratch, input_reg, &load_smi);
-
     // Heap number map check.
     __ lw(scratch, FieldMemOperand(input_reg, HeapObject::kMapOffset));
     __ LoadRoot(at, Heap::kHeapNumberMapRootIndex);
-    if (!can_convert_undefined_to_nan) {
-      DeoptimizeIf(ne, env, scratch, Operand(at));
+    if (can_convert_undefined_to_nan) {
+      __ Branch(&convert, ne, scratch, Operand(at));
     } else {
-      Label heap_number, convert;
-      __ Branch(&heap_number, eq, scratch, Operand(at));
-
-      // Convert undefined (and hole) to NaN.
-      __ LoadRoot(at, Heap::kUndefinedValueRootIndex);
-      DeoptimizeIf(ne, env, input_reg, Operand(at));
-
-      __ bind(&convert);
-      __ LoadRoot(at, Heap::kNanValueRootIndex);
-      __ ldc1(result_reg, FieldMemOperand(at, HeapNumber::kValueOffset));
-      __ Branch(&done);
-
-      __ bind(&heap_number);
+      DeoptimizeIf(ne, env, scratch, Operand(at));
     }
-    // Heap number to double register conversion.
+    // Load heap number.
     __ ldc1(result_reg, FieldMemOperand(input_reg, HeapNumber::kValueOffset));
     if (deoptimize_on_minus_zero) {
       __ mfc1(at, result_reg.low());
@@ -4837,11 +4822,19 @@ void LCodeGen::EmitNumberUntagD(Register input_reg,
       DeoptimizeIf(eq, env, scratch, Operand(HeapNumber::kSignMask));
     }
     __ Branch(&done);
+    if (can_convert_undefined_to_nan) {
+      __ bind(&convert);
+      // Convert undefined (and hole) to NaN.
+      __ LoadRoot(at, Heap::kUndefinedValueRootIndex);
+      DeoptimizeIf(ne, env, input_reg, Operand(at));
+      __ LoadRoot(scratch, Heap::kNanValueRootIndex);
+      __ ldc1(result_reg, FieldMemOperand(scratch, HeapNumber::kValueOffset));
+      __ Branch(&done);
+    }
   } else {
     __ SmiUntag(scratch, input_reg);
     ASSERT(mode == NUMBER_CANDIDATE_IS_SMI);
   }
-
   // Smi to double register conversion
   __ bind(&load_smi);
   // scratch: untagged value of input_reg

@@ -310,6 +310,7 @@ void DumpException(Handle<Message> message) {
 
 int main(int argc, char** argv) {
   V8::InitializeICU();
+  i::Isolate::SetCrashIfDefaultIsolateInitialized();
 
   // By default, log code create information in the snapshot.
   i::FLAG_log_code = true;
@@ -330,7 +331,10 @@ int main(int argc, char** argv) {
     exit(1);
   }
 #endif
-  Isolate* isolate = Isolate::GetCurrent();
+  i::FLAG_logfile_per_isolate = false;
+
+  Isolate* isolate = v8::Isolate::New();
+  isolate->Enter();
   i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
   i::Serializer::Enable(internal_isolate);
   Persistent<Context> context;

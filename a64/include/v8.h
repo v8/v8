@@ -480,6 +480,22 @@ class NonCopyablePersistentTraits {
 
 
 /**
+ * Helper class traits to allow copying and assignment of Persistent.
+ * This will clone the contents of storage cell, but not any of the flags, etc.
+ */
+template<class T>
+struct CopyablePersistentTraits {
+  typedef Persistent<T, CopyablePersistentTraits<T> > CopyablePersistent;
+  static const bool kResetInDestructor = true;
+  template<class S, class M>
+  static V8_INLINE void Copy(const Persistent<S, M>& source,
+                             CopyablePersistent* dest) {
+    // do nothing, just allow copy
+  }
+};
+
+
+/**
  * An object reference that is independent of any handle scope.  Where
  * a Local handle only lives as long as the HandleScope in which it was
  * allocated, a Persistent handle remains valid until it is explicitly
@@ -4018,8 +4034,21 @@ class V8_EXPORT Isolate {
    */
   CpuProfiler* GetCpuProfiler();
 
+  /** Returns true if this isolate has a current context. */
+  bool InContext();
+
   /** Returns the context that is on the top of the stack. */
   Local<Context> GetCurrentContext();
+
+  /**
+   * Returns the context of the calling JavaScript code.  That is the
+   * context of the top-most JavaScript frame.  If there are no
+   * JavaScript frames an empty handle is returned.
+   */
+  Local<Context> GetCallingContext();
+
+  /** Returns the last entered context. */
+  Local<Context> GetEnteredContext();
 
   /**
    * Allows the host application to group objects together. If one
@@ -4923,24 +4952,16 @@ class V8_EXPORT Context {
       Handle<ObjectTemplate> global_template = Handle<ObjectTemplate>(),
       Handle<Value> global_object = Handle<Value>());
 
-  /** Deprecated. Use Isolate version instead. */
-  V8_DEPRECATED(static Persistent<Context> New(
-      ExtensionConfiguration* extensions = NULL,
-      Handle<ObjectTemplate> global_template = Handle<ObjectTemplate>(),
-      Handle<Value> global_object = Handle<Value>()));
-
-  /** Returns the last entered context. */
+  // TODO(dcarney):  Remove this function.
+  /** Deprecated. Use Isolate::GetEnteredContext */
   static Local<Context> GetEntered();
 
-  // TODO(svenpanne) Actually deprecate this.
+  // TODO(dcarney) Remove this function.
   /** Deprecated. Use Isolate::GetCurrentContext instead. */
   static Local<Context> GetCurrent();
 
-  /**
-   * Returns the context of the calling JavaScript code.  That is the
-   * context of the top-most JavaScript frame.  If there are no
-   * JavaScript frames an empty handle is returned.
-   */
+  // TODO(dcarney) Remove this function.
+  /** Deprecated. Use Isolate::GetCallingContext instead. */
   static Local<Context> GetCalling();
 
   /**
@@ -4972,7 +4993,8 @@ class V8_EXPORT Context {
   /** Returns true if the context has experienced an out of memory situation. */
   bool HasOutOfMemoryException();
 
-  /** Returns true if V8 has a current context. */
+  // TODO(dcarney) Remove this function.
+  /** Deprecated. Use Isolate::InContext instead. */
   static bool InContext();
 
   /** Returns an isolate associated with a current context. */

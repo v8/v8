@@ -61,6 +61,17 @@ void ToNumberStub::InitializeInterfaceDescriptor(
 }
 
 
+void NumberToStringStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  // x0: value
+  static Register registers[] = { x0 };
+  descriptor->register_param_count_ = sizeof(registers) / sizeof(registers[0]);
+  descriptor->register_params_ = registers;
+  descriptor->deoptimization_handler_ = NULL;
+}
+
+
 void FastCloneShallowArrayStub::InitializeInterfaceDescriptor(
     Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
@@ -4112,6 +4123,7 @@ void RegExpConstructResultStub::Generate(MacroAssembler* masm) {
 static void GenerateRecordCallTarget(MacroAssembler* masm) {
   // Cache the called function in a global property cell. Cache states are
   // uninitialized, monomorphic (indicated by a JSFunction), and megamorphic.
+  //  x0 : number of arguments to the construct function
   //  x1 : the function to call
   //  x2 : cache cell for the call target
   Label initialize, done, miss, megamorphic, not_array_function;
@@ -4168,6 +4180,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
     FrameScope scope(masm, StackFrame::INTERNAL);
     CreateAllocationSiteStub create_stub;
 
+    // Arguments register must be smi-tagged to call out.
     __ SmiTag(x0);
     __ Push(x0, x1, x2);
 
@@ -4786,24 +4799,6 @@ void ICCompareStub::GenerateMiss(MacroAssembler* masm) {
 
   // Tail-call to the new stub.
   __ Jump(stub_entry);
-}
-
-
-void NumberToStringStub::Generate(MacroAssembler* masm) {
-  Register result = x0;
-  Register object = x1;
-  Label runtime;
-
-  __ Pop(object);
-
-  // Generate code to lookup number in the number string cache.
-  __ LookupNumberStringCache(object, result, x2, x3, x4, &runtime);
-  __ Ret();
-
-  // Handle number to string in the runtime system if not found in the cache.
-  __ Bind(&runtime);
-  __ Push(object);
-  __ TailCallRuntime(Runtime::kNumberToStringSkipCache, 1, 1);
 }
 
 

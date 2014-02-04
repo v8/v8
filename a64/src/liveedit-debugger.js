@@ -221,7 +221,7 @@ Debug.LiveEdit = new function() {
     change_log.push( {position_patched: position_patch_report} );
 
     for (var i = 0; i < update_positions_list.length; i++) {
-      // TODO(LiveEdit): take into account wether it's source_changed or
+      // TODO(LiveEdit): take into account whether it's source_changed or
       // unchanged and whether positions changed at all.
       PatchPositions(update_positions_list[i], diff_array,
           position_patch_report);
@@ -288,7 +288,7 @@ Debug.LiveEdit = new function() {
       }
     }
 
-    // After sorting update outer_inder field using old_index_map. Also
+    // After sorting update outer_index field using old_index_map. Also
     // set next_sibling_index field.
     var current_index = 0;
 
@@ -692,10 +692,10 @@ Debug.LiveEdit = new function() {
     ProcessInternals(code_info_tree);
   }
 
-  // For ecah old function (if it is not damaged) tries to find a corresponding
+  // For each old function (if it is not damaged) tries to find a corresponding
   // function in new script. Typically it should succeed (non-damaged functions
   // by definition may only have changes inside their bodies). However there are
-  // reasons for corresponence not to be found; function with unmodified text
+  // reasons for correspondence not to be found; function with unmodified text
   // in new script may become enclosed into other function; the innocent change
   // inside function body may in fact be something like "} function B() {" that
   // splits a function into 2 functions.
@@ -703,7 +703,13 @@ Debug.LiveEdit = new function() {
 
     // A recursive function that tries to find a correspondence for all
     // child functions and for their inner functions.
-    function ProcessChildren(old_node, new_node) {
+    function ProcessNode(old_node, new_node) {
+      var scope_change_description =
+          IsFunctionContextLocalsChanged(old_node.info, new_node.info);
+      if (scope_change_description) {
+          old_node.status = FunctionStatus.CHANGED;
+      }
+
       var old_children = old_node.children;
       var new_children = new_node.children;
 
@@ -729,8 +735,15 @@ Debug.LiveEdit = new function() {
                   new_children[new_index];
               old_children[old_index].textual_corresponding_node =
                   new_children[new_index];
-              if (old_children[old_index].status != FunctionStatus.UNCHANGED) {
-                ProcessChildren(old_children[old_index],
+              if (scope_change_description) {
+                old_children[old_index].status = FunctionStatus.DAMAGED;
+                old_children[old_index].status_explanation =
+                    "Enclosing function is now incompatible. " +
+                    scope_change_description;
+                old_children[old_index].corresponding_node = void 0;
+              } else if (old_children[old_index].status !=
+                  FunctionStatus.UNCHANGED) {
+                ProcessNode(old_children[old_index],
                     new_children[new_index]);
                 if (old_children[old_index].status == FunctionStatus.DAMAGED) {
                   unmatched_new_nodes_list.push(
@@ -772,11 +785,10 @@ Debug.LiveEdit = new function() {
       }
 
       if (old_node.status == FunctionStatus.CHANGED) {
-        var why_wrong_expectations =
-            WhyFunctionExpectationsDiffer(old_node.info, new_node.info);
-        if (why_wrong_expectations) {
+        if (old_node.info.param_num != new_node.info.param_num) {
           old_node.status = FunctionStatus.DAMAGED;
-          old_node.status_explanation = why_wrong_expectations;
+          old_node.status_explanation = "Changed parameter number: " +
+              old_node.info.param_num + " and " + new_node.info.param_num;
         }
       }
       old_node.unmatched_new_nodes = unmatched_new_nodes_list;
@@ -784,7 +796,7 @@ Debug.LiveEdit = new function() {
           textually_unmatched_new_nodes_list;
     }
 
-    ProcessChildren(old_code_tree, new_code_tree);
+    ProcessNode(old_code_tree, new_code_tree);
 
     old_code_tree.corresponding_node = new_code_tree;
     old_code_tree.textual_corresponding_node = new_code_tree;
@@ -856,7 +868,7 @@ Debug.LiveEdit = new function() {
     this.raw_array = raw_array;
   }
 
-  // Changes positions (including all statments) in function.
+  // Changes positions (including all statements) in function.
   function PatchPositions(old_info_node, diff_array, report_array) {
     if (old_info_node.live_shared_function_infos) {
       old_info_node.live_shared_function_infos.forEach(function (info) {
@@ -878,15 +890,9 @@ Debug.LiveEdit = new function() {
     return script.name + " (old)";
   }
 
-  // Compares a function interface old and new version, whether it
+  // Compares a function scope heap structure, old and new version, whether it
   // changed or not. Returns explanation if they differ.
-  function WhyFunctionExpectationsDiffer(function_info1, function_info2) {
-    // Check that function has the same number of parameters (there may exist
-    // an adapter, that won't survive function parameter number change).
-    if (function_info1.param_num != function_info2.param_num) {
-      return "Changed parameter number: " + function_info1.param_num +
-          " and " + function_info2.param_num;
-    }
+  function IsFunctionContextLocalsChanged(function_info1, function_info2) {
     var scope_info1 = function_info1.scope_info;
     var scope_info2 = function_info2.scope_info;
 
@@ -905,8 +911,8 @@ Debug.LiveEdit = new function() {
     }
 
     if (scope_info1_text != scope_info2_text) {
-      return "Incompatible variable maps: [" + scope_info1_text +
-          "] and [" + scope_info2_text + "]";
+      return "Variable map changed: [" + scope_info1_text +
+          "] => [" + scope_info2_text + "]";
     }
     // No differences. Return undefined.
     return;

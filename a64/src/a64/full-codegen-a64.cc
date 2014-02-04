@@ -3338,8 +3338,9 @@ void FullCodeGenerator::EmitSetValueOf(CallRuntime* expr) {
 void FullCodeGenerator::EmitNumberToString(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   ASSERT_EQ(args->length(), 1);
-  // Load the argument on the stack and call the stub.
-  VisitForStackValue(args->at(0));
+
+  // Load the argument into x0 and call the stub.
+  VisitForAccumulatorValue(args->at(0));
 
   NumberToStringStub stub;
   __ CallStub(&stub);

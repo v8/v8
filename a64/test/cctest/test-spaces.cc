@@ -400,3 +400,25 @@ TEST(LargeObjectSpace) {
 
   CHECK(lo->AllocateRaw(lo_size, NOT_EXECUTABLE)->IsFailure());
 }
+
+
+TEST(SizeOfFirstPageIsLargeEnough) {
+  if (i::FLAG_always_opt) return;
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+
+  // Freshly initialized VM gets by with one page per space.
+  for (int i = FIRST_PAGED_SPACE; i <= LAST_PAGED_SPACE; i++) {
+    CHECK_EQ(1, isolate->heap()->paged_space(i)->CountTotalPages());
+  }
+
+  // Executing the empty script gets by with one page per space.
+  HandleScope scope(isolate);
+  CompileRun("/*empty*/");
+  for (int i = FIRST_PAGED_SPACE; i <= LAST_PAGED_SPACE; i++) {
+    CHECK_EQ(1, isolate->heap()->paged_space(i)->CountTotalPages());
+  }
+
+  // No large objects required to perform the above steps.
+  CHECK(isolate->heap()->lo_space()->IsEmpty());
+}

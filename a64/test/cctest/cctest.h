@@ -93,6 +93,7 @@ class CcTest {
   bool enabled() { return enabled_; }
 
   static v8::Isolate* isolate() {
+    CHECK(isolate_ != NULL);
     isolate_used_ = true;
     return isolate_;
   }
@@ -105,6 +106,10 @@ class CcTest {
     return i_isolate()->heap();
   }
 
+  static v8::Local<v8::Object> global() {
+    return isolate()->GetCurrentContext()->Global();
+  }
+
   // TODO(dcarney): Remove.
   // This must be called first in a test.
   static void InitializeVM() {
@@ -114,6 +119,9 @@ class CcTest {
     v8::HandleScope handle_scope(CcTest::isolate());
     v8::Context::New(CcTest::isolate())->Enter();
   }
+
+  // Only for UNINITIALIZED_TESTs
+  static void DisableAutomaticDispose();
 
   // Helper function to configure a context.
   // Must be in a HandleScope.

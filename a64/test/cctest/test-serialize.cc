@@ -264,7 +264,7 @@ static void Serialize() {
 
 
 // Test that the whole heap can be serialized.
-UNINITIALIZED_TEST(Serialize) {
+TEST(Serialize) {
   if (!Snapshot::HaveASnapshotToStartFrom()) {
     Serializer::Enable(CcTest::i_isolate());
     v8::V8::Initialize();
@@ -274,7 +274,7 @@ UNINITIALIZED_TEST(Serialize) {
 
 
 // Test that heap serialization is non-destructive.
-UNINITIALIZED_TEST(SerializeTwice) {
+TEST(SerializeTwice) {
   if (!Snapshot::HaveASnapshotToStartFrom()) {
     Serializer::Enable(CcTest::i_isolate());
     v8::V8::Initialize();
@@ -372,7 +372,7 @@ DEPENDENT_TEST(DeserializeFromSecondSerializationAndRunScript2,
 }
 
 
-UNINITIALIZED_TEST(PartialSerialization) {
+TEST(PartialSerialization) {
   if (!Snapshot::HaveASnapshotToStartFrom()) {
     Isolate* isolate = CcTest::i_isolate();
     Serializer::Enable(isolate);
@@ -523,7 +523,7 @@ DEPENDENT_TEST(PartialDeserialization, PartialSerialization) {
 }
 
 
-UNINITIALIZED_TEST(ContextSerialization) {
+TEST(ContextSerialization) {
   if (!Snapshot::HaveASnapshotToStartFrom()) {
     Isolate* isolate = CcTest::i_isolate();
     Serializer::Enable(isolate);

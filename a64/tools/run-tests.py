@@ -313,7 +313,8 @@ def Execute(arch, mode, args, options, suites, workspace):
                         mode_flags, options.verbose,
                         timeout, options.isolates,
                         options.command_prefix,
-                        options.extra_flags)
+                        options.extra_flags,
+                        options.no_i18n)
 
   simulator_run = not options.dont_skip_simulator_slow_tests and \
       arch in ['a64', 'arm', 'mips'] and ARCH_GUESS and arch != ARCH_GUESS
@@ -325,6 +326,7 @@ def Execute(arch, mode, args, options, suites, workspace):
     "isolates": options.isolates,
     "simulator_run": simulator_run,
     "deopt_fuzzer": False,
+    "no_i18n": options.no_i18n,
   }
   all_tests = []
   num_tests = 0

@@ -200,8 +200,10 @@ static v8::Local<v8::Function> CompileFunction(DebugLocalContext* env,
 static v8::Local<v8::Function> CompileFunction(const char* source,
                                                const char* function_name) {
   v8::Script::Compile(v8::String::New(source))->Run();
+  v8::Local<v8::Object> global =
+      CcTest::isolate()->GetCurrentContext()->Global();
   return v8::Local<v8::Function>::Cast(
-    v8::Context::GetCurrent()->Global()->Get(v8::String::New(function_name)));
+      global->Get(v8::String::New(function_name)));
 }
 
 
@@ -5142,7 +5144,7 @@ void V8Thread::Run() {
       "\n"
       "foo();\n";
 
-  v8::V8::Initialize();
+  v8::Isolate::Scope isolate_scope(CcTest::isolate());
   DebugLocalContext env;
   v8::HandleScope scope(env->GetIsolate());
   v8::Debug::SetMessageHandler2(&ThreadedMessageHandler);
@@ -5179,7 +5181,7 @@ void DebuggerThread::Run() {
 }
 
 
-UNINITIALIZED_TEST(ThreadedDebugging) {
+TEST(ThreadedDebugging) {
   DebuggerThread debugger_thread;
   V8Thread v8_thread;
 
@@ -5258,9 +5260,10 @@ void BreakpointsV8Thread::Run() {
   const char* source_2 = "cat(17);\n"
     "cat(19);\n";
 
-  v8::V8::Initialize();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::Isolate::Scope isolate_scope(isolate);
   DebugLocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
+  v8::HandleScope scope(isolate);
   v8::Debug::SetMessageHandler2(&BreakpointsMessageHandler);
 
   CompileRun(source_1);
@@ -5333,6 +5336,7 @@ void BreakpointsDebuggerThread::Run() {
 
 
   v8::Isolate* isolate = CcTest::isolate();
+  v8::Isolate::Scope isolate_scope(isolate);
   // v8 thread initializes, runs source_1
   breakpoints_barriers->barrier_1.Wait();
   // 1:Set breakpoint in cat() (will get id 1).
@@ -5403,12 +5407,12 @@ void TestRecursiveBreakpointsGeneric(bool global_evaluate) {
 }
 
 
-UNINITIALIZED_TEST(RecursiveBreakpoints) {
+TEST(RecursiveBreakpoints) {
   TestRecursiveBreakpointsGeneric(false);
 }
 
 
-UNINITIALIZED_TEST(RecursiveBreakpointsGlobal) {
+TEST(RecursiveBreakpointsGlobal) {
   TestRecursiveBreakpointsGeneric(true);
 }
 
@@ -5789,7 +5793,7 @@ void HostDispatchV8Thread::Run() {
     "\n";
   const char* source_2 = "cat(17);\n";
 
-  v8::V8::Initialize();
+  v8::Isolate::Scope isolate_scope(CcTest::isolate());
   DebugLocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
@@ -5832,7 +5836,7 @@ void HostDispatchDebuggerThread::Run() {
 }
 
 
-UNINITIALIZED_TEST(DebuggerHostDispatch) {
+TEST(DebuggerHostDispatch) {
   HostDispatchDebuggerThread host_dispatch_debugger_thread;
   HostDispatchV8Thread host_dispatch_v8_thread;
   i::FLAG_debugger_auto_break = true;
@@ -5877,7 +5881,7 @@ static void DebugMessageHandler() {
 
 
 void DebugMessageDispatchV8Thread::Run() {
-  v8::V8::Initialize();
+  v8::Isolate::Scope isolate_scope(CcTest::isolate());
   DebugLocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
@@ -5898,7 +5902,7 @@ void DebugMessageDispatchDebuggerThread::Run() {
 }
 
 
-UNINITIALIZED_TEST(DebuggerDebugMessageDispatch) {
+TEST(DebuggerDebugMessageDispatch) {
   DebugMessageDispatchDebuggerThread debug_message_dispatch_debugger_thread;
   DebugMessageDispatchV8Thread debug_message_dispatch_v8_thread;
 
@@ -6363,13 +6367,13 @@ static void DebugEventDebugBreak(
 
     // Keep forcing breaks.
     if (break_point_hit_count < 20) {
-      v8::Debug::DebugBreak();
+      v8::Debug::DebugBreak(CcTest::isolate());
     }
   }
 }
 
 
-UNINITIALIZED_TEST(RegExpDebugBreak) {
+TEST(RegExpDebugBreak) {
   // This test only applies to native regexps.
   DebugLocalContext env;
   v8::HandleScope scope(env->GetIsolate());
@@ -6805,7 +6809,7 @@ static void BreakMessageHandler(const v8::Debug::Message& message) {
 
 // Test that if DebugBreak is forced it is ignored when code from
 // debug-delay.js is executed.
-UNINITIALIZED_TEST(NoDebugBreakInAfterCompileMessageHandler) {
+TEST(NoDebugBreakInAfterCompileMessageHandler) {
   DebugLocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
@@ -6813,7 +6817,7 @@ UNINITIALIZED_TEST(NoDebugBreakInAfterCompileMessageHandler) {
   v8::Debug::SetMessageHandler2(BreakMessageHandler);
 
   // Set the debug break flag.
-  v8::Debug::DebugBreak();
+  v8::Debug::DebugBreak(env->GetIsolate());
 
   // Create a function for testing stepping.
   const char* src = "function f() { eval('var x = 10;'); } ";
@@ -7005,10 +7009,10 @@ static void NamedGetterWithCallingContextCheck(
     v8::Local<v8::String> name,
     const v8::PropertyCallbackInfo<v8::Value>& info) {
   CHECK_EQ(0, strcmp(*v8::String::Utf8Value(name), "a"));
-  v8::Handle<v8::Context> current = v8::Context::GetCurrent();
+  v8::Handle<v8::Context> current = info.GetIsolate()->GetCurrentContext();
   CHECK(current == debugee_context);
   CHECK(current != debugger_context);
-  v8::Handle<v8::Context> calling = v8::Context::GetCalling();
+  v8::Handle<v8::Context> calling = info.GetIsolate()->GetCallingContext();
   CHECK(calling == debugee_context);
   CHECK(calling != debugger_context);
   info.GetReturnValue().Set(1);
@@ -7024,7 +7028,7 @@ static void DebugEventGetAtgumentPropertyValue(
   v8::Handle<v8::Object> exec_state = event_details.GetExecutionState();
   if (event == v8::Break) {
     break_point_hit_count++;
-    CHECK(debugger_context == v8::Context::GetCurrent());
+    CHECK(debugger_context == CcTest::isolate()->GetCurrentContext());
     v8::Handle<v8::Function> func = v8::Handle<v8::Function>::Cast(CompileRun(
         "(function(exec_state) {\n"
         "    return (exec_state.frame(0).argumentValue(0).property('a').\n"

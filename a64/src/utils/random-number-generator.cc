@@ -82,6 +82,11 @@ RandomNumberGenerator::RandomNumberGenerator() {
   // We cannot assume that random() or rand() were seeded
   // properly, so instead of relying on random() or rand(),
   // we just seed our PRNG using timing data as fallback.
+  // This is weak entropy, but it's sufficient, because
+  // it is the responsibility of the embedder to install
+  // an entropy source using v8::V8::SetEntropySource(),
+  // which provides reasonable entropy, see:
+  // https://code.google.com/p/v8/issues/detail?id=2905
   int64_t seed = Time::NowFromSystemTime().ToInternalValue() << 24;
   seed ^= TimeTicks::HighResNow().ToInternalValue() << 16;
   seed ^= TimeTicks::Now().ToInternalValue() << 8;

@@ -874,8 +874,8 @@ static void GenerateFastApiDirectCall(MacroAssembler* masm,
   // Store call data.
   __ str(r6, MemOperand(sp, 3 * kPointerSize));
   // Store isolate.
-  __ mov(r7, Operand(ExternalReference::isolate_address(masm->isolate())));
-  __ str(r7, MemOperand(sp, 4 * kPointerSize));
+  __ mov(r5, Operand(ExternalReference::isolate_address(masm->isolate())));
+  __ str(r5, MemOperand(sp, 4 * kPointerSize));
   // Store ReturnValue default and ReturnValue.
   __ LoadRoot(r5, Heap::kUndefinedValueRootIndex);
   __ str(r5, MemOperand(sp, 5 * kPointerSize));
@@ -1855,15 +1855,15 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
 
       if (FLAG_smi_only_arrays  && !FLAG_trace_elements_transitions) {
         Label fast_object, not_fast_object;
-        __ CheckFastObjectElements(r3, r7, &not_fast_object);
+        __ CheckFastObjectElements(r3, r9, &not_fast_object);
         __ jmp(&fast_object);
         // In case of fast smi-only, convert to fast object, otherwise bail out.
         __ bind(&not_fast_object);
-        __ CheckFastSmiElements(r3, r7, &call_builtin);
+        __ CheckFastSmiElements(r3, r9, &call_builtin);
 
-        __ ldr(r7, FieldMemOperand(r4, HeapObject::kMapOffset));
+        __ ldr(r9, FieldMemOperand(r4, HeapObject::kMapOffset));
         __ LoadRoot(ip, Heap::kHeapNumberMapRootIndex);
-        __ cmp(r7, ip);
+        __ cmp(r9, ip);
         __ b(eq, &call_builtin);
         // edx: receiver
         // r3: map
@@ -1871,7 +1871,7 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
         __ LoadTransitionedArrayMapConditional(FAST_SMI_ELEMENTS,
                                                FAST_ELEMENTS,
                                                r3,
-                                               r7,
+                                               r9,
                                                &try_holey_map);
         __ mov(r2, receiver);
         ElementsTransitionGenerator::
@@ -1884,7 +1884,7 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
         __ LoadTransitionedArrayMapConditional(FAST_HOLEY_SMI_ELEMENTS,
                                                FAST_HOLEY_ELEMENTS,
                                                r3,
-                                               r7,
+                                               r9,
                                                &call_builtin);
         __ mov(r2, receiver);
         ElementsTransitionGenerator::
@@ -1917,7 +1917,6 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
 
       __ bind(&attempt_to_grow_elements);
       // r0: array's length + 1.
-      // r4: elements' length.
 
       if (!FLAG_inline_new) {
         __ b(&call_builtin);
@@ -1928,8 +1927,8 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
       // the new element is non-Smi. For now, delegate to the builtin.
       Label no_fast_elements_check;
       __ JumpIfSmi(r2, &no_fast_elements_check);
-      __ ldr(r7, FieldMemOperand(receiver, HeapObject::kMapOffset));
-      __ CheckFastObjectElements(r7, r7, &call_builtin);
+      __ ldr(r9, FieldMemOperand(receiver, HeapObject::kMapOffset));
+      __ CheckFastObjectElements(r9, r9, &call_builtin);
       __ bind(&no_fast_elements_check);
 
       ExternalReference new_space_allocation_top =
@@ -1941,8 +1940,8 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
       // Load top and check if it is the end of elements.
       __ add(end_elements, elements, Operand::PointerOffsetFromSmiKey(r0));
       __ add(end_elements, end_elements, Operand(kEndElementsOffset));
-      __ mov(r7, Operand(new_space_allocation_top));
-      __ ldr(r3, MemOperand(r7));
+      __ mov(r4, Operand(new_space_allocation_top));
+      __ ldr(r3, MemOperand(r4));
       __ cmp(end_elements, r3);
       __ b(ne, &call_builtin);
 
@@ -1954,7 +1953,7 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
 
       // We fit and could grow elements.
       // Update new_space_allocation_top.
-      __ str(r3, MemOperand(r7));
+      __ str(r3, MemOperand(r4));
       // Push the argument.
       __ str(r2, MemOperand(end_elements));
       // Fill the rest with holes.
@@ -1965,6 +1964,7 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
 
       // Update elements' and array's sizes.
       __ str(r0, FieldMemOperand(receiver, JSArray::kLengthOffset));
+      __ ldr(r4, FieldMemOperand(elements, FixedArray::kLengthOffset));
       __ add(r4, r4, Operand(Smi::FromInt(kAllocationDelta)));
       __ str(r4, FieldMemOperand(elements, FixedArray::kLengthOffset));
 

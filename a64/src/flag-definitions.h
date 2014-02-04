@@ -787,6 +787,7 @@ DEFINE_bool(prof_browser_mode, true,
             "Used with --prof, turns on browser-compatible mode for profiling.")
 DEFINE_bool(log_regexp, false, "Log regular expression execution.")
 DEFINE_string(logfile, "v8.log", "Specify the name of the log file.")
+DEFINE_bool(logfile_per_isolate, true, "Separate log files for each isolate.")
 DEFINE_bool(ll_prof, false, "Enable low-level linux profiler.")
 DEFINE_string(gc_fake_mmap, "/tmp/__v8_gc__",
               "Specify the name of the file for fake gc mmap used in ll_prof")
@@ -845,6 +846,16 @@ DEFINE_implication(print_all_code, code_comments)
 DEFINE_implication(print_all_code, trace_codegen)
 #endif
 #endif
+
+//
+// Read-only flags
+//
+#undef FLAG
+#define FLAG FLAG_READONLY
+
+// assembler-arm.h
+DEFINE_bool(enable_ool_constant_pool, false,
+            "enable use of out-of-line constant pools (ARM only)")
 
 // Cleanup...
 #undef FLAG_FULL

@@ -91,6 +91,7 @@ class ScopedLoggerInitializer {
     i::FLAG_log = true;
     i::FLAG_prof = true;
     i::FLAG_logfile = i::Log::kLogToTemporaryFile;
+    i::FLAG_logfile_per_isolate = false;
     return false;
   }
 
@@ -325,7 +326,7 @@ static void ObjMethod1(const v8::FunctionCallbackInfo<v8::Value>& args) {
 }
 
 
-UNINITIALIZED_TEST(LogCallbacks) {
+TEST(LogCallbacks) {
   ScopedLoggerInitializer initialize_logger;
   Logger* logger = initialize_logger.logger();
 
@@ -374,7 +375,7 @@ static void Prop2Getter(v8::Local<v8::String> property,
 }
 
 
-UNINITIALIZED_TEST(LogAccessorCallbacks) {
+TEST(LogAccessorCallbacks) {
   ScopedLoggerInitializer initialize_logger;
   Logger* logger = initialize_logger.logger();
 
@@ -421,7 +422,7 @@ typedef i::NativesCollection<i::TEST> TestSources;
 
 // Test that logging of code create / move events is equivalent to traversal of
 // a resulting heap.
-UNINITIALIZED_TEST(EquivalenceOfLoggingAndTraversal) {
+TEST(EquivalenceOfLoggingAndTraversal) {
   // This test needs to be run on a "clean" V8 to ensure that snapshot log
   // is loaded. This is always true when running using tools/test.py because
   // it launches a new cctest instance for every test. To be sure that launching

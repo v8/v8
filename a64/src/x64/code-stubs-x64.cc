@@ -60,6 +60,16 @@ void ToNumberStub::InitializeInterfaceDescriptor(
 }
 
 
+void NumberToStringStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  static Register registers[] = { rax };
+  descriptor->register_param_count_ = 1;
+  descriptor->register_params_ = registers;
+  descriptor->deoptimization_handler_ = NULL;
+}
+
+
 void FastCloneShallowArrayStub::InitializeInterfaceDescriptor(
     Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
@@ -2909,22 +2919,6 @@ void RegExpConstructResultStub::Generate(MacroAssembler* masm) {
 }
 
 
-void NumberToStringStub::Generate(MacroAssembler* masm) {
-  Label runtime;
-
-  StackArgumentsAccessor args(rsp, 1, ARGUMENTS_DONT_CONTAIN_RECEIVER);
-  __ movq(rbx, args.GetArgumentOperand(0));
-
-  // Generate code to lookup number in the number string cache.
-  __ LookupNumberStringCache(rbx, rax, r8, r9, &runtime);
-  __ ret(1 * kPointerSize);
-
-  __ bind(&runtime);
-  // Handle number to string in the runtime system if not found in the cache.
-  __ TailCallRuntime(Runtime::kNumberToStringSkipCache, 1, 1);
-}
-
-
 static int NegativeComparisonResult(Condition cc) {
   ASSERT(cc != equal);
   ASSERT((cc == less) || (cc == less_equal)
@@ -3231,6 +3225,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   // Cache the called function in a global property cell.  Cache states
   // are uninitialized, monomorphic (indicated by a JSFunction), and
   // megamorphic.
+  // rax : number of arguments to the construct function
   // rbx : cache cell for call target
   // rdi : the function to call
   Isolate* isolate = masm->isolate();
@@ -3250,9 +3245,8 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   // If we didn't have a matching function, and we didn't find the megamorph
   // sentinel, then we have in the cell either some other function or an
   // AllocationSite. Do a map check on the object in rcx.
-  Handle<Map> allocation_site_map(
-      masm->isolate()->heap()->allocation_site_map(),
-      masm->isolate());
+  Handle<Map> allocation_site_map =
+      masm->isolate()->factory()->allocation_site_map();
   __ Cmp(FieldOperand(rcx, 0), allocation_site_map);
   __ j(not_equal, &miss);
 
@@ -3288,6 +3282,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
 
+    // Arguments register must be smi-tagged to call out.
     __ Integer32ToSmi(rax, rax);
     __ push(rax);
     __ push(rdi);
@@ -6297,9 +6292,8 @@ static void CreateArrayDispatchOneArgument(MacroAssembler* masm,
     __ incl(rdx);
     __ movq(rcx, FieldOperand(rbx, Cell::kValueOffset));
     if (FLAG_debug_code) {
-      Handle<Map> allocation_site_map(
-          masm->isolate()->heap()->allocation_site_map(),
-          masm->isolate());
+      Handle<Map> allocation_site_map =
+          masm->isolate()->factory()->allocation_site_map();
       __ Cmp(FieldOperand(rcx, 0), allocation_site_map);
       __ Assert(equal, kExpectedAllocationSiteInCell);
     }
@@ -6446,7 +6440,7 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
   __ j(equal, &no_info);
   __ movq(rdx, FieldOperand(rbx, Cell::kValueOffset));
   __ Cmp(FieldOperand(rdx, 0),
-         Handle<Map>(masm->isolate()->heap()->allocation_site_map()));
+         masm->isolate()->factory()->allocation_site_map());
   __ j(not_equal, &no_info);
 
   __ movq(rdx, FieldOperand(rdx, AllocationSite::kTransitionInfoOffset));

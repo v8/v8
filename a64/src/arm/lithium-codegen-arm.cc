@@ -1090,11 +1090,6 @@ void LCodeGen::DoCallStub(LCallStub* instr) {
       CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
       break;
     }
-    case CodeStub::NumberToString: {
-      NumberToStringStub stub;
-      CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
-      break;
-    }
     case CodeStub::StringCompare: {
       StringCompareStub stub;
       CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
@@ -2954,7 +2949,7 @@ void LCodeGen::DoReturn(LReturn* instr) {
 
 void LCodeGen::DoLoadGlobalCell(LLoadGlobalCell* instr) {
   Register result = ToRegister(instr->result());
-  __ mov(ip, Operand(Handle<Object>(instr->hydrogen()->cell())));
+  __ mov(ip, Operand(Handle<Object>(instr->hydrogen()->cell().handle())));
   __ ldr(result, FieldMemOperand(ip, Cell::kValueOffset));
   if (instr->hydrogen()->RequiresHoleCheck()) {
     __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
@@ -2981,7 +2976,7 @@ void LCodeGen::DoStoreGlobalCell(LStoreGlobalCell* instr) {
   Register cell = scratch0();
 
   // Load the cell.
-  __ mov(cell, Operand(instr->hydrogen()->cell()));
+  __ mov(cell, Operand(instr->hydrogen()->cell().handle()));
 
   // If the cell we are storing to contains the hole it could have
   // been deleted from the property dictionary. In that case, we need
@@ -3879,9 +3874,9 @@ void LCodeGen::DoPower(LPower* instr) {
   } else if (exponent_type.IsTagged()) {
     Label no_deopt;
     __ JumpIfSmi(r2, &no_deopt);
-    __ ldr(r7, FieldMemOperand(r2, HeapObject::kMapOffset));
+    __ ldr(r6, FieldMemOperand(r2, HeapObject::kMapOffset));
     __ LoadRoot(ip, Heap::kHeapNumberMapRootIndex);
-    __ cmp(r7, Operand(ip));
+    __ cmp(r6, Operand(ip));
     DeoptimizeIf(ne, instr->environment());
     __ bind(&no_deopt);
     MathPowStub stub(MathPowStub::TAGGED);
@@ -4868,36 +4863,20 @@ void LCodeGen::EmitNumberUntagD(Register input_reg,
   Register scratch = scratch0();
   SwVfpRegister flt_scratch = double_scratch0().low();
   ASSERT(!result_reg.is(double_scratch0()));
-
-  Label load_smi, heap_number, done;
-
+  Label convert, load_smi, done;
   if (mode == NUMBER_CANDIDATE_IS_ANY_TAGGED) {
     // Smi check.
     __ UntagAndJumpIfSmi(scratch, input_reg, &load_smi);
-
     // Heap number map check.
     __ ldr(scratch, FieldMemOperand(input_reg, HeapObject::kMapOffset));
     __ LoadRoot(ip, Heap::kHeapNumberMapRootIndex);
     __ cmp(scratch, Operand(ip));
-    if (!can_convert_undefined_to_nan) {
-      DeoptimizeIf(ne, env);
+    if (can_convert_undefined_to_nan) {
+      __ b(ne, &convert);
     } else {
-      Label heap_number, convert;
-      __ b(eq, &heap_number);
-
-      // Convert undefined (and hole) to NaN.
-      __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
-      __ cmp(input_reg, Operand(ip));
       DeoptimizeIf(ne, env);
-
-      __ bind(&convert);
-      __ LoadRoot(scratch, Heap::kNanValueRootIndex);
-      __ vldr(result_reg, scratch, HeapNumber::kValueOffset - kHeapObjectTag);
-      __ jmp(&done);
-
-      __ bind(&heap_number);
     }
-    // Heap number to double register conversion.
+    // load heap number
     __ vldr(result_reg, input_reg, HeapNumber::kValueOffset - kHeapObjectTag);
     if (deoptimize_on_minus_zero) {
       __ VmovLow(scratch, result_reg);
@@ -4908,11 +4887,20 @@ void LCodeGen::EmitNumberUntagD(Register input_reg,
       DeoptimizeIf(eq, env);
     }
     __ jmp(&done);
+    if (can_convert_undefined_to_nan) {
+      __ bind(&convert);
+      // Convert undefined (and hole) to NaN.
+      __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
+      __ cmp(input_reg, Operand(ip));
+      DeoptimizeIf(ne, env);
+      __ LoadRoot(scratch, Heap::kNanValueRootIndex);
+      __ vldr(result_reg, scratch, HeapNumber::kValueOffset - kHeapObjectTag);
+      __ jmp(&done);
+    }
   } else {
     __ SmiUntag(scratch, input_reg);
     ASSERT(mode == NUMBER_CANDIDATE_IS_SMI);
   }
-
   // Smi to double register conversion
   __ bind(&load_smi);
   // scratch: untagged value of input_reg
@@ -5393,24 +5381,24 @@ void LCodeGen::DoToFastProperties(LToFastProperties* instr) {
 void LCodeGen::DoRegExpLiteral(LRegExpLiteral* instr) {
   Label materialized;
   // Registers will be used as follows:
-  // r7 = literals array.
+  // r6 = literals array.
   // r1 = regexp literal.
   // r0 = regexp literal clone.
-  // r2 and r4-r6 are used as temporaries.
+  // r2-5 are used as temporaries.
   int literal_offset =
       FixedArray::OffsetOfElementAt(instr->hydrogen()->literal_index());
-  __ LoadHeapObject(r7, instr->hydrogen()->literals());
-  __ ldr(r1, FieldMemOperand(r7, literal_offset));
+  __ LoadHeapObject(r6, instr->hydrogen()->literals());
+  __ ldr(r1, FieldMemOperand(r6, literal_offset));
   __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
   __ cmp(r1, ip);
   __ b(ne, &materialized);
 
   // Create regexp literal using runtime function
   // Result will be in r0.
-  __ mov(r6, Operand(Smi::FromInt(instr->hydrogen()->literal_index())));
-  __ mov(r5, Operand(instr->hydrogen()->pattern()));
-  __ mov(r4, Operand(instr->hydrogen()->flags()));
-  __ Push(r7, r6, r5, r4);
+  __ mov(r5, Operand(Smi::FromInt(instr->hydrogen()->literal_index())));
+  __ mov(r4, Operand(instr->hydrogen()->pattern()));
+  __ mov(r3, Operand(instr->hydrogen()->flags()));
+  __ Push(r6, r5, r4, r3);
   CallRuntime(Runtime::kMaterializeRegExpLiteral, 4, instr);
   __ mov(r1, r0);
 

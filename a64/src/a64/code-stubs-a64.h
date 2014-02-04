@@ -154,18 +154,6 @@ class StringAddStub: public PlatformCodeStub {
 };
 
 
-class NumberToStringStub: public PlatformCodeStub {
- public:
-  NumberToStringStub() { }
-
- private:
-  Major MajorKey() { return NumberToString; }
-  int MinorKey() { return 0; }
-
-  void Generate(MacroAssembler* masm);
-};
-
-
 class RecordWriteStub: public PlatformCodeStub {
  public:
   // Stub to record the write of 'value' at 'address' in 'object'.

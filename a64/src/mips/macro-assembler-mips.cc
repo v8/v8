@@ -3220,11 +3220,10 @@ void MacroAssembler::CopyBytes(Register src,
                                Register dst,
                                Register length,
                                Register scratch) {
-  Label align_loop, align_loop_1, word_loop, byte_loop, byte_loop_1, done;
+  Label align_loop_1, word_loop, byte_loop, byte_loop_1, done;
 
   // Align src before copying in word size chunks.
-  bind(&align_loop);
-  Branch(&done, eq, length, Operand(zero_reg));
+  Branch(&byte_loop, le, length, Operand(kPointerSize));
   bind(&align_loop_1);
   And(scratch, src, kPointerSize - 1);
   Branch(&word_loop, eq, scratch, Operand(zero_reg));
@@ -3233,7 +3232,7 @@ void MacroAssembler::CopyBytes(Register src,
   sb(scratch, MemOperand(dst));
   Addu(dst, dst, 1);
   Subu(length, length, Operand(1));
-  Branch(&byte_loop_1, ne, length, Operand(zero_reg));
+  Branch(&align_loop_1, ne, length, Operand(zero_reg));
 
   // Copy bytes in word size chunks.
   bind(&word_loop);
@@ -5603,7 +5602,7 @@ void MacroAssembler::TestJSArrayForAllocationMemento(
   Branch(&no_memento_available, gt, scratch_reg, Operand(at));
   lw(scratch_reg, MemOperand(scratch_reg, -AllocationMemento::kSize));
   Branch(allocation_memento_present, cond, scratch_reg,
-      Operand(Handle<Map>(isolate()->heap()->allocation_memento_map())));
+         Operand(isolate()->factory()->allocation_memento_map()));
   bind(&no_memento_available);
 }
 

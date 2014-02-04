@@ -651,8 +651,7 @@ HConstant* HGraph::GetConstantMinus1() {
 HConstant* HGraph::GetConstant##Name() {                                       \
   if (!constant_##name##_.is_set()) {                                          \
     HConstant* constant = new(zone()) HConstant(                               \
-        isolate()->factory()->name##_value(),                                  \
-        UniqueValueId::name##_value(isolate()->heap()),                        \
+        Unique<Object>::CreateImmovable(isolate()->factory()->name##_value()), \
         Representation::Tagged(),                                              \
         htype,                                                                 \
         false,                                                                 \
@@ -803,6 +802,28 @@ void HGraphBuilder::IfBuilder::CaptureContinuation(
       ? builder_->current_block()
       : first_false_block_;
   continuation->Capture(true_block, false_block, position_);
+  captured_ = true;
+  End();
+}
+
+
+void HGraphBuilder::IfBuilder::JoinContinuation(HIfContinuation* continuation) {
+  ASSERT(!finished_);
+  ASSERT(!captured_);
+  HBasicBlock* true_block = last_true_block_ == NULL
+      ? first_true_block_
+      : last_true_block_;
+  HBasicBlock* false_block = did_else_ && (first_false_block_ != NULL)
+      ? builder_->current_block()
+      : first_false_block_;
+  if (true_block != NULL && !true_block->IsFinished()) {
+    ASSERT(continuation->IsTrueReachable());
+    true_block->GotoNoSimulate(continuation->true_branch());
+  }
+  if (false_block != NULL && !false_block->IsFinished()) {
+    ASSERT(continuation->IsFalseReachable());
+    false_block->GotoNoSimulate(continuation->false_branch());
+  }
   captured_ = true;
   End();
 }
@@ -1019,7 +1040,7 @@ HGraph* HGraphBuilder::CreateGraph() {
   CompilationPhase phase("H_Block building", info_);
   set_current_block(graph()->entry_block());
   if (!BuildGraph()) return NULL;
-  graph()->FinalizeUniqueValueIds();
+  graph()->FinalizeUniqueness();
   return graph_;
 }
 
@@ -1250,6 +1271,142 @@ void HGraphBuilder::BuildTransitionElementsKind(HValue* object,
   }
 
   Add<HStoreNamedField>(object, HObjectAccess::ForMap(), map);
+}
+
+
+HValue* HGraphBuilder::BuildLookupNumberStringCache(
+    HValue* object,
+    HIfContinuation* continuation) {
+  // Create a joinable continuation.
+  HIfContinuation found(graph()->CreateBasicBlock(),
+                        graph()->CreateBasicBlock());
+
+  // Load the number string cache.
+  HValue* number_string_cache =
+      Add<HLoadRoot>(Heap::kNumberStringCacheRootIndex);
+
+  // Make the hash maks from the length of the number string cache. It
+  // contains two elements (number and string) for each cache entry.
+  HValue* mask = AddLoadFixedArrayLength(number_string_cache);
+  mask->set_type(HType::Smi());
+  mask = Add<HSar>(mask, graph()->GetConstant1());
+  mask = Add<HSub>(mask, graph()->GetConstant1());
+
+  // Check whether object is a smi.
+  IfBuilder if_objectissmi(this);
+  if_objectissmi.If<HIsSmiAndBranch>(object);
+  if_objectissmi.Then();
+  {
+    // Compute hash for smi similar to smi_get_hash().
+    HValue* hash = Add<HBitwise>(Token::BIT_AND, object, mask);
+
+    // Load the key.
+    HValue* key_index = Add<HShl>(hash, graph()->GetConstant1());
+    HValue* key = AddFastElementAccess(number_string_cache, key_index,
+                                       NULL, NULL, FAST_ELEMENTS, false,
+                                       ALLOW_RETURN_HOLE, STANDARD_STORE);
+
+    // Check if object == key.
+    IfBuilder if_objectiskey(this);
+    if_objectiskey.If<HCompareObjectEqAndBranch>(key, object);
+    if_objectiskey.Then();
+    {
+      // Make the key_index available.
+      Push(key_index);
+    }
+    if_objectiskey.JoinContinuation(&found);
+  }
+  if_objectissmi.Else();
+  {
+    // Check if object is a heap number.
+    IfBuilder if_objectisnumber(this);
+    if_objectisnumber.If<HCompareMap>(
+        object, isolate()->factory()->heap_number_map());
+    if_objectisnumber.Then();
+    {
+      // Compute hash for heap number similar to double_get_hash().
+      HValue* low = Add<HLoadNamedField>(
+          object, HObjectAccess::ForHeapNumberValueLowestBits());
+      HValue* high = Add<HLoadNamedField>(
+          object, HObjectAccess::ForHeapNumberValueHighestBits());
+      HValue* hash = Add<HBitwise>(Token::BIT_XOR, low, high);
+      hash = Add<HBitwise>(Token::BIT_AND, hash, mask);
+
+      // Load the key.
+      HValue* key_index = Add<HShl>(hash, graph()->GetConstant1());
+      HValue* key = AddFastElementAccess(number_string_cache, key_index,
+                                        NULL, NULL, FAST_ELEMENTS, false,
+                                        ALLOW_RETURN_HOLE, STANDARD_STORE);
+
+      // Check if key is a heap number.
+      IfBuilder if_keyisnumber(this);
+      if_keyisnumber.IfNot<HIsSmiAndBranch>(key);
+      if_keyisnumber.AndIf<HCompareMap>(
+          key, isolate()->factory()->heap_number_map());
+      if_keyisnumber.Then();
+      {
+        // Check if values of key and object match.
+        IfBuilder if_keyeqobject(this);
+        if_keyeqobject.If<HCompareNumericAndBranch>(
+            Add<HLoadNamedField>(key, HObjectAccess::ForHeapNumberValue()),
+            Add<HLoadNamedField>(object, HObjectAccess::ForHeapNumberValue()),
+            Token::EQ);
+        if_keyeqobject.Then();
+        {
+          // Make the key_index available.
+          Push(key_index);
+        }
+        if_keyeqobject.JoinContinuation(&found);
+      }
+      if_keyisnumber.JoinContinuation(&found);
+    }
+    if_objectisnumber.JoinContinuation(&found);
+  }
+  if_objectissmi.End();
+
+  // Check for cache hit.
+  IfBuilder if_found(this, &found);
+  if_found.Then();
+
+  // Load the value in case of cache hit.
+  HValue* key_index = Pop();
+  HValue* value_index = Add<HAdd>(key_index, graph()->GetConstant1());
+  HValue* value = AddFastElementAccess(number_string_cache, value_index,
+                                      NULL, NULL, FAST_ELEMENTS, false,
+                                      ALLOW_RETURN_HOLE, STANDARD_STORE);
+  AddIncrementCounter(isolate()->counters()->number_to_string_native());
+
+  if_found.CaptureContinuation(continuation);
+
+  // The value is only available in true branch of continuation.
+  return value;
+}
+
+
+HValue* HGraphBuilder::BuildNumberToString(HValue* number) {
+  NoObservableSideEffectsScope scope(this);
+
+  // Lookup the number in the number string cache.
+  HIfContinuation continuation;
+  HValue* value = BuildLookupNumberStringCache(number, &continuation);
+  IfBuilder if_found(this, &continuation);
+  if_found.Then();
+
+  // Cache hit.
+  Push(value);
+
+  if_found.Else();
+
+  // Cache miss, fallback to runtime.
+  Add<HPushArgument>(number);
+  Push(Add<HCallRuntime>(
+          isolate()->factory()->empty_string(),
+          Runtime::FunctionForId(Runtime::kNumberToStringSkipCache),
+          1));
+
+  if_found.End();
+
+  return Pop();
 }
 
 
@@ -1828,8 +1985,8 @@ HValue* HGraphBuilder::BuildCreateAllocationMemento(HValue* previous_object,
   ASSERT(alloc_site != NULL);
   HInnerAllocatedObject* alloc_memento = Add<HInnerAllocatedObject>(
       previous_object, previous_object_size);
-  Handle<Map> alloc_memento_map(
-      isolate()->heap()->allocation_memento_map());
+  Handle<Map> alloc_memento_map =
+      isolate()->factory()->allocation_memento_map();
   AddStoreMapConstant(alloc_memento, alloc_memento_map);
   HObjectAccess access = HObjectAccess::ForAllocationMementoSite();
   Add<HStoreNamedField>(alloc_memento, access, alloc_site);
@@ -2137,12 +2294,12 @@ HBasicBlock* HGraph::CreateBasicBlock() {
 }
 
 
-void HGraph::FinalizeUniqueValueIds() {
+void HGraph::FinalizeUniqueness() {
   DisallowHeapAllocation no_gc;
   ASSERT(!isolate()->optimizing_compiler_thread()->IsOptimizerThread());
   for (int i = 0; i < blocks()->length(); ++i) {
     for (HInstructionIterator it(blocks()->at(i)); !it.Done(); it.Advance()) {
-      it.Current()->FinalizeUniqueValueId();
+      it.Current()->FinalizeUniqueness();
     }
   }
 }
@@ -4086,7 +4243,7 @@ static bool IsFastLiteral(Handle<JSObject> boilerplate,
                           int* max_properties) {
   if (boilerplate->map()->is_deprecated()) {
     Handle<Object> result = JSObject::TryMigrateInstance(boilerplate);
-    if (result->IsSmi()) return false;
+    if (result.is_null()) return false;
   }
 
   ASSERT(max_depth >= 0 && *max_properties >= 0);
@@ -4299,17 +4456,26 @@ void HOptimizedGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
   ElementsKind boilerplate_elements_kind =
       Handle<JSObject>::cast(boilerplate_object)->GetElementsKind();
 
-  // TODO(mvstanton): This heuristic is only a temporary solution.  In the
-  // end, we want to quit creating allocation site info after a certain number
-  // of GCs for a call site.
-  AllocationSiteMode mode = AllocationSite::GetMode(
-      boilerplate_elements_kind);
+  ASSERT(AllocationSite::CanTrack(boilerplate_object->map()->instance_type()));
 
   // Check whether to use fast or slow deep-copying for boilerplate.
   int max_properties = kMaxFastLiteralProperties;
   if (IsFastLiteral(boilerplate_object,
                     kMaxFastLiteralDepth,
                     &max_properties)) {
+    // TODO(mvstanton): This heuristic is only a temporary solution.  In the
+    // end, we want to quit creating allocation site info after a certain number
+    // of GCs for a call site.
+    AllocationSiteMode mode = AllocationSite::GetMode(
+        boilerplate_elements_kind);
+
+    // it doesn't make sense to create allocation mementos if we are going to
+    // create in old space.
+    if (mode == TRACK_ALLOCATION_SITE &&
+        isolate()->heap()->GetPretenureMode() == TENURED) {
+      mode = DONT_TRACK_ALLOCATION_SITE;
+    }
+
     literal = BuildFastLiteral(boilerplate_object,
                                site,
                                mode);
@@ -6124,7 +6290,8 @@ void HOptimizedGraphBuilder::HandlePolymorphicCallNamed(
     // Because the deopt may be the only path in the polymorphic call, make sure
     // that the environment stack matches the depth on deopt that it otherwise
     // would have had after a successful call.
-    Drop(argument_count - (ast_context()->IsEffect() ? 0 : 1));
+    Drop(argument_count);
+    if (!ast_context()->IsEffect()) Push(graph()->GetConstant0());
     FinishExitWithHardDeoptimization("Unknown map in polymorphic call", join);
   } else {
     HValue* context = environment()->context();
@@ -7646,6 +7813,11 @@ HValue* HGraphBuilder::TruncateToNumber(HValue* value, Handle<Type>* expected) {
     }
   }
 
+  // We put temporary values on the stack, which don't correspond to anything
+  // in baseline code. Since nothing is observable we avoid recording those
+  // pushes with a NoObservableSideEffectsScope.
+  NoObservableSideEffectsScope no_effects(this);
+
   Handle<Type> expected_type = *expected;
 
   // Separate the number type from the rest.
@@ -7711,14 +7883,13 @@ HInstruction* HOptimizedGraphBuilder::BuildBinaryOperation(
     BinaryOperation* expr,
     HValue* left,
     HValue* right) {
-  HValue* context = environment()->context();
   Handle<Type> left_type = expr->left()->bounds().lower;
   Handle<Type> right_type = expr->right()->bounds().lower;
   Handle<Type> result_type = expr->bounds().lower;
   Maybe<int> fixed_right_arg = expr->fixed_right_arg();
 
   return HGraphBuilder::BuildBinaryOperation(expr->op(), left, right,
-      left_type, right_type, result_type, fixed_right_arg, context);
+      left_type, right_type, result_type, fixed_right_arg);
 }
 
 
@@ -7729,8 +7900,7 @@ HInstruction* HGraphBuilder::BuildBinaryOperation(
     Handle<Type> left_type,
     Handle<Type> right_type,
     Handle<Type> result_type,
-    Maybe<int> fixed_right_arg,
-    HValue* context) {
+    Maybe<int> fixed_right_arg) {
 
   Representation left_rep = Representation::FromType(left_type);
   Representation right_rep = Representation::FromType(right_type);
@@ -7781,22 +7951,22 @@ HInstruction* HGraphBuilder::BuildBinaryOperation(
           flags = (flags == STRING_ADD_CHECK_BOTH)
               ? STRING_ADD_CHECK_LEFT : STRING_ADD_CHECK_NONE;
         }
-        instr = HStringAdd::New(zone(), context, left, right, flags);
+        instr = NewUncasted<HStringAdd>(left, right, flags);
       } else {
-        instr = HAdd::New(zone(), context, left, right);
+        instr = NewUncasted<HAdd>(left, right);
       }
       break;
     case Token::SUB:
-      instr = HSub::New(zone(), context, left, right);
+      instr = NewUncasted<HSub>(left, right);
       break;
     case Token::MUL:
-      instr = HMul::New(zone(), context, left, right);
+      instr = NewUncasted<HMul>(left, right);
       break;
     case Token::MOD:
-      instr = HMod::New(zone(), context, left, right, fixed_right_arg);
+      instr = NewUncasted<HMod>(left, right, fixed_right_arg);
       break;
     case Token::DIV:
-      instr = HDiv::New(zone(), context, left, right);
+      instr = NewUncasted<HDiv>(left, right);
       break;
     case Token::BIT_XOR:
     case Token::BIT_AND:
@@ -7807,24 +7977,24 @@ HInstruction* HGraphBuilder::BuildBinaryOperation(
       if (left_type->Is(Type::Signed32()) &&
           right_type->Is(Type::Signed32()) &&
           MatchRotateRight(left, right, &operand, &shift_amount)) {
-        instr = new(zone()) HRor(context, operand, shift_amount);
+        instr = NewUncasted<HRor>(operand, shift_amount);
       } else {
         instr = NewUncasted<HBitwise>(op, left, right);
       }
       break;
     }
     case Token::SAR:
-      instr = HSar::New(zone(), context, left, right);
+      instr = NewUncasted<HSar>(left, right);
       break;
     case Token::SHR:
-      instr = HShr::New(zone(), context, left, right);
+      instr = NewUncasted<HShr>(left, right);
       if (FLAG_opt_safe_uint32_operations && instr->IsShr() &&
           CanBeZero(right)) {
         graph()->RecordUint32Instruction(instr);
       }
       break;
     case Token::SHL:
-      instr = HShl::New(zone(), context, left, right);
+      instr = NewUncasted<HShl>(left, right);
       break;
     default:
       UNREACHABLE();
@@ -8237,13 +8407,15 @@ HInstruction* HOptimizedGraphBuilder::BuildFastLiteral(
   int object_offset = object_size;
 
   InstanceType instance_type = boilerplate_object->map()->instance_type();
-  bool create_allocation_site_info = mode == TRACK_ALLOCATION_SITE &&
-      AllocationSite::CanTrack(instance_type);
+  bool create_allocation_site_info = mode == TRACK_ALLOCATION_SITE;
 
-  // If using allocation sites, then the payload on the site should already
-  // be filled in as a valid (boilerplate) array.
+  // If using allocation sites, then
+  // 1) the payload on the site should already be filled in as a valid
+  //    (boilerplate) array, and
+  // 2) we shouldn't be pretenuring the allocations.
   ASSERT(!create_allocation_site_info ||
-         AllocationSite::cast(*allocation_site_object)->IsLiteralSite());
+         (AllocationSite::cast(*allocation_site_object)->IsLiteralSite() &&
+          isolate()->heap()->GetPretenureMode() == NOT_TENURED));
 
   if (create_allocation_site_info) {
     object_size += AllocationMemento::kSize;
@@ -8255,7 +8427,6 @@ HInstruction* HOptimizedGraphBuilder::BuildFastLiteral(
   HValue* object_size_constant = Add<HConstant>(object_size);
   HInstruction* object = Add<HAllocate>(object_size_constant, type,
       isolate()->heap()->GetPretenureMode(), instance_type);
-
 
   BuildEmitObjectHeader(boilerplate_object, object);
 
@@ -8975,12 +9146,10 @@ void HOptimizedGraphBuilder::GenerateGetFromCache(CallRuntime* call) {
 // Fast support for number to string.
 void HOptimizedGraphBuilder::GenerateNumberToString(CallRuntime* call) {
   ASSERT_EQ(1, call->arguments()->length());
-  CHECK_ALIVE(VisitArgumentList(call->arguments()));
-  HValue* context = environment()->context();
-  HCallStub* result =
-      new(zone()) HCallStub(context, CodeStub::NumberToString, 1);
-  Drop(1);
-  return ast_context()->ReturnInstruction(result, call->id());
+  CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
+  HValue* number = Pop();
+  HValue* result = BuildNumberToString(number);
+  return ast_context()->ReturnValue(result);
 }
 
 

@@ -4340,6 +4340,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   // Cache the called function in a global property cell.  Cache states
   // are uninitialized, monomorphic (indicated by a JSFunction), and
   // megamorphic.
+  // a0 : number of arguments to the construct function
   // a1 : the function to call
   // a2 : cache cell for call target
   Label initialize, done, miss, megamorphic, not_array_function;
@@ -4360,9 +4361,6 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   // If we didn't have a matching function, and we didn't find the megamorph
   // sentinel, then we have in the cell either some other function or an
   // AllocationSite. Do a map check on the object in a3.
-  Handle<Map> allocation_site_map(
-      masm->isolate()->heap()->allocation_site_map(),
-      masm->isolate());
   __ lw(t1, FieldMemOperand(a3, 0));
   __ LoadRoot(at, Heap::kAllocationSiteMapRootIndex);
   __ Branch(&miss, ne, t1, Operand(at));
@@ -4401,6 +4399,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
         1 << 5  |  // a1
         1 << 6;    // a2
 
+    // Arguments register must be smi-tagged to call out.
     __ SmiTag(a0);
     __ MultiPush(kSavedRegs);
 

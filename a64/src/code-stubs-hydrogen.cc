@@ -339,6 +339,19 @@ Handle<Code> ToNumberStub::GenerateCode(Isolate* isolate) {
 
 
 template <>
+HValue* CodeStubGraphBuilder<NumberToStringStub>::BuildCodeStub() {
+  info()->MarkAsSavesCallerDoubles();
+  HValue* number = GetParameter(NumberToStringStub::kNumber);
+  return BuildNumberToString(number);
+}
+
+
+Handle<Code> NumberToStringStub::GenerateCode(Isolate* isolate) {
+  return DoGenerateCode(isolate, this);
+}
+
+
+template <>
 HValue* CodeStubGraphBuilder<FastCloneShallowArrayStub>::BuildCodeStub() {
   Factory* factory = isolate()->factory();
   HValue* undefined = graph()->GetConstantUndefined();
@@ -464,8 +477,7 @@ HValue* CodeStubGraphBuilder<CreateAllocationSiteStub>::BuildCodeStub() {
       JS_OBJECT_TYPE);
 
   // Store the map
-  Handle<Map> allocation_site_map(isolate()->heap()->allocation_site_map(),
-                                  isolate());
+  Handle<Map> allocation_site_map = isolate()->factory()->allocation_site_map();
   AddStoreMapConstant(object, allocation_site_map);
 
   // Store the payload (smi elements kind)
@@ -473,6 +485,11 @@ HValue* CodeStubGraphBuilder<CreateAllocationSiteStub>::BuildCodeStub() {
   Add<HStoreNamedField>(object,
                         HObjectAccess::ForAllocationSiteTransitionInfo(),
                         initial_elements_kind);
+
+  // Unlike literals, constructed arrays don't have nested sites
+  Add<HStoreNamedField>(object,
+                        HObjectAccess::ForAllocationSiteNestedSite(),
+                        graph()->GetConstant0());
 
   // Store an empty fixed array for the code dependency.
   HConstant* empty_fixed_array =
@@ -1064,11 +1081,12 @@ HValue* CodeStubGraphBuilder<FastNewClosureStub>::BuildCodeStub() {
       Add<HConstant>(factory->empty_fixed_array());
   HValue* shared_info = GetParameter(0);
 
+  AddIncrementCounter(counters->fast_new_closure_total());
+
   // Create a new closure from the given function info in new space
   HValue* size = Add<HConstant>(JSFunction::kSize);
   HInstruction* js_function = Add<HAllocate>(size, HType::JSObject(),
                                              NOT_TENURED, JS_FUNCTION_TYPE);
-  AddIncrementCounter(counters->fast_new_closure_total());
 
   int map_index = Context::FunctionMapIndex(casted_stub()->language_mode(),
                                             casted_stub()->is_generator());

@@ -285,14 +285,13 @@ bool Object::HasValidElements() {
 
 
 MaybeObject* Object::AllocateNewStorageFor(Heap* heap,
-                                           Representation representation,
-                                           PretenureFlag tenure) {
+                                           Representation representation) {
   if (!FLAG_track_double_fields) return this;
   if (!representation.IsDouble()) return this;
   if (IsUninitialized()) {
-    return heap->AllocateHeapNumber(0, tenure);
+    return heap->AllocateHeapNumber(0);
   }
-  return heap->AllocateHeapNumber(Number(), tenure);
+  return heap->AllocateHeapNumber(Number());
 }
 
 
@@ -1325,6 +1324,7 @@ bool JSObject::ShouldTrackAllocationInfo() {
 
 void AllocationSite::Initialize() {
   SetElementsKind(GetInitialFastElementsKind());
+  set_nested_site(Smi::FromInt(0));
   set_dependent_code(DependentCode::cast(GetHeap()->empty_fixed_array()),
                      SKIP_WRITE_BARRIER);
 }
@@ -1539,50 +1539,6 @@ MaybeObject* JSObject::ResetElements() {
   initialize_elements();
 
   return this;
-}
-
-
-MaybeObject* JSObject::AllocateStorageForMap(Map* map) {
-  ASSERT(this->map()->inobject_properties() == map->inobject_properties());
-  ElementsKind obj_kind = this->map()->elements_kind();
-  ElementsKind map_kind = map->elements_kind();
-  if (map_kind != obj_kind) {
-    ElementsKind to_kind = map_kind;
-    if (IsMoreGeneralElementsKindTransition(map_kind, obj_kind) ||
-        IsDictionaryElementsKind(obj_kind)) {
-      to_kind = obj_kind;
-    }
-    MaybeObject* maybe_obj =
-        IsDictionaryElementsKind(to_kind) ? NormalizeElements()
-                                          : TransitionElementsKind(to_kind);
-    if (maybe_obj->IsFailure()) return maybe_obj;
-    MaybeObject* maybe_map = map->AsElementsKind(to_kind);
-    if (!maybe_map->To(&map)) return maybe_map;
-  }
-  int total_size =
-      map->NumberOfOwnDescriptors() + map->unused_property_fields();
-  int out_of_object = total_size - map->inobject_properties();
-  if (out_of_object != properties()->length()) {
-    FixedArray* new_properties;
-    MaybeObject* maybe_properties = properties()->CopySize(out_of_object);
-    if (!maybe_properties->To(&new_properties)) return maybe_properties;
-    set_properties(new_properties);
-  }
-  set_map(map);
-  return this;
-}
-
-
-MaybeObject* JSObject::TryMigrateInstance() {
-  Map* new_map = map()->CurrentMapForDeprecated();
-  if (new_map == NULL) return Smi::FromInt(0);
-  Map* original_map = map();
-  MaybeObject* maybe_result = MigrateToMap(new_map);
-  JSObject* result;
-  if (FLAG_trace_migration && maybe_result->To(&result)) {
-    PrintInstanceMigration(stdout, original_map, result->map());
-  }
-  return maybe_result;
 }
 
 
@@ -4487,6 +4443,7 @@ ACCESSORS(SignatureInfo, args, Object, kArgsOffset)
 ACCESSORS(TypeSwitchInfo, types, Object, kTypesOffset)
 
 ACCESSORS(AllocationSite, transition_info, Object, kTransitionInfoOffset)
+ACCESSORS(AllocationSite, nested_site, Object, kNestedSiteOffset)
 ACCESSORS(AllocationSite, dependent_code, DependentCode,
           kDependentCodeOffset)
 ACCESSORS(AllocationSite, weak_next, Object, kWeakNextOffset)

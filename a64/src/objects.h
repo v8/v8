@@ -1480,8 +1480,7 @@ class Object : public MaybeObject {
   }
 
   inline MaybeObject* AllocateNewStorageFor(Heap* heap,
-                                            Representation representation,
-                                            PretenureFlag tenure = NOT_TENURED);
+                                            Representation representation);
 
   // Returns true if the object is of the correct type to be used as a
   // implementation of a JSObject's elements.
@@ -2212,12 +2211,14 @@ class JSObject: public JSReceiver {
   // Extend the receiver with a single fast property appeared first in the
   // passed map. This also extends the property backing store if necessary.
   static void AllocateStorageForMap(Handle<JSObject> object, Handle<Map> map);
-  inline MUST_USE_RESULT MaybeObject* AllocateStorageForMap(Map* map);
 
+  // Migrates the given object to a map whose field representations are the
+  // lowest upper bound of all known representations for that field.
   static void MigrateInstance(Handle<JSObject> instance);
 
+  // Migrates the given object only if the target map is already available,
+  // or returns an empty handle if such a map is not yet available.
   static Handle<Object> TryMigrateInstance(Handle<JSObject> instance);
-  inline MUST_USE_RESULT MaybeObject* TryMigrateInstance();
 
   // Can cause GC.
   MUST_USE_RESULT MaybeObject* SetLocalPropertyIgnoreAttributesTrampoline(
@@ -2505,14 +2506,14 @@ class JSObject: public JSReceiver {
   MUST_USE_RESULT MaybeObject* GetElementsTransitionMapSlow(
       ElementsKind elements_kind);
 
-  static Handle<Object> TransitionElementsKind(Handle<JSObject> object,
-                                               ElementsKind to_kind);
+  static void TransitionElementsKind(Handle<JSObject> object,
+                                     ElementsKind to_kind);
 
   MUST_USE_RESULT MaybeObject* TransitionElementsKind(ElementsKind to_kind);
   MUST_USE_RESULT MaybeObject* UpdateAllocationSite(ElementsKind to_kind);
 
+  // TODO(mstarzinger): Both public because of ConvertAnsSetLocalProperty().
   static void MigrateToMap(Handle<JSObject> object, Handle<Map> new_map);
-  MUST_USE_RESULT MaybeObject* MigrateToMap(Map* new_map);
   static void GeneralizeFieldRepresentation(Handle<JSObject> object,
                                             int modify_index,
                                             Representation new_representation,
@@ -2526,10 +2527,6 @@ class JSObject: public JSReceiver {
                                   PropertyNormalizationMode mode,
                                   int expected_additional_properties);
 
-  MUST_USE_RESULT MaybeObject* NormalizeProperties(
-      PropertyNormalizationMode mode,
-      int expected_additional_properties);
-
   // Convert and update the elements backing store to be a
   // SeededNumberDictionary dictionary.  Returns the backing after conversion.
   static Handle<SeededNumberDictionary> NormalizeElements(
@@ -2538,12 +2535,8 @@ class JSObject: public JSReceiver {
   MUST_USE_RESULT MaybeObject* NormalizeElements();
 
   // Transform slow named properties to fast variants.
-  // Returns failure if allocation failed.
   static void TransformToFastProperties(Handle<JSObject> object,
                                         int unused_property_fields);
-
-  MUST_USE_RESULT MaybeObject* TransformToFastProperties(
-      int unused_property_fields);
 
   // Access fast-case object properties at index.
   MUST_USE_RESULT inline MaybeObject* FastPropertyAt(
@@ -2577,12 +2570,8 @@ class JSObject: public JSReceiver {
   // Check whether this object references another object
   bool ReferencesObject(Object* obj);
 
-  // Casting.
-  static inline JSObject* cast(Object* obj);
-
   // Disalow further properties to be added to the object.
   static Handle<Object> PreventExtensions(Handle<JSObject> object);
-  MUST_USE_RESULT MaybeObject* PreventExtensions();
 
   // ES5 Object.freeze
   static Handle<Object> Freeze(Handle<JSObject> object);
@@ -2593,6 +2582,9 @@ class JSObject: public JSReceiver {
   // Copy object.
   static Handle<JSObject> Copy(Handle<JSObject> object);
   static Handle<JSObject> DeepCopy(Handle<JSObject> object);
+
+  // Casting.
+  static inline JSObject* cast(Object* obj);
 
   // Dispatched behavior.
   void JSObjectShortPrint(StringStream* accumulator);
@@ -4271,8 +4263,9 @@ class NormalizedMapCache: public FixedArray {
  public:
   static const int kEntries = 64;
 
-  MUST_USE_RESULT MaybeObject* Get(JSObject* object,
-                                   PropertyNormalizationMode mode);
+  static Handle<Map> Get(Handle<NormalizedMapCache> cache,
+                         Handle<JSObject> object,
+                         PropertyNormalizationMode mode);
 
   void Clear();
 
@@ -4853,11 +4846,6 @@ class Code: public HeapObject {
     NONEXISTENT
   };
 
-  enum StubHolder {
-    OWN_STUB,
-    PROTOTYPE_STUB
-  };
-
   typedef int ExtraICState;
 
   static const ExtraICState kNoExtraICState = 0;
@@ -5062,8 +5050,6 @@ class Code: public HeapObject {
   class ExtraICStateKeyedAccessStoreMode:
       public BitField<KeyedAccessStoreMode, 1, 4> {};  // NOLINT
 
-  class ExtraICStateStubHolder: public BitField<StubHolder, 0, 1> {};
-
   static inline StrictModeFlag GetStrictMode(ExtraICState extra_ic_state) {
     return ExtraICStateStrictMode::decode(extra_ic_state);
   }
@@ -5078,10 +5064,6 @@ class Code: public HeapObject {
       StrictModeFlag strict_mode) {
     return ExtraICStateKeyedAccessStoreMode::encode(store_mode) |
         ExtraICStateStrictMode::encode(strict_mode);
-  }
-
-  static inline ExtraICState ComputeExtraICState(StubHolder stub_holder) {
-    return ExtraICStateStubHolder::encode(stub_holder);
   }
 
   // Flags operations.
@@ -7885,6 +7867,10 @@ class AllocationSite: public Struct {
   static const uint32_t kMaximumArrayBytesToPretransition = 8 * 1024;
 
   DECL_ACCESSORS(transition_info, Object)
+  // nested_site threads a list of sites that represent nested literals
+  // walked in a particular order. So [[1, 2], 1, 2] will have one
+  // nested_site, but [[1, 2], 3, [4]] will have a list of two.
+  DECL_ACCESSORS(nested_site, Object)
   DECL_ACCESSORS(dependent_code, DependentCode)
   DECL_ACCESSORS(weak_next, Object)
 
@@ -7916,7 +7902,8 @@ class AllocationSite: public Struct {
   static inline bool CanTrack(InstanceType type);
 
   static const int kTransitionInfoOffset = HeapObject::kHeaderSize;
-  static const int kDependentCodeOffset = kTransitionInfoOffset + kPointerSize;
+  static const int kNestedSiteOffset = kTransitionInfoOffset + kPointerSize;
+  static const int kDependentCodeOffset = kNestedSiteOffset + kPointerSize;
   static const int kWeakNextOffset = kDependentCodeOffset + kPointerSize;
   static const int kSize = kWeakNextOffset + kPointerSize;
 

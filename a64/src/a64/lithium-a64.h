@@ -2639,9 +2639,9 @@ class LTransitionElementsKind V8_FINAL : public LTemplateInstruction<0, 1, 2> {
 
   virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
 
-  Handle<Map> original_map() const { return hydrogen()->original_map(); }
-  Handle<Map> transitioned_map() const {
-    return hydrogen()->transitioned_map();
+  Handle<Map> original_map() { return hydrogen()->original_map().handle(); }
+  Handle<Map> transitioned_map() {
+    return hydrogen()->transitioned_map().handle();
   }
   ElementsKind from_kind() const { return hydrogen()->from_kind(); }
   ElementsKind to_kind() const { return hydrogen()->to_kind(); }

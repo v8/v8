@@ -891,11 +891,6 @@ void OS::DebugBreak() {
 }
 
 
-void OS::DumpBacktrace() {
-  // Currently unsupported.
-}
-
-
 class Win32MemoryMappedFile : public OS::MemoryMappedFile {
  public:
   Win32MemoryMappedFile(HANDLE file,
