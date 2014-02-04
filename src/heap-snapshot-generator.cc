@@ -1047,6 +1047,8 @@ void V8HeapExplorer::ExtractReferences(HeapObject* obj) {
     ExtractCodeCacheReferences(entry, CodeCache::cast(obj));
   } else if (obj->IsCode()) {
     ExtractCodeReferences(entry, Code::cast(obj));
+  } else if (obj->IsBox()) {
+    ExtractBoxReferences(entry, Box::cast(obj));
   } else if (obj->IsCell()) {
     ExtractCellReferences(entry, Cell::cast(obj));
   } else if (obj->IsPropertyCell()) {
@@ -1414,6 +1416,11 @@ void V8HeapExplorer::ExtractCodeReferences(int entry, Code* code) {
                      "next_code_link", code->next_code_link(),
                      Code::kNextCodeLinkOffset);
   }
+}
+
+
+void V8HeapExplorer::ExtractBoxReferences(int entry, Box* box) {
+  SetInternalReference(box, entry, "value", box->value(), Box::kValueOffset);
 }
 
 
