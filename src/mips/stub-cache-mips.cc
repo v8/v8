@@ -778,13 +778,15 @@ static void GenerateFastApiCall(MacroAssembler* masm,
                                 int argc,
                                 Register* values) {
   ASSERT(!receiver.is(scratch_in));
-  __ push(receiver);
+  // Preparing to push, adjust sp.
+  __ Subu(sp, sp, Operand((argc + 1) * kPointerSize));
+  __ sw(receiver, MemOperand(sp, argc * kPointerSize));  // Push receiver.
   // Write the arguments to stack frame.
   for (int i = 0; i < argc; i++) {
     Register arg = values[argc-1-i];
     ASSERT(!receiver.is(arg));
     ASSERT(!scratch_in.is(arg));
-    __ push(arg);
+    __ sw(arg, MemOperand(sp, (argc-1-i) * kPointerSize));  // Push arg.
   }
   ASSERT(optimization.is_simple_api_call());
 
@@ -1228,8 +1230,7 @@ Handle<Code> StoreStubCompiler::CompileStoreCallback(
   // checks.
   ASSERT(holder->IsJSGlobalProxy() || !holder->IsAccessCheckNeeded());
 
-  __ push(receiver());  // Receiver.
-  __ push(holder_reg);
+  __ Push(receiver(), holder_reg);  // Receiver.
   __ li(at, Operand(callback));  // Callback info.
   __ push(at);
   __ li(at, Operand(name));
@@ -1284,8 +1285,7 @@ void StoreStubCompiler::GenerateStoreViaSetter(
 
     if (!setter.is_null()) {
       // Call the JavaScript setter with receiver and value on the stack.
-      __ push(a1);
-      __ push(a0);
+      __ Push(a1, a0);
       ParameterCount actual(1);
       ParameterCount expected(setter);
       __ InvokeFunction(setter, expected, actual,
