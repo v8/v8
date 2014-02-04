@@ -5442,12 +5442,7 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::LookupInPrototypes() {
 
 bool HOptimizedGraphBuilder::PropertyAccessInfo::CanAccessMonomorphic() {
   if (!CanInlinePropertyAccess(type_)) return false;
-  if (IsJSObjectFieldAccessor()) {
-    // We should never have gathered typefeedback for JSObjectFieldAccessor
-    // stores.
-    ASSERT(IsLoad());
-    return true;
-  }
+  if (IsJSObjectFieldAccessor()) return IsLoad();
   if (!LookupDescriptor()) return false;
   if (lookup_.IsFound()) {
     if (IsLoad()) return true;
