@@ -249,7 +249,6 @@ class RuleProcessor(object):
 
   def __init__(self, parser_state):
     self.__automata = {}
-    self.__rule_trees = {}
     self.__default_action = None
     self.__process_parser_state(parser_state)
 
@@ -269,22 +268,28 @@ class RuleProcessor(object):
     return self.__default_action
 
   class Automata(object):
+    'a container for the resulting automata, which are lazily built'
 
-    def __init__(self, encoding, character_classes, rule_term):
+    def __init__(self, encoding, character_classes, rule_map, name):
       self.__encoding = encoding
       self.__character_classes = character_classes
-      self.__rule_term = rule_term
+      self.__rule_map = rule_map
+      self.__name = name
       self.__nfa = None
       self.__dfa = None
       self.__minimial_dfa = None
 
+    def name(self):
+      return self.__name
+
     def rule_term(self):
-      return self.__rule_term
+      return self.__rule_map[self.__name]
 
     def nfa(self):
       if not self.__nfa:
         self.__nfa = NfaBuilder.nfa(
-          self.__encoding, self.__character_classes, self.__rule_term)
+          self.__encoding, self.__character_classes,
+          self.__rule_map, self.__name)
       return self.__nfa
 
     def dfa(self):
@@ -305,37 +310,30 @@ class RuleProcessor(object):
       return self.__minimial_dfa
 
   def __process_parser_state(self, parser_state):
-    rule_map = {}
     assert 'default' in parser_state.rules
-    def process(subgraph, v):
-      graphs = []
-      for graph, precedence, action in v['regex']:
+    rule_map = {}
+    def process(tree_name, v):
+      trees = []
+      for tree, precedence, action in v['regex']:
         (entry_action, match_action, transition) = action
         if entry_action or match_action:
-          graph = NfaBuilder.add_action(
-            graph, Action(entry_action, match_action, precedence))
+          tree = NfaBuilder.add_action(
+            tree, Action(entry_action, match_action, precedence))
         if not transition:
           pass
         elif transition == 'continue':
-          assert not subgraph == 'default', 'unimplemented'
-          graph = NfaBuilder.add_continue(graph)
+          tree = NfaBuilder.add_continue(tree)
         else:
-          assert subgraph == 'default', 'unimplemented'
-          graph = NfaBuilder.join_subgraph(
-            graph, rule_map[transition])
-        graphs.append(graph)
-      graph = NfaBuilder.or_terms(graphs)
-      rule_map[subgraph] = graph
-    # process first the subgraphs, then the default graph
+          tree = NfaBuilder.join_subtree(tree, transition)
+        trees.append(tree)
+      rule_map[tree_name] = NfaBuilder.or_terms(trees)
+    # process all subgraphs
     for k, v in parser_state.rules.items():
-      if k == 'default': continue
       process(k, v)
-    process('default', parser_state.rules['default'])
     # build the automata
-    for rule_name, graph in rule_map.items():
-      self.__automata[rule_name] = RuleProcessor.Automata(
-        parser_state.encoding, parser_state.character_classes, graph)
-      self.__rule_trees[rule_name] = graph
+    for name, tree in rule_map.items():
+      self.__automata[name] = RuleProcessor.Automata(
+        parser_state.encoding, parser_state.character_classes, rule_map, name)
     # process default_action
     default_action = parser_state.rules['default']['default_action']
     self.__default_action = Action(Term.empty_term(), default_action)

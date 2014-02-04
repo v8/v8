@@ -41,14 +41,14 @@ from nfa import *
 
 class NfaBuilder(object):
 
-  def __init__(self, encoding, character_classes):
+  def __init__(self, encoding, character_classes, subtree_map):
     self.__node_number = 0
-    self.__operation_map = {}
-    self.__members = getmembers(self)
     self.__encoding = encoding
     self.__character_classes = character_classes
     self.__states = []
     self.__global_end_node = None
+    self.__operation_map = None
+    self.__subtree_map = subtree_map
 
   def __new_state(self):
     self.__node_number += 1
@@ -89,16 +89,18 @@ class NfaBuilder(object):
     return (start, ends + [start])
 
   def __repeat(self, param_min, param_max, subtree):
-    param_min = int(param_min)
-    param_max = int(param_max)
+    'process regex of form subtree{param_min, param_max}'
+    (param_min, param_max) = (int(param_min), int(param_max))
+    assert param_min > 1 and param_min <= param_max
     (start, ends) = self.__process(subtree)
+    # create a chain of param_min subtrees
     for i in xrange(1, param_min):
       (start2, ends2) = self.__process(subtree)
       self.__patch_ends(ends, start2)
       ends = ends2
     if param_min == param_max:
       return (start, ends)
-
+    # join in (param_max - param_min) optional subtrees
     midpoints = []
     for i in xrange(param_min, param_max):
       midpoint =  self.__new_state()
@@ -106,7 +108,6 @@ class NfaBuilder(object):
       (start2, ends) = self.__process(subtree)
       midpoint.add_epsilon_transition(start2)
       midpoints.append(midpoint)
-
     return (start, ends + midpoints)
 
   def __cat(self, left_tree, right_tree):
@@ -140,12 +141,14 @@ class NfaBuilder(object):
     end = self.__new_state()
     self.__patch_ends(ends, end)
     end.set_action(action)
+    # Force all match actions to be terminal.
     if action.match_action():
       global_end = self.__global_end()
       end.add_epsilon_transition(global_end)
     return (start, [end])
 
   def __continue(self, subtree):
+    'add an epsilon transitions to the start node of the current subtree'
     (start, ends) = self.__process(subtree)
     state = self.__peek_state()
     if not state['start_node']:
@@ -156,8 +159,8 @@ class NfaBuilder(object):
   def __unique_key(self, name):
     return self.__key_state(TransitionKey.unique(name))
 
-  def __join(self, tree, subtree):
-    (subtree_start, subtree_end, nodes_in_subtree) = self.__nfa(subtree)
+  def __join(self, tree, name):
+    (subtree_start, subtree_end, nodes_in_subtree) = self.__nfa(name)
     (start, ends) = self.__process(tree)
     self.__patch_ends(ends, subtree_start)
     if subtree_end:
@@ -165,22 +168,29 @@ class NfaBuilder(object):
     else:
       return (start, [])
 
+  def __get_method(self, name):
+    'lazily build map of all private bound methods and return the one requested'
+    if not self.__operation_map:
+      prefix = "_NfaBuilder__"
+      self.__operation_map = {name[len(prefix):] : f for (name, f) in
+        filter(lambda (name, f): name.startswith(prefix), getmembers(self))}
+    return self.__operation_map[name]
+
   def __process(self, term):
     assert isinstance(term, Term)
-    method = "_NfaBuilder__" + term.name().lower()
-    if not method in self.__operation_map:
-      matches = filter(lambda (name, func): name == method, self.__members)
-      assert len(matches) == 1
-      self.__operation_map[method] = matches[0][1]
-    return self.__operation_map[method](*term.args())
+    method = self.__get_method(term.name().lower())
+    return method(*term.args())
 
   def __patch_ends(self, ends, new_end):
     for end in ends:
       end.close(new_end)
 
-  def __push_state(self):
+  def __push_state(self, name):
+    for state in self.__states:
+      assert state['name'] != name, 'recursive subgraph'
     self.__states.append({
       'start_node' : None,
+      'name' : name
     })
 
   def __pop_state(self):
@@ -189,11 +199,13 @@ class NfaBuilder(object):
   def __peek_state(self):
     return self.__states[-1]
 
-  def __nfa(self, term):
+  def __nfa(self, name):
+    tree = self.__subtree_map[name]
     start_node_number = self.__node_number
-    self.__push_state()
-    (start, ends) = self.__process(term)
+    self.__push_state(name)
+    (start, ends) = self.__process(tree)
     state = self.__pop_state()
+    # move saved start node into start
     if state['start_node']:
       state['start_node'].close(start)
       start = state['start_node']
@@ -239,22 +251,19 @@ class NfaBuilder(object):
     del transitions[catch_all]
 
   @staticmethod
-  def nfa(encoding, character_classes, rule_term):
-
-    self = NfaBuilder(encoding, character_classes)
-    (start, end, nodes_created) = self.__nfa(rule_term)
-
+  def nfa(encoding, character_classes, subtree_map, name):
+    self = NfaBuilder(encoding, character_classes, subtree_map)
+    (start, end, nodes_created) = self.__nfa(name)
+    # close all ends
     global_end_to_return = self.__global_end_node or end
-    assert global_end_to_return
+    assert global_end_to_return, "no terminal nodes, default tree continues"
     if end and self.__global_end_node:
       end.close(self.__global_end_node)
-
     global_end_to_return.close(None)
-
+    # Prepare the nfa
     self.__compute_epsilon_closures(start)
     f = lambda node, state: self.__replace_catch_all(self.__encoding, node)
     Automaton.visit_states(set([start]), f)
-
     return Nfa(self.__encoding, start, global_end_to_return, nodes_created)
 
   @staticmethod
@@ -270,8 +279,8 @@ class NfaBuilder(object):
     return Term('UNIQUE_KEY', name)
 
   @staticmethod
-  def join_subgraph(tree, subtree):
-    return Term('JOIN', tree, subtree)
+  def join_subtree(tree, subtree_name):
+    return Term('JOIN', tree, subtree_name)
 
   @staticmethod
   def or_terms(terms):
