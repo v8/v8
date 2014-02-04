@@ -3068,8 +3068,6 @@ void ArgumentsAccessStub::GenerateNewNonStrictSlow(MacroAssembler* masm) {
   //  jssp[8]:  address of receiver argument
   //  jssp[16]: function
 
-  ASM_UNIMPLEMENTED("GenerateNewNonStrictSlow: This has not been tested.");
-
   // Check if the calling frame is an arguments adaptor frame.
   Label runtime;
   Register caller_fp = x10;
