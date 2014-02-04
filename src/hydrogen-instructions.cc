@@ -4345,7 +4345,8 @@ HObjectAccess HObjectAccess::ForBackingStoreOffset(int offset,
 
 
 HObjectAccess HObjectAccess::ForField(Handle<Map> map,
-    LookupResult *lookup, Handle<String> name) {
+                                      LookupResult* lookup,
+                                      Handle<String> name) {
   ASSERT(lookup->IsField() || lookup->IsTransitionToField(*map));
   int index;
   Representation representation;

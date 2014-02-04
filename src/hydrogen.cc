@@ -4928,80 +4928,6 @@ static bool CanInlinePropertyAccess(Type* type) {
 }
 
 
-static void LookupInPrototypes(Handle<Map> map,
-                               Handle<String> name,
-                               LookupResult* lookup,
-                               Zone* zone) {
-  while (map->prototype()->IsJSObject()) {
-    Handle<JSObject> holder(JSObject::cast(map->prototype()));
-    map = handle(holder->map());
-    if (!CanInlinePropertyAccess(IC::MapToType<Type>(map, zone))) break;
-    map->LookupDescriptor(*holder, *name, lookup);
-    if (lookup->IsFound()) return;
-  }
-  lookup->NotFound();
-}
-
-
-// Tries to find a JavaScript accessor of the given name in the prototype chain
-// starting at the given map. Return true iff there is one, including the
-// corresponding AccessorPair plus its holder (which could be null when the
-// accessor is found directly in the given map).
-static bool LookupAccessorPair(Handle<Map> map,
-                               Handle<String> name,
-                               Handle<AccessorPair>* accessors,
-                               Handle<JSObject>* holder,
-                               Zone* zone) {
-  Isolate* isolate = map->GetIsolate();
-  LookupResult lookup(isolate);
-
-  // Check for a JavaScript accessor directly in the map.
-  map->LookupDescriptor(NULL, *name, &lookup);
-  if (lookup.IsPropertyCallbacks()) {
-    Handle<Object> callback(lookup.GetValueFromMap(*map), isolate);
-    if (!callback->IsAccessorPair()) return false;
-    *accessors = Handle<AccessorPair>::cast(callback);
-    *holder = Handle<JSObject>();
-    return true;
-  }
-
-  // Everything else, e.g. a field, can't be an accessor call.
-  if (lookup.IsFound()) return false;
-
-  // Check for a JavaScript accessor somewhere in the proto chain.
-  LookupInPrototypes(map, name, &lookup, zone);
-  if (lookup.IsPropertyCallbacks()) {
-    Handle<Object> callback(lookup.GetValue(), isolate);
-    if (!callback->IsAccessorPair()) return false;
-    *accessors = Handle<AccessorPair>::cast(callback);
-    *holder = Handle<JSObject>(lookup.holder());
-    return true;
-  }
-
-  // We haven't found a JavaScript accessor anywhere.
-  return false;
-}
-
-
-static bool LookupSetter(Handle<Map> map,
-                         Handle<String> name,
-                         Handle<JSFunction>* setter,
-                         Handle<JSObject>* holder,
-                         Zone* zone) {
-  Handle<AccessorPair> accessors;
-  if (LookupAccessorPair(map, name, &accessors, holder, zone) &&
-      accessors->setter()->IsJSFunction()) {
-    Handle<JSFunction> func(JSFunction::cast(accessors->setter()));
-    CallOptimization call_optimization(func);
-    // TODO(dcarney): temporary hack unless crankshaft can handle api calls.
-    if (call_optimization.is_simple_api_call()) return false;
-    *setter = func;
-    return true;
-  }
-  return false;
-}
-
-
 // Determines whether the given array or object literal boilerplate satisfies
 // all limits to be considered for fast deep-copying and computes the total
 // size of all objects that are part of the graph.
@@ -5147,15 +5073,17 @@ void HOptimizedGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
               // If we don't know the monomorphic type, do a generic store.
               CHECK_ALIVE(store = BuildStoreNamedGeneric(literal, name, value));
             } else {
-#if DEBUG
-              Handle<JSFunction> setter;
-              Handle<JSObject> holder;
-              ASSERT(!LookupSetter(map, name, &setter, &holder, zone()));
-#endif
-              CHECK_ALIVE(store = BuildStoreNamedMonomorphic(literal,
-                                                             name,
-                                                             value,
-                                                             map));
+              PropertyAccessInfo info(this, STORE, ToType(map), name);
+              if (info.CanAccessMonomorphic()) {
+                HValue* checked_literal = BuildCheckMap(literal, map);
+                ASSERT(!info.lookup()->IsPropertyCallbacks());
+                store = BuildStoreMonomorphic(
+                    &info, checked_literal, value,
+                    BailoutId::None(), BailoutId::None());
+              } else {
+                CHECK_ALIVE(
+                    store = BuildStoreNamedGeneric(literal, name, value));
+              }
             }
             AddInstruction(store);
             if (store->HasObservableSideEffects()) {
@@ -5331,43 +5259,13 @@ HCheckMaps* HOptimizedGraphBuilder::AddCheckMap(HValue* object,
 
 
 HInstruction* HOptimizedGraphBuilder::BuildStoreNamedField(
+    PropertyAccessInfo* info,
     HValue* checked_object,
-    Handle<String> name,
-    HValue* value,
-    Handle<Map> map,
-    LookupResult* lookup) {
-  ASSERT(lookup->IsFound());
-  // If the property does not exist yet, we have to check that it wasn't made
-  // readonly or turned into a setter by some meanwhile modifications on the
-  // prototype chain.
-  if (!lookup->IsProperty() && map->prototype()->IsJSReceiver()) {
-    Object* proto = map->prototype();
-    // First check that the prototype chain isn't affected already.
-    LookupResult proto_result(isolate());
-    proto->Lookup(*name, &proto_result);
-    if (proto_result.IsProperty()) {
-      // If the inherited property could induce readonly-ness, bail out.
-      if (proto_result.IsReadOnly() || !proto_result.IsCacheable()) {
-        Bailout(kImproperObjectOnPrototypeChainForStore);
-        return NULL;
-      }
-      // We only need to check up to the preexisting property.
-      proto = proto_result.holder();
-    } else {
-      // Otherwise, find the top prototype.
-      while (proto->GetPrototype(isolate())->IsJSObject()) {
-        proto = proto->GetPrototype(isolate());
-      }
-      ASSERT(proto->GetPrototype(isolate())->IsNull());
-    }
-    ASSERT(proto->IsJSObject());
-    BuildCheckPrototypeMaps(
-        Handle<JSObject>(JSObject::cast(map->prototype())),
-        Handle<JSObject>(JSObject::cast(proto)));
-  }
-
-  HObjectAccess field_access = HObjectAccess::ForField(map, lookup, name);
-  bool transition_to_field = lookup->IsTransitionToField(*map);
+    HValue* value) {
+  bool transition_to_field = info->lookup()->IsTransition();
+  // TODO(verwaest): Move this logic into PropertyAccessInfo.
+  HObjectAccess field_access = HObjectAccess::ForField(
+      info->map(), info->lookup(), info->name());
 
   HStoreNamedField *instr;
   if (FLAG_track_double_fields && field_access.representation().IsDouble()) {
@@ -5408,11 +5306,8 @@ HInstruction* HOptimizedGraphBuilder::BuildStoreNamedField(
   }
 
   if (transition_to_field) {
-    Handle<Map> transition(lookup->GetTransitionMapFromMap(*map));
-    HConstant* transition_constant = Add<HConstant>(transition);
+    HConstant* transition_constant = Add<HConstant>(info->transition());
     instr->SetTransition(transition_constant, top_info());
-    // TODO(fschneider): Record the new map type of the object in the IR to
-    // enable elimination of redundant checks after the transition store.
     instr->SetGVNFlag(kChangesMaps);
   }
   return instr;
@@ -5422,7 +5317,13 @@ HInstruction* HOptimizedGraphBuilder::BuildStoreNamedField(
 HInstruction* HOptimizedGraphBuilder::BuildStoreNamedGeneric(
     HValue* object,
     Handle<String> name,
-    HValue* value) {
+    HValue* value,
+    bool is_uninitialized) {
+  if (is_uninitialized) {
+    Add<HDeoptimize>("Insufficient type feedback for property assignment",
+                     Deoptimizer::SOFT);
+  }
+
   return New<HStoreNamedGeneric>(
                          object,
                          name,
@@ -5431,46 +5332,7 @@ HInstruction* HOptimizedGraphBuilder::BuildStoreNamedGeneric(
 }
 
 
-// Sets the lookup result and returns true if the load/store can be inlined.
-static bool ComputeStoreField(Type* type,
-                              Handle<String> name,
-                              LookupResult* lookup,
-                              bool lookup_transition = true) {
-  if (!CanInlinePropertyAccess(type) || !type->IsClass()) {
-    lookup->NotFound();
-    return false;
-  }
-  Handle<Map> map = type->AsClass();
-  ASSERT(!map->is_observed());
-  // If we directly find a field, the access can be inlined.
-  map->LookupDescriptor(NULL, *name, lookup);
-  if (lookup->IsField()) return true;
-
-  if (!lookup_transition) return false;
-
-  map->LookupTransition(NULL, *name, lookup);
-  return lookup->IsTransitionToField(*map) && map->unused_property_fields() > 0;
-}
-
-
-HInstruction* HOptimizedGraphBuilder::BuildStoreNamedMonomorphic(
-    HValue* object,
-    Handle<String> name,
-    HValue* value,
-    Handle<Map> map) {
-  // Handle a store to a known field.
-  LookupResult lookup(isolate());
-  if (ComputeStoreField(ToType(map), name, &lookup)) {
-    HCheckMaps* checked_object = AddCheckMap(object, map);
-    return BuildStoreNamedField(checked_object, name, value, map, &lookup);
-  }
-
-  // No luck, do a generic store.
-  return BuildStoreNamedGeneric(object, name, value);
-}
-
-
-bool HOptimizedGraphBuilder::PropertyAccessInfo::IsCompatibleForLoad(
+bool HOptimizedGraphBuilder::PropertyAccessInfo::IsCompatible(
     PropertyAccessInfo* info) {
   if (!CanInlinePropertyAccess(type_)) return false;
 
@@ -5510,7 +5372,11 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::IsCompatibleForLoad(
   if (!info->lookup_.IsField()) return false;
 
   Representation r = access_.representation();
-  if (!info->access_.representation().IsCompatibleForLoad(r)) return false;
+  if (IsLoad()) {
+    if (!info->access_.representation().IsCompatibleForLoad(r)) return false;
+  } else {
+    if (!info->access_.representation().IsCompatibleForStore(r)) return false;
+  }
   if (info->access_.offset() != access_.offset()) return false;
   if (info->access_.IsInobject() != access_.IsInobject()) return false;
   info->GeneralizeRepresentation(r);
@@ -5526,14 +5392,21 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::LookupDescriptor() {
 
 
 bool HOptimizedGraphBuilder::PropertyAccessInfo::LoadResult(Handle<Map> map) {
+  if (!IsLoad() && lookup_.IsProperty() &&
+      (lookup_.IsReadOnly() || !lookup_.IsCacheable())) {
+    return false;
+  }
+
   if (lookup_.IsField()) {
     access_ = HObjectAccess::ForField(map, &lookup_, name_);
   } else if (lookup_.IsPropertyCallbacks()) {
     Handle<Object> callback(lookup_.GetValueFromMap(*map), isolate());
     if (!callback->IsAccessorPair()) return false;
-    Object* getter = Handle<AccessorPair>::cast(callback)->getter();
-    if (!getter->IsJSFunction()) return false;
-    Handle<JSFunction> accessor = handle(JSFunction::cast(getter));
+    Object* raw_accessor = IsLoad()
+        ? Handle<AccessorPair>::cast(callback)->getter()
+        : Handle<AccessorPair>::cast(callback)->setter();
+    if (!raw_accessor->IsJSFunction()) return false;
+    Handle<JSFunction> accessor = handle(JSFunction::cast(raw_accessor));
     CallOptimization call_optimization(accessor);
     // TODO(dcarney): temporary hack unless crankshaft can handle api calls.
     if (call_optimization.is_simple_api_call()) return false;
@@ -5567,19 +5440,38 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::LookupInPrototypes() {
 }
 
 
-bool HOptimizedGraphBuilder::PropertyAccessInfo::CanLoadMonomorphic() {
+bool HOptimizedGraphBuilder::PropertyAccessInfo::CanAccessMonomorphic() {
   if (!CanInlinePropertyAccess(type_)) return false;
-  if (IsJSObjectFieldAccessor()) return true;
+  if (IsJSObjectFieldAccessor()) {
+    // We should never have gathered typefeedback for JSObjectFieldAccessor
+    // stores.
+    ASSERT(IsLoad());
+    return true;
+  }
   if (!LookupDescriptor()) return false;
-  if (lookup_.IsFound()) return true;
-  return LookupInPrototypes();
+  if (lookup_.IsFound()) {
+    if (IsLoad()) return true;
+    return !lookup_.IsReadOnly() && lookup_.IsCacheable();
+  }
+  if (!LookupInPrototypes()) return false;
+  if (IsLoad()) return true;
+
+  if (lookup_.IsPropertyCallbacks()) return true;
+  Handle<Map> map = this->map();
+  map->LookupTransition(NULL, *name_, &lookup_);
+  if (lookup_.IsTransitionToField(*map) && map->unused_property_fields() > 0) {
+    transition_ = handle(lookup_.GetTransitionMapFromMap(*map));
+    return true;
+  }
+  return false;
 }
 
 
-bool HOptimizedGraphBuilder::PropertyAccessInfo::CanLoadAsMonomorphic(
+bool HOptimizedGraphBuilder::PropertyAccessInfo::CanAccessAsMonomorphic(
     SmallMapList* types) {
   ASSERT(type_->Is(ToType(types->first())));
-  if (!CanLoadMonomorphic()) return false;
+  if (!CanAccessMonomorphic()) return false;
+  STATIC_ASSERT(kMaxLoadPolymorphism == kMaxStorePolymorphism);
   if (types->length() > kMaxLoadPolymorphism) return false;
 
   if (IsArrayLength()) {
@@ -5597,7 +5489,8 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::CanLoadAsMonomorphic(
   HObjectAccess access = HObjectAccess::ForMap();  // bogus default
   if (GetJSObjectFieldAccess(&access)) {
     for (int i = 1; i < types->length(); ++i) {
-      PropertyAccessInfo test_info(builder_, ToType(types->at(i)), name_);
+      PropertyAccessInfo test_info(
+          builder_, access_type_, ToType(types->at(i)), name_);
       HObjectAccess test_access = HObjectAccess::ForMap();  // bogus default
       if (!test_info.GetJSObjectFieldAccess(&test_access)) return false;
       if (!access.Equals(test_access)) return false;
@@ -5610,9 +5503,14 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::CanLoadAsMonomorphic(
   // instruction.
   if (type_->Is(Type::Number())) return false;
 
+  // Multiple maps cannot transition to the same target map.
+  ASSERT(!IsLoad() || !lookup_.IsTransition());
+  if (lookup_.IsTransition() && types->length() > 1) return false;
+
   for (int i = 1; i < types->length(); ++i) {
-    PropertyAccessInfo test_info(builder_, ToType(types->at(i)), name_);
-    if (!test_info.IsCompatibleForLoad(this)) return false;
+    PropertyAccessInfo test_info(
+        builder_, access_type_, ToType(types->at(i)), name_);
+    if (!test_info.IsCompatible(this)) return false;
   }
 
   return true;
@@ -5674,6 +5572,49 @@ HInstruction* HOptimizedGraphBuilder::BuildLoadMonomorphic(
 }
 
 
+HInstruction* HOptimizedGraphBuilder::BuildStoreMonomorphic(
+    PropertyAccessInfo* info,
+    HValue* checked_object,
+    HValue* value,
+    BailoutId ast_id,
+    BailoutId return_id,
+    bool can_inline_accessor) {
+  ASSERT(!info->IsJSObjectFieldAccessor());
+
+  if (info->has_holder()) {
+    Handle<JSObject> prototype(JSObject::cast(info->map()->prototype()));
+    BuildCheckPrototypeMaps(prototype, info->holder());
+  }
+
+  if (info->lookup()->IsPropertyCallbacks()) {
+    if (NeedsWrappingFor(info->type(), info->accessor())) {
+      HValue* function = Add<HConstant>(info->accessor());
+      Add<HPushArgument>(checked_object);
+      Add<HPushArgument>(value);
+      return New<HCallFunction>(function, 2, WRAP_AND_CALL);
+    } else {
+      Push(checked_object);
+      Push(value);
+      if (FLAG_inline_accessors &&
+          can_inline_accessor &&
+          TryInlineSetter(info->accessor(), ast_id, return_id, value)) {
+        return NULL;
+      }
+      PushArgumentsFromEnvironment(2);
+      return BuildCallConstantFunction(info->accessor(), 2);
+    }
+  }
+
+  if (info->lookup()->IsConstant()) {
+    // Check whether we are trying to store the same constant.
+    return New<HCheckValue>(value, Handle<JSFunction>::cast(info->constant()));
+  }
+
+  ASSERT(info->lookup()->IsField() || info->lookup()->IsTransition());
+  return BuildStoreNamedField(info, checked_object, value);
+}
+
+
 void HOptimizedGraphBuilder::HandlePolymorphicLoadNamedField(
     BailoutId ast_id,
     BailoutId return_id,
@@ -5688,12 +5629,12 @@ void HOptimizedGraphBuilder::HandlePolymorphicLoadNamedField(
 
   bool handle_smi = false;
   for (int i = 0; i < types->length() && count < kMaxLoadPolymorphism; ++i) {
-    PropertyAccessInfo info(this, ToType(types->at(i)), name);
+    PropertyAccessInfo info(this, LOAD, ToType(types->at(i)), name);
     if (info.type()->Is(Type::String())) {
       if (handled_string) continue;
       handled_string = true;
     }
-    if (info.CanLoadMonomorphic()) {
+    if (info.CanAccessMonomorphic()) {
       count++;
       if (info.type()->Is(Type::Number())) {
         handle_smi = true;
@@ -5707,12 +5648,12 @@ void HOptimizedGraphBuilder::HandlePolymorphicLoadNamedField(
   handled_string = false;
 
   for (int i = 0; i < types->length() && count < kMaxLoadPolymorphism; ++i) {
-    PropertyAccessInfo info(this, ToType(types->at(i)), name);
+    PropertyAccessInfo info(this, LOAD, ToType(types->at(i)), name);
     if (info.type()->Is(Type::String())) {
       if (handled_string) continue;
       handled_string = true;
     }
-    if (!info.CanLoadMonomorphic()) continue;
+    if (!info.CanAccessMonomorphic()) continue;
 
     if (count == 0) {
       join = graph()->CreateBasicBlock();
@@ -5801,84 +5742,19 @@ void HOptimizedGraphBuilder::HandlePolymorphicLoadNamedField(
 }
 
 
-bool HOptimizedGraphBuilder::TryStorePolymorphicAsMonomorphic(
-    BailoutId assignment_id,
-    HValue* object,
-    HValue* value,
-    SmallMapList* types,
-    Handle<String> name) {
-  // Use monomorphic store if property lookup results in the same field index
-  // for all maps. Requires special map check on the set of all handled maps.
-  if (types->length() > kMaxStorePolymorphism) return false;
-
-  LookupResult lookup(isolate());
-  int count;
-  Representation representation = Representation::None();
-  HObjectAccess access = HObjectAccess::ForMap();  // initial value unused.
-  for (count = 0; count < types->length(); ++count) {
-    Handle<Map> map = types->at(count);
-    // Pass false to ignore transitions.
-    if (!ComputeStoreField(ToType(map), name, &lookup, false)) break;
-    ASSERT(!map->is_observed());
-
-    HObjectAccess new_access = HObjectAccess::ForField(map, &lookup, name);
-    Representation new_representation = new_access.representation();
-
-    if (count == 0) {
-      // First time through the loop; set access and representation.
-      access = new_access;
-      representation = new_representation;
-    } else if (!representation.IsCompatibleForStore(new_representation)) {
-      // Representations did not match.
-      break;
-    } else if (access.offset() != new_access.offset()) {
-      // Offsets did not match.
-      break;
-    } else if (access.IsInobject() != new_access.IsInobject()) {
-      // In-objectness did not match.
-      break;
-    }
-  }
-
-  if (count != types->length()) return false;
-
-  // Everything matched; can use monomorphic store.
-  BuildCheckHeapObject(object);
-  HCheckMaps* checked_object = Add<HCheckMaps>(object, types);
-  HInstruction* store;
-  CHECK_ALIVE_OR_RETURN(
-      store = BuildStoreNamedField(
-          checked_object, name, value, types->at(count - 1), &lookup),
-      true);
-  if (!ast_context()->IsEffect()) Push(value);
-  AddInstruction(store);
-  Add<HSimulate>(assignment_id);
-  if (!ast_context()->IsEffect()) Drop(1);
-  ast_context()->ReturnValue(value);
-  return true;
-}
-
-
 void HOptimizedGraphBuilder::HandlePolymorphicStoreNamedField(
     BailoutId assignment_id,
+    BailoutId return_id,
     HValue* object,
     HValue* value,
     SmallMapList* types,
     Handle<String> name) {
-  if (TryStorePolymorphicAsMonomorphic(
-          assignment_id, object, value, types, name)) {
-    return;
-  }
-
-  // TODO(ager): We should recognize when the prototype chains for different
-  // maps are identical. In that case we can avoid repeatedly generating the
-  // same prototype map checks.
   int count = 0;
   HBasicBlock* join = NULL;
+  // TODO(verwaest): Unify with polymorphic load handling.
   for (int i = 0; i < types->length() && count < kMaxStorePolymorphism; ++i) {
-    Handle<Map> map = types->at(i);
-    LookupResult lookup(isolate());
-    if (ComputeStoreField(ToType(map), name, &lookup)) {
+    PropertyAccessInfo info(this, STORE, ToType(types->at(i)), name);
+    if (info.CanAccessMonomorphic()) {
       if (count == 0) {
         BuildCheckHeapObject(object);
         join = graph()->CreateBasicBlock();
@@ -5886,18 +5762,26 @@ void HOptimizedGraphBuilder::HandlePolymorphicStoreNamedField(
       ++count;
       HBasicBlock* if_true = graph()->CreateBasicBlock();
       HBasicBlock* if_false = graph()->CreateBasicBlock();
-      HCompareMap* compare = New<HCompareMap>(object, map,  if_true, if_false);
+      HCompareMap* compare = New<HCompareMap>(
+          object, info.map(),  if_true, if_false);
       FinishCurrentBlock(compare);
 
       set_current_block(if_true);
-      HInstruction* instr;
-      CHECK_ALIVE(instr = BuildStoreNamedField(
-          compare, name, value, map, &lookup));
-      // Goto will add the HSimulate for the store.
-      AddInstruction(instr);
-      if (!ast_context()->IsEffect()) Push(value);
-      Goto(join);
 
+      HInstruction* store;
+      store = BuildStoreMonomorphic(
+          &info, compare, value, assignment_id, return_id,
+          FLAG_polymorphic_inlining);
+
+      if (store == NULL) {
+        if (HasStackOverflow()) return;
+      } else {
+        ASSERT(!store->IsLinked());
+        AddInstruction(store);
+        if (!ast_context()->IsEffect()) Push(value);
+      }
+
+      if (current_block() != NULL) Goto(join);
       set_current_block(if_false);
     }
   }
@@ -5959,15 +5843,22 @@ static bool ComputeReceiverTypes(Expression* expr,
 }
 
 
+static bool AreStringTypes(SmallMapList* types) {
+  for (int i = 0; i < types->length(); i++) {
+    if (types->at(i)->instance_type() >= FIRST_NONSTRING_TYPE) return false;
+  }
+  return true;
+}
+
+
 void HOptimizedGraphBuilder::BuildStore(Expression* expr,
                                         Property* prop,
                                         BailoutId ast_id,
                                         BailoutId return_id,
                                         bool is_uninitialized) {
-  HValue* value = environment()->ExpressionStackAt(0);
-
   if (!prop->key()->IsPropertyName()) {
     // Keyed store.
+    HValue* value = environment()->ExpressionStackAt(0);
     HValue* key = environment()->ExpressionStackAt(1);
     HValue* object = environment()->ExpressionStackAt(2);
     bool has_side_effects = false;
@@ -5981,12 +5872,8 @@ void HOptimizedGraphBuilder::BuildStore(Expression* expr,
   }
 
   // Named store.
-  HValue* object = environment()->ExpressionStackAt(1);
-
-  if (is_uninitialized) {
-    Add<HDeoptimize>("Insufficient type feedback for property assignment",
-                     Deoptimizer::SOFT);
-  }
+  HValue* value = Pop();
+  HValue* object = Pop();
 
   Literal* key = prop->key()->AsLiteral();
   Handle<String> name = Handle<String>::cast(key->value());
@@ -5995,42 +5882,30 @@ void HOptimizedGraphBuilder::BuildStore(Expression* expr,
   HInstruction* instr = NULL;
 
   SmallMapList* types;
-  bool monomorphic = ComputeReceiverTypes(expr, object, &types, zone());
+  ComputeReceiverTypes(expr, object, &types, zone());
 
-  if (monomorphic) {
-    Handle<Map> map = types->first();
-    Handle<JSFunction> setter;
-    Handle<JSObject> holder;
-    if (LookupSetter(map, name, &setter, &holder, zone())) {
-      AddCheckMap(object, map);
-      AddCheckPrototypeMaps(holder, map);
-      bool needs_wrapping = NeedsWrappingFor(ToType(map), setter);
-      bool try_inline = FLAG_inline_accessors && !needs_wrapping;
-      if (try_inline && TryInlineSetter(setter, ast_id, return_id, value)) {
-        return;
-      }
-      Drop(2);
-      Add<HPushArgument>(object);
-      Add<HPushArgument>(value);
-      if (needs_wrapping) {
-        HValue* function = Add<HConstant>(setter);
-        instr = New<HCallFunction>(function, 2, WRAP_AND_CALL);
-      } else {
-        instr = BuildCallConstantFunction(setter, 2);
-      }
-    } else {
-      Drop(2);
-      CHECK_ALIVE(instr = BuildStoreNamedMonomorphic(object,
-                                                     name,
-                                                     value,
-                                                     map));
+  if (types->length() > 0) {
+    PropertyAccessInfo info(this, STORE, ToType(types->first()), name);
+    if (!info.CanAccessAsMonomorphic(types)) {
+      return HandlePolymorphicStoreNamedField(
+          ast_id, return_id, object, value, types, name);
     }
-  } else if (types != NULL && types->length() > 1) {
-    Drop(2);
-    return HandlePolymorphicStoreNamedField(ast_id, object, value, types, name);
+
+    ASSERT(!info.type()->Is(Type::Number()));
+    BuildCheckHeapObject(object);
+    HValue* checked_object;
+    if (AreStringTypes(types)) {
+      checked_object = Add<HCheckInstanceType>(
+          object, HCheckInstanceType::IS_STRING);
+    } else {
+      checked_object = Add<HCheckMaps>(object, types);
+    }
+    instr = BuildStoreMonomorphic(
+        &info, checked_object, value, ast_id, return_id);
+    if (instr == NULL) return;
+    ASSERT(!instr->IsLinked());
   } else {
-    Drop(2);
-    instr = BuildStoreNamedGeneric(object, name, value);
+    instr = BuildStoreNamedGeneric(object, name, value, is_uninitialized);
   }
 
   if (!ast_context()->IsEffect()) Push(value);
@@ -6838,14 +6713,6 @@ void HOptimizedGraphBuilder::PushLoad(Property* expr,
 }
 
 
-static bool AreStringTypes(SmallMapList* types) {
-  for (int i = 0; i < types->length(); i++) {
-    if (types->at(i)->instance_type() >= FIRST_NONSTRING_TYPE) return false;
-  }
-  return true;
-}
-
-
 void HOptimizedGraphBuilder::BuildLoad(Property* expr,
                                        BailoutId ast_id) {
   HInstruction* instr = NULL;
@@ -6870,8 +6737,8 @@ void HOptimizedGraphBuilder::BuildLoad(Property* expr,
     ASSERT(types != NULL);
 
     if (types->length() > 0) {
-      PropertyAccessInfo info(this, ToType(types->first()), name);
-      if (!info.CanLoadAsMonomorphic(types)) {
+      PropertyAccessInfo info(this, LOAD, ToType(types->first()), name);
+      if (!info.CanAccessAsMonomorphic(types)) {
         return HandlePolymorphicLoadNamedField(
             ast_id, expr->LoadId(), object, types, name);
       }
@@ -7078,8 +6945,8 @@ void HOptimizedGraphBuilder::HandlePolymorphicCallNamed(
   for (int i = 0;
        i < types->length() && ordered_functions < kMaxCallPolymorphism;
        ++i) {
-    PropertyAccessInfo info(this, ToType(types->at(i)), name);
-    if (info.CanLoadMonomorphic() &&
+    PropertyAccessInfo info(this, LOAD, ToType(types->at(i)), name);
+    if (info.CanAccessMonomorphic() &&
         info.lookup()->IsConstant() &&
         info.constant()->IsJSFunction()) {
       if (info.type()->Is(Type::String())) {
@@ -7108,13 +6975,13 @@ void HOptimizedGraphBuilder::HandlePolymorphicCallNamed(
 
   for (int fn = 0; fn < ordered_functions; ++fn) {
     int i = order[fn].index();
-    PropertyAccessInfo info(this, ToType(types->at(i)), name);
+    PropertyAccessInfo info(this, LOAD, ToType(types->at(i)), name);
     if (info.type()->Is(Type::String())) {
       if (handled_string) continue;
       handled_string = true;
     }
     // Reloads the target.
-    info.CanLoadMonomorphic();
+    info.CanAccessMonomorphic();
     Handle<JSFunction> target = Handle<JSFunction>::cast(info.constant());
 
     expr->set_target(target);
@@ -8101,8 +7968,8 @@ void HOptimizedGraphBuilder::VisitCall(Call* expr) {
 
     if (prop->key()->IsPropertyName() && types->length() > 0) {
       Handle<String> name = prop->key()->AsLiteral()->AsPropertyName();
-      PropertyAccessInfo info(this, ToType(types->first()), name);
-      if (!info.CanLoadAsMonomorphic(types)) {
+      PropertyAccessInfo info(this, LOAD, ToType(types->first()), name);
+      if (!info.CanAccessAsMonomorphic(types)) {
         HandlePolymorphicCallNamed(expr, receiver, types, name);
         return;
       }
