@@ -8651,18 +8651,17 @@ void HOptimizedGraphBuilder::VisitTypedArrayInitialize(
         HObjectAccess::ForJSTypedArrayLength(),
         length);
 
+    Handle<Map> external_array_map(
+        isolate()->heap()->MapForExternalArrayType(array_type));
+
     HValue* elements =
         Add<HAllocate>(
             Add<HConstant>(ExternalArray::kAlignedSize),
             HType::JSArray(),
             NOT_TENURED,
-            static_cast<InstanceType>(FIRST_EXTERNAL_ARRAY_TYPE + array_type));
+            external_array_map->instance_type());
 
-    Handle<Map> external_array_map(
-        isolate()->heap()->MapForExternalArrayType(array_type));
-    Add<HStoreNamedField>(elements,
-        HObjectAccess::ForMap(),
-        Add<HConstant>(external_array_map));
+    AddStoreMapConstant(elements, external_array_map);
 
     HValue* backing_store = Add<HLoadNamedField>(
         buffer, static_cast<HValue*>(NULL),
