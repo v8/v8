@@ -645,13 +645,14 @@ class Parser : public ParserBase {
                                   Statement* body);
 
   ZoneList<Expression*>* ParseArguments(bool* ok);
-  FunctionLiteral* ParseFunctionLiteral(Handle<String> var_name,
-                                        bool name_is_reserved,
-                                        bool is_generator,
-                                        int function_token_position,
-                                        FunctionLiteral::FunctionType type,
-                                        bool* ok);
-
+  FunctionLiteral* ParseFunctionLiteral(
+      Handle<String> var_name,
+      Scanner::Location function_name_location,
+      bool name_is_reserved,
+      bool is_generator,
+      int function_token_position,
+      FunctionLiteral::FunctionType type,
+      bool* ok);
 
   // Magical syntax support.
   Expression* ParseV8Intrinsic(bool* ok);
