@@ -26,10 +26,15 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 # Too slow in debug mode.
-dfg-int-overflow-in-loop: PASS, SKIP if $mode == debug
-dfg-double-vote-fuzz: PASS, SKIP if $mode == debug
-reentrant-caching: PASS, SKIP if $mode == debug
-sort-large-array: PASS, SKIP if $mode == debug
+[
+[ALWAYS, {
+  'dfg-int-overflow-in-loop': [PASS, ['mode == debug', SKIP]],
+  'dfg-double-vote-fuzz': [PASS, ['mode == debug', SKIP]],
+  'reentrant-caching': [PASS, ['mode == debug', SKIP]],
+  'sort-large-array': [PASS, ['mode == debug', SKIP]],
+}],  # ALWAYS
 
 ##############################################################################
-[ $deopt_fuzzer == True ]
+['deopt_fuzzer == True', {
+}],  # 'deopt_fuzzer == True'
+]

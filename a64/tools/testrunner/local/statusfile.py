@@ -26,14 +26,6 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-# These imports are required for the on-demand conversion from
-# old to new status file format.
-from os.path import exists
-from os.path import getmtime
-
-from . import old_statusfile
-
-
 # These outcomes can occur in a TestCase's outcomes list:
 SKIP = "SKIP"
 FAIL = "FAIL"
@@ -116,18 +108,6 @@ def _ParseOutcomeList(rule, outcomes, target_dict, variables):
 
 
 def ReadStatusFile(path, variables):
-  # As long as the old-format .status files are authoritative, just
-  # create the converted version on demand and cache it to speed up
-  # subsequent runs.
-  if path.endswith(".status"):
-    newpath = path + "2"
-    if not exists(newpath) or getmtime(newpath) < getmtime(path):
-      print "Converting status file."
-      converted = old_statusfile.ConvertNotation(path).GetOutput()
-      with open(newpath, 'w') as f:
-        f.write(converted)
-    path = newpath
-
   with open(path) as f:
     global KEYWORDS
     contents = eval(f.read(), KEYWORDS)
