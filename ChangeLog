@@ -1,3 +1,16 @@
+2014-02-04: Version 3.24.31
+
+        Fix short-circuiting logical and/or in HOptimizedGraphBuilder (Chromium
+        issue 336148).
+
+        Elements field of newly allocated JSArray could be left uninitialized in
+        some cases (fast literal case) (Chromium issue 340124).
+
+        Re-enable escape analysis.
+
+        Performance and stability improvements on all platforms.
+
+
 2014-02-03: Version 3.24.30
 
         Performance and stability improvements on all platforms.
