@@ -1345,3 +1345,145 @@ TEST(PreparserStrictOctal) {
   CHECK_EQ("SyntaxError: Octal literals are not allowed in strict mode.",
            *exception);
 }
+
+
+void VerifyPreParseAndParseNoError(v8::Handle<v8::String> source) {
+  v8::ScriptData* preparse = v8::ScriptData::PreCompile(source);
+  CHECK(!preparse->HasError());
+
+  v8::TryCatch try_catch;
+  v8::Script::Compile(source);
+  CHECK(!try_catch.HasCaught());
+}
+
+
+void VerifyPreParseAndParseErrorMessages(v8::Handle<v8::String> source,
+                                       int error_location_beg,
+                                       int error_location_end,
+                                       const char* preparse_error_message,
+                                       const char* parse_error_message) {
+  v8::ScriptData* preparse = v8::ScriptData::PreCompile(source);
+  CHECK(preparse->HasError());
+  i::ScriptDataImpl* pre_impl =
+      reinterpret_cast<i::ScriptDataImpl*>(preparse);
+  i::Scanner::Location error_location = pre_impl->MessageLocation();
+  const char* message = pre_impl->BuildMessage();
+  CHECK_EQ(0, strcmp(preparse_error_message, message));
+  CHECK_EQ(error_location_beg, error_location.beg_pos);
+  CHECK_EQ(error_location_end, error_location.end_pos);
+
+  v8::TryCatch try_catch;
+  v8::Script::Compile(source);
+  CHECK(try_catch.HasCaught());
+  v8::String::Utf8Value exception(try_catch.Exception());
+  CHECK_EQ(parse_error_message, *exception);
+  CHECK_EQ(error_location_beg, try_catch.Message()->GetStartPosition());
+  CHECK_EQ(error_location_end, try_catch.Message()->GetEndPosition());
+}
+
+
+TEST(ErrorsEvalAndArguments) {
+  // Tests that both preparsing and parsing produce the right kind of errors for
+  // using "eval" and "arguments" as identifiers. Without the strict mode, it's
+  // ok to use "eval" or "arguments" as identifiers. With the strict mode, it
+  // isn't.
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope handles(isolate);
+  v8::Local<v8::Context> context = v8::Context::New(isolate);
+  v8::Context::Scope context_scope(context);
+
+  const char* use_strict_prefix = "\"use strict\";\n";
+  int prefix_length = i::StrLength(use_strict_prefix);
+
+  const char* strict_var_name_preparse = "strict_var_name";
+  const char* strict_var_name_parse =
+      "SyntaxError: Variable name may not be eval or arguments in strict mode";
+
+  const char* strict_catch_variable_preparse = "strict_catch_variable";
+  const char* strict_catch_variable_parse =
+      "SyntaxError: Catch variable may not be eval or arguments in strict mode";
+
+  const char* strict_function_name_preparse = "strict_function_name";
+  const char* strict_function_name_parse =
+      "SyntaxError: Function name may not be eval or arguments in strict mode";
+
+  const char* strict_param_name_preparse = "strict_param_name";
+  const char* strict_param_name_parse =
+      "SyntaxError: Parameter name eval or arguments is not allowed in strict "
+      "mode";
+
+  const char* strict_lhs_assignment_preparse = "strict_lhs_assignment";
+  const char* strict_lhs_assignment_parse =
+      "SyntaxError: Assignment to eval or arguments is not allowed in strict "
+      "mode";
+
+  const char* strict_lhs_prefix_preparse = "strict_lhs_prefix";
+  const char* strict_lhs_prefix_parse =
+      "SyntaxError: Prefix increment/decrement may not have eval or arguments "
+      "operand in strict mode";
+
+  const char* strict_lhs_postfix_preparse = "strict_lhs_postfix";
+  const char* strict_lhs_postfix_parse =
+      "SyntaxError: Postfix increment/decrement may not have eval or arguments "
+      "operand in strict mode";
+
+  struct TestCase {
+    const char* source;
+    int error_location_beg;
+    int error_location_end;
+    const char* preparse_error_message;
+    const char* parse_error_message;
+  } test_cases[] = {
+    {"var eval = 42;", 4, 8, strict_var_name_preparse, strict_var_name_parse},
+    {"var arguments = 42;", 4, 13, strict_var_name_preparse,
+     strict_var_name_parse},
+    {"var foo, eval;", 9, 13, strict_var_name_preparse, strict_var_name_parse},
+    {"var foo, arguments;", 9, 18, strict_var_name_preparse,
+     strict_var_name_parse},
+    {"try { } catch (eval) { }", 15, 19, strict_catch_variable_preparse,
+     strict_catch_variable_parse},
+    {"try { } catch (arguments) { }", 15, 24, strict_catch_variable_preparse,
+     strict_catch_variable_parse},
+    {"function eval() { }", 9, 13, strict_function_name_preparse,
+     strict_function_name_parse},
+    {"function arguments() { }", 9, 18, strict_function_name_preparse,
+     strict_function_name_parse},
+    {"function foo(eval) { }", 13, 17, strict_param_name_preparse,
+     strict_param_name_parse},
+    {"function foo(arguments) { }", 13, 22, strict_param_name_preparse,
+     strict_param_name_parse},
+    {"function foo(bar, eval) { }", 18, 22, strict_param_name_preparse,
+     strict_param_name_parse},
+    {"function foo(bar, arguments) { }", 18, 27, strict_param_name_preparse,
+     strict_param_name_parse},
+    {"eval = 1;", 0, 4, strict_lhs_assignment_preparse,
+     strict_lhs_assignment_parse},
+    {"arguments = 1;", 0, 9, strict_lhs_assignment_preparse,
+     strict_lhs_assignment_parse},
+    {"++eval;", 2, 6, strict_lhs_prefix_preparse, strict_lhs_prefix_parse},
+    {"++arguments;", 2, 11, strict_lhs_prefix_preparse,
+     strict_lhs_prefix_parse},
+    {"eval++;", 0, 4, strict_lhs_postfix_preparse, strict_lhs_postfix_parse},
+    {"arguments++;", 0, 9, strict_lhs_postfix_preparse,
+     strict_lhs_postfix_parse},
+    {NULL, 0, 0, NULL, NULL}
+  };
+
+  for (int i = 0; test_cases[i].source; ++i) {
+    v8::Handle<v8::String> source =
+        v8::String::NewFromUtf8(isolate, test_cases[i].source);
+
+    VerifyPreParseAndParseNoError(source);
+
+    v8::Handle<v8::String> strict_source = v8::String::Concat(
+        v8::String::NewFromUtf8(isolate, use_strict_prefix),
+        v8::String::NewFromUtf8(isolate, test_cases[i].source));
+
+    VerifyPreParseAndParseErrorMessages(
+        strict_source,
+        test_cases[i].error_location_beg + prefix_length,
+        test_cases[i].error_location_end + prefix_length,
+        test_cases[i].preparse_error_message,
+        test_cases[i].parse_error_message);
+  }
+}
