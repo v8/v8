@@ -32,6 +32,7 @@ identifier_start = [$_:letter:];
 identifier_char = [:identifier_start::identifier_part_not_letter:];
 digit = [0-9];
 hex_digit = [0-9a-fA-F];
+unicode_escape = /\\u[:hex_digit:]{4}/;
 single_escape_char = ['"\\bfnrtv];
 maybe_exponent = /([eE][\-+]?[:digit:]+)?/;
 octal_number = /0[0-7]+/;
@@ -194,39 +195,33 @@ line_terminator+   <|line_terminator|>
 "yield"       <|token(YIELD)|>
 
 identifier_start <|token(IDENTIFIER)|Identifier>
-/\\u[:hex_digit:]{4}/ <check_escaped_identifier_start|token(IDENTIFIER)|Identifier>
+unicode_escape <check_escaped_identifier_start|token(IDENTIFIER)|Identifier>
 
 eos             <terminate>
 default_action  <do_token_and_go_forward(ILLEGAL)>
 
 <<DoubleQuoteString>>
-"\\" line_terminator_sequence <set_has_escapes||continue>
-/\\[x][:hex_digit:]{2}/       <set_has_escapes||continue>
-/\\[u][:hex_digit:]{4}/       <set_has_escapes||continue>
-/\\[1-7]/                     <octal_inside_string||continue>
-/\\[0-7][0-7]+/               <octal_inside_string||continue>
-"\\0"                         <set_has_escapes||continue>
-/\\[^xu0-7:line_terminator:]/ <set_has_escapes||continue>
-"\\"                          <|token(ILLEGAL)|>
-line_terminator               <|token(ILLEGAL)|>
+epsilon                       <StringSubgraph>
 "\""                          <|token(STRING)|>
 catch_all                     <||continue>
 eos                           <terminate_illegal>
 
 <<SingleQuoteString>>
-# TODO subgraph for '\'
-"\\" line_terminator_sequence <set_has_escapes||continue>
-/\\[x][:hex_digit:]{2}/       <set_has_escapes||continue>
-/\\[u][:hex_digit:]{4}/       <set_has_escapes||continue>
-/\\[1-7]/                     <octal_inside_string||continue>
-/\\[0-7][0-7]+/               <octal_inside_string||continue>
-"\\0"                         <set_has_escapes||continue>
-/\\[^xu0-7:line_terminator:]/ <set_has_escapes||continue>
-"\\"                          <|token(ILLEGAL)|>
-line_terminator               <|token(ILLEGAL)|>
+epsilon                       <StringSubgraph>
 "'"                           <|token(STRING)|>
 catch_all                     <||continue>
 eos                           <terminate_illegal>
+
+<<StringSubgraph>>
+"\\" line_terminator_sequence <set_has_escapes||continue(1)>
+/\\[x][:hex_digit:]{2}/       <set_has_escapes||continue(1)>
+unicode_escape                <set_has_escapes||continue(1)>
+/\\[1-7]/                     <octal_inside_string||continue(1)>
+/\\[0-7][0-7]+/               <octal_inside_string||continue(1)>
+"\\0"                         <set_has_escapes||continue(1)>
+/\\[^xu0-7:line_terminator:]/ <set_has_escapes||continue(1)>
+"\\"                          <|token(ILLEGAL)|>
+line_terminator               <|token(ILLEGAL)|>
 
 <<Identifier>>
 identifier_char <|token(IDENTIFIER)|continue>
@@ -234,12 +229,12 @@ identifier_char <|token(IDENTIFIER)|continue>
 
 <<SingleLineComment>>
 line_terminator  <|line_terminator|>
-eos              <skip_and_terminate>
 catch_all        <||continue>
+eos              <skip_and_terminate>
 
 <<MultiLineComment>>
 /\*+\//          <|skip|>
-# TODO find a way to generate the below rule
+# TODO(dcarney): find a way to generate the below rule
 /\*+[^\/*]/      <||continue>
 line_terminator  <line_terminator_in_multiline_comment||continue>
 catch_all        <||continue>

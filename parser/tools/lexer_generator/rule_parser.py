@@ -25,14 +25,88 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+import ply.lex as lex
 import ply.yacc as yacc
 from action import Term, Action
-from rule_lexer import RuleLexer
 from regex_parser import RegexParser
 from nfa_builder import NfaBuilder
 from dfa import Dfa
 from dfa_optimizer import DfaOptimizer
 from transition_keys import TransitionKey, KeyEncoding
+
+class RuleLexer:
+
+  tokens = (
+    'DEFAULT_ACTION',
+    'EPSILON',
+    'EOS',
+    'CATCH_ALL',
+
+    'IDENTIFIER',
+    'STRING',
+    'REGEX',
+    'CHARACTER_CLASS_REGEX',
+
+    'PLUS',
+    'QUESTION_MARK',
+    'EQUALS',
+    'OR',
+    'STAR',
+    'LEFT_PARENTHESIS',
+    'RIGHT_PARENTHESIS',
+    'GRAPH_OPEN',
+    'GRAPH_CLOSE',
+    'SEMICOLON',
+    'ACTION_OPEN',
+    'ACTION_CLOSE',
+
+    'COMMA',
+  )
+
+  t_ignore = " \t\n\r"
+
+  def t_COMMENT(self, t):
+    r'\#.*[\n\r]+'
+    pass
+
+  __special_identifiers = set(
+    ['default_action', 'epsilon', 'catch_all', 'eos'])
+
+  def t_IDENTIFIER(self, t):
+    r'[a-zA-Z0-9_]+'
+    if t.value in self.__special_identifiers:
+      t.type = t.value.upper()
+    return t
+
+  t_STRING = r'"((\\("|\w|\\))|[^\\"])+"'
+  t_REGEX = r'/(\\/|[^/])+/'
+  t_CHARACTER_CLASS_REGEX = r'\[([^\]]|\\\])+\]'
+
+  t_PLUS = r'\+'
+  t_QUESTION_MARK = r'\?'
+  t_STAR = r'\*'
+  t_OR = r'\|'
+  t_EQUALS = '='
+  t_LEFT_PARENTHESIS = r'\('
+  t_RIGHT_PARENTHESIS = r'\)'
+  t_GRAPH_OPEN = '<<'
+  t_GRAPH_CLOSE = '>>'
+  t_SEMICOLON = ';'
+  t_ACTION_OPEN = '<'
+  t_ACTION_CLOSE = '>'
+  t_COMMA = ','
+
+  def t_LEFT_BRACKET(self, t):
+    r'{'
+    self.lexer.push_state('code')
+    self.nesting = 1
+    return t
+
+  def t_ANY_error(self, t):
+    raise Exception("Illegal character '%s'" % t.value[0])
+
+  def build(self, **kwargs):
+    self.lexer = lex.lex(module=self, **kwargs)
 
 class RuleParserState:
 
@@ -88,7 +162,7 @@ class RuleParser:
       state.rules[state.current_state] = {
         'default_action': Term.empty_term(),
         'uniques' : {},
-        'regex' : []
+        'trees' : []
       }
     p[0] = state.current_state
 
@@ -100,27 +174,45 @@ class RuleParser:
     '''transition_rule : composite_regex action
                        | DEFAULT_ACTION default_action
                        | EOS eos
+                       | EPSILON epsilon
                        | CATCH_ALL action'''
     precedence = RuleParser.__rule_precedence_counter
     RuleParser.__rule_precedence_counter += 1
     action = p[2]
     (entry_action, match_action, transition) = action
-    if transition and not transition in self.__keyword_transitions:
-      assert not transition == 'default', "can't append default graph"
-      self.__state.transitions.add(transition)
+    if transition and not transition.name() in self.__keyword_transitions:
+      assert not transition.name() == 'default', "can't append default graph"
+      self.__state.transitions.add(transition.name())
     rules = self.__state.rules[self.__state.current_state]
+    # process default action
     if p[1] == 'default_action':
       assert self.__state.current_state == 'default'
       assert not rules['default_action']
       assert not entry_action
       rules['default_action'] = match_action
-    elif p[1] == 'eos' or p[1] == 'catch_all':
+      return
+    # process tree
+    if p[1] == 'eos' or p[1] == 'catch_all':
       assert p[1] not in rules['uniques']
       rules['uniques'][p[1]] = True
-      rules['regex'].append((NfaBuilder.unique_key(p[1]), precedence, action))
+      tree = NfaBuilder.unique_key(p[1])
+    elif p[1] == 'epsilon':
+      tree = Term.empty_term()
     else:
-      regex = p[1]
-      rules['regex'].append((regex, precedence, action))
+      tree = p[1]  # regex case
+    # handle actions
+    if entry_action or match_action:
+      tree = NfaBuilder.add_action(
+        tree, Action(entry_action, match_action, precedence))
+    # handle transitions
+    if not transition:
+      pass
+    elif transition.name() == 'continue':
+      tree = NfaBuilder.add_continue(tree, transition.args()[0])
+    else:
+      tree = NfaBuilder.join_subtree(tree, transition.name())
+    # store tree
+    rules['trees'].append(tree)
 
   def p_action(self, p):
     '''action : ACTION_OPEN maybe_identifier_action OR maybe_identifier_action OR maybe_transition ACTION_CLOSE'''
@@ -128,11 +220,16 @@ class RuleParser:
 
   def p_default_action(self, p):
     'default_action : ACTION_OPEN identifier_action ACTION_CLOSE'
-    p[0] = (Term.empty_term(), p[2], None)
+    p[0] = (Term.empty_term(), p[2], Term.empty_term())
 
   def p_eos(self, p):
     'eos : ACTION_OPEN identifier_action ACTION_CLOSE'
-    p[0] = (Term.empty_term(), p[2], None)
+    p[0] = (Term.empty_term(), p[2], Term.empty_term())
+
+  def p_epsilon(self, p):
+    'epsilon : ACTION_OPEN maybe_transition ACTION_CLOSE'
+    assert p[2], 'cannot have an empty epsilon transition'
+    p[0] = (Term.empty_term(), Term.empty_term(), p[2])
 
   def p_maybe_identifier_action(self, p):
     '''maybe_identifier_action : identifier_action
@@ -141,8 +238,14 @@ class RuleParser:
 
   def p_maybe_transition(self, p):
     '''maybe_transition : IDENTIFIER
+                        | IDENTIFIER LEFT_PARENTHESIS IDENTIFIER RIGHT_PARENTHESIS
                         | empty'''
-    p[0] = p[1]
+    if len(p) == 5:
+      assert p[1] == 'continue', 'only continue can take arguments'
+      p[0] = Term(p[1], p[3])
+    else:
+      assert len(p) == 2
+      p[0] = Term(p[1], '0') if p[1] else Term.empty_term()
 
   def p_identifier_action(self, p):
     '''identifier_action : IDENTIFIER
@@ -312,24 +415,11 @@ class RuleProcessor(object):
   def __process_parser_state(self, parser_state):
     assert 'default' in parser_state.rules
     rule_map = {}
-    def process(tree_name, v):
-      trees = []
-      for tree, precedence, action in v['regex']:
-        (entry_action, match_action, transition) = action
-        if entry_action or match_action:
-          tree = NfaBuilder.add_action(
-            tree, Action(entry_action, match_action, precedence))
-        if not transition:
-          pass
-        elif transition == 'continue':
-          tree = NfaBuilder.add_continue(tree)
-        else:
-          tree = NfaBuilder.join_subtree(tree, transition)
-        trees.append(tree)
-      rule_map[tree_name] = NfaBuilder.or_terms(trees)
     # process all subgraphs
-    for k, v in parser_state.rules.items():
-      process(k, v)
+    for tree_name, v in parser_state.rules.items():
+      if not v['trees']:
+        continue
+      rule_map[tree_name] = NfaBuilder.or_terms(v['trees'])
     # build the automata
     for name, tree in rule_map.items():
       self.__automata[name] = RuleProcessor.Automata(

@@ -147,10 +147,11 @@ class NfaBuilder(object):
       end.add_epsilon_transition(global_end)
     return (start, [end])
 
-  def __continue(self, subtree):
+  def __continue(self, subtree, depth):
     'add an epsilon transitions to the start node of the current subtree'
     (start, ends) = self.__process(subtree)
-    state = self.__peek_state()
+    index = -1 - min(int(depth), len(self.__states) - 1)
+    state = self.__states[index]
     if not state['start_node']:
       state['start_node'] = self.__new_state()
     self.__patch_ends(ends, state['start_node'])
@@ -161,8 +162,11 @@ class NfaBuilder(object):
 
   def __join(self, tree, name):
     (subtree_start, subtree_end, nodes_in_subtree) = self.__nfa(name)
-    (start, ends) = self.__process(tree)
-    self.__patch_ends(ends, subtree_start)
+    if tree:
+      (start, ends) = self.__process(tree)
+      self.__patch_ends(ends, subtree_start)
+    else:
+      start = subtree_start
     if subtree_end:
       return (start, [subtree_end])
     else:
@@ -195,9 +199,6 @@ class NfaBuilder(object):
 
   def __pop_state(self):
     return self.__states.pop()
-
-  def __peek_state(self):
-    return self.__states[-1]
 
   def __nfa(self, name):
     tree = self.__subtree_map[name]
@@ -271,8 +272,8 @@ class NfaBuilder(object):
     return Term('ACTION', term, action.to_term())
 
   @staticmethod
-  def add_continue(term):
-    return Term('CONTINUE', term)
+  def add_continue(tree, depth):
+    return Term('CONTINUE', tree, depth)
 
   @staticmethod
   def unique_key(name):
