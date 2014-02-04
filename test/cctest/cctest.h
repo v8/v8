@@ -131,8 +131,7 @@ class CcTest {
       v8::Isolate* isolate = CcTest::isolate());
 
   static void TearDown() {
-    // TODO(svenpanne) Enable this when our cctests are fixed.
-    // if (isolate_ != NULL) isolate_->Dispose();
+    if (isolate_ != NULL) isolate_->Dispose();
   }
 
  private:
