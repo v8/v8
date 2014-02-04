@@ -3618,8 +3618,7 @@ void HAllocate::CreateFreeSpaceFiller(int32_t free_space_size) {
   filler_map->FinalizeUniqueness();  // TODO(titzer): should be init'd a'ready
   filler_map->InsertAfter(free_space_instr);
   HInstruction* store_map = HStoreNamedField::New(zone, context(),
-      free_space_instr, HObjectAccess::ForMap(), filler_map,
-      INITIALIZING_STORE);
+      free_space_instr, HObjectAccess::ForMap(), filler_map);
   store_map->SetFlag(HValue::kHasNoObservableSideEffects);
   store_map->InsertAfter(filler_map);
 
@@ -3630,10 +3629,11 @@ void HAllocate::CreateFreeSpaceFiller(int32_t free_space_size) {
       zone, context(), free_space_size, Representation::Smi(), store_map);
   // Must force Smi representation for x64 (see comment above).
   HObjectAccess access =
-      HObjectAccess::ForJSObjectOffset(FreeSpace::kSizeOffset,
-          Representation::Smi());
+      HObjectAccess::ForMapAndOffset(isolate()->factory()->free_space_map(),
+                                     FreeSpace::kSizeOffset,
+                                     Representation::Smi());
   HStoreNamedField* store_size = HStoreNamedField::New(zone, context(),
-      free_space_instr, access, filler_size, INITIALIZING_STORE);
+      free_space_instr, access, filler_size);
   store_size->SetFlag(HValue::kHasNoObservableSideEffects);
   store_size->InsertAfter(filler_size);
   filler_free_space_size_ = store_size;
@@ -3643,10 +3643,11 @@ void HAllocate::CreateFreeSpaceFiller(int32_t free_space_size) {
 void HAllocate::ClearNextMapWord(int offset) {
   if (MustClearNextMapWord()) {
     Zone* zone = block()->zone();
-    HObjectAccess access = HObjectAccess::ForJSObjectOffset(offset);
+    HObjectAccess access =
+        HObjectAccess::ForObservableJSObjectOffset(offset);
     HStoreNamedField* clear_next_map =
         HStoreNamedField::New(zone, context(), this, access,
-            block()->graph()->GetConstant0(), INITIALIZING_STORE);
+            block()->graph()->GetConstant0());
     clear_next_map->ClearAllSideEffects();
     clear_next_map->InsertAfter(this);
   }
@@ -4270,7 +4271,7 @@ HObjectAccess HObjectAccess::ForFixedArrayHeader(int offset) {
 }
 
 
-HObjectAccess HObjectAccess::ForJSObjectOffset(int offset,
+HObjectAccess HObjectAccess::ForMapAndOffset(Handle<Map> map, int offset,
     Representation representation) {
   ASSERT(offset >= 0);
   Portion portion = kInobject;
@@ -4280,7 +4281,13 @@ HObjectAccess HObjectAccess::ForJSObjectOffset(int offset,
   } else if (offset == JSObject::kMapOffset) {
     portion = kMaps;
   }
-  return HObjectAccess(portion, offset, representation);
+  bool existing_inobject_property = true;
+  if (!map.is_null()) {
+    existing_inobject_property = (offset <
+        map->instance_size() - map->unused_property_fields() * kPointerSize);
+  }
+  return HObjectAccess(portion, offset, representation, Handle<String>::null(),
+                       false, existing_inobject_property);
 }
 
 
@@ -4332,7 +4339,8 @@ HObjectAccess HObjectAccess::ForJSArrayOffset(int offset) {
 HObjectAccess HObjectAccess::ForBackingStoreOffset(int offset,
     Representation representation) {
   ASSERT(offset >= 0);
-  return HObjectAccess(kBackingStore, offset, representation);
+  return HObjectAccess(kBackingStore, offset, representation,
+                       Handle<String>::null(), false, false);
 }
 
 
@@ -4357,11 +4365,12 @@ HObjectAccess HObjectAccess::ForField(Handle<Map> map,
     // Negative property indices are in-object properties, indexed
     // from the end of the fixed part of the object.
     int offset = (index * kPointerSize) + map->instance_size();
-    return HObjectAccess(kInobject, offset, representation, name);
+    return HObjectAccess(kInobject, offset, representation, name, false, true);
   } else {
     // Non-negative property indices are in the properties array.
     int offset = (index * kPointerSize) + FixedArray::kHeaderSize;
-    return HObjectAccess(kBackingStore, offset, representation, name);
+    return HObjectAccess(kBackingStore, offset, representation, name,
+                         false, false);
   }
 }
 

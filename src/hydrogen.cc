@@ -1350,15 +1350,14 @@ HValue* HGraphBuilder::BuildCheckForCapacityGrow(HValue* object,
     new_length->ClearFlag(HValue::kCanOverflow);
 
     Add<HStoreNamedField>(object, HObjectAccess::ForArrayLength(kind),
-                          new_length, INITIALIZING_STORE);
+                          new_length);
   }
 
   if (is_store && kind == FAST_SMI_ELEMENTS) {
     HValue* checked_elements = environment()->Top();
 
     // Write zero to ensure that the new element is initialized with some smi.
-    Add<HStoreKeyed>(checked_elements, key, graph()->GetConstant0(), kind,
-                     INITIALIZING_STORE);
+    Add<HStoreKeyed>(checked_elements, key, graph()->GetConstant0(), kind);
   }
 
   length_checker.Else();
@@ -1436,8 +1435,7 @@ void HGraphBuilder::BuildTransitionElementsKind(HValue* object,
     if_builder.End();
   }
 
-  Add<HStoreNamedField>(object, HObjectAccess::ForMap(), map,
-                        INITIALIZING_STORE);
+  Add<HStoreNamedField>(object, HObjectAccess::ForMap(), map);
 }
 
 
@@ -1607,35 +1605,32 @@ HValue* HGraphBuilder::BuildRegExpConstructResult(HValue* length,
           HObjectAccess::ForContextSlot(Context::REGEXP_RESULT_MAP_INDEX)));
   Add<HStoreNamedField>(
       result, HObjectAccess::ForJSArrayOffset(JSArray::kPropertiesOffset),
-      Add<HConstant>(isolate()->factory()->empty_fixed_array()),
-      INITIALIZING_STORE);
+      Add<HConstant>(isolate()->factory()->empty_fixed_array()));
   Add<HStoreNamedField>(
       result, HObjectAccess::ForJSArrayOffset(JSArray::kElementsOffset),
-      elements, INITIALIZING_STORE);
+      elements);
   Add<HStoreNamedField>(
-      result, HObjectAccess::ForJSArrayOffset(JSArray::kLengthOffset),
-      length, INITIALIZING_STORE);
+      result, HObjectAccess::ForJSArrayOffset(JSArray::kLengthOffset), length);
 
   // Initialize the additional fields.
   Add<HStoreNamedField>(
       result, HObjectAccess::ForJSArrayOffset(JSRegExpResult::kIndexOffset),
-      index, INITIALIZING_STORE);
+      index);
   Add<HStoreNamedField>(
       result, HObjectAccess::ForJSArrayOffset(JSRegExpResult::kInputOffset),
-      input, INITIALIZING_STORE);
+      input);
 
   // Initialize the elements header.
   AddStoreMapConstantNoWriteBarrier(elements,
                                     isolate()->factory()->fixed_array_map());
-  Add<HStoreNamedField>(elements, HObjectAccess::ForFixedArrayLength(),
-                        length, INITIALIZING_STORE);
+  Add<HStoreNamedField>(elements, HObjectAccess::ForFixedArrayLength(), length);
 
   // Initialize the elements contents with undefined.
   LoopBuilder loop(this, context(), LoopBuilder::kPostIncrement);
   index = loop.BeginBody(graph()->GetConstant0(), length, Token::LT);
   {
     Add<HStoreKeyed>(elements, index, graph()->GetConstantUndefined(),
-                     FAST_ELEMENTS, INITIALIZING_STORE);
+                     FAST_ELEMENTS);
   }
   loop.EndBody();
 
@@ -1898,14 +1893,10 @@ HValue* HGraphBuilder::BuildCreateConsString(
 
   // Initialize the cons string fields.
   Add<HStoreNamedField>(result, HObjectAccess::ForStringHashField(),
-                        Add<HConstant>(String::kEmptyHashField),
-                        INITIALIZING_STORE);
-  Add<HStoreNamedField>(result, HObjectAccess::ForStringLength(), length,
-                        INITIALIZING_STORE);
-  Add<HStoreNamedField>(result, HObjectAccess::ForConsStringFirst(), left,
-                        INITIALIZING_STORE);
-  Add<HStoreNamedField>(result, HObjectAccess::ForConsStringSecond(), right,
-                        INITIALIZING_STORE);
+                        Add<HConstant>(String::kEmptyHashField));
+  Add<HStoreNamedField>(result, HObjectAccess::ForStringLength(), length);
+  Add<HStoreNamedField>(result, HObjectAccess::ForConsStringFirst(), left);
+  Add<HStoreNamedField>(result, HObjectAccess::ForConsStringSecond(), right);
 
   // Count the native string addition.
   AddIncrementCounter(isolate()->counters()->string_add_native());
@@ -2054,10 +2045,8 @@ HValue* HGraphBuilder::BuildUncheckedStringAdd(
 
       // Initialize the string fields.
       Add<HStoreNamedField>(result, HObjectAccess::ForStringHashField(),
-                            Add<HConstant>(String::kEmptyHashField),
-                            INITIALIZING_STORE);
-      Add<HStoreNamedField>(result, HObjectAccess::ForStringLength(), length,
-                            INITIALIZING_STORE);
+                            Add<HConstant>(String::kEmptyHashField));
+      Add<HStoreNamedField>(result, HObjectAccess::ForStringLength(), length);
 
       // Copy characters to the result string.
       IfBuilder if_twobyte(this);
@@ -2359,7 +2348,7 @@ void HGraphBuilder::BuildInitializeElementsHeader(HValue* elements,
 
   AddStoreMapConstant(elements, map);
   Add<HStoreNamedField>(elements, HObjectAccess::ForFixedArrayLength(),
-                        capacity, INITIALIZING_STORE);
+                        capacity);
 }
 
 
@@ -2382,16 +2371,15 @@ HInnerAllocatedObject* HGraphBuilder::BuildJSArrayHeader(HValue* array,
     HValue* allocation_site_payload,
     HValue* length_field) {
 
-  Add<HStoreNamedField>(array, HObjectAccess::ForMap(), array_map,
-                        INITIALIZING_STORE);
+  Add<HStoreNamedField>(array, HObjectAccess::ForMap(), array_map);
 
   HConstant* empty_fixed_array =
     Add<HConstant>(isolate()->factory()->empty_fixed_array());
 
   HObjectAccess access = HObjectAccess::ForPropertiesPointer();
-  Add<HStoreNamedField>(array, access, empty_fixed_array, INITIALIZING_STORE);
+  Add<HStoreNamedField>(array, access, empty_fixed_array);
   Add<HStoreNamedField>(array, HObjectAccess::ForArrayLength(elements_kind),
-                        length_field, INITIALIZING_STORE);
+                        length_field);
 
   if (mode == TRACK_ALLOCATION_SITE) {
     BuildCreateAllocationMemento(
@@ -2405,8 +2393,7 @@ HInnerAllocatedObject* HGraphBuilder::BuildJSArrayHeader(HValue* array,
 
   HInnerAllocatedObject* elements = Add<HInnerAllocatedObject>(
       array, Add<HConstant>(elements_location));
-  Add<HStoreNamedField>(array, HObjectAccess::ForElementsPointer(), elements,
-                        INITIALIZING_STORE);
+  Add<HStoreNamedField>(array, HObjectAccess::ForElementsPointer(), elements);
   return elements;
 }
 
@@ -2498,7 +2485,7 @@ HValue* HGraphBuilder::BuildGrowElementsCapacity(HValue* object,
                     length, new_capacity);
 
   Add<HStoreNamedField>(object, HObjectAccess::ForElementsPointer(),
-                        new_elements, INITIALIZING_STORE);
+                        new_elements);
 
   return new_elements;
 }
@@ -2539,15 +2526,14 @@ void HGraphBuilder::BuildFillElementsWithHole(HValue* elements,
   if (initial_capacity >= 0) {
     for (int i = 0; i < initial_capacity; i++) {
       HInstruction* key = Add<HConstant>(i);
-      Add<HStoreKeyed>(elements, key, hole, elements_kind,
-                       PREINITIALIZING_STORE);
+      Add<HStoreKeyed>(elements, key, hole, elements_kind);
     }
   } else {
     LoopBuilder builder(this, context(), LoopBuilder::kPostIncrement);
 
     HValue* key = builder.BeginBody(from, to, Token::LT);
 
-    Add<HStoreKeyed>(elements, key, hole, elements_kind, PREINITIALIZING_STORE);
+    Add<HStoreKeyed>(elements, key, hole, elements_kind);
 
     builder.EndBody();
   }
@@ -2593,16 +2579,13 @@ void HGraphBuilder::BuildCopyElements(HValue* from_elements,
     HConstant* hole_constant = IsFastDoubleElementsKind(to_elements_kind)
         ? Add<HConstant>(FixedDoubleArray::hole_nan_as_double())
         : graph()->GetConstantHole();
-    Add<HStoreKeyed>(to_elements, key, hole_constant, kind,
-                     PREINITIALIZING_STORE);
+    Add<HStoreKeyed>(to_elements, key, hole_constant, kind);
     if_hole.Else();
-    HStoreKeyed* store = Add<HStoreKeyed>(to_elements, key, element, kind,
-                                          INITIALIZING_STORE);
+    HStoreKeyed* store = Add<HStoreKeyed>(to_elements, key, element, kind);
     store->SetFlag(HValue::kAllowUndefinedAsNaN);
     if_hole.End();
   } else {
-    HStoreKeyed* store = Add<HStoreKeyed>(to_elements, key, element, kind,
-                                          INITIALIZING_STORE);
+    HStoreKeyed* store = Add<HStoreKeyed>(to_elements, key, element, kind);
     store->SetFlag(HValue::kAllowUndefinedAsNaN);
   }
 
@@ -2641,8 +2624,7 @@ HValue* HGraphBuilder::BuildCloneShallowArray(HValue* boilerplate,
       HObjectAccess access = HObjectAccess::ForJSArrayOffset(i);
       Add<HStoreNamedField>(
           object, access, Add<HLoadNamedField>(
-              boilerplate, static_cast<HValue*>(NULL), access),
-          INITIALIZING_STORE);
+              boilerplate, static_cast<HValue*>(NULL), access));
     }
   }
 
@@ -2665,15 +2647,14 @@ HValue* HGraphBuilder::BuildCloneShallowArray(HValue* boilerplate,
           NOT_TENURED, FIXED_ARRAY_TYPE);
     }
     Add<HStoreNamedField>(object, HObjectAccess::ForElementsPointer(),
-                          object_elements, INITIALIZING_STORE);
+                          object_elements);
 
     // Copy the elements array header.
     for (int i = 0; i < FixedArrayBase::kHeaderSize; i += kPointerSize) {
       HObjectAccess access = HObjectAccess::ForFixedArrayHeader(i);
       Add<HStoreNamedField>(
           object_elements, access, Add<HLoadNamedField>(
-              boilerplate_elements, static_cast<HValue*>(NULL), access),
-          INITIALIZING_STORE);
+              boilerplate_elements, static_cast<HValue*>(NULL), access));
     }
 
     // Copy the elements array contents.
@@ -2684,8 +2665,7 @@ HValue* HGraphBuilder::BuildCloneShallowArray(HValue* boilerplate,
       HValue* key_constant = Add<HConstant>(i);
       HInstruction* value = Add<HLoadKeyed>(boilerplate_elements, key_constant,
                                             static_cast<HValue*>(NULL), kind);
-      Add<HStoreKeyed>(object_elements, key_constant, value, kind,
-                       INITIALIZING_STORE);
+      Add<HStoreKeyed>(object_elements, key_constant, value, kind);
     }
   }
 
@@ -2755,8 +2735,9 @@ void HGraphBuilder::BuildCreateAllocationMemento(
   AddStoreMapConstant(
       allocation_memento, isolate()->factory()->allocation_memento_map());
   Add<HStoreNamedField>(
-      allocation_memento, HObjectAccess::ForAllocationMementoSite(),
-      allocation_site, INITIALIZING_STORE);
+      allocation_memento,
+      HObjectAccess::ForAllocationMementoSite(),
+      allocation_site);
   if (FLAG_allocation_site_pretenuring) {
     HValue* memento_create_count = Add<HLoadNamedField>(
         allocation_site, static_cast<HValue*>(NULL),
@@ -2769,8 +2750,7 @@ void HGraphBuilder::BuildCreateAllocationMemento(
     memento_create_count->ClearFlag(HValue::kCanOverflow);
     HStoreNamedField* store = Add<HStoreNamedField>(
         allocation_site, HObjectAccess::ForAllocationSiteOffset(
-            AllocationSite::kPretenureCreateCountOffset), memento_create_count,
-        INITIALIZING_STORE);
+            AllocationSite::kPretenureCreateCountOffset), memento_create_count);
     // No write barrier needed to store a smi.
     store->SkipWriteBarrier();
   }
@@ -2785,7 +2765,7 @@ HInstruction* HGraphBuilder::BuildGetNativeContext(HValue* closure) {
   HInstruction* global_object = Add<HLoadNamedField>(
       context, static_cast<HValue*>(NULL),
       HObjectAccess::ForContextSlot(Context::GLOBAL_OBJECT_INDEX));
-  HObjectAccess access = HObjectAccess::ForJSObjectOffset(
+  HObjectAccess access = HObjectAccess::ForObservableJSObjectOffset(
       GlobalObject::kNativeContextOffset);
   return Add<HLoadNamedField>(
       global_object, static_cast<HValue*>(NULL), access);
@@ -2799,7 +2779,8 @@ HInstruction* HGraphBuilder::BuildGetNativeContext() {
       HObjectAccess::ForContextSlot(Context::GLOBAL_OBJECT_INDEX));
   return Add<HLoadNamedField>(
       global_object, static_cast<HValue*>(NULL),
-      HObjectAccess::ForJSObjectOffset(GlobalObject::kNativeContextOffset));
+      HObjectAccess::ForObservableJSObjectOffset(
+          GlobalObject::kNativeContextOffset));
 }
 
 
@@ -2990,7 +2971,7 @@ HValue* HGraphBuilder::JSArrayBuilder::AllocateArray(HValue* size_in_bytes,
 HStoreNamedField* HGraphBuilder::AddStoreMapConstant(HValue *object,
                                                      Handle<Map> map) {
   return Add<HStoreNamedField>(object, HObjectAccess::ForMap(),
-                               Add<HConstant>(map), INITIALIZING_STORE);
+                               Add<HConstant>(map));
 }
 
 
@@ -2998,12 +2979,12 @@ HValue* HGraphBuilder::AddLoadJSBuiltin(Builtins::JavaScript builtin) {
   HValue* global_object = Add<HLoadNamedField>(
       context(), static_cast<HValue*>(NULL),
       HObjectAccess::ForContextSlot(Context::GLOBAL_OBJECT_INDEX));
-  HObjectAccess access = HObjectAccess::ForJSObjectOffset(
+  HObjectAccess access = HObjectAccess::ForObservableJSObjectOffset(
       GlobalObject::kBuiltinsOffset);
   HValue* builtins = Add<HLoadNamedField>(
       global_object, static_cast<HValue*>(NULL), access);
-  HObjectAccess function_access = HObjectAccess::ForJSObjectOffset(
-      JSBuiltinsObject::OffsetOfFunctionWithId(builtin));
+  HObjectAccess function_access = HObjectAccess::ForObservableJSObjectOffset(
+          JSBuiltinsObject::OffsetOfFunctionWithId(builtin));
   return Add<HLoadNamedField>(
       builtins, static_cast<HValue*>(NULL), function_access);
 }
@@ -5322,8 +5303,7 @@ void HOptimizedGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
       case FAST_DOUBLE_ELEMENTS:
       case FAST_HOLEY_DOUBLE_ELEMENTS: {
         HStoreKeyed* instr = Add<HStoreKeyed>(elements, key, value,
-                                              boilerplate_elements_kind,
-                                              INITIALIZING_STORE);
+                                              boilerplate_elements_kind);
         instr->SetUninitialized(uninitialized);
         break;
       }
@@ -5404,10 +5384,10 @@ HInstruction* HOptimizedGraphBuilder::BuildStoreNamedField(
           HEAP_NUMBER_TYPE);
       AddStoreMapConstant(heap_number, isolate()->factory()->heap_number_map());
       Add<HStoreNamedField>(heap_number, HObjectAccess::ForHeapNumberValue(),
-                            value, INITIALIZING_STORE);
+                            value);
       instr = New<HStoreNamedField>(checked_object->ActualValue(),
                                     heap_number_access,
-                                    heap_number, INITIALIZING_STORE);
+                                    heap_number);
     } else {
       // Already holds a HeapNumber; load the box and write its value field.
       HInstruction* heap_number = Add<HLoadNamedField>(
@@ -8338,7 +8318,7 @@ void HOptimizedGraphBuilder::BuildInlinedCallNewArray(CallNew* expr) {
     for (int i = 0; i < argument_count; i++) {
       HValue* value = environment()->ExpressionStackAt(argument_count - i - 1);
       HValue* constant_i = Add<HConstant>(i);
-      Add<HStoreKeyed>(elements, constant_i, value, kind, INITIALIZING_STORE);
+      Add<HStoreKeyed>(elements, constant_i, value, kind);
     }
   }
 
@@ -8447,29 +8427,32 @@ void HOptimizedGraphBuilder::VisitCallNew(CallNew* expr) {
     HValue* constructor_value = Add<HConstant>(constructor);
     HValue* initial_map_value =
       Add<HLoadNamedField>(constructor_value, static_cast<HValue*>(NULL),
-                           HObjectAccess::ForJSObjectOffset(
+                           HObjectAccess::ForMapAndOffset(
+                               handle(constructor->map()),
                                JSFunction::kPrototypeOrInitialMapOffset));
 
     // Initialize map and fields of the newly allocated object.
     { NoObservableSideEffectsScope no_effects(this);
       ASSERT(initial_map->instance_type() == JS_OBJECT_TYPE);
       Add<HStoreNamedField>(receiver,
-          HObjectAccess::ForJSObjectOffset(JSObject::kMapOffset),
-          initial_map_value, INITIALIZING_STORE);
+          HObjectAccess::ForMapAndOffset(initial_map, JSObject::kMapOffset),
+          initial_map_value);
       HValue* empty_fixed_array = Add<HConstant>(factory->empty_fixed_array());
       Add<HStoreNamedField>(receiver,
-          HObjectAccess::ForJSObjectOffset(JSObject::kPropertiesOffset),
-          empty_fixed_array, INITIALIZING_STORE);
+          HObjectAccess::ForMapAndOffset(initial_map,
+                                         JSObject::kPropertiesOffset),
+          empty_fixed_array);
       Add<HStoreNamedField>(receiver,
-          HObjectAccess::ForJSObjectOffset(JSObject::kElementsOffset),
-          empty_fixed_array, INITIALIZING_STORE);
+          HObjectAccess::ForMapAndOffset(initial_map,
+                                         JSObject::kElementsOffset),
+          empty_fixed_array);
       if (initial_map->inobject_properties() != 0) {
         HConstant* undefined = graph()->GetConstantUndefined();
         for (int i = 0; i < initial_map->inobject_properties(); i++) {
-          int property_offset = JSObject::kHeaderSize + i * kPointerSize;
+          int property_offset = initial_map->GetInObjectPropertyOffset(i);
           Add<HStoreNamedField>(receiver,
-              HObjectAccess::ForJSObjectOffset(property_offset),
-              undefined, PREINITIALIZING_STORE);
+              HObjectAccess::ForMapAndOffset(initial_map, property_offset),
+              undefined);
         }
       }
     }
@@ -8553,31 +8536,30 @@ void HGraphBuilder::BuildArrayBufferViewInitialization(
        offset < ViewClass::kSizeWithInternalFields;
        offset += kPointerSize) {
     Add<HStoreNamedField>(obj,
-        HObjectAccess::ForJSObjectOffset(offset),
-        graph()->GetConstant0(), INITIALIZING_STORE);
+        HObjectAccess::ForObservableJSObjectOffset(offset),
+        graph()->GetConstant0());
   }
 
   Add<HStoreNamedField>(
       obj,
-      HObjectAccess::ForJSArrayBufferViewBuffer(), buffer, INITIALIZING_STORE);
+      HObjectAccess::ForJSArrayBufferViewBuffer(), buffer);
   Add<HStoreNamedField>(
       obj,
       HObjectAccess::ForJSArrayBufferViewByteOffset(),
-      byte_offset, INITIALIZING_STORE);
+      byte_offset);
   Add<HStoreNamedField>(
       obj,
       HObjectAccess::ForJSArrayBufferViewByteLength(),
-      byte_length, INITIALIZING_STORE);
+      byte_length);
 
   HObjectAccess weak_first_view_access =
       HObjectAccess::ForJSArrayBufferWeakFirstView();
   Add<HStoreNamedField>(obj,
       HObjectAccess::ForJSArrayBufferViewWeakNext(),
       Add<HLoadNamedField>(buffer, static_cast<HValue*>(NULL),
-                           weak_first_view_access),
-      INITIALIZING_STORE);
+                           weak_first_view_access));
   Add<HStoreNamedField>(
-      buffer, weak_first_view_access, obj, INITIALIZING_STORE);
+      buffer, weak_first_view_access, obj);
 }
 
 
@@ -8667,7 +8649,7 @@ void HOptimizedGraphBuilder::VisitTypedArrayInitialize(
 
     Add<HStoreNamedField>(obj,
         HObjectAccess::ForJSTypedArrayLength(),
-        length, INITIALIZING_STORE);
+        length);
 
     HValue* elements =
         Add<HAllocate>(
@@ -8678,7 +8660,9 @@ void HOptimizedGraphBuilder::VisitTypedArrayInitialize(
 
     Handle<Map> external_array_map(
         isolate()->heap()->MapForExternalArrayType(array_type));
-    AddStoreMapConstant(elements, external_array_map);
+    Add<HStoreNamedField>(elements,
+        HObjectAccess::ForMap(),
+        Add<HConstant>(external_array_map));
 
     HValue* backing_store = Add<HLoadNamedField>(
         buffer, static_cast<HValue*>(NULL),
@@ -8696,14 +8680,14 @@ void HOptimizedGraphBuilder::VisitTypedArrayInitialize(
       typed_array_start = external_pointer;
     }
 
+    Add<HStoreNamedField>(elements,
+        HObjectAccess::ForExternalArrayExternalPointer(),
+        typed_array_start);
+    Add<HStoreNamedField>(elements,
+        HObjectAccess::ForFixedArrayLength(),
+        length);
     Add<HStoreNamedField>(
-        elements, HObjectAccess::ForExternalArrayExternalPointer(),
-        typed_array_start, INITIALIZING_STORE);
-    Add<HStoreNamedField>(
-        elements, HObjectAccess::ForFixedArrayLength(), length,
-        INITIALIZING_STORE);
-    Add<HStoreNamedField>(
-        obj, HObjectAccess::ForElementsPointer(), elements, INITIALIZING_STORE);
+        obj, HObjectAccess::ForElementsPointer(), elements);
   }
 
   if (!is_zero_byte_offset) {
@@ -9915,7 +9899,7 @@ HInstruction* HOptimizedGraphBuilder::BuildFastLiteral(
         HConstant* empty_fixed_array = Add<HConstant>(
             isolate()->factory()->empty_fixed_array());
         Add<HStoreNamedField>(object, HObjectAccess::ForElementsPointer(),
-                              empty_fixed_array, INITIALIZING_STORE);
+                              empty_fixed_array);
       }
       object_elements = Add<HAllocate>(object_elements_size, HType::JSObject(),
           pretenure_flag, FIXED_DOUBLE_ARRAY_TYPE, site_context->current());
@@ -9954,7 +9938,7 @@ void HOptimizedGraphBuilder::BuildEmitObjectHeader(
   ASSERT(*properties_field == isolate()->heap()->empty_fixed_array());
   HInstruction* properties = Add<HConstant>(properties_field);
   HObjectAccess access = HObjectAccess::ForPropertiesPointer();
-  Add<HStoreNamedField>(object, access, properties, INITIALIZING_STORE);
+  Add<HStoreNamedField>(object, access, properties);
 
   if (boilerplate_object->IsJSArray()) {
     Handle<JSArray> boilerplate_array =
@@ -9965,7 +9949,7 @@ void HOptimizedGraphBuilder::BuildEmitObjectHeader(
 
     ASSERT(boilerplate_array->length()->IsSmi());
     Add<HStoreNamedField>(object, HObjectAccess::ForArrayLength(
-        boilerplate_array->GetElementsKind()), length, INITIALIZING_STORE);
+        boilerplate_array->GetElementsKind()), length);
   }
 }
 
@@ -9981,7 +9965,7 @@ void HOptimizedGraphBuilder::BuildInitElementsInObjectHeader(
     object_elements = Add<HConstant>(elements_field);
   }
   Add<HStoreNamedField>(object, HObjectAccess::ForElementsPointer(),
-      object_elements, INITIALIZING_STORE);
+      object_elements);
 }
 
 
@@ -9990,9 +9974,9 @@ void HOptimizedGraphBuilder::BuildEmitInObjectProperties(
     HInstruction* object,
     AllocationSiteUsageContext* site_context,
     PretenureFlag pretenure_flag) {
-  Handle<DescriptorArray> descriptors(
-      boilerplate_object->map()->instance_descriptors());
-  int limit = boilerplate_object->map()->NumberOfOwnDescriptors();
+  Handle<Map> boilerplate_map(boilerplate_object->map());
+  Handle<DescriptorArray> descriptors(boilerplate_map->instance_descriptors());
+  int limit = boilerplate_map->NumberOfOwnDescriptors();
 
   int copied_fields = 0;
   for (int i = 0; i < limit; i++) {
@@ -10009,7 +9993,7 @@ void HOptimizedGraphBuilder::BuildEmitInObjectProperties(
     // The access for the store depends on the type of the boilerplate.
     HObjectAccess access = boilerplate_object->IsJSArray() ?
         HObjectAccess::ForJSArrayOffset(property_offset) :
-        HObjectAccess::ForJSObjectOffset(property_offset);
+        HObjectAccess::ForMapAndOffset(boilerplate_map, property_offset);
 
     if (value->IsJSObject()) {
       Handle<JSObject> value_object = Handle<JSObject>::cast(value);
@@ -10017,7 +10001,7 @@ void HOptimizedGraphBuilder::BuildEmitInObjectProperties(
       HInstruction* result =
           BuildFastLiteral(value_object, site_context);
       site_context->ExitScope(current_site, value_object);
-      Add<HStoreNamedField>(object, access, result, INITIALIZING_STORE);
+      Add<HStoreNamedField>(object, access, result);
     } else {
       Representation representation = details.representation();
       HInstruction* value_instruction;
@@ -10035,7 +10019,7 @@ void HOptimizedGraphBuilder::BuildEmitInObjectProperties(
         AddStoreMapConstant(double_box,
             isolate()->factory()->heap_number_map());
         Add<HStoreNamedField>(double_box, HObjectAccess::ForHeapNumberValue(),
-                              Add<HConstant>(value), INITIALIZING_STORE);
+                              Add<HConstant>(value));
         value_instruction = double_box;
       } else if (representation.IsSmi() && value->IsUninitialized()) {
         value_instruction = graph()->GetConstant0();
@@ -10043,8 +10027,7 @@ void HOptimizedGraphBuilder::BuildEmitInObjectProperties(
         value_instruction = Add<HConstant>(value);
       }
 
-      Add<HStoreNamedField>(object, access, value_instruction,
-                            INITIALIZING_STORE);
+      Add<HStoreNamedField>(object, access, value_instruction);
     }
   }
 
@@ -10054,9 +10037,9 @@ void HOptimizedGraphBuilder::BuildEmitInObjectProperties(
   for (int i = copied_fields; i < inobject_properties; i++) {
     ASSERT(boilerplate_object->IsJSObject());
     int property_offset = boilerplate_object->GetInObjectPropertyOffset(i);
-    HObjectAccess access = HObjectAccess::ForJSObjectOffset(property_offset);
-    Add<HStoreNamedField>(object, access, value_instruction,
-                          PREINITIALIZING_STORE);
+    HObjectAccess access =
+        HObjectAccess::ForMapAndOffset(boilerplate_map, property_offset);
+    Add<HStoreNamedField>(object, access, value_instruction);
   }
 }
 
@@ -10096,8 +10079,7 @@ void HOptimizedGraphBuilder::BuildEmitFixedDoubleArray(
                         static_cast<HValue*>(NULL), kind,
                         ALLOW_RETURN_HOLE);
     HInstruction* store = Add<HStoreKeyed>(object_elements, key_constant,
-                                           value_instruction, kind,
-                                           INITIALIZING_STORE);
+                                           value_instruction, kind);
     store->SetFlag(HValue::kAllowUndefinedAsNaN);
   }
 }
@@ -10120,15 +10102,13 @@ void HOptimizedGraphBuilder::BuildEmitFixedArray(
       HInstruction* result =
           BuildFastLiteral(value_object, site_context);
       site_context->ExitScope(current_site, value_object);
-      Add<HStoreKeyed>(object_elements, key_constant, result, kind,
-                       INITIALIZING_STORE);
+      Add<HStoreKeyed>(object_elements, key_constant, result, kind);
     } else {
       HInstruction* value_instruction =
           Add<HLoadKeyed>(boilerplate_elements, key_constant,
                           static_cast<HValue*>(NULL), kind,
                           ALLOW_RETURN_HOLE);
-      Add<HStoreKeyed>(object_elements, key_constant, value_instruction, kind,
-                       INITIALIZING_STORE);
+      Add<HStoreKeyed>(object_elements, key_constant, value_instruction, kind);
     }
   }
 }
@@ -10446,7 +10426,8 @@ void HOptimizedGraphBuilder::GenerateValueOf(CallRuntime* call) {
     // Return the actual value.
     Push(Add<HLoadNamedField>(
             object, objectisvalue,
-            HObjectAccess::ForJSObjectOffset(JSValue::kValueOffset)));
+            HObjectAccess::ForObservableJSObjectOffset(
+                JSValue::kValueOffset)));
     Add<HSimulate>(call->id(), FIXED_SIMULATE);
   }
   if_objectisvalue.Else();
@@ -10516,9 +10497,9 @@ void HOptimizedGraphBuilder::GenerateSetValueOf(CallRuntime* call) {
   if_objectisvalue.Then();
   {
     // Create in-object property store to kValueOffset.
-    Add<HStoreNamedField>(
-        object, HObjectAccess::ForJSObjectOffset(JSValue::kValueOffset),
-        value, INITIALIZING_STORE);
+    Add<HStoreNamedField>(object,
+        HObjectAccess::ForObservableJSObjectOffset(JSValue::kValueOffset),
+        value);
     Add<HSimulate>(call->id(), FIXED_SIMULATE);
   }
   if_objectisvalue.Else();

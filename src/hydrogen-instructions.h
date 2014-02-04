@@ -5710,8 +5710,15 @@ class HObjectAccess V8_FINAL {
     return ImmutableField::decode(value_);
   }
 
+  // Returns true if access is being made to an in-object property that
+  // was already added to the object.
+  inline bool existing_inobject_property() const {
+    return ExistingInobjectPropertyField::decode(value_);
+  }
+
   inline HObjectAccess WithRepresentation(Representation representation) {
-    return HObjectAccess(portion(), offset(), representation, name());
+    return HObjectAccess(portion(), offset(), representation, name(),
+                         immutable(), existing_inobject_property());
   }
 
   static HObjectAccess ForHeapNumberValue() {
@@ -5755,7 +5762,8 @@ class HObjectAccess V8_FINAL {
   static HObjectAccess ForAllocationSiteOffset(int offset);
 
   static HObjectAccess ForAllocationSiteList() {
-    return HObjectAccess(kExternalMemory, 0, Representation::Tagged());
+    return HObjectAccess(kExternalMemory, 0, Representation::Tagged(),
+                         Handle<String>::null(), false, false);
   }
 
   static HObjectAccess ForFixedArrayLength() {
@@ -5857,15 +5865,28 @@ class HObjectAccess V8_FINAL {
   }
 
   static HObjectAccess ForCounter() {
-    return HObjectAccess(kExternalMemory, 0, Representation::Integer32());
+    return HObjectAccess(kExternalMemory, 0, Representation::Integer32(),
+                         Handle<String>::null(), false, false);
   }
 
   // Create an access to an offset in a fixed array header.
   static HObjectAccess ForFixedArrayHeader(int offset);
 
   // Create an access to an in-object property in a JSObject.
-  static HObjectAccess ForJSObjectOffset(int offset,
+  // This kind of access must be used when the object |map| is known and
+  // in-object properties are being accessed. Accesses of the in-object
+  // properties can have different semantics depending on whether corresponding
+  // property was added to the map or not.
+  static HObjectAccess ForMapAndOffset(Handle<Map> map, int offset,
       Representation representation = Representation::Tagged());
+
+  // Create an access to an in-object property in a JSObject.
+  // This kind of access can be used for accessing object header fields or
+  // in-object properties if the map of the object is not known.
+  static HObjectAccess ForObservableJSObjectOffset(int offset,
+      Representation representation = Representation::Tagged()) {
+    return ForMapAndOffset(Handle<Map>::null(), offset, representation);
+  }
 
   // Create an access to an in-object property in a JSArray.
   static HObjectAccess ForJSArrayOffset(int offset);
@@ -5884,39 +5905,42 @@ class HObjectAccess V8_FINAL {
   static HObjectAccess ForCellPayload(Isolate* isolate);
 
   static HObjectAccess ForJSTypedArrayLength() {
-    return HObjectAccess::ForJSObjectOffset(JSTypedArray::kLengthOffset);
+    return HObjectAccess::ForObservableJSObjectOffset(
+        JSTypedArray::kLengthOffset);
   }
 
   static HObjectAccess ForJSArrayBufferBackingStore() {
-    return HObjectAccess::ForJSObjectOffset(
+    return HObjectAccess::ForObservableJSObjectOffset(
         JSArrayBuffer::kBackingStoreOffset, Representation::External());
   }
 
   static HObjectAccess ForExternalArrayExternalPointer() {
-    return HObjectAccess::ForJSObjectOffset(
+    return HObjectAccess::ForObservableJSObjectOffset(
         ExternalArray::kExternalPointerOffset, Representation::External());
   }
 
   static HObjectAccess ForJSArrayBufferViewWeakNext() {
-    return HObjectAccess::ForJSObjectOffset(JSArrayBufferView::kWeakNextOffset);
+    return HObjectAccess::ForObservableJSObjectOffset(
+        JSArrayBufferView::kWeakNextOffset);
   }
 
   static HObjectAccess ForJSArrayBufferWeakFirstView() {
-    return HObjectAccess::ForJSObjectOffset(
+    return HObjectAccess::ForObservableJSObjectOffset(
         JSArrayBuffer::kWeakFirstViewOffset);
   }
 
   static HObjectAccess ForJSArrayBufferViewBuffer() {
-    return HObjectAccess::ForJSObjectOffset(JSArrayBufferView::kBufferOffset);
+    return HObjectAccess::ForObservableJSObjectOffset(
+        JSArrayBufferView::kBufferOffset);
   }
 
   static HObjectAccess ForJSArrayBufferViewByteOffset() {
-    return HObjectAccess::ForJSObjectOffset(
+    return HObjectAccess::ForObservableJSObjectOffset(
         JSArrayBufferView::kByteOffsetOffset);
   }
 
   static HObjectAccess ForJSArrayBufferViewByteLength() {
-    return HObjectAccess::ForJSObjectOffset(
+    return HObjectAccess::ForObservableJSObjectOffset(
         JSArrayBufferView::kByteLengthOffset);
   }
 
@@ -5949,23 +5973,29 @@ class HObjectAccess V8_FINAL {
   HObjectAccess(Portion portion, int offset,
                 Representation representation = Representation::Tagged(),
                 Handle<String> name = Handle<String>::null(),
-                bool immutable = false)
+                bool immutable = false,
+                bool existing_inobject_property = true)
     : value_(PortionField::encode(portion) |
              RepresentationField::encode(representation.kind()) |
              ImmutableField::encode(immutable ? 1 : 0) |
+             ExistingInobjectPropertyField::encode(
+                 existing_inobject_property ? 1 : 0) |
              OffsetField::encode(offset)),
       name_(name) {
     // assert that the fields decode correctly
     ASSERT(this->offset() == offset);
     ASSERT(this->portion() == portion);
     ASSERT(this->immutable() == immutable);
+    ASSERT(this->existing_inobject_property() == existing_inobject_property);
     ASSERT(RepresentationField::decode(value_) == representation.kind());
+    ASSERT(!this->existing_inobject_property() || IsInobject());
   }
 
   class PortionField : public BitField<Portion, 0, 3> {};
   class RepresentationField : public BitField<Representation::Kind, 3, 4> {};
   class ImmutableField : public BitField<bool, 7, 1> {};
-  class OffsetField : public BitField<int, 8, 24> {};
+  class ExistingInobjectPropertyField : public BitField<bool, 8, 1> {};
+  class OffsetField : public BitField<int, 9, 23> {};
 
   uint32_t value_;  // encodes portion, representation, immutable, and offset
   Handle<String> name_;
@@ -6351,9 +6381,6 @@ class HLoadKeyedGeneric V8_FINAL : public HTemplateInstruction<3> {
 // Indicates whether the store is a store to an entry that was previously
 // initialized or not.
 enum StoreFieldOrKeyedMode {
-  // This is a store of either an undefined value to a field or a hole/NaN to
-  // an entry of a newly allocated object.
-  PREINITIALIZING_STORE,
   // The entry could be either previously initialized or not.
   INITIALIZING_STORE,
   // At the time of this store it is guaranteed that the entry is already
@@ -6364,6 +6391,8 @@ enum StoreFieldOrKeyedMode {
 
 class HStoreNamedField V8_FINAL : public HTemplateInstruction<3> {
  public:
+  DECLARE_INSTRUCTION_FACTORY_P3(HStoreNamedField, HValue*,
+                                 HObjectAccess, HValue*);
   DECLARE_INSTRUCTION_FACTORY_P4(HStoreNamedField, HValue*,
                                  HObjectAccess, HValue*, StoreFieldOrKeyedMode);
 
@@ -6470,16 +6499,15 @@ class HStoreNamedField V8_FINAL : public HTemplateInstruction<3> {
   HStoreNamedField(HValue* obj,
                    HObjectAccess access,
                    HValue* val,
-                   StoreFieldOrKeyedMode store_mode)
+                   StoreFieldOrKeyedMode store_mode = INITIALIZING_STORE)
       : access_(access),
         new_space_dominator_(NULL),
         write_barrier_mode_(UPDATE_WRITE_BARRIER),
         has_transition_(false),
         store_mode_(store_mode) {
-    // PREINITIALIZING_STORE is only used to mark stores that initialize a
-    // memory region resulting from HAllocate (possibly through an
-    // HInnerAllocatedObject).
-    ASSERT(store_mode != PREINITIALIZING_STORE ||
+    // Stores to a non existing in-object property are allowed only to the
+    // newly allocated objects (via HAllocate or HInnerAllocatedObject).
+    ASSERT(!access.IsInobject() || access.existing_inobject_property() ||
            obj->IsAllocate() || obj->IsInnerAllocatedObject());
     SetOperandAt(0, obj);
     SetOperandAt(1, val);
@@ -6491,7 +6519,7 @@ class HStoreNamedField V8_FINAL : public HTemplateInstruction<3> {
   HValue* new_space_dominator_;
   WriteBarrierMode write_barrier_mode_ : 1;
   bool has_transition_ : 1;
-  StoreFieldOrKeyedMode store_mode_ : 2;
+  StoreFieldOrKeyedMode store_mode_ : 1;
 };
 
 
@@ -6536,6 +6564,8 @@ class HStoreNamedGeneric V8_FINAL : public HTemplateInstruction<3> {
 class HStoreKeyed V8_FINAL
     : public HTemplateInstruction<3>, public ArrayInstructionInterface {
  public:
+  DECLARE_INSTRUCTION_FACTORY_P4(HStoreKeyed, HValue*, HValue*, HValue*,
+                                 ElementsKind);
   DECLARE_INSTRUCTION_FACTORY_P5(HStoreKeyed, HValue*, HValue*, HValue*,
                                  ElementsKind, StoreFieldOrKeyedMode);
 
@@ -6655,7 +6685,7 @@ class HStoreKeyed V8_FINAL
  private:
   HStoreKeyed(HValue* obj, HValue* key, HValue* val,
               ElementsKind elements_kind,
-              StoreFieldOrKeyedMode store_mode)
+              StoreFieldOrKeyedMode store_mode = INITIALIZING_STORE)
       : elements_kind_(elements_kind),
       index_offset_(0),
       is_dehoisted_(false),
@@ -6665,12 +6695,6 @@ class HStoreKeyed V8_FINAL
     SetOperandAt(0, obj);
     SetOperandAt(1, key);
     SetOperandAt(2, val);
-
-    // PREINITIALIZING_STORE is only used to mark stores that initialize a
-    // memory region resulting from HAllocate (possibly through an
-    // HInnerAllocatedObject).
-    ASSERT(store_mode != PREINITIALIZING_STORE ||
-           obj->IsAllocate() || obj->IsInnerAllocatedObject());
 
     ASSERT(store_mode != STORE_TO_INITIALIZED_ENTRY ||
            elements_kind == FAST_SMI_ELEMENTS);
@@ -6706,7 +6730,7 @@ class HStoreKeyed V8_FINAL
   uint32_t index_offset_;
   bool is_dehoisted_ : 1;
   bool is_uninitialized_ : 1;
-  StoreFieldOrKeyedMode store_mode_: 2;
+  StoreFieldOrKeyedMode store_mode_: 1;
   HValue* new_space_dominator_;
 };
 

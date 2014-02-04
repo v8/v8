@@ -1370,7 +1370,7 @@ class HGraphBuilder {
   HInstruction* AddLoadStringLength(HValue* string);
   HStoreNamedField* AddStoreMapNoWriteBarrier(HValue* object, HValue* map) {
     HStoreNamedField* store_map = Add<HStoreNamedField>(
-        object, HObjectAccess::ForMap(), map, INITIALIZING_STORE);
+        object, HObjectAccess::ForMap(), map);
     store_map->SkipWriteBarrier();
     return store_map;
   }
@@ -2322,7 +2322,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
           ASSERT(name_->Equals(isolate()->heap()->length_string()));
           *access = HObjectAccess::ForStringLength();
         } else {
-          *access = HObjectAccess::ForJSObjectOffset(offset);
+          *access = HObjectAccess::ForMapAndOffset(map(), offset);
         }
         return true;
       }

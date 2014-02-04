@@ -1968,18 +1968,12 @@ void JSObject::FastPropertyAtPut(int index, Object* value) {
 
 
 int JSObject::GetInObjectPropertyOffset(int index) {
-  // Adjust for the number of properties stored in the object.
-  index -= map()->inobject_properties();
-  ASSERT(index < 0);
-  return map()->instance_size() + (index * kPointerSize);
+  return map()->GetInObjectPropertyOffset(index);
 }
 
 
 Object* JSObject::InObjectPropertyAt(int index) {
-  // Adjust for the number of properties stored in the object.
-  index -= map()->inobject_properties();
-  ASSERT(index < 0);
-  int offset = map()->instance_size() + (index * kPointerSize);
+  int offset = GetInObjectPropertyOffset(index);
   return READ_FIELD(this, offset);
 }
 
@@ -1988,9 +1982,7 @@ Object* JSObject::InObjectPropertyAtPut(int index,
                                         Object* value,
                                         WriteBarrierMode mode) {
   // Adjust for the number of properties stored in the object.
-  index -= map()->inobject_properties();
-  ASSERT(index < 0);
-  int offset = map()->instance_size() + (index * kPointerSize);
+  int offset = GetInObjectPropertyOffset(index);
   WRITE_FIELD(this, offset, value);
   CONDITIONAL_WRITE_BARRIER(GetHeap(), this, offset, value, mode);
   return value;
@@ -3805,6 +3797,14 @@ int Map::inobject_properties() {
 
 int Map::pre_allocated_property_fields() {
   return READ_BYTE_FIELD(this, kPreAllocatedPropertyFieldsOffset);
+}
+
+
+int Map::GetInObjectPropertyOffset(int index) {
+  // Adjust for the number of properties stored in the object.
+  index -= inobject_properties();
+  ASSERT(index < 0);
+  return instance_size() + (index * kPointerSize);
 }
 
 
