@@ -934,6 +934,7 @@ int DisassemblerX64::RegisterFPUInstruction(int escape_opcode,
             case 0xF5: mnem = "fprem1"; break;
             case 0xF7: mnem = "fincstp"; break;
             case 0xF8: mnem = "fprem"; break;
+            case 0xFC: mnem = "frndint"; break;
             case 0xFD: mnem = "fscale"; break;
             case 0xFE: mnem = "fsin"; break;
             case 0xFF: mnem = "fcos"; break;
@@ -956,6 +957,8 @@ int DisassemblerX64::RegisterFPUInstruction(int escape_opcode,
         has_register = true;
       } else if (modrm_byte  == 0xE2) {
         mnem = "fclex";
+      } else if (modrm_byte == 0xE3) {
+        mnem = "fninit";
       } else {
         UnimplementedInstruction();
       }

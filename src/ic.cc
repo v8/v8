@@ -938,7 +938,7 @@ Handle<Code> LoadIC::CompileHandler(LookupResult* lookup,
         }
         CallOptimization call_optimization(function);
         if (call_optimization.is_simple_api_call() &&
-            call_optimization.IsCompatibleReceiver(*object)) {
+            call_optimization.IsCompatibleReceiver(object, holder)) {
           return compiler.CompileLoadCallback(
               type, holder, name, call_optimization);
         }
@@ -1364,7 +1364,7 @@ Handle<Code> StoreIC::CompileHandler(LookupResult* lookup,
         Handle<JSFunction> function = Handle<JSFunction>::cast(setter);
         CallOptimization call_optimization(function);
         if (call_optimization.is_simple_api_call() &&
-            call_optimization.IsCompatibleReceiver(*receiver)) {
+            call_optimization.IsCompatibleReceiver(receiver, holder)) {
           return compiler.CompileStoreCallback(
               receiver, holder, name, call_optimization);
         }

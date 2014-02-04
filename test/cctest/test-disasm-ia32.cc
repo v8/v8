@@ -349,6 +349,8 @@ TEST(DisasmIa320) {
   __ fdivp(3);
   __ fcompp();
   __ fwait();
+  __ frndint();
+  __ fninit();
   __ nop();
 
   // SSE instruction

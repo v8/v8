@@ -769,11 +769,25 @@ static void CompileCallLoadPropertyWithInterceptor(
 }
 
 
-static void GenerateFastApiCallBody(MacroAssembler* masm,
-                                    const CallOptimization& optimization,
-                                    int argc,
-                                    Register holder_in,
-                                    bool restore_context) {
+// Generate call to api function.
+static void GenerateFastApiCall(MacroAssembler* masm,
+                                const CallOptimization& optimization,
+                                Handle<Map> receiver_map,
+                                Register receiver,
+                                Register scratch_in,
+                                int argc,
+                                Register* values) {
+  ASSERT(!receiver.is(scratch_in));
+  // Preparing to push, adjust sp.
+  __ Subu(sp, sp, Operand((argc + 1) * kPointerSize));
+  __ sw(receiver, MemOperand(sp, argc * kPointerSize));  // Push receiver.
+  // Write the arguments to stack frame.
+  for (int i = 0; i < argc; i++) {
+    Register arg = values[argc-1-i];
+    ASSERT(!receiver.is(arg));
+    ASSERT(!scratch_in.is(arg));
+    __ sw(arg, MemOperand(sp, (argc-1-i) * kPointerSize));  // Push arg.
+  }
   ASSERT(optimization.is_simple_api_call());
 
   // Abi for CallApiFunctionStub.
@@ -783,7 +797,21 @@ static void GenerateFastApiCallBody(MacroAssembler* masm,
   Register api_function_address = a1;
 
   // Put holder in place.
-  __ mov(holder, holder_in);
+  CallOptimization::HolderLookup holder_lookup;
+  Handle<JSObject> api_holder = optimization.LookupHolderOfExpectedType(
+      receiver_map,
+      &holder_lookup);
+  switch (holder_lookup) {
+    case CallOptimization::kHolderIsReceiver:
+      __ Move(holder, receiver);
+      break;
+    case CallOptimization::kHolderFound:
+      __ li(holder, api_holder);
+     break;
+    case CallOptimization::kHolderNotFound:
+      UNREACHABLE();
+      break;
+  }
 
   Isolate* isolate = masm->isolate();
   Handle<JSFunction> function = optimization.constant_function();
@@ -815,34 +843,8 @@ static void GenerateFastApiCallBody(MacroAssembler* masm,
   __ li(api_function_address, Operand(ref));
 
   // Jump to stub.
-  CallApiFunctionStub stub(restore_context, call_data_undefined, argc);
+  CallApiFunctionStub stub(true, call_data_undefined, argc);
   __ TailCallStub(&stub);
-}
-
-
-// Generate call to api function.
-static void GenerateFastApiCall(MacroAssembler* masm,
-                                const CallOptimization& optimization,
-                                Register receiver,
-                                Register scratch,
-                                int argc,
-                                Register* values) {
-  ASSERT(!receiver.is(scratch));
-  __ push(receiver);
-  // Write the arguments to stack frame.
-  for (int i = 0; i < argc; i++) {
-    Register arg = values[argc-1-i];
-    ASSERT(!receiver.is(arg));
-    ASSERT(!scratch.is(arg));
-    __ push(arg);
-  }
-
-  // Stack now matches JSFunction abi.
-  GenerateFastApiCallBody(masm,
-                          optimization,
-                          argc,
-                          receiver,
-                          true);
 }
 
 
@@ -1062,9 +1064,11 @@ void LoadStubCompiler::GenerateLoadConstant(Handle<Object> value) {
 
 
 void LoadStubCompiler::GenerateLoadCallback(
-    const CallOptimization& call_optimization) {
+    const CallOptimization& call_optimization,
+    Handle<Map> receiver_map) {
   GenerateFastApiCall(
-      masm(), call_optimization, receiver(), scratch3(), 0, NULL);
+      masm(), call_optimization, receiver_map,
+      receiver(), scratch3(), 0, NULL);
 }
 
 
@@ -1226,8 +1230,7 @@ Handle<Code> StoreStubCompiler::CompileStoreCallback(
   // checks.
   ASSERT(holder->IsJSGlobalProxy() || !holder->IsAccessCheckNeeded());
 
-  __ push(receiver());  // Receiver.
-  __ push(holder_reg);
+  __ Push(receiver(), holder_reg);  // Receiver.
   __ li(at, Operand(callback));  // Callback info.
   __ push(at);
   __ li(at, Operand(name));
@@ -1253,7 +1256,8 @@ Handle<Code> StoreStubCompiler::CompileStoreCallback(
 
   Register values[] = { value() };
   GenerateFastApiCall(
-      masm(), call_optimization, receiver(), scratch3(), 1, values);
+      masm(), call_optimization, handle(object->map()),
+      receiver(), scratch3(), 1, values);
 
   // Return the generated code.
   return GetCode(kind(), Code::FAST, name);
@@ -1281,8 +1285,7 @@ void StoreStubCompiler::GenerateStoreViaSetter(
 
     if (!setter.is_null()) {
       // Call the JavaScript setter with receiver and value on the stack.
-      __ push(a1);
-      __ push(a0);
+      __ Push(a1, a0);
       ParameterCount actual(1);
       ParameterCount expected(setter);
       __ InvokeFunction(setter, expected, actual,

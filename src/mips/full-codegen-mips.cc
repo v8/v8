@@ -1159,10 +1159,9 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ lw(a2, FieldMemOperand(a2, DescriptorArray::kEnumCacheBridgeCacheOffset));
 
   // Set up the four remaining stack slots.
-  __ push(v0);  // Map.
   __ li(a0, Operand(Smi::FromInt(0)));
-  // Push enumeration cache, enumeration cache length (as smi) and zero.
-  __ Push(a2, a1, a0);
+  // Push map, enumeration cache, enumeration cache length (as smi) and zero.
+  __ Push(v0, a2, a1, a0);
   __ jmp(&loop);
 
   __ bind(&no_descriptors);
@@ -1227,8 +1226,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   // Convert the entry to a string or (smi) 0 if it isn't a property
   // any more. If the property has been removed while iterating, we
   // just skip it.
-  __ push(a1);  // Enumerable.
-  __ push(a3);  // Current entry.
+  __ Push(a1, a3);  // Enumerable and current entry.
   __ InvokeBuiltin(Builtins::FILTER_KEY, CALL_FUNCTION);
   __ mov(a3, result_register());
   __ Branch(loop_statement.continue_label(), eq, a3, Operand(zero_reg));
@@ -2506,19 +2504,17 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
       // able to drill a hole to that function context, even from inside a
       // 'with' context.  We thus bypass the normal static scope lookup for
       // var->IsContextSlot().
-      __ push(v0);
       __ li(a0, Operand(var->name()));
-      __ Push(cp, a0);  // Context and name.
+      __ Push(v0, cp, a0);  // Context and name.
       __ CallRuntime(Runtime::kInitializeConstContextSlot, 3);
     }
 
   } else if (var->mode() == LET && op != Token::INIT_LET) {
     // Non-initializing assignment to let variable needs a write barrier.
     if (var->IsLookupSlot()) {
-      __ push(v0);  // Value.
       __ li(a1, Operand(var->name()));
       __ li(a0, Operand(Smi::FromInt(language_mode())));
-      __ Push(cp, a1, a0);  // Context, name, strict mode.
+      __ Push(v0, cp, a1, a0);  // Value, context, name, strict mode.
       __ CallRuntime(Runtime::kStoreContextSlot, 4);
     } else {
       ASSERT(var->IsStackAllocated() || var->IsContextSlot());
@@ -2563,10 +2559,9 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
       }
     } else {
       ASSERT(var->IsLookupSlot());
-      __ push(v0);  // Value.
       __ li(a1, Operand(var->name()));
       __ li(a0, Operand(Smi::FromInt(language_mode())));
-      __ Push(cp, a1, a0);  // Context, name, strict mode.
+      __ Push(v0, cp, a1, a0);  // Value, context, name, strict mode.
       __ CallRuntime(Runtime::kStoreContextSlot, 4);
     }
   }
