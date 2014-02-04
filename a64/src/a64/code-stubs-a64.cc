@@ -2166,16 +2166,15 @@ bool CEntryStub::NeedsImmovableCode() {
 
 
 bool CEntryStub::IsPregenerated() {
-  // TODO(jbramley): We should pregenerate kSaveFPRegs too, once we support it.
-  return (save_doubles_ == kDontSaveFPRegs) && (result_size_ == 1);
+  return result_size_ == 1;
 }
 
 
 void CEntryStub::GenerateAheadOfTime(Isolate* isolate) {
   CEntryStub stub(1, kDontSaveFPRegs);
   stub.GetCode(isolate)->set_is_pregenerated(true);
-  // TODO(jbramley): We should generate kSaveFPRegs here too, but it is not yet
-  // implemented by CEntryStub because it is only used by Lithium.
+  CEntryStub stub_fp(1, kSaveFPRegs);
+  stub_fp.GetCode(isolate)->set_is_pregenerated(true);
 }
 
 
