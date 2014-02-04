@@ -121,7 +121,9 @@ void PreParser::ReportUnexpectedToken(Token::Value token) {
     return ReportMessageAt(source_location, "unexpected_reserved", NULL);
   case Token::FUTURE_STRICT_RESERVED_WORD:
     return ReportMessageAt(source_location,
-                           "unexpected_strict_reserved", NULL);
+                           is_classic_mode() ? "unexpected_token_identifier"
+                                             : "unexpected_strict_reserved",
+                           NULL);
   default:
     const char* name = Token::String(token);
     ReportMessageAt(source_location, "unexpected_token", name);
@@ -304,7 +306,7 @@ PreParser::Statement PreParser::ParseFunctionDeclaration(bool* ok) {
     // as name of strict function.
     const char* type = "strict_function_name";
     if (identifier.IsFutureStrictReserved() || identifier.IsYield()) {
-      type = "strict_reserved_word";
+      type = "unexpected_strict_reserved";
     }
     ReportMessageAt(location, type, NULL);
     *ok = false;
@@ -1511,7 +1513,7 @@ PreParser::Identifier PreParser::ParseIdentifier(bool* ok) {
       if (!is_classic_mode()) {
         Scanner::Location location = scanner()->location();
         ReportMessageAt(location.beg_pos, location.end_pos,
-                        "strict_reserved_word", NULL);
+                        "unexpected_strict_reserved", NULL);
         *ok = false;
       }
       // FALLTHROUGH
@@ -1565,7 +1567,7 @@ void PreParser::StrictModeIdentifierViolation(Scanner::Location location,
   if (identifier.IsFutureReserved()) {
     type = "reserved_word";
   } else if (identifier.IsFutureStrictReserved() || identifier.IsYield()) {
-    type = "strict_reserved_word";
+    type = "unexpected_strict_reserved";
   }
   if (!is_classic_mode()) {
     ReportMessageAt(location, type, NULL);

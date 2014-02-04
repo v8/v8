@@ -4321,17 +4321,13 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
         return NULL;
       }
       if (name_is_strict_reserved) {
-        int start_pos = scope->start_position();
-        int position = function_token_pos != RelocInfo::kNoPosition
-            ? function_token_pos : (start_pos > 0 ? start_pos - 1 : start_pos);
-        Scanner::Location location = Scanner::Location(position, start_pos);
-        ReportMessageAt(location, "strict_reserved_word",
+        ReportMessageAt(function_name_location, "unexpected_strict_reserved",
                         Vector<const char*>::empty());
         *ok = false;
         return NULL;
       }
       if (reserved_loc.IsValid()) {
-        ReportMessageAt(reserved_loc, "strict_reserved_word",
+        ReportMessageAt(reserved_loc, "unexpected_strict_reserved",
                         Vector<const char*>::empty());
         *ok = false;
         return NULL;
