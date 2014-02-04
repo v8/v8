@@ -31,6 +31,7 @@
 #include "mips/lithium-gap-resolver-mips.h"
 #include "code-stubs.h"
 #include "stub-cache.h"
+#include "hydrogen-osr.h"
 
 namespace v8 {
 namespace internal {
@@ -247,6 +248,21 @@ bool LCodeGen::GeneratePrologue() {
 }
 
 
+void LCodeGen::GenerateOsrPrologue() {
+  // Generate the OSR entry prologue at the first unknown OSR value, or if there
+  // are none, at the OSR entrypoint instruction.
+  if (osr_pc_offset_ >= 0) return;
+
+  osr_pc_offset_ = masm()->pc_offset();
+
+  // Adjust the frame size, subsuming the unoptimized frame into the
+  // optimized frame.
+  int slots = GetStackSlotCount() - graph()->osr()->UnoptimizedFrameSlots();
+  ASSERT(slots >= 0);
+  __ Subu(sp, sp, Operand(slots * kPointerSize));
+}
+
+
 bool LCodeGen::GenerateBody() {
   ASSERT(is_generating());
   bool emit_instructions = true;
@@ -398,7 +414,7 @@ Register LCodeGen::EmitLoadRegister(LOperand* op, Register scratch) {
   } else if (op->IsConstantOperand()) {
     LConstantOperand* const_op = LConstantOperand::cast(op);
     HConstant* constant = chunk_->LookupConstant(const_op);
-    Handle<Object> literal = constant->handle();
+    Handle<Object> literal = constant->handle(isolate());
     Representation r = chunk_->LookupLiteralRepresentation(const_op);
     if (r.IsInteger32()) {
       ASSERT(literal->IsNumber());
@@ -436,7 +452,7 @@ DoubleRegister LCodeGen::EmitLoadDoubleRegister(LOperand* op,
   } else if (op->IsConstantOperand()) {
     LConstantOperand* const_op = LConstantOperand::cast(op);
     HConstant* constant = chunk_->LookupConstant(const_op);
-    Handle<Object> literal = constant->handle();
+    Handle<Object> literal = constant->handle(isolate());
     Representation r = chunk_->LookupLiteralRepresentation(const_op);
     if (r.IsInteger32()) {
       ASSERT(literal->IsNumber());
@@ -462,7 +478,7 @@ DoubleRegister LCodeGen::EmitLoadDoubleRegister(LOperand* op,
 Handle<Object> LCodeGen::ToHandle(LConstantOperand* op) const {
   HConstant* constant = chunk_->LookupConstant(op);
   ASSERT(chunk_->LookupLiteralRepresentation(op).IsSmiOrTagged());
-  return constant->handle();
+  return constant->handle(isolate());
 }
 
 
@@ -519,7 +535,7 @@ Operand LCodeGen::ToOperand(LOperand* op) {
       Abort(kToOperandUnsupportedDoubleImmediate);
     }
     ASSERT(r.IsTagged());
-    return Operand(constant->handle());
+    return Operand(constant->handle(isolate()));
   } else if (op->IsRegister()) {
     return Operand(ToRegister(op));
   } else if (op->IsDoubleRegister()) {
@@ -666,7 +682,7 @@ void LCodeGen::AddToTranslation(LEnvironment* environment,
     translation->StoreDoubleRegister(reg);
   } else if (op->IsConstantOperand()) {
     HConstant* constant = chunk()->LookupConstant(LConstantOperand::cast(op));
-    int src_index = DefineDeoptimizationLiteral(constant->handle());
+    int src_index = DefineDeoptimizationLiteral(constant->handle(isolate()));
     translation->StoreLiteral(src_index);
   } else {
     UNREACHABLE();
@@ -1071,8 +1087,7 @@ void LCodeGen::DoCallStub(LCallStub* instr) {
 
 
 void LCodeGen::DoUnknownOSRValue(LUnknownOSRValue* instr) {
-  // Record the address of the first unknown OSR value as the place to enter.
-  if (osr_pc_offset_ == -1) osr_pc_offset_ = masm()->pc_offset();
+  GenerateOsrPrologue();
 }
 
 
@@ -1686,7 +1701,7 @@ void LCodeGen::DoConstantE(LConstantE* instr) {
 
 
 void LCodeGen::DoConstantT(LConstantT* instr) {
-  Handle<Object> value = instr->value();
+  Handle<Object> value = instr->value(isolate());
   AllowDeferredHandleDereference smi_check;
   __ LoadObject(ToRegister(instr->result()), value);
 }
@@ -5681,9 +5696,7 @@ void LCodeGen::DoOsrEntry(LOsrEntry* instr) {
   ASSERT(!environment->HasBeenRegistered());
   RegisterEnvironmentForDeoptimization(environment, Safepoint::kNoLazyDeopt);
 
-  // Normally we record the first unknown OSR value as the entrypoint to the OSR
-  // code, but if there were none, record the entrypoint here.
-  if (osr_pc_offset_ == -1) osr_pc_offset_ = masm()->pc_offset();
+  GenerateOsrPrologue();
 }
 
 

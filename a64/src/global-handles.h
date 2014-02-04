@@ -128,9 +128,13 @@ class GlobalHandles {
   // Creates a new global handle that is alive until Destroy is called.
   Handle<Object> Create(Object* value);
 
+  // Copy a global handle
+  static Handle<Object> CopyGlobal(Object** location);
+
   // Destroy a global handle.
   static void Destroy(Object** location);
 
+  typedef WeakCallbackData<v8::Value, void>::Callback WeakCallback;
   typedef WeakReferenceCallbacks<v8::Value, void>::Revivable RevivableCallback;
 
   // Make the global handle weak and set the callback parameter for the
@@ -141,7 +145,14 @@ class GlobalHandles {
   // reason is that Smi::FromInt(0) does not change during garage collection.
   static void MakeWeak(Object** location,
                        void* parameter,
-                       RevivableCallback weak_reference_callback);
+                       WeakCallback weak_callback,
+                       RevivableCallback revivable_callback);
+
+  static inline void MakeWeak(Object** location,
+                              void* parameter,
+                              RevivableCallback revivable_callback) {
+    MakeWeak(location, parameter, NULL, revivable_callback);
+  }
 
   void RecordStats(HeapStats* stats);
 

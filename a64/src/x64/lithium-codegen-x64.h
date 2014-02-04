@@ -191,6 +191,9 @@ class LCodeGen V8_FINAL BASE_EMBEDDED {
   bool GenerateJumpTable();
   bool GenerateSafepointTable();
 
+  // Generates the custom OSR entrypoint and sets the osr_pc_offset.
+  void GenerateOsrPrologue();
+
   enum SafepointMode {
     RECORD_SIMPLE_SAFEPOINT,
     RECORD_SAFEPOINT_WITH_REGISTERS

@@ -545,6 +545,7 @@ DEFINE_bool(use_idle_notification, true,
             "Use idle notification to reduce memory footprint.")
 // ic.cc
 DEFINE_bool(use_ic, true, "use inline caching")
+DEFINE_bool(js_accessor_ics, false, "create ics for js accessors")
 
 // macro-assembler-ia32.cc
 DEFINE_bool(native_code_counters, false,

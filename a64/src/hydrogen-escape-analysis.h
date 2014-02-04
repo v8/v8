@@ -49,7 +49,7 @@ class HEscapeAnalysisPhase : public HPhase {
 
  private:
   void CollectCapturedValues();
-  bool HasNoEscapingUses(HValue* value);
+  bool HasNoEscapingUses(HValue* value, int size);
   void PerformScalarReplacement();
   void AnalyzeDataFlow(HInstruction* instr);
 

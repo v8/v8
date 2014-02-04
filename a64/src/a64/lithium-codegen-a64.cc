@@ -31,6 +31,7 @@
 #include "a64/lithium-gap-resolver-a64.h"
 #include "code-stubs.h"
 #include "stub-cache.h"
+#include "hydrogen-osr.h"
 
 namespace v8 {
 namespace internal {
@@ -729,6 +730,21 @@ bool LCodeGen::GeneratePrologue() {
   }
 
   return !is_aborted();
+}
+
+
+void LCodeGen::GenerateOsrPrologue() {
+  // Generate the OSR entry prologue at the first unknown OSR value, or if there
+  // are none, at the OSR entrypoint instruction.
+  if (osr_pc_offset_ >= 0) return;
+
+  osr_pc_offset_ = masm()->pc_offset();
+
+  // Adjust the frame size, subsuming the unoptimized frame into the
+  // optimized frame.
+  int slots = GetStackSlotCount() - graph()->osr()->UnoptimizedFrameSlots();
+  ASSERT(slots >= 0);
+  __ Claim(slots);
 }
 
 
@@ -2007,8 +2023,7 @@ void LCodeGen::DoCallStub(LCallStub* instr) {
 
 
 void LCodeGen::DoUnknownOSRValue(LUnknownOSRValue* instr) {
-  // Record the address of the first unknown OSR value as the place to enter.
-  if (osr_pc_offset_ == -1) osr_pc_offset_ = masm()->pc_offset();
+  GenerateOsrPrologue();
 }
 
 
@@ -4451,9 +4466,7 @@ void LCodeGen::DoOsrEntry(LOsrEntry* instr) {
   ASSERT(!environment->HasBeenRegistered());
   RegisterEnvironmentForDeoptimization(environment, Safepoint::kNoLazyDeopt);
 
-  // Normally we record the first unknown OSR value as the entrypoint to the OSR
-  // code, but if there were none, record the entrypoint here.
-  if (osr_pc_offset_ == -1) osr_pc_offset_ = masm()->pc_offset();
+  GenerateOsrPrologue();
 }
 
 

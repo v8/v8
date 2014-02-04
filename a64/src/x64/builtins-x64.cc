@@ -1418,22 +1418,29 @@ void Builtins::Generate_OnStackReplacement(MacroAssembler* masm) {
     __ CallRuntime(Runtime::kCompileForOnStackReplacement, 1);
   }
 
-  // If the result was -1 it means that we couldn't optimize the
-  // function. Just return and continue in the unoptimized version.
   Label skip;
-  __ SmiCompare(rax, Smi::FromInt(-1));
+  // If the code object is null, just return to the unoptimized code.
+  __ cmpq(rax, Immediate(0));
   __ j(not_equal, &skip, Label::kNear);
   __ ret(0);
 
   __ bind(&skip);
-  // Untag the AST id and push it on the stack.
-  __ SmiToInteger32(rax, rax);
-  __ push(rax);
 
-  // Generate the code for doing the frame-to-frame translation using
-  // the deoptimizer infrastructure.
-  Deoptimizer::EntryGenerator generator(masm, Deoptimizer::OSR);
-  generator.Generate();
+  // Load deoptimization data from the code object.
+  __ movq(rbx, Operand(rax, Code::kDeoptimizationDataOffset - kHeapObjectTag));
+
+  // Load the OSR entrypoint offset from the deoptimization data.
+  __ SmiToInteger32(rbx, Operand(rbx, FixedArray::OffsetOfElementAt(
+      DeoptimizationInputData::kOsrPcOffsetIndex) - kHeapObjectTag));
+
+  // Compute the target address = code_obj + header_size + osr_offset
+  __ lea(rax, Operand(rax, rbx, times_1, Code::kHeaderSize - kHeapObjectTag));
+
+  // Overwrite the return address on the stack.
+  __ movq(Operand(rsp, 0), rax);
+
+  // And "return" to the OSR entry point of the function.
+  __ ret(0);
 }
 
 

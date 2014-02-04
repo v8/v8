@@ -867,6 +867,7 @@ class HValue : public ZoneObject {
 
   // Escape analysis helpers.
   virtual bool HasEscapingOperandAt(int index) { return true; }
+  virtual bool HasOutOfBoundsAccess(int size) { return false; }
 
   // Representation helpers.
   virtual Representation observed_input_representation(int index) {
@@ -4987,19 +4988,18 @@ class HCallStub V8_FINAL : public HUnaryCall {
 
 class HUnknownOSRValue V8_FINAL : public HTemplateInstruction<0> {
  public:
-  DECLARE_INSTRUCTION_FACTORY_P0(HUnknownOSRValue)
+  DECLARE_INSTRUCTION_FACTORY_P2(HUnknownOSRValue, HEnvironment*, int);
+
+  virtual void PrintDataTo(StringStream* stream);
 
   virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
     return Representation::None();
   }
 
-  void set_incoming_value(HPhi* value) {
-    incoming_value_ = value;
-  }
-
-  HPhi* incoming_value() {
-    return incoming_value_;
-  }
+  void set_incoming_value(HPhi* value) { incoming_value_ = value; }
+  HPhi* incoming_value() { return incoming_value_; }
+  HEnvironment *environment() { return environment_; }
+  int index() { return index_; }
 
   virtual Representation KnownOptimalRepresentation() V8_OVERRIDE {
     if (incoming_value_ == NULL) return Representation::None();
@@ -5009,11 +5009,15 @@ class HUnknownOSRValue V8_FINAL : public HTemplateInstruction<0> {
   DECLARE_CONCRETE_INSTRUCTION(UnknownOSRValue)
 
  private:
-  HUnknownOSRValue()
-      : incoming_value_(NULL) {
+  HUnknownOSRValue(HEnvironment* environment, int index)
+      : environment_(environment),
+        index_(index),
+        incoming_value_(NULL) {
     set_representation(Representation::Tagged());
   }
 
+  HEnvironment* environment_;
+  int index_;
   HPhi* incoming_value_;
 };
 
@@ -5755,6 +5759,9 @@ class HLoadNamedField V8_FINAL : public HTemplateInstruction<1> {
   }
 
   virtual bool HasEscapingOperandAt(int index) V8_OVERRIDE { return false; }
+  virtual bool HasOutOfBoundsAccess(int size) V8_OVERRIDE {
+    return !access().IsInobject() || access().offset() >= size;
+  }
   virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
     if (index == 0 && access().IsExternalMemory()) {
       // object must be external in case of external memory access
@@ -6069,6 +6076,9 @@ class HStoreNamedField V8_FINAL : public HTemplateInstruction<3> {
 
   virtual bool HasEscapingOperandAt(int index) V8_OVERRIDE {
     return index == 1;
+  }
+  virtual bool HasOutOfBoundsAccess(int size) V8_OVERRIDE {
+    return !access().IsInobject() || access().offset() >= size;
   }
   virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
     if (index == 0 && access().IsExternalMemory()) {

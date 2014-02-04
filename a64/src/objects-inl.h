@@ -1353,17 +1353,16 @@ inline bool AllocationSite::CanTrack(InstanceType type) {
 }
 
 
-MaybeObject* JSObject::EnsureCanContainHeapObjectElements() {
-  ValidateElements();
-  ElementsKind elements_kind = map()->elements_kind();
+void JSObject::EnsureCanContainHeapObjectElements(Handle<JSObject> object) {
+  object->ValidateElements();
+  ElementsKind elements_kind = object->map()->elements_kind();
   if (!IsFastObjectElementsKind(elements_kind)) {
     if (IsFastHoleyElementsKind(elements_kind)) {
-      return TransitionElementsKind(FAST_HOLEY_ELEMENTS);
+      TransitionElementsKind(object, FAST_HOLEY_ELEMENTS);
     } else {
-      return TransitionElementsKind(FAST_ELEMENTS);
+      TransitionElementsKind(object, FAST_ELEMENTS);
     }
   }
-  return this;
 }
 
 

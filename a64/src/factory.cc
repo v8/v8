@@ -1081,13 +1081,6 @@ void Factory::SetContent(Handle<JSArray> array,
 }
 
 
-void Factory::EnsureCanContainHeapObjectElements(Handle<JSArray> array) {
-  CALL_HEAP_FUNCTION_VOID(
-      isolate(),
-      array->EnsureCanContainHeapObjectElements());
-}
-
-
 void Factory::EnsureCanContainElements(Handle<JSArray> array,
                                        Handle<FixedArrayBase> elements,
                                        uint32_t length,

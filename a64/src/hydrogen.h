@@ -553,9 +553,6 @@ class HEnvironment V8_FINAL : public ZoneObject {
   void set_entry(HEnterInlined* entry) { entry_ = entry; }
 
   int length() const { return values_.length(); }
-  bool is_special_index(int i) const {
-    return i >= parameter_count() && i < parameter_count() + specials_count();
-  }
 
   int first_expression_index() const {
     return parameter_count() + specials_count() + local_count();
@@ -674,8 +671,15 @@ class HEnvironment V8_FINAL : public ZoneObject {
   }
 
   bool is_local_index(int i) const {
-    return i >= first_local_index() &&
-           i < first_expression_index();
+    return i >= first_local_index() && i < first_expression_index();
+  }
+
+  bool is_parameter_index(int i) const {
+    return i >= 0 && i < parameter_count();
+  }
+
+  bool is_special_index(int i) const {
+    return i >= parameter_count() && i < parameter_count() + specials_count();
   }
 
   void PrintTo(StringStream* stream);

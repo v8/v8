@@ -1,3 +1,23 @@
+2013-09-09: Version 3.21.12
+
+        Fixed bitwise negation on x64.
+        (Chromium issue 285355)
+
+        Dropped GetCurrentThreadId() and TerminateExecution(int) from 
+	the external API.
+
+        Fixed polymorphic INTERCEPTOR StoreICs on ARM/MIPS.
+        (Chromium issue 284998)
+
+        Added check if timeout has expired after processing each sample.
+        (issue 2814,v8:2871)
+
+        Removed obsolete global V8::has_been_fooed flags.
+        (issue 2744)
+
+        Performance and stability improvements on all platforms.
+
+
 2013-09-05: Version 3.21.11
 
         Performance and stability improvements on all platforms.

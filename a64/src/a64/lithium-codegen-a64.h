@@ -303,6 +303,9 @@ class LCodeGen BASE_EMBEDDED {
   bool GenerateDeoptJumpTable();
   bool GenerateSafepointTable();
 
+  // Generates the custom OSR entrypoint and sets the osr_pc_offset.
+  void GenerateOsrPrologue();
+
   enum SafepointMode {
     RECORD_SIMPLE_SAFEPOINT,
     RECORD_SAFEPOINT_WITH_REGISTERS_AND_NO_ARGUMENTS
