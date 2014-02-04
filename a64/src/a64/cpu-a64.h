@@ -80,6 +80,10 @@ class CpuFeatures : public AllStatic {
   static bool initialized_;
 #endif
 
+  // This isn't used (and is always 0), but it is required by V8.
+  static unsigned found_by_runtime_probing_only_;
+
+  friend class PlatformFeatureScope;
   DISALLOW_COPY_AND_ASSIGN(CpuFeatures);
 };
 

@@ -29,6 +29,7 @@
 #define V8_HYDROGEN_UNIQUE_H_
 
 #include "handles.h"
+#include "objects.h"
 #include "utils.h"
 #include "zone.h"
 
@@ -53,13 +54,20 @@ class UniqueSet;
 template <typename T>
 class Unique V8_FINAL {
  public:
-  // TODO(titzer): make private and introduce some builder/owner class.
+  // TODO(titzer): make private and introduce a factory.
   explicit Unique(Handle<T> handle) {
     if (handle.is_null()) {
       raw_address_ = NULL;
     } else {
+      // This is a best-effort check to prevent comparing Unique<T>'s created
+      // in different GC eras; we require heap allocation to be disallowed at
+      // creation time.
+      // NOTE: we currently consider maps to be non-movable, so no special
+      // assurance is required for creating a Unique<Map>.
+      // TODO(titzer): other immortable immovable objects are also fine.
+      ASSERT(!AllowHeapAllocation::IsAllowed() || handle->IsMap());
       raw_address_ = reinterpret_cast<Address>(*handle);
-      ASSERT_NE(raw_address_, NULL);
+      ASSERT_NE(raw_address_, NULL);  // Non-null should imply non-zero address.
     }
     handle_ = handle;
   }
@@ -69,7 +77,7 @@ class Unique V8_FINAL {
     : raw_address_(raw_address), handle_(handle) { }
 
   // Constructor for handling automatic up casting.
-  // Ex. Unique<JSFunction> can be passed when Unique<Object> is expected.
+  // Eg. Unique<JSFunction> can be passed when Unique<Object> is expected.
   template <class S> Unique(Unique<S> uniq) {
 #ifdef DEBUG
     T* a = NULL;
@@ -78,32 +86,44 @@ class Unique V8_FINAL {
     USE(a);
 #endif
     raw_address_ = uniq.raw_address_;
-    handle_ = uniq.handle_;  // Creates a new handle sharing the same location.
+    handle_ = uniq.handle_;
   }
 
   template <typename U>
   bool operator==(const Unique<U>& other) const {
+    ASSERT(IsInitialized() && other.IsInitialized());
     return raw_address_ == other.raw_address_;
   }
 
   template <typename U>
   bool operator!=(const Unique<U>& other) const {
+    ASSERT(IsInitialized() && other.IsInitialized());
     return raw_address_ != other.raw_address_;
   }
 
   intptr_t Hashcode() const {
+    ASSERT(IsInitialized());
     return reinterpret_cast<intptr_t>(raw_address_);
   }
 
-  bool IsNull() {
+  bool IsNull() const {
+    ASSERT(IsInitialized());
     return raw_address_ == NULL;
   }
 
-  // Don't do this unless you have access to the heap!
-  // No, seriously! You can compare and hash and set-ify uniques that were
-  // all created at the same time; please don't dereference.
-  Handle<T> handle() {
+  // Extract the handle from this Unique in order to dereference it.
+  // WARNING: Only do this if you have access to the heap.
+  Handle<T> handle() const {
     return handle_;
+  }
+
+  bool IsInitialized() const {
+    return raw_address_ != NULL || handle_.is_null();
+  }
+
+  // TODO(titzer): this is a hack to migrate to Unique<T> incrementally.
+  static Unique<T> CreateUninitialized(Handle<T> handle) {
+    return Unique<T>(static_cast<Address>(NULL), handle);
   }
 
   friend class UniqueSet<T>;  // Uses internal details for speed.
@@ -124,6 +144,7 @@ class UniqueSet V8_FINAL : public ZoneObject {
 
   // Add a new element to this unique set. Mutates this set. O(|this|).
   void Add(Unique<T> uniq, Zone* zone) {
+    ASSERT(uniq.IsInitialized());
     // Keep the set sorted by the {raw_address} of the unique elements.
     for (int i = 0; i < size_; i++) {
       if (array_[i] == uniq) return;

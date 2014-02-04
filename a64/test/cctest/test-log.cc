@@ -60,9 +60,9 @@ class ScopedLoggerInitializer {
         temp_file_(NULL),
         // Need to run this prior to creating the scope.
         trick_to_run_init_flags_(init_flags_()),
-        scope_(v8::Isolate::GetCurrent()),
-        env_(v8::Context::New(v8::Isolate::GetCurrent())),
-        logger_(i::Isolate::Current()->logger()) {
+        scope_(CcTest::isolate()),
+        env_(v8::Context::New(CcTest::isolate())),
+        logger_(CcTest::i_isolate()->logger()) {
     env_->Enter();
   }
 
@@ -169,8 +169,8 @@ class LoopingJsThread : public LoopingThread {
       : LoopingThread(isolate) { }
   void RunLoop() {
     v8::Locker locker;
-    CHECK(i::Isolate::Current() != NULL);
-    CHECK_GT(i::Isolate::Current()->thread_manager()->CurrentId(), 0);
+    CHECK(CcTest::i_isolate() != NULL);
+    CHECK_GT(CcTest::i_isolate()->thread_manager()->CurrentId(), 0);
     SetV8ThreadId();
     while (IsRunning()) {
       v8::HandleScope scope;
@@ -197,8 +197,8 @@ class LoopingNonJsThread : public LoopingThread {
     v8::Locker locker;
     v8::Unlocker unlocker;
     // Now thread has V8's id, but will not run VM code.
-    CHECK(i::Isolate::Current() != NULL);
-    CHECK_GT(i::Isolate::Current()->thread_manager()->CurrentId(), 0);
+    CHECK(CcTest::i_isolate() != NULL);
+    CHECK_GT(CcTest::i_isolate()->thread_manager()->CurrentId(), 0);
     double i = 10;
     SignalRunning();
     while (IsRunning()) {
@@ -243,14 +243,14 @@ TEST(ProfMultipleThreads) {
   TestSampler* sampler = NULL;
   {
     v8::Locker locker;
-    sampler = new TestSampler(v8::internal::Isolate::Current());
+    sampler = new TestSampler(CcTest::i_isolate());
     sampler->Start();
     CHECK(sampler->IsActive());
   }
 
-  LoopingJsThread jsThread(v8::internal::Isolate::Current());
+  LoopingJsThread jsThread(CcTest::i_isolate());
   jsThread.Start();
-  LoopingNonJsThread nonJsThread(v8::internal::Isolate::Current());
+  LoopingNonJsThread nonJsThread(CcTest::i_isolate());
   nonJsThread.Start();
 
   CHECK(!sampler->WasSampleStackCalled());
@@ -299,8 +299,8 @@ class SimpleExternalString : public v8::String::ExternalStringResource {
 }  // namespace
 
 TEST(Issue23768) {
-  v8::HandleScope scope(v8::Isolate::GetCurrent());
-  v8::Handle<v8::Context> env = v8::Context::New(v8::Isolate::GetCurrent());
+  v8::HandleScope scope(CcTest::isolate());
+  v8::Handle<v8::Context> env = v8::Context::New(CcTest::isolate());
   env->Enter();
 
   SimpleExternalString source_ext_str("(function ext() {})();");
@@ -317,7 +317,7 @@ TEST(Issue23768) {
   i_source->set_resource(NULL);
 
   // Must not crash.
-  i::Isolate::Current()->logger()->LogCompiledFunctions();
+  CcTest::i_isolate()->logger()->LogCompiledFunctions();
 }
 
 
@@ -325,12 +325,12 @@ static void ObjMethod1(const v8::FunctionCallbackInfo<v8::Value>& args) {
 }
 
 
-TEST(LogCallbacks) {
+UNINITIALIZED_TEST(LogCallbacks) {
   ScopedLoggerInitializer initialize_logger;
   Logger* logger = initialize_logger.logger();
 
   v8::Local<v8::FunctionTemplate> obj =
-      v8::Local<v8::FunctionTemplate>::New(v8::Isolate::GetCurrent(),
+      v8::Local<v8::FunctionTemplate>::New(CcTest::isolate(),
                                            v8::FunctionTemplate::New());
   obj->SetClassName(v8_str("Obj"));
   v8::Handle<v8::ObjectTemplate> proto = obj->PrototypeTemplate();
@@ -374,12 +374,12 @@ static void Prop2Getter(v8::Local<v8::String> property,
 }
 
 
-TEST(LogAccessorCallbacks) {
+UNINITIALIZED_TEST(LogAccessorCallbacks) {
   ScopedLoggerInitializer initialize_logger;
   Logger* logger = initialize_logger.logger();
 
   v8::Local<v8::FunctionTemplate> obj =
-      v8::Local<v8::FunctionTemplate>::New(v8::Isolate::GetCurrent(),
+      v8::Local<v8::FunctionTemplate>::New(CcTest::isolate(),
                                            v8::FunctionTemplate::New());
   obj->SetClassName(v8_str("Obj"));
   v8::Handle<v8::ObjectTemplate> inst = obj->InstanceTemplate();
@@ -421,7 +421,7 @@ typedef i::NativesCollection<i::TEST> TestSources;
 
 // Test that logging of code create / move events is equivalent to traversal of
 // a resulting heap.
-TEST(EquivalenceOfLoggingAndTraversal) {
+UNINITIALIZED_TEST(EquivalenceOfLoggingAndTraversal) {
   // This test needs to be run on a "clean" V8 to ensure that snapshot log
   // is loaded. This is always true when running using tools/test.py because
   // it launches a new cctest instance for every test. To be sure that launching
@@ -439,7 +439,7 @@ TEST(EquivalenceOfLoggingAndTraversal) {
       "    (function a(j) { return function b() { return j; } })(100);\n"
       "})(this);");
   logger->StopProfiler();
-  HEAP->CollectAllGarbage(i::Heap::kMakeHeapIterableMask);
+  CcTest::heap()->CollectAllGarbage(i::Heap::kMakeHeapIterableMask);
   logger->StringEvent("test-logging-done", "");
 
   // Iterate heap to find compiled functions, will write to log.

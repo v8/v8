@@ -1370,12 +1370,12 @@ LInstruction* LChunkBuilder::DoCompareGeneric(HCompareGeneric* instr) {
 
 LInstruction* LChunkBuilder::DoCompareHoleAndBranch(
     HCompareHoleAndBranch* instr) {
-  LOperand* object = UseRegister(instr->object());
+  LOperand* value = UseRegister(instr->value());
   if (instr->representation().IsTagged()) {
-    return new(zone()) LCmpHoleAndBranchT(object);
+    return new(zone()) LCmpHoleAndBranchT(value);
   } else {
     LOperand* temp = TempRegister();
-    return new(zone()) LCmpHoleAndBranchD(object, temp);
+    return new(zone()) LCmpHoleAndBranchD(value, temp);
   }
 }
 
@@ -1611,12 +1611,6 @@ LInstruction* LChunkBuilder::DoIsConstructCallAndBranch(
 }
 
 
-LInstruction* LChunkBuilder::DoIsNumberAndBranch(HIsNumberAndBranch* instr) {
-  return new(zone())
-    LIsNumberAndBranch(UseRegisterOrConstantAtStart(instr->value()));
-}
-
-
 LInstruction* LChunkBuilder::DoIsObjectAndBranch(HIsObjectAndBranch* instr) {
   ASSERT(instr->value()->representation().IsTagged());
   LOperand* value = UseRegisterAtStart(instr->value());
@@ -1772,6 +1766,11 @@ LInstruction* LChunkBuilder::DoLoadNamedGeneric(HLoadNamedGeneric* instr) {
   LOperand* object = UseFixed(instr->object(), x0);
   LInstruction* result = DefineFixed(new(zone()) LLoadNamedGeneric(object), x0);
   return MarkAsCall(result, instr);
+}
+
+
+LInstruction* LChunkBuilder::DoLoadRoot(HLoadRoot* instr) {
+  return DefineAsRegister(new(zone()) LLoadRoot);
 }
 
 

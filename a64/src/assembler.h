@@ -134,6 +134,19 @@ class CpuFeatureScope BASE_EMBEDDED {
 };
 
 
+// Enable a unsupported feature within a scope for cross-compiling for a
+// different CPU.
+class PlatformFeatureScope BASE_EMBEDDED {
+ public:
+  explicit PlatformFeatureScope(CpuFeature f);
+  ~PlatformFeatureScope();
+
+ private:
+  uint64_t old_supported_;
+  uint64_t old_found_by_runtime_probing_only_;
+};
+
+
 // -----------------------------------------------------------------------------
 // Labels represent pc locations; they are typically jump or call targets.
 // After declaration, a label can be freely used to denote known or (yet)

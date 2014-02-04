@@ -113,7 +113,6 @@ class LCodeGen;
   V(Integer32ToSmi)                             \
   V(InvokeFunction)                             \
   V(IsConstructCallAndBranch)                   \
-  V(IsNumberAndBranch)                          \
   V(IsObjectAndBranch)                          \
   V(IsSmiAndBranch)                             \
   V(IsStringAndBranch)                          \
@@ -132,6 +131,7 @@ class LCodeGen;
   V(LoadKeyedGeneric)                           \
   V(LoadNamedField)                             \
   V(LoadNamedGeneric)                           \
+  V(LoadRoot)                                   \
   V(MapEnumLength)                              \
   V(MathAbs)                                    \
   V(MathAbsTagged)                              \
@@ -147,7 +147,7 @@ class LCodeGen;
   V(MathSqrt)                                   \
   V(MathTan)                                    \
   V(ModI)                                       \
-  V(MulConstIS)                                  \
+  V(MulConstIS)                                 \
   V(MulI)                                       \
   V(MulS)                                       \
   V(NumberTagD)                                 \
@@ -1110,7 +1110,7 @@ class LCmpMapAndBranch V8_FINAL : public LControlInstruction<1, 1> {
   DECLARE_CONCRETE_INSTRUCTION(CmpMapAndBranch, "cmp-map-and-branch")
   DECLARE_HYDROGEN_ACCESSOR(CompareMap)
 
-  Handle<Map> map() const { return hydrogen()->map(); }
+  Handle<Map> map() const { return hydrogen()->map().handle(); }
 };
 
 
@@ -1522,19 +1522,6 @@ class LIsConstructCallAndBranch V8_FINAL : public LControlInstruction<0, 2> {
 };
 
 
-class LIsNumberAndBranch V8_FINAL : public LControlInstruction<1, 0> {
- public:
-  explicit LIsNumberAndBranch(LOperand* value) {
-    inputs_[0] = value;
-  }
-
-  LOperand* value() { return inputs_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(IsNumberAndBranch, "is-number-and-branch")
-  DECLARE_HYDROGEN_ACCESSOR(IsNumberAndBranch)
-};
-
-
 class LIsObjectAndBranch V8_FINAL : public LControlInstruction<1, 2> {
  public:
   LIsObjectAndBranch(LOperand* value, LOperand* temp1, LOperand* temp2) {
@@ -1792,6 +1779,15 @@ class LLoadNamedGeneric V8_FINAL : public LTemplateInstruction<1, 1, 0> {
   DECLARE_HYDROGEN_ACCESSOR(LoadNamedGeneric)
 
   Handle<Object> name() const { return hydrogen()->name(); }
+};
+
+
+class LLoadRoot V8_FINAL : public LTemplateInstruction<1, 0, 0> {
+ public:
+  DECLARE_CONCRETE_INSTRUCTION(LoadRoot, "load-root")
+  DECLARE_HYDROGEN_ACCESSOR(LoadRoot)
+
+  Heap::RootListIndex index() const { return hydrogen()->index(); }
 };
 
 

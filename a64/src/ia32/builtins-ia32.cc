@@ -1065,13 +1065,11 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
 
   // Lookup the argument in the number to string cache.
   Label not_cached, argument_is_string;
-  NumberToStringStub::GenerateLookupNumberStringCache(
-      masm,
-      eax,  // Input.
-      ebx,  // Result.
-      ecx,  // Scratch 1.
-      edx,  // Scratch 2.
-      &not_cached);
+  __ LookupNumberStringCache(eax,  // Input.
+                             ebx,  // Result.
+                             ecx,  // Scratch 1.
+                             edx,  // Scratch 2.
+                             &not_cached);
   __ IncrementCounter(counters->string_ctor_cached_number(), 1);
   __ bind(&argument_is_string);
   // ----------- S t a t e -------------

@@ -1609,21 +1609,15 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
       : ObjectLiteral::kNoFlags;
   int properties_count = constant_properties->length() / 2;
   if ((FLAG_track_double_fields && expr->may_store_doubles()) ||
-      expr->depth() > 1) {
-    __ movq(rdi, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
-    __ push(FieldOperand(rdi, JSFunction::kLiteralsOffset));
-    __ Push(Smi::FromInt(expr->literal_index()));
-    __ Push(constant_properties);
-    __ Push(Smi::FromInt(flags));
-    __ CallRuntime(Runtime::kCreateObjectLiteral, 4);
-  } else if (Serializer::enabled() || flags != ObjectLiteral::kFastElements ||
+      expr->depth() > 1 || Serializer::enabled() ||
+      flags != ObjectLiteral::kFastElements ||
       properties_count > FastCloneShallowObjectStub::kMaximumClonedProperties) {
     __ movq(rdi, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
     __ push(FieldOperand(rdi, JSFunction::kLiteralsOffset));
     __ Push(Smi::FromInt(expr->literal_index()));
     __ Push(constant_properties);
     __ Push(Smi::FromInt(flags));
-    __ CallRuntime(Runtime::kCreateObjectLiteralShallow, 4);
+    __ CallRuntime(Runtime::kCreateObjectLiteral, 4);
   } else {
     __ movq(rdi, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
     __ movq(rax, FieldOperand(rdi, JSFunction::kLiteralsOffset));
@@ -4882,6 +4876,88 @@ FullCodeGenerator::NestedStatement* FullCodeGenerator::TryFinally::Exit(
 
 
 #undef __
+
+
+static const byte kJnsInstruction = 0x79;
+static const byte kJnsOffset = 0x1d;
+static const byte kCallInstruction = 0xe8;
+static const byte kNopByteOne = 0x66;
+static const byte kNopByteTwo = 0x90;
+
+// The back edge bookkeeping code matches the pattern:
+//
+//     add <profiling_counter>, <-delta>
+//     jns ok
+//     call <stack guard>
+//   ok:
+//
+// We will patch away the branch so the code is:
+//
+//     add <profiling_counter>, <-delta>  ;; Not changed
+//     nop
+//     nop
+//     call <on-stack replacment>
+//   ok:
+
+void BackEdgeTable::PatchAt(Code* unoptimized_code,
+                            Address pc_after,
+                            Code* replacement_code) {
+  // Turn the jump into nops.
+  Address call_target_address = pc_after - kIntSize;
+  *(call_target_address - 3) = kNopByteOne;
+  *(call_target_address - 2) = kNopByteTwo;
+  // Replace the call address.
+  Assembler::set_target_address_at(call_target_address,
+                                   replacement_code->entry());
+
+  unoptimized_code->GetHeap()->incremental_marking()->RecordCodeTargetPatch(
+      unoptimized_code, call_target_address, replacement_code);
+}
+
+
+void BackEdgeTable::RevertAt(Code* unoptimized_code,
+                             Address pc_after,
+                             Code* interrupt_code) {
+  // Restore the original jump.
+  Address call_target_address = pc_after - kIntSize;
+  *(call_target_address - 3) = kJnsInstruction;
+  *(call_target_address - 2) = kJnsOffset;
+  // Restore the original call address.
+  Assembler::set_target_address_at(call_target_address,
+                                   interrupt_code->entry());
+
+  interrupt_code->GetHeap()->incremental_marking()->RecordCodeTargetPatch(
+      unoptimized_code, call_target_address, interrupt_code);
+}
+
+
+#ifdef DEBUG
+BackEdgeTable::BackEdgeState BackEdgeTable::GetBackEdgeState(
+    Isolate* isolate,
+    Code* unoptimized_code,
+    Address pc_after) {
+  Address call_target_address = pc_after - kIntSize;
+  ASSERT_EQ(kCallInstruction, *(call_target_address - 1));
+  if (*(call_target_address - 3) == kNopByteOne) {
+    ASSERT_EQ(kNopByteTwo,      *(call_target_address - 2));
+    Code* osr_builtin =
+        isolate->builtins()->builtin(Builtins::kOnStackReplacement);
+    ASSERT_EQ(osr_builtin->entry(),
+              Assembler::target_address_at(call_target_address));
+    return ON_STACK_REPLACEMENT;
+  } else {
+    // Get the interrupt stub code object to match against from cache.
+    Code* interrupt_builtin =
+        isolate->builtins()->builtin(Builtins::kInterruptCheck);
+    ASSERT_EQ(interrupt_builtin->entry(),
+              Assembler::target_address_at(call_target_address));
+    ASSERT_EQ(kJnsInstruction,  *(call_target_address - 3));
+    ASSERT_EQ(kJnsOffset,       *(call_target_address - 2));
+    return INTERRUPT;
+  }
+}
+#endif  // DEBUG
+
 
 } }  // namespace v8::internal
 

@@ -55,7 +55,7 @@ UnaryMathFunction CreateTranscendentalFunction(TranscendentalCache::Type type) {
 #if defined(USE_SIMULATOR)
 byte* fast_exp_arm_machine_code = NULL;
 double fast_exp_simulator(double x) {
-  return Simulator::current(Isolate::Current())->CallFP(
+  return Simulator::current(Isolate::Current())->CallFPReturnsDouble(
       fast_exp_arm_machine_code, x, 0);
 }
 #endif

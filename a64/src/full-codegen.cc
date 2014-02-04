@@ -1615,6 +1615,79 @@ bool FullCodeGenerator::TryLiteralCompare(CompareOperation* expr) {
 }
 
 
+void BackEdgeTable::Patch(Isolate* isolate,
+                          Code* unoptimized) {
+  DisallowHeapAllocation no_gc;
+  Code* replacement_code =
+      isolate->builtins()->builtin(Builtins::kOnStackReplacement);
+
+  // Iterate over the back edge table and patch every interrupt
+  // call to an unconditional call to the replacement code.
+  int loop_nesting_level = unoptimized->allow_osr_at_loop_nesting_level();
+
+  BackEdgeTable back_edges(unoptimized, &no_gc);
+  for (uint32_t i = 0; i < back_edges.length(); i++) {
+    if (static_cast<int>(back_edges.loop_depth(i)) == loop_nesting_level) {
+      ASSERT_EQ(INTERRUPT, GetBackEdgeState(isolate,
+                                            unoptimized,
+                                            back_edges.pc(i)));
+      PatchAt(unoptimized, back_edges.pc(i), replacement_code);
+    }
+  }
+
+  unoptimized->set_back_edges_patched_for_osr(true);
+  ASSERT(Verify(isolate, unoptimized, loop_nesting_level));
+}
+
+
+void BackEdgeTable::Revert(Isolate* isolate,
+                           Code* unoptimized) {
+  DisallowHeapAllocation no_gc;
+  Code* interrupt_code =
+      isolate->builtins()->builtin(Builtins::kInterruptCheck);
+
+  // Iterate over the back edge table and revert the patched interrupt calls.
+  ASSERT(unoptimized->back_edges_patched_for_osr());
+  int loop_nesting_level = unoptimized->allow_osr_at_loop_nesting_level();
+
+  BackEdgeTable back_edges(unoptimized, &no_gc);
+  for (uint32_t i = 0; i < back_edges.length(); i++) {
+    if (static_cast<int>(back_edges.loop_depth(i)) <= loop_nesting_level) {
+      ASSERT_EQ(ON_STACK_REPLACEMENT, GetBackEdgeState(isolate,
+                                                       unoptimized,
+                                                       back_edges.pc(i)));
+      RevertAt(unoptimized, back_edges.pc(i), interrupt_code);
+    }
+  }
+
+  unoptimized->set_back_edges_patched_for_osr(false);
+  unoptimized->set_allow_osr_at_loop_nesting_level(0);
+  // Assert that none of the back edges are patched anymore.
+  ASSERT(Verify(isolate, unoptimized, -1));
+}
+
+
+#ifdef DEBUG
+bool BackEdgeTable::Verify(Isolate* isolate,
+                           Code* unoptimized,
+                           int loop_nesting_level) {
+  DisallowHeapAllocation no_gc;
+  BackEdgeTable back_edges(unoptimized, &no_gc);
+  for (uint32_t i = 0; i < back_edges.length(); i++) {
+    uint32_t loop_depth = back_edges.loop_depth(i);
+    CHECK_LE(static_cast<int>(loop_depth), Code::kMaxLoopNestingMarker);
+    // Assert that all back edges for shallower loops (and only those)
+    // have already been patched.
+    CHECK_EQ((static_cast<int>(loop_depth) <= loop_nesting_level),
+             GetBackEdgeState(isolate,
+                              unoptimized,
+                              back_edges.pc(i)) != INTERRUPT);
+  }
+  return true;
+}
+#endif  // DEBUG
+
+
 #undef __
 
 

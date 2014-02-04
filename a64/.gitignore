@@ -44,6 +44,7 @@ shell_g
 /test/benchmarks/octane
 /test/benchmarks/sunspider
 /test/cctest/cctest.status2
+/test/intl/intl.status2
 /test/message/message.status2
 /test/mjsunit/mjsunit.status2
 /test/mozilla/CHECKED_OUT_VERSION

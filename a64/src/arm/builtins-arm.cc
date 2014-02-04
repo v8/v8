@@ -193,14 +193,12 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
 
   Register argument = r2;
   Label not_cached, argument_is_string;
-  NumberToStringStub::GenerateLookupNumberStringCache(
-      masm,
-      r0,        // Input.
-      argument,  // Result.
-      r3,        // Scratch.
-      r4,        // Scratch.
-      r5,        // Scratch.
-      &not_cached);
+  __ LookupNumberStringCache(r0,        // Input.
+                             argument,  // Result.
+                             r3,        // Scratch.
+                             r4,        // Scratch.
+                             r5,        // Scratch.
+                             &not_cached);
   __ IncrementCounter(counters->string_ctor_cached_number(), 1, r3, r4);
   __ bind(&argument_is_string);
 

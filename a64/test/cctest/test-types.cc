@@ -192,7 +192,7 @@ class HandlifiedTypes {
 
 TEST(Bitset) {
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
   HandlifiedTypes T(isolate);
 
@@ -217,7 +217,7 @@ TEST(Bitset) {
 
 TEST(Class) {
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
   HandlifiedTypes T(isolate);
 
@@ -231,7 +231,7 @@ TEST(Class) {
 
 TEST(Constant) {
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
   HandlifiedTypes T(isolate);
 
@@ -252,7 +252,7 @@ TEST(Constant) {
 
 TEST(Is) {
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
   HandlifiedTypes T(isolate);
 
@@ -332,7 +332,7 @@ TEST(Is) {
 
 TEST(Maybe) {
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
   HandlifiedTypes T(isolate);
 
@@ -403,7 +403,7 @@ TEST(Maybe) {
 
 TEST(Union) {
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
   HandlifiedTypes T(isolate);
 
@@ -569,7 +569,7 @@ TEST(Union) {
 
 TEST(Intersect) {
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
   HandlifiedTypes T(isolate);
 

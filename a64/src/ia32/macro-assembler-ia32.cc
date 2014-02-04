@@ -1115,14 +1115,16 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles) {
   // Push the return address to get ready to return.
   push(ecx);
 
-  LeaveExitFrameEpilogue();
+  LeaveExitFrameEpilogue(true);
 }
 
 
-void MacroAssembler::LeaveExitFrameEpilogue() {
+void MacroAssembler::LeaveExitFrameEpilogue(bool restore_context) {
   // Restore current context from top and clear it in debug mode.
   ExternalReference context_address(Isolate::kContextAddress, isolate());
-  mov(esi, Operand::StaticVariable(context_address));
+  if (restore_context) {
+    mov(esi, Operand::StaticVariable(context_address));
+  }
 #ifdef DEBUG
   mov(Operand::StaticVariable(context_address), Immediate(0));
 #endif
@@ -1134,11 +1136,11 @@ void MacroAssembler::LeaveExitFrameEpilogue() {
 }
 
 
-void MacroAssembler::LeaveApiExitFrame() {
+void MacroAssembler::LeaveApiExitFrame(bool restore_context) {
   mov(esp, ebp);
   pop(ebp);
 
-  LeaveExitFrameEpilogue();
+  LeaveExitFrameEpilogue(restore_context);
 }
 
 
@@ -2227,11 +2229,13 @@ void MacroAssembler::PrepareCallApiFunction(int argc) {
 }
 
 
-void MacroAssembler::CallApiFunctionAndReturn(Address function_address,
-                                              Address thunk_address,
-                                              Operand thunk_last_arg,
-                                              int stack_space,
-                                              int return_value_offset) {
+void MacroAssembler::CallApiFunctionAndReturn(
+    Address function_address,
+    Address thunk_address,
+    Operand thunk_last_arg,
+    int stack_space,
+    Operand return_value_operand,
+    Operand* context_restore_operand) {
   ExternalReference next_address =
       ExternalReference::handle_scope_next_address(isolate());
   ExternalReference limit_address =
@@ -2287,9 +2291,10 @@ void MacroAssembler::CallApiFunctionAndReturn(Address function_address,
 
   Label prologue;
   // Load the value from ReturnValue
-  mov(eax, Operand(ebp, return_value_offset * kPointerSize));
+  mov(eax, return_value_operand);
 
   Label promote_scheduled_exception;
+  Label exception_handled;
   Label delete_allocated_handles;
   Label leave_exit_frame;
 
@@ -2309,6 +2314,7 @@ void MacroAssembler::CallApiFunctionAndReturn(Address function_address,
   cmp(Operand::StaticVariable(scheduled_exception_address),
       Immediate(isolate()->factory()->the_hole_value()));
   j(not_equal, &promote_scheduled_exception);
+  bind(&exception_handled);
 
 #if ENABLE_EXTRA_CHECKS
   // Check if the function returned a valid JavaScript value.
@@ -2345,11 +2351,19 @@ void MacroAssembler::CallApiFunctionAndReturn(Address function_address,
   bind(&ok);
 #endif
 
-  LeaveApiExitFrame();
+  bool restore_context = context_restore_operand != NULL;
+  if (restore_context) {
+    mov(esi, *context_restore_operand);
+  }
+  LeaveApiExitFrame(!restore_context);
   ret(stack_space * kPointerSize);
 
   bind(&promote_scheduled_exception);
-  TailCallRuntime(Runtime::kPromoteScheduledException, 0, 1);
+  {
+    FrameScope frame(this, StackFrame::INTERNAL);
+    CallRuntime(Runtime::kPromoteScheduledException, 0);
+  }
+  jmp(&exception_handled);
 
   // HandleScope limit has changed. Delete allocated extensions.
   ExternalReference delete_extensions =
@@ -3006,6 +3020,88 @@ void MacroAssembler::LoadPowerOf2(XMMRegister dst,
   mov(scratch, Immediate(power + HeapNumber::kExponentBias));
   movd(dst, scratch);
   psllq(dst, HeapNumber::kMantissaBits);
+}
+
+
+void MacroAssembler::LookupNumberStringCache(Register object,
+                                             Register result,
+                                             Register scratch1,
+                                             Register scratch2,
+                                             Label* not_found) {
+  // Use of registers. Register result is used as a temporary.
+  Register number_string_cache = result;
+  Register mask = scratch1;
+  Register scratch = scratch2;
+
+  // Load the number string cache.
+  LoadRoot(number_string_cache, Heap::kNumberStringCacheRootIndex);
+  // Make the hash mask from the length of the number string cache. It
+  // contains two elements (number and string) for each cache entry.
+  mov(mask, FieldOperand(number_string_cache, FixedArray::kLengthOffset));
+  shr(mask, kSmiTagSize + 1);  // Untag length and divide it by two.
+  sub(mask, Immediate(1));  // Make mask.
+
+  // Calculate the entry in the number string cache. The hash value in the
+  // number string cache for smis is just the smi value, and the hash for
+  // doubles is the xor of the upper and lower words. See
+  // Heap::GetNumberStringCache.
+  Label smi_hash_calculated;
+  Label load_result_from_cache;
+  Label not_smi;
+  STATIC_ASSERT(kSmiTag == 0);
+  JumpIfNotSmi(object, &not_smi, Label::kNear);
+  mov(scratch, object);
+  SmiUntag(scratch);
+  jmp(&smi_hash_calculated, Label::kNear);
+  bind(&not_smi);
+  cmp(FieldOperand(object, HeapObject::kMapOffset),
+      isolate()->factory()->heap_number_map());
+  j(not_equal, not_found);
+  STATIC_ASSERT(8 == kDoubleSize);
+  mov(scratch, FieldOperand(object, HeapNumber::kValueOffset));
+  xor_(scratch, FieldOperand(object, HeapNumber::kValueOffset + 4));
+  // Object is heap number and hash is now in scratch. Calculate cache index.
+  and_(scratch, mask);
+  Register index = scratch;
+  Register probe = mask;
+  mov(probe,
+      FieldOperand(number_string_cache,
+                   index,
+                   times_twice_pointer_size,
+                   FixedArray::kHeaderSize));
+  JumpIfSmi(probe, not_found);
+  if (CpuFeatures::IsSupported(SSE2)) {
+    CpuFeatureScope fscope(this, SSE2);
+    movdbl(xmm0, FieldOperand(object, HeapNumber::kValueOffset));
+    ucomisd(xmm0, FieldOperand(probe, HeapNumber::kValueOffset));
+  } else {
+    fld_d(FieldOperand(object, HeapNumber::kValueOffset));
+    fld_d(FieldOperand(probe, HeapNumber::kValueOffset));
+    FCmp();
+  }
+  j(parity_even, not_found);  // Bail out if NaN is involved.
+  j(not_equal, not_found);  // The cache did not contain this value.
+  jmp(&load_result_from_cache, Label::kNear);
+
+  bind(&smi_hash_calculated);
+  // Object is smi and hash is now in scratch. Calculate cache index.
+  and_(scratch, mask);
+  // Check if the entry is the smi we are looking for.
+  cmp(object,
+      FieldOperand(number_string_cache,
+                   index,
+                   times_twice_pointer_size,
+                   FixedArray::kHeaderSize));
+  j(not_equal, not_found);
+
+  // Get the result from the cache.
+  bind(&load_result_from_cache);
+  mov(result,
+      FieldOperand(number_string_cache,
+                   index,
+                   times_twice_pointer_size,
+                   FixedArray::kHeaderSize + kPointerSize));
+  IncrementCounter(isolate()->counters()->number_to_string_native(), 1);
 }
 
 

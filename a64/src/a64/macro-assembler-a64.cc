@@ -1262,13 +1262,15 @@ static int AddressOffset(ExternalReference ref0, ExternalReference ref1) {
 }
 
 
-void MacroAssembler::CallApiFunctionAndReturn(ExternalReference function,
-                                              Address function_address,
-                                              ExternalReference thunk_ref,
-                                              Register thunk_last_arg,
-                                              int stack_space,
-                                              int spill_offset,
-                                              int return_value_offset_from_fp) {
+void MacroAssembler::CallApiFunctionAndReturn(
+    ExternalReference function,
+    Address function_address,
+    ExternalReference thunk_ref,
+    Register thunk_last_arg,
+    int stack_space,
+    int spill_offset,
+    MemOperand return_value_operand,
+    MemOperand* context_restore_operand) {
   ASM_LOCATION("CallApiFunctionAndReturn");
   ExternalReference next_address =
       ExternalReference::handle_scope_next_address(isolate());
@@ -1346,13 +1348,14 @@ void MacroAssembler::CallApiFunctionAndReturn(ExternalReference function,
   }
 
   Label promote_scheduled_exception;
+  Label exception_handled;
   Label delete_allocated_handles;
   Label leave_exit_frame;
   Label result_is_not_null;
   Label return_value_loaded;
 
   // load value from ReturnValue
-  Ldr(x0, MemOperand(fp, return_value_offset_from_fp * kPointerSize));
+  Ldr(x0, return_value_operand);
   Bind(&return_value_loaded);
   // No more valid handles (the result handle was the last one). Restore
   // previous handle scope.
@@ -1379,16 +1382,24 @@ void MacroAssembler::CallApiFunctionAndReturn(ExternalReference function,
   Mov(x5, Operand(ExternalReference::scheduled_exception_address(isolate())));
   Ldr(x5, MemOperand(x5));
   JumpIfNotRoot(x5, Heap::kTheHoleValueRootIndex, &promote_scheduled_exception);
+  Bind(&exception_handled);
 
-  LeaveExitFrame(false, x1);
+  bool restore_context = context_restore_operand != NULL;
+  if (restore_context) {
+    Ldr(cp, *context_restore_operand);
+  }
+
+  LeaveExitFrame(false, x1, !restore_context);
   Drop(stack_space);
   Ret();
 
   Bind(&promote_scheduled_exception);
-  TailCallExternalReference(
-      ExternalReference(Runtime::kPromoteScheduledException, isolate()),
-      0,
-      1);
+  {
+    FrameScope frame(this, StackFrame::INTERNAL);
+    CallExternalReference(
+        ExternalReference(Runtime::kPromoteScheduledException, isolate()), 0);
+  }
+  B(&exception_handled);
 
   // HandleScope limit has changed. Delete allocated extensions.
   Bind(&delete_allocated_handles);
@@ -1792,6 +1803,80 @@ void MacroAssembler::JumpIfNotHeapNumber(Register object,
                     heap_number_map,
                     NULL,
                     on_not_heap_number);
+}
+
+
+void MacroAssembler::LookupNumberStringCache(Register object,
+                                             Register result,
+                                             Register scratch1,
+                                             Register scratch2,
+                                             Register scratch3,
+                                             Label* not_found) {
+  ASSERT(!AreAliased(object, result, scratch1, scratch2, scratch3));
+
+  // Use of registers. Register result is used as a temporary.
+  Register number_string_cache = result;
+  Register mask = scratch3;
+
+  // Load the number string cache.
+  LoadRoot(number_string_cache, Heap::kNumberStringCacheRootIndex);
+
+  // Make the hash mask from the length of the number string cache. It
+  // contains two elements (number and string) for each cache entry.
+  Ldrsw(mask, UntagSmiFieldMemOperand(number_string_cache,
+                                      FixedArray::kLengthOffset));
+  Asr(mask, mask, 1);  // Divide length by two.
+  Sub(mask, mask, 1);  // Make mask.
+
+  // Calculate the entry in the number string cache. The hash value in the
+  // number string cache for smis is just the smi value, and the hash for
+  // doubles is the xor of the upper and lower words. See
+  // Heap::GetNumberStringCache.
+  Label is_smi;
+  Label load_result_from_cache;
+
+  JumpIfSmi(object, &is_smi);
+  CheckMap(object, scratch1, Heap::kHeapNumberMapRootIndex, not_found,
+           DONT_DO_SMI_CHECK);
+
+  STATIC_ASSERT(kDoubleSize == (kWRegSizeInBytes * 2));
+  Add(scratch1, object, HeapNumber::kValueOffset - kHeapObjectTag);
+  Ldp(scratch1.W(), scratch2.W(), MemOperand(scratch1));
+  Eor(scratch1, scratch1, scratch2);
+  And(scratch1, scratch1, mask);
+
+  // Calculate address of entry in string cache: each entry consists of two
+  // pointer sized fields.
+  Add(scratch1, number_string_cache,
+      Operand(scratch1, LSL, kPointerSizeLog2 + 1));
+
+  Register probe = mask;
+  Ldr(probe, FieldMemOperand(scratch1, FixedArray::kHeaderSize));
+  JumpIfSmi(probe, not_found);
+  Ldr(d0, FieldMemOperand(object, HeapNumber::kValueOffset));
+  Ldr(d1, FieldMemOperand(probe, HeapNumber::kValueOffset));
+  Fcmp(d0, d1);
+  B(ne, not_found);
+  B(&load_result_from_cache);
+
+  Bind(&is_smi);
+  Register scratch = scratch1;
+  And(scratch, mask, Operand::UntagSmi(object));
+  // Calculate address of entry in string cache: each entry consists
+  // of two pointer sized fields.
+  Add(scratch, number_string_cache,
+      Operand(scratch, LSL, kPointerSizeLog2 + 1));
+
+  // Check if the entry is the smi we are looking for.
+  Ldr(probe, FieldMemOperand(scratch, FixedArray::kHeaderSize));
+  Cmp(object, probe);
+  B(ne, not_found);
+
+  // Get the result from the cache.
+  Bind(&load_result_from_cache);
+  Ldr(result, FieldMemOperand(scratch, FixedArray::kHeaderSize + kPointerSize));
+  IncrementCounter(isolate()->counters()->number_to_string_native(), 1,
+                   scratch1, scratch2);
 }
 
 
@@ -2613,7 +2698,8 @@ void MacroAssembler::EnterExitFrame(bool save_doubles,
 
 // Leave the current exit frame.
 void MacroAssembler::LeaveExitFrame(bool restore_doubles,
-                                    const Register& scratch) {
+                                    const Register& scratch,
+                                    bool restore_context) {
   ASSERT(csp.Is(StackPointer()));
 
   if (restore_doubles) {
@@ -2621,11 +2707,16 @@ void MacroAssembler::LeaveExitFrame(bool restore_doubles,
   }
 
   // Restore the context pointer from the top frame.
-  Mov(scratch, Operand(ExternalReference(Isolate::kContextAddress,
-                                         isolate())));
-  Ldr(cp, MemOperand(scratch));
+  if (restore_context) {
+    Mov(scratch, Operand(ExternalReference(Isolate::kContextAddress,
+                                           isolate())));
+    Ldr(cp, MemOperand(scratch));
+  }
+
   if (emit_debug_code()) {
     // Also emit debug code to clear the cp in the top frame.
+    Mov(scratch, Operand(ExternalReference(Isolate::kContextAddress,
+                                           isolate())));
     Str(xzr, MemOperand(scratch));
   }
   // Clear the frame pointer from the top frame.

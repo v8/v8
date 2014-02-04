@@ -2066,7 +2066,6 @@ void LCodeGen::DoCheckMaps(LCheckMaps* instr) {
   Register object = ToRegister(instr->value());
   Register map_reg = ToRegister(instr->temp());
 
-  SmallMapList* map_set = instr->hydrogen()->map_set();
   __ Ldr(map_reg, FieldMemOperand(object, HeapObject::kMapOffset));
 
   DeferredCheckMaps* deferred = NULL;
@@ -2075,9 +2074,10 @@ void LCodeGen::DoCheckMaps(LCheckMaps* instr) {
     __ Bind(deferred->check_maps());
   }
 
+  UniqueSet<Map> map_set = instr->hydrogen()->map_set();
   Label success;
-  for (int i = 0; i < map_set->length(); i++) {
-    Handle<Map> map = map_set->at(i);
+  for (int i = 0; i < map_set.size(); i++) {
+    Handle<Map> map = map_set.at(i).handle();
     __ CompareMap(map_reg, map, &success);
     __ B(eq, &success);
   }
@@ -2447,7 +2447,7 @@ void LCodeGen::DoContext(LContext* instr) {
 
 void LCodeGen::DoCheckValue(LCheckValue* instr) {
   Register reg = ToRegister(instr->value());
-  Handle<HeapObject> object = instr->hydrogen()->object();
+  Handle<HeapObject> object = instr->hydrogen()->object().handle();
   AllowDeferredHandleDereference smi_check;
   if (isolate()->heap()->InNewSpace(*object)) {
     Register temp = ToRegister(instr->temp());
@@ -3114,24 +3114,6 @@ void LCodeGen::DoIsConstructCallAndBranch(LIsConstructCallAndBranch* instr) {
 }
 
 
-void LCodeGen::DoIsNumberAndBranch(LIsNumberAndBranch* instr) {
-  Representation r = instr->hydrogen()->value()->representation();
-  if (r.IsSmiOrInteger32() || r.IsDouble()) {
-    __ B(instr->TrueLabel(chunk_));
-  } else {
-    ASSERT(r.IsTagged());
-    Register value = ToRegister(instr->value());
-    HType type = instr->hydrogen()->value()->type();
-    if (type.IsTaggedNumber()) {
-      __ B(instr->TrueLabel(chunk_));
-    }
-    __ JumpIfSmi(value, instr->TrueLabel(chunk_));
-
-    EmitBranchIfHeapNumber(instr, value);
-  }
-}
-
-
 void LCodeGen::DoIsObjectAndBranch(LIsObjectAndBranch* instr) {
   Label* is_object = instr->TrueLabel(chunk_);
   Label* is_not_object = instr->FalseLabel(chunk_);
@@ -3562,6 +3544,12 @@ void LCodeGen::DoLoadNamedGeneric(LLoadNamedGeneric* instr) {
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
 
   ASSERT(ToRegister(instr->result()).is(x0));
+}
+
+
+void LCodeGen::DoLoadRoot(LLoadRoot* instr) {
+  Register result = ToRegister(instr->result());
+  __ LoadRoot(result, instr->index());
 }
 
 

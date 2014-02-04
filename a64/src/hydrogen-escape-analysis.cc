@@ -154,9 +154,8 @@ HValue* HEscapeAnalysisPhase::NewMapCheckAndInsert(HCapturedObject* state,
   HValue* value = state->map_value();
   // TODO(mstarzinger): This will narrow a map check against a set of maps
   // down to the first element in the set. Revisit and fix this.
-  Handle<Map> map_object = mapcheck->map_set()->first();
-  UniqueValueId map_id = mapcheck->map_unique_ids()->first();
-  HCheckValue* check = HCheckValue::New(zone, NULL, value, map_object, map_id);
+  HCheckValue* check = HCheckValue::New(
+      zone, NULL, value, mapcheck->first_map(), false);
   check->InsertBefore(mapcheck);
   return check;
 }

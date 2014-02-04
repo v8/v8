@@ -1349,6 +1349,19 @@ Handle<Code> LoadIC::ComputeLoadHandler(LookupResult* lookup,
       return isolate()->stub_cache()->ComputeLoadNormal(name, receiver);
     case CALLBACKS: {
       Handle<Object> callback(lookup->GetCallbackObject(), isolate());
+      if (name->Equals(isolate()->heap()->length_string())) {
+        if (receiver->IsJSArray()) {
+          PropertyIndex lengthIndex = PropertyIndex::NewHeaderIndex(
+              JSArray::kLengthOffset / kPointerSize);
+          return isolate()->stub_cache()->ComputeLoadField(
+              name, receiver, receiver, lengthIndex, Representation::Tagged());
+        } else if (receiver->IsJSTypedArray()) {
+          PropertyIndex lengthIndex = PropertyIndex::NewHeaderIndex(
+              JSTypedArray::kLengthOffset / kPointerSize);
+          return isolate()->stub_cache()->ComputeLoadField(
+              name, receiver, receiver, lengthIndex, Representation::Tagged());
+        }
+      }
       if (callback->IsExecutableAccessorInfo()) {
         Handle<ExecutableAccessorInfo> info =
             Handle<ExecutableAccessorInfo>::cast(callback);
@@ -1365,19 +1378,12 @@ Handle<Code> LoadIC::ComputeLoadHandler(LookupResult* lookup,
         Handle<JSFunction> function = Handle<JSFunction>::cast(getter);
         CallOptimization call_optimization(function);
         if (call_optimization.is_simple_api_call() &&
-            call_optimization.IsCompatibleReceiver(*receiver) &&
-            FLAG_js_accessor_ics) {
+            call_optimization.IsCompatibleReceiver(*receiver)) {
           return isolate()->stub_cache()->ComputeLoadCallback(
               name, receiver, holder, call_optimization);
         }
         return isolate()->stub_cache()->ComputeLoadViaGetter(
             name, receiver, holder, function);
-      } else if (receiver->IsJSArray() &&
-                 name->Equals(isolate()->heap()->length_string())) {
-        PropertyIndex lengthIndex = PropertyIndex::NewHeaderIndex(
-            JSArray::kLengthOffset / kPointerSize);
-        return isolate()->stub_cache()->ComputeLoadField(
-            name, receiver, holder, lengthIndex, Representation::Tagged());
       }
       // TODO(dcarney): Handle correctly.
       if (callback->IsDeclaredAccessorInfo()) break;
@@ -1577,8 +1583,7 @@ Handle<Code> KeyedLoadIC::ComputeLoadHandler(LookupResult* lookup,
         Handle<JSFunction> function = Handle<JSFunction>::cast(getter);
         CallOptimization call_optimization(function);
         if (call_optimization.is_simple_api_call() &&
-            call_optimization.IsCompatibleReceiver(*receiver) &&
-            FLAG_js_accessor_ics) {
+            call_optimization.IsCompatibleReceiver(*receiver)) {
           return isolate()->stub_cache()->ComputeKeyedLoadCallback(
               name, receiver, holder, call_optimization);
         }
@@ -1670,8 +1675,10 @@ MaybeObject* StoreIC::Store(State state,
                             JSReceiver::StoreFromKeyed store_mode) {
   // Handle proxies.
   if (object->IsJSProxy()) {
-    return JSReceiver::SetPropertyOrFail(
+    Handle<Object> result = JSReceiver::SetProperty(
         Handle<JSReceiver>::cast(object), name, value, NONE, strict_mode);
+    RETURN_IF_EMPTY_HANDLE(isolate(), result);
+    return *result;
   }
 
   // If the object is undefined or null it's illegal to try to set any
@@ -1709,8 +1716,10 @@ MaybeObject* StoreIC::Store(State state,
 
   // Observed objects are always modified through the runtime.
   if (FLAG_harmony_observation && receiver->map()->is_observed()) {
-    return JSReceiver::SetPropertyOrFail(
+    Handle<Object> result = JSReceiver::SetProperty(
         receiver, name, value, NONE, strict_mode, store_mode);
+    RETURN_IF_EMPTY_HANDLE(isolate(), result);
+    return *result;
   }
 
   // Use specialized code for setting the length of arrays with fast
@@ -1727,8 +1736,10 @@ MaybeObject* StoreIC::Store(State state,
         StoreArrayLengthStub(kind(), strict_mode).GetCode(isolate());
     set_target(*stub);
     TRACE_IC("StoreIC", name, state, *stub);
-    return JSReceiver::SetPropertyOrFail(
+    Handle<Object> result = JSReceiver::SetProperty(
         receiver, name, value, NONE, strict_mode, store_mode);
+    RETURN_IF_EMPTY_HANDLE(isolate(), result);
+    return *result;
   }
 
   if (receiver->IsJSGlobalProxy()) {
@@ -1741,8 +1752,10 @@ MaybeObject* StoreIC::Store(State state,
       set_target(*stub);
       TRACE_IC("StoreIC", name, state, *stub);
     }
-    return JSReceiver::SetPropertyOrFail(
+    Handle<Object> result = JSReceiver::SetProperty(
         receiver, name, value, NONE, strict_mode, store_mode);
+    RETURN_IF_EMPTY_HANDLE(isolate(), result);
+    return *result;
   }
 
   LookupResult lookup(isolate());
@@ -1773,8 +1786,10 @@ MaybeObject* StoreIC::Store(State state,
   }
 
   // Set the property.
-  return JSReceiver::SetPropertyOrFail(
+  Handle<Object> result = JSReceiver::SetProperty(
       receiver, name, value, NONE, strict_mode, store_mode);
+  RETURN_IF_EMPTY_HANDLE(isolate(), result);
+  return *result;
 }
 
 
@@ -1846,8 +1861,7 @@ Handle<Code> StoreIC::ComputeStoreMonomorphic(LookupResult* lookup,
         Handle<JSFunction> function = Handle<JSFunction>::cast(setter);
         CallOptimization call_optimization(function);
         if (call_optimization.is_simple_api_call() &&
-            call_optimization.IsCompatibleReceiver(*receiver) &&
-            FLAG_js_accessor_ics) {
+            call_optimization.IsCompatibleReceiver(*receiver)) {
           return isolate()->stub_cache()->ComputeStoreCallback(
               name, receiver, holder, call_optimization, strict_mode);
         }

@@ -185,7 +185,7 @@ void RuntimeProfiler::AttemptOnStackReplacement(JSFunction* function) {
     PrintF("]\n");
   }
 
-  Deoptimizer::PatchInterruptCode(isolate_, shared->code());
+  BackEdgeTable::Patch(isolate_, shared->code());
 }
 
 

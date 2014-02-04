@@ -1646,13 +1646,11 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
   const int max_cloned_properties =
       FastCloneShallowObjectStub::kMaximumClonedProperties;
   if ((FLAG_track_double_fields && expr->may_store_doubles()) ||
-      expr->depth() > 1) {
+      (expr->depth() > 1 || Serializer::enabled()) ||
+      (flags != ObjectLiteral::kFastElements) ||
+      (properties_count > max_cloned_properties)) {
     __ Push(x3, x2, x1, x0);
     __ CallRuntime(Runtime::kCreateObjectLiteral, 4);
-  } else if (Serializer::enabled() || (flags != ObjectLiteral::kFastElements) ||
-             (properties_count > max_cloned_properties)) {
-    __ Push(x3, x2, x1, x0);
-    __ CallRuntime(Runtime::kCreateObjectLiteralShallow, 4);
   } else {
     FastCloneShallowObjectStub stub(properties_count);
     __ CallStub(&stub);
@@ -4942,6 +4940,75 @@ void FullCodeGenerator::ExitFinallyBlock() {
 
 
 #undef __
+
+
+// The back edge bookkeeping code matches the pattern:
+//
+//  <decrement profiling counter>
+//  .. .. .. ..       b.pl ok
+//  .. .. .. ..       ldr x16, pc+<interrupt stub address>
+//  .. .. .. ..       blr x16
+//  ok-label
+//
+// We patch the code to the following form:
+//
+//  <decrement profiling counter>
+//  .. .. .. ..       mov x0, x0 (NOP)
+//  .. .. .. ..       ldr x16, pc+<on-stack replacement address>
+//  .. .. .. ..       blr x16
+void BackEdgeTable::PatchAt(Code* unoptimized_code,
+                            Address pc_after,
+                            Code* replacement_code) {
+  // Turn the jump into a nop.
+  Instruction* jump = Instruction::Cast(pc_after)->preceding(3);
+  PatchingAssembler patcher(jump, 1);
+  patcher.nop(Assembler::INTERRUPT_CODE_NOP);
+
+  // Replace the call address.
+  Instruction* load = Instruction::Cast(pc_after)->preceding(2);
+  Address interrupt_address_pointer =
+      reinterpret_cast<Address>(load) + load->ImmPCOffset();
+  Memory::uint64_at(interrupt_address_pointer) =
+      reinterpret_cast<uint64_t>(replacement_code->entry());
+
+  unoptimized_code->GetHeap()->incremental_marking()->RecordCodeTargetPatch(
+      unoptimized_code, pc_after - 2 * kInstructionSize, replacement_code);
+}
+
+
+void BackEdgeTable::RevertAt(Code* unoptimized_code,
+                             Address pc_after,
+                             Code* interrupt_code) {
+  // Turn the nop into a jump.
+  Instruction* jump = Instruction::Cast(pc_after)->preceding(3);
+  PatchingAssembler patcher(jump, 1);
+  patcher.b(6, pl);  // The ok label is 6 instructions later.
+
+  // Replace the call address.
+  Instruction* load = Instruction::Cast(pc_after)->preceding(2);
+  Address interrupt_address_pointer =
+      reinterpret_cast<Address>(load) + load->ImmPCOffset();
+  Memory::uint64_at(interrupt_address_pointer) =
+      reinterpret_cast<uint64_t>(interrupt_code->entry());
+
+  interrupt_code->GetHeap()->incremental_marking()->RecordCodeTargetPatch(
+      unoptimized_code, pc_after - 2 * kInstructionSize, interrupt_code);
+}
+
+
+#ifdef DEBUG
+BackEdgeTable::BackEdgeState BackEdgeTable::GetBackEdgeState(
+    Isolate* isolate,
+    Code* unoptimized_code,
+    Address pc_after) {
+  // TODO(jbramley): There should be some extra assertions here (as in the ARM
+  // back-end), but this function is gone in bleeding_edge so it might not
+  // matter anyway.
+  Instruction* jump_or_nop = Instruction::Cast(pc_after)->preceding(3);
+  return jump_or_nop->IsNop(Assembler::INTERRUPT_CODE_NOP) ?
+      ON_STACK_REPLACEMENT : INTERRUPT;
+}
+#endif
 
 
 #define __ ACCESS_MASM(masm())

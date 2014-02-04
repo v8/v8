@@ -51,6 +51,12 @@ class JumpTarget;
 // MIPS generated code calls C code, it must be via t9 register.
 
 
+// Flags used for LeaveExitFrame function.
+enum LeaveExitFrameMode {
+  EMIT_RETURN = true,
+  NO_EMIT_RETURN = false
+};
+
 // Flags used for AllocateHeapNumber
 enum TaggingMode {
   // Tag the result.
@@ -848,7 +854,8 @@ class MacroAssembler: public Assembler {
   // Leave the current exit frame.
   void LeaveExitFrame(bool save_doubles,
                       Register arg_count,
-                      bool do_return = false);
+                      bool restore_context,
+                      bool do_return = NO_EMIT_RETURN);
 
   // Get the actual activation frame alignment for target environment.
   static int ActivationFrameAlignment();
@@ -1271,7 +1278,8 @@ class MacroAssembler: public Assembler {
                                 ExternalReference thunk_ref,
                                 Register thunk_last_arg,
                                 int stack_space,
-                                int return_value_offset_from_fp);
+                                MemOperand return_value_operand,
+                                MemOperand* context_restore_operand);
 
   // Jump to the builtin routine.
   void JumpToExternalReference(const ExternalReference& builtin,
@@ -1418,6 +1426,18 @@ class MacroAssembler: public Assembler {
 
   // -------------------------------------------------------------------------
   // String utilities.
+
+  // Generate code to do a lookup in the number string cache. If the number in
+  // the register object is found in the cache the generated code falls through
+  // with the result in the result register. The object and the result register
+  // can be the same. If the number is not found in the cache the code jumps to
+  // the label not_found with only the content of register object unchanged.
+  void LookupNumberStringCache(Register object,
+                               Register result,
+                               Register scratch1,
+                               Register scratch2,
+                               Register scratch3,
+                               Label* not_found);
 
   // Checks if both instance types are sequential ASCII strings and jumps to
   // label if either is not.

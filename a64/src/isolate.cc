@@ -347,6 +347,14 @@ Thread::LocalStorageKey Isolate::per_isolate_thread_data_key_;
 Thread::LocalStorageKey PerThreadAssertScopeBase::thread_local_key;
 #endif  // DEBUG
 Mutex Isolate::process_wide_mutex_;
+// TODO(dcarney): Remove with default isolate.
+enum DefaultIsolateStatus {
+  kDefaultIsolateUninitialized,
+  kDefaultIsolateInitialized,
+  kDefaultIsolateCrashIfInitialized
+};
+static DefaultIsolateStatus default_isolate_status_
+    = kDefaultIsolateUninitialized;
 Isolate::ThreadDataTable* Isolate::thread_data_table_ = NULL;
 Atomic32 Isolate::isolate_counter_ = 0;
 
@@ -384,8 +392,16 @@ Isolate::PerIsolateThreadData* Isolate::FindPerThreadDataForThread(
 }
 
 
+void Isolate::SetCrashIfDefaultIsolateInitialized() {
+  LockGuard<Mutex> lock_guard(&process_wide_mutex_);
+  CHECK(default_isolate_status_ != kDefaultIsolateInitialized);
+  default_isolate_status_ = kDefaultIsolateCrashIfInitialized;
+}
+
+
 void Isolate::EnsureDefaultIsolate() {
   LockGuard<Mutex> lock_guard(&process_wide_mutex_);
+  CHECK(default_isolate_status_ != kDefaultIsolateCrashIfInitialized);
   if (default_isolate_ == NULL) {
     isolate_key_ = Thread::CreateThreadLocalKey();
     thread_id_key_ = Thread::CreateThreadLocalKey();
@@ -1780,6 +1796,9 @@ Isolate::Isolate()
       // TODO(bmeurer) Initialized lazily because it depends on flags; can
       // be fixed once the default isolate cleanup is done.
       random_number_generator_(NULL),
+      // TODO(rmcilroy) Currently setting this based on
+      // FLAG_force_memory_constrained in Isolate::Init; move to here when
+      // isolate cleanup is done
       is_memory_constrained_(false),
       has_fatal_error_(false),
       use_crankshaft_(true),
@@ -2140,6 +2159,8 @@ bool Isolate::Init(Deserializer* des) {
   TRACE_ISOLATE(init);
 
   stress_deopt_count_ = FLAG_deopt_every_n_times;
+  if (FLAG_force_memory_constrained.has_value)
+    is_memory_constrained_ = FLAG_force_memory_constrained.value;
 
   has_fatal_error_ = false;
 

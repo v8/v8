@@ -128,6 +128,7 @@ namespace internal {
   V(Receiver,        kObject | kProxy)                              \
   V(Allocated,       kDouble | kName | kReceiver)                   \
   V(Any,             kOddball | kNumber | kAllocated | kInternal)   \
+  V(NonNumber,       kAny - kNumber)                                \
   V(Detectable,      kAllocated - kUndetectable)
 
 #define TYPE_LIST(V)     \

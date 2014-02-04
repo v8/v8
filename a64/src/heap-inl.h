@@ -525,18 +525,10 @@ void Heap::ScavengeObject(HeapObject** p, HeapObject* object) {
     return;
   }
 
-  // TODO(hpayer): temporary debugging code for issue 284577.
-  CHECK(object->map() != object->GetHeap()->allocation_memento_map());
+  // AllocationMementos are unrooted and shouldn't survive a scavenge
+  ASSERT(object->map() != object->GetHeap()->allocation_memento_map());
   // Call the slow part of scavenge object.
   return ScavengeObjectSlow(p, object);
-}
-
-
-MaybeObject* Heap::AllocateEmptyJSArrayWithAllocationSite(
-      ElementsKind elements_kind,
-      Handle<AllocationSite> allocation_site) {
-  return AllocateJSArrayAndStorageWithAllocationSite(elements_kind, 0, 0,
-      allocation_site, DONT_INITIALIZE_ARRAY_ELEMENTS);
 }
 
 

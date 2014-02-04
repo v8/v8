@@ -208,6 +208,8 @@ class LCodeGen V8_FINAL BASE_EMBEDDED {
   Scope* scope() const { return scope_; }
   HGraph* graph() const { return chunk()->graph(); }
 
+  XMMRegister double_scratch0() const { return xmm0; }
+
   int GetNextEmittedBlock() const;
 
   void EmitClassOfTest(Label* if_true,

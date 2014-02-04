@@ -353,6 +353,8 @@
         '../../src/hydrogen-infer-representation.h',
         '../../src/hydrogen-infer-types.cc',
         '../../src/hydrogen-infer-types.h',
+        '../../src/hydrogen-load-elimination.cc',
+        '../../src/hydrogen-load-elimination.h',
         '../../src/hydrogen-mark-deoptimize.cc',
         '../../src/hydrogen-mark-deoptimize.h',
         '../../src/hydrogen-minus-zero.cc',

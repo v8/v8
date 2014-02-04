@@ -939,8 +939,8 @@ Local<Context> Shell::CreateEvaluationContext(Isolate* isolate) {
   i::Factory* factory = reinterpret_cast<i::Isolate*>(isolate)->factory();
   i::JSArguments js_args = i::FLAG_js_arguments;
   i::Handle<i::FixedArray> arguments_array =
-      factory->NewFixedArray(js_args.argc());
-  for (int j = 0; j < js_args.argc(); j++) {
+      factory->NewFixedArray(js_args.argc);
+  for (int j = 0; j < js_args.argc; j++) {
     i::Handle<i::String> arg =
         factory->NewStringFromUtf8(i::CStrVector(js_args[j]));
     arguments_array->set(j, *arg);

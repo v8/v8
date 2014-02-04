@@ -127,7 +127,7 @@ i::Code* CreateCode(LocalContext* env) {
 TEST(CodeEvents) {
   CcTest::InitializeVM();
   LocalContext env;
-  i::Isolate* isolate = i::Isolate::Current();
+  i::Isolate* isolate = CcTest::i_isolate();
   i::Factory* factory = isolate->factory();
   TestSetup test_setup;
 
@@ -196,7 +196,7 @@ static int CompareProfileNodes(const T* p1, const T* p2) {
 TEST(TickEvents) {
   TestSetup test_setup;
   LocalContext env;
-  i::Isolate* isolate = i::Isolate::Current();
+  i::Isolate* isolate = CcTest::i_isolate();
   i::HandleScope scope(isolate);
 
   i::Code* frame1_code = CreateCode(&env);
@@ -254,7 +254,7 @@ TEST(TickEvents) {
 TEST(CrashIfStoppingLastNonExistentProfile) {
   CcTest::InitializeVM();
   TestSetup test_setup;
-  CpuProfiler* profiler = i::Isolate::Current()->cpu_profiler();
+  CpuProfiler* profiler = CcTest::i_isolate()->cpu_profiler();
   profiler->StartProfiling("1");
   profiler->StopProfiling("2");
   profiler->StartProfiling("1");
@@ -267,7 +267,7 @@ TEST(CrashIfStoppingLastNonExistentProfile) {
 TEST(Issue1398) {
   TestSetup test_setup;
   LocalContext env;
-  i::Isolate* isolate = i::Isolate::Current();
+  i::Isolate* isolate = CcTest::i_isolate();
   i::HandleScope scope(isolate);
 
   i::Code* code = CreateCode(&env);
@@ -309,7 +309,7 @@ TEST(Issue1398) {
 TEST(DeleteAllCpuProfiles) {
   CcTest::InitializeVM();
   TestSetup test_setup;
-  CpuProfiler* profiler = i::Isolate::Current()->cpu_profiler();
+  CpuProfiler* profiler = CcTest::i_isolate()->cpu_profiler();
   CHECK_EQ(0, profiler->GetProfilesCount());
   profiler->DeleteAllProfiles();
   CHECK_EQ(0, profiler->GetProfilesCount());
@@ -393,26 +393,6 @@ TEST(DeleteCpuProfile) {
   CHECK_EQ(NULL, FindCpuProfile(cpu_profiler, uid3));
   CHECK_EQ(NULL, FindCpuProfile(cpu_profiler, uid2));
   CHECK_EQ(NULL, FindCpuProfile(cpu_profiler, uid1));
-}
-
-
-TEST(GetProfilerWhenIsolateIsNotInitialized) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
-  CHECK(i::Isolate::Current()->IsDefaultIsolate());
-  CHECK(!i::Isolate::Current()->IsInitialized());
-  CHECK_EQ(NULL, isolate->GetCpuProfiler());
-  {
-    v8::Isolate::Scope isolateScope(isolate);
-    LocalContext env;
-    v8::HandleScope scope(isolate);
-    CHECK_NE(NULL, isolate->GetCpuProfiler());
-    isolate->GetCpuProfiler()->StartCpuProfiling(v8::String::New("Test"));
-    isolate->GetCpuProfiler()->StopCpuProfiling(v8::String::New("Test"));
-  }
-  CHECK(i::Isolate::Current()->IsInitialized());
-  CHECK_NE(NULL, isolate->GetCpuProfiler());
-  isolate->Dispose();
-  CHECK_EQ(NULL, isolate->GetCpuProfiler());
 }
 
 
@@ -973,7 +953,7 @@ TEST(FunctionCallSample) {
   v8::HandleScope scope(env->GetIsolate());
 
   // Collect garbage that might have be generated while installing extensions.
-  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
+  CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
 
   v8::Script::Compile(v8::String::New(call_function_test_source))->Run();
   v8::Local<v8::Function> function = v8::Local<v8::Function>::Cast(
@@ -1341,7 +1321,7 @@ TEST(IdleTime) {
   v8::Local<v8::String> profile_name = v8::String::New("my_profile");
   cpu_profiler->StartCpuProfiling(profile_name);
 
-  i::Isolate* isolate = i::Isolate::Current();
+  i::Isolate* isolate = CcTest::i_isolate();
   i::ProfilerEventsProcessor* processor = isolate->cpu_profiler()->processor();
   processor->AddCurrentStack(isolate);
 

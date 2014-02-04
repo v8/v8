@@ -1260,10 +1260,26 @@ class HGraphBuilder {
   HInstruction* BuildLoadStringLength(HValue* object, HValue* checked_value);
   HStoreNamedField* AddStoreMapConstant(HValue* object, Handle<Map>);
   HLoadNamedField* AddLoadElements(HValue* object);
+
+  bool MatchRotateRight(HValue* left,
+                        HValue* right,
+                        HValue** operand,
+                        HValue** shift_amount);
+
+  HInstruction* BuildBinaryOperation(Token::Value op,
+                                     HValue* left,
+                                     HValue* right,
+                                     Handle<Type> left_type,
+                                     Handle<Type> right_type,
+                                     Handle<Type> result_type,
+                                     Maybe<int> fixed_right_arg,
+                                     HValue* context);
+
   HLoadNamedField* AddLoadFixedArrayLength(HValue *object);
 
   HValue* AddLoadJSBuiltin(Builtins::JavaScript builtin);
 
+  HValue* EnforceNumberType(HValue* number, Handle<Type> expected);
   HValue* TruncateToNumber(HValue* value, Handle<Type>* expected);
 
   void PushAndAdd(HInstruction* instr);
@@ -1285,80 +1301,79 @@ class HGraphBuilder {
     }
 
     template<class Condition>
-    HInstruction* If(HValue *p) {
-      HControlInstruction* compare = new(zone()) Condition(p);
+    Condition* If(HValue *p) {
+      Condition* compare = builder()->New<Condition>(p);
       AddCompare(compare);
       return compare;
     }
 
     template<class Condition, class P2>
-    HInstruction* If(HValue* p1, P2 p2) {
-      HControlInstruction* compare = new(zone()) Condition(p1, p2);
+    Condition* If(HValue* p1, P2 p2) {
+      Condition* compare = builder()->New<Condition>(p1, p2);
       AddCompare(compare);
       return compare;
     }
 
     template<class Condition, class P2, class P3>
-    HInstruction* If(HValue* p1, P2 p2, P3 p3) {
-      HControlInstruction* compare = new(zone()) Condition(p1, p2, p3);
+    Condition* If(HValue* p1, P2 p2, P3 p3) {
+      Condition* compare = builder()->New<Condition>(p1, p2, p3);
       AddCompare(compare);
-      return compare;
-    }
-
-    template<class Condition, class P2>
-    HInstruction* IfNot(HValue* p1, P2 p2) {
-      HControlInstruction* compare = new(zone()) Condition(p1, p2);
-      AddCompare(compare);
-      HBasicBlock* block0 = compare->SuccessorAt(0);
-      HBasicBlock* block1 = compare->SuccessorAt(1);
-      compare->SetSuccessorAt(0, block1);
-      compare->SetSuccessorAt(1, block0);
-      return compare;
-    }
-
-    template<class Condition, class P2, class P3>
-    HInstruction* IfNot(HValue* p1, P2 p2, P3 p3) {
-      HControlInstruction* compare = new(zone()) Condition(p1, p2, p3);
-      AddCompare(compare);
-      HBasicBlock* block0 = compare->SuccessorAt(0);
-      HBasicBlock* block1 = compare->SuccessorAt(1);
-      compare->SetSuccessorAt(0, block1);
-      compare->SetSuccessorAt(1, block0);
       return compare;
     }
 
     template<class Condition>
-    HInstruction* OrIf(HValue *p) {
+    Condition* IfNot(HValue* p) {
+      Condition* compare = If<Condition>(p);
+      compare->Not();
+      return compare;
+    }
+
+    template<class Condition, class P2>
+    Condition* IfNot(HValue* p1, P2 p2) {
+      Condition* compare = If<Condition>(p1, p2);
+      compare->Not();
+      return compare;
+    }
+
+    template<class Condition, class P2, class P3>
+    Condition* IfNot(HValue* p1, P2 p2, P3 p3) {
+      Condition* compare = If<Condition>(p1, p2, p3);
+      compare->Not();
+      return compare;
+    }
+
+    template<class Condition>
+    Condition* OrIf(HValue *p) {
       Or();
       return If<Condition>(p);
     }
 
     template<class Condition, class P2>
-    HInstruction* OrIf(HValue* p1, P2 p2) {
+    Condition* OrIf(HValue* p1, P2 p2) {
       Or();
       return If<Condition>(p1, p2);
     }
 
     template<class Condition, class P2, class P3>
-    HInstruction* OrIf(HValue* p1, P2 p2, P3 p3) {
+    Condition* OrIf(HValue* p1, P2 p2, P3 p3) {
       Or();
       return If<Condition>(p1, p2, p3);
     }
 
     template<class Condition>
-    HInstruction* AndIf(HValue *p) {
+    Condition* AndIf(HValue *p) {
       And();
       return If<Condition>(p);
     }
 
     template<class Condition, class P2>
-    HInstruction* AndIf(HValue* p1, P2 p2) {
+    Condition* AndIf(HValue* p1, P2 p2) {
       And();
       return If<Condition>(p1, p2);
     }
 
     template<class Condition, class P2, class P3>
-    HInstruction* AndIf(HValue* p1, P2 p2, P3 p3) {
+    Condition* AndIf(HValue* p1, P2 p2, P3 p3) {
       And();
       return If<Condition>(p1, p2, p3);
     }
@@ -1381,9 +1396,9 @@ class HGraphBuilder {
     void Return(HValue* value);
 
    private:
-    void AddCompare(HControlInstruction* compare);
+    HControlInstruction* AddCompare(HControlInstruction* compare);
 
-    Zone* zone() { return builder_->zone(); }
+    HGraphBuilder* builder() const { return builder_; }
 
     HGraphBuilder* builder_;
     int position_;
@@ -1945,13 +1960,86 @@ class HOptimizedGraphBuilder V8_FINAL
   void HandlePropertyAssignment(Assignment* expr);
   void HandleCompoundAssignment(Assignment* expr);
   void HandlePolymorphicLoadNamedField(int position,
+                                       BailoutId ast_id,
                                        BailoutId return_id,
                                        HValue* object,
                                        SmallMapList* types,
                                        Handle<String> name);
-  HInstruction* TryLoadPolymorphicAsMonomorphic(HValue* object,
-                                                SmallMapList* types,
-                                                Handle<String> name);
+
+  class PropertyAccessInfo {
+   public:
+    PropertyAccessInfo(Isolate* isolate, Handle<Map> map, Handle<String> name)
+        : lookup_(isolate),
+          map_(map),
+          name_(name),
+          access_(HObjectAccess::ForMap()) { }
+
+    // Checkes whether this PropertyAccessInfo can be handled as a monomorphic
+    // load named. It additionally fills in the fields necessary to generate the
+    // lookup code.
+    bool CanLoadMonomorphic();
+
+    // Checks whether all types behave uniform when loading name. If all maps
+    // behave the same, a single monomorphic load instruction can be emitted,
+    // guarded by a single map-checks instruction that whether the receiver is
+    // an instance of any of the types.
+    // This method skips the first type in types, assuming that this
+    // PropertyAccessInfo is built for types->first().
+    bool CanLoadAsMonomorphic(SmallMapList* types);
+
+    bool IsStringLength() {
+      return map_->instance_type() < FIRST_NONSTRING_TYPE &&
+          name_->Equals(isolate()->heap()->length_string());
+    }
+
+    bool IsArrayLength() {
+      return map_->instance_type() == JS_ARRAY_TYPE &&
+          name_->Equals(isolate()->heap()->length_string());
+    }
+
+    bool IsTypedArrayLength() {
+      return map_->instance_type() == JS_TYPED_ARRAY_TYPE &&
+          name_->Equals(isolate()->heap()->length_string());
+    }
+
+    bool has_holder() { return !holder_.is_null(); }
+
+    LookupResult* lookup() { return &lookup_; }
+    Handle<Map> map() { return map_; }
+    Handle<JSObject> holder() { return holder_; }
+    Handle<JSFunction> accessor() { return accessor_; }
+    Handle<Object> constant() { return constant_; }
+    HObjectAccess access() { return access_; }
+
+   private:
+    Isolate* isolate() { return lookup_.isolate(); }
+
+    bool LoadResult(Handle<Map> map);
+    bool LookupDescriptor();
+    bool LookupInPrototypes();
+    bool IsCompatibleForLoad(PropertyAccessInfo* other);
+
+    void GeneralizeRepresentation(Representation r) {
+      access_ = access_.WithRepresentation(
+          access_.representation().generalize(r));
+    }
+
+    LookupResult lookup_;
+    Handle<Map> map_;
+    Handle<String> name_;
+    Handle<JSObject> holder_;
+    Handle<JSFunction> accessor_;
+    Handle<Object> constant_;
+    HObjectAccess access_;
+  };
+
+  HInstruction* BuildLoadMonomorphic(PropertyAccessInfo* info,
+                                     HValue* object,
+                                     HInstruction* checked_object,
+                                     BailoutId ast_id,
+                                     BailoutId return_id,
+                                     bool can_inline_accessor = true);
+
   void HandlePolymorphicStoreNamedField(int position,
                                         BailoutId assignment_id,
                                         HValue* object,
@@ -2030,9 +2118,6 @@ class HOptimizedGraphBuilder V8_FINAL
                                 Handle<Map> map,
                                 Handle<JSFunction> getter,
                                 Handle<JSObject> holder);
-  HInstruction* BuildLoadNamedMonomorphic(HValue* object,
-                                          Handle<String> name,
-                                          Handle<Map> map);
 
   HCheckMaps* AddCheckMap(HValue* object, Handle<Map> map);
 
@@ -2110,11 +2195,6 @@ class HOptimizedGraphBuilder V8_FINAL
   void AddCheckConstantFunction(Handle<JSObject> holder,
                                 HValue* receiver,
                                 Handle<Map> receiver_map);
-
-  bool MatchRotateRight(HValue* left,
-                        HValue* right,
-                        HValue** operand,
-                        HValue** shift_amount);
 
   // The translation state of the currently-being-translated function.
   FunctionState* function_state_;

@@ -41,7 +41,7 @@ namespace internal {
 bool CpuFeatures::initialized_ = false;
 #endif
 unsigned CpuFeatures::supported_ = 0;
-
+unsigned CpuFeatures::found_by_runtime_probing_only_ = 0;
 
 // Initialise to smallest possible cache size.
 unsigned CpuFeatures::dcache_line_size_ = 1;

@@ -474,14 +474,22 @@ HValue* CodeStubGraphBuilder<CreateAllocationSiteStub>::BuildCodeStub() {
                         HObjectAccess::ForAllocationSiteTransitionInfo(),
                         initial_elements_kind);
 
+  // Store an empty fixed array for the code dependency.
+  HConstant* empty_fixed_array =
+    Add<HConstant>(isolate()->factory()->empty_fixed_array());
+  HStoreNamedField* store = Add<HStoreNamedField>(
+      object,
+      HObjectAccess::ForAllocationSiteDependentCode(),
+      empty_fixed_array);
+
   // Link the object to the allocation site list
   HValue* site_list = Add<HConstant>(
       ExternalReference::allocation_sites_list_address(isolate()));
   HValue* site = Add<HLoadNamedField>(site_list,
                                       HObjectAccess::ForAllocationSiteList());
-  HStoreNamedField* store =
-      Add<HStoreNamedField>(object, HObjectAccess::ForAllocationSiteWeakNext(),
-                            site);
+  store = Add<HStoreNamedField>(object,
+                                HObjectAccess::ForAllocationSiteWeakNext(),
+                                site);
   store->SkipWriteBarrier();
   Add<HStoreNamedField>(site_list, HObjectAccess::ForAllocationSiteList(),
                         object);

@@ -86,7 +86,7 @@ void FastCloneShallowObjectStub::InitializeInterfaceDescriptor(
   descriptor->register_param_count_ = sizeof(registers) / sizeof(registers[0]);
   descriptor->register_params_ = registers;
   descriptor->deoptimization_handler_ =
-      Runtime::FunctionForId(Runtime::kCreateObjectLiteralShallow)->entry;
+      Runtime::FunctionForId(Runtime::kCreateObjectLiteral)->entry;
 }
 
 
@@ -2300,7 +2300,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   __ Peek(argc, 2 * kPointerSize);
   __ Peek(target, 3 * kPointerSize);
 
-  __ LeaveExitFrame(save_doubles_, x10);
+  __ LeaveExitFrame(save_doubles_, x10, true);
   ASSERT(jssp.Is(__ StackPointer()));
   // Pop or drop the remaining stack slots and return from the stub.
   //         jssp[24]:    Arguments array (of size argc), including receiver.
@@ -3821,7 +3821,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   DirectCEntryStub stub;
   stub.GenerateCall(masm, code_object);
 
-  __ LeaveExitFrame(false, x10);
+  __ LeaveExitFrame(false, x10, true);
 
   // The generated regexp code returns an int32 in w0.
   Label failure, exception;
@@ -4789,84 +4789,6 @@ void ICCompareStub::GenerateMiss(MacroAssembler* masm) {
 }
 
 
-void NumberToStringStub::GenerateLookupNumberStringCache(MacroAssembler* masm,
-                                                         Register object,
-                                                         Register result,
-                                                         Register scratch1,
-                                                         Register scratch2,
-                                                         Register scratch3,
-                                                         Label* not_found) {
-  ASSERT(!AreAliased(object, result, scratch1, scratch2, scratch3));
-
-  // Use of registers. Register result is used as a temporary.
-  Register number_string_cache = result;
-  Register mask = scratch3;
-
-  // Load the number string cache.
-  __ LoadRoot(number_string_cache, Heap::kNumberStringCacheRootIndex);
-
-  // Make the hash mask from the length of the number string cache. It
-  // contains two elements (number and string) for each cache entry.
-  __ Ldrsw(mask, UntagSmiFieldMemOperand(number_string_cache,
-                                         FixedArray::kLengthOffset));
-  __ Asr(mask, mask, 1);  // Divide length by two.
-  __ Sub(mask, mask, 1);  // Make mask.
-
-  // Calculate the entry in the number string cache. The hash value in the
-  // number string cache for smis is just the smi value, and the hash for
-  // doubles is the xor of the upper and lower words. See
-  // Heap::GetNumberStringCache.
-  Isolate* isolate = masm->isolate();
-  Label is_smi;
-  Label load_result_from_cache;
-
-  __ JumpIfSmi(object, &is_smi);
-  __ CheckMap(object, scratch1, Heap::kHeapNumberMapRootIndex, not_found,
-              DONT_DO_SMI_CHECK);
-
-  STATIC_ASSERT(kDoubleSize == (kWRegSizeInBytes * 2));
-  __ Add(scratch1, object, HeapNumber::kValueOffset - kHeapObjectTag);
-  __ Ldp(scratch1.W(), scratch2.W(), MemOperand(scratch1));
-  __ Eor(scratch1, scratch1, scratch2);
-  __ And(scratch1, scratch1, mask);
-
-  // Calculate address of entry in string cache: each entry consists of two
-  // pointer sized fields.
-  __ Add(scratch1, number_string_cache,
-         Operand(scratch1, LSL, kPointerSizeLog2 + 1));
-
-  Register probe = mask;
-  __ Ldr(probe, FieldMemOperand(scratch1, FixedArray::kHeaderSize));
-  __ JumpIfSmi(probe, not_found);
-  __ Ldr(d0, FieldMemOperand(object, HeapNumber::kValueOffset));
-  __ Ldr(d1, FieldMemOperand(probe, HeapNumber::kValueOffset));
-  __ Fcmp(d0, d1);
-  __ B(ne, not_found);
-  __ B(&load_result_from_cache);
-
-  __ Bind(&is_smi);
-  Register scratch = scratch1;
-  __ And(scratch, mask, Operand::UntagSmi(object));
-  // Calculate address of entry in string cache: each entry consists
-  // of two pointer sized fields.
-  __ Add(scratch,
-         number_string_cache,
-         Operand(scratch, LSL, kPointerSizeLog2 + 1));
-
-  // Check if the entry is the smi we are looking for.
-  __ Ldr(probe, FieldMemOperand(scratch, FixedArray::kHeaderSize));
-  __ Cmp(object, probe);
-  __ B(ne, not_found);
-
-  // Get the result from the cache.
-  __ Bind(&load_result_from_cache);
-  __ Ldr(result,
-         FieldMemOperand(scratch, FixedArray::kHeaderSize + kPointerSize));
-  __ IncrementCounter(isolate->counters()->number_to_string_native(), 1,
-                      scratch1, scratch2);
-}
-
-
 void NumberToStringStub::Generate(MacroAssembler* masm) {
   Register result = x0;
   Register object = x1;
@@ -4875,7 +4797,7 @@ void NumberToStringStub::Generate(MacroAssembler* masm) {
   __ Pop(object);
 
   // Generate code to lookup number in the number string cache.
-  GenerateLookupNumberStringCache(masm, object, result, x2, x3, x4, &runtime);
+  __ LookupNumberStringCache(object, result, x2, x3, x4, &runtime);
   __ Ret();
 
   // Handle number to string in the runtime system if not found in the cache.
@@ -5890,14 +5812,7 @@ void StringAddStub::GenerateConvertArgument(MacroAssembler* masm,
   // Check the number to string cache.
   __ Bind(&not_string);
   // Puts the cache result into scratch1.
-  NumberToStringStub::GenerateLookupNumberStringCache(
-      masm,
-      arg,
-      scratch1,
-      scratch2,
-      scratch3,
-      scratch4,
-      slow);
+  __ LookupNumberStringCache(arg, scratch1, scratch2, scratch3, scratch4, slow);
   __ Mov(arg, scratch1);
 
   __ Bind(&done);
