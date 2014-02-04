@@ -9910,12 +9910,13 @@ HInstruction* HOptimizedGraphBuilder::BuildFastLiteral(
     HValue* object_elements_size = Add<HConstant>(elements_size);
     if (boilerplate_object->HasFastDoubleElements()) {
       // Allocation folding will not be able to fold |object| and
-      // |object_elements| together in some cases, so initialize
-      // elements with the undefined to make GC happy.
-      HConstant* empty_fixed_array = Add<HConstant>(
-          isolate()->factory()->empty_fixed_array());
-      Add<HStoreNamedField>(object, HObjectAccess::ForElementsPointer(),
-                            empty_fixed_array, INITIALIZING_STORE);
+      // |object_elements| together if they are pre-tenured.
+      if (pretenure_flag == TENURED) {
+        HConstant* empty_fixed_array = Add<HConstant>(
+            isolate()->factory()->empty_fixed_array());
+        Add<HStoreNamedField>(object, HObjectAccess::ForElementsPointer(),
+                              empty_fixed_array, INITIALIZING_STORE);
+      }
       object_elements = Add<HAllocate>(object_elements_size, HType::JSObject(),
           pretenure_flag, FIXED_DOUBLE_ARRAY_TYPE, site_context->current());
     } else {
