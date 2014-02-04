@@ -238,6 +238,12 @@ class FunctionCallbackArguments
   typedef CustomArguments<T> Super;
   static const int kArgsLength = T::kArgsLength;
   static const int kHolderIndex = T::kHolderIndex;
+  static const int kDataIndex = T::kDataIndex;
+  static const int kReturnValueDefaultValueIndex =
+      T::kReturnValueDefaultValueIndex;
+  static const int kIsolateIndex = T::kIsolateIndex;
+  static const int kCalleeIndex = T::kCalleeIndex;
+  static const int kContextSaveIndex = T::kContextSaveIndex;
 
   FunctionCallbackArguments(internal::Isolate* isolate,
       internal::Object* data,

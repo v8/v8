@@ -165,6 +165,46 @@ TEST(UniqueSet_Add) {
 }
 
 
+TEST(UniqueSet_Remove) {
+  CcTest::InitializeVM();
+  MAKE_HANDLES_AND_DISALLOW_ALLOCATION;
+  MAKE_UNIQUES_A_B_C;
+
+  Zone zone(isolate);
+
+  UniqueSet<String>* set = new(&zone) UniqueSet<String>();
+
+  set->Add(A, &zone);
+  set->Add(B, &zone);
+  set->Add(C, &zone);
+  CHECK_EQ(3, set->size());
+
+  set->Remove(A);
+  CHECK_EQ(2, set->size());
+  CHECK(!set->Contains(A));
+  CHECK(set->Contains(B));
+  CHECK(set->Contains(C));
+
+  set->Remove(A);
+  CHECK_EQ(2, set->size());
+  CHECK(!set->Contains(A));
+  CHECK(set->Contains(B));
+  CHECK(set->Contains(C));
+
+  set->Remove(B);
+  CHECK_EQ(1, set->size());
+  CHECK(!set->Contains(A));
+  CHECK(!set->Contains(B));
+  CHECK(set->Contains(C));
+
+  set->Remove(C);
+  CHECK_EQ(0, set->size());
+  CHECK(!set->Contains(A));
+  CHECK(!set->Contains(B));
+  CHECK(!set->Contains(C));
+}
+
+
 TEST(UniqueSet_Contains) {
   CcTest::InitializeVM();
   MAKE_HANDLES_AND_DISALLOW_ALLOCATION;

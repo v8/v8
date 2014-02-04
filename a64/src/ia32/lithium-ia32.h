@@ -2508,12 +2508,13 @@ class LClampIToUint8 V8_FINAL : public LTemplateInstruction<1, 1, 0> {
 
 class LClampTToUint8 V8_FINAL : public LTemplateInstruction<1, 1, 1> {
  public:
-  LClampTToUint8(LOperand* value, LOperand* temp) {
+  LClampTToUint8(LOperand* value, LOperand* temp_xmm) {
     inputs_[0] = value;
-    temps_[0] = temp;
+    temps_[0] = temp_xmm;
   }
 
   LOperand* unclamped() { return inputs_[0]; }
+  LOperand* temp_xmm() { return temps_[0]; }
 
   DECLARE_CONCRETE_INSTRUCTION(ClampTToUint8, "clamp-t-to-uint8")
 };

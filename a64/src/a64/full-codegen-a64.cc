@@ -4943,73 +4943,70 @@ void FullCodeGenerator::ExitFinallyBlock() {
 #undef __
 
 
-// The back edge bookkeeping code matches the pattern:
-//
-//  <decrement profiling counter>
-//  .. .. .. ..       b.pl ok
-//  .. .. .. ..       ldr x16, pc+<interrupt stub address>
-//  .. .. .. ..       blr x16
-//  ok-label
-//
-// We patch the code to the following form:
-//
-//  <decrement profiling counter>
-//  .. .. .. ..       mov x0, x0 (NOP)
-//  .. .. .. ..       ldr x16, pc+<on-stack replacement address>
-//  .. .. .. ..       blr x16
 void BackEdgeTable::PatchAt(Code* unoptimized_code,
-                            Address pc_after,
+                            Address pc,
+                            BackEdgeState target_state,
                             Code* replacement_code) {
   // Turn the jump into a nop.
-  Instruction* jump = Instruction::Cast(pc_after)->preceding(3);
-  PatchingAssembler patcher(jump, 1);
-  patcher.nop(Assembler::INTERRUPT_CODE_NOP);
+  Address branch_address = pc - 3 * kInstructionSize;
+  PatchingAssembler patcher(branch_address, 1);
+
+  switch (target_state) {
+    case INTERRUPT:
+      //  <decrement profiling counter>
+      //  .. .. .. ..       b.pl ok
+      //  .. .. .. ..       ldr x16, pc+<interrupt stub address>
+      //  .. .. .. ..       blr x16
+      //  ok-label
+      // Jump offset is 4 instructions.
+      patcher.b(4 * kInstructionSize, pl);
+      break;
+    case ON_STACK_REPLACEMENT:
+    case OSR_AFTER_STACK_CHECK:
+      //  <decrement profiling counter>
+      //  .. .. .. ..       mov x0, x0 (NOP)
+      //  .. .. .. ..       ldr x16, pc+<on-stack replacement address>
+      //  .. .. .. ..       blr x16
+      patcher.nop(Assembler::INTERRUPT_CODE_NOP);
+      break;
+  }
 
   // Replace the call address.
-  Instruction* load = Instruction::Cast(pc_after)->preceding(2);
-  Address interrupt_address_pointer =
-      reinterpret_cast<Address>(load) + load->ImmPCOffset();
+  Instruction* load = Instruction::Cast(pc)->preceding(2);
+  Address interrupt_address_pointer = pc + load->ImmPCOffset();
   Memory::uint64_at(interrupt_address_pointer) =
       reinterpret_cast<uint64_t>(replacement_code->entry());
 
   unoptimized_code->GetHeap()->incremental_marking()->RecordCodeTargetPatch(
-      unoptimized_code, pc_after - 2 * kInstructionSize, replacement_code);
+      unoptimized_code, reinterpret_cast<Address>(load), replacement_code);
 }
 
 
-void BackEdgeTable::RevertAt(Code* unoptimized_code,
-                             Address pc_after,
-                             Code* interrupt_code) {
-  // Turn the nop into a jump.
-  Instruction* jump = Instruction::Cast(pc_after)->preceding(3);
-  PatchingAssembler patcher(jump, 1);
-  patcher.b(6, pl);  // The ok label is 6 instructions later.
-
-  // Replace the call address.
-  Instruction* load = Instruction::Cast(pc_after)->preceding(2);
-  Address interrupt_address_pointer =
-      reinterpret_cast<Address>(load) + load->ImmPCOffset();
-  Memory::uint64_at(interrupt_address_pointer) =
-      reinterpret_cast<uint64_t>(interrupt_code->entry());
-
-  interrupt_code->GetHeap()->incremental_marking()->RecordCodeTargetPatch(
-      unoptimized_code, pc_after - 2 * kInstructionSize, interrupt_code);
-}
-
-
-#ifdef DEBUG
 BackEdgeTable::BackEdgeState BackEdgeTable::GetBackEdgeState(
     Isolate* isolate,
     Code* unoptimized_code,
-    Address pc_after) {
+    Address pc) {
   // TODO(jbramley): There should be some extra assertions here (as in the ARM
   // back-end), but this function is gone in bleeding_edge so it might not
   // matter anyway.
-  Instruction* jump_or_nop = Instruction::Cast(pc_after)->preceding(3);
-  return jump_or_nop->IsNop(Assembler::INTERRUPT_CODE_NOP) ?
-      ON_STACK_REPLACEMENT : INTERRUPT;
+  Instruction* jump_or_nop = Instruction::Cast(pc)->preceding(3);
+
+  if (jump_or_nop->IsNop(Assembler::INTERRUPT_CODE_NOP)) {
+    Instruction* load = Instruction::Cast(pc)->preceding(2);
+    uint64_t entry = Memory::uint64_at(pc + load->ImmPCOffset());
+    if (entry == reinterpret_cast<uint64_t>(
+        isolate->builtins()->OnStackReplacement()->entry())) {
+      return ON_STACK_REPLACEMENT;
+    } else if (entry == reinterpret_cast<uint64_t>(
+        isolate->builtins()->OsrAfterStackCheck()->entry())) {
+      return OSR_AFTER_STACK_CHECK;
+    } else {
+      UNREACHABLE();
+    }
+  }
+
+  return INTERRUPT;
 }
-#endif
 
 
 #define __ ACCESS_MASM(masm())

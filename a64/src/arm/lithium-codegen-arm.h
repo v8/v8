@@ -258,9 +258,11 @@ class LCodeGen V8_FINAL BASE_EMBEDDED {
     CallRuntime(function, num_arguments, instr);
   }
 
+  void LoadContextFromDeferred(LOperand* context);
   void CallRuntimeFromDeferred(Runtime::FunctionId id,
                                int argc,
-                               LInstruction* instr);
+                               LInstruction* instr,
+                               LOperand* context);
 
   enum R1State {
     R1_UNINITIALIZED,

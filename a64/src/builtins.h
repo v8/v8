@@ -108,8 +108,6 @@ enum BuiltinExtraArguments {
                                     Code::kNoExtraICState)              \
   V(NotifyStubFailure,              BUILTIN, UNINITIALIZED,             \
                                     Code::kNoExtraICState)              \
-  V(NotifyOSR,                      BUILTIN, UNINITIALIZED,             \
-                                    Code::kNoExtraICState)              \
                                                                         \
   V(LoadIC_Miss,                    BUILTIN, UNINITIALIZED,             \
                                     Code::kNoExtraICState)              \
@@ -215,6 +213,8 @@ enum BuiltinExtraArguments {
   V(OnStackReplacement,             BUILTIN, UNINITIALIZED,             \
                                     Code::kNoExtraICState)              \
   V(InterruptCheck,                 BUILTIN, UNINITIALIZED,             \
+                                    Code::kNoExtraICState)              \
+  V(OsrAfterStackCheck,             BUILTIN, UNINITIALIZED,             \
                                     Code::kNoExtraICState)              \
   V(StackCheck,                     BUILTIN, UNINITIALIZED,             \
                                     Code::kNoExtraICState)              \
@@ -388,7 +388,6 @@ class Builtins {
   static void Generate_NotifyDeoptimized(MacroAssembler* masm);
   static void Generate_NotifySoftDeoptimized(MacroAssembler* masm);
   static void Generate_NotifyLazyDeoptimized(MacroAssembler* masm);
-  static void Generate_NotifyOSR(MacroAssembler* masm);
   static void Generate_NotifyStubFailure(MacroAssembler* masm);
   static void Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm);
 
@@ -400,7 +399,7 @@ class Builtins {
 
   static void Generate_StringConstructCode(MacroAssembler* masm);
   static void Generate_OnStackReplacement(MacroAssembler* masm);
-
+  static void Generate_OsrAfterStackCheck(MacroAssembler* masm);
   static void Generate_InterruptCheck(MacroAssembler* masm);
   static void Generate_StackCheck(MacroAssembler* masm);
 

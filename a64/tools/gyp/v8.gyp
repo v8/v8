@@ -270,6 +270,7 @@
         '../../src/debug-agent.h',
         '../../src/debug.cc',
         '../../src/debug.h',
+        '../../src/defaults.cc',
         '../../src/deoptimizer.cc',
         '../../src/deoptimizer.h',
         '../../src/disasm.h',
@@ -333,6 +334,8 @@
         '../../src/hydrogen-bch.h',
         '../../src/hydrogen-canonicalize.cc',
         '../../src/hydrogen-canonicalize.h',
+        '../../src/hydrogen-check-elimination.cc',
+        '../../src/hydrogen-check-elimination.h',
         '../../src/hydrogen-dce.cc',
         '../../src/hydrogen-dce.h',
         '../../src/hydrogen-dehoist.cc',
@@ -852,6 +855,9 @@
           ]},
         ],
         ['OS=="win"', {
+          'defines': [
+            '_CRT_RAND_S'  # for rand_s()
+          ],
           'variables': {
             'gyp_generators': '<!(echo $GYP_GENERATORS)',
           },

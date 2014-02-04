@@ -25,44 +25,30 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --fold-constants --nodead-code-elimination
-// Flags: --expose-gc --allow-natives-syntax
-// Flags: --concurrent-recompilation --concurrent-recompilation-delay=600
+#ifndef V8_V8_DEFAULTS_H_
+#define V8_V8_DEFAULTS_H_
 
-if (!%IsConcurrentRecompilationSupported()) {
-  print("Concurrent recompilation is disabled. Skipping this test.");
-  quit();
-}
+#include "v8.h"
 
-function test(fun) {
-  fun();
-  fun();
-  // Mark for concurrent optimization.
-  %OptimizeFunctionOnNextCall(fun, "concurrent");
-  //Trigger optimization in the background.
-  fun();
-  //Tenure cons string.
-  gc();
-  // In the mean time, concurrent recompiling is not complete yet.
-  assertUnoptimized(fun, "no sync");
-  // Concurrent recompilation eventually finishes, embeds tenured cons string.
-  assertOptimized(fun, "sync");
-  // Visit embedded cons string during mark compact.
-  gc();
-}
+/**
+ * Default configuration support for the V8 JavaScript engine.
+ */
+namespace v8 {
 
-function f() {
-  return "abcdefghijklmn" + "123456789";
-}
+/**
+ * Configures the constraints with reasonable default values based on the
+ * capabilities of the current device the VM is running on.
+ */
+bool V8_EXPORT ConfigureResourceConstraintsForCurrentPlatform(
+    ResourceConstraints* constraints);
 
-function g() {
-  return "abcdefghijklmn\u2603" + "123456789";
-}
 
-function h() {
-  return "abcdefghijklmn\u2603" + "123456789\u2604";
-}
+/**
+ * Convience function which performs SetResourceConstraints with the settings
+ * returned by ConfigureResourceConstraintsForCurrentPlatform.
+ */
+bool V8_EXPORT SetDefaultResourceConstraintsForCurrentPlatform();
 
-test(f);
-test(g);
-test(h);
+}  // namespace v8
+
+#endif  // V8_V8_DEFAULTS_H_

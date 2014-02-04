@@ -596,23 +596,22 @@ class MacroAssembler: public Assembler {
               Register src2);
 
   // Subtracts smi values and return the result as a smi.
-  // If dst is src1, then src1 will be destroyed, even if
-  // the operation is unsuccessful.
+  // If dst is src1, then src1 will be destroyed if the operation is
+  // successful, otherwise kept intact.
   void SmiSub(Register dst,
               Register src1,
               Register src2,
+              Label* on_not_smi_result,
+              Label::Distance near_jump = Label::kFar);
+  void SmiSub(Register dst,
+              Register src1,
+              const Operand& src2,
               Label* on_not_smi_result,
               Label::Distance near_jump = Label::kFar);
 
   void SmiSub(Register dst,
               Register src1,
               Register src2);
-
-  void SmiSub(Register dst,
-              Register src1,
-              const Operand& src2,
-              Label* on_not_smi_result,
-              Label::Distance near_jump = Label::kFar);
 
   void SmiSub(Register dst,
               Register src1,

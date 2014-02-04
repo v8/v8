@@ -839,28 +839,25 @@ static void GenerateFastApiDirectCall(MacroAssembler* masm,
                                       int argc,
                                       bool restore_context) {
   // ----------- S t a t e -------------
-  //  -- sp[0]              : context
-  //  -- sp[8]              : holder (set by CheckPrototypes)
-  //  -- sp[16]             : callee JS function
-  //  -- sp[24]             : call data
-  //  -- sp[32]             : isolate
-  //  -- sp[40]             : ReturnValue default value
-  //  -- sp[48]             : ReturnValue
+  //  -- sp[0] - sp[48]     : FunctionCallbackInfo, including
+  //                          holder (set by CheckPrototypes)
   //  -- sp[56]             : last JS argument
   //  -- ...
   //  -- sp[(argc + 6) * 8] : first JS argument
   //  -- sp[(argc + 7) * 8] : receiver
   // -----------------------------------
+  typedef FunctionCallbackArguments FCA;
+  const int kArgs = kFastApiCallArguments;
   // Save calling context.
-  __ Poke(cp, 0);
+  __ Poke(cp, (kArgs - 1 + FCA::kContextSaveIndex) * kPointerSize);
   // Get the function and setup the context.
   Handle<JSFunction> function = optimization.constant_function();
   Register function_reg = x5;
   __ LoadHeapObject(function_reg, function);
   __ Ldr(cp, FieldMemOperand(function_reg, JSFunction::kContextOffset));
-  __ Poke(function_reg, 2 * kPointerSize);
+  __ Poke(function_reg, (kArgs - 1 + FCA::kCalleeIndex) * kPointerSize);
 
-  // Pass the additional arguments.
+  // Construct the FunctionCallbackInfo.
   Handle<CallHandlerInfo> api_call_info = optimization.api_call_info();
   Handle<Object> call_data(api_call_info->data(), masm->isolate());
   Register call_data_reg = x6;
@@ -871,20 +868,21 @@ static void GenerateFastApiDirectCall(MacroAssembler* masm,
     __ Mov(call_data_reg, Operand(call_data));
   }
   // Store call data.
-  __ Poke(call_data_reg, 3 * kPointerSize);
+  __ Poke(call_data_reg, (kArgs - 1 + FCA::kDataIndex) * kPointerSize);
   // Store isolate.
   Register isolate_reg = x7;
   __ Mov(isolate_reg,
          Operand(ExternalReference::isolate_address(masm->isolate())));
-  __ Poke(isolate_reg, 4 * kPointerSize);
+  __ Poke(isolate_reg, (kArgs - 1 + FCA::kIsolateIndex) * kPointerSize);
   // Store ReturnValue default and ReturnValue.
   Register undefined_reg = x8;
   __ LoadRoot(undefined_reg, Heap::kUndefinedValueRootIndex);
-  __ PokePair(undefined_reg, undefined_reg, 5 * kXRegSizeInBytes);
+  __ Poke(undefined_reg, (kArgs - 1 + FCA::kReturnValueOffset) * kPointerSize);
+  __ Poke(undefined_reg,
+          (kArgs - 1 + FCA::kReturnValueDefaultValueIndex) * kPointerSize);
 
   Register implicit_args = x2;
-  __ Add(implicit_args, masm->StackPointer(),
-         (kFastApiCallArguments - 1) * kXRegSizeInBytes);
+  __ Add(implicit_args, masm->StackPointer(), (kArgs - 1) * kPointerSize);
 
   FrameScope frame_scope(masm, StackFrame::MANUAL);
   // Allocate the v8::Arguments structure inside the ExitFrame since it's not
@@ -918,7 +916,7 @@ static void GenerateFastApiDirectCall(MacroAssembler* masm,
   //
   // The memory allocated for v8::Arguments structure will be freed when we'll
   // leave the ExitFrame.
-  const int kStackUnwindSpace = argc + kFastApiCallArguments + 1;
+  const int kStackUnwindSpace = argc + kArgs + 1;
 
   Address function_address = v8::ToCData<Address>(api_call_info->callback());
   ApiFunction fun(function_address);
@@ -932,9 +930,10 @@ static void GenerateFastApiDirectCall(MacroAssembler* masm,
       ExternalReference(&thunk_fun, thunk_type, masm->isolate());
 
   AllowExternalCallThatCantCauseGC scope(masm);
-  MemOperand context_restore_operand(fp, 2 * kPointerSize);
+  MemOperand context_restore_operand(
+      fp, (kArgs + 1 + FCA::kContextSaveIndex) * kPointerSize);
   MemOperand return_value_operand(
-      fp, (kFastApiCallArguments + 1) * kPointerSize);
+      fp, (kArgs + 1 + FCA::kReturnValueOffset) * kPointerSize);
   // CallApiFunctionAndReturn can spill registers inside the exit frame,
   // after the return address and the v8::Arguments structure.
   const int spill_offset = 1 + kApiArgsStackSpace;

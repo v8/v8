@@ -832,27 +832,25 @@ static void GenerateFastApiDirectCall(MacroAssembler* masm,
                                       int argc,
                                       bool restore_context) {
   // ----------- S t a t e -------------
-  //  -- sp[0]              : context
-  //  -- sp[4]              : holder (set by CheckPrototypes)
-  //  -- sp[8]              : callee JS function
-  //  -- sp[12]             : call data
-  //  -- sp[16]             : isolate
-  //  -- sp[20]             : ReturnValue default value
-  //  -- sp[24]             : ReturnValue
+  //  -- sp[0] - sp[24]     : FunctionCallbackInfo, incl.
+  //                        :  holder (set by CheckPrototypes)
   //  -- sp[28]             : last JS argument
   //  -- ...
   //  -- sp[(argc + 6) * 4] : first JS argument
   //  -- sp[(argc + 7) * 4] : receiver
   // -----------------------------------
+  typedef FunctionCallbackArguments FCA;
+  const int kArgs = kFastApiCallArguments;
   // Save calling context.
-  __ sw(cp, MemOperand(sp));
+  __ sw(cp,
+        MemOperand(sp, (kArgs - 1 + FCA::kContextSaveIndex) * kPointerSize));
   // Get the function and setup the context.
   Handle<JSFunction> function = optimization.constant_function();
   __ LoadHeapObject(t1, function);
   __ lw(cp, FieldMemOperand(t1, JSFunction::kContextOffset));
-  __ sw(t1, MemOperand(sp, 2 * kPointerSize));
+  __ sw(t1, MemOperand(sp, (kArgs - 1 + FCA::kCalleeIndex) * kPointerSize));
 
-  // Pass the additional arguments.
+  // Construct the FunctionCallbackInfo.
   Handle<CallHandlerInfo> api_call_info = optimization.api_call_info();
   Handle<Object> call_data(api_call_info->data(), masm->isolate());
   if (masm->isolate()->heap()->InNewSpace(*call_data)) {
@@ -862,17 +860,20 @@ static void GenerateFastApiDirectCall(MacroAssembler* masm,
     __ li(t2, call_data);
   }
   // Store call data.
-  __ sw(t2, MemOperand(sp, 3 * kPointerSize));
+  __ sw(t2, MemOperand(sp, (kArgs - 1 + FCA::kDataIndex) * kPointerSize));
   // Store isolate.
   __ li(t3, Operand(ExternalReference::isolate_address(masm->isolate())));
-  __ sw(t3, MemOperand(sp, 4 * kPointerSize));
+  __ sw(t3, MemOperand(sp, (kArgs - 1 + FCA::kIsolateIndex) * kPointerSize));
   // Store ReturnValue default and ReturnValue.
   __ LoadRoot(t1, Heap::kUndefinedValueRootIndex);
-  __ sw(t1, MemOperand(sp, 5 * kPointerSize));
-  __ sw(t1, MemOperand(sp, 6 * kPointerSize));
+  __ sw(t1,
+        MemOperand(sp, (kArgs - 1 + FCA::kReturnValueOffset) * kPointerSize));
+  __ sw(t1,
+        MemOperand(sp,
+            (kArgs - 1 + FCA::kReturnValueDefaultValueIndex) * kPointerSize));
 
   // Prepare arguments.
-  __ Addu(a2, sp, Operand((kFastApiCallArguments - 1) * kPointerSize));
+  __ Addu(a2, sp, Operand((kArgs - 1) * kPointerSize));
 
   // Allocate the v8::Arguments structure in the arguments' space since
   // it's not controlled by GC.
@@ -896,7 +897,7 @@ static void GenerateFastApiDirectCall(MacroAssembler* masm,
   // v8::Arguments::is_construct_call = 0
   __ sw(zero_reg, MemOperand(a0, 3 * kPointerSize));
 
-  const int kStackUnwindSpace = argc + kFastApiCallArguments + 1;
+  const int kStackUnwindSpace = argc + kArgs + 1;
   Address function_address = v8::ToCData<Address>(api_call_info->callback());
   ApiFunction fun(function_address);
   ExternalReference::Type type = ExternalReference::DIRECT_API_CALL;
@@ -912,9 +913,9 @@ static void GenerateFastApiDirectCall(MacroAssembler* masm,
 
   AllowExternalCallThatCantCauseGC scope(masm);
   MemOperand context_restore_operand(
-      fp, 2 * kPointerSize);
+      fp, (kArgs + 1 + FCA::kContextSaveIndex) * kPointerSize);
   MemOperand return_value_operand(
-      fp, (kFastApiCallArguments + 1) * kPointerSize);
+      fp, (kArgs + 1 + FCA::kReturnValueOffset) * kPointerSize);
   __ CallApiFunctionAndReturn(ref,
                               function_address,
                               thunk_ref,

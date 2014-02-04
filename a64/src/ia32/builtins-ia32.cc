@@ -630,25 +630,6 @@ void Builtins::Generate_NotifyLazyDeoptimized(MacroAssembler* masm) {
 }
 
 
-void Builtins::Generate_NotifyOSR(MacroAssembler* masm) {
-  // TODO(kasperl): Do we need to save/restore the XMM registers too?
-  // TODO(mvstanton): We should save these regs, do this in a future
-  // checkin.
-
-  // For now, we are relying on the fact that Runtime::NotifyOSR
-  // doesn't do any garbage collection which allows us to save/restore
-  // the registers without worrying about which of them contain
-  // pointers. This seems a bit fragile.
-  __ pushad();
-  {
-    FrameScope scope(masm, StackFrame::INTERNAL);
-    __ CallRuntime(Runtime::kNotifyOSR, 0);
-  }
-  __ popad();
-  __ ret(0);
-}
-
-
 void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   Factory* factory = masm->isolate()->factory();
 
@@ -1325,6 +1306,24 @@ void Builtins::Generate_OnStackReplacement(MacroAssembler* masm) {
   __ ret(0);
 }
 
+
+void Builtins::Generate_OsrAfterStackCheck(MacroAssembler* masm) {
+  // We check the stack limit as indicator that recompilation might be done.
+  Label ok;
+  ExternalReference stack_limit =
+      ExternalReference::address_of_stack_limit(masm->isolate());
+  __ cmp(esp, Operand::StaticVariable(stack_limit));
+  __ j(above_equal, &ok, Label::kNear);
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    __ CallRuntime(Runtime::kStackGuard, 0);
+  }
+  __ jmp(masm->isolate()->builtins()->OnStackReplacement(),
+         RelocInfo::CODE_TARGET);
+
+  __ bind(&ok);
+  __ ret(0);
+}
 
 #undef __
 }

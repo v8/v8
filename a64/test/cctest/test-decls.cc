@@ -228,13 +228,14 @@ v8::Handle<Integer> DeclarationContext::Query(Local<String> key) {
 // about and doesn't handle.
 TEST(Unknown) {
   HandleScope scope(CcTest::isolate());
+  v8::V8::Initialize();
 
   { DeclarationContext context;
     context.Check("var x; x",
                   1,  // access
                   1,  // declaration
                   2,  // declaration + initialization
-                  EXPECT_RESULT, Undefined());
+                  EXPECT_RESULT, Undefined(CcTest::isolate()));
   }
 
   { DeclarationContext context;
@@ -258,15 +259,16 @@ TEST(Unknown) {
                   1,  // access
                   2,  // declaration + initialization
                   1,  // declaration
-                  EXPECT_RESULT, Undefined());
+                  EXPECT_RESULT, Undefined(CcTest::isolate()));
   }
 
   { DeclarationContext context;
+    // SB 0 - BUG 1213579
     context.Check("const x = 0; x",
                   1,  // access
                   2,  // declaration + initialization
                   1,  // declaration
-                  EXPECT_RESULT, Undefined());  // SB 0 - BUG 1213579
+                  EXPECT_RESULT, Undefined(CcTest::isolate()));
   }
 }
 
@@ -313,7 +315,7 @@ TEST(Present) {
                   1,  // access
                   1,  // initialization
                   1,  // (re-)declaration
-                  EXPECT_RESULT, Undefined());
+                  EXPECT_RESULT, Undefined(CcTest::isolate()));
   }
 
   { PresentPropertyContext context;
@@ -336,14 +338,16 @@ class AbsentPropertyContext: public DeclarationContext {
 
 
 TEST(Absent) {
-  HandleScope scope(CcTest::isolate());
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::V8::Initialize();
+  HandleScope scope(isolate);
 
   { AbsentPropertyContext context;
     context.Check("var x; x",
                   1,  // access
                   1,  // declaration
                   2,  // declaration + initialization
-                  EXPECT_RESULT, Undefined());
+                  EXPECT_RESULT, Undefined(isolate));
   }
 
   { AbsentPropertyContext context;
@@ -367,7 +371,7 @@ TEST(Absent) {
                   1,  // access
                   2,  // declaration + initialization
                   1,  // declaration
-                  EXPECT_RESULT, Undefined());
+                  EXPECT_RESULT, Undefined(isolate));
   }
 
   { AbsentPropertyContext context;
@@ -375,7 +379,7 @@ TEST(Absent) {
                   1,  // access
                   2,  // declaration + initialization
                   1,  // declaration
-                  EXPECT_RESULT, Undefined());  // SB 0 - BUG 1213579
+                  EXPECT_RESULT, Undefined(isolate));  // SB 0 - BUG 1213579
   }
 
   { AbsentPropertyContext context;
@@ -383,7 +387,7 @@ TEST(Absent) {
                   1,  // access
                   1,  // declaration
                   1,  // declaration + initialization
-                  EXPECT_RESULT, Undefined());
+                  EXPECT_RESULT, Undefined(isolate));
   }
 }
 
@@ -426,6 +430,7 @@ class AppearingPropertyContext: public DeclarationContext {
 
 
 TEST(Appearing) {
+  v8::V8::Initialize();
   HandleScope scope(CcTest::isolate());
 
   { AppearingPropertyContext context;
@@ -433,7 +438,7 @@ TEST(Appearing) {
                   1,  // access
                   1,  // declaration
                   2,  // declaration + initialization
-                  EXPECT_RESULT, Undefined());
+                  EXPECT_RESULT, Undefined(CcTest::isolate()));
   }
 
   { AppearingPropertyContext context;
@@ -457,7 +462,7 @@ TEST(Appearing) {
                   1,  // access
                   2,  // declaration + initialization
                   1,  // declaration
-                  EXPECT_RESULT, Undefined());
+                  EXPECT_RESULT, Undefined(CcTest::isolate()));
   }
 
   { AppearingPropertyContext context;
@@ -465,7 +470,7 @@ TEST(Appearing) {
                   1,  // access
                   2,  // declaration + initialization
                   1,  // declaration
-                  EXPECT_RESULT, Undefined());
+                  EXPECT_RESULT, Undefined(CcTest::isolate()));
                   // Result is undefined because declaration succeeded but
                   // initialization to 0 failed (due to context behavior).
   }
@@ -518,6 +523,7 @@ class ReappearingPropertyContext: public DeclarationContext {
 
 
 TEST(Reappearing) {
+  v8::V8::Initialize();
   HandleScope scope(CcTest::isolate());
 
   { ReappearingPropertyContext context;
@@ -525,7 +531,7 @@ TEST(Reappearing) {
                   0,
                   3,  // const declaration+initialization, var initialization
                   3,  // 2 x declaration + var initialization
-                  EXPECT_RESULT, Undefined());
+                  EXPECT_RESULT, Undefined(CcTest::isolate()));
   }
 }
 
@@ -564,7 +570,7 @@ TEST(ExistsInPrototype) {
                   0,
                   0,
                   0,
-                  EXPECT_RESULT, Undefined());
+                  EXPECT_RESULT, Undefined(CcTest::isolate()));
   }
 
   { ExistsInPrototypeContext context;
@@ -580,7 +586,7 @@ TEST(ExistsInPrototype) {
                   0,
                   0,
                   0,
-                  EXPECT_RESULT, Undefined());
+                  EXPECT_RESULT, Undefined(CcTest::isolate()));
   }
 
   { ExistsInPrototypeContext context;
@@ -610,6 +616,7 @@ class AbsentInPrototypeContext: public DeclarationContext {
 
 TEST(AbsentInPrototype) {
   i::FLAG_es52_globals = true;
+  v8::V8::Initialize();
   HandleScope scope(CcTest::isolate());
 
   { AbsentInPrototypeContext context;
@@ -617,7 +624,7 @@ TEST(AbsentInPrototype) {
                   0,
                   0,
                   0,
-                  EXPECT_RESULT, Undefined());
+                  EXPECT_RESULT, Undefined(CcTest::isolate()));
   }
 }
 
@@ -689,7 +696,7 @@ TEST(ExistsInHiddenPrototype) {
                   0,
                   0,
                   1,  // (re-)declaration
-                  EXPECT_RESULT, Undefined());
+                  EXPECT_RESULT, Undefined(CcTest::isolate()));
   }
 
   // TODO(mstarzinger): The semantics of global const is vague.

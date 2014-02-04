@@ -1796,10 +1796,6 @@ Isolate::Isolate()
       // TODO(bmeurer) Initialized lazily because it depends on flags; can
       // be fixed once the default isolate cleanup is done.
       random_number_generator_(NULL),
-      // TODO(rmcilroy) Currently setting this based on
-      // FLAG_force_memory_constrained in Isolate::Init; move to here when
-      // isolate cleanup is done
-      is_memory_constrained_(false),
       has_fatal_error_(false),
       use_crankshaft_(true),
       initialized_from_snapshot_(false),
@@ -1807,7 +1803,7 @@ Isolate::Isolate()
       heap_profiler_(NULL),
       function_entry_hook_(NULL),
       deferred_handles_head_(NULL),
-      optimizing_compiler_thread_(this),
+      optimizing_compiler_thread_(NULL),
       marking_thread_(NULL),
       sweeper_thread_(NULL),
       stress_deopt_count_(0) {
@@ -1903,7 +1899,10 @@ void Isolate::Deinit() {
     debugger()->UnloadDebugger();
 #endif
 
-    if (FLAG_concurrent_recompilation) optimizing_compiler_thread_.Stop();
+    if (FLAG_concurrent_recompilation) {
+      optimizing_compiler_thread_->Stop();
+      delete optimizing_compiler_thread_;
+    }
 
     if (FLAG_sweeper_threads > 0) {
       for (int i = 0; i < FLAG_sweeper_threads; i++) {
@@ -1935,7 +1934,7 @@ void Isolate::Deinit() {
     deoptimizer_data_ = NULL;
     if (FLAG_preemption) {
       v8::Locker locker(reinterpret_cast<v8::Isolate*>(this));
-      v8::Locker::StopPreemption();
+      v8::Locker::StopPreemption(reinterpret_cast<v8::Isolate*>(this));
     }
     builtins_.TearDown();
     bootstrapper_->TearDown();
@@ -2159,8 +2158,6 @@ bool Isolate::Init(Deserializer* des) {
   TRACE_ISOLATE(init);
 
   stress_deopt_count_ = FLAG_deopt_every_n_times;
-  if (FLAG_force_memory_constrained.has_value)
-    is_memory_constrained_ = FLAG_force_memory_constrained.value;
 
   has_fatal_error_ = false;
 
@@ -2245,6 +2242,11 @@ bool Isolate::Init(Deserializer* des) {
 
   deoptimizer_data_ = new DeoptimizerData(memory_allocator_);
 
+  if (FLAG_concurrent_recompilation) {
+    optimizing_compiler_thread_ = new OptimizingCompilerThread(this);
+    optimizing_compiler_thread_->Start();
+  }
+
   const bool create_heap_objects = (des == NULL);
   if (create_heap_objects && !heap_.CreateHeapObjects()) {
     V8::FatalProcessOutOfMemory("heap object creation");
@@ -2274,7 +2276,7 @@ bool Isolate::Init(Deserializer* des) {
 
   if (FLAG_preemption) {
     v8::Locker locker(reinterpret_cast<v8::Isolate*>(this));
-    v8::Locker::StartPreemption(100);
+    v8::Locker::StartPreemption(reinterpret_cast<v8::Isolate*>(this), 100);
   }
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
@@ -2350,8 +2352,6 @@ bool Isolate::Init(Deserializer* des) {
     InternalArrayConstructorStubBase::InstallDescriptors(this);
     FastNewClosureStub::InstallDescriptors(this);
   }
-
-  if (FLAG_concurrent_recompilation) optimizing_compiler_thread_.Start();
 
   if (FLAG_marking_threads > 0) {
     marking_thread_ = new MarkingThread*[FLAG_marking_threads];

@@ -176,11 +176,6 @@ DEFINE_bool(harmony_collections, false,
             "enable harmony collections (sets, maps, and weak maps)")
 DEFINE_bool(harmony_observation, false,
             "enable harmony object observation (implies harmony collections")
-DEFINE_bool(harmony_typed_arrays, true,
-            "enable harmony typed arrays")
-DEFINE_bool(harmony_array_buffer, true,
-            "enable harmony array buffer")
-DEFINE_implication(harmony_typed_arrays, harmony_array_buffer)
 DEFINE_bool(harmony_generators, false, "enable harmony generators")
 DEFINE_bool(harmony_iteration, false, "enable harmony iteration (for-of)")
 DEFINE_bool(harmony_numeric_literals, false,
@@ -201,7 +196,6 @@ DEFINE_implication(harmony, harmony_strings)
 DEFINE_implication(harmony, harmony_arrays)
 DEFINE_implication(harmony_modules, harmony_scoping)
 DEFINE_implication(harmony_observation, harmony_collections)
-// TODO[dslomov] add harmony => harmony_typed_arrays
 
 // Flags for experimental implementation features.
 DEFINE_bool(packed_arrays, true, "optimizes arrays that have no holes")
@@ -222,6 +216,11 @@ DEFINE_implication(track_heap_object_fields, track_fields)
 DEFINE_implication(track_computed_fields, track_fields)
 DEFINE_bool(smi_binop, true, "support smi representation in binary operations")
 
+// Flags for optimization types.
+DEFINE_bool(optimize_for_size, false,
+            "Enables optimizations which favor memory size over execution "
+            "speed.")
+
 // Flags for data representation optimizations
 DEFINE_bool(unbox_double_arrays, true, "automatically unbox arrays of doubles")
 DEFINE_bool(string_slices, true, "use string slices")
@@ -233,7 +232,7 @@ DEFINE_bool(use_range, true, "use hydrogen range analysis")
 DEFINE_bool(use_gvn, true, "use hydrogen global value numbering")
 DEFINE_bool(use_canonicalizing, true, "use hydrogen instruction canonicalizing")
 DEFINE_bool(use_inlining, true, "use function inlining")
-DEFINE_bool(use_escape_analysis, true, "use hydrogen escape analysis")
+DEFINE_bool(use_escape_analysis, false, "use hydrogen escape analysis")
 DEFINE_bool(use_allocation_folding, true, "use allocation folding")
 DEFINE_int(max_inlining_levels, 5, "maximum number of inlining levels")
 DEFINE_int(max_inlined_source_size, 600,
@@ -248,6 +247,7 @@ DEFINE_bool(collect_megamorphic_maps_from_stub_cache,
             true,
             "crankshaft harvests type feedback from stub cache")
 DEFINE_bool(hydrogen_stats, false, "print statistics for hydrogen")
+DEFINE_bool(trace_check_elimination, false, "trace check elimination phase")
 DEFINE_bool(trace_hydrogen, false, "trace generated hydrogen to file")
 DEFINE_string(trace_hydrogen_filter, "*", "hydrogen tracing filter")
 DEFINE_bool(trace_hydrogen_stubs, false, "trace generated hydrogen for stubs")
@@ -290,6 +290,7 @@ DEFINE_bool(array_index_dehoisting, true,
 DEFINE_bool(analyze_environment_liveness, true,
             "analyze liveness of environment slots and zap dead values")
 DEFINE_bool(load_elimination, false, "use load elimination")
+DEFINE_bool(check_elimination, false, "use check elimination")
 DEFINE_bool(dead_code_elimination, true, "use dead code elimination")
 DEFINE_bool(fold_constants, true, "use constant folding")
 DEFINE_bool(trace_dead_code_elimination, false, "trace dead code elimination")
@@ -328,6 +329,7 @@ DEFINE_int(concurrent_recompilation_delay, 0,
            "artificial compilation delay in ms")
 DEFINE_bool(concurrent_osr, false,
             "concurrent on-stack replacement")
+DEFINE_implication(concurrent_osr, concurrent_recompilation)
 
 DEFINE_bool(omit_map_checks_for_leaf_maps, true,
             "do not emit check maps for constant values that have a leaf map, "
@@ -610,9 +612,6 @@ DEFINE_int(hash_seed,
            0,
            "Fixed seed to use to hash property keys (0 means random)"
            "(with snapshots this option cannot override the baked-in seed)")
-DEFINE_maybe_bool(force_memory_constrained,
-           "force (if true) or prevent (if false) the runtime from treating "
-           "the device as being memory constrained.")
 
 // v8.cc
 DEFINE_bool(preemption, false,

@@ -25,44 +25,29 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --fold-constants --nodead-code-elimination
-// Flags: --expose-gc --allow-natives-syntax
-// Flags: --concurrent-recompilation --concurrent-recompilation-delay=600
+// Flags: --allow-natives-syntax
 
-if (!%IsConcurrentRecompilationSupported()) {
-  print("Concurrent recompilation is disabled. Skipping this test.");
-  quit();
-}
+// Tests timer milliseconds granularity.
 
-function test(fun) {
-  fun();
-  fun();
-  // Mark for concurrent optimization.
-  %OptimizeFunctionOnNextCall(fun, "concurrent");
-  //Trigger optimization in the background.
-  fun();
-  //Tenure cons string.
-  gc();
-  // In the mean time, concurrent recompiling is not complete yet.
-  assertUnoptimized(fun, "no sync");
-  // Concurrent recompilation eventually finishes, embeds tenured cons string.
-  assertOptimized(fun, "sync");
-  // Visit embedded cons string during mark compact.
-  gc();
-}
+// Don't run this test in gc stress mode. Time differences may be long
+// due to garbage collections.
+%SetFlags("--gc-interval=-1");
+%SetFlags("--nostress-compaction");
 
-function f() {
-  return "abcdefghijklmn" + "123456789";
-}
-
-function g() {
-  return "abcdefghijklmn\u2603" + "123456789";
-}
-
-function h() {
-  return "abcdefghijklmn\u2603" + "123456789\u2604";
-}
-
-test(f);
-test(g);
-test(h);
+(function run() {
+  var start_test = Date.now();
+  // Let the retry run for maximum 100ms to reduce flakiness.
+  for (var start = Date.now(); start - start_test < 100; start = Date.now()) {
+    var end = Date.now();
+    while (end - start == 0) {
+      end = Date.now();
+    }
+    if (end - start == 1) {
+      // Found milliseconds granularity.
+      return;
+    } else {
+      print("Timer difference too big: " + (end - start) + "ms");
+    }
+  }
+  assertTrue(false);
+})()

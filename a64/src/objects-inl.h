@@ -5921,6 +5921,7 @@ uint32_t NameDictionaryShape::HashForObject(Name* key, Object* other) {
 
 
 MaybeObject* NameDictionaryShape::AsObject(Heap* heap, Name* key) {
+  ASSERT(key->IsUniqueName());
   return key;
 }
 

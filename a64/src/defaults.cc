@@ -25,44 +25,47 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --fold-constants --nodead-code-elimination
-// Flags: --expose-gc --allow-natives-syntax
-// Flags: --concurrent-recompilation --concurrent-recompilation-delay=600
+#include "../include/v8-defaults.h"
 
-if (!%IsConcurrentRecompilationSupported()) {
-  print("Concurrent recompilation is disabled. Skipping this test.");
-  quit();
+#include "platform.h"
+#include "globals.h"
+#include "v8.h"
+
+namespace v8 {
+
+bool ConfigureResourceConstraintsForCurrentPlatform(
+    ResourceConstraints* constraints) {
+  if (constraints == NULL) {
+    return false;
+  }
+
+  uint64_t physical_memory = i::OS::TotalPhysicalMemory();
+  int lump_of_memory = (i::kPointerSize / 4) * i::MB;
+
+  // The young_space_size should be a power of 2 and old_generation_size should
+  // be a multiple of Page::kPageSize.
+  if (physical_memory > 2ul * i::GB) {
+    constraints->set_max_young_space_size(16 * lump_of_memory);
+    constraints->set_max_old_space_size(700 * lump_of_memory);
+    constraints->set_max_executable_size(256 * lump_of_memory);
+  } else if (physical_memory > 512ul * i::MB) {
+    constraints->set_max_young_space_size(8 * lump_of_memory);
+    constraints->set_max_old_space_size(192 * lump_of_memory);
+    constraints->set_max_executable_size(192 * lump_of_memory);
+  } else /* (physical_memory <= 512GB) */ {
+    constraints->set_max_young_space_size(2 * lump_of_memory);
+    constraints->set_max_old_space_size(96 * lump_of_memory);
+    constraints->set_max_executable_size(96 * lump_of_memory);
+  }
+  return true;
 }
 
-function test(fun) {
-  fun();
-  fun();
-  // Mark for concurrent optimization.
-  %OptimizeFunctionOnNextCall(fun, "concurrent");
-  //Trigger optimization in the background.
-  fun();
-  //Tenure cons string.
-  gc();
-  // In the mean time, concurrent recompiling is not complete yet.
-  assertUnoptimized(fun, "no sync");
-  // Concurrent recompilation eventually finishes, embeds tenured cons string.
-  assertOptimized(fun, "sync");
-  // Visit embedded cons string during mark compact.
-  gc();
+
+bool SetDefaultResourceConstraintsForCurrentPlatform() {
+  ResourceConstraints constraints;
+  if (!ConfigureResourceConstraintsForCurrentPlatform(&constraints))
+    return false;
+  return SetResourceConstraints(&constraints);
 }
 
-function f() {
-  return "abcdefghijklmn" + "123456789";
-}
-
-function g() {
-  return "abcdefghijklmn\u2603" + "123456789";
-}
-
-function h() {
-  return "abcdefghijklmn\u2603" + "123456789\u2604";
-}
-
-test(f);
-test(g);
-test(h);
+}  // namespace v8::internal

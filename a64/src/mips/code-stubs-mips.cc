@@ -60,6 +60,16 @@ void ToNumberStub::InitializeInterfaceDescriptor(
 }
 
 
+void NumberToStringStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  static Register registers[] = { a0 };
+  descriptor->register_param_count_ = 1;
+  descriptor->register_params_ = registers;
+  descriptor->deoptimization_handler_ = NULL;
+}
+
+
 void FastCloneShallowArrayStub::InitializeInterfaceDescriptor(
     Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
@@ -991,21 +1001,6 @@ static void EmitCheckForInternalizedStringsOrObjects(MacroAssembler* masm,
   __ And(a0, a0, Operand(1 << Map::kIsUndetectable));
   __ Ret(USE_DELAY_SLOT);
   __ xori(v0, a0, 1 << Map::kIsUndetectable);
-}
-
-
-void NumberToStringStub::Generate(MacroAssembler* masm) {
-  Label runtime;
-
-  __ lw(a1, MemOperand(sp, 0));
-
-  // Generate code to lookup number in the number string cache.
-  __ LookupNumberStringCache(a1, v0, a2, a3, t0, &runtime);
-  __ DropAndRet(1);
-
-  __ bind(&runtime);
-  // Handle number to string in the runtime system if not found in the cache.
-  __ TailCallRuntime(Runtime::kNumberToString, 1, 1);
 }
 
 
@@ -6131,9 +6126,16 @@ void ICCompareStub::GenerateMiss(MacroAssembler* masm) {
 
 
 void DirectCEntryStub::Generate(MacroAssembler* masm) {
-  // No need to pop or drop anything, LeaveExitFrame will restore the old
-  // stack, thus dropping the allocated space for the return value.
-  // The saved ra is after the reserved stack space for the 4 args.
+  // Make place for arguments to fit C calling convention. Most of the callers
+  // of DirectCEntryStub::GenerateCall are using EnterExitFrame/LeaveExitFrame
+  // so they handle stack restoring and we don't have to do that here.
+  // Any caller of DirectCEntryStub::GenerateCall must take care of dropping
+  // kCArgsSlotsSize stack space after the call.
+  __ Subu(sp, sp, Operand(kCArgsSlotsSize));
+  // Place the return address on the stack, making the call
+  // GC safe. The RegExp backend also relies on this.
+  __ sw(ra, MemOperand(sp, kCArgsSlotsSize));
+  __ Call(t9);  // Call the C++ function.
   __ lw(t9, MemOperand(sp, kCArgsSlotsSize));
 
   if (FLAG_debug_code && FLAG_enable_slow_asserts) {
@@ -6150,33 +6152,11 @@ void DirectCEntryStub::Generate(MacroAssembler* masm) {
 
 void DirectCEntryStub::GenerateCall(MacroAssembler* masm,
                                     Register target) {
-  __ Move(t9, target);
-  __ AssertStackIsAligned();
-  // Allocate space for arg slots.
-  __ Subu(sp, sp, kCArgsSlotsSize);
-
-  // Block the trampoline pool through the whole function to make sure the
-  // number of generated instructions is constant.
-  Assembler::BlockTrampolinePoolScope block_trampoline_pool(masm);
-
-  // We need to get the current 'pc' value, which is not available on MIPS.
-  Label find_ra;
-  masm->bal(&find_ra);  // ra = pc + 8.
-  masm->nop();  // Branch delay slot nop.
-  masm->bind(&find_ra);
-
-  const int kNumInstructionsToJump = 6;
-  masm->addiu(ra, ra, kNumInstructionsToJump * kPointerSize);
-  // Push return address (accessible to GC through exit frame pc).
-  // This spot for ra was reserved in EnterExitFrame.
-  masm->sw(ra, MemOperand(sp, kCArgsSlotsSize));
   intptr_t loc =
       reinterpret_cast<intptr_t>(GetCode(masm->isolate()).location());
-  masm->li(ra, Operand(loc, RelocInfo::CODE_TARGET), CONSTANT_SIZE);
-  // Call the function.
-  masm->Jump(t9);
-  // Make sure the stored 'ra' points to this position.
-  ASSERT_EQ(kNumInstructionsToJump, masm->InstructionsGeneratedSince(&find_ra));
+  __ Move(t9, target);
+  __ li(ra, Operand(loc, RelocInfo::CODE_TARGET), CONSTANT_SIZE);
+  __ Call(ra);
 }
 
 

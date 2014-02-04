@@ -271,3 +271,33 @@
   %OptimizeFunctionOnNextCall(oob);
   assertEquals(7, oob(cons2, true));
 })();
+
+
+// Test non-shallow nested graph of captured objects.
+(function testDeep() {
+  var deopt = { deopt:false };
+  function constructor1() {
+    this.x = 23;
+  }
+  function constructor2(nested) {
+    this.a = 17;
+    this.b = nested;
+    this.c = 42;
+  }
+  function deep() {
+    var o1 = new constructor1();
+    var o2 = new constructor2(o1);
+    assertEquals(17, o2.a);
+    assertEquals(23, o2.b.x);
+    assertEquals(42, o2.c);
+    o1.x = 99;
+    deopt.deopt;
+    assertEquals(99, o1.x);
+    assertEquals(99, o2.b.x);
+  }
+  deep(); deep();
+  %OptimizeFunctionOnNextCall(deep);
+  deep(); deep();
+  delete deopt.deopt;
+  deep(); deep();
+})();

@@ -672,12 +672,19 @@ void JSObject::SetNormalizedProperty(Handle<JSObject> object,
                                      PropertyDetails details) {
   ASSERT(!object->HasFastProperties());
   Handle<NameDictionary> property_dictionary(object->property_dictionary());
+
+  if (!name->IsUniqueName()) {
+    name = object->GetIsolate()->factory()->InternalizedStringFromString(
+        Handle<String>::cast(name));
+  }
+
   int entry = property_dictionary->FindEntry(*name);
   if (entry == NameDictionary::kNotFound) {
     Handle<Object> store_value = value;
     if (object->IsGlobalObject()) {
       store_value = object->GetIsolate()->factory()->NewPropertyCell(value);
     }
+
     property_dictionary =
         NameDictionaryAdd(property_dictionary, name, store_value, details);
     object->set_properties(*property_dictionary);
@@ -1005,8 +1012,11 @@ bool Object::SameValue(Object* other) {
   if (IsNumber() && other->IsNumber()) {
     double this_value = Number();
     double other_value = other->Number();
-    return (this_value == other_value) ||
-        (std::isnan(this_value) && std::isnan(other_value));
+    bool equal = this_value == other_value;
+    // SameValue(NaN, NaN) is true.
+    if (!equal) return std::isnan(this_value) && std::isnan(other_value);
+    // SameValue(0.0, -0.0) is false.
+    return (this_value != 0) || ((1 / this_value) == (1 / other_value));
   }
   if (IsString() && other->IsString()) {
     return String::cast(this)->Equals(String::cast(other));
@@ -2041,6 +2051,12 @@ Handle<Object> JSObject::AddProperty(Handle<JSObject> object,
                                      TransitionFlag transition_flag) {
   ASSERT(!object->IsJSGlobalProxy());
   Isolate* isolate = object->GetIsolate();
+
+  if (!name->IsUniqueName()) {
+    name = isolate->factory()->InternalizedStringFromString(
+        Handle<String>::cast(name));
+  }
+
   if (extensibility_check == PERFORM_EXTENSIBILITY_CHECK &&
       !object->map()->is_extensible()) {
     if (strict_mode == kNonStrictMode) {
@@ -9731,7 +9747,8 @@ bool SharedFunctionInfo::HasSourceCode() {
 Handle<Object> SharedFunctionInfo::GetSourceCode() {
   if (!HasSourceCode()) return GetIsolate()->factory()->undefined_value();
   Handle<String> source(String::cast(Script::cast(script())->source()));
-  return SubString(source, start_position(), end_position());
+  return GetIsolate()->factory()->NewSubString(
+      source, start_position(), end_position());
 }
 
 

@@ -829,6 +829,13 @@ LEnvironment* LChunkBuilder::CreateEnvironment(
 }
 
 
+LInstruction* LChunkBuilder::DoAbnormalExit(HAbnormalExit* instr) {
+  // The control instruction marking the end of a block that completed
+  // abruptly (e.g., threw an exception). There is nothing specific to do.
+  return NULL;
+}
+
+
 LInstruction* LChunkBuilder::DoArithmeticD(Token::Value op,
                                            HArithmeticBinaryOperation* instr) {
   ASSERT(instr->representation().IsDouble());

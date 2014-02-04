@@ -447,49 +447,45 @@ static void GenerateFastApiCall(MacroAssembler* masm,
                                 bool restore_context) {
   // ----------- S t a t e -------------
   //  -- rsp[0]              : return address
-  //  -- rsp[8]              : context save
-  //  -- rsp[16]             : object passing the type check
-  //                           (last fast api call extra argument,
-  //                            set by CheckPrototypes)
-  //  -- rsp[24]             : api function
-  //                           (first fast api call extra argument)
-  //  -- rsp[32]             : api call data
-  //  -- rsp[40]             : isolate
-  //  -- rsp[48]             : ReturnValue default value
-  //  -- rsp[56]             : ReturnValue
-  //
+  //  -- rsp[8] - rsp[58]    : FunctionCallbackInfo, incl.
+  //                         :  object passing the type check
+  //                            (set by CheckPrototypes)
   //  -- rsp[64]             : last argument
   //  -- ...
   //  -- rsp[(argc + 7) * 8] : first argument
   //  -- rsp[(argc + 8) * 8] : receiver
   // -----------------------------------
-  int api_call_argc = argc + kFastApiCallArguments;
-  StackArgumentsAccessor args(rsp, api_call_argc);
+  typedef FunctionCallbackArguments FCA;
+  StackArgumentsAccessor args(rsp, argc + kFastApiCallArguments);
 
   // Save calling context.
-  __ movq(args.GetArgumentOperand(api_call_argc), rsi);
+  __ movq(args.GetArgumentOperand(argc + 1 - FCA::kContextSaveIndex), rsi);
 
   // Get the function and setup the context.
   Handle<JSFunction> function = optimization.constant_function();
   __ LoadHeapObject(rdi, function);
   __ movq(rsi, FieldOperand(rdi, JSFunction::kContextOffset));
-  // Pass the additional arguments.
-  __ movq(args.GetArgumentOperand(api_call_argc - 2), rdi);
+  // Construct the FunctionCallbackInfo on the stack.
+  __ movq(args.GetArgumentOperand(argc + 1 - FCA::kCalleeIndex), rdi);
   Handle<CallHandlerInfo> api_call_info = optimization.api_call_info();
   Handle<Object> call_data(api_call_info->data(), masm->isolate());
   if (masm->isolate()->heap()->InNewSpace(*call_data)) {
     __ Move(rcx, api_call_info);
     __ movq(rbx, FieldOperand(rcx, CallHandlerInfo::kDataOffset));
-    __ movq(args.GetArgumentOperand(api_call_argc - 3), rbx);
+    __ movq(args.GetArgumentOperand(argc + 1 - FCA::kDataIndex), rbx);
   } else {
-    __ Move(args.GetArgumentOperand(api_call_argc - 3), call_data);
+    __ Move(args.GetArgumentOperand(argc + 1 - FCA::kDataIndex), call_data);
   }
   __ movq(kScratchRegister,
           ExternalReference::isolate_address(masm->isolate()));
-  __ movq(args.GetArgumentOperand(api_call_argc - 4), kScratchRegister);
+  __ movq(args.GetArgumentOperand(argc + 1 - FCA::kIsolateIndex),
+          kScratchRegister);
   __ LoadRoot(kScratchRegister, Heap::kUndefinedValueRootIndex);
-  __ movq(args.GetArgumentOperand(api_call_argc - 5), kScratchRegister);
-  __ movq(args.GetArgumentOperand(api_call_argc - 6), kScratchRegister);
+  __ movq(
+      args.GetArgumentOperand(argc + 1 - FCA::kReturnValueDefaultValueIndex),
+      kScratchRegister);
+  __ movq(args.GetArgumentOperand(argc + 1 - FCA::kReturnValueOffset),
+          kScratchRegister);
 
   // Prepare arguments.
   STATIC_ASSERT(kFastApiCallArguments == 7);
@@ -524,16 +520,18 @@ static void GenerateFastApiCall(MacroAssembler* masm,
 
   Address thunk_address = FUNCTION_ADDR(&InvokeFunctionCallback);
 
-  Operand context_restore_operand(rbp, 2 * kPointerSize);
+  Operand context_restore_operand(
+      rbp, (kFastApiCallArguments + 1 + FCA::kContextSaveIndex) * kPointerSize);
   Operand return_value_operand(
-      rbp, (kFastApiCallArguments + 1) * kPointerSize);
-  __ CallApiFunctionAndReturn(function_address,
-                              thunk_address,
-                              callback_arg,
-                              api_call_argc + 1,
-                              return_value_operand,
-                              restore_context ?
-                                  &context_restore_operand : NULL);
+      rbp,
+      (kFastApiCallArguments + 1 + FCA::kReturnValueOffset) * kPointerSize);
+  __ CallApiFunctionAndReturn(
+      function_address,
+      thunk_address,
+      callback_arg,
+      argc + kFastApiCallArguments + 1,
+      return_value_operand,
+      restore_context ? &context_restore_operand : NULL);
 }
 
 

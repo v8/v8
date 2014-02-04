@@ -885,25 +885,6 @@ void Builtins::Generate_NotifySoftDeoptimized(MacroAssembler* masm) {
 }
 
 
-void Builtins::Generate_NotifyOSR(MacroAssembler* masm) {
-  // For now, we are relying on the fact that Runtime::NotifyOSR
-  // doesn't do any garbage collection which allows us to save/restore
-  // the registers without worrying about which of them contain
-  // pointers. This seems a bit fragile.
-  //
-  // TODO(jochen): Is it correct (and appropriate) to use safepoint
-  // registers here? According to the comment above, we should only need to
-  // preserve the registers with parameters.
-  __ PushXRegList(kSafepointSavedRegisters);
-  {
-    FrameScope scope(masm, StackFrame::INTERNAL);
-    __ CallRuntime(Runtime::kNotifyOSR, 0);
-  }
-  __ PopXRegList(kSafepointSavedRegisters);
-  __ Ret();
-}
-
-
 void Builtins::Generate_OnStackReplacement(MacroAssembler* masm) {
   // Lookup the function in the JavaScript frame.
   __ Ldr(x0, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
@@ -944,6 +925,23 @@ void Builtins::Generate_OnStackReplacement(MacroAssembler* masm) {
   __ Add(lr, x0, Code::kHeaderSize - kHeapObjectTag);
 
   // And "return" to the OSR entry point of the function.
+  __ Ret();
+}
+
+
+void Builtins::Generate_OsrAfterStackCheck(MacroAssembler* masm) {
+  // We check the stack limit as indicator that recompilation might be done.
+  Label ok;
+  __ CompareRoot(jssp, Heap::kStackLimitRootIndex);
+  __ B(hs, &ok);
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    __ CallRuntime(Runtime::kStackGuard, 0);
+  }
+  __ Jump(masm->isolate()->builtins()->OnStackReplacement(),
+          RelocInfo::CODE_TARGET);
+
+  __ Bind(&ok);
   __ Ret();
 }
 

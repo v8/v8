@@ -25,44 +25,28 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --fold-constants --nodead-code-elimination
-// Flags: --expose-gc --allow-natives-syntax
-// Flags: --concurrent-recompilation --concurrent-recompilation-delay=600
+#ifndef V8_HYDROGEN_CHECK_ELIMINATION_H_
+#define V8_HYDROGEN_CHECK_ELIMINATION_H_
 
-if (!%IsConcurrentRecompilationSupported()) {
-  print("Concurrent recompilation is disabled. Skipping this test.");
-  quit();
-}
+#include "hydrogen.h"
 
-function test(fun) {
-  fun();
-  fun();
-  // Mark for concurrent optimization.
-  %OptimizeFunctionOnNextCall(fun, "concurrent");
-  //Trigger optimization in the background.
-  fun();
-  //Tenure cons string.
-  gc();
-  // In the mean time, concurrent recompiling is not complete yet.
-  assertUnoptimized(fun, "no sync");
-  // Concurrent recompilation eventually finishes, embeds tenured cons string.
-  assertOptimized(fun, "sync");
-  // Visit embedded cons string during mark compact.
-  gc();
-}
+namespace v8 {
+namespace internal {
 
-function f() {
-  return "abcdefghijklmn" + "123456789";
-}
 
-function g() {
-  return "abcdefghijklmn\u2603" + "123456789";
-}
+// Remove CheckMaps instructions through flow- and branch-sensitive analysis.
+class HCheckEliminationPhase : public HPhase {
+ public:
+  explicit HCheckEliminationPhase(HGraph* graph)
+      : HPhase("H_Check Elimination", graph) { }
 
-function h() {
-  return "abcdefghijklmn\u2603" + "123456789\u2604";
-}
+  void Run();
 
-test(f);
-test(g);
-test(h);
+ private:
+  void EliminateLocalChecks(HBasicBlock* block);
+};
+
+
+} }  // namespace v8::internal
+
+#endif  // V8_HYDROGEN_CHECK_ELIMINATION_H_

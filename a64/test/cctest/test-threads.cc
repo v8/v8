@@ -41,14 +41,14 @@ TEST(Preemption) {
   v8::Handle<v8::Context> context = v8::Context::New(isolate);
   v8::Context::Scope context_scope(context);
 
-  v8::Locker::StartPreemption(100);
+  v8::Locker::StartPreemption(isolate, 100);
 
   v8::Handle<v8::Script> script = v8::Script::Compile(
       v8::String::New("var count = 0; var obj = new Object(); count++;\n"));
 
   script->Run();
 
-  v8::Locker::StopPreemption();
+  v8::Locker::StopPreemption(isolate);
   v8::internal::OS::Sleep(500);  // Make sure the timer fires.
 
   script->Run();

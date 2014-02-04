@@ -891,21 +891,6 @@ void Builtins::Generate_NotifyLazyDeoptimized(MacroAssembler* masm) {
 }
 
 
-void Builtins::Generate_NotifyOSR(MacroAssembler* masm) {
-  // For now, we are relying on the fact that Runtime::NotifyOSR
-  // doesn't do any garbage collection which allows us to save/restore
-  // the registers without worrying about which of them contain
-  // pointers. This seems a bit fragile.
-  __ stm(db_w, sp, kJSCallerSaved | kCalleeSaved | lr.bit() | fp.bit());
-  {
-    FrameScope scope(masm, StackFrame::INTERNAL);
-    __ CallRuntime(Runtime::kNotifyOSR, 0);
-  }
-  __ ldm(ia_w, sp, kJSCallerSaved | kCalleeSaved | lr.bit() | fp.bit());
-  __ Ret();
-}
-
-
 void Builtins::Generate_OnStackReplacement(MacroAssembler* masm) {
   // Lookup the function in the JavaScript frame.
   __ ldr(r0, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
@@ -948,6 +933,24 @@ void Builtins::Generate_OnStackReplacement(MacroAssembler* masm) {
   __ add(lr, r0, Operand(Code::kHeaderSize - kHeapObjectTag));
 
   // And "return" to the OSR entry point of the function.
+  __ Ret();
+}
+
+
+void Builtins::Generate_OsrAfterStackCheck(MacroAssembler* masm) {
+  // We check the stack limit as indicator that recompilation might be done.
+  Label ok;
+  __ LoadRoot(ip, Heap::kStackLimitRootIndex);
+  __ cmp(sp, Operand(ip));
+  __ b(hs, &ok);
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    __ CallRuntime(Runtime::kStackGuard, 0);
+  }
+  __ Jump(masm->isolate()->builtins()->OnStackReplacement(),
+          RelocInfo::CODE_TARGET);
+
+  __ bind(&ok);
   __ Ret();
 }
 

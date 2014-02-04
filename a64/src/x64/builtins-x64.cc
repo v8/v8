@@ -694,21 +694,6 @@ void Builtins::Generate_NotifyLazyDeoptimized(MacroAssembler* masm) {
 }
 
 
-void Builtins::Generate_NotifyOSR(MacroAssembler* masm) {
-  // For now, we are relying on the fact that Runtime::NotifyOSR
-  // doesn't do any garbage collection which allows us to save/restore
-  // the registers without worrying about which of them contain
-  // pointers. This seems a bit fragile.
-  __ Pushad();
-  {
-    FrameScope scope(masm, StackFrame::INTERNAL);
-    __ CallRuntime(Runtime::kNotifyOSR, 0);
-  }
-  __ Popad();
-  __ ret(0);
-}
-
-
 void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   // Stack Layout:
   // rsp[0]           : Return address
@@ -1397,6 +1382,23 @@ void Builtins::Generate_OnStackReplacement(MacroAssembler* masm) {
   __ movq(Operand(rsp, 0), rax);
 
   // And "return" to the OSR entry point of the function.
+  __ ret(0);
+}
+
+
+void Builtins::Generate_OsrAfterStackCheck(MacroAssembler* masm) {
+  // We check the stack limit as indicator that recompilation might be done.
+  Label ok;
+  __ CompareRoot(rsp, Heap::kStackLimitRootIndex);
+  __ j(above_equal, &ok);
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    __ CallRuntime(Runtime::kStackGuard, 0);
+  }
+  __ jmp(masm->isolate()->builtins()->OnStackReplacement(),
+         RelocInfo::CODE_TARGET);
+
+  __ bind(&ok);
   __ ret(0);
 }
 

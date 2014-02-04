@@ -120,6 +120,10 @@ class Unique V8_FINAL {
     return handle_;
   }
 
+  template <class S> static Unique<T> cast(Unique<S> that) {
+    return Unique<T>(that.raw_address_, Handle<T>::cast(that.handle_));
+  }
+
   inline bool IsInitialized() const {
     return raw_address_ != NULL || handle_.is_null();
   }
@@ -167,6 +171,17 @@ class UniqueSet V8_FINAL : public ZoneObject {
     // Append the element to the the end.
     Grow(size_ + 1, zone);
     array_[size_++] = uniq;
+  }
+
+  // Remove an element from this set. Mutates this set. O(|this|)
+  void Remove(Unique<T> uniq) {
+    for (int i = 0; i < size_; i++) {
+      if (array_[i] == uniq) {
+        while (++i < size_) array_[i - 1] = array_[i];
+        size_--;
+        return;
+      }
+    }
   }
 
   // Compare this set against another set. O(|this|).
@@ -271,6 +286,10 @@ class UniqueSet V8_FINAL : public ZoneObject {
     copy->array_ = zone->NewArray<Unique<T> >(this->size_);
     memcpy(copy->array_, this->array_, this->size_ * sizeof(Unique<T>));
     return copy;
+  }
+
+  void Clear() {
+    size_ = 0;
   }
 
   inline int size() const {
