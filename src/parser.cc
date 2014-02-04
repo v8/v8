@@ -770,7 +770,6 @@ FunctionLiteral* Parser::ParseLazy(Utf16CharacterStream* source) {
         : FunctionLiteral::DECLARATION;
     bool ok = true;
     result = ParseFunctionLiteral(name,
-                                  Scanner::Location::invalid(),
                                   false,  // Strict mode name already checked.
                                   shared_info->is_generator(),
                                   RelocInfo::kNoPosition,
@@ -1680,7 +1679,6 @@ Statement* Parser::ParseFunctionDeclaration(ZoneStringList* names, bool* ok) {
   Handle<String> name = ParseIdentifierOrStrictReservedWord(
       &is_strict_reserved, CHECK_OK);
   FunctionLiteral* fun = ParseFunctionLiteral(name,
-                                              scanner().location(),
                                               is_strict_reserved,
                                               is_generator,
                                               pos,
@@ -3253,7 +3251,7 @@ Expression* Parser::ParsePostfixExpression(bool* ok) {
 
     if (!top_scope_->is_classic_mode()) {
       // Postfix expression operand in strict mode may not be eval or arguments.
-      CheckStrictModeLValue(expression, "strict_lhs_postfix", CHECK_OK);
+      CheckStrictModeLValue(expression, "strict_lhs_prefix", CHECK_OK);
     }
     MarkAsLValue(expression);
 
@@ -3402,17 +3400,14 @@ Expression* Parser::ParseMemberWithNewPrefixesExpression(PositionStack* stack,
     bool is_generator = allow_generators() && Check(Token::MUL);
     Handle<String> name;
     bool is_strict_reserved_name = false;
-    Scanner::Location function_name_location = Scanner::Location::invalid();
     if (peek_any_identifier()) {
       name = ParseIdentifierOrStrictReservedWord(&is_strict_reserved_name,
                                                  CHECK_OK);
-      function_name_location = scanner().location();
     }
     FunctionLiteral::FunctionType function_type = name.is_null()
         ? FunctionLiteral::ANONYMOUS_EXPRESSION
         : FunctionLiteral::NAMED_EXPRESSION;
     result = ParseFunctionLiteral(name,
-                                  function_name_location,
                                   is_strict_reserved_name,
                                   is_generator,
                                   function_token_position,
@@ -3769,7 +3764,6 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
               : GetSymbol();
           FunctionLiteral* value =
               ParseFunctionLiteral(name,
-                                   scanner().location(),
                                    false,   // reserved words are allowed here
                                    false,   // not a generator
                                    RelocInfo::kNoPosition,
@@ -4016,7 +4010,6 @@ class SingletonLogger : public ParserRecorder {
 
 FunctionLiteral* Parser::ParseFunctionLiteral(
     Handle<String> function_name,
-    Scanner::Location function_name_location,
     bool name_is_strict_reserved,
     bool is_generator,
     int function_token_pos,
@@ -4302,9 +4295,12 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     // Validate strict mode.
     if (!top_scope_->is_classic_mode()) {
       if (IsEvalOrArguments(function_name)) {
-        ReportMessageAt(function_name_location,
-                        "strict_function_name",
-                        Vector<const char*>::empty());
+        int start_pos = scope->start_position();
+        int position = function_token_pos != RelocInfo::kNoPosition
+            ? function_token_pos : (start_pos > 0 ? start_pos - 1 : start_pos);
+        Scanner::Location location = Scanner::Location(position, start_pos);
+        ReportMessageAt(location,
+                        "strict_function_name", Vector<const char*>::empty());
         *ok = false;
         return NULL;
       }
