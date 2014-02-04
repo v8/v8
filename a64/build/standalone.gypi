@@ -81,6 +81,9 @@
     # as errors.
     'v8_code%': 0,
 
+    # Relative path to icu.gyp from this file.
+    'icu_gyp_path': '../third_party/icu/icu.gyp',
+
     'conditions': [
       ['(v8_target_arch=="arm" and host_arch!="arm") or \
         (v8_target_arch=="a64" and host_arch!="a64") or \

@@ -4315,6 +4315,7 @@ MaybeObject* Heap::AllocateWithAllocationSite(Map* map, AllocationSpace space,
   AllocationMemento* alloc_memento = reinterpret_cast<AllocationMemento*>(
       reinterpret_cast<Address>(result) + map->instance_size());
   alloc_memento->set_map_no_write_barrier(allocation_memento_map());
+  ASSERT(allocation_site->map() == allocation_site_map());
   alloc_memento->set_allocation_site(*allocation_site, SKIP_WRITE_BARRIER);
   return result;
 }
@@ -4376,7 +4377,7 @@ MaybeObject* Heap::AllocateFunctionPrototype(JSFunction* function) {
 
   if (!function->shared()->is_generator()) {
     MaybeObject* maybe_failure =
-        JSObject::cast(prototype)->SetLocalPropertyIgnoreAttributes(
+        JSObject::cast(prototype)->SetLocalPropertyIgnoreAttributesTrampoline(
             constructor_string(), function, DONT_ENUM);
     if (maybe_failure->IsFailure()) return maybe_failure;
   }
@@ -5058,6 +5059,7 @@ MaybeObject* Heap::CopyJSObjectWithAllocationSite(
       AllocationMemento* alloc_memento;
       if (maybe_alloc_memento->To(&alloc_memento)) {
         alloc_memento->set_map_no_write_barrier(allocation_memento_map());
+        ASSERT(site->map() == allocation_site_map());
         alloc_memento->set_allocation_site(site, SKIP_WRITE_BARRIER);
       }
     }
@@ -5080,6 +5082,7 @@ MaybeObject* Heap::CopyJSObjectWithAllocationSite(
     AllocationMemento* alloc_memento = reinterpret_cast<AllocationMemento*>(
         reinterpret_cast<Address>(clone) + object_size);
     alloc_memento->set_map_no_write_barrier(allocation_memento_map());
+    ASSERT(site->map() == allocation_site_map());
     alloc_memento->set_allocation_site(site, SKIP_WRITE_BARRIER);
   }
 

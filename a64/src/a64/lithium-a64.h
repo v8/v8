@@ -2113,6 +2113,7 @@ class LPushArgument V8_FINAL : public LTemplateInstruction<0, 1, 0> {
 };
 
 
+// TODO(all): This will disappear when Math.random is rewritten in JavaScript.
 class LRandom V8_FINAL : public LTemplateInstruction<1, 1, 0> {
  public:
   explicit LRandom(LOperand* global_object) {
@@ -2457,7 +2458,7 @@ class LTaggedToI V8_FINAL : public LTemplateInstruction<1, 1, 2> {
   LOperand* temp2() { return temps_[1]; }
 
   DECLARE_CONCRETE_INSTRUCTION(TaggedToI, "tagged-to-i")
-  DECLARE_HYDROGEN_ACCESSOR(UnaryOperation)
+  DECLARE_HYDROGEN_ACCESSOR(Change)
 
   bool truncating() { return hydrogen()->CanTruncateToInt32(); }
 };

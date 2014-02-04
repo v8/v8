@@ -20584,6 +20584,15 @@ THREADED_TEST(FunctionNew) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   i::Object* elm = i_isolate->native_context()->function_cache()
       ->GetElementNoExceptionThrown(i_isolate, serial_number);
-  CHECK(elm->IsNull());
+  CHECK(elm->IsUndefined());
+  // Verify that each Function::New creates a new function instance
+  Local<Object> data2 = v8::Object::New();
+  function_new_expected_env = data2;
+  Local<Function> func2 = Function::New(isolate, FunctionNewCallback, data2);
+  CHECK(!func2->IsNull());
+  CHECK_NE(func, func2);
+  env->Global()->Set(v8_str("func2"), func2);
+  Local<Value> result2 = CompileRun("func2();");
+  CHECK_EQ(v8::Integer::New(17, isolate), result2);
 }
 

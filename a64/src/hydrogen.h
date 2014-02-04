@@ -1271,8 +1271,7 @@ class HGraphBuilder {
   void FinishExitWithHardDeoptimization(const char* reason,
                                         HBasicBlock* continuation);
 
-  void AddIncrementCounter(StatsCounter* counter,
-                           HValue* context);
+  void AddIncrementCounter(StatsCounter* counter);
 
   class IfBuilder V8_FINAL {
    public:
@@ -2008,7 +2007,7 @@ class HOptimizedGraphBuilder V8_FINAL
   HValue* HandlePolymorphicElementAccess(HValue* object,
                                          HValue* key,
                                          HValue* val,
-                                         Expression* prop,
+                                         SmallMapList* maps,
                                          BailoutId ast_id,
                                          int position,
                                          bool is_store,

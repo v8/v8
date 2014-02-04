@@ -403,9 +403,6 @@ enum CompressedStartupDataItems {
   kSnapshotContext,
   kLibraries,
   kExperimentalLibraries,
-#if defined(V8_I18N_SUPPORT)
-  kI18NExtension,
-#endif
   kCompressedStartupDataCount
 };
 
@@ -446,17 +443,6 @@ void V8::GetCompressedStartupData(StartupData* compressed_data) {
       exp_libraries_source.length();
   compressed_data[kExperimentalLibraries].raw_size =
       i::ExperimentalNatives::GetRawScriptsSize();
-
-#if defined(V8_I18N_SUPPORT)
-  i::Vector<const ii:byte> i18n_extension_source =
-      i::I18NNatives::GetScriptsSource();
-  compressed_data[kI18NExtension].data =
-      reinterpret_cast<const char*>(i18n_extension_source.start());
-  compressed_data[kI18NExtension].compressed_size =
-      i18n_extension_source.length();
-  compressed_data[kI18NExtension].raw_size =
-      i::I18NNatives::GetRawScriptsSize();
-#endif
 #endif
 }
 
@@ -486,15 +472,6 @@ void V8::SetDecompressedStartupData(StartupData* decompressed_data) {
       decompressed_data[kExperimentalLibraries].data,
       decompressed_data[kExperimentalLibraries].raw_size);
   i::ExperimentalNatives::SetRawScriptsSource(exp_libraries_source);
-
-#if defined(V8_I18N_SUPPORT)
-  ASSERT_EQ(i::I18NNatives::GetRawScriptsSize(),
-            decompressed_data[kI18NExtension].raw_size);
-  i::Vector<const char> i18n_extension_source(
-      decompressed_data[kI18NExtension].data,
-      decompressed_data[kI18NExtension].raw_size);
-  i::I18NNatives::SetRawScriptsSource(i18n_extension_source);
-#endif
 #endif
 }
 
@@ -3836,7 +3813,7 @@ Local<v8::Object> v8::Object::Clone() {
   ENTER_V8(isolate);
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   EXCEPTION_PREAMBLE(isolate);
-  i::Handle<i::JSObject> result = i::Copy(self);
+  i::Handle<i::JSObject> result = i::JSObject::Copy(self);
   has_pending_exception = result.is_null();
   EXCEPTION_BAILOUT_CHECK(isolate, Local<Object>());
   return Utils::ToLocal(result);
@@ -6235,7 +6212,7 @@ Local<Object> Array::CloneElementAt(uint32_t index) {
   i::Handle<i::JSObject> paragon_handle(i::JSObject::cast(paragon));
   EXCEPTION_PREAMBLE(isolate);
   ENTER_V8(isolate);
-  i::Handle<i::JSObject> result = i::Copy(paragon_handle);
+  i::Handle<i::JSObject> result = i::JSObject::Copy(paragon_handle);
   has_pending_exception = result.is_null();
   EXCEPTION_BAILOUT_CHECK(isolate, Local<Object>());
   return Utils::ToLocal(result);

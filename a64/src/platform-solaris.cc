@@ -211,20 +211,6 @@ static int StackWalkCallback(uintptr_t pc, int signo, void* data) {
 }
 
 
-int OS::StackWalk(Vector<OS::StackFrame> frames) {
-  ucontext_t ctx;
-  struct StackWalker walker = { frames, 0 };
-
-  if (getcontext(&ctx) < 0) return kStackWalkError;
-
-  if (!walkcontext(&ctx, StackWalkCallback, &walker)) {
-    return kStackWalkError;
-  }
-
-  return walker.index;
-}
-
-
 // Constants used for mmap.
 static const int kMmapFd = -1;
 static const int kMmapFdOffset = 0;

@@ -1034,8 +1034,7 @@ HInstruction* HGraphBuilder::AddInstruction(HInstruction* instr) {
 }
 
 
-void HGraphBuilder::AddIncrementCounter(StatsCounter* counter,
-                                        HValue* context) {
+void HGraphBuilder::AddIncrementCounter(StatsCounter* counter) {
   if (FLAG_native_code_counters && counter->Enabled()) {
     HValue* reference = Add<HConstant>(ExternalReference(counter));
     HValue* old_value = Add<HLoadNamedField>(reference,
@@ -1826,8 +1825,7 @@ void HGraphBuilder::BuildCompareNil(
 HValue* HGraphBuilder::BuildCreateAllocationMemento(HValue* previous_object,
                                                     int previous_object_size,
                                                     HValue* alloc_site) {
-  // TODO(mvstanton): ASSERT altered to CHECK to diagnose chromium bug 284577
-  CHECK(alloc_site != NULL);
+  ASSERT(alloc_site != NULL);
   HInnerAllocatedObject* alloc_memento = Add<HInnerAllocatedObject>(
       previous_object, previous_object_size);
   Handle<Map> alloc_memento_map(
@@ -4007,7 +4005,9 @@ void HOptimizedGraphBuilder::VisitRegExpLiteral(RegExpLiteral* expr) {
 
 
 static bool CanInlinePropertyAccess(Map* type) {
-  return !type->is_dictionary_map() && !type->has_named_interceptor();
+  return type->IsJSObjectMap() &&
+      !type->is_dictionary_map() &&
+      !type->has_named_interceptor();
 }
 
 
@@ -4172,8 +4172,7 @@ void HOptimizedGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
       IsFastLiteral(Handle<JSObject>::cast(boilerplate),
                     kMaxFastLiteralDepth,
                     &max_properties)) {
-    Handle<JSObject> boilerplate_object =
-        Handle<JSObject>::cast(boilerplate);
+    Handle<JSObject> boilerplate_object = Handle<JSObject>::cast(boilerplate);
 
     literal = BuildFastLiteral(boilerplate_object,
                                Handle<Object>::null(),
@@ -5136,9 +5135,7 @@ void HOptimizedGraphBuilder::HandleCompoundAssignment(Assignment* expr) {
     CHECK_ALIVE(VisitForValue(prop->obj()));
     HValue* object = Top();
     HValue* key = NULL;
-    if ((!prop->IsStringLength() &&
-         !prop->IsFunctionPrototype() &&
-         !prop->key()->IsPropertyName()) ||
+    if ((!prop->IsFunctionPrototype() && !prop->key()->IsPropertyName()) ||
         prop->IsStringAccess()) {
       CHECK_ALIVE(VisitForValue(prop->key()));
       key = Top();
@@ -5383,6 +5380,7 @@ HInstruction* HOptimizedGraphBuilder::BuildLoadNamedMonomorphic(
   map->LookupDescriptor(NULL, *name, &lookup);
   if (lookup.IsField()) {
     HCheckMaps* checked_object = AddCheckMap(object, map);
+    ASSERT(map->IsJSObjectMap());
     return BuildLoadNamedField(
         checked_object, HObjectAccess::ForField(map, &lookup, name));
   }
@@ -5392,6 +5390,12 @@ HInstruction* HOptimizedGraphBuilder::BuildLoadNamedMonomorphic(
     AddCheckMap(object, map);
     Handle<Object> constant(lookup.GetConstantFromMap(*map), isolate());
     return New<HConstant>(constant);
+  }
+
+  if (lookup.IsFound()) {
+    // Cannot handle the property, do a generic load instead.
+    HValue* context = environment()->context();
+    return new(zone()) HLoadNamedGeneric(context, object, name);
   }
 
   // Handle a load from a known field somewhere in the prototype chain.
@@ -5486,6 +5490,7 @@ HInstruction* HOptimizedGraphBuilder::TryBuildConsolidatedElementLoad(
   Handle<Map> most_general_consolidated_map;
   for (int i = 0; i < maps->length(); ++i) {
     Handle<Map> map = maps->at(i);
+    if (!map->IsJSObjectMap()) return NULL;
     // Don't allow mixing of JSArrays with JSObjects.
     if (map->instance_type() == JS_ARRAY_TYPE) {
       if (has_non_js_array_access) return NULL;
@@ -5538,7 +5543,7 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
     HValue* object,
     HValue* key,
     HValue* val,
-    Expression* prop,
+    SmallMapList* maps,
     BailoutId ast_id,
     int position,
     bool is_store,
@@ -5546,7 +5551,6 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
     bool* has_side_effects) {
   *has_side_effects = false;
   BuildCheckHeapObject(object);
-  SmallMapList* maps = prop->GetReceiverTypes();
 
   if (!is_store) {
     HInstruction* consolidated_load =
@@ -5602,7 +5606,8 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
   if (untransitionable_maps.length() == 1) {
     Handle<Map> untransitionable_map = untransitionable_maps[0];
     HInstruction* instr = NULL;
-    if (untransitionable_map->has_slow_elements_kind()) {
+    if (untransitionable_map->has_slow_elements_kind() ||
+        !untransitionable_map->IsJSObjectMap()) {
       instr = AddInstruction(is_store ? BuildStoreKeyedGeneric(object, key, val)
                                       : BuildLoadKeyedGeneric(object, key));
     } else {
@@ -5619,6 +5624,7 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
 
   for (int i = 0; i < untransitionable_maps.length(); ++i) {
     Handle<Map> map = untransitionable_maps[i];
+    if (!map->IsJSObjectMap()) continue;
     ElementsKind elements_kind = map->elements_kind();
     HBasicBlock* this_map = graph()->CreateBasicBlock();
     HBasicBlock* other_map = graph()->CreateBasicBlock();
@@ -5691,10 +5697,9 @@ HValue* HOptimizedGraphBuilder::HandleKeyedElementAccess(
       instr = BuildMonomorphicElementAccess(
           obj, key, val, NULL, map, is_store, expr->GetStoreMode());
     }
-  } else if (expr->GetReceiverTypes() != NULL &&
-             !expr->GetReceiverTypes()->is_empty()) {
+  } else if (types != NULL && !types->is_empty()) {
     return HandlePolymorphicElementAccess(
-        obj, key, val, expr, ast_id, position, is_store,
+        obj, key, val, types, ast_id, position, is_store,
         expr->GetStoreMode(), has_side_effects);
   } else {
     if (is_store) {
@@ -5820,17 +5825,20 @@ void HOptimizedGraphBuilder::PushLoad(Property* expr,
 }
 
 
+static bool AreStringTypes(SmallMapList* types) {
+  if (types == NULL || types->length() == 0) return false;
+  for (int i = 0; i < types->length(); i++) {
+    if (types->at(i)->instance_type() >= FIRST_NONSTRING_TYPE) return false;
+  }
+  return true;
+}
+
+
 void HOptimizedGraphBuilder::BuildLoad(Property* expr,
                                        int position,
                                        BailoutId ast_id) {
   HInstruction* instr = NULL;
-  if (expr->IsStringLength()) {
-    HValue* string = Pop();
-    BuildCheckHeapObject(string);
-    HInstruction* checkstring =
-        AddInstruction(HCheckInstanceType::NewIsString(string, zone()));
-    instr = BuildLoadStringLength(string, checkstring);
-  } else if (expr->IsStringAccess()) {
+  if (expr->IsStringAccess()) {
     HValue* index = Pop();
     HValue* string = Pop();
     HValue* context = environment()->context();
@@ -5866,6 +5874,12 @@ void HOptimizedGraphBuilder::BuildLoad(Property* expr,
       } else {
         instr = BuildLoadNamedMonomorphic(Pop(), name, map);
       }
+    } else if (AreStringTypes(types) &&
+               name->Equals(isolate()->heap()->length_string())) {
+      BuildCheckHeapObject(Pop());
+      HValue* checked_object =
+          AddInstruction(HCheckInstanceType::NewIsString(object, zone()));
+      instr = BuildLoadStringLength(object, checked_object);
     } else if (types != NULL && types->length() > 1) {
       return HandlePolymorphicLoadNamedField(
           position, ast_id, Pop(), types, name);
@@ -5906,9 +5920,7 @@ void HOptimizedGraphBuilder::VisitProperty(Property* expr) {
   if (TryArgumentsAccess(expr)) return;
 
   CHECK_ALIVE(VisitForValue(expr->obj()));
-  if ((!expr->IsStringLength() &&
-       !expr->IsFunctionPrototype() &&
-       !expr->key()->IsPropertyName()) ||
+  if ((!expr->IsFunctionPrototype() && !expr->key()->IsPropertyName()) ||
       expr->IsStringAccess()) {
     CHECK_ALIVE(VisitForValue(expr->key()));
   }
@@ -7559,9 +7571,7 @@ void HOptimizedGraphBuilder::VisitCountOperation(CountOperation* expr) {
   HValue* object = Top();
 
   HValue* key = NULL;
-  if ((!prop->IsStringLength() &&
-       !prop->IsFunctionPrototype() &&
-       !prop->key()->IsPropertyName()) ||
+  if ((!prop->IsFunctionPrototype() && !prop->key()->IsPropertyName()) ||
       prop->IsStringAccess()) {
     CHECK_ALIVE(VisitForValue(prop->key()));
     key = Top();
@@ -7611,9 +7621,16 @@ HInstruction* HOptimizedGraphBuilder::BuildStringCharCodeAt(
 }
 
 
-// Checks if the given shift amounts have form: (sa) and (32 - sa).
+// Checks if the given shift amounts have following forms:
+// (N1) and (N2) with N1 + N2 = 32; (sa) and (32 - sa).
 static bool ShiftAmountsAllowReplaceByRotate(HValue* sa,
                                              HValue* const32_minus_sa) {
+  if (sa->IsConstant() && const32_minus_sa->IsConstant()) {
+    const HConstant* c1 = HConstant::cast(sa);
+    const HConstant* c2 = HConstant::cast(const32_minus_sa);
+    return c1->HasInteger32Value() && c2->HasInteger32Value() &&
+        (c1->Integer32Value() + c2->Integer32Value() == 32);
+  }
   if (!const32_minus_sa->IsSub()) return false;
   HSub* sub = HSub::cast(const32_minus_sa);
   if (sa != sub->right()) return false;

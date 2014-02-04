@@ -2230,9 +2230,10 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
 
   if (do_gc) {
     // Call Runtime::PerformGC, passing x0 (the result parameter for
-    // PerformGC).
+    // PerformGC) and x1 (the isolate).
+    __ Mov(x1, Operand(ExternalReference::isolate_address(masm->isolate())));
     __ CallCFunction(
-        ExternalReference::perform_gc_function(isolate), 1, 0);
+        ExternalReference::perform_gc_function(isolate), 2, 0);
   }
 
   ExternalReference scope_depth =
@@ -2751,8 +2752,7 @@ void StringLengthStub::Generate(MacroAssembler* masm) {
     receiver = x0;
   }
 
-  StubCompiler::GenerateLoadStringLength(masm, receiver, x10, x11, &miss,
-                                         support_wrapper_);
+  StubCompiler::GenerateLoadStringLength(masm, receiver, x10, x11, &miss);
 
   __ Bind(&miss);
   StubCompiler::TailCallBuiltin(masm,
@@ -5888,7 +5888,6 @@ void StringAddStub::GenerateConvertArgument(MacroAssembler* masm,
   __ JumpIfObjectType(arg, scratch1, scratch1, FIRST_NONSTRING_TYPE, &done, lt);
 
   // Check the number to string cache.
-  Label not_cached;
   __ Bind(&not_string);
   // Puts the cache result into scratch1.
   NumberToStringStub::GenerateLookupNumberStringCache(
@@ -5898,18 +5897,8 @@ void StringAddStub::GenerateConvertArgument(MacroAssembler* masm,
       scratch2,
       scratch3,
       scratch4,
-      &not_cached);
+      slow);
   __ Mov(arg, scratch1);
-  __ B(&done);
-
-  // Check if the argument is a safe string wrapper.
-  __ Bind(&not_cached);
-  __ JumpIfSmi(arg, slow);
-  Register map = scratch1;
-  __ JumpIfNotObjectType(arg, map, scratch2, JS_VALUE_TYPE, slow);
-  __ Ldrb(scratch2, FieldMemOperand(map, Map::kBitField2Offset));
-  __ Tbz(scratch2, Map::kStringWrapperSafeForDefaultValueOf, slow);
-  __ Ldr(arg, FieldMemOperand(arg, JSValue::kValueOffset));
 
   __ Bind(&done);
 }
@@ -6603,98 +6592,140 @@ void NameDictionaryLookupStub::Generate(MacroAssembler* masm) {
 
 
 template<class T>
-static void CreateArrayDispatch(MacroAssembler* masm) {
-  Register kind = x3;
-  int last_index = GetSequenceIndexFromFastElementsKind(
-      TERMINAL_FAST_ELEMENTS_KIND);
-  for (int i = 0; i <= last_index; ++i) {
-    Label next;
-    ElementsKind candidate_kind = GetFastElementsKindFromSequenceIndex(i);
-    // TODO(jbramley): Is this the best way to handle this? Can we make the tail
-    // calls conditional, rather than hopping over each one?
-    __ CompareAndBranch(kind, candidate_kind, ne, &next);
-    T stub(candidate_kind);
-    __ TailCallStub(&stub);
-    __ Bind(&next);
-  }
+static void CreateArrayDispatch(MacroAssembler* masm,
+                                AllocationSiteOverrideMode mode) {
+  if (mode == DISABLE_ALLOCATION_SITES) {
+    T stub(GetInitialFastElementsKind(),
+           CONTEXT_CHECK_REQUIRED,
+           mode);
+     __ TailCallStub(&stub);
 
-  // If we reached this point there is a problem.
-  __ Abort(kUnexpectedElementsKindInArrayConstructor);
+  } else if (mode == DONT_OVERRIDE) {
+    Register kind = x3;
+    int last_index =
+        GetSequenceIndexFromFastElementsKind(TERMINAL_FAST_ELEMENTS_KIND);
+    for (int i = 0; i <= last_index; ++i) {
+      Label next;
+      ElementsKind candidate_kind = GetFastElementsKindFromSequenceIndex(i);
+      // TODO(jbramley): Is this the best way to handle this? Can we make the
+      // tail calls conditional, rather than hopping over each one?
+      __ CompareAndBranch(kind, candidate_kind, ne, &next);
+      T stub(candidate_kind);
+      __ TailCallStub(&stub);
+      __ Bind(&next);
+    }
+
+    // If we reached this point there is a problem.
+    __ Abort(kUnexpectedElementsKindInArrayConstructor);
+
+  } else {
+    UNREACHABLE();
+  }
 }
 
 
 // TODO(jbramley): If this needs to be a special case, make it a proper template
 // specialization, and not a separate function.
-static void CreateArrayDispatchOneArgument(MacroAssembler* masm) {
+static void CreateArrayDispatchOneArgument(MacroAssembler* masm,
+                                           AllocationSiteOverrideMode mode) {
   // x0 - argc
   // x1 - constructor?
-  // x2 - type info cell
-  // x3 - kind
+  // x2 - type info cell (if mode != DISABLE_ALLOCATION_SITES)
+  // x3 - kind (if mode != DISABLE_ALLOCATION_SITES)
   // sp[0] - last argument
 
   Register type_info_cell = x2;
   Register kind = x3;
 
-  STATIC_ASSERT(FAST_SMI_ELEMENTS == 0);
-  STATIC_ASSERT(FAST_HOLEY_SMI_ELEMENTS == 1);
-  STATIC_ASSERT(FAST_ELEMENTS == 2);
-  STATIC_ASSERT(FAST_HOLEY_ELEMENTS == 3);
-  STATIC_ASSERT(FAST_DOUBLE_ELEMENTS == 4);
-  STATIC_ASSERT(FAST_HOLEY_DOUBLE_ELEMENTS == 5);
-
-  // Is the low bit set? If so, the array is holey.
   Label normal_sequence;
-  __ Tbnz(kind, 0, &normal_sequence);
+  if (mode == DONT_OVERRIDE) {
+    STATIC_ASSERT(FAST_SMI_ELEMENTS == 0);
+    STATIC_ASSERT(FAST_HOLEY_SMI_ELEMENTS == 1);
+    STATIC_ASSERT(FAST_ELEMENTS == 2);
+    STATIC_ASSERT(FAST_HOLEY_ELEMENTS == 3);
+    STATIC_ASSERT(FAST_DOUBLE_ELEMENTS == 4);
+    STATIC_ASSERT(FAST_HOLEY_DOUBLE_ELEMENTS == 5);
+
+    // Is the low bit set? If so, the array is holey.
+    __ Tbnz(kind, 0, &normal_sequence);
+  }
 
   // Look at the last argument.
   // TODO(jbramley): What does a 0 argument represent?
   __ Peek(x10, 0);
   __ Cbz(x10, &normal_sequence);
 
-  // We are going to create a holey array, but our kind is non-holey.
-  // Fix kind and retry (only if we have an allocation site in the cell).
-  __ Orr(kind, kind, 1);
-  __ JumpIfRoot(type_info_cell, Heap::kUndefinedValueRootIndex,
-                &normal_sequence);
+  if (mode == DISABLE_ALLOCATION_SITES) {
+    ElementsKind initial = GetInitialFastElementsKind();
+    ElementsKind holey_initial = GetHoleyElementsKind(initial);
 
-  __ Ldr(x10, FieldMemOperand(type_info_cell, Cell::kValueOffset));
-  __ Ldr(x10, FieldMemOperand(x10, 0));
-  __ JumpIfNotRoot(x10, Heap::kAllocationSiteMapRootIndex, &normal_sequence);
+    ArraySingleArgumentConstructorStub stub_holey(holey_initial,
+                                                  CONTEXT_CHECK_REQUIRED,
+                                                  DISABLE_ALLOCATION_SITES);
+    __ TailCallStub(&stub_holey);
 
-  // Save the resulting elements kind in type info.
-  // TODO(jbramley): Tag and store at the same time.
-  __ SmiTag(x10, kind);
-  __ Ldr(x11, FieldMemOperand(type_info_cell, Cell::kValueOffset));
-  __ Str(x10, FieldMemOperand(x11, AllocationSite::kTransitionInfoOffset));
-
-  __ Bind(&normal_sequence);
-  int last_index = GetSequenceIndexFromFastElementsKind(
-      TERMINAL_FAST_ELEMENTS_KIND);
-  for (int i = 0; i <= last_index; ++i) {
-    Label next;
-    ElementsKind candidate_kind = GetFastElementsKindFromSequenceIndex(i);
-    // TODO(jbramley): Is this the best way to handle this? Can we make the tail
-    // calls conditional, rather than hopping over each one?
-    __ CompareAndBranch(kind, candidate_kind, ne, &next);
-    ArraySingleArgumentConstructorStub stub(candidate_kind);
+    __ Bind(&normal_sequence);
+    ArraySingleArgumentConstructorStub stub(initial,
+                                            CONTEXT_CHECK_REQUIRED,
+                                            DISABLE_ALLOCATION_SITES);
     __ TailCallStub(&stub);
-    __ Bind(&next);
-  }
+  } else if (mode == DONT_OVERRIDE) {
+    // We are going to create a holey array, but our kind is non-holey.
+    // Fix kind and retry (only if we have an allocation site in the cell).
+    __ Orr(kind, kind, 1);
 
-  // If we reached this point there is a problem.
-  __ Abort(kUnexpectedElementsKindInArrayConstructor);
+    __ Ldr(x10, FieldMemOperand(type_info_cell, Cell::kValueOffset));
+
+    if (FLAG_debug_code) {
+      __ Ldr(x10, FieldMemOperand(x10, 0));
+      __ JumpIfNotRoot(x10, Heap::kAllocationSiteMapRootIndex,
+                       &normal_sequence);
+      __ Assert(eq, kExpectedAllocationSiteInCell);
+      __ Ldr(x10, FieldMemOperand(type_info_cell, Cell::kValueOffset));
+    }
+
+    // Save the resulting elements kind in type info.
+    // TODO(jbramley): Tag and store at the same time.
+    __ SmiTag(x10, kind);
+    __ Ldr(x11, FieldMemOperand(type_info_cell, Cell::kValueOffset));
+    __ Str(x10, FieldMemOperand(x11, AllocationSite::kTransitionInfoOffset));
+
+    __ Bind(&normal_sequence);
+    int last_index =
+        GetSequenceIndexFromFastElementsKind(TERMINAL_FAST_ELEMENTS_KIND);
+    for (int i = 0; i <= last_index; ++i) {
+      Label next;
+      ElementsKind candidate_kind = GetFastElementsKindFromSequenceIndex(i);
+      // TODO(jbramley): Is this the best way to handle this? Can we make the
+      // tail calls conditional, rather than hopping over each one?
+      __ CompareAndBranch(kind, candidate_kind, ne, &next);
+      ArraySingleArgumentConstructorStub stub(candidate_kind);
+      __ TailCallStub(&stub);
+      __ Bind(&next);
+    }
+
+    // If we reached this point there is a problem.
+    __ Abort(kUnexpectedElementsKindInArrayConstructor);
+  } else {
+    UNREACHABLE();
+  }
 }
 
 
 template<class T>
 static void ArrayConstructorStubAheadOfTimeHelper(Isolate* isolate) {
+  ElementsKind initial_kind = GetInitialFastElementsKind();
+  ElementsKind initial_holey_kind = GetHoleyElementsKind(initial_kind);
+
   int to_index = GetSequenceIndexFromFastElementsKind(
       TERMINAL_FAST_ELEMENTS_KIND);
   for (int i = 0; i <= to_index; ++i) {
     ElementsKind kind = GetFastElementsKindFromSequenceIndex(i);
     T stub(kind);
     stub.GetCode(isolate)->set_is_pregenerated(true);
-    if (AllocationSite::GetMode(kind) != DONT_TRACK_ALLOCATION_SITE) {
+    if ((AllocationSite::GetMode(kind) != DONT_TRACK_ALLOCATION_SITE) ||
+        (!FLAG_track_allocation_sites &&
+         ((kind == initial_kind) || (kind == initial_holey_kind)))) {
       T stub1(kind, CONTEXT_CHECK_REQUIRED, DISABLE_ALLOCATION_SITES);
       stub1.GetCode(isolate)->set_is_pregenerated(true);
     }
@@ -6727,6 +6758,39 @@ void InternalArrayConstructorStubBase::GenerateStubsAheadOfTime(
 }
 
 
+void ArrayConstructorStub::GenerateDispatchToArrayStub(
+    MacroAssembler* masm,
+    AllocationSiteOverrideMode mode) {
+  Register argc = x0;
+  if (argument_count_ == ANY) {
+    Label zero_case, n_case;
+    __ Cbz(argc, &zero_case);
+    __ Cmp(argc, 1);
+    __ B(ne, &n_case);
+
+    // One argument.
+    CreateArrayDispatchOneArgument(masm, mode);
+
+    __ Bind(&zero_case);
+    // No arguments.
+    CreateArrayDispatch<ArrayNoArgumentConstructorStub>(masm, mode);
+
+    __ Bind(&n_case);
+    // N arguments.
+    CreateArrayDispatch<ArrayNArgumentsConstructorStub>(masm, mode);
+
+  } else if (argument_count_ == NONE) {
+    CreateArrayDispatch<ArrayNoArgumentConstructorStub>(masm, mode);
+  } else if (argument_count_ == ONE) {
+    CreateArrayDispatchOneArgument(masm, mode);
+  } else if (argument_count_ == MORE_THAN_ONE) {
+    CreateArrayDispatch<ArrayNArgumentsConstructorStub>(masm, mode);
+  } else {
+    UNREACHABLE();
+  }
+}
+
+
 void ArrayConstructorStub::Generate(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- x0 : argc (only if argument_count_ == ANY)
@@ -6735,7 +6799,6 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
   //  -- sp[0] : return address
   //  -- sp[4] : last argument
   // -----------------------------------
-  Register argc = x0;
   Register constructor = x1;
   Register type_info_cell = x2;
 
@@ -6765,53 +6828,23 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
   }
 
   Register kind = x3;
-  Label no_info, switch_ready;
+  Label no_info;
   // Get the elements kind and case on that.
   __ JumpIfRoot(type_info_cell, Heap::kUndefinedValueRootIndex, &no_info);
   __ Ldr(kind, FieldMemOperand(type_info_cell, PropertyCell::kValueOffset));
 
-  // The type cell may have undefined in its value.
-  __ JumpIfRoot(kind, Heap::kUndefinedValueRootIndex, &no_info);
-
-  // The type cell has either an AllocationSite or a JSFunction.
+  // If the type cell is undefined, or contains anything other than an
+  // AllocationSite, call an array constructor that doesn't use AllocationSites.
   __ Ldr(x10, FieldMemOperand(kind, AllocationSite::kMapOffset));
   __ JumpIfNotRoot(x10, Heap::kAllocationSiteMapRootIndex, &no_info);
 
   __ Ldrsw(kind,
            UntagSmiFieldMemOperand(kind,
                                    AllocationSite::kTransitionInfoOffset));
-  __ B(&switch_ready);
+  GenerateDispatchToArrayStub(masm, DONT_OVERRIDE);
 
   __ Bind(&no_info);
-  __ Mov(kind, GetInitialFastElementsKind());
-  __ Bind(&switch_ready);
-
-  if (argument_count_ == ANY) {
-    Label zero_case, n_case;
-    __ Cbz(argc, &zero_case);
-    __ Cmp(argc, 1);
-    __ B(ne, &n_case);
-
-    // One argument.
-    CreateArrayDispatchOneArgument(masm);
-
-    __ Bind(&zero_case);
-    // No arguments.
-    CreateArrayDispatch<ArrayNoArgumentConstructorStub>(masm);
-
-    __ Bind(&n_case);
-    // N arguments.
-    CreateArrayDispatch<ArrayNArgumentsConstructorStub>(masm);
-
-  } else if (argument_count_ == NONE) {
-    CreateArrayDispatch<ArrayNoArgumentConstructorStub>(masm);
-  } else if (argument_count_ == ONE) {
-    CreateArrayDispatchOneArgument(masm);
-  } else if (argument_count_ == MORE_THAN_ONE) {
-    CreateArrayDispatch<ArrayNArgumentsConstructorStub>(masm);
-  } else {
-    UNREACHABLE();
-  }
+  GenerateDispatchToArrayStub(masm, DISABLE_ALLOCATION_SITES);
 }
 
 

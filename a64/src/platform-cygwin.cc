@@ -205,12 +205,6 @@ void OS::SignalCodeMovingGC() {
 }
 
 
-int OS::StackWalk(Vector<OS::StackFrame> frames) {
-  // Not supported on Cygwin.
-  return 0;
-}
-
-
 // The VirtualMemory implementation is taken from platform-win32.cc.
 // The mmap-based virtual memory implementation as it is used on most posix
 // platforms does not work well because Cygwin does not support MAP_FIXED.

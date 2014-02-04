@@ -814,7 +814,7 @@ TEST(JSObjectCopy) {
   obj->SetElement(1, *second, NONE, kNonStrictMode)->ToObjectChecked();
 
   // Make the clone.
-  Handle<JSObject> clone = Copy(obj);
+  Handle<JSObject> clone = JSObject::Copy(obj);
   CHECK(!clone.is_identical_to(obj));
 
   CHECK_EQ(obj->GetElement(isolate, 0), clone->GetElement(isolate, 0));
@@ -3140,10 +3140,6 @@ TEST(Regress169209) {
   i::FLAG_stress_compaction = false;
   i::FLAG_allow_natives_syntax = true;
   i::FLAG_flush_code_incrementally = true;
-
-  // Disable loading the i18n extension which breaks the assumptions of this
-  // test about the heap layout.
-  i::FLAG_enable_i18n = false;
 
   CcTest::InitializeVM();
   Isolate* isolate = Isolate::Current();

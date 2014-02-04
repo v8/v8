@@ -39,7 +39,6 @@ namespace v8 {
 namespace internal {
 
 // Used by platform implementation files during OS::DumpBacktrace()
-// and OS::StackWalk().
 template<int (*backtrace)(void**, int),
          char** (*backtrace_symbols)(void* const*, int)>
 struct POSIXBacktraceHelper {
@@ -72,32 +71,6 @@ struct POSIXBacktraceHelper {
     }
     fflush(stderr);
     free(symbols);
-  }
-
-  static int StackWalk(Vector<OS::StackFrame> frames) {
-    int frames_size = frames.length();
-    ScopedVector<void*> addresses(frames_size);
-
-    int frames_count = backtrace(addresses.start(), frames_size);
-
-    char** symbols = backtrace_symbols(addresses.start(), frames_count);
-    if (symbols == NULL) {
-      return OS::kStackWalkError;
-    }
-
-    for (int i = 0; i < frames_count; i++) {
-      frames[i].address = addresses[i];
-      // Format a text representation of the frame based on the information
-      // available.
-      OS::SNPrintF(MutableCStrVector(frames[i].text, OS::kStackWalkMaxTextLen),
-                   "%s", symbols[i]);
-      // Make sure line termination is in place.
-      frames[i].text[OS::kStackWalkMaxTextLen - 1] = '\0';
-    }
-
-    free(symbols);
-
-    return frames_count;
   }
 };
 

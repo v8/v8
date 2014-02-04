@@ -104,20 +104,20 @@ class StubCache {
                                 Code::StubType type,
                                 StrictModeFlag strict_mode);
 
-  Handle<Code> ComputeMonomorphicLoadIC(Handle<JSObject> receiver,
+  Handle<Code> ComputeMonomorphicLoadIC(Handle<HeapObject> receiver,
                                         Handle<Code> handler,
                                         Handle<Name> name);
 
-  Handle<Code> ComputeMonomorphicKeyedLoadIC(Handle<JSObject> receiver,
+  Handle<Code> ComputeMonomorphicKeyedLoadIC(Handle<HeapObject> receiver,
                                              Handle<Code> handler,
                                              Handle<Name> name);
 
-  Handle<Code> ComputeMonomorphicStoreIC(Handle<JSObject> receiver,
+  Handle<Code> ComputeMonomorphicStoreIC(Handle<HeapObject> receiver,
                                          Handle<Code> handler,
                                          Handle<Name> name,
                                          StrictModeFlag strict_mode);
 
-  Handle<Code> ComputeMonomorphicKeyedStoreIC(Handle<JSObject> receiver,
+  Handle<Code> ComputeMonomorphicKeyedStoreIC(Handle<HeapObject> receiver,
                                               Handle<Code> handler,
                                               Handle<Name> name,
                                               StrictModeFlag strict_mode);
@@ -408,6 +408,16 @@ class StubCache {
   Heap* heap() { return isolate()->heap(); }
   Factory* factory() { return isolate()->factory(); }
 
+  // These constants describe the structure of the interceptor arguments on the
+  // stack. The arguments are pushed by the (platform-specific)
+  // PushInterceptorArguments and read by LoadPropertyWithInterceptorOnly and
+  // LoadWithInterceptor.
+  static const int kInterceptorArgsNameIndex = 0;
+  static const int kInterceptorArgsInfoIndex = 1;
+  static const int kInterceptorArgsThisIndex = 2;
+  static const int kInterceptorArgsHolderIndex = 3;
+  static const int kInterceptorArgsLength = 4;
+
  private:
   explicit StubCache(Isolate* isolate);
 
@@ -562,8 +572,7 @@ class StubCompiler BASE_EMBEDDED {
                                        Register receiver,
                                        Register scratch1,
                                        Register scratch2,
-                                       Label* miss_label,
-                                       bool support_wrappers);
+                                       Label* miss_label);
 
   static void GenerateLoadFunctionPrototype(MacroAssembler* masm,
                                             Register receiver,

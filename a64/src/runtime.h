@@ -88,7 +88,7 @@ namespace internal {
   F(LazyCompile, 1, 1) \
   F(LazyRecompile, 1, 1) \
   F(ConcurrentRecompile, 1, 1) \
-  F(InstallRecompiledCode, 1, 1) \
+  F(TryInstallRecompiledCode, 1, 1) \
   F(NotifyDeoptimized, 1, 1) \
   F(NotifyStubFailure, 0, 1) \
   F(NotifyOSR, 0, 1) \
@@ -838,7 +838,7 @@ class Runtime : public AllStatic {
       JSArrayBuffer* phantom_array_buffer);
 
   // Helper functions used stubs.
-  static void PerformGC(Object* result);
+  static void PerformGC(Object* result, Isolate* isolate);
 
   // Used in runtime.cc and hydrogen's VisitArrayLiteral.
   static Handle<Object> CreateArrayLiteralBoilerplate(

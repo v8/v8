@@ -129,11 +129,6 @@
             ],
           },
         }],
-        ['v8_enable_i18n_support==1', {
-          'sources': [
-            '<(SHARED_INTERMEDIATE_DIR)/i18n-libraries.cc',
-          ],
-        }],
       ],
       'dependencies': [
         'v8_base.<(v8_target_arch)',
@@ -195,11 +190,6 @@
           'defines': [
             'BUILDING_V8_SHARED',
             'V8_SHARED',
-          ],
-        }],
-        ['v8_enable_i18n_support==1', {
-          'sources': [
-            '<(SHARED_INTERMEDIATE_DIR)/i18n-libraries.cc',
           ],
         }],
       ]
@@ -367,6 +357,8 @@
         '../../src/hydrogen-mark-deoptimize.h',
         '../../src/hydrogen-minus-zero.cc',
         '../../src/hydrogen-minus-zero.h',
+        '../../src/hydrogen-osr.cc',
+        '../../src/hydrogen-osr.h',
         '../../src/hydrogen-range-analysis.cc',
         '../../src/hydrogen-range-analysis.h',
         '../../src/hydrogen-redundant-phi.cc',
@@ -379,8 +371,6 @@
         '../../src/hydrogen-sce.h',
         '../../src/hydrogen-uint32-analysis.cc',
         '../../src/hydrogen-uint32-analysis.h',
-        '../../src/hydrogen-osr.cc',
-        '../../src/hydrogen-osr.h',
         '../../src/i18n.cc',
         '../../src/i18n.h',
         '../../src/icu_util.cc',
@@ -528,6 +518,7 @@
         '../../src/unicode-inl.h',
         '../../src/unicode.cc',
         '../../src/unicode.h',
+        '../../src/unique.h',
         '../../src/uri.h',
         '../../src/utils-inl.h',
         '../../src/utils.cc',
@@ -910,13 +901,9 @@
           ]
         }],
         ['v8_enable_i18n_support==1', {
-          'sources': [
-            '../../src/extensions/i18n/i18n-extension.cc',
-            '../../src/extensions/i18n/i18n-extension.h',
-          ],
           'dependencies': [
-            '<(DEPTH)/third_party/icu/icu.gyp:icui18n',
-            '<(DEPTH)/third_party/icu/icu.gyp:icuuc',
+            '<(icu_gyp_path):icui18n',
+            '<(icu_gyp_path):icuuc',
           ]
         }, {  # v8_enable_i18n_support==0
           'sources!': [
@@ -926,7 +913,7 @@
         }],
         ['OS=="win" and v8_enable_i18n_support==1', {
           'dependencies': [
-            '<(DEPTH)/third_party/icu/icu.gyp:icudata',
+            '<(icu_gyp_path):icudata',
           ],
         }],
       ],
@@ -941,24 +928,15 @@
           'toolsets': ['target'],
         }],
         ['v8_enable_i18n_support==1', {
-          'actions': [{
-            'action_name': 'js2c_i18n',
-            'inputs': [
-              '../../tools/js2c.py',
-              '<@(i18n_library_files)',
+          'variables': {
+            'i18n_library_files': [
+              '../../src/i18n.js',
             ],
-            'outputs': [
-              '<(SHARED_INTERMEDIATE_DIR)/i18n-libraries.cc',
-            ],
-            'action': [
-              'python',
-              '../../tools/js2c.py',
-              '<@(_outputs)',
-              'I18N',
-              '<(v8_compress_startup_data)',
-              '<@(i18n_library_files)'
-            ],
-          }],
+          },
+        }, {
+          'variables': {
+            'i18n_library_files': [],
+          },
         }],
       ],
       'variables': {
@@ -992,18 +970,6 @@
           '../../src/harmony-string.js',
           '../../src/harmony-array.js',
         ],
-        'i18n_library_files': [
-          '../../src/extensions/i18n/header.js',
-          '../../src/extensions/i18n/globals.js',
-          '../../src/extensions/i18n/locale.js',
-          '../../src/extensions/i18n/collator.js',
-          '../../src/extensions/i18n/number-format.js',
-          '../../src/extensions/i18n/date-format.js',
-          '../../src/extensions/i18n/break-iterator.js',
-          '../../src/extensions/i18n/i18n-utils.js',
-          '../../src/extensions/i18n/overrides.js',
-          '../../src/extensions/i18n/footer.js',
-        ],
       },
       'actions': [
         {
@@ -1011,6 +977,7 @@
           'inputs': [
             '../../tools/js2c.py',
             '<@(library_files)',
+            '<@(i18n_library_files)',
           ],
           'outputs': [
             '<(SHARED_INTERMEDIATE_DIR)/libraries.cc',
@@ -1021,7 +988,8 @@
             '<@(_outputs)',
             'CORE',
             '<(v8_compress_startup_data)',
-            '<@(library_files)'
+            '<@(library_files)',
+            '<@(i18n_library_files)',
           ],
         },
         {

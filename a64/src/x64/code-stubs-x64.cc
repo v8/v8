@@ -1009,7 +1009,7 @@ static void BinaryOpStub_CheckSmiInput(MacroAssembler* masm,
   __ movsd(xmm0, FieldOperand(input, HeapNumber::kValueOffset));
   // Convert, convert back, and compare the two doubles' bits.
   __ cvttsd2siq(scratch2, xmm0);
-  __ cvtlsi2sd(xmm1, scratch2);
+  __ Cvtlsi2sd(xmm1, scratch2);
   __ movq(scratch1, xmm0);
   __ movq(scratch2, xmm1);
   __ cmpq(scratch1, scratch2);
@@ -1145,7 +1145,7 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
     // Then load the bits of the double into rbx.
     __ SmiToInteger32(rax, rax);
     __ subq(rsp, Immediate(kDoubleSize));
-    __ cvtlsi2sd(xmm1, rax);
+    __ Cvtlsi2sd(xmm1, rax);
     __ movsd(Operand(rsp, 0), xmm1);
     __ movq(rbx, xmm1);
     __ movq(rdx, xmm1);
@@ -1477,9 +1477,9 @@ void FloatingPointHelper::LoadAsIntegers(MacroAssembler* masm,
 
 void FloatingPointHelper::LoadSSE2SmiOperands(MacroAssembler* masm) {
   __ SmiToInteger32(kScratchRegister, rdx);
-  __ cvtlsi2sd(xmm0, kScratchRegister);
+  __ Cvtlsi2sd(xmm0, kScratchRegister);
   __ SmiToInteger32(kScratchRegister, rax);
-  __ cvtlsi2sd(xmm1, kScratchRegister);
+  __ Cvtlsi2sd(xmm1, kScratchRegister);
 }
 
 
@@ -1503,12 +1503,12 @@ void FloatingPointHelper::LoadSSE2UnknownOperands(MacroAssembler* masm,
 
   __ bind(&load_smi_rdx);
   __ SmiToInteger32(kScratchRegister, rdx);
-  __ cvtlsi2sd(xmm0, kScratchRegister);
+  __ Cvtlsi2sd(xmm0, kScratchRegister);
   __ JumpIfNotSmi(rax, &load_nonsmi_rax);
 
   __ bind(&load_smi_rax);
   __ SmiToInteger32(kScratchRegister, rax);
-  __ cvtlsi2sd(xmm1, kScratchRegister);
+  __ Cvtlsi2sd(xmm1, kScratchRegister);
   __ bind(&done);
 }
 
@@ -1541,7 +1541,7 @@ void FloatingPointHelper::NumbersToSmis(MacroAssembler* masm,
   __ cvttsd2siq(smi_result, xmm0);
   // Check if conversion was successful by converting back and
   // comparing to the original double's bits.
-  __ cvtlsi2sd(xmm1, smi_result);
+  __ Cvtlsi2sd(xmm1, smi_result);
   __ movq(kScratchRegister, xmm1);
   __ cmpq(scratch2, kScratchRegister);
   __ j(not_equal, on_not_smis);
@@ -1560,7 +1560,7 @@ void FloatingPointHelper::NumbersToSmis(MacroAssembler* masm,
   __ movsd(xmm0, FieldOperand(second, HeapNumber::kValueOffset));
   __ movq(scratch2, xmm0);
   __ cvttsd2siq(smi_result, xmm0);
-  __ cvtlsi2sd(xmm1, smi_result);
+  __ Cvtlsi2sd(xmm1, smi_result);
   __ movq(kScratchRegister, xmm1);
   __ cmpq(scratch2, kScratchRegister);
   __ j(not_equal, on_not_smis);
@@ -1603,7 +1603,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
 
   // Save 1 in double_result - we need this several times later on.
   __ movq(scratch, Immediate(1));
-  __ cvtlsi2sd(double_result, scratch);
+  __ Cvtlsi2sd(double_result, scratch);
 
   if (exponent_type_ == ON_STACK) {
     Label base_is_smi, unpack_exponent;
@@ -1623,7 +1623,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
 
     __ bind(&base_is_smi);
     __ SmiToInteger32(base, base);
-    __ cvtlsi2sd(double_base, base);
+    __ Cvtlsi2sd(double_base, base);
     __ bind(&unpack_exponent);
 
     __ JumpIfNotSmi(exponent, &exponent_not_smi, Label::kNear);
@@ -1812,7 +1812,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   // and may not have contained the exponent value in the first place when the
   // input was a smi.  We reset it with exponent value before bailing out.
   __ j(not_equal, &done);
-  __ cvtlsi2sd(double_exponent, exponent);
+  __ Cvtlsi2sd(double_exponent, exponent);
 
   // Returning or bailing out.
   Counters* counters = masm->isolate()->counters();
@@ -1902,8 +1902,7 @@ void StringLengthStub::Generate(MacroAssembler* masm) {
     receiver = rax;
   }
 
-  StubCompiler::GenerateLoadStringLength(masm, receiver, r8, r9, &miss,
-                                         support_wrapper_);
+  StubCompiler::GenerateLoadStringLength(masm, receiver, r8, r9, &miss);
   __ bind(&miss);
   StubCompiler::TailCallBuiltin(
       masm, BaseLoadStoreStubCompiler::MissBuiltin(kind()));
@@ -3619,6 +3618,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
     // PerformGC. No need to use PrepareCallCFunction/CallCFunction here as the
     // stack is known to be aligned. This function takes one argument which is
     // passed in register.
+    __ movq(arg_reg_2, ExternalReference::isolate_address(masm->isolate()));
     __ movq(arg_reg_1, rax);
     __ movq(kScratchRegister,
             ExternalReference::perform_gc_function(masm->isolate()));
@@ -4644,7 +4644,6 @@ void StringAddStub::GenerateConvertArgument(MacroAssembler* masm,
   __ j(below, &done);
 
   // Check the number to string cache.
-  Label not_cached;
   __ bind(&not_string);
   // Puts the cached result into scratch1.
   NumberToStringStub::GenerateLookupNumberStringCache(masm,
@@ -4652,22 +4651,9 @@ void StringAddStub::GenerateConvertArgument(MacroAssembler* masm,
                                                       scratch1,
                                                       scratch2,
                                                       scratch3,
-                                                      &not_cached);
+                                                      slow);
   __ movq(arg, scratch1);
   __ movq(Operand(rsp, stack_offset), arg);
-  __ jmp(&done);
-
-  // Check if the argument is a safe string wrapper.
-  __ bind(&not_cached);
-  __ JumpIfSmi(arg, slow);
-  __ CmpObjectType(arg, JS_VALUE_TYPE, scratch1);  // map -> scratch1.
-  __ j(not_equal, slow);
-  __ testb(FieldOperand(scratch1, Map::kBitField2Offset),
-           Immediate(1 << Map::kStringWrapperSafeForDefaultValueOf));
-  __ j(zero, slow);
-  __ movq(arg, FieldOperand(arg, JSValue::kValueOffset));
-  __ movq(Operand(rsp, stack_offset), arg);
-
   __ bind(&done);
 }
 
@@ -5390,7 +5376,7 @@ void ICCompareStub::GenerateNumbers(MacroAssembler* masm) {
   __ jmp(&left, Label::kNear);
   __ bind(&right_smi);
   __ SmiToInteger32(rcx, rax);  // Can't clobber rax yet.
-  __ cvtlsi2sd(xmm1, rcx);
+  __ Cvtlsi2sd(xmm1, rcx);
 
   __ bind(&left);
   __ JumpIfSmi(rdx, &left_smi, Label::kNear);
@@ -5400,7 +5386,7 @@ void ICCompareStub::GenerateNumbers(MacroAssembler* masm) {
   __ jmp(&done);
   __ bind(&left_smi);
   __ SmiToInteger32(rcx, rdx);  // Can't clobber rdx yet.
-  __ cvtlsi2sd(xmm0, rcx);
+  __ Cvtlsi2sd(xmm0, rcx);
 
   __ bind(&done);
   // Compare operands
@@ -6326,46 +6312,59 @@ void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
 
 
 template<class T>
-static void CreateArrayDispatch(MacroAssembler* masm) {
-  int last_index = GetSequenceIndexFromFastElementsKind(
-      TERMINAL_FAST_ELEMENTS_KIND);
-  for (int i = 0; i <= last_index; ++i) {
-    Label next;
-    ElementsKind kind = GetFastElementsKindFromSequenceIndex(i);
-    __ cmpl(rdx, Immediate(kind));
-    __ j(not_equal, &next);
-    T stub(kind);
+static void CreateArrayDispatch(MacroAssembler* masm,
+                                AllocationSiteOverrideMode mode) {
+  if (mode == DISABLE_ALLOCATION_SITES) {
+    T stub(GetInitialFastElementsKind(),
+           CONTEXT_CHECK_REQUIRED,
+           mode);
     __ TailCallStub(&stub);
-    __ bind(&next);
-  }
+  } else if (mode == DONT_OVERRIDE) {
+    int last_index = GetSequenceIndexFromFastElementsKind(
+        TERMINAL_FAST_ELEMENTS_KIND);
+    for (int i = 0; i <= last_index; ++i) {
+      Label next;
+      ElementsKind kind = GetFastElementsKindFromSequenceIndex(i);
+      __ cmpl(rdx, Immediate(kind));
+      __ j(not_equal, &next);
+      T stub(kind);
+      __ TailCallStub(&stub);
+      __ bind(&next);
+    }
 
-  // If we reached this point there is a problem.
-  __ Abort(kUnexpectedElementsKindInArrayConstructor);
+    // If we reached this point there is a problem.
+    __ Abort(kUnexpectedElementsKindInArrayConstructor);
+  } else {
+    UNREACHABLE();
+  }
 }
 
 
-static void CreateArrayDispatchOneArgument(MacroAssembler* masm) {
-  // rbx - type info cell
-  // rdx - kind
+static void CreateArrayDispatchOneArgument(MacroAssembler* masm,
+                                           AllocationSiteOverrideMode mode) {
+  // rbx - type info cell (if mode != DISABLE_ALLOCATION_SITES)
+  // rdx - kind (if mode != DISABLE_ALLOCATION_SITES)
   // rax - number of arguments
   // rdi - constructor?
   // rsp[0] - return address
   // rsp[8] - last argument
-  ASSERT(FAST_SMI_ELEMENTS == 0);
-  ASSERT(FAST_HOLEY_SMI_ELEMENTS == 1);
-  ASSERT(FAST_ELEMENTS == 2);
-  ASSERT(FAST_HOLEY_ELEMENTS == 3);
-  ASSERT(FAST_DOUBLE_ELEMENTS == 4);
-  ASSERT(FAST_HOLEY_DOUBLE_ELEMENTS == 5);
-
   Handle<Object> undefined_sentinel(
       masm->isolate()->heap()->undefined_value(),
       masm->isolate());
 
-  // is the low bit set? If so, we are holey and that is good.
-  __ testb(rdx, Immediate(1));
   Label normal_sequence;
-  __ j(not_zero, &normal_sequence);
+  if (mode == DONT_OVERRIDE) {
+    ASSERT(FAST_SMI_ELEMENTS == 0);
+    ASSERT(FAST_HOLEY_SMI_ELEMENTS == 1);
+    ASSERT(FAST_ELEMENTS == 2);
+    ASSERT(FAST_HOLEY_ELEMENTS == 3);
+    ASSERT(FAST_DOUBLE_ELEMENTS == 4);
+    ASSERT(FAST_HOLEY_DOUBLE_ELEMENTS == 5);
+
+    // is the low bit set? If so, we are holey and that is good.
+    __ testb(rdx, Immediate(1));
+    __ j(not_zero, &normal_sequence);
+  }
 
   // look at the first argument
   StackArgumentsAccessor args(rsp, 1, ARGUMENTS_DONT_CONTAIN_RECEIVER);
@@ -6373,50 +6372,73 @@ static void CreateArrayDispatchOneArgument(MacroAssembler* masm) {
   __ testq(rcx, rcx);
   __ j(zero, &normal_sequence);
 
-  // We are going to create a holey array, but our kind is non-holey.
-  // Fix kind and retry (only if we have an allocation site in the cell).
-  __ incl(rdx);
-  __ Cmp(rbx, undefined_sentinel);
-  __ j(equal, &normal_sequence);
-  __ movq(rcx, FieldOperand(rbx, Cell::kValueOffset));
-  Handle<Map> allocation_site_map(
-      masm->isolate()->heap()->allocation_site_map(),
-      masm->isolate());
-  __ Cmp(FieldOperand(rcx, 0), allocation_site_map);
-  __ j(not_equal, &normal_sequence);
+  if (mode == DISABLE_ALLOCATION_SITES) {
+    ElementsKind initial = GetInitialFastElementsKind();
+    ElementsKind holey_initial = GetHoleyElementsKind(initial);
 
-  // Save the resulting elements kind in type info
-  __ Integer32ToSmi(rdx, rdx);
-  __ movq(FieldOperand(rcx, AllocationSite::kTransitionInfoOffset), rdx);
-  __ SmiToInteger32(rdx, rdx);
+    ArraySingleArgumentConstructorStub stub_holey(holey_initial,
+                                                  CONTEXT_CHECK_REQUIRED,
+                                                  DISABLE_ALLOCATION_SITES);
+    __ TailCallStub(&stub_holey);
 
-  __ bind(&normal_sequence);
-  int last_index = GetSequenceIndexFromFastElementsKind(
-      TERMINAL_FAST_ELEMENTS_KIND);
-  for (int i = 0; i <= last_index; ++i) {
-    Label next;
-    ElementsKind kind = GetFastElementsKindFromSequenceIndex(i);
-    __ cmpl(rdx, Immediate(kind));
-    __ j(not_equal, &next);
-    ArraySingleArgumentConstructorStub stub(kind);
+    __ bind(&normal_sequence);
+    ArraySingleArgumentConstructorStub stub(initial,
+                                            CONTEXT_CHECK_REQUIRED,
+                                            DISABLE_ALLOCATION_SITES);
     __ TailCallStub(&stub);
-    __ bind(&next);
-  }
+  } else if (mode == DONT_OVERRIDE) {
+    // We are going to create a holey array, but our kind is non-holey.
+    // Fix kind and retry (only if we have an allocation site in the cell).
+    __ incl(rdx);
+    __ movq(rcx, FieldOperand(rbx, Cell::kValueOffset));
+    if (FLAG_debug_code) {
+      Handle<Map> allocation_site_map(
+          masm->isolate()->heap()->allocation_site_map(),
+          masm->isolate());
+      __ Cmp(FieldOperand(rcx, 0), allocation_site_map);
+      __ Assert(equal, kExpectedAllocationSiteInCell);
+    }
 
-  // If we reached this point there is a problem.
-  __ Abort(kUnexpectedElementsKindInArrayConstructor);
+    // Save the resulting elements kind in type info
+    __ Integer32ToSmi(rdx, rdx);
+    __ movq(FieldOperand(rcx, AllocationSite::kTransitionInfoOffset), rdx);
+    __ SmiToInteger32(rdx, rdx);
+
+    __ bind(&normal_sequence);
+    int last_index = GetSequenceIndexFromFastElementsKind(
+        TERMINAL_FAST_ELEMENTS_KIND);
+    for (int i = 0; i <= last_index; ++i) {
+      Label next;
+      ElementsKind kind = GetFastElementsKindFromSequenceIndex(i);
+      __ cmpl(rdx, Immediate(kind));
+      __ j(not_equal, &next);
+      ArraySingleArgumentConstructorStub stub(kind);
+      __ TailCallStub(&stub);
+      __ bind(&next);
+    }
+
+    // If we reached this point there is a problem.
+    __ Abort(kUnexpectedElementsKindInArrayConstructor);
+  } else {
+    UNREACHABLE();
+  }
 }
 
 
 template<class T>
 static void ArrayConstructorStubAheadOfTimeHelper(Isolate* isolate) {
+  ElementsKind initial_kind = GetInitialFastElementsKind();
+  ElementsKind initial_holey_kind = GetHoleyElementsKind(initial_kind);
+
   int to_index = GetSequenceIndexFromFastElementsKind(
       TERMINAL_FAST_ELEMENTS_KIND);
   for (int i = 0; i <= to_index; ++i) {
     ElementsKind kind = GetFastElementsKindFromSequenceIndex(i);
     T stub(kind);
     stub.GetCode(isolate)->set_is_pregenerated(true);
-    if (AllocationSite::GetMode(kind) != DONT_TRACK_ALLOCATION_SITE) {
+    if (AllocationSite::GetMode(kind) != DONT_TRACK_ALLOCATION_SITE ||
+        (!FLAG_track_allocation_sites &&
+         (kind == initial_kind || kind == initial_holey_kind))) {
       T stub1(kind, CONTEXT_CHECK_REQUIRED, DISABLE_ALLOCATION_SITES);
       stub1.GetCode(isolate)->set_is_pregenerated(true);
     }
@@ -6445,6 +6467,34 @@ void InternalArrayConstructorStubBase::GenerateStubsAheadOfTime(
     stubh2.GetCode(isolate)->set_is_pregenerated(true);
     InternalArrayNArgumentsConstructorStub stubh3(kinds[i]);
     stubh3.GetCode(isolate)->set_is_pregenerated(true);
+  }
+}
+
+
+void ArrayConstructorStub::GenerateDispatchToArrayStub(
+    MacroAssembler* masm,
+    AllocationSiteOverrideMode mode) {
+  if (argument_count_ == ANY) {
+    Label not_zero_case, not_one_case;
+    __ testq(rax, rax);
+    __ j(not_zero, &not_zero_case);
+    CreateArrayDispatch<ArrayNoArgumentConstructorStub>(masm, mode);
+
+    __ bind(&not_zero_case);
+    __ cmpl(rax, Immediate(1));
+    __ j(greater, &not_one_case);
+    CreateArrayDispatchOneArgument(masm, mode);
+
+    __ bind(&not_one_case);
+    CreateArrayDispatch<ArrayNArgumentsConstructorStub>(masm, mode);
+  } else if (argument_count_ == NONE) {
+    CreateArrayDispatch<ArrayNoArgumentConstructorStub>(masm, mode);
+  } else if (argument_count_ == ONE) {
+    CreateArrayDispatchOneArgument(masm, mode);
+  } else if (argument_count_ == MORE_THAN_ONE) {
+    CreateArrayDispatch<ArrayNArgumentsConstructorStub>(masm, mode);
+  } else {
+    UNREACHABLE();
   }
 }
 
@@ -6484,50 +6534,22 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
     __ bind(&okay_here);
   }
 
-  Label no_info, switch_ready;
-  // Get the elements kind and case on that.
+  Label no_info;
+  // If the type cell is undefined, or contains anything other than an
+  // AllocationSite, call an array constructor that doesn't use AllocationSites.
   __ Cmp(rbx, undefined_sentinel);
   __ j(equal, &no_info);
   __ movq(rdx, FieldOperand(rbx, Cell::kValueOffset));
-
-  // The type cell may have undefined in its value.
-  __ Cmp(rdx, undefined_sentinel);
-  __ j(equal, &no_info);
-
-  // The type cell has either an AllocationSite or a JSFunction
   __ Cmp(FieldOperand(rdx, 0),
          Handle<Map>(masm->isolate()->heap()->allocation_site_map()));
   __ j(not_equal, &no_info);
 
   __ movq(rdx, FieldOperand(rdx, AllocationSite::kTransitionInfoOffset));
   __ SmiToInteger32(rdx, rdx);
-  __ jmp(&switch_ready);
+  GenerateDispatchToArrayStub(masm, DONT_OVERRIDE);
+
   __ bind(&no_info);
-  __ movq(rdx, Immediate(GetInitialFastElementsKind()));
-  __ bind(&switch_ready);
-
-  if (argument_count_ == ANY) {
-    Label not_zero_case, not_one_case;
-    __ testq(rax, rax);
-    __ j(not_zero, &not_zero_case);
-    CreateArrayDispatch<ArrayNoArgumentConstructorStub>(masm);
-
-    __ bind(&not_zero_case);
-    __ cmpl(rax, Immediate(1));
-    __ j(greater, &not_one_case);
-    CreateArrayDispatchOneArgument(masm);
-
-    __ bind(&not_one_case);
-    CreateArrayDispatch<ArrayNArgumentsConstructorStub>(masm);
-  } else if (argument_count_ == NONE) {
-    CreateArrayDispatch<ArrayNoArgumentConstructorStub>(masm);
-  } else if (argument_count_ == ONE) {
-    CreateArrayDispatchOneArgument(masm);
-  } else if (argument_count_ == MORE_THAN_ONE) {
-    CreateArrayDispatch<ArrayNArgumentsConstructorStub>(masm);
-  } else {
-    UNREACHABLE();
-  }
+  GenerateDispatchToArrayStub(masm, DISABLE_ALLOCATION_SITES);
 }
 
 

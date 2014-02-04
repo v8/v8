@@ -1076,7 +1076,7 @@ Handle<Code> Compiler::InstallOptimizedCode(
       info->closure()->PrintName();
       PrintF(" as it has been disabled.\n");
     }
-    ASSERT(!info->closure()->IsMarkedForInstallingRecompiledCode());
+    ASSERT(!info->closure()->IsInRecompileQueue());
     return Handle<Code>::null();
   }
 
@@ -1123,7 +1123,7 @@ Handle<Code> Compiler::InstallOptimizedCode(
   // Optimized code is finally replacing unoptimized code.  Reset the latter's
   // profiler ticks to prevent too soon re-opt after a deopt.
   info->shared_info()->code()->set_profiler_ticks(0);
-  ASSERT(!info->closure()->IsMarkedForInstallingRecompiledCode());
+  ASSERT(!info->closure()->IsInRecompileQueue());
   return (status == OptimizingCompiler::SUCCEEDED) ? info->code()
                                                    : Handle<Code>::null();
 }

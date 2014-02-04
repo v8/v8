@@ -357,40 +357,45 @@ HValue* CodeStubGraphBuilder<FastCloneShallowArrayStub>::BuildCodeStub() {
 
   HObjectAccess access = HObjectAccess::ForAllocationSiteTransitionInfo();
   HInstruction* boilerplate = Add<HLoadNamedField>(allocation_site, access);
+  HValue* push_value;
   if (mode == FastCloneShallowArrayStub::CLONE_ANY_ELEMENTS) {
     HValue* elements = AddLoadElements(boilerplate);
 
     IfBuilder if_fixed_cow(this);
     if_fixed_cow.If<HCompareMap>(elements, factory->fixed_cow_array_map());
     if_fixed_cow.Then();
-    environment()->Push(BuildCloneShallowArray(boilerplate,
-                                               allocation_site,
-                                               alloc_site_mode,
-                                               FAST_ELEMENTS,
-                                               0/*copy-on-write*/));
+    push_value = BuildCloneShallowArray(boilerplate,
+                                        allocation_site,
+                                        alloc_site_mode,
+                                        FAST_ELEMENTS,
+                                        0/*copy-on-write*/);
+    environment()->Push(push_value);
     if_fixed_cow.Else();
 
     IfBuilder if_fixed(this);
     if_fixed.If<HCompareMap>(elements, factory->fixed_array_map());
     if_fixed.Then();
-    environment()->Push(BuildCloneShallowArray(boilerplate,
-                                               allocation_site,
-                                               alloc_site_mode,
-                                               FAST_ELEMENTS,
-                                               length));
+    push_value = BuildCloneShallowArray(boilerplate,
+                                        allocation_site,
+                                        alloc_site_mode,
+                                        FAST_ELEMENTS,
+                                        length);
+    environment()->Push(push_value);
     if_fixed.Else();
-    environment()->Push(BuildCloneShallowArray(boilerplate,
-                                               allocation_site,
-                                               alloc_site_mode,
-                                               FAST_DOUBLE_ELEMENTS,
-                                               length));
+    push_value = BuildCloneShallowArray(boilerplate,
+                                        allocation_site,
+                                        alloc_site_mode,
+                                        FAST_DOUBLE_ELEMENTS,
+                                        length);
+    environment()->Push(push_value);
   } else {
     ElementsKind elements_kind = casted_stub()->ComputeElementsKind();
-    environment()->Push(BuildCloneShallowArray(boilerplate,
-                                               allocation_site,
-                                               alloc_site_mode,
-                                               elements_kind,
-                                               length));
+    push_value = BuildCloneShallowArray(boilerplate,
+                                        allocation_site,
+                                        alloc_site_mode,
+                                        elements_kind,
+                                        length);
+    environment()->Push(push_value);
   }
 
   checker.ElseDeopt("Uninitialized boilerplate literals");
@@ -918,8 +923,7 @@ void CodeStubGraphBuilderBase::BuildInstallOptimizedCode(
     HValue* native_context,
     HValue* code_object) {
   Counters* counters = isolate()->counters();
-  AddIncrementCounter(counters->fast_new_closure_install_optimized(),
-                      context());
+  AddIncrementCounter(counters->fast_new_closure_install_optimized());
 
   // TODO(fschneider): Idea: store proper code pointers in the optimized code
   // map and either unmangle them on marking or do nothing as the whole map is
@@ -967,7 +971,7 @@ void CodeStubGraphBuilderBase::BuildInstallFromOptimizedCodeMap(
   }
   is_optimized.Else();
   {
-    AddIncrementCounter(counters->fast_new_closure_try_optimized(), context());
+    AddIncrementCounter(counters->fast_new_closure_try_optimized());
     // optimized_map points to fixed array of 3-element entries
     // (native context, optimized code, literals).
     // Map must never be empty, so check the first elements.
@@ -1056,7 +1060,7 @@ HValue* CodeStubGraphBuilder<FastNewClosureStub>::BuildCodeStub() {
   HValue* size = Add<HConstant>(JSFunction::kSize);
   HInstruction* js_function = Add<HAllocate>(size, HType::JSObject(),
                                              NOT_TENURED, JS_FUNCTION_TYPE);
-  AddIncrementCounter(counters->fast_new_closure_total(), context());
+  AddIncrementCounter(counters->fast_new_closure_total());
 
   int map_index = Context::FunctionMapIndex(casted_stub()->language_mode(),
                                             casted_stub()->is_generator());

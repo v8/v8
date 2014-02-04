@@ -3722,6 +3722,7 @@ void LCodeGen::DoMathCos(LMathCos* instr) {
 }
 
 
+// TODO(all): This will disappear when Math.random is rewritten in JavaScript.
 void LCodeGen::DoRandom(LRandom* instr) {
   class DeferredDoRandom: public LDeferredCode {
    public:
@@ -3786,6 +3787,7 @@ void LCodeGen::DoRandom(LRandom* instr) {
 }
 
 
+// TODO(all): This will disappear when Math.random is rewritten in JavaScript.
 void LCodeGen::DoDeferredRandom(LRandom* instr) {
   __ CallCFunction(ExternalReference::random_uint32_function(isolate()), 1);
   // Return value is in x0.
@@ -4537,6 +4539,8 @@ void LCodeGen::DoReturn(LReturn* instr) {
 
 
 void LCodeGen::DoSeqStringSetChar(LSeqStringSetChar* instr) {
+  // TODO(all): Port ARM optimizations from r16707.
+
   String::Encoding encoding = instr->encoding();
   Register string = ToRegister(instr->string());
   Register index = ToRegister(instr->index());
@@ -5270,17 +5274,21 @@ void LCodeGen::DoTaggedToI(LTaggedToI* instr) {
   Register input = ToRegister(instr->value());
   Register output = ToRegister(instr->result());
 
-  DeferredTaggedToI* deferred = new(zone()) DeferredTaggedToI(this, instr);
+  if (instr->hydrogen()->value()->representation().IsSmi()) {
+    __ SmiUntag(input);
+  } else {
+    DeferredTaggedToI* deferred = new(zone()) DeferredTaggedToI(this, instr);
 
-  // TODO(jbramley): We can't use JumpIfNotSmi here because the tbz it uses
-  // doesn't always have enough range. Consider making a variant of it, or a
-  // TestIsSmi helper.
-  STATIC_ASSERT(kSmiTag == 0);
-  __ Tst(input, kSmiTagMask);
-  __ B(ne, deferred->entry());
+    // TODO(jbramley): We can't use JumpIfNotSmi here because the tbz it uses
+    // doesn't always have enough range. Consider making a variant of it, or a
+    // TestIsSmi helper.
+    STATIC_ASSERT(kSmiTag == 0);
+    __ Tst(input, kSmiTagMask);
+    __ B(ne, deferred->entry());
 
-  __ SmiUntag(output, input);
-  __ Bind(deferred->exit());
+    __ SmiUntag(output, input);
+    __ Bind(deferred->exit());
+  }
 }
 
 

@@ -3028,7 +3028,7 @@ void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
 
   VisitForAccumulatorValue(args->at(0));
 
-  Label materialize_true, materialize_false;
+  Label materialize_true, materialize_false, skip_lookup;
   Label* if_true = NULL;
   Label* if_false = NULL;
   Label* fall_through = NULL;
@@ -3040,7 +3040,7 @@ void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
   __ lw(a1, FieldMemOperand(v0, HeapObject::kMapOffset));
   __ lbu(t0, FieldMemOperand(a1, Map::kBitField2Offset));
   __ And(t0, t0, 1 << Map::kStringWrapperSafeForDefaultValueOf);
-  __ Branch(if_true, ne, t0, Operand(zero_reg));
+  __ Branch(&skip_lookup, ne, t0, Operand(zero_reg));
 
   // Check for fast case object. Generate false result for slow case object.
   __ lw(a2, FieldMemOperand(v0, JSObject::kPropertiesOffset));
@@ -3086,6 +3086,14 @@ void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
   __ Branch(&loop, ne, t0, Operand(a2));
 
   __ bind(&done);
+
+  // Set the bit in the map to indicate that there is no local valueOf field.
+  __ lbu(a2, FieldMemOperand(a1, Map::kBitField2Offset));
+  __ Or(a2, a2, Operand(1 << Map::kStringWrapperSafeForDefaultValueOf));
+  __ sb(a2, FieldMemOperand(a1, Map::kBitField2Offset));
+
+  __ bind(&skip_lookup);
+
   // If a valueOf property is not found on the object check that its
   // prototype is the un-modified String prototype. If not result is false.
   __ lw(a2, FieldMemOperand(a1, Map::kPrototypeOffset));
@@ -3094,11 +3102,9 @@ void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
   __ lw(a3, ContextOperand(cp, Context::GLOBAL_OBJECT_INDEX));
   __ lw(a3, FieldMemOperand(a3, GlobalObject::kNativeContextOffset));
   __ lw(a3, ContextOperand(a3, Context::STRING_FUNCTION_PROTOTYPE_MAP_INDEX));
-  __ Branch(if_false, ne, a2, Operand(a3));
-
-  __ jmp(if_true);
-
   PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);
+  Split(eq, a2, Operand(a3), if_true, if_false, fall_through);
+
   context()->Plug(if_true, if_false);
 }
 

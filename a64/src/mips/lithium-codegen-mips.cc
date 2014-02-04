@@ -1789,33 +1789,43 @@ void LCodeGen::DoDateField(LDateField* instr) {
 
 void LCodeGen::DoSeqStringSetChar(LSeqStringSetChar* instr) {
   Register string = ToRegister(instr->string());
-  Register index = ToRegister(instr->index());
+  LOperand* index_op = instr->index();
   Register value = ToRegister(instr->value());
   Register scratch = scratch0();
   String::Encoding encoding = instr->encoding();
 
   if (FLAG_debug_code) {
-    __ lw(at, FieldMemOperand(string, HeapObject::kMapOffset));
-    __ lbu(at, FieldMemOperand(at, Map::kInstanceTypeOffset));
+    __ lw(scratch, FieldMemOperand(string, HeapObject::kMapOffset));
+    __ lbu(scratch, FieldMemOperand(scratch, Map::kInstanceTypeOffset));
 
-    __ And(at, at, Operand(kStringRepresentationMask | kStringEncodingMask));
+    __ And(scratch, scratch,
+           Operand(kStringRepresentationMask | kStringEncodingMask));
     static const uint32_t one_byte_seq_type = kSeqStringTag | kOneByteStringTag;
     static const uint32_t two_byte_seq_type = kSeqStringTag | kTwoByteStringTag;
-    __ Subu(at, at, Operand(encoding == String::ONE_BYTE_ENCODING
+    __ Subu(at, scratch, Operand(encoding == String::ONE_BYTE_ENCODING
                                 ? one_byte_seq_type : two_byte_seq_type));
     __ Check(eq, kUnexpectedStringType, at, Operand(zero_reg));
   }
 
-  __ Addu(scratch,
-          string,
-          Operand(SeqString::kHeaderSize - kHeapObjectTag));
-  if (encoding == String::ONE_BYTE_ENCODING) {
-    __ Addu(at, scratch, index);
-    __ sb(value, MemOperand(at));
+  if (index_op->IsConstantOperand()) {
+    int constant_index = ToInteger32(LConstantOperand::cast(index_op));
+    if (encoding == String::ONE_BYTE_ENCODING) {
+      __ sb(value,
+          FieldMemOperand(string, SeqString::kHeaderSize + constant_index));
+    } else {
+      __ sh(value,
+          FieldMemOperand(string, SeqString::kHeaderSize + constant_index * 2));
+    }
   } else {
-    __ sll(at, index, 1);
-    __ Addu(at, scratch, at);
-    __ sh(value, MemOperand(at));
+    Register index = ToRegister(index_op);
+    if (encoding == String::ONE_BYTE_ENCODING) {
+      __ Addu(scratch, string, Operand(index));
+      __ sb(value, FieldMemOperand(scratch, SeqString::kHeaderSize));
+    } else {
+      __ sll(scratch, index, 1);
+      __ Addu(scratch, string, scratch);
+      __ sh(value, FieldMemOperand(scratch, SeqString::kHeaderSize));
+    }
   }
 }
 
@@ -3813,79 +3823,64 @@ void LCodeGen::DoPower(LPower* instr) {
 
 
 void LCodeGen::DoRandom(LRandom* instr) {
-  class DeferredDoRandom V8_FINAL : public LDeferredCode {
-   public:
-    DeferredDoRandom(LCodeGen* codegen, LRandom* instr)
-        : LDeferredCode(codegen), instr_(instr) { }
-    virtual void Generate() V8_OVERRIDE { codegen()->DoDeferredRandom(instr_); }
-    virtual LInstruction* instr() V8_OVERRIDE { return instr_; }
-   private:
-    LRandom* instr_;
-  };
-
-  DeferredDoRandom* deferred = new(zone()) DeferredDoRandom(this, instr);
-  // Having marked this instruction as a call we can use any
-  // registers.
-  ASSERT(ToDoubleRegister(instr->result()).is(f0));
-  ASSERT(ToRegister(instr->global_object()).is(a0));
-
+  // Assert that the register size is indeed the size of each seed.
   static const int kSeedSize = sizeof(uint32_t);
   STATIC_ASSERT(kPointerSize == kSeedSize);
 
-  __ lw(a0, FieldMemOperand(a0, GlobalObject::kNativeContextOffset));
+  // Load native context.
+  Register global_object = ToRegister(instr->global_object());
+  Register native_context = global_object;
+  __ lw(native_context, FieldMemOperand(
+          global_object, GlobalObject::kNativeContextOffset));
+
+  // Load state (FixedArray of the native context's random seeds).
   static const int kRandomSeedOffset =
       FixedArray::kHeaderSize + Context::RANDOM_SEED_INDEX * kPointerSize;
-  __ lw(a2, FieldMemOperand(a0, kRandomSeedOffset));
-  // a2: FixedArray of the native context's random seeds
+  Register state = native_context;
+  __ lw(state, FieldMemOperand(native_context, kRandomSeedOffset));
 
   // Load state[0].
-  __ lw(a1, FieldMemOperand(a2, ByteArray::kHeaderSize));
-  __ Branch(deferred->entry(), eq, a1, Operand(zero_reg));
+  Register state0 = ToRegister(instr->scratch());
+  __ lw(state0, FieldMemOperand(state, ByteArray::kHeaderSize));
   // Load state[1].
-  __ lw(a0, FieldMemOperand(a2, ByteArray::kHeaderSize + kSeedSize));
-  // a1: state[0].
-  // a0: state[1].
+  Register state1 = ToRegister(instr->scratch2());
+  __ lw(state1, FieldMemOperand(state, ByteArray::kHeaderSize + kSeedSize));
 
   // state[0] = 18273 * (state[0] & 0xFFFF) + (state[0] >> 16)
-  __ And(a3, a1, Operand(0xFFFF));
-  __ li(t0, Operand(18273));
-  __ Mul(a3, a3, t0);
-  __ srl(a1, a1, 16);
-  __ Addu(a1, a3, a1);
+  Register scratch3 = ToRegister(instr->scratch3());
+  Register scratch4 = scratch0();
+  __ And(scratch3, state0, Operand(0xFFFF));
+  __ li(scratch4, Operand(18273));
+  __ Mul(scratch3, scratch3, scratch4);
+  __ srl(state0, state0, 16);
+  __ Addu(state0, scratch3, state0);
   // Save state[0].
-  __ sw(a1, FieldMemOperand(a2, ByteArray::kHeaderSize));
+  __ sw(state0, FieldMemOperand(state, ByteArray::kHeaderSize));
 
   // state[1] = 36969 * (state[1] & 0xFFFF) + (state[1] >> 16)
-  __ And(a3, a0, Operand(0xFFFF));
-  __ li(t0, Operand(36969));
-  __ Mul(a3, a3, t0);
-  __ srl(a0, a0, 16),
-  __ Addu(a0, a3, a0);
+  __ And(scratch3, state1, Operand(0xFFFF));
+  __ li(scratch4, Operand(36969));
+  __ Mul(scratch3, scratch3, scratch4);
+  __ srl(state1, state1, 16),
+  __ Addu(state1, scratch3, state1);
   // Save state[1].
-  __ sw(a0, FieldMemOperand(a2, ByteArray::kHeaderSize + kSeedSize));
+  __ sw(state1, FieldMemOperand(state, ByteArray::kHeaderSize + kSeedSize));
 
   // Random bit pattern = (state[0] << 14) + (state[1] & 0x3FFFF)
-  __ And(a0, a0, Operand(0x3FFFF));
-  __ sll(a1, a1, 14);
-  __ Addu(v0, a0, a1);
-
-  __ bind(deferred->exit());
+  Register random = scratch4;
+  __ And(random, state1, Operand(0x3FFFF));
+  __ sll(state0, state0, 14);
+  __ Addu(random, random, state0);
 
   // 0x41300000 is the top half of 1.0 x 2^20 as a double.
-  __ li(a2, Operand(0x41300000));
+  __ li(scratch3, Operand(0x41300000));
   // Move 0x41300000xxxxxxxx (x = random bits in v0) to FPU.
-  __ Move(f12, v0, a2);
+  DoubleRegister result = ToDoubleRegister(instr->result());
+  __ Move(result, random, scratch3);
   // Move 0x4130000000000000 to FPU.
-  __ Move(f14, zero_reg, a2);
-  // Subtract to get the result.
-  __ sub_d(f0, f12, f14);
-}
-
-
-void LCodeGen::DoDeferredRandom(LRandom* instr) {
-  __ PrepareCallCFunction(1, scratch0());
-  __ CallCFunction(ExternalReference::random_uint32_function(isolate()), 1);
-  // Return value is in v0.
+  DoubleRegister scratch5 = double_scratch0();
+  __ Move(scratch5, zero_reg, scratch3);
+  __ sub_d(result, result, scratch5);
 }
 
 
@@ -4949,14 +4944,18 @@ void LCodeGen::DoTaggedToI(LTaggedToI* instr) {
 
   Register input_reg = ToRegister(input);
 
-  DeferredTaggedToI* deferred = new(zone()) DeferredTaggedToI(this, instr);
+  if (instr->hydrogen()->value()->representation().IsSmi()) {
+    __ SmiUntag(input_reg);
+  } else {
+    DeferredTaggedToI* deferred = new(zone()) DeferredTaggedToI(this, instr);
 
-  // Let the deferred code handle the HeapObject case.
-  __ JumpIfNotSmi(input_reg, deferred->entry());
+    // Let the deferred code handle the HeapObject case.
+    __ JumpIfNotSmi(input_reg, deferred->entry());
 
-  // Smi to int32 conversion.
-  __ SmiUntag(input_reg);
-  __ bind(deferred->exit());
+    // Smi to int32 conversion.
+    __ SmiUntag(input_reg);
+    __ bind(deferred->exit());
+  }
 }
 
 

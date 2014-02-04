@@ -374,30 +374,26 @@ void StubCompiler::GenerateLoadStringLength(MacroAssembler* masm,
                                             Register receiver,
                                             Register scratch1,
                                             Register scratch2,
-                                            Label* miss,
-                                            bool support_wrappers) {
+                                            Label* miss) {
   Label check_wrapper;
 
   // Check if the object is a string leaving the instance type in the
   // scratch1 register.
-  GenerateStringCheck(masm, receiver, scratch1, scratch2, miss,
-                      support_wrappers ? &check_wrapper : miss);
+  GenerateStringCheck(masm, receiver, scratch1, scratch2, miss, &check_wrapper);
 
   // Load length directly from the string.
   __ Ret(USE_DELAY_SLOT);
   __ lw(v0, FieldMemOperand(receiver, String::kLengthOffset));
 
-  if (support_wrappers) {
-    // Check if the object is a JSValue wrapper.
-    __ bind(&check_wrapper);
-    __ Branch(miss, ne, scratch1, Operand(JS_VALUE_TYPE));
+  // Check if the object is a JSValue wrapper.
+  __ bind(&check_wrapper);
+  __ Branch(miss, ne, scratch1, Operand(JS_VALUE_TYPE));
 
-    // Unwrap the value and check if the wrapped value is a string.
-    __ lw(scratch1, FieldMemOperand(receiver, JSValue::kValueOffset));
-    GenerateStringCheck(masm, scratch1, scratch2, scratch2, miss, miss);
-    __ Ret(USE_DELAY_SLOT);
-    __ lw(v0, FieldMemOperand(scratch1, String::kLengthOffset));
-  }
+  // Unwrap the value and check if the wrapped value is a string.
+  __ lw(scratch1, FieldMemOperand(receiver, JSValue::kValueOffset));
+  GenerateStringCheck(masm, scratch1, scratch2, scratch2, miss, miss);
+  __ Ret(USE_DELAY_SLOT);
+  __ lw(v0, FieldMemOperand(scratch1, String::kLengthOffset));
 }
 
 
@@ -777,16 +773,17 @@ static void PushInterceptorArguments(MacroAssembler* masm,
                                      Register holder,
                                      Register name,
                                      Handle<JSObject> holder_obj) {
+  STATIC_ASSERT(StubCache::kInterceptorArgsNameIndex == 0);
+  STATIC_ASSERT(StubCache::kInterceptorArgsInfoIndex == 1);
+  STATIC_ASSERT(StubCache::kInterceptorArgsThisIndex == 2);
+  STATIC_ASSERT(StubCache::kInterceptorArgsHolderIndex == 3);
+  STATIC_ASSERT(StubCache::kInterceptorArgsLength == 4);
   __ push(name);
   Handle<InterceptorInfo> interceptor(holder_obj->GetNamedInterceptor());
   ASSERT(!masm->isolate()->heap()->InNewSpace(*interceptor));
   Register scratch = name;
   __ li(scratch, Operand(interceptor));
   __ Push(scratch, receiver, holder);
-  __ lw(scratch, FieldMemOperand(scratch, InterceptorInfo::kDataOffset));
-  __ push(scratch);
-  __ li(scratch, Operand(ExternalReference::isolate_address(masm->isolate())));
-  __ push(scratch);
 }
 
 
@@ -801,7 +798,7 @@ static void CompileCallLoadPropertyWithInterceptor(
   ExternalReference ref =
       ExternalReference(IC_Utility(IC::kLoadPropertyWithInterceptorOnly),
           masm->isolate());
-  __ PrepareCEntryArgs(6);
+  __ PrepareCEntryArgs(StubCache::kInterceptorArgsLength);
   __ PrepareCEntryFunction(ref);
 
   CEntryStub stub(1);
@@ -1107,7 +1104,7 @@ class CallInterceptorCompiler BASE_EMBEDDED {
           ExternalReference(
               IC_Utility(IC::kLoadPropertyWithInterceptorForCall),
               masm->isolate()),
-          6);
+          StubCache::kInterceptorArgsLength);
     // Restore the name_ register.
     __ pop(name_);
     // Leave the internal frame.
@@ -1415,6 +1412,15 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
     Handle<ExecutableAccessorInfo> callback) {
   // Build AccessorInfo::args_ list on the stack and push property name below
   // the exit frame to make GC aware of them and store pointers to them.
+  STATIC_ASSERT(PropertyCallbackArguments::kThisIndex == 0);
+  STATIC_ASSERT(PropertyCallbackArguments::kDataIndex == -1);
+  STATIC_ASSERT(PropertyCallbackArguments::kReturnValueOffset == -2);
+  STATIC_ASSERT(PropertyCallbackArguments::kReturnValueDefaultValueIndex == -3);
+  STATIC_ASSERT(PropertyCallbackArguments::kIsolateIndex == -4);
+  STATIC_ASSERT(PropertyCallbackArguments::kHolderIndex == -5);
+  ASSERT(!scratch2().is(reg));
+  ASSERT(!scratch3().is(reg));
+  ASSERT(!scratch4().is(reg));
   __ push(receiver());
   __ mov(scratch2(), sp);  // scratch2 = AccessorInfo::args_
   if (heap()->InNewSpace(callback->data())) {
@@ -1425,14 +1431,14 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
     __ li(scratch3(), Handle<Object>(callback->data(), isolate()));
   }
   __ Subu(sp, sp, 6 * kPointerSize);
-  __ sw(reg, MemOperand(sp, 5 * kPointerSize));
-  __ sw(scratch3(), MemOperand(sp, 4 * kPointerSize));
+  __ sw(scratch3(), MemOperand(sp, 5 * kPointerSize));
   __ LoadRoot(scratch3(), Heap::kUndefinedValueRootIndex);
+  __ sw(scratch3(), MemOperand(sp, 4 * kPointerSize));
   __ sw(scratch3(), MemOperand(sp, 3 * kPointerSize));
-  __ sw(scratch3(), MemOperand(sp, 2 * kPointerSize));
   __ li(scratch4(),
         Operand(ExternalReference::isolate_address(isolate())));
-  __ sw(scratch4(), MemOperand(sp, 1 * kPointerSize));
+  __ sw(scratch4(), MemOperand(sp, 2 * kPointerSize));
+  __ sw(reg, MemOperand(sp, 1 * kPointerSize));
   __ sw(name(), MemOperand(sp, 0 * kPointerSize));
 
   __ mov(a2, scratch2());  // Saved in case scratch2 == a1.
@@ -1465,7 +1471,7 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
                               thunk_ref,
                               a2,
                               kStackUnwindSpace,
-                              5);
+                              6);
 }
 
 
@@ -1550,7 +1556,7 @@ void BaseLoadStubCompiler::GenerateLoadInterceptor(
 
     ExternalReference ref = ExternalReference(
         IC_Utility(IC::kLoadPropertyWithInterceptorForLoad), isolate());
-    __ TailCallExternalReference(ref, 6, 1);
+    __ TailCallExternalReference(ref, StubCache::kInterceptorArgsLength, 1);
   }
 }
 

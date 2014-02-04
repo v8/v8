@@ -1462,13 +1462,22 @@ class LPower V8_FINAL : public LTemplateInstruction<1, 2, 0> {
 };
 
 
-class LRandom V8_FINAL : public LTemplateInstruction<1, 1, 0> {
+class LRandom V8_FINAL : public LTemplateInstruction<1, 1, 3> {
  public:
-  explicit LRandom(LOperand* global_object) {
+  LRandom(LOperand* global_object,
+          LOperand* scratch,
+          LOperand* scratch2,
+          LOperand* scratch3) {
     inputs_[0] = global_object;
+    temps_[0] = scratch;
+    temps_[1] = scratch2;
+    temps_[2] = scratch3;
   }
 
-  LOperand* global_object() { return inputs_[0]; }
+  LOperand* global_object() const { return inputs_[0]; }
+  LOperand* scratch() const { return temps_[0]; }
+  LOperand* scratch2() const { return temps_[1]; }
+  LOperand* scratch3() const { return temps_[2]; }
 
   DECLARE_CONCRETE_INSTRUCTION(Random, "random")
   DECLARE_HYDROGEN_ACCESSOR(Random)
@@ -2180,7 +2189,7 @@ class LTaggedToI V8_FINAL : public LTemplateInstruction<1, 1, 1> {
   LOperand* temp() { return temps_[0]; }
 
   DECLARE_CONCRETE_INSTRUCTION(TaggedToI, "tagged-to-i")
-  DECLARE_HYDROGEN_ACCESSOR(UnaryOperation)
+  DECLARE_HYDROGEN_ACCESSOR(Change)
 
   bool truncating() { return hydrogen()->CanTruncateToInt32(); }
 };
@@ -2898,7 +2907,7 @@ class LChunkBuilder V8_FINAL BASE_EMBEDDED {
   LInstruction* DoArithmeticD(Token::Value op,
                               HArithmeticBinaryOperation* instr);
   LInstruction* DoArithmeticT(Token::Value op,
-                              HArithmeticBinaryOperation* instr);
+                              HBinaryOperation* instr);
 
   LOperand* GetStoreKeyedValueOperand(HStoreKeyed* instr);
 

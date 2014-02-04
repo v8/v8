@@ -24,18 +24,23 @@
 // THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-// limitations under the License.
 
-// ECMAScript 402 API implementation is broken into separate files for
-// each service. The build system combines them together into one
-// Intl namespace.
+// Flags: --allow-natives-syntax
 
-/**
- * Intl object is a single object that has some named properties,
- * all of which are constructors.
- */
-var Intl = (function() {
+function MyStringFromCharCode(code, i) {
+  var one_byte = %NewString(3, true);
+  %_OneByteSeqStringSetChar(one_byte, 0, code);
+  %_OneByteSeqStringSetChar(one_byte, 1, code);
+  %_OneByteSeqStringSetChar(one_byte, i, code);
+  var two_byte = %NewString(3, false);
+  %_TwoByteSeqStringSetChar(two_byte, 0, code);
+  %_TwoByteSeqStringSetChar(two_byte, 1, code);
+  %_TwoByteSeqStringSetChar(two_byte, i, code);
+  return one_byte + two_byte;
+}
 
-'use strict';
-
-var Intl = {};
+MyStringFromCharCode(65, 2);
+var r1 = MyStringFromCharCode(65, 2);
+%OptimizeFunctionOnNextCall(MyStringFromCharCode);
+var r2 = MyStringFromCharCode(65, 2);
+assertEquals(r1, r2);

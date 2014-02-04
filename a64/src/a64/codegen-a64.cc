@@ -403,14 +403,15 @@ void Code::GetCodeAgeAndParity(byte* sequence, Age* age,
 }
 
 
-void Code::PatchPlatformCodeAge(byte* sequence,
+void Code::PatchPlatformCodeAge(Isolate* isolate,
+                                byte* sequence,
                                 Code::Age age,
                                 MarkingParity parity) {
   PatchingAssembler patcher(sequence, kCodeAgeSequenceSize / kInstructionSize);
   if (age == kNoAge) {
     MacroAssembler::EmitFrameSetupForCodeAgePatching(&patcher);
   } else {
-    Code * stub = GetCodeAgeStub(age, parity);
+    Code * stub = GetCodeAgeStub(isolate, age, parity);
     MacroAssembler::EmitCodeAgeSequence(&patcher, stub);
   }
 }

@@ -24,25 +24,34 @@
 // THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-// limitations under the License.
 
-#ifndef V8_EXTENSIONS_I18N_I18N_EXTENSION_H_
-#define V8_EXTENSIONS_I18N_I18N_EXTENSION_H_
+// Flags: --allow-natives-syntax --no-use-osr
 
-#include "v8.h"
+function foo(a, b) {
+  var result = a / 35;
+  result += 50 / b;
+  result += a / b;
+  result += a / -1;
+  result += a / 1;
+  result += a / 4;
+  result += a / -4;
+  return result / b;
+}
 
-namespace v8_i18n {
+foo(700, 5);
+var r1 = foo(700, 5);
+%OptimizeFunctionOnNextCall(foo);
+var r2 = foo(700, 5);
 
-class Extension : public v8::Extension {
- public:
-  Extension();
+assertEquals(r1, r2);
 
-  static void Register();
+function boo(value) {
+  return value / -1;
+}
 
- private:
-  static Extension* extension_;
-};
-
-}  // namespace v8_i18n
-
-#endif  // V8_EXTENSIONS_I18N_I18N_EXTENSION_H_
+// Test deoptimization of MinInt / -1.
+assertEquals(2147483600, boo(-2147483600));
+assertEquals(2147483600, boo(-2147483600));
+%OptimizeFunctionOnNextCall(boo);
+assertEquals(2147483600, boo(-2147483600));
+assertEquals(2147483648, boo(-2147483648));

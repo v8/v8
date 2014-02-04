@@ -366,6 +366,12 @@ class MacroAssembler: public Assembler {
   void Set(Register dst, const Immediate& x);
   void Set(const Operand& dst, const Immediate& x);
 
+  // cvtsi2sd instruction only writes to the low 64-bit of dst register, which
+  // hinders register renaming and makes dependence chains longer. So we use
+  // xorps to clear the dst register before cvtsi2sd to solve this issue.
+  void Cvtsi2sd(XMMRegister dst, Register src) { Cvtsi2sd(dst, Operand(src)); }
+  void Cvtsi2sd(XMMRegister dst, const Operand& src);
+
   // Support for constant splitting.
   bool IsUnsafeImmediate(const Immediate& x);
   void SafeSet(Register dst, const Immediate& x);

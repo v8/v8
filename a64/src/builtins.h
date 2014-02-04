@@ -87,8 +87,6 @@ enum BuiltinExtraArguments {
                                     Code::kNoExtraICState)              \
   V(InRecompileQueue,               BUILTIN, UNINITIALIZED,             \
                                     Code::kNoExtraICState)              \
-  V(InstallRecompiledCode,          BUILTIN, UNINITIALIZED,             \
-                                    Code::kNoExtraICState)              \
   V(JSConstructStubCountdown,       BUILTIN, UNINITIALIZED,             \
                                     Code::kNoExtraICState)              \
   V(JSConstructStubGeneric,         BUILTIN, UNINITIALIZED,             \
@@ -122,7 +120,7 @@ enum BuiltinExtraArguments {
                                     Code::kNoExtraICState)              \
   V(KeyedLoadIC_MissForceGeneric,   BUILTIN, UNINITIALIZED,             \
                                     Code::kNoExtraICState)              \
-  V(KeyedLoadIC_Slow,               BUILTIN, UNINITIALIZED,             \
+  V(KeyedLoadIC_Slow,               STUB, MONOMORPHIC,                  \
                                     Code::kNoExtraICState)              \
   V(StoreIC_Miss,                   BUILTIN, UNINITIALIZED,             \
                                     Code::kNoExtraICState)              \
@@ -144,7 +142,7 @@ enum BuiltinExtraArguments {
                                     Code::kNoExtraICState)              \
   V(LoadIC_Getter_ForDeopt,         LOAD_IC, MONOMORPHIC,               \
                                     Code::kNoExtraICState)              \
-  V(LoadIC_Slow,                    LOAD_IC, GENERIC,                   \
+  V(LoadIC_Slow,                    STUB, MONOMORPHIC,                  \
                                     Code::kNoExtraICState)              \
                                                                         \
   V(KeyedLoadIC_Initialize,         KEYED_LOAD_IC, UNINITIALIZED,       \
@@ -382,7 +380,6 @@ class Builtins {
                                CFunctionId id,
                                BuiltinExtraArguments extra_args);
   static void Generate_InRecompileQueue(MacroAssembler* masm);
-  static void Generate_InstallRecompiledCode(MacroAssembler* masm);
   static void Generate_ConcurrentRecompile(MacroAssembler* masm);
   static void Generate_JSConstructStubCountdown(MacroAssembler* masm);
   static void Generate_JSConstructStubGeneric(MacroAssembler* masm);

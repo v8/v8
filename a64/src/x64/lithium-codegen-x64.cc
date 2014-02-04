@@ -2799,6 +2799,7 @@ void LCodeGen::DoLoadNamedField(LLoadNamedField* instr) {
   int offset = access.offset();
 
   if (access.IsExternalMemory()) {
+    ASSERT(!access.representation().IsInteger32());
     Register result = ToRegister(instr->result());
     if (instr->object()->IsConstantOperand()) {
       ASSERT(result.is(rax));
@@ -2820,10 +2821,18 @@ void LCodeGen::DoLoadNamedField(LLoadNamedField* instr) {
 
   Register result = ToRegister(instr->result());
   if (access.IsInobject()) {
-    __ movq(result, FieldOperand(object, offset));
+    if (access.representation().IsInteger32()) {
+      __ movl(result, FieldOperand(object, offset));
+    } else {
+      __ movq(result, FieldOperand(object, offset));
+    }
   } else {
     __ movq(result, FieldOperand(object, JSObject::kPropertiesOffset));
-    __ movq(result, FieldOperand(result, offset));
+    if (access.representation().IsInteger32()) {
+      __ movl(result, FieldOperand(result, offset));
+    } else {
+      __ movq(result, FieldOperand(result, offset));
+    }
   }
 }
 
@@ -3520,7 +3529,7 @@ void LCodeGen::DoMathFloor(LMathFloor* instr) {
     __ bind(&negative_sign);
     // Truncate, then compare and compensate.
     __ cvttsd2si(output_reg, input_reg);
-    __ cvtlsi2sd(xmm_scratch, output_reg);
+    __ Cvtlsi2sd(xmm_scratch, output_reg);
     __ ucomisd(input_reg, xmm_scratch);
     __ j(equal, &done, Label::kNear);
     __ subl(output_reg, Immediate(1));
@@ -3569,7 +3578,7 @@ void LCodeGen::DoMathRound(LMathRound* instr) {
   __ RecordComment("D2I conversion overflow");
   DeoptimizeIf(equal, instr->environment());
 
-  __ cvtlsi2sd(xmm_scratch, output_reg);
+  __ Cvtlsi2sd(xmm_scratch, output_reg);
   __ ucomisd(input_reg, xmm_scratch);
   __ j(equal, &restore, Label::kNear);
   __ subl(output_reg, Immediate(1));
@@ -3667,90 +3676,64 @@ void LCodeGen::DoPower(LPower* instr) {
 
 
 void LCodeGen::DoRandom(LRandom* instr) {
-  class DeferredDoRandom V8_FINAL : public LDeferredCode {
-   public:
-    DeferredDoRandom(LCodeGen* codegen, LRandom* instr)
-        : LDeferredCode(codegen), instr_(instr) { }
-    virtual void Generate() V8_OVERRIDE { codegen()->DoDeferredRandom(instr_); }
-    virtual LInstruction* instr() V8_OVERRIDE { return instr_; }
-   private:
-    LRandom* instr_;
-  };
-
-  DeferredDoRandom* deferred = new(zone()) DeferredDoRandom(this, instr);
-
-  // Having marked this instruction as a call we can use any
-  // registers.
-  ASSERT(ToDoubleRegister(instr->result()).is(xmm1));
-
-  // Choose the right register for the first argument depending on
-  // calling convention.
-#ifdef _WIN64
-  ASSERT(ToRegister(instr->global_object()).is(rcx));
-  Register global_object = rcx;
-#else
-  ASSERT(ToRegister(instr->global_object()).is(rdi));
-  Register global_object = rdi;
-#endif
-
+  // Assert that register size is twice the size of each seed.
   static const int kSeedSize = sizeof(uint32_t);
   STATIC_ASSERT(kPointerSize == 2 * kSeedSize);
 
-  __ movq(global_object,
-          FieldOperand(global_object, GlobalObject::kNativeContextOffset));
+  // Load native context
+  Register global_object = ToRegister(instr->global_object());
+  Register native_context = global_object;
+  __ movq(native_context, FieldOperand(
+          global_object, GlobalObject::kNativeContextOffset));
+
+  // Load state (FixedArray of the native context's random seeds)
   static const int kRandomSeedOffset =
       FixedArray::kHeaderSize + Context::RANDOM_SEED_INDEX * kPointerSize;
-  __ movq(rbx, FieldOperand(global_object, kRandomSeedOffset));
-  // rbx: FixedArray of the native context's random seeds
+  Register state = native_context;
+  __ movq(state, FieldOperand(native_context, kRandomSeedOffset));
 
   // Load state[0].
-  __ movl(rax, FieldOperand(rbx, ByteArray::kHeaderSize));
-  // If state[0] == 0, call runtime to initialize seeds.
-  __ testl(rax, rax);
-  __ j(zero, deferred->entry());
+  Register state0 = ToRegister(instr->scratch());
+  __ movl(state0, FieldOperand(state, ByteArray::kHeaderSize));
   // Load state[1].
-  __ movl(rcx, FieldOperand(rbx, ByteArray::kHeaderSize + kSeedSize));
+  Register state1 = ToRegister(instr->scratch2());
+  __ movl(state1, FieldOperand(state, ByteArray::kHeaderSize + kSeedSize));
 
   // state[0] = 18273 * (state[0] & 0xFFFF) + (state[0] >> 16)
-  // Only operate on the lower 32 bit of rax.
-  __ movzxwl(rdx, rax);
-  __ imull(rdx, rdx, Immediate(18273));
-  __ shrl(rax, Immediate(16));
-  __ addl(rax, rdx);
+  Register scratch3 = ToRegister(instr->scratch3());
+  __ movzxwl(scratch3, state0);
+  __ imull(scratch3, scratch3, Immediate(18273));
+  __ shrl(state0, Immediate(16));
+  __ addl(state0, scratch3);
   // Save state[0].
-  __ movl(FieldOperand(rbx, ByteArray::kHeaderSize), rax);
+  __ movl(FieldOperand(state, ByteArray::kHeaderSize), state0);
 
   // state[1] = 36969 * (state[1] & 0xFFFF) + (state[1] >> 16)
-  __ movzxwl(rdx, rcx);
-  __ imull(rdx, rdx, Immediate(36969));
-  __ shrl(rcx, Immediate(16));
-  __ addl(rcx, rdx);
+  __ movzxwl(scratch3, state1);
+  __ imull(scratch3, scratch3, Immediate(36969));
+  __ shrl(state1, Immediate(16));
+  __ addl(state1, scratch3);
   // Save state[1].
-  __ movl(FieldOperand(rbx, ByteArray::kHeaderSize + kSeedSize), rcx);
+  __ movl(FieldOperand(state, ByteArray::kHeaderSize + kSeedSize), state1);
 
   // Random bit pattern = (state[0] << 14) + (state[1] & 0x3FFFF)
-  __ shll(rax, Immediate(14));
-  __ andl(rcx, Immediate(0x3FFFF));
-  __ addl(rax, rcx);
+  Register random = state0;
+  __ shll(random, Immediate(14));
+  __ andl(state1, Immediate(0x3FFFF));
+  __ addl(random, state1);
 
-  __ bind(deferred->exit());
   // Convert 32 random bits in rax to 0.(32 random bits) in a double
   // by computing:
   // ( 1.(20 0s)(32 random bits) x 2^20 ) - (1.0 x 2^20)).
-  __ movq(rcx, V8_INT64_C(0x4130000000000000),
+  XMMRegister result = ToDoubleRegister(instr->result());
+  // We use xmm0 as fixed scratch register here.
+  XMMRegister scratch4 = xmm0;
+  __ movq(scratch3, V8_INT64_C(0x4130000000000000),
           RelocInfo::NONE64);  // 1.0 x 2^20 as double
-  __ movq(xmm2, rcx);
-  __ movd(xmm1, rax);
-  __ xorps(xmm1, xmm2);
-  __ subsd(xmm1, xmm2);
-}
-
-
-void LCodeGen::DoDeferredRandom(LRandom* instr) {
-  __ PrepareCallCFunction(1);
-  __ CallCFunction(ExternalReference::random_uint32_function(isolate()), 1);
-  __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
-  // Return value is in rax.
+  __ movq(scratch4, scratch3);
+  __ movd(result, random);
+  __ xorps(result, scratch4);
+  __ subsd(result, scratch4);
 }
 
 
@@ -3962,6 +3945,7 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
   int offset = access.offset();
 
   if (access.IsExternalMemory()) {
+    ASSERT(!access.representation().IsInteger32());
     ASSERT(!instr->hydrogen()->NeedsWriteBarrier());
     Register value = ToRegister(instr->value());
     if (instr->object()->IsConstantOperand()) {
@@ -4039,15 +4023,24 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
   if (instr->value()->IsConstantOperand()) {
     LConstantOperand* operand_value = LConstantOperand::cast(instr->value());
     if (operand_value->IsRegister()) {
-      __ movq(FieldOperand(write_register, offset),
-              ToRegister(operand_value));
+      if (access.representation().IsInteger32()) {
+        __ movl(FieldOperand(write_register, offset),
+                ToRegister(operand_value));
+      } else {
+        __ movq(FieldOperand(write_register, offset),
+                ToRegister(operand_value));
+      }
     } else {
       Handle<Object> handle_value = ToHandle(operand_value);
       ASSERT(!instr->hydrogen()->NeedsWriteBarrier());
       __ Move(FieldOperand(write_register, offset), handle_value);
     }
   } else {
-    __ movq(FieldOperand(write_register, offset), ToRegister(instr->value()));
+    if (access.representation().IsInteger32()) {
+      __ movl(FieldOperand(write_register, offset), ToRegister(instr->value()));
+    } else {
+      __ movq(FieldOperand(write_register, offset), ToRegister(instr->value()));
+    }
   }
 
   if (instr->hydrogen()->NeedsWriteBarrier()) {
@@ -4475,9 +4468,9 @@ void LCodeGen::DoInteger32ToDouble(LInteger32ToDouble* instr) {
   LOperand* output = instr->result();
   ASSERT(output->IsDoubleRegister());
   if (input->IsRegister()) {
-    __ cvtlsi2sd(ToDoubleRegister(output), ToRegister(input));
+    __ Cvtlsi2sd(ToDoubleRegister(output), ToRegister(input));
   } else {
-    __ cvtlsi2sd(ToDoubleRegister(output), ToOperand(input));
+    __ Cvtlsi2sd(ToDoubleRegister(output), ToOperand(input));
   }
 }
 
@@ -4649,7 +4642,7 @@ void LCodeGen::EmitNumberUntagD(Register input_reg,
                                 bool deoptimize_on_minus_zero,
                                 LEnvironment* env,
                                 NumberUntagDMode mode) {
-  Label load_smi, done;
+  Label convert, load_smi, done;
 
   if (mode == NUMBER_CANDIDATE_IS_ANY_TAGGED) {
     // Smi check.
@@ -4658,25 +4651,17 @@ void LCodeGen::EmitNumberUntagD(Register input_reg,
     // Heap number map check.
     __ CompareRoot(FieldOperand(input_reg, HeapObject::kMapOffset),
                    Heap::kHeapNumberMapRootIndex);
-    if (!can_convert_undefined_to_nan) {
-      DeoptimizeIf(not_equal, env);
-    } else {
-      Label heap_number, convert;
-      __ j(equal, &heap_number, Label::kNear);
 
-      // Convert undefined (and hole) to NaN. Compute NaN as 0/0.
-      __ CompareRoot(input_reg, Heap::kUndefinedValueRootIndex);
-      DeoptimizeIf(not_equal, env);
-
-      __ bind(&convert);
-      __ xorps(result_reg, result_reg);
-      __ divsd(result_reg, result_reg);
-      __ jmp(&done, Label::kNear);
-
-      __ bind(&heap_number);
-    }
-    // Heap number to XMM conversion.
+    // On x64 it is safe to load at heap number offset before evaluating the map
+    // check, since all heap objects are at least two words long.
     __ movsd(result_reg, FieldOperand(input_reg, HeapNumber::kValueOffset));
+
+    if (can_convert_undefined_to_nan) {
+      __ j(not_equal, &convert);
+    } else {
+      DeoptimizeIf(not_equal, env);
+    }
+
     if (deoptimize_on_minus_zero) {
       XMMRegister xmm_scratch = xmm0;
       __ xorps(xmm_scratch, xmm_scratch);
@@ -4687,6 +4672,18 @@ void LCodeGen::EmitNumberUntagD(Register input_reg,
       DeoptimizeIf(not_zero, env);
     }
     __ jmp(&done, Label::kNear);
+
+    if (can_convert_undefined_to_nan) {
+      __ bind(&convert);
+
+      // Convert undefined (and hole) to NaN. Compute NaN as 0/0.
+      __ CompareRoot(input_reg, Heap::kUndefinedValueRootIndex);
+      DeoptimizeIf(not_equal, env);
+
+      __ xorps(result_reg, result_reg);
+      __ divsd(result_reg, result_reg);
+      __ jmp(&done, Label::kNear);
+    }
   } else {
     ASSERT(mode == NUMBER_CANDIDATE_IS_SMI);
   }
@@ -4694,7 +4691,7 @@ void LCodeGen::EmitNumberUntagD(Register input_reg,
   // Smi to XMM conversion
   __ bind(&load_smi);
   __ SmiToInteger32(kScratchRegister, input_reg);
-  __ cvtlsi2sd(result_reg, kScratchRegister);
+  __ Cvtlsi2sd(result_reg, kScratchRegister);
   __ bind(&done);
 }
 
@@ -4747,12 +4744,16 @@ void LCodeGen::DoTaggedToI(LTaggedToI* instr) {
   LOperand* input = instr->value();
   ASSERT(input->IsRegister());
   ASSERT(input->Equals(instr->result()));
-
   Register input_reg = ToRegister(input);
-  DeferredTaggedToI* deferred = new(zone()) DeferredTaggedToI(this, instr);
-  __ JumpIfNotSmi(input_reg, deferred->entry());
-  __ SmiToInteger32(input_reg, input_reg);
-  __ bind(deferred->exit());
+
+  if (instr->hydrogen()->value()->representation().IsSmi()) {
+    __ SmiToInteger32(input_reg, input_reg);
+  } else {
+    DeferredTaggedToI* deferred = new(zone()) DeferredTaggedToI(this, instr);
+    __ JumpIfNotSmi(input_reg, deferred->entry());
+    __ SmiToInteger32(input_reg, input_reg);
+    __ bind(deferred->exit());
+  }
 }
 
 

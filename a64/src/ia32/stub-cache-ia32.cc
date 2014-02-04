@@ -329,32 +329,28 @@ void StubCompiler::GenerateLoadStringLength(MacroAssembler* masm,
                                             Register receiver,
                                             Register scratch1,
                                             Register scratch2,
-                                            Label* miss,
-                                            bool support_wrappers) {
+                                            Label* miss) {
   Label check_wrapper;
 
   // Check if the object is a string leaving the instance type in the
   // scratch register.
-  GenerateStringCheck(masm, receiver, scratch1, miss,
-                      support_wrappers ? &check_wrapper : miss);
+  GenerateStringCheck(masm, receiver, scratch1, miss, &check_wrapper);
 
   // Load length from the string and convert to a smi.
   __ mov(eax, FieldOperand(receiver, String::kLengthOffset));
   __ ret(0);
 
-  if (support_wrappers) {
-    // Check if the object is a JSValue wrapper.
-    __ bind(&check_wrapper);
-    __ cmp(scratch1, JS_VALUE_TYPE);
-    __ j(not_equal, miss);
+  // Check if the object is a JSValue wrapper.
+  __ bind(&check_wrapper);
+  __ cmp(scratch1, JS_VALUE_TYPE);
+  __ j(not_equal, miss);
 
-    // Check if the wrapped value is a string and load the length
-    // directly if it is.
-    __ mov(scratch2, FieldOperand(receiver, JSValue::kValueOffset));
-    GenerateStringCheck(masm, scratch2, scratch1, miss, miss);
-    __ mov(eax, FieldOperand(scratch2, String::kLengthOffset));
-    __ ret(0);
-  }
+  // Check if the wrapped value is a string and load the length
+  // directly if it is.
+  __ mov(scratch2, FieldOperand(receiver, JSValue::kValueOffset));
+  GenerateStringCheck(masm, scratch2, scratch1, miss, miss);
+  __ mov(eax, FieldOperand(scratch2, String::kLengthOffset));
+  __ ret(0);
 }
 
 
@@ -392,6 +388,11 @@ static void PushInterceptorArguments(MacroAssembler* masm,
                                      Register holder,
                                      Register name,
                                      Handle<JSObject> holder_obj) {
+  STATIC_ASSERT(StubCache::kInterceptorArgsNameIndex == 0);
+  STATIC_ASSERT(StubCache::kInterceptorArgsInfoIndex == 1);
+  STATIC_ASSERT(StubCache::kInterceptorArgsThisIndex == 2);
+  STATIC_ASSERT(StubCache::kInterceptorArgsHolderIndex == 3);
+  STATIC_ASSERT(StubCache::kInterceptorArgsLength == 4);
   __ push(name);
   Handle<InterceptorInfo> interceptor(holder_obj->GetNamedInterceptor());
   ASSERT(!masm->isolate()->heap()->InNewSpace(*interceptor));
@@ -400,8 +401,6 @@ static void PushInterceptorArguments(MacroAssembler* masm,
   __ push(scratch);
   __ push(receiver);
   __ push(holder);
-  __ push(FieldOperand(scratch, InterceptorInfo::kDataOffset));
-  __ push(Immediate(reinterpret_cast<int>(masm->isolate())));
 }
 
 
@@ -415,7 +414,7 @@ static void CompileCallLoadPropertyWithInterceptor(
   __ CallExternalReference(
       ExternalReference(IC_Utility(IC::kLoadPropertyWithInterceptorOnly),
                         masm->isolate()),
-      6);
+      StubCache::kInterceptorArgsLength);
 }
 
 
@@ -733,7 +732,7 @@ class CallInterceptorCompiler BASE_EMBEDDED {
     __ CallExternalReference(
         ExternalReference(IC_Utility(IC::kLoadPropertyWithInterceptorForCall),
                           masm->isolate()),
-        6);
+        StubCache::kInterceptorArgsLength);
 
     // Restore the name_ register.
     __ pop(name_);
@@ -859,7 +858,7 @@ void BaseStoreStubCompiler::GenerateStoreTransition(MacroAssembler* masm,
     __ SmiUntag(value_reg);
     if (CpuFeatures::IsSupported(SSE2)) {
       CpuFeatureScope use_sse2(masm, SSE2);
-      __ cvtsi2sd(xmm0, value_reg);
+      __ Cvtsi2sd(xmm0, value_reg);
     } else {
       __ push(value_reg);
       __ fild_s(Operand(esp, 0));
@@ -1038,7 +1037,7 @@ void BaseStoreStubCompiler::GenerateStoreField(MacroAssembler* masm,
     __ SmiUntag(value_reg);
     if (CpuFeatures::IsSupported(SSE2)) {
       CpuFeatureScope use_sse2(masm, SSE2);
-      __ cvtsi2sd(xmm0, value_reg);
+      __ Cvtsi2sd(xmm0, value_reg);
     } else {
       __ push(value_reg);
       __ fild_s(Operand(esp, 0));
@@ -1401,14 +1400,20 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
   ASSERT(!scratch3().is(reg));
   __ pop(scratch3());  // Get return address to place it below.
 
+  STATIC_ASSERT(PropertyCallbackArguments::kThisIndex == 0);
+  STATIC_ASSERT(PropertyCallbackArguments::kDataIndex == -1);
+  STATIC_ASSERT(PropertyCallbackArguments::kReturnValueOffset == -2);
+  STATIC_ASSERT(PropertyCallbackArguments::kReturnValueDefaultValueIndex == -3);
+  STATIC_ASSERT(PropertyCallbackArguments::kIsolateIndex == -4);
+  STATIC_ASSERT(PropertyCallbackArguments::kHolderIndex == -5);
   __ push(receiver());  // receiver
   __ mov(scratch2(), esp);
   ASSERT(!scratch2().is(reg));
-  __ push(reg);  // holder
   // Push data from ExecutableAccessorInfo.
   if (isolate()->heap()->InNewSpace(callback->data())) {
-    __ mov(scratch1(), Immediate(callback));
-    __ push(FieldOperand(scratch1(), ExecutableAccessorInfo::kDataOffset));
+    Register scratch = reg.is(scratch1()) ? receiver() : scratch1();
+    __ mov(scratch, Immediate(callback));
+    __ push(FieldOperand(scratch, ExecutableAccessorInfo::kDataOffset));
   } else {
     __ push(Immediate(Handle<Object>(callback->data(), isolate())));
   }
@@ -1416,6 +1421,7 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
   // ReturnValue default value
   __ push(Immediate(isolate()->factory()->undefined_value()));
   __ push(Immediate(reinterpret_cast<int>(isolate())));
+  __ push(reg);  // holder
 
   // Save a pointer to where we pushed the arguments pointer.  This will be
   // passed as the const ExecutableAccessorInfo& to the C++ callback.
@@ -1450,7 +1456,7 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
                               thunk_address,
                               ApiParameterOperand(2),
                               kStackSpace,
-                              6);
+                              7);
 }
 
 
@@ -1557,7 +1563,7 @@ void BaseLoadStubCompiler::GenerateLoadInterceptor(
     ExternalReference ref =
         ExternalReference(IC_Utility(IC::kLoadPropertyWithInterceptorForLoad),
                           isolate());
-    __ TailCallExternalReference(ref, 6, 1);
+    __ TailCallExternalReference(ref, StubCache::kInterceptorArgsLength, 1);
   }
 }
 

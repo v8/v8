@@ -282,6 +282,22 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
 }
 
 
+static void CallRuntimePassFunction(MacroAssembler* masm,
+                                    Runtime::FunctionId function_id) {
+  FrameScope scope(masm, StackFrame::INTERNAL);
+  //   - Push a copy of the function onto the stack.
+  //   - Push call kind information.
+  //   - Function is also the parameter to the runtime call.
+  __ Push(x1, x5, x1);
+
+  __ CallRuntime(function_id, 1);
+
+  //   - Restore call kind information.
+  //   - Restore receiver.
+  __ Pop(x5, x1);
+}
+
+
 static void GenerateTailCallToSharedCode(MacroAssembler* masm) {
   __ Ldr(x2, FieldMemOperand(x1, JSFunction::kSharedFunctionInfoOffset));
   __ Ldr(x2, FieldMemOperand(x2, SharedFunctionInfo::kCodeOffset));
@@ -291,51 +307,28 @@ static void GenerateTailCallToSharedCode(MacroAssembler* masm) {
 
 
 void Builtins::Generate_InRecompileQueue(MacroAssembler* masm) {
+  // Checking whether the queued function is ready for install is optional,
+  // since we come across interrupts and stack checks elsewhere. However, not
+  // checking may delay installing ready functions, and always checking would be
+  // quite expensive. A good compromise is to first check against stack limit as
+  // a cue for an interrupt signal.
+  Label ok;
+  __ CompareRoot(masm->StackPointer(), Heap::kStackLimitRootIndex);
+  __ B(hs, &ok);
+
+  CallRuntimePassFunction(masm, Runtime::kTryInstallRecompiledCode);
+
+  // Tail call to returned code.
+  __ Add(x0, x0, Code::kHeaderSize - kHeapObjectTag);
+  __ Br(x0);
+
+  __ Bind(&ok);
   GenerateTailCallToSharedCode(masm);
 }
 
 
-void Builtins::Generate_InstallRecompiledCode(MacroAssembler* masm) {
-  // Enter an internal frame.
-  {
-    FrameScope scope(masm, StackFrame::INTERNAL);
-
-    // Preserve the function and the call kind information.
-    __ Push(x1, x5);
-
-    // Push the function on the stack as the argument to the runtime function.
-    __ Push(x1);
-    __ CallRuntime(Runtime::kInstallRecompiledCode, 1);
-    // Calculate the entry point.
-    __ Add(x2, x0, Code::kHeaderSize - kHeapObjectTag);
-
-    // Restore call kind information and saved function.
-    __ Pop(x5, x1);
-
-    // Tear down internal frame.
-  }
-
-  // Do a tail-call of the compiled function.
-  __ Jump(x2);
-}
-
-
 void Builtins::Generate_ConcurrentRecompile(MacroAssembler* masm) {
-  {
-    FrameScope scope(masm, StackFrame::INTERNAL);
-
-    // Push a copy of the function and call kind information on to the stack.
-    __ Push(x1, x5);
-
-    // Pointer to the function is also the parameter to the runtime call.
-    __ Push(x1);
-    __ CallRuntime(Runtime::kConcurrentRecompile, 1);
-
-    // Restore call kind information and receiver.
-    __ Pop(x5, x1);
-
-    // Tear down internal frame.
-  }
+  CallRuntimePassFunction(masm, Runtime::kConcurrentRecompile);
   GenerateTailCallToSharedCode(masm);
 }
 
@@ -763,45 +756,19 @@ void Builtins::Generate_JSConstructEntryTrampoline(MacroAssembler* masm) {
 }
 
 
-static void GenerateLazyCompile(MacroAssembler* masm, Runtime::FunctionId fid) {
-  ASSERT((fid == Runtime::kLazyCompile) || (fid == Runtime::kLazyRecompile));
-  // x1: function.
-  // x5: call kind (set by SetCallKind()).
-  Register function = x1;
-  Register call_kind = x5;
-
-  // Enter an internal frame.
-  {
-    FrameScope scope(masm, StackFrame::INTERNAL);
-
-    // Preserve the function and push the call kind information.
-    __ Push(function, call_kind);
-
-    // Push the function on the stack as the argument to the runtime function.
-    __ Push(function);
-
-    __ CallRuntime(fid, 1);
-    // Calculate the entry point.
-    __ Add(x2, x0, Code::kHeaderSize - kHeapObjectTag);
-
-    // Restore call kind information and the saved function.
-    __ Pop(call_kind, function);
-
-    // Tear down internal frame.
-  }
-
-  // Do a tail-call of the compiled function.
-  __ Jump(x2);
-}
-
-
 void Builtins::Generate_LazyCompile(MacroAssembler* masm) {
-  GenerateLazyCompile(masm, Runtime::kLazyCompile);
+  CallRuntimePassFunction(masm, Runtime::kLazyCompile);
+  // Do a tail-call of the compiled function.
+  __ Add(x2, x0, Code::kHeaderSize - kHeapObjectTag);
+  __ Br(x2);
 }
 
 
 void Builtins::Generate_LazyRecompile(MacroAssembler* masm) {
-  GenerateLazyCompile(masm, Runtime::kLazyRecompile);
+  CallRuntimePassFunction(masm, Runtime::kLazyRecompile);
+  // Do a tail-call of the compiled function.
+  __ Add(x2, x0, Code::kHeaderSize - kHeapObjectTag);
+  __ Br(x2);
 }
 
 
@@ -815,15 +782,16 @@ static void GenerateMakeCodeYoungAgainCommon(MacroAssembler* masm) {
   // The following caller-saved registers must be saved and restored when
   // calling through to the runtime:
   //   x0 - The address from which to resume execution.
-  //   x1 - The JSFunction object.
+  //   x1 - isolate
   //   lr - The return address for the JSFunction itself. It has not yet been
   //        preserved on the stack because the frame setup code was replaced
   //        with a call to this stub, to handle code ageing.
   {
     FrameScope scope(masm, StackFrame::MANUAL);
     __ Push(x0, x1, fp, lr);
+    __ Mov(x1, Operand(ExternalReference::isolate_address(masm->isolate())));
     __ CallCFunction(
-        ExternalReference::get_make_code_young_function(masm->isolate()), 1);
+        ExternalReference::get_make_code_young_function(masm->isolate()), 2);
     __ Pop(lr, fp, x1, x0);
   }
 

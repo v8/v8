@@ -1127,6 +1127,8 @@ class MaybeObject BASE_EMBEDDED {
   V(kExpectedPositiveZero, "expected +0.0")                                   \
   V(kExpectedPropertyCellInTypeInfoCell,                                      \
     "Expected property cell in type_info_cell")                               \
+  V(kExpectedAllocationSiteInCell,                                            \
+    "Expected AllocationSite in property cell")                               \
   V(kExpectedPropertyCellInRegisterA2,                                        \
     "Expected property cell in register a2")                                  \
   V(kExpectedPropertyCellInRegisterEbx,                                       \
@@ -1796,6 +1798,13 @@ class HeapObject: public Object {
   // during marking GC.
   static inline Object** RawField(HeapObject* obj, int offset);
 
+  // Adds the |code| object related to |name| to the code cache of this map. If
+  // this map is a dictionary map that is shared, the map copied and installed
+  // onto the object.
+  static void UpdateMapCodeCache(Handle<HeapObject> object,
+                                 Handle<Name> name,
+                                 Handle<Code> code);
+
   // Casting.
   static inline HeapObject* cast(Object* obj);
 
@@ -2228,13 +2237,6 @@ class JSObject: public JSReceiver {
   inline MUST_USE_RESULT MaybeObject* TryMigrateInstance();
 
   // Can cause GC.
-  MUST_USE_RESULT MaybeObject* SetLocalPropertyIgnoreAttributes(
-      Name* key,
-      Object* value,
-      PropertyAttributes attributes,
-      ValueType value_type = OPTIMAL_REPRESENTATION,
-      StoreMode mode = ALLOW_AS_CONSTANT,
-      ExtensibilityCheck extensibility_check = PERFORM_EXTENSIBILITY_CHECK);
   MUST_USE_RESULT MaybeObject* SetLocalPropertyIgnoreAttributesTrampoline(
       Name* key,
       Object* value,
@@ -2614,10 +2616,6 @@ class JSObject: public JSReceiver {
 
   MUST_USE_RESULT MaybeObject* NormalizeElements();
 
-  static void UpdateMapCodeCache(Handle<JSObject> object,
-                                 Handle<Name> name,
-                                 Handle<Code> code);
-
   // Transform slow named properties to fast variants.
   // Returns failure if allocation failed.
   static void TransformToFastProperties(Handle<JSObject> object,
@@ -2672,8 +2670,9 @@ class JSObject: public JSReceiver {
   // Called the first time an object is observed with ES7 Object.observe.
   MUST_USE_RESULT MaybeObject* SetObserved(Isolate* isolate);
 
-  // Copy object
-  MUST_USE_RESULT MaybeObject* DeepCopy(Isolate* isolate);
+  // Copy object.
+  static Handle<JSObject> Copy(Handle<JSObject> object);
+  static Handle<JSObject> DeepCopy(Handle<JSObject> object);
 
   // Dispatched behavior.
   void JSObjectShortPrint(StringStream* accumulator);
@@ -2775,6 +2774,15 @@ class JSObject: public JSReceiver {
  private:
   friend class DictionaryElementsAccessor;
   friend class JSReceiver;
+
+  // TODO(mstarzinger): Soon to be handlified.
+  MUST_USE_RESULT MaybeObject* SetLocalPropertyIgnoreAttributes(
+      Name* key,
+      Object* value,
+      PropertyAttributes attributes,
+      ValueType value_type = OPTIMAL_REPRESENTATION,
+      StoreMode mode = ALLOW_AS_CONSTANT,
+      ExtensibilityCheck extensibility_check = PERFORM_EXTENSIBILITY_CHECK);
 
   MUST_USE_RESULT MaybeObject* GetElementWithCallback(Object* receiver,
                                                       Object* structure,
@@ -4844,7 +4852,7 @@ class Code: public HeapObject {
     CONSTANT,
     CALLBACKS,
     INTERCEPTOR,
-    MAP_TRANSITION,
+    TRANSITION,
     NONEXISTENT
   };
 
@@ -5187,7 +5195,7 @@ class Code: public HeapObject {
   // being entered through the prologue.  Used to determine when it is
   // relatively safe to flush this code object and replace it with the lazy
   // compilation stub.
-  static void MakeCodeAgeSequenceYoung(byte* sequence);
+  static void MakeCodeAgeSequenceYoung(byte* sequence, Isolate* isolate);
   void MakeOlder(MarkingParity);
   static bool IsYoungSequence(byte* sequence);
   bool IsOld();
@@ -5333,10 +5341,11 @@ class Code: public HeapObject {
                                   MarkingParity* parity);
   static void GetCodeAgeAndParity(byte* sequence, Age* age,
                                   MarkingParity* parity);
-  static Code* GetCodeAgeStub(Age age, MarkingParity parity);
+  static Code* GetCodeAgeStub(Isolate* isolate, Age age, MarkingParity parity);
 
   // Code aging -- platform-specific
-  static void PatchPlatformCodeAge(byte* sequence, Age age,
+  static void PatchPlatformCodeAge(Isolate* isolate,
+                                   byte* sequence, Age age,
                                    MarkingParity parity);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(Code);
@@ -5956,6 +5965,10 @@ class Map: public HeapObject {
   bool CanTransition() {
     // Only JSObject and subtypes have map transitions and back pointers.
     STATIC_ASSERT(LAST_TYPE == LAST_JS_OBJECT_TYPE);
+    return instance_type() >= FIRST_JS_OBJECT_TYPE;
+  }
+
+  bool IsJSObjectMap() {
     return instance_type() >= FIRST_JS_OBJECT_TYPE;
   }
 
@@ -7029,7 +7042,6 @@ class JSFunction: public JSObject {
   // recompiled the next time it is executed.
   void MarkForLazyRecompilation();
   void MarkForConcurrentRecompilation();
-  void MarkForInstallingRecompiledCode();
   void MarkInRecompileQueue();
 
   // Helpers to compile this function.  Returns true on success, false on
@@ -7048,7 +7060,6 @@ class JSFunction: public JSObject {
   // recompilation.
   inline bool IsMarkedForLazyRecompilation();
   inline bool IsMarkedForConcurrentRecompilation();
-  inline bool IsMarkedForInstallingRecompiledCode();
 
   // Tells whether or not the function is on the concurrent recompilation queue.
   inline bool IsInRecompileQueue();
