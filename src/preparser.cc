@@ -1497,7 +1497,7 @@ PreParser::Identifier PreParser::ParseIdentifier(bool* ok) {
     case Token::FUTURE_RESERVED_WORD: {
       Scanner::Location location = scanner()->location();
       ReportMessageAt(location.beg_pos, location.end_pos,
-                      "reserved_word", NULL);
+                      "unexpected_reserved", NULL);
       *ok = false;
       return GetIdentifierSymbol();
     }
@@ -1565,7 +1565,7 @@ void PreParser::StrictModeIdentifierViolation(Scanner::Location location,
                                               bool* ok) {
   const char* type = eval_args_type;
   if (identifier.IsFutureReserved()) {
-    type = "reserved_word";
+    type = "unexpected_reserved";
   } else if (identifier.IsFutureStrictReserved() || identifier.IsYield()) {
     type = "unexpected_strict_reserved";
   }
