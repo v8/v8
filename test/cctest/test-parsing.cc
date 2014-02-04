@@ -1531,3 +1531,68 @@ TEST(ErrorsReservedWords) {
     }
   }
 }
+
+
+TEST(ErrorsYield) {
+  // Tests that both preparsing and parsing produce the right kind of errors for
+  // using yield as identifier. In non-strict mode, it's okay to use "yield" as
+  // an identifier, *except* inside a generator function. In strict mode, it's
+  // never okay.
+  const char* context_data[][2] = {
+    { "", "" },
+    { "\"use strict\";", "}" },
+    { "var eval; function test_func() {", "}"},
+    { "var eval; function test_func() {\"use strict\"; ", "}"},
+    { "function is_not_gen() {", "}" },
+    { "function * is_gen() {", "}" },
+    { "\"use strict\"; function is_not_gen() {", "}" },
+    { "\"use strict\"; function * is_gen() {", "}" },
+    { NULL, NULL }
+  };
+
+  const char* statement_data[] = {
+    "var yield;",
+    "var foo, yield;",
+    "try { } catch (yield) { }",
+    "function yield() { }",
+    "function foo(yield) { }",
+    "function foo(bar, yield) { }",
+    "yield = 1;",
+    "++yield;",
+    "yield++;",
+    "yield 2;",  // this is legal inside generator
+    "yield * 2;",  // this is legal inside generator
+    NULL
+  };
+
+  v8::HandleScope handles(CcTest::isolate());
+  v8::Handle<v8::Context> context = v8::Context::New(CcTest::isolate());
+  v8::Context::Scope context_scope(context);
+
+  int marker;
+  CcTest::i_isolate()->stack_guard()->SetStackLimit(
+      reinterpret_cast<uintptr_t>(&marker) - 128 * 1024);
+
+  static const ParserFlag flags[] = {
+    kAllowLazy, kAllowHarmonyScoping, kAllowModules, kAllowGenerators,
+    kAllowForOf
+  };
+  for (int i = 0; context_data[i][0] != NULL; ++i) {
+    for (int j = 0; statement_data[j] != NULL; ++j) {
+      int kPrefixLen = i::StrLength(context_data[i][0]);
+      int kStatementLen = i::StrLength(statement_data[j]);
+      int kSuffixLen = i::StrLength(context_data[i][1]);
+      int kProgramSize = kPrefixLen + kStatementLen + kSuffixLen;
+
+      // Plug the source code pieces together.
+      i::ScopedVector<char> program(kProgramSize + 1);
+      int length = i::OS::SNPrintF(program,
+                                   "%s%s%s",
+                                   context_data[i][0],
+                                   statement_data[j],
+                                   context_data[i][1]);
+      CHECK(length == kProgramSize);
+      TestParserSync(program.start(), flags, ARRAY_SIZE(flags));
+    }
+  }
+}

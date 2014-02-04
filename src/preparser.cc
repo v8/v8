@@ -119,6 +119,7 @@ void PreParser::ReportUnexpectedToken(Token::Value token) {
                            "unexpected_token_identifier", NULL);
   case Token::FUTURE_RESERVED_WORD:
     return ReportMessageAt(source_location, "unexpected_reserved", NULL);
+  case Token::YIELD:
   case Token::FUTURE_STRICT_RESERVED_WORD:
     return ReportMessageAt(source_location,
                            is_classic_mode() ? "unexpected_token_identifier"
@@ -1183,7 +1184,8 @@ PreParser::Expression PreParser::ParsePrimaryExpression(bool* ok) {
       break;
 
     default: {
-      Next();
+      Token::Value next = Next();
+      ReportUnexpectedToken(next);
       *ok = false;
       return Expression::Default();
     }
@@ -1493,35 +1495,15 @@ PreParser::Identifier PreParser::GetIdentifierSymbol() {
 
 PreParser::Identifier PreParser::ParseIdentifier(bool* ok) {
   Token::Value next = Next();
-  switch (next) {
-    case Token::FUTURE_RESERVED_WORD: {
-      Scanner::Location location = scanner()->location();
-      ReportMessageAt(location.beg_pos, location.end_pos,
-                      "unexpected_reserved", NULL);
-      *ok = false;
-      return GetIdentifierSymbol();
-    }
-    case Token::YIELD:
-      if (scope_->is_generator()) {
-        // 'yield' in a generator is only valid as part of a YieldExpression.
-        ReportMessageAt(scanner()->location(), "unexpected_token", "yield");
-        *ok = false;
-        return Identifier::Yield();
-      }
-      // FALLTHROUGH
-    case Token::FUTURE_STRICT_RESERVED_WORD:
-      if (!is_classic_mode()) {
-        Scanner::Location location = scanner()->location();
-        ReportMessageAt(location.beg_pos, location.end_pos,
-                        "unexpected_strict_reserved", NULL);
-        *ok = false;
-      }
-      // FALLTHROUGH
-    case Token::IDENTIFIER:
-      return GetIdentifierSymbol();
-    default:
-      *ok = false;
-      return Identifier::Default();
+  if (next == Token::IDENTIFIER ||
+      (is_classic_mode() &&
+       (next == Token::FUTURE_STRICT_RESERVED_WORD ||
+        (next == Token::YIELD && !scope_->is_generator())))) {
+    return GetIdentifierSymbol();
+  } else {
+    ReportUnexpectedToken(next);
+    *ok = false;
+    return Identifier::Default();
   }
 }
 
