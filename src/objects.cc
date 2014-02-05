@@ -10514,7 +10514,7 @@ void Code::FindAllTypes(TypeHandleList* types) {
     Object* object = info->target_object();
     if (object->IsMap()) {
       Handle<Map> map(Map::cast(object));
-      types->Add(IC::MapToType(map));
+      types->Add(IC::MapToType<HeapType>(map, map->GetIsolate()));
     }
   }
 }

@@ -243,6 +243,10 @@ function TypedArraySet(obj, offset) {
   if (intOffset < 0) {
     throw MakeTypeError("typed_array_set_negative_offset");
   }
+
+  if (intOffset > %MaxSmi()) {
+    throw MakeRangeError("typed_array_set_source_too_large");
+  }
   switch (%TypedArraySetFastCases(this, obj, intOffset)) {
     // These numbers should be synchronized with runtime.cc.
     case 0: // TYPED_ARRAY_SET_TYPED_ARRAY_SAME_TYPE

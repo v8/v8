@@ -119,9 +119,12 @@ void PreParser::ReportUnexpectedToken(Token::Value token) {
                            "unexpected_token_identifier", NULL);
   case Token::FUTURE_RESERVED_WORD:
     return ReportMessageAt(source_location, "unexpected_reserved", NULL);
+  case Token::YIELD:
   case Token::FUTURE_STRICT_RESERVED_WORD:
     return ReportMessageAt(source_location,
-                           "unexpected_strict_reserved", NULL);
+                           is_classic_mode() ? "unexpected_token_identifier"
+                                             : "unexpected_strict_reserved",
+                           NULL);
   default:
     const char* name = Token::String(token);
     ReportMessageAt(source_location, "unexpected_token", name);
@@ -304,7 +307,7 @@ PreParser::Statement PreParser::ParseFunctionDeclaration(bool* ok) {
     // as name of strict function.
     const char* type = "strict_function_name";
     if (identifier.IsFutureStrictReserved() || identifier.IsYield()) {
-      type = "strict_reserved_word";
+      type = "unexpected_strict_reserved";
     }
     ReportMessageAt(location, type, NULL);
     *ok = false;
@@ -1181,7 +1184,8 @@ PreParser::Expression PreParser::ParsePrimaryExpression(bool* ok) {
       break;
 
     default: {
-      Next();
+      Token::Value next = Next();
+      ReportUnexpectedToken(next);
       *ok = false;
       return Expression::Default();
     }
@@ -1491,35 +1495,15 @@ PreParser::Identifier PreParser::GetIdentifierSymbol() {
 
 PreParser::Identifier PreParser::ParseIdentifier(bool* ok) {
   Token::Value next = Next();
-  switch (next) {
-    case Token::FUTURE_RESERVED_WORD: {
-      Scanner::Location location = scanner()->location();
-      ReportMessageAt(location.beg_pos, location.end_pos,
-                      "reserved_word", NULL);
-      *ok = false;
-      return GetIdentifierSymbol();
-    }
-    case Token::YIELD:
-      if (scope_->is_generator()) {
-        // 'yield' in a generator is only valid as part of a YieldExpression.
-        ReportMessageAt(scanner()->location(), "unexpected_token", "yield");
-        *ok = false;
-        return Identifier::Yield();
-      }
-      // FALLTHROUGH
-    case Token::FUTURE_STRICT_RESERVED_WORD:
-      if (!is_classic_mode()) {
-        Scanner::Location location = scanner()->location();
-        ReportMessageAt(location.beg_pos, location.end_pos,
-                        "strict_reserved_word", NULL);
-        *ok = false;
-      }
-      // FALLTHROUGH
-    case Token::IDENTIFIER:
-      return GetIdentifierSymbol();
-    default:
-      *ok = false;
-      return Identifier::Default();
+  if (next == Token::IDENTIFIER ||
+      (is_classic_mode() &&
+       (next == Token::FUTURE_STRICT_RESERVED_WORD ||
+        (next == Token::YIELD && !scope_->is_generator())))) {
+    return GetIdentifierSymbol();
+  } else {
+    ReportUnexpectedToken(next);
+    *ok = false;
+    return Identifier::Default();
   }
 }
 
@@ -1563,9 +1547,9 @@ void PreParser::StrictModeIdentifierViolation(Scanner::Location location,
                                               bool* ok) {
   const char* type = eval_args_type;
   if (identifier.IsFutureReserved()) {
-    type = "reserved_word";
+    type = "unexpected_reserved";
   } else if (identifier.IsFutureStrictReserved() || identifier.IsYield()) {
-    type = "strict_reserved_word";
+    type = "unexpected_strict_reserved";
   }
   if (!is_classic_mode()) {
     ReportMessageAt(location, type, NULL);

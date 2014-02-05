@@ -3793,13 +3793,13 @@ void FullCodeGenerator::EmitGetFromCache(CallRuntime* expr) {
          FieldOperand(cache, FixedArray::OffsetOfElementAt(cache_id)));
 
   Label done, not_found;
-  // tmp now holds finger offset as a smi.
   STATIC_ASSERT(kSmiTag == 0 && kSmiTagSize == 1);
   __ mov(tmp, FieldOperand(cache, JSFunctionResultCache::kFingerOffset));
-  __ cmp(key, CodeGenerator::FixedArrayElementOperand(cache, tmp));
+  // tmp now holds finger offset as a smi.
+  __ cmp(key, FixedArrayElementOperand(cache, tmp));
   __ j(not_equal, &not_found);
 
-  __ mov(eax, CodeGenerator::FixedArrayElementOperand(cache, tmp, 1));
+  __ mov(eax, FixedArrayElementOperand(cache, tmp, 1));
   __ jmp(&done);
 
   __ bind(&not_found);

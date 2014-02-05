@@ -2123,7 +2123,6 @@ class Heap {
   // Returns whether there is a chance that another major GC could
   // collect more garbage.
   bool CollectGarbage(
-      AllocationSpace space,
       GarbageCollector collector,
       const char* gc_reason,
       const char* collector_reason,

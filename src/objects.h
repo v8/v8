@@ -5981,6 +5981,8 @@ class Map: public HeapObject {
   Map* FindUpdatedMap(int verbatim, int length, DescriptorArray* descriptors);
   Map* FindLastMatchMap(int verbatim, int length, DescriptorArray* descriptors);
 
+  inline int GetInObjectPropertyOffset(int index);
+
   int NumberOfFields();
 
   bool InstancesNeedRewriting(Map* target,

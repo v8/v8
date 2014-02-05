@@ -91,12 +91,15 @@ static V8_INLINE bool CheckForName(Handle<String> name,
 }
 
 
-bool Accessors::IsJSObjectFieldAccessor(Handle<HeapType> type,
+// Returns true for properties that are accessors to object fields.
+// If true, *object_offset contains offset of object field.
+template <class T>
+bool Accessors::IsJSObjectFieldAccessor(typename T::TypeHandle type,
                                         Handle<String> name,
                                         int* object_offset) {
   Isolate* isolate = name->GetIsolate();
 
-  if (type->Is(HeapType::String())) {
+  if (type->Is(T::String())) {
     return CheckForName(name, isolate->heap()->length_string(),
                         String::kLengthOffset, object_offset);
   }
@@ -135,6 +138,18 @@ bool Accessors::IsJSObjectFieldAccessor(Handle<HeapType> type,
       return false;
   }
 }
+
+
+template
+bool Accessors::IsJSObjectFieldAccessor<Type>(Type* type,
+                                              Handle<String> name,
+                                              int* object_offset);
+
+
+template
+bool Accessors::IsJSObjectFieldAccessor<HeapType>(Handle<HeapType> type,
+                                                  Handle<String> name,
+                                                  int* object_offset);
 
 
 //

@@ -555,8 +555,7 @@ bool Heap::CollectGarbage(AllocationSpace space,
                           const v8::GCCallbackFlags callbackFlags) {
   const char* collector_reason = NULL;
   GarbageCollector collector = SelectGarbageCollector(space, &collector_reason);
-  return CollectGarbage(
-      space, collector, gc_reason, collector_reason, callbackFlags);
+  return CollectGarbage(collector, gc_reason, collector_reason, callbackFlags);
 }
 
 

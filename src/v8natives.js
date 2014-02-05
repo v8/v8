@@ -1898,10 +1898,15 @@ SetUpFunction();
 // Eventually, we should move to a real event queue that allows to maintain
 // relative ordering of different kinds of tasks.
 
-RunMicrotasks.runners = new InternalArray;
+RunMicrotasks.queue = new InternalArray;
 
 function RunMicrotasks() {
   while (%SetMicrotaskPending(false)) {
-    for (var i in RunMicrotasks.runners) RunMicrotasks.runners[i]();
+    var microtasks = RunMicrotasks.queue;
+    RunMicrotasks.queue = new InternalArray;
+
+    for (var i = 0; i < microtasks.length; i++) {
+      microtasks[i]();
+    }
   }
 }

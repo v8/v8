@@ -136,20 +136,20 @@ PASS 'use strict'; delete objectWithReadonlyProperty.prop threw exception TypeEr
 PASS 'use strict'; delete objectWithReadonlyProperty[readonlyPropName] threw exception TypeError: Cannot delete property 'prop' of #<Object>.
 PASS 'use strict'; ++eval threw exception SyntaxError: Prefix increment/decrement may not have eval or arguments operand in strict mode.
 PASS (function(){'use strict'; ++eval}) threw exception SyntaxError: Prefix increment/decrement may not have eval or arguments operand in strict mode.
-PASS 'use strict'; eval++ threw exception SyntaxError: Prefix increment/decrement may not have eval or arguments operand in strict mode.
-PASS (function(){'use strict'; eval++}) threw exception SyntaxError: Prefix increment/decrement may not have eval or arguments operand in strict mode.
+PASS 'use strict'; eval++ threw exception SyntaxError: Postfix increment/decrement may not have eval or arguments operand in strict mode.
+PASS (function(){'use strict'; eval++}) threw exception SyntaxError: Postfix increment/decrement may not have eval or arguments operand in strict mode.
 PASS 'use strict'; --eval threw exception SyntaxError: Prefix increment/decrement may not have eval or arguments operand in strict mode.
 PASS (function(){'use strict'; --eval}) threw exception SyntaxError: Prefix increment/decrement may not have eval or arguments operand in strict mode.
-PASS 'use strict'; eval-- threw exception SyntaxError: Prefix increment/decrement may not have eval or arguments operand in strict mode.
-PASS (function(){'use strict'; eval--}) threw exception SyntaxError: Prefix increment/decrement may not have eval or arguments operand in strict mode.
+PASS 'use strict'; eval-- threw exception SyntaxError: Postfix increment/decrement may not have eval or arguments operand in strict mode.
+PASS (function(){'use strict'; eval--}) threw exception SyntaxError: Postfix increment/decrement may not have eval or arguments operand in strict mode.
 PASS 'use strict'; function f() { ++arguments } threw exception SyntaxError: Prefix increment/decrement may not have eval or arguments operand in strict mode.
 PASS (function(){'use strict'; function f() { ++arguments }}) threw exception SyntaxError: Prefix increment/decrement may not have eval or arguments operand in strict mode.
-PASS 'use strict'; function f() { arguments++ } threw exception SyntaxError: Prefix increment/decrement may not have eval or arguments operand in strict mode.
-PASS (function(){'use strict'; function f() { arguments++ }}) threw exception SyntaxError: Prefix increment/decrement may not have eval or arguments operand in strict mode.
+PASS 'use strict'; function f() { arguments++ } threw exception SyntaxError: Postfix increment/decrement may not have eval or arguments operand in strict mode.
+PASS (function(){'use strict'; function f() { arguments++ }}) threw exception SyntaxError: Postfix increment/decrement may not have eval or arguments operand in strict mode.
 PASS 'use strict'; function f() { --arguments } threw exception SyntaxError: Prefix increment/decrement may not have eval or arguments operand in strict mode.
 PASS (function(){'use strict'; function f() { --arguments }}) threw exception SyntaxError: Prefix increment/decrement may not have eval or arguments operand in strict mode.
-PASS 'use strict'; function f() { arguments-- } threw exception SyntaxError: Prefix increment/decrement may not have eval or arguments operand in strict mode.
-PASS (function(){'use strict'; function f() { arguments-- }}) threw exception SyntaxError: Prefix increment/decrement may not have eval or arguments operand in strict mode.
+PASS 'use strict'; function f() { arguments-- } threw exception SyntaxError: Postfix increment/decrement may not have eval or arguments operand in strict mode.
+PASS (function(){'use strict'; function f() { arguments-- }}) threw exception SyntaxError: Postfix increment/decrement may not have eval or arguments operand in strict mode.
 PASS global.eval('"use strict"; if (0) ++arguments; true;') threw exception SyntaxError: Prefix increment/decrement may not have eval or arguments operand in strict mode.
 PASS 'use strict'; ++(1, eval) threw exception ReferenceError: Invalid left-hand side expression in prefix operation.
 FAIL (function(){'use strict'; ++(1, eval)}) should throw an exception. Was function (){'use strict'; ++(1, eval)}.

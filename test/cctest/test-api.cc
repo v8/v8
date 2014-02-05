@@ -737,14 +737,13 @@ TEST(MakingExternalUnalignedAsciiString) {
   CcTest::heap()->CollectGarbage(i::NEW_SPACE);  // in old gen now
 
   // Turn into external string with unaligned resource data.
-  int dispose_count = 0;
   const char* c_cons = "_abcdefghijklmnopqrstuvwxyz";
   bool success = cons->MakeExternal(
-      new TestAsciiResource(i::StrDup(c_cons), &dispose_count, 1));
+      new TestAsciiResource(i::StrDup(c_cons), NULL, 1));
   CHECK(success);
   const char* c_slice = "_bcdefghijklmnopqrstuvwxyz";
   success = slice->MakeExternal(
-      new TestAsciiResource(i::StrDup(c_slice), &dispose_count, 1));
+      new TestAsciiResource(i::StrDup(c_slice), NULL, 1));
   CHECK(success);
 
   // Trigger GCs and force evacuation.

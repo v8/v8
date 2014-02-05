@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2014 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,51 +25,35 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_ARM_CODEGEN_ARM_H_
-#define V8_ARM_CODEGEN_ARM_H_
+#include "cctest.h"
 
-#include "ast.h"
-#include "ic-inl.h"
+using namespace v8::internal;
 
-namespace v8 {
-namespace internal {
+TEST(Regress340063) {
+  CcTest::InitializeVM();
+  if (!i::FLAG_allocation_site_pretenuring) return;
+  v8::HandleScope scope(CcTest::isolate());
 
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+  NewSpace* new_space = heap->new_space();
 
-enum TypeofState { INSIDE_TYPEOF, NOT_INSIDE_TYPEOF };
+  // Make sure we can allocate some objects without causing a GC later.
+  heap->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
 
+  // Allocate a string, the GC may suspect a memento behind the string.
+  Handle<SeqOneByteString> string = isolate->factory()->NewRawOneByteString(12);
+  CHECK(*string);
 
-class StringCharLoadGenerator : public AllStatic {
- public:
-  // Generates the code for handling different string types and loading the
-  // indexed character into |result|.  We expect |index| as untagged input and
-  // |result| as untagged output.
-  static void Generate(MacroAssembler* masm,
-                       Register string,
-                       Register index,
-                       Register result,
-                       Label* call_runtime);
+  // Create an allocation memento behind the string with a garbage allocation
+  // site pointer.
+  AllocationMemento* memento =
+      reinterpret_cast<AllocationMemento*>(new_space->top() + kHeapObjectTag);
+  memento->set_map_no_write_barrier(heap->allocation_memento_map());
+  memento->set_allocation_site(
+      reinterpret_cast<AllocationSite*>(kHeapObjectTag), SKIP_WRITE_BARRIER);
 
- private:
-  DISALLOW_COPY_AND_ASSIGN(StringCharLoadGenerator);
-};
-
-
-class MathExpGenerator : public AllStatic {
- public:
-  // Register input isn't modified. All other registers are clobbered.
-  static void EmitMathExp(MacroAssembler* masm,
-                          DwVfpRegister input,
-                          DwVfpRegister result,
-                          DwVfpRegister double_scratch1,
-                          DwVfpRegister double_scratch2,
-                          Register temp1,
-                          Register temp2,
-                          Register temp3);
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(MathExpGenerator);
-};
-
-} }  // namespace v8::internal
-
-#endif  // V8_ARM_CODEGEN_ARM_H_
+  // Call GC to see if we can handle a poisonous memento right after the
+  // current new space top pointer.
+  heap->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+}

@@ -2383,3 +2383,32 @@ TEST(ArrayBufferAndArrayBufferView) {
       GetProperty(arr1_buffer, v8::HeapGraphEdge::kWeak, "weak_first_view");
   CHECK_NE(NULL, first_view);
 }
+
+
+TEST(BoxObject) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  LocalContext env;
+  v8::Handle<v8::Object> global_proxy = env->Global();
+  v8::Handle<v8::Object> global = global_proxy->GetPrototype().As<v8::Object>();
+
+  i::Factory* factory = CcTest::i_isolate()->factory();
+  i::Handle<i::String> string =
+      factory->NewStringFromAscii(i::CStrVector("string"));
+  i::Handle<i::Object> box = factory->NewBox(string);
+  global->Set(0, v8::ToApiHandle<v8::Object>(box));
+
+  v8::HeapProfiler* heap_profiler = isolate->GetHeapProfiler();
+  const v8::HeapSnapshot* snapshot =
+      heap_profiler->TakeHeapSnapshot(v8_str("snapshot"));
+  CHECK(ValidateSnapshot(snapshot));
+  const v8::HeapGraphNode* global_node = GetGlobalObject(snapshot);
+  const v8::HeapGraphNode* box_node =
+      GetProperty(global_node, v8::HeapGraphEdge::kElement, "0");
+  CHECK_NE(NULL, box_node);
+  v8::String::Utf8Value box_node_name(box_node->GetName());
+  CHECK_EQ("system / Box", *box_node_name);
+  const v8::HeapGraphNode* box_value =
+      GetProperty(box_node, v8::HeapGraphEdge::kInternal, "value");
+  CHECK_NE(NULL, box_value);
+}

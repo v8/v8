@@ -1370,7 +1370,7 @@ class HGraphBuilder {
   HInstruction* AddLoadStringLength(HValue* string);
   HStoreNamedField* AddStoreMapNoWriteBarrier(HValue* object, HValue* map) {
     HStoreNamedField* store_map = Add<HStoreNamedField>(
-        object, HObjectAccess::ForMap(), map, INITIALIZING_STORE);
+        object, HObjectAccess::ForMap(), map);
     store_map->SkipWriteBarrier();
     return store_map;
   }
@@ -2184,6 +2184,8 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   AST_NODE_LIST(DECLARE_VISIT)
 #undef DECLARE_VISIT
 
+  Type* ToType(Handle<Map> map) { return IC::MapToType<Type>(map, zone()); }
+
  private:
   // Helpers for flow graph construction.
   enum GlobalPropertyAccess {
@@ -2262,13 +2264,16 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
 
   void VisitDataViewInitialize(CallRuntime* expr);
 
+  enum PropertyAccessType { LOAD, STORE };
   class PropertyAccessInfo {
    public:
     PropertyAccessInfo(HOptimizedGraphBuilder* builder,
-                       Handle<HeapType> type,
+                       PropertyAccessType access_type,
+                       Type* type,
                        Handle<String> name)
         : lookup_(builder->isolate()),
           builder_(builder),
+          access_type_(access_type),
           type_(type),
           name_(name),
           access_(HObjectAccess::ForMap()) { }
@@ -2276,7 +2281,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
     // Checkes whether this PropertyAccessInfo can be handled as a monomorphic
     // load named. It additionally fills in the fields necessary to generate the
     // lookup code.
-    bool CanLoadMonomorphic();
+    bool CanAccessMonomorphic();
 
     // Checks whether all types behave uniform when loading name. If all maps
     // behave the same, a single monomorphic load instruction can be emitted,
@@ -2284,18 +2289,18 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
     // an instance of any of the types.
     // This method skips the first type in types, assuming that this
     // PropertyAccessInfo is built for types->first().
-    bool CanLoadAsMonomorphic(SmallMapList* types);
+    bool CanAccessAsMonomorphic(SmallMapList* types);
 
     Handle<Map> map() {
-      if (type_->Is(HeapType::Number())) {
+      if (type_->Is(Type::Number())) {
         Context* context = current_info()->closure()->context();
         context = context->native_context();
         return handle(context->number_function()->initial_map());
-      } else if (type_->Is(HeapType::Boolean())) {
+      } else if (type_->Is(Type::Boolean())) {
         Context* context = current_info()->closure()->context();
         context = context->native_context();
         return handle(context->boolean_function()->initial_map());
-      } else if (type_->Is(HeapType::String())) {
+      } else if (type_->Is(Type::String())) {
         Context* context = current_info()->closure()->context();
         context = context->native_context();
         return handle(context->string_function()->initial_map());
@@ -2303,12 +2308,12 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
         return type_->AsClass();
       }
     }
-    Handle<HeapType> type() const { return type_; }
+    Type* type() const { return type_; }
     Handle<String> name() const { return name_; }
 
     bool IsJSObjectFieldAccessor() {
       int offset;  // unused
-      return Accessors::IsJSObjectFieldAccessor(type_, name_, &offset);
+      return Accessors::IsJSObjectFieldAccessor<Type>(type_, name_, &offset);
     }
 
     bool GetJSObjectFieldAccess(HObjectAccess* access) {
@@ -2317,12 +2322,12 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
         return true;
       }
       int offset;
-      if (Accessors::IsJSObjectFieldAccessor(type_, name_, &offset)) {
-        if (type_->Is(HeapType::String())) {
+      if (Accessors::IsJSObjectFieldAccessor<Type>(type_, name_, &offset)) {
+        if (type_->Is(Type::String())) {
           ASSERT(name_->Equals(isolate()->heap()->length_string()));
           *access = HObjectAccess::ForStringLength();
         } else {
-          *access = HObjectAccess::ForJSObjectOffset(offset);
+          *access = HObjectAccess::ForMapAndOffset(map(), offset);
         }
         return true;
       }
@@ -2335,9 +2340,11 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
     Handle<JSObject> holder() { return holder_; }
     Handle<JSFunction> accessor() { return accessor_; }
     Handle<Object> constant() { return constant_; }
+    Handle<Object> transition() { return transition_; }
     HObjectAccess access() { return access_; }
 
    private:
+    Type* ToType(Handle<Map> map) { return builder_->ToType(map); }
     Isolate* isolate() { return lookup_.isolate(); }
     CompilationInfo* current_info() { return builder_->current_info(); }
 
@@ -2349,7 +2356,8 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
     bool LoadResult(Handle<Map> map);
     bool LookupDescriptor();
     bool LookupInPrototypes();
-    bool IsCompatibleForLoad(PropertyAccessInfo* other);
+    bool IsCompatible(PropertyAccessInfo* other);
+    bool IsLoad() const { return access_type_ == LOAD; }
 
     void GeneralizeRepresentation(Representation r) {
       access_ = access_.WithRepresentation(
@@ -2358,11 +2366,13 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
 
     LookupResult lookup_;
     HOptimizedGraphBuilder* builder_;
-    Handle<HeapType> type_;
+    PropertyAccessType access_type_;
+    Type* type_;
     Handle<String> name_;
     Handle<JSObject> holder_;
     Handle<JSFunction> accessor_;
     Handle<Object> constant_;
+    Handle<Map> transition_;
     HObjectAccess access_;
   };
 
@@ -2373,12 +2383,15 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
                                      BailoutId return_id,
                                      bool can_inline_accessor = true);
 
+  HInstruction* BuildStoreMonomorphic(PropertyAccessInfo* info,
+                                      HValue* checked_object,
+                                      HValue* value,
+                                      BailoutId ast_id,
+                                      BailoutId return_id,
+                                      bool can_inline_accessor = true);
+
   void HandlePolymorphicStoreNamedField(BailoutId assignment_id,
-                                        HValue* object,
-                                        HValue* value,
-                                        SmallMapList* types,
-                                        Handle<String> name);
-  bool TryStorePolymorphicAsMonomorphic(BailoutId assignment_id,
+                                        BailoutId return_id,
                                         HValue* object,
                                         HValue* value,
                                         SmallMapList* types,
@@ -2469,18 +2482,13 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
                   BailoutId return_id,
                   bool is_uninitialized = false);
 
-  HInstruction* BuildStoreNamedField(HValue* object,
-                                     Handle<String> name,
-                                     HValue* value,
-                                     Handle<Map> map,
-                                     LookupResult* lookup);
+  HInstruction* BuildStoreNamedField(PropertyAccessInfo* info,
+                                     HValue* checked_object,
+                                     HValue* value);
   HInstruction* BuildStoreNamedGeneric(HValue* object,
                                        Handle<String> name,
-                                       HValue* value);
-  HInstruction* BuildStoreNamedMonomorphic(HValue* object,
-                                           Handle<String> name,
-                                           HValue* value,
-                                           Handle<Map> map);
+                                       HValue* value,
+                                       bool is_uninitialized = false);
   HInstruction* BuildStoreKeyedGeneric(HValue* object,
                                        HValue* key,
                                        HValue* value);

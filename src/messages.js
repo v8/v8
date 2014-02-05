@@ -170,7 +170,6 @@ var kMessages = {
   strict_lhs_assignment:         ["Assignment to eval or arguments is not allowed in strict mode"],
   strict_lhs_postfix:            ["Postfix increment/decrement may not have eval or arguments operand in strict mode"],
   strict_lhs_prefix:             ["Prefix increment/decrement may not have eval or arguments operand in strict mode"],
-  strict_reserved_word:          ["Use of future reserved word in strict mode"],
   strict_delete:                 ["Delete of an unqualified identifier in strict mode."],
   strict_delete_property:        ["Cannot delete property '", "%0", "' of ", "%1"],
   strict_const:                  ["Use of const in strict mode."],
