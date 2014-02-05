@@ -1375,6 +1375,8 @@ TEST(ErrorsEvalAndArguments) {
     "function foo(bar, arguments) { }",
     "eval = 1;",
     "arguments = 1;",
+    "var foo = eval = 1;",
+    "var foo = arguments = 1;",
     "++eval;",
     "++arguments;",
     "eval++;",
@@ -1429,13 +1431,14 @@ TEST(ErrorsFutureStrictReservedWords) {
   };
 
   const char* statement_data[] = {
-    "var interface = 42;",
+    "var interface;",
     "var foo, interface;",
     "try { } catch (interface) { }",
     "function interface() { }",
     "function foo(interface) { }",
     "function foo(bar, interface) { }",
     "interface = 1;",
+    "var foo = interface = 1;",
     "++interface;",
     "interface++;",
     NULL
@@ -1487,13 +1490,14 @@ TEST(ErrorsReservedWords) {
   };
 
   const char* statement_data[] = {
-    "var super = 42;",
+    "var super;",
     "var foo, super;",
     "try { } catch (super) { }",
     "function super() { }",
     "function foo(super) { }",
     "function foo(bar, super) { }",
     "super = 1;",
+    "var foo = super = 1;",
     "++super;",
     "super++;",
     "function foo super",
@@ -1558,10 +1562,98 @@ TEST(ErrorsYield) {
     "function foo(yield) { }",
     "function foo(bar, yield) { }",
     "yield = 1;",
+    "var foo = yield = 1;",
     "++yield;",
     "yield++;",
     "yield 2;",  // this is legal inside generator
     "yield * 2;",  // this is legal inside generator
+    NULL
+  };
+
+  v8::HandleScope handles(CcTest::isolate());
+  v8::Handle<v8::Context> context = v8::Context::New(CcTest::isolate());
+  v8::Context::Scope context_scope(context);
+
+  int marker;
+  CcTest::i_isolate()->stack_guard()->SetStackLimit(
+      reinterpret_cast<uintptr_t>(&marker) - 128 * 1024);
+
+  static const ParserFlag flags[] = {
+    kAllowLazy, kAllowHarmonyScoping, kAllowModules, kAllowGenerators,
+    kAllowForOf
+  };
+  for (int i = 0; context_data[i][0] != NULL; ++i) {
+    for (int j = 0; statement_data[j] != NULL; ++j) {
+      int kPrefixLen = i::StrLength(context_data[i][0]);
+      int kStatementLen = i::StrLength(statement_data[j]);
+      int kSuffixLen = i::StrLength(context_data[i][1]);
+      int kProgramSize = kPrefixLen + kStatementLen + kSuffixLen;
+
+      // Plug the source code pieces together.
+      i::ScopedVector<char> program(kProgramSize + 1);
+      int length = i::OS::SNPrintF(program,
+                                   "%s%s%s",
+                                   context_data[i][0],
+                                   statement_data[j],
+                                   context_data[i][1]);
+      CHECK(length == kProgramSize);
+      TestParserSync(program.start(), flags, ARRAY_SIZE(flags));
+    }
+  }
+}
+
+
+TEST(ErrorsNameOfStrictFunction) {
+  // Tests that illegal tokens as names of a strict function produce the correct
+  // errors.
+  const char* statement_data[] = {
+    "function eval() { }",  // legal
+    "function eval() {\"use strict\";}",  // illegal
+    "function arguments() { }",  // legal
+    "function arguments() {\"use strict\";}",  // illegal
+    // Future reserved words are always illegal
+    "function super() { }",  // illegal
+    "function super() {\"use strict\";}",  // illegal
+    "function interface() { }",  // legal
+    "function interface() {\"use strict\";}",  // illegal
+    "function yield() { }",  // legal
+    "function yield() {\"use strict\";}",  // illegal
+    NULL
+  };
+
+  v8::HandleScope handles(CcTest::isolate());
+  v8::Handle<v8::Context> context = v8::Context::New(CcTest::isolate());
+  v8::Context::Scope context_scope(context);
+
+  int marker;
+  CcTest::i_isolate()->stack_guard()->SetStackLimit(
+      reinterpret_cast<uintptr_t>(&marker) - 128 * 1024);
+
+  static const ParserFlag flags[] = {
+    kAllowLazy, kAllowHarmonyScoping, kAllowModules, kAllowGenerators,
+    kAllowForOf
+  };
+  for (int j = 0; statement_data[j] != NULL; ++j) {
+    TestParserSync(statement_data[j], flags, ARRAY_SIZE(flags));
+  }
+}
+
+
+TEST(ErrorsIllegalWordsAsLabels) {
+  // Tests that illegal tokens as labels produce the correct errors.
+  const char* context_data[][2] = {
+    { "", "" },
+    { "\"use strict\";", "}" },
+    { NULL, NULL }
+  };
+
+  const char* statement_data[] = {
+    "mylabel: while(true) { break mylabel; }",
+    "eval: while(true) { break eval; }",
+    "arguments: while(true) { break arguments; }",
+    "super: while(true) { break super; }",  // always illegal
+    "interface: while(true) { break interface; }",
+    "yield: while(true) { break yield; }",
     NULL
   };
 
