@@ -285,7 +285,8 @@ class HCheckTable : public ZoneObject {
           HGraph* graph = instr->block()->graph();
           HCheckMaps* new_check_maps =
               HCheckMaps::New(graph->zone(), NULL, instr->value(),
-                              intersection, instr->typecheck());
+                              intersection, instr->typecheck(),
+                              instr->has_migration_target());
           if (entry->check_ != NULL &&
               entry->check_->block() == instr->block()) {
             // There is a check in the same block so replace it with a more

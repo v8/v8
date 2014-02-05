@@ -2647,22 +2647,29 @@ class HCheckMaps V8_FINAL : public HTemplateInstruction<2> {
  public:
   static HCheckMaps* New(Zone* zone, HValue* context, HValue* value,
                          Handle<Map> map, CompilationInfo* info,
-                         HValue *typecheck = NULL);
+                         HValue* typecheck = NULL);
   static HCheckMaps* New(Zone* zone, HValue* context,
                          HValue* value, SmallMapList* maps,
-                         HValue *typecheck = NULL) {
+                         HValue* typecheck = NULL) {
     HCheckMaps* check_map = new(zone) HCheckMaps(value, zone, typecheck);
     for (int i = 0; i < maps->length(); i++) {
       check_map->Add(maps->at(i), zone);
     }
     return check_map;
   }
+  // HCheckMaps creation method safe for using during concurrent compilation
+  // (does not dereference maps handles).
   static HCheckMaps* New(Zone* zone, HValue* context,
                          HValue* value, UniqueSet<Map>* maps,
-                         HValue *typecheck = NULL) {
+                         HValue* typecheck,
+                         bool has_migration_target) {
     HCheckMaps* check_map = new(zone) HCheckMaps(value, zone, typecheck);
     for (int i = 0; i < maps->size(); i++) {
-      check_map->Add(maps->at(i).handle(), zone);
+      check_map->map_set_.Add(maps->at(i), zone);
+    }
+    if (has_migration_target) {
+      check_map->has_migration_target_ = true;
+      check_map->SetGVNFlag(kChangesNewSpacePromotion);
     }
     return check_map;
   }
