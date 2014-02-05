@@ -70,23 +70,23 @@ Handle<Type> Type::Iterator<T>::get_type() {
 }
 
 template<>
-Handle<Map> Type::Iterator<Map>::Current() {
+Handle<i::Map> Type::Iterator<i::Map>::Current() {
   return get_type()->as_class();
 }
 
 template<>
-Handle<v8::internal::Object> Type::Iterator<v8::internal::Object>::Current() {
+Handle<i::Object> Type::Iterator<i::Object>::Current() {
   return get_type()->as_constant();
 }
 
 
 template<>
-bool Type::Iterator<Map>::matches(Handle<Type> type) {
+bool Type::Iterator<i::Map>::matches(Handle<Type> type) {
   return type->is_class();
 }
 
 template<>
-bool Type::Iterator<v8::internal::Object>::matches(Handle<Type> type) {
+bool Type::Iterator<i::Object>::matches(Handle<Type> type) {
   return type->is_constant();
 }
 
@@ -105,8 +105,8 @@ void Type::Iterator<T>::Advance() {
   index_ = -1;
 }
 
-template class Type::Iterator<Map>;
-template class Type::Iterator<v8::internal::Object>;
+template class Type::Iterator<i::Map>;
+template class Type::Iterator<i::Object>;
 
 
 // Get the smallest bitset subsuming this type.
@@ -120,106 +120,112 @@ int Type::LubBitset() {
       bitset |= union_get(unioned, i)->LubBitset();
     }
     return bitset;
+  } else if (this->is_class()) {
+    return LubBitset(*this->as_class());
   } else {
-    Map* map = NULL;
-    if (this->is_class()) {
-      map = *this->as_class();
-    } else {
-      Handle<v8::internal::Object> value = this->as_constant();
-      if (value->IsSmi()) return kSmi;
-      map = HeapObject::cast(*value)->map();
-      if (map->instance_type() == HEAP_NUMBER_TYPE) {
-        int32_t i;
-        uint32_t u;
-        if (value->ToInt32(&i)) return Smi::IsValid(i) ? kSmi : kOtherSigned32;
-        if (value->ToUint32(&u)) return kUnsigned32;
-        return kDouble;
-      }
-      if (map->instance_type() == ODDBALL_TYPE) {
-        if (value->IsUndefined()) return kUndefined;
-        if (value->IsNull()) return kNull;
-        if (value->IsTrue() || value->IsFalse()) return kBoolean;
-        if (value->IsTheHole()) return kAny;  // TODO(rossberg): kNone?
-        UNREACHABLE();
-      }
-    }
-    switch (map->instance_type()) {
-      case STRING_TYPE:
-      case ASCII_STRING_TYPE:
-      case CONS_STRING_TYPE:
-      case CONS_ASCII_STRING_TYPE:
-      case SLICED_STRING_TYPE:
-      case SLICED_ASCII_STRING_TYPE:
-      case EXTERNAL_STRING_TYPE:
-      case EXTERNAL_ASCII_STRING_TYPE:
-      case EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE:
-      case SHORT_EXTERNAL_STRING_TYPE:
-      case SHORT_EXTERNAL_ASCII_STRING_TYPE:
-      case SHORT_EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE:
-      case INTERNALIZED_STRING_TYPE:
-      case ASCII_INTERNALIZED_STRING_TYPE:
-      case CONS_INTERNALIZED_STRING_TYPE:
-      case CONS_ASCII_INTERNALIZED_STRING_TYPE:
-      case EXTERNAL_INTERNALIZED_STRING_TYPE:
-      case EXTERNAL_ASCII_INTERNALIZED_STRING_TYPE:
-      case EXTERNAL_INTERNALIZED_STRING_WITH_ONE_BYTE_DATA_TYPE:
-      case SHORT_EXTERNAL_INTERNALIZED_STRING_TYPE:
-      case SHORT_EXTERNAL_ASCII_INTERNALIZED_STRING_TYPE:
-      case SHORT_EXTERNAL_INTERNALIZED_STRING_WITH_ONE_BYTE_DATA_TYPE:
-        return kString;
-      case SYMBOL_TYPE:
-        return kSymbol;
-      case ODDBALL_TYPE:
-        return kOddball;
-      case HEAP_NUMBER_TYPE:
-        return kDouble;
-      case JS_VALUE_TYPE:
-      case JS_DATE_TYPE:
-      case JS_OBJECT_TYPE:
-      case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
-      case JS_GENERATOR_OBJECT_TYPE:
-      case JS_MODULE_TYPE:
-      case JS_GLOBAL_OBJECT_TYPE:
-      case JS_BUILTINS_OBJECT_TYPE:
-      case JS_GLOBAL_PROXY_TYPE:
-      case JS_ARRAY_BUFFER_TYPE:
-      case JS_TYPED_ARRAY_TYPE:
-      case JS_DATA_VIEW_TYPE:
-      case JS_SET_TYPE:
-      case JS_MAP_TYPE:
-      case JS_WEAK_MAP_TYPE:
-      case JS_WEAK_SET_TYPE:
-        if (map->is_undetectable()) return kUndetectable;
-        return kOtherObject;
-      case JS_ARRAY_TYPE:
-        return kArray;
-      case JS_FUNCTION_TYPE:
-        return kFunction;
-      case JS_REGEXP_TYPE:
-        return kRegExp;
-      case JS_PROXY_TYPE:
-      case JS_FUNCTION_PROXY_TYPE:
-        return kProxy;
-      case MAP_TYPE:
-        // When compiling stub templates, the meta map is used as a place holder
-        // for the actual map with which the template is later instantiated.
-        // We treat it as a kind of type variable whose upper bound is Any.
-        // TODO(rossberg): for caching of CompareNilIC stubs to work correctly,
-        // we must exclude Undetectable here. This makes no sense, really,
-        // because it means that the template isn't actually parametric.
-        // Also, it doesn't apply elsewhere. 8-(
-        // We ought to find a cleaner solution for compiling stubs parameterised
-        // over type or class variables, esp ones with bounds...
-        return kDetectable;
-      case DECLARED_ACCESSOR_INFO_TYPE:
-      case EXECUTABLE_ACCESSOR_INFO_TYPE:
-      case ACCESSOR_PAIR_TYPE:
-      case FIXED_ARRAY_TYPE:
-        return kInternal;
-      default:
-        UNREACHABLE();
-        return kNone;
-    }
+    return LubBitset(*this->as_constant());
+  }
+}
+
+
+int Type::LubBitset(i::Object* value) {
+  if (value->IsSmi()) return kSmi;
+  i::Map* map = i::HeapObject::cast(value)->map();
+  if (map->instance_type() == HEAP_NUMBER_TYPE) {
+    int32_t i;
+    uint32_t u;
+    if (value->ToInt32(&i)) return Smi::IsValid(i) ? kSmi : kOtherSigned32;
+    if (value->ToUint32(&u)) return kUnsigned32;
+    return kDouble;
+  }
+  if (map->instance_type() == ODDBALL_TYPE) {
+    if (value->IsUndefined()) return kUndefined;
+    if (value->IsNull()) return kNull;
+    if (value->IsBoolean()) return kBoolean;
+    if (value->IsTheHole()) return kAny;  // TODO(rossberg): kNone?
+    UNREACHABLE();
+  }
+  return Type::LubBitset(map);
+}
+
+
+int Type::LubBitset(i::Map* map) {
+  switch (map->instance_type()) {
+    case STRING_TYPE:
+    case ASCII_STRING_TYPE:
+    case CONS_STRING_TYPE:
+    case CONS_ASCII_STRING_TYPE:
+    case SLICED_STRING_TYPE:
+    case SLICED_ASCII_STRING_TYPE:
+    case EXTERNAL_STRING_TYPE:
+    case EXTERNAL_ASCII_STRING_TYPE:
+    case EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE:
+    case SHORT_EXTERNAL_STRING_TYPE:
+    case SHORT_EXTERNAL_ASCII_STRING_TYPE:
+    case SHORT_EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE:
+    case INTERNALIZED_STRING_TYPE:
+    case ASCII_INTERNALIZED_STRING_TYPE:
+    case CONS_INTERNALIZED_STRING_TYPE:
+    case CONS_ASCII_INTERNALIZED_STRING_TYPE:
+    case EXTERNAL_INTERNALIZED_STRING_TYPE:
+    case EXTERNAL_ASCII_INTERNALIZED_STRING_TYPE:
+    case EXTERNAL_INTERNALIZED_STRING_WITH_ONE_BYTE_DATA_TYPE:
+    case SHORT_EXTERNAL_INTERNALIZED_STRING_TYPE:
+    case SHORT_EXTERNAL_ASCII_INTERNALIZED_STRING_TYPE:
+    case SHORT_EXTERNAL_INTERNALIZED_STRING_WITH_ONE_BYTE_DATA_TYPE:
+      return kString;
+    case SYMBOL_TYPE:
+      return kSymbol;
+    case ODDBALL_TYPE:
+      return kOddball;
+    case HEAP_NUMBER_TYPE:
+      return kDouble;
+    case JS_VALUE_TYPE:
+    case JS_DATE_TYPE:
+    case JS_OBJECT_TYPE:
+    case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
+    case JS_GENERATOR_OBJECT_TYPE:
+    case JS_MODULE_TYPE:
+    case JS_GLOBAL_OBJECT_TYPE:
+    case JS_BUILTINS_OBJECT_TYPE:
+    case JS_GLOBAL_PROXY_TYPE:
+    case JS_ARRAY_BUFFER_TYPE:
+    case JS_TYPED_ARRAY_TYPE:
+    case JS_DATA_VIEW_TYPE:
+    case JS_SET_TYPE:
+    case JS_MAP_TYPE:
+    case JS_WEAK_MAP_TYPE:
+    case JS_WEAK_SET_TYPE:
+      if (map->is_undetectable()) return kUndetectable;
+      return kOtherObject;
+    case JS_ARRAY_TYPE:
+      return kArray;
+    case JS_FUNCTION_TYPE:
+      return kFunction;
+    case JS_REGEXP_TYPE:
+      return kRegExp;
+    case JS_PROXY_TYPE:
+    case JS_FUNCTION_PROXY_TYPE:
+      return kProxy;
+    case MAP_TYPE:
+      // When compiling stub templates, the meta map is used as a place holder
+      // for the actual map with which the template is later instantiated.
+      // We treat it as a kind of type variable whose upper bound is Any.
+      // TODO(rossberg): for caching of CompareNilIC stubs to work correctly,
+      // we must exclude Undetectable here. This makes no sense, really,
+      // because it means that the template isn't actually parametric.
+      // Also, it doesn't apply elsewhere. 8-(
+      // We ought to find a cleaner solution for compiling stubs parameterised
+      // over type or class variables, esp ones with bounds...
+      return kDetectable;
+    case DECLARED_ACCESSOR_INFO_TYPE:
+    case EXECUTABLE_ACCESSOR_INFO_TYPE:
+    case ACCESSOR_PAIR_TYPE:
+    case FIXED_ARRAY_TYPE:
+      return kInternal;
+    default:
+      UNREACHABLE();
+      return kNone;
   }
 }
 
@@ -234,6 +240,18 @@ int Type::GlbBitset() {
   } else {
     return kNone;
   }
+}
+
+
+// Most precise _current_ type of a value (usually its class).
+Type* Type::CurrentOf(Handle<i::Object> value) {
+  if (value->IsSmi()) return Smi();
+  i::Map* map = i::HeapObject::cast(*value)->map();
+  if (map->instance_type() == HEAP_NUMBER_TYPE ||
+      map->instance_type() == ODDBALL_TYPE) {
+    return Type::Of(value);
+  }
+  return Class(i::handle(map));
 }
 
 
@@ -374,11 +392,11 @@ Type* Type::Union(Handle<Type> type1, Handle<Type> type2) {
   Isolate* isolate = NULL;
   int size = type1->is_bitset() || type2->is_bitset() ? 1 : 0;
   if (!type1->is_bitset()) {
-    isolate = HeapObject::cast(*type1)->GetIsolate();
+    isolate = i::HeapObject::cast(*type1)->GetIsolate();
     size += (type1->is_union() ? type1->as_union()->length() : 1);
   }
   if (!type2->is_bitset()) {
-    isolate = HeapObject::cast(*type2)->GetIsolate();
+    isolate = i::HeapObject::cast(*type2)->GetIsolate();
     size += (type2->is_union() ? type2->as_union()->length() : 1);
   }
   ASSERT(isolate != NULL);
@@ -450,11 +468,11 @@ Type* Type::Intersect(Handle<Type> type1, Handle<Type> type2) {
   Isolate* isolate = NULL;
   int size = 0;
   if (!type1->is_bitset()) {
-    isolate = HeapObject::cast(*type1)->GetIsolate();
+    isolate = i::HeapObject::cast(*type1)->GetIsolate();
     size = (type1->is_union() ? type1->as_union()->length() : 2);
   }
   if (!type2->is_bitset()) {
-    isolate = HeapObject::cast(*type2)->GetIsolate();
+    isolate = i::HeapObject::cast(*type2)->GetIsolate();
     int size2 = (type2->is_union() ? type2->as_union()->length() : 2);
     size = (size == 0 ? size2 : Min(size, size2));
   }

@@ -3906,6 +3906,9 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
 }
 
 
+// Compute the hash code from the untagged key.  This must be kept in sync with
+// ComputeIntegerHash in utils.h and KeyedLoadGenericElementStub in
+// code-stub-hydrogen.cc
 void MacroAssembler::GetNumberHash(Register r0, Register scratch) {
   // First of all we assign the hash seed to scratch.
   LoadRoot(scratch, Heap::kHashSeedRootIndex);
@@ -3980,8 +3983,7 @@ void MacroAssembler::LoadFromNumberDictionary(Label* miss,
   decl(r1);
 
   // Generate an unrolled loop that performs a few probes before giving up.
-  const int kProbes = 4;
-  for (int i = 0; i < kProbes; i++) {
+  for (int i = 0; i < kNumberDictionaryProbes; i++) {
     // Use r2 for index calculations and keep the hash intact in r0.
     movq(r2, r0);
     // Compute the masked index: (hash + i + i * i) & mask.
@@ -3999,7 +4001,7 @@ void MacroAssembler::LoadFromNumberDictionary(Label* miss,
                            r2,
                            times_pointer_size,
                            SeededNumberDictionary::kElementsStartOffset));
-    if (i != (kProbes - 1)) {
+    if (i != (kNumberDictionaryProbes - 1)) {
       j(equal, &done);
     } else {
       j(not_equal, miss);
@@ -4081,10 +4083,7 @@ void MacroAssembler::Allocate(int object_size,
                               AllocationFlags flags) {
   ASSERT((flags & (RESULT_CONTAINS_TOP | SIZE_IN_WORDS)) == 0);
   ASSERT(object_size <= Page::kMaxNonCodeHeapObjectSize);
-  if (!FLAG_inline_new ||
-      // TODO(mstarzinger): Implement more efficiently by keeping then
-      // bump-pointer allocation area empty instead of recompiling code.
-      isolate()->heap_profiler()->is_tracking_allocations()) {
+  if (!FLAG_inline_new) {
     if (emit_debug_code()) {
       // Trash the registers to simulate an allocation failure.
       movl(result, Immediate(0x7091));
@@ -4164,10 +4163,7 @@ void MacroAssembler::Allocate(Register object_size,
                               Label* gc_required,
                               AllocationFlags flags) {
   ASSERT((flags & SIZE_IN_WORDS) == 0);
-  if (!FLAG_inline_new ||
-      // TODO(mstarzinger): Implement more efficiently by keeping then
-      // bump-pointer allocation area empty instead of recompiling code.
-      isolate()->heap_profiler()->is_tracking_allocations()) {
+  if (!FLAG_inline_new) {
     if (emit_debug_code()) {
       // Trash the registers to simulate an allocation failure.
       movl(result, Immediate(0x7091));

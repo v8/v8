@@ -301,6 +301,8 @@ class LCodeGen: public LCodeGenBase {
 
   static Condition TokenToCondition(Token::Value op, bool is_unsigned);
   void EmitGoto(int block);
+
+  // EmitBranch expects to be the last instruction of a block.
   template<class InstrType>
   void EmitBranch(InstrType instr,
                   Condition condition,
@@ -311,6 +313,11 @@ class LCodeGen: public LCodeGenBase {
                    Condition condition,
                    FPURegister src1,
                    FPURegister src2);
+  template<class InstrType>
+  void EmitFalseBranch(InstrType instr,
+                       Condition condition,
+                       Register src1,
+                       const Operand& src2);
   template<class InstrType>
   void EmitFalseBranchF(InstrType instr,
                         Condition condition,

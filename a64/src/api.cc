@@ -566,6 +566,42 @@ ResourceConstraints::ResourceConstraints()
     stack_limit_(NULL) { }
 
 
+void ResourceConstraints::ConfigureDefaults(uint64_t physical_memory) {
+  const int lump_of_memory = (i::kPointerSize / 4) * i::MB;
+#if V8_OS_ANDROID
+  // Android has higher physical memory requirements before raising the maximum
+  // heap size limits since it has no swap space.
+  const uint64_t low_limit = 512ul * i::MB;
+  const uint64_t medium_limit = 1ul * i::GB;
+  const uint64_t high_limit = 2ul * i::GB;
+#else
+  const uint64_t low_limit = 512ul * i::MB;
+  const uint64_t medium_limit = 768ul * i::MB;
+  const uint64_t high_limit = 1ul  * i::GB;
+#endif
+
+  // The young_space_size should be a power of 2 and old_generation_size should
+  // be a multiple of Page::kPageSize.
+  if (physical_memory <= low_limit) {
+    set_max_young_space_size(2 * lump_of_memory);
+    set_max_old_space_size(128 * lump_of_memory);
+    set_max_executable_size(96 * lump_of_memory);
+  } else if (physical_memory <= medium_limit) {
+    set_max_young_space_size(8 * lump_of_memory);
+    set_max_old_space_size(256 * lump_of_memory);
+    set_max_executable_size(192 * lump_of_memory);
+  } else if (physical_memory <= high_limit) {
+    set_max_young_space_size(16 * lump_of_memory);
+    set_max_old_space_size(512 * lump_of_memory);
+    set_max_executable_size(256 * lump_of_memory);
+  } else {
+    set_max_young_space_size(16 * lump_of_memory);
+    set_max_old_space_size(700 * lump_of_memory);
+    set_max_executable_size(256 * lump_of_memory);
+  }
+}
+
+
 bool SetResourceConstraints(ResourceConstraints* constraints) {
   i::Isolate* isolate = EnterIsolateIfNeeded();
   return SetResourceConstraints(reinterpret_cast<Isolate*>(isolate),
@@ -3191,6 +3227,12 @@ bool v8::Object::ForceSet(v8::Handle<Value> key,
 }
 
 
+bool v8::Object::SetPrivate(v8::Handle<Private> key, v8::Handle<Value> value) {
+  return Set(v8::Handle<Value>(reinterpret_cast<Value*>(*key)),
+             value, DontEnum);
+}
+
+
 bool v8::Object::ForceDelete(v8::Handle<Value> key) {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   ON_BAILOUT(isolate, "v8::Object::ForceDelete()", return false);
@@ -3239,6 +3281,11 @@ Local<Value> v8::Object::Get(uint32_t index) {
   has_pending_exception = result.is_null();
   EXCEPTION_BAILOUT_CHECK(isolate, Local<Value>());
   return Utils::ToLocal(result);
+}
+
+
+Local<Value> v8::Object::GetPrivate(v8::Handle<Private> key) {
+  return Get(v8::Handle<Value>(reinterpret_cast<Value*>(*key)));
 }
 
 
@@ -3441,6 +3488,11 @@ bool v8::Object::Delete(v8::Handle<Value> key) {
 }
 
 
+bool v8::Object::DeletePrivate(v8::Handle<Private> key) {
+  return Delete(v8::Handle<Value>(reinterpret_cast<Value*>(*key)));
+}
+
+
 bool v8::Object::Has(v8::Handle<Value> key) {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   ON_BAILOUT(isolate, "v8::Object::Has()", return false);
@@ -3452,6 +3504,11 @@ bool v8::Object::Has(v8::Handle<Value> key) {
   has_pending_exception = obj.is_null();
   EXCEPTION_BAILOUT_CHECK(isolate, false);
   return obj->IsTrue();
+}
+
+
+bool v8::Object::HasPrivate(v8::Handle<Private> key) {
+  return Has(v8::Handle<Value>(reinterpret_cast<Value*>(*key)));
 }
 
 
@@ -4876,6 +4933,11 @@ Local<Value> Symbol::Name() const {
 }
 
 
+Local<Value> Private::Name() const {
+  return reinterpret_cast<const Symbol*>(this)->Name();
+}
+
+
 double Number::Value() const {
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   return obj->Number();
@@ -5369,14 +5431,19 @@ bool FunctionTemplate::HasInstance(v8::Handle<v8::Value> value) {
 }
 
 
-Local<External> v8::External::New(void* value) {
+Local<External> v8::External::New(Isolate* isolate, void* value) {
   STATIC_ASSERT(sizeof(value) == sizeof(i::Address));
-  i::Isolate* isolate = i::Isolate::Current();
-  EnsureInitializedForIsolate(isolate, "v8::External::New()");
-  LOG_API(isolate, "External::New");
-  ENTER_V8(isolate);
-  i::Handle<i::JSObject> external = isolate->factory()->NewExternal(value);
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  EnsureInitializedForIsolate(i_isolate, "v8::External::New()");
+  LOG_API(i_isolate, "External::New");
+  ENTER_V8(i_isolate);
+  i::Handle<i::JSObject> external = i_isolate->factory()->NewExternal(value);
   return Utils::ExternalToLocal(external);
+}
+
+
+Local<External> v8::External::New(void* value) {
+  return v8::External::New(Isolate::GetCurrent(), value);
 }
 
 
@@ -6065,8 +6132,10 @@ i::Handle<i::JSTypedArray> NewTypedArray(
 
   ASSERT(byte_offset % sizeof(ElementType) == 0);
 
+  CHECK(length <= (std::numeric_limits<size_t>::max() / sizeof(ElementType)));
+  size_t byte_length = length * sizeof(ElementType);
   SetupArrayBufferView(
-      isolate, obj, buffer, byte_offset, length * sizeof(ElementType));
+      isolate, obj, buffer, byte_offset, byte_length);
 
   i::Handle<i::Object> length_object =
     isolate->factory()->NewNumberFromSize(length);
@@ -6133,27 +6202,37 @@ Local<DataView> DataView::New(Handle<ArrayBuffer> array_buffer,
 }
 
 
-Local<Symbol> v8::Symbol::New(Isolate* isolate) {
+Local<Symbol> v8::Symbol::New(Isolate* isolate, const char* data, int length) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   EnsureInitializedForIsolate(i_isolate, "v8::Symbol::New()");
   LOG_API(i_isolate, "Symbol::New()");
   ENTER_V8(i_isolate);
   i::Handle<i::Symbol> result = i_isolate->factory()->NewSymbol();
+  if (data != NULL) {
+    if (length == -1) length = i::StrLength(data);
+    i::Handle<i::String> name = i_isolate->factory()->NewStringFromUtf8(
+        i::Vector<const char>(data, length));
+    result->set_name(*name);
+  }
   return Utils::ToLocal(result);
 }
 
 
-Local<Symbol> v8::Symbol::New(Isolate* isolate, const char* data, int length) {
+Local<Private> v8::Private::New(
+    Isolate* isolate, const char* data, int length) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  EnsureInitializedForIsolate(i_isolate, "v8::Symbol::New()");
-  LOG_API(i_isolate, "Symbol::New(char)");
+  EnsureInitializedForIsolate(i_isolate, "v8::Private::New()");
+  LOG_API(i_isolate, "Private::New()");
   ENTER_V8(i_isolate);
-  if (length == -1) length = i::StrLength(data);
-  i::Handle<i::String> name = i_isolate->factory()->NewStringFromUtf8(
-      i::Vector<const char>(data, length));
-  i::Handle<i::Symbol> result = i_isolate->factory()->NewSymbol();
-  result->set_name(*name);
-  return Utils::ToLocal(result);
+  i::Handle<i::Symbol> symbol = i_isolate->factory()->NewPrivateSymbol();
+  if (data != NULL) {
+    if (length == -1) length = i::StrLength(data);
+    i::Handle<i::String> name = i_isolate->factory()->NewStringFromUtf8(
+        i::Vector<const char>(data, length));
+    symbol->set_name(*name);
+  }
+  Local<Symbol> result = Utils::ToLocal(symbol);
+  return v8::Handle<Private>(reinterpret_cast<Private*>(*result));
 }
 
 

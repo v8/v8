@@ -122,18 +122,15 @@ THREADED_TEST(GlobalVariableAccess) {
   baz = 10;
   v8::HandleScope scope(CcTest::isolate());
   v8::Handle<v8::FunctionTemplate> templ = v8::FunctionTemplate::New();
-  templ->InstanceTemplate()->SetAccessor(v8_str("foo"),
-                                         GetIntValue,
-                                         SetIntValue,
-                                         v8::External::New(&foo));
-  templ->InstanceTemplate()->SetAccessor(v8_str("bar"),
-                                         GetIntValue,
-                                         SetIntValue,
-                                         v8::External::New(&bar));
-  templ->InstanceTemplate()->SetAccessor(v8_str("baz"),
-                                         GetIntValue,
-                                         SetIntValue,
-                                         v8::External::New(&baz));
+  templ->InstanceTemplate()->SetAccessor(
+      v8_str("foo"), GetIntValue, SetIntValue,
+      v8::External::New(CcTest::isolate(), &foo));
+  templ->InstanceTemplate()->SetAccessor(
+      v8_str("bar"), GetIntValue, SetIntValue,
+      v8::External::New(CcTest::isolate(), &bar));
+  templ->InstanceTemplate()->SetAccessor(
+      v8_str("baz"), GetIntValue, SetIntValue,
+      v8::External::New(CcTest::isolate(), &baz));
   LocalContext env(0, templ->InstanceTemplate());
   v8_compile("foo = (++bar) + baz")->Run();
   CHECK_EQ(bar, -3);

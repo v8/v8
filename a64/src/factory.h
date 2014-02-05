@@ -186,6 +186,7 @@ class Factory {
 
   // Create a symbol.
   Handle<Symbol> NewSymbol();
+  Handle<Symbol> NewPrivateSymbol();
 
   // Create a global (but otherwise uninitialized) context.
   Handle<Context> NewNativeContext();
@@ -222,6 +223,9 @@ class Factory {
   // Allocate a new struct.  The struct is pretenured (allocated directly in
   // the old generation).
   Handle<Struct> NewStruct(InstanceType type);
+
+  Handle<AliasedArgumentsEntry> NewAliasedArgumentsEntry(
+      int aliased_context_slot);
 
   Handle<DeclaredAccessorDescriptor> NewDeclaredAccessorDescriptor();
 

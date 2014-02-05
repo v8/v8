@@ -3649,6 +3649,9 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
 }
 
 
+// Compute the hash code from the untagged key. This must be kept in sync with
+// ComputeIntegerHash in utils.h and KeyedLoadGenericElementStub in
+// code-stub-hydrogen.cc
 void MacroAssembler::GetNumberHash(Register key, Register scratch) {
   ASSERT(!AreAliased(key, scratch));
 
@@ -3703,8 +3706,7 @@ void MacroAssembler::LoadFromNumberDictionary(Label* miss,
   Sub(scratch1, scratch1, 1);
 
   // Generate an unrolled loop that performs a few probes before giving up.
-  static const int kProbes = 4;
-  for (int i = 0; i < kProbes; i++) {
+  for (int i = 0; i < kNumberDictionaryProbes; i++) {
     // Compute the masked index: (hash + i + i * i) & mask.
     if (i > 0) {
       Add(scratch2, scratch0, SeededNumberDictionary::GetProbeOffset(i));
@@ -3723,7 +3725,7 @@ void MacroAssembler::LoadFromNumberDictionary(Label* miss,
         FieldMemOperand(scratch2,
                         SeededNumberDictionary::kElementsStartOffset));
     Cmp(key, scratch3);
-    if (i != kProbes - 1) {
+    if (i != (kNumberDictionaryProbes - 1)) {
       B(eq, &done);
     } else {
       B(ne, miss);

@@ -434,8 +434,15 @@ void LCodeGen::DoCallFunction(LCallFunction* instr) {
 
   int arity = instr->arity();
   CallFunctionStub stub(arity, NO_CALL_FUNCTION_FLAGS);
-  CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
-  __ Ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
+  if (instr->hydrogen()->IsTailCall()) {
+    if (NeedsEagerFrame()) {
+      __ Mov(masm()->StackPointer(), fp);
+    }
+    __ Jump(stub.GetCode(isolate()), RelocInfo::CODE_TARGET);
+  } else {
+    CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
+    __ Ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
+  }
 }
 
 
@@ -1130,12 +1137,25 @@ Operand LCodeGen::ToOperand32(LOperand* op, IntegerSignedness signedness) {
 }
 
 
+static ptrdiff_t ArgumentsOffsetWithoutFrame(ptrdiff_t index) {
+  ASSERT(index < 0);
+  return -(index + 1) * kPointerSize;
+}
+
+
 MemOperand LCodeGen::ToMemOperand(LOperand* op) const {
   ASSERT(op != NULL);
   ASSERT(!op->IsRegister());
   ASSERT(!op->IsDoubleRegister());
   ASSERT(op->IsStackSlot() || op->IsDoubleStackSlot());
-  return MemOperand(fp, StackSlotOffset(op->index()));
+  if (NeedsEagerFrame()) {
+    return MemOperand(fp, StackSlotOffset(op->index()));
+  } else {
+    // Retrieve parameter without eager stack-frame relative to the
+    // stack-pointer.
+    return MemOperand(masm()->StackPointer(),
+                      ArgumentsOffsetWithoutFrame(op->index()));
+  }
 }
 
 
@@ -1410,35 +1430,36 @@ void LCodeGen::DoAllocate(LAllocate* instr) {
 
 
 void LCodeGen::DoDeferredAllocate(LAllocate* instr) {
-  Register result = ToRegister(instr->result());
-
   // TODO(3095996): Get rid of this. For now, we need to make the
   // result register contain a valid pointer because it is already
   // contained in the register pointer map.
-  __ Mov(result, Operand(Smi::FromInt(0)));
+  __ Mov(ToRegister(instr->result()), Operand(Smi::FromInt(0)));
 
   PushSafepointRegistersScope scope(this, Safepoint::kWithRegisters);
+  // We're in a SafepointRegistersScope so we can use any scratch registers.
+  Register size = x0;
   if (instr->size()->IsConstantOperand()) {
-    int32_t size = ToInteger32(LConstantOperand::cast(instr->size()));
-    // Use result as a scratch register.
-    __ Mov(result, Operand(Smi::FromInt(size)));
-    __ Push(result);
+    __ Mov(size, Operand(ToSmi(LConstantOperand::cast(instr->size()))));
   } else {
-    Register size = ToRegister(instr->size());
-    __ SmiTag(size);
-    __ Push(size);
+    __ SmiTag(size, ToRegister(instr->size()));
   }
+  int flags = AllocateDoubleAlignFlag::encode(
+      instr->hydrogen()->MustAllocateDoubleAligned());
   if (instr->hydrogen()->IsOldPointerSpaceAllocation()) {
     ASSERT(!instr->hydrogen()->IsOldDataSpaceAllocation());
     ASSERT(!instr->hydrogen()->IsNewSpaceAllocation());
-    CallRuntimeFromDeferred(Runtime::kAllocateInOldPointerSpace, 1, instr);
+    flags = AllocateTargetSpace::update(flags, OLD_POINTER_SPACE);
   } else if (instr->hydrogen()->IsOldDataSpaceAllocation()) {
     ASSERT(!instr->hydrogen()->IsNewSpaceAllocation());
-    CallRuntimeFromDeferred(Runtime::kAllocateInOldDataSpace, 1, instr);
+    flags = AllocateTargetSpace::update(flags, OLD_DATA_SPACE);
   } else {
-    CallRuntimeFromDeferred(Runtime::kAllocateInNewSpace, 1, instr);
+    flags = AllocateTargetSpace::update(flags, NEW_SPACE);
   }
-  __ StoreToSafepointRegisterSlot(x0, result);
+  __ Mov(x10, Operand(Smi::FromInt(flags)));
+  __ Push(size, x10);
+
+  CallRuntimeFromDeferred(Runtime::kAllocateInTargetSpace, 2, instr);
+  __ StoreToSafepointRegisterSlot(x0, ToRegister(instr->result()));
 }
 
 

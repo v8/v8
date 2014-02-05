@@ -1350,7 +1350,6 @@ void NewSpace::Shrink() {
       }
     }
   }
-  allocation_info_.set_limit(to_space_.page_high());
   ASSERT_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
 }
 
@@ -1359,14 +1358,7 @@ void NewSpace::UpdateAllocationInfo() {
   MemoryChunk::UpdateHighWaterMark(allocation_info_.top());
   allocation_info_.set_top(to_space_.page_low());
   allocation_info_.set_limit(to_space_.page_high());
-
-  // Lower limit during incremental marking.
-  if (heap()->incremental_marking()->IsMarking() &&
-      inline_allocation_limit_step() != 0) {
-    Address new_limit =
-        allocation_info_.top() + inline_allocation_limit_step();
-    allocation_info_.set_limit(Min(new_limit, allocation_info_.limit()));
-  }
+  UpdateInlineAllocationLimit(0);
   ASSERT_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
 }
 
@@ -1380,6 +1372,26 @@ void NewSpace::ResetAllocationInfo() {
   while (it.has_next()) {
     Bitmap::Clear(it.next());
   }
+}
+
+
+void NewSpace::UpdateInlineAllocationLimit(int size_in_bytes) {
+  if (heap()->inline_allocation_disabled()) {
+    // Lowest limit when linear allocation was disabled.
+    Address high = to_space_.page_high();
+    Address new_top = allocation_info_.top() + size_in_bytes;
+    allocation_info_.set_limit(Min(new_top, high));
+  } else if (inline_allocation_limit_step() == 0) {
+    // Normal limit is the end of the current page.
+    allocation_info_.set_limit(to_space_.page_high());
+  } else {
+    // Lower limit during incremental marking.
+    Address high = to_space_.page_high();
+    Address new_top = allocation_info_.top() + size_in_bytes;
+    Address new_limit = new_top + inline_allocation_limit_step_;
+    allocation_info_.set_limit(Min(new_limit, high));
+  }
+  ASSERT_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
 }
 
 
@@ -1417,18 +1429,16 @@ bool NewSpace::AddFreshPage() {
 
 MaybeObject* NewSpace::SlowAllocateRaw(int size_in_bytes) {
   Address old_top = allocation_info_.top();
-  Address new_top = old_top + size_in_bytes;
   Address high = to_space_.page_high();
   if (allocation_info_.limit() < high) {
-    // Incremental marking has lowered the limit to get a
-    // chance to do a step.
-    Address new_limit = Min(
-        allocation_info_.limit() + inline_allocation_limit_step_,
-        high);
-    allocation_info_.set_limit(new_limit);
+    // Either the limit has been lowered because linear allocation was disabled
+    // or because incremental marking wants to get a chance to do a step. Set
+    // the new limit accordingly.
+    Address new_top = old_top + size_in_bytes;
     int bytes_allocated = static_cast<int>(new_top - top_on_previous_step_);
     heap()->incremental_marking()->Step(
         bytes_allocated, IncrementalMarking::GC_VIA_STACK_GUARD);
+    UpdateInlineAllocationLimit(size_in_bytes);
     top_on_previous_step_ = new_top;
     return AllocateRaw(size_in_bytes);
   } else if (AddFreshPage()) {
@@ -2374,7 +2384,7 @@ HeapObject* FreeList::Allocate(int size_in_bytes) {
   int new_node_size = 0;
   FreeListNode* new_node = FindNodeFor(size_in_bytes, &new_node_size);
   if (new_node == NULL) {
-    owner_->SetTop(NULL, NULL);
+    owner_->SetTopAndLimit(NULL, NULL);
     return NULL;
   }
 
@@ -2399,26 +2409,31 @@ HeapObject* FreeList::Allocate(int size_in_bytes) {
   // a little of this again immediately - see below.
   owner_->Allocate(new_node_size);
 
-  if (bytes_left > kThreshold &&
-      owner_->heap()->incremental_marking()->IsMarkingIncomplete() &&
-      FLAG_incremental_marking_steps) {
+  if (owner_->heap()->inline_allocation_disabled()) {
+    // Keep the linear allocation area empty if requested to do so, just
+    // return area back to the free list instead.
+    owner_->Free(new_node->address() + size_in_bytes, bytes_left);
+    ASSERT(owner_->top() == NULL && owner_->limit() == NULL);
+  } else if (bytes_left > kThreshold &&
+             owner_->heap()->incremental_marking()->IsMarkingIncomplete() &&
+             FLAG_incremental_marking_steps) {
     int linear_size = owner_->RoundSizeDownToObjectAlignment(kThreshold);
     // We don't want to give too large linear areas to the allocator while
     // incremental marking is going on, because we won't check again whether
     // we want to do another increment until the linear area is used up.
     owner_->Free(new_node->address() + size_in_bytes + linear_size,
                  new_node_size - size_in_bytes - linear_size);
-    owner_->SetTop(new_node->address() + size_in_bytes,
-                   new_node->address() + size_in_bytes + linear_size);
+    owner_->SetTopAndLimit(new_node->address() + size_in_bytes,
+                           new_node->address() + size_in_bytes + linear_size);
   } else if (bytes_left > 0) {
     // Normally we give the rest of the node to the allocator as its new
     // linear allocation area.
-    owner_->SetTop(new_node->address() + size_in_bytes,
-                   new_node->address() + new_node_size);
+    owner_->SetTopAndLimit(new_node->address() + size_in_bytes,
+                           new_node->address() + new_node_size);
   } else {
     // TODO(gc) Try not freeing linear allocation region when bytes_left
     // are zero.
-    owner_->SetTop(NULL, NULL);
+    owner_->SetTopAndLimit(NULL, NULL);
   }
 
   return new_node;
@@ -2504,37 +2519,10 @@ intptr_t FreeList::SumFreeLists() {
 // -----------------------------------------------------------------------------
 // OldSpace implementation
 
-bool NewSpace::ReserveSpace(int bytes) {
-  // We can't reliably unpack a partial snapshot that needs more new space
-  // space than the minimum NewSpace size.  The limit can be set lower than
-  // the end of new space either because there is more space on the next page
-  // or because we have lowered the limit in order to get periodic incremental
-  // marking.  The most reliable way to ensure that there is linear space is
-  // to do the allocation, then rewind the limit.
-  ASSERT(bytes <= InitialCapacity());
-  MaybeObject* maybe = AllocateRaw(bytes);
-  Object* object = NULL;
-  if (!maybe->ToObject(&object)) return false;
-  HeapObject* allocation = HeapObject::cast(object);
-  Address top = allocation_info_.top();
-  if ((top - bytes) == allocation->address()) {
-    allocation_info_.set_top(allocation->address());
-    return true;
-  }
-  // There may be a borderline case here where the allocation succeeded, but
-  // the limit and top have moved on to a new page.  In that case we try again.
-  return ReserveSpace(bytes);
-}
-
-
 void PagedSpace::PrepareForMarkCompact() {
   // We don't have a linear allocation area while sweeping.  It will be restored
   // on the first allocation after the sweep.
-  // Mark the old linear allocation area with a free space map so it can be
-  // skipped when scanning the heap.
-  int old_linear_size = static_cast<int>(limit() - top());
-  Free(top(), old_linear_size);
-  SetTop(NULL, NULL);
+  EmptyAllocationInfo();
 
   // Stop lazy sweeping and clear marking bits for unswept pages.
   if (first_unswept_page_ != NULL) {
@@ -2561,28 +2549,6 @@ void PagedSpace::PrepareForMarkCompact() {
 }
 
 
-bool PagedSpace::ReserveSpace(int size_in_bytes) {
-  ASSERT(size_in_bytes <= AreaSize());
-  ASSERT(size_in_bytes == RoundSizeDownToObjectAlignment(size_in_bytes));
-  Address current_top = allocation_info_.top();
-  Address new_top = current_top + size_in_bytes;
-  if (new_top <= allocation_info_.limit()) return true;
-
-  HeapObject* new_area = free_list_.Allocate(size_in_bytes);
-  if (new_area == NULL) new_area = SlowAllocateRaw(size_in_bytes);
-  if (new_area == NULL) return false;
-
-  int old_linear_size = static_cast<int>(limit() - top());
-  // Mark the old linear allocation area with a free space so it can be
-  // skipped when scanning the heap.  This also puts it back in the free list
-  // if it is big enough.
-  Free(top(), old_linear_size);
-
-  SetTop(new_area->address(), new_area->address() + size_in_bytes);
-  return true;
-}
-
-
 intptr_t PagedSpace::SizeOfObjects() {
   ASSERT(!heap()->IsSweepingComplete() || (unswept_free_bytes_ == 0));
   return Size() - unswept_free_bytes_ - (limit() - top());
@@ -2595,15 +2561,6 @@ intptr_t PagedSpace::SizeOfObjects() {
 // fix them.
 void PagedSpace::RepairFreeListsAfterBoot() {
   free_list_.RepairLists(heap());
-}
-
-
-// You have to call this last, since the implementation from PagedSpace
-// doesn't know that memory was 'promised' to large object space.
-bool LargeObjectSpace::ReserveSpace(int bytes) {
-  return heap()->OldGenerationCapacityAvailable() >= bytes &&
-         (!heap()->incremental_marking()->IsStopped() ||
-           heap()->OldGenerationSpaceAvailable() >= bytes);
 }
 
 
@@ -2860,23 +2817,6 @@ void PagedSpace::ReportStatistics() {
   ReportHistogram(heap()->isolate(), true);
 }
 #endif
-
-// -----------------------------------------------------------------------------
-// FixedSpace implementation
-
-void FixedSpace::PrepareForMarkCompact() {
-  // Call prepare of the super class.
-  PagedSpace::PrepareForMarkCompact();
-
-  // During a non-compacting collection, everything below the linear
-  // allocation pointer except wasted top-of-page blocks is considered
-  // allocated and we will rediscover available bytes during the
-  // collection.
-  accounting_stats_.AllocateBytes(free_list_.available());
-
-  // Clear the free list before a full GC---it will be rebuilt afterward.
-  free_list_.Reset();
-}
 
 
 // -----------------------------------------------------------------------------

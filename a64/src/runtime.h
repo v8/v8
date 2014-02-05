@@ -103,15 +103,16 @@ namespace internal {
   F(CompileForOnStackReplacement, 2, 1) \
   F(SetAllocationTimeout, 2, 1) \
   F(AllocateInNewSpace, 1, 1) \
-  F(AllocateInOldPointerSpace, 1, 1) \
-  F(AllocateInOldDataSpace, 1, 1) \
+  F(AllocateInTargetSpace, 2, 1) \
   F(SetNativeFlag, 1, 1) \
+  F(SetInlineBuiltinFlag, 1, 1) \
   F(StoreArrayLiteralElement, 5, 1) \
   F(DebugCallbackSupportsStepping, 1, 1) \
   F(DebugPrepareStepInIfStepping, 1, 1) \
   F(FlattenString, 1, 1) \
   F(MigrateInstance, 1, 1) \
   F(NotifyContextDisposed, 0, 1) \
+  F(MaxSmi, 0, 1) \
   \
   /* Array join support */ \
   F(PushIfAbsent, 2, 1) \
@@ -189,6 +190,7 @@ namespace internal {
   F(Math_sin, 1, 1) \
   F(Math_sqrt, 1, 1) \
   F(Math_tan, 1, 1) \
+  F(PopulateTrigonometricTable, 3, 1) \
   \
   /* Regular expressions */ \
   F(RegExpCompile, 3, 1) \
@@ -315,7 +317,9 @@ namespace internal {
   \
   /* Harmony symbols */ \
   F(CreateSymbol, 1, 1) \
+  F(CreatePrivateSymbol, 1, 1) \
   F(SymbolName, 1, 1) \
+  F(SymbolIsPrivate, 1, 1) \
   \
   /* Harmony proxies */ \
   F(CreateJSProxy, 2, 1) \
@@ -625,11 +629,9 @@ namespace internal {
   F(IsSpecObject, 1, 1)                                                      \
   F(IsStringWrapperSafeForDefaultValueOf, 1, 1)                              \
   F(MathPow, 2, 1)                                                           \
-  F(MathSin, 1, 1)                                                           \
-  F(MathCos, 1, 1)                                                           \
-  F(MathTan, 1, 1)                                                           \
   F(MathSqrt, 1, 1)                                                          \
   F(MathLog, 1, 1)                                                           \
+  F(IsMinusZero, 1, 1)                                                       \
   F(IsRegExpEquivalent, 2, 1)                                                \
   F(HasCachedArrayIndex, 1, 1)                                               \
   F(GetCachedArrayIndex, 1, 1)                                               \
@@ -841,6 +843,9 @@ class Runtime : public AllStatic {
 
 //---------------------------------------------------------------------------
 // Constants used by interface to runtime functions.
+
+class AllocateDoubleAlignFlag:    public BitField<bool,            0, 1> {};
+class AllocateTargetSpace:        public BitField<AllocationSpace, 1, 3> {};
 
 class DeclareGlobalsEvalFlag:     public BitField<bool,         0, 1> {};
 class DeclareGlobalsNativeFlag:   public BitField<bool,         1, 1> {};

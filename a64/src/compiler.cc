@@ -59,7 +59,8 @@ CompilationInfo::CompilationInfo(Handle<Script> script,
     : flags_(LanguageModeField::encode(CLASSIC_MODE)),
       script_(script),
       osr_ast_id_(BailoutId::None()),
-      osr_pc_offset_(0) {
+      osr_pc_offset_(0),
+      parameter_count_(0) {
   Initialize(script->GetIsolate(), BASE, zone);
 }
 
@@ -70,7 +71,8 @@ CompilationInfo::CompilationInfo(Handle<SharedFunctionInfo> shared_info,
       shared_info_(shared_info),
       script_(Handle<Script>(Script::cast(shared_info->script()))),
       osr_ast_id_(BailoutId::None()),
-      osr_pc_offset_(0) {
+      osr_pc_offset_(0),
+      parameter_count_(0) {
   Initialize(script_->GetIsolate(), BASE, zone);
 }
 
@@ -83,7 +85,8 @@ CompilationInfo::CompilationInfo(Handle<JSFunction> closure,
       script_(Handle<Script>(Script::cast(shared_info_->script()))),
       context_(closure->context()),
       osr_ast_id_(BailoutId::None()),
-      osr_pc_offset_(0) {
+      osr_pc_offset_(0),
+      parameter_count_(0) {
   Initialize(script_->GetIsolate(), BASE, zone);
 }
 
@@ -94,7 +97,8 @@ CompilationInfo::CompilationInfo(HydrogenCodeStub* stub,
     : flags_(LanguageModeField::encode(CLASSIC_MODE) |
              IsLazy::encode(true)),
       osr_ast_id_(BailoutId::None()),
-      osr_pc_offset_(0) {
+      osr_pc_offset_(0),
+      parameter_count_(0) {
   Initialize(isolate, STUB, zone);
   code_stub_ = stub;
 }
@@ -184,8 +188,12 @@ void CompilationInfo::RollbackDependencies() {
 
 
 int CompilationInfo::num_parameters() const {
-  ASSERT(!IsStub());
-  return scope()->num_parameters();
+  if (IsStub()) {
+    ASSERT(parameter_count_ > 0);
+    return parameter_count_;
+  } else {
+    return scope()->num_parameters();
+  }
 }
 
 

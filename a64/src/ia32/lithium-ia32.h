@@ -74,6 +74,7 @@ class LCodeGen;
   V(ClampTToUint8NoSSE2)                        \
   V(ClassOfTestAndBranch)                       \
   V(ClobberDoubles)                             \
+  V(CompareMinusZeroAndBranch)                  \
   V(CompareNumericAndBranch)                    \
   V(CmpObjectEqAndBranch)                       \
   V(CmpHoleAndBranch)                           \
@@ -897,6 +898,22 @@ class LCmpHoleAndBranch V8_FINAL : public LControlInstruction<1, 0> {
 
   DECLARE_CONCRETE_INSTRUCTION(CmpHoleAndBranch, "cmp-hole-and-branch")
   DECLARE_HYDROGEN_ACCESSOR(CompareHoleAndBranch)
+};
+
+
+class LCompareMinusZeroAndBranch V8_FINAL : public LControlInstruction<1, 1> {
+ public:
+  LCompareMinusZeroAndBranch(LOperand* value, LOperand* temp) {
+    inputs_[0] = value;
+    temps_[0] = temp;
+  }
+
+  LOperand* value() { return inputs_[0]; }
+  LOperand* temp() { return temps_[0]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(CompareMinusZeroAndBranch,
+                               "cmp-minus-zero-and-branch")
+  DECLARE_HYDROGEN_ACCESSOR(CompareMinusZeroAndBranch)
 };
 
 

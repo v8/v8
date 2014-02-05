@@ -59,6 +59,7 @@ function TestType() {
   for (var i in symbols) {
     assertEquals("symbol", typeof symbols[i])
     assertTrue(typeof symbols[i] === "symbol")
+    assertFalse(%SymbolIsPrivate(symbols[i]))
     assertEquals(null, %_ClassOf(symbols[i]))
     assertEquals("Symbol", %_ClassOf(new Symbol(symbols[i])))
     assertEquals("Symbol", %_ClassOf(Object(symbols[i])))

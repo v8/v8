@@ -1086,8 +1086,7 @@ LInstruction* LChunkBuilder::DoCallConstantFunction(
 LInstruction* LChunkBuilder::DoCallFunction(HCallFunction* instr) {
   LOperand* function = UseFixed(instr->function(), x1);
   LInstruction* result = DefineFixed(new(zone()) LCallFunction(function), x0);
-  // TODO(all): Uncomment the following line during the rebase.
-  // if (instr->IsTailCall()) return result;
+  if (instr->IsTailCall()) return result;
   return MarkAsCall(result, instr);
 }
 
@@ -1622,6 +1621,13 @@ LInstruction* LChunkBuilder::DoIsConstructCallAndBranch(
 }
 
 
+LInstruction* LChunkBuilder::DoCompareMinusZeroAndBranch(
+    HCompareMinusZeroAndBranch* instr) {
+  Abort(kUnimplemented);
+  return NULL;
+}
+
+
 LInstruction* LChunkBuilder::DoIsObjectAndBranch(HIsObjectAndBranch* instr) {
   ASSERT(instr->value()->representation().IsTagged());
   LOperand* value = UseRegisterAtStart(instr->value());
@@ -1956,7 +1962,7 @@ LInstruction* LChunkBuilder::DoParameter(HParameter* instr) {
     CodeStubInterfaceDescriptor* descriptor =
         info()->code_stub()->GetInterfaceDescriptor(info()->isolate());
     int index = static_cast<int>(instr->index());
-    Register reg = DESCRIPTOR_GET_PARAMETER_REGISTER(descriptor, index);
+    Register reg = descriptor->GetParameterRegister(index);
     return DefineFixed(result, reg);
   }
 }

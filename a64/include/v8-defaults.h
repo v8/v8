@@ -35,19 +35,13 @@
  */
 namespace v8 {
 
-/**
- * Configures the constraints with reasonable default values based on the
- * capabilities of the current device the VM is running on.
- */
-bool V8_EXPORT ConfigureResourceConstraintsForCurrentPlatform(
-    ResourceConstraints* constraints);
+V8_DEPRECATED("Use ResourceConstraints::ConfigureDefaults instead",
+    bool V8_EXPORT ConfigureResourceConstraintsForCurrentPlatform(
+        ResourceConstraints* constraints));
 
 
-/**
- * Convience function which performs SetResourceConstraints with the settings
- * returned by ConfigureResourceConstraintsForCurrentPlatform.
- */
-bool V8_EXPORT SetDefaultResourceConstraintsForCurrentPlatform();
+V8_DEPRECATED("Use ResourceConstraints::ConfigureDefaults instead",
+    bool V8_EXPORT SetDefaultResourceConstraintsForCurrentPlatform());
 
 }  // namespace v8
 

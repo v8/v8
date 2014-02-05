@@ -67,6 +67,14 @@ def MSub(rexp, replacement, text):
   return re.sub(rexp, replacement, text, flags=re.MULTILINE)
 
 
+def GetLastChangeLogEntries(change_log_file):
+  result = []
+  for line in LinesInFile(change_log_file):
+    if re.search(r"^\d{4}-\d{2}-\d{2}:", line) and result: break
+    result.append(line)
+  return "".join(result)
+
+
 # Some commands don't like the pipe, e.g. calling vi from within the script or
 # from subscripts like git cl upload.
 def Command(cmd, args="", prefix="", pipe=True):

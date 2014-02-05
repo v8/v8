@@ -1,3 +1,33 @@
+2013-11-15: Version 3.23.5
+
+        Fixed missing type feedback check for Generic*String addition.
+        (Chromium issue 318671)
+
+        Fixed duplicate check in DependentCode::Insert.
+        (Chromium issue 318454)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-11-14: Version 3.23.4
+
+        Fixed overflow in TypedArray initialization function.
+        (Chromium issue 319120)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-11-13: Version 3.23.3
+
+        Fixed compilation with GCC 4.8.
+        (issue 2767, 2149)
+
+        Added explicit Isolate parameter to External::New.
+        (Chromium issue 266838)
+
+        Performance and stability improvements on all platforms.
+
+
 2013-11-12: Version 3.23.2
 
         Fixed --extra-code flag for snapshot creation.

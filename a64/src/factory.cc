@@ -365,6 +365,14 @@ Handle<Symbol> Factory::NewSymbol() {
 }
 
 
+Handle<Symbol> Factory::NewPrivateSymbol() {
+  CALL_HEAP_FUNCTION(
+      isolate(),
+      isolate()->heap()->AllocatePrivateSymbol(),
+      Symbol);
+}
+
+
 Handle<Context> Factory::NewNativeContext() {
   CALL_HEAP_FUNCTION(
       isolate(),
@@ -440,6 +448,15 @@ Handle<Struct> Factory::NewStruct(InstanceType type) {
       isolate(),
       isolate()->heap()->AllocateStruct(type),
       Struct);
+}
+
+
+Handle<AliasedArgumentsEntry> Factory::NewAliasedArgumentsEntry(
+    int aliased_context_slot) {
+  Handle<AliasedArgumentsEntry> entry = Handle<AliasedArgumentsEntry>::cast(
+      NewStruct(ALIASED_ARGUMENTS_ENTRY_TYPE));
+  entry->set_aliased_context_slot(aliased_context_slot);
+  return entry;
 }
 
 
@@ -618,11 +635,12 @@ Handle<Map> Factory::CopyMap(Handle<Map> src,
   int instance_size_delta = extra_inobject_properties * kPointerSize;
   int max_instance_size_delta =
       JSObject::kMaxInstanceSize - copy->instance_size();
-  if (instance_size_delta > max_instance_size_delta) {
+  int max_extra_properties = max_instance_size_delta >> kPointerSizeLog2;
+  if (extra_inobject_properties > max_extra_properties) {
     // If the instance size overflows, we allocate as many properties
     // as we can as inobject properties.
     instance_size_delta = max_instance_size_delta;
-    extra_inobject_properties = max_instance_size_delta >> kPointerSizeLog2;
+    extra_inobject_properties = max_extra_properties;
   }
   // Adjust the map with the extra inobject properties.
   int inobject_properties =

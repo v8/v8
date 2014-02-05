@@ -83,29 +83,21 @@ class StubCache {
   Handle<Code> FindIC(Handle<Name> name,
                       Handle<Map> stub_holder_map,
                       Code::Kind kind,
-                      Code::ExtraICState extra_state = Code::kNoExtraICState);
-
-  Handle<Code> FindIC(Handle<Name> name,
-                      Handle<JSObject> stub_holder,
-                      Code::Kind kind,
-                      Code::ExtraICState extra_state = Code::kNoExtraICState);
+                      Code::ExtraICState extra_state = Code::kNoExtraICState,
+                      InlineCacheHolderFlag cache_holder = OWN_MAP);
 
   Handle<Code> FindHandler(Handle<Name> name,
-                           Handle<JSObject> receiver,
+                           Handle<HeapObject> stub_holder,
                            Code::Kind kind,
+                           InlineCacheHolderFlag cache_holder = OWN_MAP,
                            StrictModeFlag strict_mode = kNonStrictMode);
 
-  Handle<Code> ComputeMonomorphicIC(Handle<HeapObject> receiver,
+  Handle<Code> ComputeMonomorphicIC(Handle<Name> name,
+                                    Handle<Object> receiver,
                                     Handle<Code> handler,
-                                    Handle<Name> name,
                                     StrictModeFlag strict_mode);
 
-  // Computes the right stub matching. Inserts the result in the
-  // cache before returning.  This might compile a stub if needed.
-  Handle<Code> ComputeLoadNonexistent(Handle<Name> name,
-                                      Handle<JSObject> object);
-
-  // ---
+  Handle<Code> ComputeLoadNonexistent(Handle<Name> name, Handle<Object> object);
 
   Handle<Code> ComputeKeyedLoadElement(Handle<Map> receiver_map);
 
@@ -501,6 +493,7 @@ class StubCompiler BASE_EMBEDDED {
                            Label* miss,
                            PrototypeCheckType check = CHECK_ALL_MAPS);
 
+  void GenerateBooleanCheck(Register object, Label* miss);
 
  protected:
   Handle<Code> GetCodeWithFlags(Code::Flags flags, const char* name);
@@ -531,8 +524,10 @@ enum FrontendCheckType { PERFORM_INITIAL_CHECKS, SKIP_INITIAL_CHECKS };
 
 class BaseLoadStoreStubCompiler: public StubCompiler {
  public:
-  BaseLoadStoreStubCompiler(Isolate* isolate, Code::Kind kind)
-      : StubCompiler(isolate), kind_(kind) {
+  BaseLoadStoreStubCompiler(Isolate* isolate,
+                            Code::Kind kind,
+                            InlineCacheHolderFlag cache_holder = OWN_MAP)
+      : StubCompiler(isolate), kind_(kind), cache_holder_(cache_holder) {
     InitializeRegisters();
   }
   virtual ~BaseLoadStoreStubCompiler() { }
@@ -563,21 +558,18 @@ class BaseLoadStoreStubCompiler: public StubCompiler {
   }
 
  protected:
-  virtual Register HandlerFrontendHeader(Handle<JSObject> object,
+  virtual Register HandlerFrontendHeader(Handle<Object> object,
                                          Register object_reg,
                                          Handle<JSObject> holder,
                                          Handle<Name> name,
                                          Label* miss) = 0;
 
-  virtual void HandlerFrontendFooter(Handle<Name> name,
-                                     Label* success,
-                                     Label* miss) = 0;
+  virtual void HandlerFrontendFooter(Handle<Name> name, Label* miss) = 0;
 
-  Register HandlerFrontend(Handle<JSObject> object,
+  Register HandlerFrontend(Handle<Object> object,
                            Register object_reg,
                            Handle<JSObject> holder,
-                           Handle<Name> name,
-                           Label* success);
+                           Handle<Name> name);
 
   Handle<Code> GetCode(Code::Kind kind,
                        Code::StubType type,
@@ -616,43 +608,48 @@ class BaseLoadStoreStubCompiler: public StubCompiler {
 
   void InitializeRegisters();
 
+  bool HasHeapNumberMap(MapHandleList* receiver_maps);
+
   Code::Kind kind_;
+  InlineCacheHolderFlag cache_holder_;
   Register* registers_;
 };
 
 
 class LoadStubCompiler: public BaseLoadStoreStubCompiler {
  public:
-  LoadStubCompiler(Isolate* isolate, Code::Kind kind = Code::LOAD_IC)
-      : BaseLoadStoreStubCompiler(isolate, kind) { }
+  LoadStubCompiler(Isolate* isolate,
+                   InlineCacheHolderFlag cache_holder = OWN_MAP,
+                   Code::Kind kind = Code::LOAD_IC)
+      : BaseLoadStoreStubCompiler(isolate, kind, cache_holder) { }
   virtual ~LoadStubCompiler() { }
 
-  Handle<Code> CompileLoadField(Handle<JSObject> object,
+  Handle<Code> CompileLoadField(Handle<Object> object,
                                 Handle<JSObject> holder,
                                 Handle<Name> name,
                                 PropertyIndex index,
                                 Representation representation);
 
-  Handle<Code> CompileLoadCallback(Handle<JSObject> object,
+  Handle<Code> CompileLoadCallback(Handle<Object> object,
                                    Handle<JSObject> holder,
                                    Handle<Name> name,
                                    Handle<ExecutableAccessorInfo> callback);
 
-  Handle<Code> CompileLoadCallback(Handle<JSObject> object,
+  Handle<Code> CompileLoadCallback(Handle<Object> object,
                                    Handle<JSObject> holder,
                                    Handle<Name> name,
                                    const CallOptimization& call_optimization);
 
-  Handle<Code> CompileLoadConstant(Handle<JSObject> object,
+  Handle<Code> CompileLoadConstant(Handle<Object> object,
                                    Handle<JSObject> holder,
                                    Handle<Name> name,
                                    Handle<Object> value);
 
-  Handle<Code> CompileLoadInterceptor(Handle<JSObject> object,
+  Handle<Code> CompileLoadInterceptor(Handle<Object> object,
                                       Handle<JSObject> holder,
                                       Handle<Name> name);
 
-  Handle<Code> CompileLoadViaGetter(Handle<JSObject> object,
+  Handle<Code> CompileLoadViaGetter(Handle<Object> object,
                                     Handle<JSObject> holder,
                                     Handle<Name> name,
                                     Handle<JSFunction> getter);
@@ -661,12 +658,12 @@ class LoadStubCompiler: public BaseLoadStoreStubCompiler {
                                     Register receiver,
                                     Handle<JSFunction> getter);
 
-  Handle<Code> CompileLoadNonexistent(Handle<JSObject> object,
+  Handle<Code> CompileLoadNonexistent(Handle<Object> object,
                                       Handle<JSObject> last,
                                       Handle<Name> name,
                                       Handle<JSGlobalObject> global);
 
-  Handle<Code> CompileLoadGlobal(Handle<JSObject> object,
+  Handle<Code> CompileLoadGlobal(Handle<Object> object,
                                  Handle<GlobalObject> holder,
                                  Handle<PropertyCell> cell,
                                  Handle<Name> name,
@@ -675,26 +672,22 @@ class LoadStubCompiler: public BaseLoadStoreStubCompiler {
   static Register* registers();
 
  protected:
-  virtual Register HandlerFrontendHeader(Handle<JSObject> object,
+  virtual Register HandlerFrontendHeader(Handle<Object> object,
                                          Register object_reg,
                                          Handle<JSObject> holder,
                                          Handle<Name> name,
                                          Label* miss);
 
-  virtual void HandlerFrontendFooter(Handle<Name> name,
-                                     Label* success,
-                                     Label* miss);
+  virtual void HandlerFrontendFooter(Handle<Name> name, Label* miss);
 
-  Register CallbackHandlerFrontend(Handle<JSObject> object,
+  Register CallbackHandlerFrontend(Handle<Object> object,
                                    Register object_reg,
                                    Handle<JSObject> holder,
                                    Handle<Name> name,
-                                   Label* success,
                                    Handle<Object> callback);
-  void NonexistentHandlerFrontend(Handle<JSObject> object,
+  void NonexistentHandlerFrontend(Handle<Object> object,
                                   Handle<JSObject> last,
                                   Handle<Name> name,
-                                  Label* success,
                                   Handle<JSGlobalObject> global);
 
   void GenerateLoadField(Register reg,
@@ -706,7 +699,7 @@ class LoadStubCompiler: public BaseLoadStoreStubCompiler {
                             Handle<ExecutableAccessorInfo> callback);
   void GenerateLoadCallback(const CallOptimization& call_optimization);
   void GenerateLoadInterceptor(Register holder_reg,
-                               Handle<JSObject> object,
+                               Handle<Object> object,
                                Handle<JSObject> holder,
                                LookupResult* lookup,
                                Handle<Name> name);
@@ -726,8 +719,9 @@ class LoadStubCompiler: public BaseLoadStoreStubCompiler {
 
 class KeyedLoadStubCompiler: public LoadStubCompiler {
  public:
-  explicit KeyedLoadStubCompiler(Isolate* isolate)
-      : LoadStubCompiler(isolate, Code::KEYED_LOAD_IC) { }
+  KeyedLoadStubCompiler(Isolate* isolate,
+                        InlineCacheHolderFlag cache_holder = OWN_MAP)
+      : LoadStubCompiler(isolate, cache_holder, Code::KEYED_LOAD_IC) { }
 
   Handle<Code> CompileLoadElement(Handle<Map> receiver_map);
 
@@ -827,15 +821,13 @@ class StoreStubCompiler: public BaseLoadStoreStubCompiler {
   }
 
  protected:
-  virtual Register HandlerFrontendHeader(Handle<JSObject> object,
+  virtual Register HandlerFrontendHeader(Handle<Object> object,
                                          Register object_reg,
                                          Handle<JSObject> holder,
                                          Handle<Name> name,
                                          Label* miss);
 
-  virtual void HandlerFrontendFooter(Handle<Name> name,
-                                     Label* success,
-                                     Label* miss);
+  virtual void HandlerFrontendFooter(Handle<Name> name, Label* miss);
   void GenerateRestoreName(MacroAssembler* masm,
                            Label* label,
                            Handle<Name> name);
@@ -928,8 +920,7 @@ class CallStubCompiler: public StubCompiler {
   void CompileHandlerFrontend(Handle<Object> object,
                               Handle<JSObject> holder,
                               Handle<Name> name,
-                              CheckType check,
-                              Label* success);
+                              CheckType check);
 
   void CompileHandlerBackend(Handle<JSFunction> function);
 

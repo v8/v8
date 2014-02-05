@@ -100,6 +100,7 @@ class LChunkBuilder;
   V(CompareNumericAndBranch)                   \
   V(CompareHoleAndBranch)                      \
   V(CompareGeneric)                            \
+  V(CompareMinusZeroAndBranch)                 \
   V(CompareObjectEqAndBranch)                  \
   V(CompareMap)                                \
   V(Constant)                                  \
@@ -2285,19 +2286,38 @@ class HCallNamed V8_FINAL : public HUnaryCall {
 };
 
 
+enum CallMode {
+  NORMAL_CALL,
+  TAIL_CALL
+};
+
+
 class HCallFunction V8_FINAL : public HBinaryCall {
  public:
   DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P2(HCallFunction, HValue*, int);
+  DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P3(
+      HCallFunction, HValue*, int, CallMode);
+
+  bool IsTailCall() const { return call_mode_ == TAIL_CALL; }
 
   HValue* context() { return first(); }
   HValue* function() { return second(); }
 
   DECLARE_CONCRETE_INSTRUCTION(CallFunction)
 
- private:
-  HCallFunction(HValue* context, HValue* function, int argument_count)
-      : HBinaryCall(context, function, argument_count) {
+  virtual int argument_delta() const V8_OVERRIDE {
+    if (IsTailCall()) return 0;
+    return -argument_count();
   }
+
+ private:
+  HCallFunction(HValue* context,
+                HValue* function,
+                int argument_count,
+                CallMode mode = NORMAL_CALL)
+      : HBinaryCall(context, function, argument_count), call_mode_(mode) {
+  }
+  CallMode call_mode_;
 };
 
 
@@ -4161,6 +4181,28 @@ class HCompareHoleAndBranch V8_FINAL : public HUnaryControlInstruction {
       : HUnaryControlInstruction(value, true_target, false_target) {
     SetFlag(kFlexibleRepresentation);
     SetFlag(kAllowUndefinedAsNaN);
+  }
+};
+
+
+class HCompareMinusZeroAndBranch V8_FINAL : public HUnaryControlInstruction {
+ public:
+  DECLARE_INSTRUCTION_FACTORY_P1(HCompareMinusZeroAndBranch, HValue*);
+
+  virtual void InferRepresentation(
+      HInferRepresentationPhase* h_infer) V8_OVERRIDE;
+
+  virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
+    return representation();
+  }
+
+  virtual bool KnownSuccessorBlock(HBasicBlock** block) V8_OVERRIDE;
+
+  DECLARE_CONCRETE_INSTRUCTION(CompareMinusZeroAndBranch)
+
+ private:
+  explicit HCompareMinusZeroAndBranch(HValue* value)
+      : HUnaryControlInstruction(value, NULL, NULL) {
   }
 };
 
@@ -6099,6 +6141,7 @@ class ArrayInstructionInterface {
   virtual HValue* GetKey() = 0;
   virtual void SetKey(HValue* key) = 0;
   virtual void SetIndexOffset(uint32_t index_offset) = 0;
+  virtual int MaxIndexOffsetBits() = 0;
   virtual bool IsDehoisted() = 0;
   virtual void SetDehoisted(bool is_dehoisted) = 0;
   virtual ~ArrayInstructionInterface() { };
@@ -6137,6 +6180,9 @@ class HLoadKeyed V8_FINAL
   uint32_t index_offset() { return IndexOffsetField::decode(bit_field_); }
   void SetIndexOffset(uint32_t index_offset) {
     bit_field_ = IndexOffsetField::update(bit_field_, index_offset);
+  }
+  virtual int MaxIndexOffsetBits() {
+    return kBitsForIndexOffset;
   }
   HValue* GetKey() { return key(); }
   void SetKey(HValue* key) { SetOperandAt(1, key); }
@@ -6524,6 +6570,9 @@ class HStoreKeyed V8_FINAL
   ElementsKind elements_kind() const { return elements_kind_; }
   uint32_t index_offset() { return index_offset_; }
   void SetIndexOffset(uint32_t index_offset) { index_offset_ = index_offset; }
+  virtual int MaxIndexOffsetBits() {
+    return 31 - ElementsKindToShiftSize(elements_kind_);
+  }
   HValue* GetKey() { return key(); }
   void SetKey(HValue* key) { SetOperandAt(1, key); }
   bool IsDehoisted() { return is_dehoisted_; }
@@ -7157,6 +7206,8 @@ class HCheckMapValue V8_FINAL : public HTemplateInstruction<2> {
   DECLARE_CONCRETE_INSTRUCTION(CheckMapValue)
 
  protected:
+  virtual int RedefinedOperandIndex() { return 0; }
+
   virtual bool DataEquals(HValue* other) V8_OVERRIDE {
     return true;
   }

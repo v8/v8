@@ -488,17 +488,36 @@ Operand LCodeGen::ToOperand(LOperand* op) {
 }
 
 
+static int ArgumentsOffsetWithoutFrame(int index) {
+  ASSERT(index < 0);
+  return -(index + 1) * kPointerSize;
+}
+
+
 MemOperand LCodeGen::ToMemOperand(LOperand* op) const {
   ASSERT(!op->IsRegister());
   ASSERT(!op->IsDoubleRegister());
   ASSERT(op->IsStackSlot() || op->IsDoubleStackSlot());
-  return MemOperand(fp, StackSlotOffset(op->index()));
+  if (NeedsEagerFrame()) {
+    return MemOperand(fp, StackSlotOffset(op->index()));
+  } else {
+    // Retrieve parameter without eager stack-frame relative to the
+    // stack-pointer.
+    return MemOperand(sp, ArgumentsOffsetWithoutFrame(op->index()));
+  }
 }
 
 
 MemOperand LCodeGen::ToHighMemOperand(LOperand* op) const {
   ASSERT(op->IsDoubleStackSlot());
-  return MemOperand(fp, StackSlotOffset(op->index()) + kPointerSize);
+  if (NeedsEagerFrame()) {
+    return MemOperand(fp, StackSlotOffset(op->index()) + kPointerSize);
+  } else {
+    // Retrieve parameter without eager stack-frame relative to the
+    // stack-pointer.
+    return MemOperand(
+        sp, ArgumentsOffsetWithoutFrame(op->index()) + kPointerSize);
+  }
 }
 
 
@@ -2039,6 +2058,16 @@ void LCodeGen::EmitBranchF(InstrType instr,
 
 
 template<class InstrType>
+void LCodeGen::EmitFalseBranch(InstrType instr,
+                               Condition condition,
+                               Register src1,
+                               const Operand& src2) {
+  int false_block = instr->FalseDestination(chunk_);
+  __ Branch(chunk_->GetAssemblyLabel(false_block), condition, src1, src2);
+}
+
+
+template<class InstrType>
 void LCodeGen::EmitFalseBranchF(InstrType instr,
                                 Condition condition,
                                 FPURegister src1,
@@ -2308,6 +2337,32 @@ void LCodeGen::DoCmpHoleAndBranch(LCmpHoleAndBranch* instr) {
   Register scratch = scratch0();
   __ FmoveHigh(scratch, input_reg);
   EmitBranch(instr, eq, scratch, Operand(kHoleNanUpper32));
+}
+
+
+void LCodeGen::DoCompareMinusZeroAndBranch(LCompareMinusZeroAndBranch* instr) {
+  Representation rep = instr->hydrogen()->value()->representation();
+  ASSERT(!rep.IsInteger32());
+  Register scratch = ToRegister(instr->temp());
+
+  if (rep.IsDouble()) {
+    DoubleRegister value = ToDoubleRegister(instr->value());
+    EmitFalseBranchF(instr, ne, value, kDoubleRegZero);
+    __ FmoveHigh(scratch, value);
+    __ li(at, 0x80000000);
+  } else {
+    Register value = ToRegister(instr->value());
+    __ CheckMap(value,
+                scratch,
+                Heap::kHeapNumberMapRootIndex,
+                instr->FalseLabel(chunk()),
+                DO_SMI_CHECK);
+    __ lw(scratch, FieldMemOperand(value, HeapNumber::kExponentOffset));
+    EmitFalseBranch(instr, ne, scratch, Operand(0x80000000));
+    __ lw(scratch, FieldMemOperand(value, HeapNumber::kMantissaOffset));
+    __ mov(at, zero_reg);
+  }
+  EmitBranch(instr, eq, scratch, Operand(at));
 }
 
 
@@ -3979,7 +4034,12 @@ void LCodeGen::DoCallFunction(LCallFunction* instr) {
 
   int arity = instr->arity();
   CallFunctionStub stub(arity, NO_CALL_FUNCTION_FLAGS);
-  CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
+  if (instr->hydrogen()->IsTailCall()) {
+    if (NeedsEagerFrame()) __ mov(sp, fp);
+    __ Jump(stub.GetCode(isolate()), RelocInfo::CODE_TARGET);
+  } else {
+    CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
+  }
 }
 
 
@@ -4480,10 +4540,18 @@ void LCodeGen::DoTrapAllocationMemento(LTrapAllocationMemento* instr) {
 
 void LCodeGen::DoStringAdd(LStringAdd* instr) {
   ASSERT(ToRegister(instr->context()).is(cp));
-  __ push(ToRegister(instr->left()));
-  __ push(ToRegister(instr->right()));
-  StringAddStub stub(instr->hydrogen()->flags());
-  CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
+  if (FLAG_new_string_add) {
+    ASSERT(ToRegister(instr->left()).is(a1));
+    ASSERT(ToRegister(instr->right()).is(a0));
+    NewStringAddStub stub(instr->hydrogen()->flags(),
+                          isolate()->heap()->GetPretenureMode());
+    CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
+  } else {
+    __ push(ToRegister(instr->left()));
+    __ push(ToRegister(instr->right()));
+    StringAddStub stub(instr->hydrogen()->flags());
+    CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
+  }
 }
 
 
@@ -5367,19 +5435,22 @@ void LCodeGen::DoDeferredAllocate(LAllocate* instr) {
     __ Push(Smi::FromInt(size));
   }
 
+  int flags = AllocateDoubleAlignFlag::encode(
+      instr->hydrogen()->MustAllocateDoubleAligned());
   if (instr->hydrogen()->IsOldPointerSpaceAllocation()) {
     ASSERT(!instr->hydrogen()->IsOldDataSpaceAllocation());
     ASSERT(!instr->hydrogen()->IsNewSpaceAllocation());
-    CallRuntimeFromDeferred(Runtime::kAllocateInOldPointerSpace, 1, instr,
-                            instr->context());
+    flags = AllocateTargetSpace::update(flags, OLD_POINTER_SPACE);
   } else if (instr->hydrogen()->IsOldDataSpaceAllocation()) {
     ASSERT(!instr->hydrogen()->IsNewSpaceAllocation());
-    CallRuntimeFromDeferred(Runtime::kAllocateInOldDataSpace, 1, instr,
-                            instr->context());
+    flags = AllocateTargetSpace::update(flags, OLD_DATA_SPACE);
   } else {
-    CallRuntimeFromDeferred(Runtime::kAllocateInNewSpace, 1, instr,
-                            instr->context());
+    flags = AllocateTargetSpace::update(flags, NEW_SPACE);
   }
+  __ Push(Smi::FromInt(flags));
+
+  CallRuntimeFromDeferred(
+      Runtime::kAllocateInTargetSpace, 2, instr, instr->context());
   __ StoreToSafepointRegisterSlot(v0, result);
 }
 

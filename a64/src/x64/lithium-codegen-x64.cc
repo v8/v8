@@ -415,11 +415,23 @@ Handle<Object> LCodeGen::ToHandle(LConstantOperand* op) const {
 }
 
 
+static int ArgumentsOffsetWithoutFrame(int index) {
+  ASSERT(index < 0);
+  return -(index + 1) * kPointerSize + kPCOnStackSize;
+}
+
+
 Operand LCodeGen::ToOperand(LOperand* op) const {
   // Does not handle registers. In X64 assembler, plain registers are not
   // representable as an Operand.
   ASSERT(op->IsStackSlot() || op->IsDoubleStackSlot());
-  return Operand(rbp, StackSlotOffset(op->index()));
+  if (NeedsEagerFrame()) {
+    return Operand(rbp, StackSlotOffset(op->index()));
+  } else {
+    // Retrieve parameter without eager stack-frame relative to the
+    // stack-pointer.
+    return Operand(rsp, ArgumentsOffsetWithoutFrame(op->index()));
+  }
 }
 
 
@@ -2246,6 +2258,33 @@ void LCodeGen::DoCmpHoleAndBranch(LCmpHoleAndBranch* instr) {
 }
 
 
+void LCodeGen::DoCompareMinusZeroAndBranch(LCompareMinusZeroAndBranch* instr) {
+  Representation rep = instr->hydrogen()->value()->representation();
+  ASSERT(!rep.IsInteger32());
+
+  if (rep.IsDouble()) {
+    XMMRegister value = ToDoubleRegister(instr->value());
+    XMMRegister xmm_scratch = double_scratch0();
+    __ xorps(xmm_scratch, xmm_scratch);
+    __ ucomisd(xmm_scratch, value);
+    EmitFalseBranch(instr, not_equal);
+    __ movmskpd(kScratchRegister, value);
+    __ testl(kScratchRegister, Immediate(1));
+    EmitBranch(instr, not_zero);
+  } else {
+    Register value = ToRegister(instr->value());
+    Handle<Map> map = masm()->isolate()->factory()->heap_number_map();
+    __ CheckMap(value, map, instr->FalseLabel(chunk()), DO_SMI_CHECK);
+    __ cmpl(FieldOperand(value, HeapNumber::kExponentOffset),
+            Immediate(0x80000000));
+    EmitFalseBranch(instr, not_equal);
+    __ cmpl(FieldOperand(value, HeapNumber::kMantissaOffset),
+            Immediate(0x00000000));
+    EmitBranch(instr, equal);
+  }
+}
+
+
 Condition LCodeGen::EmitIsObject(Register input,
                                  Label* is_not_object,
                                  Label* is_object) {
@@ -3883,7 +3922,12 @@ void LCodeGen::DoCallFunction(LCallFunction* instr) {
 
   int arity = instr->arity();
   CallFunctionStub stub(arity, NO_CALL_FUNCTION_FLAGS);
-  CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
+  if (instr->hydrogen()->IsTailCall()) {
+    if (NeedsEagerFrame()) __ leave();
+    __ jmp(stub.GetCode(isolate()), RelocInfo::CODE_TARGET);
+  } else {
+    CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
+  }
 }
 
 
@@ -5204,19 +5248,21 @@ void LCodeGen::DoDeferredAllocate(LAllocate* instr) {
     __ Push(Smi::FromInt(size));
   }
 
+  int flags = 0;
   if (instr->hydrogen()->IsOldPointerSpaceAllocation()) {
     ASSERT(!instr->hydrogen()->IsOldDataSpaceAllocation());
     ASSERT(!instr->hydrogen()->IsNewSpaceAllocation());
-    CallRuntimeFromDeferred(
-        Runtime::kAllocateInOldPointerSpace, 1, instr, instr->context());
+    flags = AllocateTargetSpace::update(flags, OLD_POINTER_SPACE);
   } else if (instr->hydrogen()->IsOldDataSpaceAllocation()) {
     ASSERT(!instr->hydrogen()->IsNewSpaceAllocation());
-    CallRuntimeFromDeferred(
-        Runtime::kAllocateInOldDataSpace, 1, instr, instr->context());
+    flags = AllocateTargetSpace::update(flags, OLD_DATA_SPACE);
   } else {
-    CallRuntimeFromDeferred(
-        Runtime::kAllocateInNewSpace, 1, instr, instr->context());
+    flags = AllocateTargetSpace::update(flags, NEW_SPACE);
   }
+  __ Push(Smi::FromInt(flags));
+
+  CallRuntimeFromDeferred(
+      Runtime::kAllocateInTargetSpace, 2, instr, instr->context());
   __ StoreToSafepointRegisterSlot(result, rax);
 }
 

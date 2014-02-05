@@ -510,8 +510,7 @@ void MacroAssembler::LoadFromNumberDictionary(Label* miss,
   Subu(reg1, reg1, Operand(1));
 
   // Generate an unrolled loop that performs a few probes before giving up.
-  static const int kProbes = 4;
-  for (int i = 0; i < kProbes; i++) {
+  for (int i = 0; i < kNumberDictionaryProbes; i++) {
     // Use reg2 for index calculations and keep the hash intact in reg0.
     mov(reg2, reg0);
     // Compute the masked index: (hash + i + i * i) & mask.
@@ -530,7 +529,7 @@ void MacroAssembler::LoadFromNumberDictionary(Label* miss,
     addu(reg2, elements, at);
 
     lw(at, FieldMemOperand(reg2, SeededNumberDictionary::kElementsStartOffset));
-    if (i != kProbes - 1) {
+    if (i != kNumberDictionaryProbes - 1) {
       Branch(&done, eq, key, Operand(at));
     } else {
       Branch(miss, ne, key, Operand(at));
@@ -4509,116 +4508,6 @@ void MacroAssembler::LoadGlobalFunctionInitialMap(Register function,
     Abort(kGlobalFunctionsMustHaveInitialMap);
     bind(&ok);
   }
-}
-
-
-void MacroAssembler::LoadNumber(Register object,
-                                FPURegister dst,
-                                Register heap_number_map,
-                                Register scratch,
-                                Label* not_number) {
-  Label is_smi, done;
-
-  UntagAndJumpIfSmi(scratch, object, &is_smi);
-  JumpIfNotHeapNumber(object, heap_number_map, scratch, not_number);
-
-  ldc1(dst, FieldMemOperand(object, HeapNumber::kValueOffset));
-  Branch(&done);
-
-  bind(&is_smi);
-  mtc1(scratch, dst);
-  cvt_d_w(dst, dst);
-
-  bind(&done);
-}
-
-
-void MacroAssembler::LoadNumberAsInt32Double(Register object,
-                                             DoubleRegister double_dst,
-                                             Register heap_number_map,
-                                             Register scratch1,
-                                             Register scratch2,
-                                             FPURegister double_scratch,
-                                             Label* not_int32) {
-  ASSERT(!scratch1.is(object) && !scratch2.is(object));
-  ASSERT(!scratch1.is(scratch2));
-  ASSERT(!heap_number_map.is(object) &&
-         !heap_number_map.is(scratch1) &&
-         !heap_number_map.is(scratch2));
-
-  Label done, obj_is_not_smi;
-
-  UntagAndJumpIfNotSmi(scratch1, object, &obj_is_not_smi);
-  mtc1(scratch1, double_scratch);
-  cvt_d_w(double_dst, double_scratch);
-  Branch(&done);
-
-  bind(&obj_is_not_smi);
-  JumpIfNotHeapNumber(object, heap_number_map, scratch1, not_int32);
-
-  // Load the number.
-  // Load the double value.
-  ldc1(double_dst, FieldMemOperand(object, HeapNumber::kValueOffset));
-
-  Register except_flag = scratch2;
-  EmitFPUTruncate(kRoundToZero,
-                  scratch1,
-                  double_dst,
-                  at,
-                  double_scratch,
-                  except_flag,
-                  kCheckForInexactConversion);
-
-  // Jump to not_int32 if the operation did not succeed.
-  Branch(not_int32, ne, except_flag, Operand(zero_reg));
-  bind(&done);
-}
-
-
-void MacroAssembler::LoadNumberAsInt32(Register object,
-                                       Register dst,
-                                       Register heap_number_map,
-                                       Register scratch1,
-                                       Register scratch2,
-                                       FPURegister double_scratch0,
-                                       FPURegister double_scratch1,
-                                       Label* not_int32) {
-  ASSERT(!dst.is(object));
-  ASSERT(!scratch1.is(object) && !scratch2.is(object));
-  ASSERT(!scratch1.is(scratch2));
-
-  Label done, maybe_undefined;
-
-  UntagAndJumpIfSmi(dst, object, &done);
-
-  JumpIfNotHeapNumber(object, heap_number_map, scratch1, &maybe_undefined);
-
-  // Object is a heap number.
-  // Convert the floating point value to a 32-bit integer.
-  // Load the double value.
-  ldc1(double_scratch0, FieldMemOperand(object, HeapNumber::kValueOffset));
-
-  Register except_flag = scratch2;
-  EmitFPUTruncate(kRoundToZero,
-                  dst,
-                  double_scratch0,
-                  scratch1,
-                  double_scratch1,
-                  except_flag,
-                  kCheckForInexactConversion);
-
-  // Jump to not_int32 if the operation did not succeed.
-  Branch(not_int32, ne, except_flag, Operand(zero_reg));
-  Branch(&done);
-
-  bind(&maybe_undefined);
-  LoadRoot(at, Heap::kUndefinedValueRootIndex);
-  Branch(not_int32, ne, object, Operand(at));
-  // |undefined| is truncated to 0.
-  li(dst, Operand(Smi::FromInt(0)));
-  // Fall through.
-
-  bind(&done);
 }
 
 

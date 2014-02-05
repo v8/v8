@@ -157,6 +157,13 @@ macro TO_NUMBER_INLINE(arg) = (IS_NUMBER(%IS_VAR(arg)) ? arg : NonNumberToNumber
 macro TO_OBJECT_INLINE(arg) = (IS_SPEC_OBJECT(%IS_VAR(arg)) ? arg : ToObject(arg));
 macro JSON_NUMBER_TO_STRING(arg) = ((%_IsSmi(%IS_VAR(arg)) || arg - arg == 0) ? %_NumberToString(arg) : "null");
 
+# Private names.
+macro NEW_PRIVATE(name) = (%CreatePrivateSymbol(name));
+macro HAS_PRIVATE(obj, sym) = (sym in obj);
+macro GET_PRIVATE(obj, sym) = (obj[sym]);
+macro SET_PRIVATE(obj, sym, val) = (obj[sym] = val);
+macro DELETE_PRIVATE(obj, sym) = (delete obj[sym]);
+
 # Constants.  The compiler constant folds them.
 const NAN = $NaN;
 const INFINITY = (1/0);

@@ -1358,6 +1358,9 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     if (strcmp(argv[i], "--stress-opt") == 0) {
       options.stress_opt = true;
       argv[i] = NULL;
+    } else if (strcmp(argv[i], "--nostress-opt") == 0) {
+      options.stress_opt = false;
+      argv[i] = NULL;
     } else if (strcmp(argv[i], "--stress-deopt") == 0) {
       options.stress_deopt = true;
       argv[i] = NULL;
@@ -1679,11 +1682,15 @@ int Shell::Main(int argc, char* argv[]) {
 #else
   SetStandaloneFlagsViaCommandLine();
 #endif
-  v8::SetDefaultResourceConstraintsForCurrentPlatform();
   ShellArrayBufferAllocator array_buffer_allocator;
   v8::V8::SetArrayBufferAllocator(&array_buffer_allocator);
   int result = 0;
   Isolate* isolate = Isolate::GetCurrent();
+#ifndef V8_SHARED
+  v8::ResourceConstraints constraints;
+  constraints.ConfigureDefaults(i::OS::TotalPhysicalMemory());
+  v8::SetResourceConstraints(isolate, &constraints);
+#endif
   DumbLineEditor dumb_line_editor(isolate);
   {
     Initialize(isolate);

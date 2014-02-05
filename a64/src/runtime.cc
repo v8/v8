@@ -588,11 +588,32 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateSymbol) {
 }
 
 
+RUNTIME_FUNCTION(MaybeObject*, Runtime_CreatePrivateSymbol) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 1);
+  Handle<Object> name(args[0], isolate);
+  RUNTIME_ASSERT(name->IsString() || name->IsUndefined());
+  Symbol* symbol;
+  MaybeObject* maybe = isolate->heap()->AllocatePrivateSymbol();
+  if (!maybe->To(&symbol)) return maybe;
+  if (name->IsString()) symbol->set_name(*name);
+  return symbol;
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_SymbolName) {
   SealHandleScope shs(isolate);
   ASSERT(args.length() == 1);
   CONVERT_ARG_CHECKED(Symbol, symbol, 0);
   return symbol->name();
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SymbolIsPrivate) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_CHECKED(Symbol, symbol, 0);
+  return isolate->heap()->ToBoolean(symbol->is_private());
 }
 
 
@@ -896,6 +917,12 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_TypedArrayInitialize) {
   ASSERT(byte_length % element_size == 0);
   size_t length = byte_length / element_size;
 
+  if (length > static_cast<unsigned>(Smi::kMaxValue)) {
+    return isolate->Throw(*isolate->factory()->
+          NewRangeError("invalid_typed_array_length",
+            HandleVector<Object>(NULL, 0)));
+  }
+
   Handle<Object> length_obj = isolate->factory()->NewNumberFromSize(length);
   holder->set_length(*length_obj);
   holder->set_weak_next(buffer->weak_first_view());
@@ -935,12 +962,14 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_TypedArrayInitializeFromArrayLike) {
 
   Handle<JSArrayBuffer> buffer = isolate->factory()->NewJSArrayBuffer();
   size_t length = NumberToSize(isolate, *length_obj);
-  size_t byte_length = length * element_size;
-  if (byte_length < length) {  // Overflow
+
+  if ((length > static_cast<unsigned>(Smi::kMaxValue)) ||
+      (length > (kMaxInt / element_size))) {
     return isolate->Throw(*isolate->factory()->
-          NewRangeError("invalid_array_buffer_length",
+          NewRangeError("invalid_typed_array_length",
             HandleVector<Object>(NULL, 0)));
   }
+  size_t byte_length = length * element_size;
 
   // NOTE: not initializing backing store.
   // We assume that the caller of this function will initialize holder
@@ -4790,6 +4819,19 @@ MaybeObject* Runtime::GetElementOrCharAt(Isolate* isolate,
 }
 
 
+static Handle<Name> ToName(Isolate* isolate, Handle<Object> key) {
+  if (key->IsName()) {
+    return Handle<Name>::cast(key);
+  } else {
+    bool has_pending_exception = false;
+    Handle<Object> converted =
+        Execution::ToString(isolate, key, &has_pending_exception);
+    if (has_pending_exception) return Handle<Name>();
+    return Handle<Name>::cast(converted);
+  }
+}
+
+
 MaybeObject* Runtime::HasObjectProperty(Isolate* isolate,
                                         Handle<JSReceiver> object,
                                         Handle<Object> key) {
@@ -4802,16 +4844,8 @@ MaybeObject* Runtime::HasObjectProperty(Isolate* isolate,
   }
 
   // Convert the key to a name - possibly by calling back into JavaScript.
-  Handle<Name> name;
-  if (key->IsName()) {
-    name = Handle<Name>::cast(key);
-  } else {
-    bool has_pending_exception = false;
-    Handle<Object> converted =
-        Execution::ToString(isolate, key, &has_pending_exception);
-    if (has_pending_exception) return Failure::Exception();
-    name = Handle<Name>::cast(converted);
-  }
+  Handle<Name> name = ToName(isolate, key);
+  RETURN_IF_EMPTY_HANDLE(isolate, name);
 
   return isolate->heap()->ToBoolean(JSReceiver::HasProperty(object, name));
 }
@@ -4844,16 +4878,8 @@ MaybeObject* Runtime::GetObjectProperty(Isolate* isolate,
   }
 
   // Convert the key to a name - possibly by calling back into JavaScript.
-  Handle<Name> name;
-  if (key->IsName()) {
-    name = Handle<Name>::cast(key);
-  } else {
-    bool has_pending_exception = false;
-    Handle<Object> converted =
-        Execution::ToString(isolate, key, &has_pending_exception);
-    if (has_pending_exception) return Failure::Exception();
-    name = Handle<Name>::cast(converted);
-  }
+  Handle<Name> name = ToName(isolate, key);
+  RETURN_IF_EMPTY_HANDLE(isolate, name);
 
   // Check if the name is trivially convertible to an index and get
   // the element if so.
@@ -5374,6 +5400,20 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetNativeFlag) {
   if (object->IsJSFunction()) {
     JSFunction* func = JSFunction::cast(object);
     func->shared()->set_native(true);
+  }
+  return isolate->heap()->undefined_value();
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SetInlineBuiltinFlag) {
+  SealHandleScope shs(isolate);
+  RUNTIME_ASSERT(args.length() == 1);
+
+  Handle<Object> object = args.at<Object>(0);
+
+  if (object->IsJSFunction()) {
+    JSFunction* func = JSFunction::cast(*object);
+    func->shared()->set_inline_builtin(true);
   }
   return isolate->heap()->undefined_value();
 }
@@ -7802,6 +7842,35 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_tan) {
 }
 
 
+RUNTIME_FUNCTION(MaybeObject*, Runtime_PopulateTrigonometricTable) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 3);
+  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, sin_table, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, cos_table, 1);
+  CONVERT_SMI_ARG_CHECKED(samples, 2);
+  RUNTIME_ASSERT(sin_table->type() == kExternalDoubleArray);
+  RUNTIME_ASSERT(cos_table->type() == kExternalDoubleArray);
+  double* sin_buffer = reinterpret_cast<double*>(
+      JSArrayBuffer::cast(sin_table->buffer())->backing_store());
+  double* cos_buffer = reinterpret_cast<double*>(
+      JSArrayBuffer::cast(cos_table->buffer())->backing_store());
+
+  static const double pi_half = 3.1415926535897932 / 2;
+  double interval = pi_half / samples;
+  for (int i = 0; i < samples + 1; i++) {
+    double sample = sin(i * interval);
+    sin_buffer[i] = sample;
+    cos_buffer[samples - i] = sample * interval;
+  }
+
+  // Fill this to catch out of bound accesses when calculating Math.sin(pi/2).
+  sin_buffer[samples + 1] = sin(pi_half + interval);
+  cos_buffer[samples + 1] = cos(pi_half + interval) * interval;
+
+  return isolate->heap()->undefined_value();
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_DateMakeDay) {
   SealHandleScope shs(isolate);
   ASSERT(args.length() == 2);
@@ -9714,6 +9783,7 @@ RUNTIME_FUNCTION(ObjectPair, Runtime_ResolvePossiblyDirectEval) {
 // Used as a fall-back for generated code when the space is full.
 static MaybeObject* Allocate(Isolate* isolate,
                              int size,
+                             bool double_align,
                              AllocationSpace space) {
   Heap* heap = isolate->heap();
   RUNTIME_ASSERT(IsAligned(size, kPointerSize));
@@ -9735,24 +9805,19 @@ static MaybeObject* Allocate(Isolate* isolate,
 RUNTIME_FUNCTION(MaybeObject*, Runtime_AllocateInNewSpace) {
   SealHandleScope shs(isolate);
   ASSERT(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(Smi, size_smi, 0);
-  return Allocate(isolate, size_smi->value(), NEW_SPACE);
+  CONVERT_SMI_ARG_CHECKED(size, 0);
+  return Allocate(isolate, size, false, NEW_SPACE);
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_AllocateInOldPointerSpace) {
+RUNTIME_FUNCTION(MaybeObject*, Runtime_AllocateInTargetSpace) {
   SealHandleScope shs(isolate);
-  ASSERT(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(Smi, size_smi, 0);
-  return Allocate(isolate, size_smi->value(), OLD_POINTER_SPACE);
-}
-
-
-RUNTIME_FUNCTION(MaybeObject*, Runtime_AllocateInOldDataSpace) {
-  SealHandleScope shs(isolate);
-  ASSERT(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(Smi, size_smi, 0);
-  return Allocate(isolate, size_smi->value(), OLD_DATA_SPACE);
+  ASSERT(args.length() == 2);
+  CONVERT_SMI_ARG_CHECKED(size, 0);
+  CONVERT_SMI_ARG_CHECKED(flags, 1);
+  bool double_align = AllocateDoubleAlignFlag::decode(flags);
+  AllocationSpace space = AllocateTargetSpace::decode(flags);
+  return Allocate(isolate, size, double_align, space);
 }
 
 
@@ -9760,22 +9825,22 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_AllocateInOldDataSpace) {
 // array.  Returns true if the element was pushed on the stack and
 // false otherwise.
 RUNTIME_FUNCTION(MaybeObject*, Runtime_PushIfAbsent) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 2);
-  CONVERT_ARG_CHECKED(JSArray, array, 0);
-  CONVERT_ARG_CHECKED(JSReceiver, element, 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSArray, array, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, element, 1);
   RUNTIME_ASSERT(array->HasFastSmiOrObjectElements());
   int length = Smi::cast(array->length())->value();
   FixedArray* elements = FixedArray::cast(array->elements());
   for (int i = 0; i < length; i++) {
-    if (elements->get(i) == element) return isolate->heap()->false_value();
+    if (elements->get(i) == *element) return isolate->heap()->false_value();
   }
-  Object* obj;
+
   // Strict not needed. Used for cycle detection in Array join implementation.
-  { MaybeObject* maybe_obj =
-        array->SetFastElement(length, element, kNonStrictMode, true);
-    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-  }
+  RETURN_IF_EMPTY_HANDLE(isolate, JSObject::SetFastElement(array, length,
+                                                           element,
+                                                           kNonStrictMode,
+                                                           true));
   return isolate->heap()->true_value();
 }
 
@@ -14627,7 +14692,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_IsAccessAllowedForObserver) {
 
 static MaybeObject* ArrayConstructorCommon(Isolate* isolate,
                                            Handle<JSFunction> constructor,
-                                           Handle<Object> type_info,
+                                           Handle<AllocationSite> site,
                                            Arguments* caller_args) {
   bool holey = false;
   bool can_use_type_feedback = true;
@@ -14649,14 +14714,7 @@ static MaybeObject* ArrayConstructorCommon(Isolate* isolate,
 
   JSArray* array;
   MaybeObject* maybe_array;
-  if (!type_info.is_null() &&
-      *type_info != isolate->heap()->undefined_value() &&
-      Cell::cast(*type_info)->value()->IsAllocationSite() &&
-      can_use_type_feedback) {
-    Handle<Cell> cell = Handle<Cell>::cast(type_info);
-    Handle<AllocationSite> site = Handle<AllocationSite>(
-        AllocationSite::cast(cell->value()), isolate);
-    ASSERT(!site->SitePointsToLiteral());
+  if (!site.is_null() && can_use_type_feedback) {
     ElementsKind to_kind = site->GetElementsKind();
     if (holey && !IsFastHoleyElementsKind(to_kind)) {
       to_kind = GetHoleyElementsKind(to_kind);
@@ -14682,8 +14740,17 @@ static MaybeObject* ArrayConstructorCommon(Isolate* isolate,
   maybe_array = isolate->heap()->AllocateJSArrayStorage(array, 0, 0,
       DONT_INITIALIZE_ARRAY_ELEMENTS);
   if (maybe_array->IsFailure()) return maybe_array;
+  ElementsKind old_kind = array->GetElementsKind();
   maybe_array = ArrayConstructInitializeElements(array, caller_args);
   if (maybe_array->IsFailure()) return maybe_array;
+  if (!site.is_null() &&
+      (old_kind != array->GetElementsKind() ||
+       !can_use_type_feedback)) {
+    // The arguments passed in caused a transition. This kind of complexity
+    // can't be dealt with in the inlined hydrogen array constructor case.
+    // We must mark the allocationsite as un-inlinable.
+    site->SetDoNotInlineCall();
+  }
   return array;
 }
 
@@ -14691,21 +14758,38 @@ static MaybeObject* ArrayConstructorCommon(Isolate* isolate,
 RUNTIME_FUNCTION(MaybeObject*, Runtime_ArrayConstructor) {
   HandleScope scope(isolate);
   // If we get 2 arguments then they are the stub parameters (constructor, type
-  // info).  If we get 3, then the first one is a pointer to the arguments
-  // passed by the caller.
+  // info).  If we get 4, then the first one is a pointer to the arguments
+  // passed by the caller, and the last one is the length of the arguments
+  // passed to the caller (redundant, but useful to check on the deoptimizer
+  // with an assert).
   Arguments empty_args(0, NULL);
   bool no_caller_args = args.length() == 2;
-  ASSERT(no_caller_args || args.length() == 3);
+  ASSERT(no_caller_args || args.length() == 4);
   int parameters_start = no_caller_args ? 0 : 1;
   Arguments* caller_args = no_caller_args
       ? &empty_args
       : reinterpret_cast<Arguments*>(args[0]);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, constructor, parameters_start);
   CONVERT_ARG_HANDLE_CHECKED(Object, type_info, parameters_start + 1);
+#ifdef DEBUG
+  if (!no_caller_args) {
+    CONVERT_SMI_ARG_CHECKED(arg_count, parameters_start + 2);
+    ASSERT(arg_count == caller_args->length());
+  }
+#endif
+
+  Handle<AllocationSite> site;
+  if (!type_info.is_null() &&
+      *type_info != isolate->heap()->undefined_value() &&
+      Cell::cast(*type_info)->value()->IsAllocationSite()) {
+    site = Handle<AllocationSite>(
+        AllocationSite::cast(Cell::cast(*type_info)->value()), isolate);
+    ASSERT(!site->SitePointsToLiteral());
+  }
 
   return ArrayConstructorCommon(isolate,
                                 constructor,
-                                type_info,
+                                site,
                                 caller_args);
 }
 
@@ -14714,17 +14798,27 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InternalArrayConstructor) {
   HandleScope scope(isolate);
   Arguments empty_args(0, NULL);
   bool no_caller_args = args.length() == 1;
-  ASSERT(no_caller_args || args.length() == 2);
+  ASSERT(no_caller_args || args.length() == 3);
   int parameters_start = no_caller_args ? 0 : 1;
   Arguments* caller_args = no_caller_args
       ? &empty_args
       : reinterpret_cast<Arguments*>(args[0]);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, constructor, parameters_start);
-
+#ifdef DEBUG
+  if (!no_caller_args) {
+    CONVERT_SMI_ARG_CHECKED(arg_count, parameters_start + 1);
+    ASSERT(arg_count == caller_args->length());
+  }
+#endif
   return ArrayConstructorCommon(isolate,
                                 constructor,
-                                Handle<Object>::null(),
+                                Handle<AllocationSite>::null(),
                                 caller_args);
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_MaxSmi) {
+  return Smi::FromInt(Smi::kMaxValue);
 }
 
 

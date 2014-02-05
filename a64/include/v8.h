@@ -114,6 +114,7 @@ class String;
 class StringObject;
 class Symbol;
 class SymbolObject;
+class Private;
 class Uint32;
 class Utils;
 class Value;
@@ -328,6 +329,8 @@ template <class T> class Handle {
   friend Handle<Boolean> False(Isolate* isolate);
   friend class Context;
   friend class HandleScope;
+  friend class Object;
+  friend class Private;
 
   V8_INLINE static Handle<T> New(Isolate* isolate, T* that);
 
@@ -1926,16 +1929,33 @@ class V8_EXPORT Symbol : public Primitive {
   // Returns the print name string of the symbol, or undefined if none.
   Local<Value> Name() const;
 
-  // Create a symbol without a print name.
-  static Local<Symbol> New(Isolate* isolate);
-
-  // Create a symbol with a print name.
-  static Local<Symbol> New(Isolate *isolate, const char* data, int length = -1);
+  // Create a symbol. If data is not NULL, it will be used as a print name.
+  static Local<Symbol> New(
+      Isolate *isolate, const char* data = NULL, int length = -1);
 
   V8_INLINE static Symbol* Cast(v8::Value* obj);
  private:
   Symbol();
   static void CheckCast(v8::Value* obj);
+};
+
+
+/**
+ * A private symbol
+ *
+ * This is an experimental feature. Use at your own risk.
+ */
+class V8_EXPORT Private : public Data {
+ public:
+  // Returns the print name string of the private symbol, or undefined if none.
+  Local<Value> Name() const;
+
+  // Create a private symbol. If data is not NULL, it will be the print name.
+  static Local<Private> New(
+      Isolate *isolate, const char* data = NULL, int length = -1);
+
+ private:
+  Private();
 };
 
 
@@ -2107,6 +2127,17 @@ class V8_EXPORT Object : public Value {
                            Local<DeclaredAccessorDescriptor> descriptor,
                            PropertyAttribute attribute = None,
                            AccessControl settings = DEFAULT);
+
+  /**
+   * Functionality for private properties.
+   * This is an experimental feature, use at your own risk.
+   * Note: Private properties are inherited. Do not rely on this, since it may
+   * change.
+   */
+  bool HasPrivate(Handle<Private> key);
+  bool SetPrivate(Handle<Private> key, Handle<Value> value);
+  bool DeletePrivate(Handle<Private> key);
+  Local<Value> GetPrivate(Handle<Private> key);
 
   /**
    * Returns an array containing the names of the enumerable properties
@@ -3042,6 +3073,8 @@ class V8_EXPORT RegExp : public Object {
  */
 class V8_EXPORT External : public Value {
  public:
+  static Local<External> New(Isolate* isolate, void* value);
+  // Deprecated, do not use.
   static Local<External> New(void* value);
   V8_INLINE static External* Cast(Value* obj);
   void* Value() const;
@@ -3770,6 +3803,16 @@ V8_INLINE Handle<Boolean> False(Isolate* isolate);
 class V8_EXPORT ResourceConstraints {
  public:
   ResourceConstraints();
+
+  /**
+   * Configures the constraints with reasonable default values based on the
+   * capabilities of the current device the VM is running on.
+   *
+   * \param physical_memory The total amount of physical memory on the current
+   *   device, in bytes.
+   */
+  void ConfigureDefaults(uint64_t physical_memory);
+
   int max_young_space_size() const { return max_young_space_size_; }
   void set_max_young_space_size(int value) { max_young_space_size_ = value; }
   int max_old_space_size() const { return max_old_space_size_; }
@@ -5203,19 +5246,11 @@ class V8_EXPORT Locker {
 
   ~Locker();
 
-  /**
-   * Start preemption.
-   *
-   * When preemption is started, a timer is fired every n milliseconds
-   * that will switch between multiple threads that are in contention
-   * for the V8 lock.
-   */
-  static void StartPreemption(Isolate* isolate, int every_n_ms);
+  V8_DEPRECATED("This will be remvoed.",
+                static void StartPreemption(Isolate *isolate, int every_n_ms));
 
-  /**
-   * Stop preemption.
-   */
-  static void StopPreemption(Isolate* isolate);
+  V8_DEPRECATED("This will be removed",
+                static void StopPreemption(Isolate* isolate));
 
   /**
    * Returns whether or not the locker for a given isolate, is locked by the
@@ -5819,7 +5854,6 @@ void ReturnValue<T>::Set(int32_t i) {
 template<typename T>
 void ReturnValue<T>::Set(uint32_t i) {
   TYPE_CHECK(T, Integer);
-  typedef internal::Internals I;
   // Can't simply use INT32_MAX here for whatever reason.
   bool fits_into_int32_t = (i & (1U << 31)) == 0;
   if (V8_LIKELY(fits_into_int32_t)) {

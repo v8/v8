@@ -113,6 +113,17 @@ void KeyedLoadFastElementStub::InitializeInterfaceDescriptor(
 }
 
 
+void KeyedLoadDictionaryElementStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  static Register registers[] = { r1, r0 };
+  descriptor->register_param_count_ = 2;
+  descriptor->register_params_ = registers;
+  descriptor->deoptimization_handler_ =
+      FUNCTION_ADDR(KeyedLoadIC_MissFromStubFailure);
+}
+
+
 void LoadFieldStub::InitializeInterfaceDescriptor(
     Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
@@ -130,6 +141,19 @@ void KeyedLoadFieldStub::InitializeInterfaceDescriptor(
   descriptor->register_param_count_ = 1;
   descriptor->register_params_ = registers;
   descriptor->deoptimization_handler_ = NULL;
+}
+
+
+void KeyedArrayCallStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  static Register registers[] = { r2 };
+  descriptor->register_param_count_ = 1;
+  descriptor->register_params_ = registers;
+  descriptor->continuation_type_ = TAIL_CALL_CONTINUATION;
+  descriptor->handler_arguments_mode_ = PASS_ARGUMENTS;
+  descriptor->deoptimization_handler_ =
+      FUNCTION_ADDR(KeyedCallIC_MissFromStubFailure);
 }
 
 
@@ -189,14 +213,21 @@ static void InitializeArrayConstructorDescriptor(
   // r0 -- number of arguments
   // r1 -- function
   // r2 -- type info cell with elements kind
-  static Register registers[] = { r1, r2 };
-  descriptor->register_param_count_ = 2;
-  if (constant_stack_parameter_count != 0) {
+  static Register registers_variable_args[] = { r1, r2, r0 };
+  static Register registers_no_args[] = { r1, r2 };
+
+  if (constant_stack_parameter_count == 0) {
+    descriptor->register_param_count_ = 2;
+    descriptor->register_params_ = registers_no_args;
+  } else {
     // stack param count needs (constructor pointer, and single argument)
+    descriptor->handler_arguments_mode_ = PASS_ARGUMENTS;
     descriptor->stack_parameter_count_ = r0;
+    descriptor->register_param_count_ = 3;
+    descriptor->register_params_ = registers_variable_args;
   }
+
   descriptor->hint_stack_parameter_count_ = constant_stack_parameter_count;
-  descriptor->register_params_ = registers;
   descriptor->function_mode_ = JS_FUNCTION_STUB_MODE;
   descriptor->deoptimization_handler_ =
       Runtime::FunctionForId(Runtime::kArrayConstructor)->entry;
@@ -210,15 +241,21 @@ static void InitializeInternalArrayConstructorDescriptor(
   // register state
   // r0 -- number of arguments
   // r1 -- constructor function
-  static Register registers[] = { r1 };
-  descriptor->register_param_count_ = 1;
+  static Register registers_variable_args[] = { r1, r0 };
+  static Register registers_no_args[] = { r1 };
 
-  if (constant_stack_parameter_count != 0) {
+  if (constant_stack_parameter_count == 0) {
+    descriptor->register_param_count_ = 1;
+    descriptor->register_params_ = registers_no_args;
+  } else {
     // stack param count needs (constructor pointer, and single argument)
+    descriptor->handler_arguments_mode_ = PASS_ARGUMENTS;
     descriptor->stack_parameter_count_ = r0;
+    descriptor->register_param_count_ = 2;
+    descriptor->register_params_ = registers_variable_args;
   }
+
   descriptor->hint_stack_parameter_count_ = constant_stack_parameter_count;
-  descriptor->register_params_ = registers;
   descriptor->function_mode_ = JS_FUNCTION_STUB_MODE;
   descriptor->deoptimization_handler_ =
       Runtime::FunctionForId(Runtime::kInternalArrayConstructor)->entry;
@@ -5680,6 +5717,24 @@ void StubFailureTrampolineStub::Generate(MacroAssembler* masm) {
 }
 
 
+void StubFailureTailCallTrampolineStub::Generate(MacroAssembler* masm) {
+  CEntryStub ces(1, fp_registers_ ? kSaveFPRegs : kDontSaveFPRegs);
+  __ Call(ces.GetCode(masm->isolate()), RelocInfo::CODE_TARGET);
+  __ mov(r1, r0);
+  int parameter_count_offset =
+      StubFailureTrampolineFrame::kCallerStackParameterCountFrameOffset;
+  __ ldr(r0, MemOperand(fp, parameter_count_offset));
+  // The parameter count above includes the receiver for the arguments passed to
+  // the deoptimization handler. Subtract the receiver for the parameter count
+  // for the call.
+  __ sub(r0, r0, Operand(1));
+  masm->LeaveFrame(StackFrame::STUB_FAILURE_TRAMPOLINE);
+  ParameterCount argument_count(r0);
+  __ InvokeFunction(
+      r1, argument_count, JUMP_FUNCTION, NullCallWrapper(), CALL_AS_METHOD);
+}
+
+
 void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) {
   if (masm->isolate()->function_entry_hook() != NULL) {
     PredictableCodeSizeScope predictable(masm, 4 * Assembler::kInstrSize);
@@ -5837,11 +5892,13 @@ static void CreateArrayDispatchOneArgument(MacroAssembler* masm,
       __ ldr(r5, FieldMemOperand(r2, Cell::kValueOffset));
     }
 
-    // Save the resulting elements kind in type info
-    __ SmiTag(r3);
-    __ ldr(r5, FieldMemOperand(r2, Cell::kValueOffset));
-    __ str(r3, FieldMemOperand(r5, AllocationSite::kTransitionInfoOffset));
-    __ SmiUntag(r3);
+    // Save the resulting elements kind in type info. We can't just store r3
+    // in the AllocationSite::transition_info field because elements kind is
+    // restricted to a portion of the field...upper bits need to be left alone.
+    STATIC_ASSERT(AllocationSite::ElementsKindBits::kShift == 0);
+    __ ldr(r4, FieldMemOperand(r5, AllocationSite::kTransitionInfoOffset));
+    __ add(r4, r4, Operand(Smi::FromInt(kFastElementsKindPackedToHoley)));
+    __ str(r4, FieldMemOperand(r5, AllocationSite::kTransitionInfoOffset));
 
     __ bind(&normal_sequence);
     int last_index = GetSequenceIndexFromFastElementsKind(
@@ -5983,6 +6040,8 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
 
   __ ldr(r3, FieldMemOperand(r3, AllocationSite::kTransitionInfoOffset));
   __ SmiUntag(r3);
+  STATIC_ASSERT(AllocationSite::ElementsKindBits::kShift == 0);
+  __ and_(r3, r3, Operand(AllocationSite::ElementsKindBits::kMask));
   GenerateDispatchToArrayStub(masm, DONT_OVERRIDE);
 
   __ bind(&no_info);

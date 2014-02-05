@@ -1330,8 +1330,10 @@ LInstruction* LChunkBuilder::DoCallNewArray(HCallNewArray* instr) {
 LInstruction* LChunkBuilder::DoCallFunction(HCallFunction* instr) {
   LOperand* context = UseFixed(instr->context(), cp);
   LOperand* function = UseFixed(instr->function(), a1);
-  return MarkAsCall(
-      DefineFixed(new(zone()) LCallFunction(context, function), v0), instr);
+  LCallFunction* call = new(zone()) LCallFunction(context, function);
+  LInstruction* result = DefineFixed(call, v0);
+  if (instr->IsTailCall()) return result;
+  return MarkAsCall(result, instr);
 }
 
 
@@ -1700,6 +1702,16 @@ LInstruction* LChunkBuilder::DoCompareHoleAndBranch(
     HCompareHoleAndBranch* instr) {
   LOperand* value = UseRegisterAtStart(instr->value());
   return new(zone()) LCmpHoleAndBranch(value);
+}
+
+
+LInstruction* LChunkBuilder::DoCompareMinusZeroAndBranch(
+    HCompareMinusZeroAndBranch* instr) {
+  LInstruction* goto_instr = CheckElideControlInstruction(instr);
+  if (goto_instr != NULL) return goto_instr;
+  LOperand* value = UseRegister(instr->value());
+  LOperand* scratch = TempRegister();
+  return new(zone()) LCompareMinusZeroAndBranch(value, scratch);
 }
 
 
@@ -2335,8 +2347,12 @@ LInstruction* LChunkBuilder::DoStoreNamedGeneric(HStoreNamedGeneric* instr) {
 
 LInstruction* LChunkBuilder::DoStringAdd(HStringAdd* instr) {
   LOperand* context = UseFixed(instr->context(), cp);
-  LOperand* left = UseRegisterAtStart(instr->left());
-  LOperand* right = UseRegisterAtStart(instr->right());
+  LOperand* left = FLAG_new_string_add
+      ? UseFixed(instr->left(), a1)
+      : UseRegisterAtStart(instr->left());
+  LOperand* right = FLAG_new_string_add
+      ? UseFixed(instr->right(), a0)
+      : UseRegisterAtStart(instr->right());
   return MarkAsCall(
       DefineFixed(new(zone()) LStringAdd(context, left, right), v0),
       instr);
@@ -2407,7 +2423,7 @@ LInstruction* LChunkBuilder::DoParameter(HParameter* instr) {
     CodeStubInterfaceDescriptor* descriptor =
         info()->code_stub()->GetInterfaceDescriptor(info()->isolate());
     int index = static_cast<int>(instr->index());
-    Register reg = DESCRIPTOR_GET_PARAMETER_REGISTER(descriptor, index);
+    Register reg = descriptor->GetParameterRegister(index);
     return DefineFixed(result, reg);
   }
 }

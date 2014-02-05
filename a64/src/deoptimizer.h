@@ -333,15 +333,9 @@ class Deoptimizer : public Malloced {
                          int object_index,
                          int field_index);
 
-  enum DeoptimizerTranslatedValueType {
-    TRANSLATED_VALUE_IS_NATIVE,
-    TRANSLATED_VALUE_IS_TAGGED
-  };
-
   void DoTranslateCommand(TranslationIterator* iterator,
-      int frame_index,
-      unsigned output_offset,
-      DeoptimizerTranslatedValueType value_type = TRANSLATED_VALUE_IS_TAGGED);
+                          int frame_index,
+                          unsigned output_offset);
 
   unsigned ComputeInputFrameSize() const;
   unsigned ComputeFixedSize(JSFunction* function) const;

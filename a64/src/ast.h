@@ -1728,6 +1728,7 @@ class Call V8_FINAL : public Expression {
     return &receiver_types_;
   }
   virtual bool IsMonomorphic() V8_OVERRIDE { return is_monomorphic_; }
+  bool KeyedArrayCallIsHoley() { return keyed_array_call_is_holey_; }
   CheckType check_type() const { return check_type_; }
 
   void set_string_check(Handle<JSObject> holder) {
@@ -1778,6 +1779,7 @@ class Call V8_FINAL : public Expression {
         expression_(expression),
         arguments_(arguments),
         is_monomorphic_(false),
+        keyed_array_call_is_holey_(true),
         check_type_(RECEIVER_MAP_CHECK),
         return_id_(GetNextId(isolate)) { }
 
@@ -1786,6 +1788,7 @@ class Call V8_FINAL : public Expression {
   ZoneList<Expression*>* arguments_;
 
   bool is_monomorphic_;
+  bool keyed_array_call_is_holey_;
   CheckType check_type_;
   SmallMapList receiver_types_;
   Handle<JSFunction> target_;

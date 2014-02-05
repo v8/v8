@@ -90,13 +90,15 @@ namespace internal {
   V(TransitionElementsKind)              \
   V(StoreArrayLiteralElement)            \
   V(StubFailureTrampoline)               \
+  V(StubFailureTailCallTrampoline)       \
   V(ArrayConstructor)                    \
   V(InternalArrayConstructor)            \
   V(ProfileEntryHook)                    \
   V(StoreGlobal)                         \
   /* IC Handler stubs */                 \
   V(LoadField)                           \
-  V(KeyedLoadField)
+  V(KeyedLoadField)                      \
+  V(KeyedArrayCall)
 
 // List of code stubs only used on ARM platforms.
 #if V8_TARGET_ARCH_ARM
@@ -176,6 +178,7 @@ class CodeStub BASE_EMBEDDED {
   virtual bool IsPregenerated(Isolate* isolate) { return false; }
 
   static void GenerateStubsAheadOfTime(Isolate* isolate);
+  static void GenerateStubsRequiringBuiltinsAheadOfTime(Isolate* isolate);
   static void GenerateFPStubs(Isolate* isolate);
 
   // Some stubs put untagged junk on the stack that cannot be scanned by the
@@ -283,31 +286,42 @@ class PlatformCodeStub : public CodeStub {
 
 
 enum StubFunctionMode { NOT_JS_FUNCTION_STUB_MODE, JS_FUNCTION_STUB_MODE };
+enum HandlerArgumentsMode { DONT_PASS_ARGUMENTS, PASS_ARGUMENTS };
+
+enum ContinuationType { NORMAL_CONTINUATION, TAIL_CALL_CONTINUATION };
 
 
 struct CodeStubInterfaceDescriptor {
   CodeStubInterfaceDescriptor();
   int register_param_count_;
+
   Register stack_parameter_count_;
   // if hint_stack_parameter_count_ > 0, the code stub can optimize the
   // return sequence. Default value is -1, which means it is ignored.
   int hint_stack_parameter_count_;
+  ContinuationType continuation_type_;
   StubFunctionMode function_mode_;
   Register* register_params_;
-  Address deoptimization_handler_;
 
-  int environment_length() const {
-    if (stack_parameter_count_.is_valid()) {
-      return register_param_count_ + 1;
-    }
-    return register_param_count_;
-  }
+  Address deoptimization_handler_;
+  HandlerArgumentsMode handler_arguments_mode_;
 
   bool initialized() const { return register_param_count_ >= 0; }
+
+  bool HasTailCallContinuation() const {
+    return continuation_type_ == TAIL_CALL_CONTINUATION;
+  }
+
+  int environment_length() const {
+    return register_param_count_;
+  }
 
   void SetMissHandler(ExternalReference handler) {
     miss_handler_ = handler;
     has_miss_handler_ = true;
+    // Our miss handler infrastructure doesn't currently support
+    // variable stack parameter counts.
+    ASSERT(!stack_parameter_count_.is_valid());
   }
 
   ExternalReference miss_handler() {
@@ -319,17 +333,26 @@ struct CodeStubInterfaceDescriptor {
     return has_miss_handler_;
   }
 
+  Register GetParameterRegister(int index) {
+    return register_params_[index];
+  }
+
+  bool IsParameterCountRegister(int index) {
+    return GetParameterRegister(index).is(stack_parameter_count_);
+  }
+
+  int GetHandlerParameterCount() {
+    int params = environment_length();
+    if (handler_arguments_mode_ == PASS_ARGUMENTS) {
+      params += 1;
+    }
+    return params;
+  }
+
  private:
   ExternalReference miss_handler_;
   bool has_miss_handler_;
 };
-
-// A helper to make up for the fact that type Register is not fully
-// defined outside of the platform directories
-#define DESCRIPTOR_GET_PARAMETER_REGISTER(descriptor, index) \
-  ((index) == (descriptor)->register_param_count_)           \
-      ? (descriptor)->stack_parameter_count_                 \
-      : (descriptor)->register_params_[(index)]
 
 
 class HydrogenCodeStub : public CodeStub {
@@ -872,6 +895,11 @@ class HandlerStub: public HICStub {
  public:
   virtual Code::Kind GetCodeKind() const { return Code::HANDLER; }
   virtual int GetStubFlags() { return kind(); }
+
+ protected:
+  HandlerStub() : HICStub() { }
+  virtual int NotMissMinorKey() { return bit_field_; }
+  int bit_field_;
 };
 
 
@@ -933,9 +961,6 @@ class LoadFieldStub: public HandlerStub {
   class IndexBits: public BitField<int, 5, 11> {};
   class UnboxedDoubleBits: public BitField<bool, 16, 1> {};
   virtual CodeStub::Major MajorKey() { return LoadField; }
-  virtual int NotMissMinorKey() { return bit_field_; }
-
-  int bit_field_;
 };
 
 
@@ -1011,6 +1036,50 @@ class KeyedLoadFieldStub: public LoadFieldStub {
 
  private:
   virtual CodeStub::Major MajorKey() { return KeyedLoadField; }
+};
+
+
+class KeyedArrayCallStub: public HICStub {
+ public:
+  KeyedArrayCallStub(bool holey, int argc) : HICStub(), argc_(argc) {
+    bit_field_ = ContextualBits::encode(false) | HoleyBits::encode(holey);
+  }
+
+  virtual Code::Kind kind() const { return Code::KEYED_CALL_IC; }
+  virtual Code::ExtraICState GetExtraICState() { return bit_field_; }
+
+  ElementsKind elements_kind() {
+    return HoleyBits::decode(bit_field_) ? FAST_HOLEY_ELEMENTS : FAST_ELEMENTS;
+  }
+
+  int argc() { return argc_; }
+  virtual int GetStubFlags() { return argc(); }
+
+  static bool IsHoley(Handle<Code> code) {
+    Code::ExtraICState state = code->extra_ic_state();
+    return HoleyBits::decode(state);
+  }
+
+  virtual void InitializeInterfaceDescriptor(
+      Isolate* isolate,
+      CodeStubInterfaceDescriptor* descriptor);
+
+  virtual Handle<Code> GenerateCode(Isolate* isolate);
+
+ private:
+  virtual int NotMissMinorKey() {
+    return GetExtraICState() | ArgcBits::encode(argc_);
+  }
+
+  class ContextualBits: public BitField<bool, 0, 1> {};
+  STATIC_ASSERT(CallICBase::Contextual::kShift == ContextualBits::kShift);
+  STATIC_ASSERT(CallICBase::Contextual::kSize == ContextualBits::kSize);
+  class HoleyBits: public BitField<bool, 1, 1> {};
+  STATIC_ASSERT(Code::kArgumentsBits <= kStubMinorKeyBits - 2);
+  class ArgcBits: public BitField<int, 2, Code::kArgumentsBits> {};
+  virtual CodeStub::Major MajorKey() { return KeyedArrayCall; }
+  int bit_field_;
+  int argc_;
 };
 
 
@@ -1778,9 +1847,27 @@ class AllowStubCallsScope {
 };
 
 
-class KeyedLoadDictionaryElementStub : public PlatformCodeStub {
+class KeyedLoadDictionaryElementStub : public HydrogenCodeStub {
  public:
   KeyedLoadDictionaryElementStub() {}
+
+  virtual Handle<Code> GenerateCode(Isolate* isolate) V8_OVERRIDE;
+
+  virtual void InitializeInterfaceDescriptor(
+      Isolate* isolate,
+      CodeStubInterfaceDescriptor* descriptor) V8_OVERRIDE;
+
+ private:
+  Major MajorKey() { return KeyedLoadElement; }
+  int NotMissMinorKey() { return DICTIONARY_ELEMENTS; }
+
+  DISALLOW_COPY_AND_ASSIGN(KeyedLoadDictionaryElementStub);
+};
+
+
+class KeyedLoadDictionaryElementPlatformStub : public PlatformCodeStub {
+ public:
+  KeyedLoadDictionaryElementPlatformStub() {}
 
   void Generate(MacroAssembler* masm);
 
@@ -1788,7 +1875,7 @@ class KeyedLoadDictionaryElementStub : public PlatformCodeStub {
   Major MajorKey() { return KeyedLoadElement; }
   int MinorKey() { return DICTIONARY_ELEMENTS; }
 
-  DISALLOW_COPY_AND_ASSIGN(KeyedLoadDictionaryElementStub);
+  DISALLOW_COPY_AND_ASSIGN(KeyedLoadDictionaryElementPlatformStub);
 };
 
 
@@ -2416,6 +2503,27 @@ class StubFailureTrampolineStub : public PlatformCodeStub {
   StubFunctionMode function_mode_;
 
   DISALLOW_COPY_AND_ASSIGN(StubFailureTrampolineStub);
+};
+
+
+class StubFailureTailCallTrampolineStub : public PlatformCodeStub {
+ public:
+  StubFailureTailCallTrampolineStub() : fp_registers_(CanUseFPRegisters()) {}
+
+  virtual bool IsPregenerated(Isolate* isolate) V8_OVERRIDE { return true; }
+
+  static void GenerateAheadOfTime(Isolate* isolate);
+
+ private:
+  class FPRegisters: public BitField<bool, 0, 1> {};
+  Major MajorKey() { return StubFailureTailCallTrampoline; }
+  int MinorKey() { return FPRegisters::encode(fp_registers_); }
+
+  void Generate(MacroAssembler* masm);
+
+  bool fp_registers_;
+
+  DISALLOW_COPY_AND_ASSIGN(StubFailureTailCallTrampolineStub);
 };
 
 

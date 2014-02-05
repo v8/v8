@@ -88,6 +88,15 @@
   'test-debug/DebugBreakLoop': [SKIP],
 }],  # 'arch == a64 and mode == debug and simulator_run == True'
 
+##############################################################################
+['system == windows', {
+
+  # BUG(2999).
+  'test-cpu-profiler/CollectCpuProfile': [PASS, FAIL],
+
+  # BUG(3005).
+  'test-alloc/CodeRange': [PASS, FLAKY],
+}],  # 'system == windows'
 
 ##############################################################################
 ['arch == arm', {
@@ -107,6 +116,7 @@
   'test-serialize/DeserializeAndRunScript2': [SKIP],
   'test-serialize/DeserializeFromSecondSerialization': [SKIP],
 }],  # 'arch == arm'
+
 ##############################################################################
 ['arch == mipsel', {
 
@@ -159,5 +169,8 @@
 
   # Fails since 16322 (new test).
   'test-code-stubs-arm/ConvertDToI': [SKIP],
+
+  # BUG(2998).
+  'test-macro-assembler-arm/LoadAndStoreWithRepresentation': [SKIP],
 }],  # 'arch == nacl_ia32 or arch == nacl_x64'
 ]
