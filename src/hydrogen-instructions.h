@@ -2657,6 +2657,15 @@ class HCheckMaps V8_FINAL : public HTemplateInstruction<2> {
     }
     return check_map;
   }
+  static HCheckMaps* New(Zone* zone, HValue* context,
+                         HValue* value, UniqueSet<Map>* maps,
+                         HValue *typecheck = NULL) {
+    HCheckMaps* check_map = new(zone) HCheckMaps(value, zone, typecheck);
+    for (int i = 0; i < maps->size(); i++) {
+      check_map->Add(maps->at(i).handle(), zone);
+    }
+    return check_map;
+  }
 
   bool CanOmitMapChecks() { return omit_; }
 
@@ -2669,6 +2678,7 @@ class HCheckMaps V8_FINAL : public HTemplateInstruction<2> {
   virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
 
   HValue* value() { return OperandAt(0); }
+  HValue* typecheck() { return OperandAt(1); }
 
   Unique<Map> first_map() const { return map_set_.at(0); }
   UniqueSet<Map> map_set() const { return map_set_; }

@@ -48,12 +48,12 @@ typedef UniqueSet<Map>* MapSet;
 
 struct HCheckTableEntry {
   HValue* object_;  // The object being approximated. NULL => invalid entry.
-  HValue* check_;   // The last check instruction.
-  MapSet maps_;     // The set of known maps for the object.
+  HInstruction* check_;  // The last check instruction.
+  MapSet maps_;          // The set of known maps for the object.
 };
 
 
-// The main datastructure used during check elimination, which stores a
+// The main data structure used during check elimination, which stores a
 // set of known maps for each object.
 class HCheckTable : public ZoneObject {
  public:
@@ -130,6 +130,23 @@ class HCheckTable : public ZoneObject {
     copy->cursor_ = cursor_;
     copy->size_ = size_;
 
+    // Create entries for succ block's phis.
+    if (succ->phis()->length() > 0) {
+      int pred_index = succ->PredecessorIndexOf(from_block);
+      for (int phi_index = 0;
+           phi_index < succ->phis()->length();
+           ++phi_index) {
+        HPhi* phi = succ->phis()->at(phi_index);
+        HValue* phi_operand = phi->OperandAt(pred_index);
+
+        HCheckTableEntry* pred_entry = copy->Find(phi_operand);
+        if (pred_entry != NULL) {
+          // Create an entry for a phi in the table.
+          copy->Insert(phi, NULL, pred_entry->maps_->Copy(phase_->zone()));
+        }
+      }
+    }
+
     // Branch-sensitive analysis for certain comparisons may add more facts
     // to the state for the successor on the true branch.
     bool learned = false;
@@ -185,17 +202,28 @@ class HCheckTable : public ZoneObject {
 
   // Global analysis: Merge this state with the other incoming state.
   HCheckTable* Merge(HBasicBlock* succ, HCheckTable* that,
-                     HBasicBlock* that_block, Zone* zone) {
-    if (that_block->IsReachable()) {
+                     HBasicBlock* pred_block, Zone* zone) {
+    if (pred_block->IsReachable()) {
       if (that->size_ == 0) {
         // If the other state is empty, simply reset.
         size_ = 0;
         cursor_ = 0;
       } else {
+        int pred_index = succ->PredecessorIndexOf(pred_block);
         bool compact = false;
         for (int i = 0; i < size_; i++) {
           HCheckTableEntry* this_entry = &entries_[i];
-          HCheckTableEntry* that_entry = that->Find(this_entry->object_);
+          HCheckTableEntry* that_entry;
+          if (this_entry->object_->IsPhi() &&
+              this_entry->object_->block() == succ) {
+            HPhi* phi = HPhi::cast(this_entry->object_);
+            HValue* phi_operand = phi->OperandAt(pred_index);
+            that_entry = that->Find(phi_operand);
+
+          } else {
+            that_entry = that->Find(this_entry->object_);
+          }
+
           if (that_entry == NULL) {
             this_entry->object_ = NULL;
             compact = true;
@@ -213,7 +241,7 @@ class HCheckTable : public ZoneObject {
     }
     if (FLAG_trace_check_elimination) {
       PrintF("B%d checkmaps-table merged with B%d table:\n",
-             succ->block_id(), that_block->block_id());
+             succ->block_id(), pred_block->block_id());
       Print();
     }
     return this;
@@ -244,14 +272,42 @@ class HCheckTable : public ZoneObject {
         }
         return;
       }
-      i = i->Intersect(a, phase_->zone());
-      if (i->size() == 0) {
+      MapSet intersection = i->Intersect(a, phase_->zone());
+      if (intersection->size() == 0) {
         // Intersection is empty; probably megamorphic, which is likely to
         // deopt anyway, so just leave things as they are.
         INC_STAT(empty_);
       } else {
-        // TODO(titzer): replace the first check with a more strict check
-        INC_STAT(narrowed_);
+        // Update set of maps in the entry.
+        entry->maps_ = intersection;
+        if (intersection->size() != i->size()) {
+          // Narrow set of maps in the second check maps instruction.
+          HGraph* graph = instr->block()->graph();
+          HCheckMaps* new_check_maps =
+              HCheckMaps::New(graph->zone(), NULL, instr->value(),
+                              intersection, instr->typecheck());
+          if (entry->check_ != NULL &&
+              entry->check_->block() == instr->block()) {
+            // There is a check in the same block so replace it with a more
+            // strict check and eliminate the second check entirely.
+            new_check_maps->InsertBefore(entry->check_);
+            entry->check_->DeleteAndReplaceWith(new_check_maps);
+            TRACE(("Check #%d narrowed to #%d\n",
+                entry->check_->id(), new_check_maps->id()));
+
+          } else {
+            new_check_maps->InsertBefore(instr);
+          }
+          TRACE(("CheckMaps #%d for #%d narrowed to #%d:\n",
+              instr->id(), instr->value()->id(), new_check_maps->id()));
+          instr->DeleteAndReplaceWith(new_check_maps);
+          entry->check_ = new_check_maps;
+
+          if (FLAG_trace_check_elimination) {
+            Print();
+          }
+          INC_STAT(narrowed_);
+        }
       }
     } else {
       // No entry; insert a new one.
@@ -426,7 +482,9 @@ class HCheckTable : public ZoneObject {
     for (int i = 0; i < size_; i++) {
       HCheckTableEntry* entry = &entries_[i];
       ASSERT(entry->object_ != NULL);
-      PrintF("  checkmaps-table @%d: object #%d ", i, entry->object_->id());
+      PrintF("  checkmaps-table @%d: %s #%d ", i,
+             entry->object_->IsPhi() ? "phi" : "object",
+             entry->object_->id());
       if (entry->check_ != NULL) {
         PrintF("check #%d ", entry->check_->id());
       }
