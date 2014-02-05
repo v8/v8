@@ -21916,6 +21916,25 @@ class ApiCallOptimizationChecker {
     count++;
   }
 
+  // TODO(dcarney): move this to v8.h
+  static void SetAccessorProperty(Local<Object> object,
+                                  Local<String> name,
+                                  Local<Function> getter,
+                                  Local<Function> setter = Local<Function>()) {
+    i::Isolate* isolate = CcTest::i_isolate();
+    v8::AccessControl settings = v8::DEFAULT;
+    v8::PropertyAttribute attribute = v8::None;
+    i::Handle<i::Object> getter_i = v8::Utils::OpenHandle(*getter);
+    i::Handle<i::Object> setter_i = v8::Utils::OpenHandle(*setter, true);
+    if (setter_i.is_null()) setter_i = isolate->factory()->null_value();
+    i::JSObject::DefineAccessor(v8::Utils::OpenHandle(*object),
+                                v8::Utils::OpenHandle(*name),
+                                getter_i,
+                                setter_i,
+                                static_cast<PropertyAttributes>(attribute),
+                                settings);
+  }
+
   public:
     void Run(bool use_signature, bool global) {
       v8::Isolate* isolate = CcTest::isolate();
@@ -21952,9 +21971,12 @@ class ApiCallOptimizationChecker {
       Local<FunctionTemplate> function_template = FunctionTemplate::New(
           isolate, OptimizationCallback, data, signature);
       Local<Function> function = function_template->GetFunction();
-      Local<Object>::Cast(
-          inner_global->GetPrototype())->Set(v8_str("global_f"), function);
+      Local<Object> global_holder = Local<Object>::Cast(
+          inner_global->GetPrototype());
+      global_holder->Set(v8_str("g_f"), function);
+      SetAccessorProperty(global_holder, v8_str("g_p1"), function);
       function_holder->Set(v8_str("f"), function);
+      SetAccessorProperty(function_holder, v8_str("p1"), function);
       // Initialize expected values.
       callee = function;
       count = 0;
@@ -21980,33 +22002,40 @@ class ApiCallOptimizationChecker {
       if (!use_signature) holder = receiver;
       // build wrap_function
       int key = (use_signature ? 1 : 0) + 2 * (global ? 1 : 0);
-      i::ScopedVector<char> wrap_function(100);
+      i::ScopedVector<char> wrap_function(200);
       if (global) {
         i::OS::SNPrintF(
             wrap_function,
-           "function wrap_%d() { var f = global_f; return f(); }\n",
-            key);
+            "function wrap_f_%d() { var f = g_f; return f(); }\n"
+            "function wrap_p1_%d() { return this.g_p1; }\n",
+            key, key);
       } else {
         i::OS::SNPrintF(
             wrap_function,
-            "function wrap_%d() { return receiver_subclass.f(); }\n",
-            key);
+            "function wrap_f_%d() { return receiver_subclass.f(); }\n"
+            "function wrap_p1_%d() { return receiver_subclass.p1; }\n",
+            key, key);
       }
       // build source string
       i::ScopedVector<char> source(500);
       i::OS::SNPrintF(
           source,
-          "%s\n"  // wrap_function
-          "function wrap2() { wrap_%d(); }\n"
-          "wrap2();\n"
-          "wrap2();\n"
-          "%%OptimizeFunctionOnNextCall(wrap_%d);\n"
-          "wrap2();\n",
-          wrap_function.start(), key, key);
+          "%s\n"  // wrap functions
+          "function wrap_f() { wrap_f_%d(); }\n"
+          "function wrap_p1() { wrap_p1_%d(); }\n"
+          "wrap_f();\n"
+          "wrap_f();\n"
+          "%%OptimizeFunctionOnNextCall(wrap_f_%d);\n"
+          "wrap_f();\n"
+          "wrap_p1();\n"
+          "wrap_p1();\n"
+          "%%OptimizeFunctionOnNextCall(wrap_p1_%d);\n"
+          "wrap_p1();\n",
+          wrap_function.start(), key, key, key, key);
       v8::TryCatch try_catch;
       CompileRun(source.start());
       ASSERT(!try_catch.HasCaught());
-      CHECK_EQ(3, count);
+      CHECK_EQ(6, count);
     }
 };
 

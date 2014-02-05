@@ -2218,6 +2218,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   bool TryInlineCall(Call* expr);
   bool TryInlineConstruct(CallNew* expr, HValue* implicit_return_value);
   bool TryInlineGetter(Handle<JSFunction> getter,
+                       Handle<Map> receiver_map,
                        BailoutId ast_id,
                        BailoutId return_id);
   bool TryInlineSetter(Handle<JSFunction> setter,
@@ -2231,14 +2232,24 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
                                   HValue* receiver,
                                   Handle<Map> receiver_map);
   bool TryInlineBuiltinFunctionCall(Call* expr);
+  enum ApiCallType {
+    kCallApiFunction,
+    kCallApiMethod,
+    kCallApiGetter
+  };
   bool TryInlineApiMethodCall(Call* expr,
                               HValue* receiver,
-                              Handle<Map> receiver_map);
+                              SmallMapList* receiver_types);
   bool TryInlineApiFunctionCall(Call* expr, HValue* receiver);
-  bool TryInlineApiCall(Call* expr,
-                        HValue* receiver,
-                        Handle<Map> receiver_map,
-                        bool is_function_call);
+  bool TryInlineApiGetter(Handle<JSFunction> function,
+                          Handle<Map> receiver_map,
+                          BailoutId ast_id);
+  bool TryInlineApiCall(Handle<JSFunction> function,
+                         HValue* receiver,
+                         SmallMapList* receiver_maps,
+                         int argc,
+                         BailoutId ast_id,
+                         ApiCallType call_type);
 
   // If --trace-inlining, print a line of the inlining trace.  Inlining
   // succeeded if the reason string is NULL and failed if there is a
@@ -2374,6 +2385,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
     Handle<String> name_;
     Handle<JSObject> holder_;
     Handle<JSFunction> accessor_;
+    Handle<JSObject> api_holder_;
     Handle<Object> constant_;
     Handle<Map> transition_;
     HObjectAccess access_;
