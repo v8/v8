@@ -8503,7 +8503,12 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_OptimizeFunctionOnNextCall) {
   RUNTIME_ASSERT(args.length() == 1 || args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
 
-  if (!function->IsOptimizable()) return isolate->heap()->undefined_value();
+  if (!function->IsOptimizable() &&
+      !function->IsMarkedForConcurrentOptimization() &&
+      !function->IsInOptimizationQueue()) {
+    return isolate->heap()->undefined_value();
+  }
+
   function->MarkForOptimization();
 
   Code* unoptimized = function->shared()->code();
