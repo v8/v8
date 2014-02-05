@@ -3193,6 +3193,7 @@ void ExternalAsciiString::update_data_cache() {
 
 void ExternalAsciiString::set_resource(
     const ExternalAsciiString::Resource* resource) {
+  ASSERT(IsAligned(reinterpret_cast<intptr_t>(resource), kPointerSize));
   *reinterpret_cast<const Resource**>(
       FIELD_ADDR(this, kResourceOffset)) = resource;
   if (resource != NULL) update_data_cache();

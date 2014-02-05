@@ -17862,6 +17862,50 @@ class VisitorImpl : public v8::ExternalResourceVisitor {
 };
 
 
+TEST(ExternalizeOldSpaceTwoByteCons) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+  v8::Local<v8::String> cons =
+      CompileRun("'Romeo Montague ' + 'Juliet Capulet'")->ToString();
+  CHECK(v8::Utils::OpenHandle(*cons)->IsConsString());
+  CcTest::heap()->CollectAllAvailableGarbage();
+  CHECK(CcTest::heap()->old_pointer_space()->Contains(
+            *v8::Utils::OpenHandle(*cons)));
+
+  TestResource* resource = new TestResource(
+      AsciiToTwoByteString("Romeo Montague Juliet Capulet"));
+  cons->MakeExternal(resource);
+
+  CHECK(cons->IsExternal());
+  CHECK_EQ(resource, cons->GetExternalStringResource());
+  String::Encoding encoding;
+  CHECK_EQ(resource, cons->GetExternalStringResourceBase(&encoding));
+  CHECK_EQ(String::TWO_BYTE_ENCODING, encoding);
+}
+
+
+TEST(ExternalizeOldSpaceOneByteCons) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+  v8::Local<v8::String> cons =
+      CompileRun("'Romeo Montague ' + 'Juliet Capulet'")->ToString();
+  CHECK(v8::Utils::OpenHandle(*cons)->IsConsString());
+  CcTest::heap()->CollectAllAvailableGarbage();
+  CHECK(CcTest::heap()->old_pointer_space()->Contains(
+            *v8::Utils::OpenHandle(*cons)));
+
+  TestAsciiResource* resource =
+      new TestAsciiResource(i::StrDup("Romeo Montague Juliet Capulet"));
+  cons->MakeExternal(resource);
+
+  CHECK(cons->IsExternalAscii());
+  CHECK_EQ(resource, cons->GetExternalAsciiStringResource());
+  String::Encoding encoding;
+  CHECK_EQ(resource, cons->GetExternalStringResourceBase(&encoding));
+  CHECK_EQ(String::ONE_BYTE_ENCODING, encoding);
+}
+
+
 TEST(VisitExternalStrings) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
