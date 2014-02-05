@@ -4515,10 +4515,6 @@ void LCodeGen::DoShiftI(LShiftI* instr) {
       case Token::SHL: __ Lsl(result, left, right); break;
       case Token::SHR:
         if (instr->can_deopt()) {
-          // TODO(all): Using conditional compare may be faster here, eg.
-          // Deopt if (right == 0) && (left < 0).
-          // __ Cmp(right, 0);
-          // __ Ccmp(left, 0, NoFlag, eq);
           Label right_not_zero;
           __ Cbnz(right, &right_not_zero);
           DeoptimizeIfNegative(left, instr->environment());
@@ -4542,6 +4538,81 @@ void LCodeGen::DoShiftI(LShiftI* instr) {
         case Token::SAR: __ Asr(result, left, shift_count); break;
         case Token::SHL: __ Lsl(result, left, shift_count); break;
         case Token::SHR: __ Lsr(result, left, shift_count); break;
+        default: UNREACHABLE();
+      }
+    }
+  }
+}
+
+
+void LCodeGen::DoShiftS(LShiftS* instr) {
+  LOperand* right_op = instr->right();
+  Register left = ToRegister(instr->left());
+  Register result = ToRegister(instr->result());
+
+  // Only ROR by register needs a temp.
+  ASSERT(((instr->op() == Token::ROR) && right_op->IsRegister()) ||
+         (instr->temp() == NULL));
+
+  if (right_op->IsRegister()) {
+    Register right = ToRegister(instr->right());
+    switch (instr->op()) {
+      case Token::ROR: {
+        Register temp = ToRegister(instr->temp());
+        __ Ubfx(temp, right, kSmiShift, 5);
+        __ SmiUntag(result, left);
+        __ Ror(result.W(), result.W(), temp.W());
+        __ SmiTag(result);
+        break;
+      }
+      case Token::SAR:
+        __ Ubfx(result, right, kSmiShift, 5);
+        __ Asr(result, left, result);
+        __ Bic(result, result, kSmiShiftMask);
+        break;
+      case Token::SHL:
+        __ Ubfx(result, right, kSmiShift, 5);
+        __ Lsl(result, left, result);
+        break;
+      case Token::SHR:
+        if (instr->can_deopt()) {
+          Label right_not_zero;
+          __ Cbnz(right, &right_not_zero);
+          DeoptimizeIfNegative(left, instr->environment());
+          __ Bind(&right_not_zero);
+        }
+        __ Ubfx(result, right, kSmiShift, 5);
+        __ Lsr(result, left, result);
+        __ Bic(result, result, kSmiShiftMask);
+        break;
+      default: UNREACHABLE();
+    }
+  } else {
+    ASSERT(right_op->IsConstantOperand());
+    int shift_count = ToInteger32(LConstantOperand::cast(right_op)) & 0x1f;
+    if (shift_count == 0) {
+      if ((instr->op() == Token::SHR) && instr->can_deopt()) {
+        DeoptimizeIfNegative(left, instr->environment());
+      }
+      __ Mov(result, left);
+    } else {
+      switch (instr->op()) {
+        case Token::ROR:
+          __ SmiUntag(result, left);
+          __ Ror(result.W(), result.W(), shift_count);
+          __ SmiTag(result);
+          break;
+        case Token::SAR:
+          __ Asr(result, left, shift_count);
+          __ Bic(result, result, kSmiShiftMask);
+          break;
+        case Token::SHL:
+          __ Lsl(result, left, shift_count);
+          break;
+        case Token::SHR:
+          __ Lsr(result, left, shift_count);
+          __ Bic(result, result, kSmiShiftMask);
+          break;
         default: UNREACHABLE();
       }
     }

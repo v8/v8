@@ -163,6 +163,7 @@ class LCodeGen;
   V(Return)                                     \
   V(SeqStringSetChar)                           \
   V(ShiftI)                                     \
+  V(ShiftS)                                     \
   V(SmiTag)                                     \
   V(SmiUntag)                                   \
   V(StackCheck)                                 \
@@ -2462,6 +2463,29 @@ class LShiftI V8_FINAL : public LTemplateInstruction<1, 2, 0> {
   bool can_deopt() const { return can_deopt_; }
 
   DECLARE_CONCRETE_INSTRUCTION(ShiftI, "shift-i")
+
+ private:
+  Token::Value op_;
+  bool can_deopt_;
+};
+
+
+class LShiftS V8_FINAL : public LTemplateInstruction<1, 2, 1> {
+ public:
+  LShiftS(Token::Value op, LOperand* left, LOperand* right, LOperand* temp,
+          bool can_deopt) : op_(op), can_deopt_(can_deopt) {
+    inputs_[0] = left;
+    inputs_[1] = right;
+    temps_[0] = temp;
+  }
+
+  Token::Value op() const { return op_; }
+  LOperand* left() { return inputs_[0]; }
+  LOperand* right() { return inputs_[1]; }
+  LOperand* temp() { return temps_[0]; }
+  bool can_deopt() const { return can_deopt_; }
+
+  DECLARE_CONCRETE_INSTRUCTION(ShiftS, "shift-s")
 
  private:
   Token::Value op_;

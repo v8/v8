@@ -2018,18 +2018,22 @@ LInstruction* LChunkBuilder::DoSeqStringSetChar(HSeqStringSetChar* instr) {
 
 LInstruction* LChunkBuilder::DoShift(Token::Value op,
                                      HBitwiseBinaryOperation* instr) {
-  // TODO(jbramley): Support smis inline, like integers.
-  if (instr->representation().IsSmiOrTagged()) {
+  if (instr->representation().IsTagged()) {
     return DoArithmeticT(op, instr);
   }
 
-  ASSERT(instr->representation().IsInteger32());
+  ASSERT(instr->representation().IsInteger32() ||
+         instr->representation().IsSmi());
   ASSERT(instr->left()->representation().Equals(instr->representation()));
   ASSERT(instr->right()->representation().Equals(instr->representation()));
-  LOperand* left = UseRegisterAtStart(instr->left());
+
+  LOperand* left = instr->representation().IsSmi()
+      ? UseRegister(instr->left())
+      : UseRegisterAtStart(instr->left());
 
   HValue* right_value = instr->right();
   LOperand* right = NULL;
+  LOperand* temp = NULL;
   int constant_value = 0;
   if (right_value->IsConstant()) {
     right = UseConstant(right_value);
@@ -2037,6 +2041,9 @@ LInstruction* LChunkBuilder::DoShift(Token::Value op,
     constant_value = constant->Integer32Value() & 0x1f;
   } else {
     right = UseRegisterAtStart(right_value);
+    if (op == Token::ROR) {
+      temp = TempRegister();
+    }
   }
 
   // Shift operations can only deoptimize if we do a logical shift by 0 and the
@@ -2050,8 +2057,15 @@ LInstruction* LChunkBuilder::DoShift(Token::Value op,
     }
   }
 
-  LInstruction* result =
-      DefineAsRegister(new(zone()) LShiftI(op, left, right, does_deopt));
+  LInstruction* result;
+  if (instr->representation().IsInteger32()) {
+    result = DefineAsRegister(new(zone()) LShiftI(op, left, right, does_deopt));
+  } else {
+    ASSERT(instr->representation().IsSmi());
+    result = DefineAsRegister(
+        new(zone()) LShiftS(op, left, right, temp, does_deopt));
+  }
+
   return does_deopt ? AssignEnvironment(result) : result;
 }
 
