@@ -2377,8 +2377,7 @@ LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
   switch (instr->op()) {
     case kMathAbs: {
       Representation r = instr->representation();
-      // TODO(jbramley): Support smis in LMathAbs and use that.
-      if (r.IsTagged() || r.IsSmi()) {
+      if (r.IsTagged()) {
         // The tagged case might need to allocate a HeapNumber for the result,
         // so it is handled by a separate LInstruction.
         LOperand* input = UseRegister(instr->value());
@@ -2395,9 +2394,9 @@ LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
           // The Double case can never fail so it doesn't need an environment.
           return DefineAsRegister(result);
         } else {
-          ASSERT(r.IsInteger32());
-          // The Integer32 case needs an environment because it can deoptimize
-          // on INT_MIN.
+          ASSERT(r.IsInteger32() || r.IsSmi());
+          // The Integer32 and Smi cases need an environment because they can
+          // deoptimize on minimum representable number.
           return AssignEnvironment(DefineAsRegister(result));
         }
       }

@@ -523,15 +523,15 @@ void MacroAssembler::LoadStoreMacro(const CPURegister& rt,
 
 
 void MacroAssembler::Abs(const Register& rd, const Register& rm,
-                         Label * is_not_representable,
-                         Label * is_representable) {
+                         Label* is_not_representable,
+                         Label* is_representable) {
   ASSERT(allow_macro_instructions_);
   ASSERT(AreSameSizeAndType(rd, rm));
 
   Cmp(rm, 1);
   Cneg(rd, rm, lt);
 
-  // If the comparison set the v flag, the input was the smallest value
+  // If the comparison sets the v flag, the input was the smallest value
   // representable by rm, and the mathematical result of abs(rm) is not
   // representable using two's complement.
   if ((is_not_representable != NULL) && (is_representable != NULL)) {
@@ -1129,31 +1129,9 @@ void MacroAssembler::ThrowUncatchable(Register value,
 }
 
 
-void MacroAssembler::SmiAbs(Register smi, Register scratch, Label *slow) {
-  // TODO(all): There is another possible implementation of this function
-  // which would consist of:
-  //   * Comparing the smi with 0.
-  //   * Performing a conditional negate (cneg).
-  //   * Testing if the result is still negative.
-  //
-  // This other implementation uses 1 more instruction but uses one of the new
-  // A64 conditional instruction and doesn't use shifted registers.
-  //
-  // This two versions should be profiled on real hardware as we have no idea
-  // which one will be the fastest.
-  ASSERT(!AreAliased(smi, scratch));
-
-  STATIC_ASSERT(kSmiTag == 0);
-  STATIC_ASSERT(kSmiShift == 32);
-
-  // Do bitwise not or do nothing depending on the sign of the argument.
-  __ Eor(scratch, smi, Operand(smi, ASR, kXRegSize - 1));
-  // Add 1 or do nothing depending on the sign of the argument.
-  __ Adds(smi, scratch, Operand(smi, LSR, kXRegSize - 1));
-
-  // If the result is still negative, go to the slow case.
-  // This only happens for the most negative smi.
-  __ B(mi, slow);
+void MacroAssembler::SmiAbs(const Register& smi, Label* slow) {
+  ASSERT(smi.Is64Bits());
+  Abs(smi, smi, slow);
 }
 
 

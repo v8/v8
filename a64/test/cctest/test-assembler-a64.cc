@@ -9164,7 +9164,7 @@ static void DoSmiAbsTest(int32_t value, bool must_fail = false) {
   __ Mov(x2, 0xc001c0de);
   __ Mov(x1, value);
   __ SmiTag(x1);
-  __ SmiAbs(x1, x0, &slow);
+  __ SmiAbs(x1, &slow);
   __ SmiUntag(x1);
   __ B(&end);
 

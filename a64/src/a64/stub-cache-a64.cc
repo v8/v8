@@ -2504,7 +2504,7 @@ Handle<Code> CallStubCompiler::CompileMathAbsCall(
   Label not_smi;
   __ JumpIfNotSmi(arg, &not_smi);
 
-  __ SmiAbs(arg, x1, &slow);
+  __ SmiAbs(arg, &slow);
   // Smi case done.
   __ Drop(argc + 1);
   __ Ret();

@@ -3492,10 +3492,11 @@ void LCodeGen::DoMathAbs(LMathAbs* instr) {
     DoubleRegister input = ToDoubleRegister(instr->value());
     DoubleRegister result = ToDoubleRegister(instr->result());
     __ Fabs(result, input);
-  } else {
-    ASSERT(r.IsInteger32());
-    Register input = ToRegister32(instr->value());
-    Register result = ToRegister32(instr->result());
+  } else if (r.IsSmi() || r.IsInteger32()) {
+    Register input = r.IsSmi() ? ToRegister(instr->value())
+                               : ToRegister32(instr->value());
+    Register result = r.IsSmi() ? ToRegister(instr->result())
+                                : ToRegister32(instr->result());
     Label done;
     __ Abs(result, input, NULL, &done);
     Deoptimize(instr->environment());
