@@ -5610,10 +5610,12 @@ HInstruction* HOptimizedGraphBuilder::BuildStoreMonomorphic(
 }
 
 
-void HOptimizedGraphBuilder::HandlePolymorphicLoadNamedField(
+void HOptimizedGraphBuilder::HandlePolymorphicNamedFieldAccess(
+    PropertyAccessType access_type,
     BailoutId ast_id,
     BailoutId return_id,
     HValue* object,
+    HValue* value,
     SmallMapList* types,
     Handle<String> name) {
   // Something did not match; must use a polymorphic load.
@@ -5623,8 +5625,9 @@ void HOptimizedGraphBuilder::HandlePolymorphicLoadNamedField(
   bool handled_string = false;
 
   bool handle_smi = false;
+  STATIC_ASSERT(kMaxLoadPolymorphism == kMaxStorePolymorphism);
   for (int i = 0; i < types->length() && count < kMaxLoadPolymorphism; ++i) {
-    PropertyAccessInfo info(this, LOAD, ToType(types->at(i)), name);
+    PropertyAccessInfo info(this, access_type, ToType(types->at(i)), name);
     if (info.type()->Is(Type::String())) {
       if (handled_string) continue;
       handled_string = true;
@@ -5643,7 +5646,7 @@ void HOptimizedGraphBuilder::HandlePolymorphicLoadNamedField(
   handled_string = false;
 
   for (int i = 0; i < types->length() && count < kMaxLoadPolymorphism; ++i) {
-    PropertyAccessInfo info(this, LOAD, ToType(types->at(i)), name);
+    PropertyAccessInfo info(this, access_type, ToType(types->at(i)), name);
     if (info.type()->Is(Type::String())) {
       if (handled_string) continue;
       handled_string = true;
@@ -5692,16 +5695,28 @@ void HOptimizedGraphBuilder::HandlePolymorphicLoadNamedField(
 
     set_current_block(if_true);
 
-    HInstruction* load = BuildLoadMonomorphic(
-        &info, object, dependency, ast_id,
-        return_id, FLAG_polymorphic_inlining);
-    if (load == NULL) {
+    HInstruction* access = NULL;
+    HValue* result = NULL;
+    switch (access_type) {
+      case LOAD:
+        access = BuildLoadMonomorphic(
+            &info, object, dependency, ast_id,
+            return_id, FLAG_polymorphic_inlining);
+        result = access;
+        break;
+      case STORE:
+        access = BuildStoreMonomorphic(
+            &info, dependency, value, ast_id, return_id,
+            FLAG_polymorphic_inlining);
+        result = value;
+        break;
+    }
+
+    if (access == NULL) {
       if (HasStackOverflow()) return;
     } else {
-      if (!load->IsLinked()) {
-        AddInstruction(load);
-      }
-      if (!ast_context()->IsEffect()) Push(load);
+      if (!access->IsLinked()) AddInstruction(access);
+      if (!ast_context()->IsEffect()) Push(result);
     }
 
     if (current_block() != NULL) Goto(join);
@@ -5716,10 +5731,28 @@ void HOptimizedGraphBuilder::HandlePolymorphicLoadNamedField(
     // that the environment stack matches the depth on deopt that it otherwise
     // would have had after a successful load.
     if (!ast_context()->IsEffect()) Push(graph()->GetConstant0());
-    FinishExitWithHardDeoptimization("Unknown map in polymorphic load", join);
+    const char* message = "";
+    switch (access_type) {
+      case LOAD:
+        message = "Unknown map in polymorphic load";
+        break;
+      case STORE:
+        message = "Unknown map in polymorphic store";
+        break;
+    }
+    FinishExitWithHardDeoptimization(message, join);
   } else {
-    HInstruction* load = Add<HLoadNamedGeneric>(object, name);
-    if (!ast_context()->IsEffect()) Push(load);
+    HValue* result = NULL;
+    switch (access_type) {
+      case LOAD:
+        result = Add<HLoadNamedGeneric>(object, name);
+        break;
+      case STORE:
+        AddInstruction(BuildStoreNamedGeneric(object, name, value));
+        result = value;
+        break;
+    }
+    if (!ast_context()->IsEffect()) Push(result);
 
     if (join != NULL) {
       Goto(join);
@@ -5734,90 +5767,6 @@ void HOptimizedGraphBuilder::HandlePolymorphicLoadNamedField(
   join->SetJoinId(ast_id);
   set_current_block(join);
   if (!ast_context()->IsEffect()) ast_context()->ReturnValue(Pop());
-}
-
-
-void HOptimizedGraphBuilder::HandlePolymorphicStoreNamedField(
-    BailoutId assignment_id,
-    BailoutId return_id,
-    HValue* object,
-    HValue* value,
-    SmallMapList* types,
-    Handle<String> name) {
-  int count = 0;
-  HBasicBlock* join = NULL;
-  // TODO(verwaest): Unify with polymorphic load handling.
-  for (int i = 0; i < types->length() && count < kMaxStorePolymorphism; ++i) {
-    PropertyAccessInfo info(this, STORE, ToType(types->at(i)), name);
-    if (info.CanAccessMonomorphic()) {
-      if (count == 0) {
-        BuildCheckHeapObject(object);
-        join = graph()->CreateBasicBlock();
-      }
-      ++count;
-      HBasicBlock* if_true = graph()->CreateBasicBlock();
-      HBasicBlock* if_false = graph()->CreateBasicBlock();
-      HCompareMap* compare = New<HCompareMap>(
-          object, info.map(),  if_true, if_false);
-      FinishCurrentBlock(compare);
-
-      set_current_block(if_true);
-
-      HInstruction* store;
-      store = BuildStoreMonomorphic(
-          &info, compare, value, assignment_id, return_id,
-          FLAG_polymorphic_inlining);
-
-      if (store == NULL) {
-        if (HasStackOverflow()) return;
-      } else {
-        ASSERT(!store->IsLinked());
-        AddInstruction(store);
-        if (!ast_context()->IsEffect()) Push(value);
-      }
-
-      if (current_block() != NULL) Goto(join);
-      set_current_block(if_false);
-    }
-  }
-
-  // Finish up.  Unconditionally deoptimize if we've handled all the maps we
-  // know about and do not want to handle ones we've never seen.  Otherwise
-  // use a generic IC.
-  if (count == types->length() && FLAG_deoptimize_uncommon_cases) {
-    FinishExitWithHardDeoptimization("Unknown map in polymorphic store", join);
-  } else {
-    HInstruction* instr = BuildStoreNamedGeneric(object, name, value);
-    AddInstruction(instr);
-
-    if (join != NULL) {
-      if (!ast_context()->IsEffect()) {
-        Push(value);
-      }
-      Goto(join);
-    } else {
-      // The HSimulate for the store should not see the stored value in
-      // effect contexts (it is not materialized at expr->id() in the
-      // unoptimized code).
-      if (instr->HasObservableSideEffects()) {
-        if (ast_context()->IsEffect()) {
-          Add<HSimulate>(assignment_id, REMOVABLE_SIMULATE);
-        } else {
-          Push(value);
-          Add<HSimulate>(assignment_id, REMOVABLE_SIMULATE);
-          Drop(1);
-        }
-      }
-      return ast_context()->ReturnValue(value);
-    }
-  }
-
-  ASSERT(join != NULL);
-  join->SetJoinId(assignment_id);
-  set_current_block(join);
-  if (!ast_context()->IsEffect()) {
-    ast_context()->ReturnValue(Pop());
-  }
 }
 
 
@@ -5882,8 +5831,8 @@ void HOptimizedGraphBuilder::BuildStore(Expression* expr,
   if (types->length() > 0) {
     PropertyAccessInfo info(this, STORE, ToType(types->first()), name);
     if (!info.CanAccessAsMonomorphic(types)) {
-      return HandlePolymorphicStoreNamedField(
-          ast_id, return_id, object, value, types, name);
+      return HandlePolymorphicNamedFieldAccess(
+          STORE, ast_id, return_id, object, value, types, name);
     }
 
     ASSERT(!info.type()->Is(Type::Number()));
@@ -6734,8 +6683,8 @@ void HOptimizedGraphBuilder::BuildLoad(Property* expr,
     if (types->length() > 0) {
       PropertyAccessInfo info(this, LOAD, ToType(types->first()), name);
       if (!info.CanAccessAsMonomorphic(types)) {
-        return HandlePolymorphicLoadNamedField(
-            ast_id, expr->LoadId(), object, types, name);
+        return HandlePolymorphicNamedFieldAccess(
+            LOAD, ast_id, expr->LoadId(), object, NULL, types, name);
       }
 
       HValue* checked_object;

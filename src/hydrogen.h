@@ -2187,6 +2187,8 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   Type* ToType(Handle<Map> map) { return IC::MapToType<Type>(map, zone()); }
 
  private:
+  enum PropertyAccessType { LOAD, STORE };
+
   // Helpers for flow graph construction.
   enum GlobalPropertyAccess {
     kUseCell,
@@ -2251,11 +2253,13 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
 
   void HandlePropertyAssignment(Assignment* expr);
   void HandleCompoundAssignment(Assignment* expr);
-  void HandlePolymorphicLoadNamedField(BailoutId ast_id,
-                                       BailoutId return_id,
-                                       HValue* object,
-                                       SmallMapList* types,
-                                       Handle<String> name);
+  void HandlePolymorphicNamedFieldAccess(PropertyAccessType access_type,
+                                         BailoutId ast_id,
+                                         BailoutId return_id,
+                                         HValue* object,
+                                         HValue* value,
+                                         SmallMapList* types,
+                                         Handle<String> name);
 
   void VisitTypedArrayInitialize(CallRuntime* expr);
 
@@ -2264,7 +2268,6 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
 
   void VisitDataViewInitialize(CallRuntime* expr);
 
-  enum PropertyAccessType { LOAD, STORE };
   class PropertyAccessInfo {
    public:
     PropertyAccessInfo(HOptimizedGraphBuilder* builder,
@@ -2390,12 +2393,6 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
                                       BailoutId return_id,
                                       bool can_inline_accessor = true);
 
-  void HandlePolymorphicStoreNamedField(BailoutId assignment_id,
-                                        BailoutId return_id,
-                                        HValue* object,
-                                        HValue* value,
-                                        SmallMapList* types,
-                                        Handle<String> name);
   void HandlePolymorphicCallNamed(Call* expr,
                                   HValue* receiver,
                                   SmallMapList* types,
