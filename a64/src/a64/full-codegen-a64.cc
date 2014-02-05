@@ -1630,6 +1630,9 @@ void FullCodeGenerator::EmitAccessor(Expression* expression) {
 
 void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
   Comment cmnt(masm_, "[ ObjectLiteral");
+
+  int depth = 1;
+  expr->BuildConstantProperties(isolate(), &depth);
   Handle<FixedArray> constant_properties = expr->constant_properties();
   __ Ldr(x3, MemOperand(fp,  JavaScriptFrameConstants::kFunctionOffset));
   __ Ldr(x3, FieldMemOperand(x3, JSFunction::kLiteralsOffset));
@@ -1646,7 +1649,7 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
   const int max_cloned_properties =
       FastCloneShallowObjectStub::kMaximumClonedProperties;
   if ((FLAG_track_double_fields && expr->may_store_doubles()) ||
-      (expr->depth() > 1 || Serializer::enabled()) ||
+      (depth > 1) || Serializer::enabled() ||
       (flags != ObjectLiteral::kFastElements) ||
       (properties_count > max_cloned_properties)) {
     __ Push(x3, x2, x1, x0);
@@ -1766,6 +1769,8 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
 void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
   Comment cmnt(masm_, "[ ArrayLiteral");
 
+  int depth = 1;
+  expr->BuildConstantElements(isolate(), &depth);
   ZoneList<Expression*>* subexprs = expr->values();
   int length = subexprs->length();
   Handle<FixedArray> constant_elements = expr->constant_elements();
@@ -1790,8 +1795,7 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
     __ CallStub(&stub);
     __ IncrementCounter(
         isolate()->counters()->cow_arrays_created_stub(), 1, x10, x11);
-  } else if (expr->depth() > 1 ||
-             Serializer::enabled() ||
+  } else if ((depth > 1) || Serializer::enabled() ||
              length > FastCloneShallowArrayStub::kMaximumClonedLength) {
     __ Push(x3, x2, x1);
     __ CallRuntime(Runtime::kCreateArrayLiteral, 3);
@@ -3463,8 +3467,18 @@ void FullCodeGenerator::EmitStringAdd(CallRuntime* expr) {
   ASM_LOCATION("FullCodeGenerator::EmitStringAdd");
   ZoneList<Expression*>* args = expr->arguments();
   ASSERT_EQ(2, args->length());
-  VisitForStackValue(args->at(0));
-  VisitForStackValue(args->at(1));
+
+  if (FLAG_new_string_add) {
+    VisitForStackValue(args->at(0));
+    VisitForAccumulatorValue(args->at(1));
+
+    __ Pop(x1);
+    NewStringAddStub stub(STRING_ADD_CHECK_BOTH, NOT_TENURED);
+    __ CallStub(&stub);
+  } else {
+    VisitForStackValue(args->at(0));
+    VisitForStackValue(args->at(1));
+  }
 
   StringAddStub stub(STRING_ADD_CHECK_BOTH);
   __ CallStub(&stub);
@@ -4143,14 +4157,44 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
     PrepareForBailoutForId(prop->LoadId(), TOS_REG);
   }
 
-  // Call ToNumber only if operand is not a smi.
-  Label no_conversion;
+  // Inline smi case if we are in a loop.
+  Label stub_call, done;
+  JumpPatchSite patch_site(masm_);
+
+  int count_value = expr->op() == Token::INC ? 1 : -1;
   if (ShouldInlineSmiCase(expr->op())) {
-    __ JumpIfSmi(x0, &no_conversion);
+    Label slow;
+    patch_site.EmitJumpIfNotSmi(x0, &slow);
+
+    // Save result for postfix expressions.
+    if (expr->is_postfix()) {
+      if (!context()->IsEffect()) {
+        // Save the result on the stack. If we have a named or keyed property we
+        // store the result under the receiver that is currently on top of the
+        // stack.
+        switch (assign_type) {
+          case VARIABLE:
+            __ Push(x0);
+            break;
+          case NAMED_PROPERTY:
+            __ Poke(x0, kPointerSize);
+            break;
+          case KEYED_PROPERTY:
+            __ Poke(x0, kPointerSize * 2);
+            break;
+        }
+      }
+    }
+
+    __ Adds(x0, x0, Operand(Smi::FromInt(count_value)));
+    __ B(vc, &done);
+    // Call stub. Undo operation first.
+    __ Sub(x0, x0, Operand(Smi::FromInt(count_value)));
+    __ B(&stub_call);
+    __ Bind(&slow);
   }
   ToNumberStub convert_stub;
   __ CallStub(&convert_stub);
-  __ Bind(&no_conversion);
 
   // Save result for postfix expressions.
   if (expr->is_postfix()) {
@@ -4172,25 +4216,7 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
     }
   }
 
-
-  // Inline smi case if we are in a loop.
-  Label done;
-  JumpPatchSite patch_site(masm_);
-
-  int count_value = expr->op() == Token::INC ? 1 : -1;
-  if (ShouldInlineSmiCase(expr->op())) {
-    Label stub_call;
-    // Try the add using SMI operations.
-    __ Adds(x0, x0, Operand(Smi::FromInt(count_value)));
-    __ B(vs, &stub_call);
-    // We could eliminate this smi check if we split the code at
-    // the first smi check before calling ToNumber.
-    patch_site.EmitJumpIfSmi(x0, &done);
-
-    // Reverse the speculative add, then fall back to a stub call.
-    __ Bind(&stub_call);
-    __ Sub(x0, x0, Operand(Smi::FromInt(count_value)));
-  }
+  __ Bind(&stub_call);
   __ Mov(x1, x0);
   __ Mov(x0, Operand(Smi::FromInt(count_value)));
 

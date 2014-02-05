@@ -53,6 +53,38 @@ MacroAssembler::MacroAssembler(Isolate* arg_isolate, void* buffer, int size)
 }
 
 
+void MacroAssembler::Load(Register dst,
+                          const MemOperand& src,
+                          Representation r) {
+  ASSERT(!r.IsDouble());
+  if (r.IsInteger8()) {
+    lb(dst, src);
+  } else if (r.IsUInteger8()) {
+    lbu(dst, src);
+  } else if (r.IsInteger16()) {
+    lh(dst, src);
+  } else if (r.IsUInteger16()) {
+    lhu(dst, src);
+  } else {
+    lw(dst, src);
+  }
+}
+
+
+void MacroAssembler::Store(Register src,
+                           const MemOperand& dst,
+                           Representation r) {
+  ASSERT(!r.IsDouble());
+  if (r.IsInteger8() || r.IsUInteger8()) {
+    sb(src, dst);
+  } else if (r.IsInteger16() || r.IsUInteger16()) {
+    sh(src, dst);
+  } else {
+    sw(src, dst);
+  }
+}
+
+
 void MacroAssembler::LoadRoot(Register destination,
                               Heap::RootListIndex index) {
   lw(destination, MemOperand(s6, index << kPointerSizeLog2));
@@ -5651,6 +5683,30 @@ Register GetRegisterThatIsNotOneOf(Register reg1,
   }
   UNREACHABLE();
   return no_reg;
+}
+
+
+void MacroAssembler::JumpIfDictionaryInPrototypeChain(
+    Register object,
+    Register scratch0,
+    Register scratch1,
+    Label* found) {
+  ASSERT(!scratch1.is(scratch0));
+  Factory* factory = isolate()->factory();
+  Register current = scratch0;
+  Label loop_again;
+
+  // Scratch contained elements pointer.
+  Move(current, object);
+
+  // Loop based on the map going up the prototype chain.
+  bind(&loop_again);
+  lw(current, FieldMemOperand(current, HeapObject::kMapOffset));
+  lb(scratch1, FieldMemOperand(current, Map::kBitField2Offset));
+  Ext(scratch1, scratch1, Map::kElementsKindShift, Map::kElementsKindBitCount);
+  Branch(found, eq, scratch1, Operand(DICTIONARY_ELEMENTS));
+  lw(current, FieldMemOperand(current, Map::kPrototypeOffset));
+  Branch(&loop_again, ne, current, Operand(factory->null_value()));
 }
 
 

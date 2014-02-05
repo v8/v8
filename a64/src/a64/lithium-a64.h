@@ -93,6 +93,7 @@ class LCodeGen;
   V(DivI)                                       \
   V(DoubleToIntOrSmi)                           \
   V(Drop)                                       \
+  V(Dummy)                                      \
   V(DummyUse)                                   \
   V(ElementsKind)                               \
   V(ForInCacheArray)                            \
@@ -454,6 +455,13 @@ class LDrop V8_FINAL : public LTemplateInstruction<0, 0, 0> {
 
  private:
   int count_;
+};
+
+
+class LDummy V8_FINAL : public LTemplateInstruction<1, 0, 0> {
+ public:
+  explicit LDummy() { }
+  DECLARE_CONCRETE_INSTRUCTION(Dummy, "dummy")
 };
 
 

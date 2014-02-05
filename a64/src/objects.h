@@ -871,14 +871,6 @@ class ObjectVisitor;
 class StringStream;
 class Type;
 
-struct ValueInfo : public Malloced {
-  ValueInfo() : type(FIRST_TYPE), ptr(NULL), str(NULL), number(0) { }
-  InstanceType type;
-  Object* ptr;
-  const char* str;
-  double number;
-};
-
 
 // A template-ized version of the IsXXX functions.
 template <class C> inline bool Is(Object* obj);
@@ -1343,6 +1335,7 @@ class MaybeObject BASE_EMBEDDED {
   V(kUnexpectedValue, "Unexpected value")                                     \
   V(kUnexpectedUnusedPropertiesOfStringWrapper,                               \
     "Unexpected unused properties of string wrapper")                         \
+  V(kUnimplemented, "unimplemented")                                          \
   V(kUninitializedKSmiConstantRegister, "Uninitialized kSmiConstantRegister") \
   V(kUnknown, "unknown")                                                      \
   V(kUnsupportedConstCompoundAssignment,                                      \
@@ -2416,6 +2409,7 @@ class JSObject: public JSReceiver {
       Handle<Object> value,
       PropertyAttributes attr,
       StrictModeFlag strict_mode,
+      bool check_prototype = true,
       SetPropertyMode set_mode = SET_PROPERTY);
 
   // A Failure object is returned if GC is needed.
@@ -5415,7 +5409,7 @@ class Code: public HeapObject {
     return GetCodeAgeStub(isolate, kNotExecutedCodeAge, NO_MARKING_PARITY);
   }
 
-  void PrintDeoptLocation(int bailout_id);
+  void PrintDeoptLocation(FILE* out, int bailout_id);
   bool CanDeoptAt(Address pc);
 
 #ifdef VERIFY_HEAP
@@ -8658,7 +8652,6 @@ class String: public Name {
   static const int kMaxShortPrintLength = 1024;
 
   // Support for regular expressions.
-  const uc16* GetTwoByteData();
   const uc16* GetTwoByteData(unsigned start);
 
   // Helper function for flattening strings.

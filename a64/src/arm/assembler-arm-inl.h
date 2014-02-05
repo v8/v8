@@ -126,21 +126,21 @@ void RelocInfo::set_target_address(Address target, WriteBarrierMode mode) {
 
 Object* RelocInfo::target_object() {
   ASSERT(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
-  return reinterpret_cast<Object*>(Assembler::target_pointer_at(pc_));
+  return reinterpret_cast<Object*>(Assembler::target_address_at(pc_));
 }
 
 
 Handle<Object> RelocInfo::target_object_handle(Assembler* origin) {
   ASSERT(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
   return Handle<Object>(reinterpret_cast<Object**>(
-      Assembler::target_pointer_at(pc_)));
+      Assembler::target_address_at(pc_)));
 }
 
 
 void RelocInfo::set_target_object(Object* target, WriteBarrierMode mode) {
   ASSERT(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
   ASSERT(!target->IsConsString());
-  Assembler::set_target_pointer_at(pc_, reinterpret_cast<Address>(target));
+  Assembler::set_target_address_at(pc_, reinterpret_cast<Address>(target));
   if (mode == UPDATE_WRITE_BARRIER &&
       host() != NULL &&
       target->IsHeapObject()) {
@@ -263,7 +263,7 @@ void RelocInfo::WipeOut() {
          IsCodeTarget(rmode_) ||
          IsRuntimeEntry(rmode_) ||
          IsExternalReference(rmode_));
-  Assembler::set_target_pointer_at(pc_, NULL);
+  Assembler::set_target_address_at(pc_, NULL);
 }
 
 
@@ -397,7 +397,7 @@ Address Assembler::target_pointer_address_at(Address pc) {
 }
 
 
-Address Assembler::target_pointer_at(Address pc) {
+Address Assembler::target_address_at(Address pc) {
   if (IsMovW(Memory::int32_at(pc))) {
     ASSERT(IsMovT(Memory::int32_at(pc + kInstrSize)));
     Instruction* instr = Instruction::At(pc);
@@ -464,7 +464,7 @@ static Instr EncodeMovwImmediate(uint32_t immediate) {
 }
 
 
-void Assembler::set_target_pointer_at(Address pc, Address target) {
+void Assembler::set_target_address_at(Address pc, Address target) {
   if (IsMovW(Memory::int32_at(pc))) {
     ASSERT(IsMovT(Memory::int32_at(pc + kInstrSize)));
     uint32_t* instr_ptr = reinterpret_cast<uint32_t*>(pc);
@@ -492,16 +492,6 @@ void Assembler::set_target_pointer_at(Address pc, Address target) {
     // since the instruction accessing this address in the constant pool remains
     // unchanged.
   }
-}
-
-
-Address Assembler::target_address_at(Address pc) {
-  return target_pointer_at(pc);
-}
-
-
-void Assembler::set_target_address_at(Address pc, Address target) {
-  set_target_pointer_at(pc, target);
 }
 
 

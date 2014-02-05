@@ -111,10 +111,10 @@ class CPURegister {
   bool IsRegister() const;
   bool IsFPRegister() const;
 
-  const Register& X();
-  const Register& W();
-  const FPRegister& D();
-  const FPRegister& S();
+  const Register& X() const;
+  const Register& W() const;
+  const FPRegister& D() const;
+  const FPRegister& S() const;
 
   bool IsSameSizeAndType(const CPURegister& other) const;
 
@@ -712,10 +712,6 @@ class Assembler : public AssemblerBase {
   // Return the address in the constant pool of the code target address used by
   // the branch/call instruction at pc.
   inline static Address target_pointer_address_at(Address pc);
-
-  // Read/modify the pointer in the branch/call instruction at pc.
-  inline static Address target_pointer_at(Address pc);
-  inline static void set_target_pointer_at(Address pc, Address target);
 
   // Read/Modify the code target address in the branch/call instruction at pc.
   inline static Address target_address_at(Address pc);

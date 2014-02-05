@@ -28,6 +28,7 @@
 {
   'variables': {
     'v8_code': 1,
+    'v8_random_seed%': 314159265,
   },
   'includes': ['../../build/toolchain.gypi', '../../build/features.gypi'],
   'targets': [
@@ -155,6 +156,11 @@
             'mksnapshot_flags': [
               '--log-snapshot-positions',
               '--logfile', '<(INTERMEDIATE_DIR)/snapshot.log',
+            ],
+            'conditions': [
+              ['v8_random_seed!=0', {
+                'mksnapshot_flags': ['--random-seed', '<(v8_random_seed)'],
+              }],
             ],
           },
           'action': [

@@ -61,6 +61,9 @@ class MacroAssembler: public Assembler {
   // macro assembler.
   MacroAssembler(Isolate* isolate, void* buffer, int size);
 
+  void Load(Register dst, const Operand& src, Representation r);
+  void Store(Register src, const Operand& dst, Representation r);
+
   // Operations on roots in the root-array.
   void LoadRoot(Register destination, Heap::RootListIndex index);
   void StoreRoot(Register source, Register scratch, Heap::RootListIndex index);
@@ -417,13 +420,8 @@ class MacroAssembler: public Assembler {
                                    bool specialize_for_processor,
                                    int offset = 0);
 
-  // Compare an object's map with the specified map and its transitioned
-  // elements maps if mode is ALLOW_ELEMENT_TRANSITION_MAPS. FLAGS are set with
-  // result of map compare. If multiple map compares are required, the compare
-  // sequences branches to early_success.
-  void CompareMap(Register obj,
-                  Handle<Map> map,
-                  Label* early_success);
+  // Compare an object's map with the specified map.
+  void CompareMap(Register obj, Handle<Map> map);
 
   // Check if the map of an object is equal to a specified map and branch to
   // label if not. Skip the smi check if not required (object is known to be a

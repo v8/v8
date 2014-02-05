@@ -25,16 +25,19 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-# Too slow in debug mode.
 [
 [ALWAYS, {
-  'dfg-int-overflow-in-loop': [PASS, ['mode == debug', SKIP]],
-  'dfg-double-vote-fuzz': [PASS, ['mode == debug', SKIP]],
-  'reentrant-caching': [PASS, ['mode == debug', SKIP]],
-  'sort-large-array': [PASS, ['mode == debug', SKIP]],
+  ##############################################################################
+  # Flaky tests.
+  # BUG(v8:2989).
+  'dfg-inline-arguments-become-int32': [PASS, FLAKY],
+  'dfg-inline-arguments-reset': [PASS, FLAKY],
 }],  # ALWAYS
-
-##############################################################################
-['deopt_fuzzer == True', {
-}],  # 'deopt_fuzzer == True'
+['mode == debug', {
+  # Too slow in debug mode.
+  'dfg-int-overflow-in-loop': [SKIP],
+  'dfg-double-vote-fuzz': [SKIP],
+  'reentrant-caching': [SKIP],
+  'sort-large-array': [SKIP],
+}],  # 'mode == debug'
 ]

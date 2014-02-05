@@ -338,6 +338,8 @@ DEFINE_bool(omit_map_checks_for_leaf_maps, true,
             "do not emit check maps for constant values that have a leaf map, "
             "deoptimize the optimized code if the layout of the maps changes.")
 
+DEFINE_bool(new_string_add, false, "enable new string addition")
+
 // Experimental profiler changes.
 DEFINE_bool(experimental_profiler, true, "enable all profiler experiments")
 DEFINE_bool(watch_ic_patching, false, "profiler considers IC stability")
@@ -815,6 +817,12 @@ DEFINE_string(log_instruction_file, "a64_inst.csv",
               "AArch64 instruction statistics log file.")
 DEFINE_int(log_instruction_period, 1 << 22,
            "AArch64 instruction statistics logging period.")
+
+DEFINE_bool(redirect_code_traces, false,
+            "output deopt information and disassembly into file "
+            "code-<pid>-<isolate id>.asm")
+DEFINE_string(redirect_code_traces_to, NULL,
+            "output deopt information and disassembly into the given file")
 
 //
 // Disassembler only flags

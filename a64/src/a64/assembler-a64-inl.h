@@ -239,25 +239,25 @@ inline const FPRegister& FPRegister::DRegFromCode(unsigned code) {
 }
 
 
-inline const Register& CPURegister::W() {
+inline const Register& CPURegister::W() const {
   ASSERT(IsValidRegister());
   return Register::WRegFromCode(code_);
 }
 
 
-inline const Register& CPURegister::X() {
+inline const Register& CPURegister::X() const {
   ASSERT(IsValidRegister());
   return Register::XRegFromCode(code_);
 }
 
 
-inline const FPRegister& CPURegister::S() {
+inline const FPRegister& CPURegister::S() const {
   ASSERT(IsValidFPRegister());
   return FPRegister::SRegFromCode(code_);
 }
 
 
-inline const FPRegister& CPURegister::D() {
+inline const FPRegister& CPURegister::D() const {
   ASSERT(IsValidFPRegister());
   return FPRegister::DRegFromCode(code_);
 }
@@ -501,7 +501,7 @@ Address Assembler::target_pointer_address_at(Address pc) {
 
 
 // Read/Modify the code target address in the branch/call instruction at pc.
-Address Assembler::target_pointer_at(Address pc) {
+Address Assembler::target_address_at(Address pc) {
   return Memory::Address_at(target_pointer_address_at(pc));
 }
 
@@ -558,16 +558,6 @@ Address Assembler::return_address_from_call_start(Address pc) {
 }
 
 
-Address Assembler::target_address_at(Address pc) {
-  return target_pointer_at(pc);
-}
-
-
-void Assembler::set_target_address_at(Address pc, Address target) {
-  set_target_pointer_at(pc, target);
-}
-
-
 void Assembler::deserialization_set_special_target_at(
     Address constant_pool_entry, Address target) {
   Memory::Address_at(constant_pool_entry) = target;
@@ -580,7 +570,7 @@ void Assembler::set_external_target_at(Address constant_pool_entry,
 }
 
 
-void Assembler::set_target_pointer_at(Address pc, Address target) {
+void Assembler::set_target_address_at(Address pc, Address target) {
   Memory::Address_at(target_pointer_address_at(pc)) = target;
   // Intuitively, we would think it is necessary to always flush the
   // instruction cache after patching a target address in the code as follows:
@@ -614,21 +604,21 @@ Address RelocInfo::target_address_address() {
 
 Object* RelocInfo::target_object() {
   ASSERT(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
-  return reinterpret_cast<Object*>(Assembler::target_pointer_at(pc_));
+  return reinterpret_cast<Object*>(Assembler::target_address_at(pc_));
 }
 
 
 Handle<Object> RelocInfo::target_object_handle(Assembler* origin) {
   ASSERT(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
   return Handle<Object>(reinterpret_cast<Object**>(
-      Assembler::target_pointer_at(pc_)));
+      Assembler::target_address_at(pc_)));
 }
 
 
 void RelocInfo::set_target_object(Object* target, WriteBarrierMode mode) {
   ASSERT(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
   ASSERT(!target->IsConsString());
-  Assembler::set_target_pointer_at(pc_, reinterpret_cast<Address>(target));
+  Assembler::set_target_address_at(pc_, reinterpret_cast<Address>(target));
   if (mode == UPDATE_WRITE_BARRIER &&
       host() != NULL &&
       target->IsHeapObject()) {
@@ -730,7 +720,7 @@ void RelocInfo::WipeOut() {
          IsCodeTarget(rmode_) ||
          IsRuntimeEntry(rmode_) ||
          IsExternalReference(rmode_));
-  Assembler::set_target_pointer_at(pc_, NULL);
+  Assembler::set_target_address_at(pc_, NULL);
 }
 
 

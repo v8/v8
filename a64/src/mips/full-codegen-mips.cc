@@ -1644,6 +1644,9 @@ void FullCodeGenerator::EmitAccessor(Expression* expression) {
 
 void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
   Comment cmnt(masm_, "[ ObjectLiteral");
+
+  int depth = 1;
+  expr->BuildConstantProperties(isolate(), &depth);
   Handle<FixedArray> constant_properties = expr->constant_properties();
   __ lw(a3, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
   __ lw(a3, FieldMemOperand(a3, JSFunction::kLiteralsOffset));
@@ -1658,7 +1661,7 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
   __ li(a0, Operand(Smi::FromInt(flags)));
   int properties_count = constant_properties->length() / 2;
   if ((FLAG_track_double_fields && expr->may_store_doubles()) ||
-      expr->depth() > 1 || Serializer::enabled() ||
+      depth > 1 || Serializer::enabled() ||
       flags != ObjectLiteral::kFastElements ||
       properties_count > FastCloneShallowObjectStub::kMaximumClonedProperties) {
     __ Push(a3, a2, a1, a0);
@@ -1777,6 +1780,8 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
 void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
   Comment cmnt(masm_, "[ ArrayLiteral");
 
+  int depth = 1;
+  expr->BuildConstantElements(isolate(), &depth);
   ZoneList<Expression*>* subexprs = expr->values();
   int length = subexprs->length();
 
@@ -1803,8 +1808,7 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
     __ CallStub(&stub);
     __ IncrementCounter(isolate()->counters()->cow_arrays_created_stub(),
         1, a1, a2);
-  } else if (expr->depth() > 1 ||
-             Serializer::enabled() ||
+  } else if (depth > 1 || Serializer::enabled() ||
              length > FastCloneShallowArrayStub::kMaximumClonedLength) {
     __ Push(a3, a2, a1);
     __ CallRuntime(Runtime::kCreateArrayLiteral, 3);
@@ -4438,15 +4442,48 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
     PrepareForBailoutForId(prop->LoadId(), TOS_REG);
   }
 
-  // Call ToNumber only if operand is not a smi.
-  Label no_conversion;
-  if (ShouldInlineSmiCase(expr->op())) {
-    __ JumpIfSmi(v0, &no_conversion);
-  }
+  // Inline smi case if we are in a loop.
+  Label stub_call, done;
+  JumpPatchSite patch_site(masm_);
+
+  int count_value = expr->op() == Token::INC ? 1 : -1;
   __ mov(a0, v0);
+  if (ShouldInlineSmiCase(expr->op())) {
+    Label slow;
+    patch_site.EmitJumpIfNotSmi(v0, &slow);
+
+    // Save result for postfix expressions.
+    if (expr->is_postfix()) {
+      if (!context()->IsEffect()) {
+        // Save the result on the stack. If we have a named or keyed property
+        // we store the result under the receiver that is currently on top
+        // of the stack.
+        switch (assign_type) {
+          case VARIABLE:
+            __ push(v0);
+            break;
+          case NAMED_PROPERTY:
+            __ sw(v0, MemOperand(sp, kPointerSize));
+            break;
+          case KEYED_PROPERTY:
+            __ sw(v0, MemOperand(sp, 2 * kPointerSize));
+            break;
+        }
+      }
+    }
+
+    Register scratch1 = a1;
+    Register scratch2 = t0;
+    __ li(scratch1, Operand(Smi::FromInt(count_value)));
+    __ AdduAndCheckForOverflow(v0, v0, scratch1, scratch2);
+    __ BranchOnNoOverflow(&done, scratch2);
+    // Call stub. Undo operation first.
+    __ Move(v0, a0);
+    __ jmp(&stub_call);
+    __ bind(&slow);
+  }
   ToNumberStub convert_stub;
   __ CallStub(&convert_stub);
-  __ bind(&no_conversion);
 
   // Save result for postfix expressions.
   if (expr->is_postfix()) {
@@ -4467,24 +4504,9 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
       }
     }
   }
-  __ mov(a0, result_register());
 
-  // Inline smi case if we are in a loop.
-  Label stub_call, done;
-  JumpPatchSite patch_site(masm_);
-
-  int count_value = expr->op() == Token::INC ? 1 : -1;
-  if (ShouldInlineSmiCase(expr->op())) {
-    __ li(a1, Operand(Smi::FromInt(count_value)));
-    __ AdduAndCheckForOverflow(v0, a0, a1, t0);
-    __ BranchOnOverflow(&stub_call, t0);  // Do stub on overflow.
-
-    // We could eliminate this smi check if we split the code at
-    // the first smi check before calling ToNumber.
-    patch_site.EmitJumpIfSmi(v0, &done);
-    __ bind(&stub_call);
-  }
-  __ mov(a1, a0);
+  __ bind(&stub_call);
+  __ mov(a1, v0);
   __ li(a0, Operand(Smi::FromInt(count_value)));
 
   // Record position before stub call.

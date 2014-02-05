@@ -202,6 +202,10 @@ class MacroAssembler : public Assembler {
                       const MemOperand& addr,
                       LoadStoreOp op);
 
+  // V8-specific load/store helpers.
+  void Load(const Register& rt, const MemOperand& addr, Representation r);
+  void Store(const Register& rt, const MemOperand& addr, Representation r);
+
   // Remaining instructions are simple pass-through calls to the assembler.
   inline void Adr(const Register& rd, Label* label);
   inline void Asr(const Register& rd, const Register& rn, unsigned shift);

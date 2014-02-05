@@ -710,6 +710,21 @@ DEFINE_GET_CONSTANT(Null, null, HType::Tagged(), false)
 
 #undef DEFINE_GET_CONSTANT
 
+#define DEFINE_IS_CONSTANT(Name, name)                                         \
+bool HGraph::IsConstant##Name(HConstant* constant) {                           \
+  return constant_##name##_.is_set() && constant == constant_##name##_.get();  \
+}
+DEFINE_IS_CONSTANT(Undefined, undefined)
+DEFINE_IS_CONSTANT(0, 0)
+DEFINE_IS_CONSTANT(1, 1)
+DEFINE_IS_CONSTANT(Minus1, minus1)
+DEFINE_IS_CONSTANT(True, true)
+DEFINE_IS_CONSTANT(False, false)
+DEFINE_IS_CONSTANT(Hole, the_hole)
+DEFINE_IS_CONSTANT(Null, null)
+
+#undef DEFINE_IS_CONSTANT
+
 
 HConstant* HGraph::GetInvalidContext() {
   return GetConstant(&constant_invalid_context_, 0xFFFFC0C7);
@@ -717,14 +732,14 @@ HConstant* HGraph::GetInvalidContext() {
 
 
 bool HGraph::IsStandardConstant(HConstant* constant) {
-  if (constant == GetConstantUndefined()) return true;
-  if (constant == GetConstant0()) return true;
-  if (constant == GetConstant1()) return true;
-  if (constant == GetConstantMinus1()) return true;
-  if (constant == GetConstantTrue()) return true;
-  if (constant == GetConstantFalse()) return true;
-  if (constant == GetConstantHole()) return true;
-  if (constant == GetConstantNull()) return true;
+  if (IsConstantUndefined(constant)) return true;
+  if (IsConstant0(constant)) return true;
+  if (IsConstant1(constant)) return true;
+  if (IsConstantMinus1(constant)) return true;
+  if (IsConstantTrue(constant)) return true;
+  if (IsConstantFalse(constant)) return true;
+  if (IsConstantHole(constant)) return true;
+  if (IsConstantNull(constant)) return true;
   return false;
 }
 
@@ -1451,6 +1466,342 @@ HValue* HGraphBuilder::BuildNumberToString(HValue* object,
             1));
   }
   if_found.End();
+
+  return Pop();
+}
+
+
+HValue* HGraphBuilder::BuildSeqStringSizeFor(HValue* length,
+                                             String::Encoding encoding) {
+  STATIC_ASSERT((SeqString::kHeaderSize & kObjectAlignmentMask) == 0);
+  HValue* size = length;
+  if (encoding == String::TWO_BYTE_ENCODING) {
+    size = Add<HShl>(length, graph()->GetConstant1());
+    size->ClearFlag(HValue::kCanOverflow);
+    size->SetFlag(HValue::kUint32);
+  }
+  size = Add<HAdd>(size, Add<HConstant>(static_cast<int32_t>(
+              SeqString::kHeaderSize + kObjectAlignmentMask)));
+  size->ClearFlag(HValue::kCanOverflow);
+  size = Add<HBitwise>(
+      Token::BIT_AND, size, Add<HConstant>(static_cast<int32_t>(
+              ~kObjectAlignmentMask)));
+  return size;
+}
+
+
+void HGraphBuilder::BuildCopySeqStringChars(HValue* src,
+                                            HValue* src_offset,
+                                            String::Encoding src_encoding,
+                                            HValue* dst,
+                                            HValue* dst_offset,
+                                            String::Encoding dst_encoding,
+                                            HValue* length) {
+  ASSERT(dst_encoding != String::ONE_BYTE_ENCODING ||
+         src_encoding == String::ONE_BYTE_ENCODING);
+  LoopBuilder loop(this, context(), LoopBuilder::kPostIncrement);
+  HValue* index = loop.BeginBody(graph()->GetConstant0(), length, Token::LT);
+  {
+    HValue* src_index = Add<HAdd>(src_offset, index);
+    HValue* value = Add<HSeqStringGetChar>(src_encoding, src, src_index);
+    HValue* dst_index = Add<HAdd>(dst_offset, index);
+    Add<HSeqStringSetChar>(dst_encoding, dst, dst_index, value);
+  }
+  loop.EndBody();
+}
+
+
+HValue* HGraphBuilder::BuildUncheckedStringAdd(HValue* left,
+                                               HValue* right,
+                                               PretenureFlag pretenure_flag) {
+  // Determine the string lengths.
+  HValue* left_length = Add<HLoadNamedField>(
+      left, HObjectAccess::ForStringLength());
+  HValue* right_length = Add<HLoadNamedField>(
+      right, HObjectAccess::ForStringLength());
+
+  // Check if we concatenated the strings here, or if we have to resort to the
+  // runtime function.
+  HIfContinuation handled(graph()->CreateBasicBlock(),
+                          graph()->CreateBasicBlock());
+
+  // Check if both parameters do not exceed half the max string length, because
+  // exceptionally long strings should be handled in the runtime. Unfortunately
+  // we cannot actually check whether the combined length of both strings
+  // exceeds String::kMaxLength (because of unclear results from the
+  // representation inference phase), so we use a pessimistic approach here
+  // instead, checking that the length of either substring does not exceed half
+  // of String::kMaxLength.
+  HConstant* max_length = Add<HConstant>(String::kMaxLength / 2);
+  IfBuilder if_nooverflow(this);
+  if_nooverflow.If<HCompareNumericAndBranch>(
+      left_length, max_length, Token::LTE);
+  if_nooverflow.AndIf<HCompareNumericAndBranch>(
+      right_length, max_length, Token::LTE);
+  if_nooverflow.Then();
+  {
+    // Determine the string instance types.
+    HLoadNamedField* left_instance_type = Add<HLoadNamedField>(
+        Add<HLoadNamedField>(left, HObjectAccess::ForMap()),
+        HObjectAccess::ForMapInstanceType());
+    HLoadNamedField* right_instance_type = Add<HLoadNamedField>(
+        Add<HLoadNamedField>(right, HObjectAccess::ForMap()),
+        HObjectAccess::ForMapInstanceType());
+
+    // Compute difference of instance types.
+    HValue* xored_instance_types = Add<HBitwise>(
+        Token::BIT_XOR, left_instance_type, right_instance_type);
+
+    // Compute the length of the resulting string.
+    HValue* length = Add<HAdd>(left_length, right_length);
+
+    // Check if we should create a cons string.
+    IfBuilder if_createcons(this);
+    if_createcons.If<HCompareNumericAndBranch>(
+        length, Add<HConstant>(ConsString::kMinLength), Token::GTE);
+    if_createcons.Then();
+    {
+      // Allocate the cons string object. HAllocate does not care whether we
+      // pass CONS_STRING_TYPE or CONS_ASCII_STRING_TYPE here, so we just use
+      // CONS_STRING_TYPE here. Below we decide whether the cons string is
+      // one-byte or two-byte and set the appropriate map.
+      HAllocate* string = Add<HAllocate>(Add<HConstant>(ConsString::kSize),
+                                         HType::String(), pretenure_flag,
+                                         CONS_STRING_TYPE);
+
+      // Compute the intersection of instance types.
+      HValue* anded_instance_types = Add<HBitwise>(
+          Token::BIT_AND, left_instance_type, right_instance_type);
+
+      // We create a one-byte cons string if
+      // 1. both strings are one-byte, or
+      // 2. at least one of the strings is two-byte, but happens to contain only
+      //    one-byte characters.
+      // To do this, we check
+      // 1. if both strings are one-byte, or if the one-byte data hint is set in
+      //    both strings, or
+      // 2. if one of the strings has the one-byte data hint set and the other
+      //    string is one-byte.
+      IfBuilder if_onebyte(this);
+      STATIC_ASSERT(kOneByteStringTag != 0);
+      STATIC_ASSERT(kOneByteDataHintMask != 0);
+      if_onebyte.If<HCompareNumericAndBranch>(
+          Add<HBitwise>(
+              Token::BIT_AND, anded_instance_types,
+              Add<HConstant>(static_cast<int32_t>(
+                      kStringEncodingMask | kOneByteDataHintMask))),
+          graph()->GetConstant0(), Token::NE);
+      if_onebyte.Or();
+      STATIC_ASSERT(kOneByteStringTag != 0 &&
+                    kOneByteDataHintTag != 0 &&
+                    kOneByteDataHintTag != kOneByteStringTag);
+      if_onebyte.If<HCompareNumericAndBranch>(
+          Add<HBitwise>(
+              Token::BIT_AND, xored_instance_types,
+              Add<HConstant>(static_cast<int32_t>(
+                      kOneByteStringTag | kOneByteDataHintTag))),
+          Add<HConstant>(static_cast<int32_t>(
+                  kOneByteStringTag | kOneByteDataHintTag)), Token::EQ);
+      if_onebyte.Then();
+      {
+        // We can safely skip the write barrier for storing the map here.
+        Handle<Map> map = isolate()->factory()->cons_ascii_string_map();
+        AddStoreMapConstantNoWriteBarrier(string, map);
+      }
+      if_onebyte.Else();
+      {
+        // We can safely skip the write barrier for storing the map here.
+        Handle<Map> map = isolate()->factory()->cons_string_map();
+        AddStoreMapConstantNoWriteBarrier(string, map);
+      }
+      if_onebyte.End();
+
+      // Initialize the cons string fields.
+      Add<HStoreNamedField>(string, HObjectAccess::ForStringHashField(),
+                            Add<HConstant>(String::kEmptyHashField));
+      Add<HStoreNamedField>(string, HObjectAccess::ForStringLength(), length);
+      Add<HStoreNamedField>(string, HObjectAccess::ForConsStringFirst(), left);
+      Add<HStoreNamedField>(string, HObjectAccess::ForConsStringSecond(),
+                            right);
+
+      // Cons string is result.
+      Push(string);
+    }
+    if_createcons.Else();
+    {
+      // Compute union of instance types.
+      HValue* ored_instance_types = Add<HBitwise>(
+          Token::BIT_OR, left_instance_type, right_instance_type);
+
+      // Check if both strings have the same encoding and both are
+      // sequential.
+      IfBuilder if_sameencodingandsequential(this);
+      if_sameencodingandsequential.If<HCompareNumericAndBranch>(
+          Add<HBitwise>(
+              Token::BIT_AND, xored_instance_types,
+              Add<HConstant>(static_cast<int32_t>(kStringEncodingMask))),
+          graph()->GetConstant0(), Token::EQ);
+      if_sameencodingandsequential.And();
+      STATIC_ASSERT(kSeqStringTag == 0);
+      if_sameencodingandsequential.If<HCompareNumericAndBranch>(
+          Add<HBitwise>(
+              Token::BIT_AND, ored_instance_types,
+              Add<HConstant>(static_cast<int32_t>(kStringRepresentationMask))),
+          graph()->GetConstant0(), Token::EQ);
+      if_sameencodingandsequential.Then();
+      {
+        // Check if the result is a one-byte string.
+        IfBuilder if_onebyte(this);
+        STATIC_ASSERT(kOneByteStringTag != 0);
+        if_onebyte.If<HCompareNumericAndBranch>(
+            Add<HBitwise>(
+                Token::BIT_AND, ored_instance_types,
+                Add<HConstant>(static_cast<int32_t>(kStringEncodingMask))),
+            graph()->GetConstant0(), Token::NE);
+        if_onebyte.Then();
+        {
+          // Calculate the number of bytes needed for the characters in the
+          // string while observing object alignment.
+          HValue* size = BuildSeqStringSizeFor(
+              length, String::ONE_BYTE_ENCODING);
+
+          // Allocate the ASCII string object.
+          Handle<Map> map = isolate()->factory()->ascii_string_map();
+          HAllocate* string = Add<HAllocate>(size, HType::String(),
+                                             pretenure_flag, ASCII_STRING_TYPE);
+          string->set_known_initial_map(map);
+
+          // We can safely skip the write barrier for storing map here.
+          AddStoreMapConstantNoWriteBarrier(string, map);
+
+          // Copy bytes from the left string.
+          BuildCopySeqStringChars(
+              left, graph()->GetConstant0(), String::ONE_BYTE_ENCODING,
+              string, graph()->GetConstant0(), String::ONE_BYTE_ENCODING,
+              left_length);
+
+          // Copy bytes from the right string.
+          BuildCopySeqStringChars(
+              right, graph()->GetConstant0(), String::ONE_BYTE_ENCODING,
+              string, left_length, String::ONE_BYTE_ENCODING,
+              right_length);
+
+          // Return the string.
+          Push(string);
+        }
+        if_onebyte.Else();
+        {
+          // Calculate the number of bytes needed for the characters in the
+          // string while observing object alignment.
+          HValue* size = BuildSeqStringSizeFor(
+              length, String::TWO_BYTE_ENCODING);
+
+          // Allocate the two-byte string object.
+          Handle<Map> map = isolate()->factory()->string_map();
+          HAllocate* string = Add<HAllocate>(size, HType::String(),
+                                             pretenure_flag, STRING_TYPE);
+          string->set_known_initial_map(map);
+
+          // We can safely skip the write barrier for storing map here.
+          AddStoreMapConstantNoWriteBarrier(string, map);
+
+          // Copy bytes from the left string.
+          BuildCopySeqStringChars(
+              left, graph()->GetConstant0(), String::TWO_BYTE_ENCODING,
+              string, graph()->GetConstant0(), String::TWO_BYTE_ENCODING,
+              left_length);
+
+          // Copy bytes from the right string.
+          BuildCopySeqStringChars(
+              right, graph()->GetConstant0(), String::TWO_BYTE_ENCODING,
+              string, left_length, String::TWO_BYTE_ENCODING,
+              right_length);
+
+          // Return the string.
+          Push(string);
+        }
+        if_onebyte.End();
+
+        // Initialize the (common) string fields.
+        HValue* string = Pop();
+        Add<HStoreNamedField>(string, HObjectAccess::ForStringHashField(),
+                              Add<HConstant>(String::kEmptyHashField));
+        Add<HStoreNamedField>(string, HObjectAccess::ForStringLength(),
+                              length);
+        Push(string);
+      }
+      if_sameencodingandsequential.JoinContinuation(&handled);
+    }
+    if_createcons.JoinContinuation(&handled);
+  }
+  if_nooverflow.JoinContinuation(&handled);
+
+  // Check if the strings were concatenated successfully, otherwise fallback to
+  // add the strings in the runtime.
+  IfBuilder if_handled(this, &handled);
+  if_handled.Then();
+  {
+    // Count the native string addition.
+    AddIncrementCounter(isolate()->counters()->string_add_native());
+  }
+  if_handled.Else();
+  {
+    // Fallback to the runtime to add the two strings.
+    Add<HPushArgument>(left);
+    Add<HPushArgument>(right);
+    Push(Add<HCallRuntime>(isolate()->factory()->empty_string(),
+                           Runtime::FunctionForId(Runtime::kStringAdd),
+                           2));
+  }
+  if_handled.End();
+
+  return Pop();
+}
+
+
+HValue* HGraphBuilder::BuildStringAdd(HValue* left,
+                                      HValue* right,
+                                      PretenureFlag pretenure_flag) {
+  // Determine the string lengths.
+  HValue* left_length = Add<HLoadNamedField>(
+      left, HObjectAccess::ForStringLength());
+  HValue* right_length = Add<HLoadNamedField>(
+      right, HObjectAccess::ForStringLength());
+
+  // Check if left string is empty.
+  IfBuilder if_leftisempty(this);
+  if_leftisempty.If<HCompareNumericAndBranch>(
+      left_length, graph()->GetConstant0(), Token::EQ);
+  if_leftisempty.Then();
+  {
+    // Count the native string addition.
+    AddIncrementCounter(isolate()->counters()->string_add_native());
+
+    // Just return the right string.
+    Push(right);
+  }
+  if_leftisempty.Else();
+  {
+    // Check if right string is empty.
+    IfBuilder if_rightisempty(this);
+    if_rightisempty.If<HCompareNumericAndBranch>(
+        right_length, graph()->GetConstant0(), Token::EQ);
+    if_rightisempty.Then();
+    {
+      // Count the native string addition.
+      AddIncrementCounter(isolate()->counters()->string_add_native());
+
+      // Just return the left string.
+      Push(left);
+    }
+    if_rightisempty.Else();
+    {
+      // Concatenate the two non-empty strings.
+      Push(BuildUncheckedStringAdd(left, right, pretenure_flag));
+    }
+    if_rightisempty.End();
+  }
+  if_leftisempty.End();
 
   return Pop();
 }
@@ -2283,7 +2634,8 @@ HGraph::HGraph(CompilationInfo* info)
       depends_on_empty_array_proto_elements_(false),
       type_change_checksum_(0),
       maximum_environment_size_(0),
-      no_side_effects_scope_count_(0) {
+      no_side_effects_scope_count_(0),
+      disallow_adding_new_values_(false) {
   if (info->IsStub()) {
     HydrogenCodeStub* stub = info->code_stub();
     CodeStubInterfaceDescriptor* descriptor =
@@ -4312,6 +4664,7 @@ void HOptimizedGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
   ASSERT(!HasStackOverflow());
   ASSERT(current_block() != NULL);
   ASSERT(current_block()->HasPredecessor());
+  expr->BuildConstantProperties(isolate());
   Handle<JSFunction> closure = function_state()->compilation_info()->closure();
   HInstruction* literal;
 
@@ -4433,6 +4786,7 @@ void HOptimizedGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
   ASSERT(!HasStackOverflow());
   ASSERT(current_block() != NULL);
   ASSERT(current_block()->HasPredecessor());
+  expr->BuildConstantElements(isolate());
   ZoneList<Expression*>* subexprs = expr->values();
   int length = subexprs->length();
   HInstruction* literal;
@@ -6393,18 +6747,6 @@ bool HOptimizedGraphBuilder::TryInline(CallKind call_kind,
     return false;
   }
 
-#if !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_MIPS
-  // Target must be able to use caller's context.
-  CompilationInfo* outer_info = current_info();
-  if (target->context() != outer_info->closure()->context() ||
-      outer_info->scope()->contains_with() ||
-      outer_info->scope()->num_heap_slots() > 0) {
-    TraceInline(target, caller, "target requires context change");
-    return false;
-  }
-#endif
-
-
   // Don't inline deeper than the maximum number of inlining levels.
   HEnvironment* env = environment();
   int current_level = 1;
@@ -6542,15 +6884,9 @@ bool HOptimizedGraphBuilder::TryInline(CallKind call_kind,
                                      undefined,
                                      function_state()->inlining_kind(),
                                      undefined_receiver);
-#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_MIPS
-  // IA32, ARM and MIPS only, overwrite the caller's context in the
-  // deoptimization environment with the correct one.
-  //
-  // TODO(kmillikin): implement the same inlining on other platforms so we
-  // can remove the unsightly ifdefs in this function.
+
   HConstant* context = Add<HConstant>(Handle<Context>(target->context()));
   inner_env->BindContext(context);
-#endif
 
   Add<HSimulate>(return_id);
   current_block()->UpdateEnvironment(inner_env);

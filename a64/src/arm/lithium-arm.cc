@@ -863,10 +863,12 @@ void LChunkBuilder::VisitInstruction(HInstruction* current) {
 
   LInstruction* instr = NULL;
   if (current->CanReplaceWithDummyUses()) {
-    HValue* first_operand = current->OperandCount() == 0
-        ? graph()->GetConstant1()
-        : current->OperandAt(0);
-    instr = DefineAsRegister(new(zone()) LDummyUse(UseAny(first_operand)));
+    if (current->OperandCount() == 0) {
+      instr = DefineAsRegister(new(zone()) LDummy());
+    } else {
+      instr = DefineAsRegister(new(zone())
+          LDummyUse(UseAny(current->OperandAt(0))));
+    }
     for (int i = 1; i < current->OperandCount(); ++i) {
       LInstruction* dummy =
           new(zone()) LDummyUse(UseAny(current->OperandAt(i)));
@@ -1884,6 +1886,13 @@ LInstruction* LChunkBuilder::DoDateField(HDateField* instr) {
 }
 
 
+LInstruction* LChunkBuilder::DoSeqStringGetChar(HSeqStringGetChar* instr) {
+  LOperand* string = UseRegisterAtStart(instr->string());
+  LOperand* index = UseRegisterOrConstantAtStart(instr->index());
+  return DefineAsRegister(new(zone()) LSeqStringGetChar(string, index));
+}
+
+
 LInstruction* LChunkBuilder::DoSeqStringSetChar(HSeqStringSetChar* instr) {
   LOperand* string = UseRegister(instr->string());
   LOperand* index = UseRegisterOrConstant(instr->index());
@@ -2404,8 +2413,12 @@ LInstruction* LChunkBuilder::DoStoreNamedGeneric(HStoreNamedGeneric* instr) {
 
 LInstruction* LChunkBuilder::DoStringAdd(HStringAdd* instr) {
   LOperand* context = UseFixed(instr->context(), cp);
-  LOperand* left = UseRegisterAtStart(instr->left());
-  LOperand* right = UseRegisterAtStart(instr->right());
+  LOperand* left = FLAG_new_string_add
+      ? UseFixed(instr->left(), r1)
+      : UseRegisterAtStart(instr->left());
+  LOperand* right = FLAG_new_string_add
+      ? UseFixed(instr->right(), r0)
+      : UseRegisterAtStart(instr->right());
   return MarkAsCall(
       DefineFixed(new(zone()) LStringAdd(context, left, right), r0),
       instr);

@@ -297,11 +297,6 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
       RUNTIME_ENTRY,
       1,
       "Runtime::PerformGC");
-  Add(ExternalReference::fill_heap_number_with_random_function(
-          isolate).address(),
-      RUNTIME_ENTRY,
-      2,
-      "V8::FillHeapNumberWithRandom");
   Add(ExternalReference::random_uint32_function(isolate).address(),
       RUNTIME_ENTRY,
       3,
@@ -573,17 +568,13 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
       UNCLASSIFIED,
       61,
       "Heap::allocation_sites_list_address()");
-  Add(ExternalReference::record_object_allocation_function(isolate).address(),
-      UNCLASSIFIED,
-      62,
-      "HeapProfiler::RecordObjectAllocationFromMasm");
   Add(ExternalReference::address_of_uint32_bias().address(),
       UNCLASSIFIED,
-      63,
+      62,
       "uint32_bias");
   Add(ExternalReference::get_mark_code_as_executed_function(isolate).address(),
       UNCLASSIFIED,
-      64,
+      63,
       "Code::MarkCodeAsExecuted");
 
   // Add a small set of deopt entry addresses to encoder without generating the
@@ -1668,86 +1659,71 @@ void Serializer::ObjectSerializer::VisitPointers(Object** start,
 
 
 void Serializer::ObjectSerializer::VisitEmbeddedPointer(RelocInfo* rinfo) {
-  Object* current = rinfo->target_object();
-
   int skip = OutputRawData(rinfo->target_address_address(),
                            kCanReturnSkipInsteadOfSkipping);
-  HowToCode representation = rinfo->IsCodedSpecially() ? kFromCode : kPlain;
-  serializer_->SerializeObject(current, representation, kStartOfObject, skip);
+  HowToCode how_to_code = rinfo->IsCodedSpecially() ? kFromCode : kPlain;
+  Object* object = rinfo->target_object();
+  serializer_->SerializeObject(object, how_to_code, kStartOfObject, skip);
   bytes_processed_so_far_ += rinfo->target_address_size();
 }
 
 
 void Serializer::ObjectSerializer::VisitExternalReference(Address* p) {
-  Address references_start = reinterpret_cast<Address>(p);
-  int skip = OutputRawData(references_start, kCanReturnSkipInsteadOfSkipping);
-
+  int skip = OutputRawData(reinterpret_cast<Address>(p),
+                           kCanReturnSkipInsteadOfSkipping);
   sink_->Put(kExternalReference + kPlain + kStartOfObject, "ExternalRef");
   sink_->PutInt(skip, "SkipB4ExternalRef");
-  int reference_id = serializer_->EncodeExternalReference(*p);
-  sink_->PutInt(reference_id, "reference id");
+  Address target = *p;
+  sink_->PutInt(serializer_->EncodeExternalReference(target), "reference id");
   bytes_processed_so_far_ += kPointerSize;
 }
 
 
 void Serializer::ObjectSerializer::VisitExternalReference(RelocInfo* rinfo) {
-  Address references_start = rinfo->target_address_address();
-  int skip = OutputRawData(references_start, kCanReturnSkipInsteadOfSkipping);
-
-  Address current = rinfo->target_reference();
-  int representation = rinfo->IsCodedSpecially() ?
-                       kFromCode + kStartOfObject : kPlain + kStartOfObject;
-  sink_->Put(kExternalReference + representation, "ExternalRef");
+  int skip = OutputRawData(rinfo->target_address_address(),
+                           kCanReturnSkipInsteadOfSkipping);
+  HowToCode how_to_code = rinfo->IsCodedSpecially() ? kFromCode : kPlain;
+  sink_->Put(kExternalReference + how_to_code + kStartOfObject, "ExternalRef");
   sink_->PutInt(skip, "SkipB4ExternalRef");
-  int reference_id = serializer_->EncodeExternalReference(current);
-  sink_->PutInt(reference_id, "reference id");
+  Address target = rinfo->target_reference();
+  sink_->PutInt(serializer_->EncodeExternalReference(target), "reference id");
   bytes_processed_so_far_ += rinfo->target_address_size();
 }
 
 
 void Serializer::ObjectSerializer::VisitRuntimeEntry(RelocInfo* rinfo) {
-  Address target_start = rinfo->target_address_address();
-  int skip = OutputRawData(target_start, kCanReturnSkipInsteadOfSkipping);
-  Address target = rinfo->target_address();
-  uint32_t encoding = serializer_->EncodeExternalReference(target);
-  CHECK(target == NULL ? encoding == 0 : encoding != 0);
-  int representation;
-  // Can't use a ternary operator because of gcc.
-  if (rinfo->IsCodedSpecially()) {
-    representation = kStartOfObject + kFromCode;
-  } else {
-    representation = kStartOfObject + kPlain;
-  }
-  sink_->Put(kExternalReference + representation, "ExternalReference");
+  int skip = OutputRawData(rinfo->target_address_address(),
+                           kCanReturnSkipInsteadOfSkipping);
+  HowToCode how_to_code = rinfo->IsCodedSpecially() ? kFromCode : kPlain;
+  sink_->Put(kExternalReference + how_to_code + kStartOfObject, "ExternalRef");
   sink_->PutInt(skip, "SkipB4ExternalRef");
-  sink_->PutInt(encoding, "reference id");
+  Address target = rinfo->target_address();
+  sink_->PutInt(serializer_->EncodeExternalReference(target), "reference id");
   bytes_processed_so_far_ += rinfo->target_address_size();
 }
 
 
 void Serializer::ObjectSerializer::VisitCodeTarget(RelocInfo* rinfo) {
-  CHECK(RelocInfo::IsCodeTarget(rinfo->rmode()));
-  Address target_start = rinfo->target_address_address();
-  int skip = OutputRawData(target_start, kCanReturnSkipInsteadOfSkipping);
-  Code* target = Code::GetCodeFromTargetAddress(rinfo->target_address());
-  serializer_->SerializeObject(target, kFromCode, kInnerPointer, skip);
+  int skip = OutputRawData(rinfo->target_address_address(),
+                           kCanReturnSkipInsteadOfSkipping);
+  Code* object = Code::GetCodeFromTargetAddress(rinfo->target_address());
+  serializer_->SerializeObject(object, kFromCode, kInnerPointer, skip);
   bytes_processed_so_far_ += rinfo->target_address_size();
 }
 
 
 void Serializer::ObjectSerializer::VisitCodeEntry(Address entry_address) {
-  Code* target = Code::cast(Code::GetObjectFromEntryAddress(entry_address));
   int skip = OutputRawData(entry_address, kCanReturnSkipInsteadOfSkipping);
-  serializer_->SerializeObject(target, kPlain, kInnerPointer, skip);
+  Code* object = Code::cast(Code::GetObjectFromEntryAddress(entry_address));
+  serializer_->SerializeObject(object, kPlain, kInnerPointer, skip);
   bytes_processed_so_far_ += kPointerSize;
 }
 
 
 void Serializer::ObjectSerializer::VisitCell(RelocInfo* rinfo) {
-  ASSERT(rinfo->rmode() == RelocInfo::CELL);
-  Cell* cell = Cell::cast(rinfo->target_cell());
   int skip = OutputRawData(rinfo->pc(), kCanReturnSkipInsteadOfSkipping);
-  serializer_->SerializeObject(cell, kPlain, kInnerPointer, skip);
+  Cell* object = Cell::cast(rinfo->target_cell());
+  serializer_->SerializeObject(object, kPlain, kInnerPointer, skip);
 }
 
 

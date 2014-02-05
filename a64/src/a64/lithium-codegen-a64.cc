@@ -914,6 +914,7 @@ void LCodeGen::Deoptimize(LEnvironment* environment,
   }
 
   ASSERT(FLAG_deopt_every_n_times < 2);  // Other values not supported on A64.
+  TODO_UNIMPLEMENTED("Support for FLAG_deopt_every_n_times >= 2.");
   if (FLAG_deopt_every_n_times == 1 &&
       !info()->IsStub() &&
       info()->opt_count() == id) {
@@ -2612,6 +2613,11 @@ void LCodeGen::DoDrop(LDrop* instr) {
 }
 
 
+void LCodeGen::DoDummy(LDummy* instr) {
+  // Nothing to see here, move on!
+}
+
+
 void LCodeGen::DoDummyUse(LDummyUse* instr) {
   // Nothing to see here, move on!
 }
@@ -3427,12 +3433,7 @@ void LCodeGen::DoLoadNamedField(LLoadNamedField* instr) {
 
   if (access.IsExternalMemory()) {
     Register result = ToRegister(instr->result());
-    // TODO(all): Does this need an Integer32 accessor?
-    if (access.representation().IsByte()) {
-      __ Ldrb(result, MemOperand(object, offset));
-    } else {
-      __ Ldr(result, MemOperand(object, offset));
-    }
+    __ Load(result, MemOperand(object, offset), access.representation());
     return;
   }
 
@@ -3451,13 +3452,7 @@ void LCodeGen::DoLoadNamedField(LLoadNamedField* instr) {
     __ Ldr(result, FieldMemOperand(object, JSObject::kPropertiesOffset));
     source = result;
   }
-  if (access.representation().IsByte()) {
-    __ Ldrb(result, FieldMemOperand(source, offset));
-  } else if (access.representation().IsInteger32()) {
-    __ Ldr(result.W(), FieldMemOperand(source, offset));
-  } else {
-    __ Ldr(result, FieldMemOperand(source, offset));
-  }
+  __ Load(result, FieldMemOperand(source, offset), access.representation());
 }
 
 
@@ -4879,11 +4874,7 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
 
   if (access.IsExternalMemory()) {
     Register value = ToRegister(instr->value());
-    if (representation.IsByte()) {
-      __ Strb(value, MemOperand(object, offset));
-    } else {
-      __ Str(value, MemOperand(object, offset));
-    }
+    __ Store(value, MemOperand(object, offset), representation);
     return;
   }
 
@@ -4933,13 +4924,7 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
     __ Ldr(temp0, FieldMemOperand(object, JSObject::kPropertiesOffset));
     destination = temp0;
   }
-  if (representation.IsByte()) {
-    __ Strb(value, FieldMemOperand(destination, offset));
-  } else if (access.representation().IsInteger32()) {
-    __ Str(value.W(), FieldMemOperand(destination, offset));
-  } else {
-    __ Str(value, FieldMemOperand(destination, offset));
-  }
+  __ Store(value, FieldMemOperand(destination, offset), representation);
   if (instr->hydrogen()->NeedsWriteBarrier()) {
     __ RecordWriteField(destination,
                         offset,
@@ -4969,9 +4954,17 @@ void LCodeGen::DoStoreNamedGeneric(LStoreNamedGeneric* instr) {
 void LCodeGen::DoStringAdd(LStringAdd* instr) {
   Register left = ToRegister(instr->left());
   Register right = ToRegister(instr->right());
-  __ Push(left, right);
-  StringAddStub stub(instr->hydrogen()->flags());
-  CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
+  if (FLAG_new_string_add) {
+    ASSERT(left.Is(x1));
+    ASSERT(right.Is(x0));
+    NewStringAddStub stub(instr->hydrogen()->flags(),
+                          isolate()->heap()->GetPretenureMode());
+    CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
+  } else {
+    __ Push(left, right);
+    StringAddStub stub(instr->hydrogen()->flags());
+    CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
+  }
 }
 
 

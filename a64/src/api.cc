@@ -3136,7 +3136,7 @@ bool v8::Object::Set(v8::Handle<Value> key, v8::Handle<Value> value,
   i::Handle<i::Object> key_obj = Utils::OpenHandle(*key);
   i::Handle<i::Object> value_obj = Utils::OpenHandle(*value);
   EXCEPTION_PREAMBLE(isolate);
-  i::Handle<i::Object> obj = i::SetProperty(
+  i::Handle<i::Object> obj = i::Runtime::SetObjectProperty(
       isolate,
       self,
       key_obj,

@@ -70,11 +70,10 @@ struct Register {
   // The non-allocatable registers are:
   //  rsp - stack pointer
   //  rbp - frame pointer
-  //  rsi - context register
   //  r10 - fixed scratch register
   //  r12 - smi constant register
   //  r13 - root register
-  static const int kMaxNumAllocatableRegisters = 10;
+  static const int kMaxNumAllocatableRegisters = 11;
   static int NumAllocatableRegisters() {
     return kMaxNumAllocatableRegisters;
   }
@@ -97,6 +96,7 @@ struct Register {
       "rbx",
       "rdx",
       "rcx",
+      "rsi",
       "rdi",
       "r8",
       "r9",
@@ -677,6 +677,7 @@ class Assembler : public AssemblerBase {
 
   // Move the low 16 bits of a 64-bit register value to a 16-bit
   // memory location.
+  void movw(Register dst, const Operand& src);
   void movw(const Operand& dst, Register src);
   void movw(const Operand& dst, Immediate imm);
 
@@ -700,12 +701,10 @@ class Assembler : public AssemblerBase {
 
   // Move sign extended immediate to memory location.
   void movq(const Operand& dst, Immediate value);
-  // Instructions to load a 64-bit immediate into a register.
-  // All 64-bit immediates must have a relocation mode.
+  // Loads a pointer into a register with a relocation mode.
   void movq(Register dst, void* ptr, RelocInfo::Mode rmode);
-  void movq(Register dst, int64_t value, RelocInfo::Mode rmode);
-  // Moves the address of the external reference into the register.
-  void movq(Register dst, ExternalReference ext);
+  // Loads a 64-bit immediate into a register.
+  void movq(Register dst, int64_t value);
   void movq(Register dst, Handle<Object> handle, RelocInfo::Mode rmode);
 
   void movsxbq(Register dst, const Operand& src);

@@ -329,6 +329,19 @@ void ElementsTransitionAndStoreStub::InitializeInterfaceDescriptor(
 }
 
 
+void NewStringAddStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  // x1: left operand
+  // x0: right operand
+  static Register registers[] = { x1, x0 };
+  descriptor->register_param_count_ = sizeof(registers) / sizeof(registers[0]);
+  descriptor->register_params_ = registers;
+  descriptor->deoptimization_handler_ =
+      Runtime::FunctionForId(Runtime::kStringAdd)->entry;
+}
+
+
 #define __ ACCESS_MASM(masm)
 
 

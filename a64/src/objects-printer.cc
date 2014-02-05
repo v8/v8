@@ -830,7 +830,7 @@ void JSTypedArray::JSTypedArrayPrint(FILE* out) {
   byte_length()->ShortPrint(out);
   PrintF(out, "\n - length = ");
   length()->ShortPrint(out);
-  PrintF("\n");
+  PrintF(out, "\n");
   PrintElements(out);
 }
 
@@ -844,7 +844,7 @@ void JSDataView::JSDataViewPrint(FILE* out) {
   byte_offset()->ShortPrint(out);
   PrintF(out, "\n - byte_length = ");
   byte_length()->ShortPrint(out);
-  PrintF("\n");
+  PrintF(out, "\n");
 }
 
 

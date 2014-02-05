@@ -268,6 +268,10 @@ class LCodeGen: public LCodeGenBase {
   void DeoptimizeIf(Condition cc, LEnvironment* environment);
   void ApplyCheckIf(Condition cc, LBoundsCheck* check);
 
+  bool DeoptEveryNTimes() {
+    return FLAG_deopt_every_n_times != 0 && !info()->IsStub();
+  }
+
   void AddToTranslation(LEnvironment* environment,
                         Translation* translation,
                         LOperand* op,

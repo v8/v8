@@ -829,7 +829,7 @@ void RelocInfo::Print(Isolate* isolate, FILE* out) {
     PrintF(out, " (%s)  (%p)", Code::Kind2String(code->kind()),
            target_address());
     if (rmode_ == CODE_TARGET_WITH_ID) {
-      PrintF(" (id=%d)", static_cast<int>(data_));
+      PrintF(out, " (id=%d)", static_cast<int>(data_));
     }
   } else if (IsPosition(rmode_)) {
     PrintF(out, "  (%" V8_PTR_PREFIX "d)", data());
@@ -1053,14 +1053,6 @@ ExternalReference ExternalReference::flush_icache_function(Isolate* isolate) {
 ExternalReference ExternalReference::perform_gc_function(Isolate* isolate) {
   return
       ExternalReference(Redirect(isolate, FUNCTION_ADDR(Runtime::PerformGC)));
-}
-
-
-ExternalReference ExternalReference::fill_heap_number_with_random_function(
-    Isolate* isolate) {
-  return ExternalReference(Redirect(
-      isolate,
-      FUNCTION_ADDR(V8::FillHeapNumberWithRandom)));
 }
 
 
@@ -1343,14 +1335,6 @@ ExternalReference ExternalReference::address_of_canonical_non_hole_nan() {
 ExternalReference ExternalReference::address_of_the_hole_nan() {
   return ExternalReference(
       reinterpret_cast<void*>(&double_constants.the_hole_nan));
-}
-
-
-ExternalReference ExternalReference::record_object_allocation_function(
-  Isolate* isolate) {
-  return ExternalReference(
-      Redirect(isolate,
-               FUNCTION_ADDR(HeapProfiler::RecordObjectAllocationFromMasm)));
 }
 
 

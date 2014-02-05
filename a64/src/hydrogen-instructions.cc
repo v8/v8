@@ -2858,8 +2858,17 @@ Range* HShl::InferRange(Zone* zone) {
 
 
 Range* HLoadNamedField::InferRange(Zone* zone) {
-  if (access().representation().IsByte()) {
-    return new(zone) Range(0, 255);
+  if (access().representation().IsInteger8()) {
+    return new(zone) Range(kMinInt8, kMaxInt8);
+  }
+  if (access().representation().IsUInteger8()) {
+    return new(zone) Range(kMinUInt8, kMaxUInt8);
+  }
+  if (access().representation().IsInteger16()) {
+    return new(zone) Range(kMinInt16, kMaxInt16);
+  }
+  if (access().representation().IsUInteger16()) {
+    return new(zone) Range(kMinUInt16, kMaxUInt16);
   }
   if (access().IsStringLength()) {
     return new(zone) Range(0, String::kMaxLength);
@@ -2870,16 +2879,15 @@ Range* HLoadNamedField::InferRange(Zone* zone) {
 
 Range* HLoadKeyed::InferRange(Zone* zone) {
   switch (elements_kind()) {
-    case EXTERNAL_PIXEL_ELEMENTS:
-      return new(zone) Range(0, 255);
     case EXTERNAL_BYTE_ELEMENTS:
-      return new(zone) Range(-128, 127);
+      return new(zone) Range(kMinInt8, kMaxInt8);
     case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
-      return new(zone) Range(0, 255);
+    case EXTERNAL_PIXEL_ELEMENTS:
+      return new(zone) Range(kMinUInt8, kMaxUInt8);
     case EXTERNAL_SHORT_ELEMENTS:
-      return new(zone) Range(-32768, 32767);
+      return new(zone) Range(kMinInt16, kMaxInt16);
     case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
-      return new(zone) Range(0, 65535);
+      return new(zone) Range(kMinUInt16, kMaxUInt16);
     default:
       return HValue::InferRange(zone);
   }
@@ -3990,6 +3998,26 @@ HInstruction* HShr::New(
     }
   }
   return new(zone) HShr(context, left, right);
+}
+
+
+HInstruction* HSeqStringGetChar::New(Zone* zone,
+                                     HValue* context,
+                                     String::Encoding encoding,
+                                     HValue* string,
+                                     HValue* index) {
+  if (FLAG_fold_constants && string->IsConstant() && index->IsConstant()) {
+    HConstant* c_string = HConstant::cast(string);
+    HConstant* c_index = HConstant::cast(index);
+    if (c_string->HasStringValue() && c_index->HasInteger32Value()) {
+      Handle<String> s = c_string->StringValue();
+      int32_t i = c_index->Integer32Value();
+      ASSERT_LE(0, i);
+      ASSERT_LT(i, s->length());
+      return H_CONSTANT_INT(s->Get(i));
+    }
+  }
+  return new(zone) HSeqStringGetChar(encoding, string, index);
 }
 
 

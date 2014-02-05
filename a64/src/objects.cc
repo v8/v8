@@ -8339,11 +8339,6 @@ SmartArrayPointer<char> String::ToCString(AllowNullsFlag allow_nulls,
 }
 
 
-const uc16* String::GetTwoByteData() {
-  return GetTwoByteData(0);
-}
-
-
 const uc16* String::GetTwoByteData(unsigned start) {
   ASSERT(!IsOneByteRepresentationUnderneath());
   switch (StringShape(this).representation_tag()) {
@@ -9588,7 +9583,7 @@ MaybeObject* SharedFunctionInfo::AddToOptimizedCodeMap(Context* native_context,
   if (value->IsSmi()) {
     // No optimized code map.
     ASSERT_EQ(0, Smi::cast(value)->value());
-    // Crate 3 entries per context {context, code, literals}.
+    // Create 3 entries per context {context, code, literals}.
     MaybeObject* maybe = heap->AllocateFixedArray(kInitialLength);
     if (!maybe->To(&new_code_map)) return maybe;
     new_code_map->set(kEntriesStart + 0, native_context);
@@ -10543,7 +10538,7 @@ Map* Code::FindFirstMap() {
 void Code::ReplaceNthObject(int n,
                             Map* match_map,
                             Object* replace_with) {
-  ASSERT(is_inline_cache_stub());
+  ASSERT(is_inline_cache_stub() || is_handler());
   DisallowHeapAllocation no_allocation;
   int mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
   for (RelocIterator it(this, mask); !it.done(); it.next()) {
@@ -10831,7 +10826,7 @@ Code* Code::GetCodeAgeStub(Isolate* isolate, Age age, MarkingParity parity) {
 }
 
 
-void Code::PrintDeoptLocation(int bailout_id) {
+void Code::PrintDeoptLocation(FILE* out, int bailout_id) {
   const char* last_comment = NULL;
   int mask = RelocInfo::ModeMask(RelocInfo::COMMENT)
       | RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY);
@@ -10845,7 +10840,7 @@ void Code::PrintDeoptLocation(int bailout_id) {
           (bailout_id == Deoptimizer::GetDeoptimizationId(
               GetIsolate(), info->target_address(), Deoptimizer::SOFT))) {
         CHECK(RelocInfo::IsRuntimeEntry(info->rmode()));
-        PrintF("            %s\n", last_comment);
+        PrintF(out, "            %s\n", last_comment);
         return;
       }
     }
@@ -11047,10 +11042,10 @@ void DeoptimizationOutputData::DeoptimizationOutputDataPrint(FILE* out) {
          this->DeoptPoints());
   if (this->DeoptPoints() == 0) return;
 
-  PrintF("%6s  %8s  %s\n", "ast id", "pc", "state");
+  PrintF(out, "%6s  %8s  %s\n", "ast id", "pc", "state");
   for (int i = 0; i < this->DeoptPoints(); i++) {
     int pc_and_state = this->PcAndState(i)->value();
-    PrintF("%6d  %8d  %s\n",
+    PrintF(out, "%6d  %8d  %s\n",
            this->AstId(i).ToInt(),
            FullCodeGenerator::PcField::decode(pc_and_state),
            FullCodeGenerator::State2String(
@@ -11161,7 +11156,7 @@ void Code::Disassemble(const char* name, FILE* out) {
         DeoptimizationInputData::cast(this->deoptimization_data());
     data->DeoptimizationInputDataPrint(out);
   }
-  PrintF("\n");
+  PrintF(out, "\n");
 
   if (is_crankshafted()) {
     SafepointTable table(this);
@@ -11169,7 +11164,7 @@ void Code::Disassemble(const char* name, FILE* out) {
     for (unsigned i = 0; i < table.length(); i++) {
       unsigned pc_offset = table.GetPcOffset(i);
       PrintF(out, "%p  %4d  ", (instruction_start() + pc_offset), pc_offset);
-      table.PrintEntry(i);
+      table.PrintEntry(i, out);
       PrintF(out, " (sp -> fp)");
       SafepointEntry entry = table.GetEntry(i);
       if (entry.deoptimization_index() != Safepoint::kNoDeoptimizationIndex) {
@@ -11210,7 +11205,7 @@ void Code::Disassemble(const char* name, FILE* out) {
 #endif
   }
 
-  PrintF("RelocInfo (size = %d)\n", relocation_size());
+  PrintF(out, "RelocInfo (size = %d)\n", relocation_size());
   for (RelocIterator it(this); !it.done(); it.next()) {
     it.rinfo()->Print(GetIsolate(), out);
   }
@@ -12545,6 +12540,7 @@ Handle<Object> JSObject::SetElement(Handle<JSObject> object,
                                     Handle<Object> value,
                                     PropertyAttributes attr,
                                     StrictModeFlag strict_mode,
+                                    bool check_prototype,
                                     SetPropertyMode set_mode) {
   if (object->HasExternalArrayElements()) {
     if (!value->IsNumber() && !value->IsUndefined()) {
@@ -12557,7 +12553,8 @@ Handle<Object> JSObject::SetElement(Handle<JSObject> object,
   }
   CALL_HEAP_FUNCTION(
       object->GetIsolate(),
-      object->SetElement(index, *value, attr, strict_mode, true, set_mode),
+      object->SetElement(index, *value, attr, strict_mode, check_prototype,
+                         set_mode),
       Object);
 }
 

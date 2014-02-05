@@ -769,13 +769,39 @@ void LCodeGen::DeoptimizeIf(Condition condition,
     return;
   }
 
-  ASSERT(FLAG_deopt_every_n_times < 2);  // Other values not supported on ARM.
-  if (FLAG_deopt_every_n_times == 1 &&
-      !info()->IsStub() &&
-      info()->opt_count() == id) {
-    ASSERT(frame_is_built_);
-    __ Call(entry, RelocInfo::RUNTIME_ENTRY);
-    return;
+  if (FLAG_deopt_every_n_times != 0 && !info()->IsStub()) {
+    Register scratch = scratch0();
+    ExternalReference count = ExternalReference::stress_deopt_count(isolate());
+
+    // Store the condition on the stack if necessary
+    if (condition != al) {
+      __ mov(scratch, Operand::Zero(), LeaveCC, NegateCondition(condition));
+      __ mov(scratch, Operand(1), LeaveCC, condition);
+      __ push(scratch);
+    }
+
+    __ push(r1);
+    __ mov(scratch, Operand(count));
+    __ ldr(r1, MemOperand(scratch));
+    __ sub(r1, r1, Operand(1), SetCC);
+    __ movw(r1, FLAG_deopt_every_n_times, eq);
+    __ str(r1, MemOperand(scratch));
+    __ pop(r1);
+
+    if (condition != al) {
+      // Clean up the stack before the deoptimizer call
+      __ pop(scratch);
+    }
+
+    __ Call(entry, RelocInfo::RUNTIME_ENTRY, eq);
+
+    // 'Restore' the condition in a slightly hacky way. (It would be better
+    // to use 'msr' and 'mrs' instructions here, but they are not supported by
+    // our ARM simulator).
+    if (condition != al) {
+      condition = ne;
+      __ cmp(scratch, Operand::Zero());
+    }
   }
 
   if (info()->ShouldTrapOnDeopt()) {
@@ -1948,6 +1974,34 @@ MemOperand LCodeGen::BuildSeqStringOperand(Register string,
 }
 
 
+void LCodeGen::DoSeqStringGetChar(LSeqStringGetChar* instr) {
+  String::Encoding encoding = instr->hydrogen()->encoding();
+  Register string = ToRegister(instr->string());
+  Register result = ToRegister(instr->result());
+
+  if (FLAG_debug_code) {
+    Register scratch = scratch0();
+    __ ldr(scratch, FieldMemOperand(string, HeapObject::kMapOffset));
+    __ ldrb(scratch, FieldMemOperand(scratch, Map::kInstanceTypeOffset));
+
+    __ and_(scratch, scratch,
+            Operand(kStringRepresentationMask | kStringEncodingMask));
+    static const uint32_t one_byte_seq_type = kSeqStringTag | kOneByteStringTag;
+    static const uint32_t two_byte_seq_type = kSeqStringTag | kTwoByteStringTag;
+    __ cmp(scratch, Operand(encoding == String::ONE_BYTE_ENCODING
+                            ? one_byte_seq_type : two_byte_seq_type));
+    __ Check(eq, kUnexpectedStringType);
+  }
+
+  MemOperand operand = BuildSeqStringOperand(string, instr->index(), encoding);
+  if (encoding == String::ONE_BYTE_ENCODING) {
+    __ ldrb(result, operand);
+  } else {
+    __ ldrh(result, operand);
+  }
+}
+
+
 void LCodeGen::DoSeqStringSetChar(LSeqStringSetChar* instr) {
   String::Encoding encoding = instr->hydrogen()->encoding();
   Register string = ToRegister(instr->string());
@@ -3026,11 +3080,7 @@ void LCodeGen::DoLoadNamedField(LLoadNamedField* instr) {
   if (access.IsExternalMemory()) {
     Register result = ToRegister(instr->result());
     MemOperand operand = MemOperand(object, offset);
-    if (access.representation().IsByte()) {
-      __ ldrb(result, operand);
-    } else {
-      __ ldr(result, operand);
-    }
+    __ Load(result, operand, access.representation());
     return;
   }
 
@@ -3046,11 +3096,7 @@ void LCodeGen::DoLoadNamedField(LLoadNamedField* instr) {
     object = result;
   }
   MemOperand operand = FieldMemOperand(object, offset);
-  if (access.representation().IsByte()) {
-    __ ldrb(result, operand);
-  } else {
-    __ ldr(result, operand);
-  }
+  __ Load(result, operand, access.representation());
 }
 
 
@@ -4153,11 +4199,7 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
   if (access.IsExternalMemory()) {
     Register value = ToRegister(instr->value());
     MemOperand operand = MemOperand(object, offset);
-    if (representation.IsByte()) {
-      __ strb(value, operand);
-    } else {
-      __ str(value, operand);
-    }
+    __ Store(value, operand, representation);
     return;
   }
 
@@ -4203,11 +4245,7 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
           ? OMIT_SMI_CHECK : INLINE_SMI_CHECK;
   if (access.IsInobject()) {
     MemOperand operand = FieldMemOperand(object, offset);
-    if (representation.IsByte()) {
-      __ strb(value, operand);
-    } else {
-      __ str(value, operand);
-    }
+    __ Store(value, operand, representation);
     if (instr->hydrogen()->NeedsWriteBarrier()) {
       // Update the write barrier for the object for in-object properties.
       __ RecordWriteField(object,
@@ -4222,11 +4260,7 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
   } else {
     __ ldr(scratch, FieldMemOperand(object, JSObject::kPropertiesOffset));
     MemOperand operand = FieldMemOperand(scratch, offset);
-    if (representation.IsByte()) {
-      __ strb(value, operand);
-    } else {
-      __ str(value, operand);
-    }
+    __ Store(value, operand, representation);
     if (instr->hydrogen()->NeedsWriteBarrier()) {
       // Update the write barrier for the properties array.
       // object is used as a scratch register.
@@ -4528,10 +4562,18 @@ void LCodeGen::DoTrapAllocationMemento(LTrapAllocationMemento* instr) {
 
 void LCodeGen::DoStringAdd(LStringAdd* instr) {
   ASSERT(ToRegister(instr->context()).is(cp));
-  __ push(ToRegister(instr->left()));
-  __ push(ToRegister(instr->right()));
-  StringAddStub stub(instr->hydrogen()->flags());
-  CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
+  if (FLAG_new_string_add) {
+    ASSERT(ToRegister(instr->left()).is(r1));
+    ASSERT(ToRegister(instr->right()).is(r0));
+    NewStringAddStub stub(instr->hydrogen()->flags(),
+                          isolate()->heap()->GetPretenureMode());
+    CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
+  } else {
+    __ push(ToRegister(instr->left()));
+    __ push(ToRegister(instr->right()));
+    StringAddStub stub(instr->hydrogen()->flags());
+    CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
+  }
 }
 
 
@@ -5657,6 +5699,11 @@ void LCodeGen::DoDeoptimize(LDeoptimize* instr) {
 
   Comment(";;; deoptimize: %s", instr->hydrogen()->reason());
   DeoptimizeIf(al, instr->environment(), type);
+}
+
+
+void LCodeGen::DoDummy(LDummy* instr) {
+  // Nothing to see here, move on!
 }
 
 

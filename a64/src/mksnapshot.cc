@@ -309,7 +309,7 @@ int main(int argc, char** argv) {
     // Capture 100 frames if anything happens.
     V8::SetCaptureStackTraceForUncaughtExceptions(true, 100);
     HandleScope scope(isolate);
-    v8::Context::Scope(v8::Local<v8::Context>::New(isolate, context));
+    v8::Context::Scope cscope(v8::Local<v8::Context>::New(isolate, context));
     const char* name = i::FLAG_extra_code;
     FILE* file = i::OS::FOpen(name, "rb");
     if (file == NULL) {

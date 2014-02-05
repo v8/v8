@@ -691,10 +691,12 @@ void LChunkBuilder::VisitInstruction(HInstruction* current) {
 
   LInstruction* instr = NULL;
   if (current->CanReplaceWithDummyUses()) {
-    HValue* first_operand = current->OperandCount() == 0
-        ? graph()->GetConstant1()
-        : current->OperandAt(0);
-    instr = DefineAsRegister(new(zone()) LDummyUse(UseAny(first_operand)));
+    if (current->OperandCount() == 0) {
+      instr = DefineAsRegister(new(zone()) LDummy());
+    } else {
+      instr = DefineAsRegister(new(zone())
+          LDummyUse(UseAny(current->OperandAt(0))));
+    }
     for (int i = 1; i < current->OperandCount(); ++i) {
       LInstruction* dummy =
           new(zone()) LDummyUse(UseAny(current->OperandAt(i)));
@@ -1996,6 +1998,12 @@ LInstruction* LChunkBuilder::DoReturn(HReturn* instr) {
 }
 
 
+LInstruction* LChunkBuilder::DoSeqStringGetChar(HSeqStringGetChar* instr) {
+  Abort(kUnimplemented);
+  return NULL;
+}
+
+
 LInstruction* LChunkBuilder::DoSeqStringSetChar(HSeqStringSetChar* instr) {
   LOperand* string = UseRegister(instr->string());
   LOperand* index = UseRegister(instr->index());
@@ -2237,8 +2245,10 @@ LInstruction* LChunkBuilder::DoStoreNamedGeneric(HStoreNamedGeneric* instr) {
 
 
 LInstruction* LChunkBuilder::DoStringAdd(HStringAdd* instr) {
-  LOperand* left = UseRegisterAtStart(instr->left());
-  LOperand* right = UseRegisterAtStart(instr->right());
+  LOperand* left = FLAG_new_string_add ? UseFixed(instr->left(), x1)
+                                       : UseRegisterAtStart(instr->left());
+  LOperand* right = FLAG_new_string_add ? UseFixed(instr->right(), x0)
+                                        : UseRegisterAtStart(instr->right());
 
   LStringAdd* result = new(zone()) LStringAdd(left, right);
   return MarkAsCall(DefineFixed(result, x0), instr);

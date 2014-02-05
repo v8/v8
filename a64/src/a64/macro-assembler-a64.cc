@@ -519,6 +519,46 @@ void MacroAssembler::LoadStoreMacro(const CPURegister& rt,
 }
 
 
+void MacroAssembler::Load(const Register& rt,
+                          const MemOperand& addr,
+                          Representation r) {
+  ASSERT(!r.IsDouble());
+
+  if (r.IsInteger8()) {
+    Ldrsb(rt, addr);
+  } else if (r.IsUInteger8()) {
+    Ldrb(rt, addr);
+  } else if (r.IsInteger16()) {
+    Ldrsh(rt, addr);
+  } else if (r.IsUInteger16()) {
+    Ldrh(rt, addr);
+  } else if (r.IsInteger32()) {
+    Ldr(rt.W(), addr);
+  } else {
+    ASSERT(rt.Is64Bits());
+    Ldr(rt, addr);
+  }
+}
+
+
+void MacroAssembler::Store(const Register& rt,
+                           const MemOperand& addr,
+                           Representation r) {
+  ASSERT(!r.IsDouble());
+
+  if (r.IsInteger8() || r.IsUInteger8()) {
+    Strb(rt, addr);
+  } else if (r.IsInteger16() || r.IsUInteger16()) {
+    Strh(rt, addr);
+  } else if (r.IsInteger32()) {
+    Str(rt.W(), addr);
+  } else {
+    ASSERT(rt.Is64Bits());
+    Str(rt, addr);
+  }
+}
+
+
 // Pseudo-instructions.
 
 

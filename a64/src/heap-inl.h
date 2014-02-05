@@ -217,10 +217,7 @@ MaybeObject* Heap::AllocateRaw(int size_in_bytes,
   ASSERT(AllowHandleAllocation::IsAllowed());
   ASSERT(AllowHeapAllocation::IsAllowed());
   ASSERT(gc_state_ == NOT_IN_GC);
-  ASSERT(space != NEW_SPACE ||
-         retry_space == OLD_POINTER_SPACE ||
-         retry_space == OLD_DATA_SPACE ||
-         retry_space == LO_SPACE);
+  HeapProfiler* profiler = isolate_->heap_profiler();
 #ifdef DEBUG
   if (FLAG_gc_interval >= 0 &&
       !disallow_allocation_failure_ &&
@@ -230,12 +227,17 @@ MaybeObject* Heap::AllocateRaw(int size_in_bytes,
   isolate_->counters()->objs_since_last_full()->Increment();
   isolate_->counters()->objs_since_last_young()->Increment();
 #endif
+
+  HeapObject* object;
   MaybeObject* result;
   if (NEW_SPACE == space) {
     result = new_space_.AllocateRaw(size_in_bytes);
-    if (always_allocate() && result->IsFailure()) {
+    if (always_allocate() && result->IsFailure() && retry_space != NEW_SPACE) {
       space = retry_space;
     } else {
+      if (profiler->is_tracking_allocations() && result->To(&object)) {
+        profiler->NewObjectEvent(object->address(), size_in_bytes);
+      }
       return result;
     }
   }
@@ -257,6 +259,9 @@ MaybeObject* Heap::AllocateRaw(int size_in_bytes,
     result = map_space_->AllocateRaw(size_in_bytes);
   }
   if (result->IsFailure()) old_gen_exhausted_ = true;
+  if (profiler->is_tracking_allocations() && result->To(&object)) {
+    profiler->NewObjectEvent(object->address(), size_in_bytes);
+  }
   return result;
 }
 

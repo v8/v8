@@ -279,6 +279,9 @@ class MacroAssembler: public Assembler {
     Branch(L);
   }
 
+  void Load(Register dst, const MemOperand& src, Representation r);
+  void Store(Register src, const MemOperand& dst, Representation r);
+
   // Load an object from the root table.
   void LoadRoot(Register destination,
                 Heap::RootListIndex index);
@@ -1525,6 +1528,10 @@ class MacroAssembler: public Assembler {
                                     &no_memento_found, eq, memento_found);
     bind(&no_memento_found);
   }
+
+  // Jumps to found label if a prototype map has dictionary elements.
+  void JumpIfDictionaryInPrototypeChain(Register object, Register scratch0,
+                                        Register scratch1, Label* found);
 
  private:
   void CallCFunctionHelper(Register function,

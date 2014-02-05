@@ -767,6 +767,7 @@ int Heap::NotifyContextDisposed() {
     isolate()->optimizing_compiler_thread()->Flush();
   }
   flush_monomorphic_ics_ = true;
+  AgeInlineCaches();
   return ++contexts_disposed_;
 }
 
@@ -839,9 +840,7 @@ static bool AbortIncrementalMarkingAndCollectGarbage(
 }
 
 
-void Heap::ReserveSpace(
-    int *sizes,
-    Address *locations_out) {
+void Heap::ReserveSpace(int *sizes, Address *locations_out) {
   bool gc_performed = true;
   int counter = 0;
   static const int kThreshold = 20;
@@ -1163,8 +1162,6 @@ void Heap::MarkCompact(GCTracer* tracer) {
   gc_state_ = NOT_IN_GC;
 
   isolate_->counters()->objs_since_last_full()->Set(0);
-
-  contexts_disposed_ = 0;
 
   flush_monomorphic_ics_ = false;
 }
@@ -4117,13 +4114,12 @@ MaybeObject* Heap::LookupSingleCharacterStringFromCode(uint16_t code) {
     return result;
   }
 
-  Object* result;
+  SeqTwoByteString* result;
   { MaybeObject* maybe_result = AllocateRawTwoByteString(1);
-    if (!maybe_result->ToObject(&result)) return maybe_result;
+    if (!maybe_result->To<SeqTwoByteString>(&result)) return maybe_result;
   }
-  String* answer = String::cast(result);
-  answer->Set(0, code);
-  return answer;
+  result->SeqTwoByteStringSet(0, code);
+  return result;
 }
 
 
@@ -4204,7 +4200,7 @@ MaybeObject* Heap::CreateCode(const CodeDesc& desc,
   if (force_lo_space) {
     maybe_result = lo_space_->AllocateRaw(obj_size, EXECUTABLE);
   } else {
-    maybe_result = code_space_->AllocateRaw(obj_size);
+    maybe_result = AllocateRaw(obj_size, CODE_SPACE, CODE_SPACE);
   }
   if (!maybe_result->To<HeapObject>(&result)) return maybe_result;
 
@@ -4275,7 +4271,7 @@ MaybeObject* Heap::CopyCode(Code* code) {
   if (obj_size > code_space()->AreaSize()) {
     maybe_result = lo_space_->AllocateRaw(obj_size, EXECUTABLE);
   } else {
-    maybe_result = code_space_->AllocateRaw(obj_size);
+    maybe_result = AllocateRaw(obj_size, CODE_SPACE, CODE_SPACE);
   }
 
   Object* result;
@@ -4318,7 +4314,7 @@ MaybeObject* Heap::CopyCode(Code* code, Vector<byte> reloc_info) {
   if (new_obj_size > code_space()->AreaSize()) {
     maybe_result = lo_space_->AllocateRaw(new_obj_size, EXECUTABLE);
   } else {
-    maybe_result = code_space_->AllocateRaw(new_obj_size);
+    maybe_result = AllocateRaw(new_obj_size, CODE_SPACE, CODE_SPACE);
   }
 
   Object* result;
@@ -4830,7 +4826,8 @@ MaybeObject* Heap::CopyJSObject(JSObject* source, AllocationSite* site) {
     { int adjusted_object_size = site != NULL
           ? object_size + AllocationMemento::kSize
           : object_size;
-      MaybeObject* maybe_clone = new_space_.AllocateRaw(adjusted_object_size);
+      MaybeObject* maybe_clone =
+          AllocateRaw(adjusted_object_size, NEW_SPACE, NEW_SPACE);
       if (!maybe_clone->ToObject(&clone)) return maybe_clone;
     }
     SLOW_ASSERT(InNewSpace(clone));
@@ -5747,12 +5744,7 @@ bool Heap::IdleNotification(int hint) {
       size_factor * IncrementalMarking::kAllocatedThreshold;
 
   if (contexts_disposed_ > 0) {
-    if (hint >= kMaxHint) {
-      // The embedder is requesting a lot of GC work after context disposal,
-      // we age inline caches so that they don't keep objects from
-      // the old context alive.
-      AgeInlineCaches();
-    }
+    contexts_disposed_ = 0;
     int mark_sweep_time = Min(TimeMarkSweepWouldTakeInMs(), 1000);
     if (hint >= mark_sweep_time && !FLAG_expose_gc &&
         incremental_marking()->IsStopped()) {
@@ -5761,8 +5753,8 @@ bool Heap::IdleNotification(int hint) {
                         "idle notification: contexts disposed");
     } else {
       AdvanceIdleIncrementalMarking(step_size);
-      contexts_disposed_ = 0;
     }
+
     // After context disposal there is likely a lot of garbage remaining, reset
     // the idle notification counters in order to trigger more incremental GCs
     // on subsequent idle notifications.
