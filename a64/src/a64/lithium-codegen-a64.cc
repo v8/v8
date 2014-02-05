@@ -5438,7 +5438,10 @@ void LCodeGen::DoUint32ToSmi(LUint32ToSmi* instr) {
   Register result = ToRegister(instr->result());
 
   if (!instr->hydrogen()->value()->HasRange() ||
-      !instr->hydrogen()->value()->range()->IsInSmiRange()) {
+      !instr->hydrogen()->value()->range()->IsInSmiRange() ||
+      instr->hydrogen()->value()->range()->upper() == kMaxInt) {
+    // The Range class can't express upper bounds in the (kMaxInt, kMaxUint32]
+    // interval, so we treat kMaxInt as a sentinel for this entire interval.
     DeoptimizeIfNegative(value.W(), instr->environment());
   }
   __ SmiTag(result, value);
