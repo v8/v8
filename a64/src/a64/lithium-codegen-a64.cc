@@ -5108,7 +5108,7 @@ void LCodeGen::DoStringCompareAndBranch(LStringCompareAndBranch* instr) {
 
   Condition condition = TokenToCondition(op, false);
 
-  EmitBranch(instr, condition);
+  EmitCompareAndBranch(instr, condition, x0, 0);
 }
 
 
