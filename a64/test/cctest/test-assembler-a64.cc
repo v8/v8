@@ -108,15 +108,14 @@ static void InitializeVM() {
 
 #define INIT_V8()                                                              \
   CcTest::InitializeVM();                                                      \
-  Isolate* isolate = Isolate::Current();                                       \
-  HandleScope scope(isolate);                                                  \
-  ASSERT(isolate != NULL);
 
 #ifdef USE_SIMULATOR
 
 // Run tests with the simulator.
 #define SETUP_SIZE(buf_size)                                                   \
-  INIT_V8();                                                                   \
+  Isolate* isolate = Isolate::Current();                                       \
+  HandleScope scope(isolate);                                                  \
+  ASSERT(isolate != NULL);                                                     \
   byte* buf = new byte[buf_size];                                              \
   MacroAssembler masm(isolate, buf, buf_size);                                 \
   Decoder decoder;                                                             \
@@ -167,7 +166,6 @@ static void InitializeVM() {
 #else  // ifdef USE_SIMULATOR.
 // Run the test on real hardware or models.
 #define SETUP_SIZE(buf_size)                                                   \
-  INIT_V8();                                                                   \
   byte* buf = new byte[buf_size];                                              \
   MacroAssembler masm(isolate, buf, buf_size);                                 \
   RegisterDump core;                                                           \
@@ -231,6 +229,7 @@ static void InitializeVM() {
 
 
 TEST(stack_ops) {
+  INIT_V8();
   SETUP();
 
   START();
@@ -281,6 +280,7 @@ TEST(stack_ops) {
 
 
 TEST(mvn) {
+  INIT_V8();
   SETUP();
 
   START();
@@ -326,6 +326,7 @@ TEST(mvn) {
 
 
 TEST(mov) {
+  INIT_V8();
   SETUP();
 
   START();
@@ -406,6 +407,7 @@ TEST(mov) {
 
 
 TEST(mov_imm_w) {
+  INIT_V8();
   SETUP();
 
   START();
@@ -433,6 +435,7 @@ TEST(mov_imm_w) {
 
 
 TEST(mov_imm_x) {
+  INIT_V8();
   SETUP();
 
   START();
@@ -499,6 +502,7 @@ TEST(mov_imm_x) {
 
 
 TEST(orr) {
+  INIT_V8();
   SETUP();
 
   START();
@@ -535,6 +539,7 @@ TEST(orr) {
 
 
 TEST(orr_extend) {
+  INIT_V8();
   SETUP();
 
   START();
@@ -566,6 +571,7 @@ TEST(orr_extend) {
 
 
 TEST(bitwise_wide_imm) {
+  INIT_V8();
   SETUP();
 
   START();
@@ -588,6 +594,7 @@ TEST(bitwise_wide_imm) {
 
 
 TEST(orn) {
+  INIT_V8();
   SETUP();
 
   START();
@@ -624,6 +631,7 @@ TEST(orn) {
 
 
 TEST(orn_extend) {
+  INIT_V8();
   SETUP();
 
   START();
@@ -655,6 +663,7 @@ TEST(orn_extend) {
 
 
 TEST(and_) {
+  INIT_V8();
   SETUP();
 
   START();
@@ -691,6 +700,7 @@ TEST(and_) {
 
 
 TEST(and_extend) {
+  INIT_V8();
   SETUP();
 
   START();
@@ -722,6 +732,7 @@ TEST(and_extend) {
 
 
 TEST(ands) {
+  INIT_V8();
   SETUP();
 
   START();
@@ -781,6 +792,7 @@ TEST(ands) {
 
 
 TEST(bic) {
+  INIT_V8();
   SETUP();
 
   START();
@@ -829,6 +841,7 @@ TEST(bic) {
 
 
 TEST(bic_extend) {
+  INIT_V8();
   SETUP();
 
   START();
@@ -860,6 +873,7 @@ TEST(bic_extend) {
 
 
 TEST(bics) {
+  INIT_V8();
   SETUP();
 
   START();
@@ -918,6 +932,7 @@ TEST(bics) {
 
 
 TEST(eor) {
+  INIT_V8();
   SETUP();
 
   START();
@@ -954,6 +969,7 @@ TEST(eor) {
 
 
 TEST(eor_extend) {
+  INIT_V8();
   SETUP();
 
   START();
@@ -985,6 +1001,7 @@ TEST(eor_extend) {
 
 
 TEST(eon) {
+  INIT_V8();
   SETUP();
 
   START();
@@ -1021,6 +1038,7 @@ TEST(eon) {
 
 
 TEST(eon_extend) {
+  INIT_V8();
   SETUP();
 
   START();
@@ -1052,6 +1070,7 @@ TEST(eon_extend) {
 
 
 TEST(mul) {
+  INIT_V8();
   SETUP();
 
   START();
@@ -1121,6 +1140,7 @@ static void SmullHelper(int64_t expected, int64_t a, int64_t b) {
 
 
 TEST(smull) {
+  INIT_V8();
   SmullHelper(0, 0, 0);
   SmullHelper(1, 1, 1);
   SmullHelper(-1, -1, 1);
@@ -1131,6 +1151,7 @@ TEST(smull) {
 
 
 TEST(madd) {
+  INIT_V8();
   SETUP();
 
   START();
@@ -1200,6 +1221,7 @@ TEST(madd) {
 
 
 TEST(msub) {
+  INIT_V8();
   SETUP();
 
   START();
@@ -1269,6 +1291,7 @@ TEST(msub) {
 
 
 TEST(smulh) {
+  INIT_V8();
   SETUP();
 
   START();
@@ -1317,6 +1340,7 @@ TEST(smulh) {
 
 
 TEST(smaddl_umaddl) {
+  INIT_V8();
   SETUP();
 
   START();
@@ -1352,6 +1376,7 @@ TEST(smaddl_umaddl) {
 
 
 TEST(smsubl_umsubl) {
+  INIT_V8();
   SETUP();
 
   START();
@@ -1387,6 +1412,7 @@ TEST(smsubl_umsubl) {
 
 
 TEST(div) {
+  INIT_V8();
   SETUP();
 
   START();
@@ -1469,6 +1495,7 @@ TEST(div) {
 
 
 TEST(rbit_rev) {
+  INIT_V8();
   SETUP();
 
   START();
@@ -1497,6 +1524,7 @@ TEST(rbit_rev) {
 
 
 TEST(clz_cls) {
+  INIT_V8();
   SETUP();
 
   START();
@@ -1537,6 +1565,7 @@ TEST(clz_cls) {
 
 
 TEST(label) {
+  INIT_V8();
   SETUP();
 
   Label label_1, label_2, label_3, label_4;
@@ -1575,6 +1604,7 @@ TEST(label) {
 
 
 TEST(branch_at_start) {
+  INIT_V8();
   SETUP();
 
   Label good, exit;
@@ -1606,6 +1636,7 @@ TEST(branch_at_start) {
 
 
 TEST(adr) {
+  INIT_V8();
   SETUP();
 
   Label label_1, label_2, label_3, label_4;
@@ -1651,6 +1682,7 @@ TEST(adr) {
 
 
 TEST(branch_cond) {
+  INIT_V8();
   SETUP();
 
   Label wrong;
@@ -1740,6 +1772,7 @@ TEST(branch_cond) {
 
 
 TEST(branch_to_reg) {
+  INIT_V8();
   SETUP();
 
   // Test br.
@@ -1788,6 +1821,7 @@ TEST(branch_to_reg) {
 
 
 TEST(compare_branch) {
+  INIT_V8();
   SETUP();
 
   START();
@@ -1860,6 +1894,7 @@ TEST(compare_branch) {
 
 
 TEST(test_branch) {
+  INIT_V8();
   SETUP();
 
   START();
@@ -1910,6 +1945,7 @@ TEST(test_branch) {
 
 
 TEST(ldr_str_offset) {
+  INIT_V8();
   SETUP();
 
   uint64_t src[2] = {0xfedcba9876543210UL, 0x0123456789abcdefUL};
@@ -1952,6 +1988,7 @@ TEST(ldr_str_offset) {
 
 
 TEST(ldr_str_wide) {
+  INIT_V8();
   SETUP();
 
   uint32_t src[8192];
@@ -2000,6 +2037,7 @@ TEST(ldr_str_wide) {
 
 
 TEST(ldr_str_preindex) {
+  INIT_V8();
   SETUP();
 
   uint64_t src[2] = {0xfedcba9876543210UL, 0x0123456789abcdefUL};
@@ -2058,6 +2096,7 @@ TEST(ldr_str_preindex) {
 
 
 TEST(ldr_str_postindex) {
+  INIT_V8();
   SETUP();
 
   uint64_t src[2] = {0xfedcba9876543210UL, 0x0123456789abcdefUL};
@@ -2116,6 +2155,7 @@ TEST(ldr_str_postindex) {
 
 
 TEST(load_signed) {
+  INIT_V8();
   SETUP();
 
   uint32_t src[2] = {0x80008080, 0x7fff7f7f};
@@ -2153,6 +2193,7 @@ TEST(load_signed) {
 
 
 TEST(load_store_regoffset) {
+  INIT_V8();
   SETUP();
 
   uint32_t src[3] = {1, 2, 3};
@@ -2200,6 +2241,7 @@ TEST(load_store_regoffset) {
 
 
 TEST(load_store_float) {
+  INIT_V8();
   SETUP();
 
   float src[3] = {1.0, 2.0, 3.0};
@@ -2242,6 +2284,7 @@ TEST(load_store_float) {
 
 
 TEST(load_store_double) {
+  INIT_V8();
   SETUP();
 
   double src[3] = {1.0, 2.0, 3.0};
@@ -2284,6 +2327,7 @@ TEST(load_store_double) {
 
 
 TEST(ldp_stp_float) {
+  INIT_V8();
   SETUP();
 
   float src[2] = {1.0, 2.0};
@@ -2313,6 +2357,7 @@ TEST(ldp_stp_float) {
 
 
 TEST(ldp_stp_double) {
+  INIT_V8();
   SETUP();
 
   double src[2] = {1.0, 2.0};
@@ -2342,6 +2387,7 @@ TEST(ldp_stp_double) {
 
 
 TEST(ldp_stp_offset) {
+  INIT_V8();
   SETUP();
 
   uint64_t src[3] = {0x0011223344556677UL, 0x8899aabbccddeeffUL,
@@ -2396,6 +2442,7 @@ TEST(ldp_stp_offset) {
 
 
 TEST(ldnp_stnp_offset) {
+  INIT_V8();
   SETUP();
 
   uint64_t src[3] = {0x0011223344556677UL, 0x8899aabbccddeeffUL,
@@ -2450,6 +2497,7 @@ TEST(ldnp_stnp_offset) {
 
 
 TEST(ldp_stp_preindex) {
+  INIT_V8();
   SETUP();
 
   uint64_t src[3] = {0x0011223344556677UL, 0x8899aabbccddeeffUL,
@@ -2504,6 +2552,7 @@ TEST(ldp_stp_preindex) {
 
 
 TEST(ldp_stp_postindex) {
+  INIT_V8();
   SETUP();
 
   uint64_t src[4] = {0x0011223344556677UL, 0x8899aabbccddeeffUL,
@@ -2558,6 +2607,7 @@ TEST(ldp_stp_postindex) {
 
 
 TEST(ldp_sign_extend) {
+  INIT_V8();
   SETUP();
 
   uint32_t src[2] = {0x80000000, 0x7fffffff};
@@ -2578,6 +2628,7 @@ TEST(ldp_sign_extend) {
 
 
 TEST(ldur_stur) {
+  INIT_V8();
   SETUP();
 
   int64_t src[2] = {0x0123456789abcdefUL, 0x0123456789abcdefUL};
@@ -2624,6 +2675,7 @@ TEST(ldur_stur) {
 #if 0  // TODO(all) enable.
 // TODO(rodolph): Adapt w16 Literal tests for RelocInfo.
 TEST(ldr_literal) {
+  INIT_V8();
   SETUP();
 
   START();
@@ -2733,6 +2785,7 @@ static void LdrLiteralRangeHelper(ptrdiff_t range_,
 
 
 TEST(ldr_literal_range_1) {
+  INIT_V8();
   LdrLiteralRangeHelper(kRecommendedLiteralPoolRange,
                         NoJumpRequired,
                         true);
@@ -2740,6 +2793,7 @@ TEST(ldr_literal_range_1) {
 
 
 TEST(ldr_literal_range_2) {
+  INIT_V8();
   LdrLiteralRangeHelper(kRecommendedLiteralPoolRange-sizeof(Instr),
                         NoJumpRequired,
                         false);
@@ -2747,6 +2801,7 @@ TEST(ldr_literal_range_2) {
 
 
 TEST(ldr_literal_range_3) {
+  INIT_V8();
   LdrLiteralRangeHelper(2 * kRecommendedLiteralPoolRange,
                         JumpRequired,
                         true);
@@ -2754,6 +2809,7 @@ TEST(ldr_literal_range_3) {
 
 
 TEST(ldr_literal_range_4) {
+  INIT_V8();
   LdrLiteralRangeHelper(2 * kRecommendedLiteralPoolRange-sizeof(Instr),
                         JumpRequired,
                         false);
@@ -2761,6 +2817,7 @@ TEST(ldr_literal_range_4) {
 
 
 TEST(ldr_literal_range_5) {
+  INIT_V8();
   LdrLiteralRangeHelper(kLiteralPoolCheckInterval,
                         JumpRequired,
                         false);
@@ -2768,6 +2825,7 @@ TEST(ldr_literal_range_5) {
 
 
 TEST(ldr_literal_range_6) {
+  INIT_V8();
   LdrLiteralRangeHelper(kLiteralPoolCheckInterval-sizeof(Instr),
                         JumpRequired,
                         false);
@@ -2775,6 +2833,7 @@ TEST(ldr_literal_range_6) {
 #endif
 
 TEST(add_sub_imm) {
+  INIT_V8();
   SETUP();
 
   START();
@@ -2831,6 +2890,7 @@ TEST(add_sub_imm) {
 
 
 TEST(add_sub_wide_imm) {
+  INIT_V8();
   SETUP();
 
   START();
@@ -2865,6 +2925,7 @@ TEST(add_sub_wide_imm) {
 
 
 TEST(add_sub_shifted) {
+  INIT_V8();
   SETUP();
 
   START();
@@ -2917,6 +2978,7 @@ TEST(add_sub_shifted) {
 
 
 TEST(add_sub_extended) {
+  INIT_V8();
   SETUP();
 
   START();
@@ -2987,6 +3049,7 @@ TEST(add_sub_extended) {
 
 
 TEST(add_sub_negative) {
+  INIT_V8();
   SETUP();
 
   START();
@@ -3032,6 +3095,7 @@ TEST(add_sub_negative) {
 
 
 TEST(add_sub_zero) {
+  INIT_V8();
   SETUP();
 
   START();
@@ -3069,6 +3133,7 @@ TEST(add_sub_zero) {
 
 
 TEST(claim_drop_zero) {
+  INIT_V8();
   SETUP();
 
   START();
@@ -3098,6 +3163,7 @@ TEST(claim_drop_zero) {
 
 
 TEST(neg) {
+  INIT_V8();
   SETUP();
 
   START();
@@ -3146,6 +3212,7 @@ TEST(neg) {
 
 
 TEST(adc_sbc_shift) {
+  INIT_V8();
   SETUP();
 
   START();
@@ -3343,6 +3410,7 @@ TEST(adc_sbc_shift) {
 
 
 TEST(adc_sbc_extend) {
+  INIT_V8();
   SETUP();
 
   START();
@@ -3436,6 +3504,7 @@ TEST(adc_sbc_extend) {
 
 
 TEST(adc_sbc_wide_imm) {
+  INIT_V8();
   SETUP();
 
   START();
@@ -3483,6 +3552,7 @@ TEST(adc_sbc_wide_imm) {
 
 
 TEST(flags) {
+  INIT_V8();
   SETUP();
 
   START();
@@ -3632,6 +3702,7 @@ TEST(flags) {
 
 
 TEST(cmp_shift) {
+  INIT_V8();
   SETUP();
 
   START();
@@ -3687,6 +3758,7 @@ TEST(cmp_shift) {
 
 
 TEST(cmp_extend) {
+  INIT_V8();
   SETUP();
 
   START();
@@ -3739,6 +3811,7 @@ TEST(cmp_extend) {
 
 
 TEST(ccmp) {
+  INIT_V8();
   SETUP();
 
   START();
@@ -3782,6 +3855,7 @@ TEST(ccmp) {
 
 
 TEST(ccmp_wide_imm) {
+  INIT_V8();
   SETUP();
 
   START();
@@ -3806,6 +3880,7 @@ TEST(ccmp_wide_imm) {
 
 
 TEST(ccmp_shift_extend) {
+  INIT_V8();
   SETUP();
 
   START();
@@ -3849,6 +3924,7 @@ TEST(ccmp_shift_extend) {
 
 
 TEST(csel) {
+  INIT_V8();
   SETUP();
 
   START();
@@ -3918,6 +3994,7 @@ TEST(csel) {
 
 
 TEST(csel_imm) {
+  INIT_V8();
   SETUP();
 
   START();
@@ -3971,6 +4048,7 @@ TEST(csel_imm) {
 
 
 TEST(lslv) {
+  INIT_V8();
   SETUP();
 
   uint64_t value = 0x0123456789abcdefUL;
@@ -4023,6 +4101,7 @@ TEST(lslv) {
 
 
 TEST(lsrv) {
+  INIT_V8();
   SETUP();
 
   uint64_t value = 0x0123456789abcdefUL;
@@ -4077,6 +4156,7 @@ TEST(lsrv) {
 
 
 TEST(asrv) {
+  INIT_V8();
   SETUP();
 
   int64_t value = 0xfedcba98fedcba98UL;
@@ -4131,6 +4211,7 @@ TEST(asrv) {
 
 
 TEST(rorv) {
+  INIT_V8();
   SETUP();
 
   uint64_t value = 0x0123456789abcdefUL;
@@ -4183,6 +4264,7 @@ TEST(rorv) {
 
 
 TEST(bfm) {
+  INIT_V8();
   SETUP();
 
   START();
@@ -4223,6 +4305,7 @@ TEST(bfm) {
 
 
 TEST(sbfm) {
+  INIT_V8();
   SETUP();
 
   START();
@@ -4285,6 +4368,7 @@ TEST(sbfm) {
 
 
 TEST(ubfm) {
+  INIT_V8();
   SETUP();
 
   START();
@@ -4341,6 +4425,7 @@ TEST(ubfm) {
 
 
 TEST(extr) {
+  INIT_V8();
   SETUP();
 
   START();
@@ -4374,6 +4459,7 @@ TEST(extr) {
 
 
 TEST(fmov_imm) {
+  INIT_V8();
   SETUP();
 
   START();
@@ -4403,6 +4489,7 @@ TEST(fmov_imm) {
 
 
 TEST(fmov_reg) {
+  INIT_V8();
   SETUP();
 
   START();
@@ -4433,6 +4520,7 @@ TEST(fmov_reg) {
 
 
 TEST(fadd) {
+  INIT_V8();
   SETUP();
 
   START();
@@ -4481,6 +4569,7 @@ TEST(fadd) {
 
 
 TEST(fsub) {
+  INIT_V8();
   SETUP();
 
   START();
@@ -4529,6 +4618,7 @@ TEST(fsub) {
 
 
 TEST(fmul) {
+  INIT_V8();
   SETUP();
 
   START();
@@ -4603,6 +4693,7 @@ static void FmaddFmsubDoubleHelper(double n, double m, double a,
 
 
 TEST(fmadd_fmsub_double) {
+  INIT_V8();
   double inputs[] = {
     // Normal numbers, including -0.0.
     DBL_MAX, DBL_MIN, 3.25, 2.0, 0.0,
@@ -4639,6 +4730,7 @@ TEST(fmadd_fmsub_double) {
 
 
 TEST(fmadd_fmsub_double_rounding) {
+  INIT_V8();
   // Make sure we run plenty of tests where an intermediate rounding stage would
   // produce an incorrect result.
   const int limit = 1000;
@@ -4707,6 +4799,7 @@ static void FmaddFmsubFloatHelper(float n, float m, float a,
 
 
 TEST(fmadd_fmsub_float) {
+  INIT_V8();
   float inputs[] = {
     // Normal numbers, including -0.0f.
     FLT_MAX, FLT_MIN, 3.25f, 2.0f, 0.0f,
@@ -4743,6 +4836,7 @@ TEST(fmadd_fmsub_float) {
 
 
 TEST(fmadd_fmsub_float_rounding) {
+  INIT_V8();
   // Make sure we run plenty of tests where an intermediate rounding stage would
   // produce an incorrect result.
   const int limit = 1000;
@@ -4787,6 +4881,7 @@ TEST(fmadd_fmsub_float_rounding) {
 
 
 TEST(fdiv) {
+  INIT_V8();
   SETUP();
 
   START();
@@ -4943,6 +5038,7 @@ static void FminFmaxDoubleHelper(double n, double m, double min, double max,
 
 
 TEST(fmax_fmin_d) {
+  INIT_V8();
   // Bootstrap tests.
   FminFmaxDoubleHelper(0, 0, 0, 0, 0, 0);
   FminFmaxDoubleHelper(0, 1, 0, 1, 0, 1);
@@ -5012,6 +5108,7 @@ static void FminFmaxFloatHelper(float n, float m, float min, float max,
 
 
 TEST(fmax_fmin_s) {
+  INIT_V8();
   // Bootstrap tests.
   FminFmaxFloatHelper(0, 0, 0, 0, 0, 0);
   FminFmaxFloatHelper(0, 1, 0, 1, 0, 1);
@@ -5051,6 +5148,7 @@ TEST(fmax_fmin_s) {
 
 
 TEST(fccmp) {
+  INIT_V8();
   SETUP();
 
   START();
@@ -5118,6 +5216,7 @@ TEST(fccmp) {
 
 
 TEST(fcmp) {
+  INIT_V8();
   SETUP();
 
   START();
@@ -5193,6 +5292,7 @@ TEST(fcmp) {
 
 
 TEST(fcsel) {
+  INIT_V8();
   SETUP();
 
   START();
@@ -5225,6 +5325,7 @@ TEST(fcsel) {
 
 
 TEST(fneg) {
+  INIT_V8();
   SETUP();
 
   START();
@@ -5269,6 +5370,7 @@ TEST(fneg) {
 
 
 TEST(fabs) {
+  INIT_V8();
   SETUP();
 
   START();
@@ -5305,6 +5407,7 @@ TEST(fabs) {
 
 
 TEST(fsqrt) {
+  INIT_V8();
   SETUP();
 
   START();
@@ -5355,6 +5458,7 @@ TEST(fsqrt) {
 
 
 TEST(frinta) {
+  INIT_V8();
   SETUP();
 
   START();
@@ -5437,6 +5541,7 @@ TEST(frinta) {
 
 
 TEST(frintn) {
+  INIT_V8();
   SETUP();
 
   START();
@@ -5519,6 +5624,7 @@ TEST(frintn) {
 
 
 TEST(frintz) {
+  INIT_V8();
   SETUP();
 
   START();
@@ -5601,6 +5707,7 @@ TEST(frintz) {
 
 
 TEST(fcvt_ds) {
+  INIT_V8();
   SETUP();
 
   START();
@@ -5666,6 +5773,7 @@ TEST(fcvt_ds) {
 
 
 TEST(fcvt_sd) {
+  INIT_V8();
   // There are a huge number of corner-cases to check, so this test iterates
   // through a list. The list is then negated and checked again (since the sign
   // is irrelevant in ties-to-even rounding), so the list shouldn't include any
@@ -5780,6 +5888,7 @@ TEST(fcvt_sd) {
 
 
 TEST(fcvtas) {
+  INIT_V8();
   SETUP();
 
   START();
@@ -5884,6 +5993,7 @@ TEST(fcvtas) {
 
 
 TEST(fcvtau) {
+  INIT_V8();
   SETUP();
 
   START();
@@ -5983,6 +6093,7 @@ TEST(fcvtau) {
 
 
 TEST(fcvtms) {
+  INIT_V8();
   SETUP();
 
   START();
@@ -6087,6 +6198,7 @@ TEST(fcvtms) {
 
 
 TEST(fcvtmu) {
+  INIT_V8();
   SETUP();
 
   START();
@@ -6189,6 +6301,7 @@ TEST(fcvtmu) {
 
 
 TEST(fcvtns) {
+  INIT_V8();
   SETUP();
 
   START();
@@ -6293,6 +6406,7 @@ TEST(fcvtns) {
 
 
 TEST(fcvtnu) {
+  INIT_V8();
   SETUP();
 
   START();
@@ -6392,6 +6506,7 @@ TEST(fcvtnu) {
 
 
 TEST(fcvtzs) {
+  INIT_V8();
   SETUP();
 
   START();
@@ -6496,6 +6611,7 @@ TEST(fcvtzs) {
 
 
 TEST(fcvtzu) {
+  INIT_V8();
   SETUP();
 
   START();
@@ -6696,6 +6812,7 @@ static void TestUScvtfHelper(uint64_t in,
 
 
 TEST(scvtf_ucvtf_double) {
+  INIT_V8();
   // Simple conversions of positive numbers which require no rounding; the
   // results should not depened on the rounding mode, and ucvtf and scvtf should
   // produce the same result.
@@ -6852,6 +6969,7 @@ static void TestUScvtf32Helper(uint64_t in,
 
 
 TEST(scvtf_ucvtf_float) {
+  INIT_V8();
   // Simple conversions of positive numbers which require no rounding; the
   // results should not depened on the rounding mode, and ucvtf and scvtf should
   // produce the same result.
@@ -6920,6 +7038,7 @@ TEST(scvtf_ucvtf_float) {
 
 
 TEST(system_mrs) {
+  INIT_V8();
   SETUP();
 
   START();
@@ -6959,6 +7078,7 @@ TEST(system_mrs) {
 
 
 TEST(system_msr) {
+  INIT_V8();
   // All FPCR fields that must be implemented: AHP, DN, FZ, RMode
   const uint64_t fpcr_core = 0x07c00000;
 
@@ -7030,6 +7150,7 @@ TEST(system_msr) {
 
 
 TEST(system_nop) {
+  INIT_V8();
   SETUP();
   RegisterDump before;
 
@@ -7048,6 +7169,7 @@ TEST(system_nop) {
 
 
 TEST(zero_dest) {
+  INIT_V8();
   SETUP();
   RegisterDump before;
 
@@ -7114,6 +7236,7 @@ TEST(zero_dest) {
 
 
 TEST(zero_dest_setflags) {
+  INIT_V8();
   SETUP();
   RegisterDump before;
 
@@ -7210,6 +7333,7 @@ TEST(register_bit) {
 TEST(stack_pointer_override) {
   // This test generates some stack maintenance code, but the test only checks
   // the reported state.
+  INIT_V8();
   SETUP();
   START();
 
@@ -7230,6 +7354,7 @@ TEST(stack_pointer_override) {
 
 
 TEST(peek_poke_simple) {
+  INIT_V8();
   SETUP();
   START();
 
@@ -7296,6 +7421,7 @@ TEST(peek_poke_simple) {
 
 
 TEST(peek_poke_unaligned) {
+  INIT_V8();
   SETUP();
   START();
 
@@ -7375,6 +7501,7 @@ TEST(peek_poke_unaligned) {
 
 
 TEST(peek_poke_endianness) {
+  INIT_V8();
   SETUP();
   START();
 
@@ -7424,6 +7551,7 @@ TEST(peek_poke_endianness) {
 
 
 TEST(peek_poke_mixed) {
+  INIT_V8();
   SETUP();
   START();
 
@@ -7634,6 +7762,7 @@ static void PushPopJsspSimpleHelper(int reg_count,
 
 
 TEST(push_pop_jssp_simple_32) {
+  INIT_V8();
   for (int claim = 0; claim <= 8; claim++) {
     for (int count = 0; count <= 8; count++) {
       PushPopJsspSimpleHelper(count, claim, kWRegSize,
@@ -7659,6 +7788,7 @@ TEST(push_pop_jssp_simple_32) {
 
 
 TEST(push_pop_jssp_simple_64) {
+  INIT_V8();
   for (int claim = 0; claim <= 8; claim++) {
     for (int count = 0; count <= 8; count++) {
       PushPopJsspSimpleHelper(count, claim, kXRegSize,
@@ -7815,6 +7945,7 @@ static void PushPopFPJsspSimpleHelper(int reg_count,
 
 
 TEST(push_pop_fp_jssp_simple_32) {
+  INIT_V8();
   for (int claim = 0; claim <= 8; claim++) {
     for (int count = 0; count <= 8; count++) {
       PushPopFPJsspSimpleHelper(count, claim, kSRegSize,
@@ -7840,6 +7971,7 @@ TEST(push_pop_fp_jssp_simple_32) {
 
 
 TEST(push_pop_fp_jssp_simple_64) {
+  INIT_V8();
   for (int claim = 0; claim <= 8; claim++) {
     for (int count = 0; count <= 8; count++) {
       PushPopFPJsspSimpleHelper(count, claim, kDRegSize,
@@ -7954,6 +8086,7 @@ static void PushPopJsspMixedMethodsHelper(int claim, int reg_size) {
 
 
 TEST(push_pop_jssp_mixed_methods_64) {
+  INIT_V8();
   for (int claim = 0; claim <= 8; claim++) {
     PushPopJsspMixedMethodsHelper(claim, kXRegSize);
   }
@@ -7961,6 +8094,7 @@ TEST(push_pop_jssp_mixed_methods_64) {
 
 
 TEST(push_pop_jssp_mixed_methods_32) {
+  INIT_V8();
   for (int claim = 0; claim <= 8; claim++) {
     PushPopJsspMixedMethodsHelper(claim, kWRegSize);
   }
@@ -8156,6 +8290,7 @@ static void PushPopJsspWXOverlapHelper(int reg_count, int claim) {
 
 
 TEST(push_pop_jssp_wx_overlap) {
+  INIT_V8();
   for (int claim = 0; claim <= 8; claim++) {
     for (int count = 1; count <= 8; count++) {
       PushPopJsspWXOverlapHelper(count, claim);
@@ -8173,6 +8308,7 @@ TEST(push_pop_jssp_wx_overlap) {
 
 
 TEST(push_pop_csp) {
+  INIT_V8();
   SETUP();
 
   START();
@@ -8261,6 +8397,7 @@ TEST(push_pop_csp) {
 
 
 TEST(jump_both_smi) {
+  INIT_V8();
   SETUP();
 
   Label cond_pass_00, cond_pass_01, cond_pass_10, cond_pass_11;
@@ -8333,6 +8470,7 @@ TEST(jump_both_smi) {
 
 
 TEST(jump_either_smi) {
+  INIT_V8();
   SETUP();
 
   Label cond_pass_00, cond_pass_01, cond_pass_10, cond_pass_11;
@@ -8748,6 +8886,7 @@ TEST(cpureglist_utils_empty) {
 
 
 TEST(printf) {
+  INIT_V8();
   SETUP();
   START();
 
@@ -8838,6 +8977,7 @@ TEST(printf) {
 
 
 TEST(printf_no_preserve) {
+  INIT_V8();
   SETUP();
   START();
 
@@ -9008,6 +9148,7 @@ static void CopyFieldsHelper(CPURegList temps) {
 
 // This is a V8-specific test.
 TEST(copyfields) {
+  INIT_V8();
   CopyFieldsHelper(CPURegList(x10));
   CopyFieldsHelper(CPURegList(x10, x11));
   CopyFieldsHelper(CPURegList(x10, x11, x12));
@@ -9052,6 +9193,7 @@ static void DoSmiAbsTest(int32_t value, bool must_fail = false) {
 
 
 TEST(smi_abs) {
+  INIT_V8();
   // Simple and edge cases.
   DoSmiAbsTest(0);
   DoSmiAbsTest(0x12345);
@@ -9068,6 +9210,7 @@ TEST(smi_abs) {
 
 TEST(blr_lr) {
   // A simple test to check that the simulator correcty handle "blr lr".
+  INIT_V8();
   SETUP();
 
   START();
@@ -9097,6 +9240,7 @@ TEST(blr_lr) {
 
 TEST(barriers) {
   // Generate all supported barriers, this is just a smoke test
+  INIT_V8();
   SETUP();
 
   START();
@@ -9158,6 +9302,7 @@ TEST(call_no_relocation) {
   Address call_start;
   Address return_address;
 
+  INIT_V8();
   SETUP();
 
   START();
@@ -9227,6 +9372,7 @@ static void ECMA262ToInt32Helper(int32_t expected, double input) {
 
 
 TEST(ecma_262_to_int32) {
+  INIT_V8();
   // ==== exponent < 64 ====
 
   ECMA262ToInt32Helper(0, 0.0);
@@ -9411,6 +9557,7 @@ static void AbsHelperW(int32_t value) {
 
 
 TEST(abs) {
+  INIT_V8();
   AbsHelperX(0);
   AbsHelperX(42);
   AbsHelperX(-42);
