@@ -301,9 +301,18 @@ static Handle<Code> DoGenerateCode(Isolate* isolate, Stub* stub) {
     ASSERT(descriptor->stack_parameter_count_ == NULL);
     return stub->GenerateLightweightMissCode(isolate);
   }
+  ElapsedTimer timer;
+  if (FLAG_profile_hydrogen_code_stub_compilation) {
+    timer.Start();
+  }
   CodeStubGraphBuilder<Stub> builder(isolate, stub);
   LChunk* chunk = OptimizeGraph(builder.CreateGraph());
-  return chunk->Codegen();
+  Handle<Code> code = chunk->Codegen();
+  if (FLAG_profile_hydrogen_code_stub_compilation) {
+    double ms = timer.Elapsed().InMillisecondsF();
+    PrintF("[Lazy compilation of %s took %0.3f ms]\n", *stub->GetName(), ms);
+  }
+  return code;
 }
 
 
@@ -837,6 +846,102 @@ HValue* CodeStubGraphBuilder<CompareNilICStub>::BuildCodeInitializedStub() {
 
 
 Handle<Code> CompareNilICStub::GenerateCode(Isolate* isolate) {
+  return DoGenerateCode(isolate, this);
+}
+
+
+template <>
+HValue* CodeStubGraphBuilder<BinaryOpStub>::BuildCodeInitializedStub() {
+  BinaryOpStub* stub = casted_stub();
+  HValue* left = GetParameter(0);
+  HValue* right = GetParameter(1);
+
+  Handle<Type> left_type = stub->GetLeftType(isolate());
+  Handle<Type> right_type = stub->GetRightType(isolate());
+  Handle<Type> result_type = stub->GetResultType(isolate());
+
+  ASSERT(!left_type->Is(Type::None()) && !right_type->Is(Type::None()) &&
+         (stub->HasSideEffects(isolate()) || !result_type->Is(Type::None())));
+
+  HValue* result = NULL;
+  if (stub->operation() == Token::ADD &&
+      (left_type->Maybe(Type::String()) || right_type->Maybe(Type::String())) &&
+      !left_type->Is(Type::String()) && !right_type->Is(Type::String())) {
+    // For the generic add stub a fast case for String add is performance
+    // critical.
+    if (left_type->Maybe(Type::String())) {
+      IfBuilder left_string(this);
+      left_string.IfNot<HIsSmiAndBranch>(left);
+      left_string.AndIf<HIsStringAndBranch>(left);
+      left_string.Then();
+      Push(Add<HStringAdd>(left, right, STRING_ADD_CHECK_RIGHT));
+      left_string.Else();
+      Push(AddInstruction(BuildBinaryOperation(stub->operation(),
+          left, right, left_type, right_type, result_type,
+          stub->fixed_right_arg(), true)));
+      left_string.End();
+      result = Pop();
+    } else {
+      IfBuilder right_string(this);
+      right_string.IfNot<HIsSmiAndBranch>(right);
+      right_string.AndIf<HIsStringAndBranch>(right);
+      right_string.Then();
+      Push(Add<HStringAdd>(left, right, STRING_ADD_CHECK_LEFT));
+      right_string.Else();
+      Push(AddInstruction(BuildBinaryOperation(stub->operation(),
+          left, right, left_type, right_type, result_type,
+          stub->fixed_right_arg(), true)));
+      right_string.End();
+      result = Pop();
+    }
+  } else {
+    result = AddInstruction(BuildBinaryOperation(stub->operation(),
+        left, right, left_type, right_type, result_type,
+        stub->fixed_right_arg(), true));
+  }
+
+  // If we encounter a generic argument, the number conversion is
+  // observable, thus we cannot afford to bail out after the fact.
+  if (!stub->HasSideEffects(isolate())) {
+    if (result_type->Is(Type::Smi())) {
+      if (stub->operation() == Token::SHR) {
+        // TODO(olivf) Replace this by a SmiTagU Instruction.
+        // 0x40000000: this number would convert to negative when interpreting
+        // the register as signed value;
+        IfBuilder if_of(this);
+        if_of.IfNot<HCompareNumericAndBranch>(result,
+            Add<HConstant>(static_cast<int>(SmiValuesAre32Bits()
+                ? 0x80000000 : 0x40000000)), Token::EQ_STRICT);
+        if_of.Then();
+        if_of.ElseDeopt("UInt->Smi oveflow");
+        if_of.End();
+      }
+    }
+    result = EnforceNumberType(result, result_type);
+  }
+
+  // Reuse the double box if we are allowed to (i.e. chained binops).
+  if (stub->CanReuseDoubleBox()) {
+    HValue* reuse = (stub->mode() == OVERWRITE_LEFT) ? left : right;
+    IfBuilder if_heap_number(this);
+    if_heap_number.IfNot<HIsSmiAndBranch>(reuse);
+    if_heap_number.Then();
+    HValue* res_val = Add<HForceRepresentation>(result,
+                                                Representation::Double());
+    HObjectAccess access = HObjectAccess::ForHeapNumberValue();
+    Add<HStoreNamedField>(reuse, access, res_val);
+    Push(reuse);
+    if_heap_number.Else();
+    Push(result);
+    if_heap_number.End();
+    result = Pop();
+  }
+
+  return result;
+}
+
+
+Handle<Code> BinaryOpStub::GenerateCode(Isolate* isolate) {
   return DoGenerateCode(isolate, this);
 }
 

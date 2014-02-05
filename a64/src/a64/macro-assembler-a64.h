@@ -938,12 +938,23 @@ class MacroAssembler : public Assembler {
   void CallStub(CodeStub* stub, TypeFeedbackId ast_id = TypeFeedbackId::None());
   void TailCallStub(CodeStub* stub);
 
-  void CallRuntime(const Runtime::Function* f, int num_arguments);
-  void CallRuntime(Runtime::FunctionId fid, int num_arguments);
+  void CallRuntime(const Runtime::Function* f,
+                   int num_arguments,
+                   SaveFPRegsMode save_doubles = kDontSaveFPRegs);
+
+  void CallRuntime(Runtime::FunctionId id, int num_arguments) {
+    CallRuntime(Runtime::FunctionForId(id), num_arguments);
+  }
+
+  // TODO(all): Why does this variant save FP regs by default?
+  void CallRuntimeSaveDoubles(Runtime::FunctionId id) {
+    const Runtime::Function* function = Runtime::FunctionForId(id);
+    CallRuntime(function, function->nargs, kSaveFPRegs);
+  }
+
   void TailCallRuntime(Runtime::FunctionId fid,
                        int num_arguments,
                        int result_size);
-  void CallRuntimeSaveDoubles(Runtime::FunctionId id);
 
   int ActivationFrameAlignment();
 

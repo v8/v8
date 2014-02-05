@@ -1646,10 +1646,13 @@ void ObjectTemplate::SetInternalFieldCount(int value) {
 // --- S c r i p t D a t a ---
 
 
-ScriptData* ScriptData::PreCompile(const char* input, int length) {
+ScriptData* ScriptData::PreCompile(v8::Isolate* isolate,
+                                   const char* input,
+                                   int length) {
   i::Utf8ToUtf16CharacterStream stream(
       reinterpret_cast<const unsigned char*>(input), length);
-  return i::PreParserApi::PreParse(i::Isolate::Current(), &stream);
+  return i::PreParserApi::PreParse(
+      reinterpret_cast<i::Isolate*>(isolate), &stream);
 }
 
 
@@ -1696,13 +1699,13 @@ Local<Script> Script::New(v8::Handle<String> source,
                           v8::ScriptOrigin* origin,
                           v8::ScriptData* pre_data,
                           v8::Handle<String> script_data) {
-  i::Isolate* isolate = i::Isolate::Current();
+  i::Handle<i::String> str = Utils::OpenHandle(*source);
+  i::Isolate* isolate = str->GetIsolate();
   ON_BAILOUT(isolate, "v8::Script::New()", return Local<Script>());
   LOG_API(isolate, "Script::New");
   ENTER_V8(isolate);
   i::SharedFunctionInfo* raw_result = NULL;
   { i::HandleScope scope(isolate);
-    i::Handle<i::String> str = Utils::OpenHandle(*source);
     i::Handle<i::Object> name_obj;
     int line_offset = 0;
     int column_offset = 0;
@@ -1765,7 +1768,8 @@ Local<Script> Script::Compile(v8::Handle<String> source,
                               v8::ScriptOrigin* origin,
                               v8::ScriptData* pre_data,
                               v8::Handle<String> script_data) {
-  i::Isolate* isolate = i::Isolate::Current();
+  i::Handle<i::String> str = Utils::OpenHandle(*source);
+  i::Isolate* isolate = str->GetIsolate();
   ON_BAILOUT(isolate, "v8::Script::Compile()", return Local<Script>());
   LOG_API(isolate, "Script::Compile");
   ENTER_V8(isolate);
@@ -1792,7 +1796,11 @@ Local<Script> Script::Compile(v8::Handle<String> source,
 
 
 Local<Value> Script::Run() {
-  i::Isolate* isolate = i::Isolate::Current();
+  // If execution is terminating, Compile(script)->Run() requires this check.
+  if (this == NULL) return Local<Value>();
+  i::Handle<i::HeapObject> obj =
+      i::Handle<i::HeapObject>::cast(Utils::OpenHandle(this));
+  i::Isolate* isolate = obj->GetIsolate();
   ON_BAILOUT(isolate, "v8::Script::Run()", return Local<Value>());
   LOG_API(isolate, "Script::Run");
   ENTER_V8(isolate);
@@ -1801,7 +1809,6 @@ Local<Value> Script::Run() {
   i::Object* raw_result = NULL;
   {
     i::HandleScope scope(isolate);
-    i::Handle<i::Object> obj = Utils::OpenHandle(this);
     i::Handle<i::JSFunction> fun;
     if (obj->IsSharedFunctionInfo()) {
       i::Handle<i::SharedFunctionInfo>
@@ -1839,7 +1846,9 @@ static i::Handle<i::SharedFunctionInfo> OpenScript(Script* script) {
 
 
 Local<Value> Script::Id() {
-  i::Isolate* isolate = i::Isolate::Current();
+  i::Handle<i::HeapObject> obj =
+      i::Handle<i::HeapObject>::cast(Utils::OpenHandle(this));
+  i::Isolate* isolate = obj->GetIsolate();
   ON_BAILOUT(isolate, "v8::Script::Id()", return Local<Value>());
   LOG_API(isolate, "Script::Id");
   i::Object* raw_id = NULL;
@@ -1856,7 +1865,9 @@ Local<Value> Script::Id() {
 
 
 int Script::GetId() {
-  i::Isolate* isolate = i::Isolate::Current();
+  i::Handle<i::HeapObject> obj =
+      i::Handle<i::HeapObject>::cast(Utils::OpenHandle(this));
+  i::Isolate* isolate = obj->GetIsolate();
   ON_BAILOUT(isolate, "v8::Script::Id()", return -1);
   LOG_API(isolate, "Script::Id");
   {
@@ -1869,10 +1880,11 @@ int Script::GetId() {
 
 
 int Script::GetLineNumber(int code_pos) {
-  i::Isolate* isolate = i::Isolate::Current();
+  i::Handle<i::HeapObject> obj =
+      i::Handle<i::HeapObject>::cast(Utils::OpenHandle(this));
+  i::Isolate* isolate = obj->GetIsolate();
   ON_BAILOUT(isolate, "v8::Script::GetLineNumber()", return -1);
   LOG_API(isolate, "Script::GetLineNumber");
-  i::Handle<i::Object> obj = Utils::OpenHandle(this);
   if (obj->IsScript()) {
     i::Handle<i::Script> script = i::Handle<i::Script>(i::Script::cast(*obj));
     return i::GetScriptLineNumber(script, code_pos);
@@ -1883,10 +1895,11 @@ int Script::GetLineNumber(int code_pos) {
 
 
 Handle<Value> Script::GetScriptName() {
-  i::Isolate* isolate = i::Isolate::Current();
+  i::Handle<i::HeapObject> obj =
+      i::Handle<i::HeapObject>::cast(Utils::OpenHandle(this));
+  i::Isolate* isolate = obj->GetIsolate();
   ON_BAILOUT(isolate, "v8::Script::GetName()", return Handle<String>());
   LOG_API(isolate, "Script::GetName");
-  i::Handle<i::Object> obj = Utils::OpenHandle(this);
   if (obj->IsScript()) {
     i::Object* name = i::Script::cast(*obj)->name();
     return Utils::ToLocal(i::Handle<i::Object>(name, isolate));
@@ -1897,7 +1910,9 @@ Handle<Value> Script::GetScriptName() {
 
 
 void Script::SetData(v8::Handle<String> data) {
-  i::Isolate* isolate = i::Isolate::Current();
+  i::Handle<i::HeapObject> obj =
+      i::Handle<i::HeapObject>::cast(Utils::OpenHandle(this));
+  i::Isolate* isolate = obj->GetIsolate();
   ON_BAILOUT(isolate, "v8::Script::SetData()", return);
   LOG_API(isolate, "Script::SetData");
   {
@@ -3936,7 +3951,7 @@ bool v8::Object::IsCallable() {
 }
 
 
-Local<v8::Value> Object::CallAsFunction(v8::Handle<v8::Object> recv,
+Local<v8::Value> Object::CallAsFunction(v8::Handle<v8::Value> recv,
                                         int argc,
                                         v8::Handle<v8::Value> argv[]) {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
@@ -3964,7 +3979,7 @@ Local<v8::Value> Object::CallAsFunction(v8::Handle<v8::Object> recv,
   }
   EXCEPTION_PREAMBLE(isolate);
   i::Handle<i::Object> returned = i::Execution::Call(
-      isolate, fun, recv_obj, argc, args, &has_pending_exception);
+      isolate, fun, recv_obj, argc, args, &has_pending_exception, true);
   EXCEPTION_BAILOUT_CHECK_DO_CALLBACK(isolate, Local<Value>());
   return Utils::ToLocal(scope.CloseAndEscape(returned));
 }
@@ -4048,7 +4063,7 @@ Local<v8::Object> Function::NewInstance(int argc,
 }
 
 
-Local<v8::Value> Function::Call(v8::Handle<v8::Object> recv, int argc,
+Local<v8::Value> Function::Call(v8::Handle<v8::Value> recv, int argc,
                                 v8::Handle<v8::Value> argv[]) {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   ON_BAILOUT(isolate, "v8::Function::Call()", return Local<v8::Value>());
@@ -4065,7 +4080,7 @@ Local<v8::Value> Function::Call(v8::Handle<v8::Object> recv, int argc,
     i::Handle<i::Object>* args = reinterpret_cast<i::Handle<i::Object>*>(argv);
     EXCEPTION_PREAMBLE(isolate);
     i::Handle<i::Object> returned = i::Execution::Call(
-        isolate, fun, recv_obj, argc, args, &has_pending_exception);
+        isolate, fun, recv_obj, argc, args, &has_pending_exception, true);
     EXCEPTION_BAILOUT_CHECK_DO_CALLBACK(isolate, Local<Object>());
     raw_result = *returned;
   }
@@ -4709,39 +4724,6 @@ int String::WriteUtf8(char* buffer,
 }
 
 
-int String::WriteAscii(char* buffer,
-                       int start,
-                       int length,
-                       int options) const {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  LOG_API(isolate, "String::WriteAscii");
-  ENTER_V8(isolate);
-  ASSERT(start >= 0 && length >= -1);
-  i::Handle<i::String> str = Utils::OpenHandle(this);
-  isolate->string_tracker()->RecordWrite(str);
-  if (options & HINT_MANY_WRITES_EXPECTED) {
-    FlattenString(str);  // Flatten the string for efficiency.
-  }
-
-  int end = length;
-  if ((length == -1) || (length > str->length() - start)) {
-    end = str->length() - start;
-  }
-  if (end < 0) return 0;
-  i::StringCharacterStream write_stream(*str, isolate->write_iterator(), start);
-  int i;
-  for (i = 0; i < end; i++) {
-    char c = static_cast<char>(write_stream.GetNext());
-    if (c == '\0' && !(options & PRESERVE_ASCII_NULL)) c = ' ';
-    buffer[i] = c;
-  }
-  if (!(options & NO_NULL_TERMINATION) && (length == -1 || i < length)) {
-    buffer[i] = '\0';
-  }
-  return i;
-}
-
-
 template<typename CharType>
 static inline int WriteHelper(const String* string,
                               CharType* buffer,
@@ -4983,11 +4965,6 @@ void v8::V8::SetReturnAddressLocationResolver(
 }
 
 
-bool v8::V8::SetFunctionEntryHook(FunctionEntryHook entry_hook) {
-  return SetFunctionEntryHook(Isolate::GetCurrent(), entry_hook);
-}
-
-
 bool v8::V8::SetFunctionEntryHook(Isolate* ext_isolate,
                                   FunctionEntryHook entry_hook) {
   ASSERT(ext_isolate != NULL);
@@ -5046,22 +5023,6 @@ HeapStatistics::HeapStatistics(): total_heap_size_(0),
                                   total_physical_size_(0),
                                   used_heap_size_(0),
                                   heap_size_limit_(0) { }
-
-
-void v8::V8::GetHeapStatistics(HeapStatistics* heap_statistics) {
-  i::Isolate* isolate = i::Isolate::UncheckedCurrent();
-  if (isolate == NULL || !isolate->IsInitialized()) {
-    // Isolate is unitialized thus heap is not configured yet.
-    heap_statistics->total_heap_size_ = 0;
-    heap_statistics->total_heap_size_executable_ = 0;
-    heap_statistics->total_physical_size_ = 0;
-    heap_statistics->used_heap_size_ = 0;
-    heap_statistics->heap_size_limit_ = 0;
-    return;
-  }
-  Isolate* ext_isolate = reinterpret_cast<Isolate*>(isolate);
-  return ext_isolate->GetHeapStatistics(heap_statistics);
-}
 
 
 void v8::V8::VisitExternalResources(ExternalResourceVisitor* visitor) {
@@ -5664,6 +5625,12 @@ bool v8::String::CanMakeExternal() {
   if (!internal::FLAG_clever_optimizations) return false;
   i::Handle<i::String> obj = Utils::OpenHandle(this);
   i::Isolate* isolate = obj->GetIsolate();
+
+  // TODO(yangguo): Externalizing sliced/cons strings allocates.
+  // This rule can be removed when all code that can
+  // trigger an access check is handlified and therefore GC safe.
+  if (isolate->heap()->old_pointer_space()->Contains(*obj)) return false;
+
   if (isolate->string_tracker()->IsFreshUnusedString(obj)) return false;
   int size = obj->Size();  // Byte size of the original string.
   if (size < i::ExternalString::kShortSize) return false;
@@ -6019,15 +5986,6 @@ size_t v8::ArrayBufferView::ByteOffset() {
 size_t v8::ArrayBufferView::ByteLength() {
   i::Handle<i::JSArrayBufferView> obj = Utils::OpenHandle(this);
   return static_cast<size_t>(obj->byte_length()->Number());
-}
-
-
-void* v8::ArrayBufferView::BaseAddress() {
-  i::Handle<i::JSArrayBufferView> obj = Utils::OpenHandle(this);
-  i::Handle<i::JSArrayBuffer> buffer(i::JSArrayBuffer::cast(obj->buffer()));
-  void* buffer_data = buffer->backing_store();
-  size_t byte_offset = static_cast<size_t>(obj->byte_offset()->Number());
-  return static_cast<uint8_t*>(buffer_data) + byte_offset;
 }
 
 
@@ -6976,11 +6934,6 @@ const char* CpuProfileNode::GetBailoutReason() const {
 }
 
 
-double CpuProfileNode::GetSelfSamplesCount() const {
-  return reinterpret_cast<const i::ProfileNode*>(this)->self_ticks();
-}
-
-
 unsigned CpuProfileNode::GetHitCount() const {
   return reinterpret_cast<const i::ProfileNode*>(this)->self_ticks();
 }
@@ -7534,7 +7487,7 @@ DeferredHandles::~DeferredHandles() {
   isolate_->UnlinkDeferredHandles(this);
 
   for (int i = 0; i < blocks_.length(); i++) {
-#ifdef ENABLE_EXTRA_CHECKS
+#ifdef ENABLE_HANDLE_ZAPPING
     HandleScope::ZapRange(blocks_[i], &blocks_[i][kHandleBlockSize]);
 #endif
     isolate_->handle_scope_implementer()->ReturnBlock(blocks_[i]);

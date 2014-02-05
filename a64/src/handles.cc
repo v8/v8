@@ -101,7 +101,7 @@ void HandleScope::DeleteExtensions(Isolate* isolate) {
 }
 
 
-#ifdef ENABLE_EXTRA_CHECKS
+#ifdef ENABLE_HANDLE_ZAPPING
 void HandleScope::ZapRange(Object** start, Object** end) {
   ASSERT(end - start <= kHandleBlockSize);
   for (Object** p = start; p != end; p++) {
@@ -878,6 +878,17 @@ DeferredHandles* DeferredHandleScope::Detach() {
   handles_detached_ = true;
 #endif
   return deferred;
+}
+
+
+void AddWeakObjectToCodeDependency(Heap* heap,
+                                   Handle<Object> object,
+                                   Handle<Code> code) {
+  heap->EnsureWeakObjectToCodeTable();
+  Handle<DependentCode> dep(heap->LookupWeakObjectToCodeDependency(*object));
+  dep = DependentCode::Insert(dep, DependentCode::kWeaklyEmbeddedGroup, code);
+  CALL_HEAP_FUNCTION_VOID(heap->isolate(),
+                          heap->AddWeakObjectToCodeDependency(*object, *dep));
 }
 
 

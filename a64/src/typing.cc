@@ -305,7 +305,7 @@ void AstTyper::VisitFunctionLiteral(FunctionLiteral* expr) {
 }
 
 
-void AstTyper::VisitSharedFunctionInfoLiteral(SharedFunctionInfoLiteral* expr) {
+void AstTyper::VisitNativeFunctionLiteral(NativeFunctionLiteral* expr) {
 }
 
 
@@ -543,7 +543,7 @@ void AstTyper::VisitBinaryOperation(BinaryOperation* expr) {
   Handle<Type> type, left_type, right_type;
   Maybe<int> fixed_right_arg;
   oracle()->BinaryType(expr->BinaryOperationFeedbackId(),
-      &left_type, &right_type, &type, &fixed_right_arg);
+      &left_type, &right_type, &type, &fixed_right_arg, expr->op());
   NarrowLowerType(expr, type);
   NarrowLowerType(expr->left(), left_type);
   NarrowLowerType(expr->right(), right_type);

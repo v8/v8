@@ -584,9 +584,9 @@ template <class T, class M> class Persistent {
    */
   template <class S, class M2>
   V8_INLINE void Reset(Isolate* isolate, const Persistent<S, M2>& other);
-  // TODO(dcarney): deprecate
-  V8_INLINE void Dispose() { Reset(); }
-  V8_DEPRECATED(V8_INLINE void Dispose(Isolate* isolate)) { Reset(); }
+
+  V8_DEPRECATED("Use Reset instead",
+                V8_INLINE void Dispose()) { Reset(); }
 
   V8_INLINE bool IsEmpty() const { return val_ == 0; }
 
@@ -642,21 +642,21 @@ template <class T, class M> class Persistent {
       P* parameter,
       typename WeakCallbackData<S, P>::Callback callback);
 
-  // TODO(dcarney): deprecate
   template<typename S, typename P>
-  V8_INLINE void MakeWeak(
-      P* parameter,
-      typename WeakReferenceCallbacks<S, P>::Revivable callback);
+  V8_DEPRECATED(
+      "Use SetWeak instead",
+      V8_INLINE void MakeWeak(
+          P* parameter,
+          typename WeakReferenceCallbacks<S, P>::Revivable callback));
 
-  // TODO(dcarney): deprecate
   template<typename P>
-  V8_INLINE void MakeWeak(
-      P* parameter,
-      typename WeakReferenceCallbacks<T, P>::Revivable callback);
+  V8_DEPRECATED(
+      "Use SetWeak instead",
+      V8_INLINE void MakeWeak(
+          P* parameter,
+          typename WeakReferenceCallbacks<T, P>::Revivable callback));
 
   V8_INLINE void ClearWeak();
-
-  V8_DEPRECATED(V8_INLINE void ClearWeak(Isolate* isolate)) { ClearWeak(); }
 
   /**
    * Marks the reference to this object independent. Garbage collector is free
@@ -665,10 +665,6 @@ template <class T, class M> class Persistent {
    * GC prologue callback or followed by a global GC epilogue callback.
    */
   V8_INLINE void MarkIndependent();
-
-  V8_DEPRECATED(V8_INLINE void MarkIndependent(Isolate* isolate)) {
-    MarkIndependent();
-  }
 
   /**
    * Marks the reference to this object partially dependent. Partially dependent
@@ -680,29 +676,13 @@ template <class T, class M> class Persistent {
    */
   V8_INLINE void MarkPartiallyDependent();
 
-  V8_DEPRECATED(V8_INLINE void MarkPartiallyDependent(Isolate* isolate)) {
-    MarkPartiallyDependent();
-  }
-
   V8_INLINE bool IsIndependent() const;
-
-  V8_DEPRECATED(V8_INLINE bool IsIndependent(Isolate* isolate) const) {
-    return IsIndependent();
-  }
 
   /** Checks if the handle holds the only reference to an object. */
   V8_INLINE bool IsNearDeath() const;
 
-  V8_DEPRECATED(V8_INLINE bool IsNearDeath(Isolate* isolate) const) {
-    return IsNearDeath();
-  }
-
   /** Returns true if the handle's reference is weak.  */
   V8_INLINE bool IsWeak() const;
-
-  V8_DEPRECATED(V8_INLINE bool IsWeak(Isolate* isolate) const) {
-    return IsWeak();
-  }
 
   /**
    * Assigns a wrapper class ID to the handle. See RetainedObjectInfo interface
@@ -710,26 +690,17 @@ template <class T, class M> class Persistent {
    */
   V8_INLINE void SetWrapperClassId(uint16_t class_id);
 
-  V8_DEPRECATED(
-      V8_INLINE void SetWrapperClassId(Isolate * isolate, uint16_t class_id)) {
-    SetWrapperClassId(class_id);
-  }
-
   /**
    * Returns the class ID previously assigned to this handle or 0 if no class ID
    * was previously assigned.
    */
   V8_INLINE uint16_t WrapperClassId() const;
 
-  V8_DEPRECATED(V8_INLINE uint16_t WrapperClassId(Isolate* isolate) const) {
-    return WrapperClassId();
-  }
+  V8_DEPRECATED("This will be removed",
+                V8_INLINE T* ClearAndLeak());
 
-  // TODO(dcarney): remove
-  V8_INLINE T* ClearAndLeak();
-
-  // TODO(dcarney): remove
-  V8_INLINE void Clear() { val_ = 0; }
+  V8_DEPRECATED("This will be removed",
+                V8_INLINE void Clear()) { val_ = 0; }
 
   // TODO(dcarney): remove
 #ifndef V8_ALLOW_ACCESS_TO_RAW_HANDLE_CONSTRUCTOR
@@ -774,8 +745,9 @@ class V8_EXPORT HandleScope {
 
   ~HandleScope();
 
-  // TODO(dcarney): deprecated - use EscapableHandleScope::Escape.
-  template <class T> Local<T> Close(Handle<T> value);
+  template <class T>
+  V8_DEPRECATED("Use EscapableHandleScope::Escape instead",
+                Local<T> Close(Handle<T> value));
 
   /**
    * Counts the number of allocated handles.
@@ -859,6 +831,13 @@ class V8_EXPORT EscapableHandleScope : public HandleScope {
  private:
   internal::Object** Escape(internal::Object** escape_value);
 
+  // Make it hard to create heap-allocated or illegal handle scopes by
+  // disallowing certain operations.
+  EscapableHandleScope(const EscapableHandleScope&);
+  void operator=(const EscapableHandleScope&);
+  void* operator new(size_t size);
+  void operator delete(void*, size_t);
+
   internal::Object** escape_slot_;
 };
 
@@ -906,7 +885,9 @@ class V8_EXPORT ScriptData {  // NOLINT
    * \param input Pointer to UTF-8 script source code.
    * \param length Length of UTF-8 script source code.
    */
-  static ScriptData* PreCompile(const char* input, int length);
+  static ScriptData* PreCompile(Isolate* isolate,
+                                const char* input,
+                                int length);
 
   /**
    * Pre-compiles the specified script (context-independent).
@@ -1058,9 +1039,8 @@ class V8_EXPORT Script {
 
   /**
    * Returns the script id value.
-   * DEPRECATED: Please use GetId().
    */
-  Local<Value> Id();
+  V8_DEPRECATED("Use GetId instead", Local<Value> Id());
 
   /**
    * Returns the script id.
@@ -1566,11 +1546,6 @@ class V8_EXPORT String : public Primitive {
   int Utf8Length() const;
 
   /**
-   * This function is no longer useful.
-   */
-  V8_DEPRECATED(V8_INLINE bool MayContainNonAscii() const) { return true; }
-
-  /**
    * Returns whether this string is known to contain only one byte data.
    * Does not read the string.
    * False negatives are possible.
@@ -1620,11 +1595,6 @@ class V8_EXPORT String : public Primitive {
             int start = 0,
             int length = -1,
             int options = NO_OPTIONS) const;
-  // ASCII characters.
-  V8_DEPRECATED(int WriteAscii(char* buffer,
-                               int start = 0,
-                               int length = -1,
-                               int options = NO_OPTIONS) const);
   // One byte characters.
   int WriteOneByte(uint8_t* buffer,
                    int start = 0,
@@ -1755,24 +1725,29 @@ class V8_EXPORT String : public Primitive {
 
   V8_INLINE static String* Cast(v8::Value* obj);
 
-  // TODO(dcarney): deprecate
   /**
    * Allocates a new string from either UTF-8 encoded or ASCII data.
    * The second parameter 'length' gives the buffer length. If omitted,
    * the function calls 'strlen' to determine the buffer length.
    */
-  V8_INLINE static Local<String> New(const char* data, int length = -1);
+  V8_DEPRECATED(
+      "Use NewFromOneByte instead",
+      V8_INLINE static Local<String> New(const char* data, int length = -1));
 
-  // TODO(dcarney): deprecate
   /** Allocates a new string from 16-bit character codes.*/
-  V8_INLINE static Local<String> New(const uint16_t* data, int length = -1);
+  V8_DEPRECATED(
+      "Use NewFromTwoByte instead",
+      V8_INLINE static Local<String> New(
+          const uint16_t* data, int length = -1));
 
-  // TODO(dcarney): deprecate
   /**
    * Creates an internalized string (historically called a "symbol",
    * not to be confused with ES6 symbols). Returns one if it exists already.
    */
-  V8_INLINE static Local<String> NewSymbol(const char* data, int length = -1);
+  V8_DEPRECATED(
+      "Use NewFromUtf8 instead",
+      V8_INLINE static Local<String> NewSymbol(
+          const char* data, int length = -1));
 
   enum NewStringType {
     kNormalString, kInternalizedString, kUndetectableString
@@ -1851,15 +1826,17 @@ class V8_EXPORT String : public Primitive {
    */
   bool CanMakeExternal();
 
-  // TODO(dcarney): deprecate
   /** Creates an undetectable string from the supplied ASCII or UTF-8 data.*/
-  V8_INLINE static Local<String> NewUndetectable(const char* data,
-                                                 int length = -1);
+  V8_DEPRECATED(
+      "Use NewFromUtf8 instead",
+      V8_INLINE static Local<String> NewUndetectable(const char* data,
+                                                     int length = -1));
 
-  // TODO(dcarney): deprecate
   /** Creates an undetectable string from the supplied 16-bit character codes.*/
-  V8_INLINE static Local<String> NewUndetectable(const uint16_t* data,
-                                                 int length = -1);
+  V8_DEPRECATED(
+      "Use NewFromTwoByte instead",
+      V8_INLINE static Local<String> NewUndetectable(const uint16_t* data,
+                                                     int length = -1));
 
   /**
    * Converts an object to a UTF-8-encoded character array.  Useful if
@@ -1893,8 +1870,8 @@ class V8_EXPORT String : public Primitive {
    */
   class V8_EXPORT AsciiValue {
    public:
-    // TODO(dcarney): deprecate
-    explicit AsciiValue(Handle<v8::Value> obj);
+    V8_DEPRECATED("Use Utf8Value instead",
+                  explicit AsciiValue(Handle<v8::Value> obj));
     ~AsciiValue();
     char* operator*() { return str_; }
     const char* operator*() const { return str_; }
@@ -2315,7 +2292,7 @@ class V8_EXPORT Object : public Value {
    * Call an Object as a function if a callback is set by the
    * ObjectTemplate::SetCallAsFunctionHandler method.
    */
-  Local<Value> CallAsFunction(Handle<Object> recv,
+  Local<Value> CallAsFunction(Handle<Value> recv,
                               int argc,
                               Handle<Value> argv[]);
 
@@ -2419,13 +2396,13 @@ class FunctionCallbackInfo {
  protected:
   friend class internal::FunctionCallbackArguments;
   friend class internal::CustomArguments<FunctionCallbackInfo>;
-  static const int kContextSaveIndex = 0;
-  static const int kCalleeIndex = -1;
-  static const int kDataIndex = -2;
-  static const int kReturnValueIndex = -3;
-  static const int kReturnValueDefaultValueIndex = -4;
-  static const int kIsolateIndex = -5;
-  static const int kHolderIndex = -6;
+  static const int kHolderIndex = 0;
+  static const int kIsolateIndex = 1;
+  static const int kReturnValueDefaultValueIndex = 2;
+  static const int kReturnValueIndex = 3;
+  static const int kDataIndex = 4;
+  static const int kCalleeIndex = 5;
+  static const int kContextSaveIndex = 6;
 
   V8_INLINE FunctionCallbackInfo(internal::Object** implicit_args,
                    internal::Object** values,
@@ -2457,12 +2434,12 @@ class PropertyCallbackInfo {
   friend class MacroAssembler;
   friend class internal::PropertyCallbackArguments;
   friend class internal::CustomArguments<PropertyCallbackInfo>;
-  static const int kThisIndex = 0;
-  static const int kDataIndex = -1;
-  static const int kReturnValueIndex = -2;
-  static const int kReturnValueDefaultValueIndex = -3;
-  static const int kIsolateIndex = -4;
-  static const int kHolderIndex = -5;
+  static const int kHolderIndex = 0;
+  static const int kIsolateIndex = 1;
+  static const int kReturnValueDefaultValueIndex = 2;
+  static const int kReturnValueIndex = 3;
+  static const int kDataIndex = 4;
+  static const int kThisIndex = 5;
 
   V8_INLINE PropertyCallbackInfo(internal::Object** args) : args_(args) {}
   internal::Object** args_;
@@ -2488,7 +2465,7 @@ class V8_EXPORT Function : public Object {
 
   Local<Object> NewInstance() const;
   Local<Object> NewInstance(int argc, Handle<Value> argv[]) const;
-  Local<Value> Call(Handle<Object> recv, int argc, Handle<Value> argv[]);
+  Local<Value> Call(Handle<Value> recv, int argc, Handle<Value> argv[]);
   void SetName(Handle<String> name);
   Handle<Value> GetName() const;
 
@@ -2513,9 +2490,8 @@ class V8_EXPORT Function : public Object {
 
   /**
    * Returns scriptId object.
-   * DEPRECATED: use ScriptId() instead.
    */
-  Handle<Value> GetScriptId() const;
+  V8_DEPRECATED("Use ScriptId instead", Handle<Value> GetScriptId()) const;
 
   /**
    * Returns scriptId.
@@ -2678,10 +2654,6 @@ class V8_EXPORT ArrayBufferView : public Object {
    * Size of a view in bytes.
    */
   size_t ByteLength();
-  /**
-   * Base address of a view.
-   */
-  void* BaseAddress();
 
   V8_INLINE static ArrayBufferView* Cast(Value* obj);
 
@@ -2881,9 +2853,9 @@ class V8_EXPORT Date : public Object {
  public:
   static Local<Value> New(double time);
 
-  // Deprecated, use Date::ValueOf() instead.
-  // TODO(svenpanne) Actually deprecate when Chrome is adapted.
-  double NumberValue() const { return ValueOf(); }
+  V8_DEPRECATED(
+      "Use ValueOf instead",
+      double NumberValue()) const { return ValueOf(); }
 
   /**
    * A specialization of Value::NumberValue that is more efficient
@@ -2919,9 +2891,9 @@ class V8_EXPORT NumberObject : public Object {
  public:
   static Local<Value> New(double value);
 
-  // Deprecated, use NumberObject::ValueOf() instead.
-  // TODO(svenpanne) Actually deprecate when Chrome is adapted.
-  double NumberValue() const { return ValueOf(); }
+  V8_DEPRECATED(
+      "Use ValueOf instead",
+      double NumberValue()) const { return ValueOf(); }
 
   /**
    * Returns the Number held by the object.
@@ -2942,9 +2914,9 @@ class V8_EXPORT BooleanObject : public Object {
  public:
   static Local<Value> New(bool value);
 
-  // Deprecated, use BooleanObject::ValueOf() instead.
-  // TODO(svenpanne) Actually deprecate when Chrome is adapted.
-  bool BooleanValue() const { return ValueOf(); }
+  V8_DEPRECATED(
+      "Use ValueOf instead",
+      bool BooleanValue()) const { return ValueOf(); }
 
   /**
    * Returns the Boolean held by the object.
@@ -2965,9 +2937,9 @@ class V8_EXPORT StringObject : public Object {
  public:
   static Local<Value> New(Handle<String> value);
 
-  // Deprecated, use StringObject::ValueOf() instead.
-  // TODO(svenpanne) Actually deprecate when Chrome is adapted.
-  Local<String> StringValue() const { return ValueOf(); }
+  V8_DEPRECATED(
+      "Use ValueOf instead",
+      Local<String> StringValue()) const { return ValueOf(); }
 
   /**
    * Returns the String held by the object.
@@ -2990,9 +2962,9 @@ class V8_EXPORT SymbolObject : public Object {
  public:
   static Local<Value> New(Isolate* isolate, Handle<Symbol> value);
 
-  // Deprecated, use SymbolObject::ValueOf() instead.
-  // TODO(svenpanne) Actually deprecate when Chrome is adapted.
-  Local<Symbol> SymbolValue() const { return ValueOf(); }
+  V8_DEPRECATED(
+      "Use ValueOf instead",
+      Local<Symbol> SymbolValue()) const { return ValueOf(); }
 
   /**
    * Returns the Symbol held by the object.
@@ -3819,8 +3791,9 @@ typedef void (*FatalErrorCallback)(const char* location, const char* message);
 typedef void (*MessageCallback)(Handle<Message> message, Handle<Value> error);
 
 
-// TODO(dcarney): remove. Use Isolate::ThrowException instead.
-Handle<Value> V8_EXPORT ThrowException(Handle<Value> exception);
+V8_DEPRECATED(
+    "Use Isolate::ThrowException instead",
+    Handle<Value> V8_EXPORT ThrowException(Handle<Value> exception));
 
 /**
  * Create new error objects by calling the corresponding error object
@@ -4583,11 +4556,6 @@ class V8_EXPORT V8 {
       ReturnAddressLocationResolver return_address_resolver);
 
   /**
-   * Deprecated, use the variant with the Isolate parameter below instead.
-   */
-  V8_DEPRECATED(static bool SetFunctionEntryHook(FunctionEntryHook entry_hook));
-
-  /**
    * Allows the host application to provide the address of a function that's
    * invoked on entry to every V8-generated function.
    * Note that \p entry_hook is invoked at the very start of each
@@ -4626,10 +4594,10 @@ class V8_EXPORT V8 {
   static void SetJitCodeEventHandler(JitCodeEventOptions options,
                                      JitCodeEventHandler event_handler);
 
-  // TODO(svenpanne) Really deprecate me when Chrome is fixed.
-  /** Deprecated. Use Isolate::AdjustAmountOfExternalAllocatedMemory instead. */
-  static intptr_t AdjustAmountOfExternalAllocatedMemory(
-      intptr_t change_in_bytes);
+  V8_DEPRECATED(
+      "Use Isolate::AdjustAmountOfExternalAllocatedMemory instead",
+      static intptr_t AdjustAmountOfExternalAllocatedMemory(
+          intptr_t change_in_bytes));
 
   /**
    * Forcefully terminate the current thread of JavaScript execution
@@ -4683,9 +4651,6 @@ class V8_EXPORT V8 {
    * to use if the process needs the resources taken up by v8.
    */
   static bool Dispose();
-
-  /** Deprecated. Use Isolate::GetHeapStatistics instead. */
-  V8_DEPRECATED(static void GetHeapStatistics(HeapStatistics* heap_statistics));
 
   /**
    * Iterates through all external resources referenced from current isolate
@@ -4984,17 +4949,14 @@ class V8_EXPORT Context {
       Handle<ObjectTemplate> global_template = Handle<ObjectTemplate>(),
       Handle<Value> global_object = Handle<Value>());
 
-  // TODO(dcarney):  Remove this function.
-  /** Deprecated. Use Isolate::GetEnteredContext */
-  static Local<Context> GetEntered();
+  V8_DEPRECATED("Use Isolate::GetEnteredContext instead",
+                static Local<Context> GetEntered());
 
-  // TODO(dcarney) Remove this function.
-  /** Deprecated. Use Isolate::GetCurrentContext instead. */
-  static Local<Context> GetCurrent();
+  V8_DEPRECATED("Use Isolate::GetCurrentContext instead",
+                static Local<Context> GetCurrent());
 
-  // TODO(dcarney) Remove this function.
-  /** Deprecated. Use Isolate::GetCallingContext instead. */
-  static Local<Context> GetCalling();
+  V8_DEPRECATED("Use Isolate::GetCallingContext instead",
+                static Local<Context> GetCalling());
 
   /**
    * Sets the security token for the context.  To access an object in
@@ -5025,9 +4987,8 @@ class V8_EXPORT Context {
   /** Returns true if the context has experienced an out of memory situation. */
   bool HasOutOfMemoryException();
 
-  // TODO(dcarney) Remove this function.
-  /** Deprecated. Use Isolate::InContext instead. */
-  static bool InContext();
+  V8_DEPRECATED("Use Isolate::InContext instead",
+                static bool InContext());
 
   /** Returns an isolate associated with a current context. */
   v8::Isolate* GetIsolate();
@@ -5098,8 +5059,9 @@ class V8_EXPORT Context {
     explicit V8_INLINE Scope(Handle<Context> context) : context_(context) {
       context_->Enter();
     }
-    // TODO(dcarney): deprecate
-    V8_INLINE Scope(Isolate* isolate, Persistent<Context>& context) // NOLINT
+    V8_DEPRECATED(
+        "Use Handle version instead",
+        V8_INLINE Scope(Isolate* isolate, Persistent<Context>& context)) // NOLINT
     : context_(Handle<Context>::New(isolate, context)) {
       context_->Enter();
     }

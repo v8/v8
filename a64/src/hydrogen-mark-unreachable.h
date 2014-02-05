@@ -25,8 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_HYDROGEN_DEOPTIMIZING_MARK_H_
-#define V8_HYDROGEN_DEOPTIMIZING_MARK_H_
+#ifndef V8_HYDROGEN_MARK_UNREACHABLE_H_
+#define V8_HYDROGEN_MARK_UNREACHABLE_H_
 
 #include "hydrogen.h"
 
@@ -34,23 +34,20 @@ namespace v8 {
 namespace internal {
 
 
-// Mark all blocks that are dominated by an unconditional soft deoptimize to
-// prevent code motion across those blocks.
-class HPropagateDeoptimizingMarkPhase : public HPhase {
+class HMarkUnreachableBlocksPhase : public HPhase {
  public:
-  explicit HPropagateDeoptimizingMarkPhase(HGraph* graph)
-      : HPhase("H_Propagate deoptimizing mark", graph) { }
+  explicit HMarkUnreachableBlocksPhase(HGraph* graph)
+      : HPhase("H_Mark unrechable blocks", graph) { }
 
   void Run();
 
  private:
-  void MarkAsDeoptimizing();
-  void NullifyUnreachableInstructions();
+  void MarkUnreachableBlocks();
 
-  DISALLOW_COPY_AND_ASSIGN(HPropagateDeoptimizingMarkPhase);
+  DISALLOW_COPY_AND_ASSIGN(HMarkUnreachableBlocksPhase);
 };
 
 
 } }  // namespace v8::internal
 
-#endif  // V8_HYDROGEN_DEOPTIMIZING_MARK_H_
+#endif  // V8_HYDROGEN_MARK_UNREACHABLE_H_

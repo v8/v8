@@ -294,8 +294,7 @@ DEFINE_bool(check_elimination, false, "use check elimination")
 DEFINE_bool(dead_code_elimination, true, "use dead code elimination")
 DEFINE_bool(fold_constants, true, "use constant folding")
 DEFINE_bool(trace_dead_code_elimination, false, "trace dead code elimination")
-DEFINE_bool(unreachable_code_elimination, false,
-            "eliminate unreachable code (hidden behind soft deopts)")
+DEFINE_bool(unreachable_code_elimination, true, "eliminate unreachable code")
 DEFINE_bool(track_allocation_sites, true,
             "Use allocation site info to reduce transitions")
 DEFINE_bool(trace_osr, false, "trace on-stack replacement")
@@ -512,6 +511,8 @@ DEFINE_bool(collect_maps, true,
             "garbage collect maps from which no objects can be reached")
 DEFINE_bool(weak_embedded_maps_in_optimized_code, true,
             "make maps embedded in optimized code weak")
+DEFINE_bool(weak_embedded_objects_in_optimized_code, false,
+            "make objects embedded in optimized code weak")
 DEFINE_bool(flush_code, true,
             "flush code that we expect not to use again (during full gc)")
 DEFINE_bool(flush_code_incrementally, true,
@@ -530,8 +531,6 @@ DEFINE_bool(parallel_sweeping, true, "enable parallel sweeping")
 DEFINE_bool(concurrent_sweeping, false, "enable concurrent sweeping")
 DEFINE_int(sweeper_threads, 0,
            "number of parallel and concurrent sweeping threads")
-DEFINE_bool(parallel_marking, false, "enable parallel marking")
-DEFINE_int(marking_threads, 0, "number of parallel marking threads")
 #ifdef VERIFY_HEAP
 DEFINE_bool(verify_heap, false, "verify heap pointers before and after GC")
 #endif
@@ -613,6 +612,11 @@ DEFINE_int(hash_seed,
            "Fixed seed to use to hash property keys (0 means random)"
            "(with snapshots this option cannot override the baked-in seed)")
 
+// snapshot-common.cc
+DEFINE_bool(profile_deserialization,
+            false,
+            "Print the time it takes to deserialize the snapshot.")
+
 // v8.cc
 DEFINE_bool(preemption, false,
             "activate a 100ms timer that switches between V8 threads")
@@ -638,6 +642,11 @@ DEFINE_string(testing_serialization_file, "/tmp/serdes",
 // mksnapshot.cc
 DEFINE_string(extra_code, NULL, "A filename with extra code to be included in"
                   " the snapshot (mksnapshot only)")
+
+// code-stubs-hydrogen.cc
+DEFINE_bool(profile_hydrogen_code_stub_compilation,
+            false,
+            "Print the time it takes to lazily compile hydrogen code stubs.")
 
 //
 // Dev shell flags
@@ -823,6 +832,7 @@ DEFINE_bool(test_secondary_stub_cache,
 DEFINE_bool(test_primary_stub_cache,
             false,
             "test primary stub cache by disabling the secondary one")
+
 
 // codegen-ia32.cc / codegen-arm.cc
 DEFINE_bool(print_code, false, "print generated code")

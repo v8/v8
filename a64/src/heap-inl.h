@@ -525,6 +525,13 @@ void Heap::ScavengeObject(HeapObject** p, HeapObject* object) {
     return;
   }
 
+  if (FLAG_trace_track_allocation_sites && object->IsJSObject()) {
+    if (AllocationMemento::FindForJSObject(JSObject::cast(object), true) !=
+        NULL) {
+      object->GetIsolate()->heap()->allocation_mementos_found_++;
+    }
+  }
+
   // AllocationMementos are unrooted and shouldn't survive a scavenge
   ASSERT(object->map() != object->GetHeap()->allocation_memento_map());
   // Call the slow part of scavenge object.
@@ -839,15 +846,15 @@ AlwaysAllocateScope::~AlwaysAllocateScope() {
 
 
 #ifdef VERIFY_HEAP
-NoWeakEmbeddedMapsVerificationScope::NoWeakEmbeddedMapsVerificationScope() {
+NoWeakObjectVerificationScope::NoWeakObjectVerificationScope() {
   Isolate* isolate = Isolate::Current();
-  isolate->heap()->no_weak_embedded_maps_verification_scope_depth_++;
+  isolate->heap()->no_weak_object_verification_scope_depth_++;
 }
 
 
-NoWeakEmbeddedMapsVerificationScope::~NoWeakEmbeddedMapsVerificationScope() {
+NoWeakObjectVerificationScope::~NoWeakObjectVerificationScope() {
   Isolate* isolate = Isolate::Current();
-  isolate->heap()->no_weak_embedded_maps_verification_scope_depth_--;
+  isolate->heap()->no_weak_object_verification_scope_depth_--;
 }
 #endif
 

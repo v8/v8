@@ -1610,7 +1610,12 @@ void Logger::LogCodeObject(Object* object) {
     case Code::FUNCTION:
     case Code::OPTIMIZED_FUNCTION:
       return;  // We log this later using LogCompiledFunctions.
-    case Code::BINARY_OP_IC:   // fall through
+    case Code::BINARY_OP_IC: {
+      BinaryOpStub stub(code_object->extended_extra_ic_state());
+      description = stub.GetName().Detach();
+      tag = Logger::STUB_TAG;
+      break;
+    }
     case Code::COMPARE_IC:  // fall through
     case Code::COMPARE_NIL_IC:   // fall through
     case Code::TO_BOOLEAN_IC:  // fall through
@@ -1628,6 +1633,10 @@ void Logger::LogCodeObject(Object* object) {
     case Code::BUILTIN:
       description = "A builtin from the snapshot";
       tag = Logger::BUILTIN_TAG;
+      break;
+    case Code::HANDLER:
+      description = "An IC handler from the snapshot";
+      tag = Logger::HANDLER_TAG;
       break;
     case Code::KEYED_LOAD_IC:
       description = "A keyed load IC from the snapshot";

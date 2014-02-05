@@ -807,12 +807,18 @@ MaybeObject* Object::GetProperty(Object* receiver,
                                  LookupResult* result,
                                  Name* name,
                                  PropertyAttributes* attributes) {
-  // Make sure that the top context does not change when doing
-  // callbacks or interceptor calls.
-  AssertNoContextChangeWithHandleScope ncc;
-
   Isolate* isolate = name->GetIsolate();
   Heap* heap = isolate->heap();
+
+#ifdef DEBUG
+  // TODO(mstarzinger): Only because of the AssertNoContextChange, drop as soon
+  // as this method has been fully handlified.
+  HandleScope scope(isolate);
+#endif
+
+  // Make sure that the top context does not change when doing
+  // callbacks or interceptor calls.
+  AssertNoContextChange ncc(isolate);
 
   // Traverse the prototype chain from the current object (this) to
   // the holder and check for access rights. This avoids traversing the
@@ -3910,7 +3916,7 @@ Handle<Object> JSObject::SetPropertyForResult(Handle<JSObject> object,
 
   // Make sure that the top context does not change when doing callbacks or
   // interceptor calls.
-  AssertNoContextChange ncc;
+  AssertNoContextChange ncc(isolate);
 
   // Optimization for 2-byte strings often used as keys in a decompression
   // dictionary.  We internalize these short keys to avoid constantly
@@ -4068,7 +4074,7 @@ Handle<Object> JSObject::SetLocalPropertyIgnoreAttributes(
 
   // Make sure that the top context does not change when doing callbacks or
   // interceptor calls.
-  AssertNoContextChange ncc;
+  AssertNoContextChange ncc(isolate);
 
   LookupResult lookup(isolate);
   object->LocalLookup(*name, &lookup, true);
@@ -4202,7 +4208,7 @@ PropertyAttributes JSObject::GetPropertyAttributeWithInterceptor(
 
   // Make sure that the top context does not change when doing
   // callbacks or interceptor calls.
-  AssertNoContextChange ncc;
+  AssertNoContextChange ncc(isolate);
 
   Handle<InterceptorInfo> interceptor(GetNamedInterceptor());
   Handle<JSObject> receiver_handle(receiver);
@@ -4337,7 +4343,7 @@ PropertyAttributes JSObject::GetElementAttributeWithInterceptor(
 
   // Make sure that the top context does not change when doing
   // callbacks or interceptor calls.
-  AssertNoContextChange ncc;
+  AssertNoContextChange ncc(isolate);
 
   Handle<InterceptorInfo> interceptor(GetIndexedInterceptor());
   Handle<JSReceiver> hreceiver(receiver);
@@ -4449,16 +4455,6 @@ void HeapObject::UpdateMapCodeCache(Handle<HeapObject> object,
                                     Handle<Name> name,
                                     Handle<Code> code) {
   Handle<Map> map(object->map());
-  if (map->is_shared()) {
-    Handle<JSObject> receiver = Handle<JSObject>::cast(object);
-    // Fast case maps are never marked as shared.
-    ASSERT(!receiver->HasFastProperties());
-    // Replace the map with an identical copy that can be safely modified.
-    map = Map::CopyNormalized(map, KEEP_INOBJECT_PROPERTIES,
-                              UNIQUE_NORMALIZED_MAP);
-    receiver->GetIsolate()->counters()->normalized_maps()->Increment();
-    receiver->set_map(*map);
-  }
   Map::UpdateCodeCache(map, name, code);
 }
 
@@ -5047,7 +5043,7 @@ Handle<Object> JSObject::DeleteElementWithInterceptor(Handle<JSObject> object,
 
   // Make sure that the top context does not change when doing
   // callbacks or interceptor calls.
-  AssertNoContextChange ncc;
+  AssertNoContextChange ncc(isolate);
 
   Handle<InterceptorInfo> interceptor(object->GetIndexedInterceptor());
   if (interceptor->deleter()->IsUndefined()) return factory->false_value();
@@ -5583,7 +5579,53 @@ Handle<JSObject> JSObject::Copy(Handle<JSObject> object) {
 }
 
 
-Handle<JSObject> JSObject::DeepCopy(Handle<JSObject> object) {
+class JSObjectWalkVisitor {
+ public:
+  explicit JSObjectWalkVisitor() {}
+  virtual ~JSObjectWalkVisitor() {}
+
+  Handle<JSObject> Visit(Handle<JSObject> object) {
+    return StructureWalk(object);
+  }
+
+  // Returns true if the visitor is a copying visitor.
+  virtual bool is_copying() = 0;
+
+ protected:
+  Handle<JSObject> StructureWalk(Handle<JSObject> object);
+
+  // The returned handle should point to a new object if the visitor is a
+  // copying visitor, otherwise it should be the same as the input object.
+  virtual Handle<JSObject> VisitObject(Handle<JSObject> object) = 0;
+
+  // The returned handle should point to a new value if the visitor is a
+  // copying visitor, otherwise it should be the same as the input value.
+  virtual Handle<JSObject> VisitElementOrProperty(Handle<JSObject> object,
+                                                  Handle<JSObject> value) = 0;
+};
+
+
+class JSObjectCopyVisitor: public JSObjectWalkVisitor {
+ public:
+  explicit JSObjectCopyVisitor() {}
+
+  virtual bool is_copying() V8_OVERRIDE { return true; }
+
+ protected:
+  virtual Handle<JSObject> VisitObject(Handle<JSObject> object) V8_OVERRIDE {
+    return JSObject::Copy(object);
+  }
+
+  virtual Handle<JSObject> VisitElementOrProperty(
+      Handle<JSObject> object,
+      Handle<JSObject> value) V8_OVERRIDE {
+    return StructureWalk(value);
+  }
+};
+
+
+Handle<JSObject> JSObjectWalkVisitor::StructureWalk(Handle<JSObject> object) {
+  bool copying = is_copying();
   Isolate* isolate = object->GetIsolate();
   StackLimitCheck check(isolate);
   if (check.HasOverflowed()) {
@@ -5592,10 +5634,11 @@ Handle<JSObject> JSObject::DeepCopy(Handle<JSObject> object) {
   }
 
   if (object->map()->is_deprecated()) {
-    MigrateInstance(object);
+    JSObject::MigrateInstance(object);
   }
 
-  Handle<JSObject> copy = Copy(object);
+  Handle<JSObject> copy = VisitObject(object);
+  ASSERT(copying || copy.is_identical_to(object));
 
   HandleScope scope(isolate);
 
@@ -5609,13 +5652,15 @@ Handle<JSObject> JSObject::DeepCopy(Handle<JSObject> object) {
       int index = descriptors->GetFieldIndex(i);
       Handle<Object> value(object->RawFastPropertyAt(index), isolate);
       if (value->IsJSObject()) {
-        value = DeepCopy(Handle<JSObject>::cast(value));
+        value = VisitElementOrProperty(copy, Handle<JSObject>::cast(value));
         RETURN_IF_EMPTY_HANDLE_VALUE(isolate, value, Handle<JSObject>());
       } else {
         Representation representation = details.representation();
         value = NewStorageFor(isolate, value, representation);
       }
-      copy->FastPropertyAtPut(index, *value);
+      if (copying) {
+        copy->FastPropertyAtPut(index, *value);
+      }
     }
   } else {
     Handle<FixedArray> names =
@@ -5634,11 +5679,14 @@ Handle<JSObject> JSObject::DeepCopy(Handle<JSObject> object) {
           copy->GetProperty(*key_string, &attributes)->ToObjectUnchecked(),
           isolate);
       if (value->IsJSObject()) {
-        Handle<Object> result = DeepCopy(Handle<JSObject>::cast(value));
+        Handle<JSObject> result = VisitElementOrProperty(
+            copy, Handle<JSObject>::cast(value));
         RETURN_IF_EMPTY_HANDLE_VALUE(isolate, result, Handle<JSObject>());
-        // Creating object copy for literals. No strict mode needed.
-        CHECK_NOT_EMPTY_HANDLE(isolate, SetProperty(
-            copy, key_string, result, NONE, kNonStrictMode));
+        if (copying) {
+          // Creating object copy for literals. No strict mode needed.
+          CHECK_NOT_EMPTY_HANDLE(isolate, JSObject::SetProperty(
+              copy, key_string, result, NONE, kNonStrictMode));
+        }
       }
     }
   }
@@ -5666,9 +5714,12 @@ Handle<JSObject> JSObject::DeepCopy(Handle<JSObject> object) {
                  value->IsTheHole() ||
                  (IsFastObjectElementsKind(copy->GetElementsKind())));
           if (value->IsJSObject()) {
-            Handle<Object> result = DeepCopy(Handle<JSObject>::cast(value));
+            Handle<JSObject> result = VisitElementOrProperty(
+                copy, Handle<JSObject>::cast(value));
             RETURN_IF_EMPTY_HANDLE_VALUE(isolate, result, Handle<JSObject>());
-            elements->set(i, *result);
+            if (copying) {
+              elements->set(i, *result);
+            }
           }
         }
       }
@@ -5683,9 +5734,12 @@ Handle<JSObject> JSObject::DeepCopy(Handle<JSObject> object) {
         if (element_dictionary->IsKey(k)) {
           Handle<Object> value(element_dictionary->ValueAt(i), isolate);
           if (value->IsJSObject()) {
-            Handle<Object> result = DeepCopy(Handle<JSObject>::cast(value));
+            Handle<JSObject> result = VisitElementOrProperty(
+                copy, Handle<JSObject>::cast(value));
             RETURN_IF_EMPTY_HANDLE_VALUE(isolate, result, Handle<JSObject>());
-            element_dictionary->ValueAtPut(i, *result);
+            if (copying) {
+              element_dictionary->ValueAtPut(i, *result);
+            }
           }
         }
       }
@@ -5708,6 +5762,14 @@ Handle<JSObject> JSObject::DeepCopy(Handle<JSObject> object) {
       // No contained objects, nothing to do.
       break;
   }
+  return copy;
+}
+
+
+Handle<JSObject> JSObject::DeepCopy(Handle<JSObject> object) {
+  JSObjectCopyVisitor v;
+  Handle<JSObject> copy = v.Visit(object);
+  ASSERT(v.is_copying() && !copy.is_identical_to(object));
   return copy;
 }
 
@@ -6111,7 +6173,7 @@ void JSObject::DefineAccessor(Handle<JSObject> object,
 
   // Make sure that the top context does not change when doing callbacks or
   // interceptor calls.
-  AssertNoContextChangeWithHandleScope ncc;
+  AssertNoContextChange ncc(isolate);
 
   // Try to flatten before operating on the string.
   if (name->IsString()) String::cast(*name)->TryFlatten();
@@ -6297,7 +6359,7 @@ Handle<Object> JSObject::SetAccessor(Handle<JSObject> object,
 
   // Make sure that the top context does not change when doing callbacks or
   // interceptor calls.
-  AssertNoContextChange ncc;
+  AssertNoContextChange ncc(isolate);
 
   // Try to flatten before operating on the string.
   if (name->IsString()) FlattenString(Handle<String>::cast(name));
@@ -6356,58 +6418,62 @@ Handle<Object> JSObject::SetAccessor(Handle<JSObject> object,
 }
 
 
-MaybeObject* JSObject::LookupAccessor(Name* name, AccessorComponent component) {
-  Heap* heap = GetHeap();
+Handle<Object> JSObject::GetAccessor(Handle<JSObject> object,
+                                     Handle<Name> name,
+                                     AccessorComponent component) {
+  Isolate* isolate = object->GetIsolate();
 
   // Make sure that the top context does not change when doing callbacks or
   // interceptor calls.
-  AssertNoContextChangeWithHandleScope ncc;
+  AssertNoContextChange ncc(isolate);
 
   // Check access rights if needed.
-  if (IsAccessCheckNeeded() &&
-      !heap->isolate()->MayNamedAccess(this, name, v8::ACCESS_HAS)) {
-    heap->isolate()->ReportFailedAccessCheck(this, v8::ACCESS_HAS);
-    RETURN_IF_SCHEDULED_EXCEPTION(heap->isolate());
-    return heap->undefined_value();
+  if (object->IsAccessCheckNeeded() &&
+      !isolate->MayNamedAccess(*object, *name, v8::ACCESS_HAS)) {
+    isolate->ReportFailedAccessCheck(*object, v8::ACCESS_HAS);
+    RETURN_HANDLE_IF_SCHEDULED_EXCEPTION(isolate, Object);
+    return isolate->factory()->undefined_value();
   }
 
   // Make the lookup and include prototypes.
   uint32_t index = 0;
   if (name->AsArrayIndex(&index)) {
-    for (Object* obj = this;
-         obj != heap->null_value();
-         obj = JSReceiver::cast(obj)->GetPrototype()) {
-      if (obj->IsJSObject() && JSObject::cast(obj)->HasDictionaryElements()) {
-        JSObject* js_object = JSObject::cast(obj);
+    for (Handle<Object> obj = object;
+         *obj != isolate->heap()->null_value();
+         obj = handle(JSReceiver::cast(*obj)->GetPrototype(), isolate)) {
+      if (obj->IsJSObject() && JSObject::cast(*obj)->HasDictionaryElements()) {
+        JSObject* js_object = JSObject::cast(*obj);
         SeededNumberDictionary* dictionary = js_object->element_dictionary();
         int entry = dictionary->FindEntry(index);
         if (entry != SeededNumberDictionary::kNotFound) {
           Object* element = dictionary->ValueAt(entry);
           if (dictionary->DetailsAt(entry).type() == CALLBACKS &&
               element->IsAccessorPair()) {
-            return AccessorPair::cast(element)->GetComponent(component);
+            return handle(AccessorPair::cast(element)->GetComponent(component),
+                          isolate);
           }
         }
       }
     }
   } else {
-    for (Object* obj = this;
-         obj != heap->null_value();
-         obj = JSReceiver::cast(obj)->GetPrototype()) {
-      LookupResult result(heap->isolate());
-      JSReceiver::cast(obj)->LocalLookup(name, &result);
+    for (Handle<Object> obj = object;
+         *obj != isolate->heap()->null_value();
+         obj = handle(JSReceiver::cast(*obj)->GetPrototype(), isolate)) {
+      LookupResult result(isolate);
+      JSReceiver::cast(*obj)->LocalLookup(*name, &result);
       if (result.IsFound()) {
-        if (result.IsReadOnly()) return heap->undefined_value();
+        if (result.IsReadOnly()) return isolate->factory()->undefined_value();
         if (result.IsPropertyCallbacks()) {
           Object* obj = result.GetCallbackObject();
           if (obj->IsAccessorPair()) {
-            return AccessorPair::cast(obj)->GetComponent(component);
+            return handle(AccessorPair::cast(obj)->GetComponent(component),
+                          isolate);
           }
         }
       }
     }
   }
-  return heap->undefined_value();
+  return isolate->factory()->undefined_value();
 }
 
 
@@ -6957,8 +7023,6 @@ void Map::UpdateCodeCache(Handle<Map> map,
 
 
 MaybeObject* Map::UpdateCodeCache(Name* name, Code* code) {
-  ASSERT(!is_shared() || code->allowed_in_shared_map_code_cache());
-
   // Allocate the code cache if not present.
   if (code_cache()->IsFixedArray()) {
     Object* result;
@@ -7285,11 +7349,10 @@ MaybeObject* CodeCache::UpdateNormalTypeCache(Name* name, Code* code) {
 
 
 Object* CodeCache::Lookup(Name* name, Code::Flags flags) {
-  if (Code::ExtractTypeFromFlags(flags) == Code::NORMAL) {
-    return LookupNormalTypeCache(name, flags);
-  } else {
-    return LookupDefaultCache(name, flags);
-  }
+  flags = Code::RemoveTypeFromFlags(flags);
+  Object* result = LookupDefaultCache(name, flags);
+  if (result->IsCode()) return result;
+  return LookupNormalTypeCache(name, flags);
 }
 
 
@@ -7303,7 +7366,7 @@ Object* CodeCache::LookupDefaultCache(Name* name, Code::Flags flags) {
     if (key->IsUndefined()) return key;
     if (name->Equals(Name::cast(key))) {
       Code* code = Code::cast(cache->get(i + kCodeCacheEntryCodeOffset));
-      if (code->flags() == flags) {
+      if (Code::RemoveTypeFromFlags(code->flags()) == flags) {
         return code;
       }
     }
@@ -7367,9 +7430,7 @@ class CodeCacheHashTableKey : public HashTableKey {
       : name_(name), flags_(flags), code_(NULL) { }
 
   CodeCacheHashTableKey(Name* name, Code* code)
-      : name_(name),
-        flags_(code->flags()),
-        code_(code) { }
+      : name_(name), flags_(code->flags()), code_(code) { }
 
 
   bool IsMatch(Object* other) {
@@ -7671,11 +7732,11 @@ MaybeObject* FixedArray::UnionOfKeys(FixedArray* other) {
 }
 
 
-MaybeObject* FixedArray::CopySize(int new_length) {
+MaybeObject* FixedArray::CopySize(int new_length, PretenureFlag pretenure) {
   Heap* heap = GetHeap();
   if (new_length == 0) return heap->empty_fixed_array();
   Object* obj;
-  { MaybeObject* maybe_obj = heap->AllocateFixedArray(new_length);
+  { MaybeObject* maybe_obj = heap->AllocateFixedArray(new_length, pretenure);
     if (!maybe_obj->ToObject(&obj)) return maybe_obj;
   }
   FixedArray* result = FixedArray::cast(obj);
@@ -8985,17 +9046,22 @@ Handle<String> SeqString::Truncate(Handle<SeqString> string, int new_length) {
 }
 
 
-AllocationMemento* AllocationMemento::FindForJSObject(JSObject* object) {
+AllocationMemento* AllocationMemento::FindForJSObject(JSObject* object,
+                                                      bool in_GC) {
   // Currently, AllocationMemento objects are only allocated immediately
   // after JSArrays in NewSpace, and detecting whether a JSArray has one
   // involves carefully checking the object immediately after the JSArray
   // (if there is one) to see if it's an AllocationMemento.
   if (FLAG_track_allocation_sites && object->GetHeap()->InNewSpace(object)) {
-    ASSERT(object->GetHeap()->InToSpace(object));
     Address ptr_end = (reinterpret_cast<Address>(object) - kHeapObjectTag) +
         object->Size();
-    if ((ptr_end + AllocationMemento::kSize) <=
-        object->GetHeap()->NewSpaceTop()) {
+    Address top;
+    if (in_GC) {
+      top = object->GetHeap()->new_space()->FromSpacePageHigh();
+    } else {
+      top = object->GetHeap()->NewSpaceTop();
+    }
+    if ((ptr_end + AllocationMemento::kSize) <= top) {
       // There is room in newspace for allocation info. Do we have some?
       Map** possible_allocation_memento_map =
           reinterpret_cast<Map**>(ptr_end);
@@ -10297,31 +10363,35 @@ void Code::ReplaceFirstMap(Map* replace_with) {
 }
 
 
-Code* Code::FindFirstCode() {
+Code* Code::FindFirstHandler() {
   ASSERT(is_inline_cache_stub());
   DisallowHeapAllocation no_allocation;
   int mask = RelocInfo::ModeMask(RelocInfo::CODE_TARGET);
   for (RelocIterator it(this, mask); !it.done(); it.next()) {
     RelocInfo* info = it.rinfo();
-    return Code::GetCodeFromTargetAddress(info->target_address());
+    Code* code = Code::GetCodeFromTargetAddress(info->target_address());
+    if (code->kind() == Code::HANDLER) return code;
   }
   return NULL;
 }
 
 
-void Code::FindAllCode(CodeHandleList* code_list, int length) {
+bool Code::FindHandlers(CodeHandleList* code_list, int length) {
   ASSERT(is_inline_cache_stub());
   DisallowHeapAllocation no_allocation;
   int mask = RelocInfo::ModeMask(RelocInfo::CODE_TARGET);
   int i = 0;
   for (RelocIterator it(this, mask); !it.done(); it.next()) {
-    if (i++ == length) return;
+    if (i == length) return true;
     RelocInfo* info = it.rinfo();
     Code* code = Code::GetCodeFromTargetAddress(info->target_address());
-    ASSERT(code->kind() == Code::STUB);
+    // IC stubs with handlers never contain non-handler code objects before
+    // handler targets.
+    if (code->kind() != Code::HANDLER) break;
     code_list->Add(Handle<Code>(code));
+    i++;
   }
-  UNREACHABLE();
+  return i == length;
 }
 
 
@@ -10394,13 +10464,6 @@ BailoutId Code::TranslatePcOffsetToAstId(uint32_t pc_offset) {
     if (back_edges.pc_offset(i) == pc_offset) return back_edges.ast_id(i);
   }
   return BailoutId::None();
-}
-
-
-bool Code::allowed_in_shared_map_code_cache() {
-  return is_keyed_load_stub() || is_keyed_store_stub() ||
-      (is_compare_ic_stub() &&
-       ICCompareStub::CompareState(stub_info()) == CompareIC::KNOWN_OBJECT);
 }
 
 
@@ -10959,6 +11022,22 @@ MaybeObject* JSObject::SetFastElementsCapacityAndLength(
 }
 
 
+bool Code::IsWeakEmbeddedObject(Kind kind, Object* object) {
+  if (kind != Code::OPTIMIZED_FUNCTION) return false;
+
+  if (object->IsMap()) {
+    return Map::cast(object)->CanTransition() &&
+           FLAG_collect_maps &&
+           FLAG_weak_embedded_maps_in_optimized_code;
+  }
+
+  if (object->IsJSObject()) {
+    return FLAG_weak_embedded_objects_in_optimized_code;
+  }
+
+  return false;
+}
+
 MaybeObject* JSObject::SetFastDoubleElementsCapacityAndLength(
     int capacity,
     int length) {
@@ -11319,7 +11398,7 @@ Handle<DependentCode> DependentCode::Insert(Handle<DependentCode> entries,
     int capacity = kCodesStartIndex + number_of_entries + 1;
     if (capacity > 5) capacity = capacity * 5 / 4;
     Handle<DependentCode> new_entries = Handle<DependentCode>::cast(
-        factory->CopySizeFixedArray(entries, capacity));
+        factory->CopySizeFixedArray(entries, capacity, TENURED));
     // The number of codes can change after GC.
     starts.Recompute(*entries);
     start = starts.at(group);
@@ -11553,22 +11632,6 @@ MaybeObject* JSObject::EnsureCanContainElements(Arguments* args,
 }
 
 
-PropertyType JSObject::GetLocalPropertyType(Name* name) {
-  uint32_t index = 0;
-  if (name->AsArrayIndex(&index)) {
-    return GetLocalElementType(index);
-  }
-  LookupResult lookup(GetIsolate());
-  LocalLookup(name, &lookup, true);
-  return lookup.type();
-}
-
-
-PropertyType JSObject::GetLocalElementType(uint32_t index) {
-  return GetElementsAccessor()->GetType(this, this, index);
-}
-
-
 AccessorPair* JSObject::GetLocalPropertyAccessorPair(Name* name) {
   uint32_t index = 0;
   if (name->AsArrayIndex(&index)) {
@@ -11612,7 +11675,7 @@ MaybeObject* JSObject::SetElementWithInterceptor(uint32_t index,
 
   // Make sure that the top context does not change when doing
   // callbacks or interceptor calls.
-  AssertNoContextChange ncc;
+  AssertNoContextChange ncc(isolate);
 
   Handle<InterceptorInfo> interceptor(GetIndexedInterceptor());
   Handle<JSObject> this_handle(this);
@@ -12624,7 +12687,7 @@ MaybeObject* JSObject::GetElementWithInterceptor(Object* receiver,
 
   // Make sure that the top context does not change when doing
   // callbacks or interceptor calls.
-  AssertNoContextChange ncc;
+  AssertNoContextChange ncc(isolate);
 
   Handle<InterceptorInfo> interceptor(GetIndexedInterceptor(), isolate);
   Handle<Object> this_handle(receiver, isolate);
@@ -13840,7 +13903,9 @@ void HashTable<Shape, Key>::Rehash(Key key) {
 
 
 template<typename Shape, typename Key>
-MaybeObject* HashTable<Shape, Key>::EnsureCapacity(int n, Key key) {
+MaybeObject* HashTable<Shape, Key>::EnsureCapacity(int n,
+                                                   Key key,
+                                                   PretenureFlag pretenure) {
   int capacity = Capacity();
   int nof = NumberOfElements() + n;
   int nod = NumberOfDeletedElements();
@@ -13853,14 +13918,14 @@ MaybeObject* HashTable<Shape, Key>::EnsureCapacity(int n, Key key) {
   }
 
   const int kMinCapacityForPretenure = 256;
-  bool pretenure =
-      (capacity > kMinCapacityForPretenure) && !GetHeap()->InNewSpace(this);
+  bool should_pretenure = pretenure == TENURED ||
+      ((capacity > kMinCapacityForPretenure) && !GetHeap()->InNewSpace(this));
   Object* obj;
   { MaybeObject* maybe_obj =
         Allocate(GetHeap(),
                  nof * 2,
                  USE_DEFAULT_MINIMUM_CAPACITY,
-                 pretenure ? TENURED : NOT_TENURED);
+                 should_pretenure ? TENURED : NOT_TENURED);
     if (!maybe_obj->ToObject(&obj)) return maybe_obj;
   }
 
@@ -13927,6 +13992,8 @@ template class HashTable<MapCacheShape, HashTableKey*>;
 template class HashTable<ObjectHashTableShape<1>, Object*>;
 
 template class HashTable<ObjectHashTableShape<2>, Object*>;
+
+template class HashTable<WeakHashTableShape<2>, Object*>;
 
 template class Dictionary<NameDictionaryShape, Name*>;
 
@@ -15567,6 +15634,41 @@ void ObjectHashTable::RemoveEntry(int entry) {
   set_the_hole(EntryToIndex(entry));
   set_the_hole(EntryToIndex(entry) + 1);
   ElementRemoved();
+}
+
+
+Object* WeakHashTable::Lookup(Object* key) {
+  ASSERT(IsKey(key));
+  int entry = FindEntry(key);
+  if (entry == kNotFound) return GetHeap()->the_hole_value();
+  return get(EntryToValueIndex(entry));
+}
+
+
+MaybeObject* WeakHashTable::Put(Object* key, Object* value) {
+  ASSERT(IsKey(key));
+  int entry = FindEntry(key);
+  // Key is already in table, just overwrite value.
+  if (entry != kNotFound) {
+    set(EntryToValueIndex(entry), value);
+    return this;
+  }
+
+  // Check whether the hash table should be extended.
+  Object* obj;
+  { MaybeObject* maybe_obj = EnsureCapacity(1, key, TENURED);
+    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+  }
+  WeakHashTable* table = WeakHashTable::cast(obj);
+  table->AddEntry(table->FindInsertionEntry(Hash(key)), key, value);
+  return table;
+}
+
+
+void WeakHashTable::AddEntry(int entry, Object* key, Object* value) {
+  set(EntryToIndex(entry), key);
+  set(EntryToValueIndex(entry), value);
+  ElementAdded();
 }
 
 

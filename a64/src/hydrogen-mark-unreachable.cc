@@ -25,65 +25,53 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "marking-thread.h"
-
-#include "v8.h"
-
-#include "isolate.h"
-#include "v8threads.h"
+#include "hydrogen-mark-unreachable.h"
 
 namespace v8 {
 namespace internal {
 
-MarkingThread::MarkingThread(Isolate* isolate)
-     : Thread("MarkingThread"),
-       isolate_(isolate),
-       heap_(isolate->heap()),
-       start_marking_semaphore_(0),
-       end_marking_semaphore_(0),
-       stop_semaphore_(0) {
-  NoBarrier_Store(&stop_thread_, static_cast<AtomicWord>(false));
-  id_ = NoBarrier_AtomicIncrement(&id_counter_, 1);
-}
 
-
-Atomic32 MarkingThread::id_counter_ = -1;
-
-
-void MarkingThread::Run() {
-  Isolate::SetIsolateThreadLocals(isolate_, NULL);
-  DisallowHeapAllocation no_allocation;
-  DisallowHandleAllocation no_handles;
-  DisallowHandleDereference no_deref;
-
-  while (true) {
-    start_marking_semaphore_.Wait();
-
-    if (Acquire_Load(&stop_thread_)) {
-      stop_semaphore_.Signal();
-      return;
+void HMarkUnreachableBlocksPhase::MarkUnreachableBlocks() {
+  // If there is unreachable code in the graph, propagate the unreachable marks
+  // using a fixed-point iteration.
+  bool changed = true;
+  const ZoneList<HBasicBlock*>* blocks = graph()->blocks();
+  while (changed) {
+    changed = false;
+    for (int i = 0; i < blocks->length(); i++) {
+      HBasicBlock* block = blocks->at(i);
+      if (!block->IsReachable()) continue;
+      bool is_reachable = blocks->at(0) == block;
+      for (HPredecessorIterator it(block); !it.Done(); it.Advance()) {
+        HBasicBlock* predecessor = it.Current();
+        // A block is reachable if one of its predecessors is reachable,
+        // doesn't deoptimize and either is known to transfer control to the
+        // block or has a control flow instruction for which the next block
+        // cannot be determined.
+        if (predecessor->IsReachable() && !predecessor->IsDeoptimizing()) {
+          HBasicBlock* pred_succ;
+          bool known_pred_succ =
+              predecessor->end()->KnownSuccessorBlock(&pred_succ);
+          if (!known_pred_succ || pred_succ == block) {
+            is_reachable = true;
+            break;
+          }
+        }
+        if (block->is_osr_entry()) {
+          is_reachable = true;
+        }
+      }
+      if (!is_reachable) {
+        block->MarkUnreachable();
+        changed = true;
+      }
     }
-
-    end_marking_semaphore_.Signal();
   }
 }
 
 
-void MarkingThread::Stop() {
-  Release_Store(&stop_thread_, static_cast<AtomicWord>(true));
-  start_marking_semaphore_.Signal();
-  stop_semaphore_.Wait();
-  Join();
-}
-
-
-void MarkingThread::StartMarking() {
-  start_marking_semaphore_.Signal();
-}
-
-
-void MarkingThread::WaitForMarkingThread() {
-  end_marking_semaphore_.Wait();
+void HMarkUnreachableBlocksPhase::Run() {
+  MarkUnreachableBlocks();
 }
 
 } }  // namespace v8::internal

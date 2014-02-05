@@ -75,7 +75,6 @@ class HTracer;
 class InlineRuntimeFunctionsTable;
 class NoAllocationStringAllocator;
 class InnerPointerToCodeCache;
-class MarkingThread;
 class PreallocatedMemoryThread;
 class RandomNumberGenerator;
 class RegExpStack;
@@ -275,10 +274,8 @@ class ThreadLocalTop BASE_EMBEDDED {
   Address handler_;   // try-blocks are chained through the stack
 
 #ifdef USE_SIMULATOR
-#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_A64 || V8_TARGET_ARCH_MIPS
   Simulator* simulator_;
 #endif
-#endif  // USE_SIMULATOR
 
   Address js_entry_sp_;  // the stack pointer of the bottom JS entry frame
   // the external callback we're currently in
@@ -309,7 +306,6 @@ class SystemThreadManager {
   enum ParallelSystemComponent {
     PARALLEL_SWEEPING,
     CONCURRENT_SWEEPING,
-    PARALLEL_MARKING,
     PARALLEL_RECOMPILATION
   };
 
@@ -758,6 +754,19 @@ class Isolate {
   // Returns if the top context may access the given global object. If
   // the result is false, the pending exception is guaranteed to be
   // set.
+
+  // TODO(yangguo): temporary wrappers
+  bool MayNamedAccessWrapper(Handle<JSObject> receiver,
+                             Handle<Object> key,
+                             v8::AccessType type) {
+    return MayNamedAccess(*receiver, *key, type);
+  }
+  bool MayIndexedAccessWrapper(Handle<JSObject> receiver,
+                               uint32_t index,
+                               v8::AccessType type) {
+    return MayIndexedAccess(*receiver, index, type);
+  }
+
   bool MayNamedAccess(JSObject* receiver,
                       Object* key,
                       v8::AccessType type);
@@ -1112,10 +1121,6 @@ class Isolate {
   // TODO(svenpanne) This method is on death row...
   static v8::Isolate* GetDefaultIsolateForLocking();
 
-  MarkingThread** marking_threads() {
-    return marking_thread_;
-  }
-
   SweeperThread** sweeper_threads() {
     return sweeper_thread_;
   }
@@ -1368,7 +1373,6 @@ class Isolate {
 
   DeferredHandles* deferred_handles_head_;
   OptimizingCompilerThread* optimizing_compiler_thread_;
-  MarkingThread** marking_thread_;
   SweeperThread** sweeper_thread_;
 
   // Counts deopt points if deopt_every_n_times is enabled.
@@ -1377,7 +1381,6 @@ class Isolate {
   friend class ExecutionAccess;
   friend class HandleScopeImplementer;
   friend class IsolateInitializer;
-  friend class MarkingThread;
   friend class OptimizingCompilerThread;
   friend class SweeperThread;
   friend class ThreadManager;
@@ -1425,9 +1428,9 @@ class SaveContext BASE_EMBEDDED {
 class AssertNoContextChange BASE_EMBEDDED {
 #ifdef DEBUG
  public:
-  AssertNoContextChange()
-    : isolate_(Isolate::Current()),
-      context_(isolate_->context()) { }
+  explicit AssertNoContextChange(Isolate* isolate)
+    : isolate_(isolate),
+      context_(isolate->context(), isolate) { }
   ~AssertNoContextChange() {
     ASSERT(isolate_->context() == *context_);
   }
@@ -1437,32 +1440,7 @@ class AssertNoContextChange BASE_EMBEDDED {
   Handle<Context> context_;
 #else
  public:
-  AssertNoContextChange() { }
-#endif
-};
-
-
-// TODO(mstarzinger): Depracate as soon as everything is handlified.
-class AssertNoContextChangeWithHandleScope BASE_EMBEDDED {
-#ifdef DEBUG
- public:
-  AssertNoContextChangeWithHandleScope() :
-      isolate_(Isolate::Current()),
-      scope_(isolate_),
-      context_(isolate_->context(), isolate_) {
-  }
-
-  ~AssertNoContextChangeWithHandleScope() {
-    ASSERT(isolate_->context() == *context_);
-  }
-
- private:
-  Isolate* isolate_;
-  HandleScope scope_;
-  Handle<Context> context_;
-#else
- public:
-  AssertNoContextChangeWithHandleScope() { }
+  explicit AssertNoContextChange(Isolate* isolate) { }
 #endif
 };
 

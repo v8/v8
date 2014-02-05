@@ -1,4 +1,4 @@
-// Copyright 2013 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -27,27 +27,39 @@
 
 // Flags: --allow-natives-syntax
 
-// Tests timer milliseconds granularity.
+// Test CompareIC stubs for normal and strict equality comparison of known
+// objects in slow mode. These objects share the same map even though they
+// might have completely different properties.
 
-// Don't run this test in gc stress mode. Time differences may be long
-// due to garbage collections.
-%SetFlags("--gc-interval=-1");
-%SetFlags("--nostress-compaction");
+function eq(a, b) {
+  return a == b;
+}
 
-(function run() {
-  var start_test = Date.now();
-  // Let the retry run for maximum 100ms to reduce flakiness.
-  for (var start = Date.now(); start - start_test < 100; start = Date.now()) {
-    var end = Date.now();
-    while (end - start == 0) {
-      end = Date.now();
-    }
-    if (end - start == 1) {
-      // Found milliseconds granularity.
-      return;
-    } else {
-      print("Timer difference too big: " + (end - start) + "ms");
-    }
-  }
-  assertTrue(false);
-})()
+function eq_strict(a, b) {
+  return a === b;
+}
+
+function test(a, b) {
+  // Check CompareIC for equality of known objects.
+  assertTrue(eq(a, a));
+  assertTrue(eq(b, b));
+  assertFalse(eq(a, b));
+  // Check CompareIC for strict equality of known objects.
+  assertTrue(eq_strict(a, a));
+  assertTrue(eq_strict(b, b));
+  assertFalse(eq_strict(a, b));
+}
+
+function O(){};
+O.prototype.t = function() {}
+
+var obj1 = new O;
+var obj2 = new O;
+
+// Test original objects.
+assertTrue(%HaveSameMap(obj1, obj2));
+test(obj1, obj2);
+
+// Test after adding property to first object.
+obj1.x = 1;
+test(obj1, obj2);

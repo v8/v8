@@ -131,6 +131,7 @@ struct TickSample;
   V(CALLBACK_TAG,                   "Callback")                         \
   V(EVAL_TAG,                       "Eval")                             \
   V(FUNCTION_TAG,                   "Function")                         \
+  V(HANDLER_TAG,                    "Handler")                          \
   V(KEYED_LOAD_IC_TAG,              "KeyedLoadIC")                      \
   V(KEYED_LOAD_POLYMORPHIC_IC_TAG,  "KeyedLoadPolymorphicIC")           \
   V(KEYED_EXTERNAL_ARRAY_LOAD_IC_TAG, "KeyedExternalArrayLoadIC")       \

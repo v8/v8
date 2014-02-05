@@ -1577,13 +1577,6 @@ Handle<Map> JSObject::FindTransitionToField(Handle<Map> map, Handle<Name> key) {
 }
 
 
-int JSObject::LastAddedFieldIndex() {
-  Map* map = this->map();
-  int last_added = map->LastAdded();
-  return map->instance_descriptors()->GetFieldIndex(last_added);
-}
-
-
 ACCESSORS(Oddball, to_string, String, kToStringOffset)
 ACCESSORS(Oddball, to_number, Object, kToNumberOffset)
 
@@ -3756,7 +3749,8 @@ Code::StubType Code::type() {
 
 
 int Code::arguments_count() {
-  ASSERT(is_call_stub() || is_keyed_call_stub() || kind() == STUB);
+  ASSERT(is_call_stub() || is_keyed_call_stub() ||
+         kind() == STUB || is_handler());
   return ExtractArgumentsCountFromFlags(flags());
 }
 
@@ -3776,6 +3770,7 @@ inline void Code::set_is_crankshafted(bool value) {
 
 int Code::major_key() {
   ASSERT(kind() == STUB ||
+         kind() == HANDLER ||
          kind() == BINARY_OP_IC ||
          kind() == COMPARE_IC ||
          kind() == COMPARE_NIL_IC ||
@@ -3790,6 +3785,7 @@ int Code::major_key() {
 
 void Code::set_major_key(int major) {
   ASSERT(kind() == STUB ||
+         kind() == HANDLER ||
          kind() == BINARY_OP_IC ||
          kind() == COMPARE_IC ||
          kind() == COMPARE_NIL_IC ||
@@ -4022,6 +4018,11 @@ bool Code::is_inline_cache_stub() {
 #undef CASE
     default: return false;
   }
+}
+
+
+bool Code::is_keyed_stub() {
+  return is_keyed_load_stub() || is_keyed_store_stub() || is_keyed_call_stub();
 }
 
 
@@ -5950,6 +5951,34 @@ uint32_t ObjectHashTableShape<entrysize>::HashForObject(Object* key,
 template <int entrysize>
 MaybeObject* ObjectHashTableShape<entrysize>::AsObject(Heap* heap,
                                                        Object* key) {
+  return key;
+}
+
+
+template <int entrysize>
+bool WeakHashTableShape<entrysize>::IsMatch(Object* key, Object* other) {
+  return key->SameValue(other);
+}
+
+
+template <int entrysize>
+uint32_t WeakHashTableShape<entrysize>::Hash(Object* key) {
+  intptr_t hash = reinterpret_cast<intptr_t>(key);
+  return (uint32_t)(hash & 0xFFFFFFFF);
+}
+
+
+template <int entrysize>
+uint32_t WeakHashTableShape<entrysize>::HashForObject(Object* key,
+                                                      Object* other) {
+  intptr_t hash = reinterpret_cast<intptr_t>(other);
+  return (uint32_t)(hash & 0xFFFFFFFF);
+}
+
+
+template <int entrysize>
+MaybeObject* WeakHashTableShape<entrysize>::AsObject(Heap* heap,
+                                                    Object* key) {
   return key;
 }
 

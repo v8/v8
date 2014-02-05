@@ -835,6 +835,8 @@ void Deserializer::Deserialize(Isolate* isolate) {
         isolate_->heap()->undefined_value());
   }
 
+  isolate_->heap()->InitializeWeakObjectToCodeTable();
+
   // Update data pointers to the external strings containing natives sources.
   for (int i = 0; i < Natives::GetBuiltinsCount(); i++) {
     Object* source = isolate_->heap()->natives_source_cache()->get(i);

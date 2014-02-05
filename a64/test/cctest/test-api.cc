@@ -77,19 +77,12 @@ using ::v8::V8;
 using ::v8::Value;
 
 
-// TODO(bmeurer): Don't run profiled tests when using the simulator.
-// This is a temporary work-around, until the profiler is fixed.
-#if USE_SIMULATOR
-#define THREADED_PROFILED_TEST(Name)                                 \
-  THREADED_TEST(Name)
-#else
 #define THREADED_PROFILED_TEST(Name)                                 \
   static void Test##Name();                                          \
   TEST(Name##WithProfiler) {                                         \
     RunWithProfiler(&Test##Name);                                    \
   }                                                                  \
   THREADED_TEST(Name)
-#endif
 
 
 void RunWithProfiler(void (*test)()) {
@@ -4011,7 +4004,8 @@ THREADED_TEST(Vector) {
 
 THREADED_TEST(FunctionCall) {
   LocalContext context;
-  v8::HandleScope scope(context->GetIsolate());
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::HandleScope scope(isolate);
   CompileRun(
     "function Foo() {"
     "  var result = [];"
@@ -4019,9 +4013,20 @@ THREADED_TEST(FunctionCall) {
     "    result.push(arguments[i]);"
     "  }"
     "  return result;"
+    "}"
+    "function ReturnThisSloppy() {"
+    "  return this;"
+    "}"
+    "function ReturnThisStrict() {"
+    "  'use strict';"
+    "  return this;"
     "}");
   Local<Function> Foo =
       Local<Function>::Cast(context->Global()->Get(v8_str("Foo")));
+  Local<Function> ReturnThisSloppy =
+      Local<Function>::Cast(context->Global()->Get(v8_str("ReturnThisSloppy")));
+  Local<Function> ReturnThisStrict =
+      Local<Function>::Cast(context->Global()->Get(v8_str("ReturnThisStrict")));
 
   v8::Handle<Value>* args0 = NULL;
   Local<v8::Array> a0 = Local<v8::Array>::Cast(Foo->Call(Foo, 0, args0));
@@ -4058,6 +4063,31 @@ THREADED_TEST(FunctionCall) {
   CHECK_EQ(8.8, a4->Get(v8::Integer::New(1))->NumberValue());
   CHECK_EQ(9.9, a4->Get(v8::Integer::New(2))->NumberValue());
   CHECK_EQ(10.11, a4->Get(v8::Integer::New(3))->NumberValue());
+
+  Local<v8::Value> r1 = ReturnThisSloppy->Call(v8::Undefined(isolate), 0, NULL);
+  CHECK(r1->StrictEquals(context->Global()));
+  Local<v8::Value> r2 = ReturnThisSloppy->Call(v8::Null(isolate), 0, NULL);
+  CHECK(r2->StrictEquals(context->Global()));
+  Local<v8::Value> r3 = ReturnThisSloppy->Call(v8_num(42), 0, NULL);
+  CHECK(r3->IsNumberObject());
+  CHECK_EQ(42.0, r3.As<v8::NumberObject>()->ValueOf());
+  Local<v8::Value> r4 = ReturnThisSloppy->Call(v8_str("hello"), 0, NULL);
+  CHECK(r4->IsStringObject());
+  CHECK(r4.As<v8::StringObject>()->ValueOf()->StrictEquals(v8_str("hello")));
+  Local<v8::Value> r5 = ReturnThisSloppy->Call(v8::True(isolate), 0, NULL);
+  CHECK(r5->IsBooleanObject());
+  CHECK(r5.As<v8::BooleanObject>()->ValueOf());
+
+  Local<v8::Value> r6 = ReturnThisStrict->Call(v8::Undefined(isolate), 0, NULL);
+  CHECK(r6->IsUndefined());
+  Local<v8::Value> r7 = ReturnThisStrict->Call(v8::Null(isolate), 0, NULL);
+  CHECK(r7->IsNull());
+  Local<v8::Value> r8 = ReturnThisStrict->Call(v8_num(42), 0, NULL);
+  CHECK(r8->StrictEquals(v8_num(42)));
+  Local<v8::Value> r9 = ReturnThisStrict->Call(v8_str("hello"), 0, NULL);
+  CHECK(r9->StrictEquals(v8_str("hello")));
+  Local<v8::Value> r10 = ReturnThisStrict->Call(v8::True(isolate), 0, NULL);
+  CHECK(r10->StrictEquals(v8::True(isolate)));
 }
 
 
@@ -10177,6 +10207,11 @@ static void call_as_function(const v8::FunctionCallbackInfo<v8::Value>& args) {
 }
 
 
+static void ReturnThis(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  args.GetReturnValue().Set(args.This());
+}
+
+
 // Test that a call handler can be set for objects which will allow
 // non-function objects created through the API to be called as
 // functions.
@@ -10288,6 +10323,81 @@ THREADED_TEST(CallAsFunction) {
     String::Utf8Value exception_value2(try_catch.Exception());
     CHECK_EQ("23", *exception_value2);
     try_catch.Reset();
+  }
+
+  { v8::Isolate* isolate = context->GetIsolate();
+    Local<v8::FunctionTemplate> t = v8::FunctionTemplate::New();
+    Local<ObjectTemplate> instance_template = t->InstanceTemplate();
+    instance_template->SetCallAsFunctionHandler(ReturnThis);
+    Local<v8::Object> instance = t->GetFunction()->NewInstance();
+
+    Local<v8::Value> a1 =
+        instance->CallAsFunction(v8::Undefined(isolate), 0, NULL);
+    CHECK(a1->StrictEquals(instance));
+    Local<v8::Value> a2 =
+        instance->CallAsFunction(v8::Null(isolate), 0, NULL);
+    CHECK(a2->StrictEquals(instance));
+    Local<v8::Value> a3 =
+        instance->CallAsFunction(v8_num(42), 0, NULL);
+    CHECK(a3->StrictEquals(instance));
+    Local<v8::Value> a4 =
+        instance->CallAsFunction(v8_str("hello"), 0, NULL);
+    CHECK(a4->StrictEquals(instance));
+    Local<v8::Value> a5 =
+        instance->CallAsFunction(v8::True(isolate), 0, NULL);
+    CHECK(a5->StrictEquals(instance));
+  }
+
+  { v8::Isolate* isolate = context->GetIsolate();
+    CompileRun(
+      "function ReturnThisSloppy() {"
+      "  return this;"
+      "}"
+      "function ReturnThisStrict() {"
+      "  'use strict';"
+      "  return this;"
+      "}");
+    Local<Function> ReturnThisSloppy =
+        Local<Function>::Cast(
+            context->Global()->Get(v8_str("ReturnThisSloppy")));
+    Local<Function> ReturnThisStrict =
+        Local<Function>::Cast(
+            context->Global()->Get(v8_str("ReturnThisStrict")));
+
+    Local<v8::Value> a1 =
+        ReturnThisSloppy->CallAsFunction(v8::Undefined(isolate), 0, NULL);
+    CHECK(a1->StrictEquals(context->Global()));
+    Local<v8::Value> a2 =
+        ReturnThisSloppy->CallAsFunction(v8::Null(isolate), 0, NULL);
+    CHECK(a2->StrictEquals(context->Global()));
+    Local<v8::Value> a3 =
+        ReturnThisSloppy->CallAsFunction(v8_num(42), 0, NULL);
+    CHECK(a3->IsNumberObject());
+    CHECK_EQ(42.0, a3.As<v8::NumberObject>()->ValueOf());
+    Local<v8::Value> a4 =
+        ReturnThisSloppy->CallAsFunction(v8_str("hello"), 0, NULL);
+    CHECK(a4->IsStringObject());
+    CHECK(a4.As<v8::StringObject>()->ValueOf()->StrictEquals(v8_str("hello")));
+    Local<v8::Value> a5 =
+        ReturnThisSloppy->CallAsFunction(v8::True(isolate), 0, NULL);
+    CHECK(a5->IsBooleanObject());
+    CHECK(a5.As<v8::BooleanObject>()->ValueOf());
+
+    Local<v8::Value> a6 =
+        ReturnThisStrict->CallAsFunction(v8::Undefined(isolate), 0, NULL);
+    CHECK(a6->IsUndefined());
+    Local<v8::Value> a7 =
+        ReturnThisStrict->CallAsFunction(v8::Null(isolate), 0, NULL);
+    CHECK(a7->IsNull());
+    Local<v8::Value> a8 =
+        ReturnThisStrict->CallAsFunction(v8_num(42), 0, NULL);
+    CHECK(a8->StrictEquals(v8_num(42)));
+    Local<v8::Value> a9 =
+        ReturnThisStrict->CallAsFunction(v8_str("hello"), 0, NULL);
+    CHECK(a9->StrictEquals(v8_str("hello")));
+    Local<v8::Value> a10 =
+        ReturnThisStrict->CallAsFunction(v8::True(isolate), 0, NULL);
+    CHECK(a10->StrictEquals(v8::True(isolate)));
   }
 }
 
@@ -14003,9 +14113,10 @@ TEST(PreCompile) {
   // TODO(155): This test would break without the initialization of V8. This is
   // a workaround for now to make this test not fail.
   v8::V8::Initialize();
+  v8::Isolate* isolate = CcTest::isolate();
   const char* script = "function foo(a) { return a+1; }";
   v8::ScriptData* sd =
-      v8::ScriptData::PreCompile(script, i::StrLength(script));
+      v8::ScriptData::PreCompile(isolate, script, i::StrLength(script));
   CHECK_NE(sd->Length(), 0);
   CHECK_NE(sd->Data(), NULL);
   CHECK(!sd->HasError());
@@ -14015,9 +14126,10 @@ TEST(PreCompile) {
 
 TEST(PreCompileWithError) {
   v8::V8::Initialize();
+  v8::Isolate* isolate = CcTest::isolate();
   const char* script = "function foo(a) { return 1 * * 2; }";
   v8::ScriptData* sd =
-      v8::ScriptData::PreCompile(script, i::StrLength(script));
+      v8::ScriptData::PreCompile(isolate, script, i::StrLength(script));
   CHECK(sd->HasError());
   delete sd;
 }
@@ -14025,9 +14137,10 @@ TEST(PreCompileWithError) {
 
 TEST(Regress31661) {
   v8::V8::Initialize();
+  v8::Isolate* isolate = CcTest::isolate();
   const char* script = " The Definintive Guide";
   v8::ScriptData* sd =
-      v8::ScriptData::PreCompile(script, i::StrLength(script));
+      v8::ScriptData::PreCompile(isolate, script, i::StrLength(script));
   CHECK(sd->HasError());
   delete sd;
 }
@@ -14036,9 +14149,10 @@ TEST(Regress31661) {
 // Tests that ScriptData can be serialized and deserialized.
 TEST(PreCompileSerialization) {
   v8::V8::Initialize();
+  v8::Isolate* isolate = CcTest::isolate();
   const char* script = "function foo(a) { return a+1; }";
   v8::ScriptData* sd =
-      v8::ScriptData::PreCompile(script, i::StrLength(script));
+      v8::ScriptData::PreCompile(isolate, script, i::StrLength(script));
 
   // Serialize.
   int serialized_data_length = sd->Length();
@@ -14075,13 +14189,14 @@ TEST(PreCompileDeserializationError) {
 // Attempts to deserialize bad data.
 TEST(PreCompileInvalidPreparseDataError) {
   v8::V8::Initialize();
+  v8::Isolate* isolate = CcTest::isolate();
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
 
   const char* script = "function foo(){ return 5;}\n"
       "function bar(){ return 6 + 7;}  foo();";
   v8::ScriptData* sd =
-      v8::ScriptData::PreCompile(script, i::StrLength(script));
+      v8::ScriptData::PreCompile(isolate, script, i::StrLength(script));
   CHECK(!sd->HasError());
   // ScriptDataImpl private implementation details
   const int kHeaderSize = i::PreparseDataConstants::kHeaderSize;
@@ -14107,7 +14222,7 @@ TEST(PreCompileInvalidPreparseDataError) {
   // Overwrite function bar's start position with 200.  The function entry
   // will not be found when searching for it by position and we should fall
   // back on eager compilation.
-  sd = v8::ScriptData::PreCompile(script, i::StrLength(script));
+  sd = v8::ScriptData::PreCompile(isolate, script, i::StrLength(script));
   sd_data = reinterpret_cast<unsigned*>(const_cast<char*>(sd->Data()));
   sd_data[kHeaderSize + 1 * kFunctionEntrySize + kFunctionEntryStartOffset] =
       200;
@@ -14122,12 +14237,13 @@ TEST(PreCompileInvalidPreparseDataError) {
 // the same results (at least for one trivial case).
 TEST(PreCompileAPIVariationsAreSame) {
   v8::V8::Initialize();
-  v8::HandleScope scope(CcTest::isolate());
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
 
   const char* cstring = "function foo(a) { return a+1; }";
 
   v8::ScriptData* sd_from_cstring =
-      v8::ScriptData::PreCompile(cstring, i::StrLength(cstring));
+      v8::ScriptData::PreCompile(isolate, cstring, i::StrLength(cstring));
 
   TestAsciiResource* resource = new TestAsciiResource(cstring);
   v8::ScriptData* sd_from_external_string = v8::ScriptData::PreCompile(

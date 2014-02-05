@@ -99,7 +99,7 @@ RandomNumberGenerator::RandomNumberGenerator() {
   // which provides reasonable entropy, see:
   // https://code.google.com/p/v8/issues/detail?id=2905
   int64_t seed = Time::NowFromSystemTime().ToInternalValue() << 24;
-  seed ^= TimeTicks::HighResNow().ToInternalValue() << 16;
+  seed ^= TimeTicks::HighResolutionNow().ToInternalValue() << 16;
   seed ^= TimeTicks::Now().ToInternalValue() << 8;
   SetSeed(seed);
 #endif  // V8_OS_CYGWIN || V8_OS_WIN

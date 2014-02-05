@@ -1216,7 +1216,8 @@ void MacroAssembler::TailCallStub(CodeStub* stub) {
 
 
 void MacroAssembler::CallRuntime(const Runtime::Function* f,
-                                 int num_arguments) {
+                                 int num_arguments,
+                                 SaveFPRegsMode save_doubles) {
   // All arguments must be on the stack before this function is called.
   // x0 holds the return value after the call.
 
@@ -1235,24 +1236,7 @@ void MacroAssembler::CallRuntime(const Runtime::Function* f,
   Mov(x0, num_arguments);
   Mov(x1, Operand(ExternalReference(f, isolate())));
 
-  CEntryStub stub(1);
-  CallStub(&stub);
-}
-
-
-void MacroAssembler::CallRuntime(Runtime::FunctionId fid, int num_arguments) {
-  CallRuntime(Runtime::FunctionForId(fid), num_arguments);
-}
-
-
-void MacroAssembler::CallRuntimeSaveDoubles(Runtime::FunctionId id) {
-  const Runtime::Function* function = Runtime::FunctionForId(id);
-
-  // Place the necessary arguments.
-  Mov(x0, function->nargs);
-  Mov(x1, Operand(ExternalReference(function, isolate())));
-
-  CEntryStub stub(1, kSaveFPRegs);
+  CEntryStub stub(1, save_doubles);
   CallStub(&stub);
 }
 

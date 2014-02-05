@@ -335,7 +335,7 @@ const int kStubMinorKeyBits = kBitsPerInt - kSmiTagSize - kStubMajorKeyBits;
 // NOTE: Everything following JS_VALUE_TYPE is considered a
 // JSObject for GC purposes. The first four entries here have typeof
 // 'object', whereas JS_FUNCTION_TYPE has typeof 'function'.
-#define INSTANCE_TYPE_LIST_ALL(V)                                              \
+#define INSTANCE_TYPE_LIST(V)                                                  \
   V(STRING_TYPE)                                                               \
   V(ASCII_STRING_TYPE)                                                         \
   V(CONS_STRING_TYPE)                                                          \
@@ -433,18 +433,8 @@ const int kStubMinorKeyBits = kBitsPerInt - kSmiTagSize - kStubMajorKeyBits;
                                                                                \
   V(JS_FUNCTION_TYPE)                                                          \
   V(JS_FUNCTION_PROXY_TYPE)                                                    \
-
-#ifdef ENABLE_DEBUGGER_SUPPORT
-#define INSTANCE_TYPE_LIST_DEBUGGER(V)                                         \
   V(DEBUG_INFO_TYPE)                                                           \
   V(BREAK_POINT_INFO_TYPE)
-#else
-#define INSTANCE_TYPE_LIST_DEBUGGER(V)
-#endif
-
-#define INSTANCE_TYPE_LIST(V)                                                  \
-  INSTANCE_TYPE_LIST_ALL(V)                                                    \
-  INSTANCE_TYPE_LIST_DEBUGGER(V)
 
 
 // Since string types are not consecutive, this macro is used to
@@ -1056,7 +1046,8 @@ class MaybeObject BASE_EMBEDDED {
   V(AccessCheckNeeded)                         \
   V(Cell)                                      \
   V(PropertyCell)                              \
-  V(ObjectHashTable)
+  V(ObjectHashTable)                           \
+  V(WeakHashTable)
 
 
 #define ERROR_MESSAGES_LIST(V) \
@@ -1226,6 +1217,7 @@ class MaybeObject BASE_EMBEDDED {
   V(kModuleStatement, "Module statement")                                     \
   V(kModuleVariable, "Module variable")                                       \
   V(kModuleUrl, "Module url")                                                 \
+  V(kNativeFunctionLiteral, "Native function literal")                        \
   V(kNoCasesLeft, "no cases left")                                            \
   V(kNoEmptyArraysHereInEmitFastAsciiArrayJoin,                               \
     "No empty arrays here in EmitFastAsciiArrayJoin")                         \
@@ -1274,7 +1266,6 @@ class MaybeObject BASE_EMBEDDED {
   V(kReturnAddressNotFoundInFrame, "return address not found in frame")       \
   V(kRhsHasBeenClobbered, "rhs has been clobbered")                           \
   V(kScopedBlock, "ScopedBlock")                                              \
-  V(kSharedFunctionInfoLiteral, "Shared function info literal")               \
   V(kSmiAdditionOverflow, "Smi addition overflow")                            \
   V(kSmiSubtractionOverflow, "Smi subtraction overflow")                      \
   V(kStackAccessBelowStackPointer, "stack access below stack pointer")        \
@@ -2206,8 +2197,6 @@ class JSObject: public JSReceiver {
   static inline Handle<Map> FindTransitionToField(Handle<Map> map,
                                                   Handle<Name> key);
 
-  inline int LastAddedFieldIndex();
-
   // Extend the receiver with a single fast property appeared first in the
   // passed map. This also extends the property backing store if necessary.
   static void AllocateStorageForMap(Handle<JSObject> object, Handle<Map> map);
@@ -2268,6 +2257,15 @@ class JSObject: public JSReceiver {
                                                      uint32_t index,
                                                      bool continue_search);
 
+  // Retrieves an AccessorPair property from the given object. Might return
+  // undefined if the property doesn't exist or is of a different kind.
+  static Handle<Object> GetAccessor(Handle<JSObject> object,
+                                    Handle<Name> name,
+                                    AccessorComponent component);
+
+  // Defines an AccessorPair property on the given object.
+  // TODO(mstarzinger): Rename to SetAccessor() and return empty handle on
+  // exception instead of letting callers check for scheduled exception.
   static void DefineAccessor(Handle<JSObject> object,
                              Handle<Name> name,
                              Handle<Object> getter,
@@ -2275,8 +2273,7 @@ class JSObject: public JSReceiver {
                              PropertyAttributes attributes,
                              v8::AccessControl access_control = v8::DEFAULT);
 
-  MaybeObject* LookupAccessor(Name* name, AccessorComponent component);
-
+  // Defines an AccessorInfo property on the given object.
   static Handle<Object> SetAccessor(Handle<JSObject> object,
                                     Handle<AccessorInfo> info);
 
@@ -2375,9 +2372,6 @@ class JSObject: public JSReceiver {
     // (old_capacity + 50%) + 16
     return old_capacity + (old_capacity >> 1) + 16;
   }
-
-  PropertyType GetLocalPropertyType(Name* name);
-  PropertyType GetLocalElementType(uint32_t index);
 
   // These methods do not perform access checks!
   AccessorPair* GetLocalPropertyAccessorPair(Name* name);
@@ -2938,7 +2932,8 @@ class FixedArray: public FixedArrayBase {
 
   // Copy operations.
   MUST_USE_RESULT inline MaybeObject* Copy();
-  MUST_USE_RESULT MaybeObject* CopySize(int new_length);
+  MUST_USE_RESULT MaybeObject* CopySize(int new_length,
+                                        PretenureFlag pretenure = NOT_TENURED);
 
   // Add the elements of a JSArray to this FixedArray.
   MUST_USE_RESULT MaybeObject* AddKeysFromJSArray(JSArray* array);
@@ -3573,7 +3568,10 @@ class HashTable: public FixedArray {
   MUST_USE_RESULT MaybeObject* Shrink(Key key);
 
   // Ensure enough space for n additional elements.
-  MUST_USE_RESULT MaybeObject* EnsureCapacity(int n, Key key);
+  MUST_USE_RESULT MaybeObject* EnsureCapacity(
+      int n,
+      Key key,
+      PretenureFlag pretenure = NOT_TENURED);
 };
 
 
@@ -4012,6 +4010,49 @@ class ObjectHashTable: public HashTable<ObjectHashTableShape<2>, Object*> {
 };
 
 
+template <int entrysize>
+class WeakHashTableShape : public BaseShape<Object*> {
+ public:
+  static inline bool IsMatch(Object* key, Object* other);
+  static inline uint32_t Hash(Object* key);
+  static inline uint32_t HashForObject(Object* key, Object* object);
+  MUST_USE_RESULT static inline MaybeObject* AsObject(Heap* heap,
+                                                      Object* key);
+  static const int kPrefixSize = 0;
+  static const int kEntrySize = entrysize;
+};
+
+
+// WeakHashTable maps keys that are arbitrary objects to object values.
+// It is used for the global weak hash table that maps objects
+// embedded in optimized code to dependent code lists.
+class WeakHashTable: public HashTable<WeakHashTableShape<2>, Object*> {
+ public:
+  static inline WeakHashTable* cast(Object* obj) {
+    ASSERT(obj->IsHashTable());
+    return reinterpret_cast<WeakHashTable*>(obj);
+  }
+
+  // Looks up the value associated with the given key. The hole value is
+  // returned in case the key is not present.
+  Object* Lookup(Object* key);
+
+  // Adds (or overwrites) the value associated with the given key. Mapping a
+  // key to the hole value causes removal of the whole entry.
+  MUST_USE_RESULT MaybeObject* Put(Object* key, Object* value);
+
+ private:
+  friend class MarkCompactCollector;
+
+  void AddEntry(int entry, Object* key, Object* value);
+
+  // Returns the index to the value of an entry.
+  static inline int EntryToValueIndex(int entry) {
+    return EntryToIndex(entry) + 1;
+  }
+};
+
+
 // JSFunctionResultCache caches results of some JSFunction invocation.
 // It is a fixed array with fixed structure:
 //   [0]: factory function
@@ -4150,9 +4191,9 @@ class ScopeInfo : public FixedArray {
 
 
   // Copies all the context locals into an object used to materialize a scope.
-  bool CopyContextLocalsToScopeObject(Isolate* isolate,
-                                      Handle<Context> context,
-                                      Handle<JSObject> scope_object);
+  static bool CopyContextLocalsToScopeObject(Handle<ScopeInfo> scope_info,
+                                             Handle<Context> context,
+                                             Handle<JSObject> scope_object);
 
 
   static Handle<ScopeInfo> Create(Scope* scope, Zone* zone);
@@ -4803,6 +4844,7 @@ class Code: public HeapObject {
   V(FUNCTION)               \
   V(OPTIMIZED_FUNCTION)     \
   V(STUB)                   \
+  V(HANDLER)                \
   V(BUILTIN)                \
   V(REGEXP)
 
@@ -4912,6 +4954,9 @@ class Code: public HeapObject {
 
   // [flags]: Access to specific code flags.
   inline Kind kind();
+  inline Kind handler_kind() {
+    return static_cast<Kind>(arguments_count());
+  }
   inline InlineCacheState ic_state();  // Only valid for IC stubs.
   inline ExtraICState extra_ic_state();  // Only valid for IC stubs.
 
@@ -4921,7 +4966,8 @@ class Code: public HeapObject {
     // TODO(danno): This is a bit of a hack right now since there are still
     // clients of this API that pass "extra" values in for argc. These clients
     // should be retrofitted to used ExtendedExtraICState.
-    return kind == COMPARE_NIL_IC || kind == TO_BOOLEAN_IC;
+    return kind == COMPARE_NIL_IC || kind == TO_BOOLEAN_IC ||
+           kind == BINARY_OP_IC;
   }
 
   inline StubType type();  // Only valid for monomorphic IC stubs.
@@ -4930,6 +4976,7 @@ class Code: public HeapObject {
   // Testers for IC stub kinds.
   inline bool is_inline_cache_stub();
   inline bool is_debug_stub();
+  inline bool is_handler() { return kind() == HANDLER; }
   inline bool is_load_stub() { return kind() == LOAD_IC; }
   inline bool is_keyed_load_stub() { return kind() == KEYED_LOAD_IC; }
   inline bool is_store_stub() { return kind() == STORE_IC; }
@@ -4940,6 +4987,7 @@ class Code: public HeapObject {
   inline bool is_compare_ic_stub() { return kind() == COMPARE_IC; }
   inline bool is_compare_nil_ic_stub() { return kind() == COMPARE_NIL_IC; }
   inline bool is_to_boolean_ic_stub() { return kind() == TO_BOOLEAN_IC; }
+  inline bool is_keyed_stub();
 
   // [major_key]: For kind STUB or BINARY_OP_IC, the major key.
   inline int major_key();
@@ -5023,8 +5071,6 @@ class Code: public HeapObject {
   inline bool marked_for_deoptimization();
   inline void set_marked_for_deoptimization(bool flag);
 
-  bool allowed_in_shared_map_code_cache();
-
   // Get the safepoint entry for the given pc.
   SafepointEntry GetSafepointEntry(Address pc);
 
@@ -5037,9 +5083,12 @@ class Code: public HeapObject {
   void FindAllMaps(MapHandleList* maps);
   void ReplaceFirstMap(Map* replace);
 
-  // Find the first code in an IC stub.
-  Code* FindFirstCode();
-  void FindAllCode(CodeHandleList* code_list, int length);
+  // Find the first handler in an IC stub.
+  Code* FindFirstHandler();
+
+  // Find |length| handlers and put them into |code_list|. Returns false if not
+  // enough handlers can be found.
+  MUST_USE_RESULT bool FindHandlers(CodeHandleList* code_list, int length);
 
   // Find the first name in an IC stub.
   Name* FindFirstName();
@@ -5184,8 +5233,10 @@ class Code: public HeapObject {
   bool CanDeoptAt(Address pc);
 
 #ifdef VERIFY_HEAP
-  void VerifyEmbeddedMapsDependency();
+  void VerifyEmbeddedObjectsDependency();
 #endif
+
+  static bool IsWeakEmbeddedObject(Kind kind, Object* object);
 
   // Max loop nesting marker used to postpose OSR. We don't take loop
   // nesting that is deeper than 5 levels into account.
@@ -7929,7 +7980,8 @@ class AllocationMemento: public Struct {
   DECLARE_VERIFIER(AllocationMemento)
 
   // Returns NULL if no AllocationMemento is available for object.
-  static AllocationMemento* FindForJSObject(JSObject* object);
+  static AllocationMemento* FindForJSObject(JSObject* object,
+                                            bool in_GC = false);
   static inline AllocationMemento* cast(Object* obj);
 
  private:

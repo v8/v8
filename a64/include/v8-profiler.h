@@ -62,11 +62,6 @@ class V8_EXPORT CpuProfileNode {
     */
   const char* GetBailoutReason() const;
 
-  /** DEPRECATED. Please use GetHitCount instead.
-    * Returns the count of samples where function was currently executing.
-    */
-  V8_DEPRECATED(double GetSelfSamplesCount() const);
-
   /**
     * Returns the count of samples where the function was currently executing.
     */

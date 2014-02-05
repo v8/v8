@@ -170,8 +170,13 @@ class HBasicBlock V8_FINAL : public ZoneObject {
   }
   HBasicBlock* inlined_entry_block() { return inlined_entry_block_; }
 
-  bool IsDeoptimizing() const { return is_deoptimizing_; }
-  void MarkAsDeoptimizing() { is_deoptimizing_ = true; }
+  bool IsDeoptimizing() const {
+    return end() != NULL && end()->IsDeoptimize();
+  }
+
+  void MarkUnreachable();
+  bool IsUnreachable() const { return !is_reachable_; }
+  bool IsReachable() const { return is_reachable_; }
 
   bool IsLoopSuccessorDominator() const {
     return dominates_loop_successors_;
@@ -215,7 +220,7 @@ class HBasicBlock V8_FINAL : public ZoneObject {
   // For blocks marked as inline return target: the block with HEnterInlined.
   HBasicBlock* inlined_entry_block_;
   bool is_inline_return_target_ : 1;
-  bool is_deoptimizing_ : 1;
+  bool is_reachable_ : 1;
   bool dominates_loop_successors_ : 1;
   bool is_osr_entry_ : 1;
 };
@@ -406,14 +411,6 @@ class HGraph V8_FINAL : public ZoneObject {
     use_optimistic_licm_ = value;
   }
 
-  bool has_soft_deoptimize() {
-    return has_soft_deoptimize_;
-  }
-
-  void set_has_soft_deoptimize(bool value) {
-    has_soft_deoptimize_ = value;
-  }
-
   void MarkRecursive() {
     is_recursive_ = true;
   }
@@ -496,7 +493,6 @@ class HGraph V8_FINAL : public ZoneObject {
 
   bool is_recursive_;
   bool use_optimistic_licm_;
-  bool has_soft_deoptimize_;
   bool depends_on_empty_array_proto_elements_;
   int type_change_checksum_;
   int maximum_environment_size_;
@@ -1291,7 +1287,8 @@ class HGraphBuilder {
                                      Handle<Type> left_type,
                                      Handle<Type> right_type,
                                      Handle<Type> result_type,
-                                     Maybe<int> fixed_right_arg);
+                                     Maybe<int> fixed_right_arg,
+                                     bool binop_stub = false);
 
   HLoadNamedField* AddLoadFixedArrayLength(HValue *object);
 
@@ -1657,13 +1654,14 @@ inline HInstruction* HGraphBuilder::AddUncasted<HDeoptimize>(
     if (FLAG_always_opt) return NULL;
   }
   if (current_block()->IsDeoptimizing()) return NULL;
-  HDeoptimize* instr = New<HDeoptimize>(reason, type);
-  AddInstruction(instr);
+  HBasicBlock* after_deopt_block = CreateBasicBlock(
+      current_block()->last_environment());
+  HDeoptimize* instr = New<HDeoptimize>(reason, type, after_deopt_block);
   if (type == Deoptimizer::SOFT) {
     isolate()->counters()->soft_deopts_inserted()->Increment();
-    graph()->set_has_soft_deoptimize(true);
   }
-  current_block()->MarkAsDeoptimizing();
+  current_block()->Finish(instr);
+  set_current_block(after_deopt_block);
   return instr;
 }
 
@@ -1704,6 +1702,23 @@ inline HInstruction* HGraphBuilder::AddUncasted<HReturn>(HValue* value) {
 template<>
 inline HInstruction* HGraphBuilder::AddUncasted<HReturn>(HConstant* value) {
   return AddUncasted<HReturn>(static_cast<HValue*>(value));
+}
+
+
+template<>
+inline HInstruction* HGraphBuilder::AddUncasted<HCallRuntime>(
+    Handle<String> name,
+    const Runtime::Function* c_function,
+    int argument_count) {
+  HCallRuntime* instr = New<HCallRuntime>(name, c_function, argument_count);
+  if (graph()->info()->IsStub()) {
+    // When compiling code stubs, we don't want to save all double registers
+    // upon entry to the stub, but instead have the call runtime instruction
+    // save the double registers only on-demand (in the fallback case).
+    instr->set_save_doubles(kSaveFPRegs);
+  }
+  AddInstruction(instr);
+  return instr;
 }
 
 
@@ -2244,9 +2259,7 @@ class HOptimizedGraphBuilder V8_FINAL
 
   HInstruction* BuildThisFunction();
 
-  HInstruction* BuildFastLiteral(Handle<JSObject> boilerplate_object,
-                                 Handle<Object> allocation_site,
-                                 AllocationSiteMode mode);
+  HInstruction* BuildFastLiteral(Handle<JSObject> boilerplate_object);
 
   void BuildEmitObjectHeader(Handle<JSObject> boilerplate_object,
                              HInstruction* object);

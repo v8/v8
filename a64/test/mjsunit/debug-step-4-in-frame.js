@@ -29,12 +29,17 @@
 // Get the Debug object exposed from the debug context global object.
 Debug = debug.Debug
 
-// Tests how debugger can step over not necessarily in the top frame.
+// Tests how debugger can step into/over not necessarily in the top frame.
 
 // Simple 3 functions, that protocol their execution state in global
 // variable state.
 var state;
 
+function e() {
+  for (state[3] = 0; state[3] < 5; state[3]++) {
+    void ("" + e + state[3]);
+  }
+}
 function f() {
   var a = 1978;
   for (state[2] = 0; state[2] < 5; state[2]++) {
@@ -43,18 +48,20 @@ function f() {
 }
 function g() {
   for (state[1] = 0; state[1] < 5; state[1]++) {
-    f();
+    f() + e();
   }
 }
 function h() {
-  state = [-1, -1, -1];
+  state = [-1, -1, -1, -1];
   for (state[0] = 0; state[0] < 5; state[0]++) {
     g();
   }
 }
 
-function TestCase(frame_index, step_count, expected_final_state) {
-  print("Test case, parameters " + frame_index + "/" + step_count);
+function TestCase(frame_index, step_count, expected_final_state, action) {
+  action = action || Debug.StepAction.StepNext;
+  print("Test case, parameters " + frame_index + "/" + step_count +
+      ", action " + action);
 
   var listener_exception = null;
   var state_snapshot;
@@ -72,8 +79,7 @@ function TestCase(frame_index, step_count, expected_final_state) {
           if (frame_index !== undefined) {
             context_frame = exec_state.frame(frame_index);
           }
-          exec_state.prepareStep(Debug.StepAction.StepNext,
-              step_count, context_frame);
+          exec_state.prepareStep(action, step_count, context_frame);
           listener_state = 1;
         } else if (listener_state == 1) {
           state_snapshot = String(state);
@@ -103,30 +109,61 @@ function TestCase(frame_index, step_count, expected_final_state) {
   assertEquals(expected_final_state, state_snapshot);
 }
 
+function TestCase2(frame_index, step_count, expected_final_state) {
+  return TestCase(frame_index, step_count, expected_final_state,
+      Debug.StepAction.StepIn);
+}
 
 // Warm-up -- make sure all is compiled and ready for breakpoint.
 h();
 
 
-// Stepping in the default (top) frame.
-TestCase(undefined, 0, "0,0,-1");
-TestCase(undefined, 1, "0,0,-1");
-TestCase(undefined, 2, "0,0,0");
-TestCase(undefined, 5, "0,0,1");
-TestCase(undefined, 8, "0,0,3");
+// Stepping over on the default (top) frame.
+TestCase(undefined, 0, "0,0,-1,-1");
+TestCase(undefined, 1, "0,0,-1,-1");
+TestCase(undefined, 2, "0,0,0,-1");
+TestCase(undefined, 5, "0,0,1,-1");
+TestCase(undefined, 8, "0,0,3,-1");
 
-// Stepping in the frame #0 (should be exactly the same as above).
-TestCase(0, 0, "0,0,-1");
-TestCase(0, 1, "0,0,-1");
-TestCase(0, 2, "0,0,0");
-TestCase(0, 5, "0,0,1");
-TestCase(0, 8, "0,0,3");
+// Stepping over on the frame #0 (should be exactly the same as above).
+TestCase(0, 0, "0,0,-1,-1");
+TestCase(0, 1, "0,0,-1,-1");
+TestCase(0, 2, "0,0,0,-1");
+TestCase(0, 5, "0,0,1,-1");
+TestCase(0, 8, "0,0,3,-1");
 
-// Stepping in the frame #1.
-TestCase(1, 0, "0,0,5");
-TestCase(1, 3, "0,1,5");
-TestCase(1, 8, "0,4,5");
+// Stepping over on the frame #1.
+TestCase(1, 0, "0,0,5,5");
+TestCase(1, 3, "0,1,5,5");
+TestCase(1, 8, "0,4,5,5");
 
-// Stepping in the frame #2.
-TestCase(2, 3, "1,5,5");
-TestCase(2, 8, "4,5,5");
+// Stepping over on the frame #2.
+TestCase(2, 3, "1,5,5,5");
+TestCase(2, 8, "4,5,5,5");
+
+// Stepping into on the default (top) frame.
+TestCase2(undefined, 0, "0,0,-1,-1");
+TestCase2(undefined, 1, "0,0,-1,-1");
+TestCase2(undefined, 2, "0,0,0,-1");
+TestCase2(undefined, 5, "0,0,1,-1");
+TestCase2(undefined, 8, "0,0,3,-1");
+
+// Stepping into on the frame #0 (should be exactly the same as above).
+TestCase2(0, 0, "0,0,-1,-1");
+TestCase2(0, 1, "0,0,-1,-1");
+TestCase2(0, 2, "0,0,0,-1");
+TestCase2(0, 5, "0,0,1,-1");
+TestCase2(0, 8, "0,0,3,-1");
+
+// Stepping into on the frame #1.
+TestCase2(1, 0, "0,0,5,-1");
+TestCase2(1, 3, "0,0,5,0");
+TestCase2(1, 8, "0,0,5,2");
+TestCase2(1, 9, "0,0,5,3");
+
+// Stepping into on the frame #2.
+TestCase2(2, 0, "0,5,5,5");
+TestCase2(2, 3, "1,5,5,5");
+TestCase2(2, 4, "1,0,5,5");
+TestCase2(2, 8, "1,0,0,5");
+TestCase2(2, 9, "1,0,1,5");

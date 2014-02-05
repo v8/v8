@@ -25,42 +25,19 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_MARKING_THREAD_H_
-#define V8_MARKING_THREAD_H_
+// Flags: --allow-natives-syntax
 
-#include "atomicops.h"
-#include "flags.h"
-#include "platform.h"
-#include "v8utils.h"
+function f(o) {
+  return o.x;
+}
 
-#include "spaces.h"
+var o1 = {x:1};
+var o2 = {__proto__: {x:2}};
 
-#include "heap.h"
-
-namespace v8 {
-namespace internal {
-
-class MarkingThread : public Thread {
- public:
-  explicit MarkingThread(Isolate* isolate);
-  ~MarkingThread() {}
-
-  void Run();
-  void Stop();
-  void StartMarking();
-  void WaitForMarkingThread();
-
- private:
-  Isolate* isolate_;
-  Heap* heap_;
-  Semaphore start_marking_semaphore_;
-  Semaphore end_marking_semaphore_;
-  Semaphore stop_semaphore_;
-  volatile AtomicWord stop_thread_;
-  int id_;
-  static Atomic32 id_counter_;
-};
-
-} }  // namespace v8::internal
-
-#endif  // V8_MARKING_THREAD_H_
+f(o2);
+f(o2);
+f(o2);
+f(o1);
+%OptimizeFunctionOnNextCall(f);
+assertEquals(1, f(o1));
+assertEquals(2, f(o2));

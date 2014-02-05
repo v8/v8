@@ -71,6 +71,8 @@ class Factory {
 
   Handle<ObjectHashTable> NewObjectHashTable(int at_least_space_for);
 
+  Handle<WeakHashTable> NewWeakHashTable(int at_least_space_for);
+
   Handle<DescriptorArray> NewDescriptorArray(int number_of_descriptors,
                                              int slack = 0);
   Handle<DeoptimizationInputData> NewDeoptimizationInputData(
@@ -265,7 +267,8 @@ class Factory {
   Handle<FixedArray> CopyFixedArray(Handle<FixedArray> array);
 
   Handle<FixedArray> CopySizeFixedArray(Handle<FixedArray> array,
-                                        int new_length);
+                                        int new_length,
+                                        PretenureFlag pretenure = NOT_TENURED);
 
   Handle<FixedDoubleArray> CopyFixedDoubleArray(
       Handle<FixedDoubleArray> array);

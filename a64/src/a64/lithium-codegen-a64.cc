@@ -37,7 +37,7 @@ namespace v8 {
 namespace internal {
 
 
-class SafepointGenerator : public CallWrapper {
+class SafepointGenerator V8_FINAL : public CallWrapper {
  public:
   SafepointGenerator(LCodeGen* codegen,
                      LPointerMap* pointers,
@@ -412,7 +412,7 @@ void LCodeGen::CallCodeGeneric(Handle<Code> code,
                                RelocInfo::Mode mode,
                                LInstruction* instr,
                                SafepointMode safepoint_mode) {
-  EnsureSpaceForLazyDeopt();
+  EnsureSpaceForLazyDeopt(Deoptimizer::patch_size());
   ASSERT(instr != NULL);
 
   Assembler::BlockConstPoolScope scope(masm_);
@@ -505,13 +505,15 @@ void LCodeGen::DoCallNewArray(LCallNewArray* instr) {
 
 void LCodeGen::CallRuntime(const Runtime::Function* function,
                            int num_arguments,
-                           LInstruction* instr) {
+                           LInstruction* instr,
+                           SaveFPRegsMode save_doubles) {
   ASSERT(instr != NULL);
   LPointerMap* pointers = instr->pointer_map();
   ASSERT(pointers != NULL);
   RecordPosition(pointers->position());
 
-  __ CallRuntime(function, num_arguments);
+  __ CallRuntime(function, num_arguments, save_doubles);
+
   RecordSafepointWithLazyDeopt(instr, RECORD_SIMPLE_SAFEPOINT);
 }
 
@@ -748,38 +750,6 @@ void LCodeGen::GenerateOsrPrologue() {
 }
 
 
-bool LCodeGen::GenerateBody() {
-  ASSERT(is_generating());
-  bool emit_instructions = true;
-
-  for (current_instruction_ = 0;
-       !is_aborted() && (current_instruction_ < instructions_->length());
-       current_instruction_++) {
-    LInstruction* instr = instructions_->at(current_instruction_);
-
-    // Don't emit code for basic blocks with a replacement.
-    if (instr->IsLabel()) {
-      emit_instructions = !LLabel::cast(instr)->HasReplacement();
-    }
-    if (!emit_instructions) continue;
-
-    if (FLAG_code_comments && instr->HasInterestingComment(this)) {
-      Comment(";;; <@%d,#%d> %s",
-              current_instruction_,
-              instr->hydrogen_value()->id(),
-              instr->Mnemonic());
-    }
-
-    RecordAndUpdatePosition(instr->position());
-
-    instr->CompileToNative(this);
-  }
-  EnsureSpaceForLazyDeopt();
-  last_lazy_deopt_pc_ = masm()->pc_offset();
-  return !is_aborted();
-}
-
-
 bool LCodeGen::GenerateDeferredCode() {
   ASSERT(is_generating());
   if (deferred_.length() > 0) {
@@ -872,45 +842,32 @@ void LCodeGen::Abort(BailoutReason reason) {
 }
 
 
-void LCodeGen::Comment(const char* format, ...) {
-  if (!FLAG_code_comments) return;
-  char buffer[4 * KB];
-  StringBuilder builder(buffer, ARRAY_SIZE(buffer));
-  va_list arguments;
-  va_start(arguments, format);
-  builder.AddFormattedList(format, arguments);
-  va_end(arguments);
-
-  // Copy the string before recording it in the assembler to avoid
-  // issues when the stack allocated buffer goes out of scope.
-  size_t length = builder.position();
-  Vector<char> copy = Vector<char>::New(length + 1);
-  memcpy(copy.start(), builder.Finalize(), copy.length());
-  masm()->RecordComment(copy.start());
-}
-
-
 void LCodeGen::RegisterDependentCodeForEmbeddedMaps(Handle<Code> code) {
   ZoneList<Handle<Map> > maps(1, zone());
+  ZoneList<Handle<JSObject> > objects(1, zone());
   int mode_mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
   for (RelocIterator it(*code, mode_mask); !it.done(); it.next()) {
-    RelocInfo::Mode mode = it.rinfo()->rmode();
-    if (mode == RelocInfo::EMBEDDED_OBJECT &&
-        it.rinfo()->target_object()->IsMap()) {
-      Handle<Map> map(Map::cast(it.rinfo()->target_object()));
-      if (map->CanTransition()) {
+    if (Code::IsWeakEmbeddedObject(code->kind(), it.rinfo()->target_object())) {
+      if (it.rinfo()->target_object()->IsMap()) {
+        Handle<Map> map(Map::cast(it.rinfo()->target_object()));
         maps.Add(map, zone());
+      } else if (it.rinfo()->target_object()->IsJSObject()) {
+        Handle<JSObject> object(JSObject::cast(it.rinfo()->target_object()));
+        objects.Add(object, zone());
       }
     }
   }
 #ifdef VERIFY_HEAP
-  // This disables verification of weak embedded maps after full GC.
+  // This disables verification of weak embedded objects after full GC.
   // AddDependentCode can cause a GC, which would observe the state where
   // this code is not yet in the depended code lists of the embedded maps.
-  NoWeakEmbeddedMapsVerificationScope disable_verification_of_embedded_maps;
+  NoWeakObjectVerificationScope disable_verification_of_embedded_objects;
 #endif
   for (int i = 0; i < maps.length(); i++) {
     maps.at(i)->AddDependentCode(DependentCode::kWeaklyEmbeddedGroup, code);
+  }
+  for (int i = 0; i < objects.length(); i++) {
+    AddWeakObjectToCodeDependency(isolate()->heap(), objects.at(i), code);
   }
 }
 
@@ -1083,15 +1040,14 @@ void LCodeGen::DeoptimizeIfNotRoot(Register rt,
 }
 
 
-void LCodeGen::EnsureSpaceForLazyDeopt() {
+void LCodeGen::EnsureSpaceForLazyDeopt(int space_needed) {
   if (info()->IsStub()) return;
   // Ensure that we have enough space after the previous lazy-bailout
   // instruction for patching the code here.
   intptr_t current_pc = masm()->pc_offset();
-  int patch_size = Deoptimizer::patch_size();
 
-  if (current_pc < (last_lazy_deopt_pc_ + patch_size)) {
-    intptr_t padding_size = last_lazy_deopt_pc_ + patch_size - current_pc;
+  if (current_pc < (last_lazy_deopt_pc_ + space_needed)) {
+    ptrdiff_t padding_size = last_lazy_deopt_pc_ + space_needed - current_pc;
     ASSERT((padding_size % kInstructionSize) == 0);
     InstructionAccurateScope instruction_accurate(
         masm(), padding_size / kInstructionSize);
@@ -2458,7 +2414,7 @@ void LCodeGen::DoCheckValue(LCheckValue* instr) {
 
 
 void LCodeGen::DoLazyBailout(LLazyBailout* instr) {
-  EnsureSpaceForLazyDeopt();
+  EnsureSpaceForLazyDeopt(Deoptimizer::patch_size());
   last_lazy_deopt_pc_ = masm()->pc_offset();
   ASSERT(instr->HasEnvironment());
   LEnvironment* env = instr->environment();
@@ -2809,14 +2765,6 @@ void LCodeGen::DoGlobalReceiver(LGlobalReceiver* instr) {
   Register global = ToRegister(instr->global_object());
   Register result = ToRegister(instr->result());
   __ Ldr(result, FieldMemOperand(global, GlobalObject::kGlobalReceiverOffset));
-}
-
-
-int LCodeGen::GetNextEmittedBlock() const {
-  for (int i = current_block_ + 1; i < graph()->blocks()->length(); ++i) {
-    if (!chunk_->GetLabel(i)->HasReplacement()) return i;
-  }
-  return -1;
 }
 
 
@@ -3511,27 +3459,36 @@ void LCodeGen::DoLoadNamedField(LLoadNamedField* instr) {
 
   if (access.IsExternalMemory()) {
     Register result = ToRegister(instr->result());
-    __ Ldr(result, MemOperand(object, offset));
+    // TODO(all): Does this need an Integer32 accessor?
+    if (access.representation().IsByte()) {
+      __ Ldrb(result, MemOperand(object, offset));
+    } else {
+      __ Ldr(result, MemOperand(object, offset));
+    }
     return;
   }
 
   if (instr->hydrogen()->representation().IsDouble()) {
     FPRegister result = ToDoubleRegister(instr->result());
     __ Ldr(result, FieldMemOperand(object, offset));
+    return;
+  }
+
+  Register result = ToRegister(instr->result());
+  Register source;
+  if (access.IsInobject()) {
+    source = object;
   } else {
-    Register result = ToRegister(instr->result());
-    Register src = no_reg;
-    if (access.IsInobject()) {
-      src = object;
-    } else {
-      __ Ldr(result, FieldMemOperand(object, JSObject::kPropertiesOffset));
-      src = result;
-    }
-    if (access.representation().IsInteger32()) {
-      __ Ldr(result.W(), FieldMemOperand(src, offset));
-    } else {
-      __ Ldr(result, FieldMemOperand(src, offset));
-    }
+    // Load the properties array, using result as a scratch register.
+    __ Ldr(result, FieldMemOperand(object, JSObject::kPropertiesOffset));
+    source = result;
+  }
+  if (access.representation().IsByte()) {
+    __ Ldrb(result, FieldMemOperand(source, offset));
+  } else if (access.representation().IsInteger32()) {
+    __ Ldr(result.W(), FieldMemOperand(source, offset));
+  } else {
+    __ Ldr(result, FieldMemOperand(source, offset));
   }
 }
 
@@ -4683,14 +4640,14 @@ void LCodeGen::DoStackCheck(LStackCheck* instr) {
     // inserting them now. The EnsureSpaceForLazyDeopt in CallCodeGeneric
     // will go away at some point during the rebase (r18642) so this will become
     // unecessary and should be removed at this point.
-    EnsureSpaceForLazyDeopt();
+    EnsureSpaceForLazyDeopt(Deoptimizer::patch_size());
 
     PredictableCodeSizeScope predictable(masm_,
                                          Assembler::kCallSizeWithRelocation);
     CallCode(isolate()->builtins()->StackCheck(),
              RelocInfo::CODE_TARGET,
              instr);
-    EnsureSpaceForLazyDeopt();
+    EnsureSpaceForLazyDeopt(Deoptimizer::patch_size());
     last_lazy_deopt_pc_ = masm()->pc_offset();
 
     __ Bind(&done);
@@ -4704,7 +4661,7 @@ void LCodeGen::DoStackCheck(LStackCheck* instr) {
     __ CompareRoot(masm()->StackPointer(), Heap::kStackLimitRootIndex);
     __ B(lo, deferred_stack_check->entry());
 
-    EnsureSpaceForLazyDeopt();
+    EnsureSpaceForLazyDeopt(Deoptimizer::patch_size());
     last_lazy_deopt_pc_ = masm()->pc_offset();
     __ Bind(instr->done_label());
     deferred_stack_check->SetExit(instr->done_label());
@@ -4953,7 +4910,11 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
 
   if (access.IsExternalMemory()) {
     Register value = ToRegister(instr->value());
-    __ Str(value, MemOperand(object, offset));
+    if (representation.IsByte()) {
+      __ Strb(value, MemOperand(object, offset));
+    } else {
+      __ Str(value, MemOperand(object, offset));
+    }
     return;
   }
 
@@ -4993,23 +4954,25 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
 
   // Do the store.
   Register value = ToRegister(instr->value());
-  Register dst = no_reg;
+  Register destination;
   SmiCheck check_needed =
       instr->hydrogen()->value()->IsHeapObject()
           ? OMIT_SMI_CHECK : INLINE_SMI_CHECK;
   if (access.IsInobject()) {
-    dst = object;
+    destination = object;
   } else {
     __ Ldr(temp0, FieldMemOperand(object, JSObject::kPropertiesOffset));
-    dst = temp0;
+    destination = temp0;
   }
-  if (access.representation().IsInteger32()) {
-    __ Str(value.W(), FieldMemOperand(dst, offset));
+  if (representation.IsByte()) {
+    __ Strb(value, FieldMemOperand(destination, offset));
+  } else if (access.representation().IsInteger32()) {
+    __ Str(value.W(), FieldMemOperand(destination, offset));
   } else {
-    __ Str(value, FieldMemOperand(dst, offset));
+    __ Str(value, FieldMemOperand(destination, offset));
   }
   if (instr->hydrogen()->NeedsWriteBarrier()) {
-    __ RecordWriteField(dst,
+    __ RecordWriteField(destination,
                         offset,
                         value,      // Clobbered.
                         temp1,      // Clobbered.

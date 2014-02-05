@@ -97,7 +97,7 @@ namespace internal {
 
 #define EXPRESSION_NODE_LIST(V)                 \
   V(FunctionLiteral)                            \
-  V(SharedFunctionInfoLiteral)                  \
+  V(NativeFunctionLiteral)                      \
   V(Conditional)                                \
   V(VariableProxy)                              \
   V(Literal)                                    \
@@ -1968,7 +1968,7 @@ class CountOperation V8_FINAL : public Expression {
   virtual KeyedAccessStoreMode GetStoreMode() V8_OVERRIDE {
     return store_mode_;
   }
-  TypeInfo type() const { return type_; }
+  Handle<Type> type() const { return type_; }
 
   BailoutId AssignmentId() const { return assignment_id_; }
 
@@ -1997,7 +1997,7 @@ class CountOperation V8_FINAL : public Expression {
   bool is_monomorphic_ : 1;
   KeyedAccessStoreMode store_mode_ : 5;  // Windows treats as signed,
                                          // must have extra bit.
-  TypeInfo type_;
+  Handle<Type> type_;
 
   Expression* expression_;
   int pos_;
@@ -2380,23 +2380,21 @@ class FunctionLiteral V8_FINAL : public Expression {
 };
 
 
-class SharedFunctionInfoLiteral V8_FINAL : public Expression {
+class NativeFunctionLiteral V8_FINAL : public Expression {
  public:
-  DECLARE_NODE_TYPE(SharedFunctionInfoLiteral)
+  DECLARE_NODE_TYPE(NativeFunctionLiteral)
 
-  Handle<SharedFunctionInfo> shared_function_info() const {
-    return shared_function_info_;
-  }
+  Handle<String> name() const { return name_; }
+  v8::Extension* extension() const { return extension_; }
 
  protected:
-  SharedFunctionInfoLiteral(
-      Isolate* isolate,
-      Handle<SharedFunctionInfo> shared_function_info)
-      : Expression(isolate),
-        shared_function_info_(shared_function_info) { }
+  NativeFunctionLiteral(
+      Isolate* isolate, Handle<String> name, v8::Extension* extension)
+      : Expression(isolate), name_(name), extension_(extension) { }
 
  private:
-  Handle<SharedFunctionInfo> shared_function_info_;
+  Handle<String> name_;
+  v8::Extension* extension_;
 };
 
 
@@ -3237,11 +3235,11 @@ class AstNodeFactory V8_FINAL BASE_EMBEDDED {
     return lit;
   }
 
-  SharedFunctionInfoLiteral* NewSharedFunctionInfoLiteral(
-      Handle<SharedFunctionInfo> shared_function_info) {
-    SharedFunctionInfoLiteral* lit =
-        new(zone_) SharedFunctionInfoLiteral(isolate_, shared_function_info);
-    VISIT_AND_RETURN(SharedFunctionInfoLiteral, lit)
+  NativeFunctionLiteral* NewNativeFunctionLiteral(Handle<String> name,
+                                                  v8::Extension* extension) {
+    NativeFunctionLiteral* lit =
+        new(zone_) NativeFunctionLiteral(isolate_, name, extension);
+    VISIT_AND_RETURN(NativeFunctionLiteral, lit)
   }
 
   ThisFunction* NewThisFunction() {

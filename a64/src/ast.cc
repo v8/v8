@@ -1143,7 +1143,7 @@ DONT_OPTIMIZE_NODE(WithStatement)
 DONT_OPTIMIZE_NODE(TryCatchStatement)
 DONT_OPTIMIZE_NODE(TryFinallyStatement)
 DONT_OPTIMIZE_NODE(DebuggerStatement)
-DONT_OPTIMIZE_NODE(SharedFunctionInfoLiteral)
+DONT_OPTIMIZE_NODE(NativeFunctionLiteral)
 
 DONT_SELFOPTIMIZE_NODE(DoWhileStatement)
 DONT_SELFOPTIMIZE_NODE(WhileStatement)

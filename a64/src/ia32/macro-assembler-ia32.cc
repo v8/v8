@@ -253,8 +253,8 @@ void MacroAssembler::X87TOSToI(Register result_reg,
                                Label::Distance dst) {
   Label done;
   sub(esp, Immediate(kPointerSize));
-  fist_s(MemOperand(esp, 0));
   fld(0);
+  fist_s(MemOperand(esp, 0));
   fild_s(MemOperand(esp, 0));
   pop(result_reg);
   FCmp();
@@ -453,6 +453,7 @@ static double kUint32Bias =
 void MacroAssembler::LoadUint32(XMMRegister dst,
                                 Register src,
                                 XMMRegister scratch) {
+  ASSERT(!Serializer::enabled());
   Label done;
   cmp(src, Immediate(0));
   movdbl(scratch,
@@ -461,6 +462,20 @@ void MacroAssembler::LoadUint32(XMMRegister dst,
   j(not_sign, &done, Label::kNear);
   addsd(dst, scratch);
   bind(&done);
+}
+
+
+void MacroAssembler::LoadUint32NoSSE2(Register src) {
+  ASSERT(!Serializer::enabled());
+  Label done;
+  push(src);
+  fild_s(Operand(esp, 0));
+  cmp(src, Immediate(0));
+  j(not_sign, &done, Label::kNear);
+  fld_d(Operand(reinterpret_cast<int32_t>(&kUint32Bias), RelocInfo::NONE32));
+  faddp(1);
+  bind(&done);
+  add(esp, Immediate(kPointerSize));
 }
 
 
@@ -2149,23 +2164,9 @@ void MacroAssembler::IndexFromHash(Register hash, Register index) {
 }
 
 
-void MacroAssembler::CallRuntime(Runtime::FunctionId id, int num_arguments) {
-  CallRuntime(Runtime::FunctionForId(id), num_arguments);
-}
-
-
-void MacroAssembler::CallRuntimeSaveDoubles(Runtime::FunctionId id) {
-  const Runtime::Function* function = Runtime::FunctionForId(id);
-  Set(eax, Immediate(function->nargs));
-  mov(ebx, Immediate(ExternalReference(function, isolate())));
-  CEntryStub ces(1, CpuFeatures::IsSupported(SSE2) ? kSaveFPRegs
-                                                   : kDontSaveFPRegs);
-  CallStub(&ces);
-}
-
-
 void MacroAssembler::CallRuntime(const Runtime::Function* f,
-                                 int num_arguments) {
+                                 int num_arguments,
+                                 SaveFPRegsMode save_doubles) {
   // If the expected number of arguments of the runtime function is
   // constant, we check that the actual number of arguments match the
   // expectation.
@@ -2180,7 +2181,8 @@ void MacroAssembler::CallRuntime(const Runtime::Function* f,
   // smarter.
   Set(eax, Immediate(num_arguments));
   mov(ebx, Immediate(ExternalReference(f, isolate())));
-  CEntryStub ces(1);
+  CEntryStub ces(1, CpuFeatures::IsSupported(SSE2) ? save_doubles
+                                                   : kDontSaveFPRegs);
   CallStub(&ces);
 }
 

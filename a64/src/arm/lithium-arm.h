@@ -277,7 +277,7 @@ class LInstruction : public ZoneObject {
   // Interface to the register allocator and iterators.
   bool ClobbersTemps() const { return IsCall(); }
   bool ClobbersRegisters() const { return IsCall(); }
-  bool ClobbersDoubleRegisters() const { return IsCall(); }
+  virtual bool ClobbersDoubleRegisters() const { return IsCall(); }
 
   // Interface to the register allocator and iterators.
   bool IsMarkedAsCall() const { return IsCall(); }
@@ -404,17 +404,17 @@ class LInstructionGap V8_FINAL : public LGap {
 
 class LGoto V8_FINAL : public LTemplateInstruction<0, 0, 0> {
  public:
-  explicit LGoto(int block_id) : block_id_(block_id) { }
+  explicit LGoto(HBasicBlock* block) : block_(block) { }
 
   virtual bool HasInterestingComment(LCodeGen* gen) const V8_OVERRIDE;
   DECLARE_CONCRETE_INSTRUCTION(Goto, "goto")
   virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
   virtual bool IsControl() const V8_OVERRIDE { return true; }
 
-  int block_id() const { return block_id_; }
+  int block_id() const { return block_->block_id(); }
 
  private:
-  int block_id_;
+  HBasicBlock* block_;
 };
 
 
@@ -2052,8 +2052,13 @@ class LCallRuntime V8_FINAL : public LTemplateInstruction<1, 1, 0> {
   DECLARE_CONCRETE_INSTRUCTION(CallRuntime, "call-runtime")
   DECLARE_HYDROGEN_ACCESSOR(CallRuntime)
 
+  virtual bool ClobbersDoubleRegisters() const V8_OVERRIDE {
+    return save_doubles() == kDontSaveFPRegs;
+  }
+
   const Runtime::Function* function() const { return hydrogen()->function(); }
   int arity() const { return hydrogen()->argument_count(); }
+  SaveFPRegsMode save_doubles() const { return hydrogen()->save_doubles(); }
 };
 
 
@@ -2728,8 +2733,8 @@ class LPlatformChunk V8_FINAL : public LChunk {
   LPlatformChunk(CompilationInfo* info, HGraph* graph)
       : LChunk(info, graph) { }
 
-  int GetNextSpillIndex(bool is_double);
-  LOperand* GetNextSpillSlot(bool is_double);
+  int GetNextSpillIndex(RegisterKind kind);
+  LOperand* GetNextSpillSlot(RegisterKind kind);
 };
 
 
@@ -2752,6 +2757,8 @@ class LChunkBuilder V8_FINAL BASE_EMBEDDED {
 
   // Build the sequence for the graph.
   LPlatformChunk* Build();
+
+  LInstruction* CheckElideControlInstruction(HControlInstruction* instr);
 
   // Declare methods that deal with the individual node types.
 #define DECLARE_DO(type) LInstruction* Do##type(H##type* node);

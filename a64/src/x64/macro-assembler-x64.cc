@@ -605,22 +605,9 @@ void MacroAssembler::IndexFromHash(Register hash, Register index) {
 }
 
 
-void MacroAssembler::CallRuntime(Runtime::FunctionId id, int num_arguments) {
-  CallRuntime(Runtime::FunctionForId(id), num_arguments);
-}
-
-
-void MacroAssembler::CallRuntimeSaveDoubles(Runtime::FunctionId id) {
-  const Runtime::Function* function = Runtime::FunctionForId(id);
-  Set(rax, function->nargs);
-  LoadAddress(rbx, ExternalReference(function, isolate()));
-  CEntryStub ces(1, kSaveFPRegs);
-  CallStub(&ces);
-}
-
-
 void MacroAssembler::CallRuntime(const Runtime::Function* f,
-                                 int num_arguments) {
+                                 int num_arguments,
+                                 SaveFPRegsMode save_doubles) {
   // If the expected number of arguments of the runtime function is
   // constant, we check that the actual number of arguments match the
   // expectation.
@@ -635,7 +622,7 @@ void MacroAssembler::CallRuntime(const Runtime::Function* f,
   // smarter.
   Set(rax, num_arguments);
   LoadAddress(rbx, ExternalReference(f, isolate()));
-  CEntryStub ces(f->result_size);
+  CEntryStub ces(f->result_size, save_doubles);
   CallStub(&ces);
 }
 
@@ -957,6 +944,28 @@ void MacroAssembler::Cvtlsi2sd(XMMRegister dst, Register src) {
 void MacroAssembler::Cvtlsi2sd(XMMRegister dst, const Operand& src) {
   xorps(dst, dst);
   cvtlsi2sd(dst, src);
+}
+
+
+void MacroAssembler::Load(Register dst, const Operand& src, Representation r) {
+  if (r.IsByte()) {
+    movzxbl(dst, src);
+  } else if (r.IsInteger32()) {
+    movl(dst, src);
+  } else {
+    movq(dst, src);
+  }
+}
+
+
+void MacroAssembler::Store(const Operand& dst, Register src, Representation r) {
+  if (r.IsByte()) {
+    movb(dst, src);
+  } else if (r.IsInteger32()) {
+    movl(dst, src);
+  } else {
+    movq(dst, src);
+  }
 }
 
 
@@ -1447,28 +1456,6 @@ void MacroAssembler::JumpUnlessBothNonNegativeSmi(Register src1,
 }
 
 
-void MacroAssembler::SmiTryAddConstant(Register dst,
-                                       Register src,
-                                       Smi* constant,
-                                       Label* on_not_smi_result,
-                                       Label::Distance near_jump) {
-  // Does not assume that src is a smi.
-  ASSERT_EQ(static_cast<int>(1), static_cast<int>(kSmiTagMask));
-  STATIC_ASSERT(kSmiTag == 0);
-  ASSERT(!dst.is(kScratchRegister));
-  ASSERT(!src.is(kScratchRegister));
-
-  JumpIfNotSmi(src, on_not_smi_result, near_jump);
-  Register tmp = (dst.is(src) ? kScratchRegister : dst);
-  LoadSmiConstant(tmp, constant);
-  addq(tmp, src);
-  j(overflow, on_not_smi_result, near_jump);
-  if (dst.is(src)) {
-    movq(dst, tmp);
-  }
-}
-
-
 void MacroAssembler::SmiAddConstant(Register dst, Register src, Smi* constant) {
   if (constant->value() == 0) {
     if (!dst.is(src)) {
@@ -1537,10 +1524,14 @@ void MacroAssembler::SmiAddConstant(Register dst,
   } else if (dst.is(src)) {
     ASSERT(!dst.is(kScratchRegister));
 
+    Label done;
     LoadSmiConstant(kScratchRegister, constant);
-    addq(kScratchRegister, src);
-    j(overflow, on_not_smi_result, near_jump);
-    movq(dst, kScratchRegister);
+    addq(dst, kScratchRegister);
+    j(no_overflow, &done, Label::kNear);
+    // Restore src.
+    subq(dst, kScratchRegister);
+    jmp(on_not_smi_result, near_jump);
+    bind(&done);
   } else {
     LoadSmiConstant(dst, constant);
     addq(dst, src);
@@ -1640,6 +1631,29 @@ void MacroAssembler::SmiNeg(Register dst,
 }
 
 
+template<class T>
+static void SmiAddHelper(MacroAssembler* masm,
+                         Register dst,
+                         Register src1,
+                         T src2,
+                         Label* on_not_smi_result,
+                         Label::Distance near_jump) {
+  if (dst.is(src1)) {
+    Label done;
+    masm->addq(dst, src2);
+    masm->j(no_overflow, &done, Label::kNear);
+    // Restore src1.
+    masm->subq(dst, src2);
+    masm->jmp(on_not_smi_result, near_jump);
+    masm->bind(&done);
+  } else {
+    masm->movq(dst, src1);
+    masm->addq(dst, src2);
+    masm->j(overflow, on_not_smi_result, near_jump);
+  }
+}
+
+
 void MacroAssembler::SmiAdd(Register dst,
                             Register src1,
                             Register src2,
@@ -1647,16 +1661,7 @@ void MacroAssembler::SmiAdd(Register dst,
                             Label::Distance near_jump) {
   ASSERT_NOT_NULL(on_not_smi_result);
   ASSERT(!dst.is(src2));
-  if (dst.is(src1)) {
-    movq(kScratchRegister, src1);
-    addq(kScratchRegister, src2);
-    j(overflow, on_not_smi_result, near_jump);
-    movq(dst, kScratchRegister);
-  } else {
-    movq(dst, src1);
-    addq(dst, src2);
-    j(overflow, on_not_smi_result, near_jump);
-  }
+  SmiAddHelper<Register>(this, dst, src1, src2, on_not_smi_result, near_jump);
 }
 
 
@@ -1666,17 +1671,8 @@ void MacroAssembler::SmiAdd(Register dst,
                             Label* on_not_smi_result,
                             Label::Distance near_jump) {
   ASSERT_NOT_NULL(on_not_smi_result);
-  if (dst.is(src1)) {
-    movq(kScratchRegister, src1);
-    addq(kScratchRegister, src2);
-    j(overflow, on_not_smi_result, near_jump);
-    movq(dst, kScratchRegister);
-  } else {
-    ASSERT(!src2.AddressUsesRegister(dst));
-    movq(dst, src1);
-    addq(dst, src2);
-    j(overflow, on_not_smi_result, near_jump);
-  }
+  ASSERT(!src2.AddressUsesRegister(dst));
+  SmiAddHelper<Operand>(this, dst, src1, src2, on_not_smi_result, near_jump);
 }
 
 
@@ -2769,7 +2765,8 @@ Operand MacroAssembler::SafepointRegisterSlot(Register reg) {
 void MacroAssembler::PushTryHandler(StackHandler::Kind kind,
                                     int handler_index) {
   // Adjust this code if not the case.
-  STATIC_ASSERT(StackHandlerConstants::kSize == 5 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kSize == 4 * kPointerSize +
+                                                kFPOnStackSize);
   STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
   STATIC_ASSERT(StackHandlerConstants::kCodeOffset == 1 * kPointerSize);
   STATIC_ASSERT(StackHandlerConstants::kStateOffset == 2 * kPointerSize);
@@ -2828,7 +2825,8 @@ void MacroAssembler::JumpToHandlerEntry() {
 
 void MacroAssembler::Throw(Register value) {
   // Adjust this code if not the case.
-  STATIC_ASSERT(StackHandlerConstants::kSize == 5 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kSize == 4 * kPointerSize +
+                                                kFPOnStackSize);
   STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
   STATIC_ASSERT(StackHandlerConstants::kCodeOffset == 1 * kPointerSize);
   STATIC_ASSERT(StackHandlerConstants::kStateOffset == 2 * kPointerSize);
@@ -2868,7 +2866,8 @@ void MacroAssembler::Throw(Register value) {
 
 void MacroAssembler::ThrowUncatchable(Register value) {
   // Adjust this code if not the case.
-  STATIC_ASSERT(StackHandlerConstants::kSize == 5 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kSize == 4 * kPointerSize +
+                                                kFPOnStackSize);
   STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
   STATIC_ASSERT(StackHandlerConstants::kCodeOffset == 1 * kPointerSize);
   STATIC_ASSERT(StackHandlerConstants::kStateOffset == 2 * kPointerSize);
@@ -3708,9 +3707,10 @@ void MacroAssembler::LeaveFrame(StackFrame::Type type) {
 void MacroAssembler::EnterExitFramePrologue(bool save_rax) {
   // Set up the frame structure on the stack.
   // All constants are relative to the frame pointer of the exit frame.
-  ASSERT(ExitFrameConstants::kCallerSPDisplacement == +2 * kPointerSize);
-  ASSERT(ExitFrameConstants::kCallerPCOffset == +1 * kPointerSize);
-  ASSERT(ExitFrameConstants::kCallerFPOffset ==  0 * kPointerSize);
+  ASSERT(ExitFrameConstants::kCallerSPDisplacement ==
+         kFPOnStackSize + kPCOnStackSize);
+  ASSERT(ExitFrameConstants::kCallerPCOffset == kFPOnStackSize);
+  ASSERT(ExitFrameConstants::kCallerFPOffset == 0 * kPointerSize);
   push(rbp);
   movq(rbp, rsp);
 

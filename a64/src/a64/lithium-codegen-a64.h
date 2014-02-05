@@ -32,6 +32,7 @@
 
 #include "a64/lithium-gap-resolver-a64.h"
 #include "deoptimizer.h"
+#include "lithium-codegen.h"
 #include "safepoint-table.h"
 #include "scopes.h"
 #include "v8utils.h"
@@ -44,26 +45,18 @@ class LDeferredCode;
 class SafepointGenerator;
 class BranchGenerator;
 
-class LCodeGen BASE_EMBEDDED {
+class LCodeGen: public LCodeGenBase {
  public:
   LCodeGen(LChunk* chunk, MacroAssembler* assembler, CompilationInfo* info)
-      : zone_(info->zone()),
-        chunk_(static_cast<LPlatformChunk*>(chunk)),
-        masm_(assembler),
-        info_(info),
-        current_block_(-1),
-        current_instruction_(-1),
-        instructions_(chunk->instructions()),
+      : LCodeGenBase(chunk, assembler, info),
         deoptimizations_(4, info->zone()),
         deopt_jump_table_(4, info->zone()),
         deoptimization_literals_(8, info->zone()),
         inlined_function_count_(0),
         scope_(info->scope()),
-        status_(UNUSED),
         translations_(info->zone()),
         deferred_(8, info->zone()),
         osr_pc_offset_(-1),
-        last_lazy_deopt_pc_(0),
         frame_is_built_(false),
         safepoints_(info->zone()),
         resolver_(this),
@@ -73,15 +66,7 @@ class LCodeGen BASE_EMBEDDED {
   }
 
   // Simple accessors.
-  MacroAssembler* masm() const { return masm_; }
-  CompilationInfo* info() const { return info_; }
-  Zone* zone() const { return zone_; }
-  HGraph* graph() const { return chunk()->graph(); }
-  LPlatformChunk* chunk() const { return chunk_; }
-  Isolate* isolate() const { return info_->isolate(); }
-  Factory* factory() const { return isolate()->factory(); }
   Scope* scope() const { return scope_; }
-  Heap* heap() const { return isolate()->heap(); }
 
   int LookupDestination(int block_id) const {
     return chunk()->LookupDestination(block_id);
@@ -140,18 +125,6 @@ class LCodeGen BASE_EMBEDDED {
 #undef DECLARE_DO
 
  private:
-  enum Status {
-    UNUSED,
-    GENERATING,
-    DONE,
-    ABORTED
-  };
-
-  bool is_unused() const { return status_ == UNUSED; }
-  bool is_generating() const { return status_ == GENERATING; }
-  bool is_done() const { return status_ == DONE; }
-  bool is_aborted() const { return status_ == ABORTED; }
-
   // Return a double scratch register which can be used locally
   // when generating code for a lithium instruction.
   DoubleRegister double_scratch() { return crankshaft_fp_scratch; }
@@ -183,7 +156,6 @@ class LCodeGen BASE_EMBEDDED {
 
   static Condition TokenToCondition(Token::Value op, bool is_unsigned);
   void EmitGoto(int block);
-  int GetNextEmittedBlock() const;
   void DoGap(LGap* instr);
 
   // Generic version of EmitBranch. It contains some code to avoid emitting a
@@ -281,7 +253,6 @@ class LCodeGen BASE_EMBEDDED {
   int GetStackSlotCount() const { return chunk()->spill_slot_count(); }
 
   void Abort(BailoutReason reason);
-  void FPRINTF_CHECKING Comment(const char* format, ...);
 
   void AddDeferredCode(LDeferredCode* code) { deferred_.Add(code, zone()); }
 
@@ -298,7 +269,6 @@ class LCodeGen BASE_EMBEDDED {
 
   // Code generation steps.  Returns true if code generation should continue.
   bool GeneratePrologue();
-  bool GenerateBody();
   bool GenerateDeferredCode();
   bool GenerateDeoptJumpTable();
   bool GenerateSafepointTable();
@@ -322,7 +292,8 @@ class LCodeGen BASE_EMBEDDED {
 
   void CallRuntime(const Runtime::Function* function,
                    int num_arguments,
-                   LInstruction* instr);
+                   LInstruction* instr,
+                   SaveFPRegsMode save_doubles = kDontSaveFPRegs);
 
   void CallRuntime(Runtime::FunctionId id,
                    int num_arguments,
@@ -348,7 +319,7 @@ class LCodeGen BASE_EMBEDDED {
 
   // Support for recording safepoint and position information.
   void RecordPosition(int position);
-  void RecordAndUpdatePosition(int position);
+  void RecordAndUpdatePosition(int position) V8_OVERRIDE;
   void RecordSafepoint(LPointerMap* pointers,
                        Safepoint::Kind kind,
                        int arguments,
@@ -364,26 +335,16 @@ class LCodeGen BASE_EMBEDDED {
   void RecordSafepointWithLazyDeopt(LInstruction* instr,
                                     SafepointMode safepoint_mode);
 
-  void EnsureSpaceForLazyDeopt();
+  void EnsureSpaceForLazyDeopt(int space_needed) V8_OVERRIDE;
 
-  Zone* zone_;
-  LPlatformChunk* const chunk_;
-  MacroAssembler* const masm_;
-  CompilationInfo* const info_;
-
-  int current_block_;
-  int current_instruction_;
-  const ZoneList<LInstruction*>* instructions_;
   ZoneList<LEnvironment*> deoptimizations_;
   ZoneList<Deoptimizer::JumpTableEntry> deopt_jump_table_;
   ZoneList<Handle<Object> > deoptimization_literals_;
   int inlined_function_count_;
   Scope* const scope_;
-  Status status_;
   TranslationBuffer translations_;
   ZoneList<LDeferredCode*> deferred_;
   int osr_pc_offset_;
-  int last_lazy_deopt_pc_;
   bool frame_is_built_;
 
   // Builder that keeps track of safepoints in the code. The table itself is

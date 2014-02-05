@@ -847,15 +847,14 @@ static void GenerateFastApiDirectCall(MacroAssembler* masm,
   //  -- sp[(argc + 7) * 8] : receiver
   // -----------------------------------
   typedef FunctionCallbackArguments FCA;
-  const int kArgs = kFastApiCallArguments;
   // Save calling context.
-  __ Poke(cp, (kArgs - 1 + FCA::kContextSaveIndex) * kPointerSize);
+  __ Poke(cp, FCA::kContextSaveIndex * kPointerSize);
   // Get the function and setup the context.
   Handle<JSFunction> function = optimization.constant_function();
   Register function_reg = x5;
   __ LoadHeapObject(function_reg, function);
   __ Ldr(cp, FieldMemOperand(function_reg, JSFunction::kContextOffset));
-  __ Poke(function_reg, (kArgs - 1 + FCA::kCalleeIndex) * kPointerSize);
+  __ Poke(function_reg, FCA::kCalleeIndex * kPointerSize);
 
   // Construct the FunctionCallbackInfo.
   Handle<CallHandlerInfo> api_call_info = optimization.api_call_info();
@@ -868,21 +867,21 @@ static void GenerateFastApiDirectCall(MacroAssembler* masm,
     __ Mov(call_data_reg, Operand(call_data));
   }
   // Store call data.
-  __ Poke(call_data_reg, (kArgs - 1 + FCA::kDataIndex) * kPointerSize);
+  __ Poke(call_data_reg, FCA::kDataIndex * kPointerSize);
   // Store isolate.
   Register isolate_reg = x7;
   __ Mov(isolate_reg,
          Operand(ExternalReference::isolate_address(masm->isolate())));
-  __ Poke(isolate_reg, (kArgs - 1 + FCA::kIsolateIndex) * kPointerSize);
+  __ Poke(isolate_reg, FCA::kIsolateIndex * kPointerSize);
   // Store ReturnValue default and ReturnValue.
   Register undefined_reg = x8;
   __ LoadRoot(undefined_reg, Heap::kUndefinedValueRootIndex);
-  __ Poke(undefined_reg, (kArgs - 1 + FCA::kReturnValueOffset) * kPointerSize);
-  __ Poke(undefined_reg,
-          (kArgs - 1 + FCA::kReturnValueDefaultValueIndex) * kPointerSize);
+  // TODO(all): These are adjacent. Once things settle down, use PokePair.
+  __ Poke(undefined_reg, FCA::kReturnValueOffset * kPointerSize);
+  __ Poke(undefined_reg, FCA::kReturnValueDefaultValueIndex * kPointerSize);
 
   Register implicit_args = x2;
-  __ Add(implicit_args, masm->StackPointer(), (kArgs - 1) * kPointerSize);
+  __ Mov(implicit_args, masm->StackPointer());
 
   FrameScope frame_scope(masm, StackFrame::MANUAL);
   // Allocate the v8::Arguments structure inside the ExitFrame since it's not
@@ -894,20 +893,20 @@ static void GenerateFastApiDirectCall(MacroAssembler* masm,
       kApiArgsStackSpace + MacroAssembler::kCallApiFunctionSpillSpace);
 
   // Arguments structure is after the return address.
+  // args = FunctionCallbackInfo&
   Register args = x0;
   __ Add(args, masm->StackPointer(), kPointerSize);
 
-  // v8::Arguments::implicit_args_
+  // FunctionCallbackInfo::implicit_args_
   __ Str(implicit_args, MemOperand(args, 0 * kPointerSize));
-  // v8::Arguments::values_
-  __ Add(x3, implicit_args, argc * kPointerSize);
+  // FunctionCallbackInfo::values_
+  __ Add(x3, implicit_args, (kFastApiCallArguments - 1 + argc) * kPointerSize);
   __ Str(x3, MemOperand(args, 1 * kPointerSize));
-  // v8::Arguments::length_ = argc
+  // FunctionCallbackInfo::length_ = argc
   __ Mov(x3, argc);
   __ Str(x3, MemOperand(args, 2 * kPointerSize));
-  // v8::Arguments::is_construct_call = 0
-  __ Mov(x3, 0);
-  __ Str(x3, MemOperand(args, 3 * kPointerSize));
+  // FunctionCallbackInfo::is_construct_call = 0
+  __ Str(xzr, MemOperand(args, 3 * kPointerSize));
 
   // After the call to the API function we need to free memory used for:
   //  - JS arguments
@@ -916,7 +915,7 @@ static void GenerateFastApiDirectCall(MacroAssembler* masm,
   //
   // The memory allocated for v8::Arguments structure will be freed when we'll
   // leave the ExitFrame.
-  const int kStackUnwindSpace = argc + kArgs + 1;
+  const int kStackUnwindSpace = argc + kFastApiCallArguments + 1;
 
   Address function_address = v8::ToCData<Address>(api_call_info->callback());
   ApiFunction fun(function_address);
@@ -931,9 +930,10 @@ static void GenerateFastApiDirectCall(MacroAssembler* masm,
 
   AllowExternalCallThatCantCauseGC scope(masm);
   MemOperand context_restore_operand(
-      fp, (kArgs + 1 + FCA::kContextSaveIndex) * kPointerSize);
+      fp, (2 + FCA::kContextSaveIndex) * kPointerSize);
   MemOperand return_value_operand(
-      fp, (kArgs + 1 + FCA::kReturnValueOffset) * kPointerSize);
+      fp, (2 + FCA::kReturnValueOffset) * kPointerSize);
+
   // CallApiFunctionAndReturn can spill registers inside the exit frame,
   // after the return address and the v8::Arguments structure.
   const int spill_offset = 1 + kApiArgsStackSpace;
@@ -959,13 +959,12 @@ static void GenerateFastApiCall(MacroAssembler* masm,
   ASSERT(optimization.is_simple_api_call());
   ASSERT(!AreAliased(receiver, scratch));
 
+  typedef FunctionCallbackArguments FCA;
   const int stack_space = kFastApiCallArguments + argc + 1;
-  const int kHolderIndex = kFastApiCallArguments +
-      FunctionCallbackArguments::kHolderIndex - 1;
   // Assign stack space for the call arguments.
   __ Claim(stack_space);
   // Write holder to stack frame.
-  __ Poke(receiver, kHolderIndex * kPointerSize);
+  __ Poke(receiver, FCA::kHolderIndex * kPointerSize);
   // Write receiver to stack frame.
   int index = stack_space - 1;
   __ Poke(receiver, index * kPointerSize);
@@ -1195,8 +1194,6 @@ Register StubCompiler::CheckPrototypes(Handle<JSObject> object,
                                        int save_at_depth,
                                        Label* miss,
                                        PrototypeCheckType check) {
-  const int kHolderIndex = kFastApiCallArguments +
-      FunctionCallbackArguments::kHolderIndex - 1;
   // Make sure that the type feedback oracle harvests the receiver map.
   // TODO(svenpanne) Remove this hack when all ICs are reworked.
   __ Mov(scratch1, Operand(Handle<Map>(object->map())));
@@ -1211,8 +1208,9 @@ Register StubCompiler::CheckPrototypes(Handle<JSObject> object,
   Register reg = object_reg;
   int depth = 0;
 
+  typedef FunctionCallbackArguments FCA;
   if (save_at_depth == depth) {
-    __ Poke(reg, kHolderIndex * kPointerSize);
+    __ Poke(reg, FCA::kHolderIndex * kPointerSize);
   }
 
   // Check the maps in the prototype chain.
@@ -1271,7 +1269,7 @@ Register StubCompiler::CheckPrototypes(Handle<JSObject> object,
     }
 
     if (save_at_depth == depth) {
-      __ Poke(reg, kHolderIndex * kPointerSize);
+      __ Poke(reg, FCA::kHolderIndex * kPointerSize);
     }
 
     // Go to the next object in the prototype chain.
@@ -1438,16 +1436,15 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
   // Build ExecutableAccessorInfo::args_ list on the stack and push property
   // name below the exit frame to make GC aware of them and store pointers to
   // them.
-  STATIC_ASSERT(PropertyCallbackArguments::kThisIndex == 0);
-  STATIC_ASSERT(PropertyCallbackArguments::kDataIndex == -1);
-  STATIC_ASSERT(PropertyCallbackArguments::kReturnValueOffset == -2);
-  STATIC_ASSERT(PropertyCallbackArguments::kReturnValueDefaultValueIndex == -3);
-  STATIC_ASSERT(PropertyCallbackArguments::kIsolateIndex == -4);
-  STATIC_ASSERT(PropertyCallbackArguments::kHolderIndex == -5);
+  STATIC_ASSERT(PropertyCallbackArguments::kHolderIndex == 0);
+  STATIC_ASSERT(PropertyCallbackArguments::kIsolateIndex == 1);
+  STATIC_ASSERT(PropertyCallbackArguments::kReturnValueDefaultValueIndex == 2);
+  STATIC_ASSERT(PropertyCallbackArguments::kReturnValueOffset == 3);
+  STATIC_ASSERT(PropertyCallbackArguments::kDataIndex == 4);
+  STATIC_ASSERT(PropertyCallbackArguments::kThisIndex == 5);
+  STATIC_ASSERT(PropertyCallbackArguments::kArgsLength == 6);
 
   __ Push(receiver());
-  Register args_addr = scratch2();
-  __ Mov(args_addr, __ StackPointer());
 
   if (heap()->InNewSpace(callback->data())) {
     __ Mov(scratch3(), Operand(callback));
@@ -1458,17 +1455,21 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
   }
   // TODO(jbramley): Find another scratch register and combine the pushes
   // together. Can we use scratch1() here?
-  // Push:
-  //   - callback data
-  //   - undefined
-  //   - undefined
-  //   - isolate
-  //   - reg
-  //   - name
   __ LoadRoot(scratch4(), Heap::kUndefinedValueRootIndex);
   __ Push(scratch3(), scratch4());
   __ Mov(scratch3(), Operand(ExternalReference::isolate_address(isolate())));
   __ Push(scratch4(), scratch3(), reg, name());
+
+  Register args_addr = scratch2();
+  __ Add(args_addr, __ StackPointer(), kPointerSize);
+
+  // Stack at this point:
+  //              sp[40] callback data
+  //              sp[32] undefined
+  //              sp[24] undefined
+  //              sp[16] isolate
+  // args_addr -> sp[8]  reg
+  //              sp[0]  name
 
   // Pass the Handle<Name> of the property name to the runtime.
   __ Mov(x0, __ StackPointer());
@@ -1478,9 +1479,8 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
   __ EnterExitFrame(false, scratch4(),
       kApiStackSpace + MacroAssembler::kCallApiFunctionSpillSpace);
 
-  // Create ExecutableAccessorInfo instance on the stack above the exit frame
-  // before the return address. ExecutableAccessorInfo has only one field: the
-  // address of args_.
+  // Create PropertyAccessorInfo instance on the stack above the exit frame
+  // (before the return address) with args_addr as the data.
   __ Poke(args_addr, 1 * kPointerSize);
 
   // Get the address of ExecutableAccessorInfo instance and pass it to the

@@ -1201,11 +1201,18 @@ class MacroAssembler: public Assembler {
   void CallJSExitStub(CodeStub* stub);
 
   // Call a runtime routine.
-  void CallRuntime(const Runtime::Function* f, int num_arguments);
-  void CallRuntimeSaveDoubles(Runtime::FunctionId id);
+  void CallRuntime(const Runtime::Function* f,
+                   int num_arguments,
+                   SaveFPRegsMode save_doubles = kDontSaveFPRegs);
+  void CallRuntimeSaveDoubles(Runtime::FunctionId id) {
+    const Runtime::Function* function = Runtime::FunctionForId(id);
+    CallRuntime(function, function->nargs, kSaveFPRegs);
+  }
 
   // Convenience function: Same as above, but takes the fid instead.
-  void CallRuntime(Runtime::FunctionId fid, int num_arguments);
+  void CallRuntime(Runtime::FunctionId id, int num_arguments) {
+    CallRuntime(Runtime::FunctionForId(id), num_arguments);
+  }
 
   // Convenience function: call an external reference.
   void CallExternalReference(const ExternalReference& ext,

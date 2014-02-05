@@ -721,6 +721,10 @@ class HValue : public ZoneObject {
     return index == kNoRedefinedOperand ? NULL : OperandAt(index);
   }
 
+  bool CanReplaceWithDummyUses();
+
+  virtual int argument_delta() const { return 0; }
+
   // A purely informative definition is an idef that will not emit code and
   // should therefore be removed from the graph in the RestoreActualValues
   // phase (so that live ranges will be shorter).
@@ -763,6 +767,9 @@ class HValue : public ZoneObject {
   void SetFlag(Flag f) { flags_ |= (1 << f); }
   void ClearFlag(Flag f) { flags_ &= ~(1 << f); }
   bool CheckFlag(Flag f) const { return (flags_ & (1 << f)) != 0; }
+  void CopyFlag(Flag f, HValue* other) {
+    if (other->CheckFlag(f)) SetFlag(f);
+  }
 
   // Returns true if the flag specified is set for all uses, false otherwise.
   bool CheckUsesForFlag(Flag f) const;
@@ -1183,6 +1190,11 @@ class HControlInstruction : public HInstruction {
 
   virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
 
+  virtual bool KnownSuccessorBlock(HBasicBlock** block) {
+    *block = NULL;
+    return false;
+  }
+
   HBasicBlock* FirstSuccessor() {
     return SuccessorCount() > 0 ? SuccessorAt(0) : NULL;
   }
@@ -1272,29 +1284,6 @@ class HDummyUse V8_FINAL : public HTemplateInstruction<1> {
 };
 
 
-class HDeoptimize V8_FINAL : public HTemplateInstruction<0> {
- public:
-  DECLARE_INSTRUCTION_FACTORY_P2(HDeoptimize, const char*,
-                                 Deoptimizer::BailoutType);
-
-  virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
-    return Representation::None();
-  }
-
-  const char* reason() const { return reason_; }
-  Deoptimizer::BailoutType type() { return type_; }
-
-  DECLARE_CONCRETE_INSTRUCTION(Deoptimize)
-
- private:
-  explicit HDeoptimize(const char* reason, Deoptimizer::BailoutType type)
-      : reason_(reason), type_(type) {}
-
-  const char* reason_;
-  Deoptimizer::BailoutType type_;
-};
-
-
 // Inserts an int3/stop break instruction for debugging purposes.
 class HDebugBreak V8_FINAL : public HTemplateInstruction<0> {
  public:
@@ -1314,6 +1303,11 @@ class HGoto V8_FINAL : public HTemplateControlInstruction<1, 0> {
     SetSuccessorAt(0, target);
   }
 
+  virtual bool KnownSuccessorBlock(HBasicBlock** block) V8_OVERRIDE {
+    *block = FirstSuccessor();
+    return true;
+  }
+
   virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
     return Representation::None();
   }
@@ -1321,6 +1315,43 @@ class HGoto V8_FINAL : public HTemplateControlInstruction<1, 0> {
   virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
 
   DECLARE_CONCRETE_INSTRUCTION(Goto)
+};
+
+
+class HDeoptimize V8_FINAL : public HTemplateControlInstruction<1, 0> {
+ public:
+  static HInstruction* New(Zone* zone,
+                           HValue* context,
+                           const char* reason,
+                           Deoptimizer::BailoutType type,
+                           HBasicBlock* unreachable_continuation) {
+    return new(zone) HDeoptimize(reason, type, unreachable_continuation);
+  }
+
+  virtual bool KnownSuccessorBlock(HBasicBlock** block) V8_OVERRIDE {
+    *block = NULL;
+    return true;
+  }
+
+  virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
+    return Representation::None();
+  }
+
+  const char* reason() const { return reason_; }
+  Deoptimizer::BailoutType type() { return type_; }
+
+  DECLARE_CONCRETE_INSTRUCTION(Deoptimize)
+
+ private:
+  explicit HDeoptimize(const char* reason,
+                       Deoptimizer::BailoutType type,
+                       HBasicBlock* unreachable_continuation)
+      : reason_(reason), type_(type) {
+    SetSuccessorAt(0, unreachable_continuation);
+  }
+
+  const char* reason_;
+  Deoptimizer::BailoutType type_;
 };
 
 
@@ -1353,6 +1384,8 @@ class HBranch V8_FINAL : public HUnaryControlInstruction {
     return Representation::None();
   }
   virtual Representation observed_input_representation(int index) V8_OVERRIDE;
+
+  virtual bool KnownSuccessorBlock(HBasicBlock** block) V8_OVERRIDE;
 
   ToBooleanStub::Types expected_input_types() const {
     return expected_input_types_;
@@ -1902,13 +1935,24 @@ class HEnterInlined V8_FINAL : public HTemplateInstruction<0> {
 
 class HLeaveInlined V8_FINAL : public HTemplateInstruction<0> {
  public:
-  HLeaveInlined() { }
+  HLeaveInlined(HEnterInlined* entry,
+                int drop_count)
+      : entry_(entry),
+        drop_count_(drop_count) { }
 
   virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
     return Representation::None();
   }
 
+  virtual int argument_delta() const V8_OVERRIDE {
+    return entry_->arguments_pushed() ? -drop_count_ : 0;
+  }
+
   DECLARE_CONCRETE_INSTRUCTION(LeaveInlined)
+
+ private:
+  HEnterInlined* entry_;
+  int drop_count_;
 };
 
 
@@ -1920,6 +1964,7 @@ class HPushArgument V8_FINAL : public HUnaryOperation {
     return Representation::Tagged();
   }
 
+  virtual int argument_delta() const V8_OVERRIDE { return 1; }
   HValue* argument() { return OperandAt(0); }
 
   DECLARE_CONCRETE_INSTRUCTION(PushArgument)
@@ -2069,7 +2114,13 @@ class HCall : public HTemplateInstruction<V> {
     return HType::Tagged();
   }
 
-  virtual int argument_count() const { return argument_count_; }
+  virtual int argument_count() const {
+    return argument_count_;
+  }
+
+  virtual int argument_delta() const V8_OVERRIDE {
+    return -argument_count();
+  }
 
   virtual bool IsCall() V8_FINAL V8_OVERRIDE { return true; }
 
@@ -2345,6 +2396,10 @@ class HCallRuntime V8_FINAL : public HCall<1> {
   HValue* context() { return OperandAt(0); }
   const Runtime::Function* function() const { return c_function_; }
   Handle<String> name() const { return name_; }
+  SaveFPRegsMode save_doubles() const { return save_doubles_; }
+  void set_save_doubles(SaveFPRegsMode save_doubles) {
+    save_doubles_ = save_doubles;
+  }
 
   virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
     return Representation::Tagged();
@@ -2357,12 +2412,14 @@ class HCallRuntime V8_FINAL : public HCall<1> {
                Handle<String> name,
                const Runtime::Function* c_function,
                int argument_count)
-      : HCall<1>(argument_count), c_function_(c_function), name_(name) {
+      : HCall<1>(argument_count), c_function_(c_function), name_(name),
+        save_doubles_(kDontSaveFPRegs) {
     SetOperandAt(0, context);
   }
 
   const Runtime::Function* c_function_;
   Handle<String> name_;
+  SaveFPRegsMode save_doubles_;
 };
 
 
@@ -3482,6 +3539,11 @@ class HConstant V8_FINAL : public HTemplateInstruction<0> {
           external_reference_value_ ==
           other_constant->external_reference_value_;
     } else {
+      if (other_constant->has_int32_value_ ||
+          other_constant->has_double_value_ ||
+          other_constant->has_external_reference_value_) {
+        return false;
+      }
       ASSERT(!object_.handle().is_null());
       return other_constant->object_ == object_;
     }
@@ -4085,9 +4147,29 @@ class HCompareHoleAndBranch V8_FINAL : public HUnaryControlInstruction {
 
 class HCompareObjectEqAndBranch : public HTemplateControlInstruction<2, 2> {
  public:
+  HCompareObjectEqAndBranch(HValue* left,
+                            HValue* right,
+                            HBasicBlock* true_target = NULL,
+                            HBasicBlock* false_target = NULL) {
+    // TODO(danno): make this private when the IfBuilder properly constructs
+    // control flow instructions.
+    ASSERT(!left->IsConstant() ||
+           (!HConstant::cast(left)->HasInteger32Value() ||
+            HConstant::cast(left)->HasSmiValue()));
+    ASSERT(!right->IsConstant() ||
+           (!HConstant::cast(right)->HasInteger32Value() ||
+            HConstant::cast(right)->HasSmiValue()));
+    SetOperandAt(0, left);
+    SetOperandAt(1, right);
+    SetSuccessorAt(0, true_target);
+    SetSuccessorAt(1, false_target);
+  }
+
   DECLARE_INSTRUCTION_FACTORY_P2(HCompareObjectEqAndBranch, HValue*, HValue*);
   DECLARE_INSTRUCTION_FACTORY_P4(HCompareObjectEqAndBranch, HValue*, HValue*,
                                  HBasicBlock*, HBasicBlock*);
+
+  virtual bool KnownSuccessorBlock(HBasicBlock** block) V8_OVERRIDE;
 
   HValue* left() { return OperandAt(0); }
   HValue* right() { return OperandAt(1); }
@@ -4103,17 +4185,6 @@ class HCompareObjectEqAndBranch : public HTemplateControlInstruction<2, 2> {
   }
 
   DECLARE_CONCRETE_INSTRUCTION(CompareObjectEqAndBranch)
-
- private:
-  HCompareObjectEqAndBranch(HValue* left,
-                            HValue* right,
-                            HBasicBlock* true_target = NULL,
-                            HBasicBlock* false_target = NULL) {
-    SetOperandAt(0, left);
-    SetOperandAt(1, right);
-    SetSuccessorAt(0, true_target);
-    SetSuccessorAt(1, false_target);
-  }
 };
 
 
@@ -5886,7 +5957,9 @@ class HLoadNamedField V8_FINAL : public HTemplateInstruction<1> {
     SetOperandAt(0, object);
 
     Representation representation = access.representation();
-    if (representation.IsSmi()) {
+    if (representation.IsByte()) {
+      set_representation(Representation::Integer32());
+    } else if (representation.IsSmi()) {
       set_type(HType::Smi());
       set_representation(representation);
     } else if (representation.IsDouble() ||
@@ -6184,11 +6257,14 @@ class HStoreNamedField V8_FINAL : public HTemplateInstruction<3> {
     if (index == 0 && access().IsExternalMemory()) {
       // object must be external in case of external memory access
       return Representation::External();
-    } else if (index == 1 &&
-        (field_representation().IsDouble() ||
-         field_representation().IsSmi() ||
-         field_representation().IsInteger32())) {
-      return field_representation();
+    } else if (index == 1) {
+      if (field_representation().IsByte() ||
+          field_representation().IsInteger32()) {
+        return Representation::Integer32();
+      } else if (field_representation().IsDouble() ||
+                 field_representation().IsSmi()) {
+        return field_representation();
+      }
     }
     return Representation::Tagged();
   }

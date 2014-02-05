@@ -86,6 +86,7 @@ Heap::Heap()
       contexts_disposed_(0),
       global_ic_age_(0),
       flush_monomorphic_ics_(false),
+      allocation_mementos_found_(0),
       scan_on_scavenge_pages_(0),
       new_space_(this),
       old_pointer_space_(NULL),
@@ -142,7 +143,7 @@ Heap::Heap()
       scavenges_since_last_idle_round_(kIdleScavengeThreshold),
       gcs_since_last_deopt_(0),
 #ifdef VERIFY_HEAP
-      no_weak_embedded_maps_verification_scope_depth_(0),
+      no_weak_object_verification_scope_depth_(0),
 #endif
       promotion_queue_(this),
       configured_(false),
@@ -1328,6 +1329,8 @@ class ScavengeWeakObjectRetainer : public WeakObjectRetainer {
 void Heap::Scavenge() {
   RelocationLock relocation_lock(this);
 
+  allocation_mementos_found_ = 0;
+
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) VerifyNonPointerSpacePointers(this);
 #endif
@@ -1475,6 +1478,11 @@ void Heap::Scavenge() {
   gc_state_ = NOT_IN_GC;
 
   scavenges_since_last_idle_round_++;
+
+  if (FLAG_trace_track_allocation_sites && allocation_mementos_found_ > 0) {
+    PrintF("AllocationMementos found during scavenge = %d\n",
+           allocation_mementos_found_);
+  }
 }
 
 
@@ -2131,12 +2139,10 @@ class ScavengingVisitor : public StaticVisitorBase {
       MaybeObject* maybe_result;
 
       if (object_contents == DATA_OBJECT) {
-        // TODO(mstarzinger): Turn this check into a regular assert soon!
-        CHECK(heap->AllowedToBeMigrated(object, OLD_DATA_SPACE));
+        ASSERT(heap->AllowedToBeMigrated(object, OLD_DATA_SPACE));
         maybe_result = heap->old_data_space()->AllocateRaw(allocation_size);
       } else {
-        // TODO(mstarzinger): Turn this check into a regular assert soon!
-        CHECK(heap->AllowedToBeMigrated(object, OLD_POINTER_SPACE));
+        ASSERT(heap->AllowedToBeMigrated(object, OLD_POINTER_SPACE));
         maybe_result = heap->old_pointer_space()->AllocateRaw(allocation_size);
       }
 
@@ -2167,8 +2173,7 @@ class ScavengingVisitor : public StaticVisitorBase {
         return;
       }
     }
-    // TODO(mstarzinger): Turn this check into a regular assert soon!
-    CHECK(heap->AllowedToBeMigrated(object, NEW_SPACE));
+    ASSERT(heap->AllowedToBeMigrated(object, NEW_SPACE));
     MaybeObject* allocation = heap->new_space()->AllocateRaw(allocation_size);
     heap->promotion_queue()->SetNewLimit(heap->new_space()->top());
     Object* result = allocation->ToObjectUnchecked();
@@ -6730,6 +6735,7 @@ bool Heap::CreateHeapObjects() {
   native_contexts_list_ = undefined_value();
   array_buffers_list_ = undefined_value();
   allocation_sites_list_ = undefined_value();
+  weak_object_to_code_table_ = undefined_value();
   return true;
 }
 
@@ -6874,6 +6880,34 @@ void Heap::RemoveGCEpilogueCallback(v8::Isolate::GCEpilogueCallback callback) {
     }
   }
   UNREACHABLE();
+}
+
+
+MaybeObject* Heap::AddWeakObjectToCodeDependency(Object* obj,
+                                                 DependentCode* dep) {
+  ASSERT(!InNewSpace(obj));
+  ASSERT(!InNewSpace(dep));
+  MaybeObject* maybe_obj =
+      WeakHashTable::cast(weak_object_to_code_table_)->Put(obj, dep);
+  WeakHashTable* table;
+  if (!maybe_obj->To(&table)) return maybe_obj;
+  set_weak_object_to_code_table(table);
+  ASSERT_EQ(dep, WeakHashTable::cast(weak_object_to_code_table_)->Lookup(obj));
+  return weak_object_to_code_table_;
+}
+
+
+DependentCode* Heap::LookupWeakObjectToCodeDependency(Object* obj) {
+  Object* dep = WeakHashTable::cast(weak_object_to_code_table_)->Lookup(obj);
+  if (dep->IsDependentCode()) return DependentCode::cast(dep);
+  return DependentCode::cast(empty_fixed_array());
+}
+
+
+void Heap::EnsureWeakObjectToCodeTable() {
+  if (!weak_object_to_code_table()->IsHashTable()) {
+    set_weak_object_to_code_table(*isolate()->factory()->NewWeakHashTable(16));
+  }
 }
 
 
