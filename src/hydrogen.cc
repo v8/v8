@@ -5800,34 +5800,9 @@ void HOptimizedGraphBuilder::BuildStore(Expression* expr,
   Handle<String> name = Handle<String>::cast(key->value());
   ASSERT(!name.is_null());
 
-  HInstruction* instr = NULL;
-
-  SmallMapList* types;
-  ComputeReceiverTypes(expr, object, &types, zone());
-
-  if (types->length() > 0) {
-    PropertyAccessInfo info(this, STORE, ToType(types->first()), name);
-    if (!info.CanAccessAsMonomorphic(types)) {
-      return HandlePolymorphicNamedFieldAccess(
-          STORE, ast_id, return_id, object, value, types, name);
-    }
-
-    ASSERT(!info.type()->Is(Type::Number()));
-    BuildCheckHeapObject(object);
-    HValue* checked_object;
-    if (AreStringTypes(types)) {
-      checked_object = Add<HCheckInstanceType>(
-          object, HCheckInstanceType::IS_STRING);
-    } else {
-      checked_object = Add<HCheckMaps>(object, types);
-    }
-    instr = BuildMonomorphicAccess(
-        &info, object, checked_object, value, ast_id, return_id);
-    if (instr == NULL) return;
-    ASSERT(!instr->IsLinked());
-  } else {
-    instr = BuildStoreNamedGeneric(object, name, value, is_uninitialized);
-  }
+  HInstruction* instr = BuildNamedAccess(STORE, ast_id, return_id, expr,
+                                         object, name, value, is_uninitialized);
+  if (instr == NULL) return;
 
   if (!ast_context()->IsEffect()) Push(value);
   AddInstruction(instr);
@@ -6208,8 +6183,8 @@ HInstruction* HGraphBuilder::AddLoadStringLength(HValue* string) {
 HInstruction* HOptimizedGraphBuilder::BuildLoadNamedGeneric(
     HValue* object,
     Handle<String> name,
-    Property* expr) {
-  if (!expr->IsForCall() && expr->IsUninitialized()) {
+    bool is_uninitialized) {
+  if (is_uninitialized) {
     Add<HDeoptimize>("Insufficient type feedback for generic named load",
                      Deoptimizer::SOFT);
   }
@@ -6624,6 +6599,49 @@ bool HOptimizedGraphBuilder::TryArgumentsAccess(Property* expr) {
 }
 
 
+HInstruction* HOptimizedGraphBuilder::BuildNamedAccess(
+    PropertyAccessType access,
+    BailoutId ast_id,
+    BailoutId return_id,
+    Expression* expr,
+    HValue* object,
+    Handle<String> name,
+    HValue* value,
+    bool is_uninitialized) {
+  SmallMapList* types;
+  ComputeReceiverTypes(expr, object, &types, zone());
+  ASSERT(types != NULL);
+
+  if (types->length() > 0) {
+    PropertyAccessInfo info(this, access, ToType(types->first()), name);
+    if (!info.CanAccessAsMonomorphic(types)) {
+      HandlePolymorphicNamedFieldAccess(
+          access, ast_id, return_id, object, value, types, name);
+      return NULL;
+    }
+
+    HValue* checked_object;
+    // Type::Number() is only supported by polymorphic load/call handling.
+    ASSERT(!info.type()->Is(Type::Number()));
+    BuildCheckHeapObject(object);
+    if (AreStringTypes(types)) {
+      checked_object =
+          Add<HCheckInstanceType>(object, HCheckInstanceType::IS_STRING);
+    } else {
+      checked_object = Add<HCheckMaps>(object, types);
+    }
+    return BuildMonomorphicAccess(
+        &info, object, checked_object, value, ast_id, return_id);
+  }
+
+  if (access == LOAD) {
+    return BuildLoadNamedGeneric(object, name, is_uninitialized);
+  } else {
+    return BuildStoreNamedGeneric(object, name, value, is_uninitialized);
+  }
+}
+
+
 void HOptimizedGraphBuilder::PushLoad(Property* expr,
                                       HValue* object,
                                       HValue* key) {
@@ -6653,34 +6671,10 @@ void HOptimizedGraphBuilder::BuildLoad(Property* expr,
     Handle<String> name = expr->key()->AsLiteral()->AsPropertyName();
     HValue* object = Pop();
 
-    SmallMapList* types;
-    ComputeReceiverTypes(expr, object, &types, zone());
-    ASSERT(types != NULL);
-
-    if (types->length() > 0) {
-      PropertyAccessInfo info(this, LOAD, ToType(types->first()), name);
-      if (!info.CanAccessAsMonomorphic(types)) {
-        return HandlePolymorphicNamedFieldAccess(
-            LOAD, ast_id, expr->LoadId(), object, NULL, types, name);
-      }
-
-      HValue* checked_object;
-      // Type::Number() is only supported by polymorphic load/call handling.
-      ASSERT(!info.type()->Is(Type::Number()));
-      BuildCheckHeapObject(object);
-      if (AreStringTypes(types)) {
-        checked_object =
-            Add<HCheckInstanceType>(object, HCheckInstanceType::IS_STRING);
-      } else {
-        checked_object = Add<HCheckMaps>(object, types);
-      }
-      instr = BuildMonomorphicAccess(
-          &info, object, checked_object, NULL, ast_id, expr->LoadId());
-      if (instr == NULL) return;
-      if (instr->IsLinked()) return ast_context()->ReturnValue(instr);
-    } else {
-      instr = BuildLoadNamedGeneric(object, name, expr);
-    }
+    instr = BuildNamedAccess(LOAD, ast_id, expr->LoadId(), expr,
+                             object, name, NULL, expr->IsUninitialized());
+    if (instr == NULL) return;
+    if (instr->IsLinked()) return ast_context()->ReturnValue(instr);
 
   } else {
     HValue* key = Pop();
@@ -6996,7 +6990,8 @@ void HOptimizedGraphBuilder::HandlePolymorphicCallNamed(
     FinishExitWithHardDeoptimization("Unknown map in polymorphic call", join);
   } else {
     Property* prop = expr->expression()->AsProperty();
-    HInstruction* function = BuildLoadNamedGeneric(receiver, name, prop);
+    HInstruction* function = BuildLoadNamedGeneric(
+        receiver, name, prop->IsUninitialized());
     AddInstruction(function);
     Push(function);
     AddSimulate(prop->LoadId(), REMOVABLE_SIMULATE);

@@ -2387,6 +2387,15 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
                                        BailoutId return_id,
                                        bool can_inline_accessor = true);
 
+  HInstruction* BuildNamedAccess(PropertyAccessType access,
+                                 BailoutId ast_id,
+                                 BailoutId reutrn_id,
+                                 Expression* expr,
+                                 HValue* object,
+                                 Handle<String> name,
+                                 HValue* value,
+                                 bool is_uninitialized = false);
+
   void HandlePolymorphicCallNamed(Call* expr,
                                   HValue* receiver,
                                   SmallMapList* types,
@@ -2449,7 +2458,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
 
   HInstruction* BuildLoadNamedGeneric(HValue* object,
                                       Handle<String> name,
-                                      Property* expr);
+                                      bool is_uninitialized = false);
 
   HCheckMaps* AddCheckMap(HValue* object, Handle<Map> map);
 
