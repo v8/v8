@@ -5210,7 +5210,7 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr,
   if (instr->truncating()) {
     Register output = ToRegister(instr->result());
     Register scratch2 = ToRegister(temp2);
-    Label check_bools, undefined;
+    Label check_bools;
 
     // If it's not a heap number, jump to undefined check.
     __ JumpIfNotRoot(scratch1, Heap::kHeapNumberMapRootIndex, &check_bools);
@@ -5222,15 +5222,18 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr,
 
     __ Bind(&check_bools);
 
-    TODO_UNIMPLEMENTED("LTaggedToI: Truncate booleans to 0 or 1.");
+    Register true_root = output;
+    Register false_root = scratch2;
+    __ LoadTrueFalseRoots(true_root, false_root);
+    __ Cmp(scratch1, true_root);
+    __ Cset(output, eq);
+    __ Ccmp(scratch1, false_root, ZFlag, ne);
+    __ B(eq, &done);
 
-    // Check for undefined. Undefined is converted to zero for truncating
+    // Output contains zero, undefined is converted to zero for truncating
     // conversions.
-    __ Bind(&undefined);
-
     DeoptimizeIfNotRoot(input, Heap::kUndefinedValueRootIndex,
                         instr->environment());
-    __ Mov(output, 0);
   } else {
     Register output = ToRegister32(instr->result());
 
