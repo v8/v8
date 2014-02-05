@@ -4957,9 +4957,12 @@ void BackEdgeTable::PatchAt(Code* unoptimized_code,
       //  .. .. .. ..       b.pl ok
       //  .. .. .. ..       ldr x16, pc+<interrupt stub address>
       //  .. .. .. ..       blr x16
+      //  ... more instructions.
       //  ok-label
-      // Jump offset is 4 instructions.
-      patcher.b(4 * kInstructionSize, pl);
+      // Jump offset is 6 instructions.
+      ASSERT(Instruction::Cast(branch_address)
+                 ->IsNop(Assembler::INTERRUPT_CODE_NOP));
+      patcher.b(6, pl);
       break;
     case ON_STACK_REPLACEMENT:
     case OSR_AFTER_STACK_CHECK:
@@ -4967,13 +4970,37 @@ void BackEdgeTable::PatchAt(Code* unoptimized_code,
       //  .. .. .. ..       mov x0, x0 (NOP)
       //  .. .. .. ..       ldr x16, pc+<on-stack replacement address>
       //  .. .. .. ..       blr x16
+      ASSERT(Instruction::Cast(branch_address)->IsCondBranchImm());
+      ASSERT(Instruction::Cast(branch_address)->ImmPCOffset() ==
+             6 * kInstructionSize);
       patcher.nop(Assembler::INTERRUPT_CODE_NOP);
       break;
   }
 
   // Replace the call address.
   Instruction* load = Instruction::Cast(pc)->preceding(2);
-  Address interrupt_address_pointer = pc + load->ImmPCOffset();
+  Address interrupt_address_pointer =
+      reinterpret_cast<Address>(load) + load->ImmPCOffset();
+  ASSERT((Memory::uint64_at(interrupt_address_pointer) ==
+          reinterpret_cast<uint64_t>(unoptimized_code->GetIsolate()
+                                         ->builtins()
+                                         ->OnStackReplacement()
+                                         ->entry())) ||
+         (Memory::uint64_at(interrupt_address_pointer) ==
+          reinterpret_cast<uint64_t>(unoptimized_code->GetIsolate()
+                                         ->builtins()
+                                         ->InterruptCheck()
+                                         ->entry())) ||
+         (Memory::uint64_at(interrupt_address_pointer) ==
+          reinterpret_cast<uint64_t>(unoptimized_code->GetIsolate()
+                                         ->builtins()
+                                         ->OsrAfterStackCheck()
+                                         ->entry())) ||
+         (Memory::uint64_at(interrupt_address_pointer) ==
+          reinterpret_cast<uint64_t>(unoptimized_code->GetIsolate()
+                                         ->builtins()
+                                         ->OnStackReplacement()
+                                         ->entry())));
   Memory::uint64_at(interrupt_address_pointer) =
       reinterpret_cast<uint64_t>(replacement_code->entry());
 
@@ -4993,7 +5020,8 @@ BackEdgeTable::BackEdgeState BackEdgeTable::GetBackEdgeState(
 
   if (jump_or_nop->IsNop(Assembler::INTERRUPT_CODE_NOP)) {
     Instruction* load = Instruction::Cast(pc)->preceding(2);
-    uint64_t entry = Memory::uint64_at(pc + load->ImmPCOffset());
+    uint64_t entry = Memory::uint64_at(reinterpret_cast<Address>(load) +
+                                       load->ImmPCOffset());
     if (entry == reinterpret_cast<uint64_t>(
         isolate->builtins()->OnStackReplacement()->entry())) {
       return ON_STACK_REPLACEMENT;
