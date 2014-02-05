@@ -372,8 +372,8 @@ class LCodeGen: public LCodeGenBase {
           codegen_->masm_->PushSafepointRegisters();
           break;
         case Safepoint::kWithRegistersAndDoubles:
-          codegen_->masm_->PushSafepointFPRegisters();
           codegen_->masm_->PushSafepointRegisters();
+          codegen_->masm_->PushSafepointFPRegisters();
           break;
         default:
           UNREACHABLE();
@@ -388,8 +388,8 @@ class LCodeGen: public LCodeGenBase {
           codegen_->masm_->PopSafepointRegisters();
           break;
         case Safepoint::kWithRegistersAndDoubles:
-          codegen_->masm_->PopSafepointRegisters();
           codegen_->masm_->PopSafepointFPRegisters();
+          codegen_->masm_->PopSafepointRegisters();
           break;
         default:
           UNREACHABLE();
