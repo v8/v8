@@ -875,9 +875,11 @@ class HValue : public ZoneObject {
   // This function must be overridden for instructions which have the
   // kTrackSideEffectDominators flag set, to track instructions that are
   // dominating side effects.
-  virtual void HandleSideEffectDominator(GVNFlag side_effect,
+  // It returns true if it removed an instruction which had side effects.
+  virtual bool HandleSideEffectDominator(GVNFlag side_effect,
                                          HValue* dominator) {
     UNREACHABLE();
+    return false;
   }
 
   // Check if this instruction has some reason that prevents elimination.
@@ -2680,7 +2682,7 @@ class HCheckMaps V8_FINAL : public HTemplateInstruction<2> {
   virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
     return Representation::Tagged();
   }
-  virtual void HandleSideEffectDominator(GVNFlag side_effect,
+  virtual bool HandleSideEffectDominator(GVNFlag side_effect,
                                          HValue* dominator) V8_OVERRIDE;
   virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
 
@@ -5349,7 +5351,7 @@ class HAllocate V8_FINAL : public HTemplateInstruction<2> {
     flags_ = static_cast<HAllocate::Flags>(flags_ | ALLOCATE_DOUBLE_ALIGNED);
   }
 
-  virtual void HandleSideEffectDominator(GVNFlag side_effect,
+  virtual bool HandleSideEffectDominator(GVNFlag side_effect,
                                          HValue* dominator) V8_OVERRIDE;
 
   virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
@@ -6461,10 +6463,11 @@ class HStoreNamedField V8_FINAL : public HTemplateInstruction<3> {
     }
     return Representation::Tagged();
   }
-  virtual void HandleSideEffectDominator(GVNFlag side_effect,
+  virtual bool HandleSideEffectDominator(GVNFlag side_effect,
                                          HValue* dominator) V8_OVERRIDE {
     ASSERT(side_effect == kChangesNewSpacePromotion);
     new_space_dominator_ = dominator;
+    return false;
   }
   virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
 
@@ -6691,10 +6694,11 @@ class HStoreKeyed V8_FINAL
     return value()->IsConstant() && HConstant::cast(value())->IsTheHole();
   }
 
-  virtual void HandleSideEffectDominator(GVNFlag side_effect,
+  virtual bool HandleSideEffectDominator(GVNFlag side_effect,
                                          HValue* dominator) V8_OVERRIDE {
     ASSERT(side_effect == kChangesNewSpacePromotion);
     new_space_dominator_ = dominator;
+    return false;
   }
 
   HValue* new_space_dominator() const { return new_space_dominator_; }

@@ -1514,7 +1514,7 @@ void HCheckInstanceType::GetCheckMaskAndTag(uint8_t* mask, uint8_t* tag) {
 }
 
 
-void HCheckMaps::HandleSideEffectDominator(GVNFlag side_effect,
+bool HCheckMaps::HandleSideEffectDominator(GVNFlag side_effect,
                                            HValue* dominator) {
   ASSERT(side_effect == kChangesMaps);
   // TODO(mstarzinger): For now we specialize on HStoreNamedField, but once
@@ -1522,13 +1522,14 @@ void HCheckMaps::HandleSideEffectDominator(GVNFlag side_effect,
   // for which the map is known.
   if (HasNoUses() && dominator->IsStoreNamedField()) {
     HStoreNamedField* store = HStoreNamedField::cast(dominator);
-    if (!store->has_transition() || store->object() != value()) return;
+    if (!store->has_transition() || store->object() != value()) return false;
     HConstant* transition = HConstant::cast(store->transition());
     if (map_set_.Contains(transition->GetUnique())) {
       DeleteAndReplaceWith(NULL);
-      return;
+      return true;
     }
   }
+  return false;
 }
 
 
@@ -3409,11 +3410,11 @@ Representation HUnaryMathOperation::RepresentationFromInputs() {
 }
 
 
-void HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
+bool HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
                                           HValue* dominator) {
   ASSERT(side_effect == kChangesNewSpacePromotion);
   Zone* zone = block()->zone();
-  if (!FLAG_use_allocation_folding) return;
+  if (!FLAG_use_allocation_folding) return false;
 
   // Try to fold allocations together with their dominating allocations.
   if (!dominator->IsAllocate()) {
@@ -3421,7 +3422,7 @@ void HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
       PrintF("#%d (%s) cannot fold into #%d (%s)\n",
           id(), Mnemonic(), dominator->id(), dominator->Mnemonic());
     }
-    return;
+    return false;
   }
 
   HAllocate* dominator_allocate = HAllocate::cast(dominator);
@@ -3435,12 +3436,12 @@ void HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
       PrintF("#%d (%s) cannot fold into #%d (%s), dynamic allocation size\n",
           id(), Mnemonic(), dominator->id(), dominator->Mnemonic());
     }
-    return;
+    return false;
   }
 
   dominator_allocate = GetFoldableDominator(dominator_allocate);
   if (dominator_allocate == NULL) {
-    return;
+    return false;
   }
 
   ASSERT((IsNewSpaceAllocation() &&
@@ -3477,7 +3478,7 @@ void HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
           id(), Mnemonic(), dominator_allocate->id(),
           dominator_allocate->Mnemonic(), new_dominator_size);
     }
-    return;
+    return false;
   }
 
   HInstruction* new_dominator_size_constant = HConstant::CreateAndInsertBefore(
@@ -3525,6 +3526,7 @@ void HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
         id(), Mnemonic(), dominator_allocate->id(),
         dominator_allocate->Mnemonic());
   }
+  return true;
 }
 
 

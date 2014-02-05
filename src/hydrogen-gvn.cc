@@ -374,7 +374,19 @@ HGlobalValueNumberingPhase::HGlobalValueNumberingPhase(HGraph* graph)
                                  zone());
     loop_side_effects_.AddBlock(GVNFlagSet(), graph->blocks()->length(),
                                 zone());
-  }
+}
+
+
+void HGlobalValueNumberingPhase::Reset() {
+  block_side_effects_.Clear();
+  loop_side_effects_.Clear();
+  visited_on_paths_.Clear();
+  block_side_effects_.AddBlock(GVNFlagSet(), graph()->blocks()->length(),
+                               zone());
+  loop_side_effects_.AddBlock(GVNFlagSet(), graph()->blocks()->length(),
+                              zone());
+}
+
 
 void HGlobalValueNumberingPhase::Analyze() {
   removed_side_effects_ = false;
@@ -791,7 +803,9 @@ void HGlobalValueNumberingPhase::AnalyzeGraph() {
                         instr->Mnemonic(),
                         other->id(),
                         other->Mnemonic());
-            instr->HandleSideEffectDominator(changes_flag, other);
+            if (instr->HandleSideEffectDominator(changes_flag, other)) {
+              removed_side_effects_ = true;
+            }
           }
         }
       }
