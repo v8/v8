@@ -31,6 +31,12 @@
 # back-references).
 [
 [ALWAYS, {
+  # TODO(mstarzinger): This script parses but throws a TypeError when run.
+  'non-alphanum': [FAIL],
+
+  # We don't parse RegExps at scanning time, so we can't fail on octal
+  # escapes (we need to parse to distinguish octal escapes from valid
+  # back-references).
   'strict-octal-regexp': [FAIL],
 }],  # ALWAYS
 

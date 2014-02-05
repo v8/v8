@@ -95,6 +95,9 @@ void HeapObject::HeapObjectVerify() {
     case FIXED_DOUBLE_ARRAY_TYPE:
       FixedDoubleArray::cast(this)->FixedDoubleArrayVerify();
       break;
+    case CONSTANT_POOL_ARRAY_TYPE:
+      ConstantPoolArray::cast(this)->ConstantPoolArrayVerify();
+      break;
     case BYTE_ARRAY_TYPE:
       ByteArray::cast(this)->ByteArrayVerify();
       break;
@@ -303,6 +306,13 @@ void ExternalDoubleArray::ExternalDoubleArrayVerify() {
 }
 
 
+bool JSObject::ElementsAreSafeToExamine() {
+  return (FLAG_use_gvn && FLAG_use_allocation_folding) ||
+      reinterpret_cast<Map*>(elements()) !=
+      GetHeap()->one_pointer_filler_map();
+}
+
+
 void JSObject::JSObjectVerify() {
   VerifyHeapPointer(properties());
   VerifyHeapPointer(elements());
@@ -332,9 +342,7 @@ void JSObject::JSObjectVerify() {
 
   // If a GC was caused while constructing this object, the elements
   // pointer may point to a one pointer filler map.
-  if ((FLAG_use_gvn && FLAG_use_allocation_folding) ||
-      (reinterpret_cast<Map*>(elements()) !=
-      GetHeap()->one_pointer_filler_map())) {
+  if (ElementsAreSafeToExamine()) {
     CHECK_EQ((map()->has_fast_smi_or_object_elements() ||
               (elements() == GetHeap()->empty_fixed_array())),
              (elements()->map() == GetHeap()->fixed_array_map() ||
@@ -436,6 +444,11 @@ void FixedDoubleArray::FixedDoubleArrayVerify() {
              ((BitCast<uint64_t>(value) & Double::kSignMask) != 0));
     }
   }
+}
+
+
+void ConstantPoolArray::ConstantPoolArrayVerify() {
+  CHECK(IsConstantPoolArray());
 }
 
 
@@ -690,9 +703,7 @@ void JSArray::JSArrayVerify() {
   CHECK(length()->IsNumber() || length()->IsUndefined());
   // If a GC was caused while constructing this array, the elements
   // pointer may point to a one pointer filler map.
-  if ((FLAG_use_gvn && FLAG_use_allocation_folding) ||
-      (reinterpret_cast<Map*>(elements()) !=
-      GetHeap()->one_pointer_filler_map())) {
+  if (ElementsAreSafeToExamine()) {
     CHECK(elements()->IsUndefined() ||
           elements()->IsFixedArray() ||
           elements()->IsFixedDoubleArray());

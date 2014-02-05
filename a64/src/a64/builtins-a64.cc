@@ -811,6 +811,42 @@ CODE_AGE_LIST(DEFINE_CODE_AGE_BUILTIN_GENERATOR)
 #undef DEFINE_CODE_AGE_BUILTIN_GENERATOR
 
 
+void Builtins::Generate_MarkCodeAsExecutedOnce(MacroAssembler* masm) {
+  // For now, as in GenerateMakeCodeYoungAgainCommon, we are relying on the fact
+  // that make_code_young doesn't do any garbage collection which allows us to
+  // save/restore the registers without worrying about which of them contain
+  // pointers.
+
+  // The following caller-saved registers must be saved and restored when
+  // calling through to the runtime:
+  //   x0 - The address from which to resume execution.
+  //   x1 - isolate
+  //   lr - The return address for the JSFunction itself. It has not yet been
+  //        preserved on the stack because the frame setup code was replaced
+  //        with a call to this stub, to handle code ageing.
+  {
+    FrameScope scope(masm, StackFrame::MANUAL);
+    __ Push(x0, x1, fp, lr);
+    __ Mov(x1, Operand(ExternalReference::isolate_address(masm->isolate())));
+    __ CallCFunction(
+        ExternalReference::get_make_code_young_function(masm->isolate()), 2);
+    __ Pop(lr, fp, x1, x0);
+
+    // Perform prologue operations usually performed by the young code stub.
+    __ EmitFrameSetupForCodeAgePatching(masm);
+  }
+
+  // Jump to point after the code-age stub.
+  __ Add(x0, x0, kCodeAgeSequenceSize);
+  __ Br(x0);
+}
+
+
+void Builtins::Generate_MarkCodeAsExecutedTwice(MacroAssembler* masm) {
+  GenerateMakeCodeYoungAgainCommon(masm);
+}
+
+
 void Builtins::Generate_NotifyStubFailure(MacroAssembler* masm) {
   {
     FrameScope scope(masm, StackFrame::INTERNAL);

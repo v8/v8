@@ -145,8 +145,8 @@ void ElementsTransitionGenerator::GenerateMapChangeElementsTransition(
 
   if (mode == TRACK_ALLOCATION_SITE) {
     ASSERT(allocation_memento_found != NULL);
-    __ TestJSArrayForAllocationMemento(receiver, x10, x11);
-    __ B(eq, allocation_memento_found);
+    __ JumpIfJSArrayHasAllocationMemento(receiver, x10, x11,
+                                         allocation_memento_found);
   }
 
   // Set transitioned map.
@@ -178,8 +178,7 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   Label gc_required, only_change_map;
 
   if (mode == TRACK_ALLOCATION_SITE) {
-    __ TestJSArrayForAllocationMemento(receiver, x10, x11);
-    __ B(eq, fail);
+    __ JumpIfJSArrayHasAllocationMemento(receiver, x10, x11, fail);
   }
 
   // Check for empty arrays, which only require a map transition and no changes
@@ -284,8 +283,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   Register target_map = x3;
 
   if (mode == TRACK_ALLOCATION_SITE) {
-    __ TestJSArrayForAllocationMemento(receiver, x10, x11);
-    __ B(eq, fail);
+    __ JumpIfJSArrayHasAllocationMemento(receiver, x10, x11, fail);
   }
 
   // Check for empty arrays, which only require a map transition and no changes
@@ -393,7 +391,7 @@ bool Code::IsYoungSequence(byte* sequence) {
 void Code::GetCodeAgeAndParity(byte* sequence, Age* age,
                                MarkingParity* parity) {
   if (IsYoungSequence(sequence)) {
-    *age = kNoAge;
+    *age = kNoAgeCodeAge;
     *parity = NO_MARKING_PARITY;
   } else {
     byte* target = sequence + kCodeAgeStubEntryOffset;
@@ -408,7 +406,7 @@ void Code::PatchPlatformCodeAge(Isolate* isolate,
                                 Code::Age age,
                                 MarkingParity parity) {
   PatchingAssembler patcher(sequence, kCodeAgeSequenceSize / kInstructionSize);
-  if (age == kNoAge) {
+  if (age == kNoAgeCodeAge) {
     MacroAssembler::EmitFrameSetupForCodeAgePatching(&patcher);
   } else {
     Code * stub = GetCodeAgeStub(isolate, age, parity);

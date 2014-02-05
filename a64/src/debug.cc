@@ -2106,6 +2106,7 @@ void Debug::PrepareForBreakPoints() {
 
           if (!shared->allows_lazy_compilation()) continue;
           if (!shared->script()->IsScript()) continue;
+          if (function->IsBuiltin()) continue;
           if (shared->code()->gc_metadata() == active_code_marker) continue;
 
           Code::Kind kind = function->code()->kind();

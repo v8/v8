@@ -1,4 +1,4 @@
-// Copyright 2012 the V8 project authors. All rights reserved.
+// Copyright 2013 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,40 +25,14 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --expose-gc
-// Flags: --concurrent-recompilation --concurrent-recompilation-delay=50
+// Flags: --allow-natives-syntax
 
-if (!%IsConcurrentRecompilationSupported()) {
-  print("Concurrent recompilation is disabled. Skipping this test.");
-  quit();
-}
+var o = { a: 0 };
 
-function f(x) {
-  var xx = x * x;
-  var xxstr = xx.toString();
-  return xxstr.length;
-}
+function f(x) { return -o.a + 0; };
 
-function g(x) {
-  var xxx = Math.sqrt(x) | 0;
-  var xxxstr = xxx.toString();
-  return xxxstr.length;
-}
+assertEquals("Infinity", String(1/f()));
+assertEquals("Infinity", String(1/f()));
+%OptimizeFunctionOnNextCall(f);
+assertEquals("Infinity", String(1/f()));
 
-function k(x) {
-  return x * x;
-}
-
-f(g(1));
-assertUnoptimized(f);
-assertUnoptimized(g);
-
-%OptimizeFunctionOnNextCall(f, "concurrent");
-%OptimizeFunctionOnNextCall(g, "concurrent");
-f(g(2));  // Trigger optimization.
-
-assertUnoptimized(f, "no sync");  // Not yet optimized while background thread
-assertUnoptimized(g, "no sync");  // is running.
-
-assertOptimized(f, "sync");  // Optimized once we sync with the
-assertOptimized(g, "sync");  // background thread.

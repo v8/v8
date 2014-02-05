@@ -62,7 +62,7 @@ class LCodeGenBase BASE_EMBEDDED {
   virtual void GenerateBodyInstructionPost(LInstruction* instr) {}
 
   virtual void EnsureSpaceForLazyDeopt(int space_needed) = 0;
-  virtual void RecordAndUpdatePosition(int position) = 0;
+  virtual void RecordAndWritePosition(int position) = 0;
 
   int GetNextEmittedBlock() const;
 

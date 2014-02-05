@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2013 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,17 +25,29 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Test that the expected string is parsed in the json parser when the length
-// is so big that the string can't fit in new space, and it includes special
-// characters.
+// Tests time zone names.
 
-var json = '{"key":"';
-var key = '';
-var expected = '';
-for(var i = 0; i < 60000; i++) {
-  key = key + "TESTING" + i + "\\n";
-  expected = expected + "TESTING" + i + "\n";
-}
-json = json + key  + '"}';
-var out = JSON.parse(json);
-assertEquals(expected, out.key);
+// Winter date (PST).
+var winter = new Date(2013, 1, 12, 14, 42, 53, 0);
+
+// Summer date (PDT).
+var summer = new Date(2013, 7, 12, 14, 42, 53, 0);
+
+// Common flags for both formatters.
+var flags = {
+  year: 'numeric', month: 'long', day: 'numeric',
+  hour : '2-digit', minute : '2-digit', second : '2-digit',
+  timeZone: 'America/Los_Angeles'
+};
+
+flags.timeZoneName = "short";
+var dfs = new Intl.DateTimeFormat('en-US', flags);
+
+assertTrue(dfs.format(winter).indexOf('PST') !== -1);
+assertTrue(dfs.format(summer).indexOf('PDT') !== -1);
+
+flags.timeZoneName = "long";
+var dfl = new Intl.DateTimeFormat('en-US', flags);
+
+assertTrue(dfl.format(winter).indexOf('Pacific Standard Time') !== -1);
+assertTrue(dfl.format(summer).indexOf('Pacific Daylight Time') !== -1);

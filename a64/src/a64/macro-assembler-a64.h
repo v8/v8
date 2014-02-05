@@ -713,6 +713,7 @@ class MacroAssembler : public Assembler {
     if (object->IsHeapObject()) {
       LoadHeapObject(result, Handle<HeapObject>::cast(object));
     } else {
+      ASSERT(object->IsSmi());
       Mov(result, Operand(object));
     }
   }
@@ -1515,14 +1516,29 @@ class MacroAssembler : public Assembler {
   // If allocation info is present, the Z flag is set (so that the eq
   // condition will pass).
   void TestJSArrayForAllocationMemento(Register receiver,
-                                        Register scratch1,
-                                        Register scratch2);
+                                       Register scratch1,
+                                       Register scratch2,
+                                       Label* no_memento_found);
+
+  void JumpIfJSArrayHasAllocationMemento(Register receiver,
+                                         Register scratch1,
+                                         Register scratch2,
+                                         Label* memento_found) {
+    Label no_memento_found;
+    TestJSArrayForAllocationMemento(receiver, scratch1, scratch2,
+                                    &no_memento_found);
+    B(eq, memento_found);
+    Bind(&no_memento_found);
+  }
 
   // The stack pointer has to switch between csp and jssp when setting up and
   // destroying the exit frame. Hence preserving/restoring the registers is
   // slightly more complicated than simple push/pop operations.
   void ExitFramePreserveFPRegs();
   void ExitFrameRestoreFPRegs();
+
+  // Generates function and stub prologue code.
+  void Prologue(PrologueFrameMode frame_mode);
 
   // Enter exit frame. Exit frames are used when calling C code from generated
   // (JavaScript) code.

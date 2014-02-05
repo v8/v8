@@ -112,7 +112,7 @@ void CompilationInfo::Initialize(Isolate* isolate,
   zone_ = zone;
   deferred_handles_ = NULL;
   code_stub_ = NULL;
-  prologue_offset_ = kPrologueOffsetNotSet;
+  prologue_offset_ = Code::kPrologueOffsetNotSet;
   opt_count_ = shared_info().is_null() ? 0 : shared_info()->opt_count();
   no_frame_ranges_ = isolate->cpu_profiler()->is_profiling()
                    ? new List<OffsetRange>(2) : NULL;
@@ -123,7 +123,7 @@ void CompilationInfo::Initialize(Isolate* isolate,
     mode_ = STUB;
     return;
   }
-  mode_ = isolate->use_crankshaft() ? mode : NONOPT;
+  mode_ = mode;
   abort_due_to_dependency_ = false;
   if (script_->type()->value() == Script::TYPE_NATIVE) {
     MarkAsNative();
@@ -313,6 +313,43 @@ static bool MakeCrankshaftCode(CompilationInfo* info) {
 }
 
 
+class HOptimizedGraphBuilderWithPotisions: public HOptimizedGraphBuilder {
+ public:
+  explicit HOptimizedGraphBuilderWithPotisions(CompilationInfo* info)
+      : HOptimizedGraphBuilder(info) {
+  }
+
+#define DEF_VISIT(type)                                 \
+  virtual void Visit##type(type* node) V8_OVERRIDE {    \
+    if (node->position() != RelocInfo::kNoPosition) {   \
+      SetSourcePosition(node->position());              \
+    }                                                   \
+    HOptimizedGraphBuilder::Visit##type(node);          \
+  }
+  EXPRESSION_NODE_LIST(DEF_VISIT)
+#undef DEF_VISIT
+
+#define DEF_VISIT(type)                                          \
+  virtual void Visit##type(type* node) V8_OVERRIDE {             \
+    if (node->position() != RelocInfo::kNoPosition) {            \
+      SetSourcePosition(node->position());                       \
+    }                                                            \
+    HOptimizedGraphBuilder::Visit##type(node);                   \
+  }
+  STATEMENT_NODE_LIST(DEF_VISIT)
+#undef DEF_VISIT
+
+#define DEF_VISIT(type)                                            \
+  virtual void Visit##type(type* node) V8_OVERRIDE {               \
+    HOptimizedGraphBuilder::Visit##type(node);                     \
+  }
+  MODULE_NODE_LIST(DEF_VISIT)
+  DECLARATION_NODE_LIST(DEF_VISIT)
+  AUXILIARY_NODE_LIST(DEF_VISIT)
+#undef DEF_VISIT
+};
+
+
 RecompileJob::Status RecompileJob::CreateGraph() {
   ASSERT(isolate()->use_crankshaft());
   ASSERT(info()->IsOptimizing());
@@ -428,7 +465,9 @@ RecompileJob::Status RecompileJob::CreateGraph() {
   // Type-check the function.
   AstTyper::Run(info());
 
-  graph_builder_ = new(info()->zone()) HOptimizedGraphBuilder(info());
+  graph_builder_ = FLAG_emit_opt_code_positions
+      ? new(info()->zone()) HOptimizedGraphBuilderWithPotisions(info())
+      : new(info()->zone()) HOptimizedGraphBuilder(info());
 
   Timer t(this, &time_taken_to_create_graph_);
   graph_ = graph_builder_->CreateGraph();
@@ -564,6 +603,33 @@ static bool DebuggerWantsEagerCompilation(CompilationInfo* info,
 }
 
 
+// Sets the expected number of properties based on estimate from compiler.
+void SetExpectedNofPropertiesFromEstimate(Handle<SharedFunctionInfo> shared,
+                                          int estimate) {
+  // See the comment in SetExpectedNofProperties.
+  if (shared->live_objects_may_exist()) return;
+
+  // If no properties are added in the constructor, they are more likely
+  // to be added later.
+  if (estimate == 0) estimate = 2;
+
+  // TODO(yangguo): check whether those heuristics are still up-to-date.
+  // We do not shrink objects that go into a snapshot (yet), so we adjust
+  // the estimate conservatively.
+  if (Serializer::enabled()) {
+    estimate += 2;
+  } else if (FLAG_clever_optimizations) {
+    // Inobject slack tracking will reclaim redundant inobject space later,
+    // so we can afford to adjust the estimate generously.
+    estimate += 8;
+  } else {
+    estimate += 3;
+  }
+
+  shared->set_expected_nof_properties(estimate);
+}
+
+
 static Handle<SharedFunctionInfo> MakeFunctionInfo(CompilationInfo* info) {
   Isolate* isolate = info->isolate();
   PostponeInterruptsScope postpone(isolate);
@@ -608,66 +674,70 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(CompilationInfo* info) {
     }
   }
 
-  // Measure how long it takes to do the compilation; only take the
-  // rest of the function into account to avoid overlap with the
-  // parsing statistics.
-  HistogramTimer* rate = info->is_eval()
-      ? info->isolate()->counters()->compile_eval()
-      : info->isolate()->counters()->compile();
-  HistogramTimerScope timer(rate);
-
-  // Compile the code.
   FunctionLiteral* lit = info->function();
   LiveEditFunctionTracker live_edit_tracker(isolate, lit);
-  if (!MakeCode(info)) {
-    if (!isolate->has_pending_exception()) isolate->StackOverflow();
-    return Handle<SharedFunctionInfo>::null();
+  Handle<SharedFunctionInfo> result;
+  {
+    // Measure how long it takes to do the compilation; only take the
+    // rest of the function into account to avoid overlap with the
+    // parsing statistics.
+    HistogramTimer* rate = info->is_eval()
+          ? info->isolate()->counters()->compile_eval()
+          : info->isolate()->counters()->compile();
+    HistogramTimerScope timer(rate);
+
+    // Compile the code.
+    if (!MakeCode(info)) {
+      if (!isolate->has_pending_exception()) isolate->StackOverflow();
+      return Handle<SharedFunctionInfo>::null();
+    }
+
+    // Allocate function.
+    ASSERT(!info->code().is_null());
+    result =
+        isolate->factory()->NewSharedFunctionInfo(
+            lit->name(),
+            lit->materialized_literal_count(),
+            lit->is_generator(),
+            info->code(),
+            ScopeInfo::Create(info->scope(), info->zone()));
+
+    ASSERT_EQ(RelocInfo::kNoPosition, lit->function_token_position());
+    Compiler::SetFunctionInfo(result, lit, true, script);
+
+    if (script->name()->IsString()) {
+      PROFILE(isolate, CodeCreateEvent(
+          info->is_eval()
+          ? Logger::EVAL_TAG
+              : Logger::ToNativeByScript(Logger::SCRIPT_TAG, *script),
+                *info->code(),
+                *result,
+                info,
+                String::cast(script->name())));
+      GDBJIT(AddCode(Handle<String>(String::cast(script->name())),
+                     script,
+                     info->code(),
+                     info));
+    } else {
+      PROFILE(isolate, CodeCreateEvent(
+          info->is_eval()
+          ? Logger::EVAL_TAG
+              : Logger::ToNativeByScript(Logger::SCRIPT_TAG, *script),
+                *info->code(),
+                *result,
+                info,
+                isolate->heap()->empty_string()));
+      GDBJIT(AddCode(Handle<String>(), script, info->code(), info));
+    }
+
+    // Hint to the runtime system used when allocating space for initial
+    // property space by setting the expected number of properties for
+    // the instances of the function.
+    SetExpectedNofPropertiesFromEstimate(result,
+                                         lit->expected_property_count());
+
+    script->set_compilation_state(Script::COMPILATION_STATE_COMPILED);
   }
-
-  // Allocate function.
-  ASSERT(!info->code().is_null());
-  Handle<SharedFunctionInfo> result =
-      isolate->factory()->NewSharedFunctionInfo(
-          lit->name(),
-          lit->materialized_literal_count(),
-          lit->is_generator(),
-          info->code(),
-          ScopeInfo::Create(info->scope(), info->zone()));
-
-  ASSERT_EQ(RelocInfo::kNoPosition, lit->function_token_position());
-  Compiler::SetFunctionInfo(result, lit, true, script);
-
-  if (script->name()->IsString()) {
-    PROFILE(isolate, CodeCreateEvent(
-        info->is_eval()
-            ? Logger::EVAL_TAG
-            : Logger::ToNativeByScript(Logger::SCRIPT_TAG, *script),
-        *info->code(),
-        *result,
-        info,
-        String::cast(script->name())));
-    GDBJIT(AddCode(Handle<String>(String::cast(script->name())),
-                   script,
-                   info->code(),
-                   info));
-  } else {
-    PROFILE(isolate, CodeCreateEvent(
-        info->is_eval()
-            ? Logger::EVAL_TAG
-            : Logger::ToNativeByScript(Logger::SCRIPT_TAG, *script),
-        *info->code(),
-        *result,
-        info,
-        isolate->heap()->empty_string()));
-    GDBJIT(AddCode(Handle<String>(), script, info->code(), info));
-  }
-
-  // Hint to the runtime system used when allocating space for initial
-  // property space by setting the expected number of properties for
-  // the instances of the function.
-  SetExpectedNofPropertiesFromEstimate(result, lit->expected_property_count());
-
-  script->set_compilation_state(Script::COMPILATION_STATE_COMPILED);
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // Notify debugger

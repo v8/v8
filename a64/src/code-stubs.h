@@ -30,8 +30,9 @@
 
 #include "allocation.h"
 #include "assembler.h"
-#include "globals.h"
 #include "codegen.h"
+#include "globals.h"
+#include "macro-assembler.h"
 
 namespace v8 {
 namespace internal {
@@ -215,6 +216,7 @@ class CodeStub BASE_EMBEDDED {
   // Generates the assembler code for the stub.
   virtual Handle<Code> GenerateCode(Isolate* isolate) = 0;
 
+  virtual void VerifyPlatformFeatures(Isolate* isolate);
 
   // Returns whether the code generated for this stub needs to be allocated as
   // a fixed (non-moveable) code object.
@@ -285,7 +287,7 @@ enum StubFunctionMode { NOT_JS_FUNCTION_STUB_MODE, JS_FUNCTION_STUB_MODE };
 struct CodeStubInterfaceDescriptor {
   CodeStubInterfaceDescriptor();
   int register_param_count_;
-  const Register* stack_parameter_count_;
+  Register stack_parameter_count_;
   // if hint_stack_parameter_count_ > 0, the code stub can optimize the
   // return sequence. Default value is -1, which means it is ignored.
   int hint_stack_parameter_count_;
@@ -294,7 +296,7 @@ struct CodeStubInterfaceDescriptor {
   Address deoptimization_handler_;
 
   int environment_length() const {
-    if (stack_parameter_count_ != NULL) {
+    if (stack_parameter_count_.is_valid()) {
       return register_param_count_ + 1;
     }
     return register_param_count_;
@@ -325,7 +327,7 @@ struct CodeStubInterfaceDescriptor {
 // defined outside of the platform directories
 #define DESCRIPTOR_GET_PARAMETER_REGISTER(descriptor, index) \
   ((index) == (descriptor)->register_param_count_)           \
-      ? *((descriptor)->stack_parameter_count_)              \
+      ? (descriptor)->stack_parameter_count_                 \
       : (descriptor)->register_params_[(index)]
 
 
@@ -409,9 +411,7 @@ enum StringAddFlags {
   // Check right parameter.
   STRING_ADD_CHECK_RIGHT = 1 << 1,
   // Check both parameters.
-  STRING_ADD_CHECK_BOTH = STRING_ADD_CHECK_LEFT | STRING_ADD_CHECK_RIGHT,
-  // Stub needs a frame before calling the runtime
-  STRING_ADD_ERECT_FRAME = 1 << 2
+  STRING_ADD_CHECK_BOTH = STRING_ADD_CHECK_LEFT | STRING_ADD_CHECK_RIGHT
 };
 
 } }  // namespace v8::internal
@@ -482,6 +482,8 @@ class NumberToStringStub V8_FINAL : public HydrogenCodeStub {
   virtual void InitializeInterfaceDescriptor(
       Isolate* isolate,
       CodeStubInterfaceDescriptor* descriptor) V8_OVERRIDE;
+
+  static void InstallDescriptors(Isolate* isolate);
 
   // Parameters accessed via CodeStubGraphBuilder::GetParameter()
   static const int kNumber = 0;
@@ -1051,6 +1053,10 @@ class BinaryOpStub: public HydrogenCodeStub {
     return MONOMORPHIC;
   }
 
+  virtual void VerifyPlatformFeatures(Isolate* isolate) V8_OVERRIDE {
+    ASSERT(CpuFeatures::VerifyCrossCompiling(SSE2));
+  }
+
   virtual Code::ExtraICState GetExtraICState() {
     bool sse_field = Max(result_state_, Max(left_state_, right_state_)) > SMI &&
                      CpuFeatures::IsSafeForSnapshot(SSE2);
@@ -1355,6 +1361,11 @@ class CEntryStub : public PlatformCodeStub {
   // can generate both variants ahead of time.
   virtual bool IsPregenerated(Isolate* isolate) V8_OVERRIDE;
   static void GenerateAheadOfTime(Isolate* isolate);
+
+ protected:
+  virtual void VerifyPlatformFeatures(Isolate* isolate) V8_OVERRIDE {
+    ASSERT(CpuFeatures::VerifyCrossCompiling(SSE2));
+  };
 
  private:
   void GenerateCore(MacroAssembler* masm,
@@ -1797,6 +1808,11 @@ class DoubleToIStub : public PlatformCodeStub {
   void Generate(MacroAssembler* masm);
 
   virtual bool SometimesSetsUpAFrame() { return false; }
+
+ protected:
+  virtual void VerifyPlatformFeatures(Isolate* isolate) V8_OVERRIDE {
+    ASSERT(CpuFeatures::VerifyCrossCompiling(SSE2));
+  }
 
  private:
   static const int kBitsPerRegisterNumber = 6;

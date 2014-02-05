@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2013 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,15 +25,37 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include <windows.h>
+// Flags: --track-fields --track-double-fields --allow-natives-syntax
+// Flags: --concurrent-recompilation --block-concurrent-recompilation
 
-#include "../include/v8-preparser.h"
+if (!%IsConcurrentRecompilationSupported()) {
+  print("Concurrent recompilation is disabled. Skipping this test.");
+  quit();
+}
 
-extern "C" {
-BOOL WINAPI DllMain(HANDLE hinstDLL,
-                    DWORD dwReason,
-                    LPVOID lpvReserved) {
-  // Do nothing.
-  return TRUE;
+function new_object() {
+  var o = {};
+  o.a = 1;
+  o.b = 2;
+  return o;
 }
+
+function add_field(obj) {
+  obj.c = 3;
 }
+
+add_field(new_object());
+add_field(new_object());
+%OptimizeFunctionOnNextCall(add_field, "concurrent");
+
+var o = new_object();
+// Kick off recompilation.
+add_field(o);
+// Invalidate transition map after compile graph has been created.
+o.c = 2.2;
+// In the mean time, concurrent recompiling is still blocked.
+assertUnoptimized(add_field, "no sync");
+// Let concurrent recompilation proceed.
+%UnblockConcurrentRecompilation();
+// Sync with background thread to conclude optimization that bailed out.
+assertUnoptimized(add_field, "sync");

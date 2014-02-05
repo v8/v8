@@ -728,7 +728,7 @@ void IncrementalMarking::VisitObject(Map* map, HeapObject* obj, int size) {
   IncrementalMarkingMarkingVisitor::IterateBody(map, obj);
 
   MarkBit mark_bit = Marking::MarkBitFrom(obj);
-#ifdef DEBUG
+#if ENABLE_SLOW_ASSERTS
   MemoryChunk* chunk = MemoryChunk::FromAddress(obj->address());
   SLOW_ASSERT(Marking::IsGrey(mark_bit) ||
               (obj->IsFiller() && Marking::IsWhite(mark_bit)) ||

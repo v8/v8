@@ -60,17 +60,18 @@ class FrameDescription;
 class TranslationIterator;
 class DeoptimizedFrameInfo;
 
+template<typename T>
 class HeapNumberMaterializationDescriptor BASE_EMBEDDED {
  public:
-  HeapNumberMaterializationDescriptor(Address slot_address, double val)
-      : slot_address_(slot_address), val_(val) { }
+  HeapNumberMaterializationDescriptor(T destination, double value)
+      : destination_(destination), value_(value) { }
 
-  Address slot_address() const { return slot_address_; }
-  double value() const { return val_; }
+  T destination() const { return destination_; }
+  double value() const { return value_; }
 
  private:
-  Address slot_address_;
-  double val_;
+  T destination_;
+  double value_;
 };
 
 
@@ -431,9 +432,10 @@ class Deoptimizer : public Malloced {
 
   // Deferred values to be materialized.
   List<Object*> deferred_objects_tagged_values_;
-  List<double> deferred_objects_double_values_;
+  List<HeapNumberMaterializationDescriptor<int> >
+      deferred_objects_double_values_;
   List<ObjectMaterializationDescriptor> deferred_objects_;
-  List<HeapNumberMaterializationDescriptor> deferred_heap_numbers_;
+  List<HeapNumberMaterializationDescriptor<Address> > deferred_heap_numbers_;
 
   // Output frame information. Only used during heap object materialization.
   List<Handle<JSFunction> > jsframe_functions_;
@@ -504,7 +506,15 @@ class FrameDescription {
   void SetCallerFp(unsigned offset, intptr_t value);
 
   intptr_t GetRegister(unsigned n) const {
-    ASSERT(n < ARRAY_SIZE(registers_));
+#if DEBUG
+    // This convoluted ASSERT is needed to work around a gcc problem that
+    // improperly detects an array bounds overflow in optimized debug builds
+    // when using a plain ASSERT.
+    if (n >= ARRAY_SIZE(registers_)) {
+      ASSERT(false);
+      return 0;
+    }
+#endif
     return registers_[n];
   }
 

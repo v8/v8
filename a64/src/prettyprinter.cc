@@ -200,8 +200,22 @@ void PrettyPrinter::VisitSwitchStatement(SwitchStatement* node) {
   Print(") { ");
   ZoneList<CaseClause*>* cases = node->cases();
   for (int i = 0; i < cases->length(); i++)
-    PrintCaseClause(cases->at(i));
+    Visit(cases->at(i));
   Print("}");
+}
+
+
+void PrettyPrinter::VisitCaseClause(CaseClause* clause) {
+  if (clause->is_default()) {
+    Print("default");
+  } else {
+    Print("case ");
+    Visit(clause->label());
+  }
+  Print(": ");
+  PrintStatements(clause->statements());
+  if (clause->statements()->length() > 0)
+    Print(" ");
 }
 
 
@@ -620,20 +634,6 @@ void PrettyPrinter::PrintFunctionLiteral(FunctionLiteral* function) {
 }
 
 
-void PrettyPrinter::PrintCaseClause(CaseClause* clause) {
-  if (clause->is_default()) {
-    Print("default");
-  } else {
-    Print("case ");
-    Visit(clause->label());
-  }
-  Print(": ");
-  PrintStatements(clause->statements());
-  if (clause->statements()->length() > 0)
-    Print(" ");
-}
-
-
 //-----------------------------------------------------------------------------
 
 class IndentedScope BASE_EMBEDDED {
@@ -757,18 +757,6 @@ void AstPrinter::PrintStatements(ZoneList<Statement*>* statements) {
 void AstPrinter::PrintArguments(ZoneList<Expression*>* arguments) {
   for (int i = 0; i < arguments->length(); i++) {
     Visit(arguments->at(i));
-  }
-}
-
-
-void AstPrinter::PrintCaseClause(CaseClause* clause) {
-  if (clause->is_default()) {
-    IndentedScope indent(this, "DEFAULT");
-    PrintStatements(clause->statements());
-  } else {
-    IndentedScope indent(this, "CASE");
-    Visit(clause->label());
-    PrintStatements(clause->statements());
   }
 }
 
@@ -900,7 +888,19 @@ void AstPrinter::VisitSwitchStatement(SwitchStatement* node) {
   PrintLabelsIndented(node->labels());
   PrintIndentedVisit("TAG", node->tag());
   for (int i = 0; i < node->cases()->length(); i++) {
-    PrintCaseClause(node->cases()->at(i));
+    Visit(node->cases()->at(i));
+  }
+}
+
+
+void AstPrinter::VisitCaseClause(CaseClause* clause) {
+  if (clause->is_default()) {
+    IndentedScope indent(this, "DEFAULT");
+    PrintStatements(clause->statements());
+  } else {
+    IndentedScope indent(this, "CASE");
+    Visit(clause->label());
+    PrintStatements(clause->statements());
   }
 }
 

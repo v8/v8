@@ -58,6 +58,7 @@
         ['component=="shared_library"', {
           'type': '<(component)',
           'sources': [
+            '../../src/defaults.cc',
             # Note: on non-Windows we still build this file so that gyp
             # has some sources to link into the component.
             '../../src/v8dll-main.cc',
@@ -208,6 +209,10 @@
         '../../src/accessors.h',
         '../../src/allocation.cc',
         '../../src/allocation.h',
+        '../../src/allocation-site-scopes.cc',
+        '../../src/allocation-site-scopes.h',
+        '../../src/allocation-tracker.cc',
+        '../../src/allocation-tracker.h',
         '../../src/api.cc',
         '../../src/api.h',
         '../../src/apiutils.h',
@@ -270,7 +275,6 @@
         '../../src/debug-agent.h',
         '../../src/debug.cc',
         '../../src/debug.h',
-        '../../src/defaults.cc',
         '../../src/deoptimizer.cc',
         '../../src/deoptimizer.h',
         '../../src/disasm.h',
@@ -344,6 +348,7 @@
         '../../src/hydrogen-environment-liveness.h',
         '../../src/hydrogen-escape-analysis.cc',
         '../../src/hydrogen-escape-analysis.h',
+        '../../src/hydrogen-flow-engine.h',
         '../../src/hydrogen-instructions.cc',
         '../../src/hydrogen-instructions.h',
         '../../src/hydrogen.cc',
@@ -901,6 +906,10 @@
             'BUILDING_V8_SHARED',
             'V8_SHARED',
           ],
+        }, {
+          'sources': [
+            '../../src/defaults.cc',
+          ],
         }],
         ['v8_postmortem_support=="true"', {
           'sources': [
@@ -976,6 +985,7 @@
           '../../src/array-iterator.js',
           '../../src/harmony-string.js',
           '../../src/harmony-array.js',
+          '../../src/harmony-math.js'
         ],
       },
       'actions': [

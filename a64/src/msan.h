@@ -25,33 +25,25 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --track-fields --track-double-fields --allow-natives-syntax
-// Flags: --concurrent-recompilation --concurrent-recompilation-delay=100
+// MemorySanitizer support.
 
-if (!%IsConcurrentRecompilationSupported()) {
-  print("Concurrent recompilation is disabled. Skipping this test.");
-  quit();
-}
+#ifndef V8_MSAN_H_
+#define V8_MSAN_H_
 
-function new_object() {
-  var o = {};
-  o.a = 1;
-  o.b = 2;
-  return o;
-}
+#ifndef __has_feature
+# define __has_feature(x) 0
+#endif
 
-function add_field(obj) {
-  obj.c = 3;
-}
+#if __has_feature(memory_sanitizer) && !defined(MEMORY_SANITIZER)
+# define MEMORY_SANITIZER
+#endif
 
-add_field(new_object());
-add_field(new_object());
-%OptimizeFunctionOnNextCall(add_field, "concurrent");
+#ifdef MEMORY_SANITIZER
+# include <sanitizer/msan_interface.h>
+// Marks a memory range as fully initialized.
+# define MSAN_MEMORY_IS_INITIALIZED(p, s) __msan_unpoison((p), (s))
+#else
+# define MSAN_MEMORY_IS_INITIALIZED(p, s)
+#endif
 
-var o = new_object();
-// Trigger optimization in the background thread.
-add_field(o);
-// Invalidate transition map while optimization is underway.
-o.c = 2.2;
-// Sync with background thread to conclude optimization that bailed out.
-assertUnoptimized(add_field, "sync");
+#endif  // V8_MSAN_H_

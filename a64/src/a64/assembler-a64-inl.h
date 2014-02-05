@@ -137,11 +137,6 @@ inline bool CPURegister::Is(const CPURegister& other) const {
 }
 
 
-inline bool CPURegister::is(const CPURegister& other) const {
-  return Is(other);
-}
-
-
 inline bool CPURegister::IsRegister() const {
   return type_ == kRegister;
 }
@@ -691,6 +686,12 @@ void RelocInfo::set_target_cell(Cell* cell, WriteBarrierMode mode) {
 
 static const int kCodeAgeSequenceSize = 5 * kInstructionSize;
 static const int kCodeAgeStubEntryOffset = 3 * kInstructionSize;
+
+
+Handle<Object> RelocInfo::code_age_stub_handle(Assembler* origin) {
+  UNREACHABLE();  // This should never be reached on A64.
+  return Handle<Object>();
+}
 
 
 Code* RelocInfo::code_age_stub() {

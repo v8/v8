@@ -416,8 +416,6 @@ void LCodeGen::CallCodeGeneric(Handle<Code> code,
   ASSERT(instr != NULL);
 
   Assembler::BlockConstPoolScope scope(masm_);
-  LPointerMap* pointers = instr->pointer_map();
-  RecordPosition(pointers->position());
   __ Call(code, mode);
   RecordSafepointWithLazyDeopt(instr, safepoint_mode);
 
@@ -508,9 +506,6 @@ void LCodeGen::CallRuntime(const Runtime::Function* function,
                            LInstruction* instr,
                            SaveFPRegsMode save_doubles) {
   ASSERT(instr != NULL);
-  LPointerMap* pointers = instr->pointer_map();
-  ASSERT(pointers != NULL);
-  RecordPosition(pointers->position());
 
   __ CallRuntime(function, num_arguments, save_doubles);
 
@@ -527,17 +522,10 @@ void LCodeGen::CallRuntimeFromDeferred(Runtime::FunctionId id,
 }
 
 
-void LCodeGen::RecordPosition(int position) {
+void LCodeGen::RecordAndWritePosition(int position) {
   if (position == RelocInfo::kNoPosition) return;
   masm()->positions_recorder()->RecordPosition(position);
-}
-
-
-void LCodeGen::RecordAndUpdatePosition(int position) {
-  if (position >= 0 && position != old_position_) {
-    masm()->positions_recorder()->RecordPosition(position);
-    old_position_ = position;
-  }
+  masm()->positions_recorder()->WriteRecordedPositions();
 }
 
 
@@ -585,7 +573,7 @@ void LCodeGen::RecordSafepoint(LPointerMap* pointers,
 
 
 void LCodeGen::RecordSafepoint(Safepoint::DeoptMode deopt_mode) {
-  LPointerMap empty_pointers(RelocInfo::kNoPosition, zone());
+  LPointerMap empty_pointers(zone());
   RecordSafepoint(&empty_pointers, deopt_mode);
 }
 
@@ -648,21 +636,7 @@ bool LCodeGen::GeneratePrologue() {
   ASSERT(__ StackPointer().Is(jssp));
   info()->set_prologue_offset(masm_->pc_offset());
   if (NeedsEagerFrame()) {
-    if (info()->IsStub()) {
-      // TODO(jbramley): Does x1 contain a JSFunction here, or does it already
-      // have the special STUB smi?
-      __ Mov(x10, Operand(Smi::FromInt(StackFrame::STUB)));
-      // Compiled stubs don't age, and so they don't need the predictable code
-      // ageing sequence.
-      __ Push(lr, fp, cp, x10);
-      __ Add(fp, jssp, 2 * kPointerSize);
-    } else {
-      // This call emits the following sequence in a way that can be patched for
-      // code ageing support:
-      //  Push(lr, fp, cp, x1);
-      //  Add(fp, jssp, 2 * kPointerSize);
-      __ EmitFrameSetupForCodeAgePatching();
-    }
+    __ Prologue(info()->IsStub() ? BUILD_STUB_FRAME : BUILD_FUNCTION_FRAME);
     frame_is_built_ = true;
     info_->AddNoFrameRange(0, masm_->pc_offset());
   }
@@ -756,8 +730,9 @@ bool LCodeGen::GenerateDeferredCode() {
     for (int i = 0; !is_aborted() && (i < deferred_.length()); i++) {
       LDeferredCode* code = deferred_[i];
 
-      int pos = instructions_->at(code->instruction_index())->position();
-      RecordAndUpdatePosition(pos);
+      HValue* value =
+          instructions_->at(code->instruction_index())->hydrogen_value();
+      RecordAndWritePosition(value->position());
 
       Comment(";;; <@%d,#%d> "
               "-------------------- Deferred %s --------------------",
@@ -1201,6 +1176,10 @@ Condition LCodeGen::TokenToCondition(Token::Value op, bool is_unsigned) {
     case Token::EQ_STRICT:
       cond = eq;
       break;
+    case Token::NE:
+    case Token::NE_STRICT:
+      cond = ne;
+      break;
     case Token::LT:
       cond = is_unsigned ? lo : lt;
       break;
@@ -1502,7 +1481,6 @@ void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
   __ Bind(&invoke);
   ASSERT(instr->HasPointerMap());
   LPointerMap* pointers = instr->pointer_map();
-  RecordPosition(pointers->position());
   SafepointGenerator safepoint_generator(this, pointers, Safepoint::kLazyDeopt);
   // The number of arguments is stored in argc (receiver) which is x0, as
   // expected by InvokeFunction.
@@ -1829,12 +1807,11 @@ void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
   Register call_kind_reg = x5;
 
   LPointerMap* pointers = instr->pointer_map();
-  RecordPosition(pointers->position());
 
   // If necessary, load the function object.
   if (function_reg.IsNone()) {
     function_reg = x1;
-    __ LoadHeapObject(function_reg, function);
+    __ LoadObject(function_reg, function);
   }
 
   if (FLAG_debug_code) {
@@ -2949,14 +2926,6 @@ void LCodeGen::DoInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr) {
 }
 
 
-void LCodeGen::DoInstanceSize(LInstanceSize* instr) {
-  Register object = ToRegister(instr->object());
-  Register result = ToRegister(instr->result());
-  __ Ldr(result, FieldMemOperand(object, HeapObject::kMapOffset));
-  __ Ldrb(result, FieldMemOperand(result, Map::kInstanceSizeOffset));
-}
-
-
 void LCodeGen::DoDeferredInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr) {
   Register result = ToRegister(instr->result());
   ASSERT(result.Is(x0));  // InstanceofStub returns its result in x0.
@@ -2972,7 +2941,7 @@ void LCodeGen::DoDeferredInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr) {
 
   // Prepare InstanceofStub arguments.
   ASSERT(ToRegister(instr->value()).Is(InstanceofStub::left()));
-  __ LoadHeapObject(InstanceofStub::right(), instr->function());
+  __ LoadObject(InstanceofStub::right(), instr->function());
 
   InstanceofStub stub(flags);
   CallCodeGeneric(stub.GetCode(isolate()),
@@ -3018,7 +2987,6 @@ void LCodeGen::DoInvokeFunction(LInvokeFunction* instr) {
   Handle<JSFunction> known_function = instr->hydrogen()->known_function();
   if (known_function.is_null()) {
     LPointerMap* pointers = instr->pointer_map();
-    RecordPosition(pointers->position());
     SafepointGenerator generator(this, pointers, Safepoint::kLazyDeopt);
     ParameterCount count(instr->arity());
     __ InvokeFunction(x1, count, CALL_FUNCTION, generator, CALL_AS_METHOD);
@@ -5156,15 +5124,19 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr,
   if (instr->truncating()) {
     Register output = ToRegister(instr->result());
     Register scratch2 = ToRegister(temp2);
-    Label undefined;
+    Label check_bools, undefined;
 
     // If it's not a heap number, jump to undefined check.
-    __ JumpIfNotRoot(scratch1, Heap::kHeapNumberMapRootIndex, &undefined);
+    __ JumpIfNotRoot(scratch1, Heap::kHeapNumberMapRootIndex, &check_bools);
 
     // A heap number: load value and convert to int32 using truncating function.
     __ Ldr(dbl_scratch1, FieldMemOperand(input, HeapNumber::kValueOffset));
     __ ECMA262ToInt32(output, dbl_scratch1, scratch1, scratch2);
     __ B(&done);
+
+    __ Bind(&check_bools);
+
+    TODO_UNIMPLEMENTED("LTaggedToI: Truncate booleans to 0 or 1.");
 
     // Check for undefined. Undefined is converted to zero for truncating
     // conversions.
@@ -5261,7 +5233,7 @@ void LCodeGen::DoRegExpLiteral(LRegExpLiteral* instr) {
   // x10-x12 are used as temporaries.
   int literal_offset =
       FixedArray::OffsetOfElementAt(instr->hydrogen()->literal_index());
-  __ LoadHeapObject(x7, instr->hydrogen()->literals());
+  __ LoadObject(x7, instr->hydrogen()->literals());
   __ Ldr(x1, FieldMemOperand(x7, literal_offset));
   __ JumpIfNotRoot(x1, Heap::kUndefinedValueRootIndex, &materialized);
 
@@ -5341,8 +5313,11 @@ void LCodeGen::DoTrapAllocationMemento(LTrapAllocationMemento* instr) {
   Register object = ToRegister(instr->object());
   Register temp1 = ToRegister(instr->temp1());
   Register temp2 = ToRegister(instr->temp2());
-  __ TestJSArrayForAllocationMemento(object, temp1, temp2);
-  DeoptimizeIf(eq, instr->environment());
+
+  Label no_memento_found;
+  __ JumpIfJSArrayHasAllocationMemento(object, temp1, temp2, &no_memento_found);
+  Deoptimize(instr->environment());
+  __ Bind(&no_memento_found);
 }
 
 
@@ -5455,6 +5430,18 @@ void LCodeGen::DoTypeofIsAndBranch(LTypeofIsAndBranch* instr) {
 
 void LCodeGen::DoUint32ToDouble(LUint32ToDouble* instr) {
   __ Ucvtf(ToDoubleRegister(instr->result()), ToRegister32(instr->value()));
+}
+
+
+void LCodeGen::DoUint32ToSmi(LUint32ToSmi* instr) {
+  Register value = ToRegister(instr->value());
+  Register result = ToRegister(instr->result());
+
+  if (!instr->hydrogen()->value()->HasRange() ||
+      !instr->hydrogen()->value()->range()->IsInSmiRange()) {
+    DeoptimizeIfNegative(value.W(), instr->environment());
+  }
+  __ SmiTag(result, value);
 }
 
 

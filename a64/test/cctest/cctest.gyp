@@ -56,6 +56,7 @@
         'test-circular-queue.cc',
         'test-compiler.cc',
         'test-condition-variable.cc',
+        'test-constantpool.cc',
         'test-conversions.cc',
         'test-cpu.cc',
         'test-cpu-profiler.cc',

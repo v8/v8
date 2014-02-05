@@ -28,8 +28,8 @@
 #ifndef V8_PLATFORM_ELAPSED_TIMER_H_
 #define V8_PLATFORM_ELAPSED_TIMER_H_
 
-#include "checks.h"
-#include "platform/time.h"
+#include "../checks.h"
+#include "time.h"
 
 namespace v8 {
 namespace internal {

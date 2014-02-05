@@ -73,33 +73,23 @@ TEST(MarkingDeque) {
 
 
 TEST(Promotion) {
-  // This test requires compaction. If compaction is turned off, we
-  // skip the entire test.
-  if (FLAG_never_compact) return;
-
   CcTest::InitializeVM();
-
-  // Ensure that we get a compacting collection so that objects are promoted
-  // from new space.
-  FLAG_gc_global = true;
-  FLAG_always_compact = true;
   Heap* heap = CcTest::heap();
-  heap->ConfigureHeap(2*256*KB, 8*MB, 8*MB);
+  heap->ConfigureHeap(2*256*KB, 1*MB, 1*MB);
 
   v8::HandleScope sc(CcTest::isolate());
 
   // Allocate a fixed array in the new space.
-  int array_size =
+  int array_length =
       (Page::kMaxNonCodeHeapObjectSize - FixedArray::kHeaderSize) /
-      (kPointerSize * 4);
-  Object* obj = heap->AllocateFixedArray(array_size)->ToObjectChecked();
-
+      (4 * kPointerSize);
+  Object* obj = heap->AllocateFixedArray(array_length)->ToObjectChecked();
   Handle<FixedArray> array(FixedArray::cast(obj));
 
   // Array should be in the new space.
   CHECK(heap->InSpace(*array, NEW_SPACE));
 
-  // Call the m-c collector, so array becomes an old object.
+  // Call mark compact GC, so array becomes an old object.
   heap->CollectGarbage(OLD_POINTER_SPACE);
 
   // Array now sits in the old space
@@ -108,42 +98,27 @@ TEST(Promotion) {
 
 
 TEST(NoPromotion) {
-  // Test the situation that some objects in new space are promoted to
-  // the old space
   CcTest::InitializeVM();
-
-  CcTest::heap()->ConfigureHeap(2*256*KB, 8*MB, 8*MB);
+  Heap* heap = CcTest::heap();
+  heap->ConfigureHeap(2*256*KB, 1*MB, 1*MB);
 
   v8::HandleScope sc(CcTest::isolate());
 
-  // Do a mark compact GC to shrink the heap.
-  CcTest::heap()->CollectGarbage(OLD_POINTER_SPACE);
-
-  // Allocate a big Fixed array in the new space.
-  int length = (Page::kMaxNonCodeHeapObjectSize -
-      FixedArray::kHeaderSize) / (2 * kPointerSize);
-  Object* obj = CcTest::heap()->AllocateFixedArray(length)->
-      ToObjectChecked();
-
+  // Allocate a big fixed array in the new space.
+  int array_length =
+      (Page::kMaxNonCodeHeapObjectSize - FixedArray::kHeaderSize) /
+      (2 * kPointerSize);
+  Object* obj = heap->AllocateFixedArray(array_length)->ToObjectChecked();
   Handle<FixedArray> array(FixedArray::cast(obj));
 
-  // Array still stays in the new space.
-  CHECK(CcTest::heap()->InSpace(*array, NEW_SPACE));
+  // Array should be in the new space.
+  CHECK(heap->InSpace(*array, NEW_SPACE));
 
-  // Allocate objects in the old space until out of memory.
-  FixedArray* host = *array;
-  while (true) {
-    Object* obj;
-    { MaybeObject* maybe_obj = CcTest::heap()->AllocateFixedArray(100, TENURED);
-      if (!maybe_obj->ToObject(&obj)) break;
-    }
-
-    host->set(0, obj);
-    host = FixedArray::cast(obj);
-  }
+  // Simulate a full old space to make promotion fail.
+  SimulateFullSpace(heap->old_pointer_space());
 
   // Call mark compact GC, and it should pass.
-  CcTest::heap()->CollectGarbage(OLD_POINTER_SPACE);
+  heap->CollectGarbage(OLD_POINTER_SPACE);
 }
 
 

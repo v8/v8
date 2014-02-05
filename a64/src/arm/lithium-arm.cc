@@ -656,7 +656,7 @@ LInstruction* LChunkBuilder::MarkAsCall(LInstruction* instr,
 
 LInstruction* LChunkBuilder::AssignPointerMap(LInstruction* instr) {
   ASSERT(!instr->HasPointerMap());
-  instr->set_pointer_map(new(zone()) LPointerMap(position_, zone()));
+  instr->set_pointer_map(new(zone()) LPointerMap(zone()));
   return instr;
 }
 
@@ -914,7 +914,6 @@ void LChunkBuilder::VisitInstruction(HInstruction* current) {
     }
 #endif
 
-    instr->set_position(position_);
     if (FLAG_stress_pointer_maps && !instr->HasPointerMap()) {
       instr = AssignPointerMap(instr);
     }
@@ -1079,12 +1078,6 @@ LInstruction* LChunkBuilder::DoInstanceOfKnownGlobal(
           UseFixed(instr->left(), r0),
           FixedTemp(r4));
   return MarkAsCall(DefineFixed(result, r0), instr);
-}
-
-
-LInstruction* LChunkBuilder::DoInstanceSize(HInstanceSize* instr) {
-  LOperand* object = UseRegisterAtStart(instr->object());
-  return DefineAsRegister(new(zone()) LInstanceSize(object));
 }
 
 
@@ -1952,7 +1945,6 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
   }
   if (from.IsTagged()) {
     if (to.IsDouble()) {
-      info()->MarkAsDeferredCalling();
       LOperand* value = UseRegister(instr->value());
       LNumberUntagD* res = new(zone()) LNumberUntagD(value);
       return AssignEnvironment(DefineAsRegister(res));
@@ -2022,8 +2014,9 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
     } else if (to.IsSmi()) {
       HValue* val = instr->value();
       LOperand* value = UseRegister(val);
-      LInstruction* result =
-          DefineSameAsFirst(new(zone()) LInteger32ToSmi(value));
+      LInstruction* result = val->CheckFlag(HInstruction::kUint32)
+          ? DefineSameAsFirst(new(zone()) LUint32ToSmi(value))
+          : DefineSameAsFirst(new(zone()) LInteger32ToSmi(value));
       if (val->HasRange() && val->range()->IsInSmiRange()) {
         return result;
       }

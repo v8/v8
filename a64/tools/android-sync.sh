@@ -88,7 +88,6 @@ function sync_dir {
 echo -n "sync to $ANDROID_V8/$OUTDIR/$ARCH_MODE"
 sync_file "$OUTDIR/$ARCH_MODE/cctest"
 sync_file "$OUTDIR/$ARCH_MODE/d8"
-sync_file "$OUTDIR/$ARCH_MODE/preparser"
 echo ""
 echo -n "sync to $ANDROID_V8/tools"
 sync_file tools/consarray.js

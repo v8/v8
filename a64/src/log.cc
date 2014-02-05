@@ -212,7 +212,7 @@ void CodeEventLogger::CodeCreateEvent(Logger::LogEventsAndTags tag,
                                       Code* code,
                                       SharedFunctionInfo* shared,
                                       CompilationInfo* info,
-                                      Name* source, int line) {
+                                      Name* source, int line, int column) {
   name_buffer_->Init(tag);
   name_buffer_->AppendBytes(ComputeMarker(code));
   name_buffer_->AppendString(shared->DebugName());
@@ -1232,10 +1232,11 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
                              SharedFunctionInfo* shared,
                              CompilationInfo* info,
                              Name* source, int line, int column) {
-  PROFILER_LOG(CodeCreateEvent(tag, code, shared, info, source, line));
+  PROFILER_LOG(CodeCreateEvent(tag, code, shared, info, source, line, column));
 
   if (!is_logging_code_events()) return;
-  CALL_LISTENERS(CodeCreateEvent(tag, code, shared, info, source, line));
+  CALL_LISTENERS(CodeCreateEvent(tag, code, shared, info, source, line,
+                                 column));
 
   if (!FLAG_log_code || !log_->IsEnabled()) return;
   Log::MessageBuilder msg(log_);

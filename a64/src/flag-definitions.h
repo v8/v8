@@ -182,6 +182,7 @@ DEFINE_bool(harmony_numeric_literals, false,
             "enable harmony numeric literals (0o77, 0b11)")
 DEFINE_bool(harmony_strings, false, "enable harmony string")
 DEFINE_bool(harmony_arrays, false, "enable harmony arrays")
+DEFINE_bool(harmony_maths, false, "enable harmony math functions")
 DEFINE_bool(harmony, false, "enable all harmony features (except typeof)")
 DEFINE_implication(harmony, harmony_scoping)
 DEFINE_implication(harmony, harmony_modules)
@@ -194,19 +195,21 @@ DEFINE_implication(harmony, harmony_iteration)
 DEFINE_implication(harmony, harmony_numeric_literals)
 DEFINE_implication(harmony, harmony_strings)
 DEFINE_implication(harmony, harmony_arrays)
+DEFINE_implication(harmony, harmony_maths)
 DEFINE_implication(harmony_modules, harmony_scoping)
 DEFINE_implication(harmony_observation, harmony_collections)
 
 // Flags for experimental implementation features.
 DEFINE_bool(packed_arrays, true, "optimizes arrays that have no holes")
 DEFINE_bool(smi_only_arrays, true, "tracks arrays with only smi values")
-DEFINE_bool(clever_optimizations,
-            true,
+DEFINE_bool(clever_optimizations, true,
             "Optimize object size, Array shift, DOM strings and string +")
 DEFINE_bool(pretenuring, true, "allocate objects in old space")
 // TODO(hpayer): We will remove this flag as soon as we have pretenuring
 // support for specific allocation sites.
 DEFINE_bool(pretenuring_call_new, false, "pretenure call new")
+DEFINE_bool(allocation_site_pretenuring, false,
+            "pretenure with allocation sites")
 DEFINE_bool(track_fields, true, "track fields with only smi values")
 DEFINE_bool(track_double_fields, true, "track fields with double values")
 DEFINE_bool(track_heap_object_fields, true, "track fields with heap values")
@@ -232,7 +235,7 @@ DEFINE_bool(use_range, true, "use hydrogen range analysis")
 DEFINE_bool(use_gvn, true, "use hydrogen global value numbering")
 DEFINE_bool(use_canonicalizing, true, "use hydrogen instruction canonicalizing")
 DEFINE_bool(use_inlining, true, "use function inlining")
-DEFINE_bool(use_escape_analysis, false, "use hydrogen escape analysis")
+DEFINE_bool(use_escape_analysis, true, "use hydrogen escape analysis")
 DEFINE_bool(use_allocation_folding, true, "use allocation folding")
 DEFINE_int(max_inlining_levels, 5, "maximum number of inlining levels")
 DEFINE_int(max_inlined_source_size, 600,
@@ -243,8 +246,7 @@ DEFINE_int(max_inlined_nodes_cumulative, 400,
            "maximum cumulative number of AST nodes considered for inlining")
 DEFINE_bool(loop_invariant_code_motion, true, "loop invariant code motion")
 DEFINE_bool(fast_math, true, "faster (but maybe less accurate) math functions")
-DEFINE_bool(collect_megamorphic_maps_from_stub_cache,
-            true,
+DEFINE_bool(collect_megamorphic_maps_from_stub_cache, true,
             "crankshaft harvests type feedback from stub cache")
 DEFINE_bool(hydrogen_stats, false, "print statistics for hydrogen")
 DEFINE_bool(trace_check_elimination, false, "trace check elimination phase")
@@ -268,11 +270,9 @@ DEFINE_bool(trace_migration, false, "trace object migration")
 DEFINE_bool(trace_generalization, false, "trace map generalization")
 DEFINE_bool(stress_pointer_maps, false, "pointer map for every instruction")
 DEFINE_bool(stress_environments, false, "environment for every instruction")
-DEFINE_int(deopt_every_n_times,
-           0,
+DEFINE_int(deopt_every_n_times, 0,
            "deoptimize every n times a deopt point is passed")
-DEFINE_int(deopt_every_n_garbage_collections,
-           0,
+DEFINE_int(deopt_every_n_garbage_collections, 0,
            "deoptimize every n garbage collections")
 DEFINE_bool(print_deopt_stress, false, "print number of possible deopt points")
 DEFINE_bool(trap_on_deopt, false, "put a break point before deoptimizing")
@@ -311,6 +311,8 @@ DEFINE_bool(inline_construct, true, "inline constructor calls")
 DEFINE_bool(inline_arguments, true, "inline functions with arguments object")
 DEFINE_bool(inline_accessors, true, "inline JavaScript accessors")
 DEFINE_int(loop_weight, 1, "loop weight for representation inference")
+DEFINE_int(escape_analysis_iterations, 1,
+           "maximum number of escape analysis fix-point iterations")
 
 DEFINE_bool(optimize_for_in, true,
             "optimize functions containing for-in loops")
@@ -326,6 +328,8 @@ DEFINE_int(concurrent_recompilation_queue_length, 8,
            "the length of the concurrent compilation queue")
 DEFINE_int(concurrent_recompilation_delay, 0,
            "artificial compilation delay in ms")
+DEFINE_bool(block_concurrent_recompilation, false,
+            "block queued jobs until released")
 DEFINE_bool(concurrent_osr, false,
             "concurrent on-stack replacement")
 DEFINE_implication(concurrent_osr, concurrent_recompilation)
@@ -400,8 +404,7 @@ DEFINE_bool(enable_vldr_imm, false,
 DEFINE_string(expose_natives_as, NULL, "expose natives in global object")
 DEFINE_string(expose_debug_as, NULL, "expose debug in global object")
 DEFINE_bool(expose_gc, false, "expose gc extension")
-DEFINE_string(expose_gc_as,
-              NULL,
+DEFINE_string(expose_gc_as, NULL,
               "expose gc extension under the specified name")
 DEFINE_implication(expose_gc_as, expose_gc)
 DEFINE_bool(expose_externalize_string, false,
@@ -422,8 +425,7 @@ DEFINE_bool(stack_trace_on_abort, true,
 DEFINE_bool(trace_codegen, false,
             "print name of functions for which code is generated")
 DEFINE_bool(trace, false, "trace function calls")
-DEFINE_bool(mask_constants_with_cookie,
-            true,
+DEFINE_bool(mask_constants_with_cookie, true,
             "use random jit cookie to mask large constants")
 
 // codegen.cc
@@ -511,7 +513,7 @@ DEFINE_bool(collect_maps, true,
             "garbage collect maps from which no objects can be reached")
 DEFINE_bool(weak_embedded_maps_in_optimized_code, true,
             "make maps embedded in optimized code weak")
-DEFINE_bool(weak_embedded_objects_in_optimized_code, false,
+DEFINE_bool(weak_embedded_objects_in_optimized_code, true,
             "make objects embedded in optimized code weak")
 DEFINE_bool(flush_code, true,
             "flush code that we expect not to use again (during full gc)")
@@ -534,6 +536,12 @@ DEFINE_int(sweeper_threads, 0,
 #ifdef VERIFY_HEAP
 DEFINE_bool(verify_heap, false, "verify heap pointers before and after GC")
 #endif
+
+
+// heap-snapshot-generator.cc
+DEFINE_bool(heap_profiler_trace_objects, false,
+            "Dump heap object allocations/movements/size_updates")
+
 
 // v8.cc
 DEFINE_bool(use_idle_notification, true,
@@ -603,18 +611,15 @@ DEFINE_bool(trace_exception, false,
             "print stack trace when throwing exceptions")
 DEFINE_bool(preallocate_message_memory, false,
             "preallocate some memory to build stack traces.")
-DEFINE_bool(randomize_hashes,
-            true,
+DEFINE_bool(randomize_hashes, true,
             "randomize hashes to avoid predictable hash collisions "
             "(with snapshots this option cannot override the baked-in seed)")
-DEFINE_int(hash_seed,
-           0,
+DEFINE_int(hash_seed, 0,
            "Fixed seed to use to hash property keys (0 means random)"
            "(with snapshots this option cannot override the baked-in seed)")
 
 // snapshot-common.cc
-DEFINE_bool(profile_deserialization,
-            false,
+DEFINE_bool(profile_deserialization, false,
             "Print the time it takes to deserialize the snapshot.")
 
 // v8.cc
@@ -644,8 +649,7 @@ DEFINE_string(extra_code, NULL, "A filename with extra code to be included in"
                   " the snapshot (mksnapshot only)")
 
 // code-stubs-hydrogen.cc
-DEFINE_bool(profile_hydrogen_code_stub_compilation,
-            false,
+DEFINE_bool(profile_hydrogen_code_stub_compilation, false,
             "Print the time it takes to lazily compile hydrogen code stubs.")
 
 //
@@ -708,8 +712,10 @@ DEFINE_bool(stress_compaction, false,
 #endif
 
 // checks.cc
+#ifdef ENABLE_SLOW_ASSERTS
 DEFINE_bool(enable_slow_asserts, false,
             "enable asserts that are slow to execute")
+#endif
 
 // codegen-ia32.cc / codegen-arm.cc / macro-assembler-*.cc
 DEFINE_bool(print_source, false, "pretty print source code")
@@ -746,8 +752,7 @@ DEFINE_bool(print_interface_details, false, "print interface inference details")
 DEFINE_int(print_interface_depth, 5, "depth for printing interfaces")
 
 // objects.cc
-DEFINE_bool(trace_normalization,
-            false,
+DEFINE_bool(trace_normalization, false,
             "prints when objects are turned into dictionaries.")
 
 // runtime.cc
@@ -761,12 +766,10 @@ DEFINE_bool(collect_heap_spill_statistics, false,
 DEFINE_bool(trace_isolates, false, "trace isolate state changes")
 
 // Regexp
-DEFINE_bool(regexp_possessive_quantifier,
-            false,
+DEFINE_bool(regexp_possessive_quantifier, false,
             "enable possessive quantifier syntax for testing")
 DEFINE_bool(trace_regexp_bytecodes, false, "trace regexp bytecode execution")
-DEFINE_bool(trace_regexp_assembler,
-            false,
+DEFINE_bool(trace_regexp_assembler, false,
             "trace regexp macro assembler calls.")
 
 //
@@ -823,14 +826,15 @@ DEFINE_int(log_instruction_period, 1 << 22,
 // elements.cc
 DEFINE_bool(trace_elements_transitions, false, "trace elements transitions")
 
+DEFINE_bool(trace_creation_allocation_sites, false,
+            "trace the creation of allocation sites")
+
 // code-stubs.cc
 DEFINE_bool(print_code_stubs, false, "print code stubs")
-DEFINE_bool(test_secondary_stub_cache,
-            false,
+DEFINE_bool(test_secondary_stub_cache, false,
             "test secondary stub cache by disabling the primary one")
 
-DEFINE_bool(test_primary_stub_cache,
-            false,
+DEFINE_bool(test_primary_stub_cache, false,
             "test primary stub cache by disabling the secondary one")
 
 
@@ -841,8 +845,19 @@ DEFINE_bool(print_unopt_code, false, "print unoptimized code before "
             "printing optimized code based on it")
 DEFINE_bool(print_code_verbose, false, "print more information for code")
 DEFINE_bool(print_builtin_code, false, "print generated code for builtins")
+DEFINE_bool(emit_opt_code_positions, false,
+            "annotate optimize code with source code positions")
 
 #ifdef ENABLE_DISASSEMBLER
+DEFINE_bool(sodium, false, "print generated code output suitable for use with "
+            "the Sodium code viewer")
+
+DEFINE_implication(sodium, print_code_stubs)
+DEFINE_implication(sodium, print_code)
+DEFINE_implication(sodium, print_opt_code)
+DEFINE_implication(sodium, emit_opt_code_positions)
+DEFINE_implication(sodium, code_comments)
+
 DEFINE_bool(print_all_code, false, "enable all flags related to printing code")
 DEFINE_implication(print_all_code, print_code)
 DEFINE_implication(print_all_code, print_opt_code)

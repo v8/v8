@@ -548,7 +548,7 @@ LInstruction* LChunkBuilder::MarkAsCall(LInstruction* instr,
 
 LInstruction* LChunkBuilder::AssignPointerMap(LInstruction* instr) {
   ASSERT(!instr->HasPointerMap());
-  instr->set_pointer_map(new(zone()) LPointerMap(position_, zone()));
+  instr->set_pointer_map(new(zone()) LPointerMap(zone()));
   return instr;
 }
 
@@ -742,7 +742,6 @@ void LChunkBuilder::VisitInstruction(HInstruction* current) {
     }
 #endif
 
-    instr->set_position(position_);
     if (FLAG_stress_pointer_maps && !instr->HasPointerMap()) {
       instr = AssignPointerMap(instr);
     }
@@ -1161,7 +1160,6 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
 
   if (from.IsTagged()) {
     if (to.IsDouble()) {
-      info()->MarkAsDeferredCalling();
       LOperand* value = UseRegister(instr->value());
       LOperand* temp = TempRegister();
       LNumberUntagD* res = new(zone()) LNumberUntagD(value, temp);
@@ -1218,10 +1216,8 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
   } else if (from.IsInteger32()) {
     info()->MarkAsDeferredCalling();
     if (to.IsTagged()) {
-      HValue* val = instr->value();
-
-      if (val->CheckFlag(HInstruction::kUint32)) {
-        LOperand* value = UseRegister(val);
+      if (instr->value()->CheckFlag(HInstruction::kUint32)) {
+        LOperand* value = UseRegister(instr->value());
         LNumberTagU* result = new(zone()) LNumberTagU(value,
                                                       TempRegister(),
                                                       TempRegister());
@@ -1229,13 +1225,18 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
       } else {
         STATIC_ASSERT((kMinInt == Smi::kMinValue) &&
                       (kMaxInt == Smi::kMaxValue));
-        LOperand* value = UseRegisterAtStart(val);
+        LOperand* value = UseRegisterAtStart(instr->value());
         return DefineAsRegister(new(zone()) LSmiTag(value));
       }
     } else if (to.IsSmi()) {
       LOperand* value = UseRegisterAtStart(instr->value());
-      // This cannot deoptimize because an A64 smi can represent any int32.
-      return DefineAsRegister(new(zone()) LInteger32ToSmi(value));
+      if (instr->value()->CheckFlag(HInstruction::kUint32)) {
+        LUint32ToSmi* result = new(zone()) LUint32ToSmi(value);
+        return AssignEnvironment(DefineAsRegister(result));
+      } else {
+        // This cannot deoptimize because an A64 smi can represent any int32.
+        return DefineAsRegister(new(zone()) LInteger32ToSmi(value));
+      }
     } else {
       ASSERT(to.IsDouble());
       if (instr->value()->CheckFlag(HInstruction::kUint32)) {
@@ -1602,12 +1603,6 @@ LInstruction* LChunkBuilder::DoInstanceOfKnownGlobal(
   LInstanceOfKnownGlobal* result = new(zone()) LInstanceOfKnownGlobal(
       UseFixed(instr->left(), InstanceofStub::left()));
   return MarkAsCall(DefineFixed(result, x0), instr);
-}
-
-
-LInstruction* LChunkBuilder::DoInstanceSize(HInstanceSize* instr) {
-  LOperand* object = UseRegisterAtStart(instr->object());
-  return DefineAsRegister(new(zone()) LInstanceSize(object));
 }
 
 

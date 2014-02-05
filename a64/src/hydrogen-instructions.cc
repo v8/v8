@@ -743,6 +743,10 @@ void HInstruction::InsertBefore(HInstruction* next) {
   next_ = next;
   previous_ = prev;
   SetBlock(next->block());
+  if (position() == RelocInfo::kNoPosition &&
+      next->position() != RelocInfo::kNoPosition) {
+    set_position(next->position());
+  }
 }
 
 
@@ -776,6 +780,10 @@ void HInstruction::InsertAfter(HInstruction* previous) {
   if (next != NULL) next->previous_ = this;
   if (block->last() == previous) {
     block->set_last(this);
+  }
+  if (position() == RelocInfo::kNoPosition &&
+      previous->position() != RelocInfo::kNoPosition) {
+    set_position(previous->position());
   }
 }
 
@@ -1249,8 +1257,15 @@ static bool IsIdentityOperation(HValue* arg1, HValue* arg2, int32_t identity) {
 
 
 HValue* HAdd::Canonicalize() {
-  if (IsIdentityOperation(left(), right(), 0)) return left();
-  if (IsIdentityOperation(right(), left(), 0)) return right();
+  // Adding 0 is an identity operation except in case of -0: -0 + 0 = +0
+  if (IsIdentityOperation(left(), right(), 0) &&
+      !left()->representation().IsDouble()) {  // Left could be -0.
+    return left();
+  }
+  if (IsIdentityOperation(right(), left(), 0) &&
+      !left()->representation().IsDouble()) {  // Right could be -0.
+    return right();
+  }
   return this;
 }
 
@@ -1591,6 +1606,11 @@ Range* HConstant::InferRange(Zone* zone) {
     return result;
   }
   return HValue::InferRange(zone);
+}
+
+
+int HPhi::position() const {
+  return block()->first()->position();
 }
 
 
@@ -2398,6 +2418,12 @@ void HCapturedObject::ReplayEnvironment(HEnvironment* env) {
 }
 
 
+void HCapturedObject::PrintDataTo(StringStream* stream) {
+  stream->Add("#%d ", capture_id());
+  HDematerializedObject::PrintDataTo(stream);
+}
+
+
 void HEnterInlined::RegisterReturnTarget(HBasicBlock* return_target,
                                          Zone* zone) {
   ASSERT(return_target->IsInlineReturnTarget());
@@ -2559,6 +2585,7 @@ bool HConstant::EmitAtUses() {
   ASSERT(IsLinked());
   if (block()->graph()->has_osr() &&
       block()->graph()->IsStandardConstant(this)) {
+    // TODO(titzer): this seems like a hack that should be fixed by custom OSR.
     return true;
   }
   if (UseCount() == 0) return true;
@@ -4039,7 +4066,7 @@ Representation HValue::RepresentationFromUseRequirements() {
   Representation rep = Representation::None();
   for (HUseIterator it(uses()); !it.Done(); it.Advance()) {
     // Ignore the use requirement from never run code
-    if (it.value()->block()->IsDeoptimizing()) continue;
+    if (it.value()->block()->IsUnreachable()) continue;
 
     // We check for observed_input_representation elsewhere.
     Representation use_rep =

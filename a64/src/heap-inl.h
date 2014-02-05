@@ -206,6 +206,11 @@ MaybeObject* Heap::CopyFixedDoubleArray(FixedDoubleArray* src) {
 }
 
 
+MaybeObject* Heap::CopyConstantPoolArray(ConstantPoolArray* src) {
+  return CopyConstantPoolArrayWithMap(src, src->map());
+}
+
+
 MaybeObject* Heap::AllocateRaw(int size_in_bytes,
                                AllocationSpace space,
                                AllocationSpace retry_space) {
@@ -288,40 +293,6 @@ void Heap::FinalizeExternalString(String* string) {
     (*resource_addr)->Dispose();
     *resource_addr = NULL;
   }
-}
-
-
-MaybeObject* Heap::AllocateRawMap() {
-#ifdef DEBUG
-  isolate_->counters()->objs_since_last_full()->Increment();
-  isolate_->counters()->objs_since_last_young()->Increment();
-#endif
-  MaybeObject* result = map_space_->AllocateRaw(Map::kSize);
-  if (result->IsFailure()) old_gen_exhausted_ = true;
-  return result;
-}
-
-
-MaybeObject* Heap::AllocateRawCell() {
-#ifdef DEBUG
-  isolate_->counters()->objs_since_last_full()->Increment();
-  isolate_->counters()->objs_since_last_young()->Increment();
-#endif
-  MaybeObject* result = cell_space_->AllocateRaw(Cell::kSize);
-  if (result->IsFailure()) old_gen_exhausted_ = true;
-  return result;
-}
-
-
-MaybeObject* Heap::AllocateRawPropertyCell() {
-#ifdef DEBUG
-  isolate_->counters()->objs_since_last_full()->Increment();
-  isolate_->counters()->objs_since_last_young()->Increment();
-#endif
-  MaybeObject* result =
-      property_cell_space_->AllocateRaw(PropertyCell::kSize);
-  if (result->IsFailure()) old_gen_exhausted_ = true;
-  return result;
 }
 
 

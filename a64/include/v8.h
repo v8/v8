@@ -712,6 +712,7 @@ template <class T, class M> class Persistent {
   V8_INLINE T* operator*() const { return val_; }
 
  private:
+  friend class Isolate;
   friend class Utils;
   template<class F> friend class Handle;
   template<class F> friend class Local;
@@ -847,7 +848,7 @@ class V8_EXPORT EscapableHandleScope : public HandleScope {
  * value.
  */
 template<class T>
-struct V8_EXPORT Maybe {
+struct Maybe {
   Maybe() : has_value(false) {}
   explicit Maybe(T t) : has_value(true), value(t) {}
   Maybe(bool has, T t) : has_value(has), value(t) {}
@@ -2478,6 +2479,12 @@ class V8_EXPORT Function : public Object {
   Handle<Value> GetInferredName() const;
 
   /**
+   * User-defined name assigned to the "displayName" property of this function.
+   * Used to facilitate debugging and profiling of JavaScript code.
+   */
+  Handle<Value> GetDisplayName() const;
+
+  /**
    * Returns zero based line number of function body and
    * kLineOffsetNotFound if no information available.
    */
@@ -2487,6 +2494,11 @@ class V8_EXPORT Function : public Object {
    * kLineOffsetNotFound if no information available.
    */
   int GetScriptColumnNumber() const;
+
+  /**
+   * Tells whether this function is builtin.
+   */
+  bool IsBuiltin() const;
 
   /**
    * Returns scriptId object.
@@ -4066,8 +4078,8 @@ class V8_EXPORT Isolate {
    * garbage collection types it is sufficient to provide object groups
    * for partially dependent handles only.
    */
-  void SetObjectGroupId(const Persistent<Value>& object,
-                        UniqueId id);
+  template<typename T> void SetObjectGroupId(const Persistent<T>& object,
+                                             UniqueId id);
 
   /**
    * Allows the host application to declare implicit references from an object
@@ -4076,8 +4088,8 @@ class V8_EXPORT Isolate {
    * are removed. It is intended to be used in the before-garbage-collection
    * callback function.
    */
-  void SetReferenceFromGroup(UniqueId id,
-                             const Persistent<Value>& child);
+  template<typename T> void SetReferenceFromGroup(UniqueId id,
+                                                  const Persistent<T>& child);
 
   /**
    * Allows the host application to declare implicit references from an object
@@ -4085,8 +4097,8 @@ class V8_EXPORT Isolate {
    * too. After each garbage collection, all implicit references are removed. It
    * is intended to be used in the before-garbage-collection callback function.
    */
-  void SetReference(const Persistent<Object>& parent,
-                    const Persistent<Value>& child);
+  template<typename T, typename S>
+  void SetReference(const Persistent<T>& parent, const Persistent<S>& child);
 
   typedef void (*GCPrologueCallback)(Isolate* isolate,
                                      GCType type,
@@ -4140,8 +4152,11 @@ class V8_EXPORT Isolate {
   Isolate& operator=(const Isolate&);
   void* operator new(size_t size);
   void operator delete(void*, size_t);
-};
 
+  void SetObjectGroupId(internal::Object** object, UniqueId id);
+  void SetReferenceFromGroup(UniqueId id, internal::Object** object);
+  void SetReference(internal::Object** parent, internal::Object** child);
+};
 
 class V8_EXPORT StartupData {
  public:
@@ -5393,7 +5408,7 @@ class Internals {
   static const int kNullValueRootIndex = 7;
   static const int kTrueValueRootIndex = 8;
   static const int kFalseValueRootIndex = 9;
-  static const int kEmptyStringRootIndex = 131;
+  static const int kEmptyStringRootIndex = 132;
 
   static const int kNodeClassIdOffset = 1 * kApiPointerSize;
   static const int kNodeFlagsOffset = 1 * kApiPointerSize + 3;
@@ -5404,7 +5419,7 @@ class Internals {
   static const int kNodeIsIndependentShift = 4;
   static const int kNodeIsPartiallyDependentShift = 5;
 
-  static const int kJSObjectType = 0xb1;
+  static const int kJSObjectType = 0xb2;
   static const int kFirstNonstringType = 0x80;
   static const int kOddballType = 0x83;
   static const int kForeignType = 0x87;
@@ -6417,6 +6432,33 @@ void Isolate::SetData(void* data) {
 void* Isolate::GetData() {
   typedef internal::Internals I;
   return I::GetEmbedderData(this);
+}
+
+
+template<typename T>
+void Isolate::SetObjectGroupId(const Persistent<T>& object,
+                               UniqueId id) {
+  TYPE_CHECK(Value, T);
+  SetObjectGroupId(reinterpret_cast<v8::internal::Object**>(object.val_), id);
+}
+
+
+template<typename T>
+void Isolate::SetReferenceFromGroup(UniqueId id,
+                                    const Persistent<T>& object) {
+  TYPE_CHECK(Value, T);
+  SetReferenceFromGroup(id,
+                        reinterpret_cast<v8::internal::Object**>(object.val_));
+}
+
+
+template<typename T, typename S>
+void Isolate::SetReference(const Persistent<T>& parent,
+                           const Persistent<S>& child) {
+  TYPE_CHECK(Object, T);
+  TYPE_CHECK(Value, S);
+  SetReference(reinterpret_cast<v8::internal::Object**>(parent.val_),
+               reinterpret_cast<v8::internal::Object**>(child.val_));
 }
 
 

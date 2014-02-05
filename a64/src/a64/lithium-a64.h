@@ -107,7 +107,6 @@ class LCodeGen;
   V(InnerAllocatedObject)                       \
   V(InstanceOf)                                 \
   V(InstanceOfKnownGlobal)                      \
-  V(InstanceSize)                               \
   V(InstructionGap)                             \
   V(Integer32ToDouble)                          \
   V(Integer32ToSmi)                             \
@@ -192,6 +191,7 @@ class LCodeGen;
   V(Typeof)                                     \
   V(TypeofIsAndBranch)                          \
   V(Uint32ToDouble)                             \
+  V(Uint32ToSmi)                                \
   V(UnknownOSRValue)                            \
   V(ValueOf)                                    \
   V(WrapReceiver)
@@ -222,9 +222,7 @@ class LInstruction : public ZoneObject {
   LInstruction()
       : environment_(NULL),
         hydrogen_value_(NULL),
-        bit_field_(IsCallBits::encode(false)) {
-    set_position(RelocInfo::kNoPosition);
-  }
+        bit_field_(IsCallBits::encode(false)) { }
 
   virtual ~LInstruction() { }
 
@@ -264,15 +262,6 @@ class LInstruction : public ZoneObject {
   LPointerMap* pointer_map() const { return pointer_map_.get(); }
   bool HasPointerMap() const { return pointer_map_.is_set(); }
 
-  // The 31 bits PositionBits is used to store the int position value. And the
-  // position value may be RelocInfo::kNoPosition (-1). The accessor always
-  // +1/-1 so that the encoded value of position in bit_field_ is always >= 0
-  // and can fit into the 31 bits PositionBits.
-  void set_position(int32_t pos) {
-    bit_field_ = PositionBits::update(bit_field_, pos + 1);
-  }
-  int32_t position() { return PositionBits::decode(bit_field_) - 1; }
-
   void set_hydrogen_value(HValue* value) { hydrogen_value_ = value; }
   HValue* hydrogen_value() const { return hydrogen_value_; }
 
@@ -306,7 +295,6 @@ class LInstruction : public ZoneObject {
 
  private:
   class IsCallBits: public BitField<bool, 0, 1> {};
-  class PositionBits: public BitField<int, 1, 31> {};
 
   LEnvironment* environment_;
   SetOncePointer<LPointerMap> pointer_map_;
@@ -441,19 +429,6 @@ class LGap : public LTemplateInstruction<0, 0, 0> {
  private:
   LParallelMove* parallel_moves_[LAST_INNER_POSITION + 1];
   HBasicBlock* block_;
-};
-
-
-class LInstanceSize V8_FINAL : public LTemplateInstruction<1, 1, 0> {
- public:
-  explicit LInstanceSize(LOperand* object) {
-    inputs_[0] = object;
-  }
-
-  LOperand* object() { return inputs_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(InstanceSize, "instance-size")
-  DECLARE_HYDROGEN_ACCESSOR(InstanceSize)
 };
 
 
@@ -2732,6 +2707,19 @@ class LUint32ToDouble V8_FINAL : public LTemplateInstruction<1, 1, 0> {
   LOperand* value() { return inputs_[0]; }
 
   DECLARE_CONCRETE_INSTRUCTION(Uint32ToDouble, "uint32-to-double")
+};
+
+
+class LUint32ToSmi V8_FINAL : public LTemplateInstruction<1, 1, 0> {
+ public:
+  explicit LUint32ToSmi(LOperand* value) {
+    inputs_[0] = value;
+  }
+
+  LOperand* value() { return inputs_[0]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(Uint32ToSmi, "uint32-to-smi")
+  DECLARE_HYDROGEN_ACCESSOR(Change)
 };
 
 

@@ -104,7 +104,6 @@ class CPURegister {
   bool IsValidFPRegister() const;
   bool IsNone() const;
   bool Is(const CPURegister& other) const;
-  bool is(const CPURegister& other) const;  // V8 compatibility.
 
   bool IsZero() const;
   bool IsSP() const;
@@ -118,6 +117,10 @@ class CPURegister {
   const FPRegister& S();
 
   bool IsSameSizeAndType(const CPURegister& other) const;
+
+  // V8 compatibility.
+  bool is(const CPURegister& other) const { return Is(other); }
+  bool is_valid() const { return IsValid(); }
 
  protected:
   unsigned code_;

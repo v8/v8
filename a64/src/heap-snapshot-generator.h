@@ -33,6 +33,8 @@
 namespace v8 {
 namespace internal {
 
+class AllocationTracker;
+class AllocationTraceNode;
 class HeapEntry;
 class HeapSnapshot;
 
@@ -227,8 +229,12 @@ class HeapObjectsMap {
 
   void SnapshotGenerationFinished();
   SnapshotObjectId FindEntry(Address addr);
-  SnapshotObjectId FindOrAddEntry(Address addr, unsigned int size);
-  void MoveObject(Address from, Address to);
+  SnapshotObjectId FindOrAddEntry(Address addr,
+                                  unsigned int size,
+                                  bool accessed = true);
+  void MoveObject(Address from, Address to, int size);
+  void NewObject(Address addr, int size);
+  void UpdateObjectSize(Address addr, int size);
   SnapshotObjectId last_assigned_id() const {
     return next_id_ - kObjectIdStep;
   }
@@ -246,6 +252,10 @@ class HeapObjectsMap {
   static const SnapshotObjectId kNativesRootObjectId;
   static const SnapshotObjectId kGcRootsFirstSubrootId;
   static const SnapshotObjectId kFirstAvailableObjectId;
+
+  int FindUntrackedObjects();
+
+  void UpdateHeapObjectsMap();
 
  private:
   struct EntryInfo {
@@ -265,7 +275,6 @@ class HeapObjectsMap {
     uint32_t count;
   };
 
-  void UpdateHeapObjectsMap();
   void RemoveDeadEntries();
 
   SnapshotObjectId next_id_;
@@ -289,8 +298,8 @@ class HeapSnapshotsCollection {
   SnapshotObjectId PushHeapObjectsStats(OutputStream* stream) {
     return ids_.PushHeapObjectsStats(stream);
   }
-  void StartHeapObjectsTracking() { is_tracking_objects_ = true; }
-  void StopHeapObjectsTracking() { ids_.StopHeapObjectsTracking(); }
+  void StartHeapObjectsTracking();
+  void StopHeapObjectsTracking();
 
   HeapSnapshot* NewSnapshot(const char* name, unsigned uid);
   void SnapshotGenerationFinished(HeapSnapshot* snapshot);
@@ -298,6 +307,7 @@ class HeapSnapshotsCollection {
   void RemoveSnapshot(HeapSnapshot* snapshot);
 
   StringsStorage* names() { return &names_; }
+  AllocationTracker* allocation_tracker() { return allocation_tracker_; }
 
   SnapshotObjectId FindObjectId(Address object_addr) {
     return ids_.FindEntry(object_addr);
@@ -306,11 +316,21 @@ class HeapSnapshotsCollection {
     return ids_.FindOrAddEntry(object_addr, object_size);
   }
   Handle<HeapObject> FindHeapObjectById(SnapshotObjectId id);
-  void ObjectMoveEvent(Address from, Address to) { ids_.MoveObject(from, to); }
+  void ObjectMoveEvent(Address from, Address to, int size) {
+    ids_.MoveObject(from, to, size);
+  }
+  void NewObjectEvent(Address addr, int size);
+  void UpdateObjectSizeEvent(Address addr, int size) {
+    ids_.UpdateObjectSize(addr, size);
+  }
   SnapshotObjectId last_assigned_id() const {
     return ids_.last_assigned_id();
   }
   size_t GetUsedMemorySize() const;
+
+  int FindUntrackedObjects() { return ids_.FindUntrackedObjects(); }
+
+  void UpdateHeapObjectsMap() { ids_.UpdateHeapObjectsMap(); }
 
  private:
   bool is_tracking_objects_;  // Whether tracking object moves is needed.
@@ -318,6 +338,7 @@ class HeapSnapshotsCollection {
   StringsStorage names_;
   // Mapping from HeapObject addresses to objects' uids.
   HeapObjectsMap ids_;
+  AllocationTracker* allocation_tracker_;
 
   DISALLOW_COPY_AND_ASSIGN(HeapSnapshotsCollection);
 };
@@ -656,6 +677,9 @@ class HeapSnapshotJSONSerializer {
   void SerializeNode(HeapEntry* entry);
   void SerializeNodes();
   void SerializeSnapshot();
+  void SerializeTraceTree();
+  void SerializeTraceNode(AllocationTraceNode* node);
+  void SerializeTraceNodeInfos();
   void SerializeString(const unsigned char* s);
   void SerializeStrings();
 

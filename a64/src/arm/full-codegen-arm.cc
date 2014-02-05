@@ -148,13 +148,10 @@ void FullCodeGenerator::Generate() {
   // receiver object). r5 is zero for method calls and non-zero for
   // function calls.
   if (!info->is_classic_mode() || info->is_native()) {
-    Label ok;
     __ cmp(r5, Operand::Zero());
-    __ b(eq, &ok);
     int receiver_offset = info->scope()->num_parameters() * kPointerSize;
     __ LoadRoot(r2, Heap::kUndefinedValueRootIndex);
-    __ str(r2, MemOperand(sp, receiver_offset));
-    __ bind(&ok);
+    __ str(r2, MemOperand(sp, receiver_offset), ne);
   }
 
   // Open a frame scope to indicate that there is a frame on the stack.  The
@@ -163,16 +160,7 @@ void FullCodeGenerator::Generate() {
   FrameScope frame_scope(masm_, StackFrame::MANUAL);
 
   info->set_prologue_offset(masm_->pc_offset());
-  {
-    PredictableCodeSizeScope predictible_code_size_scope(
-        masm_, kNoCodeAgeSequenceLength * Assembler::kInstrSize);
-    // The following three instructions must remain together and unmodified
-    // for code aging to work properly.
-    __ stm(db_w, sp, r1.bit() | cp.bit() | fp.bit() | lr.bit());
-    __ nop(ip.code());
-    // Adjust FP to point to saved FP.
-    __ add(fp, sp, Operand(2 * kPointerSize));
-  }
+  __ Prologue(BUILD_FUNCTION_FRAME);
   info->AddNoFrameRange(0, masm_->pc_offset());
 
   { Comment cmnt(masm_, "[ Allocate locals");
@@ -1167,7 +1155,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
       Handle<Object>(Smi::FromInt(TypeFeedbackCells::kForInFastCaseMarker),
                      isolate()));
   RecordTypeFeedbackCell(stmt->ForInFeedbackId(), cell);
-  __ LoadHeapObject(r1, cell);
+  __ Move(r1, cell);
   __ mov(r2, Operand(Smi::FromInt(TypeFeedbackCells::kForInSlowCaseMarker)));
   __ str(r2, FieldMemOperand(r1, Cell::kValueOffset));
 

@@ -141,6 +141,8 @@ Heap::Heap()
       mark_sweeps_since_idle_round_started_(0),
       gc_count_at_last_idle_gc_(0),
       scavenges_since_last_idle_round_(kIdleScavengeThreshold),
+      full_codegen_bytes_generated_(0),
+      crankshaft_codegen_bytes_generated_(0),
       gcs_since_last_deopt_(0),
 #ifdef VERIFY_HEAP
       no_weak_object_verification_scope_depth_(0),
@@ -448,6 +450,10 @@ void Heap::GarbageCollectionPrologue() {
 #endif  // DEBUG
 
   store_buffer()->GCPrologue();
+
+  if (FLAG_concurrent_osr) {
+    isolate()->optimizing_compiler_thread()->AgeBufferedOsrJobs();
+  }
 }
 
 
@@ -508,10 +514,31 @@ void Heap::GarbageCollectionEpilogue() {
   isolate_->counters()->number_of_symbols()->Set(
       string_table()->NumberOfElements());
 
+  if (full_codegen_bytes_generated_ + crankshaft_codegen_bytes_generated_ > 0) {
+    isolate_->counters()->codegen_fraction_crankshaft()->AddSample(
+        static_cast<int>((crankshaft_codegen_bytes_generated_ * 100.0) /
+            (crankshaft_codegen_bytes_generated_
+            + full_codegen_bytes_generated_)));
+  }
+
   if (CommittedMemory() > 0) {
     isolate_->counters()->external_fragmentation_total()->AddSample(
         static_cast<int>(100 - (SizeOfObjects() * 100.0) / CommittedMemory()));
 
+    isolate_->counters()->heap_fraction_new_space()->
+        AddSample(static_cast<int>(
+            (new_space()->CommittedMemory() * 100.0) / CommittedMemory()));
+    isolate_->counters()->heap_fraction_old_pointer_space()->AddSample(
+        static_cast<int>(
+            (old_pointer_space()->CommittedMemory() * 100.0) /
+            CommittedMemory()));
+    isolate_->counters()->heap_fraction_old_data_space()->AddSample(
+        static_cast<int>(
+            (old_data_space()->CommittedMemory() * 100.0) /
+            CommittedMemory()));
+    isolate_->counters()->heap_fraction_code_space()->
+        AddSample(static_cast<int>(
+            (code_space()->CommittedMemory() * 100.0) / CommittedMemory()));
     isolate_->counters()->heap_fraction_map_space()->AddSample(
         static_cast<int>(
             (map_space()->CommittedMemory() * 100.0) / CommittedMemory()));
@@ -522,6 +549,9 @@ void Heap::GarbageCollectionEpilogue() {
         AddSample(static_cast<int>(
             (property_cell_space()->CommittedMemory() * 100.0) /
             CommittedMemory()));
+    isolate_->counters()->heap_fraction_lo_space()->
+        AddSample(static_cast<int>(
+            (lo_space()->CommittedMemory() * 100.0) / CommittedMemory()));
 
     isolate_->counters()->heap_sample_total_committed()->AddSample(
         static_cast<int>(CommittedMemory() / KB));
@@ -535,6 +565,8 @@ void Heap::GarbageCollectionEpilogue() {
         heap_sample_property_cell_space_committed()->
             AddSample(static_cast<int>(
                 property_cell_space()->CommittedMemory() / KB));
+    isolate_->counters()->heap_sample_code_space_committed()->AddSample(
+        static_cast<int>(code_space()->CommittedMemory() / KB));
   }
 
 #define UPDATE_COUNTERS_FOR_SPACE(space)                                       \
@@ -1957,6 +1989,7 @@ Address Heap::DoScavenge(ObjectVisitor* scavenge_visitor,
 
 
 STATIC_ASSERT((FixedDoubleArray::kHeaderSize & kDoubleAlignmentMask) == 0);
+STATIC_ASSERT((ConstantPoolArray::kHeaderSize & kDoubleAlignmentMask) == 0);
 
 
 INLINE(static HeapObject* EnsureDoubleAligned(Heap* heap,
@@ -2101,8 +2134,12 @@ class ScavengingVisitor : public StaticVisitorBase {
     if (logging_and_profiling_mode == LOGGING_AND_PROFILING_ENABLED) {
       // Update NewSpace stats if necessary.
       RecordCopiedObject(heap, target);
-      HEAP_PROFILE(heap, ObjectMoveEvent(source->address(), target->address()));
       Isolate* isolate = heap->isolate();
+      HeapProfiler* heap_profiler = isolate->heap_profiler();
+      if (heap_profiler->is_profiling()) {
+        heap_profiler->ObjectMoveEvent(source->address(), target->address(),
+                                       size);
+      }
       if (isolate->logger()->is_logging_code_events() ||
           isolate->cpu_profiler()->is_profiling()) {
         if (target->IsSharedFunctionInfo()) {
@@ -2399,7 +2436,7 @@ void Heap::ScavengeObjectSlow(HeapObject** p, HeapObject* object) {
 MaybeObject* Heap::AllocatePartialMap(InstanceType instance_type,
                                       int instance_size) {
   Object* result;
-  MaybeObject* maybe_result = AllocateRawMap();
+  MaybeObject* maybe_result = AllocateRaw(Map::kSize, MAP_SPACE, MAP_SPACE);
   if (!maybe_result->ToObject(&result)) return maybe_result;
 
   // Map::cast cannot be used due to uninitialized map field.
@@ -2424,7 +2461,7 @@ MaybeObject* Heap::AllocateMap(InstanceType instance_type,
                                int instance_size,
                                ElementsKind elements_kind) {
   Object* result;
-  MaybeObject* maybe_result = AllocateRawMap();
+  MaybeObject* maybe_result = AllocateRaw(Map::kSize, MAP_SPACE, MAP_SPACE);
   if (!maybe_result->To(&result)) return maybe_result;
 
   Map* map = reinterpret_cast<Map*>(result);
@@ -2655,6 +2692,12 @@ bool Heap::CreateInitialMaps() {
     if (!maybe_obj->ToObject(&obj)) return false;
   }
   set_fixed_double_array_map(Map::cast(obj));
+
+  { MaybeObject* maybe_obj =
+        AllocateMap(CONSTANT_POOL_ARRAY_TYPE, kVariableSizeSentinel);
+    if (!maybe_obj->ToObject(&obj)) return false;
+  }
+  set_constant_pool_array_map(Map::cast(obj));
 
   { MaybeObject* maybe_obj =
         AllocateMap(BYTE_ARRAY_TYPE, kVariableSizeSentinel);
@@ -2910,8 +2953,11 @@ MaybeObject* Heap::AllocateHeapNumber(double value, PretenureFlag pretenure) {
 
 
 MaybeObject* Heap::AllocateCell(Object* value) {
+  int size = Cell::kSize;
+  STATIC_ASSERT(Cell::kSize <= Page::kNonCodeObjectAreaSize);
+
   Object* result;
-  { MaybeObject* maybe_result = AllocateRawCell();
+  { MaybeObject* maybe_result = AllocateRaw(size, CELL_SPACE, CELL_SPACE);
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
   HeapObject::cast(result)->set_map_no_write_barrier(cell_map());
@@ -2920,9 +2966,13 @@ MaybeObject* Heap::AllocateCell(Object* value) {
 }
 
 
-MaybeObject* Heap::AllocatePropertyCell(Object* value) {
+MaybeObject* Heap::AllocatePropertyCell() {
+  int size = PropertyCell::kSize;
+  STATIC_ASSERT(PropertyCell::kSize <= Page::kNonCodeObjectAreaSize);
+
   Object* result;
-  MaybeObject* maybe_result = AllocateRawPropertyCell();
+  MaybeObject* maybe_result =
+      AllocateRaw(size, PROPERTY_CELL_SPACE, PROPERTY_CELL_SPACE);
   if (!maybe_result->ToObject(&result)) return maybe_result;
 
   HeapObject::cast(result)->set_map_no_write_barrier(
@@ -2930,10 +2980,8 @@ MaybeObject* Heap::AllocatePropertyCell(Object* value) {
   PropertyCell* cell = PropertyCell::cast(result);
   cell->set_dependent_code(DependentCode::cast(empty_fixed_array()),
                            SKIP_WRITE_BARRIER);
-  cell->set_value(value);
+  cell->set_value(the_hole_value());
   cell->set_type(Type::None());
-  maybe_result = cell->SetValueInferType(value);
-  if (maybe_result->IsFailure()) return maybe_result;
   return result;
 }
 
@@ -4104,7 +4152,8 @@ MaybeObject* Heap::CreateCode(const CodeDesc& desc,
                               Code::Flags flags,
                               Handle<Object> self_reference,
                               bool immovable,
-                              bool crankshafted) {
+                              bool crankshafted,
+                              int prologue_offset) {
   // Allocate ByteArray before the Code object, so that we do not risk
   // leaving uninitialized Code object (and breaking the heap).
   ByteArray* reloc_info;
@@ -4154,10 +4203,18 @@ MaybeObject* Heap::CreateCode(const CodeDesc& desc,
   code->set_handler_table(empty_fixed_array(), SKIP_WRITE_BARRIER);
   code->set_gc_metadata(Smi::FromInt(0));
   code->set_ic_age(global_ic_age_);
-  code->set_prologue_offset(kPrologueOffsetNotSet);
+  code->set_prologue_offset(prologue_offset);
   if (code->kind() == Code::OPTIMIZED_FUNCTION) {
     code->set_marked_for_deoptimization(false);
   }
+
+#ifdef ENABLE_DEBUGGER_SUPPORT
+  if (code->kind() == Code::FUNCTION) {
+    code->set_has_debug_break_slots(
+        isolate_->debugger()->IsDebuggerActive());
+  }
+#endif
+
   // Allow self references to created code object by patching the handle to
   // point to the newly allocated Code object.
   if (!self_reference.is_null()) {
@@ -4813,73 +4870,6 @@ MaybeObject* Heap::AllocateJSFunctionProxy(Object* handler,
 }
 
 
-MaybeObject* Heap::AllocateGlobalObject(JSFunction* constructor) {
-  ASSERT(constructor->has_initial_map());
-  Map* map = constructor->initial_map();
-  ASSERT(map->is_dictionary_map());
-
-  // Make sure no field properties are described in the initial map.
-  // This guarantees us that normalizing the properties does not
-  // require us to change property values to PropertyCells.
-  ASSERT(map->NextFreePropertyIndex() == 0);
-
-  // Make sure we don't have a ton of pre-allocated slots in the
-  // global objects. They will be unused once we normalize the object.
-  ASSERT(map->unused_property_fields() == 0);
-  ASSERT(map->inobject_properties() == 0);
-
-  // Initial size of the backing store to avoid resize of the storage during
-  // bootstrapping. The size differs between the JS global object ad the
-  // builtins object.
-  int initial_size = map->instance_type() == JS_GLOBAL_OBJECT_TYPE ? 64 : 512;
-
-  // Allocate a dictionary object for backing storage.
-  NameDictionary* dictionary;
-  MaybeObject* maybe_dictionary =
-      NameDictionary::Allocate(
-          this,
-          map->NumberOfOwnDescriptors() * 2 + initial_size);
-  if (!maybe_dictionary->To(&dictionary)) return maybe_dictionary;
-
-  // The global object might be created from an object template with accessors.
-  // Fill these accessors into the dictionary.
-  DescriptorArray* descs = map->instance_descriptors();
-  for (int i = 0; i < map->NumberOfOwnDescriptors(); i++) {
-    PropertyDetails details = descs->GetDetails(i);
-    ASSERT(details.type() == CALLBACKS);  // Only accessors are expected.
-    PropertyDetails d = PropertyDetails(details.attributes(), CALLBACKS, i + 1);
-    Object* value = descs->GetCallbacksObject(i);
-    MaybeObject* maybe_value = AllocatePropertyCell(value);
-    if (!maybe_value->ToObject(&value)) return maybe_value;
-
-    MaybeObject* maybe_added = dictionary->Add(descs->GetKey(i), value, d);
-    if (!maybe_added->To(&dictionary)) return maybe_added;
-  }
-
-  // Allocate the global object and initialize it with the backing store.
-  JSObject* global;
-  MaybeObject* maybe_global = Allocate(map, OLD_POINTER_SPACE);
-  if (!maybe_global->To(&global)) return maybe_global;
-
-  InitializeJSObjectFromMap(global, dictionary, map);
-
-  // Create a new map for the global object.
-  Map* new_map;
-  MaybeObject* maybe_map = map->CopyDropDescriptors();
-  if (!maybe_map->To(&new_map)) return maybe_map;
-  new_map->set_dictionary_map(true);
-
-  // Set up the global object as a normalized object.
-  global->set_map(new_map);
-  global->set_properties(dictionary);
-
-  // Make sure result is a global object with properties in dictionary.
-  ASSERT(global->IsGlobalObject());
-  ASSERT(!global->HasFastProperties());
-  return global;
-}
-
-
 MaybeObject* Heap::CopyJSObject(JSObject* source, AllocationSite* site) {
   // Never used to copy functions.  If functions need to be copied we
   // have to be careful to clear the literals array.
@@ -4932,6 +4922,13 @@ MaybeObject* Heap::CopyJSObject(JSObject* source, AllocationSite* site) {
       alloc_memento->set_map_no_write_barrier(allocation_memento_map());
       ASSERT(site->map() == allocation_site_map());
       alloc_memento->set_allocation_site(site, SKIP_WRITE_BARRIER);
+      HeapProfiler* profiler = isolate()->heap_profiler();
+      if (profiler->is_tracking_allocations()) {
+        profiler->UpdateObjectSizeEvent(HeapObject::cast(clone)->address(),
+                                        object_size);
+        profiler->NewObjectEvent(alloc_memento->address(),
+                                 AllocationMemento::kSize);
+      }
     }
   }
 
@@ -5381,6 +5378,27 @@ MaybeObject* Heap::CopyFixedDoubleArrayWithMap(FixedDoubleArray* src,
 }
 
 
+MaybeObject* Heap::CopyConstantPoolArrayWithMap(ConstantPoolArray* src,
+                                                Map* map) {
+  int int64_entries = src->count_of_int64_entries();
+  int ptr_entries = src->count_of_ptr_entries();
+  int int32_entries = src->count_of_int32_entries();
+  Object* obj;
+  { MaybeObject* maybe_obj =
+        AllocateConstantPoolArray(int64_entries, ptr_entries, int32_entries);
+    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+  }
+  HeapObject* dst = HeapObject::cast(obj);
+  dst->set_map_no_write_barrier(map);
+  CopyBlock(
+      dst->address() + ConstantPoolArray::kLengthOffset,
+      src->address() + ConstantPoolArray::kLengthOffset,
+      ConstantPoolArray::SizeFor(int64_entries, ptr_entries, int32_entries)
+          - ConstantPoolArray::kLengthOffset);
+  return obj;
+}
+
+
 MaybeObject* Heap::AllocateRawFixedArray(int length, PretenureFlag pretenure) {
   if (length < 0 || length > FixedArray::kMaxLength) {
     return Failure::OutOfMemoryException(0xe);
@@ -5509,6 +5527,41 @@ MaybeObject* Heap::AllocateRawFixedDoubleArray(int length,
   }
 
   return EnsureDoubleAligned(this, object, size);
+}
+
+
+MaybeObject* Heap::AllocateConstantPoolArray(int number_of_int64_entries,
+                                             int number_of_ptr_entries,
+                                             int number_of_int32_entries) {
+  ASSERT(number_of_int64_entries > 0 || number_of_ptr_entries > 0 ||
+         number_of_int32_entries > 0);
+  int size = ConstantPoolArray::SizeFor(number_of_int64_entries,
+                                        number_of_ptr_entries,
+                                        number_of_int32_entries);
+#ifndef V8_HOST_ARCH_64_BIT
+  size += kPointerSize;
+#endif
+  AllocationSpace space = SelectSpace(size, OLD_POINTER_SPACE, TENURED);
+
+  HeapObject* object;
+  { MaybeObject* maybe_object = AllocateRaw(size, space, OLD_POINTER_SPACE);
+    if (!maybe_object->To<HeapObject>(&object)) return maybe_object;
+  }
+  object = EnsureDoubleAligned(this, object, size);
+  HeapObject::cast(object)->set_map_no_write_barrier(constant_pool_array_map());
+
+  ConstantPoolArray* constant_pool =
+      reinterpret_cast<ConstantPoolArray*>(object);
+  constant_pool->SetEntryCounts(number_of_int64_entries,
+                                number_of_ptr_entries,
+                                number_of_int32_entries);
+  MemsetPointer(
+      HeapObject::RawField(
+          constant_pool,
+          constant_pool->OffsetOfElementAt(constant_pool->first_ptr_index())),
+      undefined_value(),
+      number_of_ptr_entries);
+  return constant_pool;
 }
 
 
@@ -6891,6 +6944,9 @@ MaybeObject* Heap::AddWeakObjectToCodeDependency(Object* obj,
       WeakHashTable::cast(weak_object_to_code_table_)->Put(obj, dep);
   WeakHashTable* table;
   if (!maybe_obj->To(&table)) return maybe_obj;
+  if (ShouldZapGarbage() && weak_object_to_code_table_ != table) {
+    WeakHashTable::cast(weak_object_to_code_table_)->Zap(the_hole_value());
+  }
   set_weak_object_to_code_table(table);
   ASSERT_EQ(dep, WeakHashTable::cast(weak_object_to_code_table_)->Lookup(obj));
   return weak_object_to_code_table_;
@@ -7892,6 +7948,18 @@ void Heap::CheckpointObjectStats() {
   counters->size_of_FIXED_ARRAY_##name()->Decrement(      \
       static_cast<int>(object_sizes_last_time_[index]));
   FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(ADJUST_LAST_TIME_OBJECT_COUNT)
+#undef ADJUST_LAST_TIME_OBJECT_COUNT
+#define ADJUST_LAST_TIME_OBJECT_COUNT(name)                 \
+  index = FIRST_CODE_AGE_SUB_TYPE + Code::k##name##CodeAge; \
+  counters->count_of_CODE_AGE_##name()->Increment(          \
+      static_cast<int>(object_counts_[index]));             \
+  counters->count_of_CODE_AGE_##name()->Decrement(          \
+      static_cast<int>(object_counts_last_time_[index]));   \
+  counters->size_of_CODE_AGE_##name()->Increment(           \
+      static_cast<int>(object_sizes_[index]));              \
+  counters->size_of_CODE_AGE_##name()->Decrement(          \
+      static_cast<int>(object_sizes_last_time_[index]));
+  CODE_AGE_LIST_WITH_NO_AGE(ADJUST_LAST_TIME_OBJECT_COUNT)
 #undef ADJUST_LAST_TIME_OBJECT_COUNT
 
   OS::MemCopy(object_counts_last_time_, object_counts_, sizeof(object_counts_));

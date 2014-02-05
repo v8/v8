@@ -133,21 +133,7 @@ bool LCodeGen::GeneratePrologue() {
 
   info()->set_prologue_offset(masm_->pc_offset());
   if (NeedsEagerFrame()) {
-    if (info()->IsStub()) {
-      __ Push(ra, fp, cp);
-      __ Push(Smi::FromInt(StackFrame::STUB));
-      // Adjust FP to point to saved FP.
-      __ Addu(fp, sp, Operand(2 * kPointerSize));
-    } else {
-      // The following three instructions must remain together and unmodified
-      // for code aging to work properly.
-      __ Push(ra, fp, cp, a1);
-      // Add unused nop to ensure prologue sequence is identical for
-      // full-codegen and lithium-codegen.
-      __ nop(Assembler::CODE_AGE_SEQUENCE_NOP);
-      // Adj. FP to point to saved FP.
-      __ Addu(fp, sp, Operand(2 * kPointerSize));
-    }
+    __ Prologue(info()->IsStub() ? BUILD_STUB_FRAME : BUILD_FUNCTION_FRAME);
     frame_is_built_ = true;
     info_->AddNoFrameRange(0, masm_->pc_offset());
   }
@@ -253,8 +239,9 @@ bool LCodeGen::GenerateDeferredCode() {
     for (int i = 0; !is_aborted() && i < deferred_.length(); i++) {
       LDeferredCode* code = deferred_[i];
 
-      int pos = instructions_->at(code->instruction_index())->position();
-      RecordAndUpdatePosition(pos);
+      HValue* value =
+          instructions_->at(code->instruction_index())->hydrogen_value();
+      RecordAndWritePosition(value->position());
 
       Comment(";;; <@%d,#%d> "
               "-------------------- Deferred %s --------------------",
@@ -656,8 +643,6 @@ void LCodeGen::CallCodeGeneric(Handle<Code> code,
                                SafepointMode safepoint_mode) {
   EnsureSpaceForLazyDeopt(Deoptimizer::patch_size());
   ASSERT(instr != NULL);
-  LPointerMap* pointers = instr->pointer_map();
-  RecordPosition(pointers->position());
   __ Call(code, mode);
   RecordSafepointWithLazyDeopt(instr, safepoint_mode);
 }
@@ -668,9 +653,6 @@ void LCodeGen::CallRuntime(const Runtime::Function* function,
                            LInstruction* instr,
                            SaveFPRegsMode save_doubles) {
   ASSERT(instr != NULL);
-  LPointerMap* pointers = instr->pointer_map();
-  ASSERT(pointers != NULL);
-  RecordPosition(pointers->position());
 
   __ CallRuntime(function, num_arguments, save_doubles);
 
@@ -937,7 +919,7 @@ void LCodeGen::RecordSafepoint(LPointerMap* pointers,
 
 
 void LCodeGen::RecordSafepoint(Safepoint::DeoptMode deopt_mode) {
-  LPointerMap empty_pointers(RelocInfo::kNoPosition, zone());
+  LPointerMap empty_pointers(zone());
   RecordSafepoint(&empty_pointers, deopt_mode);
 }
 
@@ -959,17 +941,10 @@ void LCodeGen::RecordSafepointWithRegistersAndDoubles(
 }
 
 
-void LCodeGen::RecordPosition(int position) {
+void LCodeGen::RecordAndWritePosition(int position) {
   if (position == RelocInfo::kNoPosition) return;
   masm()->positions_recorder()->RecordPosition(position);
-}
-
-
-void LCodeGen::RecordAndUpdatePosition(int position) {
-  if (position >= 0 && position != old_position_) {
-    masm()->positions_recorder()->RecordPosition(position);
-    old_position_ = position;
-  }
+  masm()->positions_recorder()->WriteRecordedPositions();
 }
 
 
@@ -2178,6 +2153,10 @@ Condition LCodeGen::TokenToCondition(Token::Value op, bool is_unsigned) {
     case Token::EQ_STRICT:
       cond = eq;
       break;
+    case Token::NE:
+    case Token::NE_STRICT:
+      cond = ne;
+      break;
     case Token::LT:
       cond = is_unsigned ? lo : lt;
       break;
@@ -2691,14 +2670,6 @@ void LCodeGen::DoDeferredInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr,
   // Put the result value into the result register slot and
   // restore all registers.
   __ StoreToSafepointRegisterSlot(result, result);
-}
-
-
-void LCodeGen::DoInstanceSize(LInstanceSize* instr) {
-  Register object = ToRegister(instr->object());
-  Register result = ToRegister(instr->result());
-  __ lw(result, FieldMemOperand(object, HeapObject::kMapOffset));
-  __ lbu(result, FieldMemOperand(result, Map::kInstanceSizeOffset));
 }
 
 
@@ -3378,7 +3349,6 @@ void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
   __ bind(&invoke);
   ASSERT(instr->HasPointerMap());
   LPointerMap* pointers = instr->pointer_map();
-  RecordPosition(pointers->position());
   SafepointGenerator safepoint_generator(
       this, pointers, Safepoint::kLazyDeopt);
   // The number of arguments is stored in receiver which is a0, as expected
@@ -3467,7 +3437,6 @@ void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
       dont_adapt_arguments || formal_parameter_count == arity;
 
   LPointerMap* pointers = instr->pointer_map();
-  RecordPosition(pointers->position());
 
   if (can_invoke_directly) {
     if (a1_state == A1_UNINITIALIZED) {
@@ -3925,7 +3894,6 @@ void LCodeGen::DoInvokeFunction(LInvokeFunction* instr) {
   Handle<JSFunction> known_function = instr->hydrogen()->known_function();
   if (known_function.is_null()) {
     LPointerMap* pointers = instr->pointer_map();
-    RecordPosition(pointers->position());
     SafepointGenerator generator(this, pointers, Safepoint::kLazyDeopt);
     ParameterCount count(instr->arity());
     __ InvokeFunction(a1, count, CALL_FUNCTION, generator, CALL_AS_METHOD);
@@ -4474,10 +4442,11 @@ void LCodeGen::DoTransitionElementsKind(LTransitionElementsKind* instr) {
 void LCodeGen::DoTrapAllocationMemento(LTrapAllocationMemento* instr) {
   Register object = ToRegister(instr->object());
   Register temp = ToRegister(instr->temp());
-  Label fail;
-  __ TestJSArrayForAllocationMemento(object, temp, ne, &fail);
+  Label no_memento_found;
+  __ TestJSArrayForAllocationMemento(object, temp, &no_memento_found,
+                                     ne, &no_memento_found);
   DeoptimizeIf(al, instr->environment());
-  __ bind(&fail);
+  __ bind(&no_memento_found);
 }
 
 
@@ -4903,19 +4872,32 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr) {
   if (instr->truncating()) {
     // Performs a truncating conversion of a floating point number as used by
     // the JS bitwise operations.
-    Label heap_number;
-    __ Branch(&heap_number, eq, scratch1, Operand(at));  // HeapNumber map?
-    // Check for undefined. Undefined is converted to zero for truncating
-    // conversions.
-    __ LoadRoot(at, Heap::kUndefinedValueRootIndex);
-    DeoptimizeIf(ne, instr->environment(), input_reg, Operand(at));
-    ASSERT(ToRegister(instr->result()).is(input_reg));
-    __ mov(input_reg, zero_reg);
-    __ Branch(&done);
-
-    __ bind(&heap_number);
+    Label no_heap_number, check_bools, check_false;
+    __ Branch(&no_heap_number, ne, scratch1, Operand(at));  // HeapNumber map?
     __ mov(scratch2, input_reg);
     __ TruncateHeapNumberToI(input_reg, scratch2);
+    __ Branch(&done);
+
+    // Check for Oddballs. Undefined/False is converted to zero and True to one
+    // for truncating conversions.
+    __ bind(&no_heap_number);
+    __ LoadRoot(at, Heap::kUndefinedValueRootIndex);
+    __ Branch(&check_bools, ne, input_reg, Operand(at));
+    ASSERT(ToRegister(instr->result()).is(input_reg));
+    __ Branch(USE_DELAY_SLOT, &done);
+    __ mov(input_reg, zero_reg);  // In delay slot.
+
+    __ bind(&check_bools);
+    __ LoadRoot(at, Heap::kTrueValueRootIndex);
+    __ Branch(&check_false, ne, scratch2, Operand(at));
+    __ Branch(USE_DELAY_SLOT, &done);
+    __ li(input_reg, Operand(1));  // In delay slot.
+
+    __ bind(&check_false);
+    __ LoadRoot(at, Heap::kFalseValueRootIndex);
+    DeoptimizeIf(ne, instr->environment(), scratch2, Operand(at));
+    __ Branch(USE_DELAY_SLOT, &done);
+    __ mov(input_reg, zero_reg);  // In delay slot.
   } else {
     // Deoptimize if we don't have a heap number.
     DeoptimizeIf(ne, instr->environment(), scratch1, Operand(at));

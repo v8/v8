@@ -286,6 +286,20 @@ observer.assertCallbackRecords([
   { object: obj, type: 'new', name: 'id' },
 ]);
 
+// The empty-string property is observable
+reset();
+var obj = {};
+Object.observe(obj, observer.callback);
+obj[''] = '';
+obj[''] = ' ';
+delete obj[''];
+Object.deliverChangeRecords(observer.callback);
+observer.assertCallbackRecords([
+  { object: obj, type: 'new', name: '' },
+  { object: obj, type: 'updated', name: '', oldValue: '' },
+  { object: obj, type: 'deleted', name: '', oldValue: ' ' },
+]);
+
 // Observing a continuous stream of changes, while itermittantly unobserving.
 reset();
 Object.observe(obj, observer.callback);

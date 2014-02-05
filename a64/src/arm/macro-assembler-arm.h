@@ -170,17 +170,6 @@ class MacroAssembler: public Assembler {
                  Heap::RootListIndex index,
                  Condition cond = al);
 
-  void LoadHeapObject(Register dst, Handle<HeapObject> object);
-
-  void LoadObject(Register result, Handle<Object> object) {
-    AllowDeferredHandleDereference heap_object_check;
-    if (object->IsHeapObject()) {
-      LoadHeapObject(result, Handle<HeapObject>::cast(object));
-    } else {
-      Move(result, object);
-    }
-  }
-
   // ---------------------------------------------------------------------------
   // GC Support
 
@@ -539,6 +528,8 @@ class MacroAssembler: public Assembler {
                          LowDwVfpRegister double_scratch1,
                          Label* not_int32);
 
+  // Generates function and stub prologue code.
+  void Prologue(PrologueFrameMode frame_mode);
 
   // Enter exit frame.
   // stack_space - extra stack space, used for alignment before call to C.
@@ -1388,9 +1379,20 @@ class MacroAssembler: public Assembler {
   // to another type.
   // On entry, receiver_reg should point to the array object.
   // scratch_reg gets clobbered.
-  // If allocation info is present, condition flags are set to eq
+  // If allocation info is present, condition flags are set to eq.
   void TestJSArrayForAllocationMemento(Register receiver_reg,
-                                       Register scratch_reg);
+                                       Register scratch_reg,
+                                       Label* no_memento_found);
+
+  void JumpIfJSArrayHasAllocationMemento(Register receiver_reg,
+                                         Register scratch_reg,
+                                         Label* memento_found) {
+    Label no_memento_found;
+    TestJSArrayForAllocationMemento(receiver_reg, scratch_reg,
+                                    &no_memento_found);
+    b(eq, memento_found);
+    bind(&no_memento_found);
+  }
 
  private:
   void CallCFunctionHelper(Register function,

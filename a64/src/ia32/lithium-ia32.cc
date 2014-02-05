@@ -561,29 +561,34 @@ LOperand* LChunkBuilder::UseAtStart(HValue* value) {
 }
 
 
+static inline bool CanBeImmediateConstant(HValue* value) {
+  return value->IsConstant() && HConstant::cast(value)->NotInNewSpace();
+}
+
+
 LOperand* LChunkBuilder::UseOrConstant(HValue* value) {
-  return value->IsConstant()
+  return CanBeImmediateConstant(value)
       ? chunk_->DefineConstantOperand(HConstant::cast(value))
       : Use(value);
 }
 
 
 LOperand* LChunkBuilder::UseOrConstantAtStart(HValue* value) {
-  return value->IsConstant()
+  return CanBeImmediateConstant(value)
       ? chunk_->DefineConstantOperand(HConstant::cast(value))
       : UseAtStart(value);
 }
 
 
 LOperand* LChunkBuilder::UseRegisterOrConstant(HValue* value) {
-  return value->IsConstant()
+  return CanBeImmediateConstant(value)
       ? chunk_->DefineConstantOperand(HConstant::cast(value))
       : UseRegister(value);
 }
 
 
 LOperand* LChunkBuilder::UseRegisterOrConstantAtStart(HValue* value) {
-  return value->IsConstant()
+  return CanBeImmediateConstant(value)
       ? chunk_->DefineConstantOperand(HConstant::cast(value))
       : UseRegisterAtStart(value);
 }
@@ -708,7 +713,7 @@ LInstruction* LChunkBuilder::MarkAsCall(LInstruction* instr,
 
 LInstruction* LChunkBuilder::AssignPointerMap(LInstruction* instr) {
   ASSERT(!instr->HasPointerMap());
-  instr->set_pointer_map(new(zone()) LPointerMap(position_, zone()));
+  instr->set_pointer_map(new(zone()) LPointerMap(zone()));
   return instr;
 }
 
@@ -908,7 +913,6 @@ void LChunkBuilder::DoBasicBlock(HBasicBlock* block, HBasicBlock* next_block) {
 void LChunkBuilder::VisitInstruction(HInstruction* current) {
   HInstruction* old_current = current_instruction_;
   current_instruction_ = current;
-  if (current->has_position()) position_ = current->position();
 
   LInstruction* instr = NULL;
   if (current->CanReplaceWithDummyUses()) {
@@ -963,7 +967,6 @@ void LChunkBuilder::VisitInstruction(HInstruction* current) {
     }
 #endif
 
-    instr->set_position(position_);
     if (FLAG_stress_pointer_maps && !instr->HasPointerMap()) {
       instr = AssignPointerMap(instr);
     }
@@ -1147,12 +1150,6 @@ LInstruction* LChunkBuilder::DoInstanceOfKnownGlobal(
           UseFixed(instr->left(), InstanceofStub::left()),
           FixedTemp(edi));
   return MarkAsCall(DefineFixed(result, eax), instr);
-}
-
-
-LInstruction* LChunkBuilder::DoInstanceSize(HInstanceSize* instr) {
-  LOperand* object = UseRegisterAtStart(instr->object());
-  return DefineAsRegister(new(zone()) LInstanceSize(object));
 }
 
 
@@ -1731,9 +1728,12 @@ LInstruction* LChunkBuilder::DoCompareNumericAndBranch(
     ASSERT(instr->right()->representation().IsDouble());
     LOperand* left;
     LOperand* right;
-    if (instr->left()->IsConstant() && instr->right()->IsConstant()) {
-      left = UseRegisterOrConstantAtStart(instr->left());
-      right = UseRegisterOrConstantAtStart(instr->right());
+    if (CanBeImmediateConstant(instr->left()) &&
+        CanBeImmediateConstant(instr->right())) {
+      // The code generator requires either both inputs to be constant
+      // operands, or neither.
+      left = UseConstant(instr->left());
+      right = UseConstant(instr->right());
     } else {
       left = UseRegisterAtStart(instr->left());
       right = UseRegisterAtStart(instr->right());
@@ -1932,7 +1932,6 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
   // building a stack frame.
   if (from.IsTagged()) {
     if (to.IsDouble()) {
-      info()->MarkAsDeferredCalling();
       LOperand* value = UseRegister(instr->value());
       // Temp register only necessary for minus zero check.
       LOperand* temp = TempRegister();
@@ -2003,8 +2002,9 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
     } else if (to.IsSmi()) {
       HValue* val = instr->value();
       LOperand* value = UseRegister(val);
-      LInstruction* result =
-          DefineSameAsFirst(new(zone()) LInteger32ToSmi(value));
+      LInstruction* result = val->CheckFlag(HInstruction::kUint32)
+           ? DefineSameAsFirst(new(zone()) LUint32ToSmi(value))
+           : DefineSameAsFirst(new(zone()) LInteger32ToSmi(value));
       if (val->HasRange() && val->range()->IsInSmiRange()) {
         return result;
       }

@@ -2850,7 +2850,7 @@ TEST(DebugStepKeyedLoadLoop) {
   foo->Call(env->Global(), kArgc, args);
 
   // With stepping all break locations are hit.
-  CHECK_EQ(34, break_point_hit_count);
+  CHECK_EQ(35, break_point_hit_count);
 
   v8::Debug::SetDebugEventListener2(NULL);
   CheckDebuggerUnloaded();
@@ -2897,7 +2897,7 @@ TEST(DebugStepKeyedStoreLoop) {
   foo->Call(env->Global(), kArgc, args);
 
   // With stepping all break locations are hit.
-  CHECK_EQ(33, break_point_hit_count);
+  CHECK_EQ(34, break_point_hit_count);
 
   v8::Debug::SetDebugEventListener2(NULL);
   CheckDebuggerUnloaded();
@@ -2941,7 +2941,7 @@ TEST(DebugStepNamedLoadLoop) {
   foo->Call(env->Global(), 0, NULL);
 
   // With stepping all break locations are hit.
-  CHECK_EQ(54, break_point_hit_count);
+  CHECK_EQ(55, break_point_hit_count);
 
   v8::Debug::SetDebugEventListener2(NULL);
   CheckDebuggerUnloaded();
@@ -2985,7 +2985,7 @@ static void DoDebugStepNamedStoreLoop(int expected) {
 
 // Test of the stepping mechanism for named load in a loop.
 TEST(DebugStepNamedStoreLoop) {
-  DoDebugStepNamedStoreLoop(23);
+  DoDebugStepNamedStoreLoop(24);
 }
 
 
@@ -3358,7 +3358,7 @@ TEST(DebugStepForContinue) {
   v8::Handle<v8::Value> argv_10[argc] = { v8::Number::New(10) };
   result = foo->Call(env->Global(), argc, argv_10);
   CHECK_EQ(5, result->Int32Value());
-  CHECK_EQ(51, break_point_hit_count);
+  CHECK_EQ(52, break_point_hit_count);
 
   // Looping 100 times.
   step_action = StepIn;
@@ -3366,7 +3366,7 @@ TEST(DebugStepForContinue) {
   v8::Handle<v8::Value> argv_100[argc] = { v8::Number::New(100) };
   result = foo->Call(env->Global(), argc, argv_100);
   CHECK_EQ(50, result->Int32Value());
-  CHECK_EQ(456, break_point_hit_count);
+  CHECK_EQ(457, break_point_hit_count);
 
   // Get rid of the debug event listener.
   v8::Debug::SetDebugEventListener2(NULL);
@@ -3410,7 +3410,7 @@ TEST(DebugStepForBreak) {
   v8::Handle<v8::Value> argv_10[argc] = { v8::Number::New(10) };
   result = foo->Call(env->Global(), argc, argv_10);
   CHECK_EQ(9, result->Int32Value());
-  CHECK_EQ(54, break_point_hit_count);
+  CHECK_EQ(55, break_point_hit_count);
 
   // Looping 100 times.
   step_action = StepIn;
@@ -3418,7 +3418,7 @@ TEST(DebugStepForBreak) {
   v8::Handle<v8::Value> argv_100[argc] = { v8::Number::New(100) };
   result = foo->Call(env->Global(), argc, argv_100);
   CHECK_EQ(99, result->Int32Value());
-  CHECK_EQ(504, break_point_hit_count);
+  CHECK_EQ(505, break_point_hit_count);
 
   // Get rid of the debug event listener.
   v8::Debug::SetDebugEventListener2(NULL);

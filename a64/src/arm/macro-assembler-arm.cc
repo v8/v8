@@ -233,7 +233,19 @@ void MacroAssembler::Push(Handle<Object> handle) {
 
 
 void MacroAssembler::Move(Register dst, Handle<Object> value) {
-  mov(dst, Operand(value));
+  AllowDeferredHandleDereference smi_check;
+  if (value->IsSmi()) {
+    mov(dst, Operand(value));
+  } else {
+    ASSERT(value->IsHeapObject());
+    if (isolate()->heap()->InNewSpace(*value)) {
+      Handle<Cell> cell = isolate()->factory()->NewCell(value);
+      mov(dst, Operand(cell));
+      ldr(dst, FieldMemOperand(dst, Cell::kValueOffset));
+    } else {
+      mov(dst, Operand(value));
+    }
+  }
 }
 
 
@@ -391,19 +403,6 @@ void MacroAssembler::StoreRoot(Register source,
                                Heap::RootListIndex index,
                                Condition cond) {
   str(source, MemOperand(kRootRegister, index << kPointerSizeLog2), cond);
-}
-
-
-void MacroAssembler::LoadHeapObject(Register result,
-                                    Handle<HeapObject> object) {
-  AllowDeferredHandleDereference using_raw_address;
-  if (isolate()->heap()->InNewSpace(*object)) {
-    Handle<Cell> cell = isolate()->factory()->NewCell(object);
-    mov(result, Operand(cell));
-    ldr(result, FieldMemOperand(result, Cell::kValueOffset));
-  } else {
-    mov(result, Operand(object));
-  }
 }
 
 
@@ -916,6 +915,33 @@ void MacroAssembler::LoadNumberAsInt32(Register object,
 }
 
 
+void MacroAssembler::Prologue(PrologueFrameMode frame_mode) {
+  if (frame_mode == BUILD_STUB_FRAME) {
+    stm(db_w, sp, cp.bit() | fp.bit() | lr.bit());
+    Push(Smi::FromInt(StackFrame::STUB));
+    // Adjust FP to point to saved FP.
+    add(fp, sp, Operand(2 * kPointerSize));
+  } else {
+    PredictableCodeSizeScope predictible_code_size_scope(
+        this, kNoCodeAgeSequenceLength * Assembler::kInstrSize);
+    // The following three instructions must remain together and unmodified
+    // for code aging to work properly.
+    if (FLAG_optimize_for_size && FLAG_age_code) {
+      // Pre-age the code.
+      Code* stub = Code::GetPreAgedCodeAgeStub(isolate());
+      add(r0, pc, Operand(-8));
+      ldr(pc, MemOperand(pc, -4));
+      dd(reinterpret_cast<uint32_t>(stub->instruction_start()));
+    } else {
+      stm(db_w, sp, r1.bit() | cp.bit() | fp.bit() | lr.bit());
+      nop(ip.code());
+      // Adjust FP to point to saved FP.
+      add(fp, sp, Operand(2 * kPointerSize));
+    }
+  }
+}
+
+
 void MacroAssembler::EnterFrame(StackFrame::Type type) {
   // r0-r3: preserved
   stm(db_w, sp, cp.bit() | fp.bit() | lr.bit());
@@ -1258,7 +1284,7 @@ void MacroAssembler::InvokeFunction(Handle<JSFunction> function,
   ASSERT(flag == JUMP_FUNCTION || has_frame());
 
   // Get the function and setup the context.
-  LoadHeapObject(r1, function);
+  Move(r1, function);
   ldr(cp, FieldMemOperand(r1, JSFunction::kContextOffset));
 
   // We call indirectly through the code field in the function to
@@ -3858,8 +3884,8 @@ void MacroAssembler::CheckEnumCache(Register null_value, Label* call_runtime) {
 
 void MacroAssembler::TestJSArrayForAllocationMemento(
     Register receiver_reg,
-    Register scratch_reg) {
-  Label no_memento_available;
+    Register scratch_reg,
+    Label* no_memento_found) {
   ExternalReference new_space_start =
       ExternalReference::new_space_start(isolate());
   ExternalReference new_space_allocation_top =
@@ -3867,15 +3893,14 @@ void MacroAssembler::TestJSArrayForAllocationMemento(
   add(scratch_reg, receiver_reg,
       Operand(JSArray::kSize + AllocationMemento::kSize - kHeapObjectTag));
   cmp(scratch_reg, Operand(new_space_start));
-  b(lt, &no_memento_available);
+  b(lt, no_memento_found);
   mov(ip, Operand(new_space_allocation_top));
   ldr(ip, MemOperand(ip));
   cmp(scratch_reg, ip);
-  b(gt, &no_memento_available);
+  b(gt, no_memento_found);
   ldr(scratch_reg, MemOperand(scratch_reg, -AllocationMemento::kSize));
   cmp(scratch_reg,
       Operand(isolate()->factory()->allocation_memento_map()));
-  bind(&no_memento_available);
 }
 
 

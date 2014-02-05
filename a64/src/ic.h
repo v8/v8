@@ -155,7 +155,12 @@ class IC {
 #endif
 
   // Set the call-site target.
-  void set_target(Code* code) { SetTargetAtAddress(address(), code); }
+  void set_target(Code* code) {
+    SetTargetAtAddress(address(), code);
+    target_set_ = true;
+  }
+
+  bool is_target_set() { return target_set_; }
 
 #ifdef DEBUG
   char TransitionMarkFromState(IC::State state);
@@ -173,6 +178,18 @@ class IC {
   static inline void SetTargetAtAddress(Address address, Code* target);
   static void PostPatching(Address address, Code* target, Code* old_target);
 
+  // Compute the handler either by compiling or by retrieving a cached version.
+  Handle<Code> ComputeHandler(LookupResult* lookup,
+                              Handle<JSObject> receiver,
+                              Handle<String> name,
+                              Handle<Object> value = Handle<Code>::null());
+  virtual Handle<Code> CompileHandler(LookupResult* lookup,
+                                      Handle<JSObject> receiver,
+                                      Handle<String> name,
+                                      Handle<Object> value) {
+    UNREACHABLE();
+    return Handle<Code>::null();
+  }
   void UpdateMonomorphicIC(Handle<HeapObject> receiver,
                            Handle<Code> handler,
                            Handle<String> name);
@@ -187,6 +204,14 @@ class IC {
                   Handle<String> name,
                   Handle<Code> code);
   virtual void UpdateMegamorphicCache(Map* map, Name* name, Code* code);
+  virtual Code::Kind kind() const {
+    UNREACHABLE();
+    return Code::STUB;
+  }
+  virtual Handle<Code> slow_stub() const {
+    UNREACHABLE();
+    return Handle<Code>::null();
+  }
   virtual Handle<Code> megamorphic_stub() {
     UNREACHABLE();
     return Handle<Code>::null();
@@ -198,6 +223,7 @@ class IC {
   virtual StrictModeFlag strict_mode() const { return kNonStrictMode; }
   bool TryRemoveInvalidPrototypeDependentStub(Handle<Object> receiver,
                                               Handle<String> name);
+  void TryRemoveInvalidHandlers(Handle<Map> map, Handle<String> name);
 
  private:
   // Frame pointer for the frame that uses (calls) the IC.
@@ -214,6 +240,7 @@ class IC {
   // The original code target that missed.
   Handle<Code> target_;
   State state_;
+  bool target_set_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(IC);
 };
@@ -394,9 +421,10 @@ class LoadIC: public IC {
                     Handle<Object> object,
                     Handle<String> name);
 
-  virtual Handle<Code> ComputeLoadHandler(LookupResult* lookup,
-                                          Handle<JSObject> receiver,
-                                          Handle<String> name);
+  virtual Handle<Code> CompileHandler(LookupResult* lookup,
+                                      Handle<JSObject> receiver,
+                                      Handle<String> name,
+                                      Handle<Object> unused);
 
  private:
   // Stub accessors.
@@ -411,6 +439,11 @@ class LoadIC: public IC {
   virtual Handle<Code> pre_monomorphic_stub() {
     return pre_monomorphic_stub(isolate());
   }
+
+  Handle<Code> SimpleFieldLoad(int offset,
+                               bool inobject = true,
+                               Representation representation =
+                                    Representation::Tagged());
 
   static void Clear(Isolate* isolate, Address address, Code* target);
 
@@ -471,10 +504,6 @@ class KeyedLoadIC: public LoadIC {
     return isolate()->builtins()->KeyedLoadIC_Slow();
   }
 
-  // Update the inline cache.
-  virtual Handle<Code> ComputeLoadHandler(LookupResult* lookup,
-                                          Handle<JSObject> receiver,
-                                          Handle<String> name);
   virtual void UpdateMegamorphicCache(Map* map, Name* name, Code* code) { }
 
  private:
@@ -552,6 +581,14 @@ class StoreIC: public IC {
     }
   }
 
+  virtual Handle<Code> slow_stub() const {
+    if (strict_mode() == kStrictMode) {
+      return isolate()->builtins()->StoreIC_Slow_Strict();
+    } else {
+      return isolate()->builtins()->StoreIC_Slow();
+    }
+  }
+
   virtual Handle<Code> pre_monomorphic_stub() {
     return pre_monomorphic_stub(isolate(), strict_mode());
   }
@@ -579,13 +616,10 @@ class StoreIC: public IC {
                     Handle<JSObject> receiver,
                     Handle<String> name,
                     Handle<Object> value);
-  // Compute the code stub for this store; used for rewriting to
-  // monomorphic state and making sure that the code stub is in the
-  // stub cache.
-  virtual Handle<Code> ComputeStoreHandler(LookupResult* lookup,
-                                           Handle<JSObject> receiver,
-                                           Handle<String> name,
-                                           Handle<Object> value);
+  virtual Handle<Code> CompileHandler(LookupResult* lookup,
+                                      Handle<JSObject> receiver,
+                                      Handle<String> name,
+                                      Handle<Object> value);
 
  private:
   void set_target(Code* code) {
@@ -653,10 +687,6 @@ class KeyedStoreIC: public StoreIC {
  protected:
   virtual Code::Kind kind() const { return Code::KEYED_STORE_IC; }
 
-  virtual Handle<Code> ComputeStoreHandler(LookupResult* lookup,
-                                           Handle<JSObject> receiver,
-                                           Handle<String> name,
-                                           Handle<Object> value);
   virtual void UpdateMegamorphicCache(Map* map, Name* name, Code* code) { }
 
   virtual Handle<Code> pre_monomorphic_stub() {
@@ -668,6 +698,13 @@ class KeyedStoreIC: public StoreIC {
       return isolate->builtins()->KeyedStoreIC_PreMonomorphic_Strict();
     } else {
       return isolate->builtins()->KeyedStoreIC_PreMonomorphic();
+    }
+  }
+  virtual Handle<Code> slow_stub() const {
+    if (strict_mode() == kStrictMode) {
+      return isolate()->builtins()->KeyedStoreIC_Slow_Strict();
+    } else {
+      return isolate()->builtins()->KeyedStoreIC_Slow();
     }
   }
   virtual Handle<Code> megamorphic_stub() {

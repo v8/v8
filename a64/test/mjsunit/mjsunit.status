@@ -31,6 +31,9 @@
 [ALWAYS, {
   'bugs/*': [FAIL],
 
+  # TODO(mvstanton) Re-enable when the performance is bearable again.
+  'regress/regress-2185-2': [SKIP],
+
   ##############################################################################
   # Fails.
   'regress/regress-1119': [FAIL],
@@ -50,11 +53,18 @@
   'compiler/regress-funcaller': [PASS, ['mode == debug', SKIP]],
   'regress/regress-2318': [PASS, ['mode == debug', SKIP]],
   'regress/regress-create-exception': [PASS, ['mode == debug', SKIP]],
-  'regress/regress-2612': [PASS, ['mode == debug', SKIP]],
 
   ##############################################################################
   # Too slow in debug mode for GC stress mode.
   'regress/regress-crbug-217858': [PASS, ['mode == debug', SKIP]],
+
+  ##############################################################################
+  # Only regexp stuff tested, no need for extensive Crankshaft tests.
+  'regexp-global': [PASS, NO_VARIANTS],
+
+  ##############################################################################
+  # No need to waste time for this test.
+  'd8-performance-now': [PASS, NO_VARIANTS],
 
   ##############################################################################
   # These use a built-in that's only present in debug mode. They take
@@ -67,7 +77,7 @@
   'array-constructor': [PASS, TIMEOUT],
 
   # Very slow on ARM and MIPS, contains no architecture dependent code.
-  'unicode-case-overoptimization': [PASS, ['arch == arm or arch == android_arm or arch == mipsel', TIMEOUT]],
+  'unicode-case-overoptimization': [PASS, NO_VARIANTS, ['arch == arm or arch == android_arm or arch == mipsel', TIMEOUT]],
 
   ##############################################################################
   # This test expects to reach a certain recursion depth, which may not work

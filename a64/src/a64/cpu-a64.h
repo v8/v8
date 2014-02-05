@@ -68,6 +68,19 @@ class CpuFeatures : public AllStatic {
 
   static unsigned supported_;
 
+  static bool VerifyCrossCompiling() {
+    // There are no optional features for A64.
+    ASSERT(cross_compile_ == 0);
+    return true;
+  }
+
+  static bool VerifyCrossCompiling(CpuFeature f) {
+    // There are no optional features for A64.
+    USE(f);
+    ASSERT(cross_compile_ == 0);
+    return true;
+  }
+
  private:
   // Return the content of the cache type register.
   static uint32_t GetCacheType();
@@ -82,6 +95,8 @@ class CpuFeatures : public AllStatic {
 
   // This isn't used (and is always 0), but it is required by V8.
   static unsigned found_by_runtime_probing_only_;
+
+  static unsigned cross_compile_;
 
   friend class PlatformFeatureScope;
   DISALLOW_COPY_AND_ASSIGN(CpuFeatures);

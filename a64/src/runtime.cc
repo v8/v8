@@ -31,6 +31,7 @@
 #include "v8.h"
 
 #include "accessors.h"
+#include "allocation-site-scopes.h"
 #include "api.h"
 #include "arguments.h"
 #include "bootstrapper.h"
@@ -486,19 +487,37 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateObjectLiteral) {
   bool has_function_literal = (flags & ObjectLiteral::kHasFunction) != 0;
 
   // Check if boilerplate exists. If not, create it first.
-  Handle<Object> boilerplate(literals->get(literals_index), isolate);
-  if (*boilerplate == isolate->heap()->undefined_value()) {
-    boilerplate = CreateObjectLiteralBoilerplate(isolate,
-                                                 literals,
-                                                 constant_properties,
-                                                 should_have_fast_elements,
-                                                 has_function_literal);
-    RETURN_IF_EMPTY_HANDLE(isolate, boilerplate);
+  Handle<Object> literal_site(literals->get(literals_index), isolate);
+  Handle<AllocationSite> site;
+  Handle<JSObject> boilerplate;
+  if (*literal_site == isolate->heap()->undefined_value()) {
+    Handle<Object> raw_boilerplate = CreateObjectLiteralBoilerplate(
+        isolate,
+        literals,
+        constant_properties,
+        should_have_fast_elements,
+        has_function_literal);
+    RETURN_IF_EMPTY_HANDLE(isolate, raw_boilerplate);
+    boilerplate = Handle<JSObject>::cast(raw_boilerplate);
+
+    AllocationSiteCreationContext creation_context(isolate);
+    site = creation_context.EnterNewScope();
+    RETURN_IF_EMPTY_HANDLE(isolate,
+                           JSObject::DeepWalk(boilerplate, &creation_context));
+    creation_context.ExitScope(site, boilerplate);
+
     // Update the functions literal and return the boilerplate.
-    literals->set(literals_index, *boilerplate);
+    literals->set(literals_index, *site);
+  } else {
+    site = Handle<AllocationSite>::cast(literal_site);
+    boilerplate = Handle<JSObject>(JSObject::cast(site->transition_info()),
+                                   isolate);
   }
 
-  Handle<Object> copy = JSObject::DeepCopy(Handle<JSObject>::cast(boilerplate));
+  AllocationSiteUsageContext usage_context(isolate, site, true);
+  usage_context.EnterNewScope();
+  Handle<Object> copy = JSObject::DeepCopy(boilerplate, &usage_context);
+  usage_context.ExitScope(site, boilerplate);
   RETURN_IF_EMPTY_HANDLE(isolate, copy);
   return *copy;
 }
@@ -516,12 +535,16 @@ static Handle<AllocationSite> GetLiteralAllocationSite(
     ASSERT(*elements != isolate->heap()->empty_fixed_array());
     Handle<Object> boilerplate =
         Runtime::CreateArrayLiteralBoilerplate(isolate, literals, elements);
-    if (boilerplate.is_null()) {
-      ASSERT(site.is_null());
-      return site;
+    if (boilerplate.is_null()) return Handle<AllocationSite>::null();
+
+    AllocationSiteCreationContext creation_context(isolate);
+    site = creation_context.EnterNewScope();
+    if (JSObject::DeepWalk(Handle<JSObject>::cast(boilerplate),
+                           &creation_context).is_null()) {
+      return Handle<AllocationSite>::null();
     }
-    site = isolate->factory()->NewAllocationSite();
-    site->set_transition_info(*boilerplate);
+    creation_context.ExitScope(site, Handle<JSObject>::cast(boilerplate));
+
     literals->set(literals_index, *site);
   } else {
     site = Handle<AllocationSite>::cast(literal_site);
@@ -543,7 +566,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateArrayLiteral) {
   RETURN_IF_EMPTY_HANDLE(isolate, site);
 
   Handle<JSObject> boilerplate(JSObject::cast(site->transition_info()));
-  Handle<JSObject> copy = JSObject::DeepCopy(boilerplate);
+  AllocationSiteUsageContext usage_context(isolate, site, true);
+  usage_context.EnterNewScope();
+  Handle<JSObject> copy = JSObject::DeepCopy(boilerplate, &usage_context);
+  usage_context.ExitScope(site, boilerplate);
   RETURN_IF_EMPTY_HANDLE(isolate, copy);
   return *copy;
 }
@@ -566,9 +592,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateArrayLiteralShallow) {
     isolate->counters()->cow_arrays_created_runtime()->Increment();
   }
 
-  AllocationSiteMode mode = AllocationSite::GetMode(
-      boilerplate->GetElementsKind());
-  if (mode == TRACK_ALLOCATION_SITE) {
+  if (AllocationSite::GetMode(boilerplate->GetElementsKind()) ==
+      TRACK_ALLOCATION_SITE) {
     return isolate->heap()->CopyJSObject(boilerplate, *site);
   }
 
@@ -798,6 +823,16 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ArrayBufferSliceImpl) {
   uint8_t* target_data = reinterpret_cast<uint8_t*>(target->backing_store());
   CopyBytes(target_data, source_data + start, target_length);
   return isolate->heap()->undefined_value();
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_ArrayBufferIsView) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_CHECKED(Object, object, 0);
+  return object->IsJSArrayBufferView()
+    ? isolate->heap()->true_value()
+    : isolate->heap()->false_value();
 }
 
 
@@ -2898,19 +2933,19 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetCode) {
   source_shared->set_dont_flush(true);
 
   // Set the code, scope info, formal parameter count, and the length
-  // of the target shared function info.  Set the source code of the
-  // target function to undefined.  SetCode is only used for built-in
-  // constructors like String, Array, and Object, and some web code
-  // doesn't like seeing source code for constructors.
+  // of the target shared function info.
   target_shared->ReplaceCode(source_shared->code());
   target_shared->set_scope_info(source_shared->scope_info());
   target_shared->set_length(source_shared->length());
   target_shared->set_formal_parameter_count(
       source_shared->formal_parameter_count());
-  target_shared->set_script(isolate->heap()->undefined_value());
-
-  // Since we don't store the source we should never optimize this.
-  target_shared->code()->set_optimizable(false);
+  target_shared->set_script(source_shared->script());
+  target_shared->set_start_position_and_type(
+      source_shared->start_position_and_type());
+  target_shared->set_end_position(source_shared->end_position());
+  bool was_native = target_shared->native();
+  target_shared->set_compiler_hints(source_shared->compiler_hints());
+  target_shared->set_native(was_native);
 
   // Set the code of the target function.
   target->ReplaceCode(source_shared->code());
@@ -2942,10 +2977,24 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetCode) {
 RUNTIME_FUNCTION(MaybeObject*, Runtime_SetExpectedNumberOfProperties) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 2);
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, func, 0);
   CONVERT_SMI_ARG_CHECKED(num, 1);
   RUNTIME_ASSERT(num >= 0);
-  SetExpectedNofProperties(function, num);
+  // If objects constructed from this function exist then changing
+  // 'estimated_nof_properties' is dangerous since the previous value might
+  // have been compiled into the fast construct stub. Moreover, the inobject
+  // slack tracking logic might have adjusted the previous value, so even
+  // passing the same value is risky.
+  if (!func->shared()->live_objects_may_exist()) {
+    func->shared()->set_expected_nof_properties(num);
+    if (func->has_initial_map()) {
+      Handle<Map> new_initial_map =
+          func->GetIsolate()->factory()->CopyMap(
+              Handle<Map>(func->initial_map()));
+      new_initial_map->set_unused_property_fields(num);
+      func->set_initial_map(*new_initial_map);
+    }
+  }
   return isolate->heap()->undefined_value();
 }
 
@@ -5533,40 +5582,39 @@ static MaybeObject* HasLocalPropertyImplementation(Isolate* isolate,
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_HasLocalProperty) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 2);
-  CONVERT_ARG_CHECKED(Name, key, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Name, key, 1);
+  Handle<Object> object = args.at<Object>(0);
 
   uint32_t index;
   const bool key_is_array_index = key->AsArrayIndex(&index);
 
-  Object* obj = args[0];
   // Only JS objects can have properties.
-  if (obj->IsJSObject()) {
-    JSObject* object = JSObject::cast(obj);
+  if (object->IsJSObject()) {
+    Handle<JSObject> js_obj = Handle<JSObject>::cast(object);
     // Fast case: either the key is a real named property or it is not
     // an array index and there are no interceptors or hidden
     // prototypes.
-    if (object->HasRealNamedProperty(isolate, key)) {
+    if (JSObject::HasRealNamedProperty(js_obj, key)) {
       ASSERT(!isolate->has_scheduled_exception());
       return isolate->heap()->true_value();
     } else {
       RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     }
-    Map* map = object->map();
+    Map* map = js_obj->map();
     if (!key_is_array_index &&
         !map->has_named_interceptor() &&
         !HeapObject::cast(map->prototype())->map()->is_hidden_prototype()) {
       return isolate->heap()->false_value();
     }
     // Slow case.
-    HandleScope scope(isolate);
     return HasLocalPropertyImplementation(isolate,
-                                          Handle<JSObject>(object),
+                                          Handle<JSObject>(js_obj),
                                           Handle<Name>(key));
-  } else if (obj->IsString() && key_is_array_index) {
+  } else if (object->IsString() && key_is_array_index) {
     // Well, there is one exception:  Handle [] on strings.
-    String* string = String::cast(obj);
+    Handle<String> string = Handle<String>::cast(object);
     if (index < static_cast<uint32_t>(string->length())) {
       return isolate->heap()->true_value();
     }
@@ -8298,7 +8346,7 @@ bool AllowOptimization(Isolate* isolate, Handle<JSFunction> function) {
 
   // If the function is not optimizable or debugger is active continue using the
   // code from the full compiler.
-  if (!FLAG_crankshaft ||
+  if (!isolate->use_crankshaft() ||
       function->shared()->optimization_disabled() ||
       isolate->DebuggerHasBreakPoints()) {
     if (FLAG_trace_opt) {
@@ -8561,6 +8609,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetOptimizationStatus) {
 }
 
 
+RUNTIME_FUNCTION(MaybeObject*, Runtime_UnblockConcurrentRecompilation) {
+  RUNTIME_ASSERT(FLAG_block_concurrent_recompilation);
+  isolate->optimizing_compiler_thread()->Unblock();
+  return isolate->heap()->undefined_value();
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_GetOptimizationCount) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);
@@ -8573,7 +8628,7 @@ static bool IsSuitableForOnStackReplacement(Isolate* isolate,
                                             Handle<JSFunction> function,
                                             Handle<Code> unoptimized) {
   // Keep track of whether we've succeeded in optimizing.
-  if (!unoptimized->optimizable()) return false;
+  if (!isolate->use_crankshaft() || !unoptimized->optimizable()) return false;
   // If we are trying to do OSR when there are already optimized
   // activations of the function, it means (a) the function is directly or
   // indirectly recursive and (b) an optimized invocation has been
@@ -10493,11 +10548,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GlobalPrint) {
 // property.
 // Returns the number of non-undefined elements collected.
 RUNTIME_FUNCTION(MaybeObject*, Runtime_RemoveArrayHoles) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 2);
-  CONVERT_ARG_CHECKED(JSObject, object, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
   CONVERT_NUMBER_CHECKED(uint32_t, limit, Uint32, args[1]);
-  return object->PrepareElementsForSort(limit);
+  return *JSObject::PrepareElementsForSort(object, limit);
 }
 
 
@@ -10678,19 +10733,20 @@ static MaybeObject* DebugLookupResultValue(Heap* heap,
     case CALLBACKS: {
       Object* structure = result->GetCallbackObject();
       if (structure->IsForeign() || structure->IsAccessorInfo()) {
-        MaybeObject* maybe_value = result->holder()->GetPropertyWithCallback(
-            receiver, structure, name);
-        if (!maybe_value->ToObject(&value)) {
-          if (maybe_value->IsRetryAfterGC()) return maybe_value;
-          ASSERT(maybe_value->IsException());
-          maybe_value = heap->isolate()->pending_exception();
+        Isolate* isolate = heap->isolate();
+        HandleScope scope(isolate);
+        Handle<Object> value = JSObject::GetPropertyWithCallback(
+            handle(result->holder(), isolate),
+            handle(receiver, isolate),
+            handle(structure, isolate),
+            handle(name, isolate));
+        if (value.is_null()) {
+          MaybeObject* exception = heap->isolate()->pending_exception();
           heap->isolate()->clear_pending_exception();
-          if (caught_exception != NULL) {
-            *caught_exception = true;
-          }
-          return maybe_value;
+          if (caught_exception != NULL) *caught_exception = true;
+          return exception;
         }
-        return value;
+        return *value;
       } else {
         return heap->undefined_value();
       }
@@ -10878,7 +10934,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugNamedInterceptorPropertyValue) {
   CONVERT_ARG_HANDLE_CHECKED(Name, name, 1);
 
   PropertyAttributes attributes;
-  return obj->GetPropertyWithInterceptor(*obj, *name, &attributes);
+  Handle<Object> result =
+      JSObject::GetPropertyWithInterceptor(obj, obj, name, &attributes);
+  RETURN_IF_EMPTY_HANDLE(isolate, result);
+  return *result;
 }
 
 
@@ -12610,11 +12669,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_PrepareStep) {
     return isolate->Throw(isolate->heap()->illegal_argument_string());
   }
 
-  if (frame_id != StackFrame::NO_ID &&
-      step_action != StepIn &&
-      step_action != StepNext &&
-      step_action != StepOut &&
-      step_action != StepMin) {
+  if (frame_id != StackFrame::NO_ID && step_action != StepNext &&
+      step_action != StepMin && step_action != StepOut) {
     return isolate->ThrowIllegalOperation();
   }
 
@@ -14541,22 +14597,23 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_IsObserved) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_SetIsObserved) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 1);
-  CONVERT_ARG_CHECKED(JSReceiver, obj, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, obj, 0);
   if (obj->IsJSGlobalProxy()) {
     Object* proto = obj->GetPrototype();
     if (proto->IsNull()) return isolate->heap()->undefined_value();
     ASSERT(proto->IsJSGlobalObject());
-    obj = JSReceiver::cast(proto);
+    obj = handle(JSReceiver::cast(proto));
   }
   if (obj->IsJSProxy())
     return isolate->heap()->undefined_value();
 
   ASSERT(!(obj->map()->is_observed() && obj->IsJSObject() &&
-           JSObject::cast(obj)->HasFastElements()));
+           Handle<JSObject>::cast(obj)->HasFastElements()));
   ASSERT(obj->IsJSObject());
-  return JSObject::cast(obj)->SetObserved(isolate);
+  JSObject::SetObserved(Handle<JSObject>::cast(obj));
+  return isolate->heap()->undefined_value();
 }
 
 
@@ -14660,7 +14717,7 @@ static MaybeObject* ArrayConstructorCommon(Isolate* isolate,
     Handle<Cell> cell = Handle<Cell>::cast(type_info);
     Handle<AllocationSite> site = Handle<AllocationSite>(
         AllocationSite::cast(cell->value()), isolate);
-    ASSERT(!site->IsLiteralSite());
+    ASSERT(!site->SitePointsToLiteral());
     ElementsKind to_kind = site->GetElementsKind();
     if (holey && !IsFastHoleyElementsKind(to_kind)) {
       to_kind = GetHoleyElementsKind(to_kind);

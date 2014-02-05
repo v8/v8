@@ -25,12 +25,22 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Utility methods for date testing.
+// Flags: --allow-natives-syntax
 
-/**
- * Returns date with timezone info forced into PDT.
- */
-function usePDT(dateString) {
-  var removedTZ = dateString.replace(/(\+|-)\d{4}/, '-0007');
-  return removedTZ.replace(/\(.*?\)/, '(PDT)');
+var u = new Uint32Array(2);
+u[0] = 1;
+u[1] = 0xEE6B2800;
+
+var a = [0, 1, 2];
+a[0] = 0;  // Kill the COW.
+assertTrue(%HasFastSmiElements(a));
+
+function foo(i) {
+  a[0] = u[i];
+  return a[0];
 }
+
+assertEquals(u[0], foo(0));
+assertEquals(u[0], foo(0));
+%OptimizeFunctionOnNextCall(foo);
+assertEquals(u[1], foo(1));

@@ -857,6 +857,49 @@ CODE_AGE_LIST(DEFINE_CODE_AGE_BUILTIN_GENERATOR)
 #undef DEFINE_CODE_AGE_BUILTIN_GENERATOR
 
 
+void Builtins::Generate_MarkCodeAsExecutedOnce(MacroAssembler* masm) {
+  // For now, as in GenerateMakeCodeYoungAgainCommon, we are relying on the fact
+  // that make_code_young doesn't do any garbage collection which allows us to
+  // save/restore the registers without worrying about which of them contain
+  // pointers.
+
+  __ mov(a0, ra);
+  // Adjust a0 to point to the head of the PlatformCodeAge sequence
+  __ Subu(a0, a0,
+      Operand((kNoCodeAgeSequenceLength - 1) * Assembler::kInstrSize));
+  // Restore the original return address of the function
+  __ mov(ra, at);
+
+  // The following registers must be saved and restored when calling through to
+  // the runtime:
+  //   a0 - contains return address (beginning of patch sequence)
+  //   a1 - isolate
+  RegList saved_regs =
+      (a0.bit() | a1.bit() | ra.bit() | fp.bit()) & ~sp.bit();
+  FrameScope scope(masm, StackFrame::MANUAL);
+  __ MultiPush(saved_regs);
+  __ PrepareCallCFunction(1, 0, a2);
+  __ li(a1, Operand(ExternalReference::isolate_address(masm->isolate())));
+  __ CallCFunction(
+      ExternalReference::get_mark_code_as_executed_function(masm->isolate()),
+      2);
+  __ MultiPop(saved_regs);
+
+  // Perform prologue operations usually performed by the young code stub.
+  __ Push(ra, fp, cp, a1);
+  __ Addu(fp, sp, Operand(2 * kPointerSize));
+
+  // Jump to point after the code-age stub.
+  __ Addu(a0, a0, Operand((kNoCodeAgeSequenceLength) * Assembler::kInstrSize));
+  __ Jump(a0);
+}
+
+
+void Builtins::Generate_MarkCodeAsExecutedTwice(MacroAssembler* masm) {
+  GenerateMakeCodeYoungAgainCommon(masm);
+}
+
+
 void Builtins::Generate_NotifyStubFailure(MacroAssembler* masm) {
   {
     FrameScope scope(masm, StackFrame::INTERNAL);

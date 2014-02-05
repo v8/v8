@@ -60,8 +60,7 @@ class LCodeGen: public LCodeGenBase {
         frame_is_built_(false),
         safepoints_(info->zone()),
         resolver_(this),
-        expected_safepoint_kind_(Safepoint::kSimple),
-        old_position_(RelocInfo::kNoPosition) {
+        expected_safepoint_kind_(Safepoint::kSimple) {
     PopulateDeoptimizationLiteralsWithInlinedFunctions();
   }
 
@@ -318,8 +317,7 @@ class LCodeGen: public LCodeGenBase {
                          Register function_reg = NoReg);
 
   // Support for recording safepoint and position information.
-  void RecordPosition(int position);
-  void RecordAndUpdatePosition(int position) V8_OVERRIDE;
+  void RecordAndWritePosition(int position) V8_OVERRIDE;
   void RecordSafepoint(LPointerMap* pointers,
                        Safepoint::Kind kind,
                        int arguments,

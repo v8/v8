@@ -246,6 +246,8 @@ const uint32_t kMaxUInt32 = 0xFFFFFFFFu;
 const int kCharSize      = sizeof(char);      // NOLINT
 const int kShortSize     = sizeof(short);     // NOLINT
 const int kIntSize       = sizeof(int);       // NOLINT
+const int kInt32Size     = sizeof(int32_t);   // NOLINT
+const int kInt64Size     = sizeof(int64_t);   // NOLINT
 const int kDoubleSize    = sizeof(double);    // NOLINT
 const int kIntptrSize    = sizeof(intptr_t);  // NOLINT
 const int kPointerSize   = sizeof(void*);     // NOLINT
@@ -370,7 +372,7 @@ F FUNCTION_CAST(Address addr) {
 // Define DISABLE_ASAN macros.
 #if defined(__has_feature)
 #if __has_feature(address_sanitizer)
-#define DISABLE_ASAN __attribute__((no_address_safety_analysis))
+#define DISABLE_ASAN __attribute__((no_sanitize_address))
 #endif
 #endif
 

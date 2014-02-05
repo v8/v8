@@ -282,6 +282,9 @@ class MacroAssembler: public Assembler {
   void DebugBreak();
 #endif
 
+  // Generates function and stub prologue code.
+  void Prologue(PrologueFrameMode frame_mode);
+
   // Enter specific kind of exit frame; either in normal or
   // debug mode. Expects the number of arguments in register rax and
   // sets up the number of arguments in register rdi and the pointer
@@ -812,27 +815,7 @@ class MacroAssembler: public Assembler {
 
   // Load a heap object and handle the case of new-space objects by
   // indirecting via a global cell.
-  void LoadHeapObject(Register result, Handle<HeapObject> object);
-  void CmpHeapObject(Register reg, Handle<HeapObject> object);
-  void PushHeapObject(Handle<HeapObject> object);
-
-  void LoadObject(Register result, Handle<Object> object) {
-    AllowDeferredHandleDereference heap_object_check;
-    if (object->IsHeapObject()) {
-      LoadHeapObject(result, Handle<HeapObject>::cast(object));
-    } else {
-      Move(result, object);
-    }
-  }
-
-  void CmpObject(Register reg, Handle<Object> object) {
-    AllowDeferredHandleDereference heap_object_check;
-    if (object->IsHeapObject()) {
-      CmpHeapObject(reg, Handle<HeapObject>::cast(object));
-    } else {
-      Cmp(reg, object);
-    }
-  }
+  void MoveHeapObject(Register result, Handle<Object> object);
 
   // Load a global cell into a register.
   void LoadGlobalCell(Register dst, Handle<Cell> cell);
@@ -846,6 +829,8 @@ class MacroAssembler: public Assembler {
   void Pop(Register dst) { pop(dst); }
   void PushReturnAddressFrom(Register src) { push(src); }
   void PopReturnAddressTo(Register dst) { pop(dst); }
+  void MoveDouble(Register dst, const Operand& src) { movq(dst, src); }
+  void MoveDouble(const Operand& dst, Register src) { movq(dst, src); }
 
   // Control Flow
   void Jump(Address destination, RelocInfo::Mode rmode);
@@ -1114,6 +1099,15 @@ class MacroAssembler: public Assembler {
                 Register scratch,
                 Label* gc_required,
                 AllocationFlags flags);
+
+  // Record a JS object allocation if allocations tracking mode is on.
+  void RecordObjectAllocation(Isolate* isolate,
+                              Register object,
+                              Register object_size);
+
+  void RecordObjectAllocation(Isolate* isolate,
+                              Register object,
+                              int object_size);
 
   // Undo allocation in new space. The object passed and objects allocated after
   // it will no longer be allocated. Make sure that no pointers are left to the
@@ -1403,9 +1397,20 @@ class MacroAssembler: public Assembler {
   // to another type.
   // On entry, receiver_reg should point to the array object.
   // scratch_reg gets clobbered.
-  // If allocation info is present, condition flags are set to equal
+  // If allocation info is present, condition flags are set to equal.
   void TestJSArrayForAllocationMemento(Register receiver_reg,
-                                       Register scratch_reg);
+                                       Register scratch_reg,
+                                       Label* no_memento_found);
+
+  void JumpIfJSArrayHasAllocationMemento(Register receiver_reg,
+                                         Register scratch_reg,
+                                         Label* memento_found) {
+    Label no_memento_found;
+    TestJSArrayForAllocationMemento(receiver_reg, scratch_reg,
+                                    &no_memento_found);
+    j(equal, memento_found);
+    bind(&no_memento_found);
+  }
 
  private:
   // Order general registers are pushed by Pushad.

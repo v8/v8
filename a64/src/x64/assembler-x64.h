@@ -450,26 +450,45 @@ class CpuFeatures : public AllStatic {
 
   // Check whether a feature is supported by the target CPU.
   static bool IsSupported(CpuFeature f) {
+    if (Check(f, cross_compile_)) return true;
     ASSERT(initialized_);
     if (f == SSE3 && !FLAG_enable_sse3) return false;
     if (f == SSE4_1 && !FLAG_enable_sse4_1) return false;
     if (f == CMOV && !FLAG_enable_cmov) return false;
     if (f == SAHF && !FLAG_enable_sahf) return false;
-    return (supported_ & (static_cast<uint64_t>(1) << f)) != 0;
+    return Check(f, supported_);
   }
 
   static bool IsFoundByRuntimeProbingOnly(CpuFeature f) {
     ASSERT(initialized_);
-    return (found_by_runtime_probing_only_ &
-            (static_cast<uint64_t>(1) << f)) != 0;
+    return Check(f, found_by_runtime_probing_only_);
   }
 
   static bool IsSafeForSnapshot(CpuFeature f) {
-    return (IsSupported(f) &&
+    return Check(f, cross_compile_) ||
+           (IsSupported(f) &&
             (!Serializer::enabled() || !IsFoundByRuntimeProbingOnly(f)));
   }
 
+  static bool VerifyCrossCompiling() {
+    return cross_compile_ == 0;
+  }
+
+  static bool VerifyCrossCompiling(CpuFeature f) {
+    uint64_t mask = flag2set(f);
+    return cross_compile_ == 0 ||
+           (cross_compile_ & mask) == mask;
+  }
+
  private:
+  static bool Check(CpuFeature f, uint64_t set) {
+    return (set & flag2set(f)) != 0;
+  }
+
+  static uint64_t flag2set(CpuFeature f) {
+    return static_cast<uint64_t>(1) << f;
+  }
+
   // Safe defaults include CMOV for X64. It is always available, if
   // anyone checks, but they shouldn't need to check.
   // The required user mode extensions in X64 are (from AMD64 ABI Table A.1):
@@ -481,6 +500,8 @@ class CpuFeatures : public AllStatic {
 #endif
   static uint64_t supported_;
   static uint64_t found_by_runtime_probing_only_;
+
+  static uint64_t cross_compile_;
 
   friend class ExternalReference;
   friend class PlatformFeatureScope;
@@ -681,7 +702,6 @@ class Assembler : public AssemblerBase {
   // All 64-bit immediates must have a relocation mode.
   void movq(Register dst, void* ptr, RelocInfo::Mode rmode);
   void movq(Register dst, int64_t value, RelocInfo::Mode rmode);
-  void movq(Register dst, const char* s, RelocInfo::Mode rmode);
   // Moves the address of the external reference into the register.
   void movq(Register dst, ExternalReference ext);
   void movq(Register dst, Handle<Object> handle, RelocInfo::Mode rmode);
@@ -714,7 +734,8 @@ class Assembler : public AssemblerBase {
   void cmovl(Condition cc, Register dst, const Operand& src);
 
   // Exchange two registers
-  void xchg(Register dst, Register src);
+  void xchgq(Register dst, Register src);
+  void xchgl(Register dst, Register src);
 
   // Arithmetics
   void addl(Register dst, Register src) {
@@ -949,6 +970,10 @@ class Assembler : public AssemblerBase {
     arithmetic_op(0x09, src, dst);
   }
 
+  void orl(const Operand& dst, Register src) {
+    arithmetic_op_32(0x09, src, dst);
+  }
+
   void or_(Register dst, Immediate src) {
     immediate_arithmetic_op(0x1, dst, src);
   }
@@ -972,6 +997,10 @@ class Assembler : public AssemblerBase {
 
   void rol(Register dst, Immediate imm8) {
     shift(dst, imm8, 0x0);
+  }
+
+  void roll(Register dst, Immediate imm8) {
+    shift_32(dst, imm8, 0x0);
   }
 
   void rcr(Register dst, Immediate imm8) {
@@ -1081,6 +1110,10 @@ class Assembler : public AssemblerBase {
     arithmetic_op_32(0x2B, dst, src);
   }
 
+  void subl(const Operand& dst, Register src) {
+    arithmetic_op_32(0x29, src, dst);
+  }
+
   void subl(const Operand& dst, Immediate src) {
     immediate_arithmetic_op_32(0x5, dst, src);
   }
@@ -1099,6 +1132,7 @@ class Assembler : public AssemblerBase {
   void testb(const Operand& op, Register reg);
   void testl(Register dst, Register src);
   void testl(Register reg, Immediate mask);
+  void testl(const Operand& op, Register reg);
   void testl(const Operand& op, Immediate mask);
   void testq(const Operand& op, Register reg);
   void testq(Register dst, Register src);
@@ -1122,6 +1156,10 @@ class Assembler : public AssemblerBase {
 
   void xorl(Register dst, Immediate src) {
     immediate_arithmetic_op_32(0x6, dst, src);
+  }
+
+  void xorl(const Operand& dst, Register src) {
+    arithmetic_op_32(0x31, src, dst);
   }
 
   void xorl(const Operand& dst, Immediate src) {
@@ -1287,13 +1325,26 @@ class Assembler : public AssemblerBase {
 
   void sahf();
 
+  // SSE instructions
+  void movaps(XMMRegister dst, XMMRegister src);
+  void movss(XMMRegister dst, const Operand& src);
+  void movss(const Operand& dst, XMMRegister src);
+
+  void cvttss2si(Register dst, const Operand& src);
+  void cvttss2si(Register dst, XMMRegister src);
+  void cvtlsi2ss(XMMRegister dst, Register src);
+
+  void xorps(XMMRegister dst, XMMRegister src);
+  void andps(XMMRegister dst, XMMRegister src);
+
+  void movmskps(Register dst, XMMRegister src);
+
   // SSE2 instructions
   void movd(XMMRegister dst, Register src);
   void movd(Register dst, XMMRegister src);
   void movq(XMMRegister dst, Register src);
   void movq(Register dst, XMMRegister src);
   void movq(XMMRegister dst, XMMRegister src);
-  void extractps(Register dst, XMMRegister src, byte imm8);
 
   // Don't use this unless it's important to keep the
   // top half of the destination register unchanged.
@@ -1311,13 +1362,7 @@ class Assembler : public AssemblerBase {
   void movdqu(XMMRegister dst, const Operand& src);
 
   void movapd(XMMRegister dst, XMMRegister src);
-  void movaps(XMMRegister dst, XMMRegister src);
 
-  void movss(XMMRegister dst, const Operand& src);
-  void movss(const Operand& dst, XMMRegister src);
-
-  void cvttss2si(Register dst, const Operand& src);
-  void cvttss2si(Register dst, XMMRegister src);
   void cvttsd2si(Register dst, const Operand& src);
   void cvttsd2si(Register dst, XMMRegister src);
   void cvttsd2siq(Register dst, XMMRegister src);
@@ -1327,7 +1372,6 @@ class Assembler : public AssemblerBase {
   void cvtqsi2sd(XMMRegister dst, const Operand& src);
   void cvtqsi2sd(XMMRegister dst, Register src);
 
-  void cvtlsi2ss(XMMRegister dst, Register src);
 
   void cvtss2sd(XMMRegister dst, XMMRegister src);
   void cvtss2sd(XMMRegister dst, const Operand& src);
@@ -1346,11 +1390,16 @@ class Assembler : public AssemblerBase {
   void andpd(XMMRegister dst, XMMRegister src);
   void orpd(XMMRegister dst, XMMRegister src);
   void xorpd(XMMRegister dst, XMMRegister src);
-  void xorps(XMMRegister dst, XMMRegister src);
   void sqrtsd(XMMRegister dst, XMMRegister src);
 
   void ucomisd(XMMRegister dst, XMMRegister src);
   void ucomisd(XMMRegister dst, const Operand& src);
+  void cmpltsd(XMMRegister dst, XMMRegister src);
+
+  void movmskpd(Register dst, XMMRegister src);
+
+  // SSE 4.1 instruction
+  void extractps(Register dst, XMMRegister src, byte imm8);
 
   enum RoundingMode {
     kRoundToNearest = 0x0,
@@ -1360,17 +1409,6 @@ class Assembler : public AssemblerBase {
   };
 
   void roundsd(XMMRegister dst, XMMRegister src, RoundingMode mode);
-
-  void movmskpd(Register dst, XMMRegister src);
-  void movmskps(Register dst, XMMRegister src);
-
-  void cmpltsd(XMMRegister dst, XMMRegister src);
-
-  // The first argument is the reg field, the second argument is the r/m field.
-  void emit_sse_operand(XMMRegister dst, XMMRegister src);
-  void emit_sse_operand(XMMRegister reg, const Operand& adr);
-  void emit_sse_operand(XMMRegister dst, Register src);
-  void emit_sse_operand(Register dst, XMMRegister src);
 
   // Debugging
   void Print();
@@ -1432,7 +1470,7 @@ class Assembler : public AssemblerBase {
   void emit(byte x) { *pc_++ = x; }
   inline void emitl(uint32_t x);
   inline void emitp(void* x, RelocInfo::Mode rmode);
-  inline void emitq(uint64_t x, RelocInfo::Mode rmode);
+  inline void emitq(uint64_t x);
   inline void emitw(uint16_t x);
   inline void emit_code_target(Handle<Code> target,
                                RelocInfo::Mode rmode,
@@ -1551,6 +1589,12 @@ class Assembler : public AssemblerBase {
 
   // Emit the code-object-relative offset of the label's position
   inline void emit_code_relative_offset(Label* label);
+
+  // The first argument is the reg field, the second argument is the r/m field.
+  void emit_sse_operand(XMMRegister dst, XMMRegister src);
+  void emit_sse_operand(XMMRegister reg, const Operand& adr);
+  void emit_sse_operand(XMMRegister dst, Register src);
+  void emit_sse_operand(Register dst, XMMRegister src);
 
   // Emit machine code for one of the operations ADD, ADC, SUB, SBC,
   // AND, OR, XOR, or CMP.  The encodings of these operations are all

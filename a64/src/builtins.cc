@@ -273,10 +273,20 @@ static FixedArrayBase* LeftTrimFixedArray(Heap* heap,
     MemoryChunk::IncrementLiveBytesFromMutator(elms->address(), -size_delta);
   }
 
-  HEAP_PROFILE(heap, ObjectMoveEvent(elms->address(),
-                                     elms->address() + size_delta));
-  return FixedArrayBase::cast(HeapObject::FromAddress(
-      elms->address() + to_trim * entry_size));
+  FixedArrayBase* new_elms = FixedArrayBase::cast(HeapObject::FromAddress(
+      elms->address() + size_delta));
+  HeapProfiler* profiler = heap->isolate()->heap_profiler();
+  if (profiler->is_profiling()) {
+    profiler->ObjectMoveEvent(elms->address(),
+                              new_elms->address(),
+                              new_elms->Size());
+    if (profiler->is_tracking_allocations()) {
+      // Report filler object as a new allocation.
+      // Otherwise it will become an untracked object.
+      profiler->NewObjectEvent(elms->address(), elms->Size());
+    }
+  }
+  return new_elms;
 }
 
 
@@ -1319,7 +1329,8 @@ static void Generate_LoadIC_Normal(MacroAssembler* masm) {
 
 
 static void Generate_LoadIC_Getter_ForDeopt(MacroAssembler* masm) {
-  LoadStubCompiler::GenerateLoadViaGetter(masm, Handle<JSFunction>());
+  LoadStubCompiler::GenerateLoadViaGetter(
+      masm, LoadStubCompiler::registers()[0], Handle<JSFunction>());
 }
 
 
@@ -1374,6 +1385,11 @@ static void Generate_KeyedLoadIC_NonStrictArguments(MacroAssembler* masm) {
 
 
 static void Generate_StoreIC_Slow(MacroAssembler* masm) {
+  StoreIC::GenerateSlow(masm);
+}
+
+
+static void Generate_StoreIC_Slow_Strict(MacroAssembler* masm) {
   StoreIC::GenerateSlow(masm);
 }
 
@@ -1469,6 +1485,11 @@ static void Generate_KeyedStoreIC_MissForceGeneric(MacroAssembler* masm) {
 
 
 static void Generate_KeyedStoreIC_Slow(MacroAssembler* masm) {
+  KeyedStoreIC::GenerateSlow(masm);
+}
+
+
+static void Generate_KeyedStoreIC_Slow_Strict(MacroAssembler* masm) {
   KeyedStoreIC::GenerateSlow(masm);
 }
 

@@ -66,7 +66,8 @@ void NumberToStringStub::InitializeInterfaceDescriptor(
   static Register registers[] = { rax };
   descriptor->register_param_count_ = 1;
   descriptor->register_params_ = registers;
-  descriptor->deoptimization_handler_ = NULL;
+  descriptor->deoptimization_handler_ =
+      Runtime::FunctionForId(Runtime::kNumberToString)->entry;
 }
 
 
@@ -179,7 +180,7 @@ static void InitializeArrayConstructorDescriptor(
   descriptor->register_param_count_ = 2;
   if (constant_stack_parameter_count != 0) {
     // stack param count needs (constructor pointer, and single argument)
-    descriptor->stack_parameter_count_ = &rax;
+    descriptor->stack_parameter_count_ = rax;
   }
   descriptor->hint_stack_parameter_count_ = constant_stack_parameter_count;
   descriptor->register_params_ = registers;
@@ -201,7 +202,7 @@ static void InitializeInternalArrayConstructorDescriptor(
 
   if (constant_stack_parameter_count != 0) {
     // stack param count needs (constructor pointer, and single argument)
-    descriptor->stack_parameter_count_ = &rax;
+    descriptor->stack_parameter_count_ = rax;
   }
   descriptor->hint_stack_parameter_count_ = constant_stack_parameter_count;
   descriptor->register_params_ = registers;
@@ -593,7 +594,7 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
     // Input is a HeapNumber. Push it on the FPU stack and load its
     // bits into rbx.
     __ fld_d(FieldOperand(rax, HeapNumber::kValueOffset));
-    __ movq(rbx, FieldOperand(rax, HeapNumber::kValueOffset));
+    __ MoveDouble(rbx, FieldOperand(rax, HeapNumber::kValueOffset));
     __ movq(rdx, rbx);
 
     __ bind(&loaded);
@@ -3774,34 +3775,11 @@ void StringAddStub::Generate(MacroAssembler* masm) {
 
   // Just jump to runtime to add the two strings.
   __ bind(&call_runtime);
-
-  if ((flags_ & STRING_ADD_ERECT_FRAME) != 0) {
-    GenerateRegisterArgsPop(masm, rcx);
-    // Build a frame
-    {
-      FrameScope scope(masm, StackFrame::INTERNAL);
-      GenerateRegisterArgsPush(masm);
-      __ CallRuntime(Runtime::kStringAdd, 2);
-    }
-    __ Ret();
-  } else {
-    __ TailCallRuntime(Runtime::kStringAdd, 2, 1);
-  }
+  __ TailCallRuntime(Runtime::kStringAdd, 2, 1);
 
   if (call_builtin.is_linked()) {
     __ bind(&call_builtin);
-    if ((flags_ & STRING_ADD_ERECT_FRAME) != 0) {
-      GenerateRegisterArgsPop(masm, rcx);
-      // Build a frame
-      {
-        FrameScope scope(masm, StackFrame::INTERNAL);
-        GenerateRegisterArgsPush(masm);
-        __ InvokeBuiltin(builtin_id, CALL_FUNCTION);
-      }
-      __ Ret();
-    } else {
-      __ InvokeBuiltin(builtin_id, JUMP_FUNCTION);
-    }
+    __ InvokeBuiltin(builtin_id, JUMP_FUNCTION);
   }
 }
 
@@ -4226,9 +4204,15 @@ void SubStringStub::Generate(MacroAssembler* masm) {
     STATIC_ASSERT((kStringEncodingMask & kOneByteStringTag) != 0);
     STATIC_ASSERT((kStringEncodingMask & kTwoByteStringTag) == 0);
     __ testb(rbx, Immediate(kStringEncodingMask));
-    __ j(zero, &two_byte_slice, Label::kNear);
+    // Make long jumps when allocations tracking is on due to
+    // RecordObjectAllocation inside MacroAssembler::Allocate.
+    Label::Distance jump_distance =
+        masm->isolate()->heap_profiler()->is_tracking_allocations()
+        ? Label::kFar
+        : Label::kNear;
+    __ j(zero, &two_byte_slice, jump_distance);
     __ AllocateAsciiSlicedString(rax, rbx, r14, &runtime);
-    __ jmp(&set_slice_header, Label::kNear);
+    __ jmp(&set_slice_header, jump_distance);
     __ bind(&two_byte_slice);
     __ AllocateTwoByteSlicedString(rax, rbx, r14, &runtime);
     __ bind(&set_slice_header);

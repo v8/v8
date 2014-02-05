@@ -167,7 +167,7 @@ void FullCodeGenerator::Generate() {
   //  Push(lr, fp, cp, x1);
   //  Add(fp, jssp, 2 * kPointerSize);
   info->set_prologue_offset(masm_->pc_offset());
-  __ EmitFrameSetupForCodeAgePatching();
+  __ Prologue(BUILD_FUNCTION_FRAME);
   info->AddNoFrameRange(0, masm_->pc_offset());
 
   // Reserve space on the stack for locals.
@@ -1169,7 +1169,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
       Handle<Object>(Smi::FromInt(TypeFeedbackCells::kForInFastCaseMarker),
                      isolate()));
   RecordTypeFeedbackCell(stmt->ForInFeedbackId(), cell);
-  __ LoadHeapObject(x1, cell);
+  __ LoadObject(x1, cell);
   __ Mov(x10, Operand(Smi::FromInt(TypeFeedbackCells::kForInSlowCaseMarker)));
   __ Str(x10, FieldMemOperand(x1, Cell::kValueOffset));
 

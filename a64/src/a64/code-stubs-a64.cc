@@ -68,7 +68,8 @@ void NumberToStringStub::InitializeInterfaceDescriptor(
   static Register registers[] = { x0 };
   descriptor->register_param_count_ = sizeof(registers) / sizeof(registers[0]);
   descriptor->register_params_ = registers;
-  descriptor->deoptimization_handler_ = NULL;
+  descriptor->deoptimization_handler_ =
+      Runtime::FunctionForId(Runtime::kNumberToString)->entry;
 }
 
 
@@ -214,7 +215,7 @@ static void InitializeArrayConstructorDescriptor(
   if (constant_stack_parameter_count != 0) {
     // stack param count needs (constructor pointer, and single argument)
     // x0: number of arguments to the constructor function
-    descriptor->stack_parameter_count_ = &x0;
+    descriptor->stack_parameter_count_ = x0;
   }
   descriptor->hint_stack_parameter_count_ = constant_stack_parameter_count;
   descriptor->register_params_ = registers;
@@ -255,7 +256,7 @@ static void InitializeInternalArrayConstructorDescriptor(
   if (constant_stack_parameter_count != 0) {
     // stack param count needs (constructor pointer, and single argument)
     // x0: number of arguments to the constructor function
-    descriptor->stack_parameter_count_ = &x0;
+    descriptor->stack_parameter_count_ = x0;
   }
   descriptor->hint_stack_parameter_count_ = constant_stack_parameter_count;
   descriptor->register_params_ = registers;
@@ -5077,35 +5078,13 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ Bind(&call_runtime);
   // Restore stack arguments.
   __ Push(left, right);
-  if ((flags_ & STRING_ADD_ERECT_FRAME) != 0) {
-    GenerateRegisterArgsPop(masm);
-    // Build a frame
-    {
-      FrameScope scope(masm, StackFrame::INTERNAL);
-      GenerateRegisterArgsPush(masm);
-      __ CallRuntime(Runtime::kStringAdd, 2);
-    }
-    __ Ret();
-  } else {
-    __ TailCallRuntime(Runtime::kStringAdd, 2, 1);
-  }
+  __ TailCallRuntime(Runtime::kStringAdd, 2, 1);
 
   if (call_builtin.is_linked()) {
     __ Bind(&call_builtin);
     // Restore stack arguments.
     __ Push(left, right);
-    if ((flags_ & STRING_ADD_ERECT_FRAME) != 0) {
-      GenerateRegisterArgsPop(masm);
-      // Build a frame
-      {
-        FrameScope scope(masm, StackFrame::INTERNAL);
-        GenerateRegisterArgsPush(masm);
-        __ InvokeBuiltin(builtin_id, CALL_FUNCTION);
-      }
-      __ Ret();
-    } else {
-      __ InvokeBuiltin(builtin_id, JUMP_FUNCTION);
-    }
+    __ InvokeBuiltin(builtin_id, JUMP_FUNCTION);
   }
 }
 

@@ -57,8 +57,10 @@
   # Boot up memory use is bloated in debug mode.
   'test-mark-compact/BootUpMemoryUse': [PASS, PASS, ['mode == debug', FAIL]],
 
-  # Some CPU profiler tests are flaky.
-  'test-cpu-profiler/*': [PASS, FLAKY],
+  # This tests only that the preparser and parser agree, so there is no point in
+  # running several variants. Note that this still takes ages, because there
+  # are actually 13 * 38 * 5 * 128 = 316160 individual tests hidden here.
+  'test-parsing/ParserSync': [PASS, NO_VARIANTS],
 }],  # ALWAYS
 
 ##############################################################################

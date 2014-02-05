@@ -665,7 +665,7 @@ LInstruction* LChunkBuilder::MarkAsCall(LInstruction* instr,
 
 LInstruction* LChunkBuilder::AssignPointerMap(LInstruction* instr) {
   ASSERT(!instr->HasPointerMap());
-  instr->set_pointer_map(new(zone()) LPointerMap(position_, zone()));
+  instr->set_pointer_map(new(zone()) LPointerMap(zone()));
   return instr;
 }
 
@@ -859,7 +859,6 @@ void LChunkBuilder::DoBasicBlock(HBasicBlock* block, HBasicBlock* next_block) {
 void LChunkBuilder::VisitInstruction(HInstruction* current) {
   HInstruction* old_current = current_instruction_;
   current_instruction_ = current;
-  if (current->has_position()) position_ = current->position();
 
   LInstruction* instr = NULL;
   if (current->CanReplaceWithDummyUses()) {
@@ -914,7 +913,6 @@ void LChunkBuilder::VisitInstruction(HInstruction* current) {
     }
 #endif
 
-    instr->set_position(position_);
     if (FLAG_stress_pointer_maps && !instr->HasPointerMap()) {
       instr = AssignPointerMap(instr);
     }
@@ -1077,12 +1075,6 @@ LInstruction* LChunkBuilder::DoInstanceOfKnownGlobal(
 }
 
 
-LInstruction* LChunkBuilder::DoInstanceSize(HInstanceSize* instr) {
-  LOperand* object = UseRegisterAtStart(instr->object());
-  return DefineAsRegister(new(zone()) LInstanceSize(object));
-}
-
-
 LInstruction* LChunkBuilder::DoWrapReceiver(HWrapReceiver* instr) {
   LOperand* receiver = UseRegister(instr->receiver());
   LOperand* function = UseRegisterAtStart(instr->function());
@@ -1222,9 +1214,11 @@ LInstruction* LChunkBuilder::DoMathAbs(HUnaryMathOperation* instr) {
 
 
 LInstruction* LChunkBuilder::DoMathLog(HUnaryMathOperation* instr) {
-  LOperand* input = UseFixedDouble(instr->value(), xmm1);
+  ASSERT(instr->representation().IsDouble());
+  ASSERT(instr->value()->representation().IsDouble());
+  LOperand* input = UseRegisterAtStart(instr->value());
   LMathLog* result = new(zone()) LMathLog(input);
-  return MarkAsCall(DefineFixedDouble(result, xmm1), instr);
+  return DefineSameAsFirst(result);
 }
 
 
@@ -1828,7 +1822,6 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
   // building a stack frame.
   if (from.IsTagged()) {
     if (to.IsDouble()) {
-      info()->MarkAsDeferredCalling();
       LOperand* value = UseRegister(instr->value());
       LNumberUntagD* res = new(zone()) LNumberUntagD(value);
       return AssignEnvironment(DefineAsRegister(res));
@@ -1890,10 +1883,18 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
     } else if (to.IsSmi()) {
       HValue* val = instr->value();
       LOperand* value = UseRegister(val);
-      LInstruction* result =
-          DefineAsRegister(new(zone()) LInteger32ToSmi(value));
-      if (val->HasRange() && val->range()->IsInSmiRange()) {
-        return result;
+      LInstruction* result = NULL;
+      if (val->CheckFlag(HInstruction::kUint32)) {
+        result = DefineAsRegister(new(zone()) LUint32ToSmi(value));
+        if (val->HasRange() && val->range()->IsInSmiRange() &&
+            val->range()->upper() != kMaxInt) {
+          return result;
+        }
+      } else {
+        result = DefineAsRegister(new(zone()) LInteger32ToSmi(value));
+        if (val->HasRange() && val->range()->IsInSmiRange()) {
+          return result;
+        }
       }
       return AssignEnvironment(result);
     } else {

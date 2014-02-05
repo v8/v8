@@ -979,9 +979,9 @@ void MacroAssembler::CheckEnumCache(Register object,
 
 
 void MacroAssembler::TestJSArrayForAllocationMemento(Register receiver,
-                                                      Register scratch1,
-                                                      Register scratch2) {
-  Label no_memento_available;
+                                                     Register scratch1,
+                                                     Register scratch2,
+                                                     Label* no_memento_found) {
   ExternalReference new_space_start =
       ExternalReference::new_space_start(isolate());
   ExternalReference new_space_allocation_top =
@@ -990,18 +990,16 @@ void MacroAssembler::TestJSArrayForAllocationMemento(Register receiver,
   Add(scratch1, receiver,
       JSArray::kSize + AllocationMemento::kSize - kHeapObjectTag);
   Cmp(scratch1, Operand(new_space_start));
-  B(lt, &no_memento_available);
+  B(lt, no_memento_found);
 
   Mov(scratch2, Operand(new_space_allocation_top));
   Ldr(scratch2, MemOperand(scratch2));
   Cmp(scratch1, scratch2);
-  B(gt, &no_memento_available);
+  B(gt, no_memento_found);
 
   Ldr(scratch1, MemOperand(scratch1, -AllocationMemento::kSize));
   Cmp(scratch1,
       Operand(isolate()->factory()->allocation_memento_map()));
-
-  Bind(&no_memento_available);
 }
 
 
@@ -2437,7 +2435,7 @@ void MacroAssembler::InvokeFunction(Handle<JSFunction> function,
   ASSERT(function_reg.Is(x1) || function_reg.IsNone());
   if (function_reg.IsNone()) {
     function_reg = x1;
-    LoadHeapObject(function_reg, function);
+    LoadObject(function_reg, function);
   }
 
   Register code_reg = x3;
@@ -2559,6 +2557,23 @@ void MacroAssembler::HeapNumberECMA262ToInt32(Register result,
 
   Ldr(double_scratch, FieldMemOperand(heap_number, HeapNumber::kValueOffset));
   ECMA262ToInt32(result, double_scratch, scratch1, scratch2, format);
+}
+
+
+void MacroAssembler::Prologue(PrologueFrameMode frame_mode) {
+  if (frame_mode == BUILD_STUB_FRAME) {
+    ASSERT(StackPointer().Is(jssp));
+    // TODO(jbramley): Does x1 contain a JSFunction here, or does it already
+    // have the special STUB smi?
+    __ Mov(Tmp0(), Operand(Smi::FromInt(StackFrame::STUB)));
+    // Compiled stubs don't age, and so they don't need the predictable code
+    // ageing sequence.
+    __ Push(lr, fp, cp, Tmp0());
+    __ Add(fp, jssp, 2 * kPointerSize);
+  } else {
+    TODO_UNIMPLEMENTED("Prologue: Implement FLAG_optimize_for_size.");
+    __ EmitFrameSetupForCodeAgePatching();
+  }
 }
 
 

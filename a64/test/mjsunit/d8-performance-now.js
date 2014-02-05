@@ -26,29 +26,37 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Flags: --allow-natives-syntax
-// Flags: --concurrent-recompilation --concurrent-recompilation-delay=50
 
-if (!%IsConcurrentRecompilationSupported()) {
-  print("Concurrent recompilation is disabled. Skipping this test.");
-  quit();
+// Test the performance.now() function of d8.  This test only makes sense with
+// d8.
+
+// Don't run this test in gc stress mode. Time differences may be long
+// due to garbage collections.
+%SetFlags("--gc-interval=-1");
+%SetFlags("--nostress-compaction");
+
+if (this.performance && performance.now) {
+  (function run() {
+    var start_test = performance.now();
+    // Let the retry run for maximum 100ms to reduce flakiness.
+    for (var start = performance.now();
+        start - start_test < 100;
+        start = performance.now()) {
+      var end = performance.now();
+      assertTrue(start >= start_test);
+      assertTrue(end >= start);
+      while (end - start == 0) {
+        var next = performance.now();
+        assertTrue(next >= end);
+        end = next;
+      }
+      if (end - start <= 1) {
+        // Found (sub-)millisecond granularity.
+        return;
+      } else {
+        print("Timer difference too big: " + (end - start) + "ms");
+      }
+    }
+    assertTrue(false);
+  })()
 }
-
-function f(foo) { return foo.bar(); }
-
-var o = {};
-o.__proto__ = { __proto__: { bar: function() { return 1; } } };
-
-assertEquals(1, f(o));
-assertEquals(1, f(o));
-
-// Mark for concurrent optimization.
-%OptimizeFunctionOnNextCall(f, "concurrent");
-// Trigger optimization in the background thread.
-assertEquals(1, f(o));
-// While concurrent recompilation is running, optimization not yet done.
-assertUnoptimized(f, "no sync");
-// Change the prototype chain during optimization to trigger map invalidation.
-o.__proto__.__proto__ = { bar: function() { return 2; } };
-// Optimization eventually bails out due to map dependency.
-assertUnoptimized(f, "sync");
-assertEquals(2, f(o));
