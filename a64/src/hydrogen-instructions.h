@@ -208,7 +208,8 @@ class LChunkBuilder;
   V(GlobalVars)                                \
   V(InobjectFields)                            \
   V(OsrEntries)                                \
-  V(ExternalMemory)
+  V(ExternalMemory)                            \
+  V(StringChars)
 
 
 #define DECLARE_ABSTRACT_INSTRUCTION(type)                              \
@@ -542,7 +543,7 @@ class DecompositionResult V8_FINAL BASE_EMBEDDED {
 };
 
 
-typedef EnumSet<GVNFlag> GVNFlagSet;
+typedef EnumSet<GVNFlag, int64_t> GVNFlagSet;
 
 
 class HValue : public ZoneObject {
@@ -6750,6 +6751,7 @@ class HStringCharCodeAt V8_FINAL : public HTemplateInstruction<3> {
     set_representation(Representation::Integer32());
     SetFlag(kUseGVN);
     SetGVNFlag(kDependsOnMaps);
+    SetGVNFlag(kDependsOnStringChars);
     SetGVNFlag(kChangesNewSpacePromotion);
   }
 
@@ -7047,6 +7049,7 @@ class HSeqStringSetChar V8_FINAL : public HTemplateInstruction<3> {
     SetOperandAt(1, index);
     SetOperandAt(2, value);
     set_representation(Representation::Tagged());
+    SetGVNFlag(kChangesStringChars);
   }
 
   String::Encoding encoding_;

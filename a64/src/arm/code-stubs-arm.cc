@@ -77,7 +77,7 @@ void FastCloneShallowArrayStub::InitializeInterfaceDescriptor(
   descriptor->register_param_count_ = 3;
   descriptor->register_params_ = registers;
   descriptor->deoptimization_handler_ =
-      Runtime::FunctionForId(Runtime::kCreateArrayLiteralShallow)->entry;
+      Runtime::FunctionForId(Runtime::kCreateArrayLiteral)->entry;
 }
 
 
@@ -3344,16 +3344,12 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
 
     // Arguments register must be smi-tagged to call out.
     __ SmiTag(r0);
-    __ push(r0);
-    __ push(r1);
-    __ push(r2);
+    __ Push(r2, r1, r0);
 
     CreateAllocationSiteStub create_stub;
     __ CallStub(&create_stub);
 
-    __ pop(r2);
-    __ pop(r1);
-    __ pop(r0);
+    __ Pop(r2, r1, r0);
     __ SmiUntag(r0);
   }
   __ b(&done);
@@ -5021,8 +5017,7 @@ void ICCompareStub::GenerateMiss(MacroAssembler* masm) {
 
     FrameScope scope(masm, StackFrame::INTERNAL);
     __ Push(r1, r0);
-    __ push(lr);
-    __ Push(r1, r0);
+    __ Push(lr, r1, r0);
     __ mov(ip, Operand(Smi::FromInt(op_)));
     __ push(ip);
     __ CallExternalReference(miss, 3);
@@ -5030,8 +5025,7 @@ void ICCompareStub::GenerateMiss(MacroAssembler* masm) {
     __ add(r2, r0, Operand(Code::kHeaderSize - kHeapObjectTag));
     // Restore registers.
     __ pop(lr);
-    __ pop(r0);
-    __ pop(r1);
+    __ Pop(r1, r0);
   }
 
   __ Jump(r2);

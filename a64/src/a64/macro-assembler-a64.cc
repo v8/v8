@@ -33,6 +33,7 @@
 #include "codegen.h"
 #include "cpu-profiler.h"
 #include "debug.h"
+#include "isolate-inl.h"
 #include "runtime.h"
 
 namespace v8 {
@@ -630,6 +631,9 @@ void MacroAssembler::PopCPURegList(CPURegList registers) {
 
 void MacroAssembler::PushMultipleTimes(int count, Register src) {
   int size = src.SizeInBytes();
+
+  // TODO(all): Use a loop when optimizing for size.
+  TODO_UNIMPLEMENTED("PushMultipleTimes: Support --optimize-for-size.");
 
   PrepareForPush(count, size);
   // Push up to four registers at a time if possible because if the current
@@ -2571,7 +2575,7 @@ void MacroAssembler::Prologue(PrologueFrameMode frame_mode) {
     __ Push(lr, fp, cp, Tmp0());
     __ Add(fp, jssp, 2 * kPointerSize);
   } else {
-    TODO_UNIMPLEMENTED("Prologue: Implement FLAG_optimize_for_size.");
+    TODO_UNIMPLEMENTED("Prologue: Support IsCodePreAgingActive().");
     __ EmitFrameSetupForCodeAgePatching();
   }
 }
@@ -4067,6 +4071,30 @@ void MacroAssembler::JumpIfBlack(Register object,
                                  Label* on_black) {
   ASSERT(strcmp(Marking::kBlackBitPattern, "10") == 0);
   HasColor(object, scratch0, scratch1, on_black, 1, 0);  // kBlackBitPattern.
+}
+
+
+void MacroAssembler::JumpIfDictionaryInPrototypeChain(
+    Register object,
+    Register scratch0,
+    Register scratch1,
+    Label* found) {
+  ASSERT(!AreAliased(object, scratch0, scratch1));
+  Factory* factory = isolate()->factory();
+  Register current = scratch0;
+  Label loop_again;
+
+  // Scratch contains elements pointer.
+  Mov(current, object);
+
+  // Loop based on the map going up the prototype chain.
+  Bind(&loop_again);
+  Ldr(current, FieldMemOperand(current, HeapObject::kMapOffset));
+  Ldrb(scratch1, FieldMemOperand(current, Map::kBitField2Offset));
+  Ubfx(scratch1, scratch1, Map::kElementsKindShift, Map::kElementsKindBitCount);
+  CompareAndBranch(scratch1, DICTIONARY_ELEMENTS, eq, found);
+  Ldr(current, FieldMemOperand(current, Map::kPrototypeOffset));
+  CompareAndBranch(current, Operand(factory->null_value()), ne, &loop_again);
 }
 
 

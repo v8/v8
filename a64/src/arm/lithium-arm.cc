@@ -1888,7 +1888,7 @@ LInstruction* LChunkBuilder::DoSeqStringSetChar(HSeqStringSetChar* instr) {
   LOperand* string = UseRegister(instr->string());
   LOperand* index = UseRegisterOrConstant(instr->index());
   LOperand* value = UseRegister(instr->value());
-  return new(zone()) LSeqStringSetChar(instr->encoding(), string, index, value);
+  return new(zone()) LSeqStringSetChar(string, index, value);
 }
 
 

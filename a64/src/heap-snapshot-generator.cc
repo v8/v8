@@ -29,7 +29,7 @@
 
 #include "heap-snapshot-generator-inl.h"
 
-#include "allocation-tracker.h"
+#include "code-stubs.h"
 #include "heap-profiler.h"
 #include "debug.h"
 #include "types.h"
@@ -748,8 +748,7 @@ size_t HeapObjectsMap::GetUsedMemorySize() const {
 HeapSnapshotsCollection::HeapSnapshotsCollection(Heap* heap)
     : is_tracking_objects_(false),
       names_(heap),
-      ids_(heap),
-      allocation_tracker_(NULL) {
+      ids_(heap) {
 }
 
 
@@ -759,26 +758,7 @@ static void DeleteHeapSnapshot(HeapSnapshot** snapshot_ptr) {
 
 
 HeapSnapshotsCollection::~HeapSnapshotsCollection() {
-  delete allocation_tracker_;
   snapshots_.Iterate(DeleteHeapSnapshot);
-}
-
-
-void HeapSnapshotsCollection::StartHeapObjectsTracking() {
-  ids_.UpdateHeapObjectsMap();
-  if (allocation_tracker_ == NULL) {
-    allocation_tracker_ = new AllocationTracker(&ids_, names());
-  }
-  is_tracking_objects_ = true;
-}
-
-
-void HeapSnapshotsCollection::StopHeapObjectsTracking() {
-  ids_.StopHeapObjectsTracking();
-  if (allocation_tracker_ != NULL) {
-    delete allocation_tracker_;
-    allocation_tracker_ = NULL;
-  }
 }
 
 
@@ -822,15 +802,6 @@ Handle<HeapObject> HeapSnapshotsCollection::FindHeapObjectById(
     }
   }
   return object != NULL ? Handle<HeapObject>(object) : Handle<HeapObject>();
-}
-
-
-void HeapSnapshotsCollection::NewObjectEvent(Address addr, int size) {
-  DisallowHeapAllocation no_allocation;
-  ids_.NewObject(addr, size);
-  if (allocation_tracker_ != NULL) {
-    allocation_tracker_->NewObjectEvent(addr, size);
-  }
 }
 
 
@@ -1110,7 +1081,7 @@ class IndexedReferencesExtractor : public ObjectVisitor {
   void VisitCodeEntry(Address entry_address) {
      Code* code = Code::cast(Code::GetObjectFromEntryAddress(entry_address));
      generator_->SetInternalReference(parent_obj_, parent_, "code", code);
-     generator_->TagObject(code, "(code)");
+     generator_->TagCodeObject(code);
   }
   void VisitPointers(Object** start, Object** end) {
     for (Object** p = start; p < end; p++) {
@@ -1370,10 +1341,20 @@ void V8HeapExplorer::ExtractMapReferences(int entry, Map* map) {
 void V8HeapExplorer::ExtractSharedFunctionInfoReferences(
     int entry, SharedFunctionInfo* shared) {
   HeapObject* obj = shared;
+  StringsStorage* names = collection_->names();
+  String* shared_name = shared->DebugName();
+  const char* name = NULL;
+  if (shared_name != *heap_->isolate()->factory()->empty_string()) {
+    name = names->GetName(shared_name);
+    TagObject(shared->code(), names->GetFormatted("(code for %s)", name));
+  } else {
+    TagObject(shared->code(), names->GetFormatted("(%s code)",
+        Code::Kind2String(shared->code()->kind())));
+  }
+
   SetInternalReference(obj, entry,
                        "name", shared->name(),
                        SharedFunctionInfo::kNameOffset);
-  TagObject(shared->code(), "(code)");
   SetInternalReference(obj, entry,
                        "code", shared->code(),
                        SharedFunctionInfo::kCodeOffset);
@@ -1387,7 +1368,10 @@ void V8HeapExplorer::ExtractSharedFunctionInfoReferences(
   SetInternalReference(obj, entry,
                        "script", shared->script(),
                        SharedFunctionInfo::kScriptOffset);
-  TagObject(shared->construct_stub(), "(code)");
+  const char* construct_stub_name = name ?
+      names->GetFormatted("(construct stub code for %s)", name) :
+      "(construct stub code)";
+  TagObject(shared->construct_stub(), construct_stub_name);
   SetInternalReference(obj, entry,
                        "construct_stub", shared->construct_stub(),
                        SharedFunctionInfo::kConstructStubOffset);
@@ -1400,6 +1384,9 @@ void V8HeapExplorer::ExtractSharedFunctionInfoReferences(
   SetInternalReference(obj, entry,
                        "inferred_name", shared->inferred_name(),
                        SharedFunctionInfo::kInferredNameOffset);
+  SetInternalReference(obj, entry,
+                       "optimized_code_map", shared->optimized_code_map(),
+                       SharedFunctionInfo::kOptimizedCodeMapOffset);
   SetWeakReference(obj, entry,
                    1, shared->initial_map(),
                    SharedFunctionInfo::kInitialMapOffset);
@@ -1449,7 +1436,23 @@ void V8HeapExplorer::ExtractCodeCacheReferences(
 }
 
 
+void V8HeapExplorer::TagCodeObject(Code* code, const char* external_name) {
+  TagObject(code, collection_->names()->GetFormatted("(%s code)",
+      external_name));
+}
+
+
+void V8HeapExplorer::TagCodeObject(Code* code) {
+  if (code->kind() == Code::STUB) {
+    TagObject(code, collection_->names()->GetFormatted(
+        "(%s code)", CodeStub::MajorName(
+            static_cast<CodeStub::Major>(code->major_key()), true)));
+  }
+}
+
+
 void V8HeapExplorer::ExtractCodeReferences(int entry, Code* code) {
+  TagCodeObject(code);
   TagObject(code->relocation_info(), "(code relocation info)");
   SetInternalReference(code, entry,
                        "relocation_info", code->relocation_info(),
@@ -1695,9 +1698,10 @@ class RootsReferencesExtractor : public ObjectVisitor {
   };
 
  public:
-  RootsReferencesExtractor()
+  explicit RootsReferencesExtractor(Heap* heap)
       : collecting_all_references_(false),
-        previous_reference_count_(0) {
+        previous_reference_count_(0),
+        heap_(heap) {
   }
 
   void VisitPointers(Object** start, Object** end) {
@@ -1712,22 +1716,30 @@ class RootsReferencesExtractor : public ObjectVisitor {
 
   void FillReferences(V8HeapExplorer* explorer) {
     ASSERT(strong_references_.length() <= all_references_.length());
+    Builtins* builtins = heap_->isolate()->builtins();
     for (int i = 0; i < reference_tags_.length(); ++i) {
       explorer->SetGcRootsReference(reference_tags_[i].tag);
     }
-    int strong_index = 0, all_index = 0, tags_index = 0;
+    int strong_index = 0, all_index = 0, tags_index = 0, builtin_index = 0;
     while (all_index < all_references_.length()) {
       if (strong_index < strong_references_.length() &&
           strong_references_[strong_index] == all_references_[all_index]) {
         explorer->SetGcSubrootReference(reference_tags_[tags_index].tag,
                                         false,
-                                        all_references_[all_index++]);
+                                        all_references_[all_index]);
         ++strong_index;
       } else {
         explorer->SetGcSubrootReference(reference_tags_[tags_index].tag,
                                         true,
-                                        all_references_[all_index++]);
+                                        all_references_[all_index]);
       }
+      if (reference_tags_[tags_index].tag ==
+          VisitorSynchronization::kBuiltins) {
+        ASSERT(all_references_[all_index]->IsCode());
+        explorer->TagCodeObject(Code::cast(all_references_[all_index]),
+            builtins->name(builtin_index++));
+      }
+      ++all_index;
       if (reference_tags_[tags_index].index == all_index) ++tags_index;
     }
   }
@@ -1746,6 +1758,7 @@ class RootsReferencesExtractor : public ObjectVisitor {
   List<Object*> all_references_;
   int previous_reference_count_;
   List<IndexTag> reference_tags_;
+  Heap* heap_;
 };
 
 
@@ -1771,7 +1784,7 @@ bool V8HeapExplorer::IterateAndExtractReferences(
   }
 
   SetRootGcRootsReference();
-  RootsReferencesExtractor extractor;
+  RootsReferencesExtractor extractor(heap_);
   heap_->IterateRoots(&extractor, VISIT_ONLY_STRONG);
   extractor.SetCollectingAllReferences();
   heap_->IterateRoots(&extractor, VISIT_ALL);
@@ -2632,10 +2645,6 @@ const int HeapSnapshotJSONSerializer::kEdgeFieldsCount = 3;
 const int HeapSnapshotJSONSerializer::kNodeFieldsCount = 5;
 
 void HeapSnapshotJSONSerializer::Serialize(v8::OutputStream* stream) {
-  if (AllocationTracker* allocation_tracker =
-      snapshot_->collection()->allocation_tracker()) {
-    allocation_tracker->PrepareForSerialization();
-  }
   ASSERT(writer_ == NULL);
   writer_ = new OutputStreamWriter(stream);
   SerializeImpl();
@@ -2659,16 +2668,6 @@ void HeapSnapshotJSONSerializer::SerializeImpl() {
   SerializeEdges();
   if (writer_->aborted()) return;
   writer_->AddString("],\n");
-
-  writer_->AddString("\"trace_function_infos\":[");
-  SerializeTraceNodeInfos();
-  if (writer_->aborted()) return;
-  writer_->AddString("],\n");
-  writer_->AddString("\"trace_tree\":[");
-  SerializeTraceTree();
-  if (writer_->aborted()) return;
-  writer_->AddString("],\n");
-
   writer_->AddString("\"strings\":[");
   SerializeStrings();
   if (writer_->aborted()) return;
@@ -2829,20 +2828,7 @@ void HeapSnapshotJSONSerializer::SerializeSnapshot() {
             JSON_S("shortcut") ","
             JSON_S("weak")) ","
         JSON_S("string_or_number") ","
-        JSON_S("node")) ","
-    JSON_S("trace_function_info_fields") ":" JSON_A(
-        JSON_S("function_id") ","
-        JSON_S("name") ","
-        JSON_S("script_name") ","
-        JSON_S("script_id") ","
-        JSON_S("line") ","
-        JSON_S("column")) ","
-    JSON_S("trace_node_fields") ":" JSON_A(
-        JSON_S("id") ","
-        JSON_S("function_id") ","
-        JSON_S("count") ","
-        JSON_S("size") ","
-        JSON_S("children"))));
+        JSON_S("node"))));
 #undef JSON_S
 #undef JSON_O
 #undef JSON_A
@@ -2850,13 +2836,6 @@ void HeapSnapshotJSONSerializer::SerializeSnapshot() {
   writer_->AddNumber(snapshot_->entries().length());
   writer_->AddString(",\"edge_count\":");
   writer_->AddNumber(snapshot_->edges().length());
-  writer_->AddString(",\"trace_function_count\":");
-  uint32_t count = 0;
-  AllocationTracker* tracker = snapshot_->collection()->allocation_tracker();
-  if (tracker) {
-    count = tracker->id_to_function_info()->occupancy();
-  }
-  writer_->AddNumber(count);
 }
 
 
@@ -2867,100 +2846,6 @@ static void WriteUChar(OutputStreamWriter* w, unibrow::uchar u) {
   w->AddCharacter(hex_chars[(u >> 8) & 0xf]);
   w->AddCharacter(hex_chars[(u >> 4) & 0xf]);
   w->AddCharacter(hex_chars[u & 0xf]);
-}
-
-
-void HeapSnapshotJSONSerializer::SerializeTraceTree() {
-  AllocationTracker* tracker = snapshot_->collection()->allocation_tracker();
-  if (!tracker) return;
-  AllocationTraceTree* traces = tracker->trace_tree();
-  SerializeTraceNode(traces->root());
-}
-
-
-void HeapSnapshotJSONSerializer::SerializeTraceNode(AllocationTraceNode* node) {
-  // The buffer needs space for 4 unsigned ints, 4 commas, [ and \0
-  const int kBufferSize =
-      4 * MaxDecimalDigitsIn<sizeof(unsigned)>::kUnsigned  // NOLINT
-      + 4 + 1 + 1;
-  EmbeddedVector<char, kBufferSize> buffer;
-  int buffer_pos = 0;
-  buffer_pos = utoa(node->id(), buffer, buffer_pos);
-  buffer[buffer_pos++] = ',';
-  buffer_pos = utoa(node->function_id(), buffer, buffer_pos);
-  buffer[buffer_pos++] = ',';
-  buffer_pos = utoa(node->allocation_count(), buffer, buffer_pos);
-  buffer[buffer_pos++] = ',';
-  buffer_pos = utoa(node->allocation_size(), buffer, buffer_pos);
-  buffer[buffer_pos++] = ',';
-  buffer[buffer_pos++] = '[';
-  buffer[buffer_pos++] = '\0';
-  writer_->AddString(buffer.start());
-
-  Vector<AllocationTraceNode*> children = node->children();
-  for (int i = 0; i < children.length(); i++) {
-    if (i > 0) {
-      writer_->AddCharacter(',');
-    }
-    SerializeTraceNode(children[i]);
-  }
-  writer_->AddCharacter(']');
-}
-
-
-// 0-based position is converted to 1-based during the serialization.
-static int SerializePosition(int position, const Vector<char>& buffer,
-                             int buffer_pos) {
-  if (position == -1) {
-    buffer[buffer_pos++] = '0';
-  } else {
-    ASSERT(position >= 0);
-    buffer_pos = utoa(static_cast<unsigned>(position + 1), buffer, buffer_pos);
-  }
-  return buffer_pos;
-}
-
-
-void HeapSnapshotJSONSerializer::SerializeTraceNodeInfos() {
-  AllocationTracker* tracker = snapshot_->collection()->allocation_tracker();
-  if (!tracker) return;
-  // The buffer needs space for 6 unsigned ints, 6 commas, \n and \0
-  const int kBufferSize =
-      6 * MaxDecimalDigitsIn<sizeof(unsigned)>::kUnsigned  // NOLINT
-      + 6 + 1 + 1;
-  EmbeddedVector<char, kBufferSize> buffer;
-  HashMap* id_to_function_info = tracker->id_to_function_info();
-  bool first_entry = true;
-  for (HashMap::Entry* p = id_to_function_info->Start();
-       p != NULL;
-       p = id_to_function_info->Next(p)) {
-    SnapshotObjectId id =
-        static_cast<SnapshotObjectId>(reinterpret_cast<intptr_t>(p->key));
-    AllocationTracker::FunctionInfo* info =
-        reinterpret_cast<AllocationTracker::FunctionInfo* >(p->value);
-    int buffer_pos = 0;
-    if (first_entry) {
-      first_entry = false;
-    } else {
-      buffer[buffer_pos++] = ',';
-    }
-    buffer_pos = utoa(id, buffer, buffer_pos);
-    buffer[buffer_pos++] = ',';
-    buffer_pos = utoa(GetStringId(info->name), buffer, buffer_pos);
-    buffer[buffer_pos++] = ',';
-    buffer_pos = utoa(GetStringId(info->script_name), buffer, buffer_pos);
-    buffer[buffer_pos++] = ',';
-    // The cast is safe because script id is a non-negative Smi.
-    buffer_pos = utoa(static_cast<unsigned>(info->script_id), buffer,
-        buffer_pos);
-    buffer[buffer_pos++] = ',';
-    buffer_pos = SerializePosition(info->line, buffer, buffer_pos);
-    buffer[buffer_pos++] = ',';
-    buffer_pos = SerializePosition(info->column, buffer, buffer_pos);
-    buffer[buffer_pos++] = '\n';
-    buffer[buffer_pos++] = '\0';
-    writer_->AddString(buffer.start());
-  }
 }
 
 

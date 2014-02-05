@@ -1757,13 +1757,10 @@ LInstruction* LChunkBuilder::DoDateField(HDateField* instr) {
 
 
 LInstruction* LChunkBuilder::DoSeqStringSetChar(HSeqStringSetChar* instr) {
-  LOperand* string = UseRegister(instr->string());
-  LOperand* index = UseRegister(instr->index());
-  ASSERT(rcx.is_byte_register());
-  LOperand* value = UseFixed(instr->value(), rcx);
-  LSeqStringSetChar* result =
-      new(zone()) LSeqStringSetChar(instr->encoding(), string, index, value);
-  return DefineSameAsFirst(result);
+  LOperand* string = UseRegisterAtStart(instr->string());
+  LOperand* index = UseRegisterOrConstantAtStart(instr->index());
+  LOperand* value = UseRegisterOrConstantAtStart(instr->value());
+  return new(zone()) LSeqStringSetChar(string, index, value);
 }
 
 

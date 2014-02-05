@@ -1958,7 +1958,7 @@ void LCodeGen::DoConstantD(LConstantD* instr) {
           XMMRegister xmm_scratch = double_scratch0();
           __ Set(temp, Immediate(lower));
           __ movd(xmm_scratch, Operand(temp));
-          __ por(res, xmm_scratch);
+          __ orps(res, xmm_scratch);
         }
       }
     }
@@ -2059,32 +2059,62 @@ void LCodeGen::DoDateField(LDateField* instr) {
 }
 
 
+Operand LCodeGen::BuildSeqStringOperand(Register string,
+                                        LOperand* index,
+                                        String::Encoding encoding) {
+  if (index->IsConstantOperand()) {
+    int offset = ToRepresentation(LConstantOperand::cast(index),
+                                  Representation::Integer32());
+    if (encoding == String::TWO_BYTE_ENCODING) {
+      offset *= kUC16Size;
+    }
+    STATIC_ASSERT(kCharSize == 1);
+    return FieldOperand(string, SeqString::kHeaderSize + offset);
+  }
+  return FieldOperand(
+      string, ToRegister(index),
+      encoding == String::ONE_BYTE_ENCODING ? times_1 : times_2,
+      SeqString::kHeaderSize);
+}
+
+
 void LCodeGen::DoSeqStringSetChar(LSeqStringSetChar* instr) {
+  String::Encoding encoding = instr->hydrogen()->encoding();
   Register string = ToRegister(instr->string());
-  Register index = ToRegister(instr->index());
-  Register value = ToRegister(instr->value());
-  String::Encoding encoding = instr->encoding();
 
   if (FLAG_debug_code) {
-    __ push(value);
-    __ mov(value, FieldOperand(string, HeapObject::kMapOffset));
-    __ movzx_b(value, FieldOperand(value, Map::kInstanceTypeOffset));
+    __ push(string);
+    __ mov(string, FieldOperand(string, HeapObject::kMapOffset));
+    __ movzx_b(string, FieldOperand(string, Map::kInstanceTypeOffset));
 
-    __ and_(value, Immediate(kStringRepresentationMask | kStringEncodingMask));
+    __ and_(string, Immediate(kStringRepresentationMask | kStringEncodingMask));
     static const uint32_t one_byte_seq_type = kSeqStringTag | kOneByteStringTag;
     static const uint32_t two_byte_seq_type = kSeqStringTag | kTwoByteStringTag;
-    __ cmp(value, Immediate(encoding == String::ONE_BYTE_ENCODING
-                                ? one_byte_seq_type : two_byte_seq_type));
+    __ cmp(string, Immediate(encoding == String::ONE_BYTE_ENCODING
+                             ? one_byte_seq_type : two_byte_seq_type));
     __ Check(equal, kUnexpectedStringType);
-    __ pop(value);
+    __ pop(string);
   }
 
-  if (encoding == String::ONE_BYTE_ENCODING) {
-    __ mov_b(FieldOperand(string, index, times_1, SeqString::kHeaderSize),
-             value);
+  Operand operand = BuildSeqStringOperand(string, instr->index(), encoding);
+  if (instr->value()->IsConstantOperand()) {
+    int value = ToRepresentation(LConstantOperand::cast(instr->value()),
+                                 Representation::Integer32());
+    ASSERT_LE(0, value);
+    if (encoding == String::ONE_BYTE_ENCODING) {
+      ASSERT_LE(value, String::kMaxOneByteCharCode);
+      __ mov_b(operand, static_cast<int8_t>(value));
+    } else {
+      ASSERT_LE(value, String::kMaxUtf16CodeUnit);
+      __ mov_w(operand, static_cast<int16_t>(value));
+    }
   } else {
-    __ mov_w(FieldOperand(string, index, times_2, SeqString::kHeaderSize),
-             value);
+    Register value = ToRegister(instr->value());
+    if (encoding == String::ONE_BYTE_ENCODING) {
+      __ mov_b(operand, value);
+    } else {
+      __ mov_w(operand, value);
+    }
   }
 }
 
@@ -2184,7 +2214,7 @@ void LCodeGen::DoMathMinMax(LMathMinMax* instr) {
     __ ucomisd(left_reg, left_reg);  // NaN check.
     __ j(parity_even, &return_left, Label::kNear);  // left == NaN.
     __ bind(&return_right);
-    __ movsd(left_reg, right_reg);
+    __ movaps(left_reg, right_reg);
 
     __ bind(&return_left);
   }
@@ -3995,7 +4025,7 @@ void LCodeGen::DoMathRound(LMathRound* instr) {
 
   // CVTTSD2SI rounds towards zero, we use ceil(x - (-0.5)) and then
   // compare and compensate.
-  __ movsd(input_temp, input_reg);  // Do not alter input_reg.
+  __ movaps(input_temp, input_reg);  // Do not alter input_reg.
   __ subsd(input_temp, xmm_scratch);
   __ cvttsd2si(output_reg, Operand(input_temp));
   // Catch minint due to overflow, and to prevent overflow when compensating.

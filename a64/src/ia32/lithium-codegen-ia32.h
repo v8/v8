@@ -295,6 +295,10 @@ class LCodeGen: public LCodeGenBase {
                                 uint32_t offset,
                                 uint32_t additional_index = 0);
 
+  Operand BuildSeqStringOperand(Register string,
+                                LOperand* index,
+                                String::Encoding encoding);
+
   void EmitIntegerMathAbs(LMathAbs* instr);
 
   // Support for recording safepoint and position information.

@@ -1388,6 +1388,7 @@ class AllocationStats BASE_EMBEDDED {
   // Zero out all the allocation statistics (i.e., no capacity).
   void Clear() {
     capacity_ = 0;
+    max_capacity_ = 0;
     size_ = 0;
     waste_ = 0;
   }
@@ -1406,6 +1407,7 @@ class AllocationStats BASE_EMBEDDED {
 
   // Accessors for the allocation statistics.
   intptr_t Capacity() { return capacity_; }
+  intptr_t MaxCapacity() { return max_capacity_; }
   intptr_t Size() { return size_; }
   intptr_t Waste() { return waste_; }
 
@@ -1415,6 +1417,9 @@ class AllocationStats BASE_EMBEDDED {
   void ExpandSpace(int size_in_bytes) {
     capacity_ += size_in_bytes;
     size_ += size_in_bytes;
+    if (capacity_ > max_capacity_) {
+      max_capacity_ = capacity_;
+    }
     ASSERT(size_ >= 0);
   }
 
@@ -1448,6 +1453,7 @@ class AllocationStats BASE_EMBEDDED {
 
  private:
   intptr_t capacity_;
+  intptr_t max_capacity_;
   intptr_t size_;
   intptr_t waste_;
 };
@@ -1689,6 +1695,9 @@ class PagedSpace : public Space {
   // spaces this equals the capacity.
   intptr_t CommittedMemory() { return Capacity(); }
 
+  // The maximum amount of memory ever committed for this space.
+  intptr_t MaximumCommittedMemory() { return accounting_stats_.MaxCapacity(); }
+
   // Approximate amount of physical memory committed for this space.
   size_t CommittedPhysicalMemory();
 
@@ -1795,9 +1804,7 @@ class PagedSpace : public Space {
     accounting_stats_.AllocateBytes(bytes);
   }
 
-  void IncreaseCapacity(int size) {
-    accounting_stats_.ExpandSpace(size);
-  }
+  void IncreaseCapacity(int size);
 
   // Releases an unused page and shrinks the space.
   void ReleasePage(Page* page, bool unlink);
@@ -2207,6 +2214,9 @@ class SemiSpace : public Space {
 
   static void Swap(SemiSpace* from, SemiSpace* to);
 
+  // Returns the maximum amount of memory ever committed by the semi space.
+  size_t MaximumCommittedMemory() { return maximum_committed_; }
+
   // Approximate amount of physical memory committed for this space.
   size_t CommittedPhysicalMemory();
 
@@ -2215,12 +2225,17 @@ class SemiSpace : public Space {
   // Copies the flags into the masked positions on all pages in the space.
   void FlipPages(intptr_t flags, intptr_t flag_mask);
 
+  // Updates Capacity and MaximumCommitted based on new capacity.
+  void SetCapacity(int new_capacity);
+
   NewSpacePage* anchor() { return &anchor_; }
 
   // The current and maximum capacity of the space.
   int capacity_;
   int maximum_capacity_;
   int initial_capacity_;
+
+  intptr_t maximum_committed_;
 
   // The start address of the space.
   Address start_;
@@ -2405,6 +2420,12 @@ class NewSpace : public Space {
   intptr_t CommittedMemory() {
     if (from_space_.is_committed()) return 2 * Capacity();
     return Capacity();
+  }
+
+  // Return the total amount of memory committed for new space.
+  intptr_t MaximumCommittedMemory() {
+    return to_space_.MaximumCommittedMemory() +
+        from_space_.MaximumCommittedMemory();
   }
 
   // Approximate amount of physical memory committed for this space.
@@ -2802,6 +2823,10 @@ class LargeObjectSpace : public Space {
     return objects_size_;
   }
 
+  intptr_t MaximumCommittedMemory() {
+    return maximum_committed_;
+  }
+
   intptr_t CommittedMemory() {
     return Size();
   }
@@ -2853,6 +2878,7 @@ class LargeObjectSpace : public Space {
 
  private:
   intptr_t max_capacity_;
+  intptr_t maximum_committed_;
   // The head of the linked list of large object chunks.
   LargePage* first_page_;
   intptr_t size_;  // allocated bytes

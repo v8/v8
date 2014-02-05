@@ -1392,6 +1392,19 @@ static void KeyedStoreGenerateGenericHelper(
     __ B(ne, fast_double);
   }
 
+  // HOLECHECK: guards "A[i] = V"
+  // We have to go to the runtime if the current value is the hole because there
+  // may be a callback on the element.
+  Label holecheck_passed;
+  // TODO(all): This address calculation is repeated later (for the store
+  // itself). We should keep the result to avoid doing the work twice.
+  __ Add(x10, elements, FixedArray::kHeaderSize - kHeapObjectTag);
+  __ Add(x10, x10, Operand::UntagSmiAndScale(key, kPointerSizeLog2));
+  __ Ldr(x11, MemOperand(x10));
+  __ JumpIfNotRoot(x11, Heap::kTheHoleValueRootIndex, &holecheck_passed);
+  __ JumpIfDictionaryInPrototypeChain(receiver, elements_map, x10, slow);
+  __ bind(&holecheck_passed);
+
   // Smi stores don't require further checks.
   __ JumpIfSmi(value, &finish_store);
 
@@ -1434,6 +1447,17 @@ static void KeyedStoreGenerateGenericHelper(
     // runtime.
     __ JumpIfNotRoot(elements_map, Heap::kFixedDoubleArrayMapRootIndex, slow);
   }
+
+  // HOLECHECK: guards "A[i] double hole?"
+  // We have to see if the double version of the hole is present. If so go to
+  // the runtime.
+  // TODO(all): This address calculation was done earlier. We should keep the
+  // result to avoid doing the work twice.
+  __ Add(x10, elements, FixedDoubleArray::kHeaderSize - kHeapObjectTag);
+  __ Add(x10, x10, Operand::UntagSmiAndScale(key, kPointerSizeLog2));
+  __ Ldr(x11, MemOperand(x10));
+  __ CompareAndBranch(x11, kHoleNanInt64, ne, &fast_double_without_map_check);
+  __ JumpIfDictionaryInPrototypeChain(receiver, elements_map, x10, slow);
 
   __ Bind(&fast_double_without_map_check);
   __ StoreNumberToDoubleElements(value,

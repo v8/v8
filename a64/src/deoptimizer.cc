@@ -1620,10 +1620,10 @@ Handle<Object> Deoptimizer::MaterializeNextHeapObject() {
         Handle<Map>::cast(MaterializeNextValue()), Representation::Tagged());
     switch (map->instance_type()) {
       case HEAP_NUMBER_TYPE: {
-        Handle<HeapNumber> object = isolate_->factory()->NewHeapNumber(0.0);
+        // Reuse the HeapNumber value directly as it is already properly
+        // tagged and skip materializing the HeapNumber explicitly.
+        Handle<Object> object = MaterializeNextValue();
         materialized_objects_->Add(object);
-        Handle<Object> number = MaterializeNextValue();
-        object->set_value(number->Number());
         materialization_value_index_ += kDoubleSize / kPointerSize - 1;
         break;
       }

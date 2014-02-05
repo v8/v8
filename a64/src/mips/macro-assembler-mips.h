@@ -293,17 +293,6 @@ class MacroAssembler: public Assembler {
                  Heap::RootListIndex index,
                  Condition cond, Register src1, const Operand& src2);
 
-  void LoadHeapObject(Register dst, Handle<HeapObject> object);
-
-  void LoadObject(Register result, Handle<Object> object) {
-    AllowDeferredHandleDereference heap_object_check;
-    if (object->IsHeapObject()) {
-      LoadHeapObject(result, Handle<HeapObject>::cast(object));
-    } else {
-      li(result, object);
-    }
-  }
-
   // ---------------------------------------------------------------------------
   // GC Support
 
@@ -620,10 +609,7 @@ class MacroAssembler: public Assembler {
   inline void li(Register rd, int32_t j, LiFlags mode = OPTIMIZE_SIZE) {
     li(rd, Operand(j), mode);
   }
-  inline void li(Register dst, Handle<Object> value,
-                 LiFlags mode = OPTIMIZE_SIZE) {
-    li(dst, Operand(value), mode);
-  }
+  void li(Register dst, Handle<Object> value, LiFlags mode = OPTIMIZE_SIZE);
 
   // Push multiple registers on the stack.
   // Registers are saved in numerical order, with higher numbered registers

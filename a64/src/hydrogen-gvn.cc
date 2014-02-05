@@ -433,7 +433,7 @@ SmartArrayPointer<char> GetGVNFlagsString(GVNFlagSet flags) {
   uint32_t set_depends_on = 0;
   uint32_t set_changes = 0;
   for (int bit = 0; bit < kLastFlag; ++bit) {
-    if ((flags.ToIntegral() & (1 << bit)) != 0) {
+    if (flags.Contains(static_cast<GVNFlag>(bit))) {
       if (bit % 2 == 0) {
         set_changes++;
       } else {
@@ -450,7 +450,7 @@ SmartArrayPointer<char> GetGVNFlagsString(GVNFlagSet flags) {
       offset += OS::SNPrintF(buffer + offset, "changes all except [");
     }
     for (int bit = 0; bit < kLastFlag; ++bit) {
-      if (((flags.ToIntegral() & (1 << bit)) != 0) == positive_changes) {
+      if (flags.Contains(static_cast<GVNFlag>(bit)) == positive_changes) {
         switch (static_cast<GVNFlag>(bit)) {
 #define DECLARE_FLAG(type)                                       \
           case kChanges##type:                                   \
@@ -479,7 +479,7 @@ GVN_UNTRACKED_FLAG_LIST(DECLARE_FLAG)
       offset += OS::SNPrintF(buffer + offset, "depends on all except [");
     }
     for (int bit = 0; bit < kLastFlag; ++bit) {
-      if (((flags.ToIntegral() & (1 << bit)) != 0) == positive_depends_on) {
+      if (flags.Contains(static_cast<GVNFlag>(bit)) == positive_depends_on) {
         switch (static_cast<GVNFlag>(bit)) {
 #define DECLARE_FLAG(type)                                       \
           case kDependsOn##type:                                 \

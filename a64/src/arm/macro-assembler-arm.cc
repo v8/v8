@@ -35,6 +35,7 @@
 #include "codegen.h"
 #include "cpu-profiler.h"
 #include "debug.h"
+#include "isolate-inl.h"
 #include "runtime.h"
 
 namespace v8 {
@@ -926,12 +927,12 @@ void MacroAssembler::Prologue(PrologueFrameMode frame_mode) {
         this, kNoCodeAgeSequenceLength * Assembler::kInstrSize);
     // The following three instructions must remain together and unmodified
     // for code aging to work properly.
-    if (FLAG_optimize_for_size && FLAG_age_code) {
+    if (isolate()->IsCodePreAgingActive()) {
       // Pre-age the code.
       Code* stub = Code::GetPreAgedCodeAgeStub(isolate());
       add(r0, pc, Operand(-8));
       ldr(pc, MemOperand(pc, -4));
-      dd(reinterpret_cast<uint32_t>(stub->instruction_start()));
+      emit_code_stub_address(stub);
     } else {
       stm(db_w, sp, r1.bit() | cp.bit() | fp.bit() | lr.bit());
       nop(ip.code());
@@ -3925,6 +3926,32 @@ Register GetRegisterThatIsNotOneOf(Register reg1,
   }
   UNREACHABLE();
   return no_reg;
+}
+
+
+void MacroAssembler::JumpIfDictionaryInPrototypeChain(
+    Register object,
+    Register scratch0,
+    Register scratch1,
+    Label* found) {
+  ASSERT(!scratch1.is(scratch0));
+  Factory* factory = isolate()->factory();
+  Register current = scratch0;
+  Label loop_again;
+
+  // scratch contained elements pointer.
+  mov(current, object);
+
+  // Loop based on the map going up the prototype chain.
+  bind(&loop_again);
+  ldr(current, FieldMemOperand(current, HeapObject::kMapOffset));
+  ldr(scratch1, FieldMemOperand(current, Map::kBitField2Offset));
+  Ubfx(scratch1, scratch1, Map::kElementsKindShift, Map::kElementsKindBitCount);
+  cmp(scratch1, Operand(DICTIONARY_ELEMENTS));
+  b(eq, found);
+  ldr(current, FieldMemOperand(current, Map::kPrototypeOffset));
+  cmp(current, Operand(factory->null_value()));
+  b(ne, &loop_again);
 }
 
 

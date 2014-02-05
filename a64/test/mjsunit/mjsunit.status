@@ -31,8 +31,10 @@
 [ALWAYS, {
   'bugs/*': [FAIL],
 
-  # TODO(mvstanton) Re-enable when the performance is bearable again.
-  'regress/regress-2185-2': [SKIP],
+  ##############################################################################
+  # Flaky tests.
+  # BUG(v8:2921).
+  'debug-step-4-in-frame': [PASS, FLAKY],
 
   ##############################################################################
   # Fails.
@@ -300,6 +302,9 @@
 
   # Skip long running test that times out in debug mode and goes OOM on NaCl.
   'regress/regress-crbug-160010': [SKIP],
+
+  # Bug(v8:2978).
+  'lithium/MathExp': [PASS, FAIL],
 }],  # 'arch == nacl_ia32 or arch == nacl_x64'
 
 ##############################################################################

@@ -1965,6 +1965,10 @@ class MacroAssembler : public Assembler {
   static bool IsCodeAgeSequence(byte* sequence);
 #endif
 
+  // Jumps to found label if a prototype map has dictionary elements.
+  void JumpIfDictionaryInPrototypeChain(Register object, Register scratch0,
+                                        Register scratch1, Label* found);
+
  private:
   // Helpers for CopyFields.
   // These each implement CopyFields in a different way.

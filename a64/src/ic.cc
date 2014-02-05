@@ -1976,10 +1976,16 @@ MaybeObject* KeyedStoreIC::Store(Handle<Object> object,
               isolate()->heap()->non_strict_arguments_elements_map()) {
             stub = non_strict_arguments_stub();
           } else if (key_is_smi_like &&
-                     (!target().is_identical_to(non_strict_arguments_stub()))) {
-            KeyedAccessStoreMode store_mode =
-                GetStoreMode(receiver, key, value);
-            stub = StoreElementStub(receiver, store_mode);
+                     !(target().is_identical_to(non_strict_arguments_stub()))) {
+            // We should go generic if receiver isn't a dictionary, but our
+            // prototype chain does have dictionary elements. This ensures that
+            // other non-dictionary receivers in the polymorphic case benefit
+            // from fast path keyed stores.
+            if (!(receiver->map()->DictionaryElementsInPrototypeChainOnly())) {
+              KeyedAccessStoreMode store_mode =
+                  GetStoreMode(receiver, key, value);
+              stub = StoreElementStub(receiver, store_mode);
+            }
           }
         }
       }
@@ -2270,9 +2276,14 @@ RUNTIME_FUNCTION(MaybeObject*, ElementsTransitionAndStoreIC_Miss) {
   ASSERT(args.length() == 4);
   KeyedStoreIC ic(IC::EXTRA_CALL_FRAME, isolate);
   Handle<Object> value = args.at<Object>(0);
+  Handle<Map> map = args.at<Map>(1);
   Handle<Object> key = args.at<Object>(2);
   Handle<Object> object = args.at<Object>(3);
   StrictModeFlag strict_mode = ic.strict_mode();
+  if (object->IsJSObject()) {
+    JSObject::TransitionElementsKind(Handle<JSObject>::cast(object),
+                                     map->elements_kind());
+  }
   return Runtime::SetObjectProperty(isolate,
                                     object,
                                     key,

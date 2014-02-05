@@ -1261,10 +1261,17 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
     current += PrintOperands(idesc.mnem, idesc.op_order_, current);
 
   } else if (opcode == 0x54) {
-    // xorps xmm, xmm/m128
+    // andps xmm, xmm/m128
     int mod, regop, rm;
     get_modrm(*current, &mod, &regop, &rm);
     AppendToBuffer("andps %s,", NameOfXMMRegister(regop));
+    current += PrintRightXMMOperand(current);
+
+  } else if (opcode == 0x56) {
+    // orps xmm, xmm/m128
+    int mod, regop, rm;
+    get_modrm(*current, &mod, &regop, &rm);
+    AppendToBuffer("orps %s,", NameOfXMMRegister(regop));
     current += PrintRightXMMOperand(current);
 
   } else if (opcode == 0x57) {
@@ -1558,9 +1565,15 @@ int DisassemblerX64::InstructionDecode(v8::internal::Vector<char> out_buffer,
         } else {
           AppendToBuffer("mov%c ", operand_size_code());
           data += PrintRightOperand(data);
-          int32_t imm = *reinterpret_cast<int32_t*>(data);
-          AppendToBuffer(",0x%x", imm);
-          data += 4;
+          if (operand_size() == OPERAND_WORD_SIZE) {
+            int16_t imm = *reinterpret_cast<int16_t*>(data);
+            AppendToBuffer(",0x%x", imm);
+            data += 2;
+          } else {
+            int32_t imm = *reinterpret_cast<int32_t*>(data);
+            AppendToBuffer(",0x%x", imm);
+            data += 4;
+          }
         }
       }
         break;

@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2013 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,60 +25,14 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_ISOLATE_INL_H_
-#define V8_ISOLATE_INL_H_
+var CustomError = function(x) { this.x = x; };
+CustomError.prototype = new Error();
+CustomError.prototype.x = "prototype";
 
-#include "debug.h"
-#include "isolate.h"
-#include "utils/random-number-generator.h"
+Object.defineProperties(CustomError.prototype, {
+   'message': {
+      'get': function() { return this.x; }
+   }
+});
 
-namespace v8 {
-namespace internal {
-
-
-SaveContext::SaveContext(Isolate* isolate)
-  : isolate_(isolate),
-    prev_(isolate->save_context()) {
-  if (isolate->context() != NULL) {
-    context_ = Handle<Context>(isolate->context());
-  }
-  isolate->set_save_context(this);
-
-  c_entry_fp_ = isolate->c_entry_fp(isolate->thread_local_top());
-}
-
-
-bool Isolate::IsCodePreAgingActive() {
-  return FLAG_optimize_for_size && FLAG_age_code && !IsDebuggerActive();
-}
-
-
-bool Isolate::IsDebuggerActive() {
-#ifdef ENABLE_DEBUGGER_SUPPORT
-  if (!NoBarrier_Load(&debugger_initialized_)) return false;
-  return debugger()->IsDebuggerActive();
-#else
-  return false;
-#endif
-}
-
-
-bool Isolate::DebuggerHasBreakPoints() {
-#ifdef ENABLE_DEBUGGER_SUPPORT
-  return debug()->has_break_points();
-#else
-  return false;
-#endif
-}
-
-
-RandomNumberGenerator* Isolate::random_number_generator() {
-  if (random_number_generator_ == NULL) {
-    random_number_generator_ = new RandomNumberGenerator;
-  }
-  return random_number_generator_;
-}
-
-} }  // namespace v8::internal
-
-#endif  // V8_ISOLATE_INL_H_
+assertEquals("Error: instance", String(new CustomError("instance")));

@@ -54,7 +54,7 @@ DEFS = {FAIL_OK: [FAIL, OKAY],
 VARIABLES = {ALWAYS: True}
 for var in ["debug", "release", "android_arm", "android_ia32", "arm", "a64",
             "ia32", "mipsel", "x64", "nacl_ia32", "nacl_x64", "macos",
-            "windows"]:
+            "windows", "linux"]:
   VARIABLES[var] = var
 
 

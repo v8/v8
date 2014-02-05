@@ -37,6 +37,7 @@
 #include "serialize.h"
 #include "debug.h"
 #include "heap.h"
+#include "isolate-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -3659,7 +3660,7 @@ void MacroAssembler::Prologue(PrologueFrameMode frame_mode) {
   } else {
     PredictableCodeSizeScope predictible_code_size_scope(this,
         kNoCodeAgeSequenceLength);
-    if (FLAG_optimize_for_size && FLAG_age_code) {
+    if (isolate()->IsCodePreAgingActive()) {
         // Pre-age the code.
       Call(isolate()->builtins()->MarkCodeAsExecutedOnce(),
            RelocInfo::CODE_AGE_SEQUENCE);
@@ -4965,6 +4966,32 @@ void MacroAssembler::RecordObjectAllocation(Isolate* isolate,
   CallCFunction(
       ExternalReference::record_object_allocation_function(isolate), 3);
   PopSafepointRegisters();
+}
+
+
+void MacroAssembler::JumpIfDictionaryInPrototypeChain(
+    Register object,
+    Register scratch0,
+    Register scratch1,
+    Label* found) {
+  ASSERT(!(scratch0.is(kScratchRegister) && scratch1.is(kScratchRegister)));
+  ASSERT(!scratch1.is(scratch0));
+  Register current = scratch0;
+  Label loop_again;
+
+  movq(current, object);
+
+  // Loop based on the map going up the prototype chain.
+  bind(&loop_again);
+  movq(current, FieldOperand(current, HeapObject::kMapOffset));
+  movq(scratch1, FieldOperand(current, Map::kBitField2Offset));
+  and_(scratch1, Immediate(Map::kElementsKindMask));
+  shr(scratch1, Immediate(Map::kElementsKindShift));
+  cmpq(scratch1, Immediate(DICTIONARY_ELEMENTS));
+  j(equal, found);
+  movq(current, FieldOperand(current, Map::kPrototypeOffset));
+  CompareRoot(current, Heap::kNullValueRootIndex);
+  j(not_equal, &loop_again);
 }
 
 

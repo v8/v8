@@ -5320,23 +5320,29 @@ INT_ACCESSORS(Code, prologue_offset, kPrologueOffset)
 ACCESSORS(Code, relocation_info, ByteArray, kRelocationInfoOffset)
 ACCESSORS(Code, handler_table, FixedArray, kHandlerTableOffset)
 ACCESSORS(Code, deoptimization_data, FixedArray, kDeoptimizationDataOffset)
+ACCESSORS(Code, raw_type_feedback_info, Object, kTypeFeedbackInfoOffset)
 
 
-// Type feedback slot: type_feedback_info for FUNCTIONs, stub_info for STUBs.
-void Code::InitializeTypeFeedbackInfoNoWriteBarrier(Object* value) {
-  WRITE_FIELD(this, kTypeFeedbackInfoOffset, value);
+void Code::WipeOutHeader() {
+  WRITE_FIELD(this, kRelocationInfoOffset, NULL);
+  WRITE_FIELD(this, kHandlerTableOffset, NULL);
+  WRITE_FIELD(this, kDeoptimizationDataOffset, NULL);
+  // Do not wipe out e.g. a minor key.
+  if (!READ_FIELD(this, kTypeFeedbackInfoOffset)->IsSmi()) {
+    WRITE_FIELD(this, kTypeFeedbackInfoOffset, NULL);
+  }
 }
 
 
 Object* Code::type_feedback_info() {
   ASSERT(kind() == FUNCTION);
-  return Object::cast(READ_FIELD(this, kTypeFeedbackInfoOffset));
+  return raw_type_feedback_info();
 }
 
 
 void Code::set_type_feedback_info(Object* value, WriteBarrierMode mode) {
   ASSERT(kind() == FUNCTION);
-  WRITE_FIELD(this, kTypeFeedbackInfoOffset, value);
+  set_raw_type_feedback_info(value, mode);
   CONDITIONAL_WRITE_BARRIER(GetHeap(), this, kTypeFeedbackInfoOffset,
                             value, mode);
 }
@@ -5344,13 +5350,13 @@ void Code::set_type_feedback_info(Object* value, WriteBarrierMode mode) {
 
 Object* Code::next_code_link() {
   CHECK(kind() == OPTIMIZED_FUNCTION);
-  return Object::cast(READ_FIELD(this, kTypeFeedbackInfoOffset));
+  return raw_type_feedback_info();
 }
 
 
 void Code::set_next_code_link(Object* value, WriteBarrierMode mode) {
   CHECK(kind() == OPTIMIZED_FUNCTION);
-  WRITE_FIELD(this, kTypeFeedbackInfoOffset, value);
+  set_raw_type_feedback_info(value);
   CONDITIONAL_WRITE_BARRIER(GetHeap(), this, kTypeFeedbackInfoOffset,
                             value, mode);
 }
@@ -5359,8 +5365,7 @@ void Code::set_next_code_link(Object* value, WriteBarrierMode mode) {
 int Code::stub_info() {
   ASSERT(kind() == COMPARE_IC || kind() == COMPARE_NIL_IC ||
          kind() == BINARY_OP_IC || kind() == LOAD_IC);
-  Object* value = READ_FIELD(this, kTypeFeedbackInfoOffset);
-  return Smi::cast(value)->value();
+  return Smi::cast(raw_type_feedback_info())->value();
 }
 
 
@@ -5373,7 +5378,7 @@ void Code::set_stub_info(int value) {
          kind() == KEYED_LOAD_IC ||
          kind() == STORE_IC ||
          kind() == KEYED_STORE_IC);
-  WRITE_FIELD(this, kTypeFeedbackInfoOffset, Smi::FromInt(value));
+  set_raw_type_feedback_info(Smi::FromInt(value));
 }
 
 
@@ -5846,10 +5851,17 @@ Object* JSObject::BypassGlobalProxy() {
 }
 
 
-MaybeObject* JSReceiver::GetIdentityHash(CreationFlag flag) {
+Handle<Object> JSReceiver::GetOrCreateIdentityHash(Handle<JSReceiver> object) {
+  return object->IsJSProxy()
+      ? JSProxy::GetOrCreateIdentityHash(Handle<JSProxy>::cast(object))
+      : JSObject::GetOrCreateIdentityHash(Handle<JSObject>::cast(object));
+}
+
+
+Object* JSReceiver::GetIdentityHash() {
   return IsJSProxy()
-      ? JSProxy::cast(this)->GetIdentityHash(flag)
-      : JSObject::cast(this)->GetIdentityHash(flag);
+      ? JSProxy::cast(this)->GetIdentityHash()
+      : JSObject::cast(this)->GetIdentityHash();
 }
 
 
@@ -6049,16 +6061,14 @@ bool ObjectHashTableShape<entrysize>::IsMatch(Object* key, Object* other) {
 
 template <int entrysize>
 uint32_t ObjectHashTableShape<entrysize>::Hash(Object* key) {
-  MaybeObject* maybe_hash = key->GetHash(OMIT_CREATION);
-  return Smi::cast(maybe_hash->ToObjectChecked())->value();
+  return Smi::cast(key->GetHash())->value();
 }
 
 
 template <int entrysize>
 uint32_t ObjectHashTableShape<entrysize>::HashForObject(Object* key,
                                                         Object* other) {
-  MaybeObject* maybe_hash = other->GetHash(OMIT_CREATION);
-  return Smi::cast(maybe_hash->ToObjectChecked())->value();
+  return Smi::cast(other->GetHash())->value();
 }
 
 

@@ -356,17 +356,17 @@ TEST(APITestBasicMutation) {
   CompileRun("void 0");
   CHECK_EQ(9, CompileRun("records.length")->Int32Value());
   const RecordExpectation expected_records[] = {
-    { obj, "new", "foo", Handle<Value>() },
-    { obj, "new", "1", Handle<Value>() },
+    { obj, "add", "foo", Handle<Value>() },
+    { obj, "add", "1", Handle<Value>() },
     // Note: use 7 not 1 below, as the latter triggers a nifty VS10 compiler bug
     // where instead of 1.0, a garbage value would be passed into Number::New.
-    { obj, "updated", "foo", Number::New(7) },
-    { obj, "updated", "1", Number::New(2) },
-    { obj, "updated", "1", Number::New(4) },
-    { obj, "new", "1.1", Handle<Value>() },
-    { obj, "deleted", "foo", Number::New(3) },
-    { obj, "deleted", "1", Number::New(5) },
-    { obj, "deleted", "1.1", Number::New(6) }
+    { obj, "update", "foo", Number::New(7) },
+    { obj, "update", "1", Number::New(2) },
+    { obj, "update", "1", Number::New(4) },
+    { obj, "add", "1.1", Handle<Value>() },
+    { obj, "delete", "foo", Number::New(3) },
+    { obj, "delete", "1", Number::New(5) },
+    { obj, "delete", "1.1", Number::New(6) }
   };
   EXPECT_RECORDS(CompileRun("records"), expected_records);
 }
@@ -391,13 +391,13 @@ TEST(HiddenPrototypeObservation) {
       "obj.foo = 41;"  // triggers a notification
       "proto.foo = 42;");  // does not trigger a notification
   const RecordExpectation expected_records[] = {
-    { obj, "updated", "foo", Number::New(75) }
+    { obj, "update", "foo", Number::New(75) }
   };
   EXPECT_RECORDS(CompileRun("records"), expected_records);
   obj->SetPrototype(Null(isolate.GetIsolate()));
   CompileRun("obj.foo = 43");
   const RecordExpectation expected_records2[] = {
-    { obj, "new", "foo", Handle<Value>() }
+    { obj, "add", "foo", Handle<Value>() }
   };
   EXPECT_RECORDS(CompileRun("records"), expected_records2);
   obj->SetPrototype(proto);
@@ -407,10 +407,10 @@ TEST(HiddenPrototypeObservation) {
       "Object.unobserve(obj, observer);"
       "obj.foo = 44;");
   const RecordExpectation expected_records3[] = {
-    { proto, "new", "bar", Handle<Value>() }
+    { proto, "add", "bar", Handle<Value>() }
     // TODO(adamk): The below record should be emitted since proto is observed
     // and has been modified. Not clear if this happens in practice.
-    // { proto, "updated", "foo", Number::New(43) }
+    // { proto, "update", "foo", Number::New(43) }
   };
   EXPECT_RECORDS(CompileRun("records"), expected_records3);
 }
@@ -548,17 +548,17 @@ TEST(NamedAccessCheck) {
                  "obj.bar = 'baz';"
                  "objNoCheck.baz = 'quux'");
       const RecordExpectation expected_records2[] = {
-        { instance, "new", "foo", Handle<Value>() },
-        { instance, "updated", "foo", String::New("bar") },
-        { instance, "reconfigured", "foo", Number::New(5) },
-        { instance, "new", "bar", Handle<Value>() },
-        { obj_no_check, "new", "baz", Handle<Value>() },
+        { instance, "add", "foo", Handle<Value>() },
+        { instance, "update", "foo", String::New("bar") },
+        { instance, "reconfigure", "foo", Number::New(5) },
+        { instance, "add", "bar", Handle<Value>() },
+        { obj_no_check, "add", "baz", Handle<Value>() },
       };
       EXPECT_RECORDS(CompileRun("records2"), expected_records2);
     }
     const RecordExpectation expected_records[] = {
-      { instance, "new", "bar", Handle<Value>() },
-      { obj_no_check, "new", "baz", Handle<Value>() }
+      { instance, "add", "bar", Handle<Value>() },
+      { obj_no_check, "add", "baz", Handle<Value>() }
     };
     EXPECT_RECORDS(CompileRun("records"), expected_records);
   }
@@ -595,17 +595,17 @@ TEST(IndexedAccessCheck) {
                  "obj[8] = 'bar';"
                  "objNoCheck[42] = 'quux'");
       const RecordExpectation expected_records2[] = {
-        { instance, "new", "7", Handle<Value>() },
-        { instance, "updated", "7", String::New("foo") },
-        { instance, "reconfigured", "7", Number::New(5) },
-        { instance, "new", "8", Handle<Value>() },
-        { obj_no_check, "new", "42", Handle<Value>() }
+        { instance, "add", "7", Handle<Value>() },
+        { instance, "update", "7", String::New("foo") },
+        { instance, "reconfigure", "7", Number::New(5) },
+        { instance, "add", "8", Handle<Value>() },
+        { obj_no_check, "add", "42", Handle<Value>() }
       };
       EXPECT_RECORDS(CompileRun("records2"), expected_records2);
     }
     const RecordExpectation expected_records[] = {
-      { instance, "new", "8", Handle<Value>() },
-      { obj_no_check, "new", "42", Handle<Value>() }
+      { instance, "add", "8", Handle<Value>() },
+      { obj_no_check, "add", "42", Handle<Value>() }
     };
     EXPECT_RECORDS(CompileRun("records"), expected_records);
   }
@@ -681,14 +681,14 @@ TEST(DisallowAllForAccessKeys) {
                "obj[5] = 'baz';"
                "objNoCheck.baz = 'quux'");
     const RecordExpectation expected_records2[] = {
-      { instance, "new", "foo", Handle<Value>() },
-      { instance, "new", "5", Handle<Value>() },
-      { obj_no_check, "new", "baz", Handle<Value>() },
+      { instance, "add", "foo", Handle<Value>() },
+      { instance, "add", "5", Handle<Value>() },
+      { obj_no_check, "add", "baz", Handle<Value>() },
     };
     EXPECT_RECORDS(CompileRun("records2"), expected_records2);
   }
   const RecordExpectation expected_records[] = {
-    { obj_no_check, "new", "baz", Handle<Value>() }
+    { obj_no_check, "add", "baz", Handle<Value>() }
   };
   EXPECT_RECORDS(CompileRun("records"), expected_records);
 }
@@ -713,8 +713,8 @@ TEST(AccessCheckDisallowApiModifications) {
     instance->Set(String::New("foo"), String::New("bar"));
     CompileRun("");  // trigger delivery
     const RecordExpectation expected_records2[] = {
-      { instance, "new", "5", Handle<Value>() },
-      { instance, "new", "foo", Handle<Value>() }
+      { instance, "add", "5", Handle<Value>() },
+      { instance, "add", "foo", Handle<Value>() }
     };
     EXPECT_RECORDS(CompileRun("records2"), expected_records2);
   }

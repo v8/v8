@@ -1394,6 +1394,10 @@ class MacroAssembler: public Assembler {
     bind(&no_memento_found);
   }
 
+  // Jumps to found label if a prototype map has dictionary elements.
+  void JumpIfDictionaryInPrototypeChain(Register object, Register scratch0,
+                                        Register scratch1, Label* found);
+
  private:
   void CallCFunctionHelper(Register function,
                            int num_reg_arguments,

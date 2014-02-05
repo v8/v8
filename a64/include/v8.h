@@ -3788,10 +3788,16 @@ class V8_EXPORT ResourceConstraints {
 };
 
 
+V8_DEPRECATED(
+    "Use SetResourceConstraints(isolate, constraints) instead",
+    bool V8_EXPORT SetResourceConstraints(ResourceConstraints* constraints));
+
+
 /**
- * Sets the given ResourceConstraints on the current isolate.
+ * Sets the given ResourceConstraints on the given Isolate.
  */
-bool V8_EXPORT SetResourceConstraints(ResourceConstraints* constraints);
+bool V8_EXPORT SetResourceConstraints(Isolate* isolate,
+                                      ResourceConstraints* constraints);
 
 
 // --- Exceptions ---

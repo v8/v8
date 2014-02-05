@@ -846,12 +846,12 @@ void HGraphBuilder::IfBuilder::CaptureContinuation(
 void HGraphBuilder::IfBuilder::JoinContinuation(HIfContinuation* continuation) {
   ASSERT(!finished_);
   ASSERT(!captured_);
+  ASSERT(did_then_);
+  if (!did_else_) Else();
   HBasicBlock* true_block = last_true_block_ == NULL
       ? first_true_block_
       : last_true_block_;
-  HBasicBlock* false_block = did_else_ && (first_false_block_ != NULL)
-      ? builder_->current_block()
-      : first_false_block_;
+  HBasicBlock* false_block = builder_->current_block();
   if (true_block != NULL && !true_block->IsFinished()) {
     ASSERT(continuation->IsTrueReachable());
     builder_->GotoNoSimulate(true_block, continuation->true_branch());
@@ -4500,8 +4500,7 @@ void HOptimizedGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
     // TODO(mvstanton): Consider a flag to turn off creation of any
     // AllocationMementos for this call: we are in crankshaft and should have
     // learned enough about transition behavior to stop emitting mementos.
-    Runtime::FunctionId function_id = (expr->depth() > 1)
-        ? Runtime::kCreateArrayLiteral : Runtime::kCreateArrayLiteralShallow;
+    Runtime::FunctionId function_id = Runtime::kCreateArrayLiteral;
     literal = Add<HCallRuntime>(isolate()->factory()->empty_string(),
                                 Runtime::FunctionForId(function_id),
                                 3);
@@ -5579,6 +5578,21 @@ HInstruction* HOptimizedGraphBuilder::BuildMonomorphicElementAccess(
     checked_object->ClearGVNFlag(kDependsOnElementsKind);
   }
 
+  if (is_store && map->prototype()->IsJSObject()) {
+    // monomorphic stores need a prototype chain check because shape
+    // changes could allow callbacks on elements in the chain that
+    // aren't compatible with monomorphic keyed stores.
+    Handle<JSObject> prototype(JSObject::cast(map->prototype()));
+    Object* holder = map->prototype();
+    while (holder->GetPrototype(isolate())->IsJSObject()) {
+      holder = holder->GetPrototype(isolate());
+    }
+    ASSERT(holder->GetPrototype(isolate())->IsNull());
+
+    BuildCheckPrototypeMaps(prototype,
+                            Handle<JSObject>(JSObject::cast(holder)));
+  }
+
   LoadKeyedHoleMode load_mode = BuildKeyedHoleMode(map);
   return BuildUncheckedMonomorphicElementAccess(
       checked_object, key, val,
@@ -5792,6 +5806,22 @@ HValue* HOptimizedGraphBuilder::HandleKeyedElementAccess(
   SmallMapList* types;
   bool monomorphic = ComputeReceiverTypes(expr, obj, &types);
 
+  bool force_generic = false;
+  if (is_store && (monomorphic || (types != NULL && !types->is_empty()))) {
+    // Stores can't be mono/polymorphic if their prototype chain has dictionary
+    // elements. However a receiver map that has dictionary elements itself
+    // should be left to normal mono/poly behavior (the other maps may benefit
+    // from highly optimized stores).
+    for (int i = 0; i < types->length(); i++) {
+      Handle<Map> current_map = types->at(i);
+      if (current_map->DictionaryElementsInPrototypeChainOnly()) {
+        force_generic = true;
+        monomorphic = false;
+        break;
+      }
+    }
+  }
+
   if (monomorphic) {
     Handle<Map> map = types->first();
     if (map->has_slow_elements_kind()) {
@@ -5803,7 +5833,7 @@ HValue* HOptimizedGraphBuilder::HandleKeyedElementAccess(
       instr = BuildMonomorphicElementAccess(
           obj, key, val, NULL, map, is_store, expr->GetStoreMode());
     }
-  } else if (types != NULL && !types->is_empty()) {
+  } else if (!force_generic && (types != NULL && !types->is_empty())) {
     return HandlePolymorphicElementAccess(
         obj, key, val, types, is_store,
         expr->GetStoreMode(), has_side_effects);

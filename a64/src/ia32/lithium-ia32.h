@@ -1339,25 +1339,20 @@ class LDateField V8_FINAL : public LTemplateInstruction<1, 1, 1> {
 
 class LSeqStringSetChar V8_FINAL : public LTemplateInstruction<1, 3, 0> {
  public:
-  LSeqStringSetChar(String::Encoding encoding,
-                    LOperand* string,
+  LSeqStringSetChar(LOperand* string,
                     LOperand* index,
-                    LOperand* value) : encoding_(encoding) {
+                    LOperand* value) {
     inputs_[0] = string;
     inputs_[1] = index;
     inputs_[2] = value;
   }
 
-  String::Encoding encoding() { return encoding_; }
   LOperand* string() { return inputs_[0]; }
   LOperand* index() { return inputs_[1]; }
   LOperand* value() { return inputs_[2]; }
 
   DECLARE_CONCRETE_INSTRUCTION(SeqStringSetChar, "seq-string-set-char")
   DECLARE_HYDROGEN_ACCESSOR(SeqStringSetChar)
-
- private:
-  String::Encoding encoding_;
 };
 
 
@@ -2831,6 +2826,10 @@ class LChunkBuilder V8_FINAL BASE_EMBEDDED {
   // An input operand in a register, stack slot or a constant operand.
   MUST_USE_RESULT LOperand* UseOrConstant(HValue* value);
   MUST_USE_RESULT LOperand* UseOrConstantAtStart(HValue* value);
+
+  // An input operand in a fixed register or a constant operand.
+  MUST_USE_RESULT LOperand* UseFixedOrConstant(HValue* value,
+                                               Register fixed_register);
 
   // An input operand in a register or a constant operand.
   MUST_USE_RESULT LOperand* UseRegisterOrConstant(HValue* value);

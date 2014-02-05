@@ -31,7 +31,6 @@
 
 #include "v8.h"
 
-#include "allocation-tracker.h"
 #include "cctest.h"
 #include "hashmap.h"
 #include "heap-profiler.h"
@@ -39,12 +38,6 @@
 #include "debug.h"
 #include "utils-inl.h"
 #include "../include/v8-profiler.h"
-
-using i::AllocationTraceNode;
-using i::AllocationTraceTree;
-using i::AllocationTracker;
-using i::HashMap;
-using i::Vector;
 
 namespace {
 
@@ -2081,99 +2074,54 @@ TEST(HeapObjectsTracker) {
 }
 
 
-static const char* record_trace_tree_source =
-"var topFunctions = [];\n"
-"var global = this;\n"
-"function generateFunctions(width, depth) {\n"
-"  var script = [];\n"
-"  for (var i = 0; i < width; i++) {\n"
-"    for (var j = 0; j < depth; j++) {\n"
-"      script.push('function f_' + i + '_' + j + '(x) {\\n');\n"
-"      script.push('  try {\\n');\n"
-"      if (j < depth-2) {\n"
-"        script.push('    return f_' + i + '_' + (j+1) + '(x+1);\\n');\n"
-"      } else if (j == depth - 2) {\n"
-"        script.push('    return new f_' + i + '_' + (depth - 1) + '();\\n');\n"
-"      } else if (j == depth - 1) {\n"
-"        script.push('    this.ts = Date.now();\\n');\n"
-"      }\n"
-"      script.push('  } catch (e) {}\\n');\n"
-"      script.push('}\\n');\n"
-"      \n"
-"    }\n"
-"  }\n"
-"  var script = script.join('');\n"
-"  // throw script;\n"
-"  global.eval(script);\n"
-"  for (var i = 0; i < width; i++) {\n"
-"    topFunctions.push(this['f_' + i + '_0']);\n"
-"  }\n"
-"}\n"
-"\n"
-"var width = 3;\n"
-"var depth = 3;\n"
-"generateFunctions(width, depth);\n"
-"var instances = [];\n"
-"function start() {\n"
-"  for (var i = 0; i < width; i++) {\n"
-"    instances.push(topFunctions[i](0));\n"
-"  }\n"
-"}\n"
-"\n"
-"for (var i = 0; i < 100; i++) start();\n";
-
-
-static i::HeapSnapshot* ToInternal(const v8::HeapSnapshot* snapshot) {
-  return const_cast<i::HeapSnapshot*>(
-      reinterpret_cast<const i::HeapSnapshot*>(snapshot));
-}
-
-
-static AllocationTraceNode* FindNode(
-    AllocationTracker* tracker, const Vector<const char*>& names) {
-  AllocationTraceNode* node = tracker->trace_tree()->root();
-  for (int i = 0; node != NULL && i < names.length(); i++) {
-    const char* name = names[i];
-    Vector<AllocationTraceNode*> children = node->children();
-    node = NULL;
-    for (int j = 0; j < children.length(); j++) {
-      v8::SnapshotObjectId id = children[j]->function_id();
-      AllocationTracker::FunctionInfo* info = tracker->GetFunctionInfo(id);
-      if (info && strcmp(info->name, name) == 0) {
-        node = children[j];
+static const v8::HeapGraphNode* GetNodeByPath(const v8::HeapSnapshot* snapshot,
+                                              const char* path[],
+                                              int depth) {
+  const v8::HeapGraphNode* node = snapshot->GetRoot();
+  for (int current_depth = 0; current_depth < depth; ++current_depth) {
+    int i, count = node->GetChildrenCount();
+    for (i = 0; i < count; ++i) {
+      const v8::HeapGraphEdge* edge = node->GetChild(i);
+      const v8::HeapGraphNode* to_node = edge->GetToNode();
+      v8::String::Utf8Value edge_name(edge->GetName());
+      v8::String::Utf8Value node_name(to_node->GetName());
+      i::EmbeddedVector<char, 100> name;
+      i::OS::SNPrintF(name, "%s::%s", *edge_name, *node_name);
+      if (strstr(name.start(), path[current_depth])) {
+        node = to_node;
         break;
       }
     }
+    if (i == count) return NULL;
   }
   return node;
 }
 
 
-TEST(TrackHeapAllocations) {
-  v8::HandleScope scope(v8::Isolate::GetCurrent());
+TEST(CheckCodeNames) {
   LocalContext env;
-
+  v8::HandleScope scope(env->GetIsolate());
   v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
-  heap_profiler->StartRecordingHeapAllocations();
+  CompileRun("var a = 1.1;");
+  const v8::HeapSnapshot* snapshot =
+      heap_profiler->TakeHeapSnapshot(v8_str("CheckCodeNames"));
+  CHECK(ValidateSnapshot(snapshot));
 
-  CompileRun(record_trace_tree_source);
-
-  const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot(
-      v8::String::New("Test"));
-  i::HeapSnapshotsCollection* collection = ToInternal(snapshot)->collection();
-  AllocationTracker* tracker = collection->allocation_tracker();
-  CHECK_NE(NULL, tracker);
-  // Resolve all function locations.
-  tracker->PrepareForSerialization();
-  // Print for better diagnostics in case of failure.
-  tracker->trace_tree()->Print(tracker);
-
-  const char* names[] =
-      { "(anonymous function)", "start", "f_0_0", "f_0_1", "f_0_2" };
-  AllocationTraceNode* node =
-      FindNode(tracker, Vector<const char*>(names, ARRAY_SIZE(names)));
+  const char* stub_path[] = {
+    "::(GC roots)",
+    "::(Strong roots)",
+    "code_stubs::",
+    "::(ArraySingleArgumentConstructorStub code)"
+  };
+  const v8::HeapGraphNode* node = GetNodeByPath(snapshot,
+      stub_path, ARRAY_SIZE(stub_path));
   CHECK_NE(NULL, node);
-  CHECK_GE(node->allocation_count(), 100);
-  CHECK_GE(node->allocation_size(), 4 * node->allocation_count());
-  heap_profiler->StopRecordingHeapAllocations();
+
+  const char* builtin_path[] = {
+    "::(GC roots)",
+    "::(Builtins)",
+    "::(KeyedLoadIC_Generic code)"
+  };
+  node = GetNodeByPath(snapshot, builtin_path, ARRAY_SIZE(builtin_path));
+  CHECK_NE(NULL, node);
 }

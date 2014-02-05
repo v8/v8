@@ -33,6 +33,7 @@
 #include "codegen.h"
 #include "cpu-profiler.h"
 #include "debug.h"
+#include "isolate-inl.h"
 #include "runtime.h"
 #include "serialize.h"
 
@@ -1022,7 +1023,7 @@ void MacroAssembler::Prologue(PrologueFrameMode frame_mode) {
   } else {
     PredictableCodeSizeScope predictible_code_size_scope(this,
         kNoCodeAgeSequenceLength);
-    if (FLAG_optimize_for_size && FLAG_age_code) {
+    if (isolate()->IsCodePreAgingActive()) {
         // Pre-age the code.
       call(isolate()->builtins()->MarkCodeAsExecutedOnce(),
           RelocInfo::CODE_AGE_SEQUENCE);
@@ -3549,6 +3550,32 @@ void MacroAssembler::TestJSArrayForAllocationMemento(
       Immediate(isolate()->factory()->allocation_memento_map()));
 }
 
+
+void MacroAssembler::JumpIfDictionaryInPrototypeChain(
+    Register object,
+    Register scratch0,
+    Register scratch1,
+    Label* found) {
+  ASSERT(!scratch1.is(scratch0));
+  Factory* factory = isolate()->factory();
+  Register current = scratch0;
+  Label loop_again;
+
+  // scratch contained elements pointer.
+  mov(current, object);
+
+  // Loop based on the map going up the prototype chain.
+  bind(&loop_again);
+  mov(current, FieldOperand(current, HeapObject::kMapOffset));
+  mov(scratch1, FieldOperand(current, Map::kBitField2Offset));
+  and_(scratch1, Map::kElementsKindMask);
+  shr(scratch1, Map::kElementsKindShift);
+  cmp(scratch1, Immediate(DICTIONARY_ELEMENTS));
+  j(equal, found);
+  mov(current, FieldOperand(current, Map::kPrototypeOffset));
+  cmp(current, Immediate(factory->null_value()));
+  j(not_equal, &loop_again);
+}
 
 } }  // namespace v8::internal
 

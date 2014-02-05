@@ -56,7 +56,7 @@ static Handle<JSWeakMap> AllocateJSWeakMap(Isolate* isolate) {
 static void PutIntoWeakMap(Handle<JSWeakMap> weakmap,
                            Handle<JSObject> key,
                            Handle<Object> value) {
-  Handle<ObjectHashTable> table = PutIntoObjectHashTable(
+  Handle<ObjectHashTable> table = ObjectHashTable::Put(
       Handle<ObjectHashTable>(ObjectHashTable::cast(weakmap->table())),
       Handle<JSObject>(JSObject::cast(*key)),
       value);
