@@ -5267,11 +5267,11 @@ void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
     ASSERT(IsPowerOf2(frame_alignment));
     __ And(sp, sp, Operand(-frame_alignment));
   }
-
+  __ Subu(sp, sp, kCArgsSlotsSize);
 #if defined(V8_HOST_ARCH_MIPS)
   int32_t entry_hook =
       reinterpret_cast<int32_t>(masm->isolate()->function_entry_hook());
-  __ li(at, Operand(entry_hook));
+  __ li(t9, Operand(entry_hook));
 #else
   // Under the simulator we need to indirect the entry hook through a
   // trampoline function at a known address.
@@ -5279,15 +5279,18 @@ void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
   __ li(a2, Operand(ExternalReference::isolate_address(masm->isolate())));
 
   ApiFunction dispatcher(FUNCTION_ADDR(EntryHookTrampoline));
-  __ li(at, Operand(ExternalReference(&dispatcher,
+  __ li(t9, Operand(ExternalReference(&dispatcher,
                                       ExternalReference::BUILTIN_CALL,
                                       masm->isolate())));
 #endif
-  __ Call(at);
+  // Call C function through t9 to conform ABI for PIC.
+  __ Call(t9);
 
   // Restore the stack pointer if needed.
   if (frame_alignment > kPointerSize) {
     __ mov(sp, s5);
+  } else {
+    __ Addu(sp, sp, kCArgsSlotsSize);
   }
 
   // Also pop ra to get Ret(0).
