@@ -1099,6 +1099,13 @@ enum ParserFlag {
 };
 
 
+enum ParserSyncTestResult {
+  kSuccessOrError,
+  kSuccess,
+  kError
+};
+
+
 void SetParserFlags(i::ParserBase* parser, i::EnumSet<ParserFlag> flags) {
   parser->set_allow_lazy(flags.Contains(kAllowLazy));
   parser->set_allow_natives_syntax(flags.Contains(kAllowNativesSyntax));
@@ -1112,7 +1119,8 @@ void SetParserFlags(i::ParserBase* parser, i::EnumSet<ParserFlag> flags) {
 
 
 void TestParserSyncWithFlags(i::Handle<i::String> source,
-                             i::EnumSet<ParserFlag> flags) {
+                             i::EnumSet<ParserFlag> flags,
+                             ParserSyncTestResult result) {
   i::Isolate* isolate = CcTest::i_isolate();
   i::Factory* factory = isolate->factory();
 
@@ -1154,6 +1162,17 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
     i::Handle<i::String> message_string =
         i::Handle<i::String>::cast(i::GetProperty(exception_handle, "message"));
 
+    if (result == kSuccess) {
+      i::OS::Print(
+          "Parser failed on:\n"
+          "\t%s\n"
+          "with error:\n"
+          "\t%s\n"
+          "However, we expected no error.",
+          source->ToCString().get(), message_string->ToCString().get());
+      CHECK(false);
+    }
+
     if (!data.has_error()) {
       i::OS::Print(
           "Parser failed on:\n"
@@ -1187,13 +1206,21 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
         "However, the parser succeeded",
         source->ToCString().get(), FormatMessage(&data)->ToCString().get());
     CHECK(false);
+  } else if (result == kError) {
+    i::OS::Print(
+        "Expected error on:\n"
+        "\t%s\n"
+        "However, parser and preparser succeeded",
+        source->ToCString().get());
+    CHECK(false);
   }
 }
 
 
 void TestParserSync(const char* source,
                     const ParserFlag* flag_list,
-                    size_t flag_list_length) {
+                    size_t flag_list_length,
+                    ParserSyncTestResult result = kSuccessOrError) {
   i::Handle<i::String> str =
       CcTest::i_isolate()->factory()->NewStringFromAscii(i::CStrVector(source));
   for (int bits = 0; bits < (1 << flag_list_length); bits++) {
@@ -1201,7 +1228,7 @@ void TestParserSync(const char* source,
     for (size_t flag_index = 0; flag_index < flag_list_length; flag_index++) {
       if ((bits & (1 << flag_index)) != 0) flags.Add(flag_list[flag_index]);
     }
-    TestParserSyncWithFlags(str, flags);
+    TestParserSyncWithFlags(str, flags, result);
   }
 }
 
@@ -1347,15 +1374,52 @@ TEST(PreparserStrictOctal) {
 }
 
 
+void RunParserSyncTest(const char* context_data[][2],
+                       const char* statement_data[],
+                       ParserSyncTestResult result) {
+  v8::HandleScope handles(CcTest::isolate());
+  v8::Handle<v8::Context> context = v8::Context::New(CcTest::isolate());
+  v8::Context::Scope context_scope(context);
+
+  int marker;
+  CcTest::i_isolate()->stack_guard()->SetStackLimit(
+      reinterpret_cast<uintptr_t>(&marker) - 128 * 1024);
+
+  static const ParserFlag flags[] = {
+    kAllowLazy, kAllowHarmonyScoping, kAllowModules, kAllowGenerators,
+    kAllowForOf
+  };
+  for (int i = 0; context_data[i][0] != NULL; ++i) {
+    for (int j = 0; statement_data[j] != NULL; ++j) {
+      int kPrefixLen = i::StrLength(context_data[i][0]);
+      int kStatementLen = i::StrLength(statement_data[j]);
+      int kSuffixLen = i::StrLength(context_data[i][1]);
+      int kProgramSize = kPrefixLen + kStatementLen + kSuffixLen;
+
+      // Plug the source code pieces together.
+      i::ScopedVector<char> program(kProgramSize + 1);
+      int length = i::OS::SNPrintF(program,
+                                   "%s%s%s",
+                                   context_data[i][0],
+                                   statement_data[j],
+                                   context_data[i][1]);
+      CHECK(length == kProgramSize);
+      TestParserSync(program.start(),
+                     flags,
+                     ARRAY_SIZE(flags),
+                     result);
+    }
+  }
+}
+
+
 TEST(ErrorsEvalAndArguments) {
   // Tests that both preparsing and parsing produce the right kind of errors for
   // using "eval" and "arguments" as identifiers. Without the strict mode, it's
   // ok to use "eval" or "arguments" as identifiers. With the strict mode, it
   // isn't.
   const char* context_data[][2] = {
-    { "", "" },
-    { "\"use strict\";", "}" },
-    { "var eval; function test_func() {", "}"},
+    { "\"use strict\";", "" },
     { "var eval; function test_func() {\"use strict\"; ", "}"},
     { NULL, NULL }
   };
@@ -1384,36 +1448,67 @@ TEST(ErrorsEvalAndArguments) {
     NULL
   };
 
-  v8::HandleScope handles(CcTest::isolate());
-  v8::Handle<v8::Context> context = v8::Context::New(CcTest::isolate());
-  v8::Context::Scope context_scope(context);
+  RunParserSyncTest(context_data, statement_data, kError);
+}
 
-  int marker;
-  CcTest::i_isolate()->stack_guard()->SetStackLimit(
-      reinterpret_cast<uintptr_t>(&marker) - 128 * 1024);
 
-  static const ParserFlag flags[] = {
-    kAllowLazy, kAllowHarmonyScoping, kAllowModules, kAllowGenerators,
-    kAllowForOf
+TEST(NoErrorsEvalAndArgumentsClassic) {
+  // Tests that both preparsing and parsing accept "eval" and "arguments" as
+  // identifiers when needed.
+  const char* context_data[][2] = {
+    { "", "" },
+    { "function test_func() {", "}"},
+    { NULL, NULL }
   };
-  for (int i = 0; context_data[i][0] != NULL; ++i) {
-    for (int j = 0; statement_data[j] != NULL; ++j) {
-      int kPrefixLen = i::StrLength(context_data[i][0]);
-      int kStatementLen = i::StrLength(statement_data[j]);
-      int kSuffixLen = i::StrLength(context_data[i][1]);
-      int kProgramSize = kPrefixLen + kStatementLen + kSuffixLen;
 
-      // Plug the source code pieces together.
-      i::ScopedVector<char> program(kProgramSize + 1);
-      int length = i::OS::SNPrintF(program,
-                                   "%s%s%s",
-                                   context_data[i][0],
-                                   statement_data[j],
-                                   context_data[i][1]);
-      CHECK(length == kProgramSize);
-      TestParserSync(program.start(), flags, ARRAY_SIZE(flags));
-    }
-  }
+  const char* statement_data[] = {
+    "var eval;",
+    "var arguments",
+    "var foo, eval;",
+    "var foo, arguments;",
+    "try { } catch (eval) { }",
+    "try { } catch (arguments) { }",
+    "function eval() { }",
+    "function arguments() { }",
+    "function foo(eval) { }",
+    "function foo(arguments) { }",
+    "function foo(bar, eval) { }",
+    "function foo(bar, arguments) { }",
+    "eval = 1;",
+    "arguments = 1;",
+    "var foo = eval = 1;",
+    "var foo = arguments = 1;",
+    "++eval;",
+    "++arguments;",
+    "eval++;",
+    "arguments++;",
+    NULL
+  };
+
+  RunParserSyncTest(context_data, statement_data, kSuccess);
+}
+
+
+TEST(NoErrorsEvalAndArgumentsStrict) {
+  const char* context_data[][2] = {
+    { "\"use strict\";", "" },
+    { "function test_func() { \"use strict\";", "}" },
+    { NULL, NULL }
+  };
+
+  const char* statement_data[] = {
+    "eval;",
+    "arguments;",
+    "var foo = eval;",
+    "var foo = arguments;",
+    "var foo = { eval: 1 };",
+    "var foo = { arguments: 1 };",
+    "var foo = { }; foo.eval = {};",
+    "var foo = { }; foo.arguments = {};",
+    NULL
+  };
+
+  RunParserSyncTest(context_data, statement_data, kSuccess);
 }
 
 
@@ -1423,10 +1518,8 @@ TEST(ErrorsFutureStrictReservedWords) {
   // it's ok to use future strict reserved words as identifiers. With the strict
   // mode, it isn't.
   const char* context_data[][2] = {
-    { "", "" },
-    { "\"use strict\";", "}" },
-    { "var eval; function test_func() {", "}"},
-    { "var eval; function test_func() {\"use strict\"; ", "}"},
+    { "\"use strict\";", "" },
+    { "function test_func() {\"use strict\"; ", "}"},
     { NULL, NULL }
   };
 
@@ -1444,36 +1537,32 @@ TEST(ErrorsFutureStrictReservedWords) {
     NULL
   };
 
-  v8::HandleScope handles(CcTest::isolate());
-  v8::Handle<v8::Context> context = v8::Context::New(CcTest::isolate());
-  v8::Context::Scope context_scope(context);
+  RunParserSyncTest(context_data, statement_data, kError);
+}
 
-  int marker;
-  CcTest::i_isolate()->stack_guard()->SetStackLimit(
-      reinterpret_cast<uintptr_t>(&marker) - 128 * 1024);
 
-  static const ParserFlag flags[] = {
-    kAllowLazy, kAllowHarmonyScoping, kAllowModules, kAllowGenerators,
-    kAllowForOf
+TEST(NoErrorsFutureStrictReservedWords) {
+  const char* context_data[][2] = {
+    { "", "" },
+    { "function test_func() {", "}"},
+    { NULL, NULL }
   };
-  for (int i = 0; context_data[i][0] != NULL; ++i) {
-    for (int j = 0; statement_data[j] != NULL; ++j) {
-      int kPrefixLen = i::StrLength(context_data[i][0]);
-      int kStatementLen = i::StrLength(statement_data[j]);
-      int kSuffixLen = i::StrLength(context_data[i][1]);
-      int kProgramSize = kPrefixLen + kStatementLen + kSuffixLen;
 
-      // Plug the source code pieces together.
-      i::ScopedVector<char> program(kProgramSize + 1);
-      int length = i::OS::SNPrintF(program,
-                                   "%s%s%s",
-                                   context_data[i][0],
-                                   statement_data[j],
-                                   context_data[i][1]);
-      CHECK(length == kProgramSize);
-      TestParserSync(program.start(), flags, ARRAY_SIZE(flags));
-    }
-  }
+  const char* statement_data[] = {
+    "var interface;",
+    "var foo, interface;",
+    "try { } catch (interface) { }",
+    "function interface() { }",
+    "function foo(interface) { }",
+    "function foo(bar, interface) { }",
+    "interface = 1;",
+    "var foo = interface = 1;",
+    "++interface;",
+    "interface++;",
+    NULL
+  };
+
+  RunParserSyncTest(context_data, statement_data, kSuccess);
 }
 
 
@@ -1483,7 +1572,7 @@ TEST(ErrorsReservedWords) {
   // strict mode.
   const char* context_data[][2] = {
     { "", "" },
-    { "\"use strict\";", "}" },
+    { "\"use strict\";", "" },
     { "var eval; function test_func() {", "}"},
     { "var eval; function test_func() {\"use strict\"; ", "}"},
     { NULL, NULL }
@@ -1504,53 +1593,16 @@ TEST(ErrorsReservedWords) {
     NULL
   };
 
-  v8::HandleScope handles(CcTest::isolate());
-  v8::Handle<v8::Context> context = v8::Context::New(CcTest::isolate());
-  v8::Context::Scope context_scope(context);
-
-  int marker;
-  CcTest::i_isolate()->stack_guard()->SetStackLimit(
-      reinterpret_cast<uintptr_t>(&marker) - 128 * 1024);
-
-  static const ParserFlag flags[] = {
-    kAllowLazy, kAllowHarmonyScoping, kAllowModules, kAllowGenerators,
-    kAllowForOf
-  };
-  for (int i = 0; context_data[i][0] != NULL; ++i) {
-    for (int j = 0; statement_data[j] != NULL; ++j) {
-      int kPrefixLen = i::StrLength(context_data[i][0]);
-      int kStatementLen = i::StrLength(statement_data[j]);
-      int kSuffixLen = i::StrLength(context_data[i][1]);
-      int kProgramSize = kPrefixLen + kStatementLen + kSuffixLen;
-
-      // Plug the source code pieces together.
-      i::ScopedVector<char> program(kProgramSize + 1);
-      int length = i::OS::SNPrintF(program,
-                                   "%s%s%s",
-                                   context_data[i][0],
-                                   statement_data[j],
-                                   context_data[i][1]);
-      CHECK(length == kProgramSize);
-      TestParserSync(program.start(), flags, ARRAY_SIZE(flags));
-    }
-  }
+  RunParserSyncTest(context_data, statement_data, kError);
 }
 
 
-TEST(ErrorsYield) {
-  // Tests that both preparsing and parsing produce the right kind of errors for
-  // using yield as identifier. In non-strict mode, it's okay to use "yield" as
-  // an identifier, *except* inside a generator function. In strict mode, it's
-  // never okay.
+TEST(NoErrorsYieldClassic) {
+  // In classic mode, it's okay to use "yield" as identifier, *except* inside a
+  // generator (see next test).
   const char* context_data[][2] = {
     { "", "" },
-    { "\"use strict\";", "}" },
-    { "var eval; function test_func() {", "}"},
-    { "var eval; function test_func() {\"use strict\"; ", "}"},
     { "function is_not_gen() {", "}" },
-    { "function * is_gen() {", "}" },
-    { "\"use strict\"; function is_not_gen() {", "}" },
-    { "\"use strict\"; function * is_gen() {", "}" },
     { NULL, NULL }
   };
 
@@ -1565,85 +1617,172 @@ TEST(ErrorsYield) {
     "var foo = yield = 1;",
     "++yield;",
     "yield++;",
+    NULL
+  };
+
+  RunParserSyncTest(context_data, statement_data, kSuccess);
+}
+
+
+TEST(ErrorsYieldClassicGenerator) {
+  const char* context_data[][2] = {
+    { "function * is_gen() {", "}" },
+    { NULL, NULL }
+  };
+
+  const char* statement_data[] = {
+    "var yield;",
+    "var foo, yield;",
+    "try { } catch (yield) { }",
+    "function yield() { }",
+    // BUG: These should not be allowed, but they are (if kAllowGenerators is
+    // set)
+    // "function foo(yield) { }",
+    // "function foo(bar, yield) { }",
+    "yield = 1;",
+    "var foo = yield = 1;",
+    "++yield;",
+    "yield++;",
+    NULL
+  };
+
+  // If generators are not allowed, the error will be produced at the '*' token,
+  // so this test works both with and without the kAllowGenerators flag.
+  RunParserSyncTest(context_data, statement_data, kError);
+}
+
+
+TEST(ErrorsYieldStrict) {
+  const char* context_data[][2] = {
+    { "\"use strict\";", "" },
+    { "\"use strict\"; function is_not_gen() {", "}" },
+    { "function test_func() {\"use strict\"; ", "}"},
+    { NULL, NULL }
+  };
+
+  const char* statement_data[] = {
+    "var yield;",
+    "var foo, yield;",
+    "try { } catch (yield) { }",
+    "function yield() { }",
+    "function foo(yield) { }",
+    "function foo(bar, yield) { }",
+    "yield = 1;",
+    "var foo = yield = 1;",
+    "++yield;",
+    "yield++;",
+    NULL
+  };
+
+  RunParserSyncTest(context_data, statement_data, kError);
+}
+
+
+TEST(ErrorsYield) {
+  const char* context_data[][2] = {
+    { "function * is_gen() {", "}" },
+    { NULL, NULL }
+  };
+
+  const char* statement_data[] = {
     "yield 2;",  // this is legal inside generator
     "yield * 2;",  // this is legal inside generator
     NULL
   };
 
-  v8::HandleScope handles(CcTest::isolate());
-  v8::Handle<v8::Context> context = v8::Context::New(CcTest::isolate());
-  v8::Context::Scope context_scope(context);
-
-  int marker;
-  CcTest::i_isolate()->stack_guard()->SetStackLimit(
-      reinterpret_cast<uintptr_t>(&marker) - 128 * 1024);
-
-  static const ParserFlag flags[] = {
-    kAllowLazy, kAllowHarmonyScoping, kAllowModules, kAllowGenerators,
-    kAllowForOf
-  };
-  for (int i = 0; context_data[i][0] != NULL; ++i) {
-    for (int j = 0; statement_data[j] != NULL; ++j) {
-      int kPrefixLen = i::StrLength(context_data[i][0]);
-      int kStatementLen = i::StrLength(statement_data[j]);
-      int kSuffixLen = i::StrLength(context_data[i][1]);
-      int kProgramSize = kPrefixLen + kStatementLen + kSuffixLen;
-
-      // Plug the source code pieces together.
-      i::ScopedVector<char> program(kProgramSize + 1);
-      int length = i::OS::SNPrintF(program,
-                                   "%s%s%s",
-                                   context_data[i][0],
-                                   statement_data[j],
-                                   context_data[i][1]);
-      CHECK(length == kProgramSize);
-      TestParserSync(program.start(), flags, ARRAY_SIZE(flags));
-    }
-  }
+  // Here we cannot assert that there is no error, since there will be without
+  // the kAllowGenerators flag. However, we test that Parser and PreParser
+  // produce the same errors.
+  RunParserSyncTest(context_data, statement_data, kSuccessOrError);
 }
 
 
 TEST(ErrorsNameOfStrictFunction) {
   // Tests that illegal tokens as names of a strict function produce the correct
   // errors.
+  const char* context_data[][2] = {
+    { "", ""},
+    { "\"use strict\";", ""},
+    { NULL, NULL }
+  };
+
   const char* statement_data[] = {
-    "function eval() { }",  // legal
-    "function eval() {\"use strict\";}",  // illegal
-    "function arguments() { }",  // legal
-    "function arguments() {\"use strict\";}",  // illegal
+    "function eval() {\"use strict\";}",
+    "function arguments() {\"use strict\";}",
+    "function interface() {\"use strict\";}",
+    "function yield() {\"use strict\";}",
     // Future reserved words are always illegal
-    "function super() { }",  // illegal
-    "function super() {\"use strict\";}",  // illegal
-    "function interface() { }",  // legal
-    "function interface() {\"use strict\";}",  // illegal
-    "function yield() { }",  // legal
-    "function yield() {\"use strict\";}",  // illegal
+    "function super() { }",
+    "function super() {\"use strict\";}",
     NULL
   };
 
-  v8::HandleScope handles(CcTest::isolate());
-  v8::Handle<v8::Context> context = v8::Context::New(CcTest::isolate());
-  v8::Context::Scope context_scope(context);
-
-  int marker;
-  CcTest::i_isolate()->stack_guard()->SetStackLimit(
-      reinterpret_cast<uintptr_t>(&marker) - 128 * 1024);
-
-  static const ParserFlag flags[] = {
-    kAllowLazy, kAllowHarmonyScoping, kAllowModules, kAllowGenerators,
-    kAllowForOf
-  };
-  for (int j = 0; statement_data[j] != NULL; ++j) {
-    TestParserSync(statement_data[j], flags, ARRAY_SIZE(flags));
-  }
+  RunParserSyncTest(context_data, statement_data, kError);
 }
 
 
-TEST(ErrorsIllegalWordsAsLabels) {
+TEST(NoErrorsNameOfStrictFunction) {
+  const char* context_data[][2] = {
+    { "", ""},
+    { NULL, NULL }
+  };
+
+  const char* statement_data[] = {
+    "function eval() { }",
+    "function arguments() { }",
+    "function interface() { }",
+    "function yield() { }",
+    NULL
+  };
+
+  RunParserSyncTest(context_data, statement_data, kSuccess);
+}
+
+
+
+TEST(ErrorsIllegalWordsAsLabelsClassic) {
+  // Using future reserved words as labels is always an error.
+  const char* context_data[][2] = {
+    { "", ""},
+    { "function test_func() {", "}" },
+    { NULL, NULL }
+  };
+
+  const char* statement_data[] = {
+    "super: while(true) { break super; }",
+    NULL
+  };
+
+  RunParserSyncTest(context_data, statement_data, kError);
+}
+
+
+TEST(ErrorsIllegalWordsAsLabelsStrict) {
   // Tests that illegal tokens as labels produce the correct errors.
   const char* context_data[][2] = {
-    { "", "" },
-    { "\"use strict\";", "}" },
+    { "\"use strict\";", "" },
+    { "function test_func() {\"use strict\"; ", "}"},
+    { NULL, NULL }
+  };
+
+  const char* statement_data[] = {
+    "super: while(true) { break super; }",
+    "interface: while(true) { break interface; }",
+    "yield: while(true) { break yield; }",
+    NULL
+  };
+
+  RunParserSyncTest(context_data, statement_data, kError);
+}
+
+
+TEST(NoErrorsIllegalWordsAsLabels) {
+  // Using eval and arguments as labels is legal even in strict mode.
+  const char* context_data[][2] = {
+    { "", ""},
+    { "function test_func() {", "}" },
+    { "\"use strict\";", "" },
+    { "\"use strict\"; function test_func() {", "}" },
     { NULL, NULL }
   };
 
@@ -1651,40 +1790,8 @@ TEST(ErrorsIllegalWordsAsLabels) {
     "mylabel: while(true) { break mylabel; }",
     "eval: while(true) { break eval; }",
     "arguments: while(true) { break arguments; }",
-    "super: while(true) { break super; }",  // always illegal
-    "interface: while(true) { break interface; }",
-    "yield: while(true) { break yield; }",
     NULL
   };
 
-  v8::HandleScope handles(CcTest::isolate());
-  v8::Handle<v8::Context> context = v8::Context::New(CcTest::isolate());
-  v8::Context::Scope context_scope(context);
-
-  int marker;
-  CcTest::i_isolate()->stack_guard()->SetStackLimit(
-      reinterpret_cast<uintptr_t>(&marker) - 128 * 1024);
-
-  static const ParserFlag flags[] = {
-    kAllowLazy, kAllowHarmonyScoping, kAllowModules, kAllowGenerators,
-    kAllowForOf
-  };
-  for (int i = 0; context_data[i][0] != NULL; ++i) {
-    for (int j = 0; statement_data[j] != NULL; ++j) {
-      int kPrefixLen = i::StrLength(context_data[i][0]);
-      int kStatementLen = i::StrLength(statement_data[j]);
-      int kSuffixLen = i::StrLength(context_data[i][1]);
-      int kProgramSize = kPrefixLen + kStatementLen + kSuffixLen;
-
-      // Plug the source code pieces together.
-      i::ScopedVector<char> program(kProgramSize + 1);
-      int length = i::OS::SNPrintF(program,
-                                   "%s%s%s",
-                                   context_data[i][0],
-                                   statement_data[j],
-                                   context_data[i][1]);
-      CHECK(length == kProgramSize);
-      TestParserSync(program.start(), flags, ARRAY_SIZE(flags));
-    }
-  }
+  RunParserSyncTest(context_data, statement_data, kSuccess);
 }
