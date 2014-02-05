@@ -184,7 +184,7 @@ void LGapResolver::BreakCycle(int index) {
   if (source->IsRegister()) {
     __ Mov(kSavedValue, cgen_->ToRegister(source));
   } else if (source->IsStackSlot()) {
-    UNIMPLEMENTED();
+    __ Ldr(kSavedValue, cgen_->ToMemOperand(source));
   } else if (source->IsDoubleRegister()) {
     // TODO(all): We should use a double register to store the value to avoid
     // the penalty of the mov across register banks. We are going to reserve
@@ -194,7 +194,7 @@ void LGapResolver::BreakCycle(int index) {
     // do that.
     __ Fmov(kSavedValue, cgen_->ToDoubleRegister(source));
   } else if (source->IsDoubleStackSlot()) {
-    UNIMPLEMENTED();
+    __ Ldr(kSavedValue, cgen_->ToMemOperand(source));
   } else {
     UNREACHABLE();
   }
@@ -213,11 +213,11 @@ void LGapResolver::RestoreValue() {
   if (saved_destination_->IsRegister()) {
     __ Mov(cgen_->ToRegister(saved_destination_), kSavedValue);
   } else if (saved_destination_->IsStackSlot()) {
-    UNIMPLEMENTED();
+    __ Str(kSavedValue, cgen_->ToMemOperand(saved_destination_));
   } else if (saved_destination_->IsDoubleRegister()) {
     __ Fmov(cgen_->ToDoubleRegister(saved_destination_), kSavedValue);
   } else if (saved_destination_->IsDoubleStackSlot()) {
-    UNIMPLEMENTED();
+    __ Str(kSavedValue, cgen_->ToMemOperand(saved_destination_));
   } else {
     UNREACHABLE();
   }
@@ -294,8 +294,8 @@ void LGapResolver::EmitMove(int index) {
     if (destination->IsDoubleRegister()) {
       __ Ldr(cgen_->ToDoubleRegister(destination), src);
     } else {
-      // TODO(all): double stack slot to double stack slot move.
-      UNIMPLEMENTED();
+      ASSERT(destination->IsDoubleStackSlot());
+      EmitStackSlotMove(index);
     }
 
   } else {
