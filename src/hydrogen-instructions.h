@@ -1529,7 +1529,22 @@ class HCompareMap V8_FINAL : public HUnaryControlInstruction {
   DECLARE_INSTRUCTION_FACTORY_P4(HCompareMap, HValue*, Handle<Map>,
                                  HBasicBlock*, HBasicBlock*);
 
+  virtual bool KnownSuccessorBlock(HBasicBlock** block) V8_OVERRIDE {
+    if (known_successor_index() != kNoKnownSuccessorIndex) {
+      *block = SuccessorAt(known_successor_index());
+      return true;
+    }
+    *block = NULL;
+    return false;
+  }
+
   virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
+
+  static const int kNoKnownSuccessorIndex = -1;
+  int known_successor_index() const { return known_successor_index_; }
+  void set_known_successor_index(int known_successor_index) {
+    known_successor_index_ = known_successor_index;
+  }
 
   Unique<Map> map() const { return map_; }
 
@@ -1548,10 +1563,11 @@ class HCompareMap V8_FINAL : public HUnaryControlInstruction {
               HBasicBlock* true_target = NULL,
               HBasicBlock* false_target = NULL)
       : HUnaryControlInstruction(value, true_target, false_target),
-        map_(Unique<Map>(map)) {
+        known_successor_index_(kNoKnownSuccessorIndex), map_(Unique<Map>(map)) {
     ASSERT(!map.is_null());
   }
 
+  int known_successor_index_;
   Unique<Map> map_;
 };
 

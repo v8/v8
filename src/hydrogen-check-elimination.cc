@@ -341,11 +341,15 @@ class HCheckTable : public ZoneObject {
     if (maps == NULL) return;
     if (maps->Contains(instr->map())) {
       if (maps->size() == 1) {
-        // TODO(titzer): replace with goto true branch
+        TRACE(("Marking redundant CompareMap #%d at B%d as true\n",
+            instr->id(), instr->block()->block_id()));
+        instr->set_known_successor_index(0);
         INC_STAT(compares_true_);
       }
     } else {
-      // TODO(titzer): replace with goto false branch
+      TRACE(("Marking redundant CompareMap #%d at B%d as false\n",
+          instr->id(), instr->block()->block_id()));
+      instr->set_known_successor_index(1);
       INC_STAT(compares_false_);
     }
   }

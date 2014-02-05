@@ -1117,6 +1117,11 @@ void HCompareMap::PrintDataTo(StringStream* stream) {
   value()->PrintNameTo(stream);
   stream->Add(" (%p)", *map().handle());
   HControlInstruction::PrintDataTo(stream);
+  if (known_successor_index() == 0) {
+    stream->Add(" [true]");
+  } else if (known_successor_index() == 1) {
+    stream->Add(" [false]");
+  }
 }
 
 
