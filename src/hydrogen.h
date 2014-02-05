@@ -2338,6 +2338,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
     }
 
     bool has_holder() { return !holder_.is_null(); }
+    bool IsLoad() const { return access_type_ == LOAD; }
 
     LookupResult* lookup() { return &lookup_; }
     Handle<JSObject> holder() { return holder_; }
@@ -2360,7 +2361,6 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
     bool LookupDescriptor();
     bool LookupInPrototypes();
     bool IsCompatible(PropertyAccessInfo* other);
-    bool IsLoad() const { return access_type_ == LOAD; }
 
     void GeneralizeRepresentation(Representation r) {
       access_ = access_.WithRepresentation(
@@ -2379,19 +2379,13 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
     HObjectAccess access_;
   };
 
-  HInstruction* BuildLoadMonomorphic(PropertyAccessInfo* info,
-                                     HValue* object,
-                                     HValue* checked_object,
-                                     BailoutId ast_id,
-                                     BailoutId return_id,
-                                     bool can_inline_accessor = true);
-
-  HInstruction* BuildStoreMonomorphic(PropertyAccessInfo* info,
-                                      HValue* checked_object,
-                                      HValue* value,
-                                      BailoutId ast_id,
-                                      BailoutId return_id,
-                                      bool can_inline_accessor = true);
+  HInstruction* BuildMonomorphicAccess(PropertyAccessInfo* info,
+                                       HValue* object,
+                                       HValue* checked_object,
+                                       HValue* value,
+                                       BailoutId ast_id,
+                                       BailoutId return_id,
+                                       bool can_inline_accessor = true);
 
   void HandlePolymorphicCallNamed(Call* expr,
                                   HValue* receiver,

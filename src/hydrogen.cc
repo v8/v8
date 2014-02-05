@@ -5077,8 +5077,8 @@ void HOptimizedGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
               if (info.CanAccessMonomorphic()) {
                 HValue* checked_literal = BuildCheckMap(literal, map);
                 ASSERT(!info.lookup()->IsPropertyCallbacks());
-                store = BuildStoreMonomorphic(
-                    &info, checked_literal, value,
+                store = BuildMonomorphicAccess(
+                    &info, literal, checked_literal, value,
                     BailoutId::None(), BailoutId::None());
               } else {
                 CHECK_ALIVE(
@@ -5519,18 +5519,19 @@ static bool NeedsWrappingFor(Type* type, Handle<JSFunction> target) {
 }
 
 
-HInstruction* HOptimizedGraphBuilder::BuildLoadMonomorphic(
+HInstruction* HOptimizedGraphBuilder::BuildMonomorphicAccess(
     PropertyAccessInfo* info,
     HValue* object,
     HValue* checked_object,
+    HValue* value,
     BailoutId ast_id,
     BailoutId return_id,
     bool can_inline_accessor) {
 
   HObjectAccess access = HObjectAccess::ForMap();  // bogus default
   if (info->GetJSObjectFieldAccess(&access)) {
-    return New<HLoadNamedField>(
-        checked_object, static_cast<HValue*>(NULL), access);
+    ASSERT(info->IsLoad());
+    return New<HLoadNamedField>(object, checked_object, access);
   }
 
   HValue* checked_holder = checked_object;
@@ -5539,74 +5540,53 @@ HInstruction* HOptimizedGraphBuilder::BuildLoadMonomorphic(
     checked_holder = BuildCheckPrototypeMaps(prototype, info->holder());
   }
 
-  if (!info->lookup()->IsFound()) return graph()->GetConstantUndefined();
+  if (!info->lookup()->IsFound()) {
+    ASSERT(info->IsLoad());
+    return graph()->GetConstantUndefined();
+  }
 
   if (info->lookup()->IsField()) {
-    return BuildLoadNamedField(checked_holder, info->access());
+    if (info->IsLoad()) {
+      return BuildLoadNamedField(checked_holder, info->access());
+    } else {
+      return BuildStoreNamedField(info, checked_object, value);
+    }
+  }
+
+  if (info->lookup()->IsTransition()) {
+    ASSERT(!info->IsLoad());
+    return BuildStoreNamedField(info, checked_object, value);
   }
 
   if (info->lookup()->IsPropertyCallbacks()) {
+    Push(checked_object);
+    int argument_count = 1;
+    if (!info->IsLoad()) {
+      argument_count = 2;
+      Push(value);
+    }
+
     if (NeedsWrappingFor(info->type(), info->accessor())) {
       HValue* function = Add<HConstant>(info->accessor());
-      Add<HPushArgument>(checked_object);
-      return New<HCallFunction>(function, 1, WRAP_AND_CALL);
-    } else {
-      Push(checked_object);
-      if (FLAG_inline_accessors &&
-          can_inline_accessor &&
-          TryInlineGetter(info->accessor(), ast_id, return_id)) {
-        return NULL;
-      }
-      Add<HPushArgument>(Pop());
-      return BuildCallConstantFunction(info->accessor(), 1);
+      PushArgumentsFromEnvironment(argument_count);
+      return New<HCallFunction>(function, argument_count, WRAP_AND_CALL);
+    } else if (FLAG_inline_accessors && can_inline_accessor) {
+      bool success = info->IsLoad()
+          ? TryInlineGetter(info->accessor(), ast_id, return_id)
+          : TryInlineSetter(info->accessor(), ast_id, return_id, value);
+      if (success) return NULL;
     }
+
+    PushArgumentsFromEnvironment(argument_count);
+    return BuildCallConstantFunction(info->accessor(), argument_count);
   }
 
   ASSERT(info->lookup()->IsConstant());
-  return New<HConstant>(info->constant());
-}
-
-
-HInstruction* HOptimizedGraphBuilder::BuildStoreMonomorphic(
-    PropertyAccessInfo* info,
-    HValue* checked_object,
-    HValue* value,
-    BailoutId ast_id,
-    BailoutId return_id,
-    bool can_inline_accessor) {
-  ASSERT(!info->IsJSObjectFieldAccessor());
-
-  if (info->has_holder()) {
-    Handle<JSObject> prototype(JSObject::cast(info->map()->prototype()));
-    BuildCheckPrototypeMaps(prototype, info->holder());
-  }
-
-  if (info->lookup()->IsPropertyCallbacks()) {
-    if (NeedsWrappingFor(info->type(), info->accessor())) {
-      HValue* function = Add<HConstant>(info->accessor());
-      Add<HPushArgument>(checked_object);
-      Add<HPushArgument>(value);
-      return New<HCallFunction>(function, 2, WRAP_AND_CALL);
-    } else {
-      Push(checked_object);
-      Push(value);
-      if (FLAG_inline_accessors &&
-          can_inline_accessor &&
-          TryInlineSetter(info->accessor(), ast_id, return_id, value)) {
-        return NULL;
-      }
-      PushArgumentsFromEnvironment(2);
-      return BuildCallConstantFunction(info->accessor(), 2);
-    }
-  }
-
-  if (info->lookup()->IsConstant()) {
-    // Check whether we are trying to store the same constant.
+  if (info->IsLoad()) {
+    return New<HConstant>(info->constant());
+  } else {
     return New<HCheckValue>(value, Handle<JSFunction>::cast(info->constant()));
   }
-
-  ASSERT(info->lookup()->IsField() || info->lookup()->IsTransition());
-  return BuildStoreNamedField(info, checked_object, value);
 }
 
 
@@ -5695,19 +5675,16 @@ void HOptimizedGraphBuilder::HandlePolymorphicNamedFieldAccess(
 
     set_current_block(if_true);
 
-    HInstruction* access = NULL;
+    HInstruction* access = BuildMonomorphicAccess(
+        &info, object, dependency, value, ast_id,
+        return_id, FLAG_polymorphic_inlining);
+
     HValue* result = NULL;
     switch (access_type) {
       case LOAD:
-        access = BuildLoadMonomorphic(
-            &info, object, dependency, ast_id,
-            return_id, FLAG_polymorphic_inlining);
         result = access;
         break;
       case STORE:
-        access = BuildStoreMonomorphic(
-            &info, dependency, value, ast_id, return_id,
-            FLAG_polymorphic_inlining);
         result = value;
         break;
     }
@@ -5844,8 +5821,8 @@ void HOptimizedGraphBuilder::BuildStore(Expression* expr,
     } else {
       checked_object = Add<HCheckMaps>(object, types);
     }
-    instr = BuildStoreMonomorphic(
-        &info, checked_object, value, ast_id, return_id);
+    instr = BuildMonomorphicAccess(
+        &info, object, checked_object, value, ast_id, return_id);
     if (instr == NULL) return;
     ASSERT(!instr->IsLinked());
   } else {
@@ -6697,8 +6674,8 @@ void HOptimizedGraphBuilder::BuildLoad(Property* expr,
       } else {
         checked_object = Add<HCheckMaps>(object, types);
       }
-      instr = BuildLoadMonomorphic(
-          &info, object, checked_object, ast_id, expr->LoadId());
+      instr = BuildMonomorphicAccess(
+          &info, object, checked_object, NULL, ast_id, expr->LoadId());
       if (instr == NULL) return;
       if (instr->IsLinked()) return ast_context()->ReturnValue(instr);
     } else {
