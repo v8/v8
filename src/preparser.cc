@@ -296,16 +296,19 @@ PreParser::Statement PreParser::ParseFunctionDeclaration(bool* ok) {
   Expect(Token::FUNCTION, CHECK_OK);
 
   bool is_generator = allow_generators() && Check(Token::MUL);
-  Identifier identifier = ParseIdentifier(CHECK_OK);
+  Identifier identifier = ParseIdentifier(kDontAllowEvalOrArguments, CHECK_OK);
   Scanner::Location location = scanner()->location();
 
   Expression function_value = ParseFunctionLiteral(is_generator, CHECK_OK);
 
+  // If we're in strict mode, ParseIdentifier will catch using eval, arguments
+  // or a strict reserved word as function name. However, if only the function
+  // is strict, we need to do an extra check.
   if (function_value.IsStrictFunction() &&
       !identifier.IsValidStrictVariable()) {
     // Strict mode violation, using either reserved word or eval/arguments
     // as name of strict function.
-    const char* type = "strict_function_name";
+    const char* type = "strict_eval_arguments";
     if (identifier.IsFutureStrictReserved() || identifier.IsYield()) {
       type = "unexpected_strict_reserved";
     }
@@ -446,14 +449,7 @@ PreParser::Statement PreParser::ParseVariableDeclarations(
   do {
     // Parse variable name.
     if (nvars > 0) Consume(Token::COMMA);
-    Identifier identifier  = ParseIdentifier(CHECK_OK);
-    if (!is_classic_mode() && !identifier.IsValidStrictVariable()) {
-      StrictModeIdentifierViolation(scanner()->location(),
-                                    "strict_var_name",
-                                    identifier,
-                                    ok);
-      return Statement::Default();
-    }
+    ParseIdentifier(kDontAllowEvalOrArguments, CHECK_OK);
     nvars++;
     if (peek() == Token::ASSIGN || require_initializer) {
       Expect(Token::ASSIGN, CHECK_OK);
@@ -519,7 +515,8 @@ PreParser::Statement PreParser::ParseContinueStatement(bool* ok) {
       tok != Token::SEMICOLON &&
       tok != Token::RBRACE &&
       tok != Token::EOS) {
-    ParseIdentifier(CHECK_OK);
+    // ECMA allows "eval" or "arguments" as labels even in strict mode.
+    ParseIdentifier(kAllowEvalOrArguments, CHECK_OK);
   }
   ExpectSemicolon(CHECK_OK);
   return Statement::Default();
@@ -536,7 +533,8 @@ PreParser::Statement PreParser::ParseBreakStatement(bool* ok) {
       tok != Token::SEMICOLON &&
       tok != Token::RBRACE &&
       tok != Token::EOS) {
-    ParseIdentifier(CHECK_OK);
+    // ECMA allows "eval" or "arguments" as labels even in strict mode.
+    ParseIdentifier(kAllowEvalOrArguments, CHECK_OK);
   }
   ExpectSemicolon(CHECK_OK);
   return Statement::Default();
@@ -753,14 +751,7 @@ PreParser::Statement PreParser::ParseTryStatement(bool* ok) {
   if (peek() == Token::CATCH) {
     Consume(Token::CATCH);
     Expect(Token::LPAREN, CHECK_OK);
-    Identifier id = ParseIdentifier(CHECK_OK);
-    if (!is_classic_mode() && !id.IsValidStrictVariable()) {
-      StrictModeIdentifierViolation(scanner()->location(),
-                                    "strict_catch_variable",
-                                    id,
-                                    ok);
-      return Statement::Default();
-    }
+    ParseIdentifier(kDontAllowEvalOrArguments, CHECK_OK);
     Expect(Token::RPAREN, CHECK_OK);
     { Scope::InsideWith iw(scope_);
       ParseBlock(CHECK_OK);
@@ -841,7 +832,7 @@ PreParser::Expression PreParser::ParseAssignmentExpression(bool accept_IN,
       expression.AsIdentifier().IsEvalOrArguments()) {
     Scanner::Location after = scanner()->location();
     ReportMessageAt(before.beg_pos, after.end_pos,
-                    "strict_lhs_assignment", NULL);
+                    "strict_eval_arguments", NULL);
     *ok = false;
     return Expression::Default();
   }
@@ -935,7 +926,7 @@ PreParser::Expression PreParser::ParseUnaryExpression(bool* ok) {
         expression.AsIdentifier().IsEvalOrArguments()) {
       Scanner::Location after = scanner()->location();
       ReportMessageAt(before.beg_pos, after.end_pos,
-                      "strict_lhs_prefix", NULL);
+                      "strict_eval_arguments", NULL);
       *ok = false;
     }
     return Expression::Default();
@@ -958,7 +949,7 @@ PreParser::Expression PreParser::ParsePostfixExpression(bool* ok) {
         expression.AsIdentifier().IsEvalOrArguments()) {
       Scanner::Location after = scanner()->location();
       ReportMessageAt(before.beg_pos, after.end_pos,
-                      "strict_lhs_postfix", NULL);
+                      "strict_eval_arguments", NULL);
       *ok = false;
       return Expression::Default();
     }
@@ -1059,12 +1050,15 @@ PreParser::Expression PreParser::ParseMemberWithNewPrefixesExpression(
     bool is_generator = allow_generators() && Check(Token::MUL);
     Identifier identifier = Identifier::Default();
     if (peek_any_identifier()) {
-      identifier = ParseIdentifier(CHECK_OK);
+      identifier = ParseIdentifier(kDontAllowEvalOrArguments, CHECK_OK);
     }
     result = ParseFunctionLiteral(is_generator, CHECK_OK);
+    // If we're in strict mode, ParseIdentifier will catch using eval, arguments
+    // or a strict reserved word as function name. However, if only the function
+    // is strict, we need to do an extra check.
     if (result.IsStrictFunction() && !identifier.IsValidStrictVariable()) {
       StrictModeIdentifierViolation(scanner()->location(),
-                                    "strict_function_name",
+                                    "strict_eval_arguments",
                                     identifier,
                                     ok);
       return Expression::Default();
@@ -1137,7 +1131,8 @@ PreParser::Expression PreParser::ParsePrimaryExpression(bool* ok) {
     case Token::FUTURE_STRICT_RESERVED_WORD:
     case Token::YIELD:
     case Token::IDENTIFIER: {
-      Identifier id = ParseIdentifier(CHECK_OK);
+      // Using eval or arguments in this context is OK even in strict mode.
+      Identifier id = ParseIdentifier(kAllowEvalOrArguments, CHECK_OK);
       result = Expression::FromIdentifier(id);
       break;
     }
@@ -1354,13 +1349,7 @@ PreParser::Expression PreParser::ParseFunctionLiteral(bool is_generator,
   bool done = (peek() == Token::RPAREN);
   DuplicateFinder duplicate_finder(scanner()->unicode_cache());
   while (!done) {
-    Identifier id = ParseIdentifier(CHECK_OK);
-    if (!id.IsValidStrictVariable()) {
-      StrictModeIdentifierViolation(scanner()->location(),
-                                    "strict_param_name",
-                                    id,
-                                    CHECK_OK);
-    }
+    ParseIdentifier(kDontAllowEvalOrArguments, CHECK_OK);
     int prev_value;
     if (scanner()->is_literal_ascii()) {
       prev_value =
@@ -1434,7 +1423,8 @@ PreParser::Expression PreParser::ParseV8Intrinsic(bool* ok) {
     *ok = false;
     return Expression::Default();
   }
-  ParseIdentifier(CHECK_OK);
+  // Allow "eval" or "arguments" for backward compatibility.
+  ParseIdentifier(kAllowEvalOrArguments, CHECK_OK);
   ParseArguments(ok);
 
   return Expression::Default();
@@ -1493,12 +1483,26 @@ PreParser::Identifier PreParser::GetIdentifierSymbol() {
 }
 
 
-PreParser::Identifier PreParser::ParseIdentifier(bool* ok) {
+// Parses an identifier that is valid for the current scope, in particular it
+// fails on strict mode future reserved keywords in a strict scope. If
+// allow_eval_or_arguments is kAllowEvalOrArguments, we allow "eval" or
+// "arguments" as identifier even in strict mode (this is needed in cases like
+// "var foo = eval;").
+PreParser::Identifier PreParser::ParseIdentifier(
+    AllowEvalOrArgumentsAsIdentifier allow_eval_or_arguments,
+    bool* ok) {
   Token::Value next = Next();
-  if (next == Token::IDENTIFIER ||
-      (is_classic_mode() &&
-       (next == Token::FUTURE_STRICT_RESERVED_WORD ||
-        (next == Token::YIELD && !scope_->is_generator())))) {
+  if (next == Token::IDENTIFIER) {
+    PreParser::Identifier name = GetIdentifierSymbol();
+    if (allow_eval_or_arguments == kDontAllowEvalOrArguments &&
+        !is_classic_mode() && name.IsEvalOrArguments()) {
+      StrictModeIdentifierViolation(
+          scanner()->location(), "strict_eval_arguments", name, ok);
+    }
+    return name;
+  } else if (is_classic_mode() &&
+             (next == Token::FUTURE_STRICT_RESERVED_WORD ||
+              (next == Token::YIELD && !scope_->is_generator()))) {
     return GetIdentifierSymbol();
   } else {
     ReportUnexpectedToken(next);

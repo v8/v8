@@ -76,6 +76,11 @@ class ParserBase {
   }
 
  protected:
+  enum AllowEvalOrArgumentsAsIdentifier {
+    kAllowEvalOrArguments,
+    kDontAllowEvalOrArguments
+  };
+
   Scanner* scanner() const { return scanner_; }
   int position() { return scanner_->location().beg_pos; }
   int peek_position() { return scanner_->peek_location().beg_pos; }
@@ -640,7 +645,7 @@ class PreParser : public ParserBase {
   Expression ParseFunctionLiteral(bool is_generator, bool* ok);
   void ParseLazyFunctionLiteralBody(bool* ok);
 
-  Identifier ParseIdentifier(bool* ok);
+  Identifier ParseIdentifier(AllowEvalOrArgumentsAsIdentifier, bool* ok);
   Identifier ParseIdentifierName(bool* ok);
   Identifier ParseIdentifierNameOrGetOrSet(bool* is_get,
                                            bool* is_set,
