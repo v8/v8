@@ -1,3 +1,13 @@
+2014-02-05: Version 3.24.32
+
+        Add Box object to heap profiler.
+
+        Check the offset argument of TypedArray.set for fitting into Smi
+        (Chromium issue 340125).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-02-04: Version 3.24.31
 
         Fix short-circuiting logical and/or in HOptimizedGraphBuilder (Chromium
