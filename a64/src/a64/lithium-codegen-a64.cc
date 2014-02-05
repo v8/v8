@@ -3520,11 +3520,17 @@ void LCodeGen::DoLoadNamedField(LLoadNamedField* instr) {
     __ Ldr(result, FieldMemOperand(object, offset));
   } else {
     Register result = ToRegister(instr->result());
+    Register src = no_reg;
     if (access.IsInobject()) {
-      __ Ldr(result, FieldMemOperand(object, offset));
+      src = object;
     } else {
       __ Ldr(result, FieldMemOperand(object, JSObject::kPropertiesOffset));
-      __ Ldr(result, FieldMemOperand(result, offset));
+      src = result;
+    }
+    if (access.representation().IsInteger32()) {
+      __ Ldr(result.W(), FieldMemOperand(src, offset));
+    } else {
+      __ Ldr(result, FieldMemOperand(src, offset));
     }
   }
 }
@@ -4987,36 +4993,30 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
 
   // Do the store.
   Register value = ToRegister(instr->value());
+  Register dst = no_reg;
   SmiCheck check_needed =
       instr->hydrogen()->value()->IsHeapObject()
           ? OMIT_SMI_CHECK : INLINE_SMI_CHECK;
   if (access.IsInobject()) {
-    __ Str(value, FieldMemOperand(object, offset));
-    if (instr->hydrogen()->NeedsWriteBarrier()) {
-      // Update the write barrier for the object for in-object properties.
-      __ RecordWriteField(object,
-                          offset,
-                          value,      // Clobbered.
-                          temp0,      // Clobbered.
-                          GetLinkRegisterState(),
-                          kSaveFPRegs,
-                          EMIT_REMEMBERED_SET,
-                          check_needed);
-    }
+    dst = object;
   } else {
     __ Ldr(temp0, FieldMemOperand(object, JSObject::kPropertiesOffset));
-    __ Str(value, FieldMemOperand(temp0, offset));
-    if (instr->hydrogen()->NeedsWriteBarrier()) {
-      // Update the write barrier for the properties array.
-      __ RecordWriteField(temp0,
-                          offset,
-                          value,      // Clobbered.
-                          temp1,      // Clobbered.
-                          GetLinkRegisterState(),
-                          kSaveFPRegs,
-                          EMIT_REMEMBERED_SET,
-                          check_needed);
-    }
+    dst = temp0;
+  }
+  if (access.representation().IsInteger32()) {
+    __ Str(value.W(), FieldMemOperand(dst, offset));
+  } else {
+    __ Str(value, FieldMemOperand(dst, offset));
+  }
+  if (instr->hydrogen()->NeedsWriteBarrier()) {
+    __ RecordWriteField(dst,
+                        offset,
+                        value,      // Clobbered.
+                        temp1,      // Clobbered.
+                        GetLinkRegisterState(),
+                        kSaveFPRegs,
+                        EMIT_REMEMBERED_SET,
+                        check_needed);
   }
 }
 
