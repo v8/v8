@@ -183,7 +183,7 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
         CPURegList(CPURegister::kRegister, kXRegSize, non_object_regs);
     while (!non_object_list.IsEmpty()) {
       // Store each non-object register as two SMIs.
-      Register reg(non_object_list.PopLowestIndex());
+      Register reg = Register(non_object_list.PopLowestIndex());
       __ Push(reg);
       __ Poke(wzr, 0);
       __ Push(reg.W(), wzr);
@@ -222,7 +222,7 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
       //  jssp[8]: 0x00000000 (SMI tag & padding)
       //  jssp[4]: reg[31:0]
       //  jssp[0]: 0x00000000 (SMI tag & padding)
-      Register reg(non_object_list.PopHighestIndex());
+      Register reg = Register(non_object_list.PopHighestIndex());
       __ Pop(scratch, reg);
       __ Bfxil(reg, scratch, 32, 32);
     }

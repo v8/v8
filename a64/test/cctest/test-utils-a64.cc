@@ -218,13 +218,13 @@ RegList PopulateRegisterArray(Register* w, Register* x, Register* r,
     if (((1UL << n) & allowed) != 0) {
       // Only assign allowed registers.
       if (r) {
-        r[i] = Register(n, reg_size);
+        r[i] = Register::Create(n, reg_size);
       }
       if (x) {
-        x[i] = Register(n, kXRegSize);
+        x[i] = Register::Create(n, kXRegSize);
       }
       if (w) {
-        w[i] = Register(n, kWRegSize);
+        w[i] = Register::Create(n, kWRegSize);
       }
       list |= (1UL << n);
       i++;
@@ -245,13 +245,13 @@ RegList PopulateFPRegisterArray(FPRegister* s, FPRegister* d, FPRegister* v,
     if (((1UL << n) & allowed) != 0) {
       // Only assigned allowed registers.
       if (v) {
-        v[i] = FPRegister(n, reg_size);
+        v[i] = FPRegister::Create(n, reg_size);
       }
       if (d) {
-        d[i] = FPRegister(n, kDRegSize);
+        d[i] = FPRegister::Create(n, kDRegSize);
       }
       if (s) {
-        s[i] = FPRegister(n, kSRegSize);
+        s[i] = FPRegister::Create(n, kSRegSize);
       }
       list |= (1UL << n);
       i++;
@@ -268,7 +268,7 @@ void Clobber(MacroAssembler* masm, RegList reg_list, uint64_t const value) {
   Register first = NoReg;
   for (unsigned i = 0; i < kNumberOfRegisters; i++) {
     if (reg_list & (1UL << i)) {
-      Register xn(i, kXRegSize);
+      Register xn = Register::Create(i, kXRegSize);
       // We should never write into csp here.
       ASSERT(!xn.Is(csp));
       if (!xn.IsZero()) {
@@ -291,7 +291,7 @@ void ClobberFP(MacroAssembler* masm, RegList reg_list, double const value) {
   FPRegister first = NoFPReg;
   for (unsigned i = 0; i < kNumberOfFPRegisters; i++) {
     if (reg_list & (1UL << i)) {
-      FPRegister dn(i, kDRegSize);
+      FPRegister dn = FPRegister::Create(i, kDRegSize);
       if (!first.IsValid()) {
         // This is the first register we've hit, so construct the literal.
         __ Fmov(dn, value);

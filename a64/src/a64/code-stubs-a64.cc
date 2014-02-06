@@ -5180,40 +5180,43 @@ void StringAddStub::GenerateRegisterArgsPop(MacroAssembler* masm) {
   __ Pop(x1, x0);
 }
 
+#define MINOR_KEY_FOR(obj, value, addr, action, fp_mode)        \
+  ((obj) | ((value) << 5) | ((addr) << 10) | ((action) << 15) | \
+  ((fp_mode) << 16))
 
 const int RecordWriteStub::kAheadOfTime[] = {
   // Arguments to MinorKeyFor() are object, value and address registers.
 
   // Used in StoreArrayLiteralElementStub::Generate.
-  MinorKeyFor(x10, x0, x11, EMIT_REMEMBERED_SET, kDontSaveFPRegs),
+  MINOR_KEY_FOR(10, 0, 11, EMIT_REMEMBERED_SET, kDontSaveFPRegs),
 
   // Used in FastNewClosure::Generate.
-  MinorKeyFor(x5, x4, x1, EMIT_REMEMBERED_SET, kDontSaveFPRegs),
+  MINOR_KEY_FOR(5, 4, 1, EMIT_REMEMBERED_SET, kDontSaveFPRegs),
 
   // Used in KeyedStoreStubCompiler::GenerateStoreFastElement.
-  MinorKeyFor(x3, x2, x10, EMIT_REMEMBERED_SET, kDontSaveFPRegs),
+  MINOR_KEY_FOR(3, 2, 10, EMIT_REMEMBERED_SET, kDontSaveFPRegs),
 
   // Used in KeyedStoreStubCompiler::GenerateStoreFastDoubleElement.
-  MinorKeyFor(x2, x3, x10, EMIT_REMEMBERED_SET, kDontSaveFPRegs),
+  MINOR_KEY_FOR(2, 3, 10, EMIT_REMEMBERED_SET, kDontSaveFPRegs),
 
   // Used in ElementsTransitionGenerator::GenerateSmiToDouble.
-  MinorKeyFor(x2, x3, x6, OMIT_REMEMBERED_SET, kDontSaveFPRegs),
-  MinorKeyFor(x2, x10, x6, EMIT_REMEMBERED_SET, kDontSaveFPRegs),
+  MINOR_KEY_FOR(2, 3, 6, OMIT_REMEMBERED_SET, kDontSaveFPRegs),
+  MINOR_KEY_FOR(2, 10, 6, EMIT_REMEMBERED_SET, kDontSaveFPRegs),
 
   // Used in ElementsTransitionGenerator::GenerateDoubleToObject.
-  MinorKeyFor(x7, x5, x13, EMIT_REMEMBERED_SET, kDontSaveFPRegs),
-  MinorKeyFor(x2, x7, x13, EMIT_REMEMBERED_SET, kDontSaveFPRegs),
-  MinorKeyFor(x2, x3, x13, OMIT_REMEMBERED_SET, kDontSaveFPRegs),
+  MINOR_KEY_FOR(7, 5, 13, EMIT_REMEMBERED_SET, kDontSaveFPRegs),
+  MINOR_KEY_FOR(2, 7, 13, EMIT_REMEMBERED_SET, kDontSaveFPRegs),
+  MINOR_KEY_FOR(2, 3, 13, OMIT_REMEMBERED_SET, kDontSaveFPRegs),
 
   // Used in KeyedStoreIC::GenerateGeneric helper function.
-  MinorKeyFor(x4, x10, x11, EMIT_REMEMBERED_SET, kDontSaveFPRegs),
+  MINOR_KEY_FOR(4, 10, 11, EMIT_REMEMBERED_SET, kDontSaveFPRegs),
 
   // Used in RegExpExecStub::Generate.
-  MinorKeyFor(x21, x10, x11, EMIT_REMEMBERED_SET, kDontSaveFPRegs),
+  MINOR_KEY_FOR(21, 10, 11, EMIT_REMEMBERED_SET, kDontSaveFPRegs),
 
   // Used in StringAddStub::Generate.
-  MinorKeyFor(x0, x10, x3, EMIT_REMEMBERED_SET, kDontSaveFPRegs),
-  MinorKeyFor(x0, x11, x3, EMIT_REMEMBERED_SET, kDontSaveFPRegs),
+  MINOR_KEY_FOR(0, 10, 3, EMIT_REMEMBERED_SET, kDontSaveFPRegs),
+  MINOR_KEY_FOR(0, 11, 3, EMIT_REMEMBERED_SET, kDontSaveFPRegs),
 
   // TODO(jbramley): There are many more sites that want a pregenerated
   // instance of this stub, but they are currently unimplemented. Once they are
@@ -5224,6 +5227,9 @@ const int RecordWriteStub::kAheadOfTime[] = {
   // RecordWriteStub must not be aliased, and 0 represents (x0, x0, x0).
   0
 };
+
+
+#undef MINOR_KEY_FOR
 
 
 void RecordWriteStub::GenerateFixedRegStubsAheadOfTime(Isolate* isolate) {

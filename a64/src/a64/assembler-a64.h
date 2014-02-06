@@ -60,8 +60,7 @@ class Register;
 class FPRegister;
 
 
-class CPURegister {
- public:
+struct CPURegister {
   enum RegisterType {
     // The kInvalid value is used to detect uninitialized static instances,
     // which are always zero-initialized before any constructors are called.
@@ -71,25 +70,9 @@ class CPURegister {
     kNoRegister
   };
 
-  CPURegister() : code_(0), size_(0), type_(kNoRegister) {
-    ASSERT(!IsValid());
-    ASSERT(IsNone());
-  }
-
-  CPURegister(unsigned code, unsigned size, RegisterType type)
-      : code_(code), size_(size), type_(type) {
-    ASSERT(IsValidOrNone());
-  }
-
-  // This copy constructor is used by the Register and FPRegister classes for
-  // converting a CPURegister into a more specialized type. It is necessary
-  // because (FP)Register cannot directly access other.size_ and suchlike and
-  // the accessor methods don't allow NoCPUReg. Unfortunately, it cannot be
-  // explicit because otherwise the simple (FP)Register->CPURegister casts do
-  // not work.
-  CPURegister(const CPURegister& other)
-      : code_(other.code_), size_(other.size_), type_(other.type_) {
-    ASSERT(IsValidOrNone());
+  static CPURegister Create(unsigned code, unsigned size, RegisterType type) {
+    CPURegister r = {code, size, type};
+    return r;
   }
 
   unsigned code() const;
@@ -111,10 +94,10 @@ class CPURegister {
   bool IsRegister() const;
   bool IsFPRegister() const;
 
-  const Register& X() const;
-  const Register& W() const;
-  const FPRegister& D() const;
-  const FPRegister& S() const;
+  Register X() const;
+  Register W() const;
+  FPRegister D() const;
+  FPRegister S() const;
 
   bool IsSameSizeAndType(const CPURegister& other) const;
 
@@ -122,32 +105,40 @@ class CPURegister {
   bool is(const CPURegister& other) const { return Is(other); }
   bool is_valid() const { return IsValid(); }
 
- protected:
-  unsigned code_;
-  unsigned size_;
-  RegisterType type_;
+  unsigned reg_code;
+  unsigned reg_size;
+  RegisterType reg_type;
 
  private:
   bool IsValidOrNone() const;
 };
 
 
-class Register : public CPURegister {
- public:
-  Register() : CPURegister() {}
-  explicit Register(const CPURegister& other) : CPURegister(other) {
-    ASSERT(IsValidRegister() || IsNone());
+struct Register : public CPURegister {
+  static Register Create(unsigned code, unsigned size) {
+    return CPURegister::Create(code, size, CPURegister::kRegister);
   }
-  Register(unsigned code, unsigned size)
-      : CPURegister(code, size, kRegister) {}
+
+  Register() {
+    reg_code = 0;
+    reg_size = 0;
+    reg_type = CPURegister::kNoRegister;
+  }
+
+  Register(const CPURegister& r) {  // NOLINT(runtime/explicit)
+    reg_code = r.reg_code;
+    reg_size = r.reg_size;
+    reg_type = r.reg_type;
+    ASSERT(IsValid());
+  }
 
   bool IsValid() const {
     ASSERT(IsRegister() || IsNone());
     return IsValidRegister();
   }
 
-  static const Register& XRegFromCode(unsigned code);
-  static const Register& WRegFromCode(unsigned code);
+  static Register XRegFromCode(unsigned code);
+  static Register WRegFromCode(unsigned code);
 
   // Start of V8 compatibility section ---------------------
   // These memebers are necessary for compilation.
@@ -181,9 +172,9 @@ class Register : public CPURegister {
 
   // Return true if the register is one that crankshaft can allocate.
   bool IsAllocatable() const {
-    return (code_ <= kAllocatableLowRangeEnd) ||
-        ((code_ >= kAllocatableHighRangeBegin) &&
-         (code_ <= kAllocatableHighRangeEnd));
+    return (reg_code <= kAllocatableLowRangeEnd) ||
+        ((reg_code >= kAllocatableHighRangeBegin) &&
+         (reg_code <= kAllocatableHighRangeEnd));
   }
 
   static Register FromAllocationIndex(unsigned index) {
@@ -219,34 +210,38 @@ class Register : public CPURegister {
 
   static Register from_code(int code) {
     // Always return an X register.
-    Register r(code, kXRegSize);
-    return r;
+    return Register::Create(code, kXRegSize);
   }
 
   // End of V8 compatibility section -----------------------
-
- private:
-  static const Register xregisters[];
-  static const Register wregisters[];
 };
 
 
-class FPRegister : public CPURegister {
- public:
-  FPRegister() : CPURegister() {}
-  explicit FPRegister(const CPURegister& other) : CPURegister(other) {
-    ASSERT(IsValidFPRegister() || IsNone());
+struct FPRegister : public CPURegister {
+  static FPRegister Create(unsigned code, unsigned size) {
+    return CPURegister::Create(code, size, CPURegister::kFPRegister);
   }
-  FPRegister(unsigned code, unsigned size)
-      : CPURegister(code, size, kFPRegister) {}
+
+  FPRegister() {
+    reg_code = 0;
+    reg_size = 0;
+    reg_type = CPURegister::kNoRegister;
+  }
+
+  FPRegister(const CPURegister& r) {  // NOLINT(runtime/explicit)
+    reg_code = r.reg_code;
+    reg_size = r.reg_size;
+    reg_type = r.reg_type;
+    ASSERT(IsValid());
+  }
 
   bool IsValid() const {
     ASSERT(IsFPRegister() || IsNone());
     return IsValidFPRegister();
   }
 
-  static const FPRegister& SRegFromCode(unsigned code);
-  static const FPRegister& DRegFromCode(unsigned code);
+  static FPRegister SRegFromCode(unsigned code);
+  static FPRegister DRegFromCode(unsigned code);
 
   // Start of V8 compatibility section ---------------------
   static const int kMaxNumRegisters = kNumberOfFPRegisters;
@@ -286,71 +281,91 @@ class FPRegister : public CPURegister {
 
   static FPRegister from_code(int code) {
     // Always return a D register.
-    FPRegister r(code, kDRegSize);
-    return r;
+    return FPRegister::Create(code, kDRegSize);
   }
   // End of V8 compatibility section -----------------------
-
- private:
-  static const FPRegister sregisters[];
-  static const FPRegister dregisters[];
 };
 
+
+STATIC_ASSERT(sizeof(CPURegister) == sizeof(Register));
+STATIC_ASSERT(sizeof(CPURegister) == sizeof(FPRegister));
+
+
+#if defined(A64_DEFINE_REG_STATICS)
+#define INITIALIZE_REGISTER(register_class, name, code, size, type)      \
+  const CPURegister init_##register_class##_##name = {code, size, type}; \
+  const register_class& name = *reinterpret_cast<const register_class*>( \
+                                    &init_##register_class##_##name)
+#define ALIAS_REGISTER(register_class, alias, name)                       \
+  const register_class& alias = *reinterpret_cast<const register_class*>( \
+                                     &init_##register_class##_##name)
+#else
+#define INITIALIZE_REGISTER(register_class, name, code, size, type) \
+  extern const register_class& name
+#define ALIAS_REGISTER(register_class, alias, name) \
+  extern const register_class& alias
+#endif  // defined(A64_DEFINE_REG_STATICS)
 
 // No*Reg is used to indicate an unused argument, or an error case. Note that
 // these all compare equal (using the Is() method). The Register and FPRegister
 // variants are provided for convenience.
-const Register NoReg;
-const FPRegister NoFPReg;
-const CPURegister NoCPUReg;
+INITIALIZE_REGISTER(Register, NoReg, 0, 0, CPURegister::kNoRegister);
+INITIALIZE_REGISTER(FPRegister, NoFPReg, 0, 0, CPURegister::kNoRegister);
+INITIALIZE_REGISTER(CPURegister, NoCPUReg, 0, 0, CPURegister::kNoRegister);
 
-const Register no_reg;    // v8 compatibility.
+// v8 compatibility.
+INITIALIZE_REGISTER(Register, no_reg, 0, 0, CPURegister::kNoRegister);
 
-
-#define DEFINE_REGISTERS(N)  \
-const Register w##N(N, kWRegSize);  \
-const Register x##N(N, kXRegSize);
+#define DEFINE_REGISTERS(N)                                                  \
+  INITIALIZE_REGISTER(Register, w##N, N, kWRegSize, CPURegister::kRegister); \
+  INITIALIZE_REGISTER(Register, x##N, N, kXRegSize, CPURegister::kRegister);
 REGISTER_CODE_LIST(DEFINE_REGISTERS)
 #undef DEFINE_REGISTERS
-const Register wcsp(kSPRegInternalCode, kWRegSize);
-const Register csp(kSPRegInternalCode, kXRegSize);
 
+INITIALIZE_REGISTER(Register, wcsp, kSPRegInternalCode, kWRegSize,
+                    CPURegister::kRegister);
+INITIALIZE_REGISTER(Register, csp, kSPRegInternalCode, kXRegSize,
+                    CPURegister::kRegister);
 
-#define DEFINE_FPREGISTERS(N)  \
-const FPRegister s##N(N, kSRegSize);  \
-const FPRegister d##N(N, kDRegSize);
+#define DEFINE_FPREGISTERS(N)                         \
+  INITIALIZE_REGISTER(FPRegister, s##N, N, kSRegSize, \
+                      CPURegister::kFPRegister);      \
+  INITIALIZE_REGISTER(FPRegister, d##N, N, kDRegSize, CPURegister::kFPRegister);
 REGISTER_CODE_LIST(DEFINE_FPREGISTERS)
 #undef DEFINE_FPREGISTERS
 
+#undef INITIALIZE_REGISTER
 
 // Registers aliases.
-const Register ip0 = x16;
-const Register ip1 = x17;
-const Register wip0 = w16;
-const Register wip1 = w17;
+ALIAS_REGISTER(Register, ip0, x16);
+ALIAS_REGISTER(Register, ip1, x17);
+ALIAS_REGISTER(Register, wip0, w16);
+ALIAS_REGISTER(Register, wip1, w17);
 // Root register.
-const Register root = x26;
-const Register rr = root;
+ALIAS_REGISTER(Register, root, x26);
+ALIAS_REGISTER(Register, rr, x26);
 // Context pointer register.
-const Register cp = x27;
+ALIAS_REGISTER(Register, cp, x27);
 // We use a register as a JS stack pointer to overcome the restriction on the
 // architectural SP alignment.
 // We chose x28 because it is contiguous with the other specific purpose
 // registers.
 STATIC_ASSERT(kJSSPCode == 28);
-const Register jssp = x28;
-const Register wjssp = w28;
-const Register fp = x29;
-const Register lr = x30;
-const Register xzr = x31;
-const Register wzr = w31;
+ALIAS_REGISTER(Register, jssp, x28);
+ALIAS_REGISTER(Register, wjssp, w28);
+ALIAS_REGISTER(Register, fp, x29);
+ALIAS_REGISTER(Register, lr, x30);
+ALIAS_REGISTER(Register, xzr, x31);
+ALIAS_REGISTER(Register, wzr, w31);
 
 // Crankshaft double scratch register.
-const FPRegister crankshaft_fp_scratch = d29;
+ALIAS_REGISTER(FPRegister, crankshaft_fp_scratch, d29);
 // Keeps the 0 double value.
-const FPRegister fp_zero = d30;
+ALIAS_REGISTER(FPRegister, fp_zero, d30);
 // MacroAssembler double scratch register.
-const FPRegister fp_scratch = d31;
+ALIAS_REGISTER(FPRegister, fp_scratch, d31);
+
+#undef ALIAS_REGISTER
 
 // AreAliased returns true if any of the named registers overlap. Arguments set
 // to NoReg are ignored. The system stack pointer may be specified.
@@ -497,7 +512,7 @@ class CPURegList {
       // Try to create a CPURegister for each element in the list.
       for (int i = 0; i < kRegListSizeInBits; i++) {
         if (((list_ >> i) & 1) != 0) {
-          is_valid &= CPURegister(i, size_, type_).IsValid();
+          is_valid &= CPURegister::Create(i, size_, type_).IsValid();
         }
       }
       return is_valid;
@@ -513,13 +528,13 @@ class CPURegList {
 
 
 // AAPCS64 callee-saved registers.
-extern const CPURegList kCalleeSaved;
-extern const CPURegList kCalleeSavedFP;
+#define kCalleeSaved CPURegList::GetCalleeSaved()
+#define kCalleeSavedFP CPURegList::GetCalleeSavedFP()
 
 
 // AAPCS64 caller-saved registers. Note that this includes lr.
-extern const CPURegList kCallerSaved;
-extern const CPURegList kCallerSavedFP;
+#define kCallerSaved CPURegList::GetCallerSaved()
+#define kCallerSavedFP CPURegList::GetCallerSavedFP()
 
 
 // -----------------------------------------------------------------------------

@@ -1862,11 +1862,11 @@ class MacroAssembler : public Assembler {
   }
 
   const Register WTmp0() const {
-    return Register(tmp0_.code(), kWRegSize);
+    return Register::Create(tmp0_.code(), kWRegSize);
   }
 
   const Register WTmp1() const {
-    return Register(tmp1_.code(), kWRegSize);
+    return Register::Create(tmp1_.code(), kWRegSize);
   }
 
   void SetFPScratchRegister(const FPRegister& fptmp0) {
@@ -1882,7 +1882,7 @@ class MacroAssembler : public Assembler {
       const CPURegister& forbidden = NoCPUReg) const {
     Register candidate = forbidden.Is(Tmp0()) ? Tmp1() : Tmp0();
     ASSERT(!candidate.Is(target));
-    return Register(candidate.code(), target.SizeInBits());
+    return Register::Create(candidate.code(), target.SizeInBits());
   }
 
   const FPRegister AppropriateTempFor(
@@ -1892,7 +1892,7 @@ class MacroAssembler : public Assembler {
     FPRegister candidate = FPTmp0();
     ASSERT(!candidate.Is(forbidden));
     ASSERT(!candidate.Is(target));
-    return FPRegister(candidate.code(), target.SizeInBits());
+    return FPRegister::Create(candidate.code(), target.SizeInBits());
   }
 
   // Like printf, but print at run-time from generated code.

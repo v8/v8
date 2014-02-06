@@ -30,6 +30,8 @@
 
 #if V8_TARGET_ARCH_A64
 
+#define A64_DEFINE_REG_STATICS
+
 #include "a64/assembler-a64-inl.h"
 
 namespace v8 {
@@ -55,7 +57,7 @@ CPURegister CPURegList::PopLowestIndex() {
   int index = CountTrailingZeros(list_, kRegListSizeInBits);
   ASSERT((1 << index) & list_);
   Remove(index);
-  return CPURegister(index, size_, type_);
+  return CPURegister::Create(index, size_, type_);
 }
 
 
@@ -68,7 +70,7 @@ CPURegister CPURegList::PopHighestIndex() {
   index = kRegListSizeInBits - 1 - index;
   ASSERT((1 << index) & list_);
   Remove(index);
-  return CPURegister(index, size_, type_);
+  return CPURegister::Create(index, size_, type_);
 }
 
 
@@ -109,12 +111,6 @@ CPURegList CPURegList::GetCallerSavedFP(unsigned size) {
   list.Combine(CPURegList(CPURegister::kFPRegister, size, 16, 31));
   return list;
 }
-
-
-const CPURegList kCalleeSaved = CPURegList::GetCalleeSaved();
-const CPURegList kCalleeSavedFP = CPURegList::GetCalleeSavedFP();
-const CPURegList kCallerSaved = CPURegList::GetCallerSaved();
-const CPURegList kCallerSavedFP = CPURegList::GetCallerSavedFP();
 
 
 // This function defines the list of registers which are associated with a
@@ -183,31 +179,6 @@ void RelocInfo::PatchCodeWithCall(Address target, int guard_bytes) {
   UNIMPLEMENTED();
 }
 
-
-// Registers.
-#define XREG(n) x##n,
-const Register Register::xregisters[] = {
-REGISTER_CODE_LIST(XREG)
-};
-#undef XREG
-
-#define WREG(n) w##n,
-const Register Register::wregisters[] = {
-REGISTER_CODE_LIST(WREG)
-};
-#undef WREG
-
-#define SREG(n) s##n,
-const FPRegister FPRegister::sregisters[] = {
-REGISTER_CODE_LIST(SREG)
-};
-#undef SREG
-
-#define DREG(n) d##n,
-const FPRegister FPRegister::dregisters[] = {
-REGISTER_CODE_LIST(DREG)
-};
-#undef DREG
 
 bool AreAliased(const CPURegister& reg1, const CPURegister& reg2,
                 const CPURegister& reg3, const CPURegister& reg4,
@@ -1955,7 +1926,7 @@ void Assembler::EmitExtendShift(const Register& rd,
   ASSERT(rd.SizeInBits() >= rn.SizeInBits());
   unsigned reg_size = rd.SizeInBits();
   // Use the correct size of register.
-  Register rn_ = Register(rn.code(), rd.SizeInBits());
+  Register rn_ = Register::Create(rn.code(), rd.SizeInBits());
   // Bits extracted are high_bit:0.
   unsigned high_bit = (8 << (extend & 0x3)) - 1;
   // Number of bits left in the result that are not introduced by the shift.

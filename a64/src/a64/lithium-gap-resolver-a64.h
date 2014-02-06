@@ -71,9 +71,6 @@ class LGapResolver BASE_EMBEDDED {
   // Verify the move list before performing moves.
   void Verify();
 
-  // Register used to break cycle in moves list.
-  static const Register kSavedValue;
-
   LCodeGen* cgen_;
 
   // List of moves not yet resolved.

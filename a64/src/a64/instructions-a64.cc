@@ -29,6 +29,8 @@
 
 #if V8_TARGET_ARCH_A64
 
+#define A64_DEFINE_FP_STATICS
+
 #include "a64/instructions-a64.h"
 #include "a64/assembler-a64-inl.h"
 

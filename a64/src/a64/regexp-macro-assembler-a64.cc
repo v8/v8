@@ -1558,7 +1558,7 @@ void RegExpMacroAssemblerA64::Pop(Register target) {
 
 Register RegExpMacroAssemblerA64::GetCachedRegister(int register_index) {
   ASSERT(register_index < kNumCachedRegisters);
-  return Register(register_index / 2, kXRegSize);
+  return Register::Create(register_index / 2, kXRegSize);
 }
 
 

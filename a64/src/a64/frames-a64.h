@@ -48,10 +48,9 @@ const int kNumSafepointRegisters = 32;
 // Define the list of registers actually saved at safepoints.
 // Note that the number of saved registers may be smaller than the reserved
 // space, i.e. kNumSafepointSavedRegisters <= kNumSafepointRegisters.
-const RegList kSafepointSavedRegisters =
-    CPURegList::GetSafepointSavedRegisters().list();
-const int kNumSafepointSavedRegisters =
-    CPURegList::GetSafepointSavedRegisters().Count();
+#define kSafepointSavedRegisters CPURegList::GetSafepointSavedRegisters().list()
+#define kNumSafepointSavedRegisters \
+  CPURegList::GetSafepointSavedRegisters().Count();
 
 class EntryFrameConstants : public AllStatic {
  public:

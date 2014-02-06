@@ -55,44 +55,44 @@ void RelocInfo::set_target_address(Address target, WriteBarrierMode mode) {
 
 inline unsigned CPURegister::code() const {
   ASSERT(IsValid());
-  return code_;
+  return reg_code;
 }
 
 
 inline CPURegister::RegisterType CPURegister::type() const {
   ASSERT(IsValidOrNone());
-  return type_;
+  return reg_type;
 }
 
 
 inline RegList CPURegister::Bit() const {
-  ASSERT(code_ < (sizeof(RegList) * kBitsPerByte));
-  return IsValid() ? 1UL << code_ : 0;
+  ASSERT(reg_code < (sizeof(RegList) * kBitsPerByte));
+  return IsValid() ? 1UL << reg_code : 0;
 }
 
 
 inline unsigned CPURegister::SizeInBits() const {
   ASSERT(IsValid());
-  return size_;
+  return reg_size;
 }
 
 
 inline int CPURegister::SizeInBytes() const {
   ASSERT(IsValid());
   ASSERT(SizeInBits() % 8 == 0);
-  return size_ / 8;
+  return reg_size / 8;
 }
 
 
 inline bool CPURegister::Is32Bits() const {
   ASSERT(IsValid());
-  return size_ == 32;
+  return reg_size == 32;
 }
 
 
 inline bool CPURegister::Is64Bits() const {
   ASSERT(IsValid());
-  return size_ == 64;
+  return reg_size == 64;
 }
 
 
@@ -109,46 +109,46 @@ inline bool CPURegister::IsValid() const {
 
 inline bool CPURegister::IsValidRegister() const {
   return IsRegister() &&
-         ((size_ == kWRegSize) || (size_ == kXRegSize)) &&
-         ((code_ < kNumberOfRegisters) || (code_ == kSPRegInternalCode));
+         ((reg_size == kWRegSize) || (reg_size == kXRegSize)) &&
+         ((reg_code < kNumberOfRegisters) || (reg_code == kSPRegInternalCode));
 }
 
 
 inline bool CPURegister::IsValidFPRegister() const {
   return IsFPRegister() &&
-         ((size_ == kSRegSize) || (size_ == kDRegSize)) &&
-         (code_ < kNumberOfFPRegisters);
+         ((reg_size == kSRegSize) || (reg_size == kDRegSize)) &&
+         (reg_code < kNumberOfFPRegisters);
 }
 
 
 inline bool CPURegister::IsNone() const {
   // kNoRegister types should always have size 0 and code 0.
-  ASSERT((type_ != kNoRegister) || (code_ == 0));
-  ASSERT((type_ != kNoRegister) || (size_ == 0));
+  ASSERT((reg_type != kNoRegister) || (reg_code == 0));
+  ASSERT((reg_type != kNoRegister) || (reg_size == 0));
 
-  return type_ == kNoRegister;
+  return reg_type == kNoRegister;
 }
 
 
 inline bool CPURegister::Is(const CPURegister& other) const {
   ASSERT(IsValidOrNone() && other.IsValidOrNone());
-  return (code_ == other.code_) && (size_ == other.size_) &&
-         (type_ == other.type_);
+  return (reg_code == other.reg_code) && (reg_size == other.reg_size) &&
+         (reg_type == other.reg_type);
 }
 
 
 inline bool CPURegister::IsRegister() const {
-  return type_ == kRegister;
+  return reg_type == kRegister;
 }
 
 
 inline bool CPURegister::IsFPRegister() const {
-  return type_ == kFPRegister;
+  return reg_type == kFPRegister;
 }
 
 
 inline bool CPURegister::IsSameSizeAndType(const CPURegister& other) const {
-  return (size_ == other.size_) && (type_ == other.type_);
+  return (reg_size == other.reg_size) && (reg_type == other.reg_type);
 }
 
 
@@ -159,13 +159,13 @@ inline bool CPURegister::IsValidOrNone() const {
 
 inline bool CPURegister::IsZero() const {
   ASSERT(IsValid());
-  return IsRegister() && (code_ == kZeroRegCode);
+  return IsRegister() && (reg_code == kZeroRegCode);
 }
 
 
 inline bool CPURegister::IsSP() const {
   ASSERT(IsValid());
-  return IsRegister() && (code_ == kSPRegInternalCode);
+  return IsRegister() && (reg_code == kSPRegInternalCode);
 }
 
 
@@ -201,65 +201,65 @@ inline void CPURegList::Remove(const CPURegister& other) {
 
 inline void CPURegList::Combine(int code) {
   ASSERT(IsValid());
-  ASSERT(CPURegister(code, size_, type_).IsValid());
+  ASSERT(CPURegister::Create(code, size_, type_).IsValid());
   list_ |= (1UL << code);
 }
 
 
 inline void CPURegList::Remove(int code) {
   ASSERT(IsValid());
-  ASSERT(CPURegister(code, size_, type_).IsValid());
+  ASSERT(CPURegister::Create(code, size_, type_).IsValid());
   list_ &= ~(1UL << code);
 }
 
 
-inline const Register& Register::XRegFromCode(unsigned code) {
+inline Register Register::XRegFromCode(unsigned code) {
   // This function returns the zero register when code = 31. The stack pointer
   // can not be returned.
   ASSERT(code < kNumberOfRegisters);
-  return xregisters[code];
+  return Register::Create(code, kXRegSize);
 }
 
 
-inline const Register& Register::WRegFromCode(unsigned code) {
+inline Register Register::WRegFromCode(unsigned code) {
   ASSERT(code < kNumberOfRegisters);
-  return wregisters[code];
+  return Register::Create(code, kWRegSize);
 }
 
 
-inline const FPRegister& FPRegister::SRegFromCode(unsigned code) {
+inline FPRegister FPRegister::SRegFromCode(unsigned code) {
   ASSERT(code < kNumberOfFPRegisters);
-  return sregisters[code];
+  return FPRegister::Create(code, kSRegSize);
 }
 
 
-inline const FPRegister& FPRegister::DRegFromCode(unsigned code) {
+inline FPRegister FPRegister::DRegFromCode(unsigned code) {
   ASSERT(code < kNumberOfFPRegisters);
-  return dregisters[code];
+  return FPRegister::Create(code, kDRegSize);
 }
 
 
-inline const Register& CPURegister::W() const {
+inline Register CPURegister::W() const {
   ASSERT(IsValidRegister());
-  return Register::WRegFromCode(code_);
+  return Register::WRegFromCode(reg_code);
 }
 
 
-inline const Register& CPURegister::X() const {
+inline Register CPURegister::X() const {
   ASSERT(IsValidRegister());
-  return Register::XRegFromCode(code_);
+  return Register::XRegFromCode(reg_code);
 }
 
 
-inline const FPRegister& CPURegister::S() const {
+inline FPRegister CPURegister::S() const {
   ASSERT(IsValidFPRegister());
-  return FPRegister::SRegFromCode(code_);
+  return FPRegister::SRegFromCode(reg_code);
 }
 
 
-inline const FPRegister& CPURegister::D() const {
+inline FPRegister CPURegister::D() const {
   ASSERT(IsValidFPRegister());
-  return FPRegister::DRegFromCode(code_);
+  return FPRegister::DRegFromCode(reg_code);
 }
 
 

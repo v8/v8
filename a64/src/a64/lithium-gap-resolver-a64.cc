@@ -40,8 +40,7 @@ namespace internal {
 //    with any of the moves we are resolving.
 //  - We don't need to push it on the stack, as we can reload it with its value
 //    once we have resolved a cycle.
-const Register LGapResolver::kSavedValue = root;
-
+#define kSavedValue root
 
 LGapResolver::LGapResolver(LCodeGen* owner)
     : cgen_(owner), moves_(32, owner->zone()), root_index_(0), in_cycle_(false),

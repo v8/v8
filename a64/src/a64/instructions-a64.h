@@ -40,19 +40,35 @@ namespace internal {
 // ISA constants. --------------------------------------------------------------
 
 typedef uint32_t Instr;
-const float kFP32PositiveInfinity = rawbits_to_float(0x7f800000);
-const float kFP32NegativeInfinity = rawbits_to_float(0xff800000);
-const double kFP64PositiveInfinity = rawbits_to_double(0x7ff0000000000000UL);
-const double kFP64NegativeInfinity = rawbits_to_double(0xfff0000000000000UL);
+
+// The following macros initialize a float/double variable with a bit pattern
+// without using static initializers: If A64_DEFINE_FP_STATICS is defined, the
+// symbol is defined as uint32_t/uint64_t initialized with the desired bit
+// pattern. Otherwise, the same symbol is declared as an external float/double.
+#if defined(A64_DEFINE_FP_STATICS)
+#define DEFINE_FLOAT(name, value) extern const uint32_t name = value
+#define DEFINE_DOUBLE(name, value) extern const uint64_t name = value
+#else
+#define DEFINE_FLOAT(name, value) extern const float name
+#define DEFINE_DOUBLE(name, value) extern const double name
+#endif  // defined(A64_DEFINE_FP_STATICS)
+
+DEFINE_FLOAT(kFP32PositiveInfinity, 0x7f800000);
+DEFINE_FLOAT(kFP32NegativeInfinity, 0xff800000);
+DEFINE_DOUBLE(kFP64PositiveInfinity, 0x7ff0000000000000UL);
+DEFINE_DOUBLE(kFP64NegativeInfinity, 0xfff0000000000000UL);
 
 // This value is a signalling NaN as both a double and as a float (taking the
 // least-significant word).
-static const double kFP64SignallingNaN = rawbits_to_double(0x7ff000007f800001);
-static const float kFP32SignallingNaN = rawbits_to_float(0x7f800001);
+DEFINE_DOUBLE(kFP64SignallingNaN, 0x7ff000007f800001);
+DEFINE_FLOAT(kFP32SignallingNaN, 0x7f800001);
 
 // A similar value, but as a quiet NaN.
-static const double kFP64QuietNaN = rawbits_to_double(0x7ff800007fc00001);
-static const float kFP32QuietNaN = rawbits_to_float(0x7fc00001);
+DEFINE_DOUBLE(kFP64QuietNaN, 0x7ff800007fc00001);
+DEFINE_FLOAT(kFP32QuietNaN, 0x7fc00001);
+
+#undef DEFINE_FLOAT
+#undef DEFINE_DOUBLE
 
 
 enum LSDataSize {
