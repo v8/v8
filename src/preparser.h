@@ -681,7 +681,6 @@ class PreParser : public ParserBase {
   void CheckDelayedStrictModeViolation(int beg_pos, int end_pos, bool* ok);
 
   void StrictModeIdentifierViolation(Scanner::Location,
-                                     const char* eval_args_type,
                                      Identifier identifier,
                                      bool* ok);
 

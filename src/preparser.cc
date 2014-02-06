@@ -1058,7 +1058,6 @@ PreParser::Expression PreParser::ParseMemberWithNewPrefixesExpression(
     // is strict, we need to do an extra check.
     if (result.IsStrictFunction() && !identifier.IsValidStrictVariable()) {
       StrictModeIdentifierViolation(scanner()->location(),
-                                    "strict_eval_arguments",
                                     identifier,
                                     ok);
       return Expression::Default();
@@ -1496,8 +1495,7 @@ PreParser::Identifier PreParser::ParseIdentifier(
     PreParser::Identifier name = GetIdentifierSymbol();
     if (allow_eval_or_arguments == kDontAllowEvalOrArguments &&
         !is_classic_mode() && name.IsEvalOrArguments()) {
-      StrictModeIdentifierViolation(
-          scanner()->location(), "strict_eval_arguments", name, ok);
+      StrictModeIdentifierViolation(scanner()->location(), name, ok);
     }
     return name;
   } else if (is_classic_mode() &&
@@ -1546,10 +1544,9 @@ void PreParser::CheckDelayedStrictModeViolation(int beg_pos,
 
 
 void PreParser::StrictModeIdentifierViolation(Scanner::Location location,
-                                              const char* eval_args_type,
                                               Identifier identifier,
                                               bool* ok) {
-  const char* type = eval_args_type;
+  const char* type = "strict_eval_arguments";
   if (identifier.IsFutureReserved()) {
     type = "unexpected_reserved";
   } else if (identifier.IsFutureStrictReserved() || identifier.IsYield()) {
