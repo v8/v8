@@ -1023,11 +1023,11 @@ void MathExpGenerator::EmitMathExp(MacroAssembler* masm,
     __ Move(double_scratch1, temp3, temp1);
   }
   __ mul_d(result, result, double_scratch1);
-  __ Branch(&done);
+  __ BranchShort(&done);
 
   __ bind(&zero);
   __ Move(result, kDoubleRegZero);
-  __ Branch(&done);
+  __ BranchShort(&done);
 
   __ bind(&infinity);
   __ ldc1(result, ExpConstant(2, temp3));

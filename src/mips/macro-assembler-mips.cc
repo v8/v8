@@ -1563,19 +1563,27 @@ void MacroAssembler::Branch(Label* L, Condition cond, Register rs,
     if (is_near(L)) {
       BranchShort(L, cond, rs, rt, bdslot);
     } else {
-      Label skip;
-      Condition neg_cond = NegateCondition(cond);
-      BranchShort(&skip, neg_cond, rs, rt);
-      Jr(L, bdslot);
-      bind(&skip);
+      if (cond != cc_always) {
+        Label skip;
+        Condition neg_cond = NegateCondition(cond);
+        BranchShort(&skip, neg_cond, rs, rt);
+        Jr(L, bdslot);
+        bind(&skip);
+      } else {
+        Jr(L, bdslot);
+      }
     }
   } else {
     if (is_trampoline_emitted()) {
-      Label skip;
-      Condition neg_cond = NegateCondition(cond);
-      BranchShort(&skip, neg_cond, rs, rt);
-      Jr(L, bdslot);
-      bind(&skip);
+      if (cond != cc_always) {
+        Label skip;
+        Condition neg_cond = NegateCondition(cond);
+        BranchShort(&skip, neg_cond, rs, rt);
+        Jr(L, bdslot);
+        bind(&skip);
+      } else {
+        Jr(L, bdslot);
+      }
     } else {
       BranchShort(L, cond, rs, rt, bdslot);
     }
