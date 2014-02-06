@@ -5585,7 +5585,8 @@ HInstruction* HOptimizedGraphBuilder::BuildMonomorphicAccess(
     } else if (FLAG_inline_accessors && can_inline_accessor) {
       bool success = info->IsLoad()
           ? TryInlineGetter(info->accessor(), info->map(), ast_id, return_id)
-          : TryInlineSetter(info->accessor(), ast_id, return_id, value);
+          : TryInlineSetter(
+              info->accessor(), info->map(), ast_id, return_id, value);
       if (success) return NULL;
     }
 
@@ -7420,9 +7421,11 @@ bool HOptimizedGraphBuilder::TryInlineGetter(Handle<JSFunction> getter,
 
 
 bool HOptimizedGraphBuilder::TryInlineSetter(Handle<JSFunction> setter,
+                                             Handle<Map> receiver_map,
                                              BailoutId id,
                                              BailoutId assignment_id,
                                              HValue* implicit_return_value) {
+  if (TryInlineApiSetter(setter, receiver_map, id)) return true;
   return TryInline(setter,
                    1,
                    implicit_return_value,
@@ -7733,6 +7736,20 @@ bool HOptimizedGraphBuilder::TryInlineApiGetter(Handle<JSFunction> function,
 }
 
 
+bool HOptimizedGraphBuilder::TryInlineApiSetter(Handle<JSFunction> function,
+                                                Handle<Map> receiver_map,
+                                                BailoutId ast_id) {
+  SmallMapList receiver_maps(1, zone());
+  receiver_maps.Add(receiver_map, zone());
+  return TryInlineApiCall(function,
+                          NULL,  // Receiver is on expression stack.
+                          &receiver_maps,
+                          1,
+                          ast_id,
+                          kCallApiSetter);
+}
+
+
 bool HOptimizedGraphBuilder::TryInlineApiCall(Handle<JSFunction> function,
                                                HValue* receiver,
                                                SmallMapList* receiver_maps,
@@ -7788,6 +7805,18 @@ bool HOptimizedGraphBuilder::TryInlineApiCall(Handle<JSFunction> function,
       receiver = Pop();
       Add<HPushArgument>(receiver);
       break;
+    case kCallApiSetter:
+      {
+        // Receiver and prototype chain cannot have changed.
+        ASSERT_EQ(1, argc);
+        ASSERT_EQ(NULL, receiver);
+        // Receiver and value are on expression stack.
+        HValue* value = Pop();
+        receiver = Pop();
+        Add<HPushArgument>(receiver);
+        Add<HPushArgument>(value);
+        break;
+     }
   }
 
   HValue* holder = NULL;

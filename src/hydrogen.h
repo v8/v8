@@ -2222,6 +2222,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
                        BailoutId ast_id,
                        BailoutId return_id);
   bool TryInlineSetter(Handle<JSFunction> setter,
+                       Handle<Map> receiver_map,
                        BailoutId id,
                        BailoutId assignment_id,
                        HValue* implicit_return_value);
@@ -2235,13 +2236,17 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   enum ApiCallType {
     kCallApiFunction,
     kCallApiMethod,
-    kCallApiGetter
+    kCallApiGetter,
+    kCallApiSetter
   };
   bool TryInlineApiMethodCall(Call* expr,
                               HValue* receiver,
                               SmallMapList* receiver_types);
   bool TryInlineApiFunctionCall(Call* expr, HValue* receiver);
   bool TryInlineApiGetter(Handle<JSFunction> function,
+                          Handle<Map> receiver_map,
+                          BailoutId ast_id);
+  bool TryInlineApiSetter(Handle<JSFunction> function,
                           Handle<Map> receiver_map,
                           BailoutId ast_id);
   bool TryInlineApiCall(Handle<JSFunction> function,
