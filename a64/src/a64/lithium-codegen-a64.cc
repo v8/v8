@@ -4332,7 +4332,10 @@ void LCodeGen::DoDeferredNumberTagU(LInstruction* instr,
 
   // Slow case: call the runtime system to do the number allocation.
   __ Bind(&slow);
-
+  // TODO(3095996): Put a valid pointer value in the stack slot where the result
+  // register is stored, as this register is in the pointer map, but contains an
+  // integer value.
+  __ Mov(dst, 0);
   {
     // Preserve the value of all registers.
     PushSafepointRegistersScope scope(this, Safepoint::kWithRegisters);
