@@ -282,7 +282,6 @@ void FullCodeGenerator::Generate() {
     }
   }
 
-  // TODO(jbramley): Why not call EmitBackEdgeBookkeeping()?
   { Comment cmnt(masm_, "[ Stack check");
     PrepareForBailoutForId(BailoutId::Declarations(), NO_REGISTERS);
     Label ok;
@@ -319,7 +318,6 @@ void FullCodeGenerator::ClearAccumulator() {
 }
 
 
-// TODO(mcapewel): untested, ported as part of merge.
 void FullCodeGenerator::EmitProfilingCounterDecrement(int delta) {
   __ Mov(x2, Operand(profiling_counter_));
   __ Ldr(x3, FieldMemOperand(x2, Cell::kValueOffset));
@@ -328,7 +326,6 @@ void FullCodeGenerator::EmitProfilingCounterDecrement(int delta) {
 }
 
 
-// TODO(mcapewel): untested, ported as part of merge.
 void FullCodeGenerator::EmitProfilingCounterReset() {
   int reset_value = FLAG_interrupt_budget;
   if (info_->ShouldSelfOptimize() && !FLAG_retry_self_opt) {
@@ -1162,7 +1159,6 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ B(&exit);
 
   // We got a fixed array in register x0. Iterate through that.
-  Label non_proxy;
   __ Bind(&fixed_array);
 
   Handle<Cell> cell = isolate()->factory()->NewCell(
@@ -1177,10 +1173,9 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ Peek(x10, 0);  // Get enumerated object.
   STATIC_ASSERT(FIRST_JS_PROXY_TYPE == FIRST_SPEC_OBJECT_TYPE);
   // TODO(all): similar check was done already. Can we avoid it here?
-  __ JumpIfObjectType(x10, x11, x12, LAST_JS_PROXY_TYPE, &non_proxy, gt);
-  // TODO(all): use csel here
-  __ Mov(x1, Operand(Smi::FromInt(0)));  // Zero indicates proxy.
-  __ Bind(&non_proxy);
+  __ CompareObjectType(x10, x11, x12, LAST_JS_PROXY_TYPE);
+  ASSERT(Smi::FromInt(0) == 0);
+  __ CzeroX(x1, le);  // Zero indicates proxy.
   __ Push(x1, x0);  // Smi and array
   __ Ldr(x1, FieldMemOperand(x0, FixedArray::kLengthOffset));
   __ Push(x1, xzr);  // Fixed array length (as smi) and initial index.
