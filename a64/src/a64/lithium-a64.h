@@ -79,6 +79,7 @@ class LCodeGen;
   V(CmpMapAndBranch)                            \
   V(CmpObjectEqAndBranch)                       \
   V(CmpT)                                       \
+  V(CompareMinusZeroAndBranch)                  \
   V(CompareNumericAndBranch)                    \
   V(ConstantD)                                  \
   V(ConstantE)                                  \
@@ -1133,6 +1134,22 @@ class LCmpT V8_FINAL : public LTemplateInstruction<1, 2, 0> {
   DECLARE_HYDROGEN_ACCESSOR(CompareGeneric)
 
   Token::Value op() const { return hydrogen()->token(); }
+};
+
+
+class LCompareMinusZeroAndBranch V8_FINAL : public LControlInstruction<1, 1> {
+ public:
+  LCompareMinusZeroAndBranch(LOperand* value, LOperand* temp) {
+    inputs_[0] = value;
+    temps_[0] = temp;
+  }
+
+  LOperand* value() { return inputs_[0]; }
+  LOperand* temp() { return temps_[0]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(CompareMinusZeroAndBranch,
+                               "cmp-minus-zero-and-branch")
+  DECLARE_HYDROGEN_ACCESSOR(CompareMinusZeroAndBranch)
 };
 
 
