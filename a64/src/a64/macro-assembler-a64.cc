@@ -3628,13 +3628,17 @@ void MacroAssembler::IndexFromHash(Register hash, Register index) {
 }
 
 
-void MacroAssembler::EmitSeqStringSetCharCheck(Register string,
-                                               Register index,
-                                               uint32_t encoding_mask) {
-  Register scratch = __ Tmp1();
+void MacroAssembler::EmitSeqStringSetCharCheck(
+    Register string,
+    Register index,
+    SeqStringSetCharCheckIndexType index_type,
+    Register scratch,
+    uint32_t encoding_mask) {
   ASSERT(!AreAliased(string, index, scratch));
 
-  AssertSmi(index);
+  if (index_type == kIndexIsSmi) {
+    AssertSmi(index);
+  }
 
   // Check that string is an object.
   ThrowIfSmi(string, kNonObject);
@@ -3642,16 +3646,17 @@ void MacroAssembler::EmitSeqStringSetCharCheck(Register string,
   // Check that string has an appropriate map.
   Ldr(scratch, FieldMemOperand(string, HeapObject::kMapOffset));
   Ldrb(scratch, FieldMemOperand(scratch, Map::kInstanceTypeOffset));
+
   And(scratch, scratch, kStringRepresentationMask | kStringEncodingMask);
   Cmp(scratch, encoding_mask);
   ThrowIf(ne, kUnexpectedStringType);
 
-  // Check that the index points inside the string.
   Ldr(scratch, FieldMemOperand(string, String::kLengthOffset));
-  Cmp(index, scratch);
+  Cmp(index, index_type == kIndexIsSmi ? scratch : Operand::UntagSmi(scratch));
   ThrowIf(ge, kIndexIsTooLarge);
 
-  Cmp(index, Operand(Smi::FromInt(0)));
+  ASSERT_EQ(0, Smi::FromInt(0));
+  Cmp(index, 0);
   ThrowIf(lt, kIndexIsNegative);
 }
 

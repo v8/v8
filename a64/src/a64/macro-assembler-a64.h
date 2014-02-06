@@ -74,6 +74,7 @@ enum UntagMode { kNotSpeculativeUntag, kSpeculativeUntag };
 enum ArrayHasHoles { kArrayCantHaveHoles, kArrayCanHaveHoles };
 enum CopyHint { kCopyUnknown, kCopyShort, kCopyLong };
 enum DiscardMoveMode { kDontDiscardForSameWReg, kDiscardForSameWReg };
+enum SeqStringSetCharCheckIndexType { kIndexIsSmi, kIndexIsInteger32 };
 
 class MacroAssembler : public Assembler {
  public:
@@ -1475,7 +1476,9 @@ class MacroAssembler : public Assembler {
   // Inline caching support.
 
   void EmitSeqStringSetCharCheck(Register string,
-                                 Register index,    // Smi
+                                 Register index,
+                                 SeqStringSetCharCheckIndexType index_type,
+                                 Register scratch,
                                  uint32_t encoding_mask);
 
   // Generate code for checking access rights - used for security checks

@@ -4522,30 +4522,27 @@ void LCodeGen::DoSeqStringGetChar(LSeqStringGetChar* instr) {
 
 
 void LCodeGen::DoSeqStringSetChar(LSeqStringSetChar* instr) {
-  // TODO(all): Port ARM optimizations from r16707.
-
   String::Encoding encoding = instr->encoding();
   Register string = ToRegister(instr->string());
-  Register index = ToRegister(instr->index());
   Register value = ToRegister(instr->value());
   Register temp = ToRegister(instr->temp());
 
   if (FLAG_debug_code) {
-    if (encoding == String::ONE_BYTE_ENCODING) {
-      __ EmitSeqStringSetCharCheck(
-          string, index, kSeqStringTag | kOneByteStringTag);
-    } else {
-      ASSERT(encoding == String::TWO_BYTE_ENCODING);
-      __ EmitSeqStringSetCharCheck(
-          string, index, kSeqStringTag | kTwoByteStringTag);
-    }
+    Register index = ToRegister(instr->index());
+    static const uint32_t one_byte_seq_type = kSeqStringTag | kOneByteStringTag;
+    static const uint32_t two_byte_seq_type = kSeqStringTag | kTwoByteStringTag;
+    int encoding_mask =
+        instr->hydrogen()->encoding() == String::ONE_BYTE_ENCODING
+        ? one_byte_seq_type : two_byte_seq_type;
+    __ EmitSeqStringSetCharCheck(string, index, kIndexIsInteger32, temp,
+                                 encoding_mask);
   }
-
-  __ Add(temp, string, SeqString::kHeaderSize - kHeapObjectTag);
+  MemOperand operand =
+      BuildSeqStringOperand(string, temp, instr->index(), encoding);
   if (encoding == String::ONE_BYTE_ENCODING) {
-    __ Strb(value, MemOperand(temp, index));
+    __ Strb(value, operand);
   } else {
-    __ Strh(value, MemOperand(temp, index, LSL, 1));
+    __ Strh(value, operand);
   }
 }
 

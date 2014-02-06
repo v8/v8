@@ -3224,9 +3224,9 @@ void FullCodeGenerator::EmitOneByteSeqStringSetChar(CallRuntime* expr) {
     __ Throw(kNonSmiValue);
     __ Throw(kNonSmiIndex);
     __ Bind(&both_smis);
-
     static const uint32_t one_byte_seq_type = kSeqStringTag | kOneByteStringTag;
-    __ EmitSeqStringSetCharCheck(string, index, one_byte_seq_type);
+    __ EmitSeqStringSetCharCheck(string, index, kIndexIsSmi, scratch,
+                                 one_byte_seq_type);
   }
 
   __ Add(scratch, string, SeqOneByteString::kHeaderSize - kHeapObjectTag);
@@ -3257,9 +3257,9 @@ void FullCodeGenerator::EmitTwoByteSeqStringSetChar(CallRuntime* expr) {
     __ Throw(kNonSmiValue);
     __ Throw(kNonSmiIndex);
     __ Bind(&both_smis);
-
     static const uint32_t two_byte_seq_type = kSeqStringTag | kTwoByteStringTag;
-    __ EmitSeqStringSetCharCheck(string, index, two_byte_seq_type);
+    __ EmitSeqStringSetCharCheck(string, index, kIndexIsSmi, scratch,
+                                 two_byte_seq_type);
   }
 
   __ Add(scratch, string, SeqTwoByteString::kHeaderSize - kHeapObjectTag);
