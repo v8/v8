@@ -5481,18 +5481,6 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::CanAccessAsMonomorphic(
   STATIC_ASSERT(kMaxLoadPolymorphism == kMaxStorePolymorphism);
   if (types->length() > kMaxLoadPolymorphism) return false;
 
-  if (IsArrayLength()) {
-    bool is_fast = IsFastElementsKind(map()->elements_kind());
-    for (int i = 1; i < types->length(); ++i) {
-      Handle<Map> test_map = types->at(i);
-      if (test_map->instance_type() != JS_ARRAY_TYPE) return false;
-      if (IsFastElementsKind(test_map->elements_kind()) != is_fast) {
-        return false;
-      }
-    }
-    return true;
-  }
-
   HObjectAccess access = HObjectAccess::ForMap();  // bogus default
   if (GetJSObjectFieldAccess(&access)) {
     for (int i = 1; i < types->length(); ++i) {
