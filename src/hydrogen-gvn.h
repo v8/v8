@@ -41,18 +41,9 @@ class HGlobalValueNumberingPhase : public HPhase {
  public:
   explicit HGlobalValueNumberingPhase(HGraph* graph);
 
-  void Run() {
-    int max_fixpoint_iteration_count = FLAG_gvn_iterations;
-    for (int i = 0; i < max_fixpoint_iteration_count; i++) {
-      Analyze();
-      if (!removed_side_effects_) break;
-      Reset();
-    }
-  }
+  void Run();
 
  private:
-  void Reset();
-  void Analyze();
   GVNFlagSet CollectSideEffectsOnPathsToDominatedBlock(
       HBasicBlock* dominator,
       HBasicBlock* dominated);
