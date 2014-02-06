@@ -378,13 +378,13 @@ HGlobalValueNumberingPhase::HGlobalValueNumberingPhase(HGraph* graph)
 
 
 void HGlobalValueNumberingPhase::Reset() {
-  block_side_effects_.Clear();
-  loop_side_effects_.Clear();
+  ASSERT(block_side_effects_.length() == graph()->blocks()->length());
+  ASSERT(loop_side_effects_.length() == graph()->blocks()->length());
+  for (int i = 0; i < graph()->blocks()->length(); ++i) {
+    block_side_effects_[i] = GVNFlagSet();
+    loop_side_effects_[i] = GVNFlagSet();
+  }
   visited_on_paths_.Clear();
-  block_side_effects_.AddBlock(GVNFlagSet(), graph()->blocks()->length(),
-                               zone());
-  loop_side_effects_.AddBlock(GVNFlagSet(), graph()->blocks()->length(),
-                              zone());
 }
 
 
