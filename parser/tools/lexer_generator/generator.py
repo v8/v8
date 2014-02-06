@@ -125,7 +125,7 @@ if __name__ == '__main__':
   if verbose:
     print "parsing %s" % re_file
   with open(re_file, 'r') as f:
-    rule_processor = RuleProcessor.parse(f.read(), args.encoding)
+    rule_processor = RuleProcessor(f.read(), args.encoding)
 
   if not args.no_optimize_default:
     rule_processor.default_automata().optimize_dfa(log = args.verbose)

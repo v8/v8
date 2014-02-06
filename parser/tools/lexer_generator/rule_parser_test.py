@@ -27,7 +27,7 @@
 
 import unittest
 from transition_keys import KeyEncoding
-from rule_parser import RuleParserState
+from rule_parser import RuleParserState, RuleParser
 from regex_parser import RegexParser
 
 class RuleParserTestCase(unittest.TestCase):
@@ -36,7 +36,7 @@ class RuleParserTestCase(unittest.TestCase):
      self.state = RuleParserState(KeyEncoding.get('latin1'))
 
    def parse(self, string):
-    return self.state.parse(string)
+    return RuleParser.parse(string, self.state)
 
    def test_basic(self):
      self.parse('''
@@ -54,22 +54,13 @@ alias = /regex/;
 
      self.assertTrue(len(self.state.rules), 2)
      self.assertTrue('cond1' in self.state.rules)
-     self.assertEquals(len(self.state.rules['cond1']['regex']), 2)
-     # self.assertTrue('regex2' in self.state.rules['cond1'])
-     # self.assertEquals(self.state.rules['cond1']['regex2'],
-     #                   ('condition', 'cond2'))
+     self.assertEquals(len(self.state.rules['cond1']['trees']), 2)
 
      self.assertTrue('cond2' in self.state.rules)
-     self.assertEquals(len(self.state.rules['cond2']['regex']), 2)
-     # self.assertTrue('regex3' in self.state.rules['cond2'])
-     # self.assertEquals(self.state.rules['cond2']['regex3'],
-     #                   ('body', 'body'))
+     self.assertEquals(len(self.state.rules['cond2']['trees']), 2)
 
      self.assertTrue('cond3' in self.state.rules)
-     self.assertEquals(len(self.state.rules['cond3']['regex']), 2)
-     # self.assertTrue('regex4' in self.state.rules['cond3'])
-     # self.assertEquals(self.state.rules['cond3']['regex4'],
-     #                   ('condition_and_body', 'cond4', 'body'))
+     self.assertEquals(len(self.state.rules['cond3']['trees']), 2)
 
    def test_more_complicated(self):
      self.parse('''
@@ -80,8 +71,4 @@ alias = "regex;with;semicolon";
      self.assertEquals(self.state.aliases['alias'],
                        RegexParser.parse("regex;with;semicolon"))
      self.assertTrue('cond1' in self.state.rules)
-     self.assertEquals(len(self.state.rules['cond1']['regex']), 2)
-
-     # self.assertEquals(
-     #     self.parse['cond1']['regex4{with{braces}'],
-     #     ('body', 'body {with} braces }'))
+     self.assertEquals(len(self.state.rules['cond1']['trees']), 2)

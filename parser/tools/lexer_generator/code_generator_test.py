@@ -40,4 +40,4 @@ class CodeGeneratorTestCase(unittest.TestCase):
     "foo"         <|FOO|>
     eos           <terminate>
     default_action <DEFAULT>'''
-    CodeGenerator(RuleProcessor.parse(rules, 'latin1'))
+    CodeGenerator(RuleProcessor(rules, 'latin1'))

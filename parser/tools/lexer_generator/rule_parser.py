@@ -118,9 +118,6 @@ class RuleParserState:
     self.transitions = set()
     self.encoding = encoding
 
-  def parse(self, string):
-    return RuleParser.parse(string, self)
-
 class RuleParser:
 
   tokens = RuleLexer.tokens
@@ -140,12 +137,12 @@ class RuleParser:
   def p_alias_rule(self, p):
     'alias_rule : IDENTIFIER EQUALS composite_regex SEMICOLON'
     state = self.__state
-    assert not p[1] in state.aliases
+    assert not p[1] in state.aliases, "cannot reassign alias %s" % p[1]
     term = p[3]
     state.aliases[p[1]] = term
     if term.name() == 'CLASS' or term.name() == 'NOT_CLASS':
       classes = state.character_classes
-      assert not p[1] in classes, "cannot reassign alias"
+      assert not p[1] in classes, "cannot reassign alias %s" % p[1]
       encoding = state.encoding
       classes[p[1]] = TransitionKey.character_class(encoding, term, classes)
 
@@ -164,7 +161,6 @@ class RuleParser:
         'uniques' : {},
         'trees' : []
       }
-    p[0] = state.current_state
 
   def p_transition_rules(self, p):
     '''transition_rules : transition_rule transition_rules
@@ -193,7 +189,8 @@ class RuleParser:
       return
     # process tree
     if p[1] == 'eos' or p[1] == 'catch_all':
-      assert p[1] not in rules['uniques']
+      assert p[1] not in rules['uniques'], "cannot redefine %s in %s" % (
+        p[1], self.__state.current_state)
       rules['uniques'][p[1]] = True
       tree = NfaBuilder.unique_key(p[1])
     elif p[1] == 'epsilon':
@@ -346,20 +343,15 @@ class RuleParser:
       RuleParser.__static_instance = None
       raise
     parser.__state = None
-    assert parser_state.transitions <= set(parser_state.rules.keys())
 
 class RuleProcessor(object):
 
-  def __init__(self, parser_state):
+  def __init__(self, string, encoding_name):
     self.__automata = {}
     self.__default_action = None
-    self.__process_parser_state(parser_state)
-
-  @staticmethod
-  def parse(string, encoding_name):
-    parser_state = RuleParserState(KeyEncoding.get(encoding_name))
-    RuleParser.parse(string, parser_state)
-    return RuleProcessor(parser_state)
+    self.__parser_state = RuleParserState(KeyEncoding.get(encoding_name))
+    RuleParser.parse(string, self.__parser_state)
+    self.__process_parser_state()
 
   def automata_iter(self):
     return iter(self.__automata.items())
@@ -412,13 +404,15 @@ class RuleProcessor(object):
         self.__minimial_dfa = self.dfa().minimize()
       return self.__minimial_dfa
 
-  def __process_parser_state(self, parser_state):
-    assert 'default' in parser_state.rules
+  def __process_parser_state(self):
+    parser_state = self.__parser_state
+    assert 'default' in parser_state.rules, "default lexer state required"
+    # Check that we don't transition to a nonexistent state.
+    assert parser_state.transitions <= set(parser_state.rules.keys())
     rule_map = {}
     # process all subgraphs
     for tree_name, v in parser_state.rules.items():
-      if not v['trees']:
-        continue
+      assert v['trees'], "lexer state %s is empty" % tree_name
       rule_map[tree_name] = NfaBuilder.or_terms(v['trees'])
     # build the automata
     for name, tree in rule_map.items():

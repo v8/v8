@@ -35,7 +35,7 @@ class LexerTestCase(unittest.TestCase):
     expected = map(lambda (action, s) : (
         Action(Term.empty_term(), Term(action)), s),
         expected)
-    rule_processor = RuleProcessor.parse(rules, 'latin1')
+    rule_processor = RuleProcessor(rules, 'latin1')
     automata = rule_processor.default_automata()
     for automaton in [automata.nfa(), automata.dfa(), automata.minimal_dfa()]:
         for i, (action, start, stop) in enumerate(
