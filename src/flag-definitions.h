@@ -234,6 +234,7 @@ DEFINE_implication(track_double_fields, track_fields)
 DEFINE_implication(track_heap_object_fields, track_fields)
 DEFINE_implication(track_computed_fields, track_fields)
 DEFINE_bool(smi_binop, true, "support smi representation in binary operations")
+DEFINE_bool(smi_x64_store_opt, false, "optimized stores of smi on x64")
 
 // Flags for optimization types.
 DEFINE_bool(optimize_for_size, false,
