@@ -87,6 +87,8 @@ class ParserBase {
   bool stack_overflow() const { return stack_overflow_; }
   void set_stack_overflow() { stack_overflow_ = true; }
 
+  virtual bool is_classic_mode() = 0;
+
   INLINE(Token::Value peek()) {
     if (stack_overflow_) return Token::ILLEGAL;
     return scanner()->peek();
@@ -142,8 +144,13 @@ class ParserBase {
   static int Precedence(Token::Value token, bool accept_IN);
 
   // Report syntax errors.
-  virtual void ReportUnexpectedToken(Token::Value token) = 0;
-  virtual void ReportMessageAt(Scanner::Location loc, const char* type) = 0;
+  void ReportUnexpectedToken(Token::Value token);
+  void ReportMessageAt(Scanner::Location location, const char* type) {
+    ReportMessageAt(location, type, Vector<const char*>::empty());
+  }
+  virtual void ReportMessageAt(Scanner::Location source_location,
+                               const char* message,
+                               Vector<const char*> args) = 0;
 
   // Used to detect duplicates in object literals. Each of the values
   // kGetterProperty, kSetterProperty and kValueProperty represents
@@ -542,9 +549,13 @@ class PreParser : public ParserBase {
   };
 
   // Report syntax error
-  void ReportUnexpectedToken(Token::Value token);
-  void ReportMessageAt(Scanner::Location location, const char* type) {
-    ReportMessageAt(location, type, NULL);
+  void ReportMessageAt(Scanner::Location location,
+                       const char* message,
+                       Vector<const char*> args) {
+    ReportMessageAt(location.beg_pos,
+                    location.end_pos,
+                    message,
+                    args.length() > 0 ? args[0] : NULL);
   }
   void ReportMessageAt(Scanner::Location location,
                        const char* type,
@@ -625,7 +636,7 @@ class PreParser : public ParserBase {
     scope_->set_language_mode(language_mode);
   }
 
-  bool is_classic_mode() {
+  virtual bool is_classic_mode() {
     return scope_->language_mode() == CLASSIC_MODE;
   }
 
