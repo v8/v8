@@ -31,6 +31,47 @@ from types import ListType, TupleType
 from regex_lexer import RegexLexer
 from action import Term
 
+class ParserBuilder:
+
+  class Logger(object):
+    def debug(self,msg,*args,**kwargs):
+      pass
+
+    def info(self,msg,*args,**kwargs):
+      pass
+
+    def warning(self,msg,*args,**kwargs):
+      pass
+      # assert False, "warning: "+ (msg % args) + "\n"
+
+    def error(self,msg,*args,**kwargs):
+      assert False, "error: "+ (msg % args) + "\n"
+
+  __static_instances = {}
+  @staticmethod
+  def parse(
+      string, name, new_lexer, new_parser, preparse = None, postparse = None):
+    if not name in ParserBuilder.__static_instances:
+      logger = ParserBuilder.Logger()
+      lexer_instance = new_lexer()
+      lexer_instance.lex = lex.lex(module=lexer_instance)
+      instance = new_parser()
+      instance.yacc = yacc.yacc(
+        module=instance, debug=True, write_tables=0,
+        debuglog=logger, errorlog=logger)
+      ParserBuilder.__static_instances[name] = (lexer_instance, instance)
+    (lexer_instance, instance) = ParserBuilder.__static_instances[name]
+    if preparse:
+      preparse(instance)
+    try:
+      return_value = instance.yacc.parse(string, lexer=lexer_instance.lex)
+    except Exception:
+      del ParserBuilder.__static_instances[name]
+      raise
+    if postparse:
+      postparse(instance)
+    return return_value
+
 def build_escape_map(chars):
   def add_escape(d, char):
     d['\\' + char] = char
@@ -95,12 +136,12 @@ class RegexLexer:
 
   def t_CLASS_BEGIN(self, t):
     r'\['
-    self.lexer.push_state('class')
+    self.lex.push_state('class')
     return t
 
   def t_class_CLASS_END(self, t):
     r'\]'
-    self.lexer.pop_state()
+    self.lex.pop_state()
     return t
 
   t_class_RANGE = '-'
@@ -123,12 +164,12 @@ class RegexLexer:
 
   def t_REPEAT_BEGIN(self, t):
     r'\{'
-    self.lexer.push_state('repeat')
+    self.lex.push_state('repeat')
     return t
 
   def t_repeat_REPEAT_END(self, t):
     r'\}'
-    self.lexer.pop_state()
+    self.lex.pop_state()
     return t
 
   t_repeat_NUMBER = r'[0-9]+'
@@ -138,9 +179,6 @@ class RegexLexer:
 
   def t_ANY_error(self, t):
     raise Exception("Illegal character '%s'" % t.value[0])
-
-  def build(self, **kwargs):
-    self.lexer = lex.lex(module=self, **kwargs)
 
 class RegexParser:
 
@@ -268,21 +306,8 @@ class RegexParser:
     assert left
     return left if not right else Term('CAT', left, right)
 
-  def build(self, **kwargs):
-    self.parser = yacc.yacc(module=self, debug=0, write_tables=0, **kwargs)
-    self.lexer = RegexLexer()
-    self.lexer.build(**kwargs)
-
-  __static_instance = None
   @staticmethod
-  def parse(data):
-    parser = RegexParser.__static_instance
-    if not parser:
-      parser = RegexParser()
-      parser.build()
-      RegexParser.__static_instance = parser
-    try:
-      return parser.parser.parse(data, lexer=parser.lexer.lexer)
-    except Exception:
-      RegexParser.__static_instance = None
-      raise
+  def parse(string):
+    new_lexer = lambda: RegexLexer()
+    new_parser = lambda: RegexParser()
+    return ParserBuilder.parse(string, "RegexParser", new_lexer, new_parser)

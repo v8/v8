@@ -28,7 +28,7 @@
 import ply.lex as lex
 import ply.yacc as yacc
 from action import Term, Action
-from regex_parser import RegexParser
+from regex_parser import RegexParser, ParserBuilder
 from nfa_builder import NfaBuilder
 from dfa import Dfa
 from dfa_optimizer import DfaOptimizer
@@ -96,17 +96,8 @@ class RuleLexer:
   t_ACTION_CLOSE = '>'
   t_COMMA = ','
 
-  def t_LEFT_BRACKET(self, t):
-    r'{'
-    self.lexer.push_state('code')
-    self.nesting = 1
-    return t
-
   def t_ANY_error(self, t):
     raise Exception("Illegal character '%s'" % t.value[0])
-
-  def build(self, **kwargs):
-    self.lexer = lex.lex(module=self, **kwargs)
 
 class RuleParserState:
 
@@ -297,6 +288,7 @@ class RuleParser:
     escape_char = lambda string, char: string.replace(char, "\\" + char)
     string = reduce(escape_char, "+?*|.[](){}", string).replace("\\\"", "\"")
     p[0] = RegexParser.parse(string)
+
   def p_regex(self, p):
     'regex : REGEX'
     string = p[1][1:-1].replace("\\/", "/")
@@ -323,26 +315,16 @@ class RuleParser:
   def p_error(self, p):
     raise Exception("Syntax error in input '%s'" % str(p))
 
-  def build(self, **kwargs):
-    self.parser = yacc.yacc(module=self, debug=0, write_tables=0, **kwargs)
-    self.lexer = RuleLexer()
-    self.lexer.build(**kwargs)
-
-  __static_instance = None
   @staticmethod
-  def parse(data, parser_state):
-    parser = RuleParser.__static_instance
-    if not parser:
-      parser = RuleParser()
-      parser.build()
-      RuleParser.__static_instance = parser
-    parser.__state = parser_state
-    try:
-      parser.parser.parse(data, lexer=parser.lexer.lexer)
-    except Exception:
-      RuleParser.__static_instance = None
-      raise
-    parser.__state = None
+  def parse(string, parser_state):
+    new_lexer = lambda: RuleLexer()
+    new_parser = lambda: RuleParser()
+    def preparse(parser):
+      parser.__state = parser_state
+    def postparse(parser):
+      parser.__state = None
+    return ParserBuilder.parse(
+      string, "RuleParser", new_lexer, new_parser, preparse, postparse)
 
 class RuleProcessor(object):
 
