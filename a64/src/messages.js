@@ -109,6 +109,8 @@ var kMessages = {
   invalid_argument:              ["invalid_argument"],
   data_view_not_array_buffer:    ["First argument to DataView constructor must be an ArrayBuffer"],
   constructor_not_function:      ["Constructor ", "%0", " requires 'new'"],
+  not_a_promise:                 ["%0", "is not a promise"],
+  promise_cyclic:                ["Chaining cycle detected for promise", "%0"],
   // RangeError
   invalid_array_length:          ["Invalid array length"],
   invalid_array_buffer_length:   ["Invalid array buffer length"],
@@ -196,6 +198,10 @@ function FormatString(format, args) {
         // str is one of %0, %1, %2 or %3.
         try {
           str = NoSideEffectToString(args[arg_num]);
+          if (str.length > 256) {
+            str = %SubString(str, 0, 239) + "...<omitted>..." +
+                  %SubString(str, str.length - 2, str.length);
+          }
         } catch (e) {
           if (%IsJSModule(args[arg_num]))
             str = "module";

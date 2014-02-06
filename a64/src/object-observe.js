@@ -384,7 +384,7 @@ function ObserverEnqueueIfActive(observer, objectInfo, changeRecord,
     observationState.pendingObservers = { __proto__: null };
   observationState.pendingObservers[callbackInfo.priority] = callback;
   callbackInfo.push(changeRecord);
-  %SetObserverDeliveryPending();
+  %SetMicrotaskPending(true);
 }
 
 function ObjectInfoEnqueueExternalChangeRecord(objectInfo, changeRecord, type) {
@@ -551,7 +551,7 @@ function CallbackDeliverPending(callback) {
 
   try {
     %_CallFunction(UNDEFINED, delivered, callback);
-  } catch (ex) {}
+  } catch (ex) {}  // TODO(rossberg): perhaps log uncaught exceptions.
   return true;
 }
 
@@ -562,15 +562,16 @@ function ObjectDeliverChangeRecords(callback) {
   while (CallbackDeliverPending(callback)) {}
 }
 
-function DeliverChangeRecords() {
-  while (observationState.pendingObservers) {
-    var pendingObservers = observationState.pendingObservers;
+function ObserveMicrotaskRunner() {
+  var pendingObservers = observationState.pendingObservers;
+  if (pendingObservers) {
     observationState.pendingObservers = null;
     for (var i in pendingObservers) {
       CallbackDeliverPending(pendingObservers[i]);
     }
   }
 }
+RunMicrotasks.runners.push(ObserveMicrotaskRunner);
 
 function SetupObjectObserve() {
   %CheckIsBootstrapping();

@@ -1777,6 +1777,15 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
   Handle<FixedArrayBase> constant_elements_values(
       FixedArrayBase::cast(constant_elements->get(1)));
 
+  AllocationSiteMode allocation_site_mode =
+      FLAG_track_allocation_sites ? TRACK_ALLOCATION_SITE
+                                  : DONT_TRACK_ALLOCATION_SITE;
+  if (has_fast_elements && !FLAG_allocation_site_pretenuring) {
+    // If the only customer of allocation sites is transitioning, then
+    // we can turn it off if we don't have anywhere else to transition to.
+    allocation_site_mode = DONT_TRACK_ALLOCATION_SITE;
+  }
+
   __ Ldr(x3, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
   __ Ldr(x3, FieldMemOperand(x3, JSFunction::kLiteralsOffset));
   // TODO(jbramley): Can these Operand constructors be implicit?
@@ -1786,7 +1795,7 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
       isolate()->heap()->fixed_cow_array_map()) {
     FastCloneShallowArrayStub stub(
         FastCloneShallowArrayStub::COPY_ON_WRITE_ELEMENTS,
-        DONT_TRACK_ALLOCATION_SITE,
+        allocation_site_mode,
         length);
     __ CallStub(&stub);
     __ IncrementCounter(
@@ -1801,12 +1810,9 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
            FLAG_smi_only_arrays);
     FastCloneShallowArrayStub::Mode mode =
         FastCloneShallowArrayStub::CLONE_ANY_ELEMENTS;
-    AllocationSiteMode allocation_site_mode = FLAG_track_allocation_sites
-        ? TRACK_ALLOCATION_SITE : DONT_TRACK_ALLOCATION_SITE;
 
     if (has_fast_elements) {
       mode = FastCloneShallowArrayStub::CLONE_ELEMENTS;
-      allocation_site_mode = DONT_TRACK_ALLOCATION_SITE;
     }
 
     FastCloneShallowArrayStub stub(mode, allocation_site_mode, length);

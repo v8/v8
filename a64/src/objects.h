@@ -181,6 +181,12 @@ enum KeyedAccessStoreMode {
 };
 
 
+enum ContextualMode {
+  NOT_CONTEXTUAL,
+  CONTEXTUAL
+};
+
+
 static const int kGrowICDelta = STORE_AND_GROW_NO_TRANSITION -
     STANDARD_STORE;
 STATIC_ASSERT(STANDARD_STORE == 0);
@@ -298,6 +304,11 @@ enum MarkingParity {
   ODD_MARKING_PARITY,
   EVEN_MARKING_PARITY
 };
+
+// ICs store extra state in a Code object. The default extra state is
+// kNoExtraICState.
+typedef int ExtraICState;
+static const ExtraICState kNoExtraICState = 0;
 
 // Instance size sentinel for objects of variable size.
 const int kVariableSizeSentinel = 0;
@@ -1401,6 +1412,7 @@ class Object : public MaybeObject {
 
   INLINE(bool IsSpecObject());
   INLINE(bool IsSpecFunction());
+  bool IsCallable();
 
   // Oddball testing.
   INLINE(bool IsUndefined());
@@ -2679,9 +2691,6 @@ class JSObject: public JSReceiver {
                                   const char* type,
                                   Handle<Name> name,
                                   Handle<Object> old_value);
-
-  // Deliver change records to observers. May cause GC.
-  static void DeliverChangeRecords(Isolate* isolate);
 
  private:
   friend class DictionaryElementsAccessor;
@@ -5079,10 +5088,6 @@ class Code: public HeapObject {
     FAST
   };
 
-  typedef int ExtraICState;
-
-  static const ExtraICState kNoExtraICState = 0;
-
   static const int kPrologueOffsetNotSet = -1;
 
 #ifdef ENABLE_DISASSEMBLER
@@ -5302,26 +5307,6 @@ class Code: public HeapObject {
   // out the to-be-overwritten header data for reproducible snapshots.
   inline void WipeOutHeader();
 
-  class ExtraICStateStrictMode: public BitField<StrictModeFlag, 0, 1> {};
-  class ExtraICStateKeyedAccessStoreMode:
-      public BitField<KeyedAccessStoreMode, 1, 4> {};  // NOLINT
-
-  static inline StrictModeFlag GetStrictMode(ExtraICState extra_ic_state) {
-    return ExtraICStateStrictMode::decode(extra_ic_state);
-  }
-
-  static inline KeyedAccessStoreMode GetKeyedAccessStoreMode(
-      ExtraICState extra_ic_state) {
-    return ExtraICStateKeyedAccessStoreMode::decode(extra_ic_state);
-  }
-
-  static inline ExtraICState ComputeExtraICState(
-      KeyedAccessStoreMode store_mode,
-      StrictModeFlag strict_mode) {
-    return ExtraICStateKeyedAccessStoreMode::encode(store_mode) |
-        ExtraICStateStrictMode::encode(strict_mode);
-  }
-
   // Flags operations.
   static inline Flags ComputeFlags(
       Kind kind,
@@ -5505,12 +5490,12 @@ class Code: public HeapObject {
   // Flags layout.  BitField<type, shift, size>.
   class ICStateField: public BitField<InlineCacheState, 0, 3> {};
   class TypeField: public BitField<StubType, 3, 1> {};
-  class CacheHolderField: public BitField<InlineCacheHolderFlag, 6, 1> {};
-  class KindField: public BitField<Kind, 7, 4> {};
-  class IsPregeneratedField: public BitField<bool, 11, 1> {};
-  class ExtraICStateField: public BitField<ExtraICState, 12, 5> {};
-  class ExtendedExtraICStateField: public BitField<ExtraICState, 12,
-      PlatformSmiTagging::kSmiValueSize - 12 + 1> {};  // NOLINT
+  class CacheHolderField: public BitField<InlineCacheHolderFlag, 5, 1> {};
+  class KindField: public BitField<Kind, 6, 4> {};
+  class IsPregeneratedField: public BitField<bool, 10, 1> {};
+  class ExtraICStateField: public BitField<ExtraICState, 11, 6> {};
+  class ExtendedExtraICStateField: public BitField<ExtraICState, 11,
+      PlatformSmiTagging::kSmiValueSize - 11 + 1> {};  // NOLINT
   STATIC_ASSERT(ExtraICStateField::kShift == ExtendedExtraICStateField::kShift);
 
   // KindSpecificFlags1 layout (STUB and OPTIMIZED_FUNCTION)
@@ -8161,6 +8146,16 @@ enum AllocationSiteMode {
 class AllocationSite: public Struct {
  public:
   static const uint32_t kMaximumArrayBytesToPretransition = 8 * 1024;
+  static const double kPretenureRatio;
+  static const int kPretenureMinimumCreated = 100;
+
+  // Values for pretenure decision field.
+  enum {
+    kUndecided = 0,
+    kDontTenure = 1,
+    kTenure = 2,
+    kZombie = 3
+  };
 
   DECL_ACCESSORS(transition_info, Object)
   // nested_site threads a list of sites that represent nested literals
@@ -8169,15 +8164,13 @@ class AllocationSite: public Struct {
   DECL_ACCESSORS(nested_site, Object)
   DECL_ACCESSORS(memento_found_count, Smi)
   DECL_ACCESSORS(memento_create_count, Smi)
+  // TODO(mvstanton): we don't need a whole integer to record pretenure
+  // decision. Consider sharing space with memento_found_count.
   DECL_ACCESSORS(pretenure_decision, Smi)
   DECL_ACCESSORS(dependent_code, DependentCode)
   DECL_ACCESSORS(weak_next, Object)
 
   inline void Initialize();
-
-  bool HasNestedSites() {
-    return nested_site()->IsAllocationSite();
-  }
 
   // This method is expensive, it should only be called for reporting.
   bool IsNestedSite();
@@ -8185,6 +8178,28 @@ class AllocationSite: public Struct {
   class ElementsKindBits:       public BitField<ElementsKind, 0,  15> {};
   class UnusedBits:             public BitField<int,          15, 14> {};
   class DoNotInlineBit:         public BitField<bool,         29,  1> {};
+
+  inline void IncrementMementoFoundCount();
+
+  inline void IncrementMementoCreateCount();
+
+  PretenureFlag GetPretenureMode() {
+    int mode = pretenure_decision()->value();
+    // Zombie objects "decide" to be untenured.
+    return (mode == kTenure) ? TENURED : NOT_TENURED;
+  }
+
+  // The pretenuring decision is made during gc, and the zombie state allows
+  // us to recognize when an allocation site is just being kept alive because
+  // a later traversal of new space may discover AllocationMementos that point
+  // to this AllocationSite.
+  bool IsZombie() {
+    return pretenure_decision()->value() == kZombie;
+  }
+
+  inline void MarkZombie();
+
+  inline bool DigestPretenuringFeedback();
 
   ElementsKind GetElementsKind() {
     ASSERT(!SitePointsToLiteral());
@@ -8259,6 +8274,10 @@ class AllocationSite: public Struct {
 
  private:
   inline DependentCode::DependencyGroup ToDependencyGroup(Reason reason);
+  bool PretenuringDecisionMade() {
+    return pretenure_decision()->value() != kUndecided;
+  }
+
   DISALLOW_IMPLICIT_CONSTRUCTORS(AllocationSite);
 };
 
@@ -8270,7 +8289,10 @@ class AllocationMemento: public Struct {
 
   DECL_ACCESSORS(allocation_site, Object)
 
-  bool IsValid() { return allocation_site()->IsAllocationSite(); }
+  bool IsValid() {
+    return allocation_site()->IsAllocationSite() &&
+        !AllocationSite::cast(allocation_site())->IsZombie();
+  }
   AllocationSite* GetAllocationSite() {
     ASSERT(IsValid());
     return AllocationSite::cast(allocation_site());

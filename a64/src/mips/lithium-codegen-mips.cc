@@ -4633,10 +4633,13 @@ void LCodeGen::DoInteger32ToSmi(LInteger32ToSmi* instr) {
   LOperand* output = instr->result();
   Register scratch = scratch0();
 
-  __ SmiTagCheckOverflow(ToRegister(output), ToRegister(input), scratch);
+  ASSERT(output->IsRegister());
   if (!instr->hydrogen()->value()->HasRange() ||
       !instr->hydrogen()->value()->range()->IsInSmiRange()) {
+    __ SmiTagCheckOverflow(ToRegister(output), ToRegister(input), scratch);
     DeoptimizeIf(lt, instr->environment(), scratch, Operand(zero_reg));
+  } else {
+    __ SmiTag(ToRegister(output), ToRegister(input));
   }
 }
 

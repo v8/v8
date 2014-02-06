@@ -548,7 +548,7 @@ TEST(StackAlignmentForSSE2) {
       v8::Local<v8::Function>::Cast(global_object->Get(v8_str("foo")));
 
   int32_t vec[ELEMENT_COUNT] = { -1, 1, 1, 1 };
-  v8::Local<v8::Array> v8_vec = v8::Array::New(ELEMENT_COUNT);
+  v8::Local<v8::Array> v8_vec = v8::Array::New(isolate, ELEMENT_COUNT);
   for (int i = 0; i < ELEMENT_COUNT; i++) {
       v8_vec->Set(i, v8_num(vec[i]));
   }

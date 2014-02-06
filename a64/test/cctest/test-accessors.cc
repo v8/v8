@@ -460,7 +460,7 @@ THREADED_TEST(Regress1054726) {
 static void AllocGetter(Local<String> name,
                         const v8::PropertyCallbackInfo<v8::Value>& info) {
   ApiTestFuzzer::Fuzz();
-  info.GetReturnValue().Set(v8::Array::New(1000));
+  info.GetReturnValue().Set(v8::Array::New(info.GetIsolate(), 1000));
 }
 
 
@@ -543,7 +543,7 @@ THREADED_TEST(HandleScopeSegment) {
 
 
 void JSONStringifyEnumerator(const v8::PropertyCallbackInfo<v8::Array>& info) {
-  v8::Handle<v8::Array> array = v8::Array::New(1);
+  v8::Handle<v8::Array> array = v8::Array::New(info.GetIsolate(), 1);
   array->Set(0, v8_str("regress"));
   info.GetReturnValue().Set(array);
 }

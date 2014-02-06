@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2013 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,27 +25,33 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_EXTENSIONS_EXTERNALIZE_STRING_EXTENSION_H_
-#define V8_EXTENSIONS_EXTERNALIZE_STRING_EXTENSION_H_
+// Flags: --allow-natives-syntax
 
-#include "v8.h"
+"use strict";
 
-namespace v8 {
-namespace internal {
+// Function is defined on the prototype chain.
+var holder = { f: function() { return 42; } };
+var receiver = { };
+receiver.__proto__ = { };
+receiver.__proto__.__proto__ = holder;
 
-class ExternalizeStringExtension : public v8::Extension {
- public:
-  ExternalizeStringExtension() : v8::Extension("v8/externalize", kSource) {}
-  virtual v8::Handle<v8::FunctionTemplate> GetNativeFunctionTemplate(
-      v8::Isolate* isolate,
-      v8::Handle<v8::String> name);
-  static void Externalize(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void IsAscii(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void Register();
- private:
-  static const char* const kSource;
-};
+// Inline two levels.
+function h(o) { return o.f.apply(this, arguments); }
+function g(o) { return h(o); }
 
-} }  // namespace v8::internal
+// Collect type information for apply call.
+assertEquals(42, g(receiver));
+assertEquals(42, g(receiver));
 
-#endif  // V8_EXTENSIONS_EXTERNALIZE_STRING_EXTENSION_H_
+// Sneakily remove the function from the prototype chain.
+// The receiver map does not change.
+receiver.__proto__.__proto__ = {};
+
+// Lookup of o.f during graph creation fails.
+%OptimizeFunctionOnNextCall(g);
+
+assertThrows(function() { g(receiver); });
+
+// Put function back.
+receiver.__proto__.__proto__ = holder;
+assertEquals(42, g(receiver));

@@ -200,7 +200,7 @@ void AstTyper::VisitSwitchStatement(SwitchStatement* stmt) {
     for (int i = 0; i < clauses->length(); ++i) {
       CaseClause* clause = clauses->at(i);
       if (!clause->is_default())
-        clause->RecordTypeFeedback(oracle());
+        clause->set_compare_type(oracle()->ClauseType(clause->CompareId()));
     }
   }
 }
@@ -262,7 +262,8 @@ void AstTyper::VisitForStatement(ForStatement* stmt) {
 
 void AstTyper::VisitForInStatement(ForInStatement* stmt) {
   // Collect type feedback.
-  stmt->RecordTypeFeedback(oracle());
+  stmt->set_for_in_type(static_cast<ForInStatement::ForInType>(
+      oracle()->ForInType(stmt->ForInFeedbackId())));
 
   RECURSE(Visit(stmt->enumerable()));
   store_.Forget();  // Control may transfer here via looping or 'continue'.
@@ -392,7 +393,7 @@ void AstTyper::VisitAssignment(Assignment* expr) {
     Expression* target = expr->target();
     Property* prop = target->AsProperty();
     if (prop != NULL) {
-      prop->RecordTypeFeedback(oracle(), zone());
+      RECURSE(Visit(expr->target()));
       expr->RecordTypeFeedback(oracle(), zone());
     }
 
@@ -436,7 +437,27 @@ void AstTyper::VisitThrow(Throw* expr) {
 
 void AstTyper::VisitProperty(Property* expr) {
   // Collect type feedback.
-  expr->RecordTypeFeedback(oracle(), zone());
+  TypeFeedbackId id = expr->PropertyFeedbackId();
+  expr->set_is_uninitialized(oracle()->LoadIsUninitialized(id));
+  if (!expr->IsUninitialized()) {
+    expr->set_is_pre_monomorphic(oracle()->LoadIsPreMonomorphic(id));
+    expr->set_is_monomorphic(oracle()->LoadIsMonomorphicNormal(id));
+    ASSERT(!expr->IsPreMonomorphic() || !expr->IsMonomorphic());
+    if (expr->key()->IsPropertyName()) {
+      Literal* lit_key = expr->key()->AsLiteral();
+      ASSERT(lit_key != NULL && lit_key->value()->IsString());
+      Handle<String> name = Handle<String>::cast(lit_key->value());
+      bool is_prototype;
+      oracle()->PropertyReceiverTypes(
+          id, name, expr->GetReceiverTypes(), &is_prototype);
+      expr->set_is_function_prototype(is_prototype);
+    } else {
+      bool is_string;
+      oracle()->KeyedPropertyReceiverTypes(
+          id, expr->GetReceiverTypes(), &is_string);
+      expr->set_is_string_access(is_string);
+    }
+  }
 
   RECURSE(Visit(expr->obj()));
   RECURSE(Visit(expr->key()));
@@ -525,11 +546,12 @@ void AstTyper::VisitUnaryOperation(UnaryOperation* expr) {
 
 void AstTyper::VisitCountOperation(CountOperation* expr) {
   // Collect type feedback.
-  expr->RecordTypeFeedback(oracle(), zone());
-  Property* prop = expr->expression()->AsProperty();
-  if (prop != NULL) {
-    prop->RecordTypeFeedback(oracle(), zone());
-  }
+  TypeFeedbackId store_id = expr->CountStoreFeedbackId();
+  expr->set_is_monomorphic(oracle()->StoreIsMonomorphicNormal(store_id));
+  expr->set_store_mode(oracle()->GetStoreMode(store_id));
+  oracle()->CountReceiverTypes(store_id, expr->GetReceiverTypes());
+  expr->set_type(oracle()->CountType(expr->CountBinOpFeedbackId()));
+  // TODO(rossberg): merge the count type with the generic expression type.
 
   RECURSE(Visit(expr->expression()));
 

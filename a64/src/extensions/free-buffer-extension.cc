@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2013 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,27 +25,36 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_EXTENSIONS_EXTERNALIZE_STRING_EXTENSION_H_
-#define V8_EXTENSIONS_EXTERNALIZE_STRING_EXTENSION_H_
-
+#include "free-buffer-extension.h"
+#include "platform.h"
 #include "v8.h"
 
 namespace v8 {
 namespace internal {
 
-class ExternalizeStringExtension : public v8::Extension {
- public:
-  ExternalizeStringExtension() : v8::Extension("v8/externalize", kSource) {}
-  virtual v8::Handle<v8::FunctionTemplate> GetNativeFunctionTemplate(
-      v8::Isolate* isolate,
-      v8::Handle<v8::String> name);
-  static void Externalize(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void IsAscii(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void Register();
- private:
-  static const char* const kSource;
-};
+
+v8::Handle<v8::FunctionTemplate> FreeBufferExtension::GetNativeFunctionTemplate(
+    v8::Isolate* isolate,
+    v8::Handle<v8::String> str) {
+  return v8::FunctionTemplate::New(FreeBufferExtension::FreeBuffer);
+}
+
+
+void FreeBufferExtension::FreeBuffer(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  v8::Handle<v8::ArrayBuffer> arrayBuffer = args[0].As<v8::ArrayBuffer>();
+  v8::ArrayBuffer::Contents contents = arrayBuffer->Externalize();
+  V8::ArrayBufferAllocator()->Free(contents.Data(), contents.ByteLength());
+}
+
+
+void FreeBufferExtension::Register() {
+  static char buffer[100];
+  Vector<char> temp_vector(buffer, sizeof(buffer));
+  OS::SNPrintF(temp_vector, "native function freeBuffer();");
+
+  static FreeBufferExtension buffer_free_extension(buffer);
+  static v8::DeclareExtension declaration(&buffer_free_extension);
+}
 
 } }  // namespace v8::internal
-
-#endif  // V8_EXTENSIONS_EXTERNALIZE_STRING_EXTENSION_H_

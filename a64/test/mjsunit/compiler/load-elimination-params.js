@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2013 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,27 +25,47 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_EXTENSIONS_EXTERNALIZE_STRING_EXTENSION_H_
-#define V8_EXTENSIONS_EXTERNALIZE_STRING_EXTENSION_H_
+// Flags: --allow-natives-syntax --load-elimination
 
-#include "v8.h"
+// Test local load elimination of redundant loads and stores.
 
-namespace v8 {
-namespace internal {
+function B(x, y) {
+  this.x = x;
+  this.y = y;
+  return this;
+}
 
-class ExternalizeStringExtension : public v8::Extension {
- public:
-  ExternalizeStringExtension() : v8::Extension("v8/externalize", kSource) {}
-  virtual v8::Handle<v8::FunctionTemplate> GetNativeFunctionTemplate(
-      v8::Isolate* isolate,
-      v8::Handle<v8::String> name);
-  static void Externalize(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void IsAscii(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void Register();
- private:
-  static const char* const kSource;
-};
+function test_params1(a, b) {
+  var i = a.x;
+  var j = a.x;
+  var k = b.x;
+  var l = b.x;
+  return i + j + k + l;
+}
 
-} }  // namespace v8::internal
+assertEquals(14, test_params1(new B(3, 4), new B(4, 5)));
+assertEquals(110, test_params1(new B(11, 7), new B(44, 8)));
 
-#endif  // V8_EXTENSIONS_EXTERNALIZE_STRING_EXTENSION_H_
+%OptimizeFunctionOnNextCall(test_params1);
+
+assertEquals(6, test_params1(new B(1, 7), new B(2, 8)));
+
+function test_params2(a, b) {
+  var o = new B(a + 1, b);
+  o.x = a;
+  var i = o.x;
+  o.x = a;
+  var j = o.x;
+  o.x = b;
+  var k = o.x;
+  o.x = b;
+  var l = o.x;
+  return i + j + k + l;
+}
+
+assertEquals(14, test_params2(3, 4));
+assertEquals(110, test_params2(11, 44));
+
+%OptimizeFunctionOnNextCall(test_params2);
+
+assertEquals(6, test_params2(1, 2));

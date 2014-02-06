@@ -94,7 +94,7 @@ ifeq ($(vtunejit), on)
 endif
 # optdebug=on
 ifeq ($(optdebug), on)
-  GYPFLAGS += -Dv8_optimized_debug=1
+  GYPFLAGS += -Dv8_optimized_debug=2
 endif
 # debuggersupport=off
 ifeq ($(debuggersupport), off)
@@ -349,6 +349,16 @@ $(addsuffix .check, $(NACL_ARCHES)): \
 native.check: native
 	@tools/run-tests.py $(TESTJOBS) --outdir=$(OUTDIR)/native \
 	    --arch-and-mode=. $(TESTFLAGS)
+
+FASTTESTFLAGS = --flaky-tests=skip --slow-tests=skip --pass-fail-tests=skip \
+                --variants=default,stress
+FASTTESTMODES = ia32.release,x64.release,ia32.debug,x64.debug,arm.debug
+
+quickcheck:
+	@$(MAKE) all optdebug=on; \
+	tools/run-tests.py $(TESTJOBS) --outdir=$(OUTDIR) \
+	    --arch-and-mode=$(FASTTESTMODES) $(FASTTESTFLAGS) $(TESTFLAGS)
+qc: quickcheck
 
 # Clean targets. You can clean each architecture individually, or everything.
 $(addsuffix .clean, $(ARCHES) $(ANDROID_ARCHES) $(NACL_ARCHES)):

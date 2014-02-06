@@ -736,7 +736,8 @@ TEST(HeapSnapshotJSONSerialization) {
 
   // Verify that snapshot string is valid JSON.
   AsciiResource json_res(json);
-  v8::Local<v8::String> json_string = v8::String::NewExternal(&json_res);
+  v8::Local<v8::String> json_string =
+      v8::String::NewExternal(env->GetIsolate(), &json_res);
   env->Global()->Set(v8_str("json_snapshot"), json_string);
   v8::Local<v8::Value> snapshot_parse_result = CompileRun(
       "var parsed = JSON.parse(json_snapshot); true;");
@@ -1004,7 +1005,7 @@ TEST(HeapSnapshotObjectsStats) {
     CHECK_EQ(2, stats_update.first_interval_index());
   }
 
-  v8::Local<v8::Array> array = v8::Array::New();
+  v8::Local<v8::Array> array = v8::Array::New(env->GetIsolate());
   CHECK_EQ(0, array->Length());
   // Force array's buffer allocation.
   array->Set(2, v8_num(7));
@@ -2021,7 +2022,8 @@ class HeapProfilerExtension : public v8::Extension {
  public:
   static const char* kName;
   HeapProfilerExtension() : v8::Extension(kName, kSource) { }
-  virtual v8::Handle<v8::FunctionTemplate> GetNativeFunction(
+  virtual v8::Handle<v8::FunctionTemplate> GetNativeFunctionTemplate(
+      v8::Isolate* isolate,
       v8::Handle<v8::String> name);
   static void FindUntrackedObjects(
       const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -2036,10 +2038,10 @@ const char* HeapProfilerExtension::kSource =
     "native function findUntrackedObjects();";
 
 
-v8::Handle<v8::FunctionTemplate> HeapProfilerExtension::GetNativeFunction(
-    v8::Handle<v8::String> name) {
-  if (name->Equals(v8::String::NewFromUtf8(v8::Isolate::GetCurrent(),
-                                           "findUntrackedObjects"))) {
+v8::Handle<v8::FunctionTemplate>
+HeapProfilerExtension::GetNativeFunctionTemplate(v8::Isolate* isolate,
+                                                 v8::Handle<v8::String> name) {
+  if (name->Equals(v8::String::NewFromUtf8(isolate, "findUntrackedObjects"))) {
     return v8::FunctionTemplate::New(
         HeapProfilerExtension::FindUntrackedObjects);
   } else {

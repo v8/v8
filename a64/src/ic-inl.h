@@ -86,8 +86,8 @@ void IC::SetTargetAtAddress(Address address, Code* target) {
   // ICs as strict mode. The strict-ness of the IC must be preserved.
   if (old_target->kind() == Code::STORE_IC ||
       old_target->kind() == Code::KEYED_STORE_IC) {
-    ASSERT(Code::GetStrictMode(old_target->extra_ic_state()) ==
-           Code::GetStrictMode(target->extra_ic_state()));
+    ASSERT(StoreIC::GetStrictMode(old_target->extra_ic_state()) ==
+           StoreIC::GetStrictMode(target->extra_ic_state()));
   }
 #endif
   Assembler::set_target_address_at(address, target->instruction_start());

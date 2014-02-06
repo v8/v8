@@ -470,7 +470,7 @@ void Shell::System(const v8::FunctionCallbackInfo<v8::Value>& args) {
     }
     command_args = Handle<Array>::Cast(args[1]);
   } else {
-    command_args = Array::New(0);
+    command_args = Array::New(args.GetIsolate(), 0);
   }
   if (command_args->Length() > ExecArgs::kMaxArgs) {
     args.GetIsolate()->ThrowException(String::NewFromUtf8(

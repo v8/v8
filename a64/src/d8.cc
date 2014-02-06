@@ -1126,7 +1126,7 @@ void Shell::ReadBuffer(const v8::FunctionCallbackInfo<v8::Value>& args) {
     Throw(args.GetIsolate(), "Error reading file");
     return;
   }
-  Handle<v8::ArrayBuffer> buffer = ArrayBuffer::New(data, length);
+  Handle<v8::ArrayBuffer> buffer = ArrayBuffer::New(isolate, data, length);
   v8::Persistent<v8::ArrayBuffer> weak_handle(isolate, buffer);
   weak_handle.MakeWeak(data, ReadBufferWeakCallback);
   weak_handle.MarkIndependent();

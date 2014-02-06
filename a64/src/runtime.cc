@@ -2663,6 +2663,14 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SpecialArrayFunctions) {
 }
 
 
+RUNTIME_FUNCTION(MaybeObject*, Runtime_IsCallable) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_CHECKED(Object, obj, 0);
+  return isolate->heap()->ToBoolean(obj->IsCallable());
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_IsClassicModeFunction) {
   SealHandleScope shs(isolate);
   ASSERT(args.length() == 1);
@@ -14323,6 +14331,18 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Abort) {
 }
 
 
+RUNTIME_FUNCTION(MaybeObject*, Runtime_AbortJS) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(String, message, 0);
+  OS::PrintError("abort: %s\n", *message->ToCString());
+  isolate->PrintStack(stderr);
+  OS::Abort();
+  UNREACHABLE();
+  return NULL;
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_FlattenString) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);
@@ -14615,11 +14635,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetIsObserved) {
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_SetObserverDeliveryPending) {
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SetMicrotaskPending) {
   SealHandleScope shs(isolate);
-  ASSERT(args.length() == 0);
-  isolate->set_observer_delivery_pending(true);
-  return isolate->heap()->undefined_value();
+  ASSERT(args.length() == 1);
+  CONVERT_BOOLEAN_ARG_CHECKED(new_state, 0);
+  bool old_state = isolate->microtask_pending();
+  isolate->set_microtask_pending(new_state);
+  return isolate->heap()->ToBoolean(old_state);
 }
 
 

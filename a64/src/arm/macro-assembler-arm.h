@@ -45,8 +45,8 @@ inline MemOperand FieldMemOperand(Register object, int offset) {
 
 
 // Give alias names to registers
-const Register pp = { kRegister_r7_Code };  // Constant pool pointer.
-const Register cp = { kRegister_r8_Code };  // JavaScript context pointer.
+const Register cp = { kRegister_r7_Code };  // JavaScript context pointer.
+const Register pp = { kRegister_r8_Code };  // Constant pool pointer.
 const Register kRootRegister = { kRegister_r10_Code };  // Roots array pointer.
 
 // Flags used for AllocateHeapNumber

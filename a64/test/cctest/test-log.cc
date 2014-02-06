@@ -305,7 +305,8 @@ TEST(Issue23768) {
   env->Enter();
 
   SimpleExternalString source_ext_str("(function ext() {})();");
-  v8::Local<v8::String> source = v8::String::NewExternal(&source_ext_str);
+  v8::Local<v8::String> source =
+      v8::String::NewExternal(CcTest::isolate(), &source_ext_str);
   // Script needs to have a name in order to trigger InitLineEnds execution.
   v8::Handle<v8::String> origin =
       v8::String::NewFromUtf8(CcTest::isolate(), "issue-23768-test");
@@ -336,7 +337,8 @@ TEST(LogCallbacks) {
                                            v8::FunctionTemplate::New());
   obj->SetClassName(v8_str("Obj"));
   v8::Handle<v8::ObjectTemplate> proto = obj->PrototypeTemplate();
-  v8::Local<v8::Signature> signature = v8::Signature::New(obj);
+  v8::Local<v8::Signature> signature =
+      v8::Signature::New(CcTest::isolate(), obj);
   proto->Set(v8_str("method1"),
              v8::FunctionTemplate::New(ObjMethod1,
                                        v8::Handle<v8::Value>(),

@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2013 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,27 +25,14 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_EXTENSIONS_EXTERNALIZE_STRING_EXTENSION_H_
-#define V8_EXTENSIONS_EXTERNALIZE_STRING_EXTENSION_H_
+var badObj = { length : 1e40 };
 
-#include "v8.h"
-
-namespace v8 {
-namespace internal {
-
-class ExternalizeStringExtension : public v8::Extension {
- public:
-  ExternalizeStringExtension() : v8::Extension("v8/externalize", kSource) {}
-  virtual v8::Handle<v8::FunctionTemplate> GetNativeFunctionTemplate(
-      v8::Isolate* isolate,
-      v8::Handle<v8::String> name);
-  static void Externalize(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void IsAscii(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void Register();
- private:
-  static const char* const kSource;
-};
-
-} }  // namespace v8::internal
-
-#endif  // V8_EXTENSIONS_EXTERNALIZE_STRING_EXTENSION_H_
+assertThrows(function() { new Uint8Array(badObj); }, RangeError);
+assertThrows(function() { new Uint8ClampedArray(badObj); }, RangeError);
+assertThrows(function() { new Int8Array(badObj); }, RangeError);
+assertThrows(function() { new Uint16Array(badObj); }, RangeError);
+assertThrows(function() { new Int16Array(badObj); }, RangeError);
+assertThrows(function() { new Uint32Array(badObj); }, RangeError);
+assertThrows(function() { new Int32Array(badObj); }, RangeError);
+assertThrows(function() { new Float32Array(badObj); }, RangeError);
+assertThrows(function() { new Float64Array(badObj); }, RangeError);

@@ -45,7 +45,8 @@ using namespace v8::internal;
 class PrintExtension : public v8::Extension {
  public:
   PrintExtension() : v8::Extension("v8/print", kSource) { }
-  virtual v8::Handle<v8::FunctionTemplate> GetNativeFunction(
+  virtual v8::Handle<v8::FunctionTemplate> GetNativeFunctionTemplate(
+      v8::Isolate* isolate,
       v8::Handle<v8::String> name);
   static void Print(const v8::FunctionCallbackInfo<v8::Value>& args);
  private:
@@ -56,7 +57,8 @@ class PrintExtension : public v8::Extension {
 const char* PrintExtension::kSource = "native function print();";
 
 
-v8::Handle<v8::FunctionTemplate> PrintExtension::GetNativeFunction(
+v8::Handle<v8::FunctionTemplate> PrintExtension::GetNativeFunctionTemplate(
+    v8::Isolate* isolate,
     v8::Handle<v8::String> str) {
   return v8::FunctionTemplate::New(PrintExtension::Print);
 }
