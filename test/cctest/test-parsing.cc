@@ -244,8 +244,11 @@ TEST(Preparsing) {
   CHECK_EQ(11, error_location.end_pos);
   // Should not crash.
   const char* message = pre_impl->BuildMessage();
-  pre_impl->BuildArgs();
+  i::Vector<const char*> args = pre_impl->BuildArgs();
   CHECK_GT(strlen(message), 0);
+  args.Dispose();
+  i::DeleteArray(message);
+  delete error_preparse;
 }
 
 
@@ -1019,7 +1022,7 @@ TEST(ScopePositions) {
     int kSuffixByteLen = i::StrLength(source_data[i].outer_suffix);
     int kProgramSize = kPrefixLen + kInnerLen + kSuffixLen;
     int kProgramByteSize = kPrefixByteLen + kInnerByteLen + kSuffixByteLen;
-    i::Vector<char> program = i::Vector<char>::New(kProgramByteSize + 1);
+    i::ScopedVector<char> program(kProgramByteSize + 1);
     i::OS::SNPrintF(program, "%s%s%s",
                              source_data[i].outer_prefix,
                              source_data[i].inner_source,

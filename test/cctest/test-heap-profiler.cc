@@ -1855,10 +1855,9 @@ TEST(WeakGlobalHandle) {
 
   CHECK(!HasWeakGlobalHandle());
 
-  v8::Persistent<v8::Object>* handle =
-      new v8::Persistent<v8::Object>(env->GetIsolate(),
-                                     v8::Object::New(env->GetIsolate()));
-  handle->SetWeak(handle, PersistentHandleCallback);
+  v8::Persistent<v8::Object> handle(env->GetIsolate(),
+                                    v8::Object::New(env->GetIsolate()));
+  handle.SetWeak(&handle, PersistentHandleCallback);
 
   CHECK(HasWeakGlobalHandle());
 }

@@ -539,7 +539,6 @@ static void Execute(const char* input,
 #ifdef DEBUG
   if (dot_output) {
     RegExpEngine::DotPrint(input, node, false);
-    exit(0);
   }
 #endif  // DEBUG
 }
