@@ -3050,12 +3050,6 @@ void KeyedStoreStubCompiler::GenerateNameCheck(Handle<Name> name,
 void LoadStubCompiler::GenerateLoadViaGetter(MacroAssembler* masm,
                                              Register receiver,
                                              Handle<JSFunction> getter) {
-  // ----------- S t a t e -------------
-  //  -- x0    : receiver
-  //  -- x2    : name
-  //  -- lr    : return address
-  // -----------------------------------
-  ASSERT(receiver.Is(x0));
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
 
