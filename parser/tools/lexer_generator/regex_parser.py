@@ -171,7 +171,7 @@ class RegexParser:
       p[0] = self.__cat(p[1], p[2])
 
   def p_fragment(self, p):
-    '''fragment : literal maybe_modifier
+    '''fragment : literal_array maybe_modifier
                 | class maybe_modifier
                 | group maybe_modifier
                 | any maybe_modifier
@@ -202,9 +202,22 @@ class RegexParser:
     else:
       p[0] = ("REPEAT", p[2], p[4])
 
-  def p_literal(self, p):
-    '''literal : LITERAL'''
-    p[0] = Term('LITERAL', p[1])
+  def p_literal_array(self, p):
+    '''literal_array : literals'''
+    p[0] = Term('LITERAL', ''.join(reversed(p[1])))
+
+  def p_literals(self, p):
+    '''literals : LITERAL maybe_literals'''
+    if not p[2]:
+      p[0] = [p[1]]
+    else:
+      p[2].append(p[1])
+      p[0] = p[2]
+
+  def p_maybe_literals(self, p):
+    '''maybe_literals : literals
+                      |  empty'''
+    p[0] = p[1]
 
   def p_any(self, p):
     '''any : ANY'''

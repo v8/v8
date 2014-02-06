@@ -59,10 +59,11 @@ class NfaBuilder(object):
       self.__global_end_node = self.__new_state()
     return self.__global_end_node
 
-  def __or(self, left, right):
+  def __or(self, *trees):
     start = self.__new_state()
     ends = []
-    for (sub_start, sub_end) in [self.__process(left), self.__process(right)]:
+    for tree in trees:
+      (sub_start, sub_end) = self.__process(tree)
       start.add_epsilon_transition(sub_start)
       ends += sub_end
     start.close(None)
@@ -110,17 +111,28 @@ class NfaBuilder(object):
       midpoints.append(midpoint)
     return (start, ends + midpoints)
 
-  def __cat(self, left_tree, right_tree):
-    (left, right) = (self.__process(left_tree), self.__process(right_tree))
-    self.__patch_ends(left[1], right[0])
-    return (left[0], right[1])
+  def __cat(self, *trees):
+    (start, ends) = (None, None)
+    for tree in trees:
+      (sub_start, sub_ends) = self.__process(tree)
+      if start == None:
+        start = sub_start
+      else:
+        assert sub_ends, "this creates unreachable nodes"
+        self.__patch_ends(ends, sub_start)
+      ends = sub_ends
+    return (start, ends)
 
   def __key_state(self, key):
     state =  self.__new_state()
     state.add_unclosed_transition(key)
     return (state, [state])
 
-  def __literal(self, char):
+  def __literal(self, chars):
+    terms = map(lambda c : Term('SINGLE_CHAR', c), chars)
+    return self.__process(self.cat_terms(terms))
+
+  def __single_char(self, char):
     return self.__key_state(
       TransitionKey.single_char(self.__encoding, char))
 
@@ -285,11 +297,13 @@ class NfaBuilder(object):
 
   @staticmethod
   def or_terms(terms):
-    return reduce(lambda acc, g: Term('OR', acc, g), terms)
+    if len(terms) == 1: return terms[0]
+    return Term('OR', *terms) if terms else Term.empty()
 
   @staticmethod
   def cat_terms(terms):
-    return reduce(lambda acc, g: Term('CAT', acc, g), terms)
+    if len(terms) == 1: return terms[0]
+    return Term('CAT', *terms) if terms else Term.empty()
 
   __modifer_map = {
     '+': 'ONE_OR_MORE',
