@@ -548,10 +548,7 @@ void Heap::ProcessPretenuringFeedback() {
 
     allocation_sites_scratchpad_length = 0;
 
-    // TODO(mvstanton): Pretenure decisions are only made once for an allocation
-    // site. Find a sane way to decide about revisiting the decision later.
-
-    if (FLAG_trace_track_allocation_sites &&
+    if (FLAG_trace_pretenuring_statistics &&
         (allocation_mementos_found > 0 ||
          tenure_decisions > 0 ||
          dont_tenure_decisions > 0)) {

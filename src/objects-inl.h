@@ -1550,14 +1550,11 @@ inline void AllocationSite::IncrementMementoCreateCount() {
 inline bool AllocationSite::DigestPretenuringFeedback() {
   bool decision_changed = false;
   int create_count = memento_create_count();
+  int found_count = memento_found_count();
+  double ratio = static_cast<double>(found_count) / create_count;
+  PretenureFlag current_mode = GetPretenureMode();
+
   if (create_count >= kPretenureMinimumCreated) {
-    int found_count = memento_found_count();
-    double ratio = static_cast<double>(found_count) / create_count;
-    if (FLAG_trace_track_allocation_sites) {
-      PrintF("AllocationSite: %p (created, found, ratio) (%d, %d, %f)\n",
-             static_cast<void*>(this), create_count, found_count, ratio);
-    }
-    int current_mode = GetPretenureMode();
     PretenureDecision result = ratio >= kPretenureRatio
         ? kTenure
         : kDontTenure;
@@ -1568,6 +1565,14 @@ inline bool AllocationSite::DigestPretenuringFeedback() {
           GetIsolate(),
           DependentCode::kAllocationSiteTenuringChangedGroup);
     }
+  }
+
+  if (FLAG_trace_pretenuring_statistics) {
+    PrintF(
+        "AllocationSite(%p): (created, found, ratio) (%d, %d, %f) %s => %s\n",
+         static_cast<void*>(this), create_count, found_count, ratio,
+         current_mode == TENURED ? "tenured" : "not tenured",
+         GetPretenureMode() == TENURED ? "tenured" : "not tenured");
   }
 
   // Clear feedback calculation fields until the next gc.

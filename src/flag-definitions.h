@@ -224,6 +224,8 @@ DEFINE_bool(allocation_site_pretenuring, true,
             "pretenure with allocation sites")
 DEFINE_bool(trace_pretenuring, false,
             "trace pretenuring decisions of HAllocate instructions")
+DEFINE_bool(trace_pretenuring_statistics, false,
+            "trace allocation site pretenuring statistics")
 DEFINE_bool(track_fields, true, "track fields with only smi values")
 DEFINE_bool(track_double_fields, true, "track fields with double values")
 DEFINE_bool(track_heap_object_fields, true, "track fields with heap values")
