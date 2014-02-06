@@ -173,6 +173,11 @@ void DebuggerAgent::DebuggerMessage(const v8::Debug::Message& message) {
 }
 
 
+DebuggerAgentSession::~DebuggerAgentSession() {
+  delete client_;
+}
+
+
 void DebuggerAgent::OnSessionClosed(DebuggerAgentSession* session) {
   // Don't do anything during termination.
   if (terminate_) {
