@@ -2435,9 +2435,16 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
 
   HInstruction* BuildStringCharCodeAt(HValue* string,
                                       HValue* index);
-  HValue* BuildBinaryOperation(BinaryOperation* expr,
-                               HValue* left,
-                               HValue* right);
+
+  enum PushBeforeSimulateBehavior {
+    PUSH_BEFORE_SIMULATE,
+    NO_PUSH_BEFORE_SIMULATE
+  };
+  HValue* BuildBinaryOperation(
+      BinaryOperation* expr,
+      HValue* left,
+      HValue* right,
+      PushBeforeSimulateBehavior push_sim_result);
   HInstruction* BuildIncrement(bool returns_original_input,
                                CountOperation* expr);
   HInstruction* BuildLoadKeyedGeneric(HValue* object,

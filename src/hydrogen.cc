@@ -5980,7 +5980,8 @@ void HOptimizedGraphBuilder::HandleCompoundAssignment(Assignment* expr) {
     HValue* right = Pop();
     HValue* left = Pop();
 
-    Push(BuildBinaryOperation(operation, left, right));
+    Push(BuildBinaryOperation(operation, left, right, PUSH_BEFORE_SIMULATE));
+
     BuildStore(expr, prop, expr->id(),
                expr->AssignmentId(), expr->IsUninitialized());
   } else {
@@ -9056,7 +9057,8 @@ HValue* HGraphBuilder::TruncateToNumber(HValue* value, Type** expected) {
 HValue* HOptimizedGraphBuilder::BuildBinaryOperation(
     BinaryOperation* expr,
     HValue* left,
-    HValue* right) {
+    HValue* right,
+    PushBeforeSimulateBehavior push_sim_result) {
   Type* left_type = expr->left()->bounds().lower;
   Type* right_type = expr->right()->bounds().lower;
   Type* result_type = expr->bounds().lower;
@@ -9080,9 +9082,14 @@ HValue* HOptimizedGraphBuilder::BuildBinaryOperation(
   // after phis, which are the result of BuildBinaryOperation when we
   // inlined some complex subgraph.
   if (result->HasObservableSideEffects() || result->IsPhi()) {
-    Push(result);
-    Add<HSimulate>(expr->id(), REMOVABLE_SIMULATE);
-    Drop(1);
+    if (push_sim_result == NO_PUSH_BEFORE_SIMULATE) {
+      Add<HSimulate>(expr->id(), REMOVABLE_SIMULATE);
+    } else {
+      ASSERT(push_sim_result == PUSH_BEFORE_SIMULATE);
+      Push(result);
+      Add<HSimulate>(expr->id(), REMOVABLE_SIMULATE);
+      Drop(1);
+    }
   }
   return result;
 }
@@ -9462,7 +9469,10 @@ void HOptimizedGraphBuilder::VisitArithmeticExpression(BinaryOperation* expr) {
   SetSourcePosition(expr->position());
   HValue* right = Pop();
   HValue* left = Pop();
-  HValue* result = BuildBinaryOperation(expr, left, right);
+  HValue* result =
+      BuildBinaryOperation(expr, left, right,
+          ast_context()->IsEffect() ? NO_PUSH_BEFORE_SIMULATE
+                                    : PUSH_BEFORE_SIMULATE);
   if (FLAG_emit_opt_code_positions && result->IsBinaryOperation()) {
     HBinaryOperation::cast(result)->SetOperandPositions(
         zone(), expr->left()->position(), expr->right()->position());
