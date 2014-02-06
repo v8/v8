@@ -83,6 +83,7 @@ struct CPURegister {
   bool Is32Bits() const;
   bool Is64Bits() const;
   bool IsValid() const;
+  bool IsValidOrNone() const;
   bool IsValidRegister() const;
   bool IsValidFPRegister() const;
   bool IsNone() const;
@@ -108,9 +109,6 @@ struct CPURegister {
   unsigned reg_code;
   unsigned reg_size;
   RegisterType reg_type;
-
- private:
-  bool IsValidOrNone() const;
 };
 
 
@@ -129,7 +127,7 @@ struct Register : public CPURegister {
     reg_code = r.reg_code;
     reg_size = r.reg_size;
     reg_type = r.reg_type;
-    ASSERT(IsValid());
+    ASSERT(IsValidOrNone());
   }
 
   bool IsValid() const {
@@ -232,7 +230,7 @@ struct FPRegister : public CPURegister {
     reg_code = r.reg_code;
     reg_size = r.reg_size;
     reg_type = r.reg_type;
-    ASSERT(IsValid());
+    ASSERT(IsValidOrNone());
   }
 
   bool IsValid() const {
