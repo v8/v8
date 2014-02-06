@@ -1491,18 +1491,21 @@ class StackLimitCheck BASE_EMBEDDED {
 class PostponeInterruptsScope BASE_EMBEDDED {
  public:
   explicit PostponeInterruptsScope(Isolate* isolate)
-      : stack_guard_(isolate->stack_guard()) {
+      : stack_guard_(isolate->stack_guard()), isolate_(isolate) {
+    ExecutionAccess access(isolate_);
     stack_guard_->thread_local_.postpone_interrupts_nesting_++;
     stack_guard_->DisableInterrupts();
   }
 
   ~PostponeInterruptsScope() {
+    ExecutionAccess access(isolate_);
     if (--stack_guard_->thread_local_.postpone_interrupts_nesting_ == 0) {
       stack_guard_->EnableInterrupts();
     }
   }
  private:
   StackGuard* stack_guard_;
+  Isolate* isolate_;
 };
 
 

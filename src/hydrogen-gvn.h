@@ -42,17 +42,16 @@ class HGlobalValueNumberingPhase : public HPhase {
   explicit HGlobalValueNumberingPhase(HGraph* graph);
 
   void Run() {
-    Analyze();
-    // Trigger a second analysis pass to further eliminate duplicate values
-    // that could only be discovered by removing side-effect-generating
-    // instructions during the first pass.
-    if (FLAG_smi_only_arrays && removed_side_effects_) {
+    int max_fixpoint_iteration_count = FLAG_gvn_iterations;
+    for (int i = 0; i < max_fixpoint_iteration_count; i++) {
       Analyze();
-      // TODO(danno): Turn this into a fixpoint iteration.
+      if (!removed_side_effects_) break;
+      Reset();
     }
   }
 
  private:
+  void Reset();
   void Analyze();
   GVNFlagSet CollectSideEffectsOnPathsToDominatedBlock(
       HBasicBlock* dominator,

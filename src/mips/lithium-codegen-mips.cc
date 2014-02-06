@@ -4001,7 +4001,6 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
 
   // Do the store.
   Register value = ToRegister(instr->value());
-  ASSERT(!object.is(value));
   SmiCheck check_needed =
       instr->hydrogen()->value()->IsHeapObject()
           ? OMIT_SMI_CHECK : INLINE_SMI_CHECK;
@@ -4222,8 +4221,8 @@ void LCodeGen::DoStoreKeyedFixedDoubleArray(LStoreKeyed* instr) {
 
     // Only load canonical NaN if the comparison above set the overflow.
     __ bind(&is_nan);
-    __ Move(double_scratch,
-            FixedDoubleArray::canonical_not_the_hole_nan_as_double());
+    __ LoadRoot(at, Heap::kNanValueRootIndex);
+    __ ldc1(double_scratch, FieldMemOperand(at, HeapNumber::kValueOffset));
     __ sdc1(double_scratch, MemOperand(scratch, instr->additional_index() <<
         element_size_shift));
     __ Branch(&done);

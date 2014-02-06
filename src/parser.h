@@ -687,7 +687,7 @@ class Parser : public ParserBase {
   Literal* GetLiteralUndefined(int position);
   Literal* GetLiteralTheHole(int position);
 
-  Handle<String> ParseIdentifier(bool* ok);
+  Handle<String> ParseIdentifier(AllowEvalOrArgumentsAsIdentifier, bool* ok);
   Handle<String> ParseIdentifierOrStrictReservedWord(
       bool* is_strict_reserved, bool* ok);
   Handle<String> ParseIdentifierName(bool* ok);
@@ -702,7 +702,6 @@ class Parser : public ParserBase {
 
   // Strict mode validation of LValue expressions
   void CheckStrictModeLValue(Expression* expression,
-                             const char* error,
                              bool* ok);
 
   // For harmony block scoping mode: Check if the scope has conflicting var/let

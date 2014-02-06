@@ -2187,6 +2187,8 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   Type* ToType(Handle<Map> map) { return IC::MapToType<Type>(map, zone()); }
 
  private:
+  enum PropertyAccessType { LOAD, STORE };
+
   // Helpers for flow graph construction.
   enum GlobalPropertyAccess {
     kUseCell,
@@ -2216,6 +2218,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   bool TryInlineCall(Call* expr);
   bool TryInlineConstruct(CallNew* expr, HValue* implicit_return_value);
   bool TryInlineGetter(Handle<JSFunction> getter,
+                       Handle<Map> receiver_map,
                        BailoutId ast_id,
                        BailoutId return_id);
   bool TryInlineSetter(Handle<JSFunction> setter,
@@ -2229,14 +2232,24 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
                                   HValue* receiver,
                                   Handle<Map> receiver_map);
   bool TryInlineBuiltinFunctionCall(Call* expr);
+  enum ApiCallType {
+    kCallApiFunction,
+    kCallApiMethod,
+    kCallApiGetter
+  };
   bool TryInlineApiMethodCall(Call* expr,
                               HValue* receiver,
-                              Handle<Map> receiver_map);
+                              SmallMapList* receiver_types);
   bool TryInlineApiFunctionCall(Call* expr, HValue* receiver);
-  bool TryInlineApiCall(Call* expr,
-                        HValue* receiver,
-                        Handle<Map> receiver_map,
-                        bool is_function_call);
+  bool TryInlineApiGetter(Handle<JSFunction> function,
+                          Handle<Map> receiver_map,
+                          BailoutId ast_id);
+  bool TryInlineApiCall(Handle<JSFunction> function,
+                         HValue* receiver,
+                         SmallMapList* receiver_maps,
+                         int argc,
+                         BailoutId ast_id,
+                         ApiCallType call_type);
 
   // If --trace-inlining, print a line of the inlining trace.  Inlining
   // succeeded if the reason string is NULL and failed if there is a
@@ -2251,11 +2264,13 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
 
   void HandlePropertyAssignment(Assignment* expr);
   void HandleCompoundAssignment(Assignment* expr);
-  void HandlePolymorphicLoadNamedField(BailoutId ast_id,
-                                       BailoutId return_id,
-                                       HValue* object,
-                                       SmallMapList* types,
-                                       Handle<String> name);
+  void HandlePolymorphicNamedFieldAccess(PropertyAccessType access_type,
+                                         BailoutId ast_id,
+                                         BailoutId return_id,
+                                         HValue* object,
+                                         HValue* value,
+                                         SmallMapList* types,
+                                         Handle<String> name);
 
   void VisitTypedArrayInitialize(CallRuntime* expr);
 
@@ -2264,7 +2279,6 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
 
   void VisitDataViewInitialize(CallRuntime* expr);
 
-  enum PropertyAccessType { LOAD, STORE };
   class PropertyAccessInfo {
    public:
     PropertyAccessInfo(HOptimizedGraphBuilder* builder,
@@ -2335,6 +2349,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
     }
 
     bool has_holder() { return !holder_.is_null(); }
+    bool IsLoad() const { return access_type_ == LOAD; }
 
     LookupResult* lookup() { return &lookup_; }
     Handle<JSObject> holder() { return holder_; }
@@ -2357,7 +2372,6 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
     bool LookupDescriptor();
     bool LookupInPrototypes();
     bool IsCompatible(PropertyAccessInfo* other);
-    bool IsLoad() const { return access_type_ == LOAD; }
 
     void GeneralizeRepresentation(Representation r) {
       access_ = access_.WithRepresentation(
@@ -2371,31 +2385,29 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
     Handle<String> name_;
     Handle<JSObject> holder_;
     Handle<JSFunction> accessor_;
+    Handle<JSObject> api_holder_;
     Handle<Object> constant_;
     Handle<Map> transition_;
     HObjectAccess access_;
   };
 
-  HInstruction* BuildLoadMonomorphic(PropertyAccessInfo* info,
-                                     HValue* object,
-                                     HValue* checked_object,
-                                     BailoutId ast_id,
-                                     BailoutId return_id,
-                                     bool can_inline_accessor = true);
+  HInstruction* BuildMonomorphicAccess(PropertyAccessInfo* info,
+                                       HValue* object,
+                                       HValue* checked_object,
+                                       HValue* value,
+                                       BailoutId ast_id,
+                                       BailoutId return_id,
+                                       bool can_inline_accessor = true);
 
-  HInstruction* BuildStoreMonomorphic(PropertyAccessInfo* info,
-                                      HValue* checked_object,
-                                      HValue* value,
-                                      BailoutId ast_id,
-                                      BailoutId return_id,
-                                      bool can_inline_accessor = true);
+  HInstruction* BuildNamedAccess(PropertyAccessType access,
+                                 BailoutId ast_id,
+                                 BailoutId reutrn_id,
+                                 Expression* expr,
+                                 HValue* object,
+                                 Handle<String> name,
+                                 HValue* value,
+                                 bool is_uninitialized = false);
 
-  void HandlePolymorphicStoreNamedField(BailoutId assignment_id,
-                                        BailoutId return_id,
-                                        HValue* object,
-                                        HValue* value,
-                                        SmallMapList* types,
-                                        Handle<String> name);
   void HandlePolymorphicCallNamed(Call* expr,
                                   HValue* receiver,
                                   SmallMapList* types,
@@ -2458,7 +2470,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
 
   HInstruction* BuildLoadNamedGeneric(HValue* object,
                                       Handle<String> name,
-                                      Property* expr);
+                                      bool is_uninitialized = false);
 
   HCheckMaps* AddCheckMap(HValue* object, Handle<Map> map);
 

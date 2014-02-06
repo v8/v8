@@ -983,7 +983,7 @@ Statement* Parser::ParseModuleDeclaration(ZoneStringList* names, bool* ok) {
   //    'module' Identifier Module
 
   int pos = peek_position();
-  Handle<String> name = ParseIdentifier(CHECK_OK);
+  Handle<String> name = ParseIdentifier(kDontAllowEvalOrArguments, CHECK_OK);
 
 #ifdef DEBUG
   if (FLAG_print_interface_details)
@@ -1136,7 +1136,7 @@ Module* Parser::ParseModuleVariable(bool* ok) {
   //    Identifier
 
   int pos = peek_position();
-  Handle<String> name = ParseIdentifier(CHECK_OK);
+  Handle<String> name = ParseIdentifier(kDontAllowEvalOrArguments, CHECK_OK);
 #ifdef DEBUG
   if (FLAG_print_interface_details)
     PrintF("# Module variable %s ", name->ToAsciiArray());
@@ -1261,13 +1261,14 @@ Statement* Parser::ParseExportDeclaration(bool* ok) {
   switch (peek()) {
     case Token::IDENTIFIER: {
       int pos = position();
-      Handle<String> name = ParseIdentifier(CHECK_OK);
+      Handle<String> name =
+          ParseIdentifier(kDontAllowEvalOrArguments, CHECK_OK);
       // Handle 'module' as a context-sensitive keyword.
       if (!name->IsOneByteEqualTo(STATIC_ASCII_VECTOR("module"))) {
         names.Add(name, zone());
         while (peek() == Token::COMMA) {
           Consume(Token::COMMA);
-          name = ParseIdentifier(CHECK_OK);
+          name = ParseIdentifier(kDontAllowEvalOrArguments, CHECK_OK);
           names.Add(name, zone());
         }
         ExpectSemicolon(CHECK_OK);
@@ -1632,11 +1633,12 @@ void Parser::Declare(Declaration* declaration, bool resolve, bool* ok) {
 Statement* Parser::ParseNativeDeclaration(bool* ok) {
   int pos = peek_position();
   Expect(Token::FUNCTION, CHECK_OK);
-  Handle<String> name = ParseIdentifier(CHECK_OK);
+  // Allow "eval" or "arguments" for backward compatibility.
+  Handle<String> name = ParseIdentifier(kAllowEvalOrArguments, CHECK_OK);
   Expect(Token::LPAREN, CHECK_OK);
   bool done = (peek() == Token::RPAREN);
   while (!done) {
-    ParseIdentifier(CHECK_OK);
+    ParseIdentifier(kAllowEvalOrArguments, CHECK_OK);
     done = (peek() == Token::RPAREN);
     if (!done) {
       Expect(Token::COMMA, CHECK_OK);
@@ -1900,15 +1902,8 @@ Block* Parser::ParseVariableDeclarations(
 
     // Parse variable name.
     if (nvars > 0) Consume(Token::COMMA);
-    name = ParseIdentifier(CHECK_OK);
+    name = ParseIdentifier(kDontAllowEvalOrArguments, CHECK_OK);
     if (fni_ != NULL) fni_->PushVariableName(name);
-
-    // Strict mode variables may not be named eval or arguments
-    if (!declaration_scope->is_classic_mode() && IsEvalOrArguments(name)) {
-      ReportMessage("strict_var_name", Vector<const char*>::empty());
-      *ok = false;
-      return NULL;
-    }
 
     // Declare variable.
     // Note that we *always* must treat the initial value via a separate init
@@ -2224,7 +2219,8 @@ Statement* Parser::ParseContinueStatement(bool* ok) {
   Token::Value tok = peek();
   if (!scanner().HasAnyLineTerminatorBeforeNext() &&
       tok != Token::SEMICOLON && tok != Token::RBRACE && tok != Token::EOS) {
-    label = ParseIdentifier(CHECK_OK);
+    // ECMA allows "eval" or "arguments" as labels even in strict mode.
+    label = ParseIdentifier(kAllowEvalOrArguments, CHECK_OK);
   }
   IterationStatement* target = NULL;
   target = LookupContinueTarget(label, CHECK_OK);
@@ -2255,7 +2251,8 @@ Statement* Parser::ParseBreakStatement(ZoneStringList* labels, bool* ok) {
   Token::Value tok = peek();
   if (!scanner().HasAnyLineTerminatorBeforeNext() &&
       tok != Token::SEMICOLON && tok != Token::RBRACE && tok != Token::EOS) {
-    label = ParseIdentifier(CHECK_OK);
+    // ECMA allows "eval" or "arguments" as labels even in strict mode.
+    label = ParseIdentifier(kAllowEvalOrArguments, CHECK_OK);
   }
   // Parse labeled break statements that target themselves into
   // empty statements, e.g. 'l1: l2: l3: break l2;'
@@ -2485,13 +2482,7 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
     Expect(Token::LPAREN, CHECK_OK);
     catch_scope = NewScope(top_scope_, CATCH_SCOPE);
     catch_scope->set_start_position(scanner().location().beg_pos);
-    name = ParseIdentifier(CHECK_OK);
-
-    if (!top_scope_->is_classic_mode() && IsEvalOrArguments(name)) {
-      ReportMessage("strict_catch_variable", Vector<const char*>::empty());
-      *ok = false;
-      return NULL;
-    }
+    name = ParseIdentifier(kDontAllowEvalOrArguments, CHECK_OK);
 
     Expect(Token::RPAREN, CHECK_OK);
 
@@ -2939,7 +2930,7 @@ Expression* Parser::ParseAssignmentExpression(bool accept_IN, bool* ok) {
 
   if (!top_scope_->is_classic_mode()) {
     // Assignment to eval or arguments is disallowed in strict mode.
-    CheckStrictModeLValue(expression, "strict_lhs_assignment", CHECK_OK);
+    CheckStrictModeLValue(expression, CHECK_OK);
   }
   MarkAsLValue(expression);
 
@@ -3219,7 +3210,7 @@ Expression* Parser::ParseUnaryExpression(bool* ok) {
 
     if (!top_scope_->is_classic_mode()) {
       // Prefix expression operand in strict mode may not be eval or arguments.
-      CheckStrictModeLValue(expression, "strict_lhs_prefix", CHECK_OK);
+      CheckStrictModeLValue(expression, CHECK_OK);
     }
     MarkAsLValue(expression);
 
@@ -3253,7 +3244,7 @@ Expression* Parser::ParsePostfixExpression(bool* ok) {
 
     if (!top_scope_->is_classic_mode()) {
       // Postfix expression operand in strict mode may not be eval or arguments.
-      CheckStrictModeLValue(expression, "strict_lhs_postfix", CHECK_OK);
+      CheckStrictModeLValue(expression, CHECK_OK);
     }
     MarkAsLValue(expression);
 
@@ -3563,7 +3554,8 @@ Expression* Parser::ParsePrimaryExpression(bool* ok) {
     case Token::IDENTIFIER:
     case Token::YIELD:
     case Token::FUTURE_STRICT_RESERVED_WORD: {
-      Handle<String> name = ParseIdentifier(CHECK_OK);
+      // Using eval or arguments in this context is OK even in strict mode.
+      Handle<String> name = ParseIdentifier(kAllowEvalOrArguments, CHECK_OK);
       if (fni_ != NULL) fni_->PushVariableName(name);
       // The name may refer to a module instance object, so its type is unknown.
 #ifdef DEBUG
@@ -4303,13 +4295,13 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     if (!top_scope_->is_classic_mode()) {
       if (IsEvalOrArguments(function_name)) {
         ReportMessageAt(function_name_location,
-                        "strict_function_name",
+                        "strict_eval_arguments",
                         Vector<const char*>::empty());
         *ok = false;
         return NULL;
       }
       if (name_loc.IsValid()) {
-        ReportMessageAt(name_loc, "strict_param_name",
+        ReportMessageAt(name_loc, "strict_eval_arguments",
                         Vector<const char*>::empty());
         *ok = false;
         return NULL;
@@ -4398,7 +4390,8 @@ Expression* Parser::ParseV8Intrinsic(bool* ok) {
 
   int pos = peek_position();
   Expect(Token::MOD, CHECK_OK);
-  Handle<String> name = ParseIdentifier(CHECK_OK);
+  // Allow "eval" or "arguments" for backward compatibility.
+  Handle<String> name = ParseIdentifier(kAllowEvalOrArguments, CHECK_OK);
   ZoneList<Expression*>* args = ParseArguments(CHECK_OK);
 
   if (extension_ != NULL) {
@@ -4505,13 +4498,25 @@ Literal* Parser::GetLiteralTheHole(int position) {
 
 
 // Parses an identifier that is valid for the current scope, in particular it
-// fails on strict mode future reserved keywords in a strict scope.
-Handle<String> Parser::ParseIdentifier(bool* ok) {
+// fails on strict mode future reserved keywords in a strict scope. If
+// allow_eval_or_arguments is kAllowEvalOrArguments, we allow "eval" or
+// "arguments" as identifier even in strict mode (this is needed in cases like
+// "var foo = eval;").
+Handle<String> Parser::ParseIdentifier(
+    AllowEvalOrArgumentsAsIdentifier allow_eval_or_arguments,
+    bool* ok) {
   Token::Value next = Next();
-  if (next == Token::IDENTIFIER ||
-      (top_scope_->is_classic_mode() &&
-       (next == Token::FUTURE_STRICT_RESERVED_WORD ||
-        (next == Token::YIELD && !is_generator())))) {
+  if (next == Token::IDENTIFIER) {
+    Handle<String> name = GetSymbol();
+    if (allow_eval_or_arguments == kDontAllowEvalOrArguments &&
+        !top_scope_->is_classic_mode() && IsEvalOrArguments(name)) {
+      ReportMessage("strict_eval_arguments", Vector<const char*>::empty());
+      *ok = false;
+    }
+    return name;
+  } else if (top_scope_->is_classic_mode() &&
+             (next == Token::FUTURE_STRICT_RESERVED_WORD ||
+              (next == Token::YIELD && !is_generator()))) {
     return GetSymbol();
   } else {
     ReportUnexpectedToken(next);
@@ -4566,7 +4571,6 @@ void Parser::MarkAsLValue(Expression* expression) {
 // Checks LHS expression for assignment and prefix/postfix increment/decrement
 // in strict mode.
 void Parser::CheckStrictModeLValue(Expression* expression,
-                                   const char* error,
                                    bool* ok) {
   ASSERT(!top_scope_->is_classic_mode());
   VariableProxy* lhs = expression != NULL
@@ -4574,7 +4578,7 @@ void Parser::CheckStrictModeLValue(Expression* expression,
       : NULL;
 
   if (lhs != NULL && !lhs->is_this() && IsEvalOrArguments(lhs->name())) {
-    ReportMessage(error, Vector<const char*>::empty());
+    ReportMessage("strict_eval_arguments", Vector<const char*>::empty());
     *ok = false;
   }
 }
