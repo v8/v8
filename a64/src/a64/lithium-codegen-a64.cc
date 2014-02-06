@@ -2055,7 +2055,7 @@ void LCodeGen::DoCheckNonSmi(LCheckNonSmi* instr) {
 
 void LCodeGen::DoCheckSmi(LCheckSmi* instr) {
   Register value = ToRegister(instr->value());
-  ASSERT(ToRegister(instr->result()).Is(value));
+  ASSERT(!instr->result() || ToRegister(instr->result()).Is(value));
   // TODO(all): See DoCheckNonSmi for comments on use of tbz.
   DeoptimizeIfNotSmi(value, instr->environment());
 }
