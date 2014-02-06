@@ -139,10 +139,54 @@ fi
 
 let CURRENT_STEP+=1
 if [ $START_STEP -le $CURRENT_STEP ] ; then
+  echo ">>> Step $CURRENT_STEP: Search for corresponding architecture ports."
+  for REVISION in "$@" ; do
+    # Add the revision to the array if it isn't already added.
+    if  [[ ! "${FULL_REVISION_LIST[@]}" =~ (^| )$REVISION($| ) ]] ; then
+      FULL_REVISION_LIST=("${FULL_REVISION_LIST[@]}" "$REVISION")
+    fi
+    # Search for commits which matches the "Port rXXX" pattern.
+    GIT_HASHES=$(git log svn/bleeding_edge --reverse \
+                 --format=%H --grep="Port r$REVISION")
+    if [ -n "$GIT_HASHES" ]; then
+      while read -r NEXT_GIT_HASH; do
+        NEXT_SVN_REVISION=$(git svn find-rev $NEXT_GIT_HASH svn/bleeding_edge)
+        [[ -n "$NEXT_SVN_REVISION" ]] \
+          || die "Cannot determine svn revision for $NEXT_GIT_HASH"
+        FULL_REVISION_LIST=("${FULL_REVISION_LIST[@]}" "$NEXT_SVN_REVISION")
+        REVISION_TITLE=$(git log -1 --format=%s $NEXT_GIT_HASH)
+        # Is this revision included in the original revision list?
+        if [[ $@ =~ (^| )$NEXT_SVN_REVISION($| ) ]] ; then
+          echo "Found port of r$REVISION -> \
+r$NEXT_SVN_REVISION (already included): $REVISION_TITLE"
+        else
+          echo "Found port of r$REVISION -> \
+r$NEXT_SVN_REVISION: $REVISION_TITLE"
+          PORT_REVISION_LIST=("${PORT_REVISION_LIST[@]}" "$NEXT_SVN_REVISION")
+        fi
+      done <<< "$GIT_HASHES"
+    fi
+  done
+  # Next step expects a list, not an array.
+  FULL_REVISION_LIST="${FULL_REVISION_LIST[@]}"
+  # Do we find any port?
+  if [ ${#PORT_REVISION_LIST[@]} -ne 0 ] ; then
+    confirm "Automatically add corresponding ports (${PORT_REVISION_LIST[*]})?"
+    #: 'n': Restore the original revision list.
+    if [ $? -ne 0 ] ; then
+      FULL_REVISION_LIST="$@"
+    fi
+  fi
+  persist "FULL_REVISION_LIST"
+fi
+
+let CURRENT_STEP+=1
+if [ $START_STEP -le $CURRENT_STEP ] ; then
   echo ">>> Step $CURRENT_STEP: Find the git \
 revisions associated with the patches."
+  restore_if_unset "FULL_REVISION_LIST"
   current=0
-  for REVISION in "$@" ; do
+  for REVISION in $FULL_REVISION_LIST ; do
     NEXT_HASH=$(git svn find-rev "r$REVISION" svn/bleeding_edge)
     [[ -n "$NEXT_HASH" ]] \
       || die "Cannot determine git hash for r$REVISION"
