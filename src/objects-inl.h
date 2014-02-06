@@ -1551,10 +1551,13 @@ inline bool AllocationSite::DigestPretenuringFeedback() {
   bool decision_changed = false;
   int create_count = memento_create_count();
   int found_count = memento_found_count();
-  double ratio = static_cast<double>(found_count) / create_count;
+  bool minimum_mementos_created = create_count >= kPretenureMinimumCreated;
+  double ratio =
+      minimum_mementos_created || FLAG_trace_pretenuring_statistics ?
+          static_cast<double>(found_count) / create_count : 0.0;
   PretenureFlag current_mode = GetPretenureMode();
 
-  if (create_count >= kPretenureMinimumCreated) {
+  if (minimum_mementos_created) {
     PretenureDecision result = ratio >= kPretenureRatio
         ? kTenure
         : kDontTenure;
