@@ -10538,31 +10538,39 @@ void HOptimizedGraphBuilder::GenerateCallFunction(CallRuntime* call) {
 
   HValue* function = Pop();
 
-  // Branch for function proxies, or other non-functions.
-  HHasInstanceTypeAndBranch* typecheck =
-      New<HHasInstanceTypeAndBranch>(function, JS_FUNCTION_TYPE);
-  HBasicBlock* if_jsfunction = graph()->CreateBasicBlock();
-  HBasicBlock* if_nonfunction = graph()->CreateBasicBlock();
-  HBasicBlock* join = graph()->CreateBasicBlock();
-  typecheck->SetSuccessorAt(0, if_jsfunction);
-  typecheck->SetSuccessorAt(1, if_nonfunction);
-  FinishCurrentBlock(typecheck);
+  IfBuilder if_is_jsfunction(this);
+  if_is_jsfunction.If<HHasInstanceTypeAndBranch>(function, JS_FUNCTION_TYPE);
 
-  set_current_block(if_jsfunction);
-  HInstruction* invoke_result = Add<HInvokeFunction>(function, arg_count);
-  Drop(arg_count);
-  Push(invoke_result);
-  Goto(if_jsfunction, join);
+  if_is_jsfunction.Then();
+  {
+    HInstruction* invoke_result =
+        Add<HInvokeFunction>(function, arg_count);
+    Drop(arg_count);
+    if (!ast_context()->IsEffect()) {
+      Push(invoke_result);
+    }
+    Add<HSimulate>(call->id(), FIXED_SIMULATE);
+  }
 
-  set_current_block(if_nonfunction);
-  HInstruction* call_result = Add<HCallFunction>(function, arg_count);
-  Drop(arg_count);
-  Push(call_result);
-  Goto(if_nonfunction, join);
+  if_is_jsfunction.Else();
+  {
+    HInstruction* call_result =
+        Add<HCallFunction>(function, arg_count);
+    Drop(arg_count);
+    if (!ast_context()->IsEffect()) {
+      Push(call_result);
+    }
+    Add<HSimulate>(call->id(), FIXED_SIMULATE);
+  }
+  if_is_jsfunction.End();
 
-  set_current_block(join);
-  join->SetJoinId(call->id());
-  return ast_context()->ReturnValue(Pop());
+  if (ast_context()->IsEffect()) {
+    // EffectContext::ReturnValue ignores the value, so we can just pass
+    // 'undefined' (as we do not have the call result anymore).
+    return ast_context()->ReturnValue(graph()->GetConstantUndefined());
+  } else {
+    return ast_context()->ReturnValue(Pop());
+  }
 }
 
 
