@@ -397,8 +397,7 @@ function FromPropertyDescriptor(desc) {
   }
   // Must be an AccessorDescriptor then. We never return a generic descriptor.
   return { get: desc.getGet(),
-           set: desc.getSet() === ObjectSetProto ? ObjectPoisonProto
-                                                 : desc.getSet(),
+           set: desc.getSet(),
            enumerable: desc.isEnumerable(),
            configurable: desc.isConfigurable() };
 }
@@ -1397,12 +1396,6 @@ function ObjectSetProto(obj) {
 }
 
 
-// Harmony __proto__ poison pill.
-function ObjectPoisonProto(obj) {
-  throw MakeTypeError("proto_poison_pill", []);
-}
-
-
 function ObjectConstructor(x) {
   if (%_IsConstructCall()) {
     if (x == null) return this;
@@ -1422,8 +1415,6 @@ function SetUpObject() {
 
   %SetNativeFlag($Object);
   %SetCode($Object, ObjectConstructor);
-  %FunctionSetName(ObjectPoisonProto, "__proto__");
-  %FunctionRemovePrototype(ObjectPoisonProto);
   %SetExpectedNumberOfProperties($Object, 4);
 
   %SetProperty($Object.prototype, "constructor", $Object, DONT_ENUM);

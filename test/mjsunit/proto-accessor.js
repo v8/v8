@@ -25,21 +25,57 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Check that the __proto__ accessor is properly poisoned when extracted
-// from Object.prototype using the property descriptor.
 var desc = Object.getOwnPropertyDescriptor(Object.prototype, "__proto__");
 assertEquals("function", typeof desc.get);
 assertEquals("function", typeof desc.set);
 assertDoesNotThrow("desc.get.call({})");
-assertThrows("desc.set.call({})", TypeError);
+assertDoesNotThrow("desc.set.call({}, {})");
 
-// Check that any redefinition of the __proto__ accessor causes poising
-// to cease and the accessor to be extracted normally.
-Object.defineProperty(Object.prototype, "__proto__", { get:function(){} });
-desc = Object.getOwnPropertyDescriptor(Object.prototype, "__proto__");
-assertDoesNotThrow("desc.get.call({})");
-assertThrows("desc.set.call({})", TypeError);
+
+var obj = {};
+var obj2 = {};
+desc.set.call(obj, obj2);
+assertEquals(obj.__proto__, obj2);
+assertEquals(desc.get.call(obj), obj2);
+
+
+// Check that any redefinition of the __proto__ accessor works.
+Object.defineProperty(Object.prototype, "__proto__", {
+  get: function() {
+    return 42;
+  }
+});
+assertEquals({}.__proto__, 42);
+assertEquals(desc.get.call({}), Object.prototype);
+
+
+var desc2 = Object.getOwnPropertyDescriptor(Object.prototype, "__proto__");
+assertEquals(desc2.get.call({}), 42);
+assertDoesNotThrow("desc2.set.call({})");
+
+
 Object.defineProperty(Object.prototype, "__proto__", { set:function(x){} });
-desc = Object.getOwnPropertyDescriptor(Object.prototype, "__proto__");
-assertDoesNotThrow("desc.get.call({})");
-assertDoesNotThrow("desc.set.call({})");
+var desc3 = Object.getOwnPropertyDescriptor(Object.prototype, "__proto__");
+assertDoesNotThrow("desc3.get.call({})");
+assertDoesNotThrow("desc3.set.call({})");
+
+
+Object.defineProperty(Object.prototype, "__proto__", { set: undefined });
+assertThrows(function() {
+  "use strict";
+  var o = {};
+  var p = {};
+  o.__proto__ = p;
+}, TypeError);
+
+
+assertTrue(delete Object.prototype.__proto__);
+var o = {};
+var p = {};
+o.__proto__ = p;
+assertEquals(Object.getPrototypeOf(o), Object.prototype);
+var desc4 = Object.getOwnPropertyDescriptor(o, "__proto__");
+assertTrue(desc4.configurable);
+assertTrue(desc4.enumerable);
+assertTrue(desc4.writable);
+assertEquals(desc4.value, p);
