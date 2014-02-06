@@ -2049,7 +2049,7 @@ Handle<Code> CallStubCompiler::CompileStringCharCodeAtCall(
 
   if (index_out_of_range.is_linked()) {
     __ Bind(&index_out_of_range);
-    __ LoadRoot(result, Heap::kNanValueRootIndex);
+    __ LoadRoot(x0, Heap::kNanValueRootIndex);
     __ Drop(argc + 1);
     __ Ret();
   }
@@ -2118,7 +2118,7 @@ Handle<Code> CallStubCompiler::CompileStringCharAtCall(
 
   if (index_out_of_range.is_linked()) {
     __ Bind(&index_out_of_range);
-    __ LoadRoot(result, Heap::kempty_stringRootIndex);
+    __ LoadRoot(x0, Heap::kempty_stringRootIndex);
     __ Drop(argc + 1);
     __ Ret();
   }
