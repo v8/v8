@@ -177,7 +177,7 @@ void HeapProfiler::DropCompiledCode() {
   Isolate* isolate = heap()->isolate();
   HandleScope scope(isolate);
 
-  if (FLAG_concurrent_recompilation) {
+  if (isolate->concurrent_recompilation_enabled()) {
     isolate->optimizing_compiler_thread()->Flush();
   }
 

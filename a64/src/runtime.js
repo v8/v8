@@ -665,7 +665,7 @@ function DefaultString(x) {
 
 function ToPositiveInteger(x, rangeErrorName) {
   var i = TO_INTEGER(x);
-  if (i < 0) throw %MakeRangeError(rangeErrorName);
+  if (i < 0) throw MakeRangeError(rangeErrorName);
   return i;
 }
 

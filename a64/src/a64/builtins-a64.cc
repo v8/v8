@@ -1175,8 +1175,10 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
 
 void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   ASM_LOCATION("Builtins::Generate_FunctionApply");
-  const int kIndexOffset    = -5 * kPointerSize;
-  const int kLimitOffset    = -4 * kPointerSize;
+  const int kIndexOffset    =
+      StandardFrameConstants::kExpressionsOffset - (2 * kPointerSize);
+  const int kLimitOffset    =
+      StandardFrameConstants::kExpressionsOffset - (1 * kPointerSize);
   const int kArgsOffset     =  2 * kPointerSize;
   const int kReceiverOffset =  3 * kPointerSize;
   const int kFunctionOffset =  4 * kPointerSize;
@@ -1343,7 +1345,8 @@ static void EnterArgumentsAdaptorFrame(MacroAssembler* masm) {
   __ Mov(x11, Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
   __ Push(lr, fp);
   __ Push(x11, x1, x10);
-  __ Add(fp, jssp, 3 * kPointerSize);
+  __ Add(fp, jssp,
+         StandardFrameConstants::kFixedFrameSizeFromFp + kPointerSize);
 }
 
 
@@ -1353,7 +1356,8 @@ static void LeaveArgumentsAdaptorFrame(MacroAssembler* masm) {
   // -----------------------------------
   // Get the number of arguments passed (as a smi), tear down the frame and
   // then drop the parameters and the receiver.
-  __ Ldr(x10, MemOperand(fp, -3 * kPointerSize));
+  __ Ldr(x10, MemOperand(fp, -(StandardFrameConstants::kFixedFrameSizeFromFp +
+                               kPointerSize)));
   __ Mov(jssp, fp);
   __ Pop(fp, lr);
   __ DropBySMI(x10, kXRegSizeInBytes);
@@ -1447,7 +1451,8 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     __ LoadRoot(x10, Heap::kUndefinedValueRootIndex);
     __ Sub(x11, fp, Operand(x2, LSL, kPointerSizeLog2));
     // Adjust for the arguments adaptor frame and already pushed receiver.
-    __ Sub(x11, x11, 4 * kPointerSize);
+    __ Sub(x11, x11,
+           StandardFrameConstants::kFixedFrameSizeFromFp + (2 * kPointerSize));
 
     // TODO(all): Optimize this to use ldp?
     Label fill;

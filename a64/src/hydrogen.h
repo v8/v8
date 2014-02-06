@@ -1256,6 +1256,7 @@ class HGraphBuilder {
 
   HValue* BuildCheckHeapObject(HValue* object);
   HValue* BuildCheckMap(HValue* obj, Handle<Map> map);
+  HValue* BuildCheckString(HValue* object, const char* failure_reason);
   HValue* BuildWrapReceiver(HValue* object, HValue* function);
 
   // Building common constructs
@@ -1338,14 +1339,14 @@ class HGraphBuilder {
                         HValue** operand,
                         HValue** shift_amount);
 
-  HInstruction* BuildBinaryOperation(Token::Value op,
-                                     HValue* left,
-                                     HValue* right,
-                                     Handle<Type> left_type,
-                                     Handle<Type> right_type,
-                                     Handle<Type> result_type,
-                                     Maybe<int> fixed_right_arg,
-                                     bool binop_stub = false);
+  HValue* BuildBinaryOperation(Token::Value op,
+                               HValue* left,
+                               HValue* right,
+                               Handle<Type> left_type,
+                               Handle<Type> right_type,
+                               Handle<Type> result_type,
+                               Maybe<int> fixed_right_arg,
+                               bool binop_stub = false);
 
   HLoadNamedField* AddLoadFixedArrayLength(HValue *object);
 
@@ -2154,6 +2155,8 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   bool IsCallNewArrayInlineable(CallNew* expr);
   void BuildInlinedCallNewArray(CallNew* expr);
 
+  void VisitDataViewInitialize(CallRuntime* expr);
+
   class PropertyAccessInfo {
    public:
     PropertyAccessInfo(Isolate* isolate, Handle<Map> map, Handle<String> name)
@@ -2272,9 +2275,9 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
 
   HInstruction* BuildStringCharCodeAt(HValue* string,
                                       HValue* index);
-  HInstruction* BuildBinaryOperation(BinaryOperation* expr,
-                                     HValue* left,
-                                     HValue* right);
+  HValue* BuildBinaryOperation(BinaryOperation* expr,
+                               HValue* left,
+                               HValue* right);
   HInstruction* BuildIncrement(bool returns_original_input,
                                CountOperation* expr);
   HInstruction* BuildLoadKeyedGeneric(HValue* object,

@@ -59,7 +59,6 @@
         ['component=="shared_library"', {
           'type': '<(component)',
           'sources': [
-            '../../src/defaults.cc',
             # Note: on non-Windows we still build this file so that gyp
             # has some sources to link into the component.
             '../../src/v8dll-main.cc',
@@ -911,10 +910,6 @@
           'defines': [
             'BUILDING_V8_SHARED',
             'V8_SHARED',
-          ],
-        }, {
-          'sources': [
-            '../../src/defaults.cc',
           ],
         }],
         ['v8_postmortem_support=="true"', {

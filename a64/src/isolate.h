@@ -76,7 +76,6 @@ class HTracer;
 class InlineRuntimeFunctionsTable;
 class NoAllocationStringAllocator;
 class InnerPointerToCodeCache;
-class PreallocatedMemoryThread;
 class RandomNumberGenerator;
 class RegExpStack;
 class SaveContext;
@@ -302,20 +301,6 @@ class ThreadLocalTop BASE_EMBEDDED {
 };
 
 
-class SystemThreadManager {
- public:
-  enum ParallelSystemComponent {
-    PARALLEL_SWEEPING,
-    CONCURRENT_SWEEPING,
-    CONCURRENT_RECOMPILATION
-  };
-
-  static int NumberOfParallelSystemThreads(ParallelSystemComponent type);
-
-  static const int kMaxThreads = 4;
-};
-
-
 #ifdef ENABLE_DEBUGGER_SUPPORT
 
 #define ISOLATE_DEBUGGER_INIT_LIST(V)                                          \
@@ -346,7 +331,7 @@ class SystemThreadManager {
   V(uint32_t, private_random_seed, 2)                                          \
   ISOLATE_INIT_DEBUG_ARRAY_LIST(V)
 
-typedef List<HeapObject*, PreallocatedStorageAllocationPolicy> DebugObjectCache;
+typedef List<HeapObject*> DebugObjectCache;
 
 #define ISOLATE_INIT_LIST(V)                                                   \
   /* SerializerDeserializer state. */                                          \
@@ -996,10 +981,6 @@ class Isolate {
     return &interp_canonicalize_mapping_;
   }
 
-  void* PreallocatedStorageNew(size_t size);
-  void PreallocatedStorageDelete(void* p);
-  void PreallocatedStorageInit(size_t size);
-
   inline bool IsCodePreAgingActive();
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
@@ -1116,18 +1097,40 @@ class Isolate {
   bool IsDeferredHandle(Object** location);
 #endif  // DEBUG
 
+  void set_max_available_threads(int value) {
+    max_available_threads_ = value;
+  }
+
+  bool concurrent_recompilation_enabled() {
+    // Thread is only available with flag enabled.
+    ASSERT(optimizing_compiler_thread_ == NULL ||
+           FLAG_concurrent_recompilation);
+    return optimizing_compiler_thread_ != NULL;
+  }
+
+  bool concurrent_osr_enabled() const {
+    // Thread is only available with flag enabled.
+    ASSERT(optimizing_compiler_thread_ == NULL ||
+           FLAG_concurrent_recompilation);
+    return optimizing_compiler_thread_ != NULL && FLAG_concurrent_osr;
+  }
+
   OptimizingCompilerThread* optimizing_compiler_thread() {
     return optimizing_compiler_thread_;
+  }
+
+  int num_sweeper_threads() const {
+    return num_sweeper_threads_;
+  }
+
+  SweeperThread** sweeper_threads() {
+    return sweeper_thread_;
   }
 
   // PreInits and returns a default isolate. Needed when a new thread tries
   // to create a Locker for the first time (the lock itself is in the isolate).
   // TODO(svenpanne) This method is on death row...
   static v8::Isolate* GetDefaultIsolateForLocking();
-
-  SweeperThread** sweeper_threads() {
-    return sweeper_thread_;
-  }
 
   int id() const { return static_cast<int>(id_); }
 
@@ -1239,8 +1242,6 @@ class Isolate {
   // at the same time, this should be prevented using external locking.
   void Exit();
 
-  void PreallocatedMemoryThreadStart();
-  void PreallocatedMemoryThreadStop();
   void InitializeThreadLocal();
 
   void PrintStackTrace(FILE* out, ThreadLocalTop* thread);
@@ -1263,10 +1264,7 @@ class Isolate {
   EntryStackItem* entry_stack_;
   int stack_trace_nesting_level_;
   StringStream* incomplete_message_;
-  // The preallocated memory thread singleton.
-  PreallocatedMemoryThread* preallocated_memory_thread_;
   Address isolate_addresses_[kIsolateAddressCount + 1];  // NOLINT
-  NoAllocationStringAllocator* preallocated_message_space_;
   Bootstrapper* bootstrapper_;
   RuntimeProfiler* runtime_profiler_;
   CompilationCache* compilation_cache_;
@@ -1293,9 +1291,6 @@ class Isolate {
   HandleScopeImplementer* handle_scope_implementer_;
   UnicodeCache* unicode_cache_;
   Zone runtime_zone_;
-  PreallocatedStorage in_use_list_;
-  PreallocatedStorage free_list_;
-  bool preallocated_storage_preallocated_;
   InnerPointerToCodeCache* inner_pointer_to_code_cache_;
   ConsStringIteratorOp* write_iterator_;
   GlobalHandles* global_handles_;
@@ -1379,6 +1374,11 @@ class Isolate {
   DeferredHandles* deferred_handles_head_;
   OptimizingCompilerThread* optimizing_compiler_thread_;
   SweeperThread** sweeper_thread_;
+  int num_sweeper_threads_;
+
+  // TODO(yangguo): This will become obsolete once ResourceConstraints
+  // becomes an argument to Isolate constructor.
+  int max_available_threads_;
 
   // Counts deopt points if deopt_every_n_times is enabled.
   unsigned int stress_deopt_count_;

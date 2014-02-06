@@ -30,6 +30,7 @@ import os
 import re
 import subprocess
 import sys
+import textwrap
 
 PERSISTFILE_BASENAME = "PERSISTFILE_BASENAME"
 TEMP_BRANCH = "TEMP_BRANCH"
@@ -67,12 +68,73 @@ def MSub(rexp, replacement, text):
   return re.sub(rexp, replacement, text, flags=re.MULTILINE)
 
 
+def Fill80(line):
+  return textwrap.fill(line, width=80, initial_indent="        ",
+                       subsequent_indent="        ")
+
+
 def GetLastChangeLogEntries(change_log_file):
   result = []
   for line in LinesInFile(change_log_file):
     if re.search(r"^\d{4}-\d{2}-\d{2}:", line) and result: break
     result.append(line)
   return "".join(result)
+
+
+def MakeChangeLogBody(commit_generator):
+  result = ""
+  for (title, body, author) in commit_generator():
+    # Add the commit's title line.
+    result += "%s\n" % title.rstrip()
+
+    # Add bug references.
+    result += MakeChangeLogBugReference(body)
+
+    # Append the commit's author for reference.
+    result += "%s\n\n" % author.rstrip()
+  return result
+
+
+def MakeChangeLogBugReference(body):
+  """Grep for "BUG=xxxx" lines in the commit message and convert them to
+  "(issue xxxx)".
+  """
+  crbugs = []
+  v8bugs = []
+
+  def AddIssues(text):
+    ref = re.match(r"^BUG[ \t]*=[ \t]*(.+)$", text.strip())
+    if not ref:
+      return
+    for bug in ref.group(1).split(","):
+      bug = bug.strip()
+      match = re.match(r"^v8:(\d+)$", bug)
+      if match: v8bugs.append(int(match.group(1)))
+      else:
+        match = re.match(r"^(?:chromium:)?(\d+)$", bug)
+        if match: crbugs.append(int(match.group(1)))
+
+  # Add issues to crbugs and v8bugs.
+  map(AddIssues, body.splitlines())
+
+  # Filter duplicates, sort, stringify.
+  crbugs = map(str, sorted(set(crbugs)))
+  v8bugs = map(str, sorted(set(v8bugs)))
+
+  bug_groups = []
+  def FormatIssues(prefix, bugs):
+    if len(bugs) > 0:
+      plural = "s" if len(bugs) > 1 else ""
+      bug_groups.append("%sissue%s %s" % (prefix, plural, ", ".join(bugs)))
+
+  FormatIssues("", v8bugs)
+  FormatIssues("Chromium ", crbugs)
+
+  if len(bug_groups) > 0:
+    # Format with 8 characters indentation and max 80 character lines.
+    return "%s\n" % Fill80("(%s)" % ", ".join(bug_groups))
+  else:
+    return ""
 
 
 # Some commands don't like the pipe, e.g. calling vi from within the script or
@@ -104,6 +166,7 @@ class Step(object):
   def __init__(self, text="", requires=None):
     self._text = text
     self._number = -1
+    self._options = None
     self._requires = requires
     self._side_effect_handler = DEFAULT_SIDE_EFFECT_HANDLER
 
@@ -140,8 +203,13 @@ class Step(object):
   def RunStep(self):
     raise NotImplementedError
 
-  def ReadLine(self):
-    return self._side_effect_handler.ReadLine()
+  def ReadLine(self, default=None):
+    # Don't prompt in forced mode.
+    if self._options and self._options.f and default is not None:
+      print "%s (forced)" % default
+      return default
+    else:
+      return self._side_effect_handler.ReadLine()
 
   def Git(self, args="", prefix="", pipe=True):
     return self._side_effect_handler.Command("git", args, prefix, pipe)
@@ -156,9 +224,14 @@ class Step(object):
     print "Exiting"
     raise Exception(msg)
 
+  def DieInForcedMode(self, msg=""):
+    if self._options and self._options.f:
+      msg = msg or "Not implemented in forced mode."
+      self.Die(msg)
+
   def Confirm(self, msg):
     print "%s [Y/n] " % msg,
-    answer = self.ReadLine()
+    answer = self.ReadLine(default="Y")
     return answer == "" or answer == "Y" or answer == "y"
 
   def DeleteBranch(self, name):
@@ -192,6 +265,8 @@ class Step(object):
     if not os.path.exists(self._config[DOT_GIT_LOCATION]):
       self.Die("This is not a git checkout, this script won't work for you.")
 
+    # TODO(machenbach): Don't use EDITOR in forced mode as soon as script is
+    # well tested.
     # Cancel if EDITOR is unset or not executable.
     if (not os.environ.get("EDITOR") or
         Command("which", os.environ["EDITOR"]) is None):
@@ -216,8 +291,10 @@ class Step(object):
     if self.Git("svn fetch") is None:
       self.Die("'git svn fetch' failed.")
 
+  def PrepareBranch(self):
     # Get ahold of a safe temporary branch and check it out.
-    if current_branch != self._config[TEMP_BRANCH]:
+    self.RestoreIfUnset("current_branch")
+    if self._state["current_branch"] != self._config[TEMP_BRANCH]:
       self.DeleteBranch(self._config[TEMP_BRANCH])
       self.Git("checkout -b %s" % self._config[TEMP_BRANCH])
 
@@ -261,6 +338,8 @@ class Step(object):
     answer = ""
     while answer != "LGTM":
       print "> ",
+      # TODO(machenbach): Add default="LGTM" to avoid prompt when script is
+      # well tested and when prepare push cl has TBR flag.
       answer = self.ReadLine()
       if answer != "LGTM":
         print "That was not 'LGTM'."
@@ -269,6 +348,7 @@ class Step(object):
     print("Applying the patch \"%s\" failed. Either type \"ABORT<Return>\", "
           "or resolve the conflicts, stage *all* touched files with "
           "'git add', and type \"RESOLVED<Return>\"")
+    self.DieInForcedMode()
     answer = ""
     while answer != "RESOLVED":
       if answer == "ABORT":
@@ -290,8 +370,36 @@ class UploadStep(Step):
     Step.__init__(self, "Upload for code review.")
 
   def RunStep(self):
-    print "Please enter the email address of a V8 reviewer for your patch: ",
-    reviewer = self.ReadLine()
+    if self._options and self._options.r:
+      print "Using account %s for review." % self._options.r
+      reviewer = self._options.r
+    else:
+      print "Please enter the email address of a V8 reviewer for your patch: ",
+      self.DieInForcedMode("A reviewer must be specified in forced mode.")
+      reviewer = self.ReadLine()
     args = "cl upload -r \"%s\" --send-mail" % reviewer
     if self.Git(args,pipe=False) is None:
       self.Die("'git cl upload' failed, please try again.")
+
+
+def RunScript(step_classes,
+              config,
+              options,
+              side_effect_handler=DEFAULT_SIDE_EFFECT_HANDLER):
+  state = {}
+  steps = []
+  number = 0
+
+  for step_class in step_classes:
+    # TODO(machenbach): Factory methods.
+    step = step_class()
+    step.SetNumber(number)
+    step.SetConfig(config)
+    step.SetOptions(options)
+    step.SetState(state)
+    step.SetSideEffectHandler(side_effect_handler)
+    steps.append(step)
+    number += 1
+
+  for step in steps[options.s:]:
+    step.Run()

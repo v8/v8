@@ -120,6 +120,39 @@ HeapObject* IC::GetCodeCacheHolder(Isolate* isolate,
 }
 
 
+InlineCacheHolderFlag IC::GetCodeCacheFlag(Type* type) {
+  if (type->Is(Type::Boolean()) ||
+      type->Is(Type::Number()) ||
+      type->Is(Type::String()) ||
+      type->Is(Type::Symbol())) {
+    return PROTOTYPE_MAP;
+  }
+  return OWN_MAP;
+}
+
+
+Handle<Map> IC::GetCodeCacheHolder(InlineCacheHolderFlag flag,
+                                   Type* type,
+                                   Isolate* isolate) {
+  if (flag == PROTOTYPE_MAP) {
+    Context* context = isolate->context()->native_context();
+    JSFunction* constructor;
+    if (type->Is(Type::Boolean())) {
+      constructor = context->boolean_function();
+    } else if (type->Is(Type::Number())) {
+      constructor = context->number_function();
+    } else if (type->Is(Type::String())) {
+      constructor = context->string_function();
+    } else {
+      ASSERT(type->Is(Type::Symbol()));
+      constructor = context->symbol_function();
+    }
+    return handle(JSObject::cast(constructor->instance_prototype())->map());
+  }
+  return type->AsClass();
+}
+
+
 } }  // namespace v8::internal
 
 #endif  // V8_IC_INL_H_

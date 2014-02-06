@@ -189,10 +189,7 @@ void StaticMarkingVisitor<StaticVisitor>::Initialize() {
 
   table_.Register(kVisitNativeContext, &VisitNativeContext);
 
-  table_.Register(kVisitAllocationSite,
-                  &FixedBodyVisitor<StaticVisitor,
-                  AllocationSite::BodyDescriptor,
-                  void>::Visit);
+  table_.Register(kVisitAllocationSite, &VisitAllocationSite);
 
   table_.Register(kVisitByteArray, &DataObjectVisitor::Visit);
 
@@ -385,6 +382,31 @@ void StaticMarkingVisitor<StaticVisitor>::VisitPropertyCell(
   StaticVisitor::VisitPointers(heap,
       HeapObject::RawField(object, PropertyCell::kPointerFieldsBeginOffset),
       HeapObject::RawField(object, PropertyCell::kPointerFieldsEndOffset));
+}
+
+
+template<typename StaticVisitor>
+void StaticMarkingVisitor<StaticVisitor>::VisitAllocationSite(
+    Map* map, HeapObject* object) {
+  Heap* heap = map->GetHeap();
+
+  Object** slot =
+      HeapObject::RawField(object, AllocationSite::kDependentCodeOffset);
+  if (FLAG_collect_maps) {
+    // Mark allocation site dependent codes array but do not push it onto
+    // marking stack, this will make references from it weak. We will clean
+    // dead codes when we iterate over allocation sites in
+    // ClearNonLiveReferences.
+    HeapObject* obj = HeapObject::cast(*slot);
+    heap->mark_compact_collector()->RecordSlot(slot, slot, obj);
+    StaticVisitor::MarkObjectWithoutPush(heap, obj);
+  } else {
+    StaticVisitor::VisitPointer(heap, slot);
+  }
+
+  StaticVisitor::VisitPointers(heap,
+      HeapObject::RawField(object, AllocationSite::kPointerFieldsBeginOffset),
+      HeapObject::RawField(object, AllocationSite::kPointerFieldsEndOffset));
 }
 
 

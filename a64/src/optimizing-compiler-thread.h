@@ -96,7 +96,12 @@ class OptimizingCompilerThread : public Thread {
     AddToOsrBuffer(NULL);
   }
 
+  static bool Enabled(int max_available) {
+    return (FLAG_concurrent_recompilation && max_available > 1);
+  }
+
 #ifdef DEBUG
+  static bool IsOptimizerThread(Isolate* isolate);
   bool IsOptimizerThread();
 #endif
 

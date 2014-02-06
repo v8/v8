@@ -4263,7 +4263,7 @@ TEST(OutOfMemory) {
   v8::ResourceConstraints constraints;
   constraints.set_max_young_space_size(256 * K);
   constraints.set_max_old_space_size(5 * K * K);
-  v8::SetResourceConstraints(&constraints);
+  v8::SetResourceConstraints(CcTest::isolate(), &constraints);
 
   // Execute a script that causes out of memory.
   LocalContext context;
@@ -4304,7 +4304,7 @@ TEST(OutOfMemoryNested) {
   v8::ResourceConstraints constraints;
   constraints.set_max_young_space_size(256 * K);
   constraints.set_max_old_space_size(5 * K * K);
-  v8::SetResourceConstraints(&constraints);
+  v8::SetResourceConstraints(CcTest::isolate(), &constraints);
 
   v8::HandleScope scope(CcTest::isolate());
   Local<ObjectTemplate> templ = ObjectTemplate::New();
@@ -4333,7 +4333,7 @@ TEST(HugeConsStringOutOfMemory) {
   v8::ResourceConstraints constraints;
   constraints.set_max_young_space_size(256 * K);
   constraints.set_max_old_space_size(4 * K * K);
-  v8::SetResourceConstraints(&constraints);
+  v8::SetResourceConstraints(CcTest::isolate(), &constraints);
 
   // Execute a script that causes out of memory.
   v8::V8::IgnoreOutOfMemoryException();
@@ -17172,7 +17172,7 @@ TEST(SetResourceConstraints) {
   // Set stack limit.
   v8::ResourceConstraints constraints;
   constraints.set_stack_limit(set_limit);
-  CHECK(v8::SetResourceConstraints(&constraints));
+  CHECK(v8::SetResourceConstraints(CcTest::isolate(), &constraints));
 
   // Execute a script.
   LocalContext env;
@@ -17196,7 +17196,7 @@ TEST(SetResourceConstraintsInThread) {
     // Set stack limit.
     v8::ResourceConstraints constraints;
     constraints.set_stack_limit(set_limit);
-    CHECK(v8::SetResourceConstraints(&constraints));
+    CHECK(v8::SetResourceConstraints(CcTest::isolate(), &constraints));
 
     // Execute a script.
     v8::HandleScope scope(CcTest::isolate());
@@ -18646,7 +18646,7 @@ class InitDefaultIsolateThread : public v8::internal::Thread {
       v8::ResourceConstraints constraints;
       constraints.set_max_young_space_size(256 * K);
       constraints.set_max_old_space_size(4 * K * K);
-      v8::SetResourceConstraints(&constraints);
+      v8::SetResourceConstraints(CcTest::isolate(), &constraints);
       break;
     }
 

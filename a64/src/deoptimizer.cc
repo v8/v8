@@ -181,7 +181,8 @@ DeoptimizedFrameInfo* Deoptimizer::DebuggerInspectableFrame(
   // Always use the actual stack slots when calculating the fp to sp
   // delta adding two for the function and context.
   unsigned stack_slots = code->stack_slots();
-  unsigned fp_to_sp_delta = ((stack_slots + 2) * kPointerSize);
+  unsigned fp_to_sp_delta = (stack_slots * kPointerSize) +
+      StandardFrameConstants::kFixedFrameSizeFromFp;
 
   Deoptimizer* deoptimizer = new Deoptimizer(isolate,
                                              function,
@@ -890,7 +891,8 @@ void Deoptimizer::DoComputeJSFrame(TranslationIterator* iterator,
     // If the optimized frame had alignment padding, adjust the frame pointer
     // to point to the new position of the old frame pointer after padding
     // is removed. Subtract 2 * kPointerSize for the context and function slots.
-    top_address = input_->GetRegister(fp_reg.code()) - (2 * kPointerSize) -
+    top_address = input_->GetRegister(fp_reg.code()) -
+        StandardFrameConstants::kFixedFrameSizeFromFp -
         height_in_bytes + has_alignment_padding_ * kPointerSize;
   } else {
     top_address = output_[frame_index - 1]->GetTop() - output_frame_size;
@@ -1303,14 +1305,14 @@ void Deoptimizer::DoComputeAccessorStubFrame(TranslationIterator* iterator,
            "  translating %s stub => height=%u\n", kind, height_in_bytes);
   }
 
-  // We need 1 stack entry for the return address + 4 stack entries from
-  // StackFrame::INTERNAL (FP, context, frame type, code object, see
+  // We need 1 stack entry for the return address and enough entries for the
+  // StackFrame::INTERNAL (FP, context, frame type and code object - see
   // MacroAssembler::EnterFrame). For a setter stub frame we need one additional
   // entry for the implicit return value, see
   // StoreStubCompiler::CompileStoreViaSetter.
-  unsigned fixed_frame_entries = (kPCOnStackSize / kPointerSize) +
-                                 (kFPOnStackSize / kPointerSize) + 3 +
-                                 (is_setter_stub_frame ? 1 : 0);
+  unsigned fixed_frame_entries =
+      (StandardFrameConstants::kFixedFrameSize / kPointerSize) + 1 +
+      (is_setter_stub_frame ? 1 : 0);
   unsigned fixed_frame_size = fixed_frame_entries * kPointerSize;
   unsigned output_frame_size = height_in_bytes + fixed_frame_size;
 
@@ -1483,7 +1485,7 @@ void Deoptimizer::DoComputeCompiledStubFrame(TranslationIterator* iterator,
   // context and function slots.
   Register fp_reg = StubFailureTrampolineFrame::fp_register();
   intptr_t top_address = input_->GetRegister(fp_reg.code()) -
-      (2 * kPointerSize) - height_in_bytes;
+      StandardFrameConstants::kFixedFrameSizeFromFp - height_in_bytes;
   output_frame->SetTop(top_address);
 
   // Read caller's PC (JSFunction continuation) from the input frame.
@@ -2454,8 +2456,9 @@ void Deoptimizer::DoTranslateCommand(TranslationIterator* iterator,
 unsigned Deoptimizer::ComputeInputFrameSize() const {
   unsigned fixed_size = ComputeFixedSize(function_);
   // The fp-to-sp delta already takes the context and the function
-  // into account so we have to avoid double counting them (-2).
-  unsigned result = fixed_size + fp_to_sp_delta_ - (2 * kPointerSize);
+  // into account so we have to avoid double counting them.
+  unsigned result = fixed_size + fp_to_sp_delta_ -
+      StandardFrameConstants::kFixedFrameSizeFromFp;
 #ifdef DEBUG
   if (compiled_code_->kind() == Code::OPTIMIZED_FUNCTION) {
     unsigned stack_slots = compiled_code_->stack_slots();

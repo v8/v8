@@ -1558,10 +1558,6 @@ LInstruction* LChunkBuilder::DoMod(HMod* instr) {
               instr->CheckFlag(HValue::kBailoutOnMinusZero))
           ? AssignEnvironment(result)
           : result;
-    } else if (instr->fixed_right_arg().has_value) {
-      LModI* mod = new(zone()) LModI(UseRegister(left),
-                                     UseRegisterAtStart(right),
-                                     NULL);
       return AssignEnvironment(DefineSameAsFirst(mod));
     } else {
       // The temporary operand is necessary to ensure that right is not
@@ -1892,13 +1888,36 @@ LInstruction* LChunkBuilder::DoSeqStringGetChar(HSeqStringGetChar* instr) {
 }
 
 
+LOperand* LChunkBuilder::GetSeqStringSetCharOperand(HSeqStringSetChar* instr) {
+  if (instr->encoding() == String::ONE_BYTE_ENCODING) {
+    if (FLAG_debug_code) {
+      return UseFixed(instr->value(), eax);
+    } else {
+      return UseFixedOrConstant(instr->value(), eax);
+    }
+  } else {
+    if (FLAG_debug_code) {
+      return UseRegisterAtStart(instr->value());
+    } else {
+      return UseRegisterOrConstantAtStart(instr->value());
+    }
+  }
+}
+
+
 LInstruction* LChunkBuilder::DoSeqStringSetChar(HSeqStringSetChar* instr) {
   LOperand* string = UseRegisterAtStart(instr->string());
-  LOperand* index = UseRegisterOrConstantAtStart(instr->index());
-  LOperand* value = (instr->encoding() == String::ONE_BYTE_ENCODING)
-      ? UseFixedOrConstant(instr->value(), eax)
-      : UseRegisterOrConstantAtStart(instr->value());
-  return new(zone()) LSeqStringSetChar(string, index, value);
+  LOperand* index = FLAG_debug_code
+      ? UseRegisterAtStart(instr->index())
+      : UseRegisterOrConstantAtStart(instr->index());
+  LOperand* value = GetSeqStringSetCharOperand(instr);
+  LOperand* context = FLAG_debug_code ? UseFixed(instr->context(), esi) : NULL;
+  LInstruction* result = new(zone()) LSeqStringSetChar(context, string,
+                                                       index, value);
+  if (FLAG_debug_code) {
+    result = MarkAsCall(result, instr);
+  }
+  return result;
 }
 
 
@@ -2656,6 +2675,8 @@ LInstruction* LChunkBuilder::DoTypeof(HTypeof* instr) {
 
 
 LInstruction* LChunkBuilder::DoTypeofIsAndBranch(HTypeofIsAndBranch* instr) {
+  LInstruction* goto_instr = CheckElideControlInstruction(instr);
+  if (goto_instr != NULL) return goto_instr;
   return new(zone()) LTypeofIsAndBranch(UseTempRegister(instr->value()));
 }
 

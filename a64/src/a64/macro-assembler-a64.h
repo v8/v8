@@ -940,6 +940,15 @@ class MacroAssembler : public Assembler {
                         Register scratch3,
                         Register scratch4);
 
+  // Throw a message string as an exception.
+  void Throw(BailoutReason reason);
+
+  // Throw a message string as an exception if a condition is not true.
+  void ThrowIf(Condition cc, BailoutReason reason);
+
+  // Throw a message string as an exception if the value is a smi.
+  void ThrowIfSmi(const Register& value, BailoutReason reason);
+
   void CallStub(CodeStub* stub, TypeFeedbackId ast_id = TypeFeedbackId::None());
   void TailCallStub(CodeStub* stub);
 
@@ -1462,6 +1471,10 @@ class MacroAssembler : public Assembler {
 
   // ---------------------------------------------------------------------------
   // Inline caching support.
+
+  void EmitSeqStringSetCharCheck(Register string,
+                                 Register index,    // Smi
+                                 uint32_t encoding_mask);
 
   // Generate code for checking access rights - used for security checks
   // on access to global objects across environments. The holder register

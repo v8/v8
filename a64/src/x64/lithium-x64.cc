@@ -1469,11 +1469,6 @@ LInstruction* LChunkBuilder::DoMod(HMod* instr) {
               instr->CheckFlag(HValue::kBailoutOnMinusZero))
           ? AssignEnvironment(result)
           : result;
-    } else if (instr->fixed_right_arg().has_value) {
-      LModI* mod = new(zone()) LModI(UseRegister(left),
-                                     UseRegisterAtStart(right),
-                                     NULL);
-      return AssignEnvironment(DefineSameAsFirst(mod));
     } else {
       // The temporary operand is necessary to ensure that right is not
       // allocated into edx.
@@ -1796,9 +1791,19 @@ LInstruction* LChunkBuilder::DoSeqStringGetChar(HSeqStringGetChar* instr) {
 
 LInstruction* LChunkBuilder::DoSeqStringSetChar(HSeqStringSetChar* instr) {
   LOperand* string = UseRegisterAtStart(instr->string());
-  LOperand* index = UseRegisterOrConstantAtStart(instr->index());
-  LOperand* value = UseRegisterOrConstantAtStart(instr->value());
-  return new(zone()) LSeqStringSetChar(string, index, value);
+  LOperand* index = FLAG_debug_code
+      ? UseRegisterAtStart(instr->index())
+      : UseRegisterOrConstantAtStart(instr->index());
+  LOperand* value = FLAG_debug_code
+      ? UseRegisterAtStart(instr->value())
+      : UseRegisterOrConstantAtStart(instr->value());
+  LOperand* context = FLAG_debug_code ? UseFixed(instr->context(), rsi) : NULL;
+  LInstruction* result = new(zone()) LSeqStringSetChar(context, string,
+                                                       index, value);
+  if (FLAG_debug_code) {
+    result = MarkAsCall(result, instr);
+  }
+  return result;
 }
 
 
@@ -2504,6 +2509,9 @@ LInstruction* LChunkBuilder::DoTypeof(HTypeof* instr) {
 
 
 LInstruction* LChunkBuilder::DoTypeofIsAndBranch(HTypeofIsAndBranch* instr) {
+  LInstruction* goto_instr = CheckElideControlInstruction(instr);
+  if (goto_instr != NULL) return goto_instr;
+
   return new(zone()) LTypeofIsAndBranch(UseTempRegister(instr->value()));
 }
 

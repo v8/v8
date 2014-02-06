@@ -1216,6 +1216,7 @@ class MaybeObject BASE_EMBEDDED {
   V(kNonSmiIndex, "Non-smi index")                                            \
   V(kNonSmiKeyInArrayLiteral, "Non-smi key in array literal")                 \
   V(kNonSmiValue, "Non-smi value")                                            \
+  V(kNonObject, "Non-object value")                                           \
   V(kNotEnoughVirtualRegistersForValues,                                      \
     "not enough virtual registers for values")                                \
   V(kNotEnoughSpillSlotsForOsr,                                               \
@@ -1391,10 +1392,6 @@ class Object : public MaybeObject {
   inline bool IsFixedArrayBase();
   inline bool IsExternal();
   inline bool IsAccessorInfo();
-
-  // Returns true if this object is an instance of the specified
-  // function template.
-  inline bool IsInstanceOf(FunctionTemplateInfo* type);
 
   inline bool IsStruct();
 #define DECLARE_STRUCT_PREDICATE(NAME, Name, name) inline bool Is##Name();
@@ -3411,10 +3408,6 @@ class DescriptorArray: public FixedArray {
   bool IsEqualTo(DescriptorArray* other);
 #endif
 
-  // The maximum number of descriptors we want in a descriptor array (should
-  // fit in a page).
-  static const int kMaxNumberOfDescriptors = 1024 + 512;
-
   // Returns the fixed array length required to hold number_of_descriptors
   // descriptors.
   static int LengthFor(int number_of_descriptors) {
@@ -5078,12 +5071,7 @@ class Code: public HeapObject {
   // Types of stubs.
   enum StubType {
     NORMAL,
-    FIELD,
-    CONSTANT,
-    CALLBACKS,
-    INTERCEPTOR,
-    TRANSITION,
-    NONEXISTENT
+    FAST
   };
 
   typedef int ExtraICState;
@@ -5283,6 +5271,7 @@ class Code: public HeapObject {
   // Find the first map in an IC stub.
   Map* FindFirstMap();
   void FindAllMaps(MapHandleList* maps);
+  void FindAllTypes(TypeHandleList* types);
   void ReplaceFirstMap(Map* replace);
 
   // Find the first handler in an IC stub.
@@ -5508,7 +5497,7 @@ class Code: public HeapObject {
 
   // Flags layout.  BitField<type, shift, size>.
   class ICStateField: public BitField<InlineCacheState, 0, 3> {};
-  class TypeField: public BitField<StubType, 3, 3> {};
+  class TypeField: public BitField<StubType, 3, 1> {};
   class CacheHolderField: public BitField<InlineCacheHolderFlag, 6, 1> {};
   class KindField: public BitField<Kind, 7, 4> {};
   class IsPregeneratedField: public BitField<bool, 11, 1> {};
@@ -5750,17 +5739,20 @@ class Map: public HeapObject {
   inline uint32_t bit_field3();
   inline void set_bit_field3(uint32_t bits);
 
-  class EnumLengthBits:             public BitField<int,   0, 11> {};
-  class NumberOfOwnDescriptorsBits: public BitField<int,  11, 11> {};
-  class IsShared:                   public BitField<bool, 22,  1> {};
-  class FunctionWithPrototype:      public BitField<bool, 23,  1> {};
-  class DictionaryMap:              public BitField<bool, 24,  1> {};
-  class OwnsDescriptors:            public BitField<bool, 25,  1> {};
-  class HasInstanceCallHandler:     public BitField<bool, 26,  1> {};
-  class Deprecated:                 public BitField<bool, 27,  1> {};
-  class IsFrozen:                   public BitField<bool, 28,  1> {};
-  class IsUnstable:                 public BitField<bool, 29,  1> {};
-  class IsMigrationTarget:          public BitField<bool, 30,  1> {};
+  class EnumLengthBits:             public BitField<int,
+      0, kDescriptorIndexBitCount> {};  // NOLINT
+  class NumberOfOwnDescriptorsBits: public BitField<int,
+      kDescriptorIndexBitCount, kDescriptorIndexBitCount> {};  // NOLINT
+  STATIC_ASSERT(kDescriptorIndexBitCount + kDescriptorIndexBitCount == 20);
+  class IsShared:                   public BitField<bool, 20,  1> {};
+  class FunctionWithPrototype:      public BitField<bool, 21,  1> {};
+  class DictionaryMap:              public BitField<bool, 22,  1> {};
+  class OwnsDescriptors:            public BitField<bool, 23,  1> {};
+  class HasInstanceCallHandler:     public BitField<bool, 24,  1> {};
+  class Deprecated:                 public BitField<bool, 25,  1> {};
+  class IsFrozen:                   public BitField<bool, 26,  1> {};
+  class IsUnstable:                 public BitField<bool, 27,  1> {};
+  class IsMigrationTarget:          public BitField<bool, 28,  1> {};
 
   // Tells whether the object in the prototype property will be used
   // for instances created from this function.  If the prototype
@@ -6075,7 +6067,7 @@ class Map: public HeapObject {
   }
 
   void SetEnumLength(int length) {
-    if (length != kInvalidEnumCache) {
+    if (length != kInvalidEnumCacheSentinel) {
       ASSERT(length >= 0);
       ASSERT(length == 0 || instance_descriptors()->HasEnumCache());
       ASSERT(length <= NumberOfOwnDescriptors());
@@ -6292,9 +6284,6 @@ class Map: public HeapObject {
                                             Handle<Map> target_map);
 
   static const int kMaxPreAllocatedPropertyFields = 255;
-
-  // Constant for denoting that the enum cache is not yet initialized.
-  static const int kInvalidEnumCache = EnumLengthBits::kMax;
 
   // Layout description.
   static const int kInstanceSizesOffset = HeapObject::kHeaderSize;
@@ -8233,6 +8222,12 @@ class AllocationSite: public Struct {
   static const int kWeakNextOffset = kDependentCodeOffset + kPointerSize;
   static const int kSize = kWeakNextOffset + kPointerSize;
 
+  // During mark compact we need to take special care for the dependent code
+  // field.
+  static const int kPointerFieldsBeginOffset = kTransitionInfoOffset;
+  static const int kPointerFieldsEndOffset = kDependentCodeOffset;
+
+  // For other visitors, use the fixed body descriptor below.
   typedef FixedBodyDescriptor<HeapObject::kHeaderSize,
                               kDependentCodeOffset + kPointerSize,
                               kSize> BodyDescriptor;
@@ -10309,6 +10304,10 @@ class FunctionTemplateInfo: public TemplateInfo {
   static const int kFlagOffset = kAccessCheckInfoOffset + kPointerSize;
   static const int kLengthOffset = kFlagOffset + kPointerSize;
   static const int kSize = kLengthOffset + kPointerSize;
+
+  // Returns true if |object| is an instance of this function template.
+  bool IsTemplateFor(Object* object);
+  bool IsTemplateFor(Map* map);
 
  private:
   // Bit position in the flag, from least significant bit position.

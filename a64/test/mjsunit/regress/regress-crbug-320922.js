@@ -25,24 +25,24 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_V8_DEFAULTS_H_
-#define V8_V8_DEFAULTS_H_
+// Flags: --allow-natives-syntax
 
-#include "v8.h"
+var string = "hello world";
+var expected = "Hello " + "world";
+function Capitalize() {
+  %_OneByteSeqStringSetChar(string, 0, 0x48);
+}
+Capitalize();
+assertEquals(expected, string);
+Capitalize();
+assertEquals(expected, string);
 
-/**
- * Default configuration support for the V8 JavaScript engine.
- */
-namespace v8 {
+var twobyte = "\u20ACello world";
 
-V8_DEPRECATED("Use ResourceConstraints::ConfigureDefaults instead",
-    bool V8_EXPORT ConfigureResourceConstraintsForCurrentPlatform(
-        ResourceConstraints* constraints));
-
-
-V8_DEPRECATED("Use ResourceConstraints::ConfigureDefaults instead",
-    bool V8_EXPORT SetDefaultResourceConstraintsForCurrentPlatform());
-
-}  // namespace v8
-
-#endif  // V8_V8_DEFAULTS_H_
+function TwoByteCapitalize() {
+  %_TwoByteSeqStringSetChar(twobyte, 0, 0x48);
+}
+TwoByteCapitalize();
+assertEquals(expected, twobyte);
+TwoByteCapitalize();
+assertEquals(expected, twobyte);

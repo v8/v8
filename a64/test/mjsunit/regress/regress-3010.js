@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2013 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,25 +25,41 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_ALLOCATION_INL_H_
-#define V8_ALLOCATION_INL_H_
+(function() {
+  function testOneSize(current_size) {
+    var eval_string = 'obj = {';
+    for (var current = 0; current <= current_size; ++current) {
+      eval_string += 'k' + current + ':' + current + ','
+    }
+    eval_string += '};';
+    eval(eval_string);
+    for (var i = 0; i <= current_size; i++) {
+      assertEquals(i, obj['k'+i]);
+    }
+    var current_number = 0;
+    for (var x in obj) {
+      assertEquals(current_number, obj[x]);
+      current_number++;
+    }
+  }
 
-#include "allocation.h"
+  testOneSize(127);
+  testOneSize(128);
+  testOneSize(129);
 
-namespace v8 {
-namespace internal {
+  testOneSize(255);
+  testOneSize(256);
+  testOneSize(257);
 
+  testOneSize(511);
+  testOneSize(512);
+  testOneSize(513);
 
-void* PreallocatedStorageAllocationPolicy::New(size_t size) {
-  return Isolate::Current()->PreallocatedStorageNew(size);
-}
+  testOneSize(1023);
+  testOneSize(1024);
+  testOneSize(1025);
 
-
-void PreallocatedStorageAllocationPolicy::Delete(void* p) {
-  return Isolate::Current()->PreallocatedStorageDelete(p);
-}
-
-
-} }  // namespace v8::internal
-
-#endif  // V8_ALLOCATION_INL_H_
+  testOneSize(2047);
+  testOneSize(2048);
+  testOneSize(2049);
+}())

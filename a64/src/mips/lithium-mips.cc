@@ -1826,10 +1826,13 @@ LInstruction* LChunkBuilder::DoSeqStringGetChar(HSeqStringGetChar* instr) {
 
 
 LInstruction* LChunkBuilder::DoSeqStringSetChar(HSeqStringSetChar* instr) {
-  LOperand* string = UseRegister(instr->string());
-  LOperand* index = UseRegisterOrConstant(instr->index());
-  LOperand* value = UseRegister(instr->value());
-  return new(zone()) LSeqStringSetChar(string, index, value);
+  LOperand* string = UseRegisterAtStart(instr->string());
+  LOperand* index = FLAG_debug_code
+      ? UseRegisterAtStart(instr->index())
+      : UseRegisterOrConstantAtStart(instr->index());
+  LOperand* value = UseRegisterAtStart(instr->value());
+  LOperand* context = FLAG_debug_code ? UseFixed(instr->context(), cp) : NULL;
+  return new(zone()) LSeqStringSetChar(context, string, index, value);
 }
 
 
@@ -2501,6 +2504,9 @@ LInstruction* LChunkBuilder::DoTypeof(HTypeof* instr) {
 
 
 LInstruction* LChunkBuilder::DoTypeofIsAndBranch(HTypeofIsAndBranch* instr) {
+  LInstruction* goto_instr = CheckElideControlInstruction(instr);
+  if (goto_instr != NULL) return goto_instr;
+
   return new(zone()) LTypeofIsAndBranch(UseTempRegister(instr->value()));
 }
 

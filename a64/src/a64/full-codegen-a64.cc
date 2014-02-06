@@ -3235,33 +3235,6 @@ void FullCodeGenerator::EmitDateField(CallRuntime* expr) {
 }
 
 
-void FullCodeGenerator::EmitSeqStringSetCharCheck(Register string,
-                                                  Register index,
-                                                  Register value,
-                                                  uint32_t encoding_mask) {
-  // TODO(jbramley): Use a safer scratch register.
-  Register scratch = __ Tmp1();
-  ASSERT(!AreAliased(string, index, value, scratch));
-
-  __ AssertSmi(index);
-  __ AssertSmi(value);
-
-  __ Ldr(scratch, FieldMemOperand(string, String::kLengthOffset));
-  __ Cmp(index, scratch);
-  __ Check(lt, kIndexIsTooLarge);
-
-  __ Cmp(index, Operand(Smi::FromInt(0)));
-  __ Check(ge, kIndexIsNegative);
-
-  __ Ldr(scratch, FieldMemOperand(string, HeapObject::kMapOffset));
-  __ Ldrb(scratch, FieldMemOperand(scratch, Map::kInstanceTypeOffset));
-  __ And(scratch, scratch, kStringRepresentationMask | kStringEncodingMask);
-
-  __ Cmp(scratch, encoding_mask);
-  __ Check(eq, kUnexpectedStringType);
-}
-
-
 void FullCodeGenerator::EmitOneByteSeqStringSetChar(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   ASSERT_EQ(3, args->length());
@@ -3274,12 +3247,17 @@ void FullCodeGenerator::EmitOneByteSeqStringSetChar(CallRuntime* expr) {
   VisitForStackValue(args->at(1));  // index
   VisitForStackValue(args->at(2));  // value
   VisitForAccumulatorValue(args->at(0));  // string
-  // TODO(jbramley): This is broken on ARM, but fixed on bleeding_edge.
   __ Pop(value, index);
 
   if (FLAG_debug_code) {
+    Label both_smis;
+    __ JumpIfBothSmi(value, index, &both_smis);
+    __ Throw(kNonSmiValue);
+    __ Throw(kNonSmiIndex);
+    __ Bind(&both_smis);
+
     static const uint32_t one_byte_seq_type = kSeqStringTag | kOneByteStringTag;
-    EmitSeqStringSetCharCheck(string, index, value, one_byte_seq_type);
+    __ EmitSeqStringSetCharCheck(string, index, one_byte_seq_type);
   }
 
   __ Add(scratch, string, SeqOneByteString::kHeaderSize - kHeapObjectTag);
@@ -3302,12 +3280,17 @@ void FullCodeGenerator::EmitTwoByteSeqStringSetChar(CallRuntime* expr) {
   VisitForStackValue(args->at(1));  // index
   VisitForStackValue(args->at(2));  // value
   VisitForAccumulatorValue(args->at(0));  // string
-  // TODO(jbramley): This is broken on ARM, but fixed on bleeding_edge.
   __ Pop(value, index);
 
   if (FLAG_debug_code) {
+    Label both_smis;
+    __ JumpIfBothSmi(value, index, &both_smis);
+    __ Throw(kNonSmiValue);
+    __ Throw(kNonSmiIndex);
+    __ Bind(&both_smis);
+
     static const uint32_t two_byte_seq_type = kSeqStringTag | kTwoByteStringTag;
-    EmitSeqStringSetCharCheck(string, index, value, two_byte_seq_type);
+    __ EmitSeqStringSetCharCheck(string, index, two_byte_seq_type);
   }
 
   __ Add(scratch, string, SeqTwoByteString::kHeaderSize - kHeapObjectTag);

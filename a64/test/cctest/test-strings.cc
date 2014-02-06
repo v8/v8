@@ -1213,7 +1213,7 @@ TEST(AsciiArrayJoin) {
   v8::ResourceConstraints constraints;
   constraints.set_max_young_space_size(256 * K);
   constraints.set_max_old_space_size(4 * K * K);
-  v8::SetResourceConstraints(&constraints);
+  v8::SetResourceConstraints(CcTest::isolate(), &constraints);
 
   // String s is made of 2^17 = 131072 'c' characters and a is an array
   // starting with 'bad', followed by 2^14 times the string s. That means the

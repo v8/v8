@@ -911,6 +911,7 @@ LInstruction* LChunkBuilder::DoBoundsCheckBaseIndexInformation(
 
 
 LInstruction* LChunkBuilder::DoAccessArgumentsAt(HAccessArgumentsAt* instr) {
+  // TODO(all): Try to improve this, like ARM r17925.
   info()->MarkAsRequiresFrame();
   LOperand* args = NULL;
   LOperand* length = NULL;
@@ -2403,6 +2404,9 @@ LInstruction* LChunkBuilder::DoTypeof(HTypeof* instr) {
 
 
 LInstruction* LChunkBuilder::DoTypeofIsAndBranch(HTypeofIsAndBranch* instr) {
+  LInstruction* goto_instr = CheckElideControlInstruction(instr);
+  if (goto_instr != NULL) return goto_instr;
+
   // We only need temp registers in some cases, but we can't dereference the
   // instr->type_literal() handle to test that here.
   LOperand* temp1 = TempRegister();

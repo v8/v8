@@ -285,6 +285,7 @@ struct DwVfpRegister {
   // Any code included in the snapshot must be able to run both with 16 or 32
   // registers.
   inline static int NumRegisters();
+  inline static int NumReservedRegisters();
   inline static int NumAllocatableRegisters();
 
   inline static int ToAllocationIndex(DwVfpRegister reg);

@@ -757,7 +757,8 @@ bool LCodeGen::GenerateDeferredCode() {
         __ Push(lr, fp, cp);
         __ Mov(fp, Operand(Smi::FromInt(StackFrame::STUB)));
         __ Push(fp);
-        __ Add(fp, __ StackPointer(), 2 * kPointerSize);
+        __ Add(fp, __ StackPointer(),
+               StandardFrameConstants::kFixedFrameSizeFromFp);
         Comment(";;; Deferred code");
       }
 
@@ -1348,6 +1349,7 @@ void LCodeGen::DoGap(LGap* gap) {
 
 
 void LCodeGen::DoAccessArgumentsAt(LAccessArgumentsAt* instr) {
+  // TODO(all): Try to improve this, like ARM r17925.
   Register arguments = ToRegister(instr->arguments());
   Register result = ToRegister(instr->result());
 
@@ -4575,17 +4577,13 @@ void LCodeGen::DoSeqStringSetChar(LSeqStringSetChar* instr) {
   Register temp = ToRegister(instr->temp());
 
   if (FLAG_debug_code) {
-    __ Ldr(temp, FieldMemOperand(string, HeapObject::kMapOffset));
-    __ Ldrb(temp, FieldMemOperand(temp, Map::kInstanceTypeOffset));
-    __ And(temp, temp, kStringRepresentationMask | kStringEncodingMask);
-
     if (encoding == String::ONE_BYTE_ENCODING) {
-      __ Cmp(temp, kSeqStringTag | kOneByteStringTag);
-      __ Check(eq, kUnexpectedStringType);
+      __ EmitSeqStringSetCharCheck(
+          string, index, kSeqStringTag | kOneByteStringTag);
     } else {
       ASSERT(encoding == String::TWO_BYTE_ENCODING);
-      __ Cmp(temp, kSeqStringTag | kTwoByteStringTag);
-      __ Check(eq, kUnexpectedStringType);
+      __ EmitSeqStringSetCharCheck(
+          string, index, kSeqStringTag | kTwoByteStringTag);
     }
   }
 

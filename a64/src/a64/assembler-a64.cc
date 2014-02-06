@@ -348,6 +348,7 @@ void Assembler::GetCode(CodeDesc* desc) {
     desc->instr_size = pc_offset();
     desc->reloc_size = (reinterpret_cast<byte*>(buffer_) + buffer_size_) -
                        reloc_info_writer.pos();
+    desc->origin = this;
   }
 
 #ifdef DEBUG

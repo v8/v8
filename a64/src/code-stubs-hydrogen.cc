@@ -896,17 +896,17 @@ HValue* CodeStubGraphBuilder<BinaryOpStub>::BuildCodeInitializedStub() {
       if_leftisstring.If<HIsStringAndBranch>(left);
       if_leftisstring.Then();
       {
-        Push(AddInstruction(BuildBinaryOperation(
+        Push(BuildBinaryOperation(
                     stub->operation(), left, right,
                     handle(Type::String(), isolate()), right_type,
-                    result_type, stub->fixed_right_arg(), true)));
+                    result_type, stub->fixed_right_arg(), true));
       }
       if_leftisstring.Else();
       {
-        Push(AddInstruction(BuildBinaryOperation(
+        Push(BuildBinaryOperation(
                     stub->operation(), left, right,
                     left_type, right_type, result_type,
-                    stub->fixed_right_arg(), true)));
+                    stub->fixed_right_arg(), true));
       }
       if_leftisstring.End();
       result = Pop();
@@ -915,26 +915,26 @@ HValue* CodeStubGraphBuilder<BinaryOpStub>::BuildCodeInitializedStub() {
       if_rightisstring.If<HIsStringAndBranch>(right);
       if_rightisstring.Then();
       {
-        Push(AddInstruction(BuildBinaryOperation(
+        Push(BuildBinaryOperation(
                     stub->operation(), left, right,
                     left_type, handle(Type::String(), isolate()),
-                    result_type, stub->fixed_right_arg(), true)));
+                    result_type, stub->fixed_right_arg(), true));
       }
       if_rightisstring.Else();
       {
-        Push(AddInstruction(BuildBinaryOperation(
+        Push(BuildBinaryOperation(
                     stub->operation(), left, right,
                     left_type, right_type, result_type,
-                    stub->fixed_right_arg(), true)));
+                    stub->fixed_right_arg(), true));
       }
       if_rightisstring.End();
       result = Pop();
     }
   } else {
-    result = AddInstruction(BuildBinaryOperation(
+    result = BuildBinaryOperation(
             stub->operation(), left, right,
             left_type, right_type, result_type,
-            stub->fixed_right_arg(), true));
+            stub->fixed_right_arg(), true);
   }
 
   // If we encounter a generic argument, the number conversion is

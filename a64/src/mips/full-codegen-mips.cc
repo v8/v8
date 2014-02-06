@@ -3516,29 +3516,6 @@ void FullCodeGenerator::EmitDateField(CallRuntime* expr) {
 }
 
 
-void FullCodeGenerator::EmitSeqStringSetCharCheck(Register string,
-                                                  Register index,
-                                                  Register value,
-                                                  uint32_t encoding_mask) {
-  __ And(at, index, Operand(kSmiTagMask));
-  __ Check(eq, kNonSmiIndex, at, Operand(zero_reg));
-  __ And(at, value, Operand(kSmiTagMask));
-  __ Check(eq, kNonSmiValue, at, Operand(zero_reg));
-
-  __ lw(at, FieldMemOperand(string, String::kLengthOffset));
-  __ Check(lt, kIndexIsTooLarge, index, Operand(at));
-
-  __ Check(ge, kIndexIsNegative, index, Operand(zero_reg));
-
-  __ lw(at, FieldMemOperand(string, HeapObject::kMapOffset));
-  __ lbu(at, FieldMemOperand(at, Map::kInstanceTypeOffset));
-
-  __ And(at, at, Operand(kStringRepresentationMask | kStringEncodingMask));
-  __ Subu(at, at, Operand(encoding_mask));
-  __ Check(eq, kUnexpectedStringType, at, Operand(zero_reg));
-}
-
-
 void FullCodeGenerator::EmitOneByteSeqStringSetChar(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   ASSERT_EQ(3, args->length());
@@ -3549,12 +3526,20 @@ void FullCodeGenerator::EmitOneByteSeqStringSetChar(CallRuntime* expr) {
 
   VisitForStackValue(args->at(1));  // index
   VisitForStackValue(args->at(2));  // value
-  __ Pop(index, value);
   VisitForAccumulatorValue(args->at(0));  // string
+  __ Pop(index, value);
 
   if (FLAG_debug_code) {
+    __ And(at, value, Operand(kSmiTagMask));
+    __ ThrowIf(ne, kNonSmiValue, at, Operand(zero_reg));
+    __ And(at, index, Operand(kSmiTagMask));
+    __ ThrowIf(ne, kNonSmiIndex, at, Operand(zero_reg));
+    __ SmiUntag(index, index);
     static const uint32_t one_byte_seq_type = kSeqStringTag | kOneByteStringTag;
-    EmitSeqStringSetCharCheck(string, index, value, one_byte_seq_type);
+    Register scratch = t5;
+    __ EmitSeqStringSetCharCheck(
+        string, index, value, scratch, one_byte_seq_type);
+    __ SmiTag(index, index);
   }
 
   __ SmiUntag(value, value);
@@ -3578,12 +3563,20 @@ void FullCodeGenerator::EmitTwoByteSeqStringSetChar(CallRuntime* expr) {
 
   VisitForStackValue(args->at(1));  // index
   VisitForStackValue(args->at(2));  // value
-  __ Pop(index, value);
   VisitForAccumulatorValue(args->at(0));  // string
+  __ Pop(index, value);
 
   if (FLAG_debug_code) {
+    __ And(at, value, Operand(kSmiTagMask));
+    __ ThrowIf(ne, kNonSmiValue, at, Operand(zero_reg));
+    __ And(at, index, Operand(kSmiTagMask));
+    __ ThrowIf(ne, kNonSmiIndex, at, Operand(zero_reg));
+    __ SmiUntag(index, index);
     static const uint32_t two_byte_seq_type = kSeqStringTag | kTwoByteStringTag;
-    EmitSeqStringSetCharCheck(string, index, value, two_byte_seq_type);
+    Register scratch = t5;
+    __ EmitSeqStringSetCharCheck(
+        string, index, value, scratch, two_byte_seq_type);
+    __ SmiTag(index, index);
   }
 
   __ SmiUntag(value, value);

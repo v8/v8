@@ -3485,31 +3485,6 @@ void FullCodeGenerator::EmitDateField(CallRuntime* expr) {
 }
 
 
-void FullCodeGenerator::EmitSeqStringSetCharCheck(Register string,
-                                                  Register index,
-                                                  Register value,
-                                                  uint32_t encoding_mask) {
-  __ SmiTst(index);
-  __ Check(eq, kNonSmiIndex);
-  __ SmiTst(value);
-  __ Check(eq, kNonSmiValue);
-
-  __ ldr(ip, FieldMemOperand(string, String::kLengthOffset));
-  __ cmp(index, ip);
-  __ Check(lt, kIndexIsTooLarge);
-
-  __ cmp(index, Operand(Smi::FromInt(0)));
-  __ Check(ge, kIndexIsNegative);
-
-  __ ldr(ip, FieldMemOperand(string, HeapObject::kMapOffset));
-  __ ldrb(ip, FieldMemOperand(ip, Map::kInstanceTypeOffset));
-
-  __ and_(ip, ip, Operand(kStringRepresentationMask | kStringEncodingMask));
-  __ cmp(ip, Operand(encoding_mask));
-  __ Check(eq, kUnexpectedStringType);
-}
-
-
 void FullCodeGenerator::EmitOneByteSeqStringSetChar(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   ASSERT_EQ(3, args->length());
@@ -3520,12 +3495,18 @@ void FullCodeGenerator::EmitOneByteSeqStringSetChar(CallRuntime* expr) {
 
   VisitForStackValue(args->at(1));  // index
   VisitForStackValue(args->at(2));  // value
-  __ Pop(index, value);
   VisitForAccumulatorValue(args->at(0));  // string
+  __ Pop(index, value);
 
   if (FLAG_debug_code) {
+    __ SmiTst(value);
+    __ ThrowIf(ne, kNonSmiValue);
+    __ SmiTst(index);
+    __ ThrowIf(ne, kNonSmiIndex);
+    __ SmiUntag(index, index);
     static const uint32_t one_byte_seq_type = kSeqStringTag | kOneByteStringTag;
-    EmitSeqStringSetCharCheck(string, index, value, one_byte_seq_type);
+    __ EmitSeqStringSetCharCheck(string, index, value, one_byte_seq_type);
+    __ SmiTag(index, index);
   }
 
   __ SmiUntag(value, value);
@@ -3547,12 +3528,18 @@ void FullCodeGenerator::EmitTwoByteSeqStringSetChar(CallRuntime* expr) {
 
   VisitForStackValue(args->at(1));  // index
   VisitForStackValue(args->at(2));  // value
-  __ Pop(index, value);
   VisitForAccumulatorValue(args->at(0));  // string
+  __ Pop(index, value);
 
   if (FLAG_debug_code) {
+    __ SmiTst(value);
+    __ ThrowIf(ne, kNonSmiValue);
+    __ SmiTst(index);
+    __ ThrowIf(ne, kNonSmiIndex);
+    __ SmiUntag(index, index);
     static const uint32_t two_byte_seq_type = kSeqStringTag | kTwoByteStringTag;
-    EmitSeqStringSetCharCheck(string, index, value, two_byte_seq_type);
+    __ EmitSeqStringSetCharCheck(string, index, value, two_byte_seq_type);
+    __ SmiTag(index, index);
   }
 
   __ SmiUntag(value, value);

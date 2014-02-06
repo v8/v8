@@ -586,6 +586,14 @@ void BinaryOpStub::UpdateStatus(Handle<Object> left,
   ASSERT(result_state_ <= (has_int_result() ? INT32 : NUMBER) ||
          op_ == Token::ADD);
 
+  // Reset overwrite mode unless we can actually make use of it, or may be able
+  // to make use of it at some point in the future.
+  if ((mode_ == OVERWRITE_LEFT && left_state_ > NUMBER) ||
+      (mode_ == OVERWRITE_RIGHT && right_state_ > NUMBER) ||
+      result_state_ > NUMBER) {
+    mode_ = NO_OVERWRITE;
+  }
+
   if (old_state == GetExtraICState()) {
     // Tagged operations can lead to non-truncating HChanges
     if (left->IsUndefined() || left->IsBoolean()) {

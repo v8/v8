@@ -995,7 +995,7 @@ void MacroAssembler::CheckEnumCache(Register object,
   Ldr(map, FieldMemOperand(current_object, HeapObject::kMapOffset));
 
   EnumLengthUntagged(enum_length, map);
-  Cmp(enum_length, Map::kInvalidEnumCache);
+  Cmp(enum_length, kInvalidEnumCacheSentinel);
   B(eq, call_runtime);
 
   B(&start);
@@ -1166,6 +1166,48 @@ void MacroAssembler::ThrowUncatchable(Register value,
   Pop(object, state, cp, fp);
 
   JumpToHandlerEntry(value, object, state, scratch3, scratch4);
+}
+
+
+void MacroAssembler::Throw(BailoutReason reason) {
+  Label throw_start;
+  Bind(&throw_start);
+#ifdef DEBUG
+  const char* msg = GetBailoutReason(reason);
+  RecordComment("Throw message: ");
+  RecordComment((msg != NULL) ? msg : "UNKNOWN");
+#endif
+
+  Mov(x0, Operand(Smi::FromInt(reason)));
+  Push(x0);
+
+  // Disable stub call restrictions to always allow calls to throw.
+  if (!has_frame_) {
+    // We don't actually want to generate a pile of code for this, so just
+    // claim there is a stack frame, without generating one.
+    FrameScope scope(this, StackFrame::NONE);
+    CallRuntime(Runtime::kThrowMessage, 1);
+  } else {
+    CallRuntime(Runtime::kThrowMessage, 1);
+  }
+  // ThrowMessage should not return here.
+  Unreachable();
+}
+
+
+void MacroAssembler::ThrowIf(Condition cc, BailoutReason reason) {
+  Label ok;
+  B(InvertCondition(cc), &ok);
+  Throw(reason);
+  Bind(&ok);
+}
+
+
+void MacroAssembler::ThrowIfSmi(const Register& value, BailoutReason reason) {
+  Label ok;
+  JumpIfNotSmi(value, &ok);
+  Throw(reason);
+  Bind(&ok);
 }
 
 
@@ -2591,7 +2633,7 @@ void MacroAssembler::Prologue(PrologueFrameMode frame_mode) {
     // Compiled stubs don't age, and so they don't need the predictable code
     // ageing sequence.
     __ Push(lr, fp, cp, Tmp0());
-    __ Add(fp, jssp, 2 * kPointerSize);
+    __ Add(fp, jssp, StandardFrameConstants::kFixedFrameSizeFromFp);
   } else {
     TODO_UNIMPLEMENTED("Prologue: Support IsCodePreAgingActive().");
     __ EmitFrameSetupForCodeAgePatching();
@@ -2612,7 +2654,7 @@ void MacroAssembler::EnterFrame(StackFrame::Type type) {
   // jssp[0] : code object
 
   // Adjust FP to point to saved FP.
-  add(fp, jssp, 3 * kXRegSizeInBytes);
+  add(fp, jssp, StandardFrameConstants::kFixedFrameSizeFromFp + kPointerSize);
 }
 
 
@@ -3574,6 +3616,34 @@ void MacroAssembler::IndexFromHash(Register hash, Register index) {
   STATIC_ASSERT(kSmiTag == 0);
   Ubfx(hash, hash, String::kHashShift, String::kArrayIndexValueBits);
   SmiTag(index, hash);
+}
+
+
+void MacroAssembler::EmitSeqStringSetCharCheck(Register string,
+                                               Register index,
+                                               uint32_t encoding_mask) {
+  Register scratch = __ Tmp1();
+  ASSERT(!AreAliased(string, index, scratch));
+
+  AssertSmi(index);
+
+  // Check that string is an object.
+  ThrowIfSmi(string, kNonObject);
+
+  // Check that string has an appropriate map.
+  Ldr(scratch, FieldMemOperand(string, HeapObject::kMapOffset));
+  Ldrb(scratch, FieldMemOperand(scratch, Map::kInstanceTypeOffset));
+  And(scratch, scratch, kStringRepresentationMask | kStringEncodingMask);
+  Cmp(scratch, encoding_mask);
+  ThrowIf(ne, kUnexpectedStringType);
+
+  // Check that the index points inside the string.
+  Ldr(scratch, FieldMemOperand(string, String::kLengthOffset));
+  Cmp(index, scratch);
+  ThrowIf(ge, kIndexIsTooLarge);
+
+  Cmp(index, Operand(Smi::FromInt(0)));
+  ThrowIf(lt, kIndexIsNegative);
 }
 
 
@@ -4648,7 +4718,7 @@ void MacroAssembler::EmitFrameSetupForCodeAgePatching(Assembler * assm) {
   __ sub(csp, csp, 4 * kXRegSizeInBytes);
   __ stp(x1, cp, MemOperand(jssp, 0 * kXRegSizeInBytes));
   __ stp(fp, lr, MemOperand(jssp, 2 * kXRegSizeInBytes));
-  __ add(fp, jssp, 2 * kXRegSizeInBytes);
+  __ add(fp, jssp, StandardFrameConstants::kFixedFrameSizeFromFp);
 
   __ AssertSizeOfCodeGeneratedSince(&start, kCodeAgeSequenceSize);
 }

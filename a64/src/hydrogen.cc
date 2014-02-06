@@ -1275,6 +1275,20 @@ HValue* HGraphBuilder::BuildCheckMap(HValue* obj, Handle<Map> map) {
 }
 
 
+HValue* HGraphBuilder::BuildCheckString(
+    HValue* object, const char* failure_reason) {
+  if (!object->type().IsString()) {
+    ASSERT(!object->IsConstant() ||
+           !HConstant::cast(object)->HasStringValue());
+    IfBuilder if_isstring(this);
+    if_isstring.If<HIsStringAndBranch>(object);
+    if_isstring.Then();
+    if_isstring.ElseDeopt(failure_reason);
+  }
+  return object;
+}
+
+
 HValue* HGraphBuilder::BuildWrapReceiver(HValue* object, HValue* function) {
   if (object->type().IsJSObject()) return object;
   return Add<HWrapReceiver>(object, function);
@@ -1303,7 +1317,7 @@ HValue* HGraphBuilder::BuildCheckForCapacityGrow(HValue* object,
   capacity_checker.Then();
 
   HValue* max_gap = Add<HConstant>(static_cast<int32_t>(JSObject::kMaxGap));
-  HValue* max_capacity = Add<HAdd>(current_capacity, max_gap);
+  HValue* max_capacity = AddUncasted<HAdd>(current_capacity, max_gap);
   IfBuilder key_checker(this);
   key_checker.If<HCompareNumericAndBranch>(key, max_capacity, Token::LT);
   key_checker.Then();
@@ -1420,14 +1434,14 @@ HValue* HGraphBuilder::BuildUncheckedDictionaryElementLoadHelper(
   int32_t offset = SeededNumberDictionary::GetProbeOffset(current_probe);
   HValue* raw_index = (current_probe == 0)
       ? hash
-      : Add<HAdd>(hash, Add<HConstant>(offset));
-  raw_index = Add<HBitwise>(Token::BIT_AND, raw_index, mask);
+      : AddUncasted<HAdd>(hash, Add<HConstant>(offset));
+  raw_index = AddUncasted<HBitwise>(Token::BIT_AND, raw_index, mask);
   int32_t entry_size = SeededNumberDictionary::kEntrySize;
-  raw_index = Add<HMul>(raw_index, Add<HConstant>(entry_size));
+  raw_index = AddUncasted<HMul>(raw_index, Add<HConstant>(entry_size));
   raw_index->ClearFlag(HValue::kCanOverflow);
 
   int32_t base_offset = SeededNumberDictionary::kElementsStartIndex;
-  HValue* key_index = Add<HAdd>(raw_index, Add<HConstant>(base_offset));
+  HValue* key_index = AddUncasted<HAdd>(raw_index, Add<HConstant>(base_offset));
   key_index->ClearFlag(HValue::kCanOverflow);
 
   HValue* candidate_key = Add<HLoadKeyed>(elements, key_index,
@@ -1452,8 +1466,8 @@ HValue* HGraphBuilder::BuildUncheckedDictionaryElementLoadHelper(
   {
     // Key at current probe matches. Details must be zero, otherwise the
     // dictionary element requires special handling.
-    HValue* details_index = Add<HAdd>(raw_index,
-                                    Add<HConstant>(base_offset + 2));
+    HValue* details_index = AddUncasted<HAdd>(
+        raw_index, Add<HConstant>(base_offset + 2));
     details_index->ClearFlag(HValue::kCanOverflow);
 
     HValue* details = Add<HLoadKeyed>(elements, details_index,
@@ -1469,8 +1483,8 @@ HValue* HGraphBuilder::BuildUncheckedDictionaryElementLoadHelper(
     {
       // Key matches and details are zero --> fast case. Load and return the
       // value.
-      HValue* result_index = Add<HAdd>(raw_index,
-                                       Add<HConstant>(base_offset + 1));
+      HValue* result_index = AddUncasted<HAdd>(
+          raw_index, Add<HConstant>(base_offset + 1));
       result_index->ClearFlag(HValue::kCanOverflow);
 
       Push(Add<HLoadKeyed>(elements, result_index,
@@ -1488,33 +1502,33 @@ HValue* HGraphBuilder::BuildUncheckedDictionaryElementLoadHelper(
 HValue* HGraphBuilder::BuildElementIndexHash(HValue* index) {
   int32_t seed_value = static_cast<uint32_t>(isolate()->heap()->HashSeed());
   HValue* seed = Add<HConstant>(seed_value);
-  HValue* hash = Add<HBitwise>(Token::BIT_XOR, index, seed);
+  HValue* hash = AddUncasted<HBitwise>(Token::BIT_XOR, index, seed);
 
   // hash = ~hash + (hash << 15);
-  HValue* shifted_hash = Add<HShl>(hash, Add<HConstant>(15));
-  HValue* not_hash = Add<HBitwise>(Token::BIT_XOR, hash,
-                                   graph()->GetConstantMinus1());
-  hash = Add<HAdd>(shifted_hash, not_hash);
+  HValue* shifted_hash = AddUncasted<HShl>(hash, Add<HConstant>(15));
+  HValue* not_hash = AddUncasted<HBitwise>(Token::BIT_XOR, hash,
+                                           graph()->GetConstantMinus1());
+  hash = AddUncasted<HAdd>(shifted_hash, not_hash);
 
   // hash = hash ^ (hash >> 12);
-  shifted_hash = Add<HShr>(hash, Add<HConstant>(12));
-  hash = Add<HBitwise>(Token::BIT_XOR, hash, shifted_hash);
+  shifted_hash = AddUncasted<HShr>(hash, Add<HConstant>(12));
+  hash = AddUncasted<HBitwise>(Token::BIT_XOR, hash, shifted_hash);
 
   // hash = hash + (hash << 2);
-  shifted_hash = Add<HShl>(hash, Add<HConstant>(2));
-  hash = Add<HAdd>(hash, shifted_hash);
+  shifted_hash = AddUncasted<HShl>(hash, Add<HConstant>(2));
+  hash = AddUncasted<HAdd>(hash, shifted_hash);
 
   // hash = hash ^ (hash >> 4);
-  shifted_hash = Add<HShr>(hash, Add<HConstant>(4));
-  hash = Add<HBitwise>(Token::BIT_XOR, hash, shifted_hash);
+  shifted_hash = AddUncasted<HShr>(hash, Add<HConstant>(4));
+  hash = AddUncasted<HBitwise>(Token::BIT_XOR, hash, shifted_hash);
 
   // hash = hash * 2057;
-  hash = Add<HMul>(hash, Add<HConstant>(2057));
+  hash = AddUncasted<HMul>(hash, Add<HConstant>(2057));
   hash->ClearFlag(HValue::kCanOverflow);
 
   // hash = hash ^ (hash >> 16);
-  shifted_hash = Add<HShr>(hash, Add<HConstant>(16));
-  return Add<HBitwise>(Token::BIT_XOR, hash, shifted_hash);
+  shifted_hash = AddUncasted<HShr>(hash, Add<HConstant>(16));
+  return AddUncasted<HBitwise>(Token::BIT_XOR, hash, shifted_hash);
 }
 
 
@@ -1543,6 +1557,13 @@ HValue* HGraphBuilder::BuildNumberToString(HValue* object,
                                            Handle<Type> type) {
   NoObservableSideEffectsScope scope(this);
 
+  // Convert constant numbers at compile time.
+  if (object->IsConstant() && HConstant::cast(object)->HasNumberValue()) {
+    Handle<Object> number = HConstant::cast(object)->handle(isolate());
+    Handle<String> result = isolate()->factory()->NumberToString(number);
+    return Add<HConstant>(result);
+  }
+
   // Create a joinable continuation.
   HIfContinuation found(graph()->CreateBasicBlock(),
                         graph()->CreateBasicBlock());
@@ -1564,10 +1585,10 @@ HValue* HGraphBuilder::BuildNumberToString(HValue* object,
   if_objectissmi.Then();
   {
     // Compute hash for smi similar to smi_get_hash().
-    HValue* hash = Add<HBitwise>(Token::BIT_AND, object, mask);
+    HValue* hash = AddUncasted<HBitwise>(Token::BIT_AND, object, mask);
 
     // Load the key.
-    HValue* key_index = Add<HShl>(hash, graph()->GetConstant1());
+    HValue* key_index = AddUncasted<HShl>(hash, graph()->GetConstant1());
     HValue* key = Add<HLoadKeyed>(number_string_cache, key_index,
                                   static_cast<HValue*>(NULL),
                                   FAST_ELEMENTS, ALLOW_RETURN_HOLE);
@@ -1598,11 +1619,11 @@ HValue* HGraphBuilder::BuildNumberToString(HValue* object,
             object, HObjectAccess::ForHeapNumberValueLowestBits());
         HValue* high = Add<HLoadNamedField>(
             object, HObjectAccess::ForHeapNumberValueHighestBits());
-        HValue* hash = Add<HBitwise>(Token::BIT_XOR, low, high);
-        hash = Add<HBitwise>(Token::BIT_AND, hash, mask);
+        HValue* hash = AddUncasted<HBitwise>(Token::BIT_XOR, low, high);
+        hash = AddUncasted<HBitwise>(Token::BIT_AND, hash, mask);
 
         // Load the key.
-        HValue* key_index = Add<HShl>(hash, graph()->GetConstant1());
+        HValue* key_index = AddUncasted<HShl>(hash, graph()->GetConstant1());
         HValue* key = Add<HLoadKeyed>(number_string_cache, key_index,
                                       static_cast<HValue*>(NULL),
                                       FAST_ELEMENTS, ALLOW_RETURN_HOLE);
@@ -1648,7 +1669,7 @@ HValue* HGraphBuilder::BuildNumberToString(HValue* object,
 
     // Load the value in case of cache hit.
     HValue* key_index = Pop();
-    HValue* value_index = Add<HAdd>(key_index, graph()->GetConstant1());
+    HValue* value_index = AddUncasted<HAdd>(key_index, graph()->GetConstant1());
     Push(Add<HLoadKeyed>(number_string_cache, value_index,
                          static_cast<HValue*>(NULL),
                          FAST_ELEMENTS, ALLOW_RETURN_HOLE));
@@ -1673,14 +1694,14 @@ HValue* HGraphBuilder::BuildSeqStringSizeFor(HValue* length,
   STATIC_ASSERT((SeqString::kHeaderSize & kObjectAlignmentMask) == 0);
   HValue* size = length;
   if (encoding == String::TWO_BYTE_ENCODING) {
-    size = Add<HShl>(length, graph()->GetConstant1());
+    size = AddUncasted<HShl>(length, graph()->GetConstant1());
     size->ClearFlag(HValue::kCanOverflow);
     size->SetFlag(HValue::kUint32);
   }
-  size = Add<HAdd>(size, Add<HConstant>(static_cast<int32_t>(
+  size = AddUncasted<HAdd>(size, Add<HConstant>(static_cast<int32_t>(
               SeqString::kHeaderSize + kObjectAlignmentMask)));
   size->ClearFlag(HValue::kCanOverflow);
-  size = Add<HBitwise>(
+  size = AddUncasted<HBitwise>(
       Token::BIT_AND, size, Add<HConstant>(static_cast<int32_t>(
               ~kObjectAlignmentMask)));
   return size;
@@ -1699,9 +1720,9 @@ void HGraphBuilder::BuildCopySeqStringChars(HValue* src,
   LoopBuilder loop(this, context(), LoopBuilder::kPostIncrement);
   HValue* index = loop.BeginBody(graph()->GetConstant0(), length, Token::LT);
   {
-    HValue* src_index = Add<HAdd>(src_offset, index);
+    HValue* src_index = AddUncasted<HAdd>(src_offset, index);
     HValue* value = Add<HSeqStringGetChar>(src_encoding, src, src_index);
-    HValue* dst_index = Add<HAdd>(dst_offset, index);
+    HValue* dst_index = AddUncasted<HAdd>(dst_offset, index);
     Add<HSeqStringSetChar>(dst_encoding, dst, dst_index, value);
   }
   loop.EndBody();
@@ -1746,11 +1767,11 @@ HValue* HGraphBuilder::BuildUncheckedStringAdd(HValue* left,
         HObjectAccess::ForMapInstanceType());
 
     // Compute difference of instance types.
-    HValue* xored_instance_types = Add<HBitwise>(
+    HValue* xored_instance_types = AddUncasted<HBitwise>(
         Token::BIT_XOR, left_instance_type, right_instance_type);
 
     // Compute the length of the resulting string.
-    HValue* length = Add<HAdd>(left_length, right_length);
+    HValue* length = AddUncasted<HAdd>(left_length, right_length);
 
     // Check if we should create a cons string.
     IfBuilder if_createcons(this);
@@ -1767,7 +1788,7 @@ HValue* HGraphBuilder::BuildUncheckedStringAdd(HValue* left,
                                          CONS_STRING_TYPE);
 
       // Compute the intersection of instance types.
-      HValue* anded_instance_types = Add<HBitwise>(
+      HValue* anded_instance_types = AddUncasted<HBitwise>(
           Token::BIT_AND, left_instance_type, right_instance_type);
 
       // We create a one-byte cons string if
@@ -1783,7 +1804,7 @@ HValue* HGraphBuilder::BuildUncheckedStringAdd(HValue* left,
       STATIC_ASSERT(kOneByteStringTag != 0);
       STATIC_ASSERT(kOneByteDataHintMask != 0);
       if_onebyte.If<HCompareNumericAndBranch>(
-          Add<HBitwise>(
+          AddUncasted<HBitwise>(
               Token::BIT_AND, anded_instance_types,
               Add<HConstant>(static_cast<int32_t>(
                       kStringEncodingMask | kOneByteDataHintMask))),
@@ -1793,7 +1814,7 @@ HValue* HGraphBuilder::BuildUncheckedStringAdd(HValue* left,
                     kOneByteDataHintTag != 0 &&
                     kOneByteDataHintTag != kOneByteStringTag);
       if_onebyte.If<HCompareNumericAndBranch>(
-          Add<HBitwise>(
+          AddUncasted<HBitwise>(
               Token::BIT_AND, xored_instance_types,
               Add<HConstant>(static_cast<int32_t>(
                       kOneByteStringTag | kOneByteDataHintTag))),
@@ -1827,21 +1848,21 @@ HValue* HGraphBuilder::BuildUncheckedStringAdd(HValue* left,
     if_createcons.Else();
     {
       // Compute union of instance types.
-      HValue* ored_instance_types = Add<HBitwise>(
+      HValue* ored_instance_types = AddUncasted<HBitwise>(
           Token::BIT_OR, left_instance_type, right_instance_type);
 
       // Check if both strings have the same encoding and both are
       // sequential.
       IfBuilder if_sameencodingandsequential(this);
       if_sameencodingandsequential.If<HCompareNumericAndBranch>(
-          Add<HBitwise>(
+          AddUncasted<HBitwise>(
               Token::BIT_AND, xored_instance_types,
               Add<HConstant>(static_cast<int32_t>(kStringEncodingMask))),
           graph()->GetConstant0(), Token::EQ);
       if_sameencodingandsequential.And();
       STATIC_ASSERT(kSeqStringTag == 0);
       if_sameencodingandsequential.If<HCompareNumericAndBranch>(
-          Add<HBitwise>(
+          AddUncasted<HBitwise>(
               Token::BIT_AND, ored_instance_types,
               Add<HConstant>(static_cast<int32_t>(kStringRepresentationMask))),
           graph()->GetConstant0(), Token::EQ);
@@ -1851,7 +1872,7 @@ HValue* HGraphBuilder::BuildUncheckedStringAdd(HValue* left,
         IfBuilder if_onebyte(this);
         STATIC_ASSERT(kOneByteStringTag != 0);
         if_onebyte.If<HCompareNumericAndBranch>(
-            Add<HBitwise>(
+            AddUncasted<HBitwise>(
                 Token::BIT_AND, ored_instance_types,
                 Add<HConstant>(static_cast<int32_t>(kStringEncodingMask))),
             graph()->GetConstant0(), Token::NE);
@@ -1870,6 +1891,11 @@ HValue* HGraphBuilder::BuildUncheckedStringAdd(HValue* left,
 
           // We can safely skip the write barrier for storing map here.
           AddStoreMapConstantNoWriteBarrier(string, map);
+
+          // Length must be stored into the string before we copy characters to
+          // make debug verification code happy.
+          Add<HStoreNamedField>(string, HObjectAccess::ForStringLength(),
+                                length);
 
           // Copy bytes from the left string.
           BuildCopySeqStringChars(
@@ -1902,6 +1928,11 @@ HValue* HGraphBuilder::BuildUncheckedStringAdd(HValue* left,
           // We can safely skip the write barrier for storing map here.
           AddStoreMapConstantNoWriteBarrier(string, map);
 
+          // Length must be stored into the string before we copy characters to
+          // make debug verification code happy.
+          Add<HStoreNamedField>(string, HObjectAccess::ForStringLength(),
+                                length);
+
           // Copy bytes from the left string.
           BuildCopySeqStringChars(
               left, graph()->GetConstant0(), String::TWO_BYTE_ENCODING,
@@ -1923,8 +1954,6 @@ HValue* HGraphBuilder::BuildUncheckedStringAdd(HValue* left,
         HValue* string = Pop();
         Add<HStoreNamedField>(string, HObjectAccess::ForStringHashField(),
                               Add<HConstant>(String::kEmptyHashField));
-        Add<HStoreNamedField>(string, HObjectAccess::ForStringLength(),
-                              length);
         Push(string);
       }
       if_sameencodingandsequential.JoinContinuation(&handled);
@@ -2080,7 +2109,7 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
   // deopt, leaving the backing store in an invalid state.
   if (is_store && IsFastSmiElementsKind(elements_kind) &&
       !val->type().IsSmi()) {
-    val = Add<HForceRepresentation>(val, Representation::Smi());
+    val = AddUncasted<HForceRepresentation>(val, Representation::Smi());
   }
 
   if (IsGrowStoreMode(store_mode)) {
@@ -2166,11 +2195,11 @@ HValue* HGraphBuilder::BuildAllocateElements(ElementsKind kind,
   }
 
   HConstant* elements_size_value = Add<HConstant>(elements_size);
-  HValue* mul = Add<HMul>(capacity, elements_size_value);
+  HValue* mul = AddUncasted<HMul>(capacity, elements_size_value);
   mul->ClearFlag(HValue::kCanOverflow);
 
   HConstant* header_size = Add<HConstant>(FixedArray::kHeaderSize);
-  HValue* total_size = Add<HAdd>(mul, header_size);
+  HValue* total_size = AddUncasted<HAdd>(mul, header_size);
   total_size->ClearFlag(HValue::kCanOverflow);
 
   return Add<HAllocate>(total_size, HType::JSArray(),
@@ -2197,7 +2226,7 @@ HValue* HGraphBuilder::BuildAllocateElementsAndInitializeElementsHeader(
     HValue* capacity) {
   // The HForceRepresentation is to prevent possible deopt on int-smi
   // conversion after allocation but before the new object fields are set.
-  capacity = Add<HForceRepresentation>(capacity, Representation::Smi());
+  capacity = AddUncasted<HForceRepresentation>(capacity, Representation::Smi());
   HValue* new_elements = BuildAllocateElements(kind, capacity);
   BuildInitializeElementsHeader(new_elements, kind, capacity);
   return new_elements;
@@ -2716,10 +2745,12 @@ HValue* HGraphBuilder::JSArrayBuilder::AllocateArray(HValue* size_in_bytes,
   // These HForceRepresentations are because we store these as fields in the
   // objects we construct, and an int32-to-smi HChange could deopt. Accept
   // the deopt possibility now, before allocation occurs.
-  capacity = builder()->Add<HForceRepresentation>(capacity,
-                                                  Representation::Smi());
-  length_field = builder()->Add<HForceRepresentation>(length_field,
-                                                      Representation::Smi());
+  capacity =
+      builder()->AddUncasted<HForceRepresentation>(capacity,
+                                                   Representation::Smi());
+  length_field =
+      builder()->AddUncasted<HForceRepresentation>(length_field,
+                                                   Representation::Smi());
   // Allocate (dealing with failure appropriately)
   HAllocate* new_object = builder()->Add<HAllocate>(size_in_bytes,
       HType::JSArray(), NOT_TENURED, JS_ARRAY_TYPE);
@@ -2906,7 +2937,7 @@ HBasicBlock* HGraph::CreateBasicBlock() {
 
 void HGraph::FinalizeUniqueness() {
   DisallowHeapAllocation no_gc;
-  ASSERT(!isolate()->optimizing_compiler_thread()->IsOptimizerThread());
+  ASSERT(!OptimizingCompilerThread::IsOptimizerThread(isolate()));
   for (int i = 0; i < blocks()->length(); ++i) {
     for (HInstructionIterator it(blocks()->at(i)); !it.Done(); it.Advance()) {
       it.Current()->FinalizeUniqueness();
@@ -4496,7 +4527,7 @@ void HOptimizedGraphBuilder::VisitForInStatement(ForInStatement* stmt) {
     set_current_block(body_exit);
 
     HValue* current_index = Pop();
-    Push(Add<HAdd>(current_index, graph()->GetConstant1()));
+    Push(AddUncasted<HAdd>(current_index, graph()->GetConstant1()));
     body_exit = current_block();
   }
 
@@ -5926,12 +5957,7 @@ void HOptimizedGraphBuilder::HandleCompoundAssignment(Assignment* expr) {
     HValue* right = Pop();
     HValue* left = Pop();
 
-    HInstruction* instr = BuildBinaryOperation(operation, left, right);
-    AddInstruction(instr);
-    Push(instr);
-    if (instr->HasObservableSideEffects()) {
-      Add<HSimulate>(operation->id(), REMOVABLE_SIMULATE);
-    }
+    Push(BuildBinaryOperation(operation, left, right));
     BuildStore(expr, prop, expr->id(),
                expr->AssignmentId(), expr->IsUninitialized());
   } else {
@@ -8054,6 +8080,52 @@ const HOptimizedGraphBuilder::InlineFunctionGenerator
 #undef INLINE_FUNCTION_GENERATOR_ADDRESS
 
 
+void HOptimizedGraphBuilder::VisitDataViewInitialize(
+    CallRuntime* expr) {
+  ZoneList<Expression*>* arguments = expr->arguments();
+
+  NoObservableSideEffectsScope scope(this);
+  ASSERT(arguments->length()== 4);
+  CHECK_ALIVE(VisitForValue(arguments->at(0)));
+  HValue* obj = Pop();
+
+  CHECK_ALIVE(VisitForValue(arguments->at(1)));
+  HValue* buffer = Pop();
+
+  CHECK_ALIVE(VisitForValue(arguments->at(2)));
+  HValue* byte_offset = Pop();
+
+  CHECK_ALIVE(VisitForValue(arguments->at(3)));
+  HValue* byte_length = Pop();
+
+  for (int offset = JSDataView::kSize;
+        offset < JSDataView::kSizeWithInternalFields;
+        offset += kPointerSize) {
+    Add<HStoreNamedField>(obj,
+        HObjectAccess::ForJSObjectOffset(offset),
+        Add<HConstant>(static_cast<int32_t>(0)));
+  }
+
+  Add<HStoreNamedField>(obj,
+      HObjectAccess::ForJSObjectOffset(JSDataView::kBufferOffset), buffer);
+  Add<HStoreNamedField>(obj,
+      HObjectAccess::ForJSObjectOffset(JSDataView::kByteOffsetOffset),
+      byte_offset);
+  Add<HStoreNamedField>(obj,
+      HObjectAccess::ForJSObjectOffset(JSDataView::kByteLengthOffset),
+      byte_length);
+
+  Add<HStoreNamedField>(obj,
+      HObjectAccess::ForJSObjectOffset(JSDataView::kWeakNextOffset),
+      Add<HLoadNamedField>(buffer,
+          HObjectAccess::ForJSObjectOffset(
+            JSArrayBuffer::kWeakFirstViewOffset)));
+  Add<HStoreNamedField>(buffer,
+      HObjectAccess::ForJSObjectOffset(JSArrayBuffer::kWeakFirstViewOffset),
+      obj);
+}
+
+
 void HOptimizedGraphBuilder::VisitCallRuntime(CallRuntime* expr) {
   ASSERT(!HasStackOverflow());
   ASSERT(current_block() != NULL);
@@ -8064,6 +8136,11 @@ void HOptimizedGraphBuilder::VisitCallRuntime(CallRuntime* expr) {
 
   const Runtime::Function* function = expr->function();
   ASSERT(function != NULL);
+
+  if (function->function_id == Runtime::kDataViewInitialize) {
+      return VisitDataViewInitialize(expr);
+  }
+
   if (function->intrinsic_type == Runtime::INLINE) {
     ASSERT(expr->name()->length() > 0);
     ASSERT(expr->name()->Get(0) == '_');
@@ -8218,7 +8295,7 @@ HInstruction* HOptimizedGraphBuilder::BuildIncrement(
     // actual HChange instruction we need is (sometimes) added in a later
     // phase, so it is not available now to be used as an input to HAdd and
     // as the return value.
-    HInstruction* number_input = Add<HForceRepresentation>(Pop(), rep);
+    HInstruction* number_input = AddUncasted<HForceRepresentation>(Pop(), rep);
     if (!rep.IsDouble()) {
       number_input->SetFlag(HInstruction::kFlexibleRepresentation);
       number_input->SetFlag(HInstruction::kCannotBeTagged);
@@ -8465,10 +8542,11 @@ bool CanBeZero(HValue* right) {
 HValue* HGraphBuilder::EnforceNumberType(HValue* number,
                                          Handle<Type> expected) {
   if (expected->Is(Type::Smi())) {
-    return Add<HForceRepresentation>(number, Representation::Smi());
+    return AddUncasted<HForceRepresentation>(number, Representation::Smi());
   }
   if (expected->Is(Type::Signed32())) {
-    return Add<HForceRepresentation>(number, Representation::Integer32());
+    return AddUncasted<HForceRepresentation>(number,
+                                             Representation::Integer32());
   }
   return number;
 }
@@ -8515,7 +8593,7 @@ HValue* HGraphBuilder::TruncateToNumber(HValue* value, Handle<Type>* expected) {
 }
 
 
-HInstruction* HOptimizedGraphBuilder::BuildBinaryOperation(
+HValue* HOptimizedGraphBuilder::BuildBinaryOperation(
     BinaryOperation* expr,
     HValue* left,
     HValue* right) {
@@ -8524,12 +8602,22 @@ HInstruction* HOptimizedGraphBuilder::BuildBinaryOperation(
   Handle<Type> result_type = expr->bounds().lower;
   Maybe<int> fixed_right_arg = expr->fixed_right_arg();
 
-  return HGraphBuilder::BuildBinaryOperation(expr->op(), left, right,
-      left_type, right_type, result_type, fixed_right_arg);
+  HValue* result = HGraphBuilder::BuildBinaryOperation(
+      expr->op(), left, right, left_type, right_type,
+      result_type, fixed_right_arg);
+  // Add a simulate after instructions with observable side effects, and
+  // after phis, which are the result of BuildBinaryOperation when we
+  // inlined some complex subgraph.
+  if (result->HasObservableSideEffects() || result->IsPhi()) {
+    Push(result);
+    Add<HSimulate>(expr->id(), REMOVABLE_SIMULATE);
+    Drop(1);
+  }
+  return result;
 }
 
 
-HInstruction* HGraphBuilder::BuildBinaryOperation(
+HValue* HGraphBuilder::BuildBinaryOperation(
     Token::Value op,
     HValue* left,
     HValue* right,
@@ -8571,18 +8659,14 @@ HInstruction* HGraphBuilder::BuildBinaryOperation(
       (left_type->Is(Type::String()) || right_type->Is(Type::String()))) {
     // Validate type feedback for left argument.
     if (left_type->Is(Type::String())) {
-      IfBuilder if_isstring(this);
-      if_isstring.If<HIsStringAndBranch>(left);
-      if_isstring.Then();
-      if_isstring.ElseDeopt("Expected string for LHS of binary operation");
+      left = BuildCheckString(
+          left, "Expected string for LHS of binary operation");
     }
 
     // Validate type feedback for right argument.
     if (right_type->Is(Type::String())) {
-      IfBuilder if_isstring(this);
-      if_isstring.If<HIsStringAndBranch>(right);
-      if_isstring.Then();
-      if_isstring.ElseDeopt("Expected string for RHS of binary operation");
+      right = BuildCheckString(
+          right, "Expected string for RHS of binary operation");
     }
 
     // Convert left argument as necessary.
@@ -8594,7 +8678,7 @@ HInstruction* HGraphBuilder::BuildBinaryOperation(
       HValue* function = AddLoadJSBuiltin(Builtins::STRING_ADD_RIGHT);
       Add<HPushArgument>(left);
       Add<HPushArgument>(right);
-      return NewUncasted<HInvokeFunction>(function, 2);
+      return AddUncasted<HInvokeFunction>(function, 2);
     }
 
     // Convert right argument as necessary.
@@ -8606,10 +8690,10 @@ HInstruction* HGraphBuilder::BuildBinaryOperation(
       HValue* function = AddLoadJSBuiltin(Builtins::STRING_ADD_LEFT);
       Add<HPushArgument>(left);
       Add<HPushArgument>(right);
-      return NewUncasted<HInvokeFunction>(function, 2);
+      return AddUncasted<HInvokeFunction>(function, 2);
     }
 
-    return NewUncasted<HStringAdd>(left, right, STRING_ADD_CHECK_NONE);
+    return AddUncasted<HStringAdd>(left, right, STRING_ADD_CHECK_NONE);
   }
 
   if (binop_stub) {
@@ -8630,51 +8714,66 @@ HInstruction* HGraphBuilder::BuildBinaryOperation(
     HValue* function = AddLoadJSBuiltin(BinaryOpIC::TokenToJSBuiltin(op));
     Add<HPushArgument>(left);
     Add<HPushArgument>(right);
-    instr = NewUncasted<HInvokeFunction>(function, 2);
+    instr = AddUncasted<HInvokeFunction>(function, 2);
   } else {
     switch (op) {
       case Token::ADD:
-        instr = NewUncasted<HAdd>(left, right);
+        instr = AddUncasted<HAdd>(left, right);
         break;
       case Token::SUB:
-        instr = NewUncasted<HSub>(left, right);
+        instr = AddUncasted<HSub>(left, right);
         break;
       case Token::MUL:
-        instr = NewUncasted<HMul>(left, right);
+        instr = AddUncasted<HMul>(left, right);
         break;
-      case Token::MOD:
-        instr = NewUncasted<HMod>(left, right, fixed_right_arg);
+      case Token::MOD: {
+        if (fixed_right_arg.has_value) {
+          if (right->IsConstant()) {
+            ASSERT_EQ(fixed_right_arg.value,
+                      HConstant::cast(right)->Integer32Value());
+          } else {
+            HConstant* fixed_right = Add<HConstant>(
+                static_cast<int>(fixed_right_arg.value));
+            IfBuilder if_same(this);
+            if_same.If<HCompareNumericAndBranch>(right, fixed_right, Token::EQ);
+            if_same.Then();
+            if_same.ElseDeopt("Unexpected RHS of binary operation");
+            right = fixed_right;
+          }
+        }
+        instr = AddUncasted<HMod>(left, right);
         break;
+      }
       case Token::DIV:
-        instr = NewUncasted<HDiv>(left, right);
+        instr = AddUncasted<HDiv>(left, right);
         break;
       case Token::BIT_XOR:
       case Token::BIT_AND:
-        instr = NewUncasted<HBitwise>(op, left, right);
+        instr = AddUncasted<HBitwise>(op, left, right);
         break;
       case Token::BIT_OR: {
         HValue* operand, *shift_amount;
         if (left_type->Is(Type::Signed32()) &&
             right_type->Is(Type::Signed32()) &&
             MatchRotateRight(left, right, &operand, &shift_amount)) {
-          instr = NewUncasted<HRor>(operand, shift_amount);
+          instr = AddUncasted<HRor>(operand, shift_amount);
         } else {
-          instr = NewUncasted<HBitwise>(op, left, right);
+          instr = AddUncasted<HBitwise>(op, left, right);
         }
         break;
       }
       case Token::SAR:
-        instr = NewUncasted<HSar>(left, right);
+        instr = AddUncasted<HSar>(left, right);
         break;
       case Token::SHR:
-        instr = NewUncasted<HShr>(left, right);
+        instr = AddUncasted<HShr>(left, right);
         if (FLAG_opt_safe_uint32_operations && instr->IsShr() &&
             CanBeZero(right)) {
           graph()->RecordUint32Instruction(instr);
         }
         break;
       case Token::SHL:
-        instr = NewUncasted<HShl>(left, right);
+        instr = AddUncasted<HShl>(left, right);
         break;
       default:
         UNREACHABLE();
@@ -8847,11 +8946,15 @@ void HOptimizedGraphBuilder::VisitLogicalExpression(BinaryOperation* expr) {
 void HOptimizedGraphBuilder::VisitArithmeticExpression(BinaryOperation* expr) {
   CHECK_ALIVE(VisitForValue(expr->left()));
   CHECK_ALIVE(VisitForValue(expr->right()));
-  if (!FLAG_emit_opt_code_positions) SetSourcePosition(expr->position());
+  SetSourcePosition(expr->position());
   HValue* right = Pop();
   HValue* left = Pop();
-  HInstruction* instr = BuildBinaryOperation(expr, left, right);
-  return ast_context()->ReturnInstruction(instr, expr->id());
+  HValue* result = BuildBinaryOperation(expr, left, right);
+  if (FLAG_emit_opt_code_positions && result->IsBinaryOperation()) {
+    HBinaryOperation::cast(result)->SetOperandPositions(
+        zone(), expr->left()->position(), expr->right()->position());
+  }
+  return ast_context()->ReturnValue(result);
 }
 
 
@@ -8859,7 +8962,7 @@ void HOptimizedGraphBuilder::HandleLiteralCompareTypeof(CompareOperation* expr,
                                                         Expression* sub_expr,
                                                         Handle<String> check) {
   CHECK_ALIVE(VisitForTypeOf(sub_expr));
-  if (!FLAG_emit_opt_code_positions) SetSourcePosition(expr->position());
+  SetSourcePosition(expr->position());
   HValue* value = Pop();
   HTypeofIsAndBranch* instr = New<HTypeofIsAndBranch>(value, check);
   return ast_context()->ReturnControl(instr, expr->id());
@@ -8920,6 +9023,8 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
 
   CHECK_ALIVE(VisitForValue(expr->left()));
   CHECK_ALIVE(VisitForValue(expr->right()));
+
+  if (FLAG_emit_opt_code_positions) SetSourcePosition(expr->position());
 
   HValue* right = Pop();
   HValue* left = Pop();
@@ -8999,6 +9104,10 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
           AddCheckMap(right, map);
           HCompareObjectEqAndBranch* result =
               New<HCompareObjectEqAndBranch>(left, right);
+          if (FLAG_emit_opt_code_positions) {
+            result->set_operand_position(zone(), 0, expr->left()->position());
+            result->set_operand_position(zone(), 1, expr->right()->position());
+          }
           return ast_context()->ReturnControl(result, expr->id());
         } else {
           BuildCheckHeapObject(left);
@@ -9040,6 +9149,11 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
       HCompareNumericAndBranch* result =
           New<HCompareNumericAndBranch>(left, right, op);
       result->set_observed_input_representation(left_rep, right_rep);
+      if (FLAG_emit_opt_code_positions) {
+        result->SetOperandPositions(zone(),
+                                    expr->left()->position(),
+                                    expr->right()->position());
+      }
       return ast_context()->ReturnControl(result, expr->id());
     }
   }
@@ -9648,9 +9762,10 @@ void HOptimizedGraphBuilder::GenerateOneByteSeqStringSetChar(
   HValue* value = Pop();
   HValue* index = Pop();
   HValue* string = Pop();
-  HSeqStringSetChar* result = New<HSeqStringSetChar>(
-      String::ONE_BYTE_ENCODING, string, index, value);
-  return ast_context()->ReturnInstruction(result, call->id());
+  Add<HSeqStringSetChar>(String::ONE_BYTE_ENCODING, string,
+                         index, value);
+  Add<HSimulate>(call->id(), FIXED_SIMULATE);
+  return ast_context()->ReturnValue(graph()->GetConstantUndefined());
 }
 
 
@@ -9663,9 +9778,10 @@ void HOptimizedGraphBuilder::GenerateTwoByteSeqStringSetChar(
   HValue* value = Pop();
   HValue* index = Pop();
   HValue* string = Pop();
-  HSeqStringSetChar* result = New<HSeqStringSetChar>(
-      String::TWO_BYTE_ENCODING, string, index, value);
-  return ast_context()->ReturnInstruction(result, call->id());
+  Add<HSeqStringSetChar>(String::TWO_BYTE_ENCODING, string,
+                         index, value);
+  Add<HSimulate>(call->id(), FIXED_SIMULATE);
+  return ast_context()->ReturnValue(graph()->GetConstantUndefined());
 }
 
 
@@ -10264,7 +10380,7 @@ void HTracer::TraceCompilation(CompilationInfo* info) {
 
 
 void HTracer::TraceLithium(const char* name, LChunk* chunk) {
-  ASSERT(!FLAG_concurrent_recompilation);
+  ASSERT(!chunk->isolate()->concurrent_recompilation_enabled());
   AllowHandleDereference allow_deref;
   AllowDeferredHandleDereference allow_deferred_deref;
   Trace(name, chunk->graph(), chunk);
@@ -10272,7 +10388,7 @@ void HTracer::TraceLithium(const char* name, LChunk* chunk) {
 
 
 void HTracer::TraceHydrogen(const char* name, HGraph* graph) {
-  ASSERT(!FLAG_concurrent_recompilation);
+  ASSERT(!graph->isolate()->concurrent_recompilation_enabled());
   AllowHandleDereference allow_deref;
   AllowDeferredHandleDereference allow_deferred_deref;
   Trace(name, graph, NULL);
@@ -10356,7 +10472,8 @@ void HTracer::Trace(const char* name, HGraph* graph, LChunk* chunk) {
       Tag HIR_tag(this, "HIR");
       for (HInstructionIterator it(current); !it.Done(); it.Advance()) {
         HInstruction* instruction = it.Current();
-        int bci = 0;
+        int bci = FLAG_emit_opt_code_positions && instruction->has_position() ?
+            instruction->position() : 0;
         int uses = instruction->UseCount();
         PrintIndent();
         trace_.Add("%d %d ", bci, uses);
@@ -10381,6 +10498,9 @@ void HTracer::Trace(const char* name, HGraph* graph, LChunk* chunk) {
             trace_.Add("%d ",
                        LifetimePosition::FromInstructionIndex(i).Value());
             linstr->PrintTo(&trace_);
+            trace_.Add(" [hir:");
+            linstr->hydrogen_value()->PrintNameTo(&trace_);
+            trace_.Add("]");
             trace_.Add(" <|@\n");
           }
         }

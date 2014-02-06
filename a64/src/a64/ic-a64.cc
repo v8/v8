@@ -893,7 +893,7 @@ void KeyedLoadIC::GenerateNonStrictArguments(MacroAssembler* masm) {
   __ Ret();
 
   __ Bind(&miss);
-  GenerateMiss(masm, MISS);
+  GenerateMiss(masm);
 }
 
 
@@ -945,7 +945,7 @@ void KeyedStoreIC::GenerateNonStrictArguments(MacroAssembler* masm) {
                  kLRHasNotBeenSaved, kDontSaveFPRegs);
   __ Ret();
   __ Bind(&slow);
-  GenerateMiss(masm, MISS);
+  GenerateMiss(masm);
 }
 
 
@@ -994,7 +994,7 @@ void KeyedCallIC::GenerateNonStrictArguments(MacroAssembler* masm,
 }
 
 
-void KeyedLoadIC::GenerateMiss(MacroAssembler* masm, ICMissMode miss_mode) {
+void KeyedLoadIC::GenerateMiss(MacroAssembler* masm) {
   // ---------- S t a t e --------------
   //  -- lr     : return address
   //  -- x0     : key
@@ -1007,9 +1007,8 @@ void KeyedLoadIC::GenerateMiss(MacroAssembler* masm, ICMissMode miss_mode) {
   __ Push(x1, x0);
 
   // Perform tail call to the entry.
-  ExternalReference ref = (miss_mode == MISS_FORCE_GENERIC)
-      ? ExternalReference(IC_Utility(kKeyedLoadIC_MissForceGeneric), isolate)
-      : ExternalReference(IC_Utility(kKeyedLoadIC_Miss), isolate);
+  ExternalReference ref =
+      ExternalReference(IC_Utility(kKeyedLoadIC_Miss), isolate);
 
   __ TailCallExternalReference(ref, 2, 1);
 }
@@ -1255,7 +1254,7 @@ void KeyedLoadIC::GenerateString(MacroAssembler* masm) {
   char_at_generator.GenerateSlow(masm, call_helper);
 
   __ Bind(&miss);
-  GenerateMiss(masm, MISS);
+  GenerateMiss(masm);
 }
 
 
@@ -1296,11 +1295,11 @@ void KeyedLoadIC::GenerateIndexedInterceptor(MacroAssembler* masm) {
       1);
 
   __ Bind(&slow);
-  GenerateMiss(masm, MISS);
+  GenerateMiss(masm);
 }
 
 
-void KeyedStoreIC::GenerateMiss(MacroAssembler* masm, ICMissMode miss_mode) {
+void KeyedStoreIC::GenerateMiss(MacroAssembler* masm) {
   ASM_LOCATION("KeyedStoreIC::GenerateMiss");
   // ---------- S t a t e --------------
   //  -- x0     : value
@@ -1312,10 +1311,8 @@ void KeyedStoreIC::GenerateMiss(MacroAssembler* masm, ICMissMode miss_mode) {
   // Push receiver, key and value for runtime call.
   __ Push(x2, x1, x0);
 
-  ExternalReference ref = (miss_mode == MISS_FORCE_GENERIC)
-      ? ExternalReference(IC_Utility(kKeyedStoreIC_MissForceGeneric),
-                          masm->isolate())
-      : ExternalReference(IC_Utility(kKeyedStoreIC_Miss), masm->isolate());
+  ExternalReference ref =
+      ExternalReference(IC_Utility(kKeyedStoreIC_Miss), masm->isolate());
   __ TailCallExternalReference(ref, 3, 1);
 }
 

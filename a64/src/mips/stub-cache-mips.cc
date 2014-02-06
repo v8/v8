@@ -1637,7 +1637,7 @@ Handle<Code> CallStubCompiler::CompileCallField(Handle<JSObject> object,
   GenerateMissBranch();
 
   // Return the generated code.
-  return GetCode(Code::FIELD, name);
+  return GetCode(Code::FAST, name);
 }
 
 
@@ -2691,7 +2691,7 @@ Handle<Code> CallStubCompiler::CompileCallConstant(
     Handle<Code> code = CompileCustomCall(object, holder,
                                           Handle<Cell>::null(),
                                           function, Handle<String>::cast(name),
-                                          Code::CONSTANT);
+                                          Code::FAST);
     // A null handle means bail out to the regular compiler code below.
     if (!code.is_null()) return code;
   }
@@ -2740,7 +2740,7 @@ Handle<Code> CallStubCompiler::CompileCallInterceptor(Handle<JSObject> object,
   GenerateMissBranch();
 
   // Return the generated code.
-  return GetCode(Code::INTERCEPTOR, name);
+  return GetCode(Code::FAST, name);
 }
 
 
@@ -2828,7 +2828,7 @@ Handle<Code> StoreStubCompiler::CompileStoreCallback(
   __ TailCallExternalReference(store_callback_property, 4, 1);
 
   // Return the generated code.
-  return GetCode(kind(), Code::CALLBACKS, name);
+  return GetCode(kind(), Code::FAST, name);
 }
 
 
@@ -2844,7 +2844,7 @@ Handle<Code> StoreStubCompiler::CompileStoreCallback(
       masm(), call_optimization, receiver(), scratch3(), 1, values);
 
   // Return the generated code.
-  return GetCode(kind(), Code::CALLBACKS, name);
+  return GetCode(kind(), Code::FAST, name);
 }
 
 
@@ -2928,7 +2928,7 @@ Handle<Code> StoreStubCompiler::CompileStoreInterceptor(
   TailCallBuiltin(masm(), MissBuiltin(kind()));
 
   // Return the generated code.
-  return GetCode(kind(), Code::INTERCEPTOR, name);
+  return GetCode(kind(), Code::FAST, name);
 }
 
 
@@ -2944,7 +2944,7 @@ Handle<Code> LoadStubCompiler::CompileLoadNonexistent(
   __ Ret();
 
   // Return the generated code.
-  return GetCode(kind(), Code::NONEXISTENT, name);
+  return GetCode(kind(), Code::FAST, name);
 }
 
 
@@ -3062,7 +3062,7 @@ Handle<Code> LoadStubCompiler::CompileLoadGlobal(
 
 
 Handle<Code> BaseLoadStoreStubCompiler::CompilePolymorphicIC(
-    MapHandleList* receiver_maps,
+    TypeHandleList* types,
     CodeHandleList* handlers,
     Handle<Name> name,
     Code::StubType type,
@@ -3074,25 +3074,25 @@ Handle<Code> BaseLoadStoreStubCompiler::CompilePolymorphicIC(
   }
 
   Label number_case;
-  Label* smi_target = HasHeapNumberMap(receiver_maps) ? &number_case : &miss;
+  Label* smi_target = IncludesNumberType(types) ? &number_case : &miss;
   __ JumpIfSmi(receiver(), smi_target);
 
   Register map_reg = scratch1();
 
-  int receiver_count = receiver_maps->length();
+  int receiver_count = types->length();
   int number_of_handled_maps = 0;
   __ lw(map_reg, FieldMemOperand(receiver(), HeapObject::kMapOffset));
-  Handle<Map> heap_number_map = isolate()->factory()->heap_number_map();
   for (int current = 0; current < receiver_count; ++current) {
-    Handle<Map> map = receiver_maps->at(current);
+    Handle<Type> type = types->at(current);
+    Handle<Map> map = IC::TypeToMap(*type, isolate());
     if (!map->is_deprecated()) {
       number_of_handled_maps++;
-      if (map.is_identical_to(heap_number_map)) {
+      if (type->Is(Type::Number())) {
         ASSERT(!number_case.is_unused());
         __ bind(&number_case);
       }
       __ Jump(handlers->at(current), RelocInfo::CODE_TARGET,
-          eq, map_reg, Operand(receiver_maps->at(current)));
+          eq, map_reg, Operand(map));
     }
   }
   ASSERT(number_of_handled_maps != 0);
@@ -3149,12 +3149,12 @@ void KeyedLoadStubCompiler::GenerateLoadDictionaryElement(
   //  -- a0     : key
   //  -- a1     : receiver
   // -----------------------------------
-  Label slow, miss_force_generic;
+  Label slow, miss;
 
   Register key = a0;
   Register receiver = a1;
 
-  __ JumpIfNotSmi(key, &miss_force_generic);
+  __ JumpIfNotSmi(key, &miss);
   __ lw(t0, FieldMemOperand(receiver, JSObject::kElementsOffset));
   __ sra(a2, a0, kSmiTagSize);
   __ LoadFromNumberDictionary(&slow, t0, a0, v0, a2, a3, t1);
@@ -3174,14 +3174,14 @@ void KeyedLoadStubCompiler::GenerateLoadDictionaryElement(
   TailCallBuiltin(masm, Builtins::kKeyedLoadIC_Slow);
 
   // Miss case, call the runtime.
-  __ bind(&miss_force_generic);
+  __ bind(&miss);
 
   // ---------- S t a t e --------------
   //  -- ra     : return address
   //  -- a0     : key
   //  -- a1     : receiver
   // -----------------------------------
-  TailCallBuiltin(masm, Builtins::kKeyedLoadIC_MissForceGeneric);
+  TailCallBuiltin(masm, Builtins::kKeyedLoadIC_Miss);
 }
 
 

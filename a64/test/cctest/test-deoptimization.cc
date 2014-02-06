@@ -77,27 +77,23 @@ class AlwaysOptimizeAllowNativesSyntaxNoInlining {
 
 // Utility class to set --allow-natives-syntax and --nouse-inlining when
 // constructed and return to their default state when destroyed.
-class AllowNativesSyntaxNoInliningNoConcurrent {
+class AllowNativesSyntaxNoInlining {
  public:
-  AllowNativesSyntaxNoInliningNoConcurrent()
+  AllowNativesSyntaxNoInlining()
       : allow_natives_syntax_(i::FLAG_allow_natives_syntax),
-        use_inlining_(i::FLAG_use_inlining),
-        concurrent_recompilation_(i::FLAG_concurrent_recompilation) {
+        use_inlining_(i::FLAG_use_inlining) {
     i::FLAG_allow_natives_syntax = true;
     i::FLAG_use_inlining = false;
-    i::FLAG_concurrent_recompilation = false;
   }
 
-  ~AllowNativesSyntaxNoInliningNoConcurrent() {
+  ~AllowNativesSyntaxNoInlining() {
     i::FLAG_allow_natives_syntax = allow_natives_syntax_;
     i::FLAG_use_inlining = use_inlining_;
-    i::FLAG_concurrent_recompilation = concurrent_recompilation_;
   }
 
  private:
   bool allow_natives_syntax_;
   bool use_inlining_;
-  bool concurrent_recompilation_;
 };
 
 
@@ -341,13 +337,14 @@ TEST(DeoptimizeConstructorMultiple) {
 
 
 TEST(DeoptimizeBinaryOperationADDString) {
+  i::FLAG_concurrent_recompilation = false;
+  AllowNativesSyntaxNoInlining options;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
   const char* f_source = "function f(x, y) { return x + y; };";
 
   {
-    AllowNativesSyntaxNoInliningNoConcurrent options;
     // Compile function f and collect to type feedback to insert binary op stub
     // call in the optimized code.
     i::FLAG_prepare_always_opt = true;
@@ -405,7 +402,7 @@ static void TestDeoptimizeBinaryOpHelper(LocalContext* env,
                binary_op);
   char* f_source = f_source_buffer.start();
 
-  AllowNativesSyntaxNoInliningNoConcurrent options;
+  AllowNativesSyntaxNoInlining options;
   // Compile function f and collect to type feedback to insert binary op stub
   // call in the optimized code.
   i::FLAG_prepare_always_opt = true;
@@ -431,6 +428,7 @@ static void TestDeoptimizeBinaryOpHelper(LocalContext* env,
 
 
 TEST(DeoptimizeBinaryOperationADD) {
+  i::FLAG_concurrent_recompilation = false;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
@@ -443,6 +441,7 @@ TEST(DeoptimizeBinaryOperationADD) {
 
 
 TEST(DeoptimizeBinaryOperationSUB) {
+  i::FLAG_concurrent_recompilation = false;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
@@ -455,6 +454,7 @@ TEST(DeoptimizeBinaryOperationSUB) {
 
 
 TEST(DeoptimizeBinaryOperationMUL) {
+  i::FLAG_concurrent_recompilation = false;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
@@ -467,6 +467,7 @@ TEST(DeoptimizeBinaryOperationMUL) {
 
 
 TEST(DeoptimizeBinaryOperationDIV) {
+  i::FLAG_concurrent_recompilation = false;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
@@ -479,6 +480,7 @@ TEST(DeoptimizeBinaryOperationDIV) {
 
 
 TEST(DeoptimizeBinaryOperationMOD) {
+  i::FLAG_concurrent_recompilation = false;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
@@ -491,13 +493,14 @@ TEST(DeoptimizeBinaryOperationMOD) {
 
 
 TEST(DeoptimizeCompare) {
+  i::FLAG_concurrent_recompilation = false;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
   const char* f_source = "function f(x, y) { return x < y; };";
 
   {
-    AllowNativesSyntaxNoInliningNoConcurrent options;
+    AllowNativesSyntaxNoInlining options;
     // Compile function f and collect to type feedback to insert compare ic
     // call in the optimized code.
     i::FLAG_prepare_always_opt = true;
@@ -534,6 +537,7 @@ TEST(DeoptimizeCompare) {
 
 
 TEST(DeoptimizeLoadICStoreIC) {
+  i::FLAG_concurrent_recompilation = false;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
@@ -544,7 +548,7 @@ TEST(DeoptimizeLoadICStoreIC) {
   const char* g2_source = "function g2(x, y) { x[y] = 1; };";
 
   {
-    AllowNativesSyntaxNoInliningNoConcurrent options;
+    AllowNativesSyntaxNoInlining options;
     // Compile functions and collect to type feedback to insert ic
     // calls in the optimized code.
     i::FLAG_prepare_always_opt = true;
@@ -614,6 +618,7 @@ TEST(DeoptimizeLoadICStoreIC) {
 
 
 TEST(DeoptimizeLoadICStoreICNested) {
+  i::FLAG_concurrent_recompilation = false;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
@@ -624,7 +629,7 @@ TEST(DeoptimizeLoadICStoreICNested) {
   const char* g2_source = "function g2(x, y) { x[y] = 1; };";
 
   {
-    AllowNativesSyntaxNoInliningNoConcurrent options;
+    AllowNativesSyntaxNoInlining options;
     // Compile functions and collect to type feedback to insert ic
     // calls in the optimized code.
     i::FLAG_prepare_always_opt = true;

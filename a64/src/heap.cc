@@ -465,7 +465,7 @@ void Heap::GarbageCollectionPrologue() {
 
   store_buffer()->GCPrologue();
 
-  if (FLAG_concurrent_osr) {
+  if (isolate()->concurrent_osr_enabled()) {
     isolate()->optimizing_compiler_thread()->AgeBufferedOsrJobs();
   }
 }
@@ -662,7 +662,7 @@ void Heap::CollectAllAvailableGarbage(const char* gc_reason) {
   // Note: as weak callbacks can execute arbitrary code, we cannot
   // hope that eventually there will be no weak callbacks invocations.
   // Therefore stop recollecting after several attempts.
-  if (FLAG_concurrent_recompilation) {
+  if (isolate()->concurrent_recompilation_enabled()) {
     // The optimizing compiler may be unnecessarily holding on to memory.
     DisallowHeapAllocation no_recursive_gc;
     isolate()->optimizing_compiler_thread()->Flush();
@@ -763,7 +763,7 @@ bool Heap::CollectGarbage(AllocationSpace space,
 
 
 int Heap::NotifyContextDisposed() {
-  if (FLAG_concurrent_recompilation) {
+  if (isolate()->concurrent_recompilation_enabled()) {
     // Flush the queued recompilation tasks.
     isolate()->optimizing_compiler_thread()->Flush();
   }
@@ -1784,6 +1784,8 @@ void Heap::ProcessWeakReferences(WeakObjectRetainer* retainer) {
       mark_compact_collector()->is_compacting();
   ProcessArrayBuffers(retainer, record_slots);
   ProcessNativeContexts(retainer, record_slots);
+  // TODO(mvstanton): AllocationSites only need to be processed during
+  // MARK_COMPACT, as they live in old space. Verify and address.
   ProcessAllocationSites(retainer, record_slots);
 }
 
@@ -1889,7 +1891,7 @@ struct WeakListVisitor<AllocationSite> {
   }
 
   static void VisitLiveObject(Heap* heap,
-                              AllocationSite* array_buffer,
+                              AllocationSite* site,
                               WeakObjectRetainer* retainer,
                               bool record_slots) {}
 
@@ -2482,7 +2484,7 @@ MaybeObject* Heap::AllocatePartialMap(InstanceType instance_type,
   reinterpret_cast<Map*>(result)->set_unused_property_fields(0);
   reinterpret_cast<Map*>(result)->set_bit_field(0);
   reinterpret_cast<Map*>(result)->set_bit_field2(0);
-  int bit_field3 = Map::EnumLengthBits::encode(Map::kInvalidEnumCache) |
+  int bit_field3 = Map::EnumLengthBits::encode(kInvalidEnumCacheSentinel) |
                    Map::OwnsDescriptors::encode(true);
   reinterpret_cast<Map*>(result)->set_bit_field3(bit_field3);
   return result;
@@ -2514,7 +2516,7 @@ MaybeObject* Heap::AllocateMap(InstanceType instance_type,
   map->set_instance_descriptors(empty_descriptor_array());
   map->set_bit_field(0);
   map->set_bit_field2(1 << Map::kIsExtensible);
-  int bit_field3 = Map::EnumLengthBits::encode(Map::kInvalidEnumCache) |
+  int bit_field3 = Map::EnumLengthBits::encode(kInvalidEnumCacheSentinel) |
                    Map::OwnsDescriptors::encode(true);
   map->set_bit_field3(bit_field3);
   map->set_elements_kind(elements_kind);
@@ -6586,6 +6588,14 @@ intptr_t Heap::PromotedSpaceSizeOfObjects() {
 }
 
 
+bool Heap::AdvanceSweepers(int step_size) {
+  ASSERT(isolate()->num_sweeper_threads() == 0);
+  bool sweeping_complete = old_data_space()->AdvanceSweeper(step_size);
+  sweeping_complete &= old_pointer_space()->AdvanceSweeper(step_size);
+  return sweeping_complete;
+}
+
+
 intptr_t Heap::PromotedExternalMemorySize() {
   if (amount_of_external_allocated_memory_
       <= amount_of_external_allocated_memory_at_last_global_gc_) return 0;
@@ -6732,9 +6742,6 @@ bool Heap::SetUp() {
   store_buffer()->SetUp();
 
   if (FLAG_concurrent_recompilation) relocation_mutex_ = new Mutex;
-#ifdef DEBUG
-  relocation_mutex_locked_by_optimizer_thread_ = false;
-#endif  // DEBUG
 
   return true;
 }
@@ -6879,6 +6886,7 @@ void Heap::TearDown() {
   isolate_->memory_allocator()->TearDown();
 
   delete relocation_mutex_;
+  relocation_mutex_ = NULL;
 }
 
 
@@ -7956,17 +7964,6 @@ void Heap::CheckpointObjectStats() {
   OS::MemCopy(object_counts_last_time_, object_counts_, sizeof(object_counts_));
   OS::MemCopy(object_sizes_last_time_, object_sizes_, sizeof(object_sizes_));
   ClearObjectStats();
-}
-
-
-Heap::RelocationLock::RelocationLock(Heap* heap) : heap_(heap) {
-  if (FLAG_concurrent_recompilation) {
-    heap_->relocation_mutex_->Lock();
-#ifdef DEBUG
-    heap_->relocation_mutex_locked_by_optimizer_thread_ =
-        heap_->isolate()->optimizing_compiler_thread()->IsOptimizerThread();
-#endif  // DEBUG
-  }
 }
 
 } }  // namespace v8::internal

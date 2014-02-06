@@ -59,6 +59,7 @@ class Preparation(Step):
   def RunStep(self):
     self.InitialEnvironmentChecks()
     self.CommonPrepare()
+    self.PrepareBranch()
     self.DeleteBranch(self.Config(TRUNKBRANCH))
 
 
@@ -110,36 +111,21 @@ class PrepareChangeLog(Step):
 
     args = "log %s..HEAD --format=%%H" % self._state["last_push"]
     commits = self.Git(args).strip()
-    for commit in commits.splitlines():
-      # Get the commit's title line.
-      args = "log -1 %s --format=\"%%w(80,8,8)%%s\"" % commit
-      title = "%s\n" % self.Git(args).rstrip()
-      AppendToFile(title, self.Config(CHANGELOG_ENTRY_FILE))
 
-      # Grep for "BUG=xxxx" lines in the commit message and convert them to
-      # "(issue xxxx)".
-      out = self.Git("log -1 %s --format=\"%%B\"" % commit).splitlines()
-      out = filter(lambda x: re.search(r"^BUG=", x), out)
-      out = filter(lambda x: not re.search(r"BUG=$", x), out)
-      out = filter(lambda x: not re.search(r"BUG=none$", x), out)
+    def GetCommitMessages():
+      for commit in commits.splitlines():
+        yield [
+          self.Git("log -1 %s --format=\"%%w(80,8,8)%%s\"" % commit),
+          self.Git("log -1 %s --format=\"%%B\"" % commit),
+          self.Git("log -1 %s --format=\"%%w(80,8,8)(%%an)\"" % commit),
+        ]
 
-      # TODO(machenbach): Handle multiple entries (e.g. BUG=123, 234).
-      def FormatIssue(text):
-        text = re.sub(r"BUG=v8:(.*)$", r"(issue \1)", text)
-        text = re.sub(r"BUG=chromium:(.*)$", r"(Chromium issue \1)", text)
-        text = re.sub(r"BUG=(.*)$", r"(Chromium issue \1)", text)
-        return "        %s\n" % text
-
-      for line in map(FormatIssue, out):
-        AppendToFile(line, self.Config(CHANGELOG_ENTRY_FILE))
-
-      # Append the commit's author for reference.
-      args = "log -1 %s --format=\"%%w(80,8,8)(%%an)\"" % commit
-      author = self.Git(args).rstrip()
-      AppendToFile("%s\n\n" % author, self.Config(CHANGELOG_ENTRY_FILE))
+    body = MakeChangeLogBody(GetCommitMessages)
+    AppendToFile(body, self.Config(CHANGELOG_ENTRY_FILE))
 
     msg = "        Performance and stability improvements on all platforms.\n"
     AppendToFile(msg, self.Config(CHANGELOG_ENTRY_FILE))
+
 
 class EditChangeLog(Step):
   def __init__(self):
@@ -149,8 +135,10 @@ class EditChangeLog(Step):
     print ("Please press <Return> to have your EDITOR open the ChangeLog "
            "entry, then edit its contents to your liking. When you're done, "
            "save the file and exit your EDITOR. ")
-    self.ReadLine()
+    self.ReadLine(default="")
 
+    # TODO(machenbach): Don't use EDITOR in forced mode as soon as script is
+    # well tested.
     self.Editor(self.Config(CHANGELOG_ENTRY_FILE))
     handle, new_changelog = tempfile.mkstemp()
     os.close(handle)
@@ -368,6 +356,7 @@ class CommitSVN(Step):
       print("Sorry, grepping for the SVN revision failed. Please look for it "
             "in the last command's output above and provide it manually (just "
             "the number, without the leading \"r\").")
+      self.DieInForcedMode("Can't prompt in forced mode.")
       while not trunk_revision:
         print "> ",
         trunk_revision = self.ReadLine()
@@ -394,6 +383,8 @@ class CheckChromium(Step):
   def Run(self):
     chrome_path = self._options.c
     if not chrome_path:
+      self.DieInForcedMode("Please specify the path to a Chromium checkout in "
+                          "forced mode.")
       print ("Do you have a \"NewGit\" Chromium checkout and want "
           "this script to automate creation of the roll CL? If yes, enter the "
           "path to (and including) the \"src\" directory here, otherwise just "
@@ -456,8 +447,13 @@ class UploadCL(Step):
     ver = "%s.%s.%s" % (self._state["major"],
                         self._state["minor"],
                         self._state["build"])
-    print "Please enter the email address of a reviewer for the roll CL: ",
-    rev = self.ReadLine()
+    if self._options and self._options.r:
+      print "Using account %s for review." % self._options.r
+      rev = self._options.r
+    else:
+      print "Please enter the email address of a reviewer for the roll CL: ",
+      self.DieInForcedMode("A reviewer must be specified in forced mode.")
+      rev = self.ReadLine()
     args = "commit -am \"Update V8 to version %s.\n\nTBR=%s\"" % (ver, rev)
     if self.Git(args) is None:
       self.Die("'git commit' failed.")
@@ -502,9 +498,9 @@ class CleanUp(Step):
       self.Git("branch -D %s" % self.Config(TRUNKBRANCH))
 
 
-def RunScript(config,
-              options,
-              side_effect_handler=DEFAULT_SIDE_EFFECT_HANDLER):
+def RunPushToTrunk(config,
+                   options,
+                   side_effect_handler=DEFAULT_SIDE_EFFECT_HANDLER):
   step_classes = [
     Preparation,
     FreshBranch,
@@ -532,36 +528,25 @@ def RunScript(config,
     CleanUp,
   ]
 
-  state = {}
-  steps = []
-  number = 0
-
-  for step_class in step_classes:
-    # TODO(machenbach): Factory methods.
-    step = step_class()
-    step.SetNumber(number)
-    step.SetConfig(config)
-    step.SetOptions(options)
-    step.SetState(state)
-    step.SetSideEffectHandler(side_effect_handler)
-    steps.append(step)
-    number += 1
-
-  for step in steps[options.s:]:
-    step.Run()
+  RunScript(step_classes, config, options, side_effect_handler)
 
 
 def BuildOptions():
   result = optparse.OptionParser()
-  result.add_option("-s", "--step", dest="s",
-                    help="Specify the step where to start work. Default: 0.",
-                    default=0, type="int")
-  result.add_option("-l", "--last-push", dest="l",
-                    help=("Manually specify the git commit ID "
-                          "of the last push to trunk."))
   result.add_option("-c", "--chromium", dest="c",
                     help=("Specify the path to your Chromium src/ "
                           "directory to automate the V8 roll."))
+  result.add_option("-f", "--force", dest="f",
+                    help="Don't prompt the user.",
+                    default=False, action="store_true")
+  result.add_option("-l", "--last-push", dest="l",
+                    help=("Manually specify the git commit ID "
+                          "of the last push to trunk."))
+  result.add_option("-r", "--reviewer", dest="r",
+                    help=("Specify the account name to be used for reviews."))
+  result.add_option("-s", "--step", dest="s",
+                    help="Specify the step where to start work. Default: 0.",
+                    default=0, type="int")
   return result
 
 
@@ -578,7 +563,7 @@ def Main():
   if not ProcessOptions(options):
     parser.print_help()
     return 1
-  RunScript(CONFIG, options)
+  RunPushToTrunk(CONFIG, options)
 
 if __name__ == "__main__":
   sys.exit(Main())

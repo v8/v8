@@ -1687,7 +1687,7 @@ Handle<Code> CallStubCompiler::CompileCallField(Handle<JSObject> object,
   GenerateMissBranch();
 
   // Return the generated code.
-  return GetCode(Code::FIELD, name);
+  return GetCode(Code::FAST, name);
 }
 
 
@@ -2745,7 +2745,7 @@ Handle<Code> CallStubCompiler::CompileCallConstant(
     Handle<Code> code = CompileCustomCall(object, holder,
                                           Handle<Cell>::null(),
                                           function, Handle<String>::cast(name),
-                                          Code::CONSTANT);
+                                          Code::FAST);
     // A null handle means bail out to the regular compiler code below.
     if (!code.is_null()) return code;
   }
@@ -2798,7 +2798,7 @@ Handle<Code> CallStubCompiler::CompileCallInterceptor(Handle<JSObject> object,
   GenerateMissBranch();
 
   // Return the generated code.
-  return GetCode(Code::INTERCEPTOR, name);
+  return GetCode(Code::FAST, name);
 }
 
 
@@ -2887,7 +2887,7 @@ Handle<Code> StoreStubCompiler::CompileStoreCallback(
   __ TailCallExternalReference(store_callback_property, 4, 1);
 
   // Return the generated code.
-  return GetCode(kind(), Code::CALLBACKS, name);
+  return GetCode(kind(), Code::FAST, name);
 }
 
 
@@ -2973,7 +2973,7 @@ Handle<Code> StoreStubCompiler::CompileStoreInterceptor(
   TailCallBuiltin(masm(), MissBuiltin(kind()));
 
   // Return the generated code.
-  return GetCode(kind(), Code::INTERCEPTOR, name);
+  return GetCode(kind(), Code::FAST, name);
 }
 
 
@@ -2990,7 +2990,7 @@ Handle<Code> LoadStubCompiler::CompileLoadNonexistent(
   __ Ret();
 
   // Return the generated code.
-  return GetCode(kind(), Code::NONEXISTENT, name);
+  return GetCode(kind(), Code::FAST, name);
 }
 
 
@@ -3109,7 +3109,7 @@ Handle<Code> LoadStubCompiler::CompileLoadGlobal(
 
 
 Handle<Code> BaseLoadStoreStubCompiler::CompilePolymorphicIC(
-    MapHandleList* receiver_maps,
+    TypeHandleList* types,
     CodeHandleList* handlers,
     Handle<Name> name,
     Code::StubType type,
@@ -3121,22 +3121,22 @@ Handle<Code> BaseLoadStoreStubCompiler::CompilePolymorphicIC(
   }
 
   Label number_case;
-  Label* smi_target = HasHeapNumberMap(receiver_maps) ? &number_case : &miss;
+  Label* smi_target = IncludesNumberType(types) ? &number_case : &miss;
   __ JumpIfSmi(receiver(), smi_target);
 
   Register map_reg = scratch1();
   __ Ldr(map_reg, FieldMemOperand(receiver(), HeapObject::kMapOffset));
-  Handle<Map> heap_number_map = isolate()->factory()->heap_number_map();
-  int receiver_count = receiver_maps->length();
+  int receiver_count = types->length();
   int number_of_handled_maps = 0;
   for (int current = 0; current < receiver_count; ++current) {
-    Handle<Map> map = receiver_maps->at(current);
+    Handle<Type> type = types->at(current);
+    Handle<Map> map = IC::TypeToMap(*type, isolate());
     if (!map->is_deprecated()) {
       number_of_handled_maps++;
       Label try_next;
-      __ Cmp(map_reg, Operand(receiver_maps->at(current)));
+      __ Cmp(map_reg, Operand(map));
       __ B(ne, &try_next);
-      if (map.is_identical_to(heap_number_map)) {
+      if (type->Is(Type::Number())) {
         ASSERT(!number_case.is_unused());
         __ Bind(&number_case);
       }
@@ -3202,7 +3202,7 @@ Handle<Code> StoreStubCompiler::CompileStoreCallback(
       masm(), call_optimization, receiver(), scratch3(), 1, values);
 
   // Return the generated code.
-  return GetCode(kind(), Code::CALLBACKS, name);
+  return GetCode(kind(), Code::FAST, name);
 }
 
 
@@ -3216,13 +3216,13 @@ void KeyedLoadStubCompiler::GenerateLoadDictionaryElement(
   //  -- x0     : key
   //  -- x1     : receiver
   // -----------------------------------
-  Label slow, miss_force_generic;
+  Label slow, miss;
 
   Register result = x0;
   Register key = x0;
   Register receiver = x1;
 
-  __ JumpIfNotSmi(key, &miss_force_generic);
+  __ JumpIfNotSmi(key, &miss);
   __ Ldr(x4, FieldMemOperand(receiver, JSObject::kElementsOffset));
   __ LoadFromNumberDictionary(&slow, x4, key, result, x2, x3, x5, x6);
   __ Ret();
@@ -3233,8 +3233,8 @@ void KeyedLoadStubCompiler::GenerateLoadDictionaryElement(
   TailCallBuiltin(masm, Builtins::kKeyedLoadIC_Slow);
 
   // Miss case, call the runtime.
-  __ Bind(&miss_force_generic);
-  TailCallBuiltin(masm, Builtins::kKeyedLoadIC_MissForceGeneric);
+  __ Bind(&miss);
+  TailCallBuiltin(masm, Builtins::kKeyedLoadIC_Miss);
 }
 
 
