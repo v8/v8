@@ -964,8 +964,10 @@ Statement* Parser::ParseModuleElement(ZoneStringList* labels,
           !scanner().HasAnyLineTerminatorBeforeNext() &&
           stmt != NULL) {
         ExpressionStatement* estmt = stmt->AsExpressionStatement();
-        if (estmt != NULL && estmt->expression()->IsIdentifierNamed(
-                                 isolate()->heap()->module_string()) &&
+        if (estmt != NULL &&
+            estmt->expression()->AsVariableProxy() != NULL &&
+            estmt->expression()->AsVariableProxy()->name()->Equals(
+                isolate()->heap()->module_string()) &&
             !scanner().literal_contains_escapes()) {
           return ParseModuleDeclaration(NULL, ok);
         }
@@ -2124,11 +2126,9 @@ Statement* Parser::ParseExpressionOrLabelledStatement(ZoneStringList* labels,
   int pos = peek_position();
   bool starts_with_idenfifier = peek_any_identifier();
   Expression* expr = ParseExpression(true, CHECK_OK);
-  // Even if the expression starts with an identifier, it is not necessarily an
-  // identifier. For example, "foo + bar" starts with an identifier but is not
-  // an identifier.
   if (peek() == Token::COLON && starts_with_idenfifier && expr != NULL &&
-      expr->IsIdentifier()) {
+      expr->AsVariableProxy() != NULL &&
+      !expr->AsVariableProxy()->is_this()) {
     // Expression is a single identifier, and not, e.g., a parenthesized
     // identifier.
     VariableProxy* var = expr->AsVariableProxy();
@@ -2165,7 +2165,9 @@ Statement* Parser::ParseExpressionOrLabelledStatement(ZoneStringList* labels,
       peek() == Token::FUNCTION &&
       !scanner().HasAnyLineTerminatorBeforeNext() &&
       expr != NULL &&
-      expr->IsIdentifierNamed(isolate()->heap()->native_string()) &&
+      expr->AsVariableProxy() != NULL &&
+      expr->AsVariableProxy()->name()->Equals(
+          isolate()->heap()->native_string()) &&
       !scanner().literal_contains_escapes()) {
     return ParseNativeDeclaration(ok);
   }
@@ -2175,7 +2177,9 @@ Statement* Parser::ParseExpressionOrLabelledStatement(ZoneStringList* labels,
   if (!FLAG_harmony_modules ||
       peek() != Token::IDENTIFIER ||
       scanner().HasAnyLineTerminatorBeforeNext() ||
-      !expr->IsIdentifierNamed(isolate()->heap()->module_string()) ||
+      expr->AsVariableProxy() == NULL ||
+      !expr->AsVariableProxy()->name()->Equals(
+          isolate()->heap()->module_string()) ||
       scanner().literal_contains_escapes()) {
     ExpectSemicolon(CHECK_OK);
   }
@@ -2942,7 +2946,8 @@ Expression* Parser::ParseAssignmentExpression(bool accept_IN, bool* ok) {
   Property* property = expression ? expression->AsProperty() : NULL;
   if (op == Token::ASSIGN &&
       property != NULL &&
-      property->obj()->IsIdentifier()) {
+      property->obj()->AsVariableProxy() != NULL &&
+      property->obj()->AsVariableProxy()->is_this()) {
     current_function_state_->AddProperty();
   }
 

@@ -351,10 +351,6 @@ class Expression : public AstNode {
   // True if we can prove that the expression is the undefined literal.
   bool IsUndefinedLiteral(Isolate* isolate);
 
-  bool IsIdentifier();
-
-  bool IsIdentifierNamed(String* name);
-
   // Expression type bounds
   Bounds bounds() { return bounds_; }
   void set_bounds(Bounds bounds) { bounds_ = bounds; }

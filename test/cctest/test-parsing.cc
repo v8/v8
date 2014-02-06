@@ -1798,36 +1798,3 @@ TEST(NoErrorsIllegalWordsAsLabels) {
 
   RunParserSyncTest(context_data, statement_data, kSuccess);
 }
-
-
-TEST(ErrorsParenthesizedLabels) {
-  // Parenthesized identifiers shouldn't be recognized as labels.
-  const char* context_data[][2] = {
-    { "", ""},
-    { "function test_func() {", "}" },
-    { NULL, NULL }
-  };
-
-  const char* statement_data[] = {
-    "(mylabel): while(true) { break mylabel; }",
-    NULL
-  };
-
-  RunParserSyncTest(context_data, statement_data, kError);
-}
-
-
-TEST(NoErrorsParenthesizedDirectivePrologue) {
-  // Parenthesized directive prologue shouldn't be recognized.
-  const char* context_data[][2] = {
-    { "", ""},
-    { NULL, NULL }
-  };
-
-  const char* statement_data[] = {
-    "(\"use strict\"); var eval;",
-    NULL
-  };
-
-  RunParserSyncTest(context_data, statement_data, kSuccess);
-}
