@@ -2005,8 +2005,15 @@ LInstruction* LChunkBuilder::DoReturn(HReturn* instr) {
 
 
 LInstruction* LChunkBuilder::DoSeqStringGetChar(HSeqStringGetChar* instr) {
-  Abort(kUnimplemented);
-  return NULL;
+  // TODO(all): Use UseRegisterAtStart and UseRegisterOrConstantAtStart here.
+  // We cannot do it now because the debug code in the implementation changes
+  // temp.
+  LOperand* string = UseRegister(instr->string());
+  LOperand* index = UseRegisterOrConstant(instr->index());
+  LOperand* temp = TempRegister();
+  LSeqStringGetChar* result =
+      new(zone()) LSeqStringGetChar(string, index, temp);
+  return DefineAsRegister(result);
 }
 
 

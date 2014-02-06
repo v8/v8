@@ -161,6 +161,7 @@ class LCodeGen;
   V(Random)                                     \
   V(RegExpLiteral)                              \
   V(Return)                                     \
+  V(SeqStringGetChar)                           \
   V(SeqStringSetChar)                           \
   V(ShiftI)                                     \
   V(ShiftS)                                     \
@@ -2138,6 +2139,25 @@ class LReturn V8_FINAL : public LTemplateInstruction<0, 2, 0> {
   }
 
   DECLARE_CONCRETE_INSTRUCTION(Return, "return")
+};
+
+
+class LSeqStringGetChar V8_FINAL : public LTemplateInstruction<1, 2, 1> {
+ public:
+  LSeqStringGetChar(LOperand* string,
+                    LOperand* index,
+                    LOperand* temp) {
+    inputs_[0] = string;
+    inputs_[1] = index;
+    temps_[0] = temp;
+  }
+
+  LOperand* string() { return inputs_[0]; }
+  LOperand* index() { return inputs_[1]; }
+  LOperand* temp() { return temps_[0]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(SeqStringGetChar, "seq-string-get-char")
+  DECLARE_HYDROGEN_ACCESSOR(SeqStringGetChar)
 };
 
 

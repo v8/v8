@@ -4469,6 +4469,59 @@ void LCodeGen::DoReturn(LReturn* instr) {
 }
 
 
+MemOperand LCodeGen::BuildSeqStringOperand(Register string,
+                                           Register temp,
+                                           LOperand* index,
+                                           String::Encoding encoding) {
+  if (index->IsConstantOperand()) {
+    int offset = ToInteger32(LConstantOperand::cast(index));
+    if (encoding == String::TWO_BYTE_ENCODING) {
+      offset *= kUC16Size;
+    }
+    STATIC_ASSERT(kCharSize == 1);
+    return FieldMemOperand(string, SeqString::kHeaderSize + offset);
+  }
+  ASSERT(!temp.is(string));
+  ASSERT(!temp.is(ToRegister(index)));
+  if (encoding == String::ONE_BYTE_ENCODING) {
+    __ Add(temp, string, Operand(ToRegister(index)));
+  } else {
+    STATIC_ASSERT(kUC16Size == 2);
+    __ Add(temp, string, Operand(ToRegister(index), LSL, 1));
+  }
+  return FieldMemOperand(temp, SeqString::kHeaderSize);
+}
+
+
+void LCodeGen::DoSeqStringGetChar(LSeqStringGetChar* instr) {
+  String::Encoding encoding = instr->hydrogen()->encoding();
+  Register string = ToRegister(instr->string());
+  Register result = ToRegister(instr->result());
+  Register temp = ToRegister(instr->temp());
+
+  if (FLAG_debug_code) {
+    __ Ldr(temp, FieldMemOperand(string, HeapObject::kMapOffset));
+    __ Ldrb(temp, FieldMemOperand(temp, Map::kInstanceTypeOffset));
+
+    __ And(temp, temp,
+           Operand(kStringRepresentationMask | kStringEncodingMask));
+    static const uint32_t one_byte_seq_type = kSeqStringTag | kOneByteStringTag;
+    static const uint32_t two_byte_seq_type = kSeqStringTag | kTwoByteStringTag;
+    __ Cmp(temp, Operand(encoding == String::ONE_BYTE_ENCODING
+                         ? one_byte_seq_type : two_byte_seq_type));
+    __ Check(eq, kUnexpectedStringType);
+  }
+
+  MemOperand operand =
+      BuildSeqStringOperand(string, temp, instr->index(), encoding);
+  if (encoding == String::ONE_BYTE_ENCODING) {
+    __ Ldrb(result, operand);
+  } else {
+    __ Ldrh(result, operand);
+  }
+}
+
+
 void LCodeGen::DoSeqStringSetChar(LSeqStringSetChar* instr) {
   // TODO(all): Port ARM optimizations from r16707.
 

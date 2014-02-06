@@ -216,6 +216,10 @@ class LCodeGen: public LCodeGenBase {
   void PopulateDeoptimizationData(Handle<Code> code);
   void PopulateDeoptimizationLiteralsWithInlinedFunctions();
 
+  MemOperand BuildSeqStringOperand(Register string,
+                                   Register temp,
+                                   LOperand* index,
+                                   String::Encoding encoding);
   void Deoptimize(LEnvironment* environment);
   void Deoptimize(LEnvironment* environment,
                   Deoptimizer::BailoutType bailout_type);
