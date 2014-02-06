@@ -113,10 +113,15 @@
           'dependencies': [
             'mksnapshot.<(v8_target_arch)#host',
             'js2c#host',
+            'generate_trig_table#host',
           ],
         }, {
           'toolsets': ['target'],
-          'dependencies': ['mksnapshot.<(v8_target_arch)', 'js2c'],
+          'dependencies': [
+            'mksnapshot.<(v8_target_arch)',
+            'js2c',
+            'generate_trig_table',
+          ],
         }],
         ['component=="shared_library"', {
           'defines': [
@@ -140,6 +145,7 @@
       'sources': [
         '<(SHARED_INTERMEDIATE_DIR)/libraries.cc',
         '<(SHARED_INTERMEDIATE_DIR)/experimental-libraries.cc',
+        '<(SHARED_INTERMEDIATE_DIR)/trig-table.cc',
         '<(INTERMEDIATE_DIR)/snapshot.cc',
       ],
       'actions': [
@@ -182,15 +188,16 @@
       'sources': [
         '<(SHARED_INTERMEDIATE_DIR)/libraries.cc',
         '<(SHARED_INTERMEDIATE_DIR)/experimental-libraries.cc',
+        '<(SHARED_INTERMEDIATE_DIR)/trig-table.cc',
         '../../src/snapshot-empty.cc',
       ],
       'conditions': [
         ['want_separate_host_toolset==1', {
           'toolsets': ['host', 'target'],
-          'dependencies': ['js2c#host'],
+          'dependencies': ['js2c#host', 'generate_trig_table#host'],
         }, {
           'toolsets': ['target'],
-          'dependencies': ['js2c'],
+          'dependencies': ['js2c', 'generate_trig_table'],
         }],
         ['component=="shared_library"', {
           'defines': [
@@ -198,6 +205,32 @@
             'V8_SHARED',
           ],
         }],
+      ]
+    },
+    { 'target_name': 'generate_trig_table',
+      'type': 'none',
+      'conditions': [
+        ['want_separate_host_toolset==1', {
+          'toolsets': ['host'],
+        }, {
+          'toolsets': ['target'],
+        }],
+      ],
+      'actions': [
+        {
+          'action_name': 'generate',
+          'inputs': [
+            '../../tools/generate-trig-table.py',
+          ],
+          'outputs': [
+            '<(SHARED_INTERMEDIATE_DIR)/trig-table.cc',
+          ],
+          'action': [
+            'python',
+            '../../tools/generate-trig-table.py',
+            '<@(_outputs)',
+          ],
+        },
       ]
     },
     {
@@ -280,6 +313,8 @@
         '../../src/debug-agent.h',
         '../../src/debug.cc',
         '../../src/debug.h',
+        '../../src/default-platform.cc',
+        '../../src/default-platform.h',
         '../../src/deoptimizer.cc',
         '../../src/deoptimizer.h',
         '../../src/disasm.h',
@@ -931,6 +966,12 @@
         ['OS=="win" and v8_enable_i18n_support==1', {
           'dependencies': [
             '<(icu_gyp_path):icudata',
+          ],
+        }],
+        ['v8_use_default_platform==0', {
+          'sources!': [
+            '../../src/default-platform.cc',
+            '../../src/default-platform.h',
           ],
         }],
       ],

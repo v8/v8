@@ -31,6 +31,7 @@ import re
 import subprocess
 import sys
 import textwrap
+import urllib2
 
 PERSISTFILE_BASENAME = "PERSISTFILE_BASENAME"
 TEMP_BRANCH = "TEMP_BRANCH"
@@ -69,6 +70,10 @@ def MSub(rexp, replacement, text):
 
 
 def Fill80(line):
+  # Replace tabs and remove surrounding space.
+  line = re.sub(r"\t", r"        ", line.strip())
+
+  # Format with 8 characters indentation and line width 80.
   return textwrap.fill(line, width=80, initial_indent="        ",
                        subsequent_indent="        ")
 
@@ -81,17 +86,46 @@ def GetLastChangeLogEntries(change_log_file):
   return "".join(result)
 
 
-def MakeChangeLogBody(commit_generator):
+def MakeComment(text):
+  return MSub(r"^( ?)", "#", text)
+
+
+def StripComments(text):
+  # Use split not splitlines to keep terminal newlines.
+  return "\n".join(filter(lambda x: not x.startswith("#"), text.split("\n")))
+
+
+def MakeChangeLogBody(commit_messages, auto_format=False):
   result = ""
-  for (title, body, author) in commit_generator():
-    # Add the commit's title line.
-    result += "%s\n" % title.rstrip()
+  added_titles = set()
+  for (title, body, author) in commit_messages:
+    # TODO(machenbach): Better check for reverts. A revert should remove the
+    # original CL from the actual log entry.
+    title = title.strip()
+    if auto_format:
+      # Only add commits that set the LOG flag correctly.
+      log_exp = r"^[ \t]*LOG[ \t]*=[ \t]*(?:Y(?:ES)?)|TRUE"
+      if not re.search(log_exp, body, flags=re.I | re.M):
+        continue
+      # Never include reverts.
+      if title.startswith("Revert "):
+        continue
+      # Don't include duplicates.
+      if title in added_titles:
+        continue
 
-    # Add bug references.
-    result += MakeChangeLogBugReference(body)
+    # Add and format the commit's title and bug reference. Move dot to the end.
+    added_titles.add(title)
+    raw_title = re.sub(r"(\.|\?|!)$", "", title)
+    bug_reference = MakeChangeLogBugReference(body)
+    space = " " if bug_reference else ""
+    result += "%s\n" % Fill80("%s%s%s." % (raw_title, space, bug_reference))
 
-    # Append the commit's author for reference.
-    result += "%s\n\n" % author.rstrip()
+    # Append the commit's author for reference if not in auto-format mode.
+    if not auto_format:
+      result += "%s\n" % Fill80("(%s)" % author.strip())
+
+    result += "\n"
   return result
 
 
@@ -131,8 +165,7 @@ def MakeChangeLogBugReference(body):
   FormatIssues("Chromium ", crbugs)
 
   if len(bug_groups) > 0:
-    # Format with 8 characters indentation and max 80 character lines.
-    return "%s\n" % Fill80("(%s)" % ", ".join(bug_groups))
+    return "(%s)" % ", ".join(bug_groups)
   else:
     return ""
 
@@ -159,40 +192,35 @@ class SideEffectHandler(object):
   def ReadLine(self):
     return sys.stdin.readline().strip()
 
+  def ReadURL(self, url):
+    # pylint: disable=E1121
+    url_fh = urllib2.urlopen(url, None, 60)
+    try:
+      return url_fh.read()
+    finally:
+      url_fh.close()
+
 DEFAULT_SIDE_EFFECT_HANDLER = SideEffectHandler()
 
 
 class Step(object):
-  def __init__(self, text="", requires=None):
+  def __init__(self, text, requires, number, config, state, options, handler):
     self._text = text
-    self._number = -1
-    self._options = None
     self._requires = requires
-    self._side_effect_handler = DEFAULT_SIDE_EFFECT_HANDLER
-
-  def SetNumber(self, number):
     self._number = number
-
-  def SetConfig(self, config):
     self._config = config
-
-  def SetState(self, state):
     self._state = state
-
-  def SetOptions(self, options):
     self._options = options
-
-  def SetSideEffectHandler(self, handler):
     self._side_effect_handler = handler
+    assert self._number >= 0
+    assert self._config is not None
+    assert self._state is not None
+    assert self._side_effect_handler is not None
 
   def Config(self, key):
     return self._config[key]
 
   def Run(self):
-    assert self._number >= 0
-    assert self._config is not None
-    assert self._state is not None
-    assert self._side_effect_handler is not None
     if self._requires:
       self.RestoreIfUnset(self._requires)
       if not self._state[self._requires]:
@@ -217,6 +245,9 @@ class Step(object):
   def Editor(self, args):
     return self._side_effect_handler.Command(os.environ["EDITOR"], args,
                                              pipe=False)
+
+  def ReadURL(self, url):
+    return self._side_effect_handler.ReadURL(url)
 
   def Die(self, msg=""):
     if msg != "":
@@ -366,20 +397,42 @@ class Step(object):
 
 
 class UploadStep(Step):
-  def __init__(self):
-    Step.__init__(self, "Upload for code review.")
+  MESSAGE = "Upload for code review."
 
   def RunStep(self):
-    if self._options and self._options.r:
+    if self._options.r:
       print "Using account %s for review." % self._options.r
       reviewer = self._options.r
     else:
       print "Please enter the email address of a V8 reviewer for your patch: ",
       self.DieInForcedMode("A reviewer must be specified in forced mode.")
       reviewer = self.ReadLine()
-    args = "cl upload -r \"%s\" --send-mail" % reviewer
-    if self.Git(args,pipe=False) is None:
+    force_flag = " -f" if self._options.f else ""
+    args = "cl upload -r \"%s\" --send-mail%s" % (reviewer, force_flag)
+    # TODO(machenbach): Check output in forced mode. Verify that all required
+    # base files were uploaded, if not retry.
+    if self.Git(args, pipe=False) is None:
       self.Die("'git cl upload' failed, please try again.")
+
+
+def MakeStep(step_class=Step, number=0, state=None, config=None,
+             options=None, side_effect_handler=DEFAULT_SIDE_EFFECT_HANDLER):
+    # Allow to pass in empty dictionaries.
+    state = state if state is not None else {}
+    config = config if config is not None else {}
+
+    try:
+      message = step_class.MESSAGE
+    except AttributeError:
+      message = step_class.__name__
+    try:
+      requires = step_class.REQUIRES
+    except AttributeError:
+      requires = None
+
+    return step_class(message, requires, number=number, config=config,
+                      state=state, options=options,
+                      handler=side_effect_handler)
 
 
 def RunScript(step_classes,
@@ -388,18 +441,9 @@ def RunScript(step_classes,
               side_effect_handler=DEFAULT_SIDE_EFFECT_HANDLER):
   state = {}
   steps = []
-  number = 0
-
-  for step_class in step_classes:
-    # TODO(machenbach): Factory methods.
-    step = step_class()
-    step.SetNumber(number)
-    step.SetConfig(config)
-    step.SetOptions(options)
-    step.SetState(state)
-    step.SetSideEffectHandler(side_effect_handler)
-    steps.append(step)
-    number += 1
+  for (number, step_class) in enumerate(step_classes):
+    steps.append(MakeStep(step_class, number, state, config,
+                          options, side_effect_handler))
 
   for step in steps[options.s:]:
     step.Run()

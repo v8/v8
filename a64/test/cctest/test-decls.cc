@@ -56,7 +56,7 @@ class DeclarationContext {
       HandleScope scope(isolate);
       Local<Context> context = Local<Context>::New(isolate, context_);
       context->Exit();
-      context_.Dispose();
+      context_.Reset();
     }
   }
 
@@ -147,7 +147,8 @@ void DeclarationContext::Check(const char* source,
   HandleScope scope(CcTest::isolate());
   TryCatch catcher;
   catcher.SetVerbose(true);
-  Local<Script> script = Script::Compile(String::New(source));
+  Local<Script> script =
+      Script::Compile(String::NewFromUtf8(CcTest::isolate(), source));
   if (expectations == EXPECT_ERROR) {
     CHECK(script.IsEmpty());
     return;
@@ -729,7 +730,8 @@ class SimpleContext {
     HandleScope scope(context_->GetIsolate());
     TryCatch catcher;
     catcher.SetVerbose(true);
-    Local<Script> script = Script::Compile(String::New(source));
+    Local<Script> script =
+        Script::Compile(String::NewFromUtf8(context_->GetIsolate(), source));
     if (expectations == EXPECT_ERROR) {
       CHECK(script.IsEmpty());
       return;

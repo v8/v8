@@ -405,6 +405,10 @@ void MacroAssembler::RecordWrite(Register object,
     bind(&ok);
   }
 
+  // Count number of write barriers in generated code.
+  isolate()->counters()->write_barriers_static()->Increment();
+  IncrementCounter(isolate()->counters()->write_barriers_dynamic(), 1);
+
   // First, check if a write barrier is even needed. The tests below
   // catch stores of smis and stores into the young generation.
   Label done;

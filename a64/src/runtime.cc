@@ -554,24 +554,52 @@ static Handle<AllocationSite> GetLiteralAllocationSite(
 }
 
 
+static MaybeObject* CreateArrayLiteralImpl(Isolate* isolate,
+                                           Handle<FixedArray> literals,
+                                           int literals_index,
+                                           Handle<FixedArray> elements,
+                                           int flags) {
+  Handle<AllocationSite> site = GetLiteralAllocationSite(isolate, literals,
+      literals_index, elements);
+  RETURN_IF_EMPTY_HANDLE(isolate, site);
+
+  bool enable_mementos = (flags & ArrayLiteral::kDisableMementos) == 0;
+  Handle<JSObject> boilerplate(JSObject::cast(site->transition_info()));
+  AllocationSiteUsageContext usage_context(isolate, site, enable_mementos);
+  usage_context.EnterNewScope();
+  JSObject::DeepCopyHints hints = (flags & ArrayLiteral::kShallowElements) == 0
+      ? JSObject::kNoHints
+      : JSObject::kObjectIsShallowArray;
+  Handle<JSObject> copy = JSObject::DeepCopy(boilerplate, &usage_context,
+                                             hints);
+  usage_context.ExitScope(site, boilerplate);
+  RETURN_IF_EMPTY_HANDLE(isolate, copy);
+  return *copy;
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateArrayLiteral) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 4);
+  CONVERT_ARG_HANDLE_CHECKED(FixedArray, literals, 0);
+  CONVERT_SMI_ARG_CHECKED(literals_index, 1);
+  CONVERT_ARG_HANDLE_CHECKED(FixedArray, elements, 2);
+  CONVERT_SMI_ARG_CHECKED(flags, 3);
+
+  return CreateArrayLiteralImpl(isolate, literals, literals_index, elements,
+                                flags);
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateArrayLiteralStubBailout) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 3);
   CONVERT_ARG_HANDLE_CHECKED(FixedArray, literals, 0);
   CONVERT_SMI_ARG_CHECKED(literals_index, 1);
   CONVERT_ARG_HANDLE_CHECKED(FixedArray, elements, 2);
 
-  Handle<AllocationSite> site = GetLiteralAllocationSite(isolate, literals,
-      literals_index, elements);
-  RETURN_IF_EMPTY_HANDLE(isolate, site);
-
-  Handle<JSObject> boilerplate(JSObject::cast(site->transition_info()));
-  AllocationSiteUsageContext usage_context(isolate, site, true);
-  usage_context.EnterNewScope();
-  Handle<JSObject> copy = JSObject::DeepCopy(boilerplate, &usage_context);
-  usage_context.ExitScope(site, boilerplate);
-  RETURN_IF_EMPTY_HANDLE(isolate, copy);
-  return *copy;
+  return CreateArrayLiteralImpl(isolate, literals, literals_index, elements,
+                                ArrayLiteral::kShallowElements);
 }
 
 
@@ -694,13 +722,17 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Fix) {
 
 void Runtime::FreeArrayBuffer(Isolate* isolate,
                               JSArrayBuffer* phantom_array_buffer) {
+  if (phantom_array_buffer->should_be_freed()) {
+    ASSERT(phantom_array_buffer->is_external());
+    free(phantom_array_buffer->backing_store());
+  }
   if (phantom_array_buffer->is_external()) return;
 
   size_t allocated_length = NumberToSize(
       isolate, phantom_array_buffer->byte_length());
 
   isolate->heap()->AdjustAmountOfExternalAllocatedMemory(
-      -static_cast<intptr_t>(allocated_length));
+      -static_cast<int64_t>(allocated_length));
   CHECK(V8::ArrayBufferAllocator() != NULL);
   V8::ArrayBufferAllocator()->Free(
       phantom_array_buffer->backing_store(),
@@ -831,20 +863,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ArrayBufferIsView) {
 }
 
 
-enum TypedArrayId {
-  // arrayIds below should be synchromized with typedarray.js natives.
-  ARRAY_ID_UINT8 = 1,
-  ARRAY_ID_INT8 = 2,
-  ARRAY_ID_UINT16 = 3,
-  ARRAY_ID_INT16 = 4,
-  ARRAY_ID_UINT32 = 5,
-  ARRAY_ID_INT32 = 6,
-  ARRAY_ID_FLOAT32 = 7,
-  ARRAY_ID_FLOAT64 = 8,
-  ARRAY_ID_UINT8C = 9
-};
-
-static void ArrayIdToTypeAndSize(
+void Runtime::ArrayIdToTypeAndSize(
     int arrayId, ExternalArrayType* array_type, size_t* element_size) {
   switch (arrayId) {
     case ARRAY_ID_UINT8:
@@ -906,7 +925,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_TypedArrayInitialize) {
 
   ExternalArrayType array_type = kExternalByteArray;  // Bogus initialization.
   size_t element_size = 1;  // Bogus initialization.
-  ArrayIdToTypeAndSize(arrayId, &array_type, &element_size);
+  Runtime::ArrayIdToTypeAndSize(arrayId, &array_type, &element_size);
 
   holder->set_buffer(*buffer);
   holder->set_byte_offset(*byte_offset_object);
@@ -958,7 +977,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_TypedArrayInitializeFromArrayLike) {
 
   ExternalArrayType array_type = kExternalByteArray;  // Bogus initialization.
   size_t element_size = 1;  // Bogus initialization.
-  ArrayIdToTypeAndSize(arrayId, &array_type, &element_size);
+  Runtime::ArrayIdToTypeAndSize(arrayId, &array_type, &element_size);
 
   Handle<JSArrayBuffer> buffer = isolate->factory()->NewJSArrayBuffer();
   size_t length = NumberToSize(isolate, *length_obj);
@@ -4444,10 +4463,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SubString) {
   RUNTIME_ASSERT(start >= 0);
   RUNTIME_ASSERT(end <= value->length());
   isolate->counters()->sub_string_runtime()->Increment();
-  if (end - start == 1) {
-     return isolate->heap()->LookupSingleCharacterStringFromCode(
-         value->Get(start));
-  }
   return value->SubString(start, end);
 }
 
@@ -7682,16 +7697,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_atan2) {
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_ceil) {
-  SealHandleScope shs(isolate);
-  ASSERT(args.length() == 1);
-  isolate->counters()->math_ceil()->Increment();
-
-  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  return isolate->heap()->NumberFromDouble(ceiling(x));
-}
-
-
 RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_cos) {
   SealHandleScope shs(isolate);
   ASSERT(args.length() == 1);
@@ -7845,35 +7850,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_tan) {
 
   CONVERT_DOUBLE_ARG_CHECKED(x, 0);
   return isolate->transcendental_cache()->Get(TranscendentalCache::TAN, x);
-}
-
-
-RUNTIME_FUNCTION(MaybeObject*, Runtime_PopulateTrigonometricTable) {
-  HandleScope scope(isolate);
-  ASSERT(args.length() == 3);
-  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, sin_table, 0);
-  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, cos_table, 1);
-  CONVERT_SMI_ARG_CHECKED(samples, 2);
-  RUNTIME_ASSERT(sin_table->type() == kExternalDoubleArray);
-  RUNTIME_ASSERT(cos_table->type() == kExternalDoubleArray);
-  double* sin_buffer = reinterpret_cast<double*>(
-      JSArrayBuffer::cast(sin_table->buffer())->backing_store());
-  double* cos_buffer = reinterpret_cast<double*>(
-      JSArrayBuffer::cast(cos_table->buffer())->backing_store());
-
-  static const double pi_half = 3.1415926535897932 / 2;
-  double interval = pi_half / samples;
-  for (int i = 0; i < samples + 1; i++) {
-    double sample = sin(i * interval);
-    sin_buffer[i] = sample;
-    cos_buffer[samples - i] = sample * interval;
-  }
-
-  // Fill this to catch out of bound accesses when calculating Math.sin(pi/2).
-  sin_buffer[samples + 1] = sin(pi_half + interval);
-  cos_buffer[samples + 1] = cos(pi_half + interval) * interval;
-
-  return isolate->heap()->undefined_value();
 }
 
 

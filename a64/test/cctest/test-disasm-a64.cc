@@ -1759,4 +1759,3 @@ TEST_(barriers) {
 
   CLEANUP();
 }
-

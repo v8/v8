@@ -9570,4 +9570,3 @@ TEST(abs) {
   AbsHelperW(kWMinInt);
   AbsHelperW(kWMaxInt);
 }
-

@@ -155,7 +155,6 @@ class LChunkBuilder;
   V(Parameter)                                 \
   V(Power)                                     \
   V(PushArgument)                              \
-  V(Random)                                    \
   V(RegExpLiteral)                             \
   V(Return)                                    \
   V(Ror)                                       \
@@ -1435,11 +1434,11 @@ class HGoto V8_FINAL : public HTemplateControlInstruction<1, 0> {
 
 class HDeoptimize V8_FINAL : public HTemplateControlInstruction<1, 0> {
  public:
-  static HInstruction* New(Zone* zone,
-                           HValue* context,
-                           const char* reason,
-                           Deoptimizer::BailoutType type,
-                           HBasicBlock* unreachable_continuation) {
+  static HDeoptimize* New(Zone* zone,
+                          HValue* context,
+                          const char* reason,
+                          Deoptimizer::BailoutType type,
+                          HBasicBlock* unreachable_continuation) {
     return new(zone) HDeoptimize(reason, type, unreachable_continuation);
   }
 
@@ -4030,6 +4029,8 @@ class HBoundsCheck V8_FINAL : public HTemplateInstruction<2> {
  protected:
   friend class HBoundsCheckBaseIndexInformation;
 
+  virtual Range* InferRange(Zone* zone) V8_OVERRIDE;
+
   virtual bool DataEquals(HValue* other) V8_OVERRIDE { return true; }
   bool skip_check_;
   HValue* base_;
@@ -4724,28 +4725,6 @@ class HPower V8_FINAL : public HTemplateInstruction<2> {
 };
 
 
-class HRandom V8_FINAL : public HTemplateInstruction<1> {
- public:
-  DECLARE_INSTRUCTION_FACTORY_P1(HRandom, HValue*);
-
-  HValue* global_object() { return OperandAt(0); }
-
-  virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
-    return Representation::Tagged();
-  }
-
-  DECLARE_CONCRETE_INSTRUCTION(Random)
-
- private:
-  explicit HRandom(HValue* global_object) {
-    SetOperandAt(0, global_object);
-    set_representation(Representation::Double());
-  }
-
-  virtual bool IsDeletable() const V8_OVERRIDE { return true; }
-};
-
-
 class HAdd V8_FINAL : public HArithmeticBinaryOperation {
  public:
   static HInstruction* New(Zone* zone,
@@ -4755,8 +4734,9 @@ class HAdd V8_FINAL : public HArithmeticBinaryOperation {
 
   // Add is only commutative if two integer values are added and not if two
   // tagged values are added (because it might be a String concatenation).
+  // We also do not commute (pointer + offset).
   virtual bool IsCommutative() const V8_OVERRIDE {
-    return !representation().IsTagged();
+    return !representation().IsTagged() && !representation().IsExternal();
   }
 
   virtual HValue* EnsureAndPropagateNotMinusZero(
@@ -4791,6 +4771,10 @@ class HAdd V8_FINAL : public HArithmeticBinaryOperation {
       SetFlag(kUseGVN);
     }
   }
+
+  virtual Representation RepresentationFromInputs() V8_OVERRIDE;
+
+  virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE;
 
   DECLARE_CONCRETE_INSTRUCTION(Add)
 
@@ -6085,6 +6069,43 @@ class HObjectAccess V8_FINAL {
   // Create an access for the payload of a Cell or JSGlobalPropertyCell.
   static HObjectAccess ForCellPayload(Isolate* isolate);
 
+  static HObjectAccess ForJSTypedArrayLength() {
+    return HObjectAccess::ForJSObjectOffset(JSTypedArray::kLengthOffset);
+  }
+
+  static HObjectAccess ForJSArrayBufferBackingStore() {
+    return HObjectAccess::ForJSObjectOffset(
+        JSArrayBuffer::kBackingStoreOffset, Representation::External());
+  }
+
+  static HObjectAccess ForExternalArrayExternalPointer() {
+    return HObjectAccess::ForJSObjectOffset(
+        ExternalArray::kExternalPointerOffset, Representation::External());
+  }
+
+  static HObjectAccess ForJSArrayBufferViewWeakNext() {
+    return HObjectAccess::ForJSObjectOffset(JSArrayBufferView::kWeakNextOffset);
+  }
+
+  static HObjectAccess ForJSArrayBufferWeakFirstView() {
+    return HObjectAccess::ForJSObjectOffset(
+        JSArrayBuffer::kWeakFirstViewOffset);
+  }
+
+  static HObjectAccess ForJSArrayBufferViewBuffer() {
+    return HObjectAccess::ForJSObjectOffset(JSArrayBufferView::kBufferOffset);
+  }
+
+  static HObjectAccess ForJSArrayBufferViewByteOffset() {
+    return HObjectAccess::ForJSObjectOffset(
+        JSArrayBufferView::kByteOffsetOffset);
+  }
+
+  static HObjectAccess ForJSArrayBufferViewByteLength() {
+    return HObjectAccess::ForJSObjectOffset(
+        JSArrayBufferView::kByteLengthOffset);
+  }
+
   void PrintTo(StringStream* stream);
 
   inline bool Equals(HObjectAccess that) const {
@@ -6501,6 +6522,8 @@ class HStoreNamedField V8_FINAL : public HTemplateInstruction<3> {
       } else if (field_representation().IsDouble() ||
                  field_representation().IsSmi()) {
         return field_representation();
+      } else if (field_representation().IsExternal()) {
+        return Representation::External();
       }
     }
     return Representation::Tagged();

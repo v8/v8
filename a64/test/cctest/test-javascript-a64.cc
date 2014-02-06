@@ -264,4 +264,3 @@ TEST(unary_not) {
   result = CompileRun("var a = 1; if ( !a ) { 1; } else { 0; }");
   ExpectInt32(0, result);
 }
-

@@ -161,7 +161,8 @@ bool JsHttpRequestProcessor::Initialize(map<string, string>* opts,
   // Create a template for the global object where we set the
   // built-in global functions.
   Handle<ObjectTemplate> global = ObjectTemplate::New();
-  global->Set(String::New("log"), FunctionTemplate::New(LogCallback));
+  global->Set(String::NewFromUtf8(GetIsolate(), "log"),
+              FunctionTemplate::New(LogCallback));
 
   // Each processor gets its own context so different processors don't
   // affect each other. Context::New returns a persistent handle which
@@ -185,7 +186,7 @@ bool JsHttpRequestProcessor::Initialize(map<string, string>* opts,
 
   // The script compiled and ran correctly.  Now we fetch out the
   // Process function from the global object.
-  Handle<String> process_name = String::New("Process");
+  Handle<String> process_name = String::NewFromUtf8(GetIsolate(), "Process");
   Handle<Value> process_val = context->Global()->Get(process_name);
 
   // If there is no Process function, or if it is not a function,
@@ -244,10 +245,12 @@ bool JsHttpRequestProcessor::InstallMaps(map<string, string>* opts,
       v8::Local<v8::Context>::New(GetIsolate(), context_);
 
   // Set the options object as a property on the global object.
-  context->Global()->Set(String::New("options"), opts_obj);
+  context->Global()->Set(String::NewFromUtf8(GetIsolate(), "options"),
+                         opts_obj);
 
   Handle<Object> output_obj = WrapMap(output);
-  context->Global()->Set(String::New("output"), output_obj);
+  context->Global()->Set(String::NewFromUtf8(GetIsolate(), "output"),
+                         output_obj);
 
   return true;
 }
@@ -291,8 +294,8 @@ JsHttpRequestProcessor::~JsHttpRequestProcessor() {
   // Dispose the persistent handles.  When noone else has any
   // references to the objects stored in the handles they will be
   // automatically reclaimed.
-  context_.Dispose();
-  process_.Dispose();
+  context_.Reset();
+  process_.Reset();
 }
 
 
@@ -370,8 +373,9 @@ void JsHttpRequestProcessor::MapGet(Local<String> name,
 
   // Otherwise fetch the value and wrap it in a JavaScript string
   const string& value = (*iter).second;
-  info.GetReturnValue().Set(
-      String::New(value.c_str(), static_cast<int>(value.length())));
+  info.GetReturnValue().Set(String::NewFromUtf8(
+      info.GetIsolate(), value.c_str(), String::kNormalString,
+      static_cast<int>(value.length())));
 }
 
 
@@ -465,8 +469,9 @@ void JsHttpRequestProcessor::GetPath(Local<String> name,
   const string& path = request->Path();
 
   // Wrap the result in a JavaScript string and return it.
-  info.GetReturnValue().Set(
-      String::New(path.c_str(), static_cast<int>(path.length())));
+  info.GetReturnValue().Set(String::NewFromUtf8(
+      info.GetIsolate(), path.c_str(), String::kNormalString,
+      static_cast<int>(path.length())));
 }
 
 
@@ -475,8 +480,9 @@ void JsHttpRequestProcessor::GetReferrer(
     const PropertyCallbackInfo<Value>& info) {
   HttpRequest* request = UnwrapRequest(info.Holder());
   const string& path = request->Referrer();
-  info.GetReturnValue().Set(
-      String::New(path.c_str(), static_cast<int>(path.length())));
+  info.GetReturnValue().Set(String::NewFromUtf8(
+      info.GetIsolate(), path.c_str(), String::kNormalString,
+      static_cast<int>(path.length())));
 }
 
 
@@ -484,8 +490,9 @@ void JsHttpRequestProcessor::GetHost(Local<String> name,
                                      const PropertyCallbackInfo<Value>& info) {
   HttpRequest* request = UnwrapRequest(info.Holder());
   const string& path = request->Host();
-  info.GetReturnValue().Set(
-      String::New(path.c_str(), static_cast<int>(path.length())));
+  info.GetReturnValue().Set(String::NewFromUtf8(
+      info.GetIsolate(), path.c_str(), String::kNormalString,
+      static_cast<int>(path.length())));
 }
 
 
@@ -494,8 +501,9 @@ void JsHttpRequestProcessor::GetUserAgent(
     const PropertyCallbackInfo<Value>& info) {
   HttpRequest* request = UnwrapRequest(info.Holder());
   const string& path = request->UserAgent();
-  info.GetReturnValue().Set(
-      String::New(path.c_str(), static_cast<int>(path.length())));
+  info.GetReturnValue().Set(String::NewFromUtf8(
+      info.GetIsolate(), path.c_str(), String::kNormalString,
+      static_cast<int>(path.length())));
 }
 
 
@@ -507,10 +515,18 @@ Handle<ObjectTemplate> JsHttpRequestProcessor::MakeRequestTemplate(
   result->SetInternalFieldCount(1);
 
   // Add accessors for each of the fields of the request.
-  result->SetAccessor(String::NewSymbol("path"), GetPath);
-  result->SetAccessor(String::NewSymbol("referrer"), GetReferrer);
-  result->SetAccessor(String::NewSymbol("host"), GetHost);
-  result->SetAccessor(String::NewSymbol("userAgent"), GetUserAgent);
+  result->SetAccessor(
+      String::NewFromUtf8(isolate, "path", String::kInternalizedString),
+      GetPath);
+  result->SetAccessor(
+      String::NewFromUtf8(isolate, "referrer", String::kInternalizedString),
+      GetReferrer);
+  result->SetAccessor(
+      String::NewFromUtf8(isolate, "host", String::kInternalizedString),
+      GetHost);
+  result->SetAccessor(
+      String::NewFromUtf8(isolate, "userAgent", String::kInternalizedString),
+      GetUserAgent);
 
   // Again, return the result through the current handle scope.
   return handle_scope.Close(result);
@@ -575,7 +591,7 @@ void ParseOptions(int argc,
 
 
 // Reads a file into a v8 string.
-Handle<String> ReadFile(const string& name) {
+Handle<String> ReadFile(Isolate* isolate, const string& name) {
   FILE* file = fopen(name.c_str(), "rb");
   if (file == NULL) return Handle<String>();
 
@@ -590,7 +606,8 @@ Handle<String> ReadFile(const string& name) {
     i += read;
   }
   fclose(file);
-  Handle<String> result = String::New(chars, size);
+  Handle<String> result =
+      String::NewFromUtf8(isolate, chars, String::kNormalString, size);
   delete[] chars;
   return result;
 }
@@ -636,7 +653,7 @@ int main(int argc, char* argv[]) {
   }
   Isolate* isolate = Isolate::GetCurrent();
   HandleScope scope(isolate);
-  Handle<String> source = ReadFile(file);
+  Handle<String> source = ReadFile(isolate, file);
   if (source.IsEmpty()) {
     fprintf(stderr, "Error reading '%s'.\n", file.c_str());
     return 1;

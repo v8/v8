@@ -412,7 +412,7 @@ void Heap::PrintShortHeapStatistics() {
            this->Available() / KB,
            this->CommittedMemory() / KB);
   PrintPID("External memory reported: %6" V8_PTR_PREFIX "d KB\n",
-           amount_of_external_allocated_memory_ / KB);
+           static_cast<intptr_t>(amount_of_external_allocated_memory_ / KB));
   PrintPID("Total time spent in GC  : %.1f ms\n", total_gc_time_ms_);
 }
 
@@ -3973,7 +3973,12 @@ MaybeObject* Heap::AllocateSubString(String* buffer,
   int length = end - start;
   if (length <= 0) {
     return empty_string();
-  } else if (length == 1) {
+  }
+
+  // Make an attempt to flatten the buffer to reduce access time.
+  buffer = buffer->TryFlattenGetString();
+
+  if (length == 1) {
     return LookupSingleCharacterStringFromCode(buffer->Get(start));
   } else if (length == 2) {
     // Optimization for 2-byte strings often used as keys in a decompression
@@ -3983,9 +3988,6 @@ MaybeObject* Heap::AllocateSubString(String* buffer,
     uint16_t c2 = buffer->Get(start + 1);
     return MakeOrFindTwoCharacterString(this, c1, c2);
   }
-
-  // Make an attempt to flatten the buffer to reduce access time.
-  buffer = buffer->TryFlattenGetString();
 
   if (!FLAG_string_slices ||
       !buffer->IsFlat() ||
@@ -4986,7 +4988,7 @@ MaybeObject* Heap::ReinitializeJSGlobalProxy(JSFunction* constructor,
 
 
 MaybeObject* Heap::AllocateStringFromOneByte(Vector<const uint8_t> string,
-                                           PretenureFlag pretenure) {
+                                             PretenureFlag pretenure) {
   int length = string.length();
   if (length == 1) {
     return Heap::LookupSingleCharacterStringFromCode(string[0]);
@@ -6596,7 +6598,7 @@ bool Heap::AdvanceSweepers(int step_size) {
 }
 
 
-intptr_t Heap::PromotedExternalMemorySize() {
+int64_t Heap::PromotedExternalMemorySize() {
   if (amount_of_external_allocated_memory_
       <= amount_of_external_allocated_memory_at_last_global_gc_) return 0;
   return amount_of_external_allocated_memory_
@@ -7821,7 +7823,13 @@ void ExternalStringTable::CleanUp() {
 
 
 void ExternalStringTable::TearDown() {
+  for (int i = 0; i < new_space_strings_.length(); ++i) {
+    heap_->FinalizeExternalString(ExternalString::cast(new_space_strings_[i]));
+  }
   new_space_strings_.Free();
+  for (int i = 0; i < old_space_strings_.length(); ++i) {
+    heap_->FinalizeExternalString(ExternalString::cast(old_space_strings_[i]));
+  }
   old_space_strings_.Free();
 }
 

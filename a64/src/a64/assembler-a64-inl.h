@@ -564,12 +564,6 @@ void Assembler::deserialization_set_special_target_at(
 }
 
 
-void Assembler::set_external_target_at(Address constant_pool_entry,
-                                       Address target) {
-  Memory::Address_at(constant_pool_entry) = target;
-}
-
-
 void Assembler::set_target_address_at(Address pc, Address target) {
   Memory::Address_at(target_pointer_address_at(pc)) = target;
   // Intuitively, we would think it is necessary to always flush the

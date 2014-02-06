@@ -1,3 +1,40 @@
+2013-11-26: Version 3.23.12
+
+        Performance and stability improvements on all platforms.
+
+
+2013-11-25: Version 3.23.11
+
+        Deprecate old versions of Isolate::SetData and GetData.
+
+        Performance and stability improvements on all platforms.
+
+
+2013-11-22: Version 3.23.10
+
+        Remove preemption thread and API.
+        (issue 3004)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-11-21: Version 3.23.9
+
+        API: Change AdjustAmountOfExternalAllocatedMemory calls to use int64_t
+        instead of intptr_t.
+
+        Remove deprecated v8::SetResourceConstraints without Isolate parameter.
+
+        Remove deprecated v8-defaults.h and defaults.cc.
+        (Chromium issue 312241)
+
+        Make it possible to add more than one piece of embedder data to
+        isolates.
+        (Chromium issue 317398)
+
+        Performance and stability improvements on all platforms.
+
+
 2013-11-20: Version 3.23.8
 
         Fixed crashes exposed though fuzzing.

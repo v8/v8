@@ -1626,8 +1626,7 @@ void FullCodeGenerator::EmitAccessor(Expression* expression) {
 void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
   Comment cmnt(masm_, "[ ObjectLiteral");
 
-  int depth = 1;
-  expr->BuildConstantProperties(isolate(), &depth);
+  expr->BuildConstantProperties(isolate());
   Handle<FixedArray> constant_properties = expr->constant_properties();
   __ Ldr(x3, MemOperand(fp,  JavaScriptFrameConstants::kFunctionOffset));
   __ Ldr(x3, FieldMemOperand(x3, JSFunction::kLiteralsOffset));
@@ -1644,7 +1643,7 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
   const int max_cloned_properties =
       FastCloneShallowObjectStub::kMaximumClonedProperties;
   if ((FLAG_track_double_fields && expr->may_store_doubles()) ||
-      (depth > 1) || Serializer::enabled() ||
+      (expr->depth() > 1) || Serializer::enabled() ||
       (flags != ObjectLiteral::kFastElements) ||
       (properties_count > max_cloned_properties)) {
     __ Push(x3, x2, x1, x0);
@@ -1764,8 +1763,10 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
 void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
   Comment cmnt(masm_, "[ ArrayLiteral");
 
-  int depth = 1;
-  expr->BuildConstantElements(isolate(), &depth);
+  expr->BuildConstantElements(isolate());
+  int flags = (expr->depth() == 1) ? ArrayLiteral::kShallowElements
+                                   : ArrayLiteral::kNoFlags;
+
   ZoneList<Expression*>* subexprs = expr->values();
   int length = subexprs->length();
   Handle<FixedArray> constant_elements = expr->constant_elements();
@@ -1790,10 +1791,11 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
     __ CallStub(&stub);
     __ IncrementCounter(
         isolate()->counters()->cow_arrays_created_stub(), 1, x10, x11);
-  } else if ((depth > 1) || Serializer::enabled() ||
+  } else if ((expr->depth() > 1) || Serializer::enabled() ||
              length > FastCloneShallowArrayStub::kMaximumClonedLength) {
-    __ Push(x3, x2, x1);
-    __ CallRuntime(Runtime::kCreateArrayLiteral, 3);
+    __ Mov(x0, Operand(Smi::FromInt(flags)));
+    __ Push(x3, x2, x1, x0);
+    __ CallRuntime(Runtime::kCreateArrayLiteral, 4);
   } else {
     ASSERT(IsFastSmiOrObjectElementsKind(constant_elements_kind) ||
            FLAG_smi_only_arrays);
@@ -3107,39 +3109,6 @@ void FullCodeGenerator::EmitLog(CallRuntime* expr) {
 
   // Finally, we're expected to leave a value on the top of the stack.
   __ LoadRoot(x0, Heap::kUndefinedValueRootIndex);
-  context()->Plug(x0);
-}
-
-
-void FullCodeGenerator::EmitRandomHeapNumber(CallRuntime* expr) {
-  ASSERT(expr->arguments()->length() == 0);
-  Label slow_allocate_heapnumber;
-  Label heapnumber_allocated;
-  Register heap_num = x19;  // Callee-saved register.
-
-  __ LoadRoot(x5, Heap::kHeapNumberMapRootIndex);
-  __ AllocateHeapNumber(heap_num, &slow_allocate_heapnumber, x10, x11, x5);
-  __ B(&heapnumber_allocated);
-
-  __ Bind(&slow_allocate_heapnumber);
-  // Call the runtime to allocate the heap number.
-  __ CallRuntime(Runtime::kNumberAlloc, 0);
-  __ Mov(heap_num, x0);
-
-  __ Bind(&heapnumber_allocated);
-
-  // Get 32 random bits.
-  __ Ldr(x0,
-         ContextMemOperand(context_register(), Context::GLOBAL_OBJECT_INDEX));
-  __ Ldr(x0, FieldMemOperand(x0, GlobalObject::kNativeContextOffset));
-  __ CallCFunction(ExternalReference::random_uint32_function(isolate()), 1);
-
-  // Interpret the 32 random bits as a 0.32 fixed point number, and convert to
-  // a double in the range 0.0 <= number < 1.0.
-  __ Ucvtf(d0, x0, 32);
-  __ Str(d0, FieldMemOperand(heap_num, HeapNumber::kValueOffset));
-  __ Mov(x0, heap_num);
-
   context()->Plug(x0);
 }
 

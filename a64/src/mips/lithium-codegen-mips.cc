@@ -98,6 +98,38 @@ void LChunkBuilder::Abort(BailoutReason reason) {
 }
 
 
+void LCodeGen::SaveCallerDoubles() {
+  ASSERT(info()->saves_caller_doubles());
+  ASSERT(NeedsEagerFrame());
+  Comment(";;; Save clobbered callee double registers");
+  int count = 0;
+  BitVector* doubles = chunk()->allocated_double_registers();
+  BitVector::Iterator save_iterator(doubles);
+  while (!save_iterator.Done()) {
+    __ sdc1(DoubleRegister::FromAllocationIndex(save_iterator.Current()),
+            MemOperand(sp, count * kDoubleSize));
+    save_iterator.Advance();
+    count++;
+  }
+}
+
+
+void LCodeGen::RestoreCallerDoubles() {
+  ASSERT(info()->saves_caller_doubles());
+  ASSERT(NeedsEagerFrame());
+  Comment(";;; Restore clobbered callee double registers");
+  BitVector* doubles = chunk()->allocated_double_registers();
+  BitVector::Iterator save_iterator(doubles);
+  int count = 0;
+  while (!save_iterator.Done()) {
+    __ ldc1(DoubleRegister::FromAllocationIndex(save_iterator.Current()),
+            MemOperand(sp, count * kDoubleSize));
+    save_iterator.Advance();
+    count++;
+  }
+}
+
+
 bool LCodeGen::GeneratePrologue() {
   ASSERT(is_generating());
 
@@ -160,16 +192,7 @@ bool LCodeGen::GeneratePrologue() {
   }
 
   if (info()->saves_caller_doubles()) {
-    Comment(";;; Save clobbered callee double registers");
-    int count = 0;
-    BitVector* doubles = chunk()->allocated_double_registers();
-    BitVector::Iterator save_iterator(doubles);
-    while (!save_iterator.Done()) {
-      __ sdc1(DoubleRegister::FromAllocationIndex(save_iterator.Current()),
-              MemOperand(sp, count * kDoubleSize));
-      save_iterator.Advance();
-      count++;
-    }
+    SaveCallerDoubles();
   }
 
   // Possibly allocate a local context.
@@ -257,7 +280,7 @@ bool LCodeGen::GenerateDeferredCode() {
         __ MultiPush(cp.bit() | fp.bit() | ra.bit());
         __ li(scratch0(), Operand(Smi::FromInt(StackFrame::STUB)));
         __ push(scratch0());
-        __ Addu(fp, sp, Operand(2 * kPointerSize));
+        __ Addu(fp, sp, Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
         Comment(";;; Deferred code");
       }
       code->Generate();
@@ -298,6 +321,7 @@ bool LCodeGen::GenerateDeoptJumpTable() {
     }
     __ li(t9, Operand(ExternalReference::ForDeoptEntry(entry)));
     if (deopt_jump_table_[i].needs_frame) {
+      ASSERT(!info()->saves_caller_doubles());
       if (needs_frame.is_bound()) {
         __ Branch(&needs_frame);
       } else {
@@ -309,10 +333,14 @@ bool LCodeGen::GenerateDeoptJumpTable() {
         ASSERT(info()->IsStub());
         __ li(scratch0(), Operand(Smi::FromInt(StackFrame::STUB)));
         __ push(scratch0());
-        __ Addu(fp, sp, Operand(2 * kPointerSize));
+        __ Addu(fp, sp, Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
         __ Call(t9);
       }
     } else {
+      if (info()->saves_caller_doubles()) {
+        ASSERT(info()->IsStub());
+        RestoreCallerDoubles();
+      }
       __ Call(t9);
     }
   }
@@ -786,7 +814,10 @@ void LCodeGen::DeoptimizeIf(Condition condition,
   }
 
   ASSERT(info()->IsStub() || frame_is_built_);
-  if (condition == al && frame_is_built_) {
+  // Go through jump table if we need to handle condition, build frame, or
+  // restore caller doubles.
+  if (condition == al && frame_is_built_ &&
+      !info()->saves_caller_doubles()) {
     __ Call(entry, RelocInfo::RUNTIME_ENTRY, condition, src1, src2);
   } else {
     // We often have several deopts to the same entry, reuse the last
@@ -1091,35 +1122,6 @@ void LCodeGen::DoModI(LModI* instr) {
     __ bind(&left_is_not_negative);
     __ And(result_reg, left_reg, divisor - 1);
     __ bind(&done);
-
-  } else if (hmod->fixed_right_arg().has_value) {
-    const Register left_reg = ToRegister(instr->left());
-    const Register result_reg = ToRegister(instr->result());
-    const Register right_reg = ToRegister(instr->right());
-
-    int32_t divisor = hmod->fixed_right_arg().value;
-    ASSERT(IsPowerOf2(divisor));
-
-    // Check if our assumption of a fixed right operand still holds.
-    DeoptimizeIf(ne, instr->environment(), right_reg, Operand(divisor));
-
-    Label left_is_not_negative, done;
-    if (left->CanBeNegative()) {
-      __ Branch(left_reg.is(result_reg) ? PROTECT : USE_DELAY_SLOT,
-                &left_is_not_negative, ge, left_reg, Operand(zero_reg));
-      __ subu(result_reg, zero_reg, left_reg);
-      __ And(result_reg, result_reg, divisor - 1);
-      if (hmod->CheckFlag(HValue::kBailoutOnMinusZero)) {
-        DeoptimizeIf(eq, instr->environment(), result_reg, Operand(zero_reg));
-      }
-      __ Branch(USE_DELAY_SLOT, &done);
-      __ subu(result_reg, zero_reg, result_reg);
-    }
-
-    __ bind(&left_is_not_negative);
-    __ And(result_reg, left_reg, divisor - 1);
-    __ bind(&done);
-
   } else {
     const Register scratch = scratch0();
     const Register left_reg = ToRegister(instr->left());
@@ -1733,7 +1735,7 @@ void LCodeGen::DoDateField(LDateField* instr) {
   ASSERT(!scratch.is(scratch0()));
   ASSERT(!scratch.is(object));
 
-  __ And(at, object, Operand(kSmiTagMask));
+  __ SmiTst(object, at);
   DeoptimizeIf(eq, instr->environment(), at, Operand(zero_reg));
   __ GetObjectType(object, scratch, scratch);
   DeoptimizeIf(ne, instr->environment(), scratch, Operand(JS_DATE_TYPE));
@@ -2144,7 +2146,7 @@ void LCodeGen::DoBranch(LBranch* instr) {
         __ JumpIfSmi(reg, instr->TrueLabel(chunk_));
       } else if (expected.NeedsMap()) {
         // If we need a map later and have a Smi -> deopt.
-        __ And(at, reg, Operand(kSmiTagMask));
+        __ SmiTst(reg, at);
         DeoptimizeIf(eq, instr->environment(), at, Operand(zero_reg));
       }
 
@@ -2806,16 +2808,7 @@ void LCodeGen::DoReturn(LReturn* instr) {
     __ CallRuntime(Runtime::kTraceExit, 1);
   }
   if (info()->saves_caller_doubles()) {
-    ASSERT(NeedsEagerFrame());
-    BitVector* doubles = chunk()->allocated_double_registers();
-    BitVector::Iterator save_iterator(doubles);
-    int count = 0;
-    while (!save_iterator.Done()) {
-      __ ldc1(DoubleRegister::FromAllocationIndex(save_iterator.Current()),
-              MemOperand(sp, count * kDoubleSize));
-      save_iterator.Advance();
-      count++;
-    }
+    RestoreCallerDoubles();
   }
   int no_frame_start = -1;
   if (NeedsEagerFrame()) {
@@ -3066,22 +3059,44 @@ void LCodeGen::DoLoadExternalArrayPointer(
 void LCodeGen::DoAccessArgumentsAt(LAccessArgumentsAt* instr) {
   Register arguments = ToRegister(instr->arguments());
   Register result = ToRegister(instr->result());
-  if (instr->length()->IsConstantOperand() &&
-      instr->index()->IsConstantOperand()) {
-    int const_index = ToInteger32(LConstantOperand::cast(instr->index()));
+  // There are two words between the frame pointer and the last argument.
+  // Subtracting from length accounts for one of them add one more.
+  if (instr->length()->IsConstantOperand()) {
     int const_length = ToInteger32(LConstantOperand::cast(instr->length()));
-    int index = (const_length - const_index) + 1;
-    __ lw(result, MemOperand(arguments, index * kPointerSize));
+    if (instr->index()->IsConstantOperand()) {
+      int const_index = ToInteger32(LConstantOperand::cast(instr->index()));
+      int index = (const_length - const_index) + 1;
+      __ lw(result, MemOperand(arguments, index * kPointerSize));
+    } else {
+      Register index = ToRegister(instr->index());
+      __ li(at, Operand(const_length + 1));
+      __ Subu(result, at, index);
+      __ sll(at, result, kPointerSizeLog2);
+      __ Addu(at, arguments, at);
+      __ lw(result, MemOperand(at));
+    }
+  } else if (instr->index()->IsConstantOperand()) {
+    Register length = ToRegister(instr->length());
+    int const_index = ToInteger32(LConstantOperand::cast(instr->index()));
+    int loc = const_index - 1;
+    if (loc != 0) {
+      __ Subu(result, length, Operand(loc));
+      __ sll(at, result, kPointerSizeLog2);
+      __ Addu(at, arguments, at);
+      __ lw(result, MemOperand(at));
+    } else {
+      __ sll(at, length, kPointerSizeLog2);
+      __ Addu(at, arguments, at);
+      __ lw(result, MemOperand(at));
+    }
   } else {
     Register length = ToRegister(instr->length());
     Register index = ToRegister(instr->index());
-    // There are two words between the frame pointer and the last argument.
-    // Subtracting from length accounts for one of them, add one more.
-    __ subu(length, length, index);
-    __ Addu(length, length, Operand(1));
-    __ sll(length, length, kPointerSizeLog2);
-    __ Addu(at, arguments, Operand(length));
-    __ lw(result, MemOperand(at, 0));
+    __ Subu(result, length, index);
+    __ Addu(result, result, 1);
+    __ sll(at, result, kPointerSizeLog2);
+    __ Addu(at, arguments, at);
+    __ lw(result, MemOperand(at));
   }
 }
 
@@ -3237,7 +3252,7 @@ void LCodeGen::DoLoadKeyedFixedArray(LLoadKeyed* instr) {
   // Check for the hole value.
   if (instr->hydrogen()->RequiresHoleCheck()) {
     if (IsFastSmiElementsKind(instr->hydrogen()->elements_kind())) {
-      __ And(scratch, result, Operand(kSmiTagMask));
+      __ SmiTst(result, scratch);
       DeoptimizeIf(ne, instr->environment(), scratch, Operand(zero_reg));
     } else {
       __ LoadRoot(scratch, Heap::kTheHoleValueRootIndex);
@@ -3386,7 +3401,7 @@ void LCodeGen::DoWrapReceiver(LWrapReceiver* instr) {
   __ Branch(&global_object, eq, receiver, Operand(scratch));
 
   // Deoptimize if the receiver is not a JS object.
-  __ And(scratch, receiver, Operand(kSmiTagMask));
+  __ SmiTst(receiver, scratch);
   DeoptimizeIf(eq, instr->environment(), scratch, Operand(zero_reg));
 
   __ GetObjectType(receiver, scratch, scratch);
@@ -3858,68 +3873,6 @@ void LCodeGen::DoPower(LPower* instr) {
 }
 
 
-void LCodeGen::DoRandom(LRandom* instr) {
-  // Assert that the register size is indeed the size of each seed.
-  static const int kSeedSize = sizeof(uint32_t);
-  STATIC_ASSERT(kPointerSize == kSeedSize);
-
-  // Load native context.
-  Register global_object = ToRegister(instr->global_object());
-  Register native_context = global_object;
-  __ lw(native_context, FieldMemOperand(
-          global_object, GlobalObject::kNativeContextOffset));
-
-  // Load state (FixedArray of the native context's random seeds).
-  static const int kRandomSeedOffset =
-      FixedArray::kHeaderSize + Context::RANDOM_SEED_INDEX * kPointerSize;
-  Register state = native_context;
-  __ lw(state, FieldMemOperand(native_context, kRandomSeedOffset));
-
-  // Load state[0].
-  Register state0 = ToRegister(instr->scratch());
-  __ lw(state0, FieldMemOperand(state, ByteArray::kHeaderSize));
-  // Load state[1].
-  Register state1 = ToRegister(instr->scratch2());
-  __ lw(state1, FieldMemOperand(state, ByteArray::kHeaderSize + kSeedSize));
-
-  // state[0] = 18273 * (state[0] & 0xFFFF) + (state[0] >> 16)
-  Register scratch3 = ToRegister(instr->scratch3());
-  Register scratch4 = scratch0();
-  __ And(scratch3, state0, Operand(0xFFFF));
-  __ li(scratch4, Operand(18273));
-  __ Mul(scratch3, scratch3, scratch4);
-  __ srl(state0, state0, 16);
-  __ Addu(state0, scratch3, state0);
-  // Save state[0].
-  __ sw(state0, FieldMemOperand(state, ByteArray::kHeaderSize));
-
-  // state[1] = 36969 * (state[1] & 0xFFFF) + (state[1] >> 16)
-  __ And(scratch3, state1, Operand(0xFFFF));
-  __ li(scratch4, Operand(36969));
-  __ Mul(scratch3, scratch3, scratch4);
-  __ srl(state1, state1, 16),
-  __ Addu(state1, scratch3, state1);
-  // Save state[1].
-  __ sw(state1, FieldMemOperand(state, ByteArray::kHeaderSize + kSeedSize));
-
-  // Random bit pattern = (state[0] << 14) + (state[1] & 0x3FFFF)
-  Register random = scratch4;
-  __ And(random, state1, Operand(0x3FFFF));
-  __ sll(state0, state0, 14);
-  __ Addu(random, random, state0);
-
-  // 0x41300000 is the top half of 1.0 x 2^20 as a double.
-  __ li(scratch3, Operand(0x41300000));
-  // Move 0x41300000xxxxxxxx (x = random bits in v0) to FPU.
-  DoubleRegister result = ToDoubleRegister(instr->result());
-  __ Move(result, random, scratch3);
-  // Move 0x4130000000000000 to FPU.
-  DoubleRegister scratch5 = double_scratch0();
-  __ Move(scratch5, zero_reg, scratch3);
-  __ sub_d(result, result, scratch5);
-}
-
-
 void LCodeGen::DoMathExp(LMathExp* instr) {
   DoubleRegister input = ToDoubleRegister(instr->value());
   DoubleRegister result = ToDoubleRegister(instr->result());
@@ -4164,7 +4117,7 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
   if (FLAG_track_heap_object_fields && representation.IsHeapObject()) {
     Register value = ToRegister(instr->value());
     if (!instr->hydrogen()->value()->type().IsHeapObject()) {
-      __ And(scratch, value, Operand(kSmiTagMask));
+      __ SmiTst(value, scratch);
       DeoptimizeIf(eq, instr->environment(), scratch, Operand(zero_reg));
     }
   } else if (FLAG_track_double_fields && representation.IsDouble()) {
@@ -5159,7 +5112,7 @@ void LCodeGen::DoDoubleToSmi(LDoubleToSmi* instr) {
 
 void LCodeGen::DoCheckSmi(LCheckSmi* instr) {
   LOperand* input = instr->value();
-  __ And(at, ToRegister(input), Operand(kSmiTagMask));
+  __ SmiTst(ToRegister(input), at);
   DeoptimizeIf(ne, instr->environment(), at, Operand(zero_reg));
 }
 
@@ -5167,7 +5120,7 @@ void LCodeGen::DoCheckSmi(LCheckSmi* instr) {
 void LCodeGen::DoCheckNonSmi(LCheckNonSmi* instr) {
   if (!instr->hydrogen()->value()->IsHeapObject()) {
     LOperand* input = instr->value();
-    __ And(at, ToRegister(input), Operand(kSmiTagMask));
+    __ SmiTst(ToRegister(input), at);
     DeoptimizeIf(eq, instr->environment(), at, Operand(zero_reg));
   }
 }
@@ -5240,7 +5193,7 @@ void LCodeGen::DoDeferredInstanceMigration(LCheckMaps* instr, Register object) {
         instr->pointer_map(), 1, Safepoint::kNoLazyDeopt);
     __ StoreToSafepointRegisterSlot(v0, scratch0());
   }
-  __ And(at, scratch0(), Operand(kSmiTagMask));
+  __ SmiTst(scratch0(), at);
   DeoptimizeIf(eq, instr->environment(), at, Operand(zero_reg));
 }
 

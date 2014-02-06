@@ -244,7 +244,7 @@ int Type::GlbBitset() {
 
 
 // Most precise _current_ type of a value (usually its class).
-Type* Type::CurrentOf(Handle<i::Object> value) {
+Type* Type::OfCurrently(Handle<i::Object> value) {
   if (value->IsSmi()) return Smi();
   i::Map* map = i::HeapObject::cast(*value)->map();
   if (map->instance_type() == HEAP_NUMBER_TYPE ||
@@ -294,6 +294,14 @@ bool Type::SlowIs(Type* that) {
   }
 
   return false;
+}
+
+
+bool Type::IsCurrently(Type* that) {
+  return this->Is(that) ||
+      (this->is_constant() && that->is_class() &&
+       this->as_constant()->IsHeapObject() &&
+       i::HeapObject::cast(*this->as_constant())->map() == *that->as_class());
 }
 
 
@@ -525,25 +533,35 @@ void Type::TypePrint() {
 }
 
 
+const char* Type::bitset_name(int bitset) {
+  switch (bitset) {
+    #define PRINT_COMPOSED_TYPE(type, value) case k##type: return #type;
+    BITSET_TYPE_LIST(PRINT_COMPOSED_TYPE)
+    #undef PRINT_COMPOSED_TYPE
+    default:
+      return NULL;
+  }
+}
+
+
 void Type::TypePrint(FILE* out) {
   if (is_bitset()) {
-    int val = as_bitset();
-    const char* composed_name = GetComposedName(val);
-    if (composed_name != NULL) {
-      PrintF(out, "%s", composed_name);
-      return;
-    }
-    bool first_entry = true;
-    PrintF(out, "{");
-    for (unsigned i = 0; i < sizeof(val)*8; ++i) {
-      int mask = (1 << i);
-      if ((val & mask) != 0) {
-        if (!first_entry) PrintF(out, ",");
-        first_entry = false;
-        PrintF(out, "%s", GetPrimitiveName(mask));
+    int bitset = as_bitset();
+    const char* name = bitset_name(bitset);
+    if (name != NULL) {
+      PrintF(out, "%s", name);
+    } else {
+      bool is_first = true;
+      PrintF(out, "(");
+      for (int mask = 1; mask != 0; mask = mask << 1) {
+        if ((bitset & mask) != 0) {
+          if (!is_first) PrintF(out, " | ");
+          is_first = false;
+          PrintF(out, "%s", bitset_name(mask));
+        }
       }
+      PrintF(out, ")");
     }
-    PrintF(out, "}");
   } else if (is_constant()) {
     PrintF(out, "Constant(%p : ", static_cast<void*>(*as_constant()));
     from_bitset(LubBitset())->TypePrint(out);
@@ -553,14 +571,14 @@ void Type::TypePrint(FILE* out) {
     from_bitset(LubBitset())->TypePrint(out);
     PrintF(")");
   } else if (is_union()) {
-    PrintF(out, "{");
+    PrintF(out, "(");
     Handle<Unioned> unioned = as_union();
     for (int i = 0; i < unioned->length(); ++i) {
       Handle<Type> type_i = union_get(unioned, i);
-      if (i > 0) PrintF(out, ",");
+      if (i > 0) PrintF(out, " | ");
       type_i->TypePrint(out);
     }
-    PrintF(out, "}");
+    PrintF(out, ")");
   }
 }
 #endif

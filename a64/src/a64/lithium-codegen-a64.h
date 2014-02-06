@@ -131,7 +131,6 @@ class LCodeGen: public LCodeGenBase {
   // Deferred code support.
   void DoDeferredNumberTagD(LNumberTagD* instr);
   void DoDeferredStackCheck(LStackCheck* instr);
-  void DoDeferredRandom(LRandom* instr);
   void DoDeferredStringCharCodeAt(LStringCharCodeAt* instr);
   void DoDeferredStringCharFromCode(LStringCharFromCode* instr);
   void DoDeferredMathAbsTagged(LMathAbsTagged* instr,
@@ -269,6 +268,9 @@ class LCodeGen: public LCodeGenBase {
                         bool is_uint32,
                         int* object_index_pointer,
                         int* dematerialized_index_pointer);
+
+  void SaveCallerDoubles();
+  void RestoreCallerDoubles();
 
   // Code generation steps.  Returns true if code generation should continue.
   bool GeneratePrologue();

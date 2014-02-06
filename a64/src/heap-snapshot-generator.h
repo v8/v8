@@ -704,4 +704,3 @@ class HeapSnapshotJSONSerializer {
 } }  // namespace v8::internal
 
 #endif  // V8_HEAP_SNAPSHOT_GENERATOR_H_
-

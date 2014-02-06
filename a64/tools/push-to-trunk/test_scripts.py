@@ -34,6 +34,7 @@ import common_includes
 from common_includes import *
 import push_to_trunk
 from push_to_trunk import *
+import auto_roll
 
 
 TEST_CONFIG = {
@@ -53,25 +54,54 @@ TEST_CONFIG = {
 
 
 class ToplevelTest(unittest.TestCase):
+  def testMakeComment(self):
+    self.assertEquals("#   Line 1\n#   Line 2\n#",
+                      MakeComment("    Line 1\n    Line 2\n"))
+    self.assertEquals("#Line 1\n#Line 2",
+                      MakeComment("Line 1\n Line 2"))
+
+  def testStripComments(self):
+    self.assertEquals("    Line 1\n    Line 3\n",
+        StripComments("    Line 1\n#   Line 2\n    Line 3\n#\n"))
+    self.assertEquals("\nLine 2 ### Test\n #",
+        StripComments("###\n# \n\n#  Line 1\nLine 2 ### Test\n #"))
+
   def testMakeChangeLogBodySimple(self):
-    commits = lambda: [
-          ["        Title text 1",
+    commits = [
+          ["Title text 1",
            "Title text 1\n\nBUG=\n",
-           "        author1@chromium.org"],
-          ["        Title text 2",
+           "author1@chromium.org"],
+          ["Title text 2.",
            "Title text 2\n\nBUG=1234\n",
-           "        author2@chromium.org"],
+           "author2@chromium.org"],
         ]
-    self.assertEquals("        Title text 1\n"
-                      "        author1@chromium.org\n\n"
-                      "        Title text 2\n"
-                      "        (Chromium issue 1234)\n"
-                      "        author2@chromium.org\n\n",
+    self.assertEquals("        Title text 1.\n"
+                      "        (author1@chromium.org)\n\n"
+                      "        Title text 2 (Chromium issue 1234).\n"
+                      "        (author2@chromium.org)\n\n",
                       MakeChangeLogBody(commits))
 
   def testMakeChangeLogBodyEmpty(self):
-    commits = lambda: []
-    self.assertEquals("", MakeChangeLogBody(commits))
+    self.assertEquals("", MakeChangeLogBody([]))
+
+  def testMakeChangeLogBodyAutoFormat(self):
+    commits = [
+          ["Title text 1!",
+           "Title text 1\nLOG=y\nBUG=\n",
+           "author1@chromium.org"],
+          ["Title text 2",
+           "Title text 2\n\nBUG=1234\n",
+           "author2@chromium.org"],
+          ["Title text 3",
+           "Title text 3\n\nBUG=1234\nLOG = Yes\n",
+           "author3@chromium.org"],
+          ["Title text 3",
+           "Title text 4\n\nBUG=1234\nLOG=\n",
+           "author4@chromium.org"],
+        ]
+    self.assertEquals("        Title text 1.\n\n"
+                      "        Title text 3 (Chromium issue 1234).\n\n",
+                      MakeChangeLogBody(commits, True))
 
   def testMakeChangeLogBugReferenceEmpty(self):
     self.assertEquals("", MakeChangeLogBugReference(""))
@@ -80,13 +110,13 @@ class ToplevelTest(unittest.TestCase):
     self.assertEquals("", MakeChangeLogBugReference("BUG=none\t"))
 
   def testMakeChangeLogBugReferenceSimple(self):
-    self.assertEquals("        (issue 987654)\n",
+    self.assertEquals("(issue 987654)",
                       MakeChangeLogBugReference("BUG = v8:987654"))
-    self.assertEquals("        (Chromium issue 987654)\n",
+    self.assertEquals("(Chromium issue 987654)",
                       MakeChangeLogBugReference("BUG=987654 "))
 
   def testMakeChangeLogBugReferenceFromBody(self):
-    self.assertEquals("        (Chromium issue 1234567)\n",
+    self.assertEquals("(Chromium issue 1234567)",
                       MakeChangeLogBugReference("Title\n\nTBR=\nBUG=\n"
                                                 " BUG=\tchromium:1234567\t\n"
                                                 "R=somebody\n"))
@@ -94,58 +124,105 @@ class ToplevelTest(unittest.TestCase):
   def testMakeChangeLogBugReferenceMultiple(self):
     # All issues should be sorted and grouped. Multiple references to the same
     # issue should be filtered.
-    self.assertEquals("        (issues 123, 234, Chromium issue 345)\n",
+    self.assertEquals("(issues 123, 234, Chromium issue 345)",
                       MakeChangeLogBugReference("Title\n\n"
                                                 "BUG=v8:234\n"
                                                 "  BUG\t= 345, \tv8:234,\n"
                                                 "BUG=v8:123\n"
                                                 "R=somebody\n"))
-    self.assertEquals("        (Chromium issues 123, 234)\n",
+    self.assertEquals("(Chromium issues 123, 234)",
                       MakeChangeLogBugReference("Title\n\n"
                                                 "BUG=234,,chromium:123 \n"
                                                 "R=somebody\n"))
-    self.assertEquals("        (Chromium issues 123, 234)\n",
+    self.assertEquals("(Chromium issues 123, 234)",
                       MakeChangeLogBugReference("Title\n\n"
                                                 "BUG=chromium:234, , 123\n"
                                                 "R=somebody\n"))
-    self.assertEquals("        (issues 345, 456)\n",
+    self.assertEquals("(issues 345, 456)",
                       MakeChangeLogBugReference("Title\n\n"
                                                 "\t\tBUG=v8:345,v8:456\n"
                                                 "R=somebody\n"))
-    self.assertEquals("        (issue 123, Chromium issues 345, 456)\n",
+    self.assertEquals("(issue 123, Chromium issues 345, 456)",
                       MakeChangeLogBugReference("Title\n\n"
                                                 "BUG=chromium:456\n"
                                                 "BUG = none\n"
                                                 "R=somebody\n"
                                                 "BUG=456,v8:123, 345"))
 
+  # TODO(machenbach): These test don't make much sense when the formatting is
+  # done later.
   def testMakeChangeLogBugReferenceLong(self):
     # -----------------00--------10--------20--------30--------
-    self.assertEquals("        (issues 234, 1234567890, 1234567"
-                      "8901234567890, Chromium issues 12345678,\n"
-                      "        123456789)\n",
+    self.assertEquals("(issues 234, 1234567890, 1234567"
+                      "8901234567890, Chromium issues 12345678,"
+                      " 123456789)",
                       MakeChangeLogBugReference("BUG=v8:234\n"
                                                 "BUG=v8:1234567890\n"
                                                 "BUG=v8:12345678901234567890\n"
                                                 "BUG=123456789\n"
                                                 "BUG=12345678\n"))
     # -----------------00--------10--------20--------30--------
-    self.assertEquals("        (issues 234, 1234567890, 1234567"
-                      "8901234567890, Chromium issues\n"
-                      "        123456789, 1234567890)\n",
+    self.assertEquals("(issues 234, 1234567890, 1234567"
+                      "8901234567890, Chromium issues"
+                      " 123456789, 1234567890)",
                       MakeChangeLogBugReference("BUG=v8:234\n"
                                                 "BUG=v8:12345678901234567890\n"
                                                 "BUG=v8:1234567890\n"
                                                 "BUG=123456789\n"
                                                 "BUG=1234567890\n"))
     # -----------------00--------10--------20--------30--------
-    self.assertEquals("        (Chromium issues 234, 1234567890"
-                      ", 12345678901234567,\n"
-                      "        1234567890123456789)\n",
+    self.assertEquals("(Chromium issues 234, 1234567890"
+                      ", 12345678901234567, "
+                      "1234567890123456789)",
                       MakeChangeLogBugReference("BUG=234\n"
                                                 "BUG=12345678901234567\n"
                                                 "BUG=1234567890123456789\n"
                                                 "BUG=1234567890\n"))
+
+
+class SimpleMock(object):
+  def __init__(self, name):
+    self._name = name
+    self._recipe = []
+    self._index = -1
+
+  def Expect(self, recipe):
+    self._recipe = recipe
+
+  def Call(self, *args):
+    self._index += 1
+    try:
+      expected_call = self._recipe[self._index]
+    except IndexError:
+      raise Exception("Calling %s %s" % (self._name, " ".join(args)))
+
+    # Pack expectations without arguments into a list.
+    if not isinstance(expected_call, list):
+      expected_call = [expected_call]
+
+    # The number of arguments in the expectation must match the actual
+    # arguments.
+    if len(args) > len(expected_call):
+      raise Exception("When calling %s with arguments, the expectations "
+                      "must consist of at least as many arguments.")
+
+    # Compare expected and actual arguments.
+    for (expected_arg, actual_arg) in zip(expected_call, args):
+      if expected_arg != actual_arg:
+        raise Exception("Expected: %s - Actual: %s"
+                        % (expected_arg, actual_arg))
+
+    # The expectation list contains a mandatory return value and an optional
+    # callback for checking the context at the time of the call.
+    if len(expected_call) == len(args) + 2:
+      expected_call[len(args) + 1]()
+    return expected_call[len(args)]
+
+  def AssertFinished(self):
+    if self._index < len(self._recipe) -1:
+      raise Exception("Called %s too seldom: %d vs. %d"
+                      % (self._name, self._index, len(self._recipe)))
+
 
 class ScriptTest(unittest.TestCase):
   def MakeEmptyTempFile(self):
@@ -168,26 +245,12 @@ class ScriptTest(unittest.TestCase):
     return name
 
   def MakeStep(self, step_class=Step, state=None):
-    state = state or {}
-    step = step_class()
-    step.SetConfig(TEST_CONFIG)
-    step.SetState(state)
-    step.SetNumber(0)
-    step.SetSideEffectHandler(self)
-    return step
+    """Convenience wrapper."""
+    return MakeStep(step_class=step_class, number=0, state=state,
+                    config=TEST_CONFIG, options=None, side_effect_handler=self)
 
   def GitMock(self, cmd, args="", pipe=True):
-    self._git_index += 1
-    try:
-      git_invocation = self._git_recipe[self._git_index]
-    except IndexError:
-      raise Exception("Calling git %s" % args)
-    if git_invocation[0] != args:
-      raise Exception("Expected: %s - Actual: %s" % (git_invocation[0], args))
-    if len(git_invocation) == 3:
-      # Run optional function checking the context during this git command.
-      git_invocation[2]()
-    return git_invocation[1]
+    return self._git_mock.Call(args)
 
   def LogMock(self, cmd, args=""):
     print "Log: %s %s" % (cmd, args)
@@ -201,17 +264,27 @@ class ScriptTest(unittest.TestCase):
     return ScriptTest.MOCKS[cmd](self, cmd, args)
 
   def ReadLine(self):
-    self._rl_index += 1
-    try:
-      return self._rl_recipe[self._rl_index]
-    except IndexError:
-      raise Exception("Calling readline too often")
+    return self._rl_mock.Call()
+
+  def ReadURL(self, url):
+    return self._url_mock.Call(url)
+
+  def ExpectGit(self, *args):
+    """Convenience wrapper."""
+    self._git_mock.Expect(*args)
+
+  def ExpectReadline(self, *args):
+    """Convenience wrapper."""
+    self._rl_mock.Expect(*args)
+
+  def ExpectReadURL(self, *args):
+    """Convenience wrapper."""
+    self._url_mock.Expect(*args)
 
   def setUp(self):
-    self._git_recipe = []
-    self._git_index = -1
-    self._rl_recipe = []
-    self._rl_index = -1
+    self._git_mock = SimpleMock("git")
+    self._rl_mock = SimpleMock("readline")
+    self._url_mock = SimpleMock("readurl")
     self._tmp_files = []
 
   def tearDown(self):
@@ -222,12 +295,9 @@ class ScriptTest(unittest.TestCase):
       if os.path.exists(name):
         os.remove(name)
 
-    if self._git_index < len(self._git_recipe) -1:
-      raise Exception("Called git too seldom: %d vs. %d" %
-                      (self._git_index, len(self._git_recipe)))
-    if self._rl_index < len(self._rl_recipe) -1:
-      raise Exception("Too little input: %d vs. %d" %
-                      (self._rl_index, len(self._rl_recipe)))
+    self._git_mock.AssertFinished()
+    self._rl_mock.AssertFinished()
+    self._url_mock.AssertFinished()
 
   def testPersistRestore(self):
     self.MakeStep().Persist("test1", "")
@@ -239,12 +309,12 @@ class ScriptTest(unittest.TestCase):
     self.assertTrue(Command("git", "--version").startswith("git version"))
 
   def testGitMock(self):
-    self._git_recipe = [["--version", "git version 1.2.3"], ["dummy", ""]]
+    self.ExpectGit([["--version", "git version 1.2.3"], ["dummy", ""]])
     self.assertEquals("git version 1.2.3", self.MakeStep().Git("--version"))
     self.assertEquals("", self.MakeStep().Git("dummy"))
 
   def testCommonPrepareDefault(self):
-    self._git_recipe = [
+    self.ExpectGit([
       ["status -s -uno", ""],
       ["status -s -b -uno", "## some_branch"],
       ["svn fetch", ""],
@@ -252,33 +322,33 @@ class ScriptTest(unittest.TestCase):
       ["branch -D %s" % TEST_CONFIG[TEMP_BRANCH], ""],
       ["checkout -b %s" % TEST_CONFIG[TEMP_BRANCH], ""],
       ["branch", ""],
-    ]
-    self._rl_recipe = ["Y"]
+    ])
+    self.ExpectReadline(["Y"])
     self.MakeStep().CommonPrepare()
     self.MakeStep().PrepareBranch()
     self.assertEquals("some_branch", self.MakeStep().Restore("current_branch"))
 
   def testCommonPrepareNoConfirm(self):
-    self._git_recipe = [
+    self.ExpectGit([
       ["status -s -uno", ""],
       ["status -s -b -uno", "## some_branch"],
       ["svn fetch", ""],
       ["branch", "  branch1\n* %s" % TEST_CONFIG[TEMP_BRANCH]],
-    ]
-    self._rl_recipe = ["n"]
+    ])
+    self.ExpectReadline(["n"])
     self.MakeStep().CommonPrepare()
     self.assertRaises(Exception, self.MakeStep().PrepareBranch)
     self.assertEquals("some_branch", self.MakeStep().Restore("current_branch"))
 
   def testCommonPrepareDeleteBranchFailure(self):
-    self._git_recipe = [
+    self.ExpectGit([
       ["status -s -uno", ""],
       ["status -s -b -uno", "## some_branch"],
       ["svn fetch", ""],
       ["branch", "  branch1\n* %s" % TEST_CONFIG[TEMP_BRANCH]],
       ["branch -D %s" % TEST_CONFIG[TEMP_BRANCH], None],
-    ]
-    self._rl_recipe = ["Y"]
+    ])
+    self.ExpectReadline(["Y"])
     self.MakeStep().CommonPrepare()
     self.assertRaises(Exception, self.MakeStep().PrepareBranch)
     self.assertEquals("some_branch", self.MakeStep().Restore("current_branch"))
@@ -326,29 +396,64 @@ class ScriptTest(unittest.TestCase):
     TEST_CONFIG[VERSION_FILE] = self.MakeTempVersionFile()
     TEST_CONFIG[CHANGELOG_ENTRY_FILE] = self.MakeEmptyTempFile()
 
-    self._git_recipe = [
-      ["log 1234..HEAD --format=%H", "rev1\nrev2"],
-      ["log -1 rev1 --format=\"%w(80,8,8)%s\"", "        Title text 1"],
-      ["log -1 rev1 --format=\"%B\"", "Title\n\nBUG=\n"],
-      ["log -1 rev1 --format=\"%w(80,8,8)(%an)\"",
-       "        author1@chromium.org"],
-      ["log -1 rev2 --format=\"%w(80,8,8)%s\"", "        Title text 2"],
-      ["log -1 rev2 --format=\"%B\"", "Title\n\nBUG=321\n"],
-      ["log -1 rev2 --format=\"%w(80,8,8)(%an)\"",
-       "        author2@chromium.org"],
-    ]
+    self.ExpectGit([
+      ["log 1234..HEAD --format=%H", "rev1\nrev2\nrev3\nrev4"],
+      ["log -1 rev1 --format=\"%s\"", "Title text 1"],
+      ["log -1 rev1 --format=\"%B\"", "Title\n\nBUG=\nLOG=y\n"],
+      ["log -1 rev1 --format=\"%an\"", "author1@chromium.org"],
+      ["log -1 rev2 --format=\"%s\"", "Title text 2."],
+      ["log -1 rev2 --format=\"%B\"", "Title\n\nBUG=123\nLOG= \n"],
+      ["log -1 rev2 --format=\"%an\"", "author2@chromium.org"],
+      ["log -1 rev3 --format=\"%s\"", "Title text 3"],
+      ["log -1 rev3 --format=\"%B\"", "Title\n\nBUG=321\nLOG=true\n"],
+      ["log -1 rev3 --format=\"%an\"", "author3@chromium.org"],
+      ["log -1 rev4 --format=\"%s\"", "Title text 4"],
+      ["log -1 rev4 --format=\"%B\"",
+       ("Title\n\nBUG=456\nLOG=Y\n\n"
+        "Review URL: https://codereview.chromium.org/9876543210\n")],
+      ["log -1 rev4 --format=\"%an\"", "author4@chromium.org"],
+    ])
+
+    # The cl for rev4 on rietveld has an updated LOG flag.
+    self.ExpectReadURL([
+      ["https://codereview.chromium.org/9876543210/description",
+       "Title\n\nBUG=456\nLOG=N\n\n"],
+    ])
 
     self.MakeStep().Persist("last_push", "1234")
     self.MakeStep(PrepareChangeLog).Run()
 
-    cl = FileToText(TEST_CONFIG[CHANGELOG_ENTRY_FILE])
-    self.assertTrue(re.search(r"\d+\-\d+\-\d+: Version 3\.22\.5", cl))
-    self.assertTrue(re.search(r"        Title text 1", cl))
-    self.assertTrue(re.search(r"        Title text 2", cl))
-    self.assertTrue(re.search(r"        author1@chromium.org", cl))
-    self.assertTrue(re.search(r"        author2@chromium.org", cl))
-    self.assertTrue(re.search(r"        \(Chromium issue 321\)", cl))
-    self.assertFalse(re.search(r"BUG=", cl))
+    actual_cl = FileToText(TEST_CONFIG[CHANGELOG_ENTRY_FILE])
+
+    # TODO(machenbach): Mock out call to date() in order to make a fixed
+    # comparison here instead of a regexp match.
+    expected_cl = """\\d+\\-\\d+\\-\\d+: Version 3\\.22\\.5
+
+        Title text 1.
+
+        Title text 3 \\(Chromium issue 321\\).
+
+        Performance and stability improvements on all platforms\\.
+#
+# The change log above is auto-generated\\. Please review if all relevant
+# commit messages from the list below are included\\.
+# All lines starting with # will be stripped\\.
+#
+#       Title text 1.
+#       \\(author1@chromium\\.org\\)
+#
+#       Title text 2 \\(Chromium issue 123\\).
+#       \\(author2@chromium\\.org\\)
+#
+#       Title text 3 \\(Chromium issue 321\\).
+#       \\(author3@chromium\\.org\\)
+#
+#       Title text 4 \\(Chromium issue 456\\).
+#       \\(author4@chromium\\.org\\)
+#
+#"""
+
+    self.assertTrue(re.match(expected_cl, actual_cl))
     self.assertEquals("3", self.MakeStep().Restore("major"))
     self.assertEquals("22", self.MakeStep().Restore("minor"))
     self.assertEquals("5", self.MakeStep().Restore("build"))
@@ -361,22 +466,22 @@ class ScriptTest(unittest.TestCase):
     TextToFile("  New  \n\tLines  \n", TEST_CONFIG[CHANGELOG_ENTRY_FILE])
     os.environ["EDITOR"] = "vi"
 
-    self._rl_recipe = [
+    self.ExpectReadline([
       "",  # Open editor.
-    ]
+    ])
 
     self.MakeStep(EditChangeLog).Run()
 
-    self.assertEquals("        New\n        Lines\n\n\n        Original CL",
+    self.assertEquals("New\n        Lines\n\n\n        Original CL",
                       FileToText(TEST_CONFIG[CHANGELOG_FILE]))
 
   def testIncrementVersion(self):
     TEST_CONFIG[VERSION_FILE] = self.MakeTempVersionFile()
     self.MakeStep().Persist("build", "5")
 
-    self._rl_recipe = [
+    self.ExpectReadline([
       "Y",  # Increment build number.
-    ]
+    ])
 
     self.MakeStep(IncrementVersion).Run()
 
@@ -412,9 +517,9 @@ class ScriptTest(unittest.TestCase):
       f.write("        Performance and stability improvements on all "
               "platforms.\n")
 
-    self._git_recipe = [
+    self.ExpectGit([
       ["diff svn/trunk hash1", "patch content"],
-    ]
+    ])
 
     self.MakeStep().Persist("prepare_commit_hash", "hash1")
     self.MakeStep().Persist("date", "1999-11-11")
@@ -445,15 +550,22 @@ class ScriptTest(unittest.TestCase):
     def CheckPreparePush():
       cl = FileToText(TEST_CONFIG[CHANGELOG_FILE])
       self.assertTrue(re.search(r"Version 3.22.5", cl))
-      self.assertTrue(re.search(r"        Log text 1", cl))
-      self.assertTrue(re.search(r"        \(issue 321\)", cl))
+      self.assertTrue(re.search(r"        Log text 1 \(issue 321\).", cl))
+      self.assertFalse(re.search(r"        \(author1@chromium\.org\)", cl))
+
+      # Make sure all comments got stripped.
+      self.assertFalse(re.search(r"^#", cl, flags=re.M))
+
       version = FileToText(TEST_CONFIG[VERSION_FILE])
       self.assertTrue(re.search(r"#define BUILD_NUMBER\s+6", version))
+
+    def CheckUpload():
+      cl = FileToText(TEST_CONFIG[CHANGELOG_FILE])
 
     def CheckSVNCommit():
       commit = FileToText(TEST_CONFIG[COMMITMSG_FILE])
       self.assertTrue(re.search(r"Version 3.22.5", commit))
-      self.assertTrue(re.search(r"Log text 1. \(issue 321\)", commit))
+      self.assertTrue(re.search(r"Log text 1 \(issue 321\).", commit))
       version = FileToText(TEST_CONFIG[VERSION_FILE])
       self.assertTrue(re.search(r"#define MINOR_VERSION\s+22", version))
       self.assertTrue(re.search(r"#define BUILD_NUMBER\s+5", version))
@@ -461,7 +573,8 @@ class ScriptTest(unittest.TestCase):
       self.assertTrue(re.search(r"#define PATCH_LEVEL\s+0", version))
       self.assertTrue(re.search(r"#define IS_CANDIDATE_VERSION\s+0", version))
 
-    self._git_recipe = [
+    force_flag = " -f" if force else ""
+    self.ExpectGit([
       ["status -s -uno", ""],
       ["status -s -b -uno", "## some_branch\n"],
       ["svn fetch", ""],
@@ -473,15 +586,15 @@ class ScriptTest(unittest.TestCase):
       ["log -1 --format=%H ChangeLog", "1234\n"],
       ["log -1 1234", "Last push ouput\n"],
       ["log 1234..HEAD --format=%H", "rev1\n"],
-      ["log -1 rev1 --format=\"%w(80,8,8)%s\"", "        Log text 1.\n"],
-      ["log -1 rev1 --format=\"%B\"", "Text\nBUG=v8:321\nText\n"],
-      ["log -1 rev1 --format=\"%w(80,8,8)(%an)\"",
-       "        author1@chromium.org\n"],
+      ["log -1 rev1 --format=\"%s\"", "Log text 1.\n"],
+      ["log -1 rev1 --format=\"%B\"", "Text\nLOG=YES\nBUG=v8:321\nText\n"],
+      ["log -1 rev1 --format=\"%an\"", "author1@chromium.org\n"],
       [("commit -a -m \"Prepare push to trunk.  "
         "Now working on version 3.22.6.\""),
        " 2 files changed\n",
         CheckPreparePush],
-      ["cl upload -r \"reviewer@chromium.org\" --send-mail", "done\n"],
+      ["cl upload -r \"reviewer@chromium.org\" --send-mail%s" % force_flag,
+       "done\n"],
       ["cl dcommit -f", "Closing issue\n"],
       ["svn fetch", "fetch result\n"],
       ["checkout svn/bleeding_edge", ""],
@@ -502,13 +615,13 @@ class ScriptTest(unittest.TestCase):
       [("commit -am \"Update V8 to version 3.22.5.\n\n"
         "TBR=reviewer@chromium.org\""),
        ""],
-      ["cl upload --send-mail", ""],
+      ["cl upload --send-mail%s" % force_flag, ""],
       ["checkout -f some_branch", ""],
       ["branch -D %s" % TEST_CONFIG[TEMP_BRANCH], ""],
       ["branch -D %s" % TEST_CONFIG[BRANCHNAME], ""],
       ["branch -D %s" % TEST_CONFIG[TRUNKBRANCH], ""],
-    ]
-    self._rl_recipe = [
+    ])
+    self.ExpectReadline([
       "Y",  # Confirm last push.
       "",  # Open editor.
       "Y",  # Increment build number.
@@ -517,13 +630,13 @@ class ScriptTest(unittest.TestCase):
       "LGTM",  # Enter LGTM for V8 CL.
       "Y",  # Sanity check.
       "reviewer@chromium.org",  # Chromium reviewer.
-    ]
+    ])
     if force:
       # TODO(machenbach): The lgtm for the prepare push is just temporary.
       # There should be no user input in "force" mode.
-      self._rl_recipe = [
+      self.ExpectReadline([
         "LGTM",  # Enter LGTM for V8 CL.
-      ]
+      ])
 
     class Options( object ):
       pass
@@ -540,9 +653,8 @@ class ScriptTest(unittest.TestCase):
     self.assertTrue(re.search("\"v8_revision\": \"123456\"", deps))
 
     cl = FileToText(TEST_CONFIG[CHANGELOG_FILE])
-    self.assertTrue(re.search(r"\d\d\d\d\-\d+\-\d+: Version 3\.22\.5", cl))
-    self.assertTrue(re.search(r"        Log text 1", cl))
-    self.assertTrue(re.search(r"        \(issue 321\)", cl))
+    self.assertTrue(re.search(r"^\d\d\d\d\-\d+\-\d+: Version 3\.22\.5", cl))
+    self.assertTrue(re.search(r"        Log text 1 \(issue 321\).", cl))
     self.assertTrue(re.search(r"1999\-04\-05: Version 3\.22\.4", cl))
 
     # Note: The version file is on build number 5 again in the end of this test
@@ -554,3 +666,56 @@ class ScriptTest(unittest.TestCase):
 
   def testPushToTrunkForced(self):
     self._PushToTrunk(force=True)
+
+  def testAutoRoll(self):
+    TEST_CONFIG[DOT_GIT_LOCATION] = self.MakeEmptyTempFile()
+
+    # TODO(machenbach): Get rid of the editor check in automatic mode.
+    os.environ["EDITOR"] = "vi"
+
+    self.ExpectReadURL([
+      ["https://v8-status.appspot.com/lkgr", "100"],
+    ])
+
+    self.ExpectGit([
+      ["status -s -uno", ""],
+      ["status -s -b -uno", "## some_branch\n"],
+      ["svn fetch", ""],
+      ["svn log -1 --oneline", "r101 | Text"],
+    ])
+
+    # TODO(machenbach): Make a convenience wrapper for this.
+    class Options( object ):
+      pass
+
+    options = Options()
+    options.s = 0
+
+    auto_roll.RunAutoRoll(TEST_CONFIG, options, self)
+
+    self.assertEquals("100", self.MakeStep().Restore("lkgr"))
+    self.assertEquals("101", self.MakeStep().Restore("latest"))
+
+
+class SystemTest(unittest.TestCase):
+  def testReload(self):
+    step = MakeStep(step_class=PrepareChangeLog, number=0, state={}, config={},
+                    options=None,
+                    side_effect_handler=DEFAULT_SIDE_EFFECT_HANDLER)
+    body = step.Reload(
+"""------------------------------------------------------------------------
+r17997 | machenbach@chromium.org | 2013-11-22 11:04:04 +0100 (...) | 6 lines
+
+Prepare push to trunk.  Now working on version 3.23.11.
+
+R=danno@chromium.org
+
+Review URL: https://codereview.chromium.org/83173002
+
+------------------------------------------------------------------------""")
+    self.assertEquals(
+"""Prepare push to trunk.  Now working on version 3.23.11.
+
+R=danno@chromium.org
+
+Committed: https://code.google.com/p/v8/source/detail?r=17997""", body)

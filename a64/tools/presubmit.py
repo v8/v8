@@ -191,7 +191,8 @@ class SourceFileProcessor(object):
     return True
 
   def IgnoreDir(self, name):
-    return name.startswith('.') or name == 'data' or name == 'sputniktests'
+    return (name.startswith('.') or
+            name in ('data', 'kraken', 'octane', 'sunspider'))
 
   def IgnoreFile(self, name):
     return name.startswith('.')
@@ -312,12 +313,8 @@ class SourceProcessor(SourceFileProcessor):
     return ['.']
 
   def IgnoreDir(self, name):
-    return (super(SourceProcessor, self).IgnoreDir(name)
-              or (name == 'third_party')
-              or (name == 'gyp')
-              or (name == 'out')
-              or (name == 'obj')
-              or (name == 'DerivedSources'))
+    return (super(SourceProcessor, self).IgnoreDir(name) or
+            name in ('third_party', 'gyp', 'out', 'obj', 'DerivedSources'))
 
   IGNORE_COPYRIGHTS = ['cpplint.py',
                        'daemon.py',
@@ -364,6 +361,9 @@ class SourceProcessor(SourceFileProcessor):
         print "%s has trailing whitespaces in lines %s." % (name, linenumbers)
       else:
         print "%s has trailing whitespaces in line %s." % (name, linenumbers)
+      result = False
+    if not contents.endswith('\n') or contents.endswith('\n\n'):
+      print "%s does not end with a single new line." % name
       result = False
     # Check two empty lines between declarations.
     if name.endswith(".cc"):

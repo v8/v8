@@ -948,6 +948,13 @@ LInstruction* LChunkBuilder::DoAdd(HAdd* instr) {
       result = AssignEnvironment(result);
     }
     return result;
+  } else if (instr->representation().IsExternal()) {
+    ASSERT(instr->left()->representation().IsExternal());
+    ASSERT(instr->right()->representation().IsInteger32());
+    ASSERT(!instr->CheckFlag(HValue::kCanOverflow));
+    LOperand* left = UseRegisterAtStart(instr->left());
+    LOperand* right = UseRegisterOrConstantAtStart(instr->right());
+    return DefineAsRegister(new(zone()) LAddI(left, right));
   } else if (instr->representation().IsDouble()) {
     return DoArithmeticD(Token::ADD, instr);
   } else {
@@ -1360,16 +1367,6 @@ LInstruction* LChunkBuilder::DoCompareNumericAndBranch(
     LOperand* right = UseRegisterOrConstantAtStart(instr->right());
     return new(zone()) LCompareNumericAndBranch(left, right);
   }
-}
-
-
-// TODO(all): This will disappear when Math.random is rewritten in JavaScript.
-LInstruction* LChunkBuilder::DoRandom(HRandom* instr) {
-  ASSERT(instr->representation().IsDouble());
-  ASSERT(instr->global_object()->representation().IsTagged());
-  LOperand* global_object = UseFixed(instr->global_object(), x0);
-  LRandom* result = new(zone()) LRandom(global_object);
-  return MarkAsCall(DefineFixedDouble(result, d7), instr);
 }
 
 

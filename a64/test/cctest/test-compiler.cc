@@ -331,7 +331,8 @@ TEST(Regression236) {
 TEST(GetScriptLineNumber) {
   LocalContext context;
   v8::HandleScope scope(CcTest::isolate());
-  v8::ScriptOrigin origin = v8::ScriptOrigin(v8::String::New("test"));
+  v8::ScriptOrigin origin =
+      v8::ScriptOrigin(v8::String::NewFromUtf8(CcTest::isolate(), "test"));
   const char function_f[] = "function f() {}";
   const int max_rows = 1000;
   const int buffer_size = max_rows + sizeof(function_f);
@@ -343,10 +344,12 @@ TEST(GetScriptLineNumber) {
     if (i > 0)
       buffer[i - 1] = '\n';
     OS::MemCopy(&buffer[i], function_f, sizeof(function_f) - 1);
-    v8::Handle<v8::String> script_body = v8::String::New(buffer.start());
+    v8::Handle<v8::String> script_body =
+        v8::String::NewFromUtf8(CcTest::isolate(), buffer.start());
     v8::Script::Compile(script_body, &origin)->Run();
-    v8::Local<v8::Function> f = v8::Local<v8::Function>::Cast(
-        context->Global()->Get(v8::String::New("f")));
+    v8::Local<v8::Function> f =
+        v8::Local<v8::Function>::Cast(context->Global()->Get(
+            v8::String::NewFromUtf8(CcTest::isolate(), "f")));
     CHECK_EQ(i, f->GetScriptLineNumber());
   }
 }
@@ -364,7 +367,8 @@ TEST(OptimizedCodeSharing) {
   v8::HandleScope scope(CcTest::isolate());
   for (int i = 0; i < 10; i++) {
     LocalContext env;
-    env->Global()->Set(v8::String::New("x"), v8::Integer::New(i));
+    env->Global()->Set(v8::String::NewFromUtf8(CcTest::isolate(), "x"),
+                       v8::Integer::New(i));
     CompileRun("function MakeClosure() {"
                "  return function() { return x; };"
                "}"

@@ -131,6 +131,10 @@ class Representation {
   }
 
   bool is_more_general_than(const Representation& other) const {
+    if (kind_ == kExternal && other.kind_ == kNone) return true;
+    if (kind_ == kExternal && other.kind_ == kExternal) return false;
+    if (kind_ == kNone && other.kind_ == kExternal) return false;
+
     ASSERT(kind_ != kExternal);
     ASSERT(other.kind_ != kExternal);
     if (IsHeapObject()) return other.IsDouble() || other.IsNone();

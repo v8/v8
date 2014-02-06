@@ -50,6 +50,7 @@
 
 // Basic includes
 #include "../include/v8.h"
+#include "../include/v8-platform.h"
 #include "v8globals.h"
 #include "v8checks.h"
 #include "allocation.h"
@@ -95,8 +96,6 @@ class V8 : public AllStatic {
       ReturnAddressLocationResolver resolver);
   // Support for entry hooking JITed code.
   static void SetFunctionEntryHook(FunctionEntryHook entry_hook);
-  // Random number generation support. Not cryptographically safe.
-  static uint32_t Random(Context* context);
 
   static void AddCallCompletedCallback(CallCompletedCallback callback);
   static void RemoveCallCompletedCallback(CallCompletedCallback callback);
@@ -111,6 +110,10 @@ class V8 : public AllStatic {
     array_buffer_allocator_ = allocator;
   }
 
+  static void InitializePlatform(v8::Platform* platform);
+  static void ShutdownPlatform();
+  static v8::Platform* GetCurrentPlatform();
+
  private:
   static void InitializeOncePerProcessImpl();
   static void InitializeOncePerProcess();
@@ -119,6 +122,8 @@ class V8 : public AllStatic {
   static List<CallCompletedCallback>* call_completed_callbacks_;
   // Allocator for external array buffers.
   static v8::ArrayBuffer::Allocator* array_buffer_allocator_;
+  // v8::Platform to use.
+  static v8::Platform* platform_;
 };
 
 

@@ -847,7 +847,8 @@ void Builtins::Generate_MarkCodeAsExecutedTwice(MacroAssembler* masm) {
 }
 
 
-void Builtins::Generate_NotifyStubFailure(MacroAssembler* masm) {
+static void Generate_NotifyStubFailureHelper(MacroAssembler* masm,
+                                             SaveFPRegsMode save_doubles) {
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
 
@@ -869,6 +870,16 @@ void Builtins::Generate_NotifyStubFailure(MacroAssembler* masm) {
   // Jump to the miss handler. Deoptimizer::EntryGenerator::Generate loads this
   // into lr before it jumps here.
   __ Br(lr);
+}
+
+
+void Builtins::Generate_NotifyStubFailure(MacroAssembler* masm) {
+  Generate_NotifyStubFailureHelper(masm, kDontSaveFPRegs);
+}
+
+
+void Builtins::Generate_NotifyStubFailureSaveDoubles(MacroAssembler* masm) {
+  Generate_NotifyStubFailureHelper(masm, kSaveFPRegs);
 }
 
 

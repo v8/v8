@@ -30,6 +30,7 @@ import datetime
 import optparse
 import sys
 import tempfile
+import urllib2
 
 from common_includes import *
 
@@ -53,8 +54,7 @@ CONFIG = {
 
 
 class Preparation(Step):
-  def __init__(self):
-    Step.__init__(self, "Preparation.")
+  MESSAGE = "Preparation."
 
   def RunStep(self):
     self.InitialEnvironmentChecks()
@@ -64,8 +64,7 @@ class Preparation(Step):
 
 
 class FreshBranch(Step):
-  def __init__(self):
-    Step.__init__(self, "Create a fresh branch.")
+  MESSAGE = "Create a fresh branch."
 
   def RunStep(self):
     args = "checkout -b %s svn/bleeding_edge" % self.Config(BRANCHNAME)
@@ -74,8 +73,7 @@ class FreshBranch(Step):
 
 
 class DetectLastPush(Step):
-  def __init__(self):
-    Step.__init__(self, "Detect commit ID of last push to trunk.")
+  MESSAGE = "Detect commit ID of last push to trunk."
 
   def RunStep(self):
     last_push = (self._options.l or
@@ -92,8 +90,22 @@ class DetectLastPush(Step):
 
 
 class PrepareChangeLog(Step):
-  def __init__(self):
-    Step.__init__(self, "Prepare raw ChangeLog entry.")
+  MESSAGE = "Prepare raw ChangeLog entry."
+
+  def Reload(self, body):
+    """Attempts to reload the commit message from rietveld in order to allow
+    late changes to the LOG flag. Note: This is brittle to future changes of
+    the web page name or structure.
+    """
+    match = re.search(r"^Review URL: https://codereview\.chromium\.org/(\d+)$",
+                      body, flags=re.M)
+    if match:
+      cl_url = "https://codereview.chromium.org/%s/description" % match.group(1)
+      try:
+        body = self.ReadURL(cl_url)
+      except urllib2.URLError:
+        pass
+    return body
 
   def RunStep(self):
     self.RestoreIfUnset("last_push")
@@ -112,24 +124,32 @@ class PrepareChangeLog(Step):
     args = "log %s..HEAD --format=%%H" % self._state["last_push"]
     commits = self.Git(args).strip()
 
-    def GetCommitMessages():
-      for commit in commits.splitlines():
-        yield [
-          self.Git("log -1 %s --format=\"%%w(80,8,8)%%s\"" % commit),
-          self.Git("log -1 %s --format=\"%%B\"" % commit),
-          self.Git("log -1 %s --format=\"%%w(80,8,8)(%%an)\"" % commit),
-        ]
+    # Cache raw commit messages.
+    commit_messages = [
+      [
+        self.Git("log -1 %s --format=\"%%s\"" % commit),
+        self.Reload(self.Git("log -1 %s --format=\"%%B\"" % commit)),
+        self.Git("log -1 %s --format=\"%%an\"" % commit),
+      ] for commit in commits.splitlines()
+    ]
 
-    body = MakeChangeLogBody(GetCommitMessages)
+    # Auto-format commit messages.
+    body = MakeChangeLogBody(commit_messages, auto_format=True)
     AppendToFile(body, self.Config(CHANGELOG_ENTRY_FILE))
 
-    msg = "        Performance and stability improvements on all platforms.\n"
+    msg = ("        Performance and stability improvements on all platforms."
+           "\n#\n# The change log above is auto-generated. Please review if "
+           "all relevant\n# commit messages from the list below are included."
+           "\n# All lines starting with # will be stripped.\n#\n")
     AppendToFile(msg, self.Config(CHANGELOG_ENTRY_FILE))
+
+    # Include unformatted commit messages as a reference in a comment.
+    comment_body = MakeComment(MakeChangeLogBody(commit_messages))
+    AppendToFile(comment_body, self.Config(CHANGELOG_ENTRY_FILE))
 
 
 class EditChangeLog(Step):
-  def __init__(self):
-    Step.__init__(self, "Edit ChangeLog entry.")
+  MESSAGE = "Edit ChangeLog entry."
 
   def RunStep(self):
     print ("Please press <Return> to have your EDITOR open the ChangeLog "
@@ -143,13 +163,11 @@ class EditChangeLog(Step):
     handle, new_changelog = tempfile.mkstemp()
     os.close(handle)
 
-    # (1) Eliminate tabs, (2) fix too little and (3) too much indentation, and
-    # (4) eliminate trailing whitespace.
+    # Strip comments and reformat with correct indentation.
     changelog_entry = FileToText(self.Config(CHANGELOG_ENTRY_FILE)).rstrip()
-    changelog_entry = MSub(r"\t", r"        ", changelog_entry)
-    changelog_entry = MSub(r"^ {1,7}([^ ])", r"        \1", changelog_entry)
-    changelog_entry = MSub(r"^ {9,80}([^ ])", r"        \1", changelog_entry)
-    changelog_entry = MSub(r" +$", r"", changelog_entry)
+    changelog_entry = StripComments(changelog_entry)
+    changelog_entry = "\n".join(map(Fill80, changelog_entry.splitlines()))
+    changelog_entry = changelog_entry.lstrip()
 
     if changelog_entry == "":
       self.Die("Empty ChangeLog entry.")
@@ -164,8 +182,7 @@ class EditChangeLog(Step):
 
 
 class IncrementVersion(Step):
-  def __init__(self):
-    Step.__init__(self, "Increment version number.")
+  MESSAGE = "Increment version number."
 
   def RunStep(self):
     self.RestoreIfUnset("build")
@@ -187,8 +204,7 @@ class IncrementVersion(Step):
 
 
 class CommitLocal(Step):
-  def __init__(self):
-    Step.__init__(self, "Commit to local branch.")
+  MESSAGE = "Commit to local branch."
 
   def RunStep(self):
     self.RestoreVersionIfUnset("new_")
@@ -202,8 +218,7 @@ class CommitLocal(Step):
 
 
 class CommitRepository(Step):
-  def __init__(self):
-    Step.__init__(self, "Commit to the repository.")
+  MESSAGE = "Commit to the repository."
 
   def RunStep(self):
     self.WaitForLGTM()
@@ -217,9 +232,8 @@ class CommitRepository(Step):
 
 
 class StragglerCommits(Step):
-  def __init__(self):
-    Step.__init__(self, "Fetch straggler commits that sneaked in since this "
-                        "script was started.")
+  MESSAGE = ("Fetch straggler commits that sneaked in since this script was "
+             "started.")
 
   def RunStep(self):
     if self.Git("svn fetch") is None:
@@ -232,8 +246,7 @@ class StragglerCommits(Step):
 
 
 class SquashCommits(Step):
-  def __init__(self):
-    Step.__init__(self, "Squash commits into one.")
+  MESSAGE = "Squash commits into one."
 
   def RunStep(self):
     # Instead of relying on "git rebase -i", we'll just create a diff, because
@@ -275,8 +288,7 @@ class SquashCommits(Step):
 
 
 class NewBranch(Step):
-  def __init__(self):
-    Step.__init__(self, "Create a new branch from trunk.")
+  MESSAGE = "Create a new branch from trunk."
 
   def RunStep(self):
     if self.Git("checkout -b %s svn/trunk" % self.Config(TRUNKBRANCH)) is None:
@@ -285,8 +297,7 @@ class NewBranch(Step):
 
 
 class ApplyChanges(Step):
-  def __init__(self):
-    Step.__init__(self, "Apply squashed changes.")
+  MESSAGE = "Apply squashed changes."
 
   def RunStep(self):
     self.ApplyPatch(self.Config(PATCH_FILE))
@@ -294,8 +305,7 @@ class ApplyChanges(Step):
 
 
 class SetVersion(Step):
-  def __init__(self):
-    Step.__init__(self, "Set correct version for trunk.")
+  MESSAGE = "Set correct version for trunk."
 
   def RunStep(self):
     self.RestoreVersionIfUnset()
@@ -316,8 +326,7 @@ class SetVersion(Step):
 
 
 class CommitTrunk(Step):
-  def __init__(self):
-    Step.__init__(self, "Commit to local trunk branch.")
+  MESSAGE = "Commit to local trunk branch."
 
   def RunStep(self):
     self.Git("add \"%s\"" % self.Config(VERSION_FILE))
@@ -327,8 +336,7 @@ class CommitTrunk(Step):
 
 
 class SanityCheck(Step):
-  def __init__(self):
-    Step.__init__(self, "Sanity check.")
+  MESSAGE = "Sanity check."
 
   def RunStep(self):
     if not self.Confirm("Please check if your local checkout is sane: Inspect "
@@ -338,8 +346,7 @@ class SanityCheck(Step):
 
 
 class CommitSVN(Step):
-  def __init__(self):
-    Step.__init__(self, "Commit to SVN.")
+  MESSAGE = "Commit to SVN."
 
   def RunStep(self):
     result = self.Git("svn dcommit 2>&1")
@@ -364,8 +371,7 @@ class CommitSVN(Step):
 
 
 class TagRevision(Step):
-  def __init__(self):
-    Step.__init__(self, "Tag the new revision.")
+  MESSAGE = "Tag the new revision."
 
   def RunStep(self):
     self.RestoreVersionIfUnset()
@@ -377,8 +383,7 @@ class TagRevision(Step):
 
 
 class CheckChromium(Step):
-  def __init__(self):
-    Step.__init__(self, "Ask for chromium checkout.")
+  MESSAGE = "Ask for chromium checkout."
 
   def Run(self):
     chrome_path = self._options.c
@@ -394,8 +399,8 @@ class CheckChromium(Step):
 
 
 class SwitchChromium(Step):
-  def __init__(self):
-    Step.__init__(self, "Switch to Chromium checkout.", requires="chrome_path")
+  MESSAGE = "Switch to Chromium checkout."
+  REQUIRES = "chrome_path"
 
   def RunStep(self):
     v8_path = os.getcwd()
@@ -411,9 +416,8 @@ class SwitchChromium(Step):
 
 
 class UpdateChromiumCheckout(Step):
-  def __init__(self):
-    Step.__init__(self, "Update the checkout and create a new branch.",
-                  requires="chrome_path")
+  MESSAGE = "Update the checkout and create a new branch."
+  REQUIRES = "chrome_path"
 
   def RunStep(self):
     os.chdir(self._state["chrome_path"])
@@ -429,8 +433,8 @@ class UpdateChromiumCheckout(Step):
 
 
 class UploadCL(Step):
-  def __init__(self):
-    Step.__init__(self, "Create and upload CL.", requires="chrome_path")
+  MESSAGE = "Create and upload CL."
+  REQUIRES = "chrome_path"
 
   def RunStep(self):
     os.chdir(self._state["chrome_path"])
@@ -457,14 +461,15 @@ class UploadCL(Step):
     args = "commit -am \"Update V8 to version %s.\n\nTBR=%s\"" % (ver, rev)
     if self.Git(args) is None:
       self.Die("'git commit' failed.")
-    if self.Git("cl upload --send-mail", pipe=False) is None:
+    force_flag = " -f" if self._options.f else ""
+    if self.Git("cl upload --send-mail%s" % force_flag, pipe=False) is None:
       self.Die("'git cl upload' failed, please try again.")
     print "CL uploaded."
 
 
 class SwitchV8(Step):
-  def __init__(self):
-    Step.__init__(self, "Returning to V8 checkout.", requires="chrome_path")
+  MESSAGE = "Returning to V8 checkout."
+  REQUIRES = "chrome_path"
 
   def RunStep(self):
     self.RestoreIfUnset("v8_path")
@@ -472,8 +477,7 @@ class SwitchV8(Step):
 
 
 class CleanUp(Step):
-  def __init__(self):
-    Step.__init__(self, "Done!")
+  MESSAGE = "Done!"
 
   def RunStep(self):
     self.RestoreVersionIfUnset()
@@ -553,6 +557,12 @@ def BuildOptions():
 def ProcessOptions(options):
   if options.s < 0:
     print "Bad step number %d" % options.s
+    return False
+  if options.f and not options.r:
+    print "A reviewer (-r) is required in forced mode."
+    return False
+  if options.f and not options.c:
+    print "A chromium checkout (-c) is required in forced mode."
     return False
   return True
 

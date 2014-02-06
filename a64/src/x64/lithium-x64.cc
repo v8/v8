@@ -1557,6 +1557,21 @@ LInstruction* LChunkBuilder::DoAdd(HAdd* instr) {
       result = AssignEnvironment(result);
     }
     return result;
+  } else if (instr->representation().IsExternal()) {
+    ASSERT(instr->left()->representation().IsExternal());
+    ASSERT(instr->right()->representation().IsInteger32());
+    ASSERT(!instr->CheckFlag(HValue::kCanOverflow));
+    bool use_lea = LAddI::UseLea(instr);
+    LOperand* left = UseRegisterAtStart(instr->left());
+    HValue* right_candidate = instr->right();
+    LOperand* right = use_lea
+        ? UseRegisterOrConstantAtStart(right_candidate)
+        : UseOrConstantAtStart(right_candidate);
+    LAddI* add = new(zone()) LAddI(left, right);
+    LInstruction* result = use_lea
+        ? DefineAsRegister(add)
+        : DefineSameAsFirst(add);
+    return result;
   } else if (instr->representation().IsDouble()) {
     return DoArithmeticD(Token::ADD, instr);
   } else {
@@ -1598,19 +1613,6 @@ LInstruction* LChunkBuilder::DoPower(HPower* instr) {
   LPower* result = new(zone()) LPower(left, right);
   return MarkAsCall(DefineFixedDouble(result, xmm3), instr,
                     CAN_DEOPTIMIZE_EAGERLY);
-}
-
-
-LInstruction* LChunkBuilder::DoRandom(HRandom* instr) {
-  ASSERT(instr->representation().IsDouble());
-  ASSERT(instr->global_object()->representation().IsTagged());
-  LOperand* global_object = UseTempRegister(instr->global_object());
-  LOperand* scratch = TempRegister();
-  LOperand* scratch2 = TempRegister();
-  LOperand* scratch3 = TempRegister();
-  LRandom* result = new(zone()) LRandom(
-      global_object, scratch, scratch2, scratch3);
-  return DefineFixedDouble(result, xmm1);
 }
 
 

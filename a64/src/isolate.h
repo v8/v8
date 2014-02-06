@@ -58,7 +58,6 @@ struct CodeStubInterfaceDescriptor;
 class CodeTracer;
 class CompilationCache;
 class ContextSlotCache;
-class ContextSwitcher;
 class Counters;
 class CpuFeatures;
 class CpuProfiler;
@@ -720,10 +719,8 @@ class Isolate {
   }
 
   void PrintCurrentStackTrace(FILE* out);
-  void PrintStackTrace(FILE* out, char* thread_data);
   void PrintStack(StringStream* accumulator);
   void PrintStack(FILE* out);
-  void PrintStack();
   Handle<String> StackTraceString();
   NO_INLINE(void PushStackTraceAndDie(unsigned int magic,
                                       Object* object,
@@ -925,12 +922,6 @@ class Isolate {
 
   ThreadManager* thread_manager() { return thread_manager_; }
 
-  ContextSwitcher* context_switcher() { return context_switcher_; }
-
-  void set_context_switcher(ContextSwitcher* switcher) {
-    context_switcher_ = switcher;
-  }
-
   StringTracker* string_tracker() { return string_tracker_; }
 
   unibrow::Mapping<unibrow::Ecma262UnCanonicalize>* jsregexp_uncanonicalize() {
@@ -1050,8 +1041,14 @@ class Isolate {
     thread_local_top_.current_vm_state_ = state;
   }
 
-  void SetData(void* data) { embedder_data_ = data; }
-  void* GetData() { return embedder_data_; }
+  void SetData(uint32_t slot, void* data) {
+    ASSERT(slot < Internals::kNumIsolateDataSlots);
+    embedder_data_[slot] = data;
+  }
+  void* GetData(uint32_t slot) {
+    ASSERT(slot < Internals::kNumIsolateDataSlots);
+    return embedder_data_[slot];
+  }
 
   LookupResult* top_lookup_result() {
     return thread_local_top_.top_lookup_result_;
@@ -1164,9 +1161,9 @@ class Isolate {
   // These fields are accessed through the API, offsets must be kept in sync
   // with v8::internal::Internals (in include/v8.h) constants. This is also
   // verified in Isolate::Init() using runtime checks.
-  State state_;  // Will be padded to kApiPointerSize.
-  void* embedder_data_;
+  void* embedder_data_[Internals::kNumIsolateDataSlots];
   Heap heap_;
+  State state_;  // Will be padded to kApiPointerSize.
 
   // The per-process lock should be acquired before the ThreadDataTable is
   // modified.
@@ -1244,7 +1241,6 @@ class Isolate {
 
   void InitializeThreadLocal();
 
-  void PrintStackTrace(FILE* out, ThreadLocalTop* thread);
   void MarkCompactPrologue(bool is_compacting,
                            ThreadLocalTop* archived_thread_data);
   void MarkCompactEpilogue(bool is_compacting,
@@ -1295,7 +1291,6 @@ class Isolate {
   ConsStringIteratorOp* write_iterator_;
   GlobalHandles* global_handles_;
   EternalHandles* eternal_handles_;
-  ContextSwitcher* context_switcher_;
   ThreadManager* thread_manager_;
   RuntimeState runtime_state_;
   bool fp_stubs_generated_;

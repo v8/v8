@@ -27,7 +27,6 @@
 
 #include "v8.h"
 
-#include "deoptimizer.h"
 #include "heap-profiler.h"
 #include "heap-snapshot-generator-inl.h"
 
@@ -160,7 +159,6 @@ void HeapProfiler::StartHeapAllocationsRecording() {
   StartHeapObjectsTracking();
   heap()->DisableInlineAllocation();
   is_tracking_allocations_ = true;
-  DropCompiledCode();
   snapshots_->UpdateHeapObjectsMap();
 }
 
@@ -169,45 +167,6 @@ void HeapProfiler::StopHeapAllocationsRecording() {
   StopHeapObjectsTracking();
   heap()->EnableInlineAllocation();
   is_tracking_allocations_ = false;
-  DropCompiledCode();
-}
-
-
-void HeapProfiler::DropCompiledCode() {
-  Isolate* isolate = heap()->isolate();
-  HandleScope scope(isolate);
-
-  if (isolate->concurrent_recompilation_enabled()) {
-    isolate->optimizing_compiler_thread()->Flush();
-  }
-
-  Deoptimizer::DeoptimizeAll(isolate);
-
-  Handle<Code> lazy_compile =
-      Handle<Code>(isolate->builtins()->builtin(Builtins::kLazyCompile));
-
-  heap()->CollectAllGarbage(Heap::kMakeHeapIterableMask,
-                            "switch allocations tracking");
-
-  DisallowHeapAllocation no_allocation;
-
-  HeapIterator iterator(heap());
-  HeapObject* obj = NULL;
-  while (((obj = iterator.next()) != NULL)) {
-    if (obj->IsJSFunction()) {
-      JSFunction* function = JSFunction::cast(obj);
-      SharedFunctionInfo* shared = function->shared();
-
-      if (!shared->allows_lazy_compilation()) continue;
-      if (!shared->script()->IsScript()) continue;
-
-      Code::Kind kind = function->code()->kind();
-      if (kind == Code::FUNCTION || kind == Code::BUILTIN) {
-        function->set_code(*lazy_compile);
-        shared->set_code(*lazy_compile);
-      }
-    }
-  }
 }
 
 

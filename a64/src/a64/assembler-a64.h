@@ -745,11 +745,6 @@ class Assembler : public AssemblerBase {
   inline static void deserialization_set_special_target_at(
       Address constant_pool_entry, Address target);
 
-  // This sets the branch destination (which is in the constant pool on ARM).
-  // This is for calls and branches to runtime code.
-  inline static void set_external_target_at(Address constant_pool_entry,
-                                            Address target);
-
   // All addresses in the constant pool are the same size as pointers.
   static const int kSpecialTargetSize = kPointerSize;
 

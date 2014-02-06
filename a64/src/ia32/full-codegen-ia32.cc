@@ -1575,8 +1575,7 @@ void FullCodeGenerator::EmitAccessor(Expression* expression) {
 void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
   Comment cmnt(masm_, "[ ObjectLiteral");
 
-  int depth = 1;
-  expr->BuildConstantProperties(isolate(), &depth);
+  expr->BuildConstantProperties(isolate());
   Handle<FixedArray> constant_properties = expr->constant_properties();
   int flags = expr->fast_elements()
       ? ObjectLiteral::kFastElements
@@ -1586,7 +1585,7 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
       : ObjectLiteral::kNoFlags;
   int properties_count = constant_properties->length() / 2;
   if ((FLAG_track_double_fields && expr->may_store_doubles()) ||
-      depth > 1 || Serializer::enabled() ||
+      expr->depth() > 1 || Serializer::enabled() ||
       flags != ObjectLiteral::kFastElements ||
       properties_count > FastCloneShallowObjectStub::kMaximumClonedProperties) {
     __ mov(edi, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
@@ -1705,8 +1704,11 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
 void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
   Comment cmnt(masm_, "[ ArrayLiteral");
 
-  int depth = 1;
-  expr->BuildConstantElements(isolate(), &depth);
+  expr->BuildConstantElements(isolate());
+  int flags = expr->depth() == 1
+      ? ArrayLiteral::kShallowElements
+      : ArrayLiteral::kNoFlags;
+
   ZoneList<Expression*>* subexprs = expr->values();
   int length = subexprs->length();
   Handle<FixedArray> constant_elements = expr->constant_elements();
@@ -1733,13 +1735,14 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
         DONT_TRACK_ALLOCATION_SITE,
         length);
     __ CallStub(&stub);
-  } else if (depth > 1 || Serializer::enabled() ||
+  } else if (expr->depth() > 1 || Serializer::enabled() ||
              length > FastCloneShallowArrayStub::kMaximumClonedLength) {
     __ mov(ebx, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
     __ push(FieldOperand(ebx, JSFunction::kLiteralsOffset));
     __ push(Immediate(Smi::FromInt(expr->literal_index())));
     __ push(Immediate(constant_elements));
-    __ CallRuntime(Runtime::kCreateArrayLiteral, 3);
+    __ push(Immediate(Smi::FromInt(flags)));
+    __ CallRuntime(Runtime::kCreateArrayLiteral, 4);
   } else {
     ASSERT(IsFastSmiOrObjectElementsKind(constant_elements_kind) ||
            FLAG_smi_only_arrays);
@@ -3294,57 +3297,6 @@ void FullCodeGenerator::EmitLog(CallRuntime* expr) {
   }
   // Finally, we're expected to leave a value on the top of the stack.
   __ mov(eax, isolate()->factory()->undefined_value());
-  context()->Plug(eax);
-}
-
-
-void FullCodeGenerator::EmitRandomHeapNumber(CallRuntime* expr) {
-  ASSERT(expr->arguments()->length() == 0);
-
-  Label slow_allocate_heapnumber;
-  Label heapnumber_allocated;
-
-  __ AllocateHeapNumber(edi, ebx, ecx, &slow_allocate_heapnumber);
-  __ jmp(&heapnumber_allocated);
-
-  __ bind(&slow_allocate_heapnumber);
-  // Allocate a heap number.
-  __ CallRuntime(Runtime::kNumberAlloc, 0);
-  __ mov(edi, eax);
-
-  __ bind(&heapnumber_allocated);
-
-  __ PrepareCallCFunction(1, ebx);
-  __ mov(eax, ContextOperand(context_register(), Context::GLOBAL_OBJECT_INDEX));
-  __ mov(eax, FieldOperand(eax, GlobalObject::kNativeContextOffset));
-  __ mov(Operand(esp, 0), eax);
-  __ CallCFunction(ExternalReference::random_uint32_function(isolate()), 1);
-
-  // Convert 32 random bits in eax to 0.(32 random bits) in a double
-  // by computing:
-  // ( 1.(20 0s)(32 random bits) x 2^20 ) - (1.0 x 2^20)).
-  // This is implemented on both SSE2 and FPU.
-  if (CpuFeatures::IsSupported(SSE2)) {
-    CpuFeatureScope fscope(masm(), SSE2);
-    __ mov(ebx, Immediate(0x49800000));  // 1.0 x 2^20 as single.
-    __ movd(xmm1, ebx);
-    __ movd(xmm0, eax);
-    __ cvtss2sd(xmm1, xmm1);
-    __ xorps(xmm0, xmm1);
-    __ subsd(xmm0, xmm1);
-    __ movsd(FieldOperand(edi, HeapNumber::kValueOffset), xmm0);
-  } else {
-    // 0x4130000000000000 is 1.0 x 2^20 as a double.
-    __ mov(FieldOperand(edi, HeapNumber::kExponentOffset),
-           Immediate(0x41300000));
-    __ mov(FieldOperand(edi, HeapNumber::kMantissaOffset), eax);
-    __ fld_d(FieldOperand(edi, HeapNumber::kValueOffset));
-    __ mov(FieldOperand(edi, HeapNumber::kMantissaOffset), Immediate(0));
-    __ fld_d(FieldOperand(edi, HeapNumber::kValueOffset));
-    __ fsubp(1);
-    __ fstp_d(FieldOperand(edi, HeapNumber::kValueOffset));
-  }
-  __ mov(eax, edi);
   context()->Plug(eax);
 }
 

@@ -219,8 +219,6 @@ class ShellOptions {
  public:
   ShellOptions() :
 #ifndef V8_SHARED
-     use_preemption(true),
-     preemption_interval(10),
      num_parallel_files(0),
      parallel_files(NULL),
 #endif  // V8_SHARED
@@ -245,8 +243,6 @@ class ShellOptions {
   }
 
 #ifndef V8_SHARED
-  bool use_preemption;
-  int preemption_interval;
   int num_parallel_files;
   char** parallel_files;
 #endif  // V8_SHARED
@@ -381,7 +377,8 @@ class Shell : public i::AllStatic {
   static void MakeDirectory(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RemoveDirectory(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  static void AddOSMethods(Handle<ObjectTemplate> os_template);
+  static void AddOSMethods(v8::Isolate* isolate,
+                           Handle<ObjectTemplate> os_template);
 
   static const char* kPrompt;
   static ShellOptions options;

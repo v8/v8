@@ -275,6 +275,12 @@ void MacroAssembler::RecordWrite(Register object,
         eq, kWrongAddressOrValuePassedToRecordWrite, at, Operand(value));
   }
 
+  // Count number of write barriers in generated code.
+  isolate()->counters()->write_barriers_static()->Increment();
+  // TODO(mstarzinger): Dynamic counter missing.
+
+  // First, check if a write barrier is even needed. The tests below
+  // catch stores of smis and stores into the young generation.
   Label done;
 
   if (smi_check == INLINE_SMI_CHECK) {
@@ -4516,7 +4522,7 @@ void MacroAssembler::Prologue(PrologueFrameMode frame_mode) {
     Push(ra, fp, cp);
     Push(Smi::FromInt(StackFrame::STUB));
     // Adjust FP to point to saved FP.
-    Addu(fp, sp, Operand(2 * kPointerSize));
+    Addu(fp, sp, Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
   } else {
     PredictableCodeSizeScope predictible_code_size_scope(
       this, kNoCodeAgeSequenceLength * Assembler::kInstrSize);
@@ -4526,20 +4532,20 @@ void MacroAssembler::Prologue(PrologueFrameMode frame_mode) {
       // Pre-age the code.
       Code* stub = Code::GetPreAgedCodeAgeStub(isolate());
       nop(Assembler::CODE_AGE_MARKER_NOP);
-      // Save the function's original return address
-      // (it will be clobbered by Call(t9)).
-      mov(at, ra);
-      // Load the stub address to t9 and call it.
+      // Load the stub address to t9 and call it,
+      // GetCodeAgeAndParity() extracts the stub address from this instruction.
       li(t9,
-         Operand(reinterpret_cast<uint32_t>(stub->instruction_start())));
-      Call(t9);
-      // Record the stub address in the empty space for GetCodeAgeAndParity().
-      emit_code_stub_address(stub);
+         Operand(reinterpret_cast<uint32_t>(stub->instruction_start())),
+         CONSTANT_SIZE);
+      nop();  // Prevent jalr to jal optimization.
+      jalr(t9, a0);
+      nop();  // Branch delay slot nop.
+      nop();  // Pad the empty space.
     } else {
       Push(ra, fp, cp, a1);
       nop(Assembler::CODE_AGE_SEQUENCE_NOP);
       // Adjust fp to point to caller's fp.
-      Addu(fp, sp, Operand(2 * kPointerSize));
+      Addu(fp, sp, Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
     }
   }
 }
@@ -4554,7 +4560,9 @@ void MacroAssembler::EnterFrame(StackFrame::Type type) {
   sw(cp, MemOperand(sp, 2 * kPointerSize));
   sw(t8, MemOperand(sp, 1 * kPointerSize));
   sw(t9, MemOperand(sp, 0 * kPointerSize));
-  addiu(fp, sp, 3 * kPointerSize);
+  // Adjust FP to point to saved FP.
+  Addu(fp, sp,
+       Operand(StandardFrameConstants::kFixedFrameSizeFromFp + kPointerSize));
 }
 
 
@@ -4843,7 +4851,7 @@ void MacroAssembler::AssertSmi(Register object) {
 void MacroAssembler::AssertString(Register object) {
   if (emit_debug_code()) {
     STATIC_ASSERT(kSmiTag == 0);
-    And(t0, object, Operand(kSmiTagMask));
+    SmiTst(object, t0);
     Check(ne, kOperandIsASmiAndNotAString, t0, Operand(zero_reg));
     push(object);
     lw(object, FieldMemOperand(object, HeapObject::kMapOffset));
@@ -4857,7 +4865,7 @@ void MacroAssembler::AssertString(Register object) {
 void MacroAssembler::AssertName(Register object) {
   if (emit_debug_code()) {
     STATIC_ASSERT(kSmiTag == 0);
-    And(t0, object, Operand(kSmiTagMask));
+    SmiTst(object, t0);
     Check(ne, kOperandIsASmiAndNotAName, t0, Operand(zero_reg));
     push(object);
     lw(object, FieldMemOperand(object, HeapObject::kMapOffset));
@@ -5057,7 +5065,7 @@ void MacroAssembler::EmitSeqStringSetCharCheck(Register string,
                                                Register scratch,
                                                uint32_t encoding_mask) {
   Label is_object;
-  And(at, string, Operand(kSmiTagMask));
+  SmiTst(string, at);
   ThrowIf(eq, kNonObject, at, Operand(zero_reg));
 
   lw(at, FieldMemOperand(string, HeapObject::kMapOffset));
@@ -5071,9 +5079,7 @@ void MacroAssembler::EmitSeqStringSetCharCheck(Register string,
   // string length without using a temp register, it is restored at the end of
   // this function.
   Label index_tag_ok, index_tag_bad;
-  // On ARM TrySmiTag is used here.
-  AdduAndCheckForOverflow(index, index, index, scratch);
-  BranchOnOverflow(&index_tag_bad, scratch);
+  TrySmiTag(index, scratch, &index_tag_bad);
   Branch(&index_tag_ok);
   bind(&index_tag_bad);
   Throw(kIndexIsTooLarge);
@@ -5082,8 +5088,8 @@ void MacroAssembler::EmitSeqStringSetCharCheck(Register string,
   lw(at, FieldMemOperand(string, String::kLengthOffset));
   ThrowIf(ge, kIndexIsTooLarge, index, Operand(at));
 
-  li(at, Operand(Smi::FromInt(0)));
-  ThrowIf(lt, kIndexIsNegative, index, Operand(at));
+  ASSERT(Smi::FromInt(0) == 0);
+  ThrowIf(lt, kIndexIsNegative, index, Operand(zero_reg));
 
   SmiUntag(index, index);
 }

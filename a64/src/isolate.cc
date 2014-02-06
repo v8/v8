@@ -653,11 +653,6 @@ Handle<JSArray> Isolate::CaptureCurrentStackTrace(
 }
 
 
-void Isolate::PrintStack() {
-  PrintStack(stdout);
-}
-
-
 void Isolate::PrintStack(FILE* out) {
   if (stack_trace_nesting_level_ == 0) {
     stack_trace_nesting_level_++;
@@ -1524,8 +1519,8 @@ void Isolate::ThreadDataTable::RemoveAllThreads(Isolate* isolate) {
 
 
 Isolate::Isolate()
-    : state_(UNINITIALIZED),
-      embedder_data_(NULL),
+    : embedder_data_(),
+      state_(UNINITIALIZED),
       entry_stack_(NULL),
       stack_trace_nesting_level_(0),
       incomplete_message_(NULL),
@@ -1554,7 +1549,6 @@ Isolate::Isolate()
       write_iterator_(NULL),
       global_handles_(NULL),
       eternal_handles_(NULL),
-      context_switcher_(NULL),
       thread_manager_(NULL),
       fp_stubs_generated_(false),
       has_installed_extensions_(false),
@@ -1696,10 +1690,6 @@ void Isolate::Deinit() {
 
     delete deoptimizer_data_;
     deoptimizer_data_ = NULL;
-    if (FLAG_preemption) {
-      v8::Locker locker(reinterpret_cast<v8::Isolate*>(this));
-      v8::Locker::StopPreemption(reinterpret_cast<v8::Isolate*>(this));
-    }
     builtins_.TearDown();
     bootstrapper_->TearDown();
 
@@ -1811,8 +1801,6 @@ Isolate::~Isolate() {
   delete write_iterator_;
   write_iterator_ = NULL;
 
-  delete context_switcher_;
-  context_switcher_ = NULL;
   delete thread_manager_;
   thread_manager_ = NULL;
 
@@ -2044,11 +2032,6 @@ bool Isolate::Init(Deserializer* des) {
     }
   }
 
-  if (FLAG_preemption) {
-    v8::Locker locker(reinterpret_cast<v8::Isolate*>(this));
-    v8::Locker::StartPreemption(reinterpret_cast<v8::Isolate*>(this), 100);
-  }
-
 #ifdef ENABLE_DEBUGGER_SUPPORT
   debug_->SetUp(create_heap_objects);
 #endif
@@ -2077,10 +2060,20 @@ bool Isolate::Init(Deserializer* des) {
   // If we are deserializing, log non-function code objects and compiled
   // functions found in the snapshot.
   if (!create_heap_objects &&
-      (FLAG_log_code || FLAG_ll_prof || logger_->is_logging_code_events())) {
+      (FLAG_log_code ||
+       FLAG_ll_prof ||
+       FLAG_perf_jit_prof ||
+       FLAG_perf_basic_prof ||
+       logger_->is_logging_code_events())) {
     HandleScope scope(this);
     LOG(this, LogCodeObjects());
     LOG(this, LogCompiledFunctions());
+  }
+
+  // If we are profiling with the Linux perf tool, we need to disable
+  // code relocation.
+  if (FLAG_perf_jit_prof || FLAG_perf_basic_prof) {
+    FLAG_compact_code_space = false;
   }
 
   CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, embedder_data_)),

@@ -1645,8 +1645,7 @@ void FullCodeGenerator::EmitAccessor(Expression* expression) {
 void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
   Comment cmnt(masm_, "[ ObjectLiteral");
 
-  int depth = 1;
-  expr->BuildConstantProperties(isolate(), &depth);
+  expr->BuildConstantProperties(isolate());
   Handle<FixedArray> constant_properties = expr->constant_properties();
   __ lw(a3, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
   __ lw(a3, FieldMemOperand(a3, JSFunction::kLiteralsOffset));
@@ -1661,7 +1660,7 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
   __ li(a0, Operand(Smi::FromInt(flags)));
   int properties_count = constant_properties->length() / 2;
   if ((FLAG_track_double_fields && expr->may_store_doubles()) ||
-      depth > 1 || Serializer::enabled() ||
+      expr->depth() > 1 || Serializer::enabled() ||
       flags != ObjectLiteral::kFastElements ||
       properties_count > FastCloneShallowObjectStub::kMaximumClonedProperties) {
     __ Push(a3, a2, a1, a0);
@@ -1780,8 +1779,11 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
 void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
   Comment cmnt(masm_, "[ ArrayLiteral");
 
-  int depth = 1;
-  expr->BuildConstantElements(isolate(), &depth);
+  expr->BuildConstantElements(isolate());
+  int flags = expr->depth() == 1
+      ? ArrayLiteral::kShallowElements
+      : ArrayLiteral::kNoFlags;
+
   ZoneList<Expression*>* subexprs = expr->values();
   int length = subexprs->length();
 
@@ -1808,10 +1810,11 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
     __ CallStub(&stub);
     __ IncrementCounter(isolate()->counters()->cow_arrays_created_stub(),
         1, a1, a2);
-  } else if (depth > 1 || Serializer::enabled() ||
+  } else if (expr->depth() > 1 || Serializer::enabled() ||
              length > FastCloneShallowArrayStub::kMaximumClonedLength) {
-    __ Push(a3, a2, a1);
-    __ CallRuntime(Runtime::kCreateArrayLiteral, 3);
+    __ li(a0, Operand(Smi::FromInt(flags)));
+    __ Push(a3, a2, a1, a0);
+    __ CallRuntime(Runtime::kCreateArrayLiteral, 4);
   } else {
     ASSERT(IsFastSmiOrObjectElementsKind(constant_elements_kind) ||
            FLAG_smi_only_arrays);
@@ -2916,7 +2919,7 @@ void FullCodeGenerator::EmitIsSmi(CallRuntime* expr) {
                          &if_true, &if_false, &fall_through);
 
   PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);
-  __ And(t0, v0, Operand(kSmiTagMask));
+  __ SmiTst(v0, t0);
   Split(eq, t0, Operand(zero_reg), if_true, if_false, fall_through);
 
   context()->Plug(if_true, if_false);
@@ -2937,7 +2940,7 @@ void FullCodeGenerator::EmitIsNonNegativeSmi(CallRuntime* expr) {
                          &if_true, &if_false, &fall_through);
 
   PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);
-  __ And(at, v0, Operand(kSmiTagMask | 0x80000000));
+  __ NonNegativeSmiTst(v0, at);
   Split(eq, at, Operand(zero_reg), if_true, if_false, fall_through);
 
   context()->Plug(if_true, if_false);
@@ -3380,48 +3383,6 @@ void FullCodeGenerator::EmitLog(CallRuntime* expr) {
 }
 
 
-void FullCodeGenerator::EmitRandomHeapNumber(CallRuntime* expr) {
-  ASSERT(expr->arguments()->length() == 0);
-  Label slow_allocate_heapnumber;
-  Label heapnumber_allocated;
-
-  // Save the new heap number in callee-saved register s0, since
-  // we call out to external C code below.
-  __ LoadRoot(t6, Heap::kHeapNumberMapRootIndex);
-  __ AllocateHeapNumber(s0, a1, a2, t6, &slow_allocate_heapnumber);
-  __ jmp(&heapnumber_allocated);
-
-  __ bind(&slow_allocate_heapnumber);
-
-  // Allocate a heap number.
-  __ CallRuntime(Runtime::kNumberAlloc, 0);
-  __ mov(s0, v0);   // Save result in s0, so it is saved thru CFunc call.
-
-  __ bind(&heapnumber_allocated);
-
-  // Convert 32 random bits in v0 to 0.(32 random bits) in a double
-  // by computing:
-  // ( 1.(20 0s)(32 random bits) x 2^20 ) - (1.0 x 2^20)).
-  __ PrepareCallCFunction(1, a0);
-  __ lw(a0, ContextOperand(cp, Context::GLOBAL_OBJECT_INDEX));
-  __ lw(a0, FieldMemOperand(a0, GlobalObject::kNativeContextOffset));
-  __ CallCFunction(ExternalReference::random_uint32_function(isolate()), 1);
-
-  // 0x41300000 is the top half of 1.0 x 2^20 as a double.
-  __ li(a1, Operand(0x41300000));
-  // Move 0x41300000xxxxxxxx (x = random bits in v0) to FPU.
-  __ Move(f12, v0, a1);
-  // Move 0x4130000000000000 to FPU.
-  __ Move(f14, zero_reg, a1);
-  // Subtract and store the result in the heap number.
-  __ sub_d(f0, f12, f14);
-  __ sdc1(f0, FieldMemOperand(s0, HeapNumber::kValueOffset));
-  __ mov(v0, s0);
-
-  context()->Plug(v0);
-}
-
-
 void FullCodeGenerator::EmitSubString(CallRuntime* expr) {
   // Load the arguments on the stack and call the stub.
   SubStringStub stub;
@@ -3530,9 +3491,9 @@ void FullCodeGenerator::EmitOneByteSeqStringSetChar(CallRuntime* expr) {
   __ Pop(index, value);
 
   if (FLAG_debug_code) {
-    __ And(at, value, Operand(kSmiTagMask));
+    __ SmiTst(value, at);
     __ ThrowIf(ne, kNonSmiValue, at, Operand(zero_reg));
-    __ And(at, index, Operand(kSmiTagMask));
+    __ SmiTst(index, at);
     __ ThrowIf(ne, kNonSmiIndex, at, Operand(zero_reg));
     __ SmiUntag(index, index);
     static const uint32_t one_byte_seq_type = kSeqStringTag | kOneByteStringTag;
@@ -3567,9 +3528,9 @@ void FullCodeGenerator::EmitTwoByteSeqStringSetChar(CallRuntime* expr) {
   __ Pop(index, value);
 
   if (FLAG_debug_code) {
-    __ And(at, value, Operand(kSmiTagMask));
+    __ SmiTst(value, at);
     __ ThrowIf(ne, kNonSmiValue, at, Operand(zero_reg));
-    __ And(at, index, Operand(kSmiTagMask));
+    __ SmiTst(index, at);
     __ ThrowIf(ne, kNonSmiIndex, at, Operand(zero_reg));
     __ SmiUntag(index, index);
     static const uint32_t two_byte_seq_type = kSeqStringTag | kTwoByteStringTag;

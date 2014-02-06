@@ -72,23 +72,29 @@ TEST(PerIsolateState) {
   Handle<Value> notify_fun2;
   {
     LocalContext context2(isolate.GetIsolate());
-    context2->Global()->Set(String::New("obj"), obj);
+    context2->Global()->Set(String::NewFromUtf8(isolate.GetIsolate(), "obj"),
+                            obj);
     notify_fun2 = CompileRun(
         "(function() { obj.foo = 'baz'; })");
   }
   Handle<Value> notify_fun3;
   {
     LocalContext context3(isolate.GetIsolate());
-    context3->Global()->Set(String::New("obj"), obj);
+    context3->Global()->Set(String::NewFromUtf8(isolate.GetIsolate(), "obj"),
+                            obj);
     notify_fun3 = CompileRun(
         "(function() { obj.foo = 'bat'; })");
   }
   {
     LocalContext context4(isolate.GetIsolate());
-    context4->Global()->Set(String::New("observer"), observer);
-    context4->Global()->Set(String::New("fun1"), notify_fun1);
-    context4->Global()->Set(String::New("fun2"), notify_fun2);
-    context4->Global()->Set(String::New("fun3"), notify_fun3);
+    context4->Global()->Set(
+        String::NewFromUtf8(isolate.GetIsolate(), "observer"), observer);
+    context4->Global()->Set(String::NewFromUtf8(isolate.GetIsolate(), "fun1"),
+                            notify_fun1);
+    context4->Global()->Set(String::NewFromUtf8(isolate.GetIsolate(), "fun2"),
+                            notify_fun2);
+    context4->Global()->Set(String::NewFromUtf8(isolate.GetIsolate(), "fun3"),
+                            notify_fun3);
     CompileRun("fun1(); fun2(); fun3(); Object.deliverChangeRecords(observer)");
   }
   CHECK_EQ(1, CompileRun("calls")->Int32Value());
@@ -211,8 +217,10 @@ TEST(ObjectHashTableGrowth) {
   {
     // As does initializing this context.
     LocalContext context2(isolate.GetIsolate());
-    context2->Global()->Set(String::New("obj"), obj);
-    context2->Global()->Set(String::New("observer"), observer);
+    context2->Global()->Set(String::NewFromUtf8(isolate.GetIsolate(), "obj"),
+                            obj);
+    context2->Global()->Set(
+        String::NewFromUtf8(isolate.GetIsolate(), "observer"), observer);
     CompileRun(
         "var objArr = [];"
         // 100 objects should be enough to make the hash table grow
@@ -300,7 +308,8 @@ struct RecordExpectation {
 
 
 // TODO(adamk): Use this helper elsewhere in this file.
-static void ExpectRecords(Handle<Value> records,
+static void ExpectRecords(v8::Isolate* isolate,
+                          Handle<Value> records,
                           const RecordExpectation expectations[],
                           int num) {
   CHECK(records->IsArray());
@@ -311,22 +320,23 @@ static void ExpectRecords(Handle<Value> records,
     CHECK(record->IsObject());
     Handle<Object> recordObj = record.As<Object>();
     CHECK(expectations[i].object->StrictEquals(
-        recordObj->Get(String::New("object"))));
-    CHECK(String::New(expectations[i].type)->Equals(
-        recordObj->Get(String::New("type"))));
+        recordObj->Get(String::NewFromUtf8(isolate, "object"))));
+    CHECK(String::NewFromUtf8(isolate, expectations[i].type)->Equals(
+        recordObj->Get(String::NewFromUtf8(isolate, "type"))));
     if (strcmp("splice", expectations[i].type) != 0) {
-      CHECK(String::New(expectations[i].name)->Equals(
-          recordObj->Get(String::New("name"))));
+      CHECK(String::NewFromUtf8(isolate, expectations[i].name)->Equals(
+          recordObj->Get(String::NewFromUtf8(isolate, "name"))));
       if (!expectations[i].old_value.IsEmpty()) {
         CHECK(expectations[i].old_value->Equals(
-            recordObj->Get(String::New("oldValue"))));
+            recordObj->Get(String::NewFromUtf8(isolate, "oldValue"))));
       }
     }
   }
 }
 
-#define EXPECT_RECORDS(records, expectations) \
-    ExpectRecords(records, expectations, ARRAY_SIZE(expectations))
+#define EXPECT_RECORDS(records, expectations)                \
+  ExpectRecords(isolate.GetIsolate(), records, expectations, \
+                ARRAY_SIZE(expectations))
 
 TEST(APITestBasicMutation) {
   HarmonyIsolate isolate;
@@ -338,16 +348,17 @@ TEST(APITestBasicMutation) {
       "function observer(r) { [].push.apply(records, r); };"
       "Object.observe(obj, observer);"
       "obj"));
-  obj->Set(String::New("foo"), Number::New(7));
+  obj->Set(String::NewFromUtf8(isolate.GetIsolate(), "foo"), Number::New(7));
   obj->Set(1, Number::New(2));
   // ForceSet should work just as well as Set
-  obj->ForceSet(String::New("foo"), Number::New(3));
+  obj->ForceSet(String::NewFromUtf8(isolate.GetIsolate(), "foo"),
+                Number::New(3));
   obj->ForceSet(Number::New(1), Number::New(4));
   // Setting an indexed element via the property setting method
   obj->Set(Number::New(1), Number::New(5));
   // Setting with a non-String, non-uint32 key
   obj->Set(Number::New(1.1), Number::New(6), DontDelete);
-  obj->Delete(String::New("foo"));
+  obj->Delete(String::NewFromUtf8(isolate.GetIsolate(), "foo"));
   obj->Delete(1);
   obj->ForceDelete(Number::New(1.1));
 
@@ -378,12 +389,14 @@ TEST(HiddenPrototypeObservation) {
   LocalContext context(isolate.GetIsolate());
   Handle<FunctionTemplate> tmpl = FunctionTemplate::New();
   tmpl->SetHiddenPrototype(true);
-  tmpl->InstanceTemplate()->Set(String::New("foo"), Number::New(75));
+  tmpl->InstanceTemplate()->Set(
+      String::NewFromUtf8(isolate.GetIsolate(), "foo"), Number::New(75));
   Handle<Object> proto = tmpl->GetFunction()->NewInstance();
   Handle<Object> obj = Object::New();
   obj->SetPrototype(proto);
-  context->Global()->Set(String::New("obj"), obj);
-  context->Global()->Set(String::New("proto"), proto);
+  context->Global()->Set(String::NewFromUtf8(isolate.GetIsolate(), "obj"), obj);
+  context->Global()->Set(String::NewFromUtf8(isolate.GetIsolate(), "proto"),
+                         proto);
   CompileRun(
       "var records;"
       "function observer(r) { records = r; };"
@@ -504,6 +517,7 @@ static bool BlockAccessKeys(Local<Object> host, Local<Value> key,
 
 
 static Handle<Object> CreateAccessCheckedObject(
+    v8::Isolate* isolate,
     NamedSecurityCallback namedCallback,
     IndexedSecurityCallback indexedCallback,
     Handle<Value> data = Handle<Value>()) {
@@ -511,7 +525,7 @@ static Handle<Object> CreateAccessCheckedObject(
   tmpl->SetAccessCheckCallbacks(namedCallback, indexedCallback, data);
   Handle<Object> instance = tmpl->NewInstance();
   Handle<Object> global = instance->CreationContext()->Global();
-  global->Set(String::New("obj"), instance);
+  global->Set(String::NewFromUtf8(isolate, "obj"), instance);
   global->Set(kBlockedContextIndex, v8::True());
   return instance;
 }
@@ -525,9 +539,10 @@ TEST(NamedAccessCheck) {
     LocalContext context(isolate.GetIsolate());
     g_access_block_type = types[i];
     Handle<Object> instance = CreateAccessCheckedObject(
+        isolate.GetIsolate(),
         NamedAccessAllowUnlessBlocked,
         IndexedAccessAlwaysAllowed,
-        String::New("foo"));
+        String::NewFromUtf8(isolate.GetIsolate(), "foo"));
     CompileRun("var records = null;"
                "var objNoCheck = {};"
                "var observer = function(r) { records = r };"
@@ -536,8 +551,11 @@ TEST(NamedAccessCheck) {
     Handle<Value> obj_no_check = CompileRun("objNoCheck");
     {
       LocalContext context2(isolate.GetIsolate());
-      context2->Global()->Set(String::New("obj"), instance);
-      context2->Global()->Set(String::New("objNoCheck"), obj_no_check);
+      context2->Global()->Set(String::NewFromUtf8(isolate.GetIsolate(), "obj"),
+                              instance);
+      context2->Global()->Set(
+          String::NewFromUtf8(isolate.GetIsolate(), "objNoCheck"),
+          obj_no_check);
       CompileRun("var records2 = null;"
                  "var observer2 = function(r) { records2 = r };"
                  "Object.observe(obj, observer2);"
@@ -549,7 +567,8 @@ TEST(NamedAccessCheck) {
                  "objNoCheck.baz = 'quux'");
       const RecordExpectation expected_records2[] = {
         { instance, "add", "foo", Handle<Value>() },
-        { instance, "update", "foo", String::New("bar") },
+        { instance, "update", "foo",
+          String::NewFromUtf8(isolate.GetIsolate(), "bar") },
         { instance, "reconfigure", "foo", Number::New(5) },
         { instance, "add", "bar", Handle<Value>() },
         { obj_no_check, "add", "baz", Handle<Value>() },
@@ -573,8 +592,8 @@ TEST(IndexedAccessCheck) {
     LocalContext context(isolate.GetIsolate());
     g_access_block_type = types[i];
     Handle<Object> instance = CreateAccessCheckedObject(
-        NamedAccessAlwaysAllowed, IndexedAccessAllowUnlessBlocked,
-        Number::New(7));
+        isolate.GetIsolate(), NamedAccessAlwaysAllowed,
+        IndexedAccessAllowUnlessBlocked, Number::New(7));
     CompileRun("var records = null;"
                "var objNoCheck = {};"
                "var observer = function(r) { records = r };"
@@ -583,8 +602,11 @@ TEST(IndexedAccessCheck) {
     Handle<Value> obj_no_check = CompileRun("objNoCheck");
     {
       LocalContext context2(isolate.GetIsolate());
-      context2->Global()->Set(String::New("obj"), instance);
-      context2->Global()->Set(String::New("objNoCheck"), obj_no_check);
+      context2->Global()->Set(String::NewFromUtf8(isolate.GetIsolate(), "obj"),
+                              instance);
+      context2->Global()->Set(
+          String::NewFromUtf8(isolate.GetIsolate(), "objNoCheck"),
+          obj_no_check);
       CompileRun("var records2 = null;"
                  "var observer2 = function(r) { records2 = r };"
                  "Object.observe(obj, observer2);"
@@ -596,7 +618,8 @@ TEST(IndexedAccessCheck) {
                  "objNoCheck[42] = 'quux'");
       const RecordExpectation expected_records2[] = {
         { instance, "add", "7", Handle<Value>() },
-        { instance, "update", "7", String::New("foo") },
+        { instance, "update", "7",
+          String::NewFromUtf8(isolate.GetIsolate(), "foo") },
         { instance, "reconfigure", "7", Number::New(5) },
         { instance, "add", "8", Handle<Value>() },
         { obj_no_check, "add", "42", Handle<Value>() }
@@ -618,8 +641,8 @@ TEST(SpliceAccessCheck) {
   LocalContext context(isolate.GetIsolate());
   g_access_block_type = ACCESS_GET;
   Handle<Object> instance = CreateAccessCheckedObject(
-      NamedAccessAlwaysAllowed, IndexedAccessAllowUnlessBlocked,
-      Number::New(1));
+      isolate.GetIsolate(), NamedAccessAlwaysAllowed,
+      IndexedAccessAllowUnlessBlocked, Number::New(1));
   CompileRun("var records = null;"
              "obj[1] = 'foo';"
              "obj.length = 2;"
@@ -630,8 +653,10 @@ TEST(SpliceAccessCheck) {
   Handle<Value> obj_no_check = CompileRun("objNoCheck");
   {
     LocalContext context2(isolate.GetIsolate());
-    context2->Global()->Set(String::New("obj"), instance);
-    context2->Global()->Set(String::New("objNoCheck"), obj_no_check);
+    context2->Global()->Set(String::NewFromUtf8(isolate.GetIsolate(), "obj"),
+                            instance);
+    context2->Global()->Set(
+        String::NewFromUtf8(isolate.GetIsolate(), "objNoCheck"), obj_no_check);
     CompileRun("var records2 = null;"
                "var observer2 = function(r) { records2 = r };"
                "Array.observe(obj, observer2);"
@@ -662,7 +687,7 @@ TEST(DisallowAllForAccessKeys) {
   HandleScope scope(isolate.GetIsolate());
   LocalContext context(isolate.GetIsolate());
   Handle<Object> instance = CreateAccessCheckedObject(
-      BlockAccessKeys, IndexedAccessAlwaysAllowed);
+      isolate.GetIsolate(), BlockAccessKeys, IndexedAccessAlwaysAllowed);
   CompileRun("var records = null;"
              "var objNoCheck = {};"
              "var observer = function(r) { records = r };"
@@ -671,8 +696,10 @@ TEST(DisallowAllForAccessKeys) {
   Handle<Value> obj_no_check = CompileRun("objNoCheck");
   {
     LocalContext context2(isolate.GetIsolate());
-    context2->Global()->Set(String::New("obj"), instance);
-    context2->Global()->Set(String::New("objNoCheck"), obj_no_check);
+    context2->Global()->Set(String::NewFromUtf8(isolate.GetIsolate(), "obj"),
+                            instance);
+    context2->Global()->Set(
+        String::NewFromUtf8(isolate.GetIsolate(), "objNoCheck"), obj_no_check);
     CompileRun("var records2 = null;"
                "var observer2 = function(r) { records2 = r };"
                "Object.observe(obj, observer2);"
@@ -699,18 +726,20 @@ TEST(AccessCheckDisallowApiModifications) {
   HandleScope scope(isolate.GetIsolate());
   LocalContext context(isolate.GetIsolate());
   Handle<Object> instance = CreateAccessCheckedObject(
-      BlockAccessKeys, IndexedAccessAlwaysAllowed);
+      isolate.GetIsolate(), BlockAccessKeys, IndexedAccessAlwaysAllowed);
   CompileRun("var records = null;"
              "var observer = function(r) { records = r };"
              "Object.observe(obj, observer);");
   {
     LocalContext context2(isolate.GetIsolate());
-    context2->Global()->Set(String::New("obj"), instance);
+    context2->Global()->Set(String::NewFromUtf8(isolate.GetIsolate(), "obj"),
+                            instance);
     CompileRun("var records2 = null;"
                "var observer2 = function(r) { records2 = r };"
                "Object.observe(obj, observer2);");
-    instance->Set(5, String::New("bar"));
-    instance->Set(String::New("foo"), String::New("bar"));
+    instance->Set(5, String::NewFromUtf8(isolate.GetIsolate(), "bar"));
+    instance->Set(String::NewFromUtf8(isolate.GetIsolate(), "foo"),
+                  String::NewFromUtf8(isolate.GetIsolate(), "bar"));
     CompileRun("");  // trigger delivery
     const RecordExpectation expected_records2[] = {
       { instance, "add", "5", Handle<Value>() },
@@ -730,8 +759,10 @@ TEST(HiddenPropertiesLeakage) {
              "var records = null;"
              "var observer = function(r) { records = r };"
              "Object.observe(obj, observer);");
-  Handle<Value> obj = context->Global()->Get(String::New("obj"));
-  Handle<Object>::Cast(obj)->SetHiddenValue(String::New("foo"), Null());
+  Handle<Value> obj =
+      context->Global()->Get(String::NewFromUtf8(isolate.GetIsolate(), "obj"));
+  Handle<Object>::Cast(obj)->SetHiddenValue(
+      String::NewFromUtf8(isolate.GetIsolate(), "foo"), Null());
   CompileRun("");  // trigger delivery
   CHECK(CompileRun("records")->IsNull());
 }

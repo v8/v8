@@ -1667,6 +1667,15 @@ LInstruction* LChunkBuilder::DoAdd(HAdd* instr) {
       result = AssignEnvironment(result);
     }
     return result;
+  } else if (instr->representation().IsExternal()) {
+    ASSERT(instr->left()->representation().IsExternal());
+    ASSERT(instr->right()->representation().IsInteger32());
+    ASSERT(!instr->CheckFlag(HValue::kCanOverflow));
+    LOperand* left = UseRegisterAtStart(instr->left());
+    LOperand* right = UseOrConstantAtStart(instr->right());
+    LAddI* add = new(zone()) LAddI(left, right);
+    LInstruction* result = DefineAsRegister(add);
+    return result;
   } else if (instr->representation().IsDouble()) {
     if (instr->left()->IsMul()) {
       return DoMultiplyAdd(HMul::cast(instr->left()), instr->right());
@@ -1717,19 +1726,6 @@ LInstruction* LChunkBuilder::DoPower(HPower* instr) {
   return MarkAsCall(DefineFixedDouble(result, d3),
                     instr,
                     CAN_DEOPTIMIZE_EAGERLY);
-}
-
-
-LInstruction* LChunkBuilder::DoRandom(HRandom* instr) {
-  ASSERT(instr->representation().IsDouble());
-  ASSERT(instr->global_object()->representation().IsTagged());
-  LOperand* global_object = UseTempRegister(instr->global_object());
-  LOperand* scratch = TempRegister();
-  LOperand* scratch2 = TempRegister();
-  LOperand* scratch3 = TempRegister();
-  LRandom* result = new(zone()) LRandom(
-      global_object, scratch, scratch2, scratch3);
-  return DefineFixedDouble(result, d7);
 }
 
 
@@ -2035,8 +2031,8 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
       HValue* val = instr->value();
       LOperand* value = UseRegister(val);
       LInstruction* result = val->CheckFlag(HInstruction::kUint32)
-          ? DefineSameAsFirst(new(zone()) LUint32ToSmi(value))
-          : DefineSameAsFirst(new(zone()) LInteger32ToSmi(value));
+          ? DefineAsRegister(new(zone()) LUint32ToSmi(value))
+          : DefineAsRegister(new(zone()) LInteger32ToSmi(value));
       if (val->HasRange() && val->range()->IsInSmiRange()) {
         return result;
       }
@@ -2574,7 +2570,7 @@ LInstruction* LChunkBuilder::DoTypeofIsAndBranch(HTypeofIsAndBranch* instr) {
   LInstruction* goto_instr = CheckElideControlInstruction(instr);
   if (goto_instr != NULL) return goto_instr;
 
-  return new(zone()) LTypeofIsAndBranch(UseTempRegister(instr->value()));
+  return new(zone()) LTypeofIsAndBranch(UseRegister(instr->value()));
 }
 
 

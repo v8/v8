@@ -862,8 +862,13 @@ void JSFunction::JSFunctionPrint(FILE* out) {
   shared()->name()->Print(out);
   PrintF(out, "\n - context = ");
   context()->ShortPrint(out);
-  PrintF(out, "\n - literals = ");
-  literals()->ShortPrint(out);
+  if (shared()->bound()) {
+    PrintF(out, "\n - bindings = ");
+    function_bindings()->ShortPrint(out);
+  } else {
+    PrintF(out, "\n - literals = ");
+    literals()->ShortPrint(out);
+  }
   PrintF(out, "\n - code = ");
   code()->ShortPrint(out);
   PrintF(out, "\n");
@@ -1125,6 +1130,12 @@ void AllocationSite::AllocationSitePrint(FILE* out) {
   dependent_code()->ShortPrint(out);
   PrintF(out, "\n - nested site: ");
   nested_site()->ShortPrint(out);
+  PrintF(out, "\n - memento found count: ");
+  memento_found_count()->ShortPrint(out);
+  PrintF(out, "\n - memento create count: ");
+  memento_create_count()->ShortPrint(out);
+  PrintF(out, "\n - pretenure decision: ");
+  pretenure_decision()->ShortPrint(out);
   PrintF(out, "\n - transition_info: ");
   if (transition_info()->IsSmi()) {
     ElementsKind kind = GetElementsKind();

@@ -1635,8 +1635,7 @@ void FullCodeGenerator::EmitAccessor(Expression* expression) {
 void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
   Comment cmnt(masm_, "[ ObjectLiteral");
 
-  int depth = 1;
-  expr->BuildConstantProperties(isolate(), &depth);
+  expr->BuildConstantProperties(isolate());
   Handle<FixedArray> constant_properties = expr->constant_properties();
   __ ldr(r3, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
   __ ldr(r3, FieldMemOperand(r3, JSFunction::kLiteralsOffset));
@@ -1651,7 +1650,7 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
   __ mov(r0, Operand(Smi::FromInt(flags)));
   int properties_count = constant_properties->length() / 2;
   if ((FLAG_track_double_fields && expr->may_store_doubles()) ||
-      depth > 1 || Serializer::enabled() ||
+      expr->depth() > 1 || Serializer::enabled() ||
       flags != ObjectLiteral::kFastElements ||
       properties_count > FastCloneShallowObjectStub::kMaximumClonedProperties) {
     __ Push(r3, r2, r1, r0);
@@ -1770,8 +1769,11 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
 void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
   Comment cmnt(masm_, "[ ArrayLiteral");
 
-  int depth = 1;
-  expr->BuildConstantElements(isolate(), &depth);
+  expr->BuildConstantElements(isolate());
+  int flags = expr->depth() == 1
+      ? ArrayLiteral::kShallowElements
+      : ArrayLiteral::kNoFlags;
+
   ZoneList<Expression*>* subexprs = expr->values();
   int length = subexprs->length();
   Handle<FixedArray> constant_elements = expr->constant_elements();
@@ -1795,10 +1797,11 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
     __ CallStub(&stub);
     __ IncrementCounter(
         isolate()->counters()->cow_arrays_created_stub(), 1, r1, r2);
-  } else if (depth > 1 || Serializer::enabled() ||
+  } else if (expr->depth() > 1 || Serializer::enabled() ||
              length > FastCloneShallowArrayStub::kMaximumClonedLength) {
-    __ Push(r3, r2, r1);
-    __ CallRuntime(Runtime::kCreateArrayLiteral, 3);
+    __ mov(r0, Operand(Smi::FromInt(flags)));
+    __ Push(r3, r2, r1, r0);
+    __ CallRuntime(Runtime::kCreateArrayLiteral, 4);
   } else {
     ASSERT(IsFastSmiOrObjectElementsKind(constant_elements_kind) ||
            FLAG_smi_only_arrays);
@@ -3345,50 +3348,6 @@ void FullCodeGenerator::EmitLog(CallRuntime* expr) {
 
   // Finally, we're expected to leave a value on the top of the stack.
   __ LoadRoot(r0, Heap::kUndefinedValueRootIndex);
-  context()->Plug(r0);
-}
-
-
-void FullCodeGenerator::EmitRandomHeapNumber(CallRuntime* expr) {
-  ASSERT(expr->arguments()->length() == 0);
-  Label slow_allocate_heapnumber;
-  Label heapnumber_allocated;
-
-  __ LoadRoot(r6, Heap::kHeapNumberMapRootIndex);
-  __ AllocateHeapNumber(r4, r1, r2, r6, &slow_allocate_heapnumber);
-  __ jmp(&heapnumber_allocated);
-
-  __ bind(&slow_allocate_heapnumber);
-  // Allocate a heap number.
-  __ CallRuntime(Runtime::kNumberAlloc, 0);
-  __ mov(r4, Operand(r0));
-
-  __ bind(&heapnumber_allocated);
-
-  // Convert 32 random bits in r0 to 0.(32 random bits) in a double
-  // by computing:
-  // ( 1.(20 0s)(32 random bits) x 2^20 ) - (1.0 x 2^20)).
-  __ PrepareCallCFunction(1, r0);
-  __ ldr(r0,
-         ContextOperand(context_register(), Context::GLOBAL_OBJECT_INDEX));
-  __ ldr(r0, FieldMemOperand(r0, GlobalObject::kNativeContextOffset));
-  __ CallCFunction(ExternalReference::random_uint32_function(isolate()), 1);
-
-  // 0x41300000 is the top half of 1.0 x 2^20 as a double.
-  // Create this constant using mov/orr to avoid PC relative load.
-  __ mov(r1, Operand(0x41000000));
-  __ orr(r1, r1, Operand(0x300000));
-  // Move 0x41300000xxxxxxxx (x = random bits) to VFP.
-  __ vmov(d7, r0, r1);
-  // Move 0x4130000000000000 to VFP.
-  __ mov(r0, Operand::Zero());
-  __ vmov(d8, r0, r1);
-  // Subtract and store the result in the heap number.
-  __ vsub(d7, d7, d8);
-  __ sub(r0, r4, Operand(kHeapObjectTag));
-  __ vstr(d7, r0, HeapNumber::kValueOffset);
-  __ mov(r0, r4);
-
   context()->Plug(r0);
 }
 

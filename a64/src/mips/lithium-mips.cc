@@ -1460,10 +1460,6 @@ LInstruction* LChunkBuilder::DoMod(HMod* instr) {
               instr->CheckFlag(HValue::kBailoutOnMinusZero))
           ? AssignEnvironment(result)
           : result;
-    } else if (instr->fixed_right_arg().has_value) {
-      LModI* mod = new(zone()) LModI(UseRegisterAtStart(left),
-                                     UseRegisterAtStart(right));
-      return AssignEnvironment(DefineAsRegister(mod));
     } else {
       LModI* mod = new(zone()) LModI(UseRegister(left),
                                      UseRegister(right),
@@ -1591,6 +1587,15 @@ LInstruction* LChunkBuilder::DoAdd(HAdd* instr) {
       result = AssignEnvironment(result);
     }
     return result;
+  } else if (instr->representation().IsExternal()) {
+    ASSERT(instr->left()->representation().IsExternal());
+    ASSERT(instr->right()->representation().IsInteger32());
+    ASSERT(!instr->CheckFlag(HValue::kCanOverflow));
+    LOperand* left = UseRegisterAtStart(instr->left());
+    LOperand* right = UseOrConstantAtStart(instr->right());
+    LAddI* add = new(zone()) LAddI(left, right);
+    LInstruction* result = DefineAsRegister(add);
+    return result;
   } else if (instr->representation().IsDouble()) {
     if (kArchVariant == kMips32r2) {
       if (instr->left()->IsMul())
@@ -1641,19 +1646,6 @@ LInstruction* LChunkBuilder::DoPower(HPower* instr) {
   return MarkAsCall(DefineFixedDouble(result, f0),
                     instr,
                     CAN_DEOPTIMIZE_EAGERLY);
-}
-
-
-LInstruction* LChunkBuilder::DoRandom(HRandom* instr) {
-  ASSERT(instr->representation().IsDouble());
-  ASSERT(instr->global_object()->representation().IsTagged());
-  LOperand* global_object = UseTempRegister(instr->global_object());
-  LOperand* scratch = TempRegister();
-  LOperand* scratch2 = TempRegister();
-  LOperand* scratch3 = TempRegister();
-  LRandom* result = new(zone()) LRandom(
-      global_object, scratch, scratch2, scratch3);
-  return DefineFixedDouble(result, f0);
 }
 
 
@@ -2476,15 +2468,8 @@ LInstruction* LChunkBuilder::DoCapturedObject(HCapturedObject* instr) {
 LInstruction* LChunkBuilder::DoAccessArgumentsAt(HAccessArgumentsAt* instr) {
   info()->MarkAsRequiresFrame();
   LOperand* args = UseRegister(instr->arguments());
-  LOperand* length;
-  LOperand* index;
-  if (instr->length()->IsConstant() && instr->index()->IsConstant()) {
-    length = UseRegisterOrConstant(instr->length());
-    index = UseOrConstant(instr->index());
-  } else {
-    length = UseTempRegister(instr->length());
-    index = UseRegisterAtStart(instr->index());
-  }
+  LOperand* length = UseRegisterOrConstantAtStart(instr->length());
+  LOperand* index = UseRegisterOrConstantAtStart(instr->index());
   return DefineAsRegister(new(zone()) LAccessArgumentsAt(args, length, index));
 }
 

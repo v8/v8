@@ -128,6 +128,11 @@ void Deoptimizer::CopyDoubleRegisters(FrameDescription* output_frame) {
 }
 
 
+Code* Deoptimizer::NotifyStubFailureBuiltin() {
+  return isolate_->builtins()->builtin(Builtins::kNotifyStubFailureSaveDoubles);
+}
+
+
 #define __ masm()->
 
 void Deoptimizer::EntryGenerator::Generate() {

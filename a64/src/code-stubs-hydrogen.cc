@@ -188,7 +188,7 @@ bool CodeStubGraphBuilderBase::BuildGraph() {
     if (!stack_parameter_count->IsConstant() &&
         descriptor_->hint_stack_parameter_count_ < 0) {
       HInstruction* constant_one = graph()->GetConstant1();
-      stack_pop_count = Add<HAdd>(stack_parameter_count, constant_one);
+      stack_pop_count = AddUncasted<HAdd>(stack_parameter_count, constant_one);
       stack_pop_count->ClearFlag(HValue::kCanOverflow);
       // TODO(mvstanton): verify that stack_parameter_count+1 really fits in a
       // smi.
@@ -509,6 +509,22 @@ HValue* CodeStubGraphBuilder<CreateAllocationSiteStub>::BuildCodeStub() {
   Add<HStoreNamedField>(object,
                         HObjectAccess::ForAllocationSiteOffset(
                             AllocationSite::kNestedSiteOffset),
+                        graph()->GetConstant0());
+
+  // Pretenuring calculation fields.
+  Add<HStoreNamedField>(object,
+                        HObjectAccess::ForAllocationSiteOffset(
+                            AllocationSite::kMementoFoundCountOffset),
+                        graph()->GetConstant0());
+
+  Add<HStoreNamedField>(object,
+                        HObjectAccess::ForAllocationSiteOffset(
+                            AllocationSite::kMementoCreateCountOffset),
+                        graph()->GetConstant0());
+
+  Add<HStoreNamedField>(object,
+                        HObjectAccess::ForAllocationSiteOffset(
+                            AllocationSite::kPretenureDecisionOffset),
                         graph()->GetConstant0());
 
   // Store an empty fixed array for the code dependency.
@@ -899,14 +915,14 @@ HValue* CodeStubGraphBuilder<BinaryOpStub>::BuildCodeInitializedStub() {
         Push(BuildBinaryOperation(
                     stub->operation(), left, right,
                     handle(Type::String(), isolate()), right_type,
-                    result_type, stub->fixed_right_arg(), true));
+                    result_type, stub->fixed_right_arg()));
       }
       if_leftisstring.Else();
       {
         Push(BuildBinaryOperation(
                     stub->operation(), left, right,
                     left_type, right_type, result_type,
-                    stub->fixed_right_arg(), true));
+                    stub->fixed_right_arg()));
       }
       if_leftisstring.End();
       result = Pop();
@@ -918,14 +934,14 @@ HValue* CodeStubGraphBuilder<BinaryOpStub>::BuildCodeInitializedStub() {
         Push(BuildBinaryOperation(
                     stub->operation(), left, right,
                     left_type, handle(Type::String(), isolate()),
-                    result_type, stub->fixed_right_arg(), true));
+                    result_type, stub->fixed_right_arg()));
       }
       if_rightisstring.Else();
       {
         Push(BuildBinaryOperation(
                     stub->operation(), left, right,
                     left_type, right_type, result_type,
-                    stub->fixed_right_arg(), true));
+                    stub->fixed_right_arg()));
       }
       if_rightisstring.End();
       result = Pop();
@@ -934,7 +950,7 @@ HValue* CodeStubGraphBuilder<BinaryOpStub>::BuildCodeInitializedStub() {
     result = BuildBinaryOperation(
             stub->operation(), left, right,
             left_type, right_type, result_type,
-            stub->fixed_right_arg(), true);
+            stub->fixed_right_arg());
   }
 
   // If we encounter a generic argument, the number conversion is
@@ -992,16 +1008,10 @@ HValue* CodeStubGraphBuilder<NewStringAddStub>::BuildCodeInitializedStub() {
 
   // Make sure that both arguments are strings if not known in advance.
   if ((flags & STRING_ADD_CHECK_LEFT) == STRING_ADD_CHECK_LEFT) {
-    IfBuilder if_leftnotstring(this);
-    if_leftnotstring.IfNot<HIsStringAndBranch>(left);
-    if_leftnotstring.Then();
-    if_leftnotstring.Deopt("Expected string for LHS of string addition");
+    left = BuildCheckString(left);
   }
   if ((flags & STRING_ADD_CHECK_RIGHT) == STRING_ADD_CHECK_RIGHT) {
-    IfBuilder if_rightnotstring(this);
-    if_rightnotstring.IfNot<HIsStringAndBranch>(right);
-    if_rightnotstring.Then();
-    if_rightnotstring.Deopt("Expected string for RHS of string addition");
+    right = BuildCheckString(right);
   }
 
   return BuildStringAdd(left, right, pretenure_flag);

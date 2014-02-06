@@ -2655,6 +2655,7 @@ void MarkCompactCollector::ClearAndDeoptimizeDependentCode(
 
     if (IsMarked(code) && !code->marked_for_deoptimization()) {
       code->set_marked_for_deoptimization(true);
+      code->InvalidateEmbeddedObjects();
       have_code_to_deoptimize_ = true;
     }
     entries->clear_at(i);

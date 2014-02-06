@@ -105,6 +105,7 @@ class NumberObject;
 class Object;
 class ObjectOperationDescriptor;
 class ObjectTemplate;
+class Platform;
 class Primitive;
 class RawOperationDescriptor;
 class Signature;
@@ -1136,6 +1137,8 @@ class V8_EXPORT Message {
   bool IsSharedCrossOrigin() const;
 
   // TODO(1245381): Print to a string instead of on a FILE.
+  static void PrintCurrentStackTrace(Isolate* isolate, FILE* out);
+  // Will be deprecated soon.
   static void PrintCurrentStackTrace(FILE* out);
 
   static const int kNoLineNumberInfo = 0;
@@ -1190,6 +1193,11 @@ class V8_EXPORT StackTrace {
    * \param options Enumerates the set of things we will capture for each
    *   StackFrame.
    */
+  static Local<StackTrace> CurrentStackTrace(
+      Isolate* isolate,
+      int frame_limit,
+      StackTraceOptions options = kOverview);
+  // Will be deprecated soon.
   static Local<StackTrace> CurrentStackTrace(
       int frame_limit,
       StackTraceOptions options = kOverview);
@@ -1523,6 +1531,8 @@ class V8_EXPORT Primitive : public Value { };
 class V8_EXPORT Boolean : public Primitive {
  public:
   bool Value() const;
+  V8_INLINE static Handle<Boolean> New(Isolate* isolate, bool value);
+  // Will be deprecated soon.
   V8_INLINE static Handle<Boolean> New(bool value);
 };
 
@@ -1735,7 +1745,7 @@ class V8_EXPORT String : public Primitive {
    * the function calls 'strlen' to determine the buffer length.
    */
   V8_DEPRECATED(
-      "Use NewFromOneByte instead",
+      "Use NewFromUtf8 instead",
       V8_INLINE static Local<String> New(const char* data, int length = -1));
 
   /** Allocates a new string from 16-bit character codes.*/
@@ -1791,6 +1801,9 @@ class V8_EXPORT String : public Primitive {
    * should the underlying buffer be deallocated or modified except through the
    * destructor of the external string resource.
    */
+  static Local<String> NewExternal(Isolate* isolate,
+                                   ExternalStringResource* resource);
+  // Will be deprecated soon.
   static Local<String> NewExternal(ExternalStringResource* resource);
 
   /**
@@ -1812,6 +1825,9 @@ class V8_EXPORT String : public Primitive {
    * should the underlying buffer be deallocated or modified except through the
    * destructor of the external string resource.
    */
+  static Local<String> NewExternal(Isolate* isolate,
+                                   ExternalAsciiStringResource* resource);
+  // Will be deprecated soon.
   static Local<String> NewExternal(ExternalAsciiStringResource* resource);
 
   /**
@@ -1965,8 +1981,9 @@ class V8_EXPORT Private : public Data {
 class V8_EXPORT Number : public Primitive {
  public:
   double Value() const;
-  static Local<Number> New(double value);
   static Local<Number> New(Isolate* isolate, double value);
+  // Will be deprecated soon.
+  static Local<Number> New(double value);
   V8_INLINE static Number* Cast(v8::Value* obj);
  private:
   Number();
@@ -1979,10 +1996,13 @@ class V8_EXPORT Number : public Primitive {
  */
 class V8_EXPORT Integer : public Number {
  public:
-  static Local<Integer> New(int32_t value);
-  static Local<Integer> NewFromUnsigned(uint32_t value);
+  static Local<Integer> New(Isolate* isolate, int32_t value);
+  static Local<Integer> NewFromUnsigned(Isolate* isolate, uint32_t value);
+  // Will be deprecated soon.
   static Local<Integer> New(int32_t value, Isolate*);
   static Local<Integer> NewFromUnsigned(uint32_t value, Isolate*);
+  static Local<Integer> New(int32_t value);
+  static Local<Integer> NewFromUnsigned(uint32_t value);
   int64_t Value() const;
   V8_INLINE static Integer* Cast(v8::Value* obj);
  private:
@@ -2335,6 +2355,8 @@ class V8_EXPORT Object : public Value {
    */
   Local<Value> CallAsConstructor(int argc, Handle<Value> argv[]);
 
+  static Local<Object> New(Isolate* isolate);
+  // Will be deprecated soon.
   static Local<Object> New();
   V8_INLINE static Object* Cast(Value* obj);
 
@@ -2363,6 +2385,8 @@ class V8_EXPORT Array : public Object {
    * Creates a JavaScript array with the given length. If the length
    * is negative the returned array will have length 0.
    */
+  static Local<Array> New(Isolate* isolate, int length = 0);
+  // Will be deprecated soon.
   static Local<Array> New(int length = 0);
 
   V8_INLINE static Array* Cast(Value* obj);
@@ -2534,7 +2558,7 @@ class V8_EXPORT Function : public Object {
   /**
    * Returns scriptId object.
    */
-  V8_DEPRECATED("Use ScriptId instead", Handle<Value> GetScriptId()) const;
+  V8_DEPRECATED("Use ScriptId instead", Handle<Value> GetScriptId() const);
 
   /**
    * Returns scriptId.
@@ -2626,6 +2650,8 @@ class V8_EXPORT ArrayBuffer : public Object {
    * will be deallocated when it is garbage-collected,
    * unless the object is externalized.
    */
+  static Local<ArrayBuffer> New(Isolate* isolate, size_t byte_length);
+  // Will be deprecated soon.
   static Local<ArrayBuffer> New(size_t byte_length);
 
   /**
@@ -2634,6 +2660,9 @@ class V8_EXPORT ArrayBuffer : public Object {
    * The memory block will not be reclaimed when a created ArrayBuffer
    * is garbage-collected.
    */
+  static Local<ArrayBuffer> New(Isolate* isolate, void* data,
+                                size_t byte_length);
+  // Will be deprecated soon.
   static Local<ArrayBuffer> New(void* data, size_t byte_length);
 
   /**
@@ -2894,11 +2923,13 @@ class V8_EXPORT DataView : public ArrayBufferView {
  */
 class V8_EXPORT Date : public Object {
  public:
+  static Local<Value> New(Isolate* isolate, double time);
+  // Will be deprecated soon.
   static Local<Value> New(double time);
 
   V8_DEPRECATED(
       "Use ValueOf instead",
-      double NumberValue()) const { return ValueOf(); }
+      double NumberValue() const) { return ValueOf(); }
 
   /**
    * A specialization of Value::NumberValue that is more efficient
@@ -2920,6 +2951,8 @@ class V8_EXPORT Date : public Object {
    * This API should not be called more than needed as it will
    * negatively impact the performance of date operations.
    */
+  static void DateTimeConfigurationChangeNotification(Isolate* isolate);
+  // Will be deprecated soon.
   static void DateTimeConfigurationChangeNotification();
 
  private:
@@ -2932,11 +2965,13 @@ class V8_EXPORT Date : public Object {
  */
 class V8_EXPORT NumberObject : public Object {
  public:
+  static Local<Value> New(Isolate* isolate, double value);
+  // Will be deprecated soon.
   static Local<Value> New(double value);
 
   V8_DEPRECATED(
       "Use ValueOf instead",
-      double NumberValue()) const { return ValueOf(); }
+      double NumberValue() const) { return ValueOf(); }
 
   /**
    * Returns the Number held by the object.
@@ -2959,7 +2994,7 @@ class V8_EXPORT BooleanObject : public Object {
 
   V8_DEPRECATED(
       "Use ValueOf instead",
-      bool BooleanValue()) const { return ValueOf(); }
+      bool BooleanValue() const) { return ValueOf(); }
 
   /**
    * Returns the Boolean held by the object.
@@ -2982,7 +3017,7 @@ class V8_EXPORT StringObject : public Object {
 
   V8_DEPRECATED(
       "Use ValueOf instead",
-      Local<String> StringValue()) const { return ValueOf(); }
+      Local<String> StringValue() const) { return ValueOf(); }
 
   /**
    * Returns the String held by the object.
@@ -3007,7 +3042,7 @@ class V8_EXPORT SymbolObject : public Object {
 
   V8_DEPRECATED(
       "Use ValueOf instead",
-      Local<Symbol> SymbolValue()) const { return ValueOf(); }
+      Local<Symbol> SymbolValue() const) { return ValueOf(); }
 
   /**
    * Returns the Symbol held by the object.
@@ -3093,6 +3128,8 @@ class V8_EXPORT Template : public Data {
   /** Adds a property to each instance created by this template.*/
   void Set(Handle<String> name, Handle<Data> value,
            PropertyAttribute attributes = None);
+  V8_INLINE void Set(Isolate* isolate, const char* name, Handle<Data> value);
+  // Will be deprecated soon.
   V8_INLINE void Set(const char* name, Handle<Data> value);
 
   void SetAccessorProperty(
@@ -3376,6 +3413,13 @@ class V8_EXPORT FunctionTemplate : public Template {
  public:
   /** Creates a function template.*/
   static Local<FunctionTemplate> New(
+      Isolate* isolate,
+      FunctionCallback callback = 0,
+      Handle<Value> data = Handle<Value>(),
+      Handle<Signature> signature = Handle<Signature>(),
+      int length = 0);
+  // Will be deprecated soon.
+  static Local<FunctionTemplate> New(
       FunctionCallback callback = 0,
       Handle<Value> data = Handle<Value>(),
       Handle<Signature> signature = Handle<Signature>(),
@@ -3462,6 +3506,8 @@ class V8_EXPORT FunctionTemplate : public Template {
 class V8_EXPORT ObjectTemplate : public Template {
  public:
   /** Creates an ObjectTemplate. */
+  static Local<ObjectTemplate> New(Isolate* isolate);
+  // Will be deprecated soon.
   static Local<ObjectTemplate> New();
 
   /** Creates a new instance of this template.*/
@@ -3603,7 +3649,8 @@ class V8_EXPORT ObjectTemplate : public Template {
 
  private:
   ObjectTemplate();
-  static Local<ObjectTemplate> New(Handle<FunctionTemplate> constructor);
+  static Local<ObjectTemplate> New(internal::Isolate* isolate,
+                                   Handle<FunctionTemplate> constructor);
   friend class FunctionTemplate;
 };
 
@@ -3614,6 +3661,12 @@ class V8_EXPORT ObjectTemplate : public Template {
  */
 class V8_EXPORT Signature : public Data {
  public:
+  static Local<Signature> New(Isolate* isolate,
+                              Handle<FunctionTemplate> receiver =
+                                  Handle<FunctionTemplate>(),
+                              int argc = 0,
+                              Handle<FunctionTemplate> argv[] = 0);
+  // Will be deprecated soon.
   static Local<Signature> New(Handle<FunctionTemplate> receiver =
                                   Handle<FunctionTemplate>(),
                               int argc = 0,
@@ -3629,8 +3682,13 @@ class V8_EXPORT Signature : public Data {
  */
 class V8_EXPORT AccessorSignature : public Data {
  public:
+  static Local<AccessorSignature> New(Isolate* isolate,
+                                      Handle<FunctionTemplate> receiver =
+                                          Handle<FunctionTemplate>());
+  // Will be deprecated soon.
   static Local<AccessorSignature> New(Handle<FunctionTemplate> receiver =
                                           Handle<FunctionTemplate>());
+
  private:
   AccessorSignature();
 };
@@ -3734,6 +3792,11 @@ class V8_EXPORT Extension {  // NOLINT
             const char** deps = 0,
             int source_length = -1);
   virtual ~Extension() { }
+  virtual v8::Handle<v8::FunctionTemplate> GetNativeFunctionTemplate(
+      v8::Isolate* isolate, v8::Handle<v8::String> name) {
+    return GetNativeFunction(name);
+  }
+  // Will be deprecated soon.
   virtual v8::Handle<v8::FunctionTemplate>
       GetNativeFunction(v8::Handle<v8::String> name) {
     return v8::Handle<v8::FunctionTemplate>();
@@ -3778,16 +3841,16 @@ class V8_EXPORT DeclareExtension {
 
 // --- Statics ---
 
-
-Handle<Primitive> V8_EXPORT Undefined();
-Handle<Primitive> V8_EXPORT Null();
-Handle<Boolean> V8_EXPORT True();
-Handle<Boolean> V8_EXPORT False();
-
 V8_INLINE Handle<Primitive> Undefined(Isolate* isolate);
 V8_INLINE Handle<Primitive> Null(Isolate* isolate);
 V8_INLINE Handle<Boolean> True(Isolate* isolate);
 V8_INLINE Handle<Boolean> False(Isolate* isolate);
+
+// Will be removed soon.
+Handle<Primitive> V8_EXPORT Undefined();
+Handle<Primitive> V8_EXPORT Null();
+Handle<Boolean> V8_EXPORT True();
+Handle<Boolean> V8_EXPORT False();
 
 
 /**
@@ -4053,16 +4116,27 @@ class V8_EXPORT Isolate {
    */
   void Dispose();
 
+  V8_DEPRECATED("Use SetData(0, data) instead.",
+                V8_INLINE void SetData(void* data));
+  V8_DEPRECATED("Use GetData(0) instead.", V8_INLINE void* GetData());
+
   /**
-   * Associate embedder-specific data with the isolate
+   * Associate embedder-specific data with the isolate. |slot| has to be
+   * between 0 and GetNumberOfDataSlots() - 1.
    */
-  V8_INLINE void SetData(void* data);
+  V8_INLINE void SetData(uint32_t slot, void* data);
 
   /**
    * Retrieve embedder-specific data from the isolate.
-   * Returns NULL if SetData has never been called.
+   * Returns NULL if SetData has never been called for the given |slot|.
    */
-  V8_INLINE void* GetData();
+  V8_INLINE void* GetData(uint32_t slot);
+
+  /**
+   * Returns the maximum number of available embedder data slots. Valid slots
+   * are in the range of 0 - GetNumberOfDataSlots() - 1.
+   */
+  V8_INLINE static uint32_t GetNumberOfDataSlots();
 
   /**
    * Get statistics about the heap memory usage.
@@ -4082,7 +4156,7 @@ class V8_EXPORT Isolate {
    *   kept alive by JavaScript objects.
    * \returns the adjusted value.
    */
-  intptr_t AdjustAmountOfExternalAllocatedMemory(intptr_t change_in_bytes);
+  int64_t AdjustAmountOfExternalAllocatedMemory(int64_t change_in_bytes);
 
   /**
    * Returns heap profiler for this isolate. Will return NULL until the isolate
@@ -4665,8 +4739,8 @@ class V8_EXPORT V8 {
 
   V8_DEPRECATED(
       "Use Isolate::AdjustAmountOfExternalAllocatedMemory instead",
-      static intptr_t AdjustAmountOfExternalAllocatedMemory(
-          intptr_t change_in_bytes));
+      static int64_t AdjustAmountOfExternalAllocatedMemory(
+          int64_t change_in_bytes));
 
   /**
    * Forcefully terminate the current thread of JavaScript execution
@@ -4777,6 +4851,18 @@ class V8_EXPORT V8 {
    * invoke this method when using the bundled ICU. Returns true on success.
    */
   static bool InitializeICU();
+
+  /**
+   * Sets the v8::Platform to use. This should be invoked before V8 is
+   * initialized.
+   */
+  static void InitializePlatform(Platform* platform);
+
+  /**
+   * Clears all references to the v8::Platform. This should be invoked after
+   * V8 was disposed.
+   */
+  static void ShutdownPlatform();
 
  private:
   V8();
@@ -5251,12 +5337,6 @@ class V8_EXPORT Locker {
 
   ~Locker();
 
-  V8_DEPRECATED("This will be remvoed.",
-                static void StartPreemption(Isolate *isolate, int every_n_ms));
-
-  V8_DEPRECATED("This will be removed",
-                static void StopPreemption(Isolate* isolate));
-
   /**
    * Returns whether or not the locker for a given isolate, is locked by the
    * current thread.
@@ -5448,8 +5528,8 @@ class Internals {
   static const int kExternalTwoByteRepresentationTag = 0x02;
   static const int kExternalAsciiRepresentationTag = 0x06;
 
-  static const int kIsolateEmbedderDataOffset = 1 * kApiPointerSize;
-  static const int kIsolateRootsOffset = 3 * kApiPointerSize;
+  static const int kIsolateEmbedderDataOffset = 0 * kApiPointerSize;
+  static const int kIsolateRootsOffset = 5 * kApiPointerSize;
   static const int kUndefinedValueRootIndex = 5;
   static const int kNullValueRootIndex = 7;
   static const int kTrueValueRootIndex = 8;
@@ -5472,6 +5552,8 @@ class Internals {
 
   static const int kUndefinedOddballKind = 5;
   static const int kNullOddballKind = 3;
+
+  static const uint32_t kNumIsolateDataSlots = 4;
 
   V8_EXPORT static void CheckInitializedImpl(v8::Isolate* isolate);
   V8_INLINE static void CheckInitialized(v8::Isolate* isolate) {
@@ -5536,15 +5618,17 @@ class Internals {
     *addr = static_cast<uint8_t>((*addr & ~kNodeStateMask) | value);
   }
 
-  V8_INLINE static void SetEmbedderData(v8::Isolate* isolate, void* data) {
-    uint8_t* addr = reinterpret_cast<uint8_t*>(isolate) +
-        kIsolateEmbedderDataOffset;
+  V8_INLINE static void SetEmbedderData(v8::Isolate *isolate,
+                                        uint32_t slot,
+                                        void *data) {
+    uint8_t *addr = reinterpret_cast<uint8_t *>(isolate) +
+                    kIsolateEmbedderDataOffset + slot * kApiPointerSize;
     *reinterpret_cast<void**>(addr) = data;
   }
 
-  V8_INLINE static void* GetEmbedderData(v8::Isolate* isolate) {
+  V8_INLINE static void* GetEmbedderData(v8::Isolate* isolate, uint32_t slot) {
     uint8_t* addr = reinterpret_cast<uint8_t*>(isolate) +
-        kIsolateEmbedderDataOffset;
+        kIsolateEmbedderDataOffset + slot * kApiPointerSize;
     return *reinterpret_cast<void**>(addr);
   }
 
@@ -6009,14 +6093,23 @@ Handle<Boolean> ScriptOrigin::ResourceIsSharedCrossOrigin() const {
 }
 
 
-Handle<Boolean> Boolean::New(bool value) {
-  Isolate* isolate = Isolate::GetCurrent();
+Handle<Boolean> Boolean::New(Isolate* isolate, bool value) {
   return value ? True(isolate) : False(isolate);
 }
 
 
+Handle<Boolean> Boolean::New(bool value) {
+  return Boolean::New(Isolate::GetCurrent(), value);
+}
+
+
+void Template::Set(Isolate* isolate, const char* name, v8::Handle<Data> value) {
+  Set(v8::String::NewFromUtf8(isolate, name), value);
+}
+
+
 void Template::Set(const char* name, v8::Handle<Data> value) {
-  Set(v8::String::New(name), value);
+  Set(Isolate::GetCurrent(), name, value);
 }
 
 
@@ -6470,13 +6563,31 @@ Handle<Boolean> False(Isolate* isolate) {
 
 void Isolate::SetData(void* data) {
   typedef internal::Internals I;
-  I::SetEmbedderData(this, data);
+  I::SetEmbedderData(this, 0, data);
 }
 
 
 void* Isolate::GetData() {
   typedef internal::Internals I;
-  return I::GetEmbedderData(this);
+  return I::GetEmbedderData(this, 0);
+}
+
+
+void Isolate::SetData(uint32_t slot, void* data) {
+  typedef internal::Internals I;
+  I::SetEmbedderData(this, slot, data);
+}
+
+
+void* Isolate::GetData(uint32_t slot) {
+  typedef internal::Internals I;
+  return I::GetEmbedderData(this, slot);
+}
+
+
+uint32_t Isolate::GetNumberOfDataSlots() {
+  typedef internal::Internals I;
+  return I::kNumIsolateDataSlots;
 }
 
 

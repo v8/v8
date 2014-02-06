@@ -1,0 +1,3 @@
+# Defines the Google C++ style for automatic reformatting.
+# http://clang.llvm.org/docs/ClangFormatStyleOptions.html
+BasedOnStyle: Google

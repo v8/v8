@@ -135,4 +135,3 @@ class AllocationTracker {
 } }  // namespace v8::internal
 
 #endif  // V8_ALLOCATION_TRACKER_H_
-

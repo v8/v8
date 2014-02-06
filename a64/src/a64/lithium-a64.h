@@ -159,7 +159,6 @@ class LCodeGen;
   V(Parameter)                                  \
   V(Power)                                      \
   V(PushArgument)                               \
-  V(Random)                                     \
   V(RegExpLiteral)                              \
   V(Return)                                     \
   V(SeqStringGetChar)                           \
@@ -2113,20 +2112,6 @@ class LPushArgument V8_FINAL : public LTemplateInstruction<0, 1, 0> {
   LOperand* value() { return inputs_[0]; }
 
   DECLARE_CONCRETE_INSTRUCTION(PushArgument, "push-argument")
-};
-
-
-// TODO(all): This will disappear when Math.random is rewritten in JavaScript.
-class LRandom V8_FINAL : public LTemplateInstruction<1, 1, 0> {
- public:
-  explicit LRandom(LOperand* global_object) {
-    inputs_[0] = global_object;
-  }
-
-  LOperand* global_object() { return inputs_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(Random, "random")
-  DECLARE_HYDROGEN_ACCESSOR(Random)
 };
 
 

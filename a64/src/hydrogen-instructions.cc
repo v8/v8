@@ -949,6 +949,25 @@ void HBoundsCheck::InferRepresentation(HInferRepresentationPhase* h_infer) {
 }
 
 
+Range* HBoundsCheck::InferRange(Zone* zone) {
+  Representation r = representation();
+  if (r.IsSmiOrInteger32() && length()->HasRange()) {
+    int upper = length()->range()->upper() - (allow_equality() ? 0 : 1);
+    int lower = 0;
+
+    Range* result = new(zone) Range(lower, upper);
+    if (index()->HasRange()) {
+      result->Intersect(index()->range());
+    }
+
+    // In case of Smi representation, clamp result to Smi::kMaxValue.
+    if (r.IsSmi()) result->ClampToSmi();
+    return result;
+  }
+  return HValue::InferRange(zone);
+}
+
+
 void HBoundsCheckBaseIndexInformation::PrintDataTo(StringStream* stream) {
   stream->Add("base: ");
   base_index()->PrintNameTo(stream);
@@ -1261,6 +1280,26 @@ HValue* HBitwise::Canonicalize() {
     return arg;
   }
   return this;
+}
+
+
+Representation HAdd::RepresentationFromInputs() {
+  Representation left_rep = left()->representation();
+  if (left_rep.IsExternal()) {
+    return Representation::External();
+  }
+  return HArithmeticBinaryOperation::RepresentationFromInputs();
+}
+
+
+Representation HAdd::RequiredInputRepresentation(int index) {
+  if (index == 2) {
+    Representation left_rep = left()->representation();
+    if (left_rep.IsExternal()) {
+      return Representation::Integer32();
+    }
+  }
+  return HArithmeticBinaryOperation::RequiredInputRepresentation(index);
 }
 
 

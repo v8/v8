@@ -165,6 +165,7 @@ class IC {
   // - The oddball map is only used for booleans.
   static Handle<Map> TypeToMap(Type* type, Isolate* isolate);
   static Type* MapToType(Handle<Map> type);
+  static Handle<Type> CurrentTypeOf(Handle<Object> object, Isolate* isolate);
 
  protected:
   // Get the call-site target; used for determining the state.

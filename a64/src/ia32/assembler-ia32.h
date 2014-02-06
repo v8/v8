@@ -638,13 +638,6 @@ class Assembler : public AssemblerBase {
     set_target_address_at(instruction_payload, target);
   }
 
-  // This sets the branch destination (which is in the instruction on x86).
-  // This is for calls and branches to runtime code.
-  inline static void set_external_target_at(Address instruction_payload,
-                                            Address target) {
-    set_target_address_at(instruction_payload, target);
-  }
-
   static const int kSpecialTargetSize = kPointerSize;
 
   // Distance between the address of the code target in the call instruction
