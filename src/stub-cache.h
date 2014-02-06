@@ -567,6 +567,7 @@ class LoadStubCompiler: public BaseLoadStoreStubCompiler {
                                     Handle<JSFunction> getter);
 
   static void GenerateLoadViaGetter(MacroAssembler* masm,
+                                    Handle<HeapType> type,
                                     Register receiver,
                                     Handle<JSFunction> getter);
 
@@ -712,6 +713,7 @@ class StoreStubCompiler: public BaseLoadStoreStubCompiler {
                                     const CallOptimization& call_optimization);
 
   static void GenerateStoreViaSetter(MacroAssembler* masm,
+                                     Handle<HeapType> type,
                                      Handle<JSFunction> setter);
 
   Handle<Code> CompileStoreViaSetter(Handle<JSObject> object,
