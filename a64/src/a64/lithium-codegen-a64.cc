@@ -785,12 +785,47 @@ bool LCodeGen::GenerateDeferredCode() {
 
 
 bool LCodeGen::GenerateDeoptJumpTable() {
-  TODO_UNIMPLEMENTED("generate level 1 deopt table");
+  if (deopt_jump_table_.length() > 0) {
+    Comment(";;; -------------------- Jump table --------------------");
+  }
+  Label table_start;
+  __ bind(&table_start);
+  Label needs_frame;
+  for (int i = 0; i < deopt_jump_table_.length(); i++) {
+    __ Bind(&deopt_jump_table_[i].label);
+    Address entry = deopt_jump_table_[i].address;
+    Deoptimizer::BailoutType type = deopt_jump_table_[i].bailout_type;
+    int id = Deoptimizer::GetDeoptimizationId(isolate(), entry, type);
+    if (id == Deoptimizer::kNotDeoptimizationEntry) {
+      Comment(";;; jump table entry %d.", i);
+    } else {
+      Comment(";;; jump table entry %d: deoptimization bailout %d.", i, id);
+    }
+    if (deopt_jump_table_[i].needs_frame) {
+      __ Mov(__ Tmp0(), Operand(ExternalReference::ForDeoptEntry(entry)));
+      if (needs_frame.is_bound()) {
+        __ B(&needs_frame);
+      } else {
+        __ Bind(&needs_frame);
+        // This variant of deopt can only be used with stubs. Since we don't
+        // have a function pointer to install in the stack frame that we're
+        // building, install a special marker there instead.
+        // TODO(jochen): Revisit the use of TmpX().
+        ASSERT(info()->IsStub());
+        __ Mov(__ Tmp1(), Operand(Smi::FromInt(StackFrame::STUB)));
+        __ Push(lr, fp, cp, __ Tmp1());
+        __ Add(fp, __ StackPointer(), 2 * kPointerSize);
+        __ Call(__ Tmp0());
+      }
+    } else {
+      __ Call(entry, RelocInfo::RUNTIME_ENTRY);
+    }
+    masm()->CheckConstPool(false, false);
+  }
 
-  // TODO(jbramley): On ARM, the deopt entry for stubs is different in that it
-  // inserts a special marker instead of a function pointer. We need to do that
-  // same on A64, but since we don't use the jump table, we have to do it
-  // in LCodeGen::Deoptimize().
+  // Force constant pool emission at the end of the deopt jump table to make
+  // sure that no constant pools are emitted after.
+  masm()->CheckConstPool(true, false);
 
   // The deoptimization jump table is the last part of the instruction
   // sequence. Mark the generated code as done unless we bailed out.
@@ -935,22 +970,22 @@ void LCodeGen::Deoptimize(LEnvironment* environment,
   }
 
 
-  // TODO(all): Currently this code directly jump to the second level deopt
-  // table entry. This code need to be updated if we decide to use the
-  // 2 levels of table.
   ASSERT(info()->IsStub() || frame_is_built_);
   if (frame_is_built_) {
     __ Call(entry, RelocInfo::RUNTIME_ENTRY);
   } else {
-    // We need to build a frame to deoptimize a stub. Because stubs don't have a
-    // function pointer to put in the frame, put a special marker there instead.
-    // TODO(jbramley): In other architectures, this happens in the jump table.
-    // This is a temporary hack until we implement jump tables in A64.
-    __ Mov(__ Tmp1(), Operand(Smi::FromInt(StackFrame::STUB)));
-    __ Push(lr, fp, cp, __ Tmp1());
-    __ Add(fp, __ StackPointer(), 2 * kPointerSize);
-    // TODO(jbramley): Can this be a jump, rather than a call?
-    __ Call(entry, RelocInfo::RUNTIME_ENTRY);
+    // We often have several deopts to the same entry, reuse the last
+    // jump entry if this is the case.
+    if (deopt_jump_table_.is_empty() ||
+        (deopt_jump_table_.last().address != entry) ||
+        (deopt_jump_table_.last().bailout_type != bailout_type) ||
+        (deopt_jump_table_.last().needs_frame != !frame_is_built_)) {
+      Deoptimizer::JumpTableEntry table_entry(entry,
+                                              bailout_type,
+                                              !frame_is_built_);
+      deopt_jump_table_.Add(table_entry, zone());
+    }
+    __ B(&deopt_jump_table_.last().label);
   }
 }
 
