@@ -4542,7 +4542,7 @@ void MacroAssembler::PrintfNoPreserve(const char * format,
   CPURegister args[kMaxArgCount] = {arg0, arg1, arg2, arg3};
 
   // The PCS registers where the arguments need to end up.
-  CPURegister pcs[kMaxArgCount];
+  CPURegister pcs[kMaxArgCount] = {NoCPUReg, NoCPUReg, NoCPUReg, NoCPUReg};
 
   // Promote FP arguments to doubles, and integer arguments to X registers.
   // Note that FP and integer arguments cannot be mixed, but we'll check
