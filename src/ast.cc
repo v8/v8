@@ -82,6 +82,16 @@ bool Expression::IsUndefinedLiteral(Isolate* isolate) {
 }
 
 
+bool Expression::IsIdentifier() {
+  return (AsVariableProxy() != NULL && !AsVariableProxy()->is_this());
+}
+
+
+bool Expression::IsIdentifierNamed(String* name) {
+  return (AsVariableProxy() != NULL && AsVariableProxy()->name()->Equals(name));
+}
+
+
 VariableProxy::VariableProxy(Zone* zone, Variable* var, int position)
     : Expression(zone, position),
       name_(var->name()),

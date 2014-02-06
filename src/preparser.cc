@@ -168,15 +168,18 @@ PreParser::SourceElements PreParser::ParseSourceElements(int end_token,
   // SourceElements ::
   //   (Statement)* <end_token>
 
-  bool allow_directive_prologue = true;
+  bool directive_prologue = true;
   while (peek() != end_token) {
+    if (directive_prologue && peek() != Token::STRING) {
+      directive_prologue = false;
+    }
     Statement statement = ParseSourceElement(CHECK_OK);
-    if (allow_directive_prologue) {
+    if (directive_prologue) {
       if (statement.IsUseStrictLiteral()) {
         set_language_mode(allow_harmony_scoping() ?
                           EXTENDED_MODE : STRICT_MODE);
       } else if (!statement.IsStringLiteral()) {
-        allow_directive_prologue = false;
+        directive_prologue = false;
       }
     }
   }
@@ -468,16 +471,20 @@ PreParser::Statement PreParser::ParseExpressionOrLabelledStatement(bool* ok) {
   //   Expression ';'
   //   Identifier ':' Statement
 
+  bool starts_with_identifier = peek_any_identifier();
   Expression expr = ParseExpression(true, CHECK_OK);
-  if (expr.IsRawIdentifier()) {
+  // Even if the expression starts with an identifier, it is not necessarily an
+  // identifier. For example, "foo + bar" starts with an identifier but is not
+  // an identifier.
+  if (peek() == Token::COLON && starts_with_identifier && expr.IsIdentifier()) {
+    // Expression is a single identifier, and not, e.g., a parenthesized
+    // identifier.
     ASSERT(!expr.AsIdentifier().IsFutureReserved());
     ASSERT(is_classic_mode() ||
            (!expr.AsIdentifier().IsFutureStrictReserved() &&
             !expr.AsIdentifier().IsYield()));
-    if (peek() == Token::COLON) {
-      Consume(Token::COLON);
-      return ParseStatement(ok);
-    }
+    Consume(Token::COLON);
+    return ParseStatement(ok);
     // Preparsing is disabled for extensions (because the extension details
     // aren't passed to lazily compiled functions), so we don't
     // accept "native function" in the preparser.
@@ -1170,7 +1177,6 @@ PreParser::Expression PreParser::ParsePrimaryExpression(bool* ok) {
       parenthesized_function_ = (peek() == Token::FUNCTION);
       result = ParseExpression(true, CHECK_OK);
       Expect(Token::RPAREN, CHECK_OK);
-      result = result.Parenthesize();
       break;
 
     case Token::MOD:
