@@ -4331,17 +4331,6 @@ void LCodeGen::DoDeferredNumberTagU(LInstruction* instr,
   // Slow case: call the runtime system to do the number allocation.
   __ Bind(&slow);
 
-  // Check that the dst register contains new space allocation top, which is a
-  // valid address for the GC.
-  if (FLAG_debug_code) {
-    ExternalReference new_space_allocation_top =
-        ExternalReference::new_space_allocation_top_address(isolate());
-    __ Mov(scratch1, Operand(new_space_allocation_top));
-    __ Ldr(scratch1, MemOperand(scratch1));
-    __ Cmp(dst, scratch1);
-    __ Check(eq, kUnexpectedAllocationTop);
-  }
-
   {
     // Preserve the value of all registers.
     PushSafepointRegistersScope scope(this, Safepoint::kWithRegisters);
