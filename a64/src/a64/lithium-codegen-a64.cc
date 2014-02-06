@@ -1769,7 +1769,7 @@ void LCodeGen::DoBranch(LBranch* instr) {
       EmitCompareAndBranch(instr, ne, value, Operand(Smi::FromInt(0)));
     } else if (type.IsJSArray()) {
       ASSERT(!info()->IsStub());
-      EmitBranch(instr, al);
+      EmitGoto(instr->TrueDestination(chunk()));
     } else if (type.IsHeapNumber()) {
       ASSERT(!info()->IsStub());
       __ Ldr(double_scratch(), FieldMemOperand(value,
