@@ -672,10 +672,19 @@ void MacroAssembler::PopCPURegList(CPURegList registers) {
 void MacroAssembler::PushMultipleTimes(int count, Register src) {
   int size = src.SizeInBytes();
 
-  // TODO(all): Use a loop when optimizing for size.
-  TODO_UNIMPLEMENTED("PushMultipleTimes: Support --optimize-for-size.");
-
   PrepareForPush(count, size);
+
+  if (FLAG_optimize_for_size && count > 8) {
+    Label loop;
+    __ Mov(Tmp0(), count / 2);
+    __ Bind(&loop);
+    PushHelper(2, size, src, src, NoReg, NoReg);
+    __ Subs(Tmp0(), Tmp0(), 1);
+    __ B(ne, &loop);
+
+    count %= 2;
+  }
+
   // Push up to four registers at a time if possible because if the current
   // stack pointer is csp and the register size is 32, registers must be pushed
   // in blocks of four in order to maintain the 16-byte alignment for csp.
