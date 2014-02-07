@@ -4068,8 +4068,12 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     //    '(' (Identifier)*[','] ')'
     Expect(Token::LPAREN, CHECK_OK);
     scope->set_start_position(scanner().location().beg_pos);
-    Scanner::Location name_loc = Scanner::Location::invalid();
-    Scanner::Location dupe_loc = Scanner::Location::invalid();
+
+    // We don't yet know if the function will be strict, so we cannot yet
+    // produce errors for parameter names or duplicates. However, we remember
+    // the locations of these errors if they occur and produce the errors later.
+    Scanner::Location eval_args_error_log = Scanner::Location::invalid();
+    Scanner::Location dupe_error_loc = Scanner::Location::invalid();
     Scanner::Location reserved_loc = Scanner::Location::invalid();
 
     bool done = (peek() == Token::RPAREN);
@@ -4079,15 +4083,15 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
           ParseIdentifierOrStrictReservedWord(&is_strict_reserved, CHECK_OK);
 
       // Store locations for possible future error reports.
-      if (!name_loc.IsValid() && IsEvalOrArguments(param_name)) {
-        name_loc = scanner().location();
-      }
-      if (!dupe_loc.IsValid() && top_scope_->IsDeclared(param_name)) {
-        duplicate_parameters = FunctionLiteral::kHasDuplicateParameters;
-        dupe_loc = scanner().location();
+      if (!eval_args_error_log.IsValid() && IsEvalOrArguments(param_name)) {
+        eval_args_error_log = scanner().location();
       }
       if (!reserved_loc.IsValid() && is_strict_reserved) {
         reserved_loc = scanner().location();
+      }
+      if (!dupe_error_loc.IsValid() && top_scope_->IsDeclared(param_name)) {
+        duplicate_parameters = FunctionLiteral::kHasDuplicateParameters;
+        dupe_error_loc = scanner().location();
       }
 
       top_scope_->DeclareParameter(param_name, VAR);
@@ -4256,7 +4260,8 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
       scope->set_end_position(scanner().location().end_pos);
     }
 
-    // Validate strict mode.
+    // Validate strict mode. We can do this only after parsing the function,
+    // since the function can declare itself strict.
     if (!top_scope_->is_classic_mode()) {
       if (IsEvalOrArguments(function_name)) {
         ReportMessageAt(function_name_location,
@@ -4271,14 +4276,14 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
         *ok = false;
         return NULL;
       }
-      if (name_loc.IsValid()) {
-        ReportMessageAt(name_loc, "strict_eval_arguments",
+      if (eval_args_error_log.IsValid()) {
+        ReportMessageAt(eval_args_error_log, "strict_eval_arguments",
                         Vector<const char*>::empty());
         *ok = false;
         return NULL;
       }
-      if (dupe_loc.IsValid()) {
-        ReportMessageAt(dupe_loc, "strict_param_dupe",
+      if (dupe_error_loc.IsValid()) {
+        ReportMessageAt(dupe_error_loc, "strict_param_dupe",
                         Vector<const char*>::empty());
         *ok = false;
         return NULL;

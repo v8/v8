@@ -75,9 +75,6 @@ PreParser::PreParseResult PreParser::PreParseLazyFunction(
     if (!scope_->is_classic_mode()) {
       int end_pos = scanner()->location().end_pos;
       CheckOctalLiteral(start_position, end_pos, &ok);
-      if (ok) {
-        CheckDelayedStrictModeViolation(start_position, end_pos, &ok);
-      }
     }
   }
   return kPreParseSuccess;
@@ -1295,7 +1292,7 @@ PreParser::Arguments PreParser::ParseArguments(bool* ok) {
 }
 
 PreParser::Expression PreParser::ParseFunctionLiteral(
-    Identifier name,
+    Identifier function_name,
     Scanner::Location function_name_location,
     bool name_is_strict_reserved,
     bool is_generator,
@@ -1314,8 +1311,23 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   int start_position = position();
   bool done = (peek() == Token::RPAREN);
   DuplicateFinder duplicate_finder(scanner()->unicode_cache());
+  // We don't yet know if the function will be strict, so we cannot yet produce
+  // errors for parameter names or duplicates. However, we remember the
+  // locations of these errors if they occur and produce the errors later.
+  Scanner::Location eval_args_error_loc = Scanner::Location::invalid();
+  Scanner::Location dupe_error_loc = Scanner::Location::invalid();
+  Scanner::Location reserved_error_loc = Scanner::Location::invalid();
   while (!done) {
-    ParseIdentifier(kDontAllowEvalOrArguments, CHECK_OK);
+    bool is_strict_reserved = false;
+    Identifier param_name =
+        ParseIdentifierOrStrictReservedWord(&is_strict_reserved, CHECK_OK);
+    if (!eval_args_error_loc.IsValid() && param_name.IsEvalOrArguments()) {
+      eval_args_error_loc = scanner()->location();
+    }
+    if (!reserved_error_loc.IsValid() && is_strict_reserved) {
+      reserved_error_loc = scanner()->location();
+    }
+
     int prev_value;
     if (scanner()->is_literal_ascii()) {
       prev_value =
@@ -1325,11 +1337,10 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
           duplicate_finder.AddUtf16Symbol(scanner()->literal_utf16_string(), 1);
     }
 
-    if (prev_value != 0) {
-      SetStrictModeViolation(scanner()->location(),
-                             "strict_param_dupe",
-                             CHECK_OK);
+    if (!dupe_error_loc.IsValid() && prev_value != 0) {
+      dupe_error_loc = scanner()->location();
     }
+
     done = (peek() == Token::RPAREN);
     if (!done) {
       Expect(Token::COMMA, CHECK_OK);
@@ -1353,9 +1364,10 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   }
   Expect(Token::RBRACE, CHECK_OK);
 
-  // Validate strict mode.
+  // Validate strict mode. We can do this only after parsing the function,
+  // since the function can declare itself strict.
   if (!scope_->is_classic_mode()) {
-    if (name.IsEvalOrArguments()) {
+    if (function_name.IsEvalOrArguments()) {
       ReportMessageAt(function_name_location, "strict_eval_arguments", NULL);
       *ok = false;
       return Expression::Default();
@@ -1366,10 +1378,27 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
       *ok = false;
       return Expression::Default();
     }
+    if (eval_args_error_loc.IsValid()) {
+      ReportMessageAt(eval_args_error_loc, "strict_eval_arguments",
+                      Vector<const char*>::empty());
+      *ok = false;
+      return Expression::Default();
+    }
+    if (dupe_error_loc.IsValid()) {
+      ReportMessageAt(dupe_error_loc, "strict_param_dupe",
+                      Vector<const char*>::empty());
+      *ok = false;
+      return Expression::Default();
+    }
+    if (reserved_error_loc.IsValid()) {
+      ReportMessageAt(reserved_error_loc, "unexpected_strict_reserved",
+                      Vector<const char*>::empty());
+      *ok = false;
+      return Expression::Default();
+    }
 
     int end_position = scanner()->location().end_pos;
     CheckOctalLiteral(start_position, end_position, CHECK_OK);
-    CheckDelayedStrictModeViolation(start_position, end_position, CHECK_OK);
     return Expression::StrictFunction();
   }
 
@@ -1475,7 +1504,8 @@ PreParser::Identifier PreParser::ParseIdentifier(
     PreParser::Identifier name = GetIdentifierSymbol();
     if (allow_eval_or_arguments == kDontAllowEvalOrArguments &&
         !scope_->is_classic_mode() && name.IsEvalOrArguments()) {
-      StrictModeIdentifierViolation(scanner()->location(), name, ok);
+      ReportMessageAt(scanner()->location(), "strict_eval_arguments", NULL);
+      *ok = false;
     }
     return name;
   } else if (scope_->is_classic_mode() &&
@@ -1487,58 +1517,6 @@ PreParser::Identifier PreParser::ParseIdentifier(
     *ok = false;
     return Identifier::Default();
   }
-}
-
-
-void PreParser::SetStrictModeViolation(Scanner::Location location,
-                                       const char* type,
-                                       bool* ok) {
-  if (!scope_->is_classic_mode()) {
-    ReportMessageAt(location, type, NULL);
-    *ok = false;
-    return;
-  }
-  // Delay report in case this later turns out to be strict code
-  // (i.e., for function names and parameters prior to a "use strict"
-  // directive).
-  // It's safe to overwrite an existing violation.
-  // It's either from a function that turned out to be non-strict,
-  // or it's in the current function (and we just need to report
-  // one error), or it's in a unclosed nesting function that wasn't
-  // strict (otherwise we would already be in strict mode).
-  strict_mode_violation_location_ = location;
-  strict_mode_violation_type_ = type;
-}
-
-
-void PreParser::CheckDelayedStrictModeViolation(int beg_pos,
-                                                int end_pos,
-                                                bool* ok) {
-  Scanner::Location location = strict_mode_violation_location_;
-  if (location.IsValid() &&
-      location.beg_pos > beg_pos && location.end_pos < end_pos) {
-    ReportMessageAt(location, strict_mode_violation_type_, NULL);
-    *ok = false;
-  }
-}
-
-
-void PreParser::StrictModeIdentifierViolation(Scanner::Location location,
-                                              Identifier identifier,
-                                              bool* ok) {
-  const char* type = "strict_eval_arguments";
-  if (identifier.IsFutureReserved()) {
-    type = "unexpected_reserved";
-  } else if (identifier.IsFutureStrictReserved() || identifier.IsYield()) {
-    type = "unexpected_strict_reserved";
-  }
-  if (!scope_->is_classic_mode()) {
-    ReportMessageAt(location, type, NULL);
-    *ok = false;
-    return;
-  }
-  strict_mode_violation_location_ = location;
-  strict_mode_violation_type_ = type;
 }
 
 

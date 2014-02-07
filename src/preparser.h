@@ -243,8 +243,6 @@ class PreParser : public ParserBase {
       : ParserBase(scanner, stack_limit),
         log_(log),
         scope_(NULL),
-        strict_mode_violation_location_(Scanner::Location::invalid()),
-        strict_mode_violation_type_(NULL),
         parenthesized_function_(false) { }
 
   ~PreParser() {}
@@ -655,20 +653,8 @@ class PreParser : public ParserBase {
 
   bool CheckInOrOf(bool accept_OF);
 
-  void SetStrictModeViolation(Scanner::Location,
-                              const char* type,
-                              bool* ok);
-
-  void CheckDelayedStrictModeViolation(int beg_pos, int end_pos, bool* ok);
-
-  void StrictModeIdentifierViolation(Scanner::Location,
-                                     Identifier identifier,
-                                     bool* ok);
-
   ParserRecorder* log_;
   Scope* scope_;
-  Scanner::Location strict_mode_violation_location_;
-  const char* strict_mode_violation_type_;
   bool parenthesized_function_;
 };
 

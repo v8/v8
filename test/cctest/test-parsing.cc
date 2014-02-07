@@ -1940,3 +1940,40 @@ TEST(DontRegressPreParserDataSizes) {
     CHECK(!data.has_error());
   }
 }
+
+
+TEST(FunctionDeclaresItselfStrict) {
+  // Tests that we produce the right kinds of errors when a function declares
+  // itself strict (we cannot produce there errors as soon as we see the
+  // offending identifiers, because we don't know at that point whether the
+  // function is strict or not).
+  const char* context_data[][2] = {
+    {"function eval() {", "}"},
+    {"function arguments() {", "}"},
+    {"function yield() {", "}"},
+    {"function interface() {", "}"},
+    {"function foo(eval) {", "}"},
+    {"function foo(arguments) {", "}"},
+    {"function foo(yield) {", "}"},
+    {"function foo(interface) {", "}"},
+    {"function foo(bar, eval) {", "}"},
+    {"function foo(bar, arguments) {", "}"},
+    {"function foo(bar, yield) {", "}"},
+    {"function foo(bar, interface) {", "}"},
+    {"function foo(bar, bar) {", "}"},
+    { NULL, NULL }
+  };
+
+  const char* strict_statement_data[] = {
+    "\"use strict\";",
+    NULL
+  };
+
+  const char* non_strict_statement_data[] = {
+    ";",
+    NULL
+  };
+
+  RunParserSyncTest(context_data, strict_statement_data, kError);
+  RunParserSyncTest(context_data, non_strict_statement_data, kSuccess);
+}
