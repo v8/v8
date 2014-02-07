@@ -2482,9 +2482,8 @@ LInstruction* LChunkBuilder::DoLoadFieldByIndex(HLoadFieldByIndex* instr) {
 
 LInstruction* LChunkBuilder::DoWrapReceiver(HWrapReceiver* instr) {
   LOperand* receiver = UseRegister(instr->receiver());
-  LOperand* function = UseRegisterAtStart(instr->function());
-  LOperand* temp = TempRegister();
-  LWrapReceiver* result = new(zone()) LWrapReceiver(receiver, function, temp);
+  LOperand* function = UseRegister(instr->function());
+  LWrapReceiver* result = new(zone()) LWrapReceiver(receiver, function);
   return AssignEnvironment(DefineAsRegister(result));
 }
 

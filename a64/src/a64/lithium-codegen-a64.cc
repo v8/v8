@@ -5589,25 +5589,24 @@ void LCodeGen::DoWrapReceiver(LWrapReceiver* instr) {
   Register receiver = ToRegister(instr->receiver());
   Register function = ToRegister(instr->function());
   Register result = ToRegister(instr->result());
-  Register temp = ToRegister(instr->temp());
 
   // If the receiver is null or undefined, we have to pass the global object as
   // a receiver to normal functions. Values have to be passed unchanged to
   // builtins and strict-mode functions.
   Label global_object, done, deopt;
 
-  __ Ldr(temp, FieldMemOperand(function,
+  __ Ldr(result, FieldMemOperand(function,
                                JSFunction::kSharedFunctionInfoOffset));
 
   // CompilerHints is an int32 field. See objects.h.
-  __ Ldr(temp.W(),
-         FieldMemOperand(temp, SharedFunctionInfo::kCompilerHintsOffset));
+  __ Ldr(result.W(),
+         FieldMemOperand(result, SharedFunctionInfo::kCompilerHintsOffset));
 
   // Do not transform the receiver to object for strict mode functions.
-  __ Tbnz(temp, SharedFunctionInfo::kStrictModeFunction, &done);
+  __ Tbnz(result, SharedFunctionInfo::kStrictModeFunction, &done);
 
   // Do not transform the receiver to object for builtins.
-  __ Tbnz(temp, SharedFunctionInfo::kNative, &done);
+  __ Tbnz(result, SharedFunctionInfo::kNative, &done);
 
   // Normal function. Replace undefined or null with global receiver.
   __ JumpIfRoot(receiver, Heap::kNullValueRootIndex, &global_object);
@@ -5615,7 +5614,7 @@ void LCodeGen::DoWrapReceiver(LWrapReceiver* instr) {
 
   // Deoptimize if the receiver is not a JS object.
   __ JumpIfSmi(receiver, &deopt);
-  __ CompareObjectType(receiver, temp, temp, FIRST_SPEC_OBJECT_TYPE);
+  __ CompareObjectType(receiver, result, result, FIRST_SPEC_OBJECT_TYPE);
   __ B(ge, &done);
   // Otherwise, fall through to deopt.
 

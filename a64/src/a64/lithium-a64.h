@@ -2794,19 +2794,17 @@ class LLoadFieldByIndex V8_FINAL : public LTemplateInstruction<1, 2, 0> {
 };
 
 
-class LWrapReceiver V8_FINAL : public LTemplateInstruction<1, 2, 1> {
+class LWrapReceiver V8_FINAL : public LTemplateInstruction<1, 2, 0> {
  public:
-  LWrapReceiver(LOperand* receiver, LOperand* function, LOperand* temp) {
+  LWrapReceiver(LOperand* receiver, LOperand* function) {
     inputs_[0] = receiver;
     inputs_[1] = function;
-    temps_[0] = temp;
   }
 
   DECLARE_CONCRETE_INSTRUCTION(WrapReceiver, "wrap-receiver")
 
   LOperand* receiver() { return inputs_[0]; }
   LOperand* function() { return inputs_[1]; }
-  LOperand* temp() { return temps_[0]; }
 };
 
 
