@@ -188,9 +188,10 @@ class TransitionKey(object):
     if key == 'RANGE':
       ranges.append((ord(args[0]), ord(args[1])))
     elif key == 'LITERAL':
-      ranges.append((ord(args[0]), ord(args[0])))
+      for char in args[0]:
+        ranges.append((ord(char), ord(char)))
     elif key == 'CAT':
-      for x in [args[0], args[1]]:
+      for x in args:
         TransitionKey.__process_term(encoding, x, ranges, key_map)
     elif key == 'CHARACTER_CLASS':
       class_name = args[0]

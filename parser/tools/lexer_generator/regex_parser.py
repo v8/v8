@@ -27,9 +27,8 @@
 
 import ply.lex as lex
 import ply.yacc as yacc
-from types import ListType, TupleType
-from regex_lexer import RegexLexer
 from action import Term
+from nfa_builder import NfaBuilder
 
 class ParserBuilder:
 
@@ -41,11 +40,10 @@ class ParserBuilder:
       pass
 
     def warning(self,msg,*args,**kwargs):
-      pass
-      # assert False, "warning: "+ (msg % args) + "\n"
+      raise Exception("warning: "+ (msg % args) + "\n")
 
     def error(self,msg,*args,**kwargs):
-      assert False, "error: "+ (msg % args) + "\n"
+      raise Exception("error: "+ (msg % args) + "\n")
 
   __static_instances = {}
   @staticmethod
@@ -105,7 +103,6 @@ class RegexLexer:
     'RANGE',
     'NOT',
     'CLASS_LITERAL',
-    'CLASS_LITERAL_AS_OCTAL',
     'CHARACTER_CLASS',
   )
 
@@ -150,6 +147,8 @@ class RegexLexer:
 
   def t_class_CLASS_LITERAL_AS_OCTAL(self, t):
     r'\\\d+'
+    t.type = 'CLASS_LITERAL'
+    t.value = chr(int(t.value[1:], 8))
     return t
 
   __escaped_class_literals = build_escape_map("^[]-:\\")
@@ -188,7 +187,6 @@ class RegexParser:
     '+': 'ONE_OR_MORE',
     '?': 'ZERO_OR_ONE',
     '*': 'ZERO_OR_MORE',
-    '|': 'OR',
     '.': 'ANY',
   }
 
@@ -198,7 +196,7 @@ class RegexParser:
     if len(p) == 2:
       p[0] = p[1]
     else:
-      p[0] = Term(self.token_map[p[2]], p[1], p[3])
+      p[0] = NfaBuilder.or_terms([p[1], p[3]])
 
   def p_fragments(self, p):
     '''fragments : fragment
@@ -209,16 +207,16 @@ class RegexParser:
       p[0] = self.__cat(p[1], p[2])
 
   def p_fragment(self, p):
-    '''fragment : literal_array maybe_modifier
+    '''fragment : literal maybe_modifier
                 | class maybe_modifier
                 | group maybe_modifier
                 | any maybe_modifier
     '''
-    if p[2] != None:
-      if isinstance(p[2], tuple) and p[2][0] == 'REPEAT':
+    if p[2]:
+      if p[2][0] == 'REPEAT':
         p[0] = Term(p[2][0], p[2][1], p[2][2], p[1])
       else:
-        p[0] = Term(p[2], p[1])
+        p[0] = Term(p[2][0], p[1])
     else:
       p[0] = p[1]
 
@@ -226,36 +224,21 @@ class RegexParser:
     '''maybe_modifier : ONE_OR_MORE
                       | ZERO_OR_ONE
                       | ZERO_OR_MORE
-                      | repetition
+                      | REPEAT_BEGIN NUMBER REPEAT_END
+                      | REPEAT_BEGIN NUMBER COMMA NUMBER REPEAT_END
                       | empty'''
-    p[0] = p[1]
-    if p[1] in self.token_map:
-      p[0] = self.token_map[p[1]]
-
-  def p_repetition(self, p):
-    '''repetition : REPEAT_BEGIN NUMBER REPEAT_END
-                  | REPEAT_BEGIN NUMBER COMMA NUMBER REPEAT_END'''
     if len(p) == 4:
       p[0] = ("REPEAT", p[2], p[2])
-    else:
+    elif len(p) == 5:
       p[0] = ("REPEAT", p[2], p[4])
-
-  def p_literal_array(self, p):
-    '''literal_array : literals'''
-    p[0] = Term('LITERAL', ''.join(reversed(p[1])))
-
-  def p_literals(self, p):
-    '''literals : LITERAL maybe_literals'''
-    if not p[2]:
-      p[0] = [p[1]]
+    elif p[1]:
+      p[0] = (self.token_map[p[1]],)
     else:
-      p[2].append(p[1])
-      p[0] = p[2]
+      p[0] = None
 
-  def p_maybe_literals(self, p):
-    '''maybe_literals : literals
-                      |  empty'''
-    p[0] = p[1]
+  def p_literal(self, p):
+    '''literal : LITERAL'''
+    p[0] = Term('LITERAL', p[1])
 
   def p_any(self, p):
     '''any : ANY'''
@@ -277,15 +260,12 @@ class RegexParser:
     '''class_content : CLASS_LITERAL RANGE CLASS_LITERAL maybe_class_content
                      | CLASS_LITERAL maybe_class_content
                      | CHARACTER_CLASS maybe_class_content
-                     | CLASS_LITERAL_AS_OCTAL maybe_class_content
     '''
     if len(p) == 5:
       left = Term("RANGE", p[1], p[3])
     else:
       if len(p[1]) == 1:
         left = Term('LITERAL', p[1])
-      elif p[1][0] == '\\':
-        left = Term('LITERAL', chr(int(p[1][1:], 8)))
       else:
         left = Term('CHARACTER_CLASS', p[1][1:-1])
     p[0] = self.__cat(left, p[len(p)-1])
@@ -304,7 +284,7 @@ class RegexParser:
   @staticmethod
   def __cat(left, right):
     assert left
-    return left if not right else Term('CAT', left, right)
+    return NfaBuilder.cat_terms([left] if not right else [left, right])
 
   @staticmethod
   def parse(string):

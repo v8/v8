@@ -295,16 +295,6 @@ class NfaBuilder(object):
   def join_subtree(tree, subtree_name):
     return Term('JOIN', tree, subtree_name)
 
-  @staticmethod
-  def or_terms(terms):
-    if len(terms) == 1: return terms[0]
-    return Term('OR', *terms) if terms else Term.empty()
-
-  @staticmethod
-  def cat_terms(terms):
-    if len(terms) == 1: return terms[0]
-    return Term('CAT', *terms) if terms else Term.empty()
-
   __modifer_map = {
     '+': 'ONE_OR_MORE',
     '?': 'ZERO_OR_ONE',
@@ -314,3 +304,50 @@ class NfaBuilder(object):
   @staticmethod
   def apply_modifier(modifier, term):
     return Term(NfaBuilder.__modifer_map[modifier], term)
+
+  @staticmethod
+  def __flatten_terms(terms, name):
+    for term in terms:
+      assert isinstance(term, Term)
+      if not term:
+        continue
+      if term.name() == name:
+        for arg in term.args():
+          if arg:
+            yield arg
+      else:
+        yield term
+
+  @staticmethod
+  def __flatten_literals(terms):
+    literal = None
+    for term in terms:
+      assert isinstance(term, Term)
+      if not term:
+        continue
+      if term.name() == 'LITERAL':
+        if literal:
+          literal += term.args()[0]
+        else:
+          literal = term.args()[0]
+      else:
+        if literal:
+          yield Term('LITERAL', literal)
+          literal = None
+        if term:
+          yield term
+    if literal:
+      yield Term('LITERAL', literal)
+
+  @staticmethod
+  def or_terms(terms):
+    terms = list(NfaBuilder.__flatten_terms(terms, 'OR'))
+    assert terms
+    return terms[0] if len(terms) == 1 else Term('OR', *terms)
+
+  @staticmethod
+  def cat_terms(terms):
+    terms = NfaBuilder.__flatten_terms(terms, 'CAT')
+    terms = list(NfaBuilder.__flatten_literals(terms))
+    assert terms
+    return terms[0] if len(terms) == 1 else Term('CAT', *terms)
