@@ -1874,3 +1874,69 @@ TEST(NoErrorsIdentifierNames) {
 
   RunParserSyncTest(context_data, statement_data, kSuccess);
 }
+
+
+TEST(DontRegressPreParserDataSizes) {
+  // These tests make sure that PreParser doesn't start producing less data.
+
+  v8::V8::Initialize();
+
+  int marker;
+  CcTest::i_isolate()->stack_guard()->SetStackLimit(
+      reinterpret_cast<uintptr_t>(&marker) - 128 * 1024);
+
+  struct TestCase {
+    const char* program;
+    int symbols;
+    int functions;
+  } test_cases[] = {
+    // Labels, variables and functions are recorded as symbols.
+    {"{label: 42}", 1, 0}, {"{label: 42; label2: 43}", 2, 0},
+    {"var x = 42;", 1, 0}, {"var x = 42, y = 43;", 2, 0},
+    {"function foo() {}", 1, 1}, {"function foo() {} function bar() {}", 2, 2},
+    // Labels, variables and functions insize lazy functions are not recorded.
+    {"function lazy() { var a, b, c; }", 1, 1},
+    {"function lazy() { a: 1; b: 2; c: 3; }", 1, 1},
+    {"function lazy() { function a() {} function b() {} function c() {} }", 1,
+     1},
+    {NULL, 0, 0}
+  };
+  // Each function adds 5 elements to the preparse function data.
+  const int kDataPerFunction = 5;
+
+  uintptr_t stack_limit = CcTest::i_isolate()->stack_guard()->real_climit();
+  for (int i = 0; test_cases[i].program; i++) {
+    const char* program = test_cases[i].program;
+    i::Utf8ToUtf16CharacterStream stream(
+        reinterpret_cast<const i::byte*>(program),
+        static_cast<unsigned>(strlen(program)));
+    i::CompleteParserRecorder log;
+    i::Scanner scanner(CcTest::i_isolate()->unicode_cache());
+    scanner.Initialize(&stream);
+
+    i::PreParser preparser(&scanner, &log, stack_limit);
+    preparser.set_allow_lazy(true);
+    preparser.set_allow_natives_syntax(true);
+    i::PreParser::PreParseResult result = preparser.PreParseProgram();
+    CHECK_EQ(i::PreParser::kPreParseSuccess, result);
+    if (log.symbol_ids() != test_cases[i].symbols) {
+      i::OS::Print(
+          "Expected preparse data for program:\n"
+          "\t%s\n"
+          "to contain %d symbols, however, received %d symbols.\n",
+          program, test_cases[i].symbols, log.symbol_ids());
+      CHECK(false);
+    }
+    if (log.function_position() != test_cases[i].functions * kDataPerFunction) {
+      i::OS::Print(
+          "Expected preparse data for program:\n"
+          "\t%s\n"
+          "to contain %d functions, however, received %d functions.\n",
+          program, test_cases[i].functions,
+          log.function_position() / kDataPerFunction);
+      CHECK(false);
+    }
+    i::ScriptDataImpl data(log.ExtractData());
+    CHECK(!data.has_error());
+  }
+}
