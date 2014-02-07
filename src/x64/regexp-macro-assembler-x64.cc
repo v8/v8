@@ -552,9 +552,6 @@ bool RegExpMacroAssemblerX64::CheckSpecialCharacterClass(uc16 type,
       __ j(below_equal, &success, Label::kNear);
       // \u00a0 (NBSP).
       __ cmpl(rax, Immediate(0x00a0 - '\t'));
-      __ j(equal, &success, Label::kNear);
-      // \u0085 (NEL).
-      __ cmpl(rax, Immediate(0x0085 - '\t'));
       BranchOrBacktrack(not_equal, on_no_match);
       __ bind(&success);
       return true;

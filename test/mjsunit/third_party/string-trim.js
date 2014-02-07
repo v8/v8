@@ -66,8 +66,7 @@ var whitespace      = [
   {s : '\u3000', t : 'IDEOGRAPHIC SPACE'},
   {s : '\u2028', t : 'LINE SEPARATOR'},
   {s : '\u2029', t : 'PARAGRAPH SEPARATOR'},
-  // \u200B is not a whitespace character according to Unicode 6.3.0.
-  // {s : '\u200B', t : 'ZERO WIDTH SPACE (category Cf)'}
+  {s : '\u200B', t : 'ZERO WIDTH SPACE (category Cf)'}
 ];
 
 for (var i = 0; i < whitespace.length; i++) {
