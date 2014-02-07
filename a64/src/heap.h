@@ -2904,7 +2904,7 @@ class RegExpResultsCache {
 
 class TranscendentalCache {
  public:
-  enum Type {ACOS, ASIN, ATAN, COS, EXP, LOG, SIN, TAN, kNumberOfCaches};
+  enum Type { LOG, kNumberOfCaches};
   static const int kTranscendentalTypeBits = 3;
   STATIC_ASSERT((1 << kTranscendentalTypeBits) >= kNumberOfCaches);
 

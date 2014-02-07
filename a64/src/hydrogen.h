@@ -1718,9 +1718,9 @@ class HGraphBuilder {
       Handle<Type> type,
       HIfContinuation* continuation);
 
-  HValue* BuildCreateAllocationMemento(HValue* previous_object,
-                                       int previous_object_size,
-                                       HValue* payload);
+  void BuildCreateAllocationMemento(HValue* previous_object,
+                                    HValue* previous_object_size,
+                                    HValue* payload);
 
   HInstruction* BuildConstantMapCheck(Handle<JSObject> constant,
                                       CompilationInfo* info);

@@ -789,9 +789,6 @@ class Isolate {
   // result in the target out parameter.
   void ComputeLocation(MessageLocation* target);
 
-  // Override command line flag.
-  void TraceException(bool flag);
-
   // Out of resource exception helpers.
   Failure* StackOverflow();
   Failure* TerminateExecution();

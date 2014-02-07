@@ -251,9 +251,6 @@ Handle<Code> HydrogenCodeStub::GenerateLightweightMissCode(Isolate* isolate) {
     // Update the static counter each time a new code stub is generated.
     isolate->counters()->code_stubs()->Increment();
 
-    // Nested stubs are not allowed for leaves.
-    AllowStubCallsScope allow_scope(&masm, false);
-
     // Generate the code for the stub.
     masm.set_generating_stub(true);
     NoCurrentFrameScope scope(&masm);
@@ -472,7 +469,8 @@ HValue* CodeStubGraphBuilder<FastCloneShallowObjectStub>::BuildCodeStub() {
 
   ASSERT(FLAG_allocation_site_pretenuring || (size == object_size));
   if (FLAG_allocation_site_pretenuring) {
-    BuildCreateAllocationMemento(object, object_size, allocation_site);
+    BuildCreateAllocationMemento(
+        object, Add<HConstant>(object_size), allocation_site);
   }
 
   environment()->Push(object);
@@ -616,6 +614,7 @@ HValue* CodeStubGraphBuilder<KeyedArrayCallStub>::BuildCodeStub() {
   info()->set_parameter_count(argc);
 
   HValue* receiver = Add<HParameter>(1);
+  BuildCheckHeapObject(receiver);
 
   // Load the expected initial array map from the context.
   JSArrayBuilder array_builder(this, casted_stub()->elements_kind());
@@ -897,20 +896,21 @@ Handle<Code> CompareNilICStub::GenerateCode(Isolate* isolate) {
 
 
 template <>
-HValue* CodeStubGraphBuilder<BinaryOpStub>::BuildCodeInitializedStub() {
-  BinaryOpStub* stub = casted_stub();
-  HValue* left = GetParameter(0);
-  HValue* right = GetParameter(1);
+HValue* CodeStubGraphBuilder<BinaryOpICStub>::BuildCodeInitializedStub() {
+  BinaryOpIC::State state = casted_stub()->state();
 
-  Handle<Type> left_type = stub->GetLeftType(isolate());
-  Handle<Type> right_type = stub->GetRightType(isolate());
-  Handle<Type> result_type = stub->GetResultType(isolate());
+  HValue* left = GetParameter(BinaryOpICStub::kLeft);
+  HValue* right = GetParameter(BinaryOpICStub::kRight);
+
+  Handle<Type> left_type = state.GetLeftType(isolate());
+  Handle<Type> right_type = state.GetRightType(isolate());
+  Handle<Type> result_type = state.GetResultType(isolate());
 
   ASSERT(!left_type->Is(Type::None()) && !right_type->Is(Type::None()) &&
-         (stub->HasSideEffects(isolate()) || !result_type->Is(Type::None())));
+         (state.HasSideEffects() || !result_type->Is(Type::None())));
 
   HValue* result = NULL;
-  if (stub->operation() == Token::ADD &&
+  if (state.op() == Token::ADD &&
       (left_type->Maybe(Type::String()) || right_type->Maybe(Type::String())) &&
       !left_type->Is(Type::String()) && !right_type->Is(Type::String())) {
     // For the generic add stub a fast case for string addition is performance
@@ -921,16 +921,16 @@ HValue* CodeStubGraphBuilder<BinaryOpStub>::BuildCodeInitializedStub() {
       if_leftisstring.Then();
       {
         Push(BuildBinaryOperation(
-                    stub->operation(), left, right,
+                    state.op(), left, right,
                     handle(Type::String(), isolate()), right_type,
-                    result_type, stub->fixed_right_arg()));
+                    result_type, state.fixed_right_arg()));
       }
       if_leftisstring.Else();
       {
         Push(BuildBinaryOperation(
-                    stub->operation(), left, right,
+                    state.op(), left, right,
                     left_type, right_type, result_type,
-                    stub->fixed_right_arg()));
+                    state.fixed_right_arg()));
       }
       if_leftisstring.End();
       result = Pop();
@@ -940,32 +940,32 @@ HValue* CodeStubGraphBuilder<BinaryOpStub>::BuildCodeInitializedStub() {
       if_rightisstring.Then();
       {
         Push(BuildBinaryOperation(
-                    stub->operation(), left, right,
+                    state.op(), left, right,
                     left_type, handle(Type::String(), isolate()),
-                    result_type, stub->fixed_right_arg()));
+                    result_type, state.fixed_right_arg()));
       }
       if_rightisstring.Else();
       {
         Push(BuildBinaryOperation(
-                    stub->operation(), left, right,
+                    state.op(), left, right,
                     left_type, right_type, result_type,
-                    stub->fixed_right_arg()));
+                    state.fixed_right_arg()));
       }
       if_rightisstring.End();
       result = Pop();
     }
   } else {
     result = BuildBinaryOperation(
-            stub->operation(), left, right,
+            state.op(), left, right,
             left_type, right_type, result_type,
-            stub->fixed_right_arg());
+            state.fixed_right_arg());
   }
 
   // If we encounter a generic argument, the number conversion is
   // observable, thus we cannot afford to bail out after the fact.
-  if (!stub->HasSideEffects(isolate())) {
+  if (!state.HasSideEffects()) {
     if (result_type->Is(Type::Smi())) {
-      if (stub->operation() == Token::SHR) {
+      if (state.op() == Token::SHR) {
         // TODO(olivf) Replace this by a SmiTagU Instruction.
         // 0x40000000: this number would convert to negative when interpreting
         // the register as signed value;
@@ -983,8 +983,8 @@ HValue* CodeStubGraphBuilder<BinaryOpStub>::BuildCodeInitializedStub() {
 
   // Reuse the double box of one of the operands if we are allowed to (i.e.
   // chained binops).
-  if (stub->CanReuseDoubleBox()) {
-    HValue* operand = (stub->mode() == OVERWRITE_LEFT) ? left : right;
+  if (state.CanReuseDoubleBox()) {
+    HValue* operand = (state.mode() == OVERWRITE_LEFT) ? left : right;
     IfBuilder if_heap_number(this);
     if_heap_number.IfNot<HIsSmiAndBranch>(operand);
     if_heap_number.Then();
@@ -1000,7 +1000,7 @@ HValue* CodeStubGraphBuilder<BinaryOpStub>::BuildCodeInitializedStub() {
 }
 
 
-Handle<Code> BinaryOpStub::GenerateCode(Isolate* isolate) {
+Handle<Code> BinaryOpICStub::GenerateCode(Isolate* isolate) {
   return DoGenerateCode(isolate, this);
 }
 

@@ -45,7 +45,6 @@ namespace internal {
 MacroAssembler::MacroAssembler(Isolate* arg_isolate, void* buffer, int size)
     : Assembler(arg_isolate, buffer, size),
       generating_stub_(false),
-      allow_stub_calls_(true),
       has_frame_(false),
       root_array_available_(true) {
   if (isolate() != NULL) {
@@ -555,8 +554,6 @@ void MacroAssembler::CallStub(CodeStub* stub, TypeFeedbackId ast_id) {
 
 
 void MacroAssembler::TailCallStub(CodeStub* stub) {
-  ASSERT(allow_stub_calls_ ||
-         stub->CompilingCallsToThisStubIsGCSafe(isolate()));
   Jump(stub->GetCode(isolate()), RelocInfo::CODE_TARGET);
 }
 
@@ -568,8 +565,7 @@ void MacroAssembler::StubReturn(int argc) {
 
 
 bool MacroAssembler::AllowThisStubCall(CodeStub* stub) {
-  if (!has_frame_ && stub->SometimesSetsUpAFrame()) return false;
-  return allow_stub_calls_ || stub->CompilingCallsToThisStubIsGCSafe(isolate());
+  return has_frame_ || !stub->SometimesSetsUpAFrame();
 }
 
 
@@ -1049,14 +1045,7 @@ void MacroAssembler::LoadSmiConstant(Register dst, Smi* source) {
   if (emit_debug_code()) {
     movq(dst, Smi::FromInt(kSmiConstantRegisterValue), RelocInfo::NONE64);
     cmpq(dst, kSmiConstantRegister);
-    if (allow_stub_calls()) {
-      Assert(equal, kUninitializedKSmiConstantRegister);
-    } else {
-      Label ok;
-      j(equal, &ok, Label::kNear);
-      int3();
-      bind(&ok);
-    }
+    Assert(equal, kUninitializedKSmiConstantRegister);
   }
   int value = source->value();
   if (value == 0) {
@@ -1117,11 +1106,7 @@ void MacroAssembler::Integer32ToSmiField(const Operand& dst, Register src) {
     testb(dst, Immediate(0x01));
     Label ok;
     j(zero, &ok, Label::kNear);
-    if (allow_stub_calls()) {
-      Abort(kInteger32ToSmiFieldWritingToNonSmiLocation);
-    } else {
-      int3();
-    }
+    Abort(kInteger32ToSmiFieldWritingToNonSmiLocation);
     bind(&ok);
   }
   ASSERT(kSmiShift % kBitsPerByte == 0);
@@ -2182,10 +2167,8 @@ void MacroAssembler::SelectNonSmi(Register dst,
   ASSERT(!dst.is(src2));
   // Both operands must not be smis.
 #ifdef DEBUG
-  if (allow_stub_calls()) {  // Check contains a stub call.
-    Condition not_both_smis = NegateCondition(CheckBothSmi(src1, src2));
-    Check(not_both_smis, kBothRegistersWereSmisInSelectNonSmi);
-  }
+  Condition not_both_smis = NegateCondition(CheckBothSmi(src1, src2));
+  Check(not_both_smis, kBothRegistersWereSmisInSelectNonSmi);
 #endif
   STATIC_ASSERT(kSmiTag == 0);
   ASSERT_EQ(0, Smi::FromInt(0));
@@ -3601,7 +3584,7 @@ void MacroAssembler::InvokeFunction(Register function,
 }
 
 
-void MacroAssembler::InvokeFunction(Handle<JSFunction> function,
+void MacroAssembler::InvokeFunction(Register function,
                                     const ParameterCount& expected,
                                     const ParameterCount& actual,
                                     InvokeFlag flag,
@@ -3610,15 +3593,24 @@ void MacroAssembler::InvokeFunction(Handle<JSFunction> function,
   // You can't call a function without a valid frame.
   ASSERT(flag == JUMP_FUNCTION || has_frame());
 
-  // Get the function and setup the context.
-  Move(rdi, function);
-  movq(rsi, FieldOperand(rdi, JSFunction::kContextOffset));
-
-  // We call indirectly through the code field in the function to
-  // allow recompilation to take effect without changing any of the
-  // call sites.
+  ASSERT(function.is(rdi));
+  movq(rsi, FieldOperand(function, JSFunction::kContextOffset));
+  // Advances rdx to the end of the Code object header, to the start of
+  // the executable code.
   movq(rdx, FieldOperand(rdi, JSFunction::kCodeEntryOffset));
+
   InvokeCode(rdx, expected, actual, flag, call_wrapper, call_kind);
+}
+
+
+void MacroAssembler::InvokeFunction(Handle<JSFunction> function,
+                                    const ParameterCount& expected,
+                                    const ParameterCount& actual,
+                                    InvokeFlag flag,
+                                    const CallWrapper& call_wrapper,
+                                    CallKind call_kind) {
+  Move(rdi, function);
+  InvokeFunction(rdi, expected, actual, flag, call_wrapper, call_kind);
 }
 
 

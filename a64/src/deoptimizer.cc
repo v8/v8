@@ -1522,6 +1522,7 @@ void Deoptimizer::DoComputeCompiledStubFrame(TranslationIterator* iterator,
   output_frame->SetRegister(context_reg.code(), value);
   output_frame_offset -= kPointerSize;
   output_frame->SetFrameSlot(output_frame_offset, value);
+  ASSERT(reinterpret_cast<Object*>(value)->IsContext());
   if (trace_scope_ != NULL) {
     PrintF(trace_scope_->file(),
            "    0x%08" V8PRIxPTR ": [top + %d] <- 0x%08"

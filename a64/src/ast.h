@@ -2142,7 +2142,6 @@ class Assignment V8_FINAL : public Expression {
 
   // Type feedback information.
   TypeFeedbackId AssignmentFeedbackId() { return reuse(id()); }
-  void RecordTypeFeedback(TypeFeedbackOracle* oracle, Zone* zone);
   virtual bool IsMonomorphic() V8_OVERRIDE { return is_monomorphic_; }
   bool IsUninitialized() { return is_uninitialized_; }
   bool IsPreMonomorphic() { return is_pre_monomorphic_; }
@@ -2155,6 +2154,10 @@ class Assignment V8_FINAL : public Expression {
   virtual KeyedAccessStoreMode GetStoreMode() V8_OVERRIDE {
     return store_mode_;
   }
+  void set_is_uninitialized(bool b) { is_uninitialized_ = b; }
+  void set_is_monomorphic(bool b) { is_monomorphic_ = b; }
+  void set_is_pre_monomorphic(bool b) { is_pre_monomorphic_ = b; }
+  void set_store_mode(KeyedAccessStoreMode mode) { store_mode_ = mode; }
 
  protected:
   Assignment(Isolate* isolate,

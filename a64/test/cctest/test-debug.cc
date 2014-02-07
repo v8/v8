@@ -3943,8 +3943,6 @@ TEST(BreakOnException) {
   v8::HandleScope scope(env->GetIsolate());
   env.ExposeDebug();
 
-  CcTest::i_isolate()->TraceException(false);
-
   // Create functions for testing break on exception.
   CompileFunction(&env, "function throws(){throw 1;}", "throws");
   v8::Local<v8::Function> caught =
@@ -4088,8 +4086,6 @@ TEST(BreakOnCompileException) {
 
   // For this test, we want to break on uncaught exceptions:
   ChangeBreakOnException(false, true);
-
-  CcTest::i_isolate()->TraceException(false);
 
   // Create a function for checking the function when hitting a break point.
   frame_count = CompileFunction(&env, frame_count_source, "frame_count");
@@ -7732,7 +7728,7 @@ TEST(LiveEditDisabled) {
   v8::internal::FLAG_allow_natives_syntax = true;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
-  v8::Debug::SetLiveEditEnabled(false), env->GetIsolate();
+  v8::Debug::SetLiveEditEnabled(false, env->GetIsolate());
   CompileRun("%LiveEditCompareStrings('', '')");
 }
 

@@ -5200,11 +5200,6 @@ class Code: public HeapObject {
   bool is_crankshafted();
   inline void set_is_crankshafted(bool value);
 
-  // For stubs, tells whether they should always exist, so that they can be
-  // called from other stubs.
-  inline bool is_pregenerated();
-  inline void set_is_pregenerated(bool value);
-
   // [optimizable]: For FUNCTION kind, tells if it is optimizable.
   inline bool optimizable();
   inline void set_optimizable(bool value);
@@ -5492,7 +5487,7 @@ class Code: public HeapObject {
   class TypeField: public BitField<StubType, 3, 1> {};
   class CacheHolderField: public BitField<InlineCacheHolderFlag, 5, 1> {};
   class KindField: public BitField<Kind, 6, 4> {};
-  class IsPregeneratedField: public BitField<bool, 10, 1> {};
+  // TODO(bmeurer): Bit 10 is available for free use. :-)
   class ExtraICStateField: public BitField<ExtraICState, 11, 6> {};
   class ExtendedExtraICStateField: public BitField<ExtraICState, 11,
       PlatformSmiTagging::kSmiValueSize - 11 + 1> {};  // NOLINT
@@ -6540,12 +6535,6 @@ class Script: public Struct {
   V(Math, ceil, MathCeil)                           \
   V(Math, abs, MathAbs)                             \
   V(Math, log, MathLog)                             \
-  V(Math, sin, MathSin)                             \
-  V(Math, cos, MathCos)                             \
-  V(Math, tan, MathTan)                             \
-  V(Math, asin, MathASin)                           \
-  V(Math, acos, MathACos)                           \
-  V(Math, atan, MathATan)                           \
   V(Math, exp, MathExp)                             \
   V(Math, sqrt, MathSqrt)                           \
   V(Math, pow, MathPow)                             \

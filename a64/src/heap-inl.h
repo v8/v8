@@ -236,7 +236,7 @@ MaybeObject* Heap::AllocateRaw(int size_in_bytes,
       space = retry_space;
     } else {
       if (profiler->is_tracking_allocations() && result->To(&object)) {
-        profiler->NewObjectEvent(object->address(), size_in_bytes);
+        profiler->AllocationEvent(object->address(), size_in_bytes);
       }
       return result;
     }
@@ -260,7 +260,7 @@ MaybeObject* Heap::AllocateRaw(int size_in_bytes,
   }
   if (result->IsFailure()) old_gen_exhausted_ = true;
   if (profiler->is_tracking_allocations() && result->To(&object)) {
-    profiler->NewObjectEvent(object->address(), size_in_bytes);
+    profiler->AllocationEvent(object->address(), size_in_bytes);
   }
   return result;
 }
@@ -763,23 +763,10 @@ Address TranscendentalCache::cache_array_address() {
 
 double TranscendentalCache::SubCache::Calculate(double input) {
   switch (type_) {
-    case ACOS:
-      return acos(input);
-    case ASIN:
-      return asin(input);
-    case ATAN:
-      return atan(input);
-    case COS:
-      return fast_cos(input);
-    case EXP:
-      return exp(input);
     case LOG:
       return fast_log(input);
-    case SIN:
-      return fast_sin(input);
-    case TAN:
-      return fast_tan(input);
     default:
+      UNREACHABLE();
       return 0.0;  // Never happens.
   }
 }

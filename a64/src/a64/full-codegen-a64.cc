@@ -2013,7 +2013,7 @@ void FullCodeGenerator::EmitInlineSmiBinaryOp(BinaryOperation* expr,
   patch_site.EmitJumpIfSmi(x10, &both_smis);
 
   __ Bind(&stub_call);
-  BinaryOpStub stub(op, mode);
+  BinaryOpICStub stub(op, mode);
   {
     Assembler::BlockConstPoolScope scope(masm_);
     CallIC(stub.GetCode(isolate()), RelocInfo::CODE_TARGET,
@@ -2026,6 +2026,7 @@ void FullCodeGenerator::EmitInlineSmiBinaryOp(BinaryOperation* expr,
   // Smi case. This code works in the same way as the smi-smi case in the type
   // recording binary operation stub, see
   // BinaryOpStub::GenerateSmiSmiOperation for comments.
+  // TODO(all): That doesn't exist any more. Where are the comments?
   //
   // The set of operations that needs to be supported here is controlled by
   // FullCodeGenerator::ShouldInlineSmiCase().
@@ -2098,7 +2099,7 @@ void FullCodeGenerator::EmitBinaryOp(BinaryOperation* expr,
                                      Token::Value op,
                                      OverwriteMode mode) {
   __ Pop(x1);
-  BinaryOpStub stub(op, mode);
+  BinaryOpICStub stub(op, mode);
   JumpPatchSite patch_site(masm_);    // Unbound, signals no inlined smi code.
   {
     Assembler::BlockConstPoolScope scope(masm_);
@@ -3458,10 +3459,11 @@ void FullCodeGenerator::EmitStringAdd(CallRuntime* expr) {
   } else {
     VisitForStackValue(args->at(0));
     VisitForStackValue(args->at(1));
+
+    StringAddStub stub(STRING_ADD_CHECK_BOTH);
+    __ CallStub(&stub);
   }
 
-  StringAddStub stub(STRING_ADD_CHECK_BOTH);
-  __ CallStub(&stub);
   context()->Plug(x0);
 }
 
@@ -4169,7 +4171,7 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
 
   {
     Assembler::BlockConstPoolScope scope(masm_);
-    BinaryOpStub stub(Token::ADD, NO_OVERWRITE);
+    BinaryOpICStub stub(Token::ADD, NO_OVERWRITE);
     CallIC(stub.GetCode(isolate()), RelocInfo::CODE_TARGET,
            expr->CountBinOpFeedbackId());
     patch_site.EmitPatchInfo();

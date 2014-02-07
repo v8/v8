@@ -152,13 +152,13 @@ Handle<Code> StubCache::ComputeMonomorphicIC(
     KeyedLoadStubCompiler ic_compiler(isolate(), flag);
     ic = ic_compiler.CompileMonomorphicIC(type, handler, name);
   } else if (kind == Code::STORE_IC) {
-    StrictModeFlag strict_mode = StoreIC::GetStrictMode(extra_ic_state);
-    StoreStubCompiler ic_compiler(isolate(), strict_mode);
+    StoreStubCompiler ic_compiler(isolate(), extra_ic_state);
     ic = ic_compiler.CompileMonomorphicIC(type, handler, name);
   } else {
     ASSERT(kind == Code::KEYED_STORE_IC);
-    StrictModeFlag strict_mode = StoreIC::GetStrictMode(extra_ic_state);
-    KeyedStoreStubCompiler ic_compiler(isolate(), strict_mode, STANDARD_STORE);
+    ASSERT(STANDARD_STORE ==
+           KeyedStoreIC::GetKeyedAccessStoreMode(extra_ic_state));
+    KeyedStoreStubCompiler ic_compiler(isolate(), extra_ic_state);
     ic = ic_compiler.CompileMonomorphicIC(type, handler, name);
   }
 
@@ -236,7 +236,7 @@ Handle<Code> StubCache::ComputeKeyedStoreElement(
   Handle<Object> probe(receiver_map->FindInCodeCache(*name, flags), isolate_);
   if (probe->IsCode()) return Handle<Code>::cast(probe);
 
-  KeyedStoreStubCompiler compiler(isolate(), strict_mode, store_mode);
+  KeyedStoreStubCompiler compiler(isolate(), extra_state);
   Handle<Code> code = compiler.CompileStoreElement(receiver_map);
 
   Map::UpdateCodeCache(receiver_map, name, code);
@@ -647,7 +647,7 @@ Handle<Code> StubCache::ComputeStoreElementPolymorphic(
   Handle<Object> probe = cache->Lookup(receiver_maps, flags);
   if (probe->IsCode()) return Handle<Code>::cast(probe);
 
-  KeyedStoreStubCompiler compiler(isolate_, strict_mode, store_mode);
+  KeyedStoreStubCompiler compiler(isolate_, extra_state);
   Handle<Code> code = compiler.CompileStoreElementPolymorphic(receiver_maps);
   PolymorphicCodeCache::Update(cache, receiver_maps, flags, code);
   return code;
@@ -1128,9 +1128,66 @@ void StubCompiler::LookupPostInterceptor(Handle<JSObject> holder,
 #define __ ACCESS_MASM(masm())
 
 
+CallKind CallStubCompiler::call_kind() {
+  return CallICBase::Contextual::decode(extra_state())
+      ? CALL_AS_FUNCTION
+      : CALL_AS_METHOD;
+}
+
+
 void CallStubCompiler::HandlerFrontendFooter(Label* miss) {
   __ bind(miss);
   GenerateMissBranch();
+}
+
+
+void CallStubCompiler::GenerateJumpFunctionIgnoreReceiver(
+    Handle<JSFunction> function) {
+  ParameterCount expected(function);
+  __ InvokeFunction(function, expected, arguments(),
+                    JUMP_FUNCTION, NullCallWrapper(), call_kind());
+}
+
+
+void CallStubCompiler::GenerateJumpFunction(Handle<Object> object,
+                                            Handle<JSFunction> function) {
+  PatchGlobalProxy(object);
+  GenerateJumpFunctionIgnoreReceiver(function);
+}
+
+
+void CallStubCompiler::GenerateJumpFunction(Handle<Object> object,
+                                            Register actual_closure,
+                                            Handle<JSFunction> function) {
+  PatchGlobalProxy(object);
+  ParameterCount expected(function);
+  __ InvokeFunction(actual_closure, expected, arguments(),
+                    JUMP_FUNCTION, NullCallWrapper(), call_kind());
+}
+
+
+Handle<Code> CallStubCompiler::CompileCallConstant(
+    Handle<Object> object,
+    Handle<JSObject> holder,
+    Handle<Name> name,
+    CheckType check,
+    Handle<JSFunction> function) {
+  if (HasCustomCallGenerator(function)) {
+    Handle<Code> code = CompileCustomCall(object, holder,
+                                          Handle<Cell>::null(),
+                                          function, Handle<String>::cast(name),
+                                          Code::FAST);
+    // A null handle means bail out to the regular compiler code below.
+    if (!code.is_null()) return code;
+  }
+
+  Label miss;
+  HandlerFrontendHeader(object, holder, name, check, &miss);
+  GenerateJumpFunction(object, function);
+  HandlerFrontendFooter(&miss);
+
+  // Return the generated code.
+  return GetCode(function);
 }
 
 
@@ -1520,11 +1577,11 @@ Handle<Code> KeyedStoreStubCompiler::CompileStoreElement(
     stub = KeyedStoreFastElementStub(
         is_jsarray,
         elements_kind,
-        store_mode_).GetCode(isolate());
+        store_mode()).GetCode(isolate());
   } else {
     stub = KeyedStoreElementStub(is_jsarray,
                                  elements_kind,
-                                 store_mode_).GetCode(isolate());
+                                 store_mode()).GetCode(isolate());
   }
 
   __ DispatchMap(receiver(), scratch1(), receiver_map, stub, DO_SMI_CHECK);
@@ -1650,19 +1707,19 @@ Handle<Code> KeyedStoreStubCompiler::CompileStoreElementPolymorphic(
           elements_kind,
           transitioned_map->elements_kind(),
           is_js_array,
-          store_mode_).GetCode(isolate());
+          store_mode()).GetCode(isolate());
     } else {
       if (receiver_map->has_fast_elements() ||
           receiver_map->has_external_array_elements()) {
         cached_stub = KeyedStoreFastElementStub(
             is_js_array,
             elements_kind,
-            store_mode_).GetCode(isolate());
+            store_mode()).GetCode(isolate());
       } else {
         cached_stub = KeyedStoreElementStub(
             is_js_array,
             elements_kind,
-            store_mode_).GetCode(isolate());
+            store_mode()).GetCode(isolate());
       }
     }
     ASSERT(!cached_stub.is_null());
@@ -1689,10 +1746,9 @@ CallStubCompiler::CallStubCompiler(Isolate* isolate,
                                    Code::Kind kind,
                                    ExtraICState extra_state,
                                    InlineCacheHolderFlag cache_holder)
-    : StubCompiler(isolate),
+    : StubCompiler(isolate, extra_state),
       arguments_(argc),
       kind_(kind),
-      extra_state_(extra_state),
       cache_holder_(cache_holder) {
 }
 
@@ -1760,7 +1816,7 @@ Handle<Code> CallStubCompiler::GetCode(Code::StubType type,
                                        Handle<Name> name) {
   int argc = arguments_.immediate();
   Code::Flags flags = Code::ComputeMonomorphicFlags(
-      kind_, extra_state_, cache_holder_, type, argc);
+      kind_, extra_state(), cache_holder_, type, argc);
   return GetCodeWithFlags(flags, name);
 }
 

@@ -1026,7 +1026,7 @@ class CallInterceptorCompiler BASE_EMBEDDED {
           masm, optimization, arguments_.immediate(), false);
     } else {
       Handle<JSFunction> function = optimization.constant_function();
-      stub_compiler_->GenerateJumpFunction(object, function);
+      stub_compiler_->GenerateJumpFunctionIgnoreReceiver(function);
     }
 
     // Deferred code for fast API call case---clean preallocated space.
@@ -1533,7 +1533,7 @@ void CallStubCompiler::GenerateMissBranch() {
   Handle<Code> code =
       isolate()->stub_cache()->ComputeCallMiss(arguments().immediate(),
                                                kind_,
-                                               extra_state_);
+                                               extra_state());
   __ Jump(code, RelocInfo::CODE_TARGET);
 }
 
@@ -1597,10 +1597,12 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
     Handle<JSFunction> function,
     Handle<String> name,
     Code::StubType type) {
-  // If object is not an array or is observed, bail out to regular call.
+  // If object is not an array or is observed or sealed, bail out to regular
+  // call.
   if (!object->IsJSArray() ||
       !cell.is_null() ||
-      Handle<JSArray>::cast(object)->map()->is_observed()) {
+      Handle<JSArray>::cast(object)->map()->is_observed() ||
+      !Handle<JSArray>::cast(object)->map()->is_extensible()) {
     return Handle<Code>::null();
   }
 
@@ -1839,10 +1841,12 @@ Handle<Code> CallStubCompiler::CompileArrayPopCall(
     Handle<JSFunction> function,
     Handle<String> name,
     Code::StubType type) {
-  // If object is not an array or is observed, bail out to regular call.
+  // If object is not an array or is observed or sealed, bail out to regular
+  // call.
   if (!object->IsJSArray() ||
       !cell.is_null() ||
-      Handle<JSArray>::cast(object)->map()->is_observed()) {
+      Handle<JSArray>::cast(object)->map()->is_observed() ||
+      !Handle<JSArray>::cast(object)->map()->is_extensible()) {
     return Handle<Code>::null();
   }
 
@@ -1919,7 +1923,7 @@ Handle<Code> CallStubCompiler::CompileStringCharCodeAtCall(
   Label* index_out_of_range_label = &index_out_of_range;
 
   if (kind_ == Code::CALL_IC &&
-      (CallICBase::StringStubState::decode(extra_state_) ==
+      (CallICBase::StringStubState::decode(extra_state()) ==
        DEFAULT_STRING_STUB)) {
     index_out_of_range_label = &miss;
   }
@@ -1983,7 +1987,7 @@ Handle<Code> CallStubCompiler::CompileStringCharAtCall(
   Label index_out_of_range;
   Label* index_out_of_range_label = &index_out_of_range;
   if (kind_ == Code::CALL_IC &&
-      (CallICBase::StringStubState::decode(extra_state_) ==
+      (CallICBase::StringStubState::decode(extra_state()) ==
        DEFAULT_STRING_STUB)) {
     index_out_of_range_label = &miss;
   }
@@ -2335,7 +2339,7 @@ void StubCompiler::GenerateBooleanCheck(Register object, Label* miss) {
 
 
 void CallStubCompiler::PatchGlobalProxy(Handle<Object> object) {
-  if (!object.is_null() && object->IsGlobalObject()) {
+  if (object->IsGlobalObject()) {
     const int argc = arguments().immediate();
     const int receiver_offset = argc * kPointerSize;
     __ lw(a3, FieldMemOperand(a0, GlobalObject::kGlobalReceiverOffset));
@@ -2437,7 +2441,6 @@ void CallStubCompiler::GenerateJumpFunction(Handle<Object> object,
   ASSERT(function.is(a1));
   // Check that the function really is a function.
   GenerateFunctionCheck(function, a3, miss);
-  if (!function.is(a1)) __ mov(a1, function);
   PatchGlobalProxy(object);
   // Invoke the function.
   __ InvokeFunction(a1, arguments(), JUMP_FUNCTION,
@@ -2460,7 +2463,7 @@ Handle<Code> CallStubCompiler::CompileCallInterceptor(Handle<JSObject> object,
   // Get the receiver from the stack.
   __ lw(a1, MemOperand(sp, argc * kPointerSize));
 
-  CallInterceptorCompiler compiler(this, arguments(), a2, extra_state_);
+  CallInterceptorCompiler compiler(this, arguments(), a2, extra_state());
   compiler.Compile(masm(), object, holder, name, &lookup, a1, a3, t0, a0,
                    &miss);
 

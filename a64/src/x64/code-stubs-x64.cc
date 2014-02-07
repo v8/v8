@@ -180,7 +180,7 @@ void TransitionElementsKindStub::InitializeInterfaceDescriptor(
 }
 
 
-void BinaryOpStub::InitializeInterfaceDescriptor(
+void BinaryOpICStub::InitializeInterfaceDescriptor(
     Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
   static Register registers[] = { rdx, rax };
@@ -789,9 +789,6 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
 Runtime::FunctionId TranscendentalCacheStub::RuntimeFunction() {
   switch (type_) {
     // Add more cases when necessary.
-    case TranscendentalCache::SIN: return Runtime::kMath_sin;
-    case TranscendentalCache::COS: return Runtime::kMath_cos;
-    case TranscendentalCache::TAN: return Runtime::kMath_tan;
     case TranscendentalCache::LOG: return Runtime::kMath_log;
     default:
       UNIMPLEMENTED();
@@ -807,99 +804,10 @@ void TranscendentalCacheStub::GenerateOperation(
   // rbx: Bits of input double. Must be preserved.
   // rcx: Pointer to cache entry. Must be preserved.
   // st(0): Input double
-  Label done;
-  if (type == TranscendentalCache::SIN ||
-      type == TranscendentalCache::COS ||
-      type == TranscendentalCache::TAN) {
-    // Both fsin and fcos require arguments in the range +/-2^63 and
-    // return NaN for infinities and NaN. They can share all code except
-    // the actual fsin/fcos operation.
-    Label in_range;
-    // If argument is outside the range -2^63..2^63, fsin/cos doesn't
-    // work. We must reduce it to the appropriate range.
-    __ movq(rdi, rbx);
-    // Move exponent and sign bits to low bits.
-    __ shr(rdi, Immediate(HeapNumber::kMantissaBits));
-    // Remove sign bit.
-    __ andl(rdi, Immediate((1 << HeapNumber::kExponentBits) - 1));
-    int supported_exponent_limit = (63 + HeapNumber::kExponentBias);
-    __ cmpl(rdi, Immediate(supported_exponent_limit));
-    __ j(below, &in_range);
-    // Check for infinity and NaN. Both return NaN for sin.
-    __ cmpl(rdi, Immediate(0x7ff));
-    Label non_nan_result;
-    __ j(not_equal, &non_nan_result, Label::kNear);
-    // Input is +/-Infinity or NaN. Result is NaN.
-    __ fstp(0);
-    // NaN is represented by 0x7ff8000000000000.
-    __ subq(rsp, Immediate(kPointerSize));
-    __ movl(Operand(rsp, 4), Immediate(0x7ff80000));
-    __ movl(Operand(rsp, 0), Immediate(0x00000000));
-    __ fld_d(Operand(rsp, 0));
-    __ addq(rsp, Immediate(kPointerSize));
-    __ jmp(&done);
-
-    __ bind(&non_nan_result);
-
-    // Use fpmod to restrict argument to the range +/-2*PI.
-    __ movq(rdi, rax);  // Save rax before using fnstsw_ax.
-    __ fldpi();
-    __ fadd(0);
-    __ fld(1);
-    // FPU Stack: input, 2*pi, input.
-    {
-      Label no_exceptions;
-      __ fwait();
-      __ fnstsw_ax();
-      // Clear if Illegal Operand or Zero Division exceptions are set.
-      __ testl(rax, Immediate(5));  // #IO and #ZD flags of FPU status word.
-      __ j(zero, &no_exceptions);
-      __ fnclex();
-      __ bind(&no_exceptions);
-    }
-
-    // Compute st(0) % st(1)
-    {
-      Label partial_remainder_loop;
-      __ bind(&partial_remainder_loop);
-      __ fprem1();
-      __ fwait();
-      __ fnstsw_ax();
-      __ testl(rax, Immediate(0x400));  // Check C2 bit of FPU status word.
-      // If C2 is set, computation only has partial result. Loop to
-      // continue computation.
-      __ j(not_zero, &partial_remainder_loop);
-  }
-    // FPU Stack: input, 2*pi, input % 2*pi
-    __ fstp(2);
-    // FPU Stack: input % 2*pi, 2*pi,
-    __ fstp(0);
-    // FPU Stack: input % 2*pi
-    __ movq(rax, rdi);  // Restore rax, pointer to the new HeapNumber.
-    __ bind(&in_range);
-    switch (type) {
-      case TranscendentalCache::SIN:
-        __ fsin();
-        break;
-      case TranscendentalCache::COS:
-        __ fcos();
-        break;
-      case TranscendentalCache::TAN:
-        // FPTAN calculates tangent onto st(0) and pushes 1.0 onto the
-        // FP register stack.
-        __ fptan();
-        __ fstp(0);  // Pop FP register stack.
-        break;
-      default:
-        UNREACHABLE();
-    }
-    __ bind(&done);
-  } else {
-    ASSERT(type == TranscendentalCache::LOG);
-    __ fldln2();
-    __ fxch();
-    __ fyl2x();
-  }
+  ASSERT(type == TranscendentalCache::LOG);
+  __ fldln2();
+  __ fxch();
+  __ fyl2x();
 }
 
 
@@ -2781,24 +2689,14 @@ bool CEntryStub::NeedsImmovableCode() {
 }
 
 
-bool CEntryStub::IsPregenerated(Isolate* isolate) {
-#ifdef _WIN64
-  return result_size_ == 1;
-#else
-  return true;
-#endif
-}
-
-
 void CodeStub::GenerateStubsAheadOfTime(Isolate* isolate) {
   CEntryStub::GenerateAheadOfTime(isolate);
   StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime(isolate);
   StubFailureTrampolineStub::GenerateAheadOfTime(isolate);
   // It is important that the store buffer overflow stubs are generated first.
-  RecordWriteStub::GenerateFixedRegStubsAheadOfTime(isolate);
   ArrayConstructorStubBase::GenerateStubsAheadOfTime(isolate);
   CreateAllocationSiteStub::GenerateAheadOfTime(isolate);
-  BinaryOpStub::GenerateAheadOfTime(isolate);
+  BinaryOpICStub::GenerateAheadOfTime(isolate);
 }
 
 
@@ -2808,9 +2706,9 @@ void CodeStub::GenerateFPStubs(Isolate* isolate) {
 
 void CEntryStub::GenerateAheadOfTime(Isolate* isolate) {
   CEntryStub stub(1, kDontSaveFPRegs);
-  stub.GetCode(isolate)->set_is_pregenerated(true);
+  stub.GetCode(isolate);
   CEntryStub save_doubles(1, kSaveFPRegs);
-  save_doubles.GetCode(isolate)->set_is_pregenerated(true);
+  save_doubles.GetCode(isolate);
 }
 
 
@@ -5085,91 +4983,12 @@ void NameDictionaryLookupStub::Generate(MacroAssembler* masm) {
 }
 
 
-struct AheadOfTimeWriteBarrierStubList {
-  Register object, value, address;
-  RememberedSetAction action;
-};
-
-
-#define REG(Name) { kRegister_ ## Name ## _Code }
-
-struct AheadOfTimeWriteBarrierStubList kAheadOfTime[] = {
-  // Used in RegExpExecStub.
-  { REG(rbx), REG(rax), REG(rdi), EMIT_REMEMBERED_SET },
-  // Used in CompileArrayPushCall.
-  { REG(rbx), REG(rcx), REG(rdx), EMIT_REMEMBERED_SET },
-  // Used in StoreStubCompiler::CompileStoreField and
-  // KeyedStoreStubCompiler::CompileStoreField via GenerateStoreField.
-  { REG(rdx), REG(rcx), REG(rbx), EMIT_REMEMBERED_SET },
-  // GenerateStoreField calls the stub with two different permutations of
-  // registers.  This is the second.
-  { REG(rbx), REG(rcx), REG(rdx), EMIT_REMEMBERED_SET },
-  // StoreIC::GenerateNormal via GenerateDictionaryStore.
-  { REG(rbx), REG(r8), REG(r9), EMIT_REMEMBERED_SET },
-  // KeyedStoreIC::GenerateGeneric.
-  { REG(rbx), REG(rdx), REG(rcx), EMIT_REMEMBERED_SET},
-  // KeyedStoreStubCompiler::GenerateStoreFastElement.
-  { REG(rdi), REG(rbx), REG(rcx), EMIT_REMEMBERED_SET},
-  { REG(rdx), REG(rdi), REG(rbx), EMIT_REMEMBERED_SET},
-  // ElementsTransitionGenerator::GenerateMapChangeElementTransition
-  // and ElementsTransitionGenerator::GenerateSmiToDouble
-  // and ElementsTransitionGenerator::GenerateDoubleToObject
-  { REG(rdx), REG(rbx), REG(rdi), EMIT_REMEMBERED_SET},
-  { REG(rdx), REG(rbx), REG(rdi), OMIT_REMEMBERED_SET},
-  // ElementsTransitionGenerator::GenerateSmiToDouble
-  // and ElementsTransitionGenerator::GenerateDoubleToObject
-  { REG(rdx), REG(r11), REG(r15), EMIT_REMEMBERED_SET},
-  // ElementsTransitionGenerator::GenerateDoubleToObject
-  { REG(r11), REG(rax), REG(r15), EMIT_REMEMBERED_SET},
-  // StoreArrayLiteralElementStub::Generate
-  { REG(rbx), REG(rax), REG(rcx), EMIT_REMEMBERED_SET},
-  // FastNewClosureStub::Generate and
-  // StringAddStub::Generate
-  { REG(rcx), REG(rdx), REG(rbx), EMIT_REMEMBERED_SET},
-  // StringAddStub::Generate
-  { REG(rcx), REG(rax), REG(rbx), EMIT_REMEMBERED_SET},
-  // Null termination.
-  { REG(no_reg), REG(no_reg), REG(no_reg), EMIT_REMEMBERED_SET}
-};
-
-#undef REG
-
-bool RecordWriteStub::IsPregenerated(Isolate* isolate) {
-  for (AheadOfTimeWriteBarrierStubList* entry = kAheadOfTime;
-       !entry->object.is(no_reg);
-       entry++) {
-    if (object_.is(entry->object) &&
-        value_.is(entry->value) &&
-        address_.is(entry->address) &&
-        remembered_set_action_ == entry->action &&
-        save_fp_regs_mode_ == kDontSaveFPRegs) {
-      return true;
-    }
-  }
-  return false;
-}
-
-
 void StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime(
     Isolate* isolate) {
   StoreBufferOverflowStub stub1(kDontSaveFPRegs);
-  stub1.GetCode(isolate)->set_is_pregenerated(true);
+  stub1.GetCode(isolate);
   StoreBufferOverflowStub stub2(kSaveFPRegs);
-  stub2.GetCode(isolate)->set_is_pregenerated(true);
-}
-
-
-void RecordWriteStub::GenerateFixedRegStubsAheadOfTime(Isolate* isolate) {
-  for (AheadOfTimeWriteBarrierStubList* entry = kAheadOfTime;
-       !entry->object.is(no_reg);
-       entry++) {
-    RecordWriteStub stub(entry->object,
-                         entry->value,
-                         entry->address,
-                         entry->action,
-                         kDontSaveFPRegs);
-    stub.GetCode(isolate)->set_is_pregenerated(true);
-  }
+  stub2.GetCode(isolate);
 }
 
 
@@ -5496,10 +5315,6 @@ void StubFailureTailCallTrampolineStub::Generate(MacroAssembler* masm) {
 
 void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) {
   if (masm->isolate()->function_entry_hook() != NULL) {
-    // It's always safe to call the entry hook stub, as the hook itself
-    // is not allowed to call back to V8.
-    AllowStubCallsScope allow_stub_calls(masm, true);
-
     ProfileEntryHookStub stub;
     masm->CallStub(&stub);
   }
@@ -5667,12 +5482,12 @@ static void ArrayConstructorStubAheadOfTimeHelper(Isolate* isolate) {
   for (int i = 0; i <= to_index; ++i) {
     ElementsKind kind = GetFastElementsKindFromSequenceIndex(i);
     T stub(kind);
-    stub.GetCode(isolate)->set_is_pregenerated(true);
+    stub.GetCode(isolate);
     if (AllocationSite::GetMode(kind) != DONT_TRACK_ALLOCATION_SITE ||
         (!FLAG_track_allocation_sites &&
          (kind == initial_kind || kind == initial_holey_kind))) {
       T stub1(kind, CONTEXT_CHECK_REQUIRED, DISABLE_ALLOCATION_SITES);
-      stub1.GetCode(isolate)->set_is_pregenerated(true);
+      stub1.GetCode(isolate);
     }
   }
 }
@@ -5694,11 +5509,11 @@ void InternalArrayConstructorStubBase::GenerateStubsAheadOfTime(
   for (int i = 0; i < 2; i++) {
     // For internal arrays we only need a few things
     InternalArrayNoArgumentConstructorStub stubh1(kinds[i]);
-    stubh1.GetCode(isolate)->set_is_pregenerated(true);
+    stubh1.GetCode(isolate);
     InternalArraySingleArgumentConstructorStub stubh2(kinds[i]);
-    stubh2.GetCode(isolate)->set_is_pregenerated(true);
+    stubh2.GetCode(isolate);
     InternalArrayNArgumentsConstructorStub stubh3(kinds[i]);
-    stubh3.GetCode(isolate)->set_is_pregenerated(true);
+    stubh3.GetCode(isolate);
   }
 }
 

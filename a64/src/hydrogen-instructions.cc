@@ -1121,9 +1121,6 @@ const char* HUnaryMathOperation::OpName() const {
     case kMathRound: return "round";
     case kMathAbs: return "abs";
     case kMathLog: return "log";
-    case kMathSin: return "sin";
-    case kMathCos: return "cos";
-    case kMathTan: return "tan";
     case kMathExp: return "exp";
     case kMathSqrt: return "sqrt";
     case kMathPowHalf: return "pow-half";
@@ -3507,7 +3504,7 @@ void HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
       HInnerAllocatedObject::New(zone,
                                  context(),
                                  dominator_allocate,
-                                 dominator_size_constant,
+                                 dominator_size,
                                  type());
   dominated_allocate_instr->InsertBefore(this);
   DeleteAndReplaceWith(dominated_allocate_instr);
@@ -3603,11 +3600,9 @@ void HAllocate::UpdateFreeSpaceFiller(int32_t free_space_size) {
 void HAllocate::CreateFreeSpaceFiller(int32_t free_space_size) {
   ASSERT(filler_free_space_size_ == NULL);
   Zone* zone = block()->zone();
-  int32_t dominator_size =
-      HConstant::cast(dominating_allocate_->size())->GetInteger32Constant();
   HInstruction* free_space_instr =
       HInnerAllocatedObject::New(zone, context(), dominating_allocate_,
-      dominator_size, type());
+      dominating_allocate_->size(), type());
   free_space_instr->InsertBefore(this);
   HConstant* filler_map = HConstant::New(
       zone,
@@ -3863,10 +3858,6 @@ HInstruction* HUnaryMathOperation::New(
     }
     if (std::isinf(d)) {  // +Infinity and -Infinity.
       switch (op) {
-        case kMathSin:
-        case kMathCos:
-        case kMathTan:
-          return H_CONSTANT_DOUBLE(OS::nan_value());
         case kMathExp:
           return H_CONSTANT_DOUBLE((d > 0.0) ? d : 0.0);
         case kMathLog:
@@ -3884,12 +3875,6 @@ HInstruction* HUnaryMathOperation::New(
       }
     }
     switch (op) {
-      case kMathSin:
-        return H_CONSTANT_DOUBLE(fast_sin(d));
-      case kMathCos:
-        return H_CONSTANT_DOUBLE(fast_cos(d));
-      case kMathTan:
-        return H_CONSTANT_DOUBLE(fast_tan(d));
       case kMathExp:
         return H_CONSTANT_DOUBLE(fast_exp(d));
       case kMathLog:
@@ -4270,6 +4255,29 @@ HObjectAccess HObjectAccess::ForJSObjectOffset(int offset,
     portion = kMaps;
   }
   return HObjectAccess(portion, offset, representation);
+}
+
+
+HObjectAccess HObjectAccess::ForAllocationSiteOffset(int offset) {
+  switch (offset) {
+    case AllocationSite::kTransitionInfoOffset:
+      return HObjectAccess(kInobject, offset, Representation::Tagged());
+    case AllocationSite::kNestedSiteOffset:
+      return HObjectAccess(kInobject, offset, Representation::Tagged());
+    case AllocationSite::kMementoFoundCountOffset:
+      return HObjectAccess(kInobject, offset, Representation::Smi());
+    case AllocationSite::kMementoCreateCountOffset:
+      return HObjectAccess(kInobject, offset, Representation::Smi());
+    case AllocationSite::kPretenureDecisionOffset:
+      return HObjectAccess(kInobject, offset, Representation::Smi());
+    case AllocationSite::kDependentCodeOffset:
+      return HObjectAccess(kInobject, offset, Representation::Tagged());
+    case AllocationSite::kWeakNextOffset:
+      return HObjectAccess(kInobject, offset, Representation::Tagged());
+    default:
+      UNREACHABLE();
+  }
+  return HObjectAccess(kInobject, offset);
 }
 
 

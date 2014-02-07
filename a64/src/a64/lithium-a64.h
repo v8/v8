@@ -136,7 +136,6 @@ class LCodeGen;
   V(MapEnumLength)                              \
   V(MathAbs)                                    \
   V(MathAbsTagged)                              \
-  V(MathCos)                                    \
   V(MathExp)                                    \
   V(MathFloor)                                  \
   V(MathFloorOfDiv)                             \
@@ -144,9 +143,7 @@ class LCodeGen;
   V(MathMinMax)                                 \
   V(MathPowHalf)                                \
   V(MathRound)                                  \
-  V(MathSin)                                    \
   V(MathSqrt)                                   \
-  V(MathTan)                                    \
   V(ModI)                                       \
   V(MulConstIS)                                 \
   V(MulI)                                       \
@@ -1415,19 +1412,19 @@ class LHasInstanceTypeAndBranch V8_FINAL : public LControlInstruction<1, 1> {
 };
 
 
-class LInnerAllocatedObject V8_FINAL : public LTemplateInstruction<1, 1, 0> {
+class LInnerAllocatedObject V8_FINAL : public LTemplateInstruction<1, 2, 0> {
  public:
-  explicit LInnerAllocatedObject(LOperand* base_object) {
+  LInnerAllocatedObject(LOperand* base_object, LOperand* offset) {
     inputs_[0] = base_object;
+    inputs_[1] = offset;
   }
 
-  LOperand* base_object() { return inputs_[0]; }
-  int offset() { return hydrogen()->offset(); }
+  LOperand* base_object() const { return inputs_[0]; }
+  LOperand* offset() const { return inputs_[1]; }
 
   virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
 
-  DECLARE_CONCRETE_INSTRUCTION(InnerAllocatedObject, "sub-allocated-object")
-  DECLARE_HYDROGEN_ACCESSOR(InnerAllocatedObject)
+  DECLARE_CONCRETE_INSTRUCTION(InnerAllocatedObject, "inner-allocated-object")
 };
 
 
@@ -1850,13 +1847,6 @@ class LMathAbsTagged: public LUnaryMathOperation<3> {
 };
 
 
-class LMathCos V8_FINAL : public LUnaryMathOperation<0> {
- public:
-  explicit LMathCos(LOperand* value) : LUnaryMathOperation<0>(value) { }
-  DECLARE_CONCRETE_INSTRUCTION(MathCos, "math-cos")
-};
-
-
 class LMathExp V8_FINAL : public LUnaryMathOperation<4> {
  public:
   LMathExp(LOperand* value,
@@ -1949,24 +1939,10 @@ class LMathRound V8_FINAL : public LUnaryMathOperation<1> {
 };
 
 
-class LMathSin V8_FINAL : public LUnaryMathOperation<0> {
- public:
-  explicit LMathSin(LOperand* value) : LUnaryMathOperation<0>(value) { }
-  DECLARE_CONCRETE_INSTRUCTION(MathSin, "math-sin")
-};
-
-
 class LMathSqrt V8_FINAL : public LUnaryMathOperation<0> {
  public:
   explicit LMathSqrt(LOperand* value) : LUnaryMathOperation<0>(value) { }
   DECLARE_CONCRETE_INSTRUCTION(MathSqrt, "math-sqrt")
-};
-
-
-class LMathTan V8_FINAL : public LUnaryMathOperation<0> {
- public:
-  explicit LMathTan(LOperand* value) : LUnaryMathOperation<0>(value) { }
-  DECLARE_CONCRETE_INSTRUCTION(MathTan, "math-tan")
 };
 
 

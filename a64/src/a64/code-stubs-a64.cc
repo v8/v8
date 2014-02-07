@@ -217,7 +217,7 @@ void CompareNilICStub::InitializeInterfaceDescriptor(
 }
 
 
-void BinaryOpStub::InitializeInterfaceDescriptor(
+void BinaryOpICStub::InitializeInterfaceDescriptor(
     Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
   // x1: left operand
@@ -1026,9 +1026,9 @@ void StoreBufferOverflowStub::Generate(MacroAssembler* masm) {
 void StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime(
     Isolate* isolate) {
   StoreBufferOverflowStub stub1(kDontSaveFPRegs);
-  stub1.GetCode(isolate)->set_is_pregenerated(true);
+  stub1.GetCode(isolate);
   StoreBufferOverflowStub stub2(kSaveFPRegs);
-  stub2.GetCode(isolate)->set_is_pregenerated(true);
+  stub2.GetCode(isolate);
 }
 
 
@@ -1230,12 +1230,6 @@ ExternalReference TranscendentalCacheStub::CFunction(Isolate* isolate) {
       // There's no NULL ExternalReference, so fall into an existing case to
       // avoid compiler warnings about not having a return value.
       UNIMPLEMENTED();
-    case TranscendentalCache::SIN:
-      return ExternalReference::math_sin_double_function(isolate);
-    case TranscendentalCache::COS:
-      return ExternalReference::math_cos_double_function(isolate);
-    case TranscendentalCache::TAN:
-      return ExternalReference::math_tan_double_function(isolate);
     case TranscendentalCache::LOG:
       return ExternalReference::math_log_double_function(isolate);
   }
@@ -1245,9 +1239,6 @@ ExternalReference TranscendentalCacheStub::CFunction(Isolate* isolate) {
 Runtime::FunctionId TranscendentalCacheStub::RuntimeFunction() {
   switch (type_) {
     // Add more cases when necessary.
-    case TranscendentalCache::SIN: return Runtime::kMath_sin;
-    case TranscendentalCache::COS: return Runtime::kMath_cos;
-    case TranscendentalCache::TAN: return Runtime::kMath_tan;
     case TranscendentalCache::LOG: return Runtime::kMath_log;
     default:
       UNIMPLEMENTED();
@@ -1516,10 +1507,9 @@ void CodeStub::GenerateStubsAheadOfTime(Isolate* isolate) {
   CEntryStub::GenerateAheadOfTime(isolate);
   StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime(isolate);
   StubFailureTrampolineStub::GenerateAheadOfTime(isolate);
-  RecordWriteStub::GenerateFixedRegStubsAheadOfTime(isolate);
   ArrayConstructorStubBase::GenerateStubsAheadOfTime(isolate);
   CreateAllocationSiteStub::GenerateAheadOfTime(isolate);
-  BinaryOpStub::GenerateAheadOfTime(isolate);
+  BinaryOpICStub::GenerateAheadOfTime(isolate);
 }
 
 
@@ -1555,17 +1545,11 @@ bool CEntryStub::NeedsImmovableCode() {
 }
 
 
-bool CEntryStub::IsPregenerated(Isolate* isolate) {
-  USE(isolate);
-  return result_size_ == 1;
-}
-
-
 void CEntryStub::GenerateAheadOfTime(Isolate* isolate) {
   CEntryStub stub(1, kDontSaveFPRegs);
-  stub.GetCode(isolate)->set_is_pregenerated(true);
+  stub.GetCode(isolate);
   CEntryStub stub_fp(1, kSaveFPRegs);
-  stub_fp.GetCode(isolate)->set_is_pregenerated(true);
+  stub_fp.GetCode(isolate);
 }
 
 
@@ -4995,8 +4979,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
                       kLRHasNotBeenSaved,
                       kDontSaveFPRegs,
                       EMIT_REMEMBERED_SET,
-                      INLINE_SMI_CHECK,
-                      EXPECT_PREGENERATED);
+                      INLINE_SMI_CHECK);
   __ Str(right, FieldMemOperand(result, ConsString::kSecondOffset));
   __ RecordWriteField(result,
                       ConsString::kSecondOffset,
@@ -5005,8 +4988,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
                       kLRHasNotBeenSaved,
                       kDontSaveFPRegs,
                       EMIT_REMEMBERED_SET,
-                      INLINE_SMI_CHECK,
-                      EXPECT_PREGENERATED);
+                      INLINE_SMI_CHECK);
   __ B(&after_writing);
   __ Bind(&skip_write_barrier);
 
@@ -5180,91 +5162,10 @@ void StringAddStub::GenerateRegisterArgsPop(MacroAssembler* masm) {
   __ Pop(x1, x0);
 }
 
-#define MINOR_KEY_FOR(obj, value, addr, action, fp_mode)        \
-  ((obj) | ((value) << 5) | ((addr) << 10) | ((action) << 15) | \
-  ((fp_mode) << 16))
-
-const int RecordWriteStub::kAheadOfTime[] = {
-  // Arguments to MinorKeyFor() are object, value and address registers.
-
-  // Used in StoreArrayLiteralElementStub::Generate.
-  MINOR_KEY_FOR(10, 0, 11, EMIT_REMEMBERED_SET, kDontSaveFPRegs),
-
-  // Used in FastNewClosure::Generate.
-  MINOR_KEY_FOR(5, 4, 1, EMIT_REMEMBERED_SET, kDontSaveFPRegs),
-
-  // Used in KeyedStoreStubCompiler::GenerateStoreFastElement.
-  MINOR_KEY_FOR(3, 2, 10, EMIT_REMEMBERED_SET, kDontSaveFPRegs),
-
-  // Used in KeyedStoreStubCompiler::GenerateStoreFastDoubleElement.
-  MINOR_KEY_FOR(2, 3, 10, EMIT_REMEMBERED_SET, kDontSaveFPRegs),
-
-  // Used in ElementsTransitionGenerator::GenerateSmiToDouble.
-  MINOR_KEY_FOR(2, 3, 6, OMIT_REMEMBERED_SET, kDontSaveFPRegs),
-  MINOR_KEY_FOR(2, 10, 6, EMIT_REMEMBERED_SET, kDontSaveFPRegs),
-
-  // Used in ElementsTransitionGenerator::GenerateDoubleToObject.
-  MINOR_KEY_FOR(7, 5, 13, EMIT_REMEMBERED_SET, kDontSaveFPRegs),
-  MINOR_KEY_FOR(2, 7, 13, EMIT_REMEMBERED_SET, kDontSaveFPRegs),
-  MINOR_KEY_FOR(2, 3, 13, OMIT_REMEMBERED_SET, kDontSaveFPRegs),
-
-  // Used in KeyedStoreIC::GenerateGeneric helper function.
-  MINOR_KEY_FOR(4, 10, 11, EMIT_REMEMBERED_SET, kDontSaveFPRegs),
-
-  // Used in RegExpExecStub::Generate.
-  MINOR_KEY_FOR(21, 10, 11, EMIT_REMEMBERED_SET, kDontSaveFPRegs),
-
-  // Used in StringAddStub::Generate.
-  MINOR_KEY_FOR(0, 10, 3, EMIT_REMEMBERED_SET, kDontSaveFPRegs),
-  MINOR_KEY_FOR(0, 11, 3, EMIT_REMEMBERED_SET, kDontSaveFPRegs),
-
-  // TODO(jbramley): There are many more sites that want a pregenerated
-  // instance of this stub, but they are currently unimplemented. Once they are
-  // implemented, they should be added to this list.
-
-  // Null termination.
-  // It is safe to encode this as 0 because the three registers used for
-  // RecordWriteStub must not be aliased, and 0 represents (x0, x0, x0).
-  0
-};
-
-
-#undef MINOR_KEY_FOR
-
-
-void RecordWriteStub::GenerateFixedRegStubsAheadOfTime(Isolate* isolate) {
-  // Pregenerate all of the stub variants in the kAheadOfTime list.
-  for (const int* entry = kAheadOfTime; *entry != 0; entry++) {
-    // kAheadOfTime is a list of minor keys, so extract the relevant fields
-    // from the minor key.
-    Register object = Register::XRegFromCode(ObjectBits::decode(*entry));
-    Register value = Register::XRegFromCode(ValueBits::decode(*entry));
-    Register address = Register::XRegFromCode(AddressBits::decode(*entry));
-    RememberedSetAction action = RememberedSetActionBits::decode(*entry);
-    SaveFPRegsMode fp_mode = SaveFPRegsModeBits::decode(*entry);
-
-    RecordWriteStub stub(object, value, address, action, fp_mode);
-    stub.GetCode(isolate)->set_is_pregenerated(true);
-  }
-}
-
 
 bool CodeStub::CanUseFPRegisters() {
   // FP registers always available on A64.
   return true;
-}
-
-
-bool RecordWriteStub::IsPregenerated(Isolate* isolate) {
-  USE(isolate);
-  // If the stub exists in the kAheadOfTime list, it is pregenerated.
-  for (const int* entry = kAheadOfTime; *entry != 0; entry++) {
-    if (*entry == MinorKeyFor(object_, value_, address_,
-                              remembered_set_action_, save_fp_regs_mode_)) {
-      return true;
-    }
-  }
-  return false;
 }
 
 
@@ -5489,7 +5390,7 @@ void StoreArrayLiteralElementStub::Generate(MacroAssembler* masm) {
   __ Str(value, MemOperand(x11));
   // Update the write barrier for the array store.
   __ RecordWrite(x10, x11, value, kLRHasNotBeenSaved, kDontSaveFPRegs,
-                 EMIT_REMEMBERED_SET, OMIT_SMI_CHECK, EXPECT_PREGENERATED);
+                 EMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
   __ Ret();
 
   // Array literal has ElementsKind of FAST_*_SMI_ELEMENTS or FAST_*_ELEMENTS,
@@ -5548,7 +5449,6 @@ void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) {
     // TODO(all): This needs to be reliably consistent with
     // kReturnAddressDistanceFromFunctionStart in ::Generate.
     Assembler::BlockConstPoolScope no_const_pools(masm);
-    AllowStubCallsScope allow_stub_calls(masm, true);
     ProfileEntryHookStub stub;
     __ Push(lr);
     __ CallStub(&stub);
@@ -6014,12 +5914,12 @@ static void ArrayConstructorStubAheadOfTimeHelper(Isolate* isolate) {
   for (int i = 0; i <= to_index; ++i) {
     ElementsKind kind = GetFastElementsKindFromSequenceIndex(i);
     T stub(kind);
-    stub.GetCode(isolate)->set_is_pregenerated(true);
+    stub.GetCode(isolate);
     if ((AllocationSite::GetMode(kind) != DONT_TRACK_ALLOCATION_SITE) ||
         (!FLAG_track_allocation_sites &&
          ((kind == initial_kind) || (kind == initial_holey_kind)))) {
       T stub1(kind, CONTEXT_CHECK_REQUIRED, DISABLE_ALLOCATION_SITES);
-      stub1.GetCode(isolate)->set_is_pregenerated(true);
+      stub1.GetCode(isolate);
     }
   }
 }
@@ -6041,11 +5941,11 @@ void InternalArrayConstructorStubBase::GenerateStubsAheadOfTime(
   for (int i = 0; i < 2; i++) {
     // For internal arrays we only need a few things
     InternalArrayNoArgumentConstructorStub stubh1(kinds[i]);
-    stubh1.GetCode(isolate)->set_is_pregenerated(true);
+    stubh1.GetCode(isolate);
     InternalArraySingleArgumentConstructorStub stubh2(kinds[i]);
-    stubh2.GetCode(isolate)->set_is_pregenerated(true);
+    stubh2.GetCode(isolate);
     InternalArrayNArgumentsConstructorStub stubh3(kinds[i]);
-    stubh3.GetCode(isolate)->set_is_pregenerated(true);
+    stubh3.GetCode(isolate);
   }
 }
 

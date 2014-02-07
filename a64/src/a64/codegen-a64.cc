@@ -40,9 +40,6 @@ namespace internal {
 
 UnaryMathFunction CreateTranscendentalFunction(TranscendentalCache::Type type) {
   switch (type) {
-    case TranscendentalCache::SIN: return &sin;
-    case TranscendentalCache::COS: return &cos;
-    case TranscendentalCache::TAN: return &tan;
     case TranscendentalCache::LOG: return &log;
     default: UNIMPLEMENTED();
   }
@@ -210,14 +207,14 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   __ Str(target_map, FieldMemOperand(receiver, HeapObject::kMapOffset));
   __ RecordWriteField(receiver, HeapObject::kMapOffset, target_map, x6,
                       kLRHasBeenSaved, kDontSaveFPRegs, OMIT_REMEMBERED_SET,
-                      OMIT_SMI_CHECK, EXPECT_PREGENERATED);
+                      OMIT_SMI_CHECK);
 
   // Replace receiver's backing store with newly created FixedDoubleArray.
   __ Add(x10, array, kHeapObjectTag);
   __ Str(x10, FieldMemOperand(receiver, JSObject::kElementsOffset));
   __ RecordWriteField(receiver, JSObject::kElementsOffset, x10,
                       x6, kLRHasBeenSaved, kDontSaveFPRegs,
-                      EMIT_REMEMBERED_SET, OMIT_SMI_CHECK, EXPECT_PREGENERATED);
+                      EMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
 
   // Prepare for conversion loop.
   Register src_elements = x10;
@@ -237,7 +234,7 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   __ Str(target_map, FieldMemOperand(receiver, HeapObject::kMapOffset));
   __ RecordWriteField(receiver, HeapObject::kMapOffset, target_map, x6,
                       kLRHasNotBeenSaved, kDontSaveFPRegs, OMIT_REMEMBERED_SET,
-                      OMIT_SMI_CHECK, EXPECT_PREGENERATED);
+                      OMIT_SMI_CHECK);
   __ B(&done);
 
   // Call into runtime if GC is required.
@@ -354,7 +351,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
     __ Mov(x13, dst_elements);
     __ Str(heap_num, MemOperand(dst_elements, kPointerSize, PostIndex));
     __ RecordWrite(array, x13, heap_num, kLRHasBeenSaved, kDontSaveFPRegs,
-                   EMIT_REMEMBERED_SET, OMIT_SMI_CHECK, EXPECT_PREGENERATED);
+                   EMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
 
     __ B(&entry);
 
@@ -372,14 +369,14 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   __ Str(array, FieldMemOperand(receiver, JSObject::kElementsOffset));
   __ RecordWriteField(receiver, JSObject::kElementsOffset, array, x13,
                       kLRHasBeenSaved, kDontSaveFPRegs, EMIT_REMEMBERED_SET,
-                      OMIT_SMI_CHECK, EXPECT_PREGENERATED);
+                      OMIT_SMI_CHECK);
   __ Pop(lr);
 
   __ Bind(&only_change_map);
   __ Str(target_map, FieldMemOperand(receiver, HeapObject::kMapOffset));
   __ RecordWriteField(receiver, HeapObject::kMapOffset, target_map, x13,
                       kLRHasNotBeenSaved, kDontSaveFPRegs, OMIT_REMEMBERED_SET,
-                      OMIT_SMI_CHECK, EXPECT_PREGENERATED);
+                      OMIT_SMI_CHECK);
 }
 
 

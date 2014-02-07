@@ -276,15 +276,10 @@ static FixedArrayBase* LeftTrimFixedArray(Heap* heap,
   FixedArrayBase* new_elms = FixedArrayBase::cast(HeapObject::FromAddress(
       elms->address() + size_delta));
   HeapProfiler* profiler = heap->isolate()->heap_profiler();
-  if (profiler->is_profiling()) {
+  if (profiler->is_tracking_object_moves()) {
     profiler->ObjectMoveEvent(elms->address(),
                               new_elms->address(),
                               new_elms->Size());
-    if (profiler->is_tracking_allocations()) {
-      // Report filler object as a new allocation.
-      // Otherwise it will become an untracked object.
-      profiler->NewObjectEvent(elms->address(), elms->Size());
-    }
   }
   return new_elms;
 }
@@ -312,6 +307,7 @@ static inline MaybeObject* EnsureJSArrayWithWritableFastElements(
   if (!receiver->IsJSArray()) return NULL;
   JSArray* array = JSArray::cast(receiver);
   if (array->map()->is_observed()) return NULL;
+  if (!array->map()->is_extensible()) return NULL;
   HeapObject* elms = array->elements();
   Map* map = elms->map();
   if (map == heap->fixed_array_map()) {
@@ -1416,22 +1412,14 @@ static void Generate_StoreIC_Normal(MacroAssembler* masm) {
 
 
 static void Generate_StoreIC_Megamorphic(MacroAssembler* masm) {
-  StoreIC::GenerateMegamorphic(masm, kNonStrictMode);
+  StoreIC::GenerateMegamorphic(masm,
+                               StoreIC::ComputeExtraICState(kNonStrictMode));
 }
 
 
 static void Generate_StoreIC_Megamorphic_Strict(MacroAssembler* masm) {
-  StoreIC::GenerateMegamorphic(masm, kStrictMode);
-}
-
-
-static void Generate_StoreIC_GlobalProxy(MacroAssembler* masm) {
-  StoreIC::GenerateRuntimeSetProperty(masm, kNonStrictMode);
-}
-
-
-static void Generate_StoreIC_GlobalProxy_Strict(MacroAssembler* masm) {
-  StoreIC::GenerateRuntimeSetProperty(masm, kStrictMode);
+  StoreIC::GenerateMegamorphic(masm,
+                               StoreIC::ComputeExtraICState(kStrictMode));
 }
 
 

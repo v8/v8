@@ -97,6 +97,10 @@ class HCheckTable : public ZoneObject {
         ReduceCheckMapValue(HCheckMapValue::cast(instr));
         break;
       }
+      case HValue::kCheckHeapObject: {
+        ReduceCheckHeapObject(HCheckHeapObject::cast(instr));
+        break;
+      }
       default: {
         // If the instruction changes maps uncontrollably, drop everything.
         if (instr->CheckGVNFlag(kChangesMaps) ||
@@ -105,7 +109,8 @@ class HCheckTable : public ZoneObject {
         }
       }
       // Improvements possible:
-      // - eliminate HCheckSmi and HCheckHeapObject
+      // - eliminate redundant HCheckSmi, HCheckInstanceType instructions
+      // - track which values have been HCheckHeapObject'd
     }
 
     return this;
@@ -121,6 +126,23 @@ class HCheckTable : public ZoneObject {
       new_entry->object_ = old_entry->object_;
       new_entry->check_ = NULL;
       new_entry->maps_ = old_entry->maps_->Copy(phase_->zone());
+    }
+    if (succ->predecessors()->length() == 1) {
+      HControlInstruction* end = succ->predecessors()->at(0)->end();
+      if (end->IsCompareMap() && end->SuccessorAt(0) == succ) {
+        // Learn on the true branch of if(CompareMap(x)).
+        HCompareMap* cmp = HCompareMap::cast(end);
+        HValue* object = cmp->value()->ActualValue();
+        HCheckTableEntry* entry = copy->Find(object);
+        if (entry == NULL) {
+          copy->Insert(object, cmp->map());
+        } else {
+          MapSet list = new(phase_->zone()) UniqueSet<Map>();
+          list->Add(cmp->map(), phase_->zone());
+          entry->maps_ = list;
+        }
+      }
+      // TODO(titzer): is it worthwhile to learn on false branch too?
     }
     return copy;
   }
@@ -233,6 +255,14 @@ class HCheckTable : public ZoneObject {
     } else {
       // No prior information.
       Insert(object, map);
+    }
+  }
+
+  void ReduceCheckHeapObject(HCheckHeapObject* instr) {
+    if (FindMaps(instr->value()->ActualValue()) != NULL) {
+      // If the object has known maps, it's definitely a heap object.
+      instr->DeleteAndReplaceWith(instr->value());
+      INC_STAT(removed_cho_);
     }
   }
 
@@ -488,15 +518,19 @@ void HCheckEliminationPhase::Run() {
 // Are we eliminated yet?
 void HCheckEliminationPhase::PrintStats() {
 #if DEBUG
-  if (redundant_ > 0)      PrintF("  redundant   = %2d\n", redundant_);
-  if (removed_ > 0)        PrintF("  removed     = %2d\n", removed_);
-  if (narrowed_ > 0)       PrintF("  narrowed    = %2d\n", narrowed_);
-  if (loads_ > 0)          PrintF("  loads       = %2d\n", loads_);
-  if (empty_ > 0)          PrintF("  empty       = %2d\n", empty_);
-  if (compares_true_ > 0)  PrintF("  cmp_true    = %2d\n", compares_true_);
-  if (compares_false_ > 0) PrintF("  cmp_false   = %2d\n", compares_false_);
-  if (transitions_ > 0)    PrintF("  transitions = %2d\n", transitions_);
+  #define PRINT_STAT(x) if (x##_ > 0) PrintF(" %-16s = %2d\n", #x, x##_)
+#else
+  #define PRINT_STAT(x)
 #endif
+  PRINT_STAT(redundant);
+  PRINT_STAT(removed);
+  PRINT_STAT(removed_cho);
+  PRINT_STAT(narrowed);
+  PRINT_STAT(loads);
+  PRINT_STAT(empty);
+  PRINT_STAT(compares_true);
+  PRINT_STAT(compares_false);
+  PRINT_STAT(transitions);
 }
 
 } }  // namespace v8::internal

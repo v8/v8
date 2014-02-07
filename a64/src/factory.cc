@@ -854,7 +854,7 @@ Handle<Object> Factory::NewError(const char* maker,
                                  const char* message,
                                  Vector< Handle<Object> > args) {
   // Instantiate a closeable HandleScope for EscapeFrom.
-  v8::HandleScope scope(reinterpret_cast<v8::Isolate*>(isolate()));
+  v8::EscapableHandleScope scope(reinterpret_cast<v8::Isolate*>(isolate()));
   Handle<FixedArray> array = NewFixedArray(args.length());
   for (int i = 0; i < args.length(); i++) {
     array->set(i, *args[i]);

@@ -171,7 +171,8 @@ void LGoto::PrintDataTo(StringStream* stream) {
 void LInnerAllocatedObject::PrintDataTo(StringStream* stream) {
   stream->Add(" = ");
   base_object()->PrintTo(stream);
-  stream->Add(" + %d", offset());
+  stream->Add(" + ");
+  offset()->PrintTo(stream);
 }
 
 
@@ -1583,9 +1584,11 @@ LInstruction* LChunkBuilder::DoHasInstanceTypeAndBranch(
 
 
 LInstruction* LChunkBuilder::DoInnerAllocatedObject(
-    HInnerAllocatedObject* inner_object) {
-  LOperand* base_object = UseRegisterAtStart(inner_object->base_object());
-  return DefineAsRegister(new(zone()) LInnerAllocatedObject(base_object));
+    HInnerAllocatedObject* instr) {
+  LOperand* base_object = UseRegisterAtStart(instr->base_object());
+  LOperand* offset = UseRegisterOrConstantAtStart(instr->offset());
+  return DefineAsRegister(
+      new(zone()) LInnerAllocatedObject(base_object, offset));
 }
 
 
@@ -2442,13 +2445,6 @@ LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
         }
       }
     }
-    case kMathCos: {
-      ASSERT(instr->representation().IsDouble());
-      ASSERT(instr->value()->representation().IsDouble());
-      LOperand* input = UseFixedDouble(instr->value(), d0);
-      LMathCos* result = new(zone()) LMathCos(input);
-      return MarkAsCall(DefineFixedDouble(result, d0), instr);
-    }
     case kMathExp: {
       ASSERT(instr->representation().IsDouble());
       ASSERT(instr->value()->representation().IsDouble());
@@ -2495,25 +2491,11 @@ LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
       LMathRound* result = new(zone()) LMathRound(input, temp);
       return AssignEnvironment(DefineAsRegister(result));
     }
-    case kMathSin: {
-      ASSERT(instr->representation().IsDouble());
-      ASSERT(instr->value()->representation().IsDouble());
-      LOperand* input = UseFixedDouble(instr->value(), d0);
-      LMathSin* result = new(zone()) LMathSin(input);
-      return MarkAsCall(DefineFixedDouble(result, d0), instr);
-    }
     case kMathSqrt: {
       ASSERT(instr->representation().IsDouble());
       ASSERT(instr->value()->representation().IsDouble());
       LOperand* input = UseRegisterAtStart(instr->value());
       return DefineAsRegister(new(zone()) LMathSqrt(input));
-    }
-    case kMathTan: {
-      ASSERT(instr->representation().IsDouble());
-      ASSERT(instr->value()->representation().IsDouble());
-      LOperand* input = UseFixedDouble(instr->value(), d0);
-      LMathTan* result = new(zone()) LMathTan(input);
-      return MarkAsCall(DefineFixedDouble(result, d0), instr);
     }
     default:
       UNREACHABLE();

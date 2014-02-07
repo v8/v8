@@ -48,7 +48,6 @@ MacroAssembler::MacroAssembler(Isolate* arg_isolate,
                                unsigned buffer_size)
     : Assembler(arg_isolate, buffer, buffer_size),
       generating_stub_(false),
-      allow_stub_calls_(true),
 #if DEBUG
       allow_macro_instructions_(true),
 #endif
@@ -1280,8 +1279,6 @@ void MacroAssembler::CallStub(CodeStub* stub, TypeFeedbackId ast_id) {
 
 
 void MacroAssembler::TailCallStub(CodeStub* stub) {
-  ASSERT(allow_stub_calls_ ||
-         stub->CompilingCallsToThisStubIsGCSafe(isolate()));
   Jump(stub->GetCode(isolate()), RelocInfo::CODE_TARGET);
 }
 
@@ -2494,33 +2491,42 @@ void MacroAssembler::InvokeFunction(Register function,
 }
 
 
+void MacroAssembler::InvokeFunction(Register function,
+                                    const ParameterCount& expected,
+                                    const ParameterCount& actual,
+                                    InvokeFlag flag,
+                                    const CallWrapper& call_wrapper,
+                                    CallKind call_kind) {
+  // You can't call a function without a valid frame.
+  ASSERT(flag == JUMP_FUNCTION || has_frame());
+
+  // Contract with called JS functions requires that function is passed in x1.
+  // (See FullCodeGenerator::Generate().)
+  ASSERT(function.Is(x1));
+
+  Register code_reg = x3;
+
+  // Set up the context.
+  Ldr(cp, FieldMemOperand(function, JSFunction::kContextOffset));
+
+  // We call indirectly through the code field in the function to
+  // allow recompilation to take effect without changing any of the
+  // call sites.
+  Ldr(code_reg, FieldMemOperand(function, JSFunction::kCodeEntryOffset));
+  InvokeCode(code_reg, expected, actual, flag, call_wrapper, call_kind);
+}
+
+
 void MacroAssembler::InvokeFunction(Handle<JSFunction> function,
                                     const ParameterCount& expected,
                                     const ParameterCount& actual,
                                     InvokeFlag flag,
                                     const CallWrapper& call_wrapper,
-                                    CallKind call_kind,
-                                    Register function_reg) {
-  // You can't call a function without a valid frame.
-  ASSERT(flag == JUMP_FUNCTION || has_frame());
-
-  // Load the function object, if it isn't already loaded.
-  ASSERT(function_reg.Is(x1) || function_reg.IsNone());
-  if (function_reg.IsNone()) {
-    function_reg = x1;
-    LoadObject(function_reg, function);
-  }
-
-  Register code_reg = x3;
-
-  // Set up the context.
-  Ldr(cp, FieldMemOperand(function_reg, JSFunction::kContextOffset));
-
-  // We call indirectly through the code field in the function to
-  // allow recompilation to take effect without changing any of the
-  // call sites.
-  Ldr(code_reg, FieldMemOperand(function_reg, JSFunction::kCodeEntryOffset));
-  InvokeCode(code_reg, expected, actual, flag, call_wrapper, call_kind);
+                                    CallKind call_kind) {
+  // Contract with called JS functions requires that function is passed in x1.
+  // (See FullCodeGenerator::Generate().)
+  __ LoadObject(x1, function);
+  InvokeFunction(x1, expected, actual, flag, call_wrapper, call_kind);
 }
 
 
@@ -3608,8 +3614,7 @@ void MacroAssembler::StoreNumberToDoubleElements(Register value_reg,
 
 
 bool MacroAssembler::AllowThisStubCall(CodeStub* stub) {
-  if (!has_frame_ && stub->SometimesSetsUpAFrame()) return false;
-  return allow_stub_calls_ || stub->CompilingCallsToThisStubIsGCSafe(isolate());
+  return has_frame_ || !stub->SometimesSetsUpAFrame();
 }
 
 
@@ -3964,8 +3969,7 @@ void MacroAssembler::RecordWriteField(
     LinkRegisterStatus lr_status,
     SaveFPRegsMode save_fp,
     RememberedSetAction remembered_set_action,
-    SmiCheck smi_check,
-    PregenExpectation pregen_expectation) {
+    SmiCheck smi_check) {
   // First, check if a write barrier is even needed. The tests below
   // catch stores of Smis.
   Label done;
@@ -3994,8 +3998,7 @@ void MacroAssembler::RecordWriteField(
               lr_status,
               save_fp,
               remembered_set_action,
-              OMIT_SMI_CHECK,
-              pregen_expectation);
+              OMIT_SMI_CHECK);
 
   Bind(&done);
 
@@ -4013,20 +4016,13 @@ void MacroAssembler::RecordWriteField(
 //
 // The register 'object' contains a heap object pointer. The heap object tag is
 // shifted away.
-//
-// If pregen_expectation is EXPECT_PREGENERATED, this will assert that the
-// stub used was pregenerated. This is done to ensure that
-// RecordWriteStub::kAheadOfTime stays in sync with real usage. If
-// pregen_expectation is false, no assertion is made, since another call site
-// might pregenerate the stub with the same parameters.
 void MacroAssembler::RecordWrite(Register object,
                                  Register address,
                                  Register value,
                                  LinkRegisterStatus lr_status,
                                  SaveFPRegsMode fp_mode,
                                  RememberedSetAction remembered_set_action,
-                                 SmiCheck smi_check,
-                                 PregenExpectation pregen_expectation) {
+                                 SmiCheck smi_check) {
   // The compiled code assumes that record write doesn't change the
   // context register, so we check that none of the clobbered
   // registers are cp.
@@ -4065,12 +4061,6 @@ void MacroAssembler::RecordWrite(Register object,
     Push(lr);
   }
   RecordWriteStub stub(object, value, address, remembered_set_action, fp_mode);
-  if (pregen_expectation == EXPECT_PREGENERATED) {
-    // If we expected a pregenerated stub, ensure that we get one.
-    // A failure at this assertion probably indicates that the
-    // RecordWriteStub::kAheadOfTime list needs to be updated.
-    ASSERT(stub.IsPregenerated(isolate()));
-  }
   CallStub(&stub);
   if (lr_status == kLRHasNotBeenSaved) {
     Pop(lr);

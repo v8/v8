@@ -62,7 +62,8 @@ class FetchLKGR(Step):
 
   def RunStep(self):
     lkgr_url = "https://v8-status.appspot.com/lkgr"
-    self.Persist("lkgr", self.ReadURL(lkgr_url))
+    # Retry several times since app engine might have issues.
+    self.Persist("lkgr", self.ReadURL(lkgr_url, wait_plan=[5, 20, 300, 300]))
 
 
 class PushToTrunk(Step):
@@ -95,6 +96,9 @@ def RunAutoRoll(config,
 
 def BuildOptions():
   result = optparse.OptionParser()
+  result.add_option("-f", "--force", dest="f",
+                    help="Don't prompt the user.",
+                    default=True, action="store_true")
   result.add_option("-s", "--step", dest="s",
                     help="Specify the step where to start work. Default: 0.",
                     default=0, type="int")

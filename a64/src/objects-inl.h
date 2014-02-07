@@ -3959,19 +3959,6 @@ bool Code::has_major_key() {
 }
 
 
-bool Code::is_pregenerated() {
-  return (kind() == STUB && IsPregeneratedField::decode(flags()));
-}
-
-
-void Code::set_is_pregenerated(bool value) {
-  ASSERT(kind() == STUB);
-  Flags f = flags();
-  f = static_cast<Flags>(IsPregeneratedField::update(f, value));
-  set_flags(f);
-}
-
-
 bool Code::optimizable() {
   ASSERT_EQ(FUNCTION, kind());
   return READ_BYTE_FIELD(this, kOptimizableOffset) == 1;

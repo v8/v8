@@ -210,7 +210,6 @@ class LCodeGen: public LCodeGenBase {
   Condition EmitIsString(Register input, Register temp1, Label* is_not_string,
                          SmiCheck check_needed);
 
-  void RegisterDependentCodeForEmbeddedMaps(Handle<Code> code);
   int DefineDeoptimizationLiteral(Handle<Object> literal);
   void PopulateDeoptimizationData(Handle<Code> code);
   void PopulateDeoptimizationLiteralsWithInlinedFunctions();

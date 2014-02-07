@@ -62,7 +62,6 @@ inline MemOperand UntagSmiMemOperand(Register object, int offset);
 // ----------------------------------------------------------------------------
 // MacroAssembler
 
-enum PregenExpectation { MAYBE_PREGENERATED, EXPECT_PREGENERATED };
 enum RememberedSetAction { EMIT_REMEMBERED_SET, OMIT_REMEMBERED_SET };
 enum SmiCheck { INLINE_SMI_CHECK, OMIT_SMI_CHECK };
 enum LinkRegisterStatus { kLRHasNotBeenSaved, kLRHasBeenSaved };
@@ -1096,13 +1095,18 @@ class MacroAssembler : public Assembler {
                       InvokeFlag flag,
                       const CallWrapper& call_wrapper,
                       CallKind call_kind);
+  void InvokeFunction(Register function,
+                      const ParameterCount& expected,
+                      const ParameterCount& actual,
+                      InvokeFlag flag,
+                      const CallWrapper& call_wrapper,
+                      CallKind call_kind);
   void InvokeFunction(Handle<JSFunction> function,
                       const ParameterCount& expected,
                       const ParameterCount& actual,
                       InvokeFlag flag,
                       const CallWrapper& call_wrapper,
-                      CallKind call_kind,
-                      Register function_reg = NoReg);
+                      CallKind call_kind);
 
 
   // ---- Floating point helpers ----
@@ -1139,8 +1143,6 @@ class MacroAssembler : public Assembler {
 
   void set_generating_stub(bool value) { generating_stub_ = value; }
   bool generating_stub() const { return generating_stub_; }
-  void set_allow_stub_calls(bool value) { allow_stub_calls_ = value; }
-  bool allow_stub_calls() const { return allow_stub_calls_; }
 #if DEBUG
   void set_allow_macro_instructions(bool value) {
     allow_macro_instructions_ = value;
@@ -1691,8 +1693,7 @@ class MacroAssembler : public Assembler {
       LinkRegisterStatus lr_status,
       SaveFPRegsMode save_fp,
       RememberedSetAction remembered_set_action = EMIT_REMEMBERED_SET,
-      SmiCheck smi_check = INLINE_SMI_CHECK,
-      PregenExpectation pregen_expectation = MAYBE_PREGENERATED);
+      SmiCheck smi_check = INLINE_SMI_CHECK);
 
   // As above, but the offset has the tag presubtracted. For use with
   // MemOperand(reg, off).
@@ -1704,8 +1705,7 @@ class MacroAssembler : public Assembler {
       LinkRegisterStatus lr_status,
       SaveFPRegsMode save_fp,
       RememberedSetAction remembered_set_action = EMIT_REMEMBERED_SET,
-      SmiCheck smi_check = INLINE_SMI_CHECK,
-      PregenExpectation pregen_expectation = MAYBE_PREGENERATED) {
+      SmiCheck smi_check = INLINE_SMI_CHECK) {
     RecordWriteField(context,
                      offset + kHeapObjectTag,
                      value,
@@ -1713,8 +1713,7 @@ class MacroAssembler : public Assembler {
                      lr_status,
                      save_fp,
                      remembered_set_action,
-                     smi_check,
-                     pregen_expectation);
+                     smi_check);
   }
 
   // For a given |object| notify the garbage collector that the slot |address|
@@ -1727,8 +1726,7 @@ class MacroAssembler : public Assembler {
       LinkRegisterStatus lr_status,
       SaveFPRegsMode save_fp,
       RememberedSetAction remembered_set_action = EMIT_REMEMBERED_SET,
-      SmiCheck smi_check = INLINE_SMI_CHECK,
-      PregenExpectation pregen_expecation = MAYBE_PREGENERATED);
+      SmiCheck smi_check = INLINE_SMI_CHECK);
 
   // Checks the color of an object. If the object is already grey or black
   // then we just fall through, since it is already live. If it is white and
@@ -2056,7 +2054,6 @@ class MacroAssembler : public Assembler {
                              Label* on_failed_conversion = NULL);
 
   bool generating_stub_;
-  bool allow_stub_calls_;
 #if DEBUG
   // Tell whether any of the macro instruction can be used. When false the
   // MacroAssembler will assert if a method which can emit a variable number
