@@ -649,9 +649,9 @@ class Parser : public ParserBase {
 
   ZoneList<Expression*>* ParseArguments(bool* ok);
   FunctionLiteral* ParseFunctionLiteral(
-      Handle<String> var_name,
+      Handle<String> name,
       Scanner::Location function_name_location,
-      bool name_is_reserved,
+      bool name_is_strict_reserved,
       bool is_generator,
       int function_token_position,
       FunctionLiteral::FunctionType type,

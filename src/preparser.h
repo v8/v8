@@ -616,10 +616,17 @@ class PreParser : public ParserBase {
   Expression ParseV8Intrinsic(bool* ok);
 
   Arguments ParseArguments(bool* ok);
-  Expression ParseFunctionLiteral(bool is_generator, bool* ok);
+  Expression ParseFunctionLiteral(
+      Identifier name,
+      Scanner::Location function_name_location,
+      bool name_is_strict_reserved,
+      bool is_generator,
+      bool* ok);
   void ParseLazyFunctionLiteralBody(bool* ok);
 
   Identifier ParseIdentifier(AllowEvalOrArgumentsAsIdentifier, bool* ok);
+  Identifier ParseIdentifierOrStrictReservedWord(bool* is_strict_reserved,
+                                                 bool* ok);
   Identifier ParseIdentifierName(bool* ok);
   Identifier ParseIdentifierNameOrGetOrSet(bool* is_get,
                                            bool* is_set,

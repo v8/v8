@@ -3388,7 +3388,7 @@ Expression* Parser::ParseMemberWithNewPrefixesExpression(PositionStack* stack,
   // Parse the initial primary or function expression.
   Expression* result = NULL;
   if (peek() == Token::FUNCTION) {
-    Expect(Token::FUNCTION, CHECK_OK);
+    Consume(Token::FUNCTION);
     int function_token_position = position();
     bool is_generator = allow_generators() && Check(Token::MUL);
     Handle<String> name;
@@ -4265,6 +4265,12 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
         *ok = false;
         return NULL;
       }
+      if (name_is_strict_reserved) {
+        ReportMessageAt(function_name_location, "unexpected_strict_reserved",
+                        Vector<const char*>::empty());
+        *ok = false;
+        return NULL;
+      }
       if (name_loc.IsValid()) {
         ReportMessageAt(name_loc, "strict_eval_arguments",
                         Vector<const char*>::empty());
@@ -4273,12 +4279,6 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
       }
       if (dupe_loc.IsValid()) {
         ReportMessageAt(dupe_loc, "strict_param_dupe",
-                        Vector<const char*>::empty());
-        *ok = false;
-        return NULL;
-      }
-      if (name_is_strict_reserved) {
-        ReportMessageAt(function_name_location, "unexpected_strict_reserved",
                         Vector<const char*>::empty());
         *ok = false;
         return NULL;
