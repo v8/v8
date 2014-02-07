@@ -37,8 +37,5 @@ var desc = Object.getOwnPropertyDescriptor(foo, 'length');
 assertEquals(3, desc.value);
 assertFalse(desc.writable);
 assertFalse(desc.enumerable);
-assertTrue(desc.configurable);
+assertFalse(desc.configurable);
 assertThrows(function() { foo.length = 2; }, TypeError);
-
-assertDoesNotThrow(function () { Object.defineProperty(foo, 'length', {value: 4}); });
-assertEquals(4, foo.length);

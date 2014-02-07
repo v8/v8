@@ -62,21 +62,8 @@ assertSame(new f().foo, 'other');
 assertSame(Object.getPrototypeOf(new f()), z);
 assertSame(Object.getOwnPropertyDescriptor(f, 'prototype').value, z);
 
-// Verify that 'name' is (initially) non-writable, but configurable.
-var fname = f.name;
-f.name = z;
-assertSame(fname, f.name);
-Object.defineProperty(f, 'name', {value: 'other'});
-assertSame('other', f.name);
-
-// Verify same for 'length', another configurable and non-writable property.
-assertEquals(0, Object.getOwnPropertyDescriptor(f, 'length').value);
-assertDoesNotThrow(function () { Object.defineProperty(f, 'length', {writable: true}); });
-f.length = 3;
-assertEquals(3, Object.getOwnPropertyDescriptor(f, 'length').value);
-f.length = "untyped";
-assertSame("untyped", Object.getOwnPropertyDescriptor(f, 'length').value);
-
 // Verify that non-writability of other properties is respected.
+assertThrows("Object.defineProperty(f, 'name', { value: {} })");
+assertThrows("Object.defineProperty(f, 'length', { value: {} })");
 assertThrows("Object.defineProperty(f, 'caller', { value: {} })");
 assertThrows("Object.defineProperty(f, 'arguments', { value: {} })");

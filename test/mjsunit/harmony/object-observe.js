@@ -976,40 +976,16 @@ observer.assertNotCalled();
 
 
 // Test all kinds of objects generically.
-function TestObserveConfigurable(obj, prop, is_writable) {
+function TestObserveConfigurable(obj, prop) {
   reset();
-  var valueWhenDeleted = is_writable ? 3 : obj[prop];
   Object.observe(obj, observer.callback);
   Object.unobserve(obj, observer.callback);
   obj[prop] = 1;
   Object.observe(obj, observer.callback);
   obj[prop] = 2;
-  obj[prop] = valueWhenDeleted;
+  obj[prop] = 3;
   delete obj[prop];
-  // If the deleted obj[prop] exposed another 'prop' along the
-  // prototype chain, only update it if it doesn't have an
-  // (inheritable) accessor or it is a read-only data property. If
-  // either of those is true, then instead create an own property with
-  // the descriptor that [[Put]] mandates for a new property (ES-5.1,
-  // 8.12.5.6)
-  var createOwnProperty = false;
-  for (var o = Object.getPrototypeOf(obj); o; o = Object.getPrototypeOf(o)) {
-    var desc = Object.getOwnPropertyDescriptor(o, prop);
-    if (desc) {
-      if (!desc.writable)
-        createOwnProperty = true;
-      break;
-    }
-  }
-  if (createOwnProperty)
-    Object.defineProperty(obj, prop, {
-      value: 4,
-      writable: true,
-      enumerable: true,
-      configurable: true
-    });
-  else
-    obj[prop] = 4;
+  obj[prop] = 4;
   obj[prop] = 4;  // ignored
   obj[prop] = 5;
   Object.defineProperty(obj, prop, {value: 6});
@@ -1039,9 +1015,10 @@ function TestObserveConfigurable(obj, prop, is_writable) {
   delete obj[prop];
   Object.defineProperty(obj, prop, {value: 11, configurable: true});
   Object.deliverChangeRecords(observer.callback);
-
-  var expected = [
-    { object: obj, name: prop, type: "delete", oldValue: valueWhenDeleted },
+  observer.assertCallbackRecords([
+    { object: obj, name: prop, type: "update", oldValue: 1 },
+    { object: obj, name: prop, type: "update", oldValue: 2 },
+    { object: obj, name: prop, type: "delete", oldValue: 3 },
     { object: obj, name: prop, type: "add" },
     { object: obj, name: prop, type: "update", oldValue: 4 },
     { object: obj, name: prop, type: "update", oldValue: 5 },
@@ -1065,15 +1042,7 @@ function TestObserveConfigurable(obj, prop, is_writable) {
     { object: obj, name: prop, type: "update", oldValue: 12 },
     { object: obj, name: prop, type: "delete", oldValue: 36 },
     { object: obj, name: prop, type: "add" },
-  ];
-
-  if (is_writable) {
-    expected.unshift(
-      { object: obj, name: prop, type: "update", oldValue: 1 },
-      { object: obj, name: prop, type: "update", oldValue: 2 });
-  }
-
-  observer.assertCallbackRecords(expected);
+  ]);
   Object.unobserve(obj, observer.callback);
   delete obj[prop];
 }
@@ -1175,7 +1144,7 @@ for (var i in objects) for (var j in properties) {
   var desc = Object.getOwnPropertyDescriptor(obj, prop);
   print("***", typeof obj, stringifyNoThrow(obj), prop);
   if (!desc || desc.configurable)
-    TestObserveConfigurable(obj, prop, !desc || desc.writable);
+    TestObserveConfigurable(obj, prop);
   else if (desc.writable)
     TestObserveNonConfigurable(obj, prop, desc);
 }
