@@ -884,7 +884,7 @@ Instr Assembler::Cond(Condition cond) {
 
 
 Instr Assembler::ImmPCRelAddress(int imm21) {
-  ASSERT(is_int21(imm21));
+  CHECK(is_int21(imm21));
   Instr imm = static_cast<Instr>(truncate_to_int21(imm21));
   Instr immhi = (imm >> ImmPCRelLo_width) << ImmPCRelHi_offset;
   Instr immlo = imm << ImmPCRelLo_offset;
@@ -893,25 +893,25 @@ Instr Assembler::ImmPCRelAddress(int imm21) {
 
 
 Instr Assembler::ImmUncondBranch(int imm26) {
-  ASSERT(is_int26(imm26));
+  CHECK(is_int26(imm26));
   return truncate_to_int26(imm26) << ImmUncondBranch_offset;
 }
 
 
 Instr Assembler::ImmCondBranch(int imm19) {
-  ASSERT(is_int19(imm19));
+  CHECK(is_int19(imm19));
   return truncate_to_int19(imm19) << ImmCondBranch_offset;
 }
 
 
 Instr Assembler::ImmCmpBranch(int imm19) {
-  ASSERT(is_int19(imm19));
+  CHECK(is_int19(imm19));
   return truncate_to_int19(imm19) << ImmCmpBranch_offset;
 }
 
 
 Instr Assembler::ImmTestBranch(int imm14) {
-  ASSERT(is_int14(imm14));
+  CHECK(is_int14(imm14));
   return truncate_to_int14(imm14) << ImmTestBranch_offset;
 }
 
@@ -978,7 +978,7 @@ Instr Assembler::ImmRotate(unsigned immr, unsigned reg_size) {
 
 
 Instr Assembler::ImmLLiteral(int imm19) {
-  ASSERT(is_int19(imm19));
+  CHECK(is_int19(imm19));
   return truncate_to_int19(imm19) << ImmLLiteral_offset;
 }
 
