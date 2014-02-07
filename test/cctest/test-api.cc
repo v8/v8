@@ -7046,28 +7046,6 @@ TEST(ErrorReporting) {
 }
 
 
-static const char* js_code_causing_huge_string_flattening =
-    "var str = 'X';"
-    "for (var i = 0; i < 30; i++) {"
-    "  str = str + str;"
-    "}"
-    "str.match(/X/);";
-
-
-TEST(RegexpOutOfMemory) {
-  // Execute a script that causes out of memory when flattening a string.
-  v8::HandleScope scope(CcTest::isolate());
-  v8::V8::SetFatalErrorHandler(OOMCallback);
-  LocalContext context;
-  Local<Script> script = Script::Compile(String::NewFromUtf8(
-      CcTest::isolate(), js_code_causing_huge_string_flattening));
-  last_location = NULL;
-  script->Run();
-
-  CHECK(false);  // Should not return.
-}
-
-
 static void MissingScriptInfoMessageListener(v8::Handle<v8::Message> message,
                                              v8::Handle<Value> data) {
   CHECK(message->GetScriptResourceName()->IsUndefined());
@@ -7083,93 +7061,6 @@ THREADED_TEST(ErrorWithMissingScriptInfo) {
   v8::V8::AddMessageListener(MissingScriptInfoMessageListener);
   Script::Compile(v8_str("throw Error()"))->Run();
   v8::V8::RemoveMessageListeners(MissingScriptInfoMessageListener);
-}
-
-
-int global_index = 0;
-
-template<typename T>
-class Snorkel {
- public:
-  explicit Snorkel(v8::Persistent<T>* handle) : handle_(handle) {
-    index_ = global_index++;
-  }
-  v8::Persistent<T>* handle_;
-  int index_;
-};
-
-class Whammy {
- public:
-  explicit Whammy(v8::Isolate* isolate) : cursor_(0), isolate_(isolate) { }
-  ~Whammy() { script_.Reset(); }
-  v8::Handle<Script> getScript() {
-    if (script_.IsEmpty()) script_.Reset(isolate_, v8_compile("({}).blammo"));
-    return Local<Script>::New(isolate_, script_);
-  }
-
- public:
-  static const int kObjectCount = 256;
-  int cursor_;
-  v8::Isolate* isolate_;
-  v8::Persistent<v8::Object> objects_[kObjectCount];
-  v8::Persistent<Script> script_;
-};
-
-static void HandleWeakReference(
-    const v8::WeakCallbackData<v8::Value, Snorkel<v8::Value> >& data) {
-  data.GetParameter()->handle_->ClearWeak();
-  delete data.GetParameter();
-}
-
-void WhammyPropertyGetter(Local<String> name,
-                          const v8::PropertyCallbackInfo<v8::Value>& info) {
-  Whammy* whammy =
-    static_cast<Whammy*>(v8::Handle<v8::External>::Cast(info.Data())->Value());
-
-  v8::Persistent<v8::Object>& prev = whammy->objects_[whammy->cursor_];
-
-  v8::Handle<v8::Object> obj = v8::Object::New(info.GetIsolate());
-  if (!prev.IsEmpty()) {
-    v8::Local<v8::Object>::New(info.GetIsolate(), prev)
-        ->Set(v8_str("next"), obj);
-    prev.SetWeak<Value, Snorkel<Value> >(new Snorkel<Value>(&prev.As<Value>()),
-                                         &HandleWeakReference);
-  }
-  whammy->objects_[whammy->cursor_].Reset(info.GetIsolate(), obj);
-  whammy->cursor_ = (whammy->cursor_ + 1) % Whammy::kObjectCount;
-  info.GetReturnValue().Set(whammy->getScript()->Run());
-}
-
-
-TEST(WeakReference) {
-  i::FLAG_expose_gc = true;
-  v8::Isolate* isolate = CcTest::isolate();
-  v8::HandleScope handle_scope(isolate);
-  v8::Handle<v8::ObjectTemplate> templ= v8::ObjectTemplate::New(isolate);
-  Whammy* whammy = new Whammy(CcTest::isolate());
-  templ->SetNamedPropertyHandler(WhammyPropertyGetter,
-                                 0, 0, 0, 0,
-                                 v8::External::New(CcTest::isolate(), whammy));
-  const char* extension_list[] = { "v8/gc" };
-  v8::ExtensionConfiguration extensions(1, extension_list);
-  v8::Handle<Context> context =
-      Context::New(CcTest::isolate(), &extensions);
-  Context::Scope context_scope(context);
-
-  v8::Handle<v8::Object> interceptor = templ->NewInstance();
-  context->Global()->Set(v8_str("whammy"), interceptor);
-  const char* code =
-      "var last;"
-      "for (var i = 0; i < 10000; i++) {"
-      "  var obj = whammy.length;"
-      "  if (last) last.next = obj;"
-      "  last = obj;"
-      "}"
-      "gc();"
-      "4";
-  v8::Handle<Value> result = CompileRun(code);
-  CHECK_EQ(4.0, result->NumberValue());
-  delete whammy;
 }
 
 
@@ -14934,6 +14825,7 @@ TEST(PreCompileSerialization) {
 
   delete sd;
   delete deserialized_sd;
+  i::DeleteArray(serialized_data);
 }
 
 
@@ -14982,6 +14874,7 @@ TEST(PreCompileInvalidPreparseDataError) {
            *exception_value);
 
   try_catch.Reset();
+  delete sd;
 
   // Overwrite function bar's start position with 200.  The function entry
   // will not be found when searching for it by position and we should fall
@@ -15298,6 +15191,7 @@ TEST(RegExpInterruption) {
   timeout_thread.Join();
 
   regexp_interruption_data.string.Reset();
+  i::DeleteArray(uc16_content);
 }
 
 #endif  // V8_INTERPRETED_REGEXP
@@ -19156,18 +19050,20 @@ TEST(IsolateNewDispose) {
 
 UNINITIALIZED_TEST(DisposeIsolateWhenInUse) {
   v8::Isolate* isolate = v8::Isolate::New();
-  CHECK(isolate);
-  isolate->Enter();
-  v8::HandleScope scope(isolate);
-  LocalContext context(isolate);
-  // Run something in this isolate.
-  ExpectTrue("true");
-  v8::V8::SetFatalErrorHandler(StoringErrorCallback);
-  last_location = last_message = NULL;
-  // Still entered, should fail.
+  {
+    v8::Isolate::Scope i_scope(isolate);
+    v8::HandleScope scope(isolate);
+    LocalContext context(isolate);
+    // Run something in this isolate.
+    ExpectTrue("true");
+    v8::V8::SetFatalErrorHandler(StoringErrorCallback);
+    last_location = last_message = NULL;
+    // Still entered, should fail.
+    isolate->Dispose();
+    CHECK_NE(last_location, NULL);
+    CHECK_NE(last_message, NULL);
+  }
   isolate->Dispose();
-  CHECK_NE(last_location, NULL);
-  CHECK_NE(last_message, NULL);
 }
 
 
@@ -19382,6 +19278,7 @@ TEST(IsolateDifferentContexts) {
     CHECK(v->IsNumber());
     CHECK_EQ(22, static_cast<int>(v->NumberValue()));
   }
+  isolate->Dispose();
 }
 
 class InitDefaultIsolateThread : public v8::internal::Thread {
