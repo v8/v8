@@ -1,3 +1,8 @@
+2014-02-07: Version 3.24.34
+
+        Performance and stability improvements on all platforms.
+
+
 2014-02-06: Version 3.24.33
 
         Allow externalizing strings in old pointer space (Chromium issue
