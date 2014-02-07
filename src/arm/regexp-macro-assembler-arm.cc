@@ -497,6 +497,8 @@ bool RegExpMacroAssemblerARM::CheckSpecialCharacterClass(uc16 type,
       __ b(ls, &success);
       // \u00a0 (NBSP).
       __ cmp(r0, Operand(0x00a0 - '\t'));
+      // \u0085 (NEL).
+      __ cmp(r0, Operand(0x0085 - '\t'), ne);
       BranchOrBacktrack(ne, on_no_match);
       __ bind(&success);
       return true;

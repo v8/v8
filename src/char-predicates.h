@@ -66,6 +66,14 @@ struct IdentifierPart {
   }
 };
 
+
+struct WhiteSpace {
+  static inline bool Is(uc32 c) {
+    return unibrow::WhiteSpace::Is(c) ||
+        c == 0xFEFF;  // BYTE ORDER MARK is a white space in ECMA-262 5.1, 7.2.
+  }
+};
+
 } }  // namespace v8::internal
 
 #endif  // V8_CHAR_PREDICATES_H_
