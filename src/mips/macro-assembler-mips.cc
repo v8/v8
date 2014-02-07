@@ -3439,10 +3439,9 @@ void MacroAssembler::StoreNumberToDoubleElements(Register value_reg,
   Branch(&have_double_value, eq, mantissa_reg, Operand(zero_reg));
   bind(&is_nan);
   // Load canonical NaN for storing into the double array.
-  uint64_t nan_int64 = BitCast<uint64_t>(
-      FixedDoubleArray::canonical_not_the_hole_nan_as_double());
-  li(mantissa_reg, Operand(static_cast<uint32_t>(nan_int64)));
-  li(exponent_reg, Operand(static_cast<uint32_t>(nan_int64 >> 32)));
+  LoadRoot(at, Heap::kNanValueRootIndex);
+  lw(mantissa_reg, FieldMemOperand(at, HeapNumber::kValueOffset));
+  lw(exponent_reg, FieldMemOperand(at, HeapNumber::kValueOffset + 4));
   jmp(&have_double_value);
 
   bind(&smi_value);
