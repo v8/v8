@@ -316,6 +316,8 @@ TEST(ImplicitReferences) {
          reinterpret_cast<HeapObject**>(g2s1.location()));
   ASSERT(implicit_refs->at(1)->length == 1);
   ASSERT(implicit_refs->at(1)->children[0] == g2c1.location());
+  global_handles->RemoveObjectGroups();
+  global_handles->RemoveImplicitRefGroups();
 }
 
 

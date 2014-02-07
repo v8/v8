@@ -179,10 +179,10 @@ TEST(AssemblerX64XchglOperations) {
   Assembler assm(CcTest::i_isolate(), buffer, static_cast<int>(actual_size));
 
   __ movq(rax, Operand(arg1, 0));
-  __ movq(rbx, Operand(arg2, 0));
-  __ xchgl(rax, rbx);
+  __ movq(rdx, Operand(arg2, 0));
+  __ xchgl(rax, rdx);
   __ movq(Operand(arg1, 0), rax);
-  __ movq(Operand(arg2, 0), rbx);
+  __ movq(Operand(arg2, 0), rdx);
   __ ret(0);
 
   CodeDesc desc;
@@ -279,8 +279,8 @@ TEST(AssemblerX64TestlOperations) {
   // Set rax with the ZF flag of the testl instruction.
   Label done;
   __ movq(rax, Immediate(1));
-  __ movq(rbx, Operand(arg2, 0));
-  __ testl(Operand(arg1, 0), rbx);
+  __ movq(rdx, Operand(arg2, 0));
+  __ testl(Operand(arg1, 0), rdx);
   __ j(zero, &done, Label::kNear);
   __ movq(rax, Immediate(0));
   __ bind(&done);
