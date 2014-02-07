@@ -624,3 +624,68 @@ THREADED_TEST(GlobalObjectAccessor) {
   CHECK(v8::Utils::OpenHandle(*CompileRun("getter()"))->IsJSGlobalProxy());
   CHECK(v8::Utils::OpenHandle(*CompileRun("set_value"))->IsJSGlobalProxy());
 }
+
+
+static i::MaybeObject* ZeroAccessorGet(i::Isolate*, i::Object*, void*) {
+  return i::Smi::FromInt(0);
+}
+
+
+static i::MaybeObject* ReadOnlySetAccessor(
+    i::Isolate* isolate, i::JSObject*, i::Object* value, void*) {
+  return value;
+}
+
+
+const i::AccessorDescriptor kCallbackDescriptor = {
+  ZeroAccessorGet,
+  ReadOnlySetAccessor,
+  0
+};
+
+
+THREADED_TEST(RedefineReadOnlyConfigurableForeignCallbackAccessor) {
+  // Verify that property redefinition over foreign callbacks-backed
+  // properties works as expected if the property is non-writable,
+  // but writable. Such a property can be redefined without first
+  // making the property writable (ES5.1 - 8.12.9.10.b)
+  // (bug 3045.)
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  i::Factory* factory = CcTest::i_isolate()->factory();
+
+  v8::HandleScope scope(isolate);
+
+  i::Handle<i::Map> map =
+      factory->NewMap(i::JS_OBJECT_TYPE, i::JSObject::kHeaderSize);
+  i::Handle<i::DescriptorArray> instance_descriptors(
+      map->instance_descriptors());
+  ASSERT(instance_descriptors->IsEmpty());
+
+  i::Handle<i::DescriptorArray> descriptors = factory->NewDescriptorArray(0, 1);
+  i::DescriptorArray::WhitenessWitness witness(*descriptors);
+  map->set_instance_descriptors(*descriptors);
+
+  i::Handle<i::Foreign> foreign = factory->NewForeign(&kCallbackDescriptor);
+  i::Handle<i::String> name =
+      factory->InternalizeUtf8String(i::Vector<const char>("prop", 4));
+
+  // Want a non-writable and configurable property.
+  PropertyAttributes attribs =
+      static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY);
+  i::CallbacksDescriptor d(*name, *foreign, attribs);
+  map->AppendDescriptor(&d, witness);
+
+  i::Handle<i::Object> object = factory->NewJSObjectFromMap(map);
+
+  // Put the object on the global object.
+  env->Global()->Set(v8::String::NewFromUtf8(CcTest::isolate(), "Foreign"),
+                     v8::Utils::ToLocal(object));
+
+  // ..and redefine the property through JavaScript, returning its value.
+  const char* script =
+      "Object.defineProperty(Foreign, 'prop', {value: 2}); Foreign.prop";
+  v8::Handle<v8::Value> result = v8::Script::Compile(
+      v8::String::NewFromUtf8(CcTest::isolate(), script))->Run();
+  CHECK_EQ(2, result->Int32Value());
+}

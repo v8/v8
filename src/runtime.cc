@@ -5068,11 +5068,14 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DefineOrRedefineDataProperty) {
     if (callback->IsAccessorInfo()) {
       return isolate->heap()->undefined_value();
     }
-    // Avoid redefining foreign callback as data property, just use the stored
-    // setter to update the value instead.
+    // Provided a read-only property isn't being reconfigured, avoid redefining
+    // foreign callback as data property, just use the stored setter to update
+    // the value instead.
     // TODO(mstarzinger): So far this only works if property attributes don't
     // change, this should be fixed once we cleanup the underlying code.
-    if (callback->IsForeign() && lookup.GetAttributes() == attr) {
+    if (callback->IsForeign() &&
+        lookup.GetAttributes() == attr &&
+        !(attr & READ_ONLY)) {
       Handle<Object> result_object =
           JSObject::SetPropertyWithCallback(js_object,
                                             callback,
