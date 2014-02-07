@@ -179,20 +179,21 @@ void FullCodeGenerator::Generate() {
     // Generators allocate locals, if any, in context slots.
     ASSERT(!info->function()->is_generator() || locals_count == 0);
     if (locals_count > 0) {
-      __ LoadRoot(at, Heap::kUndefinedValueRootIndex);
       // Emit a loop to initialize stack cells for locals when optimizing for
       // size. Otherwise, unroll the loop for maximum performance.
       __ LoadRoot(t5, Heap::kUndefinedValueRootIndex);
-      if (FLAG_optimize_for_size && locals_count > 4) {
+      if ((FLAG_optimize_for_size && locals_count > 4) ||
+          !is_int16(locals_count)) {
         Label loop;
-        __ li(a2, Operand(locals_count));
+        __ Subu(a2, sp, Operand(locals_count * kPointerSize));
         __ bind(&loop);
-        __ Subu(a2, a2, 1);
-        __ push(t5);
-        __ Branch(&loop, gt, a2, Operand(zero_reg));
+        __ Subu(sp, sp, Operand(kPointerSize));
+        __ Branch(&loop, gt, sp, Operand(a2), USE_DELAY_SLOT);
+        __ sw(t5, MemOperand(sp, 0));  // Push in the delay slot.
       } else {
+        __ Subu(sp, sp, Operand(locals_count * kPointerSize));
         for (int i = 0; i < locals_count; i++) {
-          __ push(t5);
+          __ sw(t5, MemOperand(sp, i * kPointerSize));
         }
       }
     }
@@ -341,10 +342,6 @@ void FullCodeGenerator::EmitProfilingCounterDecrement(int delta) {
 
 void FullCodeGenerator::EmitProfilingCounterReset() {
   int reset_value = FLAG_interrupt_budget;
-  if (info_->ShouldSelfOptimize() && !FLAG_retry_self_opt) {
-    // Self-optimization is a one-off thing: if it fails, don't try again.
-    reset_value = Smi::kMaxValue;
-  }
   if (isolate()->IsDebuggerActive()) {
     // Detect debug break requests as soon as possible.
     reset_value = FLAG_interrupt_budget >> 4;
@@ -365,13 +362,10 @@ void FullCodeGenerator::EmitBackEdgeBookkeeping(IterationStatement* stmt,
   Assembler::BlockTrampolinePoolScope block_trampoline_pool(masm_);
   Comment cmnt(masm_, "[ Back edge bookkeeping");
   Label ok;
-  int weight = 1;
-  if (FLAG_weighted_back_edges) {
-    ASSERT(back_edge_target->is_bound());
-    int distance = masm_->SizeOfCodeGeneratedSince(back_edge_target);
-    weight = Min(kMaxBackEdgeWeight,
-                 Max(1, distance / kCodeSizeMultiplier));
-  }
+  ASSERT(back_edge_target->is_bound());
+  int distance = masm_->SizeOfCodeGeneratedSince(back_edge_target);
+  int weight = Min(kMaxBackEdgeWeight,
+                   Max(1, distance / kCodeSizeMultiplier));
   EmitProfilingCounterDecrement(weight);
   __ slt(at, a3, zero_reg);
   __ beq(at, zero_reg, &ok);
@@ -404,32 +398,24 @@ void FullCodeGenerator::EmitReturnSequence() {
       __ push(v0);
       __ CallRuntime(Runtime::kTraceExit, 1);
     }
-    if (FLAG_interrupt_at_exit || FLAG_self_optimization) {
-      // Pretend that the exit is a backwards jump to the entry.
-      int weight = 1;
-      if (info_->ShouldSelfOptimize()) {
-        weight = FLAG_interrupt_budget / FLAG_self_opt_count;
-      } else if (FLAG_weighted_back_edges) {
-        int distance = masm_->pc_offset();
-        weight = Min(kMaxBackEdgeWeight,
-                     Max(1, distance / kCodeSizeMultiplier));
-      }
-      EmitProfilingCounterDecrement(weight);
-      Label ok;
-      __ Branch(&ok, ge, a3, Operand(zero_reg));
-      __ push(v0);
-      if (info_->ShouldSelfOptimize() && FLAG_direct_self_opt) {
-        __ lw(a2, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
-        __ push(a2);
-        __ CallRuntime(Runtime::kOptimizeFunctionOnNextCall, 1);
-      } else {
-        __ Call(isolate()->builtins()->InterruptCheck(),
-                RelocInfo::CODE_TARGET);
-      }
-      __ pop(v0);
-      EmitProfilingCounterReset();
-      __ bind(&ok);
+    // Pretend that the exit is a backwards jump to the entry.
+    int weight = 1;
+    if (info_->ShouldSelfOptimize()) {
+      weight = FLAG_interrupt_budget / FLAG_self_opt_count;
+    } else {
+      int distance = masm_->pc_offset();
+      weight = Min(kMaxBackEdgeWeight,
+                   Max(1, distance / kCodeSizeMultiplier));
     }
+    EmitProfilingCounterDecrement(weight);
+    Label ok;
+    __ Branch(&ok, ge, a3, Operand(zero_reg));
+    __ push(v0);
+    __ Call(isolate()->builtins()->InterruptCheck(),
+            RelocInfo::CODE_TARGET);
+    __ pop(v0);
+    EmitProfilingCounterReset();
+    __ bind(&ok);
 
 #ifdef DEBUG
     // Add a label for checking the size of the code used for returning.
@@ -1053,6 +1039,15 @@ void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
     Handle<Code> ic = CompareIC::GetUninitialized(isolate(), Token::EQ_STRICT);
     CallIC(ic, RelocInfo::CODE_TARGET, clause->CompareId());
     patch_site.EmitPatchInfo();
+
+    Label skip;
+    __ Branch(&skip);
+    PrepareForBailout(clause, TOS_REG);
+    __ LoadRoot(at, Heap::kTrueValueRootIndex);
+    __ Branch(&next_test, ne, v0, Operand(at));
+    __ Drop(1);
+    __ Branch(clause->body_target());
+    __ bind(&skip);
 
     __ Branch(&next_test, ne, v0, Operand(zero_reg));
     __ Drop(1);  // Switch value is no longer needed.
@@ -3763,14 +3758,11 @@ void FullCodeGenerator::EmitStringCompare(CallRuntime* expr) {
 
 
 void FullCodeGenerator::EmitMathLog(CallRuntime* expr) {
-  // Load the argument on the stack and call the stub.
-  TranscendentalCacheStub stub(TranscendentalCache::LOG,
-                               TranscendentalCacheStub::TAGGED);
+  // Load the argument on the stack and call the runtime function.
   ZoneList<Expression*>* args = expr->arguments();
   ASSERT(args->length() == 1);
   VisitForStackValue(args->at(0));
-  __ mov(a0, result_register());  // Stub requires parameter in a0 and on tos.
-  __ CallStub(&stub);
+  __ CallRuntime(Runtime::kMath_log, 1);
   context()->Plug(v0);
 }
 

@@ -49,6 +49,7 @@
 #include "snapshot.h"
 #include "store-buffer.h"
 #include "utils/random-number-generator.h"
+#include "v8conversions.h"
 #include "v8threads.h"
 #include "v8utils.h"
 #include "vm-state-inl.h"
@@ -148,6 +149,7 @@ Heap::Heap()
 #ifdef VERIFY_HEAP
       no_weak_object_verification_scope_depth_(0),
 #endif
+      allocation_sites_scratchpad_length(0),
       promotion_queue_(this),
       configured_(false),
       chunks_queued_for_free_(NULL),
@@ -436,7 +438,6 @@ void Heap::ReportStatisticsAfterGC() {
 
 void Heap::GarbageCollectionPrologue() {
   {  AllowHeapAllocation for_the_first_part_of_prologue;
-    isolate_->transcendental_cache()->Clear();
     ClearJSFunctionResultCaches();
     gc_count_++;
     unflattened_strings_length_ = 0;
@@ -504,25 +505,45 @@ void Heap::RepairFreeListsAfterBoot() {
 }
 
 
-void Heap::GarbageCollectionEpilogue() {
+void Heap::ProcessPretenuringFeedback() {
   if (FLAG_allocation_site_pretenuring) {
     int tenure_decisions = 0;
     int dont_tenure_decisions = 0;
     int allocation_mementos_found = 0;
+    int allocation_sites = 0;
+    int active_allocation_sites = 0;
 
-    Object* cur = allocation_sites_list();
-    while (cur->IsAllocationSite()) {
-      AllocationSite* casted = AllocationSite::cast(cur);
-      allocation_mementos_found += casted->memento_found_count()->value();
-      if (casted->DigestPretenuringFeedback()) {
-        if (casted->GetPretenureMode() == TENURED) {
+    // If the scratchpad overflowed, we have to iterate over the allocation
+    // stites list.
+    bool use_scratchpad =
+        allocation_sites_scratchpad_length < kAllocationSiteScratchpadSize;
+
+    int i = 0;
+    Object* list_element = allocation_sites_list();
+    while (use_scratchpad ?
+              i < allocation_sites_scratchpad_length :
+              list_element->IsAllocationSite()) {
+      AllocationSite* site = use_scratchpad ?
+        allocation_sites_scratchpad[i] : AllocationSite::cast(list_element);
+      allocation_mementos_found += site->memento_found_count()->value();
+      if (site->memento_found_count()->value() > 0) {
+        active_allocation_sites++;
+      }
+      if (site->DigestPretenuringFeedback()) {
+        if (site->GetPretenureMode() == TENURED) {
           tenure_decisions++;
         } else {
           dont_tenure_decisions++;
         }
       }
-      cur = casted->weak_next();
+      allocation_sites++;
+      if (use_scratchpad) {
+        i++;
+      } else {
+        list_element = site->weak_next();
+      }
     }
+    allocation_sites_scratchpad_length = 0;
 
     // TODO(mvstanton): Pretenure decisions are only made once for an allocation
     // site. Find a sane way to decide about revisiting the decision later.
@@ -531,14 +552,21 @@ void Heap::GarbageCollectionEpilogue() {
         (allocation_mementos_found > 0 ||
          tenure_decisions > 0 ||
          dont_tenure_decisions > 0)) {
-      PrintF("GC: (#mementos, #tenure decisions, #donttenure decisions) "
-             "(%d, %d, %d)\n",
+      PrintF("GC: (mode, #visited allocation sites, #active allocation sites, "
+             "#mementos, #tenure decisions, #donttenure decisions) "
+             "(%s, %d, %d, %d, %d, %d)\n",
+             use_scratchpad ? "use scratchpad" : "use list",
+             allocation_sites,
+             active_allocation_sites,
              allocation_mementos_found,
              tenure_decisions,
              dont_tenure_decisions);
     }
   }
+}
 
+
+void Heap::GarbageCollectionEpilogue() {
   store_buffer()->GCEpilogue();
 
   // In release mode, we only zap the from space under heap verification.
@@ -1548,9 +1576,6 @@ void Heap::Scavenge() {
 
   promotion_queue_.Destroy();
 
-  if (!FLAG_watch_ic_patching) {
-    isolate()->runtime_profiler()->UpdateSamplesAfterScavenge();
-  }
   incremental_marking()->UpdateMarkingDequeAfterScavenge();
 
   ScavengeWeakObjectRetainer weak_object_retainer(this);
@@ -1567,6 +1592,8 @@ void Heap::Scavenge() {
   // Update how much has survived scavenge.
   IncrementYoungSurvivorsCounter(static_cast<int>(
       (PromotedSpaceSizeOfObjects() - survived_watermark) + new_space_.Size()));
+
+  ProcessPretenuringFeedback();
 
   LOG(isolate_, ResourceEvent("scavenge", "end"));
 
@@ -1941,12 +1968,7 @@ void Heap::ProcessAllocationSites(WeakObjectRetainer* retainer,
 
 void Heap::VisitExternalResources(v8::ExternalResourceVisitor* visitor) {
   DisallowHeapAllocation no_allocation;
-
-  // Both the external string table and the string table may contain
-  // external strings, but neither lists them exhaustively, nor is the
-  // intersection set empty.  Therefore we iterate over the external string
-  // table first, ignoring internalized strings, and then over the
-  // internalized string table.
+  // All external strings are listed in the external string table.
 
   class ExternalStringTableVisitorAdapter : public ObjectVisitor {
    public:
@@ -1954,13 +1976,9 @@ void Heap::VisitExternalResources(v8::ExternalResourceVisitor* visitor) {
         v8::ExternalResourceVisitor* visitor) : visitor_(visitor) {}
     virtual void VisitPointers(Object** start, Object** end) {
       for (Object** p = start; p < end; p++) {
-        // Visit non-internalized external strings,
-        // since internalized strings are listed in the string table.
-        if (!(*p)->IsInternalizedString()) {
-          ASSERT((*p)->IsExternalString());
-          visitor_->VisitExternalString(Utils::ToLocal(
-              Handle<String>(String::cast(*p))));
-        }
+        ASSERT((*p)->IsExternalString());
+        visitor_->VisitExternalString(Utils::ToLocal(
+            Handle<String>(String::cast(*p))));
       }
     }
    private:
@@ -1968,25 +1986,6 @@ void Heap::VisitExternalResources(v8::ExternalResourceVisitor* visitor) {
   } external_string_table_visitor(visitor);
 
   external_string_table_.Iterate(&external_string_table_visitor);
-
-  class StringTableVisitorAdapter : public ObjectVisitor {
-   public:
-    explicit StringTableVisitorAdapter(
-        v8::ExternalResourceVisitor* visitor) : visitor_(visitor) {}
-    virtual void VisitPointers(Object** start, Object** end) {
-      for (Object** p = start; p < end; p++) {
-        if ((*p)->IsExternalString()) {
-          ASSERT((*p)->IsInternalizedString());
-          visitor_->VisitExternalString(Utils::ToLocal(
-              Handle<String>(String::cast(*p))));
-        }
-      }
-    }
-   private:
-    v8::ExternalResourceVisitor* visitor_;
-  } string_table_visitor(visitor);
-
-  string_table()->IterateElements(&string_table_visitor);
 }
 
 
@@ -2646,6 +2645,12 @@ bool Heap::CreateInitialMaps() {
   }
   set_oddball_map(Map::cast(obj));
 
+  { MaybeObject* maybe_obj =
+        AllocatePartialMap(CONSTANT_POOL_ARRAY_TYPE, kVariableSizeSentinel);
+    if (!maybe_obj->ToObject(&obj)) return false;
+  }
+  set_constant_pool_array_map(Map::cast(obj));
+
   // Allocate the empty array.
   { MaybeObject* maybe_obj = AllocateEmptyFixedArray();
     if (!maybe_obj->ToObject(&obj)) return false;
@@ -2671,6 +2676,12 @@ bool Heap::CreateInitialMaps() {
   }
   set_empty_descriptor_array(DescriptorArray::cast(obj));
 
+  // Allocate the constant pool array.
+  { MaybeObject* maybe_obj = AllocateEmptyConstantPoolArray();
+    if (!maybe_obj->ToObject(&obj)) return false;
+  }
+  set_empty_constant_pool_array(ConstantPoolArray::cast(obj));
+
   // Fix the instance_descriptors for the existing maps.
   meta_map()->set_code_cache(empty_fixed_array());
   meta_map()->set_dependent_code(DependentCode::cast(empty_fixed_array()));
@@ -2688,6 +2699,12 @@ bool Heap::CreateInitialMaps() {
   oddball_map()->init_back_pointer(undefined_value());
   oddball_map()->set_instance_descriptors(empty_descriptor_array());
 
+  constant_pool_array_map()->set_code_cache(empty_fixed_array());
+  constant_pool_array_map()->set_dependent_code(
+      DependentCode::cast(empty_fixed_array()));
+  constant_pool_array_map()->init_back_pointer(undefined_value());
+  constant_pool_array_map()->set_instance_descriptors(empty_descriptor_array());
+
   // Fix prototype object for existing maps.
   meta_map()->set_prototype(null_value());
   meta_map()->set_constructor(null_value());
@@ -2697,6 +2714,9 @@ bool Heap::CreateInitialMaps() {
 
   oddball_map()->set_prototype(null_value());
   oddball_map()->set_constructor(null_value());
+
+  constant_pool_array_map()->set_prototype(null_value());
+  constant_pool_array_map()->set_constructor(null_value());
 
   { MaybeObject* maybe_obj =
         AllocateMap(FIXED_ARRAY_TYPE, kVariableSizeSentinel);
@@ -2752,12 +2772,6 @@ bool Heap::CreateInitialMaps() {
     if (!maybe_obj->ToObject(&obj)) return false;
   }
   set_fixed_double_array_map(Map::cast(obj));
-
-  { MaybeObject* maybe_obj =
-        AllocateMap(CONSTANT_POOL_ARRAY_TYPE, kVariableSizeSentinel);
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  set_constant_pool_array_map(Map::cast(obj));
 
   { MaybeObject* maybe_obj =
         AllocateMap(BYTE_ARRAY_TYPE, kVariableSizeSentinel);
@@ -3696,6 +3710,7 @@ Heap::RootListIndex Heap::RootIndexForExternalArrayType(
   }
 }
 
+
 Heap::RootListIndex Heap::RootIndexForEmptyExternalArray(
     ElementsKind elementsKind) {
   switch (elementsKind) {
@@ -3730,16 +3745,11 @@ ExternalArray* Heap::EmptyExternalArrayForMap(Map* map) {
 }
 
 
-
-
 MaybeObject* Heap::NumberFromDouble(double value, PretenureFlag pretenure) {
   // We need to distinguish the minus zero value and this cannot be
   // done after conversion to int. Doing this by comparing bit
   // patterns is faster than using fpclassify() et al.
-  static const DoubleRepresentation minus_zero(-0.0);
-
-  DoubleRepresentation rep(value);
-  if (rep.bits == minus_zero.bits) {
+  if (IsMinusZero(value)) {
     return AllocateHeapNumber(-0.0, pretenure);
   }
 
@@ -3826,264 +3836,6 @@ MaybeObject* Heap::AllocateJSMessageObject(String* type,
   message->set_script(script);
   message->set_stack_trace(stack_trace);
   message->set_stack_frames(stack_frames);
-  return result;
-}
-
-
-
-// Returns true for a character in a range.  Both limits are inclusive.
-static inline bool Between(uint32_t character, uint32_t from, uint32_t to) {
-  // This makes uses of the the unsigned wraparound.
-  return character - from <= to - from;
-}
-
-
-MUST_USE_RESULT static inline MaybeObject* MakeOrFindTwoCharacterString(
-    Heap* heap,
-    uint16_t c1,
-    uint16_t c2) {
-  String* result;
-  // Numeric strings have a different hash algorithm not known by
-  // LookupTwoCharsStringIfExists, so we skip this step for such strings.
-  if ((!Between(c1, '0', '9') || !Between(c2, '0', '9')) &&
-      heap->string_table()->LookupTwoCharsStringIfExists(c1, c2, &result)) {
-    return result;
-  // Now we know the length is 2, we might as well make use of that fact
-  // when building the new string.
-  } else if (static_cast<unsigned>(c1 | c2) <= String::kMaxOneByteCharCodeU) {
-    // We can do this.
-    ASSERT(IsPowerOf2(String::kMaxOneByteCharCodeU + 1));  // because of this.
-    Object* result;
-    { MaybeObject* maybe_result = heap->AllocateRawOneByteString(2);
-      if (!maybe_result->ToObject(&result)) return maybe_result;
-    }
-    uint8_t* dest = SeqOneByteString::cast(result)->GetChars();
-    dest[0] = static_cast<uint8_t>(c1);
-    dest[1] = static_cast<uint8_t>(c2);
-    return result;
-  } else {
-    Object* result;
-    { MaybeObject* maybe_result = heap->AllocateRawTwoByteString(2);
-      if (!maybe_result->ToObject(&result)) return maybe_result;
-    }
-    uc16* dest = SeqTwoByteString::cast(result)->GetChars();
-    dest[0] = c1;
-    dest[1] = c2;
-    return result;
-  }
-}
-
-
-MaybeObject* Heap::AllocateConsString(String* first, String* second) {
-  int first_length = first->length();
-  if (first_length == 0) {
-    return second;
-  }
-
-  int second_length = second->length();
-  if (second_length == 0) {
-    return first;
-  }
-
-  int length = first_length + second_length;
-
-  // Optimization for 2-byte strings often used as keys in a decompression
-  // dictionary.  Check whether we already have the string in the string
-  // table to prevent creation of many unneccesary strings.
-  if (length == 2) {
-    uint16_t c1 = first->Get(0);
-    uint16_t c2 = second->Get(0);
-    return MakeOrFindTwoCharacterString(this, c1, c2);
-  }
-
-  bool first_is_one_byte = first->IsOneByteRepresentation();
-  bool second_is_one_byte = second->IsOneByteRepresentation();
-  bool is_one_byte = first_is_one_byte && second_is_one_byte;
-  // Make sure that an out of memory exception is thrown if the length
-  // of the new cons string is too large.
-  if (length > String::kMaxLength || length < 0) {
-    isolate()->context()->mark_out_of_memory();
-    return Failure::OutOfMemoryException(0x4);
-  }
-
-  bool is_one_byte_data_in_two_byte_string = false;
-  if (!is_one_byte) {
-    // At least one of the strings uses two-byte representation so we
-    // can't use the fast case code for short ASCII strings below, but
-    // we can try to save memory if all chars actually fit in ASCII.
-    is_one_byte_data_in_two_byte_string =
-        first->HasOnlyOneByteChars() && second->HasOnlyOneByteChars();
-    if (is_one_byte_data_in_two_byte_string) {
-      isolate_->counters()->string_add_runtime_ext_to_ascii()->Increment();
-    }
-  }
-
-  // If the resulting string is small make a flat string.
-  if (length < ConsString::kMinLength) {
-    // Note that neither of the two inputs can be a slice because:
-    STATIC_ASSERT(ConsString::kMinLength <= SlicedString::kMinLength);
-    ASSERT(first->IsFlat());
-    ASSERT(second->IsFlat());
-    if (is_one_byte) {
-      Object* result;
-      { MaybeObject* maybe_result = AllocateRawOneByteString(length);
-        if (!maybe_result->ToObject(&result)) return maybe_result;
-      }
-      // Copy the characters into the new object.
-      uint8_t* dest = SeqOneByteString::cast(result)->GetChars();
-      // Copy first part.
-      const uint8_t* src;
-      if (first->IsExternalString()) {
-        src = ExternalAsciiString::cast(first)->GetChars();
-      } else {
-        src = SeqOneByteString::cast(first)->GetChars();
-      }
-      for (int i = 0; i < first_length; i++) *dest++ = src[i];
-      // Copy second part.
-      if (second->IsExternalString()) {
-        src = ExternalAsciiString::cast(second)->GetChars();
-      } else {
-        src = SeqOneByteString::cast(second)->GetChars();
-      }
-      for (int i = 0; i < second_length; i++) *dest++ = src[i];
-      return result;
-    } else {
-      if (is_one_byte_data_in_two_byte_string) {
-        Object* result;
-        { MaybeObject* maybe_result = AllocateRawOneByteString(length);
-          if (!maybe_result->ToObject(&result)) return maybe_result;
-        }
-        // Copy the characters into the new object.
-        uint8_t* dest = SeqOneByteString::cast(result)->GetChars();
-        String::WriteToFlat(first, dest, 0, first_length);
-        String::WriteToFlat(second, dest + first_length, 0, second_length);
-        isolate_->counters()->string_add_runtime_ext_to_ascii()->Increment();
-        return result;
-      }
-
-      Object* result;
-      { MaybeObject* maybe_result = AllocateRawTwoByteString(length);
-        if (!maybe_result->ToObject(&result)) return maybe_result;
-      }
-      // Copy the characters into the new object.
-      uc16* dest = SeqTwoByteString::cast(result)->GetChars();
-      String::WriteToFlat(first, dest, 0, first_length);
-      String::WriteToFlat(second, dest + first_length, 0, second_length);
-      return result;
-    }
-  }
-
-  Map* map = (is_one_byte || is_one_byte_data_in_two_byte_string) ?
-      cons_ascii_string_map() : cons_string_map();
-
-  Object* result;
-  { MaybeObject* maybe_result = Allocate(map, NEW_SPACE);
-    if (!maybe_result->ToObject(&result)) return maybe_result;
-  }
-
-  DisallowHeapAllocation no_gc;
-  ConsString* cons_string = ConsString::cast(result);
-  WriteBarrierMode mode = cons_string->GetWriteBarrierMode(no_gc);
-  cons_string->set_length(length);
-  cons_string->set_hash_field(String::kEmptyHashField);
-  cons_string->set_first(first, mode);
-  cons_string->set_second(second, mode);
-  return result;
-}
-
-
-MaybeObject* Heap::AllocateSubString(String* buffer,
-                                     int start,
-                                     int end,
-                                     PretenureFlag pretenure) {
-  int length = end - start;
-  if (length <= 0) {
-    return empty_string();
-  }
-
-  // Make an attempt to flatten the buffer to reduce access time.
-  buffer = buffer->TryFlattenGetString();
-
-  if (length == 1) {
-    return LookupSingleCharacterStringFromCode(buffer->Get(start));
-  } else if (length == 2) {
-    // Optimization for 2-byte strings often used as keys in a decompression
-    // dictionary.  Check whether we already have the string in the string
-    // table to prevent creation of many unnecessary strings.
-    uint16_t c1 = buffer->Get(start);
-    uint16_t c2 = buffer->Get(start + 1);
-    return MakeOrFindTwoCharacterString(this, c1, c2);
-  }
-
-  if (!FLAG_string_slices ||
-      !buffer->IsFlat() ||
-      length < SlicedString::kMinLength ||
-      pretenure == TENURED) {
-    Object* result;
-    // WriteToFlat takes care of the case when an indirect string has a
-    // different encoding from its underlying string.  These encodings may
-    // differ because of externalization.
-    bool is_one_byte = buffer->IsOneByteRepresentation();
-    { MaybeObject* maybe_result = is_one_byte
-                                  ? AllocateRawOneByteString(length, pretenure)
-                                  : AllocateRawTwoByteString(length, pretenure);
-      if (!maybe_result->ToObject(&result)) return maybe_result;
-    }
-    String* string_result = String::cast(result);
-    // Copy the characters into the new object.
-    if (is_one_byte) {
-      ASSERT(string_result->IsOneByteRepresentation());
-      uint8_t* dest = SeqOneByteString::cast(string_result)->GetChars();
-      String::WriteToFlat(buffer, dest, start, end);
-    } else {
-      ASSERT(string_result->IsTwoByteRepresentation());
-      uc16* dest = SeqTwoByteString::cast(string_result)->GetChars();
-      String::WriteToFlat(buffer, dest, start, end);
-    }
-    return result;
-  }
-
-  ASSERT(buffer->IsFlat());
-#if VERIFY_HEAP
-  if (FLAG_verify_heap) {
-    buffer->StringVerify();
-  }
-#endif
-
-  Object* result;
-  // When slicing an indirect string we use its encoding for a newly created
-  // slice and don't check the encoding of the underlying string.  This is safe
-  // even if the encodings are different because of externalization.  If an
-  // indirect ASCII string is pointing to a two-byte string, the two-byte char
-  // codes of the underlying string must still fit into ASCII (because
-  // externalization must not change char codes).
-  { Map* map = buffer->IsOneByteRepresentation()
-                 ? sliced_ascii_string_map()
-                 : sliced_string_map();
-    MaybeObject* maybe_result = Allocate(map, NEW_SPACE);
-    if (!maybe_result->ToObject(&result)) return maybe_result;
-  }
-
-  DisallowHeapAllocation no_gc;
-  SlicedString* sliced_string = SlicedString::cast(result);
-  sliced_string->set_length(length);
-  sliced_string->set_hash_field(String::kEmptyHashField);
-  if (buffer->IsConsString()) {
-    ConsString* cons = ConsString::cast(buffer);
-    ASSERT(cons->second()->length() == 0);
-    sliced_string->set_parent(cons->first());
-    sliced_string->set_offset(start);
-  } else if (buffer->IsSlicedString()) {
-    // Prevent nesting sliced strings.
-    SlicedString* parent_slice = SlicedString::cast(buffer);
-    sliced_string->set_parent(parent_slice->parent());
-    sliced_string->set_offset(start + parent_slice->offset());
-  } else {
-    sliced_string->set_parent(buffer);
-    sliced_string->set_offset(start);
-  }
-  ASSERT(sliced_string->parent()->IsSeqString() ||
-         sliced_string->parent()->IsExternalString());
   return result;
 }
 
@@ -4264,6 +4016,8 @@ MaybeObject* Heap::CreateCode(const CodeDesc& desc,
   code->set_instruction_size(desc.instr_size);
   code->set_relocation_info(reloc_info);
   code->set_flags(flags);
+  code->set_raw_kind_specific_flags1(0);
+  code->set_raw_kind_specific_flags2(0);
   if (code->is_call_stub() || code->is_keyed_call_stub()) {
     code->set_check_type(RECEIVER_MAP_CHECK);
   }
@@ -4277,6 +4031,7 @@ MaybeObject* Heap::CreateCode(const CodeDesc& desc,
   if (code->kind() == Code::OPTIMIZED_FUNCTION) {
     code->set_marked_for_deoptimization(false);
   }
+  code->set_constant_pool(empty_constant_pool_array());
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   if (code->kind() == Code::FUNCTION) {
@@ -5516,13 +5271,28 @@ MaybeObject* Heap::AllocateConstantPoolArray(int number_of_int64_entries,
   constant_pool->SetEntryCounts(number_of_int64_entries,
                                 number_of_ptr_entries,
                                 number_of_int32_entries);
-  MemsetPointer(
-      HeapObject::RawField(
-          constant_pool,
-          constant_pool->OffsetOfElementAt(constant_pool->first_ptr_index())),
-      undefined_value(),
-      number_of_ptr_entries);
+  if (number_of_ptr_entries > 0) {
+    MemsetPointer(
+        HeapObject::RawField(
+            constant_pool,
+            constant_pool->OffsetOfElementAt(constant_pool->first_ptr_index())),
+        undefined_value(),
+        number_of_ptr_entries);
+  }
   return constant_pool;
+}
+
+
+MaybeObject* Heap::AllocateEmptyConstantPoolArray() {
+  int size = ConstantPoolArray::SizeFor(0, 0, 0);
+  Object* result;
+  { MaybeObject* maybe_result =
+        AllocateRaw(size, OLD_DATA_SPACE, OLD_DATA_SPACE);
+    if (!maybe_result->ToObject(&result)) return maybe_result;
+  }
+  HeapObject::cast(result)->set_map_no_write_barrier(constant_pool_array_map());
+  ConstantPoolArray::cast(result)->SetEntryCounts(0, 0, 0);
+  return result;
 }
 
 
@@ -7787,29 +7557,6 @@ void Heap::GarbageCollectionGreedyCheck() {
   CollectGarbage(NEW_SPACE);
 }
 #endif
-
-
-TranscendentalCache::SubCache::SubCache(Isolate* isolate, Type t)
-  : type_(t),
-    isolate_(isolate) {
-  uint32_t in0 = 0xffffffffu;  // Bit-pattern for a NaN that isn't
-  uint32_t in1 = 0xffffffffu;  // generated by the FPU.
-  for (int i = 0; i < kCacheSize; i++) {
-    elements_[i].in[0] = in0;
-    elements_[i].in[1] = in1;
-    elements_[i].output = NULL;
-  }
-}
-
-
-void TranscendentalCache::Clear() {
-  for (int i = 0; i < kNumberOfCaches; i++) {
-    if (caches_[i] != NULL) {
-      delete caches_[i];
-      caches_[i] = NULL;
-    }
-  }
-}
 
 
 void ExternalStringTable::CleanUp() {

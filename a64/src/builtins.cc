@@ -153,8 +153,8 @@ BUILTIN_LIST_C(DEF_ARG_TYPE)
 #endif
 
 
-static inline bool CalledAsConstructor(Isolate* isolate) {
 #ifdef DEBUG
+static inline bool CalledAsConstructor(Isolate* isolate) {
   // Calculate the result using a full stack frame iterator and check
   // that the state of the stack is as we assume it to be in the
   // code below.
@@ -163,7 +163,6 @@ static inline bool CalledAsConstructor(Isolate* isolate) {
   it.Advance();
   StackFrame* frame = it.frame();
   bool reference_result = frame->is_construct();
-#endif
   Address fp = Isolate::c_entry_fp(isolate->thread_local_top());
   // Because we know fp points to an exit frame we can use the relevant
   // part of ExitFrame::ComputeCallerState directly.
@@ -180,6 +179,7 @@ static inline bool CalledAsConstructor(Isolate* isolate) {
   ASSERT_EQ(result, reference_result);
   return result;
 }
+#endif
 
 
 // ----------------------------------------------------------------------------

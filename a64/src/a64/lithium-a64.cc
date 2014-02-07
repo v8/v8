@@ -96,7 +96,7 @@ void LCallConstantFunction::PrintDataTo(StringStream* stream) {
 
 void LCallNamed::PrintDataTo(StringStream* stream) {
   SmartArrayPointer<char> name_string = name()->ToCString();
-  stream->Add("%s #%d / ", *name_string, arity());
+  stream->Add("%s #%d / ", name_string.get(), arity());
 }
 
 
@@ -112,7 +112,7 @@ void LCallKnownGlobal::PrintDataTo(StringStream* stream) {
 
 void LCallGlobal::PrintDataTo(StringStream* stream) {
   SmartArrayPointer<char> name_string = name()->ToCString();
-  stream->Add("%s #%d / ", *name_string, arity());
+  stream->Add("%s #%d / ", name_string.get(), arity());
 }
 
 
@@ -252,7 +252,7 @@ void LTypeofIsAndBranch::PrintDataTo(StringStream* stream) {
   stream->Add("if typeof ");
   value()->PrintTo(stream);
   stream->Add(" == \"%s\" then B%d else B%d",
-              *hydrogen()->type_literal()->ToCString(),
+              hydrogen()->type_literal()->ToCString().get(),
               true_block_id(), false_block_id());
 }
 
@@ -327,7 +327,7 @@ void LStoreNamedField::PrintDataTo(StringStream* stream) {
 void LStoreNamedGeneric::PrintDataTo(StringStream* stream) {
   object()->PrintTo(stream);
   stream->Add(".");
-  stream->Add(*String::cast(*name())->ToCString());
+  stream->Add(String::cast(*name())->ToCString().get());
   stream->Add(" <- ");
   value()->PrintTo(stream);
 }

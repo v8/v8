@@ -1245,7 +1245,7 @@ class HInstruction : public HValue {
   virtual void Verify() V8_OVERRIDE;
 #endif
 
-  virtual bool IsCall() { return false; }
+  virtual bool HasStackCheck() { return false; }
 
   DECLARE_ABSTRACT_INSTRUCTION(Instruction)
 
@@ -2243,8 +2243,6 @@ class HCall : public HTemplateInstruction<V> {
     return -argument_count();
   }
 
-  virtual bool IsCall() V8_FINAL V8_OVERRIDE { return true; }
-
  private:
   int argument_count_;
 };
@@ -2300,6 +2298,9 @@ class HInvokeFunction V8_FINAL : public HBinaryCall {
         known_function_(known_function) {
     formal_parameter_count_ = known_function.is_null()
         ? 0 : known_function->shared()->formal_parameter_count();
+    has_stack_check_ = !known_function.is_null() &&
+        (known_function->code()->kind() == Code::FUNCTION ||
+         known_function->code()->kind() == Code::OPTIMIZED_FUNCTION);
   }
 
   static HInvokeFunction* New(Zone* zone,
@@ -2316,15 +2317,21 @@ class HInvokeFunction V8_FINAL : public HBinaryCall {
   Handle<JSFunction> known_function() { return known_function_; }
   int formal_parameter_count() const { return formal_parameter_count_; }
 
+  virtual bool HasStackCheck() V8_FINAL V8_OVERRIDE {
+    return has_stack_check_;
+  }
+
   DECLARE_CONCRETE_INSTRUCTION(InvokeFunction)
 
  private:
   HInvokeFunction(HValue* context, HValue* function, int argument_count)
-      : HBinaryCall(context, function, argument_count) {
+      : HBinaryCall(context, function, argument_count),
+        has_stack_check_(false) {
   }
 
   Handle<JSFunction> known_function_;
   int formal_parameter_count_;
+  bool has_stack_check_;
 };
 
 
@@ -2348,16 +2355,24 @@ class HCallConstantFunction V8_FINAL : public HCall<0> {
     return Representation::None();
   }
 
+  virtual bool HasStackCheck() V8_FINAL V8_OVERRIDE {
+    return has_stack_check_;
+  }
+
   DECLARE_CONCRETE_INSTRUCTION(CallConstantFunction)
 
  private:
   HCallConstantFunction(Handle<JSFunction> function, int argument_count)
       : HCall<0>(argument_count),
         function_(function),
-        formal_parameter_count_(function->shared()->formal_parameter_count()) {}
+        formal_parameter_count_(function->shared()->formal_parameter_count()),
+        has_stack_check_(
+            function->code()->kind() == Code::FUNCTION ||
+            function->code()->kind() == Code::OPTIMIZED_FUNCTION) {}
 
   Handle<JSFunction> function_;
   int formal_parameter_count_;
+  bool has_stack_check_;
 };
 
 
@@ -2465,16 +2480,24 @@ class HCallKnownGlobal V8_FINAL : public HCall<0> {
     return Representation::None();
   }
 
+  virtual bool HasStackCheck() V8_FINAL V8_OVERRIDE {
+    return has_stack_check_;
+  }
+
   DECLARE_CONCRETE_INSTRUCTION(CallKnownGlobal)
 
  private:
   HCallKnownGlobal(Handle<JSFunction> target, int argument_count)
       : HCall<0>(argument_count),
         target_(target),
-        formal_parameter_count_(target->shared()->formal_parameter_count()) { }
+        formal_parameter_count_(target->shared()->formal_parameter_count()),
+        has_stack_check_(
+            target->code()->kind() == Code::FUNCTION ||
+            target->code()->kind() == Code::OPTIMIZED_FUNCTION) {}
 
   Handle<JSFunction> target_;
   int formal_parameter_count_;
+  bool has_stack_check_;
 };
 
 
@@ -2682,10 +2705,6 @@ class HUnaryMathOperation V8_FINAL : public HTemplateInstruction<2> {
         SetGVNFlag(kChangesNewSpacePromotion);
         break;
       case kMathLog:
-        set_representation(Representation::Double());
-        // These operations use the TranscendentalCache, so they may allocate.
-        SetGVNFlag(kChangesNewSpacePromotion);
-        break;
       case kMathExp:
       case kMathSqrt:
       case kMathPowHalf:
@@ -5287,13 +5306,6 @@ class HCallStub V8_FINAL : public HUnaryCall {
 
   HValue* context() { return value(); }
 
-  void set_transcendental_type(TranscendentalCache::Type transcendental_type) {
-    transcendental_type_ = transcendental_type;
-  }
-  TranscendentalCache::Type transcendental_type() {
-    return transcendental_type_;
-  }
-
   virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
 
   DECLARE_CONCRETE_INSTRUCTION(CallStub)
@@ -5301,12 +5313,10 @@ class HCallStub V8_FINAL : public HUnaryCall {
  private:
   HCallStub(HValue* context, CodeStub::Major major_key, int argument_count)
       : HUnaryCall(context, argument_count),
-        major_key_(major_key),
-        transcendental_type_(TranscendentalCache::kNumberOfCaches) {
+        major_key_(major_key) {
   }
 
   CodeStub::Major major_key_;
-  TranscendentalCache::Type transcendental_type_;
 };
 
 
@@ -5428,6 +5438,12 @@ class HLoadGlobalGeneric V8_FINAL : public HTemplateInstruction<2> {
 
 class HAllocate V8_FINAL : public HTemplateInstruction<2> {
  public:
+  static bool CompatibleInstanceTypes(InstanceType type1,
+                                      InstanceType type2) {
+    return ComputeFlags(TENURED, type1) == ComputeFlags(TENURED, type2) &&
+        ComputeFlags(NOT_TENURED, type1) == ComputeFlags(NOT_TENURED, type2);
+  }
+
   static HAllocate* New(Zone* zone,
                         HValue* context,
                         HValue* size,
@@ -5486,6 +5502,10 @@ class HAllocate V8_FINAL : public HTemplateInstruction<2> {
     flags_ = static_cast<HAllocate::Flags>(flags_ | PREFILL_WITH_FILLER);
   }
 
+  bool MustClearNextMapWord() const {
+    return (flags_ & CLEAR_NEXT_MAP_WORD) != 0;
+  }
+
   void MakeDoubleAligned() {
     flags_ = static_cast<HAllocate::Flags>(flags_ | ALLOCATE_DOUBLE_ALIGNED);
   }
@@ -5503,7 +5523,8 @@ class HAllocate V8_FINAL : public HTemplateInstruction<2> {
     ALLOCATE_IN_OLD_DATA_SPACE = 1 << 1,
     ALLOCATE_IN_OLD_POINTER_SPACE = 1 << 2,
     ALLOCATE_DOUBLE_ALIGNED = 1 << 3,
-    PREFILL_WITH_FILLER = 1 << 4
+    PREFILL_WITH_FILLER = 1 << 4,
+    CLEAR_NEXT_MAP_WORD = 1 << 5
   };
 
   HAllocate(HValue* context,
@@ -5514,32 +5535,15 @@ class HAllocate V8_FINAL : public HTemplateInstruction<2> {
             Handle<AllocationSite> allocation_site =
                 Handle<AllocationSite>::null())
       : HTemplateInstruction<2>(type),
+        flags_(ComputeFlags(pretenure_flag, instance_type)),
         dominating_allocate_(NULL),
-        filler_free_space_size_(NULL),
-        clear_next_map_word_(false) {
+        filler_free_space_size_(NULL) {
     SetOperandAt(0, context);
     SetOperandAt(1, size);
     set_representation(Representation::Tagged());
     SetFlag(kTrackSideEffectDominators);
     SetGVNFlag(kChangesNewSpacePromotion);
     SetGVNFlag(kDependsOnNewSpacePromotion);
-    flags_ = pretenure_flag == TENURED
-        ? (Heap::TargetSpaceId(instance_type) == OLD_POINTER_SPACE
-            ? ALLOCATE_IN_OLD_POINTER_SPACE : ALLOCATE_IN_OLD_DATA_SPACE)
-        : ALLOCATE_IN_NEW_SPACE;
-    if (instance_type == FIXED_DOUBLE_ARRAY_TYPE) {
-      flags_ = static_cast<HAllocate::Flags>(flags_ | ALLOCATE_DOUBLE_ALIGNED);
-    }
-    // We have to fill the allocated object with one word fillers if we do
-    // not use allocation folding since some allocations may depend on each
-    // other, i.e., have a pointer to each other. A GC in between these
-    // allocations may leave such objects behind in a not completely initialized
-    // state.
-    if (!FLAG_use_gvn || !FLAG_use_allocation_folding) {
-      flags_ = static_cast<HAllocate::Flags>(flags_ | PREFILL_WITH_FILLER);
-    }
-    clear_next_map_word_ = pretenure_flag == NOT_TENURED &&
-        AllocationSite::CanTrack(instance_type);
 
     if (FLAG_trace_pretenuring) {
       PrintF("HAllocate with AllocationSite %p %s\n",
@@ -5548,6 +5552,36 @@ class HAllocate V8_FINAL : public HTemplateInstruction<2> {
                  : static_cast<void*>(*allocation_site),
              pretenure_flag == TENURED ? "tenured" : "not tenured");
     }
+  }
+
+  static Flags ComputeFlags(PretenureFlag pretenure_flag,
+                            InstanceType instance_type) {
+    Flags flags = pretenure_flag == TENURED
+        ? (Heap::TargetSpaceId(instance_type) == OLD_POINTER_SPACE
+            ? ALLOCATE_IN_OLD_POINTER_SPACE : ALLOCATE_IN_OLD_DATA_SPACE)
+        : ALLOCATE_IN_NEW_SPACE;
+    if (instance_type == FIXED_DOUBLE_ARRAY_TYPE) {
+      flags = static_cast<Flags>(flags | ALLOCATE_DOUBLE_ALIGNED);
+    }
+    // We have to fill the allocated object with one word fillers if we do
+    // not use allocation folding since some allocations may depend on each
+    // other, i.e., have a pointer to each other. A GC in between these
+    // allocations may leave such objects behind in a not completely initialized
+    // state.
+    if (!FLAG_use_gvn || !FLAG_use_allocation_folding) {
+      flags = static_cast<Flags>(flags | PREFILL_WITH_FILLER);
+    }
+    if (pretenure_flag == NOT_TENURED &&
+        AllocationSite::CanTrack(instance_type)) {
+      flags = static_cast<Flags>(flags | CLEAR_NEXT_MAP_WORD);
+    }
+    return flags;
+  }
+
+  void UpdateClearNextMapWord(bool clear_next_map_word) {
+    flags_ = static_cast<Flags>(clear_next_map_word
+                                ? flags_ | CLEAR_NEXT_MAP_WORD
+                                : flags_ & ~CLEAR_NEXT_MAP_WORD);
   }
 
   void UpdateSize(HValue* size) {
@@ -5573,7 +5607,6 @@ class HAllocate V8_FINAL : public HTemplateInstruction<2> {
   Handle<Map> known_initial_map_;
   HAllocate* dominating_allocate_;
   HStoreNamedField* filler_free_space_size_;
-  bool clear_next_map_word_;
 };
 
 
@@ -6018,6 +6051,10 @@ class HObjectAccess V8_FINAL {
     return HObjectAccess(kInobject, SharedFunctionInfo::kFirstContextSlot);
   }
 
+  static HObjectAccess ForFirstOsrAstIdSlot() {
+    return HObjectAccess(kInobject, SharedFunctionInfo::kFirstOsrAstIdSlot);
+  }
+
   static HObjectAccess ForOptimizedCodeMap() {
     return HObjectAccess(kInobject,
                          SharedFunctionInfo::kOptimizedCodeMapOffset);
@@ -6216,7 +6253,11 @@ class HLoadNamedField V8_FINAL : public HTemplateInstruction<1> {
       set_representation(Representation::Integer32());
     } else if (representation.IsSmi()) {
       set_type(HType::Smi());
-      set_representation(representation);
+      if (SmiValuesAre32Bits()) {
+        set_representation(Representation::Integer32());
+      } else {
+        set_representation(representation);
+      }
     } else if (representation.IsDouble() ||
                representation.IsExternal() ||
                representation.IsInteger32()) {
@@ -6416,7 +6457,11 @@ class HLoadKeyed V8_FINAL
             (!IsHoleyElementsKind(elements_kind) ||
              mode == NEVER_RETURN_HOLE)) {
           set_type(HType::Smi());
-          set_representation(Representation::Smi());
+          if (SmiValuesAre32Bits() && !RequiresHoleCheck()) {
+            set_representation(Representation::Integer32());
+          } else {
+            set_representation(Representation::Smi());
+          }
         } else {
           set_representation(Representation::Tagged());
         }
@@ -6508,10 +6553,20 @@ class HLoadKeyedGeneric V8_FINAL : public HTemplateInstruction<3> {
 };
 
 
+// Indicates whether the store is a store to an entry that was previously
+// initialized or not.
+enum StoreFieldOrKeyedMode {
+  INITIALIZING_STORE,
+  STORE_TO_INITIALIZED_ENTRY
+};
+
+
 class HStoreNamedField V8_FINAL : public HTemplateInstruction<3> {
  public:
   DECLARE_INSTRUCTION_FACTORY_P3(HStoreNamedField, HValue*,
                                  HObjectAccess, HValue*);
+  DECLARE_INSTRUCTION_FACTORY_P4(HStoreNamedField, HValue*,
+                                 HObjectAccess, HValue*, StoreFieldOrKeyedMode);
 
   DECLARE_CONCRETE_INSTRUCTION(StoreNamedField)
 
@@ -6532,8 +6587,12 @@ class HStoreNamedField V8_FINAL : public HTemplateInstruction<3> {
           field_representation().IsUInteger16() ||
           field_representation().IsInteger32()) {
         return Representation::Integer32();
-      } else if (field_representation().IsDouble() ||
-                 field_representation().IsSmi()) {
+      } else if (field_representation().IsDouble()) {
+        return field_representation();
+      } else if (field_representation().IsSmi()) {
+        if (SmiValuesAre32Bits() && store_mode_ == STORE_TO_INITIALIZED_ENTRY) {
+          return Representation::Integer32();
+        }
         return field_representation();
       } else if (field_representation().IsExternal()) {
         return Representation::External();
@@ -6560,6 +6619,7 @@ class HStoreNamedField V8_FINAL : public HTemplateInstruction<3> {
   HObjectAccess access() const { return access_; }
   HValue* new_space_dominator() const { return new_space_dominator_; }
   bool has_transition() const { return has_transition_; }
+  StoreFieldOrKeyedMode store_mode() const { return store_mode_; }
 
   Handle<Map> transition_map() const {
     if (has_transition()) {
@@ -6610,11 +6670,13 @@ class HStoreNamedField V8_FINAL : public HTemplateInstruction<3> {
  private:
   HStoreNamedField(HValue* obj,
                    HObjectAccess access,
-                   HValue* val)
+                   HValue* val,
+                   StoreFieldOrKeyedMode store_mode = INITIALIZING_STORE)
       : access_(access),
         new_space_dominator_(NULL),
         write_barrier_mode_(UPDATE_WRITE_BARRIER),
-        has_transition_(false) {
+        has_transition_(false),
+        store_mode_(store_mode) {
     SetOperandAt(0, obj);
     SetOperandAt(1, val);
     SetOperandAt(2, obj);
@@ -6625,6 +6687,7 @@ class HStoreNamedField V8_FINAL : public HTemplateInstruction<3> {
   HValue* new_space_dominator_;
   WriteBarrierMode write_barrier_mode_ : 1;
   bool has_transition_ : 1;
+  StoreFieldOrKeyedMode store_mode_ : 1;
 };
 
 
@@ -6671,6 +6734,8 @@ class HStoreKeyed V8_FINAL
  public:
   DECLARE_INSTRUCTION_FACTORY_P4(HStoreKeyed, HValue*, HValue*, HValue*,
                                  ElementsKind);
+  DECLARE_INSTRUCTION_FACTORY_P5(HStoreKeyed, HValue*, HValue*, HValue*,
+                                 ElementsKind, StoreFieldOrKeyedMode);
 
   virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
     // kind_fast:       tagged[int32] = tagged
@@ -6689,7 +6754,9 @@ class HStoreKeyed V8_FINAL
     if (IsDoubleOrFloatElementsKind(elements_kind())) {
       return Representation::Double();
     }
-
+    if (SmiValuesAre32Bits() && store_mode_ == STORE_TO_INITIALIZED_ENTRY) {
+      return Representation::Integer32();
+    }
     if (IsFastSmiElementsKind(elements_kind())) {
       return Representation::Smi();
     }
@@ -6707,11 +6774,14 @@ class HStoreKeyed V8_FINAL
     if (IsUninitialized()) {
       return Representation::None();
     }
-    if (IsFastSmiElementsKind(elements_kind())) {
-      return Representation::Smi();
-    }
     if (IsDoubleOrFloatElementsKind(elements_kind())) {
       return Representation::Double();
+    }
+    if (SmiValuesAre32Bits() && store_mode_ == STORE_TO_INITIALIZED_ENTRY) {
+      return Representation::Integer32();
+    }
+    if (IsFastSmiElementsKind(elements_kind())) {
+      return Representation::Smi();
     }
     if (is_external()) {
       return Representation::Integer32();
@@ -6726,6 +6796,7 @@ class HStoreKeyed V8_FINAL
   bool value_is_smi() const {
     return IsFastSmiElementsKind(elements_kind_);
   }
+  StoreFieldOrKeyedMode store_mode() const { return store_mode_; }
   ElementsKind elements_kind() const { return elements_kind_; }
   uint32_t index_offset() { return index_offset_; }
   void SetIndexOffset(uint32_t index_offset) { index_offset_ = index_offset; }
@@ -6771,15 +6842,20 @@ class HStoreKeyed V8_FINAL
 
  private:
   HStoreKeyed(HValue* obj, HValue* key, HValue* val,
-              ElementsKind elements_kind)
+              ElementsKind elements_kind,
+              StoreFieldOrKeyedMode store_mode = INITIALIZING_STORE)
       : elements_kind_(elements_kind),
       index_offset_(0),
       is_dehoisted_(false),
       is_uninitialized_(false),
+      store_mode_(store_mode),
       new_space_dominator_(NULL) {
     SetOperandAt(0, obj);
     SetOperandAt(1, key);
     SetOperandAt(2, val);
+
+    ASSERT(store_mode != STORE_TO_INITIALIZED_ENTRY ||
+           elements_kind == FAST_SMI_ELEMENTS);
 
     if (IsFastObjectElementsKind(elements_kind)) {
       SetFlag(kTrackSideEffectDominators);
@@ -6807,6 +6883,7 @@ class HStoreKeyed V8_FINAL
   uint32_t index_offset_;
   bool is_dehoisted_ : 1;
   bool is_uninitialized_ : 1;
+  StoreFieldOrKeyedMode store_mode_: 1;
   HValue* new_space_dominator_;
 };
 
@@ -6915,45 +6992,55 @@ class HStringAdd V8_FINAL : public HBinaryOperation {
                            HValue* context,
                            HValue* left,
                            HValue* right,
-                           StringAddFlags flags = STRING_ADD_CHECK_NONE);
+                           PretenureFlag pretenure_flag = NOT_TENURED,
+                           StringAddFlags flags = STRING_ADD_CHECK_BOTH,
+                           Handle<AllocationSite> allocation_site =
+                               Handle<AllocationSite>::null());
 
   StringAddFlags flags() const { return flags_; }
+  PretenureFlag pretenure_flag() const { return pretenure_flag_; }
 
   virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
     return Representation::Tagged();
   }
 
+  virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
+
   DECLARE_CONCRETE_INSTRUCTION(StringAdd)
 
  protected:
-  virtual bool DataEquals(HValue* other) V8_OVERRIDE { return true; }
+  virtual bool DataEquals(HValue* other) V8_OVERRIDE {
+    return flags_ == HStringAdd::cast(other)->flags_ &&
+        pretenure_flag_ == HStringAdd::cast(other)->pretenure_flag_;
+  }
 
  private:
-  HStringAdd(HValue* context, HValue* left, HValue* right, StringAddFlags flags)
-      : HBinaryOperation(context, left, right, HType::String()), flags_(flags) {
+  HStringAdd(HValue* context,
+             HValue* left,
+             HValue* right,
+             PretenureFlag pretenure_flag,
+             StringAddFlags flags,
+             Handle<AllocationSite> allocation_site)
+      : HBinaryOperation(context, left, right, HType::String()),
+        flags_(flags), pretenure_flag_(pretenure_flag) {
     set_representation(Representation::Tagged());
-    if (MightHaveSideEffects()) {
-      SetAllSideEffects();
-    } else {
-      SetFlag(kUseGVN);
-      SetGVNFlag(kDependsOnMaps);
-      SetGVNFlag(kChangesNewSpacePromotion);
+    SetFlag(kUseGVN);
+    SetGVNFlag(kDependsOnMaps);
+    SetGVNFlag(kChangesNewSpacePromotion);
+    if (FLAG_trace_pretenuring) {
+      PrintF("HStringAdd with AllocationSite %p %s\n",
+             allocation_site.is_null()
+                 ? static_cast<void*>(NULL)
+                 : static_cast<void*>(*allocation_site),
+             pretenure_flag == TENURED ? "tenured" : "not tenured");
     }
   }
 
-  bool MightHaveSideEffects() const {
-    return flags_ != STRING_ADD_CHECK_NONE &&
-      (left()->ToStringCanBeObserved() || right()->ToStringCanBeObserved());
-  }
-
   // No side-effects except possible allocation:
-  // NOTE: this instruction does not call ToString() on its inputs, when flags_
-  // is set to STRING_ADD_CHECK_NONE.
-  virtual bool IsDeletable() const V8_OVERRIDE {
-    return !MightHaveSideEffects();
-  }
+  virtual bool IsDeletable() const V8_OVERRIDE { return true; }
 
   const StringAddFlags flags_;
+  const PretenureFlag pretenure_flag_;
 };
 
 

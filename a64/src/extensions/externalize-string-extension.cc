@@ -64,10 +64,12 @@ v8::Handle<v8::FunctionTemplate>
 ExternalizeStringExtension::GetNativeFunctionTemplate(
     v8::Isolate* isolate, v8::Handle<v8::String> str) {
   if (strcmp(*v8::String::Utf8Value(str), "externalizeString") == 0) {
-    return v8::FunctionTemplate::New(ExternalizeStringExtension::Externalize);
+    return v8::FunctionTemplate::New(isolate,
+                                     ExternalizeStringExtension::Externalize);
   } else {
     ASSERT(strcmp(*v8::String::Utf8Value(str), "isAsciiString") == 0);
-    return v8::FunctionTemplate::New(ExternalizeStringExtension::IsAscii);
+    return v8::FunctionTemplate::New(isolate,
+                                     ExternalizeStringExtension::IsAscii);
   }
 }
 

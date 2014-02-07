@@ -309,7 +309,9 @@ int Label::pos() const {
 //                dropped, and last non-zero chunk tagged with 1.)
 
 
+#ifdef DEBUG
 const int kMaxStandardNonCompactModes = 14;
+#endif
 
 const int kTagBits = 2;
 const int kTagMask = (1 << kTagBits) - 1;
@@ -1094,13 +1096,6 @@ ExternalReference ExternalReference::stress_deopt_count(Isolate* isolate) {
 }
 
 
-ExternalReference ExternalReference::transcendental_cache_array_address(
-    Isolate* isolate) {
-  return ExternalReference(
-      isolate->transcendental_cache()->cache_array_address());
-}
-
-
 ExternalReference ExternalReference::new_deoptimizer_function(
     Isolate* isolate) {
   return ExternalReference(
@@ -1398,40 +1393,11 @@ ExternalReference ExternalReference::address_of_regexp_stack_memory_size(
 #endif  // V8_INTERPRETED_REGEXP
 
 
-static double add_two_doubles(double x, double y) {
-  return x + y;
-}
-
-
-static double sub_two_doubles(double x, double y) {
-  return x - y;
-}
-
-
-static double mul_two_doubles(double x, double y) {
-  return x * y;
-}
-
-
-static double div_two_doubles(double x, double y) {
-  return x / y;
-}
-
-
-static double mod_two_doubles(double x, double y) {
-  return modulo(x, y);
-}
-
-
-static double math_log_double(double x) {
-  return log(x);
-}
-
-
 ExternalReference ExternalReference::math_log_double_function(
     Isolate* isolate) {
+  typedef double (*d2d)(double x);
   return ExternalReference(Redirect(isolate,
-                                    FUNCTION_ADDR(math_log_double),
+                                    FUNCTION_ADDR(static_cast<d2d>(log)),
                                     BUILTIN_FP_CALL));
 }
 
@@ -1536,12 +1502,6 @@ ExternalReference ExternalReference::power_double_int_function(
 }
 
 
-static int native_compare_doubles(double y, double x) {
-  if (x == y) return EQUAL;
-  return x < y ? LESS : GREATER;
-}
-
-
 bool EvalComparison(Token::Value op, double op1, double op2) {
   ASSERT(Token::IsCompareOp(op));
   switch (op) {
@@ -1559,39 +1519,11 @@ bool EvalComparison(Token::Value op, double op1, double op2) {
 }
 
 
-ExternalReference ExternalReference::double_fp_operation(
-    Token::Value operation, Isolate* isolate) {
-  typedef double BinaryFPOperation(double x, double y);
-  BinaryFPOperation* function = NULL;
-  switch (operation) {
-    case Token::ADD:
-      function = &add_two_doubles;
-      break;
-    case Token::SUB:
-      function = &sub_two_doubles;
-      break;
-    case Token::MUL:
-      function = &mul_two_doubles;
-      break;
-    case Token::DIV:
-      function = &div_two_doubles;
-      break;
-    case Token::MOD:
-      function = &mod_two_doubles;
-      break;
-    default:
-      UNREACHABLE();
-  }
+ExternalReference ExternalReference::mod_two_doubles_operation(
+    Isolate* isolate) {
   return ExternalReference(Redirect(isolate,
-                                    FUNCTION_ADDR(function),
+                                    FUNCTION_ADDR(modulo),
                                     BUILTIN_FP_FP_CALL));
-}
-
-
-ExternalReference ExternalReference::compare_doubles(Isolate* isolate) {
-  return ExternalReference(Redirect(isolate,
-                                    FUNCTION_ADDR(native_compare_doubles),
-                                    BUILTIN_COMPARE_CALL));
 }
 
 

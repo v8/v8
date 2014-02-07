@@ -65,11 +65,12 @@ static void handle_property(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
 THREADED_TEST(PropertyHandler) {
   LocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
-  Local<v8::FunctionTemplate> fun_templ = v8::FunctionTemplate::New();
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  Local<v8::FunctionTemplate> fun_templ = v8::FunctionTemplate::New(isolate);
   fun_templ->InstanceTemplate()->SetAccessor(v8_str("foo"), handle_property);
   Local<v8::FunctionTemplate> getter_templ =
-      v8::FunctionTemplate::New(handle_property);
+      v8::FunctionTemplate::New(isolate, handle_property);
   getter_templ->SetLength(0);
   fun_templ->
       InstanceTemplate()->SetAccessorProperty(v8_str("bar"), getter_templ);
@@ -120,17 +121,18 @@ THREADED_TEST(GlobalVariableAccess) {
   foo = 0;
   bar = -4;
   baz = 10;
-  v8::HandleScope scope(CcTest::isolate());
-  v8::Handle<v8::FunctionTemplate> templ = v8::FunctionTemplate::New();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Handle<v8::FunctionTemplate> templ = v8::FunctionTemplate::New(isolate);
   templ->InstanceTemplate()->SetAccessor(
       v8_str("foo"), GetIntValue, SetIntValue,
-      v8::External::New(CcTest::isolate(), &foo));
+      v8::External::New(isolate, &foo));
   templ->InstanceTemplate()->SetAccessor(
       v8_str("bar"), GetIntValue, SetIntValue,
-      v8::External::New(CcTest::isolate(), &bar));
+      v8::External::New(isolate, &bar));
   templ->InstanceTemplate()->SetAccessor(
       v8_str("baz"), GetIntValue, SetIntValue,
-      v8::External::New(CcTest::isolate(), &baz));
+      v8::External::New(isolate, &baz));
   LocalContext env(0, templ->InstanceTemplate());
   v8_compile("foo = (++bar) + baz")->Run();
   CHECK_EQ(bar, -3);
@@ -190,12 +192,13 @@ static void XSetter(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
 THREADED_TEST(AccessorIC) {
   LocalContext context;
-  v8::HandleScope scope(context->GetIsolate());
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::HandleScope scope(isolate);
   v8::Handle<v8::ObjectTemplate> obj = ObjectTemplate::New();
   obj->SetAccessor(v8_str("x0"), XGetter, XSetter);
   obj->SetAccessorProperty(v8_str("x1"),
-                           v8::FunctionTemplate::New(XGetter),
-                           v8::FunctionTemplate::New(XSetter));
+                           v8::FunctionTemplate::New(isolate, XGetter),
+                           v8::FunctionTemplate::New(isolate, XSetter));
   x_holder = obj->NewInstance();
   context->Global()->Set(v8_str("holder"), x_holder);
   x_receiver = v8::Object::New();
@@ -205,21 +208,22 @@ THREADED_TEST(AccessorIC) {
     "var result = [];"
     "var key_0 = 'x0';"
     "var key_1 = 'x1';"
-    "for (var i = 0; i < 10; i++) {"
+    "for (var j = 0; j < 10; j++) {"
+    "  var i = 4*j;"
     "  holder.x0 = i;"
     "  result.push(obj.x0);"
-    "  holder.x1 = i;"
+    "  holder.x1 = i + 1;"
     "  result.push(obj.x1);"
-    "  holder[key_0] = i;"
+    "  holder[key_0] = i + 2;"
     "  result.push(obj[key_0]);"
-    "  holder[key_1] = i;"
+    "  holder[key_1] = i + 3;"
     "  result.push(obj[key_1]);"
     "}"
     "result"));
   CHECK_EQ(40, array->Length());
   for (int i = 0; i < 40; i++) {
     v8::Handle<Value> entry = array->Get(v8::Integer::New(i));
-    CHECK_EQ(v8::Integer::New(i/4), entry);
+    CHECK_EQ(v8::Integer::New(i), entry);
   }
 }
 

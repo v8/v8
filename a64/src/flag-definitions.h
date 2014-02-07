@@ -69,6 +69,9 @@
 #define DEFINE_implication(whenflag, thenflag) \
   if (FLAG_##whenflag) FLAG_##thenflag = true;
 
+#define DEFINE_neg_implication(whenflag, thenflag) \
+  if (FLAG_##whenflag) FLAG_##thenflag = false;
+
 #else
 #error No mode supplied when including flags.defs
 #endif
@@ -88,6 +91,10 @@
 
 #ifndef DEFINE_implication
 #define DEFINE_implication(whenflag, thenflag)
+#endif
+
+#ifndef DEFINE_neg_implication
+#define DEFINE_neg_implication(whenflag, thenflag)
 #endif
 
 #define COMMA ,
@@ -347,32 +354,14 @@ DEFINE_bool(omit_map_checks_for_leaf_maps, true,
 
 DEFINE_bool(new_string_add, true, "enable new string addition")
 
-// Experimental profiler changes.
-DEFINE_bool(experimental_profiler, true, "enable all profiler experiments")
-DEFINE_bool(watch_ic_patching, false, "profiler considers IC stability")
+// Profiler flags.
 DEFINE_int(frame_count, 1, "number of stack frames inspected by the profiler")
-DEFINE_bool(self_optimization, false,
-            "primitive functions trigger their own optimization")
-DEFINE_bool(direct_self_opt, false,
-            "call recompile stub directly when self-optimizing")
-DEFINE_bool(retry_self_opt, false, "re-try self-optimization if it failed")
-DEFINE_bool(interrupt_at_exit, false,
-            "insert an interrupt check at function exit")
-DEFINE_bool(weighted_back_edges, false,
-            "weight back edges by jump distance for interrupt triggering")
            // 0x1700 fits in the immediate field of an ARM instruction.
 DEFINE_int(interrupt_budget, 0x1700,
            "execution budget before interrupt is triggered")
 DEFINE_int(type_info_threshold, 25,
            "percentage of ICs that must have type info to allow optimization")
 DEFINE_int(self_opt_count, 130, "call count before self-optimization")
-
-DEFINE_implication(experimental_profiler, watch_ic_patching)
-DEFINE_implication(experimental_profiler, self_optimization)
-// Not implying direct_self_opt here because it seems to be a bad idea.
-DEFINE_implication(experimental_profiler, retry_self_opt)
-DEFINE_implication(experimental_profiler, interrupt_at_exit)
-DEFINE_implication(experimental_profiler, weighted_back_edges)
 
 DEFINE_bool(trace_opt_verbose, false, "extra verbose compilation tracing")
 DEFINE_implication(trace_opt_verbose, trace_opt)
@@ -421,6 +410,7 @@ DEFINE_string(expose_gc_as, NULL,
 DEFINE_implication(expose_gc_as, expose_gc)
 DEFINE_bool(expose_externalize_string, false,
             "expose externalize string extension")
+DEFINE_bool(expose_trigger_failure, false, "expose trigger-failure extension")
 DEFINE_int(stack_trace_limit, 10, "number of stack frames to capture")
 DEFINE_bool(builtins_in_stack_traces, false,
             "show built-in functions in stack traces")
@@ -660,6 +650,14 @@ DEFINE_string(extra_code, NULL, "A filename with extra code to be included in"
 // code-stubs-hydrogen.cc
 DEFINE_bool(profile_hydrogen_code_stub_compilation, false,
             "Print the time it takes to lazily compile hydrogen code stubs.")
+
+DEFINE_bool(predictable, false, "enable predictable mode")
+DEFINE_neg_implication(predictable, randomize_hashes)
+DEFINE_neg_implication(predictable, concurrent_recompilation)
+DEFINE_neg_implication(predictable, concurrent_osr)
+DEFINE_neg_implication(predictable, concurrent_sweeping)
+DEFINE_neg_implication(predictable, parallel_sweeping)
+
 
 //
 // Dev shell flags
@@ -913,6 +911,7 @@ DEFINE_bool(enable_ool_constant_pool, false,
 #undef DEFINE_float
 #undef DEFINE_args
 #undef DEFINE_implication
+#undef DEFINE_neg_implication
 #undef DEFINE_ALIAS_bool
 #undef DEFINE_ALIAS_int
 #undef DEFINE_ALIAS_string

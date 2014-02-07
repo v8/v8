@@ -59,8 +59,8 @@ void MacroAssembler::Jump(Register target, Condition cond) {
 
 void MacroAssembler::Jump(intptr_t target, RelocInfo::Mode rmode,
                           Condition cond) {
-  mov(ip, Operand(target, rmode));
-  bx(ip, cond);
+  ASSERT(RelocInfo::IsCodeTarget(rmode));
+  mov(pc, Operand(target, rmode), LeaveCC, cond);
 }
 
 
@@ -601,6 +601,26 @@ void MacroAssembler::RememberedSetHelper(Register object,  // For debug tests.
 }
 
 
+void MacroAssembler::PushFixedFrame(Register marker_reg) {
+  ASSERT(!marker_reg.is_valid() || marker_reg.code() < cp.code());
+  stm(db_w, sp, (marker_reg.is_valid() ? marker_reg.bit() : 0) |
+                cp.bit() |
+                (FLAG_enable_ool_constant_pool ? pp.bit() : 0) |
+                fp.bit() |
+                lr.bit());
+}
+
+
+void MacroAssembler::PopFixedFrame(Register marker_reg) {
+  ASSERT(!marker_reg.is_valid() || marker_reg.code() < cp.code());
+  ldm(ia_w, sp, (marker_reg.is_valid() ? marker_reg.bit() : 0) |
+                cp.bit() |
+                (FLAG_enable_ool_constant_pool ? pp.bit() : 0) |
+                fp.bit() |
+                lr.bit());
+}
+
+
 // Push and pop all registers that can hold pointers.
 void MacroAssembler::PushSafepointRegisters() {
   // Safepoints expect a block of contiguous register values starting with r0:
@@ -815,11 +835,11 @@ void MacroAssembler::Vmov(const DwVfpRegister dst,
                           const Register scratch) {
   static const DoubleRepresentation minus_zero(-0.0);
   static const DoubleRepresentation zero(0.0);
-  DoubleRepresentation value(imm);
+  DoubleRepresentation value_rep(imm);
   // Handle special values first.
-  if (value.bits == zero.bits) {
+  if (value_rep == zero) {
     vmov(dst, kDoubleRegZero);
-  } else if (value.bits == minus_zero.bits) {
+  } else if (value_rep == minus_zero) {
     vneg(dst, kDoubleRegZero);
   } else {
     vmov(dst, imm, scratch);
@@ -869,7 +889,7 @@ void MacroAssembler::VmovLow(DwVfpRegister dst, Register src) {
 
 void MacroAssembler::Prologue(PrologueFrameMode frame_mode) {
   if (frame_mode == BUILD_STUB_FRAME) {
-    stm(db_w, sp, cp.bit() | fp.bit() | lr.bit());
+    PushFixedFrame();
     Push(Smi::FromInt(StackFrame::STUB));
     // Adjust FP to point to saved FP.
     add(fp, sp, Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
@@ -885,7 +905,7 @@ void MacroAssembler::Prologue(PrologueFrameMode frame_mode) {
       ldr(pc, MemOperand(pc, -4));
       emit_code_stub_address(stub);
     } else {
-      stm(db_w, sp, r1.bit() | cp.bit() | fp.bit() | lr.bit());
+      PushFixedFrame(r1);
       nop(ip.code());
       // Adjust FP to point to saved FP.
       add(fp, sp, Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
@@ -894,9 +914,19 @@ void MacroAssembler::Prologue(PrologueFrameMode frame_mode) {
 }
 
 
+void MacroAssembler::LoadConstantPoolPointerRegister() {
+  if (FLAG_enable_ool_constant_pool) {
+    int constant_pool_offset =
+        Code::kConstantPoolOffset - Code::kHeaderSize - pc_offset() - 8;
+    ASSERT(ImmediateFitsAddrMode2Instruction(constant_pool_offset));
+    ldr(pp, MemOperand(pc, constant_pool_offset));
+  }
+}
+
+
 void MacroAssembler::EnterFrame(StackFrame::Type type) {
   // r0-r3: preserved
-  stm(db_w, sp, cp.bit() | fp.bit() | lr.bit());
+  PushFixedFrame();
   mov(ip, Operand(Smi::FromInt(type)));
   push(ip);
   mov(ip, Operand(CodeObject()));
@@ -907,15 +937,25 @@ void MacroAssembler::EnterFrame(StackFrame::Type type) {
 }
 
 
-void MacroAssembler::LeaveFrame(StackFrame::Type type) {
+int MacroAssembler::LeaveFrame(StackFrame::Type type) {
   // r0: preserved
   // r1: preserved
   // r2: preserved
 
   // Drop the execution stack down to the frame pointer and restore
-  // the caller frame pointer and return address.
-  mov(sp, fp);
-  ldm(ia_w, sp, fp.bit() | lr.bit());
+  // the caller frame pointer, return address and constant pool pointer
+  // (if FLAG_enable_ool_constant_pool).
+  int frame_ends;
+  if (FLAG_enable_ool_constant_pool) {
+    add(sp, fp, Operand(StandardFrameConstants::kConstantPoolOffset));
+    frame_ends = pc_offset();
+    ldm(ia_w, sp, pp.bit() | fp.bit() | lr.bit());
+  } else {
+    mov(sp, fp);
+    frame_ends = pc_offset();
+    ldm(ia_w, sp, fp.bit() | lr.bit());
+  }
+  return frame_ends;
 }
 
 

@@ -42,6 +42,8 @@ namespace internal {
   V(CallFunction)                        \
   V(CallConstruct)                       \
   V(BinaryOpIC)                          \
+  V(BinaryOpICWithAllocationSite)        \
+  V(BinaryOpWithAllocationSite)          \
   V(StringAdd)                           \
   V(NewStringAdd)                        \
   V(SubString)                           \
@@ -56,7 +58,6 @@ namespace internal {
   V(RecordWrite)                         \
   V(StoreBufferOverflow)                 \
   V(RegExpExec)                          \
-  V(TranscendentalCache)                 \
   V(Instanceof)                          \
   V(ConvertToDouble)                     \
   V(WriteInt32ToHeapNumber)              \
@@ -121,7 +122,9 @@ namespace internal {
 #if V8_TARGET_ARCH_MIPS
 #define CODE_STUB_LIST_MIPS(V)  \
   V(RegExpCEntry)               \
-  V(DirectCEntry)
+  V(DirectCEntry)               \
+  V(StoreRegistersState)        \
+  V(RestoreRegistersState)
 #else
 #define CODE_STUB_LIST_MIPS(V)
 #endif
@@ -136,6 +139,7 @@ namespace internal {
 class CodeStub BASE_EMBEDDED {
  public:
   enum Major {
+    UninitializedMajorKey = 0,
 #define DEF_ENUM(name) name,
     CODE_STUB_LIST(DEF_ENUM)
 #undef DEF_ENUM
@@ -251,6 +255,7 @@ class CodeStub BASE_EMBEDDED {
            MajorKeyBits::encode(MajorKey());
   }
 
+  STATIC_ASSERT(NUMBER_OF_IDS < (1 << kStubMajorKeyBits));
   class MajorKeyBits: public BitField<uint32_t, 0, kStubMajorKeyBits> {};
   class MinorKeyBits: public BitField<uint32_t,
       kStubMajorKeyBits, kStubMinorKeyBits> {};  // NOLINT
@@ -748,6 +753,7 @@ class ArrayConstructorStub: public PlatformCodeStub {
  private:
   void GenerateDispatchToArrayStub(MacroAssembler* masm,
                                    AllocationSiteOverrideMode mode);
+  virtual void PrintName(StringStream* stream);
 
   virtual CodeStub::Major MajorKey() { return ArrayConstructor; }
   virtual int MinorKey() { return argument_count_; }
@@ -1066,7 +1072,7 @@ class KeyedArrayCallStub: public HICStub {
 };
 
 
-class BinaryOpICStub V8_FINAL : public HydrogenCodeStub {
+class BinaryOpICStub : public HydrogenCodeStub {
  public:
   BinaryOpICStub(Token::Value op, OverwriteMode mode)
       : HydrogenCodeStub(UNINITIALIZED), state_(op, mode) {}
@@ -1084,6 +1090,64 @@ class BinaryOpICStub V8_FINAL : public HydrogenCodeStub {
     return Code::BINARY_OP_IC;
   }
 
+  virtual InlineCacheState GetICState() V8_FINAL V8_OVERRIDE {
+    return state_.GetICState();
+  }
+
+  virtual ExtraICState GetExtraICState() V8_FINAL V8_OVERRIDE {
+    return state_.GetExtraICState();
+  }
+
+  virtual void VerifyPlatformFeatures(Isolate* isolate) V8_FINAL V8_OVERRIDE {
+    ASSERT(CpuFeatures::VerifyCrossCompiling(SSE2));
+  }
+
+  virtual Handle<Code> GenerateCode(Isolate* isolate) V8_OVERRIDE;
+
+  const BinaryOpIC::State& state() const { return state_; }
+
+  virtual void PrintState(StringStream* stream) V8_FINAL V8_OVERRIDE;
+
+  virtual Major MajorKey() V8_OVERRIDE { return BinaryOpIC; }
+  virtual int NotMissMinorKey() V8_FINAL V8_OVERRIDE {
+    return GetExtraICState();
+  }
+
+  // Parameters accessed via CodeStubGraphBuilder::GetParameter()
+  static const int kLeft = 0;
+  static const int kRight = 1;
+
+ private:
+  static void GenerateAheadOfTime(Isolate* isolate,
+                                  const BinaryOpIC::State& state);
+
+  BinaryOpIC::State state_;
+
+  DISALLOW_COPY_AND_ASSIGN(BinaryOpICStub);
+};
+
+
+// TODO(bmeurer): Merge this into the BinaryOpICStub once we have proper tail
+// call support for stubs in Hydrogen.
+class BinaryOpICWithAllocationSiteStub V8_FINAL : public PlatformCodeStub {
+ public:
+  explicit BinaryOpICWithAllocationSiteStub(const BinaryOpIC::State& state)
+      : state_(state) {}
+
+  static void GenerateAheadOfTime(Isolate* isolate);
+
+  Handle<Code> GetCodeCopyFromTemplate(Isolate* isolate,
+                                       Handle<AllocationSite> allocation_site) {
+    Handle<Code> code = CodeStub::GetCodeCopyFromTemplate(isolate);
+    // Replace the placeholder oddball with the actual allocation site.
+    code->ReplaceNthObject(1, isolate->heap()->oddball_map(), *allocation_site);
+    return code;
+  }
+
+  virtual Code::Kind GetCodeKind() const V8_OVERRIDE {
+    return Code::BINARY_OP_IC;
+  }
+
   virtual InlineCacheState GetICState() V8_OVERRIDE {
     return state_.GetICState();
   }
@@ -1096,26 +1160,47 @@ class BinaryOpICStub V8_FINAL : public HydrogenCodeStub {
     ASSERT(CpuFeatures::VerifyCrossCompiling(SSE2));
   }
 
-  virtual Handle<Code> GenerateCode(Isolate* isolate) V8_OVERRIDE;
-
-  const BinaryOpIC::State& state() const { return state_; }
+  virtual void Generate(MacroAssembler* masm) V8_OVERRIDE;
 
   virtual void PrintState(StringStream* stream) V8_OVERRIDE;
 
-  // Parameters accessed via CodeStubGraphBuilder::GetParameter()
-  static const int kLeft = 0;
-  static const int kRight = 1;
+  virtual Major MajorKey() V8_OVERRIDE { return BinaryOpICWithAllocationSite; }
+  virtual int MinorKey() V8_OVERRIDE { return GetExtraICState(); }
 
  private:
   static void GenerateAheadOfTime(Isolate* isolate,
                                   const BinaryOpIC::State& state);
 
-  virtual Major MajorKey() V8_OVERRIDE { return BinaryOpIC; }
-  virtual int NotMissMinorKey() V8_OVERRIDE { return GetExtraICState(); }
-
   BinaryOpIC::State state_;
 
-  DISALLOW_COPY_AND_ASSIGN(BinaryOpICStub);
+  DISALLOW_COPY_AND_ASSIGN(BinaryOpICWithAllocationSiteStub);
+};
+
+
+class BinaryOpWithAllocationSiteStub V8_FINAL : public BinaryOpICStub {
+ public:
+  explicit BinaryOpWithAllocationSiteStub(const BinaryOpIC::State& state)
+      : BinaryOpICStub(state) {}
+
+  virtual void InitializeInterfaceDescriptor(
+      Isolate* isolate, CodeStubInterfaceDescriptor* descriptor) V8_OVERRIDE;
+
+  static void InstallDescriptors(Isolate* isolate);
+
+  virtual Code::Kind GetCodeKind() const V8_FINAL V8_OVERRIDE {
+    return Code::STUB;
+  }
+
+  virtual Handle<Code> GenerateCode(Isolate* isolate) V8_OVERRIDE;
+
+  virtual Major MajorKey() V8_OVERRIDE {
+    return BinaryOpWithAllocationSite;
+  }
+
+  // Parameters accessed via CodeStubGraphBuilder::GetParameter()
+  static const int kAllocationSite = 0;
+  static const int kLeft = 1;
+  static const int kRight = 2;
 };
 
 
@@ -1132,6 +1217,10 @@ class NewStringAddStub V8_FINAL : public HydrogenCodeStub {
 
   PretenureFlag pretenure_flag() const {
     return PretenureFlagBits::decode(bit_field_);
+  }
+
+  virtual void VerifyPlatformFeatures(Isolate* isolate) V8_OVERRIDE {
+    ASSERT(CpuFeatures::VerifyCrossCompiling(SSE2));
   }
 
   virtual Handle<Code> GenerateCode(Isolate* isolate) V8_OVERRIDE;
@@ -1182,10 +1271,6 @@ class ICCompareStub: public PlatformCodeStub {
                              CompareIC::State* right_state,
                              CompareIC::State* handler_state,
                              Token::Value* op);
-
-  static CompareIC::State CompareState(int minor_key) {
-    return static_cast<CompareIC::State>(HandlerStateField::decode(minor_key));
-  }
 
   virtual InlineCacheState GetICState();
 
@@ -1968,6 +2053,9 @@ class ArrayConstructorStubBase : public HydrogenCodeStub {
   static const int kConstructor = 0;
   static const int kPropertyCell = 1;
 
+ protected:
+  void BasePrintName(const char* name, StringStream* stream);
+
  private:
   int NotMissMinorKey() { return bit_field_; }
 
@@ -2003,6 +2091,10 @@ class ArrayNoArgumentConstructorStub : public ArrayConstructorStubBase {
  private:
   Major MajorKey() { return ArrayNoArgumentConstructor; }
 
+  virtual void PrintName(StringStream* stream) {
+    BasePrintName("ArrayNoArgumentConstructorStub", stream);
+  }
+
   DISALLOW_COPY_AND_ASSIGN(ArrayNoArgumentConstructorStub);
 };
 
@@ -2025,6 +2117,10 @@ class ArraySingleArgumentConstructorStub : public ArrayConstructorStubBase {
  private:
   Major MajorKey() { return ArraySingleArgumentConstructor; }
 
+  virtual void PrintName(StringStream* stream) {
+    BasePrintName("ArraySingleArgumentConstructorStub", stream);
+  }
+
   DISALLOW_COPY_AND_ASSIGN(ArraySingleArgumentConstructorStub);
 };
 
@@ -2046,6 +2142,10 @@ class ArrayNArgumentsConstructorStub : public ArrayConstructorStubBase {
 
  private:
   Major MajorKey() { return ArrayNArgumentsConstructor; }
+
+  virtual void PrintName(StringStream* stream) {
+    BasePrintName("ArrayNArgumentsConstructorStub", stream);
+  }
 
   DISALLOW_COPY_AND_ASSIGN(ArrayNArgumentsConstructorStub);
 };

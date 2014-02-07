@@ -37,30 +37,6 @@ namespace internal {
 void ArrayNativeCode(MacroAssembler* masm, Label* call_generic_code);
 
 
-// Compute a transcendental math function natively, or call the
-// TranscendentalCache runtime function.
-class TranscendentalCacheStub: public PlatformCodeStub {
- public:
-  enum ArgumentType {
-    TAGGED = 0 << TranscendentalCache::kTranscendentalTypeBits,
-    UNTAGGED = 1 << TranscendentalCache::kTranscendentalTypeBits
-  };
-
-  TranscendentalCacheStub(TranscendentalCache::Type type,
-                          ArgumentType argument_type)
-      : type_(type), argument_type_(argument_type) { }
-  void Generate(MacroAssembler* masm);
- private:
-  TranscendentalCache::Type type_;
-  ArgumentType argument_type_;
-
-  Major MajorKey() { return TranscendentalCache; }
-  int MinorKey() { return type_ | argument_type_; }
-  ExternalReference CFunction(Isolate* isolate);
-  Runtime::FunctionId RuntimeFunction();
-};
-
-
 class StoreBufferOverflowStub: public PlatformCodeStub {
  public:
   explicit StoreBufferOverflowStub(SaveFPRegsMode save_fp)

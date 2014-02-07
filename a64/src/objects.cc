@@ -1683,7 +1683,7 @@ void HeapObject::HeapObjectShortPrint(StringStream* accumulator) {
       SmartArrayPointer<char> debug_name =
           shared->DebugName()->ToCString();
       if (debug_name[0] != 0) {
-        accumulator->Add("<SharedFunctionInfo %s>", *debug_name);
+        accumulator->Add("<SharedFunctionInfo %s>", debug_name.get());
       } else {
         accumulator->Add("<SharedFunctionInfo>");
       }
@@ -2803,31 +2803,44 @@ Handle<Map> Map::GeneralizeAllFieldRepresentations(
 }
 
 
-Map* Map::CurrentMapForDeprecated() {
+Handle<Map> Map::CurrentMapForDeprecated(Handle<Map> map) {
+  Handle<Map> proto_map(map);
+  while (proto_map->prototype()->IsJSObject()) {
+    Handle<JSObject> holder(JSObject::cast(proto_map->prototype()));
+    if (holder->map()->is_deprecated()) {
+      JSObject::TryMigrateInstance(holder);
+    }
+    proto_map = Handle<Map>(holder->map());
+  }
+  return CurrentMapForDeprecatedInternal(map);
+}
+
+
+Handle<Map> Map::CurrentMapForDeprecatedInternal(Handle<Map> map) {
+  if (!map->is_deprecated()) return map;
+
   DisallowHeapAllocation no_allocation;
-  if (!is_deprecated()) return this;
+  DescriptorArray* old_descriptors = map->instance_descriptors();
 
-  DescriptorArray* old_descriptors = instance_descriptors();
-
-  int descriptors = NumberOfOwnDescriptors();
-  Map* root_map = FindRootMap();
+  int descriptors = map->NumberOfOwnDescriptors();
+  Map* root_map = map->FindRootMap();
 
   // Check the state of the root map.
-  if (!EquivalentToForTransition(root_map)) return NULL;
+  if (!map->EquivalentToForTransition(root_map)) return Handle<Map>();
   int verbatim = root_map->NumberOfOwnDescriptors();
 
   Map* updated = root_map->FindUpdatedMap(
       verbatim, descriptors, old_descriptors);
-  if (updated == NULL) return NULL;
+  if (updated == NULL) return Handle<Map>();
 
   DescriptorArray* updated_descriptors = updated->instance_descriptors();
   int valid = updated->NumberOfOwnDescriptors();
   if (!updated_descriptors->IsMoreGeneralThan(
           verbatim, valid, descriptors, old_descriptors)) {
-    return NULL;
+    return Handle<Map>();
   }
 
-  return updated;
+  return handle(updated);
 }
 
 
@@ -3879,10 +3892,10 @@ void JSObject::MigrateInstance(Handle<JSObject> object) {
 
 
 Handle<Object> JSObject::TryMigrateInstance(Handle<JSObject> object) {
-  Map* new_map = object->map()->CurrentMapForDeprecated();
-  if (new_map == NULL) return Handle<Object>();
   Handle<Map> original_map(object->map());
-  JSObject::MigrateToMap(object, handle(new_map));
+  Handle<Map> new_map = Map::CurrentMapForDeprecatedInternal(original_map);
+  if (new_map.is_null()) return Handle<Object>();
+  JSObject::MigrateToMap(object, new_map);
   if (FLAG_trace_migration) {
     object->PrintInstanceMigration(stdout, *original_map, object->map());
   }
@@ -9171,14 +9184,14 @@ Handle<String> SeqString::Truncate(Handle<SeqString> string, int new_length) {
 }
 
 
-AllocationMemento* AllocationMemento::FindForJSObject(JSObject* object,
-                                                      bool in_GC) {
-  // Currently, AllocationMemento objects are only allocated immediately
-  // after JSArrays and some JSObjects in NewSpace. Detecting whether a
-  // memento is present involves carefully checking the object immediately
-  // after the current object (if there is one) to see if it's an
-  // AllocationMemento.
-  if (FLAG_track_allocation_sites && object->GetHeap()->InNewSpace(object)) {
+AllocationMemento* AllocationMemento::FindForHeapObject(HeapObject* object,
+                                                        bool in_GC) {
+  // AllocationMemento objects are only allocated immediately after objects in
+  // NewSpace. Detecting whether a memento is present involves carefully
+  // checking the object immediately after the current object (if there is one)
+  // to see if it's an AllocationMemento.
+  ASSERT(object->GetHeap()->InNewSpace(object));
+  if (FLAG_track_allocation_sites) {
     Address ptr_end = (reinterpret_cast<Address>(object) - kHeapObjectTag) +
         object->Size();
     Address top;
@@ -9282,14 +9295,6 @@ uint32_t StringHasher::ComputeUtf8Hash(Vector<const char> chars,
   // Must set length here so that hash computation is correct.
   hasher.length_ = utf16_length;
   return hasher.GetHashField();
-}
-
-
-MaybeObject* String::SubString(int start, int end, PretenureFlag pretenure) {
-  Heap* heap = GetHeap();
-  if (start == 0 && end == length()) return this;
-  MaybeObject* result = heap->AllocateSubString(this, start, end, pretenure);
-  return result;
 }
 
 
@@ -9452,12 +9457,14 @@ bool Map::EquivalentToForNormalization(Map* other,
 
 
 void ConstantPoolArray::ConstantPoolIterateBody(ObjectVisitor* v) {
-  int first_ptr_offset = OffsetOfElementAt(first_ptr_index());
-  int last_ptr_offset =
-      OffsetOfElementAt(first_ptr_index() + count_of_ptr_entries());
-  v->VisitPointers(
-      HeapObject::RawField(this, first_ptr_offset),
-      HeapObject::RawField(this, last_ptr_offset));
+  if (count_of_ptr_entries() > 0) {
+    int first_ptr_offset = OffsetOfElementAt(first_ptr_index());
+    int last_ptr_offset =
+        OffsetOfElementAt(first_ptr_index() + count_of_ptr_entries());
+    v->VisitPointers(
+        HeapObject::RawField(this, first_ptr_offset),
+        HeapObject::RawField(this, last_ptr_offset));
+  }
 }
 
 
@@ -9470,19 +9477,19 @@ void JSFunction::JSFunctionIterateBody(int object_size, ObjectVisitor* v) {
 }
 
 
-void JSFunction::MarkForLazyRecompilation() {
+void JSFunction::MarkForOptimization() {
   ASSERT(is_compiled() || GetIsolate()->DebuggerHasBreakPoints());
   ASSERT(!IsOptimized());
   ASSERT(shared()->allows_lazy_compilation() ||
          code()->optimizable());
   ASSERT(!shared()->is_generator());
   set_code_no_write_barrier(
-      GetIsolate()->builtins()->builtin(Builtins::kLazyRecompile));
+      GetIsolate()->builtins()->builtin(Builtins::kCompileOptimized));
   // No write barrier required, since the builtin is part of the root set.
 }
 
 
-void JSFunction::MarkForConcurrentRecompilation() {
+void JSFunction::MarkForConcurrentOptimization() {
   ASSERT(is_compiled() || GetIsolate()->DebuggerHasBreakPoints());
   ASSERT(!IsOptimized());
   ASSERT(shared()->allows_lazy_compilation() || code()->optimizable());
@@ -9494,16 +9501,16 @@ void JSFunction::MarkForConcurrentRecompilation() {
     PrintF(" for concurrent recompilation.\n");
   }
   set_code_no_write_barrier(
-      GetIsolate()->builtins()->builtin(Builtins::kConcurrentRecompile));
+      GetIsolate()->builtins()->builtin(Builtins::kCompileOptimizedConcurrent));
   // No write barrier required, since the builtin is part of the root set.
 }
 
 
-void JSFunction::MarkInRecompileQueue() {
+void JSFunction::MarkInOptimizationQueue() {
   // We can only arrive here via the concurrent-recompilation builtin.  If
   // break points were set, the code would point to the lazy-compile builtin.
   ASSERT(!GetIsolate()->DebuggerHasBreakPoints());
-  ASSERT(IsMarkedForConcurrentRecompilation() && !IsOptimized());
+  ASSERT(IsMarkedForConcurrentOptimization() && !IsOptimized());
   ASSERT(shared()->allows_lazy_compilation() || code()->optimizable());
   ASSERT(GetIsolate()->concurrent_recompilation_enabled());
   if (FLAG_trace_concurrent_recompilation) {
@@ -9512,30 +9519,8 @@ void JSFunction::MarkInRecompileQueue() {
     PrintF(" for concurrent recompilation.\n");
   }
   set_code_no_write_barrier(
-      GetIsolate()->builtins()->builtin(Builtins::kInRecompileQueue));
+      GetIsolate()->builtins()->builtin(Builtins::kInOptimizationQueue));
   // No write barrier required, since the builtin is part of the root set.
-}
-
-
-static bool CompileLazyHelper(CompilationInfo* info,
-                              ClearExceptionFlag flag) {
-  // Compile the source information to a code object.
-  ASSERT(info->IsOptimizing() || !info->shared_info()->is_compiled());
-  ASSERT(!info->isolate()->has_pending_exception());
-  bool result = Compiler::CompileLazy(info);
-  ASSERT(result != info->isolate()->has_pending_exception());
-  if (!result && flag == CLEAR_EXCEPTION) {
-    info->isolate()->clear_pending_exception();
-  }
-  return result;
-}
-
-
-bool SharedFunctionInfo::CompileLazy(Handle<SharedFunctionInfo> shared,
-                                     ClearExceptionFlag flag) {
-  ASSERT(shared->allows_lazy_compilation_without_context());
-  CompilationInfoWithZone info(shared);
-  return CompileLazyHelper(&info, flag);
 }
 
 
@@ -9543,42 +9528,48 @@ void SharedFunctionInfo::AddToOptimizedCodeMap(
     Handle<SharedFunctionInfo> shared,
     Handle<Context> native_context,
     Handle<Code> code,
-    Handle<FixedArray> literals) {
+    Handle<FixedArray> literals,
+    BailoutId osr_ast_id) {
   CALL_HEAP_FUNCTION_VOID(
       shared->GetIsolate(),
-      shared->AddToOptimizedCodeMap(*native_context, *code, *literals));
+      shared->AddToOptimizedCodeMap(
+          *native_context, *code, *literals, osr_ast_id));
 }
 
 
 MaybeObject* SharedFunctionInfo::AddToOptimizedCodeMap(Context* native_context,
                                                        Code* code,
-                                                       FixedArray* literals) {
+                                                       FixedArray* literals,
+                                                       BailoutId osr_ast_id) {
   ASSERT(code->kind() == Code::OPTIMIZED_FUNCTION);
   ASSERT(native_context->IsNativeContext());
-  STATIC_ASSERT(kEntryLength == 3);
+  STATIC_ASSERT(kEntryLength == 4);
   Heap* heap = GetHeap();
   FixedArray* new_code_map;
   Object* value = optimized_code_map();
+  Smi* osr_ast_id_smi = Smi::FromInt(osr_ast_id.ToInt());
   if (value->IsSmi()) {
     // No optimized code map.
     ASSERT_EQ(0, Smi::cast(value)->value());
     // Create 3 entries per context {context, code, literals}.
     MaybeObject* maybe = heap->AllocateFixedArray(kInitialLength);
     if (!maybe->To(&new_code_map)) return maybe;
-    new_code_map->set(kEntriesStart + 0, native_context);
-    new_code_map->set(kEntriesStart + 1, code);
-    new_code_map->set(kEntriesStart + 2, literals);
+    new_code_map->set(kEntriesStart + kContextOffset, native_context);
+    new_code_map->set(kEntriesStart + kCachedCodeOffset, code);
+    new_code_map->set(kEntriesStart + kLiteralsOffset, literals);
+    new_code_map->set(kEntriesStart + kOsrAstIdOffset, osr_ast_id_smi);
   } else {
     // Copy old map and append one new entry.
     FixedArray* old_code_map = FixedArray::cast(value);
-    ASSERT_EQ(-1, SearchOptimizedCodeMap(native_context));
+    ASSERT_EQ(-1, SearchOptimizedCodeMap(native_context, osr_ast_id));
     int old_length = old_code_map->length();
     int new_length = old_length + kEntryLength;
     MaybeObject* maybe = old_code_map->CopySize(new_length);
     if (!maybe->To(&new_code_map)) return maybe;
-    new_code_map->set(old_length + 0, native_context);
-    new_code_map->set(old_length + 1, code);
-    new_code_map->set(old_length + 2, literals);
+    new_code_map->set(old_length + kContextOffset, native_context);
+    new_code_map->set(old_length + kCachedCodeOffset, code);
+    new_code_map->set(old_length + kLiteralsOffset, literals);
+    new_code_map->set(old_length + kOsrAstIdOffset, osr_ast_id_smi);
     // Zap the old map for the sake of the heap verifier.
     if (Heap::ShouldZapGarbage()) {
       Object** data = old_code_map->data_start();
@@ -9587,11 +9578,12 @@ MaybeObject* SharedFunctionInfo::AddToOptimizedCodeMap(Context* native_context,
   }
 #ifdef DEBUG
   for (int i = kEntriesStart; i < new_code_map->length(); i += kEntryLength) {
-    ASSERT(new_code_map->get(i)->IsNativeContext());
-    ASSERT(new_code_map->get(i + 1)->IsCode());
-    ASSERT(Code::cast(new_code_map->get(i + 1))->kind() ==
+    ASSERT(new_code_map->get(i + kContextOffset)->IsNativeContext());
+    ASSERT(new_code_map->get(i + kCachedCodeOffset)->IsCode());
+    ASSERT(Code::cast(new_code_map->get(i + kCachedCodeOffset))->kind() ==
            Code::OPTIMIZED_FUNCTION);
-    ASSERT(new_code_map->get(i + 2)->IsFixedArray());
+    ASSERT(new_code_map->get(i + kLiteralsOffset)->IsFixedArray());
+    ASSERT(new_code_map->get(i + kOsrAstIdOffset)->IsSmi());
   }
 #endif
   set_optimized_code_map(new_code_map);
@@ -9599,19 +9591,24 @@ MaybeObject* SharedFunctionInfo::AddToOptimizedCodeMap(Context* native_context,
 }
 
 
-void SharedFunctionInfo::InstallFromOptimizedCodeMap(JSFunction* function,
-                                                     int index) {
+FixedArray* SharedFunctionInfo::GetLiteralsFromOptimizedCodeMap(int index) {
   ASSERT(index > kEntriesStart);
   FixedArray* code_map = FixedArray::cast(optimized_code_map());
   if (!bound()) {
     FixedArray* cached_literals = FixedArray::cast(code_map->get(index + 1));
-    ASSERT(cached_literals != NULL);
-    function->set_literals(cached_literals);
+    ASSERT_NE(NULL, cached_literals);
+    return cached_literals;
   }
+  return NULL;
+}
+
+
+Code* SharedFunctionInfo::GetCodeFromOptimizedCodeMap(int index) {
+  ASSERT(index > kEntriesStart);
+  FixedArray* code_map = FixedArray::cast(optimized_code_map());
   Code* code = Code::cast(code_map->get(index));
-  ASSERT(code != NULL);
-  ASSERT(function->context()->native_context() == code_map->get(index - 1));
-  function->ReplaceCode(code);
+  ASSERT_NE(NULL, code);
+  return code;
 }
 
 
@@ -9650,9 +9647,14 @@ void SharedFunctionInfo::EvictFromOptimizedCodeMap(Code* optimized_code,
     }
   }
   while (i < (code_map->length() - kEntryLength)) {
-    code_map->set(i, code_map->get(i + kEntryLength));
-    code_map->set(i + 1, code_map->get(i + 1 + kEntryLength));
-    code_map->set(i + 2, code_map->get(i + 2 + kEntryLength));
+    code_map->set(i + kContextOffset,
+                  code_map->get(i + kContextOffset + kEntryLength));
+    code_map->set(i + kCachedCodeOffset,
+                  code_map->get(i + kCachedCodeOffset + kEntryLength));
+    code_map->set(i + kLiteralsOffset,
+                  code_map->get(i + kLiteralsOffset + kEntryLength));
+    code_map->set(i + kOsrAstIdOffset,
+                  code_map->get(i + kOsrAstIdOffset + kEntryLength));
     i += kEntryLength;
   }
   if (removed_entry) {
@@ -9674,50 +9676,6 @@ void SharedFunctionInfo::TrimOptimizedCodeMap(int shrink_by) {
   if (code_map->length() == kEntriesStart) {
     ClearOptimizedCodeMap();
   }
-}
-
-
-bool JSFunction::CompileLazy(Handle<JSFunction> function,
-                             ClearExceptionFlag flag) {
-  bool result = true;
-  if (function->shared()->is_compiled()) {
-    function->ReplaceCode(function->shared()->code());
-  } else {
-    ASSERT(function->shared()->allows_lazy_compilation());
-    CompilationInfoWithZone info(function);
-    result = CompileLazyHelper(&info, flag);
-    ASSERT(!result || function->is_compiled());
-  }
-  return result;
-}
-
-
-Handle<Code> JSFunction::CompileOsr(Handle<JSFunction> function,
-                                    BailoutId osr_ast_id,
-                                    ClearExceptionFlag flag) {
-  CompilationInfoWithZone info(function);
-  info.SetOptimizing(osr_ast_id);
-  if (CompileLazyHelper(&info, flag)) {
-    // TODO(titzer): don't install the OSR code.
-    // ASSERT(function->code() != *info.code());
-    return info.code();
-  } else {
-    return Handle<Code>::null();
-  }
-}
-
-
-bool JSFunction::CompileOptimized(Handle<JSFunction> function,
-                                  ClearExceptionFlag flag) {
-  CompilationInfoWithZone info(function);
-  info.SetOptimizing(BailoutId::None());
-  return CompileLazyHelper(&info, flag);
-}
-
-
-bool JSFunction::EnsureCompiled(Handle<JSFunction> function,
-                                ClearExceptionFlag flag) {
-  return function->is_compiled() || CompileLazy(function, flag);
 }
 
 
@@ -9913,7 +9871,7 @@ void JSFunction::SetInstanceClassName(String* name) {
 
 void JSFunction::PrintName(FILE* out) {
   SmartArrayPointer<char> name = shared()->DebugName()->ToCString();
-  PrintF(out, "%s", *name);
+  PrintF(out, "%s", name.get());
 }
 
 
@@ -10258,16 +10216,19 @@ void SharedFunctionInfo::CompleteInobjectSlackTracking() {
 }
 
 
-int SharedFunctionInfo::SearchOptimizedCodeMap(Context* native_context) {
+int SharedFunctionInfo::SearchOptimizedCodeMap(Context* native_context,
+                                               BailoutId osr_ast_id) {
   ASSERT(native_context->IsNativeContext());
   if (!FLAG_cache_optimized_code) return -1;
   Object* value = optimized_code_map();
   if (!value->IsSmi()) {
     FixedArray* optimized_code_map = FixedArray::cast(value);
     int length = optimized_code_map->length();
+    Smi* osr_ast_id_smi = Smi::FromInt(osr_ast_id.ToInt());
     for (int i = kEntriesStart; i < length; i += kEntryLength) {
-      if (optimized_code_map->get(i) == native_context) {
-        return i + 1;
+      if (optimized_code_map->get(i + kContextOffset) == native_context &&
+          optimized_code_map->get(i + kOsrAstIdOffset) == osr_ast_id_smi) {
+        return i + kCachedCodeOffset;
       }
     }
     if (FLAG_trace_opt) {
@@ -10516,6 +10477,12 @@ Object* Code::FindNthObject(int n, Map* match_map) {
 }
 
 
+AllocationSite* Code::FindFirstAllocationSite() {
+  Object* result = FindNthObject(1, GetHeap()->allocation_site_map());
+  return (result != NULL) ? AllocationSite::cast(result) : NULL;
+}
+
+
 Map* Code::FindFirstMap() {
   Object* result = FindNthObject(1, GetHeap()->meta_map());
   return (result != NULL) ? Map::cast(result) : NULL;
@@ -10690,6 +10657,18 @@ BailoutId Code::TranslatePcOffsetToAstId(uint32_t pc_offset) {
     if (back_edges.pc_offset(i) == pc_offset) return back_edges.ast_id(i);
   }
   return BailoutId::None();
+}
+
+
+uint32_t Code::TranslateAstIdToPcOffset(BailoutId ast_id) {
+  DisallowHeapAllocation no_gc;
+  ASSERT(kind() == FUNCTION);
+  BackEdgeTable back_edges(this, &no_gc);
+  for (uint32_t i = 0; i < back_edges.length(); i++) {
+    if (back_edges.ast_id(i) == ast_id) return back_edges.pc_offset(i);
+  }
+  UNREACHABLE();  // We expect to find the back edge.
+  return 0;
 }
 
 
@@ -12886,7 +12865,9 @@ MaybeObject* JSObject::UpdateAllocationSite(ElementsKind to_kind) {
     return this;
   }
 
-  AllocationMemento* memento = AllocationMemento::FindForJSObject(this);
+  if (!GetHeap()->InNewSpace(this)) return this;
+
+  AllocationMemento* memento = AllocationMemento::FindForHeapObject(this);
   if (memento == NULL || !memento->IsValid()) {
     return this;
   }

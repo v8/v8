@@ -1182,7 +1182,7 @@ void Isolate::DoThrow(Object* exception, MessageLocation* location) {
         fatal_exception_depth++;
         PrintF(stderr,
                "%s\n\nFROM\n",
-               *MessageHandler::GetLocalizedMessage(this, message_obj));
+               MessageHandler::GetLocalizedMessage(this, message_obj).get());
         PrintCurrentStackTrace(stderr);
         OS::Abort();
       }
@@ -1197,13 +1197,13 @@ void Isolate::DoThrow(Object* exception, MessageLocation* location) {
       if (exception->IsString() && location->script()->name()->IsString()) {
         OS::PrintError(
             "Extension or internal compilation error: %s in %s at line %d.\n",
-            *String::cast(exception)->ToCString(),
-            *String::cast(location->script()->name())->ToCString(),
+            String::cast(exception)->ToCString().get(),
+            String::cast(location->script()->name())->ToCString().get(),
             line_number + 1);
       } else if (location->script()->name()->IsString()) {
         OS::PrintError(
             "Extension or internal compilation error in %s at line %d.\n",
-            *String::cast(location->script()->name())->ToCString(),
+            String::cast(location->script()->name())->ToCString().get(),
             line_number + 1);
       } else {
         OS::PrintError("Extension or internal compilation error.\n");
@@ -1532,7 +1532,6 @@ Isolate::Isolate()
       capture_stack_trace_for_uncaught_exceptions_(false),
       stack_trace_for_uncaught_exceptions_frame_limit_(0),
       stack_trace_for_uncaught_exceptions_options_(StackTrace::kOverview),
-      transcendental_cache_(NULL),
       memory_allocator_(NULL),
       keyed_lookup_cache_(NULL),
       context_slot_cache_(NULL),
@@ -1689,7 +1688,6 @@ void Isolate::Deinit() {
     bootstrapper_->TearDown();
 
     if (runtime_profiler_ != NULL) {
-      runtime_profiler_->TearDown();
       delete runtime_profiler_;
       runtime_profiler_ = NULL;
     }
@@ -1771,8 +1769,6 @@ Isolate::~Isolate() {
   delete keyed_lookup_cache_;
   keyed_lookup_cache_ = NULL;
 
-  delete transcendental_cache_;
-  transcendental_cache_ = NULL;
   delete stub_cache_;
   stub_cache_ = NULL;
   delete stats_table_;
@@ -1937,7 +1933,6 @@ bool Isolate::Init(Deserializer* des) {
   string_tracker_ = new StringTracker();
   string_tracker_->isolate_ = this;
   compilation_cache_ = new CompilationCache(this);
-  transcendental_cache_ = new TranscendentalCache(this);
   keyed_lookup_cache_ = new KeyedLookupCache();
   context_slot_cache_ = new ContextSlotCache();
   descriptor_lookup_cache_ = new DescriptorLookupCache();
@@ -2050,7 +2045,6 @@ bool Isolate::Init(Deserializer* des) {
   if (!create_heap_objects) Assembler::QuietNaN(heap_.nan_value());
 
   runtime_profiler_ = new RuntimeProfiler(this);
-  runtime_profiler_->SetUp();
 
   // If we are deserializing, log non-function code objects and compiled
   // functions found in the snapshot.

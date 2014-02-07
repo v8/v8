@@ -1622,7 +1622,7 @@ void LCodeGen::DoArithmeticD(LArithmeticD* instr) {
       ASSERT(left.Is(d0));
       ASSERT(right.Is(d1));
       __ CallCFunction(
-          ExternalReference::double_fp_operation(Token::MOD, isolate()),
+          ExternalReference::mod_two_doubles_operation(isolate()),
           0, 2);
       ASSERT(result.Is(d0));
       break;
@@ -1993,13 +1993,6 @@ void LCodeGen::DoCallStub(LCallStub* instr) {
     }
     case CodeStub::StringCompare: {
       StringCompareStub stub;
-      CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
-      break;
-    }
-    case CodeStub::TranscendentalCache: {
-      __ Peek(x0, 0);
-      TranscendentalCacheStub stub(instr->transcendental_type(),
-                                   TranscendentalCacheStub::TAGGED);
       CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
       break;
     }
@@ -3529,7 +3522,15 @@ void LCodeGen::DoLoadNamedField(LLoadNamedField* instr) {
     __ Ldr(result, FieldMemOperand(object, JSObject::kPropertiesOffset));
     source = result;
   }
-  __ Load(result, FieldMemOperand(source, offset), access.representation());
+
+  if (access.representation().IsSmi() &&
+      instr->hydrogen()->representation().IsInteger32()) {
+    // Read int value directly from upper half of the smi.
+    __ Load(result, UntagSmiFieldMemOperand(source, offset),
+            Representation::Integer32());
+  } else {
+    __ Load(result, FieldMemOperand(source, offset), access.representation());
+  }
 }
 
 
@@ -3789,10 +3790,10 @@ void LCodeGen::DoMathFloorOfDiv(LMathFloorOfDiv* instr) {
 
 
 void LCodeGen::DoMathLog(LMathLog* instr) {
-  ASSERT(ToDoubleRegister(instr->result()).is(d0));
-  TranscendentalCacheStub stub(TranscendentalCache::LOG,
-                               TranscendentalCacheStub::UNTAGGED);
-  CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
+  ASSERT(instr->IsMarkedAsCall());
+  ASSERT(ToDoubleRegister(instr->value()).is(d0));
+  __ CallCFunction(ExternalReference::math_log_double_function(isolate()),
+                   0, 1);
   ASSERT(ToDoubleRegister(instr->result()).Is(d0));
 }
 

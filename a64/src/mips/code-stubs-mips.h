@@ -38,30 +38,6 @@ namespace internal {
 void ArrayNativeCode(MacroAssembler* masm, Label* call_generic_code);
 
 
-// Compute a transcendental math function natively, or call the
-// TranscendentalCache runtime function.
-class TranscendentalCacheStub: public PlatformCodeStub {
- public:
-  enum ArgumentType {
-    TAGGED = 0 << TranscendentalCache::kTranscendentalTypeBits,
-    UNTAGGED = 1 << TranscendentalCache::kTranscendentalTypeBits
-  };
-
-  TranscendentalCacheStub(TranscendentalCache::Type type,
-                          ArgumentType argument_type)
-      : type_(type), argument_type_(argument_type) { }
-  void Generate(MacroAssembler* masm);
- private:
-  TranscendentalCache::Type type_;
-  ArgumentType argument_type_;
-  void GenerateCallCFunction(MacroAssembler* masm, Register scratch);
-
-  Major MajorKey() { return TranscendentalCache; }
-  int MinorKey() { return type_ | argument_type_; }
-  Runtime::FunctionId RuntimeFunction();
-};
-
-
 class StoreBufferOverflowStub: public PlatformCodeStub {
  public:
   explicit StoreBufferOverflowStub(SaveFPRegsMode save_fp)
@@ -181,6 +157,33 @@ class SubStringStub: public PlatformCodeStub {
   void Generate(MacroAssembler* masm);
 };
 
+class StoreRegistersStateStub: public PlatformCodeStub {
+ public:
+  explicit StoreRegistersStateStub(SaveFPRegsMode with_fp)
+      : save_doubles_(with_fp) {}
+
+  static void GenerateAheadOfTime(Isolate* isolate);
+ private:
+  Major MajorKey() { return StoreRegistersState; }
+  int MinorKey() { return (save_doubles_ == kSaveFPRegs) ? 1 : 0; }
+  SaveFPRegsMode save_doubles_;
+
+  void Generate(MacroAssembler* masm);
+};
+
+class RestoreRegistersStateStub: public PlatformCodeStub {
+ public:
+  explicit RestoreRegistersStateStub(SaveFPRegsMode with_fp)
+      : save_doubles_(with_fp) {}
+
+  static void GenerateAheadOfTime(Isolate* isolate);
+ private:
+  Major MajorKey() { return RestoreRegistersState; }
+  int MinorKey() { return (save_doubles_ == kSaveFPRegs) ? 1 : 0; }
+  SaveFPRegsMode save_doubles_;
+
+  void Generate(MacroAssembler* masm);
+};
 
 class StringCompareStub: public PlatformCodeStub {
  public:

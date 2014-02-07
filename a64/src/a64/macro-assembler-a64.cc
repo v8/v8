@@ -4325,12 +4325,13 @@ void MacroAssembler::AssertRegisterIsClear(Register reg, BailoutReason reason) {
 
 
 void MacroAssembler::AssertRegisterIsRoot(Register reg,
-                                          Heap::RootListIndex index) {
+                                          Heap::RootListIndex index,
+                                          BailoutReason reason) {
   // CompareRoot uses Tmp0().
   ASSERT(!reg.Is(Tmp0()));
   if (emit_debug_code()) {
     CompareRoot(reg, index);
-    Check(eq, kRegisterDidNotMatchExpectedRoot);
+    Check(eq, reason);
   }
 }
 

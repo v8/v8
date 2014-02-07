@@ -300,7 +300,8 @@ static Handle<Code> DoGenerateCode(Isolate* isolate, Stub* stub) {
   Handle<Code> code = chunk->Codegen();
   if (FLAG_profile_hydrogen_code_stub_compilation) {
     double ms = timer.Elapsed().InMillisecondsF();
-    PrintF("[Lazy compilation of %s took %0.3f ms]\n", *stub->GetName(), ms);
+    PrintF("[Lazy compilation of %s took %0.3f ms]\n",
+           stub->GetName().get(), ms);
   }
   return code;
 }
@@ -459,7 +460,7 @@ HValue* CodeStubGraphBuilder<FastCloneShallowObjectStub>::BuildCodeStub() {
   HValue* size_in_bytes = Add<HConstant>(size);
 
   HInstruction* object = Add<HAllocate>(size_in_bytes, HType::JSObject(),
-      isolate()->heap()->GetPretenureMode(), JS_OBJECT_TYPE);
+      NOT_TENURED, JS_OBJECT_TYPE);
 
   for (int i = 0; i < object_size; i += kPointerSize) {
     HObjectAccess access = HObjectAccess::ForJSObjectOffset(i);
@@ -910,6 +911,7 @@ HValue* CodeStubGraphBuilder<BinaryOpICStub>::BuildCodeInitializedStub() {
          (state.HasSideEffects() || !result_type->Is(Type::None())));
 
   HValue* result = NULL;
+  HAllocationMode allocation_mode(NOT_TENURED);
   if (state.op() == Token::ADD &&
       (left_type->Maybe(Type::String()) || right_type->Maybe(Type::String())) &&
       !left_type->Is(Type::String()) && !right_type->Is(Type::String())) {
@@ -923,14 +925,15 @@ HValue* CodeStubGraphBuilder<BinaryOpICStub>::BuildCodeInitializedStub() {
         Push(BuildBinaryOperation(
                     state.op(), left, right,
                     handle(Type::String(), isolate()), right_type,
-                    result_type, state.fixed_right_arg()));
+                    result_type, state.fixed_right_arg(),
+                    allocation_mode));
       }
       if_leftisstring.Else();
       {
         Push(BuildBinaryOperation(
                     state.op(), left, right,
                     left_type, right_type, result_type,
-                    state.fixed_right_arg()));
+                    state.fixed_right_arg(), allocation_mode));
       }
       if_leftisstring.End();
       result = Pop();
@@ -942,14 +945,15 @@ HValue* CodeStubGraphBuilder<BinaryOpICStub>::BuildCodeInitializedStub() {
         Push(BuildBinaryOperation(
                     state.op(), left, right,
                     left_type, handle(Type::String(), isolate()),
-                    result_type, state.fixed_right_arg()));
+                    result_type, state.fixed_right_arg(),
+                    allocation_mode));
       }
       if_rightisstring.Else();
       {
         Push(BuildBinaryOperation(
                     state.op(), left, right,
                     left_type, right_type, result_type,
-                    state.fixed_right_arg()));
+                    state.fixed_right_arg(), allocation_mode));
       }
       if_rightisstring.End();
       result = Pop();
@@ -958,7 +962,7 @@ HValue* CodeStubGraphBuilder<BinaryOpICStub>::BuildCodeInitializedStub() {
     result = BuildBinaryOperation(
             state.op(), left, right,
             left_type, right_type, result_type,
-            state.fixed_right_arg());
+            state.fixed_right_arg(), allocation_mode);
   }
 
   // If we encounter a generic argument, the number conversion is
@@ -1006,6 +1010,31 @@ Handle<Code> BinaryOpICStub::GenerateCode(Isolate* isolate) {
 
 
 template <>
+HValue* CodeStubGraphBuilder<BinaryOpWithAllocationSiteStub>::BuildCodeStub() {
+  BinaryOpIC::State state = casted_stub()->state();
+
+  HValue* allocation_site = GetParameter(
+      BinaryOpWithAllocationSiteStub::kAllocationSite);
+  HValue* left = GetParameter(BinaryOpWithAllocationSiteStub::kLeft);
+  HValue* right = GetParameter(BinaryOpWithAllocationSiteStub::kRight);
+
+  Handle<Type> left_type = state.GetLeftType(isolate());
+  Handle<Type> right_type = state.GetRightType(isolate());
+  Handle<Type> result_type = state.GetResultType(isolate());
+  HAllocationMode allocation_mode(allocation_site);
+
+  return BuildBinaryOperation(state.op(), left, right,
+                              left_type, right_type, result_type,
+                              state.fixed_right_arg(), allocation_mode);
+}
+
+
+Handle<Code> BinaryOpWithAllocationSiteStub::GenerateCode(Isolate* isolate) {
+  return DoGenerateCode(isolate, this);
+}
+
+
+template <>
 HValue* CodeStubGraphBuilder<NewStringAddStub>::BuildCodeInitializedStub() {
   NewStringAddStub* stub = casted_stub();
   StringAddFlags flags = stub->flags();
@@ -1022,7 +1051,7 @@ HValue* CodeStubGraphBuilder<NewStringAddStub>::BuildCodeInitializedStub() {
     right = BuildCheckString(right);
   }
 
-  return BuildStringAdd(left, right, pretenure_flag);
+  return BuildStringAdd(left, right, HAllocationMode(pretenure_flag));
 }
 
 
@@ -1193,9 +1222,14 @@ void CodeStubGraphBuilderBase::BuildInstallFromOptimizedCodeMap(
     Label install_optimized;
     HValue* first_context_slot = Add<HLoadNamedField>(optimized_map,
         HObjectAccess::ForFirstContextSlot());
+    HValue* first_osr_ast_slot = Add<HLoadNamedField>(optimized_map,
+        HObjectAccess::ForFirstOsrAstIdSlot());
+    HValue* osr_ast_id_none = Add<HConstant>(BailoutId::None().ToInt());
     IfBuilder already_in(this);
     already_in.If<HCompareObjectEqAndBranch>(native_context,
                                              first_context_slot);
+    already_in.AndIf<HCompareObjectEqAndBranch>(first_osr_ast_slot,
+                                                osr_ast_id_none);
     already_in.Then();
     {
       HValue* code_object = Add<HLoadNamedField>(optimized_map,
@@ -1212,7 +1246,7 @@ void CodeStubGraphBuilderBase::BuildInstallFromOptimizedCodeMap(
                                shared_function_entry_length);
       HValue* array_length = Add<HLoadNamedField>(optimized_map,
           HObjectAccess::ForFixedArrayLength());
-      HValue* key = loop_builder.BeginBody(array_length,
+      HValue* slot_iterator = loop_builder.BeginBody(array_length,
                                            graph()->GetConstant0(),
                                            Token::GT);
       {
@@ -1221,8 +1255,8 @@ void CodeStubGraphBuilderBase::BuildInstallFromOptimizedCodeMap(
         HValue* second_entry_index =
             Add<HConstant>(SharedFunctionInfo::kSecondEntryIndex);
         IfBuilder restore_check(this);
-        restore_check.If<HCompareNumericAndBranch>(key, second_entry_index,
-                                                   Token::EQ);
+        restore_check.If<HCompareNumericAndBranch>(
+            slot_iterator, second_entry_index, Token::EQ);
         restore_check.Then();
         {
           // Store the unoptimized code
@@ -1231,20 +1265,29 @@ void CodeStubGraphBuilderBase::BuildInstallFromOptimizedCodeMap(
         }
         restore_check.Else();
         {
-          HValue* keyed_minus = AddUncasted<HSub>(
-              key, shared_function_entry_length);
-          HInstruction* keyed_lookup = Add<HLoadKeyed>(optimized_map,
-              keyed_minus, static_cast<HValue*>(NULL), FAST_ELEMENTS);
+          STATIC_ASSERT(SharedFunctionInfo::kContextOffset == 0);
+          STATIC_ASSERT(SharedFunctionInfo::kEntryLength -
+                            SharedFunctionInfo::kOsrAstIdOffset == 1);
+          HValue* native_context_slot = AddUncasted<HSub>(
+              slot_iterator, shared_function_entry_length);
+          HValue* osr_ast_id_slot = AddUncasted<HSub>(
+              slot_iterator, graph()->GetConstant1());
+          HInstruction* native_context_entry = Add<HLoadKeyed>(optimized_map,
+              native_context_slot, static_cast<HValue*>(NULL), FAST_ELEMENTS);
+          HInstruction* osr_ast_id_entry = Add<HLoadKeyed>(optimized_map,
+              osr_ast_id_slot, static_cast<HValue*>(NULL), FAST_ELEMENTS);
           IfBuilder done_check(this);
           done_check.If<HCompareObjectEqAndBranch>(native_context,
-                                                   keyed_lookup);
+                                                   native_context_entry);
+          done_check.AndIf<HCompareObjectEqAndBranch>(osr_ast_id_entry,
+                                                      osr_ast_id_none);
           done_check.Then();
           {
             // Hit: fetch the optimized code.
-            HValue* keyed_plus = AddUncasted<HAdd>(
-                keyed_minus, graph()->GetConstant1());
+            HValue* code_slot = AddUncasted<HAdd>(
+                native_context_slot, graph()->GetConstant1());
             HValue* code_object = Add<HLoadKeyed>(optimized_map,
-                keyed_plus, static_cast<HValue*>(NULL), FAST_ELEMENTS);
+                code_slot, static_cast<HValue*>(NULL), FAST_ELEMENTS);
             BuildInstallOptimizedCode(js_function, native_context, code_object);
 
             // Fall out of the loop

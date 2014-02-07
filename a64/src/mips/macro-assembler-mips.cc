@@ -789,7 +789,28 @@ void MacroAssembler::Ror(Register rd, Register rs, const Operand& rt) {
 }
 
 
+void MacroAssembler::Pref(int32_t hint, const MemOperand& rs) {
+  if (kArchVariant == kLoongson) {
+    lw(zero_reg, rs);
+  } else {
+    pref(hint, rs);
+  }
+}
+
+
 //------------Pseudo-instructions-------------
+
+void MacroAssembler::Ulw(Register rd, const MemOperand& rs) {
+  lwr(rd, rs);
+  lwl(rd, MemOperand(rs.rm(), rs.offset() + 3));
+}
+
+
+void MacroAssembler::Usw(Register rd, const MemOperand& rs) {
+  swr(rd, rs);
+  swl(rd, MemOperand(rs.rm(), rs.offset() + 3));
+}
+
 
 void MacroAssembler::li(Register dst, Handle<Object> value, LiFlags mode) {
   AllowDeferredHandleDereference smi_check;
@@ -1207,12 +1228,12 @@ void MacroAssembler::BranchF(Label* target,
 void MacroAssembler::Move(FPURegister dst, double imm) {
   static const DoubleRepresentation minus_zero(-0.0);
   static const DoubleRepresentation zero(0.0);
-  DoubleRepresentation value(imm);
+  DoubleRepresentation value_rep(imm);
   // Handle special values first.
   bool force_load = dst.is(kDoubleRegZero);
-  if (value.bits == zero.bits && !force_load) {
+  if (value_rep == zero && !force_load) {
     mov_d(dst, kDoubleRegZero);
-  } else if (value.bits == minus_zero.bits && !force_load) {
+  } else if (value_rep == minus_zero && !force_load) {
     neg_d(dst, kDoubleRegZero);
   } else {
     uint32_t lo, hi;

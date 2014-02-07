@@ -29,10 +29,12 @@
 #define V8_IC_H_
 
 #include "macro-assembler.h"
-#include "type-info.h"
 
 namespace v8 {
 namespace internal {
+
+
+const int kMaxKeyedPolymorphism = 4;
 
 
 // IC_UTIL_LIST defines all utility functions called from generated
@@ -293,6 +295,12 @@ class IC_Utility {
  private:
   Address address_;
   IC::UtilityId id_;
+};
+
+
+enum StringStubFeedback {
+  DEFAULT_STRING_STUB = 0,
+  STRING_INDEX_OUT_OF_BOUNDS = 1
 };
 
 
@@ -853,10 +861,27 @@ class BinaryOpIC: public IC {
             right_kind_ > SMI && right_kind_ <= NUMBER));
     }
 
+    // Returns true if the IC _could_ create allocation mementos.
+    bool CouldCreateAllocationMementos() const {
+      if (left_kind_ == STRING || right_kind_ == STRING) {
+        ASSERT_EQ(Token::ADD, op_);
+        return true;
+      }
+      return false;
+    }
+
+    // Returns true if the IC _should_ create allocation mementos.
+    bool ShouldCreateAllocationMementos() const {
+      return FLAG_allocation_site_pretenuring &&
+          CouldCreateAllocationMementos();
+    }
+
     bool HasSideEffects() const {
       return Max(left_kind_, right_kind_) == GENERIC;
     }
 
+    // Returns true if the IC should enable the inline smi code (i.e. if either
+    // parameter may be a smi).
     bool UseInlinedSmiCode() const {
       return KindMaybeSmi(left_kind_) || KindMaybeSmi(right_kind_);
     }
@@ -918,8 +943,9 @@ class BinaryOpIC: public IC {
 
   static Builtins::JavaScript TokenToJSBuiltin(Token::Value op);
 
-  MUST_USE_RESULT MaybeObject* Transition(Handle<Object> left,
-                                          Handle<Object> right);
+  MaybeObject* Transition(Handle<AllocationSite> allocation_site,
+                          Handle<Object> left,
+                          Handle<Object> right) V8_WARN_UNUSED_RESULT;
 };
 
 
@@ -1028,6 +1054,7 @@ DECLARE_RUNTIME_FUNCTION(MaybeObject*, StoreIC_MissFromStubFailure);
 DECLARE_RUNTIME_FUNCTION(MaybeObject*, KeyedCallIC_MissFromStubFailure);
 DECLARE_RUNTIME_FUNCTION(MaybeObject*, ElementsTransitionAndStoreIC_Miss);
 DECLARE_RUNTIME_FUNCTION(MaybeObject*, BinaryOpIC_Miss);
+DECLARE_RUNTIME_FUNCTION(MaybeObject*, BinaryOpIC_MissWithAllocationSite);
 DECLARE_RUNTIME_FUNCTION(MaybeObject*, CompareNilIC_Miss);
 DECLARE_RUNTIME_FUNCTION(MaybeObject*, ToBooleanIC_Miss);
 

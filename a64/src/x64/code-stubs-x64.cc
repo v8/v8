@@ -180,18 +180,6 @@ void TransitionElementsKindStub::InitializeInterfaceDescriptor(
 }
 
 
-void BinaryOpICStub::InitializeInterfaceDescriptor(
-    Isolate* isolate,
-    CodeStubInterfaceDescriptor* descriptor) {
-  static Register registers[] = { rdx, rax };
-  descriptor->register_param_count_ = 2;
-  descriptor->register_params_ = registers;
-  descriptor->deoptimization_handler_ = FUNCTION_ADDR(BinaryOpIC_Miss);
-  descriptor->SetMissHandler(
-      ExternalReference(IC_Utility(IC::kBinaryOpIC_Miss), isolate));
-}
-
-
 static void InitializeArrayConstructorDescriptor(
     Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor,
@@ -336,6 +324,29 @@ void ElementsTransitionAndStoreStub::InitializeInterfaceDescriptor(
   descriptor->register_params_ = registers;
   descriptor->deoptimization_handler_ =
       FUNCTION_ADDR(ElementsTransitionAndStoreIC_Miss);
+}
+
+
+void BinaryOpICStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  static Register registers[] = { rdx, rax };
+  descriptor->register_param_count_ = 2;
+  descriptor->register_params_ = registers;
+  descriptor->deoptimization_handler_ = FUNCTION_ADDR(BinaryOpIC_Miss);
+  descriptor->SetMissHandler(
+      ExternalReference(IC_Utility(IC::kBinaryOpIC_Miss), isolate));
+}
+
+
+void BinaryOpWithAllocationSiteStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  static Register registers[] = { rcx, rdx, rax };
+  descriptor->register_param_count_ = 3;
+  descriptor->register_params_ = registers;
+  descriptor->deoptimization_handler_ =
+      FUNCTION_ADDR(BinaryOpIC_MissWithAllocationSite);
 }
 
 
@@ -594,220 +605,6 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
     __ pop(save_reg);
     __ pop(scratch1);
     __ ret(0);
-}
-
-
-void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
-  // TAGGED case:
-  //   Input:
-  //     rsp[8] : argument (should be number).
-  //     rsp[0] : return address.
-  //   Output:
-  //     rax: tagged double result.
-  // UNTAGGED case:
-  //   Input::
-  //     rsp[0] : return address.
-  //     xmm1   : untagged double input argument
-  //   Output:
-  //     xmm1   : untagged double result.
-
-  Label runtime_call;
-  Label runtime_call_clear_stack;
-  Label skip_cache;
-  const bool tagged = (argument_type_ == TAGGED);
-  if (tagged) {
-    Label input_not_smi, loaded;
-
-    // Test that rax is a number.
-    StackArgumentsAccessor args(rsp, 1, ARGUMENTS_DONT_CONTAIN_RECEIVER);
-    __ movq(rax, args.GetArgumentOperand(0));
-    __ JumpIfNotSmi(rax, &input_not_smi, Label::kNear);
-    // Input is a smi. Untag and load it onto the FPU stack.
-    // Then load the bits of the double into rbx.
-    __ SmiToInteger32(rax, rax);
-    __ subq(rsp, Immediate(kDoubleSize));
-    __ Cvtlsi2sd(xmm1, rax);
-    __ movsd(Operand(rsp, 0), xmm1);
-    __ movq(rbx, xmm1);
-    __ movq(rdx, xmm1);
-    __ fld_d(Operand(rsp, 0));
-    __ addq(rsp, Immediate(kDoubleSize));
-    __ jmp(&loaded, Label::kNear);
-
-    __ bind(&input_not_smi);
-    // Check if input is a HeapNumber.
-    __ LoadRoot(rbx, Heap::kHeapNumberMapRootIndex);
-    __ cmpq(rbx, FieldOperand(rax, HeapObject::kMapOffset));
-    __ j(not_equal, &runtime_call);
-    // Input is a HeapNumber. Push it on the FPU stack and load its
-    // bits into rbx.
-    __ fld_d(FieldOperand(rax, HeapNumber::kValueOffset));
-    __ MoveDouble(rbx, FieldOperand(rax, HeapNumber::kValueOffset));
-    __ movq(rdx, rbx);
-
-    __ bind(&loaded);
-  } else {  // UNTAGGED.
-    __ movq(rbx, xmm1);
-    __ movq(rdx, xmm1);
-  }
-
-  // ST[0] == double value, if TAGGED.
-  // rbx = bits of double value.
-  // rdx = also bits of double value.
-  // Compute hash (h is 32 bits, bits are 64 and the shifts are arithmetic):
-  //   h = h0 = bits ^ (bits >> 32);
-  //   h ^= h >> 16;
-  //   h ^= h >> 8;
-  //   h = h & (cacheSize - 1);
-  // or h = (h0 ^ (h0 >> 8) ^ (h0 >> 16) ^ (h0 >> 24)) & (cacheSize - 1)
-  __ sar(rdx, Immediate(32));
-  __ xorl(rdx, rbx);
-  __ movl(rcx, rdx);
-  __ movl(rax, rdx);
-  __ movl(rdi, rdx);
-  __ sarl(rdx, Immediate(8));
-  __ sarl(rcx, Immediate(16));
-  __ sarl(rax, Immediate(24));
-  __ xorl(rcx, rdx);
-  __ xorl(rax, rdi);
-  __ xorl(rcx, rax);
-  ASSERT(IsPowerOf2(TranscendentalCache::SubCache::kCacheSize));
-  __ andl(rcx, Immediate(TranscendentalCache::SubCache::kCacheSize - 1));
-
-  // ST[0] == double value.
-  // rbx = bits of double value.
-  // rcx = TranscendentalCache::hash(double value).
-  ExternalReference cache_array =
-      ExternalReference::transcendental_cache_array_address(masm->isolate());
-  __ Move(rax, cache_array);
-  int cache_array_index =
-      type_ * sizeof(masm->isolate()->transcendental_cache()->caches_[0]);
-  __ movq(rax, Operand(rax, cache_array_index));
-  // rax points to the cache for the type type_.
-  // If NULL, the cache hasn't been initialized yet, so go through runtime.
-  __ testq(rax, rax);
-  __ j(zero, &runtime_call_clear_stack);  // Only clears stack if TAGGED.
-#ifdef DEBUG
-  // Check that the layout of cache elements match expectations.
-  {  // NOLINT - doesn't like a single brace on a line.
-    TranscendentalCache::SubCache::Element test_elem[2];
-    char* elem_start = reinterpret_cast<char*>(&test_elem[0]);
-    char* elem2_start = reinterpret_cast<char*>(&test_elem[1]);
-    char* elem_in0  = reinterpret_cast<char*>(&(test_elem[0].in[0]));
-    char* elem_in1  = reinterpret_cast<char*>(&(test_elem[0].in[1]));
-    char* elem_out = reinterpret_cast<char*>(&(test_elem[0].output));
-    // Two uint_32's and a pointer per element.
-    CHECK_EQ(2 * kIntSize + 1 * kPointerSize,
-             static_cast<int>(elem2_start - elem_start));
-    CHECK_EQ(0, static_cast<int>(elem_in0 - elem_start));
-    CHECK_EQ(kIntSize, static_cast<int>(elem_in1 - elem_start));
-    CHECK_EQ(2 * kIntSize, static_cast<int>(elem_out - elem_start));
-  }
-#endif
-  // Find the address of the rcx'th entry in the cache, i.e., &rax[rcx*16].
-  __ addl(rcx, rcx);
-  __ lea(rcx, Operand(rax, rcx, times_8, 0));
-  // Check if cache matches: Double value is stored in uint32_t[2] array.
-  Label cache_miss;
-  __ cmpq(rbx, Operand(rcx, 0));
-  __ j(not_equal, &cache_miss, Label::kNear);
-  // Cache hit!
-  Counters* counters = masm->isolate()->counters();
-  __ IncrementCounter(counters->transcendental_cache_hit(), 1);
-  __ movq(rax, Operand(rcx, 2 * kIntSize));
-  if (tagged) {
-    __ fstp(0);  // Clear FPU stack.
-    __ ret(kPointerSize);
-  } else {  // UNTAGGED.
-    __ movsd(xmm1, FieldOperand(rax, HeapNumber::kValueOffset));
-    __ Ret();
-  }
-
-  __ bind(&cache_miss);
-  __ IncrementCounter(counters->transcendental_cache_miss(), 1);
-  // Update cache with new value.
-  if (tagged) {
-  __ AllocateHeapNumber(rax, rdi, &runtime_call_clear_stack);
-  } else {  // UNTAGGED.
-    __ AllocateHeapNumber(rax, rdi, &skip_cache);
-    __ movsd(FieldOperand(rax, HeapNumber::kValueOffset), xmm1);
-    __ fld_d(FieldOperand(rax, HeapNumber::kValueOffset));
-  }
-  GenerateOperation(masm, type_);
-  __ movq(Operand(rcx, 0), rbx);
-  __ movq(Operand(rcx, 2 * kIntSize), rax);
-  __ fstp_d(FieldOperand(rax, HeapNumber::kValueOffset));
-  if (tagged) {
-    __ ret(kPointerSize);
-  } else {  // UNTAGGED.
-    __ movsd(xmm1, FieldOperand(rax, HeapNumber::kValueOffset));
-    __ Ret();
-
-    // Skip cache and return answer directly, only in untagged case.
-    __ bind(&skip_cache);
-    __ subq(rsp, Immediate(kDoubleSize));
-    __ movsd(Operand(rsp, 0), xmm1);
-    __ fld_d(Operand(rsp, 0));
-    GenerateOperation(masm, type_);
-    __ fstp_d(Operand(rsp, 0));
-    __ movsd(xmm1, Operand(rsp, 0));
-    __ addq(rsp, Immediate(kDoubleSize));
-    // We return the value in xmm1 without adding it to the cache, but
-    // we cause a scavenging GC so that future allocations will succeed.
-    {
-      FrameScope scope(masm, StackFrame::INTERNAL);
-      // Allocate an unused object bigger than a HeapNumber.
-      __ Push(Smi::FromInt(2 * kDoubleSize));
-      __ CallRuntimeSaveDoubles(Runtime::kAllocateInNewSpace);
-    }
-    __ Ret();
-  }
-
-  // Call runtime, doing whatever allocation and cleanup is necessary.
-  if (tagged) {
-    __ bind(&runtime_call_clear_stack);
-    __ fstp(0);
-    __ bind(&runtime_call);
-    __ TailCallExternalReference(
-        ExternalReference(RuntimeFunction(), masm->isolate()), 1, 1);
-  } else {  // UNTAGGED.
-    __ bind(&runtime_call_clear_stack);
-    __ bind(&runtime_call);
-    __ AllocateHeapNumber(rax, rdi, &skip_cache);
-    __ movsd(FieldOperand(rax, HeapNumber::kValueOffset), xmm1);
-    {
-      FrameScope scope(masm, StackFrame::INTERNAL);
-      __ push(rax);
-      __ CallRuntime(RuntimeFunction(), 1);
-    }
-    __ movsd(xmm1, FieldOperand(rax, HeapNumber::kValueOffset));
-    __ Ret();
-  }
-}
-
-
-Runtime::FunctionId TranscendentalCacheStub::RuntimeFunction() {
-  switch (type_) {
-    // Add more cases when necessary.
-    case TranscendentalCache::LOG: return Runtime::kMath_log;
-    default:
-      UNIMPLEMENTED();
-      return Runtime::kAbort;
-  }
-}
-
-
-void TranscendentalCacheStub::GenerateOperation(
-    MacroAssembler* masm, TranscendentalCache::Type type) {
-  // Registers:
-  // rax: Newly allocated HeapNumber, which must be preserved.
-  // rbx: Bits of input double. Must be preserved.
-  // rcx: Pointer to cache entry. Must be preserved.
-  // st(0): Input double
-  ASSERT(type == TranscendentalCache::LOG);
-  __ fldln2();
-  __ fxch();
-  __ fyl2x();
 }
 
 
@@ -2697,6 +2494,7 @@ void CodeStub::GenerateStubsAheadOfTime(Isolate* isolate) {
   ArrayConstructorStubBase::GenerateStubsAheadOfTime(isolate);
   CreateAllocationSiteStub::GenerateAheadOfTime(isolate);
   BinaryOpICStub::GenerateAheadOfTime(isolate);
+  BinaryOpICWithAllocationSiteStub::GenerateAheadOfTime(isolate);
 }
 
 
@@ -4335,7 +4133,10 @@ void StringCompareStub::GenerateCompareFlatAsciiStrings(MacroAssembler* masm,
   // Compare loop.
   Label result_not_equal;
   GenerateAsciiCharsCompareLoop(masm, left, right, min_length, scratch2,
-                                &result_not_equal, Label::kNear);
+                                &result_not_equal,
+                                // In debug-code mode, SmiTest below might push
+                                // the target label outside the near range.
+                                Label::kFar);
 
   // Completed loop without finding different characters.
   // Compare lengths (precomputed).
@@ -4437,6 +4238,35 @@ void StringCompareStub::Generate(MacroAssembler* masm) {
   // tagged as a small integer.
   __ bind(&runtime);
   __ TailCallRuntime(Runtime::kStringCompare, 2, 1);
+}
+
+
+void BinaryOpICWithAllocationSiteStub::Generate(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- rdx    : left
+  //  -- rax    : right
+  //  -- rsp[0] : return address
+  // -----------------------------------
+  Isolate* isolate = masm->isolate();
+
+  // Load rcx with the allocation site.  We stick an undefined dummy value here
+  // and replace it with the real allocation site later when we instantiate this
+  // stub in BinaryOpICWithAllocationSiteStub::GetCodeCopyFromTemplate().
+  __ Move(rcx, handle(isolate->heap()->undefined_value()));
+
+  // Make sure that we actually patched the allocation site.
+  if (FLAG_debug_code) {
+    __ testb(rcx, Immediate(kSmiTagMask));
+    __ Assert(zero, kExpectedAllocationSite);
+    __ Cmp(FieldOperand(rcx, HeapObject::kMapOffset),
+           isolate->factory()->allocation_site_map());
+    __ Assert(equal, kExpectedAllocationSite);
+  }
+
+  // Tail call into the stub that handles binary operations with allocation
+  // sites.
+  BinaryOpWithAllocationSiteStub stub(state_);
+  __ TailCallStub(&stub);
 }
 
 

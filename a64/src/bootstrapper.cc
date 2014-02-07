@@ -41,10 +41,11 @@
 #include "platform.h"
 #include "snapshot.h"
 #include "trig-table.h"
-#include "extensions/free-buffer-extension.h"
 #include "extensions/externalize-string-extension.h"
+#include "extensions/free-buffer-extension.h"
 #include "extensions/gc-extension.h"
 #include "extensions/statistics-extension.h"
+#include "extensions/trigger-failure-extension.h"
 #include "code-stubs.h"
 
 namespace v8 {
@@ -107,6 +108,7 @@ void Bootstrapper::InitializeOncePerProcess() {
   GCExtension::Register();
   ExternalizeStringExtension::Register();
   StatisticsExtension::Register();
+  TriggerFailureExtension::Register();
 }
 
 
@@ -339,17 +341,6 @@ void Bootstrapper::DetachGlobal(Handle<Context> env) {
   Handle<JSGlobalProxy> global_proxy(JSGlobalProxy::cast(env->global_proxy()));
   global_proxy->set_native_context(*factory->null_value());
   SetObjectPrototype(global_proxy, factory->null_value());
-  env->set_global_proxy(env->global_object());
-  env->global_object()->set_global_receiver(env->global_object());
-}
-
-
-void Bootstrapper::ReattachGlobal(Handle<Context> env,
-                                  Handle<JSGlobalProxy> global_proxy) {
-  env->global_object()->set_global_receiver(*global_proxy);
-  env->set_global_proxy(*global_proxy);
-  SetObjectPrototype(global_proxy, Handle<JSObject>(env->global_object()));
-  global_proxy->set_native_context(*env);
 }
 
 
@@ -554,7 +545,7 @@ void Genesis::SetStrictFunctionInstanceDescriptor(
     map->AppendDescriptor(&d, witness);
   }
   {  // Add name.
-    CallbacksDescriptor d(*factory()->name_string(), *name, rw_attribs);
+    CallbacksDescriptor d(*factory()->name_string(), *name, ro_attribs);
     map->AppendDescriptor(&d, witness);
   }
   {  // Add arguments.
@@ -1311,7 +1302,7 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
   native_context()->set_out_of_memory(heap->false_value());
 
   // Initialize the embedder data slot.
-  Handle<FixedArray> embedder_data = factory->NewFixedArray(2);
+  Handle<FixedArray> embedder_data = factory->NewFixedArray(3);
   native_context()->set_embedder_data(*embedder_data);
 }
 
@@ -1508,7 +1499,7 @@ bool Genesis::CompileScriptCached(Isolate* isolate,
   if (cache == NULL || !cache->Lookup(name, &function_info)) {
     ASSERT(source->IsOneByteRepresentation());
     Handle<String> script_name = factory->NewStringFromUtf8(name);
-    function_info = Compiler::Compile(
+    function_info = Compiler::CompileScript(
         source,
         script_name,
         0,
@@ -2266,6 +2257,9 @@ bool Genesis::InstallExtensions(Handle<Context> native_context,
   if (FLAG_track_gc_object_stats) {
     InstallExtension(isolate, "v8/statistics", &extension_states);
   }
+  if (FLAG_expose_trigger_failure) {
+    InstallExtension(isolate, "v8/trigger-failure", &extension_states);
+  }
 
   if (extensions == NULL) return true;
   // Install required extensions
@@ -2360,7 +2354,7 @@ bool Genesis::InstallJSBuiltins(Handle<JSBuiltinsObject> builtins) {
     Handle<JSFunction> function
         = Handle<JSFunction>(JSFunction::cast(function_object));
     builtins->set_javascript_builtin(id, *function);
-    if (!JSFunction::CompileLazy(function, CLEAR_EXCEPTION)) {
+    if (!Compiler::EnsureCompiled(function, CLEAR_EXCEPTION)) {
       return false;
     }
     builtins->set_javascript_builtin_code(id, function->shared()->code());

@@ -118,7 +118,7 @@ void DeclarationContext::InitializeIfNeeded() {
   if (is_initialized_) return;
   Isolate* isolate = CcTest::isolate();
   HandleScope scope(isolate);
-  Local<FunctionTemplate> function = FunctionTemplate::New();
+  Local<FunctionTemplate> function = FunctionTemplate::New(isolate);
   Local<Value> data = External::New(CcTest::isolate(), this);
   GetHolder(function)->SetNamedPropertyHandler(&HandleGet,
                                                &HandleSet,
@@ -634,7 +634,7 @@ TEST(AbsentInPrototype) {
 class ExistsInHiddenPrototypeContext: public DeclarationContext {
  public:
   ExistsInHiddenPrototypeContext() {
-    hidden_proto_ = FunctionTemplate::New();
+    hidden_proto_ = FunctionTemplate::New(CcTest::isolate());
     hidden_proto_->SetHiddenPrototype(true);
   }
 
@@ -648,9 +648,9 @@ class ExistsInHiddenPrototypeContext: public DeclarationContext {
   virtual void PostInitializeContext(Handle<Context> context) {
     Local<Object> global_object = context->Global();
     Local<Object> hidden_proto = hidden_proto_->GetFunction()->NewInstance();
-    context->DetachGlobal();
-    context->Global()->SetPrototype(hidden_proto);
-    context->ReattachGlobal(global_object);
+    Local<Object> inner_global =
+        Local<Object>::Cast(global_object->GetPrototype());
+    inner_global->SetPrototype(hidden_proto);
   }
 
   // Use the hidden prototype as the holder for the interceptors.

@@ -38,15 +38,6 @@ namespace internal {
 
 #define __ ACCESS_MASM(masm)
 
-UnaryMathFunction CreateTranscendentalFunction(TranscendentalCache::Type type) {
-  switch (type) {
-    case TranscendentalCache::LOG: return &log;
-    default: UNIMPLEMENTED();
-  }
-  return NULL;
-}
-
-
 #if defined(USE_SIMULATOR)
 byte* fast_exp_a64_machine_code = NULL;
 double fast_exp_simulator(double x) {

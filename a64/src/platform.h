@@ -59,6 +59,10 @@ int signbit(double x);
 # endif
 #endif
 
+#if V8_OS_QNX
+#include "qnx-math.h"
+#endif
+
 // Microsoft Visual C++ specific stuff.
 #if V8_CC_MSVC
 
@@ -96,7 +100,6 @@ namespace internal {
 double modulo(double x, double y);
 
 // Custom implementation of math functions.
-double fast_log(double input);
 double fast_exp(double input);
 double fast_sqrt(double input);
 // The custom exp implementation needs 16KB of lookup data; initialize it
@@ -364,6 +367,26 @@ class OS {
                                  const uint8_t* src,
                                  size_t size) {
     (*memcopy_uint16_uint8_function)(dest, src, size);
+  }
+#elif defined(V8_HOST_ARCH_MIPS)
+  typedef void (*MemCopyUint8Function)(uint8_t* dest,
+                                       const uint8_t* src,
+                                       size_t size);
+  static MemCopyUint8Function memcopy_uint8_function;
+  static void MemCopyUint8Wrapper(uint8_t* dest,
+                                  const uint8_t* src,
+                                  size_t chars) {
+    memcpy(dest, src, chars);
+  }
+  // For values < 16, the assembler function is slower than the inlined C code.
+  static const int kMinComplexMemCopy = 16;
+  static void MemCopy(void* dest, const void* src, size_t size) {
+    (*memcopy_uint8_function)(reinterpret_cast<uint8_t*>(dest),
+                              reinterpret_cast<const uint8_t*>(src),
+                              size);
+  }
+  static void MemMove(void* dest, const void* src, size_t size) {
+    memmove(dest, src, size);
   }
 #else
   // Copy memory area to disjoint memory area.

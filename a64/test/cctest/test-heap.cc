@@ -26,6 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <stdlib.h>
+#include <utility>
 
 #include "v8.h"
 
@@ -382,22 +383,24 @@ TEST(GlobalHandles) {
   CHECK((*h4)->IsHeapNumber());
 
   CHECK_EQ(*h3, *h1);
-  global_handles->Destroy(h1.location());
-  global_handles->Destroy(h3.location());
+  GlobalHandles::Destroy(h1.location());
+  GlobalHandles::Destroy(h3.location());
 
   CHECK_EQ(*h4, *h2);
-  global_handles->Destroy(h2.location());
-  global_handles->Destroy(h4.location());
+  GlobalHandles::Destroy(h2.location());
+  GlobalHandles::Destroy(h4.location());
 }
 
 
 static bool WeakPointerCleared = false;
 
-static void TestWeakGlobalHandleCallback(v8::Isolate* isolate,
-                                         v8::Persistent<v8::Value>* handle,
-                                         void* id) {
-  if (1234 == reinterpret_cast<intptr_t>(id)) WeakPointerCleared = true;
-  handle->Reset();
+static void TestWeakGlobalHandleCallback(
+    const v8::WeakCallbackData<v8::Value, void>& data) {
+  std::pair<v8::Persistent<v8::Value>*, int>* p =
+      reinterpret_cast<std::pair<v8::Persistent<v8::Value>*, int>*>(
+          data.GetParameter());
+  if (p->second == 1234) WeakPointerCleared = true;
+  p->first->Reset();
 }
 
 
@@ -424,9 +427,10 @@ TEST(WeakGlobalHandlesScavenge) {
     h2 = global_handles->Create(*u);
   }
 
-  global_handles->MakeWeak(h2.location(),
-                           reinterpret_cast<void*>(1234),
-                           &TestWeakGlobalHandleCallback);
+  std::pair<Handle<Object>*, int> handle_and_id(&h2, 1234);
+  GlobalHandles::MakeWeak(h2.location(),
+                          reinterpret_cast<void*>(&handle_and_id),
+                          &TestWeakGlobalHandleCallback);
 
   // Scavenge treats weak pointers as normal roots.
   heap->PerformScavenge();
@@ -438,8 +442,8 @@ TEST(WeakGlobalHandlesScavenge) {
   CHECK(!global_handles->IsNearDeath(h2.location()));
   CHECK(!global_handles->IsNearDeath(h1.location()));
 
-  global_handles->Destroy(h1.location());
-  global_handles->Destroy(h2.location());
+  GlobalHandles::Destroy(h1.location());
+  GlobalHandles::Destroy(h2.location());
 }
 
 
@@ -470,9 +474,10 @@ TEST(WeakGlobalHandlesMark) {
   heap->CollectGarbage(NEW_SPACE);
   CHECK(!heap->InNewSpace(*h1) && !heap->InNewSpace(*h2));
 
-  global_handles->MakeWeak(h2.location(),
-                           reinterpret_cast<void*>(1234),
-                           &TestWeakGlobalHandleCallback);
+  std::pair<Handle<Object>*, int> handle_and_id(&h2, 1234);
+  GlobalHandles::MakeWeak(h2.location(),
+                          reinterpret_cast<void*>(&handle_and_id),
+                          &TestWeakGlobalHandleCallback);
   CHECK(!GlobalHandles::IsNearDeath(h1.location()));
   CHECK(!GlobalHandles::IsNearDeath(h2.location()));
 
@@ -484,7 +489,7 @@ TEST(WeakGlobalHandlesMark) {
   CHECK(WeakPointerCleared);
   CHECK(!GlobalHandles::IsNearDeath(h1.location()));
 
-  global_handles->Destroy(h1.location());
+  GlobalHandles::Destroy(h1.location());
 }
 
 
@@ -507,9 +512,10 @@ TEST(DeleteWeakGlobalHandle) {
     h = global_handles->Create(*i);
   }
 
-  global_handles->MakeWeak(h.location(),
-                           reinterpret_cast<void*>(1234),
-                           &TestWeakGlobalHandleCallback);
+  std::pair<Handle<Object>*, int> handle_and_id(&h, 1234);
+  GlobalHandles::MakeWeak(h.location(),
+                          reinterpret_cast<void*>(&handle_and_id),
+                          &TestWeakGlobalHandleCallback);
 
   // Scanvenge does not recognize weak reference.
   heap->PerformScavenge();

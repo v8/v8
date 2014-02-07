@@ -304,7 +304,13 @@ static void GenerateTailCallToSharedCode(MacroAssembler* masm) {
 }
 
 
-void Builtins::Generate_InRecompileQueue(MacroAssembler* masm) {
+static void GenerateTailCallToReturnedCode(MacroAssembler* masm) {
+  __ Add(x0, x0, Code::kHeaderSize - kHeapObjectTag);
+  __ Br(x0);
+}
+
+
+void Builtins::Generate_InOptimizationQueue(MacroAssembler* masm) {
   // Checking whether the queued function is ready for install is optional,
   // since we come across interrupts and stack checks elsewhere. However, not
   // checking may delay installing ready functions, and always checking would be
@@ -314,19 +320,10 @@ void Builtins::Generate_InRecompileQueue(MacroAssembler* masm) {
   __ CompareRoot(masm->StackPointer(), Heap::kStackLimitRootIndex);
   __ B(hs, &ok);
 
-  CallRuntimePassFunction(masm, Runtime::kTryInstallRecompiledCode);
-
-  // Tail call to returned code.
-  __ Add(x0, x0, Code::kHeaderSize - kHeapObjectTag);
-  __ Br(x0);
+  CallRuntimePassFunction(masm, Runtime::kTryInstallOptimizedCode);
+  GenerateTailCallToReturnedCode(masm);
 
   __ Bind(&ok);
-  GenerateTailCallToSharedCode(masm);
-}
-
-
-void Builtins::Generate_ConcurrentRecompile(MacroAssembler* masm) {
-  CallRuntimePassFunction(masm, Runtime::kConcurrentRecompile);
   GenerateTailCallToSharedCode(masm);
 }
 
@@ -754,19 +751,38 @@ void Builtins::Generate_JSConstructEntryTrampoline(MacroAssembler* masm) {
 }
 
 
-void Builtins::Generate_LazyCompile(MacroAssembler* masm) {
-  CallRuntimePassFunction(masm, Runtime::kLazyCompile);
-  // Do a tail-call of the compiled function.
-  __ Add(x2, x0, Code::kHeaderSize - kHeapObjectTag);
-  __ Br(x2);
+void Builtins::Generate_CompileUnoptimized(MacroAssembler* masm) {
+  CallRuntimePassFunction(masm, Runtime::kCompileUnoptimized);
+  GenerateTailCallToReturnedCode(masm);
 }
 
 
-void Builtins::Generate_LazyRecompile(MacroAssembler* masm) {
-  CallRuntimePassFunction(masm, Runtime::kLazyRecompile);
-  // Do a tail-call of the compiled function.
-  __ Add(x2, x0, Code::kHeaderSize - kHeapObjectTag);
-  __ Br(x2);
+static void CallCompileOptimized(MacroAssembler* masm, bool concurrent) {
+  FrameScope scope(masm, StackFrame::INTERNAL);
+  Register function = x1;
+  Register call_kind = x5;
+
+  // Preserve function and call kind. At the same time, push arguments for
+  // kCompileOptimized.
+  __ LoadObject(x10, masm->isolate()->factory()->ToBoolean(concurrent));
+  __ Push(function, call_kind, function, x10);
+
+  __ CallRuntime(Runtime::kCompileOptimized, 2);
+
+  // Restore preserved call kind and function.
+  __ Pop(call_kind, function);
+}
+
+
+void Builtins::Generate_CompileOptimized(MacroAssembler* masm) {
+  CallCompileOptimized(masm, false);
+  GenerateTailCallToReturnedCode(masm);
+}
+
+
+void Builtins::Generate_CompileOptimizedConcurrent(MacroAssembler* masm) {
+  CallCompileOptimized(masm, true);
+  GenerateTailCallToReturnedCode(masm);
 }
 
 
@@ -937,17 +953,9 @@ void Builtins::Generate_OnStackReplacement(MacroAssembler* masm) {
   __ Ldr(x0, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
-    // Lookup and calculate pc offset.
-    __ Ldr(x1, MemOperand(fp, StandardFrameConstants::kCallerPCOffset));
-    __ Ldr(x2, FieldMemOperand(x0, JSFunction::kSharedFunctionInfoOffset));
-    __ Ldr(x2, FieldMemOperand(x2, SharedFunctionInfo::kCodeOffset));
-    __ Sub(x1, x1, Code::kHeaderSize - kHeapObjectTag);
-    __ Sub(x1, x1, x2);
-    __ SmiTag(x1);
-
-    // Pass both function and pc offset as arguments.
-    __ Push(x0, x1);
-    __ CallRuntime(Runtime::kCompileForOnStackReplacement, 2);
+    // Pass function as argument.
+    __ Push(x0);
+    __ CallRuntime(Runtime::kCompileForOnStackReplacement, 1);
   }
 
   // If the code object is null, just return to the unoptimized code.

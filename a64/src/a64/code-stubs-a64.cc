@@ -217,20 +217,6 @@ void CompareNilICStub::InitializeInterfaceDescriptor(
 }
 
 
-void BinaryOpICStub::InitializeInterfaceDescriptor(
-    Isolate* isolate,
-    CodeStubInterfaceDescriptor* descriptor) {
-  // x1: left operand
-  // x0: right operand
-  static Register registers[] = { x1, x0 };
-  descriptor->register_param_count_ = sizeof(registers) / sizeof(registers[0]);
-  descriptor->register_params_ = registers;
-  descriptor->deoptimization_handler_ = FUNCTION_ADDR(BinaryOpIC_Miss);
-  descriptor->SetMissHandler(
-      ExternalReference(IC_Utility(IC::kBinaryOpIC_Miss), isolate));
-}
-
-
 static void InitializeArrayConstructorDescriptor(
     Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor,
@@ -371,6 +357,34 @@ void ElementsTransitionAndStoreStub::InitializeInterfaceDescriptor(
   descriptor->register_params_ = registers;
   descriptor->deoptimization_handler_ =
       FUNCTION_ADDR(ElementsTransitionAndStoreIC_Miss);
+}
+
+
+void BinaryOpICStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  // x1: left operand
+  // x0: right operand
+  static Register registers[] = { x1, x0 };
+  descriptor->register_param_count_ = sizeof(registers) / sizeof(registers[0]);
+  descriptor->register_params_ = registers;
+  descriptor->deoptimization_handler_ = FUNCTION_ADDR(BinaryOpIC_Miss);
+  descriptor->SetMissHandler(
+      ExternalReference(IC_Utility(IC::kBinaryOpIC_Miss), isolate));
+}
+
+
+void BinaryOpWithAllocationSiteStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  // x2: allocation site
+  // x1: left operand
+  // x0: right operand
+  static Register registers[] = { x2, x1, x0 };
+  descriptor->register_param_count_ = sizeof(registers) / sizeof(registers[0]);
+  descriptor->register_params_ = registers;
+  descriptor->deoptimization_handler_ =
+      FUNCTION_ADDR(BinaryOpIC_MissWithAllocationSite);
 }
 
 
@@ -1032,221 +1046,6 @@ void StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime(
 }
 
 
-void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
-  // Untagged case:
-  //  Input: double in d0
-  //  Result: double in d0
-  //
-  // Tagged case:
-  //  Input: tagged value in jssp[0]
-  //  Result: tagged value in x0
-
-  const bool tagged = (argument_type_ == TAGGED);
-
-  Label calculate;
-  Label invalid_cache;
-  Register scratch0 = x10;
-  Register scratch1 = x11;
-  Register cache_entry = x12;
-  Register hash = x13;
-  Register hash_w = hash.W();
-  Register input_double_bits = x14;
-  Register input_tagged = x15;
-  Register result_tagged = x0;
-  FPRegister result_double = d0;
-  FPRegister input_double = d0;
-
-  // First, get the input as a double, in an integer register (so we can
-  // calculate a hash).
-  if (tagged) {
-    Label input_not_smi, loaded;
-    // Load argument and check if it is a smi.
-    __ Pop(input_tagged);
-    __ JumpIfNotSmi(input_tagged, &input_not_smi);
-
-    // Input is a smi, so convert it to a double.
-    __ SmiUntagToDouble(input_double, input_tagged);
-    __ Fmov(input_double_bits, input_double);
-    __ B(&loaded);
-
-    __ Bind(&input_not_smi);
-    // Check if input is a HeapNumber.
-    __ JumpIfNotHeapNumber(input_tagged, &calculate);
-    // The input is a HeapNumber. Load it into input_double_bits.
-    __ Ldr(input_double_bits,
-           FieldMemOperand(input_tagged, HeapNumber::kValueOffset));
-
-    __ Bind(&loaded);
-  } else {
-    // Get the integer representation of the double.
-    __ Fmov(input_double_bits, input_double);
-  }
-
-  // Compute hash (the shifts are arithmetic):
-  //   h = (input_double_bits[31:0] ^ input_double_bits[63:32]);
-  //   h ^= h >> 16;
-  //   h ^= h >> 8;
-  //   h = h % cacheSize;
-  __ Eor(hash, input_double_bits, Operand(input_double_bits, LSR, 32));
-  __ Eor(hash_w, hash_w, Operand(hash_w, ASR, 16));
-  __ Eor(hash_w, hash_w, Operand(hash_w, ASR, 8));
-  __ And(hash_w, hash_w, TranscendentalCache::SubCache::kCacheSize - 1);
-  STATIC_ASSERT(IS_POWER_OF_TWO(TranscendentalCache::SubCache::kCacheSize));
-
-  //  d0        input_double        Double input value (if UNTAGGED).
-  //  x13(w13)  hash(_w)            TranscendentalCache::hash(input).
-  //  x14       input_double_bits   Input value as double bits.
-  //  x15       input_tagged        Tagged input value (if TAGGED).
-  Isolate* isolate = masm->isolate();
-  ExternalReference cache_array =
-      ExternalReference::transcendental_cache_array_address(isolate);
-  int cache_array_index =
-      type_ * sizeof(isolate->transcendental_cache()->caches_[0]);
-
-  __ Mov(cache_entry, Operand(cache_array));
-  __ Ldr(cache_entry, MemOperand(cache_entry, cache_array_index));
-
-  //  x12   cache_entry   The address of the cache for type_.
-  // If NULL, the cache hasn't been initialized yet, so go through runtime.
-  __ Cbz(cache_entry, &invalid_cache);
-
-#ifdef DEBUG
-  // Check that the layout of cache elements match expectations.
-  { TranscendentalCache::SubCache::Element test_elem[2];
-    uintptr_t elem_start = reinterpret_cast<uintptr_t>(&test_elem[0]);
-    uintptr_t elem2_start = reinterpret_cast<uintptr_t>(&test_elem[1]);
-    uintptr_t elem_in0 = reinterpret_cast<uintptr_t>(&(test_elem[0].in[0]));
-    uintptr_t elem_in1 = reinterpret_cast<uintptr_t>(&(test_elem[0].in[1]));
-    uintptr_t elem_out = reinterpret_cast<uintptr_t>(&(test_elem[0].output));
-    CHECK_EQ(16, elem2_start - elem_start);  // Two uint_32s and a pointer.
-    CHECK_EQ(0, elem_in0 - elem_start);
-    CHECK_EQ(kIntSize, elem_in1 - elem_start);
-    CHECK_EQ(2 * kIntSize, elem_out - elem_start);
-  }
-#endif
-
-  // The (candidate) cached element is at cache[hash*16].
-  __ Add(cache_entry, cache_entry, Operand(hash, LSL, 4));
-  __ Ldp(scratch0, result_tagged, MemOperand(cache_entry));
-  __ Cmp(scratch0, input_double_bits);
-  __ B(&calculate, ne);
-
-  // Cache hit: Load the result and return.
-
-  __ IncrementCounter(isolate->counters()->transcendental_cache_hit(), 1,
-                      scratch0, scratch1);
-  if (!tagged) {
-    // result_tagged now already holds the tagged result from the cache, but we
-    // need to untag it for the untagged case.
-    __ Ldr(result_double, FieldMemOperand(result_tagged,
-                                          HeapNumber::kValueOffset));
-  }
-  __ Ret();
-
-  // Cache miss: Calculate the result.
-
-  __ Bind(&calculate);
-  __ IncrementCounter(isolate->counters()->transcendental_cache_miss(), 1,
-                      scratch0, scratch1);
-  if (tagged) {
-    __ Bind(&invalid_cache);
-    __ Push(input_tagged);
-    ExternalReference runtime_function = ExternalReference(RuntimeFunction(),
-                                                           masm->isolate());
-    __ TailCallExternalReference(runtime_function, 1, 1);
-  } else {
-    Label gc_required;
-    Label calculation_and_gc_required;
-
-    // Call a C function to calculate the result, then update the cache.
-    // The following caller-saved registers need to be preserved for the call:
-    //  x12   cache_entry         The address of the cache for type_.
-    //  x14   input_double_bits   The bit representation of the input.
-    //  lr                        The return address of the stub.
-    __ Push(cache_entry, input_double_bits, lr);
-    ASSERT(input_double.Is(d0));
-    { AllowExternalCallThatCantCauseGC scope(masm);
-      __ CallCFunction(CFunction(isolate), 0, 1);
-    }
-    ASSERT(result_double.Is(d0));
-    __ Pop(lr, input_double_bits, cache_entry);
-
-    // Try to update the cache.
-    __ AllocateHeapNumber(result_tagged, &gc_required, scratch0, scratch1);
-    __ Str(result_double, FieldMemOperand(result_tagged,
-                                          HeapNumber::kValueOffset));
-    __ Stp(input_double_bits, result_tagged, MemOperand(cache_entry));
-    __ Ret();
-
-
-    __ Bind(&invalid_cache);
-    // Handle an invalid (uninitialized) cache by calling the runtime.
-    //  d0        input_double        Double input value (if UNTAGGED).
-    __ AllocateHeapNumber(result_tagged, &calculation_and_gc_required,
-                          scratch0, scratch1);
-    __ Str(input_double, FieldMemOperand(result_tagged,
-                                         HeapNumber::kValueOffset));
-    { FrameScope scope(masm, StackFrame::INTERNAL);
-      __ Push(result_tagged);
-      __ CallRuntime(RuntimeFunction(), 1);
-    }
-    __ Ldr(result_double, FieldMemOperand(result_tagged,
-                                          HeapNumber::kValueOffset));
-    __ Ret();
-
-
-    __ Bind(&calculation_and_gc_required);
-    // Call C function to calculate the result and answer directly without
-    // updating the cache.
-    ASSERT(input_double.Is(d0));
-    { AllowExternalCallThatCantCauseGC scope(masm);
-      __ CallCFunction(CFunction(isolate), 0, 1);
-    }
-    ASSERT(result_double.Is(d0));
-
-
-    // We got here because an allocation failed. Trigger a scavenging GC so that
-    // future allocations will succeed.
-    __ Bind(&gc_required);
-    __ Push(result_double);
-    { FrameScope scope(masm, StackFrame::INTERNAL);
-      // Allocate an aligned object larger than a HeapNumber.
-      int alloc_size = 2 * kPointerSize;
-      ASSERT(alloc_size >= HeapNumber::kSize);
-      __ Mov(scratch0, Operand(Smi::FromInt(alloc_size)));
-      __ Push(scratch0);
-      __ CallRuntime(Runtime::kAllocateInNewSpace, 1);
-    }
-    __ Pop(result_double);
-    __ Ret();
-  }
-}
-
-
-ExternalReference TranscendentalCacheStub::CFunction(Isolate* isolate) {
-  switch (type_) {
-    // Add more cases when necessary.
-    default:
-      // There's no NULL ExternalReference, so fall into an existing case to
-      // avoid compiler warnings about not having a return value.
-      UNIMPLEMENTED();
-    case TranscendentalCache::LOG:
-      return ExternalReference::math_log_double_function(isolate);
-  }
-}
-
-
-Runtime::FunctionId TranscendentalCacheStub::RuntimeFunction() {
-  switch (type_) {
-    // Add more cases when necessary.
-    case TranscendentalCache::LOG: return Runtime::kMath_log;
-    default:
-      UNIMPLEMENTED();
-      return Runtime::kAbort;
-  }
-}
-
-
 void MathPowStub::Generate(MacroAssembler* masm) {
   // Stack on entry:
   // jssp[0]: Exponent (as a tagged value).
@@ -1510,6 +1309,7 @@ void CodeStub::GenerateStubsAheadOfTime(Isolate* isolate) {
   ArrayConstructorStubBase::GenerateStubsAheadOfTime(isolate);
   CreateAllocationSiteStub::GenerateAheadOfTime(isolate);
   BinaryOpICStub::GenerateAheadOfTime(isolate);
+  BinaryOpICWithAllocationSiteStub::GenerateAheadOfTime(isolate);
 }
 
 
@@ -4785,6 +4585,34 @@ void StringCompareStub::Generate(MacroAssembler* masm) {
   // Call the runtime.
   // Returns -1 (less), 0 (equal), or 1 (greater) tagged as a small integer.
   __ TailCallRuntime(Runtime::kStringCompare, 2, 1);
+}
+
+
+void BinaryOpICWithAllocationSiteStub::Generate(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- x1    : left
+  //  -- x0    : right
+  //  -- lr    : return address
+  // -----------------------------------
+  Isolate* isolate = masm->isolate();
+
+  // Load x2 with the allocation site.  We stick an undefined dummy value here
+  // and replace it with the real allocation site later when we instantiate this
+  // stub in BinaryOpICWithAllocationSiteStub::GetCodeCopyFromTemplate().
+  __ LoadObject(x2, handle(isolate->heap()->undefined_value()));
+
+  // Make sure that we actually patched the allocation site.
+  if (FLAG_debug_code) {
+    __ AssertNotSmi(x2, kExpectedAllocationSite);
+    __ Ldr(x10, FieldMemOperand(x2, HeapObject::kMapOffset));
+    __ AssertRegisterIsRoot(x10, Heap::kAllocationSiteMapRootIndex,
+                            kExpectedAllocationSite);
+  }
+
+  // Tail call into the stub that handles binary operations with allocation
+  // sites.
+  BinaryOpWithAllocationSiteStub stub(state_);
+  __ TailCallStub(&stub);
 }
 
 

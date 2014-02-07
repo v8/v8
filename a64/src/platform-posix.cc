@@ -130,6 +130,13 @@ uint64_t OS::TotalPhysicalMemory() {
     return 0;
   }
   return static_cast<uint64_t>(memory_info.dwTotalPhys);
+#elif V8_OS_QNX
+  struct stat stat_buf;
+  if (stat("/proc", &stat_buf) != 0) {
+    UNREACHABLE();
+    return 0;
+  }
+  return static_cast<uint64_t>(stat_buf.st_size);
 #else
   intptr_t pages = sysconf(_SC_PHYS_PAGES);
   intptr_t page_size = sysconf(_SC_PAGESIZE);
@@ -247,7 +254,7 @@ void* OS::GetRandomMmapAddr() {
 
 
 size_t OS::AllocateAlignment() {
-  return getpagesize();
+  return static_cast<size_t>(sysconf(_SC_PAGESIZE));
 }
 
 
@@ -304,7 +311,6 @@ double fast_##name(double x) {                           \
   return (*fast_##name##_function)(x);                   \
 }
 
-UNARY_MATH_FUNCTION(log, CreateTranscendentalFunction(TranscendentalCache::LOG))
 UNARY_MATH_FUNCTION(exp, CreateExpFunction())
 UNARY_MATH_FUNCTION(sqrt, CreateSqrtFunction())
 
@@ -505,6 +511,12 @@ OS::MemCopyUint8Function CreateMemCopyUint8Function(
     OS::MemCopyUint8Function stub);
 OS::MemCopyUint16Uint8Function CreateMemCopyUint16Uint8Function(
     OS::MemCopyUint16Uint8Function stub);
+
+#elif defined(V8_HOST_ARCH_MIPS)
+OS::MemCopyUint8Function OS::memcopy_uint8_function = &OS::MemCopyUint8Wrapper;
+// Defined in codegen-mips.cc.
+OS::MemCopyUint8Function CreateMemCopyUint8Function(
+    OS::MemCopyUint8Function stub);
 #endif
 
 
@@ -519,8 +531,10 @@ void OS::PostSetUp() {
       CreateMemCopyUint8Function(&OS::MemCopyUint8Wrapper);
   OS::memcopy_uint16_uint8_function =
       CreateMemCopyUint16Uint8Function(&OS::MemCopyUint16Uint8Wrapper);
+#elif defined(V8_HOST_ARCH_MIPS)
+  OS::memcopy_uint8_function =
+      CreateMemCopyUint8Function(&OS::MemCopyUint8Wrapper);
 #endif
-  init_fast_log_function();
   // fast_exp is initialized lazily.
   init_fast_sqrt_function();
 }

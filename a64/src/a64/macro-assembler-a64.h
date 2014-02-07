@@ -1784,7 +1784,10 @@ class MacroAssembler : public Assembler {
   // Use --debug_code to enable.
   void Assert(Condition cond, BailoutReason reason);
   void AssertRegisterIsClear(Register reg, BailoutReason reason);
-  void AssertRegisterIsRoot(Register reg, Heap::RootListIndex index);
+  void AssertRegisterIsRoot(
+      Register reg,
+      Heap::RootListIndex index,
+      BailoutReason reason = kRegisterDidNotMatchExpectedRoot);
   void AssertFastElements(Register elements);
 
   // Abort if the specified register contains the invalid color bit pattern.

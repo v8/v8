@@ -891,12 +891,11 @@ static void GenerateFastApiCall(MacroAssembler* masm,
   __ Poke(receiver, FCA::kHolderIndex * kPointerSize);
   // Write receiver to stack frame.
   int index = stack_space - 1;
-  __ Poke(receiver, index * kPointerSize);
+  __ Poke(receiver, index-- * kPointerSize);
   // Write the arguments to stack frame.
   for (int i = 0; i < argc; i++) {
-    // TODO(jbramley): This is broken, but it is broken on ARM too.
     ASSERT(!AreAliased(receiver, scratch, values[i]));
-    __ Poke(receiver, index-- * kPointerSize);
+    __ Poke(values[i], index-- * kPointerSize);
   }
 
   GenerateFastApiDirectCall(masm, optimization, argc, true);
@@ -907,12 +906,10 @@ class CallInterceptorCompiler BASE_EMBEDDED {
  public:
   CallInterceptorCompiler(CallStubCompiler* stub_compiler,
                           const ParameterCount& arguments,
-                          Register name,
-                          ExtraICState extra_ic_state)
+                          Register name)
       : stub_compiler_(stub_compiler),
         arguments_(arguments),
-        name_(name),
-        extra_ic_state_(extra_ic_state) {}
+        name_(name) { }
 
   void Compile(MacroAssembler* masm,
                Handle<JSObject> object,
@@ -1004,7 +1001,7 @@ class CallInterceptorCompiler BASE_EMBEDDED {
     // holder haven't changed and thus we can use cached constant function.
     if (*interceptor_holder != lookup->holder()) {
       stub_compiler_->CheckPrototypes(
-          IC::CurrentTypeOf(interceptor_holder, masm->isolate()), receiver,
+          IC::CurrentTypeOf(interceptor_holder, masm->isolate()), holder,
           handle(lookup->holder()), scratch1, scratch2, scratch3,
           name, depth2, miss);
     } else {
@@ -1021,7 +1018,8 @@ class CallInterceptorCompiler BASE_EMBEDDED {
           masm, optimization, arguments_.immediate(), false);
     } else {
       Handle<JSFunction> function = optimization.constant_function();
-      stub_compiler_->GenerateJumpFunctionIgnoreReceiver(function);
+      __ Mov(x0, receiver);
+      stub_compiler_->GenerateJumpFunction(object, function);
     }
 
     // Deferred code for fast API call case, clean preallocated space.
@@ -1073,11 +1071,15 @@ class CallInterceptorCompiler BASE_EMBEDDED {
                            Label* interceptor_succeeded) {
     {
       FrameScope scope(masm, StackFrame::INTERNAL);
-      __ Push(holder, name_);
+      __ Push(receiver, holder, name_);
       CompileCallLoadPropertyWithInterceptor(
           masm, receiver, holder, name_, holder_obj,
           IC::kLoadPropertyWithInterceptorOnly);
-      __ Pop(name_, receiver);
+      // TODO(jbramley): We need two pops because holder and receiver can be
+      // the same. In that case, we only need to preserve it once, but this is
+      // fixed on ARM later anyway so I've left it alone for now.
+      __ Pop(name_, holder);
+      __ Pop(receiver);
     }
 
     // If interceptor returns no-result sentinel, call the constant function.
@@ -1089,7 +1091,6 @@ class CallInterceptorCompiler BASE_EMBEDDED {
   CallStubCompiler* stub_compiler_;
   const ParameterCount& arguments_;
   Register name_;
-  ExtraICState extra_ic_state_;
 };
 
 
@@ -2508,7 +2509,7 @@ Handle<Code> CallStubCompiler::CompileCallInterceptor(Handle<JSObject> object,
   Register receiver = x5;
   __ Peek(receiver, argc * kPointerSize);
 
-  CallInterceptorCompiler compiler(this, arguments(), name_reg, extra_state());
+  CallInterceptorCompiler compiler(this, arguments(), name_reg);
   compiler.Compile(
       masm(), object, holder, name, &lookup, receiver, x3, x4, x0, &miss);
 

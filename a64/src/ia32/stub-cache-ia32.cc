@@ -647,8 +647,7 @@ class CallInterceptorCompiler BASE_EMBEDDED {
  public:
   CallInterceptorCompiler(CallStubCompiler* stub_compiler,
                           const ParameterCount& arguments,
-                          Register name,
-                          ExtraICState extra_state)
+                          Register name)
       : stub_compiler_(stub_compiler),
         arguments_(arguments),
         name_(name) {}
@@ -740,7 +739,7 @@ class CallInterceptorCompiler BASE_EMBEDDED {
     // holder haven't changed and thus we can use cached constant function.
     if (*interceptor_holder != lookup->holder()) {
       stub_compiler_->CheckPrototypes(
-          IC::CurrentTypeOf(interceptor_holder, masm->isolate()), receiver,
+          IC::CurrentTypeOf(interceptor_holder, masm->isolate()), holder,
           handle(lookup->holder()), scratch1, scratch2, scratch3,
           name, depth2, miss);
     } else {
@@ -756,7 +755,7 @@ class CallInterceptorCompiler BASE_EMBEDDED {
       GenerateFastApiCall(masm, optimization, arguments_.immediate());
     } else {
       Handle<JSFunction> fun = optimization.constant_function();
-      stub_compiler_->GenerateJumpFunctionIgnoreReceiver(fun);
+      stub_compiler_->GenerateJumpFunction(object, fun);
     }
 
     // Deferred code for fast API call case---clean preallocated space.
@@ -808,15 +807,17 @@ class CallInterceptorCompiler BASE_EMBEDDED {
                            Label* interceptor_succeeded) {
     {
       FrameScope scope(masm, StackFrame::INTERNAL);
-      __ push(holder);  // Save the holder.
-      __ push(name_);  // Save the name.
+      __ push(receiver);
+      __ push(holder);
+      __ push(name_);
 
       CompileCallLoadPropertyWithInterceptor(
           masm, receiver, holder, name_, holder_obj,
           IC::kLoadPropertyWithInterceptorOnly);
 
-      __ pop(name_);  // Restore the name.
-      __ pop(receiver);  // Restore the holder.
+      __ pop(name_);
+      __ pop(holder);
+      __ pop(receiver);
       // Leave the internal frame.
     }
 
@@ -2589,7 +2590,7 @@ Handle<Code> CallStubCompiler::CompileCallInterceptor(Handle<JSObject> object,
   // Get the receiver from the stack.
   __ mov(edx, Operand(esp, (argc + 1) * kPointerSize));
 
-  CallInterceptorCompiler compiler(this, arguments(), ecx, extra_state());
+  CallInterceptorCompiler compiler(this, arguments(), ecx);
   compiler.Compile(masm(), object, holder, name, &lookup, edx, ebx, edi, eax,
                    &miss);
 

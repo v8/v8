@@ -1311,6 +1311,9 @@ class Assembler : public AssemblerBase {
   // Check whether an immediate fits an addressing mode 1 instruction.
   bool ImmediateFitsAddrMode1Instruction(int32_t imm32);
 
+  // Check whether an immediate fits an addressing mode 2 instruction.
+  bool ImmediateFitsAddrMode2Instruction(int32_t imm32);
+
   // Class for scoping postponing the constant pool generation.
   class BlockConstPoolScope {
    public:

@@ -28,6 +28,7 @@
 #include "v8.h"
 #include "accessors.h"
 
+#include "compiler.h"
 #include "contexts.h"
 #include "deoptimizer.h"
 #include "execution.h"
@@ -648,9 +649,9 @@ MaybeObject* Accessors::FunctionGetLength(Isolate* isolate,
   // If the function isn't compiled yet, the length is not computed correctly
   // yet. Compile it now and return the right length.
   HandleScope scope(isolate);
-  Handle<JSFunction> handle(function);
-  if (JSFunction::CompileLazy(handle, KEEP_EXCEPTION)) {
-    return Smi::FromInt(handle->shared()->length());
+  Handle<JSFunction> function_handle(function);
+  if (Compiler::EnsureCompiled(function_handle, KEEP_EXCEPTION)) {
+    return Smi::FromInt(function_handle->shared()->length());
   }
   return Failure::Exception();
 }

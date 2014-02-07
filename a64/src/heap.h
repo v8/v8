@@ -77,6 +77,7 @@ namespace internal {
   V(FixedArray, empty_fixed_array, EmptyFixedArray)                            \
   V(ByteArray, empty_byte_array, EmptyByteArray)                               \
   V(DescriptorArray, empty_descriptor_array, EmptyDescriptorArray)             \
+  V(ConstantPoolArray, empty_constant_pool_array, EmptyConstantPoolArray)      \
   V(Smi, stack_limit, StackLimit)                                              \
   V(Oddball, arguments_marker, ArgumentsMarker)                                \
   /* The roots above this line should be boring from a GC point of view.    */ \
@@ -1071,25 +1072,6 @@ class Heap {
       Object* stack_trace,
       Object* stack_frames);
 
-  // Allocates a new cons string object.
-  // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
-  // failed.
-  // Please note this does not perform a garbage collection.
-  MUST_USE_RESULT MaybeObject* AllocateConsString(String* first,
-                                                  String* second);
-
-  // Allocates a new sub string object which is a substring of an underlying
-  // string buffer stretching from the index start (inclusive) to the index
-  // end (exclusive).
-  // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
-  // failed.
-  // Please note this does not perform a garbage collection.
-  MUST_USE_RESULT MaybeObject* AllocateSubString(
-      String* buffer,
-      int start,
-      int end,
-      PretenureFlag pretenure = NOT_TENURED);
-
   // Allocate a new external string object, which is backed by a string
   // resource that resides outside the V8 heap.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
@@ -1415,14 +1397,6 @@ class Heap {
 
   // Print short heap statistics.
   void PrintShortHeapStatistics();
-
-  // Makes a new internalized string object
-  // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
-  // failed.
-  // Please note this function does not perform a garbage collection.
-  MUST_USE_RESULT MaybeObject* CreateInternalizedString(
-      const char* str, int length, int hash);
-  MUST_USE_RESULT MaybeObject* CreateInternalizedString(String* str);
 
   // Write barrier support for address[offset] = o.
   INLINE(void RecordWrite(Address address, int offset));
@@ -2065,6 +2039,11 @@ class Heap {
   void GarbageCollectionPrologue();
   void GarbageCollectionEpilogue();
 
+  // Pretenuring decisions are made based on feedback collected during new
+  // space evacuation. Note that between feedback collection and calling this
+  // method object in old space must not move.
+  void ProcessPretenuringFeedback();
+
   // Checks whether a global GC is necessary
   GarbageCollector SelectGarbageCollector(AllocationSpace space,
                                           const char** reason);
@@ -2144,6 +2123,9 @@ class Heap {
 
   // Allocate empty fixed double array.
   MUST_USE_RESULT MaybeObject* AllocateEmptyFixedDoubleArray();
+
+  // Allocate empty constant pool array.
+  MUST_USE_RESULT MaybeObject* AllocateEmptyConstantPoolArray();
 
   // Allocate a tenured simple cell.
   MUST_USE_RESULT MaybeObject* AllocateCell(Object* value);
@@ -2390,6 +2372,11 @@ class Heap {
 #ifdef VERIFY_HEAP
   int no_weak_object_verification_scope_depth_;
 #endif
+
+
+  static const int kAllocationSiteScratchpadSize = 256;
+  int allocation_sites_scratchpad_length;
+  AllocationSite* allocation_sites_scratchpad[kAllocationSiteScratchpadSize];
 
   static const int kMaxMarkSweepsInIdleRound = 7;
   static const int kIdleScavengeThreshold = 5;
@@ -2899,85 +2886,6 @@ class RegExpResultsCache {
   static const int kStringOffset = 0;
   static const int kPatternOffset = 1;
   static const int kArrayOffset = 2;
-};
-
-
-class TranscendentalCache {
- public:
-  enum Type { LOG, kNumberOfCaches};
-  static const int kTranscendentalTypeBits = 3;
-  STATIC_ASSERT((1 << kTranscendentalTypeBits) >= kNumberOfCaches);
-
-  // Returns a heap number with f(input), where f is a math function specified
-  // by the 'type' argument.
-  MUST_USE_RESULT inline MaybeObject* Get(Type type, double input);
-
-  // The cache contains raw Object pointers.  This method disposes of
-  // them before a garbage collection.
-  void Clear();
-
- private:
-  class SubCache {
-    static const int kCacheSize = 512;
-
-    explicit SubCache(Isolate* isolate, Type t);
-
-    MUST_USE_RESULT inline MaybeObject* Get(double input);
-
-    inline double Calculate(double input);
-
-    struct Element {
-      uint32_t in[2];
-      Object* output;
-    };
-
-    union Converter {
-      double dbl;
-      uint32_t integers[2];
-    };
-
-    inline static int Hash(const Converter& c) {
-      uint32_t hash = (c.integers[0] ^ c.integers[1]);
-      hash ^= static_cast<int32_t>(hash) >> 16;
-      hash ^= static_cast<int32_t>(hash) >> 8;
-      return (hash & (kCacheSize - 1));
-    }
-
-    Element elements_[kCacheSize];
-    Type type_;
-    Isolate* isolate_;
-
-    // Allow access to the caches_ array as an ExternalReference.
-    friend class ExternalReference;
-    // Inline implementation of the cache.
-    friend class TranscendentalCacheStub;
-    // For evaluating value.
-    friend class TranscendentalCache;
-
-    DISALLOW_COPY_AND_ASSIGN(SubCache);
-  };
-
-  explicit TranscendentalCache(Isolate* isolate) : isolate_(isolate) {
-    for (int i = 0; i < kNumberOfCaches; ++i) caches_[i] = NULL;
-  }
-
-  ~TranscendentalCache() {
-    for (int i = 0; i < kNumberOfCaches; ++i) delete caches_[i];
-  }
-
-  // Used to create an external reference.
-  inline Address cache_array_address();
-
-  // Instantiation
-  friend class Isolate;
-  // Inline implementation of the caching.
-  friend class TranscendentalCacheStub;
-  // Allow access to the caches_ array as an ExternalReference.
-  friend class ExternalReference;
-
-  Isolate* isolate_;
-  SubCache* caches_[kNumberOfCaches];
-  DISALLOW_COPY_AND_ASSIGN(TranscendentalCache);
 };
 
 

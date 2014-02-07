@@ -874,10 +874,6 @@ class Isolate {
   DeoptimizerData* deoptimizer_data() { return deoptimizer_data_; }
   ThreadLocalTop* thread_local_top() { return &thread_local_top_; }
 
-  TranscendentalCache* transcendental_cache() const {
-    return transcendental_cache_;
-  }
-
   MemoryAllocator* memory_allocator() {
     return memory_allocator_;
   }
@@ -1091,6 +1087,10 @@ class Isolate {
   bool IsDeferredHandle(Object** location);
 #endif  // DEBUG
 
+  int max_available_threads() const {
+    return max_available_threads_;
+  }
+
   void set_max_available_threads(int value) {
     max_available_threads_ = value;
   }
@@ -1275,7 +1275,6 @@ class Isolate {
   bool capture_stack_trace_for_uncaught_exceptions_;
   int stack_trace_for_uncaught_exceptions_frame_limit_;
   StackTrace::StackTraceOptions stack_trace_for_uncaught_exceptions_options_;
-  TranscendentalCache* transcendental_cache_;
   MemoryAllocator* memory_allocator_;
   KeyedLookupCache* keyed_lookup_cache_;
   ContextSlotCache* context_slot_cache_;

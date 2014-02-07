@@ -99,11 +99,6 @@ void HeapEntry::SetIndexedReference(HeapGraphEdge::Type type,
 }
 
 
-Handle<HeapObject> HeapEntry::GetHeapObject() {
-  return snapshot_->profiler()->FindHeapObjectById(id());
-}
-
-
 void HeapEntry::Print(
     const char* prefix, const char* edge_name, int max_depth, int indent) {
   STATIC_CHECK(sizeof(unsigned) == sizeof(id()));
@@ -202,6 +197,7 @@ template <> struct SnapshotSizeConstants<8> {
 
 }  // namespace
 
+
 HeapSnapshot::HeapSnapshot(HeapProfiler* profiler,
                            const char* title,
                            unsigned uid)
@@ -218,6 +214,10 @@ HeapSnapshot::HeapSnapshot(HeapProfiler* profiler,
   STATIC_CHECK(
       sizeof(HeapEntry) ==
       SnapshotSizeConstants<kPointerSize>::kExpectedHeapEntrySize);
+  USE(SnapshotSizeConstants<4>::kExpectedHeapGraphEdgeSize);
+  USE(SnapshotSizeConstants<4>::kExpectedHeapEntrySize);
+  USE(SnapshotSizeConstants<8>::kExpectedHeapGraphEdgeSize);
+  USE(SnapshotSizeConstants<8>::kExpectedHeapEntrySize);
   for (int i = 0; i < VisitorSynchronization::kNumberOfSyncTags; ++i) {
     gc_subroot_indexes_[i] = HeapEntry::kNoEntry;
   }
@@ -1376,6 +1376,9 @@ void V8HeapExplorer::ExtractCodeReferences(int entry, Code* code) {
   SetInternalReference(code, entry,
                        "gc_metadata", code->gc_metadata(),
                        Code::kGCMetadataOffset);
+  SetInternalReference(code, entry,
+                       "constant_pool", code->constant_pool(),
+                       Code::kConstantPoolOffset);
 }
 
 
@@ -1854,8 +1857,8 @@ void V8HeapExplorer::SetPropertyReference(HeapObject* parent_obj,
     const char* name = name_format_string != NULL && reference_name->IsString()
         ? names_->GetFormatted(
               name_format_string,
-              *String::cast(reference_name)->ToCString(
-                  DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL)) :
+              String::cast(reference_name)->ToCString(
+                  DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL).get()) :
         names_->GetName(reference_name);
 
     filler_->SetNamedReference(type,

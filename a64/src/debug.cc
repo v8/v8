@@ -646,11 +646,10 @@ void ScriptCache::Add(Handle<Script> script) {
   // Globalize the script object, make it weak and use the location of the
   // global handle as the value in the hash map.
   Handle<Script> script_ =
-      Handle<Script>::cast(
-          (global_handles->Create(*script)));
-  global_handles->MakeWeak(reinterpret_cast<Object**>(script_.location()),
-                           this,
-                           ScriptCache::HandleWeakScript);
+      Handle<Script>::cast(global_handles->Create(*script));
+  GlobalHandles::MakeWeak(reinterpret_cast<Object**>(script_.location()),
+                          this,
+                          ScriptCache::HandleWeakScript);
   entry->value = script_.location();
 }
 
@@ -680,36 +679,37 @@ void ScriptCache::ProcessCollectedScripts() {
 
 
 void ScriptCache::Clear() {
-  GlobalHandles* global_handles = isolate_->global_handles();
   // Iterate the script cache to get rid of all the weak handles.
   for (HashMap::Entry* entry = Start(); entry != NULL; entry = Next(entry)) {
     ASSERT(entry != NULL);
     Object** location = reinterpret_cast<Object**>(entry->value);
     ASSERT((*location)->IsScript());
-    global_handles->ClearWeakness(location);
-    global_handles->Destroy(location);
+    GlobalHandles::ClearWeakness(location);
+    GlobalHandles::Destroy(location);
   }
   // Clear the content of the hash map.
   HashMap::Clear();
 }
 
 
-void ScriptCache::HandleWeakScript(v8::Isolate* isolate,
-                                   v8::Persistent<v8::Value>* obj,
-                                   void* data) {
-  ScriptCache* script_cache = reinterpret_cast<ScriptCache*>(data);
-  // Find the location of the global handle.
-  Script** location =
-      reinterpret_cast<Script**>(Utils::OpenPersistent(*obj).location());
-  ASSERT((*location)->IsScript());
+void ScriptCache::HandleWeakScript(
+    const v8::WeakCallbackData<v8::Value, void>& data) {
+  // Retrieve the script identifier.
+  Handle<Object> object = Utils::OpenHandle(*data.GetValue());
+  int id = Handle<Script>::cast(object)->id()->value();
+  void* key = reinterpret_cast<void*>(id);
+  uint32_t hash = Hash(id);
 
-  // Remove the entry from the cache.
-  int id = (*location)->id()->value();
-  script_cache->Remove(reinterpret_cast<void*>(id), Hash(id));
+  // Remove the corresponding entry from the cache.
+  ScriptCache* script_cache =
+      reinterpret_cast<ScriptCache*>(data.GetParameter());
+  HashMap::Entry* entry = script_cache->Lookup(key, hash, false);
+  Object** location = reinterpret_cast<Object**>(entry->value);
+  script_cache->Remove(key, hash);
   script_cache->collected_scripts_.Add(id);
 
   // Clear the weak handle.
-  obj->Reset();
+  GlobalHandles::Destroy(location);
 }
 
 
@@ -728,11 +728,11 @@ void Debug::SetUp(bool create_heap_objects) {
 }
 
 
-void Debug::HandleWeakDebugInfo(v8::Isolate* isolate,
-                                v8::Persistent<v8::Value>* obj,
-                                void* data) {
-  Debug* debug = reinterpret_cast<Isolate*>(isolate)->debug();
-  DebugInfoListNode* node = reinterpret_cast<DebugInfoListNode*>(data);
+void Debug::HandleWeakDebugInfo(
+    const v8::WeakCallbackData<v8::Value, void>& data) {
+  Debug* debug = reinterpret_cast<Isolate*>(data.GetIsolate())->debug();
+  DebugInfoListNode* node =
+      reinterpret_cast<DebugInfoListNode*>(data.GetParameter());
   // We need to clear all breakpoints associated with the function to restore
   // original code and avoid patching the code twice later because
   // the function will live in the heap until next gc, and can be found by
@@ -741,29 +741,27 @@ void Debug::HandleWeakDebugInfo(v8::Isolate* isolate,
   it.ClearAllDebugBreak();
   debug->RemoveDebugInfo(node->debug_info());
 #ifdef DEBUG
-  node = debug->debug_info_list_;
-  while (node != NULL) {
-    ASSERT(node != reinterpret_cast<DebugInfoListNode*>(data));
-    node = node->next();
+  for (DebugInfoListNode* n = debug->debug_info_list_;
+       n != NULL;
+       n = n->next()) {
+    ASSERT(n != node);
   }
 #endif
 }
 
 
 DebugInfoListNode::DebugInfoListNode(DebugInfo* debug_info): next_(NULL) {
-  GlobalHandles* global_handles = debug_info->GetIsolate()->global_handles();
   // Globalize the request debug info object and make it weak.
-  debug_info_ = Handle<DebugInfo>::cast(
-      (global_handles->Create(debug_info)));
-  global_handles->MakeWeak(reinterpret_cast<Object**>(debug_info_.location()),
-                           this,
-                           Debug::HandleWeakDebugInfo);
+  GlobalHandles* global_handles = debug_info->GetIsolate()->global_handles();
+  debug_info_ = Handle<DebugInfo>::cast(global_handles->Create(debug_info));
+  GlobalHandles::MakeWeak(reinterpret_cast<Object**>(debug_info_.location()),
+                          this,
+                          Debug::HandleWeakDebugInfo);
 }
 
 
 DebugInfoListNode::~DebugInfoListNode() {
-  debug_info_->GetIsolate()->global_handles()->Destroy(
-      reinterpret_cast<Object**>(debug_info_.location()));
+  GlobalHandles::Destroy(reinterpret_cast<Object**>(debug_info_.location()));
 }
 
 
@@ -785,14 +783,13 @@ bool Debug::CompileDebuggerScript(Isolate* isolate, int index) {
 
   // Compile the script.
   Handle<SharedFunctionInfo> function_info;
-  function_info = Compiler::Compile(source_code,
-                                    script_name,
-                                    0, 0,
-                                    false,
-                                    context,
-                                    NULL, NULL,
-                                    Handle<String>::null(),
-                                    NATIVES_CODE);
+  function_info = Compiler::CompileScript(source_code,
+                                          script_name, 0, 0,
+                                          false,
+                                          context,
+                                          NULL, NULL,
+                                          Handle<String>::null(),
+                                          NATIVES_CODE);
 
   // Silently ignore stack overflows during compilation.
   if (function_info.is_null()) {
@@ -921,8 +918,7 @@ void Debug::Unload() {
   DestroyScriptCache();
 
   // Clear debugger context global handle.
-  isolate_->global_handles()->Destroy(
-      reinterpret_cast<Object**>(debug_context_.location()));
+  GlobalHandles::Destroy(reinterpret_cast<Object**>(debug_context_.location()));
   debug_context_ = Handle<Context>();
 }
 
@@ -1871,41 +1867,6 @@ void Debug::ClearStepNext() {
 }
 
 
-// Helper function to compile full code for debugging. This code will
-// have debug break slots and deoptimization information. Deoptimization
-// information is required in case that an optimized version of this
-// function is still activated on the stack. It will also make sure that
-// the full code is compiled with the same flags as the previous version,
-// that is flags which can change the code generated. The current method
-// of mapping from already compiled full code without debug break slots
-// to full code with debug break slots depends on the generated code is
-// otherwise exactly the same.
-static bool CompileFullCodeForDebugging(Handle<JSFunction> function,
-                                        Handle<Code> current_code) {
-  ASSERT(!current_code->has_debug_break_slots());
-
-  CompilationInfoWithZone info(function);
-  info.MarkCompilingForDebugging(current_code);
-  ASSERT(!info.shared_info()->is_compiled());
-  ASSERT(!info.isolate()->has_pending_exception());
-
-  // Use compile lazy which will end up compiling the full code in the
-  // configuration configured above.
-  bool result = Compiler::CompileLazy(&info);
-  ASSERT(result != info.isolate()->has_pending_exception());
-  info.isolate()->clear_pending_exception();
-#if DEBUG
-  if (result) {
-    Handle<Code> new_code(function->shared()->code());
-    ASSERT(new_code->has_debug_break_slots());
-    ASSERT(current_code->is_compiled_optimizable() ==
-           new_code->is_compiled_optimizable());
-  }
-#endif
-  return result;
-}
-
-
 static void CollectActiveFunctionsFromThread(
     Isolate* isolate,
     ThreadLocalTop* top,
@@ -2062,8 +2023,7 @@ void Debug::PrepareForBreakPoints() {
 
     Deoptimizer::DeoptimizeAll(isolate_);
 
-    Handle<Code> lazy_compile =
-        Handle<Code>(isolate_->builtins()->builtin(Builtins::kLazyCompile));
+    Handle<Code> lazy_compile = isolate_->builtins()->CompileUnoptimized();
 
     // There will be at least one break point when we are done.
     has_break_points_ = true;
@@ -2115,9 +2075,9 @@ void Debug::PrepareForBreakPoints() {
             function->set_code(*lazy_compile);
             function->shared()->set_code(*lazy_compile);
           } else if (kind == Code::BUILTIN &&
-              (function->IsInRecompileQueue() ||
-               function->IsMarkedForLazyRecompilation() ||
-               function->IsMarkedForConcurrentRecompilation())) {
+              (function->IsInOptimizationQueue() ||
+               function->IsMarkedForOptimization() ||
+               function->IsMarkedForConcurrentOptimization())) {
             // Abort in-flight compilation.
             Code* shared_code = function->shared()->code();
             if (shared_code->kind() == Code::FUNCTION &&
@@ -2162,19 +2122,13 @@ void Debug::PrepareForBreakPoints() {
       if (!shared->code()->has_debug_break_slots()) {
         // Try to compile the full code with debug break slots. If it
         // fails just keep the current code.
-        Handle<Code> current_code(function->shared()->code());
-        shared->set_code(*lazy_compile);
         bool prev_force_debugger_active =
             isolate_->debugger()->force_debugger_active();
         isolate_->debugger()->set_force_debugger_active(true);
-        ASSERT(current_code->kind() == Code::FUNCTION);
-        CompileFullCodeForDebugging(function, current_code);
+        Handle<Code> code = Compiler::GetCodeForDebugging(function);
+        function->ReplaceCode(*code);
         isolate_->debugger()->set_force_debugger_active(
             prev_force_debugger_active);
-        if (!shared->is_compiled()) {
-          shared->set_code(*current_code);
-          continue;
-        }
       }
 
       // Keep function code in sync with shared function info.
@@ -2287,11 +2241,10 @@ Object* Debug::FindSharedFunctionInfoInScript(Handle<Script> script,
       // will compile all inner functions that cannot be compiled without a
       // context, because Compiler::BuildFunctionInfo checks whether the
       // debugger is active.
-      if (target_function.is_null()) {
-        SharedFunctionInfo::CompileLazy(target, KEEP_EXCEPTION);
-      } else {
-        JSFunction::CompileLazy(target_function, KEEP_EXCEPTION);
-      }
+      Handle<Code> result = target_function.is_null()
+          ? Compiler::GetUnoptimizedCode(target)
+          : Compiler::GetUnoptimizedCode(target_function);
+      if (result.is_null()) return isolate_->heap()->undefined_value();
     }
   }  // End while loop.
 
@@ -2315,7 +2268,7 @@ bool Debug::EnsureDebugInfo(Handle<SharedFunctionInfo> shared,
 
   // Ensure function is compiled. Return false if this failed.
   if (!function.is_null() &&
-      !JSFunction::EnsureCompiled(function, CLEAR_EXCEPTION)) {
+      !Compiler::EnsureCompiled(function, CLEAR_EXCEPTION)) {
     return false;
   }
 
@@ -2598,6 +2551,21 @@ Handle<FixedArray> Debug::GetLoadedScripts() {
 
   // Get the scripts from the cache.
   return script_cache_->GetScripts();
+}
+
+
+void Debug::RecordEvalCaller(Handle<Script> script) {
+  script->set_compilation_type(Script::COMPILATION_TYPE_EVAL);
+  // For eval scripts add information on the function from which eval was
+  // called.
+  StackTraceFrameIterator it(script->GetIsolate());
+  if (!it.done()) {
+    script->set_eval_from_shared(it.frame()->function()->shared());
+    Code* code = it.frame()->LookupCode();
+    int offset = static_cast<int>(
+        it.frame()->pc() - code->instruction_start());
+    script->set_eval_from_instructions_offset(Smi::FromInt(offset));
+  }
 }
 
 
@@ -3249,12 +3217,12 @@ void Debugger::SetEventListener(Handle<Object> callback,
   // Clear the global handles for the event listener and the event listener data
   // object.
   if (!event_listener_.is_null()) {
-    global_handles->Destroy(
+    GlobalHandles::Destroy(
         reinterpret_cast<Object**>(event_listener_.location()));
     event_listener_ = Handle<Object>();
   }
   if (!event_listener_data_.is_null()) {
-    global_handles->Destroy(
+    GlobalHandles::Destroy(
         reinterpret_cast<Object**>(event_listener_data_.location()));
     event_listener_data_ = Handle<Object>();
   }

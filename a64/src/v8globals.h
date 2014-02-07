@@ -322,6 +322,9 @@ union DoubleRepresentation {
   double  value;
   int64_t bits;
   DoubleRepresentation(double x) { value = x; }
+  bool operator==(const DoubleRepresentation& other) const {
+    return bits == other.bits;
+  }
 };
 
 

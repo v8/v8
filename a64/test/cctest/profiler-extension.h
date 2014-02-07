@@ -24,33 +24,20 @@
 // THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+//
+// Tests of profiles generator and utilities.
 
-#include "v8.h"
+#include "../include/v8-profiler.h"
 
-#include "default-platform.h"
-
-namespace v8 {
-namespace internal {
-
-
-DefaultPlatform::DefaultPlatform() {}
-
-
-DefaultPlatform::~DefaultPlatform() {}
-
-void DefaultPlatform::CallOnBackgroundThread(Task *task,
-                                             ExpectedRuntime expected_runtime) {
-  // TODO(jochen): implement.
-  task->Run();
-  delete task;
-}
-
-
-void DefaultPlatform::CallOnForegroundThread(v8::Isolate* isolate, Task* task) {
-  // TODO(jochen): implement.
-  task->Run();
-  delete task;
-}
-
-
-} }  // namespace v8::internal
+class ProfilerExtension : public v8::Extension {
+ public:
+  ProfilerExtension() : v8::Extension("v8/profiler", kSource) { }
+  virtual v8::Handle<v8::FunctionTemplate> GetNativeFunctionTemplate(
+      v8::Isolate* isolate,
+      v8::Handle<v8::String> name);
+  static void StartProfiling(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void StopProfiling(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static const v8::CpuProfile* last_profile;
+ private:
+  static const char* kSource;
+};

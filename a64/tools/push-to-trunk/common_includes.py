@@ -212,6 +212,19 @@ class SideEffectHandler(object):
 DEFAULT_SIDE_EFFECT_HANDLER = SideEffectHandler()
 
 
+class NoRetryException(Exception):
+  pass
+
+class CommonOptions(object):
+  def __init__(self, options, manual=True):
+    self.requires_editor = True
+    self.wait_for_lgtm = True
+    self.s = options.s
+    self.force_readline_defaults = not manual
+    self.force_upload = not manual
+    self.manual = manual
+
+
 class Step(object):
   def __init__(self, text, requires, number, config, state, options, handler):
     self._text = text
@@ -225,15 +238,10 @@ class Step(object):
     assert self._config is not None
     assert self._state is not None
     assert self._side_effect_handler is not None
+    assert isinstance(options, CommonOptions)
 
   def Config(self, key):
     return self._config[key]
-
-  def IsForced(self):
-    return self._options and self._options.f
-
-  def IsManual(self):
-    return self._options and self._options.m
 
   def Run(self):
     if self._requires:
@@ -263,6 +271,8 @@ class Step(object):
       got_exception = False
       try:
         result = cb()
+      except NoRetryException, e:
+        raise e
       except Exception:
         got_exception = True
       if got_exception or retry_on(result):
@@ -277,7 +287,7 @@ class Step(object):
 
   def ReadLine(self, default=None):
     # Don't prompt in forced mode.
-    if not self.IsManual() and default is not None:
+    if self._options.force_readline_defaults and default is not None:
       print "%s (forced)" % default
       return default
     else:
@@ -288,7 +298,7 @@ class Step(object):
     return self.Retry(cmd, retry_on, [5, 30])
 
   def Editor(self, args):
-    if not self.IsForced():
+    if self._options.requires_editor:
       return self._side_effect_handler.Command(os.environ["EDITOR"], args,
                                                pipe=False)
 
@@ -307,7 +317,7 @@ class Step(object):
     raise Exception(msg)
 
   def DieNoManualMode(self, msg=""):
-    if not self.IsManual():
+    if not self._options.manual:
       msg = msg or "Only available in manual mode."
       self.Die(msg)
 
@@ -348,7 +358,7 @@ class Step(object):
       self.Die("This is not a git checkout, this script won't work for you.")
 
     # Cancel if EDITOR is unset or not executable.
-    if (not self.IsForced() and (not os.environ.get("EDITOR") or
+    if (self._options.requires_editor and (not os.environ.get("EDITOR") or
         Command("which", os.environ["EDITOR"]) is None)):
       self.Die("Please set your EDITOR environment variable, you'll need it.")
 
@@ -418,7 +428,7 @@ class Step(object):
     answer = ""
     while answer != "LGTM":
       print "> ",
-      answer = self.ReadLine("LGTM" if self.IsForced() else None)
+      answer = self.ReadLine(None if self._options.wait_for_lgtm else "LGTM")
       if answer != "LGTM":
         print "That was not 'LGTM'."
 
@@ -454,7 +464,7 @@ class UploadStep(Step):
       print "Please enter the email address of a V8 reviewer for your patch: ",
       self.DieNoManualMode("A reviewer must be specified in forced mode.")
       reviewer = self.ReadLine()
-    force_flag = " -f" if not self.IsManual() else ""
+    force_flag = " -f" if self._options.force_upload else ""
     args = "cl upload -r \"%s\" --send-mail%s" % (reviewer, force_flag)
     # TODO(machenbach): Check output in forced mode. Verify that all required
     # base files were uploaded, if not retry.

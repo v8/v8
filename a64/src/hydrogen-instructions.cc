@@ -1379,7 +1379,7 @@ HInstruction* HForceRepresentation::New(Zone* zone, HValue* context,
     HConstant* c = HConstant::cast(value);
     if (c->HasNumberValue()) {
       double double_res = c->DoubleValue();
-      if (TypeInfo::IsInt32Double(double_res)) {
+      if (IsInt32Double(double_res)) {
         return HConstant::New(zone, context,
                               static_cast<int32_t>(double_res),
                               required_representation);
@@ -1535,7 +1535,7 @@ void HCheckInstanceType::GetCheckMaskAndTag(uint8_t* mask, uint8_t* tag) {
       *tag = kStringTag;
       return;
     case IS_INTERNALIZED_STRING:
-      *mask = kIsNotInternalizedMask;
+      *mask = kIsNotStringMask | kIsNotInternalizedMask;
       *tag = kInternalizedTag;
       return;
     default:
@@ -1778,10 +1778,7 @@ Range* HDiv::InferRange(Zone* zone) {
     result->set_can_be_minus_zero(!CheckFlag(kAllUsesTruncatingToInt32) &&
                                   (a->CanBeMinusZero() ||
                                    (a->CanBeZero() && b->CanBeNegative())));
-    if (!a->Includes(kMinInt) ||
-        !b->Includes(-1) ||
-        CheckFlag(kAllUsesTruncatingToInt32)) {
-      // It is safe to clear kCanOverflow when kAllUsesTruncatingToInt32.
+    if (!a->Includes(kMinInt) || !b->Includes(-1)) {
       ClearFlag(HValue::kCanOverflow);
     }
 
@@ -2500,7 +2497,7 @@ void HEnterInlined::RegisterReturnTarget(HBasicBlock* return_target,
 
 void HEnterInlined::PrintDataTo(StringStream* stream) {
   SmartArrayPointer<char> name = function()->debug_name()->ToCString();
-  stream->Add("%s, id=%d", *name, function()->id().ToInt());
+  stream->Add("%s, id=%d", name.get(), function()->id().ToInt());
 }
 
 
@@ -3111,7 +3108,7 @@ HCheckMaps* HCheckMaps::New(Zone* zone,
 void HLoadNamedGeneric::PrintDataTo(StringStream* stream) {
   object()->PrintNameTo(stream);
   stream->Add(".");
-  stream->Add(*String::cast(*name())->ToCString());
+  stream->Add(String::cast(*name())->ToCString().get());
 }
 
 
@@ -3249,7 +3246,7 @@ void HStoreNamedGeneric::PrintDataTo(StringStream* stream) {
   object()->PrintNameTo(stream);
   stream->Add(".");
   ASSERT(name()->IsString());
-  stream->Add(*String::cast(*name())->ToCString());
+  stream->Add(String::cast(*name())->ToCString().get());
   stream->Add(" = ");
   value()->PrintNameTo(stream);
 }
@@ -3497,14 +3494,21 @@ void HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
   dominator_allocate->ClearNextMapWord(original_object_size);
 #endif
 
-  dominator_allocate->clear_next_map_word_ = clear_next_map_word_;
+  dominator_allocate->UpdateClearNextMapWord(MustClearNextMapWord());
 
   // After that replace the dominated allocate instruction.
+  HInstruction* inner_offset = HConstant::CreateAndInsertBefore(
+      zone,
+      context(),
+      dominator_size_constant,
+      Representation::None(),
+      this);
+
   HInstruction* dominated_allocate_instr =
       HInnerAllocatedObject::New(zone,
                                  context(),
                                  dominator_allocate,
-                                 dominator_size,
+                                 inner_offset,
                                  type());
   dominated_allocate_instr->InsertBefore(this);
   DeleteAndReplaceWith(dominated_allocate_instr);
@@ -3633,12 +3637,12 @@ void HAllocate::CreateFreeSpaceFiller(int32_t free_space_size) {
 
 
 void HAllocate::ClearNextMapWord(int offset) {
-  if (clear_next_map_word_) {
+  if (MustClearNextMapWord()) {
     Zone* zone = block()->zone();
     HObjectAccess access = HObjectAccess::ForJSObjectOffset(offset);
     HStoreNamedField* clear_next_map =
         HStoreNamedField::New(zone, context(), this, access,
-            block()->graph()->GetConstantNull());
+            block()->graph()->GetConstant0());
     clear_next_map->ClearAllSideEffects();
     clear_next_map->InsertAfter(this);
   }
@@ -3792,7 +3796,7 @@ HInstruction* HInstr::New(                                                     \
     HConstant* c_right = HConstant::cast(right);                               \
     if ((c_left->HasNumberValue() && c_right->HasNumberValue())) {             \
       double double_res = c_left->DoubleValue() op c_right->DoubleValue();     \
-      if (TypeInfo::IsInt32Double(double_res)) {                               \
+      if (IsInt32Double(double_res)) {                                         \
         return H_CONSTANT_INT(double_res);                                     \
       }                                                                        \
       return H_CONSTANT_DOUBLE(double_res);                                    \
@@ -3813,7 +3817,9 @@ HInstruction* HStringAdd::New(Zone* zone,
                               HValue* context,
                               HValue* left,
                               HValue* right,
-                              StringAddFlags flags) {
+                              PretenureFlag pretenure_flag,
+                              StringAddFlags flags,
+                              Handle<AllocationSite> allocation_site) {
   if (FLAG_fold_constants && left->IsConstant() && right->IsConstant()) {
     HConstant* c_right = HConstant::cast(right);
     HConstant* c_left = HConstant::cast(left);
@@ -3823,7 +3829,23 @@ HInstruction* HStringAdd::New(Zone* zone,
       return HConstant::New(zone, context, concat);
     }
   }
-  return new(zone) HStringAdd(context, left, right, flags);
+  return new(zone) HStringAdd(
+      context, left, right, pretenure_flag, flags, allocation_site);
+}
+
+
+void HStringAdd::PrintDataTo(StringStream* stream) {
+  if ((flags() & STRING_ADD_CHECK_BOTH) == STRING_ADD_CHECK_BOTH) {
+    stream->Add("_CheckBoth");
+  } else if ((flags() & STRING_ADD_CHECK_BOTH) == STRING_ADD_CHECK_LEFT) {
+    stream->Add("_CheckLeft");
+  } else if ((flags() & STRING_ADD_CHECK_BOTH) == STRING_ADD_CHECK_RIGHT) {
+    stream->Add("_CheckRight");
+  }
+  stream->Add(" (");
+  if (pretenure_flag() == NOT_TENURED) stream->Add("N");
+  else if (pretenure_flag() == TENURED) stream->Add("D");
+  stream->Add(")");
 }
 
 
@@ -3878,7 +3900,7 @@ HInstruction* HUnaryMathOperation::New(
       case kMathExp:
         return H_CONSTANT_DOUBLE(fast_exp(d));
       case kMathLog:
-        return H_CONSTANT_DOUBLE(fast_log(d));
+        return H_CONSTANT_DOUBLE(log(d));
       case kMathSqrt:
         return H_CONSTANT_DOUBLE(fast_sqrt(d));
       case kMathPowHalf:
@@ -3988,7 +4010,7 @@ HInstruction* HDiv::New(
     if ((c_left->HasNumberValue() && c_right->HasNumberValue())) {
       if (c_right->DoubleValue() != 0) {
         double double_res = c_left->DoubleValue() / c_right->DoubleValue();
-        if (TypeInfo::IsInt32Double(double_res)) {
+        if (IsInt32Double(double_res)) {
           return H_CONSTANT_INT(double_res);
         }
         return H_CONSTANT_DOUBLE(double_res);
@@ -4414,11 +4436,15 @@ void HObjectAccess::PrintTo(StringStream* stream) {
       break;
     case kDouble:  // fall through
     case kInobject:
-      if (!name_.is_null()) stream->Add(*String::cast(*name_)->ToCString());
+      if (!name_.is_null()) {
+        stream->Add(String::cast(*name_)->ToCString().get());
+      }
       stream->Add("[in-object]");
       break;
     case kBackingStore:
-      if (!name_.is_null()) stream->Add(*String::cast(*name_)->ToCString());
+      if (!name_.is_null()) {
+        stream->Add(String::cast(*name_)->ToCString().get());
+      }
       stream->Add("[backing-store]");
       break;
     case kExternalMemory:

@@ -489,10 +489,6 @@ class LCallStub V8_FINAL : public LTemplateInstruction<1, 1, 0> {
 
   DECLARE_CONCRETE_INSTRUCTION(CallStub, "call-stub")
   DECLARE_HYDROGEN_ACCESSOR(CallStub)
-
-  TranscendentalCache::Type transcendental_type() {
-    return hydrogen()->transcendental_type();
-  }
 };
 
 
@@ -2713,6 +2709,9 @@ class LChunkBuilder V8_FINAL BASE_EMBEDDED {
 
   // An input operand in a register that may be trashed.
   MUST_USE_RESULT LOperand* UseTempRegister(HValue* value);
+
+  // An input operand in a register that may be trashed or a constant operand.
+  MUST_USE_RESULT LOperand* UseTempRegisterOrConstant(HValue* value);
 
   // An input operand in a register or stack slot.
   MUST_USE_RESULT LOperand* Use(HValue* value);

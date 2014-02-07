@@ -267,6 +267,9 @@ bool Object::HasValidElements() {
 
 MaybeObject* Object::AllocateNewStorageFor(Heap* heap,
                                            Representation representation) {
+  if (FLAG_track_fields && representation.IsSmi() && IsUninitialized()) {
+    return Smi::FromInt(0);
+  }
   if (!FLAG_track_double_fields) return this;
   if (!representation.IsDouble()) return this;
   if (IsUninitialized()) {
@@ -1297,19 +1300,6 @@ void JSObject::ValidateElements() {
 }
 
 
-bool JSObject::ShouldTrackAllocationInfo() {
-  if (AllocationSite::CanTrack(map()->instance_type())) {
-    if (!IsJSArray()) {
-      return true;
-    }
-
-    return AllocationSite::GetMode(GetElementsKind()) ==
-        TRACK_ALLOCATION_SITE;
-  }
-  return false;
-}
-
-
 void AllocationSite::Initialize() {
   set_transition_info(Smi::FromInt(0));
   SetElementsKind(GetInitialFastElementsKind());
@@ -1359,7 +1349,9 @@ AllocationSiteMode AllocationSite::GetMode(ElementsKind from,
 
 inline bool AllocationSite::CanTrack(InstanceType type) {
   if (FLAG_allocation_site_pretenuring) {
-    return type == JS_ARRAY_TYPE || type == JS_OBJECT_TYPE;
+    return type == JS_ARRAY_TYPE ||
+        type == JS_OBJECT_TYPE ||
+        type < FIRST_NONSTRING_TYPE;
   }
   return type == JS_ARRAY_TYPE;
 }
@@ -1380,9 +1372,12 @@ inline DependentCode::DependencyGroup AllocationSite::ToDependencyGroup(
 }
 
 
-inline void AllocationSite::IncrementMementoFoundCount() {
+inline bool AllocationSite::IncrementMementoFoundCount() {
+  if (IsZombie()) return false;
+
   int value = memento_found_count()->value();
   set_memento_found_count(Smi::FromInt(value + 1));
+  return value == 0;
 }
 
 
@@ -2371,9 +2366,7 @@ void Map::LookupTransition(JSObject* holder,
 
 Object** DescriptorArray::GetKeySlot(int descriptor_number) {
   ASSERT(descriptor_number < number_of_descriptors());
-  return HeapObject::RawField(
-      reinterpret_cast<HeapObject*>(this),
-      OffsetOfElementAt(ToKeyIndex(descriptor_number)));
+  return RawFieldOfElementAt(ToKeyIndex(descriptor_number));
 }
 
 
@@ -2428,9 +2421,7 @@ void DescriptorArray::InitializeRepresentations(Representation representation) {
 
 Object** DescriptorArray::GetValueSlot(int descriptor_number) {
   ASSERT(descriptor_number < number_of_descriptors());
-  return HeapObject::RawField(
-      reinterpret_cast<HeapObject*>(this),
-      OffsetOfElementAt(ToValueIndex(descriptor_number)));
+  return RawFieldOfElementAt(ToValueIndex(descriptor_number));
 }
 
 
@@ -3231,7 +3222,7 @@ void JSFunctionResultCache::MakeZeroSize() {
 
 void JSFunctionResultCache::Clear() {
   int cache_size = size();
-  Object** entries_start = RawField(this, OffsetOfElementAt(kEntriesIndex));
+  Object** entries_start = RawFieldOfElementAt(kEntriesIndex);
   MemsetPointer(entries_start,
                 GetHeap()->the_hole_value(),
                 cache_size - kEntriesIndex);
@@ -3837,8 +3828,7 @@ Object* DependentCode::object_at(int i) {
 
 
 Object** DependentCode::slot_at(int i) {
-  return HeapObject::RawField(
-      this, FixedArray::OffsetOfElementAt(kCodesStartIndex + i));
+  return RawFieldOfElementAt(kCodesStartIndex + i);
 }
 
 
@@ -3912,6 +3902,17 @@ int Code::arguments_count() {
   ASSERT(is_call_stub() || is_keyed_call_stub() ||
          kind() == STUB || is_handler());
   return ExtractArgumentsCountFromFlags(flags());
+}
+
+
+// For initialization.
+void Code::set_raw_kind_specific_flags1(int value) {
+  WRITE_INT_FIELD(this, kKindSpecificFlags1Offset, value);
+}
+
+
+void Code::set_raw_kind_specific_flags2(int value) {
+  WRITE_INT_FIELD(this, kKindSpecificFlags2Offset, value);
 }
 
 
@@ -4173,6 +4174,18 @@ bool Code::is_keyed_stub() {
 
 bool Code::is_debug_stub() {
   return ic_state() == DEBUG_STUB;
+}
+
+
+ConstantPoolArray* Code::constant_pool() {
+  return ConstantPoolArray::cast(READ_FIELD(this, kConstantPoolOffset));
+}
+
+
+void Code::set_constant_pool(Object* value) {
+  ASSERT(value->IsConstantPoolArray());
+  WRITE_FIELD(this, kConstantPoolOffset, value);
+  WRITE_BARRIER(GetHeap(), this, kConstantPoolOffset, value);
 }
 
 
@@ -4946,7 +4959,7 @@ void SharedFunctionInfo::set_scope_info(ScopeInfo* value,
 
 bool SharedFunctionInfo::is_compiled() {
   return code() !=
-      GetIsolate()->builtins()->builtin(Builtins::kLazyCompile);
+      GetIsolate()->builtins()->builtin(Builtins::kCompileUnoptimized);
 }
 
 
@@ -5069,20 +5082,21 @@ bool JSFunction::IsOptimizable() {
 }
 
 
-bool JSFunction::IsMarkedForLazyRecompilation() {
-  return code() == GetIsolate()->builtins()->builtin(Builtins::kLazyRecompile);
+bool JSFunction::IsMarkedForOptimization() {
+  return code() == GetIsolate()->builtins()->builtin(
+      Builtins::kCompileOptimized);
 }
 
 
-bool JSFunction::IsMarkedForConcurrentRecompilation() {
+bool JSFunction::IsMarkedForConcurrentOptimization() {
   return code() == GetIsolate()->builtins()->builtin(
-      Builtins::kConcurrentRecompile);
+      Builtins::kCompileOptimizedConcurrent);
 }
 
 
-bool JSFunction::IsInRecompileQueue() {
+bool JSFunction::IsInOptimizationQueue() {
   return code() == GetIsolate()->builtins()->builtin(
-      Builtins::kInRecompileQueue);
+      Builtins::kInOptimizationQueue);
 }
 
 
@@ -5113,6 +5127,11 @@ void JSFunction::set_code_no_write_barrier(Code* value) {
 void JSFunction::ReplaceCode(Code* code) {
   bool was_optimized = IsOptimized();
   bool is_optimized = code->kind() == Code::OPTIMIZED_FUNCTION;
+
+  if (was_optimized && is_optimized) {
+    shared()->EvictFromOptimizedCodeMap(
+      this->code(), "Replacing with another optimized code");
+  }
 
   set_code(code);
 
@@ -5192,7 +5211,8 @@ bool JSFunction::should_have_prototype() {
 
 
 bool JSFunction::is_compiled() {
-  return code() != GetIsolate()->builtins()->builtin(Builtins::kLazyCompile);
+  return code() !=
+      GetIsolate()->builtins()->builtin(Builtins::kCompileUnoptimized);
 }
 
 
@@ -5891,16 +5911,13 @@ PropertyAttributes JSReceiver::GetElementAttribute(uint32_t index) {
 }
 
 
-// TODO(504): this may be useful in other places too where JSGlobalProxy
-// is used.
-Object* JSObject::BypassGlobalProxy() {
-  if (IsJSGlobalProxy()) {
-    Object* proto = GetPrototype();
-    if (proto->IsNull()) return GetHeap()->undefined_value();
-    ASSERT(proto->IsJSGlobalObject());
-    return proto;
-  }
-  return this;
+bool JSGlobalObject::IsDetached() {
+  return JSGlobalProxy::cast(global_receiver())->IsDetachedFrom(this);
+}
+
+
+bool JSGlobalProxy::IsDetachedFrom(GlobalObject* global) {
+  return GetPrototype() != global;
 }
 
 

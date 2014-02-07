@@ -73,8 +73,8 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm,
 }
 
 
-static void CallRuntimePassFunction(MacroAssembler* masm,
-                                    Runtime::FunctionId function_id) {
+static void CallRuntimePassFunction(
+    MacroAssembler* masm, Runtime::FunctionId function_id) {
   FrameScope scope(masm, StackFrame::INTERNAL);
   // Push a copy of the function onto the stack.
   __ push(rdi);
@@ -101,7 +101,13 @@ static void GenerateTailCallToSharedCode(MacroAssembler* masm) {
 }
 
 
-void Builtins::Generate_InRecompileQueue(MacroAssembler* masm) {
+static void GenerateTailCallToReturnedCode(MacroAssembler* masm) {
+  __ lea(rax, FieldOperand(rax, Code::kHeaderSize));
+  __ jmp(rax);
+}
+
+
+void Builtins::Generate_InOptimizationQueue(MacroAssembler* masm) {
   // Checking whether the queued function is ready for install is optional,
   // since we come across interrupts and stack checks elsewhere.  However,
   // not checking may delay installing ready functions, and always checking
@@ -111,18 +117,10 @@ void Builtins::Generate_InRecompileQueue(MacroAssembler* masm) {
   __ CompareRoot(rsp, Heap::kStackLimitRootIndex);
   __ j(above_equal, &ok);
 
-  CallRuntimePassFunction(masm, Runtime::kTryInstallRecompiledCode);
-  // Tail call to returned code.
-  __ lea(rax, FieldOperand(rax, Code::kHeaderSize));
-  __ jmp(rax);
+  CallRuntimePassFunction(masm, Runtime::kTryInstallOptimizedCode);
+  GenerateTailCallToReturnedCode(masm);
 
   __ bind(&ok);
-  GenerateTailCallToSharedCode(masm);
-}
-
-
-void Builtins::Generate_ConcurrentRecompile(MacroAssembler* masm) {
-  CallRuntimePassFunction(masm, Runtime::kConcurrentRecompile);
   GenerateTailCallToSharedCode(masm);
 }
 
@@ -573,19 +571,41 @@ void Builtins::Generate_JSConstructEntryTrampoline(MacroAssembler* masm) {
 }
 
 
-void Builtins::Generate_LazyCompile(MacroAssembler* masm) {
-  CallRuntimePassFunction(masm, Runtime::kLazyCompile);
-  // Do a tail-call of the compiled function.
-  __ lea(rax, FieldOperand(rax, Code::kHeaderSize));
-  __ jmp(rax);
+void Builtins::Generate_CompileUnoptimized(MacroAssembler* masm) {
+  CallRuntimePassFunction(masm, Runtime::kCompileUnoptimized);
+  GenerateTailCallToReturnedCode(masm);
 }
 
 
-void Builtins::Generate_LazyRecompile(MacroAssembler* masm) {
-  CallRuntimePassFunction(masm, Runtime::kLazyRecompile);
-  // Do a tail-call of the compiled function.
-  __ lea(rax, FieldOperand(rax, Code::kHeaderSize));
-  __ jmp(rax);
+static void CallCompileOptimized(MacroAssembler* masm,
+                                            bool concurrent) {
+  FrameScope scope(masm, StackFrame::INTERNAL);
+  // Push a copy of the function onto the stack.
+  __ push(rdi);
+  // Push call kind information.
+  __ push(rcx);
+  // Function is also the parameter to the runtime call.
+  __ push(rdi);
+  // Whether to compile in a background thread.
+  __ Push(masm->isolate()->factory()->ToBoolean(concurrent));
+
+  __ CallRuntime(Runtime::kCompileOptimized, 2);
+  // Restore call kind information.
+  __ pop(rcx);
+  // Restore receiver.
+  __ pop(rdi);
+}
+
+
+void Builtins::Generate_CompileOptimized(MacroAssembler* masm) {
+  CallCompileOptimized(masm, false);
+  GenerateTailCallToReturnedCode(masm);
+}
+
+
+void Builtins::Generate_CompileOptimizedConcurrent(MacroAssembler* masm) {
+  CallCompileOptimized(masm, true);
+  GenerateTailCallToReturnedCode(masm);
 }
 
 
@@ -604,9 +624,9 @@ static void GenerateMakeCodeYoungAgainCommon(MacroAssembler* masm) {
   __ movq(arg_reg_1, Operand(rsp, kNumSafepointRegisters * kPointerSize));
   {  // NOLINT
     FrameScope scope(masm, StackFrame::MANUAL);
-    __ PrepareCallCFunction(1);
+    __ PrepareCallCFunction(2);
     __ CallCFunction(
-        ExternalReference::get_make_code_young_function(masm->isolate()), 1);
+        ExternalReference::get_make_code_young_function(masm->isolate()), 2);
   }
   __ Popad();
   __ ret(0);
@@ -637,10 +657,10 @@ void Builtins::Generate_MarkCodeAsExecutedOnce(MacroAssembler* masm) {
   __ subq(arg_reg_1, Immediate(Assembler::kShortCallInstructionLength));
   {  // NOLINT
     FrameScope scope(masm, StackFrame::MANUAL);
-    __ PrepareCallCFunction(1);
+    __ PrepareCallCFunction(2);
     __ CallCFunction(
         ExternalReference::get_mark_code_as_executed_function(masm->isolate()),
-        1);
+        2);
   }
   __ Popad();
 
@@ -1393,17 +1413,9 @@ void Builtins::Generate_OnStackReplacement(MacroAssembler* masm) {
   __ movq(rax, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
-    // Lookup and calculate pc offset.
-    __ movq(rdx, Operand(rbp, StandardFrameConstants::kCallerPCOffset));
-    __ movq(rbx, FieldOperand(rax, JSFunction::kSharedFunctionInfoOffset));
-    __ subq(rdx, Immediate(Code::kHeaderSize - kHeapObjectTag));
-    __ subq(rdx, FieldOperand(rbx, SharedFunctionInfo::kCodeOffset));
-    __ Integer32ToSmi(rdx, rdx);
-
-    // Pass both function and pc offset as arguments.
+    // Pass function as argument.
     __ push(rax);
-    __ push(rdx);
-    __ CallRuntime(Runtime::kCompileForOnStackReplacement, 2);
+    __ CallRuntime(Runtime::kCompileForOnStackReplacement, 1);
   }
 
   Label skip;

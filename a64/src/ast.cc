@@ -137,7 +137,6 @@ Assignment::Assignment(Isolate* isolate,
       value_(value),
       binary_operation_(NULL),
       assignment_id_(GetNextId(isolate)),
-      is_monomorphic_(false),
       is_uninitialized_(false),
       is_pre_monomorphic_(false),
       store_mode_(STANDARD_STORE) { }
@@ -742,8 +741,10 @@ void CallNew::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
 
 void ObjectLiteral::Property::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
   TypeFeedbackId id = key()->LiteralFeedbackId();
-  receiver_type_ = oracle->ObjectLiteralStoreIsMonomorphic(id)
-      ? oracle->GetObjectLiteralStoreMap(id) : Handle<Map>::null();
+  SmallMapList maps;
+  oracle->CollectReceiverTypes(id, &maps);
+  receiver_type_ = maps.length() == 1 ? maps.at(0)
+                                      : Handle<Map>::null();
 }
 
 
@@ -1120,7 +1121,7 @@ CaseClause::CaseClause(Isolate* isolate,
                        Expression* label,
                        ZoneList<Statement*>* statements,
                        int pos)
-    : AstNode(pos),
+    : Expression(isolate, pos),
       label_(label),
       statements_(statements),
       compare_type_(Type::None(), isolate),

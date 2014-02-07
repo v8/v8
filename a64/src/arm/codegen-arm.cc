@@ -37,15 +37,6 @@ namespace v8 {
 namespace internal {
 
 
-UnaryMathFunction CreateTranscendentalFunction(TranscendentalCache::Type type) {
-  switch (type) {
-    case TranscendentalCache::LOG: return &log;
-    default: UNIMPLEMENTED();
-  }
-  return NULL;
-}
-
-
 #define __ masm.
 
 
@@ -833,8 +824,10 @@ void MathExpGenerator::EmitMathExp(MacroAssembler* masm,
 
 #undef __
 
+#ifdef DEBUG
 // add(r0, pc, Operand(-8))
 static const uint32_t kCodeAgePatchFirstInstruction = 0xe24f0008;
+#endif
 
 static byte* GetNoCodeAgeSequence(uint32_t* length) {
   // The sequence of instructions that is patched out for aging code is the
@@ -846,7 +839,7 @@ static byte* GetNoCodeAgeSequence(uint32_t* length) {
   if (!initialized) {
     CodePatcher patcher(byte_sequence, kNoCodeAgeSequenceLength);
     PredictableCodeSizeScope scope(patcher.masm(), *length);
-    patcher.masm()->stm(db_w, sp, r1.bit() | cp.bit() | fp.bit() | lr.bit());
+    patcher.masm()->PushFixedFrame(r1);
     patcher.masm()->nop(ip.code());
     patcher.masm()->add(fp, sp,
                         Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
