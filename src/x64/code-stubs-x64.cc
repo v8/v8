@@ -2284,7 +2284,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
     }
 
     // Load the receiver from the stack.
-    __ movp(rax, Operand(rsp, (argc_ + 1) * kPointerSize));
+    __ movp(rax, args.GetReceiverOperand());
 
     if (NeedsChecks()) {
       __ JumpIfSmi(rax, &wrap);
@@ -2345,7 +2345,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
       __ InvokeBuiltin(Builtins::TO_OBJECT, CALL_FUNCTION);
       __ pop(rdi);
     }
-    __ movp(Operand(rsp, (argc_ + 1) * kPointerSize), rax);
+    __ movp(args.GetReceiverOperand(), rax);
     __ jmp(&cont);
   }
 }
@@ -2916,7 +2916,7 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
     __ StoreRoot(rax, Heap::kInstanceofCacheMapRootIndex);
   } else {
     // Get return address and delta to inlined map check.
-    __ movp(kScratchRegister, StackOperandForReturnAddress(0));
+    __ movq(kScratchRegister, StackOperandForReturnAddress(0));
     __ subq(kScratchRegister, args.GetArgumentOperand(2));
     if (FLAG_debug_code) {
       __ movl(rdi, Immediate(kWordBeforeMapCheckValue));
@@ -2957,7 +2957,7 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
     // Assert it is a 1-byte signed value.
     ASSERT(true_offset >= 0 && true_offset < 0x100);
     __ movl(rax, Immediate(true_offset));
-    __ movp(kScratchRegister, StackOperandForReturnAddress(0));
+    __ movq(kScratchRegister, StackOperandForReturnAddress(0));
     __ subq(kScratchRegister, args.GetArgumentOperand(2));
     __ movb(Operand(kScratchRegister, kOffsetToResultValue), rax);
     if (FLAG_debug_code) {
@@ -2980,7 +2980,7 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
     // Assert it is a 1-byte signed value.
     ASSERT(false_offset >= 0 && false_offset < 0x100);
     __ movl(rax, Immediate(false_offset));
-    __ movp(kScratchRegister, StackOperandForReturnAddress(0));
+    __ movq(kScratchRegister, StackOperandForReturnAddress(0));
     __ subq(kScratchRegister, args.GetArgumentOperand(2));
     __ movb(Operand(kScratchRegister, kOffsetToResultValue), rax);
     if (FLAG_debug_code) {
@@ -5263,7 +5263,7 @@ void CallApiGetterStub::Generate(MacroAssembler* masm) {
   // Allocate v8::AccessorInfo in non-GCed stack space.
   const int kArgStackSpace = 1;
 
-  __ lea(name_arg, Operand(rsp, 1 * kPointerSize));
+  __ lea(name_arg, Operand(rsp, kPCOnStackSize));
 
   __ PrepareCallApiFunction(kArgStackSpace);
   __ lea(scratch, Operand(name_arg, 1 * kPointerSize));

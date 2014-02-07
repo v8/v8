@@ -395,7 +395,7 @@ enum ScaleFactor {
   times_4 = 2,
   times_8 = 3,
   times_int_size = times_4,
-  times_pointer_size = times_8
+  times_pointer_size = (kPointerSize == 8) ? times_8 : times_4
 };
 
 
@@ -1020,7 +1020,6 @@ class Assembler : public AssemblerBase {
   void orl(const Operand& dst, Immediate src) {
     immediate_arithmetic_op_32(0x1, dst, src);
   }
-
 
   void rcl(Register dst, Immediate imm8) {
     shift(dst, imm8, 0x2);
