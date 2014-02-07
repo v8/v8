@@ -88,7 +88,6 @@
         'test-liveedit.cc',
         'test-lockers.cc',
         'test-log.cc',
-        'test-microtask-delivery.cc',
         'test-mark-compact.cc',
         'test-mementos.cc',
         'test-mutex.cc',
