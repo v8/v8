@@ -3517,7 +3517,7 @@ void MacroAssembler::CheckMap(Register obj,
 }
 
 
-void MacroAssembler::GetCFunctionDoubleResult(const DoubleRegister dst) {
+void MacroAssembler::MovFromFloatResult(DoubleRegister dst) {
   if (IsMipsSoftFloatABI) {
     Move(dst, v0, v1);
   } else {
@@ -3526,41 +3526,47 @@ void MacroAssembler::GetCFunctionDoubleResult(const DoubleRegister dst) {
 }
 
 
-void MacroAssembler::SetCallCDoubleArguments(DoubleRegister dreg) {
-  if (!IsMipsSoftFloatABI) {
-    Move(f12, dreg);
+void MacroAssembler::MovFromFloatParameter(DoubleRegister dst) {
+  if (IsMipsSoftFloatABI) {
+    Move(dst, a0, a1);
   } else {
-    Move(a0, a1, dreg);
+    Move(dst, f12);  // Reg f12 is o32 ABI FP first argument value.
   }
 }
 
 
-void MacroAssembler::SetCallCDoubleArguments(DoubleRegister dreg1,
-                                             DoubleRegister dreg2) {
+void MacroAssembler::MovToFloatParameter(DoubleRegister src) {
   if (!IsMipsSoftFloatABI) {
-    if (dreg2.is(f12)) {
-      ASSERT(!dreg1.is(f14));
-      Move(f14, dreg2);
-      Move(f12, dreg1);
+    Move(f12, src);
+  } else {
+    Move(a0, a1, src);
+  }
+}
+
+
+void MacroAssembler::MovToFloatResult(DoubleRegister src) {
+  if (!IsMipsSoftFloatABI) {
+    Move(f0, src);
+  } else {
+    Move(v0, v1, src);
+  }
+}
+
+
+void MacroAssembler::MovToFloatParameters(DoubleRegister src1,
+                                          DoubleRegister src2) {
+  if (!IsMipsSoftFloatABI) {
+    if (src2.is(f12)) {
+      ASSERT(!src1.is(f14));
+      Move(f14, src2);
+      Move(f12, src1);
     } else {
-      Move(f12, dreg1);
-      Move(f14, dreg2);
+      Move(f12, src1);
+      Move(f14, src2);
     }
   } else {
-    Move(a0, a1, dreg1);
-    Move(a2, a3, dreg2);
-  }
-}
-
-
-void MacroAssembler::SetCallCDoubleArguments(DoubleRegister dreg,
-                                             Register reg) {
-  if (!IsMipsSoftFloatABI) {
-    Move(f12, dreg);
-    Move(a2, reg);
-  } else {
-    Move(a2, reg);
-    Move(a0, a1, dreg);
+    Move(a0, a1, src1);
+    Move(a2, a3, src2);
   }
 }
 
@@ -3905,8 +3911,12 @@ void MacroAssembler::CallStub(CodeStub* stub,
 }
 
 
-void MacroAssembler::TailCallStub(CodeStub* stub) {
-  Jump(stub->GetCode(isolate()), RelocInfo::CODE_TARGET);
+void MacroAssembler::TailCallStub(CodeStub* stub,
+                                  Condition cond,
+                                  Register r1,
+                                  const Operand& r2,
+                                  BranchDelaySlot bd) {
+  Jump(stub->GetCode(isolate()), RelocInfo::CODE_TARGET, cond, r1, r2, bd);
 }
 
 

@@ -506,7 +506,8 @@ void Heap::RepairFreeListsAfterBoot() {
 
 
 void Heap::ProcessPretenuringFeedback() {
-  if (FLAG_allocation_site_pretenuring) {
+  if (FLAG_allocation_site_pretenuring &&
+      new_space_high_promotion_mode_active_) {
     int tenure_decisions = 0;
     int dont_tenure_decisions = 0;
     int allocation_mementos_found = 0;
@@ -514,7 +515,7 @@ void Heap::ProcessPretenuringFeedback() {
     int active_allocation_sites = 0;
 
     // If the scratchpad overflowed, we have to iterate over the allocation
-    // stites list.
+    // sites list.
     bool use_scratchpad =
         allocation_sites_scratchpad_length < kAllocationSiteScratchpadSize;
 
@@ -525,8 +526,8 @@ void Heap::ProcessPretenuringFeedback() {
               list_element->IsAllocationSite()) {
       AllocationSite* site = use_scratchpad ?
         allocation_sites_scratchpad[i] : AllocationSite::cast(list_element);
-      allocation_mementos_found += site->memento_found_count()->value();
-      if (site->memento_found_count()->value() > 0) {
+      allocation_mementos_found += site->memento_found_count();
+      if (site->memento_found_count() > 0) {
         active_allocation_sites++;
       }
       if (site->DigestPretenuringFeedback()) {
@@ -701,12 +702,14 @@ void Heap::GarbageCollectionEpilogue() {
 }
 
 
-void Heap::CollectAllGarbage(int flags, const char* gc_reason) {
+void Heap::CollectAllGarbage(int flags,
+                             const char* gc_reason,
+                             const v8::GCCallbackFlags gc_callback_flags) {
   // Since we are ignoring the return value, the exact choice of space does
   // not matter, so long as we do not specify NEW_SPACE, which would not
   // cause a full GC.
   mark_compact_collector_.SetFlags(flags);
-  CollectGarbage(OLD_POINTER_SPACE, gc_reason);
+  CollectGarbage(OLD_POINTER_SPACE, gc_reason, gc_callback_flags);
   mark_compact_collector_.SetFlags(kNoGCFlags);
 }
 
@@ -749,7 +752,8 @@ void Heap::CollectAllAvailableGarbage(const char* gc_reason) {
 bool Heap::CollectGarbage(AllocationSpace space,
                           GarbageCollector collector,
                           const char* gc_reason,
-                          const char* collector_reason) {
+                          const char* collector_reason,
+                          const v8::GCCallbackFlags gc_callback_flags) {
   // The VM is in the GC state until exiting this function.
   VMState<GC> state(isolate_);
 
@@ -804,7 +808,7 @@ bool Heap::CollectGarbage(AllocationSpace space,
           (collector == SCAVENGER) ? isolate_->counters()->gc_scavenger()
                                    : isolate_->counters()->gc_compactor());
       next_gc_likely_to_collect_more =
-          PerformGarbageCollection(collector, &tracer);
+          PerformGarbageCollection(collector, &tracer, gc_callback_flags);
     }
 
     GarbageCollectionEpilogue();
@@ -1031,8 +1035,10 @@ void Heap::UpdateSurvivalRateTrend(int start_new_space_size) {
   survival_rate_ = survival_rate;
 }
 
-bool Heap::PerformGarbageCollection(GarbageCollector collector,
-                                    GCTracer* tracer) {
+bool Heap::PerformGarbageCollection(
+    GarbageCollector collector,
+    GCTracer* tracer,
+    const v8::GCCallbackFlags gc_callback_flags) {
   bool next_gc_likely_to_collect_more = false;
 
   if (collector != SCAVENGER) {
@@ -1100,12 +1106,15 @@ bool Heap::PerformGarbageCollection(GarbageCollector collector,
       PrintPID("Limited new space size due to high promotion rate: %d MB\n",
                new_space_.InitialCapacity() / MB);
     }
-    // Support for global pre-tenuring uses the high promotion mode as a
-    // heuristic indicator of whether to pretenure or not, we trigger
-    // deoptimization here to take advantage of pre-tenuring as soon as
-    // possible.
+    // The high promotion mode is our indicator to turn on pretenuring. We have
+    // to deoptimize all optimized code in global pretenuring mode and all
+    // code which should be tenured in local pretenuring mode.
     if (FLAG_pretenuring) {
-      isolate_->stack_guard()->FullDeopt();
+      if (FLAG_allocation_site_pretenuring) {
+        ResetAllAllocationSitesDependentCode(NOT_TENURED);
+      } else {
+        isolate_->stack_guard()->FullDeopt();
+      }
     }
   } else if (new_space_high_promotion_mode_active_ &&
       IsStableOrDecreasingSurvivalTrend() &&
@@ -1118,9 +1127,9 @@ bool Heap::PerformGarbageCollection(GarbageCollector collector,
       PrintPID("Unlimited new space size due to low promotion rate: %d MB\n",
                new_space_.MaximumCapacity() / MB);
     }
-    // Trigger deoptimization here to turn off pre-tenuring as soon as
+    // Trigger deoptimization here to turn off global pretenuring as soon as
     // possible.
-    if (FLAG_pretenuring) {
+    if (FLAG_pretenuring && !FLAG_allocation_site_pretenuring) {
       isolate_->stack_guard()->FullDeopt();
     }
   }
@@ -1160,7 +1169,7 @@ bool Heap::PerformGarbageCollection(GarbageCollector collector,
     GCTracer::Scope scope(tracer, GCTracer::Scope::EXTERNAL);
     VMState<EXTERNAL> state(isolate_);
     HandleScope handle_scope(isolate_);
-    CallGCEpilogueCallbacks(gc_type);
+    CallGCEpilogueCallbacks(gc_type, gc_callback_flags);
   }
 
 #ifdef VERIFY_HEAP
@@ -1190,18 +1199,19 @@ void Heap::CallGCPrologueCallbacks(GCType gc_type, GCCallbackFlags flags) {
 }
 
 
-void Heap::CallGCEpilogueCallbacks(GCType gc_type) {
+void Heap::CallGCEpilogueCallbacks(GCType gc_type,
+                                   GCCallbackFlags gc_callback_flags) {
   for (int i = 0; i < gc_epilogue_callbacks_.length(); ++i) {
     if (gc_type & gc_epilogue_callbacks_[i].gc_type) {
       if (!gc_epilogue_callbacks_[i].pass_isolate_) {
         v8::GCPrologueCallback callback =
             reinterpret_cast<v8::GCPrologueCallback>(
                 gc_epilogue_callbacks_[i].callback);
-        callback(gc_type, kNoGCCallbackFlags);
+        callback(gc_type, gc_callback_flags);
       } else {
         v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(this->isolate());
         gc_epilogue_callbacks_[i].callback(
-            isolate, gc_type, kNoGCCallbackFlags);
+            isolate, gc_type, gc_callback_flags);
       }
     }
   }
@@ -1211,6 +1221,8 @@ void Heap::CallGCEpilogueCallbacks(GCType gc_type) {
 void Heap::MarkCompact(GCTracer* tracer) {
   gc_state_ = MARK_COMPACT;
   LOG(isolate_, ResourceEvent("markcompact", "begin"));
+
+  uint64_t size_of_objects_before_gc = SizeOfObjects();
 
   mark_compact_collector_.Prepare(tracer);
 
@@ -1228,6 +1240,10 @@ void Heap::MarkCompact(GCTracer* tracer) {
   isolate_->counters()->objs_since_last_full()->Set(0);
 
   flush_monomorphic_ics_ = false;
+
+  if (FLAG_allocation_site_pretenuring) {
+    EvaluateOldSpaceLocalPretenuring(size_of_objects_before_gc);
+  }
 }
 
 
@@ -1963,6 +1979,39 @@ void Heap::ProcessAllocationSites(WeakObjectRetainer* retainer,
                                     allocation_sites_list(),
                                     retainer, record_slots);
   set_allocation_sites_list(allocation_site_obj);
+}
+
+
+void Heap::ResetAllAllocationSitesDependentCode(PretenureFlag flag) {
+  Object* cur = allocation_sites_list();
+  while (cur->IsAllocationSite()) {
+    AllocationSite* casted = AllocationSite::cast(cur);
+    if (casted->GetPretenureMode() == flag) {
+      casted->ResetPretenureDecision();
+    }
+    cur = casted->weak_next();
+  }
+}
+
+
+void Heap::EvaluateOldSpaceLocalPretenuring(
+    uint64_t size_of_objects_before_gc) {
+  uint64_t size_of_objects_after_gc = SizeOfObjects();
+  double old_generation_survival_rate =
+      (static_cast<double>(size_of_objects_after_gc) * 100) /
+          static_cast<double>(size_of_objects_before_gc);
+
+  if (old_generation_survival_rate < kOldSurvivalRateLowThreshold) {
+    // Too many objects died in the old generation, pretenuring of wrong
+    // allocation sites may be the cause for that. We have to deopt all
+    // dependent code registered in the allocation sites to re-evaluate
+    // our pretenuring decisions.
+    ResetAllAllocationSitesDependentCode(TENURED);
+    if (FLAG_trace_pretenuring) {
+      PrintF("Deopt all allocation sites dependent code due to low survival "
+             "rate in the old generation %f\n", old_generation_survival_rate);
+    }
+  }
 }
 
 

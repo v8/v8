@@ -769,8 +769,6 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
       return "embedded object";
     case RelocInfo::CONSTRUCT_CALL:
       return "code target (js construct call)";
-    case RelocInfo::CODE_TARGET_CONTEXT:
-      return "code target (context)";
     case RelocInfo::DEBUG_BREAK:
 #ifndef ENABLE_DEBUGGER_SUPPORT
       UNREACHABLE();
@@ -865,7 +863,6 @@ void RelocInfo::Verify() {
       break;
 #endif
     case CONSTRUCT_CALL:
-    case CODE_TARGET_CONTEXT:
     case CODE_TARGET_WITH_ID:
     case CODE_TARGET: {
       // convert inline target address to code object
@@ -941,7 +938,7 @@ void ExternalReference::InitializeMathExpData() {
     // The rest is black magic. Do not attempt to understand it. It is
     // loosely based on the "expd" function published at:
     // http://herumi.blogspot.com/2011/08/fast-double-precision-exponential.html
-    const double constant3 = (1 << kTableSizeBits) / log(2.0);
+    const double constant3 = (1 << kTableSizeBits) / std::log(2.0);
     math_exp_constants_array[3] = constant3;
     math_exp_constants_array[4] =
         static_cast<double>(static_cast<int64_t>(3) << 51);
@@ -952,7 +949,7 @@ void ExternalReference::InitializeMathExpData() {
 
     math_exp_log_table_array = new double[kTableSize];
     for (int i = 0; i < kTableSize; i++) {
-      double value = pow(2, i / kTableSizeDouble);
+      double value = std::pow(2, i / kTableSizeDouble);
       uint64_t bits = BitCast<uint64_t, double>(value);
       bits &= (static_cast<uint64_t>(1) << 52) - 1;
       double mantissa = BitCast<double, uint64_t>(bits);
@@ -1397,7 +1394,7 @@ ExternalReference ExternalReference::math_log_double_function(
     Isolate* isolate) {
   typedef double (*d2d)(double x);
   return ExternalReference(Redirect(isolate,
-                                    FUNCTION_ADDR(static_cast<d2d>(log)),
+                                    FUNCTION_ADDR(static_cast<d2d>(std::log)),
                                     BUILTIN_FP_CALL));
 }
 
@@ -1468,12 +1465,16 @@ double power_double_double(double x, double y) {
   // special cases that are different.
   if ((x == 0.0 || std::isinf(x)) && std::isfinite(y)) {
     double f;
-    if (modf(y, &f) != 0.0) return ((x == 0.0) ^ (y > 0)) ? V8_INFINITY : 0;
+    if (std::modf(y, &f) != 0.0) {
+      return ((x == 0.0) ^ (y > 0)) ? V8_INFINITY : 0;
+    }
   }
 
   if (x == 2.0) {
     int y_int = static_cast<int>(y);
-    if (y == y_int) return ldexp(1.0, y_int);
+    if (y == y_int) {
+      return std::ldexp(1.0, y_int);
+    }
   }
 #endif
 
@@ -1482,7 +1483,7 @@ double power_double_double(double x, double y) {
   if (std::isnan(y) || ((x == 1 || x == -1) && std::isinf(y))) {
     return OS::nan_value();
   }
-  return pow(x, y);
+  return std::pow(x, y);
 }
 
 

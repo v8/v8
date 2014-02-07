@@ -37,12 +37,12 @@
 #include <sys/syspage.h>  // cpuinfo
 #endif
 
+#include <ctype.h>
+#include <limits.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <algorithm>
-#include <cctype>
-#include <climits>
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
 
 #include "checks.h"
 #if V8_OS_WIN

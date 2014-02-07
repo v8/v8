@@ -186,6 +186,23 @@ LanguageMode FunctionLiteral::language_mode() const {
 }
 
 
+void FunctionLiteral::InitializeSharedInfo(
+    Handle<Code> unoptimized_code) {
+  for (RelocIterator it(*unoptimized_code); !it.done(); it.next()) {
+    RelocInfo* rinfo = it.rinfo();
+    if (rinfo->rmode() != RelocInfo::EMBEDDED_OBJECT) continue;
+    Object* obj = rinfo->target_object();
+    if (obj->IsSharedFunctionInfo()) {
+      SharedFunctionInfo* shared = SharedFunctionInfo::cast(obj);
+      if (shared->start_position() == start_position()) {
+        shared_info_ = Handle<SharedFunctionInfo>(shared);
+        break;
+      }
+    }
+  }
+}
+
+
 ObjectLiteralProperty::ObjectLiteralProperty(Literal* key,
                                              Expression* value,
                                              Isolate* isolate) {
@@ -1124,7 +1141,7 @@ CaseClause::CaseClause(Isolate* isolate,
     : Expression(isolate, pos),
       label_(label),
       statements_(statements),
-      compare_type_(Type::None(), isolate),
+      compare_type_(Type::None(isolate)),
       compare_id_(AstNode::GetNextId(isolate)),
       entry_id_(AstNode::GetNextId(isolate)) {
 }

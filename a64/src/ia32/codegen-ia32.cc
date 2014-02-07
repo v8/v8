@@ -58,11 +58,11 @@ void StubRuntimeCallHelper::AfterCall(MacroAssembler* masm) const {
 
 
 UnaryMathFunction CreateExpFunction() {
-  if (!CpuFeatures::IsSupported(SSE2)) return &exp;
-  if (!FLAG_fast_math) return &exp;
+  if (!CpuFeatures::IsSupported(SSE2)) return &std::exp;
+  if (!FLAG_fast_math) return &std::exp;
   size_t actual_size;
   byte* buffer = static_cast<byte*>(OS::Allocate(1 * KB, &actual_size, true));
-  if (buffer == NULL) return &exp;
+  if (buffer == NULL) return &std::exp;
   ExternalReference::InitializeMathExpData();
 
   MacroAssembler masm(NULL, buffer, static_cast<int>(actual_size));
@@ -103,7 +103,7 @@ UnaryMathFunction CreateSqrtFunction() {
                                                  true));
   // If SSE2 is not available, we can use libc's implementation to ensure
   // consistency since code by fullcodegen's calls into runtime in that case.
-  if (buffer == NULL || !CpuFeatures::IsSupported(SSE2)) return &sqrt;
+  if (buffer == NULL || !CpuFeatures::IsSupported(SSE2)) return &std::sqrt;
   MacroAssembler masm(NULL, buffer, static_cast<int>(actual_size));
   // esp[1 * kPointerSize]: raw double input
   // esp[0 * kPointerSize]: return address

@@ -148,6 +148,9 @@ IC::IC(FrameDepth depth, Isolate* isolate)
   pc_address_ = StackFrame::ResolveReturnAddressLocation(pc_address);
   target_ = handle(raw_target(), isolate);
   state_ = target_->ic_state();
+  extra_ic_state_ = target_->needs_extended_extra_ic_state(target_->kind())
+      ? target_->extended_extra_ic_state()
+      : target_->extra_ic_state();
 }
 
 
@@ -255,9 +258,8 @@ bool CallIC::TryUpdateExtraICState(LookupResult* lookup,
             argc >= 1 && args[1]->IsNumber()) {
           double index = DoubleToInteger(args.number_at(1));
           if (index < 0 || index >= string->length()) {
-            extra_ic_state_ =
-                StringStubState::update(extra_ic_state(),
-                                        STRING_INDEX_OUT_OF_BOUNDS);
+            set_extra_ic_state(StringStubState::update(extra_ic_state(),
+                STRING_INDEX_OUT_OF_BOUNDS));
             return true;
           }
         }
@@ -398,19 +400,6 @@ void IC::UpdateState(Handle<Object> receiver, Handle<Object> name) {
 }
 
 
-RelocInfo::Mode IC::ComputeMode() {
-  Address addr = address();
-  Code* code = Code::cast(isolate()->FindCodeObject(addr));
-  for (RelocIterator it(code, RelocInfo::kCodeTargetMask);
-       !it.done(); it.next()) {
-    RelocInfo* info = it.rinfo();
-    if (info->pc() == addr) return info->rmode();
-  }
-  UNREACHABLE();
-  return RelocInfo::NONE32;
-}
-
-
 Failure* IC::TypeError(const char* type,
                        Handle<Object> object,
                        Handle<Object> key) {
@@ -500,12 +489,9 @@ void IC::Clear(Isolate* isolate, Address address) {
 
 void CallICBase::Clear(Address address, Code* target) {
   if (IsCleared(target)) return;
-  bool contextual = CallICBase::Contextual::decode(target->extra_ic_state());
-  Code* code =
-      target->GetIsolate()->stub_cache()->FindCallInitialize(
-          target->arguments_count(),
-          contextual ? RelocInfo::CODE_TARGET_CONTEXT : RelocInfo::CODE_TARGET,
-          target->kind());
+  ContextualMode mode = IC::GetContextualMode(target->extra_ic_state());
+  Code* code = target->GetIsolate()->stub_cache()->FindCallInitialize(
+      target->arguments_count(), mode, target->kind());
   SetTargetAtAddress(address, code);
 }
 
@@ -521,15 +507,17 @@ void KeyedLoadIC::Clear(Isolate* isolate, Address address, Code* target) {
 
 void LoadIC::Clear(Isolate* isolate, Address address, Code* target) {
   if (IsCleared(target)) return;
-  SetTargetAtAddress(address, *pre_monomorphic_stub(isolate));
+  Code* code = target->GetIsolate()->stub_cache()->FindPreMonomorphicIC(
+      Code::LOAD_IC, target->extra_ic_state());
+  SetTargetAtAddress(address, code);
 }
 
 
 void StoreIC::Clear(Isolate* isolate, Address address, Code* target) {
   if (IsCleared(target)) return;
-  SetTargetAtAddress(address,
-      *pre_monomorphic_stub(
-          isolate, StoreIC::GetStrictMode(target->extra_ic_state())));
+  Code* code = target->GetIsolate()->stub_cache()->FindPreMonomorphicIC(
+      Code::STORE_IC, target->extra_ic_state());
+  SetTargetAtAddress(address, code);
 }
 
 
@@ -1009,10 +997,9 @@ bool IC::UpdatePolymorphicIC(Handle<Type> type,
 
 
 Handle<Type> IC::CurrentTypeOf(Handle<Object> object, Isolate* isolate) {
-  Type* type = object->IsJSGlobalObject()
-      ? Type::Constant(Handle<JSGlobalObject>::cast(object))
-      : Type::OfCurrently(object);
-  return handle(type, isolate);
+  return object->IsJSGlobalObject()
+      ? Type::Constant(Handle<JSGlobalObject>::cast(object), isolate)
+      : Type::OfCurrently(object, isolate);
 }
 
 
@@ -1027,11 +1014,12 @@ Handle<Map> IC::TypeToMap(Type* type, Isolate* isolate) {
 }
 
 
-Type* IC::MapToType(Handle<Map> map) {
-  if (map->instance_type() == HEAP_NUMBER_TYPE) return Type::Number();
+Handle<Type> IC::MapToType(Handle<Map> map) {
+  Isolate* isolate = map->GetIsolate();
+  if (map->instance_type() == HEAP_NUMBER_TYPE) return Type::Number(isolate);
   // The only oddballs that can be recorded in ICs are booleans.
-  if (map->instance_type() == ODDBALL_TYPE) return Type::Boolean();
-  return Type::Class(map);
+  if (map->instance_type() == ODDBALL_TYPE) return Type::Boolean(isolate);
+  return Type::Class(map, isolate);
 }
 
 
@@ -1056,7 +1044,7 @@ void IC::CopyICToMegamorphicCache(Handle<String> name) {
 }
 
 
-bool IC::IsTransitionOfMonomorphicTarget(Type* type) {
+bool IC::IsTransitionOfMonomorphicTarget(Handle<Type> type) {
   if (!type->IsClass()) return false;
   Map* receiver_map = *type->AsClass();
   Map* current_map = target()->FindFirstMap();
@@ -1088,7 +1076,7 @@ void IC::PatchCache(Handle<Type> type,
              target()->is_keyed_call_stub() ||
              !target().is_identical_to(code));
       Code* old_handler = target()->FindFirstHandler();
-      if (old_handler == *code && IsTransitionOfMonomorphicTarget(*type)) {
+      if (old_handler == *code && IsTransitionOfMonomorphicTarget(type)) {
         UpdateMonomorphicIC(type, code, name);
         break;
       }
@@ -1110,6 +1098,26 @@ void IC::PatchCache(Handle<Type> type,
       UNREACHABLE();
       break;
   }
+}
+
+
+Handle<Code> LoadIC::initialize_stub(Isolate* isolate, ContextualMode mode) {
+  Handle<Code> ic = isolate->stub_cache()->ComputeLoad(
+      UNINITIALIZED, IC::ComputeExtraICState(mode));
+  return ic;
+}
+
+
+Handle<Code> LoadIC::pre_monomorphic_stub(Isolate* isolate,
+                                          ContextualMode mode) {
+  return isolate->stub_cache()->ComputeLoad(
+      PREMONOMORPHIC, IC::ComputeExtraICState(mode));
+}
+
+
+Handle<Code> LoadIC::megamorphic_stub() {
+  return isolate()->stub_cache()->ComputeLoad(
+      MEGAMORPHIC, extra_ic_state());
 }
 
 
@@ -1587,6 +1595,35 @@ MaybeObject* StoreIC::Store(Handle<Object> object,
       receiver, name, value, NONE, strict_mode(), store_mode);
   RETURN_IF_EMPTY_HANDLE(isolate(), result);
   return *result;
+}
+
+
+Handle<Code> StoreIC::initialize_stub(Isolate* isolate,
+                                      StrictModeFlag strict_mode,
+                                      ContextualMode mode) {
+  ExtraICState extra_state = ComputeExtraICState(strict_mode, mode);
+  Handle<Code> ic = isolate->stub_cache()->ComputeStore(
+      UNINITIALIZED, extra_state);
+  return ic;
+}
+
+
+Handle<Code> StoreIC::megamorphic_stub() {
+  return isolate()->stub_cache()->ComputeStore(MEGAMORPHIC, extra_ic_state());
+}
+
+
+Handle<Code> StoreIC::generic_stub() const {
+  return isolate()->stub_cache()->ComputeStore(GENERIC, extra_ic_state());
+}
+
+
+Handle<Code> StoreIC::pre_monomorphic_stub(Isolate* isolate,
+                                           StrictModeFlag strict_mode,
+                                           ContextualMode contextual_mode) {
+  ExtraICState state = StoreIC::ComputeExtraICState(strict_mode,
+                                                    contextual_mode);
+  return isolate->stub_cache()->ComputeStore(PREMONOMORPHIC, state);
 }
 
 
@@ -2583,10 +2620,9 @@ Handle<Type> BinaryOpIC::State::GetResultType(Isolate* isolate) const {
   if (HasSideEffects()) {
     result_kind = NONE;
   } else if (result_kind == GENERIC && op_ == Token::ADD) {
-    return handle(Type::Union(handle(Type::Number(), isolate),
-                              handle(Type::String(), isolate)), isolate);
+    return Type::Union(Type::Number(isolate), Type::String(isolate), isolate);
   } else if (result_kind == NUMBER && op_ == Token::SHR) {
-    return handle(Type::Unsigned32(), isolate);
+    return Type::Unsigned32(isolate);
   }
   ASSERT_NE(GENERIC, result_kind);
   return KindToType(result_kind, isolate);
@@ -2721,16 +2757,16 @@ const char* BinaryOpIC::State::KindToString(Kind kind) {
 
 // static
 Handle<Type> BinaryOpIC::State::KindToType(Kind kind, Isolate* isolate) {
-  Type* type = NULL;
   switch (kind) {
-    case NONE: type = Type::None(); break;
-    case SMI: type = Type::Smi(); break;
-    case INT32: type = Type::Signed32(); break;
-    case NUMBER: type = Type::Number(); break;
-    case STRING: type = Type::String(); break;
-    case GENERIC: type = Type::Any(); break;
+    case NONE: return Type::None(isolate);
+    case SMI: return Type::Smi(isolate);
+    case INT32: return Type::Signed32(isolate);
+    case NUMBER: return Type::Number(isolate);
+    case STRING: return Type::String(isolate);
+    case GENERIC: return Type::Any(isolate);
   }
-  return handle(type, isolate);
+  UNREACHABLE();
+  return Handle<Type>();
 }
 
 
@@ -2865,25 +2901,18 @@ Handle<Type> CompareIC::StateToType(
     CompareIC::State state,
     Handle<Map> map) {
   switch (state) {
-    case CompareIC::UNINITIALIZED:
-      return handle(Type::None(), isolate);
-    case CompareIC::SMI:
-      return handle(Type::Smi(), isolate);
-    case CompareIC::NUMBER:
-      return handle(Type::Number(), isolate);
-    case CompareIC::STRING:
-      return handle(Type::String(), isolate);
+    case CompareIC::UNINITIALIZED: return Type::None(isolate);
+    case CompareIC::SMI: return Type::Smi(isolate);
+    case CompareIC::NUMBER: return Type::Number(isolate);
+    case CompareIC::STRING: return Type::String(isolate);
     case CompareIC::INTERNALIZED_STRING:
-      return handle(Type::InternalizedString(), isolate);
-    case CompareIC::UNIQUE_NAME:
-      return handle(Type::UniqueName(), isolate);
-    case CompareIC::OBJECT:
-      return handle(Type::Receiver(), isolate);
+      return Type::InternalizedString(isolate);
+    case CompareIC::UNIQUE_NAME: return Type::UniqueName(isolate);
+    case CompareIC::OBJECT: return Type::Receiver(isolate);
     case CompareIC::KNOWN_OBJECT:
-      return handle(
-          map.is_null() ? Type::Receiver() : Type::Class(map), isolate);
-    case CompareIC::GENERIC:
-      return handle(Type::Any(), isolate);
+      return map.is_null()
+          ? Type::Receiver(isolate) : Type::Class(map, isolate);
+    case CompareIC::GENERIC: return Type::Any(isolate);
   }
   UNREACHABLE();
   return Handle<Type>();

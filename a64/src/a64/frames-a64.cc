@@ -46,6 +46,12 @@ Register StubFailureTrampolineFrame::fp_register() { return v8::internal::fp; }
 Register StubFailureTrampolineFrame::context_register() { return cp; }
 
 
+Object*& ExitFrame::constant_pool_slot() const {
+  UNREACHABLE();
+  return Memory::Object_at(NULL);
+}
+
+
 } }  // namespace v8::internal
 
 #endif  // V8_TARGET_ARCH_A64

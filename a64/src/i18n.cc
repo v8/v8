@@ -257,7 +257,8 @@ Handle<ObjectTemplateInfo> GetEternal(Isolate* isolate) {
     return Handle<ObjectTemplateInfo>::cast(
         isolate->eternal_handles()->GetSingleton(field));
   }
-  v8::Local<v8::ObjectTemplate> raw_template(v8::ObjectTemplate::New());
+  v8::Local<v8::ObjectTemplate> raw_template =
+      v8::ObjectTemplate::New(reinterpret_cast<v8::Isolate*>(isolate));
   raw_template->SetInternalFieldCount(internal_fields);
   return Handle<ObjectTemplateInfo>::cast(
       isolate->eternal_handles()->CreateSingleton(

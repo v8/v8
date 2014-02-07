@@ -2663,14 +2663,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SpecialArrayFunctions) {
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_IsCallable) {
-  SealHandleScope shs(isolate);
-  ASSERT(args.length() == 1);
-  CONVERT_ARG_CHECKED(Object, obj, 0);
-  return isolate->heap()->ToBoolean(obj->IsCallable());
-}
-
-
 RUNTIME_FUNCTION(MaybeObject*, Runtime_IsClassicModeFunction) {
   SealHandleScope shs(isolate);
   ASSERT(args.length() == 1);
@@ -5744,6 +5736,7 @@ static int LocalPrototypeChainLength(JSObject* obj) {
 
 // Return the names of the local named properties.
 // args[0]: object
+// args[1]: PropertyAttributes as int
 RUNTIME_FUNCTION(MaybeObject*, Runtime_GetLocalPropertyNames) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 2);
@@ -5751,8 +5744,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetLocalPropertyNames) {
     return isolate->heap()->undefined_value();
   }
   CONVERT_ARG_HANDLE_CHECKED(JSObject, obj, 0);
-  CONVERT_BOOLEAN_ARG_CHECKED(include_symbols, 1);
-  PropertyAttributes filter = include_symbols ? NONE : SYMBOLIC;
+  CONVERT_SMI_ARG_CHECKED(filter_value, 1);
+  PropertyAttributes filter = static_cast<PropertyAttributes>(filter_value);
 
   // Skip the global proxy as it has no properties and always delegates to the
   // real global object.
@@ -5801,32 +5794,55 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetLocalPropertyNames) {
 
   // Get the property names.
   jsproto = obj;
-  int proto_with_hidden_properties = 0;
   int next_copy_index = 0;
+  int hidden_strings = 0;
   for (int i = 0; i < length; i++) {
     jsproto->GetLocalPropertyNames(*names, next_copy_index, filter);
+    if (i > 0) {
+      // Names from hidden prototypes may already have been added
+      // for inherited function template instances. Count the duplicates
+      // and stub them out; the final copy pass at the end ignores holes.
+      for (int j = next_copy_index;
+           j < next_copy_index + local_property_count[i];
+           j++) {
+        Object* name_from_hidden_proto = names->get(j);
+        for (int k = 0; k < next_copy_index; k++) {
+          if (names->get(k) != isolate->heap()->hidden_string()) {
+            Object* name = names->get(k);
+            if (name_from_hidden_proto == name) {
+              names->set(j, isolate->heap()->hidden_string());
+              hidden_strings++;
+              break;
+            }
+          }
+        }
+      }
+    }
     next_copy_index += local_property_count[i];
     if (jsproto->HasHiddenProperties()) {
-      proto_with_hidden_properties++;
+      hidden_strings++;
     }
     if (i < length - 1) {
       jsproto = Handle<JSObject>(JSObject::cast(jsproto->GetPrototype()));
     }
   }
 
-  // Filter out name of hidden properties object.
-  if (proto_with_hidden_properties > 0) {
+  // Filter out name of hidden properties object and
+  // hidden prototype duplicates.
+  if (hidden_strings > 0) {
     Handle<FixedArray> old_names = names;
     names = isolate->factory()->NewFixedArray(
-        names->length() - proto_with_hidden_properties);
+        names->length() - hidden_strings);
     int dest_pos = 0;
     for (int i = 0; i < total_property_count; i++) {
       Object* name = old_names->get(i);
       if (name == isolate->heap()->hidden_string()) {
+        hidden_strings--;
         continue;
       }
       names->set(dest_pos++, name);
     }
+    ASSERT_EQ(0, hidden_strings);
   }
 
   return *isolate->factory()->NewJSArrayWithElements(names);
@@ -6502,7 +6518,7 @@ MUST_USE_RESULT static MaybeObject* ConvertCase(
       if (!maybe_o->ToObject(&o)) return maybe_o;
     }
     SeqOneByteString* result = SeqOneByteString::cast(o);
-    bool has_changed_character;
+    bool has_changed_character = false;
     bool is_ascii = FastAsciiConvert<Converter>(
         reinterpret_cast<char*>(result->GetChars()),
         reinterpret_cast<char*>(SeqOneByteString::cast(s)->GetChars()),
@@ -7657,7 +7673,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_acos) {
   isolate->counters()->math_acos()->Increment();
 
   CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  return isolate->heap()->AllocateHeapNumber(acos(x));
+  return isolate->heap()->AllocateHeapNumber(std::acos(x));
 }
 
 
@@ -7667,7 +7683,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_asin) {
   isolate->counters()->math_asin()->Increment();
 
   CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  return isolate->heap()->AllocateHeapNumber(asin(x));
+  return isolate->heap()->AllocateHeapNumber(std::asin(x));
 }
 
 
@@ -7677,7 +7693,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_atan) {
   isolate->counters()->math_atan()->Increment();
 
   CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  return isolate->heap()->AllocateHeapNumber(atan(x));
+  return isolate->heap()->AllocateHeapNumber(std::atan(x));
 }
 
 
@@ -7701,7 +7717,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_atan2) {
     if (y < 0) multiplier *= 3;
     result = multiplier * kPiDividedBy4;
   } else {
-    result = atan2(x, y);
+    result = std::atan2(x, y);
   }
   return isolate->heap()->AllocateHeapNumber(result);
 }
@@ -7724,7 +7740,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_floor) {
   isolate->counters()->math_floor()->Increment();
 
   CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  return isolate->heap()->NumberFromDouble(floor(x));
+  return isolate->heap()->NumberFromDouble(std::floor(x));
 }
 
 
@@ -7734,7 +7750,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_log) {
   isolate->counters()->math_log()->Increment();
 
   CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  return isolate->heap()->AllocateHeapNumber(log(x));
+  return isolate->heap()->AllocateHeapNumber(std::log(x));
 }
 
 
@@ -7819,7 +7835,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_RoundNumber) {
   if (sign && value >= -0.5) return isolate->heap()->minus_zero_value();
 
   // Do not call NumberFromDouble() to avoid extra checks.
-  return isolate->heap()->AllocateHeapNumber(floor(value + 0.5));
+  return isolate->heap()->AllocateHeapNumber(std::floor(value + 0.5));
 }
 
 
@@ -9154,9 +9170,8 @@ static Object* ComputeReceiverForNonGlobal(Isolate* isolate,
   if (constructor != context_extension_function) return holder;
   // Fall back to using the global object as the implicit receiver if
   // the property turns out to be a local variable allocated in a
-  // context extension object - introduced via eval. Implicit global
-  // receivers are indicated with the hole value.
-  return isolate->heap()->the_hole_value();
+  // context extension object - introduced via eval.
+  return isolate->heap()->undefined_value();
 }
 
 
@@ -9190,11 +9205,7 @@ static ObjectPair LoadContextSlotHelper(Arguments args,
     ASSERT(holder->IsContext());
     // If the "property" we were looking for is a local variable, the
     // receiver is the global object; see ECMA-262, 3rd., 10.1.6 and 10.2.3.
-    //
-    // Use the hole as the receiver to signal that the receiver is implicit
-    // and that the global receiver should be used (as distinguished from an
-    // explicit receiver that happens to be a global object).
-    Handle<Object> receiver = isolate->factory()->the_hole_value();
+    Handle<Object> receiver = isolate->factory()->undefined_value();
     Object* value = Context::cast(*holder)->get(index);
     // Check for uninitialized bindings.
     switch (binding_flags) {
@@ -9229,7 +9240,7 @@ static ObjectPair LoadContextSlotHelper(Arguments args,
     // GetProperty below can cause GC.
     Handle<Object> receiver_handle(
         object->IsGlobalObject()
-            ? GlobalObject::cast(*object)->global_receiver()
+            ? Object::cast(isolate->heap()->undefined_value())
             : object->IsJSProxy() ? static_cast<Object*>(*object)
                 : ComputeReceiverForNonGlobal(isolate, JSObject::cast(*object)),
         isolate);
@@ -9534,7 +9545,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DateCurrentTime) {
   // the number in a Date object representing a particular instant in
   // time is milliseconds. Therefore, we floor the result of getting
   // the OS time.
-  double millis = floor(OS::TimeCurrentMillis());
+  double millis = std::floor(OS::TimeCurrentMillis());
   return isolate->heap()->NumberFromDouble(millis);
 }
 
@@ -9728,7 +9739,7 @@ RUNTIME_FUNCTION(ObjectPair, Runtime_ResolvePossiblyDirectEval) {
   // the first argument without doing anything).
   if (*callee != isolate->native_context()->global_eval_fun() ||
       !args[1]->IsString()) {
-    return MakePair(*callee, isolate->heap()->the_hole_value());
+    return MakePair(*callee, isolate->heap()->undefined_value());
   }
 
   CONVERT_LANGUAGE_MODE_ARG(language_mode, 3);
@@ -11320,11 +11331,15 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFrameDetails) {
     // by creating correct wrapper object based on the calling frame's
     // native context.
     it.Advance();
-    Handle<Context> calling_frames_native_context(
-        Context::cast(Context::cast(it.frame()->context())->native_context()));
-    ASSERT(!receiver->IsUndefined() && !receiver->IsNull());
-    receiver =
-        isolate->factory()->ToObject(receiver, calling_frames_native_context);
+    if (receiver->IsUndefined()) {
+      Context* context = function->context();
+      receiver = handle(context->global_object()->global_receiver());
+    } else {
+      ASSERT(!receiver->IsNull());
+      Context* context = Context::cast(it.frame()->context());
+      Handle<Context> native_context(Context::cast(context->native_context()));
+      receiver = isolate->factory()->ToObject(receiver, native_context);
+    }
   }
   details->set(kFrameDetailsReceiverIndex, *receiver);
 

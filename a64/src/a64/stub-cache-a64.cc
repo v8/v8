@@ -2382,12 +2382,12 @@ void StubCompiler::GenerateBooleanCheck(Register object, Label* miss) {
 }
 
 
-void CallStubCompiler::PatchGlobalProxy(Handle<Object> object) {
-  // TODO(all): What is x0 here? Is the use of x3 significant?
+void CallStubCompiler::PatchImplicitReceiver(Handle<Object> object) {
+  // TODO(all): Is the use of x3 significant?
   if (object->IsGlobalObject()) {
     const int argc = arguments().immediate();
     const int receiver_offset = argc * kPointerSize;
-    __ Ldr(x3, FieldMemOperand(x0, GlobalObject::kGlobalReceiverOffset));
+    __ LoadRoot(x3, Heap::kUndefinedValueRootIndex);
     __ Poke(x3, receiver_offset);
   }
 }
@@ -2485,7 +2485,7 @@ void CallStubCompiler::GenerateJumpFunction(Handle<Object> object,
   ASSERT(function.Is(x1));
   // Check that the function really is a function.
   GenerateFunctionCheck(function, x3, miss);
-  PatchGlobalProxy(object);
+  PatchImplicitReceiver(object);
 
   // Invoke the function.
   __ InvokeFunction(function, arguments(), JUMP_FUNCTION,

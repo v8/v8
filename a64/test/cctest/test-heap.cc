@@ -1790,7 +1790,7 @@ TEST(LeakNativeContextViaMap) {
         "%OptimizeFunctionOnNextCall(f);"
         "f();");
     CHECK_EQ(42, res->Int32Value());
-    ctx2->Global()->Set(v8_str("o"), v8::Int32::New(0));
+    ctx2->Global()->Set(v8_str("o"), v8::Int32::New(isolate, 0));
     ctx2->Exit();
     v8::Local<v8::Context>::New(isolate, ctx1)->Exit();
     ctx1p.Reset();
@@ -1836,7 +1836,7 @@ TEST(LeakNativeContextViaFunction) {
         "%OptimizeFunctionOnNextCall(f);"
         "f(o);");
     CHECK_EQ(42, res->Int32Value());
-    ctx2->Global()->Set(v8_str("o"), v8::Int32::New(0));
+    ctx2->Global()->Set(v8_str("o"), v8::Int32::New(isolate, 0));
     ctx2->Exit();
     ctx1->Exit();
     ctx1p.Reset();
@@ -1880,7 +1880,7 @@ TEST(LeakNativeContextViaMapKeyed) {
         "%OptimizeFunctionOnNextCall(f);"
         "f();");
     CHECK_EQ(42, res->Int32Value());
-    ctx2->Global()->Set(v8_str("o"), v8::Int32::New(0));
+    ctx2->Global()->Set(v8_str("o"), v8::Int32::New(isolate, 0));
     ctx2->Exit();
     ctx1->Exit();
     ctx1p.Reset();
@@ -1928,7 +1928,7 @@ TEST(LeakNativeContextViaMapProto) {
         "%OptimizeFunctionOnNextCall(f);"
         "f();");
     CHECK_EQ(42, res->Int32Value());
-    ctx2->Global()->Set(v8_str("o"), v8::Int32::New(0));
+    ctx2->Global()->Set(v8_str("o"), v8::Int32::New(isolate, 0));
     ctx2->Exit();
     ctx1->Exit();
     ctx1p.Reset();
@@ -2190,7 +2190,7 @@ TEST(OptimizedAllocationAlwaysInNewSpace) {
 
 TEST(OptimizedPretenuringAllocationFolding) {
   i::FLAG_allow_natives_syntax = true;
-  i::FLAG_allocation_site_pretenuring = false;
+  i::FLAG_max_new_space_size = 2048;
   CcTest::InitializeVM();
   if (!CcTest::i_isolate()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
@@ -2206,8 +2206,13 @@ TEST(OptimizedPretenuringAllocationFolding) {
       "  this.e = 1.3;"
       "  this.f = [{}];"
       "}"
+      "var number_elements = 20000;"
+      "var elements = new Array();"
       "function f() {"
-      "  return new DataObject();"
+      "  for (var i = 0; i < 20000-1; i++) {"
+      "    elements[i] = new DataObject();"
+      "  }"
+      "  return new DataObject()"
       "};"
       "f(); f(); f();"
       "%OptimizeFunctionOnNextCall(f);"
@@ -2227,7 +2232,7 @@ TEST(OptimizedPretenuringAllocationFolding) {
 
 TEST(OptimizedPretenuringAllocationFoldingBlocks) {
   i::FLAG_allow_natives_syntax = true;
-  i::FLAG_allocation_site_pretenuring = false;
+  i::FLAG_max_new_space_size = 2048;
   CcTest::InitializeVM();
   if (!CcTest::i_isolate()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
@@ -2235,6 +2240,8 @@ TEST(OptimizedPretenuringAllocationFoldingBlocks) {
   CcTest::heap()->SetNewSpaceHighPromotionModeActive(true);
 
   v8::Local<v8::Value> res = CompileRun(
+      "var number_elements = 30000;"
+      "var elements = new Array(number_elements);"
       "function DataObject() {"
       "  this.a = [{}];"
       "  this.b = [{}];"
@@ -2244,7 +2251,10 @@ TEST(OptimizedPretenuringAllocationFoldingBlocks) {
       "  this.f = 1.3;"
       "}"
       "function f() {"
-      "  return new DataObject();"
+      "  for (var i = 0; i < number_elements; i++) {"
+      "    elements[i] = new DataObject();"
+      "  }"
+      "  return elements[number_elements - 1];"
       "};"
       "f(); f(); f();"
       "%OptimizeFunctionOnNextCall(f);"
@@ -2264,17 +2274,20 @@ TEST(OptimizedPretenuringAllocationFoldingBlocks) {
 
 TEST(OptimizedPretenuringObjectArrayLiterals) {
   i::FLAG_allow_natives_syntax = true;
-  i::FLAG_allocation_site_pretenuring = false;
+  i::FLAG_max_new_space_size = 2048;
   CcTest::InitializeVM();
   if (!CcTest::i_isolate()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
   v8::HandleScope scope(CcTest::isolate());
-  CcTest::heap()->SetNewSpaceHighPromotionModeActive(true);
 
   v8::Local<v8::Value> res = CompileRun(
+      "var number_elements = 20000;"
+      "var elements = new Array(number_elements);"
       "function f() {"
-      "  var numbers = [{}, {}, {}];"
-      "  return numbers;"
+      "  for (var i = 0; i < number_elements; i++) {"
+      "    elements[i] = [{}, {}, {}];"
+      "  }"
+      "  return elements[number_elements - 1];"
       "};"
       "f(); f(); f();"
       "%OptimizeFunctionOnNextCall(f);"
@@ -2290,17 +2303,20 @@ TEST(OptimizedPretenuringObjectArrayLiterals) {
 
 TEST(OptimizedPretenuringMixedInObjectProperties) {
   i::FLAG_allow_natives_syntax = true;
-  i::FLAG_allocation_site_pretenuring = false;
+  i::FLAG_max_new_space_size = 2048;
   CcTest::InitializeVM();
   if (!CcTest::i_isolate()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
   v8::HandleScope scope(CcTest::isolate());
-  CcTest::heap()->SetNewSpaceHighPromotionModeActive(true);
 
   v8::Local<v8::Value> res = CompileRun(
+      "var number_elements = 20000;"
+      "var elements = new Array(number_elements);"
       "function f() {"
-      "  var numbers = {a: {c: 2.2, d: {}}, b: 1.1};"
-      "  return numbers;"
+      "  for (var i = 0; i < number_elements; i++) {"
+      "    elements[i] = {a: {c: 2.2, d: {}}, b: 1.1};"
+      "  }"
+      "  return elements[number_elements - 1];"
       "};"
       "f(); f(); f();"
       "%OptimizeFunctionOnNextCall(f);"
@@ -2322,17 +2338,20 @@ TEST(OptimizedPretenuringMixedInObjectProperties) {
 
 TEST(OptimizedPretenuringDoubleArrayProperties) {
   i::FLAG_allow_natives_syntax = true;
-  i::FLAG_allocation_site_pretenuring = false;
+  i::FLAG_max_new_space_size = 2048;
   CcTest::InitializeVM();
   if (!CcTest::i_isolate()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
   v8::HandleScope scope(CcTest::isolate());
-  CcTest::heap()->SetNewSpaceHighPromotionModeActive(true);
 
   v8::Local<v8::Value> res = CompileRun(
+      "var number_elements = 30000;"
+      "var elements = new Array(number_elements);"
       "function f() {"
-      "  var numbers = {a: 1.1, b: 2.2};"
-      "  return numbers;"
+      "  for (var i = 0; i < number_elements; i++) {"
+      "    elements[i] = {a: 1.1, b: 2.2};"
+      "  }"
+      "  return elements[i - 1];"
       "};"
       "f(); f(); f();"
       "%OptimizeFunctionOnNextCall(f);"
@@ -2348,17 +2367,20 @@ TEST(OptimizedPretenuringDoubleArrayProperties) {
 
 TEST(OptimizedPretenuringdoubleArrayLiterals) {
   i::FLAG_allow_natives_syntax = true;
-  i::FLAG_allocation_site_pretenuring = false;
+  i::FLAG_max_new_space_size = 2048;
   CcTest::InitializeVM();
   if (!CcTest::i_isolate()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
   v8::HandleScope scope(CcTest::isolate());
-  CcTest::heap()->SetNewSpaceHighPromotionModeActive(true);
 
   v8::Local<v8::Value> res = CompileRun(
+      "var number_elements = 20000;"
+      "var elements = new Array(number_elements);"
       "function f() {"
-      "  var numbers = [1.1, 2.2, 3.3];"
-      "  return numbers;"
+      "  for (var i = 0; i < number_elements; i++) {"
+      "    elements[i] = [1.1, 2.2, 3.3];"
+      "  }"
+      "  return elements[number_elements - 1];"
       "};"
       "f(); f(); f();"
       "%OptimizeFunctionOnNextCall(f);"
@@ -2374,17 +2396,20 @@ TEST(OptimizedPretenuringdoubleArrayLiterals) {
 
 TEST(OptimizedPretenuringNestedMixedArrayLiterals) {
   i::FLAG_allow_natives_syntax = true;
-  i::FLAG_allocation_site_pretenuring = false;
+  i::FLAG_max_new_space_size = 2048;
   CcTest::InitializeVM();
   if (!CcTest::i_isolate()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
   v8::HandleScope scope(CcTest::isolate());
-  CcTest::heap()->SetNewSpaceHighPromotionModeActive(true);
 
   v8::Local<v8::Value> res = CompileRun(
+      "var number_elements = 20000;"
+      "var elements = new Array(number_elements);"
       "function f() {"
-      "  var numbers = [[{}, {}, {}],[1.1, 2.2, 3.3]];"
-      "  return numbers;"
+      "  for (var i = 0; i < number_elements; i++) {"
+      "    elements[i] = [[{}, {}, {}], [1.1, 2.2, 3.3]];"
+      "  }"
+      "  return elements[number_elements - 1];"
       "};"
       "f(); f(); f();"
       "%OptimizeFunctionOnNextCall(f);"
@@ -2409,17 +2434,20 @@ TEST(OptimizedPretenuringNestedMixedArrayLiterals) {
 
 TEST(OptimizedPretenuringNestedObjectLiterals) {
   i::FLAG_allow_natives_syntax = true;
-  i::FLAG_allocation_site_pretenuring = false;
+  i::FLAG_max_new_space_size = 2048;
   CcTest::InitializeVM();
   if (!CcTest::i_isolate()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
   v8::HandleScope scope(CcTest::isolate());
-  CcTest::heap()->SetNewSpaceHighPromotionModeActive(true);
 
   v8::Local<v8::Value> res = CompileRun(
+      "var number_elements = 20000;"
+      "var elements = new Array(number_elements);"
       "function f() {"
-      "  var numbers = [[{}, {}, {}],[{}, {}, {}]];"
-      "  return numbers;"
+      "  for (var i = 0; i < number_elements; i++) {"
+      "    elements[i] = [[{}, {}, {}],[{}, {}, {}]];"
+      "  }"
+      "  return elements[number_elements - 1];"
       "};"
       "f(); f(); f();"
       "%OptimizeFunctionOnNextCall(f);"
@@ -2444,17 +2472,20 @@ TEST(OptimizedPretenuringNestedObjectLiterals) {
 
 TEST(OptimizedPretenuringNestedDoubleLiterals) {
   i::FLAG_allow_natives_syntax = true;
-  i::FLAG_allocation_site_pretenuring = false;
+  i::FLAG_max_new_space_size = 2048;
   CcTest::InitializeVM();
   if (!CcTest::i_isolate()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
   v8::HandleScope scope(CcTest::isolate());
-  CcTest::heap()->SetNewSpaceHighPromotionModeActive(true);
 
   v8::Local<v8::Value> res = CompileRun(
+      "var number_elements = 20000;"
+      "var elements = new Array(number_elements);"
       "function f() {"
-      "  var numbers = [[1.1, 1.2, 1.3],[2.1, 2.2, 2.3]];"
-      "  return numbers;"
+      "  for (var i = 0; i < number_elements; i++) {"
+      "    elements[i] = [[1.1, 1.2, 1.3],[2.1, 2.2, 2.3]];"
+      "  }"
+      "  return elements[number_elements - 1];"
       "};"
       "f(); f(); f();"
       "%OptimizeFunctionOnNextCall(f);"
@@ -2768,7 +2799,7 @@ TEST(Regress2211) {
 
   for (int i = 0; i < 2; i++) {
     // Store identity hash first and common hidden property second.
-    v8::Handle<v8::Object> obj = v8::Object::New();
+    v8::Handle<v8::Object> obj = v8::Object::New(CcTest::isolate());
     Handle<JSObject> internal_obj = v8::Utils::OpenHandle(*obj);
     CHECK(internal_obj->HasFastProperties());
 
@@ -2839,8 +2870,7 @@ TEST(IncrementalMarkingClearsTypeFeedbackCells) {
 static Code* FindFirstIC(Code* code, Code::Kind kind) {
   int mask = RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
              RelocInfo::ModeMask(RelocInfo::CONSTRUCT_CALL) |
-             RelocInfo::ModeMask(RelocInfo::CODE_TARGET_WITH_ID) |
-             RelocInfo::ModeMask(RelocInfo::CODE_TARGET_CONTEXT);
+             RelocInfo::ModeMask(RelocInfo::CODE_TARGET_WITH_ID);
   for (RelocIterator it(code, mask); !it.done(); it.next()) {
     RelocInfo* info = it.rinfo();
     Code* target = Code::GetCodeFromTargetAddress(info->target_address());
@@ -2852,7 +2882,7 @@ static Code* FindFirstIC(Code* code, Code::Kind kind) {
 }
 
 
-TEST(IncrementalMarkingPreservesMonomorhpicIC) {
+TEST(IncrementalMarkingPreservesMonomorphicIC) {
   if (i::FLAG_always_opt) return;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -2877,7 +2907,7 @@ TEST(IncrementalMarkingPreservesMonomorhpicIC) {
 }
 
 
-TEST(IncrementalMarkingClearsMonomorhpicIC) {
+TEST(IncrementalMarkingClearsMonomorphicIC) {
   if (i::FLAG_always_opt) return;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -2911,7 +2941,7 @@ TEST(IncrementalMarkingClearsMonomorhpicIC) {
 }
 
 
-TEST(IncrementalMarkingClearsPolymorhpicIC) {
+TEST(IncrementalMarkingClearsPolymorphicIC) {
   if (i::FLAG_always_opt) return;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -3060,7 +3090,7 @@ TEST(Regression144230) {
     HandleScope inner_scope(isolate);
     AlwaysAllocateScope always_allocate;
     SimulateFullSpace(heap->code_space());
-    isolate->stub_cache()->ComputeCallInitialize(9, RelocInfo::CODE_TARGET);
+    isolate->stub_cache()->ComputeCallInitialize(9, NOT_CONTEXTUAL);
   }
 
   // Second compile a CallIC and execute it once so that it gets patched to
@@ -3337,7 +3367,7 @@ TEST(Regress169928) {
       v8_str("fastliteralcase(mote, 2.5);");
 
   v8::Local<v8::String> array_name = v8_str("mote");
-  CcTest::global()->Set(array_name, v8::Int32::New(0));
+  CcTest::global()->Set(array_name, v8::Int32::New(CcTest::isolate(), 0));
 
   // First make sure we flip spaces
   CcTest::heap()->CollectGarbage(NEW_SPACE);

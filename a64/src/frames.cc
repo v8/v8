@@ -544,6 +544,9 @@ void ExitFrame::Iterate(ObjectVisitor* v) const {
   // the calling frame.
   IteratePc(v, pc_address(), LookupCode());
   v->VisitPointer(&code_slot());
+  if (FLAG_enable_ool_constant_pool) {
+    v->VisitPointer(&constant_pool_slot());
+  }
 }
 
 
@@ -1343,7 +1346,7 @@ void EntryFrame::Iterate(ObjectVisitor* v) const {
 
 
 void StandardFrame::IterateExpressions(ObjectVisitor* v) const {
-  const int offset = StandardFrameConstants::kContextOffset;
+  const int offset = StandardFrameConstants::kLastObjectOffset;
   Object** base = &Memory::Object_at(sp());
   Object** limit = &Memory::Object_at(fp() + offset) + 1;
   for (StackHandlerIterator it(this, top_handler()); !it.done(); it.Advance()) {
@@ -1381,7 +1384,7 @@ void StubFailureTrampolineFrame::Iterate(ObjectVisitor* v) const {
                                       kFirstRegisterParameterFrameOffset);
   v->VisitPointers(base, limit);
   base = &Memory::Object_at(fp() + StandardFrameConstants::kMarkerOffset);
-  const int offset = StandardFrameConstants::kContextOffset;
+  const int offset = StandardFrameConstants::kLastObjectOffset;
   limit = &Memory::Object_at(fp() + offset) + 1;
   v->VisitPointers(base, limit);
   IteratePc(v, pc_address(), LookupCode());

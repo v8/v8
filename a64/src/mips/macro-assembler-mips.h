@@ -1194,16 +1194,18 @@ class MacroAssembler: public Assembler {
     li(s2, Operand(ref));
   }
 
+#define COND_ARGS Condition cond = al, Register rs = zero_reg, \
+const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
+
   // Call a code stub.
   void CallStub(CodeStub* stub,
                 TypeFeedbackId ast_id = TypeFeedbackId::None(),
-                Condition cond = cc_always,
-                Register r1 = zero_reg,
-                const Operand& r2 = Operand(zero_reg),
-                BranchDelaySlot bd = PROTECT);
+                COND_ARGS);
 
   // Tail call a code stub (jump).
-  void TailCallStub(CodeStub* stub);
+  void TailCallStub(CodeStub* stub, COND_ARGS);
+
+#undef COND_ARGS
 
   void CallJSExitStub(CodeStub* stub);
 
@@ -1275,15 +1277,16 @@ class MacroAssembler: public Assembler {
   void CallCFunction(Register function,
                      int num_reg_arguments,
                      int num_double_arguments);
-  void GetCFunctionDoubleResult(const DoubleRegister dst);
+  void MovFromFloatResult(DoubleRegister dst);
+  void MovFromFloatParameter(DoubleRegister dst);
 
   // There are two ways of passing double arguments on MIPS, depending on
   // whether soft or hard floating point ABI is used. These functions
   // abstract parameter passing for the three different ways we call
   // C functions from generated code.
-  void SetCallCDoubleArguments(DoubleRegister dreg);
-  void SetCallCDoubleArguments(DoubleRegister dreg1, DoubleRegister dreg2);
-  void SetCallCDoubleArguments(DoubleRegister dreg, Register reg);
+  void MovToFloatParameter(DoubleRegister src);
+  void MovToFloatParameters(DoubleRegister src1, DoubleRegister src2);
+  void MovToFloatResult(DoubleRegister src);
 
   // Calls an API function.  Allocates HandleScope, extracts returned value
   // from handle and propagates exceptions.  Restores context.  stack_space

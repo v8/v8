@@ -2060,12 +2060,12 @@ void Simulator::VisitFPDataProcessing1Source(Instruction* instr) {
   switch (instr->Mask(FPDataProcessing1SourceMask)) {
     case FMOV_s: set_sreg(fd, sreg(fn)); break;
     case FMOV_d: set_dreg(fd, dreg(fn)); break;
-    case FABS_s: set_sreg(fd, fabs(sreg(fn))); break;
-    case FABS_d: set_dreg(fd, fabs(dreg(fn))); break;
+    case FABS_s: set_sreg(fd, std::fabs(sreg(fn))); break;
+    case FABS_d: set_dreg(fd, std::fabs(dreg(fn))); break;
     case FNEG_s: set_sreg(fd, -sreg(fn)); break;
     case FNEG_d: set_dreg(fd, -dreg(fn)); break;
-    case FSQRT_s: set_sreg(fd, sqrt(sreg(fn))); break;
-    case FSQRT_d: set_dreg(fd, sqrt(dreg(fn))); break;
+    case FSQRT_s: set_sreg(fd, std::sqrt(sreg(fn))); break;
+    case FSQRT_d: set_dreg(fd, std::sqrt(dreg(fn))); break;
     case FRINTA_s: set_sreg(fd, FPRoundInt(sreg(fn), FPTieAway)); break;
     case FRINTA_d: set_dreg(fd, FPRoundInt(dreg(fn), FPTieAway)); break;
     case FRINTN_s: set_sreg(fd, FPRoundInt(sreg(fn), FPTieEven)); break;

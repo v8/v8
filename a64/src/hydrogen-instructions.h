@@ -1993,11 +1993,10 @@ class HEnterInlined V8_FINAL : public HTemplateInstruction<0> {
                             FunctionLiteral* function,
                             InliningKind inlining_kind,
                             Variable* arguments_var,
-                            HArgumentsObject* arguments_object,
-                            bool undefined_receiver) {
+                            HArgumentsObject* arguments_object) {
     return new(zone) HEnterInlined(closure, arguments_count, function,
                                    inlining_kind, arguments_var,
-                                   arguments_object, undefined_receiver, zone);
+                                   arguments_object, zone);
   }
 
   void RegisterReturnTarget(HBasicBlock* return_target, Zone* zone);
@@ -2011,7 +2010,6 @@ class HEnterInlined V8_FINAL : public HTemplateInstruction<0> {
   void set_arguments_pushed() { arguments_pushed_ = true; }
   FunctionLiteral* function() const { return function_; }
   InliningKind inlining_kind() const { return inlining_kind_; }
-  bool undefined_receiver() const { return undefined_receiver_; }
 
   virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
     return Representation::None();
@@ -2029,7 +2027,6 @@ class HEnterInlined V8_FINAL : public HTemplateInstruction<0> {
                 InliningKind inlining_kind,
                 Variable* arguments_var,
                 HArgumentsObject* arguments_object,
-                bool undefined_receiver,
                 Zone* zone)
       : closure_(closure),
         arguments_count_(arguments_count),
@@ -2038,7 +2035,6 @@ class HEnterInlined V8_FINAL : public HTemplateInstruction<0> {
         inlining_kind_(inlining_kind),
         arguments_var_(arguments_var),
         arguments_object_(arguments_object),
-        undefined_receiver_(undefined_receiver),
         return_targets_(2, zone) {
   }
 
@@ -2049,7 +2045,6 @@ class HEnterInlined V8_FINAL : public HTemplateInstruction<0> {
   InliningKind inlining_kind_;
   Variable* arguments_var_;
   HArgumentsObject* arguments_object_;
-  bool undefined_receiver_;
   ZoneList<HBasicBlock*> return_targets_;
 };
 
@@ -2414,7 +2409,8 @@ class HCallNamed V8_FINAL : public HUnaryCall {
 
 enum CallMode {
   NORMAL_CALL,
-  TAIL_CALL
+  TAIL_CALL,
+  NORMAL_CONTEXTUAL_CALL
 };
 
 
@@ -2425,7 +2421,7 @@ class HCallFunction V8_FINAL : public HBinaryCall {
       HCallFunction, HValue*, int, CallMode);
 
   bool IsTailCall() const { return call_mode_ == TAIL_CALL; }
-
+  bool IsContextualCall() const { return call_mode_ == NORMAL_CONTEXTUAL_CALL; }
   HValue* context() { return first(); }
   HValue* function() { return second(); }
 
@@ -5946,6 +5942,10 @@ class HObjectAccess V8_FINAL {
     return name_;
   }
 
+  inline bool immutable() const {
+    return ImmutableField::decode(value_);
+  }
+
   inline HObjectAccess WithRepresentation(Representation representation) {
     return HObjectAccess(portion(), offset(), representation, name());
   }
@@ -6180,22 +6180,26 @@ class HObjectAccess V8_FINAL {
 
   HObjectAccess(Portion portion, int offset,
                 Representation representation = Representation::Tagged(),
-                Handle<String> name = Handle<String>::null())
+                Handle<String> name = Handle<String>::null(),
+                bool immutable = false)
     : value_(PortionField::encode(portion) |
              RepresentationField::encode(representation.kind()) |
+             ImmutableField::encode(immutable ? 1 : 0) |
              OffsetField::encode(offset)),
       name_(name) {
     // assert that the fields decode correctly
     ASSERT(this->offset() == offset);
     ASSERT(this->portion() == portion);
+    ASSERT(this->immutable() == immutable);
     ASSERT(RepresentationField::decode(value_) == representation.kind());
   }
 
   class PortionField : public BitField<Portion, 0, 3> {};
   class RepresentationField : public BitField<Representation::Kind, 3, 4> {};
-  class OffsetField : public BitField<int, 7, 25> {};
+  class ImmutableField : public BitField<bool, 7, 1> {};
+  class OffsetField : public BitField<int, 8, 24> {};
 
-  uint32_t value_;  // encodes portion, representation, and offset
+  uint32_t value_;  // encodes portion, representation, immutable, and offset
   Handle<String> name_;
 
   friend class HLoadNamedField;

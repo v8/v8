@@ -3371,29 +3371,10 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   Register cache_cell = x2;
   Label slow, non_function;
 
-  // The receiver might implicitly be the global object. This is
-  // indicated by passing the hole as the receiver to the call
-  // function stub.
-  if (ReceiverMightBeImplicit()) {
-    Label call;
-    // Get the receiver from the stack.
-    // jssp[0] - jssp[argc_ - 1] : arguments
-    // jssp[argc_] : receiver
-    // jssp[argc_ + 1] : function
-    __ Peek(x4, argc_ * kXRegSizeInBytes);
-    // Call as function is indicated with the hole.
-    __ JumpIfNotRoot(x4, Heap::kTheHoleValueRootIndex, &call);
-    // Patch the receiver on the stack with the global receiver object.
-    __ Ldr(x10, GlobalObjectMemOperand());
-    __ Ldr(x11, FieldMemOperand(x10, GlobalObject::kGlobalReceiverOffset));
-    __ Poke(x11, argc_ * kXRegSizeInBytes);
-    __ Bind(&call);
-  }
-
   // Check that the function is really a JavaScript function.
-  // x1  function  pushed function (to be verified)
   __ JumpIfSmi(function, &non_function);
-  // Get the map of the function object.
+
+  // Goto slow case if we do not have a function.
   __ JumpIfNotObjectType(function, x10, x10, JS_FUNCTION_TYPE, &slow);
 
   if (RecordCallTarget()) {
@@ -3404,16 +3385,6 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   // x1  function  pushed function
   ParameterCount actual(argc_);
 
-  if (ReceiverMightBeImplicit()) {
-    Label call_as_function;
-    __ JumpIfRoot(x4, Heap::kTheHoleValueRootIndex, &call_as_function);
-    __ InvokeFunction(function,
-                      actual,
-                      JUMP_FUNCTION,
-                      NullCallWrapper(),
-                      CALL_AS_METHOD);
-    __ Bind(&call_as_function);
-  }
   __ InvokeFunction(function,
                     actual,
                     JUMP_FUNCTION,
@@ -3453,7 +3424,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   __ Mov(x0, argc_);  // Set up the number of arguments.
   __ Mov(x2, 0);
   __ GetBuiltinEntry(x3, Builtins::CALL_NON_FUNCTION);
-  __ SetCallKind(x5, CALL_AS_METHOD);
+  __ SetCallKind(x5, CALL_AS_FUNCTION);
   __ Jump(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
           RelocInfo::CODE_TARGET);
 }
@@ -5613,9 +5584,7 @@ template<class T>
 static void CreateArrayDispatch(MacroAssembler* masm,
                                 AllocationSiteOverrideMode mode) {
   if (mode == DISABLE_ALLOCATION_SITES) {
-    T stub(GetInitialFastElementsKind(),
-           CONTEXT_CHECK_REQUIRED,
-           mode);
+    T stub(GetInitialFastElementsKind(), mode);
      __ TailCallStub(&stub);
 
   } else if (mode == DONT_OVERRIDE) {
@@ -5678,13 +5647,11 @@ static void CreateArrayDispatchOneArgument(MacroAssembler* masm,
     ElementsKind holey_initial = GetHoleyElementsKind(initial);
 
     ArraySingleArgumentConstructorStub stub_holey(holey_initial,
-                                                  CONTEXT_CHECK_REQUIRED,
                                                   DISABLE_ALLOCATION_SITES);
     __ TailCallStub(&stub_holey);
 
     __ Bind(&normal_sequence);
     ArraySingleArgumentConstructorStub stub(initial,
-                                            CONTEXT_CHECK_REQUIRED,
                                             DISABLE_ALLOCATION_SITES);
     __ TailCallStub(&stub);
   } else if (mode == DONT_OVERRIDE) {
@@ -5734,19 +5701,14 @@ static void CreateArrayDispatchOneArgument(MacroAssembler* masm,
 
 template<class T>
 static void ArrayConstructorStubAheadOfTimeHelper(Isolate* isolate) {
-  ElementsKind initial_kind = GetInitialFastElementsKind();
-  ElementsKind initial_holey_kind = GetHoleyElementsKind(initial_kind);
-
   int to_index = GetSequenceIndexFromFastElementsKind(
       TERMINAL_FAST_ELEMENTS_KIND);
   for (int i = 0; i <= to_index; ++i) {
     ElementsKind kind = GetFastElementsKindFromSequenceIndex(i);
     T stub(kind);
     stub.GetCode(isolate);
-    if ((AllocationSite::GetMode(kind) != DONT_TRACK_ALLOCATION_SITE) ||
-        (!FLAG_track_allocation_sites &&
-         ((kind == initial_kind) || (kind == initial_holey_kind)))) {
-      T stub1(kind, CONTEXT_CHECK_REQUIRED, DISABLE_ALLOCATION_SITES);
+    if (AllocationSite::GetMode(kind) != DONT_TRACK_ALLOCATION_SITE) {
+      T stub1(kind, DISABLE_ALLOCATION_SITES);
       stub1.GetCode(isolate);
     }
   }

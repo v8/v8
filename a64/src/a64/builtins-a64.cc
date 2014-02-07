@@ -34,6 +34,7 @@
 #include "deoptimizer.h"
 #include "full-codegen.h"
 #include "runtime.h"
+#include "stub-cache.h"
 
 namespace v8 {
 namespace internal {
@@ -1083,15 +1084,8 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ Mov(x4, 0);
     __ B(&patch_receiver);
 
-    // Use the global receiver object from the called function as the
-    // receiver.
     __ Bind(&use_global_receiver);
-    const int kGlobalIndex =
-        Context::kHeaderSize + Context::GLOBAL_OBJECT_INDEX * kPointerSize;
-    __ Ldr(x10, FieldMemOperand(cp, kGlobalIndex));
-    __ Ldr(x2, FieldMemOperand(x10, GlobalObject::kNativeContextOffset));
-    __ Ldr(x10, FieldMemOperand(x2, kGlobalIndex));
-    __ Ldr(x2, FieldMemOperand(x10, GlobalObject::kGlobalReceiverOffset));
+    __ Ldr(x2, GlobalObjectMemOperand());
 
     __ Bind(&patch_receiver);
     __ Sub(x10, x0, 1);
@@ -1178,7 +1172,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
            FieldMemOperand(x3,
              SharedFunctionInfo::kFormalParameterCountOffset));
   __ Ldr(x3, FieldMemOperand(x1, JSFunction::kCodeEntryOffset));
-  __ SetCallKind(x5, CALL_AS_METHOD);
+  __ SetCallKind(x5, CALL_AS_FUNCTION);
   Label dont_adapt_args;
   __ Cmp(x2, x0);  // Check formal and actual parameter counts.
   __ B(eq, &dont_adapt_args);
@@ -1188,7 +1182,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   __ Bind(&dont_adapt_args);
   ParameterCount expected(0);
   __ InvokeCode(x3, expected, expected, JUMP_FUNCTION,
-                NullCallWrapper(), CALL_AS_METHOD);
+                NullCallWrapper(), CALL_AS_FUNCTION);
 }
 
 
@@ -1283,13 +1277,8 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
     __ Mov(receiver, x0);
     __ B(&push_receiver);
 
-    // Use the current global receiver object as the receiver.
     __ Bind(&use_global_receiver);
-    const int kGlobalOffset =
-        Context::kHeaderSize + Context::GLOBAL_OBJECT_INDEX * kPointerSize;
-    __ Ldr(x10, FieldMemOperand(cp, kGlobalOffset));
-    __ Ldr(x11, FieldMemOperand(x10, GlobalObject::kNativeContextOffset));
-    __ Ldr(x10, FieldMemOperand(x11, kGlobalOffset));
+    __ Ldr(x10, GlobalObjectMemOperand());
     __ Ldr(receiver, FieldMemOperand(x10, GlobalObject::kGlobalReceiverOffset));
 
     // Push the receiver
@@ -1331,25 +1320,25 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
     function = x1;  // From now on we want the function to be kept in x1;
     __ Ldr(function, MemOperand(fp, kFunctionOffset));
 
-    // Invoke the function.
+    // Call the function.
     Label call_proxy;
     ParameterCount actual(current);
     __ SmiUntag(current);
     __ JumpIfNotObjectType(function, x10, x11, JS_FUNCTION_TYPE, &call_proxy);
     __ InvokeFunction(function, actual, CALL_FUNCTION,
-                      NullCallWrapper(), CALL_AS_METHOD);
+                      NullCallWrapper(), CALL_AS_FUNCTION);
     frame_scope.GenerateLeaveFrame();
     __ Drop(3);
     __ Ret();
 
-    // Invoke the function proxy.
+    // Call the function proxy.
     __ Bind(&call_proxy);
     // x0 : argc
     // x1 : function
     __ Push(function);  // Add function proxy as last argument.
     __ Add(x0, x0, 1);
     __ Mov(x2, 0);
-    __ SetCallKind(x5, CALL_AS_METHOD);
+    __ SetCallKind(x5, CALL_AS_FUNCTION);
     __ GetBuiltinEntry(x3, Builtins::CALL_FUNCTION_PROXY);
     __ Call(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
             RelocInfo::CODE_TARGET);

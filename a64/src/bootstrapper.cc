@@ -673,7 +673,7 @@ void Genesis::CreateRoots() {
 
   // Allocate the message listeners object.
   {
-    v8::NeanderArray listeners;
+    v8::NeanderArray listeners(isolate());
     native_context()->set_message_listeners(*listeners.value());
   }
 }
@@ -1669,6 +1669,8 @@ bool Genesis::InstallNatives() {
   builtins->set_native_context(*native_context());
   builtins->set_global_context(*native_context());
   builtins->set_global_receiver(*builtins);
+  builtins->set_global_receiver(native_context()->global_proxy());
+
 
   // Set up the 'global' properties of the builtins object. The
   // 'global' property that refers to the global object is the only
@@ -1682,6 +1684,11 @@ bool Genesis::InstallNatives() {
   CHECK_NOT_EMPTY_HANDLE(isolate(),
                          JSObject::SetLocalPropertyIgnoreAttributes(
                              builtins, global_string, global_obj, attributes));
+  Handle<String> builtins_string =
+      factory()->InternalizeOneByteString(STATIC_ASCII_VECTOR("builtins"));
+  CHECK_NOT_EMPTY_HANDLE(isolate(),
+                         JSObject::SetLocalPropertyIgnoreAttributes(
+                             builtins, builtins_string, builtins, attributes));
 
   // Set up the reference from the global object to the builtins object.
   JSGlobalObject::cast(native_context()->global_object())->
@@ -2286,9 +2293,9 @@ bool Genesis::InstallExtension(Isolate* isolate,
     current = current->next();
   }
   // Didn't find the extension; fail.
-  if (current == NULL) {
-    v8::Utils::ReportApiFailure(
-        "v8::Context::New()", "Cannot find required extension");
+  if (!Utils::ApiCheck(current != NULL,
+                       "v8::Context::New()",
+                       "Cannot find required extension")) {
     return false;
   }
   return InstallExtension(isolate, current, extension_states);
@@ -2303,9 +2310,9 @@ bool Genesis::InstallExtension(Isolate* isolate,
   if (extension_states->get_state(current) == INSTALLED) return true;
   // The current node has already been visited so there must be a
   // cycle in the dependency graph; fail.
-  if (extension_states->get_state(current) == VISITED) {
-    v8::Utils::ReportApiFailure(
-        "v8::Context::New()", "Circular extension dependency");
+  if (!Utils::ApiCheck(extension_states->get_state(current) != VISITED,
+                       "v8::Context::New()",
+                       "Circular extension dependency")) {
     return false;
   }
   ASSERT(extension_states->get_state(current) == UNVISITED);
@@ -2581,6 +2588,8 @@ Genesis::Genesis(Isolate* isolate,
 
     HookUpGlobalProxy(inner_global, global_proxy);
     HookUpInnerGlobal(inner_global);
+    native_context()->builtins()->set_global_receiver(
+        native_context()->global_proxy());
 
     if (!ConfigureGlobalObjects(global_template)) return;
   } else {

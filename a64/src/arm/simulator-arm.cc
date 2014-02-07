@@ -25,9 +25,10 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#include <stdarg.h>
 #include <stdlib.h>
 #include <cmath>
-#include <cstdarg>
+
 #include "v8.h"
 
 #if V8_TARGET_ARCH_ARM
@@ -2733,7 +2734,11 @@ void Simulator::DecodeType3(Instruction* instr) {
                int32_t rs_val = get_register(rs);
                int32_t ret_val = 0;
                ASSERT(rs_val != 0);
-               ret_val = rm_val/rs_val;
+               if ((rm_val == kMinInt) && (rs_val == -1)) {
+                 ret_val = kMinInt;
+               } else {
+                 ret_val = rm_val / rs_val;
+               }
                set_register(rn, ret_val);
                return;
              }
@@ -2905,7 +2910,7 @@ void Simulator::DecodeTypeVFP(Instruction* instr) {
       } else if ((instr->Opc2Value() == 0x0) && (instr->Opc3Value() == 0x3)) {
         // vabs
         double dm_value = get_double_from_d_register(vm);
-        double dd_value = fabs(dm_value);
+        double dd_value = std::fabs(dm_value);
         dd_value = canonicalizeNaN(dd_value);
         set_d_register_from_double(vd, dd_value);
       } else if ((instr->Opc2Value() == 0x1) && (instr->Opc3Value() == 0x1)) {
@@ -2934,7 +2939,7 @@ void Simulator::DecodeTypeVFP(Instruction* instr) {
       } else if (((instr->Opc2Value() == 0x1)) && (instr->Opc3Value() == 0x3)) {
         // vsqrt
         double dm_value = get_double_from_d_register(vm);
-        double dd_value = sqrt(dm_value);
+        double dd_value = std::sqrt(dm_value);
         dd_value = canonicalizeNaN(dd_value);
         set_d_register_from_double(vd, dd_value);
       } else if (instr->Opc3Value() == 0x0) {
@@ -3270,8 +3275,8 @@ void Simulator::DecodeVCVTBetweenFloatingPointAndInteger(Instruction* instr) {
     inv_op_vfp_flag_ = get_inv_op_vfp_flag(mode, val, unsigned_integer);
 
     double abs_diff =
-      unsigned_integer ? fabs(val - static_cast<uint32_t>(temp))
-                       : fabs(val - temp);
+      unsigned_integer ? std::fabs(val - static_cast<uint32_t>(temp))
+                       : std::fabs(val - temp);
 
     inexact_vfp_flag_ = (abs_diff != 0);
 

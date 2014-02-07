@@ -28,10 +28,10 @@
 #ifndef V8_UTILS_H_
 #define V8_UTILS_H_
 
+#include <limits.h>
 #include <stdlib.h>
 #include <string.h>
 #include <algorithm>
-#include <climits>
 
 #include "allocation.h"
 #include "checks.h"

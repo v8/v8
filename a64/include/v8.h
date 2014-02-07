@@ -738,7 +738,7 @@ template <class T, class M> class Persistent : public PersistentBase<T> {
 template<class T>
 class UniquePersistent : public PersistentBase<T> {
   struct RValue {
-    V8_INLINE explicit RValue(UniquePersistent* object) : object(object) {}
+    V8_INLINE explicit RValue(UniquePersistent* obj) : object(obj) {}
     UniquePersistent* object;
   };
 
@@ -823,7 +823,7 @@ class V8_EXPORT HandleScope {
   /**
    * Counts the number of allocated handles.
    */
-  static int NumberOfHandles();
+  static int NumberOfHandles(Isolate* isolate);
 
  private:
   /**
@@ -941,16 +941,6 @@ class V8_EXPORT Data {
 class V8_EXPORT ScriptData {  // NOLINT
  public:
   virtual ~ScriptData() { }
-
-  /**
-   * Pre-compiles the specified script (context-independent).
-   *
-   * \param input Pointer to UTF-8 script source code.
-   * \param length Length of UTF-8 script source code.
-   */
-  static ScriptData* PreCompile(Isolate* isolate,
-                                const char* input,
-                                int length);
 
   /**
    * Pre-compiles the specified script (context-independent).
@@ -1668,7 +1658,6 @@ class V8_EXPORT String : public Primitive {
   /**
    * A zero length string.
    */
-  static v8::Local<v8::String> Empty();
   V8_INLINE static v8::Local<v8::String> Empty(Isolate* isolate);
 
   /**
@@ -1963,8 +1952,6 @@ class V8_EXPORT Number : public Primitive {
  public:
   double Value() const;
   static Local<Number> New(Isolate* isolate, double value);
-  // Will be deprecated soon.
-  static Local<Number> New(double value);
   V8_INLINE static Number* Cast(v8::Value* obj);
  private:
   Number();
@@ -1979,11 +1966,6 @@ class V8_EXPORT Integer : public Number {
  public:
   static Local<Integer> New(Isolate* isolate, int32_t value);
   static Local<Integer> NewFromUnsigned(Isolate* isolate, uint32_t value);
-  // Will be deprecated soon.
-  static Local<Integer> New(int32_t value, Isolate*);
-  static Local<Integer> NewFromUnsigned(uint32_t value, Isolate*);
-  static Local<Integer> New(int32_t value);
-  static Local<Integer> NewFromUnsigned(uint32_t value);
   int64_t Value() const;
   V8_INLINE static Integer* Cast(v8::Value* obj);
  private:
@@ -2337,8 +2319,7 @@ class V8_EXPORT Object : public Value {
   Local<Value> CallAsConstructor(int argc, Handle<Value> argv[]);
 
   static Local<Object> New(Isolate* isolate);
-  // Will be deprecated soon.
-  static Local<Object> New();
+
   V8_INLINE static Object* Cast(Value* obj);
 
  private:
@@ -3353,12 +3334,6 @@ class V8_EXPORT FunctionTemplate : public Template {
       Handle<Value> data = Handle<Value>(),
       Handle<Signature> signature = Handle<Signature>(),
       int length = 0);
-  // Will be deprecated soon.
-  static Local<FunctionTemplate> New(
-      FunctionCallback callback = 0,
-      Handle<Value> data = Handle<Value>(),
-      Handle<Signature> signature = Handle<Signature>(),
-      int length = 0);
 
   /** Returns the unique function instance in the current execution context.*/
   Local<Function> GetFunction();
@@ -3918,7 +3893,8 @@ enum GCType {
 enum GCCallbackFlags {
   kNoGCCallbackFlags = 0,
   kGCCallbackFlagCompacted = 1 << 0,
-  kGCCallbackFlagConstructRetainedObjectInfos = 1 << 1
+  kGCCallbackFlagConstructRetainedObjectInfos = 1 << 1,
+  kGCCallbackFlagForced = 1 << 2
 };
 
 typedef void (*GCPrologueCallback)(GCType type, GCCallbackFlags flags);
@@ -3985,6 +3961,15 @@ class V8_EXPORT Isolate {
     // Prevent copying of Scope objects.
     Scope(const Scope&);
     Scope& operator=(const Scope&);
+  };
+
+  /**
+   * Types of garbage collections that can be requested via
+   * RequestGarbageCollectionForTesting.
+   */
+  enum GarbageCollectionType {
+    kFullGarbageCollection,
+    kMinorGarbageCollection
   };
 
   /**
@@ -4199,6 +4184,17 @@ class V8_EXPORT Isolate {
    */
   void ClearInterrupt();
 
+  /**
+   * Request garbage collection in this Isolate. It is only valid to call this
+   * function if --expose_gc was specified.
+   *
+   * This should only be used for testing purposes and not to enforce a garbage
+   * collection schedule. It has strong negative impact on the garbage
+   * collection performance. Use IdleNotification() or LowMemoryNotification()
+   * instead to influence the garbage collection schedule.
+   */
+  void RequestGarbageCollectionForTesting(GarbageCollectionType type);
+
  private:
   Isolate();
   Isolate(const Isolate&);
@@ -4392,24 +4388,6 @@ class V8_EXPORT PersistentHandleVisitor {  // NOLINT
   virtual ~PersistentHandleVisitor() {}
   virtual void VisitPersistentHandle(Persistent<Value>* value,
                                      uint16_t class_id) {}
-};
-
-
-/**
- * Asserts that no action is performed that could cause a handle's value
- * to be modified. Useful when otherwise unsafe handle operations need to
- * be performed.
- */
-class V8_EXPORT AssertNoGCScope {
-#ifndef DEBUG
-  // TODO(yangguo): remove isolate argument.
-  V8_INLINE AssertNoGCScope(Isolate* isolate) {}
-#else
-  AssertNoGCScope(Isolate* isolate);
-  ~AssertNoGCScope();
- private:
-  void* disallow_heap_allocation_;
-#endif
 };
 
 
@@ -5798,7 +5776,7 @@ void ReturnValue<T>::Set(int32_t i) {
     *value_ = I::IntToSmi(i);
     return;
   }
-  Set(Integer::New(i, GetIsolate()));
+  Set(Integer::New(GetIsolate(), i));
 }
 
 template<typename T>
@@ -5810,7 +5788,7 @@ void ReturnValue<T>::Set(uint32_t i) {
     Set(static_cast<int32_t>(i));
     return;
   }
-  Set(Integer::NewFromUnsigned(i, GetIsolate()));
+  Set(Integer::NewFromUnsigned(GetIsolate(), i));
 }
 
 template<typename T>

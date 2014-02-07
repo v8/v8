@@ -3900,7 +3900,7 @@ HInstruction* HUnaryMathOperation::New(
       case kMathExp:
         return H_CONSTANT_DOUBLE(fast_exp(d));
       case kMathLog:
-        return H_CONSTANT_DOUBLE(log(d));
+        return H_CONSTANT_DOUBLE(std::log(d));
       case kMathSqrt:
         return H_CONSTANT_DOUBLE(fast_sqrt(d));
       case kMathPowHalf:
@@ -3913,9 +3913,9 @@ HInstruction* HUnaryMathOperation::New(
         // Doubles are represented as Significant * 2 ^ Exponent. If the
         // Exponent is not negative, the double value is already an integer.
         if (Double(d).Exponent() >= 0) return H_CONSTANT_DOUBLE(d);
-        return H_CONSTANT_DOUBLE(floor(d + 0.5));
+        return H_CONSTANT_DOUBLE(std::floor(d + 0.5));
       case kMathFloor:
-        return H_CONSTANT_DOUBLE(floor(d));
+        return H_CONSTANT_DOUBLE(std::floor(d));
       default:
         UNREACHABLE();
         break;
@@ -4286,11 +4286,9 @@ HObjectAccess HObjectAccess::ForAllocationSiteOffset(int offset) {
       return HObjectAccess(kInobject, offset, Representation::Tagged());
     case AllocationSite::kNestedSiteOffset:
       return HObjectAccess(kInobject, offset, Representation::Tagged());
-    case AllocationSite::kMementoFoundCountOffset:
+    case AllocationSite::kPretenureDataOffset:
       return HObjectAccess(kInobject, offset, Representation::Smi());
-    case AllocationSite::kMementoCreateCountOffset:
-      return HObjectAccess(kInobject, offset, Representation::Smi());
-    case AllocationSite::kPretenureDecisionOffset:
+    case AllocationSite::kPretenureCreateCountOffset:
       return HObjectAccess(kInobject, offset, Representation::Smi());
     case AllocationSite::kDependentCodeOffset:
       return HObjectAccess(kInobject, offset, Representation::Tagged());

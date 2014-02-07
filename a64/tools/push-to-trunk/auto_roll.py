@@ -26,15 +26,20 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+import json
 import optparse
+import os
 import re
 import sys
 
 from common_includes import *
 
+SETTINGS_LOCATION = "SETTINGS_LOCATION"
+
 CONFIG = {
   PERSISTFILE_BASENAME: "/tmp/v8-auto-roll-tempfile",
   DOT_GIT_LOCATION: ".git",
+  SETTINGS_LOCATION: "~/.auto-roll",
 }
 
 
@@ -50,6 +55,29 @@ class Preparation(Step):
   def RunStep(self):
     self.InitialEnvironmentChecks()
     self.CommonPrepare()
+
+
+class CheckAutoRollSettings(Step):
+  MESSAGE = "Checking settings file."
+
+  def RunStep(self):
+    settings_file = os.path.realpath(self.Config(SETTINGS_LOCATION))
+    if os.path.exists(settings_file):
+      settings_dict = json.loads(FileToText(settings_file))
+      if settings_dict.get("enable_auto_roll") is False:
+        self.Die("Push to trunk disabled by auto-roll settings file: %s"
+                 % settings_file)
+
+
+class CheckTreeStatus(Step):
+  MESSAGE = "Checking v8 tree status message."
+
+  def RunStep(self):
+    status_url = "https://v8-status.appspot.com/current?format=json"
+    status_json = self.ReadURL(status_url, wait_plan=[5, 20, 300, 300])
+    message = json.loads(status_json)["message"]
+    if re.search(r"nopush|no push", message, flags=re.I):
+      self.Die("Push to trunk disabled by tree state: %s" % message)
 
 
 class FetchLatestRevision(Step):
@@ -115,6 +143,8 @@ def RunAutoRoll(config,
                 side_effect_handler=DEFAULT_SIDE_EFFECT_HANDLER):
   step_classes = [
     Preparation,
+    CheckAutoRollSettings,
+    CheckTreeStatus,
     FetchLatestRevision,
     CheckLastPush,
     FetchLKGR,

@@ -294,10 +294,10 @@ class Shell : public i::AllStatic {
   static void MapCounters(const char* name);
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
-  static Handle<Object> DebugMessageDetails(Isolate* isolate,
-                                            Handle<String> message);
-  static Handle<Value> DebugCommandToJSONRequest(Isolate* isolate,
-                                                 Handle<String> command);
+  static Local<Object> DebugMessageDetails(Isolate* isolate,
+                                           Handle<String> message);
+  static Local<Value> DebugCommandToJSONRequest(Isolate* isolate,
+                                                Handle<String> command);
   static void DispatchDebugMessages();
 #endif  // ENABLE_DEBUGGER_SUPPORT
 

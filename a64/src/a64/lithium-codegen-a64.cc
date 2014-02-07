@@ -474,10 +474,9 @@ void LCodeGen::DoCallNewArray(LCallNewArray* instr) {
       (AllocationSite::GetMode(kind) == TRACK_ALLOCATION_SITE)
           ? DISABLE_ALLOCATION_SITES
           : DONT_OVERRIDE;
-  ContextCheckMode context_mode = CONTEXT_CHECK_NOT_REQUIRED;
 
   if (instr->arity() == 0) {
-    ArrayNoArgumentConstructorStub stub(kind, context_mode, override_mode);
+    ArrayNoArgumentConstructorStub stub(kind, override_mode);
     CallCode(stub.GetCode(isolate()), RelocInfo::CONSTRUCT_CALL, instr);
   } else if (instr->arity() == 1) {
     Label done;
@@ -489,18 +488,17 @@ void LCodeGen::DoCallNewArray(LCallNewArray* instr) {
       __ Cbz(x10, &packed_case);
 
       ElementsKind holey_kind = GetHoleyElementsKind(kind);
-      ArraySingleArgumentConstructorStub stub(holey_kind, context_mode,
-                                              override_mode);
+      ArraySingleArgumentConstructorStub stub(holey_kind, override_mode);
       CallCode(stub.GetCode(isolate()), RelocInfo::CONSTRUCT_CALL, instr);
       __ B(&done);
       __ Bind(&packed_case);
     }
 
-    ArraySingleArgumentConstructorStub stub(kind, context_mode, override_mode);
+    ArraySingleArgumentConstructorStub stub(kind, override_mode);
     CallCode(stub.GetCode(isolate()), RelocInfo::CONSTRUCT_CALL, instr);
     __ Bind(&done);
   } else {
-    ArrayNArgumentsConstructorStub stub(kind, context_mode, override_mode);
+    ArrayNArgumentsConstructorStub stub(kind, override_mode);
     CallCode(stub.GetCode(isolate()), RelocInfo::CONSTRUCT_CALL, instr);
   }
 
@@ -661,17 +659,22 @@ bool LCodeGen::GeneratePrologue() {
 
     // TODO(all): Add support for stop_t FLAG in DEBUG mode.
 
-    // Strict mode functions and builtins need to replace the receiver
-    // with undefined when called as functions (without an explicit
-    // receiver object).
-    // x5 holds the call kind and is zero for method calls and non-zero for
-    // function calls.
-    if (!info_->is_classic_mode() || info_->is_native()) {
+    // Classic mode functions and builtins need to replace the receiver with the
+    // global proxy when called as functions (without an explicit receiver
+    // object).
+    if (info_->this_has_uses() &&
+        info_->is_classic_mode() &&
+        !info_->is_native()) {
       Label ok;
       __ Cbz(x5, &ok);
-      int receiver_offset = scope()->num_parameters() * kPointerSize;
-      __ LoadRoot(x10, Heap::kUndefinedValueRootIndex);
+      int receiver_offset = info_->scope()->num_parameters() * kXRegSizeInBytes;
+      __ Peek(x10, receiver_offset);
+      __ JumpIfNotRoot(x10, Heap::kUndefinedValueRootIndex, &ok);
+
+      __ Ldr(x10, GlobalObjectMemOperand());
+      __ Ldr(x10, FieldMemOperand(x10, GlobalObject::kGlobalReceiverOffset));
       __ Poke(x10, receiver_offset);
+
       __ Bind(&ok);
     }
   }
@@ -1545,7 +1548,7 @@ void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
   // expected by InvokeFunction.
   ParameterCount actual(argc);
   __ InvokeFunction(function, actual, CALL_FUNCTION,
-                    safepoint_generator, CALL_AS_METHOD);
+                    safepoint_generator, CALL_AS_FUNCTION);
   __ Ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
 }
 
@@ -1915,7 +1918,7 @@ void LCodeGen::DoCallConstantFunction(LCallConstantFunction* instr) {
   ASSERT(ToRegister(instr->result()).is(x0));
   CallKnownFunction(instr->hydrogen()->function(),
                     instr->hydrogen()->formal_parameter_count(),
-                    instr->arity(), instr, CALL_AS_METHOD);
+                    instr->arity(), instr, CALL_AS_FUNCTION);
 }
 
 
@@ -1931,11 +1934,10 @@ void LCodeGen::DoCallGlobal(LCallGlobal* instr) {
   ASSERT(ToRegister(instr->result()).is(x0));
 
   int arity = instr->arity();
-  RelocInfo::Mode mode = RelocInfo::CODE_TARGET_CONTEXT;
   Handle<Code> ic =
-      isolate()->stub_cache()->ComputeCallInitialize(arity, mode);
+      isolate()->stub_cache()->ComputeCallInitialize(arity, CONTEXTUAL);
   __ Mov(x2, Operand(instr->name()));
-  CallCode(ic, mode, instr);
+  CallCode(ic, RelocInfo::CODE_TARGET, instr);
   __ Ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
 }
 
@@ -1956,13 +1958,12 @@ void LCodeGen::DoCallNamed(LCallNamed* instr) {
   ASSERT(ToRegister(instr->result()).is(x0));
 
   int arity = instr->arity();
-  RelocInfo::Mode mode = RelocInfo::CODE_TARGET;
   Handle<Code> ic =
-      isolate()->stub_cache()->ComputeCallInitialize(arity, mode);
+      isolate()->stub_cache()->ComputeCallInitialize(arity, NOT_CONTEXTUAL);
 
   // IC needs a pointer to the name of the function to be called in x2.
   __ Mov(x2, Operand(instr->name()));
-  CallCode(ic, mode, instr);
+  CallCode(ic, RelocInfo::CODE_TARGET, instr);
   // Restore context register.
   __ Ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
 }
@@ -3065,14 +3066,14 @@ void LCodeGen::DoInvokeFunction(LInvokeFunction* instr) {
     LPointerMap* pointers = instr->pointer_map();
     SafepointGenerator generator(this, pointers, Safepoint::kLazyDeopt);
     ParameterCount count(instr->arity());
-    __ InvokeFunction(x1, count, CALL_FUNCTION, generator, CALL_AS_METHOD);
+    __ InvokeFunction(x1, count, CALL_FUNCTION, generator, CALL_AS_FUNCTION);
     __ Ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
   } else {
     CallKnownFunction(known_function,
                       instr->hydrogen()->formal_parameter_count(),
                       instr->arity(),
                       instr,
-                      CALL_AS_METHOD,
+                      CALL_AS_FUNCTION,
                       x1);
   }
 }
@@ -3281,10 +3282,9 @@ void LCodeGen::DoLoadGlobalGeneric(LLoadGlobalGeneric* instr) {
   ASSERT(ToRegister(instr->global_object()).Is(x0));
   ASSERT(ToRegister(instr->result()).Is(x0));
   __ Mov(x2, Operand(instr->name()));
-  RelocInfo::Mode mode = instr->for_typeof() ? RelocInfo::CODE_TARGET
-                                             : RelocInfo::CODE_TARGET_CONTEXT;
-  Handle<Code> ic = isolate()->builtins()->LoadIC_Initialize();
-  CallCode(ic, mode, instr);
+  ContextualMode mode = instr->for_typeof() ? NOT_CONTEXTUAL : CONTEXTUAL;
+  Handle<Code> ic = LoadIC::initialize_stub(isolate(), mode);
+  CallCode(ic, RelocInfo::CODE_TARGET, instr);
 }
 
 
@@ -3539,7 +3539,7 @@ void LCodeGen::DoLoadNamedGeneric(LLoadNamedGeneric* instr) {
   ASSERT(ToRegister(instr->object()).is(x0));
   __ Mov(x2, Operand(instr->name()));
 
-  Handle<Code> ic = isolate()->builtins()->LoadIC_Initialize();
+  Handle<Code> ic = LoadIC::initialize_stub(isolate(), NOT_CONTEXTUAL);
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
 
   ASSERT(ToRegister(instr->result()).is(x0));
@@ -4790,10 +4790,10 @@ void LCodeGen::DoStoreGlobalGeneric(LStoreGlobalGeneric* instr) {
   ASSERT(ToRegister(instr->value()).Is(x0));
 
   __ Mov(x2, Operand(instr->name()));
-  Handle<Code> ic = (instr->strict_mode_flag() == kStrictMode)
-      ? isolate()->builtins()->StoreIC_Initialize_Strict()
-      : isolate()->builtins()->StoreIC_Initialize();
-  CallCode(ic, RelocInfo::CODE_TARGET_CONTEXT, instr);
+  Handle<Code> ic = StoreIC::initialize_stub(isolate(),
+                                             instr->strict_mode_flag(),
+                                             CONTEXTUAL);
+  CallCode(ic, RelocInfo::CODE_TARGET, instr);
 }
 
 
@@ -5023,9 +5023,9 @@ void LCodeGen::DoStoreNamedGeneric(LStoreNamedGeneric* instr) {
 
   // Name must be in x2.
   __ Mov(x2, Operand(instr->name()));
-  Handle<Code> ic = (instr->strict_mode_flag() == kStrictMode)
-      ? isolate()->builtins()->StoreIC_Initialize_Strict()
-      : isolate()->builtins()->StoreIC_Initialize();
+  Handle<Code> ic = StoreIC::initialize_stub(isolate(),
+                                             instr->strict_mode_flag(),
+                                             NOT_CONTEXTUAL);
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
 }
 
@@ -5597,11 +5597,14 @@ void LCodeGen::DoWrapReceiver(LWrapReceiver* instr) {
   // We could load directly into the result register here, but the additional
   // branches required are likely to be more time consuming than one additional
   // move.
-  __ Ldr(receiver, GlobalObjectMemOperand());
-  __ Ldr(receiver, FieldMemOperand(receiver,
-                                   JSGlobalObject::kGlobalReceiverOffset));
-  __ Bind(&done);
+  // TODO(jbramley): This looks broken on ARM. There, a Context::SlotOffset() is
+  // passed into ContextOperand.
+  __ Ldr(receiver, FieldMemOperand(function, JSFunction::kContextOffset));
+  __ Ldr(receiver, ContextMemOperand(receiver, Context::GLOBAL_OBJECT_INDEX));
+  __ Ldr(receiver,
+         FieldMemOperand(receiver, GlobalObject::kGlobalReceiverOffset));
 
+  __ Bind(&done);
   __ Mov(result, receiver);
 }
 

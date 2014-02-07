@@ -50,14 +50,14 @@ double fast_exp_simulator(double x) {
 
 
 UnaryMathFunction CreateExpFunction() {
-  if (!FLAG_fast_math) return &exp;
+  if (!FLAG_fast_math) return &std::exp;
 
   // Use the Math.exp implemetation in MathExpGenerator::EmitMathExp() to create
   // an AAPCS64-compliant exp() function. This will be faster than the C
   // library's exp() function, but probably less accurate.
   size_t actual_size;
   byte* buffer = static_cast<byte*>(OS::Allocate(1 * KB, &actual_size, true));
-  if (buffer == NULL) return &exp;
+  if (buffer == NULL) return &std::exp;
 
   ExternalReference::InitializeMathExpData();
   MacroAssembler masm(NULL, buffer, static_cast<int>(actual_size));
@@ -97,7 +97,7 @@ UnaryMathFunction CreateExpFunction() {
 
 
 UnaryMathFunction CreateSqrtFunction() {
-  return &sqrt;
+  return &std::sqrt;
 }
 
 

@@ -147,8 +147,9 @@ assertThrows(function() { notifier.performChange(1, function(){}); }, TypeError)
 assertThrows(function() { notifier.performChange(undefined, function(){}); }, TypeError);
 assertThrows(function() { notifier.performChange('foo', undefined); }, TypeError);
 assertThrows(function() { notifier.performChange('foo', 'bar'); }, TypeError);
+var global = this;
 notifier.performChange('foo', function() {
-  assertEquals(undefined, this);
+  assertEquals(global, this);
 });
 
 var notify = notifier.notify;

@@ -215,6 +215,7 @@ DEFAULT_SIDE_EFFECT_HANDLER = SideEffectHandler()
 class NoRetryException(Exception):
   pass
 
+
 class CommonOptions(object):
   def __init__(self, options, manual=True):
     self.requires_editor = True

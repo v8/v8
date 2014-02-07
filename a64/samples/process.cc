@@ -160,7 +160,7 @@ bool JsHttpRequestProcessor::Initialize(map<string, string>* opts,
 
   // Create a template for the global object where we set the
   // built-in global functions.
-  Handle<ObjectTemplate> global = ObjectTemplate::New();
+  Handle<ObjectTemplate> global = ObjectTemplate::New(GetIsolate());
   global->Set(String::NewFromUtf8(GetIsolate(), "log"),
               FunctionTemplate::New(GetIsolate(), LogCallback));
 
@@ -401,7 +401,7 @@ Handle<ObjectTemplate> JsHttpRequestProcessor::MakeMapTemplate(
     Isolate* isolate) {
   EscapableHandleScope handle_scope(isolate);
 
-  Local<ObjectTemplate> result = ObjectTemplate::New();
+  Local<ObjectTemplate> result = ObjectTemplate::New(isolate);
   result->SetInternalFieldCount(1);
   result->SetNamedPropertyHandler(MapGet, MapSet);
 
@@ -511,7 +511,7 @@ Handle<ObjectTemplate> JsHttpRequestProcessor::MakeRequestTemplate(
     Isolate* isolate) {
   EscapableHandleScope handle_scope(isolate);
 
-  Local<ObjectTemplate> result = ObjectTemplate::New();
+  Local<ObjectTemplate> result = ObjectTemplate::New(isolate);
   result->SetInternalFieldCount(1);
 
   // Add accessors for each of the fields of the request.

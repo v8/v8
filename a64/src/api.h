@@ -56,7 +56,7 @@ class Consts {
 // env-independent JSObjects used by the api.
 class NeanderObject {
  public:
-  explicit NeanderObject(int size);
+  explicit NeanderObject(v8::internal::Isolate* isolate, int size);
   explicit inline NeanderObject(v8::internal::Handle<v8::internal::Object> obj);
   explicit inline NeanderObject(v8::internal::Object* obj);
   inline v8::internal::Object* get(int index);
@@ -72,7 +72,7 @@ class NeanderObject {
 // array abstraction built on neander-objects.
 class NeanderArray {
  public:
-  NeanderArray();
+  explicit NeanderArray(v8::internal::Isolate* isolate);
   explicit inline NeanderArray(v8::internal::Handle<v8::internal::Object> obj);
   inline v8::internal::Handle<v8::internal::JSObject> value() {
     return obj_.value();
@@ -196,7 +196,12 @@ class RegisteredExtension {
 
 class Utils {
  public:
-  static bool ReportApiFailure(const char* location, const char* message);
+  static inline bool ApiCheck(bool condition,
+                              const char* location,
+                              const char* message) {
+    if (!condition) Utils::ReportApiFailure(location, message);
+    return condition;
+  }
 
   static Local<FunctionTemplate> ToFunctionTemplate(NeanderObject obj);
   static Local<ObjectTemplate> ToObjectTemplate(NeanderObject obj);
@@ -303,6 +308,9 @@ OPEN_HANDLE_LIST(DECLARE_OPEN_HANDLE)
   static inline v8::internal::Handle<To> OpenHandle(v8::Local<From> handle) {
     return OpenHandle(*handle);
   }
+
+ private:
+  static void ReportApiFailure(const char* location, const char* message);
 };
 
 
@@ -543,7 +551,8 @@ class HandleScopeImplementer {
   inline bool CallDepthIsZero() { return call_depth_ == 0; }
 
   inline void EnterContext(Handle<Context> context);
-  inline bool LeaveContext(Handle<Context> context);
+  inline void LeaveContext();
+  inline bool LastEnteredContextWas(Handle<Context> context);
 
   // Returns the last entered context or an empty handle if no
   // contexts have been entered.
@@ -635,12 +644,13 @@ void HandleScopeImplementer::EnterContext(Handle<Context> context) {
 }
 
 
-bool HandleScopeImplementer::LeaveContext(Handle<Context> context) {
-  if (entered_contexts_.is_empty()) return false;
-  // TODO(dcarney): figure out what's wrong here
-  // if (entered_contexts_.last() != *context) return false;
+void HandleScopeImplementer::LeaveContext() {
   entered_contexts_.RemoveLast();
-  return true;
+}
+
+
+bool HandleScopeImplementer::LastEnteredContextWas(Handle<Context> context) {
+  return !entered_contexts_.is_empty() && entered_contexts_.last() == *context;
 }
 
 

@@ -407,7 +407,7 @@ class MacroAssembler: public Assembler {
   void SafePush(Smi* src);
 
   void InitializeSmiConstantRegister() {
-    movq(kSmiConstantRegister, Smi::FromInt(kSmiConstantRegisterValue),
+    Move(kSmiConstantRegister, Smi::FromInt(kSmiConstantRegisterValue),
          RelocInfo::NONE64);
   }
 
@@ -860,9 +860,26 @@ class MacroAssembler: public Assembler {
   void PopReturnAddressTo(Register dst) { pop(dst); }
   void MoveDouble(Register dst, const Operand& src) { movq(dst, src); }
   void MoveDouble(const Operand& dst, Register src) { movq(dst, src); }
+
   void Move(Register dst, ExternalReference ext) {
-    movq(dst, reinterpret_cast<Address>(ext.address()),
+    movp(dst, reinterpret_cast<Address>(ext.address()),
          RelocInfo::EXTERNAL_REFERENCE);
+  }
+
+  // Loads a pointer into a register with a relocation mode.
+  void Move(Register dst, void* ptr, RelocInfo::Mode rmode) {
+    // This method must not be used with heap object references. The stored
+    // address is not GC safe. Use the handle version instead.
+    ASSERT(rmode > RelocInfo::LAST_GCED_ENUM);
+    movp(dst, ptr, rmode);
+  }
+
+  void Move(Register dst, Handle<Object> value, RelocInfo::Mode rmode) {
+    AllowDeferredHandleDereference using_raw_address;
+    ASSERT(!RelocInfo::IsNone(rmode));
+    ASSERT(value->IsHeapObject());
+    ASSERT(!isolate()->heap()->InNewSpace(*value));
+    movp(dst, value.location(), rmode);
   }
 
   // Control Flow

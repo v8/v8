@@ -61,6 +61,8 @@ class EntryFrameConstants : public AllStatic {
 
 class ExitFrameConstants : public AllStatic {
  public:
+  static const int kFrameSize            =  2 * kPointerSize;
+
   static const int kCallerSPDisplacement =  2 * kPointerSize;
   static const int kCallerPCOffset       =  1 * kPointerSize;
   static const int kCallerFPOffset       =  0 * kPointerSize;   // <- fp

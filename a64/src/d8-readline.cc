@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include <cstdio>  // NOLINT
+#include <stdio.h>  // NOLINT
 #include <string.h> // NOLINT
 #include <readline/readline.h> // NOLINT
 #include <readline/history.h> // NOLINT
@@ -163,7 +163,7 @@ char* ReadLineEditor::CompletionGenerator(const char* text, int state) {
     completions = Local<Array>::New(isolate, current_completions);
   }
   if (current_index < completions->Length()) {
-    Handle<Integer> index = Integer::New(current_index);
+    Handle<Integer> index = Integer::New(isolate, current_index);
     Handle<Value> str_obj = completions->Get(index);
     current_index++;
     String::Utf8Value str(str_obj);

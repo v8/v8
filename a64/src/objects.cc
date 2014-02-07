@@ -45,7 +45,6 @@
 #include "isolate-inl.h"
 #include "log.h"
 #include "objects-inl.h"
-#include "objects-visiting.h"
 #include "objects-visiting-inl.h"
 #include "macro-assembler.h"
 #include "mark-compact.h"
@@ -5924,6 +5923,24 @@ bool JSReceiver::IsSimpleEnum() {
 }
 
 
+static bool FilterKey(Object* key, PropertyAttributes filter) {
+  if ((filter & SYMBOLIC) && key->IsSymbol()) {
+    return true;
+  }
+
+  if ((filter & PRIVATE_SYMBOL) &&
+      key->IsSymbol() && Symbol::cast(key)->is_private()) {
+    return true;
+  }
+
+  if ((filter & STRING) && !key->IsSymbol()) {
+    return true;
+  }
+
+  return false;
+}
+
+
 int Map::NumberOfDescribedProperties(DescriptorFlag which,
                                      PropertyAttributes filter) {
   int result = 0;
@@ -5933,7 +5950,7 @@ int Map::NumberOfDescribedProperties(DescriptorFlag which,
       : NumberOfOwnDescriptors();
   for (int i = 0; i < limit; i++) {
     if ((descs->GetDetails(i).attributes() & filter) == 0 &&
-        ((filter & SYMBOLIC) == 0 || !descs->GetKey(i)->IsSymbol())) {
+        !FilterKey(descs->GetKey(i), filter)) {
       result++;
     }
   }
@@ -9184,40 +9201,6 @@ Handle<String> SeqString::Truncate(Handle<SeqString> string, int new_length) {
 }
 
 
-AllocationMemento* AllocationMemento::FindForHeapObject(HeapObject* object,
-                                                        bool in_GC) {
-  // AllocationMemento objects are only allocated immediately after objects in
-  // NewSpace. Detecting whether a memento is present involves carefully
-  // checking the object immediately after the current object (if there is one)
-  // to see if it's an AllocationMemento.
-  ASSERT(object->GetHeap()->InNewSpace(object));
-  if (FLAG_track_allocation_sites) {
-    Address ptr_end = (reinterpret_cast<Address>(object) - kHeapObjectTag) +
-        object->Size();
-    Address top;
-    if (in_GC) {
-      top = object->GetHeap()->new_space()->FromSpacePageHigh();
-    } else {
-      top = object->GetHeap()->NewSpaceTop();
-    }
-    if ((ptr_end + AllocationMemento::kSize) <= top) {
-      // There is room in newspace for allocation info. Do we have some?
-      Map** possible_allocation_memento_map =
-          reinterpret_cast<Map**>(ptr_end);
-      if (*possible_allocation_memento_map ==
-          object->GetHeap()->allocation_memento_map()) {
-        AllocationMemento* memento = AllocationMemento::cast(
-            reinterpret_cast<Object*>(ptr_end + kHeapObjectTag));
-        if (memento->IsValid()) {
-          return memento;
-        }
-      }
-    }
-  }
-  return NULL;
-}
-
-
 uint32_t StringHasher::MakeArrayIndexHash(uint32_t value, int length) {
   // For array indexes mix the length into the hash as an array index could
   // be zero.
@@ -9460,7 +9443,7 @@ void ConstantPoolArray::ConstantPoolIterateBody(ObjectVisitor* v) {
   if (count_of_ptr_entries() > 0) {
     int first_ptr_offset = OffsetOfElementAt(first_ptr_index());
     int last_ptr_offset =
-        OffsetOfElementAt(first_ptr_index() + count_of_ptr_entries());
+        OffsetOfElementAt(first_ptr_index() + count_of_ptr_entries() - 1);
     v->VisitPointers(
         HeapObject::RawField(this, first_ptr_offset),
         HeapObject::RawField(this, last_ptr_offset));
@@ -10527,13 +10510,12 @@ void Code::FindAllTypes(TypeHandleList* types) {
   ASSERT(is_inline_cache_stub());
   DisallowHeapAllocation no_allocation;
   int mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
-  Isolate* isolate = GetIsolate();
   for (RelocIterator it(this, mask); !it.done(); it.next()) {
     RelocInfo* info = it.rinfo();
     Object* object = info->target_object();
     if (object->IsMap()) {
       Handle<Map> map(Map::cast(object));
-      types->Add(handle(IC::MapToType(map), isolate));
+      types->Add(IC::MapToType(map));
     }
   }
 }
@@ -10617,8 +10599,7 @@ void Code::ClearInlineCaches(Code::Kind kind) {
 void Code::ClearInlineCaches(Code::Kind* kind) {
   int mask = RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
              RelocInfo::ModeMask(RelocInfo::CONSTRUCT_CALL) |
-             RelocInfo::ModeMask(RelocInfo::CODE_TARGET_WITH_ID) |
-             RelocInfo::ModeMask(RelocInfo::CODE_TARGET_CONTEXT);
+             RelocInfo::ModeMask(RelocInfo::CODE_TARGET_WITH_ID);
   for (RelocIterator it(this, mask); !it.done(); it.next()) {
     RelocInfo* info = it.rinfo();
     Code* target(Code::GetCodeFromTargetAddress(info->target_address()));
@@ -10838,6 +10819,17 @@ bool Code::CanDeoptAt(Address pc) {
     if (deopt_data->Pc(i)->value() == -1) continue;
     Address address = code_start_address + deopt_data->Pc(i)->value();
     if (address == pc) return true;
+  }
+  return false;
+}
+
+
+bool Code::IsContextual() {
+  ASSERT(is_inline_cache_stub());
+  Kind kind = this->kind();
+  if (kind == STORE_IC || kind == LOAD_IC || kind == CALL_IC) {
+    ExtraICState extra_state = extra_ic_state();
+    return IC::GetContextualMode(extra_state) == CONTEXTUAL;
   }
   return false;
 }
@@ -12767,10 +12759,28 @@ void JSObject::TransitionElementsKind(Handle<JSObject> object,
 const double AllocationSite::kPretenureRatio = 0.60;
 
 
+void AllocationSite::ResetPretenureDecision() {
+  dependent_code()->DeoptimizeDependentCodeGroup(
+      GetIsolate(),
+      DependentCode::kAllocationSiteTenuringChangedGroup);
+  set_pretenure_decision(kUndecided);
+  set_memento_found_count(0);
+  set_memento_create_count(0);
+}
+
+
+PretenureFlag AllocationSite::GetPretenureMode() {
+  PretenureDecision mode = pretenure_decision();
+  // Zombie objects "decide" to be untenured.
+  return (mode == kTenure && GetHeap()->GetPretenureMode() == TENURED)
+      ? TENURED : NOT_TENURED;
+}
+
+
 bool AllocationSite::IsNestedSite() {
   ASSERT(FLAG_trace_track_allocation_sites);
   Object* current = GetHeap()->allocation_sites_list();
-  while (current != NULL && current->IsAllocationSite()) {
+  while (current->IsAllocationSite()) {
     AllocationSite* current_site = AllocationSite::cast(current);
     if (current_site->nested_site() == this) {
       return true;
@@ -12834,22 +12844,16 @@ MaybeObject* AllocationSite::DigestTransitionFeedback(ElementsKind to_kind) {
 }
 
 
-void AllocationSite::AddDependentCompilationInfo(Reason reason,
+// static
+void AllocationSite::AddDependentCompilationInfo(Handle<AllocationSite> site,
+                                                 Reason reason,
                                                  CompilationInfo* info) {
-  DependentCode::DependencyGroup group = ToDependencyGroup(reason);
-  Handle<DependentCode> dep(dependent_code());
+  DependentCode::DependencyGroup group = site->ToDependencyGroup(reason);
+  Handle<DependentCode> dep(site->dependent_code());
   Handle<DependentCode> codes =
       DependentCode::Insert(dep, group, info->object_wrapper());
-  if (*codes != dependent_code()) set_dependent_code(*codes);
-  info->dependencies(group)->Add(Handle<HeapObject>(this), info->zone());
-}
-
-
-void AllocationSite::AddDependentCode(Reason reason, Handle<Code> code) {
-  DependentCode::DependencyGroup group = ToDependencyGroup(reason);
-  Handle<DependentCode> codes = DependentCode::Insert(
-      Handle<DependentCode>(dependent_code()), group, code);
-  if (*codes != dependent_code()) set_dependent_code(*codes);
+  if (*codes != site->dependent_code()) site->set_dependent_code(*codes);
+  info->dependencies(group)->Add(Handle<HeapObject>(*site), info->zone());
 }
 
 
@@ -12861,16 +12865,24 @@ void JSObject::UpdateAllocationSite(Handle<JSObject> object,
 
 
 MaybeObject* JSObject::UpdateAllocationSite(ElementsKind to_kind) {
-  if (!FLAG_track_allocation_sites || !IsJSArray()) {
-    return this;
-  }
+  if (!IsJSArray()) return this;
 
-  if (!GetHeap()->InNewSpace(this)) return this;
+  Heap* heap = GetHeap();
+  if (!heap->InNewSpace(this)) return this;
 
-  AllocationMemento* memento = AllocationMemento::FindForHeapObject(this);
-  if (memento == NULL || !memento->IsValid()) {
-    return this;
-  }
+  // Either object is the last object in the new space, or there is another
+  // object of at least word size (the header map word) following it, so
+  // suffices to compare ptr and top here.
+  Address ptr = address() + JSArray::kSize;
+  Address top = heap->NewSpaceTop();
+  ASSERT(ptr == top || ptr + HeapObject::kHeaderSize <= top);
+  if (ptr == top) return this;
+
+  HeapObject* candidate = HeapObject::FromAddress(ptr);
+  if (candidate->map() != heap->allocation_memento_map()) return this;
+
+  AllocationMemento* memento = AllocationMemento::cast(candidate);
+  if (!memento->IsValid()) return this;
 
   // Walk through to the Allocation Site
   AllocationSite* site = memento->GetAllocationSite();
@@ -13532,7 +13544,7 @@ void JSObject::GetLocalPropertyNames(
     DescriptorArray* descs = map()->instance_descriptors();
     for (int i = 0; i < real_size; i++) {
       if ((descs->GetDetails(i).attributes() & filter) == 0 &&
-          ((filter & SYMBOLIC) == 0 || !descs->GetKey(i)->IsSymbol())) {
+          !FilterKey(descs->GetKey(i), filter)) {
         storage->set(index++, descs->GetKey(i));
       }
     }
@@ -15634,7 +15646,7 @@ int Dictionary<Shape, Key>::NumberOfElementsFilterAttributes(
   for (int i = 0; i < capacity; i++) {
     Object* k = HashTable<Shape, Key>::KeyAt(i);
     if (HashTable<Shape, Key>::IsKey(k) &&
-        ((filter & SYMBOLIC) == 0 || !k->IsSymbol())) {
+        !FilterKey(k, filter)) {
       PropertyDetails details = DetailsAt(i);
       if (details.IsDeleted()) continue;
       PropertyAttributes attr = details.attributes();
@@ -16579,9 +16591,8 @@ Handle<Type> PropertyCell::UpdatedType(Handle<PropertyCell> cell,
   Handle<Type> old_type(cell->type(), isolate);
   // TODO(2803): Do not track ConsString as constant because they cannot be
   // embedded into code.
-  Handle<Type> new_type(value->IsConsString() || value->IsTheHole()
-                        ? Type::Any()
-                        : Type::Constant(value, isolate), isolate);
+  Handle<Type> new_type = value->IsConsString() || value->IsTheHole()
+      ? Type::Any(isolate) : Type::Constant(value, isolate);
 
   if (new_type->Is(old_type)) {
     return old_type;
@@ -16594,7 +16605,7 @@ Handle<Type> PropertyCell::UpdatedType(Handle<PropertyCell> cell,
     return new_type;
   }
 
-  return handle(Type::Any(), isolate);
+  return Type::Any(isolate);
 }
 
 
@@ -16616,14 +16627,6 @@ void PropertyCell::AddDependentCompilationInfo(CompilationInfo* info) {
   if (*codes != dependent_code()) set_dependent_code(*codes);
   info->dependencies(DependentCode::kPropertyCellChangedGroup)->Add(
       Handle<HeapObject>(this), info->zone());
-}
-
-
-void PropertyCell::AddDependentCode(Handle<Code> code) {
-  Handle<DependentCode> codes = DependentCode::Insert(
-      Handle<DependentCode>(dependent_code()),
-      DependentCode::kPropertyCellChangedGroup, code);
-  if (*codes != dependent_code()) set_dependent_code(*codes);
 }
 
 

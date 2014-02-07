@@ -2821,17 +2821,16 @@ class LPlatformChunk V8_FINAL : public LChunk {
 };
 
 
-class LChunkBuilder  V8_FINAL BASE_EMBEDDED {
+class LChunkBuilder V8_FINAL : public LChunkBuilderBase {
  public:
   LChunkBuilder(CompilationInfo* info, HGraph* graph, LAllocator* allocator)
-      : chunk_(NULL),
+      : LChunkBuilderBase(graph->zone()),
+        chunk_(NULL),
         info_(info),
         graph_(graph),
-        zone_(graph->zone()),
         status_(UNUSED),
         current_instruction_(NULL),
         current_block_(NULL),
-        argument_count_(0),
         allocator_(allocator),
         position_(RelocInfo::kNoPosition),
         instruction_pending_deoptimization_environment_(NULL),
@@ -2866,7 +2865,6 @@ class LChunkBuilder  V8_FINAL BASE_EMBEDDED {
   bool is_done() const { return status_ == DONE; }
   bool is_aborted() const { return status_ == ABORTED; }
 
-  Zone* zone() const { return zone_; }
   int argument_count() const { return argument_count_; }
   CompilationInfo* info() const { return info_; }
   Heap* heap() const { return isolate()->heap(); }
@@ -2913,7 +2911,7 @@ class LChunkBuilder  V8_FINAL BASE_EMBEDDED {
 
   // An input operand in register, stack slot or a constant operand.
   // Will not be moved to a register even if one is freely available.
-  MUST_USE_RESULT LOperand* UseAny(HValue* value);
+  virtual MUST_USE_RESULT LOperand* UseAny(HValue* value);
 
   // Temporary operand that must be in a register.
   MUST_USE_RESULT LUnallocated* TempRegister();
@@ -2955,9 +2953,6 @@ class LChunkBuilder  V8_FINAL BASE_EMBEDDED {
 
   LInstruction* AssignPointerMap(LInstruction* instr);
   LInstruction* AssignEnvironment(LInstruction* instr);
-  LEnvironment* CreateEnvironment(HEnvironment* hydrogen_env,
-                                  int* argument_index_accumulator,
-                                  ZoneList<HValue*>* objects_to_materialize);
 
   void VisitInstruction(HInstruction* current);
   void DoBasicBlock(HBasicBlock* block);
@@ -2971,11 +2966,9 @@ class LChunkBuilder  V8_FINAL BASE_EMBEDDED {
   LPlatformChunk* chunk_;
   CompilationInfo* info_;
   HGraph* const graph_;
-  Zone* zone_;
   Status status_;
   HInstruction* current_instruction_;
   HBasicBlock* current_block_;
-  int argument_count_;
   LAllocator* allocator_;
   int position_;
   LInstruction* instruction_pending_deoptimization_environment_;
