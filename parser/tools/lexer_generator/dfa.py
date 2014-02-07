@@ -38,9 +38,6 @@ class DfaState(AutomatonState):
     self.__action = action
     assert isinstance(action, Action)
 
-  def transitions_to_multiple_states(self):
-    return False
-
   def name(self):
     return self.__name
 
@@ -53,30 +50,24 @@ class DfaState(AutomatonState):
     assert not self.__transitions.has_key(key)
     self.__transitions[key] = state
 
-  def transitions(self):
-    return self.__transitions
 
   def epsilon_closure_iter(self):
     return iter([])
 
-  # TODO abstract state matching
-  def __matches(self, match_func, value):
-    items = self.__transitions.items()
-    return [state for (key, state) in items if match_func(key, value)]
-
-  def transition_state_iter_for_char(self, value):
-    return iter(self.__matches(lambda k, v : k.matches_char(v), value))
-
-  def transition_state_iter_for_key(self, value):
-    return iter(self.__matches(lambda k, v : k.is_superset_of_key(v), value))
-
   def transition_state_for_key(self, value):
-    matches = self.__matches(lambda k, v : k.is_superset_of_key(v), value)
-    if not matches:
-      return None
-    # Since this is a dfa, we should have at most one such state. Return it.
-    assert len(matches) == 1
-    return matches[0]
+    matches = list(self.transition_state_iter_for_key(value))
+    assert len(matches) <= 1
+    return matches[0] if matches else None
+
+  def key_state_iter(
+    self,
+    key_filter = lambda x: True,
+    state_filter = lambda x: True,
+    match_func = lambda x, y: True,
+    yield_func = lambda x, y: (x, y)):
+    for key, state in self.__transitions.items():
+      if key_filter(key) and state_filter(state) and match_func(key, state):
+        yield yield_func(key, state)
 
 class Dfa(Automaton):
 

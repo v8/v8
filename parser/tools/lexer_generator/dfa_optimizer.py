@@ -249,7 +249,7 @@ class DfaOptimizer(object):
       }
       states[name(state)] = new_state
       state_replacements = replacements[state] if state in replacements else {}
-      for transition_key, transition_state in state.transitions().items():
+      for (transition_key, transition_state) in state.key_state_iter():
         if not transition_key in state_replacements:
           new_state['transitions'][transition_key] = name(transition_state)
           continue

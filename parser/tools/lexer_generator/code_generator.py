@@ -65,7 +65,7 @@ class CodeGenerator:
     match_action = action.match_action()
     # generate ordered transitions
     transitions = map(lambda (k, v) : (k, v.node_number()),
-                      state.transitions().items())
+                      state.key_state_iter())
     def cmp(left, right):
       return TransitionKey.canonical_compare(left[0], right[0])
     transitions = sorted(transitions, cmp)

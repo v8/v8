@@ -37,9 +37,6 @@ class NfaState(AutomatonState):
     self.__epsilon_closure = None
     self.__action = Action.empty_action()
 
-  def transitions_to_multiple_states(self):
-    return True
-
   def epsilon_closure_iter(self):
     return iter(self.__epsilon_closure)
 
@@ -94,17 +91,17 @@ class NfaState(AutomatonState):
     if not unclosed:
       self.__add_transition(TransitionKey.epsilon(), end)
 
-  def __matches(self, match_func, value):
-    # f collects states whose corresponding TransitionKey matches 'value'.
-    items = self.__transitions.items()
-    iters = [iter(states) for (key, states) in items if match_func(key, value)]
-    return chain(*iters)
-
-  def transition_state_iter_for_char(self, value):
-    return self.__matches(lambda k, v : k.matches_char(v), value)
-
-  def transition_state_iter_for_key(self, value):
-    return self.__matches(lambda k, v : k.is_superset_of_key(v), value)
+  def key_state_iter(
+    self,
+    key_filter = lambda x: True,
+    state_filter = lambda x: True,
+    match_func = lambda x, y: True,
+    yield_func = lambda x, y: (x, y)):
+    for key, states in self.__transitions.items():
+      if key_filter(key):
+        for state in states:
+          if state_filter(state) and match_func(key, state):
+            yield yield_func(key, state)
 
 class Nfa(Automaton):
 

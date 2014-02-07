@@ -55,26 +55,23 @@ class AutomatonState(object):
   __pass = lambda x : True
 
   def key_iter(self, key_filter = __pass):
-    for k in self.transitions().keys():
-      if key_filter(k): yield k
+    return self.key_state_iter(
+      key_filter = key_filter, yield_func = lambda x, y: x)
 
   def state_iter(self, key_filter = __pass, state_filter = __pass):
-    return self.key_state_iter(key_filter, state_filter, lambda x, y: y)
+    return self.key_state_iter(
+      key_filter = key_filter, state_filter = state_filter,
+      yield_func = lambda x, y: y)
 
-  def key_state_iter(
-    self,
-    key_filter = __pass,
-    state_filter = __pass,
-    yield_func = lambda x, y : (x, y)):
-    for key, states in self.transitions().items():
-      if key_filter(key):
-        if not self.transitions_to_multiple_states():
-          if state_filter(states):
-            yield yield_func(key, states)
-        else:
-          for state in states:
-            if state_filter(state):
-              yield yield_func(key, state)
+  def transition_state_iter_for_char(self, value):
+    return self.key_state_iter(
+      match_func = lambda k, v : k.matches_char(value),
+      yield_func = lambda x, y: y)
+
+  def transition_state_iter_for_key(self, value):
+    return self.key_state_iter(
+      match_func = lambda k, v : k.is_superset_of_key(value),
+      yield_func = lambda x, y: y)
 
 class Automaton(object):
 
