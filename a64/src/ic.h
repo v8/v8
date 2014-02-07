@@ -124,7 +124,7 @@ class IC {
   // access to properties.
   bool IsUndeclaredGlobal(Handle<Object> receiver) {
     if (receiver->IsGlobalObject()) {
-      return IsContextual();
+      return IsCallStub() || IsContextual();
     } else {
       ASSERT(!IsContextual());
       return false;
@@ -140,10 +140,10 @@ class IC {
     return target()->is_store_stub() || target()->is_keyed_store_stub();
   }
 
+#endif
   bool IsCallStub() {
     return target()->is_call_stub() || target()->is_keyed_call_stub();
   }
-#endif
 
   // Determines which map must be used for keeping the code stub.
   // These methods should not be called with undefined or null.
@@ -323,10 +323,9 @@ enum StringStubFeedback {
 class CallICBase: public IC {
  public:
   // ExtraICState bits
-  class StringStubState: public BitField<StringStubFeedback, 1, 1> {};
-  static ExtraICState ComputeExtraICState(ContextualMode mode,
-                                          StringStubFeedback feedback) {
-    return Contextual::encode(mode) | StringStubState::encode(feedback);
+  class StringStubState: public BitField<StringStubFeedback, 0, 1> {};
+  static ExtraICState ComputeExtraICState(StringStubFeedback feedback) {
+    return StringStubState::encode(feedback);
   }
 
   // Returns a JSFunction or a Failure.

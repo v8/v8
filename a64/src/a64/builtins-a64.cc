@@ -285,15 +285,13 @@ static void CallRuntimePassFunction(MacroAssembler* masm,
                                     Runtime::FunctionId function_id) {
   FrameScope scope(masm, StackFrame::INTERNAL);
   //   - Push a copy of the function onto the stack.
-  //   - Push call kind information.
-  //   - Function is also the parameter to the runtime call.
-  __ Push(x1, x5, x1);
+  //   - Push another copy as a parameter to the runtime call.
+  __ Push(x1, x1);
 
   __ CallRuntime(function_id, 1);
 
-  //   - Restore call kind information.
   //   - Restore receiver.
-  __ Pop(x5, x1);
+  __ Pop(x1);
 }
 
 
@@ -573,13 +571,10 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       __ Ldr(cp, FieldMemOperand(constructor, JSFunction::kContextOffset));
       Handle<Code> code =
           masm->isolate()->builtins()->HandleApiCallConstruct();
-      ParameterCount expected(0);
-      __ InvokeCode(code, expected, expected,
-                    RelocInfo::CODE_TARGET, CALL_FUNCTION, CALL_AS_METHOD);
+      __ Call(code, RelocInfo::CODE_TARGET);
     } else {
       ParameterCount actual(argc);
-      __ InvokeFunction(constructor, actual, CALL_FUNCTION,
-                        NullCallWrapper(), CALL_AS_METHOD);
+      __ InvokeFunction(constructor, actual, CALL_FUNCTION, NullCallWrapper());
     }
 
     // Store offset of return address for deoptimizer.
@@ -730,8 +725,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
       __ CallStub(&stub);
     } else {
       ParameterCount actual(x0);
-      __ InvokeFunction(function, actual, CALL_FUNCTION,
-                        NullCallWrapper(), CALL_AS_METHOD);
+      __ InvokeFunction(function, actual, CALL_FUNCTION, NullCallWrapper());
     }
     // Exit the JS internal frame and remove the parameters (except function),
     // and return.
@@ -761,17 +755,16 @@ void Builtins::Generate_CompileUnoptimized(MacroAssembler* masm) {
 static void CallCompileOptimized(MacroAssembler* masm, bool concurrent) {
   FrameScope scope(masm, StackFrame::INTERNAL);
   Register function = x1;
-  Register call_kind = x5;
 
-  // Preserve function and call kind. At the same time, push arguments for
+  // Preserve function. At the same time, push arguments for
   // kCompileOptimized.
   __ LoadObject(x10, masm->isolate()->factory()->ToBoolean(concurrent));
-  __ Push(function, call_kind, function, x10);
+  __ Push(function, function, x10);
 
   __ CallRuntime(Runtime::kCompileOptimized, 2);
 
-  // Restore preserved call kind and function.
-  __ Pop(call_kind, function);
+  // Restore receiver.
+  __ Pop(function);
 }
 
 
@@ -1145,18 +1138,17 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ Cbz(x4, &function);
     // Expected number of arguments is 0 for CALL_NON_FUNCTION.
     __ Mov(x2, 0);
-    __ SetCallKind(x5, CALL_AS_METHOD);
     __ Cmp(x4, 1);
     __ B(ne, &non_proxy);
 
     __ Push(x1);  // Re-add proxy object as additional argument.
     __ Add(x0, x0, 1);
-    __ GetBuiltinEntry(x3, Builtins::CALL_FUNCTION_PROXY);
+    __ GetBuiltinFunction(x1, Builtins::CALL_FUNCTION_PROXY);
     __ Jump(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
             RelocInfo::CODE_TARGET);
 
     __ Bind(&non_proxy);
-    __ GetBuiltinEntry(x3, Builtins::CALL_NON_FUNCTION);
+    __ GetBuiltinFunction(x1, Builtins::CALL_NON_FUNCTION);
     __ Jump(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
             RelocInfo::CODE_TARGET);
     __ Bind(&function);
@@ -1171,18 +1163,16 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   __ Ldrsw(x2,
            FieldMemOperand(x3,
              SharedFunctionInfo::kFormalParameterCountOffset));
-  __ Ldr(x3, FieldMemOperand(x1, JSFunction::kCodeEntryOffset));
-  __ SetCallKind(x5, CALL_AS_FUNCTION);
   Label dont_adapt_args;
   __ Cmp(x2, x0);  // Check formal and actual parameter counts.
   __ B(eq, &dont_adapt_args);
   __ Jump(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
           RelocInfo::CODE_TARGET);
-
   __ Bind(&dont_adapt_args);
+
+  __ Ldr(x3, FieldMemOperand(x1, JSFunction::kCodeEntryOffset));
   ParameterCount expected(0);
-  __ InvokeCode(x3, expected, expected, JUMP_FUNCTION,
-                NullCallWrapper(), CALL_AS_FUNCTION);
+  __ InvokeCode(x3, expected, expected, JUMP_FUNCTION, NullCallWrapper());
 }
 
 
@@ -1325,8 +1315,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
     ParameterCount actual(current);
     __ SmiUntag(current);
     __ JumpIfNotObjectType(function, x10, x11, JS_FUNCTION_TYPE, &call_proxy);
-    __ InvokeFunction(function, actual, CALL_FUNCTION,
-                      NullCallWrapper(), CALL_AS_FUNCTION);
+    __ InvokeFunction(function, actual, CALL_FUNCTION, NullCallWrapper());
     frame_scope.GenerateLeaveFrame();
     __ Drop(3);
     __ Ret();
@@ -1338,8 +1327,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
     __ Push(function);  // Add function proxy as last argument.
     __ Add(x0, x0, 1);
     __ Mov(x2, 0);
-    __ SetCallKind(x5, CALL_AS_FUNCTION);
-    __ GetBuiltinEntry(x3, Builtins::CALL_FUNCTION_PROXY);
+    __ GetBuiltinFunction(x1, Builtins::CALL_FUNCTION_PROXY);
     __ Call(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
             RelocInfo::CODE_TARGET);
   }
@@ -1379,13 +1367,12 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   //  -- x0 : actual number of arguments
   //  -- x1 : function (passed through to callee)
   //  -- x2 : expected number of arguments
-  //  -- x3 : code entry to call
-  //  -- x5 : call kind information
   // -----------------------------------
 
   Label invoke, dont_adapt_arguments;
 
   Label enough, too_few;
+  __ Ldr(x3, FieldMemOperand(x1, JSFunction::kCodeEntryOffset));
   __ Cmp(x0, x2);
   __ B(lt, &too_few);
   __ Cmp(x2, SharedFunctionInfo::kDontAdaptArgumentsSentinel);

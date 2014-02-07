@@ -600,8 +600,7 @@ void HandleScope::Initialize(Isolate* isolate) {
                   internal_isolate->thread_manager()->IsLockedByCurrentThread(),
                   "HandleScope::HandleScope",
                   "Entering the V8 API without proper locking in place");
-  v8::ImplementationUtilities::HandleScopeData* current =
-      internal_isolate->handle_scope_data();
+  i::HandleScopeData* current = internal_isolate->handle_scope_data();
   isolate_ = internal_isolate;
   prev_next_ = current->next;
   prev_limit_ = current->limit;
@@ -640,11 +639,12 @@ EscapableHandleScope::EscapableHandleScope(Isolate* v8_isolate) {
 
 
 i::Object** EscapableHandleScope::Escape(i::Object** escape_value) {
-  Utils::ApiCheck(*escape_slot_ == isolate_->heap()->the_hole_value(),
+  i::Heap* heap = reinterpret_cast<i::Isolate*>(GetIsolate())->heap();
+  Utils::ApiCheck(*escape_slot_ == heap->the_hole_value(),
                   "EscapeableHandleScope::Escape",
                   "Escape value set twice");
   if (escape_value == NULL) {
-    *escape_slot_ = isolate_->heap()->undefined_value();
+    *escape_slot_ = heap->undefined_value();
     return NULL;
   }
   *escape_slot_ = *escape_value;
@@ -5151,6 +5151,8 @@ Local<Context> v8::Context::New(
   LOG_API(isolate, "Context::New");
   ON_BAILOUT(isolate, "v8::Context::New()", return Local<Context>());
   i::HandleScope scope(isolate);
+  ExtensionConfiguration no_extensions;
+  if (extensions == NULL) extensions = &no_extensions;
   i::Handle<i::Context> env =
       CreateEnvironment(isolate, extensions, global_template, global_object);
   if (env.is_null()) return Local<Context>();
@@ -7267,8 +7269,7 @@ void HandleScopeImplementer::FreeThreadResources() {
 
 
 char* HandleScopeImplementer::ArchiveThread(char* storage) {
-  v8::ImplementationUtilities::HandleScopeData* current =
-      isolate_->handle_scope_data();
+  HandleScopeData* current = isolate_->handle_scope_data();
   handle_scope_data_ = *current;
   OS::MemCopy(storage, this, sizeof(*this));
 
@@ -7329,8 +7330,7 @@ void HandleScopeImplementer::IterateThis(ObjectVisitor* v) {
 
 
 void HandleScopeImplementer::Iterate(ObjectVisitor* v) {
-  v8::ImplementationUtilities::HandleScopeData* current =
-      isolate_->handle_scope_data();
+  HandleScopeData* current = isolate_->handle_scope_data();
   handle_scope_data_ = *current;
   IterateThis(v);
 }

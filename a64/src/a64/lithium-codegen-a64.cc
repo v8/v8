@@ -412,7 +412,6 @@ void LCodeGen::CallCodeGeneric(Handle<Code> code,
                                RelocInfo::Mode mode,
                                LInstruction* instr,
                                SafepointMode safepoint_mode) {
-  EnsureSpaceForLazyDeopt(Deoptimizer::patch_size());
   ASSERT(instr != NULL);
 
   Assembler::BlockConstPoolScope scope(masm_);
@@ -666,7 +665,6 @@ bool LCodeGen::GeneratePrologue() {
         info_->is_classic_mode() &&
         !info_->is_native()) {
       Label ok;
-      __ Cbz(x5, &ok);
       int receiver_offset = info_->scope()->num_parameters() * kXRegSizeInBytes;
       __ Peek(x10, receiver_offset);
       __ JumpIfNotRoot(x10, Heap::kUndefinedValueRootIndex, &ok);
@@ -1063,22 +1061,24 @@ void LCodeGen::DeoptimizeIfNotRoot(Register rt,
 
 
 void LCodeGen::EnsureSpaceForLazyDeopt(int space_needed) {
-  if (info()->IsStub()) return;
-  // Ensure that we have enough space after the previous lazy-bailout
-  // instruction for patching the code here.
-  intptr_t current_pc = masm()->pc_offset();
+  if (!info()->IsStub()) {
+    // Ensure that we have enough space after the previous lazy-bailout
+    // instruction for patching the code here.
+    intptr_t current_pc = masm()->pc_offset();
 
-  if (current_pc < (last_lazy_deopt_pc_ + space_needed)) {
-    ptrdiff_t padding_size = last_lazy_deopt_pc_ + space_needed - current_pc;
-    ASSERT((padding_size % kInstructionSize) == 0);
-    InstructionAccurateScope instruction_accurate(
-        masm(), padding_size / kInstructionSize);
+    if (current_pc < (last_lazy_deopt_pc_ + space_needed)) {
+      ptrdiff_t padding_size = last_lazy_deopt_pc_ + space_needed - current_pc;
+      ASSERT((padding_size % kInstructionSize) == 0);
+      InstructionAccurateScope instruction_accurate(
+          masm(), padding_size / kInstructionSize);
 
-    while (padding_size > 0) {
-      __ nop();
-      padding_size -= kInstructionSize;
+      while (padding_size > 0) {
+        __ nop();
+        padding_size -= kInstructionSize;
+      }
     }
   }
+  last_lazy_deopt_pc_ = masm()->pc_offset();
 }
 
 
@@ -1547,8 +1547,7 @@ void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
   // The number of arguments is stored in argc (receiver) which is x0, as
   // expected by InvokeFunction.
   ParameterCount actual(argc);
-  __ InvokeFunction(function, actual, CALL_FUNCTION,
-                    safepoint_generator, CALL_AS_FUNCTION);
+  __ InvokeFunction(function, actual, CALL_FUNCTION, safepoint_generator);
   __ Ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
 }
 
@@ -1856,7 +1855,6 @@ void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
                                  int formal_parameter_count,
                                  int arity,
                                  LInstruction* instr,
-                                 CallKind call_kind,
                                  Register function_reg) {
   bool dont_adapt_arguments =
       formal_parameter_count == SharedFunctionInfo::kDontAdaptArgumentsSentinel;
@@ -1866,7 +1864,6 @@ void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
   // The function interface relies on the following register assignments.
   ASSERT(function_reg.Is(x1) || function_reg.IsNone());
   Register arity_reg = x0;
-  Register call_kind_reg = x5;
 
   LPointerMap* pointers = instr->pointer_map();
 
@@ -1895,7 +1892,6 @@ void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
     }
 
     // Invoke function.
-    __ SetCallKind(call_kind_reg, call_kind);
     __ Ldr(x10, FieldMemOperand(function_reg, JSFunction::kCodeEntryOffset));
     __ Call(x10);
 
@@ -1905,8 +1901,7 @@ void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
     SafepointGenerator generator(this, pointers, Safepoint::kLazyDeopt);
     ParameterCount count(arity);
     ParameterCount expected(formal_parameter_count);
-    __ InvokeFunction(
-        function_reg, expected, count, CALL_FUNCTION, generator, call_kind);
+    __ InvokeFunction(function_reg, expected, count, CALL_FUNCTION, generator);
   }
 
   // Restore context.
@@ -1914,58 +1909,50 @@ void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
 }
 
 
-void LCodeGen::DoCallConstantFunction(LCallConstantFunction* instr) {
-  ASSERT(ToRegister(instr->result()).is(x0));
-  CallKnownFunction(instr->hydrogen()->function(),
-                    instr->hydrogen()->formal_parameter_count(),
-                    instr->arity(), instr, CALL_AS_FUNCTION);
-}
-
-
-void LCodeGen::DoCallKnownGlobal(LCallKnownGlobal* instr) {
-  ASSERT(ToRegister(instr->result()).is(x0));
-  CallKnownFunction(instr->hydrogen()->target(),
-                    instr->hydrogen()->formal_parameter_count(),
-                    instr->arity(), instr, CALL_AS_FUNCTION);
-}
-
-
-void LCodeGen::DoCallGlobal(LCallGlobal* instr) {
-  ASSERT(ToRegister(instr->result()).is(x0));
-
-  int arity = instr->arity();
-  Handle<Code> ic =
-      isolate()->stub_cache()->ComputeCallInitialize(arity, CONTEXTUAL);
-  __ Mov(x2, Operand(instr->name()));
-  CallCode(ic, RelocInfo::CODE_TARGET, instr);
-  __ Ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
-}
-
-
-void LCodeGen::DoCallKeyed(LCallKeyed* instr) {
-  ASSERT(ToRegister(instr->key()).Is(x2));
+void LCodeGen::DoCallWithDescriptor(LCallWithDescriptor* instr) {
+  ASSERT(instr->IsMarkedAsCall());
   ASSERT(ToRegister(instr->result()).Is(x0));
 
-  int arity = instr->arity();
-  Handle<Code> ic =
-      isolate()->stub_cache()->ComputeKeyedCallInitialize(arity);
-  CallCode(ic, RelocInfo::CODE_TARGET, instr);
+  LPointerMap* pointers = instr->pointer_map();
+  SafepointGenerator generator(this, pointers, Safepoint::kLazyDeopt);
+
+  if (instr->target()->IsConstantOperand()) {
+    LConstantOperand* target = LConstantOperand::cast(instr->target());
+    Handle<Code> code = Handle<Code>::cast(ToHandle(target));
+    generator.BeforeCall(__ CallSize(code, RelocInfo::CODE_TARGET));
+    __ Call(code, RelocInfo::CODE_TARGET, TypeFeedbackId::None());
+  } else {
+    ASSERT(instr->target()->IsRegister());
+    Register target = ToRegister(instr->target());
+    generator.BeforeCall(__ CallSize(target));
+    __ Add(target, target, Code::kHeaderSize - kHeapObjectTag);
+    __ Call(target);
+  }
+  // TODO(jbramley): Is this load necessary?
   __ Ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
+  generator.AfterCall();
 }
 
 
-void LCodeGen::DoCallNamed(LCallNamed* instr) {
-  ASSERT(ToRegister(instr->result()).is(x0));
+void LCodeGen::DoCallJSFunction(LCallJSFunction* instr) {
+  ASSERT(instr->IsMarkedAsCall());
+  ASSERT(ToRegister(instr->function()).is(x1));
 
-  int arity = instr->arity();
-  Handle<Code> ic =
-      isolate()->stub_cache()->ComputeCallInitialize(arity, NOT_CONTEXTUAL);
+  if (instr->hydrogen()->pass_argument_count()) {
+    __ Mov(x0, Operand(instr->arity()));
+  }
 
-  // IC needs a pointer to the name of the function to be called in x2.
-  __ Mov(x2, Operand(instr->name()));
-  CallCode(ic, RelocInfo::CODE_TARGET, instr);
-  // Restore context register.
+  // Change context.
+  __ Ldr(cp, FieldMemOperand(x1, JSFunction::kContextOffset));
+
+  // Load the code entry address
+  __ Ldr(x10, FieldMemOperand(x1, JSFunction::kCodeEntryOffset));
+  __ Call(x10);
+
+  // TODO(jbramley): Is this load necessary?
   __ Ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
+
+  RecordSafepointWithLazyDeopt(instr, RECORD_SIMPLE_SAFEPOINT);
 }
 
 
@@ -2013,7 +2000,7 @@ void LCodeGen::DoDeferredInstanceMigration(LCheckMaps* instr, Register object) {
   {
     PushSafepointRegistersScope scope(this, Safepoint::kWithRegisters);
     __ Push(object);
-    CallRuntimeFromDeferred(Runtime::kMigrateInstance, 1, instr);
+    CallRuntimeFromDeferred(Runtime::kTryMigrateInstance, 1, instr);
     __ StoreToSafepointRegisterSlot(x0, temp);
   }
   DeoptimizeIfSmi(temp, instr->environment());
@@ -2464,7 +2451,6 @@ void LCodeGen::DoCheckValue(LCheckValue* instr) {
 
 void LCodeGen::DoLazyBailout(LLazyBailout* instr) {
   EnsureSpaceForLazyDeopt(Deoptimizer::patch_size());
-  last_lazy_deopt_pc_ = masm()->pc_offset();
   ASSERT(instr->HasEnvironment());
   LEnvironment* env = instr->environment();
   RegisterEnvironmentForDeoptimization(env, Safepoint::kLazyDeopt);
@@ -3066,14 +3052,13 @@ void LCodeGen::DoInvokeFunction(LInvokeFunction* instr) {
     LPointerMap* pointers = instr->pointer_map();
     SafepointGenerator generator(this, pointers, Safepoint::kLazyDeopt);
     ParameterCount count(instr->arity());
-    __ InvokeFunction(x1, count, CALL_FUNCTION, generator, CALL_AS_FUNCTION);
+    __ InvokeFunction(x1, count, CALL_FUNCTION, generator);
     __ Ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
   } else {
     CallKnownFunction(known_function,
                       instr->hydrogen()->formal_parameter_count(),
                       instr->arity(),
                       instr,
-                      CALL_AS_FUNCTION,
                       x1);
   }
 }
@@ -4689,20 +4674,12 @@ void LCodeGen::DoStackCheck(LStackCheck* instr) {
     __ CompareRoot(masm()->StackPointer(), Heap::kStackLimitRootIndex);
     __ B(hs, &done);
 
-    // TODO(bafsa): Make sure that the EnsureSpaceForLazyDeopt inside
-    // CallCodeGeneric will not insert any nop while calling the stub by
-    // inserting them now. The EnsureSpaceForLazyDeopt in CallCodeGeneric
-    // will go away at some point during the rebase (r18642) so this will become
-    // unecessary and should be removed at this point.
-    EnsureSpaceForLazyDeopt(Deoptimizer::patch_size());
-
     PredictableCodeSizeScope predictable(masm_,
                                          Assembler::kCallSizeWithRelocation);
     CallCode(isolate()->builtins()->StackCheck(),
              RelocInfo::CODE_TARGET,
              instr);
     EnsureSpaceForLazyDeopt(Deoptimizer::patch_size());
-    last_lazy_deopt_pc_ = masm()->pc_offset();
 
     __ Bind(&done);
     RegisterEnvironmentForDeoptimization(env, Safepoint::kLazyDeopt);
@@ -4716,7 +4693,6 @@ void LCodeGen::DoStackCheck(LStackCheck* instr) {
     __ B(lo, deferred_stack_check->entry());
 
     EnsureSpaceForLazyDeopt(Deoptimizer::patch_size());
-    last_lazy_deopt_pc_ = masm()->pc_offset();
     __ Bind(instr->done_label());
     deferred_stack_check->SetExit(instr->done_label());
     RegisterEnvironmentForDeoptimization(env, Safepoint::kLazyDeopt);
@@ -5625,8 +5601,6 @@ void LCodeGen::DoWrapReceiver(LWrapReceiver* instr) {
   // We could load directly into the result register here, but the additional
   // branches required are likely to be more time consuming than one additional
   // move.
-  // TODO(jbramley): This looks broken on ARM. There, a Context::SlotOffset() is
-  // passed into ContextOperand.
   __ Ldr(receiver, FieldMemOperand(function, JSFunction::kContextOffset));
   __ Ldr(receiver, ContextMemOperand(receiver, Context::GLOBAL_OBJECT_INDEX));
   __ Ldr(receiver,

@@ -1397,7 +1397,7 @@ inline void AllocationSite::IncrementMementoCreateCount() {
 
 
 inline bool AllocationSite::DigestPretenuringFeedback() {
-  bool decision_made = false;
+  bool decision_changed = false;
   int create_count = memento_create_count();
   if (create_count >= kPretenureMinimumCreated) {
     int found_count = memento_found_count();
@@ -1411,9 +1411,9 @@ inline bool AllocationSite::DigestPretenuringFeedback() {
         ? kTenure
         : kDontTenure;
     set_pretenure_decision(result);
-    decision_made = true;
     if (current_mode != GetPretenureMode()) {
-      dependent_code()->DeoptimizeDependentCodeGroup(
+      decision_changed = true;
+      dependent_code()->MarkCodeForDeoptimization(
           GetIsolate(),
           DependentCode::kAllocationSiteTenuringChangedGroup);
     }
@@ -1422,7 +1422,7 @@ inline bool AllocationSite::DigestPretenuringFeedback() {
   // Clear feedback calculation fields until the next gc.
   set_memento_found_count(0);
   set_memento_create_count(0);
-  return decision_made;
+  return decision_changed;
 }
 
 

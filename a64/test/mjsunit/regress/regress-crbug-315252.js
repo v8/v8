@@ -1,4 +1,4 @@
-// Copyright 2012 the V8 project authors. All rights reserved.
+// Copyright 2014 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,25 +25,37 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_APIUTILS_H_
-#define V8_APIUTILS_H_
+// Flags: --allow-natives-syntax
 
-namespace v8 {
-class ImplementationUtilities {
- public:
-  static int GetNameCount(ExtensionConfiguration* that) {
-    return that->name_count_;
-  }
-
-  static const char** GetNames(ExtensionConfiguration* that) {
-    return that->names_;
-  }
-
-  // Introduce an alias for the handle scope data to allow non-friends
-  // to access the HandleScope data.
-  typedef v8::HandleScope::Data HandleScopeData;
-};
-
-}  // namespace v8
-
-#endif  // V8_APIUTILS_H_
+function f(a, b, c) {
+ this.a = a;
+ this.b = b;
+ this.c = c;
+}
+var o3 = new f(1, 2, 3.5);
+var o4 = new f(1, 2.5, 3);
+var o1 = new f(1.5, 2, 3);
+var o2 = new f(1.5, 2, 3);
+function migrate(o) {
+ return o.a;
+}
+// Use migrate to stabilize o1, o2 and o4 in [double, double, smi].
+migrate(o4);
+migrate(o1);
+migrate(o2);
+function store_transition(o) {
+ o.d = 1;
+}
+// Optimize "store_transition" to transition from [double, double, smi] to
+// [double, double, smi, smi]. This adds a dependency on the
+// [double, double, smi] map.
+store_transition(o4);
+store_transition(o1);
+store_transition(o2);
+%OptimizeFunctionOnNextCall(store_transition);
+// Pass in a deprecated object of format [smi, smi, double]. This will migrate
+// the instance, forcing a merge with [double, double, smi], ending up with
+// [double, double, double], which deprecates [double, double, smi] and
+// deoptimizes all dependencies of [double, double, smi], including
+// store_transition itself.
+store_transition(o3);

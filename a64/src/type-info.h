@@ -68,7 +68,6 @@ class TypeFeedbackOracle: public ZoneObject {
   void CallReceiverTypes(TypeFeedbackId id,
                          Handle<String> name,
                          int arity,
-                         CallKind call_kind,
                          SmallMapList* types);
   void PropertyReceiverTypes(TypeFeedbackId id,
                              Handle<String> name,

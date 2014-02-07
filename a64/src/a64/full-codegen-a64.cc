@@ -117,7 +117,6 @@ class JumpPatchSite BASE_EMBEDDED {
 //
 // The live registers are:
 //   - x1: the JS function object being called (i.e. ourselves).
-//   - x5: call kind or strict mode.
 //   - cp: our context.
 //   - fp: our caller's frame pointer.
 //   - jssp: stack pointer.
@@ -148,7 +147,6 @@ void FullCodeGenerator::Generate() {
   // object).
   if (info->is_classic_mode() && !info->is_native()) {
     Label ok;
-    __ Cbz(x5, &ok);
     int receiver_offset = info->scope()->num_parameters() * kXRegSizeInBytes;
     __ Peek(x10, receiver_offset);
     __ JumpIfNotRoot(x10, Heap::kUndefinedValueRootIndex, &ok);
@@ -2331,8 +2329,7 @@ void FullCodeGenerator::EmitCallWithIC(Call* expr,
   // Record source position for debugger.
   SetSourcePosition(expr->position());
   // Call the IC initialization code.
-  Handle<Code> ic =
-      isolate()->stub_cache()->ComputeCallInitialize(arg_count, mode);
+  Handle<Code> ic = isolate()->stub_cache()->ComputeCallInitialize(arg_count);
   TypeFeedbackId ast_id = mode == CONTEXTUAL
       ? TypeFeedbackId::None()
       : expr->CallFeedbackId();
@@ -2377,7 +2374,7 @@ void FullCodeGenerator::EmitKeyedCallWithIC(Call* expr,
 }
 
 
-void FullCodeGenerator::EmitCallWithStub(Call* expr, CallFunctionFlags flags) {
+void FullCodeGenerator::EmitCallWithStub(Call* expr) {
   // Code common for calls using the call stub.
   ZoneList<Expression*>* args = expr->arguments();
   int arg_count = args->length();
@@ -2389,8 +2386,6 @@ void FullCodeGenerator::EmitCallWithStub(Call* expr, CallFunctionFlags flags) {
   // Record source position for debugger.
   SetSourcePosition(expr->position());
 
-  // Record call targets in unoptimized code.
-  flags = static_cast<CallFunctionFlags>(flags | RECORD_CALL_TARGET);
   Handle<Object> uninitialized =
       TypeFeedbackCells::UninitializedSentinel(isolate());
   Handle<Cell> cell =
@@ -2398,7 +2393,8 @@ void FullCodeGenerator::EmitCallWithStub(Call* expr, CallFunctionFlags flags) {
   RecordTypeFeedbackCell(expr->CallFeedbackId(), cell);
   __ Mov(x2, Operand(cell));
 
-  CallFunctionStub stub(arg_count, flags);
+  // Record call targets in unoptimized code.
+  CallFunctionStub stub(arg_count, RECORD_CALL_TARGET);
   __ Peek(x1, (arg_count + 1) * kXRegSizeInBytes);
   __ CallStub(&stub, expr->CallFeedbackId());
   RecordJSReturnSite(expr);
@@ -2535,7 +2531,7 @@ void FullCodeGenerator::VisitCall(Call* expr) {
 
     // The receiver is either the global receiver or an object found
     // by LoadContextSlot.
-    EmitCallWithStub(expr, NO_CALL_FUNCTION_FLAGS);
+    EmitCallWithStub(expr);
   } else if (property != NULL) {
     { PreservePositionScope scope(masm()->positions_recorder());
       VisitForStackValue(property->obj());
@@ -2556,7 +2552,7 @@ void FullCodeGenerator::VisitCall(Call* expr) {
     __ LoadRoot(x1, Heap::kUndefinedValueRootIndex);
     __ Push(x1);
     // Emit function call.
-    EmitCallWithStub(expr, NO_CALL_FUNCTION_FLAGS);
+    EmitCallWithStub(expr);
   }
 
 #ifdef DEBUG
@@ -3499,8 +3495,7 @@ void FullCodeGenerator::EmitCallFunction(CallRuntime* expr) {
   // InvokeFunction requires the function in x1. Move it in there.
   __ Mov(x1, x0);
   ParameterCount count(arg_count);
-  __ InvokeFunction(x1, count, CALL_FUNCTION,
-                    NullCallWrapper(), CALL_AS_FUNCTION);
+  __ InvokeFunction(x1, count, CALL_FUNCTION, NullCallWrapper());
   __ Ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
   __ B(&done);
 
@@ -3898,10 +3893,8 @@ void FullCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
   if (expr->is_jsruntime()) {
     // Call the JS runtime function.
     __ Mov(x2, Operand(expr->name()));
-    ContextualMode mode = NOT_CONTEXTUAL;
-    Handle<Code> ic =
-        isolate()->stub_cache()->ComputeCallInitialize(arg_count, mode);
-    CallIC(ic, mode, expr->CallRuntimeFeedbackId());
+    Handle<Code> ic = isolate()->stub_cache()->ComputeCallInitialize(arg_count);
+    CallIC(ic, NOT_CONTEXTUAL, expr->CallRuntimeFeedbackId());
     // Restore context register.
     __ Ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
   } else {
@@ -4601,25 +4594,28 @@ void FullCodeGenerator::EmitGeneratorResume(Expression *generator,
     Expression *value,
     JSGeneratorObject::ResumeMode resume_mode) {
   ASM_LOCATION("FullCodeGenerator::EmitGeneratorResume");
+  Register value_reg = x0;
   Register generator_object = x1;
   Register the_hole = x2;
   Register operand_stack_size = w3;
   Register function = x4;
 
   // The value stays in x0, and is ultimately read by the resumed generator, as
-  // if the CallRuntime(Runtime::kSuspendJSGeneratorObject) returned it. x1
+  // if the CallRuntime(Runtime::kSuspendJSGeneratorObject) returned it. Or it
+  // is read to throw the value when the resumed generator is already closed. r1
   // will hold the generator object until the activation has been resumed.
   VisitForStackValue(generator);
   VisitForAccumulatorValue(value);
   __ Pop(generator_object);
 
   // Check generator state.
-  Label wrong_state, done;
+  Label wrong_state, closed_state, done;
   __ Ldr(x10, FieldMemOperand(generator_object,
                               JSGeneratorObject::kContinuationOffset));
-  STATIC_ASSERT(JSGeneratorObject::kGeneratorExecuting <= 0);
-  STATIC_ASSERT(JSGeneratorObject::kGeneratorClosed <= 0);
-  __ CompareAndBranch(x10, Operand(Smi::FromInt(0)), le, &wrong_state);
+  STATIC_ASSERT(JSGeneratorObject::kGeneratorExecuting < 0);
+  STATIC_ASSERT(JSGeneratorObject::kGeneratorClosed == 0);
+  __ CompareAndBranch(x10, Operand(Smi::FromInt(0)), eq, &closed_state);
+  __ CompareAndBranch(x10, Operand(Smi::FromInt(0)), lt, &wrong_state);
 
   // Load suspended function and context.
   __ Ldr(cp, FieldMemOperand(generator_object,
@@ -4707,6 +4703,21 @@ void FullCodeGenerator::EmitGeneratorResume(Expression *generator,
   __ CallRuntime(Runtime::kResumeJSGeneratorObject, 3);
   // Not reached: the runtime call returns elsewhere.
   __ Unreachable();
+
+  // Reach here when generator is closed.
+  __ Bind(&closed_state);
+  if (resume_mode == JSGeneratorObject::NEXT) {
+    // Return completed iterator result when generator is closed.
+    __ LoadRoot(x10, Heap::kUndefinedValueRootIndex);
+    __ Push(x10);
+    // Pop value from top-of-stack slot; box result into result register.
+    EmitCreateIteratorResult(true);
+  } else {
+    // Throw the provided value.
+    __ Push(value_reg);
+    __ CallRuntime(Runtime::kThrow, 1);
+  }
+  __ B(&done);
 
   // Throw error if we attempt to operate on a running generator.
   __ Bind(&wrong_state);

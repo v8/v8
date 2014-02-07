@@ -318,7 +318,6 @@ class LCodeGen: public LCodeGenBase {
                          int formal_parameter_count,
                          int arity,
                          LInstruction* instr,
-                         CallKind call_kind,
                          Register function_reg = NoReg);
 
   // Support for recording safepoint and position information.

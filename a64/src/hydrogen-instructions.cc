@@ -56,14 +56,6 @@ HYDROGEN_CONCRETE_INSTRUCTION_LIST(DEFINE_COMPILE)
 #undef DEFINE_COMPILE
 
 
-int HValue::LoopWeight() const {
-  const int w = FLAG_loop_weight;
-  static const int weights[] = { 1, w, w*w, w*w*w, w*w*w*w };
-  return weights[Min(block()->LoopNestingDepth(),
-                     static_cast<int>(ARRAY_SIZE(weights)-1))];
-}
-
-
 Isolate* HValue::isolate() const {
   ASSERT(block() != NULL);
   return block()->isolate();
@@ -108,7 +100,7 @@ Representation HValue::RepresentationFromUses() {
              id(), Mnemonic(), use->id(), use->Mnemonic(), rep.Mnemonic(),
              (use->CheckFlag(kTruncatingToInt32) ? "-trunc" : ""));
     }
-    use_count[rep.kind()] += use->LoopWeight();
+    use_count[rep.kind()] += 1;
   }
   if (IsPhi()) HPhi::cast(this)->AddIndirectUsesTo(&use_count[0]);
   int tagged_count = use_count[Representation::kTagged];
@@ -851,6 +843,39 @@ void HUnaryCall::PrintDataTo(StringStream* stream) {
 }
 
 
+void HCallJSFunction::PrintDataTo(StringStream* stream) {
+  OperandAt(0)->PrintNameTo(stream);
+  stream->Add(" ");
+  OperandAt(1)->PrintNameTo(stream);
+  stream->Add(" ");
+  stream->Add("#%d", argument_count());
+}
+
+
+HCallJSFunction* HCallJSFunction::New(
+    Zone* zone,
+    HValue* context,
+    HValue* function,
+    int argument_count,
+    bool pass_argument_count) {
+  bool has_stack_check = false;
+  if (function->IsConstant()) {
+    HConstant* fun_const = HConstant::cast(function);
+    Handle<JSFunction> jsfun =
+        Handle<JSFunction>::cast(fun_const->handle(zone->isolate()));
+    has_stack_check = !jsfun.is_null() &&
+        (jsfun->code()->kind() == Code::FUNCTION ||
+         jsfun->code()->kind() == Code::OPTIMIZED_FUNCTION);
+  }
+
+  return new(zone) HCallJSFunction(
+      function, argument_count, pass_argument_count,
+      has_stack_check);
+}
+
+
+
+
 void HBinaryCall::PrintDataTo(StringStream* stream) {
   first()->PrintNameTo(stream);
   stream->Add(" ");
@@ -976,30 +1001,11 @@ void HBoundsCheckBaseIndexInformation::PrintDataTo(StringStream* stream) {
 }
 
 
-void HCallConstantFunction::PrintDataTo(StringStream* stream) {
-  if (IsApplyFunction()) {
-    stream->Add("optimized apply ");
-  } else {
-    stream->Add("%o ", function()->shared()->DebugName());
+void HCallWithDescriptor::PrintDataTo(StringStream* stream) {
+  for (int i = 0; i < OperandCount(); i++) {
+    OperandAt(i)->PrintNameTo(stream);
+    stream->Add(" ");
   }
-  stream->Add("#%d", argument_count());
-}
-
-
-void HCallNamed::PrintDataTo(StringStream* stream) {
-  stream->Add("%o ", *name());
-  HUnaryCall::PrintDataTo(stream);
-}
-
-
-void HCallGlobal::PrintDataTo(StringStream* stream) {
-  stream->Add("%o ", *name());
-  HUnaryCall::PrintDataTo(stream);
-}
-
-
-void HCallKnownGlobal::PrintDataTo(StringStream* stream) {
-  stream->Add("%o ", target()->shared()->DebugName());
   stream->Add("#%d", argument_count());
 }
 
@@ -2359,7 +2365,7 @@ void HPhi::InitRealUses(int phi_id) {
     HValue* value = it.value();
     if (!value->IsPhi()) {
       Representation rep = value->observed_input_representation(it.index());
-      non_phi_uses_[rep.kind()] += value->LoopWeight();
+      non_phi_uses_[rep.kind()] += 1;
       if (FLAG_trace_representation) {
         PrintF("#%d Phi is used by real #%d %s as %s\n",
                id(), value->id(), value->Mnemonic(), rep.Mnemonic());

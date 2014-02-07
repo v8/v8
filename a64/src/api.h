@@ -31,7 +31,6 @@
 #include "v8.h"
 
 #include "../include/v8-testing.h"
-#include "apiutils.h"
 #include "contexts.h"
 #include "factory.h"
 #include "isolate.h"
@@ -608,7 +607,7 @@ class HandleScopeImplementer {
   int call_depth_;
   Object** last_handle_before_deferred_block_;
   // This is only used for threading support.
-  v8::ImplementationUtilities::HandleScopeData handle_scope_data_;
+  HandleScopeData handle_scope_data_;
 
   void IterateThis(ObjectVisitor* v);
   char* RestoreThreadHelper(char* from);

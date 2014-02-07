@@ -29,7 +29,6 @@
 #define V8_HANDLES_H_
 
 #include "allocation.h"
-#include "apiutils.h"
 #include "objects.h"
 
 namespace v8 {
@@ -315,6 +314,17 @@ class SealHandleScope BASE_EMBEDDED {
   Object** limit_;
   int level_;
 #endif
+};
+
+struct HandleScopeData {
+  internal::Object** next;
+  internal::Object** limit;
+  int level;
+
+  void Initialize() {
+    next = limit = NULL;
+    level = 0;
+  }
 };
 
 } }  // namespace v8::internal

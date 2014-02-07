@@ -89,30 +89,19 @@ void LBranch::PrintDataTo(StringStream* stream) {
 }
 
 
-void LCallConstantFunction::PrintDataTo(StringStream* stream) {
+void LCallJSFunction::PrintDataTo(StringStream* stream) {
+  stream->Add("= ");
+  function()->PrintTo(stream);
   stream->Add("#%d / ", arity());
 }
 
 
-void LCallNamed::PrintDataTo(StringStream* stream) {
-  SmartArrayPointer<char> name_string = name()->ToCString();
-  stream->Add("%s #%d / ", name_string.get(), arity());
-}
-
-
-void LCallKeyed::PrintDataTo(StringStream* stream) {
-  stream->Add("[x2] #%d / ", arity());
-}
-
-
-void LCallKnownGlobal::PrintDataTo(StringStream* stream) {
+void LCallWithDescriptor::PrintDataTo(StringStream* stream) {
+  for (int i = 0; i < InputCount(); i++) {
+    InputAt(i)->PrintTo(stream);
+    stream->Add(" ");
+  }
   stream->Add("#%d / ", arity());
-}
-
-
-void LCallGlobal::PrintDataTo(StringStream* stream) {
-  SmartArrayPointer<char> name_string = name()->ToCString();
-  stream->Add("%s #%d / ", name_string.get(), arity());
 }
 
 
@@ -466,8 +455,7 @@ LOperand* LChunkBuilder::UseAny(HValue* value) {
 }
 
 
-template<int I, int T>
-LInstruction* LChunkBuilder::Define(LTemplateInstruction<1, I, T>* instr,
+LInstruction* LChunkBuilder::Define(LTemplateResultInstruction<1>* instr,
                                     LUnallocated* result) {
   result->set_virtual_register(current_instruction_->id());
   instr->set_result(result);
@@ -475,40 +463,35 @@ LInstruction* LChunkBuilder::Define(LTemplateInstruction<1, I, T>* instr,
 }
 
 
-template<int I, int T>
 LInstruction* LChunkBuilder::DefineAsRegister(
-    LTemplateInstruction<1, I, T>* instr) {
+    LTemplateResultInstruction<1>* instr) {
   return Define(instr,
                 new(zone()) LUnallocated(LUnallocated::MUST_HAVE_REGISTER));
 }
 
 
-template<int I, int T>
 LInstruction* LChunkBuilder::DefineAsSpilled(
-    LTemplateInstruction<1, I, T>* instr, int index) {
+    LTemplateResultInstruction<1>* instr, int index) {
   return Define(instr,
                 new(zone()) LUnallocated(LUnallocated::FIXED_SLOT, index));
 }
 
 
-template<int I, int T>
 LInstruction* LChunkBuilder::DefineSameAsFirst(
-    LTemplateInstruction<1, I, T>* instr) {
+    LTemplateResultInstruction<1>* instr) {
   return Define(instr,
                 new(zone()) LUnallocated(LUnallocated::SAME_AS_FIRST_INPUT));
 }
 
 
-template<int I, int T>
 LInstruction* LChunkBuilder::DefineFixed(
-    LTemplateInstruction<1, I, T>* instr, Register reg) {
+    LTemplateResultInstruction<1>* instr, Register reg) {
   return Define(instr, ToUnallocated(reg));
 }
 
 
-template<int I, int T>
 LInstruction* LChunkBuilder::DefineFixedDouble(
-    LTemplateInstruction<1, I, T>* instr, DoubleRegister reg) {
+    LTemplateResultInstruction<1>* instr, DoubleRegister reg) {
   return Define(instr, ToUnallocated(reg));
 }
 
@@ -1001,9 +984,33 @@ LInstruction* LChunkBuilder::DoBranch(HBranch* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoCallConstantFunction(
-    HCallConstantFunction* instr) {
-  return MarkAsCall(DefineFixed(new(zone()) LCallConstantFunction, x0), instr);
+LInstruction* LChunkBuilder::DoCallJSFunction(
+    HCallJSFunction* instr) {
+  LOperand* function = UseFixed(instr->function(), x1);
+
+  LCallJSFunction* result = new(zone()) LCallJSFunction(function);
+
+  return MarkAsCall(DefineFixed(result, x0), instr);
+}
+
+
+LInstruction* LChunkBuilder::DoCallWithDescriptor(
+    HCallWithDescriptor* instr) {
+  const CallInterfaceDescriptor* descriptor = instr->descriptor();
+
+  LOperand* target = UseRegisterOrConstantAtStart(instr->target());
+  ZoneList<LOperand*> ops(instr->OperandCount(), zone());
+  ops.Add(target, zone());
+  for (int i = 1; i < instr->OperandCount(); i++) {
+    LOperand* op = UseFixed(instr->OperandAt(i),
+        descriptor->GetParameterRegister(i - 1));
+    ops.Add(op, zone());
+  }
+
+  LCallWithDescriptor* result = new(zone()) LCallWithDescriptor(descriptor,
+                                                                ops,
+                                                                zone());
+  return MarkAsCall(DefineFixed(result, x0), instr);
 }
 
 
@@ -1012,28 +1019,6 @@ LInstruction* LChunkBuilder::DoCallFunction(HCallFunction* instr) {
   LInstruction* result = DefineFixed(new(zone()) LCallFunction(function), x0);
   if (instr->IsTailCall()) return result;
   return MarkAsCall(result, instr);
-}
-
-
-LInstruction* LChunkBuilder::DoCallGlobal(HCallGlobal* instr) {
-  return MarkAsCall(DefineFixed(new(zone()) LCallGlobal, x0), instr);
-}
-
-
-LInstruction* LChunkBuilder::DoCallKeyed(HCallKeyed* instr) {
-  ASSERT(instr->key()->representation().IsTagged());
-  LOperand* key = UseFixed(instr->key(), x2);
-  return MarkAsCall(DefineFixed(new(zone()) LCallKeyed(key), x0), instr);
-}
-
-
-LInstruction* LChunkBuilder::DoCallKnownGlobal(HCallKnownGlobal* instr) {
-  return MarkAsCall(DefineFixed(new(zone()) LCallKnownGlobal, x0), instr);
-}
-
-
-LInstruction* LChunkBuilder::DoCallNamed(HCallNamed* instr) {
-  return MarkAsCall(DefineFixed(new(zone()) LCallNamed, x0), instr);
 }
 
 

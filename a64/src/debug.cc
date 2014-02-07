@@ -854,11 +854,12 @@ bool Debug::Load() {
 
   // Create the debugger context.
   HandleScope scope(isolate_);
+  ExtensionConfiguration no_extensions;
   Handle<Context> context =
       isolate_->bootstrapper()->CreateEnvironment(
           Handle<Object>::null(),
           v8::Handle<ObjectTemplate>(),
-          NULL);
+          &no_extensions);
 
   // Fail if no context could be created.
   if (context.is_null()) return false;

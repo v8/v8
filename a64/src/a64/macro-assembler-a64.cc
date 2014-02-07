@@ -1513,12 +1513,10 @@ void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id,
   GetBuiltinEntry(x2, id);
   if (flag == CALL_FUNCTION) {
     call_wrapper.BeforeCall(CallSize(x2));
-    SetCallKind(x5, CALL_AS_METHOD);
     Call(x2);
     call_wrapper.AfterCall();
   } else {
     ASSERT(flag == JUMP_FUNCTION);
-    SetCallKind(x5, CALL_AS_METHOD);
     Jump(x2);
   }
 }
@@ -2298,8 +2296,7 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
                                     Label* done,
                                     InvokeFlag flag,
                                     bool* definitely_mismatches,
-                                    const CallWrapper& call_wrapper,
-                                    CallKind call_kind) {
+                                    const CallWrapper& call_wrapper) {
   bool definitely_matches = false;
   *definitely_mismatches = false;
   Label regular_invoke;
@@ -2309,7 +2306,6 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
   //  x0: actual arguments count.
   //  x1: function (passed through to callee).
   //  x2: expected arguments count.
-  //  x3: callee code entry.
 
   // The code below is made a lot easier because the calling code already sets
   // up actual and expected registers according to the contract if values are
@@ -2361,7 +2357,6 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
         isolate()->builtins()->ArgumentsAdaptorTrampoline();
     if (flag == CALL_FUNCTION) {
       call_wrapper.BeforeCall(CallSize(adaptor));
-      SetCallKind(x5, call_kind);
       Call(adaptor);
       call_wrapper.AfterCall();
       if (!*definitely_mismatches) {
@@ -2370,7 +2365,6 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
         B(done);
       }
     } else {
-      SetCallKind(x5, call_kind);
       Jump(adaptor, RelocInfo::CODE_TARGET);
     }
   }
@@ -2378,28 +2372,11 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
 }
 
 
-void MacroAssembler::SetCallKind(Register dst, CallKind call_kind) {
-  // This macro takes the dst register to make the code more readable
-  // at the call sites. However, the dst register has to be x5 to
-  // follow the calling convention which requires the call type to be
-  // in x5.
-  //
-  // For example Builtins::Generate_LazyCompile requires this.
-  ASSERT(dst.is(x5));
-  if (call_kind == CALL_AS_FUNCTION) {
-    Mov(dst, Operand(Smi::FromInt(1)));
-  } else {
-    Mov(dst, Operand(Smi::FromInt(0)));
-  }
-}
-
-
 void MacroAssembler::InvokeCode(Register code,
                                 const ParameterCount& expected,
                                 const ParameterCount& actual,
                                 InvokeFlag flag,
-                                const CallWrapper& call_wrapper,
-                                CallKind call_kind) {
+                                const CallWrapper& call_wrapper) {
   // You can't call a function without a valid frame.
   ASSERT(flag == JUMP_FUNCTION || has_frame());
 
@@ -2407,7 +2384,7 @@ void MacroAssembler::InvokeCode(Register code,
 
   bool definitely_mismatches = false;
   InvokePrologue(expected, actual, Handle<Code>::null(), code, &done, flag,
-                 &definitely_mismatches, call_wrapper, call_kind);
+                 &definitely_mismatches, call_wrapper);
 
   // If we are certain that actual != expected, then we know InvokePrologue will
   // have handled the call through the argument adaptor mechanism.
@@ -2415,42 +2392,12 @@ void MacroAssembler::InvokeCode(Register code,
   if (!definitely_mismatches) {
     if (flag == CALL_FUNCTION) {
       call_wrapper.BeforeCall(CallSize(code));
-      SetCallKind(x5, call_kind);
       Call(code);
       call_wrapper.AfterCall();
     } else {
       ASSERT(flag == JUMP_FUNCTION);
-      SetCallKind(x5, call_kind);
       Jump(code);
     }
-  }
-
-  // Continue here if InvokePrologue does handle the invocation due to
-  // mismatched parameter counts.
-  Bind(&done);
-}
-
-
-void MacroAssembler::InvokeCode(Handle<Code> code,
-                                const ParameterCount& expected,
-                                const ParameterCount& actual,
-                                RelocInfo::Mode rmode,
-                                InvokeFlag flag,
-                                CallKind call_kind) {
-  // You can't call a function without a valid frame.
-  ASSERT(flag == JUMP_FUNCTION || has_frame());
-
-  Label done;
-  bool definitely_mismatches = false;
-  InvokePrologue(expected, actual, code, NoReg, &done, flag,
-                 &definitely_mismatches, NullCallWrapper(), call_kind);
-
-  // The called function expects the call kind in x5.
-  SetCallKind(x5, call_kind);
-  if (flag == CALL_FUNCTION) {
-    Call(code, rmode);
-  } else {
-    Jump(code, rmode);
   }
 
   // Continue here if InvokePrologue does handle the invocation due to
@@ -2462,8 +2409,7 @@ void MacroAssembler::InvokeCode(Handle<Code> code,
 void MacroAssembler::InvokeFunction(Register function,
                                     const ParameterCount& actual,
                                     InvokeFlag flag,
-                                    const CallWrapper& call_wrapper,
-                                    CallKind call_kind) {
+                                    const CallWrapper& call_wrapper) {
   // You can't call a function without a valid frame.
   ASSERT(flag == JUMP_FUNCTION || has_frame());
 
@@ -2487,7 +2433,7 @@ void MacroAssembler::InvokeFunction(Register function,
       FieldMemOperand(function, JSFunction::kCodeEntryOffset));
 
   ParameterCount expected(expected_reg);
-  InvokeCode(code_reg, expected, actual, flag, call_wrapper, call_kind);
+  InvokeCode(code_reg, expected, actual, flag, call_wrapper);
 }
 
 
@@ -2495,8 +2441,7 @@ void MacroAssembler::InvokeFunction(Register function,
                                     const ParameterCount& expected,
                                     const ParameterCount& actual,
                                     InvokeFlag flag,
-                                    const CallWrapper& call_wrapper,
-                                    CallKind call_kind) {
+                                    const CallWrapper& call_wrapper) {
   // You can't call a function without a valid frame.
   ASSERT(flag == JUMP_FUNCTION || has_frame());
 
@@ -2513,7 +2458,7 @@ void MacroAssembler::InvokeFunction(Register function,
   // allow recompilation to take effect without changing any of the
   // call sites.
   Ldr(code_reg, FieldMemOperand(function, JSFunction::kCodeEntryOffset));
-  InvokeCode(code_reg, expected, actual, flag, call_wrapper, call_kind);
+  InvokeCode(code_reg, expected, actual, flag, call_wrapper);
 }
 
 
@@ -2521,12 +2466,11 @@ void MacroAssembler::InvokeFunction(Handle<JSFunction> function,
                                     const ParameterCount& expected,
                                     const ParameterCount& actual,
                                     InvokeFlag flag,
-                                    const CallWrapper& call_wrapper,
-                                    CallKind call_kind) {
+                                    const CallWrapper& call_wrapper) {
   // Contract with called JS functions requires that function is passed in x1.
   // (See FullCodeGenerator::Generate().)
   __ LoadObject(x1, function);
-  InvokeFunction(x1, expected, actual, flag, call_wrapper, call_kind);
+  InvokeFunction(x1, expected, actual, flag, call_wrapper);
 }
 
 
