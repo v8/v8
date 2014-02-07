@@ -860,7 +860,7 @@ static void Generate_NotifyStubFailureHelper(MacroAssembler* masm,
     // preserve the registers with parameters.
     __ PushXRegList(kSafepointSavedRegisters);
     // Pass the function and deoptimization type to the runtime system.
-    __ CallRuntime(Runtime::kNotifyStubFailure, 0);
+    __ CallRuntime(Runtime::kNotifyStubFailure, 0, save_doubles);
     __ PopXRegList(kSafepointSavedRegisters);
   }
 
