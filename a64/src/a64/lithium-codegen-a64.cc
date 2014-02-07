@@ -3472,7 +3472,17 @@ void LCodeGen::DoLoadKeyedFixed(LLoadKeyedFixed* instr) {
                                instr->hydrogen()->elements_kind());
     offset = FixedArray::OffsetOfElementAt(instr->additional_index());
   }
-  __ Ldr(result, FieldMemOperand(load_base, offset));
+  Representation representation = instr->hydrogen()->representation();
+
+  if (representation.IsInteger32() &&
+      instr->hydrogen()->elements_kind() == FAST_SMI_ELEMENTS) {
+    STATIC_ASSERT(kSmiValueSize == 32 && kSmiShift == 32 && kSmiTag == 0);
+    __ Load(result, UntagSmiFieldMemOperand(load_base, offset),
+            Representation::Integer32());
+  } else {
+    __ Load(result, FieldMemOperand(load_base, offset),
+            representation);
+  }
 
   if (instr->hydrogen()->RequiresHoleCheck()) {
     if (IsFastSmiElementsKind(instr->hydrogen()->elements_kind())) {
@@ -3526,6 +3536,7 @@ void LCodeGen::DoLoadNamedField(LLoadNamedField* instr) {
   if (access.representation().IsSmi() &&
       instr->hydrogen()->representation().IsInteger32()) {
     // Read int value directly from upper half of the smi.
+    STATIC_ASSERT(kSmiValueSize == 32 && kSmiShift == 32 && kSmiTag == 0);
     __ Load(result, UntagSmiFieldMemOperand(source, offset),
             Representation::Integer32());
   } else {
@@ -4914,7 +4925,16 @@ void LCodeGen::DoStoreKeyedFixed(LStoreKeyedFixed* instr) {
                                instr->hydrogen()->elements_kind());
     offset = FixedArray::OffsetOfElementAt(instr->additional_index());
   }
-  __ Str(value, FieldMemOperand(store_base, offset));
+  Representation representation = instr->hydrogen()->value()->representation();
+  if (representation.IsInteger32()) {
+    ASSERT(instr->hydrogen()->store_mode() == STORE_TO_INITIALIZED_ENTRY);
+    ASSERT(instr->hydrogen()->elements_kind() == FAST_SMI_ELEMENTS);
+    STATIC_ASSERT(kSmiValueSize == 32 && kSmiShift == 32 && kSmiTag == 0);
+    __ Store(value, UntagSmiFieldMemOperand(store_base, offset),
+             Representation::Integer32());
+  } else {
+    __ Store(value, FieldMemOperand(store_base, offset), representation);
+  }
 
   if (instr->hydrogen()->NeedsWriteBarrier()) {
     SmiCheck check_needed =
@@ -5003,7 +5023,16 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
     __ Ldr(temp0, FieldMemOperand(object, JSObject::kPropertiesOffset));
     destination = temp0;
   }
-  __ Store(value, FieldMemOperand(destination, offset), representation);
+
+  if (representation.IsSmi() &&
+      instr->hydrogen()->value()->representation().IsInteger32()) {
+    ASSERT(instr->hydrogen()->store_mode() == STORE_TO_INITIALIZED_ENTRY);
+    STATIC_ASSERT(kSmiValueSize == 32 && kSmiShift == 32 && kSmiTag == 0);
+    __ Store(value, UntagSmiFieldMemOperand(destination, offset),
+             Representation::Integer32());
+  } else {
+    __ Store(value, FieldMemOperand(destination, offset), representation);
+  }
   if (instr->hydrogen()->NeedsWriteBarrier()) {
     __ RecordWriteField(destination,
                         offset,

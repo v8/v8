@@ -1653,7 +1653,8 @@ LInstruction* LChunkBuilder::DoLoadKeyed(HLoadKeyed* instr) {
           ? AssignEnvironment(DefineAsRegister(result))
           : DefineAsRegister(result);
     } else {
-      ASSERT(instr->representation().IsSmiOrTagged());
+      ASSERT(instr->representation().IsSmiOrTagged() ||
+             instr->representation().IsInteger32());
       LOperand* temp = instr->key()->IsConstant() ? NULL : TempRegister();
       LLoadKeyedFixed* result =
           new(zone()) LLoadKeyedFixed(elements, key, temp);
@@ -2136,7 +2137,8 @@ LInstruction* LChunkBuilder::DoStoreKeyed(HStoreKeyed* instr) {
     return new(zone()) LStoreKeyedFixedDouble(elements, key, val, temp);
   } else {
     ASSERT(instr->elements()->representation().IsTagged());
-    ASSERT(instr->value()->representation().IsSmiOrTagged());
+    ASSERT(instr->value()->representation().IsSmiOrTagged() ||
+           instr->value()->representation().IsInteger32());
 
     temp = TempRegister();
     return new(zone()) LStoreKeyedFixed(elements, key, val, temp);
