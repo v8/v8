@@ -1831,3 +1831,46 @@ TEST(NoErrorsParenthesizedDirectivePrologue) {
 
   RunParserSyncTest(context_data, statement_data, kSuccess);
 }
+
+
+TEST(ErrorsNotAnIdentifierName) {
+  const char* context_data[][2] = {
+    { "", ""},
+    { "\"use strict\";", ""},
+    { NULL, NULL }
+  };
+
+  const char* statement_data[] = {
+    "var foo = {}; foo.{;",
+    "var foo = {}; foo.};",
+    "var foo = {}; foo.=;",
+    "var foo = {}; foo.888;",
+    "var foo = {}; foo.-;",
+    "var foo = {}; foo.--;",
+    NULL
+  };
+
+  RunParserSyncTest(context_data, statement_data, kError);
+}
+
+
+TEST(NoErrorsIdentifierNames) {
+  // Keywords etc. are valid as property names.
+  const char* context_data[][2] = {
+    { "", ""},
+    { "\"use strict\";", ""},
+    { NULL, NULL }
+  };
+
+  const char* statement_data[] = {
+    "var foo = {}; foo.if;",
+    "var foo = {}; foo.yield;",
+    "var foo = {}; foo.super;",
+    "var foo = {}; foo.interface;",
+    "var foo = {}; foo.eval;",
+    "var foo = {}; foo.arguments;",
+    NULL
+  };
+
+  RunParserSyncTest(context_data, statement_data, kSuccess);
+}

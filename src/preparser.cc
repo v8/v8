@@ -1536,19 +1536,15 @@ void PreParser::StrictModeIdentifierViolation(Scanner::Location location,
 
 PreParser::Identifier PreParser::ParseIdentifierName(bool* ok) {
   Token::Value next = Next();
-  if (Token::IsKeyword(next)) {
-    int pos = position();
-    const char* keyword = Token::String(next);
-    log_->LogAsciiSymbol(pos, Vector<const char>(keyword, StrLength(keyword)));
+  if (next != Token::IDENTIFIER &&
+      next != Token::FUTURE_RESERVED_WORD &&
+      next != Token::FUTURE_STRICT_RESERVED_WORD &&
+      !Token::IsKeyword(next)) {
+    ReportUnexpectedToken(next);
+    *ok = false;
     return Identifier::Default();
   }
-  if (next == Token::IDENTIFIER ||
-      next == Token::FUTURE_RESERVED_WORD ||
-      next == Token::FUTURE_STRICT_RESERVED_WORD) {
-    return GetIdentifierSymbol();
-  }
-  *ok = false;
-  return Identifier::Default();
+  return GetIdentifierSymbol();
 }
 
 #undef CHECK_OK
