@@ -202,7 +202,8 @@ namespace internal {
   V(SeededNumberDictionary, empty_slow_element_dictionary,                     \
       EmptySlowElementDictionary)                                              \
   V(Symbol, observed_symbol, ObservedSymbol)                                   \
-  V(FixedArray, materialized_objects, MaterializedObjects)
+  V(FixedArray, materialized_objects, MaterializedObjects)                     \
+  V(FixedArray, allocation_sites_scratchpad, AllocationSitesScratchpad)
 
 #define ROOT_LIST(V)                                  \
   STRONG_ROOT_LIST(V)                                 \
@@ -2285,6 +2286,18 @@ class Heap {
   // Flush the number to string cache.
   void FlushNumberStringCache();
 
+  // Allocates a fixed-size allocation sites scratchpad.
+  MUST_USE_RESULT MaybeObject* AllocateAllocationSitesScratchpad();
+
+  // Sets used allocation sites entries to undefined.
+  void FlushAllocationSitesScratchpad();
+
+  // Initializes the allocation sites scratchpad with undefined values.
+  void InitializeAllocationSitesScratchpad();
+
+  // Adds an allocation site to the scratchpad if there is space left.
+  void AddAllocationSiteToScratchpad(AllocationSite* site);
+
   void UpdateSurvivalRateTrend(int start_new_space_size);
 
   enum SurvivalRateTrend { INCREASING, STABLE, DECREASING, FLUCTUATING };
@@ -2457,10 +2470,8 @@ class Heap {
   int no_weak_object_verification_scope_depth_;
 #endif
 
-
   static const int kAllocationSiteScratchpadSize = 256;
-  int allocation_sites_scratchpad_length;
-  AllocationSite* allocation_sites_scratchpad[kAllocationSiteScratchpadSize];
+  int allocation_sites_scratchpad_length_;
 
   static const int kMaxMarkSweepsInIdleRound = 7;
   static const int kIdleScavengeThreshold = 5;

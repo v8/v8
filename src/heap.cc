@@ -150,7 +150,7 @@ Heap::Heap()
 #ifdef VERIFY_HEAP
       no_weak_object_verification_scope_depth_(0),
 #endif
-      allocation_sites_scratchpad_length(0),
+      allocation_sites_scratchpad_length_(0),
       promotion_queue_(this),
       configured_(false),
       external_string_table_(this),
@@ -516,16 +516,17 @@ void Heap::ProcessPretenuringFeedback() {
     // If the scratchpad overflowed, we have to iterate over the allocation
     // sites list.
     bool use_scratchpad =
-        allocation_sites_scratchpad_length < kAllocationSiteScratchpadSize;
+        allocation_sites_scratchpad_length_ < kAllocationSiteScratchpadSize;
 
     int i = 0;
     Object* list_element = allocation_sites_list();
     bool trigger_deoptimization = false;
     while (use_scratchpad ?
-              i < allocation_sites_scratchpad_length :
+              i < allocation_sites_scratchpad_length_ :
               list_element->IsAllocationSite()) {
       AllocationSite* site = use_scratchpad ?
-        allocation_sites_scratchpad[i] : AllocationSite::cast(list_element);
+          AllocationSite::cast(allocation_sites_scratchpad()->get(i)) :
+          AllocationSite::cast(list_element);
       allocation_mementos_found += site->memento_found_count();
       if (site->memento_found_count() > 0) {
         active_allocation_sites++;
@@ -546,7 +547,7 @@ void Heap::ProcessPretenuringFeedback() {
 
     if (trigger_deoptimization) isolate_->stack_guard()->DeoptMarkedCode();
 
-    allocation_sites_scratchpad_length = 0;
+    FlushAllocationSitesScratchpad();
 
     if (FLAG_trace_pretenuring_statistics &&
         (allocation_mementos_found > 0 ||
@@ -3300,6 +3301,12 @@ bool Heap::CreateInitialObjects() {
   // Handling of script id generation is in Factory::NewScript.
   set_last_script_id(Smi::FromInt(v8::Script::kNoScriptId));
 
+  { MaybeObject* maybe_obj = AllocateAllocationSitesScratchpad();
+    if (!maybe_obj->ToObject(&obj)) return false;
+  }
+  set_allocation_sites_scratchpad(FixedArray::cast(obj));
+  InitializeAllocationSitesScratchpad();
+
   // Initialize keyed lookup cache.
   isolate_->keyed_lookup_cache()->Clear();
 
@@ -3586,6 +3593,39 @@ MaybeObject* Heap::Uint32ToString(uint32_t value,
   MaybeObject* maybe = NumberFromUint32(value);
   if (!maybe->To<Object>(&number)) return maybe;
   return NumberToString(number, check_number_string_cache);
+}
+
+
+MaybeObject* Heap::AllocateAllocationSitesScratchpad() {
+  MaybeObject* maybe_obj =
+      AllocateFixedArray(kAllocationSiteScratchpadSize, TENURED);
+  return maybe_obj;
+}
+
+
+void Heap::FlushAllocationSitesScratchpad() {
+  for (int i = 0; i < allocation_sites_scratchpad_length_; i++) {
+    allocation_sites_scratchpad()->set_undefined(i);
+  }
+  allocation_sites_scratchpad_length_ = 0;
+}
+
+
+void Heap::InitializeAllocationSitesScratchpad() {
+  ASSERT(allocation_sites_scratchpad()->length() ==
+         kAllocationSiteScratchpadSize);
+  for (int i = 0; i < kAllocationSiteScratchpadSize; i++) {
+    allocation_sites_scratchpad()->set_undefined(i);
+  }
+}
+
+
+void Heap::AddAllocationSiteToScratchpad(AllocationSite* site) {
+  if (allocation_sites_scratchpad_length_ < kAllocationSiteScratchpadSize) {
+    allocation_sites_scratchpad()->set(
+        allocation_sites_scratchpad_length_, site);
+    allocation_sites_scratchpad_length_++;
+  }
 }
 
 

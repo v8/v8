@@ -517,12 +517,8 @@ void Heap::UpdateAllocationSiteFeedback(HeapObject* object) {
   AllocationMemento* memento = AllocationMemento::cast(candidate);
   if (!memento->IsValid()) return;
 
-  if (memento->GetAllocationSite()->IncrementMementoFoundCount() &&
-      heap->allocation_sites_scratchpad_length <
-      kAllocationSiteScratchpadSize) {
-    heap->allocation_sites_scratchpad[
-        heap->allocation_sites_scratchpad_length++] =
-        memento->GetAllocationSite();
+  if (memento->GetAllocationSite()->IncrementMementoFoundCount()) {
+    heap->AddAllocationSiteToScratchpad(memento->GetAllocationSite());
   }
 }
 
