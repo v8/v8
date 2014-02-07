@@ -1751,7 +1751,7 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
       __ Bind(&check_double);
       // Check that the elements are in fast mode and writable.
       __ CheckMap(elements,
-                  x0,
+                  x10,
                   Heap::kFixedDoubleArrayMapRootIndex,
                   &call_builtin,
                   DONT_DO_SMI_CHECK);
