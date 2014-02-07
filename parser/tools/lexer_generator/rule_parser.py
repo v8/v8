@@ -335,6 +335,9 @@ class RuleProcessor(object):
     RuleParser.parse(string, self.__parser_state)
     self.__process_parser_state()
 
+  def alias_iter(self):
+    return iter(self.__parser_state.aliases.items())
+
   def automata_iter(self):
     return iter(self.__automata.items())
 
