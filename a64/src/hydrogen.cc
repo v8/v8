@@ -1559,8 +1559,7 @@ HValue* HGraphBuilder::BuildUncheckedDictionaryElementLoad(HValue* receiver,
 }
 
 
-HValue* HGraphBuilder::BuildNumberToString(HValue* object,
-                                           Handle<Type> type) {
+HValue* HGraphBuilder::BuildNumberToString(HValue* object, Type* type) {
   NoObservableSideEffectsScope scope(this);
 
   // Convert constant numbers at compile time.
@@ -2080,7 +2079,9 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
     bool is_store,
     LoadKeyedHoleMode load_mode,
     KeyedAccessStoreMode store_mode) {
-  ASSERT(!IsExternalArrayElementsKind(elements_kind) || !is_js_array);
+  ASSERT((!IsExternalArrayElementsKind(elements_kind) &&
+              !IsFixedTypedArrayElementsKind(elements_kind)) ||
+         !is_js_array);
   // No GVNFlag is necessary for ElementsKind if there is an explicit dependency
   // on a HElementsTransition instruction. The flag can also be removed if the
   // map to check has FAST_HOLEY_ELEMENTS, since there can be no further
@@ -2110,11 +2111,17 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
   }
   length->set_type(HType::Smi());
   HValue* checked_key = NULL;
-  if (IsExternalArrayElementsKind(elements_kind)) {
+  if (IsExternalArrayElementsKind(elements_kind) ||
+      IsFixedTypedArrayElementsKind(elements_kind)) {
+    HValue* backing_store;
+    if (IsExternalArrayElementsKind(elements_kind)) {
+      backing_store =
+         Add<HLoadExternalArrayPointer>(elements);
+    } else {
+      backing_store = elements;
+    }
     if (store_mode == STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS) {
       NoObservableSideEffectsScope no_effects(this);
-       HLoadExternalArrayPointer* external_elements =
-           Add<HLoadExternalArrayPointer>(elements);
       IfBuilder length_checker(this);
       length_checker.If<HCompareNumericAndBranch>(key, length, Token::LT);
       length_checker.Then();
@@ -2123,7 +2130,7 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
           key, graph()->GetConstant0(), Token::GTE);
       negative_checker.Then();
       HInstruction* result = AddElementAccess(
-          external_elements, key, val, bounds_check, elements_kind, is_store);
+          backing_store, key, val, bounds_check, elements_kind, is_store);
       negative_checker.ElseDeopt("Negative key encountered");
       negative_checker.End();
       length_checker.End();
@@ -2131,10 +2138,8 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
     } else {
       ASSERT(store_mode == STANDARD_STORE);
       checked_key = Add<HBoundsCheck>(key, length);
-      HLoadExternalArrayPointer* external_elements =
-          Add<HLoadExternalArrayPointer>(elements);
       return AddElementAccess(
-          external_elements, checked_key, val,
+          backing_store, checked_key, val,
           checked_object, elements_kind, is_store);
     }
   }
@@ -2315,7 +2320,8 @@ HInstruction* HGraphBuilder::AddElementAccess(
     LoadKeyedHoleMode load_mode) {
   if (is_store) {
     ASSERT(val != NULL);
-    if (elements_kind == EXTERNAL_PIXEL_ELEMENTS) {
+    if (elements_kind == EXTERNAL_PIXEL_ELEMENTS ||
+        elements_kind == UINT8_CLAMPED_ELEMENTS) {
       val = Add<HClampToUint8>(val);
     }
     return Add<HStoreKeyed>(elements, checked_key, val, elements_kind,
@@ -2329,7 +2335,8 @@ HInstruction* HGraphBuilder::AddElementAccess(
   HLoadKeyed* load = Add<HLoadKeyed>(
       elements, checked_key, dependency, elements_kind, load_mode);
   if (FLAG_opt_safe_uint32_operations &&
-      elements_kind == EXTERNAL_UNSIGNED_INT_ELEMENTS) {
+      (elements_kind == EXTERNAL_UNSIGNED_INT_ELEMENTS ||
+       elements_kind == UINT32_ELEMENTS)) {
     graph()->RecordUint32Instruction(load);
   }
   return load;
@@ -2578,7 +2585,7 @@ HValue* HGraphBuilder::BuildCloneShallowArray(HValue* boilerplate,
 
 void HGraphBuilder::BuildCompareNil(
     HValue* value,
-    Handle<Type> type,
+    Type* type,
     HIfContinuation* continuation) {
   IfBuilder if_nil(this);
   bool some_case_handled = false;
@@ -2698,6 +2705,9 @@ HGraphBuilder::JSArrayBuilder::JSArrayBuilder(HGraphBuilder* builder,
         kind_(kind),
         allocation_site_payload_(allocation_site_payload),
         constructor_function_(constructor_function) {
+  ASSERT(!allocation_site_payload->IsConstant() ||
+         HConstant::cast(allocation_site_payload)->handle(
+             builder_->isolate())->IsAllocationSite());
   mode_ = override_mode == DISABLE_ALLOCATION_SITES
       ? DONT_TRACK_ALLOCATION_SITE
       : AllocationSite::GetMode(kind);
@@ -2893,7 +2903,7 @@ HOptimizedGraphBuilder::HOptimizedGraphBuilder(CompilationInfo* info)
   // constructor for the initial state relies on function_state_ == NULL
   // to know it's the initial state.
   function_state_= &initial_function_state_;
-  InitializeAstVisitor(info->isolate());
+  InitializeAstVisitor(info->zone());
   if (FLAG_emit_opt_code_positions) {
     SetSourcePosition(info->shared_info()->start_position());
   }
@@ -4224,7 +4234,7 @@ void HOptimizedGraphBuilder::VisitSwitchStatement(SwitchStatement* stmt) {
   CHECK_ALIVE(VisitForValue(stmt->tag()));
   Add<HSimulate>(stmt->EntryId());
   HValue* tag_value = Top();
-  Handle<Type> tag_type = stmt->tag()->bounds().lower;
+  Type* tag_type = stmt->tag()->bounds().lower;
 
   // 1. Build all the tests, with dangling true branches
   BailoutId default_id = BailoutId::None();
@@ -4240,8 +4250,8 @@ void HOptimizedGraphBuilder::VisitSwitchStatement(SwitchStatement* stmt) {
     CHECK_ALIVE(VisitForValue(clause->label()));
     HValue* label_value = Pop();
 
-    Handle<Type> label_type = clause->label()->bounds().lower;
-    Handle<Type> combined_type = clause->compare_type();
+    Type* label_type = clause->label()->bounds().lower;
+    Type* combined_type = clause->compare_type();
     HControlInstruction* compare = BuildCompareInstruction(
         Token::EQ_STRICT, tag_value, label_value, tag_type, label_type,
         combined_type, stmt->tag()->position(), clause->label()->position(),
@@ -5862,8 +5872,8 @@ void HOptimizedGraphBuilder::HandleGlobalVariableAssignment(
     }
   } else {
     HGlobalObject* global_object = Add<HGlobalObject>();
-    HStoreGlobalGeneric* instr =
-        Add<HStoreGlobalGeneric>(global_object, var->name(),
+    HStoreNamedGeneric* instr =
+        Add<HStoreNamedGeneric>(global_object, var->name(),
                                  value, function_strict_mode_flag());
     USE(instr);
     ASSERT(instr->HasObservableSideEffects());
@@ -7622,6 +7632,53 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
         return true;
       }
       break;
+    case kArrayPop: {
+      if (!expr->IsMonomorphic() || expr->check_type() != RECEIVER_MAP_CHECK) {
+        return false;
+      }
+      if (receiver_map->instance_type() != JS_ARRAY_TYPE) return false;
+      ElementsKind elements_kind = receiver_map->elements_kind();
+      if (!IsFastElementsKind(elements_kind)) return false;
+      AddCheckConstantFunction(expr->holder(), receiver, receiver_map);
+
+      Drop(expr->arguments()->length());
+      HValue* result;
+      HValue* checked_object;
+      HValue* reduced_length;
+      HValue* receiver = Pop();
+      { NoObservableSideEffectsScope scope(this);
+        checked_object = AddCheckMap(receiver, receiver_map);
+        HValue* elements = AddLoadElements(checked_object);
+        // Ensure that we aren't popping from a copy-on-write array.
+        if (IsFastSmiOrObjectElementsKind(elements_kind)) {
+          Add<HCheckMaps>(
+              elements, isolate()->factory()->fixed_array_map(), top_info());
+        }
+        HValue* length = Add<HLoadNamedField>(
+            checked_object, HObjectAccess::ForArrayLength(elements_kind));
+        reduced_length = AddUncasted<HSub>(length, graph()->GetConstant1());
+        HValue* bounds_check = Add<HBoundsCheck>(
+            graph()->GetConstant0(), length);
+        result = AddElementAccess(elements, reduced_length, NULL,
+                                  bounds_check, elements_kind, false);
+        Factory* factory = isolate()->factory();
+        double nan_double = FixedDoubleArray::hole_nan_as_double();
+        HValue* hole = IsFastSmiOrObjectElementsKind(elements_kind)
+            ? Add<HConstant>(factory->the_hole_value())
+            : Add<HConstant>(nan_double);
+        if (IsFastSmiOrObjectElementsKind(elements_kind)) {
+          elements_kind = FAST_HOLEY_ELEMENTS;
+        }
+        AddElementAccess(
+            elements, reduced_length, hole, bounds_check, elements_kind, true);
+      }
+      Add<HStoreNamedField>(
+          checked_object, HObjectAccess::ForArrayLength(elements_kind),
+          reduced_length);
+      ast_context()->ReturnValue(result);
+      Add<HSimulate>(expr->id(), REMOVABLE_SIMULATE);
+      return true;
+    }
     default:
       // Not yet supported for inlining.
       break;
@@ -7952,13 +8009,13 @@ void HOptimizedGraphBuilder::BuildInlinedCallNewArray(CallNew* expr) {
   HValue* constructor = environment()->ExpressionStackAt(argument_count);
 
   ElementsKind kind = expr->elements_kind();
-  Handle<Cell> cell = expr->allocation_info_cell();
-  Handle<AllocationSite> site(AllocationSite::cast(cell->value()));
+  Handle<AllocationSite> site = expr->allocation_site();
+  ASSERT(!site.is_null());
 
-  // Register on the site for deoptimization if the cell value changes.
+  // Register on the site for deoptimization if the transition feedback changes.
   AllocationSite::AddDependentCompilationInfo(
       site, AllocationSite::TRANSITIONS, top_info());
-  HInstruction* cell_instruction = Add<HConstant>(cell);
+  HInstruction* site_instruction = Add<HConstant>(site);
 
   // In the single constant argument case, we may have to adjust elements kind
   // to avoid creating a packed non-empty array.
@@ -7977,7 +8034,7 @@ void HOptimizedGraphBuilder::BuildInlinedCallNewArray(CallNew* expr) {
   // Build the array.
   JSArrayBuilder array_builder(this,
                                kind,
-                               cell_instruction,
+                               site_instruction,
                                constructor,
                                DISABLE_ALLOCATION_SITES);
   HValue* new_object;
@@ -8027,8 +8084,9 @@ bool HOptimizedGraphBuilder::IsCallNewArrayInlineable(CallNew* expr) {
   int argument_count = expr->arguments()->length();
   // We should have the function plus array arguments on the environment stack.
   ASSERT(environment()->length() >= (argument_count + 1));
-  Handle<Cell> cell = expr->allocation_info_cell();
-  AllocationSite* site = AllocationSite::cast(cell->value());
+  Handle<AllocationSite> site = expr->allocation_site();
+  ASSERT(!site.is_null());
+
   if (site->CanInlineCall()) {
     // We also want to avoid inlining in certain 1 argument scenarios.
     if (argument_count == 1) {
@@ -8167,7 +8225,6 @@ void HOptimizedGraphBuilder::VisitCallNew(CallNew* expr) {
     Handle<JSFunction> array_function(
         isolate()->global_context()->array_function(), isolate());
     bool use_call_new_array = expr->target().is_identical_to(array_function);
-    Handle<Cell> cell = expr->allocation_info_cell();
     if (use_call_new_array && IsCallNewArrayInlineable(expr)) {
       // Verify we are still calling the array function for our native context.
       Add<HCheckValue>(function, array_function);
@@ -8178,7 +8235,7 @@ void HOptimizedGraphBuilder::VisitCallNew(CallNew* expr) {
     HBinaryCall* call;
     if (use_call_new_array) {
       Add<HCheckValue>(function, array_function);
-      call = New<HCallNewArray>(function, argument_count, cell,
+      call = New<HCallNewArray>(function, argument_count,
                                 expr->elements_kind());
     } else {
       call = New<HCallNew>(function, argument_count);
@@ -8551,8 +8608,7 @@ HInstruction* HOptimizedGraphBuilder::BuildIncrement(
     bool returns_original_input,
     CountOperation* expr) {
   // The input to the count operation is on top of the expression stack.
-  Handle<Type> info = expr->type();
-  Representation rep = Representation::FromType(info);
+  Representation rep = Representation::FromType(expr->type());
   if (rep.IsNone() || rep.IsTagged()) {
     rep = Representation::Smi();
   }
@@ -8803,7 +8859,7 @@ bool CanBeZero(HValue* right) {
 
 
 HValue* HGraphBuilder::EnforceNumberType(HValue* number,
-                                         Handle<Type> expected) {
+                                         Type* expected) {
   if (expected->Is(Type::Smi())) {
     return AddUncasted<HForceRepresentation>(number, Representation::Smi());
   }
@@ -8815,12 +8871,12 @@ HValue* HGraphBuilder::EnforceNumberType(HValue* number,
 }
 
 
-HValue* HGraphBuilder::TruncateToNumber(HValue* value, Handle<Type>* expected) {
+HValue* HGraphBuilder::TruncateToNumber(HValue* value, Type** expected) {
   if (value->IsConstant()) {
     HConstant* constant = HConstant::cast(value);
     Maybe<HConstant*> number = constant->CopyToTruncatedNumber(zone());
     if (number.has_value) {
-      *expected = Type::Number(isolate());
+      *expected = Type::Number(zone());
       return AddInstruction(number.value);
     }
   }
@@ -8830,25 +8886,24 @@ HValue* HGraphBuilder::TruncateToNumber(HValue* value, Handle<Type>* expected) {
   // pushes with a NoObservableSideEffectsScope.
   NoObservableSideEffectsScope no_effects(this);
 
-  Handle<Type> expected_type = *expected;
+  Type* expected_type = *expected;
 
   // Separate the number type from the rest.
-  Handle<Type> expected_obj = Type::Intersect(
-      expected_type, Type::NonNumber(isolate()), isolate());
-  Handle<Type> expected_number = Type::Intersect(
-      expected_type, Type::Number(isolate()), isolate());
+  Type* expected_obj =
+      Type::Intersect(expected_type, Type::NonNumber(zone()), zone());
+  Type* expected_number =
+      Type::Intersect(expected_type, Type::Number(zone()), zone());
 
   // We expect to get a number.
   // (We need to check first, since Type::None->Is(Type::Any()) == true.
   if (expected_obj->Is(Type::None())) {
-    ASSERT(!expected_number->Is(Type::None()));
+    ASSERT(!expected_number->Is(Type::None(zone())));
     return value;
   }
 
-  if (expected_obj->Is(Type::Undefined())) {
+  if (expected_obj->Is(Type::Undefined(zone()))) {
     // This is already done by HChange.
-    *expected = Type::Union(
-          expected_number, Type::Double(isolate()), isolate());
+    *expected = Type::Union(expected_number, Type::Double(zone()), zone());
     return value;
   }
 
@@ -8860,9 +8915,9 @@ HValue* HOptimizedGraphBuilder::BuildBinaryOperation(
     BinaryOperation* expr,
     HValue* left,
     HValue* right) {
-  Handle<Type> left_type = expr->left()->bounds().lower;
-  Handle<Type> right_type = expr->right()->bounds().lower;
-  Handle<Type> result_type = expr->bounds().lower;
+  Type* left_type = expr->left()->bounds().lower;
+  Type* right_type = expr->right()->bounds().lower;
+  Type* result_type = expr->bounds().lower;
   Maybe<int> fixed_right_arg = expr->fixed_right_arg();
   Handle<AllocationSite> allocation_site = expr->allocation_site();
 
@@ -8892,9 +8947,9 @@ HValue* HGraphBuilder::BuildBinaryOperation(
     Token::Value op,
     HValue* left,
     HValue* right,
-    Handle<Type> left_type,
-    Handle<Type> right_type,
-    Handle<Type> result_type,
+    Type* left_type,
+    Type* right_type,
+    Type* result_type,
     Maybe<int> fixed_right_arg,
     HAllocationMode allocation_mode) {
 
@@ -8910,7 +8965,7 @@ HValue* HGraphBuilder::BuildBinaryOperation(
                      Deoptimizer::SOFT);
     // TODO(rossberg): we should be able to get rid of non-continuous
     // defaults.
-    left_type = Type::Any(isolate());
+    left_type = Type::Any(zone());
   } else {
     if (!maybe_string_add) left = TruncateToNumber(left, &left_type);
     left_rep = Representation::FromType(left_type);
@@ -8919,7 +8974,7 @@ HValue* HGraphBuilder::BuildBinaryOperation(
   if (right_type->Is(Type::None())) {
     Add<HDeoptimize>("Insufficient type feedback for RHS of binary operation",
                      Deoptimizer::SOFT);
-    right_type = Type::Any(isolate());
+    right_type = Type::Any(zone());
   } else {
     if (!maybe_string_add) right = TruncateToNumber(right, &right_type);
     right_rep = Representation::FromType(right_type);
@@ -8962,11 +9017,16 @@ HValue* HGraphBuilder::BuildBinaryOperation(
       return AddUncasted<HInvokeFunction>(function, 2);
     }
 
-    // Inline the string addition into the stub when creating allocation
-    // mementos to gather allocation site feedback.
-    if (graph()->info()->IsStub() &&
-        allocation_mode.CreateAllocationMementos()) {
-      return BuildStringAdd(left, right, allocation_mode);
+    // Fast path for empty constant strings.
+    if (left->IsConstant() &&
+        HConstant::cast(left)->HasStringValue() &&
+        HConstant::cast(left)->StringValue()->length() == 0) {
+      return right;
+    }
+    if (right->IsConstant() &&
+        HConstant::cast(right)->HasStringValue() &&
+        HConstant::cast(right)->StringValue()->length() == 0) {
+      return left;
     }
 
     // Register the dependent code with the allocation site.
@@ -8977,28 +9037,20 @@ HValue* HGraphBuilder::BuildBinaryOperation(
           site, AllocationSite::TENURING, top_info());
     }
 
-    // Inline string addition if we know that we'll create a cons string.
-    if (left->IsConstant()) {
-      HConstant* c_left = HConstant::cast(left);
-      if (c_left->HasStringValue()) {
-        int c_left_length = c_left->StringValue()->length();
-        if (c_left_length == 0) {
-          return right;
-        } else if (c_left_length + 1 >= ConsString::kMinLength) {
-          return BuildStringAdd(left, right, allocation_mode);
-        }
-      }
-    }
-    if (right->IsConstant()) {
-      HConstant* c_right = HConstant::cast(right);
-      if (c_right->HasStringValue()) {
-        int c_right_length = c_right->StringValue()->length();
-        if (c_right_length == 0) {
-          return left;
-        } else if (c_right_length + 1 >= ConsString::kMinLength) {
-          return BuildStringAdd(left, right, allocation_mode);
-        }
-      }
+    // Inline the string addition into the stub when creating allocation
+    // mementos to gather allocation site feedback, or if we can statically
+    // infer that we're going to create a cons string.
+    if ((graph()->info()->IsStub() &&
+         allocation_mode.CreateAllocationMementos()) ||
+        (left->IsConstant() &&
+         HConstant::cast(left)->HasStringValue() &&
+         HConstant::cast(left)->StringValue()->length() + 1 >=
+           ConsString::kMinLength) ||
+        (right->IsConstant() &&
+         HConstant::cast(right)->HasStringValue() &&
+         HConstant::cast(right)->StringValue()->length() + 1 >=
+           ConsString::kMinLength)) {
+      return BuildStringAdd(left, right, allocation_mode);
     }
 
     // Fallback to using the string add stub.
@@ -9327,9 +9379,9 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
     return ast_context()->ReturnControl(instr, expr->id());
   }
 
-  Handle<Type> left_type = expr->left()->bounds().lower;
-  Handle<Type> right_type = expr->right()->bounds().lower;
-  Handle<Type> combined_type = expr->combined_type();
+  Type* left_type = expr->left()->bounds().lower;
+  Type* right_type = expr->right()->bounds().lower;
+  Type* combined_type = expr->combined_type();
 
   CHECK_ALIVE(VisitForValue(expr->left()));
   CHECK_ALIVE(VisitForValue(expr->right()));
@@ -9406,9 +9458,9 @@ HControlInstruction* HOptimizedGraphBuilder::BuildCompareInstruction(
     Token::Value op,
     HValue* left,
     HValue* right,
-    Handle<Type> left_type,
-    Handle<Type> right_type,
-    Handle<Type> combined_type,
+    Type* left_type,
+    Type* right_type,
+    Type* combined_type,
     int left_position,
     int right_position,
     BailoutId bailout_id) {
@@ -9418,7 +9470,7 @@ HControlInstruction* HOptimizedGraphBuilder::BuildCompareInstruction(
     Add<HDeoptimize>("Insufficient type feedback for combined type "
                      "of binary operation",
                      Deoptimizer::SOFT);
-    combined_type = left_type = right_type = Type::Any(isolate());
+    combined_type = left_type = right_type = Type::Any(zone());
   }
 
   Representation left_rep = Representation::FromType(left_type);
@@ -9514,8 +9566,8 @@ void HOptimizedGraphBuilder::HandleLiteralCompareNil(CompareOperation* expr,
     return ast_context()->ReturnControl(instr, expr->id());
   } else {
     ASSERT_EQ(Token::EQ, expr->op());
-    Handle<Type> type = expr->combined_type()->Is(Type::None())
-        ? Type::Any(isolate_) : expr->combined_type();
+    Type* type = expr->combined_type()->Is(Type::None())
+        ? Type::Any(zone()) : expr->combined_type();
     HIfContinuation continuation;
     BuildCompareNil(value, type, &continuation);
     return ast_context()->ReturnContinuation(&continuation, expr->id());
@@ -10285,7 +10337,7 @@ void HOptimizedGraphBuilder::GenerateNumberToString(CallRuntime* call) {
   ASSERT_EQ(1, call->arguments()->length());
   CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
   HValue* number = Pop();
-  HValue* result = BuildNumberToString(number, Type::Number(isolate()));
+  HValue* result = BuildNumberToString(number, Type::Any(zone()));
   return ast_context()->ReturnValue(result);
 }
 

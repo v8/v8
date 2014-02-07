@@ -165,7 +165,6 @@ class LChunkBuilder;
   V(StoreCodeEntry)                            \
   V(StoreContextSlot)                          \
   V(StoreGlobalCell)                           \
-  V(StoreGlobalGeneric)                        \
   V(StoreKeyed)                                \
   V(StoreKeyedGeneric)                         \
   V(StoreNamedField)                           \
@@ -207,7 +206,8 @@ class LChunkBuilder;
   V(InobjectFields)                            \
   V(OsrEntries)                                \
   V(ExternalMemory)                            \
-  V(StringChars)
+  V(StringChars)                               \
+  V(TypedArrayElements)
 
 
 #define DECLARE_ABSTRACT_INSTRUCTION(type)                              \
@@ -1581,6 +1581,8 @@ class HReturn V8_FINAL : public HTemplateControlInstruction<0, 3> {
   DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P1(HReturn, HValue*);
 
   virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
+    // TODO(titzer): require an Int32 input for faster returns.
+    if (index == 2) return Representation::Smi();
     return Representation::Tagged();
   }
 
@@ -2510,10 +2512,9 @@ class HCallNew V8_FINAL : public HBinaryCall {
 
 class HCallNewArray V8_FINAL : public HBinaryCall {
  public:
-  DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P4(HCallNewArray,
+  DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P3(HCallNewArray,
                                               HValue*,
                                               int,
-                                              Handle<Cell>,
                                               ElementsKind);
 
   HValue* context() { return first(); }
@@ -2521,23 +2522,17 @@ class HCallNewArray V8_FINAL : public HBinaryCall {
 
   virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
 
-  Handle<Cell> property_cell() const {
-    return type_cell_;
-  }
-
   ElementsKind elements_kind() const { return elements_kind_; }
 
   DECLARE_CONCRETE_INSTRUCTION(CallNewArray)
 
  private:
   HCallNewArray(HValue* context, HValue* constructor, int argument_count,
-                Handle<Cell> type_cell, ElementsKind elements_kind)
+                ElementsKind elements_kind)
       : HBinaryCall(context, constructor, argument_count),
-        elements_kind_(elements_kind),
-        type_cell_(type_cell) {}
+        elements_kind_(elements_kind) {}
 
   ElementsKind elements_kind_;
-  Handle<Cell> type_cell_;
 };
 
 
@@ -5741,52 +5736,6 @@ class HStoreGlobalCell V8_FINAL : public HUnaryOperation {
 };
 
 
-class HStoreGlobalGeneric : public HTemplateInstruction<3> {
- public:
-  inline static HStoreGlobalGeneric* New(Zone* zone,
-                                         HValue* context,
-                                         HValue* global_object,
-                                         Handle<Object> name,
-                                         HValue* value,
-                                         StrictModeFlag strict_mode_flag) {
-    return new(zone) HStoreGlobalGeneric(context, global_object,
-                                         name, value, strict_mode_flag);
-  }
-
-  HValue* context() { return OperandAt(0); }
-  HValue* global_object() { return OperandAt(1); }
-  Handle<Object> name() const { return name_; }
-  HValue* value() { return OperandAt(2); }
-  StrictModeFlag strict_mode_flag() { return strict_mode_flag_; }
-
-  virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
-
-  virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
-    return Representation::Tagged();
-  }
-
-  DECLARE_CONCRETE_INSTRUCTION(StoreGlobalGeneric)
-
- private:
-  HStoreGlobalGeneric(HValue* context,
-                      HValue* global_object,
-                      Handle<Object> name,
-                      HValue* value,
-                      StrictModeFlag strict_mode_flag)
-      : name_(name),
-        strict_mode_flag_(strict_mode_flag) {
-    SetOperandAt(0, context);
-    SetOperandAt(1, global_object);
-    SetOperandAt(2, value);
-    set_representation(Representation::Tagged());
-    SetAllSideEffects();
-  }
-
-  Handle<Object> name_;
-  StrictModeFlag strict_mode_flag_;
-};
-
-
 class HLoadContextSlot V8_FINAL : public HUnaryOperation {
  public:
   enum Mode {
@@ -6366,6 +6315,12 @@ class HLoadKeyed V8_FINAL
   bool is_external() const {
     return IsExternalArrayElementsKind(elements_kind());
   }
+  bool is_fixed_typed_array() const {
+    return IsFixedTypedArrayElementsKind(elements_kind());
+  }
+  bool is_typed_elements() const {
+    return is_external() || is_fixed_typed_array();
+  }
   HValue* elements() { return OperandAt(0); }
   HValue* key() { return OperandAt(1); }
   HValue* dependency() {
@@ -6394,9 +6349,10 @@ class HLoadKeyed V8_FINAL
   }
 
   virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
-    // kind_fast:       tagged[int32] (none)
-    // kind_double:     tagged[int32] (none)
-    // kind_external: external[int32] (none)
+    // kind_fast:                 tagged[int32] (none)
+    // kind_double:               tagged[int32] (none)
+    // kind_fixed_typed_array:    tagged[int32] (none)
+    // kind_external:             external[int32] (none)
     if (index == 0) {
       return is_external() ? Representation::External()
           : Representation::Tagged();
@@ -6446,7 +6402,7 @@ class HLoadKeyed V8_FINAL
     SetOperandAt(1, key);
     SetOperandAt(2, dependency != NULL ? dependency : obj);
 
-    if (!is_external()) {
+    if (!is_typed_elements()) {
       // I can detect the case between storing double (holey and fast) and
       // smi/object by looking at elements_kind_.
       ASSERT(IsFastSmiOrObjectElementsKind(elements_kind) ||
@@ -6473,13 +6429,21 @@ class HLoadKeyed V8_FINAL
       }
     } else {
       if (elements_kind == EXTERNAL_FLOAT_ELEMENTS ||
-          elements_kind == EXTERNAL_DOUBLE_ELEMENTS) {
+          elements_kind == EXTERNAL_DOUBLE_ELEMENTS ||
+          elements_kind == FLOAT32_ELEMENTS ||
+          elements_kind == FLOAT64_ELEMENTS) {
         set_representation(Representation::Double());
       } else {
         set_representation(Representation::Integer32());
       }
 
-      SetGVNFlag(kDependsOnExternalMemory);
+      if (is_external()) {
+        SetGVNFlag(kDependsOnExternalMemory);
+      } else if (is_fixed_typed_array()) {
+        SetGVNFlag(kDependsOnTypedArrayElements);
+      } else {
+        UNREACHABLE();
+      }
       // Native code could change the specialized array.
       SetGVNFlag(kDependsOnCalls);
     }
@@ -6738,10 +6702,11 @@ class HStoreKeyed V8_FINAL
                                  ElementsKind, StoreFieldOrKeyedMode);
 
   virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
-    // kind_fast:       tagged[int32] = tagged
-    // kind_double:     tagged[int32] = double
-    // kind_smi   :     tagged[int32] = smi
-    // kind_external: external[int32] = (double | int32)
+    // kind_fast:               tagged[int32] = tagged
+    // kind_double:             tagged[int32] = double
+    // kind_smi   :             tagged[int32] = smi
+    // kind_fixed_typed_array:  tagged[int32] = (double | int32)
+    // kind_external:           external[int32] = (double | int32)
     if (index == 0) {
       return is_external() ? Representation::External()
                            : Representation::Tagged();
@@ -6761,12 +6726,21 @@ class HStoreKeyed V8_FINAL
       return Representation::Smi();
     }
 
-    return is_external() ? Representation::Integer32()
-                         : Representation::Tagged();
+    return is_external() || is_fixed_typed_array()
+        ? Representation::Integer32()
+        : Representation::Tagged();
   }
 
   bool is_external() const {
     return IsExternalArrayElementsKind(elements_kind());
+  }
+
+  bool is_fixed_typed_array() const {
+    return IsFixedTypedArrayElementsKind(elements_kind());
+  }
+
+  bool is_typed_elements() const {
+    return is_external() || is_fixed_typed_array();
   }
 
   virtual Representation observed_input_representation(int index) V8_OVERRIDE {
@@ -6783,7 +6757,7 @@ class HStoreKeyed V8_FINAL
     if (IsFastSmiElementsKind(elements_kind())) {
       return Representation::Smi();
     }
-    if (is_external()) {
+    if (is_typed_elements()) {
       return Representation::Integer32();
     }
     // For fast object elements kinds, don't assume anything.
@@ -6868,13 +6842,18 @@ class HStoreKeyed V8_FINAL
       SetGVNFlag(kChangesDoubleArrayElements);
     } else if (IsFastSmiElementsKind(elements_kind)) {
       SetGVNFlag(kChangesArrayElements);
+    } else if (is_fixed_typed_array()) {
+      SetGVNFlag(kChangesTypedArrayElements);
+      SetFlag(kAllowUndefinedAsNaN);
     } else {
       SetGVNFlag(kChangesArrayElements);
     }
 
     // EXTERNAL_{UNSIGNED_,}{BYTE,SHORT,INT}_ELEMENTS are truncating.
-    if (elements_kind >= EXTERNAL_BYTE_ELEMENTS &&
-        elements_kind <= EXTERNAL_UNSIGNED_INT_ELEMENTS) {
+    if ((elements_kind >= EXTERNAL_BYTE_ELEMENTS &&
+        elements_kind <= EXTERNAL_UNSIGNED_INT_ELEMENTS) ||
+        (elements_kind >= UINT8_ELEMENTS &&
+        elements_kind <= INT32_ELEMENTS)) {
       SetFlag(kTruncatingToInt32);
     }
   }

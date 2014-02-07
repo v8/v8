@@ -2851,18 +2851,6 @@ void LCodeGen::DoStoreGlobalCell(LStoreGlobalCell* instr) {
 }
 
 
-void LCodeGen::DoStoreGlobalGeneric(LStoreGlobalGeneric* instr) {
-  ASSERT(ToRegister(instr->context()).is(cp));
-  ASSERT(ToRegister(instr->global_object()).is(a1));
-  ASSERT(ToRegister(instr->value()).is(a0));
-
-  __ li(a2, Operand(instr->name()));
-  Handle<Code> ic = StoreIC::initialize_stub(isolate(),
-                                             instr->strict_mode_flag(),
-                                             CONTEXTUAL);
-  CallCode(ic, RelocInfo::CODE_TARGET, instr);
-}
-
 
 void LCodeGen::DoLoadContextSlot(LLoadContextSlot* instr) {
   Register context = ToRegister(instr->context());
@@ -3082,10 +3070,16 @@ void LCodeGen::DoLoadKeyedExternalArray(LLoadKeyed* instr) {
   int element_size_shift = ElementsKindToShiftSize(elements_kind);
   int shift_size = (instr->hydrogen()->key()->representation().IsSmi())
       ? (element_size_shift - kSmiTagSize) : element_size_shift;
-  int additional_offset = instr->additional_index() << element_size_shift;
+  int additional_offset = IsFixedTypedArrayElementsKind(elements_kind)
+      ? FixedTypedArrayBase::kDataOffset - kHeapObjectTag
+      : 0;
 
   if (elements_kind == EXTERNAL_FLOAT_ELEMENTS ||
-      elements_kind == EXTERNAL_DOUBLE_ELEMENTS) {
+      elements_kind == FLOAT32_ELEMENTS ||
+      elements_kind == EXTERNAL_DOUBLE_ELEMENTS ||
+      elements_kind == FLOAT64_ELEMENTS) {
+    int base_offset =
+      (instr->additional_index() << element_size_shift) + additional_offset;
     FPURegister result = ToDoubleRegister(instr->result());
     if (key_is_constant) {
       __ Addu(scratch0(), external_pointer, constant_key << element_size_shift);
@@ -3093,11 +3087,12 @@ void LCodeGen::DoLoadKeyedExternalArray(LLoadKeyed* instr) {
       __ sll(scratch0(), key, shift_size);
       __ Addu(scratch0(), scratch0(), external_pointer);
     }
-    if (elements_kind == EXTERNAL_FLOAT_ELEMENTS) {
-      __ lwc1(result, MemOperand(scratch0(), additional_offset));
+    if (elements_kind == EXTERNAL_FLOAT_ELEMENTS ||
+        elements_kind == FLOAT32_ELEMENTS) {
+      __ lwc1(result, MemOperand(scratch0(), base_offset));
       __ cvt_d_s(result, result);
-    } else  {  // i.e. elements_kind == EXTERNAL_DOUBLE_ELEMENTS
-      __ ldc1(result, MemOperand(scratch0(), additional_offset));
+    } else  {  // loading doubles, not floats.
+      __ ldc1(result, MemOperand(scratch0(), base_offset));
     }
   } else {
     Register result = ToRegister(instr->result());
@@ -3107,28 +3102,37 @@ void LCodeGen::DoLoadKeyedExternalArray(LLoadKeyed* instr) {
         instr->additional_index(), additional_offset);
     switch (elements_kind) {
       case EXTERNAL_BYTE_ELEMENTS:
+      case INT8_ELEMENTS:
         __ lb(result, mem_operand);
         break;
       case EXTERNAL_PIXEL_ELEMENTS:
       case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
+      case UINT8_ELEMENTS:
+      case UINT8_CLAMPED_ELEMENTS:
         __ lbu(result, mem_operand);
         break;
       case EXTERNAL_SHORT_ELEMENTS:
+      case INT16_ELEMENTS:
         __ lh(result, mem_operand);
         break;
       case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
+      case UINT16_ELEMENTS:
         __ lhu(result, mem_operand);
         break;
       case EXTERNAL_INT_ELEMENTS:
+      case INT32_ELEMENTS:
         __ lw(result, mem_operand);
         break;
       case EXTERNAL_UNSIGNED_INT_ELEMENTS:
+      case UINT32_ELEMENTS:
         __ lw(result, mem_operand);
         if (!instr->hydrogen()->CheckFlag(HInstruction::kUint32)) {
           DeoptimizeIf(Ugreater_equal, instr->environment(),
               result, Operand(0x80000000));
         }
         break;
+      case FLOAT32_ELEMENTS:
+      case FLOAT64_ELEMENTS:
       case EXTERNAL_FLOAT_ELEMENTS:
       case EXTERNAL_DOUBLE_ELEMENTS:
       case FAST_DOUBLE_ELEMENTS:
@@ -3227,7 +3231,7 @@ void LCodeGen::DoLoadKeyedFixedArray(LLoadKeyed* instr) {
 
 
 void LCodeGen::DoLoadKeyed(LLoadKeyed* instr) {
-  if (instr->is_external()) {
+  if (instr->is_typed_elements()) {
     DoLoadKeyedExternalArray(instr);
   } else if (instr->hydrogen()->representation().IsDouble()) {
     DoLoadKeyedFixedDoubleArray(instr);
@@ -3245,14 +3249,28 @@ MemOperand LCodeGen::PrepareKeyedOperand(Register key,
                                          int shift_size,
                                          int additional_index,
                                          int additional_offset) {
-  if (additional_index != 0 && !key_is_constant) {
-    additional_index *= 1 << (element_size - shift_size);
-    __ Addu(scratch0(), key, Operand(additional_index));
-  }
-
+  int base_offset = (additional_index << element_size) + additional_offset;
   if (key_is_constant) {
     return MemOperand(base,
-                      (constant_key << element_size) + additional_offset);
+                      base_offset + (constant_key << element_size));
+  }
+
+  if (additional_offset != 0) {
+    if (shift_size >= 0) {
+      __ sll(scratch0(), key, shift_size);
+      __ Addu(scratch0(), scratch0(), Operand(base_offset));
+    } else {
+      ASSERT_EQ(-1, shift_size);
+      __ srl(scratch0(), key, 1);
+      __ Addu(scratch0(), scratch0(), Operand(base_offset));
+    }
+    __ Addu(scratch0(), base, scratch0());
+    return MemOperand(scratch0());
+  }
+
+  if (additional_index != 0) {
+    additional_index *= 1 << (element_size - shift_size);
+    __ Addu(scratch0(), key, Operand(additional_index));
   }
 
   if (additional_index == 0) {
@@ -3954,7 +3972,7 @@ void LCodeGen::DoCallNewArray(LCallNewArray* instr) {
   ASSERT(ToRegister(instr->result()).is(v0));
 
   __ li(a0, Operand(instr->arity()));
-  __ li(a2, Operand(instr->hydrogen()->property_cell()));
+  __ li(a2, Operand(factory()->undefined_value()));
   ElementsKind kind = instr->hydrogen()->elements_kind();
   AllocationSiteOverrideMode override_mode =
       (AllocationSite::GetMode(kind) == TRACK_ALLOCATION_SITE)
@@ -4115,8 +4133,7 @@ void LCodeGen::DoStoreNamedGeneric(LStoreNamedGeneric* instr) {
   // Name is always in a2.
   __ li(a2, Operand(instr->name()));
   Handle<Code> ic = StoreIC::initialize_stub(isolate(),
-                                             instr->strict_mode_flag(),
-                                             NOT_CONTEXTUAL);
+                                             instr->strict_mode_flag());
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
 }
 
@@ -4178,10 +4195,16 @@ void LCodeGen::DoStoreKeyedExternalArray(LStoreKeyed* instr) {
   int element_size_shift = ElementsKindToShiftSize(elements_kind);
   int shift_size = (instr->hydrogen()->key()->representation().IsSmi())
       ? (element_size_shift - kSmiTagSize) : element_size_shift;
-  int additional_offset = instr->additional_index() << element_size_shift;
+  int additional_offset = IsFixedTypedArrayElementsKind(elements_kind)
+      ? FixedTypedArrayBase::kDataOffset - kHeapObjectTag
+      : 0;
 
   if (elements_kind == EXTERNAL_FLOAT_ELEMENTS ||
-      elements_kind == EXTERNAL_DOUBLE_ELEMENTS) {
+      elements_kind == FLOAT32_ELEMENTS ||
+      elements_kind == EXTERNAL_DOUBLE_ELEMENTS ||
+      elements_kind == FLOAT64_ELEMENTS) {
+    int base_offset =
+      (instr->additional_index() << element_size_shift) + additional_offset;
     Register address = scratch0();
     FPURegister value(ToDoubleRegister(instr->value()));
     if (key_is_constant) {
@@ -4196,11 +4219,12 @@ void LCodeGen::DoStoreKeyedExternalArray(LStoreKeyed* instr) {
       __ Addu(address, external_pointer, address);
     }
 
-    if (elements_kind == EXTERNAL_FLOAT_ELEMENTS) {
+    if (elements_kind == EXTERNAL_FLOAT_ELEMENTS ||
+        elements_kind == FLOAT32_ELEMENTS) {
       __ cvt_s_d(double_scratch0(), value);
-      __ swc1(double_scratch0(), MemOperand(address, additional_offset));
-    } else {  // i.e. elements_kind == EXTERNAL_DOUBLE_ELEMENTS
-      __ sdc1(value, MemOperand(address, additional_offset));
+      __ swc1(double_scratch0(), MemOperand(address, base_offset));
+    } else {  // Storing doubles, not floats.
+      __ sdc1(value, MemOperand(address, base_offset));
     }
   } else {
     Register value(ToRegister(instr->value()));
@@ -4212,16 +4236,25 @@ void LCodeGen::DoStoreKeyedExternalArray(LStoreKeyed* instr) {
       case EXTERNAL_PIXEL_ELEMENTS:
       case EXTERNAL_BYTE_ELEMENTS:
       case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
+      case UINT8_ELEMENTS:
+      case UINT8_CLAMPED_ELEMENTS:
+      case INT8_ELEMENTS:
         __ sb(value, mem_operand);
         break;
       case EXTERNAL_SHORT_ELEMENTS:
       case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
+      case INT16_ELEMENTS:
+      case UINT16_ELEMENTS:
         __ sh(value, mem_operand);
         break;
       case EXTERNAL_INT_ELEMENTS:
       case EXTERNAL_UNSIGNED_INT_ELEMENTS:
+      case INT32_ELEMENTS:
+      case UINT32_ELEMENTS:
         __ sw(value, mem_operand);
         break;
+      case FLOAT32_ELEMENTS:
+      case FLOAT64_ELEMENTS:
       case EXTERNAL_FLOAT_ELEMENTS:
       case EXTERNAL_DOUBLE_ELEMENTS:
       case FAST_DOUBLE_ELEMENTS:
@@ -4340,7 +4373,7 @@ void LCodeGen::DoStoreKeyedFixedArray(LStoreKeyed* instr) {
 
 void LCodeGen::DoStoreKeyed(LStoreKeyed* instr) {
   // By cases: external, fast double
-  if (instr->is_external()) {
+  if (instr->is_typed_elements()) {
     DoStoreKeyedExternalArray(instr);
   } else if (instr->hydrogen()->value()->representation().IsDouble()) {
     DoStoreKeyedFixedDoubleArray(instr);
@@ -4411,18 +4444,11 @@ void LCodeGen::DoTrapAllocationMemento(LTrapAllocationMemento* instr) {
 
 void LCodeGen::DoStringAdd(LStringAdd* instr) {
   ASSERT(ToRegister(instr->context()).is(cp));
-  if (FLAG_new_string_add) {
-    ASSERT(ToRegister(instr->left()).is(a1));
-    ASSERT(ToRegister(instr->right()).is(a0));
-    NewStringAddStub stub(instr->hydrogen()->flags(),
-                          isolate()->heap()->GetPretenureMode());
-    CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
-  } else {
-    __ push(ToRegister(instr->left()));
-    __ push(ToRegister(instr->right()));
-    StringAddStub stub(instr->hydrogen()->flags());
-    CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
-  }
+  ASSERT(ToRegister(instr->left()).is(a1));
+  ASSERT(ToRegister(instr->right()).is(a0));
+  StringAddStub stub(instr->hydrogen()->flags(),
+                     isolate()->heap()->GetPretenureMode());
+  CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
 }
 
 

@@ -101,14 +101,39 @@ void Bootstrapper::Initialize(bool create_heap_objects) {
 }
 
 
+static const char* GCFunctionName() {
+  bool flag_given = FLAG_expose_gc_as != NULL && strlen(FLAG_expose_gc_as) != 0;
+  return flag_given ? FLAG_expose_gc_as : "gc";
+}
+
+
+v8::Extension* Bootstrapper::free_buffer_extension_ = NULL;
+v8::Extension* Bootstrapper::gc_extension_ = NULL;
+v8::Extension* Bootstrapper::externalize_string_extension_ = NULL;
+v8::Extension* Bootstrapper::statistics_extension_ = NULL;
+v8::Extension* Bootstrapper::trigger_failure_extension_ = NULL;
+
+
 void Bootstrapper::InitializeOncePerProcess() {
-#ifdef ADDRESS_SANITIZER
-  FreeBufferExtension::Register();
-#endif
-  GCExtension::Register();
-  ExternalizeStringExtension::Register();
-  StatisticsExtension::Register();
-  TriggerFailureExtension::Register();
+  free_buffer_extension_ = new FreeBufferExtension;
+  v8::RegisterExtension(free_buffer_extension_);
+  gc_extension_ = new GCExtension(GCFunctionName());
+  v8::RegisterExtension(gc_extension_);
+  externalize_string_extension_ = new ExternalizeStringExtension;
+  v8::RegisterExtension(externalize_string_extension_);
+  statistics_extension_ = new StatisticsExtension;
+  v8::RegisterExtension(statistics_extension_);
+  trigger_failure_extension_ = new TriggerFailureExtension;
+  v8::RegisterExtension(trigger_failure_extension_);
+}
+
+
+void Bootstrapper::TearDownExtensions() {
+  delete free_buffer_extension_;
+  delete gc_extension_;
+  delete externalize_string_extension_;
+  delete statistics_extension_;
+  delete trigger_failure_extension_;
 }
 
 
@@ -238,13 +263,18 @@ class Genesis BASE_EMBEDDED {
   // provided.
   static bool InstallExtensions(Handle<Context> native_context,
                                 v8::ExtensionConfiguration* extensions);
+  static bool InstallAutoExtensions(Isolate* isolate,
+                                    ExtensionStates* extension_states);
+  static bool InstallRequestedExtensions(Isolate* isolate,
+                                         v8::ExtensionConfiguration* extensions,
+                                         ExtensionStates* extension_states);
   static bool InstallExtension(Isolate* isolate,
                                const char* name,
                                ExtensionStates* extension_states);
   static bool InstallExtension(Isolate* isolate,
                                v8::RegisteredExtension* current,
                                ExtensionStates* extension_states);
-  static void InstallSpecialObjects(Handle<Context> native_context);
+  static bool InstallSpecialObjects(Handle<Context> native_context);
   bool InstallJSBuiltins(Handle<JSBuiltinsObject> builtins);
   bool ConfigureApiObject(Handle<JSObject> object,
                           Handle<ObjectTemplateInfo> object_template);
@@ -2152,13 +2182,12 @@ bool Bootstrapper::InstallExtensions(Handle<Context> native_context,
   BootstrapperActive active(this);
   SaveContext saved_context(isolate_);
   isolate_->set_context(*native_context);
-  if (!Genesis::InstallExtensions(native_context, extensions)) return false;
-  Genesis::InstallSpecialObjects(native_context);
-  return true;
+  return Genesis::InstallExtensions(native_context, extensions) &&
+      Genesis::InstallSpecialObjects(native_context);
 }
 
 
-void Genesis::InstallSpecialObjects(Handle<Context> native_context) {
+bool Genesis::InstallSpecialObjects(Handle<Context> native_context) {
   Isolate* isolate = native_context->GetIsolate();
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
@@ -2168,11 +2197,9 @@ void Genesis::InstallSpecialObjects(Handle<Context> native_context) {
   if (FLAG_expose_natives_as != NULL && strlen(FLAG_expose_natives_as) != 0) {
     Handle<String> natives =
         factory->InternalizeUtf8String(FLAG_expose_natives_as);
-    CHECK_NOT_EMPTY_HANDLE(isolate,
-                           JSObject::SetLocalPropertyIgnoreAttributes(
-                               global, natives,
-                               Handle<JSObject>(global->builtins()),
-                               DONT_ENUM));
+    JSObject::SetLocalPropertyIgnoreAttributes(
+        global, natives, Handle<JSObject>(global->builtins()), DONT_ENUM);
+    if (isolate->has_pending_exception()) return false;
   }
 
   Handle<Object> Error = GetProperty(global, "Error");
@@ -2181,10 +2208,9 @@ void Genesis::InstallSpecialObjects(Handle<Context> native_context) {
         STATIC_ASCII_VECTOR("stackTraceLimit"));
     Handle<Smi> stack_trace_limit(
         Smi::FromInt(FLAG_stack_trace_limit), isolate);
-    CHECK_NOT_EMPTY_HANDLE(isolate,
-                           JSObject::SetLocalPropertyIgnoreAttributes(
-                               Handle<JSObject>::cast(Error), name,
-                               stack_trace_limit, NONE));
+    JSObject::SetLocalPropertyIgnoreAttributes(
+        Handle<JSObject>::cast(Error), name, stack_trace_limit, NONE);
+    if (isolate->has_pending_exception()) return false;
   }
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
@@ -2193,7 +2219,7 @@ void Genesis::InstallSpecialObjects(Handle<Context> native_context) {
     Debug* debug = isolate->debug();
     // If loading fails we just bail out without installing the
     // debugger but without tanking the whole context.
-    if (!debug->Load()) return;
+    if (!debug->Load()) return true;
     // Set the security token for the debugger context to the same as
     // the shell native context to allow calling between these (otherwise
     // exposing debug global object doesn't make much sense).
@@ -2204,11 +2230,12 @@ void Genesis::InstallSpecialObjects(Handle<Context> native_context) {
         factory->InternalizeUtf8String(FLAG_expose_debug_as);
     Handle<Object> global_proxy(
         debug->debug_context()->global_proxy(), isolate);
-    CHECK_NOT_EMPTY_HANDLE(isolate,
-                           JSObject::SetLocalPropertyIgnoreAttributes(
-                               global, debug_string, global_proxy, DONT_ENUM));
+    JSObject::SetLocalPropertyIgnoreAttributes(
+        global, debug_string, global_proxy, DONT_ENUM);
+    if (isolate->has_pending_exception()) return false;
   }
 #endif
+  return true;
 }
 
 
@@ -2240,38 +2267,46 @@ void Genesis::ExtensionStates::set_state(RegisteredExtension* extension,
       reinterpret_cast<void*>(static_cast<intptr_t>(state));
 }
 
+
 bool Genesis::InstallExtensions(Handle<Context> native_context,
                                 v8::ExtensionConfiguration* extensions) {
   Isolate* isolate = native_context->GetIsolate();
   ExtensionStates extension_states;  // All extensions have state UNVISITED.
-  // Install auto extensions.
-  v8::RegisteredExtension* current = v8::RegisteredExtension::first_extension();
-  while (current != NULL) {
-    if (current->extension()->auto_enable())
-      InstallExtension(isolate, current, &extension_states);
-    current = current->next();
-  }
+  return InstallAutoExtensions(isolate, &extension_states) &&
+      (!FLAG_expose_free_buffer ||
+       InstallExtension(isolate, "v8/free-buffer", &extension_states)) &&
+      (!FLAG_expose_gc ||
+       InstallExtension(isolate, "v8/gc", &extension_states)) &&
+      (!FLAG_expose_externalize_string ||
+       InstallExtension(isolate, "v8/externalize", &extension_states)) &&
+      (!FLAG_track_gc_object_stats ||
+       InstallExtension(isolate, "v8/statistics", &extension_states)) &&
+      (!FLAG_expose_trigger_failure ||
+       InstallExtension(isolate, "v8/trigger-failure", &extension_states)) &&
+      InstallRequestedExtensions(isolate, extensions, &extension_states);
+}
 
-#ifdef ADDRESS_SANITIZER
-  if (FLAG_expose_free_buffer) {
-    InstallExtension(isolate, "v8/free-buffer", &extension_states);
-  }
-#endif
-  if (FLAG_expose_gc) InstallExtension(isolate, "v8/gc", &extension_states);
-  if (FLAG_expose_externalize_string) {
-    InstallExtension(isolate, "v8/externalize", &extension_states);
-  }
-  if (FLAG_track_gc_object_stats) {
-    InstallExtension(isolate, "v8/statistics", &extension_states);
-  }
-  if (FLAG_expose_trigger_failure) {
-    InstallExtension(isolate, "v8/trigger-failure", &extension_states);
-  }
 
+bool Genesis::InstallAutoExtensions(Isolate* isolate,
+                                    ExtensionStates* extension_states) {
+  for (v8::RegisteredExtension* it = v8::RegisteredExtension::first_extension();
+       it != NULL;
+       it = it->next()) {
+    if (it->extension()->auto_enable() &&
+        !InstallExtension(isolate, it, extension_states)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+
+bool Genesis::InstallRequestedExtensions(Isolate* isolate,
+                                         v8::ExtensionConfiguration* extensions,
+                                         ExtensionStates* extension_states) {
   for (const char** it = extensions->begin(); it != extensions->end(); ++it) {
-    if (!InstallExtension(isolate, *it, &extension_states)) return false;
+    if (!InstallExtension(isolate, *it, extension_states)) return false;
   }
-
   return true;
 }
 
@@ -2281,19 +2316,16 @@ bool Genesis::InstallExtensions(Handle<Context> native_context,
 bool Genesis::InstallExtension(Isolate* isolate,
                                const char* name,
                                ExtensionStates* extension_states) {
-  v8::RegisteredExtension* current = v8::RegisteredExtension::first_extension();
-  // Loop until we find the relevant extension
-  while (current != NULL) {
-    if (strcmp(name, current->extension()->name()) == 0) break;
-    current = current->next();
+  for (v8::RegisteredExtension* it = v8::RegisteredExtension::first_extension();
+       it != NULL;
+       it = it->next()) {
+    if (strcmp(name, it->extension()->name()) == 0) {
+      return InstallExtension(isolate, it, extension_states);
+    }
   }
-  // Didn't find the extension; fail.
-  if (!Utils::ApiCheck(current != NULL,
-                       "v8::Context::New()",
-                       "Cannot find required extension")) {
-    return false;
-  }
-  return InstallExtension(isolate, current, extension_states);
+  return Utils::ApiCheck(false,
+                         "v8::Context::New()",
+                         "Cannot find required extension");
 }
 
 

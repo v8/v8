@@ -45,7 +45,6 @@ namespace internal {
   V(BinaryOpICWithAllocationSite)        \
   V(BinaryOpWithAllocationSite)          \
   V(StringAdd)                           \
-  V(NewStringAdd)                        \
   V(SubString)                           \
   V(StringCompare)                       \
   V(Compare)                             \
@@ -78,6 +77,7 @@ namespace internal {
   V(CEntry)                              \
   V(JSEntry)                             \
   V(KeyedLoadElement)                    \
+  V(ArrayPush)                           \
   V(ArrayNoArgumentConstructor)          \
   V(ArraySingleArgumentConstructor)      \
   V(ArrayNArgumentsConstructor)          \
@@ -452,19 +452,6 @@ class RuntimeCallHelper {
 };
 
 
-// TODO(bmeurer): Move to the StringAddStub declaration once we're
-// done with the translation to a hydrogen code stub.
-enum StringAddFlags {
-  // Omit both parameter checks.
-  STRING_ADD_CHECK_NONE = 0,
-  // Check left parameter.
-  STRING_ADD_CHECK_LEFT = 1 << 0,
-  // Check right parameter.
-  STRING_ADD_CHECK_RIGHT = 1 << 1,
-  // Check both parameters.
-  STRING_ADD_CHECK_BOTH = STRING_ADD_CHECK_LEFT | STRING_ADD_CHECK_RIGHT
-};
-
 } }  // namespace v8::internal
 
 #if V8_TARGET_ARCH_IA32
@@ -577,7 +564,7 @@ class FastNewClosureStub : public HydrogenCodeStub {
 };
 
 
-class FastNewContextStub : public PlatformCodeStub {
+class FastNewContextStub V8_FINAL : public HydrogenCodeStub {
  public:
   static const int kMaximumSlots = 64;
 
@@ -585,13 +572,24 @@ class FastNewContextStub : public PlatformCodeStub {
     ASSERT(slots_ > 0 && slots_ <= kMaximumSlots);
   }
 
-  void Generate(MacroAssembler* masm);
+  virtual Handle<Code> GenerateCode(Isolate* isolate);
+
+  virtual void InitializeInterfaceDescriptor(
+      Isolate* isolate,
+      CodeStubInterfaceDescriptor* descriptor);
+
+  static void InstallDescriptors(Isolate* isolate);
+
+  int slots() const { return slots_; }
+
+  virtual Major MajorKey() V8_OVERRIDE { return FastNewContext; }
+  virtual int NotMissMinorKey() V8_OVERRIDE { return slots_; }
+
+  // Parameters accessed via CodeStubGraphBuilder::GetParameter()
+  static const int kFunction = 0;
 
  private:
   int slots_;
-
-  Major MajorKey() { return FastNewContext; }
-  int MinorKey() { return slots_; }
 };
 
 
@@ -1066,7 +1064,7 @@ class KeyedLoadFieldStub: public LoadFieldStub {
 class KeyedArrayCallStub: public HICStub {
  public:
   KeyedArrayCallStub(bool holey, int argc) : HICStub(), argc_(argc) {
-    bit_field_ = ContextualBits::encode(false) | HoleyBits::encode(holey);
+    bit_field_ = HoleyBits::encode(holey);
   }
 
   virtual Code::Kind kind() const { return Code::KEYED_CALL_IC; }
@@ -1095,12 +1093,9 @@ class KeyedArrayCallStub: public HICStub {
     return GetExtraICState() | ArgcBits::encode(argc_);
   }
 
-  class ContextualBits: public BitField<bool, 0, 1> {};
-  STATIC_ASSERT(IC::Contextual::kShift == ContextualBits::kShift);
-  STATIC_ASSERT(IC::Contextual::kSize == ContextualBits::kSize);
-  class HoleyBits: public BitField<bool, 1, 1> {};
-  STATIC_ASSERT(Code::kArgumentsBits <= kStubMinorKeyBits - 2);
-  class ArgcBits: public BitField<int, 2, Code::kArgumentsBits> {};
+  class HoleyBits: public BitField<bool, 0, 1> {};
+  STATIC_ASSERT(Code::kArgumentsBits <= kStubMinorKeyBits - 1);
+  class ArgcBits: public BitField<int, 1, Code::kArgumentsBits> {};
   virtual CodeStub::Major MajorKey() { return KeyedArrayCall; }
   int bit_field_;
   int argc_;
@@ -1159,6 +1154,30 @@ class BinaryOpICStub : public HydrogenCodeStub {
   BinaryOpIC::State state_;
 
   DISALLOW_COPY_AND_ASSIGN(BinaryOpICStub);
+};
+
+
+class ArrayPushStub: public PlatformCodeStub {
+ public:
+  ArrayPushStub(ElementsKind kind, int argc) {
+    bit_field_ = ElementsKindBits::encode(kind) | ArgcBits::encode(argc);
+  }
+
+  void Generate(MacroAssembler* masm);
+
+ private:
+  int arguments_count() { return ArgcBits::decode(bit_field_); }
+  ElementsKind elements_kind() {
+    return ElementsKindBits::decode(bit_field_);
+  }
+
+  virtual CodeStub::Major MajorKey() { return ArrayPush; }
+  virtual int MinorKey() { return bit_field_; }
+
+  class ElementsKindBits: public BitField<ElementsKind, 0, 3> {};
+  class ArgcBits: public BitField<int, 3, Code::kArgumentsBits> {};
+
+  int bit_field_;
 };
 
 
@@ -1242,10 +1261,21 @@ class BinaryOpWithAllocationSiteStub V8_FINAL : public BinaryOpICStub {
 };
 
 
-// TODO(bmeurer): Rename to StringAddStub once we dropped the old StringAddStub.
-class NewStringAddStub V8_FINAL : public HydrogenCodeStub {
+enum StringAddFlags {
+  // Omit both parameter checks.
+  STRING_ADD_CHECK_NONE = 0,
+  // Check left parameter.
+  STRING_ADD_CHECK_LEFT = 1 << 0,
+  // Check right parameter.
+  STRING_ADD_CHECK_RIGHT = 1 << 1,
+  // Check both parameters.
+  STRING_ADD_CHECK_BOTH = STRING_ADD_CHECK_LEFT | STRING_ADD_CHECK_RIGHT
+};
+
+
+class StringAddStub V8_FINAL : public HydrogenCodeStub {
  public:
-  NewStringAddStub(StringAddFlags flags, PretenureFlag pretenure_flag)
+  StringAddStub(StringAddFlags flags, PretenureFlag pretenure_flag)
       : bit_field_(StringAddFlagsBits::encode(flags) |
                    PretenureFlagBits::encode(pretenure_flag)) {}
 
@@ -1278,12 +1308,12 @@ class NewStringAddStub V8_FINAL : public HydrogenCodeStub {
   class PretenureFlagBits: public BitField<PretenureFlag, 2, 1> {};
   uint32_t bit_field_;
 
-  virtual Major MajorKey() V8_OVERRIDE { return NewStringAdd; }
+  virtual Major MajorKey() V8_OVERRIDE { return StringAdd; }
   virtual int NotMissMinorKey() V8_OVERRIDE { return bit_field_; }
 
   virtual void PrintBaseName(StringStream* stream) V8_OVERRIDE;
 
-  DISALLOW_COPY_AND_ASSIGN(NewStringAddStub);
+  DISALLOW_COPY_AND_ASSIGN(StringAddStub);
 };
 
 
@@ -1354,8 +1384,8 @@ class ICCompareStub: public PlatformCodeStub {
 
 class CompareNilICStub : public HydrogenCodeStub  {
  public:
-  Handle<Type> GetType(Isolate* isolate, Handle<Map> map = Handle<Map>());
-  Handle<Type> GetInputType(Isolate* isolate, Handle<Map> map);
+  Type* GetType(Zone* zone, Handle<Map> map = Handle<Map>());
+  Type* GetInputType(Zone* zone, Handle<Map> map);
 
   explicit CompareNilICStub(NilValue nil) : nil_value_(nil) { }
 
@@ -2072,7 +2102,7 @@ class ArrayConstructorStubBase : public HydrogenCodeStub {
 
   // Parameters accessed via CodeStubGraphBuilder::GetParameter()
   static const int kConstructor = 0;
-  static const int kPropertyCell = 1;
+  static const int kAllocationSite = 1;
 
  protected:
   void BasePrintName(const char* name, StringStream* stream);

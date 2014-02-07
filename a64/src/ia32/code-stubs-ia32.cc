@@ -54,6 +54,16 @@ void FastNewClosureStub::InitializeInterfaceDescriptor(
 }
 
 
+void FastNewContextStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  static Register registers[] = { edi };
+  descriptor->register_param_count_ = 1;
+  descriptor->register_params_ = registers;
+  descriptor->deoptimization_handler_ = NULL;
+}
+
+
 void ToNumberStub::InitializeInterfaceDescriptor(
     Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
@@ -191,7 +201,7 @@ static void InitializeArrayConstructorDescriptor(
   // register state
   // eax -- number of arguments
   // edi -- function
-  // ebx -- type info cell with elements kind
+  // ebx -- allocation site with elements kind
   static Register registers_variable_args[] = { edi, ebx, eax };
   static Register registers_no_args[] = { edi, ebx };
 
@@ -353,7 +363,7 @@ void BinaryOpWithAllocationSiteStub::InitializeInterfaceDescriptor(
 }
 
 
-void NewStringAddStub::InitializeInterfaceDescriptor(
+void StringAddStub::InitializeInterfaceDescriptor(
     Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
   static Register registers[] = { edx, eax };
@@ -438,49 +448,6 @@ void HydrogenCodeStub::GenerateLightweightMiss(MacroAssembler* masm) {
   }
 
   __ ret(0);
-}
-
-
-void FastNewContextStub::Generate(MacroAssembler* masm) {
-  // Try to allocate the context in new space.
-  Label gc;
-  int length = slots_ + Context::MIN_CONTEXT_SLOTS;
-  __ Allocate((length * kPointerSize) + FixedArray::kHeaderSize,
-              eax, ebx, ecx, &gc, TAG_OBJECT);
-
-  // Get the function from the stack.
-  __ mov(ecx, Operand(esp, 1 * kPointerSize));
-
-  // Set up the object header.
-  Factory* factory = masm->isolate()->factory();
-  __ mov(FieldOperand(eax, HeapObject::kMapOffset),
-         factory->function_context_map());
-  __ mov(FieldOperand(eax, Context::kLengthOffset),
-         Immediate(Smi::FromInt(length)));
-
-  // Set up the fixed slots.
-  __ Set(ebx, Immediate(0));  // Set to NULL.
-  __ mov(Operand(eax, Context::SlotOffset(Context::CLOSURE_INDEX)), ecx);
-  __ mov(Operand(eax, Context::SlotOffset(Context::PREVIOUS_INDEX)), esi);
-  __ mov(Operand(eax, Context::SlotOffset(Context::EXTENSION_INDEX)), ebx);
-
-  // Copy the global object from the previous context.
-  __ mov(ebx, Operand(esi, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
-  __ mov(Operand(eax, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)), ebx);
-
-  // Initialize the rest of the slots to undefined.
-  __ mov(ebx, factory->undefined_value());
-  for (int i = Context::MIN_CONTEXT_SLOTS; i < length; i++) {
-    __ mov(Operand(eax, Context::SlotOffset(i)), ebx);
-  }
-
-  // Return and remove the on-stack parameter.
-  __ mov(esi, eax);
-  __ ret(1 * kPointerSize);
-
-  // Need to collect. Call into runtime system.
-  __ bind(&gc);
-  __ TailCallRuntime(Runtime::kNewFunctionContext, 1, 1);
 }
 
 
@@ -3377,396 +3344,6 @@ void StringCharFromCodeGenerator::GenerateSlow(
 }
 
 
-void StringAddStub::Generate(MacroAssembler* masm) {
-  Label call_runtime, call_builtin;
-  Builtins::JavaScript builtin_id = Builtins::ADD;
-
-  // Load the two arguments.
-  __ mov(eax, Operand(esp, 2 * kPointerSize));  // First argument.
-  __ mov(edx, Operand(esp, 1 * kPointerSize));  // Second argument.
-
-  // Make sure that both arguments are strings if not known in advance.
-  // Otherwise, at least one of the arguments is definitely a string,
-  // and we convert the one that is not known to be a string.
-  if ((flags_ & STRING_ADD_CHECK_BOTH) == STRING_ADD_CHECK_BOTH) {
-    ASSERT((flags_ & STRING_ADD_CHECK_LEFT) == STRING_ADD_CHECK_LEFT);
-    ASSERT((flags_ & STRING_ADD_CHECK_RIGHT) == STRING_ADD_CHECK_RIGHT);
-    __ JumpIfSmi(eax, &call_runtime);
-    __ CmpObjectType(eax, FIRST_NONSTRING_TYPE, ebx);
-    __ j(above_equal, &call_runtime);
-
-    // First argument is a a string, test second.
-    __ JumpIfSmi(edx, &call_runtime);
-    __ CmpObjectType(edx, FIRST_NONSTRING_TYPE, ebx);
-    __ j(above_equal, &call_runtime);
-  } else if ((flags_ & STRING_ADD_CHECK_LEFT) == STRING_ADD_CHECK_LEFT) {
-    ASSERT((flags_ & STRING_ADD_CHECK_RIGHT) == 0);
-    GenerateConvertArgument(masm, 2 * kPointerSize, eax, ebx, ecx, edi,
-                            &call_builtin);
-    builtin_id = Builtins::STRING_ADD_RIGHT;
-  } else if ((flags_ & STRING_ADD_CHECK_RIGHT) == STRING_ADD_CHECK_RIGHT) {
-    ASSERT((flags_ & STRING_ADD_CHECK_LEFT) == 0);
-    GenerateConvertArgument(masm, 1 * kPointerSize, edx, ebx, ecx, edi,
-                            &call_builtin);
-    builtin_id = Builtins::STRING_ADD_LEFT;
-  }
-
-  // Both arguments are strings.
-  // eax: first string
-  // edx: second string
-  // Check if either of the strings are empty. In that case return the other.
-  Label second_not_zero_length, both_not_zero_length;
-  __ mov(ecx, FieldOperand(edx, String::kLengthOffset));
-  STATIC_ASSERT(kSmiTag == 0);
-  __ test(ecx, ecx);
-  __ j(not_zero, &second_not_zero_length, Label::kNear);
-  // Second string is empty, result is first string which is already in eax.
-  Counters* counters = masm->isolate()->counters();
-  __ IncrementCounter(counters->string_add_native(), 1);
-  __ ret(2 * kPointerSize);
-  __ bind(&second_not_zero_length);
-  __ mov(ebx, FieldOperand(eax, String::kLengthOffset));
-  STATIC_ASSERT(kSmiTag == 0);
-  __ test(ebx, ebx);
-  __ j(not_zero, &both_not_zero_length, Label::kNear);
-  // First string is empty, result is second string which is in edx.
-  __ mov(eax, edx);
-  __ IncrementCounter(counters->string_add_native(), 1);
-  __ ret(2 * kPointerSize);
-
-  // Both strings are non-empty.
-  // eax: first string
-  // ebx: length of first string as a smi
-  // ecx: length of second string as a smi
-  // edx: second string
-  // Look at the length of the result of adding the two strings.
-  Label string_add_flat_result, longer_than_two;
-  __ bind(&both_not_zero_length);
-  __ add(ebx, ecx);
-  STATIC_ASSERT(Smi::kMaxValue == String::kMaxLength);
-  // Handle exceptionally long strings in the runtime system.
-  __ j(overflow, &call_runtime);
-  // Use the string table when adding two one character strings, as it
-  // helps later optimizations to return an internalized string here.
-  __ cmp(ebx, Immediate(Smi::FromInt(2)));
-  __ j(not_equal, &longer_than_two);
-
-  // Check that both strings are non-external ASCII strings.
-  __ JumpIfNotBothSequentialAsciiStrings(eax, edx, ebx, ecx, &call_runtime);
-
-  // Get the two characters forming the new string.
-  __ movzx_b(ebx, FieldOperand(eax, SeqOneByteString::kHeaderSize));
-  __ movzx_b(ecx, FieldOperand(edx, SeqOneByteString::kHeaderSize));
-
-  // Try to lookup two character string in string table. If it is not found
-  // just allocate a new one.
-  Label make_two_character_string, make_two_character_string_no_reload;
-  StringHelper::GenerateTwoCharacterStringTableProbe(
-      masm, ebx, ecx, eax, edx, edi,
-      &make_two_character_string_no_reload, &make_two_character_string);
-  __ IncrementCounter(counters->string_add_native(), 1);
-  __ ret(2 * kPointerSize);
-
-  // Allocate a two character string.
-  __ bind(&make_two_character_string);
-  // Reload the arguments.
-  __ mov(eax, Operand(esp, 2 * kPointerSize));  // First argument.
-  __ mov(edx, Operand(esp, 1 * kPointerSize));  // Second argument.
-  // Get the two characters forming the new string.
-  __ movzx_b(ebx, FieldOperand(eax, SeqOneByteString::kHeaderSize));
-  __ movzx_b(ecx, FieldOperand(edx, SeqOneByteString::kHeaderSize));
-  __ bind(&make_two_character_string_no_reload);
-  __ IncrementCounter(counters->string_add_make_two_char(), 1);
-  __ AllocateAsciiString(eax, 2, edi, edx, &call_runtime);
-  // Pack both characters in ebx.
-  __ shl(ecx, kBitsPerByte);
-  __ or_(ebx, ecx);
-  // Set the characters in the new string.
-  __ mov_w(FieldOperand(eax, SeqOneByteString::kHeaderSize), ebx);
-  __ IncrementCounter(counters->string_add_native(), 1);
-  __ ret(2 * kPointerSize);
-
-  __ bind(&longer_than_two);
-  // Check if resulting string will be flat.
-  __ cmp(ebx, Immediate(Smi::FromInt(ConsString::kMinLength)));
-  __ j(below, &string_add_flat_result);
-
-  // If result is not supposed to be flat allocate a cons string object. If both
-  // strings are ASCII the result is an ASCII cons string.
-  Label non_ascii, allocated, ascii_data;
-  __ mov(edi, FieldOperand(eax, HeapObject::kMapOffset));
-  __ movzx_b(ecx, FieldOperand(edi, Map::kInstanceTypeOffset));
-  __ mov(edi, FieldOperand(edx, HeapObject::kMapOffset));
-  __ movzx_b(edi, FieldOperand(edi, Map::kInstanceTypeOffset));
-  __ and_(ecx, edi);
-  STATIC_ASSERT((kStringEncodingMask & kOneByteStringTag) != 0);
-  STATIC_ASSERT((kStringEncodingMask & kTwoByteStringTag) == 0);
-  __ test(ecx, Immediate(kStringEncodingMask));
-  __ j(zero, &non_ascii);
-  __ bind(&ascii_data);
-  // Allocate an ASCII cons string.
-  __ AllocateAsciiConsString(ecx, edi, no_reg, &call_runtime);
-  __ bind(&allocated);
-  // Fill the fields of the cons string.
-  __ AssertSmi(ebx);
-  __ mov(FieldOperand(ecx, ConsString::kLengthOffset), ebx);
-  __ mov(FieldOperand(ecx, ConsString::kHashFieldOffset),
-         Immediate(String::kEmptyHashField));
-
-  Label skip_write_barrier, after_writing;
-  ExternalReference high_promotion_mode = ExternalReference::
-      new_space_high_promotion_mode_active_address(masm->isolate());
-  __ test(Operand::StaticVariable(high_promotion_mode), Immediate(1));
-  __ j(zero, &skip_write_barrier);
-
-  __ mov(FieldOperand(ecx, ConsString::kFirstOffset), eax);
-  __ RecordWriteField(ecx,
-                     ConsString::kFirstOffset,
-                     eax,
-                     ebx,
-                     kDontSaveFPRegs);
-  __ mov(FieldOperand(ecx, ConsString::kSecondOffset), edx);
-  __ RecordWriteField(ecx,
-                     ConsString::kSecondOffset,
-                     edx,
-                     ebx,
-                     kDontSaveFPRegs);
-  __ jmp(&after_writing);
-
-  __ bind(&skip_write_barrier);
-  __ mov(FieldOperand(ecx, ConsString::kFirstOffset), eax);
-  __ mov(FieldOperand(ecx, ConsString::kSecondOffset), edx);
-
-  __ bind(&after_writing);
-
-  __ mov(eax, ecx);
-  __ IncrementCounter(counters->string_add_native(), 1);
-  __ ret(2 * kPointerSize);
-  __ bind(&non_ascii);
-  // At least one of the strings is two-byte. Check whether it happens
-  // to contain only one byte characters.
-  // ecx: first instance type AND second instance type.
-  // edi: second instance type.
-  __ test(ecx, Immediate(kOneByteDataHintMask));
-  __ j(not_zero, &ascii_data);
-  __ mov(ecx, FieldOperand(eax, HeapObject::kMapOffset));
-  __ movzx_b(ecx, FieldOperand(ecx, Map::kInstanceTypeOffset));
-  __ xor_(edi, ecx);
-  STATIC_ASSERT(kOneByteStringTag != 0 && kOneByteDataHintTag != 0);
-  __ and_(edi, kOneByteStringTag | kOneByteDataHintTag);
-  __ cmp(edi, kOneByteStringTag | kOneByteDataHintTag);
-  __ j(equal, &ascii_data);
-  // Allocate a two byte cons string.
-  __ AllocateTwoByteConsString(ecx, edi, no_reg, &call_runtime);
-  __ jmp(&allocated);
-
-  // We cannot encounter sliced strings or cons strings here since:
-  STATIC_ASSERT(SlicedString::kMinLength >= ConsString::kMinLength);
-  // Handle creating a flat result from either external or sequential strings.
-  // Locate the first characters' locations.
-  // eax: first string
-  // ebx: length of resulting flat string as a smi
-  // edx: second string
-  Label first_prepared, second_prepared;
-  Label first_is_sequential, second_is_sequential;
-  __ bind(&string_add_flat_result);
-  __ mov(ecx, FieldOperand(eax, HeapObject::kMapOffset));
-  __ movzx_b(ecx, FieldOperand(ecx, Map::kInstanceTypeOffset));
-  // ecx: instance type of first string
-  STATIC_ASSERT(kSeqStringTag == 0);
-  __ test_b(ecx, kStringRepresentationMask);
-  __ j(zero, &first_is_sequential, Label::kNear);
-  // Rule out short external string and load string resource.
-  STATIC_ASSERT(kShortExternalStringTag != 0);
-  __ test_b(ecx, kShortExternalStringMask);
-  __ j(not_zero, &call_runtime);
-  __ mov(eax, FieldOperand(eax, ExternalString::kResourceDataOffset));
-  STATIC_ASSERT(SeqOneByteString::kHeaderSize == SeqTwoByteString::kHeaderSize);
-  __ jmp(&first_prepared, Label::kNear);
-  __ bind(&first_is_sequential);
-  __ add(eax, Immediate(SeqOneByteString::kHeaderSize - kHeapObjectTag));
-  __ bind(&first_prepared);
-
-  __ mov(edi, FieldOperand(edx, HeapObject::kMapOffset));
-  __ movzx_b(edi, FieldOperand(edi, Map::kInstanceTypeOffset));
-  // Check whether both strings have same encoding.
-  // edi: instance type of second string
-  __ xor_(ecx, edi);
-  __ test_b(ecx, kStringEncodingMask);
-  __ j(not_zero, &call_runtime);
-  STATIC_ASSERT(kSeqStringTag == 0);
-  __ test_b(edi, kStringRepresentationMask);
-  __ j(zero, &second_is_sequential, Label::kNear);
-  // Rule out short external string and load string resource.
-  STATIC_ASSERT(kShortExternalStringTag != 0);
-  __ test_b(edi, kShortExternalStringMask);
-  __ j(not_zero, &call_runtime);
-  __ mov(edx, FieldOperand(edx, ExternalString::kResourceDataOffset));
-  STATIC_ASSERT(SeqOneByteString::kHeaderSize == SeqTwoByteString::kHeaderSize);
-  __ jmp(&second_prepared, Label::kNear);
-  __ bind(&second_is_sequential);
-  __ add(edx, Immediate(SeqOneByteString::kHeaderSize - kHeapObjectTag));
-  __ bind(&second_prepared);
-
-  // Push the addresses of both strings' first characters onto the stack.
-  __ push(edx);
-  __ push(eax);
-
-  Label non_ascii_string_add_flat_result, call_runtime_drop_two;
-  // edi: instance type of second string
-  // First string and second string have the same encoding.
-  STATIC_ASSERT(kTwoByteStringTag == 0);
-  __ test_b(edi, kStringEncodingMask);
-  __ j(zero, &non_ascii_string_add_flat_result);
-
-  // Both strings are ASCII strings.
-  // ebx: length of resulting flat string as a smi
-  __ SmiUntag(ebx);
-  __ AllocateAsciiString(eax, ebx, ecx, edx, edi, &call_runtime_drop_two);
-  // eax: result string
-  __ mov(ecx, eax);
-  // Locate first character of result.
-  __ add(ecx, Immediate(SeqOneByteString::kHeaderSize - kHeapObjectTag));
-  // Load first argument's length and first character location.  Account for
-  // values currently on the stack when fetching arguments from it.
-  __ mov(edx, Operand(esp, 4 * kPointerSize));
-  __ mov(edi, FieldOperand(edx, String::kLengthOffset));
-  __ SmiUntag(edi);
-  __ pop(edx);
-  // eax: result string
-  // ecx: first character of result
-  // edx: first char of first argument
-  // edi: length of first argument
-  StringHelper::GenerateCopyCharacters(masm, ecx, edx, edi, ebx, true);
-  // Load second argument's length and first character location.  Account for
-  // values currently on the stack when fetching arguments from it.
-  __ mov(edx, Operand(esp, 2 * kPointerSize));
-  __ mov(edi, FieldOperand(edx, String::kLengthOffset));
-  __ SmiUntag(edi);
-  __ pop(edx);
-  // eax: result string
-  // ecx: next character of result
-  // edx: first char of second argument
-  // edi: length of second argument
-  StringHelper::GenerateCopyCharacters(masm, ecx, edx, edi, ebx, true);
-  __ IncrementCounter(counters->string_add_native(), 1);
-  __ ret(2 * kPointerSize);
-
-  // Handle creating a flat two byte result.
-  // eax: first string - known to be two byte
-  // ebx: length of resulting flat string as a smi
-  // edx: second string
-  __ bind(&non_ascii_string_add_flat_result);
-  // Both strings are two byte strings.
-  __ SmiUntag(ebx);
-  __ AllocateTwoByteString(eax, ebx, ecx, edx, edi, &call_runtime_drop_two);
-  // eax: result string
-  __ mov(ecx, eax);
-  // Locate first character of result.
-  __ add(ecx, Immediate(SeqTwoByteString::kHeaderSize - kHeapObjectTag));
-  // Load second argument's length and first character location.  Account for
-  // values currently on the stack when fetching arguments from it.
-  __ mov(edx, Operand(esp, 4 * kPointerSize));
-  __ mov(edi, FieldOperand(edx, String::kLengthOffset));
-  __ SmiUntag(edi);
-  __ pop(edx);
-  // eax: result string
-  // ecx: first character of result
-  // edx: first char of first argument
-  // edi: length of first argument
-  StringHelper::GenerateCopyCharacters(masm, ecx, edx, edi, ebx, false);
-  // Load second argument's length and first character location.  Account for
-  // values currently on the stack when fetching arguments from it.
-  __ mov(edx, Operand(esp, 2 * kPointerSize));
-  __ mov(edi, FieldOperand(edx, String::kLengthOffset));
-  __ SmiUntag(edi);
-  __ pop(edx);
-  // eax: result string
-  // ecx: next character of result
-  // edx: first char of second argument
-  // edi: length of second argument
-  StringHelper::GenerateCopyCharacters(masm, ecx, edx, edi, ebx, false);
-  __ IncrementCounter(counters->string_add_native(), 1);
-  __ ret(2 * kPointerSize);
-
-  // Recover stack pointer before jumping to runtime.
-  __ bind(&call_runtime_drop_two);
-  __ Drop(2);
-  // Just jump to runtime to add the two strings.
-  __ bind(&call_runtime);
-  __ TailCallRuntime(Runtime::kStringAdd, 2, 1);
-
-  if (call_builtin.is_linked()) {
-    __ bind(&call_builtin);
-    __ InvokeBuiltin(builtin_id, JUMP_FUNCTION);
-  }
-}
-
-
-void StringAddStub::GenerateRegisterArgsPush(MacroAssembler* masm) {
-  __ push(eax);
-  __ push(edx);
-}
-
-
-void StringAddStub::GenerateRegisterArgsPop(MacroAssembler* masm,
-                                            Register temp) {
-  __ pop(temp);
-  __ pop(edx);
-  __ pop(eax);
-  __ push(temp);
-}
-
-
-void StringAddStub::GenerateConvertArgument(MacroAssembler* masm,
-                                            int stack_offset,
-                                            Register arg,
-                                            Register scratch1,
-                                            Register scratch2,
-                                            Register scratch3,
-                                            Label* slow) {
-  // First check if the argument is already a string.
-  Label not_string, done;
-  __ JumpIfSmi(arg, &not_string);
-  __ CmpObjectType(arg, FIRST_NONSTRING_TYPE, scratch1);
-  __ j(below, &done);
-
-  // Check the number to string cache.
-  __ bind(&not_string);
-  // Puts the cached result into scratch1.
-  __ LookupNumberStringCache(arg, scratch1, scratch2, scratch3, slow);
-  __ mov(arg, scratch1);
-  __ mov(Operand(esp, stack_offset), arg);
-  __ bind(&done);
-}
-
-
-void StringHelper::GenerateCopyCharacters(MacroAssembler* masm,
-                                          Register dest,
-                                          Register src,
-                                          Register count,
-                                          Register scratch,
-                                          bool ascii) {
-  Label loop;
-  __ bind(&loop);
-  // This loop just copies one character at a time, as it is only used for very
-  // short strings.
-  if (ascii) {
-    __ mov_b(scratch, Operand(src, 0));
-    __ mov_b(Operand(dest, 0), scratch);
-    __ add(src, Immediate(1));
-    __ add(dest, Immediate(1));
-  } else {
-    __ mov_w(scratch, Operand(src, 0));
-    __ mov_w(Operand(dest, 0), scratch);
-    __ add(src, Immediate(2));
-    __ add(dest, Immediate(2));
-  }
-  __ sub(count, Immediate(1));
-  __ j(not_zero, &loop);
-}
-
-
 void StringHelper::GenerateCopyCharactersREP(MacroAssembler* masm,
                                              Register dest,
                                              Register src,
@@ -3824,128 +3401,6 @@ void StringHelper::GenerateCopyCharactersREP(MacroAssembler* masm,
   __ j(not_zero, &loop);
 
   __ bind(&done);
-}
-
-
-void StringHelper::GenerateTwoCharacterStringTableProbe(MacroAssembler* masm,
-                                                        Register c1,
-                                                        Register c2,
-                                                        Register scratch1,
-                                                        Register scratch2,
-                                                        Register scratch3,
-                                                        Label* not_probed,
-                                                        Label* not_found) {
-  // Register scratch3 is the general scratch register in this function.
-  Register scratch = scratch3;
-
-  // Make sure that both characters are not digits as such strings has a
-  // different hash algorithm. Don't try to look for these in the string table.
-  Label not_array_index;
-  __ mov(scratch, c1);
-  __ sub(scratch, Immediate(static_cast<int>('0')));
-  __ cmp(scratch, Immediate(static_cast<int>('9' - '0')));
-  __ j(above, &not_array_index, Label::kNear);
-  __ mov(scratch, c2);
-  __ sub(scratch, Immediate(static_cast<int>('0')));
-  __ cmp(scratch, Immediate(static_cast<int>('9' - '0')));
-  __ j(below_equal, not_probed);
-
-  __ bind(&not_array_index);
-  // Calculate the two character string hash.
-  Register hash = scratch1;
-  GenerateHashInit(masm, hash, c1, scratch);
-  GenerateHashAddCharacter(masm, hash, c2, scratch);
-  GenerateHashGetHash(masm, hash, scratch);
-
-  // Collect the two characters in a register.
-  Register chars = c1;
-  __ shl(c2, kBitsPerByte);
-  __ or_(chars, c2);
-
-  // chars: two character string, char 1 in byte 0 and char 2 in byte 1.
-  // hash:  hash of two character string.
-
-  // Load the string table.
-  Register string_table = c2;
-  __ LoadRoot(string_table, Heap::kStringTableRootIndex);
-
-  // Calculate capacity mask from the string table capacity.
-  Register mask = scratch2;
-  __ mov(mask, FieldOperand(string_table, StringTable::kCapacityOffset));
-  __ SmiUntag(mask);
-  __ sub(mask, Immediate(1));
-
-  // Registers
-  // chars:        two character string, char 1 in byte 0 and char 2 in byte 1.
-  // hash:         hash of two character string
-  // string_table: string table
-  // mask:         capacity mask
-  // scratch:      -
-
-  // Perform a number of probes in the string table.
-  static const int kProbes = 4;
-  Label found_in_string_table;
-  Label next_probe[kProbes], next_probe_pop_mask[kProbes];
-  Register candidate = scratch;  // Scratch register contains candidate.
-  for (int i = 0; i < kProbes; i++) {
-    // Calculate entry in string table.
-    __ mov(scratch, hash);
-    if (i > 0) {
-      __ add(scratch, Immediate(StringTable::GetProbeOffset(i)));
-    }
-    __ and_(scratch, mask);
-
-    // Load the entry from the string table.
-    STATIC_ASSERT(StringTable::kEntrySize == 1);
-    __ mov(candidate,
-           FieldOperand(string_table,
-                        scratch,
-                        times_pointer_size,
-                        StringTable::kElementsStartOffset));
-
-    // If entry is undefined no string with this hash can be found.
-    Factory* factory = masm->isolate()->factory();
-    __ cmp(candidate, factory->undefined_value());
-    __ j(equal, not_found);
-    __ cmp(candidate, factory->the_hole_value());
-    __ j(equal, &next_probe[i]);
-
-    // If length is not 2 the string is not a candidate.
-    __ cmp(FieldOperand(candidate, String::kLengthOffset),
-           Immediate(Smi::FromInt(2)));
-    __ j(not_equal, &next_probe[i]);
-
-    // As we are out of registers save the mask on the stack and use that
-    // register as a temporary.
-    __ push(mask);
-    Register temp = mask;
-
-    // Check that the candidate is a non-external ASCII string.
-    __ mov(temp, FieldOperand(candidate, HeapObject::kMapOffset));
-    __ movzx_b(temp, FieldOperand(temp, Map::kInstanceTypeOffset));
-    __ JumpIfInstanceTypeIsNotSequentialAscii(
-        temp, temp, &next_probe_pop_mask[i]);
-
-    // Check if the two characters match.
-    __ mov(temp, FieldOperand(candidate, SeqOneByteString::kHeaderSize));
-    __ and_(temp, 0x0000ffff);
-    __ cmp(chars, temp);
-    __ j(equal, &found_in_string_table);
-    __ bind(&next_probe_pop_mask[i]);
-    __ pop(mask);
-    __ bind(&next_probe[i]);
-  }
-
-  // No matching 2 character string found by probing.
-  __ jmp(not_found);
-
-  // Scratch register contains result when we fall through to here.
-  Register result = candidate;
-  __ bind(&found_in_string_table);
-  __ pop(mask);  // Pop saved mask from the stack.
-  if (!result.is(eax)) {
-    __ mov(eax, result);
-  }
 }
 
 
@@ -4410,6 +3865,198 @@ void StringCompareStub::Generate(MacroAssembler* masm) {
   // tagged as a small integer.
   __ bind(&runtime);
   __ TailCallRuntime(Runtime::kStringCompare, 2, 1);
+}
+
+
+void ArrayPushStub::Generate(MacroAssembler* masm) {
+  int argc = arguments_count();
+
+  if (argc == 0) {
+    // Noop, return the length.
+    __ mov(eax, FieldOperand(edx, JSArray::kLengthOffset));
+    __ ret((argc + 1) * kPointerSize);
+    return;
+  }
+
+  Isolate* isolate = masm->isolate();
+
+  if (argc != 1) {
+    __ TailCallExternalReference(
+        ExternalReference(Builtins::c_ArrayPush, isolate), argc + 1, 1);
+    return;
+  }
+
+  Label call_builtin, attempt_to_grow_elements, with_write_barrier;
+
+  // Get the elements array of the object.
+  __ mov(edi, FieldOperand(edx, JSArray::kElementsOffset));
+
+  if (IsFastSmiOrObjectElementsKind(elements_kind())) {
+    // Check that the elements are in fast mode and writable.
+    __ cmp(FieldOperand(edi, HeapObject::kMapOffset),
+           isolate->factory()->fixed_array_map());
+    __ j(not_equal, &call_builtin);
+  }
+
+  // Get the array's length into eax and calculate new length.
+  __ mov(eax, FieldOperand(edx, JSArray::kLengthOffset));
+  STATIC_ASSERT(kSmiTagSize == 1);
+  STATIC_ASSERT(kSmiTag == 0);
+  __ add(eax, Immediate(Smi::FromInt(argc)));
+
+  // Get the elements' length into ecx.
+  __ mov(ecx, FieldOperand(edi, FixedArray::kLengthOffset));
+
+  // Check if we could survive without allocation.
+  __ cmp(eax, ecx);
+
+  if (IsFastSmiOrObjectElementsKind(elements_kind())) {
+    __ j(greater, &attempt_to_grow_elements);
+
+    // Check if value is a smi.
+    __ mov(ecx, Operand(esp, argc * kPointerSize));
+    __ JumpIfNotSmi(ecx, &with_write_barrier);
+
+    // Store the value.
+    __ mov(FieldOperand(edi, eax, times_half_pointer_size,
+                        FixedArray::kHeaderSize - argc * kPointerSize),
+           ecx);
+  } else {
+    __ j(greater, &call_builtin);
+
+    __ mov(ecx, Operand(esp, argc * kPointerSize));
+    __ StoreNumberToDoubleElements(
+        ecx, edi, eax, ecx, xmm0, &call_builtin, true, argc * kDoubleSize);
+  }
+
+  // Save new length.
+  __ mov(FieldOperand(edx, JSArray::kLengthOffset), eax);
+  __ ret((argc + 1) * kPointerSize);
+
+  if (IsFastDoubleElementsKind(elements_kind())) {
+    __ bind(&call_builtin);
+    __ TailCallExternalReference(
+        ExternalReference(Builtins::c_ArrayPush, isolate), argc + 1, 1);
+    return;
+  }
+
+  __ bind(&with_write_barrier);
+
+  if (IsFastSmiElementsKind(elements_kind())) {
+    if (FLAG_trace_elements_transitions) __ jmp(&call_builtin);
+
+    __ cmp(FieldOperand(ecx, HeapObject::kMapOffset),
+           isolate->factory()->heap_number_map());
+    __ j(equal, &call_builtin);
+
+    ElementsKind target_kind = IsHoleyElementsKind(elements_kind())
+        ? FAST_HOLEY_ELEMENTS : FAST_ELEMENTS;
+    __ mov(ebx, ContextOperand(esi, Context::GLOBAL_OBJECT_INDEX));
+    __ mov(ebx, FieldOperand(ebx, GlobalObject::kNativeContextOffset));
+    __ mov(ebx, ContextOperand(ebx, Context::JS_ARRAY_MAPS_INDEX));
+    const int header_size = FixedArrayBase::kHeaderSize;
+    // Verify that the object can be transitioned in place.
+    const int origin_offset = header_size + elements_kind() * kPointerSize;
+    __ mov(edi, FieldOperand(ebx, origin_offset));
+    __ cmp(edi, FieldOperand(edx, HeapObject::kMapOffset));
+    __ j(not_equal, &call_builtin);
+
+    const int target_offset = header_size + target_kind * kPointerSize;
+    __ mov(ebx, FieldOperand(ebx, target_offset));
+    ElementsTransitionGenerator::GenerateMapChangeElementsTransition(
+        masm, DONT_TRACK_ALLOCATION_SITE, NULL);
+    // Restore edi used as a scratch register for the write barrier used while
+    // setting the map.
+    __ mov(edi, FieldOperand(edx, JSArray::kElementsOffset));
+  }
+
+  // Save new length.
+  __ mov(FieldOperand(edx, JSArray::kLengthOffset), eax);
+
+  // Store the value.
+  __ lea(edx, FieldOperand(edi, eax, times_half_pointer_size,
+                           FixedArray::kHeaderSize - argc * kPointerSize));
+  __ mov(Operand(edx, 0), ecx);
+
+  __ RecordWrite(edi, edx, ecx, kDontSaveFPRegs, EMIT_REMEMBERED_SET,
+                 OMIT_SMI_CHECK);
+
+  __ ret((argc + 1) * kPointerSize);
+
+  __ bind(&attempt_to_grow_elements);
+  if (!FLAG_inline_new) {
+    __ bind(&call_builtin);
+    __ TailCallExternalReference(
+        ExternalReference(Builtins::c_ArrayPush, isolate), argc + 1, 1);
+    return;
+  }
+
+  __ mov(ebx, Operand(esp, argc * kPointerSize));
+  // Growing elements that are SMI-only requires special handling in case the
+  // new element is non-Smi. For now, delegate to the builtin.
+  if (IsFastSmiElementsKind(elements_kind())) {
+    __ JumpIfNotSmi(ebx, &call_builtin);
+  }
+
+  // We could be lucky and the elements array could be at the top of new-space.
+  // In this case we can just grow it in place by moving the allocation pointer
+  // up.
+  ExternalReference new_space_allocation_top =
+      ExternalReference::new_space_allocation_top_address(isolate);
+  ExternalReference new_space_allocation_limit =
+      ExternalReference::new_space_allocation_limit_address(isolate);
+
+  const int kAllocationDelta = 4;
+  ASSERT(kAllocationDelta >= argc);
+  // Load top.
+  __ mov(ecx, Operand::StaticVariable(new_space_allocation_top));
+
+  // Check if it's the end of elements.
+  __ lea(edx, FieldOperand(edi, eax, times_half_pointer_size,
+                           FixedArray::kHeaderSize - argc * kPointerSize));
+  __ cmp(edx, ecx);
+  __ j(not_equal, &call_builtin);
+  __ add(ecx, Immediate(kAllocationDelta * kPointerSize));
+  __ cmp(ecx, Operand::StaticVariable(new_space_allocation_limit));
+  __ j(above, &call_builtin);
+
+  // We fit and could grow elements.
+  __ mov(Operand::StaticVariable(new_space_allocation_top), ecx);
+
+  // Push the argument...
+  __ mov(Operand(edx, 0), ebx);
+  // ... and fill the rest with holes.
+  for (int i = 1; i < kAllocationDelta; i++) {
+    __ mov(Operand(edx, i * kPointerSize),
+           isolate->factory()->the_hole_value());
+  }
+
+  if (IsFastObjectElementsKind(elements_kind())) {
+    // We know the elements array is in new space so we don't need the
+    // remembered set, but we just pushed a value onto it so we may have to tell
+    // the incremental marker to rescan the object that we just grew.  We don't
+    // need to worry about the holes because they are in old space and already
+    // marked black.
+    __ RecordWrite(edi, edx, ebx, kDontSaveFPRegs, OMIT_REMEMBERED_SET);
+  }
+
+  // Restore receiver to edx as finish sequence assumes it's here.
+  __ mov(edx, Operand(esp, (argc + 1) * kPointerSize));
+
+  // Increment element's and array's sizes.
+  __ add(FieldOperand(edi, FixedArray::kLengthOffset),
+         Immediate(Smi::FromInt(kAllocationDelta)));
+
+  // NOTE: This only happen in new-space, where we don't care about the
+  // black-byte-count on pages. Otherwise we should update that too if the
+  // object is black.
+
+  __ mov(FieldOperand(edx, JSArray::kLengthOffset), eax);
+  __ ret((argc + 1) * kPointerSize);
+
+  __ bind(&call_builtin);
+  __ TailCallExternalReference(
+      ExternalReference(Builtins::c_ArrayPush, isolate), argc + 1, 1);
 }
 
 
@@ -5431,7 +5078,7 @@ static void CreateArrayDispatch(MacroAssembler* masm,
 
 static void CreateArrayDispatchOneArgument(MacroAssembler* masm,
                                            AllocationSiteOverrideMode mode) {
-  // ebx - type info cell (if mode != DISABLE_ALLOCATION_SITES)
+  // ebx - allocation site (if mode != DISABLE_ALLOCATION_SITES)
   // edx - kind (if mode != DISABLE_ALLOCATION_SITES)
   // eax - number of arguments
   // edi - constructor?
@@ -5472,19 +5119,19 @@ static void CreateArrayDispatchOneArgument(MacroAssembler* masm,
     // We are going to create a holey array, but our kind is non-holey.
     // Fix kind and retry.
     __ inc(edx);
-    __ mov(ecx, FieldOperand(ebx, Cell::kValueOffset));
+
     if (FLAG_debug_code) {
       Handle<Map> allocation_site_map =
           masm->isolate()->factory()->allocation_site_map();
-      __ cmp(FieldOperand(ecx, 0), Immediate(allocation_site_map));
-      __ Assert(equal, kExpectedAllocationSiteInCell);
+      __ cmp(FieldOperand(ebx, 0), Immediate(allocation_site_map));
+      __ Assert(equal, kExpectedAllocationSite);
     }
 
     // Save the resulting elements kind in type info. We can't just store r3
     // in the AllocationSite::transition_info field because elements kind is
     // restricted to a portion of the field...upper bits need to be left alone.
     STATIC_ASSERT(AllocationSite::ElementsKindBits::kShift == 0);
-    __ add(FieldOperand(ecx, AllocationSite::kTransitionInfoOffset),
+    __ add(FieldOperand(ebx, AllocationSite::kTransitionInfoOffset),
            Immediate(Smi::FromInt(kFastElementsKindPackedToHoley)));
 
     __ bind(&normal_sequence);
@@ -5616,13 +5263,13 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
   // AllocationSite, call an array constructor that doesn't use AllocationSites.
   __ cmp(ebx, Immediate(undefined_sentinel));
   __ j(equal, &no_info);
-  __ mov(edx, FieldOperand(ebx, Cell::kValueOffset));
-  __ cmp(FieldOperand(edx, 0), Immediate(
+  __ mov(ebx, FieldOperand(ebx, Cell::kValueOffset));
+  __ cmp(FieldOperand(ebx, 0), Immediate(
       masm->isolate()->factory()->allocation_site_map()));
   __ j(not_equal, &no_info);
 
   // Only look at the lower 16 bits of the transition info.
-  __ mov(edx, FieldOperand(edx, AllocationSite::kTransitionInfoOffset));
+  __ mov(edx, FieldOperand(ebx, AllocationSite::kTransitionInfoOffset));
   __ SmiUntag(edx);
   STATIC_ASSERT(AllocationSite::ElementsKindBits::kShift == 0);
   __ and_(edx, Immediate(AllocationSite::ElementsKindBits::kMask));

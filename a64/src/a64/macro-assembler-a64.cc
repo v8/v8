@@ -1019,11 +1019,17 @@ void MacroAssembler::CheckEnumCache(Register object,
 
   // Check that there are no elements. Register current_object contains the
   // current JS object we've reached through the prototype chain.
+  Label no_elements;
   Ldr(current_object, FieldMemOperand(current_object,
                                       JSObject::kElementsOffset));
   Cmp(current_object, empty_fixed_array_value);
+  B(eq, &no_elements);
+
+  // Second chance, the object may be using the empty slow element dictionary.
+  CompareRoot(current_object, Heap::kEmptySlowElementDictionaryRootIndex);
   B(ne, call_runtime);
 
+  Bind(&no_elements);
   Ldr(current_object, FieldMemOperand(map, Map::kPrototypeOffset));
   Cmp(current_object, null_value);
   B(ne, &next);
@@ -3526,7 +3532,8 @@ void MacroAssembler::StoreNumberToDoubleElements(Register value_reg,
                                                  Register scratch1,
                                                  FPRegister fpscratch1,
                                                  FPRegister fpscratch2,
-                                                 Label* fail) {
+                                                 Label* fail,
+                                                 int elements_offset) {
   ASSERT(!AreAliased(value_reg, key_reg, elements_reg, scratch1));
   Label store_num;
 
@@ -3553,7 +3560,9 @@ void MacroAssembler::StoreNumberToDoubleElements(Register value_reg,
   Bind(&store_num);
   Add(scratch1, elements_reg,
       Operand::UntagSmiAndScale(key_reg, kDoubleSizeLog2));
-  Str(fpscratch1, FieldMemOperand(scratch1, FixedDoubleArray::kHeaderSize));
+  Str(fpscratch1,
+      FieldMemOperand(scratch1,
+                      FixedDoubleArray::kHeaderSize - elements_offset));
 }
 
 

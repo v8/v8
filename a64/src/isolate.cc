@@ -2112,8 +2112,9 @@ bool Isolate::Init(Deserializer* des) {
     ArrayConstructorStubBase::InstallDescriptors(this);
     InternalArrayConstructorStubBase::InstallDescriptors(this);
     FastNewClosureStub::InstallDescriptors(this);
+    FastNewContextStub::InstallDescriptors(this);
     NumberToStringStub::InstallDescriptors(this);
-    NewStringAddStub::InstallDescriptors(this);
+    StringAddStub::InstallDescriptors(this);
   }
 
   CallDescriptors::InitializeForIsolate(this);

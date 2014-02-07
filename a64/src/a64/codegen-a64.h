@@ -42,8 +42,8 @@ class CompilationInfo;
 
 class CodeGenerator: public AstVisitor {
  public:
-  explicit CodeGenerator(Isolate* isolate) {
-    InitializeAstVisitor(isolate);
+  explicit CodeGenerator(Zone* zone) {
+    InitializeAstVisitor(zone);
   }
 
   static bool MakeCode(CompilationInfo* info);

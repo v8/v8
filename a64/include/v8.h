@@ -1628,7 +1628,11 @@ class V8_EXPORT String : public Primitive {
     NO_OPTIONS = 0,
     HINT_MANY_WRITES_EXPECTED = 1,
     NO_NULL_TERMINATION = 2,
-    PRESERVE_ASCII_NULL = 4
+    PRESERVE_ASCII_NULL = 4,
+    // Used by WriteUtf8 to replace orphan surrogate code units with the
+    // unicode replacement character. Needs to be set to guarantee valid UTF-8
+    // output.
+    REPLACE_INVALID_UTF8 = 8
   };
 
   // 16-bit character codes.
@@ -3718,17 +3722,6 @@ class V8_EXPORT Extension {  // NOLINT
 void V8_EXPORT RegisterExtension(Extension* extension);
 
 
-/**
- * Ignore
- */
-class V8_EXPORT DeclareExtension {
- public:
-  V8_INLINE DeclareExtension(Extension* extension) {
-    RegisterExtension(extension);
-  }
-};
-
-
 // --- Statics ---
 
 V8_INLINE Handle<Primitive> Undefined(Isolate* isolate);
@@ -5394,7 +5387,7 @@ class Internals {
   static const int kNullValueRootIndex = 7;
   static const int kTrueValueRootIndex = 8;
   static const int kFalseValueRootIndex = 9;
-  static const int kEmptyStringRootIndex = 136;
+  static const int kEmptyStringRootIndex = 145;
 
   static const int kNodeClassIdOffset = 1 * kApiPointerSize;
   static const int kNodeFlagsOffset = 1 * kApiPointerSize + 3;
@@ -5405,7 +5398,7 @@ class Internals {
   static const int kNodeIsIndependentShift = 4;
   static const int kNodeIsPartiallyDependentShift = 5;
 
-  static const int kJSObjectType = 0xb2;
+  static const int kJSObjectType = 0xbb;
   static const int kFirstNonstringType = 0x80;
   static const int kOddballType = 0x83;
   static const int kForeignType = 0x87;

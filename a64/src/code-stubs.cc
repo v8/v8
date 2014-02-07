@@ -269,8 +269,8 @@ void BinaryOpICWithAllocationSiteStub::GenerateAheadOfTime(
 }
 
 
-void NewStringAddStub::PrintBaseName(StringStream* stream) {
-  stream->Add("NewStringAddStub");
+void StringAddStub::PrintBaseName(StringStream* stream) {
+  stream->Add("StringAddStub");
   if ((flags() & STRING_ADD_CHECK_BOTH) == STRING_ADD_CHECK_BOTH) {
     stream->Add("_CheckBoth");
   } else if ((flags() & STRING_ADD_CHECK_LEFT) == STRING_ADD_CHECK_LEFT) {
@@ -476,37 +476,33 @@ void CompareNilICStub::State::Print(StringStream* stream) const {
 }
 
 
-Handle<Type> CompareNilICStub::GetType(
-    Isolate* isolate,
-    Handle<Map> map) {
+Type* CompareNilICStub::GetType(Zone* zone, Handle<Map> map) {
   if (state_.Contains(CompareNilICStub::GENERIC)) {
-    return Type::Any(isolate);
+    return Type::Any(zone);
   }
 
-  Handle<Type> result = Type::None(isolate);
+  Type* result = Type::None(zone);
   if (state_.Contains(CompareNilICStub::UNDEFINED)) {
-    result = Type::Union(result, Type::Undefined(isolate), isolate);
+    result = Type::Union(result, Type::Undefined(zone), zone);
   }
   if (state_.Contains(CompareNilICStub::NULL_TYPE)) {
-    result = Type::Union(result, Type::Null(isolate), isolate);
+    result = Type::Union(result, Type::Null(zone), zone);
   }
   if (state_.Contains(CompareNilICStub::MONOMORPHIC_MAP)) {
-    Handle<Type> type = map.is_null()
-        ? Type::Detectable(isolate) : Type::Class(map, isolate);
-    result = Type::Union(result, type, isolate);
+    Type* type =
+        map.is_null() ? Type::Detectable(zone) : Type::Class(map, zone);
+    result = Type::Union(result, type, zone);
   }
 
   return result;
 }
 
 
-Handle<Type> CompareNilICStub::GetInputType(
-    Isolate* isolate,
-    Handle<Map> map) {
-  Handle<Type> output_type = GetType(isolate, map);
-  Handle<Type> nil_type = nil_value_ == kNullValue
-      ? Type::Null(isolate) : Type::Undefined(isolate);
-  return Type::Union(output_type, nil_type, isolate);
+Type* CompareNilICStub::GetInputType(Zone* zone, Handle<Map> map) {
+  Type* output_type = GetType(zone, map);
+  Type* nil_type =
+      nil_value_ == kNullValue ? Type::Null(zone) : Type::Undefined(zone);
+  return Type::Union(output_type, nil_type, zone);
 }
 
 
@@ -570,6 +566,15 @@ void KeyedStoreElementStub::Generate(MacroAssembler* masm) {
     case EXTERNAL_FLOAT_ELEMENTS:
     case EXTERNAL_DOUBLE_ELEMENTS:
     case EXTERNAL_PIXEL_ELEMENTS:
+    case UINT8_ELEMENTS:
+    case INT8_ELEMENTS:
+    case UINT16_ELEMENTS:
+    case INT16_ELEMENTS:
+    case UINT32_ELEMENTS:
+    case INT32_ELEMENTS:
+    case FLOAT32_ELEMENTS:
+    case FLOAT64_ELEMENTS:
+    case UINT8_CLAMPED_ELEMENTS:
       UNREACHABLE();
       break;
     case DICTIONARY_ELEMENTS:
@@ -761,6 +766,12 @@ void FastNewClosureStub::InstallDescriptors(Isolate* isolate) {
 }
 
 
+void FastNewContextStub::InstallDescriptors(Isolate* isolate) {
+  FastNewContextStub stub(FastNewContextStub::kMaximumSlots);
+  InstallDescriptor(isolate, &stub);
+}
+
+
 // static
 void BinaryOpICStub::InstallDescriptors(Isolate* isolate) {
   BinaryOpICStub stub(Token::ADD, NO_OVERWRITE);
@@ -776,8 +787,8 @@ void BinaryOpWithAllocationSiteStub::InstallDescriptors(Isolate* isolate) {
 
 
 // static
-void NewStringAddStub::InstallDescriptors(Isolate* isolate) {
-  NewStringAddStub stub(STRING_ADD_CHECK_NONE, NOT_TENURED);
+void StringAddStub::InstallDescriptors(Isolate* isolate) {
+  StringAddStub stub(STRING_ADD_CHECK_NONE, NOT_TENURED);
   InstallDescriptor(isolate, &stub);
 }
 

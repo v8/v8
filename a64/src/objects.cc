@@ -1677,6 +1677,10 @@ void HeapObject::HeapObjectShortPrint(StringStream* accumulator) {
       accumulator->Add("<ExternalDoubleArray[%u]>",
                        ExternalDoubleArray::cast(this)->length());
       break;
+    case FIXED_UINT8_ARRAY_TYPE:
+      accumulator->Add("<FixedUint8Array[%u]>",
+                       FixedUint8Array::cast(this)->length());
+      break;
     case SHARED_FUNCTION_INFO_TYPE: {
       SharedFunctionInfo* shared = SharedFunctionInfo::cast(this);
       SmartArrayPointer<char> debug_name =
@@ -1866,6 +1870,15 @@ void HeapObject::IterateBody(InstanceType type, int object_size,
     case EXTERNAL_UNSIGNED_INT_ARRAY_TYPE:
     case EXTERNAL_FLOAT_ARRAY_TYPE:
     case EXTERNAL_DOUBLE_ARRAY_TYPE:
+    case FIXED_INT8_ARRAY_TYPE:
+    case FIXED_UINT8_ARRAY_TYPE:
+    case FIXED_INT16_ARRAY_TYPE:
+    case FIXED_UINT16_ARRAY_TYPE:
+    case FIXED_INT32_ARRAY_TYPE:
+    case FIXED_UINT32_ARRAY_TYPE:
+    case FIXED_FLOAT32_ARRAY_TYPE:
+    case FIXED_FLOAT64_ARRAY_TYPE:
+    case FIXED_UINT8_CLAMPED_ARRAY_TYPE:
       break;
     case SHARED_FUNCTION_INFO_TYPE: {
       SharedFunctionInfo::BodyDescriptor::IterateBody(this, v);
@@ -4205,9 +4218,12 @@ Handle<Object> JSObject::SetLocalPropertyIgnoreAttributes(
 
   // Check for accessor in prototype chain removed here in clone.
   if (!lookup.IsFound()) {
+    object->map()->LookupTransition(*object, *name, &lookup);
+    TransitionFlag flag = lookup.IsFound()
+        ? OMIT_TRANSITION : INSERT_TRANSITION;
     // Neither properties nor transitions found.
     return AddProperty(object, name, value, attributes, kNonStrictMode,
-        MAY_BE_STORE_FROM_KEYED, extensibility_check, value_type, mode);
+        MAY_BE_STORE_FROM_KEYED, extensibility_check, value_type, mode, flag);
   }
 
   Handle<Object> old_value = isolate->factory()->the_hole_value();
@@ -5377,6 +5393,15 @@ bool JSObject::ReferencesObject(Object* obj) {
     case EXTERNAL_DOUBLE_ELEMENTS:
     case FAST_DOUBLE_ELEMENTS:
     case FAST_HOLEY_DOUBLE_ELEMENTS:
+    case UINT8_ELEMENTS:
+    case INT8_ELEMENTS:
+    case UINT16_ELEMENTS:
+    case INT16_ELEMENTS:
+    case UINT32_ELEMENTS:
+    case INT32_ELEMENTS:
+    case FLOAT32_ELEMENTS:
+    case FLOAT64_ELEMENTS:
+    case UINT8_CLAMPED_ELEMENTS:
       // Raw pixels and external arrays do not reference other
       // objects.
       break;
@@ -5869,6 +5894,15 @@ Handle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
       case EXTERNAL_DOUBLE_ELEMENTS:
       case FAST_DOUBLE_ELEMENTS:
       case FAST_HOLEY_DOUBLE_ELEMENTS:
+      case UINT8_ELEMENTS:
+      case INT8_ELEMENTS:
+      case UINT16_ELEMENTS:
+      case INT16_ELEMENTS:
+      case UINT32_ELEMENTS:
+      case INT32_ELEMENTS:
+      case FLOAT32_ELEMENTS:
+      case FLOAT64_ELEMENTS:
+      case UINT8_CLAMPED_ELEMENTS:
         // No contained objects, nothing to do.
         break;
     }
@@ -6106,6 +6140,15 @@ void JSObject::DefineElementAccessor(Handle<JSObject> object,
     case EXTERNAL_UNSIGNED_INT_ELEMENTS:
     case EXTERNAL_FLOAT_ELEMENTS:
     case EXTERNAL_DOUBLE_ELEMENTS:
+    case UINT8_ELEMENTS:
+    case INT8_ELEMENTS:
+    case UINT16_ELEMENTS:
+    case INT16_ELEMENTS:
+    case UINT32_ELEMENTS:
+    case INT32_ELEMENTS:
+    case FLOAT32_ELEMENTS:
+    case FLOAT64_ELEMENTS:
+    case UINT8_CLAMPED_ELEMENTS:
       // Ignore getters and setters on pixel and external array elements.
       return;
     case DICTIONARY_ELEMENTS:
@@ -6564,6 +6607,15 @@ Handle<Object> JSObject::SetAccessor(Handle<JSObject> object,
       case EXTERNAL_UNSIGNED_INT_ELEMENTS:
       case EXTERNAL_FLOAT_ELEMENTS:
       case EXTERNAL_DOUBLE_ELEMENTS:
+      case UINT8_ELEMENTS:
+      case INT8_ELEMENTS:
+      case UINT16_ELEMENTS:
+      case INT16_ELEMENTS:
+      case UINT32_ELEMENTS:
+      case INT32_ELEMENTS:
+      case FLOAT32_ELEMENTS:
+      case FLOAT64_ELEMENTS:
+      case UINT8_CLAMPED_ELEMENTS:
         // Ignore getters and setters on pixel and external array
         // elements.
         return factory->undefined_value();
@@ -7853,6 +7905,14 @@ MaybeObject* PolymorphicCodeCacheHashTable::Put(MapHandleList* maps,
   cache->set(EntryToIndex(entry) + 1, code);
   cache->ElementAdded();
   return cache;
+}
+
+
+void FixedArray::Shrink(int new_length) {
+  ASSERT(0 <= new_length && new_length <= length());
+  if (new_length < length()) {
+    RightTrimFixedArray<FROM_MUTATOR>(GetHeap(), this, length() - new_length);
+  }
 }
 
 
@@ -10828,17 +10888,6 @@ bool Code::CanDeoptAt(Address pc) {
 }
 
 
-bool Code::IsContextual() {
-  ASSERT(is_inline_cache_stub());
-  Kind kind = this->kind();
-  if (kind == STORE_IC || kind == LOAD_IC || kind == CALL_IC) {
-    ExtraICState extra_state = extra_ic_state();
-    return IC::GetContextualMode(extra_state) == CONTEXTUAL;
-  }
-  return false;
-}
-
-
 // Identify kind of code.
 const char* Code::Kind2String(Kind kind) {
   switch (kind) {
@@ -11062,11 +11111,6 @@ void Code::PrintExtraICState(FILE* out, Kind kind, ExtraICState extra) {
   PrintF(out, "extra_ic_state = ");
   const char* name = NULL;
   switch (kind) {
-    case CALL_IC:
-      if (extra == STRING_INDEX_OUT_OF_BOUNDS) {
-        name = "STRING_INDEX_OUT_OF_BOUNDS";
-      }
-      break;
     case STORE_IC:
     case KEYED_STORE_IC:
       if (extra == kStrictMode) {
@@ -11758,7 +11802,6 @@ bool DependentCode::Contains(DependencyGroup group, Code* code) {
 bool DependentCode::MarkCodeForDeoptimization(
     Isolate* isolate,
     DependentCode::DependencyGroup group) {
-  ASSERT(AllowCodeDependencyChange::IsAllowed());
   DisallowHeapAllocation no_allocation_scope;
   DependentCode::GroupStartIndexes starts(this);
   int start = starts.at(group);
@@ -12721,6 +12764,51 @@ Handle<Object> JSObject::SetElementWithoutInterceptor(
           ExternalDoubleArray::cast(object->elements()));
       return ExternalDoubleArray::SetValue(array, index, value);
     }
+    case UINT8_ELEMENTS: {
+      Handle<FixedUint8Array> array(
+          FixedUint8Array::cast(object->elements()));
+      return FixedUint8Array::SetValue(array, index, value);
+    }
+    case UINT8_CLAMPED_ELEMENTS: {
+      Handle<FixedUint8ClampedArray> array(
+          FixedUint8ClampedArray::cast(object->elements()));
+      return FixedUint8ClampedArray::SetValue(array, index, value);
+    }
+    case INT8_ELEMENTS: {
+      Handle<FixedInt8Array> array(
+          FixedInt8Array::cast(object->elements()));
+      return FixedInt8Array::SetValue(array, index, value);
+    }
+    case UINT16_ELEMENTS: {
+      Handle<FixedUint16Array> array(
+          FixedUint16Array::cast(object->elements()));
+      return FixedUint16Array::SetValue(array, index, value);
+    }
+    case INT16_ELEMENTS: {
+      Handle<FixedInt16Array> array(
+          FixedInt16Array::cast(object->elements()));
+      return FixedInt16Array::SetValue(array, index, value);
+    }
+    case UINT32_ELEMENTS: {
+      Handle<FixedUint32Array> array(
+          FixedUint32Array::cast(object->elements()));
+      return FixedUint32Array::SetValue(array, index, value);
+    }
+    case INT32_ELEMENTS: {
+      Handle<FixedInt32Array> array(
+          FixedInt32Array::cast(object->elements()));
+      return FixedInt32Array::SetValue(array, index, value);
+    }
+    case FLOAT32_ELEMENTS: {
+      Handle<FixedFloat32Array> array(
+          FixedFloat32Array::cast(object->elements()));
+      return FixedFloat32Array::SetValue(array, index, value);
+    }
+    case FLOAT64_ELEMENTS: {
+      Handle<FixedFloat64Array> array(
+          FixedFloat64Array::cast(object->elements()));
+      return FixedFloat64Array::SetValue(array, index, value);
+    }
     case DICTIONARY_ELEMENTS:
       return SetDictionaryElement(object, index, value, attributes, strict_mode,
                                   check_prototype,
@@ -13132,11 +13220,21 @@ void JSObject::GetElementsCapacityAndUsage(int* capacity, int* used) {
     case EXTERNAL_FLOAT_ELEMENTS:
     case EXTERNAL_DOUBLE_ELEMENTS:
     case EXTERNAL_PIXEL_ELEMENTS:
+    case UINT8_ELEMENTS:
+    case INT8_ELEMENTS:
+    case UINT16_ELEMENTS:
+    case INT16_ELEMENTS:
+    case UINT32_ELEMENTS:
+    case INT32_ELEMENTS:
+    case FLOAT32_ELEMENTS:
+    case FLOAT64_ELEMENTS:
+    case UINT8_CLAMPED_ELEMENTS: {
       // External arrays are considered 100% used.
-      ExternalArray* external_array = ExternalArray::cast(elements());
+      FixedArrayBase* external_array = FixedArrayBase::cast(elements());
       *capacity = external_array->length();
       *used = external_array->length();
       break;
+    }
   }
 }
 
@@ -13644,8 +13742,17 @@ int JSObject::GetLocalElementKeys(FixedArray* storage,
     case EXTERNAL_INT_ELEMENTS:
     case EXTERNAL_UNSIGNED_INT_ELEMENTS:
     case EXTERNAL_FLOAT_ELEMENTS:
-    case EXTERNAL_DOUBLE_ELEMENTS: {
-      int length = ExternalArray::cast(elements())->length();
+    case EXTERNAL_DOUBLE_ELEMENTS:
+    case UINT8_ELEMENTS:
+    case INT8_ELEMENTS:
+    case UINT16_ELEMENTS:
+    case INT16_ELEMENTS:
+    case UINT32_ELEMENTS:
+    case INT32_ELEMENTS:
+    case FLOAT32_ELEMENTS:
+    case FLOAT64_ELEMENTS:
+    case UINT8_CLAMPED_ELEMENTS: {
+      int length = FixedArrayBase::cast(elements())->length();
       while (counter < length) {
         if (storage != NULL) {
           storage->set(counter, Smi::FromInt(counter));
@@ -13887,142 +13994,23 @@ class RegExpKey : public HashTableKey {
 };
 
 
-// Utf8StringKey carries a vector of chars as key.
-class Utf8StringKey : public HashTableKey {
- public:
-  explicit Utf8StringKey(Vector<const char> string, uint32_t seed)
-      : string_(string), hash_field_(0), seed_(seed) { }
-
-  bool IsMatch(Object* string) {
-    return String::cast(string)->IsUtf8EqualTo(string_);
-  }
-
-  uint32_t Hash() {
-    if (hash_field_ != 0) return hash_field_ >> String::kHashShift;
-    hash_field_ = StringHasher::ComputeUtf8Hash(string_, seed_, &chars_);
-    uint32_t result = hash_field_ >> String::kHashShift;
-    ASSERT(result != 0);  // Ensure that the hash value of 0 is never computed.
-    return result;
-  }
-
-  uint32_t HashForObject(Object* other) {
-    return String::cast(other)->Hash();
-  }
-
-  MaybeObject* AsObject(Heap* heap) {
-    if (hash_field_ == 0) Hash();
-    return heap->AllocateInternalizedStringFromUtf8(string_,
-                                                    chars_,
-                                                    hash_field_);
-  }
-
-  Vector<const char> string_;
-  uint32_t hash_field_;
-  int chars_;  // Caches the number of characters when computing the hash code.
-  uint32_t seed_;
-};
+MaybeObject* OneByteStringKey::AsObject(Heap* heap) {
+  if (hash_field_ == 0) Hash();
+  return heap->AllocateOneByteInternalizedString(string_, hash_field_);
+}
 
 
-template <typename Char>
-class SequentialStringKey : public HashTableKey {
- public:
-  explicit SequentialStringKey(Vector<const Char> string, uint32_t seed)
-      : string_(string), hash_field_(0), seed_(seed) { }
-
-  uint32_t Hash() {
-    hash_field_ = StringHasher::HashSequentialString<Char>(string_.start(),
-                                                           string_.length(),
-                                                           seed_);
-
-    uint32_t result = hash_field_ >> String::kHashShift;
-    ASSERT(result != 0);  // Ensure that the hash value of 0 is never computed.
-    return result;
-  }
+MaybeObject* SubStringOneByteStringKey::AsObject(Heap* heap) {
+  if (hash_field_ == 0) Hash();
+  Vector<const uint8_t> chars(string_->GetChars() + from_, length_);
+  return heap->AllocateOneByteInternalizedString(chars, hash_field_);
+}
 
 
-  uint32_t HashForObject(Object* other) {
-    return String::cast(other)->Hash();
-  }
-
-  Vector<const Char> string_;
-  uint32_t hash_field_;
-  uint32_t seed_;
-};
-
-
-
-class OneByteStringKey : public SequentialStringKey<uint8_t> {
- public:
-  OneByteStringKey(Vector<const uint8_t> str, uint32_t seed)
-      : SequentialStringKey<uint8_t>(str, seed) { }
-
-  bool IsMatch(Object* string) {
-    return String::cast(string)->IsOneByteEqualTo(string_);
-  }
-
-  MaybeObject* AsObject(Heap* heap) {
-    if (hash_field_ == 0) Hash();
-    return heap->AllocateOneByteInternalizedString(string_, hash_field_);
-  }
-};
-
-
-class SubStringOneByteStringKey : public HashTableKey {
- public:
-  explicit SubStringOneByteStringKey(Handle<SeqOneByteString> string,
-                                     int from,
-                                     int length)
-      : string_(string), from_(from), length_(length) { }
-
-  uint32_t Hash() {
-    ASSERT(length_ >= 0);
-    ASSERT(from_ + length_ <= string_->length());
-    uint8_t* chars = string_->GetChars() + from_;
-    hash_field_ = StringHasher::HashSequentialString(
-        chars, length_, string_->GetHeap()->HashSeed());
-    uint32_t result = hash_field_ >> String::kHashShift;
-    ASSERT(result != 0);  // Ensure that the hash value of 0 is never computed.
-    return result;
-  }
-
-
-  uint32_t HashForObject(Object* other) {
-    return String::cast(other)->Hash();
-  }
-
-  bool IsMatch(Object* string) {
-    Vector<const uint8_t> chars(string_->GetChars() + from_, length_);
-    return String::cast(string)->IsOneByteEqualTo(chars);
-  }
-
-  MaybeObject* AsObject(Heap* heap) {
-    if (hash_field_ == 0) Hash();
-    Vector<const uint8_t> chars(string_->GetChars() + from_, length_);
-    return heap->AllocateOneByteInternalizedString(chars, hash_field_);
-  }
-
- private:
-  Handle<SeqOneByteString> string_;
-  int from_;
-  int length_;
-  uint32_t hash_field_;
-};
-
-
-class TwoByteStringKey : public SequentialStringKey<uc16> {
- public:
-  explicit TwoByteStringKey(Vector<const uc16> str, uint32_t seed)
-      : SequentialStringKey<uc16>(str, seed) { }
-
-  bool IsMatch(Object* string) {
-    return String::cast(string)->IsTwoByteEqualTo(string_);
-  }
-
-  MaybeObject* AsObject(Heap* heap) {
-    if (hash_field_ == 0) Hash();
-    return heap->AllocateTwoByteInternalizedString(string_, hash_field_);
-  }
-};
+MaybeObject* TwoByteStringKey::AsObject(Heap* heap) {
+  if (hash_field_ == 0) Hash();
+  return heap->AllocateTwoByteInternalizedString(string_, hash_field_);
+}
 
 
 // InternalizedStringKey carries a string/internalized-string object as key.
@@ -15083,37 +15071,6 @@ bool StringTable::LookupTwoCharsStringIfExists(uint16_t c1,
     ASSERT(StringShape(*result).IsInternalized());
     return true;
   }
-}
-
-
-MaybeObject* StringTable::LookupUtf8String(Vector<const char> str,
-                                           Object** s) {
-  Utf8StringKey key(str, GetHeap()->HashSeed());
-  return LookupKey(&key, s);
-}
-
-
-MaybeObject* StringTable::LookupOneByteString(Vector<const uint8_t> str,
-                                              Object** s) {
-  OneByteStringKey key(str, GetHeap()->HashSeed());
-  return LookupKey(&key, s);
-}
-
-
-MaybeObject* StringTable::LookupSubStringOneByteString(
-    Handle<SeqOneByteString> str,
-    int from,
-    int length,
-    Object** s) {
-  SubStringOneByteStringKey key(str, from, length);
-  return LookupKey(&key, s);
-}
-
-
-MaybeObject* StringTable::LookupTwoByteString(Vector<const uc16> str,
-                                              Object** s) {
-  TwoByteStringKey key(str, GetHeap()->HashSeed());
-  return LookupKey(&key, s);
 }
 
 
@@ -16586,25 +16543,25 @@ void JSTypedArray::Neuter() {
 }
 
 
-Type* PropertyCell::type() {
-  return static_cast<Type*>(type_raw());
+HeapType* PropertyCell::type() {
+  return static_cast<HeapType*>(type_raw());
 }
 
 
-void PropertyCell::set_type(Type* type, WriteBarrierMode ignored) {
+void PropertyCell::set_type(HeapType* type, WriteBarrierMode ignored) {
   ASSERT(IsPropertyCell());
   set_type_raw(type, ignored);
 }
 
 
-Handle<Type> PropertyCell::UpdatedType(Handle<PropertyCell> cell,
-                                       Handle<Object> value) {
+Handle<HeapType> PropertyCell::UpdatedType(Handle<PropertyCell> cell,
+                                           Handle<Object> value) {
   Isolate* isolate = cell->GetIsolate();
-  Handle<Type> old_type(cell->type(), isolate);
+  Handle<HeapType> old_type(cell->type(), isolate);
   // TODO(2803): Do not track ConsString as constant because they cannot be
   // embedded into code.
-  Handle<Type> new_type = value->IsConsString() || value->IsTheHole()
-      ? Type::Any(isolate) : Type::Constant(value, isolate);
+  Handle<HeapType> new_type = value->IsConsString() || value->IsTheHole()
+      ? HeapType::Any(isolate) : HeapType::Constant(value, isolate);
 
   if (new_type->Is(old_type)) {
     return old_type;
@@ -16613,19 +16570,19 @@ Handle<Type> PropertyCell::UpdatedType(Handle<PropertyCell> cell,
   cell->dependent_code()->DeoptimizeDependentCodeGroup(
       isolate, DependentCode::kPropertyCellChangedGroup);
 
-  if (old_type->Is(Type::None()) || old_type->Is(Type::Undefined())) {
+  if (old_type->Is(HeapType::None()) || old_type->Is(HeapType::Undefined())) {
     return new_type;
   }
 
-  return Type::Any(isolate);
+  return HeapType::Any(isolate);
 }
 
 
 void PropertyCell::SetValueInferType(Handle<PropertyCell> cell,
                                      Handle<Object> value) {
   cell->set_value(*value);
-  if (!Type::Any()->Is(cell->type())) {
-    Handle<Type> new_type = UpdatedType(cell, value);
+  if (!HeapType::Any()->Is(cell->type())) {
+    Handle<HeapType> new_type = UpdatedType(cell, value);
     cell->set_type(*new_type);
   }
 }

@@ -47,6 +47,7 @@
         'gay-fixed.cc',
         'gay-precision.cc',
         'gay-shortest.cc',
+        'print-extension.cc',
         'profiler-extension.cc',
         'test-accessors.cc',
         'test-alloc.cc',
@@ -115,7 +116,8 @@
         'test-version.cc',
         'test-weakmaps.cc',
         'test-weaksets.cc',
-        'test-weaktypedarrays.cc'
+        'test-weaktypedarrays.cc',
+        'trace-extension.cc'
       ],
       'conditions': [
         ['v8_target_arch=="ia32"', {
@@ -161,6 +163,8 @@
         ['v8_target_arch=="mipsel"', {
           'sources': [
             'test-assembler-mips.cc',
+            'test-code-stubs.cc',
+            'test-code-stubs-mips.cc',
             'test-disasm-mips.cc',
             'test-macro-assembler-mips.cc'
           ],

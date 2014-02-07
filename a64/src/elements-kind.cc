@@ -40,17 +40,26 @@ int ElementsKindToShiftSize(ElementsKind elements_kind) {
     case EXTERNAL_BYTE_ELEMENTS:
     case EXTERNAL_PIXEL_ELEMENTS:
     case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
+    case UINT8_ELEMENTS:
+    case INT8_ELEMENTS:
+    case UINT8_CLAMPED_ELEMENTS:
       return 0;
     case EXTERNAL_SHORT_ELEMENTS:
     case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
+    case UINT16_ELEMENTS:
+    case INT16_ELEMENTS:
       return 1;
     case EXTERNAL_INT_ELEMENTS:
     case EXTERNAL_UNSIGNED_INT_ELEMENTS:
     case EXTERNAL_FLOAT_ELEMENTS:
+    case UINT32_ELEMENTS:
+    case INT32_ELEMENTS:
+    case FLOAT32_ELEMENTS:
       return 2;
     case EXTERNAL_DOUBLE_ELEMENTS:
     case FAST_DOUBLE_ELEMENTS:
     case FAST_HOLEY_DOUBLE_ELEMENTS:
+    case FLOAT64_ELEMENTS:
       return 3;
     case FAST_SMI_ELEMENTS:
     case FAST_ELEMENTS:

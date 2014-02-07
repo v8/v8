@@ -1948,16 +1948,6 @@ LInstruction* LChunkBuilder::DoStoreGlobalCell(HStoreGlobalCell* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoStoreGlobalGeneric(HStoreGlobalGeneric* instr) {
-  LOperand* context = UseFixed(instr->context(), rsi);
-  LOperand* global_object = UseFixed(instr->global_object(), rdx);
-  LOperand* value = UseFixed(instr->value(), rax);
-  LStoreGlobalGeneric* result =
-      new(zone()) LStoreGlobalGeneric(context, global_object, value);
-  return MarkAsCall(result, instr);
-}
-
-
 LInstruction* LChunkBuilder::DoLoadContextSlot(HLoadContextSlot* instr) {
   LOperand* context = UseRegisterAtStart(instr->value());
   LInstruction* result =
@@ -2033,24 +2023,23 @@ LInstruction* LChunkBuilder::DoLoadKeyed(HLoadKeyed* instr) {
   LOperand* key = UseRegisterOrConstantAtStart(instr->key());
   LLoadKeyed* result = NULL;
 
-  if (!instr->is_external()) {
+  if (!instr->is_typed_elements()) {
     LOperand* obj = UseRegisterAtStart(instr->elements());
     result = new(zone()) LLoadKeyed(obj, key);
   } else {
     ASSERT(
         (instr->representation().IsInteger32() &&
-         (elements_kind != EXTERNAL_FLOAT_ELEMENTS) &&
-         (elements_kind != EXTERNAL_DOUBLE_ELEMENTS)) ||
+         !(IsDoubleOrFloatElementsKind(instr->elements_kind()))) ||
         (instr->representation().IsDouble() &&
-         ((elements_kind == EXTERNAL_FLOAT_ELEMENTS) ||
-          (elements_kind == EXTERNAL_DOUBLE_ELEMENTS))));
-    LOperand* external_pointer = UseRegister(instr->elements());
-    result = new(zone()) LLoadKeyed(external_pointer, key);
+         (IsDoubleOrFloatElementsKind(instr->elements_kind()))));
+    LOperand* backing_store = UseRegister(instr->elements());
+    result = new(zone()) LLoadKeyed(backing_store, key);
   }
 
   DefineAsRegister(result);
   bool can_deoptimize = instr->RequiresHoleCheck() ||
-      (elements_kind == EXTERNAL_UNSIGNED_INT_ELEMENTS);
+      (elements_kind == EXTERNAL_UNSIGNED_INT_ELEMENTS) ||
+      (elements_kind == UINT32_ELEMENTS);
   // An unsigned int array load might overflow and cause a deopt, make sure it
   // has an environment.
   return can_deoptimize ? AssignEnvironment(result) : result;
@@ -2071,7 +2060,7 @@ LInstruction* LChunkBuilder::DoLoadKeyedGeneric(HLoadKeyedGeneric* instr) {
 LInstruction* LChunkBuilder::DoStoreKeyed(HStoreKeyed* instr) {
   ElementsKind elements_kind = instr->elements_kind();
 
-  if (!instr->is_external()) {
+  if (!instr->is_typed_elements()) {
     ASSERT(instr->elements()->representation().IsTagged());
     bool needs_write_barrier = instr->NeedsWriteBarrier();
     LOperand* object = NULL;
@@ -2101,21 +2090,23 @@ LInstruction* LChunkBuilder::DoStoreKeyed(HStoreKeyed* instr) {
   }
 
   ASSERT(
-      (instr->value()->representation().IsInteger32() &&
-       (elements_kind != EXTERNAL_FLOAT_ELEMENTS) &&
-       (elements_kind != EXTERNAL_DOUBLE_ELEMENTS)) ||
-      (instr->value()->representation().IsDouble() &&
-       ((elements_kind == EXTERNAL_FLOAT_ELEMENTS) ||
-        (elements_kind == EXTERNAL_DOUBLE_ELEMENTS))));
-  ASSERT(instr->elements()->representation().IsExternal());
+       (instr->value()->representation().IsInteger32() &&
+       !IsDoubleOrFloatElementsKind(elements_kind)) ||
+       (instr->value()->representation().IsDouble() &&
+       IsDoubleOrFloatElementsKind(elements_kind)));
+  ASSERT((instr->is_fixed_typed_array() &&
+          instr->elements()->representation().IsTagged()) ||
+         (instr->is_external() &&
+          instr->elements()->representation().IsExternal()));
   bool val_is_temp_register =
       elements_kind == EXTERNAL_PIXEL_ELEMENTS ||
-      elements_kind == EXTERNAL_FLOAT_ELEMENTS;
+      elements_kind == EXTERNAL_FLOAT_ELEMENTS ||
+      elements_kind == FLOAT32_ELEMENTS;
   LOperand* val = val_is_temp_register ? UseTempRegister(instr->value())
       : UseRegister(instr->value());
   LOperand* key = UseRegisterOrConstantAtStart(instr->key());
-  LOperand* external_pointer = UseRegister(instr->elements());
-  return new(zone()) LStoreKeyed(external_pointer, key, val);
+  LOperand* backing_store = UseRegister(instr->elements());
+  return new(zone()) LStoreKeyed(backing_store, key, val);
 }
 
 
@@ -2237,12 +2228,8 @@ LInstruction* LChunkBuilder::DoStoreNamedGeneric(HStoreNamedGeneric* instr) {
 
 LInstruction* LChunkBuilder::DoStringAdd(HStringAdd* instr) {
   LOperand* context = UseFixed(instr->context(), rsi);
-  LOperand* left = FLAG_new_string_add
-      ? UseFixed(instr->left(), rdx)
-      : UseOrConstantAtStart(instr->left());
-  LOperand* right = FLAG_new_string_add
-      ? UseFixed(instr->right(), rax)
-      : UseOrConstantAtStart(instr->right());
+  LOperand* left = UseFixed(instr->left(), rdx);
+  LOperand* right = UseFixed(instr->right(), rax);
   return MarkAsCall(
       DefineFixed(new(zone()) LStringAdd(context, left, right), rax), instr);
 }

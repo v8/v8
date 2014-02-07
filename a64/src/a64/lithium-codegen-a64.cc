@@ -466,7 +466,7 @@ void LCodeGen::DoCallNewArray(LCallNewArray* instr) {
   ASSERT(ToRegister(instr->constructor()).is(x1));
 
   __ Mov(x0, Operand(instr->arity()));
-  __ Mov(x2, Operand(instr->hydrogen()->property_cell()));
+  __ Mov(x2, Operand(factory()->undefined_value()));
 
   ElementsKind kind = instr->hydrogen()->elements_kind();
   AllocationSiteOverrideMode override_mode =
@@ -700,17 +700,18 @@ bool LCodeGen::GeneratePrologue() {
   if (heap_slots > 0) {
     Comment(";;; Allocate local context");
     // Argument to NewContext is the function, which is in x1.
-    __ Push(x1);
     if (heap_slots <= FastNewContextStub::kMaximumSlots) {
       FastNewContextStub stub(heap_slots);
       __ CallStub(&stub);
     } else {
+      __ Push(x1);
       __ CallRuntime(Runtime::kNewFunctionContext, 1);
     }
     RecordSafepoint(Safepoint::kNoLazyDeopt);
-    // Context is returned in both x0 and cp. It replaces the context passed to
-    // us. It's saved in the stack and kept live in cp.
-    __ Str(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
+    // Context is returned in x0. It replaces the context passed to us. It's
+    // saved in the stack and kept live in cp.
+    __ Mov(cp, x0);
+    __ Str(x0, MemOperand(fp, StandardFrameConstants::kContextOffset));
     // Copy any necessary parameters into the context.
     int num_parameters = scope()->num_parameters();
     for (int i = 0; i < num_parameters; i++) {
@@ -3273,36 +3274,60 @@ void LCodeGen::DoLoadGlobalGeneric(LLoadGlobalGeneric* instr) {
 }
 
 
-MemOperand LCodeGen::PrepareKeyedExternalArrayOperand(Register key,
-                                                      Register base,
-                                                      Register scratch,
-                                                      bool key_is_smi,
-                                                      bool key_is_constant,
-                                                      int constant_key,
-                                                      int element_size_shift,
-                                                      int additional_index) {
+MemOperand LCodeGen::PrepareKeyedExternalArrayOperand(
+    Register key,
+    Register base,
+    Register scratch,
+    bool key_is_smi,
+    bool key_is_constant,
+    int constant_key,
+    ElementsKind elements_kind,
+    int additional_index) {
+  int element_size_shift = ElementsKindToShiftSize(elements_kind);
+  int additional_offset = IsFixedTypedArrayElementsKind(elements_kind)
+      ? FixedTypedArrayBase::kDataOffset - kHeapObjectTag
+      : 0;
+
   if (key_is_constant) {
-    return MemOperand(base, (constant_key + additional_index) <<
-                            element_size_shift);
+    int base_offset = ((constant_key + additional_index) << element_size_shift);
+    return MemOperand(base, base_offset + additional_offset);
   }
 
   if (additional_index == 0) {
     if (key_is_smi) {
       // Key is smi: untag, and scale by element size.
       __ Add(scratch, base, Operand::UntagSmiAndScale(key, element_size_shift));
-      return MemOperand(scratch);
+      return MemOperand(scratch, additional_offset);
     } else {
       // Key is not smi, and element size is not byte: scale by element size.
-      return MemOperand(base, key, LSL, element_size_shift);
+      if (additional_offset == 0) {
+        return MemOperand(base, key, LSL, element_size_shift);
+      } else {
+        __ Add(scratch, base, Operand(key, LSL, element_size_shift));
+        return MemOperand(scratch, additional_offset);
+      }
     }
   } else {
-    if (key_is_smi) {
-      __ SmiUntag(scratch, key);
-      __ Add(scratch, scratch, additional_index);
+    // TODO(all): Try to combine these cases a bit more intelligently.
+    if (additional_offset == 0) {
+      if (key_is_smi) {
+        __ SmiUntag(scratch, key);
+        __ Add(scratch, scratch, additional_index);
+      } else {
+        __ Add(scratch, key, additional_index);
+      }
+      return MemOperand(base, scratch, LSL, element_size_shift);
     } else {
-      __ Add(scratch, key, additional_index);
+      if (key_is_smi) {
+        __ Add(scratch, base,
+               Operand::UntagSmiAndScale(key, element_size_shift));
+      } else {
+        __ Add(scratch, base, Operand(key, LSL, element_size_shift));
+      }
+      return MemOperand(
+          scratch,
+          (additional_index << element_size_shift) + additional_offset);
     }
-    return MemOperand(base, scratch, LSL, element_size_shift);
   }
 }
 
@@ -3327,31 +3352,49 @@ void LCodeGen::DoLoadKeyedExternal(LLoadKeyedExternal* instr) {
     key = ToRegister(instr->key());
   }
 
-  int element_size_shift = ElementsKindToShiftSize(elements_kind);
   MemOperand mem_op =
       PrepareKeyedExternalArrayOperand(key, ext_ptr, scratch, key_is_smi,
                                        key_is_constant, constant_key,
-                                       element_size_shift,
+                                       elements_kind,
                                        instr->additional_index());
 
-  if (elements_kind == EXTERNAL_FLOAT_ELEMENTS) {
+  if ((elements_kind == EXTERNAL_FLOAT_ELEMENTS) ||
+      (elements_kind == FLOAT32_ELEMENTS)) {
     DoubleRegister result = ToDoubleRegister(instr->result());
     __ Ldr(result.S(), mem_op);
     __ Fcvt(result, result.S());
-  } else if (elements_kind == EXTERNAL_DOUBLE_ELEMENTS) {
+  } else if ((elements_kind == EXTERNAL_DOUBLE_ELEMENTS) ||
+             (elements_kind == FLOAT64_ELEMENTS)) {
     DoubleRegister result = ToDoubleRegister(instr->result());
     __ Ldr(result, mem_op);
   } else {
     Register result = ToRegister(instr->result());
 
     switch (elements_kind) {
-      case EXTERNAL_BYTE_ELEMENTS:            __ Ldrsb(result, mem_op); break;
-      case EXTERNAL_PIXEL_ELEMENTS:           // Fall through.
-      case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:   __ Ldrb(result, mem_op); break;
-      case EXTERNAL_SHORT_ELEMENTS:           __ Ldrsh(result, mem_op); break;
-      case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:  __ Ldrh(result, mem_op); break;
-      case EXTERNAL_INT_ELEMENTS:             __ Ldrsw(result, mem_op); break;
+      case EXTERNAL_BYTE_ELEMENTS:
+      case INT8_ELEMENTS:
+        __ Ldrsb(result, mem_op);
+        break;
+      case EXTERNAL_PIXEL_ELEMENTS:
+      case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
+      case UINT8_ELEMENTS:
+      case UINT8_CLAMPED_ELEMENTS:
+        __ Ldrb(result, mem_op);
+        break;
+      case EXTERNAL_SHORT_ELEMENTS:
+      case INT16_ELEMENTS:
+        __ Ldrsh(result, mem_op);
+        break;
+      case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
+      case UINT16_ELEMENTS:
+        __ Ldrh(result, mem_op);
+        break;
+      case EXTERNAL_INT_ELEMENTS:
+      case INT32_ELEMENTS:
+        __ Ldrsw(result, mem_op);
+        break;
       case EXTERNAL_UNSIGNED_INT_ELEMENTS:
+      case UINT32_ELEMENTS:
         __ Ldr(result.W(), mem_op);
         if (!instr->hydrogen()->CheckFlag(HInstruction::kUint32)) {
           // Deopt if value > 0x80000000.
@@ -3359,6 +3402,8 @@ void LCodeGen::DoLoadKeyedExternal(LLoadKeyedExternal* instr) {
           DeoptimizeIf(ne, instr->environment());
         }
         break;
+      case FLOAT32_ELEMENTS:
+      case FLOAT64_ELEMENTS:
       case EXTERNAL_FLOAT_ELEMENTS:
       case EXTERNAL_DOUBLE_ELEMENTS:
       case FAST_HOLEY_DOUBLE_ELEMENTS:
@@ -4772,18 +4817,6 @@ void LCodeGen::DoStoreGlobalCell(LStoreGlobalCell* instr) {
 }
 
 
-void LCodeGen::DoStoreGlobalGeneric(LStoreGlobalGeneric* instr) {
-  ASSERT(ToRegister(instr->global_object()).Is(x1));
-  ASSERT(ToRegister(instr->value()).Is(x0));
-
-  __ Mov(x2, Operand(instr->name()));
-  Handle<Code> ic = StoreIC::initialize_stub(isolate(),
-                                             instr->strict_mode_flag(),
-                                             CONTEXTUAL);
-  CallCode(ic, RelocInfo::CODE_TARGET, instr);
-}
-
-
 void LCodeGen::DoStoreKeyedExternal(LStoreKeyedExternal* instr) {
   Register ext_ptr = ToRegister(instr->elements());
   Register key = no_reg;
@@ -4804,19 +4837,20 @@ void LCodeGen::DoStoreKeyedExternal(LStoreKeyedExternal* instr) {
     scratch = ToRegister(instr->temp());
   }
 
-  int element_size_shift = ElementsKindToShiftSize(elements_kind);
   MemOperand dst =
     PrepareKeyedExternalArrayOperand(key, ext_ptr, scratch, key_is_smi,
                                      key_is_constant, constant_key,
-                                     element_size_shift,
+                                     elements_kind,
                                      instr->additional_index());
 
-  if (elements_kind == EXTERNAL_FLOAT_ELEMENTS) {
+  if ((elements_kind == EXTERNAL_FLOAT_ELEMENTS) ||
+      (elements_kind == FLOAT32_ELEMENTS)) {
     DoubleRegister value = ToDoubleRegister(instr->value());
     DoubleRegister dbl_scratch = double_scratch();
     __ Fcvt(dbl_scratch.S(), value);
     __ Str(dbl_scratch.S(), dst);
-  } else if (elements_kind == EXTERNAL_DOUBLE_ELEMENTS) {
+  } else if ((elements_kind == EXTERNAL_DOUBLE_ELEMENTS) ||
+             (elements_kind == FLOAT64_ELEMENTS)) {
     DoubleRegister value = ToDoubleRegister(instr->value());
     __ Str(value, dst);
   } else {
@@ -4825,11 +4859,26 @@ void LCodeGen::DoStoreKeyedExternal(LStoreKeyedExternal* instr) {
     switch (elements_kind) {
       case EXTERNAL_PIXEL_ELEMENTS:
       case EXTERNAL_BYTE_ELEMENTS:
-      case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:   __ Strb(value, dst); break;
+      case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
+      case UINT8_ELEMENTS:
+      case UINT8_CLAMPED_ELEMENTS:
+      case INT8_ELEMENTS:
+        __ Strb(value, dst);
+        break;
       case EXTERNAL_SHORT_ELEMENTS:
-      case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:  __ Strh(value, dst); break;
+      case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
+      case INT16_ELEMENTS:
+      case UINT16_ELEMENTS:
+        __ Strh(value, dst);
+        break;
       case EXTERNAL_INT_ELEMENTS:
-      case EXTERNAL_UNSIGNED_INT_ELEMENTS:    __ Str(value.W(), dst); break;
+      case EXTERNAL_UNSIGNED_INT_ELEMENTS:
+      case INT32_ELEMENTS:
+      case UINT32_ELEMENTS:
+        __ Str(value.W(), dst);
+        break;
+      case FLOAT32_ELEMENTS:
+      case FLOAT64_ELEMENTS:
       case EXTERNAL_FLOAT_ELEMENTS:
       case EXTERNAL_DOUBLE_ELEMENTS:
       case FAST_DOUBLE_ELEMENTS:
@@ -5029,26 +5078,17 @@ void LCodeGen::DoStoreNamedGeneric(LStoreNamedGeneric* instr) {
   // Name must be in x2.
   __ Mov(x2, Operand(instr->name()));
   Handle<Code> ic = StoreIC::initialize_stub(isolate(),
-                                             instr->strict_mode_flag(),
-                                             NOT_CONTEXTUAL);
+                                             instr->strict_mode_flag());
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
 }
 
 
 void LCodeGen::DoStringAdd(LStringAdd* instr) {
-  Register left = ToRegister(instr->left());
-  Register right = ToRegister(instr->right());
-  if (FLAG_new_string_add) {
-    ASSERT(left.Is(x1));
-    ASSERT(right.Is(x0));
-    NewStringAddStub stub(instr->hydrogen()->flags(),
-                          isolate()->heap()->GetPretenureMode());
-    CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
-  } else {
-    __ Push(left, right);
-    StringAddStub stub(instr->hydrogen()->flags());
-    CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
-  }
+  ASSERT(ToRegister(instr->left()).Is(x1));
+  ASSERT(ToRegister(instr->right()).Is(x0));
+  StringAddStub stub(instr->hydrogen()->flags(),
+                     isolate()->heap()->GetPretenureMode());
+  CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
 }
 
 

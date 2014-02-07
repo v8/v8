@@ -47,14 +47,4 @@ void FreeBufferExtension::FreeBuffer(
   V8::ArrayBufferAllocator()->Free(contents.Data(), contents.ByteLength());
 }
 
-
-void FreeBufferExtension::Register() {
-  static char buffer[100];
-  Vector<char> temp_vector(buffer, sizeof(buffer));
-  OS::SNPrintF(temp_vector, "native function freeBuffer();");
-
-  static FreeBufferExtension buffer_free_extension(buffer);
-  static v8::DeclareExtension declaration(&buffer_free_extension);
-}
-
 } }  // namespace v8::internal

@@ -28,8 +28,11 @@
 // Tests of profiles generator and utilities.
 
 #include "profiler-extension.h"
+#include "checks.h"
 
-#include "cctest.h"
+namespace v8 {
+namespace internal {
+
 
 const v8::CpuProfile* ProfilerExtension::last_profile = NULL;
 const char* ProfilerExtension::kSource =
@@ -69,6 +72,4 @@ void ProfilerExtension::StopProfiling(
       : v8::String::Empty(args.GetIsolate()));
 }
 
-
-static ProfilerExtension kProfilerExtension;
-v8::DeclareExtension kProfilerExtensionDeclaration(&kProfilerExtension);
+} }  // namespace v8::internal

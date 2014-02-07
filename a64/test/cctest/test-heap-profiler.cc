@@ -2070,57 +2070,6 @@ TEST(JSFunctionHasCodeLink) {
 }
 
 
-
-class HeapProfilerExtension : public v8::Extension {
- public:
-  static const char* kName;
-  HeapProfilerExtension() : v8::Extension(kName, kSource) { }
-  virtual v8::Handle<v8::FunctionTemplate> GetNativeFunctionTemplate(
-      v8::Isolate* isolate,
-      v8::Handle<v8::String> name);
-  static void FindUntrackedObjects(
-      const v8::FunctionCallbackInfo<v8::Value>& args);
- private:
-  static const char* kSource;
-};
-
-const char* HeapProfilerExtension::kName = "v8/heap-profiler";
-
-
-const char* HeapProfilerExtension::kSource =
-    "native function findUntrackedObjects();";
-
-
-v8::Handle<v8::FunctionTemplate>
-HeapProfilerExtension::GetNativeFunctionTemplate(v8::Isolate* isolate,
-                                                 v8::Handle<v8::String> name) {
-  if (name->Equals(v8::String::NewFromUtf8(isolate, "findUntrackedObjects"))) {
-    return v8::FunctionTemplate::New(
-        isolate,
-        HeapProfilerExtension::FindUntrackedObjects);
-  } else {
-    CHECK(false);
-    return v8::Handle<v8::FunctionTemplate>();
-  }
-}
-
-
-void HeapProfilerExtension::FindUntrackedObjects(
-    const v8::FunctionCallbackInfo<v8::Value>& args) {
-  i::HeapProfiler* heap_profiler =
-      reinterpret_cast<i::HeapProfiler*>(args.GetIsolate()->GetHeapProfiler());
-  int untracked_objects =
-      heap_profiler->heap_object_map()->FindUntrackedObjects();
-  args.GetReturnValue().Set(untracked_objects);
-  CHECK_EQ(0, untracked_objects);
-}
-
-
-static HeapProfilerExtension kHeapProfilerExtension;
-v8::DeclareExtension kHeapProfilerExtensionDeclaration(
-    &kHeapProfilerExtension);
-
-
 static const v8::HeapGraphNode* GetNodeByPath(const v8::HeapSnapshot* snapshot,
                                               const char* path[],
                                               int depth) {

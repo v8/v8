@@ -50,6 +50,17 @@ void FastNewClosureStub::InitializeInterfaceDescriptor(
 }
 
 
+void FastNewContextStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  // x1: function
+  static Register registers[] = { x1 };
+  descriptor->register_param_count_ = sizeof(registers) / sizeof(registers[0]);
+  descriptor->register_params_ = registers;
+  descriptor->deoptimization_handler_ = NULL;
+}
+
+
 void ToNumberStub::InitializeInterfaceDescriptor(
     Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
@@ -222,7 +233,7 @@ static void InitializeArrayConstructorDescriptor(
     CodeStubInterfaceDescriptor* descriptor,
     int constant_stack_parameter_count) {
   // x1: function
-  // x2: type info cell with elements kind
+  // x2: allocation site with elements kind
   // x0: number of arguments to the constructor function
   static Register registers_variable_args[] = { x1, x2, x0 };
   static Register registers_no_args[] = { x1, x2 };
@@ -388,7 +399,7 @@ void BinaryOpWithAllocationSiteStub::InitializeInterfaceDescriptor(
 }
 
 
-void NewStringAddStub::InitializeInterfaceDescriptor(
+void StringAddStub::InitializeInterfaceDescriptor(
     Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
   // x1: left operand
@@ -485,58 +496,6 @@ void HydrogenCodeStub::GenerateLightweightMiss(MacroAssembler* masm) {
   }
 
   __ Ret();
-}
-
-
-void FastNewContextStub::Generate(MacroAssembler* masm) {
-  Register function = x0;
-  Register allocated = x1;
-  Label gc;
-
-  // Pop the function from the stack.
-  __ Pop(function);
-
-  // Attempt to allocate the context in new space.
-  int context_length = slots_ + Context::MIN_CONTEXT_SLOTS;
-  __ Allocate(FixedArray::SizeFor(context_length), allocated, x6, x7, &gc,
-              TAG_OBJECT);
-
-  // Set up the object header.
-  Register map = x2;
-  Register length = x2;
-  __ LoadRoot(map, Heap::kFunctionContextMapRootIndex);
-  __ Str(map, FieldMemOperand(allocated, HeapObject::kMapOffset));
-  __ Mov(length, Operand(Smi::FromInt(context_length)));
-  __ Str(length, FieldMemOperand(allocated, FixedArray::kLengthOffset));
-
-  // Set up the fixed slots.
-  Register extension = x2;
-  __ Mov(extension, Operand(Smi::FromInt(0)));
-  __ Str(function, ContextMemOperand(allocated, Context::CLOSURE_INDEX));
-  __ Str(cp, ContextMemOperand(allocated, Context::PREVIOUS_INDEX));
-  __ Str(extension, ContextMemOperand(allocated, Context::EXTENSION_INDEX));
-
-  // Copy the global object from the previous context.
-  Register global_object = x2;
-  __ Ldr(global_object, GlobalObjectMemOperand());
-  __ Str(global_object, ContextMemOperand(allocated,
-                                          Context::GLOBAL_OBJECT_INDEX));
-
-  // Initialize the rest of the slots to undefined.
-  Register undef_val = x2;
-  __ LoadRoot(undef_val, Heap::kUndefinedValueRootIndex);
-  for (int i = Context::MIN_CONTEXT_SLOTS; i < context_length; i++) {
-    __ Str(undef_val, ContextMemOperand(allocated, i));
-  }
-
-  // Install new context and return.
-  __ Mov(cp, allocated);
-  __ Ret();
-
-  // Need to collect. Call into runtime system.
-  __ Bind(&gc);
-  __ Push(function);
-  __ TailCallRuntime(Runtime::kNewFunctionContext, 1, 1);
 }
 
 
@@ -3990,154 +3949,6 @@ void ICCompareStub::GenerateMiss(MacroAssembler* masm) {
 }
 
 
-void StringHelper::GenerateTwoCharacterStringTableProbe(MacroAssembler* masm,
-                                                        Register c1,
-                                                        Register c2,
-                                                        Register scratch1,
-                                                        Register scratch2,
-                                                        Register scratch3,
-                                                        Register scratch4,
-                                                        Register scratch5,
-                                                        Label* not_found) {
-  ASSERT(!AreAliased(c1, c2, scratch1, scratch2, scratch3, scratch4, scratch5));
-  // Register scratch3 is the general scratch register in this function.
-  Register scratch = scratch3;
-
-  // Make sure that both characters are not digits as such strings have a
-  // different hash algorithm. Don't try to look for these in the string table.
-  Label not_array_index;
-  __ Sub(scratch, c1, static_cast<int>('0'));
-  __ Cmp(scratch, static_cast<int>('9' - '0'));
-  __ B(hi, &not_array_index);
-  __ Sub(scratch, c2, static_cast<int>('0'));
-  __ Cmp(scratch, static_cast<int>('9' - '0'));
-
-  // If check failed, combine both characters into single halfword.
-  // This is required by the contract of the method: code at the not_found
-  // branch expects this combination in register c1.
-  __ Orr(scratch, c1, Operand(c2, LSL, kBitsPerByte));
-  __ Csel(c1, scratch, c1, ls);
-  __ B(ls, not_found);
-
-  __ Bind(&not_array_index);
-
-  // Calculate the two character string hash.
-  Register hash = scratch1;
-  StringHelper::GenerateHashInit(masm, hash, c1);
-  StringHelper::GenerateHashAddCharacter(masm, hash, c2);
-  StringHelper::GenerateHashGetHash(masm, hash, scratch);
-
-  // Collect the two characters in a register.
-  Register chars = c1;
-  __ Orr(chars, chars, Operand(c2, LSL, kBitsPerByte));
-
-  // chars: two character string, char 1 in byte 0 and char 2 in byte 1.
-  // hash:  hash of two character string.
-
-  // Load string table
-  // Load address of first element of the string table.
-  Register string_table = c2;
-  __ LoadRoot(string_table, Heap::kStringTableRootIndex);
-
-  Register undefined = scratch4;
-  __ LoadRoot(undefined, Heap::kUndefinedValueRootIndex);
-
-  // Calculate capacity mask from the string table capacity.
-  Register mask = scratch2;
-  __ Ldrsw(mask, UntagSmiFieldMemOperand(string_table,
-                                         StringTable::kCapacityOffset));
-  __ Sub(mask, mask, 1);
-
-  // Calculate untagged address of the first element of the string table.
-  Register first_string_table_element = string_table;
-  __ Add(first_string_table_element, string_table,
-         StringTable::kElementsStartOffset - kHeapObjectTag);
-
-  // Registers
-  // chars: two character string, char 1 in byte 0 and char 2 in byte 1
-  // hash:  hash of two character string
-  // mask:  capacity mask
-  // first_string_table_element: address of the first element of the string
-  //                             table
-  // undefined: the undefined object
-  // scratch: -
-
-  // Perform a number of probes of the string table.
-  static const int kProbes = 4;
-  Label found_in_string_table;
-  Label next_probe[kProbes];
-  Register candidate = scratch5;  // Scratch register contains candidate.
-  for (int i = 0; i < kProbes; i++) {
-    // Calculate entry in string table.
-    if (i > 0) {
-      __ Add(candidate, hash, StringTable::GetProbeOffset(i));
-      __ And(candidate, candidate, mask);
-    } else {
-      __ And(candidate, hash, mask);
-    }
-
-    // Load the entry from the string table.
-    STATIC_ASSERT(StringTable::kEntrySize == 1);
-    __ Ldr(candidate, MemOperand(first_string_table_element,
-                                 candidate, LSL, kPointerSizeLog2));
-
-    // If entry is undefined no string with this hash can be found.
-    Label is_string;
-    Register type = scratch;
-    __ JumpIfNotObjectType(candidate, type, type, ODDBALL_TYPE, &is_string);
-
-    __ Cmp(undefined, candidate);
-    __ B(eq, not_found);
-    // Must be the hole (deleted entry).
-    if (FLAG_debug_code) {
-      __ CompareRoot(candidate, Heap::kTheHoleValueRootIndex);
-      __ Assert(eq, kOddballInStringTableIsNotUndefinedOrTheHole);
-    }
-    __ B(&next_probe[i]);
-
-    __ Bind(&is_string);
-
-    // Check that the candidate is a non-external ASCII string. The instance
-    // type is still in the type register from the CompareObjectType
-    // operation.
-    __ JumpIfInstanceTypeIsNotSequentialAscii(type, type, &next_probe[i]);
-
-    // If length is not two, the string is not a candidate.
-    __ Ldrsw(scratch,
-             UntagSmiFieldMemOperand(candidate, String::kLengthOffset));
-    __ Cmp(scratch, 2);
-    __ B(ne, &next_probe[i]);
-
-    // Check if the two characters match.
-    // Assumes that word load is little endian.
-    __ Ldrh(scratch, FieldMemOperand(candidate, SeqOneByteString::kHeaderSize));
-    __ Cmp(chars, scratch);
-    __ B(eq, &found_in_string_table);
-    __ Bind(&next_probe[i]);
-  }
-
-  // No matching two character string found by probing.
-  __ B(not_found);
-
-  // Scratch register contains result when we fall through to here.
-  __ Bind(&found_in_string_table);
-  __ Mov(x0, candidate);
-}
-
-
-void StringHelper::LoadPairInstanceTypes(MacroAssembler* masm,
-                                         Register first_type,
-                                         Register second_type,
-                                         Register first_string,
-                                         Register second_string) {
-  ASSERT(!AreAliased(first_string, second_string, first_type, second_type));
-  __ Ldr(first_type, FieldMemOperand(first_string, HeapObject::kMapOffset));
-  __ Ldr(second_type, FieldMemOperand(second_string, HeapObject::kMapOffset));
-  __ Ldrb(first_type, FieldMemOperand(first_type, Map::kInstanceTypeOffset));
-  __ Ldrb(second_type, FieldMemOperand(second_type, Map::kInstanceTypeOffset));
-}
-
-
 void StringHelper::GenerateHashInit(MacroAssembler* masm,
                                     Register hash,
                                     Register character) {
@@ -4613,6 +4424,219 @@ void StringCompareStub::Generate(MacroAssembler* masm) {
 }
 
 
+void ArrayPushStub::Generate(MacroAssembler* masm) {
+  Register receiver = x0;
+
+  int argc = arguments_count();
+
+  if (argc == 0) {
+    // Nothing to do, just return the length.
+    __ Ldr(x0, FieldMemOperand(receiver, JSArray::kLengthOffset));
+    __ Drop(argc + 1);
+    __ Ret();
+    return;
+  }
+
+  Isolate* isolate = masm->isolate();
+
+  if (argc != 1) {
+    __ TailCallExternalReference(
+        ExternalReference(Builtins::c_ArrayPush, isolate), argc + 1, 1);
+    return;
+  }
+
+  Label call_builtin, attempt_to_grow_elements, with_write_barrier;
+
+  Register elements_length = x8;
+  Register length = x7;
+  Register elements = x6;
+  Register end_elements = x5;
+  Register value = x4;
+  // Get the elements array of the object.
+  __ Ldr(elements, FieldMemOperand(receiver, JSArray::kElementsOffset));
+
+  if (IsFastSmiOrObjectElementsKind(elements_kind())) {
+    // Check that the elements are in fast mode and writable.
+    __ CheckMap(elements,
+                x10,
+                Heap::kFixedArrayMapRootIndex,
+                &call_builtin,
+                DONT_DO_SMI_CHECK);
+  }
+
+  // Get the array's length and calculate new length.
+  __ Ldr(length, FieldMemOperand(receiver, JSArray::kLengthOffset));
+  STATIC_ASSERT(kSmiTag == 0);
+  __ Add(length, length, Operand(Smi::FromInt(argc)));
+
+  // Check if we could survive without allocation.
+  __ Ldr(elements_length,
+         FieldMemOperand(elements, FixedArray::kLengthOffset));
+  __ Cmp(length, elements_length);
+
+  const int kEndElementsOffset =
+      FixedArray::kHeaderSize - kHeapObjectTag - argc * kPointerSize;
+
+  if (IsFastSmiOrObjectElementsKind(elements_kind())) {
+    __ B(gt, &attempt_to_grow_elements);
+
+    // Check if value is a smi.
+    __ Peek(value, (argc - 1) * kPointerSize);
+    __ JumpIfNotSmi(value, &with_write_barrier);
+
+    // Store the value.
+    // We may need a register containing the address end_elements below,
+    // so write back the value in end_elements.
+    __ Add(end_elements, elements,
+           Operand::UntagSmiAndScale(length, kPointerSizeLog2));
+    __ Str(value, MemOperand(end_elements, kEndElementsOffset, PreIndex));
+  } else {
+    // TODO(all): ARM has a redundant cmp here.
+    __ B(gt, &call_builtin);
+
+    __ Peek(value, (argc - 1) * kPointerSize);
+    __ StoreNumberToDoubleElements(value, length, elements, x10, d0, d1,
+                                   &call_builtin, argc * kDoubleSize);
+  }
+
+  // Save new length.
+  __ Str(length, FieldMemOperand(receiver, JSArray::kLengthOffset));
+
+  // Return length.
+  __ Drop(argc + 1);
+  __ Mov(x0, length);
+  __ Ret();
+
+  if (IsFastDoubleElementsKind(elements_kind())) {
+    __ Bind(&call_builtin);
+    __ TailCallExternalReference(
+        ExternalReference(Builtins::c_ArrayPush, isolate), argc + 1, 1);
+    return;
+  }
+
+  __ Bind(&with_write_barrier);
+
+  if (IsFastSmiElementsKind(elements_kind())) {
+    if (FLAG_trace_elements_transitions) {
+      __ B(&call_builtin);
+    }
+
+    __ Ldr(x10, FieldMemOperand(value, HeapObject::kMapOffset));
+    __ JumpIfHeapNumber(x10, &call_builtin);
+
+    ElementsKind target_kind = IsHoleyElementsKind(elements_kind())
+        ? FAST_HOLEY_ELEMENTS : FAST_ELEMENTS;
+    __ Ldr(x10, GlobalObjectMemOperand());
+    __ Ldr(x10, FieldMemOperand(x10, GlobalObject::kNativeContextOffset));
+    __ Ldr(x10, ContextMemOperand(x10, Context::JS_ARRAY_MAPS_INDEX));
+    const int header_size = FixedArrayBase::kHeaderSize;
+    // Verify that the object can be transitioned in place.
+    const int origin_offset = header_size + elements_kind() * kPointerSize;
+    __ ldr(x11, FieldMemOperand(receiver, origin_offset));
+    __ ldr(x12, FieldMemOperand(x10, HeapObject::kMapOffset));
+    __ cmp(x11, x12);
+    __ B(ne, &call_builtin);
+
+    const int target_offset = header_size + target_kind * kPointerSize;
+    __ Ldr(x10, FieldMemOperand(x10, target_offset));
+    __ Mov(x11, receiver);
+    ElementsTransitionGenerator::GenerateMapChangeElementsTransition(
+        masm, DONT_TRACK_ALLOCATION_SITE, NULL);
+  }
+
+  // Save new length.
+  __ Str(length, FieldMemOperand(receiver, JSArray::kLengthOffset));
+
+  // Store the value.
+  // We may need a register containing the address end_elements below,
+  // so write back the value in end_elements.
+  __ Add(end_elements, elements,
+         Operand::UntagSmiAndScale(length, kPointerSizeLog2));
+  __ Str(value, MemOperand(end_elements, kEndElementsOffset, PreIndex));
+
+  __ RecordWrite(elements,
+                 end_elements,
+                 value,
+                 kLRHasNotBeenSaved,
+                 kDontSaveFPRegs,
+                 EMIT_REMEMBERED_SET,
+                 OMIT_SMI_CHECK);
+  __ Drop(argc + 1);
+  __ Mov(x0, length);
+  __ Ret();
+
+  __ Bind(&attempt_to_grow_elements);
+
+  if (!FLAG_inline_new) {
+    __ B(&call_builtin);
+  }
+
+  Register argument = x2;
+  __ Peek(argument, (argc - 1) * kPointerSize);
+  // Growing elements that are SMI-only requires special handling in case
+  // the new element is non-Smi. For now, delegate to the builtin.
+  if (IsFastSmiElementsKind(elements_kind())) {
+    __ JumpIfNotSmi(argument, &call_builtin);
+  }
+
+  // We could be lucky and the elements array could be at the top of new-space.
+  // In this case we can just grow it in place by moving the allocation pointer
+  // up.
+  ExternalReference new_space_allocation_top =
+      ExternalReference::new_space_allocation_top_address(isolate);
+  ExternalReference new_space_allocation_limit =
+      ExternalReference::new_space_allocation_limit_address(isolate);
+
+  const int kAllocationDelta = 4;
+  ASSERT(kAllocationDelta >= argc);
+  Register allocation_top_addr = x5;
+  Register allocation_top = x9;
+  // Load top and check if it is the end of elements.
+  __ Add(end_elements, elements,
+         Operand::UntagSmiAndScale(length, kPointerSizeLog2));
+  __ Add(end_elements, end_elements, kEndElementsOffset);
+  __ Mov(allocation_top_addr, Operand(new_space_allocation_top));
+  __ Ldr(allocation_top, MemOperand(allocation_top_addr));
+  __ Cmp(end_elements, allocation_top);
+  __ B(ne, &call_builtin);
+
+  __ Mov(x10, Operand(new_space_allocation_limit));
+  __ Ldr(x10, MemOperand(x10));
+  __ Add(allocation_top, allocation_top, kAllocationDelta * kPointerSize);
+  __ Cmp(allocation_top, x10);
+  __ B(hi, &call_builtin);
+
+  // We fit and could grow elements.
+  // Update new_space_allocation_top.
+  __ Str(allocation_top, MemOperand(allocation_top_addr));
+  // Push the argument.
+  __ Str(argument, MemOperand(end_elements));
+  // Fill the rest with holes.
+  __ LoadRoot(x10, Heap::kTheHoleValueRootIndex);
+  for (int i = 1; i < kAllocationDelta; i++) {
+    // TODO(all): Try to use stp here.
+    __ Str(x10, MemOperand(end_elements, i * kPointerSize));
+  }
+
+  // Update elements' and array's sizes.
+  __ Str(length, FieldMemOperand(receiver, JSArray::kLengthOffset));
+  __ Add(elements_length,
+         elements_length,
+         Operand(Smi::FromInt(kAllocationDelta)));
+  __ Str(elements_length,
+         FieldMemOperand(elements, FixedArray::kLengthOffset));
+
+  // Elements are in new space, so write barrier is not required.
+  __ Drop(argc + 1);
+  __ Mov(x0, length);
+  __ Ret();
+
+  __ Bind(&call_builtin);
+  __ TailCallExternalReference(
+      ExternalReference(Builtins::c_ArrayPush, isolate), argc + 1, 1);
+}
+
+
 void BinaryOpICWithAllocationSiteStub::Generate(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- x1    : left
@@ -4638,381 +4662,6 @@ void BinaryOpICWithAllocationSiteStub::Generate(MacroAssembler* masm) {
   // sites.
   BinaryOpWithAllocationSiteStub stub(state_);
   __ TailCallStub(&stub);
-}
-
-
-void StringAddStub::Generate(MacroAssembler* masm) {
-  Label call_runtime, call_builtin;
-  Builtins::JavaScript builtin_id = Builtins::ADD;
-
-  Counters* counters = masm->isolate()->counters();
-
-  // Stack on entry:
-  // sp[0]: second argument (right).
-  // sp[8]: first argument (left).
-
-  Register result = x0;
-  Register left = x10;
-  Register right = x11;
-  Register left_type = x12;
-  Register right_type = x13;
-
-  // Pop the two arguments from the stack.
-  __ Pop(right, left);
-
-  // Make sure that both arguments are strings if not known in advance.
-  // Otherwise, at least one of the arguments is definitely a string,
-  // and we convert the one that is not known to be a string.
-  if ((flags_ & STRING_ADD_CHECK_BOTH) == STRING_ADD_CHECK_BOTH) {
-    ASSERT((flags_ & STRING_ADD_CHECK_LEFT) == STRING_ADD_CHECK_LEFT);
-    ASSERT((flags_ & STRING_ADD_CHECK_RIGHT) == STRING_ADD_CHECK_RIGHT);
-    __ JumpIfEitherSmi(right, left, &call_runtime);
-    // Load instance types.
-    StringHelper::LoadPairInstanceTypes(masm, left_type, right_type, left,
-                                        right);
-    STATIC_ASSERT(kStringTag == 0);
-    // If either is not a string, go to runtime.
-    __ Tbnz(left_type, MaskToBit(kIsNotStringMask), &call_runtime);
-    __ Tbnz(right_type, MaskToBit(kIsNotStringMask), &call_runtime);
-  } else if ((flags_ & STRING_ADD_CHECK_LEFT) == STRING_ADD_CHECK_LEFT) {
-    ASSERT((flags_ & STRING_ADD_CHECK_RIGHT) == 0);
-    GenerateConvertArgument(masm, left, x12, x13, x14, x15, &call_builtin);
-    builtin_id = Builtins::STRING_ADD_RIGHT;
-  } else if ((flags_ & STRING_ADD_CHECK_RIGHT) == STRING_ADD_CHECK_RIGHT) {
-    ASSERT((flags_ & STRING_ADD_CHECK_LEFT) == 0);
-    GenerateConvertArgument(masm, right, x12, x13, x14, x15, &call_builtin);
-    builtin_id = Builtins::STRING_ADD_LEFT;
-  }
-
-  // Both arguments are strings.
-  //   x0   result      pointer to result string object (uninit)
-  //   x10  left        pointer to first string object
-  //   x11  right       pointer to second string object
-  //   x12  left_type   first string instance type (if STRING_ADD_CHECK_BOTH)
-  //   x13  right_type  second string instance type (if STRING_ADD_CHECK_BOTH)
-  Register left_len = x14;
-  Register right_len = x15;
-  {
-    Label strings_not_empty;
-    // Speculatively move pointer to left string into the result register.
-    __ Mov(result, left);
-    // Check if either of the strings are empty. In that case return the other.
-    __ Ldrsw(left_len, UntagSmiFieldMemOperand(left, String::kLengthOffset));
-    __ Ldrsw(right_len, UntagSmiFieldMemOperand(right, String::kLengthOffset));
-    // Test if first string is empty.
-    __ Cmp(left_len, 0);
-    // If first is empty, return second.
-    __ CmovX(result, right, eq);
-    // Else test if second string is empty.
-    __ Ccmp(right_len, 0, ZFlag, ne);
-    // If either string was empty, return result.
-    __ B(ne, &strings_not_empty);
-
-    __ IncrementCounter(counters->string_add_native(), 1, x3, x4);
-    __ Ret();
-
-    __ Bind(&strings_not_empty);
-  }
-
-  // Load string instance types.
-  if ((flags_ & STRING_ADD_CHECK_BOTH) != STRING_ADD_CHECK_BOTH) {
-    StringHelper::LoadPairInstanceTypes(masm, left_type, right_type, left,
-                                        right);
-  }
-
-  // Both strings are non-empty.
-  //   x10  left        first string
-  //   x11  right       second string
-  //   x12  left_type   first string instance type
-  //   x13  right_type  second string instance type
-  //   x14  left_len    length of first string
-  //   x15  right_len   length of second string
-  Label string_add_flat_result, longer_than_two;
-  // Adding two lengths can't overflow
-  STATIC_ASSERT(String::kMaxLength < String::kMaxLength * 2);
-  Register length = x1;
-  __ Add(length, left_len, right_len);
-  // Use the string table when adding two one character strings, as it helps
-  // later optimizations to return a string here.
-  __ Cmp(length, 2);
-  __ B(ne, &longer_than_two);
-
-  // Check that both strings are non-external ASCII strings.
-  __ JumpIfBothInstanceTypesAreNotSequentialAscii(left_type, right_type, x2,
-                                                  x3, &call_runtime);
-
-  Register left_char = x6;
-  Register right_char = x7;
-  // Get the two characters forming the sub string.
-  __ Ldrb(left_char, FieldMemOperand(left, SeqOneByteString::kHeaderSize));
-  __ Ldrb(right_char, FieldMemOperand(right, SeqOneByteString::kHeaderSize));
-
-  // Try to lookup two character string in string table. If it is not found
-  // just allocate a new one.
-  //   x0   result      pointer to result string (uninit)
-  //   x1   length      sum of lengths of strings
-  //   x6   left_char   first character of first string
-  //   x7   right_char  first character of second string
-  //   x10  left        pointer to first string object
-  //   x11  right       pointer to second string object
-  //   x12  left_type   first string instance type
-  //   x13  right_type  second string instance type
-  //   x14  left_len    length of first string
-  //   x15  right_len   length of second string
-  Label make_two_character_string;
-  StringHelper::GenerateTwoCharacterStringTableProbe(
-      masm,
-      left_char,
-      right_char,
-      x2, x3, x4, x5, x8,
-      &make_two_character_string);
-  // Result register will be initialised with pointer to probed string, if
-  // found.
-  __ IncrementCounter(counters->string_add_native(), 1, x3, x4);
-  __ Ret();
-
-  __ Bind(&make_two_character_string);
-  // Resulting string has length two and first chars of two strings are
-  // combined into single halfword in left_char(x6) by
-  // GenerateTwoCharacterStringTableProbe().
-  // Store the result to a newly-allocated string using a halfword store.
-  // This assumes the processor is little endian.
-  __ Mov(length, 2);
-  __ AllocateAsciiString(result, length, x12, x13, x14, &call_runtime);
-  __ Strh(left_char, FieldMemOperand(result, SeqOneByteString::kHeaderSize));
-  __ IncrementCounter(counters->string_add_native(), 1, x3, x4);
-  __ Ret();
-
-  __ Bind(&longer_than_two);
-  //   x0   result      pointer to result string (uninit)
-  //   x1   length      sum of lengths of strings
-  //   x10  left        pointer to first string object
-  //   x11  right       pointer to second string object
-  //   x12  left_type   first string instance type
-  //   x13  right_type  second string instance type
-  //   x14  left_len    length of first string
-  //   x15  right_len   length of second string
-
-  // Check if resulting string will be flat.
-  __ Cmp(length, ConsString::kMinLength);
-  __ B(lt, &string_add_flat_result);
-  // Handle exceptionally long strings in the runtime system.
-  STATIC_ASSERT((String::kMaxLength & 0x80000000) == 0);
-  ASSERT(IsPowerOf2(String::kMaxLength + 1));
-
-  // (kMaxLength + 1) is a single bit, so if it's set, string length is >=
-  // kMaxLength + 1, and the string must be handled by the runtime.
-  __ Tbnz(length, MaskToBit(String::kMaxLength + 1), &call_runtime);
-
-  // If result is not supposed to be flat, allocate a cons string object.
-  // If both strings are ASCII the result is an ASCII cons string.
-  Label non_ascii, allocated, ascii_data;
-  STATIC_ASSERT(kTwoByteStringTag == 0);
-  Register combined_type = x2;
-  __ And(combined_type, left_type, right_type);
-  __ Tbz(combined_type, MaskToBit(kStringEncodingMask), &non_ascii);
-
-  // Allocate an ASCII cons string.
-  __ Bind(&ascii_data);
-  __ AllocateAsciiConsString(result, length, x12, x13, &call_runtime);
-  __ Bind(&allocated);
-  // Fill the fields of the cons string.
-  Label skip_write_barrier, after_writing;
-  ExternalReference high_promotion_mode = ExternalReference::
-      new_space_high_promotion_mode_active_address(masm->isolate());
-  __ Mov(x3, Operand(high_promotion_mode));
-  __ Ldr(x3, MemOperand(x3));
-  __ Cbz(x3, &skip_write_barrier);
-
-  __ Str(left, FieldMemOperand(result, ConsString::kFirstOffset));
-  __ RecordWriteField(result,
-                      ConsString::kFirstOffset,
-                      left,
-                      x3,
-                      kLRHasNotBeenSaved,
-                      kDontSaveFPRegs,
-                      EMIT_REMEMBERED_SET,
-                      INLINE_SMI_CHECK);
-  __ Str(right, FieldMemOperand(result, ConsString::kSecondOffset));
-  __ RecordWriteField(result,
-                      ConsString::kSecondOffset,
-                      right,
-                      x3,
-                      kLRHasNotBeenSaved,
-                      kDontSaveFPRegs,
-                      EMIT_REMEMBERED_SET,
-                      INLINE_SMI_CHECK);
-  __ B(&after_writing);
-  __ Bind(&skip_write_barrier);
-
-  __ Str(left, FieldMemOperand(result, ConsString::kFirstOffset));
-  __ Str(right, FieldMemOperand(result, ConsString::kSecondOffset));
-  __ Bind(&after_writing);
-
-  __ IncrementCounter(counters->string_add_native(), 1, x3, x4);
-  __ Ret();
-
-  __ Bind(&non_ascii);
-  // At least one of the strings has a two-byte encoding. Check whether it
-  // happens to contain only one-byte characters.
-  //   x2   combined_type  bitwise-and of first and second string instance types
-  //   x12  left_type      first string instance type
-  //   x13  right_type     second string instance type
-  __ Tbnz(combined_type, MaskToBit(kOneByteDataHintMask), &ascii_data);
-
-  // If one string has one-byte encoding, and the other is an ASCII string with
-  // two-byte encoding, the result can still be an ASCII string.
-  STATIC_ASSERT(kOneByteStringTag != 0 && kOneByteDataHintTag != 0);
-  __ Eor(x2, left_type, right_type);
-  __ And(x2, x2, kOneByteStringTag | kOneByteDataHintTag);
-  __ Cmp(x2, kOneByteStringTag | kOneByteDataHintTag);
-  __ B(eq, &ascii_data);
-
-  // Allocate a two byte cons string.
-  __ AllocateTwoByteConsString(result, length, x12, x13, &call_runtime);
-  __ B(&allocated);
-
-  // We cannot encounter sliced strings or cons strings here since:
-  STATIC_ASSERT(SlicedString::kMinLength >= ConsString::kMinLength);
-  // Handle creating a flat result from either external or sequential strings.
-  // Locate the first characters' locations.
-  Label first_prepared, second_prepared;
-  __ Bind(&string_add_flat_result);
-
-  Register temp = x5;
-  // Check whether both strings have same encoding
-  //   x1   length      sum of string lengths
-  //   x5   temp        temporary register (uninit)
-  //   x6   left_char   pointer to first character of first string (uninit)
-  //   x7   right_char  pointer to first character of second string (uninit)
-  //   x10  left        first string
-  //   x11  right       second string
-  //   x12  left_type   first string instance type
-  //   x13  right_type  second string instance type
-  //   x14  left_len    length of first string
-  //   x15  right_len   length of second string
-  __ Eor(temp, left_type, right_type);
-  __ Tbnz(temp, MaskToBit(kStringEncodingMask), &call_runtime);
-
-  STATIC_ASSERT(kSeqStringTag == 0);
-  STATIC_ASSERT(kShortExternalStringTag != 0);
-  STATIC_ASSERT(SeqOneByteString::kHeaderSize == SeqTwoByteString::kHeaderSize);
-
-  __ Tst(left_type, kStringRepresentationMask);
-  __ Add(left_char, left, SeqOneByteString::kHeaderSize - kHeapObjectTag);
-  __ B(eq, &first_prepared);
-  // External string: rule out short external string and load string resource.
-  __ Tbnz(left_type, MaskToBit(kShortExternalStringMask), &call_runtime);
-  __ Ldr(left_char, FieldMemOperand(left, ExternalString::kResourceDataOffset));
-  __ Bind(&first_prepared);
-
-  __ Tst(right_type, kStringRepresentationMask);
-  __ Add(right_char, right, SeqOneByteString::kHeaderSize - kHeapObjectTag);
-  __ B(eq, &second_prepared);
-  // External string: rule out short external string and load string resource.
-  __ Tbnz(right_type, MaskToBit(kShortExternalStringMask), &call_runtime);
-  __ Ldr(right_char,
-         FieldMemOperand(right, ExternalString::kResourceDataOffset));
-  __ Bind(&second_prepared);
-
-  Label non_ascii_string_add_flat_result;
-  //   x0   result      pointer to result string (uninit)
-  //   x1   length      sum of string lengths
-  //   x6   left_char   pointer to first character of first string
-  //   x7   right_char  pointer to first character of second string
-  //   x12  left_type   first string instance type
-  //   x13  right_type  second string instance type
-  //   x14  left_len    length of first string
-  //   x15  right_len   length of second string
-
-  // Both strings have the same encoding.
-  STATIC_ASSERT(kTwoByteStringTag == 0);
-  __ Tbz(right_type, MaskToBit(kStringEncodingMask),
-         &non_ascii_string_add_flat_result);
-
-  Register result_char = x10;
-  __ AllocateAsciiString(result, length, x3, x12, x13, &call_runtime);
-  __ Add(result_char, result, SeqOneByteString::kHeaderSize - kHeapObjectTag);
-  //   x0   result       pointer to result ascii string object
-  //   x1   length       sum of string lengths
-  //   x6   left_char    pointer to first character of first string
-  //   x7   right_char   pointer to first character of second string
-  //   x10  result_char  pointer to first character of result string
-  //   x14  left_len     length of first string
-  //   x15  right_len    length of second string
-  __ CopyBytes(result_char, left_char, left_len, temp, kCopyShort);
-  //   x10  result_char  pointer to next character of result string
-  __ CopyBytes(result_char, right_char, right_len, temp, kCopyShort);
-  __ IncrementCounter(counters->string_add_native(), 1, x3, x4);
-  __ Ret();
-
-
-  __ Bind(&non_ascii_string_add_flat_result);
-  __ AllocateTwoByteString(result, length, x3, x12, x13, &call_runtime);
-  __ Add(result_char, result, SeqTwoByteString::kHeaderSize - kHeapObjectTag);
-  //   x0   result       pointer to result two byte string object
-  //   x1   length       sum of string lengths
-  //   x6   left_char    pointer to first character of first string
-  //   x7   right_char   pointer to first character of second string
-  //   x10  result_char  pointer to first character of result string
-  //   x14  left_len     length of first string
-  //   x15  right_len    length of second string
-  __ Add(left_len, left_len, left_len);
-  __ CopyBytes(result_char, left_char, left_len, temp, kCopyShort);
-
-  //   x10  result_char  pointer to next character of result string
-  __ Add(right_len, right_len, right_len);
-  __ CopyBytes(result_char, right_char, right_len, temp, kCopyShort);
-  __ IncrementCounter(counters->string_add_native(), 1, x3, x4);
-  __ Ret();
-
-
-  // Just jump to runtime to add the two strings.
-  __ Bind(&call_runtime);
-  // Restore stack arguments.
-  __ Push(left, right);
-  __ TailCallRuntime(Runtime::kStringAdd, 2, 1);
-
-  if (call_builtin.is_linked()) {
-    __ Bind(&call_builtin);
-    // Restore stack arguments.
-    __ Push(left, right);
-    __ InvokeBuiltin(builtin_id, JUMP_FUNCTION);
-  }
-}
-
-
-void StringAddStub::GenerateConvertArgument(MacroAssembler* masm,
-                                            Register arg,
-                                            Register scratch1,
-                                            Register scratch2,
-                                            Register scratch3,
-                                            Register scratch4,
-                                            Label* slow) {
-  ASSERT(!AreAliased(arg, scratch1, scratch2, scratch3, scratch4));
-
-  // First check if the argument is already a string.
-  Label not_string, done;
-  __ JumpIfSmi(arg, &not_string);
-  __ JumpIfObjectType(arg, scratch1, scratch1, FIRST_NONSTRING_TYPE, &done, lt);
-
-  // Check the number to string cache.
-  __ Bind(&not_string);
-  // Puts the cache result into scratch1.
-  __ LookupNumberStringCache(arg, scratch1, scratch2, scratch3, scratch4, slow);
-  __ Mov(arg, scratch1);
-
-  __ Bind(&done);
-}
-
-
-void StringAddStub::GenerateRegisterArgsPush(MacroAssembler* masm) {
-  __ Push(x0, x1);
-}
-
-
-void StringAddStub::GenerateRegisterArgsPop(MacroAssembler* masm) {
-  __ Pop(x1, x0);
 }
 
 
@@ -5670,11 +5319,11 @@ static void CreateArrayDispatchOneArgument(MacroAssembler* masm,
                                            AllocationSiteOverrideMode mode) {
   // x0 - argc
   // x1 - constructor?
-  // x2 - type info cell (if mode != DISABLE_ALLOCATION_SITES)
+  // x2 - allocation site (if mode != DISABLE_ALLOCATION_SITES)
   // x3 - kind (if mode != DISABLE_ALLOCATION_SITES)
   // sp[0] - last argument
 
-  Register type_info_cell = x2;
+  Register allocation_site = x2;
   Register kind = x3;
 
   Label normal_sequence;
@@ -5712,23 +5361,22 @@ static void CreateArrayDispatchOneArgument(MacroAssembler* masm,
     // Fix kind and retry (only if we have an allocation site in the cell).
     __ Orr(kind, kind, 1);
 
-    __ Ldr(x10, FieldMemOperand(type_info_cell, Cell::kValueOffset));
-
     if (FLAG_debug_code) {
-      __ Ldr(x10, FieldMemOperand(x10, 0));
+      __ Ldr(x10, FieldMemOperand(allocation_site, 0));
       __ JumpIfNotRoot(x10, Heap::kAllocationSiteMapRootIndex,
                        &normal_sequence);
-      __ Assert(eq, kExpectedAllocationSiteInCell);
-      __ Ldr(x10, FieldMemOperand(type_info_cell, Cell::kValueOffset));
+      __ Assert(eq, kExpectedAllocationSite);
     }
 
     // Save the resulting elements kind in type info. We can't just store 'kind'
     // in the AllocationSite::transition_info field because elements kind is
     // restricted to a portion of the field; upper bits need to be left alone.
     STATIC_ASSERT(AllocationSite::ElementsKindBits::kShift == 0);
-    __ Ldr(x11, FieldMemOperand(x10, AllocationSite::kTransitionInfoOffset));
+    __ Ldr(x11, FieldMemOperand(allocation_site,
+                                AllocationSite::kTransitionInfoOffset));
     __ Add(x11, x11, Operand(Smi::FromInt(kFastElementsKindPackedToHoley)));
-    __ Str(x11, FieldMemOperand(x10, AllocationSite::kTransitionInfoOffset));
+    __ Str(x11, FieldMemOperand(allocation_site,
+                                AllocationSite::kTransitionInfoOffset));
 
     __ Bind(&normal_sequence);
     int last_index =
@@ -5862,19 +5510,21 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
     __ Bind(&okay_here);
   }
 
+  Register allocation_site = x2;  // Overwrites type_info_cell.
   Register kind = x3;
   Label no_info;
   // Get the elements kind and case on that.
   __ JumpIfRoot(type_info_cell, Heap::kUndefinedValueRootIndex, &no_info);
-  __ Ldr(kind, FieldMemOperand(type_info_cell, PropertyCell::kValueOffset));
+  __ Ldr(allocation_site, FieldMemOperand(type_info_cell,
+                                          PropertyCell::kValueOffset));
 
   // If the type cell is undefined, or contains anything other than an
   // AllocationSite, call an array constructor that doesn't use AllocationSites.
-  __ Ldr(x10, FieldMemOperand(kind, AllocationSite::kMapOffset));
+  __ Ldr(x10, FieldMemOperand(allocation_site, AllocationSite::kMapOffset));
   __ JumpIfNotRoot(x10, Heap::kAllocationSiteMapRootIndex, &no_info);
 
   __ Ldrsw(kind,
-           UntagSmiFieldMemOperand(kind,
+           UntagSmiFieldMemOperand(allocation_site,
                                    AllocationSite::kTransitionInfoOffset));
   __ And(kind, kind, AllocationSite::ElementsKindBits::kMask);
   GenerateDispatchToArrayStub(masm, DONT_OVERRIDE);

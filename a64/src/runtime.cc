@@ -259,9 +259,11 @@ static Handle<Object> CreateObjectLiteralBoilerplate(
                                 constant_properties,
                                 &is_result_from_cache);
 
+  PretenureFlag pretenure_flag =
+      isolate->heap()->InNewSpace(*literals) ? NOT_TENURED : TENURED;
+
   Handle<JSObject> boilerplate =
-      isolate->factory()->NewJSObjectFromMap(
-          map, isolate->heap()->GetPretenureMode());
+      isolate->factory()->NewJSObjectFromMap(map, pretenure_flag);
 
   // Normalize the elements of the boilerplate to save space if needed.
   if (!should_have_fast_elements) JSObject::NormalizeElements(boilerplate);
@@ -367,9 +369,11 @@ Handle<Object> Runtime::CreateArrayLiteralBoilerplate(
   Handle<JSFunction> constructor(
       JSFunction::NativeContextFromLiterals(*literals)->array_function());
 
+  PretenureFlag pretenure_flag =
+      isolate->heap()->InNewSpace(*literals) ? NOT_TENURED : TENURED;
+
   Handle<JSArray> object = Handle<JSArray>::cast(
-      isolate->factory()->NewJSObject(
-          constructor, isolate->heap()->GetPretenureMode()));
+      isolate->factory()->NewJSObject(constructor, pretenure_flag));
 
   ElementsKind constant_elements_kind =
       static_cast<ElementsKind>(Smi::cast(elements->get(0))->value());
@@ -5218,7 +5222,8 @@ Handle<Object> Runtime::SetObjectProperty(Isolate* isolate,
     }
 
     js_object->ValidateElements();
-    if (js_object->HasExternalArrayElements()) {
+    if (js_object->HasExternalArrayElements() ||
+        js_object->HasFixedTypedArrayElements()) {
       if (!value->IsNumber() && !value->IsUndefined()) {
         bool has_exception;
         Handle<Object> number =
@@ -6808,8 +6813,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberToStringSkipCache) {
   Object* number = args[0];
   RUNTIME_ASSERT(number->IsNumber());
 
-  return isolate->heap()->NumberToString(
-      number, false, isolate->heap()->GetPretenureMode());
+  return isolate->heap()->NumberToString(number, false);
 }
 
 
@@ -8865,7 +8869,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NewGlobalContext) {
 
   ASSERT(function->context() == isolate->context());
   ASSERT(function->context()->global_object() == result->global_object());
-  isolate->set_context(result);
   result->global_object()->set_global_context(result);
 
   return result;  // non-failure
@@ -8878,14 +8881,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NewFunctionContext) {
 
   CONVERT_ARG_CHECKED(JSFunction, function, 0);
   int length = function->shared()->scope_info()->ContextLength();
-  Context* result;
-  MaybeObject* maybe_result =
-      isolate->heap()->AllocateFunctionContext(length, function);
-  if (!maybe_result->To(&result)) return maybe_result;
-
-  isolate->set_context(result);
-
-  return result;  // non-failure
+  return isolate->heap()->AllocateFunctionContext(length, function);
 }
 
 
@@ -10007,6 +10003,15 @@ static uint32_t EstimateElementCount(Handle<JSArray> array) {
     case EXTERNAL_FLOAT_ELEMENTS:
     case EXTERNAL_DOUBLE_ELEMENTS:
     case EXTERNAL_PIXEL_ELEMENTS:
+    case UINT8_ELEMENTS:
+    case INT8_ELEMENTS:
+    case UINT16_ELEMENTS:
+    case INT16_ELEMENTS:
+    case UINT32_ELEMENTS:
+    case INT32_ELEMENTS:
+    case FLOAT32_ELEMENTS:
+    case FLOAT64_ELEMENTS:
+    case UINT8_CLAMPED_ELEMENTS:
       // External arrays are always dense.
       return length;
   }
@@ -14769,10 +14774,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ArrayConstructor) {
 
   Handle<AllocationSite> site;
   if (!type_info.is_null() &&
-      *type_info != isolate->heap()->undefined_value() &&
-      Cell::cast(*type_info)->value()->IsAllocationSite()) {
-    site = Handle<AllocationSite>(
-        AllocationSite::cast(Cell::cast(*type_info)->value()), isolate);
+      *type_info != isolate->heap()->undefined_value()) {
+    site = Handle<AllocationSite>::cast(type_info);
     ASSERT(!site->SitePointsToLiteral());
   }
 

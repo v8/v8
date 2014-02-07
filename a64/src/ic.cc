@@ -231,57 +231,8 @@ static void LookupForRead(Handle<Object> object,
 }
 
 
-bool CallIC::TryUpdateExtraICState(LookupResult* lookup,
-                                   Handle<Object> object) {
-  if (!lookup->IsConstantFunction()) return false;
-  JSFunction* function = lookup->GetConstantFunction();
-  if (!function->shared()->HasBuiltinFunctionId()) return false;
-
-  // Fetch the arguments passed to the called function.
-  const int argc = target()->arguments_count();
-  Address entry = isolate()->c_entry_fp(isolate()->thread_local_top());
-  Address fp = Memory::Address_at(entry + ExitFrameConstants::kCallerFPOffset);
-  Arguments args(argc + 1,
-                 &Memory::Object_at(fp +
-                                    StandardFrameConstants::kCallerSPOffset +
-                                    argc * kPointerSize));
-  switch (function->shared()->builtin_function_id()) {
-    case kStringCharCodeAt:
-    case kStringCharAt:
-      if (object->IsString()) {
-        String* string = String::cast(*object);
-        // Check there's the right string value or wrapper in the receiver slot.
-        ASSERT(string == args[0] || string == JSValue::cast(args[0])->value());
-        // If we're in the default (fastest) state and the index is
-        // out of bounds, update the state to record this fact.
-        if (StringStubState::decode(extra_ic_state()) == DEFAULT_STRING_STUB &&
-            argc >= 1 && args[1]->IsNumber()) {
-          double index = DoubleToInteger(args.number_at(1));
-          if (index < 0 || index >= string->length()) {
-            set_extra_ic_state(StringStubState::update(extra_ic_state(),
-                STRING_INDEX_OUT_OF_BOUNDS));
-            return true;
-          }
-        }
-      }
-      break;
-    default:
-      return false;
-  }
-  return false;
-}
-
-
 bool IC::TryRemoveInvalidPrototypeDependentStub(Handle<Object> receiver,
                                                 Handle<String> name) {
-  if (target()->is_call_stub()) {
-    LookupResult lookup(isolate());
-    LookupForRead(receiver, name, &lookup);
-    if (static_cast<CallIC*>(this)->TryUpdateExtraICState(&lookup, receiver)) {
-      return true;
-    }
-  }
-
   if (target()->is_keyed_stub()) {
     // Determine whether the failure is due to a name failure.
     if (!name->IsName()) return false;
@@ -626,7 +577,7 @@ MaybeObject* CallICBase::LoadFunction(Handle<Object> object,
   if (!lookup.IsFound()) {
     // If the object does not have the requested property, check which
     // exception we need to throw.
-    return IsUndeclaredGlobal(object)
+    return object->IsGlobalObject()
         ? ReferenceError("not_defined", name)
         : TypeError("undefined_method", object, name);
   }
@@ -643,7 +594,7 @@ MaybeObject* CallICBase::LoadFunction(Handle<Object> object,
   if (lookup.IsInterceptor() && attr == ABSENT) {
     // If the object does not have the requested property, check which
     // exception we need to throw.
-    return IsUndeclaredGlobal(object)
+    return object->IsGlobalObject()
         ? ReferenceError("not_defined", name)
         : TypeError("undefined_method", object, name);
   }
@@ -947,7 +898,7 @@ static bool AddOneReceiverMapIfMissing(MapHandleList* receiver_maps,
 }
 
 
-bool IC::UpdatePolymorphicIC(Handle<Type> type,
+bool IC::UpdatePolymorphicIC(Handle<HeapType> type,
                              Handle<String> name,
                              Handle<Code> code) {
   if (!code->is_handler()) return false;
@@ -962,7 +913,7 @@ bool IC::UpdatePolymorphicIC(Handle<Type> type,
   number_of_valid_types = number_of_types;
 
   for (int i = 0; i < number_of_types; i++) {
-    Handle<Type> current_type = types.at(i);
+    Handle<HeapType> current_type = types.at(i);
     // Filter out deprecated maps to ensure their instances get migrated.
     if (current_type->IsClass() && current_type->AsClass()->is_deprecated()) {
       number_of_valid_types--;
@@ -995,16 +946,17 @@ bool IC::UpdatePolymorphicIC(Handle<Type> type,
 }
 
 
-Handle<Type> IC::CurrentTypeOf(Handle<Object> object, Isolate* isolate) {
+Handle<HeapType> IC::CurrentTypeOf(Handle<Object> object, Isolate* isolate) {
   return object->IsJSGlobalObject()
-      ? Type::Constant(Handle<JSGlobalObject>::cast(object), isolate)
-      : Type::OfCurrently(object, isolate);
+      ? HeapType::Constant(Handle<JSGlobalObject>::cast(object), isolate)
+      : HeapType::OfCurrently(object, isolate);
 }
 
 
-Handle<Map> IC::TypeToMap(Type* type, Isolate* isolate) {
-  if (type->Is(Type::Number())) return isolate->factory()->heap_number_map();
-  if (type->Is(Type::Boolean())) return isolate->factory()->oddball_map();
+Handle<Map> IC::TypeToMap(HeapType* type, Isolate* isolate) {
+  if (type->Is(HeapType::Number()))
+    return isolate->factory()->heap_number_map();
+  if (type->Is(HeapType::Boolean())) return isolate->factory()->oddball_map();
   if (type->IsConstant()) {
     return handle(Handle<JSGlobalObject>::cast(type->AsConstant())->map());
   }
@@ -1013,16 +965,20 @@ Handle<Map> IC::TypeToMap(Type* type, Isolate* isolate) {
 }
 
 
-Handle<Type> IC::MapToType(Handle<Map> map) {
+Handle<HeapType> IC::MapToType(Handle<Map> map) {
   Isolate* isolate = map->GetIsolate();
-  if (map->instance_type() == HEAP_NUMBER_TYPE) return Type::Number(isolate);
-  // The only oddballs that can be recorded in ICs are booleans.
-  if (map->instance_type() == ODDBALL_TYPE) return Type::Boolean(isolate);
-  return Type::Class(map, isolate);
+  if (map->instance_type() == HEAP_NUMBER_TYPE) {
+    return HeapType::Number(isolate);
+  } else if (map->instance_type() == ODDBALL_TYPE) {
+    // The only oddballs that can be recorded in ICs are booleans.
+    return HeapType::Boolean(isolate);
+  } else {
+    return HeapType::Class(map, isolate);
+  }
 }
 
 
-void IC::UpdateMonomorphicIC(Handle<Type> type,
+void IC::UpdateMonomorphicIC(Handle<HeapType> type,
                              Handle<Code> handler,
                              Handle<String> name) {
   if (!handler->is_handler()) return set_target(*handler);
@@ -1043,7 +999,7 @@ void IC::CopyICToMegamorphicCache(Handle<String> name) {
 }
 
 
-bool IC::IsTransitionOfMonomorphicTarget(Handle<Type> type) {
+bool IC::IsTransitionOfMonomorphicTarget(Handle<HeapType> type) {
   if (!type->IsClass()) return false;
   Map* receiver_map = *type->AsClass();
   Map* current_map = target()->FindFirstMap();
@@ -1059,7 +1015,7 @@ bool IC::IsTransitionOfMonomorphicTarget(Handle<Type> type) {
 }
 
 
-void IC::PatchCache(Handle<Type> type,
+void IC::PatchCache(Handle<HeapType> type,
                     Handle<String> name,
                     Handle<Code> code) {
   switch (state()) {
@@ -1102,7 +1058,7 @@ void IC::PatchCache(Handle<Type> type,
 
 Handle<Code> LoadIC::initialize_stub(Isolate* isolate, ContextualMode mode) {
   Handle<Code> ic = isolate->stub_cache()->ComputeLoad(
-      UNINITIALIZED, IC::ComputeExtraICState(mode));
+      UNINITIALIZED, ComputeExtraICState(mode));
   return ic;
 }
 
@@ -1110,7 +1066,7 @@ Handle<Code> LoadIC::initialize_stub(Isolate* isolate, ContextualMode mode) {
 Handle<Code> LoadIC::pre_monomorphic_stub(Isolate* isolate,
                                           ContextualMode mode) {
   return isolate->stub_cache()->ComputeLoad(
-      PREMONOMORPHIC, IC::ComputeExtraICState(mode));
+      PREMONOMORPHIC, ComputeExtraICState(mode));
 }
 
 
@@ -1145,7 +1101,7 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
     return;
   }
 
-  Handle<Type> type = CurrentTypeOf(object, isolate());
+  Handle<HeapType> type = CurrentTypeOf(object, isolate());
   Handle<Code> code;
   if (!lookup->IsCacheable()) {
     // Bail out if the result is not cacheable.
@@ -1165,7 +1121,7 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
 }
 
 
-void IC::UpdateMegamorphicCache(Type* type, Name* name, Code* code) {
+void IC::UpdateMegamorphicCache(HeapType* type, Name* name, Code* code) {
   // Cache code holding map should be consistent with
   // GenerateMonomorphicCacheProbe.
   Map* map = *TypeToMap(type, isolate());
@@ -1206,7 +1162,7 @@ Handle<Code> LoadIC::CompileHandler(LookupResult* lookup,
     return SimpleFieldLoad(length_index);
   }
 
-  Handle<Type> type = CurrentTypeOf(object, isolate());
+  Handle<HeapType> type = CurrentTypeOf(object, isolate());
   Handle<JSObject> holder(lookup->holder());
   LoadStubCompiler compiler(isolate(), kNoExtraICState, cache_holder, kind());
 
@@ -1570,7 +1526,7 @@ MaybeObject* StoreIC::Store(Handle<Object> object,
   if (!can_store &&
       strict_mode() == kStrictMode &&
       !(lookup.IsProperty() && lookup.IsReadOnly()) &&
-      IsUndeclaredGlobal(object)) {
+      object->IsGlobalObject()) {
     // Strict mode doesn't allow setting non-existent global property.
     return ReferenceError("not_defined", name);
   }
@@ -1598,9 +1554,8 @@ MaybeObject* StoreIC::Store(Handle<Object> object,
 
 
 Handle<Code> StoreIC::initialize_stub(Isolate* isolate,
-                                      StrictModeFlag strict_mode,
-                                      ContextualMode mode) {
-  ExtraICState extra_state = ComputeExtraICState(strict_mode, mode);
+                                      StrictModeFlag strict_mode) {
+  ExtraICState extra_state = ComputeExtraICState(strict_mode);
   Handle<Code> ic = isolate->stub_cache()->ComputeStore(
       UNINITIALIZED, extra_state);
   return ic;
@@ -1618,10 +1573,8 @@ Handle<Code> StoreIC::generic_stub() const {
 
 
 Handle<Code> StoreIC::pre_monomorphic_stub(Isolate* isolate,
-                                           StrictModeFlag strict_mode,
-                                           ContextualMode contextual_mode) {
-  ExtraICState state = StoreIC::ComputeExtraICState(strict_mode,
-                                                    contextual_mode);
+                                           StrictModeFlag strict_mode) {
+  ExtraICState state = ComputeExtraICState(strict_mode);
   return isolate->stub_cache()->ComputeStore(PREMONOMORPHIC, state);
 }
 
@@ -1681,7 +1634,7 @@ Handle<Code> StoreIC::CompileHandler(LookupResult* lookup,
         // global object.
         Handle<GlobalObject> global = Handle<GlobalObject>::cast(receiver);
         Handle<PropertyCell> cell(global->GetPropertyCell(lookup), isolate());
-        Handle<Type> union_type = PropertyCell::UpdatedType(cell, value);
+        Handle<HeapType> union_type = PropertyCell::UpdatedType(cell, value);
         StoreGlobalStub stub(union_type->IsConstant());
 
         Handle<Code> code = stub.GetCodeCopyFromTemplate(
@@ -1845,7 +1798,8 @@ Handle<Code> KeyedStoreIC::StoreElementStub(Handle<JSObject> receiver,
   if (store_mode != STANDARD_STORE) {
     int external_arrays = 0;
     for (int i = 0; i < target_receiver_maps.length(); ++i) {
-      if (target_receiver_maps[i]->has_external_array_elements()) {
+      if (target_receiver_maps[i]->has_external_array_elements() ||
+          target_receiver_maps[i]->has_fixed_typed_array_elements()) {
         external_arrays++;
       }
     }
@@ -2614,17 +2568,17 @@ void BinaryOpIC::State::GenerateAheadOfTime(
 }
 
 
-Handle<Type> BinaryOpIC::State::GetResultType(Isolate* isolate) const {
+Type* BinaryOpIC::State::GetResultType(Zone* zone) const {
   Kind result_kind = result_kind_;
   if (HasSideEffects()) {
     result_kind = NONE;
   } else if (result_kind == GENERIC && op_ == Token::ADD) {
-    return Type::Union(Type::Number(isolate), Type::String(isolate), isolate);
+    return Type::Union(Type::Number(zone), Type::String(zone), zone);
   } else if (result_kind == NUMBER && op_ == Token::SHR) {
-    return Type::Unsigned32(isolate);
+    return Type::Unsigned32(zone);
   }
   ASSERT_NE(GENERIC, result_kind);
-  return KindToType(result_kind, isolate);
+  return KindToType(result_kind, zone);
 }
 
 
@@ -2755,17 +2709,17 @@ const char* BinaryOpIC::State::KindToString(Kind kind) {
 
 
 // static
-Handle<Type> BinaryOpIC::State::KindToType(Kind kind, Isolate* isolate) {
+Type* BinaryOpIC::State::KindToType(Kind kind, Zone* zone) {
   switch (kind) {
-    case NONE: return Type::None(isolate);
-    case SMI: return Type::Smi(isolate);
-    case INT32: return Type::Signed32(isolate);
-    case NUMBER: return Type::Number(isolate);
-    case STRING: return Type::String(isolate);
-    case GENERIC: return Type::Any(isolate);
+    case NONE: return Type::None(zone);
+    case SMI: return Type::Smi(zone);
+    case INT32: return Type::Signed32(zone);
+    case NUMBER: return Type::Number(zone);
+    case STRING: return Type::String(zone);
+    case GENERIC: return Type::Any(zone);
   }
   UNREACHABLE();
-  return Handle<Type>();
+  return NULL;
 }
 
 
@@ -2895,41 +2849,39 @@ const char* CompareIC::GetStateName(State state) {
 }
 
 
-Handle<Type> CompareIC::StateToType(
-    Isolate* isolate,
+Type* CompareIC::StateToType(
+    Zone* zone,
     CompareIC::State state,
     Handle<Map> map) {
   switch (state) {
-    case CompareIC::UNINITIALIZED: return Type::None(isolate);
-    case CompareIC::SMI: return Type::Smi(isolate);
-    case CompareIC::NUMBER: return Type::Number(isolate);
-    case CompareIC::STRING: return Type::String(isolate);
-    case CompareIC::INTERNALIZED_STRING:
-      return Type::InternalizedString(isolate);
-    case CompareIC::UNIQUE_NAME: return Type::UniqueName(isolate);
-    case CompareIC::OBJECT: return Type::Receiver(isolate);
+    case CompareIC::UNINITIALIZED: return Type::None(zone);
+    case CompareIC::SMI: return Type::Smi(zone);
+    case CompareIC::NUMBER: return Type::Number(zone);
+    case CompareIC::STRING: return Type::String(zone);
+    case CompareIC::INTERNALIZED_STRING: return Type::InternalizedString(zone);
+    case CompareIC::UNIQUE_NAME: return Type::UniqueName(zone);
+    case CompareIC::OBJECT: return Type::Receiver(zone);
     case CompareIC::KNOWN_OBJECT:
-      return map.is_null()
-          ? Type::Receiver(isolate) : Type::Class(map, isolate);
-    case CompareIC::GENERIC: return Type::Any(isolate);
+      return map.is_null() ? Type::Receiver(zone) : Type::Class(map, zone);
+    case CompareIC::GENERIC: return Type::Any(zone);
   }
   UNREACHABLE();
-  return Handle<Type>();
+  return NULL;
 }
 
 
 void CompareIC::StubInfoToType(int stub_minor_key,
-                               Handle<Type>* left_type,
-                               Handle<Type>* right_type,
-                               Handle<Type>* overall_type,
+                               Type** left_type,
+                               Type** right_type,
+                               Type** overall_type,
                                Handle<Map> map,
-                               Isolate* isolate) {
+                               Zone* zone) {
   State left_state, right_state, handler_state;
   ICCompareStub::DecodeMinorKey(stub_minor_key, &left_state, &right_state,
                                 &handler_state, NULL);
-  *left_type = StateToType(isolate, left_state);
-  *right_type = StateToType(isolate, right_state);
-  *overall_type = StateToType(isolate, handler_state, map);
+  *left_type = StateToType(zone, left_state);
+  *right_type = StateToType(zone, right_state);
+  *overall_type = StateToType(zone, handler_state, map);
 }
 
 

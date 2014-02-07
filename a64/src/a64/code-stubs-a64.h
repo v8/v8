@@ -57,31 +57,7 @@ class StoreBufferOverflowStub: public PlatformCodeStub {
 
 class StringHelper : public AllStatic {
  public:
-  // Probe the string table for a two character string. If the string is
-  // not found by probing a jump to the label not_found is performed. This jump
-  // does not guarantee that the string is not in the string table. If the
-  // string is found the code falls through with the string in register x0.
-  // Contents of both c1 and c2 registers are modified. At the exit c1 is
-  // guaranteed to contain halfword with low and high bytes equal to
-  // initial contents of c1 and c2 respectively.
-  static void GenerateTwoCharacterStringTableProbe(MacroAssembler* masm,
-                                                   Register c1,
-                                                   Register c2,
-                                                   Register scratch1,
-                                                   Register scratch2,
-                                                   Register scratch3,
-                                                   Register scratch4,
-                                                   Register scratch5,
-                                                   Label* not_found);
-
-
-  // Get the instance types for a pair of input strings.
-  static void LoadPairInstanceTypes(MacroAssembler* masm,
-                                    Register first_type,
-                                    Register second_type,
-                                    Register first_string,
-                                    Register second_string);
-
+  // TODO(all): These don't seem to be used any more. Delete them.
 
   // Generate string hash.
   static void GenerateHashInit(MacroAssembler* masm,
@@ -98,31 +74,6 @@ class StringHelper : public AllStatic {
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(StringHelper);
-};
-
-
-class StringAddStub: public PlatformCodeStub {
- public:
-  explicit StringAddStub(StringAddFlags flags) : flags_(flags) {}
-
- private:
-  Major MajorKey() { return StringAdd; }
-  int MinorKey() { return flags_; }
-
-  void Generate(MacroAssembler* masm);
-
-  void GenerateConvertArgument(MacroAssembler* masm,
-                               Register arg,
-                               Register scratch1,
-                               Register scratch2,
-                               Register scratch3,
-                               Register scratch4,
-                               Label* slow);
-
-  void GenerateRegisterArgsPush(MacroAssembler* masm);
-  void GenerateRegisterArgsPop(MacroAssembler* masm);
-
-  const StringAddFlags flags_;
 };
 
 

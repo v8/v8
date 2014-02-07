@@ -27,6 +27,10 @@
 
 #include <v8.h>
 #include "cctest.h"
+
+#include "print-extension.h"
+#include "profiler-extension.h"
+#include "trace-extension.h"
 #include "debug.h"
 
 enum InitializationState {kUnset, kUnintialized, kInitialized};
@@ -140,6 +144,13 @@ int main(int argc, char* argv[]) {
 
   CcTestArrayBufferAllocator array_buffer_allocator;
   v8::V8::SetArrayBufferAllocator(&array_buffer_allocator);
+
+  i::PrintExtension print_extension;
+  v8::RegisterExtension(&print_extension);
+  i::ProfilerExtension profiler_extension;
+  v8::RegisterExtension(&profiler_extension);
+  i::TraceExtension trace_extension;
+  v8::RegisterExtension(&trace_extension);
 
   int tests_run = 0;
   bool print_run_count = true;

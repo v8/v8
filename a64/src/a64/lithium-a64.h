@@ -54,16 +54,16 @@ class LCodeGen;
   V(BitS)                                       \
   V(BoundsCheck)                                \
   V(Branch)                                     \
-  V(CallJSFunction)                             \
-  V(CallWithDescriptor)                         \
   V(CallFunction)                               \
+  V(CallJSFunction)                             \
   V(CallNew)                                    \
   V(CallNewArray)                               \
   V(CallRuntime)                                \
   V(CallStub)                                   \
+  V(CallWithDescriptor)                         \
   V(CheckInstanceType)                          \
-  V(CheckMaps)                                  \
   V(CheckMapValue)                              \
+  V(CheckMaps)                                  \
   V(CheckNonSmi)                                \
   V(CheckSmi)                                   \
   V(CheckValue)                                 \
@@ -165,7 +165,6 @@ class LCodeGen;
   V(StoreCodeEntry)                             \
   V(StoreContextSlot)                           \
   V(StoreGlobalCell)                            \
-  V(StoreGlobalGeneric)                         \
   V(StoreKeyedExternal)                         \
   V(StoreKeyedFixed)                            \
   V(StoreKeyedFixedDouble)                      \
@@ -1688,6 +1687,12 @@ class LLoadKeyed : public LTemplateInstruction<1, 2, T> {
   bool is_external() const {
     return this->hydrogen()->is_external();
   }
+  bool is_fixed_typed_array() const {
+    return hydrogen()->is_fixed_typed_array();
+  }
+  bool is_typed_elements() const {
+    return is_external() || is_fixed_typed_array();
+  }
   uint32_t additional_index() const {
     return this->hydrogen()->index_offset();
   }
@@ -2206,6 +2211,12 @@ class LStoreKeyed : public LTemplateInstruction<0, 3, T> {
   }
 
   bool is_external() const { return this->hydrogen()->is_external(); }
+  bool is_fixed_typed_array() const {
+    return hydrogen()->is_fixed_typed_array();
+  }
+  bool is_typed_elements() const {
+    return is_external() || is_fixed_typed_array();
+  }
   LOperand* elements() { return this->inputs_[0]; }
   LOperand* key() { return this->inputs_[1]; }
   LOperand* value() { return this->inputs_[2]; }
@@ -2535,24 +2546,6 @@ class LStoreGlobalCell V8_FINAL : public LTemplateInstruction<0, 1, 2> {
 
   DECLARE_CONCRETE_INSTRUCTION(StoreGlobalCell, "store-global-cell")
   DECLARE_HYDROGEN_ACCESSOR(StoreGlobalCell)
-};
-
-
-class LStoreGlobalGeneric V8_FINAL : public LTemplateInstruction<0, 2, 0> {
- public:
-  LStoreGlobalGeneric(LOperand* global_object, LOperand* value) {
-    inputs_[0] = global_object;
-    inputs_[1] = value;
-  }
-
-  LOperand* global_object() { return inputs_[0]; }
-  LOperand* value() { return inputs_[1]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(StoreGlobalGeneric, "store-global-generic")
-  DECLARE_HYDROGEN_ACCESSOR(StoreGlobalGeneric)
-
-  Handle<Object> name() const { return hydrogen()->name(); }
-  StrictModeFlag strict_mode_flag() { return hydrogen()->strict_mode_flag(); }
 };
 
 

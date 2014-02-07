@@ -2037,16 +2037,6 @@ LInstruction* LChunkBuilder::DoStoreGlobalCell(HStoreGlobalCell* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoStoreGlobalGeneric(HStoreGlobalGeneric* instr) {
-  LOperand* context = UseFixed(instr->context(), cp);
-  LOperand* global_object = UseFixed(instr->global_object(), r1);
-  LOperand* value = UseFixed(instr->value(), r0);
-  LStoreGlobalGeneric* result =
-      new(zone()) LStoreGlobalGeneric(context, global_object, value);
-  return MarkAsCall(result, instr);
-}
-
-
 LInstruction* LChunkBuilder::DoLoadContextSlot(HLoadContextSlot* instr) {
   LOperand* context = UseRegisterAtStart(instr->value());
   LInstruction* result =
@@ -2110,7 +2100,7 @@ LInstruction* LChunkBuilder::DoLoadKeyed(HLoadKeyed* instr) {
   LOperand* key = UseRegisterOrConstantAtStart(instr->key());
   LLoadKeyed* result = NULL;
 
-  if (!instr->is_external()) {
+  if (!instr->is_typed_elements()) {
     LOperand* obj = NULL;
     if (instr->representation().IsDouble()) {
       obj = UseRegister(instr->elements());
@@ -2122,20 +2112,19 @@ LInstruction* LChunkBuilder::DoLoadKeyed(HLoadKeyed* instr) {
   } else {
     ASSERT(
         (instr->representation().IsInteger32() &&
-         (elements_kind != EXTERNAL_FLOAT_ELEMENTS) &&
-         (elements_kind != EXTERNAL_DOUBLE_ELEMENTS)) ||
+         !IsDoubleOrFloatElementsKind(instr->elements_kind())) ||
         (instr->representation().IsDouble() &&
-         ((elements_kind == EXTERNAL_FLOAT_ELEMENTS) ||
-          (elements_kind == EXTERNAL_DOUBLE_ELEMENTS))));
-    LOperand* external_pointer = UseRegister(instr->elements());
-    result = new(zone()) LLoadKeyed(external_pointer, key);
+         IsDoubleOrFloatElementsKind(instr->elements_kind())));
+    LOperand* backing_store = UseRegister(instr->elements());
+    result = new(zone()) LLoadKeyed(backing_store, key);
   }
 
   DefineAsRegister(result);
   // An unsigned int array load might overflow and cause a deopt, make sure it
   // has an environment.
   bool can_deoptimize = instr->RequiresHoleCheck() ||
-      (elements_kind == EXTERNAL_UNSIGNED_INT_ELEMENTS);
+      elements_kind == EXTERNAL_UNSIGNED_INT_ELEMENTS ||
+      elements_kind == UINT32_ELEMENTS;
   return can_deoptimize ? AssignEnvironment(result) : result;
 }
 
@@ -2152,7 +2141,7 @@ LInstruction* LChunkBuilder::DoLoadKeyedGeneric(HLoadKeyedGeneric* instr) {
 
 
 LInstruction* LChunkBuilder::DoStoreKeyed(HStoreKeyed* instr) {
-  if (!instr->is_external()) {
+  if (!instr->is_typed_elements()) {
     ASSERT(instr->elements()->representation().IsTagged());
     bool needs_write_barrier = instr->NeedsWriteBarrier();
     LOperand* object = NULL;
@@ -2181,16 +2170,17 @@ LInstruction* LChunkBuilder::DoStoreKeyed(HStoreKeyed* instr) {
 
   ASSERT(
       (instr->value()->representation().IsInteger32() &&
-       (instr->elements_kind() != EXTERNAL_FLOAT_ELEMENTS) &&
-       (instr->elements_kind() != EXTERNAL_DOUBLE_ELEMENTS)) ||
+       !IsDoubleOrFloatElementsKind(instr->elements_kind())) ||
       (instr->value()->representation().IsDouble() &&
-       ((instr->elements_kind() == EXTERNAL_FLOAT_ELEMENTS) ||
-        (instr->elements_kind() == EXTERNAL_DOUBLE_ELEMENTS))));
-  ASSERT(instr->elements()->representation().IsExternal());
+       IsDoubleOrFloatElementsKind(instr->elements_kind())));
+  ASSERT((instr->is_fixed_typed_array() &&
+          instr->elements()->representation().IsTagged()) ||
+         (instr->is_external() &&
+          instr->elements()->representation().IsExternal()));
   LOperand* val = UseRegister(instr->value());
   LOperand* key = UseRegisterOrConstantAtStart(instr->key());
-  LOperand* external_pointer = UseRegister(instr->elements());
-  return new(zone()) LStoreKeyed(external_pointer, key, val);
+  LOperand* backing_store = UseRegister(instr->elements());
+  return new(zone()) LStoreKeyed(backing_store, key, val);
 }
 
 
@@ -2290,12 +2280,8 @@ LInstruction* LChunkBuilder::DoStoreNamedGeneric(HStoreNamedGeneric* instr) {
 
 LInstruction* LChunkBuilder::DoStringAdd(HStringAdd* instr) {
   LOperand* context = UseFixed(instr->context(), cp);
-  LOperand* left = FLAG_new_string_add
-      ? UseFixed(instr->left(), r1)
-      : UseRegisterAtStart(instr->left());
-  LOperand* right = FLAG_new_string_add
-      ? UseFixed(instr->right(), r0)
-      : UseRegisterAtStart(instr->right());
+  LOperand* left = UseFixed(instr->left(), r1);
+  LOperand* right = UseFixed(instr->right(), r0);
   return MarkAsCall(
       DefineFixed(new(zone()) LStringAdd(context, left, right), r0),
       instr);

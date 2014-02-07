@@ -89,20 +89,6 @@ class IC {
     EXTRA_CALL_FRAME = 1
   };
 
-  // ExtraICState shared by all ICs.
-  class Contextual: public BitField<ContextualMode, 0, 1> {};
-  STATIC_ASSERT(static_cast<int>(NOT_CONTEXTUAL) == 0);
-  static ExtraICState ComputeExtraICState(ContextualMode mode) {
-    return Contextual::encode(mode);
-  }
-
-  static ContextualMode GetContextualMode(ExtraICState state) {
-    return Contextual::decode(state);
-  }
-
-  static const ExtraICState kContextualState =
-      static_cast<int>(CONTEXTUAL) << Contextual::kShift;
-
   // Construct the IC structure with the given number of extra
   // JavaScript frames on the stack.
   IC(FrameDepth depth, Isolate* isolate);
@@ -120,30 +106,19 @@ class IC {
   // Clear the inline cache to initial state.
   static void Clear(Isolate* isolate, Address address);
 
-  // Returns if this IC is for contextual (no explicit receiver)
-  // access to properties.
-  bool IsUndeclaredGlobal(Handle<Object> receiver) {
-    if (receiver->IsGlobalObject()) {
-      return IsCallStub() || IsContextual();
-    } else {
-      ASSERT(!IsContextual());
-      return false;
-    }
-  }
-
 #ifdef DEBUG
-  bool IsLoadStub() {
+  bool IsLoadStub() const {
     return target()->is_load_stub() || target()->is_keyed_load_stub();
   }
 
-  bool IsStoreStub() {
+  bool IsStoreStub() const {
     return target()->is_store_stub() || target()->is_keyed_store_stub();
   }
 
-#endif
-  bool IsCallStub() {
+  bool IsCallStub() const {
     return target()->is_call_stub() || target()->is_keyed_call_stub();
   }
+#endif
 
   // Determines which map must be used for keeping the code stub.
   // These methods should not be called with undefined or null.
@@ -155,9 +130,9 @@ class IC {
                                                Object* object,
                                                InlineCacheHolderFlag holder);
 
-  static inline InlineCacheHolderFlag GetCodeCacheFlag(Type* type);
+  static inline InlineCacheHolderFlag GetCodeCacheFlag(HeapType* type);
   static inline Handle<Map> GetCodeCacheHolder(InlineCacheHolderFlag flag,
-                                               Type* type,
+                                               HeapType* type,
                                                Isolate* isolate);
 
   static bool IsCleared(Code* code) {
@@ -170,15 +145,10 @@ class IC {
   // - The heap_number_map is used as a marker which includes heap numbers as
   //   well as smis.
   // - The oddball map is only used for booleans.
-  static Handle<Map> TypeToMap(Type* type, Isolate* isolate);
-  static Handle<Type> MapToType(Handle<Map> type);
-  static Handle<Type> CurrentTypeOf(Handle<Object> object, Isolate* isolate);
-
-  ContextualMode contextual_mode() const {
-    return Contextual::decode(extra_ic_state());
-  }
-
-  bool IsContextual() const { return contextual_mode() == CONTEXTUAL; }
+  static Handle<Map> TypeToMap(HeapType* type, Isolate* isolate);
+  static Handle<HeapType> MapToType(Handle<Map> map);
+  static Handle<HeapType> CurrentTypeOf(
+      Handle<Object> object, Isolate* isolate);
 
  protected:
   // Get the call-site target; used for determining the state.
@@ -232,19 +202,19 @@ class IC {
     return Handle<Code>::null();
   }
 
-  void UpdateMonomorphicIC(Handle<Type> type,
+  void UpdateMonomorphicIC(Handle<HeapType> type,
                            Handle<Code> handler,
                            Handle<String> name);
 
-  bool UpdatePolymorphicIC(Handle<Type> type,
+  bool UpdatePolymorphicIC(Handle<HeapType> type,
                            Handle<String> name,
                            Handle<Code> code);
 
-  virtual void UpdateMegamorphicCache(Type* type, Name* name, Code* code);
+  virtual void UpdateMegamorphicCache(HeapType* type, Name* name, Code* code);
 
   void CopyICToMegamorphicCache(Handle<String> name);
-  bool IsTransitionOfMonomorphicTarget(Handle<Type> type);
-  void PatchCache(Handle<Type> type,
+  bool IsTransitionOfMonomorphicTarget(Handle<HeapType> type);
+  void PatchCache(Handle<HeapType> type,
                   Handle<String> name,
                   Handle<Code> code);
   virtual Code::Kind kind() const {
@@ -314,20 +284,8 @@ class IC_Utility {
 };
 
 
-enum StringStubFeedback {
-  DEFAULT_STRING_STUB = 0,
-  STRING_INDEX_OUT_OF_BOUNDS = 1
-};
-
-
 class CallICBase: public IC {
  public:
-  // ExtraICState bits
-  class StringStubState: public BitField<StringStubFeedback, 0, 1> {};
-  static ExtraICState ComputeExtraICState(StringStubFeedback feedback) {
-    return StringStubState::encode(feedback);
-  }
-
   // Returns a JSFunction or a Failure.
   MUST_USE_RESULT MaybeObject* LoadFunction(Handle<Object> object,
                                             Handle<String> name);
@@ -439,9 +397,36 @@ class KeyedCallIC: public CallICBase {
 
 class LoadIC: public IC {
  public:
+  // ExtraICState bits
+  class Contextual: public BitField<ContextualMode, 0, 1> {};
+  STATIC_ASSERT(static_cast<int>(NOT_CONTEXTUAL) == 0);
+
+  static ExtraICState ComputeExtraICState(ContextualMode mode) {
+    return Contextual::encode(mode);
+  }
+
+  static ContextualMode GetContextualMode(ExtraICState state) {
+    return Contextual::decode(state);
+  }
+
+  ContextualMode contextual_mode() const {
+    return Contextual::decode(extra_ic_state());
+  }
+
   explicit LoadIC(FrameDepth depth, Isolate* isolate)
       : IC(depth, isolate) {
     ASSERT(IsLoadStub());
+  }
+
+  // Returns if this IC is for contextual (no explicit receiver)
+  // access to properties.
+  bool IsUndeclaredGlobal(Handle<Object> receiver) {
+    if (receiver->IsGlobalObject()) {
+      return contextual_mode() == CONTEXTUAL;
+    } else {
+      ASSERT(contextual_mode() != CONTEXTUAL);
+      return false;
+    }
   }
 
   // Code generator routines.
@@ -461,6 +446,14 @@ class LoadIC: public IC {
 
  protected:
   virtual Code::Kind kind() const { return Code::LOAD_IC; }
+
+  void set_target(Code* code) {
+    // The contextual mode must be preserved across IC patching.
+    ASSERT(GetContextualMode(code->extra_ic_state()) ==
+           GetContextualMode(target()->extra_ic_state()));
+
+    IC::set_target(code);
+  }
 
   virtual Handle<Code> slow_stub() const {
     return isolate()->builtins()->LoadIC_Slow();
@@ -544,7 +537,7 @@ class KeyedLoadIC: public LoadIC {
     return isolate()->builtins()->KeyedLoadIC_Slow();
   }
 
-  virtual void UpdateMegamorphicCache(Type* type, Name* name, Code* code) { }
+  virtual void UpdateMegamorphicCache(HeapType* type, Name* name, Code* code) {}
 
  private:
   // Stub accessors.
@@ -572,15 +565,9 @@ class KeyedLoadIC: public LoadIC {
 
 class StoreIC: public IC {
  public:
-  // ExtraICState bits
   class StrictModeState: public BitField<StrictModeFlag, 1, 1> {};
   static ExtraICState ComputeExtraICState(StrictModeFlag flag) {
     return StrictModeState::encode(flag);
-  }
-
-  static ExtraICState ComputeExtraICState(StrictModeFlag flag,
-                                          ContextualMode mode) {
-    return StrictModeState::encode(flag) | Contextual::encode(mode);
   }
 
   static StrictModeFlag GetStrictMode(ExtraICState state) {
@@ -615,8 +602,7 @@ class StoreIC: public IC {
                                          StrictModeFlag strict_mode);
 
   static Handle<Code> initialize_stub(Isolate* isolate,
-                                      StrictModeFlag strict_mode,
-                                      ContextualMode mode);
+                                      StrictModeFlag strict_mode);
 
   MUST_USE_RESULT MaybeObject* Store(
       Handle<Object> object,
@@ -637,12 +623,11 @@ class StoreIC: public IC {
   }
 
   virtual Handle<Code> pre_monomorphic_stub() {
-    return pre_monomorphic_stub(isolate(), strict_mode(), contextual_mode());
+    return pre_monomorphic_stub(isolate(), strict_mode());
   }
 
   static Handle<Code> pre_monomorphic_stub(Isolate* isolate,
-                                           StrictModeFlag strict_mode,
-                                           ContextualMode contextual_mode);
+                                           StrictModeFlag strict_mode);
 
   // Update the inline cache and the global stub cache based on the
   // lookup result.
@@ -661,9 +646,6 @@ class StoreIC: public IC {
     // Strict mode must be preserved across IC patching.
     ASSERT(GetStrictMode(code->extra_ic_state()) ==
            GetStrictMode(target()->extra_ic_state()));
-    // As must the contextual mode
-    ASSERT(GetContextualMode(code->extra_ic_state()) ==
-           GetContextualMode(target()->extra_ic_state()));
     IC::set_target(code);
   }
 
@@ -727,7 +709,7 @@ class KeyedStoreIC: public StoreIC {
  protected:
   virtual Code::Kind kind() const { return Code::KEYED_STORE_IC; }
 
-  virtual void UpdateMegamorphicCache(Type* type, Name* name, Code* code) { }
+  virtual void UpdateMegamorphicCache(HeapType* type, Name* name, Code* code) {}
 
   virtual Handle<Code> pre_monomorphic_stub() {
     return pre_monomorphic_stub(isolate(), strict_mode());
@@ -862,13 +844,13 @@ class BinaryOpIC: public IC {
     OverwriteMode mode() const { return mode_; }
     Maybe<int> fixed_right_arg() const { return fixed_right_arg_; }
 
-    Handle<Type> GetLeftType(Isolate* isolate) const {
-      return KindToType(left_kind_, isolate);
+    Type* GetLeftType(Zone* zone) const {
+      return KindToType(left_kind_, zone);
     }
-    Handle<Type> GetRightType(Isolate* isolate) const {
-      return KindToType(right_kind_, isolate);
+    Type* GetRightType(Zone* zone) const {
+      return KindToType(right_kind_, zone);
     }
-    Handle<Type> GetResultType(Isolate* isolate) const;
+    Type* GetResultType(Zone* zone) const;
 
     void Print(StringStream* stream) const;
 
@@ -882,7 +864,7 @@ class BinaryOpIC: public IC {
     Kind UpdateKind(Handle<Object> object, Kind kind) const;
 
     static const char* KindToString(Kind kind);
-    static Handle<Type> KindToType(Kind kind, Isolate* isolate);
+    static Type* KindToType(Kind kind, Zone* zone);
     static bool KindMaybeSmi(Kind kind) {
       return (kind >= SMI && kind <= NUMBER) || kind == GENERIC;
     }
@@ -940,16 +922,16 @@ class CompareIC: public IC {
 
   static State NewInputState(State old_state, Handle<Object> value);
 
-  static Handle<Type> StateToType(Isolate* isolate,
-                                  State state,
-                                  Handle<Map> map = Handle<Map>());
+  static Type* StateToType(Zone* zone,
+                           State state,
+                           Handle<Map> map = Handle<Map>());
 
   static void StubInfoToType(int stub_minor_key,
-                             Handle<Type>* left_type,
-                             Handle<Type>* right_type,
-                             Handle<Type>* overall_type,
+                             Type** left_type,
+                             Type** right_type,
+                             Type** overall_type,
                              Handle<Map> map,
-                             Isolate* isolate);
+                             Zone* zone);
 
   CompareIC(Isolate* isolate, Token::Value op)
       : IC(EXTRA_CALL_FRAME, isolate), op_(op) { }

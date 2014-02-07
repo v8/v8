@@ -160,7 +160,6 @@ class LCodeGen;
   V(StoreCodeEntry)                             \
   V(StoreContextSlot)                           \
   V(StoreGlobalCell)                            \
-  V(StoreGlobalGeneric)                         \
   V(StoreKeyed)                                 \
   V(StoreKeyedGeneric)                          \
   V(StoreNamedField)                            \
@@ -1581,6 +1580,12 @@ class LLoadKeyed V8_FINAL : public LTemplateInstruction<1, 2, 0> {
   bool is_external() const {
     return hydrogen()->is_external();
   }
+  bool is_fixed_typed_array() const {
+    return hydrogen()->is_fixed_typed_array();
+  }
+  bool is_typed_elements() const {
+    return is_external() || is_fixed_typed_array();
+  }
 
   DECLARE_CONCRETE_INSTRUCTION(LoadKeyed, "load-keyed")
   DECLARE_HYDROGEN_ACCESSOR(LoadKeyed)
@@ -1602,7 +1607,10 @@ inline static bool ExternalArrayOpRequiresTemp(
   return key_representation.IsSmi() &&
       (elements_kind == EXTERNAL_BYTE_ELEMENTS ||
        elements_kind == EXTERNAL_UNSIGNED_BYTE_ELEMENTS ||
-       elements_kind == EXTERNAL_PIXEL_ELEMENTS);
+       elements_kind == EXTERNAL_PIXEL_ELEMENTS ||
+       elements_kind == UINT8_ELEMENTS ||
+       elements_kind == INT8_ELEMENTS ||
+       elements_kind == UINT8_CLAMPED_ELEMENTS);
 }
 
 
@@ -1657,28 +1665,6 @@ class LStoreGlobalCell V8_FINAL : public LTemplateInstruction<0, 1, 0> {
 
   DECLARE_CONCRETE_INSTRUCTION(StoreGlobalCell, "store-global-cell")
   DECLARE_HYDROGEN_ACCESSOR(StoreGlobalCell)
-};
-
-
-class LStoreGlobalGeneric V8_FINAL : public LTemplateInstruction<0, 3, 0> {
- public:
-  LStoreGlobalGeneric(LOperand* context,
-                      LOperand* global_object,
-                      LOperand* value) {
-    inputs_[0] = context;
-    inputs_[1] = global_object;
-    inputs_[2] = value;
-  }
-
-  LOperand* context() { return inputs_[0]; }
-  LOperand* global_object() { return inputs_[1]; }
-  LOperand* value() { return inputs_[2]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(StoreGlobalGeneric, "store-global-generic")
-  DECLARE_HYDROGEN_ACCESSOR(StoreGlobalGeneric)
-
-  Handle<Object> name() const { return hydrogen()->name(); }
-  StrictModeFlag strict_mode_flag() { return hydrogen()->strict_mode_flag(); }
 };
 
 
@@ -1863,8 +1849,7 @@ class LCallWithDescriptor V8_FINAL : public LTemplateResultInstruction<1> {
   LCallWithDescriptor(const CallInterfaceDescriptor* descriptor,
                       ZoneList<LOperand*>& operands,
                       Zone* zone)
-    : descriptor_(descriptor),
-      inputs_(descriptor->environment_length() + 1, zone) {
+    : inputs_(descriptor->environment_length() + 1, zone) {
     ASSERT(descriptor->environment_length() + 1 == operands.length());
     inputs_.AddAll(operands, zone);
   }
@@ -1879,7 +1864,6 @@ class LCallWithDescriptor V8_FINAL : public LTemplateResultInstruction<1> {
 
   int arity() const { return hydrogen()->argument_count() - 1; }
 
-  const CallInterfaceDescriptor* descriptor_;
   ZoneList<LOperand*> inputs_;
 
   // Iterator support.
@@ -2232,6 +2216,12 @@ class LStoreKeyed V8_FINAL : public LTemplateInstruction<0, 3, 0> {
   }
 
   bool is_external() const { return hydrogen()->is_external(); }
+  bool is_fixed_typed_array() const {
+    return hydrogen()->is_fixed_typed_array();
+  }
+  bool is_typed_elements() const {
+    return is_external() || is_fixed_typed_array();
+  }
   LOperand* elements() { return inputs_[0]; }
   LOperand* key() { return inputs_[1]; }
   LOperand* value() { return inputs_[2]; }

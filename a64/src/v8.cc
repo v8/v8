@@ -99,6 +99,7 @@ void V8::TearDown() {
   isolate->TearDown();
   delete isolate;
 
+  Bootstrapper::TearDownExtensions();
   ElementsAccessor::TearDown();
   LOperand::TearDownCaches();
   ExternalReference::TearDownMathExpData();

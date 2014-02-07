@@ -1450,7 +1450,8 @@ class MacroAssembler : public Assembler {
                                    Register scratch1,
                                    FPRegister fpscratch1,
                                    FPRegister fpscratch2,
-                                   Label* fail);
+                                   Label* fail,
+                                   int elements_offset = 0);
 
   // Picks out an array index from the hash field.
   // Register use:

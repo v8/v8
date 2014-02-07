@@ -172,23 +172,23 @@ void LGapResolver::EmitMove(int index) {
     Register src = cgen_->ToRegister(source);
     if (destination->IsRegister()) {
       Register dst = cgen_->ToRegister(destination);
-      __ movq(dst, src);
+      __ movp(dst, src);
     } else {
       ASSERT(destination->IsStackSlot());
       Operand dst = cgen_->ToOperand(destination);
-      __ movq(dst, src);
+      __ movp(dst, src);
     }
 
   } else if (source->IsStackSlot()) {
     Operand src = cgen_->ToOperand(source);
     if (destination->IsRegister()) {
       Register dst = cgen_->ToRegister(destination);
-      __ movq(dst, src);
+      __ movp(dst, src);
     } else {
       ASSERT(destination->IsStackSlot());
       Operand dst = cgen_->ToOperand(destination);
-      __ movq(kScratchRegister, src);
-      __ movq(dst, kScratchRegister);
+      __ movp(kScratchRegister, src);
+      __ movp(dst, kScratchRegister);
     }
 
   } else if (source->IsConstantOperand()) {
@@ -220,10 +220,10 @@ void LGapResolver::EmitMove(int index) {
       } else if (cgen_->IsInteger32Constant(constant_source)) {
         // Zero top 32 bits of a 64 bit spill slot that holds a 32 bit untagged
         // value.
-        __ movq(dst, Immediate(cgen_->ToInteger32(constant_source)));
+        __ movp(dst, Immediate(cgen_->ToInteger32(constant_source)));
       } else {
         __ Move(kScratchRegister, cgen_->ToHandle(constant_source));
-        __ movq(dst, kScratchRegister);
+        __ movp(dst, kScratchRegister);
       }
     }
 
@@ -271,9 +271,9 @@ void LGapResolver::EmitSwap(int index) {
         cgen_->ToRegister(source->IsRegister() ? source : destination);
     Operand mem =
         cgen_->ToOperand(source->IsRegister() ? destination : source);
-    __ movq(kScratchRegister, mem);
-    __ movq(mem, reg);
-    __ movq(reg, kScratchRegister);
+    __ movp(kScratchRegister, mem);
+    __ movp(mem, reg);
+    __ movp(reg, kScratchRegister);
 
   } else if ((source->IsStackSlot() && destination->IsStackSlot()) ||
       (source->IsDoubleStackSlot() && destination->IsDoubleStackSlot())) {
@@ -281,9 +281,9 @@ void LGapResolver::EmitSwap(int index) {
     Operand src = cgen_->ToOperand(source);
     Operand dst = cgen_->ToOperand(destination);
     __ movsd(xmm0, src);
-    __ movq(kScratchRegister, dst);
+    __ movp(kScratchRegister, dst);
     __ movsd(dst, xmm0);
-    __ movq(src, kScratchRegister);
+    __ movp(src, kScratchRegister);
 
   } else if (source->IsDoubleRegister() && destination->IsDoubleRegister()) {
     // Swap two double registers.

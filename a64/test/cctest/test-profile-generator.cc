@@ -552,12 +552,9 @@ TEST(RecordStackTraceAtStartProfiling) {
   // don't appear in the stack trace.
   i::FLAG_use_inlining = false;
 
-  v8::Isolate* isolate = CcTest::isolate();
-  v8::HandleScope scope(isolate);
-  const char* extensions[] = { "v8/profiler" };
-  v8::ExtensionConfiguration config(1, extensions);
-  v8::Local<v8::Context> context = v8::Context::New(isolate, &config);
-  context->Enter();
+  v8::HandleScope scope(CcTest::isolate());
+  v8::Local<v8::Context> env = CcTest::NewContext(PROFILER_EXTENSION);
+  v8::Context::Scope context_scope(env);
 
   CpuProfiler* profiler = CcTest::i_isolate()->cpu_profiler();
   CHECK_EQ(0, profiler->GetProfilesCount());
@@ -630,10 +627,9 @@ TEST(ProfileNodeScriptId) {
   // don't appear in the stack trace.
   i::FLAG_use_inlining = false;
 
-  const char* extensions[] = { "v8/profiler" };
-  v8::ExtensionConfiguration config(1, extensions);
-  LocalContext env(&config);
-  v8::HandleScope hs(env->GetIsolate());
+  v8::HandleScope scope(CcTest::isolate());
+  v8::Local<v8::Context> env = CcTest::NewContext(PROFILER_EXTENSION);
+  v8::Context::Scope context_scope(env);
 
   v8::CpuProfiler* profiler = env->GetIsolate()->GetCpuProfiler();
   i::CpuProfiler* iprofiler = reinterpret_cast<i::CpuProfiler*>(profiler);
@@ -648,7 +644,7 @@ TEST(ProfileNodeScriptId) {
                                                   "stopProfiling();\n"));
   script_b->Run();
   CHECK_EQ(1, iprofiler->GetProfilesCount());
-  const v8::CpuProfile* profile = ProfilerExtension::last_profile;
+  const v8::CpuProfile* profile = i::ProfilerExtension::last_profile;
   const v8::CpuProfileNode* current = profile->GetTopDownRoot();
   reinterpret_cast<ProfileNode*>(
       const_cast<v8::CpuProfileNode*>(current))->Print(0);
@@ -733,10 +729,9 @@ TEST(LineNumber) {
 
 
 TEST(BailoutReason) {
-  const char* extensions[] = { "v8/profiler" };
-  v8::ExtensionConfiguration config(1, extensions);
-  LocalContext env(&config);
-  v8::HandleScope hs(env->GetIsolate());
+  v8::HandleScope scope(CcTest::isolate());
+  v8::Local<v8::Context> env = CcTest::NewContext(PROFILER_EXTENSION);
+  v8::Context::Scope context_scope(env);
 
   v8::CpuProfiler* profiler = env->GetIsolate()->GetCpuProfiler();
   i::CpuProfiler* iprofiler = reinterpret_cast<i::CpuProfiler*>(profiler);
@@ -757,7 +752,7 @@ TEST(BailoutReason) {
                                                   "stopProfiling();"));
   script->Run();
   CHECK_EQ(1, iprofiler->GetProfilesCount());
-  const v8::CpuProfile* profile = ProfilerExtension::last_profile;
+  const v8::CpuProfile* profile = i::ProfilerExtension::last_profile;
   CHECK(profile);
   const v8::CpuProfileNode* current = profile->GetTopDownRoot();
   reinterpret_cast<ProfileNode*>(

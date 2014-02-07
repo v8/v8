@@ -56,16 +56,6 @@ class StoreBufferOverflowStub: public PlatformCodeStub {
 
 class StringHelper : public AllStatic {
  public:
-  // Generate code for copying characters using a simple loop. This should only
-  // be used in places where the number of characters is small and the
-  // additional setup and checking in GenerateCopyCharactersREP adds too much
-  // overhead. Copying of overlapping regions is not supported.
-  static void GenerateCopyCharacters(MacroAssembler* masm,
-                                     Register dest,
-                                     Register src,
-                                     Register count,
-                                     bool ascii);
-
   // Generate code for copying characters using the rep movs instruction.
   // Copies rcx characters from rsi to rdi. Copying of overlapping regions is
   // not supported.
@@ -75,19 +65,6 @@ class StringHelper : public AllStatic {
                                         Register count,    // Must be rcx.
                                         bool ascii);
 
-
-  // Probe the string table for a two character string. If the string is
-  // not found by probing a jump to the label not_found is performed. This jump
-  // does not guarantee that the string is not in the string table. If the
-  // string is found the code falls through with the string in register rax.
-  static void GenerateTwoCharacterStringTableProbe(MacroAssembler* masm,
-                                                   Register c1,
-                                                   Register c2,
-                                                   Register scratch1,
-                                                   Register scratch2,
-                                                   Register scratch3,
-                                                   Register scratch4,
-                                                   Label* not_found);
 
   // Generate string hash.
   static void GenerateHashInit(MacroAssembler* masm,
@@ -104,31 +81,6 @@ class StringHelper : public AllStatic {
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(StringHelper);
-};
-
-
-class StringAddStub: public PlatformCodeStub {
- public:
-  explicit StringAddStub(StringAddFlags flags) : flags_(flags) {}
-
- private:
-  Major MajorKey() { return StringAdd; }
-  int MinorKey() { return flags_; }
-
-  void Generate(MacroAssembler* masm);
-
-  void GenerateConvertArgument(MacroAssembler* masm,
-                               int stack_offset,
-                               Register arg,
-                               Register scratch1,
-                               Register scratch2,
-                               Register scratch3,
-                               Label* slow);
-
-  void GenerateRegisterArgsPush(MacroAssembler* masm);
-  void GenerateRegisterArgsPop(MacroAssembler* masm, Register temp);
-
-  const StringAddFlags flags_;
 };
 
 
@@ -362,11 +314,11 @@ class RecordWriteStub: public PlatformCodeStub {
       masm->push(scratch1_);
       if (!address_.is(address_orig_)) {
         masm->push(address_);
-        masm->movq(address_, address_orig_);
+        masm->movp(address_, address_orig_);
       }
       if (!object_.is(object_orig_)) {
         masm->push(object_);
-        masm->movq(object_, object_orig_);
+        masm->movp(object_, object_orig_);
       }
     }
 
@@ -375,11 +327,11 @@ class RecordWriteStub: public PlatformCodeStub {
       // them back.  Only in one case is the orig_ reg different from the plain
       // one, since only one of them can alias with rcx.
       if (!object_.is(object_orig_)) {
-        masm->movq(object_orig_, object_);
+        masm->movp(object_orig_, object_);
         masm->pop(object_);
       }
       if (!address_.is(address_orig_)) {
-        masm->movq(address_orig_, address_);
+        masm->movp(address_orig_, address_);
         masm->pop(address_);
       }
       masm->pop(scratch1_);

@@ -1625,7 +1625,7 @@ LInstruction* LChunkBuilder::DoLoadKeyed(HLoadKeyed* instr) {
   LOperand* elements = UseRegister(instr->elements());
   LOperand* key = UseRegisterOrConstantAtStart(instr->key());
 
-  if (!instr->is_external()) {
+  if (!instr->is_typed_elements()) {
     if (instr->representation().IsDouble()) {
       LOperand* temp = (!instr->key()->IsConstant() ||
                         instr->RequiresHoleCheck())
@@ -1649,20 +1649,22 @@ LInstruction* LChunkBuilder::DoLoadKeyed(HLoadKeyed* instr) {
     }
   } else {
     ASSERT((instr->representation().IsInteger32() &&
-            (elements_kind != EXTERNAL_FLOAT_ELEMENTS) &&
-            (elements_kind != EXTERNAL_DOUBLE_ELEMENTS)) ||
+            !IsDoubleOrFloatElementsKind(instr->elements_kind())) ||
            (instr->representation().IsDouble() &&
-            ((elements_kind == EXTERNAL_FLOAT_ELEMENTS) ||
-             (elements_kind == EXTERNAL_DOUBLE_ELEMENTS))));
+            IsDoubleOrFloatElementsKind(instr->elements_kind())));
 
     LOperand* temp = instr->key()->IsConstant() ? NULL : TempRegister();
     LLoadKeyedExternal* result =
         new(zone()) LLoadKeyedExternal(elements, key, temp);
     // An unsigned int array load might overflow and cause a deopt. Make sure it
     // has an environment.
-    return (elements_kind == EXTERNAL_UNSIGNED_INT_ELEMENTS)
-        ? AssignEnvironment(DefineAsRegister(result))
-        : DefineAsRegister(result);
+    if (instr->RequiresHoleCheck() ||
+        elements_kind == EXTERNAL_UNSIGNED_INT_ELEMENTS ||
+        elements_kind == UINT32_ELEMENTS) {
+      return AssignEnvironment(DefineAsRegister(result));
+    } else {
+      return DefineAsRegister(result);
+    }
   }
 }
 
@@ -2076,22 +2078,14 @@ LInstruction* LChunkBuilder::DoStoreGlobalCell(HStoreGlobalCell* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoStoreGlobalGeneric(HStoreGlobalGeneric* instr) {
-  LOperand* global_object = UseFixed(instr->global_object(), x1);
-  LOperand* value = UseFixed(instr->value(), x0);
-  LStoreGlobalGeneric* result =
-      new(zone()) LStoreGlobalGeneric(global_object, value);
-  return MarkAsCall(result, instr);
-}
-
-
 LInstruction* LChunkBuilder::DoStoreKeyed(HStoreKeyed* instr) {
   LOperand* temp = NULL;
   LOperand* elements = NULL;
   LOperand* val = NULL;
   LOperand* key = NULL;
 
-  if (!instr->is_external() && instr->value()->representation().IsTagged() &&
+  if (!instr->is_typed_elements() &&
+      instr->value()->representation().IsTagged() &&
       instr->NeedsWriteBarrier()) {
     // RecordWrite() will clobber all registers.
     elements = UseRegisterAndClobber(instr->elements());
@@ -2103,16 +2097,19 @@ LInstruction* LChunkBuilder::DoStoreKeyed(HStoreKeyed* instr) {
     key = UseRegisterOrConstantAtStart(instr->key());
   }
 
-  if (instr->is_external()) {
+  if (instr->is_typed_elements()) {
     ASSERT(instr->elements()->representation().IsExternal());
     ASSERT((instr->value()->representation().IsInteger32() &&
-            (instr->elements_kind() != EXTERNAL_FLOAT_ELEMENTS) &&
-            (instr->elements_kind() != EXTERNAL_DOUBLE_ELEMENTS)) ||
+            !IsDoubleOrFloatElementsKind(instr->elements_kind())) ||
            (instr->value()->representation().IsDouble() &&
-            ((instr->elements_kind() == EXTERNAL_FLOAT_ELEMENTS) ||
-             (instr->elements_kind() == EXTERNAL_DOUBLE_ELEMENTS))));
+            IsDoubleOrFloatElementsKind(instr->elements_kind())));
+    ASSERT((instr->is_fixed_typed_array() &&
+            instr->elements()->representation().IsTagged()) ||
+           (instr->is_external() &&
+            instr->elements()->representation().IsExternal()));
     temp = instr->key()->IsConstant() ? NULL : TempRegister();
     return new(zone()) LStoreKeyedExternal(elements, key, val, temp);
+
   } else if (instr->value()->representation().IsDouble()) {
     ASSERT(instr->elements()->representation().IsTagged());
 
@@ -2120,6 +2117,7 @@ LInstruction* LChunkBuilder::DoStoreKeyed(HStoreKeyed* instr) {
     // instruction may canonicalize the value in the register if it is a NaN.
     temp = TempRegister();
     return new(zone()) LStoreKeyedFixedDouble(elements, key, val, temp);
+
   } else {
     ASSERT(instr->elements()->representation().IsTagged());
     ASSERT(instr->value()->representation().IsSmiOrTagged() ||
@@ -2177,10 +2175,8 @@ LInstruction* LChunkBuilder::DoStoreNamedGeneric(HStoreNamedGeneric* instr) {
 
 
 LInstruction* LChunkBuilder::DoStringAdd(HStringAdd* instr) {
-  LOperand* left = FLAG_new_string_add ? UseFixed(instr->left(), x1)
-                                       : UseRegisterAtStart(instr->left());
-  LOperand* right = FLAG_new_string_add ? UseFixed(instr->right(), x0)
-                                        : UseRegisterAtStart(instr->right());
+  LOperand* left = UseFixed(instr->left(), x1);
+  LOperand* right = UseFixed(instr->right(), x0);
 
   LStringAdd* result = new(zone()) LStringAdd(left, right);
   return MarkAsCall(DefineFixed(result, x0), instr);

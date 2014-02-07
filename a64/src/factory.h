@@ -104,6 +104,9 @@ class Factory {
                                    int length);
   Handle<String> InternalizeTwoByteString(Vector<const uc16> str);
 
+  template<class StringTableKey>
+  Handle<String> InternalizeStringWithKey(StringTableKey* key);
+
 
   // String creation functions.  Most of the string creation functions take
   // a Heap::PretenureFlag argument to optionally request that they be
@@ -255,6 +258,11 @@ class Factory {
       int length,
       ExternalArrayType array_type,
       void* external_pointer,
+      PretenureFlag pretenure = NOT_TENURED);
+
+  Handle<FixedTypedArrayBase> NewFixedTypedArray(
+      int length,
+      ExternalArrayType array_type,
       PretenureFlag pretenure = NOT_TENURED);
 
   Handle<Cell> NewCell(Handle<Object> value);

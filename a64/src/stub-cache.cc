@@ -128,7 +128,7 @@ Handle<Code> StubCache::FindHandler(Handle<Name> name,
 
 Handle<Code> StubCache::ComputeMonomorphicIC(
     Handle<Name> name,
-    Handle<Type> type,
+    Handle<HeapType> type,
     Handle<Code> handler,
     ExtraICState extra_ic_state) {
   Code::Kind kind = handler->handler_kind();
@@ -139,7 +139,7 @@ Handle<Code> StubCache::ComputeMonomorphicIC(
   // There are multiple string maps that all use the same prototype. That
   // prototype cannot hold multiple handlers, one for each of the string maps,
   // for a single name. Hence, turn off caching of the IC.
-  bool can_be_cached = !type->Is(Type::String());
+  bool can_be_cached = !type->Is(HeapType::String());
   if (can_be_cached) {
     stub_holder = IC::GetCodeCacheHolder(flag, *type, isolate());
     ic = FindIC(name, stub_holder, kind, extra_ic_state, flag);
@@ -169,7 +169,7 @@ Handle<Code> StubCache::ComputeMonomorphicIC(
 
 
 Handle<Code> StubCache::ComputeLoadNonexistent(Handle<Name> name,
-                                               Handle<Type> type) {
+                                               Handle<HeapType> type) {
   InlineCacheHolderFlag flag = IC::GetCodeCacheFlag(*type);
   Handle<Map> stub_holder = IC::GetCodeCacheHolder(flag, *type, isolate());
   // If no dictionary mode objects are present in the prototype chain, the load
@@ -297,9 +297,7 @@ Handle<Code> StubCache::ComputeCallConstant(int argc,
           CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_IC_TAG), *code, *name));
   GDBJIT(AddCode(GDBJITInterface::CALL_IC, *name, *code));
 
-  if (CallStubCompiler::CanBeCached(function)) {
-    HeapObject::UpdateMapCodeCache(stub_holder, name, code);
-  }
+  HeapObject::UpdateMapCodeCache(stub_holder, name, code);
   return code;
 }
 
@@ -402,9 +400,7 @@ Handle<Code> StubCache::ComputeCallGlobal(int argc,
   PROFILE(isolate(),
           CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_IC_TAG), *code, *name));
   GDBJIT(AddCode(GDBJITInterface::CALL_IC, *name, *code));
-  if (CallStubCompiler::CanBeCached(function)) {
-    HeapObject::UpdateMapCodeCache(receiver, name, code);
-  }
+  HeapObject::UpdateMapCodeCache(receiver, name, code);
   return code;
 }
 
@@ -419,10 +415,8 @@ static void FillCache(Isolate* isolate, Handle<Code> code) {
 
 
 Code* StubCache::FindCallInitialize(int argc, Code::Kind kind) {
-  ExtraICState extra_state =
-      CallICBase::StringStubState::encode(DEFAULT_STRING_STUB);
-  Code::Flags flags =
-      Code::ComputeFlags(kind, UNINITIALIZED, extra_state, Code::NORMAL, argc);
+  Code::Flags flags = Code::ComputeFlags(
+      kind, UNINITIALIZED, kNoExtraICState, Code::NORMAL, argc);
   UnseededNumberDictionary* dictionary =
       isolate()->heap()->non_monomorphic_cache();
   int entry = dictionary->FindEntry(isolate(), flags);
@@ -448,10 +442,8 @@ Code* StubCache::FindPreMonomorphicIC(Code::Kind kind, ExtraICState state) {
 
 
 Handle<Code> StubCache::ComputeCallInitialize(int argc, Code::Kind kind) {
-  ExtraICState extra_state =
-      CallICBase::ComputeExtraICState(DEFAULT_STRING_STUB);
-  Code::Flags flags =
-      Code::ComputeFlags(kind, UNINITIALIZED, extra_state, Code::NORMAL, argc);
+  Code::Flags flags = Code::ComputeFlags(
+      kind, UNINITIALIZED, kNoExtraICState, Code::NORMAL, argc);
   Handle<UnseededNumberDictionary> cache =
       isolate_->factory()->non_monomorphic_cache();
   int entry = cache->FindEntry(isolate_, flags);
@@ -646,7 +638,7 @@ Handle<Code> StubCache::ComputeLoadElementPolymorphic(
 
   TypeHandleList types(receiver_maps->length());
   for (int i = 0; i < receiver_maps->length(); i++) {
-    types.Add(Type::Class(receiver_maps->at(i), isolate()));
+    types.Add(HeapType::Class(receiver_maps->at(i), isolate()));
   }
   CodeHandleList handlers(receiver_maps->length());
   KeyedLoadStubCompiler compiler(isolate_);
@@ -810,24 +802,25 @@ void StubCache::CollectMatchingMaps(SmallMapList* types,
 
 
 RUNTIME_FUNCTION(MaybeObject*, StoreCallbackProperty) {
-  JSObject* recv = JSObject::cast(args[0]);
-  ExecutableAccessorInfo* callback = ExecutableAccessorInfo::cast(args[1]);
+  JSObject* receiver = JSObject::cast(args[0]);
+  JSObject* holder = JSObject::cast(args[1]);
+  ExecutableAccessorInfo* callback = ExecutableAccessorInfo::cast(args[2]);
   Address setter_address = v8::ToCData<Address>(callback->setter());
   v8::AccessorSetterCallback fun =
       FUNCTION_CAST<v8::AccessorSetterCallback>(setter_address);
   ASSERT(fun != NULL);
-  ASSERT(callback->IsCompatibleReceiver(recv));
-  Handle<Name> name = args.at<Name>(2);
-  Handle<Object> value = args.at<Object>(3);
+  ASSERT(callback->IsCompatibleReceiver(receiver));
+  Handle<Name> name = args.at<Name>(3);
+  Handle<Object> value = args.at<Object>(4);
   HandleScope scope(isolate);
 
   // TODO(rossberg): Support symbols in the API.
   if (name->IsSymbol()) return *value;
   Handle<String> str = Handle<String>::cast(name);
 
-  LOG(isolate, ApiNamedPropertyAccess("store", recv, *name));
+  LOG(isolate, ApiNamedPropertyAccess("store", receiver, *name));
   PropertyCallbackArguments
-      custom_args(isolate, callback->data(), recv, recv);
+      custom_args(isolate, callback->data(), receiver, holder);
   custom_args.Call(fun, v8::Utils::ToLocal(str), v8::Utils::ToLocal(value));
   RETURN_IF_SCHEDULED_EXCEPTION(isolate);
   return *value;
@@ -883,12 +876,10 @@ RUNTIME_FUNCTION(MaybeObject*, LoadPropertyWithInterceptorOnly) {
 
 static MaybeObject* ThrowReferenceError(Isolate* isolate, Name* name) {
   // If the load is non-contextual, just return the undefined result.
-  // Note that both keyed and non-keyed loads may end up here, so we
-  // can't use either LoadIC or KeyedLoadIC constructors.
+  // Note that both keyed and non-keyed loads may end up here.
   HandleScope scope(isolate);
-  IC ic(IC::NO_EXTRA_FRAME, isolate);
-  ASSERT(ic.IsLoadStub());
-  if (!ic.IsContextual()) {
+  LoadIC ic(IC::NO_EXTRA_FRAME, isolate);
+  if (ic.contextual_mode() != CONTEXTUAL) {
     return isolate->heap()->undefined_value();
   }
 
@@ -1047,9 +1038,6 @@ Handle<Code> StubCompiler::CompileCallNormal(Code::Flags flags) {
   int argc = Code::ExtractArgumentsCountFromFlags(flags);
   Code::Kind kind = Code::ExtractKindFromFlags(flags);
   if (kind == Code::CALL_IC) {
-    // Call normal is always with a explict receiver.
-    ASSERT(!CallIC::Contextual::decode(
-        Code::ExtractExtraICStateFromFlags(flags)));
     CallIC::GenerateNormal(masm(), argc);
   } else {
     KeyedCallIC::GenerateNormal(masm(), argc);
@@ -1105,7 +1093,7 @@ Handle<Code> StubCompiler::CompileLoadPreMonomorphic(Code::Flags flags) {
 
 Handle<Code> StubCompiler::CompileLoadMegamorphic(Code::Flags flags) {
   ExtraICState extra_state = Code::ExtractExtraICStateFromFlags(flags);
-  ContextualMode mode = IC::GetContextualMode(extra_state);
+  ContextualMode mode = LoadIC::GetContextualMode(extra_state);
   LoadIC::GenerateMegamorphic(masm(), mode);
   Handle<Code> code = GetCodeWithFlags(flags, "CompileLoadMegamorphic");
   PROFILE(isolate(),
@@ -1294,6 +1282,41 @@ void CallStubCompiler::GenerateJumpFunction(Handle<Object> object,
 }
 
 
+Handle<Code> CallStubCompiler::CompileArrayPushCall(
+    Handle<Object> object,
+    Handle<JSObject> holder,
+    Handle<Cell> cell,
+    Handle<JSFunction> function,
+    Handle<String> name,
+    Code::StubType type) {
+  // If object is not an array or is observed or sealed, bail out to regular
+  // call.
+  if (!object->IsJSArray() ||
+      !cell.is_null() ||
+      Handle<JSArray>::cast(object)->map()->is_observed() ||
+      !Handle<JSArray>::cast(object)->map()->is_extensible()) {
+    return Handle<Code>::null();
+  }
+
+  Label miss;
+
+  HandlerFrontendHeader(object, holder, name, RECEIVER_MAP_CHECK, &miss);
+
+  Handle<Map> map(Handle<JSArray>::cast(object)->map());
+  ElementsKind elements_kind = map->elements_kind();
+  const int argc = arguments().immediate();
+
+  ArrayPushStub stub(elements_kind, argc);
+  Handle<Code> code = stub.GetCode(isolate());
+  StubCompiler::GenerateTailCall(masm(), code);
+
+  HandlerFrontendFooter(&miss);
+
+  // Return the generated code.
+  return GetCode(type, name);
+}
+
+
 Handle<Code> CallStubCompiler::CompileCallConstant(
     Handle<Object> object,
     Handle<JSObject> holder,
@@ -1320,20 +1343,20 @@ Handle<Code> CallStubCompiler::CompileCallConstant(
 
 
 Register LoadStubCompiler::HandlerFrontendHeader(
-    Handle<Type> type,
+    Handle<HeapType> type,
     Register object_reg,
     Handle<JSObject> holder,
     Handle<Name> name,
     Label* miss) {
   PrototypeCheckType check_type = CHECK_ALL_MAPS;
   int function_index = -1;
-  if (type->Is(Type::String())) {
+  if (type->Is(HeapType::String())) {
     function_index = Context::STRING_FUNCTION_INDEX;
-  } else if (type->Is(Type::Symbol())) {
+  } else if (type->Is(HeapType::Symbol())) {
     function_index = Context::SYMBOL_FUNCTION_INDEX;
-  } else if (type->Is(Type::Number())) {
+  } else if (type->Is(HeapType::Number())) {
     function_index = Context::NUMBER_FUNCTION_INDEX;
-  } else if (type->Is(Type::Boolean())) {
+  } else if (type->Is(HeapType::Boolean())) {
     // Booleans use the generic oddball map, so an additional check is needed to
     // ensure the receiver is really a boolean.
     GenerateBooleanCheck(object_reg, miss);
@@ -1361,7 +1384,7 @@ Register LoadStubCompiler::HandlerFrontendHeader(
 // HandlerFrontend for store uses the name register. It has to be restored
 // before a miss.
 Register StoreStubCompiler::HandlerFrontendHeader(
-    Handle<Type> type,
+    Handle<HeapType> type,
     Register object_reg,
     Handle<JSObject> holder,
     Handle<Name> name,
@@ -1373,13 +1396,13 @@ Register StoreStubCompiler::HandlerFrontendHeader(
 
 bool BaseLoadStoreStubCompiler::IncludesNumberType(TypeHandleList* types) {
   for (int i = 0; i < types->length(); ++i) {
-    if (types->at(i)->Is(Type::Number())) return true;
+    if (types->at(i)->Is(HeapType::Number())) return true;
   }
   return false;
 }
 
 
-Register BaseLoadStoreStubCompiler::HandlerFrontend(Handle<Type> type,
+Register BaseLoadStoreStubCompiler::HandlerFrontend(Handle<HeapType> type,
                                                     Register object_reg,
                                                     Handle<JSObject> holder,
                                                     Handle<Name> name) {
@@ -1393,7 +1416,7 @@ Register BaseLoadStoreStubCompiler::HandlerFrontend(Handle<Type> type,
 }
 
 
-void LoadStubCompiler::NonexistentHandlerFrontend(Handle<Type> type,
+void LoadStubCompiler::NonexistentHandlerFrontend(Handle<HeapType> type,
                                                   Handle<JSObject> last,
                                                   Handle<Name> name) {
   Label miss;
@@ -1438,7 +1461,7 @@ void LoadStubCompiler::NonexistentHandlerFrontend(Handle<Type> type,
 
 
 Handle<Code> LoadStubCompiler::CompileLoadField(
-    Handle<Type> type,
+    Handle<HeapType> type,
     Handle<JSObject> holder,
     Handle<Name> name,
     PropertyIndex field,
@@ -1458,7 +1481,7 @@ Handle<Code> LoadStubCompiler::CompileLoadField(
 
 
 Handle<Code> LoadStubCompiler::CompileLoadConstant(
-    Handle<Type> type,
+    Handle<HeapType> type,
     Handle<JSObject> holder,
     Handle<Name> name,
     Handle<Object> value) {
@@ -1471,7 +1494,7 @@ Handle<Code> LoadStubCompiler::CompileLoadConstant(
 
 
 Handle<Code> LoadStubCompiler::CompileLoadCallback(
-    Handle<Type> type,
+    Handle<HeapType> type,
     Handle<JSObject> holder,
     Handle<Name> name,
     Handle<ExecutableAccessorInfo> callback) {
@@ -1485,7 +1508,7 @@ Handle<Code> LoadStubCompiler::CompileLoadCallback(
 
 
 Handle<Code> LoadStubCompiler::CompileLoadCallback(
-    Handle<Type> type,
+    Handle<HeapType> type,
     Handle<JSObject> holder,
     Handle<Name> name,
     const CallOptimization& call_optimization) {
@@ -1500,7 +1523,7 @@ Handle<Code> LoadStubCompiler::CompileLoadCallback(
 
 
 Handle<Code> LoadStubCompiler::CompileLoadInterceptor(
-    Handle<Type> type,
+    Handle<HeapType> type,
     Handle<JSObject> holder,
     Handle<Name> name) {
   LookupResult lookup(isolate());
@@ -1553,7 +1576,7 @@ void LoadStubCompiler::GenerateLoadPostInterceptor(
 
 
 Handle<Code> BaseLoadStoreStubCompiler::CompileMonomorphicIC(
-    Handle<Type> type,
+    Handle<HeapType> type,
     Handle<Code> handler,
     Handle<Name> name) {
   TypeHandleList types(1);
@@ -1566,7 +1589,7 @@ Handle<Code> BaseLoadStoreStubCompiler::CompileMonomorphicIC(
 
 
 Handle<Code> LoadStubCompiler::CompileLoadViaGetter(
-    Handle<Type> type,
+    Handle<HeapType> type,
     Handle<JSObject> holder,
     Handle<Name> name,
     Handle<JSFunction> getter) {
@@ -1676,7 +1699,8 @@ Handle<Code> KeyedLoadStubCompiler::CompileLoadElement(
     Handle<Map> receiver_map) {
   ElementsKind elements_kind = receiver_map->elements_kind();
   if (receiver_map->has_fast_elements() ||
-      receiver_map->has_external_array_elements()) {
+      receiver_map->has_external_array_elements() ||
+      receiver_map->has_fixed_typed_array_elements()) {
     Handle<Code> stub = KeyedLoadFastElementStub(
         receiver_map->instance_type() == JS_ARRAY_TYPE,
         elements_kind).GetCode(isolate());
@@ -1701,7 +1725,8 @@ Handle<Code> KeyedStoreStubCompiler::CompileStoreElement(
   bool is_jsarray = receiver_map->instance_type() == JS_ARRAY_TYPE;
   Handle<Code> stub;
   if (receiver_map->has_fast_elements() ||
-      receiver_map->has_external_array_elements()) {
+      receiver_map->has_external_array_elements() ||
+      receiver_map->has_fixed_typed_array_elements()) {
     stub = KeyedStoreFastElementStub(
         is_jsarray,
         elements_kind,
@@ -1799,7 +1824,8 @@ void KeyedLoadStubCompiler::CompileElementHandlers(MapHandleList* receiver_maps,
       ElementsKind elements_kind = receiver_map->elements_kind();
 
       if (IsFastElementsKind(elements_kind) ||
-          IsExternalArrayElementsKind(elements_kind)) {
+          IsExternalArrayElementsKind(elements_kind) ||
+          IsFixedTypedArrayElementsKind(elements_kind)) {
         cached_stub =
             KeyedLoadFastElementStub(is_js_array,
                                      elements_kind).GetCode(isolate());
@@ -1842,7 +1868,8 @@ Handle<Code> KeyedStoreStubCompiler::CompileStoreElementPolymorphic(
       cached_stub = isolate()->builtins()->KeyedStoreIC_Slow();
     } else {
       if (receiver_map->has_fast_elements() ||
-          receiver_map->has_external_array_elements()) {
+          receiver_map->has_external_array_elements() ||
+          receiver_map->has_fixed_typed_array_elements()) {
         cached_stub = KeyedStoreFastElementStub(
             is_js_array,
             elements_kind,
@@ -1895,18 +1922,6 @@ bool CallStubCompiler::HasCustomCallGenerator(Handle<JSFunction> function) {
 
   CallOptimization optimization(function);
   return optimization.is_simple_api_call();
-}
-
-
-bool CallStubCompiler::CanBeCached(Handle<JSFunction> function) {
-  if (function->shared()->HasBuiltinFunctionId()) {
-    BuiltinFunctionId id = function->shared()->builtin_function_id();
-#define CALL_GENERATOR_CASE(name) if (id == k##name) return false;
-    SITE_SPECIFIC_CALL_GENERATORS(CALL_GENERATOR_CASE)
-#undef CALL_GENERATOR_CASE
-  }
-
-  return true;
 }
 
 
@@ -1979,20 +1994,44 @@ CallOptimization::CallOptimization(Handle<JSFunction> function) {
 }
 
 
-int CallOptimization::GetPrototypeDepthOfExpectedType(
+Handle<Map> CallOptimization::LookupHolderOfExpectedType(
+    Handle<JSObject> receiver,
     Handle<JSObject> object,
-    Handle<JSObject> holder) const {
+    Handle<JSObject> holder,
+    HolderLookup* holder_lookup) const {
   ASSERT(is_simple_api_call());
-  if (expected_receiver_type_.is_null()) return 0;
-  int depth = 0;
-  while (!object.is_identical_to(holder)) {
-    if (expected_receiver_type_->IsTemplateFor(object->map())) return depth;
-    object = Handle<JSObject>(JSObject::cast(object->GetPrototype()));
-    if (!object->map()->is_hidden_prototype()) return kInvalidProtoDepth;
-    ++depth;
+  ASSERT_EQ(kHolderNotFound, *holder_lookup);
+  *holder_lookup = kHolderIsReceiver;
+  Handle<Map> map_to_holder;
+  if (expected_receiver_type_.is_null()) {
+    // no expected type, load from receiver.
+    return map_to_holder;
   }
-  if (expected_receiver_type_->IsTemplateFor(holder->map())) return depth;
-  return kInvalidProtoDepth;
+  // walk down the prototype chain to the object
+  while (!receiver.is_identical_to(object)) {
+    *holder_lookup = kHolderIsPrototypeOfMap;
+    map_to_holder = Handle<Map>(receiver->map());
+    receiver = Handle<JSObject>(JSObject::cast(map_to_holder->prototype()));
+  }
+  // start looking for the holder
+  while (!object.is_identical_to(holder)) {
+    Handle<Map> object_map(object->map());
+    if (expected_receiver_type_->IsTemplateFor(*object_map)) {
+      return map_to_holder;
+    }
+    if (!object_map->is_hidden_prototype()) {
+      *holder_lookup = kHolderNotFound;
+      return Handle<Map>::null();
+    }
+    *holder_lookup = kHolderIsPrototypeOfMap;
+    map_to_holder = object_map;
+    object = Handle<JSObject>(JSObject::cast(object_map->prototype()));
+  }
+  if (expected_receiver_type_->IsTemplateFor(holder->map())) {
+    return map_to_holder;
+  }
+  *holder_lookup = kHolderNotFound;
+  return Handle<Map>::null();
 }
 
 

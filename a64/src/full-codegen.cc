@@ -421,7 +421,7 @@ void FullCodeGenerator::Initialize() {
                          !Snapshot::HaveASnapshotToStartFrom();
   masm_->set_emit_debug_code(generate_debug_code_);
   masm_->set_predictable_code_size(true);
-  InitializeAstVisitor(info_->isolate());
+  InitializeAstVisitor(info_->zone());
 }
 
 
@@ -452,7 +452,7 @@ void FullCodeGenerator::CallLoadIC(ContextualMode mode, TypeFeedbackId id) {
 
 
 void FullCodeGenerator::CallStoreIC(ContextualMode mode, TypeFeedbackId id) {
-  Handle<Code> ic = StoreIC::initialize_stub(isolate(), strict_mode(), mode);
+  Handle<Code> ic = StoreIC::initialize_stub(isolate(), strict_mode());
   CallIC(ic, mode, id);
 }
 
@@ -847,7 +847,7 @@ void FullCodeGenerator::SetStatementPosition(Statement* stmt) {
   } else {
     // Check if the statement will be breakable without adding a debug break
     // slot.
-    BreakableStatementChecker checker(isolate());
+    BreakableStatementChecker checker(zone());
     checker.Check(stmt);
     // Record the statement position right here if the statement is not
     // breakable. For breakable statements the actual recording of the
@@ -873,7 +873,7 @@ void FullCodeGenerator::SetExpressionPosition(Expression* expr) {
   } else {
     // Check if the expression will be breakable without adding a debug break
     // slot.
-    BreakableStatementChecker checker(isolate());
+    BreakableStatementChecker checker(zone());
     checker.Check(expr);
     // Record a statement position right here if the expression is not
     // breakable. For breakable expressions the actual recording of the

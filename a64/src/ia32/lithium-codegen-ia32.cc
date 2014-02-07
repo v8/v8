@@ -292,17 +292,18 @@ bool LCodeGen::GeneratePrologue() {
   if (heap_slots > 0) {
     Comment(";;; Allocate local context");
     // Argument to NewContext is the function, which is still in edi.
-    __ push(edi);
     if (heap_slots <= FastNewContextStub::kMaximumSlots) {
       FastNewContextStub stub(heap_slots);
       __ CallStub(&stub);
     } else {
+      __ push(edi);
       __ CallRuntime(Runtime::kNewFunctionContext, 1);
     }
     RecordSafepoint(Safepoint::kNoLazyDeopt);
-    // Context is returned in both eax and esi.  It replaces the context
-    // passed to us.  It's saved in the stack and kept live in esi.
-    __ mov(Operand(ebp, StandardFrameConstants::kContextOffset), esi);
+    // Context is returned in eax.  It replaces the context passed to us.
+    // It's saved in the stack and kept live in esi.
+    __ mov(esi, eax);
+    __ mov(Operand(ebp, StandardFrameConstants::kContextOffset), eax);
 
     // Copy parameters into context if necessary.
     int num_parameters = scope()->num_parameters();
@@ -3196,19 +3197,6 @@ void LCodeGen::DoStoreGlobalCell(LStoreGlobalCell* instr) {
 }
 
 
-void LCodeGen::DoStoreGlobalGeneric(LStoreGlobalGeneric* instr) {
-  ASSERT(ToRegister(instr->context()).is(esi));
-  ASSERT(ToRegister(instr->global_object()).is(edx));
-  ASSERT(ToRegister(instr->value()).is(eax));
-
-  __ mov(ecx, instr->name());
-  Handle<Code> ic = StoreIC::initialize_stub(isolate(),
-                                             instr->strict_mode_flag(),
-                                             CONTEXTUAL);
-  CallCode(ic, RelocInfo::CODE_TARGET, instr);
-}
-
-
 void LCodeGen::DoLoadContextSlot(LLoadContextSlot* instr) {
   Register context = ToRegister(instr->context());
   Register result = ToRegister(instr->result());
@@ -3421,7 +3409,8 @@ void LCodeGen::DoLoadKeyedExternalArray(LLoadKeyed* instr) {
       elements_kind,
       0,
       instr->additional_index()));
-  if (elements_kind == EXTERNAL_FLOAT_ELEMENTS) {
+  if (elements_kind == EXTERNAL_FLOAT_ELEMENTS ||
+      elements_kind == FLOAT32_ELEMENTS) {
     if (CpuFeatures::IsSupported(SSE2)) {
       CpuFeatureScope scope(masm(), SSE2);
       XMMRegister result(ToDoubleRegister(instr->result()));
@@ -3430,7 +3419,8 @@ void LCodeGen::DoLoadKeyedExternalArray(LLoadKeyed* instr) {
     } else {
       X87Mov(ToX87Register(instr->result()), operand, kX87FloatOperand);
     }
-  } else if (elements_kind == EXTERNAL_DOUBLE_ELEMENTS) {
+  } else if (elements_kind == EXTERNAL_DOUBLE_ELEMENTS ||
+             elements_kind == FLOAT64_ELEMENTS) {
     if (CpuFeatures::IsSupported(SSE2)) {
       CpuFeatureScope scope(masm(), SSE2);
       __ movsd(ToDoubleRegister(instr->result()), operand);
@@ -3441,22 +3431,29 @@ void LCodeGen::DoLoadKeyedExternalArray(LLoadKeyed* instr) {
     Register result(ToRegister(instr->result()));
     switch (elements_kind) {
       case EXTERNAL_BYTE_ELEMENTS:
+      case INT8_ELEMENTS:
         __ movsx_b(result, operand);
         break;
       case EXTERNAL_PIXEL_ELEMENTS:
       case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
+      case UINT8_ELEMENTS:
+      case UINT8_CLAMPED_ELEMENTS:
         __ movzx_b(result, operand);
         break;
       case EXTERNAL_SHORT_ELEMENTS:
+      case INT16_ELEMENTS:
         __ movsx_w(result, operand);
         break;
       case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
+      case UINT16_ELEMENTS:
         __ movzx_w(result, operand);
         break;
       case EXTERNAL_INT_ELEMENTS:
+      case INT32_ELEMENTS:
         __ mov(result, operand);
         break;
       case EXTERNAL_UNSIGNED_INT_ELEMENTS:
+      case UINT32_ELEMENTS:
         __ mov(result, operand);
         if (!instr->hydrogen()->CheckFlag(HInstruction::kUint32)) {
           __ test(result, Operand(result));
@@ -3465,6 +3462,8 @@ void LCodeGen::DoLoadKeyedExternalArray(LLoadKeyed* instr) {
         break;
       case EXTERNAL_FLOAT_ELEMENTS:
       case EXTERNAL_DOUBLE_ELEMENTS:
+      case FLOAT32_ELEMENTS:
+      case FLOAT64_ELEMENTS:
       case FAST_SMI_ELEMENTS:
       case FAST_ELEMENTS:
       case FAST_DOUBLE_ELEMENTS:
@@ -3537,7 +3536,7 @@ void LCodeGen::DoLoadKeyedFixedArray(LLoadKeyed* instr) {
 
 
 void LCodeGen::DoLoadKeyed(LLoadKeyed* instr) {
-  if (instr->is_external()) {
+  if (instr->is_typed_elements()) {
     DoLoadKeyedExternalArray(instr);
   } else if (instr->hydrogen()->representation().IsDouble()) {
     DoLoadKeyedFixedDoubleArray(instr);
@@ -3556,6 +3555,9 @@ Operand LCodeGen::BuildFastArrayOperand(
     uint32_t additional_index) {
   Register elements_pointer_reg = ToRegister(elements_pointer);
   int element_shift_size = ElementsKindToShiftSize(elements_kind);
+  if (IsFixedTypedArrayElementsKind(elements_kind)) {
+    offset += FixedTypedArrayBase::kDataOffset - kHeapObjectTag;
+  }
   int shift_size = element_shift_size;
   if (key->IsConstantOperand()) {
     int constant_value = ToInteger32(LConstantOperand::cast(key));
@@ -4289,7 +4291,7 @@ void LCodeGen::DoCallNewArray(LCallNewArray* instr) {
   ASSERT(ToRegister(instr->result()).is(eax));
 
   __ Set(eax, Immediate(instr->arity()));
-  __ mov(ebx, instr->hydrogen()->property_cell());
+  __ mov(ebx, factory()->undefined_value());
   ElementsKind kind = instr->hydrogen()->elements_kind();
   AllocationSiteOverrideMode override_mode =
       (AllocationSite::GetMode(kind) == TRACK_ALLOCATION_SITE)
@@ -4485,8 +4487,7 @@ void LCodeGen::DoStoreNamedGeneric(LStoreNamedGeneric* instr) {
 
   __ mov(ecx, instr->name());
   Handle<Code> ic = StoreIC::initialize_stub(isolate(),
-                                             instr->strict_mode_flag(),
-                                             NOT_CONTEXTUAL);
+                                             instr->strict_mode_flag());
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
 }
 
@@ -4538,7 +4539,8 @@ void LCodeGen::DoStoreKeyedExternalArray(LStoreKeyed* instr) {
       elements_kind,
       0,
       instr->additional_index()));
-  if (elements_kind == EXTERNAL_FLOAT_ELEMENTS) {
+  if (elements_kind == EXTERNAL_FLOAT_ELEMENTS ||
+      elements_kind == FLOAT32_ELEMENTS) {
     if (CpuFeatures::IsSafeForSnapshot(SSE2)) {
       CpuFeatureScope scope(masm(), SSE2);
       XMMRegister xmm_scratch = double_scratch0();
@@ -4548,7 +4550,8 @@ void LCodeGen::DoStoreKeyedExternalArray(LStoreKeyed* instr) {
       __ fld(0);
       __ fstp_s(operand);
     }
-  } else if (elements_kind == EXTERNAL_DOUBLE_ELEMENTS) {
+  } else if (elements_kind == EXTERNAL_DOUBLE_ELEMENTS ||
+             elements_kind == FLOAT64_ELEMENTS) {
     if (CpuFeatures::IsSafeForSnapshot(SSE2)) {
       CpuFeatureScope scope(masm(), SSE2);
       __ movsd(operand, ToDoubleRegister(instr->value()));
@@ -4561,18 +4564,27 @@ void LCodeGen::DoStoreKeyedExternalArray(LStoreKeyed* instr) {
       case EXTERNAL_PIXEL_ELEMENTS:
       case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
       case EXTERNAL_BYTE_ELEMENTS:
+      case UINT8_ELEMENTS:
+      case INT8_ELEMENTS:
+      case UINT8_CLAMPED_ELEMENTS:
         __ mov_b(operand, value);
         break;
       case EXTERNAL_SHORT_ELEMENTS:
       case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
+      case UINT16_ELEMENTS:
+      case INT16_ELEMENTS:
         __ mov_w(operand, value);
         break;
       case EXTERNAL_INT_ELEMENTS:
       case EXTERNAL_UNSIGNED_INT_ELEMENTS:
+      case UINT32_ELEMENTS:
+      case INT32_ELEMENTS:
         __ mov(operand, value);
         break;
       case EXTERNAL_FLOAT_ELEMENTS:
       case EXTERNAL_DOUBLE_ELEMENTS:
+      case FLOAT32_ELEMENTS:
+      case FLOAT64_ELEMENTS:
       case FAST_SMI_ELEMENTS:
       case FAST_ELEMENTS:
       case FAST_DOUBLE_ELEMENTS:
@@ -4710,7 +4722,7 @@ void LCodeGen::DoStoreKeyedFixedArray(LStoreKeyed* instr) {
 
 void LCodeGen::DoStoreKeyed(LStoreKeyed* instr) {
   // By cases...external, fast-double, fast
-  if (instr->is_external()) {
+  if (instr->is_typed_elements()) {
     DoStoreKeyedExternalArray(instr);
   } else if (instr->hydrogen()->value()->representation().IsDouble()) {
     DoStoreKeyedFixedDoubleArray(instr);
@@ -4896,18 +4908,11 @@ void LCodeGen::DoDeferredStringCharFromCode(LStringCharFromCode* instr) {
 
 void LCodeGen::DoStringAdd(LStringAdd* instr) {
   ASSERT(ToRegister(instr->context()).is(esi));
-  if (FLAG_new_string_add) {
-    ASSERT(ToRegister(instr->left()).is(edx));
-    ASSERT(ToRegister(instr->right()).is(eax));
-    NewStringAddStub stub(instr->hydrogen()->flags(),
-                          instr->hydrogen()->pretenure_flag());
-    CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
-  } else {
-    EmitPushTaggedOperand(instr->left());
-    EmitPushTaggedOperand(instr->right());
-    StringAddStub stub(instr->hydrogen()->flags());
-    CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
-  }
+  ASSERT(ToRegister(instr->left()).is(edx));
+  ASSERT(ToRegister(instr->right()).is(eax));
+  StringAddStub stub(instr->hydrogen()->flags(),
+                     instr->hydrogen()->pretenure_flag());
+  CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
 }
 
 

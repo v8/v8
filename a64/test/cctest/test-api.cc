@@ -1999,6 +1999,21 @@ THREADED_TEST(EmptyInterceptorDoesNotShadowAccessors) {
 }
 
 
+THREADED_TEST(EmptyInterceptorBreakTransitions) {
+  v8::HandleScope scope(CcTest::isolate());
+  Handle<FunctionTemplate> templ = FunctionTemplate::New(CcTest::isolate());
+  AddInterceptor(templ, EmptyInterceptorGetter, EmptyInterceptorSetter);
+  LocalContext env;
+  env->Global()->Set(v8_str("Constructor"), templ->GetFunction());
+  CompileRun("var o1 = new Constructor;"
+             "o1.a = 1;"  // Ensure a and x share the descriptor array.
+             "Object.defineProperty(o1, 'x', {value: 10});");
+  CompileRun("var o2 = new Constructor;"
+             "o2.a = 1;"
+             "Object.defineProperty(o2, 'x', {value: 10});");
+}
+
+
 THREADED_TEST(EmptyInterceptorDoesNotShadowJSAccessors) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
@@ -7121,6 +7136,7 @@ void WhammyPropertyGetter(Local<String> name,
 
 
 THREADED_TEST(WeakReference) {
+  i::FLAG_expose_gc = true;
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope handle_scope(isolate);
   v8::Handle<v8::ObjectTemplate> templ= v8::ObjectTemplate::New(isolate);
@@ -7614,6 +7630,22 @@ THREADED_TEST(StringWrite) {
   v8::Handle<String> str2 = v8_str("abc\303\260\342\230\203");
   v8::Handle<String> str3 = v8::String::NewFromUtf8(
       context->GetIsolate(), "abc\0def", v8::String::kNormalString, 7);
+  // "ab" + lead surrogate + "cd" + trail surrogate + "ef"
+  uint16_t orphans[8] = { 0x61, 0x62, 0xd800, 0x63, 0x64, 0xdc00, 0x65, 0x66 };
+  v8::Handle<String> orphans_str = v8::String::NewFromTwoByte(
+      context->GetIsolate(), orphans, v8::String::kNormalString, 8);
+  // single lead surrogate
+  uint16_t lead[1] = { 0xd800 };
+  v8::Handle<String> lead_str = v8::String::NewFromTwoByte(
+      context->GetIsolate(), lead, v8::String::kNormalString, 1);
+  // single trail surrogate
+  uint16_t trail[1] = { 0xdc00 };
+  v8::Handle<String> trail_str = v8::String::NewFromTwoByte(
+      context->GetIsolate(), trail, v8::String::kNormalString, 1);
+  // surrogate pair
+  uint16_t pair[2] = { 0xd800,  0xdc00 };
+  v8::Handle<String> pair_str = v8::String::NewFromTwoByte(
+      context->GetIsolate(), pair, v8::String::kNormalString, 2);
   const int kStride = 4;  // Must match stride in for loops in JS below.
   CompileRun(
       "var left = '';"
@@ -7686,6 +7718,53 @@ THREADED_TEST(StringWrite) {
   CHECK_EQ(2, len);
   CHECK_EQ(2, charlen);
   CHECK_EQ(0, strncmp(utf8buf, "ab\1", 3));
+
+  // allow orphan surrogates by default
+  memset(utf8buf, 0x1, 1000);
+  len = orphans_str->WriteUtf8(utf8buf, sizeof(utf8buf), &charlen);
+  CHECK_EQ(13, len);
+  CHECK_EQ(8, charlen);
+  CHECK_EQ(0, strcmp(utf8buf, "ab\355\240\200cd\355\260\200ef"));
+
+  // replace orphan surrogates with unicode replacement character
+  memset(utf8buf, 0x1, 1000);
+  len = orphans_str->WriteUtf8(utf8buf,
+                               sizeof(utf8buf),
+                               &charlen,
+                               String::REPLACE_INVALID_UTF8);
+  CHECK_EQ(13, len);
+  CHECK_EQ(8, charlen);
+  CHECK_EQ(0, strcmp(utf8buf, "ab\357\277\275cd\357\277\275ef"));
+
+  // replace single lead surrogate with unicode replacement character
+  memset(utf8buf, 0x1, 1000);
+  len = lead_str->WriteUtf8(utf8buf,
+                            sizeof(utf8buf),
+                            &charlen,
+                            String::REPLACE_INVALID_UTF8);
+  CHECK_EQ(4, len);
+  CHECK_EQ(1, charlen);
+  CHECK_EQ(0, strcmp(utf8buf, "\357\277\275"));
+
+  // replace single trail surrogate with unicode replacement character
+  memset(utf8buf, 0x1, 1000);
+  len = trail_str->WriteUtf8(utf8buf,
+                             sizeof(utf8buf),
+                             &charlen,
+                             String::REPLACE_INVALID_UTF8);
+  CHECK_EQ(4, len);
+  CHECK_EQ(1, charlen);
+  CHECK_EQ(0, strcmp(utf8buf, "\357\277\275"));
+
+  // do not replace / write anything if surrogate pair does not fit the buffer
+  // space
+  memset(utf8buf, 0x1, 1000);
+  len = pair_str->WriteUtf8(utf8buf,
+                             3,
+                             &charlen,
+                             String::REPLACE_INVALID_UTF8);
+  CHECK_EQ(0, len);
+  CHECK_EQ(0, charlen);
 
   memset(utf8buf, 0x1, sizeof(utf8buf));
   len = GetUtf8Length(left_tree);
@@ -13416,6 +13495,7 @@ static void CheckSurvivingGlobalObjectsCount(int expected) {
 TEST(DontLeakGlobalObjects) {
   // Regression test for issues 1139850 and 1174891.
 
+  i::FLAG_expose_gc = true;
   v8::V8::Initialize();
 
   for (int i = 0; i < 5; i++) {
@@ -16113,14 +16193,6 @@ static void ObjectWithExternalArrayTestHelper(
   result = CompileRun("ext_array[1]");
   CHECK_EQ(1, result->Int32Value());
 
-  // Check pass through of assigned smis
-  result = CompileRun("var sum = 0;"
-                      "for (var i = 0; i < 8; i++) {"
-                      "  sum += ext_array[i] = ext_array[i] = -i;"
-                      "}"
-                      "sum;");
-  CHECK_EQ(-28, result->Int32Value());
-
   // Check assigned smis
   result = CompileRun("for (var i = 0; i < 8; i++) {"
                       "  ext_array[i] = i;"
@@ -16130,7 +16202,16 @@ static void ObjectWithExternalArrayTestHelper(
                       "  sum += ext_array[i];"
                       "}"
                       "sum;");
+
   CHECK_EQ(28, result->Int32Value());
+  // Check pass through of assigned smis
+  result = CompileRun("var sum = 0;"
+                      "for (var i = 0; i < 8; i++) {"
+                      "  sum += ext_array[i] = ext_array[i] = -i;"
+                      "}"
+                      "sum;");
+  CHECK_EQ(-28, result->Int32Value());
+
 
   // Check assigned smis in reverse order
   result = CompileRun("for (var i = 8; --i >= 0; ) {"
@@ -16395,6 +16476,113 @@ static void ObjectWithExternalArrayTestHelper(
 
   result = CompileRun("ext_array[1] = 23;");
   CHECK_EQ(23, result->Int32Value());
+}
+
+
+template <class FixedTypedArrayClass,
+          i::ElementsKind elements_kind,
+          class ElementType>
+static void FixedTypedArrayTestHelper(
+    v8::ExternalArrayType array_type,
+    ElementType low,
+    ElementType high) {
+  i::FLAG_allow_natives_syntax = true;
+  LocalContext context;
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::Factory* factory = isolate->factory();
+  v8::HandleScope scope(context->GetIsolate());
+  const int kElementCount = 260;
+  i::Handle<FixedTypedArrayClass> fixed_array =
+    i::Handle<FixedTypedArrayClass>::cast(
+        factory->NewFixedTypedArray(kElementCount, array_type));
+  CHECK_EQ(FixedTypedArrayClass::kInstanceType,
+           fixed_array->map()->instance_type());
+  CHECK_EQ(kElementCount, fixed_array->length());
+  CcTest::heap()->CollectAllGarbage(i::Heap::kNoGCFlags);
+  for (int i = 0; i < kElementCount; i++) {
+    fixed_array->set(i, static_cast<ElementType>(i));
+  }
+  // Force GC to trigger verification.
+  CcTest::heap()->CollectAllGarbage(i::Heap::kNoGCFlags);
+  for (int i = 0; i < kElementCount; i++) {
+    CHECK_EQ(static_cast<int64_t>(static_cast<ElementType>(i)),
+             static_cast<int64_t>(fixed_array->get_scalar(i)));
+  }
+  v8::Handle<v8::Object> obj = v8::Object::New(CcTest::isolate());
+  i::Handle<i::JSObject> jsobj = v8::Utils::OpenHandle(*obj);
+  i::Handle<i::Map> fixed_array_map =
+      isolate->factory()->GetElementsTransitionMap(jsobj, elements_kind);
+  jsobj->set_map(*fixed_array_map);
+  jsobj->set_elements(*fixed_array);
+
+  ObjectWithExternalArrayTestHelper<FixedTypedArrayClass, ElementType>(
+      context.local(), obj, kElementCount, array_type,
+      static_cast<int64_t>(low),
+      static_cast<int64_t>(high));
+}
+
+
+THREADED_TEST(FixedUint8Array) {
+  FixedTypedArrayTestHelper<i::FixedUint8Array, i::UINT8_ELEMENTS, uint8_t>(
+    v8::kExternalUnsignedByteArray,
+    0x0, 0xFF);
+}
+
+
+THREADED_TEST(FixedUint8ClampedArray) {
+  FixedTypedArrayTestHelper<i::FixedUint8ClampedArray,
+                            i::UINT8_CLAMPED_ELEMENTS, uint8_t>(
+    v8::kExternalPixelArray,
+    0x0, 0xFF);
+}
+
+
+THREADED_TEST(FixedInt8Array) {
+  FixedTypedArrayTestHelper<i::FixedInt8Array, i::INT8_ELEMENTS, int8_t>(
+    v8::kExternalByteArray,
+    -0x80, 0x7F);
+}
+
+
+THREADED_TEST(FixedUint16Array) {
+  FixedTypedArrayTestHelper<i::FixedUint16Array, i::UINT16_ELEMENTS, uint16_t>(
+    v8::kExternalUnsignedShortArray,
+    0x0, 0xFFFF);
+}
+
+
+THREADED_TEST(FixedInt16Array) {
+  FixedTypedArrayTestHelper<i::FixedInt16Array, i::INT16_ELEMENTS, int16_t>(
+    v8::kExternalShortArray,
+    -0x8000, 0x7FFF);
+}
+
+
+THREADED_TEST(FixedUint32Array) {
+  FixedTypedArrayTestHelper<i::FixedUint32Array, i::UINT32_ELEMENTS, uint32_t>(
+    v8::kExternalUnsignedIntArray,
+    0x0, UINT_MAX);
+}
+
+
+THREADED_TEST(FixedInt32Array) {
+  FixedTypedArrayTestHelper<i::FixedInt32Array, i::INT32_ELEMENTS, int32_t>(
+    v8::kExternalIntArray,
+    INT_MIN, INT_MAX);
+}
+
+
+THREADED_TEST(FixedFloat32Array) {
+  FixedTypedArrayTestHelper<i::FixedFloat32Array, i::FLOAT32_ELEMENTS, float>(
+    v8::kExternalFloatArray,
+    -500, 500);
+}
+
+
+THREADED_TEST(FixedFloat64Array) {
+  FixedTypedArrayTestHelper<i::FixedFloat64Array, i::FLOAT64_ELEMENTS, float>(
+    v8::kExternalDoubleArray,
+    -500, 500);
 }
 
 
@@ -21626,4 +21814,28 @@ TEST(EscapeableHandleScope) {
       CHECK(values[i].IsEmpty());
     }
   }
+}
+
+
+static void SetterWhichExpectsThisAndHolderToDiffer(
+    Local<String>, Local<Value>, const v8::PropertyCallbackInfo<void>& info) {
+  CHECK(info.Holder() != info.This());
+}
+
+
+TEST(Regress239669) {
+  LocalContext context;
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::HandleScope scope(isolate);
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
+  templ->SetAccessor(v8_str("x"), 0, SetterWhichExpectsThisAndHolderToDiffer);
+  context->Global()->Set(v8_str("P"), templ->NewInstance());
+  CompileRun(
+      "function C1() {"
+      "  this.x = 23;"
+      "};"
+      "C1.prototype = P;"
+      "for (var i = 0; i < 4; i++ ) {"
+      "  new C1();"
+      "}");
 }

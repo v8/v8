@@ -40,7 +40,7 @@ class StatisticsExtension : public v8::Extension {
       v8::Isolate* isolate,
       v8::Handle<v8::String> name);
   static void GetCounters(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void Register();
+
  private:
   static const char* const kSource;
 };

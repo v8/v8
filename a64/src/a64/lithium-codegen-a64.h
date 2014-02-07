@@ -240,7 +240,7 @@ class LCodeGen: public LCodeGenBase {
                                               bool key_is_smi,
                                               bool key_is_constant,
                                               int constant_key,
-                                              int element_size_shift,
+                                              ElementsKind elements_kind,
                                               int additional_index);
   void CalcKeyedArrayBaseRegister(Register base,
                                   Register elements,

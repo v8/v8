@@ -206,13 +206,13 @@ size_t GetMemoryUsedByList(const List<T, P>& list) {
 class Map;
 template<class> class TypeImpl;
 struct HeapTypeConfig;
-typedef TypeImpl<HeapTypeConfig> Type;
+typedef TypeImpl<HeapTypeConfig> HeapType;
 class Code;
 template<typename T> class Handle;
 typedef List<Map*> MapList;
 typedef List<Code*> CodeList;
 typedef List<Handle<Map> > MapHandleList;
-typedef List<Handle<Type> > TypeHandleList;
+typedef List<Handle<HeapType> > TypeHandleList;
 typedef List<Handle<Code> > CodeHandleList;
 
 // Perform binary search for an element in an already sorted
