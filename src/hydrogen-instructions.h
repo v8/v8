@@ -482,8 +482,7 @@ enum GVNFlag {
   GVN_TRACKED_FLAG_LIST(DECLARE_FLAG)
   GVN_UNTRACKED_FLAG_LIST(DECLARE_FLAG)
 #undef DECLARE_FLAG
-  kAfterLastFlag,
-  kLastFlag = kAfterLastFlag - 1,
+  kNumberOfFlags,
 #define COUNT_FLAG(type) + 1
   kNumberOfTrackedSideEffects = 0 GVN_TRACKED_FLAG_LIST(COUNT_FLAG)
 #undef COUNT_FLAG

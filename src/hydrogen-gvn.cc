@@ -439,7 +439,7 @@ void HGlobalValueNumberingPhase::ComputeBlockSideEffects() {
 
 
 SmartArrayPointer<char> GetGVNFlagsString(GVNFlagSet flags) {
-  char underlying_buffer[kLastFlag * 128];
+  char underlying_buffer[kNumberOfFlags * 128];
   Vector<char> buffer(underlying_buffer, sizeof(underlying_buffer));
 #if DEBUG
   int offset = 0;
@@ -448,7 +448,7 @@ SmartArrayPointer<char> GetGVNFlagsString(GVNFlagSet flags) {
   buffer[0] = 0;
   uint32_t set_depends_on = 0;
   uint32_t set_changes = 0;
-  for (int bit = 0; bit < kLastFlag; ++bit) {
+  for (int bit = 0; bit < kNumberOfFlags; ++bit) {
     if (flags.Contains(static_cast<GVNFlag>(bit))) {
       if (bit % 2 == 0) {
         set_changes++;
@@ -457,15 +457,15 @@ SmartArrayPointer<char> GetGVNFlagsString(GVNFlagSet flags) {
       }
     }
   }
-  bool positive_changes = set_changes < (kLastFlag / 2);
-  bool positive_depends_on = set_depends_on < (kLastFlag / 2);
+  bool positive_changes = set_changes < (kNumberOfFlags / 2);
+  bool positive_depends_on = set_depends_on < (kNumberOfFlags / 2);
   if (set_changes > 0) {
     if (positive_changes) {
       offset += OS::SNPrintF(buffer + offset, "changes [");
     } else {
       offset += OS::SNPrintF(buffer + offset, "changes all except [");
     }
-    for (int bit = 0; bit < kLastFlag; ++bit) {
+    for (int bit = 0; bit < kNumberOfFlags; ++bit) {
       if (flags.Contains(static_cast<GVNFlag>(bit)) == positive_changes) {
         switch (static_cast<GVNFlag>(bit)) {
 #define DECLARE_FLAG(type)                                       \
@@ -494,7 +494,7 @@ GVN_UNTRACKED_FLAG_LIST(DECLARE_FLAG)
     } else {
       offset += OS::SNPrintF(buffer + offset, "depends on all except [");
     }
-    for (int bit = 0; bit < kLastFlag; ++bit) {
+    for (int bit = 0; bit < kNumberOfFlags; ++bit) {
       if (flags.Contains(static_cast<GVNFlag>(bit)) == positive_depends_on) {
         switch (static_cast<GVNFlag>(bit)) {
 #define DECLARE_FLAG(type)                                       \
