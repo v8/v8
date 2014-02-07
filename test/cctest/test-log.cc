@@ -363,6 +363,7 @@ TEST(LogCallbacks) {
                   ObjMethod1);
 
   CHECK_NE(NULL, StrNStr(log.start(), ref_data.start(), log.length()));
+  log.Dispose();
 }
 
 
@@ -420,6 +421,7 @@ TEST(LogAccessorCallbacks) {
                   Prop2Getter);
   CHECK_NE(NULL,
            StrNStr(log.start(), prop2_getter_record.start(), log.length()));
+  log.Dispose();
 }
 
 

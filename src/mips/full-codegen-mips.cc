@@ -84,7 +84,7 @@ class JumpPatchSite BASE_EMBEDDED {
     __ bind(&patch_site_);
     __ andi(at, reg, 0);
     // Always taken before patched.
-    __ Branch(target, eq, at, Operand(zero_reg));
+    __ BranchShort(target, eq, at, Operand(zero_reg));
   }
 
   // When initially emitting this ensure that a jump is never generated to skip
@@ -95,7 +95,7 @@ class JumpPatchSite BASE_EMBEDDED {
     __ bind(&patch_site_);
     __ andi(at, reg, 0);
     // Never taken before patched.
-    __ Branch(target, ne, at, Operand(zero_reg));
+    __ BranchShort(target, ne, at, Operand(zero_reg));
   }
 
   void EmitPatchInfo() {
@@ -2347,13 +2347,11 @@ void FullCodeGenerator::EmitInlineSmiBinaryOp(BinaryOperation* expr,
   // recording binary operation stub, see
   switch (op) {
     case Token::SAR:
-      __ Branch(&stub_call);
       __ GetLeastBitsFromSmi(scratch1, right, 5);
       __ srav(right, left, scratch1);
       __ And(v0, right, Operand(~kSmiTagMask));
       break;
     case Token::SHL: {
-      __ Branch(&stub_call);
       __ SmiUntag(scratch1, left);
       __ GetLeastBitsFromSmi(scratch2, right, 5);
       __ sllv(scratch1, scratch1, scratch2);
@@ -2363,7 +2361,6 @@ void FullCodeGenerator::EmitInlineSmiBinaryOp(BinaryOperation* expr,
       break;
     }
     case Token::SHR: {
-      __ Branch(&stub_call);
       __ SmiUntag(scratch1, left);
       __ GetLeastBitsFromSmi(scratch2, right, 5);
       __ srlv(scratch1, scratch1, scratch2);
@@ -3055,8 +3052,8 @@ void FullCodeGenerator::EmitIsUndetectableObject(CallRuntime* expr) {
   __ JumpIfSmi(v0, if_false);
   __ lw(a1, FieldMemOperand(v0, HeapObject::kMapOffset));
   __ lbu(a1, FieldMemOperand(a1, Map::kBitFieldOffset));
-  __ And(at, a1, Operand(1 << Map::kIsUndetectable));
   PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);
+  __ And(at, a1, Operand(1 << Map::kIsUndetectable));
   Split(ne, at, Operand(zero_reg), if_true, if_false, fall_through);
 
   context()->Plug(if_true, if_false);

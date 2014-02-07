@@ -87,6 +87,8 @@ class ParserBase {
   bool stack_overflow() const { return stack_overflow_; }
   void set_stack_overflow() { stack_overflow_ = true; }
 
+  virtual bool is_classic_mode() = 0;
+
   INLINE(Token::Value peek()) {
     if (stack_overflow_) return Token::ILLEGAL;
     return scanner()->peek();
@@ -142,8 +144,13 @@ class ParserBase {
   static int Precedence(Token::Value token, bool accept_IN);
 
   // Report syntax errors.
-  virtual void ReportUnexpectedToken(Token::Value token) = 0;
-  virtual void ReportMessageAt(Scanner::Location loc, const char* type) = 0;
+  void ReportUnexpectedToken(Token::Value token);
+  void ReportMessageAt(Scanner::Location location, const char* type) {
+    ReportMessageAt(location, type, Vector<const char*>::empty());
+  }
+  virtual void ReportMessageAt(Scanner::Location source_location,
+                               const char* message,
+                               Vector<const char*> args) = 0;
 
   // Used to detect duplicates in object literals. Each of the values
   // kGetterProperty, kSetterProperty and kValueProperty represents
@@ -347,8 +354,6 @@ class PreParser : public ParserBase {
   // if bit 1 is set, it's a string literal.
   // If neither is set, it's no particular type, and both set isn't
   // use yet.
-  // Bit 2 is used to mark the expression as being parenthesized,
-  // so "(foo)" isn't recognized as a pure identifier (and possible label).
   class Expression {
    public:
     static Expression Default() {
@@ -389,20 +394,7 @@ class PreParser : public ParserBase {
           static_cast<PreParser::Identifier::Type>(code_ >> kIdentifierShift));
     }
 
-    bool IsParenthesized() {
-      // If bit 0 or 1 is set, we interpret bit 2 as meaning parenthesized.
-      return (code_ & 7) > 4;
-    }
-
-    bool IsRawIdentifier() {
-      return !IsParenthesized() && IsIdentifier();
-    }
-
     bool IsStringLiteral() { return (code_ & kStringLiteralFlag) != 0; }
-
-    bool IsRawStringLiteral() {
-      return !IsParenthesized() && IsStringLiteral();
-    }
 
     bool IsUseStrictLiteral() {
       return (code_ & kStringLiteralMask) == kUseStrictString;
@@ -420,27 +412,10 @@ class PreParser : public ParserBase {
       return code_ == kStrictFunctionExpression;
     }
 
-    Expression Parenthesize() {
-      int type = code_ & 3;
-      if (type != 0) {
-        // Identifiers and string literals can be parenthesized.
-        // They no longer work as labels or directive prologues,
-        // but are still recognized in other contexts.
-        return Expression(code_ | kParenthesizedExpressionFlag);
-      }
-      // For other types of expressions, it's not important to remember
-      // the parentheses.
-      return *this;
-    }
-
    private:
     // First two/three bits are used as flags.
     // Bit 0 and 1 represent identifiers or strings literals, and are
     // mutually exclusive, but can both be absent.
-    // If bit 0 or 1 are set, bit 2 marks that the expression has
-    // been wrapped in parentheses (a string literal can no longer
-    // be a directive prologue, and an identifier can no longer be
-    // a label.
     enum  {
       kUnknownExpression = 0,
       // Identifiers
@@ -451,9 +426,6 @@ class PreParser : public ParserBase {
       kUnknownStringLiteral = kStringLiteralFlag,
       kUseStrictString = kStringLiteralFlag | 8,
       kStringLiteralMask = kUseStrictString,
-
-      // Only if identifier or string literal.
-      kParenthesizedExpressionFlag = 4,
 
       // Below here applies if neither identifier nor string literal.
       kThisExpression = 4,
@@ -480,13 +452,11 @@ class PreParser : public ParserBase {
     // Preserves being an unparenthesized string literal, possibly
     // "use strict".
     static Statement ExpressionStatement(Expression expression) {
-      if (!expression.IsParenthesized()) {
-        if (expression.IsUseStrictLiteral()) {
-          return Statement(kUseStrictExpressionStatement);
-        }
-        if (expression.IsStringLiteral()) {
-          return Statement(kStringLiteralExpressionStatement);
-        }
+      if (expression.IsUseStrictLiteral()) {
+        return Statement(kUseStrictExpressionStatement);
+      }
+      if (expression.IsStringLiteral()) {
+        return Statement(kStringLiteralExpressionStatement);
       }
       return Default();
     }
@@ -579,9 +549,13 @@ class PreParser : public ParserBase {
   };
 
   // Report syntax error
-  void ReportUnexpectedToken(Token::Value token);
-  void ReportMessageAt(Scanner::Location location, const char* type) {
-    ReportMessageAt(location, type, NULL);
+  void ReportMessageAt(Scanner::Location location,
+                       const char* message,
+                       Vector<const char*> args) {
+    ReportMessageAt(location.beg_pos,
+                    location.end_pos,
+                    message,
+                    args.length() > 0 ? args[0] : NULL);
   }
   void ReportMessageAt(Scanner::Location location,
                        const char* type,
@@ -662,7 +636,7 @@ class PreParser : public ParserBase {
     scope_->set_language_mode(language_mode);
   }
 
-  bool is_classic_mode() {
+  virtual bool is_classic_mode() {
     return scope_->language_mode() == CLASSIC_MODE;
   }
 
@@ -681,7 +655,6 @@ class PreParser : public ParserBase {
   void CheckDelayedStrictModeViolation(int beg_pos, int end_pos, bool* ok);
 
   void StrictModeIdentifierViolation(Scanner::Location,
-                                     const char* eval_args_type,
                                      Identifier identifier,
                                      bool* ok);
 

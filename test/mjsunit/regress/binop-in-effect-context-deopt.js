@@ -1,4 +1,4 @@
-// Copyright 2013 the V8 project authors. All rights reserved.
+// Copyright 2014 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,55 +25,41 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_HYDROGEN_GVN_H_
-#define V8_HYDROGEN_GVN_H_
+// Flags: --allow-natives-syntax
 
-#include "hydrogen.h"
-#include "hydrogen-instructions.h"
-#include "compiler.h"
-#include "zone.h"
+(function BinopInEffectContextDeoptAndOsr() {
+  function f(a, deopt, osr) {
+    var result = (a + 10, "result");
+    var dummy = deopt + 0;
+    if (osr) while (%GetOptimizationStatus(f) == 2) {}
+    return result;
+  }
 
-namespace v8 {
-namespace internal {
-
-// Perform common subexpression elimination and loop-invariant code motion.
-class HGlobalValueNumberingPhase : public HPhase {
- public:
-  explicit HGlobalValueNumberingPhase(HGraph* graph);
-
-  void Run();
-
- private:
-  GVNFlagSet CollectSideEffectsOnPathsToDominatedBlock(
-      HBasicBlock* dominator,
-      HBasicBlock* dominated);
-  void AnalyzeGraph();
-  void ComputeBlockSideEffects();
-  void LoopInvariantCodeMotion();
-  void ProcessLoopBlock(HBasicBlock* block,
-                        HBasicBlock* before_loop,
-                        GVNFlagSet loop_kills,
-                        GVNFlagSet* accumulated_first_time_depends,
-                        GVNFlagSet* accumulated_first_time_changes);
-  bool AllowCodeMotion();
-  bool ShouldMove(HInstruction* instr, HBasicBlock* loop_header);
-
-  bool removed_side_effects_;
-
-  // A map of block IDs to their side effects.
-  ZoneList<GVNFlagSet> block_side_effects_;
-
-  // A map of loop header block IDs to their loop's side effects.
-  ZoneList<GVNFlagSet> loop_side_effects_;
-
-  // Used when collecting side effects on paths from dominator to
-  // dominated.
-  BitVector visited_on_paths_;
-
-  DISALLOW_COPY_AND_ASSIGN(HGlobalValueNumberingPhase);
-};
+  assertEquals("result", f(true, 3, false));
+  assertEquals("result", f(true, 3, false));
+  %OptimizeFunctionOnNextCall(f);
+  assertEquals("result", f(true, "foo", true));
+})();
 
 
-} }  // namespace v8::internal
+(function BinopInEffectContextLazyDeopt() {
+  function deopt_f() {
+    %DeoptimizeFunction(f);
+    return "dummy";
+  }
 
-#endif  // V8_HYDROGEN_GVN_H_
+  function h() {
+    return { toString : deopt_f };
+  }
+
+  function g(x) {
+  }
+
+  function f() {
+    return g(void(h() + ""));
+  };
+
+  f();
+  %OptimizeFunctionOnNextCall(f);
+  f();
+})();

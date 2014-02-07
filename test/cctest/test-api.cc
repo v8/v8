@@ -21912,6 +21912,9 @@ class ApiCallOptimizationChecker {
     CHECK(callee == info.Callee());
     CHECK(data == info.Data());
     CHECK(receiver == info.This());
+    if (info.Length() == 1) {
+      CHECK_EQ(v8_num(1), info[0]);
+    }
     CHECK(holder == info.Holder());
     count++;
   }
@@ -21974,9 +21977,9 @@ class ApiCallOptimizationChecker {
       Local<Object> global_holder = Local<Object>::Cast(
           inner_global->GetPrototype());
       global_holder->Set(v8_str("g_f"), function);
-      SetAccessorProperty(global_holder, v8_str("g_p1"), function);
+      SetAccessorProperty(global_holder, v8_str("g_acc"), function, function);
       function_holder->Set(v8_str("f"), function);
-      SetAccessorProperty(function_holder, v8_str("p1"), function);
+      SetAccessorProperty(function_holder, v8_str("acc"), function, function);
       // Initialize expected values.
       callee = function;
       count = 0;
@@ -22007,14 +22010,16 @@ class ApiCallOptimizationChecker {
         i::OS::SNPrintF(
             wrap_function,
             "function wrap_f_%d() { var f = g_f; return f(); }\n"
-            "function wrap_p1_%d() { return this.g_p1; }\n",
-            key, key);
+            "function wrap_get_%d() { return this.g_acc; }\n"
+            "function wrap_set_%d() { this.g_acc = 1; }\n",
+            key, key, key);
       } else {
         i::OS::SNPrintF(
             wrap_function,
             "function wrap_f_%d() { return receiver_subclass.f(); }\n"
-            "function wrap_p1_%d() { return receiver_subclass.p1; }\n",
-            key, key);
+            "function wrap_get_%d() { return receiver_subclass.acc; }\n"
+            "function wrap_set_%d() { receiver_subclass.acc = 1; }\n",
+            key, key, key);
       }
       // build source string
       i::ScopedVector<char> source(500);
@@ -22022,20 +22027,28 @@ class ApiCallOptimizationChecker {
           source,
           "%s\n"  // wrap functions
           "function wrap_f() { wrap_f_%d(); }\n"
-          "function wrap_p1() { wrap_p1_%d(); }\n"
+          "function wrap_get() { wrap_get_%d(); }\n"
+          "function wrap_set() { wrap_set_%d(); }\n"
+          "\n"
           "wrap_f();\n"
           "wrap_f();\n"
           "%%OptimizeFunctionOnNextCall(wrap_f_%d);\n"
           "wrap_f();\n"
-          "wrap_p1();\n"
-          "wrap_p1();\n"
-          "%%OptimizeFunctionOnNextCall(wrap_p1_%d);\n"
-          "wrap_p1();\n",
-          wrap_function.start(), key, key, key, key);
+          "\n"
+          "wrap_get();\n"
+          "wrap_get();\n"
+          "%%OptimizeFunctionOnNextCall(wrap_get_%d);\n"
+          "wrap_get();\n"
+          "\n"
+          "wrap_set();\n"
+          "wrap_set();\n"
+          "%%OptimizeFunctionOnNextCall(wrap_set_%d);\n"
+          "wrap_set();\n",
+          wrap_function.start(), key, key, key, key, key, key);
       v8::TryCatch try_catch;
       CompileRun(source.start());
       ASSERT(!try_catch.HasCaught());
-      CHECK_EQ(6, count);
+      CHECK_EQ(9, count);
     }
 };
 

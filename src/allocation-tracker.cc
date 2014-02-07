@@ -46,6 +46,7 @@ AllocationTraceNode::AllocationTraceNode(
 
 
 AllocationTraceNode::~AllocationTraceNode() {
+  for (int i = 0; i < children_.length(); i++) delete children_[i];
 }
 
 
@@ -155,6 +156,11 @@ AllocationTracker::AllocationTracker(
 
 AllocationTracker::~AllocationTracker() {
   unresolved_locations_.Iterate(DeleteUnresolvedLocation);
+  for (HashMap::Entry* p = id_to_function_info_.Start();
+       p != NULL;
+       p = id_to_function_info_.Next(p)) {
+    delete reinterpret_cast<AllocationTracker::FunctionInfo* >(p->value);
+  }
 }
 
 

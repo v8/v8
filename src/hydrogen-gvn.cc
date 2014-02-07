@@ -364,47 +364,48 @@ void HSideEffectMap::Store(GVNFlagSet flags, HInstruction* instr) {
 
 
 HGlobalValueNumberingPhase::HGlobalValueNumberingPhase(HGraph* graph)
-      : HPhase("H_Global value numbering", graph),
-        removed_side_effects_(false),
-        block_side_effects_(graph->blocks()->length(), zone()),
-        loop_side_effects_(graph->blocks()->length(), zone()),
-        visited_on_paths_(graph->blocks()->length(), zone()) {
-    ASSERT(!AllowHandleAllocation::IsAllowed());
-    block_side_effects_.AddBlock(GVNFlagSet(), graph->blocks()->length(),
-                                 zone());
-    loop_side_effects_.AddBlock(GVNFlagSet(), graph->blocks()->length(),
+    : HPhase("H_Global value numbering", graph),
+      removed_side_effects_(false),
+      block_side_effects_(graph->blocks()->length(), zone()),
+      loop_side_effects_(graph->blocks()->length(), zone()),
+      visited_on_paths_(graph->blocks()->length(), zone()) {
+  ASSERT(!AllowHandleAllocation::IsAllowed());
+  block_side_effects_.AddBlock(GVNFlagSet(), graph->blocks()->length(),
                                 zone());
-}
-
-
-void HGlobalValueNumberingPhase::Reset() {
-  block_side_effects_.Clear();
-  loop_side_effects_.Clear();
-  visited_on_paths_.Clear();
-  block_side_effects_.AddBlock(GVNFlagSet(), graph()->blocks()->length(),
-                               zone());
-  loop_side_effects_.AddBlock(GVNFlagSet(), graph()->blocks()->length(),
+  loop_side_effects_.AddBlock(GVNFlagSet(), graph->blocks()->length(),
                               zone());
 }
 
 
-void HGlobalValueNumberingPhase::Analyze() {
-  removed_side_effects_ = false;
-  ComputeBlockSideEffects();
-  if (FLAG_loop_invariant_code_motion) {
-    LoopInvariantCodeMotion();
+void HGlobalValueNumberingPhase::Run() {
+  ASSERT(!removed_side_effects_);
+  for (int i = FLAG_gvn_iterations; i > 0; --i) {
+    // Compute the side effects.
+    ComputeBlockSideEffects();
+
+    // Perform loop invariant code motion if requested.
+    if (FLAG_loop_invariant_code_motion) LoopInvariantCodeMotion();
+
+    // Perform the actual value numbering.
+    AnalyzeGraph();
+
+    // Continue GVN if we removed any side effects.
+    if (!removed_side_effects_) break;
+    removed_side_effects_ = false;
+
+    // Clear all side effects.
+    ASSERT_EQ(block_side_effects_.length(), graph()->blocks()->length());
+    ASSERT_EQ(loop_side_effects_.length(), graph()->blocks()->length());
+    for (int i = 0; i < graph()->blocks()->length(); ++i) {
+      block_side_effects_[i].RemoveAll();
+      loop_side_effects_[i].RemoveAll();
+    }
+    visited_on_paths_.Clear();
   }
-  AnalyzeGraph();
 }
 
 
 void HGlobalValueNumberingPhase::ComputeBlockSideEffects() {
-  // The Analyze phase of GVN can be called multiple times. Clear loop side
-  // effects before computing them to erase the contents from previous Analyze
-  // passes.
-  for (int i = 0; i < loop_side_effects_.length(); ++i) {
-    loop_side_effects_[i].RemoveAll();
-  }
   for (int i = graph()->blocks()->length() - 1; i >= 0; --i) {
     // Compute side effects for the block.
     HBasicBlock* block = graph()->blocks()->at(i);
@@ -438,7 +439,7 @@ void HGlobalValueNumberingPhase::ComputeBlockSideEffects() {
 
 
 SmartArrayPointer<char> GetGVNFlagsString(GVNFlagSet flags) {
-  char underlying_buffer[kLastFlag * 128];
+  char underlying_buffer[kNumberOfFlags * 128];
   Vector<char> buffer(underlying_buffer, sizeof(underlying_buffer));
 #if DEBUG
   int offset = 0;
@@ -447,7 +448,7 @@ SmartArrayPointer<char> GetGVNFlagsString(GVNFlagSet flags) {
   buffer[0] = 0;
   uint32_t set_depends_on = 0;
   uint32_t set_changes = 0;
-  for (int bit = 0; bit < kLastFlag; ++bit) {
+  for (int bit = 0; bit < kNumberOfFlags; ++bit) {
     if (flags.Contains(static_cast<GVNFlag>(bit))) {
       if (bit % 2 == 0) {
         set_changes++;
@@ -456,15 +457,15 @@ SmartArrayPointer<char> GetGVNFlagsString(GVNFlagSet flags) {
       }
     }
   }
-  bool positive_changes = set_changes < (kLastFlag / 2);
-  bool positive_depends_on = set_depends_on < (kLastFlag / 2);
+  bool positive_changes = set_changes < (kNumberOfFlags / 2);
+  bool positive_depends_on = set_depends_on < (kNumberOfFlags / 2);
   if (set_changes > 0) {
     if (positive_changes) {
       offset += OS::SNPrintF(buffer + offset, "changes [");
     } else {
       offset += OS::SNPrintF(buffer + offset, "changes all except [");
     }
-    for (int bit = 0; bit < kLastFlag; ++bit) {
+    for (int bit = 0; bit < kNumberOfFlags; ++bit) {
       if (flags.Contains(static_cast<GVNFlag>(bit)) == positive_changes) {
         switch (static_cast<GVNFlag>(bit)) {
 #define DECLARE_FLAG(type)                                       \
@@ -493,7 +494,7 @@ GVN_UNTRACKED_FLAG_LIST(DECLARE_FLAG)
     } else {
       offset += OS::SNPrintF(buffer + offset, "depends on all except [");
     }
-    for (int bit = 0; bit < kLastFlag; ++bit) {
+    for (int bit = 0; bit < kNumberOfFlags; ++bit) {
       if (flags.Contains(static_cast<GVNFlag>(bit)) == positive_depends_on) {
         switch (static_cast<GVNFlag>(bit)) {
 #define DECLARE_FLAG(type)                                       \

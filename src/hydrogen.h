@@ -2222,6 +2222,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
                        BailoutId ast_id,
                        BailoutId return_id);
   bool TryInlineSetter(Handle<JSFunction> setter,
+                       Handle<Map> receiver_map,
                        BailoutId id,
                        BailoutId assignment_id,
                        HValue* implicit_return_value);
@@ -2235,13 +2236,17 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   enum ApiCallType {
     kCallApiFunction,
     kCallApiMethod,
-    kCallApiGetter
+    kCallApiGetter,
+    kCallApiSetter
   };
   bool TryInlineApiMethodCall(Call* expr,
                               HValue* receiver,
                               SmallMapList* receiver_types);
   bool TryInlineApiFunctionCall(Call* expr, HValue* receiver);
   bool TryInlineApiGetter(Handle<JSFunction> function,
+                          Handle<Map> receiver_map,
+                          BailoutId ast_id);
+  bool TryInlineApiSetter(Handle<JSFunction> function,
                           Handle<Map> receiver_map,
                           BailoutId ast_id);
   bool TryInlineApiCall(Handle<JSFunction> function,
@@ -2331,15 +2336,14 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
     }
 
     bool GetJSObjectFieldAccess(HObjectAccess* access) {
-      if (IsArrayLength()) {
-        *access = HObjectAccess::ForArrayLength(map()->elements_kind());
-        return true;
-      }
       int offset;
       if (Accessors::IsJSObjectFieldAccessor<Type>(type_, name_, &offset)) {
         if (type_->Is(Type::String())) {
           ASSERT(name_->Equals(isolate()->heap()->length_string()));
           *access = HObjectAccess::ForStringLength();
+        } else if (type_->Is(Type::Array())) {
+          ASSERT(name_->Equals(isolate()->heap()->length_string()));
+          *access = HObjectAccess::ForArrayLength(map()->elements_kind());
         } else {
           *access = HObjectAccess::ForMapAndOffset(map(), offset);
         }
@@ -2362,11 +2366,6 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
     Type* ToType(Handle<Map> map) { return builder_->ToType(map); }
     Isolate* isolate() { return lookup_.isolate(); }
     CompilationInfo* current_info() { return builder_->current_info(); }
-
-    bool IsArrayLength() {
-      return map()->instance_type() == JS_ARRAY_TYPE &&
-          name_->Equals(isolate()->heap()->length_string());
-    }
 
     bool LoadResult(Handle<Map> map);
     bool LookupDescriptor();
@@ -2430,9 +2429,16 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
 
   HInstruction* BuildStringCharCodeAt(HValue* string,
                                       HValue* index);
-  HValue* BuildBinaryOperation(BinaryOperation* expr,
-                               HValue* left,
-                               HValue* right);
+
+  enum PushBeforeSimulateBehavior {
+    PUSH_BEFORE_SIMULATE,
+    NO_PUSH_BEFORE_SIMULATE
+  };
+  HValue* BuildBinaryOperation(
+      BinaryOperation* expr,
+      HValue* left,
+      HValue* right,
+      PushBeforeSimulateBehavior push_sim_result);
   HInstruction* BuildIncrement(bool returns_original_input,
                                CountOperation* expr);
   HInstruction* BuildLoadKeyedGeneric(HValue* object,

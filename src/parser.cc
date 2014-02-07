@@ -3469,41 +3469,6 @@ DebuggerStatement* Parser::ParseDebuggerStatement(bool* ok) {
 }
 
 
-void Parser::ReportUnexpectedToken(Token::Value token) {
-  // We don't report stack overflows here, to avoid increasing the
-  // stack depth even further.  Instead we report it after parsing is
-  // over, in ParseProgram/ParseJson.
-  if (token == Token::ILLEGAL && stack_overflow()) return;
-  // Four of the tokens are treated specially
-  switch (token) {
-    case Token::EOS:
-      return ReportMessage("unexpected_eos", Vector<const char*>::empty());
-    case Token::NUMBER:
-      return ReportMessage("unexpected_token_number",
-                           Vector<const char*>::empty());
-    case Token::STRING:
-      return ReportMessage("unexpected_token_string",
-                           Vector<const char*>::empty());
-    case Token::IDENTIFIER:
-      return ReportMessage("unexpected_token_identifier",
-                           Vector<const char*>::empty());
-    case Token::FUTURE_RESERVED_WORD:
-      return ReportMessage("unexpected_reserved",
-                           Vector<const char*>::empty());
-    case Token::YIELD:
-    case Token::FUTURE_STRICT_RESERVED_WORD:
-      return ReportMessage(top_scope_->is_classic_mode() ?
-                               "unexpected_token_identifier" :
-                               "unexpected_strict_reserved",
-                           Vector<const char*>::empty());
-    default:
-      const char* name = Token::String(token);
-      ASSERT(name != NULL);
-      ReportMessage("unexpected_token", Vector<const char*>(&name, 1));
-  }
-}
-
-
 void Parser::ReportInvalidPreparseData(Handle<String> name, bool* ok) {
   SmartArrayPointer<char> name_string = name->ToCString(DISALLOW_NULLS);
   const char* element[1] = { name_string.get() };
@@ -4481,6 +4446,42 @@ void ParserBase::ExpectContextualKeyword(Vector<const char> keyword, bool* ok) {
   if (!scanner()->is_literal_contextual_keyword(keyword)) {
     ReportUnexpectedToken(scanner()->current_token());
     *ok = false;
+  }
+}
+
+
+void ParserBase::ReportUnexpectedToken(Token::Value token) {
+  // We don't report stack overflows here, to avoid increasing the
+  // stack depth even further.  Instead we report it after parsing is
+  // over, in ParseProgram.
+  if (token == Token::ILLEGAL && stack_overflow()) {
+    return;
+  }
+  Scanner::Location source_location = scanner()->location();
+
+  // Four of the tokens are treated specially
+  switch (token) {
+  case Token::EOS:
+    return ReportMessageAt(source_location, "unexpected_eos");
+  case Token::NUMBER:
+    return ReportMessageAt(source_location, "unexpected_token_number");
+  case Token::STRING:
+    return ReportMessageAt(source_location, "unexpected_token_string");
+  case Token::IDENTIFIER:
+    return ReportMessageAt(source_location,
+                           "unexpected_token_identifier");
+  case Token::FUTURE_RESERVED_WORD:
+    return ReportMessageAt(source_location, "unexpected_reserved");
+  case Token::YIELD:
+  case Token::FUTURE_STRICT_RESERVED_WORD:
+    return ReportMessageAt(source_location,
+                           is_classic_mode() ? "unexpected_token_identifier"
+                                             : "unexpected_strict_reserved");
+  default:
+    const char* name = Token::String(token);
+    ASSERT(name != NULL);
+    ReportMessageAt(
+        source_location, "unexpected_token", Vector<const char*>(&name, 1));
   }
 }
 

@@ -1,4 +1,4 @@
-// Copyright 2013 the V8 project authors. All rights reserved.
+// Copyright 2014 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,21 +25,17 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Check that the __proto__ accessor is properly poisoned when extracted
-// from Object.prototype using the property descriptor.
-var desc = Object.getOwnPropertyDescriptor(Object.prototype, "__proto__");
-assertEquals("function", typeof desc.get);
-assertEquals("function", typeof desc.set);
-assertDoesNotThrow("desc.get.call({})");
-assertThrows("desc.set.call({})", TypeError);
+// Flags: --allow-natives-syntax
 
-// Check that any redefinition of the __proto__ accessor causes poising
-// to cease and the accessor to be extracted normally.
-Object.defineProperty(Object.prototype, "__proto__", { get:function(){} });
-desc = Object.getOwnPropertyDescriptor(Object.prototype, "__proto__");
-assertDoesNotThrow("desc.get.call({})");
-assertThrows("desc.set.call({})", TypeError);
-Object.defineProperty(Object.prototype, "__proto__", { set:function(x){} });
-desc = Object.getOwnPropertyDescriptor(Object.prototype, "__proto__");
-assertDoesNotThrow("desc.get.call({})");
-assertDoesNotThrow("desc.set.call({})");
+function f(deopt, osr) {
+  var result = "result";
+  %_CallFunction(0, 0, function() {});
+  var dummy = deopt + 0;
+  if (osr) while (%GetOptimizationStatus(f) == 2) {}
+  return result;
+}
+
+assertEquals("result", f(3, false));
+assertEquals("result", f(3, false));
+%OptimizeFunctionOnNextCall(f);
+assertEquals("result", f("foo", true));

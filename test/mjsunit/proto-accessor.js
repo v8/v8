@@ -25,55 +25,57 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_HYDROGEN_GVN_H_
-#define V8_HYDROGEN_GVN_H_
-
-#include "hydrogen.h"
-#include "hydrogen-instructions.h"
-#include "compiler.h"
-#include "zone.h"
-
-namespace v8 {
-namespace internal {
-
-// Perform common subexpression elimination and loop-invariant code motion.
-class HGlobalValueNumberingPhase : public HPhase {
- public:
-  explicit HGlobalValueNumberingPhase(HGraph* graph);
-
-  void Run();
-
- private:
-  GVNFlagSet CollectSideEffectsOnPathsToDominatedBlock(
-      HBasicBlock* dominator,
-      HBasicBlock* dominated);
-  void AnalyzeGraph();
-  void ComputeBlockSideEffects();
-  void LoopInvariantCodeMotion();
-  void ProcessLoopBlock(HBasicBlock* block,
-                        HBasicBlock* before_loop,
-                        GVNFlagSet loop_kills,
-                        GVNFlagSet* accumulated_first_time_depends,
-                        GVNFlagSet* accumulated_first_time_changes);
-  bool AllowCodeMotion();
-  bool ShouldMove(HInstruction* instr, HBasicBlock* loop_header);
-
-  bool removed_side_effects_;
-
-  // A map of block IDs to their side effects.
-  ZoneList<GVNFlagSet> block_side_effects_;
-
-  // A map of loop header block IDs to their loop's side effects.
-  ZoneList<GVNFlagSet> loop_side_effects_;
-
-  // Used when collecting side effects on paths from dominator to
-  // dominated.
-  BitVector visited_on_paths_;
-
-  DISALLOW_COPY_AND_ASSIGN(HGlobalValueNumberingPhase);
-};
+var desc = Object.getOwnPropertyDescriptor(Object.prototype, "__proto__");
+assertEquals("function", typeof desc.get);
+assertEquals("function", typeof desc.set);
+assertDoesNotThrow("desc.get.call({})");
+assertDoesNotThrow("desc.set.call({}, {})");
 
 
-} }  // namespace v8::internal
+var obj = {};
+var obj2 = {};
+desc.set.call(obj, obj2);
+assertEquals(obj.__proto__, obj2);
+assertEquals(desc.get.call(obj), obj2);
 
-#endif  // V8_HYDROGEN_GVN_H_
+
+// Check that any redefinition of the __proto__ accessor works.
+Object.defineProperty(Object.prototype, "__proto__", {
+  get: function() {
+    return 42;
+  }
+});
+assertEquals({}.__proto__, 42);
+assertEquals(desc.get.call({}), Object.prototype);
+
+
+var desc2 = Object.getOwnPropertyDescriptor(Object.prototype, "__proto__");
+assertEquals(desc2.get.call({}), 42);
+assertDoesNotThrow("desc2.set.call({})");
+
+
+Object.defineProperty(Object.prototype, "__proto__", { set:function(x){} });
+var desc3 = Object.getOwnPropertyDescriptor(Object.prototype, "__proto__");
+assertDoesNotThrow("desc3.get.call({})");
+assertDoesNotThrow("desc3.set.call({})");
+
+
+Object.defineProperty(Object.prototype, "__proto__", { set: undefined });
+assertThrows(function() {
+  "use strict";
+  var o = {};
+  var p = {};
+  o.__proto__ = p;
+}, TypeError);
+
+
+assertTrue(delete Object.prototype.__proto__);
+var o = {};
+var p = {};
+o.__proto__ = p;
+assertEquals(Object.getPrototypeOf(o), Object.prototype);
+var desc4 = Object.getOwnPropertyDescriptor(o, "__proto__");
+assertTrue(desc4.configurable);
+assertTrue(desc4.enumerable);
+assertTrue(desc4.writable);
+assertEquals(desc4.value, p);

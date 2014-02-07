@@ -482,8 +482,7 @@ enum GVNFlag {
   GVN_TRACKED_FLAG_LIST(DECLARE_FLAG)
   GVN_UNTRACKED_FLAG_LIST(DECLARE_FLAG)
 #undef DECLARE_FLAG
-  kAfterLastFlag,
-  kLastFlag = kAfterLastFlag - 1,
+  kNumberOfFlags,
 #define COUNT_FLAG(type) + 1
   kNumberOfTrackedSideEffects = 0 GVN_TRACKED_FLAG_LIST(COUNT_FLAG)
 #undef COUNT_FLAG
@@ -2649,29 +2648,13 @@ class HCheckMaps V8_FINAL : public HTemplateInstruction<2> {
  public:
   static HCheckMaps* New(Zone* zone, HValue* context, HValue* value,
                          Handle<Map> map, CompilationInfo* info,
-                         HValue* typecheck = NULL);
+                         HValue *typecheck = NULL);
   static HCheckMaps* New(Zone* zone, HValue* context,
                          HValue* value, SmallMapList* maps,
-                         HValue* typecheck = NULL) {
+                         HValue *typecheck = NULL) {
     HCheckMaps* check_map = new(zone) HCheckMaps(value, zone, typecheck);
     for (int i = 0; i < maps->length(); i++) {
       check_map->Add(maps->at(i), zone);
-    }
-    return check_map;
-  }
-  // HCheckMaps creation method safe for using during concurrent compilation
-  // (does not dereference maps handles).
-  static HCheckMaps* New(Zone* zone, HValue* context,
-                         HValue* value, UniqueSet<Map>* maps,
-                         HValue* typecheck,
-                         bool has_migration_target) {
-    HCheckMaps* check_map = new(zone) HCheckMaps(value, zone, typecheck);
-    for (int i = 0; i < maps->size(); i++) {
-      check_map->map_set_.Add(maps->at(i), zone);
-    }
-    if (has_migration_target) {
-      check_map->has_migration_target_ = true;
-      check_map->SetGVNFlag(kChangesNewSpacePromotion);
     }
     return check_map;
   }
@@ -2687,7 +2670,6 @@ class HCheckMaps V8_FINAL : public HTemplateInstruction<2> {
   virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
 
   HValue* value() { return OperandAt(0); }
-  HValue* typecheck() { return OperandAt(1); }
 
   Unique<Map> first_map() const { return map_set_.at(0); }
   UniqueSet<Map> map_set() const { return map_set_; }
@@ -6541,6 +6523,7 @@ class HStoreNamedField V8_FINAL : public HTemplateInstruction<3> {
         write_barrier_mode_(UPDATE_WRITE_BARRIER),
         has_transition_(false),
         store_mode_(store_mode) {
+    if (!FLAG_smi_x64_store_opt) store_mode_ = INITIALIZING_STORE;
     // Stores to a non existing in-object property are allowed only to the
     // newly allocated objects (via HAllocate or HInnerAllocatedObject).
     ASSERT(!access.IsInobject() || access.existing_inobject_property() ||
@@ -6729,6 +6712,7 @@ class HStoreKeyed V8_FINAL
       is_uninitialized_(false),
       store_mode_(store_mode),
       new_space_dominator_(NULL) {
+    if (!FLAG_smi_x64_store_opt) store_mode_ = INITIALIZING_STORE;
     SetOperandAt(0, obj);
     SetOperandAt(1, key);
     SetOperandAt(2, val);

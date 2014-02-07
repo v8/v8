@@ -521,6 +521,10 @@ class Parser : public ParserBase {
     Mode old_mode_;
   };
 
+  virtual bool is_classic_mode() {
+    return top_scope_->is_classic_mode();
+  }
+
   // Returns NULL if parsing failed.
   FunctionLiteral* ParseProgram();
 
@@ -536,7 +540,6 @@ class Parser : public ParserBase {
                                   Handle<String> source);
 
   // Report syntax error
-  void ReportUnexpectedToken(Token::Value token);
   void ReportInvalidPreparseData(Handle<String> name, bool* ok);
   void ReportMessage(const char* message, Vector<const char*> args);
   void ReportMessage(const char* message, Vector<Handle<String> > args);

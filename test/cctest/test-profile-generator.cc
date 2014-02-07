@@ -48,42 +48,42 @@ using i::Vector;
 
 TEST(ProfileNodeFindOrAddChild) {
   ProfileTree tree;
-  ProfileNode node(&tree, NULL);
+  ProfileNode* node = tree.root();
   CodeEntry entry1(i::Logger::FUNCTION_TAG, "aaa");
-  ProfileNode* childNode1 = node.FindOrAddChild(&entry1);
+  ProfileNode* childNode1 = node->FindOrAddChild(&entry1);
   CHECK_NE(NULL, childNode1);
-  CHECK_EQ(childNode1, node.FindOrAddChild(&entry1));
+  CHECK_EQ(childNode1, node->FindOrAddChild(&entry1));
   CodeEntry entry2(i::Logger::FUNCTION_TAG, "bbb");
-  ProfileNode* childNode2 = node.FindOrAddChild(&entry2);
+  ProfileNode* childNode2 = node->FindOrAddChild(&entry2);
   CHECK_NE(NULL, childNode2);
   CHECK_NE(childNode1, childNode2);
-  CHECK_EQ(childNode1, node.FindOrAddChild(&entry1));
-  CHECK_EQ(childNode2, node.FindOrAddChild(&entry2));
+  CHECK_EQ(childNode1, node->FindOrAddChild(&entry1));
+  CHECK_EQ(childNode2, node->FindOrAddChild(&entry2));
   CodeEntry entry3(i::Logger::FUNCTION_TAG, "ccc");
-  ProfileNode* childNode3 = node.FindOrAddChild(&entry3);
+  ProfileNode* childNode3 = node->FindOrAddChild(&entry3);
   CHECK_NE(NULL, childNode3);
   CHECK_NE(childNode1, childNode3);
   CHECK_NE(childNode2, childNode3);
-  CHECK_EQ(childNode1, node.FindOrAddChild(&entry1));
-  CHECK_EQ(childNode2, node.FindOrAddChild(&entry2));
-  CHECK_EQ(childNode3, node.FindOrAddChild(&entry3));
+  CHECK_EQ(childNode1, node->FindOrAddChild(&entry1));
+  CHECK_EQ(childNode2, node->FindOrAddChild(&entry2));
+  CHECK_EQ(childNode3, node->FindOrAddChild(&entry3));
 }
 
 
 TEST(ProfileNodeFindOrAddChildForSameFunction) {
   const char* aaa = "aaa";
   ProfileTree tree;
-  ProfileNode node(&tree, NULL);
+  ProfileNode* node = tree.root();
   CodeEntry entry1(i::Logger::FUNCTION_TAG, aaa);
-  ProfileNode* childNode1 = node.FindOrAddChild(&entry1);
+  ProfileNode* childNode1 = node->FindOrAddChild(&entry1);
   CHECK_NE(NULL, childNode1);
-  CHECK_EQ(childNode1, node.FindOrAddChild(&entry1));
+  CHECK_EQ(childNode1, node->FindOrAddChild(&entry1));
   // The same function again.
   CodeEntry entry2(i::Logger::FUNCTION_TAG, aaa);
-  CHECK_EQ(childNode1, node.FindOrAddChild(&entry2));
+  CHECK_EQ(childNode1, node->FindOrAddChild(&entry2));
   // Now with a different security token.
   CodeEntry entry3(i::Logger::FUNCTION_TAG, aaa);
-  CHECK_EQ(childNode1, node.FindOrAddChild(&entry3));
+  CHECK_EQ(childNode1, node->FindOrAddChild(&entry3));
 }
 
 

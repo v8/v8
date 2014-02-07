@@ -1030,7 +1030,7 @@ Handle<Code> LoadStubCompiler::CompileLoadViaGetter(
     Handle<Name> name,
     Handle<JSFunction> getter) {
   HandlerFrontend(type, receiver(), holder, name);
-  GenerateLoadViaGetter(masm(), receiver(), getter);
+  GenerateLoadViaGetter(masm(), type, receiver(), getter);
 
   // Return the generated code.
   return GetCode(kind(), Code::FAST, name);
@@ -1123,9 +1123,9 @@ Handle<Code> StoreStubCompiler::CompileStoreViaSetter(
     Handle<JSObject> holder,
     Handle<Name> name,
     Handle<JSFunction> setter) {
-  HandlerFrontend(IC::CurrentTypeOf(object, isolate()),
-                  receiver(), holder, name);
-  GenerateStoreViaSetter(masm(), setter);
+  Handle<HeapType> type = IC::CurrentTypeOf(object, isolate());
+  HandlerFrontend(type, receiver(), holder, name);
+  GenerateStoreViaSetter(masm(), type, setter);
 
   return GetCode(kind(), Code::FAST, name);
 }

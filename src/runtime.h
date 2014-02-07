@@ -351,7 +351,6 @@ namespace internal {
   \
   /* Harmony events */ \
   F(SetMicrotaskPending, 1, 1) \
-  F(RunMicrotasks, 0, 1) \
   \
   /* Harmony observe */ \
   F(IsObserved, 1, 1) \
