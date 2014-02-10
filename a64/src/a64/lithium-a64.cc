@@ -856,7 +856,7 @@ LInstruction* LChunkBuilder::DoAdd(HAdd* instr) {
     ASSERT(!instr->CheckFlag(HValue::kCanOverflow));
     LOperand* left = UseRegisterAtStart(instr->left());
     LOperand* right = UseRegisterOrConstantAtStart(instr->right());
-    return DefineAsRegister(new(zone()) LAddI(left, right));
+    return DefineAsRegister(new(zone()) LAddE(left, right));
   } else if (instr->representation().IsDouble()) {
     return DoArithmeticD(Token::ADD, instr);
   } else {

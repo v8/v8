@@ -42,6 +42,7 @@ class LCodeGen;
 
 #define LITHIUM_CONCRETE_INSTRUCTION_LIST(V)    \
   V(AccessArgumentsAt)                          \
+  V(AddE)                                       \
   V(AddI)                                       \
   V(AddS)                                       \
   V(Allocate)                                   \
@@ -559,6 +560,21 @@ class LAccessArgumentsAt V8_FINAL : public LTemplateInstruction<1, 3, 1> {
   LOperand* temp() { return temps_[0]; }
 
   virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
+};
+
+
+class LAddE V8_FINAL : public LTemplateInstruction<1, 2, 0> {
+ public:
+  LAddE(LOperand* left, LOperand* right) {
+    inputs_[0] = left;
+    inputs_[1] = right;
+  }
+
+  LOperand* left() { return inputs_[0]; }
+  LOperand* right() { return inputs_[1]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(AddE, "add-e")
+  DECLARE_HYDROGEN_ACCESSOR(Add)
 };
 
 

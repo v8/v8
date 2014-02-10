@@ -1419,6 +1419,18 @@ void LCodeGen::DoAccessArgumentsAt(LAccessArgumentsAt* instr) {
 }
 
 
+void LCodeGen::DoAddE(LAddE* instr) {
+  Register result = ToRegister(instr->result());
+  Register left = ToRegister(instr->left());
+  Operand right = (instr->right()->IsConstantOperand())
+      ? ToInteger32(LConstantOperand::cast(instr->right()))
+      : Operand(ToRegister32(instr->right()), SXTW);
+
+  ASSERT(!instr->hydrogen()->CheckFlag(HValue::kCanOverflow));
+  __ Add(result, left, right);
+}
+
+
 void LCodeGen::DoAddI(LAddI* instr) {
   bool can_overflow = instr->hydrogen()->CheckFlag(HValue::kCanOverflow);
   Register result = ToRegister32(instr->result());
