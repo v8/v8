@@ -707,10 +707,16 @@ enum MemBarrierOp {
   ISB             = MemBarrierFixed | 0x00000040
 };
 
-// Any load or store.
+// Any load or store (including pair).
 enum LoadStoreAnyOp {
   LoadStoreAnyFMask = 0x0a000000,
   LoadStoreAnyFixed = 0x08000000
+};
+
+// Any load pair or store pair.
+enum LoadStorePairAnyOp {
+  LoadStorePairAnyFMask = 0x3a000000,
+  LoadStorePairAnyFixed = 0x28000000
 };
 
 #define LOAD_STORE_PAIR_OP_LIST(V)  \

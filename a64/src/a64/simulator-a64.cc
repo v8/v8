@@ -1235,23 +1235,24 @@ void Simulator::LoadStoreHelper(Instruction* instr,
                                 int64_t offset,
                                 AddrMode addrmode) {
   unsigned srcdst = instr->Rt();
-  uint8_t* address = AddressModeHelper(instr->Rn(), offset, addrmode);
+  unsigned addr_reg = instr->Rn();
+  uint8_t* address = LoadStoreAddress(addr_reg, offset, addrmode);
   int num_bytes = 1 << instr->SizeLS();
+  uint8_t* stack = NULL;
 
-  // Accesses below the stack pointer (but above the platform stack limit) are
-  // not allowed in the ABI.
-  uint64_t access_address = reinterpret_cast<uint64_t>(address);
-  uint64_t stack_limit = reinterpret_cast<uint64_t>(stack_limit_);
-  uint64_t stack_address = sp();
-  if ((access_address >= stack_limit) && (access_address < stack_address)) {
-    fprintf(stream_, "ACCESS BELOW STACK POINTER:\n");
-    fprintf(stream_, "  sp is here:          0x%016" PRIx64 "\n",
-            stack_address);
-    fprintf(stream_, "  access was here:     0x%016" PRIx64 "\n",
-            access_address);
-    fprintf(stream_, "  stack limit is here: 0x%016" PRIx64 "\n", stack_limit);
-    fprintf(stream_, "\n");
-    ABORT();
+  // Handle the writeback for stores before the store. On a CPU the writeback
+  // and the store are atomic, but when running on the simulator it is possible
+  // to be interrupted in between. The simulator is not thread safe and V8 does
+  // not require it to be to run JavaScript therefore the profiler may sample
+  // the "simulated" CPU in the middle of load/store with writeback. The code
+  // below ensures that push operations are safe even when interrupted: the
+  // stack pointer will be decremented before adding an element to the stack.
+  if (instr->IsStore()) {
+    LoadStoreWriteBack(addr_reg, offset, addrmode);
+
+    // For store the address post writeback is used to check access below the
+    // stack.
+    stack = reinterpret_cast<uint8_t*>(sp());
   }
 
   LoadStoreOp op = static_cast<LoadStoreOp>(instr->Mask(LoadStoreOpMask));
@@ -1290,6 +1291,22 @@ void Simulator::LoadStoreHelper(Instruction* instr,
     case STR_d: MemoryWriteFP64(address, dreg(srcdst)); break;
     default: UNIMPLEMENTED();
   }
+
+  // Handle the writeback for loads after the load to ensure safe pop
+  // operation even when interrupted in the middle of it. The stack pointer
+  // is only updated after the load so pop(fp) will never break the invariant
+  // sp <= fp expected while walking the stack in the sampler.
+  if (instr->IsLoad()) {
+    // For loads the address pre writeback is used to check access below the
+    // stack.
+    stack = reinterpret_cast<uint8_t*>(sp());
+
+    LoadStoreWriteBack(addr_reg, offset, addrmode);
+  }
+
+  // Accesses below the stack pointer (but above the platform stack limit) are
+  // not allowed in the ABI.
+  CheckMemoryAccess(address, stack);
 }
 
 
@@ -1317,8 +1334,25 @@ void Simulator::LoadStorePairHelper(Instruction* instr,
                                     AddrMode addrmode) {
   unsigned rt = instr->Rt();
   unsigned rt2 = instr->Rt2();
+  unsigned addr_reg = instr->Rn();
   int offset = instr->ImmLSPair() << instr->SizeLSPair();
-  uint8_t* address = AddressModeHelper(instr->Rn(), offset, addrmode);
+  uint8_t* address = LoadStoreAddress(addr_reg, offset, addrmode);
+  uint8_t* stack = NULL;
+
+  // Handle the writeback for stores before the store. On a CPU the writeback
+  // and the store are atomic, but when running on the simulator it is possible
+  // to be interrupted in between. The simulator is not thread safe and V8 does
+  // not require it to be to run JavaScript therefore the profiler may sample
+  // the "simulated" CPU in the middle of load/store with writeback. The code
+  // below ensures that push operations are safe even when interrupted: the
+  // stack pointer will be decremented before adding an element to the stack.
+  if (instr->IsStore()) {
+    LoadStoreWriteBack(addr_reg, offset, addrmode);
+
+    // For store the address post writeback is used to check access below the
+    // stack.
+    stack = reinterpret_cast<uint8_t*>(sp());
+  }
 
   LoadStorePairOp op =
     static_cast<LoadStorePairOp>(instr->Mask(LoadStorePairMask));
@@ -1375,6 +1409,22 @@ void Simulator::LoadStorePairHelper(Instruction* instr,
     }
     default: UNREACHABLE();
   }
+
+  // Handle the writeback for loads after the load to ensure safe pop
+  // operation even when interrupted in the middle of it. The stack pointer
+  // is only updated after the load so pop(fp) will never break the invariant
+  // sp <= fp expected while walking the stack in the sampler.
+  if (instr->IsLoad()) {
+    // For loads the address pre writeback is used to check access below the
+    // stack.
+    stack = reinterpret_cast<uint8_t*>(sp());
+
+    LoadStoreWriteBack(addr_reg, offset, addrmode);
+  }
+
+  // Accesses below the stack pointer (but above the platform stack limit) are
+  // not allowed in the ABI.
+  CheckMemoryAccess(address, stack);
 }
 
 
@@ -1392,21 +1442,16 @@ void Simulator::VisitLoadLiteral(Instruction* instr) {
 }
 
 
-uint8_t* Simulator::AddressModeHelper(unsigned addr_reg,
-                                      int64_t offset,
-                                      AddrMode addrmode) {
-  uint64_t address = xreg(addr_reg, Reg31IsStackPointer);
-  ASSERT((sizeof(uintptr_t) == kXRegSizeInBytes) ||
-         (address < 0x100000000UL));
-  if ((addr_reg == 31) && ((address % 16) != 0)) {
+uint8_t* Simulator::LoadStoreAddress(unsigned addr_reg,
+                                     int64_t offset,
+                                     AddrMode addrmode) {
+  const unsigned kSPRegCode = kSPRegInternalCode & kRegCodeMask;
+  int64_t address = xreg(addr_reg, Reg31IsStackPointer);
+  if ((addr_reg == kSPRegCode) && ((address % 16) != 0)) {
     // When the base register is SP the stack pointer is required to be
     // quadword aligned prior to the address calculation and write-backs.
     // Misalignment will cause a stack alignment fault.
     ALIGNMENT_EXCEPTION();
-  }
-  if ((addrmode == PreIndex) || (addrmode == PostIndex)) {
-    ASSERT(offset != 0);
-    set_xreg(addr_reg, address + offset, Reg31IsStackPointer);
   }
 
   if ((addrmode == Offset) || (addrmode == PreIndex)) {
@@ -1414,6 +1459,29 @@ uint8_t* Simulator::AddressModeHelper(unsigned addr_reg,
   }
 
   return reinterpret_cast<uint8_t*>(address);
+}
+
+
+void Simulator::LoadStoreWriteBack(unsigned addr_reg,
+                                   int64_t offset,
+                                   AddrMode addrmode) {
+  if ((addrmode == PreIndex) || (addrmode == PostIndex)) {
+    ASSERT(offset != 0);
+    uint64_t address = xreg(addr_reg, Reg31IsStackPointer);
+    set_reg(addr_reg, address + offset, Reg31IsStackPointer);
+  }
+}
+
+
+void Simulator::CheckMemoryAccess(uint8_t* address, uint8_t* stack) {
+  if ((address >= stack_limit_) && (address < stack)) {
+    fprintf(stream_, "ACCESS BELOW STACK POINTER:\n");
+    fprintf(stream_, "  sp is here:          0x%16p\n", stack);
+    fprintf(stream_, "  access was here:     0x%16p\n", address);
+    fprintf(stream_, "  stack limit is here: 0x%16p\n", stack_limit_);
+    fprintf(stream_, "\n");
+    ABORT();
+  }
 }
 
 

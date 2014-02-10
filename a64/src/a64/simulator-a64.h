@@ -651,9 +651,13 @@ class Simulator : public DecoderVisitor {
                        int64_t offset,
                        AddrMode addrmode);
   void LoadStorePairHelper(Instruction* instr, AddrMode addrmode);
-  uint8_t* AddressModeHelper(unsigned addr_reg,
-                             int64_t offset,
-                             AddrMode addrmode);
+  uint8_t* LoadStoreAddress(unsigned addr_reg,
+                            int64_t offset,
+                            AddrMode addrmode);
+  void LoadStoreWriteBack(unsigned addr_reg,
+                          int64_t offset,
+                          AddrMode addrmode);
+  void CheckMemoryAccess(uint8_t* address, uint8_t* stack);
 
   uint64_t MemoryRead(uint8_t* address, unsigned num_bytes);
   uint8_t MemoryRead8(uint8_t* address);

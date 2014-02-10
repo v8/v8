@@ -213,9 +213,15 @@ class Instruction {
     return Mask(AddSubExtendedFMask) == AddSubExtendedFixed;
   }
 
+  // Match any loads or stores, including pairs.
   bool IsLoadOrStore() const {
     return Mask(LoadStoreAnyFMask) == LoadStoreAnyFixed;
   }
+
+  // Match any loads, including pairs.
+  bool IsLoad() const;
+  // Match any stores, including pairs.
+  bool IsStore() const;
 
   // Indicate whether Rd can be the stack pointer or the zero register. This
   // does not check that the instruction actually has an Rd field.

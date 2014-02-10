@@ -38,6 +38,55 @@ namespace v8 {
 namespace internal {
 
 
+bool Instruction::IsLoad() const {
+  if (Mask(LoadStoreAnyFMask) != LoadStoreAnyFixed) {
+    return false;
+  }
+
+  if (Mask(LoadStorePairAnyFMask) == LoadStorePairAnyFixed) {
+    return Mask(LoadStorePairLBit) != 0;
+  } else {
+    LoadStoreOp op = static_cast<LoadStoreOp>(Mask(LoadStoreOpMask));
+    switch (op) {
+      case LDRB_w:
+      case LDRH_w:
+      case LDR_w:
+      case LDR_x:
+      case LDRSB_w:
+      case LDRSB_x:
+      case LDRSH_w:
+      case LDRSH_x:
+      case LDRSW_x:
+      case LDR_s:
+      case LDR_d: return true;
+      default: return false;
+    }
+  }
+}
+
+
+bool Instruction::IsStore() const {
+  if (Mask(LoadStoreAnyFMask) != LoadStoreAnyFixed) {
+    return false;
+  }
+
+  if (Mask(LoadStorePairAnyFMask) == LoadStorePairAnyFixed) {
+    return Mask(LoadStorePairLBit) == 0;
+  } else {
+    LoadStoreOp op = static_cast<LoadStoreOp>(Mask(LoadStoreOpMask));
+    switch (op) {
+      case STRB_w:
+      case STRH_w:
+      case STR_w:
+      case STR_x:
+      case STR_s:
+      case STR_d: return true;
+      default: return false;
+    }
+  }
+}
+
+
 static uint64_t RotateRight(uint64_t value,
                             unsigned int rotate,
                             unsigned int width) {
