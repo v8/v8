@@ -428,6 +428,7 @@ void LCodeGen::CallCodeGeneric(Handle<Code> code,
 
 
 void LCodeGen::DoCallFunction(LCallFunction* instr) {
+  ASSERT(ToRegister(instr->context()).is(cp));
   ASSERT(ToRegister(instr->function()).Is(x1));
   ASSERT(ToRegister(instr->result()).Is(x0));
 
@@ -440,12 +441,12 @@ void LCodeGen::DoCallFunction(LCallFunction* instr) {
     __ Jump(stub.GetCode(isolate()), RelocInfo::CODE_TARGET);
   } else {
     CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
-    __ Ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
   }
 }
 
 
 void LCodeGen::DoCallNew(LCallNew* instr) {
+  ASSERT(ToRegister(instr->context()).is(cp));
   ASSERT(instr->IsMarkedAsCall());
   ASSERT(ToRegister(instr->constructor()).is(x1));
 
@@ -463,6 +464,7 @@ void LCodeGen::DoCallNew(LCallNew* instr) {
 
 void LCodeGen::DoCallNewArray(LCallNewArray* instr) {
   ASSERT(instr->IsMarkedAsCall());
+  ASSERT(ToRegister(instr->context()).is(cp));
   ASSERT(ToRegister(instr->constructor()).is(x1));
 
   __ Mov(x0, Operand(instr->arity()));
@@ -517,9 +519,28 @@ void LCodeGen::CallRuntime(const Runtime::Function* function,
 }
 
 
+void LCodeGen::LoadContextFromDeferred(LOperand* context) {
+  if (context->IsRegister()) {
+    __ Mov(cp, ToRegister(context));
+  } else if (context->IsStackSlot()) {
+    __ Ldr(cp, ToMemOperand(context));
+  } else if (context->IsConstantOperand()) {
+    HConstant* constant =
+        chunk_->LookupConstant(LConstantOperand::cast(context));
+    // TODO(all): on ARM this move can handle object in new space, not in A64.
+    // Check if this can be a problem.
+    __ Mov(cp, Operand(Handle<Object>::cast(constant->handle(isolate()))));
+  } else {
+    UNREACHABLE();
+  }
+}
+
+
 void LCodeGen::CallRuntimeFromDeferred(Runtime::FunctionId id,
                                        int argc,
-                                       LInstruction* instr) {
+                                       LInstruction* instr,
+                                       LOperand* context) {
+  LoadContextFromDeferred(context);
   __ CallRuntimeSaveDoubles(id);
   RecordSafepointWithRegisters(
       instr->pointer_map(), argc, Safepoint::kNoLazyDeopt);
@@ -737,6 +758,8 @@ bool LCodeGen::GeneratePrologue() {
 
   // Trace the call.
   if (FLAG_trace && info()->IsOptimizing()) {
+    // We have not executed any compiled code yet, so cp still holds the
+    // incoming context.
     __ CallRuntime(Runtime::kTraceEnter, 0);
   }
 
@@ -1513,7 +1536,8 @@ void LCodeGen::DoDeferredAllocate(LAllocate* instr) {
   __ Mov(x10, Operand(Smi::FromInt(flags)));
   __ Push(size, x10);
 
-  CallRuntimeFromDeferred(Runtime::kAllocateInTargetSpace, 2, instr);
+  CallRuntimeFromDeferred(
+      Runtime::kAllocateInTargetSpace, 2, instr, instr->context());
   __ StoreToSafepointRegisterSlot(x0, ToRegister(instr->result()));
 }
 
@@ -1563,7 +1587,6 @@ void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
   // expected by InvokeFunction.
   ParameterCount actual(argc);
   __ InvokeFunction(function, actual, CALL_FUNCTION, safepoint_generator);
-  __ Ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
 }
 
 
@@ -1652,6 +1675,7 @@ void LCodeGen::DoArithmeticD(LArithmeticD* instr) {
 
 
 void LCodeGen::DoArithmeticT(LArithmeticT* instr) {
+  ASSERT(ToRegister(instr->context()).is(cp));
   ASSERT(ToRegister(instr->left()).is(x1));
   ASSERT(ToRegister(instr->right()).is(x0));
   ASSERT(ToRegister(instr->result()).is(x0));
@@ -1918,9 +1942,6 @@ void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
     ParameterCount expected(formal_parameter_count);
     __ InvokeFunction(function_reg, expected, count, CALL_FUNCTION, generator);
   }
-
-  // Restore context.
-  __ Ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
 }
 
 
@@ -1935,6 +1956,9 @@ void LCodeGen::DoCallWithDescriptor(LCallWithDescriptor* instr) {
     LConstantOperand* target = LConstantOperand::cast(instr->target());
     Handle<Code> code = Handle<Code>::cast(ToHandle(target));
     generator.BeforeCall(__ CallSize(code, RelocInfo::CODE_TARGET));
+    // TODO(all): on ARM we use a call descriptor to specify a storage mode
+    // but on A64 we only have one storage mode so it isn't necessary. Check
+    // this understanding is correct.
     __ Call(code, RelocInfo::CODE_TARGET, TypeFeedbackId::None());
   } else {
     ASSERT(instr->target()->IsRegister());
@@ -1943,8 +1967,6 @@ void LCodeGen::DoCallWithDescriptor(LCallWithDescriptor* instr) {
     __ Add(target, target, Code::kHeaderSize - kHeapObjectTag);
     __ Call(target);
   }
-  // TODO(jbramley): Is this load necessary?
-  __ Ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
   generator.AfterCall();
 }
 
@@ -1964,9 +1986,6 @@ void LCodeGen::DoCallJSFunction(LCallJSFunction* instr) {
   __ Ldr(x10, FieldMemOperand(x1, JSFunction::kCodeEntryOffset));
   __ Call(x10);
 
-  // TODO(jbramley): Is this load necessary?
-  __ Ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
-
   RecordSafepointWithLazyDeopt(instr, RECORD_SIMPLE_SAFEPOINT);
 }
 
@@ -1977,6 +1996,7 @@ void LCodeGen::DoCallRuntime(LCallRuntime* instr) {
 
 
 void LCodeGen::DoCallStub(LCallStub* instr) {
+  ASSERT(ToRegister(instr->context()).is(cp));
   ASSERT(ToRegister(instr->result()).is(x0));
   switch (instr->hydrogen()->major_key()) {
     case CodeStub::RegExpExec: {
@@ -2010,7 +2030,10 @@ void LCodeGen::DoDeferredInstanceMigration(LCheckMaps* instr, Register object) {
   {
     PushSafepointRegistersScope scope(this, Safepoint::kWithRegisters);
     __ Push(object);
-    CallRuntimeFromDeferred(Runtime::kTryMigrateInstance, 1, instr);
+    __ Mov(cp, 0);
+    __ CallRuntimeSaveDoubles(Runtime::kTryMigrateInstance);
+    RecordSafepointWithRegisters(
+        instr->pointer_map(), 1, Safepoint::kNoLazyDeopt);
     __ StoreToSafepointRegisterSlot(x0, temp);
   }
   DeoptimizeIfSmi(temp, instr->environment());
@@ -2380,6 +2403,7 @@ void LCodeGen::DoCmpObjectEqAndBranch(LCmpObjectEqAndBranch* instr) {
 
 
 void LCodeGen::DoCmpT(LCmpT* instr) {
+  ASSERT(ToRegister(instr->context()).is(cp));
   Token::Value op = instr->op();
   Condition cond = TokenToCondition(op, false);
 
@@ -2431,13 +2455,11 @@ void LCodeGen::DoConstantT(LConstantT* instr) {
 void LCodeGen::DoContext(LContext* instr) {
   // If there is a non-return use, the context must be moved to a register.
   Register result = ToRegister(instr->result());
-  // TODO(jbramley): LContext is only generated if it meets this condition, so
-  // why not move cp unconditionally?
-  for (HUseIterator it(instr->hydrogen()->uses()); !it.Done(); it.Advance()) {
-    if (!it.value()->IsReturn()) {
-      __ Mov(result, cp);
-      return;
-    }
+  if (info()->IsOptimizing()) {
+    __ Ldr(result, MemOperand(fp, StandardFrameConstants::kContextOffset));
+  } else {
+    // If there is no frame, the context must be in cp.
+    ASSERT(result.is(cp));
   }
 }
 
@@ -2708,6 +2730,7 @@ void LCodeGen::DoElementsKind(LElementsKind* instr) {
 
 
 void LCodeGen::DoFunctionLiteral(LFunctionLiteral* instr) {
+  ASSERT(ToRegister(instr->context()).is(cp));
   // FunctionLiteral instruction is marked as call, we can trash any register.
   ASSERT(instr->IsMarkedAsCall());
 
@@ -2885,6 +2908,7 @@ void LCodeGen::DoInnerAllocatedObject(LInnerAllocatedObject* instr) {
 
 
 void LCodeGen::DoInstanceOf(LInstanceOf* instr) {
+  ASSERT(ToRegister(instr->context()).is(cp));
   // Assert that the arguments are in the registers expected by InstanceofStub.
   ASSERT(ToRegister(instr->left()).Is(InstanceofStub::left()));
   ASSERT(ToRegister(instr->right()).Is(InstanceofStub::right()));
@@ -2998,6 +3022,7 @@ void LCodeGen::DoDeferredInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr) {
       flags | InstanceofStub::kCallSiteInlineCheck);
 
   PushSafepointRegistersScope scope(this, Safepoint::kWithRegisters);
+  LoadContextFromDeferred(instr->context());
 
   // Prepare InstanceofStub arguments.
   ASSERT(ToRegister(instr->value()).Is(InstanceofStub::left()));
@@ -3040,6 +3065,7 @@ void LCodeGen::DoInteger32ToSmi(LInteger32ToSmi* instr) {
 
 
 void LCodeGen::DoInvokeFunction(LInvokeFunction* instr) {
+  ASSERT(ToRegister(instr->context()).is(cp));
   // The function is required to be in x1.
   ASSERT(ToRegister(instr->function()).is(x1));
   ASSERT(instr->HasPointerMap());
@@ -3050,7 +3076,6 @@ void LCodeGen::DoInvokeFunction(LInvokeFunction* instr) {
     SafepointGenerator generator(this, pointers, Safepoint::kLazyDeopt);
     ParameterCount count(instr->arity());
     __ InvokeFunction(x1, count, CALL_FUNCTION, generator);
-    __ Ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
   } else {
     CallKnownFunction(known_function,
                       instr->hydrogen()->formal_parameter_count(),
@@ -3253,6 +3278,7 @@ void LCodeGen::DoLoadGlobalCell(LLoadGlobalCell* instr) {
 
 
 void LCodeGen::DoLoadGlobalGeneric(LLoadGlobalGeneric* instr) {
+  ASSERT(ToRegister(instr->context()).is(cp));
   ASSERT(ToRegister(instr->global_object()).Is(x0));
   ASSERT(ToRegister(instr->result()).Is(x0));
   __ Mov(x2, Operand(instr->name()));
@@ -3514,6 +3540,7 @@ void LCodeGen::DoLoadKeyedFixed(LLoadKeyedFixed* instr) {
 
 
 void LCodeGen::DoLoadKeyedGeneric(LLoadKeyedGeneric* instr) {
+  ASSERT(ToRegister(instr->context()).is(cp));
   ASSERT(ToRegister(instr->object()).Is(x1));
   ASSERT(ToRegister(instr->key()).Is(x0));
 
@@ -3564,6 +3591,7 @@ void LCodeGen::DoLoadNamedField(LLoadNamedField* instr) {
 
 
 void LCodeGen::DoLoadNamedGeneric(LLoadNamedGeneric* instr) {
+  ASSERT(ToRegister(instr->context()).is(cp));
   // LoadIC expects x2 to hold the name, and x0 to hold the receiver.
   ASSERT(ToRegister(instr->object()).is(x0));
   __ Mov(x2, Operand(instr->name()));
@@ -3619,6 +3647,8 @@ void LCodeGen::DoDeferredMathAbsTagged(LMathAbsTagged* instr,
   //  - The (smi) input -0x80000000, produces +0x80000000, which does not fit
   //    a smi. In this case, the inline code sets the result and jumps directly
   //    to the allocation_entry label.
+  ASSERT(instr->context() != NULL);
+  ASSERT(ToRegister(instr->context()).is(cp));
   Register input = ToRegister(instr->value());
   Register temp1 = ToRegister(instr->temp1());
   Register temp2 = ToRegister(instr->temp2());
@@ -3660,12 +3690,14 @@ void LCodeGen::DoDeferredMathAbsTagged(LMathAbsTagged* instr,
     Register input = ToRegister(instr->value());
     __ JumpIfSmi(result, &result_ok);
     __ Cmp(input, result);
+    // TODO(all): Shouldn't we assert here?
     DeoptimizeIf(ne, instr->environment());
     __ Bind(&result_ok);
   }
 
   { PushSafepointRegistersScope scope(this, Safepoint::kWithRegisters);
-    CallRuntimeFromDeferred(Runtime::kAllocateHeapNumber, 0, instr);
+    CallRuntimeFromDeferred(Runtime::kAllocateHeapNumber, 0, instr,
+                            instr->context());
     __ StoreToSafepointRegisterSlot(x0, result);
   }
   // The inline (non-deferred) code will store result_bits into result.
@@ -4213,7 +4245,15 @@ void LCodeGen::DoDeferredNumberTagD(LNumberTagD* instr) {
   __ Mov(result, 0);
 
   PushSafepointRegistersScope scope(this, Safepoint::kWithRegisters);
-  CallRuntimeFromDeferred(Runtime::kAllocateHeapNumber, 0, instr);
+  // NumberTagU and NumberTagD use the context from the frame, rather than
+  // the environment's HContext or HInlinedContext value.
+  // They only call Runtime::kAllocateHeapNumber.
+  // The corresponding HChange instructions are added in a phase that does
+  // not have easy access to the local context.
+  __ Ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
+  __ CallRuntimeSaveDoubles(Runtime::kAllocateHeapNumber);
+  RecordSafepointWithRegisters(
+      instr->pointer_map(), 0, Safepoint::kNoLazyDeopt);
   __ StoreToSafepointRegisterSlot(x0, result);
 }
 
@@ -4271,7 +4311,15 @@ void LCodeGen::DoDeferredNumberTagU(LInstruction* instr,
     // Preserve the value of all registers.
     PushSafepointRegistersScope scope(this, Safepoint::kWithRegisters);
 
-    CallRuntimeFromDeferred(Runtime::kAllocateHeapNumber, 0, instr);
+    // NumberTagU and NumberTagD use the context from the frame, rather than
+    // the environment's HContext or HInlinedContext value.
+    // They only call Runtime::kAllocateHeapNumber.
+    // The corresponding HChange instructions are added in a phase that does
+    // not have easy access to the local context.
+    __ Ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
+    __ CallRuntimeSaveDoubles(Runtime::kAllocateHeapNumber);
+    RecordSafepointWithRegisters(
+      instr->pointer_map(), 0, Safepoint::kNoLazyDeopt);
     __ StoreToSafepointRegisterSlot(x0, dst);
   }
 
@@ -4400,8 +4448,11 @@ void LCodeGen::DoPushArgument(LPushArgument* instr) {
 void LCodeGen::DoReturn(LReturn* instr) {
   if (FLAG_trace && info()->IsOptimizing()) {
     // Push the return value on the stack as the parameter.
-    // Runtime::TraceExit returns its parameter in x0.
+    // Runtime::TraceExit returns its parameter in x0.  We're leaving the code
+    // managed by the register allocator and tearing down the frame, it's
+    // safe to write to the context register.
     __ Push(x0);
+    __ Ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
     __ CallRuntime(Runtime::kTraceExit, 1);
   }
 
@@ -4486,12 +4537,13 @@ void LCodeGen::DoSeqStringGetChar(LSeqStringGetChar* instr) {
 
 
 void LCodeGen::DoSeqStringSetChar(LSeqStringSetChar* instr) {
-  String::Encoding encoding = instr->encoding();
+  String::Encoding encoding = instr->hydrogen()->encoding();
   Register string = ToRegister(instr->string());
   Register value = ToRegister(instr->value());
   Register temp = ToRegister(instr->temp());
 
   if (FLAG_debug_code) {
+    ASSERT(ToRegister(instr->context()).is(cp));
     Register index = ToRegister(instr->index());
     static const uint32_t one_byte_seq_type = kSeqStringTag | kOneByteStringTag;
     static const uint32_t two_byte_seq_type = kSeqStringTag | kTwoByteStringTag;
@@ -4656,11 +4708,14 @@ void LCodeGen::DoDebugBreak(LDebugBreak* instr) {
 
 
 void LCodeGen::DoDeclareGlobals(LDeclareGlobals* instr) {
+  ASSERT(ToRegister(instr->context()).is(cp));
   Register scratch1 = x5;
   Register scratch2 = x6;
   ASSERT(instr->IsMarkedAsCall());
 
   ASM_UNIMPLEMENTED_BREAK("DoDeclareGlobals");
+  // TODO(all): if Mov could handle object in new space then it could be used
+  // here.
   __ LoadHeapObject(scratch1, instr->hydrogen()->pairs());
   __ Mov(scratch2, Operand(Smi::FromInt(instr->hydrogen()->flags())));
   __ Push(cp, scratch1, scratch2);  // The context is the first argument.
@@ -4670,6 +4725,7 @@ void LCodeGen::DoDeclareGlobals(LDeclareGlobals* instr) {
 
 void LCodeGen::DoDeferredStackCheck(LStackCheck* instr) {
   PushSafepointRegistersScope scope(this, Safepoint::kWithRegisters);
+  LoadContextFromDeferred(instr->context());
   __ CallRuntimeSaveDoubles(Runtime::kStackGuard);
   RecordSafepointWithLazyDeopt(
       instr, RECORD_SAFEPOINT_WITH_REGISTERS_AND_NO_ARGUMENTS);
@@ -4702,6 +4758,8 @@ void LCodeGen::DoStackCheck(LStackCheck* instr) {
 
     PredictableCodeSizeScope predictable(masm_,
                                          Assembler::kCallSizeWithRelocation);
+    ASSERT(instr->context()->IsRegister());
+    ASSERT(ToRegister(instr->context()).is(cp));
     CallCode(isolate()->builtins()->StackCheck(),
              RelocInfo::CODE_TARGET,
              instr);
@@ -4955,6 +5013,7 @@ void LCodeGen::DoStoreKeyedFixed(LStoreKeyedFixed* instr) {
 
 
 void LCodeGen::DoStoreKeyedGeneric(LStoreKeyedGeneric* instr) {
+  ASSERT(ToRegister(instr->context()).is(cp));
   ASSERT(ToRegister(instr->object()).Is(x2));
   ASSERT(ToRegister(instr->key()).Is(x1));
   ASSERT(ToRegister(instr->value()).Is(x0));
@@ -5053,6 +5112,7 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
 
 
 void LCodeGen::DoStoreNamedGeneric(LStoreNamedGeneric* instr) {
+  ASSERT(ToRegister(instr->context()).is(cp));
   ASSERT(ToRegister(instr->value()).is(x0));
   ASSERT(ToRegister(instr->object()).is(x1));
 
@@ -5065,6 +5125,7 @@ void LCodeGen::DoStoreNamedGeneric(LStoreNamedGeneric* instr) {
 
 
 void LCodeGen::DoStringAdd(LStringAdd* instr) {
+  ASSERT(ToRegister(instr->context()).is(cp));
   ASSERT(ToRegister(instr->left()).Is(x1));
   ASSERT(ToRegister(instr->right()).Is(x0));
   StringAddStub stub(instr->hydrogen()->flags(),
@@ -5113,7 +5174,8 @@ void LCodeGen::DoDeferredStringCharCodeAt(LStringCharCodeAt* instr) {
   __ SmiTag(index);
   __ Push(index);
 
-  CallRuntimeFromDeferred(Runtime::kStringCharCodeAt, 2, instr);
+  CallRuntimeFromDeferred(Runtime::kStringCharCodeAt, 2, instr,
+                          instr->context());
   __ AssertSmi(x0);
   __ SmiUntag(x0);
   __ StoreToSafepointRegisterSlot(x0, result);
@@ -5161,12 +5223,13 @@ void LCodeGen::DoDeferredStringCharFromCode(LStringCharFromCode* instr) {
   PushSafepointRegistersScope scope(this, Safepoint::kWithRegisters);
   __ SmiTag(char_code);
   __ Push(char_code);
-  CallRuntimeFromDeferred(Runtime::kCharFromCode, 1, instr);
+  CallRuntimeFromDeferred(Runtime::kCharFromCode, 1, instr, instr->context());
   __ StoreToSafepointRegisterSlot(x0, result);
 }
 
 
 void LCodeGen::DoStringCompareAndBranch(LStringCompareAndBranch* instr) {
+  ASSERT(ToRegister(instr->context()).is(cp));
   Token::Value op = instr->op();
 
   Handle<Code> ic = CompareIC::GetUninitialized(isolate(), op);
@@ -5327,6 +5390,7 @@ void LCodeGen::DoToFastProperties(LToFastProperties* instr) {
 
 
 void LCodeGen::DoRegExpLiteral(LRegExpLiteral* instr) {
+  ASSERT(ToRegister(instr->context()).is(cp));
   Label materialized;
   // Registers will be used as follows:
   // x7 = literals array.
@@ -5368,6 +5432,7 @@ void LCodeGen::DoRegExpLiteral(LRegExpLiteral* instr) {
 
 
 void LCodeGen::DoThrow(LThrow* instr) {
+  ASSERT(ToRegister(instr->context()).is(cp));
   Register value = ToRegister(instr->value());
   __ Push(value);
   CallRuntime(Runtime::kThrow, 1, instr);
@@ -5398,6 +5463,7 @@ void LCodeGen::DoTransitionElementsKind(LTransitionElementsKind* instr) {
     __ RecordWriteField(object, HeapObject::kMapOffset, new_map, temp1,
                         GetLinkRegisterState(), kDontSaveFPRegs);
   } else {
+    ASSERT(ToRegister(instr->context()).is(cp));
     PushSafepointRegistersScope scope(
         this, Safepoint::kWithRegistersAndDoubles);
     __ Mov(x0, object);

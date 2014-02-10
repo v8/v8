@@ -307,9 +307,11 @@ class LCodeGen: public LCodeGenBase {
     CallRuntime(function, num_arguments, instr);
   }
 
+  void LoadContextFromDeferred(LOperand* context);
   void CallRuntimeFromDeferred(Runtime::FunctionId id,
                                int argc,
-                               LInstruction* instr);
+                               LInstruction* instr,
+                               LOperand* context);
 
   // Generate a direct call to a known function.
   // If the function is already loaded into x1 by the caller, function_reg may

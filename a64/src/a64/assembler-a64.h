@@ -148,35 +148,48 @@ struct Register : public CPURegister {
   // We allow crankshaft to use the following registers:
   //   - x0 to x15
   //   - x18 to x24
+  //   - x27 (also context)
   //
   // TODO(all): Register x25 is currently free and could be available for
   // crankshaft, but we don't use it as we might use it as a per function
   // literal pool pointer in the future.
   //
-  // We split allocatable registers in two ranges called "low range" and
-  // "high range" which are defined as follows.
+  // TODO(all): Consider storing cp in x25 to have only two ranges.
+  // We split allocatable registers in three ranges called
+  //   - "low range"
+  //   - "high range"
+  //   - "context"
   static const unsigned kAllocatableLowRangeBegin = 0;
   static const unsigned kAllocatableLowRangeEnd = 15;
   static const unsigned kAllocatableHighRangeBegin = 18;
   static const unsigned kAllocatableHighRangeEnd = 24;
+  static const unsigned kAllocatableContext = 27;
 
+  // Gap between low and high ranges.
   static const int kAllocatableRangeGapSize =
       (kAllocatableHighRangeBegin - kAllocatableLowRangeEnd) - 1;
 
   static const int kMaxNumAllocatableRegisters =
       (kAllocatableLowRangeEnd - kAllocatableLowRangeBegin + 1) +
-      (kAllocatableHighRangeEnd - kAllocatableHighRangeBegin + 1);
+      (kAllocatableHighRangeEnd - kAllocatableHighRangeBegin + 1) + 1;  // cp
   static int NumAllocatableRegisters() { return kMaxNumAllocatableRegisters; }
 
   // Return true if the register is one that crankshaft can allocate.
   bool IsAllocatable() const {
-    return (reg_code <= kAllocatableLowRangeEnd) ||
-        ((reg_code >= kAllocatableHighRangeBegin) &&
-         (reg_code <= kAllocatableHighRangeEnd));
+    return ((reg_code == kAllocatableContext) ||
+            (reg_code <= kAllocatableLowRangeEnd) ||
+            ((reg_code >= kAllocatableHighRangeBegin) &&
+             (reg_code <= kAllocatableHighRangeEnd)));
   }
 
   static Register FromAllocationIndex(unsigned index) {
     ASSERT(index < static_cast<unsigned>(NumAllocatableRegisters()));
+    // cp is the last allocatable register.
+    if (index == (static_cast<unsigned>(NumAllocatableRegisters() - 1))) {
+      return from_code(kAllocatableContext);
+    }
+
+    // Handle low and high ranges.
     return (index <= kAllocatableLowRangeEnd)
         ? from_code(index)
         : from_code(index + kAllocatableRangeGapSize);
@@ -187,13 +200,14 @@ struct Register : public CPURegister {
     ASSERT((kAllocatableLowRangeBegin == 0) &&
            (kAllocatableLowRangeEnd == 15) &&
            (kAllocatableHighRangeBegin == 18) &&
-           (kAllocatableHighRangeEnd == 24));
+           (kAllocatableHighRangeEnd == 24) &&
+           (kAllocatableContext == 27));
     const char* const names[] = {
       "x0", "x1", "x2", "x3", "x4",
       "x5", "x6", "x7", "x8", "x9",
       "x10", "x11", "x12", "x13", "x14",
       "x15", "x18", "x19", "x20", "x21",
-      "x22", "x23", "x24",
+      "x22", "x23", "x24", "x27",
     };
     return names[index];
   }
@@ -201,6 +215,10 @@ struct Register : public CPURegister {
   static int ToAllocationIndex(Register reg) {
     ASSERT(reg.IsAllocatable());
     unsigned code = reg.code();
+    if (code == kAllocatableContext) {
+      return NumAllocatableRegisters() - 1;
+    }
+
     return (code <= kAllocatableLowRangeEnd)
         ? code
         : code - kAllocatableRangeGapSize;
