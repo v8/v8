@@ -166,6 +166,9 @@ static void InitializeVM() {
 #else  // ifdef USE_SIMULATOR.
 // Run the test on real hardware or models.
 #define SETUP_SIZE(buf_size)                                                   \
+  Isolate* isolate = Isolate::Current();                                       \
+  HandleScope scope(isolate);                                                  \
+  ASSERT(isolate != NULL);                                                     \
   byte* buf = new byte[buf_size];                                              \
   MacroAssembler masm(isolate, buf, buf_size);                                 \
   RegisterDump core;                                                           \
@@ -5789,7 +5792,7 @@ TEST(fcvt_sd) {
     {2.0, 2.0f},
     {FLT_MAX, FLT_MAX},
     //  - The smallest normalized float.
-    {pow(2, -126), powf(2, -126)},
+    {pow(2.0, -126), powf(2, -126)},
     //  - Normal floats that need (ties-to-even) rounding.
     //    For normalized numbers:
     //         bit 29 (0x0000000020000000) is the lowest-order bit which will
@@ -5816,7 +5819,7 @@ TEST(fcvt_sd) {
     {kFP64PositiveInfinity, kFP32PositiveInfinity},
     {DBL_MAX, kFP32PositiveInfinity},
     //  - The smallest exponent that's too big for a float.
-    {pow(2, 128), kFP32PositiveInfinity},
+    {pow(2.0, 128), kFP32PositiveInfinity},
     //  - This exponent is in range, but the value rounds to infinity.
     {rawbits_to_double(0x47effffff0000000), kFP32PositiveInfinity},
 
@@ -6793,16 +6796,16 @@ static void TestUScvtfHelper(uint64_t in,
   double expected_ucvtf_base = rawbits_to_double(expected_ucvtf_bits);
 
   for (int fbits = 0; fbits <= 32; fbits++) {
-    double expected_scvtf = expected_scvtf_base / pow(2, fbits);
-    double expected_ucvtf = expected_ucvtf_base / pow(2, fbits);
+    double expected_scvtf = expected_scvtf_base / pow(2.0, fbits);
+    double expected_ucvtf = expected_ucvtf_base / pow(2.0, fbits);
     ASSERT_EQUAL_FP64(expected_scvtf, results_scvtf_x[fbits]);
     ASSERT_EQUAL_FP64(expected_ucvtf, results_ucvtf_x[fbits]);
     if (cvtf_s32) ASSERT_EQUAL_FP64(expected_scvtf, results_scvtf_w[fbits]);
     if (cvtf_u32) ASSERT_EQUAL_FP64(expected_ucvtf, results_ucvtf_w[fbits]);
   }
   for (int fbits = 33; fbits <= 64; fbits++) {
-    double expected_scvtf = expected_scvtf_base / pow(2, fbits);
-    double expected_ucvtf = expected_ucvtf_base / pow(2, fbits);
+    double expected_scvtf = expected_scvtf_base / pow(2.0, fbits);
+    double expected_ucvtf = expected_ucvtf_base / pow(2.0, fbits);
     ASSERT_EQUAL_FP64(expected_scvtf, results_scvtf_x[fbits]);
     ASSERT_EQUAL_FP64(expected_ucvtf, results_ucvtf_x[fbits]);
   }
@@ -9381,8 +9384,8 @@ TEST(ecma_262_to_int32) {
   ECMA262ToInt32Helper(-1, -1.0);
 
   // The largest representable value that is less than 1.
-  ECMA262ToInt32Helper(0, 0x001fffffffffffff * pow(2, -53));
-  ECMA262ToInt32Helper(0, 0x001fffffffffffff * -pow(2, -53));
+  ECMA262ToInt32Helper(0, 0x001fffffffffffff * pow(2.0, -53));
+  ECMA262ToInt32Helper(0, 0x001fffffffffffff * -pow(2.0, -53));
   ECMA262ToInt32Helper(0, std::numeric_limits<double>::denorm_min());
   ECMA262ToInt32Helper(0, -std::numeric_limits<double>::denorm_min());
 
@@ -9407,29 +9410,29 @@ TEST(ecma_262_to_int32) {
   ECMA262ToInt32Helper(-0xfffff800, 0xfffffffffffff800 * -1.0);
 
   // The largest conversion which doesn't produce a zero result.
-  ECMA262ToInt32Helper(0x80000000, 0x001fffffffffffff * pow(2, 31));
-  ECMA262ToInt32Helper(-0x80000000, 0x001fffffffffffff * -pow(2, 31));
+  ECMA262ToInt32Helper(0x80000000, 0x001fffffffffffff * pow(2.0, 31));
+  ECMA262ToInt32Helper(-0x80000000, 0x001fffffffffffff * -pow(2.0, 31));
 
   // Some large conversions to check the shifting function.
   ECMA262ToInt32Helper(0x6789abcd, 0x001123456789abcd);
-  ECMA262ToInt32Helper(0x12345678, 0x001123456789abcd * pow(2, -20));
-  ECMA262ToInt32Helper(0x891a2b3c, 0x001123456789abcd * pow(2, -21));
-  ECMA262ToInt32Helper(0x11234567, 0x001123456789abcd * pow(2, -24));
+  ECMA262ToInt32Helper(0x12345678, 0x001123456789abcd * pow(2.0, -20));
+  ECMA262ToInt32Helper(0x891a2b3c, 0x001123456789abcd * pow(2.0, -21));
+  ECMA262ToInt32Helper(0x11234567, 0x001123456789abcd * pow(2.0, -24));
   ECMA262ToInt32Helper(-0x6789abcd, 0x001123456789abcd * -1.0);
-  ECMA262ToInt32Helper(-0x12345678, 0x001123456789abcd * -pow(2, -20));
-  ECMA262ToInt32Helper(-0x891a2b3c, 0x001123456789abcd * -pow(2, -21));
-  ECMA262ToInt32Helper(-0x11234567, 0x001123456789abcd * -pow(2, -24));
+  ECMA262ToInt32Helper(-0x12345678, 0x001123456789abcd * -pow(2.0, -20));
+  ECMA262ToInt32Helper(-0x891a2b3c, 0x001123456789abcd * -pow(2.0, -21));
+  ECMA262ToInt32Helper(-0x11234567, 0x001123456789abcd * -pow(2.0, -24));
 
   // ==== 84 <= exponent ====
 
   // The smallest conversion which produces a zero result by shifting the
   // mantissa out of the int32_t range.
-  ECMA262ToInt32Helper(0, pow(2, 32));
-  ECMA262ToInt32Helper(0, -pow(2, 32));
+  ECMA262ToInt32Helper(0, pow(2.0, 32));
+  ECMA262ToInt32Helper(0, -pow(2.0, 32));
 
   // Some very large conversions.
-  ECMA262ToInt32Helper(0, 0x001fffffffffffff * pow(2, 32));
-  ECMA262ToInt32Helper(0, 0x001fffffffffffff * -pow(2, 32));
+  ECMA262ToInt32Helper(0, 0x001fffffffffffff * pow(2.0, 32));
+  ECMA262ToInt32Helper(0, 0x001fffffffffffff * -pow(2.0, 32));
   ECMA262ToInt32Helper(0, DBL_MAX);
   ECMA262ToInt32Helper(0, -DBL_MAX);
 
