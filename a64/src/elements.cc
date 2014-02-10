@@ -48,25 +48,25 @@
 //     - FastDoubleElementsAccessor
 //       - FastPackedDoubleElementsAccessor
 //       - FastHoleyDoubleElementsAccessor
-//   - TypedElementsAccessor                  (abstract)
-//     - ExternalByteElementsAccessor
-//     - ExternalUnsignedByteElementsAccessor
-//     - ExternalShortElementsAccessor
-//     - ExternalUnsignedShortElementsAccessor
-//     - ExternalIntElementsAccessor
-//     - ExternalUnsignedIntElementsAccessor
-//     - ExternalFloatElementsAccessor
-//     - ExternalDoubleElementsAccessor
-//     - PixelElementsAccessor
-//     - FixedUint8ArrayAccessor
-//     - FixedInt8ArrayAccessor
-//     - FixedUint16ArrayAccessor
-//     - FixedInt16ArrayAccessor
-//     - FixedUint32ArrayAccessor
-//     - FixedInt32ArrayAccessor
-//     - FixedFloat32ArrayAccessor
-//     - FixedFloat64ArrayAccessor
-//     - FixedUint8ClampedArrayAccessor
+//   - TypedElementsAccessor: template, with instantiations:
+//     - ExternalInt8ElementsAccessor
+//     - ExternalUint8ElementsAccessor
+//     - ExternalInt16ElementsAccessor
+//     - ExternalUint16ElementsAccessor
+//     - ExternalInt32ElementsAccessor
+//     - ExternalUint32ElementsAccessor
+//     - ExternalFloat32ElementsAccessor
+//     - ExternalFloat64ElementsAccessor
+//     - ExternalUint8ClampedElementsAccessor
+//     - FixedUint8ElementsAccessor
+//     - FixedInt8ElementsAccessor
+//     - FixedUint16ElementsAccessor
+//     - FixedInt16ElementsAccessor
+//     - FixedUint32ElementsAccessor
+//     - FixedInt32ElementsAccessor
+//     - FixedFloat32ElementsAccessor
+//     - FixedFloat64ElementsAccessor
+//     - FixedUint8ClampedElementsAccessor
 //   - DictionaryElementsAccessor
 //   - NonStrictArgumentsElementsAccessor
 
@@ -97,32 +97,34 @@ static const int kPackedSizeNotKnown = -1;
     SeededNumberDictionary)                                             \
   V(NonStrictArgumentsElementsAccessor, NON_STRICT_ARGUMENTS_ELEMENTS,  \
     FixedArray)                                                         \
-  V(ExternalByteElementsAccessor, EXTERNAL_BYTE_ELEMENTS,               \
-    ExternalByteArray)                                                  \
-  V(ExternalUnsignedByteElementsAccessor,                               \
-    EXTERNAL_UNSIGNED_BYTE_ELEMENTS, ExternalUnsignedByteArray)         \
-  V(ExternalShortElementsAccessor, EXTERNAL_SHORT_ELEMENTS,             \
-    ExternalShortArray)                                                 \
-  V(ExternalUnsignedShortElementsAccessor,                              \
-    EXTERNAL_UNSIGNED_SHORT_ELEMENTS, ExternalUnsignedShortArray)       \
-  V(ExternalIntElementsAccessor, EXTERNAL_INT_ELEMENTS,                 \
-    ExternalIntArray)                                                   \
-  V(ExternalUnsignedIntElementsAccessor,                                \
-    EXTERNAL_UNSIGNED_INT_ELEMENTS, ExternalUnsignedIntArray)           \
-  V(ExternalFloatElementsAccessor,                                      \
-    EXTERNAL_FLOAT_ELEMENTS, ExternalFloatArray)                        \
-  V(ExternalDoubleElementsAccessor,                                     \
-    EXTERNAL_DOUBLE_ELEMENTS, ExternalDoubleArray)                      \
-  V(PixelElementsAccessor, EXTERNAL_PIXEL_ELEMENTS, ExternalPixelArray) \
-  V(FixedUint8ArrayAccessor, UINT8_ELEMENTS, FixedUint8Array)           \
-  V(FixedInt8ArrayAccessor, INT8_ELEMENTS, FixedInt8Array)              \
-  V(FixedUint16ArrayAccessor, UINT16_ELEMENTS, FixedUint16Array)        \
-  V(FixedInt16ArrayAccessor, INT16_ELEMENTS, FixedInt16Array)           \
-  V(FixedUint32ArrayAccessor, UINT32_ELEMENTS, FixedUint32Array)        \
-  V(FixedInt32ArrayAccessor, INT32_ELEMENTS, FixedInt32Array)           \
-  V(FixedFloat32ArrayAccessor, FLOAT32_ELEMENTS, FixedFloat32Array)     \
-  V(FixedFloat64ArrayAccessor, FLOAT64_ELEMENTS, FixedFloat64Array)     \
-  V(FixedUint8ClampedArrayAccessor, UINT8_CLAMPED_ELEMENTS,             \
+  V(ExternalInt8ElementsAccessor, EXTERNAL_INT8_ELEMENTS,               \
+    ExternalInt8Array)                                                  \
+  V(ExternalUint8ElementsAccessor,                                      \
+    EXTERNAL_UINT8_ELEMENTS, ExternalUint8Array)                        \
+  V(ExternalInt16ElementsAccessor, EXTERNAL_INT16_ELEMENTS,             \
+    ExternalInt16Array)                                                 \
+  V(ExternalUint16ElementsAccessor,                                     \
+    EXTERNAL_UINT16_ELEMENTS, ExternalUint16Array)                      \
+  V(ExternalInt32ElementsAccessor, EXTERNAL_INT32_ELEMENTS,             \
+    ExternalInt32Array)                                                 \
+  V(ExternalUint32ElementsAccessor,                                     \
+    EXTERNAL_UINT32_ELEMENTS, ExternalUint32Array)                      \
+  V(ExternalFloat32ElementsAccessor,                                    \
+    EXTERNAL_FLOAT32_ELEMENTS, ExternalFloat32Array)                    \
+  V(ExternalFloat64ElementsAccessor,                                    \
+    EXTERNAL_FLOAT64_ELEMENTS, ExternalFloat64Array)                    \
+  V(ExternalUint8ClampedElementsAccessor,                               \
+    EXTERNAL_UINT8_CLAMPED_ELEMENTS,                                    \
+    ExternalUint8ClampedArray)                                          \
+  V(FixedUint8ElementsAccessor, UINT8_ELEMENTS, FixedUint8Array)        \
+  V(FixedInt8ElementsAccessor, INT8_ELEMENTS, FixedInt8Array)           \
+  V(FixedUint16ElementsAccessor, UINT16_ELEMENTS, FixedUint16Array)     \
+  V(FixedInt16ElementsAccessor, INT16_ELEMENTS, FixedInt16Array)        \
+  V(FixedUint32ElementsAccessor, UINT32_ELEMENTS, FixedUint32Array)     \
+  V(FixedInt32ElementsAccessor, INT32_ELEMENTS, FixedInt32Array)        \
+  V(FixedFloat32ElementsAccessor, FLOAT32_ELEMENTS, FixedFloat32Array)  \
+  V(FixedFloat64ElementsAccessor, FLOAT64_ELEMENTS, FixedFloat64Array)  \
+  V(FixedUint8ClampedElementsAccessor, UINT8_CLAMPED_ELEMENTS,          \
     FixedUint8ClampedArray)
 
 
@@ -1097,43 +1099,15 @@ static inline ElementsKind ElementsKindForArray(FixedArrayBase* array) {
       }
     case FIXED_DOUBLE_ARRAY_TYPE:
       return FAST_HOLEY_DOUBLE_ELEMENTS;
-    case EXTERNAL_BYTE_ARRAY_TYPE:
-      return EXTERNAL_BYTE_ELEMENTS;
-    case EXTERNAL_UNSIGNED_BYTE_ARRAY_TYPE:
-      return EXTERNAL_UNSIGNED_BYTE_ELEMENTS;
-    case EXTERNAL_SHORT_ARRAY_TYPE:
-      return EXTERNAL_SHORT_ELEMENTS;
-    case EXTERNAL_UNSIGNED_SHORT_ARRAY_TYPE:
-      return EXTERNAL_UNSIGNED_SHORT_ELEMENTS;
-    case EXTERNAL_INT_ARRAY_TYPE:
-      return EXTERNAL_INT_ELEMENTS;
-    case EXTERNAL_UNSIGNED_INT_ARRAY_TYPE:
-      return EXTERNAL_UNSIGNED_INT_ELEMENTS;
-    case EXTERNAL_FLOAT_ARRAY_TYPE:
-      return EXTERNAL_FLOAT_ELEMENTS;
-    case EXTERNAL_DOUBLE_ARRAY_TYPE:
-      return EXTERNAL_DOUBLE_ELEMENTS;
-    case EXTERNAL_PIXEL_ARRAY_TYPE:
-      return EXTERNAL_PIXEL_ELEMENTS;
 
-    case FIXED_UINT8_ARRAY_TYPE:
-      return UINT8_ELEMENTS;
-    case FIXED_INT8_ARRAY_TYPE:
-      return INT8_ELEMENTS;
-    case FIXED_UINT16_ARRAY_TYPE:
-      return UINT16_ELEMENTS;
-    case FIXED_INT16_ARRAY_TYPE:
-      return INT16_ELEMENTS;
-    case FIXED_UINT32_ARRAY_TYPE:
-      return UINT32_ELEMENTS;
-    case FIXED_INT32_ARRAY_TYPE:
-      return INT32_ELEMENTS;
-    case FIXED_FLOAT32_ARRAY_TYPE:
-      return FLOAT32_ELEMENTS;
-    case FIXED_FLOAT64_ARRAY_TYPE:
-      return FLOAT64_ELEMENTS;
-    case FIXED_UINT8_CLAMPED_ARRAY_TYPE:
-      return UINT8_CLAMPED_ELEMENTS;
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size)                       \
+    case EXTERNAL_##TYPE##_ARRAY_TYPE:                                        \
+      return EXTERNAL_##TYPE##_ELEMENTS;                                      \
+    case FIXED_##TYPE##_ARRAY_TYPE:                                           \
+      return TYPE##_ELEMENTS;
+
+    TYPED_ARRAYS(TYPED_ARRAY_CASE)
+#undef TYPED_ARRAY_CASE
 
     default:
       UNREACHABLE();
@@ -1188,25 +1162,12 @@ class FastSmiOrObjectElementsAccessor
         return CopyElementsImpl(arguments, from_start, to, from_kind,
                                 to_start, packed_size, copy_size);
       }
-      case EXTERNAL_BYTE_ELEMENTS:
-      case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
-      case EXTERNAL_SHORT_ELEMENTS:
-      case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
-      case EXTERNAL_INT_ELEMENTS:
-      case EXTERNAL_UNSIGNED_INT_ELEMENTS:
-      case EXTERNAL_FLOAT_ELEMENTS:
-      case EXTERNAL_DOUBLE_ELEMENTS:
-      case EXTERNAL_PIXEL_ELEMENTS:
-      case UINT8_ELEMENTS:
-      case INT8_ELEMENTS:
-      case UINT16_ELEMENTS:
-      case INT16_ELEMENTS:
-      case UINT32_ELEMENTS:
-      case INT32_ELEMENTS:
-      case FLOAT32_ELEMENTS:
-      case FLOAT64_ELEMENTS:
-      case UINT8_CLAMPED_ELEMENTS:
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size)                       \
+      case EXTERNAL_##TYPE##_ELEMENTS:                                        \
+      case TYPE##_ELEMENTS:                                                   \
         UNREACHABLE();
+      TYPED_ARRAYS(TYPED_ARRAY_CASE)
+#undef TYPED_ARRAY_CASE
     }
     return NULL;
   }
@@ -1322,25 +1283,14 @@ class FastDoubleElementsAccessor
             from, from_start, to, to_start, copy_size);
         break;
       case NON_STRICT_ARGUMENTS_ELEMENTS:
-      case EXTERNAL_BYTE_ELEMENTS:
-      case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
-      case EXTERNAL_SHORT_ELEMENTS:
-      case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
-      case EXTERNAL_INT_ELEMENTS:
-      case EXTERNAL_UNSIGNED_INT_ELEMENTS:
-      case EXTERNAL_FLOAT_ELEMENTS:
-      case EXTERNAL_DOUBLE_ELEMENTS:
-      case EXTERNAL_PIXEL_ELEMENTS:
-      case UINT8_ELEMENTS:
-      case INT8_ELEMENTS:
-      case UINT16_ELEMENTS:
-      case INT16_ELEMENTS:
-      case UINT32_ELEMENTS:
-      case INT32_ELEMENTS:
-      case FLOAT32_ELEMENTS:
-      case FLOAT64_ELEMENTS:
-      case UINT8_CLAMPED_ELEMENTS:
         UNREACHABLE();
+
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size)                       \
+      case EXTERNAL_##TYPE##_ELEMENTS:                                        \
+      case TYPE##_ELEMENTS:                                                   \
+        UNREACHABLE();
+      TYPED_ARRAYS(TYPED_ARRAY_CASE)
+#undef TYPED_ARRAY_CASE
     }
     return to->GetHeap()->undefined_value();
   }
@@ -1377,20 +1327,20 @@ class FastHoleyDoubleElementsAccessor
 
 
 // Super class for all external element arrays.
-template<typename AccessorSubclass,
-         ElementsKind Kind>
+template<ElementsKind Kind>
 class TypedElementsAccessor
-    : public ElementsAccessorBase<AccessorSubclass,
+    : public ElementsAccessorBase<TypedElementsAccessor<Kind>,
                                   ElementsKindTraits<Kind> > {
  public:
   explicit TypedElementsAccessor(const char* name)
-      : ElementsAccessorBase<AccessorSubclass,
+      : ElementsAccessorBase<AccessorClass,
                              ElementsKindTraits<Kind> >(name) {}
 
  protected:
   typedef typename ElementsKindTraits<Kind>::BackingStore BackingStore;
+  typedef TypedElementsAccessor<Kind> AccessorClass;
 
-  friend class ElementsAccessorBase<AccessorSubclass,
+  friend class ElementsAccessorBase<AccessorClass,
                                     ElementsKindTraits<Kind> >;
 
   MUST_USE_RESULT static MaybeObject* GetImpl(Object* receiver,
@@ -1398,7 +1348,7 @@ class TypedElementsAccessor
                                               uint32_t key,
                                               FixedArrayBase* backing_store) {
     return
-        key < AccessorSubclass::GetCapacityImpl(backing_store)
+        key < AccessorClass::GetCapacityImpl(backing_store)
         ? BackingStore::cast(backing_store)->get(key)
         : backing_store->GetHeap()->undefined_value();
   }
@@ -1409,7 +1359,7 @@ class TypedElementsAccessor
       uint32_t key,
       FixedArrayBase* backing_store) {
     return
-        key < AccessorSubclass::GetCapacityImpl(backing_store)
+        key < AccessorClass::GetCapacityImpl(backing_store)
           ? NONE : ABSENT;
   }
 
@@ -1419,7 +1369,7 @@ class TypedElementsAccessor
       uint32_t key,
       FixedArrayBase* backing_store) {
     return
-        key < AccessorSubclass::GetCapacityImpl(backing_store)
+        key < AccessorClass::GetCapacityImpl(backing_store)
           ? FIELD : NONEXISTENT;
   }
 
@@ -1444,175 +1394,28 @@ class TypedElementsAccessor
                              uint32_t key,
                              FixedArrayBase* backing_store) {
     uint32_t capacity =
-        AccessorSubclass::GetCapacityImpl(backing_store);
+        AccessorClass::GetCapacityImpl(backing_store);
     return key < capacity;
   }
 };
 
 
-class ExternalByteElementsAccessor
-    : public TypedElementsAccessor<ExternalByteElementsAccessor,
-                                   EXTERNAL_BYTE_ELEMENTS> {
- public:
-  explicit ExternalByteElementsAccessor(const char* name)
-      : TypedElementsAccessor<ExternalByteElementsAccessor,
-                              EXTERNAL_BYTE_ELEMENTS>(name) {}
-};
+
+#define EXTERNAL_ELEMENTS_ACCESSOR(Type, type, TYPE, ctype, size)    \
+  typedef TypedElementsAccessor<EXTERNAL_##TYPE##_ELEMENTS>          \
+      External##Type##ElementsAccessor;
+
+TYPED_ARRAYS(EXTERNAL_ELEMENTS_ACCESSOR)
+#undef EXTERNAL_ELEMENTS_ACCESSOR
+
+#define FIXED_ELEMENTS_ACCESSOR(Type, type, TYPE, ctype, size)       \
+  typedef TypedElementsAccessor<TYPE##_ELEMENTS >                    \
+      Fixed##Type##ElementsAccessor;
+
+TYPED_ARRAYS(FIXED_ELEMENTS_ACCESSOR)
+#undef FIXED_ELEMENTS_ACCESSOR
 
 
-class ExternalUnsignedByteElementsAccessor
-    : public TypedElementsAccessor<ExternalUnsignedByteElementsAccessor,
-                                   EXTERNAL_UNSIGNED_BYTE_ELEMENTS> {
- public:
-  explicit ExternalUnsignedByteElementsAccessor(const char* name)
-      : TypedElementsAccessor<ExternalUnsignedByteElementsAccessor,
-                              EXTERNAL_UNSIGNED_BYTE_ELEMENTS>(name) {}
-};
-
-
-class ExternalShortElementsAccessor
-    : public TypedElementsAccessor<ExternalShortElementsAccessor,
-                                   EXTERNAL_SHORT_ELEMENTS> {
- public:
-  explicit ExternalShortElementsAccessor(const char* name)
-      : TypedElementsAccessor<ExternalShortElementsAccessor,
-                              EXTERNAL_SHORT_ELEMENTS>(name) {}
-};
-
-
-class ExternalUnsignedShortElementsAccessor
-    : public TypedElementsAccessor<ExternalUnsignedShortElementsAccessor,
-                                   EXTERNAL_UNSIGNED_SHORT_ELEMENTS> {
- public:
-  explicit ExternalUnsignedShortElementsAccessor(const char* name)
-      : TypedElementsAccessor<ExternalUnsignedShortElementsAccessor,
-                              EXTERNAL_UNSIGNED_SHORT_ELEMENTS>(name) {}
-};
-
-
-class ExternalIntElementsAccessor
-    : public TypedElementsAccessor<ExternalIntElementsAccessor,
-                                   EXTERNAL_INT_ELEMENTS> {
- public:
-  explicit ExternalIntElementsAccessor(const char* name)
-      : TypedElementsAccessor<ExternalIntElementsAccessor,
-                              EXTERNAL_INT_ELEMENTS>(name) {}
-};
-
-
-class ExternalUnsignedIntElementsAccessor
-    : public TypedElementsAccessor<ExternalUnsignedIntElementsAccessor,
-                                   EXTERNAL_UNSIGNED_INT_ELEMENTS> {
- public:
-  explicit ExternalUnsignedIntElementsAccessor(const char* name)
-      : TypedElementsAccessor<ExternalUnsignedIntElementsAccessor,
-                                 EXTERNAL_UNSIGNED_INT_ELEMENTS>(name) {}
-};
-
-
-class ExternalFloatElementsAccessor
-    : public TypedElementsAccessor<ExternalFloatElementsAccessor,
-                                   EXTERNAL_FLOAT_ELEMENTS> {
- public:
-  explicit ExternalFloatElementsAccessor(const char* name)
-      : TypedElementsAccessor<ExternalFloatElementsAccessor,
-                              EXTERNAL_FLOAT_ELEMENTS>(name) {}
-};
-
-
-class ExternalDoubleElementsAccessor
-    : public TypedElementsAccessor<ExternalDoubleElementsAccessor,
-                                   EXTERNAL_DOUBLE_ELEMENTS> {
- public:
-  explicit ExternalDoubleElementsAccessor(const char* name)
-      : TypedElementsAccessor<ExternalDoubleElementsAccessor,
-                              EXTERNAL_DOUBLE_ELEMENTS>(name) {}
-};
-
-
-class PixelElementsAccessor
-    : public TypedElementsAccessor<PixelElementsAccessor,
-                                   EXTERNAL_PIXEL_ELEMENTS> {
- public:
-  explicit PixelElementsAccessor(const char* name)
-      : TypedElementsAccessor<PixelElementsAccessor,
-                              EXTERNAL_PIXEL_ELEMENTS>(name) {}
-};
-
-
-class FixedUint8ArrayAccessor
-    : public TypedElementsAccessor<FixedUint8ArrayAccessor,
-                                   UINT8_ELEMENTS> {
- public:
-  explicit FixedUint8ArrayAccessor(const char* name)
-      : TypedElementsAccessor<FixedUint8ArrayAccessor,
-                              UINT8_ELEMENTS>(name) {}
-};
-class FixedUint8ClampedArrayAccessor
-    : public TypedElementsAccessor<FixedUint8ClampedArrayAccessor,
-                                   UINT8_CLAMPED_ELEMENTS> {
- public:
-  explicit FixedUint8ClampedArrayAccessor(const char* name)
-      : TypedElementsAccessor<FixedUint8ClampedArrayAccessor,
-                              UINT8_CLAMPED_ELEMENTS>(name) {}
-};
-class FixedInt8ArrayAccessor
-    : public TypedElementsAccessor<FixedInt8ArrayAccessor,
-                                   INT8_ELEMENTS> {
- public:
-  explicit FixedInt8ArrayAccessor(const char* name)
-      : TypedElementsAccessor<FixedInt8ArrayAccessor,
-                              INT8_ELEMENTS>(name) {}
-};
-class FixedUint16ArrayAccessor
-    : public TypedElementsAccessor<FixedUint16ArrayAccessor,
-                                   UINT16_ELEMENTS> {
- public:
-  explicit FixedUint16ArrayAccessor(const char* name)
-      : TypedElementsAccessor<FixedUint16ArrayAccessor,
-                              UINT16_ELEMENTS>(name) {}
-};
-class FixedInt16ArrayAccessor
-    : public TypedElementsAccessor<FixedInt16ArrayAccessor,
-                                   INT16_ELEMENTS> {
- public:
-  explicit FixedInt16ArrayAccessor(const char* name)
-      : TypedElementsAccessor<FixedInt16ArrayAccessor,
-                              INT16_ELEMENTS>(name) {}
-};
-class FixedUint32ArrayAccessor
-    : public TypedElementsAccessor<FixedUint32ArrayAccessor,
-                                   UINT32_ELEMENTS> {
- public:
-  explicit FixedUint32ArrayAccessor(const char* name)
-      : TypedElementsAccessor<FixedUint32ArrayAccessor,
-                              UINT32_ELEMENTS>(name) {}
-};
-class FixedInt32ArrayAccessor
-    : public TypedElementsAccessor<FixedInt32ArrayAccessor,
-                                   INT32_ELEMENTS> {
- public:
-  explicit FixedInt32ArrayAccessor(const char* name)
-      : TypedElementsAccessor<FixedInt32ArrayAccessor,
-                              INT32_ELEMENTS>(name) {}
-};
-
-class FixedFloat32ArrayAccessor
-    : public TypedElementsAccessor<FixedFloat32ArrayAccessor,
-                                   FLOAT32_ELEMENTS> {
- public:
-  explicit FixedFloat32ArrayAccessor(const char* name)
-      : TypedElementsAccessor<FixedFloat32ArrayAccessor,
-                              FLOAT32_ELEMENTS>(name) {}
-};
-class FixedFloat64ArrayAccessor
-    : public TypedElementsAccessor<FixedFloat64ArrayAccessor,
-                                   FLOAT64_ELEMENTS> {
- public:
-  explicit FixedFloat64ArrayAccessor(const char* name)
-      : TypedElementsAccessor<FixedFloat64ArrayAccessor,
-                              FLOAT64_ELEMENTS>(name) {}
-};
 
 class DictionaryElementsAccessor
     : public ElementsAccessorBase<DictionaryElementsAccessor,

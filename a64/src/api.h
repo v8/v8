@@ -344,11 +344,11 @@ inline v8::Local<T> ToApiHandle(
   }
 
 
-#define MAKE_TO_LOCAL_TYPED_ARRAY(TypedArray, typeConst)                    \
-  Local<v8::TypedArray> Utils::ToLocal##TypedArray(                         \
+#define MAKE_TO_LOCAL_TYPED_ARRAY(Type, typeName, TYPE, ctype, size)        \
+  Local<v8::Type##Array> Utils::ToLocal##Type##Array(                       \
       v8::internal::Handle<v8::internal::JSTypedArray> obj) {               \
-    ASSERT(obj->type() == typeConst);                                       \
-    return Convert<v8::internal::JSTypedArray, v8::TypedArray>(obj);        \
+    ASSERT(obj->type() == kExternal##Type##Array);                          \
+    return Convert<v8::internal::JSTypedArray, v8::Type##Array>(obj);       \
   }
 
 
@@ -365,15 +365,7 @@ MAKE_TO_LOCAL(ToLocal, JSArrayBufferView, ArrayBufferView)
 MAKE_TO_LOCAL(ToLocal, JSDataView, DataView)
 MAKE_TO_LOCAL(ToLocal, JSTypedArray, TypedArray)
 
-MAKE_TO_LOCAL_TYPED_ARRAY(Uint8Array, kExternalUnsignedByteArray)
-MAKE_TO_LOCAL_TYPED_ARRAY(Uint8ClampedArray, kExternalPixelArray)
-MAKE_TO_LOCAL_TYPED_ARRAY(Int8Array, kExternalByteArray)
-MAKE_TO_LOCAL_TYPED_ARRAY(Uint16Array, kExternalUnsignedShortArray)
-MAKE_TO_LOCAL_TYPED_ARRAY(Int16Array, kExternalShortArray)
-MAKE_TO_LOCAL_TYPED_ARRAY(Uint32Array, kExternalUnsignedIntArray)
-MAKE_TO_LOCAL_TYPED_ARRAY(Int32Array, kExternalIntArray)
-MAKE_TO_LOCAL_TYPED_ARRAY(Float32Array, kExternalFloatArray)
-MAKE_TO_LOCAL_TYPED_ARRAY(Float64Array, kExternalDoubleArray)
+TYPED_ARRAYS(MAKE_TO_LOCAL_TYPED_ARRAY)
 
 MAKE_TO_LOCAL(ToLocal, FunctionTemplateInfo, FunctionTemplate)
 MAKE_TO_LOCAL(ToLocal, ObjectTemplateInfo, ObjectTemplate)

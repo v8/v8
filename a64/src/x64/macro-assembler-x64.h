@@ -391,7 +391,7 @@ class MacroAssembler: public Assembler {
 
   void InitializeSmiConstantRegister() {
     Move(kSmiConstantRegister, Smi::FromInt(kSmiConstantRegisterValue),
-         RelocInfo::NONE64);
+         Assembler::RelocInfoNone());
   }
 
   // Conversions between tagged smi values and non-tagged integer values.
@@ -877,7 +877,7 @@ class MacroAssembler: public Assembler {
             TypeFeedbackId ast_id = TypeFeedbackId::None());
 
   // The size of the code generated for different call instructions.
-  int CallSize(Address destination, RelocInfo::Mode rmode) {
+  int CallSize(Address destination) {
     return kCallSequenceLength;
   }
   int CallSize(ExternalReference ext);
@@ -1309,7 +1309,7 @@ class MacroAssembler: public Assembler {
   // from handle and propagates exceptions.  Clobbers r14, r15, rbx and
   // caller-save registers.  Restores context.  On return removes
   // stack_space * kPointerSize (GCed).
-  void CallApiFunctionAndReturn(Address function_address,
+  void CallApiFunctionAndReturn(Register function_address,
                                 Address thunk_address,
                                 Register thunk_last_arg,
                                 int stack_space,

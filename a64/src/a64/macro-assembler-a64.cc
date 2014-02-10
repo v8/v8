@@ -1321,8 +1321,7 @@ static int AddressOffset(ExternalReference ref0, ExternalReference ref1) {
 
 
 void MacroAssembler::CallApiFunctionAndReturn(
-    ExternalReference function,
-    Address function_address,
+    Register function_address,
     ExternalReference thunk_ref,
     Register thunk_last_arg,
     int stack_space,
@@ -1340,7 +1339,34 @@ void MacroAssembler::CallApiFunctionAndReturn(
       ExternalReference::handle_scope_level_address(isolate()),
       next_address);
 
+  ASSERT(function_address.Is(x3));
+  ASSERT(!AreAliased(function_address, thunk_last_arg, x1, x2));
+  // TODO(all): Why do we care about aliasing x2? (This function uses x1 as a
+  // scratch regiser.)
+
+  // TODO(all): Why isn't thunk_last_arg used?
+  USE(thunk_last_arg);
+
+  Label profiler_disabled;
+  Label end_profiler_check;
+  bool* is_profiling_flag = isolate()->cpu_profiler()->is_profiling_address();
+  STATIC_ASSERT(sizeof(*is_profiling_flag) == 1);
+  Mov(x10, reinterpret_cast<uintptr_t>(is_profiling_flag));
+  Ldrb(w10, MemOperand(x10));
+  Cbz(w10, &profiler_disabled);
+
+  // Additional parameter is the address of the actual callback.
+  Mov(function_address, Operand(thunk_ref));
+  // TODO(jbramley): Remove this once the no-op move at profiler_disabled is
+  // investigated.
+  B(&end_profiler_check);
+
+  Bind(&profiler_disabled);
+  // TODO(jbramley): ARM does a no-op move here. Why?
+  Bind(&end_profiler_check);
+
   // Save the callee-save registers we are going to use.
+  // TODO(all): Is this necessary? ARM doesn't do it.
   STATIC_ASSERT(kCallApiFunctionSpillSpace == 4);
   Poke(x19, (spill_offset + 0) * kXRegSizeInBytes);
   Poke(x20, (spill_offset + 1) * kXRegSizeInBytes);
@@ -1354,10 +1380,10 @@ void MacroAssembler::CallApiFunctionAndReturn(
   Register next_address_reg = x19;
   Register limit_reg = x20;
   Register level_reg = w21;
+
   Mov(handle_scope_base, Operand(next_address));
   Ldr(next_address_reg, MemOperand(handle_scope_base, kNextOffset));
   Ldr(limit_reg, MemOperand(handle_scope_base, kLimitOffset));
-
   Ldr(level_reg, MemOperand(handle_scope_base, kLevelOffset));
   Add(level_reg, level_reg, 1);
   Str(level_reg, MemOperand(handle_scope_base, kLevelOffset));
@@ -1370,32 +1396,11 @@ void MacroAssembler::CallApiFunctionAndReturn(
     PopSafepointRegisters();
   }
 
-  Label profiler_disabled;
-  Label end_profiler_check;
-  bool* is_profiling_flag = isolate()->cpu_profiler()->is_profiling_address();
-  STATIC_ASSERT(sizeof(*is_profiling_flag) == 1);
-  Mov(x10, reinterpret_cast<uintptr_t>(is_profiling_flag));
-  Ldrb(w10, MemOperand(x10));
-  Cbz(w10, &profiler_disabled);
-
-  Register function_reg = x10;
-  ASSERT(!AreAliased(thunk_last_arg, function_reg));
-
-  // Additional parameter is the address of the actual callback.
-  Mov(thunk_last_arg, reinterpret_cast<uintptr_t>(function_address));
-  Mov(function_reg, Operand(thunk_ref));
-  B(&end_profiler_check);
-
-  Bind(&profiler_disabled);
-  Mov(function_reg, Operand(function));
-
-  Bind(&end_profiler_check);
-
   // Native call returns to the DirectCEntry stub which redirects to the
   // return address pushed on stack (could have moved after GC).
   // DirectCEntry stub itself is generated early and never moves.
   DirectCEntryStub stub;
-  stub.GenerateCall(this, function_reg);
+  stub.GenerateCall(this, function_address);
 
   if (FLAG_log_timer_events) {
     FrameScope frame(this, StackFrame::MANUAL);
@@ -1409,10 +1414,9 @@ void MacroAssembler::CallApiFunctionAndReturn(
   Label exception_handled;
   Label delete_allocated_handles;
   Label leave_exit_frame;
-  Label result_is_not_null;
   Label return_value_loaded;
 
-  // load value from ReturnValue
+  // Load value from ReturnValue.
   Ldr(x0, return_value_operand);
   Bind(&return_value_loaded);
   // No more valid handles (the result handle was the last one). Restore
@@ -2876,7 +2880,7 @@ void MacroAssembler::Allocate(int object_size,
                               Register scratch2,
                               Label* gc_required,
                               AllocationFlags flags) {
-  ASSERT(object_size <= Page::kMaxNonCodeHeapObjectSize);
+  ASSERT(object_size <= Page::kMaxRegularHeapObjectSize);
   if (!FLAG_inline_new) {
     if (emit_debug_code()) {
       // Trash the registers to simulate an allocation failure.

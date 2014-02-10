@@ -1370,7 +1370,7 @@ LInstruction* LChunkBuilder::DoDiv(HDiv* instr) {
     // TODO(all): Update this case to support smi inputs.
     ASSERT(instr->left()->representation().Equals(instr->representation()));
     ASSERT(instr->right()->representation().Equals(instr->representation()));
-    if (instr->HasPowerOf2Divisor()) {
+    if (instr->RightIsPowerOf2()) {
       ASSERT(!instr->CheckFlag(HValue::kCanBeDivByZero));
       LOperand* value = UseRegisterAtStart(instr->left());
       LDivI* div = new(zone()) LDivI(value, UseConstant(instr->right()), NULL);
@@ -1659,7 +1659,7 @@ LInstruction* LChunkBuilder::DoLoadKeyed(HLoadKeyed* instr) {
     // An unsigned int array load might overflow and cause a deopt. Make sure it
     // has an environment.
     if (instr->RequiresHoleCheck() ||
-        elements_kind == EXTERNAL_UNSIGNED_INT_ELEMENTS ||
+        elements_kind == EXTERNAL_UINT32_ELEMENTS ||
         elements_kind == UINT32_ELEMENTS) {
       return AssignEnvironment(DefineAsRegister(result));
     } else {
@@ -1703,26 +1703,6 @@ LInstruction* LChunkBuilder::DoMapEnumLength(HMapEnumLength* instr) {
 }
 
 
-HValue* LChunkBuilder::SimplifiedDivisorForMathFloorOfDiv(HValue* divisor) {
-  // A value with an integer representation does not need to be transformed.
-  if (divisor->representation().IsInteger32()) {
-    return divisor;
-  // A change from an integer32 can be replaced by the integer32 value.
-  } else if (divisor->IsChange() &&
-             HChange::cast(divisor)->from().IsInteger32()) {
-    return HChange::cast(divisor)->value();
-  }
-
-  if (divisor->IsConstant() && HConstant::cast(divisor)->HasInteger32Value()) {
-    HConstant* constant_val = HConstant::cast(divisor);
-    return constant_val->CopyToRepresentation(Representation::Integer32(),
-                                              divisor->block()->zone());
-  }
-
-  return NULL;
-}
-
-
 LInstruction* LChunkBuilder::DoMathFloorOfDiv(HMathFloorOfDiv* instr) {
   HValue* right = instr->right();
   LOperand* dividend = UseRegister(instr->left());
@@ -1763,7 +1743,7 @@ LInstruction* LChunkBuilder::DoMod(HMod* hmod) {
     LOperand* left_op;
     LOperand* right_op;
 
-    if (hmod->HasPowerOf2Divisor()) {
+    if (hmod->RightIsPowerOf2()) {
       left_op = UseRegisterAtStart(hleft);
       right_op = UseConstant(hright);
     } else {

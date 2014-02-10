@@ -918,7 +918,7 @@ TEST(Iteration) {
       factory->NewStringFromAscii(CStrVector("abcdefghij"), TENURED);
 
   // Allocate a large string (for large object space).
-  int large_size = Page::kMaxNonCodeHeapObjectSize + 1;
+  int large_size = Page::kMaxRegularHeapObjectSize + 1;
   char* str = new char[large_size];
   for (int i = 0; i < large_size - 1; ++i) str[i] = 'a';
   str[large_size - 1] = '\0';
@@ -987,7 +987,7 @@ TEST(Regression39128) {
   // just enough room to allocate JSObject and thus fill the newspace.
 
   int allocation_amount = Min(FixedArray::kMaxSize,
-                              Page::kMaxNonCodeHeapObjectSize + kPointerSize);
+                              Page::kMaxRegularHeapObjectSize + kPointerSize);
   int allocation_len = LenFromSize(allocation_amount);
   NewSpace* new_space = heap->new_space();
   Address* top_addr = new_space->allocation_top_address();

@@ -131,9 +131,9 @@ enum BindingFlags {
   V(INT16_ARRAY_FUN_INDEX, JSFunction, int16_array_fun) \
   V(UINT32_ARRAY_FUN_INDEX, JSFunction, uint32_array_fun) \
   V(INT32_ARRAY_FUN_INDEX, JSFunction, int32_array_fun) \
-  V(FLOAT_ARRAY_FUN_INDEX, JSFunction, float_array_fun) \
-  V(DOUBLE_ARRAY_FUN_INDEX, JSFunction, double_array_fun) \
-  V(UINT8C_ARRAY_FUN_INDEX, JSFunction, uint8c_array_fun) \
+  V(FLOAT32_ARRAY_FUN_INDEX, JSFunction, float32_array_fun) \
+  V(FLOAT64_ARRAY_FUN_INDEX, JSFunction, float64_array_fun) \
+  V(UINT8_CLAMPED_ARRAY_FUN_INDEX, JSFunction, uint8_clamped_array_fun) \
   V(DATA_VIEW_FUN_INDEX, JSFunction, data_view_fun) \
   V(FUNCTION_MAP_INDEX, Map, function_map) \
   V(STRICT_MODE_FUNCTION_MAP_INDEX, Map, strict_mode_function_map) \
@@ -296,9 +296,9 @@ class Context: public FixedArray {
     INT16_ARRAY_FUN_INDEX,
     UINT32_ARRAY_FUN_INDEX,
     INT32_ARRAY_FUN_INDEX,
-    FLOAT_ARRAY_FUN_INDEX,
-    DOUBLE_ARRAY_FUN_INDEX,
-    UINT8C_ARRAY_FUN_INDEX,
+    FLOAT32_ARRAY_FUN_INDEX,
+    FLOAT64_ARRAY_FUN_INDEX,
+    UINT8_CLAMPED_ARRAY_FUN_INDEX,
     DATA_VIEW_FUN_INDEX,
     MESSAGE_LISTENERS_INDEX,
     MAKE_MESSAGE_FUN_INDEX,

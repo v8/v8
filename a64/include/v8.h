@@ -2000,15 +2000,26 @@ enum PropertyAttribute {
 };
 
 enum ExternalArrayType {
-  kExternalByteArray = 1,
-  kExternalUnsignedByteArray,
-  kExternalShortArray,
-  kExternalUnsignedShortArray,
-  kExternalIntArray,
-  kExternalUnsignedIntArray,
-  kExternalFloatArray,
-  kExternalDoubleArray,
-  kExternalPixelArray
+  kExternalInt8Array = 1,
+  kExternalUint8Array,
+  kExternalInt16Array,
+  kExternalUint16Array,
+  kExternalInt32Array,
+  kExternalUint32Array,
+  kExternalFloat32Array,
+  kExternalFloat64Array,
+  kExternalUint8ClampedArray,
+
+  // Legacy constant names
+  kExternalByteArray = kExternalInt8Array,
+  kExternalUnsignedByteArray = kExternalUint8Array,
+  kExternalShortArray = kExternalInt16Array,
+  kExternalUnsignedShortArray = kExternalUint16Array,
+  kExternalIntArray = kExternalInt32Array,
+  kExternalUnsignedIntArray = kExternalUint32Array,
+  kExternalFloatArray = kExternalFloat32Array,
+  kExternalDoubleArray = kExternalFloat64Array,
+  kExternalPixelArray = kExternalUint8ClampedArray
 };
 
 /**

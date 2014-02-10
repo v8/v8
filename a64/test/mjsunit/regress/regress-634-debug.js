@@ -1,4 +1,4 @@
-// Copyright 2013 the V8 project authors. All rights reserved.
+// Copyright 2014 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,18 +25,17 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Test to exceed the Page::MaxRegularHeapObjectSize with an array
-// constructor call taking many arguments.
+// Flags: --allow-natives-syntax
 
-function boom() {
-  var args = [];
-  for (var i = 0; i < 125000; i++) {
-    args.push(i);
-  }
-  return Array.apply(Array, args);
+function f() {
+  %SetAllocationTimeout(1, 0, false);
+  a = new Array(0);
+  assertEquals(0, a.length);
+  assertEquals(0, a.length);
+  %SetAllocationTimeout(-1, -1, true);
 }
 
-var array = boom();
-
-assertEquals(125000, array.length);
-assertEquals(124999, array[124999]);
+f();
+f();
+%OptimizeFunctionOnNextCall(f);
+f();

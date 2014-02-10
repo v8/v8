@@ -101,8 +101,7 @@ gc();
 assertEquals(result[1], 4);
 assertEquals(result2[1], 6);
 
-// Test to exceed the Heap::MaxRegularSpaceAllocationSize limit but not
-// the Page::kMaxNonCodeHeapObjectSize limit with allocation folding.
+// Test to almost exceed the Page::MaxRegularHeapObjectSize limit.
 
 function boom() {
   var a1 = new Array(84632);

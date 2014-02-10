@@ -1081,6 +1081,7 @@ class Isolate {
   enum CallDescriptorKey {
     KeyedCall,
     NamedCall,
+    CallHandler,
     ArgumentAdaptorCall,
     NUMBER_OF_CALL_DESCRIPTORS
   };

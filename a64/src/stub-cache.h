@@ -868,12 +868,6 @@ class KeyedStoreStubCompiler: public StoreStubCompiler {
 };
 
 
-// Subset of FUNCTIONS_WITH_ID_LIST with custom constant/global call
-// IC stubs.
-#define CUSTOM_CALL_IC_GENERATORS(V)            \
-  V(ArrayPush)
-
-
 class CallStubCompiler: public StubCompiler {
  public:
   CallStubCompiler(Isolate* isolate,
@@ -939,16 +933,6 @@ class CallStubCompiler: public StubCompiler {
                                  Handle<JSFunction> function,
                                  Handle<String> name,
                                  Code::StubType type);
-
-#define DECLARE_CALL_GENERATOR(name)                                    \
-  Handle<Code> Compile##name##Call(Handle<Object> object,               \
-                                   Handle<JSObject> holder,             \
-                                   Handle<Cell> cell,                   \
-                                   Handle<JSFunction> function,         \
-                                   Handle<String> fname,                \
-                                   Code::StubType type);
-  CUSTOM_CALL_IC_GENERATORS(DECLARE_CALL_GENERATOR)
-#undef DECLARE_CALL_GENERATOR
 
   Handle<Code> CompileFastApiCall(const CallOptimization& optimization,
                                   Handle<Object> object,

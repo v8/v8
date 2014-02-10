@@ -857,12 +857,15 @@ static byte* GetNoCodeAgeSequence(uint32_t* length) {
   byte* byte_sequence = reinterpret_cast<byte*>(sequence);
   *length = kNoCodeAgeSequenceLength * Assembler::kInstrSize;
   if (!initialized) {
-    CodePatcher patcher(byte_sequence, kNoCodeAgeSequenceLength);
-    PredictableCodeSizeScope scope(patcher.masm(), *length);
-    patcher.masm()->PushFixedFrame(r1);
-    patcher.masm()->nop(ip.code());
-    patcher.masm()->add(fp, sp,
-                        Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
+    // Since patcher is a large object, allocate it dynamically when needed,
+    // to avoid overloading the stack in stress conditions.
+    SmartPointer<CodePatcher>
+        patcher(new CodePatcher(byte_sequence, kNoCodeAgeSequenceLength));
+    PredictableCodeSizeScope scope(patcher->masm(), *length);
+    patcher->masm()->PushFixedFrame(r1);
+    patcher->masm()->nop(ip.code());
+    patcher->masm()->add(
+        fp, sp, Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
     initialized = true;
   }
   return byte_sequence;

@@ -1,4 +1,4 @@
-// Copyright 2013 the V8 project authors. All rights reserved.
+// Copyright 2014 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,18 +25,20 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Test to exceed the Page::MaxRegularHeapObjectSize with an array
-// constructor call taking many arguments.
+// Flags: --allow-natives-syntax
 
-function boom() {
-  var args = [];
-  for (var i = 0; i < 125000; i++) {
-    args.push(i);
+// Try to get a GC because of a heap number allocation while we
+// have live values (o) in a register.
+function f(o) {
+  var x = 1.5;
+  var y = 2.5;
+  for (var i = 1; i < 3; i += 1) {
+    %SetAllocationTimeout(1, 0, false);
+    o.val = x + y + i;
+    %SetAllocationTimeout(-1, -1, true);
   }
-  return Array.apply(Array, args);
+  return o;
 }
 
-var array = boom();
-
-assertEquals(125000, array.length);
-assertEquals(124999, array[124999]);
+var o = { val: 0 };
+f(o);

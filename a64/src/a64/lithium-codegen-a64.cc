@@ -2521,7 +2521,7 @@ void LCodeGen::DoDivI(LDivI* instr) {
   Register dividend = ToRegister32(instr->left());
   Register result = ToRegister32(instr->result());
 
-  bool has_power_of_2_divisor = instr->hydrogen()->HasPowerOf2Divisor();
+  bool has_power_of_2_divisor = instr->hydrogen()->RightIsPowerOf2();
   bool can_overflow = instr->hydrogen()->CheckFlag(HValue::kCanOverflow);
   bool bailout_on_minus_zero =
       instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero);
@@ -3358,12 +3358,12 @@ void LCodeGen::DoLoadKeyedExternal(LLoadKeyedExternal* instr) {
                                        elements_kind,
                                        instr->additional_index());
 
-  if ((elements_kind == EXTERNAL_FLOAT_ELEMENTS) ||
+  if ((elements_kind == EXTERNAL_FLOAT32_ELEMENTS) ||
       (elements_kind == FLOAT32_ELEMENTS)) {
     DoubleRegister result = ToDoubleRegister(instr->result());
     __ Ldr(result.S(), mem_op);
     __ Fcvt(result, result.S());
-  } else if ((elements_kind == EXTERNAL_DOUBLE_ELEMENTS) ||
+  } else if ((elements_kind == EXTERNAL_FLOAT64_ELEMENTS) ||
              (elements_kind == FLOAT64_ELEMENTS)) {
     DoubleRegister result = ToDoubleRegister(instr->result());
     __ Ldr(result, mem_op);
@@ -3371,29 +3371,29 @@ void LCodeGen::DoLoadKeyedExternal(LLoadKeyedExternal* instr) {
     Register result = ToRegister(instr->result());
 
     switch (elements_kind) {
-      case EXTERNAL_BYTE_ELEMENTS:
+      case EXTERNAL_INT8_ELEMENTS:
       case INT8_ELEMENTS:
         __ Ldrsb(result, mem_op);
         break;
-      case EXTERNAL_PIXEL_ELEMENTS:
-      case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
+      case EXTERNAL_UINT8_CLAMPED_ELEMENTS:
+      case EXTERNAL_UINT8_ELEMENTS:
       case UINT8_ELEMENTS:
       case UINT8_CLAMPED_ELEMENTS:
         __ Ldrb(result, mem_op);
         break;
-      case EXTERNAL_SHORT_ELEMENTS:
+      case EXTERNAL_INT16_ELEMENTS:
       case INT16_ELEMENTS:
         __ Ldrsh(result, mem_op);
         break;
-      case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
+      case EXTERNAL_UINT16_ELEMENTS:
       case UINT16_ELEMENTS:
         __ Ldrh(result, mem_op);
         break;
-      case EXTERNAL_INT_ELEMENTS:
+      case EXTERNAL_INT32_ELEMENTS:
       case INT32_ELEMENTS:
         __ Ldrsw(result, mem_op);
         break;
-      case EXTERNAL_UNSIGNED_INT_ELEMENTS:
+      case EXTERNAL_UINT32_ELEMENTS:
       case UINT32_ELEMENTS:
         __ Ldr(result.W(), mem_op);
         if (!instr->hydrogen()->CheckFlag(HInstruction::kUint32)) {
@@ -3404,8 +3404,8 @@ void LCodeGen::DoLoadKeyedExternal(LLoadKeyedExternal* instr) {
         break;
       case FLOAT32_ELEMENTS:
       case FLOAT64_ELEMENTS:
-      case EXTERNAL_FLOAT_ELEMENTS:
-      case EXTERNAL_DOUBLE_ELEMENTS:
+      case EXTERNAL_FLOAT32_ELEMENTS:
+      case EXTERNAL_FLOAT64_ELEMENTS:
       case FAST_HOLEY_DOUBLE_ELEMENTS:
       case FAST_HOLEY_ELEMENTS:
       case FAST_HOLEY_SMI_ELEMENTS:
@@ -4012,7 +4012,7 @@ void LCodeGen::DoModI(LModI* instr) {
   bool need_minus_zero_check = (hmod->CheckFlag(HValue::kBailoutOnMinusZero) &&
                                 hleft->CanBeNegative() && hmod->CanBeZero());
 
-  if (hmod->HasPowerOf2Divisor()) {
+  if (hmod->RightIsPowerOf2()) {
     // Note: The code below even works when right contains kMinInt.
     int32_t divisor = Abs(hright->GetInteger32Constant());
 
@@ -4843,13 +4843,13 @@ void LCodeGen::DoStoreKeyedExternal(LStoreKeyedExternal* instr) {
                                      elements_kind,
                                      instr->additional_index());
 
-  if ((elements_kind == EXTERNAL_FLOAT_ELEMENTS) ||
+  if ((elements_kind == EXTERNAL_FLOAT32_ELEMENTS) ||
       (elements_kind == FLOAT32_ELEMENTS)) {
     DoubleRegister value = ToDoubleRegister(instr->value());
     DoubleRegister dbl_scratch = double_scratch();
     __ Fcvt(dbl_scratch.S(), value);
     __ Str(dbl_scratch.S(), dst);
-  } else if ((elements_kind == EXTERNAL_DOUBLE_ELEMENTS) ||
+  } else if ((elements_kind == EXTERNAL_FLOAT64_ELEMENTS) ||
              (elements_kind == FLOAT64_ELEMENTS)) {
     DoubleRegister value = ToDoubleRegister(instr->value());
     __ Str(value, dst);
@@ -4857,30 +4857,30 @@ void LCodeGen::DoStoreKeyedExternal(LStoreKeyedExternal* instr) {
     Register value = ToRegister(instr->value());
 
     switch (elements_kind) {
-      case EXTERNAL_PIXEL_ELEMENTS:
-      case EXTERNAL_BYTE_ELEMENTS:
-      case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
+      case EXTERNAL_UINT8_CLAMPED_ELEMENTS:
+      case EXTERNAL_INT8_ELEMENTS:
+      case EXTERNAL_UINT8_ELEMENTS:
       case UINT8_ELEMENTS:
       case UINT8_CLAMPED_ELEMENTS:
       case INT8_ELEMENTS:
         __ Strb(value, dst);
         break;
-      case EXTERNAL_SHORT_ELEMENTS:
-      case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
+      case EXTERNAL_INT16_ELEMENTS:
+      case EXTERNAL_UINT16_ELEMENTS:
       case INT16_ELEMENTS:
       case UINT16_ELEMENTS:
         __ Strh(value, dst);
         break;
-      case EXTERNAL_INT_ELEMENTS:
-      case EXTERNAL_UNSIGNED_INT_ELEMENTS:
+      case EXTERNAL_INT32_ELEMENTS:
+      case EXTERNAL_UINT32_ELEMENTS:
       case INT32_ELEMENTS:
       case UINT32_ELEMENTS:
         __ Str(value.W(), dst);
         break;
       case FLOAT32_ELEMENTS:
       case FLOAT64_ELEMENTS:
-      case EXTERNAL_FLOAT_ELEMENTS:
-      case EXTERNAL_DOUBLE_ELEMENTS:
+      case EXTERNAL_FLOAT32_ELEMENTS:
+      case EXTERNAL_FLOAT64_ELEMENTS:
       case FAST_DOUBLE_ELEMENTS:
       case FAST_ELEMENTS:
       case FAST_SMI_ELEMENTS:

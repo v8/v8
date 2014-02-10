@@ -2831,7 +2831,6 @@ class LChunkBuilder V8_FINAL : public LChunkBuilderBase {
 #undef DECLARE_DO
 
   static bool HasMagicNumberForDivision(int32_t divisor);
-  static HValue* SimplifiedDivisorForMathFloorOfDiv(HValue* val);
 
  private:
   enum Status {

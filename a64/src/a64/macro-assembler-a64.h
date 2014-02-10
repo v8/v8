@@ -994,8 +994,7 @@ class MacroAssembler : public Assembler {
   // arguments space and the additional space allocated for the fast call).
   // 'spill_offset' is the offset from the stack pointer where
   // CallApiFunctionAndReturn can spill registers.
-  void CallApiFunctionAndReturn(ExternalReference function,
-                                Address function_address,
+  void CallApiFunctionAndReturn(Register function_address,
                                 ExternalReference thunk_ref,
                                 Register thunk_last_arg,
                                 int stack_space,

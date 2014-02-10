@@ -2282,7 +2282,7 @@ class ScavengingVisitor : public StaticVisitorBase {
                                     HeapObject** slot,
                                     HeapObject* object,
                                     int object_size) {
-    SLOW_ASSERT(object_size <= Page::kMaxNonCodeHeapObjectSize);
+    SLOW_ASSERT(object_size <= Page::kMaxRegularHeapObjectSize);
     SLOW_ASSERT(object->Size() == object_size);
 
     int allocation_size = object_size;
@@ -2833,31 +2833,19 @@ bool Heap::CreateInitialMaps() {
     ALLOCATE_VARSIZE_MAP(BYTE_ARRAY_TYPE, byte_array)
     ALLOCATE_VARSIZE_MAP(FREE_SPACE_TYPE, free_space)
 
-#define ALLOCATE_EXTERNAL_ARRAY_MAP(TYPE, type)                               \
+#define ALLOCATE_EXTERNAL_ARRAY_MAP(Type, type, TYPE, ctype, size)            \
     ALLOCATE_MAP(EXTERNAL_##TYPE##_ARRAY_TYPE, ExternalArray::kAlignedSize,   \
         external_##type##_array)
 
-    ALLOCATE_EXTERNAL_ARRAY_MAP(PIXEL, pixel)
-    ALLOCATE_EXTERNAL_ARRAY_MAP(BYTE, byte)
-    ALLOCATE_EXTERNAL_ARRAY_MAP(UNSIGNED_BYTE, unsigned_byte)
-    ALLOCATE_EXTERNAL_ARRAY_MAP(SHORT, short)  // NOLINT
-    ALLOCATE_EXTERNAL_ARRAY_MAP(UNSIGNED_SHORT, unsigned_short)
-    ALLOCATE_EXTERNAL_ARRAY_MAP(INT, int)
-    ALLOCATE_EXTERNAL_ARRAY_MAP(UNSIGNED_INT, unsigned_int)
-    ALLOCATE_EXTERNAL_ARRAY_MAP(FLOAT, float)
-    ALLOCATE_EXTERNAL_ARRAY_MAP(DOUBLE, double)
+     TYPED_ARRAYS(ALLOCATE_EXTERNAL_ARRAY_MAP)
 #undef ALLOCATE_EXTERNAL_ARRAY_MAP
 
-    ALLOCATE_VARSIZE_MAP(FIXED_UINT8_ARRAY_TYPE, fixed_uint8_array)
-    ALLOCATE_VARSIZE_MAP(FIXED_UINT8_CLAMPED_ARRAY_TYPE,
-        fixed_uint8_clamped_array)
-    ALLOCATE_VARSIZE_MAP(FIXED_INT8_ARRAY_TYPE, fixed_int8_array)
-    ALLOCATE_VARSIZE_MAP(FIXED_UINT16_ARRAY_TYPE, fixed_uint16_array)
-    ALLOCATE_VARSIZE_MAP(FIXED_INT16_ARRAY_TYPE, fixed_int16_array)
-    ALLOCATE_VARSIZE_MAP(FIXED_UINT32_ARRAY_TYPE, fixed_uint32_array)
-    ALLOCATE_VARSIZE_MAP(FIXED_INT32_ARRAY_TYPE, fixed_int32_array)
-    ALLOCATE_VARSIZE_MAP(FIXED_FLOAT32_ARRAY_TYPE, fixed_float32_array)
-    ALLOCATE_VARSIZE_MAP(FIXED_FLOAT64_ARRAY_TYPE, fixed_float64_array)
+#define ALLOCATE_FIXED_TYPED_ARRAY_MAP(Type, type, TYPE, ctype, size)         \
+    ALLOCATE_VARSIZE_MAP(FIXED_##TYPE##_ARRAY_TYPE,                           \
+        fixed_##type##_array)
+
+     TYPED_ARRAYS(ALLOCATE_FIXED_TYPED_ARRAY_MAP)
+#undef ALLOCATE_FIXED_TYPED_ARRAY_MAP
 
     ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, non_strict_arguments_elements)
 
@@ -2909,22 +2897,14 @@ bool Heap::CreateInitialMaps() {
       set_empty_byte_array(byte_array);
     }
 
-#define ALLOCATE_EMPTY_EXTERNAL_ARRAY(Type, type)                              \
+#define ALLOCATE_EMPTY_EXTERNAL_ARRAY(Type, type, TYPE, ctype, size)           \
     { ExternalArray* obj;                                                      \
       if (!AllocateEmptyExternalArray(kExternal##Type##Array)->To(&obj))       \
           return false;                                                        \
       set_empty_external_##type##_array(obj);                                  \
     }
 
-    ALLOCATE_EMPTY_EXTERNAL_ARRAY(Byte, byte)
-    ALLOCATE_EMPTY_EXTERNAL_ARRAY(UnsignedByte, unsigned_byte)
-    ALLOCATE_EMPTY_EXTERNAL_ARRAY(Short, short)  // NOLINT
-    ALLOCATE_EMPTY_EXTERNAL_ARRAY(UnsignedShort, unsigned_short)
-    ALLOCATE_EMPTY_EXTERNAL_ARRAY(Int, int)
-    ALLOCATE_EMPTY_EXTERNAL_ARRAY(UnsignedInt, unsigned_int)
-    ALLOCATE_EMPTY_EXTERNAL_ARRAY(Float, float)
-    ALLOCATE_EMPTY_EXTERNAL_ARRAY(Double, double)
-    ALLOCATE_EMPTY_EXTERNAL_ARRAY(Pixel, pixel)
+    TYPED_ARRAYS(ALLOCATE_EMPTY_EXTERNAL_ARRAY)
 #undef ALLOCATE_EMPTY_EXTERNAL_ARRAY
   }
   ASSERT(!InNewSpace(empty_fixed_array()));
@@ -2936,7 +2916,8 @@ MaybeObject* Heap::AllocateHeapNumber(double value, PretenureFlag pretenure) {
   // Statically ensure that it is safe to allocate heap numbers in paged
   // spaces.
   int size = HeapNumber::kSize;
-  STATIC_ASSERT(HeapNumber::kSize <= Page::kNonCodeObjectAreaSize);
+  STATIC_ASSERT(HeapNumber::kSize <= Page::kMaxRegularHeapObjectSize);
+
   AllocationSpace space = SelectSpace(size, OLD_DATA_SPACE, pretenure);
 
   Object* result;
@@ -2952,7 +2933,7 @@ MaybeObject* Heap::AllocateHeapNumber(double value, PretenureFlag pretenure) {
 
 MaybeObject* Heap::AllocateCell(Object* value) {
   int size = Cell::kSize;
-  STATIC_ASSERT(Cell::kSize <= Page::kNonCodeObjectAreaSize);
+  STATIC_ASSERT(Cell::kSize <= Page::kMaxRegularHeapObjectSize);
 
   Object* result;
   { MaybeObject* maybe_result = AllocateRaw(size, CELL_SPACE, CELL_SPACE);
@@ -2966,7 +2947,7 @@ MaybeObject* Heap::AllocateCell(Object* value) {
 
 MaybeObject* Heap::AllocatePropertyCell() {
   int size = PropertyCell::kSize;
-  STATIC_ASSERT(PropertyCell::kSize <= Page::kNonCodeObjectAreaSize);
+  STATIC_ASSERT(PropertyCell::kSize <= Page::kMaxRegularHeapObjectSize);
 
   Object* result;
   MaybeObject* maybe_result =
@@ -3617,24 +3598,13 @@ Map* Heap::MapForExternalArrayType(ExternalArrayType array_type) {
 Heap::RootListIndex Heap::RootIndexForExternalArrayType(
     ExternalArrayType array_type) {
   switch (array_type) {
-    case kExternalByteArray:
-      return kExternalByteArrayMapRootIndex;
-    case kExternalUnsignedByteArray:
-      return kExternalUnsignedByteArrayMapRootIndex;
-    case kExternalShortArray:
-      return kExternalShortArrayMapRootIndex;
-    case kExternalUnsignedShortArray:
-      return kExternalUnsignedShortArrayMapRootIndex;
-    case kExternalIntArray:
-      return kExternalIntArrayMapRootIndex;
-    case kExternalUnsignedIntArray:
-      return kExternalUnsignedIntArrayMapRootIndex;
-    case kExternalFloatArray:
-      return kExternalFloatArrayMapRootIndex;
-    case kExternalDoubleArray:
-      return kExternalDoubleArrayMapRootIndex;
-    case kExternalPixelArray:
-      return kExternalPixelArrayMapRootIndex;
+#define ARRAY_TYPE_TO_ROOT_INDEX(Type, type, TYPE, ctype, size)               \
+    case kExternal##Type##Array:                                              \
+      return kExternal##Type##ArrayMapRootIndex;
+
+    TYPED_ARRAYS(ARRAY_TYPE_TO_ROOT_INDEX)
+#undef ARRAY_TYPE_TO_ROOT_INDEX
+
     default:
       UNREACHABLE();
       return kUndefinedValueRootIndex;
@@ -3650,24 +3620,13 @@ Map* Heap::MapForFixedTypedArray(ExternalArrayType array_type) {
 Heap::RootListIndex Heap::RootIndexForFixedTypedArray(
     ExternalArrayType array_type) {
   switch (array_type) {
-    case kExternalByteArray:
-      return kFixedInt8ArrayMapRootIndex;
-    case kExternalUnsignedByteArray:
-      return kFixedUint8ArrayMapRootIndex;
-    case kExternalShortArray:
-      return kFixedInt16ArrayMapRootIndex;
-    case kExternalUnsignedShortArray:
-      return kFixedUint16ArrayMapRootIndex;
-    case kExternalIntArray:
-      return kFixedInt32ArrayMapRootIndex;
-    case kExternalUnsignedIntArray:
-      return kFixedUint32ArrayMapRootIndex;
-    case kExternalFloatArray:
-      return kFixedFloat32ArrayMapRootIndex;
-    case kExternalDoubleArray:
-      return kFixedFloat64ArrayMapRootIndex;
-    case kExternalPixelArray:
-      return kFixedUint8ClampedArrayMapRootIndex;
+#define ARRAY_TYPE_TO_ROOT_INDEX(Type, type, TYPE, ctype, size)               \
+    case kExternal##Type##Array:                                              \
+      return kFixed##Type##ArrayMapRootIndex;
+
+    TYPED_ARRAYS(ARRAY_TYPE_TO_ROOT_INDEX)
+#undef ARRAY_TYPE_TO_ROOT_INDEX
+
     default:
       UNREACHABLE();
       return kUndefinedValueRootIndex;
@@ -3678,24 +3637,13 @@ Heap::RootListIndex Heap::RootIndexForFixedTypedArray(
 Heap::RootListIndex Heap::RootIndexForEmptyExternalArray(
     ElementsKind elementsKind) {
   switch (elementsKind) {
-    case EXTERNAL_BYTE_ELEMENTS:
-      return kEmptyExternalByteArrayRootIndex;
-    case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
-      return kEmptyExternalUnsignedByteArrayRootIndex;
-    case EXTERNAL_SHORT_ELEMENTS:
-      return kEmptyExternalShortArrayRootIndex;
-    case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
-      return kEmptyExternalUnsignedShortArrayRootIndex;
-    case EXTERNAL_INT_ELEMENTS:
-      return kEmptyExternalIntArrayRootIndex;
-    case EXTERNAL_UNSIGNED_INT_ELEMENTS:
-      return kEmptyExternalUnsignedIntArrayRootIndex;
-    case EXTERNAL_FLOAT_ELEMENTS:
-      return kEmptyExternalFloatArrayRootIndex;
-    case EXTERNAL_DOUBLE_ELEMENTS:
-      return kEmptyExternalDoubleArrayRootIndex;
-    case EXTERNAL_PIXEL_ELEMENTS:
-      return kEmptyExternalPixelArrayRootIndex;
+#define ELEMENT_KIND_TO_ROOT_INDEX(Type, type, TYPE, ctype, size)             \
+    case EXTERNAL_##TYPE##_ELEMENTS:                                          \
+      return kEmptyExternal##Type##ArrayRootIndex;
+
+    TYPED_ARRAYS(ELEMENT_KIND_TO_ROOT_INDEX)
+#undef ELEMENT_KIND_TO_ROOT_INDEX
+
     default:
       UNREACHABLE();
       return kUndefinedValueRootIndex;
@@ -3729,7 +3677,7 @@ MaybeObject* Heap::NumberFromDouble(double value, PretenureFlag pretenure) {
 
 MaybeObject* Heap::AllocateForeign(Address address, PretenureFlag pretenure) {
   // Statically ensure that it is safe to allocate foreigns in paged spaces.
-  STATIC_ASSERT(Foreign::kSize <= Page::kMaxNonCodeHeapObjectSize);
+  STATIC_ASSERT(Foreign::kSize <= Page::kMaxRegularHeapObjectSize);
   AllocationSpace space = (pretenure == TENURED) ? OLD_DATA_SPACE : NEW_SPACE;
   Foreign* result;
   MaybeObject* maybe_result = Allocate(foreign_map(), space);
@@ -3937,42 +3885,15 @@ static void ForFixedTypedArray(ExternalArrayType array_type,
                                int* element_size,
                                ElementsKind* element_kind) {
   switch (array_type) {
-    case kExternalUnsignedByteArray:
-      *element_size = 1;
-      *element_kind = UINT8_ELEMENTS;
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size)                       \
+    case kExternal##Type##Array:                                              \
+      *element_size = size;                                                   \
+      *element_kind = TYPE##_ELEMENTS;                                        \
       return;
-    case kExternalByteArray:
-      *element_size = 1;
-      *element_kind = INT8_ELEMENTS;
-      return;
-    case kExternalUnsignedShortArray:
-      *element_size = 2;
-      *element_kind = UINT16_ELEMENTS;
-      return;
-    case kExternalShortArray:
-      *element_size = 2;
-      *element_kind = INT16_ELEMENTS;
-      return;
-    case kExternalUnsignedIntArray:
-      *element_size = 4;
-      *element_kind = UINT32_ELEMENTS;
-      return;
-    case kExternalIntArray:
-      *element_size = 4;
-      *element_kind = INT32_ELEMENTS;
-      return;
-    case kExternalFloatArray:
-      *element_size = 4;
-      *element_kind = FLOAT32_ELEMENTS;
-      return;
-    case kExternalDoubleArray:
-      *element_size = 8;
-      *element_kind = FLOAT64_ELEMENTS;
-      return;
-    case kExternalPixelArray:
-      *element_size = 1;
-      *element_kind = UINT8_CLAMPED_ELEMENTS;
-      return;
+
+    TYPED_ARRAYS(TYPED_ARRAY_CASE)
+#undef TYPED_ARRAY_CASE
+
     default:
       *element_size = 0;  // Bogus
       *element_kind = UINT8_ELEMENTS;  // Bogus
@@ -3990,7 +3911,7 @@ MaybeObject* Heap::AllocateFixedTypedArray(int length,
   int size = OBJECT_POINTER_ALIGN(
       length * element_size + FixedTypedArrayBase::kDataOffset);
 #ifndef V8_HOST_ARCH_64_BIT
-  if (array_type == kExternalDoubleArray) {
+  if (array_type == kExternalFloat64Array) {
     size += kPointerSize;
   }
 #endif
@@ -4000,7 +3921,7 @@ MaybeObject* Heap::AllocateFixedTypedArray(int length,
   MaybeObject* maybe_object = AllocateRaw(size, space, OLD_DATA_SPACE);
   if (!maybe_object->To(&object)) return maybe_object;
 
-  if (array_type == kExternalDoubleArray) {
+  if (array_type == kExternalFloat64Array) {
     object = EnsureDoubleAligned(this, object, size);
   }
 
@@ -5353,7 +5274,7 @@ MaybeObject* Heap::AllocateHashTable(int length, PretenureFlag pretenure) {
 
 MaybeObject* Heap::AllocateSymbol() {
   // Statically ensure that it is safe to allocate symbols in paged spaces.
-  STATIC_ASSERT(Symbol::kSize <= Page::kNonCodeObjectAreaSize);
+  STATIC_ASSERT(Symbol::kSize <= Page::kMaxRegularHeapObjectSize);
 
   Object* result;
   MaybeObject* maybe =
@@ -6317,7 +6238,7 @@ bool Heap::ConfigureHeap(int max_semispace_size,
                                          Page::kPageSize));
 
   // We rely on being able to allocate new arrays in paged spaces.
-  ASSERT(MaxRegularSpaceAllocationSize() >=
+  ASSERT(Page::kMaxRegularHeapObjectSize >=
          (JSArray::kSize +
           FixedArray::SizeFor(JSObject::kInitialMaxFastElementArray) +
           AllocationMemento::kSize));
@@ -6401,7 +6322,7 @@ int64_t Heap::PromotedExternalMemorySize() {
 
 
 void Heap::EnableInlineAllocation() {
-  ASSERT(inline_allocation_disabled_);
+  if (!inline_allocation_disabled_) return;
   inline_allocation_disabled_ = false;
 
   // Update inline allocation limit for new space.
@@ -6410,7 +6331,7 @@ void Heap::EnableInlineAllocation() {
 
 
 void Heap::DisableInlineAllocation() {
-  ASSERT(!inline_allocation_disabled_);
+  if (inline_allocation_disabled_) return;
   inline_allocation_disabled_ = true;
 
   // Update inline allocation limit for new space.

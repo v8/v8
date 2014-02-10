@@ -2669,7 +2669,6 @@ class LChunkBuilder V8_FINAL : public LChunkBuilderBase {
   LInstruction* DoMultiplyAdd(HMul* mul, HValue* addend);
 
   static bool HasMagicNumberForDivisor(int32_t divisor);
-  static HValue* SimplifiedDivisorForMathFloorOfDiv(HValue* val);
 
   LInstruction* DoMathFloor(HUnaryMathOperation* instr);
   LInstruction* DoMathRound(HUnaryMathOperation* instr);

@@ -198,11 +198,11 @@ TEST(CodeRange) {
     if (current_allocated < code_range_size / 10) {
       // Allocate a block.
       // Geometrically distributed sizes, greater than
-      // Page::kMaxNonCodeHeapObjectSize (which is greater than code page area).
+      // Page::kMaxRegularHeapObjectSize (which is greater than code page area).
       // TODO(gc): instead of using 3 use some contant based on code_range_size
       // kMaxHeapObjectSize.
       size_t requested =
-          (Page::kMaxNonCodeHeapObjectSize << (Pseudorandom() % 3)) +
+          (Page::kMaxRegularHeapObjectSize << (Pseudorandom() % 3)) +
           Pseudorandom() % 5000 + 1;
       size_t allocated = 0;
       Address base = code_range.AllocateRawMemory(requested,

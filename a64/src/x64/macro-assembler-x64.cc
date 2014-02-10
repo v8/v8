@@ -163,7 +163,7 @@ void MacroAssembler::PushAddress(ExternalReference source) {
   int64_t address = reinterpret_cast<int64_t>(source.address());
   if (is_int32(address) && !Serializer::enabled()) {
     if (emit_debug_code()) {
-      Move(kScratchRegister, kZapValue, RelocInfo::NONE64);
+      Move(kScratchRegister, kZapValue, Assembler::RelocInfoNone());
     }
     push(Immediate(static_cast<int32_t>(address)));
     return;
@@ -289,7 +289,7 @@ void MacroAssembler::InNewSpace(Register object,
     intptr_t new_space_start =
         reinterpret_cast<intptr_t>(isolate()->heap()->NewSpaceStart());
     Move(kScratchRegister, reinterpret_cast<Address>(-new_space_start),
-         RelocInfo::NONE64);
+         Assembler::RelocInfoNone());
     if (scratch.is(object)) {
       addq(scratch, kScratchRegister);
     } else {
@@ -340,8 +340,8 @@ void MacroAssembler::RecordWriteField(
   // Clobber clobbered input registers when running with the debug-code flag
   // turned on to provoke errors.
   if (emit_debug_code()) {
-    Move(value, kZapValue, RelocInfo::NONE64);
-    Move(dst, kZapValue, RelocInfo::NONE64);
+    Move(value, kZapValue, Assembler::RelocInfoNone());
+    Move(dst, kZapValue, Assembler::RelocInfoNone());
   }
 }
 
@@ -374,8 +374,8 @@ void MacroAssembler::RecordWriteArray(Register object,
   // Clobber clobbered input registers when running with the debug-code flag
   // turned on to provoke errors.
   if (emit_debug_code()) {
-    Move(value, kZapValue, RelocInfo::NONE64);
-    Move(index, kZapValue, RelocInfo::NONE64);
+    Move(value, kZapValue, Assembler::RelocInfoNone());
+    Move(index, kZapValue, Assembler::RelocInfoNone());
   }
 }
 
@@ -439,8 +439,8 @@ void MacroAssembler::RecordWrite(Register object,
   // Clobber clobbered registers when running with the debug-code flag
   // turned on to provoke errors.
   if (emit_debug_code()) {
-    Move(address, kZapValue, RelocInfo::NONE64);
-    Move(value, kZapValue, RelocInfo::NONE64);
+    Move(address, kZapValue, Assembler::RelocInfoNone());
+    Move(value, kZapValue, Assembler::RelocInfoNone());
   }
 }
 
@@ -528,10 +528,11 @@ void MacroAssembler::Abort(BailoutReason reason) {
 #endif
 
   push(rax);
-  Move(kScratchRegister, reinterpret_cast<Smi*>(p0), RelocInfo::NONE64);
+  Move(kScratchRegister, reinterpret_cast<Smi*>(p0),
+       Assembler::RelocInfoNone());
   push(kScratchRegister);
   Move(kScratchRegister, Smi::FromInt(static_cast<int>(p1 - p0)),
-       RelocInfo::NONE64);
+       Assembler::RelocInfoNone());
   push(kScratchRegister);
 
   if (!has_frame_) {
@@ -670,7 +671,7 @@ void MacroAssembler::PrepareCallApiFunction(int arg_stack_space) {
 
 
 void MacroAssembler::CallApiFunctionAndReturn(
-    Address function_address,
+    Register function_address,
     Address thunk_address,
     Register thunk_last_arg,
     int stack_space,
@@ -696,6 +697,7 @@ void MacroAssembler::CallApiFunctionAndReturn(
   ExternalReference scheduled_exception_address =
       ExternalReference::scheduled_exception_address(isolate());
 
+  ASSERT(rdx.is(function_address));
   // Allocate HandleScope in callee-save registers.
   Register prev_next_address_reg = r14;
   Register prev_limit_reg = rbx;
@@ -725,14 +727,13 @@ void MacroAssembler::CallApiFunctionAndReturn(
   j(zero, &profiler_disabled);
 
   // Third parameter is the address of the actual getter function.
-  Move(thunk_last_arg, function_address, RelocInfo::EXTERNAL_REFERENCE);
+  Move(thunk_last_arg, function_address);
   Move(rax, thunk_address, RelocInfo::EXTERNAL_REFERENCE);
   jmp(&end_profiler_check);
 
   bind(&profiler_disabled);
   // Call the api function!
-  Move(rax, reinterpret_cast<Address>(function_address),
-       RelocInfo::EXTERNAL_REFERENCE);
+  Move(rax, function_address);
 
   bind(&end_profiler_check);
 
@@ -1043,7 +1044,8 @@ Register MacroAssembler::GetSmiConstant(Smi* source) {
 
 void MacroAssembler::LoadSmiConstant(Register dst, Smi* source) {
   if (emit_debug_code()) {
-    Move(dst, Smi::FromInt(kSmiConstantRegisterValue), RelocInfo::NONE64);
+    Move(dst, Smi::FromInt(kSmiConstantRegisterValue),
+         Assembler::RelocInfoNone());
     cmpq(dst, kSmiConstantRegister);
     Assert(equal, kUninitializedKSmiConstantRegister);
   }
@@ -1083,7 +1085,7 @@ void MacroAssembler::LoadSmiConstant(Register dst, Smi* source) {
       UNREACHABLE();
       return;
     default:
-      Move(dst, source, RelocInfo::NONE64);
+      Move(dst, source, Assembler::RelocInfoNone());
       return;
   }
   if (negative) {
@@ -2623,7 +2625,7 @@ void MacroAssembler::Call(ExternalReference ext) {
 
 void MacroAssembler::Call(Address destination, RelocInfo::Mode rmode) {
 #ifdef DEBUG
-  int end_position = pc_offset() + CallSize(destination, rmode);
+  int end_position = pc_offset() + CallSize(destination);
 #endif
   Move(kScratchRegister, destination, rmode);
   call(kScratchRegister);
@@ -4048,7 +4050,7 @@ void MacroAssembler::Allocate(int object_size,
                               Label* gc_required,
                               AllocationFlags flags) {
   ASSERT((flags & (RESULT_CONTAINS_TOP | SIZE_IN_WORDS)) == 0);
-  ASSERT(object_size <= Page::kMaxNonCodeHeapObjectSize);
+  ASSERT(object_size <= Page::kMaxRegularHeapObjectSize);
   if (!FLAG_inline_new) {
     if (emit_debug_code()) {
       // Trash the registers to simulate an allocation failure.

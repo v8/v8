@@ -256,7 +256,8 @@ class CommitRepository(Step):
     if self.Git("cl presubmit", "PRESUBMIT_TREE_CHECK=\"skip\"") is None:
       self.Die("'git cl presubmit' failed, please try again.")
 
-    if self.Git("cl dcommit -f --bypass-hooks") is None:
+    if self.Git("cl dcommit -f --bypass-hooks",
+                retry_on=lambda x: x is None) is None:
       self.Die("'git cl dcommit' failed, please try again.")
 
 
@@ -290,6 +291,15 @@ class SquashCommits(Step):
 
     # Remove date and trailing white space.
     text = re.sub(r"^%s: " % self._state["date"], "", text.rstrip())
+
+    # Retrieve svn revision for showing the used bleeding edge revision in the
+    # commit message.
+    args = "svn find-rev %s" % self._state["prepare_commit_hash"]
+    svn_revision = self.Git(args).strip()
+    self.Persist("svn_revision", svn_revision)
+    text = MSub(r"^(Version \d+\.\d+\.\d+)$",
+                "\\1 (based on bleeding_edge revision r%s)" % svn_revision,
+                text)
 
     # Remove indentation and merge paragraphs into single long lines, keeping
     # empty lines between them.
@@ -366,7 +376,7 @@ class CommitSVN(Step):
   MESSAGE = "Commit to SVN."
 
   def RunStep(self):
-    result = self.Git("svn dcommit 2>&1")
+    result = self.Git("svn dcommit 2>&1", retry_on=lambda x: x is None)
     if not result:
       self.Die("'git svn dcommit' failed.")
     result = filter(lambda x: re.search(r"^Committed r[0-9]+", x),
@@ -395,7 +405,8 @@ class TagRevision(Step):
     ver = "%s.%s.%s" % (self._state["major"],
                         self._state["minor"],
                         self._state["build"])
-    if self.Git("svn tag %s -m \"Tagging version %s\"" % (ver, ver)) is None:
+    if self.Git("svn tag %s -m \"Tagging version %s\"" % (ver, ver),
+                retry_on=lambda x: x is None) is None:
       self.Die("'git svn tag' failed.")
 
 
@@ -475,7 +486,10 @@ class UploadCL(Step):
       print "Please enter the email address of a reviewer for the roll CL: ",
       self.DieNoManualMode("A reviewer must be specified in forced mode.")
       rev = self.ReadLine()
-    args = "commit -am \"Update V8 to version %s.\n\nTBR=%s\"" % (ver, rev)
+    self.RestoreIfUnset("svn_revision")
+    args = ("commit -am \"Update V8 to version %s "
+            "(based on bleeding_edge revision r%s).\n\nTBR=%s\""
+            % (ver, self._state["svn_revision"], rev))
     if self.Git(args) is None:
       self.Die("'git commit' failed.")
     force_flag = " -f" if self._options.force_upload else ""
