@@ -6541,11 +6541,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringToUpperCase) {
 }
 
 
-static inline bool IsTrimWhiteSpace(unibrow::uchar c) {
-  return unibrow::WhiteSpace::Is(c) || c == 0x200b || c == 0xfeff;
-}
-
-
 RUNTIME_FUNCTION(MaybeObject*, Runtime_StringTrim) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 3);
@@ -6558,15 +6553,19 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringTrim) {
   int length = string->length();
 
   int left = 0;
+  UnicodeCache* unicode_cache = isolate->unicode_cache();
   if (trimLeft) {
-    while (left < length && IsTrimWhiteSpace(string->Get(left))) {
+    while (left < length &&
+           unicode_cache->IsWhiteSpaceOrLineTerminator(string->Get(left))) {
       left++;
     }
   }
 
   int right = length;
   if (trimRight) {
-    while (right > left && IsTrimWhiteSpace(string->Get(right - 1))) {
+    while (right > left &&
+           unicode_cache->IsWhiteSpaceOrLineTerminator(
+               string->Get(right - 1))) {
       right--;
     }
   }

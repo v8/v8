@@ -444,27 +444,15 @@ static bool NotDigit(uc16 c) {
 }
 
 
-static bool IsWhiteSpace(uc16 c) {
-  switch (c) {
-    case 0x09:
-    case 0x0A:
-    case 0x0B:
-    case 0x0C:
-    case 0x0d:
-    case 0x20:
-    case 0xA0:
-    case 0x2028:
-    case 0x2029:
-    case 0xFEFF:
-      return true;
-    default:
-      return unibrow::Space::Is(c);
-  }
+static bool IsWhiteSpaceOrLineTerminator(uc16 c) {
+  // According to ECMA 5.1, 15.10.2.12 the CharacterClassEscape \s includes
+  // WhiteSpace (7.2) and LineTerminator (7.3) values.
+  return v8::internal::WhiteSpaceOrLineTerminator::Is(c);
 }
 
 
-static bool NotWhiteSpace(uc16 c) {
-  return !IsWhiteSpace(c);
+static bool NotWhiteSpaceNorLineTermiantor(uc16 c) {
+  return !IsWhiteSpaceOrLineTerminator(c);
 }
 
 
@@ -494,8 +482,8 @@ TEST(CharacterClassEscapes) {
   TestCharacterClassEscapes('.', IsRegExpNewline);
   TestCharacterClassEscapes('d', IsDigit);
   TestCharacterClassEscapes('D', NotDigit);
-  TestCharacterClassEscapes('s', IsWhiteSpace);
-  TestCharacterClassEscapes('S', NotWhiteSpace);
+  TestCharacterClassEscapes('s', IsWhiteSpaceOrLineTerminator);
+  TestCharacterClassEscapes('S', NotWhiteSpaceNorLineTermiantor);
   TestCharacterClassEscapes('w', IsRegExpWord);
   TestCharacterClassEscapes('W', NotWord);
 }

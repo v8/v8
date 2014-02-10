@@ -3597,9 +3597,12 @@ class AlternativeGenerationList {
 
 
 // The '2' variant is has inclusive from and exclusive to.
-static const int kSpaceRanges[] = { '\t', '\r' + 1, ' ', ' ' + 1, 0x00A0,
-    0x00A1, 0x1680, 0x1681, 0x180E, 0x180F, 0x2000, 0x200B, 0x2028, 0x202A,
-    0x202F, 0x2030, 0x205F, 0x2060, 0x3000, 0x3001, 0xFEFF, 0xFF00, 0x10000 };
+// This covers \s as defined in ECMA-262 5.1, 15.10.2.12,
+// which include WhiteSpace (7.2) or LineTerminator (7.3) values.
+static const int kSpaceRanges[] = { '\t', '\r' + 1, ' ', ' ' + 1,
+    0x00A0, 0x00A1, 0x1680, 0x1681, 0x180E, 0x180F, 0x2000, 0x200B,
+    0x2028, 0x202A, 0x202F, 0x2030, 0x205F, 0x2060, 0x3000, 0x3001,
+    0xFEFF, 0xFF00, 0x10000 };
 static const int kSpaceRangeCount = ARRAY_SIZE(kSpaceRanges);
 
 static const int kWordRanges[] = {
