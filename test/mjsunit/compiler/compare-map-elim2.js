@@ -27,59 +27,104 @@
 
 // Flags: --allow-natives-syntax --check-elimination
 
-function A(x, y) {
-  this.x = x;
-  this.y = y;
+
+function test_empty() {
+  function foo(o) {
+    return { value: o.value };
+  }
+
+  function Base() {
+    this.v_ = 5;
+  }
+  Base.prototype.__defineGetter__("value", function() { return 1; });
+
+  var a = new Base();
+  a.a = 1;
+  foo(a);
+
+  Base.prototype.__defineGetter__("value", function() { return this.v_; });
+
+  var b = new Base();
+  b.b = 1;
+  foo(b);
+
+  var d = new Base();
+  d.d = 1;
+  d.value;
+
+  %OptimizeFunctionOnNextCall(foo);
+
+  var o = foo(b);
 }
 
-function B(x, y) {
-  this.x = x;
-  this.y = y;
+
+function test_narrow1() {
+  function foo(o) {
+    return { value: o.value };
+  }
+
+  function Base() {
+    this.v_ = 5;
+  }
+  Base.prototype.__defineGetter__("value", function() { return 1; });
+
+  var a = new Base();
+  a.a = 1;
+  foo(a);
+
+  Base.prototype.__defineGetter__("value", function() { return this.v_; });
+
+  var b = new Base();
+  b.b = 1;
+  foo(b);
+
+  var c = new Base();
+  c.c = 1;
+  foo(c);
+
+  var d = new Base();
+  d.d = 1;
+  d.value;
+
+  %OptimizeFunctionOnNextCall(foo);
+
+  var o = foo(b);
 }
 
-function F1(a, b) {
-  if (a == b) return a.x;
-  else return b.x;
+
+function test_narrow2() {
+  function foo(o, flag) {
+    return { value: o.value(flag) };
+  }
+
+  function Base() {
+    this.v_ = 5;
+  }
+  Base.prototype.value = function(flag) { return flag ? this.v_ : this.v_; };
+
+
+  var a = new Base();
+  a.a = 1;
+  foo(a, false);
+  foo(a, false);
+
+  var b = new Base();
+  b.b = 1;
+  foo(b, true);
+
+  var c = new Base();
+  c.c = 1;
+  foo(c, true);
+
+  var d = new Base();
+  d.d = 1;
+  d.value(true);
+
+  %OptimizeFunctionOnNextCall(foo);
+
+  var o = foo(b);
 }
 
-function F2(a, b) {
-  if (a == b) return a.x;
-  else return b.x;
-}
-
-function F3(a, b) {
-  var f = a.y;
-  if (a == b) return a.x;
-  else return b.x;
-}
-
-function F4(a, b) {
-  var f = b.y;
-  if (a == b) return a.x;
-  else return b.x;
-}
-
-%NeverOptimizeFunction(test);
-
-function test(f, a, b) {
-  f(a, a);
-  f(a, b);
-  f(b, a);
-  f(b, c);
-  f(b, b);
-  f(c, c);
-
-  %OptimizeFunctionOnNextCall(f)
-
-  assertEquals(a.x, f(a, a));
-  assertEquals(b.x, f(b, b));
-}
-
-var a = new A(3, 5);
-var b = new B(2, 6);
-var c = new A(1, 7);
-
-test(F1, a, c);
-test(F2, a, b);
-test(F3, a, b);
-test(F4, a, b);
+test_empty();
+test_narrow1();
+test_narrow2();
