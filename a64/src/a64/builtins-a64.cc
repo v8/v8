@@ -1080,6 +1080,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
 
     __ Bind(&use_global_receiver);
     __ Ldr(x2, GlobalObjectMemOperand());
+    __ Ldr(x2, FieldMemOperand(x2, GlobalObject::kGlobalReceiverOffset));
 
     __ Bind(&patch_receiver);
     __ Sub(x10, x0, 1);
