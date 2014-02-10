@@ -243,6 +243,13 @@ bool CompilationInfo::ShouldSelfOptimize() {
 }
 
 
+void CompilationInfo::PrepareForCompilation(Scope* scope) {
+  ASSERT(scope_ == NULL);
+  scope_ = scope;
+  function()->ProcessFeedbackSlots(isolate_);
+}
+
+
 class HOptimizedGraphBuilderWithPositions: public HOptimizedGraphBuilder {
  public:
   explicit HOptimizedGraphBuilderWithPositions(CompilationInfo* info)
@@ -363,7 +370,7 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
     // Note that we use the same AST that we will use for generating the
     // optimized code.
     unoptimized.SetFunction(info()->function());
-    unoptimized.SetScope(info()->scope());
+    unoptimized.PrepareForCompilation(info()->scope());
     unoptimized.SetContext(info()->context());
     if (should_recompile) unoptimized.EnableDeoptimizationSupport();
     bool succeeded = FullCodeGenerator::MakeCode(&unoptimized);
@@ -982,7 +989,7 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(FunctionLiteral* literal,
   // Precondition: code has been parsed and scopes have been analyzed.
   CompilationInfoWithZone info(script);
   info.SetFunction(literal);
-  info.SetScope(literal->scope());
+  info.PrepareForCompilation(literal->scope());
   info.SetLanguageMode(literal->scope()->language_mode());
 
   Isolate* isolate = info.isolate();

@@ -47,6 +47,12 @@ TypeFeedbackOracle::TypeFeedbackOracle(Handle<Code> code,
                                        Zone* zone)
     : native_context_(native_context),
       zone_(zone) {
+  Object* raw_info = code->type_feedback_info();
+  if (raw_info->IsTypeFeedbackInfo()) {
+    feedback_vector_ = Handle<FixedArray>(TypeFeedbackInfo::cast(raw_info)->
+                                          feedback_vector());
+  }
+
   BuildDictionary(code);
   ASSERT(dictionary_->IsDictionary());
 }
@@ -67,6 +73,17 @@ Handle<Object> TypeFeedbackOracle::GetInfo(TypeFeedbackId ast_id) {
     } else {
       return Handle<Object>(value, isolate());
     }
+  }
+  return Handle<Object>::cast(isolate()->factory()->undefined_value());
+}
+
+
+Handle<Object> TypeFeedbackOracle::GetInfo(int slot) {
+  ASSERT(slot >= 0 && slot < feedback_vector_->length());
+  Object* obj = feedback_vector_->get(slot);
+  if (!obj->IsJSFunction() ||
+      !CanRetainOtherContext(JSFunction::cast(obj), *native_context_)) {
+    return Handle<Object>(obj, isolate());
   }
   return Handle<Object>::cast(isolate()->factory()->undefined_value());
 }
@@ -101,22 +118,22 @@ bool TypeFeedbackOracle::StoreIsKeyedPolymorphic(TypeFeedbackId ast_id) {
 }
 
 
-bool TypeFeedbackOracle::CallIsMonomorphic(TypeFeedbackId id) {
-  Handle<Object> value = GetInfo(id);
+bool TypeFeedbackOracle::CallIsMonomorphic(int slot) {
+  Handle<Object> value = GetInfo(slot);
   return value->IsAllocationSite() || value->IsJSFunction();
 }
 
 
-bool TypeFeedbackOracle::CallNewIsMonomorphic(TypeFeedbackId id) {
-  Handle<Object> info = GetInfo(id);
+bool TypeFeedbackOracle::CallNewIsMonomorphic(int slot) {
+  Handle<Object> info = GetInfo(slot);
   return info->IsAllocationSite() || info->IsJSFunction();
 }
 
 
-byte TypeFeedbackOracle::ForInType(TypeFeedbackId id) {
-  Handle<Object> value = GetInfo(id);
+byte TypeFeedbackOracle::ForInType(int feedback_vector_slot) {
+  Handle<Object> value = GetInfo(feedback_vector_slot);
   return value->IsSmi() &&
-      Smi::cast(*value)->value() == TypeFeedbackCells::kForInFastCaseMarker
+      Smi::cast(*value)->value() == TypeFeedbackInfo::kForInFastCaseMarker
           ? ForInStatement::FAST_FOR_IN : ForInStatement::SLOW_FOR_IN;
 }
 
@@ -134,8 +151,8 @@ KeyedAccessStoreMode TypeFeedbackOracle::GetStoreMode(
 }
 
 
-Handle<JSFunction> TypeFeedbackOracle::GetCallTarget(TypeFeedbackId id) {
-  Handle<Object> info = GetInfo(id);
+Handle<JSFunction> TypeFeedbackOracle::GetCallTarget(int slot) {
+  Handle<Object> info = GetInfo(slot);
   if (info->IsAllocationSite()) {
     return Handle<JSFunction>(isolate()->global_context()->array_function());
   } else {
@@ -144,8 +161,8 @@ Handle<JSFunction> TypeFeedbackOracle::GetCallTarget(TypeFeedbackId id) {
 }
 
 
-Handle<JSFunction> TypeFeedbackOracle::GetCallNewTarget(TypeFeedbackId id) {
-  Handle<Object> info = GetInfo(id);
+Handle<JSFunction> TypeFeedbackOracle::GetCallNewTarget(int slot) {
+  Handle<Object> info = GetInfo(slot);
   if (info->IsAllocationSite()) {
     return Handle<JSFunction>(isolate()->global_context()->array_function());
   } else {
@@ -154,9 +171,8 @@ Handle<JSFunction> TypeFeedbackOracle::GetCallNewTarget(TypeFeedbackId id) {
 }
 
 
-Handle<AllocationSite> TypeFeedbackOracle::GetCallNewAllocationSite(
-    TypeFeedbackId id) {
-  Handle<Object> info = GetInfo(id);
+Handle<AllocationSite> TypeFeedbackOracle::GetCallNewAllocationSite(int slot) {
+  Handle<Object> info = GetInfo(slot);
   if (info->IsAllocationSite()) {
     return Handle<AllocationSite>::cast(info);
   }
@@ -409,7 +425,6 @@ void TypeFeedbackOracle::BuildDictionary(Handle<Code> code) {
   GetRelocInfos(code, &infos);
   CreateDictionary(code, &infos);
   ProcessRelocInfos(&infos);
-  ProcessTypeFeedbackCells(code);
   // Allocate handle in the parent scope.
   dictionary_ = scope.CloseAndEscape(dictionary_);
 }
@@ -427,13 +442,9 @@ void TypeFeedbackOracle::GetRelocInfos(Handle<Code> code,
 void TypeFeedbackOracle::CreateDictionary(Handle<Code> code,
                                           ZoneList<RelocInfo>* infos) {
   AllowHeapAllocation allocation_allowed;
-  int cell_count = code->type_feedback_info()->IsTypeFeedbackInfo()
-      ? TypeFeedbackInfo::cast(code->type_feedback_info())->
-          type_feedback_cells()->CellCount()
-      : 0;
-  int length = infos->length() + cell_count;
   byte* old_start = code->instruction_start();
-  dictionary_ = isolate()->factory()->NewUnseededNumberDictionary(length);
+  dictionary_ =
+      isolate()->factory()->NewUnseededNumberDictionary(infos->length());
   byte* new_start = code->instruction_start();
   RelocateRelocInfos(infos, old_start, new_start);
 }
@@ -470,26 +481,6 @@ void TypeFeedbackOracle::ProcessRelocInfos(ZoneList<RelocInfo>* infos) {
 
       default:
         break;
-    }
-  }
-}
-
-
-void TypeFeedbackOracle::ProcessTypeFeedbackCells(Handle<Code> code) {
-  Object* raw_info = code->type_feedback_info();
-  if (!raw_info->IsTypeFeedbackInfo()) return;
-  Handle<TypeFeedbackCells> cache(
-      TypeFeedbackInfo::cast(raw_info)->type_feedback_cells());
-  for (int i = 0; i < cache->CellCount(); i++) {
-    TypeFeedbackId ast_id = cache->AstId(i);
-    Cell* cell = cache->GetCell(i);
-    Object* value = cell->value();
-    if (value->IsSmi() ||
-        value->IsAllocationSite() ||
-        (value->IsJSFunction() &&
-         !CanRetainOtherContext(JSFunction::cast(value),
-                                *native_context_))) {
-      SetInfo(ast_id, cell);
     }
   }
 }

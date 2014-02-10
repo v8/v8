@@ -118,6 +118,9 @@ void FullCodeGenerator::Generate() {
   CompilationInfo* info = info_;
   handler_table_ =
       isolate()->factory()->NewFixedArray(function()->handler_count(), TENURED);
+
+  InitializeFeedbackVector();
+
   profiling_counter_ = isolate()->factory()->NewCell(
       Handle<Smi>(Smi::FromInt(FLAG_interrupt_budget), isolate()));
   SetFunctionPosition(function());
@@ -1035,6 +1038,7 @@ void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
 
 void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   Comment cmnt(masm_, "[ ForInStatement");
+  int slot = stmt->ForInFeedbackSlot();
   SetStatementPosition(stmt);
 
   Label loop, exit;
@@ -1123,14 +1127,15 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   Label non_proxy;
   __ bind(&fixed_array);
 
-  Handle<Cell> cell = isolate()->factory()->NewCell(
-      Handle<Object>(Smi::FromInt(TypeFeedbackCells::kForInFastCaseMarker),
-                     isolate()));
-  RecordTypeFeedbackCell(stmt->ForInFeedbackId(), cell);
-  __ Move(rbx, cell);
-  __ Move(FieldOperand(rbx, Cell::kValueOffset),
-          Smi::FromInt(TypeFeedbackCells::kForInSlowCaseMarker));
+  Handle<Object> feedback = Handle<Object>(
+      Smi::FromInt(TypeFeedbackInfo::kForInFastCaseMarker),
+      isolate());
+  StoreFeedbackVectorSlot(slot, feedback);
 
+  // No need for a write barrier, we are storing a Smi in the feedback vector.
+  __ Move(rbx, FeedbackVector());
+  __ Move(FieldOperand(rbx, FixedArray::OffsetOfElementAt(slot)),
+          Smi::FromInt(TypeFeedbackInfo::kForInSlowCaseMarker));
   __ Move(rbx, Smi::FromInt(1));  // Smi indicates slow check
   __ movp(rcx, Operand(rsp, 0 * kPointerSize));  // Get enumerated object
   STATIC_ASSERT(FIRST_JS_PROXY_TYPE == FIRST_SPEC_OBJECT_TYPE);
@@ -2650,15 +2655,15 @@ void FullCodeGenerator::EmitCallWithStub(Call* expr) {
   SetSourcePosition(expr->position());
 
   Handle<Object> uninitialized =
-      TypeFeedbackCells::UninitializedSentinel(isolate());
-  Handle<Cell> cell = isolate()->factory()->NewCell(uninitialized);
-  RecordTypeFeedbackCell(expr->CallFeedbackId(), cell);
-  __ Move(rbx, cell);
+      TypeFeedbackInfo::UninitializedSentinel(isolate());
+  StoreFeedbackVectorSlot(expr->CallFeedbackSlot(), uninitialized);
+  __ Move(rbx, FeedbackVector());
+  __ Move(rdx, Smi::FromInt(expr->CallFeedbackSlot()));
 
   // Record call targets in unoptimized code.
   CallFunctionStub stub(arg_count, RECORD_CALL_TARGET);
   __ movp(rdi, Operand(rsp, (arg_count + 1) * kPointerSize));
-  __ CallStub(&stub, expr->CallFeedbackId());
+  __ CallStub(&stub);
   RecordJSReturnSite(expr);
   // Restore context register.
   __ movp(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
@@ -2830,10 +2835,10 @@ void FullCodeGenerator::VisitCallNew(CallNew* expr) {
 
   // Record call targets in unoptimized code, but not in the snapshot.
   Handle<Object> uninitialized =
-      TypeFeedbackCells::UninitializedSentinel(isolate());
-  Handle<Cell> cell = isolate()->factory()->NewCell(uninitialized);
-  RecordTypeFeedbackCell(expr->CallNewFeedbackId(), cell);
-  __ Move(rbx, cell);
+      TypeFeedbackInfo::UninitializedSentinel(isolate());
+  StoreFeedbackVectorSlot(expr->CallNewFeedbackSlot(), uninitialized);
+  __ Move(rbx, FeedbackVector());
+  __ Move(rdx, Smi::FromInt(expr->CallNewFeedbackSlot()));
 
   CallConstructStub stub(RECORD_CALL_TARGET);
   __ Call(stub.GetCode(isolate()), RelocInfo::CONSTRUCT_CALL);

@@ -10631,18 +10631,18 @@ void Code::ClearInlineCaches(Code::Kind* kind) {
 }
 
 
-void Code::ClearTypeFeedbackCells(Heap* heap) {
+void Code::ClearTypeFeedbackInfo(Heap* heap) {
   if (kind() != FUNCTION) return;
   Object* raw_info = type_feedback_info();
   if (raw_info->IsTypeFeedbackInfo()) {
-    TypeFeedbackCells* type_feedback_cells =
-        TypeFeedbackInfo::cast(raw_info)->type_feedback_cells();
-    for (int i = 0; i < type_feedback_cells->CellCount(); i++) {
-      Cell* cell = type_feedback_cells->GetCell(i);
-      // Don't clear AllocationSites
-      Object* value = cell->value();
-      if (value == NULL || !value->IsAllocationSite()) {
-        cell->set_value(TypeFeedbackCells::RawUninitializedSentinel(heap));
+    FixedArray* feedback_vector =
+        TypeFeedbackInfo::cast(raw_info)->feedback_vector();
+    for (int i = 0; i < feedback_vector->length(); i++) {
+      Object* obj = feedback_vector->get(i);
+      if (!obj->IsAllocationSite()) {
+        // TODO(mvstanton): Can't I avoid a write barrier for this sentinel?
+        feedback_vector->set(i,
+                             TypeFeedbackInfo::RawUninitializedSentinel(heap));
       }
     }
   }

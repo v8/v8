@@ -555,8 +555,8 @@ void TypeFeedbackInfo::TypeFeedbackInfoPrint(FILE* out) {
   HeapObject::PrintHeader(out, "TypeFeedbackInfo");
   PrintF(out, " - ic_total_count: %d, ic_with_type_info_count: %d\n",
          ic_total_count(), ic_with_type_info_count());
-  PrintF(out, " - type_feedback_cells: ");
-  type_feedback_cells()->FixedArrayPrint(out);
+  PrintF(out, " - feedback_vector: ");
+  feedback_vector()->FixedArrayPrint(out);
 }
 
 

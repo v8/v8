@@ -530,15 +530,11 @@ HValue* CodeStubGraphBuilder<CreateAllocationSiteStub>::BuildCodeStub() {
   Add<HStoreNamedField>(site_list, HObjectAccess::ForAllocationSiteList(),
                         object);
 
-  // We use a hammer (SkipWriteBarrier()) to indicate that we know the input
-  // cell is really a Cell, and so no write barrier is needed.
-  // TODO(mvstanton): Add a debug_code check to verify the input cell is really
-  // a cell. (perhaps with a new instruction, HAssert).
-  HInstruction* cell = GetParameter(0);
-  HObjectAccess access = HObjectAccess::ForCellValue();
-  store = Add<HStoreNamedField>(cell, access, object);
-  store->SkipWriteBarrier();
-  return cell;
+  HInstruction* feedback_vector = GetParameter(0);
+  HInstruction* slot = GetParameter(1);
+  Add<HStoreKeyed>(feedback_vector, slot, object, FAST_ELEMENTS,
+                   INITIALIZING_STORE);
+  return feedback_vector;
 }
 
 

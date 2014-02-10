@@ -760,16 +760,6 @@ bool Object::IsDependentCode() {
 }
 
 
-bool Object::IsTypeFeedbackCells() {
-  if (!IsFixedArray()) return false;
-  // There's actually no way to see the difference between a fixed array and
-  // a cache cells array.  Since this is used for asserts we can check that
-  // the length is plausible though.
-  if (FixedArray::cast(this)->length() % 2 != 0) return false;
-  return true;
-}
-
-
 bool Object::IsContext() {
   if (!Object::IsHeapObject()) return false;
   Map* map = HeapObject::cast(this)->map();
@@ -2791,7 +2781,6 @@ CAST_ACCESSOR(DescriptorArray)
 CAST_ACCESSOR(DeoptimizationInputData)
 CAST_ACCESSOR(DeoptimizationOutputData)
 CAST_ACCESSOR(DependentCode)
-CAST_ACCESSOR(TypeFeedbackCells)
 CAST_ACCESSOR(StringTable)
 CAST_ACCESSOR(JSFunctionResultCache)
 CAST_ACCESSOR(NormalizedMapCache)
@@ -6563,43 +6552,23 @@ MaybeObject* ConstantPoolArray::Copy() {
 }
 
 
-void TypeFeedbackCells::SetAstId(int index, TypeFeedbackId id) {
-  set(1 + index * 2, Smi::FromInt(id.ToInt()));
-}
-
-
-TypeFeedbackId TypeFeedbackCells::AstId(int index) {
-  return TypeFeedbackId(Smi::cast(get(1 + index * 2))->value());
-}
-
-
-void TypeFeedbackCells::SetCell(int index, Cell* cell) {
-  set(index * 2, cell);
-}
-
-
-Cell* TypeFeedbackCells::GetCell(int index) {
-  return Cell::cast(get(index * 2));
-}
-
-
-Handle<Object> TypeFeedbackCells::UninitializedSentinel(Isolate* isolate) {
+Handle<Object> TypeFeedbackInfo::UninitializedSentinel(Isolate* isolate) {
   return isolate->factory()->the_hole_value();
 }
 
 
-Handle<Object> TypeFeedbackCells::MegamorphicSentinel(Isolate* isolate) {
+Handle<Object> TypeFeedbackInfo::MegamorphicSentinel(Isolate* isolate) {
   return isolate->factory()->undefined_value();
 }
 
 
-Handle<Object> TypeFeedbackCells::MonomorphicArraySentinel(Isolate* isolate,
+Handle<Object> TypeFeedbackInfo::MonomorphicArraySentinel(Isolate* isolate,
     ElementsKind elements_kind) {
   return Handle<Object>(Smi::FromInt(static_cast<int>(elements_kind)), isolate);
 }
 
 
-Object* TypeFeedbackCells::RawUninitializedSentinel(Heap* heap) {
+Object* TypeFeedbackInfo::RawUninitializedSentinel(Heap* heap) {
   return heap->the_hole_value();
 }
 
@@ -6682,8 +6651,8 @@ bool TypeFeedbackInfo::matches_inlined_type_change_checksum(int checksum) {
 }
 
 
-ACCESSORS(TypeFeedbackInfo, type_feedback_cells, TypeFeedbackCells,
-          kTypeFeedbackCellsOffset)
+ACCESSORS(TypeFeedbackInfo, feedback_vector, FixedArray,
+          kFeedbackVectorOffset)
 
 
 SMI_ACCESSORS(AliasedArgumentsEntry, aliased_context_slot, kAliasedContextSlot)

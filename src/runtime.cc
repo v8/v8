@@ -8474,7 +8474,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ClearFunctionTypeFeedback) {
   Code* unoptimized = function->shared()->code();
   if (unoptimized->kind() == Code::FUNCTION) {
     unoptimized->ClearInlineCaches();
-    unoptimized->ClearTypeFeedbackCells(isolate->heap());
+    unoptimized->ClearTypeFeedbackInfo(isolate->heap());
   }
   return isolate->heap()->undefined_value();
 }
