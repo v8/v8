@@ -2474,9 +2474,11 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
                                    bool is_store,
                                    bool* has_side_effects);
 
-  HInstruction* BuildLoadNamedGeneric(HValue* object,
-                                      Handle<String> name,
-                                      bool is_uninitialized = false);
+  HInstruction* BuildNamedGeneric(PropertyAccessType access,
+                                  HValue* object,
+                                  Handle<String> name,
+                                  HValue* value,
+                                  bool is_uninitialized = false);
 
   HCheckMaps* AddCheckMap(HValue* object, Handle<Map> map);
 
@@ -2503,10 +2505,6 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   HInstruction* BuildStoreNamedField(PropertyAccessInfo* info,
                                      HValue* checked_object,
                                      HValue* value);
-  HInstruction* BuildStoreNamedGeneric(HValue* object,
-                                       Handle<String> name,
-                                       HValue* value,
-                                       bool is_uninitialized = false);
   HInstruction* BuildStoreKeyedGeneric(HValue* object,
                                        HValue* key,
                                        HValue* value);

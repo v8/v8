@@ -5071,7 +5071,8 @@ void HOptimizedGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
             HInstruction* store;
             if (map.is_null()) {
               // If we don't know the monomorphic type, do a generic store.
-              CHECK_ALIVE(store = BuildStoreNamedGeneric(literal, name, value));
+              CHECK_ALIVE(store = BuildNamedGeneric(
+                  STORE, literal, name, value));
             } else {
               PropertyAccessInfo info(this, STORE, ToType(map), name);
               if (info.CanAccessMonomorphic()) {
@@ -5081,8 +5082,8 @@ void HOptimizedGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
                     &info, literal, checked_literal, value,
                     BailoutId::None(), BailoutId::None());
               } else {
-                CHECK_ALIVE(
-                    store = BuildStoreNamedGeneric(literal, name, value));
+                CHECK_ALIVE(store = BuildNamedGeneric(
+                    STORE, literal, name, value));
               }
             }
             AddInstruction(store);
@@ -5311,24 +5312,6 @@ HInstruction* HOptimizedGraphBuilder::BuildStoreNamedField(
     instr->SetGVNFlag(kChangesMaps);
   }
   return instr;
-}
-
-
-HInstruction* HOptimizedGraphBuilder::BuildStoreNamedGeneric(
-    HValue* object,
-    Handle<String> name,
-    HValue* value,
-    bool is_uninitialized) {
-  if (is_uninitialized) {
-    Add<HDeoptimize>("Insufficient type feedback for property assignment",
-                     Deoptimizer::SOFT);
-  }
-
-  return New<HStoreNamedGeneric>(
-                         object,
-                         name,
-                         value,
-                         function_strict_mode_flag());
 }
 
 
@@ -5709,28 +5692,11 @@ void HOptimizedGraphBuilder::HandlePolymorphicNamedFieldAccess(
     // that the environment stack matches the depth on deopt that it otherwise
     // would have had after a successful load.
     if (!ast_context()->IsEffect()) Push(graph()->GetConstant0());
-    const char* message = "";
-    switch (access_type) {
-      case LOAD:
-        message = "Unknown map in polymorphic load";
-        break;
-      case STORE:
-        message = "Unknown map in polymorphic store";
-        break;
-    }
-    FinishExitWithHardDeoptimization(message, join);
+    FinishExitWithHardDeoptimization("Uknown map in polymorphic access", join);
   } else {
-    HValue* result = NULL;
-    switch (access_type) {
-      case LOAD:
-        result = Add<HLoadNamedGeneric>(object, name);
-        break;
-      case STORE:
-        AddInstruction(BuildStoreNamedGeneric(object, name, value));
-        result = value;
-        break;
-    }
-    if (!ast_context()->IsEffect()) Push(result);
+    HInstruction* instr = BuildNamedGeneric(access_type, object, name, value);
+    AddInstruction(instr);
+    if (!ast_context()->IsEffect()) Push(access_type == LOAD ? instr : value);
 
     if (join != NULL) {
       Goto(join);
@@ -6182,15 +6148,22 @@ HInstruction* HGraphBuilder::AddLoadStringLength(HValue* string) {
 }
 
 
-HInstruction* HOptimizedGraphBuilder::BuildLoadNamedGeneric(
+HInstruction* HOptimizedGraphBuilder::BuildNamedGeneric(
+    PropertyAccessType access_type,
     HValue* object,
     Handle<String> name,
+    HValue* value,
     bool is_uninitialized) {
   if (is_uninitialized) {
-    Add<HDeoptimize>("Insufficient type feedback for generic named load",
+    Add<HDeoptimize>("Insufficient type feedback for generic named access",
                      Deoptimizer::SOFT);
   }
-  return New<HLoadNamedGeneric>(object, name);
+  if (access_type == LOAD) {
+    return New<HLoadNamedGeneric>(object, name);
+  } else {
+    return New<HStoreNamedGeneric>(
+        object, name, value, function_strict_mode_flag());
+  }
 }
 
 
@@ -6636,11 +6609,7 @@ HInstruction* HOptimizedGraphBuilder::BuildNamedAccess(
         &info, object, checked_object, value, ast_id, return_id);
   }
 
-  if (access == LOAD) {
-    return BuildLoadNamedGeneric(object, name, is_uninitialized);
-  } else {
-    return BuildStoreNamedGeneric(object, name, value, is_uninitialized);
-  }
+  return BuildNamedGeneric(access, object, name, value, is_uninitialized);
 }
 
 
@@ -6992,8 +6961,8 @@ void HOptimizedGraphBuilder::HandlePolymorphicCallNamed(
     FinishExitWithHardDeoptimization("Unknown map in polymorphic call", join);
   } else {
     Property* prop = expr->expression()->AsProperty();
-    HInstruction* function = BuildLoadNamedGeneric(
-        receiver, name, prop->IsUninitialized());
+    HInstruction* function = BuildNamedGeneric(
+        LOAD, receiver, name, NULL, prop->IsUninitialized());
     AddInstruction(function);
     Push(function);
     AddSimulate(prop->LoadId(), REMOVABLE_SIMULATE);
