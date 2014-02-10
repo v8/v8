@@ -839,7 +839,8 @@ void Builtins::Generate_MarkCodeAsExecutedOnce(MacroAssembler* masm) {
     __ Push(x0, x1, fp, lr);
     __ Mov(x1, Operand(ExternalReference::isolate_address(masm->isolate())));
     __ CallCFunction(
-        ExternalReference::get_make_code_young_function(masm->isolate()), 2);
+        ExternalReference::get_mark_code_as_executed_function(
+            masm->isolate()), 2);
     __ Pop(lr, fp, x1, x0);
 
     // Perform prologue operations usually performed by the young code stub.

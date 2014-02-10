@@ -2600,8 +2600,12 @@ void MacroAssembler::Prologue(PrologueFrameMode frame_mode) {
     __ Push(lr, fp, cp, Tmp0());
     __ Add(fp, jssp, StandardFrameConstants::kFixedFrameSizeFromFp);
   } else {
-    TODO_UNIMPLEMENTED("Prologue: Support IsCodePreAgingActive().");
-    __ EmitFrameSetupForCodeAgePatching();
+    if (isolate()->IsCodePreAgingActive()) {
+      Code* stub = Code::GetPreAgedCodeAgeStub(isolate());
+      __ EmitCodeAgeSequence(stub);
+    } else {
+      __ EmitFrameSetupForCodeAgePatching();
+    }
   }
 }
 
@@ -4666,6 +4670,14 @@ void MacroAssembler::EmitFrameSetupForCodeAgePatching() {
 }
 
 
+
+void MacroAssembler::EmitCodeAgeSequence(Code* stub) {
+  InstructionAccurateScope scope(this, kCodeAgeSequenceSize / kInstructionSize);
+  ASSERT(jssp.Is(StackPointer()));
+  EmitCodeAgeSequence(this, stub);
+}
+
+
 #undef __
 #define __ assm->
 
@@ -4688,7 +4700,7 @@ void MacroAssembler::EmitFrameSetupForCodeAgePatching(Assembler * assm) {
 }
 
 
-void MacroAssembler::EmitCodeAgeSequence(PatchingAssembler * assm,
+void MacroAssembler::EmitCodeAgeSequence(Assembler * assm,
                                          Code * stub) {
   Label start;
   __ bind(&start);
