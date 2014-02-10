@@ -3440,8 +3440,8 @@ void MacroAssembler::StoreNumberToDoubleElements(Register value_reg,
   bind(&is_nan);
   // Load canonical NaN for storing into the double array.
   LoadRoot(at, Heap::kNanValueRootIndex);
-  lw(mantissa_reg, FieldMemOperand(at, HeapNumber::kValueOffset));
-  lw(exponent_reg, FieldMemOperand(at, HeapNumber::kValueOffset + 4));
+  lw(mantissa_reg, FieldMemOperand(at, HeapNumber::kMantissaOffset));
+  lw(exponent_reg, FieldMemOperand(at, HeapNumber::kExponentOffset));
   jmp(&have_double_value);
 
   bind(&smi_value);
