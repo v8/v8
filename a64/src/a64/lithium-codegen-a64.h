@@ -218,6 +218,7 @@ class LCodeGen: public LCodeGenBase {
                                    Register temp,
                                    LOperand* index,
                                    String::Encoding encoding);
+  bool DeoptimizeHeader(LEnvironment* environment);
   void Deoptimize(LEnvironment* environment);
   void Deoptimize(LEnvironment* environment,
                   Deoptimizer::BailoutType bailout_type);

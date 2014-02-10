@@ -943,18 +943,19 @@ void LCodeGen::PopulateDeoptimizationLiteralsWithInlinedFunctions() {
 }
 
 
-void LCodeGen::Deoptimize(LEnvironment* environment,
-                          Deoptimizer::BailoutType bailout_type) {
+bool LCodeGen::DeoptimizeHeader(LEnvironment* environment) {
   RegisterEnvironmentForDeoptimization(environment, Safepoint::kNoLazyDeopt);
   ASSERT(environment->HasBeenRegistered());
   ASSERT(info()->IsOptimizing() || info()->IsStub());
   int id = environment->deoptimization_index();
+  Deoptimizer::BailoutType bailout_type = info()->IsStub() ? Deoptimizer::LAZY
+                                                           : Deoptimizer::EAGER;
   Address entry =
       Deoptimizer::GetDeoptimizationEntry(isolate(), id, bailout_type);
 
   if (entry == NULL) {
     Abort(kBailoutWasNotPrepared);
-    return;
+    return false;
   }
 
   ASSERT(FLAG_deopt_every_n_times < 2);  // Other values not supported on A64.
@@ -964,13 +965,26 @@ void LCodeGen::Deoptimize(LEnvironment* environment,
       info()->opt_count() == id) {
     ASSERT(frame_is_built_);
     __ Call(entry, RelocInfo::RUNTIME_ENTRY);
-    return;
+    return false;
   }
+
+  return true;
+}
+
+
+void LCodeGen::Deoptimize(LEnvironment* environment,
+                          Deoptimizer::BailoutType bailout_type) {
+  if (!DeoptimizeHeader(environment)) return;
+
+  ASSERT(environment->HasBeenRegistered());
+  ASSERT(info()->IsOptimizing() || info()->IsStub());
+  int id = environment->deoptimization_index();
+  Address entry =
+      Deoptimizer::GetDeoptimizationEntry(isolate(), id, bailout_type);
 
   if (info()->ShouldTrapOnDeopt()) {
     __ Debug("trap_on_deopt", __LINE__, BREAK);
   }
-
 
   ASSERT(info()->IsStub() || frame_is_built_);
   // Go through jump table if we need to build frame, or restore caller doubles.
