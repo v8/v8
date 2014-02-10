@@ -1766,28 +1766,38 @@ void Assembler::brk(int code) {
 
 void Assembler::debug(const char* message, uint32_t code, Instr params) {
 #ifdef USE_SIMULATOR
-  // The arguments to the debug marker need to be contiguous in memory, so make
-  // sure we don't try to emit a literal pool.
-  BlockConstPoolScope scope(this);
+  // Don't generate simulator specific code if we are building a snapshot, which
+  // might be run on real hardware.
+  if (!Serializer::enabled()) {
+#ifdef DEBUG
+    Serializer::TooLateToEnableNow();
+#endif
+    // The arguments to the debug marker need to be contiguous in memory, so
+    // make sure we don't try to emit a literal pool.
+    BlockConstPoolScope scope(this);
 
-  Label start;
-  bind(&start);
+    Label start;
+    bind(&start);
 
-  // Refer to instructions-a64.h for a description of the marker and its
-  // arguments.
-  hlt(kImmExceptionIsDebug);
-  ASSERT(SizeOfCodeGeneratedSince(&start) == kDebugCodeOffset);
-  dc32(code);
-  ASSERT(SizeOfCodeGeneratedSince(&start) == kDebugParamsOffset);
-  dc32(params);
-  ASSERT(SizeOfCodeGeneratedSince(&start) == kDebugMessageOffset);
-  EmitStringData(message);
-  hlt(kImmExceptionIsUnreachable);
-#else
+    // Refer to instructions-a64.h for a description of the marker and its
+    // arguments.
+    hlt(kImmExceptionIsDebug);
+    ASSERT(SizeOfCodeGeneratedSince(&start) == kDebugCodeOffset);
+    dc32(code);
+    ASSERT(SizeOfCodeGeneratedSince(&start) == kDebugParamsOffset);
+    dc32(params);
+    ASSERT(SizeOfCodeGeneratedSince(&start) == kDebugMessageOffset);
+    EmitStringData(message);
+    hlt(kImmExceptionIsUnreachable);
+
+    return;
+  }
+  // Fall through if Serializer is enabled.
+#endif
+
   if (params & BREAK) {
     hlt(kImmExceptionIsDebug);
   }
-#endif
 }
 
 
