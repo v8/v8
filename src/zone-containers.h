@@ -1,4 +1,4 @@
-// Copyright 2013 the V8 project authors. All rights reserved.
+// Copyright 2014 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,53 +25,22 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_HYDROGEN_GVN_H_
-#define V8_HYDROGEN_GVN_H_
+#ifndef V8_ZONE_CONTAINERS_H_
+#define V8_ZONE_CONTAINERS_H_
 
-#include "hydrogen.h"
-#include "hydrogen-instructions.h"
-#include "compiler.h"
+#include <vector>
+#include <set>
+
 #include "zone.h"
 
 namespace v8 {
 namespace internal {
 
-// Perform common subexpression elimination and loop-invariant code motion.
-class HGlobalValueNumberingPhase : public HPhase {
- public:
-  explicit HGlobalValueNumberingPhase(HGraph* graph);
-
-  void Run();
-
- private:
-  GVNFlagSet CollectSideEffectsOnPathsToDominatedBlock(
-      HBasicBlock* dominator,
-      HBasicBlock* dominated);
-  void AnalyzeGraph();
-  void ComputeBlockSideEffects();
-  void LoopInvariantCodeMotion();
-  void ProcessLoopBlock(HBasicBlock* block,
-                        HBasicBlock* before_loop,
-                        GVNFlagSet loop_kills);
-  bool AllowCodeMotion();
-  bool ShouldMove(HInstruction* instr, HBasicBlock* loop_header);
-
-  bool removed_side_effects_;
-
-  // A map of block IDs to their side effects.
-  ZoneList<GVNFlagSet> block_side_effects_;
-
-  // A map of loop header block IDs to their loop's side effects.
-  ZoneList<GVNFlagSet> loop_side_effects_;
-
-  // Used when collecting side effects on paths from dominator to
-  // dominated.
-  BitVector visited_on_paths_;
-
-  DISALLOW_COPY_AND_ASSIGN(HGlobalValueNumberingPhase);
-};
-
+typedef zone_allocator<int> ZoneIntAllocator;
+typedef std::vector<int, ZoneIntAllocator> IntVector;
+typedef IntVector::iterator IntVectorIter;
+typedef IntVector::reverse_iterator IntVectorRIter;
 
 } }  // namespace v8::internal
 
-#endif  // V8_HYDROGEN_GVN_H_
+#endif  // V8_ZONE_CONTAINERS_H_

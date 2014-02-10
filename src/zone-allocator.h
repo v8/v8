@@ -1,4 +1,4 @@
-// Copyright 2013 the V8 project authors. All rights reserved.
+// Copyright 2014 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,53 +25,56 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_HYDROGEN_GVN_H_
-#define V8_HYDROGEN_GVN_H_
+#ifndef V8_ZONE_ALLOCATOR_H_
+#define V8_ZONE_ALLOCATOR_H_
 
-#include "hydrogen.h"
-#include "hydrogen-instructions.h"
-#include "compiler.h"
 #include "zone.h"
 
 namespace v8 {
 namespace internal {
 
-// Perform common subexpression elimination and loop-invariant code motion.
-class HGlobalValueNumberingPhase : public HPhase {
+template<typename T>
+class zone_allocator {
  public:
-  explicit HGlobalValueNumberingPhase(HGraph* graph);
+  typedef T* pointer;
+  typedef const T* const_pointer;
+  typedef T& reference;
+  typedef const T& const_reference;
+  typedef T value_type;
+  typedef size_t size_type;
+  typedef ptrdiff_t difference_type;
+  template<class O> struct rebind {
+    typedef zone_allocator<O> other;
+  };
 
-  void Run();
+  explicit zone_allocator(Zone* zone) throw() : zone_(zone) {}
+  explicit zone_allocator(const zone_allocator& other) throw()
+      : zone_(other.zone_) {}
+  template<typename U> zone_allocator(const zone_allocator<U>&) throw() {}
+
+  pointer address(reference x) const {return &x;}
+  const_pointer address(const_reference x) const {return &x;}
+
+  pointer allocate(size_type count, const void* hint = 0) {
+    size_t size = count * sizeof(value_type);
+    size = RoundUp(size, kPointerSize);
+    return static_cast<pointer>(zone_->New(size));
+  }
+  void deallocate(pointer p, size_type) { /* noop for Zones */ }
+
+  size_type max_size() const throw() {
+    size_type max = static_cast<size_type>(-1) / sizeof(T);
+    return (max > 0 ? max : 1);
+  }
+  void construct(pointer p, const T& val) {
+    new(static_cast<void*>(p)) T(val);
+  }
+  void destroy(pointer p) { (static_cast<T*>(p))->~T(); }
 
  private:
-  GVNFlagSet CollectSideEffectsOnPathsToDominatedBlock(
-      HBasicBlock* dominator,
-      HBasicBlock* dominated);
-  void AnalyzeGraph();
-  void ComputeBlockSideEffects();
-  void LoopInvariantCodeMotion();
-  void ProcessLoopBlock(HBasicBlock* block,
-                        HBasicBlock* before_loop,
-                        GVNFlagSet loop_kills);
-  bool AllowCodeMotion();
-  bool ShouldMove(HInstruction* instr, HBasicBlock* loop_header);
-
-  bool removed_side_effects_;
-
-  // A map of block IDs to their side effects.
-  ZoneList<GVNFlagSet> block_side_effects_;
-
-  // A map of loop header block IDs to their loop's side effects.
-  ZoneList<GVNFlagSet> loop_side_effects_;
-
-  // Used when collecting side effects on paths from dominator to
-  // dominated.
-  BitVector visited_on_paths_;
-
-  DISALLOW_COPY_AND_ASSIGN(HGlobalValueNumberingPhase);
+  Zone* zone_;
 };
-
 
 } }  // namespace v8::internal
 
-#endif  // V8_HYDROGEN_GVN_H_
+#endif  // V8_ZONE_ALLOCATOR_H_

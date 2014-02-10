@@ -91,6 +91,10 @@ class List {
   inline T& last() const { return at(length_ - 1); }
   inline T& first() const { return at(0); }
 
+  typedef T* iterator;
+  inline iterator begin() const { return &data_[0]; }
+  inline iterator end() const { return &data_[length_]; }
+
   INLINE(bool is_empty() const) { return length_ == 0; }
   INLINE(int length() const) { return length_; }
   INLINE(int capacity() const) { return capacity_; }

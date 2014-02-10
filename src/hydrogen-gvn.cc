@@ -535,13 +535,9 @@ void HGlobalValueNumberingPhase::LoopInvariantCodeMotion() {
                   block->block_id(),
                   GetGVNFlagsString(side_effects).get());
 
-      GVNFlagSet accumulated_first_time_depends;
-      GVNFlagSet accumulated_first_time_changes;
       HBasicBlock* last = block->loop_information()->GetLastBackEdge();
       for (int j = block->block_id(); j <= last->block_id(); ++j) {
-        ProcessLoopBlock(graph()->blocks()->at(j), block, side_effects,
-                         &accumulated_first_time_depends,
-                         &accumulated_first_time_changes);
+        ProcessLoopBlock(graph()->blocks()->at(j), block, side_effects);
       }
     }
   }
@@ -551,9 +547,7 @@ void HGlobalValueNumberingPhase::LoopInvariantCodeMotion() {
 void HGlobalValueNumberingPhase::ProcessLoopBlock(
     HBasicBlock* block,
     HBasicBlock* loop_header,
-    GVNFlagSet loop_kills,
-    GVNFlagSet* first_time_depends,
-    GVNFlagSet* first_time_changes) {
+    GVNFlagSet loop_kills) {
   HBasicBlock* pre_header = loop_header->predecessors()->at(0);
   GVNFlagSet depends_flags = HValue::ConvertChangesToDependsFlags(loop_kills);
   TRACE_GVN_2("Loop invariant motion for B%d %s\n",
@@ -562,7 +556,6 @@ void HGlobalValueNumberingPhase::ProcessLoopBlock(
   HInstruction* instr = block->first();
   while (instr != NULL) {
     HInstruction* next = instr->next();
-    bool hoisted = false;
     if (instr->CheckFlag(HValue::kUseGVN)) {
       TRACE_GVN_4("Checking instruction %d (%s) %s. Loop %s\n",
                   instr->id(),
@@ -589,24 +582,7 @@ void HGlobalValueNumberingPhase::ProcessLoopBlock(
           instr->Unlink();
           instr->InsertBefore(pre_header->end());
           if (instr->HasSideEffects()) removed_side_effects_ = true;
-          hoisted = true;
         }
-      }
-    }
-    if (!hoisted) {
-      // If an instruction is not hoisted, we have to account for its side
-      // effects when hoisting later HTransitionElementsKind instructions.
-      GVNFlagSet previous_depends = *first_time_depends;
-      GVNFlagSet previous_changes = *first_time_changes;
-      first_time_depends->Add(instr->DependsOnFlags());
-      first_time_changes->Add(instr->ChangesFlags());
-      if (!(previous_depends == *first_time_depends)) {
-        TRACE_GVN_1("Updated first-time accumulated %s\n",
-                    GetGVNFlagsString(*first_time_depends).get());
-      }
-      if (!(previous_changes == *first_time_changes)) {
-        TRACE_GVN_1("Updated first-time accumulated %s\n",
-                    GetGVNFlagsString(*first_time_changes).get());
       }
     }
     instr = next;
