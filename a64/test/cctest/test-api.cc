@@ -737,14 +737,13 @@ TEST(MakingExternalUnalignedAsciiString) {
   CcTest::heap()->CollectGarbage(i::NEW_SPACE);  // in old gen now
 
   // Turn into external string with unaligned resource data.
-  int dispose_count = 0;
   const char* c_cons = "_abcdefghijklmnopqrstuvwxyz";
   bool success = cons->MakeExternal(
-      new TestAsciiResource(i::StrDup(c_cons), &dispose_count, 1));
+      new TestAsciiResource(i::StrDup(c_cons), NULL, 1));
   CHECK(success);
   const char* c_slice = "_bcdefghijklmnopqrstuvwxyz";
   success = slice->MakeExternal(
-      new TestAsciiResource(i::StrDup(c_slice), &dispose_count, 1));
+      new TestAsciiResource(i::StrDup(c_slice), NULL, 1));
   CHECK(success);
 
   // Trigger GCs and force evacuation.
@@ -7047,28 +7046,6 @@ TEST(ErrorReporting) {
 }
 
 
-static const char* js_code_causing_huge_string_flattening =
-    "var str = 'X';"
-    "for (var i = 0; i < 30; i++) {"
-    "  str = str + str;"
-    "}"
-    "str.match(/X/);";
-
-
-TEST(RegexpOutOfMemory) {
-  // Execute a script that causes out of memory when flattening a string.
-  v8::HandleScope scope(CcTest::isolate());
-  v8::V8::SetFatalErrorHandler(OOMCallback);
-  LocalContext context;
-  Local<Script> script = Script::Compile(String::NewFromUtf8(
-      CcTest::isolate(), js_code_causing_huge_string_flattening));
-  last_location = NULL;
-  script->Run();
-
-  CHECK(false);  // Should not return.
-}
-
-
 static void MissingScriptInfoMessageListener(v8::Handle<v8::Message> message,
                                              v8::Handle<Value> data) {
   CHECK(message->GetScriptResourceName()->IsUndefined());
@@ -7084,93 +7061,6 @@ THREADED_TEST(ErrorWithMissingScriptInfo) {
   v8::V8::AddMessageListener(MissingScriptInfoMessageListener);
   Script::Compile(v8_str("throw Error()"))->Run();
   v8::V8::RemoveMessageListeners(MissingScriptInfoMessageListener);
-}
-
-
-int global_index = 0;
-
-template<typename T>
-class Snorkel {
- public:
-  explicit Snorkel(v8::Persistent<T>* handle) : handle_(handle) {
-    index_ = global_index++;
-  }
-  v8::Persistent<T>* handle_;
-  int index_;
-};
-
-class Whammy {
- public:
-  explicit Whammy(v8::Isolate* isolate) : cursor_(0), isolate_(isolate) { }
-  ~Whammy() { script_.Reset(); }
-  v8::Handle<Script> getScript() {
-    if (script_.IsEmpty()) script_.Reset(isolate_, v8_compile("({}).blammo"));
-    return Local<Script>::New(isolate_, script_);
-  }
-
- public:
-  static const int kObjectCount = 256;
-  int cursor_;
-  v8::Isolate* isolate_;
-  v8::Persistent<v8::Object> objects_[kObjectCount];
-  v8::Persistent<Script> script_;
-};
-
-static void HandleWeakReference(
-    const v8::WeakCallbackData<v8::Value, Snorkel<v8::Value> >& data) {
-  data.GetParameter()->handle_->ClearWeak();
-  delete data.GetParameter();
-}
-
-void WhammyPropertyGetter(Local<String> name,
-                          const v8::PropertyCallbackInfo<v8::Value>& info) {
-  Whammy* whammy =
-    static_cast<Whammy*>(v8::Handle<v8::External>::Cast(info.Data())->Value());
-
-  v8::Persistent<v8::Object>& prev = whammy->objects_[whammy->cursor_];
-
-  v8::Handle<v8::Object> obj = v8::Object::New(info.GetIsolate());
-  if (!prev.IsEmpty()) {
-    v8::Local<v8::Object>::New(info.GetIsolate(), prev)
-        ->Set(v8_str("next"), obj);
-    prev.SetWeak<Value, Snorkel<Value> >(new Snorkel<Value>(&prev.As<Value>()),
-                                         &HandleWeakReference);
-  }
-  whammy->objects_[whammy->cursor_].Reset(info.GetIsolate(), obj);
-  whammy->cursor_ = (whammy->cursor_ + 1) % Whammy::kObjectCount;
-  info.GetReturnValue().Set(whammy->getScript()->Run());
-}
-
-
-TEST(WeakReference) {
-  i::FLAG_expose_gc = true;
-  v8::Isolate* isolate = CcTest::isolate();
-  v8::HandleScope handle_scope(isolate);
-  v8::Handle<v8::ObjectTemplate> templ= v8::ObjectTemplate::New(isolate);
-  Whammy* whammy = new Whammy(CcTest::isolate());
-  templ->SetNamedPropertyHandler(WhammyPropertyGetter,
-                                 0, 0, 0, 0,
-                                 v8::External::New(CcTest::isolate(), whammy));
-  const char* extension_list[] = { "v8/gc" };
-  v8::ExtensionConfiguration extensions(1, extension_list);
-  v8::Handle<Context> context =
-      Context::New(CcTest::isolate(), &extensions);
-  Context::Scope context_scope(context);
-
-  v8::Handle<v8::Object> interceptor = templ->NewInstance();
-  context->Global()->Set(v8_str("whammy"), interceptor);
-  const char* code =
-      "var last;"
-      "for (var i = 0; i < 10000; i++) {"
-      "  var obj = whammy.length;"
-      "  if (last) last.next = obj;"
-      "  last = obj;"
-      "}"
-      "gc();"
-      "4";
-  v8::Handle<Value> result = CompileRun(code);
-  CHECK_EQ(4.0, result->NumberValue());
-  delete whammy;
 }
 
 
@@ -14935,6 +14825,7 @@ TEST(PreCompileSerialization) {
 
   delete sd;
   delete deserialized_sd;
+  i::DeleteArray(serialized_data);
 }
 
 
@@ -14983,6 +14874,7 @@ TEST(PreCompileInvalidPreparseDataError) {
            *exception_value);
 
   try_catch.Reset();
+  delete sd;
 
   // Overwrite function bar's start position with 200.  The function entry
   // will not be found when searching for it by position and we should fall
@@ -15298,8 +15190,8 @@ TEST(RegExpInterruption) {
 
   timeout_thread.Join();
 
-  delete regexp_interruption_data.string_resource;
   regexp_interruption_data.string.Reset();
+  i::DeleteArray(uc16_content);
 }
 
 #endif  // V8_INTERPRETED_REGEXP
@@ -17864,6 +17756,50 @@ class VisitorImpl : public v8::ExternalResourceVisitor {
 };
 
 
+TEST(ExternalizeOldSpaceTwoByteCons) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+  v8::Local<v8::String> cons =
+      CompileRun("'Romeo Montague ' + 'Juliet Capulet'")->ToString();
+  CHECK(v8::Utils::OpenHandle(*cons)->IsConsString());
+  CcTest::heap()->CollectAllAvailableGarbage();
+  CHECK(CcTest::heap()->old_pointer_space()->Contains(
+            *v8::Utils::OpenHandle(*cons)));
+
+  TestResource* resource = new TestResource(
+      AsciiToTwoByteString("Romeo Montague Juliet Capulet"));
+  cons->MakeExternal(resource);
+
+  CHECK(cons->IsExternal());
+  CHECK_EQ(resource, cons->GetExternalStringResource());
+  String::Encoding encoding;
+  CHECK_EQ(resource, cons->GetExternalStringResourceBase(&encoding));
+  CHECK_EQ(String::TWO_BYTE_ENCODING, encoding);
+}
+
+
+TEST(ExternalizeOldSpaceOneByteCons) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+  v8::Local<v8::String> cons =
+      CompileRun("'Romeo Montague ' + 'Juliet Capulet'")->ToString();
+  CHECK(v8::Utils::OpenHandle(*cons)->IsConsString());
+  CcTest::heap()->CollectAllAvailableGarbage();
+  CHECK(CcTest::heap()->old_pointer_space()->Contains(
+            *v8::Utils::OpenHandle(*cons)));
+
+  TestAsciiResource* resource =
+      new TestAsciiResource(i::StrDup("Romeo Montague Juliet Capulet"));
+  cons->MakeExternal(resource);
+
+  CHECK(cons->IsExternalAscii());
+  CHECK_EQ(resource, cons->GetExternalAsciiStringResource());
+  String::Encoding encoding;
+  CHECK_EQ(resource, cons->GetExternalStringResourceBase(&encoding));
+  CHECK_EQ(String::ONE_BYTE_ENCODING, encoding);
+}
+
+
 TEST(VisitExternalStrings) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
@@ -19114,18 +19050,20 @@ TEST(IsolateNewDispose) {
 
 UNINITIALIZED_TEST(DisposeIsolateWhenInUse) {
   v8::Isolate* isolate = v8::Isolate::New();
-  CHECK(isolate);
-  isolate->Enter();
-  v8::HandleScope scope(isolate);
-  LocalContext context(isolate);
-  // Run something in this isolate.
-  ExpectTrue("true");
-  v8::V8::SetFatalErrorHandler(StoringErrorCallback);
-  last_location = last_message = NULL;
-  // Still entered, should fail.
+  {
+    v8::Isolate::Scope i_scope(isolate);
+    v8::HandleScope scope(isolate);
+    LocalContext context(isolate);
+    // Run something in this isolate.
+    ExpectTrue("true");
+    v8::V8::SetFatalErrorHandler(StoringErrorCallback);
+    last_location = last_message = NULL;
+    // Still entered, should fail.
+    isolate->Dispose();
+    CHECK_NE(last_location, NULL);
+    CHECK_NE(last_message, NULL);
+  }
   isolate->Dispose();
-  CHECK_NE(last_location, NULL);
-  CHECK_NE(last_message, NULL);
 }
 
 
@@ -19340,6 +19278,7 @@ TEST(IsolateDifferentContexts) {
     CHECK(v->IsNumber());
     CHECK_EQ(22, static_cast<int>(v->NumberValue()));
   }
+  isolate->Dispose();
 }
 
 class InitDefaultIsolateThread : public v8::internal::Thread {
@@ -21870,8 +21809,30 @@ class ApiCallOptimizationChecker {
     CHECK(callee == info.Callee());
     CHECK(data == info.Data());
     CHECK(receiver == info.This());
+    if (info.Length() == 1) {
+      CHECK_EQ(v8_num(1), info[0]);
+    }
     CHECK(holder == info.Holder());
     count++;
+  }
+
+  // TODO(dcarney): move this to v8.h
+  static void SetAccessorProperty(Local<Object> object,
+                                  Local<String> name,
+                                  Local<Function> getter,
+                                  Local<Function> setter = Local<Function>()) {
+    i::Isolate* isolate = CcTest::i_isolate();
+    v8::AccessControl settings = v8::DEFAULT;
+    v8::PropertyAttribute attribute = v8::None;
+    i::Handle<i::Object> getter_i = v8::Utils::OpenHandle(*getter);
+    i::Handle<i::Object> setter_i = v8::Utils::OpenHandle(*setter, true);
+    if (setter_i.is_null()) setter_i = isolate->factory()->null_value();
+    i::JSObject::DefineAccessor(v8::Utils::OpenHandle(*object),
+                                v8::Utils::OpenHandle(*name),
+                                getter_i,
+                                setter_i,
+                                static_cast<PropertyAttributes>(attribute),
+                                settings);
   }
 
   public:
@@ -21910,9 +21871,12 @@ class ApiCallOptimizationChecker {
       Local<FunctionTemplate> function_template = FunctionTemplate::New(
           isolate, OptimizationCallback, data, signature);
       Local<Function> function = function_template->GetFunction();
-      Local<Object>::Cast(
-          inner_global->GetPrototype())->Set(v8_str("global_f"), function);
+      Local<Object> global_holder = Local<Object>::Cast(
+          inner_global->GetPrototype());
+      global_holder->Set(v8_str("g_f"), function);
+      SetAccessorProperty(global_holder, v8_str("g_acc"), function, function);
       function_holder->Set(v8_str("f"), function);
+      SetAccessorProperty(function_holder, v8_str("acc"), function, function);
       // Initialize expected values.
       callee = function;
       count = 0;
@@ -21938,33 +21902,50 @@ class ApiCallOptimizationChecker {
       if (!use_signature) holder = receiver;
       // build wrap_function
       int key = (use_signature ? 1 : 0) + 2 * (global ? 1 : 0);
-      i::ScopedVector<char> wrap_function(100);
+      i::ScopedVector<char> wrap_function(200);
       if (global) {
         i::OS::SNPrintF(
             wrap_function,
-           "function wrap_%d() { var f = global_f; return f(); }\n",
-            key);
+            "function wrap_f_%d() { var f = g_f; return f(); }\n"
+            "function wrap_get_%d() { return this.g_acc; }\n"
+            "function wrap_set_%d() { this.g_acc = 1; }\n",
+            key, key, key);
       } else {
         i::OS::SNPrintF(
             wrap_function,
-            "function wrap_%d() { return receiver_subclass.f(); }\n",
-            key);
+            "function wrap_f_%d() { return receiver_subclass.f(); }\n"
+            "function wrap_get_%d() { return receiver_subclass.acc; }\n"
+            "function wrap_set_%d() { receiver_subclass.acc = 1; }\n",
+            key, key, key);
       }
       // build source string
       i::ScopedVector<char> source(500);
       i::OS::SNPrintF(
           source,
-          "%s\n"  // wrap_function
-          "function wrap2() { wrap_%d(); }\n"
-          "wrap2();\n"
-          "wrap2();\n"
-          "%%OptimizeFunctionOnNextCall(wrap_%d);\n"
-          "wrap2();\n",
-          wrap_function.start(), key, key);
+          "%s\n"  // wrap functions
+          "function wrap_f() { wrap_f_%d(); }\n"
+          "function wrap_get() { wrap_get_%d(); }\n"
+          "function wrap_set() { wrap_set_%d(); }\n"
+          "\n"
+          "wrap_f();\n"
+          "wrap_f();\n"
+          "%%OptimizeFunctionOnNextCall(wrap_f_%d);\n"
+          "wrap_f();\n"
+          "\n"
+          "wrap_get();\n"
+          "wrap_get();\n"
+          "%%OptimizeFunctionOnNextCall(wrap_get_%d);\n"
+          "wrap_get();\n"
+          "\n"
+          "wrap_set();\n"
+          "wrap_set();\n"
+          "%%OptimizeFunctionOnNextCall(wrap_set_%d);\n"
+          "wrap_set();\n",
+          wrap_function.start(), key, key, key, key, key, key);
       v8::TryCatch try_catch;
       CompileRun(source.start());
       ASSERT(!try_catch.HasCaught());
-      CHECK_EQ(3, count);
+      CHECK_EQ(9, count);
     }
 };
 

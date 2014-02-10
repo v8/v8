@@ -1082,6 +1082,14 @@ inline Operand FieldOperand(Register object,
 }
 
 
+inline Operand FixedArrayElementOperand(Register array,
+                                        Register index_as_smi,
+                                        int additional_offset = 0) {
+  int offset = FixedArray::kHeaderSize + additional_offset * kPointerSize;
+  return FieldOperand(array, index_as_smi, times_half_pointer_size, offset);
+}
+
+
 inline Operand ContextOperand(Register context, int index) {
   return Operand(context, Context::SlotOffset(index));
 }

@@ -54,7 +54,7 @@ CONFIG = {
 
 class PushToTrunkOptions(CommonOptions):
   @staticmethod
-  def MakeForcedOptions(reviewer, chrome_path):
+  def MakeForcedOptions(author, reviewer, chrome_path):
     """Convenience wrapper."""
     class Options(object):
       pass
@@ -65,6 +65,7 @@ class PushToTrunkOptions(CommonOptions):
     options.m = False
     options.r = reviewer
     options.c = chrome_path
+    options.a = author
     return PushToTrunkOptions(options)
 
   def __init__(self, options):
@@ -75,6 +76,7 @@ class PushToTrunkOptions(CommonOptions):
     self.l = options.l
     self.r = options.r
     self.c = options.c
+    self.author = getattr(options, 'a', None)
 
 class Preparation(Step):
   MESSAGE = "Preparation."
@@ -492,8 +494,11 @@ class UploadCL(Step):
             % (ver, self._state["svn_revision"], rev))
     if self.Git(args) is None:
       self.Die("'git commit' failed.")
+    author_option = self._options.author
+    author = " --email \"%s\"" % author_option if author_option else ""
     force_flag = " -f" if self._options.force_upload else ""
-    if self.Git("cl upload --send-mail%s" % force_flag, pipe=False) is None:
+    if self.Git("cl upload%s --send-mail%s" % (author, force_flag),
+                pipe=False) is None:
       self.Die("'git cl upload' failed, please try again.")
     print "CL uploaded."
 
@@ -568,6 +573,8 @@ def RunPushToTrunk(config,
 
 def BuildOptions():
   result = optparse.OptionParser()
+  result.add_option("-a", "--author", dest="a",
+                    help=("Specify the author email used for rietveld."))
   result.add_option("-c", "--chromium", dest="c",
                     help=("Specify the path to your Chromium src/ "
                           "directory to automate the V8 roll."))
@@ -600,6 +607,9 @@ def ProcessOptions(options):
     return False
   if not options.m and not options.c:
     print "A chromium checkout (-c) is required in (semi-)automatic mode."
+    return False
+  if not options.m and not options.a:
+    print "Specify your chromium.org email with -a in (semi-)automatic mode."
     return False
   return True
 

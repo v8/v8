@@ -179,8 +179,7 @@ bool LCodeGen::GeneratePrologue() {
   if (slots > 0) {
     if (FLAG_debug_code) {
       __ Subu(sp,  sp, Operand(slots * kPointerSize));
-      __ push(a0);
-      __ push(a1);
+      __ Push(a0, a1);
       __ Addu(a0, sp, Operand(slots *  kPointerSize));
       __ li(a1, Operand(kSlotsZapValue));
       Label loop;
@@ -188,8 +187,7 @@ bool LCodeGen::GeneratePrologue() {
       __ Subu(a0, a0, Operand(kPointerSize));
       __ sw(a1, MemOperand(a0, 2 * kPointerSize));
       __ Branch(&loop, ne, a0, Operand(sp));
-      __ pop(a1);
-      __ pop(a0);
+      __ Pop(a0, a1);
     } else {
       __ Subu(sp, sp, Operand(slots * kPointerSize));
     }
@@ -2615,10 +2613,10 @@ void LCodeGen::DoInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr) {
   Handle<Cell> cell = factory()->NewCell(factory()->the_hole_value());
   __ li(at, Operand(Handle<Object>(cell)));
   __ lw(at, FieldMemOperand(at, PropertyCell::kValueOffset));
-  __ Branch(&cache_miss, ne, map, Operand(at));
+  __ BranchShort(&cache_miss, ne, map, Operand(at));
   // We use Factory::the_hole_value() on purpose instead of loading from the
   // root array to force relocation to be able to later patch
-  // with true or false.
+  // with true or false. The distance from map check has to be constant.
   __ li(result, Operand(factory()->the_hole_value()), CONSTANT_SIZE);
   __ Branch(&done);
 
@@ -3757,6 +3755,7 @@ void LCodeGen::DoPower(LPower* instr) {
     Label no_deopt;
     __ JumpIfSmi(a2, &no_deopt);
     __ lw(t3, FieldMemOperand(a2, HeapObject::kMapOffset));
+    __ LoadRoot(at, Heap::kHeapNumberMapRootIndex);
     DeoptimizeIf(ne, instr->environment(), t3, Operand(at));
     __ bind(&no_deopt);
     MathPowStub stub(MathPowStub::TAGGED);
@@ -3863,13 +3862,8 @@ void LCodeGen::DoCallFunction(LCallFunction* instr) {
   ASSERT(ToRegister(instr->result()).is(v0));
 
   int arity = instr->arity();
-  CallFunctionStub stub(arity, NO_CALL_FUNCTION_FLAGS);
-  if (instr->hydrogen()->IsTailCall()) {
-    if (NeedsEagerFrame()) __ mov(sp, fp);
-    __ Jump(stub.GetCode(isolate()), RelocInfo::CODE_TARGET);
-  } else {
-    CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
-  }
+  CallFunctionStub stub(arity, instr->hydrogen()->function_flags());
+  CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
 }
 
 
@@ -4008,7 +4002,6 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
 
   // Do the store.
   Register value = ToRegister(instr->value());
-  ASSERT(!object.is(value));
   SmiCheck check_needed =
       instr->hydrogen()->value()->IsHeapObject()
           ? OMIT_SMI_CHECK : INLINE_SMI_CHECK;
@@ -4229,8 +4222,8 @@ void LCodeGen::DoStoreKeyedFixedDoubleArray(LStoreKeyed* instr) {
 
     // Only load canonical NaN if the comparison above set the overflow.
     __ bind(&is_nan);
-    __ Move(double_scratch,
-            FixedDoubleArray::canonical_not_the_hole_nan_as_double());
+    __ LoadRoot(at, Heap::kNanValueRootIndex);
+    __ ldc1(double_scratch, FieldMemOperand(at, HeapNumber::kValueOffset));
     __ sdc1(double_scratch, MemOperand(scratch, instr->additional_index() <<
         element_size_shift));
     __ Branch(&done);
@@ -4800,8 +4793,9 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr) {
     // Performs a truncating conversion of a floating point number as used by
     // the JS bitwise operations.
     Label no_heap_number, check_bools, check_false;
-    __ Branch(&no_heap_number, ne, scratch1, Operand(at));  // HeapNumber map?
-    __ mov(scratch2, input_reg);
+    // Check HeapNumber map.
+    __ Branch(USE_DELAY_SLOT, &no_heap_number, ne, scratch1, Operand(at));
+    __ mov(scratch2, input_reg);  // In delay slot.
     __ TruncateHeapNumberToI(input_reg, scratch2);
     __ Branch(&done);
 

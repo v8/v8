@@ -3262,10 +3262,9 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   // x1  function    the function to call
   // x2  cache_cell  cache cell for call target
   Register function = x1;
+  Register cache_cell = x2;
   Register type = x4;
   Label slow, non_function, wrap, cont;
-
-  // TODO(jbramley): x2 is clobbered in a number of cases. Is it ever used?
 
   // TODO(jbramley): This function has a lot of unnamed registers. Name them,
   // and tidy things up a bit.
@@ -3289,23 +3288,20 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   if (CallAsMethod()) {
     if (NeedsChecks()) {
       // Do not transform the receiver for strict mode functions.
-      __ Ldr(x2, FieldMemOperand(x1, JSFunction::kSharedFunctionInfoOffset));
-      __ Ldr(w3, FieldMemOperand(x2, SharedFunctionInfo::kCompilerHintsOffset));
-      __ Tbnz(w3, SharedFunctionInfo::kStrictModeFunction, &cont);
+      __ Ldr(x3, FieldMemOperand(x1, JSFunction::kSharedFunctionInfoOffset));
+      __ Ldr(w4, FieldMemOperand(x3, SharedFunctionInfo::kCompilerHintsOffset));
+      __ Tbnz(w4, SharedFunctionInfo::kStrictModeFunction, &cont);
 
       // Do not transform the receiver for native (Compilerhints already in x3).
-      __ Tbnz(w3, SharedFunctionInfo::kNative, &cont);
+      __ Tbnz(w4, SharedFunctionInfo::kNative, &cont);
     }
 
     // Compute the receiver in non-strict mode.
-    __ Peek(x2, argc_ * kPointerSize);
+    __ Peek(x3, argc_ * kPointerSize);
 
     if (NeedsChecks()) {
-      // x0: actual number of arguments
-      // x1: function
-      // x2: first argument
-      __ JumpIfSmi(x2, &wrap);
-      __ JumpIfObjectType(x2, x10, type, FIRST_SPEC_OBJECT_TYPE, &wrap, lt);
+      __ JumpIfSmi(x3, &wrap);
+      __ JumpIfObjectType(x3, x10, type, FIRST_SPEC_OBJECT_TYPE, &wrap, lt);
     } else {
       __ B(&wrap);
     }
@@ -3327,7 +3323,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
       ASSERT_EQ(*TypeFeedbackCells::MegamorphicSentinel(masm->isolate()),
                 masm->isolate()->heap()->undefined_value());
       __ LoadRoot(x11, Heap::kUndefinedValueRootIndex);
-      __ Str(x11, FieldMemOperand(x2, Cell::kValueOffset));
+      __ Str(x11, FieldMemOperand(cache_cell, Cell::kValueOffset));
     }
     // Check for function proxy.
     // x10 : function type.
@@ -3357,7 +3353,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
     __ Bind(&wrap);
     // Wrap the receiver and patch it back onto the stack.
     { FrameScope frame_scope(masm, StackFrame::INTERNAL);
-      __ Push(x1, x2);
+      __ Push(x1, x3);
       __ InvokeBuiltin(Builtins::TO_OBJECT, CALL_FUNCTION);
       __ Pop(x1);
     }

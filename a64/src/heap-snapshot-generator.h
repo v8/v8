@@ -410,6 +410,7 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   void ExtractAccessorPairReferences(int entry, AccessorPair* accessors);
   void ExtractCodeCacheReferences(int entry, CodeCache* code_cache);
   void ExtractCodeReferences(int entry, Code* code);
+  void ExtractBoxReferences(int entry, Box* box);
   void ExtractCellReferences(int entry, Cell* cell);
   void ExtractPropertyCellReferences(int entry, PropertyCell* cell);
   void ExtractAllocationSiteReferences(int entry, AllocationSite* site);

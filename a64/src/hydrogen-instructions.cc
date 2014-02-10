@@ -1119,6 +1119,11 @@ void HCompareMap::PrintDataTo(StringStream* stream) {
   value()->PrintNameTo(stream);
   stream->Add(" (%p)", *map().handle());
   HControlInstruction::PrintDataTo(stream);
+  if (known_successor_index() == 0) {
+    stream->Add(" [true]");
+  } else if (known_successor_index() == 1) {
+    stream->Add(" [false]");
+  }
 }
 
 
@@ -1511,7 +1516,7 @@ void HCheckInstanceType::GetCheckMaskAndTag(uint8_t* mask, uint8_t* tag) {
 }
 
 
-void HCheckMaps::HandleSideEffectDominator(GVNFlag side_effect,
+bool HCheckMaps::HandleSideEffectDominator(GVNFlag side_effect,
                                            HValue* dominator) {
   ASSERT(side_effect == kChangesMaps);
   // TODO(mstarzinger): For now we specialize on HStoreNamedField, but once
@@ -1519,13 +1524,14 @@ void HCheckMaps::HandleSideEffectDominator(GVNFlag side_effect,
   // for which the map is known.
   if (HasNoUses() && dominator->IsStoreNamedField()) {
     HStoreNamedField* store = HStoreNamedField::cast(dominator);
-    if (!store->has_transition() || store->object() != value()) return;
+    if (!store->has_transition() || store->object() != value()) return false;
     HConstant* transition = HConstant::cast(store->transition());
     if (map_set_.Contains(transition->GetUnique())) {
       DeleteAndReplaceWith(NULL);
-      return;
+      return true;
     }
   }
+  return false;
 }
 
 
@@ -3406,11 +3412,11 @@ Representation HUnaryMathOperation::RepresentationFromInputs() {
 }
 
 
-void HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
+bool HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
                                           HValue* dominator) {
   ASSERT(side_effect == kChangesNewSpacePromotion);
   Zone* zone = block()->zone();
-  if (!FLAG_use_allocation_folding) return;
+  if (!FLAG_use_allocation_folding) return false;
 
   // Try to fold allocations together with their dominating allocations.
   if (!dominator->IsAllocate()) {
@@ -3418,7 +3424,7 @@ void HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
       PrintF("#%d (%s) cannot fold into #%d (%s)\n",
           id(), Mnemonic(), dominator->id(), dominator->Mnemonic());
     }
-    return;
+    return false;
   }
 
   HAllocate* dominator_allocate = HAllocate::cast(dominator);
@@ -3432,12 +3438,12 @@ void HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
       PrintF("#%d (%s) cannot fold into #%d (%s), dynamic allocation size\n",
           id(), Mnemonic(), dominator->id(), dominator->Mnemonic());
     }
-    return;
+    return false;
   }
 
   dominator_allocate = GetFoldableDominator(dominator_allocate);
   if (dominator_allocate == NULL) {
-    return;
+    return false;
   }
 
   ASSERT((IsNewSpaceAllocation() &&
@@ -3474,7 +3480,7 @@ void HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
           id(), Mnemonic(), dominator_allocate->id(),
           dominator_allocate->Mnemonic(), new_dominator_size);
     }
-    return;
+    return false;
   }
 
   HInstruction* new_dominator_size_constant = HConstant::CreateAndInsertBefore(
@@ -3522,6 +3528,7 @@ void HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
         id(), Mnemonic(), dominator_allocate->id(),
         dominator_allocate->Mnemonic());
   }
+  return true;
 }
 
 
@@ -3620,8 +3627,7 @@ void HAllocate::CreateFreeSpaceFiller(int32_t free_space_size) {
   filler_map->FinalizeUniqueness();  // TODO(titzer): should be init'd a'ready
   filler_map->InsertAfter(free_space_instr);
   HInstruction* store_map = HStoreNamedField::New(zone, context(),
-      free_space_instr, HObjectAccess::ForMap(), filler_map,
-      INITIALIZING_STORE);
+      free_space_instr, HObjectAccess::ForMap(), filler_map);
   store_map->SetFlag(HValue::kHasNoObservableSideEffects);
   store_map->InsertAfter(filler_map);
 
@@ -3632,10 +3638,11 @@ void HAllocate::CreateFreeSpaceFiller(int32_t free_space_size) {
       zone, context(), free_space_size, Representation::Smi(), store_map);
   // Must force Smi representation for x64 (see comment above).
   HObjectAccess access =
-      HObjectAccess::ForJSObjectOffset(FreeSpace::kSizeOffset,
-          Representation::Smi());
+      HObjectAccess::ForMapAndOffset(isolate()->factory()->free_space_map(),
+                                     FreeSpace::kSizeOffset,
+                                     Representation::Smi());
   HStoreNamedField* store_size = HStoreNamedField::New(zone, context(),
-      free_space_instr, access, filler_size, INITIALIZING_STORE);
+      free_space_instr, access, filler_size);
   store_size->SetFlag(HValue::kHasNoObservableSideEffects);
   store_size->InsertAfter(filler_size);
   filler_free_space_size_ = store_size;
@@ -3645,10 +3652,11 @@ void HAllocate::CreateFreeSpaceFiller(int32_t free_space_size) {
 void HAllocate::ClearNextMapWord(int offset) {
   if (MustClearNextMapWord()) {
     Zone* zone = block()->zone();
-    HObjectAccess access = HObjectAccess::ForJSObjectOffset(offset);
+    HObjectAccess access =
+        HObjectAccess::ForObservableJSObjectOffset(offset);
     HStoreNamedField* clear_next_map =
         HStoreNamedField::New(zone, context(), this, access,
-            block()->graph()->GetConstant0(), INITIALIZING_STORE);
+            block()->graph()->GetConstant0());
     clear_next_map->ClearAllSideEffects();
     clear_next_map->InsertAfter(this);
   }
@@ -4272,7 +4280,7 @@ HObjectAccess HObjectAccess::ForFixedArrayHeader(int offset) {
 }
 
 
-HObjectAccess HObjectAccess::ForJSObjectOffset(int offset,
+HObjectAccess HObjectAccess::ForMapAndOffset(Handle<Map> map, int offset,
     Representation representation) {
   ASSERT(offset >= 0);
   Portion portion = kInobject;
@@ -4282,7 +4290,13 @@ HObjectAccess HObjectAccess::ForJSObjectOffset(int offset,
   } else if (offset == JSObject::kMapOffset) {
     portion = kMaps;
   }
-  return HObjectAccess(portion, offset, representation);
+  bool existing_inobject_property = true;
+  if (!map.is_null()) {
+    existing_inobject_property = (offset <
+        map->instance_size() - map->unused_property_fields() * kPointerSize);
+  }
+  return HObjectAccess(portion, offset, representation, Handle<String>::null(),
+                       false, existing_inobject_property);
 }
 
 
@@ -4334,12 +4348,14 @@ HObjectAccess HObjectAccess::ForJSArrayOffset(int offset) {
 HObjectAccess HObjectAccess::ForBackingStoreOffset(int offset,
     Representation representation) {
   ASSERT(offset >= 0);
-  return HObjectAccess(kBackingStore, offset, representation);
+  return HObjectAccess(kBackingStore, offset, representation,
+                       Handle<String>::null(), false, false);
 }
 
 
 HObjectAccess HObjectAccess::ForField(Handle<Map> map,
-    LookupResult *lookup, Handle<String> name) {
+                                      LookupResult* lookup,
+                                      Handle<String> name) {
   ASSERT(lookup->IsField() || lookup->IsTransitionToField(*map));
   int index;
   Representation representation;
@@ -4359,11 +4375,12 @@ HObjectAccess HObjectAccess::ForField(Handle<Map> map,
     // Negative property indices are in-object properties, indexed
     // from the end of the fixed part of the object.
     int offset = (index * kPointerSize) + map->instance_size();
-    return HObjectAccess(kInobject, offset, representation, name);
+    return HObjectAccess(kInobject, offset, representation, name, false, true);
   } else {
     // Non-negative property indices are in the properties array.
     int offset = (index * kPointerSize) + FixedArray::kHeaderSize;
-    return HObjectAccess(kBackingStore, offset, representation, name);
+    return HObjectAccess(kBackingStore, offset, representation, name,
+                         false, false);
   }
 }
 
@@ -4375,9 +4392,9 @@ HObjectAccess HObjectAccess::ForCellPayload(Isolate* isolate) {
 }
 
 
-void HObjectAccess::SetGVNFlags(HValue *instr, bool is_store) {
+void HObjectAccess::SetGVNFlags(HValue *instr, PropertyAccessType access_type) {
   // set the appropriate GVN flags for a given load or store instruction
-  if (is_store) {
+  if (access_type == STORE) {
     // track dominating allocations in order to eliminate write barriers
     instr->SetGVNFlag(kDependsOnNewSpacePromotion);
     instr->SetFlag(HValue::kTrackSideEffectDominators);
@@ -4389,35 +4406,35 @@ void HObjectAccess::SetGVNFlags(HValue *instr, bool is_store) {
 
   switch (portion()) {
     case kArrayLengths:
-      instr->SetGVNFlag(is_store
+      instr->SetGVNFlag(access_type == STORE
           ? kChangesArrayLengths : kDependsOnArrayLengths);
       break;
     case kStringLengths:
-      instr->SetGVNFlag(is_store
+      instr->SetGVNFlag(access_type == STORE
           ? kChangesStringLengths : kDependsOnStringLengths);
       break;
     case kInobject:
-      instr->SetGVNFlag(is_store
+      instr->SetGVNFlag(access_type == STORE
           ? kChangesInobjectFields : kDependsOnInobjectFields);
       break;
     case kDouble:
-      instr->SetGVNFlag(is_store
+      instr->SetGVNFlag(access_type == STORE
           ? kChangesDoubleFields : kDependsOnDoubleFields);
       break;
     case kBackingStore:
-      instr->SetGVNFlag(is_store
+      instr->SetGVNFlag(access_type == STORE
           ? kChangesBackingStoreFields : kDependsOnBackingStoreFields);
       break;
     case kElementsPointer:
-      instr->SetGVNFlag(is_store
+      instr->SetGVNFlag(access_type == STORE
           ? kChangesElementsPointer : kDependsOnElementsPointer);
       break;
     case kMaps:
-      instr->SetGVNFlag(is_store
+      instr->SetGVNFlag(access_type == STORE
           ? kChangesMaps : kDependsOnMaps);
       break;
     case kExternalMemory:
-      instr->SetGVNFlag(is_store
+      instr->SetGVNFlag(access_type == STORE
           ? kChangesExternalMemory : kDependsOnExternalMemory);
       break;
   }

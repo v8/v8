@@ -193,6 +193,10 @@ class HLoadEliminationTable : public ZoneObject {
   // load or store for this object and field exists, return the new value with
   // which the load should be replaced. Otherwise, return {instr}.
   HValue* load(HLoadNamedField* instr) {
+    // There must be no loads from non observable in-object properties.
+    ASSERT(!instr->access().IsInobject() ||
+           instr->access().existing_inobject_property());
+
     int field = FieldOf(instr->access());
     if (field < 0) return instr;
 
@@ -217,8 +221,9 @@ class HLoadEliminationTable : public ZoneObject {
   // the stored values are the same), return NULL indicating that this store
   // instruction is redundant. Otherwise, return {instr}.
   HValue* store(HStoreNamedField* instr) {
-    if (instr->store_mode() == PREINITIALIZING_STORE) {
-      TRACE(("  skipping preinitializing store\n"));
+    if (instr->access().IsInobject() &&
+        !instr->access().existing_inobject_property()) {
+      TRACE(("  skipping non existing property initialization store\n"));
       return instr;
     }
 

@@ -55,6 +55,7 @@ class AutoRollOptions(CommonOptions):
     self.r = options.r
     self.c = options.c
     self.push = getattr(options, 'push', False)
+    self.author = getattr(options, 'a', None)
 
 
 class Preparation(Step):
@@ -154,14 +155,14 @@ class PushToTrunk(Step):
       print "ToT (r%d) is clean. Pushing to trunk." % latest
       self.PushTreeStatus("Tree is closed (preparing to push)")
 
-      # TODO(machenbach): Call push to trunk script.
       # TODO(machenbach): Update the script before calling it.
       try:
         if self._options.push:
           self._side_effect_handler.Call(
               RunPushToTrunk,
               push_to_trunk.CONFIG,
-              PushToTrunkOptions.MakeForcedOptions(self._options.r,
+              PushToTrunkOptions.MakeForcedOptions(self._options.author,
+                                                   self._options.r,
                                                    self._options.c),
               self._side_effect_handler)
       finally:
@@ -188,6 +189,8 @@ def RunAutoRoll(config,
 
 def BuildOptions():
   result = optparse.OptionParser()
+  result.add_option("-a", "--author", dest="a",
+                    help=("Specify the author email used for rietveld."))
   result.add_option("-c", "--chromium", dest="c",
                     help=("Specify the path to your Chromium src/ "
                           "directory to automate the V8 roll."))
@@ -207,8 +210,8 @@ def BuildOptions():
 def Main():
   parser = BuildOptions()
   (options, args) = parser.parse_args()
-  if not options.c or not options.r:
-    print "You need to specify the chromium src location and a reviewer."
+  if not options.a or not options.c or not options.r:
+    print "You need to specify author, chromium src location and reviewer."
     parser.print_help()
     return 1
   RunAutoRoll(CONFIG, AutoRollOptions(options))

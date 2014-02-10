@@ -1,4 +1,4 @@
-// Copyright 2013 the V8 project authors. All rights reserved.
+// Copyright 2014 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,21 +25,22 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Check that the __proto__ accessor is properly poisoned when extracted
-// from Object.prototype using the property descriptor.
-var desc = Object.getOwnPropertyDescriptor(Object.prototype, "__proto__");
-assertEquals("function", typeof desc.get);
-assertEquals("function", typeof desc.set);
-assertDoesNotThrow("desc.get.call({})");
-assertThrows("desc.set.call({})", TypeError);
+#ifndef V8_ZONE_CONTAINERS_H_
+#define V8_ZONE_CONTAINERS_H_
 
-// Check that any redefinition of the __proto__ accessor causes poising
-// to cease and the accessor to be extracted normally.
-Object.defineProperty(Object.prototype, "__proto__", { get:function(){} });
-desc = Object.getOwnPropertyDescriptor(Object.prototype, "__proto__");
-assertDoesNotThrow("desc.get.call({})");
-assertThrows("desc.set.call({})", TypeError);
-Object.defineProperty(Object.prototype, "__proto__", { set:function(x){} });
-desc = Object.getOwnPropertyDescriptor(Object.prototype, "__proto__");
-assertDoesNotThrow("desc.get.call({})");
-assertDoesNotThrow("desc.set.call({})");
+#include <vector>
+#include <set>
+
+#include "zone.h"
+
+namespace v8 {
+namespace internal {
+
+typedef zone_allocator<int> ZoneIntAllocator;
+typedef std::vector<int, ZoneIntAllocator> IntVector;
+typedef IntVector::iterator IntVectorIter;
+typedef IntVector::reverse_iterator IntVectorRIter;
+
+} }  // namespace v8::internal
+
+#endif  // V8_ZONE_CONTAINERS_H_

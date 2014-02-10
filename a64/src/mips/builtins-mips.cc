@@ -585,8 +585,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // Receiver for constructor call allocated.
     // t4: JSObject
     __ bind(&allocated);
-    __ push(t4);
-    __ push(t4);
+    __ Push(t4, t4);
 
     // Reload the number of arguments from the stack.
     // sp[0]: receiver
@@ -1092,9 +1091,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     {
       FrameScope scope(masm, StackFrame::INTERNAL);
       __ sll(a0, a0, kSmiTagSize);  // Smi tagged.
-      __ push(a0);
-
-      __ push(a2);
+      __ Push(a0, a2);
       __ InvokeBuiltin(Builtins::TO_OBJECT, CALL_FUNCTION);
       __ mov(a2, v0);
 
@@ -1244,9 +1241,8 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
 
     // Push current limit and index.
     __ bind(&okay);
-    __ push(v0);  // Limit.
-    __ mov(a1, zero_reg);  // Initial index.
-    __ push(a1);
+    __ mov(a1, zero_reg);
+    __ Push(v0, a1);  // Limit and initial index.
 
     // Get the receiver.
     __ lw(a0, MemOperand(fp, kRecvOffset));

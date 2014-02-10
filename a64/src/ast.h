@@ -1694,7 +1694,7 @@ class Property V8_FINAL : public Expression {
   virtual KeyedAccessStoreMode GetStoreMode() V8_OVERRIDE {
     return STANDARD_STORE;
   }
-  bool IsUninitialized() { return is_uninitialized_; }
+  bool IsUninitialized() { return !is_for_call_ && is_uninitialized_; }
   bool HasNoTypeInformation() {
     return is_uninitialized_;
   }

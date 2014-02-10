@@ -1273,27 +1273,37 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
   bool is_ascii = this->IsOneByteRepresentation();
   bool is_internalized = this->IsInternalizedString();
 
-  // Morph the object to an external string by adjusting the map and
-  // reinitializing the fields.
-  if (size >= ExternalString::kSize) {
+  // Morph the string to an external string by replacing the map and
+  // reinitializing the fields.  This won't work if
+  // - the space the existing string occupies is too small for a regular
+  //   external string.
+  // - the existing string is in old pointer space and the backing store of
+  //   the external string is not aligned.  The GC cannot deal with fields
+  //   containing an unaligned address that points to outside of V8's heap.
+  // In either case we resort to a short external string instead, omitting
+  // the field caching the address of the backing store.  When we encounter
+  // short external strings in generated code, we need to bailout to runtime.
+  if (size < ExternalString::kSize ||
+      (!IsAligned(reinterpret_cast<intptr_t>(resource->data()), kPointerSize) &&
+       heap->old_pointer_space()->Contains(this))) {
     this->set_map_no_write_barrier(
         is_internalized
             ? (is_ascii
-                   ? heap->external_internalized_string_with_one_byte_data_map()
-                   : heap->external_internalized_string_map())
+                ? heap->
+                    short_external_internalized_string_with_one_byte_data_map()
+                : heap->short_external_internalized_string_map())
             : (is_ascii
-                   ? heap->external_string_with_one_byte_data_map()
-                   : heap->external_string_map()));
+                ? heap->short_external_string_with_one_byte_data_map()
+                : heap->short_external_string_map()));
   } else {
     this->set_map_no_write_barrier(
         is_internalized
-          ? (is_ascii
-               ? heap->
-                   short_external_internalized_string_with_one_byte_data_map()
-               : heap->short_external_internalized_string_map())
-          : (is_ascii
-                 ? heap->short_external_string_with_one_byte_data_map()
-                 : heap->short_external_string_map()));
+            ? (is_ascii
+                ? heap->external_internalized_string_with_one_byte_data_map()
+                : heap->external_internalized_string_map())
+            : (is_ascii
+                ? heap->external_string_with_one_byte_data_map()
+                : heap->external_string_map()));
   }
   ExternalTwoByteString* self = ExternalTwoByteString::cast(this);
   self->set_resource(resource);
@@ -1334,16 +1344,26 @@ bool String::MakeExternal(v8::String::ExternalAsciiStringResource* resource) {
   }
   bool is_internalized = this->IsInternalizedString();
 
-  // Morph the object to an external string by adjusting the map and
-  // reinitializing the fields.  Use short version if space is limited.
-  if (size >= ExternalString::kSize) {
-    this->set_map_no_write_barrier(
-        is_internalized ? heap->external_ascii_internalized_string_map()
-                        : heap->external_ascii_string_map());
-  } else {
+  // Morph the string to an external string by replacing the map and
+  // reinitializing the fields.  This won't work if
+  // - the space the existing string occupies is too small for a regular
+  //   external string.
+  // - the existing string is in old pointer space and the backing store of
+  //   the external string is not aligned.  The GC cannot deal with fields
+  //   containing an unaligned address that points to outside of V8's heap.
+  // In either case we resort to a short external string instead, omitting
+  // the field caching the address of the backing store.  When we encounter
+  // short external strings in generated code, we need to bailout to runtime.
+  if (size < ExternalString::kSize ||
+      (!IsAligned(reinterpret_cast<intptr_t>(resource->data()), kPointerSize) &&
+       heap->old_pointer_space()->Contains(this))) {
     this->set_map_no_write_barrier(
         is_internalized ? heap->short_external_ascii_internalized_string_map()
                         : heap->short_external_ascii_string_map());
+  } else {
+    this->set_map_no_write_barrier(
+        is_internalized ? heap->external_ascii_internalized_string_map()
+                        : heap->external_ascii_string_map());
   }
   ExternalAsciiString* self = ExternalAsciiString::cast(this);
   self->set_resource(resource);
@@ -10514,7 +10534,7 @@ void Code::FindAllTypes(TypeHandleList* types) {
     Object* object = info->target_object();
     if (object->IsMap()) {
       Handle<Map> map(Map::cast(object));
-      types->Add(IC::MapToType(map));
+      types->Add(IC::MapToType<HeapType>(map, map->GetIsolate()));
     }
   }
 }
@@ -12838,15 +12858,26 @@ MaybeObject* JSObject::UpdateAllocationSite(ElementsKind to_kind) {
   Heap* heap = GetHeap();
   if (!heap->InNewSpace(this)) return this;
 
+  // Check if there is potentially a memento behind the object. If
+  // the last word of the momento is on another page we return
+  // immediatelly.
+  Address object_address = address();
+  Address memento_address = object_address + JSArray::kSize;
+  Address last_memento_word_address = memento_address + kPointerSize;
+  if (!NewSpacePage::OnSamePage(object_address,
+                                last_memento_word_address)) {
+    return this;
+  }
+
   // Either object is the last object in the new space, or there is another
   // object of at least word size (the header map word) following it, so
   // suffices to compare ptr and top here.
-  Address ptr = address() + JSArray::kSize;
   Address top = heap->NewSpaceTop();
-  ASSERT(ptr == top || ptr + HeapObject::kHeaderSize <= top);
-  if (ptr == top) return this;
+  ASSERT(memento_address == top ||
+         memento_address + HeapObject::kHeaderSize <= top);
+  if (memento_address == top) return this;
 
-  HeapObject* candidate = HeapObject::FromAddress(ptr);
+  HeapObject* candidate = HeapObject::FromAddress(memento_address);
   if (candidate->map() != heap->allocation_memento_map()) return this;
 
   AllocationMemento* memento = AllocationMemento::cast(candidate);

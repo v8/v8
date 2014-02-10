@@ -89,6 +89,7 @@
         'test-lockers.cc',
         'test-log.cc',
         'test-mark-compact.cc',
+        'test-mementos.cc',
         'test-mutex.cc',
         'test-object-observe.cc',
         'test-parsing.cc',

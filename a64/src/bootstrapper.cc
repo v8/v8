@@ -2566,7 +2566,9 @@ class NoTrackDoubleFieldsForSerializerScope {
     }
   }
   ~NoTrackDoubleFieldsForSerializerScope() {
-    FLAG_track_double_fields = flag_;
+    if (Serializer::enabled()) {
+      FLAG_track_double_fields = flag_;
+    }
   }
 
  private:

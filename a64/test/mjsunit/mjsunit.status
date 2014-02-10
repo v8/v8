@@ -116,8 +116,8 @@
   'regress/regress-336820': [PASS, FAIL],
 
   # BUG(v8:2989). PASS/FAIL on linux32 because crankshaft is turned off for
-  # nosse2.
-  'regress/regress-2989': [FAIL, NO_VARIANTS, ['system == linux and arch == ia32', PASS]],
+  # nosse2. Also for arm novfp3.
+  'regress/regress-2989': [FAIL, NO_VARIANTS, ['system == linux and arch == ia32 or arch == arm and simulator == True', PASS]],
 }],  # ALWAYS
 
 ##############################################################################

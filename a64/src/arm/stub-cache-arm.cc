@@ -782,11 +782,23 @@ static void CompileCallLoadPropertyWithInterceptor(
 }
 
 
-static void GenerateFastApiCallBody(MacroAssembler* masm,
-                                    const CallOptimization& optimization,
-                                    int argc,
-                                    Register holder_in,
-                                    bool restore_context) {
+// Generate call to api function.
+static void GenerateFastApiCall(MacroAssembler* masm,
+                                const CallOptimization& optimization,
+                                Handle<Map> receiver_map,
+                                Register receiver,
+                                Register scratch_in,
+                                int argc,
+                                Register* values) {
+  ASSERT(!receiver.is(scratch_in));
+  __ push(receiver);
+  // Write the arguments to stack frame.
+  for (int i = 0; i < argc; i++) {
+    Register arg = values[argc-1-i];
+    ASSERT(!receiver.is(arg));
+    ASSERT(!scratch_in.is(arg));
+    __ push(arg);
+  }
   ASSERT(optimization.is_simple_api_call());
 
   // Abi for CallApiFunctionStub.
@@ -796,7 +808,21 @@ static void GenerateFastApiCallBody(MacroAssembler* masm,
   Register api_function_address = r1;
 
   // Put holder in place.
-  __ Move(holder, holder_in);
+  CallOptimization::HolderLookup holder_lookup;
+  Handle<JSObject> api_holder = optimization.LookupHolderOfExpectedType(
+      receiver_map,
+      &holder_lookup);
+  switch (holder_lookup) {
+    case CallOptimization::kHolderIsReceiver:
+      __ Move(holder, receiver);
+      break;
+    case CallOptimization::kHolderFound:
+      __ Move(holder, api_holder);
+     break;
+    case CallOptimization::kHolderNotFound:
+      UNREACHABLE();
+      break;
+  }
 
   Isolate* isolate = masm->isolate();
   Handle<JSFunction> function = optimization.constant_function();
@@ -828,33 +854,8 @@ static void GenerateFastApiCallBody(MacroAssembler* masm,
   __ mov(api_function_address, Operand(ref));
 
   // Jump to stub.
-  CallApiFunctionStub stub(restore_context, call_data_undefined, argc);
+  CallApiFunctionStub stub(true, call_data_undefined, argc);
   __ TailCallStub(&stub);
-}
-
-
-// Generate call to api function.
-static void GenerateFastApiCall(MacroAssembler* masm,
-                                const CallOptimization& optimization,
-                                Register receiver,
-                                Register scratch,
-                                int argc,
-                                Register* values) {
-  ASSERT(!receiver.is(scratch));
-  __ push(receiver);
-  // Write the arguments to stack frame.
-  for (int i = 0; i < argc; i++) {
-    Register arg = values[argc-1-i];
-    ASSERT(!receiver.is(arg));
-    ASSERT(!scratch.is(arg));
-    __ push(arg);
-  }
-  // Stack now matches JSFunction abi.
-  GenerateFastApiCallBody(masm,
-                          optimization,
-                          argc,
-                          receiver,
-                          true);
 }
 
 
@@ -1075,9 +1076,11 @@ void LoadStubCompiler::GenerateLoadConstant(Handle<Object> value) {
 
 
 void LoadStubCompiler::GenerateLoadCallback(
-    const CallOptimization& call_optimization) {
+    const CallOptimization& call_optimization,
+    Handle<Map> receiver_map) {
   GenerateFastApiCall(
-      masm(), call_optimization, receiver(), scratch3(), 0, NULL);
+      masm(), call_optimization, receiver_map,
+      receiver(), scratch3(), 0, NULL);
 }
 
 
@@ -1267,7 +1270,8 @@ Handle<Code> StoreStubCompiler::CompileStoreCallback(
 
   Register values[] = { value() };
   GenerateFastApiCall(
-      masm(), call_optimization, receiver(), scratch3(), 1, values);
+      masm(), call_optimization, handle(object->map()),
+      receiver(), scratch3(), 1, values);
 
   // Return the generated code.
   return GetCode(kind(), Code::FAST, name);
@@ -1280,6 +1284,7 @@ Handle<Code> StoreStubCompiler::CompileStoreCallback(
 
 void StoreStubCompiler::GenerateStoreViaSetter(
     MacroAssembler* masm,
+    Handle<HeapType> type,
     Handle<JSFunction> setter) {
   // ----------- S t a t e -------------
   //  -- r0    : value
@@ -1289,13 +1294,21 @@ void StoreStubCompiler::GenerateStoreViaSetter(
   // -----------------------------------
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
+    Register receiver = r1;
+    Register value = r0;
 
     // Save value register, so we can restore it later.
-    __ push(r0);
+    __ push(value);
 
     if (!setter.is_null()) {
       // Call the JavaScript setter with receiver and value on the stack.
-      __ Push(r1, r0);
+      if (IC::TypeToMap(*type, masm->isolate())->IsJSGlobalObjectMap()) {
+        // Swap in the global receiver.
+        __ ldr(receiver,
+               FieldMemOperand(
+                   receiver, JSGlobalObject::kGlobalReceiverOffset));
+      }
+      __ Push(receiver, value);
       ParameterCount actual(1);
       ParameterCount expected(setter);
       __ InvokeFunction(setter, expected, actual,
@@ -1402,6 +1415,7 @@ Register* KeyedStoreStubCompiler::registers() {
 
 
 void LoadStubCompiler::GenerateLoadViaGetter(MacroAssembler* masm,
+                                             Handle<HeapType> type,
                                              Register receiver,
                                              Handle<JSFunction> getter) {
   // ----------- S t a t e -------------
@@ -1414,6 +1428,12 @@ void LoadStubCompiler::GenerateLoadViaGetter(MacroAssembler* masm,
 
     if (!getter.is_null()) {
       // Call the JavaScript getter with the receiver on the stack.
+      if (IC::TypeToMap(*type, masm->isolate())->IsJSGlobalObjectMap()) {
+        // Swap in the global receiver.
+        __ ldr(receiver,
+                FieldMemOperand(
+                    receiver, JSGlobalObject::kGlobalReceiverOffset));
+      }
       __ push(receiver);
       ParameterCount actual(0);
       ParameterCount expected(getter);

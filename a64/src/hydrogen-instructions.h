@@ -224,6 +224,9 @@ class LChunkBuilder;
   }
 
 
+enum PropertyAccessType { LOAD, STORE };
+
+
 class Range V8_FINAL : public ZoneObject {
  public:
   Range()
@@ -482,8 +485,7 @@ enum GVNFlag {
   GVN_TRACKED_FLAG_LIST(DECLARE_FLAG)
   GVN_UNTRACKED_FLAG_LIST(DECLARE_FLAG)
 #undef DECLARE_FLAG
-  kAfterLastFlag,
-  kLastFlag = kAfterLastFlag - 1,
+  kNumberOfFlags,
 #define COUNT_FLAG(type) + 1
   kNumberOfTrackedSideEffects = 0 GVN_TRACKED_FLAG_LIST(COUNT_FLAG)
 #undef COUNT_FLAG
@@ -875,9 +877,11 @@ class HValue : public ZoneObject {
   // This function must be overridden for instructions which have the
   // kTrackSideEffectDominators flag set, to track instructions that are
   // dominating side effects.
-  virtual void HandleSideEffectDominator(GVNFlag side_effect,
+  // It returns true if it removed an instruction which had side effects.
+  virtual bool HandleSideEffectDominator(GVNFlag side_effect,
                                          HValue* dominator) {
     UNREACHABLE();
+    return false;
   }
 
   // Check if this instruction has some reason that prevents elimination.
@@ -1529,7 +1533,22 @@ class HCompareMap V8_FINAL : public HUnaryControlInstruction {
   DECLARE_INSTRUCTION_FACTORY_P4(HCompareMap, HValue*, Handle<Map>,
                                  HBasicBlock*, HBasicBlock*);
 
+  virtual bool KnownSuccessorBlock(HBasicBlock** block) V8_OVERRIDE {
+    if (known_successor_index() != kNoKnownSuccessorIndex) {
+      *block = SuccessorAt(known_successor_index());
+      return true;
+    }
+    *block = NULL;
+    return false;
+  }
+
   virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
+
+  static const int kNoKnownSuccessorIndex = -1;
+  int known_successor_index() const { return known_successor_index_; }
+  void set_known_successor_index(int known_successor_index) {
+    known_successor_index_ = known_successor_index;
+  }
 
   Unique<Map> map() const { return map_; }
 
@@ -1548,10 +1567,11 @@ class HCompareMap V8_FINAL : public HUnaryControlInstruction {
               HBasicBlock* true_target = NULL,
               HBasicBlock* false_target = NULL)
       : HUnaryControlInstruction(value, true_target, false_target),
-        map_(Unique<Map>(map)) {
+        known_successor_index_(kNoKnownSuccessorIndex), map_(Unique<Map>(map)) {
     ASSERT(!map.is_null());
   }
 
+  int known_successor_index_;
   Unique<Map> map_;
 };
 
@@ -2631,10 +2651,10 @@ class HCheckMaps V8_FINAL : public HTemplateInstruction<2> {
  public:
   static HCheckMaps* New(Zone* zone, HValue* context, HValue* value,
                          Handle<Map> map, CompilationInfo* info,
-                         HValue *typecheck = NULL);
+                         HValue* typecheck = NULL);
   static HCheckMaps* New(Zone* zone, HValue* context,
                          HValue* value, SmallMapList* maps,
-                         HValue *typecheck = NULL) {
+                         HValue* typecheck = NULL) {
     HCheckMaps* check_map = new(zone) HCheckMaps(value, zone, typecheck);
     for (int i = 0; i < maps->length(); i++) {
       check_map->Add(maps->at(i), zone);
@@ -2648,14 +2668,22 @@ class HCheckMaps V8_FINAL : public HTemplateInstruction<2> {
   virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
     return Representation::Tagged();
   }
-  virtual void HandleSideEffectDominator(GVNFlag side_effect,
+  virtual bool HandleSideEffectDominator(GVNFlag side_effect,
                                          HValue* dominator) V8_OVERRIDE;
   virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
 
   HValue* value() { return OperandAt(0); }
+  HValue* typecheck() { return OperandAt(1); }
 
   Unique<Map> first_map() const { return map_set_.at(0); }
   UniqueSet<Map> map_set() const { return map_set_; }
+
+  void set_map_set(UniqueSet<Map>* maps, Zone *zone) {
+    map_set_.Clear();
+    for (int i = 0; i < maps->size(); i++) {
+      map_set_.Add(maps->at(i), zone);
+    }
+  }
 
   bool has_migration_target() const {
     return has_migration_target_;
@@ -5316,7 +5344,7 @@ class HAllocate V8_FINAL : public HTemplateInstruction<2> {
     flags_ = static_cast<HAllocate::Flags>(flags_ | ALLOCATE_DOUBLE_ALIGNED);
   }
 
-  virtual void HandleSideEffectDominator(GVNFlag side_effect,
+  virtual bool HandleSideEffectDominator(GVNFlag side_effect,
                                          HValue* dominator) V8_OVERRIDE;
 
   virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
@@ -5710,8 +5738,15 @@ class HObjectAccess V8_FINAL {
     return ImmutableField::decode(value_);
   }
 
+  // Returns true if access is being made to an in-object property that
+  // was already added to the object.
+  inline bool existing_inobject_property() const {
+    return ExistingInobjectPropertyField::decode(value_);
+  }
+
   inline HObjectAccess WithRepresentation(Representation representation) {
-    return HObjectAccess(portion(), offset(), representation, name());
+    return HObjectAccess(portion(), offset(), representation, name(),
+                         immutable(), existing_inobject_property());
   }
 
   static HObjectAccess ForHeapNumberValue() {
@@ -5755,7 +5790,8 @@ class HObjectAccess V8_FINAL {
   static HObjectAccess ForAllocationSiteOffset(int offset);
 
   static HObjectAccess ForAllocationSiteList() {
-    return HObjectAccess(kExternalMemory, 0, Representation::Tagged());
+    return HObjectAccess(kExternalMemory, 0, Representation::Tagged(),
+                         Handle<String>::null(), false, false);
   }
 
   static HObjectAccess ForFixedArrayLength() {
@@ -5857,15 +5893,28 @@ class HObjectAccess V8_FINAL {
   }
 
   static HObjectAccess ForCounter() {
-    return HObjectAccess(kExternalMemory, 0, Representation::Integer32());
+    return HObjectAccess(kExternalMemory, 0, Representation::Integer32(),
+                         Handle<String>::null(), false, false);
   }
 
   // Create an access to an offset in a fixed array header.
   static HObjectAccess ForFixedArrayHeader(int offset);
 
   // Create an access to an in-object property in a JSObject.
-  static HObjectAccess ForJSObjectOffset(int offset,
+  // This kind of access must be used when the object |map| is known and
+  // in-object properties are being accessed. Accesses of the in-object
+  // properties can have different semantics depending on whether corresponding
+  // property was added to the map or not.
+  static HObjectAccess ForMapAndOffset(Handle<Map> map, int offset,
       Representation representation = Representation::Tagged());
+
+  // Create an access to an in-object property in a JSObject.
+  // This kind of access can be used for accessing object header fields or
+  // in-object properties if the map of the object is not known.
+  static HObjectAccess ForObservableJSObjectOffset(int offset,
+      Representation representation = Representation::Tagged()) {
+    return ForMapAndOffset(Handle<Map>::null(), offset, representation);
+  }
 
   // Create an access to an in-object property in a JSArray.
   static HObjectAccess ForJSArrayOffset(int offset);
@@ -5884,39 +5933,42 @@ class HObjectAccess V8_FINAL {
   static HObjectAccess ForCellPayload(Isolate* isolate);
 
   static HObjectAccess ForJSTypedArrayLength() {
-    return HObjectAccess::ForJSObjectOffset(JSTypedArray::kLengthOffset);
+    return HObjectAccess::ForObservableJSObjectOffset(
+        JSTypedArray::kLengthOffset);
   }
 
   static HObjectAccess ForJSArrayBufferBackingStore() {
-    return HObjectAccess::ForJSObjectOffset(
+    return HObjectAccess::ForObservableJSObjectOffset(
         JSArrayBuffer::kBackingStoreOffset, Representation::External());
   }
 
   static HObjectAccess ForExternalArrayExternalPointer() {
-    return HObjectAccess::ForJSObjectOffset(
+    return HObjectAccess::ForObservableJSObjectOffset(
         ExternalArray::kExternalPointerOffset, Representation::External());
   }
 
   static HObjectAccess ForJSArrayBufferViewWeakNext() {
-    return HObjectAccess::ForJSObjectOffset(JSArrayBufferView::kWeakNextOffset);
+    return HObjectAccess::ForObservableJSObjectOffset(
+        JSArrayBufferView::kWeakNextOffset);
   }
 
   static HObjectAccess ForJSArrayBufferWeakFirstView() {
-    return HObjectAccess::ForJSObjectOffset(
+    return HObjectAccess::ForObservableJSObjectOffset(
         JSArrayBuffer::kWeakFirstViewOffset);
   }
 
   static HObjectAccess ForJSArrayBufferViewBuffer() {
-    return HObjectAccess::ForJSObjectOffset(JSArrayBufferView::kBufferOffset);
+    return HObjectAccess::ForObservableJSObjectOffset(
+        JSArrayBufferView::kBufferOffset);
   }
 
   static HObjectAccess ForJSArrayBufferViewByteOffset() {
-    return HObjectAccess::ForJSObjectOffset(
+    return HObjectAccess::ForObservableJSObjectOffset(
         JSArrayBufferView::kByteOffsetOffset);
   }
 
   static HObjectAccess ForJSArrayBufferViewByteLength() {
-    return HObjectAccess::ForJSObjectOffset(
+    return HObjectAccess::ForObservableJSObjectOffset(
         JSArrayBufferView::kByteLengthOffset);
   }
 
@@ -5931,7 +5983,7 @@ class HObjectAccess V8_FINAL {
   }
 
  protected:
-  void SetGVNFlags(HValue *instr, bool is_store);
+  void SetGVNFlags(HValue *instr, PropertyAccessType access_type);
 
  private:
   // internal use only; different parts of an object or array
@@ -5949,23 +6001,29 @@ class HObjectAccess V8_FINAL {
   HObjectAccess(Portion portion, int offset,
                 Representation representation = Representation::Tagged(),
                 Handle<String> name = Handle<String>::null(),
-                bool immutable = false)
+                bool immutable = false,
+                bool existing_inobject_property = true)
     : value_(PortionField::encode(portion) |
              RepresentationField::encode(representation.kind()) |
              ImmutableField::encode(immutable ? 1 : 0) |
+             ExistingInobjectPropertyField::encode(
+                 existing_inobject_property ? 1 : 0) |
              OffsetField::encode(offset)),
       name_(name) {
     // assert that the fields decode correctly
     ASSERT(this->offset() == offset);
     ASSERT(this->portion() == portion);
     ASSERT(this->immutable() == immutable);
+    ASSERT(this->existing_inobject_property() == existing_inobject_property);
     ASSERT(RepresentationField::decode(value_) == representation.kind());
+    ASSERT(!this->existing_inobject_property() || IsInobject());
   }
 
   class PortionField : public BitField<Portion, 0, 3> {};
   class RepresentationField : public BitField<Representation::Kind, 3, 4> {};
   class ImmutableField : public BitField<bool, 7, 1> {};
-  class OffsetField : public BitField<int, 8, 24> {};
+  class ExistingInobjectPropertyField : public BitField<bool, 8, 1> {};
+  class OffsetField : public BitField<int, 9, 23> {};
 
   uint32_t value_;  // encodes portion, representation, immutable, and offset
   Handle<String> name_;
@@ -6049,7 +6107,7 @@ class HLoadNamedField V8_FINAL : public HTemplateInstruction<2> {
     } else {
       set_representation(Representation::Tagged());
     }
-    access.SetGVNFlags(this, false);
+    access.SetGVNFlags(this, LOAD);
   }
 
   virtual bool IsDeletable() const V8_OVERRIDE { return true; }
@@ -6351,9 +6409,6 @@ class HLoadKeyedGeneric V8_FINAL : public HTemplateInstruction<3> {
 // Indicates whether the store is a store to an entry that was previously
 // initialized or not.
 enum StoreFieldOrKeyedMode {
-  // This is a store of either an undefined value to a field or a hole/NaN to
-  // an entry of a newly allocated object.
-  PREINITIALIZING_STORE,
   // The entry could be either previously initialized or not.
   INITIALIZING_STORE,
   // At the time of this store it is guaranteed that the entry is already
@@ -6364,6 +6419,8 @@ enum StoreFieldOrKeyedMode {
 
 class HStoreNamedField V8_FINAL : public HTemplateInstruction<3> {
  public:
+  DECLARE_INSTRUCTION_FACTORY_P3(HStoreNamedField, HValue*,
+                                 HObjectAccess, HValue*);
   DECLARE_INSTRUCTION_FACTORY_P4(HStoreNamedField, HValue*,
                                  HObjectAccess, HValue*, StoreFieldOrKeyedMode);
 
@@ -6399,10 +6456,11 @@ class HStoreNamedField V8_FINAL : public HTemplateInstruction<3> {
     }
     return Representation::Tagged();
   }
-  virtual void HandleSideEffectDominator(GVNFlag side_effect,
+  virtual bool HandleSideEffectDominator(GVNFlag side_effect,
                                          HValue* dominator) V8_OVERRIDE {
     ASSERT(side_effect == kChangesNewSpacePromotion);
     new_space_dominator_ = dominator;
+    return false;
   }
   virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
 
@@ -6470,28 +6528,28 @@ class HStoreNamedField V8_FINAL : public HTemplateInstruction<3> {
   HStoreNamedField(HValue* obj,
                    HObjectAccess access,
                    HValue* val,
-                   StoreFieldOrKeyedMode store_mode)
+                   StoreFieldOrKeyedMode store_mode = INITIALIZING_STORE)
       : access_(access),
         new_space_dominator_(NULL),
         write_barrier_mode_(UPDATE_WRITE_BARRIER),
         has_transition_(false),
         store_mode_(store_mode) {
-    // PREINITIALIZING_STORE is only used to mark stores that initialize a
-    // memory region resulting from HAllocate (possibly through an
-    // HInnerAllocatedObject).
-    ASSERT(store_mode != PREINITIALIZING_STORE ||
+    if (!FLAG_smi_x64_store_opt) store_mode_ = INITIALIZING_STORE;
+    // Stores to a non existing in-object property are allowed only to the
+    // newly allocated objects (via HAllocate or HInnerAllocatedObject).
+    ASSERT(!access.IsInobject() || access.existing_inobject_property() ||
            obj->IsAllocate() || obj->IsInnerAllocatedObject());
     SetOperandAt(0, obj);
     SetOperandAt(1, val);
     SetOperandAt(2, obj);
-    access.SetGVNFlags(this, true);
+    access.SetGVNFlags(this, STORE);
   }
 
   HObjectAccess access_;
   HValue* new_space_dominator_;
   WriteBarrierMode write_barrier_mode_ : 1;
   bool has_transition_ : 1;
-  StoreFieldOrKeyedMode store_mode_ : 2;
+  StoreFieldOrKeyedMode store_mode_ : 1;
 };
 
 
@@ -6536,6 +6594,8 @@ class HStoreNamedGeneric V8_FINAL : public HTemplateInstruction<3> {
 class HStoreKeyed V8_FINAL
     : public HTemplateInstruction<3>, public ArrayInstructionInterface {
  public:
+  DECLARE_INSTRUCTION_FACTORY_P4(HStoreKeyed, HValue*, HValue*, HValue*,
+                                 ElementsKind);
   DECLARE_INSTRUCTION_FACTORY_P5(HStoreKeyed, HValue*, HValue*, HValue*,
                                  ElementsKind, StoreFieldOrKeyedMode);
 
@@ -6628,10 +6688,11 @@ class HStoreKeyed V8_FINAL
     return value()->IsConstant() && HConstant::cast(value())->IsTheHole();
   }
 
-  virtual void HandleSideEffectDominator(GVNFlag side_effect,
+  virtual bool HandleSideEffectDominator(GVNFlag side_effect,
                                          HValue* dominator) V8_OVERRIDE {
     ASSERT(side_effect == kChangesNewSpacePromotion);
     new_space_dominator_ = dominator;
+    return false;
   }
 
   HValue* new_space_dominator() const { return new_space_dominator_; }
@@ -6655,22 +6716,17 @@ class HStoreKeyed V8_FINAL
  private:
   HStoreKeyed(HValue* obj, HValue* key, HValue* val,
               ElementsKind elements_kind,
-              StoreFieldOrKeyedMode store_mode)
+              StoreFieldOrKeyedMode store_mode = INITIALIZING_STORE)
       : elements_kind_(elements_kind),
       index_offset_(0),
       is_dehoisted_(false),
       is_uninitialized_(false),
       store_mode_(store_mode),
       new_space_dominator_(NULL) {
+    if (!FLAG_smi_x64_store_opt) store_mode_ = INITIALIZING_STORE;
     SetOperandAt(0, obj);
     SetOperandAt(1, key);
     SetOperandAt(2, val);
-
-    // PREINITIALIZING_STORE is only used to mark stores that initialize a
-    // memory region resulting from HAllocate (possibly through an
-    // HInnerAllocatedObject).
-    ASSERT(store_mode != PREINITIALIZING_STORE ||
-           obj->IsAllocate() || obj->IsInnerAllocatedObject());
 
     ASSERT(store_mode != STORE_TO_INITIALIZED_ENTRY ||
            elements_kind == FAST_SMI_ELEMENTS);
@@ -6706,7 +6762,7 @@ class HStoreKeyed V8_FINAL
   uint32_t index_offset_;
   bool is_dehoisted_ : 1;
   bool is_uninitialized_ : 1;
-  StoreFieldOrKeyedMode store_mode_: 2;
+  StoreFieldOrKeyedMode store_mode_: 1;
   HValue* new_space_dominator_;
 };
 

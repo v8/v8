@@ -5426,23 +5426,6 @@ static i::Handle<i::String> NewExternalAsciiStringHandle(
 }
 
 
-static bool RedirectToExternalString(i::Isolate* isolate,
-                                     i::Handle<i::String> parent,
-                                     i::Handle<i::String> external) {
-  if (parent->IsConsString()) {
-    i::Handle<i::ConsString> cons = i::Handle<i::ConsString>::cast(parent);
-    cons->set_first(*external);
-    cons->set_second(isolate->heap()->empty_string());
-  } else {
-    ASSERT(parent->IsSlicedString());
-    i::Handle<i::SlicedString> slice = i::Handle<i::SlicedString>::cast(parent);
-    slice->set_parent(*external);
-    slice->set_offset(0);
-  }
-  return true;
-}
-
-
 Local<String> v8::String::NewExternal(
     Isolate* isolate,
     v8::String::ExternalStringResource* resource) {
@@ -5472,22 +5455,10 @@ bool v8::String::MakeExternal(v8::String::ExternalStringResource* resource) {
   }
   CHECK(resource && resource->data());
 
-  bool result;
-  i::Handle<i::String> external;
-  if (isolate->heap()->old_pointer_space()->Contains(*obj)) {
-    // We do not allow external strings in the old pointer space.  Instead of
-    // converting the string in-place, we keep the cons/sliced string and
-    // point it to a newly-allocated external string.
-    external = NewExternalStringHandle(isolate, resource);
-    result = RedirectToExternalString(isolate, obj, external);
-  } else {
-    result = obj->MakeExternal(resource);
-    external = obj;
-  }
-
+  bool result = obj->MakeExternal(resource);
   if (result) {
-    ASSERT(external->IsExternalString());
-    isolate->heap()->external_string_table()->AddString(*external);
+    ASSERT(obj->IsExternalString());
+    isolate->heap()->external_string_table()->AddString(*obj);
   }
   return result;
 }
@@ -5524,22 +5495,10 @@ bool v8::String::MakeExternal(
   }
   CHECK(resource && resource->data());
 
-  bool result;
-  i::Handle<i::String> external;
-  if (isolate->heap()->old_pointer_space()->Contains(*obj)) {
-    // We do not allow external strings in the old pointer space.  Instead of
-    // converting the string in-place, we keep the cons/sliced string and
-    // point it to a newly-allocated external string.
-    external = NewExternalAsciiStringHandle(isolate, resource);
-    result = RedirectToExternalString(isolate, obj, external);
-  } else {
-    result = obj->MakeExternal(resource);
-    external = obj;
-  }
-
+  bool result = obj->MakeExternal(resource);
   if (result) {
-    ASSERT(external->IsExternalString());
-    isolate->heap()->external_string_table()->AddString(*external);
+    ASSERT(obj->IsExternalString());
+    isolate->heap()->external_string_table()->AddString(*obj);
   }
   return result;
 }

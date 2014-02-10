@@ -227,6 +227,7 @@ class CommonOptions(object):
     self.force_readline_defaults = not manual
     self.force_upload = not manual
     self.manual = manual
+    self.author = getattr(options, 'a', None)
 
 
 class Step(object):
@@ -468,8 +469,11 @@ class UploadStep(Step):
       print "Please enter the email address of a V8 reviewer for your patch: ",
       self.DieNoManualMode("A reviewer must be specified in forced mode.")
       reviewer = self.ReadLine()
+    author_option = self._options.author
+    author = " --email \"%s\"" % author_option if author_option else ""
     force_flag = " -f" if self._options.force_upload else ""
-    args = "cl upload -r \"%s\" --send-mail%s" % (reviewer, force_flag)
+    args = ("cl upload%s -r \"%s\" --send-mail%s"
+            % (author, reviewer, force_flag))
     # TODO(machenbach): Check output in forced mode. Verify that all required
     # base files were uploaded, if not retry.
     if self.Git(args, pipe=False) is None:

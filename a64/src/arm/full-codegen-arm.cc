@@ -3828,7 +3828,6 @@ void FullCodeGenerator::EmitGetFromCache(CallRuntime* expr) {
 
 
   Label done, not_found;
-  // tmp now holds finger offset as a smi.
   __ ldr(r2, FieldMemOperand(cache, JSFunctionResultCache::kFingerOffset));
   // r2 now holds finger offset as a smi.
   __ add(r3, cache, Operand(FixedArray::kHeaderSize - kHeapObjectTag));

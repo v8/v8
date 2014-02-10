@@ -3981,6 +3981,8 @@ void MacroAssembler::RecordWrite(Register object,
                                  SaveFPRegsMode fp_mode,
                                  RememberedSetAction remembered_set_action,
                                  SmiCheck smi_check) {
+  ASSERT(!AreAliased(object, value));
+
   if (emit_debug_code()) {
     Ldr(Tmp0(), MemOperand(address));
     Cmp(Tmp0(), value);

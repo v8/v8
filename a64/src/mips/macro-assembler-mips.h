@@ -169,6 +169,7 @@ class MacroAssembler: public Assembler {
 
   DECLARE_BRANCH_PROTOTYPES(Branch)
   DECLARE_BRANCH_PROTOTYPES(BranchAndLink)
+  DECLARE_BRANCH_PROTOTYPES(BranchShort)
 
 #undef DECLARE_BRANCH_PROTOTYPES
 #undef COND_TYPED_ARGS
@@ -1570,14 +1571,6 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
                            int num_reg_arguments,
                            int num_double_arguments);
 
-  void BranchShort(int16_t offset, BranchDelaySlot bdslot = PROTECT);
-  void BranchShort(int16_t offset, Condition cond, Register rs,
-                   const Operand& rt,
-                   BranchDelaySlot bdslot = PROTECT);
-  void BranchShort(Label* L, BranchDelaySlot bdslot = PROTECT);
-  void BranchShort(Label* L, Condition cond, Register rs,
-                   const Operand& rt,
-                   BranchDelaySlot bdslot = PROTECT);
   void BranchAndLinkShort(int16_t offset, BranchDelaySlot bdslot = PROTECT);
   void BranchAndLinkShort(int16_t offset, Condition cond, Register rs,
                           const Operand& rt,

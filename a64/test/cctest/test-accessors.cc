@@ -606,3 +606,21 @@ THREADED_TEST(AccessorPropertyCrossContext) {
       "for (var i = 0; i < 10; i++) o.n;");
   CHECK(!try_catch.HasCaught());
 }
+
+
+THREADED_TEST(GlobalObjectAccessor) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  CompileRun(
+      "var set_value = 1;"
+      "Object.defineProperty(this.__proto__, 'x', {"
+      "    get : function() { return this; },"
+      "    set : function() { set_value = this; }"
+      "});"
+      "function getter() { return x; }"
+      "function setter() { x = 1; }"
+      "for (var i = 0; i < 4; i++) { getter(); setter(); }");
+  CHECK(v8::Utils::OpenHandle(*CompileRun("getter()"))->IsJSGlobalProxy());
+  CHECK(v8::Utils::OpenHandle(*CompileRun("set_value"))->IsJSGlobalProxy());
+}

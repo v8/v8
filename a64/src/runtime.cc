@@ -6541,11 +6541,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringToUpperCase) {
 }
 
 
-static inline bool IsTrimWhiteSpace(unibrow::uchar c) {
-  return unibrow::WhiteSpace::Is(c) || c == 0x200b || c == 0xfeff;
-}
-
-
 RUNTIME_FUNCTION(MaybeObject*, Runtime_StringTrim) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 3);
@@ -6558,15 +6553,19 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringTrim) {
   int length = string->length();
 
   int left = 0;
+  UnicodeCache* unicode_cache = isolate->unicode_cache();
   if (trimLeft) {
-    while (left < length && IsTrimWhiteSpace(string->Get(left))) {
+    while (left < length &&
+           unicode_cache->IsWhiteSpaceOrLineTerminator(string->Get(left))) {
       left++;
     }
   }
 
   int right = length;
   if (trimRight) {
-    while (right > left && IsTrimWhiteSpace(string->Get(right - 1))) {
+    while (right > left &&
+           unicode_cache->IsWhiteSpaceOrLineTerminator(
+               string->Get(right - 1))) {
       right--;
     }
   }
@@ -8503,7 +8502,12 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_OptimizeFunctionOnNextCall) {
   RUNTIME_ASSERT(args.length() == 1 || args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
 
-  if (!function->IsOptimizable()) return isolate->heap()->undefined_value();
+  if (!function->IsOptimizable() &&
+      !function->IsMarkedForConcurrentOptimization() &&
+      !function->IsInOptimizationQueue()) {
+    return isolate->heap()->undefined_value();
+  }
+
   function->MarkForOptimization();
 
   Code* unoptimized = function->shared()->code();

@@ -41,19 +41,9 @@ class HGlobalValueNumberingPhase : public HPhase {
  public:
   explicit HGlobalValueNumberingPhase(HGraph* graph);
 
-  void Run() {
-    Analyze();
-    // Trigger a second analysis pass to further eliminate duplicate values
-    // that could only be discovered by removing side-effect-generating
-    // instructions during the first pass.
-    if (FLAG_smi_only_arrays && removed_side_effects_) {
-      Analyze();
-      // TODO(danno): Turn this into a fixpoint iteration.
-    }
-  }
+  void Run();
 
  private:
-  void Analyze();
   GVNFlagSet CollectSideEffectsOnPathsToDominatedBlock(
       HBasicBlock* dominator,
       HBasicBlock* dominated);
@@ -62,9 +52,7 @@ class HGlobalValueNumberingPhase : public HPhase {
   void LoopInvariantCodeMotion();
   void ProcessLoopBlock(HBasicBlock* block,
                         HBasicBlock* before_loop,
-                        GVNFlagSet loop_kills,
-                        GVNFlagSet* accumulated_first_time_depends,
-                        GVNFlagSet* accumulated_first_time_changes);
+                        GVNFlagSet loop_kills);
   bool AllowCodeMotion();
   bool ShouldMove(HInstruction* instr, HBasicBlock* loop_header);
 

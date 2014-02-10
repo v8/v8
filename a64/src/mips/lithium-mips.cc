@@ -945,6 +945,9 @@ LInstruction* LChunkBuilder::DoBranch(HBranch* instr) {
 
 
 LInstruction* LChunkBuilder::DoCompareMap(HCompareMap* instr) {
+  LInstruction* goto_instr = CheckElideControlInstruction(instr);
+  if (goto_instr != NULL) return goto_instr;
+
   ASSERT(instr->value()->representation().IsTagged());
   LOperand* value = UseRegisterAtStart(instr->value());
   LOperand* temp = TempRegister();
@@ -1189,9 +1192,7 @@ LInstruction* LChunkBuilder::DoCallFunction(HCallFunction* instr) {
   LOperand* context = UseFixed(instr->context(), cp);
   LOperand* function = UseFixed(instr->function(), a1);
   LCallFunction* call = new(zone()) LCallFunction(context, function);
-  LInstruction* result = DefineFixed(call, v0);
-  if (instr->IsTailCall()) return result;
-  return MarkAsCall(result, instr);
+  return MarkAsCall(DefineFixed(call, v0), instr);
 }
 
 

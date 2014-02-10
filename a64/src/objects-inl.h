@@ -1550,14 +1550,14 @@ inline void AllocationSite::IncrementMementoCreateCount() {
 inline bool AllocationSite::DigestPretenuringFeedback() {
   bool decision_changed = false;
   int create_count = memento_create_count();
-  if (create_count >= kPretenureMinimumCreated) {
-    int found_count = memento_found_count();
-    double ratio = static_cast<double>(found_count) / create_count;
-    if (FLAG_trace_track_allocation_sites) {
-      PrintF("AllocationSite: %p (created, found, ratio) (%d, %d, %f)\n",
-             static_cast<void*>(this), create_count, found_count, ratio);
-    }
-    int current_mode = GetPretenureMode();
+  int found_count = memento_found_count();
+  bool minimum_mementos_created = create_count >= kPretenureMinimumCreated;
+  double ratio =
+      minimum_mementos_created || FLAG_trace_pretenuring_statistics ?
+          static_cast<double>(found_count) / create_count : 0.0;
+  PretenureFlag current_mode = GetPretenureMode();
+
+  if (minimum_mementos_created) {
     PretenureDecision result = ratio >= kPretenureRatio
         ? kTenure
         : kDontTenure;
@@ -1568,6 +1568,14 @@ inline bool AllocationSite::DigestPretenuringFeedback() {
           GetIsolate(),
           DependentCode::kAllocationSiteTenuringChangedGroup);
     }
+  }
+
+  if (FLAG_trace_pretenuring_statistics) {
+    PrintF(
+        "AllocationSite(%p): (created, found, ratio) (%d, %d, %f) %s => %s\n",
+         static_cast<void*>(this), create_count, found_count, ratio,
+         current_mode == TENURED ? "tenured" : "not tenured",
+         GetPretenureMode() == TENURED ? "tenured" : "not tenured");
   }
 
   // Clear feedback calculation fields until the next gc.
@@ -1968,18 +1976,12 @@ void JSObject::FastPropertyAtPut(int index, Object* value) {
 
 
 int JSObject::GetInObjectPropertyOffset(int index) {
-  // Adjust for the number of properties stored in the object.
-  index -= map()->inobject_properties();
-  ASSERT(index < 0);
-  return map()->instance_size() + (index * kPointerSize);
+  return map()->GetInObjectPropertyOffset(index);
 }
 
 
 Object* JSObject::InObjectPropertyAt(int index) {
-  // Adjust for the number of properties stored in the object.
-  index -= map()->inobject_properties();
-  ASSERT(index < 0);
-  int offset = map()->instance_size() + (index * kPointerSize);
+  int offset = GetInObjectPropertyOffset(index);
   return READ_FIELD(this, offset);
 }
 
@@ -1988,9 +1990,7 @@ Object* JSObject::InObjectPropertyAtPut(int index,
                                         Object* value,
                                         WriteBarrierMode mode) {
   // Adjust for the number of properties stored in the object.
-  index -= map()->inobject_properties();
-  ASSERT(index < 0);
-  int offset = map()->instance_size() + (index * kPointerSize);
+  int offset = GetInObjectPropertyOffset(index);
   WRITE_FIELD(this, offset, value);
   CONDITIONAL_WRITE_BARRIER(GetHeap(), this, offset, value, mode);
   return value;
@@ -3201,6 +3201,7 @@ void ExternalAsciiString::update_data_cache() {
 
 void ExternalAsciiString::set_resource(
     const ExternalAsciiString::Resource* resource) {
+  ASSERT(IsAligned(reinterpret_cast<intptr_t>(resource), kPointerSize));
   *reinterpret_cast<const Resource**>(
       FIELD_ADDR(this, kResourceOffset)) = resource;
   if (resource != NULL) update_data_cache();
@@ -3805,6 +3806,14 @@ int Map::inobject_properties() {
 
 int Map::pre_allocated_property_fields() {
   return READ_BYTE_FIELD(this, kPreAllocatedPropertyFieldsOffset);
+}
+
+
+int Map::GetInObjectPropertyOffset(int index) {
+  // Adjust for the number of properties stored in the object.
+  index -= inobject_properties();
+  ASSERT(index < 0);
+  return instance_size() + (index * kPointerSize);
 }
 
 
