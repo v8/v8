@@ -3274,7 +3274,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
     __ JumpIfSmi(function, &non_function);
 
     // Goto slow case if we do not have a function.
-    __ JumpIfNotObjectType(function, x10, x10, JS_FUNCTION_TYPE, &slow);
+    __ JumpIfNotObjectType(function, x10, type, JS_FUNCTION_TYPE, &slow);
 
     if (RecordCallTarget()) {
       GenerateRecordCallTarget(masm);

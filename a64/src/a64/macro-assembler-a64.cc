@@ -1338,9 +1338,7 @@ void MacroAssembler::CallApiFunctionAndReturn(
       ExternalReference::handle_scope_level_address(isolate()),
       next_address);
 
-  ASSERT(!AreAliased(function_address, x1, x2));
-  // TODO(all): Why do we care about aliasing x2? (This function uses x1 as a
-  // scratch regiser.)
+  ASSERT(function_address.is(x1) || function_address.is(x2));
 
   Label profiler_disabled;
   Label end_profiler_check;
