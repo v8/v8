@@ -4390,9 +4390,9 @@ HObjectAccess HObjectAccess::ForCellPayload(Isolate* isolate) {
 }
 
 
-void HObjectAccess::SetGVNFlags(HValue *instr, bool is_store) {
+void HObjectAccess::SetGVNFlags(HValue *instr, PropertyAccessType access_type) {
   // set the appropriate GVN flags for a given load or store instruction
-  if (is_store) {
+  if (access_type == STORE) {
     // track dominating allocations in order to eliminate write barriers
     instr->SetGVNFlag(kDependsOnNewSpacePromotion);
     instr->SetFlag(HValue::kTrackSideEffectDominators);
@@ -4404,35 +4404,35 @@ void HObjectAccess::SetGVNFlags(HValue *instr, bool is_store) {
 
   switch (portion()) {
     case kArrayLengths:
-      instr->SetGVNFlag(is_store
+      instr->SetGVNFlag(access_type == STORE
           ? kChangesArrayLengths : kDependsOnArrayLengths);
       break;
     case kStringLengths:
-      instr->SetGVNFlag(is_store
+      instr->SetGVNFlag(access_type == STORE
           ? kChangesStringLengths : kDependsOnStringLengths);
       break;
     case kInobject:
-      instr->SetGVNFlag(is_store
+      instr->SetGVNFlag(access_type == STORE
           ? kChangesInobjectFields : kDependsOnInobjectFields);
       break;
     case kDouble:
-      instr->SetGVNFlag(is_store
+      instr->SetGVNFlag(access_type == STORE
           ? kChangesDoubleFields : kDependsOnDoubleFields);
       break;
     case kBackingStore:
-      instr->SetGVNFlag(is_store
+      instr->SetGVNFlag(access_type == STORE
           ? kChangesBackingStoreFields : kDependsOnBackingStoreFields);
       break;
     case kElementsPointer:
-      instr->SetGVNFlag(is_store
+      instr->SetGVNFlag(access_type == STORE
           ? kChangesElementsPointer : kDependsOnElementsPointer);
       break;
     case kMaps:
-      instr->SetGVNFlag(is_store
+      instr->SetGVNFlag(access_type == STORE
           ? kChangesMaps : kDependsOnMaps);
       break;
     case kExternalMemory:
-      instr->SetGVNFlag(is_store
+      instr->SetGVNFlag(access_type == STORE
           ? kChangesExternalMemory : kDependsOnExternalMemory);
       break;
   }

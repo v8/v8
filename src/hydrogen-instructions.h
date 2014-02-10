@@ -224,6 +224,9 @@ class LChunkBuilder;
   }
 
 
+enum PropertyAccessType { LOAD, STORE };
+
+
 class Range V8_FINAL : public ZoneObject {
  public:
   Range()
@@ -5972,7 +5975,7 @@ class HObjectAccess V8_FINAL {
   }
 
  protected:
-  void SetGVNFlags(HValue *instr, bool is_store);
+  void SetGVNFlags(HValue *instr, PropertyAccessType access_type);
 
  private:
   // internal use only; different parts of an object or array
@@ -6096,7 +6099,7 @@ class HLoadNamedField V8_FINAL : public HTemplateInstruction<2> {
     } else {
       set_representation(Representation::Tagged());
     }
-    access.SetGVNFlags(this, false);
+    access.SetGVNFlags(this, LOAD);
   }
 
   virtual bool IsDeletable() const V8_OVERRIDE { return true; }
@@ -6531,7 +6534,7 @@ class HStoreNamedField V8_FINAL : public HTemplateInstruction<3> {
     SetOperandAt(0, obj);
     SetOperandAt(1, val);
     SetOperandAt(2, obj);
-    access.SetGVNFlags(this, true);
+    access.SetGVNFlags(this, STORE);
   }
 
   HObjectAccess access_;
