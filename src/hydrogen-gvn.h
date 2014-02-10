@@ -52,9 +52,7 @@ class HGlobalValueNumberingPhase : public HPhase {
   void LoopInvariantCodeMotion();
   void ProcessLoopBlock(HBasicBlock* block,
                         HBasicBlock* before_loop,
-                        GVNFlagSet loop_kills,
-                        GVNFlagSet* accumulated_first_time_depends,
-                        GVNFlagSet* accumulated_first_time_changes);
+                        GVNFlagSet loop_kills);
   bool AllowCodeMotion();
   bool ShouldMove(HInstruction* instr, HBasicBlock* loop_header);
 
