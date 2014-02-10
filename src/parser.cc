@@ -2486,23 +2486,21 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
 
     Expect(Token::RPAREN, CHECK_OK);
 
-    if (peek() == Token::LBRACE) {
-      Target target(&this->target_stack_, &catch_collector);
-      VariableMode mode = is_extended_mode() ? LET : VAR;
-      catch_variable =
-          catch_scope->DeclareLocal(name, mode, kCreatedInitialized);
+    Target target(&this->target_stack_, &catch_collector);
+    VariableMode mode = is_extended_mode() ? LET : VAR;
+    catch_variable =
+        catch_scope->DeclareLocal(name, mode, kCreatedInitialized);
 
-      BlockState block_state(this, catch_scope);
-      catch_block = ParseBlock(NULL, CHECK_OK);
-    } else {
-      Expect(Token::LBRACE, CHECK_OK);
-    }
+    BlockState block_state(this, catch_scope);
+    catch_block = ParseBlock(NULL, CHECK_OK);
+
     catch_scope->set_end_position(scanner().location().end_pos);
     tok = peek();
   }
 
   Block* finally_block = NULL;
-  if (tok == Token::FINALLY || catch_block == NULL) {
+  ASSERT(tok == Token::FINALLY || catch_block != NULL);
+  if (tok == Token::FINALLY) {
     Consume(Token::FINALLY);
     finally_block = ParseBlock(NULL, CHECK_OK);
   }

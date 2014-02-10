@@ -699,15 +699,17 @@ PreParser::Statement PreParser::ParseTryStatement(bool* ok) {
   // Finally ::
   //   'finally' Block
 
-  // In preparsing, allow any number of catch/finally blocks, including zero
-  // of both.
-
   Expect(Token::TRY, CHECK_OK);
 
   ParseBlock(CHECK_OK);
 
-  bool catch_or_finally_seen = false;
-  if (peek() == Token::CATCH) {
+  Token::Value tok = peek();
+  if (tok != Token::CATCH && tok != Token::FINALLY) {
+    ReportMessageAt(scanner()->location(), "no_catch_or_finally", NULL);
+    *ok = false;
+    return Statement::Default();
+  }
+  if (tok == Token::CATCH) {
     Consume(Token::CATCH);
     Expect(Token::LPAREN, CHECK_OK);
     ParseIdentifier(kDontAllowEvalOrArguments, CHECK_OK);
@@ -715,15 +717,11 @@ PreParser::Statement PreParser::ParseTryStatement(bool* ok) {
     { Scope::InsideWith iw(scope_);
       ParseBlock(CHECK_OK);
     }
-    catch_or_finally_seen = true;
+    tok = peek();
   }
-  if (peek() == Token::FINALLY) {
+  if (tok == Token::FINALLY) {
     Consume(Token::FINALLY);
     ParseBlock(CHECK_OK);
-    catch_or_finally_seen = true;
-  }
-  if (!catch_or_finally_seen) {
-    *ok = false;
   }
   return Statement::Default();
 }

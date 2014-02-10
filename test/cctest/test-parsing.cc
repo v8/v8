@@ -1977,3 +1977,39 @@ TEST(FunctionDeclaresItselfStrict) {
   RunParserSyncTest(context_data, strict_statement_data, kError);
   RunParserSyncTest(context_data, non_strict_statement_data, kSuccess);
 }
+
+
+TEST(ErrorsTryWithoutCatchOrFinally) {
+  const char* context_data[][2] = {
+    {"", ""},
+    { NULL, NULL }
+  };
+
+  const char* statement_data[] = {
+    "try { }",
+    "try { } foo();",
+    "try { } catch (e) foo();",
+    "try { } catch { }",
+    "try { } finally foo();",
+    NULL
+  };
+
+  RunParserSyncTest(context_data, statement_data, kError);
+}
+
+
+TEST(NoErrorsTryCatchFinally) {
+  const char* context_data[][2] = {
+    {"", ""},
+    { NULL, NULL }
+  };
+
+  const char* statement_data[] = {
+    "try { } catch (e) { }",
+    "try { } catch (e) { } finally { }",
+    "try { } finally { }",
+    NULL
+  };
+
+  RunParserSyncTest(context_data, statement_data, kSuccess);
+}
