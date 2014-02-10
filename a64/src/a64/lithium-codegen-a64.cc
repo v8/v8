@@ -981,14 +981,25 @@ bool LCodeGen::DeoptimizeHeader(LEnvironment* environment) {
     return false;
   }
 
-  ASSERT(FLAG_deopt_every_n_times < 2);  // Other values not supported on A64.
-  TODO_UNIMPLEMENTED("Support for FLAG_deopt_every_n_times >= 2.");
-  if (FLAG_deopt_every_n_times == 1 &&
-      !info()->IsStub() &&
-      info()->opt_count() == id) {
+  if (FLAG_deopt_every_n_times != 0 && !info()->IsStub()) {
+    Label not_zero;
+    ExternalReference count = ExternalReference::stress_deopt_count(isolate());
+
+    __ Push(x0, x1);
+    __ Mov(x0, Operand(count));
+    __ Ldr(w1, MemOperand(x0));
+    __ Subs(x1, x1, 1);
+    __ B(gt, &not_zero);
+    __ Mov(w1, FLAG_deopt_every_n_times);
+    __ Str(w1, MemOperand(x0));
+    __ Pop(x0, x1);
     ASSERT(frame_is_built_);
     __ Call(entry, RelocInfo::RUNTIME_ENTRY);
-    return false;
+    __ Unreachable();
+
+    __ Bind(&not_zero);
+    __ Str(w1, MemOperand(x0));
+    __ Pop(x0, x1);
   }
 
   return true;
