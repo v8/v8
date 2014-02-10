@@ -1965,11 +1965,6 @@ void LCodeGen::DoCallRuntime(LCallRuntime* instr) {
 void LCodeGen::DoCallStub(LCallStub* instr) {
   ASSERT(ToRegister(instr->result()).is(x0));
   switch (instr->hydrogen()->major_key()) {
-    case CodeStub::RegExpConstructResult: {
-      RegExpConstructResultStub stub;
-      CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
-      break;
-    }
     case CodeStub::RegExpExec: {
       RegExpExecStub stub;
       CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
@@ -2796,19 +2791,6 @@ void LCodeGen::DoGetCachedArrayIndex(LGetCachedArrayIndex* instr) {
 }
 
 
-void LCodeGen::DoGlobalObject(LGlobalObject* instr) {
-  Register result = ToRegister(instr->result());
-  __ Ldr(result, GlobalObjectMemOperand());
-}
-
-
-void LCodeGen::DoGlobalReceiver(LGlobalReceiver* instr) {
-  Register global = ToRegister(instr->global_object());
-  Register result = ToRegister(instr->result());
-  __ Ldr(result, FieldMemOperand(global, GlobalObject::kGlobalReceiverOffset));
-}
-
-
 void LCodeGen::EmitGoto(int block) {
   // Do not emit jump if we are emitting a goto to the next block.
   if (!IsNextEmittedBlock(block)) {
@@ -3196,14 +3178,6 @@ void LCodeGen::DoLoadContextSlot(LLoadContextSlot* instr) {
       __ Bind(&not_the_hole);
     }
   }
-}
-
-
-void LCodeGen::DoLoadExternalArrayPointer(LLoadExternalArrayPointer* instr) {
-  Register to_reg = ToRegister(instr->result());
-  Register from_reg = ToRegister(instr->object());
-  __ Ldr(to_reg, FieldMemOperand(from_reg,
-                                 ExternalArray::kExternalPointerOffset));
 }
 
 
@@ -4394,13 +4368,6 @@ void LCodeGen::DoOsrEntry(LOsrEntry* instr) {
 }
 
 
-void LCodeGen::DoOuterContext(LOuterContext* instr) {
-  Register context = ToRegister(instr->context());
-  Register result = ToRegister(instr->result());
-  __ Ldr(result, ContextMemOperand(context, Context::PREVIOUS_INDEX));
-}
-
-
 void LCodeGen::DoParameter(LParameter* instr) {
   // Nothing to do.
 }
@@ -5087,7 +5054,7 @@ void LCodeGen::DoStringAdd(LStringAdd* instr) {
   ASSERT(ToRegister(instr->left()).Is(x1));
   ASSERT(ToRegister(instr->right()).Is(x0));
   StringAddStub stub(instr->hydrogen()->flags(),
-                     isolate()->heap()->GetPretenureMode());
+                     instr->hydrogen()->pretenure_flag());
   CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
 }
 

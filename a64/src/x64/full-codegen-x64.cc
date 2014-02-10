@@ -3392,8 +3392,8 @@ void FullCodeGenerator::EmitOneByteSeqStringSetChar(CallRuntime* expr) {
   __ pop(index);
 
   if (FLAG_debug_code) {
-    __ ThrowIf(NegateCondition(__ CheckSmi(value)), kNonSmiValue);
-    __ ThrowIf(NegateCondition(__ CheckSmi(index)), kNonSmiValue);
+    __ Check(__ CheckSmi(value), kNonSmiValue);
+    __ Check(__ CheckSmi(index), kNonSmiValue);
   }
 
   __ SmiToInteger32(value, value);
@@ -3425,8 +3425,8 @@ void FullCodeGenerator::EmitTwoByteSeqStringSetChar(CallRuntime* expr) {
   __ pop(index);
 
   if (FLAG_debug_code) {
-    __ ThrowIf(NegateCondition(__ CheckSmi(value)), kNonSmiValue);
-    __ ThrowIf(NegateCondition(__ CheckSmi(index)), kNonSmiValue);
+    __ Check(__ CheckSmi(value), kNonSmiValue);
+    __ Check(__ CheckSmi(index), kNonSmiValue);
   }
 
   __ SmiToInteger32(value, value);
@@ -3693,7 +3693,9 @@ void FullCodeGenerator::EmitRegExpConstructResult(CallRuntime* expr) {
   ASSERT(args->length() == 3);
   VisitForStackValue(args->at(0));
   VisitForStackValue(args->at(1));
-  VisitForStackValue(args->at(2));
+  VisitForAccumulatorValue(args->at(2));
+  __ pop(rbx);
+  __ pop(rcx);
   __ CallStub(&stub);
   context()->Plug(rax);
 }

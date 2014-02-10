@@ -83,6 +83,15 @@ function test_transitioning_store2() {
   return a.x + a.y;
 }
 
+var false_v = false;
+function test_transitioning_store3() {
+  var o = new C();
+  var v = o;
+  if (false_v) v = 0;
+  v.x = 20;
+  return o.x;
+}
+
 function killall() {
   try { } catch(e) { }
 }
@@ -123,5 +132,6 @@ test(22, test_store_load);
 test(8, test_nonaliasing_store1);
 test(5, test_transitioning_store1);
 test(4, test_transitioning_store2);
+test(20, test_transitioning_store3);
 test(22, test_store_load_kill);
 test(7, test_store_store);

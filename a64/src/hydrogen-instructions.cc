@@ -691,6 +691,9 @@ void HInstruction::PrintTo(StringStream* stream) {
   if (CheckFlag(HValue::kHasNoObservableSideEffects)) {
     stream->Add(" [noOSE]");
   }
+  if (CheckFlag(HValue::kIsDead)) {
+    stream->Add(" [dead]");
+  }
 }
 
 
@@ -3048,6 +3051,11 @@ void HParameter::PrintDataTo(StringStream* stream) {
 void HLoadNamedField::PrintDataTo(StringStream* stream) {
   object()->PrintNameTo(stream);
   access_.PrintTo(stream);
+
+  if (HasDependency()) {
+    stream->Add(" ");
+    dependency()->PrintNameTo(stream);
+  }
 }
 
 
@@ -3577,7 +3585,8 @@ void HAllocate::CreateFreeSpaceFiller(int32_t free_space_size) {
   filler_map->FinalizeUniqueness();  // TODO(titzer): should be init'd a'ready
   filler_map->InsertAfter(free_space_instr);
   HInstruction* store_map = HStoreNamedField::New(zone, context(),
-      free_space_instr, HObjectAccess::ForMap(), filler_map);
+      free_space_instr, HObjectAccess::ForMap(), filler_map,
+      INITIALIZING_STORE);
   store_map->SetFlag(HValue::kHasNoObservableSideEffects);
   store_map->InsertAfter(filler_map);
 
@@ -3591,7 +3600,7 @@ void HAllocate::CreateFreeSpaceFiller(int32_t free_space_size) {
       HObjectAccess::ForJSObjectOffset(FreeSpace::kSizeOffset,
           Representation::Smi());
   HStoreNamedField* store_size = HStoreNamedField::New(zone, context(),
-      free_space_instr, access, filler_size);
+      free_space_instr, access, filler_size, INITIALIZING_STORE);
   store_size->SetFlag(HValue::kHasNoObservableSideEffects);
   store_size->InsertAfter(filler_size);
   filler_free_space_size_ = store_size;
@@ -3604,7 +3613,7 @@ void HAllocate::ClearNextMapWord(int offset) {
     HObjectAccess access = HObjectAccess::ForJSObjectOffset(offset);
     HStoreNamedField* clear_next_map =
         HStoreNamedField::New(zone, context(), this, access,
-            block()->graph()->GetConstant0());
+            block()->graph()->GetConstant0(), INITIALIZING_STORE);
     clear_next_map->ClearAllSideEffects();
     clear_next_map->InsertAfter(this);
   }

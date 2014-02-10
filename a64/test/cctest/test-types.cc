@@ -811,7 +811,8 @@ struct Tests : Rep {
         Rep2::ToRegion(&zone, isolate), isolate);
     for (int i = 0; i < 100; ++i) {
       TypeHandle type = T.Fuzz();
-      CheckEqual(type, T.Convert<Type2>(T2.Convert<Type>(type)));
+      CheckEqual(type,
+                 T.template Convert<Type2>(T2.template Convert<Type>(type)));
     }
   }
 };

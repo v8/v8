@@ -150,6 +150,20 @@ void KeyedLoadDictionaryElementStub::InitializeInterfaceDescriptor(
 }
 
 
+void RegExpConstructResultStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  // x2: length
+  // x1: index (of last match)
+  // x0: string
+  static Register registers[] = { x2, x1, x0 };
+  descriptor->register_param_count_ = sizeof(registers) / sizeof(registers[0]);
+  descriptor->register_params_ = registers;
+  descriptor->deoptimization_handler_ =
+      Runtime::FunctionForId(Runtime::kRegExpConstructResult)->entry;
+}
+
+
 void LoadFieldStub::InitializeInterfaceDescriptor(
     Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
@@ -511,76 +525,6 @@ void HydrogenCodeStub::GenerateLightweightMiss(MacroAssembler* masm) {
   }
 
   __ Ret();
-}
-
-
-void FastNewBlockContextStub::Generate(MacroAssembler* masm) {
-  // Stack on entry:
-  // jssp[0]: function.
-  // jssp[8]: serialized scope info.
-
-  // Try to allocate the context in new space.
-  Register context = x10;
-  Register function = x11;
-  Register scope = x12;
-  Register global_obj = x13;
-  Label gc;
-  int length = slots_ + Context::MIN_CONTEXT_SLOTS;
-  __ Allocate(FixedArray::SizeFor(length), context, x6, x7, &gc, TAG_OBJECT);
-
-  // Load the global object.
-  __ Ldr(global_obj, GlobalObjectMemOperand());
-
-  // Pop the function and scope from the stack.
-  __ Pop(function, scope);
-
-  // Set up the object header.
-  Register map = x14;
-  Register obj_length = x15;
-  __ LoadRoot(map, Heap::kBlockContextMapRootIndex);
-  __ Mov(obj_length, Operand(Smi::FromInt(length)));
-  __ Str(map, FieldMemOperand(context, HeapObject::kMapOffset));
-  __ Str(obj_length, FieldMemOperand(context, FixedArray::kLengthOffset));
-
-  // If this block context is nested in the native context we get a smi
-  // sentinel instead of a function. The block context should get the
-  // canonical empty function of the native context as its closure which we
-  // still have to look up.
-  Label after_sentinel;
-  __ JumpIfNotSmi(function, &after_sentinel);
-  if (FLAG_debug_code) {
-    __ Cmp(function, 0);
-    __ Assert(eq, kExpected0AsASmiSentinel);
-  }
-
-  Register global_ctx = x14;
-  __ Ldr(global_ctx, FieldMemOperand(global_obj,
-                                     GlobalObject::kNativeContextOffset));
-  __ Ldr(function, ContextMemOperand(global_ctx, Context::CLOSURE_INDEX));
-  __ Bind(&after_sentinel);
-
-  // Store the global object from the previous context, and set up the fixed
-  // slots.
-  __ Str(global_obj, ContextMemOperand(context,
-                                       Context::GLOBAL_OBJECT_INDEX));
-  __ Str(function, ContextMemOperand(context, Context::CLOSURE_INDEX));
-  __ Str(cp, ContextMemOperand(context, Context::PREVIOUS_INDEX));
-  __ Str(scope, ContextMemOperand(context, Context::EXTENSION_INDEX));
-
-  // Initialize the rest of the slots to the hole value.
-  __ LoadRoot(x7, Heap::kTheHoleValueRootIndex);
-  for (int i = 0; i < slots_; i++) {
-    __ Str(x7, ContextMemOperand(context, i + Context::MIN_CONTEXT_SLOTS));
-  }
-
-  // Remove the on-stack argument and return.
-  __ Mov(cp, context);
-  __ Ret();
-
-  // Need to collect. Call into runtime system.
-  __ Bind(&gc);
-  // The arguments (function and scope) should still be on the stack.
-  __ TailCallRuntime(Runtime::kPushBlockContext, 2, 1);
 }
 
 
@@ -3222,96 +3166,6 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ Ldr(subject, FieldMemOperand(subject, SlicedString::kParentOffset));
   __ B(&check_underlying);    // Go to (4).
 #endif
-}
-
-
-void RegExpConstructResultStub::Generate(MacroAssembler* masm) {
-  // Stack layout on entry.
-  //  jssp[0]:  pointer to string object
-  //  jssp[8]:  start index of last regexp match (smi)
-  //  jssp[16]: number of results (smi)
-  //
-  // Returns pointer to result object in x0.
-
-  static const int kMaxInlineLength = 100;
-  Label slow;
-  Factory* factory = masm->isolate()->factory();
-  Register input = x10;
-  Register index_smi = x11;
-  Register length_smi = x12;
-
-  __ Pop(input, index_smi, length_smi);
-  __ JumpIfNotSmi(length_smi, &slow);
-  __ Cmp(length_smi, Operand(Smi::FromInt(kMaxInlineLength)));
-  __ B(hi, &slow);
-
-  Register length = x13;
-  __ SmiUntag(length, length_smi);
-
-  // Allocate RegExpResult followed by FixedArray.
-  //  JSArray:   [Map][empty properties][Elements][Length-smi][index-smi][input]
-  //  Elements:  [Map][Length][..elements..]
-  // Size of JSArray with two in-object properties and the header of a
-  // FixedArray.
-  Register alloc_obj = x0;  // Result register for allocated object.
-  Register alloc_size = x1;
-  int objects_size = JSRegExpResult::kSize + FixedArray::kHeaderSize;
-  __ Mov(alloc_size, objects_size);
-  __ Add(alloc_size, alloc_size, Operand(length, LSL, kPointerSizeLog2));
-  __ Allocate(alloc_size, alloc_obj, x14, x15, &slow, TAG_OBJECT);
-
-  // Set JSArray map to global.regexp_result_map().
-  Register global_obj = x14;
-  Register global_ctx = x14;
-  Register regexp_map = x14;
-  __ Ldr(global_obj, GlobalObjectMemOperand());
-  __ Ldr(global_ctx, FieldMemOperand(global_obj,
-                                     GlobalObject::kNativeContextOffset));
-  __ Ldr(regexp_map, ContextMemOperand(global_ctx,
-                                       Context::REGEXP_RESULT_MAP_INDEX));
-  __ Str(regexp_map, FieldMemOperand(alloc_obj, HeapObject::kMapOffset));
-
-  // Set empty properties FixedArray.
-  Register empty_array = x14;
-  __ Mov(empty_array, Operand(factory->empty_fixed_array()));
-  __ Str(empty_array, FieldMemOperand(alloc_obj, JSObject::kPropertiesOffset));
-
-  // Set elements to point to FixedArray allocated right after the JSArray.
-  Register elements = x15;
-  __ Add(elements, alloc_obj, JSRegExpResult::kSize);
-  __ Str(elements, FieldMemOperand(alloc_obj, JSObject::kElementsOffset));
-
-  // Set input, index and length field from arguments.
-  __ Str(input, FieldMemOperand(alloc_obj, JSRegExpResult::kInputOffset));
-  __ Str(index_smi, FieldMemOperand(alloc_obj, JSRegExpResult::kIndexOffset));
-  __ Str(length_smi, FieldMemOperand(alloc_obj, JSArray::kLengthOffset));
-
-  // Fill in the elements FixedArray. First, set the map.
-  Register map = x14;
-  __ Mov(map, Operand(factory->fixed_array_map()));
-  __ Str(map, FieldMemOperand(elements, HeapObject::kMapOffset));
-  // Set FixedArray length.
-  __ Str(length_smi, FieldMemOperand(elements, FixedArray::kLengthOffset));
-  // Fill contents of FixedArray with undefined.
-  Register undef = x14;
-  Register fixed_array_elts = x15;
-  __ LoadRoot(undef, Heap::kUndefinedValueRootIndex);
-  __ Add(fixed_array_elts, elements, FixedArray::kHeaderSize - kHeapObjectTag);
-
-  // Fill fixed array elements with hole.
-  Label loop, done;
-  __ Bind(&loop);
-  __ Cbz(length, &done);
-  __ Sub(length, length, 1);
-  __ Str(undef, MemOperand(fixed_array_elts, length, LSL, kPointerSizeLog2));
-  __ B(&loop);
-
-  __ Bind(&done);
-  __ Ret();
-
-  __ Bind(&slow);
-  __ Push(length_smi, index_smi, input);
-  __ TailCallRuntime(Runtime::kRegExpConstructResult, 3, 1);
 }
 
 

@@ -3207,11 +3207,8 @@ void FullCodeGenerator::EmitOneByteSeqStringSetChar(CallRuntime* expr) {
   __ Pop(value, index);
 
   if (FLAG_debug_code) {
-    Label both_smis;
-    __ JumpIfBothSmi(value, index, &both_smis);
-    __ Throw(kNonSmiValue);
-    __ Throw(kNonSmiIndex);
-    __ Bind(&both_smis);
+    __ AssertSmi(value, kNonSmiValue);
+    __ AssertSmi(index, kNonSmiIndex);
     static const uint32_t one_byte_seq_type = kSeqStringTag | kOneByteStringTag;
     __ EmitSeqStringSetCharCheck(string, index, kIndexIsSmi, scratch,
                                  one_byte_seq_type);
@@ -3240,11 +3237,8 @@ void FullCodeGenerator::EmitTwoByteSeqStringSetChar(CallRuntime* expr) {
   __ Pop(value, index);
 
   if (FLAG_debug_code) {
-    Label both_smis;
-    __ JumpIfBothSmi(value, index, &both_smis);
-    __ Throw(kNonSmiValue);
-    __ Throw(kNonSmiIndex);
-    __ Bind(&both_smis);
+    __ AssertSmi(value, kNonSmiValue);
+    __ AssertSmi(index, kNonSmiIndex);
     static const uint32_t two_byte_seq_type = kSeqStringTag | kTwoByteStringTag;
     __ EmitSeqStringSetCharCheck(string, index, kIndexIsSmi, scratch,
                                  two_byte_seq_type);
@@ -3511,7 +3505,8 @@ void FullCodeGenerator::EmitRegExpConstructResult(CallRuntime* expr) {
   ASSERT(args->length() == 3);
   VisitForStackValue(args->at(0));
   VisitForStackValue(args->at(1));
-  VisitForStackValue(args->at(2));
+  VisitForAccumulatorValue(args->at(2));
+  __ Pop(x1, x2);
   __ CallStub(&stub);
   context()->Plug(x0);
 }

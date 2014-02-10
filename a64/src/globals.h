@@ -38,7 +38,7 @@
 #if V8_CC_GNU && V8_GNUC_PREREQ(2, 96, 0) && !V8_GNUC_PREREQ(4, 1, 0)
 # include <limits>  // NOLINT
 # define V8_INFINITY std::numeric_limits<double>::infinity()
-#elif V8_CC_MSVC
+#elif V8_LIBC_MSVCRT
 # define V8_INFINITY HUGE_VAL
 #else
 # define V8_INFINITY INFINITY

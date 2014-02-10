@@ -2115,6 +2115,7 @@ bool Isolate::Init(Deserializer* des) {
     FastNewContextStub::InstallDescriptors(this);
     NumberToStringStub::InstallDescriptors(this);
     StringAddStub::InstallDescriptors(this);
+    RegExpConstructResultStub::InstallDescriptors(this);
   }
 
   CallDescriptors::InitializeForIsolate(this);

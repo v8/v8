@@ -1311,6 +1311,10 @@ class HGraphBuilder {
   HValue* BuildUncheckedDictionaryElementLoad(HValue* receiver,
                                               HValue* key);
 
+  HValue* BuildRegExpConstructResult(HValue* length,
+                                     HValue* index,
+                                     HValue* input);
+
   // Allocates a new object according with the given allocation properties.
   HAllocate* BuildAllocate(HValue* object_size,
                            HType type,
@@ -1365,7 +1369,7 @@ class HGraphBuilder {
   HInstruction* AddLoadStringLength(HValue* string);
   HStoreNamedField* AddStoreMapNoWriteBarrier(HValue* object, HValue* map) {
     HStoreNamedField* store_map = Add<HStoreNamedField>(
-        object, HObjectAccess::ForMap(), map);
+        object, HObjectAccess::ForMap(), map, INITIALIZING_STORE);
     store_map->SkipWriteBarrier();
     return store_map;
   }

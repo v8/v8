@@ -781,6 +781,13 @@ void StringAddStub::InstallDescriptors(Isolate* isolate) {
 }
 
 
+// static
+void RegExpConstructResultStub::InstallDescriptors(Isolate* isolate) {
+  RegExpConstructResultStub stub;
+  InstallDescriptor(isolate, &stub);
+}
+
+
 ArrayConstructorStub::ArrayConstructorStub(Isolate* isolate)
     : argument_count_(ANY) {
   ArrayConstructorStubBase::GenerateStubsAheadOfTime(isolate);

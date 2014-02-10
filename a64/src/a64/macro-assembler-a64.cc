@@ -3607,7 +3607,7 @@ void MacroAssembler::EmitSeqStringSetCharCheck(
   }
 
   // Check that string is an object.
-  ThrowIfSmi(string, kNonObject);
+  AssertNotSmi(string, kNonObject);
 
   // Check that string has an appropriate map.
   Ldr(scratch, FieldMemOperand(string, HeapObject::kMapOffset));
@@ -3615,15 +3615,15 @@ void MacroAssembler::EmitSeqStringSetCharCheck(
 
   And(scratch, scratch, kStringRepresentationMask | kStringEncodingMask);
   Cmp(scratch, encoding_mask);
-  ThrowIf(ne, kUnexpectedStringType);
+  Check(eq, kUnexpectedStringType);
 
   Ldr(scratch, FieldMemOperand(string, String::kLengthOffset));
   Cmp(index, index_type == kIndexIsSmi ? scratch : Operand::UntagSmi(scratch));
-  ThrowIf(ge, kIndexIsTooLarge);
+  Check(lt, kIndexIsTooLarge);
 
   ASSERT_EQ(0, Smi::FromInt(0));
   Cmp(index, 0);
-  ThrowIf(lt, kIndexIsNegative);
+  Check(ge, kIndexIsNegative);
 }
 
 
