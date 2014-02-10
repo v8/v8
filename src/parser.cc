@@ -533,8 +533,78 @@ Parser::FunctionState::~FunctionState() {
 // ----------------------------------------------------------------------------
 // Implementation of Parser
 
+bool ParserTraits::is_classic_mode() const {
+  return parser_->top_scope_->is_classic_mode();
+}
+
+
+bool ParserTraits::is_generator() const {
+  return parser_->current_function_state_->is_generator();
+}
+
+
+bool ParserTraits::IsEvalOrArguments(Handle<String> identifier) const {
+  return identifier.is_identical_to(
+             parser_->isolate()->factory()->eval_string()) ||
+         identifier.is_identical_to(
+             parser_->isolate()->factory()->arguments_string());
+}
+
+
+void ParserTraits::ReportMessageAt(Scanner::Location source_location,
+                                   const char* message,
+                                   Vector<const char*> args) {
+  MessageLocation location(parser_->script_,
+                           source_location.beg_pos,
+                           source_location.end_pos);
+  Factory* factory = parser_->isolate()->factory();
+  Handle<FixedArray> elements = factory->NewFixedArray(args.length());
+  for (int i = 0; i < args.length(); i++) {
+    Handle<String> arg_string = factory->NewStringFromUtf8(CStrVector(args[i]));
+    elements->set(i, *arg_string);
+  }
+  Handle<JSArray> array = factory->NewJSArrayWithElements(elements);
+  Handle<Object> result = factory->NewSyntaxError(message, array);
+  parser_->isolate()->Throw(*result, &location);
+}
+
+
+void ParserTraits::ReportMessage(const char* message,
+                                 Vector<Handle<String> > args) {
+  Scanner::Location source_location = parser_->scanner().location();
+  ReportMessageAt(source_location, message, args);
+}
+
+
+void ParserTraits::ReportMessageAt(Scanner::Location source_location,
+                                   const char* message,
+                                   Vector<Handle<String> > args) {
+  MessageLocation location(parser_->script_,
+                           source_location.beg_pos,
+                           source_location.end_pos);
+  Factory* factory = parser_->isolate()->factory();
+  Handle<FixedArray> elements = factory->NewFixedArray(args.length());
+  for (int i = 0; i < args.length(); i++) {
+    elements->set(i, *args[i]);
+  }
+  Handle<JSArray> array = factory->NewJSArrayWithElements(elements);
+  Handle<Object> result = factory->NewSyntaxError(message, array);
+  parser_->isolate()->Throw(*result, &location);
+}
+
+
+Handle<String> ParserTraits::GetSymbol() {
+  int symbol_id = -1;
+  if (parser_->pre_parse_data() != NULL) {
+    symbol_id = parser_->pre_parse_data()->GetSymbolIdentifier();
+  }
+  return parser_->LookupSymbol(symbol_id);
+}
+
 Parser::Parser(CompilationInfo* info)
-    : ParserBase(&scanner_, info->isolate()->stack_guard()->real_climit()),
+    : ParserBase(&scanner_,
+                 info->isolate()->stack_guard()->real_climit(),
+                 this),
       isolate_(info->isolate()),
       symbol_cache_(0, info->zone()),
       script_(info->script()),
@@ -793,62 +863,6 @@ FunctionLiteral* Parser::ParseLazy(Utf16CharacterStream* source) {
 }
 
 
-Handle<String> Parser::GetSymbol() {
-  int symbol_id = -1;
-  if (pre_parse_data() != NULL) {
-    symbol_id = pre_parse_data()->GetSymbolIdentifier();
-  }
-  return LookupSymbol(symbol_id);
-}
-
-
-void Parser::ReportMessage(const char* message, Vector<const char*> args) {
-  Scanner::Location source_location = scanner().location();
-  ReportMessageAt(source_location, message, args);
-}
-
-
-void Parser::ReportMessage(const char* message, Vector<Handle<String> > args) {
-  Scanner::Location source_location = scanner().location();
-  ReportMessageAt(source_location, message, args);
-}
-
-
-void Parser::ReportMessageAt(Scanner::Location source_location,
-                             const char* message,
-                             Vector<const char*> args) {
-  MessageLocation location(script_,
-                           source_location.beg_pos,
-                           source_location.end_pos);
-  Factory* factory = isolate()->factory();
-  Handle<FixedArray> elements = factory->NewFixedArray(args.length());
-  for (int i = 0; i < args.length(); i++) {
-    Handle<String> arg_string = factory->NewStringFromUtf8(CStrVector(args[i]));
-    elements->set(i, *arg_string);
-  }
-  Handle<JSArray> array = factory->NewJSArrayWithElements(elements);
-  Handle<Object> result = factory->NewSyntaxError(message, array);
-  isolate()->Throw(*result, &location);
-}
-
-
-void Parser::ReportMessageAt(Scanner::Location source_location,
-                             const char* message,
-                             Vector<Handle<String> > args) {
-  MessageLocation location(script_,
-                           source_location.beg_pos,
-                           source_location.end_pos);
-  Factory* factory = isolate()->factory();
-  Handle<FixedArray> elements = factory->NewFixedArray(args.length());
-  for (int i = 0; i < args.length(); i++) {
-    elements->set(i, *args[i]);
-  }
-  Handle<JSArray> array = factory->NewJSArrayWithElements(elements);
-  Handle<Object> result = factory->NewSyntaxError(message, array);
-  isolate()->Throw(*result, &location);
-}
-
-
 void* Parser::ParseSourceElements(ZoneList<Statement*>* processor,
                                   int end_token,
                                   bool is_eval,
@@ -1081,8 +1095,8 @@ Module* Parser::ParseModuleLiteral(bool* ok) {
        !it.done(); it.Advance()) {
     if (scope->LocalLookup(it.name()) == NULL) {
       Handle<String> name(it.name());
-      ReportMessage("module_export_undefined",
-                    Vector<Handle<String> >(&name, 1));
+      ParserTraits::ReportMessage("module_export_undefined",
+                                  Vector<Handle<String> >(&name, 1));
       *ok = false;
       return NULL;
     }
@@ -1121,7 +1135,8 @@ Module* Parser::ParseModulePath(bool* ok) {
         member->interface()->Print();
       }
 #endif
-      ReportMessage("invalid_module_path", Vector<Handle<String> >(&name, 1));
+      ParserTraits::ReportMessage("invalid_module_path",
+                                  Vector<Handle<String> >(&name, 1));
       return NULL;
     }
     result = member;
@@ -1231,7 +1246,8 @@ Block* Parser::ParseImportDeclaration(bool* ok) {
         module->interface()->Print();
       }
 #endif
-      ReportMessage("invalid_module_path", Vector<Handle<String> >(&name, 1));
+      ParserTraits::ReportMessage("invalid_module_path",
+                                  Vector<Handle<String> >(&name, 1));
       return NULL;
     }
     VariableProxy* proxy = NewUnresolved(names[i], LET, interface);
@@ -1439,8 +1455,7 @@ Statement* Parser::ParseStatement(ZoneStringList* labels, bool* ok) {
       // Statement:
       //    GeneratorDeclaration
       if (!top_scope_->is_classic_mode()) {
-        ReportMessageAt(scanner().peek_location(), "strict_function",
-                        Vector<const char*>::empty());
+        ReportMessageAt(scanner().peek_location(), "strict_function");
         *ok = false;
         return NULL;
       }
@@ -1619,7 +1634,8 @@ void Parser::Declare(Declaration* declaration, bool resolve, bool* ok) {
           var->interface()->Print();
         }
 #endif
-        ReportMessage("module_type_error", Vector<Handle<String> >(&name, 1));
+        ParserTraits::ReportMessage("module_type_error",
+                                    Vector<Handle<String> >(&name, 1));
       }
     }
   }
@@ -1777,12 +1793,6 @@ Block* Parser::ParseVariableStatement(VariableDeclarationContext var_context,
 }
 
 
-bool Parser::IsEvalOrArguments(Handle<String> string) {
-  return string.is_identical_to(isolate()->factory()->eval_string()) ||
-      string.is_identical_to(isolate()->factory()->arguments_string());
-}
-
-
 // If the variable declaration declares exactly one non-const
 // variable, then *out is set to that variable. In all other cases,
 // *out is untouched; in particular, it is the caller's responsibility
@@ -1928,8 +1938,7 @@ Block* Parser::ParseVariableDeclarations(
     Declare(declaration, mode != VAR, CHECK_OK);
     nvars++;
     if (declaration_scope->num_var_or_const() > kMaxNumFunctionLocals) {
-      ReportMessageAt(scanner().location(), "too_many_variables",
-                      Vector<const char*>::empty());
+      ReportMessageAt(scanner().location(), "too_many_variables");
       *ok = false;
       return NULL;
     }
@@ -2232,7 +2241,7 @@ Statement* Parser::ParseContinueStatement(bool* ok) {
       message = "unknown_label";
       args = Vector<Handle<String> >(&label, 1);
     }
-    ReportMessageAt(scanner().location(), message, args);
+    ParserTraits::ReportMessageAt(scanner().location(), message, args);
     *ok = false;
     return NULL;
   }
@@ -2270,7 +2279,7 @@ Statement* Parser::ParseBreakStatement(ZoneStringList* labels, bool* ok) {
       message = "unknown_label";
       args = Vector<Handle<String> >(&label, 1);
     }
-    ReportMessageAt(scanner().location(), message, args);
+    ParserTraits::ReportMessageAt(scanner().location(), message, args);
     *ok = false;
     return NULL;
   }
@@ -3010,14 +3019,6 @@ Expression* Parser::ParseConditionalExpression(bool accept_IN, bool* ok) {
   Expect(Token::COLON, CHECK_OK);
   Expression* right = ParseAssignmentExpression(accept_IN, CHECK_OK);
   return factory()->NewConditional(expression, left, right, pos);
-}
-
-
-int ParserBase::Precedence(Token::Value tok, bool accept_IN) {
-  if (tok == Token::IN && !accept_IN)
-    return 0;  // 0 precedence will terminate binary expression parsing
-
-  return Token::Precedence(tok);
 }
 
 
@@ -3863,8 +3864,7 @@ ZoneList<Expression*>* Parser::ParseArguments(bool* ok) {
     Expression* argument = ParseAssignmentExpression(true, CHECK_OK);
     result->Add(argument, zone());
     if (result->length() > Code::kMaxArguments) {
-      ReportMessageAt(scanner().location(), "too_many_arguments",
-                      Vector<const char*>::empty());
+      ReportMessageAt(scanner().location(), "too_many_arguments");
       *ok = false;
       return NULL;
     }
@@ -4095,8 +4095,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
       top_scope_->DeclareParameter(param_name, VAR);
       num_parameters++;
       if (num_parameters > Code::kMaxArguments) {
-        ReportMessageAt(scanner().location(), "too_many_parameters",
-                        Vector<const char*>::empty());
+        ReportMessageAt(scanner().location(), "too_many_parameters");
         *ok = false;
         return NULL;
       }
@@ -4187,8 +4186,10 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
           if (arg != NULL) {
             args = Vector<const char*>(&arg, 1);
           }
-          ReportMessageAt(Scanner::Location(logger.start(), logger.end()),
-                          logger.message(), args);
+          ParserTraits::ReportMessageAt(
+              Scanner::Location(logger.start(), logger.end()),
+              logger.message(),
+              args);
           *ok = false;
           return NULL;
         }
@@ -4262,33 +4263,27 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     // since the function can declare itself strict.
     if (!top_scope_->is_classic_mode()) {
       if (IsEvalOrArguments(function_name)) {
-        ReportMessageAt(function_name_location,
-                        "strict_eval_arguments",
-                        Vector<const char*>::empty());
+        ReportMessageAt(function_name_location, "strict_eval_arguments");
         *ok = false;
         return NULL;
       }
       if (name_is_strict_reserved) {
-        ReportMessageAt(function_name_location, "unexpected_strict_reserved",
-                        Vector<const char*>::empty());
+        ReportMessageAt(function_name_location, "unexpected_strict_reserved");
         *ok = false;
         return NULL;
       }
       if (eval_args_error_log.IsValid()) {
-        ReportMessageAt(eval_args_error_log, "strict_eval_arguments",
-                        Vector<const char*>::empty());
+        ReportMessageAt(eval_args_error_log, "strict_eval_arguments");
         *ok = false;
         return NULL;
       }
       if (dupe_error_loc.IsValid()) {
-        ReportMessageAt(dupe_error_loc, "strict_param_dupe",
-                        Vector<const char*>::empty());
+        ReportMessageAt(dupe_error_loc, "strict_param_dupe");
         *ok = false;
         return NULL;
       }
       if (reserved_loc.IsValid()) {
-        ReportMessageAt(reserved_loc, "unexpected_strict_reserved",
-                        Vector<const char*>::empty());
+        ReportMessageAt(reserved_loc, "unexpected_strict_reserved");
         *ok = false;
         return NULL;
       }
@@ -4397,95 +4392,14 @@ Expression* Parser::ParseV8Intrinsic(bool* ok) {
 
   // Check that the function is defined if it's an inline runtime call.
   if (function == NULL && name->Get(0) == '_') {
-    ReportMessage("not_defined", Vector<Handle<String> >(&name, 1));
+    ParserTraits::ReportMessage("not_defined",
+                                Vector<Handle<String> >(&name, 1));
     *ok = false;
     return NULL;
   }
 
   // We have a valid intrinsics call or a call to a builtin.
   return factory()->NewCallRuntime(name, function, args, pos);
-}
-
-
-bool ParserBase::peek_any_identifier() {
-  Token::Value next = peek();
-  return next == Token::IDENTIFIER ||
-         next == Token::FUTURE_RESERVED_WORD ||
-         next == Token::FUTURE_STRICT_RESERVED_WORD ||
-         next == Token::YIELD;
-}
-
-
-bool ParserBase::CheckContextualKeyword(Vector<const char> keyword) {
-  if (peek() == Token::IDENTIFIER &&
-      scanner()->is_next_contextual_keyword(keyword)) {
-    Consume(Token::IDENTIFIER);
-    return true;
-  }
-  return false;
-}
-
-
-void ParserBase::ExpectSemicolon(bool* ok) {
-  // Check for automatic semicolon insertion according to
-  // the rules given in ECMA-262, section 7.9, page 21.
-  Token::Value tok = peek();
-  if (tok == Token::SEMICOLON) {
-    Next();
-    return;
-  }
-  if (scanner()->HasAnyLineTerminatorBeforeNext() ||
-      tok == Token::RBRACE ||
-      tok == Token::EOS) {
-    return;
-  }
-  Expect(Token::SEMICOLON, ok);
-}
-
-
-void ParserBase::ExpectContextualKeyword(Vector<const char> keyword, bool* ok) {
-  Expect(Token::IDENTIFIER, ok);
-  if (!*ok) return;
-  if (!scanner()->is_literal_contextual_keyword(keyword)) {
-    ReportUnexpectedToken(scanner()->current_token());
-    *ok = false;
-  }
-}
-
-
-void ParserBase::ReportUnexpectedToken(Token::Value token) {
-  // We don't report stack overflows here, to avoid increasing the
-  // stack depth even further.  Instead we report it after parsing is
-  // over, in ParseProgram.
-  if (token == Token::ILLEGAL && stack_overflow()) {
-    return;
-  }
-  Scanner::Location source_location = scanner()->location();
-
-  // Four of the tokens are treated specially
-  switch (token) {
-  case Token::EOS:
-    return ReportMessageAt(source_location, "unexpected_eos");
-  case Token::NUMBER:
-    return ReportMessageAt(source_location, "unexpected_token_number");
-  case Token::STRING:
-    return ReportMessageAt(source_location, "unexpected_token_string");
-  case Token::IDENTIFIER:
-    return ReportMessageAt(source_location,
-                           "unexpected_token_identifier");
-  case Token::FUTURE_RESERVED_WORD:
-    return ReportMessageAt(source_location, "unexpected_reserved");
-  case Token::YIELD:
-  case Token::FUTURE_STRICT_RESERVED_WORD:
-    return ReportMessageAt(source_location,
-                           is_classic_mode() ? "unexpected_token_identifier"
-                                             : "unexpected_strict_reserved");
-  default:
-    const char* name = Token::String(token);
-    ASSERT(name != NULL);
-    ReportMessageAt(
-        source_location, "unexpected_token", Vector<const char*>(&name, 1));
-  }
 }
 
 
@@ -4498,68 +4412,6 @@ Literal* Parser::GetLiteralUndefined(int position) {
 Literal* Parser::GetLiteralTheHole(int position) {
   return factory()->NewLiteral(
       isolate()->factory()->the_hole_value(), RelocInfo::kNoPosition);
-}
-
-
-// Parses an identifier that is valid for the current scope, in particular it
-// fails on strict mode future reserved keywords in a strict scope. If
-// allow_eval_or_arguments is kAllowEvalOrArguments, we allow "eval" or
-// "arguments" as identifier even in strict mode (this is needed in cases like
-// "var foo = eval;").
-Handle<String> Parser::ParseIdentifier(
-    AllowEvalOrArgumentsAsIdentifier allow_eval_or_arguments,
-    bool* ok) {
-  Token::Value next = Next();
-  if (next == Token::IDENTIFIER) {
-    Handle<String> name = GetSymbol();
-    if (allow_eval_or_arguments == kDontAllowEvalOrArguments &&
-        !top_scope_->is_classic_mode() && IsEvalOrArguments(name)) {
-      ReportMessage("strict_eval_arguments", Vector<const char*>::empty());
-      *ok = false;
-    }
-    return name;
-  } else if (top_scope_->is_classic_mode() &&
-             (next == Token::FUTURE_STRICT_RESERVED_WORD ||
-              (next == Token::YIELD && !is_generator()))) {
-    return GetSymbol();
-  } else {
-    ReportUnexpectedToken(next);
-    *ok = false;
-    return Handle<String>();
-  }
-}
-
-
-// Parses and identifier or a strict mode future reserved word, and indicate
-// whether it is strict mode future reserved.
-Handle<String> Parser::ParseIdentifierOrStrictReservedWord(
-    bool* is_strict_reserved, bool* ok) {
-  Token::Value next = Next();
-  if (next == Token::IDENTIFIER) {
-    *is_strict_reserved = false;
-  } else if (next == Token::FUTURE_STRICT_RESERVED_WORD ||
-             (next == Token::YIELD && !is_generator())) {
-    *is_strict_reserved = true;
-  } else {
-    ReportUnexpectedToken(next);
-    *ok = false;
-    return Handle<String>();
-  }
-  return GetSymbol();
-}
-
-
-Handle<String> Parser::ParseIdentifierName(bool* ok) {
-  Token::Value next = Next();
-  if (next != Token::IDENTIFIER &&
-      next != Token::FUTURE_RESERVED_WORD &&
-      next != Token::FUTURE_STRICT_RESERVED_WORD &&
-      !Token::IsKeyword(next)) {
-    ReportUnexpectedToken(next);
-    *ok = false;
-    return Handle<String>();
-  }
-  return GetSymbol();
 }
 
 
@@ -4588,18 +4440,6 @@ void Parser::CheckStrictModeLValue(Expression* expression,
 }
 
 
-// Checks whether an octal literal was last seen between beg_pos and end_pos.
-// If so, reports an error. Only called for strict mode.
-void ParserBase::CheckOctalLiteral(int beg_pos, int end_pos, bool* ok) {
-  Scanner::Location octal = scanner()->octal_position();
-  if (octal.IsValid() && beg_pos <= octal.beg_pos && octal.end_pos <= end_pos) {
-    ReportMessageAt(octal, "strict_octal_literal");
-    scanner()->clear_octal_position();
-    *ok = false;
-  }
-}
-
-
 void Parser::CheckConflictingVarDeclarations(Scope* scope, bool* ok) {
   Declaration* decl = scope->CheckConflictingVarDeclarations();
   if (decl != NULL) {
@@ -4613,25 +4453,9 @@ void Parser::CheckConflictingVarDeclarations(Scope* scope, bool* ok) {
     Scanner::Location location = position == RelocInfo::kNoPosition
         ? Scanner::Location::invalid()
         : Scanner::Location(position, position + 1);
-    ReportMessageAt(location, "redeclaration", args);
+    ParserTraits::ReportMessageAt(location, "redeclaration", args);
     *ok = false;
   }
-}
-
-
-// This function reads an identifier name and determines whether or not it
-// is 'get' or 'set'.
-Handle<String> Parser::ParseIdentifierNameOrGetOrSet(bool* is_get,
-                                                     bool* is_set,
-                                                     bool* ok) {
-  Handle<String> result = ParseIdentifierName(ok);
-  if (!*ok) return Handle<String>();
-  if (scanner().is_literal_ascii() && scanner().literal_length() == 3) {
-    const char* token = scanner().literal_ascii_string().start();
-    *is_get = strncmp(token, "get", 3) == 0;
-    *is_set = !*is_get && strncmp(token, "set", 3) == 0;
-  }
-  return result;
 }
 
 
@@ -5683,7 +5507,7 @@ bool Parser::Parse() {
       Scanner::Location loc = pre_parse_data->MessageLocation();
       const char* message = pre_parse_data->BuildMessage();
       Vector<const char*> args = pre_parse_data->BuildArgs();
-      ReportMessageAt(loc, message, args);
+      ParserTraits::ReportMessageAt(loc, message, args);
       DeleteArray(message);
       for (int i = 0; i < args.length(); i++) {
         DeleteArray(args[i]);
