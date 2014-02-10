@@ -31,10 +31,10 @@ from transition_keys import TransitionKey
 
 class DfaState(AutomatonState):
 
-  def __init__(self, name, action):
+  def __init__(self, name, action, transitions):
     super(DfaState, self).__init__()
     self.__name = name
-    self.__transitions = {}
+    self.__transitions = transitions
     self.__action = action
     assert isinstance(action, Action)
 
@@ -43,13 +43,6 @@ class DfaState(AutomatonState):
 
   def action(self):
     return self.__action
-
-  def add_transition(self, key, state):
-    assert key != None
-    assert not key == TransitionKey.epsilon()
-    assert not self.__transitions.has_key(key)
-    self.__transitions[key] = state
-
 
   def epsilon_closure_iter(self):
     return iter([])
@@ -71,17 +64,25 @@ class DfaState(AutomatonState):
 
 class Dfa(Automaton):
 
+  @staticmethod
+  def __add_transition(transitions, key, state):
+    assert key != None
+    assert not key == TransitionKey.epsilon()
+    assert not transitions.has_key(key)
+    transitions[key] = state
+
   def __init__(self, encoding, start_name, mapping):
     super(Dfa, self).__init__(encoding)
     self.__terminal_set = set()
     name_map = {}
     for name, node_data in mapping.items():
-      node = DfaState(name, node_data['action'])
-      name_map[name] = node
+      transitions = {}
+      node = DfaState(name, node_data['action'], transitions)
+      name_map[name] = (node, transitions)
       if node_data['terminal']:
         self.__terminal_set.add(node)
     for name, node_data in mapping.items():
-      node = name_map[name]
+      (node, transitions) = name_map[name]
       inversion = {}
       for key, state in node_data['transitions'].items():
         if not state in inversion:
@@ -89,8 +90,8 @@ class Dfa(Automaton):
         inversion[state].append(key)
       for state, keys in inversion.items():
         merged_key = TransitionKey.merged_key(encoding, keys)
-        node.add_transition(merged_key, name_map[state])
-    self.__start = name_map[start_name]
+        self.__add_transition(transitions, merged_key, name_map[state][0])
+    self.__start = name_map[start_name][0]
     self.__node_count = len(mapping)
     self.__verify()
 
@@ -179,18 +180,13 @@ class DfaMinimizer:
       id_to_state[state_id] = state
       action = state.action()
       all_keys.append(state.key_iter())
-      if action:
-        if state not in terminal_set:
-          # Match actions are valid only if we have matched the whole token, not
-          # just some sub-part of it.
-          assert not action.match_action()
-          key = ("nonterminal action", action)
-        else:
-          key = ("terminal action", action)
-      elif state in terminal_set:
-        key = ("terminal set",)
+      if state in terminal_set:
+        key = ("terminal set", action)
       else:
-        key = ("nonterminal set",)
+        # Match actions are valid only if we have matched the whole token, not
+        # just some sub-part of it.
+        assert not action.match_action()
+        key = ("nonterminal set", action)
       if not key in initial_partitions:
         initial_partitions[key] = set()
       initial_partitions[key].add(state_id)

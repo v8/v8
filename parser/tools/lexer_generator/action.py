@@ -167,7 +167,6 @@ class Action(object):
             self.__match_action == other.__match_action)
 
   def __str__(self):
-    parts = []
-    for action in [self.__entry_action, self.__match_action]:
-      parts.append('' if not action else str(action))
+    parts = map(lambda action : '' if not action else str(action),
+                [self.__entry_action, self.__match_action])
     return "action< %s >" % " | ".join(parts)

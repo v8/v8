@@ -27,7 +27,7 @@
 
 # Character classes and auxiliary regexps.
 
-line_terminator = [:line_terminator:];
+line_terminator = [:line_terminator:];  # TODO(dcarney): just include these
 identifier_start = [$_:letter:];
 identifier_char = [:identifier_start::identifier_part_not_letter:];
 digit = [0-9];
