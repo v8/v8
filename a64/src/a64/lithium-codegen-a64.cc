@@ -959,19 +959,22 @@ void LCodeGen::PopulateDeoptimizationLiteralsWithInlinedFunctions() {
 }
 
 
-bool LCodeGen::DeoptimizeHeader(LEnvironment* environment) {
+Deoptimizer::BailoutType LCodeGen::DeoptimizeHeader(
+    LEnvironment* environment,
+    Deoptimizer::BailoutType* override_bailout_type) {
   RegisterEnvironmentForDeoptimization(environment, Safepoint::kNoLazyDeopt);
   ASSERT(environment->HasBeenRegistered());
   ASSERT(info()->IsOptimizing() || info()->IsStub());
   int id = environment->deoptimization_index();
-  Deoptimizer::BailoutType bailout_type = info()->IsStub() ? Deoptimizer::LAZY
-                                                           : Deoptimizer::EAGER;
+  Deoptimizer::BailoutType bailout_type =
+      info()->IsStub() ? Deoptimizer::LAZY : Deoptimizer::EAGER;
+  if (override_bailout_type) bailout_type = *override_bailout_type;
   Address entry =
       Deoptimizer::GetDeoptimizationEntry(isolate(), id, bailout_type);
 
   if (entry == NULL) {
     Abort(kBailoutWasNotPrepared);
-    return false;
+    return bailout_type;
   }
 
   if (FLAG_deopt_every_n_times != 0 && !info()->IsStub()) {
@@ -995,14 +998,12 @@ bool LCodeGen::DeoptimizeHeader(LEnvironment* environment) {
     __ Pop(x0, x1);
   }
 
-  return true;
+  return bailout_type;
 }
 
 
 void LCodeGen::Deoptimize(LEnvironment* environment,
                           Deoptimizer::BailoutType bailout_type) {
-  if (!DeoptimizeHeader(environment)) return;
-
   ASSERT(environment->HasBeenRegistered());
   ASSERT(info()->IsOptimizing() || info()->IsStub());
   int id = environment->deoptimization_index();
@@ -1035,32 +1036,34 @@ void LCodeGen::Deoptimize(LEnvironment* environment,
 
 
 void LCodeGen::Deoptimize(LEnvironment* environment) {
-  Deoptimizer::BailoutType bailout_type = info()->IsStub() ? Deoptimizer::LAZY
-                                                           : Deoptimizer::EAGER;
+  Deoptimizer::BailoutType bailout_type = DeoptimizeHeader(environment, NULL);
   Deoptimize(environment, bailout_type);
 }
 
 
 void LCodeGen::DeoptimizeIf(Condition cond, LEnvironment* environment) {
   Label dont_deopt;
+  Deoptimizer::BailoutType bailout_type = DeoptimizeHeader(environment, NULL);
   __ B(InvertCondition(cond), &dont_deopt);
-  Deoptimize(environment);
+  Deoptimize(environment, bailout_type);
   __ Bind(&dont_deopt);
 }
 
 
 void LCodeGen::DeoptimizeIfZero(Register rt, LEnvironment* environment) {
   Label dont_deopt;
+  Deoptimizer::BailoutType bailout_type = DeoptimizeHeader(environment, NULL);
   __ Cbnz(rt, &dont_deopt);
-  Deoptimize(environment);
+  Deoptimize(environment, bailout_type);
   __ Bind(&dont_deopt);
 }
 
 
 void LCodeGen::DeoptimizeIfNegative(Register rt, LEnvironment* environment) {
   Label dont_deopt;
+  Deoptimizer::BailoutType bailout_type = DeoptimizeHeader(environment, NULL);
   __ Tbz(rt, rt.Is64Bits() ? kXSignBit : kWSignBit, &dont_deopt);
-  Deoptimize(environment);
+  Deoptimize(environment, bailout_type);
   __ Bind(&dont_deopt);
 }
 
@@ -1068,16 +1071,18 @@ void LCodeGen::DeoptimizeIfNegative(Register rt, LEnvironment* environment) {
 void LCodeGen::DeoptimizeIfSmi(Register rt,
                                LEnvironment* environment) {
   Label dont_deopt;
+  Deoptimizer::BailoutType bailout_type = DeoptimizeHeader(environment, NULL);
   __ JumpIfNotSmi(rt, &dont_deopt);
-  Deoptimize(environment);
+  Deoptimize(environment, bailout_type);
   __ Bind(&dont_deopt);
 }
 
 
 void LCodeGen::DeoptimizeIfNotSmi(Register rt, LEnvironment* environment) {
   Label dont_deopt;
+  Deoptimizer::BailoutType bailout_type = DeoptimizeHeader(environment, NULL);
   __ JumpIfSmi(rt, &dont_deopt);
-  Deoptimize(environment);
+  Deoptimize(environment, bailout_type);
   __ Bind(&dont_deopt);
 }
 
@@ -1086,8 +1091,9 @@ void LCodeGen::DeoptimizeIfRoot(Register rt,
                                 Heap::RootListIndex index,
                                 LEnvironment* environment) {
   Label dont_deopt;
+  Deoptimizer::BailoutType bailout_type = DeoptimizeHeader(environment, NULL);
   __ JumpIfNotRoot(rt, index, &dont_deopt);
-  Deoptimize(environment);
+  Deoptimize(environment, bailout_type);
   __ Bind(&dont_deopt);
 }
 
@@ -1096,8 +1102,9 @@ void LCodeGen::DeoptimizeIfNotRoot(Register rt,
                                    Heap::RootListIndex index,
                                    LEnvironment* environment) {
   Label dont_deopt;
+  Deoptimizer::BailoutType bailout_type = DeoptimizeHeader(environment, NULL);
   __ JumpIfRoot(rt, index, &dont_deopt);
-  Deoptimize(environment);
+  Deoptimize(environment, bailout_type);
   __ Bind(&dont_deopt);
 }
 
@@ -2560,6 +2567,7 @@ void LCodeGen::DoDeoptimize(LDeoptimize* instr) {
   }
 
   Comment(";;; deoptimize: %s", instr->hydrogen()->reason());
+  DeoptimizeHeader(instr->environment(), &type);
   Deoptimize(instr->environment(), type);
 }
 
