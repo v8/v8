@@ -2439,8 +2439,10 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
       PushBeforeSimulateBehavior push_sim_result);
   HInstruction* BuildIncrement(bool returns_original_input,
                                CountOperation* expr);
-  HInstruction* BuildLoadKeyedGeneric(HValue* object,
-                                      HValue* key);
+  HInstruction* BuildKeyedGeneric(PropertyAccessType access_type,
+                                  HValue* object,
+                                  HValue* key,
+                                  HValue* value);
 
   HInstruction* TryBuildConsolidatedElementLoad(HValue* object,
                                                 HValue* key,
@@ -2503,9 +2505,6 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   HInstruction* BuildStoreNamedField(PropertyAccessInfo* info,
                                      HValue* checked_object,
                                      HValue* value);
-  HInstruction* BuildStoreKeyedGeneric(HValue* object,
-                                       HValue* key,
-                                       HValue* value);
 
   HValue* BuildContextChainWalk(Variable* var);
 

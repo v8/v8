@@ -6167,9 +6167,17 @@ HInstruction* HOptimizedGraphBuilder::BuildNamedGeneric(
 
 
 
-HInstruction* HOptimizedGraphBuilder::BuildLoadKeyedGeneric(HValue* object,
-                                                            HValue* key) {
-  return New<HLoadKeyedGeneric>(object, key);
+HInstruction* HOptimizedGraphBuilder::BuildKeyedGeneric(
+    PropertyAccessType access_type,
+    HValue* object,
+    HValue* key,
+    HValue* value) {
+  if (access_type == LOAD) {
+    return New<HLoadKeyedGeneric>(object, key);
+  } else {
+    return New<HStoreKeyedGeneric>(
+        object, key, value, function_strict_mode_flag());
+  }
 }
 
 
@@ -6357,9 +6365,7 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
     HInstruction* instr = NULL;
     if (untransitionable_map->has_slow_elements_kind() ||
         !untransitionable_map->IsJSObjectMap()) {
-      instr = AddInstruction(access_type == STORE
-                             ? BuildStoreKeyedGeneric(object, key, val)
-                             : BuildLoadKeyedGeneric(object, key));
+      instr = AddInstruction(BuildKeyedGeneric(access_type, object, key, val));
     } else {
       instr = BuildMonomorphicElementAccess(
           object, key, val, transition, untransitionable_map, access_type,
@@ -6384,9 +6390,7 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
     set_current_block(this_map);
     HInstruction* access = NULL;
     if (IsDictionaryElementsKind(elements_kind)) {
-      access = access_type == STORE
-          ? AddInstruction(BuildStoreKeyedGeneric(object, key, val))
-          : AddInstruction(BuildLoadKeyedGeneric(object, key));
+      access = AddInstruction(BuildKeyedGeneric(access_type, object, key, val));
     } else {
       ASSERT(IsFastElementsKind(elements_kind) ||
              IsExternalArrayElementsKind(elements_kind));
@@ -6452,10 +6456,7 @@ HValue* HOptimizedGraphBuilder::HandleKeyedElementAccess(
   if (monomorphic) {
     Handle<Map> map = types->first();
     if (map->has_slow_elements_kind() || !map->IsJSObjectMap()) {
-      instr = access_type == STORE
-          ? BuildStoreKeyedGeneric(obj, key, val)
-          : BuildLoadKeyedGeneric(obj, key);
-      AddInstruction(instr);
+      instr = AddInstruction(BuildKeyedGeneric(access_type, obj, key, val));
     } else {
       BuildCheckHeapObject(obj);
       instr = BuildMonomorphicElementAccess(
@@ -6472,30 +6473,16 @@ HValue* HOptimizedGraphBuilder::HandleKeyedElementAccess(
         Add<HDeoptimize>("Insufficient type feedback for keyed store",
                          Deoptimizer::SOFT);
       }
-      instr = BuildStoreKeyedGeneric(obj, key, val);
     } else {
       if (expr->AsProperty()->HasNoTypeInformation()) {
         Add<HDeoptimize>("Insufficient type feedback for keyed load",
                          Deoptimizer::SOFT);
       }
-      instr = BuildLoadKeyedGeneric(obj, key);
     }
-    AddInstruction(instr);
+    instr = AddInstruction(BuildKeyedGeneric(access_type, obj, key, val));
   }
   *has_side_effects = instr->HasObservableSideEffects();
   return instr;
-}
-
-
-HInstruction* HOptimizedGraphBuilder::BuildStoreKeyedGeneric(
-    HValue* object,
-    HValue* key,
-    HValue* value) {
-  return New<HStoreKeyedGeneric>(
-                         object,
-                         key,
-                         value,
-                         function_strict_mode_flag());
 }
 
 
