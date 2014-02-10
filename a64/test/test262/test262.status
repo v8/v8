@@ -25,16 +25,9 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-
-############################### BUGS ###################################
-
-# Sequencing of getter side effects on receiver and argument properties
-# is wrong. The receiver callback should be called before any arguments
-# are evaluated.
-# V8 Bug: http://code.google.com/p/v8/issues/detail?id=691
 [
 [ALWAYS, {
-  '11.2.3-3_3': [FAIL],
+  ############################### BUGS ###################################
 
   '15.5.4.9_CE': [['no_i18n', SKIP]],
 
@@ -79,19 +72,19 @@
   'S15.8.2.16_A7': [PASS, FAIL_OK],  # Math.sin
   'S15.8.2.18_A7': [PASS, FAIL_OK],  # Math.tan
 
-  # Linux for ia32 (and therefore simulators) default to extended 80 bit floating
-  # point formats, so these tests checking 64-bit FP precision fail. The other
-  # platforms/arch's pass these tests.
+  # Linux for ia32 (and therefore simulators) default to extended 80 bit
+  # floating point formats, so these tests checking 64-bit FP precision fail.
+  # The other platforms/arch's pass these tests.
   # We follow the other major JS engines by keeping this default.
   'S8.5_A2.1': [PASS, FAIL_OK],
   'S8.5_A2.2': [PASS, FAIL_OK],
 
   ############################ INVALID TESTS #############################
 
-  # The reference value calculated by Test262 is incorrect if you run these tests
-  # in PST/PDT between first Sunday in March and first Sunday in April. The DST
-  # switch was moved in 2007 whereas Test262 bases the reference value on 2000.
-  # Test262 Bug: https://bugs.ecmascript.org/show_bug.cgi?id=293
+  # The reference value calculated by Test262 is incorrect if you run these
+  # tests in PST/PDT between first Sunday in March and first Sunday in April.
+  # The DST switch was moved in 2007 whereas Test262 bases the reference value
+  # on 2000. Test262 Bug: https://bugs.ecmascript.org/show_bug.cgi?id=293
   'S15.9.3.1_A5_T1': [PASS, FAIL_OK],
   'S15.9.3.1_A5_T2': [PASS, FAIL_OK],
   'S15.9.3.1_A5_T3': [PASS, FAIL_OK],

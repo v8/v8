@@ -1265,9 +1265,7 @@ LInstruction* LChunkBuilder::DoCallFunction(HCallFunction* instr) {
   LOperand* context = UseFixed(instr->context(), esi);
   LOperand* function = UseFixed(instr->function(), edi);
   LCallFunction* call = new(zone()) LCallFunction(context, function);
-  LInstruction* result = DefineFixed(call, eax);
-  if (instr->IsTailCall()) return result;
-  return MarkAsCall(result, instr);
+  return MarkAsCall(DefineFixed(call, eax), instr);
 }
 
 
@@ -1697,19 +1695,6 @@ LInstruction* LChunkBuilder::DoMapEnumLength(HMapEnumLength* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoElementsKind(HElementsKind* instr) {
-  LOperand* object = UseRegisterAtStart(instr->value());
-  return DefineAsRegister(new(zone()) LElementsKind(object));
-}
-
-
-LInstruction* LChunkBuilder::DoValueOf(HValueOf* instr) {
-  LOperand* object = UseRegister(instr->value());
-  LValueOf* result = new(zone()) LValueOf(object, TempRegister());
-  return DefineSameAsFirst(result);
-}
-
-
 LInstruction* LChunkBuilder::DoDateField(HDateField* instr) {
   LOperand* date = UseFixed(instr->value(), eax);
   LDateField* result =
@@ -1776,13 +1761,6 @@ LInstruction* LChunkBuilder::DoAbnormalExit(HAbnormalExit* instr) {
   // The control instruction marking the end of a block that completed
   // abruptly (e.g., threw an exception).  There is nothing specific to do.
   return NULL;
-}
-
-
-LInstruction* LChunkBuilder::DoThrow(HThrow* instr) {
-  LOperand* context = UseFixed(instr->context(), esi);
-  LOperand* value = UseFixed(instr->value(), eax);
-  return MarkAsCall(new(zone()) LThrow(context, value), instr);
 }
 
 

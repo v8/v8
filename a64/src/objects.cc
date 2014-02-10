@@ -6682,7 +6682,9 @@ MaybeObject* Map::RawCopy(int instance_size) {
   new_bit_field3 = EnumLengthBits::update(new_bit_field3,
                                           kInvalidEnumCacheSentinel);
   new_bit_field3 = Deprecated::update(new_bit_field3, false);
-  new_bit_field3 = IsUnstable::update(new_bit_field3, false);
+  if (!is_dictionary_map()) {
+    new_bit_field3 = IsUnstable::update(new_bit_field3, false);
+  }
   result->set_bit_field3(new_bit_field3);
   return result;
 }
@@ -11074,9 +11076,6 @@ void Code::Disassemble(const char* name, FILE* out) {
     if (ic_state() == MONOMORPHIC) {
       PrintF(out, "type = %s\n", StubType2String(type()));
     }
-    if (is_call_stub() || is_keyed_call_stub()) {
-      PrintF(out, "argc = %d\n", arguments_count());
-    }
     if (is_compare_ic_stub()) {
       ASSERT(major_key() == CodeStub::CompareIC);
       CompareIC::State left_state, right_state, handler_state;
@@ -11745,14 +11744,23 @@ bool DependentCode::MarkCodeForDeoptimization(
   // Mark all the code that needs to be deoptimized.
   bool marked = false;
   for (int i = start; i < end; i++) {
-    if (is_code_at(i)) {
-      Code* code = code_at(i);
+    Object* object = object_at(i);
+    // TODO(hpayer): This is a temporary hack. Foreign objects move after
+    // new space evacuation. Since pretenuring may mark these objects as aborted
+    // we have to follow the forwarding pointer in that case.
+    MapWord map_word = HeapObject::cast(object)->map_word();
+    if (map_word.IsForwardingAddress()) {
+      object = map_word.ToForwardingAddress();
+    }
+    if (object->IsCode()) {
+      Code* code = Code::cast(object);
       if (!code->marked_for_deoptimization()) {
         code->set_marked_for_deoptimization(true);
         marked = true;
       }
     } else {
-      CompilationInfo* info = compilation_info_at(i);
+      CompilationInfo* info = reinterpret_cast<CompilationInfo*>(
+          Foreign::cast(object)->foreign_address());
       info->AbortDueToDependencyChange();
     }
   }
@@ -12733,8 +12741,7 @@ void AllocationSite::ResetPretenureDecision() {
 PretenureFlag AllocationSite::GetPretenureMode() {
   PretenureDecision mode = pretenure_decision();
   // Zombie objects "decide" to be untenured.
-  return (mode == kTenure && GetHeap()->GetPretenureMode() == TENURED)
-      ? TENURED : NOT_TENURED;
+  return mode == kTenure ? TENURED : NOT_TENURED;
 }
 
 
@@ -13832,17 +13839,61 @@ MaybeObject* OneByteStringKey::AsObject(Heap* heap) {
 }
 
 
-MaybeObject* SubStringOneByteStringKey::AsObject(Heap* heap) {
-  if (hash_field_ == 0) Hash();
-  Vector<const uint8_t> chars(string_->GetChars() + from_, length_);
-  return heap->AllocateOneByteInternalizedString(chars, hash_field_);
-}
-
-
 MaybeObject* TwoByteStringKey::AsObject(Heap* heap) {
   if (hash_field_ == 0) Hash();
   return heap->AllocateTwoByteInternalizedString(string_, hash_field_);
 }
+
+
+template<>
+const uint8_t* SubStringKey<uint8_t>::GetChars() {
+  return string_->IsSeqOneByteString()
+      ? SeqOneByteString::cast(*string_)->GetChars()
+      : ExternalAsciiString::cast(*string_)->GetChars();
+}
+
+
+template<>
+const uint16_t* SubStringKey<uint16_t>::GetChars() {
+  return string_->IsSeqTwoByteString()
+      ? SeqTwoByteString::cast(*string_)->GetChars()
+      : ExternalTwoByteString::cast(*string_)->GetChars();
+}
+
+
+template<>
+MaybeObject* SubStringKey<uint8_t>::AsObject(Heap* heap) {
+  if (hash_field_ == 0) Hash();
+  Vector<const uint8_t> chars(GetChars() + from_, length_);
+  return heap->AllocateOneByteInternalizedString(chars, hash_field_);
+}
+
+
+template<>
+MaybeObject* SubStringKey<uint16_t>::AsObject(
+    Heap* heap) {
+  if (hash_field_ == 0) Hash();
+  Vector<const uint16_t> chars(GetChars() + from_, length_);
+  return heap->AllocateTwoByteInternalizedString(chars, hash_field_);
+}
+
+
+template<>
+bool SubStringKey<uint8_t>::IsMatch(Object* string) {
+  Vector<const uint8_t> chars(GetChars() + from_, length_);
+  return String::cast(string)->IsOneByteEqualTo(chars);
+}
+
+
+template<>
+bool SubStringKey<uint16_t>::IsMatch(Object* string) {
+  Vector<const uint16_t> chars(GetChars() + from_, length_);
+  return String::cast(string)->IsTwoByteEqualTo(chars);
+}
+
+
+template class SubStringKey<uint8_t>;
+template class SubStringKey<uint16_t>;
 
 
 // InternalizedStringKey carries a string/internalized-string object as key.

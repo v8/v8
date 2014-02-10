@@ -399,5 +399,8 @@ int main(int argc, char** argv) {
       ser.CurrentAllocationAddress(i::MAP_SPACE),
       ser.CurrentAllocationAddress(i::CELL_SPACE),
       ser.CurrentAllocationAddress(i::PROPERTY_CELL_SPACE));
+  isolate->Exit();
+  isolate->Dispose();
+  V8::Dispose();
   return 0;
 }

@@ -93,7 +93,6 @@ class LCodeGen;
   V(Drop)                                       \
   V(Dummy)                                      \
   V(DummyUse)                                   \
-  V(ElementsKind)                               \
   V(ForInCacheArray)                            \
   V(ForInPrepareMap)                            \
   V(FunctionLiteral)                            \
@@ -175,7 +174,6 @@ class LCodeGen;
   V(SubS)                                       \
   V(TaggedToI)                                  \
   V(ThisFunction)                               \
-  V(Throw)                                      \
   V(ToFastProperties)                           \
   V(TransitionElementsKind)                     \
   V(TrapAllocationMemento)                      \
@@ -185,7 +183,6 @@ class LCodeGen;
   V(Uint32ToDouble)                             \
   V(Uint32ToSmi)                                \
   V(UnknownOSRValue)                            \
-  V(ValueOf)                                    \
   V(WrapReceiver)
 
 
@@ -1266,19 +1263,6 @@ class LDoubleToIntOrSmi V8_FINAL : public LTemplateInstruction<1, 1, 0> {
   DECLARE_HYDROGEN_ACCESSOR(UnaryOperation)
 
   bool tag_result() { return hydrogen()->representation().IsSmi(); }
-};
-
-
-class LElementsKind V8_FINAL : public LTemplateInstruction<1, 1, 0> {
- public:
-  explicit LElementsKind(LOperand* value) {
-    inputs_[0] = value;
-  }
-
-  LOperand* value() { return inputs_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(ElementsKind, "elements-kind")
-  DECLARE_HYDROGEN_ACCESSOR(ElementsKind)
 };
 
 
@@ -2618,20 +2602,6 @@ class LThisFunction V8_FINAL : public LTemplateInstruction<1, 0, 0> {
 };
 
 
-class LThrow V8_FINAL : public LTemplateInstruction<0, 2, 0> {
- public:
-  LThrow(LOperand* context, LOperand* value) {
-    inputs_[0] = context;
-    inputs_[1] = value;
-  }
-
-  LOperand* context() { return inputs_[0]; }
-  LOperand* value() { return inputs_[1]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(Throw, "throw")
-};
-
-
 class LToFastProperties V8_FINAL : public LTemplateInstruction<1, 1, 0> {
  public:
   explicit LToFastProperties(LOperand* value) {
@@ -2774,21 +2744,6 @@ class LUint32ToSmi V8_FINAL : public LTemplateInstruction<1, 1, 0> {
 };
 
 
-class LValueOf V8_FINAL : public LTemplateInstruction<1, 1, 1> {
- public:
-  LValueOf(LOperand* value, LOperand* temp) {
-    inputs_[0] = value;
-    temps_[0] = temp;
-  }
-
-  LOperand* value() { return inputs_[0]; }
-  LOperand* temp() { return temps_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(ValueOf, "value-of")
-  DECLARE_HYDROGEN_ACCESSOR(ValueOf)
-};
-
-
 class LCheckMapValue V8_FINAL : public LTemplateInstruction<0, 2, 1> {
  public:
   LCheckMapValue(LOperand* value, LOperand* map, LOperand* temp) {
@@ -2827,6 +2782,7 @@ class LWrapReceiver V8_FINAL : public LTemplateInstruction<1, 2, 0> {
   }
 
   DECLARE_CONCRETE_INSTRUCTION(WrapReceiver, "wrap-receiver")
+  DECLARE_HYDROGEN_ACCESSOR(WrapReceiver)
 
   LOperand* receiver() { return inputs_[0]; }
   LOperand* function() { return inputs_[1]; }

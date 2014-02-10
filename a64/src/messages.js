@@ -118,6 +118,7 @@ var kMessages = {
   // RangeError
   invalid_array_length:          ["Invalid array length"],
   invalid_array_buffer_length:   ["Invalid array buffer length"],
+  invalid_string_length:         ["Invalid string length"],
   invalid_typed_array_offset:    ["Start offset is too large:"],
   invalid_typed_array_length:    ["Invalid typed array length"],
   invalid_typed_array_alignment: ["%0", "of", "%1", "should be a multiple of", "%3"],

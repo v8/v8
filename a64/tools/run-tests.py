@@ -33,6 +33,7 @@ import multiprocessing
 import optparse
 import os
 from os.path import join
+import platform
 import shlex
 import subprocess
 import sys
@@ -101,6 +102,9 @@ def BuildOptions():
   result.add_option("--arch-and-mode",
                     help="Architecture and mode in the format 'arch.mode'",
                     default=None)
+  result.add_option("--asan",
+                    help="Regard test expectations for ASAN",
+                    default=False, action="store_true")
   result.add_option("--buildbot",
                     help="Adapt to path structure used on buildbots",
                     default=False, action="store_true")
@@ -389,17 +393,20 @@ def Execute(arch, mode, args, options, suites, workspace):
                         options.extra_flags,
                         options.no_i18n)
 
+  # TODO(all): Combine "simulator" and "simulator_run".
   simulator_run = not options.dont_skip_simulator_slow_tests and \
       arch in ['a64', 'arm', 'mips'] and ARCH_GUESS and arch != ARCH_GUESS
   # Find available test suites and read test cases from them.
   variables = {
     "arch": arch,
+    "asan": options.asan,
     "deopt_fuzzer": False,
     "gc_stress": options.gc_stress,
     "isolates": options.isolates,
     "mode": mode,
     "no_i18n": options.no_i18n,
     "simulator_run": simulator_run,
+    "simulator": utils.UseSimulator(arch),
     "system": utils.GuessOS(),
   }
   all_tests = []

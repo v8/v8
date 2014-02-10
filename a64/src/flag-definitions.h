@@ -351,8 +351,8 @@ DEFINE_bool(omit_map_checks_for_leaf_maps, true,
 
 // Profiler flags.
 DEFINE_int(frame_count, 1, "number of stack frames inspected by the profiler")
-           // 0x1700 fits in the immediate field of an ARM instruction.
-DEFINE_int(interrupt_budget, 0x1700,
+           // 0x1800 fits in the immediate field of an ARM instruction.
+DEFINE_int(interrupt_budget, 0x1800,
            "execution budget before interrupt is triggered")
 DEFINE_int(type_info_threshold, 25,
            "percentage of ICs that must have type info to allow optimization")
@@ -527,8 +527,8 @@ DEFINE_bool(trace_incremental_marking, false,
             "trace progress of the incremental marking")
 DEFINE_bool(track_gc_object_stats, false,
             "track object counts and memory usage")
-DEFINE_bool(parallel_sweeping, false, "enable parallel sweeping")
-DEFINE_bool(concurrent_sweeping, true, "enable concurrent sweeping")
+DEFINE_bool(parallel_sweeping, true, "enable parallel sweeping")
+DEFINE_bool(concurrent_sweeping, false, "enable concurrent sweeping")
 DEFINE_int(sweeper_threads, 0,
            "number of parallel and concurrent sweeping threads")
 #ifdef VERIFY_HEAP

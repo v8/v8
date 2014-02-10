@@ -2556,12 +2556,31 @@ void Genesis::MakeFunctionInstancePrototypeWritable() {
 }
 
 
+class NoTrackDoubleFieldsForSerializerScope {
+ public:
+  NoTrackDoubleFieldsForSerializerScope() : flag_(FLAG_track_double_fields) {
+    if (Serializer::enabled()) {
+      // Disable tracking double fields because heap numbers treated as
+      // immutable by the serializer.
+      FLAG_track_double_fields = false;
+    }
+  }
+  ~NoTrackDoubleFieldsForSerializerScope() {
+    FLAG_track_double_fields = flag_;
+  }
+
+ private:
+  bool flag_;
+};
+
+
 Genesis::Genesis(Isolate* isolate,
                  Handle<Object> global_object,
                  v8::Handle<v8::ObjectTemplate> global_template,
                  v8::ExtensionConfiguration* extensions)
     : isolate_(isolate),
       active_(isolate->bootstrapper()) {
+  NoTrackDoubleFieldsForSerializerScope disable_double_tracking_for_serializer;
   result_ = Handle<Context>::null();
   // If V8 cannot be initialized, just return.
   if (!V8::Initialize(NULL)) return;

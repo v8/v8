@@ -433,15 +433,8 @@ void LCodeGen::DoCallFunction(LCallFunction* instr) {
   ASSERT(ToRegister(instr->result()).Is(x0));
 
   int arity = instr->arity();
-  CallFunctionStub stub(arity, NO_CALL_FUNCTION_FLAGS);
-  if (instr->hydrogen()->IsTailCall()) {
-    if (NeedsEagerFrame()) {
-      __ Mov(masm()->StackPointer(), fp);
-    }
-    __ Jump(stub.GetCode(isolate()), RelocInfo::CODE_TARGET);
-  } else {
-    CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
-  }
+  CallFunctionStub stub(arity, instr->hydrogen()->function_flags());
+  CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
 }
 
 
@@ -2720,23 +2713,6 @@ void LCodeGen::DoDummy(LDummy* instr) {
 
 void LCodeGen::DoDummyUse(LDummyUse* instr) {
   // Nothing to see here, move on!
-}
-
-
-void LCodeGen::DoElementsKind(LElementsKind* instr) {
-  Register result = ToRegister(instr->result());
-  Register input = ToRegister(instr->value());
-
-  // Load map into result.
-  __ Ldr(result, FieldMemOperand(input, HeapObject::kMapOffset));
-
-  // Load the map's "bit field 2" into result.
-  ASSERT((Map::kElementsKindBitCount + Map::kElementsKindShift) <= kByteSize);
-  __ Ldrb(result.W(), FieldMemOperand(result, Map::kBitField2Offset));
-
-  // Retrieve elements_kind from bit field 2.
-  __ Ubfx(result.W(), result.W(), Map::kElementsKindShift,
-          Map::kElementsKindBitCount);
 }
 
 
@@ -5060,7 +5036,7 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
     if (!instr->hydrogen()->value()->type().IsHeapObject()) {
       DeoptimizeIfSmi(value, instr->environment());
     }
-  } else if (FLAG_track_double_fields && representation.IsDouble()) {
+  } else if (representation.IsDouble()) {
     ASSERT(transition.is_null());
     ASSERT(access.IsInobject());
     ASSERT(!instr->hydrogen()->NeedsWriteBarrier());
@@ -5442,18 +5418,6 @@ void LCodeGen::DoRegExpLiteral(LRegExpLiteral* instr) {
 }
 
 
-void LCodeGen::DoThrow(LThrow* instr) {
-  ASSERT(ToRegister(instr->context()).is(cp));
-  Register value = ToRegister(instr->value());
-  __ Push(value);
-  CallRuntime(Runtime::kThrow, 1, instr);
-
-  if (FLAG_debug_code) {
-    __ Unreachable();
-  }
-}
-
-
 void LCodeGen::DoTransitionElementsKind(LTransitionElementsKind* instr) {
   Register object = ToRegister(instr->object());
   Register temp1 = ToRegister(instr->temp1());
@@ -5627,28 +5591,6 @@ void LCodeGen::DoUint32ToSmi(LUint32ToSmi* instr) {
 }
 
 
-void LCodeGen::DoValueOf(LValueOf* instr) {
-  Register input = ToRegister(instr->value());
-  Register result = ToRegister(instr->result());
-  Register scratch = ToRegister(instr->temp());
-  Label done;
-
-  ASSERT(input.Is(result));
-
-  if (!instr->hydrogen()->value()->IsHeapObject()) {
-    // If the object is a smi return it.
-    __ JumpIfSmi(input, &done);
-  }
-
-  // If the object is not a value type, return the object, otherwise
-  // return the value.
-  __ JumpIfNotObjectType(input, scratch, scratch, JS_VALUE_TYPE, &done);
-  __ Ldr(result, FieldMemOperand(input, JSValue::kValueOffset));
-
-  __ Bind(&done);
-}
-
-
 void LCodeGen::DoCheckMapValue(LCheckMapValue* instr) {
   Register object = ToRegister(instr->value());
   Register map = ToRegister(instr->map());
@@ -5669,18 +5611,20 @@ void LCodeGen::DoWrapReceiver(LWrapReceiver* instr) {
   // builtins and strict-mode functions.
   Label global_object, done, deopt;
 
-  __ Ldr(result, FieldMemOperand(function,
-                               JSFunction::kSharedFunctionInfoOffset));
+  if (!instr->hydrogen()->known_function()) {
+    __ Ldr(result, FieldMemOperand(function,
+                                   JSFunction::kSharedFunctionInfoOffset));
 
-  // CompilerHints is an int32 field. See objects.h.
-  __ Ldr(result.W(),
-         FieldMemOperand(result, SharedFunctionInfo::kCompilerHintsOffset));
+    // CompilerHints is an int32 field. See objects.h.
+    __ Ldr(result.W(),
+           FieldMemOperand(result, SharedFunctionInfo::kCompilerHintsOffset));
 
-  // Do not transform the receiver to object for strict mode functions.
-  __ Tbnz(result, SharedFunctionInfo::kStrictModeFunction, &done);
+    // Do not transform the receiver to object for strict mode functions.
+    __ Tbnz(result, SharedFunctionInfo::kStrictModeFunction, &done);
 
-  // Do not transform the receiver to object for builtins.
-  __ Tbnz(result, SharedFunctionInfo::kNative, &done);
+    // Do not transform the receiver to object for builtins.
+    __ Tbnz(result, SharedFunctionInfo::kNative, &done);
+  }
 
   // Normal function. Replace undefined or null with global receiver.
   __ JumpIfRoot(receiver, Heap::kNullValueRootIndex, &global_object);

@@ -130,6 +130,11 @@ class CcTest {
       CcTestExtensionFlags extensions,
       v8::Isolate* isolate = CcTest::isolate());
 
+  static void TearDown() {
+    // TODO(svenpanne) Enable this when our cctests are fixed.
+    // if (isolate_ != NULL) isolate_->Dispose();
+  }
+
  private:
   friend int main(int argc, char** argv);
   TestFunction* callback_;

@@ -1323,7 +1323,6 @@ static int AddressOffset(ExternalReference ref0, ExternalReference ref1) {
 void MacroAssembler::CallApiFunctionAndReturn(
     Register function_address,
     ExternalReference thunk_ref,
-    Register thunk_last_arg,
     int stack_space,
     int spill_offset,
     MemOperand return_value_operand,
@@ -1339,13 +1338,9 @@ void MacroAssembler::CallApiFunctionAndReturn(
       ExternalReference::handle_scope_level_address(isolate()),
       next_address);
 
-  ASSERT(function_address.Is(x3));
-  ASSERT(!AreAliased(function_address, thunk_last_arg, x1, x2));
+  ASSERT(!AreAliased(function_address, x1, x2));
   // TODO(all): Why do we care about aliasing x2? (This function uses x1 as a
   // scratch regiser.)
-
-  // TODO(all): Why isn't thunk_last_arg used?
-  USE(thunk_last_arg);
 
   Label profiler_disabled;
   Label end_profiler_check;
@@ -1357,13 +1352,15 @@ void MacroAssembler::CallApiFunctionAndReturn(
 
   // Additional parameter is the address of the actual callback.
   Mov(function_address, Operand(thunk_ref));
-  // TODO(jbramley): Remove this once the no-op move at profiler_disabled is
-  // investigated.
-  B(&end_profiler_check);
-
-  Bind(&profiler_disabled);
-  // TODO(jbramley): ARM does a no-op move here. Why?
-  Bind(&end_profiler_check);
+  if (!function_address.Is(x3)) {
+    B(&end_profiler_check);
+    Bind(&profiler_disabled);
+    Mov(x3, function_address);
+    Bind(&end_profiler_check);
+  } else {
+    Bind(&profiler_disabled);
+    Bind(&end_profiler_check);
+  }
 
   // Save the callee-save registers we are going to use.
   // TODO(all): Is this necessary? ARM doesn't do it.

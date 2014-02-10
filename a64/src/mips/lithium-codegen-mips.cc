@@ -1651,41 +1651,6 @@ void LCodeGen::DoMapEnumLength(LMapEnumLength* instr) {
 }
 
 
-void LCodeGen::DoElementsKind(LElementsKind* instr) {
-  Register result = ToRegister(instr->result());
-  Register input = ToRegister(instr->value());
-
-  // Load map into |result|.
-  __ lw(result, FieldMemOperand(input, HeapObject::kMapOffset));
-  // Load the map's "bit field 2" into |result|. We only need the first byte,
-  // but the following bit field extraction takes care of that anyway.
-  __ lbu(result, FieldMemOperand(result, Map::kBitField2Offset));
-  // Retrieve elements_kind from bit field 2.
-  __ Ext(result, result, Map::kElementsKindShift, Map::kElementsKindBitCount);
-}
-
-
-void LCodeGen::DoValueOf(LValueOf* instr) {
-  Register input = ToRegister(instr->value());
-  Register result = ToRegister(instr->result());
-  Register map = ToRegister(instr->temp());
-  Label done;
-
-  if (!instr->hydrogen()->value()->IsHeapObject()) {
-    // If the object is a smi return the object.
-    __ Move(result, input);
-    __ JumpIfSmi(input, &done);
-  }
-
-  // If the object is not a value type, return the object.
-  __ GetObjectType(input, map, map);
-  __ Branch(&done, ne, map, Operand(JS_VALUE_TYPE));
-  __ lw(result, FieldMemOperand(input, JSValue::kValueOffset));
-
-  __ bind(&done);
-}
-
-
 void LCodeGen::DoDateField(LDateField* instr) {
   Register object = ToRegister(instr->date());
   Register result = ToRegister(instr->result());
@@ -1798,17 +1763,6 @@ void LCodeGen::DoSeqStringSetChar(LSeqStringSetChar* instr) {
     __ sb(value, operand);
   } else {
     __ sh(value, operand);
-  }
-}
-
-
-void LCodeGen::DoThrow(LThrow* instr) {
-  __ push(ToRegister(instr->value()));
-  ASSERT(ToRegister(instr->context()).is(cp));
-  CallRuntime(Runtime::kThrow, 1, instr);
-
-  if (FLAG_debug_code) {
-    __ stop("Unreachable code.");
   }
 }
 
@@ -3350,19 +3304,21 @@ void LCodeGen::DoWrapReceiver(LWrapReceiver* instr) {
   // passed unchanged to builtins and strict-mode functions.
   Label global_object, result_in_receiver;
 
-  // Do not transform the receiver to object for strict mode
-  // functions.
-  __ lw(scratch,
-         FieldMemOperand(function, JSFunction::kSharedFunctionInfoOffset));
-  __ lw(scratch,
-         FieldMemOperand(scratch, SharedFunctionInfo::kCompilerHintsOffset));
+  if (!instr->hydrogen()->known_function()) {
+    // Do not transform the receiver to object for strict mode
+    // functions.
+    __ lw(scratch,
+           FieldMemOperand(function, JSFunction::kSharedFunctionInfoOffset));
+    __ lw(scratch,
+           FieldMemOperand(scratch, SharedFunctionInfo::kCompilerHintsOffset));
 
-  // Do not transform the receiver to object for builtins.
-  int32_t strict_mode_function_mask =
-                  1 <<  (SharedFunctionInfo::kStrictModeFunction + kSmiTagSize);
-  int32_t native_mask = 1 << (SharedFunctionInfo::kNative + kSmiTagSize);
-  __ And(scratch, scratch, Operand(strict_mode_function_mask | native_mask));
-  __ Branch(&result_in_receiver, ne, scratch, Operand(zero_reg));
+    // Do not transform the receiver to object for builtins.
+    int32_t strict_mode_function_mask =
+        1 <<  (SharedFunctionInfo::kStrictModeFunction + kSmiTagSize);
+    int32_t native_mask = 1 << (SharedFunctionInfo::kNative + kSmiTagSize);
+    __ And(scratch, scratch, Operand(strict_mode_function_mask | native_mask));
+    __ Branch(&result_in_receiver, ne, scratch, Operand(zero_reg));
+  }
 
   // Normal function. Replace undefined or null with global receiver.
   __ LoadRoot(scratch, Heap::kNullValueRootIndex);
@@ -3377,8 +3333,8 @@ void LCodeGen::DoWrapReceiver(LWrapReceiver* instr) {
   __ GetObjectType(receiver, scratch, scratch);
   DeoptimizeIf(lt, instr->environment(),
                scratch, Operand(FIRST_SPEC_OBJECT_TYPE));
-  __ Branch(&result_in_receiver);
 
+  __ Branch(&result_in_receiver);
   __ bind(&global_object);
   __ lw(result, FieldMemOperand(function, JSFunction::kContextOffset));
   __ lw(result,
@@ -4024,7 +3980,7 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
       __ SmiTst(value, scratch);
       DeoptimizeIf(eq, instr->environment(), scratch, Operand(zero_reg));
     }
-  } else if (FLAG_track_double_fields && representation.IsDouble()) {
+  } else if (representation.IsDouble()) {
     ASSERT(transition.is_null());
     ASSERT(access.IsInobject());
     ASSERT(!instr->hydrogen()->NeedsWriteBarrier());

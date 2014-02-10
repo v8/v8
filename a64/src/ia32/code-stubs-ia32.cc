@@ -170,19 +170,6 @@ void KeyedLoadFieldStub::InitializeInterfaceDescriptor(
 }
 
 
-void KeyedArrayCallStub::InitializeInterfaceDescriptor(
-    Isolate* isolate,
-    CodeStubInterfaceDescriptor* descriptor) {
-  static Register registers[] = { ecx };
-  descriptor->register_param_count_ = 1;
-  descriptor->register_params_ = registers;
-  descriptor->continuation_type_ = TAIL_CALL_CONTINUATION;
-  descriptor->handler_arguments_mode_ = PASS_ARGUMENTS;
-  descriptor->deoptimization_handler_ =
-      FUNCTION_ADDR(KeyedCallIC_MissFromStubFailure);
-}
-
-
 void KeyedStoreFastElementStub::InitializeInterfaceDescriptor(
     Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
@@ -443,6 +430,26 @@ void CallDescriptors::InitializeForIsolate(Isolate* isolate) {
         Representation::Tagged(),  // receiver
     };
     descriptor->register_param_count_ = 2;
+    descriptor->register_params_ = registers;
+    descriptor->param_representations_ = representations;
+  }
+  {
+    CallInterfaceDescriptor* descriptor =
+        isolate->call_descriptor(Isolate::ApiFunctionCall);
+    static Register registers[] = { eax,  // callee
+                                    ebx,  // call_data
+                                    ecx,  // holder
+                                    edx,  // api_function_address
+                                    esi,  // context
+    };
+    static Representation representations[] = {
+        Representation::Tagged(),    // callee
+        Representation::Tagged(),    // call_data
+        Representation::Tagged(),    // holder
+        Representation::External(),  // api_function_address
+        Representation::Tagged(),    // context
+    };
+    descriptor->register_param_count_ = 5;
     descriptor->register_params_ = registers;
     descriptor->param_representations_ = representations;
   }
@@ -2406,56 +2413,102 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   // ebx : cache cell for call target
   // edi : the function to call
   Isolate* isolate = masm->isolate();
-  Label slow, non_function;
+  Label slow, non_function, wrap, cont;
 
-  // Check that the function really is a JavaScript function.
-  __ JumpIfSmi(edi, &non_function);
+  if (NeedsChecks()) {
+    // Check that the function really is a JavaScript function.
+    __ JumpIfSmi(edi, &non_function);
 
-  // Goto slow case if we do not have a function.
-  __ CmpObjectType(edi, JS_FUNCTION_TYPE, ecx);
-  __ j(not_equal, &slow);
+    // Goto slow case if we do not have a function.
+    __ CmpObjectType(edi, JS_FUNCTION_TYPE, ecx);
+    __ j(not_equal, &slow);
 
-  if (RecordCallTarget()) {
-    GenerateRecordCallTarget(masm);
+    if (RecordCallTarget()) {
+      GenerateRecordCallTarget(masm);
+    }
   }
 
   // Fast-case: Just invoke the function.
   ParameterCount actual(argc_);
 
+  if (CallAsMethod()) {
+    if (NeedsChecks()) {
+      // Do not transform the receiver for strict mode functions.
+      __ mov(ecx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
+      __ test_b(FieldOperand(ecx, SharedFunctionInfo::kStrictModeByteOffset),
+                1 << SharedFunctionInfo::kStrictModeBitWithinByte);
+      __ j(not_equal, &cont);
+
+      // Do not transform the receiver for natives (shared already in ecx).
+      __ test_b(FieldOperand(ecx, SharedFunctionInfo::kNativeByteOffset),
+                1 << SharedFunctionInfo::kNativeBitWithinByte);
+      __ j(not_equal, &cont);
+    }
+
+    // Load the receiver from the stack.
+    __ mov(eax, Operand(esp, (argc_ + 1) * kPointerSize));
+
+    if (NeedsChecks()) {
+      __ JumpIfSmi(eax, &wrap);
+
+      __ CmpObjectType(eax, FIRST_SPEC_OBJECT_TYPE, ecx);
+      __ j(below, &wrap);
+    } else {
+      __ jmp(&wrap);
+    }
+
+    __ bind(&cont);
+  }
+
   __ InvokeFunction(edi, actual, JUMP_FUNCTION, NullCallWrapper());
 
-  // Slow-case: Non-function called.
-  __ bind(&slow);
-  if (RecordCallTarget()) {
-    // If there is a call target cache, mark it megamorphic in the
-    // non-function case.  MegamorphicSentinel is an immortal immovable
-    // object (undefined) so no write barrier is needed.
-    __ mov(FieldOperand(ebx, Cell::kValueOffset),
-           Immediate(TypeFeedbackCells::MegamorphicSentinel(isolate)));
-  }
-  // Check for function proxy.
-  __ CmpInstanceType(ecx, JS_FUNCTION_PROXY_TYPE);
-  __ j(not_equal, &non_function);
-  __ pop(ecx);
-  __ push(edi);  // put proxy as additional argument under return address
-  __ push(ecx);
-  __ Set(eax, Immediate(argc_ + 1));
-  __ Set(ebx, Immediate(0));
-  __ GetBuiltinEntry(edx, Builtins::CALL_FUNCTION_PROXY);
-  {
+  if (NeedsChecks()) {
+    // Slow-case: Non-function called.
+    __ bind(&slow);
+    if (RecordCallTarget()) {
+      // If there is a call target cache, mark it megamorphic in the
+      // non-function case.  MegamorphicSentinel is an immortal immovable
+      // object (undefined) so no write barrier is needed.
+      __ mov(FieldOperand(ebx, Cell::kValueOffset),
+             Immediate(TypeFeedbackCells::MegamorphicSentinel(isolate)));
+    }
+    // Check for function proxy.
+    __ CmpInstanceType(ecx, JS_FUNCTION_PROXY_TYPE);
+    __ j(not_equal, &non_function);
+    __ pop(ecx);
+    __ push(edi);  // put proxy as additional argument under return address
+    __ push(ecx);
+    __ Set(eax, Immediate(argc_ + 1));
+    __ Set(ebx, Immediate(0));
+    __ GetBuiltinEntry(edx, Builtins::CALL_FUNCTION_PROXY);
+    {
+      Handle<Code> adaptor = isolate->builtins()->ArgumentsAdaptorTrampoline();
+      __ jmp(adaptor, RelocInfo::CODE_TARGET);
+    }
+
+    // CALL_NON_FUNCTION expects the non-function callee as receiver (instead
+    // of the original receiver from the call site).
+    __ bind(&non_function);
+    __ mov(Operand(esp, (argc_ + 1) * kPointerSize), edi);
+    __ Set(eax, Immediate(argc_));
+    __ Set(ebx, Immediate(0));
+    __ GetBuiltinEntry(edx, Builtins::CALL_NON_FUNCTION);
     Handle<Code> adaptor = isolate->builtins()->ArgumentsAdaptorTrampoline();
     __ jmp(adaptor, RelocInfo::CODE_TARGET);
   }
 
-  // CALL_NON_FUNCTION expects the non-function callee as receiver (instead
-  // of the original receiver from the call site).
-  __ bind(&non_function);
-  __ mov(Operand(esp, (argc_ + 1) * kPointerSize), edi);
-  __ Set(eax, Immediate(argc_));
-  __ Set(ebx, Immediate(0));
-  __ GetBuiltinEntry(edx, Builtins::CALL_NON_FUNCTION);
-  Handle<Code> adaptor = isolate->builtins()->ArgumentsAdaptorTrampoline();
-  __ jmp(adaptor, RelocInfo::CODE_TARGET);
+  if (CallAsMethod()) {
+    __ bind(&wrap);
+    // Wrap the receiver and patch it back onto the stack.
+    { FrameScope frame_scope(masm, StackFrame::INTERNAL);
+      __ push(edi);
+      __ push(eax);
+      __ InvokeBuiltin(Builtins::TO_OBJECT, CALL_FUNCTION);
+      __ pop(edi);
+    }
+    __ mov(Operand(esp, (argc_ + 1) * kPointerSize), eax);
+    __ jmp(&cont);
+  }
 }
 
 
@@ -4865,23 +4918,6 @@ void StubFailureTrampolineStub::Generate(MacroAssembler* masm) {
 }
 
 
-void StubFailureTailCallTrampolineStub::Generate(MacroAssembler* masm) {
-  CEntryStub ces(1, fp_registers_ ? kSaveFPRegs : kDontSaveFPRegs);
-  __ call(ces.GetCode(masm->isolate()), RelocInfo::CODE_TARGET);
-  __ mov(edi, eax);
-  int parameter_count_offset =
-      StubFailureTrampolineFrame::kCallerStackParameterCountFrameOffset;
-  __ mov(eax, MemOperand(ebp, parameter_count_offset));
-  // The parameter count above includes the receiver for the arguments passed to
-  // the deoptimization handler. Subtract the receiver for the parameter count
-  // for the call.
-  __ sub(eax, Immediate(1));
-  masm->LeaveFrame(StackFrame::STUB_FAILURE_TRAMPOLINE);
-  ParameterCount argument_count(eax);
-  __ InvokeFunction(edi, argument_count, JUMP_FUNCTION, NullCallWrapper());
-}
-
-
 void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) {
   if (masm->isolate()->function_entry_hook() != NULL) {
     ProfileEntryHookStub stub;
@@ -5355,6 +5391,44 @@ void CallApiFunctionStub::Generate(MacroAssembler* masm) {
                               return_value_operand,
                               restore_context ?
                                   &context_restore_operand : NULL);
+}
+
+
+void CallApiGetterStub::Generate(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- esp[0]                  : return address
+  //  -- esp[4]                  : name
+  //  -- esp[8 - kArgsLength*4]  : PropertyCallbackArguments object
+  //  -- ...
+  //  -- edx                    : api_function_address
+  // -----------------------------------
+
+  // array for v8::Arguments::values_, handler for name and pointer
+  // to the values (it considered as smi in GC).
+  const int kStackSpace = PropertyCallbackArguments::kArgsLength + 2;
+  // Allocate space for opional callback address parameter in case
+  // CPU profiler is active.
+  const int kApiArgc = 2 + 1;
+
+  Register api_function_address = edx;
+  Register scratch = ebx;
+
+  // load address of name
+  __ lea(scratch, Operand(esp, 1 * kPointerSize));
+
+  __ PrepareCallApiFunction(kApiArgc);
+  __ mov(ApiParameterOperand(0), scratch);  // name.
+  __ add(scratch, Immediate(kPointerSize));
+  __ mov(ApiParameterOperand(1), scratch);  // arguments pointer.
+
+  Address thunk_address = FUNCTION_ADDR(&InvokeAccessorGetterCallback);
+
+  __ CallApiFunctionAndReturn(api_function_address,
+                              thunk_address,
+                              ApiParameterOperand(2),
+                              kStackSpace,
+                              Operand(ebp, 7 * kPointerSize),
+                              NULL);
 }
 
 

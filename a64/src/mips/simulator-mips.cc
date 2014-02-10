@@ -972,6 +972,12 @@ class Redirection {
     return reinterpret_cast<Redirection*>(addr_of_redirection);
   }
 
+  static void* ReverseRedirection(int32_t reg) {
+    Redirection* redirection = FromSwiInstruction(
+        reinterpret_cast<Instruction*>(reinterpret_cast<void*>(reg)));
+    return redirection->external_function();
+  }
+
  private:
   void* external_function_;
   uint32_t swi_instruction_;
@@ -1389,12 +1395,12 @@ typedef double (*SimulatorRuntimeFPIntCall)(double darg0, int32_t arg0);
 // This signature supports direct call in to API function native callback
 // (refer to InvocationCallback in v8.h).
 typedef void (*SimulatorRuntimeDirectApiCall)(int32_t arg0);
-typedef void (*SimulatorRuntimeProfilingApiCall)(int32_t arg0, int32_t arg1);
+typedef void (*SimulatorRuntimeProfilingApiCall)(int32_t arg0, void* arg1);
 
 // This signature supports direct call to accessor getter callback.
 typedef void (*SimulatorRuntimeDirectGetterCall)(int32_t arg0, int32_t arg1);
 typedef void (*SimulatorRuntimeProfilingGetterCall)(
-    int32_t arg0, int32_t arg1, int32_t arg2);
+    int32_t arg0, int32_t arg1, void* arg2);
 
 // Software interrupt instructions are used by the simulator to call into the
 // C-based V8 runtime. They are also used for debugging with simulator.
@@ -1555,7 +1561,7 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
       }
       SimulatorRuntimeProfilingApiCall target =
           reinterpret_cast<SimulatorRuntimeProfilingApiCall>(external);
-      target(arg0, arg1);
+      target(arg0, Redirection::ReverseRedirection(arg1));
     } else if (
         redirection->type() == ExternalReference::DIRECT_GETTER_CALL) {
       if (::v8::internal::FLAG_trace_sim) {
@@ -1573,7 +1579,7 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
       }
       SimulatorRuntimeProfilingGetterCall target =
           reinterpret_cast<SimulatorRuntimeProfilingGetterCall>(external);
-      target(arg0, arg1, arg2);
+      target(arg0, arg1, Redirection::ReverseRedirection(arg2));
     } else {
       SimulatorRuntimeCall target =
                   reinterpret_cast<SimulatorRuntimeCall>(external);

@@ -568,6 +568,9 @@ namespace internal {
   F(CreateCollator, 3, 1) \
   F(InternalCompare, 3, 1) \
   \
+  /* String.prototype.normalize. */ \
+  F(StringNormalize, 2, 1) \
+  \
   /* Break iterator. */ \
   F(CreateBreakIterator, 3, 1) \
   F(BreakIteratorAdoptText, 2, 1) \
@@ -631,7 +634,6 @@ namespace internal {
   F(MathSqrt, 1, 1)                                                          \
   F(MathLog, 1, 1)                                                           \
   F(IsMinusZero, 1, 1)                                                       \
-  F(IsRegExpEquivalent, 2, 1)                                                \
   F(HasCachedArrayIndex, 1, 1)                                               \
   F(GetCachedArrayIndex, 1, 1)                                               \
   F(FastAsciiArrayJoin, 2, 1)                                                \

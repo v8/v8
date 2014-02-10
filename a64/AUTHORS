@@ -12,6 +12,7 @@ Joyent, Inc.
 Bloomberg Finance L.P.
 NVIDIA Corporation
 BlackBerry Limited
+Opera Software ASA
 
 Akinori MUSHA <knu@FreeBSD.org>
 Alexander Botero-Lowry <alexbl@FreeBSD.org>
@@ -54,7 +55,7 @@ Rene Rebe <rene@exactcode.de>
 Robert Mustacchi <rm@fingolfin.org>
 Rodolph Perfetta <rodolph.perfetta@arm.com>
 Ryan Dahl <coldredlemur@gmail.com>
-Sandro Santilli	<strk@keybit.net>
+Sandro Santilli <strk@keybit.net>
 Sanjoy Das <sanjoy@playingwithpointers.com>
 Subrato K De <subratokde@codeaurora.org>
 Tobias Burnus <burnus@net-b.de>

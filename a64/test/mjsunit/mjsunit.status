@@ -25,10 +25,9 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-
-# All tests in the bug directory are expected to fail.
 [
 [ALWAYS, {
+  # All tests in the bug directory are expected to fail.
   'bugs/*': [FAIL],
 
   ##############################################################################
@@ -44,7 +43,7 @@
   'regress/regress-524': [SKIP],
   # When that bug is fixed, revert the expectation to:
   # Skip long running test in debug and allow it to timeout in release mode.
-  # regress/regress-524: (PASS || TIMEOUT), SKIP if $mode == debug
+  # regress/regress-524: [PASS, TIMEOUT, ['mode == debug', SKIP]],
 
   # This test non-deterministically runs out of memory on Windows ia32.
   'regress/regress-crbug-160010': [SKIP],
@@ -112,6 +111,13 @@
   'compiler/alloc-number-debug': [PASS, ['mode == release', SKIP]],
   'regress/regress-634': [PASS, ['mode == debug', SKIP]],
   'regress/regress-634-debug': [PASS, ['mode == release', SKIP]],
+
+  # BUG(336820). TODO(bmeurer): Investigate.
+  'regress/regress-336820': [PASS, FAIL],
+
+  # BUG(v8:2989). PASS/FAIL on linux32 because crankshaft is turned off for
+  # nosse2.
+  'regress/regress-2989': [FAIL, NO_VARIANTS, ['system == linux and arch == ia32', PASS]],
 }],  # ALWAYS
 
 ##############################################################################
@@ -178,6 +184,14 @@
 }],  # 'arch == a64 and mode == debug and simulator_run == True'
 
 ##############################################################################
+['asan == True', {
+  # Skip tests not suitable for ASAN.
+  'big-array-literal': [SKIP],
+  'big-object-literal': [SKIP],
+  'regress/regress-crbug-178790': [SKIP],
+}],  # 'asan == True'
+
+##############################################################################
 ['arch == arm or arch == android_arm', {
 
   # Slow tests which times out in debug mode.
@@ -193,7 +207,7 @@
   'compiler/regress-stacktrace-methods': [PASS, PASS, ['mode == release', TIMEOUT]],
   'array-splice': [PASS, TIMEOUT],
 
-  # Long running tests.
+  # Long running test.
   'string-indexof-2': [PASS, TIMEOUT],
   'mirror-object': [PASS, TIMEOUT],
 
@@ -322,7 +336,7 @@
   'readonly': [SKIP],
   'array-feedback': [SKIP],
 
-  # Deopt every n garbage collections collides with the deopt every n times flag.
+  # Deopt every n garbage collections collides with deopt every n times.
   'regress/regress-2653': [SKIP],
 }],  # 'deopt_fuzzer == True'
 ]

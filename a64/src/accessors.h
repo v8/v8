@@ -89,8 +89,7 @@ class Accessors : public AllStatic {
   // Returns true for properties that are accessors to object fields.
   // If true, *object_offset contains offset of object field.
   static bool IsJSObjectFieldAccessor(
-      Handle<Map> map, Handle<String> name,
-      int* object_offset);
+      Handle<HeapType> map, Handle<String> name, int* object_offset);
 
 
  private:

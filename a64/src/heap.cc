@@ -506,8 +506,7 @@ void Heap::RepairFreeListsAfterBoot() {
 
 
 void Heap::ProcessPretenuringFeedback() {
-  if (FLAG_allocation_site_pretenuring &&
-      new_space_high_promotion_mode_active_) {
+  if (FLAG_allocation_site_pretenuring) {
     int tenure_decisions = 0;
     int dont_tenure_decisions = 0;
     int allocation_mementos_found = 0;
@@ -1113,9 +1112,7 @@ bool Heap::PerformGarbageCollection(
     // to deoptimize all optimized code in global pretenuring mode and all
     // code which should be tenured in local pretenuring mode.
     if (FLAG_pretenuring) {
-      if (FLAG_allocation_site_pretenuring) {
-        ResetAllAllocationSitesDependentCode(NOT_TENURED);
-      } else {
+      if (!FLAG_allocation_site_pretenuring) {
         isolate_->stack_guard()->FullDeopt();
       }
     }
@@ -3070,12 +3067,6 @@ void Heap::CreateFixedStubs() {
 }
 
 
-void Heap::CreateStubsRequiringBuiltins() {
-  HandleScope scope(isolate());
-  CodeStub::GenerateStubsRequiringBuiltinsAheadOfTime(isolate());
-}
-
-
 bool Heap::CreateInitialObjects() {
   Object* obj;
 
@@ -3297,6 +3288,11 @@ bool Heap::CreateInitialObjects() {
   }
   Symbol::cast(obj)->set_is_private(true);
   set_observed_symbol(Symbol::cast(obj));
+
+  { MaybeObject* maybe_obj = AllocateFixedArray(0, TENURED);
+    if (!maybe_obj->ToObject(&obj)) return false;
+  }
+  set_materialized_objects(FixedArray::cast(obj));
 
   // Handling of script id generation is in Factory::NewScript.
   set_last_script_id(Smi::FromInt(v8::Script::kNoScriptId));
@@ -3981,9 +3977,6 @@ MaybeObject* Heap::CreateCode(const CodeDesc& desc,
   code->set_flags(flags);
   code->set_raw_kind_specific_flags1(0);
   code->set_raw_kind_specific_flags2(0);
-  if (code->is_call_stub() || code->is_keyed_call_stub()) {
-    code->set_check_type(RECEIVER_MAP_CHECK);
-  }
   code->set_is_crankshafted(crankshafted);
   code->set_deoptimization_data(empty_fixed_array(), SKIP_WRITE_BARRIER);
   code->set_raw_type_feedback_info(undefined_value());

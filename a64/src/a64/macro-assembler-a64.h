@@ -996,7 +996,6 @@ class MacroAssembler : public Assembler {
   // CallApiFunctionAndReturn can spill registers.
   void CallApiFunctionAndReturn(Register function_address,
                                 ExternalReference thunk_ref,
-                                Register thunk_last_arg,
                                 int stack_space,
                                 int spill_offset,
                                 MemOperand return_value_operand,

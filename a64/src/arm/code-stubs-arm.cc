@@ -165,19 +165,6 @@ void KeyedLoadFieldStub::InitializeInterfaceDescriptor(
 }
 
 
-void KeyedArrayCallStub::InitializeInterfaceDescriptor(
-    Isolate* isolate,
-    CodeStubInterfaceDescriptor* descriptor) {
-  static Register registers[] = { r2 };
-  descriptor->register_param_count_ = 1;
-  descriptor->register_params_ = registers;
-  descriptor->continuation_type_ = TAIL_CALL_CONTINUATION;
-  descriptor->handler_arguments_mode_ = PASS_ARGUMENTS;
-  descriptor->deoptimization_handler_ =
-      FUNCTION_ADDR(KeyedCallIC_MissFromStubFailure);
-}
-
-
 void KeyedStoreFastElementStub::InitializeInterfaceDescriptor(
     Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
@@ -449,6 +436,27 @@ void CallDescriptors::InitializeForIsolate(Isolate* isolate) {
         Representation::Tagged(),  // receiver
     };
     descriptor->register_param_count_ = 2;
+    descriptor->register_params_ = registers;
+    descriptor->param_representations_ = representations;
+    descriptor->platform_specific_descriptor_ = &default_descriptor;
+  }
+  {
+    CallInterfaceDescriptor* descriptor =
+        isolate->call_descriptor(Isolate::ApiFunctionCall);
+    static Register registers[] = { r0,  // callee
+                                    r4,  // call_data
+                                    r2,  // holder
+                                    r1,  // api_function_address
+                                    cp,  // context
+    };
+    static Representation representations[] = {
+        Representation::Tagged(),    // callee
+        Representation::Tagged(),    // call_data
+        Representation::Tagged(),    // holder
+        Representation::External(),  // api_function_address
+        Representation::Tagged(),    // context
+    };
+    descriptor->register_param_count_ = 5;
     descriptor->register_params_ = registers;
     descriptor->param_representations_ = representations;
     descriptor->platform_specific_descriptor_ = &default_descriptor;
@@ -3080,59 +3088,106 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
 void CallFunctionStub::Generate(MacroAssembler* masm) {
   // r1 : the function to call
   // r2 : cache cell for call target
-  Label slow, non_function;
+  Label slow, non_function, wrap, cont;
 
-  // Check that the function is really a JavaScript function.
-  // r1: pushed function (to be verified)
-  __ JumpIfSmi(r1, &non_function);
+  if (NeedsChecks()) {
+    // Check that the function is really a JavaScript function.
+    // r1: pushed function (to be verified)
+    __ JumpIfSmi(r1, &non_function);
 
-  // Goto slow case if we do not have a function.
-  __ CompareObjectType(r1, r3, r3, JS_FUNCTION_TYPE);
-  __ b(ne, &slow);
+    // Goto slow case if we do not have a function.
+    __ CompareObjectType(r1, r3, r3, JS_FUNCTION_TYPE);
+    __ b(ne, &slow);
 
-  if (RecordCallTarget()) {
-    GenerateRecordCallTarget(masm);
+    if (RecordCallTarget()) {
+      GenerateRecordCallTarget(masm);
+    }
   }
 
   // Fast-case: Invoke the function now.
   // r1: pushed function
   ParameterCount actual(argc_);
 
+  if (CallAsMethod()) {
+    if (NeedsChecks()) {
+      // Do not transform the receiver for strict mode functions.
+      __ ldr(r2, FieldMemOperand(r1, JSFunction::kSharedFunctionInfoOffset));
+      __ ldr(r3, FieldMemOperand(r2, SharedFunctionInfo::kCompilerHintsOffset));
+      __ tst(r3, Operand(1 << (SharedFunctionInfo::kStrictModeFunction +
+                               kSmiTagSize)));
+      __ b(ne, &cont);
+
+      // Do not transform the receiver for native (Compilerhints already in r3).
+      __ tst(r3, Operand(1 << (SharedFunctionInfo::kNative + kSmiTagSize)));
+      __ b(ne, &cont);
+    }
+
+    // Compute the receiver in non-strict mode.
+    __ ldr(r2, MemOperand(sp, argc_ * kPointerSize));
+
+    if (NeedsChecks()) {
+      // r0: actual number of arguments
+      // r1: function
+      // r2: first argument
+      __ JumpIfSmi(r2, &wrap);
+      __ CompareObjectType(r2, r3, r3, FIRST_SPEC_OBJECT_TYPE);
+      __ b(lt, &wrap);
+    } else {
+      __ jmp(&wrap);
+    }
+
+    __ bind(&cont);
+  }
   __ InvokeFunction(r1, actual, JUMP_FUNCTION, NullCallWrapper());
 
-  // Slow-case: Non-function called.
-  __ bind(&slow);
-  if (RecordCallTarget()) {
-    // If there is a call target cache, mark it megamorphic in the
-    // non-function case.  MegamorphicSentinel is an immortal immovable
-    // object (undefined) so no write barrier is needed.
-    ASSERT_EQ(*TypeFeedbackCells::MegamorphicSentinel(masm->isolate()),
-              masm->isolate()->heap()->undefined_value());
-    __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
-    __ str(ip, FieldMemOperand(r2, Cell::kValueOffset));
-  }
-  // Check for function proxy.
-  __ cmp(r3, Operand(JS_FUNCTION_PROXY_TYPE));
-  __ b(ne, &non_function);
-  __ push(r1);  // put proxy as additional argument
-  __ mov(r0, Operand(argc_ + 1, RelocInfo::NONE32));
-  __ mov(r2, Operand::Zero());
-  __ GetBuiltinFunction(r1, Builtins::CALL_FUNCTION_PROXY);
-  {
-    Handle<Code> adaptor =
-      masm->isolate()->builtins()->ArgumentsAdaptorTrampoline();
-    __ Jump(adaptor, RelocInfo::CODE_TARGET);
+  if (NeedsChecks()) {
+    // Slow-case: Non-function called.
+    __ bind(&slow);
+    if (RecordCallTarget()) {
+      // If there is a call target cache, mark it megamorphic in the
+      // non-function case.  MegamorphicSentinel is an immortal immovable
+      // object (undefined) so no write barrier is needed.
+      ASSERT_EQ(*TypeFeedbackCells::MegamorphicSentinel(masm->isolate()),
+                masm->isolate()->heap()->undefined_value());
+      __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
+      __ str(ip, FieldMemOperand(r2, Cell::kValueOffset));
+    }
+    // Check for function proxy.
+    __ cmp(r3, Operand(JS_FUNCTION_PROXY_TYPE));
+    __ b(ne, &non_function);
+    __ push(r1);  // put proxy as additional argument
+    __ mov(r0, Operand(argc_ + 1, RelocInfo::NONE32));
+    __ mov(r2, Operand::Zero());
+    __ GetBuiltinFunction(r1, Builtins::CALL_FUNCTION_PROXY);
+    {
+      Handle<Code> adaptor =
+        masm->isolate()->builtins()->ArgumentsAdaptorTrampoline();
+      __ Jump(adaptor, RelocInfo::CODE_TARGET);
+    }
+
+    // CALL_NON_FUNCTION expects the non-function callee as receiver (instead
+    // of the original receiver from the call site).
+    __ bind(&non_function);
+    __ str(r1, MemOperand(sp, argc_ * kPointerSize));
+    __ mov(r0, Operand(argc_));  // Set up the number of arguments.
+    __ mov(r2, Operand::Zero());
+    __ GetBuiltinFunction(r1, Builtins::CALL_NON_FUNCTION);
+    __ Jump(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
+            RelocInfo::CODE_TARGET);
   }
 
-  // CALL_NON_FUNCTION expects the non-function callee as receiver (instead
-  // of the original receiver from the call site).
-  __ bind(&non_function);
-  __ str(r1, MemOperand(sp, argc_ * kPointerSize));
-  __ mov(r0, Operand(argc_));  // Set up the number of arguments.
-  __ mov(r2, Operand::Zero());
-  __ GetBuiltinFunction(r1, Builtins::CALL_NON_FUNCTION);
-  __ Jump(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
-          RelocInfo::CODE_TARGET);
+  if (CallAsMethod()) {
+    __ bind(&wrap);
+    // Wrap the receiver and patch it back onto the stack.
+    { FrameScope frame_scope(masm, StackFrame::INTERNAL);
+      __ push(r1);
+      __ push(r2);
+      __ InvokeBuiltin(Builtins::TO_OBJECT, CALL_FUNCTION);
+      __ pop(r1);
+    }
+    __ str(r0, MemOperand(sp, argc_ * kPointerSize));
+    __ jmp(&cont);
+  }
 }
 
 
@@ -4986,23 +5041,6 @@ void StubFailureTrampolineStub::Generate(MacroAssembler* masm) {
 }
 
 
-void StubFailureTailCallTrampolineStub::Generate(MacroAssembler* masm) {
-  CEntryStub ces(1, fp_registers_ ? kSaveFPRegs : kDontSaveFPRegs);
-  __ Call(ces.GetCode(masm->isolate()), RelocInfo::CODE_TARGET);
-  __ mov(r1, r0);
-  int parameter_count_offset =
-      StubFailureTrampolineFrame::kCallerStackParameterCountFrameOffset;
-  __ ldr(r0, MemOperand(fp, parameter_count_offset));
-  // The parameter count above includes the receiver for the arguments passed to
-  // the deoptimization handler. Subtract the receiver for the parameter count
-  // for the call.
-  __ sub(r0, r0, Operand(1));
-  masm->LeaveFrame(StackFrame::STUB_FAILURE_TRAMPOLINE);
-  ParameterCount argument_count(r0);
-  __ InvokeFunction(r1, argument_count, JUMP_FUNCTION, NullCallWrapper());
-}
-
-
 void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) {
   if (masm->isolate()->function_entry_hook() != NULL) {
     PredictableCodeSizeScope predictable(masm, 4 * Assembler::kInstrSize);
@@ -5379,21 +5417,19 @@ void CallApiFunctionStub::Generate(MacroAssembler* masm) {
   //  -- r0                  : callee
   //  -- r4                  : call_data
   //  -- r2                  : holder
-  //  -- r3                  : api_function_address
-  //  -- r1                  : thunk_arg
+  //  -- r1                  : api_function_address
   //  -- cp                  : context
   //  --
-  //  -- esp[0]              : last argument
+  //  -- sp[0]               : last argument
   //  -- ...
-  //  -- esp[(argc - 1)* 4]  : first argument
-  //  -- esp[argc * 4]       : receiver
+  //  -- sp[(argc - 1)* 4]   : first argument
+  //  -- sp[argc * 4]        : receiver
   // -----------------------------------
 
   Register callee = r0;
   Register call_data = r4;
   Register holder = r2;
-  Register api_function_address = r3;
-  Register thunk_arg = r1;
+  Register api_function_address = r1;
   Register context = cp;
 
   int argc = ArgumentBits::decode(bit_field_);
@@ -5449,7 +5485,7 @@ void CallApiFunctionStub::Generate(MacroAssembler* masm) {
   FrameScope frame_scope(masm, StackFrame::MANUAL);
   __ EnterExitFrame(false, kApiStackSpace);
 
-  ASSERT(!thunk_arg.is(r0) && !api_function_address.is(r0) && !scratch.is(r0));
+  ASSERT(!api_function_address.is(r0) && !scratch.is(r0));
   // r0 = FunctionCallbackInfo&
   // Arguments is after the return address.
   __ add(r0, sp, Operand(1 * kPointerSize));
@@ -5480,11 +5516,48 @@ void CallApiFunctionStub::Generate(MacroAssembler* masm) {
 
   __ CallApiFunctionAndReturn(api_function_address,
                               thunk_ref,
-                              thunk_arg,
                               kStackUnwindSpace,
                               return_value_operand,
                               restore_context ?
                                   &context_restore_operand : NULL);
+}
+
+
+void CallApiGetterStub::Generate(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- sp[0]                  : name
+  //  -- sp[4 - kArgsLength*4]  : PropertyCallbackArguments object
+  //  -- ...
+  //  -- r2                     : api_function_address
+  // -----------------------------------
+
+  Register api_function_address = r2;
+
+  __ mov(r0, sp);  // r0 = Handle<Name>
+  __ add(r1, r0, Operand(1 * kPointerSize));  // r1 = PCA
+
+  const int kApiStackSpace = 1;
+  FrameScope frame_scope(masm, StackFrame::MANUAL);
+  __ EnterExitFrame(false, kApiStackSpace);
+
+  // Create PropertyAccessorInfo instance on the stack above the exit frame with
+  // r1 (internal::Object** args_) as the data.
+  __ str(r1, MemOperand(sp, 1 * kPointerSize));
+  __ add(r1, sp, Operand(1 * kPointerSize));  // r1 = AccessorInfo&
+
+  const int kStackUnwindSpace = PropertyCallbackArguments::kArgsLength + 1;
+
+  Address thunk_address = FUNCTION_ADDR(&InvokeAccessorGetterCallback);
+  ExternalReference::Type thunk_type =
+      ExternalReference::PROFILING_GETTER_CALL;
+  ApiFunction thunk_fun(thunk_address);
+  ExternalReference thunk_ref = ExternalReference(&thunk_fun, thunk_type,
+      masm->isolate());
+  __ CallApiFunctionAndReturn(api_function_address,
+                              thunk_ref,
+                              kStackUnwindSpace,
+                              MemOperand(fp, 6 * kPointerSize),
+                              NULL);
 }
 
 

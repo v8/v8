@@ -499,17 +499,21 @@ class OneByteStringKey : public SequentialStringKey<uint8_t> {
 };
 
 
-class SubStringOneByteStringKey : public HashTableKey {
+template<class Char>
+class SubStringKey : public HashTableKey {
  public:
-  explicit SubStringOneByteStringKey(Handle<SeqOneByteString> string,
-                                     int from,
-                                     int length)
-      : string_(string), from_(from), length_(length) { }
+  SubStringKey(Handle<String> string, int from, int length)
+      : string_(string), from_(from), length_(length) {
+    if (string_->IsSlicedString()) {
+      string_ = Handle<String>(Unslice(*string_, &from_));
+    }
+    ASSERT(string_->IsSeqString() || string->IsExternalString());
+  }
 
   virtual uint32_t Hash() {
     ASSERT(length_ >= 0);
     ASSERT(from_ + length_ <= string_->length());
-    uint8_t* chars = string_->GetChars() + from_;
+    const Char* chars = GetChars() + from_;
     hash_field_ = StringHasher::HashSequentialString(
         chars, length_, string_->GetHeap()->HashSeed());
     uint32_t result = hash_field_ >> String::kHashShift;
@@ -517,20 +521,25 @@ class SubStringOneByteStringKey : public HashTableKey {
     return result;
   }
 
-
   virtual uint32_t HashForObject(Object* other) {
     return String::cast(other)->Hash();
   }
 
-  virtual bool IsMatch(Object* string) {
-    Vector<const uint8_t> chars(string_->GetChars() + from_, length_);
-    return String::cast(string)->IsOneByteEqualTo(chars);
-  }
-
+  virtual bool IsMatch(Object* string);
   virtual MaybeObject* AsObject(Heap* heap);
 
  private:
-  Handle<SeqOneByteString> string_;
+  const Char* GetChars();
+  String* Unslice(String* string, int* offset) {
+    while (string->IsSlicedString()) {
+      SlicedString* sliced = SlicedString::cast(string);
+      *offset += sliced->offset();
+      string = sliced->parent();
+    }
+    return string;
+  }
+
+  Handle<String> string_;
   int from_;
   int length_;
   uint32_t hash_field_;
@@ -3666,12 +3675,29 @@ typename Traits::ElementType FixedTypedArray<Traits>::get_scalar(int index) {
   return ptr[index];
 }
 
+
+template<> inline
+FixedTypedArray<Float64ArrayTraits>::ElementType
+    FixedTypedArray<Float64ArrayTraits>::get_scalar(int index) {
+  ASSERT((index >= 0) && (index < this->length()));
+  return READ_DOUBLE_FIELD(this, ElementOffset(index));
+}
+
+
 template <class Traits>
 void FixedTypedArray<Traits>::set(int index, ElementType value) {
   ASSERT((index >= 0) && (index < this->length()));
   ElementType* ptr = reinterpret_cast<ElementType*>(
       FIELD_ADDR(this, kDataOffset));
   ptr[index] = value;
+}
+
+
+template<> inline
+void FixedTypedArray<Float64ArrayTraits>::set(
+    int index, Float64ArrayTraits::ElementType value) {
+  ASSERT((index >= 0) && (index < this->length()));
+  WRITE_DOUBLE_FIELD(this, ElementOffset(index), value);
 }
 
 
@@ -3962,8 +3988,9 @@ bool Map::is_shared() {
 
 
 void Map::set_dictionary_map(bool value) {
-  if (value) mark_unstable();
-  set_bit_field3(DictionaryMap::update(bit_field3(), value));
+  uint32_t new_bit_field3 = DictionaryMap::update(bit_field3(), value);
+  new_bit_field3 = IsUnstable::update(new_bit_field3, value);
+  set_bit_field3(new_bit_field3);
 }
 
 
@@ -4147,10 +4174,6 @@ void DependentCode::ExtendGroup(DependencyGroup group) {
 
 void Code::set_flags(Code::Flags flags) {
   STATIC_ASSERT(Code::NUMBER_OF_KINDS <= KindField::kMax + 1);
-  // Make sure that all call stubs have an arguments count.
-  ASSERT((ExtractKindFromFlags(flags) != CALL_IC &&
-          ExtractKindFromFlags(flags) != KEYED_CALL_IC) ||
-         ExtractArgumentsCountFromFlags(flags) >= 0);
   WRITE_INT_FIELD(this, kFlagsOffset, flags);
 }
 
@@ -4192,8 +4215,7 @@ Code::StubType Code::type() {
 
 
 int Code::arguments_count() {
-  ASSERT(is_call_stub() || is_keyed_call_stub() ||
-         kind() == STUB || is_handler());
+  ASSERT(kind() == STUB || is_handler());
   return ExtractArgumentsCountFromFlags(flags());
 }
 
@@ -4248,7 +4270,6 @@ bool Code::has_major_key() {
       kind() == KEYED_LOAD_IC ||
       kind() == STORE_IC ||
       kind() == KEYED_STORE_IC ||
-      kind() == KEYED_CALL_IC ||
       kind() == TO_BOOLEAN_IC;
 }
 
@@ -4401,19 +4422,6 @@ void Code::set_back_edges_patched_for_osr(bool value) {
 
 
 
-CheckType Code::check_type() {
-  ASSERT(is_call_stub() || is_keyed_call_stub());
-  byte type = READ_BYTE_FIELD(this, kCheckTypeOffset);
-  return static_cast<CheckType>(type);
-}
-
-
-void Code::set_check_type(CheckType value) {
-  ASSERT(is_call_stub() || is_keyed_call_stub());
-  WRITE_BYTE_FIELD(this, kCheckTypeOffset, value);
-}
-
-
 byte Code::to_boolean_state() {
   return extended_extra_ic_state();
 }
@@ -4461,7 +4469,7 @@ bool Code::is_inline_cache_stub() {
 
 
 bool Code::is_keyed_stub() {
-  return is_keyed_load_stub() || is_keyed_store_stub() || is_keyed_call_stub();
+  return is_keyed_load_stub() || is_keyed_store_stub();
 }
 
 
@@ -4489,11 +4497,6 @@ Code::Flags Code::ComputeFlags(Kind kind,
                                int argc,
                                InlineCacheHolderFlag holder) {
   ASSERT(argc <= Code::kMaxArguments);
-  // Since the extended extra ic state overlaps with the argument count
-  // for CALL_ICs, do so checks to make sure that they don't interfere.
-  ASSERT((kind != Code::CALL_IC &&
-          kind != Code::KEYED_CALL_IC) ||
-         (ExtraICStateField::encode(extra_ic_state) | true));
   // Compute the bit mask.
   unsigned int bits = KindField::encode(kind)
       | ICStateField::encode(ic_state)

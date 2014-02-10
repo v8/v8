@@ -48,12 +48,9 @@ class TypeFeedbackOracle: public ZoneObject {
                      Zone* zone);
 
   bool LoadIsUninitialized(TypeFeedbackId id);
-  bool LoadIsPreMonomorphic(TypeFeedbackId id);
   bool StoreIsUninitialized(TypeFeedbackId id);
-  bool StoreIsPreMonomorphic(TypeFeedbackId id);
   bool StoreIsKeyedPolymorphic(TypeFeedbackId id);
   bool CallIsMonomorphic(TypeFeedbackId aid);
-  bool KeyedArrayCallIsHoley(TypeFeedbackId id);
   bool CallNewIsMonomorphic(TypeFeedbackId id);
 
   // TODO(1571) We can't use ForInStatement::ForInType as the return value due
@@ -64,10 +61,6 @@ class TypeFeedbackOracle: public ZoneObject {
 
   KeyedAccessStoreMode GetStoreMode(TypeFeedbackId id);
 
-  void CallReceiverTypes(TypeFeedbackId id,
-                         Handle<String> name,
-                         int arity,
-                         SmallMapList* types);
   void PropertyReceiverTypes(TypeFeedbackId id,
                              Handle<String> name,
                              SmallMapList* receiver_types,
@@ -91,7 +84,6 @@ class TypeFeedbackOracle: public ZoneObject {
   static bool CanRetainOtherContext(JSFunction* function,
                                     Context* native_context);
 
-  CheckType GetCallCheckType(TypeFeedbackId id);
   Handle<JSFunction> GetCallTarget(TypeFeedbackId id);
   Handle<JSFunction> GetCallNewTarget(TypeFeedbackId id);
   Handle<AllocationSite> GetCallNewAllocationSite(TypeFeedbackId id);

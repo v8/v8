@@ -248,9 +248,6 @@ static int DecodeIt(Isolate* isolate,
             Code::StubType type = code->type();
             out.AddFormatted(", %s", Code::StubType2String(type));
           }
-          if (kind == Code::CALL_IC || kind == Code::KEYED_CALL_IC) {
-            out.AddFormatted(", argc = %d", code->arguments_count());
-          }
         } else if (kind == Code::STUB || kind == Code::HANDLER) {
           // Reverse lookup required as the minor key cannot be retrieved
           // from the code object.

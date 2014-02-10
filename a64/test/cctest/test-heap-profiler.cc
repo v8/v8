@@ -344,6 +344,15 @@ TEST(HeapSnapshotCodeObjects) {
       GetProperty(lazy, v8::HeapGraphEdge::kInternal, "shared");
   CHECK_NE(NULL, lazy_code);
 
+  // Check that there's no strong next_code_link. There might be a weak one
+  // but might be not, so we can't check that fact.
+  const v8::HeapGraphNode* code =
+      GetProperty(compiled_code, v8::HeapGraphEdge::kInternal, "code");
+  CHECK_NE(NULL, code);
+  const v8::HeapGraphNode* next_code_link =
+      GetProperty(code, v8::HeapGraphEdge::kInternal, "code");
+  CHECK_EQ(NULL, next_code_link);
+
   // Verify that non-compiled code doesn't contain references to "x"
   // literal, while compiled code does. The scope info is stored in FixedArray
   // objects attached to the SharedFunctionInfo.
@@ -737,9 +746,9 @@ TEST(HeapSnapshotJSONSerialization) {
   stream.WriteTo(json);
 
   // Verify that snapshot string is valid JSON.
-  AsciiResource json_res(json);
+  AsciiResource* json_res = new AsciiResource(json);
   v8::Local<v8::String> json_string =
-      v8::String::NewExternal(env->GetIsolate(), &json_res);
+      v8::String::NewExternal(env->GetIsolate(), json_res);
   env->Global()->Set(v8_str("json_snapshot"), json_string);
   v8::Local<v8::Value> snapshot_parse_result = CompileRun(
       "var parsed = JSON.parse(json_snapshot); true;");
@@ -1528,6 +1537,30 @@ TEST(GlobalObjectName) {
 }
 
 
+TEST(GlobalObjectFields) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+  v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
+  CompileRun("obj = {};");
+  const v8::HeapSnapshot* snapshot =
+      heap_profiler->TakeHeapSnapshot(v8_str("snapshot"));
+  CHECK(ValidateSnapshot(snapshot));
+  const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
+  const v8::HeapGraphNode* builtins =
+      GetProperty(global, v8::HeapGraphEdge::kInternal, "builtins");
+  CHECK_NE(NULL, builtins);
+  const v8::HeapGraphNode* native_context =
+      GetProperty(global, v8::HeapGraphEdge::kInternal, "native_context");
+  CHECK_NE(NULL, native_context);
+  const v8::HeapGraphNode* global_context =
+      GetProperty(global, v8::HeapGraphEdge::kInternal, "global_context");
+  CHECK_NE(NULL, global_context);
+  const v8::HeapGraphNode* global_receiver =
+      GetProperty(global, v8::HeapGraphEdge::kInternal, "global_receiver");
+  CHECK_NE(NULL, global_receiver);
+}
+
+
 TEST(NoHandleLeaks) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
@@ -2113,13 +2146,23 @@ TEST(CheckCodeNames) {
       stub_path, ARRAY_SIZE(stub_path));
   CHECK_NE(NULL, node);
 
-  const char* builtin_path[] = {
+  const char* builtin_path1[] = {
     "::(GC roots)",
     "::(Builtins)",
-    "::(KeyedLoadIC_Generic code)"
+    "::(KeyedLoadIC_Generic builtin)"
   };
-  node = GetNodeByPath(snapshot, builtin_path, ARRAY_SIZE(builtin_path));
+  node = GetNodeByPath(snapshot, builtin_path1, ARRAY_SIZE(builtin_path1));
   CHECK_NE(NULL, node);
+
+  const char* builtin_path2[] = {
+    "::(GC roots)",
+    "::(Builtins)",
+    "::(CompileUnoptimized builtin)"
+  };
+  node = GetNodeByPath(snapshot, builtin_path2, ARRAY_SIZE(builtin_path2));
+  CHECK_NE(NULL, node);
+  v8::String::Utf8Value node_name(node->GetName());
+  CHECK_EQ("(CompileUnoptimized builtin)", *node_name);
 }
 
 

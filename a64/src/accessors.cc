@@ -91,10 +91,19 @@ static V8_INLINE bool CheckForName(Handle<String> name,
 }
 
 
-bool Accessors::IsJSObjectFieldAccessor(
-      Handle<Map> map, Handle<String> name,
-      int* object_offset) {
-  Isolate* isolate = map->GetIsolate();
+bool Accessors::IsJSObjectFieldAccessor(Handle<HeapType> type,
+                                        Handle<String> name,
+                                        int* object_offset) {
+  Isolate* isolate = name->GetIsolate();
+
+  if (type->Is(HeapType::String())) {
+    return CheckForName(name, isolate->heap()->length_string(),
+                        String::kLengthOffset, object_offset);
+  }
+
+  if (!type->IsClass()) return false;
+  Handle<Map> map = type->AsClass();
+
   switch (map->instance_type()) {
     case JS_ARRAY_TYPE:
       return
@@ -122,14 +131,8 @@ bool Accessors::IsJSObjectFieldAccessor(
                      JSDataView::kByteOffsetOffset, object_offset) ||
         CheckForName(name, isolate->heap()->buffer_string(),
                      JSDataView::kBufferOffset, object_offset);
-    default: {
-      if (map->instance_type() < FIRST_NONSTRING_TYPE) {
-        return
-          CheckForName(name, isolate->heap()->length_string(),
-                       String::kLengthOffset, object_offset);
-      }
+    default:
       return false;
-    }
   }
 }
 
@@ -706,21 +709,22 @@ static MaybeObject* ConstructArgumentsObjectForInlinedFunction(
     int inlined_frame_index) {
   Isolate* isolate = inlined_function->GetIsolate();
   Factory* factory = isolate->factory();
-  Vector<SlotRef> args_slots =
-      SlotRef::ComputeSlotMappingForArguments(
-          frame,
-          inlined_frame_index,
-          inlined_function->shared()->formal_parameter_count());
-  int args_count = args_slots.length();
+  SlotRefValueBuilder slot_refs(
+      frame,
+      inlined_frame_index,
+      inlined_function->shared()->formal_parameter_count());
+
+  int args_count = slot_refs.args_length();
   Handle<JSObject> arguments =
       factory->NewArgumentsObject(inlined_function, args_count);
   Handle<FixedArray> array = factory->NewFixedArray(args_count);
+  slot_refs.Prepare(isolate);
   for (int i = 0; i < args_count; ++i) {
-    Handle<Object> value = args_slots[i].GetValue(isolate);
+    Handle<Object> value = slot_refs.GetNext(isolate, 0);
     array->set(i, *value);
   }
+  slot_refs.Finish(isolate);
   arguments->set_elements(*array);
-  args_slots.Dispose();
 
   // Return the freshly allocated arguments object.
   return *arguments;

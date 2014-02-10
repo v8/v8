@@ -1021,10 +1021,8 @@ LInstruction* LChunkBuilder::DoCallWithDescriptor(
 LInstruction* LChunkBuilder::DoCallFunction(HCallFunction* instr) {
   LOperand* context = UseFixed(instr->context(), cp);
   LOperand* function = UseFixed(instr->function(), x1);
-  LInstruction* result =
-      DefineFixed(new(zone()) LCallFunction(context, function), x0);
-  if (instr->IsTailCall()) return result;
-  return MarkAsCall(result, instr);
+  LCallFunction* call = new(zone()) LCallFunction(context, function);
+  return MarkAsCall(DefineFixed(call, x0), instr);
 }
 
 
@@ -1403,12 +1401,6 @@ LInstruction* LChunkBuilder::DoDiv(HDiv* instr) {
 
 LInstruction* LChunkBuilder::DoDummyUse(HDummyUse* instr) {
   return DefineAsRegister(new(zone()) LDummyUse(UseAny(instr->value())));
-}
-
-
-LInstruction* LChunkBuilder::DoElementsKind(HElementsKind* instr) {
-  LOperand* object = UseRegisterAtStart(instr->value());
-  return DefineAsRegister(new(zone()) LElementsKind(object));
 }
 
 
@@ -2244,16 +2236,6 @@ LInstruction* LChunkBuilder::DoThisFunction(HThisFunction* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoThrow(HThrow* instr) {
-  LOperand* context = UseFixed(instr->context(), cp);
-  // TODO(all): This should not need to be a fixed register, as it's pushed to
-  // the stack in DoThrow. However, we hit an assertion if it's assigned a non-
-  // fixed register.
-  LOperand* value = UseFixed(instr->value(), x0);
-  return MarkAsCall(new(zone()) LThrow(context, value), instr);
-}
-
-
 LInstruction* LChunkBuilder::DoToFastProperties(HToFastProperties* instr) {
   LOperand* object = UseFixed(instr->value(), x0);
   LToFastProperties* result = new(zone()) LToFastProperties(object);
@@ -2423,13 +2405,6 @@ LInstruction* LChunkBuilder::DoUnknownOSRValue(HUnknownOSRValue* instr) {
 
 LInstruction* LChunkBuilder::DoUseConst(HUseConst* instr) {
   return NULL;
-}
-
-
-LInstruction* LChunkBuilder::DoValueOf(HValueOf* instr) {
-  LOperand* object = UseRegister(instr->value());
-  LValueOf* result = new(zone()) LValueOf(object, TempRegister());
-  return DefineSameAsFirst(result);
 }
 
 

@@ -227,7 +227,7 @@ void HBasicBlock::Goto(HBasicBlock* block,
                        FunctionState* state,
                        bool add_simulate) {
   bool drop_extra = state != NULL &&
-      state->inlining_kind() == DROP_EXTRA_ON_RETURN;
+      state->inlining_kind() == NORMAL_RETURN;
 
   if (block->IsInlineReturnTarget()) {
     HEnvironment* env = last_environment();
@@ -248,7 +248,7 @@ void HBasicBlock::AddLeaveInlined(HValue* return_value,
                                   FunctionState* state,
                                   int position) {
   HBasicBlock* target = state->function_return();
-  bool drop_extra = state->inlining_kind() == DROP_EXTRA_ON_RETURN;
+  bool drop_extra = state->inlining_kind() == NORMAL_RETURN;
 
   ASSERT(target->IsInlineReturnTarget());
   ASSERT(return_value != NULL);
@@ -301,6 +301,12 @@ bool HBasicBlock::Dominates(HBasicBlock* other) const {
     current = current->dominator();
   }
   return false;
+}
+
+
+bool HBasicBlock::EqualToOrDominates(HBasicBlock* other) const {
+  if (this == other) return true;
+  return Dominates(other);
 }
 
 
@@ -1289,6 +1295,13 @@ HValue* HGraphBuilder::BuildCheckString(HValue* string) {
 
 HValue* HGraphBuilder::BuildWrapReceiver(HValue* object, HValue* function) {
   if (object->type().IsJSObject()) return object;
+  if (function->IsConstant() &&
+      HConstant::cast(function)->handle(isolate())->IsJSFunction()) {
+    Handle<JSFunction> f = Handle<JSFunction>::cast(
+        HConstant::cast(function)->handle(isolate()));
+    SharedFunctionInfo* shared = f->shared();
+    if (!shared->is_classic_mode() || shared->native()) return object;
+  }
   return Add<HWrapReceiver>(object, function);
 }
 
@@ -4926,10 +4939,13 @@ void HOptimizedGraphBuilder::VisitRegExpLiteral(RegExpLiteral* expr) {
 }
 
 
-static bool CanInlinePropertyAccess(Map* type) {
-  return type->IsJSObjectMap() &&
-      !type->is_dictionary_map() &&
-      !type->has_named_interceptor();
+static bool CanInlinePropertyAccess(Handle<HeapType> type) {
+  if (type->Is(HeapType::NumberOrString())) return true;
+  if (!type->IsClass()) return false;
+  Handle<Map> map = type->AsClass();
+  return map->IsJSObjectMap() &&
+      !map->is_dictionary_map() &&
+      !map->has_named_interceptor();
 }
 
 
@@ -4938,8 +4954,8 @@ static void LookupInPrototypes(Handle<Map> map,
                                LookupResult* lookup) {
   while (map->prototype()->IsJSObject()) {
     Handle<JSObject> holder(JSObject::cast(map->prototype()));
-    map = Handle<Map>(holder->map());
-    if (!CanInlinePropertyAccess(*map)) break;
+    map = handle(holder->map());
+    if (!CanInlinePropertyAccess(IC::MapToType(map))) break;
     map->LookupDescriptor(*holder, *name, lookup);
     if (lookup->IsFound()) return;
   }
@@ -5440,7 +5456,7 @@ static bool ComputeStoreField(Handle<Map> type,
                               LookupResult* lookup,
                               bool lookup_transition = true) {
   ASSERT(!type->is_observed());
-  if (!CanInlinePropertyAccess(*type)) {
+  if (!CanInlinePropertyAccess(IC::MapToType(type))) {
     lookup->NotFound();
     return false;
   }
@@ -5475,13 +5491,26 @@ HInstruction* HOptimizedGraphBuilder::BuildStoreNamedMonomorphic(
 
 bool HOptimizedGraphBuilder::PropertyAccessInfo::IsCompatibleForLoad(
     PropertyAccessInfo* info) {
-  if (!CanInlinePropertyAccess(*map_)) return false;
+  if (!CanInlinePropertyAccess(type_)) return false;
+
+  // Currently only handle HeapType::Number as a polymorphic case.
+  // TODO(verwaest): Support monomorphic handling of numbers with a HCheckNumber
+  // instruction.
+  if (type_->Is(HeapType::Number())) return false;
+
+  // Values are only compatible for monomorphic load if they all behave the same
+  // regarding value wrappers.
+  if (type_->Is(HeapType::NumberOrString())) {
+    if (!info->type_->Is(HeapType::NumberOrString())) return false;
+  } else {
+    if (info->type_->Is(HeapType::NumberOrString())) return false;
+  }
 
   if (!LookupDescriptor()) return false;
 
   if (!lookup_.IsFound()) {
     return (!info->lookup_.IsFound() || info->has_holder()) &&
-        map_->prototype() == info->map_->prototype();
+        map()->prototype() == info->map()->prototype();
   }
 
   // Mismatch if the other access info found the property in the prototype
@@ -5509,8 +5538,9 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::IsCompatibleForLoad(
 
 
 bool HOptimizedGraphBuilder::PropertyAccessInfo::LookupDescriptor() {
-  map_->LookupDescriptor(NULL, *name_, &lookup_);
-  return LoadResult(map_);
+  if (!type_->IsClass()) return true;
+  map()->LookupDescriptor(NULL, *name_, &lookup_);
+  return LoadResult(map());
 }
 
 
@@ -5536,14 +5566,15 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::LoadResult(Handle<Map> map) {
 
 
 bool HOptimizedGraphBuilder::PropertyAccessInfo::LookupInPrototypes() {
-  Handle<Map> map = map_;
+  Handle<Map> map = this->map();
+
   while (map->prototype()->IsJSObject()) {
     holder_ = handle(JSObject::cast(map->prototype()));
     if (holder_->map()->is_deprecated()) {
       JSObject::TryMigrateInstance(holder_);
     }
     map = Handle<Map>(holder_->map());
-    if (!CanInlinePropertyAccess(*map)) {
+    if (!CanInlinePropertyAccess(IC::MapToType(map))) {
       lookup_.NotFound();
       return false;
     }
@@ -5556,7 +5587,7 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::LookupInPrototypes() {
 
 
 bool HOptimizedGraphBuilder::PropertyAccessInfo::CanLoadMonomorphic() {
-  if (!CanInlinePropertyAccess(*map_)) return IsStringLength();
+  if (!CanInlinePropertyAccess(type_)) return false;
   if (IsJSObjectFieldAccessor()) return true;
   if (!LookupDescriptor()) return false;
   if (lookup_.IsFound()) return true;
@@ -5566,19 +5597,12 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::CanLoadMonomorphic() {
 
 bool HOptimizedGraphBuilder::PropertyAccessInfo::CanLoadAsMonomorphic(
     SmallMapList* types) {
-  ASSERT(map_.is_identical_to(types->first()));
+  ASSERT(type_->Is(IC::MapToType(types->first())));
   if (!CanLoadMonomorphic()) return false;
   if (types->length() > kMaxLoadPolymorphism) return false;
 
-  if (IsStringLength()) {
-    for (int i = 1; i < types->length(); ++i) {
-      if (types->at(i)->instance_type() >= FIRST_NONSTRING_TYPE) return false;
-    }
-    return true;
-  }
-
   if (IsArrayLength()) {
-    bool is_fast = IsFastElementsKind(map_->elements_kind());
+    bool is_fast = IsFastElementsKind(map()->elements_kind());
     for (int i = 1; i < types->length(); ++i) {
       Handle<Map> test_map = types->at(i);
       if (test_map->instance_type() != JS_ARRAY_TYPE) return false;
@@ -5589,16 +5613,25 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::CanLoadAsMonomorphic(
     return true;
   }
 
-  if (IsJSObjectFieldAccessor()) {
-    InstanceType instance_type = map_->instance_type();
+  HObjectAccess access = HObjectAccess::ForMap();  // bogus default
+  if (GetJSObjectFieldAccess(&access)) {
     for (int i = 1; i < types->length(); ++i) {
-      if (types->at(i)->instance_type() != instance_type) return false;
+      PropertyAccessInfo test_info(
+          builder_, IC::MapToType(types->at(i)), name_);
+      HObjectAccess test_access = HObjectAccess::ForMap();  // bogus default
+      if (!test_info.GetJSObjectFieldAccess(&test_access)) return false;
+      if (!access.Equals(test_access)) return false;
     }
     return true;
   }
 
+  // Currently only handle HeapType::Number as a polymorphic case.
+  // TODO(verwaest): Support monomorphic handling of numbers with a HCheckNumber
+  // instruction.
+  if (type_->Is(HeapType::Number())) return false;
+
   for (int i = 1; i < types->length(); ++i) {
-    PropertyAccessInfo test_info(isolate(), types->at(i), name_);
+    PropertyAccessInfo test_info(builder_, IC::MapToType(types->at(i)), name_);
     if (!test_info.IsCompatibleForLoad(this)) return false;
   }
 
@@ -5606,10 +5639,17 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::CanLoadAsMonomorphic(
 }
 
 
+static bool NeedsWrappingFor(Handle<HeapType> type, Handle<JSFunction> target) {
+  return type->Is(HeapType::NumberOrString()) &&
+      target->shared()->is_classic_mode() &&
+      !target->shared()->native();
+}
+
+
 HInstruction* HOptimizedGraphBuilder::BuildLoadMonomorphic(
     PropertyAccessInfo* info,
     HValue* object,
-    HInstruction* checked_object,
+    HValue* checked_object,
     BailoutId ast_id,
     BailoutId return_id,
     bool can_inline_accessor) {
@@ -5633,14 +5673,20 @@ HInstruction* HOptimizedGraphBuilder::BuildLoadMonomorphic(
   }
 
   if (info->lookup()->IsPropertyCallbacks()) {
-    Push(checked_object);
-    if (FLAG_inline_accessors &&
-        can_inline_accessor &&
-        TryInlineGetter(info->accessor(), ast_id, return_id)) {
-      return NULL;
+    if (NeedsWrappingFor(info->type(), info->accessor())) {
+      HValue* function = Add<HConstant>(info->accessor());
+      Add<HPushArgument>(checked_object);
+      return New<HCallFunction>(function, 1, WRAP_AND_CALL);
+    } else {
+      Push(checked_object);
+      if (FLAG_inline_accessors &&
+          can_inline_accessor &&
+          TryInlineGetter(info->accessor(), ast_id, return_id)) {
+        return NULL;
+      }
+      Add<HPushArgument>(Pop());
+      return BuildCallConstantFunction(info->accessor(), 1);
     }
-    Add<HPushArgument>(Pop());
-    return BuildCallConstantFunction(info->accessor(), 1);
   }
 
   ASSERT(info->lookup()->IsConstant());
@@ -5657,36 +5703,93 @@ void HOptimizedGraphBuilder::HandlePolymorphicLoadNamedField(
   // Something did not match; must use a polymorphic load.
   int count = 0;
   HBasicBlock* join = NULL;
+  HBasicBlock* number_block = NULL;
+  bool handled_string = false;
+
+  bool handle_smi = false;
   for (int i = 0; i < types->length() && count < kMaxLoadPolymorphism; ++i) {
-    PropertyAccessInfo info(isolate(), types->at(i), name);
-    if (info.CanLoadMonomorphic()) {
-      if (count == 0) {
-        BuildCheckHeapObject(object);
-        join = graph()->CreateBasicBlock();
-      }
-      ++count;
-      HBasicBlock* if_true = graph()->CreateBasicBlock();
-      HBasicBlock* if_false = graph()->CreateBasicBlock();
-      HCompareMap* compare = New<HCompareMap>(
-          object, info.map(),  if_true, if_false);
-      FinishCurrentBlock(compare);
-
-      set_current_block(if_true);
-
-      HInstruction* load = BuildLoadMonomorphic(
-          &info, object, compare, ast_id, return_id, FLAG_polymorphic_inlining);
-      if (load == NULL) {
-        if (HasStackOverflow()) return;
-      } else {
-        if (!load->IsLinked()) {
-          AddInstruction(load);
-        }
-        if (!ast_context()->IsEffect()) Push(load);
-      }
-
-      if (current_block() != NULL) Goto(join);
-      set_current_block(if_false);
+    PropertyAccessInfo info(this, IC::MapToType(types->at(i)), name);
+    if (info.type()->Is(HeapType::String())) {
+      if (handled_string) continue;
+      handled_string = true;
     }
+    if (info.CanLoadMonomorphic()) {
+      count++;
+      if (info.type()->Is(HeapType::Number())) {
+        handle_smi = true;
+        break;
+      }
+    }
+  }
+
+  count = 0;
+  HControlInstruction* smi_check = NULL;
+  handled_string = false;
+
+  for (int i = 0; i < types->length() && count < kMaxLoadPolymorphism; ++i) {
+    PropertyAccessInfo info(this, IC::MapToType(types->at(i)), name);
+    if (info.type()->Is(HeapType::String())) {
+      if (handled_string) continue;
+      handled_string = true;
+    }
+    if (!info.CanLoadMonomorphic()) continue;
+
+    if (count == 0) {
+      join = graph()->CreateBasicBlock();
+      if (handle_smi) {
+        HBasicBlock* empty_smi_block = graph()->CreateBasicBlock();
+        HBasicBlock* not_smi_block = graph()->CreateBasicBlock();
+        number_block = graph()->CreateBasicBlock();
+        smi_check = New<HIsSmiAndBranch>(
+            object, empty_smi_block, not_smi_block);
+        FinishCurrentBlock(smi_check);
+        Goto(empty_smi_block, number_block);
+        set_current_block(not_smi_block);
+      } else {
+        BuildCheckHeapObject(object);
+      }
+    }
+    ++count;
+    HBasicBlock* if_true = graph()->CreateBasicBlock();
+    HBasicBlock* if_false = graph()->CreateBasicBlock();
+    HUnaryControlInstruction* compare;
+
+    HValue* dependency;
+    if (info.type()->Is(HeapType::Number())) {
+      Handle<Map> heap_number_map = isolate()->factory()->heap_number_map();
+      compare = New<HCompareMap>(object, heap_number_map, if_true, if_false);
+      dependency = smi_check;
+    } else if (info.type()->Is(HeapType::String())) {
+      compare = New<HIsStringAndBranch>(object, if_true, if_false);
+      dependency = compare;
+    } else {
+      compare = New<HCompareMap>(object, info.map(), if_true, if_false);
+      dependency = compare;
+    }
+    FinishCurrentBlock(compare);
+
+    if (info.type()->Is(HeapType::Number())) {
+      Goto(if_true, number_block);
+      if_true = number_block;
+      number_block->SetJoinId(ast_id);
+    }
+
+    set_current_block(if_true);
+
+    HInstruction* load = BuildLoadMonomorphic(
+        &info, object, dependency, ast_id,
+        return_id, FLAG_polymorphic_inlining);
+    if (load == NULL) {
+      if (HasStackOverflow()) return;
+    } else {
+      if (!load->IsLinked()) {
+        AddInstruction(load);
+      }
+      if (!ast_context()->IsEffect()) Push(load);
+    }
+
+    if (current_block() != NULL) Goto(join);
+    set_current_block(if_false);
   }
 
   // Finish up.  Unconditionally deoptimize if we've handled all the maps we
@@ -5870,7 +5973,7 @@ static bool ComputeReceiverTypes(Expression* expr,
     types->FilterForPossibleTransitions(root_map);
     monomorphic = types->length() == 1;
   }
-  return monomorphic && CanInlinePropertyAccess(*types->first());
+  return monomorphic && CanInlinePropertyAccess(IC::MapToType(types->first()));
 }
 
 
@@ -5917,15 +6020,22 @@ void HOptimizedGraphBuilder::BuildStore(Expression* expr,
     Handle<JSFunction> setter;
     Handle<JSObject> holder;
     if (LookupSetter(map, name, &setter, &holder)) {
-      AddCheckConstantFunction(holder, object, map);
-      if (FLAG_inline_accessors &&
-          TryInlineSetter(setter, ast_id, return_id, value)) {
+      AddCheckMap(object, map);
+      AddCheckPrototypeMaps(holder, map);
+      bool needs_wrapping = NeedsWrappingFor(IC::MapToType(map), setter);
+      bool try_inline = FLAG_inline_accessors && !needs_wrapping;
+      if (try_inline && TryInlineSetter(setter, ast_id, return_id, value)) {
         return;
       }
       Drop(2);
       Add<HPushArgument>(object);
       Add<HPushArgument>(value);
-      instr = BuildCallConstantFunction(setter, 2);
+      if (needs_wrapping) {
+        HValue* function = Add<HConstant>(setter);
+        instr = New<HCallFunction>(function, 2, WRAP_AND_CALL);
+      } else {
+        instr = BuildCallConstantFunction(setter, 2);
+      }
     } else {
       Drop(2);
       CHECK_ALIVE(instr = BuildStoreNamedMonomorphic(object,
@@ -6256,7 +6366,9 @@ void HOptimizedGraphBuilder::VisitThrow(Throw* expr) {
 
   HValue* value = environment()->Pop();
   if (!FLAG_emit_opt_code_positions) SetSourcePosition(expr->position());
-  Add<HThrow>(value);
+  Add<HPushArgument>(value);
+  Add<HCallRuntime>(isolate()->factory()->empty_string(),
+                    Runtime::FunctionForId(Runtime::kThrow), 1);
   Add<HSimulate>(expr->id());
 
   // If the throw definitely exits the function, we can finish with a dummy
@@ -6319,7 +6431,7 @@ HInstruction* HOptimizedGraphBuilder::BuildLoadNamedGeneric(
     HValue* object,
     Handle<String> name,
     Property* expr) {
-  if (expr->IsUninitialized()) {
+  if (!expr->IsForCall() && expr->IsUninitialized()) {
     Add<HDeoptimize>("Insufficient type feedback for generic named load",
                      Deoptimizer::SOFT);
   }
@@ -6610,7 +6722,7 @@ HValue* HOptimizedGraphBuilder::HandleKeyedElementAccess(
 
   if (monomorphic) {
     Handle<Map> map = types->first();
-    if (map->has_slow_elements_kind()) {
+    if (map->has_slow_elements_kind() || !map->IsJSObjectMap()) {
       instr = is_store ? BuildStoreKeyedGeneric(obj, key, val)
                        : BuildLoadKeyedGeneric(obj, key);
       AddInstruction(instr);
@@ -6776,14 +6888,16 @@ void HOptimizedGraphBuilder::BuildLoad(Property* expr,
     ASSERT(types != NULL);
 
     if (types->length() > 0) {
-      PropertyAccessInfo info(isolate(), types->first(), name);
+      PropertyAccessInfo info(this, IC::MapToType(types->first()), name);
       if (!info.CanLoadAsMonomorphic(types)) {
         return HandlePolymorphicLoadNamedField(
             ast_id, expr->LoadId(), object, types, name);
       }
 
+      HValue* checked_object;
+      // HeapType::Number() is only supported by polymorphic load/call handling.
+      ASSERT(!info.type()->Is(HeapType::Number()));
       BuildCheckHeapObject(object);
-      HInstruction* checked_object;
       if (AreStringTypes(types)) {
         checked_object =
             Add<HCheckInstanceType>(object, HCheckInstanceType::IS_STRING);
@@ -6879,18 +6993,6 @@ void HOptimizedGraphBuilder::AddCheckPrototypeMaps(Handle<JSObject> holder,
 }
 
 
-void HOptimizedGraphBuilder::AddCheckConstantFunction(
-    Handle<JSObject> holder,
-    HValue* receiver,
-    Handle<Map> receiver_map) {
-  // Constant functions have the nice property that the map will change if they
-  // are overwritten.  Therefore it is enough to check the map of the holder and
-  // its prototypes.
-  AddCheckMap(receiver, receiver_map);
-  AddCheckPrototypeMaps(holder, receiver_map);
-}
-
-
 HInstruction* HOptimizedGraphBuilder::NewPlainFunctionCall(
     HValue* fun, int argument_count, bool pass_argument_count) {
   return New<HCallJSFunction>(
@@ -6931,6 +7033,9 @@ HInstruction* HOptimizedGraphBuilder::BuildCallConstantFunction(
   bool can_invoke_directly =
       dont_adapt_arguments || formal_parameter_count == arity;
   if (can_invoke_directly) {
+    if (jsfun.is_identical_to(current_info()->closure())) {
+      graph()->MarkRecursive();
+    }
     return NewPlainFunctionCall(target, argument_count, dont_adapt_arguments);
   } else {
     HValue* param_count_value = Add<HConstant>(formal_parameter_count);
@@ -6944,33 +7049,6 @@ HInstruction* HOptimizedGraphBuilder::BuildCallConstantFunction(
   return NULL;
 }
 
-
-HInstruction* HOptimizedGraphBuilder::NewCallNamed(
-    Handle<String> name, int argument_count) {
-  CallInterfaceDescriptor* descriptor =
-      isolate()->call_descriptor(Isolate::NamedCall);
-  HValue* op_vals[] = { context(), Add<HConstant>(name) };
-  int arity = argument_count - 1;
-  Handle<Code> ic = isolate()->stub_cache()->ComputeCallInitialize(arity);
-
-  return New<HCallWithDescriptor>(
-      Add<HConstant>(ic), argument_count, descriptor,
-      Vector<HValue*>(op_vals, descriptor->environment_length()));
-}
-
-
-HInstruction* HOptimizedGraphBuilder::NewCallKeyed(
-    HValue* key, int argument_count) {
-  CallInterfaceDescriptor* descriptor =
-      isolate()->call_descriptor(Isolate::KeyedCall);
-  HValue* op_vals[] = { context(), key };
-  int arity = argument_count - 1;
-  Handle<Code> ic = isolate()->stub_cache()->ComputeKeyedCallInitialize(arity);
-
-  return New<HCallWithDescriptor>(
-      Add<HConstant>(ic), argument_count, descriptor,
-      Vector<HValue*>(op_vals, descriptor->environment_length()));
-}
 
 class FunctionSorter {
  public:
@@ -7003,73 +7081,34 @@ inline bool operator<(const FunctionSorter& lhs, const FunctionSorter& rhs) {
 }
 
 
-bool HOptimizedGraphBuilder::TryCallPolymorphicAsMonomorphic(
-    Call* expr,
-    HValue* receiver,
-    SmallMapList* types,
-    Handle<String> name) {
-  if (types->length() > kMaxCallPolymorphism) return false;
-
-  PropertyAccessInfo info(isolate(), types->at(0), name);
-  if (!info.CanLoadAsMonomorphic(types)) return false;
-  if (!expr->ComputeTarget(info.map(), name)) return false;
-
-  BuildCheckHeapObject(receiver);
-  Add<HCheckMaps>(receiver, types);
-  AddCheckPrototypeMaps(expr->holder(), info.map());
-  if (FLAG_trace_inlining) {
-    Handle<JSFunction> caller = current_info()->closure();
-    SmartArrayPointer<char> caller_name =
-        caller->shared()->DebugName()->ToCString();
-    PrintF("Trying to inline the polymorphic call to %s from %s\n",
-           name->ToCString().get(), caller_name.get());
-  }
-
-  if (!TryInlineCall(expr)) {
-    int argument_count = expr->arguments()->length() + 1;  // Includes receiver.
-    HInstruction* call = BuildCallConstantFunction(
-        expr->target(), argument_count);
-    PushArgumentsFromEnvironment(argument_count);
-    AddInstruction(call);
-    if (!ast_context()->IsEffect()) Push(call);
-    Add<HSimulate>(expr->id(), REMOVABLE_SIMULATE);
-    if (!ast_context()->IsEffect()) ast_context()->ReturnValue(Pop());
-  }
-
-  return true;
-}
-
-
 void HOptimizedGraphBuilder::HandlePolymorphicCallNamed(
     Call* expr,
     HValue* receiver,
     SmallMapList* types,
     Handle<String> name) {
-  if (TryCallPolymorphicAsMonomorphic(expr, receiver, types, name)) return;
-
   int argument_count = expr->arguments()->length() + 1;  // Includes receiver.
-  HBasicBlock* join = NULL;
   FunctionSorter order[kMaxCallPolymorphism];
-  int ordered_functions = 0;
-
-  Handle<Map> initial_string_map(
-      isolate()->native_context()->string_function()->initial_map());
-  Handle<Map> string_marker_map(
-      JSObject::cast(initial_string_map->prototype())->map());
-  Handle<Map> initial_number_map(
-      isolate()->native_context()->number_function()->initial_map());
-  Handle<Map> number_marker_map(
-      JSObject::cast(initial_number_map->prototype())->map());
-  Handle<Map> heap_number_map = isolate()->factory()->heap_number_map();
 
   bool handle_smi = false;
+  bool handled_string = false;
+  int ordered_functions = 0;
 
   for (int i = 0;
        i < types->length() && ordered_functions < kMaxCallPolymorphism;
        ++i) {
-    Handle<Map> map = types->at(i);
-    if (expr->ComputeTarget(map, name)) {
-      if (map.is_identical_to(number_marker_map)) handle_smi = true;
+    PropertyAccessInfo info(this, IC::MapToType(types->at(i)), name);
+    if (info.CanLoadMonomorphic() &&
+        info.lookup()->IsConstant() &&
+        info.constant()->IsJSFunction()) {
+      if (info.type()->Is(HeapType::String())) {
+        if (handled_string) continue;
+        handled_string = true;
+      }
+      Handle<JSFunction> target = Handle<JSFunction>::cast(info.constant());
+      if (info.type()->Is(HeapType::Number())) {
+        handle_smi = true;
+      }
+      expr->set_target(target);
       order[ordered_functions++] =
           FunctionSorter(i,
                          expr->target()->shared()->profiler_ticks(),
@@ -7081,11 +7120,23 @@ void HOptimizedGraphBuilder::HandlePolymorphicCallNamed(
   std::sort(order, order + ordered_functions);
 
   HBasicBlock* number_block = NULL;
+  HBasicBlock* join = NULL;
+  handled_string = false;
+  int count = 0;
 
   for (int fn = 0; fn < ordered_functions; ++fn) {
     int i = order[fn].index();
-    Handle<Map> map = types->at(i);
-    if (fn == 0) {
+    PropertyAccessInfo info(this, IC::MapToType(types->at(i)), name);
+    if (info.type()->Is(HeapType::String())) {
+      if (handled_string) continue;
+      handled_string = true;
+    }
+    // Reloads the target.
+    info.CanLoadMonomorphic();
+    Handle<JSFunction> target = Handle<JSFunction>::cast(info.constant());
+
+    expr->set_target(target);
+    if (count == 0) {
       // Only needed once.
       join = graph()->CreateBasicBlock();
       if (handle_smi) {
@@ -7100,37 +7151,39 @@ void HOptimizedGraphBuilder::HandlePolymorphicCallNamed(
         BuildCheckHeapObject(receiver);
       }
     }
+    ++count;
     HBasicBlock* if_true = graph()->CreateBasicBlock();
     HBasicBlock* if_false = graph()->CreateBasicBlock();
     HUnaryControlInstruction* compare;
 
-    if (handle_smi && map.is_identical_to(number_marker_map)) {
+    Handle<Map> map = info.map();
+    if (info.type()->Is(HeapType::Number())) {
+      Handle<Map> heap_number_map = isolate()->factory()->heap_number_map();
       compare = New<HCompareMap>(receiver, heap_number_map, if_true, if_false);
-      map = initial_number_map;
-      expr->set_number_check(
-          Handle<JSObject>(JSObject::cast(map->prototype())));
-    } else if (map.is_identical_to(string_marker_map)) {
+    } else if (info.type()->Is(HeapType::String())) {
       compare = New<HIsStringAndBranch>(receiver, if_true, if_false);
-      map = initial_string_map;
-      expr->set_string_check(
-          Handle<JSObject>(JSObject::cast(map->prototype())));
     } else {
       compare = New<HCompareMap>(receiver, map, if_true, if_false);
-      expr->set_map_check();
     }
-
     FinishCurrentBlock(compare);
 
-    if (expr->check_type() == NUMBER_CHECK) {
+    if (info.type()->Is(HeapType::Number())) {
       Goto(if_true, number_block);
       if_true = number_block;
       number_block->SetJoinId(expr->id());
     }
+
     set_current_block(if_true);
 
-    expr->ComputeTarget(map, name);
-    AddCheckPrototypeMaps(expr->holder(), map);
-    if (FLAG_trace_inlining && FLAG_polymorphic_inlining) {
+    AddCheckPrototypeMaps(info.holder(), map);
+
+    HValue* function = Add<HConstant>(expr->target());
+    environment()->SetExpressionStackAt(0, function);
+    Push(receiver);
+    CHECK_ALIVE(VisitExpressions(expr->arguments()));
+    bool needs_wrapping = NeedsWrappingFor(info.type(), target);
+    bool try_inline = FLAG_polymorphic_inlining && !needs_wrapping;
+    if (FLAG_trace_inlining && try_inline) {
       Handle<JSFunction> caller = current_info()->closure();
       SmartArrayPointer<char> caller_name =
           caller->shared()->DebugName()->ToCString();
@@ -7138,15 +7191,22 @@ void HOptimizedGraphBuilder::HandlePolymorphicCallNamed(
              name->ToCString().get(),
              caller_name.get());
     }
-    if (FLAG_polymorphic_inlining && TryInlineCall(expr)) {
+    if (try_inline && TryInlineCall(expr)) {
       // Trying to inline will signal that we should bailout from the
       // entire compilation by setting stack overflow on the visitor.
       if (HasStackOverflow()) return;
     } else {
-      HInstruction* call = BuildCallConstantFunction(
-          expr->target(), argument_count);
+      // Since HWrapReceiver currently cannot actually wrap numbers and strings,
+      // use the regular CallFunctionStub for method calls to wrap the receiver.
+      // TODO(verwaest): Support creation of value wrappers directly in
+      // HWrapReceiver.
+      HInstruction* call = needs_wrapping
+          ? NewUncasted<HCallFunction>(
+              function, argument_count, WRAP_AND_CALL)
+          : BuildCallConstantFunction(target, argument_count);
       PushArgumentsFromEnvironment(argument_count);
       AddInstruction(call);
+      Drop(1);  // Drop the function.
       if (!ast_context()->IsEffect()) Push(call);
     }
 
@@ -7161,12 +7221,28 @@ void HOptimizedGraphBuilder::HandlePolymorphicCallNamed(
     // Because the deopt may be the only path in the polymorphic call, make sure
     // that the environment stack matches the depth on deopt that it otherwise
     // would have had after a successful call.
-    Drop(argument_count);
+    Drop(1);  // Drop receiver.
     if (!ast_context()->IsEffect()) Push(graph()->GetConstant0());
     FinishExitWithHardDeoptimization("Unknown map in polymorphic call", join);
   } else {
-    HInstruction* call = NewCallNamed(name, argument_count);
+    Property* prop = expr->expression()->AsProperty();
+    HInstruction* function = BuildLoadNamedGeneric(receiver, name, prop);
+    AddInstruction(function);
+    Push(function);
+    AddSimulate(prop->LoadId(), REMOVABLE_SIMULATE);
+
+    environment()->SetExpressionStackAt(1, function);
+    environment()->SetExpressionStackAt(0, receiver);
+    CHECK_ALIVE(VisitExpressions(expr->arguments()));
+
+    CallFunctionFlags flags = receiver->type().IsJSObject()
+        ? NO_CALL_FUNCTION_FLAGS : CALL_AS_METHOD;
+    HInstruction* call = New<HCallFunction>(
+        function, argument_count, flags);
+
     PushArgumentsFromEnvironment(argument_count);
+
+    Drop(1);  // Function.
 
     if (join != NULL) {
       AddInstruction(call);
@@ -7548,13 +7624,13 @@ bool HOptimizedGraphBuilder::TryInline(Handle<JSFunction> target,
 }
 
 
-bool HOptimizedGraphBuilder::TryInlineCall(Call* expr, bool drop_extra) {
+bool HOptimizedGraphBuilder::TryInlineCall(Call* expr) {
   return TryInline(expr->target(),
                    expr->arguments()->length(),
                    NULL,
                    expr->id(),
                    expr->ReturnId(),
-                   drop_extra ? DROP_EXTRA_ON_RETURN : NORMAL_RETURN);
+                   NORMAL_RETURN);
 }
 
 
@@ -7605,8 +7681,7 @@ bool HOptimizedGraphBuilder::TryInlineApply(Handle<JSFunction> function,
 }
 
 
-bool HOptimizedGraphBuilder::TryInlineBuiltinFunctionCall(Call* expr,
-                                                          bool drop_extra) {
+bool HOptimizedGraphBuilder::TryInlineBuiltinFunctionCall(Call* expr) {
   if (!expr->target()->shared()->HasBuiltinFunctionId()) return false;
   BuiltinFunctionId id = expr->target()->shared()->builtin_function_id();
   switch (id) {
@@ -7620,9 +7695,8 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinFunctionCall(Call* expr,
     case kMathLog:
       if (expr->arguments()->length() == 1) {
         HValue* argument = Pop();
-        Drop(1);  // Receiver.
+        Drop(2);  // Receiver and function.
         HInstruction* op = NewUncasted<HUnaryMathOperation>(argument, id);
-        if (drop_extra) Drop(1);  // Optionally drop the function.
         ast_context()->ReturnInstruction(op, expr->id());
         return true;
       }
@@ -7631,9 +7705,8 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinFunctionCall(Call* expr,
       if (expr->arguments()->length() == 2) {
         HValue* right = Pop();
         HValue* left = Pop();
-        Drop(1);  // Receiver.
+        Drop(2);  // Receiver and function.
         HInstruction* op = HMul::NewImul(zone(), context(), left, right);
-        if (drop_extra) Drop(1);  // Optionally drop the function.
         ast_context()->ReturnInstruction(op, expr->id());
         return true;
       }
@@ -7649,9 +7722,7 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinFunctionCall(Call* expr,
 bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
     Call* expr,
     HValue* receiver,
-    Handle<Map> receiver_map,
-    CheckType check_type) {
-  ASSERT(check_type != RECEIVER_MAP_CHECK || !receiver_map.is_null());
+    Handle<Map> receiver_map) {
   // Try to inline calls like Math.* as operations in the calling function.
   if (!expr->target()->shared()->HasBuiltinFunctionId()) return false;
   BuiltinFunctionId id = expr->target()->shared()->builtin_function_id();
@@ -7659,13 +7730,10 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
   switch (id) {
     case kStringCharCodeAt:
     case kStringCharAt:
-      if (argument_count == 2 && check_type == STRING_CHECK) {
+      if (argument_count == 2) {
         HValue* index = Pop();
         HValue* string = Pop();
-        ASSERT(!expr->holder().is_null());
-        BuildCheckPrototypeMaps(Call::GetPrototypeForPrimitiveCheck(
-                STRING_CHECK, expr->holder()->GetIsolate()),
-            expr->holder());
+        Drop(1);  // Function.
         HInstruction* char_code =
             BuildStringCharCodeAt(string, index);
         if (id == kStringCharCodeAt) {
@@ -7679,10 +7747,9 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
       }
       break;
     case kStringFromCharCode:
-      if (argument_count == 2 && check_type == RECEIVER_MAP_CHECK) {
-        AddCheckConstantFunction(expr->holder(), receiver, receiver_map);
+      if (argument_count == 2) {
         HValue* argument = Pop();
-        Drop(1);  // Receiver.
+        Drop(2);  // Receiver and function.
         HInstruction* result = NewUncasted<HStringCharFromCode>(argument);
         ast_context()->ReturnInstruction(result, expr->id());
         return true;
@@ -7696,21 +7763,19 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
     case kMathAbs:
     case kMathSqrt:
     case kMathLog:
-      if (argument_count == 2 && check_type == RECEIVER_MAP_CHECK) {
-        AddCheckConstantFunction(expr->holder(), receiver, receiver_map);
+      if (argument_count == 2) {
         HValue* argument = Pop();
-        Drop(1);  // Receiver.
+        Drop(2);  // Receiver and function.
         HInstruction* op = NewUncasted<HUnaryMathOperation>(argument, id);
         ast_context()->ReturnInstruction(op, expr->id());
         return true;
       }
       break;
     case kMathPow:
-      if (argument_count == 3 && check_type == RECEIVER_MAP_CHECK) {
-        AddCheckConstantFunction(expr->holder(), receiver, receiver_map);
+      if (argument_count == 3) {
         HValue* right = Pop();
         HValue* left = Pop();
-        Pop();  // Pop receiver.
+        Drop(2);  // Receiver and function.
         HInstruction* result = NULL;
         // Use sqrt() if exponent is 0.5 or -0.5.
         if (right->IsConstant() && HConstant::cast(right)->HasDoubleValue()) {
@@ -7739,11 +7804,10 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
       break;
     case kMathMax:
     case kMathMin:
-      if (argument_count == 3 && check_type == RECEIVER_MAP_CHECK) {
-        AddCheckConstantFunction(expr->holder(), receiver, receiver_map);
+      if (argument_count == 3) {
         HValue* right = Pop();
         HValue* left = Pop();
-        Drop(1);  // Receiver.
+        Drop(2);  // Receiver and function.
         HMathMinMax::Operation op = (id == kMathMin) ? HMathMinMax::kMathMin
                                                      : HMathMinMax::kMathMax;
         HInstruction* result = NewUncasted<HMathMinMax>(left, right, op);
@@ -7752,24 +7816,20 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
       }
       break;
     case kMathImul:
-      if (argument_count == 3 && check_type == RECEIVER_MAP_CHECK) {
-        AddCheckConstantFunction(expr->holder(), receiver, receiver_map);
+      if (argument_count == 3) {
         HValue* right = Pop();
         HValue* left = Pop();
-        Drop(1);  // Receiver.
+        Drop(2);  // Receiver and function.
         HInstruction* result = HMul::NewImul(zone(), context(), left, right);
         ast_context()->ReturnInstruction(result, expr->id());
         return true;
       }
       break;
     case kArrayPop: {
-      if (!expr->IsMonomorphic() || expr->check_type() != RECEIVER_MAP_CHECK) {
-        return false;
-      }
+      if (receiver_map.is_null()) return false;
       if (receiver_map->instance_type() != JS_ARRAY_TYPE) return false;
       ElementsKind elements_kind = receiver_map->elements_kind();
       if (!IsFastElementsKind(elements_kind)) return false;
-      AddCheckConstantFunction(expr->holder(), receiver, receiver_map);
 
       Drop(expr->arguments()->length());
       HValue* result;
@@ -7780,6 +7840,8 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
       HValue* length = Add<HLoadNamedField>(
           checked_object, static_cast<HValue*>(NULL),
           HObjectAccess::ForArrayLength(elements_kind));
+
+      Drop(1);  // Function.
 
       { NoObservableSideEffectsScope scope(this);
         IfBuilder length_checker(this);
@@ -7826,13 +7888,10 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
       return true;
     }
     case kArrayPush: {
-      if (!expr->IsMonomorphic() || expr->check_type() != RECEIVER_MAP_CHECK) {
-        return false;
-      }
+      if (receiver_map.is_null()) return false;
       if (receiver_map->instance_type() != JS_ARRAY_TYPE) return false;
       ElementsKind elements_kind = receiver_map->elements_kind();
       if (!IsFastElementsKind(elements_kind)) return false;
-      AddCheckConstantFunction(expr->holder(), receiver, receiver_map);
 
       HValue* op_vals[] = {
         context(),
@@ -7857,6 +7916,7 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
       HInstruction* call = New<HCallWithDescriptor>(
           code_value, argc + 1, descriptor,
           Vector<HValue*>(op_vals, descriptor->environment_length()));
+      Drop(1);  // Drop function.
       ast_context()->ReturnInstruction(call, expr->id());
       return true;
     }
@@ -7868,12 +7928,113 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
 }
 
 
-bool HOptimizedGraphBuilder::TryCallApply(Call* expr) {
-  Expression* callee = expr->expression();
-  Property* prop = callee->AsProperty();
-  ASSERT(prop != NULL);
+bool HOptimizedGraphBuilder::TryInlineApiFunctionCall(Call* expr,
+                                                      HValue* receiver) {
+  return TryInlineApiCall(
+      expr, receiver, Handle<Map>::null(), true);
+}
 
-  if (!expr->IsMonomorphic() || expr->check_type() != RECEIVER_MAP_CHECK) {
+
+bool HOptimizedGraphBuilder::TryInlineApiMethodCall(Call* expr,
+                                                    HValue* receiver,
+                                                    Handle<Map> receiver_map) {
+  return TryInlineApiCall(expr, receiver, receiver_map, false);
+}
+
+bool HOptimizedGraphBuilder::TryInlineApiCall(Call* expr,
+                                              HValue* receiver,
+                                              Handle<Map> receiver_map,
+                                              bool is_function_call) {
+  if (!expr->IsMonomorphic()) return false;
+  CallOptimization optimization(expr->target());
+  if (!optimization.is_simple_api_call()) return false;
+  Handle<Map> holder_map;
+  if (is_function_call) {
+    // Cannot embed a direct reference to the global proxy map
+    // as it maybe dropped on deserialization.
+    CHECK(!Serializer::enabled());
+    receiver_map = Handle<Map>(
+        expr->target()->context()->global_object()->global_receiver()->map());
+  }
+  CallOptimization::HolderLookup holder_lookup =
+      CallOptimization::kHolderNotFound;
+  Handle<JSObject> api_holder = optimization.LookupHolderOfExpectedType(
+      receiver_map, &holder_lookup);
+  if (holder_lookup == CallOptimization::kHolderNotFound) return false;
+
+  if (FLAG_trace_inlining) {
+    PrintF("Inlining api function ");
+    expr->target()->ShortPrint();
+    PrintF("\n");
+  }
+
+  const int argc = expr->arguments()->length();
+  // Includes receiver.
+  PushArgumentsFromEnvironment(argc + 1);
+
+  // Need to ensure the chain between receiver and api_holder is intact
+  AddCheckMap(receiver, receiver_map);
+  if (holder_lookup == CallOptimization::kHolderFound) {
+    AddCheckPrototypeMaps(api_holder, receiver_map);
+  } else {
+    ASSERT_EQ(holder_lookup, CallOptimization::kHolderIsReceiver);
+  }
+
+  HValue* holder = NULL;
+  switch (holder_lookup) {
+    case CallOptimization::kHolderFound:
+      holder = Add<HConstant>(api_holder);
+      break;
+    case CallOptimization::kHolderIsReceiver:
+      holder = receiver;
+      break;
+    case CallOptimization::kHolderNotFound:
+      UNREACHABLE();
+      break;
+  }
+  Handle<CallHandlerInfo> api_call_info = optimization.api_call_info();
+  Handle<Object> call_data_obj(api_call_info->data(), isolate());
+  bool call_data_is_undefined = call_data_obj->IsUndefined();
+  HValue* call_data = Add<HConstant>(call_data_obj);
+  ApiFunction fun(v8::ToCData<Address>(api_call_info->callback()));
+  ExternalReference ref = ExternalReference(&fun,
+                                            ExternalReference::DIRECT_API_CALL,
+                                            isolate());
+  HValue* api_function_address = Add<HConstant>(ExternalReference(ref));
+
+  HValue* op_vals[] = {
+    // callee
+    Add<HConstant>(expr->target()),
+    call_data,
+    holder,
+    api_function_address,
+    context()
+  };
+
+  CallInterfaceDescriptor* descriptor =
+      isolate()->call_descriptor(Isolate::ApiFunctionCall);
+
+  CallApiFunctionStub stub(true, call_data_is_undefined, argc);
+  Handle<Code> code = stub.GetCode(isolate());
+  HConstant* code_value = Add<HConstant>(code);
+
+  ASSERT((sizeof(op_vals) / kPointerSize) ==
+         descriptor->environment_length());
+
+  HInstruction* call = New<HCallWithDescriptor>(
+      code_value, argc + 1, descriptor,
+      Vector<HValue*>(op_vals, descriptor->environment_length()));
+
+  Drop(1);  // Drop function.
+  ast_context()->ReturnInstruction(call, expr->id());
+  return true;
+}
+
+
+bool HOptimizedGraphBuilder::TryCallApply(Call* expr) {
+  ASSERT(expr->expression()->IsProperty());
+
+  if (!expr->IsMonomorphic()) {
     return false;
   }
   Handle<Map> function_map = expr->GetReceiverTypes()->first();
@@ -7894,15 +8055,10 @@ bool HOptimizedGraphBuilder::TryCallApply(Call* expr) {
   if (!arg_two_value->CheckFlag(HValue::kIsArguments)) return false;
 
   // Found pattern f.apply(receiver, arguments).
-  CHECK_ALIVE_OR_RETURN(VisitForValue(prop->obj()), true);
-  HValue* function = Top();
-
-  AddCheckConstantFunction(expr->holder(), function, function_map);
-
   CHECK_ALIVE_OR_RETURN(VisitForValue(args->at(0)), true);
-  HValue* receiver = Pop();
-
-  Drop(1);  // Pop the function.
+  HValue* receiver = Pop();  // receiver
+  HValue* function = Pop();  // f
+  Drop(1);  // apply
 
   if (function_state()->outer() == NULL) {
     HInstruction* elements = Add<HArgumentsElements>(false);
@@ -7922,6 +8078,7 @@ bool HOptimizedGraphBuilder::TryCallApply(Call* expr) {
     HArgumentsObject* args = function_state()->entry()->arguments_object();
     const ZoneList<HValue*>* arguments_values = args->arguments_values();
     int arguments_count = arguments_values->length();
+    Push(function);
     Push(BuildWrapReceiver(receiver, function));
     for (int i = 1; i < arguments_count; i++) {
       Push(arguments_values->at(i));
@@ -7936,16 +8093,10 @@ bool HOptimizedGraphBuilder::TryCallApply(Call* expr) {
       if (TryInlineApply(known_function, expr, args_count)) return true;
     }
 
-    Drop(arguments_count - 1);
-    Push(Add<HPushArgument>(Pop()));
-    for (int i = 1; i < arguments_count; i++) {
-      Push(Add<HPushArgument>(arguments_values->at(i)));
-    }
-
-    HInvokeFunction* call = New<HInvokeFunction>(function,
-                                                 known_function,
-                                                 arguments_count);
-    Drop(arguments_count);
+    PushArgumentsFromEnvironment(arguments_count);
+    HInvokeFunction* call = New<HInvokeFunction>(
+        function, known_function, arguments_count);
+    Drop(1);  // Function.
     ast_context()->ReturnInstruction(call, expr->id());
     return true;
   }
@@ -7956,16 +8107,12 @@ HValue* HOptimizedGraphBuilder::ImplicitReceiverFor(HValue* function,
                                                     Handle<JSFunction> target) {
   SharedFunctionInfo* shared = target->shared();
   if (shared->is_classic_mode() && !shared->native()) {
-    HValue* context = Add<HLoadNamedField>(
-        function, static_cast<HValue*>(NULL),
-        HObjectAccess::ForJSObjectOffset(JSFunction::kContextOffset));
-    HValue* global_object = Add<HLoadNamedField>(
-        context, static_cast<HValue*>(NULL),
-        HObjectAccess::ForContextSlot(Context::GLOBAL_OBJECT_INDEX));
-    return Add<HLoadNamedField>(
-        global_object, static_cast<HValue*>(NULL),
-        HObjectAccess::ForJSObjectOffset(
-            GlobalObject::kGlobalReceiverOffset));
+    // Cannot embed a direct reference to the global proxy
+    // as is it dropped on deserialization.
+    CHECK(!Serializer::enabled());
+    Handle<JSObject> global_receiver(
+        target->context()->global_object()->global_receiver());
+    return Add<HConstant>(global_receiver);
   }
   return graph()->GetConstantUndefined();
 }
@@ -7981,87 +8128,78 @@ void HOptimizedGraphBuilder::VisitCall(Call* expr) {
 
   Property* prop = callee->AsProperty();
   if (prop != NULL) {
-    if (!prop->key()->IsPropertyName()) {
-      // Keyed function call.
-      CHECK_ALIVE(VisitForValue(prop->obj()));
-      CHECK_ALIVE(VisitForValue(prop->key()));
-
-      // Push receiver and key like the non-optimized code generator expects it.
-      HValue* key = Pop();
-      HValue* receiver = Pop();
-      Push(key);
-      Push(Add<HPushArgument>(receiver));
-      CHECK_ALIVE(VisitArgumentList(expr->arguments()));
-
-      if (expr->IsMonomorphic()) {
-        BuildCheckHeapObject(receiver);
-        ElementsKind kind = expr->KeyedArrayCallIsHoley()
-            ? FAST_HOLEY_ELEMENTS : FAST_ELEMENTS;
-
-        Handle<Map> map(isolate()->get_initial_js_array_map(kind));
-
-        HValue* function = BuildMonomorphicElementAccess(
-            receiver, key, NULL, NULL, map, false, STANDARD_STORE);
-
-        call = New<HCallFunction>(function, argument_count);
-      } else {
-        call = NewCallKeyed(key, argument_count);
-      }
-      Drop(argument_count + 1);  // 1 is the key.
-      return ast_context()->ReturnInstruction(call, expr->id());
-    }
-
-    // Named function call.
-    if (TryCallApply(expr)) return;
-
     CHECK_ALIVE(VisitForValue(prop->obj()));
-    CHECK_ALIVE(VisitExpressions(expr->arguments()));
-
-    Handle<String> name = prop->key()->AsLiteral()->AsPropertyName();
-    HValue* receiver =
-        environment()->ExpressionStackAt(expr->arguments()->length());
+    HValue* receiver = Top();
 
     SmallMapList* types;
-    bool was_monomorphic = expr->IsMonomorphic();
-    bool monomorphic = ComputeReceiverTypes(expr, receiver, &types);
-    if (!was_monomorphic && monomorphic) {
-      monomorphic = expr->ComputeTarget(types->first(), name);
+    ComputeReceiverTypes(expr, receiver, &types);
+
+    if (prop->key()->IsPropertyName() && types->length() > 0) {
+      Handle<String> name = prop->key()->AsLiteral()->AsPropertyName();
+      PropertyAccessInfo info(this, IC::MapToType(types->first()), name);
+      if (!info.CanLoadAsMonomorphic(types)) {
+        HandlePolymorphicCallNamed(expr, receiver, types, name);
+        return;
+      }
     }
 
-    if (monomorphic) {
-      Handle<Map> map = types->first();
-      if (TryInlineBuiltinMethodCall(expr, receiver, map, expr->check_type())) {
+    HValue* key = NULL;
+    if (!prop->key()->IsPropertyName()) {
+      CHECK_ALIVE(VisitForValue(prop->key()));
+      key = Pop();
+    }
+
+    CHECK_ALIVE(PushLoad(prop, receiver, key));
+    HValue* function = Pop();
+
+    // Push the function under the receiver.
+    environment()->SetExpressionStackAt(0, function);
+
+    Push(receiver);
+
+    if (function->IsConstant() &&
+        HConstant::cast(function)->handle(isolate())->IsJSFunction()) {
+      Handle<JSFunction> known_function = Handle<JSFunction>::cast(
+          HConstant::cast(function)->handle(isolate()));
+      expr->set_target(known_function);
+
+      if (TryCallApply(expr)) return;
+      CHECK_ALIVE(VisitExpressions(expr->arguments()));
+
+      Handle<Map> map = types->length() == 1 ? types->first() : Handle<Map>();
+      if (TryInlineBuiltinMethodCall(expr, receiver, map)) {
         if (FLAG_trace_inlining) {
           PrintF("Inlining builtin ");
-          expr->target()->ShortPrint();
+          known_function->ShortPrint();
           PrintF("\n");
         }
         return;
       }
+      if (TryInlineApiMethodCall(expr, receiver, map)) return;
 
-      if (CallStubCompiler::HasCustomCallGenerator(expr->target()) ||
-          expr->check_type() != RECEIVER_MAP_CHECK) {
-        // When the target has a custom call IC generator, use the IC,
-        // because it is likely to generate better code.  Also use the IC
-        // when a primitive receiver check is required.
-        call = NewCallNamed(name, argument_count);
-        PushArgumentsFromEnvironment(argument_count);
+      // Wrap the receiver if necessary.
+      if (NeedsWrappingFor(IC::MapToType(types->first()), known_function)) {
+        // Since HWrapReceiver currently cannot actually wrap numbers and
+        // strings, use the regular CallFunctionStub for method calls to wrap
+        // the receiver.
+        // TODO(verwaest): Support creation of value wrappers directly in
+        // HWrapReceiver.
+        call = New<HCallFunction>(
+            function, argument_count, WRAP_AND_CALL);
+      } else if (TryInlineCall(expr)) {
+        return;
       } else {
-        AddCheckConstantFunction(expr->holder(), receiver, map);
-
-        if (TryInlineCall(expr)) return;
-        call = BuildCallConstantFunction(expr->target(), argument_count);
-        PushArgumentsFromEnvironment(argument_count);
+        call = BuildCallConstantFunction(known_function, argument_count);
       }
-    } else if (types != NULL && types->length() > 1) {
-      ASSERT(expr->check_type() == RECEIVER_MAP_CHECK);
-      HandlePolymorphicCallNamed(expr, receiver, types, name);
-      return;
 
     } else {
-      call = NewCallNamed(name, argument_count);
-      PushArgumentsFromEnvironment(argument_count);
+      CHECK_ALIVE(VisitExpressions(expr->arguments()));
+      CallFunctionFlags flags = receiver->type().IsJSObject()
+          ? NO_CALL_FUNCTION_FLAGS : CALL_AS_METHOD;
+      call = New<HCallFunction>(function, argument_count, flags);
     }
+    PushArgumentsFromEnvironment(argument_count);
+
   } else {
     VariableProxy* proxy = expr->expression()->AsVariableProxy();
     if (proxy != NULL && proxy->var()->is_possibly_eval(isolate())) {
@@ -8082,26 +8220,21 @@ void HOptimizedGraphBuilder::VisitCall(Call* expr) {
         Handle<GlobalObject> global(current_info()->global_object());
         known_global_function = expr->ComputeGlobalTarget(global, &lookup);
       }
+      CHECK_ALIVE(VisitForValue(expr->expression()));
+      HValue* function = Top();
       if (known_global_function) {
-        // Push the global object instead of the global receiver because
-        // code generated by the full code generator expects it.
-        HValue* global_object = Add<HLoadNamedField>(
-            context(), static_cast<HValue*>(NULL),
-            HObjectAccess::ForContextSlot(Context::GLOBAL_OBJECT_INDEX));
-        Push(global_object);
-
-        CHECK_ALIVE(VisitExpressions(expr->arguments()));
-
-        CHECK_ALIVE(VisitForValue(expr->expression()));
-        HValue* function = Pop();
         Add<HCheckValue>(function, expr->target());
+
+        // Placeholder for the receiver.
+        Push(graph()->GetConstantUndefined());
+        CHECK_ALIVE(VisitExpressions(expr->arguments()));
 
         // Patch the global object on the stack by the expected receiver.
         HValue* receiver = ImplicitReceiverFor(function, expr->target());
         const int receiver_index = argument_count - 1;
         environment()->SetExpressionStackAt(receiver_index, receiver);
 
-        if (TryInlineBuiltinFunctionCall(expr, false)) {  // Nothing to drop.
+        if (TryInlineBuiltinFunctionCall(expr)) {
           if (FLAG_trace_inlining) {
             PrintF("Inlining builtin ");
             expr->target()->ShortPrint();
@@ -8109,36 +8242,15 @@ void HOptimizedGraphBuilder::VisitCall(Call* expr) {
           }
           return;
         }
+        if (TryInlineApiFunctionCall(expr, receiver)) return;
         if (TryInlineCall(expr)) return;
 
-        if (expr->target().is_identical_to(current_info()->closure())) {
-          graph()->MarkRecursive();
-        }
-
-        if (CallStubCompiler::HasCustomCallGenerator(expr->target())) {
-          // We're about to install a contextual IC, which expects the global
-          // object as receiver rather than the global proxy.
-          HValue* global_object = Add<HLoadNamedField>(
-              context(), static_cast<HValue*>(NULL),
-              HObjectAccess::ForContextSlot(Context::GLOBAL_OBJECT_INDEX));
-          const int receiver_index = argument_count - 1;
-          environment()->SetExpressionStackAt(receiver_index, global_object);
-          // When the target has a custom call IC generator, use the IC,
-          // because it is likely to generate better code.
-          call = NewCallNamed(var->name(), argument_count);
-          PushArgumentsFromEnvironment(argument_count);
-        } else {
-          call = BuildCallConstantFunction(expr->target(), argument_count);
-          PushArgumentsFromEnvironment(argument_count);
-        }
+        PushArgumentsFromEnvironment(argument_count);
+        call = BuildCallConstantFunction(expr->target(), argument_count);
       } else {
-        HValue* receiver = Add<HLoadNamedField>(
-            context(), static_cast<HValue*>(NULL),
-            HObjectAccess::ForContextSlot(Context::GLOBAL_OBJECT_INDEX));
-        Push(Add<HPushArgument>(receiver));
+        Push(Add<HPushArgument>(graph()->GetConstantUndefined()));
         CHECK_ALIVE(VisitArgumentList(expr->arguments()));
-
-        call = NewCallNamed(var->name(), argument_count);
+        call = New<HCallFunction>(function, argument_count);
         Drop(argument_count);
       }
 
@@ -8150,12 +8262,14 @@ void HOptimizedGraphBuilder::VisitCall(Call* expr) {
 
       Add<HCheckValue>(function, expr->target());
 
-      HValue* receiver = ImplicitReceiverFor(function, expr->target());
-      Push(receiver);
-
+      Push(graph()->GetConstantUndefined());
       CHECK_ALIVE(VisitExpressions(expr->arguments()));
 
-      if (TryInlineBuiltinFunctionCall(expr, true)) {  // Drop the function.
+      HValue* receiver = ImplicitReceiverFor(function, expr->target());
+      const int receiver_index = argument_count - 1;
+      environment()->SetExpressionStackAt(receiver_index, receiver);
+
+      if (TryInlineBuiltinFunctionCall(expr)) {
         if (FLAG_trace_inlining) {
           PrintF("Inlining builtin ");
           expr->target()->ShortPrint();
@@ -8163,14 +8277,12 @@ void HOptimizedGraphBuilder::VisitCall(Call* expr) {
         }
         return;
       }
+      if (TryInlineApiFunctionCall(expr, receiver)) return;
 
-      if (TryInlineCall(expr, true)) {   // Drop function from environment.
-        return;
-      } else {
-        call = PreProcessCall(New<HInvokeFunction>(function, expr->target(),
-                                                   argument_count));
-        Drop(1);  // The function.
-      }
+      if (TryInlineCall(expr)) return;
+
+      call = PreProcessCall(New<HInvokeFunction>(
+          function, expr->target(), argument_count));
 
     } else {
       CHECK_ALIVE(VisitForValue(expr->expression()));
@@ -8178,12 +8290,12 @@ void HOptimizedGraphBuilder::VisitCall(Call* expr) {
       HValue* receiver = graph()->GetConstantUndefined();
       Push(Add<HPushArgument>(receiver));
       CHECK_ALIVE(VisitArgumentList(expr->arguments()));
-      call = New<HCallFunction>(
-          function, argument_count, NORMAL_CONTEXTUAL_CALL);
-      Drop(argument_count + 1);
+      call = New<HCallFunction>(function, argument_count);
+      Drop(argument_count);
     }
   }
 
+  Drop(1);  // Drop the function.
   return ast_context()->ReturnInstruction(call, expr->id());
 }
 
@@ -10332,9 +10444,27 @@ void HOptimizedGraphBuilder::GenerateClassOf(CallRuntime* call) {
 void HOptimizedGraphBuilder::GenerateValueOf(CallRuntime* call) {
   ASSERT(call->arguments()->length() == 1);
   CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
-  HValue* value = Pop();
-  HValueOf* result = New<HValueOf>(value);
-  return ast_context()->ReturnInstruction(result, call->id());
+  HValue* object = Pop();
+
+  IfBuilder if_objectisvalue(this);
+  HValue* objectisvalue = if_objectisvalue.If<HHasInstanceTypeAndBranch>(
+      object, JS_VALUE_TYPE);
+  if_objectisvalue.Then();
+  {
+    // Return the actual value.
+    Push(Add<HLoadNamedField>(
+            object, objectisvalue,
+            HObjectAccess::ForJSObjectOffset(JSValue::kValueOffset)));
+    Add<HSimulate>(call->id(), FIXED_SIMULATE);
+  }
+  if_objectisvalue.Else();
+  {
+    // If the object is not a value return the object.
+    Push(object);
+    Add<HSimulate>(call->id(), FIXED_SIMULATE);
+  }
+  if_objectisvalue.End();
+  return ast_context()->ReturnValue(Pop());
 }
 
 
@@ -10604,12 +10734,6 @@ void HOptimizedGraphBuilder::GenerateMathSqrt(CallRuntime* call) {
   HValue* value = Pop();
   HInstruction* result = NewUncasted<HUnaryMathOperation>(value, kMathSqrt);
   return ast_context()->ReturnInstruction(result, call->id());
-}
-
-
-// Check whether two RegExps are equivalent
-void HOptimizedGraphBuilder::GenerateIsRegExpEquivalent(CallRuntime* call) {
-  return Bailout(kInlinedRuntimeFunctionIsRegExpEquivalent);
 }
 
 
