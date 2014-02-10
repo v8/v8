@@ -404,44 +404,10 @@ class RegExpParser BASE_EMBEDDED {
 // ----------------------------------------------------------------------------
 // JAVASCRIPT PARSING
 
-class Parser;
+// Forward declaration.
 class SingletonLogger;
 
-class ParserTraits {
- public:
-  typedef Parser* ParserType;
-  // Return types for traversing functions.
-  typedef Handle<String> IdentifierType;
-
-  explicit ParserTraits(Parser* parser) : parser_(parser) {}
-
-  // Helper functions for recursive descent.
-  bool is_classic_mode() const;
-  bool is_generator() const;
-  bool IsEvalOrArguments(Handle<String> identifier) const;
-
-  // Reporting errors.
-  void ReportMessageAt(Scanner::Location source_location,
-                       const char* message,
-                       Vector<const char*> args);
-  void ReportMessage(const char* message, Vector<Handle<String> > args);
-  void ReportMessageAt(Scanner::Location source_location,
-                       const char* message,
-                       Vector<Handle<String> > args);
-
-  // Identifiers:
-  static IdentifierType EmptyIdentifier() {
-    return Handle<String>();
-  }
-
-  IdentifierType GetSymbol();
-
- private:
-  Parser* parser_;
-};
-
-
-class Parser : public ParserBase<ParserTraits> {
+class Parser : public ParserBase {
  public:
   explicit Parser(CompilationInfo* info);
   ~Parser() {
@@ -461,8 +427,6 @@ class Parser : public ParserBase<ParserTraits> {
   bool Parse();
 
  private:
-  friend class ParserTraits;
-
   static const int kMaxNumFunctionLocals = 131071;  // 2^17-1
 
   enum Mode {
@@ -557,6 +521,10 @@ class Parser : public ParserBase<ParserTraits> {
     Mode old_mode_;
   };
 
+  virtual bool is_classic_mode() {
+    return top_scope_->is_classic_mode();
+  }
+
   // Returns NULL if parsing failed.
   FunctionLiteral* ParseProgram();
 
@@ -573,6 +541,17 @@ class Parser : public ParserBase<ParserTraits> {
 
   // Report syntax error
   void ReportInvalidPreparseData(Handle<String> name, bool* ok);
+  void ReportMessage(const char* message, Vector<const char*> args);
+  void ReportMessage(const char* message, Vector<Handle<String> > args);
+  void ReportMessageAt(Scanner::Location location, const char* type) {
+    ReportMessageAt(location, type, Vector<const char*>::empty());
+  }
+  void ReportMessageAt(Scanner::Location loc,
+                       const char* message,
+                       Vector<const char*> args);
+  void ReportMessageAt(Scanner::Location loc,
+                       const char* message,
+                       Vector<Handle<String> > args);
 
   void set_pre_parse_data(ScriptDataImpl *data) {
     pre_parse_data_ = data;
@@ -591,6 +570,9 @@ class Parser : public ParserBase<ParserTraits> {
     return IsLexicalVariableMode(mode)
         ? top_scope_ : top_scope_->DeclarationScope();
   }
+
+  // Check if the given string is 'eval' or 'arguments'.
+  bool IsEvalOrArguments(Handle<String> string);
 
   // All ParseXXX functions take as the last argument an *ok parameter
   // which is set to false if parsing failed; it is unchanged otherwise.
@@ -678,6 +660,8 @@ class Parser : public ParserBase<ParserTraits> {
   // Magical syntax support.
   Expression* ParseV8Intrinsic(bool* ok);
 
+  bool is_generator() const { return current_function_state_->is_generator(); }
+
   bool CheckInOrOf(bool accept_OF, ForEachStatement::VisitMode* visit_mode);
 
   Handle<String> LiteralString(PretenureFlag tenured) {
@@ -700,9 +684,19 @@ class Parser : public ParserBase<ParserTraits> {
     }
   }
 
+  Handle<String> GetSymbol();
+
   // Get odd-ball literals.
   Literal* GetLiteralUndefined(int position);
   Literal* GetLiteralTheHole(int position);
+
+  Handle<String> ParseIdentifier(AllowEvalOrArgumentsAsIdentifier, bool* ok);
+  Handle<String> ParseIdentifierOrStrictReservedWord(
+      bool* is_strict_reserved, bool* ok);
+  Handle<String> ParseIdentifierName(bool* ok);
+  Handle<String> ParseIdentifierNameOrGetOrSet(bool* is_get,
+                                               bool* is_set,
+                                               bool* ok);
 
   // Determine if the expression is a variable proxy and mark it as being used
   // in an assignment or with a increment/decrement operator. This is currently
