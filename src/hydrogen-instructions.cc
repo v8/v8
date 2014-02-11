@@ -604,11 +604,11 @@ void HValue::PrintChangesTo(StringStream* stream) {
     stream->Add("*");
   } else {
     bool add_comma = false;
-#define PRINT_DO(type)                            \
-    if (changes_flags.Contains(kChanges##type)) { \
-      if (add_comma) stream->Add(",");            \
-      add_comma = true;                           \
-      stream->Add(#type);                         \
+#define PRINT_DO(Type)                      \
+    if (changes_flags.Contains(k##Type)) {  \
+      if (add_comma) stream->Add(",");      \
+      add_comma = true;                     \
+      stream->Add(#Type);                   \
     }
     GVN_TRACKED_FLAG_LIST(PRINT_DO);
     GVN_UNTRACKED_FLAG_LIST(PRINT_DO);
@@ -1516,7 +1516,7 @@ void HCheckInstanceType::GetCheckMaskAndTag(uint8_t* mask, uint8_t* tag) {
 
 bool HCheckMaps::HandleSideEffectDominator(GVNFlag side_effect,
                                            HValue* dominator) {
-  ASSERT(side_effect == kChangesMaps);
+  ASSERT(side_effect == kMaps);
   // TODO(mstarzinger): For now we specialize on HStoreNamedField, but once
   // type information is rich enough we should generalize this to any HType
   // for which the map is known.
@@ -1624,7 +1624,7 @@ Range* HChange::InferRange(Zone* zone) {
         input_range != NULL &&
         input_range->IsInSmiRange()))) {
     set_type(HType::Smi());
-    ClearGVNFlag(kChangesNewSpacePromotion);
+    ClearChangesFlag(kNewSpacePromotion);
   }
   Range* result = (input_range != NULL)
       ? input_range->Copy(zone)
@@ -3412,7 +3412,7 @@ Representation HUnaryMathOperation::RepresentationFromInputs() {
 
 bool HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
                                           HValue* dominator) {
-  ASSERT(side_effect == kChangesNewSpacePromotion);
+  ASSERT(side_effect == kNewSpacePromotion);
   Zone* zone = block()->zone();
   if (!FLAG_use_allocation_folding) return false;
 
@@ -4394,52 +4394,76 @@ void HObjectAccess::SetGVNFlags(HValue *instr, PropertyAccessType access_type) {
   // set the appropriate GVN flags for a given load or store instruction
   if (access_type == STORE) {
     // track dominating allocations in order to eliminate write barriers
-    instr->SetGVNFlag(kDependsOnNewSpacePromotion);
+    instr->SetDependsOnFlag(::v8::internal::kNewSpacePromotion);
     instr->SetFlag(HValue::kTrackSideEffectDominators);
   } else {
     // try to GVN loads, but don't hoist above map changes
     instr->SetFlag(HValue::kUseGVN);
-    instr->SetGVNFlag(kDependsOnMaps);
+    instr->SetDependsOnFlag(::v8::internal::kMaps);
   }
 
   switch (portion()) {
     case kArrayLengths:
-      instr->SetGVNFlag(access_type == STORE
-          ? kChangesArrayLengths : kDependsOnArrayLengths);
+      if (access_type == STORE) {
+        instr->SetChangesFlag(::v8::internal::kArrayLengths);
+      } else {
+        instr->SetDependsOnFlag(::v8::internal::kArrayLengths);
+      }
       break;
     case kStringLengths:
-      instr->SetGVNFlag(access_type == STORE
-          ? kChangesStringLengths : kDependsOnStringLengths);
+      if (access_type == STORE) {
+        instr->SetChangesFlag(::v8::internal::kStringLengths);
+      } else {
+        instr->SetDependsOnFlag(::v8::internal::kStringLengths);
+      }
       break;
     case kInobject:
-      instr->SetGVNFlag(access_type == STORE
-          ? kChangesInobjectFields : kDependsOnInobjectFields);
+      if (access_type == STORE) {
+        instr->SetChangesFlag(::v8::internal::kInobjectFields);
+      } else {
+        instr->SetDependsOnFlag(::v8::internal::kInobjectFields);
+      }
       break;
     case kDouble:
-      instr->SetGVNFlag(access_type == STORE
-          ? kChangesDoubleFields : kDependsOnDoubleFields);
+      if (access_type == STORE) {
+        instr->SetChangesFlag(::v8::internal::kDoubleFields);
+      } else {
+        instr->SetDependsOnFlag(::v8::internal::kDoubleFields);
+      }
       break;
     case kBackingStore:
-      instr->SetGVNFlag(access_type == STORE
-          ? kChangesBackingStoreFields : kDependsOnBackingStoreFields);
+      if (access_type == STORE) {
+        instr->SetChangesFlag(::v8::internal::kBackingStoreFields);
+      } else {
+        instr->SetDependsOnFlag(::v8::internal::kBackingStoreFields);
+      }
       break;
     case kElementsPointer:
-      instr->SetGVNFlag(access_type == STORE
-          ? kChangesElementsPointer : kDependsOnElementsPointer);
+      if (access_type == STORE) {
+        instr->SetChangesFlag(::v8::internal::kElementsPointer);
+      } else {
+        instr->SetDependsOnFlag(::v8::internal::kElementsPointer);
+      }
       break;
     case kMaps:
-      instr->SetGVNFlag(access_type == STORE
-          ? kChangesMaps : kDependsOnMaps);
+      if (access_type == STORE) {
+        instr->SetChangesFlag(::v8::internal::kMaps);
+      } else {
+        instr->SetDependsOnFlag(::v8::internal::kMaps);
+      }
       break;
     case kExternalMemory:
-      instr->SetGVNFlag(access_type == STORE
-          ? kChangesExternalMemory : kDependsOnExternalMemory);
+      if (access_type == STORE) {
+        instr->SetChangesFlag(::v8::internal::kExternalMemory);
+      } else {
+        instr->SetDependsOnFlag(::v8::internal::kExternalMemory);
+      }
       break;
   }
 }
 
 
-void HObjectAccess::PrintTo(StringStream* stream) {
+void HObjectAccess::PrintTo(StringStream* stream) const {
   stream->Add(".");
 
   switch (portion()) {
