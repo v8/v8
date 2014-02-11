@@ -3621,8 +3621,14 @@ void Heap::InitializeAllocationSitesScratchpad() {
 
 void Heap::AddAllocationSiteToScratchpad(AllocationSite* site) {
   if (allocation_sites_scratchpad_length_ < kAllocationSiteScratchpadSize) {
+    // We cannot use the normal write-barrier because slots need to be
+    // recorded with non-incremental marking as well. We have to explicitly
+    // record the slot to take evacuation candidates into account.
     allocation_sites_scratchpad()->set(
-        allocation_sites_scratchpad_length_, site);
+        allocation_sites_scratchpad_length_, site, SKIP_WRITE_BARRIER);
+    Object** slot = allocation_sites_scratchpad()->RawFieldOfElementAt(
+        allocation_sites_scratchpad_length_);
+    mark_compact_collector()->RecordSlot(slot, slot, *slot);
     allocation_sites_scratchpad_length_++;
   }
 }
