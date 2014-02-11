@@ -173,7 +173,7 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
   ExternalReference after_break_target =
       ExternalReference(Debug_Address::AfterBreakTarget(), masm->isolate());
   __ Move(kScratchRegister, after_break_target);
-  __ jmp(Operand(kScratchRegister, 0));
+  __ Jump(Operand(kScratchRegister, 0));
 }
 
 

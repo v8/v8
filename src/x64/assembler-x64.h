@@ -1260,9 +1260,6 @@ class Assembler : public AssemblerBase {
   // Call near absolute indirect, address in register
   void call(Register adr);
 
-  // Call near indirect
-  void call(const Operand& operand);
-
   // Jumps
   // Jump short or near relative.
   // Use a 32-bit signed displacement.
@@ -1273,9 +1270,6 @@ class Assembler : public AssemblerBase {
 
   // Jump near absolute indirect (r64)
   void jmp(Register adr);
-
-  // Jump near absolute indirect (m64)
-  void jmp(const Operand& src);
 
   // Conditional jumps
   void j(Condition cc,
@@ -1498,6 +1492,13 @@ class Assembler : public AssemblerBase {
 
   byte byte_at(int pos)  { return buffer_[pos]; }
   void set_byte_at(int pos, byte value) { buffer_[pos] = value; }
+
+ protected:
+  // Call near indirect
+  void call(const Operand& operand);
+
+  // Jump near absolute indirect (m64)
+  void jmp(const Operand& src);
 
  private:
   byte* addr_at(int pos)  { return buffer_ + pos; }

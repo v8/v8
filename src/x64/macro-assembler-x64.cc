@@ -984,12 +984,17 @@ void MacroAssembler::Set(Register dst, int64_t x) {
 }
 
 
-void MacroAssembler::Set(const Operand& dst, int64_t x) {
-  if (is_int32(x)) {
-    movq(dst, Immediate(static_cast<int32_t>(x)));
+void MacroAssembler::Set(const Operand& dst, intptr_t x) {
+  if (kPointerSize == kInt64Size) {
+    if (is_int32(x)) {
+      movp(dst, Immediate(static_cast<int32_t>(x)));
+    } else {
+      Set(kScratchRegister, x);
+      movp(dst, kScratchRegister);
+    }
   } else {
-    Set(kScratchRegister, x);
-    movq(dst, kScratchRegister);
+    ASSERT(kPointerSize == kInt32Size);
+    movp(dst, Immediate(static_cast<int32_t>(x)));
   }
 }
 
@@ -2592,6 +2597,17 @@ void MacroAssembler::Jump(ExternalReference ext) {
 }
 
 
+void MacroAssembler::Jump(const Operand& op) {
+  if (kPointerSize == kInt64Size) {
+    jmp(op);
+  } else {
+    ASSERT(kPointerSize == kInt32Size);
+    movp(kScratchRegister, op);
+    jmp(kScratchRegister);
+  }
+}
+
+
 void MacroAssembler::Jump(Address destination, RelocInfo::Mode rmode) {
   Move(kScratchRegister, destination, rmode);
   jmp(kScratchRegister);
@@ -2620,6 +2636,17 @@ void MacroAssembler::Call(ExternalReference ext) {
 #ifdef DEBUG
   CHECK_EQ(end_position, pc_offset());
 #endif
+}
+
+
+void MacroAssembler::Call(const Operand& op) {
+  if (kPointerSize == kInt64Size) {
+    call(op);
+  } else {
+    ASSERT(kPointerSize == kInt32Size);
+    movp(kScratchRegister, op);
+    call(kScratchRegister);
+  }
 }
 
 
