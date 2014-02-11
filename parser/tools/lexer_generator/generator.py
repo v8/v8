@@ -106,6 +106,21 @@ def lex(rule_processor, string):
   for t in rule_processor.default_automata().dfa().lex(string + '\0'):
     print t
 
+def start_profiling():
+  import cProfile
+  pr = cProfile.Profile()
+  pr.enable()
+  return pr
+
+def stop_profiling(pr):
+  import pstats, StringIO
+  pr.disable()
+  s = StringIO.StringIO()
+  sortby = 'cumulative'
+  ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
+  ps.print_stats()
+  print s.getvalue()
+
 if __name__ == '__main__':
 
   parser = argparse.ArgumentParser()
@@ -120,11 +135,15 @@ if __name__ == '__main__':
   parser.add_argument('--no-inline', action='store_true')
   parser.add_argument('--verbose', action='store_true')
   parser.add_argument('--debug-code', action='store_true')
+  parser.add_argument('--profile', action='store_true')
   parser.add_argument('--rule-html')
   args = parser.parse_args()
 
   minimize_default = not args.no_minimize_default
   verbose = args.verbose
+
+  if args.profile:
+    profiler = start_profiling()
 
   re_file = args.re
   if verbose:
@@ -178,3 +197,6 @@ if __name__ == '__main__':
   if input_file:
     with open(input_file, 'r') as f:
       lex(rule_processor, f.read())
+
+  if args.profile:
+    stop_profiling(profiler)

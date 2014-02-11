@@ -25,7 +25,8 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from types import TupleType
+from itertools import chain
+from action import Term
 from string import printable
 
 class KeyEncoding(object):
@@ -40,24 +41,32 @@ class KeyEncoding(object):
       Utf8Encoding()
     return KeyEncoding.__encodings[name]
 
-  def __init__(self, name, primary_range, class_names):
+  def __init__(self, name, primary_range, named_ranges, predefined_ranges):
     assert not name in KeyEncoding.__encodings
-    KeyEncoding.__encodings[name] = self
     assert primary_range[0] <= primary_range[1]
-    assert primary_range[0] >= 0
+    KeyEncoding.__encodings[name] = self
     self.__name = name
     self.__primary_range = primary_range
+    self.__primary_range_component = Term(
+      'NUMERIC_RANGE_KEY', primary_range[0], primary_range[1])
     self.__lower_bound = primary_range[0]
-    self.__upper_bound = primary_range[1] + len(class_names)
-    f = lambda i : (i + primary_range[1] + 1, i + primary_range[1] + 1)
-    self.__class_ranges = {name : f(i) for i, name in enumerate(class_names)}
-    self.__predefined_ranges = {}
+    self.__upper_bound = primary_range[1]
+    self.__named_ranges = {
+      k : Term('NAMED_RANGE_KEY', k) for k in named_ranges }
+    def f(v):
+      if len(v) == 2:
+        assert primary_range[0] <= v[0] and v[1] <= primary_range[1]
+        return Term('NUMERIC_RANGE_KEY', v[0], v[1])
+      elif len(v) == 1:
+        assert v[0] in self.__named_ranges
+        return self.__named_ranges[v[0]]
+      else:
+        raise Exception()
+    self.__predefined_ranges = {
+      k : map(f, v) for k, v in predefined_ranges.iteritems() }
 
   def name(self):
     return self.__name
-
-  def add_predefined_range(self, name, ranges):
-    self.__predefined_ranges[name] = ranges
 
   def lower_bound(self):
     return self.__lower_bound
@@ -68,22 +77,28 @@ class KeyEncoding(object):
   def primary_range(self):
     return self.__primary_range
 
-  def class_range(self, name):
-    ranges = self.__class_ranges
-    return None if not name in ranges else ranges[name]
+  def named_range(self, name):
+    ranges = self.__named_ranges
+    return Term.empty_term() if not name in ranges else ranges[name]
 
-  def class_range_iter(self):
-    return self.__class_ranges.iteritems()
+  def named_range_iter(self):
+    return self.__named_range.iteritems()
 
-  def class_name_iter(self):
-    return self.__class_ranges.iterkeys()
+  def named_range_key_iter(self):
+    return self.__named_ranges.iterkeys()
 
-  def class_value_iter(self):
-    return self.__class_ranges.itervalues()
+  def named_range_value_iter(self):
+    return self.__named_ranges.itervalues()
 
   def predefined_range_iter(self, name):
     ranges = self.__predefined_ranges
     return None if not name in ranges else iter(ranges[name])
+
+  def __primary_range_iter(self):
+    yield self.__primary_range_component
+
+  def all_components_iter(self):
+    return chain(self.__primary_range_iter(), self.__named_ranges.itervalues())
 
   def is_primary_range(self, r):
     assert self.lower_bound() <= r[0] and r[1] <= self.upper_bound()
@@ -95,9 +110,6 @@ class KeyEncoding(object):
 
   def in_primary_range(self, c):
     return self.is_primary_range((c, c))
-
-  def is_class_range(self, r):
-    return not self.is_primary_range(r)
 
 class TransitionKey(object):
   '''Represents a transition from a state in DFA or NFA to another state.
@@ -115,98 +127,76 @@ class TransitionKey(object):
     'utf16' : {},
   }
 
-  __unique_key_counter = -1
-
   @staticmethod
-  def __is_unique_range(r):
-    return (r[0] == r[1] and
-            r[0] < 0 and
-            r[1] > TransitionKey.__unique_key_counter)
-
-  @staticmethod
-  def __verify_ranges(encoding, ranges, check_merged):
-    assert ranges
-    last = None
-    for r in ranges:
-      r_is_class = (TransitionKey.__is_unique_range(r) or
-                    encoding.is_class_range(r))
-      # Assert that the ranges are in order.
-      if last != None and check_merged:
-        assert last[1] + 1 < r[0] or r_is_class
-      if r_is_class:
-        last = None
-      else:
-        last = r
-
-  @staticmethod
-  def __cached_key(encoding, name, bounds_getter):
+  def __cached_key(encoding, name, components_getter):
     encoding_name = encoding.name() if encoding else 'no_encoding'
     cache = TransitionKey.__cached_keys[encoding_name]
     if not name in cache:
-      bounds = bounds_getter(name)
-      cache[name] = TransitionKey(encoding, bounds, name)
+      cache[name] = TransitionKey(encoding, components_getter())
     return cache[name]
 
   @staticmethod
   def epsilon():
     '''Returns a TransitionKey for the epsilon (empty) transition.'''
-    return TransitionKey.__cached_key(None, 'epsilon', lambda name : [])
+    return TransitionKey.__cached_key(None, 'epsilon',
+      lambda : Term("EPSILON_KEY"))
+
+  @staticmethod
+  def omega():
+    '''Always matches.'''
+    return TransitionKey.__cached_key(None, 'omega',
+      lambda : Term("OMEGA_KEY"))
 
   @staticmethod
   def any(encoding):
-    '''Returns a TransitionKey which matches any character.'''
-    return TransitionKey.__cached_key(
-        encoding,
-        'any',
-        lambda name : sorted(
-            list(encoding.class_value_iter()) + [encoding.primary_range()]))
+    '''Returns a TransitionKey which matches any encoded character.'''
+    return TransitionKey.__cached_key(encoding, 'any',
+        lambda : encoding.all_components_iter())
 
   @staticmethod
-  def single_char(encoding, char):
+  def single_char(encoding, char):  # TODO(dcarney): char should be int
     '''Returns a TransitionKey for a single-character transition.'''
-    r = (ord(char), ord(char))
-    assert encoding.is_primary_range(r)
-    return TransitionKey(encoding, [r])
+    return TransitionKey(encoding, Term("NUMERIC_RANGE_KEY", ord(char), ord(char)))
 
   @staticmethod
-  def unique(name):
+  def range(encoding, a, b):
+    '''Returns a TransitionKey for a single-character transition.'''
+    return TransitionKey(encoding, Term("NUMERIC_RANGE_KEY", a, b))
+
+  @staticmethod
+  def unique(term):  # TODO(dcarney): rename
     '''Returns a unique TransitionKey for the given name (and creates it if it
     doesn't exist yet). The TransitionKey won't have any real character range,
     but a newly-created "mock" character range which is separate from all other
     character ranges.'''
-    def get_bounds(name):
-      bound = TransitionKey.__unique_key_counter
-      TransitionKey.__unique_key_counter -= 1
-      return [(bound, bound)]
-    name = '__' + name
-    return TransitionKey.__cached_key(None, name, get_bounds)
+    return TransitionKey(None, Term("TERM_KEY", term))
 
   @staticmethod
-  def __process_term(encoding, term, ranges, key_map):
+  def __process_term(encoding, term, components, key_map):
     key = term.name()
     args = term.args()
     if key == 'RANGE':
-      ranges.append((ord(args[0]), ord(args[1])))
+      components.append(Term('NUMERIC_RANGE_KEY', ord(args[0]), ord(args[1])))
     elif key == 'LITERAL':
-      for char in args[0]:
-        ranges.append((ord(char), ord(char)))
+      for char in args[0]:  # TODO(dcarney): don't use strings for literals
+        components.append(Term('NUMERIC_RANGE_KEY', ord(char), ord(char)))
     elif key == 'CAT':
       for x in args:
-        TransitionKey.__process_term(encoding, x, ranges, key_map)
+        TransitionKey.__process_term(encoding, x, components, key_map)
     elif key == 'CHARACTER_CLASS':
       class_name = args[0]
-      if encoding.class_range(class_name):
-        r = encoding.class_range(class_name)
+      if encoding.named_range(class_name):
+        c = encoding.named_range(class_name)
         if class_name in key_map:
-          assert key_map[class_name] == TransitionKey(encoding, [r])
-        ranges.append(r)
+          assert key_map[class_name] == TransitionKey(encoding, c)
+        components.append(c)
       elif encoding.predefined_range_iter(class_name):
-        rs = list(encoding.predefined_range_iter(class_name))
+        cs = list(encoding.predefined_range_iter(class_name))
         if class_name in key_map:
-          assert key_map[class_name] == TransitionKey(encoding, rs)
-        ranges += rs
+          assert key_map[class_name] == TransitionKey(encoding, cs)
+        components += cs
       elif class_name in key_map:
-        ranges += key_map[class_name].__ranges
+        components += key_map[class_name].__flatten()
       else:
         raise Exception('unknown character class [%s]' % args[0])
     else:
@@ -221,60 +211,94 @@ class TransitionKey(object):
     TransitionKeys. For example, graph might represent the character class
     [a-z:digit:] where 'digit' is a previously constructed character class found
     in "key_map".'''
-    ranges = []
+    components = []
     assert term.name() == 'CLASS' or term.name() == 'NOT_CLASS'
     invert = term.name() == 'NOT_CLASS'
     assert len(term.args()) == 1
-    TransitionKey.__process_term(encoding, term.args()[0], ranges, key_map)
-    return TransitionKey.__key_from_ranges(encoding, invert, ranges)
+    TransitionKey.__process_term(encoding, term.args()[0], components, key_map)
+    key = TransitionKey.__key_from_components(encoding, invert, components)
+    assert key != None, "not invertible %s " % str(term)
+    return key
 
   def matches_char(self, char):
+    'this is just for simple lexer testing and is incomplete'
     char = ord(char)
-    assert char < 128
-    for r in self.__ranges:
-      if r[0] <= char and char <= r[1]: return True
+    assert 0 <= char and char < 128
+    for c in self.__flatten():
+      if c.name() == 'NUMERIC_RANGE_KEY':
+        r = c.args()
+        if r[0] <= char and char <= r[1]:
+          return True
     return False
 
+  # (disjoint, subset, advance_left, advance_right)
+  __is_superset_of_key_helper = (
+    (True, True, False, False),   # -5 : error
+    (True, True, False, False),   # -4 : error
+    (False, True, False, True),   # -3 :
+    (False, False, True, False),  # -2 :
+    (False, False, True, False),  # -1 :
+    (False, True, True, True),    #  0 :
+    (True, False, False, True),   #  1 :
+    (True, False, False, True),   #  2 :
+    (True, True, False, False),   #  3 : error
+    (False, True, False, True),   #  4 :
+    (True, True, False, False),   #  5 : error
+  )
+
   def is_superset_of_key(self, key):
-    '''Returns true if 'key' is a sub-key of this TransitionKey.'''
-    assert isinstance(key, self.__class__)
-    assert key != TransitionKey.epsilon()
-    assert len(key.__ranges) == 1
-    subkey = key.__ranges[0]
-    matches = False
-    for k in self.__ranges:
-      if k[0] <= subkey[0]:
-        assert subkey[1] <= k[1] or subkey[0] > k[1]
-      if subkey[0] < k[0]:
-        assert subkey[1] < k[0]
-      if k[0] <= subkey[0] and k[1] >= subkey[1]:
-        assert not matches
-        matches = True
-    return matches
+    '''Returns true if 'key' is a sub-key of this TransitionKey.
+    must be called on a key that is either a subset or disjoint'''
+    helper = TransitionKey.__is_superset_of_key_helper
+    (left, right) = (self.__flatten(), key.__flatten())
+    (disjoint, subset, advance_left, advance_right) = (False, False, True, True)
+    (right_exhausted, left_exhausted) = (False, False)
+    while advance_left or advance_right:
+      if advance_right:
+        try:
+          r = right.next()
+        except StopIteration:
+          right_exhausted = True
+      if advance_left:
+        try:
+          l = left.next()
+        except StopIteration:
+          left_exhausted = True
+      if right_exhausted or left_exhausted:
+        break
+      c = TransitionKey.__component_compare(l, r)
+      (d, s, advance_left, advance_right) = helper[c + 5]
+      disjoint |= d
+      subset |= s
+    if not right_exhausted:
+      disjoint = True
+    if disjoint and subset:
+      raise Exception('not a subset and not disjoint')
+    return subset
 
   @staticmethod
-  def canonical_compare(left, right):
-    i = 0
-    left_length = len(left.__ranges)
-    right_length = len(right.__ranges)
-    while i < left_length and i < right_length:
-      l = left.__ranges[i]
-      r = right.__ranges[i]
-      c = cmp(l, r)
-      if c:
+  def compare(self, other):
+    left = list(self.__flatten())
+    right = list(other.__flatten())
+    offset = 0
+    while offset < len(left) and offset < len(right):
+      c = TransitionKey.__component_compare(left[offset], right[offset])
+      if c != 0:
         return c
-      i += 1
-    if i == left_length and i == right_length:
-      return 0
-    return 1 if i != left_length else -1
+      offset += 1
+    return TransitionKey.__cmp(len(left), len(right))
+
+  def __cmp__(self, other):
+    return TransitionKey.compare(self, other)
 
   def __hash__(self):
-    if self.__cached_hash == None:
-      self.__cached_hash = hash(self.__ranges)
-    return self.__cached_hash
+    return hash(self.__term)
+
+  def __ne__(self, other):
+    return not self == other
 
   def __eq__(self, other):
-    return isinstance(other, self.__class__) and self.__ranges == other.__ranges
+    return isinstance(other, TransitionKey) and self.__term == other.__term
 
   @staticmethod
   def __class_name(encoding, r):
@@ -291,14 +315,15 @@ class TransitionKey(object):
     assert False
 
   def range_iter(self, encoding):
-    assert not self == TransitionKey.epsilon()
-    for r in self.__ranges:
-      if self.__is_unique_range(r):
-        yield ('UNIQUE', self.__unique_name(r))
-      elif encoding.is_class_range(r):
-        yield ('CLASS', self.__class_name(encoding, r))
+    for c in self.__flatten():
+      if c.name() == 'NUMERIC_RANGE_KEY':
+        yield ('PRIMARY_RANGE', (c.args()[0], c.args()[1]))
+      elif c.name() == 'NAMED_RANGE_KEY':
+        yield ('CLASS', c.args()[0])
+      elif c.name() == 'TERM_KEY':
+        yield ('UNIQUE', c.args()[0])
       else:
-        yield ('PRIMARY_RANGE', r)
+        assert False, 'unimplemented %s' % c
 
   __printable_cache = {
     ord('\t') : '\\t',
@@ -307,11 +332,18 @@ class TransitionKey(object):
   }
 
   @staticmethod
-  def __range_str(encoding, r):
-    if TransitionKey.__is_unique_range(r):
-      return TransitionKey.__unique_name(r)
-    if encoding and encoding.is_class_range(r):
-      return TransitionKey.__class_name(encoding, r)
+  def __component_str(encoding, component):
+    if component.name() == 'TERM_KEY':
+      return component.args()[0]
+    elif component.name() == 'NAMED_RANGE_KEY':
+      return component.args()[0]
+    elif component.name() == 'EPSILON_KEY':
+      return 'epsilon'
+    elif component.name() == 'OMEGA_KEY':
+      return 'omega'
+    elif component.name() != 'NUMERIC_RANGE_KEY':
+      raise Exception('unprintable %s' % component)
+    r = component.args()
     def to_str(x):
       assert not encoding or encoding.in_primary_range(x)
       if x > 127:
@@ -325,21 +357,99 @@ class TransitionKey(object):
     else:
       return '[%s-%s]' % (to_str(r[0]), to_str(r[1]))
 
-  def __init__(self, encoding, ranges, name = None):
-    if not ranges:
-      assert name == 'epsilon'
-      assert not name in TransitionKey.__cached_keys['no_encoding']
-    else:
-      TransitionKey.__verify_ranges(encoding, ranges, True)
-    self.__name = name
-    self.__ranges = tuple(ranges) # immutable
+  def __flatten(self):
+    return self.__flatten_components([self.__term])
+
+  @staticmethod
+  def __flatten_components(components):
+    for component in components:
+      if component.name() != 'COMPOSITE_KEY':
+        yield component
+      else:
+        for arg in component.args():
+          yield arg
+
+  __component_name_order = {
+    'EPSILON_KEY' : 0,
+    'NUMERIC_RANGE_KEY' : 1,
+    'NAMED_RANGE_KEY' : 2,
+    'TERM_KEY' : 3,
+    'OMEGA_KEY' : 4
+  }
+
+  @staticmethod
+  def __cmp(a, b):
+    'wraps standard cmp function to return correct results for components'
+    c = cmp(a, b)
+    return 0 if c == 0 else (-1 if c < 0 else 1)
+
+  @staticmethod
+  def __component_name_compare(a, b):
+    return TransitionKey.__cmp(TransitionKey.__component_name_order[a],
+                               TransitionKey.__component_name_order[b])
+
+  @staticmethod
+  def __component_compare(a, b):
+    '''component-wise compare function, returns the following values when
+    comparing non identical numerical ranges:
+      non-overlapping    : -2  -- a0 <= a1 < b0 <= b1
+      b subset of a      : -3  -- a0 < b0 <= b1 <= a1
+      a subset of b      : -4  -- a0 == b0 and a1 < b1
+      a overlaps to left : -5  -- a0 < b0 and b0 <= a1 < b1
+    otherwise a value in [-1, 1] is returned'''
+    if a.name() != b.name():
+      return TransitionKey.__component_name_compare(a.name(), b.name())
+    if a.name() != 'NUMERIC_RANGE_KEY':
+      return TransitionKey.__cmp(str(a), str(b))
+    (a, b) = (a.args(), b.args())
+    c0 = TransitionKey.__cmp(a[0], b[0])
+    if c0 == 0:
+      return 4 * TransitionKey.__cmp(a[1], b[1])  # either == or a subset
+    sign = -1
+    if c0 > 0:
+      (a, b, sign) = (b, a, 1) # normalize ordering so that a0 < b0
+    assert a[0] < b[0]
+    if b[1] <= a[1]:  # subset
+      return 3 * sign
+    if a[1] < b[0]:  # non overlap
+      return 2 * sign
+    return 5 * sign  # partial overlap
+
+  @staticmethod
+  def __construct(encoding, components):
+    is_unique = False
+    acc = []
+    last = Term.empty_term()
+    for current in TransitionKey.__flatten_components(components):
+      name = current.name()
+      if last:
+        assert name != 'EPSILON_KEY' and name != 'OMEGA_KEY', 'cannot merge'
+        c = TransitionKey.__component_compare(last, current)
+        assert c == -1 or c == -2, 'bad order %s %s' % (str(last), str(current))
+      if name == 'EPSILON_KEY' or name == 'OMEGA_KEY' or name == 'TERM_KEY':
+        pass
+      elif name == 'NUMERIC_RANGE_KEY':
+        assert encoding.is_primary_range(current.args())
+        if last.name() == 'NUMERIC_RANGE_KEY':
+          assert last.args()[1] + 1 < current.args()[0], 'ranges must be merged'
+      elif name == 'NAMED_RANGE_KEY':
+        assert encoding.named_range(current.args()[0])
+      else:
+        raise Exception('illegal component %s' % str(current))
+      acc.append(current)
+      last = current
+    assert acc, "must have components"
+    return acc[0] if len(acc) == 1 else Term('COMPOSITE_KEY', *acc)
+
+  def __init__(self, encoding, components):
+    if isinstance(components, Term):
+      components = [components]
+    self.__term = TransitionKey.__construct(encoding, components)
     self.__cached_hash = None
 
   def to_string(self, encoding):
-    if self.__name:
-      return self.__name
-    strings = [TransitionKey.__range_str(encoding, x) for x in self.__ranges]
-    return ', '.join(strings)
+    return ', '.join(map(lambda x : TransitionKey.__component_str(encoding, x),
+                         self.__flatten()))
 
   def __str__(self):
     return self.to_string(None)
@@ -351,7 +461,6 @@ class TransitionKey(object):
     set. range_map is a map from lower bounds to a list of upper bounds.'''
     sort = lambda x : sorted(set(x))
     range_map = sorted(map(lambda (k, v): (k, sort(v)), range_map.items()))
-    ranges = []
     upper_bound = encoding.upper_bound() + 1
     for i in range(len(range_map)):
       (left, left_values) = range_map[i]
@@ -361,33 +470,67 @@ class TransitionKey(object):
         assert left <= next
         if v >= next:
           if not to_push and left < next:
-            ranges.append((left, next - 1))
+            yield (left, next - 1)
           to_push.append(v)
         else:
-          ranges.append((left, v))
+          yield (left, v)
           left = v + 1
       if to_push:
         current = range_map[i + 1]
         range_map[i + 1] = (current[0], sort(current[1] + to_push))
-    return ranges
 
   @staticmethod
-  def __disjoint_ranges_from_key_set(encoding, key_set):
-    if not key_set:
-      return []
+  def __merge_ranges(encoding, ranges):
+    last = None
+    for r in ranges:
+      if last == None:
+        last = r
+      elif last[1] + 1 == r[0]:
+        last = (last[0], r[1])
+      else:
+        yield last
+        last = r
+    if last != None:
+      yield last
+
+  @staticmethod
+  def __flatten_keys(keys):
+    return chain(*map(lambda x : x.__flatten(), keys))
+
+  @staticmethod
+  def __disjoint_components_from_keys(encoding, keys, merge_ranges = False):
+    return TransitionKey.__disjoint_components(
+      encoding, TransitionKey.__flatten_keys(keys), merge_ranges)
+
+  @staticmethod
+  def __disjoint_components(encoding, components, merge_ranges):
     range_map = {}
-    for x in key_set:
-      assert x != TransitionKey.epsilon()
-      for r in x.__ranges:
-        if not r[0] in range_map:
-          range_map[r[0]] = []
-        range_map[r[0]].append(r[1])
+    other_keys = set([])
+    for x in components:
+      assert x.name() != 'EPSILON_KEY' and x.name() != 'OMEGA_KEY'
+      if x.name() != 'NUMERIC_RANGE_KEY':
+        other_keys.add(x)
+        continue
+      (start, end) = x.args()
+      if not start in range_map:
+        range_map[start] = []
+      range_map[start].append(end)
     ranges = TransitionKey.__disjoint_keys(encoding, range_map)
-    TransitionKey.__verify_ranges(encoding, ranges, False)
-    return ranges
+    if merge_ranges:
+      ranges = TransitionKey.__merge_ranges(encoding, ranges)
+      other_keys = sorted(other_keys, cmp=TransitionKey.__component_compare)
+    range_terms = map(lambda x : Term('NUMERIC_RANGE_KEY', x[0], x[1]), ranges)
+    return chain(iter(range_terms), iter(other_keys))
 
   @staticmethod
-  def disjoint_keys(encoding, key_set):
+  def __key_from_components(encoding, invert, components):
+    components = TransitionKey.__disjoint_components(encoding, components, True)
+    if invert:
+      components = TransitionKey.__invert_components(encoding, components)
+    return None if not components else TransitionKey(encoding, components)
+
+  @staticmethod
+  def disjoint_keys(encoding, keys):
     '''Takes a set of possibly overlapping TransitionKeys, returns a list of
     TransitionKeys which don't overlap and whose union is the same as the union
     of the original key_set. In addition, TransitionKeys are not merged, only
@@ -396,82 +539,51 @@ class TransitionKey(object):
     For example, if key_set contains two TransitionKeys for ranges [1-10] and
     [5-15], disjoint_keys returns a set of three TransitionKeys: [1-4], [5-10],
     [11-16].'''
-    ranges = TransitionKey.__disjoint_ranges_from_key_set(encoding, key_set)
-    return map(lambda x : TransitionKey(encoding, [x]), ranges)
+    return map(lambda x : TransitionKey(encoding, x),
+      TransitionKey.__disjoint_components_from_keys(encoding, keys))
 
   @staticmethod
-  def inverse_key(encoding, key_set):
+  def inverse_key(encoding, keys):
     '''Returns a TransitionKey which matches represents the inverse of the union
-    of 'key_set'. The TransitionKeys contain a set of character ranges and a set
+    of 'keys'. The TransitionKeys contain a set of character ranges and a set
     of classes. The character ranges are inverted in relation to the latin_1
     character range, and the character classes are inverted in relation to all
     character classes in __class_bounds.'''
-    ranges = TransitionKey.__disjoint_ranges_from_key_set(encoding, key_set)
-    inverse = TransitionKey.__invert_ranges(encoding, ranges)
-    if not inverse:
-      return None
-    return TransitionKey(encoding, inverse)
-
-  @staticmethod
-  def __key_from_ranges(encoding, invert, ranges):
-    range_map = {}
-    for r in ranges:
-      assert r
-      if not r[0] in range_map:
-        range_map[r[0]] = []
-      range_map[r[0]].append(r[1])
-    ranges = TransitionKey.__disjoint_keys(encoding, range_map)
-    ranges = TransitionKey.__merge_ranges(encoding, ranges)
-    if invert:
-      ranges = TransitionKey.__invert_ranges(encoding, ranges)
-    return TransitionKey(encoding, ranges)
-
-  @staticmethod
-  def __merge_ranges(encoding, ranges):
-    merged = []
-    last = None
-    for r in ranges:
-      if last == None:
-        last = r
-      elif (last[1] + 1 == r[0] and
-            not TransitionKey.__is_unique_range(r) and
-            not encoding.is_class_range(r)):
-        last = (last[0], r[1])
-      else:
-        merged.append(last)
-        last = r
-    if last != None:
-      merged.append(last)
-    return merged
+    return TransitionKey.__key_from_components(
+      encoding, True, TransitionKey.__flatten_keys(keys))
 
   @staticmethod
   def merged_key(encoding, keys):
-    f = lambda acc, key: acc + list(key.__ranges)
-    return TransitionKey.__key_from_ranges(encoding, False, reduce(f, keys, []))
+    return TransitionKey(encoding,
+      TransitionKey.__disjoint_components_from_keys(encoding, keys, True))
 
   @staticmethod
-  def __invert_ranges(encoding, ranges):
-    inverted = []
+  def __invert_components(encoding, components):
+    def key(x, y):
+      return Term('NUMERIC_RANGE_KEY', x, y)
     last = None
-    classes = set(encoding.class_value_iter())
-    for r in ranges:
-      assert not TransitionKey.__is_unique_range(r)
-      if encoding.is_class_range(r):
-        classes.remove(r)
+    classes = set(encoding.named_range_value_iter())
+    for c in components:
+      if c in classes:
+        classes.remove(c)
         continue
+      assert c.name() == 'NUMERIC_RANGE_KEY', 'unencoded key not invertible'
+      r = c.args()
+      assert encoding.is_primary_range(r)
       if last == None:
         if r[0] != encoding.lower_bound():
-          inverted.append((encoding.lower_bound(), r[0] - 1))
+          yield key(encoding.lower_bound(), r[0] - 1)
       elif last[1] + 1 < r[0]:
-        inverted.append((last[1] + 1, r[0] - 1))
+        yield key(last[1] + 1, r[0] - 1)
       last = r
     upper_bound = encoding.primary_range()[1]
     if last == None:
-      inverted.append(encoding.primary_range())
+      r = encoding.primary_range()
+      yield key(r[0], r[1])
     elif last[1] < upper_bound:
-      inverted.append((last[1] + 1, upper_bound))
-    inverted += list(classes)
-    return inverted
+      yield key(last[1] + 1, upper_bound)
+    for c in sorted(classes, TransitionKey.__component_compare):
+      yield c
 
 class Latin1Encoding(KeyEncoding):
 
@@ -479,16 +591,18 @@ class Latin1Encoding(KeyEncoding):
     super(Latin1Encoding, self).__init__(
       'latin1',
       (0, 255),
-      [])
-    self.add_predefined_range(
-      'whitespace', [(9, 9), (11, 12), (32, 32), (133, 133), (160, 160)])
-    self.add_predefined_range(
-      'letter', [
-        (65, 90), (97, 122), (170, 170), (181, 181),
-        (186, 186), (192, 214), (216, 246), (248, 255)])
-    self.add_predefined_range('line_terminator', [(10, 10), (13, 13)])
-    self.add_predefined_range(
-      'identifier_part_not_letter', [(48, 57), (95, 95)])
+      [],
+      {
+        'whitespace':
+          [(9, 9), (11, 12), (32, 32), (133, 133), (160, 160)],
+        'letter':
+          [(65, 90), (97, 122), (170, 170), (181, 181),
+           (186, 186), (192, 214), (216, 246), (248, 255)],
+        'line_terminator':
+          [(10, 10), (13, 13)],
+        'identifier_part_not_letter':
+          [(48, 57), (95, 95)]
+      })
 
 class Utf16Encoding(KeyEncoding):
 
@@ -500,23 +614,20 @@ class Utf16Encoding(KeyEncoding):
        'non_primary_letter',
        'non_primary_identifier_part_not_letter',
        'non_primary_line_terminator',
-       'non_primary_everything_else'])
-    self.add_predefined_range(
-      'whitespace',
-      [(9, 9), (11, 12), (32, 32), (133, 133), (160, 160),
-       self.class_range('non_primary_whitespace')])
-    self.add_predefined_range(
-      'letter', [
-        (65, 90), (97, 122), (170, 170), (181, 181),
-        (186, 186), (192, 214), (216, 246), (248, 255),
-        self.class_range('non_primary_letter')])
-    self.add_predefined_range(
-      'line_terminator',
-      [(10, 10), (13, 13), self.class_range('non_primary_line_terminator')])
-    self.add_predefined_range(
-      'identifier_part_not_letter',
-      [(48, 57), (95, 95),
-       self.class_range('non_primary_identifier_part_not_letter')])
+       'non_primary_everything_else'],
+      {
+        'whitespace':
+          [(9, 9), (11, 12), (32, 32), (133, 133), (160, 160),
+           ('non_primary_whitespace',)],
+        'letter':
+          [(65, 90), (97, 122), (170, 170), (181, 181),
+           (186, 186), (192, 214), (216, 246), (248, 255),
+           ('non_primary_letter',)],
+        'line_terminator':
+          [(10, 10), (13, 13), ('non_primary_line_terminator',)],
+        'identifier_part_not_letter':
+          [(48, 57), (95, 95), ('non_primary_identifier_part_not_letter',)],
+      })
 
 class Utf8Encoding(KeyEncoding):
 
@@ -528,17 +639,14 @@ class Utf8Encoding(KeyEncoding):
        'non_primary_letter',
        'non_primary_identifier_part_not_letter',
        'non_primary_line_terminator',
-       'non_primary_everything_else'])
-    self.add_predefined_range(
-      'whitespace',
-      [(9, 9), (11, 12), (32, 32),
-        self.class_range('non_primary_whitespace')])
-    self.add_predefined_range(
-      'letter', [(65, 90), (97, 122), self.class_range('non_primary_letter')])
-    self.add_predefined_range(
-      'line_terminator',
-      [(10, 10), (13, 13), self.class_range('non_primary_line_terminator')])
-    self.add_predefined_range(
-      'identifier_part_not_letter',
-      [(48, 57), (95, 95),
-       self.class_range('non_primary_identifier_part_not_letter')])
+       'non_primary_everything_else'],
+      {
+        'whitespace':
+          [(9, 9), (11, 12), (32, 32), ('non_primary_whitespace',)],
+        'letter':
+          [(65, 90), (97, 122), ('non_primary_letter',)],
+        'line_terminator':
+          [(10, 10), (13, 13), ('non_primary_line_terminator',)],
+        'identifier_part_not_letter':
+          [(48, 57), (95, 95), ('non_primary_identifier_part_not_letter',)],
+      })

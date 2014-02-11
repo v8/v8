@@ -66,9 +66,8 @@ class CodeGenerator:
     # generate ordered transitions
     transitions = map(lambda (k, v) : (k, v.node_number()),
                       state.key_state_iter())
-    def cmp(left, right):
-      return TransitionKey.canonical_compare(left[0], right[0])
-    transitions = sorted(transitions, cmp)
+    transitions = sorted(
+      transitions, cmp = TransitionKey.compare, key = lambda x : x[0])
     # map transition keys to disjoint ranges and collect stats
     disjoint_keys = []
     unique_transitions = {}
@@ -207,7 +206,7 @@ class CodeGenerator:
       return
     encoding = self.__dfa.encoding()
     catch_all = 'non_primary_everything_else'
-    all_classes = set(encoding.class_name_iter())
+    all_classes = set(encoding.named_range_key_iter())
     call_classes = all_classes - set([catch_all])
     def remap_transition(class_name):
       if class_name in call_classes:

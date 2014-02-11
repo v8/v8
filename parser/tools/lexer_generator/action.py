@@ -28,9 +28,9 @@
 from types import StringType, IntType
 
 class Term(object):
-  '''A class representing a function and its arguments.
+  '''An immutable class representing a function and its arguments.
   f(a,b,c) would be represented as ('f', a, b, c) where
-  a, b, and c are strings or Terms.'''
+  a, b, and c are strings, integers or Terms.'''
 
   __empty_term = None
 
@@ -45,8 +45,8 @@ class Term(object):
     if not name:
       assert not args, 'empty term must not have args'
     for v in args:
-      if type(v) == StringType:
-        assert v, 'string args must be non empty'
+      if type(v) == IntType or type(v) == StringType:
+        continue
       else:
         assert isinstance(v, Term)
     self.__tuple = tuple([name] + list(args))
@@ -62,6 +62,7 @@ class Term(object):
     return hash(self.__tuple)
 
   def __nonzero__(self):
+    'true <==> self == empty_term'
     return bool(self.__tuple[0])
 
   def __eq__(self, other):
@@ -80,16 +81,16 @@ class Term(object):
     nodes = []
     edges = []
 
-    def escape(v):
+    def escape(v):  # TODO(dcarney): abstract into utilities
       v = str(v)
       v = v.replace('\r', '\\\\r').replace('\t', '\\\\t').replace('\n', '\\\\n')
       v = v.replace('\\', '\\\\').replace('\"', '\\\"')
       return v
 
     def process(term):
-      if isinstance(term, str):
+      if type(term) == StringType or type(term) == IntType:
         node_ix[0] += 1
-        nodes.append(node_template % (escape(term), node_ix[0]))
+        nodes.append(node_template % (escape(str(term)), node_ix[0]))
         return node_ix[0]
       elif isinstance(term, Term):
         child_ixs = map(process, term.args())

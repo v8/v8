@@ -229,7 +229,7 @@ class RegexParser:
                       | empty'''
     if len(p) == 4:
       p[0] = ("REPEAT", p[2], p[2])
-    elif len(p) == 5:
+    elif len(p) == 6:
       p[0] = ("REPEAT", p[2], p[4])
     elif p[1]:
       p[0] = (self.token_map[p[1]],)
