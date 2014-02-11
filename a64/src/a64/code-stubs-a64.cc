@@ -5429,10 +5429,10 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
 
     // In feedback_vector, we expect either undefined or a valid fixed array.
     Label okay_here;
-    Handle<Map> cell_map = masm->isolate()->factory()->cell_map();
+    Handle<Map> fixed_array_map = masm->isolate()->factory()->fixed_array_map();
     __ JumpIfRoot(feedback_vector, Heap::kUndefinedValueRootIndex, &okay_here);
-    __ Ldr(x10, FieldMemOperand(feedback_vector, Cell::kMapOffset));
-    __ Cmp(x10, Operand(cell_map));
+    __ Ldr(x10, FieldMemOperand(feedback_vector, FixedArray::kMapOffset));
+    __ Cmp(x10, Operand(fixed_array_map));
     __ Assert(eq, kExpectedFixedArrayInFeedbackVector);
 
     // slot_index should be a smi if we don't have undefined in feedback_vector.

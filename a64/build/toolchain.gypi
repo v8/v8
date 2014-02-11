@@ -520,10 +520,7 @@
             'cflags': [ '-Wall', '<(werror)', '-W', '-Wno-unused-parameter',
                         '-Wnon-virtual-dtor', '-Woverloaded-virtual',
                         '<(wno_array_bounds)',
-                        # Hide some GCC 4.8 warnings:
-                        # TODO(jbramley): Only enable these on GCC 4.8.
-                        '-Wno-unused-local-typedefs',
-                        '-Wno-maybe-uninitialized' ],
+                      ],
             'conditions': [
               ['v8_optimized_debug==0', {
                 'cflags!': [
@@ -625,10 +622,6 @@
               '-fdata-sections',
               '-ffunction-sections',
               '<(wno_array_bounds)',
-              # Hide some GCC 4.8 warnings:
-              # TODO(jbramley): Only enable these on GCC 4.8.
-              '-Wno-unused-local-typedefs',
-              '-Wno-maybe-uninitialized',
             ],
             'conditions': [
               [ 'gcc_version==44 and clang==0', {
