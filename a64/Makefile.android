@@ -50,23 +50,27 @@ ifeq ($(ARCH), android_arm)
   DEFINES  = target_arch=arm v8_target_arch=arm android_target_arch=arm
   DEFINES += arm_neon=0 arm_version=7
   TOOLCHAIN_ARCH = arm-linux-androideabi
+  TOOLCHAIN_PREFIX = $(TOOLCHAIN_ARCH)
   TOOLCHAIN_VER = 4.6
 else
   ifeq ($(ARCH), android_a64)
     DEFINES  = target_arch=a64 v8_target_arch=a64 android_target_arch=arm64
     TOOLCHAIN_ARCH = aarch64-linux-android
+    TOOLCHAIN_PREFIX = $(TOOLCHAIN_ARCH)
     TOOLCHAIN_VER = 4.8
   else
     ifeq ($(ARCH), android_mipsel)
       DEFINES  = target_arch=mipsel v8_target_arch=mipsel
       DEFINES += android_target_arch=mips mips_arch_variant=mips32r2
       TOOLCHAIN_ARCH = mipsel-linux-android
+      TOOLCHAIN_PREFIX = $(TOOLCHAIN_ARCH)
       TOOLCHAIN_VER = 4.6
 
     else
       ifeq ($(ARCH), android_ia32)
         DEFINES = target_arch=ia32 v8_target_arch=ia32 android_target_arch=x86
         TOOLCHAIN_ARCH = x86
+        TOOLCHAIN_PREFIX = i686-linux-android
         TOOLCHAIN_VER = 4.6
       else
         $(error Target architecture "${ARCH}" is not supported)
@@ -78,6 +82,7 @@ endif
 TOOLCHAIN_PATH = \
     ${ANDROID_NDK_ROOT}/toolchains/${TOOLCHAIN_ARCH}-${TOOLCHAIN_VER}/prebuilt
 ANDROID_TOOLCHAIN ?= ${TOOLCHAIN_PATH}/${TOOLCHAIN_DIR}
+
 ifeq ($(wildcard $(ANDROID_TOOLCHAIN)),)
   $(error Cannot find Android toolchain in "${ANDROID_TOOLCHAIN}".  Please \
           check that ANDROID_NDK_ROOT and ANDROID_NDK_HOST_ARCH are set    \
@@ -90,23 +95,23 @@ DEFINES += host_os=${HOST_OS}
 .SECONDEXPANSION:
 $(ANDROID_BUILDS): $(OUTDIR)/Makefile.$$@
 	@$(MAKE) -C "$(OUTDIR)" -f Makefile.$@ \
-	            CXX="$(ANDROID_TOOLCHAIN)/bin/${TOOLCHAIN_ARCH}-g++" \
-	            AR="$(ANDROID_TOOLCHAIN)/bin/${TOOLCHAIN_ARCH}-ar" \
-	            RANLIB="$(ANDROID_TOOLCHAIN)/bin/${TOOLCHAIN_ARCH}-ranlib" \
-	            CC="$(ANDROID_TOOLCHAIN)/bin/${TOOLCHAIN_ARCH}-gcc" \
-	            LD="$(ANDROID_TOOLCHAIN)/bin/${TOOLCHAIN_ARCH}-ld" \
-	            LINK="$(ANDROID_TOOLCHAIN)/bin/${TOOLCHAIN_ARCH}-g++" \
-	            BUILDTYPE=$(shell echo $(subst .,,$(suffix $@)) | \
-	                        python -c "print raw_input().capitalize()") \
-	            builddir="$(shell pwd)/$(OUTDIR)/$@"
+	          CXX="$(ANDROID_TOOLCHAIN)/bin/${TOOLCHAIN_PREFIX}-g++" \
+	          AR="$(ANDROID_TOOLCHAIN)/bin/${TOOLCHAIN_PREFIX}-ar" \
+	          RANLIB="$(ANDROID_TOOLCHAIN)/bin/${TOOLCHAIN_PREFIX}-ranlib" \
+	          CC="$(ANDROID_TOOLCHAIN)/bin/${TOOLCHAIN_PREFIX}-gcc" \
+	          LD="$(ANDROID_TOOLCHAIN)/bin/${TOOLCHAIN_PREFIX}-ld" \
+	          LINK="$(ANDROID_TOOLCHAIN)/bin/${TOOLCHAIN_PREFIX}-g++" \
+	          BUILDTYPE=$(shell echo $(subst .,,$(suffix $@)) | \
+	                      python -c "print raw_input().capitalize()") \
+	          builddir="$(shell pwd)/$(OUTDIR)/$@"
 
 # Android GYP file generation targets.
 ANDROID_MAKEFILES = $(addprefix $(OUTDIR)/Makefile.,$(ANDROID_BUILDS))
 $(ANDROID_MAKEFILES):
 	GYP_GENERATORS=make-android \
 	GYP_DEFINES="${DEFINES}" \
-	CC="${ANDROID_TOOLCHAIN}/bin/${TOOLCHAIN_ARCH}-gcc" \
-	CXX="${ANDROID_TOOLCHAIN}/bin/${TOOLCHAIN_ARCH}-g++" \
+	CC="${ANDROID_TOOLCHAIN}/bin/${TOOLCHAIN_PREFIX}-gcc" \
+	CXX="${ANDROID_TOOLCHAIN}/bin/${TOOLCHAIN_PREFIX}-g++" \
 	PYTHONPATH="$(shell pwd)/tools/generate_shim_headers:$(PYTHONPATH)" \
 	build/gyp/gyp --generator-output="${OUTDIR}" build/all.gyp \
 	              -Ibuild/standalone.gypi --depth=. -Ibuild/android.gypi \
