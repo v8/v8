@@ -2081,7 +2081,6 @@ LInstruction* LChunkBuilder::DoStoreKeyed(HStoreKeyed* instr) {
   }
 
   if (instr->is_typed_elements()) {
-    ASSERT(instr->elements()->representation().IsExternal());
     ASSERT((instr->value()->representation().IsInteger32() &&
             !IsDoubleOrFloatElementsKind(instr->elements_kind())) ||
            (instr->value()->representation().IsDouble() &&
