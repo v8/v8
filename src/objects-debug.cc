@@ -490,7 +490,6 @@ void JSMessageObject::JSMessageObjectVerify() {
   VerifyObjectField(kEndPositionOffset);
   VerifyObjectField(kArgumentsOffset);
   VerifyObjectField(kScriptOffset);
-  VerifyObjectField(kStackTraceOffset);
   VerifyObjectField(kStackFramesOffset);
 }
 

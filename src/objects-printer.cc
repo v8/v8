@@ -624,8 +624,6 @@ void JSMessageObject::JSMessageObjectPrint(FILE* out) {
   PrintF(out, "\n - end_position: %d", end_position());
   PrintF(out, "\n - script: ");
   script()->ShortPrint(out);
-  PrintF(out, "\n - stack_trace: ");
-  stack_trace()->ShortPrint(out);
   PrintF(out, "\n - stack_frames: ");
   stack_frames()->ShortPrint(out);
   PrintF(out, "\n");

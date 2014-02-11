@@ -5669,7 +5669,6 @@ JSDate* JSDate::cast(Object* obj) {
 ACCESSORS(JSMessageObject, type, String, kTypeOffset)
 ACCESSORS(JSMessageObject, arguments, JSArray, kArgumentsOffset)
 ACCESSORS(JSMessageObject, script, Object, kScriptOffset)
-ACCESSORS(JSMessageObject, stack_trace, Object, kStackTraceOffset)
 ACCESSORS(JSMessageObject, stack_frames, Object, kStackFramesOffset)
 SMI_ACCESSORS(JSMessageObject, start_position, kStartPositionOffset)
 SMI_ACCESSORS(JSMessageObject, end_position, kEndPositionOffset)

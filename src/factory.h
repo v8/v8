@@ -528,7 +528,6 @@ class Factory {
       int start_position,
       int end_position,
       Handle<Object> script,
-      Handle<Object> stack_trace,
       Handle<Object> stack_frames);
 
   Handle<SeededNumberDictionary> DictionaryAtNumberPut(

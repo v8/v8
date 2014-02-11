@@ -7759,9 +7759,6 @@ class JSMessageObject: public JSObject {
   // [script]: the script from which the error message originated.
   DECL_ACCESSORS(script, Object)
 
-  // [stack_trace]: the stack trace for this error message.
-  DECL_ACCESSORS(stack_trace, Object)
-
   // [stack_frames]: an array of stack frames for this error object.
   DECL_ACCESSORS(stack_frames, Object)
 
@@ -7784,8 +7781,7 @@ class JSMessageObject: public JSObject {
   static const int kTypeOffset = JSObject::kHeaderSize;
   static const int kArgumentsOffset = kTypeOffset + kPointerSize;
   static const int kScriptOffset = kArgumentsOffset + kPointerSize;
-  static const int kStackTraceOffset = kScriptOffset + kPointerSize;
-  static const int kStackFramesOffset = kStackTraceOffset + kPointerSize;
+  static const int kStackFramesOffset = kScriptOffset + kPointerSize;
   static const int kStartPositionOffset = kStackFramesOffset + kPointerSize;
   static const int kEndPositionOffset = kStartPositionOffset + kPointerSize;
   static const int kSize = kEndPositionOffset + kPointerSize;

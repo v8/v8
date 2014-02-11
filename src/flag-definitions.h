@@ -591,8 +591,6 @@ DEFINE_bool(stack_trace_on_illegal, false,
             "print stack trace when an illegal exception is thrown")
 DEFINE_bool(abort_on_uncaught_exception, false,
             "abort program (dump core) when an uncaught exception is thrown")
-DEFINE_bool(trace_exception, false,
-            "print stack trace when throwing exceptions")
 DEFINE_bool(randomize_hashes, true,
             "randomize hashes to avoid predictable hash collisions "
             "(with snapshots this option cannot override the baked-in seed)")

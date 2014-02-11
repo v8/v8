@@ -3769,7 +3769,6 @@ MaybeObject* Heap::AllocateJSMessageObject(String* type,
                                            int start_position,
                                            int end_position,
                                            Object* script,
-                                           Object* stack_trace,
                                            Object* stack_frames) {
   Object* result;
   { MaybeObject* maybe_result = Allocate(message_object_map(), NEW_SPACE);
@@ -3784,7 +3783,6 @@ MaybeObject* Heap::AllocateJSMessageObject(String* type,
   message->set_start_position(start_position);
   message->set_end_position(end_position);
   message->set_script(script);
-  message->set_stack_trace(stack_trace);
   message->set_stack_frames(stack_frames);
   return result;
 }

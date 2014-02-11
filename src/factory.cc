@@ -1572,7 +1572,6 @@ Handle<JSMessageObject> Factory::NewJSMessageObject(
     int start_position,
     int end_position,
     Handle<Object> script,
-    Handle<Object> stack_trace,
     Handle<Object> stack_frames) {
   CALL_HEAP_FUNCTION(isolate(),
                      isolate()->heap()->AllocateJSMessageObject(*type,
@@ -1580,7 +1579,6 @@ Handle<JSMessageObject> Factory::NewJSMessageObject(
                          start_position,
                          end_position,
                          *script,
-                         *stack_trace,
                          *stack_frames),
                      JSMessageObject);
 }
