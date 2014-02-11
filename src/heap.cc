@@ -575,6 +575,9 @@ void Heap::GarbageCollectionEpilogue() {
     ZapFromSpace();
   }
 
+  // Process pretenuring feedback and update allocation sites.
+  ProcessPretenuringFeedback();
+
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
     Verify();
@@ -1617,8 +1620,6 @@ void Heap::Scavenge() {
   // Update how much has survived scavenge.
   IncrementYoungSurvivorsCounter(static_cast<int>(
       (PromotedSpaceSizeOfObjects() - survived_watermark) + new_space_.Size()));
-
-  ProcessPretenuringFeedback();
 
   LOG(isolate_, ResourceEvent("scavenge", "end"));
 

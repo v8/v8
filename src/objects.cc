@@ -11764,23 +11764,14 @@ bool DependentCode::MarkCodeForDeoptimization(
   // Mark all the code that needs to be deoptimized.
   bool marked = false;
   for (int i = start; i < end; i++) {
-    Object* object = object_at(i);
-    // TODO(hpayer): This is a temporary hack. Foreign objects move after
-    // new space evacuation. Since pretenuring may mark these objects as aborted
-    // we have to follow the forwarding pointer in that case.
-    MapWord map_word = HeapObject::cast(object)->map_word();
-    if (map_word.IsForwardingAddress()) {
-      object = map_word.ToForwardingAddress();
-    }
-    if (object->IsCode()) {
-      Code* code = Code::cast(object);
+    if (is_code_at(i)) {
+      Code* code = code_at(i);
       if (!code->marked_for_deoptimization()) {
         code->set_marked_for_deoptimization(true);
         marked = true;
       }
     } else {
-      CompilationInfo* info = reinterpret_cast<CompilationInfo*>(
-          Foreign::cast(object)->foreign_address());
+      CompilationInfo* info = compilation_info_at(i);
       info->AbortDueToDependencyChange();
     }
   }
