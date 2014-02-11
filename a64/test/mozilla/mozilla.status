@@ -842,6 +842,14 @@
 }],  # 'arch == arm or arch == a64'
 
 
+['arch ==  a64', {
+  # BUG(v8:3148): Invalid branch instruction emitted.
+  'mozilla/ecma/Date/15.9.5.26-1': [SKIP],
+  'mozilla/js1_5/extensions/regress-396326': [SKIP],
+  'mozilla/js1_5/Regress/regress-80981': [SKIP],
+}],  # 'arch ==  a64'
+
+
 ['arch == mipsel', {
 
   # BUG(3251229): Times out when running new crankshaft test script.
