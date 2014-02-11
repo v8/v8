@@ -443,13 +443,13 @@ void FullCodeGenerator::CallLoadIC(ContextualMode contextual_mode,
                                    TypeFeedbackId id) {
   ExtraICState extra_state = LoadIC::ComputeExtraICState(contextual_mode);
   Handle<Code> ic = LoadIC::initialize_stub(isolate(), extra_state);
-  CallIC(ic, contextual_mode, id);
+  CallIC(ic, id);
 }
 
 
-void FullCodeGenerator::CallStoreIC(ContextualMode mode, TypeFeedbackId id) {
+void FullCodeGenerator::CallStoreIC(TypeFeedbackId id) {
   Handle<Code> ic = StoreIC::initialize_stub(isolate(), strict_mode());
-  CallIC(ic, mode, id);
+  CallIC(ic, id);
 }
 
 
