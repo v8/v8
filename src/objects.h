@@ -1146,8 +1146,8 @@ class MaybeObject BASE_EMBEDDED {
   V(kExpected0AsASmiSentinel, "Expected 0 as a Smi sentinel")                 \
   V(kExpectedAlignmentMarker, "expected alignment marker")                    \
   V(kExpectedAllocationSite, "expected allocation site")                      \
-  V(kExpectedPropertyCellInRegisterA2,                                        \
-    "Expected property cell in register a2")                                  \
+  V(kExpectedFixedArrayInRegisterA2,                                          \
+    "Expected fixed array in register a2")                                    \
   V(kExpectedFixedArrayInRegisterEbx,                                         \
     "Expected fixed array in register ebx")                                   \
   V(kExpectedFixedArrayInRegisterR2,                                          \
