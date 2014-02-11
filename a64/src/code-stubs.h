@@ -1874,9 +1874,6 @@ class DoubleToIStub : public PlatformCodeStub {
                 int offset,
                 bool is_truncating,
                 bool skip_fastpath = false) : bit_field_(0) {
-#if V8_TARGET_ARCH_A64
-    // TODO(jbramley): Make A64's Register type compatible with the normal code,
-    // so we don't need this special case.
     bit_field_ = SourceRegisterBits::encode(source.code()) |
       DestinationRegisterBits::encode(destination.code()) |
       OffsetBits::encode(offset) |
@@ -1884,37 +1881,14 @@ class DoubleToIStub : public PlatformCodeStub {
       SkipFastPathBits::encode(skip_fastpath) |
       SSEBits::encode(CpuFeatures::IsSafeForSnapshot(SSE2) ?
                       CpuFeatures::IsSafeForSnapshot(SSE3) ? 2 : 1 : 0);
-#else
-    bit_field_ = SourceRegisterBits::encode(source.code_) |
-      DestinationRegisterBits::encode(destination.code_) |
-      OffsetBits::encode(offset) |
-      IsTruncatingBits::encode(is_truncating) |
-      SkipFastPathBits::encode(skip_fastpath) |
-      SSEBits::encode(CpuFeatures::IsSafeForSnapshot(SSE2) ?
-                      CpuFeatures::IsSafeForSnapshot(SSE3) ? 2 : 1 : 0);
-#endif
   }
 
   Register source() {
-#if V8_TARGET_ARCH_A64
-    // TODO(jbramley): Make A64's Register type compatible with the normal code,
-    // so we don't need this special case.
-    return Register::XRegFromCode(SourceRegisterBits::decode(bit_field_));
-#else
-    Register result = { SourceRegisterBits::decode(bit_field_) };
-    return result;
-#endif
+    return Register::from_code(SourceRegisterBits::decode(bit_field_));
   }
 
   Register destination() {
-#if V8_TARGET_ARCH_A64
-    // TODO(jbramley): Make A64's Register type compatible with the normal code,
-    // so we don't need this special case.
-    return Register::XRegFromCode(DestinationRegisterBits::decode(bit_field_));
-#else
-    Register result = { DestinationRegisterBits::decode(bit_field_) };
-    return result;
-#endif
+    return Register::from_code(DestinationRegisterBits::decode(bit_field_));
   }
 
   bool is_truncating() {
