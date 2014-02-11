@@ -256,6 +256,7 @@
         'ldflags': [ '-m32', '-pthread' ],
         'ldflags!': [
           '-Wl,-z,noexecstack',
+          '-Wl,--gc-sections',
           '-Wl,-O1',
           '-Wl,--as-needed',
         ],
