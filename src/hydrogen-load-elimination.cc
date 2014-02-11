@@ -132,8 +132,32 @@ class HLoadEliminationTable : public ZoneObject {
     return this;
   }
 
-  // Support for global analysis with HFlowEngine: Copy state to successor
-  // block.
+  // Support for global analysis with HFlowEngine: Merge given state with
+  // the other incoming state.
+  static HLoadEliminationTable* Merge(HLoadEliminationTable* succ_state,
+                                      HBasicBlock* succ_block,
+                                      HLoadEliminationTable* pred_state,
+                                      HBasicBlock* pred_block,
+                                      Zone* zone) {
+    ASSERT(pred_state != NULL);
+    if (succ_state == NULL) {
+      return pred_state->Copy(succ_block, pred_block, zone);
+    } else {
+      return succ_state->Merge(succ_block, pred_state, pred_block, zone);
+    }
+  }
+
+  // Support for global analysis with HFlowEngine: Given state merged with all
+  // the other incoming states, prepare it for use.
+  static HLoadEliminationTable* Finish(HLoadEliminationTable* state,
+                                       HBasicBlock* block,
+                                       Zone* zone) {
+    ASSERT(state != NULL);
+    return state;
+  }
+
+ private:
+  // Copy state to successor block.
   HLoadEliminationTable* Copy(HBasicBlock* succ, HBasicBlock* from_block,
                               Zone* zone) {
     HLoadEliminationTable* copy =
@@ -149,8 +173,7 @@ class HLoadEliminationTable : public ZoneObject {
     return copy;
   }
 
-  // Support for global analysis with HFlowEngine: Merge this state with
-  // the other incoming state.
+  // Merge this state with the other incoming state.
   HLoadEliminationTable* Merge(HBasicBlock* succ, HLoadEliminationTable* that,
                                HBasicBlock* that_block, Zone* zone) {
     if (that->fields_.length() < fields_.length()) {

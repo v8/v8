@@ -337,6 +337,15 @@ void HBasicBlock::PostProcessLoopHeader(IterationStatement* stmt) {
 }
 
 
+void HBasicBlock::MarkSuccEdgeUnreachable(int succ) {
+  ASSERT(IsFinished());
+  HBasicBlock* succ_block = end()->SuccessorAt(succ);
+
+  ASSERT(succ_block->predecessors()->length() == 1);
+  succ_block->MarkUnreachable();
+}
+
+
 void HBasicBlock::RegisterPredecessor(HBasicBlock* pred) {
   if (HasPredecessor()) {
     // Only loop header blocks can have a predecessor added after
