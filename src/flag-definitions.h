@@ -591,6 +591,8 @@ DEFINE_int(sim_stack_alignment, 8,
            "Stack alingment in bytes in simulator (4 or 8, 8 is default)")
 
 // isolate.cc
+DEFINE_bool(stack_trace_on_illegal, false,
+            "print stack trace when an illegal exception is thrown")
 DEFINE_bool(abort_on_uncaught_exception, false,
             "abort program (dump core) when an uncaught exception is thrown")
 DEFINE_bool(trace_exception, false,
