@@ -65,6 +65,11 @@ bool PreParserTraits::is_generator() const {
 }
 
 
+int PreParserTraits::NextMaterializedLiteralIndex() {
+  return pre_parser_->scope_->NextMaterializedLiteralIndex();
+}
+
+
 void PreParserTraits::ReportMessageAt(Scanner::Location location,
                                       const char* message,
                                       Vector<const char*> args) {
@@ -1297,28 +1302,6 @@ PreParser::Expression PreParser::ParseObjectLiteral(bool* ok) {
   Expect(Token::RBRACE, CHECK_OK);
 
   scope_->NextMaterializedLiteralIndex();
-  return Expression::Default();
-}
-
-
-PreParser::Expression PreParser::ParseRegExpLiteral(bool seen_equal,
-                                                    bool* ok) {
-  if (!scanner()->ScanRegExpPattern(seen_equal)) {
-    Next();
-    ReportMessageAt(scanner()->location(), "unterminated_regexp");
-    *ok = false;
-    return Expression::Default();
-  }
-
-  scope_->NextMaterializedLiteralIndex();
-
-  if (!scanner()->ScanRegExpFlags()) {
-    Next();
-    ReportMessageAt(scanner()->location(), "invalid_regexp_flags");
-    *ok = false;
-    return Expression::Default();
-  }
-  Next();
   return Expression::Default();
 }
 

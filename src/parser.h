@@ -412,6 +412,7 @@ class ParserTraits {
   typedef Parser* ParserType;
   // Return types for traversing functions.
   typedef Handle<String> IdentifierType;
+  typedef Expression* ExpressionType;
 
   explicit ParserTraits(Parser* parser) : parser_(parser) {}
 
@@ -419,6 +420,7 @@ class ParserTraits {
   bool is_classic_mode() const;
   bool is_generator() const;
   bool IsEvalOrArguments(Handle<String> identifier) const;
+  int NextMaterializedLiteralIndex();
 
   // Reporting errors.
   void ReportMessageAt(Scanner::Location source_location,
@@ -429,12 +431,21 @@ class ParserTraits {
                        const char* message,
                        Vector<Handle<String> > args);
 
-  // Identifiers:
+  // "null" return type creators.
   static IdentifierType EmptyIdentifier() {
     return Handle<String>();
   }
+  static ExpressionType EmptyExpression() {
+    return NULL;
+  }
 
+  // Producing data during the recursive descent.
   IdentifierType GetSymbol();
+  IdentifierType NextLiteralString(PretenureFlag tenured);
+  ExpressionType NewRegExpLiteral(IdentifierType js_pattern,
+                                  IdentifierType js_flags,
+                                  int literal_index,
+                                  int pos);
 
  private:
   Parser* parser_;
@@ -657,7 +668,6 @@ class Parser : public ParserBase<ParserTraits> {
   Expression* ParsePrimaryExpression(bool* ok);
   Expression* ParseArrayLiteral(bool* ok);
   Expression* ParseObjectLiteral(bool* ok);
-  Expression* ParseRegExpLiteral(bool seen_equal, bool* ok);
 
   // Initialize the components of a for-in / for-of statement.
   void InitializeForEachStatement(ForEachStatement* stmt,
@@ -687,16 +697,6 @@ class Parser : public ParserBase<ParserTraits> {
     } else {
       return isolate_->factory()->NewStringFromTwoByte(
             scanner().literal_utf16_string(), tenured);
-    }
-  }
-
-  Handle<String> NextLiteralString(PretenureFlag tenured) {
-    if (scanner().is_next_literal_ascii()) {
-      return isolate_->factory()->NewStringFromAscii(
-          scanner().next_literal_ascii_string(), tenured);
-    } else {
-      return isolate_->factory()->NewStringFromTwoByte(
-          scanner().next_literal_utf16_string(), tenured);
     }
   }
 

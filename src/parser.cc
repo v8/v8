@@ -551,6 +551,11 @@ bool ParserTraits::IsEvalOrArguments(Handle<String> identifier) const {
 }
 
 
+int ParserTraits::NextMaterializedLiteralIndex() {
+  return parser_->current_function_state_->NextMaterializedLiteralIndex();
+}
+
+
 void ParserTraits::ReportMessageAt(Scanner::Location source_location,
                                    const char* message,
                                    Vector<const char*> args) {
@@ -599,6 +604,27 @@ Handle<String> ParserTraits::GetSymbol() {
     symbol_id = parser_->pre_parse_data()->GetSymbolIdentifier();
   }
   return parser_->LookupSymbol(symbol_id);
+}
+
+
+Handle<String> ParserTraits::NextLiteralString(PretenureFlag tenured) {
+  Scanner& scanner = parser_->scanner();
+  if (scanner.is_next_literal_ascii()) {
+    return parser_->isolate_->factory()->NewStringFromAscii(
+        scanner.next_literal_ascii_string(), tenured);
+  } else {
+    return parser_->isolate_->factory()->NewStringFromTwoByte(
+        scanner.next_literal_utf16_string(), tenured);
+  }
+}
+
+
+Expression* ParserTraits::NewRegExpLiteral(Handle<String> js_pattern,
+                                           Handle<String> js_flags,
+                                           int literal_index,
+                                           int pos) {
+  return parser_->factory()->NewRegExpLiteral(
+      js_pattern, js_flags, literal_index, pos);
 }
 
 Parser::Parser(CompilationInfo* info)
@@ -3831,26 +3857,6 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
                                      number_of_boilerplate_properties,
                                      has_function,
                                      pos);
-}
-
-
-Expression* Parser::ParseRegExpLiteral(bool seen_equal, bool* ok) {
-  int pos = peek_position();
-  if (!scanner().ScanRegExpPattern(seen_equal)) {
-    Next();
-    ReportMessage("unterminated_regexp", Vector<const char*>::empty());
-    *ok = false;
-    return NULL;
-  }
-
-  int literal_index = current_function_state_->NextMaterializedLiteralIndex();
-
-  Handle<String> js_pattern = NextLiteralString(TENURED);
-  scanner().ScanRegExpFlags();
-  Handle<String> js_flags = NextLiteralString(TENURED);
-  Next();
-
-  return factory()->NewRegExpLiteral(js_pattern, js_flags, literal_index, pos);
 }
 
 

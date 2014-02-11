@@ -2014,3 +2014,35 @@ TEST(NoErrorsTryCatchFinally) {
 
   RunParserSyncTest(context_data, statement_data, kSuccess);
 }
+
+
+TEST(ErrorsRegexpLiteral) {
+  const char* context_data[][2] = {
+    {"var r = ", ""},
+    { NULL, NULL }
+  };
+
+  const char* statement_data[] = {
+    "/unterminated",
+    NULL
+  };
+
+  RunParserSyncTest(context_data, statement_data, kError);
+}
+
+
+TEST(NoErrorsRegexpLiteral) {
+  const char* context_data[][2] = {
+    {"var r = ", ""},
+    { NULL, NULL }
+  };
+
+  const char* statement_data[] = {
+    "/foo/",
+    "/foo/g",
+    "/foo/whatever",  // This is an error but not detected by the parser.
+    NULL
+  };
+
+  RunParserSyncTest(context_data, statement_data, kSuccess);
+}

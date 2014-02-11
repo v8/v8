@@ -225,6 +225,8 @@ class ParserBase : public Traits {
                                                                 bool* is_set,
                                                                 bool* ok);
 
+  typename Traits::ExpressionType ParseRegExpLiteral(bool seen_equal, bool* ok);
+
   // Used to detect duplicates in object literals. Each of the values
   // kGetterProperty, kSetterProperty and kValueProperty represents
   // a type of object literal property. When parsing a property, its
@@ -427,6 +429,7 @@ class PreParserTraits {
   typedef PreParser* ParserType;
   // Return types for traversing functions.
   typedef PreParserIdentifier IdentifierType;
+  typedef PreParserExpression ExpressionType;
 
   explicit PreParserTraits(PreParser* pre_parser) : pre_parser_(pre_parser) {}
 
@@ -436,6 +439,7 @@ class PreParserTraits {
   static bool IsEvalOrArguments(IdentifierType identifier) {
     return identifier.IsEvalOrArguments();
   }
+  int NextMaterializedLiteralIndex();
 
   // Reporting errors.
   void ReportMessageAt(Scanner::Location location,
@@ -449,12 +453,25 @@ class PreParserTraits {
                        const char* type,
                        const char* name_opt);
 
-  // Identifiers:
+  // "null" return type creators.
   static IdentifierType EmptyIdentifier() {
     return PreParserIdentifier::Default();
   }
+  static ExpressionType EmptyExpression() {
+    return PreParserExpression::Default();
+  }
 
+  // Producing data during the recursive descent.
   IdentifierType GetSymbol();
+  static IdentifierType NextLiteralString(PretenureFlag tenured) {
+    return PreParserIdentifier::Default();
+  }
+  ExpressionType NewRegExpLiteral(IdentifierType js_pattern,
+                                  IdentifierType js_flags,
+                                  int literal_index,
+                                  int pos) {
+    return PreParserExpression::Default();
+  }
 
  private:
   PreParser* pre_parser_;
@@ -616,7 +633,7 @@ class PreParser : public ParserBase<PreParserTraits> {
       *variable = this;
     }
     ~Scope() { *variable_ = prev_; }
-    void NextMaterializedLiteralIndex() { materialized_literal_count_++; }
+    int NextMaterializedLiteralIndex() { return materialized_literal_count_++; }
     void AddProperty() { expected_properties_++; }
     ScopeType type() { return type_; }
     int expected_properties() { return expected_properties_; }
@@ -701,7 +718,6 @@ class PreParser : public ParserBase<PreParserTraits> {
   Expression ParsePrimaryExpression(bool* ok);
   Expression ParseArrayLiteral(bool* ok);
   Expression ParseObjectLiteral(bool* ok);
-  Expression ParseRegExpLiteral(bool seen_equal, bool* ok);
   Expression ParseV8Intrinsic(bool* ok);
 
   Arguments ParseArguments(bool* ok);
@@ -845,6 +861,32 @@ ParserBase<Traits>::ParseIdentifierNameOrGetOrSet(bool* is_get,
     *is_set = !*is_get && strncmp(token, "set", 3) == 0;
   }
   return result;
+}
+
+
+template <class Traits>
+typename Traits::ExpressionType
+ParserBase<Traits>::ParseRegExpLiteral(bool seen_equal, bool* ok) {
+  int pos = peek_position();
+  if (!scanner()->ScanRegExpPattern(seen_equal)) {
+    Next();
+    ReportMessage("unterminated_regexp", Vector<const char*>::empty());
+    *ok = false;
+    return Traits::EmptyExpression();
+  }
+
+  int literal_index = this->NextMaterializedLiteralIndex();
+
+  typename Traits::IdentifierType js_pattern = this->NextLiteralString(TENURED);
+  if (!scanner()->ScanRegExpFlags()) {
+    Next();
+    ReportMessageAt(scanner()->location(), "invalid_regexp_flags");
+    *ok = false;
+    return Traits::EmptyExpression();
+  }
+  typename Traits::IdentifierType js_flags = this->NextLiteralString(TENURED);
+  Next();
+  return this->NewRegExpLiteral(js_pattern, js_flags, literal_index, pos);
 }
 
 
