@@ -1094,9 +1094,13 @@ class MacroAssembler : public Assembler {
   // ---- Floating point helpers ----
 
   enum ECMA262ToInt32Result {
+    // Provide an untagged int32_t which can be read using result.W(). That is,
+    // the upper 32 bits of result are undefined.
+    INT32_IN_W,
+
     // Provide an untagged int32_t which can be read using the 64-bit result
     // register. The int32_t result is sign-extended.
-    INT32,
+    INT32_IN_X,
 
     // Tag the int32_t result as a smi.
     SMI
@@ -1107,7 +1111,7 @@ class MacroAssembler : public Assembler {
                       DoubleRegister input,
                       Register scratch1,
                       Register scratch2,
-                      ECMA262ToInt32Result format = INT32);
+                      ECMA262ToInt32Result format = INT32_IN_X);
 
   // As ECMA262ToInt32, but operate on a HeapNumber.
   void HeapNumberECMA262ToInt32(Register result,
@@ -1115,7 +1119,7 @@ class MacroAssembler : public Assembler {
                                 Register scratch1,
                                 Register scratch2,
                                 DoubleRegister double_scratch,
-                                ECMA262ToInt32Result format = INT32);
+                                ECMA262ToInt32Result format = INT32_IN_X);
 
   // ---- Code generation helpers ----
 
