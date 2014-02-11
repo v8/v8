@@ -25,6 +25,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+from types import IntType
 from itertools import chain
 from action import Term
 from string import printable
@@ -144,8 +145,7 @@ class TransitionKey(object):
   @staticmethod
   def omega():
     '''Always matches.'''
-    return TransitionKey.__cached_key(None, 'omega',
-      lambda : Term("OMEGA_KEY"))
+    return TransitionKey.__cached_key(None, 'omega', lambda : Term("OMEGA_KEY"))
 
   @staticmethod
   def any(encoding):
@@ -154,13 +154,14 @@ class TransitionKey(object):
         lambda : encoding.all_components_iter())
 
   @staticmethod
-  def single_char(encoding, char):  # TODO(dcarney): char should be int
+  def single_char(encoding, char):
     '''Returns a TransitionKey for a single-character transition.'''
-    return TransitionKey(encoding, Term("NUMERIC_RANGE_KEY", ord(char), ord(char)))
+    return TransitionKey.range(encoding, char, char)
 
   @staticmethod
   def range(encoding, a, b):
     '''Returns a TransitionKey for a single-character transition.'''
+    assert type(a) == IntType and type(b) == IntType
     return TransitionKey(encoding, Term("NUMERIC_RANGE_KEY", a, b))
 
   @staticmethod
@@ -176,10 +177,9 @@ class TransitionKey(object):
     key = term.name()
     args = term.args()
     if key == 'RANGE':
-      components.append(Term('NUMERIC_RANGE_KEY', ord(args[0]), ord(args[1])))
+      components.append(Term('NUMERIC_RANGE_KEY', args[0], args[1]))
     elif key == 'LITERAL':
-      for char in args[0]:  # TODO(dcarney): don't use strings for literals
-        components.append(Term('NUMERIC_RANGE_KEY', ord(char), ord(char)))
+      components += map(lambda x : Term('NUMERIC_RANGE_KEY', x, x), args)
     elif key == 'CAT':
       for x in args:
         TransitionKey.__process_term(encoding, x, components, key_map)

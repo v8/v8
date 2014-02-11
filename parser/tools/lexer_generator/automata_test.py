@@ -91,9 +91,9 @@ class AutomataTestCase(unittest.TestCase):
         'terminal' : False,
         'action' : Action.empty_action() }
     mapping = { k : empty_node() for k in ['S_0', 'S_1', 'S_2', 'S_3'] }
-    key_a = TransitionKey.single_char(encoding, 'a')
-    key_b = TransitionKey.single_char(encoding, 'b')
-    key_c = TransitionKey.single_char(encoding, 'c')
+    key_a = TransitionKey.single_char(encoding, ord('a'))
+    key_b = TransitionKey.single_char(encoding, ord('b'))
+    key_c = TransitionKey.single_char(encoding, ord('c'))
 
     mapping['S_0']['transitions'][key_a] = 'S_1'
     mapping['S_0']['transitions'][key_b] = 'S_2'

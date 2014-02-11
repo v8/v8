@@ -238,7 +238,7 @@ class RegexParser:
 
   def p_literal(self, p):
     '''literal : LITERAL'''
-    p[0] = Term('LITERAL', p[1])
+    p[0] = Term('LITERAL', ord(p[1]))
 
   def p_any(self, p):
     '''any : ANY'''
@@ -262,10 +262,10 @@ class RegexParser:
                      | CHARACTER_CLASS maybe_class_content
     '''
     if len(p) == 5:
-      left = Term("RANGE", p[1], p[3])
+      left = Term("RANGE", ord(p[1]), ord(p[3]))
     else:
       if len(p[1]) == 1:
-        left = Term('LITERAL', p[1])
+        left = Term('LITERAL', ord(p[1]))
       else:
         left = Term('CHARACTER_CLASS', p[1][1:-1])
     p[0] = self.__cat(left, p[len(p)-1])

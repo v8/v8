@@ -128,7 +128,7 @@ class NfaBuilder(object):
     state.add_unclosed_transition(key)
     return (state, [state])
 
-  def __literal(self, chars):
+  def __literal(self, *chars):
     terms = map(lambda c : Term('SINGLE_CHAR', c), chars)
     return self.__process(self.cat_terms(terms))
 
@@ -320,24 +320,21 @@ class NfaBuilder(object):
 
   @staticmethod
   def __flatten_literals(terms):
-    literal = None
+    acc = ()
     for term in terms:
       assert isinstance(term, Term)
       if not term:
         continue
       if term.name() == 'LITERAL':
-        if literal:
-          literal += term.args()[0]
-        else:
-          literal = term.args()[0]
+        acc += term.args()
       else:
-        if literal:
-          yield Term('LITERAL', literal)
-          literal = None
+        if acc:
+          yield Term('LITERAL', *acc)
+          acc = ()
         if term:
           yield term
-    if literal:
-      yield Term('LITERAL', literal)
+    if acc:
+      yield Term('LITERAL', *acc)
 
   @staticmethod
   def or_terms(terms):

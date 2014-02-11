@@ -36,8 +36,8 @@ class TransitionKeyTestCase(unittest.TestCase):
   __equal_pairs = [
     (TransitionKey.epsilon(), TransitionKey.epsilon()),
     (TransitionKey.any(__encoding), TransitionKey.any(__encoding)),
-    (TransitionKey.single_char(__encoding, 'a'),
-     TransitionKey.single_char(__encoding, 'a')),
+    (TransitionKey.single_char(__encoding, ord('a')),
+     TransitionKey.single_char(__encoding, ord('a'))),
   ]
 
   def test_eq(self):
