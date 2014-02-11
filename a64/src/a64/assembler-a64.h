@@ -570,7 +570,6 @@ class Operand {
   // The simple literal-value wrappers are allowed to be implicit constructors
   // because Operand is a wrapper class that doesn't normally perform any type
   // conversion.
-  // TODO(jbramley): Check that my interpretation of this rule is correct.
   inline Operand(int64_t immediate,
       RelocInfo::Mode rmode = RelocInfo::NONE64);    // NOLINT(runtime/explicit)
   inline Operand(uint64_t immediate,
@@ -586,7 +585,6 @@ class Operand {
   //       <shift_amount> is uint6_t.
   // This is allowed to be an implicit constructor because Operand is
   // a wrapper class that doesn't normally perform any type conversion.
-  // TODO(jbramley): Check that my interpretation of this rule is correct.
   inline Operand(Register reg,
                  Shift shift = LSL,
                  unsigned shift_amount = 0);  // NOLINT(runtime/explicit)
