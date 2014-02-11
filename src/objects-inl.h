@@ -4194,16 +4194,8 @@ InlineCacheState Code::ic_state() {
 
 
 ExtraICState Code::extra_ic_state() {
-  ASSERT((is_inline_cache_stub() && !needs_extended_extra_ic_state(kind()))
-         || ic_state() == DEBUG_STUB);
-  return ExtractExtraICStateFromFlags(flags());
-}
-
-
-ExtraICState Code::extended_extra_ic_state() {
   ASSERT(is_inline_cache_stub() || ic_state() == DEBUG_STUB);
-  ASSERT(needs_extended_extra_ic_state(kind()));
-  return ExtractExtendedExtraICStateFromFlags(flags());
+  return ExtractExtraICStateFromFlags(flags());
 }
 
 
@@ -4421,7 +4413,7 @@ void Code::set_back_edges_patched_for_osr(bool value) {
 
 
 byte Code::to_boolean_state() {
-  return extended_extra_ic_state();
+  return extra_ic_state();
 }
 
 
@@ -4492,17 +4484,16 @@ Code::Flags Code::ComputeFlags(Kind kind,
                                InlineCacheState ic_state,
                                ExtraICState extra_ic_state,
                                StubType type,
-                               int argc,
+                               Kind handler_kind,
                                InlineCacheHolderFlag holder) {
-  ASSERT(argc <= Code::kMaxArguments);
   // Compute the bit mask.
   unsigned int bits = KindField::encode(kind)
       | ICStateField::encode(ic_state)
       | TypeField::encode(type)
-      | ExtendedExtraICStateField::encode(extra_ic_state)
+      | ExtraICStateField::encode(extra_ic_state)
       | CacheHolderField::encode(holder);
-  if (!Code::needs_extended_extra_ic_state(kind)) {
-    bits |= (argc << kArgumentsCountShift);
+  if (handler_kind != STUB) {
+    bits |= (handler_kind << kArgumentsCountShift);
   }
   return static_cast<Flags>(bits);
 }
@@ -4512,8 +4503,9 @@ Code::Flags Code::ComputeMonomorphicFlags(Kind kind,
                                           ExtraICState extra_ic_state,
                                           InlineCacheHolderFlag holder,
                                           StubType type,
-                                          int argc) {
-  return ComputeFlags(kind, MONOMORPHIC, extra_ic_state, type, argc, holder);
+                                          Kind handler_kind) {
+  return ComputeFlags(kind, MONOMORPHIC, extra_ic_state, type,
+                      handler_kind, holder);
 }
 
 
@@ -4529,12 +4521,6 @@ InlineCacheState Code::ExtractICStateFromFlags(Flags flags) {
 
 ExtraICState Code::ExtractExtraICStateFromFlags(Flags flags) {
   return ExtraICStateField::decode(flags);
-}
-
-
-ExtraICState Code::ExtractExtendedExtraICStateFromFlags(
-    Flags flags) {
-  return ExtendedExtraICStateField::decode(flags);
 }
 
 

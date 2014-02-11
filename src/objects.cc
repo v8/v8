@@ -11091,8 +11091,7 @@ void Code::Disassemble(const char* name, FILE* out) {
   }
   if (is_inline_cache_stub()) {
     PrintF(out, "ic_state = %s\n", ICState2String(ic_state()));
-    PrintExtraICState(out, kind(), needs_extended_extra_ic_state(kind()) ?
-        extended_extra_ic_state() : extra_ic_state());
+    PrintExtraICState(out, kind(), extra_ic_state());
     if (ic_state() == MONOMORPHIC) {
       PrintF(out, "type = %s\n", StubType2String(type()));
     }

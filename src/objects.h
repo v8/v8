@@ -5194,16 +5194,6 @@ class Code: public HeapObject {
   inline InlineCacheState ic_state();  // Only valid for IC stubs.
   inline ExtraICState extra_ic_state();  // Only valid for IC stubs.
 
-  inline ExtraICState extended_extra_ic_state();  // Only valid for
-                                                  // non-call IC stubs.
-  static bool needs_extended_extra_ic_state(Kind kind) {
-    // TODO(danno): This is a bit of a hack right now since there are still
-    // clients of this API that pass "extra" values in for argc. These clients
-    // should be retrofitted to used ExtendedExtraICState.
-    return kind == COMPARE_NIL_IC || kind == TO_BOOLEAN_IC ||
-           kind == BINARY_OP_IC;
-  }
-
   inline StubType type();  // Only valid for monomorphic IC stubs.
   inline int arguments_count();  // Only valid for call IC stubs.
 
@@ -5344,7 +5334,7 @@ class Code: public HeapObject {
       InlineCacheState ic_state = UNINITIALIZED,
       ExtraICState extra_ic_state = kNoExtraICState,
       StubType type = NORMAL,
-      int argc = -1,
+      Kind handler_kind = STUB,
       InlineCacheHolderFlag holder = OWN_MAP);
 
   static inline Flags ComputeMonomorphicFlags(
@@ -5352,14 +5342,13 @@ class Code: public HeapObject {
       ExtraICState extra_ic_state = kNoExtraICState,
       InlineCacheHolderFlag holder = OWN_MAP,
       StubType type = NORMAL,
-      int argc = -1);
+      Kind handler_kind = STUB);
 
   static inline InlineCacheState ExtractICStateFromFlags(Flags flags);
   static inline StubType ExtractTypeFromFlags(Flags flags);
   static inline Kind ExtractKindFromFlags(Flags flags);
   static inline InlineCacheHolderFlag ExtractCacheHolderFromFlags(Flags flags);
   static inline ExtraICState ExtractExtraICStateFromFlags(Flags flags);
-  static inline ExtraICState ExtractExtendedExtraICStateFromFlags(Flags flags);
   static inline int ExtractArgumentsCountFromFlags(Flags flags);
 
   static inline Flags RemoveTypeFromFlags(Flags flags);
@@ -5525,10 +5514,8 @@ class Code: public HeapObject {
   class CacheHolderField: public BitField<InlineCacheHolderFlag, 5, 1> {};
   class KindField: public BitField<Kind, 6, 4> {};
   // TODO(bmeurer): Bit 10 is available for free use. :-)
-  class ExtraICStateField: public BitField<ExtraICState, 11, 6> {};
-  class ExtendedExtraICStateField: public BitField<ExtraICState, 11,
+  class ExtraICStateField: public BitField<ExtraICState, 11,
       PlatformSmiTagging::kSmiValueSize - 11 + 1> {};  // NOLINT
-  STATIC_ASSERT(ExtraICStateField::kShift == ExtendedExtraICStateField::kShift);
 
   // KindSpecificFlags1 layout (STUB and OPTIMIZED_FUNCTION)
   static const int kStackSlotsFirstBit = 0;
@@ -5588,13 +5575,6 @@ class Code: public HeapObject {
   static const int kArgumentsBits =
       PlatformSmiTagging::kSmiValueSize - Code::kArgumentsCountShift + 1;
   static const int kMaxArguments = (1 << kArgumentsBits) - 1;
-
-  // ICs can use either argument count or ExtendedExtraIC, since their storage
-  // overlaps.
-  STATIC_ASSERT(ExtraICStateField::kShift +
-                ExtraICStateField::kSize + kArgumentsBits ==
-                ExtendedExtraICStateField::kShift +
-                ExtendedExtraICStateField::kSize);
 
   // This constant should be encodable in an ARM instruction.
   static const int kFlagsNotUsedInLookup =
