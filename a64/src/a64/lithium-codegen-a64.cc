@@ -520,9 +520,8 @@ void LCodeGen::LoadContextFromDeferred(LOperand* context) {
   } else if (context->IsConstantOperand()) {
     HConstant* constant =
         chunk_->LookupConstant(LConstantOperand::cast(context));
-    // TODO(all): on ARM this move can handle object in new space, not in A64.
-    // Check if this can be a problem.
-    __ Mov(cp, Operand(Handle<Object>::cast(constant->handle(isolate()))));
+    __ LoadHeapObject(cp,
+                      Handle<HeapObject>::cast(constant->handle(isolate())));
   } else {
     UNREACHABLE();
   }
