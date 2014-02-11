@@ -234,7 +234,6 @@ DEFINE_implication(track_double_fields, track_fields)
 DEFINE_implication(track_heap_object_fields, track_fields)
 DEFINE_implication(track_computed_fields, track_fields)
 DEFINE_bool(smi_binop, true, "support smi representation in binary operations")
-DEFINE_bool(smi_x64_store_opt, false, "optimized stores of smi on x64")
 
 // Flags for optimization types.
 DEFINE_bool(optimize_for_size, false,
@@ -415,10 +414,6 @@ DEFINE_bool(disable_native_files, false, "disable builtin natives files")
 
 // builtins-ia32.cc
 DEFINE_bool(inline_new, true, "use fast inline allocation")
-
-// checks.cc
-DEFINE_bool(stack_trace_on_abort, true,
-            "print a stack trace if an assertion failure occurs")
 
 // codegen-ia32.cc / codegen-arm.cc
 DEFINE_bool(trace_codegen, false,
@@ -607,10 +602,10 @@ DEFINE_bool(trace_sim_messages, false,
             "Trace simulator debug messages. Implied by --trace-sim.")
 
 // isolate.cc
+DEFINE_bool(stack_trace_on_illegal, false,
+            "print stack trace when an illegal exception is thrown")
 DEFINE_bool(abort_on_uncaught_exception, false,
             "abort program (dump core) when an uncaught exception is thrown")
-DEFINE_bool(trace_exception, false,
-            "print stack trace when throwing exceptions")
 DEFINE_bool(randomize_hashes, true,
             "randomize hashes to avoid predictable hash collisions "
             "(with snapshots this option cannot override the baked-in seed)")

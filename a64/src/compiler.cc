@@ -212,7 +212,7 @@ Code::Flags CompilationInfo::flags() const {
                               code_stub()->GetICState(),
                               code_stub()->GetExtraICState(),
                               code_stub()->GetStubType(),
-                              code_stub()->GetStubFlags());
+                              code_stub()->GetHandlerKind());
   } else {
     return Code::ComputeFlags(Code::OPTIMIZED_FUNCTION);
   }
@@ -240,6 +240,13 @@ bool CompilationInfo::ShouldSelfOptimize() {
       !function()->dont_optimize() &&
       function()->scope()->AllowsLazyCompilation() &&
       (shared_info().is_null() || !shared_info()->optimization_disabled());
+}
+
+
+void CompilationInfo::PrepareForCompilation(Scope* scope) {
+  ASSERT(scope_ == NULL);
+  scope_ = scope;
+  function()->ProcessFeedbackSlots(isolate_);
 }
 
 
@@ -372,7 +379,7 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
     // Note that we use the same AST that we will use for generating the
     // optimized code.
     unoptimized.SetFunction(info()->function());
-    unoptimized.SetScope(info()->scope());
+    unoptimized.PrepareForCompilation(info()->scope());
     unoptimized.SetContext(info()->context());
     if (should_recompile) unoptimized.EnableDeoptimizationSupport();
     bool succeeded = FullCodeGenerator::MakeCode(&unoptimized);
@@ -991,7 +998,7 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(FunctionLiteral* literal,
   // Precondition: code has been parsed and scopes have been analyzed.
   CompilationInfoWithZone info(script);
   info.SetFunction(literal);
-  info.SetScope(literal->scope());
+  info.PrepareForCompilation(literal->scope());
   info.SetLanguageMode(literal->scope()->language_mode());
 
   Isolate* isolate = info.isolate();

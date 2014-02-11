@@ -21836,7 +21836,27 @@ class ApiCallOptimizationChecker {
   }
 
   public:
-    void Run(bool use_signature, bool global) {
+    enum SignatureType {
+      kNoSignature,
+      kSignatureOnReceiver,
+      kSignatureOnPrototype
+    };
+
+    void RunAll() {
+      SignatureType signature_types[] =
+        {kNoSignature, kSignatureOnReceiver, kSignatureOnPrototype};
+      for (unsigned i = 0; i < ARRAY_SIZE(signature_types); i++) {
+        SignatureType signature_type = signature_types[i];
+        for (int j = 0; j < 2; j++) {
+          bool global = j == 0;
+          int key = signature_type +
+              ARRAY_SIZE(signature_types) * (global ? 1 : 0);
+          Run(signature_type, global, key);
+        }
+      }
+    }
+
+    void Run(SignatureType signature_type, bool global, int key) {
       v8::Isolate* isolate = CcTest::isolate();
       v8::HandleScope scope(isolate);
       // Build a template for signature checks.
@@ -21849,8 +21869,15 @@ class ApiCallOptimizationChecker {
         Local<v8::FunctionTemplate> function_template
             = FunctionTemplate::New(isolate);
         function_template->Inherit(parent_template);
-        if (use_signature) {
-          signature = v8::Signature::New(isolate, parent_template);
+        switch (signature_type) {
+          case kNoSignature:
+            break;
+          case kSignatureOnReceiver:
+            signature = v8::Signature::New(isolate, function_template);
+            break;
+          case kSignatureOnPrototype:
+            signature = v8::Signature::New(isolate, parent_template);
+            break;
         }
         signature_template = function_template->InstanceTemplate();
       }
@@ -21864,15 +21891,17 @@ class ApiCallOptimizationChecker {
       // Get the holder objects.
       Local<Object> inner_global =
           Local<Object>::Cast(context->Global()->GetPrototype());
-      Local<Object> function_holder =
-          Local<Object>::Cast(function_receiver->GetPrototype());
-      // Install function on hidden prototype object.
+      // Install functions on hidden prototype object if there is one.
       data = Object::New(isolate);
       Local<FunctionTemplate> function_template = FunctionTemplate::New(
           isolate, OptimizationCallback, data, signature);
       Local<Function> function = function_template->GetFunction();
-      Local<Object> global_holder = Local<Object>::Cast(
-          inner_global->GetPrototype());
+      Local<Object> global_holder = inner_global;
+      Local<Object> function_holder = function_receiver;
+      if (signature_type == kSignatureOnPrototype) {
+        function_holder = Local<Object>::Cast(function_holder->GetPrototype());
+        global_holder = Local<Object>::Cast(global_holder->GetPrototype());
+      }
       global_holder->Set(v8_str("g_f"), function);
       SetAccessorProperty(global_holder, v8_str("g_acc"), function, function);
       function_holder->Set(v8_str("f"), function);
@@ -21887,7 +21916,7 @@ class ApiCallOptimizationChecker {
         holder = function_receiver;
         // If not using a signature, add something else to the prototype chain
         // to test the case that holder != receiver
-        if (!use_signature) {
+        if (signature_type == kNoSignature) {
           receiver = Local<Object>::Cast(CompileRun(
               "var receiver_subclass = {};\n"
               "receiver_subclass.__proto__ = function_receiver;\n"
@@ -21899,9 +21928,8 @@ class ApiCallOptimizationChecker {
         }
       }
       // With no signature, the holder is not set.
-      if (!use_signature) holder = receiver;
+      if (signature_type == kNoSignature) holder = receiver;
       // build wrap_function
-      int key = (use_signature ? 1 : 0) + 2 * (global ? 1 : 0);
       i::ScopedVector<char> wrap_function(200);
       if (global) {
         i::OS::SNPrintF(
@@ -21960,8 +21988,5 @@ int ApiCallOptimizationChecker::count = 0;
 TEST(TestFunctionCallOptimization) {
   i::FLAG_allow_natives_syntax = true;
   ApiCallOptimizationChecker checker;
-  checker.Run(true, true);
-  checker.Run(false, true);
-  checker.Run(true, false);
-  checker.Run(false, false);
+  checker.RunAll();
 }

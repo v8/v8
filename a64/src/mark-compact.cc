@@ -3385,13 +3385,6 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
     EvacuateNewSpace();
   }
 
-  // We have to travers our allocation sites scratchpad which contains raw
-  // pointers before we move objects. During new space evacauation we
-  // gathered pretenuring statistics. The found allocation sites may not be
-  // valid after compacting old space.
-  heap()->ProcessPretenuringFeedback();
-
-
   { GCTracer::Scope gc_scope(tracer_, GCTracer::Scope::MC_EVACUATE_PAGES);
     EvacuatePages();
   }

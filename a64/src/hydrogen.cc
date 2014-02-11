@@ -2176,7 +2176,7 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
   // generated store code.
   if ((elements_kind == FAST_HOLEY_ELEMENTS) ||
       (elements_kind == FAST_ELEMENTS && access_type == STORE)) {
-    checked_object->ClearGVNFlag(kDependsOnElementsKind);
+    checked_object->ClearDependsOnFlag(kElementsKind);
   }
 
   bool fast_smi_only_elements = IsFastSmiElementsKind(elements_kind);
@@ -2186,7 +2186,7 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
       store_mode != STORE_NO_TRANSITION_HANDLE_COW) {
     HCheckMaps* check_cow_map = Add<HCheckMaps>(
         elements, isolate()->factory()->fixed_array_map(), top_info());
-    check_cow_map->ClearGVNFlag(kDependsOnElementsKind);
+    check_cow_map->ClearDependsOnFlag(kElementsKind);
   }
   HInstruction* length = NULL;
   if (is_js_array) {
@@ -2260,7 +2260,7 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
       } else {
         HCheckMaps* check_cow_map = Add<HCheckMaps>(
             elements, isolate()->factory()->fixed_array_map(), top_info());
-        check_cow_map->ClearGVNFlag(kDependsOnElementsKind);
+        check_cow_map->ClearDependsOnFlag(kElementsKind);
       }
     }
   }
@@ -5311,7 +5311,7 @@ HInstruction* HOptimizedGraphBuilder::BuildStoreNamedField(
   if (transition_to_field) {
     HConstant* transition_constant = Add<HConstant>(info->transition());
     instr->SetTransition(transition_constant, top_info());
-    instr->SetGVNFlag(kChangesMaps);
+    instr->SetChangesFlag(kMaps);
   }
   return instr;
 }
@@ -6210,7 +6210,7 @@ HInstruction* HOptimizedGraphBuilder::BuildMonomorphicElementAccess(
   HCheckMaps* checked_object = Add<HCheckMaps>(object, map, top_info(),
                                                dependency);
   if (dependency) {
-    checked_object->ClearGVNFlag(kDependsOnElementsKind);
+    checked_object->ClearDependsOnFlag(kElementsKind);
   }
 
   if (access_type == STORE && map->prototype()->IsJSObject()) {
@@ -6690,7 +6690,7 @@ HInstruction* HGraphBuilder::BuildConstantMapCheck(Handle<JSObject> constant,
   AddInstruction(constant_value);
   HCheckMaps* check =
       Add<HCheckMaps>(constant_value, handle(constant->map()), info);
-  check->ClearGVNFlag(kDependsOnElementsKind);
+  check->ClearDependsOnFlag(kElementsKind);
   return check;
 }
 
@@ -6774,44 +6774,13 @@ HInstruction* HOptimizedGraphBuilder::BuildCallConstantFunction(
 }
 
 
-class FunctionSorter {
- public:
-  FunctionSorter() : index_(0), ticks_(0), ast_length_(0), src_length_(0) { }
-  FunctionSorter(int index, int ticks, int ast_length, int src_length)
-      : index_(index),
-        ticks_(ticks),
-        ast_length_(ast_length),
-        src_length_(src_length) { }
-
-  int index() const { return index_; }
-  int ticks() const { return ticks_; }
-  int ast_length() const { return ast_length_; }
-  int src_length() const { return src_length_; }
-
- private:
-  int index_;
-  int ticks_;
-  int ast_length_;
-  int src_length_;
-};
-
-
-inline bool operator<(const FunctionSorter& lhs, const FunctionSorter& rhs) {
-  int diff = lhs.ticks() - rhs.ticks();
-  if (diff != 0) return diff > 0;
-  diff = lhs.ast_length() - rhs.ast_length();
-  if (diff != 0) return diff < 0;
-  return lhs.src_length() < rhs.src_length();
-}
-
-
 void HOptimizedGraphBuilder::HandlePolymorphicCallNamed(
     Call* expr,
     HValue* receiver,
     SmallMapList* types,
     Handle<String> name) {
   int argument_count = expr->arguments()->length() + 1;  // Includes receiver.
-  FunctionSorter order[kMaxCallPolymorphism];
+  int order[kMaxCallPolymorphism];
 
   bool handle_smi = false;
   bool handled_string = false;
@@ -6833,15 +6802,9 @@ void HOptimizedGraphBuilder::HandlePolymorphicCallNamed(
         handle_smi = true;
       }
       expr->set_target(target);
-      order[ordered_functions++] =
-          FunctionSorter(i,
-                         expr->target()->shared()->profiler_ticks(),
-                         InliningAstSize(expr->target()),
-                         expr->target()->shared()->SourceSize());
+      order[ordered_functions++] = i;
     }
   }
-
-  std::sort(order, order + ordered_functions);
 
   HBasicBlock* number_block = NULL;
   HBasicBlock* join = NULL;
@@ -6849,7 +6812,7 @@ void HOptimizedGraphBuilder::HandlePolymorphicCallNamed(
   int count = 0;
 
   for (int fn = 0; fn < ordered_functions; ++fn) {
-    int i = order[fn].index();
+    int i = order[fn];
     PropertyAccessInfo info(this, LOAD, ToType(types->at(i)), name);
     if (info.type()->Is(Type::String())) {
       if (handled_string) continue;
@@ -9855,6 +9818,8 @@ void HOptimizedGraphBuilder::BuildEmitInObjectProperties(
         value_instruction = double_box;
       } else if (representation.IsSmi() && value->IsUninitialized()) {
         value_instruction = graph()->GetConstant0();
+        // Ensure that Constant0 is stored as smi.
+        access = access.WithRepresentation(representation);
       } else {
         value_instruction = Add<HConstant>(value);
       }
@@ -10332,14 +10297,23 @@ void HOptimizedGraphBuilder::GenerateSetValueOf(CallRuntime* call) {
     Add<HStoreNamedField>(object,
         HObjectAccess::ForObservableJSObjectOffset(JSValue::kValueOffset),
         value);
+    if (!ast_context()->IsEffect()) {
+      Push(value);
+    }
     Add<HSimulate>(call->id(), FIXED_SIMULATE);
   }
   if_objectisvalue.Else();
   {
     // Nothing to do in this case.
+    if (!ast_context()->IsEffect()) {
+      Push(value);
+    }
     Add<HSimulate>(call->id(), FIXED_SIMULATE);
   }
   if_objectisvalue.End();
+  if (!ast_context()->IsEffect()) {
+    Drop(1);
+  }
   return ast_context()->ReturnValue(value);
 }
 

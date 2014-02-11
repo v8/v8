@@ -175,10 +175,8 @@ class CompilationInfo {
     ASSERT(function_ == NULL);
     function_ = literal;
   }
-  void SetScope(Scope* scope) {
-    ASSERT(scope_ == NULL);
-    scope_ = scope;
-  }
+  // When the scope is applied, we may have deferred work to do on the function.
+  void PrepareForCompilation(Scope* scope);
   void SetGlobalScope(Scope* global_scope) {
     ASSERT(global_scope_ == NULL);
     global_scope_ = global_scope;

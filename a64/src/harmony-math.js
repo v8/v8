@@ -59,8 +59,7 @@ function MathSinh(x) {
 // ES6 draft 09-27-13, section 20.2.2.12.
 function MathCosh(x) {
   if (!IS_NUMBER(x)) x = NonNumberToNumber(x);
-  // Idempotent for NaN and +/-Infinity.
-  if (!NUMBER_IS_FINITE(x)) return x;
+  if (!NUMBER_IS_FINITE(x)) return MathAbs(x);
   return (MathExp(x) + MathExp(-x)) / 2;
 }
 

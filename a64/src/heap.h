@@ -1134,7 +1134,6 @@ class Heap {
       int start_position,
       int end_position,
       Object* script,
-      Object* stack_trace,
       Object* stack_frames);
 
   // Allocate a new external string object, which is backed by a string

@@ -2826,7 +2826,7 @@ TEST(Regress2211) {
 }
 
 
-TEST(IncrementalMarkingClearsTypeFeedbackCells) {
+TEST(IncrementalMarkingClearsTypeFeedbackInfo) {
   if (i::FLAG_always_opt) return;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -2849,23 +2849,25 @@ TEST(IncrementalMarkingClearsTypeFeedbackCells) {
   CcTest::global()->Set(v8_str("fun1"), fun1);
   CcTest::global()->Set(v8_str("fun2"), fun2);
   CompileRun("function f(a, b) { a(); b(); } f(fun1, fun2);");
+
   Handle<JSFunction> f =
       v8::Utils::OpenHandle(
           *v8::Handle<v8::Function>::Cast(
               CcTest::global()->Get(v8_str("f"))));
-  Handle<TypeFeedbackCells> cells(TypeFeedbackInfo::cast(
-      f->shared()->code()->type_feedback_info())->type_feedback_cells());
 
-  CHECK_EQ(2, cells->CellCount());
-  CHECK(cells->GetCell(0)->value()->IsJSFunction());
-  CHECK(cells->GetCell(1)->value()->IsJSFunction());
+  Handle<FixedArray> feedback_vector(TypeFeedbackInfo::cast(
+      f->shared()->code()->type_feedback_info())->feedback_vector());
+
+  CHECK_EQ(2, feedback_vector->length());
+  CHECK(feedback_vector->get(0)->IsJSFunction());
+  CHECK(feedback_vector->get(1)->IsJSFunction());
 
   SimulateIncrementalMarking();
   CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
 
-  CHECK_EQ(2, cells->CellCount());
-  CHECK(cells->GetCell(0)->value()->IsTheHole());
-  CHECK(cells->GetCell(1)->value()->IsTheHole());
+  CHECK_EQ(2, feedback_vector->length());
+  CHECK(feedback_vector->get(0)->IsTheHole());
+  CHECK(feedback_vector->get(1)->IsTheHole());
 }
 
 

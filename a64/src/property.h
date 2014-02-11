@@ -186,12 +186,12 @@ class LookupResult BASE_EMBEDDED {
         holder_(NULL),
         cacheable_(true),
         details_(NONE, NONEXISTENT, Representation::None()) {
-    isolate->SetTopLookupResult(this);
+    isolate->set_top_lookup_result(this);
   }
 
   ~LookupResult() {
     ASSERT(isolate()->top_lookup_result() == this);
-    isolate()->SetTopLookupResult(next_);
+    isolate()->set_top_lookup_result(next_);
   }
 
   Isolate* isolate() const { return isolate_; }

@@ -103,8 +103,8 @@ class HCheckTable : public ZoneObject {
       }
       default: {
         // If the instruction changes maps uncontrollably, drop everything.
-        if (instr->CheckGVNFlag(kChangesMaps) ||
-            instr->CheckGVNFlag(kChangesOsrEntries)) {
+        if (instr->CheckChangesFlag(kMaps) ||
+            instr->CheckChangesFlag(kOsrEntries)) {
           Kill();
         }
       }
@@ -387,7 +387,7 @@ class HCheckTable : public ZoneObject {
       Insert(object, MapConstant(instr->value()));
     } else {
       // If the instruction changes maps, it should be handled above.
-      CHECK(!instr->CheckGVNFlag(kChangesMaps));
+      CHECK(!instr->CheckChangesFlag(kMaps));
     }
   }
 
@@ -571,8 +571,8 @@ class HCheckMapsEffects : public ZoneObject {
         maps_stored_ = true;
       }
       default: {
-        maps_stored_ |= (instr->CheckGVNFlag(kChangesMaps) |
-                         instr->CheckGVNFlag(kChangesElementsKind));
+        maps_stored_ |= (instr->CheckChangesFlag(kMaps) |
+                         instr->CheckChangesFlag(kElementsKind));
       }
     }
   }

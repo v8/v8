@@ -404,10 +404,55 @@ class RegExpParser BASE_EMBEDDED {
 // ----------------------------------------------------------------------------
 // JAVASCRIPT PARSING
 
-// Forward declaration.
+class Parser;
 class SingletonLogger;
 
-class Parser : public ParserBase {
+class ParserTraits {
+ public:
+  typedef Parser* ParserType;
+  // Return types for traversing functions.
+  typedef Handle<String> IdentifierType;
+  typedef Expression* ExpressionType;
+
+  explicit ParserTraits(Parser* parser) : parser_(parser) {}
+
+  // Helper functions for recursive descent.
+  bool is_classic_mode() const;
+  bool is_generator() const;
+  bool IsEvalOrArguments(Handle<String> identifier) const;
+  int NextMaterializedLiteralIndex();
+
+  // Reporting errors.
+  void ReportMessageAt(Scanner::Location source_location,
+                       const char* message,
+                       Vector<const char*> args);
+  void ReportMessage(const char* message, Vector<Handle<String> > args);
+  void ReportMessageAt(Scanner::Location source_location,
+                       const char* message,
+                       Vector<Handle<String> > args);
+
+  // "null" return type creators.
+  static IdentifierType EmptyIdentifier() {
+    return Handle<String>();
+  }
+  static ExpressionType EmptyExpression() {
+    return NULL;
+  }
+
+  // Producing data during the recursive descent.
+  IdentifierType GetSymbol();
+  IdentifierType NextLiteralString(PretenureFlag tenured);
+  ExpressionType NewRegExpLiteral(IdentifierType js_pattern,
+                                  IdentifierType js_flags,
+                                  int literal_index,
+                                  int pos);
+
+ private:
+  Parser* parser_;
+};
+
+
+class Parser : public ParserBase<ParserTraits> {
  public:
   explicit Parser(CompilationInfo* info);
   ~Parser() {
@@ -427,6 +472,8 @@ class Parser : public ParserBase {
   bool Parse();
 
  private:
+  friend class ParserTraits;
+
   static const int kMaxNumFunctionLocals = 131071;  // 2^17-1
 
   enum Mode {
@@ -521,10 +568,6 @@ class Parser : public ParserBase {
     Mode old_mode_;
   };
 
-  virtual bool is_classic_mode() {
-    return top_scope_->is_classic_mode();
-  }
-
   // Returns NULL if parsing failed.
   FunctionLiteral* ParseProgram();
 
@@ -541,17 +584,6 @@ class Parser : public ParserBase {
 
   // Report syntax error
   void ReportInvalidPreparseData(Handle<String> name, bool* ok);
-  void ReportMessage(const char* message, Vector<const char*> args);
-  void ReportMessage(const char* message, Vector<Handle<String> > args);
-  void ReportMessageAt(Scanner::Location location, const char* type) {
-    ReportMessageAt(location, type, Vector<const char*>::empty());
-  }
-  void ReportMessageAt(Scanner::Location loc,
-                       const char* message,
-                       Vector<const char*> args);
-  void ReportMessageAt(Scanner::Location loc,
-                       const char* message,
-                       Vector<Handle<String> > args);
 
   void set_pre_parse_data(ScriptDataImpl *data) {
     pre_parse_data_ = data;
@@ -570,9 +602,6 @@ class Parser : public ParserBase {
     return IsLexicalVariableMode(mode)
         ? top_scope_ : top_scope_->DeclarationScope();
   }
-
-  // Check if the given string is 'eval' or 'arguments'.
-  bool IsEvalOrArguments(Handle<String> string);
 
   // All ParseXXX functions take as the last argument an *ok parameter
   // which is set to false if parsing failed; it is unchanged otherwise.
@@ -639,7 +668,6 @@ class Parser : public ParserBase {
   Expression* ParsePrimaryExpression(bool* ok);
   Expression* ParseArrayLiteral(bool* ok);
   Expression* ParseObjectLiteral(bool* ok);
-  Expression* ParseRegExpLiteral(bool seen_equal, bool* ok);
 
   // Initialize the components of a for-in / for-of statement.
   void InitializeForEachStatement(ForEachStatement* stmt,
@@ -660,8 +688,6 @@ class Parser : public ParserBase {
   // Magical syntax support.
   Expression* ParseV8Intrinsic(bool* ok);
 
-  bool is_generator() const { return current_function_state_->is_generator(); }
-
   bool CheckInOrOf(bool accept_OF, ForEachStatement::VisitMode* visit_mode);
 
   Handle<String> LiteralString(PretenureFlag tenured) {
@@ -674,29 +700,9 @@ class Parser : public ParserBase {
     }
   }
 
-  Handle<String> NextLiteralString(PretenureFlag tenured) {
-    if (scanner().is_next_literal_ascii()) {
-      return isolate_->factory()->NewStringFromAscii(
-          scanner().next_literal_ascii_string(), tenured);
-    } else {
-      return isolate_->factory()->NewStringFromTwoByte(
-          scanner().next_literal_utf16_string(), tenured);
-    }
-  }
-
-  Handle<String> GetSymbol();
-
   // Get odd-ball literals.
   Literal* GetLiteralUndefined(int position);
   Literal* GetLiteralTheHole(int position);
-
-  Handle<String> ParseIdentifier(AllowEvalOrArgumentsAsIdentifier, bool* ok);
-  Handle<String> ParseIdentifierOrStrictReservedWord(
-      bool* is_strict_reserved, bool* ok);
-  Handle<String> ParseIdentifierName(bool* ok);
-  Handle<String> ParseIdentifierNameOrGetOrSet(bool* is_get,
-                                               bool* is_set,
-                                               bool* ok);
 
   // Determine if the expression is a variable proxy and mark it as being used
   // in an assignment or with a increment/decrement operator. This is currently

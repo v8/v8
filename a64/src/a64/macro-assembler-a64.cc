@@ -3973,6 +3973,7 @@ void MacroAssembler::RecordWrite(Register object,
                                  SaveFPRegsMode fp_mode,
                                  RememberedSetAction remembered_set_action,
                                  SmiCheck smi_check) {
+  ASM_LOCATION("MacroAssembler::RecordWrite");
   ASSERT(!AreAliased(object, value));
 
   if (emit_debug_code()) {
