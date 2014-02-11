@@ -1347,18 +1347,12 @@ void MacroAssembler::CallApiFunctionAndReturn(
   Mov(x10, reinterpret_cast<uintptr_t>(is_profiling_flag));
   Ldrb(w10, MemOperand(x10));
   Cbz(w10, &profiler_disabled);
+  Mov(x3, Operand(thunk_ref));
+  B(&end_profiler_check);
 
-  // Additional parameter is the address of the actual callback.
-  Mov(function_address, Operand(thunk_ref));
-  if (!function_address.Is(x3)) {
-    B(&end_profiler_check);
-    Bind(&profiler_disabled);
-    Mov(x3, function_address);
-    Bind(&end_profiler_check);
-  } else {
-    Bind(&profiler_disabled);
-    Bind(&end_profiler_check);
-  }
+  Bind(&profiler_disabled);
+  Mov(x3, function_address);
+  Bind(&end_profiler_check);
 
   // Save the callee-save registers we are going to use.
   // TODO(all): Is this necessary? ARM doesn't do it.
@@ -1395,7 +1389,7 @@ void MacroAssembler::CallApiFunctionAndReturn(
   // return address pushed on stack (could have moved after GC).
   // DirectCEntry stub itself is generated early and never moves.
   DirectCEntryStub stub;
-  stub.GenerateCall(this, function_address);
+  stub.GenerateCall(this, x3);
 
   if (FLAG_log_timer_events) {
     FrameScope frame(this, StackFrame::MANUAL);
