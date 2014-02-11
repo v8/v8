@@ -36,18 +36,19 @@ namespace v8 {
 namespace internal {
 
 // Common base class shared between parser and pre-parser.
-class ParserBase {
+template <typename Traits>
+class ParserBase : public Traits {
  public:
-  ParserBase(Scanner* scanner, uintptr_t stack_limit)
-      : scanner_(scanner),
+  ParserBase(Scanner* scanner, uintptr_t stack_limit,
+             typename Traits::ParserType this_object)
+      : Traits(this_object),
+        scanner_(scanner),
         stack_limit_(stack_limit),
         stack_overflow_(false),
         allow_lazy_(false),
         allow_natives_syntax_(false),
         allow_generators_(false),
         allow_for_of_(false) { }
-  // TODO(mstarzinger): Only virtual until message reporting has been unified.
-  virtual ~ParserBase() { }
 
   // Getters that indicate whether certain syntactical constructs are
   // allowed to be parsed by this instance of the parser.
@@ -86,8 +87,6 @@ class ParserBase {
   int peek_position() { return scanner_->peek_location().beg_pos; }
   bool stack_overflow() const { return stack_overflow_; }
   void set_stack_overflow() { stack_overflow_ = true; }
-
-  virtual bool is_classic_mode() = 0;
 
   INLINE(Token::Value peek()) {
     if (stack_overflow_) return Token::ILLEGAL;
@@ -132,25 +131,99 @@ class ParserBase {
     }
   }
 
-  bool peek_any_identifier();
-  void ExpectSemicolon(bool* ok);
-  bool CheckContextualKeyword(Vector<const char> keyword);
-  void ExpectContextualKeyword(Vector<const char> keyword, bool* ok);
+  void ExpectSemicolon(bool* ok) {
+    // Check for automatic semicolon insertion according to
+    // the rules given in ECMA-262, section 7.9, page 21.
+    Token::Value tok = peek();
+    if (tok == Token::SEMICOLON) {
+      Next();
+      return;
+    }
+    if (scanner()->HasAnyLineTerminatorBeforeNext() ||
+        tok == Token::RBRACE ||
+        tok == Token::EOS) {
+      return;
+    }
+    Expect(Token::SEMICOLON, ok);
+  }
 
-  // Strict mode octal literal validation.
-  void CheckOctalLiteral(int beg_pos, int end_pos, bool* ok);
+  bool peek_any_identifier() {
+    Token::Value next = peek();
+    return next == Token::IDENTIFIER ||
+        next == Token::FUTURE_RESERVED_WORD ||
+        next == Token::FUTURE_STRICT_RESERVED_WORD ||
+        next == Token::YIELD;
+  }
+
+  bool CheckContextualKeyword(Vector<const char> keyword) {
+    if (peek() == Token::IDENTIFIER &&
+        scanner()->is_next_contextual_keyword(keyword)) {
+      Consume(Token::IDENTIFIER);
+      return true;
+    }
+    return false;
+  }
+
+  void ExpectContextualKeyword(Vector<const char> keyword, bool* ok) {
+    Expect(Token::IDENTIFIER, ok);
+    if (!*ok) return;
+    if (!scanner()->is_literal_contextual_keyword(keyword)) {
+      ReportUnexpectedToken(scanner()->current_token());
+      *ok = false;
+    }
+  }
+
+  // Checks whether an octal literal was last seen between beg_pos and end_pos.
+  // If so, reports an error. Only called for strict mode.
+  void CheckOctalLiteral(int beg_pos, int end_pos, bool* ok) {
+    Scanner::Location octal = scanner()->octal_position();
+    if (octal.IsValid() && beg_pos <= octal.beg_pos &&
+        octal.end_pos <= end_pos) {
+      ReportMessageAt(octal, "strict_octal_literal");
+      scanner()->clear_octal_position();
+      *ok = false;
+    }
+  }
 
   // Determine precedence of given token.
-  static int Precedence(Token::Value token, bool accept_IN);
+  static int Precedence(Token::Value token, bool accept_IN) {
+    if (token == Token::IN && !accept_IN)
+      return 0;  // 0 precedence will terminate binary expression parsing
+    return Token::Precedence(token);
+  }
 
   // Report syntax errors.
-  void ReportUnexpectedToken(Token::Value token);
-  void ReportMessageAt(Scanner::Location location, const char* type) {
-    ReportMessageAt(location, type, Vector<const char*>::empty());
+  void ReportMessage(const char* message, Vector<const char*> args) {
+    Scanner::Location source_location = scanner()->location();
+    Traits::ReportMessageAt(source_location, message, args);
   }
-  virtual void ReportMessageAt(Scanner::Location source_location,
-                               const char* message,
-                               Vector<const char*> args) = 0;
+
+  void ReportMessageAt(Scanner::Location location, const char* message) {
+    Traits::ReportMessageAt(location, message, Vector<const char*>::empty());
+  }
+
+  void ReportUnexpectedToken(Token::Value token);
+
+  // Recursive descent functions:
+
+  // Parses an identifier that is valid for the current scope, in particular it
+  // fails on strict mode future reserved keywords in a strict scope. If
+  // allow_eval_or_arguments is kAllowEvalOrArguments, we allow "eval" or
+  // "arguments" as identifier even in strict mode (this is needed in cases like
+  // "var foo = eval;").
+  typename Traits::IdentifierType ParseIdentifier(
+      AllowEvalOrArgumentsAsIdentifier,
+      bool* ok);
+  // Parses an identifier or a strict mode future reserved word, and indicate
+  // whether it is strict mode future reserved.
+  typename Traits::IdentifierType ParseIdentifierOrStrictReservedWord(
+      bool* is_strict_reserved,
+      bool* ok);
+  typename Traits::IdentifierType ParseIdentifierName(bool* ok);
+  // Parses an identifier and determines whether or not it is 'get' or 'set'.
+  typename Traits::IdentifierType ParseIdentifierNameOrGetOrSet(bool* is_get,
+                                                                bool* is_set,
+                                                                bool* ok);
 
   // Used to detect duplicates in object literals. Each of the values
   // kGetterProperty, kSetterProperty and kValueProperty represents
@@ -218,6 +291,176 @@ class ParserBase {
 };
 
 
+class PreParserIdentifier {
+ public:
+  static PreParserIdentifier Default() {
+    return PreParserIdentifier(kUnknownIdentifier);
+  }
+  static PreParserIdentifier Eval() {
+    return PreParserIdentifier(kEvalIdentifier);
+  }
+  static PreParserIdentifier Arguments() {
+    return PreParserIdentifier(kArgumentsIdentifier);
+  }
+  static PreParserIdentifier FutureReserved() {
+    return PreParserIdentifier(kFutureReservedIdentifier);
+  }
+  static PreParserIdentifier FutureStrictReserved() {
+    return PreParserIdentifier(kFutureStrictReservedIdentifier);
+  }
+  static PreParserIdentifier Yield() {
+    return PreParserIdentifier(kYieldIdentifier);
+  }
+  bool IsEval() { return type_ == kEvalIdentifier; }
+  bool IsArguments() { return type_ == kArgumentsIdentifier; }
+  bool IsEvalOrArguments() { return type_ >= kEvalIdentifier; }
+  bool IsYield() { return type_ == kYieldIdentifier; }
+  bool IsFutureReserved() { return type_ == kFutureReservedIdentifier; }
+  bool IsFutureStrictReserved() {
+    return type_ == kFutureStrictReservedIdentifier;
+  }
+  bool IsValidStrictVariable() { return type_ == kUnknownIdentifier; }
+
+ private:
+  enum Type {
+    kUnknownIdentifier,
+    kFutureReservedIdentifier,
+    kFutureStrictReservedIdentifier,
+    kYieldIdentifier,
+    kEvalIdentifier,
+    kArgumentsIdentifier
+  };
+  explicit PreParserIdentifier(Type type) : type_(type) {}
+  Type type_;
+
+  friend class PreParserExpression;
+};
+
+
+// Bits 0 and 1 are used to identify the type of expression:
+// If bit 0 is set, it's an identifier.
+// if bit 1 is set, it's a string literal.
+// If neither is set, it's no particular type, and both set isn't
+// use yet.
+class PreParserExpression {
+ public:
+  static PreParserExpression Default() {
+    return PreParserExpression(kUnknownExpression);
+  }
+
+  static PreParserExpression FromIdentifier(PreParserIdentifier id) {
+    return PreParserExpression(kIdentifierFlag |
+                               (id.type_ << kIdentifierShift));
+  }
+
+  static PreParserExpression StringLiteral() {
+    return PreParserExpression(kUnknownStringLiteral);
+  }
+
+  static PreParserExpression UseStrictStringLiteral() {
+    return PreParserExpression(kUseStrictString);
+  }
+
+  static PreParserExpression This() {
+    return PreParserExpression(kThisExpression);
+  }
+
+  static PreParserExpression ThisProperty() {
+    return PreParserExpression(kThisPropertyExpression);
+  }
+
+  static PreParserExpression StrictFunction() {
+    return PreParserExpression(kStrictFunctionExpression);
+  }
+
+  bool IsIdentifier() { return (code_ & kIdentifierFlag) != 0; }
+
+  // Only works corretly if it is actually an identifier expression.
+  PreParserIdentifier AsIdentifier() {
+    return PreParserIdentifier(
+        static_cast<PreParserIdentifier::Type>(code_ >> kIdentifierShift));
+  }
+
+  bool IsStringLiteral() { return (code_ & kStringLiteralFlag) != 0; }
+
+  bool IsUseStrictLiteral() {
+    return (code_ & kStringLiteralMask) == kUseStrictString;
+  }
+
+  bool IsThis() { return code_ == kThisExpression; }
+
+  bool IsThisProperty() { return code_ == kThisPropertyExpression; }
+
+  bool IsStrictFunction() { return code_ == kStrictFunctionExpression; }
+
+ private:
+  // First two/three bits are used as flags.
+  // Bit 0 and 1 represent identifiers or strings literals, and are
+  // mutually exclusive, but can both be absent.
+  enum {
+    kUnknownExpression = 0,
+    // Identifiers
+    kIdentifierFlag = 1,  // Used to detect labels.
+    kIdentifierShift = 3,
+
+    kStringLiteralFlag = 2,  // Used to detect directive prologue.
+    kUnknownStringLiteral = kStringLiteralFlag,
+    kUseStrictString = kStringLiteralFlag | 8,
+    kStringLiteralMask = kUseStrictString,
+
+    // Below here applies if neither identifier nor string literal.
+    kThisExpression = 4,
+    kThisPropertyExpression = 8,
+    kStrictFunctionExpression = 12
+  };
+
+  explicit PreParserExpression(int expression_code) : code_(expression_code) {}
+
+  int code_;
+};
+
+class PreParser;
+
+
+class PreParserTraits {
+ public:
+  typedef PreParser* ParserType;
+  // Return types for traversing functions.
+  typedef PreParserIdentifier IdentifierType;
+
+  explicit PreParserTraits(PreParser* pre_parser) : pre_parser_(pre_parser) {}
+
+  // Helper functions for recursive descent.
+  bool is_classic_mode() const;
+  bool is_generator() const;
+  static bool IsEvalOrArguments(IdentifierType identifier) {
+    return identifier.IsEvalOrArguments();
+  }
+
+  // Reporting errors.
+  void ReportMessageAt(Scanner::Location location,
+                       const char* message,
+                       Vector<const char*> args);
+  void ReportMessageAt(Scanner::Location location,
+                       const char* type,
+                       const char* name_opt);
+  void ReportMessageAt(int start_pos,
+                       int end_pos,
+                       const char* type,
+                       const char* name_opt);
+
+  // Identifiers:
+  static IdentifierType EmptyIdentifier() {
+    return PreParserIdentifier::Default();
+  }
+
+  IdentifierType GetSymbol();
+
+ private:
+  PreParser* pre_parser_;
+};
+
+
 // Preparsing checks a JavaScript program and emits preparse-data that helps
 // a later parsing to be faster.
 // See preparse-data-format.h for the data format.
@@ -230,8 +473,11 @@ class ParserBase {
 // rather it is to speed up properly written and correct programs.
 // That means that contextual checks (like a label being declared where
 // it is used) are generally omitted.
-class PreParser : public ParserBase {
+class PreParser : public ParserBase<PreParserTraits> {
  public:
+  typedef PreParserIdentifier Identifier;
+  typedef PreParserExpression Expression;
+
   enum PreParseResult {
     kPreParseStackOverflow,
     kPreParseSuccess
@@ -240,7 +486,7 @@ class PreParser : public ParserBase {
   PreParser(Scanner* scanner,
             ParserRecorder* log,
             uintptr_t stack_limit)
-      : ParserBase(scanner, stack_limit),
+      : ParserBase<PreParserTraits>(scanner, stack_limit, this),
         log_(log),
         scope_(NULL),
         parenthesized_function_(false) { }
@@ -278,6 +524,8 @@ class PreParser : public ParserBase {
                                       ParserRecorder* log);
 
  private:
+  friend class PreParserTraits;
+
   // These types form an algebra over syntactic categories that is just
   // rich enough to let us recognize and propagate the constructs that
   // are either being counted in the preparser data, or is important
@@ -298,142 +546,6 @@ class PreParser : public ParserBase {
   enum VariableDeclarationProperties {
     kHasInitializers,
     kHasNoInitializers
-  };
-
-  class Expression;
-
-  class Identifier {
-   public:
-    static Identifier Default() {
-      return Identifier(kUnknownIdentifier);
-    }
-    static Identifier Eval()  {
-      return Identifier(kEvalIdentifier);
-    }
-    static Identifier Arguments()  {
-      return Identifier(kArgumentsIdentifier);
-    }
-    static Identifier FutureReserved()  {
-      return Identifier(kFutureReservedIdentifier);
-    }
-    static Identifier FutureStrictReserved()  {
-      return Identifier(kFutureStrictReservedIdentifier);
-    }
-    static Identifier Yield()  {
-      return Identifier(kYieldIdentifier);
-    }
-    bool IsEval() { return type_ == kEvalIdentifier; }
-    bool IsArguments() { return type_ == kArgumentsIdentifier; }
-    bool IsEvalOrArguments() { return type_ >= kEvalIdentifier; }
-    bool IsYield() { return type_ == kYieldIdentifier; }
-    bool IsFutureReserved() { return type_ == kFutureReservedIdentifier; }
-    bool IsFutureStrictReserved() {
-      return type_ == kFutureStrictReservedIdentifier;
-    }
-    bool IsValidStrictVariable() { return type_ == kUnknownIdentifier; }
-
-   private:
-    enum Type {
-      kUnknownIdentifier,
-      kFutureReservedIdentifier,
-      kFutureStrictReservedIdentifier,
-      kYieldIdentifier,
-      kEvalIdentifier,
-      kArgumentsIdentifier
-    };
-    explicit Identifier(Type type) : type_(type) { }
-    Type type_;
-
-    friend class Expression;
-  };
-
-  // Bits 0 and 1 are used to identify the type of expression:
-  // If bit 0 is set, it's an identifier.
-  // if bit 1 is set, it's a string literal.
-  // If neither is set, it's no particular type, and both set isn't
-  // use yet.
-  class Expression {
-   public:
-    static Expression Default() {
-      return Expression(kUnknownExpression);
-    }
-
-    static Expression FromIdentifier(Identifier id) {
-      return Expression(kIdentifierFlag | (id.type_ << kIdentifierShift));
-    }
-
-    static Expression StringLiteral() {
-      return Expression(kUnknownStringLiteral);
-    }
-
-    static Expression UseStrictStringLiteral() {
-      return Expression(kUseStrictString);
-    }
-
-    static Expression This() {
-      return Expression(kThisExpression);
-    }
-
-    static Expression ThisProperty() {
-      return Expression(kThisPropertyExpression);
-    }
-
-    static Expression StrictFunction() {
-      return Expression(kStrictFunctionExpression);
-    }
-
-    bool IsIdentifier() {
-      return (code_ & kIdentifierFlag) != 0;
-    }
-
-    // Only works corretly if it is actually an identifier expression.
-    PreParser::Identifier AsIdentifier() {
-      return PreParser::Identifier(
-          static_cast<PreParser::Identifier::Type>(code_ >> kIdentifierShift));
-    }
-
-    bool IsStringLiteral() { return (code_ & kStringLiteralFlag) != 0; }
-
-    bool IsUseStrictLiteral() {
-      return (code_ & kStringLiteralMask) == kUseStrictString;
-    }
-
-    bool IsThis() {
-      return code_ == kThisExpression;
-    }
-
-    bool IsThisProperty() {
-      return code_ == kThisPropertyExpression;
-    }
-
-    bool IsStrictFunction() {
-      return code_ == kStrictFunctionExpression;
-    }
-
-   private:
-    // First two/three bits are used as flags.
-    // Bit 0 and 1 represent identifiers or strings literals, and are
-    // mutually exclusive, but can both be absent.
-    enum  {
-      kUnknownExpression = 0,
-      // Identifiers
-      kIdentifierFlag = 1,  // Used to detect labels.
-      kIdentifierShift = 3,
-
-      kStringLiteralFlag = 2,  // Used to detect directive prologue.
-      kUnknownStringLiteral = kStringLiteralFlag,
-      kUseStrictString = kStringLiteralFlag | 8,
-      kStringLiteralMask = kUseStrictString,
-
-      // Below here applies if neither identifier nor string literal.
-      kThisExpression = 4,
-      kThisPropertyExpression = 8,
-      kStrictFunctionExpression = 12
-    };
-
-    explicit Expression(int expression_code) : code_(expression_code) { }
-
-    int code_;
   };
 
   class Statement {
@@ -546,27 +658,6 @@ class PreParser : public ParserBase {
     bool is_generator_;
   };
 
-  // Report syntax error
-  void ReportMessageAt(Scanner::Location location,
-                       const char* message,
-                       Vector<const char*> args) {
-    ReportMessageAt(location.beg_pos,
-                    location.end_pos,
-                    message,
-                    args.length() > 0 ? args[0] : NULL);
-  }
-  void ReportMessageAt(Scanner::Location location,
-                       const char* type,
-                       const char* name_opt) {
-    log_->LogMessage(location.beg_pos, location.end_pos, type, name_opt);
-  }
-  void ReportMessageAt(int start_pos,
-                       int end_pos,
-                       const char* type,
-                       const char* name_opt) {
-    log_->LogMessage(start_pos, end_pos, type, name_opt);
-  }
-
   // All ParseXXX functions take as the last argument an *ok parameter
   // which is set to false if parsing failed; it is unchanged otherwise.
   // By making the 'exception handling' explicit, we are forced to check
@@ -622,27 +713,13 @@ class PreParser : public ParserBase {
       bool* ok);
   void ParseLazyFunctionLiteralBody(bool* ok);
 
-  Identifier ParseIdentifier(AllowEvalOrArgumentsAsIdentifier, bool* ok);
-  Identifier ParseIdentifierOrStrictReservedWord(bool* is_strict_reserved,
-                                                 bool* ok);
-  Identifier ParseIdentifierName(bool* ok);
-  Identifier ParseIdentifierNameOrGetOrSet(bool* is_get,
-                                           bool* is_set,
-                                           bool* ok);
-
   // Logs the currently parsed literal as a symbol in the preparser data.
   void LogSymbol();
-  // Log the currently parsed identifier.
-  Identifier GetIdentifierSymbol();
   // Log the currently parsed string literal.
   Expression GetStringSymbol();
 
   void set_language_mode(LanguageMode language_mode) {
     scope_->set_language_mode(language_mode);
-  }
-
-  virtual bool is_classic_mode() {
-    return scope_->language_mode() == CLASSIC_MODE;
   }
 
   bool is_extended_mode() {
@@ -657,6 +734,154 @@ class PreParser : public ParserBase {
   Scope* scope_;
   bool parenthesized_function_;
 };
+
+
+template<class Traits>
+void ParserBase<Traits>::ReportUnexpectedToken(Token::Value token) {
+  // We don't report stack overflows here, to avoid increasing the
+  // stack depth even further.  Instead we report it after parsing is
+  // over, in ParseProgram.
+  if (token == Token::ILLEGAL && stack_overflow()) {
+    return;
+  }
+  Scanner::Location source_location = scanner()->location();
+
+  // Four of the tokens are treated specially
+  switch (token) {
+    case Token::EOS:
+      return ReportMessageAt(source_location, "unexpected_eos");
+    case Token::NUMBER:
+      return ReportMessageAt(source_location, "unexpected_token_number");
+    case Token::STRING:
+      return ReportMessageAt(source_location, "unexpected_token_string");
+    case Token::IDENTIFIER:
+      return ReportMessageAt(source_location, "unexpected_token_identifier");
+    case Token::FUTURE_RESERVED_WORD:
+      return ReportMessageAt(source_location, "unexpected_reserved");
+    case Token::YIELD:
+    case Token::FUTURE_STRICT_RESERVED_WORD:
+      return ReportMessageAt(
+          source_location,
+          this->is_classic_mode() ? "unexpected_token_identifier"
+                                  : "unexpected_strict_reserved");
+    default:
+      const char* name = Token::String(token);
+      ASSERT(name != NULL);
+      Traits::ReportMessageAt(
+          source_location, "unexpected_token", Vector<const char*>(&name, 1));
+  }
+}
+
+
+template<class Traits>
+typename Traits::IdentifierType ParserBase<Traits>::ParseIdentifier(
+    AllowEvalOrArgumentsAsIdentifier allow_eval_or_arguments,
+    bool* ok) {
+  Token::Value next = Next();
+  if (next == Token::IDENTIFIER) {
+    typename Traits::IdentifierType name = this->GetSymbol();
+    if (allow_eval_or_arguments == kDontAllowEvalOrArguments &&
+        !this->is_classic_mode() && this->IsEvalOrArguments(name)) {
+      ReportMessageAt(scanner()->location(), "strict_eval_arguments");
+      *ok = false;
+    }
+    return name;
+  } else if (this->is_classic_mode() &&
+             (next == Token::FUTURE_STRICT_RESERVED_WORD ||
+              (next == Token::YIELD && !this->is_generator()))) {
+    return this->GetSymbol();
+  } else {
+    this->ReportUnexpectedToken(next);
+    *ok = false;
+    return Traits::EmptyIdentifier();
+  }
+}
+
+
+template <class Traits>
+typename Traits::IdentifierType ParserBase<
+    Traits>::ParseIdentifierOrStrictReservedWord(bool* is_strict_reserved,
+                                                 bool* ok) {
+  Token::Value next = Next();
+  if (next == Token::IDENTIFIER) {
+    *is_strict_reserved = false;
+  } else if (next == Token::FUTURE_STRICT_RESERVED_WORD ||
+             (next == Token::YIELD && !this->is_generator())) {
+    *is_strict_reserved = true;
+  } else {
+    ReportUnexpectedToken(next);
+    *ok = false;
+    return Traits::EmptyIdentifier();
+  }
+  return this->GetSymbol();
+}
+
+
+template <class Traits>
+typename Traits::IdentifierType ParserBase<Traits>::ParseIdentifierName(
+    bool* ok) {
+  Token::Value next = Next();
+  if (next != Token::IDENTIFIER && next != Token::FUTURE_RESERVED_WORD &&
+      next != Token::FUTURE_STRICT_RESERVED_WORD && !Token::IsKeyword(next)) {
+    this->ReportUnexpectedToken(next);
+    *ok = false;
+    return Traits::EmptyIdentifier();
+  }
+  return this->GetSymbol();
+}
+
+
+template <class Traits>
+typename Traits::IdentifierType
+ParserBase<Traits>::ParseIdentifierNameOrGetOrSet(bool* is_get,
+                                                  bool* is_set,
+                                                  bool* ok) {
+  typename Traits::IdentifierType result = ParseIdentifierName(ok);
+  if (!*ok) return Traits::EmptyIdentifier();
+  if (scanner()->is_literal_ascii() &&
+      scanner()->literal_length() == 3) {
+    const char* token = scanner()->literal_ascii_string().start();
+    *is_get = strncmp(token, "get", 3) == 0;
+    *is_set = !*is_get && strncmp(token, "set", 3) == 0;
+  }
+  return result;
+}
+
+
+template <typename Traits>
+void ParserBase<Traits>::ObjectLiteralChecker::CheckProperty(
+    Token::Value property,
+    PropertyKind type,
+    bool* ok) {
+  int old;
+  if (property == Token::NUMBER) {
+    old = finder_.AddNumber(scanner()->literal_ascii_string(), type);
+  } else if (scanner()->is_literal_ascii()) {
+    old = finder_.AddAsciiSymbol(scanner()->literal_ascii_string(), type);
+  } else {
+    old = finder_.AddUtf16Symbol(scanner()->literal_utf16_string(), type);
+  }
+  PropertyKind old_type = static_cast<PropertyKind>(old);
+  if (HasConflict(old_type, type)) {
+    if (IsDataDataConflict(old_type, type)) {
+      // Both are data properties.
+      if (language_mode_ == CLASSIC_MODE) return;
+      parser()->ReportMessageAt(scanner()->location(),
+                               "strict_duplicate_property");
+    } else if (IsDataAccessorConflict(old_type, type)) {
+      // Both a data and an accessor property with the same name.
+      parser()->ReportMessageAt(scanner()->location(),
+                               "accessor_data_property");
+    } else {
+      ASSERT(IsAccessorAccessorConflict(old_type, type));
+      // Both accessors of the same type.
+      parser()->ReportMessageAt(scanner()->location(),
+                               "accessor_get_set");
+    }
+    *ok = false;
+  }
+}
+
 
 } }  // v8::internal
 

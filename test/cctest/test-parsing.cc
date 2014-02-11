@@ -1108,8 +1108,9 @@ enum ParserSyncTestResult {
   kError
 };
 
-
-void SetParserFlags(i::ParserBase* parser, i::EnumSet<ParserFlag> flags) {
+template <typename Traits>
+void SetParserFlags(i::ParserBase<Traits>* parser,
+                    i::EnumSet<ParserFlag> flags) {
   parser->set_allow_lazy(flags.Contains(kAllowLazy));
   parser->set_allow_natives_syntax(flags.Contains(kAllowNativesSyntax));
   parser->set_allow_harmony_scoping(flags.Contains(kAllowHarmonyScoping));
