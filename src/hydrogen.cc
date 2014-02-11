@@ -6772,44 +6772,13 @@ HInstruction* HOptimizedGraphBuilder::BuildCallConstantFunction(
 }
 
 
-class FunctionSorter {
- public:
-  FunctionSorter() : index_(0), ticks_(0), ast_length_(0), src_length_(0) { }
-  FunctionSorter(int index, int ticks, int ast_length, int src_length)
-      : index_(index),
-        ticks_(ticks),
-        ast_length_(ast_length),
-        src_length_(src_length) { }
-
-  int index() const { return index_; }
-  int ticks() const { return ticks_; }
-  int ast_length() const { return ast_length_; }
-  int src_length() const { return src_length_; }
-
- private:
-  int index_;
-  int ticks_;
-  int ast_length_;
-  int src_length_;
-};
-
-
-inline bool operator<(const FunctionSorter& lhs, const FunctionSorter& rhs) {
-  int diff = lhs.ticks() - rhs.ticks();
-  if (diff != 0) return diff > 0;
-  diff = lhs.ast_length() - rhs.ast_length();
-  if (diff != 0) return diff < 0;
-  return lhs.src_length() < rhs.src_length();
-}
-
-
 void HOptimizedGraphBuilder::HandlePolymorphicCallNamed(
     Call* expr,
     HValue* receiver,
     SmallMapList* types,
     Handle<String> name) {
   int argument_count = expr->arguments()->length() + 1;  // Includes receiver.
-  FunctionSorter order[kMaxCallPolymorphism];
+  int order[kMaxCallPolymorphism];
 
   bool handle_smi = false;
   bool handled_string = false;
@@ -6831,15 +6800,9 @@ void HOptimizedGraphBuilder::HandlePolymorphicCallNamed(
         handle_smi = true;
       }
       expr->set_target(target);
-      order[ordered_functions++] =
-          FunctionSorter(i,
-                         expr->target()->shared()->profiler_ticks(),
-                         InliningAstSize(expr->target()),
-                         expr->target()->shared()->SourceSize());
+      order[ordered_functions++] = i;
     }
   }
-
-  std::sort(order, order + ordered_functions);
 
   HBasicBlock* number_block = NULL;
   HBasicBlock* join = NULL;
@@ -6847,7 +6810,7 @@ void HOptimizedGraphBuilder::HandlePolymorphicCallNamed(
   int count = 0;
 
   for (int fn = 0; fn < ordered_functions; ++fn) {
-    int i = order[fn].index();
+    int i = order[fn];
     PropertyAccessInfo info(this, LOAD, ToType(types->at(i)), name);
     if (info.type()->Is(Type::String())) {
       if (handled_string) continue;
