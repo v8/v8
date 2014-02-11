@@ -2174,7 +2174,7 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
   // generated store code.
   if ((elements_kind == FAST_HOLEY_ELEMENTS) ||
       (elements_kind == FAST_ELEMENTS && access_type == STORE)) {
-    checked_object->ClearDependsOnFlag(kElementsKind);
+    checked_object->ClearGVNFlag(kDependsOnElementsKind);
   }
 
   bool fast_smi_only_elements = IsFastSmiElementsKind(elements_kind);
@@ -2184,7 +2184,7 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
       store_mode != STORE_NO_TRANSITION_HANDLE_COW) {
     HCheckMaps* check_cow_map = Add<HCheckMaps>(
         elements, isolate()->factory()->fixed_array_map(), top_info());
-    check_cow_map->ClearDependsOnFlag(kElementsKind);
+    check_cow_map->ClearGVNFlag(kDependsOnElementsKind);
   }
   HInstruction* length = NULL;
   if (is_js_array) {
@@ -2258,7 +2258,7 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
       } else {
         HCheckMaps* check_cow_map = Add<HCheckMaps>(
             elements, isolate()->factory()->fixed_array_map(), top_info());
-        check_cow_map->ClearDependsOnFlag(kElementsKind);
+        check_cow_map->ClearGVNFlag(kDependsOnElementsKind);
       }
     }
   }
@@ -5309,7 +5309,7 @@ HInstruction* HOptimizedGraphBuilder::BuildStoreNamedField(
   if (transition_to_field) {
     HConstant* transition_constant = Add<HConstant>(info->transition());
     instr->SetTransition(transition_constant, top_info());
-    instr->SetChangesFlag(kMaps);
+    instr->SetGVNFlag(kChangesMaps);
   }
   return instr;
 }
@@ -6208,7 +6208,7 @@ HInstruction* HOptimizedGraphBuilder::BuildMonomorphicElementAccess(
   HCheckMaps* checked_object = Add<HCheckMaps>(object, map, top_info(),
                                                dependency);
   if (dependency) {
-    checked_object->ClearDependsOnFlag(kElementsKind);
+    checked_object->ClearGVNFlag(kDependsOnElementsKind);
   }
 
   if (access_type == STORE && map->prototype()->IsJSObject()) {
@@ -6688,7 +6688,7 @@ HInstruction* HGraphBuilder::BuildConstantMapCheck(Handle<JSObject> constant,
   AddInstruction(constant_value);
   HCheckMaps* check =
       Add<HCheckMaps>(constant_value, handle(constant->map()), info);
-  check->ClearDependsOnFlag(kElementsKind);
+  check->ClearGVNFlag(kDependsOnElementsKind);
   return check;
 }
 
