@@ -44,7 +44,9 @@ class SideEffects V8_FINAL {
  public:
   static const int kNumberOfSpecials = 64 - kNumberOfFlags;
 
-  SideEffects() : bits_(0) {}
+  SideEffects() : bits_(0) {
+    ASSERT(kNumberOfFlags + kNumberOfSpecials == sizeof(bits_) * CHAR_BIT);
+  }
   explicit SideEffects(GVNFlagSet flags) : bits_(flags.ToIntegral()) {}
   bool IsEmpty() const { return bits_ == 0; }
   bool ContainsFlag(GVNFlag flag) const {
@@ -74,7 +76,6 @@ class SideEffects V8_FINAL {
   }
 
   uint64_t bits_;
-  STATIC_ASSERT(kNumberOfFlags + kNumberOfSpecials == sizeof(bits_) * CHAR_BIT);
 };
 
 
