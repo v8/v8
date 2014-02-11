@@ -48,16 +48,15 @@ class KeyEncoding(object):
     KeyEncoding.__encodings[name] = self
     self.__name = name
     self.__primary_range = primary_range
-    self.__primary_range_component = Term(
-      'NUMERIC_RANGE_KEY', primary_range[0], primary_range[1])
     self.__lower_bound = primary_range[0]
     self.__upper_bound = primary_range[1]
+    self.__primary_range_component = self.numeric_range_term(primary_range[0],
+                                                             primary_range[1])
     self.__named_ranges = {
       k : Term('NAMED_RANGE_KEY', k) for k in named_ranges }
     def f(v):
       if len(v) == 2:
-        assert primary_range[0] <= v[0] and v[1] <= primary_range[1]
-        return Term('NUMERIC_RANGE_KEY', v[0], v[1])
+        return self.numeric_range_term(v[0], v[1])
       elif len(v) == 1:
         assert v[0] in self.__named_ranges
         return self.__named_ranges[v[0]]
@@ -102,15 +101,16 @@ class KeyEncoding(object):
     return chain(self.__primary_range_iter(), self.__named_ranges.itervalues())
 
   def is_primary_range(self, r):
-    assert self.lower_bound() <= r[0] and r[1] <= self.upper_bound()
-    primary_range = self.__primary_range
-    if (primary_range[0] <= r[0] and r[1] <= primary_range[1]):
-      return True
-    assert r[0] == r[1]
-    return False
+    assert len(r) == 2
+    return self.in_primary_range(r[0], r[1])
 
-  def in_primary_range(self, c):
-    return self.is_primary_range((c, c))
+  def in_primary_range(self, a, b):
+    return self.lower_bound() <= a and b <= self.upper_bound()
+
+  def numeric_range_term(self, a, b):
+    assert type(a) == IntType and type(b) == IntType
+    assert self.in_primary_range(a, b)
+    return Term('NUMERIC_RANGE_KEY', a, b)
 
 class TransitionKey(object):
   '''Represents a transition from a state in DFA or NFA to another state.
@@ -161,8 +161,7 @@ class TransitionKey(object):
   @staticmethod
   def range(encoding, a, b):
     '''Returns a TransitionKey for a single-character transition.'''
-    assert type(a) == IntType and type(b) == IntType
-    return TransitionKey(encoding, Term("NUMERIC_RANGE_KEY", a, b))
+    return TransitionKey(encoding, encoding.numeric_range_term(a, b))
 
   @staticmethod
   def unique(term):  # TODO(dcarney): rename
@@ -177,9 +176,9 @@ class TransitionKey(object):
     key = term.name()
     args = term.args()
     if key == 'RANGE':
-      components.append(Term('NUMERIC_RANGE_KEY', args[0], args[1]))
+      components.append(encoding.numeric_range_term(args[0], args[1]))
     elif key == 'LITERAL':
-      components += map(lambda x : Term('NUMERIC_RANGE_KEY', x, x), args)
+      components += map(lambda x : encoding.numeric_range_term(x, x), args)
     elif key == 'CAT':
       for x in args:
         TransitionKey.__process_term(encoding, x, components, key_map)
@@ -345,7 +344,7 @@ class TransitionKey(object):
       raise Exception('unprintable %s' % component)
     r = component.args()
     def to_str(x):
-      assert not encoding or encoding.in_primary_range(x)
+      assert not encoding or encoding.in_primary_range(x, x)
       if x > 127:
         return str(x)
       if not x in TransitionKey.__printable_cache:
@@ -519,7 +518,8 @@ class TransitionKey(object):
     if merge_ranges:
       ranges = TransitionKey.__merge_ranges(encoding, ranges)
       other_keys = sorted(other_keys, cmp=TransitionKey.__component_compare)
-    range_terms = map(lambda x : Term('NUMERIC_RANGE_KEY', x[0], x[1]), ranges)
+    range_terms = map(
+      lambda x : encoding.numeric_range_term(x[0], x[1]), ranges)
     return chain(iter(range_terms), iter(other_keys))
 
   @staticmethod
@@ -560,7 +560,7 @@ class TransitionKey(object):
   @staticmethod
   def __invert_components(encoding, components):
     def key(x, y):
-      return Term('NUMERIC_RANGE_KEY', x, y)
+      return encoding.numeric_range_term(x, y)
     last = None
     classes = set(encoding.named_range_value_iter())
     for c in components:
