@@ -9352,13 +9352,8 @@ static void ECMA262ToInt32Helper(int32_t expected, double input) {
 
   __ Fmov(d0, input);
 
-  __ ECMA262ToInt32(x0, d0, x10, x11, MacroAssembler::INT32_IN_W);
-  __ ECMA262ToInt32(x1, d0, x10, x11, MacroAssembler::INT32_IN_X);
+  __ ECMA262ToInt32(x1, d0, x10, x11, MacroAssembler::INT32);
   __ ECMA262ToInt32(x2, d0, x10, x11, MacroAssembler::SMI);
-
-  // The upper bits of INT32_IN_W are undefined, so make sure we don't try to
-  // test them.
-  __ Mov(w0, w0);
 
   END();
 
@@ -9366,7 +9361,6 @@ static void ECMA262ToInt32Helper(int32_t expected, double input) {
 
   int64_t expected64 = expected;
 
-  ASSERT_EQUAL_32(expected, w0);
   ASSERT_EQUAL_64(expected64, x1);
   ASSERT_EQUAL_64(expected64 << kSmiShift | kSmiTag, x2);
 

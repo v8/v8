@@ -2544,14 +2544,7 @@ void MacroAssembler::ECMA262ToInt32(Register result,
 
   Bind(&tag);
   switch (format) {
-    case INT32_IN_W:
-      // There is nothing to do; the upper 32 bits are undefined.
-      if (emit_debug_code()) {
-        __ Mov(scratch1, 0x55555555);
-        __ Bfi(result, scratch1, 32, 32);
-      }
-      break;
-    case INT32_IN_X:
+    case INT32:
       Sxtw(result, result);
       break;
     case SMI:

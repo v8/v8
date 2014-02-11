@@ -5493,7 +5493,7 @@ void LCodeGen::DoTruncateDoubleToIntOrSmi(LTruncateDoubleToIntOrSmi* instr) {
                     ToRegister(instr->temp2()),
                     instr->tag_result()
                         ? MacroAssembler::SMI
-                        : MacroAssembler::INT32_IN_W);
+                        : MacroAssembler::INT32);
 }
 
 
