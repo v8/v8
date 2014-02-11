@@ -59,7 +59,7 @@ TEST_CONFIG = {
 }
 
 
-def MakeOptions(s=0, l=None, f=False, m=True, r=None, c=None,
+def MakeOptions(s=0, l=None, f=False, m=True, r=None, c=None, a=None,
                 status_password=None):
   """Convenience wrapper."""
   class Options(object):
@@ -71,6 +71,7 @@ def MakeOptions(s=0, l=None, f=False, m=True, r=None, c=None,
   options.m = m
   options.r = r
   options.c = c
+  options.a = a
   options.status_password = status_password
   return options
 
@@ -673,7 +674,8 @@ Performance and stability improvements on all platforms.""", commit)
         "Now working on version 3.22.6.%s\"" % review_suffix),
        " 2 files changed\n",
         CheckPreparePush],
-      ["cl upload -r \"reviewer@chromium.org\" --send-mail%s" % force_flag,
+      [("cl upload --email \"author@chromium.org\" "
+        "-r \"reviewer@chromium.org\" --send-mail%s" % force_flag),
        "done\n"],
       ["cl presubmit", "Presubmit successfull\n"],
       ["cl dcommit -f --bypass-hooks", "Closing issue\n"],
@@ -698,7 +700,8 @@ Performance and stability improvements on all platforms.""", commit)
         "(based on bleeding_edge revision r123455).\n\n"
         "TBR=reviewer@chromium.org\""),
        ""],
-      ["cl upload --send-mail%s" % force_flag, ""],
+      ["cl upload --email \"author@chromium.org\" --send-mail%s" % force_flag,
+       ""],
       ["checkout -f some_branch", ""],
       ["branch -D %s" % TEST_CONFIG[TEMP_BRANCH], ""],
       ["branch -D %s" % TEST_CONFIG[BRANCHNAME], ""],
@@ -728,7 +731,7 @@ Performance and stability improvements on all platforms.""", commit)
     if force:
       self.ExpectReadline([])
 
-    options = MakeOptions(f=force, m=manual,
+    options = MakeOptions(f=force, m=manual, a="author@chromium.org",
                           r="reviewer@chromium.org" if not manual else None,
                           c = TEST_CONFIG[CHROMIUM])
     RunPushToTrunk(TEST_CONFIG, PushToTrunkOptions(options), self)

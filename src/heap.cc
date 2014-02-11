@@ -2669,8 +2669,7 @@ MaybeObject* Heap::AllocateTypeFeedbackInfo() {
     if (!maybe_info->To(&info)) return maybe_info;
   }
   info->initialize_storage();
-  info->set_type_feedback_cells(TypeFeedbackCells::cast(empty_fixed_array()),
-                                SKIP_WRITE_BARRIER);
+  info->set_feedback_vector(empty_fixed_array(), SKIP_WRITE_BARRIER);
   return info;
 }
 

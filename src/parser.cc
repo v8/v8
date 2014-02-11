@@ -684,6 +684,7 @@ FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info,
           FunctionLiteral::kNotGenerator,
           0);
       result->set_ast_properties(factory()->visitor()->ast_properties());
+      result->set_slot_processor(factory()->visitor()->slot_processor());
       result->set_dont_optimize_reason(
           factory()->visitor()->dont_optimize_reason());
     } else if (stack_overflow()) {
@@ -4041,6 +4042,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   FunctionLiteral::IsGeneratorFlag generator = is_generator
       ? FunctionLiteral::kIsGenerator
       : FunctionLiteral::kNotGenerator;
+  DeferredFeedbackSlotProcessor* slot_processor;
   AstProperties ast_properties;
   BailoutReason dont_optimize_reason = kNoReason;
   // Parse function body.
@@ -4297,6 +4299,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
                         CHECK_OK);
     }
     ast_properties = *factory()->visitor()->ast_properties();
+    slot_processor = factory()->visitor()->slot_processor();
     dont_optimize_reason = factory()->visitor()->dont_optimize_reason();
   }
 
@@ -4320,6 +4323,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
                                     pos);
   function_literal->set_function_token_position(function_token_pos);
   function_literal->set_ast_properties(&ast_properties);
+  function_literal->set_slot_processor(slot_processor);
   function_literal->set_dont_optimize_reason(dont_optimize_reason);
 
   if (fni_ != NULL && should_infer_name) fni_->AddFunction(function_literal);

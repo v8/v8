@@ -99,25 +99,25 @@ class HLoadEliminationTable : public ZoneObject {
         break;
       }
       default: {
-        if (instr->CheckGVNFlag(kChangesInobjectFields)) {
+        if (instr->CheckChangesFlag(kInobjectFields)) {
           TRACE((" kill-all i%d\n", instr->id()));
           Kill();
           break;
         }
-        if (instr->CheckGVNFlag(kChangesMaps)) {
+        if (instr->CheckChangesFlag(kMaps)) {
           TRACE((" kill-maps i%d\n", instr->id()));
           KillOffset(JSObject::kMapOffset);
         }
-        if (instr->CheckGVNFlag(kChangesElementsKind)) {
+        if (instr->CheckChangesFlag(kElementsKind)) {
           TRACE((" kill-elements-kind i%d\n", instr->id()));
           KillOffset(JSObject::kMapOffset);
           KillOffset(JSObject::kElementsOffset);
         }
-        if (instr->CheckGVNFlag(kChangesElementsPointer)) {
+        if (instr->CheckChangesFlag(kElementsPointer)) {
           TRACE((" kill-elements i%d\n", instr->id()));
           KillOffset(JSObject::kElementsOffset);
         }
-        if (instr->CheckGVNFlag(kChangesOsrEntries)) {
+        if (instr->CheckChangesFlag(kOsrEntries)) {
           TRACE((" kill-osr i%d\n", instr->id()));
           Kill();
         }
@@ -454,11 +454,11 @@ class HLoadEliminationEffects : public ZoneObject {
         elements_stored_ = true;
       }
       default: {
-        fields_stored_ |= instr->CheckGVNFlag(kChangesInobjectFields);
-        maps_stored_ |= instr->CheckGVNFlag(kChangesMaps);
-        maps_stored_ |= instr->CheckGVNFlag(kChangesElementsKind);
-        elements_stored_ |= instr->CheckGVNFlag(kChangesElementsKind);
-        elements_stored_ |= instr->CheckGVNFlag(kChangesElementsPointer);
+        fields_stored_ |= instr->CheckChangesFlag(kInobjectFields);
+        maps_stored_ |= instr->CheckChangesFlag(kMaps);
+        maps_stored_ |= instr->CheckChangesFlag(kElementsKind);
+        elements_stored_ |= instr->CheckChangesFlag(kElementsKind);
+        elements_stored_ |= instr->CheckChangesFlag(kElementsPointer);
       }
     }
   }

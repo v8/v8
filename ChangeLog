@@ -1,3 +1,10 @@
+2014-02-11: Version 3.24.36
+
+        Fix inconsistencies wrt whitespaces (issue 3109).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-02-10: Version 3.24.35
 
         Fix inconsistencies wrt whitespaces (issue 3109).

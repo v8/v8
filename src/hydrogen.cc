@@ -1304,13 +1304,14 @@ HValue* HGraphBuilder::BuildWrapReceiver(HValue* object, HValue* function) {
 }
 
 
-HValue* HGraphBuilder::BuildCheckForCapacityGrow(HValue* object,
-                                                 HValue* elements,
-                                                 ElementsKind kind,
-                                                 HValue* length,
-                                                 HValue* key,
-                                                 bool is_js_array,
-                                                 bool is_store) {
+HValue* HGraphBuilder::BuildCheckForCapacityGrow(
+    HValue* object,
+    HValue* elements,
+    ElementsKind kind,
+    HValue* length,
+    HValue* key,
+    bool is_js_array,
+    PropertyAccessType access_type) {
   IfBuilder length_checker(this);
 
   Token::Value token = IsHoleyElementsKind(kind) ? Token::GTE : Token::EQ;
@@ -1353,7 +1354,7 @@ HValue* HGraphBuilder::BuildCheckForCapacityGrow(HValue* object,
                           new_length);
   }
 
-  if (is_store && kind == FAST_SMI_ELEMENTS) {
+  if (access_type == STORE && kind == FAST_SMI_ELEMENTS) {
     HValue* checked_elements = environment()->Top();
 
     // Write zero to ensure that the new element is initialized with some smi.
@@ -2159,7 +2160,7 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
     HValue* val,
     bool is_js_array,
     ElementsKind elements_kind,
-    bool is_store,
+    PropertyAccessType access_type,
     LoadKeyedHoleMode load_mode,
     KeyedAccessStoreMode store_mode) {
   ASSERT((!IsExternalArrayElementsKind(elements_kind) &&
@@ -2172,18 +2173,18 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
   // for FAST_ELEMENTS, since a transition to HOLEY elements won't change the
   // generated store code.
   if ((elements_kind == FAST_HOLEY_ELEMENTS) ||
-      (elements_kind == FAST_ELEMENTS && is_store)) {
-    checked_object->ClearGVNFlag(kDependsOnElementsKind);
+      (elements_kind == FAST_ELEMENTS && access_type == STORE)) {
+    checked_object->ClearDependsOnFlag(kElementsKind);
   }
 
   bool fast_smi_only_elements = IsFastSmiElementsKind(elements_kind);
   bool fast_elements = IsFastObjectElementsKind(elements_kind);
   HValue* elements = AddLoadElements(checked_object);
-  if (is_store && (fast_elements || fast_smi_only_elements) &&
+  if (access_type == STORE && (fast_elements || fast_smi_only_elements) &&
       store_mode != STORE_NO_TRANSITION_HANDLE_COW) {
     HCheckMaps* check_cow_map = Add<HCheckMaps>(
         elements, isolate()->factory()->fixed_array_map(), top_info());
-    check_cow_map->ClearGVNFlag(kDependsOnElementsKind);
+    check_cow_map->ClearDependsOnFlag(kElementsKind);
   }
   HInstruction* length = NULL;
   if (is_js_array) {
@@ -2215,7 +2216,7 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
           key, graph()->GetConstant0(), Token::GTE);
       negative_checker.Then();
       HInstruction* result = AddElementAccess(
-          backing_store, key, val, bounds_check, elements_kind, is_store);
+          backing_store, key, val, bounds_check, elements_kind, access_type);
       negative_checker.ElseDeopt("Negative key encountered");
       negative_checker.End();
       length_checker.End();
@@ -2225,7 +2226,7 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
       checked_key = Add<HBoundsCheck>(key, length);
       return AddElementAccess(
           backing_store, checked_key, val,
-          checked_object, elements_kind, is_store);
+          checked_object, elements_kind, access_type);
     }
   }
   ASSERT(fast_smi_only_elements ||
@@ -2235,7 +2236,7 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
   // In case val is stored into a fast smi array, assure that the value is a smi
   // before manipulating the backing store. Otherwise the actual store may
   // deopt, leaving the backing store in an invalid state.
-  if (is_store && IsFastSmiElementsKind(elements_kind) &&
+  if (access_type == STORE && IsFastSmiElementsKind(elements_kind) &&
       !val->type().IsSmi()) {
     val = AddUncasted<HForceRepresentation>(val, Representation::Smi());
   }
@@ -2244,12 +2245,12 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
     NoObservableSideEffectsScope no_effects(this);
     elements = BuildCheckForCapacityGrow(checked_object, elements,
                                          elements_kind, length, key,
-                                         is_js_array, is_store);
+                                         is_js_array, access_type);
     checked_key = key;
   } else {
     checked_key = Add<HBoundsCheck>(key, length);
 
-    if (is_store && (fast_elements || fast_smi_only_elements)) {
+    if (access_type == STORE && (fast_elements || fast_smi_only_elements)) {
       if (store_mode == STORE_NO_TRANSITION_HANDLE_COW) {
         NoObservableSideEffectsScope no_effects(this);
         elements = BuildCopyElementsOnWrite(checked_object, elements,
@@ -2257,12 +2258,12 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
       } else {
         HCheckMaps* check_cow_map = Add<HCheckMaps>(
             elements, isolate()->factory()->fixed_array_map(), top_info());
-        check_cow_map->ClearGVNFlag(kDependsOnElementsKind);
+        check_cow_map->ClearDependsOnFlag(kElementsKind);
       }
     }
   }
   return AddElementAccess(elements, checked_key, val, checked_object,
-                          elements_kind, is_store, load_mode);
+                          elements_kind, access_type, load_mode);
 }
 
 
@@ -2404,9 +2405,9 @@ HInstruction* HGraphBuilder::AddElementAccess(
     HValue* val,
     HValue* dependency,
     ElementsKind elements_kind,
-    bool is_store,
+    PropertyAccessType access_type,
     LoadKeyedHoleMode load_mode) {
-  if (is_store) {
+  if (access_type == STORE) {
     ASSERT(val != NULL);
     if (elements_kind == EXTERNAL_UINT8_CLAMPED_ELEMENTS ||
         elements_kind == UINT8_CLAMPED_ELEMENTS) {
@@ -2418,7 +2419,7 @@ HInstruction* HGraphBuilder::AddElementAccess(
                               : INITIALIZING_STORE);
   }
 
-  ASSERT(!is_store);
+  ASSERT(access_type == LOAD);
   ASSERT(val == NULL);
   HLoadKeyed* load = Add<HLoadKeyed>(
       elements, checked_key, dependency, elements_kind, load_mode);
@@ -4782,14 +4783,14 @@ void HOptimizedGraphBuilder::VisitConditional(Conditional* expr) {
 
 HOptimizedGraphBuilder::GlobalPropertyAccess
     HOptimizedGraphBuilder::LookupGlobalProperty(
-        Variable* var, LookupResult* lookup, bool is_store) {
+        Variable* var, LookupResult* lookup, PropertyAccessType access_type) {
   if (var->is_this() || !current_info()->has_global_object()) {
     return kUseGeneric;
   }
   Handle<GlobalObject> global(current_info()->global_object());
   global->Lookup(*var->name(), lookup);
   if (!lookup->IsNormal() ||
-      (is_store && lookup->IsReadOnly()) ||
+      (access_type == STORE && lookup->IsReadOnly()) ||
       lookup->holder() != *global) {
     return kUseGeneric;
   }
@@ -4835,8 +4836,7 @@ void HOptimizedGraphBuilder::VisitVariableProxy(VariableProxy* expr) {
       }
 
       LookupResult lookup(isolate());
-      GlobalPropertyAccess type =
-          LookupGlobalProperty(variable, &lookup, false);
+      GlobalPropertyAccess type = LookupGlobalProperty(variable, &lookup, LOAD);
 
       if (type == kUseCell &&
           current_info()->global_object()->IsAccessCheckNeeded()) {
@@ -5071,7 +5071,8 @@ void HOptimizedGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
             HInstruction* store;
             if (map.is_null()) {
               // If we don't know the monomorphic type, do a generic store.
-              CHECK_ALIVE(store = BuildStoreNamedGeneric(literal, name, value));
+              CHECK_ALIVE(store = BuildNamedGeneric(
+                  STORE, literal, name, value));
             } else {
               PropertyAccessInfo info(this, STORE, ToType(map), name);
               if (info.CanAccessMonomorphic()) {
@@ -5081,8 +5082,8 @@ void HOptimizedGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
                     &info, literal, checked_literal, value,
                     BailoutId::None(), BailoutId::None());
               } else {
-                CHECK_ALIVE(
-                    store = BuildStoreNamedGeneric(literal, name, value));
+                CHECK_ALIVE(store = BuildNamedGeneric(
+                    STORE, literal, name, value));
               }
             }
             AddInstruction(store);
@@ -5308,27 +5309,9 @@ HInstruction* HOptimizedGraphBuilder::BuildStoreNamedField(
   if (transition_to_field) {
     HConstant* transition_constant = Add<HConstant>(info->transition());
     instr->SetTransition(transition_constant, top_info());
-    instr->SetGVNFlag(kChangesMaps);
+    instr->SetChangesFlag(kMaps);
   }
   return instr;
-}
-
-
-HInstruction* HOptimizedGraphBuilder::BuildStoreNamedGeneric(
-    HValue* object,
-    Handle<String> name,
-    HValue* value,
-    bool is_uninitialized) {
-  if (is_uninitialized) {
-    Add<HDeoptimize>("Insufficient type feedback for property assignment",
-                     Deoptimizer::SOFT);
-  }
-
-  return New<HStoreNamedGeneric>(
-                         object,
-                         name,
-                         value,
-                         function_strict_mode_flag());
 }
 
 
@@ -5709,28 +5692,11 @@ void HOptimizedGraphBuilder::HandlePolymorphicNamedFieldAccess(
     // that the environment stack matches the depth on deopt that it otherwise
     // would have had after a successful load.
     if (!ast_context()->IsEffect()) Push(graph()->GetConstant0());
-    const char* message = "";
-    switch (access_type) {
-      case LOAD:
-        message = "Unknown map in polymorphic load";
-        break;
-      case STORE:
-        message = "Unknown map in polymorphic store";
-        break;
-    }
-    FinishExitWithHardDeoptimization(message, join);
+    FinishExitWithHardDeoptimization("Uknown map in polymorphic access", join);
   } else {
-    HValue* result = NULL;
-    switch (access_type) {
-      case LOAD:
-        result = Add<HLoadNamedGeneric>(object, name);
-        break;
-      case STORE:
-        AddInstruction(BuildStoreNamedGeneric(object, name, value));
-        result = value;
-        break;
-    }
-    if (!ast_context()->IsEffect()) Push(result);
+    HInstruction* instr = BuildNamedGeneric(access_type, object, name, value);
+    AddInstruction(instr);
+    if (!ast_context()->IsEffect()) Push(access_type == LOAD ? instr : value);
 
     if (join != NULL) {
       Goto(join);
@@ -5785,8 +5751,7 @@ void HOptimizedGraphBuilder::BuildStore(Expression* expr,
     HValue* object = environment()->ExpressionStackAt(2);
     bool has_side_effects = false;
     HandleKeyedElementAccess(object, key, value, expr,
-                             true,  // is_store
-                             &has_side_effects);
+                             STORE, &has_side_effects);
     Drop(3);
     Push(value);
     Add<HSimulate>(return_id, REMOVABLE_SIMULATE);
@@ -5836,7 +5801,7 @@ void HOptimizedGraphBuilder::HandleGlobalVariableAssignment(
     HValue* value,
     BailoutId ast_id) {
   LookupResult lookup(isolate());
-  GlobalPropertyAccess type = LookupGlobalProperty(var, &lookup, true);
+  GlobalPropertyAccess type = LookupGlobalProperty(var, &lookup, STORE);
   if (type == kUseCell) {
     Handle<GlobalObject> global(current_info()->global_object());
     Handle<PropertyCell> cell(global->GetPropertyCell(&lookup));
@@ -6182,22 +6147,37 @@ HInstruction* HGraphBuilder::AddLoadStringLength(HValue* string) {
 }
 
 
-HInstruction* HOptimizedGraphBuilder::BuildLoadNamedGeneric(
+HInstruction* HOptimizedGraphBuilder::BuildNamedGeneric(
+    PropertyAccessType access_type,
     HValue* object,
     Handle<String> name,
+    HValue* value,
     bool is_uninitialized) {
   if (is_uninitialized) {
-    Add<HDeoptimize>("Insufficient type feedback for generic named load",
+    Add<HDeoptimize>("Insufficient type feedback for generic named access",
                      Deoptimizer::SOFT);
   }
-  return New<HLoadNamedGeneric>(object, name);
+  if (access_type == LOAD) {
+    return New<HLoadNamedGeneric>(object, name);
+  } else {
+    return New<HStoreNamedGeneric>(
+        object, name, value, function_strict_mode_flag());
+  }
 }
 
 
 
-HInstruction* HOptimizedGraphBuilder::BuildLoadKeyedGeneric(HValue* object,
-                                                            HValue* key) {
-  return New<HLoadKeyedGeneric>(object, key);
+HInstruction* HOptimizedGraphBuilder::BuildKeyedGeneric(
+    PropertyAccessType access_type,
+    HValue* object,
+    HValue* key,
+    HValue* value) {
+  if (access_type == LOAD) {
+    return New<HLoadKeyedGeneric>(object, key);
+  } else {
+    return New<HStoreKeyedGeneric>(
+        object, key, value, function_strict_mode_flag());
+  }
 }
 
 
@@ -6223,15 +6203,15 @@ HInstruction* HOptimizedGraphBuilder::BuildMonomorphicElementAccess(
     HValue* val,
     HValue* dependency,
     Handle<Map> map,
-    bool is_store,
+    PropertyAccessType access_type,
     KeyedAccessStoreMode store_mode) {
   HCheckMaps* checked_object = Add<HCheckMaps>(object, map, top_info(),
                                                dependency);
   if (dependency) {
-    checked_object->ClearGVNFlag(kDependsOnElementsKind);
+    checked_object->ClearDependsOnFlag(kElementsKind);
   }
 
-  if (is_store && map->prototype()->IsJSObject()) {
+  if (access_type == STORE && map->prototype()->IsJSObject()) {
     // monomorphic stores need a prototype chain check because shape
     // changes could allow callbacks on elements in the chain that
     // aren't compatible with monomorphic keyed stores.
@@ -6250,7 +6230,7 @@ HInstruction* HOptimizedGraphBuilder::BuildMonomorphicElementAccess(
   return BuildUncheckedMonomorphicElementAccess(
       checked_object, key, val,
       map->instance_type() == JS_ARRAY_TYPE,
-      map->elements_kind(), is_store,
+      map->elements_kind(), access_type,
       load_mode, store_mode);
 }
 
@@ -6316,7 +6296,7 @@ HInstruction* HOptimizedGraphBuilder::TryBuildConsolidatedElementLoad(
       checked_object, key, val,
       most_general_consolidated_map->instance_type() == JS_ARRAY_TYPE,
       consolidated_elements_kind,
-      false, NEVER_RETURN_HOLE, STANDARD_STORE);
+      LOAD, NEVER_RETURN_HOLE, STANDARD_STORE);
   return instr;
 }
 
@@ -6326,13 +6306,13 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
     HValue* key,
     HValue* val,
     SmallMapList* maps,
-    bool is_store,
+    PropertyAccessType access_type,
     KeyedAccessStoreMode store_mode,
     bool* has_side_effects) {
   *has_side_effects = false;
   BuildCheckHeapObject(object);
 
-  if (!is_store) {
+  if (access_type == LOAD) {
     HInstruction* consolidated_load =
         TryBuildConsolidatedElementLoad(object, key, val, maps);
     if (consolidated_load != NULL) {
@@ -6385,15 +6365,14 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
     HInstruction* instr = NULL;
     if (untransitionable_map->has_slow_elements_kind() ||
         !untransitionable_map->IsJSObjectMap()) {
-      instr = AddInstruction(is_store ? BuildStoreKeyedGeneric(object, key, val)
-                                      : BuildLoadKeyedGeneric(object, key));
+      instr = AddInstruction(BuildKeyedGeneric(access_type, object, key, val));
     } else {
       instr = BuildMonomorphicElementAccess(
-          object, key, val, transition, untransitionable_map, is_store,
+          object, key, val, transition, untransitionable_map, access_type,
           store_mode);
     }
     *has_side_effects |= instr->HasObservableSideEffects();
-    return is_store ? NULL : instr;
+    return access_type == STORE ? NULL : instr;
   }
 
   HBasicBlock* join = graph()->CreateBasicBlock();
@@ -6411,9 +6390,7 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
     set_current_block(this_map);
     HInstruction* access = NULL;
     if (IsDictionaryElementsKind(elements_kind)) {
-      access = is_store
-          ? AddInstruction(BuildStoreKeyedGeneric(object, key, val))
-          : AddInstruction(BuildLoadKeyedGeneric(object, key));
+      access = AddInstruction(BuildKeyedGeneric(access_type, object, key, val));
     } else {
       ASSERT(IsFastElementsKind(elements_kind) ||
              IsExternalArrayElementsKind(elements_kind));
@@ -6422,14 +6399,14 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
       access = BuildUncheckedMonomorphicElementAccess(
           mapcompare, key, val,
           map->instance_type() == JS_ARRAY_TYPE,
-          elements_kind, is_store,
+          elements_kind, access_type,
           load_mode,
           store_mode);
     }
     *has_side_effects |= access->HasObservableSideEffects();
     // The caller will use has_side_effects and add a correct Simulate.
     access->SetFlag(HValue::kHasNoObservableSideEffects);
-    if (!is_store) {
+    if (access_type == LOAD) {
       Push(access);
     }
     NoObservableSideEffectsScope scope(this);
@@ -6442,7 +6419,7 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
   FinishExitWithHardDeoptimization("Unknown map in polymorphic element access",
                                    join);
   set_current_block(join);
-  return is_store ? NULL : Pop();
+  return access_type == STORE ? NULL : Pop();
 }
 
 
@@ -6451,7 +6428,7 @@ HValue* HOptimizedGraphBuilder::HandleKeyedElementAccess(
     HValue* key,
     HValue* val,
     Expression* expr,
-    bool is_store,
+    PropertyAccessType access_type,
     bool* has_side_effects) {
   ASSERT(!expr->IsPropertyName());
   HInstruction* instr = NULL;
@@ -6460,7 +6437,8 @@ HValue* HOptimizedGraphBuilder::HandleKeyedElementAccess(
   bool monomorphic = ComputeReceiverTypes(expr, obj, &types, zone());
 
   bool force_generic = false;
-  if (is_store && (monomorphic || (types != NULL && !types->is_empty()))) {
+  if (access_type == STORE &&
+      (monomorphic || (types != NULL && !types->is_empty()))) {
     // Stores can't be mono/polymorphic if their prototype chain has dictionary
     // elements. However a receiver map that has dictionary elements itself
     // should be left to normal mono/poly behavior (the other maps may benefit
@@ -6478,49 +6456,33 @@ HValue* HOptimizedGraphBuilder::HandleKeyedElementAccess(
   if (monomorphic) {
     Handle<Map> map = types->first();
     if (map->has_slow_elements_kind() || !map->IsJSObjectMap()) {
-      instr = is_store ? BuildStoreKeyedGeneric(obj, key, val)
-                       : BuildLoadKeyedGeneric(obj, key);
-      AddInstruction(instr);
+      instr = AddInstruction(BuildKeyedGeneric(access_type, obj, key, val));
     } else {
       BuildCheckHeapObject(obj);
       instr = BuildMonomorphicElementAccess(
-          obj, key, val, NULL, map, is_store, expr->GetStoreMode());
+          obj, key, val, NULL, map, access_type, expr->GetStoreMode());
     }
   } else if (!force_generic && (types != NULL && !types->is_empty())) {
     return HandlePolymorphicElementAccess(
-        obj, key, val, types, is_store,
+        obj, key, val, types, access_type,
         expr->GetStoreMode(), has_side_effects);
   } else {
-    if (is_store) {
+    if (access_type == STORE) {
       if (expr->IsAssignment() &&
           expr->AsAssignment()->HasNoTypeInformation()) {
         Add<HDeoptimize>("Insufficient type feedback for keyed store",
                          Deoptimizer::SOFT);
       }
-      instr = BuildStoreKeyedGeneric(obj, key, val);
     } else {
       if (expr->AsProperty()->HasNoTypeInformation()) {
         Add<HDeoptimize>("Insufficient type feedback for keyed load",
                          Deoptimizer::SOFT);
       }
-      instr = BuildLoadKeyedGeneric(obj, key);
     }
-    AddInstruction(instr);
+    instr = AddInstruction(BuildKeyedGeneric(access_type, obj, key, val));
   }
   *has_side_effects = instr->HasObservableSideEffects();
   return instr;
-}
-
-
-HInstruction* HOptimizedGraphBuilder::BuildStoreKeyedGeneric(
-    HValue* object,
-    HValue* key,
-    HValue* value) {
-  return New<HStoreKeyedGeneric>(
-                         object,
-                         key,
-                         value,
-                         function_strict_mode_flag());
 }
 
 
@@ -6636,11 +6598,7 @@ HInstruction* HOptimizedGraphBuilder::BuildNamedAccess(
         &info, object, checked_object, value, ast_id, return_id);
   }
 
-  if (access == LOAD) {
-    return BuildLoadNamedGeneric(object, name, is_uninitialized);
-  } else {
-    return BuildStoreNamedGeneric(object, name, value, is_uninitialized);
-  }
+  return BuildNamedGeneric(access, object, name, value, is_uninitialized);
 }
 
 
@@ -6684,9 +6642,7 @@ void HOptimizedGraphBuilder::BuildLoad(Property* expr,
 
     bool has_side_effects = false;
     HValue* load = HandleKeyedElementAccess(
-        obj, key, NULL, expr,
-        false,  // is_store
-        &has_side_effects);
+        obj, key, NULL, expr, LOAD, &has_side_effects);
     if (has_side_effects) {
       if (ast_context()->IsEffect()) {
         Add<HSimulate>(ast_id, REMOVABLE_SIMULATE);
@@ -6732,7 +6688,7 @@ HInstruction* HGraphBuilder::BuildConstantMapCheck(Handle<JSObject> constant,
   AddInstruction(constant_value);
   HCheckMaps* check =
       Add<HCheckMaps>(constant_value, handle(constant->map()), info);
-  check->ClearGVNFlag(kDependsOnElementsKind);
+  check->ClearDependsOnFlag(kElementsKind);
   return check;
 }
 
@@ -6992,8 +6948,8 @@ void HOptimizedGraphBuilder::HandlePolymorphicCallNamed(
     FinishExitWithHardDeoptimization("Unknown map in polymorphic call", join);
   } else {
     Property* prop = expr->expression()->AsProperty();
-    HInstruction* function = BuildLoadNamedGeneric(
-        receiver, name, prop->IsUninitialized());
+    HInstruction* function = BuildNamedGeneric(
+        LOAD, receiver, name, NULL, prop->IsUninitialized());
     AddInstruction(function);
     Push(function);
     AddSimulate(prop->LoadId(), REMOVABLE_SIMULATE);
@@ -7615,7 +7571,7 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
         }
         reduced_length = AddUncasted<HSub>(length, graph()->GetConstant1());
         result = AddElementAccess(elements, reduced_length, NULL,
-                                  bounds_check, elements_kind, false);
+                                  bounds_check, elements_kind, LOAD);
         Factory* factory = isolate()->factory();
         double nan_double = FixedDoubleArray::hole_nan_as_double();
         HValue* hole = IsFastSmiOrObjectElementsKind(elements_kind)
@@ -7625,7 +7581,7 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
           elements_kind = FAST_HOLEY_ELEMENTS;
         }
         AddElementAccess(
-            elements, reduced_length, hole, bounds_check, elements_kind, true);
+            elements, reduced_length, hole, bounds_check, elements_kind, STORE);
         Add<HStoreNamedField>(
             checked_object, HObjectAccess::ForArrayLength(elements_kind),
             reduced_length, STORE_TO_INITIALIZED_ENTRY);
@@ -8041,7 +7997,7 @@ void HOptimizedGraphBuilder::VisitCall(Call* expr) {
       // access check is not enabled we assume that the function will not change
       // and generate optimized code for calling the function.
       LookupResult lookup(isolate());
-      GlobalPropertyAccess type = LookupGlobalProperty(var, &lookup, false);
+      GlobalPropertyAccess type = LookupGlobalProperty(var, &lookup, LOAD);
       if (type == kUseCell &&
           !current_info()->global_object()->IsAccessCheckNeeded()) {
         Handle<GlobalObject> global(current_info()->global_object());

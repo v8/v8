@@ -96,9 +96,6 @@ class FullCodeGenerator: public AstVisitor {
                          ? info->function()->ast_node_count() : 0,
                          info->zone()),
         back_edges_(2, info->zone()),
-        type_feedback_cells_(info->HasDeoptimizationSupport()
-                             ? info->function()->ast_node_count() : 0,
-                             info->zone()),
         ic_total_count_(0) {
     Initialize();
   }
@@ -434,9 +431,15 @@ class FullCodeGenerator: public AstVisitor {
   void PrepareForBailout(Expression* node, State state);
   void PrepareForBailoutForId(BailoutId id, State state);
 
-  // Cache cell support.  This associates AST ids with global property cells
-  // that will be cleared during GC and collected by the type-feedback oracle.
-  void RecordTypeFeedbackCell(TypeFeedbackId id, Handle<Cell> cell);
+  // Feedback slot support. The feedback vector will be cleared during gc and
+  // collected by the type-feedback oracle.
+  Handle<FixedArray> FeedbackVector() {
+    return feedback_vector_;
+  }
+  void StoreFeedbackVectorSlot(int slot, Handle<Object> object) {
+    feedback_vector_->set(slot, *object);
+  }
+  void InitializeFeedbackVector();
 
   // Record a call's return site offset, used to rebuild the frame if the
   // called function was inlined at the site.
@@ -635,7 +638,6 @@ class FullCodeGenerator: public AstVisitor {
   void Generate();
   void PopulateDeoptimizationData(Handle<Code> code);
   void PopulateTypeFeedbackInfo(Handle<Code> code);
-  void PopulateTypeFeedbackCells(Handle<Code> code);
 
   Handle<FixedArray> handler_table() { return handler_table_; }
 
@@ -649,12 +651,6 @@ class FullCodeGenerator: public AstVisitor {
     unsigned pc;
     uint32_t loop_depth;
   };
-
-  struct TypeFeedbackCellEntry {
-    TypeFeedbackId ast_id;
-    Handle<Cell> cell;
-  };
-
 
   class ExpressionContext BASE_EMBEDDED {
    public:
@@ -845,9 +841,9 @@ class FullCodeGenerator: public AstVisitor {
   ZoneList<BailoutEntry> bailout_entries_;
   GrowableBitVector prepared_bailout_ids_;
   ZoneList<BackEdgeEntry> back_edges_;
-  ZoneList<TypeFeedbackCellEntry> type_feedback_cells_;
   int ic_total_count_;
   Handle<FixedArray> handler_table_;
+  Handle<FixedArray> feedback_vector_;
   Handle<Cell> profiling_counter_;
   bool generate_debug_code_;
 

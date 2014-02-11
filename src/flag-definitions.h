@@ -416,10 +416,6 @@ DEFINE_bool(disable_native_files, false, "disable builtin natives files")
 // builtins-ia32.cc
 DEFINE_bool(inline_new, true, "use fast inline allocation")
 
-// checks.cc
-DEFINE_bool(stack_trace_on_abort, true,
-            "print a stack trace if an assertion failure occurs")
-
 // codegen-ia32.cc / codegen-arm.cc
 DEFINE_bool(trace_codegen, false,
             "print name of functions for which code is generated")
@@ -591,6 +587,8 @@ DEFINE_int(sim_stack_alignment, 8,
            "Stack alingment in bytes in simulator (4 or 8, 8 is default)")
 
 // isolate.cc
+DEFINE_bool(stack_trace_on_illegal, false,
+            "print stack trace when an illegal exception is thrown")
 DEFINE_bool(abort_on_uncaught_exception, false,
             "abort program (dump core) when an uncaught exception is thrown")
 DEFINE_bool(trace_exception, false,

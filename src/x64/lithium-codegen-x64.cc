@@ -3312,7 +3312,7 @@ void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
     if (function.is_identical_to(info()->closure())) {
       __ CallSelf();
     } else {
-      __ call(FieldOperand(rdi, JSFunction::kCodeEntryOffset));
+      __ Call(FieldOperand(rdi, JSFunction::kCodeEntryOffset));
     }
 
     // Set up deoptimization.
@@ -3377,7 +3377,7 @@ void LCodeGen::DoCallJSFunction(LCallJSFunction* instr) {
   } else {
     Operand target = FieldOperand(rdi, JSFunction::kCodeEntryOffset);
     generator.BeforeCall(__ CallSize(target));
-    __ call(target);
+    __ Call(target);
   }
   generator.AfterCall();
 }
@@ -3855,7 +3855,6 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
     Register value = ToRegister(instr->value());
     if (instr->object()->IsConstantOperand()) {
       ASSERT(value.is(rax));
-      ASSERT(!access.representation().IsSpecialization());
       LConstantOperand* object = LConstantOperand::cast(instr->object());
       __ store_rax(ToExternalReference(object));
     } else {

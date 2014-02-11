@@ -1294,7 +1294,7 @@ class HGraphBuilder {
                                     HValue* length,
                                     HValue* key,
                                     bool is_js_array,
-                                    bool is_store);
+                                    PropertyAccessType access_type);
 
   HValue* BuildCopyElementsOnWrite(HValue* object,
                                    HValue* elements,
@@ -1351,7 +1351,7 @@ class HGraphBuilder {
       HValue* val,
       bool is_js_array,
       ElementsKind elements_kind,
-      bool is_store,
+      PropertyAccessType access_type,
       LoadKeyedHoleMode load_mode,
       KeyedAccessStoreMode store_mode);
 
@@ -1361,7 +1361,7 @@ class HGraphBuilder {
       HValue* val,
       HValue* dependency,
       ElementsKind elements_kind,
-      bool is_store,
+      PropertyAccessType access_type,
       LoadKeyedHoleMode load_mode = NEVER_RETURN_HOLE);
 
   HLoadNamedField* BuildLoadNamedField(HValue* object, HObjectAccess access);
@@ -2187,8 +2187,6 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   Type* ToType(Handle<Map> map) { return IC::MapToType<Type>(map, zone()); }
 
  private:
-  enum PropertyAccessType { LOAD, STORE };
-
   // Helpers for flow graph construction.
   enum GlobalPropertyAccess {
     kUseCell,
@@ -2196,7 +2194,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   };
   GlobalPropertyAccess LookupGlobalProperty(Variable* var,
                                             LookupResult* lookup,
-                                            bool is_store);
+                                            PropertyAccessType access_type);
 
   void EnsureArgumentsArePushedForAccess();
   bool TryArgumentsAccess(Property* expr);
@@ -2441,8 +2439,10 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
       PushBeforeSimulateBehavior push_sim_result);
   HInstruction* BuildIncrement(bool returns_original_input,
                                CountOperation* expr);
-  HInstruction* BuildLoadKeyedGeneric(HValue* object,
-                                      HValue* key);
+  HInstruction* BuildKeyedGeneric(PropertyAccessType access_type,
+                                  HValue* object,
+                                  HValue* key,
+                                  HValue* value);
 
   HInstruction* TryBuildConsolidatedElementLoad(HValue* object,
                                                 HValue* key,
@@ -2456,14 +2456,14 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
                                               HValue* val,
                                               HValue* dependency,
                                               Handle<Map> map,
-                                              bool is_store,
+                                              PropertyAccessType access_type,
                                               KeyedAccessStoreMode store_mode);
 
   HValue* HandlePolymorphicElementAccess(HValue* object,
                                          HValue* key,
                                          HValue* val,
                                          SmallMapList* maps,
-                                         bool is_store,
+                                         PropertyAccessType access_type,
                                          KeyedAccessStoreMode store_mode,
                                          bool* has_side_effects);
 
@@ -2471,12 +2471,14 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
                                    HValue* key,
                                    HValue* val,
                                    Expression* expr,
-                                   bool is_store,
+                                   PropertyAccessType access_type,
                                    bool* has_side_effects);
 
-  HInstruction* BuildLoadNamedGeneric(HValue* object,
-                                      Handle<String> name,
-                                      bool is_uninitialized = false);
+  HInstruction* BuildNamedGeneric(PropertyAccessType access,
+                                  HValue* object,
+                                  Handle<String> name,
+                                  HValue* value,
+                                  bool is_uninitialized = false);
 
   HCheckMaps* AddCheckMap(HValue* object, Handle<Map> map);
 
@@ -2503,13 +2505,6 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   HInstruction* BuildStoreNamedField(PropertyAccessInfo* info,
                                      HValue* checked_object,
                                      HValue* value);
-  HInstruction* BuildStoreNamedGeneric(HValue* object,
-                                       Handle<String> name,
-                                       HValue* value,
-                                       bool is_uninitialized = false);
-  HInstruction* BuildStoreKeyedGeneric(HValue* object,
-                                       HValue* key,
-                                       HValue* value);
 
   HValue* BuildContextChainWalk(Variable* var);
 
