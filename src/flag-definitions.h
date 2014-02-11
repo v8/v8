@@ -416,10 +416,6 @@ DEFINE_bool(disable_native_files, false, "disable builtin natives files")
 // builtins-ia32.cc
 DEFINE_bool(inline_new, true, "use fast inline allocation")
 
-// checks.cc
-DEFINE_bool(stack_trace_on_abort, true,
-            "print a stack trace if an assertion failure occurs")
-
 // codegen-ia32.cc / codegen-arm.cc
 DEFINE_bool(trace_codegen, false,
             "print name of functions for which code is generated")
