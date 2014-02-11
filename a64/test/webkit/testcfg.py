@@ -100,13 +100,10 @@ class WebkitTestSuite(testsuite.TestSuite):
 
   # TODO(machenbach): Share with test/message/testcfg.py
   def _IgnoreLine(self, string):
-    """Ignore empty lines, valgrind output and Android output, A64 output."""
+    """Ignore empty lines, valgrind output and Android output."""
     if not string: return True
     return (string.startswith("==") or string.startswith("**") or
             string.startswith("ANDROID") or
-            # TODO(ulan): remove this message once all A64 features are
-            # implemented.
-            string.startswith("UNIMPLEMENTED") or
             # These five patterns appear in normal Native Client output.
             string.startswith("DEBUG MODE ENABLED") or
             string.startswith("tools/nacl-run.py") or
