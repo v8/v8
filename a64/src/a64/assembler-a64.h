@@ -701,10 +701,6 @@ class Assembler : public AssemblerBase {
   // upon destruction of the assembler.
   Assembler(Isolate* arg_isolate, void* buffer, int buffer_size);
 
-  // The default destructor asserts that one of the following is true:
-  //  * The Assembler object has not been used.
-  //  * Nothing has been emitted since the last Reset() call.
-  //  * Nothing has been emitted since the last GetCode() call.
   virtual ~Assembler();
 
   // System functions ---------------------------------------------------------
@@ -1882,10 +1878,6 @@ class Assembler : public AssemblerBase {
     STATIC_ASSERT(sizeof(instruction) == kInstructionSize);
     ASSERT((pc_ + sizeof(instruction)) <= (buffer_ + buffer_size_));
 
-#ifdef DEBUG
-    finalized_ = false;
-#endif
-
     memcpy(pc_, &instruction, sizeof(instruction));
     pc_ += sizeof(instruction);
     CheckBuffer();
@@ -1895,10 +1887,6 @@ class Assembler : public AssemblerBase {
   void EmitData(void const * data, unsigned size) {
     ASSERT(sizeof(*pc_) == 1);
     ASSERT((pc_ + size) <= (buffer_ + buffer_size_));
-
-#ifdef DEBUG
-    finalized_ = false;
-#endif
 
     // TODO(all): Somehow register we have some data here. Then we can
     // disassemble it correctly.
@@ -1994,10 +1982,6 @@ class Assembler : public AssemblerBase {
   // stream.
   static const int kGap = 128;
 
-#ifdef DEBUG
-  bool finalized_;
-#endif
-
  private:
   // TODO(jbramley): VIXL uses next_literal_pool_check_ and
   // literal_pool_monitor_ to determine when to consider emitting a literal
@@ -2047,12 +2031,6 @@ class PatchingAssembler : public Assembler {
     // Flush the Instruction cache.
     size_t length = buffer_size_ - kGap;
     CPU::FlushICache(buffer_, length);
-
-#ifdef DEBUG
-    // The Patching Assembler doesn't need to be finalized, but the Assembler
-    // class's destructor will check the finalized_ flag.
-    finalized_ = true;
-#endif
   }
 };
 

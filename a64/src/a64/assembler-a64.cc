@@ -283,7 +283,6 @@ Assembler::Assembler(Isolate* isolate, void* buffer, int buffer_size)
 
 
 Assembler::~Assembler() {
-  ASSERT(finalized_ || (pc_ == buffer_));
   ASSERT(num_pending_reloc_info_ == 0);
   ASSERT(const_pool_blocked_nesting_ == 0);
 }
@@ -294,7 +293,6 @@ void Assembler::Reset() {
   ASSERT((pc_ >= buffer_) && (pc_ < buffer_ + buffer_size_));
   ASSERT(const_pool_blocked_nesting_ == 0);
   memset(buffer_, 0, pc_ - buffer_);
-  finalized_ = false;
 #endif
   pc_ = buffer_;
   reloc_info_writer.Reposition(reinterpret_cast<byte*>(buffer_ + buffer_size_),
@@ -321,10 +319,6 @@ void Assembler::GetCode(CodeDesc* desc) {
                        reloc_info_writer.pos();
     desc->origin = this;
   }
-
-#ifdef DEBUG
-  finalized_ = true;
-#endif
 }
 
 
