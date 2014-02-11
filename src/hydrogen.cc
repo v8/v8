@@ -10295,14 +10295,23 @@ void HOptimizedGraphBuilder::GenerateSetValueOf(CallRuntime* call) {
     Add<HStoreNamedField>(object,
         HObjectAccess::ForObservableJSObjectOffset(JSValue::kValueOffset),
         value);
+    if (!ast_context()->IsEffect()) {
+      Push(value);
+    }
     Add<HSimulate>(call->id(), FIXED_SIMULATE);
   }
   if_objectisvalue.Else();
   {
     // Nothing to do in this case.
+    if (!ast_context()->IsEffect()) {
+      Push(value);
+    }
     Add<HSimulate>(call->id(), FIXED_SIMULATE);
   }
   if_objectisvalue.End();
+  if (!ast_context()->IsEffect()) {
+    Drop(1);
+  }
   return ast_context()->ReturnValue(value);
 }
 
