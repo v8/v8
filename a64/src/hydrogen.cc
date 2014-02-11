@@ -7066,19 +7066,6 @@ bool HOptimizedGraphBuilder::TryInline(Handle<JSFunction> target,
     return false;
   }
 
-#if V8_TARGET_ARCH_A64
-  // Target must be able to use caller's context.
-  // TODO(jochen): Remove this block once A64's register allocator can allocate
-  // cp.
-  CompilationInfo* outer_info = current_info();
-  if (target->context() != outer_info->closure()->context() ||
-      outer_info->scope()->contains_with() ||
-      outer_info->scope()->num_heap_slots() > 0) {
-    TraceInline(target, caller, "target requires context change");
-    return false;
-  }
-#endif
-
   // Don't inline deeper than the maximum number of inlining levels.
   HEnvironment* env = environment();
   int current_level = 1;
@@ -7215,12 +7202,8 @@ bool HOptimizedGraphBuilder::TryInline(Handle<JSFunction> target,
                                      undefined,
                                      function_state()->inlining_kind());
 
-// TODO(jochen): Remove this #ifdef once A64's register allocator can allocate
-// cp.
-#if !V8_TARGET_ARCH_A64
   HConstant* context = Add<HConstant>(Handle<Context>(target->context()));
   inner_env->BindContext(context);
-#endif
 
   Add<HSimulate>(return_id);
   current_block()->UpdateEnvironment(inner_env);
