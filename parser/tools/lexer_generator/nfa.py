@@ -55,9 +55,19 @@ class NfaState(AutomatonState):
     assert isinstance(action, Action)
     self.__action = action
 
-  def transitions(self):
+  def state_iter_for_key(self, key):
     assert self.is_closed()
-    return self.__transitions
+    if not key in self.__transitions:
+      return iter([])
+    return iter(self.__transitions[key])
+
+  def swap_key(self, old_key, new_key):
+    'this is one of the few mutations allowed after closing'
+    assert self.is_closed()
+    assert not new_key == TransitionKey.epsilon(), "changes epsilon closure"
+    value = self.__transitions[old_key]
+    del self.__transitions[old_key]
+    self.__transitions[new_key] = value
 
   def __add_transition(self, key, next_state):
     assert key != None
@@ -97,6 +107,7 @@ class NfaState(AutomatonState):
     state_filter = lambda x: True,
     match_func = lambda x, y: True,
     yield_func = lambda x, y: (x, y)):
+    assert self.is_closed()
     for key, states in self.__transitions.items():
       if key_filter(key):
         for state in states:

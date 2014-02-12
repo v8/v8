@@ -248,20 +248,20 @@ class NfaBuilder(object):
   @staticmethod
   def __replace_catch_all(encoding, state):
     catch_all = TransitionKey.unique('catch_all')
-    transitions = state.transitions()
-    if not catch_all in transitions:
+    states = list(state.state_iter_for_key(catch_all))
+    if not states:
       return
     f = lambda acc, state: acc | set(state.epsilon_closure_iter())
-    reachable_states = reduce(f, transitions[catch_all], set())
-    f = lambda acc, state: acc | set(state.transitions().keys())
+    reachable_states = reduce(f, states, set())
+    f = lambda acc, state: acc | set(state.key_iter())
     keys = reduce(f, reachable_states, set())
     keys.discard(TransitionKey.epsilon())
     keys.discard(catch_all)
     keys.discard(TransitionKey.unique('eos'))
     inverse_key = TransitionKey.inverse_key(encoding, keys)
-    if inverse_key:
-      transitions[inverse_key] = transitions[catch_all]
-    del transitions[catch_all]
+    if not inverse_key:
+      inverse_key = TransitionKey.unique('no_match')
+    state.swap_key(catch_all, inverse_key)
 
   @staticmethod
   def nfa(encoding, character_classes, subtree_map, name):
