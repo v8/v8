@@ -1390,7 +1390,8 @@ HValue* HGraphBuilder::BuildCopyElementsOnWrite(HValue* object,
 
   IfBuilder cow_checker(this);
 
-  cow_checker.If<HCompareMap>(elements, factory->fixed_cow_array_map());
+  cow_checker.If<HCompareMap>(
+      elements, factory->fixed_cow_array_map(), top_info());
   cow_checker.Then();
 
   HValue* capacity = AddLoadFixedArrayLength(elements);
@@ -1707,7 +1708,7 @@ HValue* HGraphBuilder::BuildNumberToString(HValue* object, Type* type) {
       // Check if the object is a heap number.
       IfBuilder if_objectisnumber(this);
       HValue* objectisnumber = if_objectisnumber.If<HCompareMap>(
-          object, isolate()->factory()->heap_number_map());
+          object, isolate()->factory()->heap_number_map(), top_info());
       if_objectisnumber.Then();
       {
         // Compute hash for heap number similar to double_get_hash().
@@ -5651,13 +5652,15 @@ void HOptimizedGraphBuilder::HandlePolymorphicNamedFieldAccess(
     HValue* dependency;
     if (info.type()->Is(Type::Number())) {
       Handle<Map> heap_number_map = isolate()->factory()->heap_number_map();
-      compare = New<HCompareMap>(object, heap_number_map, if_true, if_false);
+      compare = New<HCompareMap>(object, heap_number_map, top_info(),
+                                 if_true, if_false);
       dependency = smi_check;
     } else if (info.type()->Is(Type::String())) {
       compare = New<HIsStringAndBranch>(object, if_true, if_false);
       dependency = compare;
     } else {
-      compare = New<HCompareMap>(object, info.map(), if_true, if_false);
+      compare = New<HCompareMap>(object, info.map(), top_info(),
+                                 if_true, if_false);
       dependency = compare;
     }
     FinishCurrentBlock(compare);
@@ -6297,7 +6300,7 @@ HInstruction* HOptimizedGraphBuilder::TryBuildConsolidatedElementLoad(
   }
   if (!has_double_maps && !has_smi_or_object_maps) return NULL;
 
-  HCheckMaps* checked_object = Add<HCheckMaps>(object, maps);
+  HCheckMaps* checked_object = Add<HCheckMaps>(object, maps, top_info());
   // FAST_ELEMENTS is considered more general than FAST_HOLEY_SMI_ELEMENTS.
   // If we've seen both, the consolidated load must use FAST_HOLEY_ELEMENTS.
   ElementsKind consolidated_elements_kind = has_seen_holey_elements
@@ -6395,7 +6398,7 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
     HBasicBlock* this_map = graph()->CreateBasicBlock();
     HBasicBlock* other_map = graph()->CreateBasicBlock();
     HCompareMap* mapcompare =
-        New<HCompareMap>(object, map, this_map, other_map);
+        New<HCompareMap>(object, map, top_info(), this_map, other_map);
     FinishCurrentBlock(mapcompare);
 
     set_current_block(this_map);
@@ -6603,7 +6606,7 @@ HInstruction* HOptimizedGraphBuilder::BuildNamedAccess(
       checked_object =
           Add<HCheckInstanceType>(object, HCheckInstanceType::IS_STRING);
     } else {
-      checked_object = Add<HCheckMaps>(object, types);
+      checked_object = Add<HCheckMaps>(object, types, top_info());
     }
     return BuildMonomorphicAccess(
         &info, object, checked_object, value, ast_id, return_id);
@@ -6855,11 +6858,13 @@ void HOptimizedGraphBuilder::HandlePolymorphicCallNamed(
     Handle<Map> map = info.map();
     if (info.type()->Is(Type::Number())) {
       Handle<Map> heap_number_map = isolate()->factory()->heap_number_map();
-      compare = New<HCompareMap>(receiver, heap_number_map, if_true, if_false);
+      compare = New<HCompareMap>(receiver, heap_number_map, top_info(),
+                                 if_true, if_false);
     } else if (info.type()->Is(Type::String())) {
       compare = New<HIsStringAndBranch>(receiver, if_true, if_false);
     } else {
-      compare = New<HCompareMap>(receiver, map, if_true, if_false);
+      compare = New<HCompareMap>(receiver, map, top_info(),
+                                 if_true, if_false);
     }
     FinishCurrentBlock(compare);
 
@@ -7704,7 +7709,7 @@ bool HOptimizedGraphBuilder::TryInlineApiCall(Handle<JSFunction> function,
     case kCallApiFunction:
     case kCallApiMethod:
       // Need to check that none of the receiver maps could have changed.
-      Add<HCheckMaps>(receiver, receiver_maps);
+      Add<HCheckMaps>(receiver, receiver_maps, top_info());
       // Need to ensure the chain between receiver and api_holder is intact.
       if (holder_lookup == CallOptimization::kHolderFound) {
         AddCheckPrototypeMaps(api_holder, receiver_maps->first());

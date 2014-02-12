@@ -50,6 +50,7 @@ struct HCheckTableEntry {
   HValue* object_;  // The object being approximated. NULL => invalid entry.
   HInstruction* check_;  // The last check instruction.
   MapSet maps_;          // The set of known maps for the object.
+  bool is_stable_;
 };
 
 
@@ -103,9 +104,10 @@ class HCheckTable : public ZoneObject {
       }
       default: {
         // If the instruction changes maps uncontrollably, drop everything.
-        if (instr->CheckChangesFlag(kMaps) ||
-            instr->CheckChangesFlag(kOsrEntries)) {
-          Kill();
+        if (instr->CheckChangesFlag(kOsrEntries)) {
+          Reset();
+        } else if (instr->CheckChangesFlag(kMaps)) {
+          KillUnstableEntries();
         }
       }
       // Improvements possible:
@@ -154,6 +156,7 @@ class HCheckTable : public ZoneObject {
       if (old_entry->check_ != NULL &&
           old_entry->check_->block()->Dominates(succ)) {
         new_entry->check_ = old_entry->check_;
+        new_entry->is_stable_ = old_entry->is_stable_;
       } else {
         // Leave it NULL till we meet a new check instruction for this object
         // in the control flow.
@@ -175,7 +178,8 @@ class HCheckTable : public ZoneObject {
         HCheckTableEntry* pred_entry = copy->Find(phi_operand);
         if (pred_entry != NULL) {
           // Create an entry for a phi in the table.
-          copy->Insert(phi, NULL, pred_entry->maps_->Copy(phase_->zone()));
+          copy->Insert(phi, NULL, pred_entry->maps_->Copy(phase_->zone()),
+                       pred_entry->is_stable_);
         }
       }
     }
@@ -193,12 +197,13 @@ class HCheckTable : public ZoneObject {
         if (is_true_branch) {
           // Learn on the true branch of if(CompareMap(x)).
           if (entry == NULL) {
-            copy->Insert(object, cmp, cmp->map());
+            copy->Insert(object, cmp, cmp->map(), cmp->is_stable());
           } else {
             MapSet list = new(phase_->zone()) UniqueSet<Map>();
             list->Add(cmp->map(), phase_->zone());
             entry->maps_ = list;
             entry->check_ = cmp;
+            entry->is_stable_ = cmp->is_stable();
           }
         } else {
           // Learn on the false branch of if(CompareMap(x)).
@@ -217,10 +222,10 @@ class HCheckTable : public ZoneObject {
         HCheckTableEntry* re = copy->Find(right);
         if (le == NULL) {
           if (re != NULL) {
-            copy->Insert(left, NULL, re->maps_->Copy(zone));
+            copy->Insert(left, NULL, re->maps_->Copy(zone), re->is_stable_);
           }
         } else if (re == NULL) {
-          copy->Insert(right, NULL, le->maps_->Copy(zone));
+          copy->Insert(right, NULL, le->maps_->Copy(zone), le->is_stable_);
         } else {
           MapSet intersect = le->maps_->Intersect(re->maps_, zone);
           le->maps_ = intersect;
@@ -247,8 +252,7 @@ class HCheckTable : public ZoneObject {
                      HBasicBlock* pred_block, Zone* zone) {
     if (that->size_ == 0) {
       // If the other state is empty, simply reset.
-      size_ = 0;
-      cursor_ = 0;
+      Reset();
     } else {
       int pred_index = succ->PredecessorIndexOf(pred_block);
       bool compact = false;
@@ -271,6 +275,8 @@ class HCheckTable : public ZoneObject {
         } else {
           this_entry->maps_ =
               this_entry->maps_->Union(that_entry->maps_, phase_->zone());
+          this_entry->is_stable_ =
+              this_entry->is_stable_ && that_entry->is_stable_;
           if (this_entry->check_ != that_entry->check_) {
             this_entry->check_ = NULL;
           }
@@ -351,7 +357,8 @@ class HCheckTable : public ZoneObject {
       }
     } else {
       // No entry; insert a new one.
-      Insert(object, instr, instr->map_set().Copy(phase_->zone()));
+      Insert(object, instr, instr->map_set().Copy(phase_->zone()),
+             instr->is_stable());
     }
   }
 
@@ -413,7 +420,8 @@ class HCheckTable : public ZoneObject {
       }
     } else {
       // No prior information.
-      Insert(object, instr, map);
+      // TODO(verwaest): Tag map constants with stability.
+      Insert(object, instr, map, false);
     }
   }
 
@@ -430,12 +438,14 @@ class HCheckTable : public ZoneObject {
     if (instr->has_transition()) {
       // This store transitions the object to a new map.
       Kill(object);
-      Insert(object, NULL, MapConstant(instr->transition()));
+      Insert(object, NULL, MapConstant(instr->transition()),
+             instr->is_stable());
     } else if (IsMapAccess(instr->access())) {
       // This is a store directly to the map field of the object.
       Kill(object);
       if (!instr->value()->IsConstant()) return;
-      Insert(object, NULL, MapConstant(instr->value()));
+      // TODO(verwaest): Tag with stability.
+      Insert(object, NULL, MapConstant(instr->value()), false);
     } else {
       // If the instruction changes maps, it should be handled above.
       CHECK(!instr->CheckChangesFlag(kMaps));
@@ -485,10 +495,24 @@ class HCheckTable : public ZoneObject {
     }
   }
 
-  // Kill everything in the table.
-  void Kill() {
+  // Reset the table.
+  void Reset() {
     size_ = 0;
     cursor_ = 0;
+  }
+
+  // Kill everything in the table.
+  void KillUnstableEntries() {
+    bool compact = false;
+    for (int i = 0; i < size_; i++) {
+      HCheckTableEntry* entry = &entries_[i];
+      ASSERT(entry->object_ != NULL);
+      if (!entry->is_stable_) {
+        entry->object_ = NULL;
+        compact = true;
+      }
+    }
+    if (compact) Compact();
   }
 
   // Kill everything in the table that may alias {object}.
@@ -572,17 +596,24 @@ class HCheckTable : public ZoneObject {
     return entry == NULL ? NULL : entry->maps_;
   }
 
-  void Insert(HValue* object, HInstruction* check, Unique<Map> map) {
+  void Insert(HValue* object,
+              HInstruction* check,
+              Unique<Map> map,
+              bool is_stable) {
     MapSet list = new(phase_->zone()) UniqueSet<Map>();
     list->Add(map, phase_->zone());
-    Insert(object, check, list);
+    Insert(object, check, list, is_stable);
   }
 
-  void Insert(HValue* object, HInstruction* check, MapSet maps) {
+  void Insert(HValue* object,
+              HInstruction* check,
+              MapSet maps,
+              bool is_stable) {
     HCheckTableEntry* entry = &entries_[cursor_++];
     entry->object_ = object;
     entry->check_ = check;
     entry->maps_ = maps;
+    entry->is_stable_ = is_stable;
     // If the table becomes full, wrap around and overwrite older entries.
     if (cursor_ == kMaxTrackedObjects) cursor_ = 0;
     if (size_ < kMaxTrackedObjects) size_++;
@@ -612,8 +643,7 @@ class HCheckTable : public ZoneObject {
 class HCheckMapsEffects : public ZoneObject {
  public:
   explicit HCheckMapsEffects(Zone* zone)
-    : maps_stored_(false),
-      stores_(5, zone) { }
+    : stores_(5, zone) { }
 
   inline bool Disabled() {
     return false;  // Effects are _not_ disabled.
@@ -621,27 +651,22 @@ class HCheckMapsEffects : public ZoneObject {
 
   // Process a possibly side-effecting instruction.
   void Process(HInstruction* instr, Zone* zone) {
-    switch (instr->opcode()) {
-      case HValue::kStoreNamedField: {
-        stores_.Add(HStoreNamedField::cast(instr), zone);
-        break;
-      }
-      case HValue::kOsrEntry: {
-        // Kill everything. Loads must not be hoisted past the OSR entry.
-        maps_stored_ = true;
-      }
-      default: {
-        maps_stored_ |= (instr->CheckChangesFlag(kMaps) |
-                         instr->CheckChangesFlag(kElementsKind));
-      }
+    if (instr->IsStoreNamedField()) {
+      stores_.Add(HStoreNamedField::cast(instr), zone);
+    } else {
+      flags_.Add(instr->ChangesFlags());
     }
   }
 
   // Apply these effects to the given check elimination table.
   void Apply(HCheckTable* table) {
-    if (maps_stored_) {
+    if (flags_.Contains(kOsrEntries)) {
+      table->Reset();
+      return;
+    }
+    if (flags_.Contains(kMaps) || flags_.Contains(kElementsKind)) {
       // Uncontrollable map modifications; kill everything.
-      table->Kill();
+      table->KillUnstableEntries();
       return;
     }
 
@@ -656,14 +681,14 @@ class HCheckMapsEffects : public ZoneObject {
 
   // Union these effects with the other effects.
   void Union(HCheckMapsEffects* that, Zone* zone) {
-    maps_stored_ |= that->maps_stored_;
+    flags_.Add(that->flags_);
     for (int i = 0; i < that->stores_.length(); i++) {
       stores_.Add(that->stores_[i], zone);
     }
   }
 
  private:
-  bool maps_stored_ : 1;
+  GVNFlagSet flags_;
   ZoneList<HStoreNamedField*> stores_;
 };
 
@@ -680,7 +705,7 @@ void HCheckEliminationPhase::Run() {
   } else {
     // Perform only local analysis.
     for (int i = 0; i < graph()->blocks()->length(); i++) {
-      table->Kill();
+      table->Reset();
       engine.AnalyzeOneBlock(graph()->blocks()->at(i), table);
     }
   }
