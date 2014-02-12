@@ -6516,7 +6516,6 @@ class HStoreNamedField V8_FINAL : public HTemplateInstruction<3> {
         write_barrier_mode_(UPDATE_WRITE_BARRIER),
         has_transition_(false),
         store_mode_(store_mode) {
-    if (!FLAG_smi_x64_store_opt) store_mode_ = INITIALIZING_STORE;
     // Stores to a non existing in-object property are allowed only to the
     // newly allocated objects (via HAllocate or HInnerAllocatedObject).
     ASSERT(!access.IsInobject() || access.existing_inobject_property() ||
@@ -6705,7 +6704,6 @@ class HStoreKeyed V8_FINAL
       is_uninitialized_(false),
       store_mode_(store_mode),
       new_space_dominator_(NULL) {
-    if (!FLAG_smi_x64_store_opt) store_mode_ = INITIALIZING_STORE;
     SetOperandAt(0, obj);
     SetOperandAt(1, key);
     SetOperandAt(2, val);

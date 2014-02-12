@@ -565,13 +565,11 @@ class FullCodeGenerator: public AstVisitor {
   void EmitKeyedPropertyAssignment(Assignment* expr);
 
   void CallIC(Handle<Code> code,
-              ContextualMode mode = NOT_CONTEXTUAL,
               TypeFeedbackId id = TypeFeedbackId::None());
 
   void CallLoadIC(ContextualMode mode,
                   TypeFeedbackId id = TypeFeedbackId::None());
-  void CallStoreIC(ContextualMode mode,
-                   TypeFeedbackId id = TypeFeedbackId::None());
+  void CallStoreIC(TypeFeedbackId id = TypeFeedbackId::None());
 
   void SetFunctionPosition(FunctionLiteral* fun);
   void SetReturnPosition(FunctionLiteral* fun);

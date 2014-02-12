@@ -575,6 +575,9 @@ void Heap::GarbageCollectionEpilogue() {
     ZapFromSpace();
   }
 
+  // Process pretenuring feedback and update allocation sites.
+  ProcessPretenuringFeedback();
+
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
     Verify();
@@ -1617,8 +1620,6 @@ void Heap::Scavenge() {
   // Update how much has survived scavenge.
   IncrementYoungSurvivorsCounter(static_cast<int>(
       (PromotedSpaceSizeOfObjects() - survived_watermark) + new_space_.Size()));
-
-  ProcessPretenuringFeedback();
 
   LOG(isolate_, ResourceEvent("scavenge", "end"));
 
@@ -3621,8 +3622,14 @@ void Heap::InitializeAllocationSitesScratchpad() {
 
 void Heap::AddAllocationSiteToScratchpad(AllocationSite* site) {
   if (allocation_sites_scratchpad_length_ < kAllocationSiteScratchpadSize) {
+    // We cannot use the normal write-barrier because slots need to be
+    // recorded with non-incremental marking as well. We have to explicitly
+    // record the slot to take evacuation candidates into account.
     allocation_sites_scratchpad()->set(
-        allocation_sites_scratchpad_length_, site);
+        allocation_sites_scratchpad_length_, site, SKIP_WRITE_BARRIER);
+    Object** slot = allocation_sites_scratchpad()->RawFieldOfElementAt(
+        allocation_sites_scratchpad_length_);
+    mark_compact_collector()->RecordSlot(slot, slot, *slot);
     allocation_sites_scratchpad_length_++;
   }
 }
@@ -3769,7 +3776,6 @@ MaybeObject* Heap::AllocateJSMessageObject(String* type,
                                            int start_position,
                                            int end_position,
                                            Object* script,
-                                           Object* stack_trace,
                                            Object* stack_frames) {
   Object* result;
   { MaybeObject* maybe_result = Allocate(message_object_map(), NEW_SPACE);
@@ -3784,7 +3790,6 @@ MaybeObject* Heap::AllocateJSMessageObject(String* type,
   message->set_start_position(start_position);
   message->set_end_position(end_position);
   message->set_script(script);
-  message->set_stack_trace(stack_trace);
   message->set_stack_frames(stack_frames);
   return result;
 }

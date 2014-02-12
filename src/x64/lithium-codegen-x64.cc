@@ -3928,6 +3928,10 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
   if (representation.IsSmi() &&
       hinstr->value()->representation().IsInteger32()) {
     ASSERT(hinstr->store_mode() == STORE_TO_INITIALIZED_ENTRY);
+#ifdef DEBUG
+    __ movq(kScratchRegister, FieldOperand(write_register, offset));
+    __ AssertSmi(kScratchRegister);
+#endif
     // Store int value directly to upper half of the smi.
     STATIC_ASSERT(kSmiTag == 0);
     STATIC_ASSERT(kSmiTagSize + kSmiShiftSize == 32);

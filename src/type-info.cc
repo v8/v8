@@ -222,7 +222,7 @@ void TypeFeedbackOracle::CompareType(TypeFeedbackId id,
     CompareIC::StubInfoToType(
         stub_minor_key, left_type, right_type, combined_type, map, zone());
   } else if (code->is_compare_nil_ic_stub()) {
-    CompareNilICStub stub(code->extended_extra_ic_state());
+    CompareNilICStub stub(code->extra_ic_state());
     *combined_type = stub.GetType(zone(), map);
     *left_type = *right_type = stub.GetInputType(zone(), map);
   }
@@ -249,7 +249,7 @@ void TypeFeedbackOracle::BinaryType(TypeFeedbackId id,
   }
   Handle<Code> code = Handle<Code>::cast(object);
   ASSERT_EQ(Code::BINARY_OP_IC, code->kind());
-  BinaryOpIC::State state(code->extended_extra_ic_state());
+  BinaryOpIC::State state(code->extra_ic_state());
   ASSERT_EQ(op, state.op());
 
   *left = state.GetLeftType(zone());
@@ -271,7 +271,7 @@ Type* TypeFeedbackOracle::CountType(TypeFeedbackId id) {
   if (!object->IsCode()) return Type::None(zone());
   Handle<Code> code = Handle<Code>::cast(object);
   ASSERT_EQ(Code::BINARY_OP_IC, code->kind());
-  BinaryOpIC::State state(code->extended_extra_ic_state());
+  BinaryOpIC::State state(code->extra_ic_state());
   return state.GetLeftType(zone());
 }
 

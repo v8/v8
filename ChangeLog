@@ -1,3 +1,10 @@
+2014-02-12: Version 3.24.37
+
+        Fix spec violations in JSON.stringify wrt replacer array (issue 3135).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-02-11: Version 3.24.36
 
         Fix inconsistencies wrt whitespaces (issue 3109).

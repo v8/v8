@@ -5511,7 +5511,7 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
     __ LoadRoot(at, Heap::kUndefinedValueRootIndex);
     __ Branch(&okay_here, eq, a2, Operand(at));
     __ lw(t0, FieldMemOperand(a2, 0));
-    __ Assert(eq, kExpectedFixedArrayInRegisterR2,
+    __ Assert(eq, kExpectedFixedArrayInRegisterA2,
         t0, Operand(fixed_array_map));
 
     // a3 should be a smi if we don't have undefined in a2

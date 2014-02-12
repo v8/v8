@@ -188,8 +188,8 @@ class CodeStub BASE_EMBEDDED {
   virtual Code::StubType GetStubType() {
     return Code::NORMAL;
   }
-  virtual int GetStubFlags() {
-    return -1;
+  virtual Code::Kind GetHandlerKind() {
+    return Code::STUB;
   }
 
   virtual void PrintName(StringStream* stream);
@@ -883,7 +883,7 @@ class HICStub: public HydrogenCodeStub {
 class HandlerStub: public HICStub {
  public:
   virtual Code::Kind GetCodeKind() const { return Code::HANDLER; }
-  virtual int GetStubFlags() { return kind(); }
+  virtual Code::Kind GetHandlerKind() { return kind(); }
 
  protected:
   HandlerStub() : HICStub() { }

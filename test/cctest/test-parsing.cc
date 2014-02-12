@@ -1108,8 +1108,9 @@ enum ParserSyncTestResult {
   kError
 };
 
-
-void SetParserFlags(i::ParserBase* parser, i::EnumSet<ParserFlag> flags) {
+template <typename Traits>
+void SetParserFlags(i::ParserBase<Traits>* parser,
+                    i::EnumSet<ParserFlag> flags) {
   parser->set_allow_lazy(flags.Contains(kAllowLazy));
   parser->set_allow_natives_syntax(flags.Contains(kAllowNativesSyntax));
   parser->set_allow_harmony_scoping(flags.Contains(kAllowHarmonyScoping));
@@ -2008,6 +2009,38 @@ TEST(NoErrorsTryCatchFinally) {
     "try { } catch (e) { }",
     "try { } catch (e) { } finally { }",
     "try { } finally { }",
+    NULL
+  };
+
+  RunParserSyncTest(context_data, statement_data, kSuccess);
+}
+
+
+TEST(ErrorsRegexpLiteral) {
+  const char* context_data[][2] = {
+    {"var r = ", ""},
+    { NULL, NULL }
+  };
+
+  const char* statement_data[] = {
+    "/unterminated",
+    NULL
+  };
+
+  RunParserSyncTest(context_data, statement_data, kError);
+}
+
+
+TEST(NoErrorsRegexpLiteral) {
+  const char* context_data[][2] = {
+    {"var r = ", ""},
+    { NULL, NULL }
+  };
+
+  const char* statement_data[] = {
+    "/foo/",
+    "/foo/g",
+    "/foo/whatever",  // This is an error but not detected by the parser.
     NULL
   };
 

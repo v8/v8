@@ -212,7 +212,7 @@ Code::Flags CompilationInfo::flags() const {
                               code_stub()->GetICState(),
                               code_stub()->GetExtraICState(),
                               code_stub()->GetStubType(),
-                              code_stub()->GetStubFlags());
+                              code_stub()->GetHandlerKind());
   } else {
     return Code::ComputeFlags(Code::OPTIMIZED_FUNCTION);
   }
