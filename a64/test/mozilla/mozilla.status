@@ -847,6 +847,10 @@
   'ecma/Date/15.9.5.26-1': [SKIP],
   'js1_5/extensions/regress-396326': [SKIP],
   'js1_5/Regress/regress-80981': [SKIP],
+  'ecma/Date/15.9.5.28-1': [PASS, ['mode==debug', SKIP]],
+
+  # BUG(v8:3152): Runs out of stack in debug mode.
+  'js1_5/extensions/regress-355497': [FAIL_OK, ['mode--debug', SKIP]],
 }],  # 'arch ==  a64'
 
 
