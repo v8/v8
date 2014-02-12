@@ -183,5 +183,8 @@
 
   # BUG(2998).
   'test-macro-assembler-arm/LoadAndStoreWithRepresentation': [SKIP],
+
+  # BUG(3150).
+  'test-api/PreCompileInvalidPreparseDataError': [SKIP],
 }],  # 'arch == nacl_ia32 or arch == nacl_x64'
 ]
