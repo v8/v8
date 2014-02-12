@@ -49,6 +49,8 @@
 #include "ia32/regexp-macro-assembler-ia32.h"
 #elif V8_TARGET_ARCH_X64
 #include "x64/regexp-macro-assembler-x64.h"
+#elif V8_TARGET_ARCH_A64
+#include "a64/regexp-macro-assembler-a64.h"
 #elif V8_TARGET_ARCH_ARM
 #include "arm/regexp-macro-assembler-arm.h"
 #elif V8_TARGET_ARCH_MIPS
@@ -6088,9 +6090,14 @@ RegExpEngine::CompilationResult RegExpEngine::Compile(
 #elif V8_TARGET_ARCH_ARM
   RegExpMacroAssemblerARM macro_assembler(mode, (data->capture_count + 1) * 2,
                                           zone);
+#elif V8_TARGET_ARCH_A64
+  RegExpMacroAssemblerA64 macro_assembler(mode, (data->capture_count + 1) * 2,
+                                          zone);
 #elif V8_TARGET_ARCH_MIPS
   RegExpMacroAssemblerMIPS macro_assembler(mode, (data->capture_count + 1) * 2,
                                            zone);
+#else
+#error "Unsupported architecture"
 #endif
 
 #else  // V8_INTERPRETED_REGEXP

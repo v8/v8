@@ -2637,8 +2637,10 @@ Genesis::Genesis(Isolate* isolate,
 
     MakeFunctionInstancePrototypeWritable();
 
-    if (!ConfigureGlobalObjects(global_template)) return;
-    isolate->counters()->contexts_created_from_scratch()->Increment();
+    if (!FLAG_disable_native_files) {
+      if (!ConfigureGlobalObjects(global_template)) return;
+      isolate->counters()->contexts_created_from_scratch()->Increment();
+    }
   }
 
   // Initialize experimental globals and install experimental natives.

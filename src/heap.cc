@@ -3052,6 +3052,17 @@ void Heap::CreateFixedStubs() {
   // The eliminates the need for doing dictionary lookup in the
   // stub cache for these stubs.
   HandleScope scope(isolate());
+
+  // Create stubs that should be there, so we don't unexpectedly have to
+  // create them if we need them during the creation of another stub.
+  // Stub creation mixes raw pointers and handles in an unsafe manner so
+  // we cannot create stubs while we are creating stubs.
+  CodeStub::GenerateStubsAheadOfTime(isolate());
+
+  // MacroAssembler::Abort calls (usually enabled with --debug-code) depend on
+  // CEntryStub, so we need to call GenerateStubsAheadOfTime before JSEntryStub
+  // is created.
+
   // gcc-4.4 has problem generating correct code of following snippet:
   // {  JSEntryStub stub;
   //    js_entry_code_ = *stub.GetCode();
@@ -3062,12 +3073,6 @@ void Heap::CreateFixedStubs() {
   // To workaround the problem, make separate functions without inlining.
   Heap::CreateJSEntryStub();
   Heap::CreateJSConstructEntryStub();
-
-  // Create stubs that should be there, so we don't unexpectedly have to
-  // create them if we need them during the creation of another stub.
-  // Stub creation mixes raw pointers and handles in an unsafe manner so
-  // we cannot create stubs while we are creating stubs.
-  CodeStub::GenerateStubsAheadOfTime(isolate());
 }
 
 

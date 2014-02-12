@@ -180,7 +180,7 @@ TEST(HeapObjects) {
   CHECK(value->IsNumber());
   CHECK_EQ(Smi::kMaxValue, Smi::cast(value)->value());
 
-#ifndef V8_TARGET_ARCH_X64
+#if !defined(V8_TARGET_ARCH_X64) && !defined(V8_TARGET_ARCH_A64)
   // TODO(lrn): We need a NumberFromIntptr function in order to test this.
   value = heap->NumberFromInt32(Smi::kMinValue - 1)->ToObjectChecked();
   CHECK(value->IsHeapNumber());
