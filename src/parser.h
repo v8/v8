@@ -498,7 +498,9 @@ class Parser : public ParserBase<ParserTraits> {
 
   class FunctionState BASE_EMBEDDED {
    public:
-    FunctionState(Parser* parser, Scope* scope);
+    FunctionState(FunctionState** function_state_stack,
+                  Scope** scope_stack, Scope* scope,
+                  Zone* zone);
     ~FunctionState();
 
     int NextMaterializedLiteralIndex() {
@@ -545,9 +547,11 @@ class Parser : public ParserBase<ParserTraits> {
     // indicates that this function is not a generator.
     Variable* generator_object_variable_;
 
-    Parser* parser_;
+    FunctionState** function_state_stack_;
     FunctionState* outer_function_state_;
+    Scope** scope_stack_;
     Scope* outer_scope_;
+    Isolate* isolate_;
     int saved_ast_node_id_;
     AstNodeFactory<AstConstructionVisitor> factory_;
   };
@@ -590,17 +594,17 @@ class Parser : public ParserBase<ParserTraits> {
     symbol_cache_.Initialize(data ? data->symbol_count() : 0, zone());
   }
 
-  bool inside_with() const { return top_scope_->inside_with(); }
+  bool inside_with() const { return scope_->inside_with(); }
   Scanner& scanner()  { return scanner_; }
   Mode mode() const { return mode_; }
   ScriptDataImpl* pre_parse_data() const { return pre_parse_data_; }
   bool is_extended_mode() {
-    ASSERT(top_scope_ != NULL);
-    return top_scope_->is_extended_mode();
+    ASSERT(scope_ != NULL);
+    return scope_->is_extended_mode();
   }
   Scope* DeclarationScope(VariableMode mode) {
     return IsLexicalVariableMode(mode)
-        ? top_scope_ : top_scope_->DeclarationScope();
+        ? scope_ : scope_->DeclarationScope();
   }
 
   // All ParseXXX functions take as the last argument an *ok parameter
@@ -767,7 +771,7 @@ class Parser : public ParserBase<ParserTraits> {
        SingletonLogger* logger);
 
   AstNodeFactory<AstConstructionVisitor>* factory() {
-    return current_function_state_->factory();
+    return function_state_->factory();
   }
 
   Isolate* isolate_;
@@ -776,9 +780,9 @@ class Parser : public ParserBase<ParserTraits> {
   Handle<Script> script_;
   Scanner scanner_;
   PreParser* reusable_preparser_;
-  Scope* top_scope_;
+  Scope* scope_;  // Scope stack.
   Scope* original_scope_;  // for ES5 function declarations in sloppy eval
-  FunctionState* current_function_state_;
+  FunctionState* function_state_;  // Function state stack.
   Target* target_stack_;  // for break, continue statements
   v8::Extension* extension_;
   ScriptDataImpl* pre_parse_data_;
@@ -788,8 +792,6 @@ class Parser : public ParserBase<ParserTraits> {
 
   Zone* zone_;
   CompilationInfo* info_;
-  friend class BlockState;
-  friend class FunctionState;
 };
 
 

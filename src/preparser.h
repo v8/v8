@@ -512,6 +512,7 @@ class PreParser : public ParserBase<PreParserTraits> {
             uintptr_t stack_limit)
       : ParserBase<PreParserTraits>(scanner, stack_limit, this),
         log_(log),
+        function_state_(NULL),
         scope_(NULL) { }
 
   ~PreParser() {}
@@ -521,7 +522,7 @@ class PreParser : public ParserBase<PreParserTraits> {
   // captured the syntax error), and false if a stack-overflow happened
   // during parsing.
   PreParseResult PreParseProgram() {
-    Scope top_scope(&scope_, kTopLevelScope);
+    FunctionState top_scope(&function_state_, &scope_, GLOBAL_SCOPE);
     bool ok = true;
     int start_position = scanner()->peek_location().beg_pos;
     ParseSourceElements(Token::EOS, &ok);
@@ -553,11 +554,6 @@ class PreParser : public ParserBase<PreParserTraits> {
   // rich enough to let us recognize and propagate the constructs that
   // are either being counted in the preparser data, or is important
   // to throw the correct syntax error exceptions.
-
-  enum ScopeType {
-    kTopLevelScope,
-    kFunctionScope
-  };
 
   enum VariableDeclarationContext {
     kSourceElement,
@@ -626,59 +622,95 @@ class PreParser : public ParserBase<PreParserTraits> {
 
   class Scope {
    public:
-    Scope(Scope** variable, ScopeType type)
-        : variable_(variable),
-          prev_(*variable),
-          type_(type),
-          materialized_literal_count_(0),
-          expected_properties_(0),
-          with_nesting_count_(0),
-          language_mode_(
-              (prev_ != NULL) ? prev_->language_mode() : CLASSIC_MODE),
-          is_generator_(false) {
-      *variable = this;
+    explicit Scope(Scope* outer_scope, ScopeType scope_type)
+        : scope_type_(scope_type) {
+      if (outer_scope) {
+        scope_inside_with_ =
+            outer_scope->scope_inside_with_ || is_with_scope();
+        language_mode_ = outer_scope->language_mode();
+      } else {
+        scope_inside_with_ = is_with_scope();
+        language_mode_ = CLASSIC_MODE;
+      }
     }
-    ~Scope() { *variable_ = prev_; }
-    int NextMaterializedLiteralIndex() { return materialized_literal_count_++; }
-    void AddProperty() { expected_properties_++; }
-    ScopeType type() { return type_; }
-    int expected_properties() { return expected_properties_; }
-    int materialized_literal_count() { return materialized_literal_count_; }
-    bool IsInsideWith() { return with_nesting_count_ != 0; }
-    bool is_generator() { return is_generator_; }
-    void set_is_generator(bool is_generator) { is_generator_ = is_generator; }
-    bool is_classic_mode() {
-      return language_mode_ == CLASSIC_MODE;
+
+    bool is_with_scope() const { return scope_type_ == WITH_SCOPE; }
+    bool is_classic_mode() const {
+      return language_mode() == CLASSIC_MODE;
     }
-    LanguageMode language_mode() {
-      return language_mode_;
+    bool is_extended_mode() {
+      return language_mode() == EXTENDED_MODE;
     }
-    void set_language_mode(LanguageMode language_mode) {
+    bool inside_with() const {
+      return scope_inside_with_;
+    }
+
+    ScopeType type() { return scope_type_; }
+    LanguageMode language_mode() const { return language_mode_; }
+    void SetLanguageMode(LanguageMode language_mode) {
       language_mode_ = language_mode;
     }
 
-    class InsideWith {
-     public:
-      explicit InsideWith(Scope* scope) : scope_(scope) {
-        scope->with_nesting_count_++;
-      }
+   private:
+    ScopeType scope_type_;
+    bool scope_inside_with_;
+    LanguageMode language_mode_;
+  };
 
-      ~InsideWith() { scope_->with_nesting_count_--; }
-
-     private:
-      Scope* scope_;
-      DISALLOW_COPY_AND_ASSIGN(InsideWith);
-    };
+  class FunctionState {
+   public:
+    FunctionState(FunctionState** function_state_stack, Scope** scope_stack,
+                  ScopeType scope_type)
+        : function_state_stack_(function_state_stack),
+          outer_function_state_(*function_state_stack),
+          scope_stack_(scope_stack),
+          outer_scope_(*scope_stack),
+          scope_(*scope_stack, scope_type),
+          materialized_literal_count_(0),
+          expected_properties_(0),
+          is_generator_(false) {
+      *scope_stack = &scope_;
+      *function_state_stack = this;
+    }
+    ~FunctionState() {
+      *scope_stack_ = outer_scope_;
+      *function_state_stack_ = outer_function_state_;
+    }
+    int NextMaterializedLiteralIndex() { return materialized_literal_count_++; }
+    void AddProperty() { expected_properties_++; }
+    int expected_properties() { return expected_properties_; }
+    int materialized_literal_count() { return materialized_literal_count_; }
+    bool is_generator() { return is_generator_; }
+    void set_is_generator(bool is_generator) { is_generator_ = is_generator; }
 
    private:
-    Scope** const variable_;
-    Scope* const prev_;
-    const ScopeType type_;
+    FunctionState** const function_state_stack_;
+    FunctionState* const outer_function_state_;
+    Scope** const scope_stack_;
+    Scope* const outer_scope_;
+    Scope scope_;
+
     int materialized_literal_count_;
     int expected_properties_;
-    int with_nesting_count_;
     LanguageMode language_mode_;
     bool is_generator_;
+  };
+
+  class BlockState {
+   public:
+    BlockState(Scope** scope_stack, ScopeType scope_type)
+        : scope_stack_(scope_stack),
+          outer_scope_(*scope_stack),
+          scope_(*scope_stack, scope_type) {
+      *scope_stack_ = &scope_;
+    }
+
+    ~BlockState() { *scope_stack_ = outer_scope_; }
+
+   private:
+    Scope** scope_stack_;
+    Scope* outer_scope_;
+    Scope scope_;
   };
 
   // All ParseXXX functions take as the last argument an *ok parameter
@@ -740,19 +772,10 @@ class PreParser : public ParserBase<PreParserTraits> {
   // Log the currently parsed string literal.
   Expression GetStringSymbol();
 
-  void set_language_mode(LanguageMode language_mode) {
-    scope_->set_language_mode(language_mode);
-  }
-
-  bool is_extended_mode() {
-    return scope_->language_mode() == EXTENDED_MODE;
-  }
-
-  LanguageMode language_mode() { return scope_->language_mode(); }
-
   bool CheckInOrOf(bool accept_OF);
 
   ParserRecorder* log_;
+  FunctionState* function_state_;
   Scope* scope_;
 };
 
