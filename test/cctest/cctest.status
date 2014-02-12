@@ -85,7 +85,7 @@
   'test-api/OutOfMemoryNested': [PASS, ['mode == debug', FAIL]],
 
   # BUG(v8:3154).
-  'test-api/ReleaseOverReservedPages': [PASS, ['mode == debug', FAIL]],
+  'test-heap/ReleaseOverReservedPages': [PASS, ['mode == debug', FAIL]],
 
   # BUG(v8:3155).
   'test-strings/AsciiArrayJoin': [PASS, ['mode == debug', FAIL]],

@@ -165,6 +165,7 @@
   # Long running tests.
   'regress/regress-2185': [PASS, ['mode == debug', PASS, TIMEOUT]],
   'regress/regress-2185-2': [PASS, TIMEOUT],
+  'whitespaces': [PASS, TIMEOUT],
 
   # Stack manipulations in LiveEdit is not implemented for this arch.
   'debug-liveedit-check-stack': [SKIP],
@@ -177,6 +178,9 @@
 
   # BUG(v8:3149). Incorrect register usage exposed in debug mode.
   'sin-cos': [PASS, ['mode == debug', FAIL]],
+
+  # BUG(v8:3148): Invalid branch instruction emitted.
+  'debug-references': [PASS, ['mode == debug', SKIP]],
 }],  # 'arch == a64'
 
 ['arch == a64 and mode == debug and simulator_run == True', {
