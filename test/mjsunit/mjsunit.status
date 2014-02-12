@@ -187,6 +187,9 @@
   'compiler/concurrent-invalidate-transition-map': [PASS, ['gc_stress == True', FAIL]],
   # BUG(v8:3157): Fails on gc stress bots.
   'sparse-array-reverse': [PASS, ['gc_stress == True', FAIL]],
+
+  # BUG(v8:3158): Fails on no_snap debug bots.
+  'sparse-array-reverse': [PASS, ['mode == debug', FAIL]],
 }],  # 'arch == a64'
 
 ['arch == a64 and mode == debug and simulator_run == True', {
