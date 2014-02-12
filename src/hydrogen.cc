@@ -10261,12 +10261,13 @@ void HOptimizedGraphBuilder::GenerateDateField(CallRuntime* call) {
 void HOptimizedGraphBuilder::GenerateOneByteSeqStringSetChar(
     CallRuntime* call) {
   ASSERT(call->arguments()->length() == 3);
-  CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
+  // We need to follow the evaluation order of full codegen.
   CHECK_ALIVE(VisitForValue(call->arguments()->at(1)));
   CHECK_ALIVE(VisitForValue(call->arguments()->at(2)));
+  CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
+  HValue* string = Pop();
   HValue* value = Pop();
   HValue* index = Pop();
-  HValue* string = Pop();
   Add<HSeqStringSetChar>(String::ONE_BYTE_ENCODING, string,
                          index, value);
   Add<HSimulate>(call->id(), FIXED_SIMULATE);
@@ -10277,12 +10278,13 @@ void HOptimizedGraphBuilder::GenerateOneByteSeqStringSetChar(
 void HOptimizedGraphBuilder::GenerateTwoByteSeqStringSetChar(
     CallRuntime* call) {
   ASSERT(call->arguments()->length() == 3);
-  CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
+  // We need to follow the evaluation order of full codegen.
   CHECK_ALIVE(VisitForValue(call->arguments()->at(1)));
   CHECK_ALIVE(VisitForValue(call->arguments()->at(2)));
+  CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
+  HValue* string = Pop();
   HValue* value = Pop();
   HValue* index = Pop();
-  HValue* string = Pop();
   Add<HSeqStringSetChar>(String::TWO_BYTE_ENCODING, string,
                          index, value);
   Add<HSimulate>(call->id(), FIXED_SIMULATE);
