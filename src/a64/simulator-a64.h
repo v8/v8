@@ -447,7 +447,7 @@ class Simulator : public DecoderVisitor {
   }
   Instruction* lr() { return reg<Instruction*>(kLinkRegCode); }
 
-  Address get_sp() { return reinterpret_cast<Address>(sp()); }
+  Address get_sp() { return reg<Address>(31, Reg31IsStackPointer); }
 
   // Return 'size' bits of the value of a floating-point register, as the
   // specified type. The value is zero-extended to fill the result.
