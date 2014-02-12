@@ -6293,6 +6293,25 @@ void V8::AddCallCompletedCallback(CallCompletedCallback callback) {
 }
 
 
+void V8::RunMicrotasks(Isolate* isolate) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i::HandleScope scope(i_isolate);
+  i::V8::RunMicrotasks(i_isolate);
+}
+
+
+void V8::EnqueueMicrotask(Isolate* isolate, Handle<Function> microtask) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  ENTER_V8(i_isolate);
+  i::Execution::EnqueueMicrotask(i_isolate, Utils::OpenHandle(*microtask));
+}
+
+
+void V8::SetAutorunMicrotasks(Isolate* isolate, bool autorun) {
+  reinterpret_cast<i::Isolate*>(isolate)->set_autorun_microtasks(autorun);
+}
+
+
 void V8::RemoveCallCompletedCallback(CallCompletedCallback callback) {
   i::V8::RemoveCallCompletedCallback(callback);
 }

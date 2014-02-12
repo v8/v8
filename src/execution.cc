@@ -368,6 +368,20 @@ void Execution::RunMicrotasks(Isolate* isolate) {
 }
 
 
+void Execution::EnqueueMicrotask(Isolate* isolate, Handle<Object> microtask) {
+  bool threw = false;
+  Handle<Object> args[] = { microtask };
+  Execution::Call(
+      isolate,
+      isolate->enqueue_external_microtask(),
+      isolate->factory()->undefined_value(),
+      1,
+      args,
+      &threw);
+  ASSERT(!threw);
+}
+
+
 bool StackGuard::IsStackOverflow() {
   ExecutionAccess access(isolate_);
   return (thread_local_.jslimit_ != kInterruptLimit &&

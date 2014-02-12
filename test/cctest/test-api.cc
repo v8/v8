@@ -20514,6 +20514,102 @@ TEST(CallCompletedCallbackTwoExceptions) {
 }
 
 
+static void MicrotaskOne(const v8::FunctionCallbackInfo<Value>& info) {
+  v8::HandleScope scope(info.GetIsolate());
+  CompileRun("ext1Calls++;");
+}
+
+
+static void MicrotaskTwo(const v8::FunctionCallbackInfo<Value>& info) {
+  v8::HandleScope scope(info.GetIsolate());
+  CompileRun("ext2Calls++;");
+}
+
+
+TEST(EnqueueMicrotask) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+  CompileRun(
+      "var ext1Calls = 0;"
+      "var ext2Calls = 0;");
+  CompileRun("1+1;");
+  CHECK_EQ(0, CompileRun("ext1Calls")->Int32Value());
+  CHECK_EQ(0, CompileRun("ext2Calls")->Int32Value());
+
+  v8::V8::EnqueueMicrotask(env->GetIsolate(),
+                           Function::New(env->GetIsolate(), MicrotaskOne));
+  CompileRun("1+1;");
+  CHECK_EQ(1, CompileRun("ext1Calls")->Int32Value());
+  CHECK_EQ(0, CompileRun("ext2Calls")->Int32Value());
+
+  v8::V8::EnqueueMicrotask(env->GetIsolate(),
+                           Function::New(env->GetIsolate(), MicrotaskOne));
+  v8::V8::EnqueueMicrotask(env->GetIsolate(),
+                           Function::New(env->GetIsolate(), MicrotaskTwo));
+  CompileRun("1+1;");
+  CHECK_EQ(2, CompileRun("ext1Calls")->Int32Value());
+  CHECK_EQ(1, CompileRun("ext2Calls")->Int32Value());
+
+  v8::V8::EnqueueMicrotask(env->GetIsolate(),
+                           Function::New(env->GetIsolate(), MicrotaskTwo));
+  CompileRun("1+1;");
+  CHECK_EQ(2, CompileRun("ext1Calls")->Int32Value());
+  CHECK_EQ(2, CompileRun("ext2Calls")->Int32Value());
+
+  CompileRun("1+1;");
+  CHECK_EQ(2, CompileRun("ext1Calls")->Int32Value());
+  CHECK_EQ(2, CompileRun("ext2Calls")->Int32Value());
+}
+
+
+TEST(SetAutorunMicrotasks) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+  CompileRun(
+      "var ext1Calls = 0;"
+      "var ext2Calls = 0;");
+  CompileRun("1+1;");
+  CHECK_EQ(0, CompileRun("ext1Calls")->Int32Value());
+  CHECK_EQ(0, CompileRun("ext2Calls")->Int32Value());
+
+  v8::V8::EnqueueMicrotask(env->GetIsolate(),
+                           Function::New(env->GetIsolate(), MicrotaskOne));
+  CompileRun("1+1;");
+  CHECK_EQ(1, CompileRun("ext1Calls")->Int32Value());
+  CHECK_EQ(0, CompileRun("ext2Calls")->Int32Value());
+
+  V8::SetAutorunMicrotasks(env->GetIsolate(), false);
+  v8::V8::EnqueueMicrotask(env->GetIsolate(),
+                           Function::New(env->GetIsolate(), MicrotaskOne));
+  v8::V8::EnqueueMicrotask(env->GetIsolate(),
+                           Function::New(env->GetIsolate(), MicrotaskTwo));
+  CompileRun("1+1;");
+  CHECK_EQ(1, CompileRun("ext1Calls")->Int32Value());
+  CHECK_EQ(0, CompileRun("ext2Calls")->Int32Value());
+
+  V8::RunMicrotasks(env->GetIsolate());
+  CHECK_EQ(2, CompileRun("ext1Calls")->Int32Value());
+  CHECK_EQ(1, CompileRun("ext2Calls")->Int32Value());
+
+  v8::V8::EnqueueMicrotask(env->GetIsolate(),
+                           Function::New(env->GetIsolate(), MicrotaskTwo));
+  CompileRun("1+1;");
+  CHECK_EQ(2, CompileRun("ext1Calls")->Int32Value());
+  CHECK_EQ(1, CompileRun("ext2Calls")->Int32Value());
+
+  V8::RunMicrotasks(env->GetIsolate());
+  CHECK_EQ(2, CompileRun("ext1Calls")->Int32Value());
+  CHECK_EQ(2, CompileRun("ext2Calls")->Int32Value());
+
+  V8::SetAutorunMicrotasks(env->GetIsolate(), true);
+  v8::V8::EnqueueMicrotask(env->GetIsolate(),
+                           Function::New(env->GetIsolate(), MicrotaskTwo));
+  CompileRun("1+1;");
+  CHECK_EQ(2, CompileRun("ext1Calls")->Int32Value());
+  CHECK_EQ(3, CompileRun("ext2Calls")->Int32Value());
+}
+
+
 static int probes_counter = 0;
 static int misses_counter = 0;
 static int updates_counter = 0;

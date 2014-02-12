@@ -203,7 +203,8 @@ namespace internal {
       EmptySlowElementDictionary)                                              \
   V(Symbol, observed_symbol, ObservedSymbol)                                   \
   V(FixedArray, materialized_objects, MaterializedObjects)                     \
-  V(FixedArray, allocation_sites_scratchpad, AllocationSitesScratchpad)
+  V(FixedArray, allocation_sites_scratchpad, AllocationSitesScratchpad)        \
+  V(JSObject, microtask_state, MicrotaskState)
 
 #define ROOT_LIST(V)                                  \
   STRONG_ROOT_LIST(V)                                 \

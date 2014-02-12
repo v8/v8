@@ -308,6 +308,9 @@ namespace internal {
   /* ES5 */ \
   F(ObjectFreeze, 1, 1) \
   \
+  /* Harmony Microtasks */ \
+  F(GetMicrotaskState, 0, 1) \
+  \
   /* Harmony modules */ \
   F(IsJSModule, 1, 1) \
   \
@@ -351,6 +354,7 @@ namespace internal {
   \
   /* Harmony events */ \
   F(SetMicrotaskPending, 1, 1) \
+  F(RunMicrotasks, 0, 1) \
   \
   /* Harmony observe */ \
   F(IsObserved, 1, 1) \

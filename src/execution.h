@@ -175,6 +175,7 @@ class Execution : public AllStatic {
                                                   bool* has_pending_exception);
 
   static void RunMicrotasks(Isolate* isolate);
+  static void EnqueueMicrotask(Isolate* isolate, Handle<Object> microtask);
 };
 
 
