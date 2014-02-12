@@ -684,8 +684,6 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     // Compute the copy end address.
     __ Add(x10, argv, Operand(argc, LSL, kPointerSizeLog2));
 
-    // TODO(all): This can potentially be optimized with ldp/stp to speed up
-    // arguments passing from C++ to JS.
     __ B(&entry);
     __ Bind(&loop);
     __ Ldr(x11, MemOperand(argv, kPointerSize, PostIndex));

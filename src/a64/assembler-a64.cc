@@ -2354,9 +2354,6 @@ void Assembler::BlockConstPoolFor(int instructions) {
 }
 
 
-// TODO(all): We are never trying to emit constant pools after unconditional
-// branches, because we only call it from Assembler::Emit() (or manually).
-// We should try to enable that.
 void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
   // Some short sequence of instruction mustn't be broken up by constant pool
   // emission, such sequences are protected by calls to BlockConstPoolFor and
