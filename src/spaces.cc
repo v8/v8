@@ -560,21 +560,12 @@ bool MemoryChunk::CommitArea(size_t requested) {
 
 
 void MemoryChunk::InsertAfter(MemoryChunk* other) {
-  next_chunk_ = other->next_chunk_;
-  prev_chunk_ = other;
+  MemoryChunk* other_next = other->next_chunk();
 
-  // This memory barrier is needed since concurrent sweeper threads may iterate
-  // over the list of pages while a new page is inserted.
-  // TODO(hpayer): find a cleaner way to guarantee that the page list can be
-  // expanded concurrently
-  MemoryBarrier();
-
-  // The following two write operations can take effect in arbitrary order
-  // since pages are always iterated by the sweeper threads in LIFO order, i.e,
-  // the inserted page becomes visible for the sweeper threads after
-  // other->next_chunk_ = this;
-  other->next_chunk_->prev_chunk_ = this;
-  other->next_chunk_ = this;
+  set_next_chunk(other_next);
+  set_prev_chunk(other);
+  other_next->set_prev_chunk(this);
+  other->set_next_chunk(this);
 }
 
 
@@ -583,10 +574,12 @@ void MemoryChunk::Unlink() {
     heap_->decrement_scan_on_scavenge_pages();
     ClearFlag(SCAN_ON_SCAVENGE);
   }
-  next_chunk_->prev_chunk_ = prev_chunk_;
-  prev_chunk_->next_chunk_ = next_chunk_;
-  prev_chunk_ = NULL;
-  next_chunk_ = NULL;
+  MemoryChunk* next_element = next_chunk();
+  MemoryChunk* prev_element = prev_chunk();
+  next_element->set_prev_chunk(prev_element);
+  prev_element->set_next_chunk(next_element);
+  set_prev_chunk(NULL);
+  set_next_chunk(NULL);
 }
 
 
