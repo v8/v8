@@ -309,22 +309,19 @@ class NfaBuilder(object):
   def __flatten_terms(terms, name):
     for term in terms:
       assert isinstance(term, Term)
-      if not term:
-        continue
       if term.name() == name:
         for arg in term.args():
           if arg:
             yield arg
       else:
-        yield term
+        if term:
+          yield term
 
   @staticmethod
   def __flatten_literals(terms):
     acc = ()
     for term in terms:
       assert isinstance(term, Term)
-      if not term:
-        continue
       if term.name() == 'LITERAL':
         acc += term.args()
       else:
