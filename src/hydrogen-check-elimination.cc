@@ -164,7 +164,7 @@ class HCheckTable : public ZoneObject {
     copy->size_ = size_;
 
     // Create entries for succ block's phis.
-    if (succ->phis()->length() > 0) {
+    if (!succ->IsLoopHeader() && succ->phis()->length() > 0) {
       int pred_index = succ->PredecessorIndexOf(from_block);
       for (int phi_index = 0;
            phi_index < succ->phis()->length();
