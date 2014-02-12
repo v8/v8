@@ -5103,6 +5103,10 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
   if (representation.IsSmi() &&
       instr->hydrogen()->value()->representation().IsInteger32()) {
     ASSERT(instr->hydrogen()->store_mode() == STORE_TO_INITIALIZED_ENTRY);
+#ifdef DEBUG
+    __ Ldr(temp1, FieldMemOperand(destination, offset));
+    __ AssertSmi(temp1);
+#endif
     STATIC_ASSERT(kSmiValueSize == 32 && kSmiShift == 32 && kSmiTag == 0);
     __ Store(value, UntagSmiFieldMemOperand(destination, offset),
              Representation::Integer32());
