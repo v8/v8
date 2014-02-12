@@ -17520,6 +17520,29 @@ TEST(DynamicWithSourceURLInStackTrace) {
 }
 
 
+TEST(DynamicWithSourceURLInStackTraceString) {
+  LocalContext context;
+  v8::HandleScope scope(context->GetIsolate());
+
+  const char *source =
+    "function outer() {\n"
+    "  function foo() {\n"
+    "    FAIL.FAIL;\n"
+    "  }\n"
+    "  foo();\n"
+    "}\n"
+    "outer()\n%s";
+
+  i::ScopedVector<char> code(1024);
+  i::OS::SNPrintF(code, source, "//# sourceURL=source_url");
+  v8::TryCatch try_catch;
+  CompileRunWithOrigin(code.start(), "", 0, 0);
+  CHECK(try_catch.HasCaught());
+  v8::String::Utf8Value stack(try_catch.StackTrace());
+  CHECK(strstr(*stack, "at foo (source_url:3:5)") != NULL);
+}
+
+
 static void CreateGarbageInOldSpace() {
   i::Factory* factory = CcTest::i_isolate()->factory();
   v8::HandleScope scope(CcTest::isolate());
