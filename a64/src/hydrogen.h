@@ -174,6 +174,8 @@ class HBasicBlock V8_FINAL : public ZoneObject {
     dominates_loop_successors_ = true;
   }
 
+  void MarkSuccEdgeUnreachable(int succ);
+
   inline Zone* zone() const;
 
 #ifdef DEBUG
