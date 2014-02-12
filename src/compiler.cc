@@ -1185,7 +1185,7 @@ Handle<Code> Compiler::GetOptimizedCode(Handle<JSFunction> function,
   if (FLAG_trace_opt) {
     PrintF("[failed to optimize ");
     function->PrintName();
-    PrintF(": %s]\n", GetBailoutReason(info->bailout_reason()));
+    PrintF("]\n");
   }
 
   if (isolate->has_pending_exception()) isolate->clear_pending_exception();

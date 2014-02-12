@@ -295,8 +295,7 @@ HValue* CodeStubGraphBuilder<ToNumberStub>::BuildCodeStub() {
   // Check if the parameter is already a SMI or heap number.
   IfBuilder if_number(this);
   if_number.If<HIsSmiAndBranch>(value);
-  if_number.OrIf<HCompareMap>(value, isolate()->factory()->heap_number_map(),
-                              top_info());
+  if_number.OrIf<HCompareMap>(value, isolate()->factory()->heap_number_map());
   if_number.Then();
 
   // Return the number.
@@ -359,8 +358,7 @@ HValue* CodeStubGraphBuilder<FastCloneShallowArrayStub>::BuildCodeStub() {
     HValue* elements = AddLoadElements(boilerplate);
 
     IfBuilder if_fixed_cow(this);
-    if_fixed_cow.If<HCompareMap>(elements, factory->fixed_cow_array_map(),
-                                 top_info());
+    if_fixed_cow.If<HCompareMap>(elements, factory->fixed_cow_array_map());
     if_fixed_cow.Then();
     push_value = BuildCloneShallowArray(boilerplate,
                                         allocation_site,
@@ -371,7 +369,7 @@ HValue* CodeStubGraphBuilder<FastCloneShallowArrayStub>::BuildCodeStub() {
     if_fixed_cow.Else();
 
     IfBuilder if_fixed(this);
-    if_fixed.If<HCompareMap>(elements, factory->fixed_array_map(), top_info());
+    if_fixed.If<HCompareMap>(elements, factory->fixed_array_map());
     if_fixed.Then();
     push_value = BuildCloneShallowArray(boilerplate,
                                         allocation_site,
