@@ -453,11 +453,7 @@ class HLoadEliminationTable : public ZoneObject {
 class HLoadEliminationEffects : public ZoneObject {
  public:
   explicit HLoadEliminationEffects(Zone* zone)
-    : zone_(zone),
-      maps_stored_(false),
-      fields_stored_(false),
-      elements_stored_(false),
-      stores_(5, zone) { }
+    : zone_(zone), stores_(5, zone) { }
 
   inline bool Disabled() {
     return false;  // Effects are _not_ disabled.
@@ -465,37 +461,25 @@ class HLoadEliminationEffects : public ZoneObject {
 
   // Process a possibly side-effecting instruction.
   void Process(HInstruction* instr, Zone* zone) {
-    switch (instr->opcode()) {
-      case HValue::kStoreNamedField: {
-        stores_.Add(HStoreNamedField::cast(instr), zone_);
-        break;
-      }
-      case HValue::kOsrEntry: {
-        // Kill everything. Loads must not be hoisted past the OSR entry.
-        maps_stored_ = true;
-        fields_stored_ = true;
-        elements_stored_ = true;
-      }
-      default: {
-        fields_stored_ |= instr->CheckChangesFlag(kInobjectFields);
-        maps_stored_ |= instr->CheckChangesFlag(kMaps);
-        maps_stored_ |= instr->CheckChangesFlag(kElementsKind);
-        elements_stored_ |= instr->CheckChangesFlag(kElementsKind);
-        elements_stored_ |= instr->CheckChangesFlag(kElementsPointer);
-      }
+    if (instr->IsStoreNamedField()) {
+      stores_.Add(HStoreNamedField::cast(instr), zone_);
+    } else {
+      flags_.Add(instr->ChangesFlags());
     }
   }
 
   // Apply these effects to the given load elimination table.
   void Apply(HLoadEliminationTable* table) {
-    if (fields_stored_) {
+    // Loads must not be hoisted past the OSR entry, therefore we kill
+    // everything if we see an OSR entry.
+    if (flags_.Contains(kInobjectFields) || flags_.Contains(kOsrEntries)) {
       table->Kill();
       return;
     }
-    if (maps_stored_) {
+    if (flags_.Contains(kElementsKind) || flags_.Contains(kMaps)) {
       table->KillOffset(JSObject::kMapOffset);
     }
-    if (elements_stored_) {
+    if (flags_.Contains(kElementsKind) || flags_.Contains(kElementsPointer)) {
       table->KillOffset(JSObject::kElementsOffset);
     }
 
@@ -507,9 +491,7 @@ class HLoadEliminationEffects : public ZoneObject {
 
   // Union these effects with the other effects.
   void Union(HLoadEliminationEffects* that, Zone* zone) {
-    maps_stored_ |= that->maps_stored_;
-    fields_stored_ |= that->fields_stored_;
-    elements_stored_ |= that->elements_stored_;
+    flags_.Add(that->flags_);
     for (int i = 0; i < that->stores_.length(); i++) {
       stores_.Add(that->stores_[i], zone);
     }
@@ -517,9 +499,7 @@ class HLoadEliminationEffects : public ZoneObject {
 
  private:
   Zone* zone_;
-  bool maps_stored_ : 1;
-  bool fields_stored_ : 1;
-  bool elements_stored_ : 1;
+  GVNFlagSet flags_;
   ZoneList<HStoreNamedField*> stores_;
 };
 
