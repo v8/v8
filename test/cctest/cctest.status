@@ -73,6 +73,22 @@
 ['arch == a64', {
 
   'test-api/Bug618': [PASS],
+
+  # BUG(v8:2999).
+  'test-cpu-profiler/CollectCpuProfile': [PASS, FAIL],
+
+  # BUG(v8:3153).
+  'test-api/SetFunctionEntryHook': [PASS, FAIL, CRASH],
+
+  # Runs out of memory in debug mode.
+  'test-api/OutOfMemory': [PASS, ['mode == debug', FAIL]],
+  'test-api/OutOfMemoryNested': [PASS, ['mode == debug', FAIL]],
+
+  # BUG(v8:3154).
+  'test-api/ReleaseOverReservedPages': [PASS, ['mode == debug', FAIL]],
+
+  # BUG(v8:3155).
+  'test-strings/AsciiArrayJoin': [PASS, ['mode == debug', FAIL]],
 }],  # 'arch == a64'
 
 ['arch == a64 and simulator_run == True', {
