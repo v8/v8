@@ -127,14 +127,13 @@ function compute_mod(dividend, divisor) {
     NaN,
     0,
 
-    // TODO(all): due to a bug in fmod(), modulos involving denormals
-    // return the wrong result for glibc <= 2.16. Restore these cases when
-    // development machines have been upgraded.
+    // Due to a bug in fmod(), modulos involving denormals
+    // return the wrong result for glibc <= 2.16.
     // Details: http://sourceware.org/bugzilla/show_bug.cgi?id=14048
 
-    // Number.MIN_VALUE,
-    // 3 * Number.MIN_VALUE,
-    // max_denormal,
+    Number.MIN_VALUE,
+    3 * Number.MIN_VALUE,
+    max_denormal,
 
     min_normal,
     repeating_decimal,
