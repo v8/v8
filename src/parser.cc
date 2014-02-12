@@ -643,7 +643,6 @@ Parser::Parser(CompilationInfo* info)
       extension_(info->extension()),
       pre_parse_data_(NULL),
       fni_(NULL),
-      parenthesized_function_(false),
       zone_(info->zone()),
       info_(info) {
   ASSERT(!script_.is_null());

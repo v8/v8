@@ -42,6 +42,7 @@ class ParserBase : public Traits {
   ParserBase(Scanner* scanner, uintptr_t stack_limit,
              typename Traits::ParserType this_object)
       : Traits(this_object),
+        parenthesized_function_(false),
         scanner_(scanner),
         stack_limit_(stack_limit),
         stack_overflow_(false),
@@ -281,6 +282,12 @@ class ParserBase : public Traits {
     LanguageMode language_mode_;
   };
 
+  // If true, the next (and immediately following) function literal is
+  // preceded by a parenthesis.
+  // Heuristically that means that the function will be called immediately,
+  // so never lazily compile it.
+  bool parenthesized_function_;
+
  private:
   Scanner* scanner_;
   uintptr_t stack_limit_;
@@ -505,8 +512,7 @@ class PreParser : public ParserBase<PreParserTraits> {
             uintptr_t stack_limit)
       : ParserBase<PreParserTraits>(scanner, stack_limit, this),
         log_(log),
-        scope_(NULL),
-        parenthesized_function_(false) { }
+        scope_(NULL) { }
 
   ~PreParser() {}
 
@@ -748,7 +754,6 @@ class PreParser : public ParserBase<PreParserTraits> {
 
   ParserRecorder* log_;
   Scope* scope_;
-  bool parenthesized_function_;
 };
 
 
