@@ -26,6 +26,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import argparse
+from dot_utilities import *
 from nfa import Nfa
 from nfa_builder import NfaBuilder
 from dfa import Dfa, DfaMinimizer
@@ -73,12 +74,12 @@ def generate_html(rule_processor, minimize_default):
     if name != 'default' or minimize_default:
       mdfa = automata.minimal_dfa()
     (nfa_i, dfa_i, mdfa_i) = ("nfa_%d" % i, "dfa_%d" % i, "mdfa_%d" % i)
-    scripts.append(script_template % (nfa_i, nfa.to_dot()))
+    scripts.append(script_template % (nfa_i, automaton_to_dot(nfa)))
     loads.append(load_template % ("nfa [%s]" % name, nfa_i))
-    scripts.append(script_template % (dfa_i, dfa.to_dot()))
+    scripts.append(script_template % (dfa_i, automaton_to_dot(dfa)))
     loads.append(load_template % ("dfa [%s]" % name, dfa_i))
     if mdfa and mdfa.node_count() != dfa.node_count():
-      scripts.append(script_template % (mdfa_i, mdfa.to_dot()))
+      scripts.append(script_template % (mdfa_i, automaton_to_dot(mdfa)))
       loads.append(load_template % ("mdfa [%s]" % name, mdfa_i))
   body = "\n".join(scripts) + (load_outer_template % "\n".join(loads))
   return file_template % body
@@ -86,14 +87,15 @@ def generate_html(rule_processor, minimize_default):
 def generate_rule_tree_html(rule_processor):
   scripts = []
   loads = []
+  mapper = lambda x : map_characters(rule_processor.encoding(), x)
   for i, (name, alias) in enumerate(list(rule_processor.alias_iter())):
     alias_i = "alias_%d" % i
-    dot = alias.to_dot()
+    dot = term_to_dot(alias, mapper)
     scripts.append(script_template % (alias_i, dot))
     loads.append(load_template % ("alias [%s]" % name, alias_i))
   for i, (name, automata) in enumerate(list(rule_processor.automata_iter())):
     rule_i = "rule_%d" % i
-    dot = automata.rule_term().to_dot()
+    dot = term_to_dot(automata.rule_term(), mapper)
     scripts.append(script_template % (rule_i, dot))
     loads.append(load_template % ("rule [%s]" % name, rule_i))
   body = "\n".join(scripts) + (load_outer_template % "\n".join(loads))

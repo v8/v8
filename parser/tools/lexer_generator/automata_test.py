@@ -26,6 +26,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import unittest
+from dot_utilities import *
 from automaton import Action
 from regex_parser import RegexParser
 from transition_keys import TransitionKey, KeyEncoding
@@ -81,7 +82,7 @@ class AutomataTestCase(unittest.TestCase):
   def test_can_construct_dot(self):
     for (regex, matches, not_matches) in self.__test_data:
       for automaton in self.__build_automata(regex):
-        automaton.to_dot()
+        automaton_to_dot(automaton)
 
   def test_minimization(self):
     encoding = self.__encoding

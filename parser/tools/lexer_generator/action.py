@@ -74,36 +74,6 @@ class Term(object):
       self.__str = '(%s)' % ','.join(map(str, self.__tuple))
     return self.__str
 
-  def to_dot(self):
-    node_ix = [0]
-    node_template = 'node [label="%s"]; N_%d;'
-    edge_template = 'N_%d -> N_%d'
-    nodes = []
-    edges = []
-
-    def escape(v):  # TODO(dcarney): abstract into utilities
-      v = str(v)
-      v = v.replace('\r', '\\\\r').replace('\t', '\\\\t').replace('\n', '\\\\n')
-      v = v.replace('\\', '\\\\').replace('\"', '\\\"')
-      return v
-
-    def process(term):
-      if type(term) == StringType or type(term) == IntType:
-        node_ix[0] += 1
-        nodes.append(node_template % (escape(str(term)), node_ix[0]))
-        return node_ix[0]
-      elif isinstance(term, Term):
-        child_ixs = map(process, term.args())
-        node_ix[0] += 1
-        nodes.append(node_template % (escape(term.name()), node_ix[0]))
-        for child_ix in child_ixs:
-          edges.append(edge_template % (node_ix[0], child_ix))
-        return node_ix[0]
-      raise Exception
-
-    process(self)
-    return 'digraph { %s %s }' % ('\n'.join(nodes), '\n'.join(edges))
-
 class Action(object):
 
   __empty_action = None

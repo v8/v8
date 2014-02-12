@@ -241,8 +241,8 @@ class TransitionKey(object):
       r = component.args()
       to_str = lambda x: KeyEncoding.to_str(encoding, x)
       if r[0] == r[1]:
-        return '%s' % to_str(r[0])
-      return '[%s-%s]' % (to_str(r[0]), to_str(r[1]))
+        return "'%s'" % to_str(r[0])
+      return "['%s'-'%s']" % (to_str(r[0]), to_str(r[1]))
     raise Exception('unprintable %s' % component)
 
   def __flatten(self):

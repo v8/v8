@@ -1,4 +1,4 @@
-# Copyright 2013 the V8 project authors. All rights reserved.
+# Copyright 2014 the V8 project authors. All rights reserved.
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
 # met:
@@ -46,7 +46,7 @@ class KeyEncoding(object):
     if x > 127:
       return str(x)
     if not x in KeyEncoding.__printable_cache:
-      res = "'%s'" % chr(x) if chr(x) in printable else str(x)
+      res = "%s" % chr(x) if chr(x) in printable else str(x)
       KeyEncoding.__printable_cache[x] = res
     return KeyEncoding.__printable_cache[x]
 

@@ -331,9 +331,13 @@ class RuleProcessor(object):
   def __init__(self, string, encoding_name):
     self.__automata = {}
     self.__default_action = None
-    self.__parser_state = RuleParserState(KeyEncoding.get(encoding_name))
+    self.__encoding = KeyEncoding.get(encoding_name)
+    self.__parser_state = RuleParserState(self.__encoding)
     RuleParser.parse(string, self.__parser_state)
     self.__process_parser_state()
+
+  def encoding(self):
+    return self.__encoding
 
   def alias_iter(self):
     return iter(self.__parser_state.aliases.items())
