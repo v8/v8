@@ -181,6 +181,12 @@
 
   # BUG(v8:3148): Invalid branch instruction emitted.
   'debug-references': [PASS, ['mode == debug', SKIP]],
+  'mirror-array': [PASS, ['mode == debug', SKIP]],
+
+  # BUG(v8:3156): Fails on gc stress bots.
+  'compiler/concurrent-invalidate-transition-map': [PASS, ['gc_stress == True', FAIL]],
+  # BUG(v8:3157): Fails on gc stress bots.
+  'sparse-array-reverse': [PASS, ['gc_stress == True', FAIL]],
 }],  # 'arch == a64'
 
 ['arch == a64 and mode == debug and simulator_run == True', {
