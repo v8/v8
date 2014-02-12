@@ -1451,7 +1451,7 @@ uint8_t* Simulator::LoadStoreAddress(unsigned addr_reg,
     // When the base register is SP the stack pointer is required to be
     // quadword aligned prior to the address calculation and write-backs.
     // Misalignment will cause a stack alignment fault.
-    ALIGNMENT_EXCEPTION();
+    FATAL("ALIGNMENT EXCEPTION");
   }
 
   if ((addrmode == Offset) || (addrmode == PreIndex)) {
@@ -1480,7 +1480,7 @@ void Simulator::CheckMemoryAccess(uint8_t* address, uint8_t* stack) {
     fprintf(stream_, "  access was here:     0x%16p\n", address);
     fprintf(stream_, "  stack limit is here: 0x%16p\n", stack_limit_);
     fprintf(stream_, "\n");
-    ABORT();
+    FATAL("ACCESS BELOW STACK POINTER");
   }
 }
 
@@ -3209,7 +3209,7 @@ void Simulator::VisitException(Instruction* instr) {
         bool stack_alignment_exception = ((sp() & 0xf) != 0);
         if (stack_alignment_exception) {
           TraceSim("  with unaligned stack 0x%016" PRIx64 ".\n", sp());
-          ALIGNMENT_EXCEPTION();
+          FATAL("ALIGNMENT EXCEPTION");
         }
 
         switch (redirection->type()) {

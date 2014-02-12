@@ -101,13 +101,7 @@ namespace internal {
   V(KeyedLoadField)
 
 // List of code stubs only used on ARM platforms.
-#if V8_TARGET_ARCH_ARM
-#define CODE_STUB_LIST_ARM(V)  \
-  V(GetProperty)               \
-  V(SetProperty)               \
-  V(InvokeBuiltin)             \
-  V(DirectCEntry)
-#elif V8_TARGET_ARCH_A64
+#if defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_A64)
 #define CODE_STUB_LIST_ARM(V)  \
   V(GetProperty)               \
   V(SetProperty)               \

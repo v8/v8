@@ -254,7 +254,9 @@ class Simulator : public DecoderVisitor {
     }
 
     explicit CallArgument(float argument) {
-      TODO_UNIMPLEMENTED("CallArgument(float) is untested.");
+      // TODO(all): CallArgument(float) is untested, remove this check once
+      //            tested.
+      UNIMPLEMENTED();
       // Make the D register a NaN to try to trap errors if the callee expects a
       // double. If it expects a float, the callee should ignore the top word.
       ASSERT(sizeof(kFP64SignallingNaN) == sizeof(bits_));

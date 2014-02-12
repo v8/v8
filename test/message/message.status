@@ -31,23 +31,4 @@
 [ALWAYS, {
   'bugs/*': [FAIL],
 }],  # ALWAYS
-
-['arch == a64', {
-  # Message tests won't pass until all UNIMPLEMENTED messages are removed.
-  'regress/regress-75': [SKIP],
-  'regress/regress-73': [SKIP],
-  'regress/regress-1527': [SKIP],
-  'try-finally-throw-in-try': [SKIP],
-  'try-finally-throw-in-finally': [SKIP],
-  'try-finally-return-in-finally': [SKIP],
-  'try-catch-finally-throw-in-finally': [SKIP],
-  'try-catch-finally-throw-in-catch-and-finally': [SKIP],
-  'try-catch-finally-throw-in-catch': [SKIP],
-  'try-catch-finally-return-in-finally': [SKIP],
-  'try-catch-finally-no-message': [SKIP],
-  'simple-throw': [SKIP],
-  'replacement-marker-as-argument': [SKIP],
-  'overwritten-builtins': [SKIP],
-  'try-finally-throw-in-try-and-finally': [SKIP],
-}],  # 'arch == a64'
 ]

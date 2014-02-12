@@ -34,8 +34,6 @@
 
 extern "C" void V8_Fatal(const char* file, int line, const char* format, ...);
 
-// Define custom A64 preprocessor helpers to facilitate development.
-#ifndef V8_TARGET_ARCH_A64
 
 // The FATAL, UNREACHABLE and UNIMPLEMENTED macros are useful during
 // development, but they should not be relied on in the final product.
@@ -54,69 +52,21 @@ extern "C" void V8_Fatal(const char* file, int line, const char* format, ...);
 #define UNREACHABLE() ((void) 0)
 #endif
 
+// Simulator specific helpers.
+#if defined(USE_SIMULATOR) && defined(V8_TARGET_ARCH_A64)
+  // TODO(all): If possible automatically prepend an indicator like
+  // UNIMPLEMENTED or LOCATION.
+  #define ASM_UNIMPLEMENTED(message)                                         \
+  __ Debug(message, __LINE__, NO_PARAM)
+  #define ASM_UNIMPLEMENTED_BREAK(message)                                   \
+  __ Debug(message, __LINE__,                                                \
+           FLAG_ignore_asm_unimplemented_break ? NO_PARAM : BREAK)
+  #define ASM_LOCATION(message)                                              \
+  __ Debug("LOCATION: " message, __LINE__, NO_PARAM)
 #else
-
-  #ifdef DEBUG
-    #define FATAL(msg)                                                         \
-      V8_Fatal(__FILE__, __LINE__, "%s", (msg))
-    #define UNREACHABLE()                                                      \
-      V8_Fatal(__FILE__, __LINE__, "unreachable code")
-    #else
-    #define FATAL(msg)                                                         \
-      V8_Fatal("", 0, "%s", (msg))
-    #define UNREACHABLE() ((void) 0)
-  #endif
-
-  #define ABORT() printf("in %s, line %i, %s", __FILE__, __LINE__, __func__); \
-    abort()
-
-  #define ALIGNMENT_EXCEPTION() printf("ALIGNMENT EXCEPTION\t"); ABORT()
-
-  // Helpers for unimplemented sections.
-  #define UNIMPLEMENTED()                                                      \
-    do {                                                                       \
-      printf("UNIMPLEMENTED: %s, line %d, %s\n",                               \
-             __FILE__, __LINE__, __func__);                                    \
-      V8_Fatal(__FILE__, __LINE__, "unimplemented code");                      \
-    } while (0)
-  #define UNIMPLEMENTED_M(message)                                             \
-    do {                                                                       \
-      printf("UNIMPLEMENTED: %s, line %d, %s : %s\n",                          \
-             __FILE__, __LINE__, __func__, message);                           \
-      V8_Fatal(__FILE__, __LINE__, "unimplemented code");                      \
-    } while (0)
-  // Like UNIMPLEMENTED, but does not abort.
-  #define TODO_UNIMPLEMENTED(message)                                          \
-      do {                                                                     \
-        static const unsigned int kLimit = 1;                                  \
-        static unsigned int printed = 0;                                       \
-        if (printed < UINT_MAX) {                                              \
-          printed++;                                                           \
-        }                                                                      \
-        if (printed <= kLimit) {                                               \
-          printf("UNIMPLEMENTED: %s, line %d, %s: %s\n",                       \
-                 __FILE__, __LINE__, __func__, message);                       \
-        }                                                                      \
-      } while (0)
-
-  // Simulator specific helpers.
-  #ifdef USE_SIMULATOR
-    // Helpers for unimplemented sections.
-    // TODO(all): If possible automatically prepend an indicator like
-    // UNIMPLEMENTED or LOCATION.
-    #define ASM_UNIMPLEMENTED(message)                                         \
-    __ Debug(message, __LINE__, NO_PARAM)
-    #define ASM_UNIMPLEMENTED_BREAK(message)                                   \
-    __ Debug(message, __LINE__,                                                \
-             FLAG_ignore_asm_unimplemented_break ? NO_PARAM : BREAK)
-    #define ASM_LOCATION(message)                                              \
-    __ Debug("LOCATION: " message, __LINE__, NO_PARAM)
-  #else
-    #define ASM_UNIMPLEMENTED(message)
-    #define ASM_UNIMPLEMENTED_BREAK(message)
-    #define ASM_LOCATION(message)
-  #endif
-
+  #define ASM_UNIMPLEMENTED(message)
+  #define ASM_UNIMPLEMENTED_BREAK(message)
+  #define ASM_LOCATION(message)
 #endif
 
 
