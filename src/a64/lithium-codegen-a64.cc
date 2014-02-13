@@ -1569,7 +1569,8 @@ void LCodeGen::DoDeferredAllocate(LAllocate* instr) {
 void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
   Register receiver = ToRegister(instr->receiver());
   Register function = ToRegister(instr->function());
-  Register length = ToRegister(instr->length());
+  Register length = ToRegister32(instr->length());
+
   Register elements = ToRegister(instr->elements());
   Register scratch = x5;
   ASSERT(receiver.Is(x0));  // Used for parameter count.
@@ -1588,7 +1589,7 @@ void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
   __ Push(receiver);
   Register argc = receiver;
   receiver = NoReg;
-  __ Mov(argc, length);
+  __ Sxtw(argc, length);
   // The arguments are at a one pointer size offset from elements.
   __ Add(elements, elements, 1 * kPointerSize);
 
@@ -1598,7 +1599,7 @@ void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
   // length is a small non-negative integer, due to the test above.
   __ Cbz(length, &invoke);
   __ Bind(&loop);
-  __ Ldr(scratch, MemOperand(elements, length, LSL, kPointerSizeLog2));
+  __ Ldr(scratch, MemOperand(elements, length, SXTW, kPointerSizeLog2));
   __ Push(scratch);
   __ Subs(length, length, 1);
   __ B(ne, &loop);
@@ -1753,7 +1754,8 @@ void LCodeGen::ApplyCheckIf(Condition cc, LBoundsCheck* check) {
 void LCodeGen::DoBoundsCheck(LBoundsCheck *instr) {
   if (instr->hydrogen()->skip_check()) return;
 
-  Register length = ToRegister(instr->length());
+  ASSERT(instr->hydrogen()->length()->representation().IsInteger32());
+  Register length = ToRegister32(instr->length());
 
   if (instr->index()->IsConstantOperand()) {
     int constant_index =
@@ -1765,7 +1767,8 @@ void LCodeGen::DoBoundsCheck(LBoundsCheck *instr) {
       __ Cmp(length, Operand(constant_index));
     }
   } else {
-    __ Cmp(length, ToRegister(instr->index()));
+  ASSERT(instr->hydrogen()->index()->representation().IsInteger32());
+    __ Cmp(length, ToRegister32(instr->index()));
   }
   Condition condition = instr->hydrogen()->allow_equality() ? lo : ls;
   ApplyCheckIf(condition, instr);
@@ -2186,7 +2189,7 @@ void LCodeGen::DoCheckInstanceType(LCheckInstanceType* instr) {
 
 void LCodeGen::DoClampDToUint8(LClampDToUint8* instr) {
   DoubleRegister input = ToDoubleRegister(instr->unclamped());
-  Register result = ToRegister(instr->result());
+  Register result = ToRegister32(instr->result());
   __ ClampDoubleToUint8(result, input, double_scratch());
 }
 
@@ -2200,14 +2203,14 @@ void LCodeGen::DoClampIToUint8(LClampIToUint8* instr) {
 
 void LCodeGen::DoClampTToUint8(LClampTToUint8* instr) {
   Register input = ToRegister(instr->unclamped());
-  Register result = ToRegister(instr->result());
+  Register result = ToRegister32(instr->result());
   Register scratch = ToRegister(instr->temp1());
   Label done;
 
   // Both smi and heap number cases are handled.
   Label is_not_smi;
   __ JumpIfNotSmi(input, &is_not_smi);
-  __ SmiUntag(result, input);
+  __ SmiUntag(result.X(), input);
   __ ClampInt32ToUint8(result);
   __ B(&done);
 
@@ -2460,7 +2463,10 @@ void LCodeGen::DoConstantE(LConstantE* instr) {
 
 
 void LCodeGen::DoConstantI(LConstantI* instr) {
-  __ Mov(ToRegister(instr->result()), instr->value());
+  ASSERT(is_int32(instr->value()));
+  // Cast the value here to ensure that the value isn't sign extended by the
+  // implicit Operand constructor.
+  __ Mov(ToRegister32(instr->result()), static_cast<uint32_t>(instr->value()));
 }
 
 
@@ -2911,7 +2917,11 @@ void LCodeGen::DoHasInstanceTypeAndBranch(LHasInstanceTypeAndBranch* instr) {
 void LCodeGen::DoInnerAllocatedObject(LInnerAllocatedObject* instr) {
   Register result = ToRegister(instr->result());
   Register base = ToRegister(instr->base_object());
-  __ Add(result, base, ToOperand(instr->offset()));
+  if (instr->offset()->IsConstantOperand()) {
+    __ Add(result, base, ToOperand32I(instr->offset()));
+  } else {
+    __ Add(result, base, Operand(ToRegister32(instr->offset()), SXTW));
+  }
 }
 
 
@@ -3066,9 +3076,9 @@ void LCodeGen::DoInteger32ToSmi(LInteger32ToSmi* instr) {
   ASSERT(!instr->hydrogen()->value()->HasRange() ||
          instr->hydrogen()->value()->range()->IsInSmiRange());
 
-  Register value = ToRegister(instr->value());
+  Register value = ToRegister32(instr->value());
   Register result = ToRegister(instr->result());
-  __ SmiTag(result, value);
+  __ SmiTag(result, value.X());
 }
 
 
@@ -3323,9 +3333,9 @@ MemOperand LCodeGen::PrepareKeyedExternalArrayOperand(
     } else {
       // Key is not smi, and element size is not byte: scale by element size.
       if (additional_offset == 0) {
-        return MemOperand(base, key, LSL, element_size_shift);
+        return MemOperand(base, key, SXTW, element_size_shift);
       } else {
-        __ Add(scratch, base, Operand(key, LSL, element_size_shift));
+        __ Add(scratch, base, Operand(key, SXTW, element_size_shift));
         return MemOperand(scratch, additional_offset);
       }
     }
@@ -3334,9 +3344,9 @@ MemOperand LCodeGen::PrepareKeyedExternalArrayOperand(
     if (additional_offset == 0) {
       if (key_is_smi) {
         __ SmiUntag(scratch, key);
-        __ Add(scratch, scratch, additional_index);
+        __ Add(scratch.W(), scratch.W(), additional_index);
       } else {
-        __ Add(scratch, key, additional_index);
+        __ Add(scratch.W(), key.W(), additional_index);
       }
       return MemOperand(base, scratch, LSL, element_size_shift);
     } else {
@@ -3344,7 +3354,7 @@ MemOperand LCodeGen::PrepareKeyedExternalArrayOperand(
         __ Add(scratch, base,
                Operand::UntagSmiAndScale(key, element_size_shift));
       } else {
-        __ Add(scratch, base, Operand(key, LSL, element_size_shift));
+        __ Add(scratch, base, Operand(key, SXTW, element_size_shift));
       }
       return MemOperand(
           scratch,
@@ -3457,8 +3467,8 @@ void LCodeGen::CalcKeyedArrayBaseRegister(Register base,
   if (key_is_tagged) {
     __ Add(base, elements, Operand::UntagSmiAndScale(key, element_size_shift));
   } else {
-    // Sign extend key because it could be a 32-bit negative value and the
-    // address computation happens in 64-bit.
+    // Sign extend key because it could be a 32-bit negative value or contain
+    // garbage in the top 32-bits. The address computation happens in 64-bit.
     ASSERT((element_size_shift >= 0) && (element_size_shift <= 4));
     __ Add(base, elements, Operand(key, SXTW, element_size_shift));
   }
@@ -3918,6 +3928,10 @@ void LCodeGen::DoPower(LPower* instr) {
     MathPowStub stub(MathPowStub::TAGGED);
     __ CallStub(&stub);
   } else if (exponent_type.IsInteger32()) {
+    // Ensure integer exponent has no garbage in top 32-bits, as MathPowStub
+    // supports large integer exponents.
+    Register exponent = ToRegister(instr->right());
+    __ Sxtw(exponent, exponent);
     MathPowStub stub(MathPowStub::INTEGER);
     __ CallStub(&stub);
   } else {
@@ -4356,13 +4370,13 @@ void LCodeGen::DoNumberTagU(LNumberTagU* instr) {
     LNumberTagU* instr_;
   };
 
-  Register value = ToRegister(instr->value());
+  Register value = ToRegister32(instr->value());
   Register result = ToRegister(instr->result());
 
   DeferredNumberTagU* deferred = new(zone()) DeferredNumberTagU(this, instr);
   __ Cmp(value, Smi::kMaxValue);
   __ B(hi, deferred->entry());
-  __ SmiTag(result, value);
+  __ SmiTag(result, value.X());
   __ Bind(deferred->exit());
 }
 
@@ -4506,10 +4520,10 @@ MemOperand LCodeGen::BuildSeqStringOperand(Register string,
   ASSERT(!temp.is(string));
   ASSERT(!temp.is(ToRegister(index)));
   if (encoding == String::ONE_BYTE_ENCODING) {
-    __ Add(temp, string, Operand(ToRegister(index)));
+    __ Add(temp, string, Operand(ToRegister32(index), SXTW));
   } else {
     STATIC_ASSERT(kUC16Size == 2);
-    __ Add(temp, string, Operand(ToRegister(index), LSL, 1));
+    __ Add(temp, string, Operand(ToRegister32(index), SXTW, 1));
   }
   return FieldMemOperand(temp, SeqString::kHeaderSize);
 }
