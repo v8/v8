@@ -396,6 +396,11 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   HeapEntry* AddEntry(HeapObject* object,
                       HeapEntry::Type type,
                       const char* name);
+  HeapEntry* AddEntry(Address address,
+                      HeapEntry::Type type,
+                      const char* name,
+                      int size);
+
   const char* GetSystemEntryName(HeapObject* object);
 
   void ExtractReferences(HeapObject* obj);
@@ -414,6 +419,7 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   void ExtractCellReferences(int entry, Cell* cell);
   void ExtractPropertyCellReferences(int entry, PropertyCell* cell);
   void ExtractAllocationSiteReferences(int entry, AllocationSite* site);
+  void ExtractJSArrayBufferReferences(int entry, JSArrayBuffer* buffer);
   void ExtractClosureReferences(JSObject* js_obj, int entry);
   void ExtractPropertyReferences(JSObject* js_obj, int entry);
   bool ExtractAccessorPairProperty(JSObject* js_obj, int entry,

@@ -2381,6 +2381,10 @@ TEST(ArrayBufferAndArrayBufferView) {
   const v8::HeapGraphNode* first_view =
       GetProperty(arr1_buffer, v8::HeapGraphEdge::kWeak, "weak_first_view");
   CHECK_NE(NULL, first_view);
+  const v8::HeapGraphNode* backing_store =
+      GetProperty(arr1_buffer, v8::HeapGraphEdge::kInternal, "backing_store");
+  CHECK_NE(NULL, backing_store);
+  CHECK_EQ(400, backing_store->GetSelfSize());
 }
 
 
