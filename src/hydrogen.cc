@@ -5791,9 +5791,13 @@ void HOptimizedGraphBuilder::HandlePolymorphicNamedFieldAccess(
   }
 
   ASSERT(join != NULL);
-  join->SetJoinId(ast_id);
-  set_current_block(join);
-  if (!ast_context()->IsEffect()) ast_context()->ReturnValue(Pop());
+  if (join->HasPredecessor()) {
+    join->SetJoinId(ast_id);
+    set_current_block(join);
+    if (!ast_context()->IsEffect()) ast_context()->ReturnValue(Pop());
+  } else {
+    set_current_block(NULL);
+  }
 }
 
 
