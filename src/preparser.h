@@ -692,7 +692,6 @@ class PreParser : public ParserBase<PreParserTraits> {
 
     int materialized_literal_count_;
     int expected_properties_;
-    LanguageMode language_mode_;
     bool is_generator_;
   };
 
