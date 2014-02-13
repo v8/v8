@@ -732,7 +732,7 @@ void JSObject::SetNormalizedProperty(Handle<JSObject> object,
   Handle<NameDictionary> property_dictionary(object->property_dictionary());
 
   if (!name->IsUniqueName()) {
-    name = object->GetIsolate()->factory()->InternalizedStringFromString(
+    name = object->GetIsolate()->factory()->InternalizeString(
         Handle<String>::cast(name));
   }
 
@@ -2152,7 +2152,7 @@ Handle<Object> JSObject::AddProperty(Handle<JSObject> object,
   Isolate* isolate = object->GetIsolate();
 
   if (!name->IsUniqueName()) {
-    name = isolate->factory()->InternalizedStringFromString(
+    name = isolate->factory()->InternalizeString(
         Handle<String>::cast(name));
   }
 
@@ -3135,7 +3135,7 @@ static int AppendUniqueCallbacks(NeanderArray* callbacks,
     Handle<AccessorInfo> entry(AccessorInfo::cast(callbacks->get(i)));
     if (entry->name()->IsUniqueName()) continue;
     Handle<String> key =
-        isolate->factory()->InternalizedStringFromString(
+        isolate->factory()->InternalizeString(
             Handle<String>(String::cast(entry->name())));
     entry->set_name(*key);
   }

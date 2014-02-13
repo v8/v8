@@ -764,7 +764,7 @@ THREADED_TEST(UsingExternalString) {
     CcTest::heap()->CollectGarbage(i::NEW_SPACE);  // in survivor space now
     CcTest::heap()->CollectGarbage(i::NEW_SPACE);  // in old gen now
     i::Handle<i::String> isymbol =
-        factory->InternalizedStringFromString(istring);
+        factory->InternalizeString(istring);
     CHECK(isymbol->IsInternalizedString());
   }
   CcTest::heap()->CollectAllGarbage(i::Heap::kNoGCFlags);
@@ -784,7 +784,7 @@ THREADED_TEST(UsingExternalAsciiString) {
     CcTest::heap()->CollectGarbage(i::NEW_SPACE);  // in survivor space now
     CcTest::heap()->CollectGarbage(i::NEW_SPACE);  // in old gen now
     i::Handle<i::String> isymbol =
-        factory->InternalizedStringFromString(istring);
+        factory->InternalizeString(istring);
     CHECK(isymbol->IsInternalizedString());
   }
   CcTest::heap()->CollectAllGarbage(i::Heap::kNoGCFlags);

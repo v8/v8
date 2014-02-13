@@ -983,6 +983,8 @@ static Handle<Object> TryConvertKey(Handle<Object> key, Isolate* isolate) {
         key = Handle<Smi>(Smi::FromInt(int_value), isolate);
       }
     }
+  } else if (key->IsString()) {
+    key = isolate->factory()->InternalizeString(Handle<String>::cast(key));
   } else if (key->IsUndefined()) {
     key = isolate->factory()->undefined_string();
   }
