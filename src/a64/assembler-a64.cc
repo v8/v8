@@ -2384,13 +2384,18 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
     return;
   }
 
+  Label size_check;
+  bind(&size_check);
+
   // Check that the code buffer is large enough before emitting the constant
-  // pool (include the jump over the pool and the constant pool marker and
-  // the gap to the relocation information).
+  // pool (include the jump over the pool, the constant pool marker, the
+  // constant pool guard, and the gap to the relocation information).
   int jump_instr = require_jump ? kInstructionSize : 0;
-  int size = jump_instr + kInstructionSize +
-             num_pending_reloc_info_ * kPointerSize;
-  int needed_space = size + kGap;
+  int size_pool_marker = kInstructionSize;
+  int size_pool_guard = kInstructionSize;
+  int pool_size = jump_instr + size_pool_marker + size_pool_guard +
+    num_pending_reloc_info_ * kPointerSize;
+  int needed_space = pool_size + kGap;
   while (buffer_space() <= needed_space) {
     GrowBuffer();
   }
@@ -2399,7 +2404,7 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
     // Block recursive calls to CheckConstPool.
     BlockConstPoolScope block_const_pool(this);
     RecordComment("[ Constant Pool");
-    RecordConstPool(size);
+    RecordConstPool(pool_size);
 
     // Emit jump over constant pool if necessary.
     Label after_pool;
@@ -2451,6 +2456,9 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
   // Since a constant pool was just emitted, move the check offset forward by
   // the standard interval.
   next_buffer_check_ = pc_offset() + kCheckPoolInterval;
+
+  ASSERT(SizeOfCodeGeneratedSince(&size_check) ==
+         static_cast<unsigned>(pool_size));
 }
 
 
