@@ -6360,7 +6360,7 @@ intptr_t Heap::PromotedSpaceSizeOfObjects() {
 
 
 bool Heap::AdvanceSweepers(int step_size) {
-  ASSERT(isolate()->num_sweeper_threads() == 0);
+  ASSERT(!mark_compact_collector()->AreSweeperThreadsActivated());
   bool sweeping_complete = old_data_space()->AdvanceSweeper(step_size);
   sweeping_complete &= old_pointer_space()->AdvanceSweeper(step_size);
   return sweeping_complete;
