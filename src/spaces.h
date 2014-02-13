@@ -1518,7 +1518,7 @@ class FreeListNode: public HeapObject {
 class FreeListCategory {
  public:
   FreeListCategory() :
-      top_(NULL),
+      top_(0),
       end_(NULL),
       available_(0) {}
 
@@ -1536,9 +1536,13 @@ class FreeListCategory {
 
   void RepairFreeList(Heap* heap);
 
-  FreeListNode** GetTopAddress() { return &top_; }
-  FreeListNode* top() const { return top_; }
-  void set_top(FreeListNode* top) { top_ = top; }
+  FreeListNode* top() const {
+    return reinterpret_cast<FreeListNode*>(NoBarrier_Load(&top_));
+  }
+
+  void set_top(FreeListNode* top) {
+    NoBarrier_Store(&top_, reinterpret_cast<AtomicWord>(top));
+  }
 
   FreeListNode** GetEndAddress() { return &end_; }
   FreeListNode* end() const { return end_; }
@@ -1551,7 +1555,7 @@ class FreeListCategory {
   Mutex* mutex() { return &mutex_; }
 
   bool IsEmpty() {
-    return top_ == NULL;
+    return top() == 0;
   }
 
 #ifdef DEBUG
@@ -1560,7 +1564,8 @@ class FreeListCategory {
 #endif
 
  private:
-  FreeListNode* top_;
+  // top_ points to the top FreeListNode* in the free list category.
+  AtomicWord top_;
   FreeListNode* end_;
   Mutex mutex_;
 
