@@ -939,14 +939,10 @@ function CallSiteToString() {
   if (this.isNative()) {
     fileLocation = "native";
   } else {
-    if (this.isEval()) {
-      fileName = this.getScriptNameOrSourceURL();
-      if (!fileName) {
-        fileLocation = this.getEvalOrigin();
-        fileLocation += ", ";  // Expecting source position to follow.
-      }
-    } else {
-      fileName = this.getFileName();
+    fileName = this.getScriptNameOrSourceURL();
+    if (!fileName && this.isEval()) {
+      fileLocation = this.getEvalOrigin();
+      fileLocation += ", ";  // Expecting source position to follow.
     }
 
     if (fileName) {

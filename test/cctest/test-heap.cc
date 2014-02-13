@@ -180,7 +180,7 @@ TEST(HeapObjects) {
   CHECK(value->IsNumber());
   CHECK_EQ(Smi::kMaxValue, Smi::cast(value)->value());
 
-#ifndef V8_TARGET_ARCH_X64
+#if !defined(V8_TARGET_ARCH_X64) && !defined(V8_TARGET_ARCH_A64)
   // TODO(lrn): We need a NumberFromIntptr function in order to test this.
   value = heap->NumberFromInt32(Smi::kMinValue - 1)->ToObjectChecked();
   CHECK(value->IsHeapNumber());
@@ -2210,10 +2210,10 @@ TEST(OptimizedPretenuringAllocationFolding) {
       "var number_elements = 20000;"
       "var elements = new Array();"
       "function f() {"
-      "  for (var i = 0; i < 20000-1; i++) {"
+      "  for (var i = 0; i < number_elements; i++) {"
       "    elements[i] = new DataObject();"
       "  }"
-      "  return new DataObject()"
+      "  return elements[number_elements-1]"
       "};"
       "f(); f(); f();"
       "%OptimizeFunctionOnNextCall(f);"

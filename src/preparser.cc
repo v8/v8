@@ -61,12 +61,12 @@ bool PreParserTraits::is_classic_mode() const {
 
 
 bool PreParserTraits::is_generator() const {
-  return pre_parser_->scope_->is_generator();
+  return pre_parser_->function_state_->is_generator();
 }
 
 
 int PreParserTraits::NextMaterializedLiteralIndex() {
-  return pre_parser_->scope_->NextMaterializedLiteralIndex();
+  return pre_parser_->function_state_->NextMaterializedLiteralIndex();
 }
 
 
@@ -126,9 +126,9 @@ PreParser::PreParseResult PreParser::PreParseLazyFunction(
     LanguageMode mode, bool is_generator, ParserRecorder* log) {
   log_ = log;
   // Lazy functions always have trivial outer scopes (no with/catch scopes).
-  Scope top_scope(&scope_, kTopLevelScope);
-  set_language_mode(mode);
-  Scope function_scope(&scope_, kFunctionScope);
+  FunctionState top_scope(&function_state_, &scope_, GLOBAL_SCOPE);
+  scope_->SetLanguageMode(mode);
+  FunctionState function_scope(&function_state_, &scope_, FUNCTION_SCOPE);
   function_scope.set_is_generator(is_generator);
   ASSERT_EQ(Token::LBRACE, scanner()->current_token());
   bool ok = true;
@@ -206,8 +206,8 @@ PreParser::SourceElements PreParser::ParseSourceElements(int end_token,
     Statement statement = ParseSourceElement(CHECK_OK);
     if (directive_prologue) {
       if (statement.IsUseStrictLiteral()) {
-        set_language_mode(allow_harmony_scoping() ?
-                          EXTENDED_MODE : STRICT_MODE);
+        scope_->SetLanguageMode(allow_harmony_scoping() ?
+                                EXTENDED_MODE : STRICT_MODE);
       } else if (!statement.IsStringLiteral()) {
         directive_prologue = false;
       }
@@ -352,7 +352,7 @@ PreParser::Statement PreParser::ParseBlock(bool* ok) {
   //
   Expect(Token::LBRACE, CHECK_OK);
   while (peek() != Token::RBRACE) {
-    if (is_extended_mode()) {
+    if (scope_->is_extended_mode()) {
       ParseSourceElement(CHECK_OK);
     } else {
       ParseStatement(CHECK_OK);
@@ -416,7 +416,7 @@ PreParser::Statement PreParser::ParseVariableDeclarations(
     // existing pages. Therefore we keep allowing const with the old
     // non-harmony semantics in classic mode.
     Consume(Token::CONST);
-    switch (language_mode()) {
+    switch (scope_->language_mode()) {
       case CLASSIC_MODE:
         break;
       case STRICT_MODE: {
@@ -442,7 +442,7 @@ PreParser::Statement PreParser::ParseVariableDeclarations(
     //
     // * It is a Syntax Error if the code that matches this production is not
     //   contained in extended code.
-    if (!is_extended_mode()) {
+    if (!scope_->is_extended_mode()) {
       ReportMessageAt(scanner()->peek_location(), "illegal_let");
       *ok = false;
       return Statement::Default();
@@ -602,7 +602,7 @@ PreParser::Statement PreParser::ParseWithStatement(bool* ok) {
   ParseExpression(true, CHECK_OK);
   Expect(Token::RPAREN, CHECK_OK);
 
-  Scope::InsideWith iw(scope_);
+  BlockState block_state(&scope_, WITH_SCOPE);
   ParseStatement(CHECK_OK);
   return Statement::Default();
 }
@@ -775,7 +775,8 @@ PreParser::Statement PreParser::ParseTryStatement(bool* ok) {
     Expect(Token::LPAREN, CHECK_OK);
     ParseIdentifier(kDontAllowEvalOrArguments, CHECK_OK);
     Expect(Token::RPAREN, CHECK_OK);
-    { Scope::InsideWith iw(scope_);
+    {
+      BlockState block_state(&scope_, WITH_SCOPE);
       ParseBlock(CHECK_OK);
     }
     tok = peek();
@@ -833,7 +834,7 @@ PreParser::Expression PreParser::ParseAssignmentExpression(bool accept_IN,
   //   YieldExpression
   //   LeftHandSideExpression AssignmentOperator AssignmentExpression
 
-  if (scope_->is_generator() && peek() == Token::YIELD) {
+  if (function_state_->is_generator() && peek() == Token::YIELD) {
     return ParseYieldExpression(ok);
   }
 
@@ -859,7 +860,7 @@ PreParser::Expression PreParser::ParseAssignmentExpression(bool accept_IN,
   ParseAssignmentExpression(accept_IN, CHECK_OK);
 
   if ((op == Token::ASSIGN) && expression.IsThisProperty()) {
-    scope_->AddProperty();
+    function_state_->AddProperty();
   }
 
   return Expression::Default();
@@ -1219,7 +1220,7 @@ PreParser::Expression PreParser::ParseArrayLiteral(bool* ok) {
   }
   Expect(Token::RBRACK, CHECK_OK);
 
-  scope_->NextMaterializedLiteralIndex();
+  function_state_->NextMaterializedLiteralIndex();
   return Expression::Default();
 }
 
@@ -1231,7 +1232,7 @@ PreParser::Expression PreParser::ParseObjectLiteral(bool* ok) {
   //     | (('get' | 'set') (IdentifierName | String | Number) FunctionLiteral)
   //    )*[','] '}'
 
-  ObjectLiteralChecker checker(this, language_mode());
+  ObjectLiteralChecker checker(this, scope_->language_mode());
 
   Expect(Token::LBRACE, CHECK_OK);
   while (peek() != Token::RBRACE) {
@@ -1301,7 +1302,7 @@ PreParser::Expression PreParser::ParseObjectLiteral(bool* ok) {
   }
   Expect(Token::RBRACE, CHECK_OK);
 
-  scope_->NextMaterializedLiteralIndex();
+  function_state_->NextMaterializedLiteralIndex();
   return Expression::Default();
 }
 
@@ -1339,8 +1340,8 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
 
   // Parse function body.
   ScopeType outer_scope_type = scope_->type();
-  bool inside_with = scope_->IsInsideWith();
-  Scope function_scope(&scope_, kFunctionScope);
+  bool inside_with = scope_->inside_with();
+  FunctionState function_scope(&function_state_, &scope_, FUNCTION_SCOPE);
   function_scope.set_is_generator(is_generator);
   //  FormalParameterList ::
   //    '(' (Identifier)*[','] ')'
@@ -1388,7 +1389,7 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   // Determine if the function will be lazily compiled.
   // Currently only happens to top-level functions.
   // Optimistically assume that all top-level functions are lazily compiled.
-  bool is_lazily_compiled = (outer_scope_type == kTopLevelScope &&
+  bool is_lazily_compiled = (outer_scope_type == GLOBAL_SCOPE &&
                              !inside_with && allow_lazy() &&
                              !parenthesized_function_);
   parenthesized_function_ = false;
@@ -1450,9 +1451,9 @@ void PreParser::ParseLazyFunctionLiteralBody(bool* ok) {
   ASSERT_EQ(Token::RBRACE, scanner()->peek());
   int body_end = scanner()->peek_location().end_pos;
   log_->LogFunction(body_start, body_end,
-                    scope_->materialized_literal_count(),
-                    scope_->expected_properties(),
-                    language_mode());
+                    function_state_->materialized_literal_count(),
+                    function_state_->expected_properties(),
+                    scope_->language_mode());
 }
 
 

@@ -2688,6 +2688,9 @@ FrameDescription::FrameDescription(uint32_t frame_size,
       constant_pool_(kZapUint32) {
   // Zap all the registers.
   for (int r = 0; r < Register::kNumRegisters; r++) {
+    // TODO(jbramley): It isn't safe to use kZapUint32 here. If the register
+    // isn't used before the next safepoint, the GC will try to scan it as a
+    // tagged value. kZapUint32 looks like a valid tagged pointer, but it isn't.
     SetRegister(r, kZapUint32);
   }
 

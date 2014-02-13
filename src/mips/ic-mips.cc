@@ -229,7 +229,8 @@ static void GenerateKeyedLoadReceiverCheck(MacroAssembler* masm,
   __ lw(map, FieldMemOperand(receiver, HeapObject::kMapOffset));
   // Check bit field.
   __ lbu(scratch, FieldMemOperand(map, Map::kBitFieldOffset));
-  __ And(at, scratch, Operand(KeyedLoadIC::kSlowCaseBitFieldMask));
+  __ And(at, scratch,
+         Operand((1 << Map::kIsAccessCheckNeeded) | (1 << interceptor_bit)));
   __ Branch(slow, ne, at, Operand(zero_reg));
   // Check that the object is some kind of JS object EXCEPT JS Value type.
   // In the case that the object is a value-wrapper object,
@@ -649,7 +650,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   GenerateKeyNameCheck(masm, key, a2, a3, &index_name, &slow);
 
   GenerateKeyedLoadReceiverCheck(
-       masm, receiver, a2, a3, Map::kHasIndexedInterceptor, &slow);
+       masm, receiver, a2, a3, Map::kHasNamedInterceptor, &slow);
 
 
   // If the receiver is a fast-case object, check the keyed lookup

@@ -313,11 +313,21 @@ class MemoryChunk {
 
   bool is_valid() { return address() != NULL; }
 
-  MemoryChunk* next_chunk() const { return next_chunk_; }
-  MemoryChunk* prev_chunk() const { return prev_chunk_; }
+  MemoryChunk* next_chunk() const {
+    return reinterpret_cast<MemoryChunk*>(Acquire_Load(&next_chunk_));
+  }
 
-  void set_next_chunk(MemoryChunk* next) { next_chunk_ = next; }
-  void set_prev_chunk(MemoryChunk* prev) { prev_chunk_ = prev; }
+  MemoryChunk* prev_chunk() const {
+    return reinterpret_cast<MemoryChunk*>(Acquire_Load(&prev_chunk_));
+  }
+
+  void set_next_chunk(MemoryChunk* next) {
+    Release_Store(&next_chunk_, reinterpret_cast<AtomicWord>(next));
+  }
+
+  void set_prev_chunk(MemoryChunk* prev) {
+    Release_Store(&prev_chunk_, reinterpret_cast<AtomicWord>(prev));
+  }
 
   Space* owner() const {
     if ((reinterpret_cast<intptr_t>(owner_) & kFailureTagMask) ==
@@ -536,7 +546,7 @@ class MemoryChunk {
 
   static const intptr_t kAlignmentMask = kAlignment - 1;
 
-  static const intptr_t kSizeOffset = kPointerSize + kPointerSize;
+  static const intptr_t kSizeOffset = 0;
 
   static const intptr_t kLiveBytesOffset =
      kSizeOffset + kPointerSize + kPointerSize + kPointerSize +
@@ -550,7 +560,8 @@ class MemoryChunk {
 
   static const size_t kHeaderSize = kWriteBarrierCounterOffset + kPointerSize +
                                     kIntSize + kIntSize + kPointerSize +
-                                    5 * kPointerSize;
+                                    5 * kPointerSize +
+                                    kPointerSize + kPointerSize;
 
   static const int kBodyOffset =
       CODE_POINTER_ALIGN(kHeaderSize + Bitmap::kSize);
@@ -622,7 +633,7 @@ class MemoryChunk {
 
   inline Heap* heap() { return heap_; }
 
-  static const int kFlagsOffset = kPointerSize * 3;
+  static const int kFlagsOffset = kPointerSize;
 
   bool IsEvacuationCandidate() { return IsFlagSet(EVACUATION_CANDIDATE); }
 
@@ -671,8 +682,6 @@ class MemoryChunk {
   static inline void UpdateHighWaterMark(Address mark);
 
  protected:
-  MemoryChunk* next_chunk_;
-  MemoryChunk* prev_chunk_;
   size_t size_;
   intptr_t flags_;
 
@@ -718,6 +727,12 @@ class MemoryChunk {
                                  Address area_end,
                                  Executability executable,
                                  Space* owner);
+
+ private:
+  // next_chunk_ holds a pointer of type MemoryChunk
+  AtomicWord next_chunk_;
+  // prev_chunk_ holds a pointer of type MemoryChunk
+  AtomicWord prev_chunk_;
 
   friend class MemoryAllocator;
 };

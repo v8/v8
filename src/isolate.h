@@ -102,6 +102,7 @@ class DebuggerAgent;
 #endif
 
 #if !defined(__arm__) && V8_TARGET_ARCH_ARM || \
+    !defined(__aarch64__) && V8_TARGET_ARCH_A64 || \
     !defined(__mips__) && V8_TARGET_ARCH_MIPS
 class Redirection;
 class Simulator;
@@ -358,7 +359,8 @@ typedef List<HeapObject*> DebugObjectCache;
   /* AstNode state. */                                                         \
   V(int, ast_node_id, 0)                                                       \
   V(unsigned, ast_node_count, 0)                                               \
-  V(bool, microtask_pending, false)                                           \
+  V(bool, microtask_pending, false)                                            \
+  V(bool, autorun_microtasks, true)                                            \
   V(HStatistics*, hstatistics, NULL)                                           \
   V(HTracer*, htracer, NULL)                                                   \
   V(CodeTracer*, code_tracer, NULL)                                            \
@@ -388,6 +390,7 @@ class Isolate {
           stack_limit_(0),
           thread_state_(NULL),
 #if !defined(__arm__) && V8_TARGET_ARCH_ARM || \
+    !defined(__aarch64__) && V8_TARGET_ARCH_A64 || \
     !defined(__mips__) && V8_TARGET_ARCH_MIPS
           simulator_(NULL),
 #endif
@@ -400,6 +403,7 @@ class Isolate {
     FIELD_ACCESSOR(ThreadState*, thread_state)
 
 #if !defined(__arm__) && V8_TARGET_ARCH_ARM || \
+    !defined(__aarch64__) && V8_TARGET_ARCH_A64 || \
     !defined(__mips__) && V8_TARGET_ARCH_MIPS
     FIELD_ACCESSOR(Simulator*, simulator)
 #endif
@@ -415,6 +419,7 @@ class Isolate {
     ThreadState* thread_state_;
 
 #if !defined(__arm__) && V8_TARGET_ARCH_ARM || \
+    !defined(__aarch64__) && V8_TARGET_ARCH_A64 || \
     !defined(__mips__) && V8_TARGET_ARCH_MIPS
     Simulator* simulator_;
 #endif
@@ -978,6 +983,7 @@ class Isolate {
 #endif
 
 #if V8_TARGET_ARCH_ARM && !defined(__arm__) || \
+    V8_TARGET_ARCH_A64 && !defined(__aarch64__) || \
     V8_TARGET_ARCH_MIPS && !defined(__mips__)
   FIELD_ACCESSOR(bool, simulator_initialized)
   FIELD_ACCESSOR(HashMap*, simulator_i_cache)
@@ -1279,6 +1285,7 @@ class Isolate {
   double time_millis_at_init_;
 
 #if V8_TARGET_ARCH_ARM && !defined(__arm__) || \
+    V8_TARGET_ARCH_A64 && !defined(__aarch64__) || \
     V8_TARGET_ARCH_MIPS && !defined(__mips__)
   bool simulator_initialized_;
   HashMap* simulator_i_cache_;

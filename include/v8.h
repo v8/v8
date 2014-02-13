@@ -4579,6 +4579,22 @@ class V8_EXPORT V8 {
   static void RemoveCallCompletedCallback(CallCompletedCallback callback);
 
   /**
+   * Experimental: Runs the Microtask Work Queue until empty
+   */
+  static void RunMicrotasks(Isolate* isolate);
+
+  /**
+   * Experimental: Enqueues the callback to the Microtask Work Queue
+   */
+  static void EnqueueMicrotask(Isolate* isolate, Handle<Function> microtask);
+
+   /**
+   * Experimental: Controls whether the Microtask Work Queue is automatically
+   * run when the script call depth decrements to zero.
+   */
+  static void SetAutorunMicrotasks(Isolate *source, bool autorun);
+
+  /**
    * Initializes from snapshot if possible. Otherwise, attempts to
    * initialize from scratch.  This function is called implicitly if
    * you use the API without calling it first.
@@ -5398,7 +5414,7 @@ class Internals {
   static const int kNullValueRootIndex = 7;
   static const int kTrueValueRootIndex = 8;
   static const int kFalseValueRootIndex = 9;
-  static const int kEmptyStringRootIndex = 147;
+  static const int kEmptyStringRootIndex = 148;
 
   static const int kNodeClassIdOffset = 1 * kApiPointerSize;
   static const int kNodeFlagsOffset = 1 * kApiPointerSize + 3;

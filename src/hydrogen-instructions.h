@@ -1508,8 +1508,10 @@ class HBranch V8_FINAL : public HUnaryControlInstruction {
 
 class HCompareMap V8_FINAL : public HUnaryControlInstruction {
  public:
-  DECLARE_INSTRUCTION_FACTORY_P2(HCompareMap, HValue*, Handle<Map>);
-  DECLARE_INSTRUCTION_FACTORY_P4(HCompareMap, HValue*, Handle<Map>,
+  DECLARE_INSTRUCTION_FACTORY_P3(HCompareMap, HValue*, Handle<Map>,
+                                 CompilationInfo*);
+  DECLARE_INSTRUCTION_FACTORY_P5(HCompareMap, HValue*, Handle<Map>,
+                                 CompilationInfo*,
                                  HBasicBlock*, HBasicBlock*);
 
   virtual bool KnownSuccessorBlock(HBasicBlock** block) V8_OVERRIDE {
@@ -1535,6 +1537,10 @@ class HCompareMap V8_FINAL : public HUnaryControlInstruction {
     return Representation::Tagged();
   }
 
+  bool is_stable() const {
+    return is_stable_;
+  }
+
   DECLARE_CONCRETE_INSTRUCTION(CompareMap)
 
  protected:
@@ -1543,14 +1549,22 @@ class HCompareMap V8_FINAL : public HUnaryControlInstruction {
  private:
   HCompareMap(HValue* value,
               Handle<Map> map,
+              CompilationInfo* info,
               HBasicBlock* true_target = NULL,
               HBasicBlock* false_target = NULL)
       : HUnaryControlInstruction(value, true_target, false_target),
         known_successor_index_(kNoKnownSuccessorIndex), map_(Unique<Map>(map)) {
     ASSERT(!map.is_null());
+    is_stable_ = map->is_stable();
+
+    if (FLAG_check_elimination && is_stable_) {
+      map->AddDependentCompilationInfo(
+          DependentCode::kPrototypeCheckGroup, info);
+    }
   }
 
   int known_successor_index_;
+  bool is_stable_;
   Unique<Map> map_;
 };
 
@@ -2633,10 +2647,11 @@ class HCheckMaps V8_FINAL : public HTemplateInstruction<2> {
                          HValue* typecheck = NULL);
   static HCheckMaps* New(Zone* zone, HValue* context,
                          HValue* value, SmallMapList* maps,
+                         CompilationInfo* info,
                          HValue* typecheck = NULL) {
     HCheckMaps* check_map = new(zone) HCheckMaps(value, zone, typecheck);
     for (int i = 0; i < maps->length(); i++) {
-      check_map->Add(maps->at(i), zone);
+      check_map->Add(maps->at(i), info, zone);
     }
     return check_map;
   }
@@ -2668,6 +2683,10 @@ class HCheckMaps V8_FINAL : public HTemplateInstruction<2> {
     return has_migration_target_;
   }
 
+  bool is_stable() const {
+    return is_stable_;
+  }
+
   DECLARE_CONCRETE_INSTRUCTION(CheckMaps)
 
  protected:
@@ -2678,8 +2697,15 @@ class HCheckMaps V8_FINAL : public HTemplateInstruction<2> {
   virtual int RedefinedOperandIndex() { return 0; }
 
  private:
-  void Add(Handle<Map> map, Zone* zone) {
+  void Add(Handle<Map> map, CompilationInfo* info, Zone* zone) {
     map_set_.Add(Unique<Map>(map), zone);
+    is_stable_ = is_stable_ && map->is_stable();
+
+    if (FLAG_check_elimination && is_stable_) {
+      map->AddDependentCompilationInfo(
+          DependentCode::kPrototypeCheckGroup, info);
+    }
+
     if (!has_migration_target_ && map->is_migration_target()) {
       has_migration_target_ = true;
       SetChangesFlag(kNewSpacePromotion);
@@ -2689,7 +2715,7 @@ class HCheckMaps V8_FINAL : public HTemplateInstruction<2> {
   // Clients should use one of the static New* methods above.
   HCheckMaps(HValue* value, Zone *zone, HValue* typecheck)
       : HTemplateInstruction<2>(value->type()),
-        omit_(false), has_migration_target_(false) {
+        omit_(false), has_migration_target_(false), is_stable_(true) {
     SetOperandAt(0, value);
     // Use the object value for the dependency if NULL is passed.
     SetOperandAt(1, typecheck != NULL ? typecheck : value);
@@ -2702,6 +2728,7 @@ class HCheckMaps V8_FINAL : public HTemplateInstruction<2> {
 
   bool omit_;
   bool has_migration_target_;
+  bool is_stable_;
   UniqueSet<Map> map_set_;
 };
 
@@ -6477,6 +6504,16 @@ class HStoreNamedField V8_FINAL : public HTemplateInstruction<3> {
     }
     SetOperandAt(2, map_constant);
     has_transition_ = true;
+    is_stable_ = map->is_stable();
+
+    if (FLAG_check_elimination && is_stable_) {
+      map->AddDependentCompilationInfo(
+          DependentCode::kPrototypeCheckGroup, info);
+    }
+  }
+
+  bool is_stable() const {
+    return is_stable_;
   }
 
   bool NeedsWriteBarrier() {
@@ -6515,6 +6552,7 @@ class HStoreNamedField V8_FINAL : public HTemplateInstruction<3> {
         new_space_dominator_(NULL),
         write_barrier_mode_(UPDATE_WRITE_BARRIER),
         has_transition_(false),
+        is_stable_(false),
         store_mode_(store_mode) {
     // Stores to a non existing in-object property are allowed only to the
     // newly allocated objects (via HAllocate or HInnerAllocatedObject).
@@ -6530,6 +6568,7 @@ class HStoreNamedField V8_FINAL : public HTemplateInstruction<3> {
   HValue* new_space_dominator_;
   WriteBarrierMode write_barrier_mode_ : 1;
   bool has_transition_ : 1;
+  bool is_stable_ : 1;
   StoreFieldOrKeyedMode store_mode_ : 1;
 };
 

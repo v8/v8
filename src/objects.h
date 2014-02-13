@@ -37,7 +37,9 @@
 #include "property-details.h"
 #include "smart-pointers.h"
 #include "unicode-inl.h"
-#if V8_TARGET_ARCH_ARM
+#if V8_TARGET_ARCH_A64
+#include "a64/constants-a64.h"
+#elif V8_TARGET_ARCH_ARM
 #include "arm/constants-arm.h"
 #elif V8_TARGET_ARCH_MIPS
 #include "mips/constants-mips.h"
@@ -1128,6 +1130,9 @@ class MaybeObject BASE_EMBEDDED {
   V(kCodeObjectNotProperlyPatched, "Code object not properly patched")        \
   V(kCompoundAssignmentToLookupSlot, "Compound assignment to lookup slot")    \
   V(kContextAllocatedArguments, "Context-allocated arguments")                \
+  V(kCopyBuffersOverlap, "Copy buffers overlap")                              \
+  V(kCouldNotGenerateZero, "Could not generate +0.0")                         \
+  V(kCouldNotGenerateNegativeZero, "Could not generate -0.0")                 \
   V(kDebuggerIsActive, "Debugger is active")                                  \
   V(kDebuggerStatement, "DebuggerStatement")                                  \
   V(kDeclarationInCatchContext, "Declaration in catch context")               \
@@ -1140,12 +1145,23 @@ class MaybeObject BASE_EMBEDDED {
     "DontDelete cells can't contain the hole")                                \
   V(kDoPushArgumentNotImplementedForDoubleType,                               \
     "DoPushArgument not implemented for double type")                         \
+  V(kEliminatedBoundsCheckFailed, "Eliminated bounds check failed")           \
   V(kEmitLoadRegisterUnsupportedDoubleImmediate,                              \
     "EmitLoadRegister: Unsupported double immediate")                         \
   V(kEval, "eval")                                                            \
   V(kExpected0AsASmiSentinel, "Expected 0 as a Smi sentinel")                 \
-  V(kExpectedAlignmentMarker, "expected alignment marker")                    \
-  V(kExpectedAllocationSite, "expected allocation site")                      \
+  V(kExpectedAlignmentMarker, "Expected alignment marker")                    \
+  V(kExpectedAllocationSite, "Expected allocation site")                      \
+  V(kExpectedFunctionObject, "Expected function object in register")          \
+  V(kExpectedHeapNumber, "Expected HeapNumber")                               \
+  V(kExpectedNativeContext, "Expected native context")                        \
+  V(kExpectedNonIdenticalObjects, "Expected non-identical objects")           \
+  V(kExpectedNonNullContext, "Expected non-null context")                     \
+  V(kExpectedPositiveZero, "Expected +0.0")                                   \
+  V(kExpectedAllocationSiteInCell,                                            \
+    "Expected AllocationSite in property cell")                               \
+  V(kExpectedFixedArrayInFeedbackVector,                                      \
+    "Expected fixed array in feedback vector")                                \
   V(kExpectedFixedArrayInRegisterA2,                                          \
     "Expected fixed array in register a2")                                    \
   V(kExpectedFixedArrayInRegisterEbx,                                         \
@@ -1154,6 +1170,7 @@ class MaybeObject BASE_EMBEDDED {
     "Expected fixed array in register r2")                                    \
   V(kExpectedFixedArrayInRegisterRbx,                                         \
     "Expected fixed array in register rbx")                                   \
+  V(kExpectedSmiOrHeapNumber, "Expected smi or HeapNumber")                   \
   V(kExpectingAlignmentForCopyBytes,                                          \
     "Expecting alignment for CopyBytes")                                      \
   V(kExportDeclaration, "Export declaration")                                 \
@@ -1198,6 +1215,7 @@ class MaybeObject BASE_EMBEDDED {
   V(kInliningBailedOut, "Inlining bailed out")                                \
   V(kInputGPRIsExpectedToHaveUpper32Cleared,                                  \
     "Input GPR is expected to have upper32 cleared")                          \
+  V(kInputStringTooLong, "Input string too long")                             \
   V(kInstanceofStubUnexpectedCallSiteCacheCheck,                              \
     "InstanceofStub unexpected call site cache (check)")                      \
   V(kInstanceofStubUnexpectedCallSiteCacheCmp1,                               \
@@ -1211,6 +1229,7 @@ class MaybeObject BASE_EMBEDDED {
   V(kInvalidCaptureReferenced, "Invalid capture referenced")                  \
   V(kInvalidElementsKindForInternalArrayOrInternalPackedArray,                \
     "Invalid ElementsKind for InternalArray or InternalPackedArray")          \
+  V(kInvalidFullCodegenState, "invalid full-codegen state")                   \
   V(kInvalidHandleScopeLevel, "Invalid HandleScope level")                    \
   V(kInvalidLeftHandSideInAssignment, "Invalid left-hand side in assignment") \
   V(kInvalidLhsInCompoundAssignment, "Invalid lhs in compound assignment")    \
@@ -1223,7 +1242,10 @@ class MaybeObject BASE_EMBEDDED {
   V(kJSObjectWithFastElementsMapHasSlowElements,                              \
     "JSObject with fast elements map has slow elements")                      \
   V(kLetBindingReInitialization, "Let binding re-initialization")             \
+  V(kLhsHasBeenClobbered, "lhs has been clobbered")                           \
   V(kLiveBytesCountOverflowChunkSize, "Live Bytes Count overflow chunk size") \
+  V(kLiveEditFrameDroppingIsNotSupportedOnA64,                                \
+    "LiveEdit frame dropping is not supported on a64")                        \
   V(kLiveEditFrameDroppingIsNotSupportedOnArm,                                \
     "LiveEdit frame dropping is not supported on arm")                        \
   V(kLiveEditFrameDroppingIsNotSupportedOnMips,                               \
@@ -1259,6 +1281,7 @@ class MaybeObject BASE_EMBEDDED {
     "Object literal with complex property")                                   \
   V(kOddballInStringTableIsNotUndefinedOrTheHole,                             \
     "Oddball in string table is not undefined or the hole")                   \
+  V(kOffsetOutOfRange, "Offset out of range")                                 \
   V(kOperandIsASmiAndNotAName, "Operand is a smi and not a name")             \
   V(kOperandIsASmiAndNotAString, "Operand is a smi and not a string")         \
   V(kOperandIsASmi, "Operand is a smi")                                       \
@@ -1274,6 +1297,7 @@ class MaybeObject BASE_EMBEDDED {
     "Out of virtual registers while trying to allocate temp register")        \
   V(kParseScopeError, "Parse/scope error")                                    \
   V(kPossibleDirectCallToEval, "Possible direct call to eval")                \
+  V(kPreconditionsWereNotMet, "Preconditions were not met")                   \
   V(kPropertyAllocationCountFailed, "Property allocation count failed")       \
   V(kReceivedInvalidReturnAddress, "Received invalid return address")         \
   V(kReferenceToAVariableWhichRequiresDynamicLookup,                          \
@@ -1283,24 +1307,37 @@ class MaybeObject BASE_EMBEDDED {
   V(kReferenceToUninitializedVariable, "Reference to uninitialized variable") \
   V(kRegisterDidNotMatchExpectedRoot, "Register did not match expected root") \
   V(kRegisterWasClobbered, "Register was clobbered")                          \
+  V(kRememberedSetPointerInNewSpace, "Remembered set pointer is in new space") \
+  V(kReturnAddressNotFoundInFrame, "Return address not found in frame")       \
+  V(kRhsHasBeenClobbered, "Rhs has been clobbered")                           \
   V(kScopedBlock, "ScopedBlock")                                              \
   V(kSmiAdditionOverflow, "Smi addition overflow")                            \
   V(kSmiSubtractionOverflow, "Smi subtraction overflow")                      \
+  V(kStackAccessBelowStackPointer, "Stack access below stack pointer")        \
   V(kStackFrameTypesMustMatch, "Stack frame types must match")                \
   V(kSwitchStatementMixedOrNonLiteralSwitchLabels,                            \
     "SwitchStatement: mixed or non-literal switch labels")                    \
   V(kSwitchStatementTooManyClauses, "SwitchStatement: too many clauses")      \
+  V(kTheCurrentStackPointerIsBelowCsp,                                        \
+    "The current stack pointer is below csp")                                 \
   V(kTheInstructionShouldBeALui, "The instruction should be a lui")           \
   V(kTheInstructionShouldBeAnOri, "The instruction should be an ori")         \
   V(kTheInstructionToPatchShouldBeALoadFromPc,                                \
     "The instruction to patch should be a load from pc")                      \
+  V(kTheInstructionToPatchShouldBeAnLdrLiteral,                               \
+    "The instruction to patch should be a ldr literal")                       \
   V(kTheInstructionToPatchShouldBeALui,                                       \
     "The instruction to patch should be a lui")                               \
   V(kTheInstructionToPatchShouldBeAnOri,                                      \
     "The instruction to patch should be an ori")                              \
+  V(kTheSourceAndDestinationAreTheSame,                                       \
+    "The source and destination are the same")                                \
+  V(kTheStackWasCorruptedByMacroAssemblerCall,                                \
+    "The stack was corrupted by MacroAssembler::Call()")                      \
   V(kTooManyParametersLocals, "Too many parameters/locals")                   \
   V(kTooManyParameters, "Too many parameters")                                \
   V(kTooManySpillSlotsNeededForOSR, "Too many spill slots needed for OSR")    \
+  V(kToOperand32UnsupportedImmediate, "ToOperand32 unsupported immediate.")   \
   V(kToOperandIsDoubleRegisterUnimplemented,                                  \
     "ToOperand IsDoubleRegister unimplemented")                               \
   V(kToOperandUnsupportedDoubleImmediate,                                     \
@@ -1309,10 +1346,12 @@ class MaybeObject BASE_EMBEDDED {
   V(kTryFinallyStatement, "TryFinallyStatement")                              \
   V(kUnableToEncodeValueAsSmi, "Unable to encode value as smi")               \
   V(kUnalignedAllocationInNewSpace, "Unaligned allocation in new space")      \
+  V(kUnalignedCellInWriteBarrier, "Unaligned cell in write barrier")          \
   V(kUndefinedValueNotLoaded, "Undefined value not loaded")                   \
   V(kUndoAllocationOfNonAllocatedMemory,                                      \
     "Undo allocation of non allocated memory")                                \
   V(kUnexpectedAllocationTop, "Unexpected allocation top")                    \
+  V(kUnexpectedColorFound, "Unexpected color bit pattern found")              \
   V(kUnexpectedElementsKindInArrayConstructor,                                \
     "Unexpected ElementsKind in array constructor")                           \
   V(kUnexpectedFallthroughFromCharCodeAtSlowCase,                             \
@@ -1339,16 +1378,20 @@ class MaybeObject BASE_EMBEDDED {
     "Unexpected initial map for InternalArray function")                      \
   V(kUnexpectedLevelAfterReturnFromApiCall,                                   \
     "Unexpected level after return from api call")                            \
+  V(kUnexpectedNegativeValue, "Unexpected negative value")                    \
   V(kUnexpectedNumberOfPreAllocatedPropertyFields,                            \
     "Unexpected number of pre-allocated property fields")                     \
+  V(kUnexpectedSmi, "Unexpected smi value")                                   \
   V(kUnexpectedStringFunction, "Unexpected String function")                  \
   V(kUnexpectedStringType, "Unexpected string type")                          \
   V(kUnexpectedStringWrapperInstanceSize,                                     \
     "Unexpected string wrapper instance size")                                \
   V(kUnexpectedTypeForRegExpDataFixedArrayExpected,                           \
     "Unexpected type for RegExp data, FixedArray expected")                   \
+  V(kUnexpectedValue, "Unexpected value")                                     \
   V(kUnexpectedUnusedPropertiesOfStringWrapper,                               \
     "Unexpected unused properties of string wrapper")                         \
+  V(kUnimplemented, "unimplemented")                                          \
   V(kUninitializedKSmiConstantRegister, "Uninitialized kSmiConstantRegister") \
   V(kUnknown, "Unknown")                                                      \
   V(kUnsupportedConstCompoundAssignment,                                      \
@@ -8578,7 +8621,7 @@ class Name: public HeapObject {
   // kMaxCachedArrayIndexLength.
   STATIC_CHECK(IS_POWER_OF_TWO(kMaxCachedArrayIndexLength + 1));
 
-  static const int kContainsCachedArrayIndexMask =
+  static const unsigned int kContainsCachedArrayIndexMask =
       (~kMaxCachedArrayIndexLength << kArrayIndexHashLengthShift) |
       kIsNotArrayIndexMask;
 

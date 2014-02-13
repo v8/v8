@@ -538,6 +538,7 @@ TEST(DeoptimizeCompare) {
 
 TEST(DeoptimizeLoadICStoreIC) {
   i::FLAG_concurrent_recompilation = false;
+  i::FLAG_check_elimination = false;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
@@ -619,6 +620,7 @@ TEST(DeoptimizeLoadICStoreIC) {
 
 TEST(DeoptimizeLoadICStoreICNested) {
   i::FLAG_concurrent_recompilation = false;
+  i::FLAG_check_elimination = false;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 

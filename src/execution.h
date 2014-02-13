@@ -175,6 +175,7 @@ class Execution : public AllStatic {
                                                   bool* has_pending_exception);
 
   static void RunMicrotasks(Isolate* isolate);
+  static void EnqueueMicrotask(Isolate* isolate, Handle<Object> microtask);
 };
 
 
@@ -281,7 +282,7 @@ class StackGuard {
   void EnableInterrupts();
   void DisableInterrupts();
 
-#if V8_TARGET_ARCH_X64
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_A64
   static const uintptr_t kInterruptLimit = V8_UINT64_C(0xfffffffffffffffe);
   static const uintptr_t kIllegalLimit = V8_UINT64_C(0xfffffffffffffff8);
 #else

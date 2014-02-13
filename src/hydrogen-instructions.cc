@@ -35,6 +35,8 @@
 #include "ia32/lithium-ia32.h"
 #elif V8_TARGET_ARCH_X64
 #include "x64/lithium-x64.h"
+#elif V8_TARGET_ARCH_A64
+#include "a64/lithium-a64.h"
 #elif V8_TARGET_ARCH_ARM
 #include "arm/lithium-arm.h"
 #elif V8_TARGET_ARCH_MIPS
@@ -3105,7 +3107,7 @@ HCheckMaps* HCheckMaps::New(Zone* zone,
                             CompilationInfo* info,
                             HValue* typecheck) {
   HCheckMaps* check_map = new(zone) HCheckMaps(value, zone, typecheck);
-  check_map->Add(map, zone);
+  check_map->Add(map, info, zone);
   if (map->CanOmitMapChecks() &&
       value->IsConstant() &&
       HConstant::cast(value)->HasMap(map)) {
