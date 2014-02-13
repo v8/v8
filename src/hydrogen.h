@@ -1406,8 +1406,7 @@ class HGraphBuilder {
   HValue* EnforceNumberType(HValue* number, Type* expected);
   HValue* TruncateToNumber(HValue* value, Type** expected);
 
-  void FinishExitWithHardDeoptimization(const char* reason,
-                                        HBasicBlock* continuation);
+  void FinishExitWithHardDeoptimization(const char* reason);
 
   void AddIncrementCounter(StatsCounter* counter);
 
@@ -1797,9 +1796,6 @@ class HGraphBuilder {
       HValue* hash,
       HValue* mask,
       int current_probe);
-
-  void PadEnvironmentForContinuation(HBasicBlock* from,
-                                     HBasicBlock* continuation);
 
   template <class I>
   I* AddInstructionTyped(I* instr) {

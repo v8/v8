@@ -1043,9 +1043,8 @@ void HGraphBuilder::IfBuilder::End() {
   current = merge_at_join_blocks_;
   while (current != NULL) {
     if (current->deopt_ && current->block_ != NULL) {
-      builder_->PadEnvironmentForContinuation(current->block_,
-                                              merge_block);
-      builder_->GotoNoSimulate(current->block_, merge_block);
+      current->block_->FinishExit(
+          HAbnormalExit::New(builder_->zone(), NULL), RelocInfo::kNoPosition);
     }
     current = current->next_;
   }
@@ -1251,38 +1250,9 @@ HValue* HGraphBuilder::BuildCheckHeapObject(HValue* obj) {
 }
 
 
-void HGraphBuilder::FinishExitWithHardDeoptimization(
-    const char* reason, HBasicBlock* continuation) {
-  PadEnvironmentForContinuation(current_block(), continuation);
+void HGraphBuilder::FinishExitWithHardDeoptimization(const char* reason) {
   Add<HDeoptimize>(reason, Deoptimizer::EAGER);
-  if (graph()->IsInsideNoSideEffectsScope()) {
-    GotoNoSimulate(continuation);
-  } else {
-    Goto(continuation);
-  }
-}
-
-
-void HGraphBuilder::PadEnvironmentForContinuation(
-    HBasicBlock* from,
-    HBasicBlock* continuation) {
-  if (continuation->last_environment() != NULL) {
-    // When merging from a deopt block to a continuation, resolve differences in
-    // environment by pushing constant 0 and popping extra values so that the
-    // environments match during the join. Push 0 since it has the most specific
-    // representation, and will not influence representation inference of the
-    // phi.
-    int continuation_env_length = continuation->last_environment()->length();
-    while (continuation_env_length != from->last_environment()->length()) {
-      if (continuation_env_length > from->last_environment()->length()) {
-        from->last_environment()->Push(graph()->GetConstant0());
-      } else {
-        from->last_environment()->Pop();
-      }
-    }
-  } else {
-    ASSERT(continuation->predecessors()->length() == 0);
-  }
+  FinishExitCurrentBlock(New<HAbnormalExit>());
 }
 
 
@@ -5702,11 +5672,7 @@ void HOptimizedGraphBuilder::HandlePolymorphicNamedFieldAccess(
   // know about and do not want to handle ones we've never seen.  Otherwise
   // use a generic IC.
   if (count == types->length() && FLAG_deoptimize_uncommon_cases) {
-    // Because the deopt may be the only path in the polymorphic load, make sure
-    // that the environment stack matches the depth on deopt that it otherwise
-    // would have had after a successful load.
-    if (!ast_context()->IsEffect()) Push(graph()->GetConstant0());
-    FinishExitWithHardDeoptimization("Uknown map in polymorphic access", join);
+    FinishExitWithHardDeoptimization("Uknown map in polymorphic access");
   } else {
     HInstruction* instr = BuildNamedGeneric(access_type, object, name, value);
     AddInstruction(instr);
@@ -6428,10 +6394,14 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
     set_current_block(other_map);
   }
 
+  // Ensure that we visited at least one map above that goes to join. This is
+  // necessary because FinishExitWithHardDeoptimization does an AbnormalExit
+  // rather than joining the join block. If this becomes an issue, insert a
+  // generic access in the case length() == 0.
+  ASSERT(join->predecessors()->length() > 0);
   // Deopt if none of the cases matched.
   NoObservableSideEffectsScope scope(this);
-  FinishExitWithHardDeoptimization("Unknown map in polymorphic element access",
-                                   join);
+  FinishExitWithHardDeoptimization("Unknown map in polymorphic element access");
   set_current_block(join);
   return access_type == STORE ? NULL : Pop();
 }
@@ -6919,12 +6889,7 @@ void HOptimizedGraphBuilder::HandlePolymorphicCallNamed(
   // know about and do not want to handle ones we've never seen.  Otherwise
   // use a generic IC.
   if (ordered_functions == types->length() && FLAG_deoptimize_uncommon_cases) {
-    // Because the deopt may be the only path in the polymorphic call, make sure
-    // that the environment stack matches the depth on deopt that it otherwise
-    // would have had after a successful call.
-    Drop(1);  // Drop receiver.
-    if (!ast_context()->IsEffect()) Push(graph()->GetConstant0());
-    FinishExitWithHardDeoptimization("Unknown map in polymorphic call", join);
+    FinishExitWithHardDeoptimization("Unknown map in polymorphic call");
   } else {
     Property* prop = expr->expression()->AsProperty();
     HInstruction* function = BuildNamedGeneric(
