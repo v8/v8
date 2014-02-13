@@ -983,8 +983,6 @@ static Handle<Object> TryConvertKey(Handle<Object> key, Isolate* isolate) {
         key = Handle<Smi>(Smi::FromInt(int_value), isolate);
       }
     }
-  } else if (key->IsString()) {
-    key = isolate->factory()->InternalizeString(Handle<String>::cast(key));
   } else if (key->IsUndefined()) {
     key = isolate->factory()->undefined_string();
   }
@@ -1063,8 +1061,8 @@ MaybeObject* KeyedLoadIC::Load(Handle<Object> object, Handle<Object> key) {
   MaybeObject* maybe_object = NULL;
   Handle<Code> stub = generic_stub();
 
-  // Check for values that can be converted into an internalized string directly
-  // or is representable as a smi.
+  // Check for non-string values that can be converted into an
+  // internalized string directly or is representable as a smi.
   key = TryConvertKey(key, isolate());
 
   if (key->IsInternalizedString()) {
@@ -1660,8 +1658,8 @@ MaybeObject* KeyedStoreIC::Store(Handle<Object> object,
     return *result;
   }
 
-  // Check for values that can be converted into an internalized string directly
-  // or is representable as a smi.
+  // Check for non-string values that can be converted into an
+  // internalized string directly or is representable as a smi.
   key = TryConvertKey(key, isolate());
 
   MaybeObject* maybe_object = NULL;
