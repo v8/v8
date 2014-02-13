@@ -1557,7 +1557,7 @@ class HCompareMap V8_FINAL : public HUnaryControlInstruction {
     ASSERT(!map.is_null());
     is_stable_ = map->is_stable();
 
-    if (FLAG_check_elimination && is_stable_) {
+    if (is_stable_) {
       map->AddDependentCompilationInfo(
           DependentCode::kPrototypeCheckGroup, info);
     }
@@ -2700,10 +2700,12 @@ class HCheckMaps V8_FINAL : public HTemplateInstruction<2> {
   void Add(Handle<Map> map, CompilationInfo* info, Zone* zone) {
     map_set_.Add(Unique<Map>(map), zone);
     is_stable_ = is_stable_ && map->is_stable();
-
-    if (FLAG_check_elimination && is_stable_) {
+    if (is_stable_) {
       map->AddDependentCompilationInfo(
           DependentCode::kPrototypeCheckGroup, info);
+    } else {
+      SetDependsOnFlag(kMaps);
+      SetDependsOnFlag(kElementsKind);
     }
 
     if (!has_migration_target_ && map->is_migration_target()) {
@@ -2722,8 +2724,6 @@ class HCheckMaps V8_FINAL : public HTemplateInstruction<2> {
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
     SetFlag(kTrackSideEffectDominators);
-    SetDependsOnFlag(kMaps);
-    SetDependsOnFlag(kElementsKind);
   }
 
   bool omit_;
@@ -6506,7 +6506,7 @@ class HStoreNamedField V8_FINAL : public HTemplateInstruction<3> {
     has_transition_ = true;
     is_stable_ = map->is_stable();
 
-    if (FLAG_check_elimination && is_stable_) {
+    if (is_stable_) {
       map->AddDependentCompilationInfo(
           DependentCode::kPrototypeCheckGroup, info);
     }

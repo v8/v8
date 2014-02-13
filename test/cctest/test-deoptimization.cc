@@ -538,7 +538,6 @@ TEST(DeoptimizeCompare) {
 
 TEST(DeoptimizeLoadICStoreIC) {
   i::FLAG_concurrent_recompilation = false;
-  i::FLAG_check_elimination = false;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
@@ -614,13 +613,11 @@ TEST(DeoptimizeLoadICStoreIC) {
   CHECK(!GetJSFunction(env->Global(), "g2")->IsOptimized());
   CHECK_EQ(4, env->Global()->Get(v8_str("count"))->Int32Value());
   CHECK_EQ(13, env->Global()->Get(v8_str("result"))->Int32Value());
-  CHECK_EQ(0, Deoptimizer::GetDeoptimizedCodeCount(CcTest::i_isolate()));
 }
 
 
 TEST(DeoptimizeLoadICStoreICNested) {
   i::FLAG_concurrent_recompilation = false;
-  i::FLAG_check_elimination = false;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
@@ -697,5 +694,4 @@ TEST(DeoptimizeLoadICStoreICNested) {
   CHECK(!GetJSFunction(env->Global(), "g2")->IsOptimized());
   CHECK_EQ(1, env->Global()->Get(v8_str("count"))->Int32Value());
   CHECK_EQ(13, env->Global()->Get(v8_str("result"))->Int32Value());
-  CHECK_EQ(0, Deoptimizer::GetDeoptimizedCodeCount(CcTest::i_isolate()));
 }
