@@ -29,6 +29,7 @@
 #define V8_PREPARSER_H
 
 #include "hashmap.h"
+#include "scopes.h"
 #include "token.h"
 #include "scanner.h"
 
@@ -40,9 +41,11 @@ template <typename Traits>
 class ParserBase : public Traits {
  public:
   ParserBase(Scanner* scanner, uintptr_t stack_limit,
-             typename Traits::ParserType this_object)
+             typename Traits::Type::Parser this_object)
       : Traits(this_object),
         parenthesized_function_(false),
+        scope_(NULL),
+        function_state_(NULL),
         scanner_(scanner),
         stack_limit_(stack_limit),
         stack_overflow_(false),
@@ -81,6 +84,97 @@ class ParserBase : public Traits {
   enum AllowEvalOrArgumentsAsIdentifier {
     kAllowEvalOrArguments,
     kDontAllowEvalOrArguments
+  };
+
+  // ---------------------------------------------------------------------------
+  // FunctionState and BlockState together implement the parser's scope stack.
+  // The parser's current scope is in scope_. BlockState and FunctionState
+  // constructors push on the scope stack and the destructors pop. They are also
+  // used to hold the parser's per-function and per-block state.
+  class BlockState BASE_EMBEDDED {
+   public:
+    BlockState(typename Traits::Type::Scope** scope_stack,
+               typename Traits::Type::Scope* scope)
+        : scope_stack_(scope_stack),
+          outer_scope_(*scope_stack),
+          scope_(scope) {
+      *scope_stack_ = scope_;
+    }
+    ~BlockState() { *scope_stack_ = outer_scope_; }
+
+   private:
+    typename Traits::Type::Scope** scope_stack_;
+    typename Traits::Type::Scope* outer_scope_;
+    typename Traits::Type::Scope* scope_;
+  };
+
+  class FunctionState BASE_EMBEDDED {
+   public:
+    FunctionState(
+        FunctionState** function_state_stack,
+        typename Traits::Type::Scope** scope_stack,
+        typename Traits::Type::Scope* scope,
+        typename Traits::Type::Zone* zone = NULL);
+    ~FunctionState();
+
+    int NextMaterializedLiteralIndex() {
+      return next_materialized_literal_index_++;
+    }
+    int materialized_literal_count() {
+      return next_materialized_literal_index_ - JSFunction::kLiteralsPrefixSize;
+    }
+
+    int NextHandlerIndex() { return next_handler_index_++; }
+    int handler_count() { return next_handler_index_; }
+
+    void AddProperty() { expected_property_count_++; }
+    int expected_property_count() { return expected_property_count_; }
+
+    void set_is_generator(bool is_generator) { is_generator_ = is_generator; }
+    bool is_generator() const { return is_generator_; }
+
+    void set_generator_object_variable(
+        typename Traits::Type::GeneratorVariable* variable) {
+      ASSERT(variable != NULL);
+      ASSERT(!is_generator());
+      generator_object_variable_ = variable;
+      is_generator_ = true;
+    }
+    typename Traits::Type::GeneratorVariable* generator_object_variable()
+        const {
+      return generator_object_variable_;
+    }
+
+    typename Traits::Type::Factory* factory() { return &factory_; }
+
+   private:
+    // Used to assign an index to each literal that needs materialization in
+    // the function.  Includes regexp literals, and boilerplate for object and
+    // array literals.
+    int next_materialized_literal_index_;
+
+    // Used to assign a per-function index to try and catch handlers.
+    int next_handler_index_;
+
+    // Properties count estimation.
+    int expected_property_count_;
+
+    // Whether the function is a generator.
+    bool is_generator_;
+    // For generators, this variable may hold the generator object. It variable
+    // is used by yield expressions and return statements. It is not necessary
+    // for generator functions to have this variable set.
+    Variable* generator_object_variable_;
+
+    FunctionState** function_state_stack_;
+    FunctionState* outer_function_state_;
+    typename Traits::Type::Scope** scope_stack_;
+    typename Traits::Type::Scope* outer_scope_;
+    Isolate* isolate_;   // Only used by ParserTraits.
+    int saved_ast_node_id_;  // Only used by ParserTraits.
+    typename Traits::Type::Factory factory_;
+
+    friend class ParserTraits;
   };
 
   Scanner* scanner() const { return scanner_; }
@@ -193,6 +287,14 @@ class ParserBase : public Traits {
     return Token::Precedence(token);
   }
 
+  typename Traits::Type::Factory* factory() {
+    return function_state_->factory();
+  }
+
+  bool is_classic_mode() const { return scope_->is_classic_mode(); }
+
+  bool is_generator() const { return function_state_->is_generator(); }
+
   // Report syntax errors.
   void ReportMessage(const char* message, Vector<const char*> args) {
     Scanner::Location source_location = scanner()->location();
@@ -212,21 +314,22 @@ class ParserBase : public Traits {
   // allow_eval_or_arguments is kAllowEvalOrArguments, we allow "eval" or
   // "arguments" as identifier even in strict mode (this is needed in cases like
   // "var foo = eval;").
-  typename Traits::IdentifierType ParseIdentifier(
+  typename Traits::Type::Identifier ParseIdentifier(
       AllowEvalOrArgumentsAsIdentifier,
       bool* ok);
   // Parses an identifier or a strict mode future reserved word, and indicate
   // whether it is strict mode future reserved.
-  typename Traits::IdentifierType ParseIdentifierOrStrictReservedWord(
+  typename Traits::Type::Identifier ParseIdentifierOrStrictReservedWord(
       bool* is_strict_reserved,
       bool* ok);
-  typename Traits::IdentifierType ParseIdentifierName(bool* ok);
+  typename Traits::Type::Identifier ParseIdentifierName(bool* ok);
   // Parses an identifier and determines whether or not it is 'get' or 'set'.
-  typename Traits::IdentifierType ParseIdentifierNameOrGetOrSet(bool* is_get,
+  typename Traits::Type::Identifier ParseIdentifierNameOrGetOrSet(bool* is_get,
                                                                 bool* is_set,
                                                                 bool* ok);
 
-  typename Traits::ExpressionType ParseRegExpLiteral(bool seen_equal, bool* ok);
+  typename Traits::Type::Expression ParseRegExpLiteral(bool seen_equal,
+                                                        bool* ok);
 
   // Used to detect duplicates in object literals. Each of the values
   // kGetterProperty, kSetterProperty and kValueProperty represents
@@ -287,6 +390,9 @@ class ParserBase : public Traits {
   // Heuristically that means that the function will be called immediately,
   // so never lazily compile it.
   bool parenthesized_function_;
+
+  typename Traits::Type::Scope* scope_;  // Scope stack.
+  FunctionState* function_state_;  // Function state stack.
 
  private:
   Scanner* scanner_;
@@ -428,25 +534,91 @@ class PreParserExpression {
   int code_;
 };
 
-class PreParser;
 
+class PreParserScope {
+ public:
+  explicit PreParserScope(PreParserScope* outer_scope, ScopeType scope_type)
+      : scope_type_(scope_type) {
+    if (outer_scope) {
+      scope_inside_with_ =
+          outer_scope->scope_inside_with_ || is_with_scope();
+      language_mode_ = outer_scope->language_mode();
+    } else {
+      scope_inside_with_ = is_with_scope();
+      language_mode_ = CLASSIC_MODE;
+    }
+  }
+
+  bool is_with_scope() const { return scope_type_ == WITH_SCOPE; }
+  bool is_classic_mode() const {
+    return language_mode() == CLASSIC_MODE;
+  }
+  bool is_extended_mode() {
+    return language_mode() == EXTENDED_MODE;
+  }
+  bool inside_with() const {
+    return scope_inside_with_;
+  }
+
+  ScopeType type() { return scope_type_; }
+  LanguageMode language_mode() const { return language_mode_; }
+  void SetLanguageMode(LanguageMode language_mode) {
+    language_mode_ = language_mode;
+  }
+
+ private:
+  ScopeType scope_type_;
+  bool scope_inside_with_;
+  LanguageMode language_mode_;
+};
+
+
+class PreParserFactory {
+ public:
+  explicit PreParserFactory(void* extra_param) {}
+
+  PreParserExpression NewRegExpLiteral(PreParserIdentifier js_pattern,
+                                       PreParserIdentifier js_flags,
+                                       int literal_index,
+                                       int pos) {
+    return PreParserExpression::Default();
+  }
+};
+
+
+class PreParser;
 
 class PreParserTraits {
  public:
-  typedef PreParser* ParserType;
-  // Return types for traversing functions.
-  typedef PreParserIdentifier IdentifierType;
-  typedef PreParserExpression ExpressionType;
+  struct Type {
+    typedef PreParser* Parser;
+
+    // Types used by FunctionState and BlockState.
+    typedef PreParserScope Scope;
+    typedef PreParserFactory Factory;
+    // PreParser doesn't need to store generator variables.
+    typedef void GeneratorVariable;
+    // No interaction with Zones.
+    typedef void Zone;
+
+    // Return types for traversing functions.
+    typedef PreParserIdentifier Identifier;
+    typedef PreParserExpression Expression;
+  };
 
   explicit PreParserTraits(PreParser* pre_parser) : pre_parser_(pre_parser) {}
 
+  // Custom operations executed when FunctionStates are created and
+  // destructed. (The PreParser doesn't need to do anything.)
+  template<typename FS>
+  static void SetUpFunctionState(FS* function_state, void*) {}
+  template<typename FS>
+  static void TearDownFunctionState(FS* function_state) {}
+
   // Helper functions for recursive descent.
-  bool is_classic_mode() const;
-  bool is_generator() const;
-  static bool IsEvalOrArguments(IdentifierType identifier) {
+  static bool IsEvalOrArguments(PreParserIdentifier identifier) {
     return identifier.IsEvalOrArguments();
   }
-  int NextMaterializedLiteralIndex();
 
   // Reporting errors.
   void ReportMessageAt(Scanner::Location location,
@@ -461,23 +633,17 @@ class PreParserTraits {
                        const char* name_opt);
 
   // "null" return type creators.
-  static IdentifierType EmptyIdentifier() {
+  static PreParserIdentifier EmptyIdentifier() {
     return PreParserIdentifier::Default();
   }
-  static ExpressionType EmptyExpression() {
+  static PreParserExpression EmptyExpression() {
     return PreParserExpression::Default();
   }
 
   // Producing data during the recursive descent.
-  IdentifierType GetSymbol();
-  static IdentifierType NextLiteralString(PretenureFlag tenured) {
+  PreParserIdentifier GetSymbol();
+  static PreParserIdentifier NextLiteralString(PretenureFlag tenured) {
     return PreParserIdentifier::Default();
-  }
-  ExpressionType NewRegExpLiteral(IdentifierType js_pattern,
-                                  IdentifierType js_flags,
-                                  int literal_index,
-                                  int pos) {
-    return PreParserExpression::Default();
   }
 
  private:
@@ -511,18 +677,15 @@ class PreParser : public ParserBase<PreParserTraits> {
             ParserRecorder* log,
             uintptr_t stack_limit)
       : ParserBase<PreParserTraits>(scanner, stack_limit, this),
-        log_(log),
-        function_state_(NULL),
-        scope_(NULL) { }
-
-  ~PreParser() {}
+        log_(log) {}
 
   // Pre-parse the program from the character stream; returns true on
   // success (even if parsing failed, the pre-parse data successfully
   // captured the syntax error), and false if a stack-overflow happened
   // during parsing.
   PreParseResult PreParseProgram() {
-    FunctionState top_scope(&function_state_, &scope_, GLOBAL_SCOPE);
+    PreParserScope scope(scope_, GLOBAL_SCOPE);
+    FunctionState top_scope(&function_state_, &scope_, &scope, NULL);
     bool ok = true;
     int start_position = scanner()->peek_location().beg_pos;
     ParseSourceElements(Token::EOS, &ok);
@@ -620,98 +783,6 @@ class PreParser : public ParserBase<PreParserTraits> {
 
   typedef int Arguments;
 
-  class Scope {
-   public:
-    explicit Scope(Scope* outer_scope, ScopeType scope_type)
-        : scope_type_(scope_type) {
-      if (outer_scope) {
-        scope_inside_with_ =
-            outer_scope->scope_inside_with_ || is_with_scope();
-        language_mode_ = outer_scope->language_mode();
-      } else {
-        scope_inside_with_ = is_with_scope();
-        language_mode_ = CLASSIC_MODE;
-      }
-    }
-
-    bool is_with_scope() const { return scope_type_ == WITH_SCOPE; }
-    bool is_classic_mode() const {
-      return language_mode() == CLASSIC_MODE;
-    }
-    bool is_extended_mode() {
-      return language_mode() == EXTENDED_MODE;
-    }
-    bool inside_with() const {
-      return scope_inside_with_;
-    }
-
-    ScopeType type() { return scope_type_; }
-    LanguageMode language_mode() const { return language_mode_; }
-    void SetLanguageMode(LanguageMode language_mode) {
-      language_mode_ = language_mode;
-    }
-
-   private:
-    ScopeType scope_type_;
-    bool scope_inside_with_;
-    LanguageMode language_mode_;
-  };
-
-  class FunctionState {
-   public:
-    FunctionState(FunctionState** function_state_stack, Scope** scope_stack,
-                  ScopeType scope_type)
-        : function_state_stack_(function_state_stack),
-          outer_function_state_(*function_state_stack),
-          scope_stack_(scope_stack),
-          outer_scope_(*scope_stack),
-          scope_(*scope_stack, scope_type),
-          materialized_literal_count_(0),
-          expected_properties_(0),
-          is_generator_(false) {
-      *scope_stack = &scope_;
-      *function_state_stack = this;
-    }
-    ~FunctionState() {
-      *scope_stack_ = outer_scope_;
-      *function_state_stack_ = outer_function_state_;
-    }
-    int NextMaterializedLiteralIndex() { return materialized_literal_count_++; }
-    void AddProperty() { expected_properties_++; }
-    int expected_properties() { return expected_properties_; }
-    int materialized_literal_count() { return materialized_literal_count_; }
-    bool is_generator() { return is_generator_; }
-    void set_is_generator(bool is_generator) { is_generator_ = is_generator; }
-
-   private:
-    FunctionState** const function_state_stack_;
-    FunctionState* const outer_function_state_;
-    Scope** const scope_stack_;
-    Scope* const outer_scope_;
-    Scope scope_;
-
-    int materialized_literal_count_;
-    int expected_properties_;
-    bool is_generator_;
-  };
-
-  class BlockState {
-   public:
-    BlockState(Scope** scope_stack, ScopeType scope_type)
-        : scope_stack_(scope_stack),
-          outer_scope_(*scope_stack),
-          scope_(*scope_stack, scope_type) {
-      *scope_stack_ = &scope_;
-    }
-
-    ~BlockState() { *scope_stack_ = outer_scope_; }
-
-   private:
-    Scope** scope_stack_;
-    Scope* outer_scope_;
-    Scope scope_;
-  };
-
   // All ParseXXX functions take as the last argument an *ok parameter
   // which is set to false if parsing failed; it is unchanged otherwise.
   // By making the 'exception handling' explicit, we are forced to check
@@ -774,9 +845,39 @@ class PreParser : public ParserBase<PreParserTraits> {
   bool CheckInOrOf(bool accept_OF);
 
   ParserRecorder* log_;
-  FunctionState* function_state_;
-  Scope* scope_;
 };
+
+
+template<class Traits>
+ParserBase<Traits>::FunctionState::FunctionState(
+    FunctionState** function_state_stack,
+    typename Traits::Type::Scope** scope_stack,
+    typename Traits::Type::Scope* scope,
+    typename Traits::Type::Zone* extra_param)
+    : next_materialized_literal_index_(JSFunction::kLiteralsPrefixSize),
+      next_handler_index_(0),
+      expected_property_count_(0),
+      is_generator_(false),
+      generator_object_variable_(NULL),
+      function_state_stack_(function_state_stack),
+      outer_function_state_(*function_state_stack),
+      scope_stack_(scope_stack),
+      outer_scope_(*scope_stack),
+      isolate_(NULL),
+      saved_ast_node_id_(0),
+      factory_(extra_param) {
+  *scope_stack_ = scope;
+  *function_state_stack = this;
+  Traits::SetUpFunctionState(this, extra_param);
+}
+
+
+template<class Traits>
+ParserBase<Traits>::FunctionState::~FunctionState() {
+  *scope_stack_ = outer_scope_;
+  *function_state_stack_ = outer_function_state_;
+  Traits::TearDownFunctionState(this);
+}
 
 
 template<class Traits>
@@ -803,10 +904,9 @@ void ParserBase<Traits>::ReportUnexpectedToken(Token::Value token) {
       return ReportMessageAt(source_location, "unexpected_reserved");
     case Token::YIELD:
     case Token::FUTURE_STRICT_RESERVED_WORD:
-      return ReportMessageAt(
-          source_location,
-          this->is_classic_mode() ? "unexpected_token_identifier"
-                                  : "unexpected_strict_reserved");
+      return ReportMessageAt(source_location,
+                             is_classic_mode() ? "unexpected_token_identifier"
+                                               : "unexpected_strict_reserved");
     default:
       const char* name = Token::String(token);
       ASSERT(name != NULL);
@@ -817,21 +917,20 @@ void ParserBase<Traits>::ReportUnexpectedToken(Token::Value token) {
 
 
 template<class Traits>
-typename Traits::IdentifierType ParserBase<Traits>::ParseIdentifier(
+typename Traits::Type::Identifier ParserBase<Traits>::ParseIdentifier(
     AllowEvalOrArgumentsAsIdentifier allow_eval_or_arguments,
     bool* ok) {
   Token::Value next = Next();
   if (next == Token::IDENTIFIER) {
-    typename Traits::IdentifierType name = this->GetSymbol();
+    typename Traits::Type::Identifier name = this->GetSymbol();
     if (allow_eval_or_arguments == kDontAllowEvalOrArguments &&
-        !this->is_classic_mode() && this->IsEvalOrArguments(name)) {
+        !is_classic_mode() && this->IsEvalOrArguments(name)) {
       ReportMessageAt(scanner()->location(), "strict_eval_arguments");
       *ok = false;
     }
     return name;
-  } else if (this->is_classic_mode() &&
-             (next == Token::FUTURE_STRICT_RESERVED_WORD ||
-              (next == Token::YIELD && !this->is_generator()))) {
+  } else if (is_classic_mode() && (next == Token::FUTURE_STRICT_RESERVED_WORD ||
+                                   (next == Token::YIELD && !is_generator()))) {
     return this->GetSymbol();
   } else {
     this->ReportUnexpectedToken(next);
@@ -842,7 +941,7 @@ typename Traits::IdentifierType ParserBase<Traits>::ParseIdentifier(
 
 
 template <class Traits>
-typename Traits::IdentifierType ParserBase<
+typename Traits::Type::Identifier ParserBase<
     Traits>::ParseIdentifierOrStrictReservedWord(bool* is_strict_reserved,
                                                  bool* ok) {
   Token::Value next = Next();
@@ -861,7 +960,7 @@ typename Traits::IdentifierType ParserBase<
 
 
 template <class Traits>
-typename Traits::IdentifierType ParserBase<Traits>::ParseIdentifierName(
+typename Traits::Type::Identifier ParserBase<Traits>::ParseIdentifierName(
     bool* ok) {
   Token::Value next = Next();
   if (next != Token::IDENTIFIER && next != Token::FUTURE_RESERVED_WORD &&
@@ -875,11 +974,11 @@ typename Traits::IdentifierType ParserBase<Traits>::ParseIdentifierName(
 
 
 template <class Traits>
-typename Traits::IdentifierType
+typename Traits::Type::Identifier
 ParserBase<Traits>::ParseIdentifierNameOrGetOrSet(bool* is_get,
                                                   bool* is_set,
                                                   bool* ok) {
-  typename Traits::IdentifierType result = ParseIdentifierName(ok);
+  typename Traits::Type::Identifier result = ParseIdentifierName(ok);
   if (!*ok) return Traits::EmptyIdentifier();
   if (scanner()->is_literal_ascii() &&
       scanner()->literal_length() == 3) {
@@ -892,7 +991,7 @@ ParserBase<Traits>::ParseIdentifierNameOrGetOrSet(bool* is_get,
 
 
 template <class Traits>
-typename Traits::ExpressionType
+typename Traits::Type::Expression
 ParserBase<Traits>::ParseRegExpLiteral(bool seen_equal, bool* ok) {
   int pos = peek_position();
   if (!scanner()->ScanRegExpPattern(seen_equal)) {
@@ -902,18 +1001,20 @@ ParserBase<Traits>::ParseRegExpLiteral(bool seen_equal, bool* ok) {
     return Traits::EmptyExpression();
   }
 
-  int literal_index = this->NextMaterializedLiteralIndex();
+  int literal_index = function_state_->NextMaterializedLiteralIndex();
 
-  typename Traits::IdentifierType js_pattern = this->NextLiteralString(TENURED);
+  typename Traits::Type::Identifier js_pattern =
+      this->NextLiteralString(TENURED);
   if (!scanner()->ScanRegExpFlags()) {
     Next();
     ReportMessageAt(scanner()->location(), "invalid_regexp_flags");
     *ok = false;
     return Traits::EmptyExpression();
   }
-  typename Traits::IdentifierType js_flags = this->NextLiteralString(TENURED);
+  typename Traits::Type::Identifier js_flags =
+      this->NextLiteralString(TENURED);
   Next();
-  return this->NewRegExpLiteral(js_pattern, js_flags, literal_index, pos);
+  return factory()->NewRegExpLiteral(js_pattern, js_flags, literal_index, pos);
 }
 
 
