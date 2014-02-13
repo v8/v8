@@ -143,12 +143,13 @@ void HBasicBlock::RemovePhi(HPhi* phi) {
 }
 
 
-void HBasicBlock::AddInstruction(HInstruction* instr, int position) {
+void HBasicBlock::AddInstruction(HInstruction* instr,
+                                 HSourcePosition position) {
   ASSERT(!IsStartBlock() || !IsFinished());
   ASSERT(!instr->IsLinked());
   ASSERT(!IsFinished());
 
-  if (position != RelocInfo::kNoPosition) {
+  if (!position.IsUnknown()) {
     instr->set_position(position);
   }
   if (first_ == NULL) {
@@ -156,10 +157,10 @@ void HBasicBlock::AddInstruction(HInstruction* instr, int position) {
     ASSERT(!last_environment()->ast_id().IsNone());
     HBlockEntry* entry = new(zone()) HBlockEntry();
     entry->InitializeAsFirst(this);
-    if (position != RelocInfo::kNoPosition) {
+    if (!position.IsUnknown()) {
       entry->set_position(position);
     } else {
-      ASSERT(!FLAG_emit_opt_code_positions ||
+      ASSERT(!FLAG_hydrogen_track_positions ||
              !graph()->info()->IsOptimizing());
     }
     first_ = last_ = entry;
@@ -212,7 +213,7 @@ HSimulate* HBasicBlock::CreateSimulate(BailoutId ast_id,
 }
 
 
-void HBasicBlock::Finish(HControlInstruction* end, int position) {
+void HBasicBlock::Finish(HControlInstruction* end, HSourcePosition position) {
   ASSERT(!IsFinished());
   AddInstruction(end, position);
   end_ = end;
@@ -223,7 +224,7 @@ void HBasicBlock::Finish(HControlInstruction* end, int position) {
 
 
 void HBasicBlock::Goto(HBasicBlock* block,
-                       int position,
+                       HSourcePosition position,
                        FunctionState* state,
                        bool add_simulate) {
   bool drop_extra = state != NULL &&
@@ -246,7 +247,7 @@ void HBasicBlock::Goto(HBasicBlock* block,
 
 void HBasicBlock::AddLeaveInlined(HValue* return_value,
                                   FunctionState* state,
-                                  int position) {
+                                  HSourcePosition position) {
   HBasicBlock* target = state->function_return();
   bool drop_extra = state->inlining_kind() == NORMAL_RETURN;
 
@@ -1044,7 +1045,8 @@ void HGraphBuilder::IfBuilder::End() {
   while (current != NULL) {
     if (current->deopt_ && current->block_ != NULL) {
       current->block_->FinishExit(
-          HAbnormalExit::New(builder_->zone(), NULL), RelocInfo::kNoPosition);
+          HAbnormalExit::New(builder_->zone(), NULL),
+          HSourcePosition::Unknown());
     }
     current = current->next_;
   }
@@ -1177,9 +1179,10 @@ HGraph* HGraphBuilder::CreateGraph() {
 
 HInstruction* HGraphBuilder::AddInstruction(HInstruction* instr) {
   ASSERT(current_block() != NULL);
-  ASSERT(!FLAG_emit_opt_code_positions ||
-         position_ != RelocInfo::kNoPosition || !info_->IsOptimizing());
-  current_block()->AddInstruction(instr, position_);
+  ASSERT(!FLAG_hydrogen_track_positions ||
+         !position_.IsUnknown() ||
+         !info_->IsOptimizing());
+  current_block()->AddInstruction(instr, source_position());
   if (graph()->IsInsideNoSideEffectsScope()) {
     instr->SetFlag(HValue::kHasNoObservableSideEffects);
   }
@@ -1188,9 +1191,10 @@ HInstruction* HGraphBuilder::AddInstruction(HInstruction* instr) {
 
 
 void HGraphBuilder::FinishCurrentBlock(HControlInstruction* last) {
-  ASSERT(!FLAG_emit_opt_code_positions || !info_->IsOptimizing() ||
-         position_ != RelocInfo::kNoPosition);
-  current_block()->Finish(last, position_);
+  ASSERT(!FLAG_hydrogen_track_positions ||
+         !info_->IsOptimizing() ||
+         !position_.IsUnknown());
+  current_block()->Finish(last, source_position());
   if (last->IsReturn() || last->IsAbnormalExit()) {
     set_current_block(NULL);
   }
@@ -1198,9 +1202,9 @@ void HGraphBuilder::FinishCurrentBlock(HControlInstruction* last) {
 
 
 void HGraphBuilder::FinishExitCurrentBlock(HControlInstruction* instruction) {
-  ASSERT(!FLAG_emit_opt_code_positions || !info_->IsOptimizing() ||
-         position_ != RelocInfo::kNoPosition);
-  current_block()->FinishExit(instruction, position_);
+  ASSERT(!FLAG_hydrogen_track_positions || !info_->IsOptimizing() ||
+         !position_.IsUnknown());
+  current_block()->FinishExit(instruction, source_position());
   if (instruction->IsReturn() || instruction->IsAbnormalExit()) {
     set_current_block(NULL);
   }
@@ -1224,7 +1228,7 @@ void HGraphBuilder::AddSimulate(BailoutId id,
                                 RemovableSimulate removable) {
   ASSERT(current_block() != NULL);
   ASSERT(!graph()->IsInsideNoSideEffectsScope());
-  current_block()->AddNewSimulate(id, position_, removable);
+  current_block()->AddNewSimulate(id, source_position(), removable);
 }
 
 
@@ -2976,7 +2980,7 @@ HValue* HGraphBuilder::AddLoadJSBuiltin(Builtins::JavaScript builtin) {
 HOptimizedGraphBuilder::HOptimizedGraphBuilder(CompilationInfo* info)
     : HGraphBuilder(info),
       function_state_(NULL),
-      initial_function_state_(this, info, NORMAL_RETURN),
+      initial_function_state_(this, info, NORMAL_RETURN, 0),
       ast_context_(NULL),
       break_scope_(NULL),
       inlined_count_(0),
@@ -2988,7 +2992,7 @@ HOptimizedGraphBuilder::HOptimizedGraphBuilder(CompilationInfo* info)
   // to know it's the initial state.
   function_state_= &initial_function_state_;
   InitializeAstVisitor(info->zone());
-  if (FLAG_emit_opt_code_positions) {
+  if (FLAG_hydrogen_track_positions) {
     SetSourcePosition(info->shared_info()->start_position());
   }
 }
@@ -3057,7 +3061,8 @@ HBasicBlock* HOptimizedGraphBuilder::BuildLoopEntry(
 }
 
 
-void HBasicBlock::FinishExit(HControlInstruction* instruction, int position) {
+void HBasicBlock::FinishExit(HControlInstruction* instruction,
+                             HSourcePosition position) {
   Finish(instruction, position);
   ClearEnvironment();
 }
@@ -3080,7 +3085,9 @@ HGraph::HGraph(CompilationInfo* info)
       type_change_checksum_(0),
       maximum_environment_size_(0),
       no_side_effects_scope_count_(0),
-      disallow_adding_new_values_(false) {
+      disallow_adding_new_values_(false),
+      next_inline_id_(0),
+      inlined_functions_(5, info->zone()) {
   if (info->IsStub()) {
     HydrogenCodeStub* stub = info->code_stub();
     CodeStubInterfaceDescriptor* descriptor =
@@ -3088,6 +3095,7 @@ HGraph::HGraph(CompilationInfo* info)
     start_environment_ =
         new(zone_) HEnvironment(zone_, descriptor->environment_length());
   } else {
+    TraceInlinedFunction(info->shared_info(), HSourcePosition::Unknown());
     start_environment_ =
         new(zone_) HEnvironment(NULL, info->scope(), info->closure(), zone_);
   }
@@ -3112,6 +3120,81 @@ void HGraph::FinalizeUniqueness() {
       it.Current()->FinalizeUniqueness();
     }
   }
+}
+
+
+int HGraph::TraceInlinedFunction(
+    Handle<SharedFunctionInfo> shared,
+    HSourcePosition position) {
+  if (!FLAG_hydrogen_track_positions) {
+    return 0;
+  }
+
+  int id = 0;
+  for (; id < inlined_functions_.length(); id++) {
+    if (inlined_functions_[id].shared().is_identical_to(shared)) {
+      break;
+    }
+  }
+
+  if (id == inlined_functions_.length()) {
+    inlined_functions_.Add(InlinedFunctionInfo(shared), zone());
+
+    if (!shared->script()->IsUndefined()) {
+      Handle<Script> script(Script::cast(shared->script()));
+      if (!script->source()->IsUndefined()) {
+        CodeTracer::Scope tracing_scope(isolate()->GetCodeTracer());
+        PrintF(tracing_scope.file(),
+               "--- FUNCTION SOURCE (%s) id{%d,%d} ---\n",
+               shared->DebugName()->ToCString().get(),
+               info()->optimization_id(),
+               id);
+
+        {
+          ConsStringIteratorOp op;
+          StringCharacterStream stream(String::cast(script->source()),
+                                       &op,
+                                       shared->start_position());
+          // fun->end_position() points to the last character in the stream. We
+          // need to compensate by adding one to calculate the length.
+          int source_len =
+              shared->end_position() - shared->start_position() + 1;
+          for (int i = 0; i < source_len; i++) {
+            if (stream.HasMore()) {
+              PrintF(tracing_scope.file(), "%c", stream.GetNext());
+            }
+          }
+        }
+
+        PrintF(tracing_scope.file(), "\n--- END ---\n");
+      }
+    }
+  }
+
+  int inline_id = next_inline_id_++;
+
+  if (inline_id != 0) {
+    CodeTracer::Scope tracing_scope(isolate()->GetCodeTracer());
+    PrintF(tracing_scope.file(), "INLINE (%s) id{%d,%d} AS %d AT ",
+           shared->DebugName()->ToCString().get(),
+           info()->optimization_id(),
+           id,
+           inline_id);
+    position.PrintTo(tracing_scope.file());
+    PrintF(tracing_scope.file(), "\n");
+  }
+
+  return inline_id;
+}
+
+
+int HGraph::SourcePositionToScriptPosition(HSourcePosition pos) {
+  if (!FLAG_hydrogen_track_positions || pos.IsUnknown()) {
+    return pos.raw();
+  }
+
+  return inlined_functions_[pos.inlining_id()].start_position() +
+      pos.position();
 }
 
 
@@ -3493,7 +3576,8 @@ void HGraph::CollectPhis() {
 // a (possibly inlined) function.
 FunctionState::FunctionState(HOptimizedGraphBuilder* owner,
                              CompilationInfo* info,
-                             InliningKind inlining_kind)
+                             InliningKind inlining_kind,
+                             int inlining_id)
     : owner_(owner),
       compilation_info_(info),
       call_context_(NULL),
@@ -3503,6 +3587,8 @@ FunctionState::FunctionState(HOptimizedGraphBuilder* owner,
       entry_(NULL),
       arguments_object_(NULL),
       arguments_elements_(NULL),
+      inlining_id_(inlining_id),
+      outer_source_position_(HSourcePosition::Unknown()),
       outer_(owner->function_state()) {
   if (outer_ != NULL) {
     // State for an inline function.
@@ -3526,12 +3612,27 @@ FunctionState::FunctionState(HOptimizedGraphBuilder* owner,
 
   // Push on the state stack.
   owner->set_function_state(this);
+
+  if (FLAG_hydrogen_track_positions) {
+    outer_source_position_ = owner->source_position();
+    owner->EnterInlinedSource(
+      info->shared_info()->start_position(),
+      inlining_id);
+    owner->SetSourcePosition(info->shared_info()->start_position());
+  }
 }
 
 
 FunctionState::~FunctionState() {
   delete test_context_;
   owner_->set_function_state(outer_);
+
+  if (FLAG_hydrogen_track_positions) {
+    owner_->set_source_position(outer_source_position_);
+    owner_->EnterInlinedSource(
+      outer_->compilation_info()->shared_info()->start_position(),
+      outer_->inlining_id());
+  }
 }
 
 
@@ -4344,7 +4445,9 @@ void HOptimizedGraphBuilder::VisitSwitchStatement(SwitchStatement* stmt) {
     Type* combined_type = clause->compare_type();
     HControlInstruction* compare = BuildCompareInstruction(
         Token::EQ_STRICT, tag_value, label_value, tag_type, label_type,
-        combined_type, stmt->tag()->position(), clause->label()->position(),
+        combined_type,
+        ScriptPositionToSourcePosition(stmt->tag()->position()),
+        ScriptPositionToSourcePosition(clause->label()->position()),
         clause->id());
 
     HBasicBlock* next_test_block = graph()->CreateBasicBlock();
@@ -6065,7 +6168,7 @@ void HOptimizedGraphBuilder::VisitThrow(Throw* expr) {
   CHECK_ALIVE(VisitForValue(expr->exception()));
 
   HValue* value = environment()->Pop();
-  if (!FLAG_emit_opt_code_positions) SetSourcePosition(expr->position());
+  if (!FLAG_hydrogen_track_positions) SetSourcePosition(expr->position());
   Add<HPushArgument>(value);
   Add<HCallRuntime>(isolate()->factory()->empty_string(),
                     Runtime::FunctionForId(Runtime::kThrow), 1);
@@ -6997,7 +7100,8 @@ bool HOptimizedGraphBuilder::TryInline(Handle<JSFunction> target,
                                        HValue* implicit_return_value,
                                        BailoutId ast_id,
                                        BailoutId return_id,
-                                       InliningKind inlining_kind) {
+                                       InliningKind inlining_kind,
+                                       HSourcePosition position) {
   int nodes_added = InliningAstSize(target);
   if (nodes_added == kNotInlinable) return false;
 
@@ -7129,11 +7233,13 @@ bool HOptimizedGraphBuilder::TryInline(Handle<JSFunction> target,
   ASSERT(target_shared->has_deoptimization_support());
   AstTyper::Run(&target_info);
 
+  int function_id = graph()->TraceInlinedFunction(target_shared, position);
+
   // Save the pending call context. Set up new one for the inlined function.
   // The function state is new-allocated because we need to delete it
   // in two different places.
   FunctionState* target_state = new FunctionState(
-      this, &target_info, inlining_kind);
+      this, &target_info, inlining_kind, function_id);
 
   HConstant* undefined = graph()->GetConstantUndefined();
 
@@ -7280,7 +7386,8 @@ bool HOptimizedGraphBuilder::TryInlineCall(Call* expr) {
                    NULL,
                    expr->id(),
                    expr->ReturnId(),
-                   NORMAL_RETURN);
+                   NORMAL_RETURN,
+                   ScriptPositionToSourcePosition(expr->position()));
 }
 
 
@@ -7291,7 +7398,8 @@ bool HOptimizedGraphBuilder::TryInlineConstruct(CallNew* expr,
                    implicit_return_value,
                    expr->id(),
                    expr->ReturnId(),
-                   CONSTRUCT_CALL_RETURN);
+                   CONSTRUCT_CALL_RETURN,
+                   ScriptPositionToSourcePosition(expr->position()));
 }
 
 
@@ -7305,7 +7413,8 @@ bool HOptimizedGraphBuilder::TryInlineGetter(Handle<JSFunction> getter,
                    NULL,
                    ast_id,
                    return_id,
-                   GETTER_CALL_RETURN);
+                   GETTER_CALL_RETURN,
+                   source_position());
 }
 
 
@@ -7319,7 +7428,8 @@ bool HOptimizedGraphBuilder::TryInlineSetter(Handle<JSFunction> setter,
                    1,
                    implicit_return_value,
                    id, assignment_id,
-                   SETTER_CALL_RETURN);
+                   SETTER_CALL_RETURN,
+                   source_position());
 }
 
 
@@ -7331,7 +7441,8 @@ bool HOptimizedGraphBuilder::TryInlineApply(Handle<JSFunction> function,
                    NULL,
                    expr->id(),
                    expr->ReturnId(),
-                   NORMAL_RETURN);
+                   NORMAL_RETURN,
+                   ScriptPositionToSourcePosition(expr->position()));
 }
 
 
@@ -7879,6 +7990,8 @@ void HOptimizedGraphBuilder::VisitCall(Call* expr) {
     CHECK_ALIVE(PushLoad(prop, receiver, key));
     HValue* function = Pop();
 
+    if (FLAG_hydrogen_track_positions) SetSourcePosition(expr->position());
+
     // Push the function under the receiver.
     environment()->SetExpressionStackAt(0, function);
 
@@ -8151,7 +8264,7 @@ void HOptimizedGraphBuilder::VisitCallNew(CallNew* expr) {
   ASSERT(!HasStackOverflow());
   ASSERT(current_block() != NULL);
   ASSERT(current_block()->HasPredecessor());
-  if (!FLAG_emit_opt_code_positions) SetSourcePosition(expr->position());
+  if (!FLAG_hydrogen_track_positions) SetSourcePosition(expr->position());
   int argument_count = expr->arguments()->length() + 1;  // Plus constructor.
   Factory* factory = isolate()->factory();
 
@@ -8694,7 +8807,7 @@ void HOptimizedGraphBuilder::VisitCountOperation(CountOperation* expr) {
   ASSERT(!HasStackOverflow());
   ASSERT(current_block() != NULL);
   ASSERT(current_block()->HasPredecessor());
-  if (!FLAG_emit_opt_code_positions) SetSourcePosition(expr->position());
+  if (!FLAG_hydrogen_track_positions) SetSourcePosition(expr->position());
   Expression* target = expr->expression();
   VariableProxy* proxy = target->AsVariableProxy();
   Property* prop = target->AsProperty();
@@ -9361,9 +9474,11 @@ void HOptimizedGraphBuilder::VisitArithmeticExpression(BinaryOperation* expr) {
       BuildBinaryOperation(expr, left, right,
           ast_context()->IsEffect() ? NO_PUSH_BEFORE_SIMULATE
                                     : PUSH_BEFORE_SIMULATE);
-  if (FLAG_emit_opt_code_positions && result->IsBinaryOperation()) {
+  if (FLAG_hydrogen_track_positions && result->IsBinaryOperation()) {
     HBinaryOperation::cast(result)->SetOperandPositions(
-        zone(), expr->left()->position(), expr->right()->position());
+        zone(),
+        ScriptPositionToSourcePosition(expr->left()->position()),
+        ScriptPositionToSourcePosition(expr->right()->position()));
   }
   return ast_context()->ReturnValue(result);
 }
@@ -9397,7 +9512,7 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
   ASSERT(current_block() != NULL);
   ASSERT(current_block()->HasPredecessor());
 
-  if (!FLAG_emit_opt_code_positions) SetSourcePosition(expr->position());
+  if (!FLAG_hydrogen_track_positions) SetSourcePosition(expr->position());
 
   // Check for a few fast cases. The AST visiting behavior must be in sync
   // with the full codegen: We don't push both left and right values onto
@@ -9432,7 +9547,7 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
   CHECK_ALIVE(VisitForValue(expr->left()));
   CHECK_ALIVE(VisitForValue(expr->right()));
 
-  if (FLAG_emit_opt_code_positions) SetSourcePosition(expr->position());
+  if (FLAG_hydrogen_track_positions) SetSourcePosition(expr->position());
 
   HValue* right = Pop();
   HValue* left = Pop();
@@ -9494,7 +9609,9 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
 
   HControlInstruction* compare = BuildCompareInstruction(
       op, left, right, left_type, right_type, combined_type,
-      expr->left()->position(), expr->right()->position(), expr->id());
+      ScriptPositionToSourcePosition(expr->left()->position()),
+      ScriptPositionToSourcePosition(expr->right()->position()),
+      expr->id());
   if (compare == NULL) return;  // Bailed out.
   return ast_context()->ReturnControl(compare, expr->id());
 }
@@ -9507,8 +9624,8 @@ HControlInstruction* HOptimizedGraphBuilder::BuildCompareInstruction(
     Type* left_type,
     Type* right_type,
     Type* combined_type,
-    int left_position,
-    int right_position,
+    HSourcePosition left_position,
+    HSourcePosition right_position,
     BailoutId bailout_id) {
   // Cases handled below depend on collected type feedback. They should
   // soft deoptimize when there is no type feedback.
@@ -9533,7 +9650,7 @@ HControlInstruction* HOptimizedGraphBuilder::BuildCompareInstruction(
         AddCheckMap(operand_to_check, map);
         HCompareObjectEqAndBranch* result =
             New<HCompareObjectEqAndBranch>(left, right);
-        if (FLAG_emit_opt_code_positions) {
+        if (FLAG_hydrogen_track_positions) {
           result->set_operand_position(zone(), 0, left_position);
           result->set_operand_position(zone(), 1, right_position);
         }
@@ -9584,7 +9701,7 @@ HControlInstruction* HOptimizedGraphBuilder::BuildCompareInstruction(
       HCompareNumericAndBranch* result =
           New<HCompareNumericAndBranch>(left, right, op);
       result->set_observed_input_representation(left_rep, right_rep);
-      if (FLAG_emit_opt_code_positions) {
+      if (FLAG_hydrogen_track_positions) {
         result->SetOperandPositions(zone(), left_position, right_position);
       }
       return result;
@@ -9600,7 +9717,7 @@ void HOptimizedGraphBuilder::HandleLiteralCompareNil(CompareOperation* expr,
   ASSERT(current_block() != NULL);
   ASSERT(current_block()->HasPredecessor());
   ASSERT(expr->op() == Token::EQ || expr->op() == Token::EQ_STRICT);
-  if (!FLAG_emit_opt_code_positions) SetSourcePosition(expr->position());
+  if (!FLAG_hydrogen_track_positions) SetSourcePosition(expr->position());
   CHECK_ALIVE(VisitForValue(sub_expr));
   HValue* value = Pop();
   if (expr->op() == Token::EQ_STRICT) {
@@ -10837,7 +10954,10 @@ void HTracer::TraceCompilation(CompilationInfo* info) {
   if (info->IsOptimizing()) {
     Handle<String> name = info->function()->debug_name();
     PrintStringProperty("name", name->ToCString().get());
-    PrintStringProperty("method", name->ToCString().get());
+    PrintIndent();
+    trace_.Add("method \"%s:%d\"\n",
+               name->ToCString().get(),
+               info->optimization_id());
   } else {
     CodeStub::Major major_key = info->code_stub()->MajorKey();
     PrintStringProperty("name", CodeStub::MajorName(major_key, false));
@@ -10951,14 +11071,22 @@ void HTracer::Trace(const char* name, HGraph* graph, LChunk* chunk) {
       Tag HIR_tag(this, "HIR");
       for (HInstructionIterator it(current); !it.Done(); it.Advance()) {
         HInstruction* instruction = it.Current();
-        int bci = FLAG_emit_opt_code_positions && instruction->has_position() ?
-            instruction->position() : 0;
         int uses = instruction->UseCount();
         PrintIndent();
-        trace_.Add("%d %d ", bci, uses);
+        trace_.Add("0 %d ", uses);
         instruction->PrintNameTo(&trace_);
         trace_.Add(" ");
         instruction->PrintTo(&trace_);
+        if (FLAG_hydrogen_track_positions &&
+            instruction->has_position() &&
+            instruction->position().raw() != 0) {
+          const HSourcePosition pos = instruction->position();
+          trace_.Add(" pos:");
+          if (pos.inlining_id() != 0) {
+            trace_.Add("%d_", pos.inlining_id());
+          }
+          trace_.Add("%d", pos.position());
+        }
         trace_.Add(" <|@\n");
       }
     }

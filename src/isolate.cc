@@ -1564,7 +1564,8 @@ Isolate::Isolate()
       sweeper_thread_(NULL),
       num_sweeper_threads_(0),
       max_available_threads_(0),
-      stress_deopt_count_(0) {
+      stress_deopt_count_(0),
+      next_optimization_id_(0) {
   id_ = NoBarrier_AtomicIncrement(&isolate_counter_, 1);
   TRACE_ISOLATE(constructor);
 

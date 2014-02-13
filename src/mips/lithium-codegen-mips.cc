@@ -267,7 +267,8 @@ bool LCodeGen::GenerateDeferredCode() {
 
       HValue* value =
           instructions_->at(code->instruction_index())->hydrogen_value();
-      RecordAndWritePosition(value->position());
+      RecordAndWritePosition(
+          chunk()->graph()->SourcePositionToScriptPosition(value->position()));
 
       Comment(";;; <@%d,#%d> "
               "-------------------- Deferred %s --------------------",
@@ -859,6 +860,7 @@ void LCodeGen::PopulateDeoptimizationData(Handle<Code> code) {
       translations_.CreateByteArray(isolate()->factory());
   data->SetTranslationByteArray(*translations);
   data->SetInlinedFunctionCount(Smi::FromInt(inlined_function_count_));
+  data->SetOptimizationId(Smi::FromInt(info_->optimization_id()));
 
   Handle<FixedArray> literals =
       factory()->NewFixedArray(deoptimization_literals_.length(), TENURED);

@@ -110,7 +110,7 @@ class HBasicBlock V8_FINAL : public ZoneObject {
   bool IsFinished() const { return end_ != NULL; }
   void AddPhi(HPhi* phi);
   void RemovePhi(HPhi* phi);
-  void AddInstruction(HInstruction* instr, int position);
+  void AddInstruction(HInstruction* instr, HSourcePosition position);
   bool Dominates(HBasicBlock* other) const;
   bool EqualToOrDominates(HBasicBlock* other) const;
   int LoopNestingDepth() const;
@@ -137,7 +137,7 @@ class HBasicBlock V8_FINAL : public ZoneObject {
   int PredecessorIndexOf(HBasicBlock* predecessor) const;
   HPhi* AddNewPhi(int merged_index);
   HSimulate* AddNewSimulate(BailoutId ast_id,
-                            int position,
+                            HSourcePosition position,
                             RemovableSimulate removable = FIXED_SIMULATE) {
     HSimulate* instr = CreateSimulate(ast_id, removable);
     AddInstruction(instr, position);
@@ -186,13 +186,13 @@ class HBasicBlock V8_FINAL : public ZoneObject {
   friend class HGraphBuilder;
 
   HSimulate* CreateSimulate(BailoutId ast_id, RemovableSimulate removable);
-  void Finish(HControlInstruction* last, int position);
-  void FinishExit(HControlInstruction* instruction, int position);
+  void Finish(HControlInstruction* last, HSourcePosition position);
+  void FinishExit(HControlInstruction* instruction, HSourcePosition position);
   void Goto(HBasicBlock* block,
-            int position,
+            HSourcePosition position,
             FunctionState* state = NULL,
             bool add_simulate = true);
-  void GotoNoSimulate(HBasicBlock* block, int position) {
+  void GotoNoSimulate(HBasicBlock* block, HSourcePosition position) {
     Goto(block, position, NULL, false);
   }
 
@@ -200,7 +200,7 @@ class HBasicBlock V8_FINAL : public ZoneObject {
   // instruction and updating the bailout environment.
   void AddLeaveInlined(HValue* return_value,
                        FunctionState* state,
-                       int position);
+                       HSourcePosition position);
 
  private:
   void RegisterPredecessor(HBasicBlock* pred);
@@ -471,6 +471,16 @@ class HGraph V8_FINAL : public ZoneObject {
   void DecrementInNoSideEffectsScope() { no_side_effects_scope_count_--; }
   bool IsInsideNoSideEffectsScope() { return no_side_effects_scope_count_ > 0; }
 
+  // If we are tracking source positions then this function assigns a unique
+  // identifier to each inlining and dumps function source if it was inlined
+  // for the first time during the current optimization.
+  int TraceInlinedFunction(Handle<SharedFunctionInfo> shared,
+                           HSourcePosition position);
+
+  // Converts given HSourcePosition to the absolute offset from the start of
+  // the corresponding script.
+  int SourcePositionToScriptPosition(HSourcePosition position);
+
  private:
   HConstant* ReinsertConstantIfNecessary(HConstant* constant);
   HConstant* GetConstant(SetOncePointer<HConstant>* pointer,
@@ -515,6 +525,23 @@ class HGraph V8_FINAL : public ZoneObject {
   int maximum_environment_size_;
   int no_side_effects_scope_count_;
   bool disallow_adding_new_values_;
+
+  class InlinedFunctionInfo {
+   public:
+    explicit InlinedFunctionInfo(Handle<SharedFunctionInfo> shared)
+      : shared_(shared), start_position_(shared->start_position()) {
+    }
+
+    Handle<SharedFunctionInfo> shared() const { return shared_; }
+    int start_position() const { return start_position_; }
+
+   private:
+    Handle<SharedFunctionInfo> shared_;
+    int start_position_;
+  };
+
+  int next_inline_id_;
+  ZoneList<InlinedFunctionInfo> inlined_functions_;
 
   DISALLOW_COPY_AND_ASSIGN(HGraph);
 };
@@ -882,7 +909,8 @@ class FunctionState V8_FINAL {
  public:
   FunctionState(HOptimizedGraphBuilder* owner,
                 CompilationInfo* info,
-                InliningKind inlining_kind);
+                InliningKind inlining_kind,
+                int inlining_id);
   ~FunctionState();
 
   CompilationInfo* compilation_info() { return compilation_info_; }
@@ -912,6 +940,8 @@ class FunctionState V8_FINAL {
 
   bool arguments_pushed() { return arguments_elements() != NULL; }
 
+  int inlining_id() const { return inlining_id_; }
+
  private:
   HOptimizedGraphBuilder* owner_;
 
@@ -940,6 +970,9 @@ class FunctionState V8_FINAL {
 
   HArgumentsObject* arguments_object_;
   HArgumentsElements* arguments_elements_;
+
+  int inlining_id_;
+  HSourcePosition outer_source_position_;
 
   FunctionState* outer_;
 };
@@ -1024,7 +1057,8 @@ class HGraphBuilder {
       : info_(info),
         graph_(NULL),
         current_block_(NULL),
-        position_(RelocInfo::kNoPosition) {}
+        position_(HSourcePosition::Unknown()),
+        start_position_(0) {}
   virtual ~HGraphBuilder() {}
 
   HBasicBlock* current_block() const { return current_block_; }
@@ -1054,7 +1088,7 @@ class HGraphBuilder {
             HBasicBlock* target,
             FunctionState* state = NULL,
             bool add_simulate = true) {
-    from->Goto(target, position_, state, add_simulate);
+    from->Goto(target, source_position(), state, add_simulate);
   }
   void Goto(HBasicBlock* target,
             FunctionState* state = NULL,
@@ -1070,7 +1104,7 @@ class HGraphBuilder {
   void AddLeaveInlined(HBasicBlock* block,
                        HValue* return_value,
                        FunctionState* state) {
-    block->AddLeaveInlined(return_value, state, position_);
+    block->AddLeaveInlined(return_value, state, source_position());
   }
   void AddLeaveInlined(HValue* return_value, FunctionState* state) {
     return AddLeaveInlined(current_block(), return_value, state);
@@ -1275,8 +1309,6 @@ class HGraphBuilder {
   }
 
   void AddSimulate(BailoutId id, RemovableSimulate removable = FIXED_SIMULATE);
-
-  int position() const { return position_; }
 
  protected:
   virtual bool BuildGraph() = 0;
@@ -1778,6 +1810,27 @@ class HGraphBuilder {
  protected:
   void SetSourcePosition(int position) {
     ASSERT(position != RelocInfo::kNoPosition);
+    position_.set_position(position - start_position_);
+  }
+
+  void EnterInlinedSource(int start_position, int id) {
+    if (FLAG_hydrogen_track_positions) {
+      start_position_ = start_position;
+      position_.set_inlining_id(id);
+    }
+  }
+
+  // Convert the given absolute offset from the start of the script to
+  // the HSourcePosition assuming that this position corresponds to the
+  // same function as current position_.
+  HSourcePosition ScriptPositionToSourcePosition(int position) {
+    HSourcePosition pos = position_;
+    pos.set_position(position - start_position_);
+    return pos;
+  }
+
+  HSourcePosition source_position() { return position_; }
+  void set_source_position(HSourcePosition position) {
     position_ = position;
   }
 
@@ -1805,7 +1858,8 @@ class HGraphBuilder {
   CompilationInfo* info_;
   HGraph* graph_;
   HBasicBlock* current_block_;
-  int position_;
+  HSourcePosition position_;
+  int start_position_;
 };
 
 
@@ -2209,7 +2263,8 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
                  HValue* implicit_return_value,
                  BailoutId ast_id,
                  BailoutId return_id,
-                 InliningKind inlining_kind);
+                 InliningKind inlining_kind,
+                 HSourcePosition position);
 
   bool TryInlineCall(Call* expr);
   bool TryInlineConstruct(CallNew* expr, HValue* implicit_return_value);
@@ -2419,8 +2474,8 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
                                                Type* left_type,
                                                Type* right_type,
                                                Type* combined_type,
-                                               int left_position,
-                                               int right_position,
+                                               HSourcePosition left_position,
+                                               HSourcePosition right_position,
                                                BailoutId bailout_id);
 
   HInstruction* BuildStringCharCodeAt(HValue* string,

@@ -4995,7 +4995,8 @@ class DeoptimizationInputData: public FixedArray {
   static const int kLiteralArrayIndex = 2;
   static const int kOsrAstIdIndex = 3;
   static const int kOsrPcOffsetIndex = 4;
-  static const int kFirstDeoptEntryIndex = 5;
+  static const int kOptimizationIdIndex = 5;
+  static const int kFirstDeoptEntryIndex = 6;
 
   // Offsets of deopt entry elements relative to the start of the entry.
   static const int kAstIdRawOffset = 0;
@@ -5018,6 +5019,7 @@ class DeoptimizationInputData: public FixedArray {
   DEFINE_ELEMENT_ACCESSORS(LiteralArray, FixedArray)
   DEFINE_ELEMENT_ACCESSORS(OsrAstId, Smi)
   DEFINE_ELEMENT_ACCESSORS(OsrPcOffset, Smi)
+  DEFINE_ELEMENT_ACCESSORS(OptimizationId, Smi)
 
 #undef DEFINE_ELEMENT_ACCESSORS
 

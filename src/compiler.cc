@@ -60,7 +60,8 @@ CompilationInfo::CompilationInfo(Handle<Script> script,
       script_(script),
       osr_ast_id_(BailoutId::None()),
       parameter_count_(0),
-      this_has_uses_(true) {
+      this_has_uses_(true),
+      optimization_id_(-1) {
   Initialize(script->GetIsolate(), BASE, zone);
 }
 
@@ -72,7 +73,8 @@ CompilationInfo::CompilationInfo(Handle<SharedFunctionInfo> shared_info,
       script_(Handle<Script>(Script::cast(shared_info->script()))),
       osr_ast_id_(BailoutId::None()),
       parameter_count_(0),
-      this_has_uses_(true) {
+      this_has_uses_(true),
+      optimization_id_(-1) {
   Initialize(script_->GetIsolate(), BASE, zone);
 }
 
@@ -86,7 +88,8 @@ CompilationInfo::CompilationInfo(Handle<JSFunction> closure,
       context_(closure->context()),
       osr_ast_id_(BailoutId::None()),
       parameter_count_(0),
-      this_has_uses_(true) {
+      this_has_uses_(true),
+      optimization_id_(-1) {
   Initialize(script_->GetIsolate(), BASE, zone);
 }
 
@@ -98,7 +101,8 @@ CompilationInfo::CompilationInfo(HydrogenCodeStub* stub,
              IsLazy::encode(true)),
       osr_ast_id_(BailoutId::None()),
       parameter_count_(0),
-      this_has_uses_(true) {
+      this_has_uses_(true),
+      optimization_id_(-1) {
   Initialize(isolate, STUB, zone);
   code_stub_ = stub;
 }
@@ -405,7 +409,7 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
   // Type-check the function.
   AstTyper::Run(info());
 
-  graph_builder_ = FLAG_emit_opt_code_positions
+  graph_builder_ = FLAG_hydrogen_track_positions
       ? new(info()->zone()) HOptimizedGraphBuilderWithPositions(info())
       : new(info()->zone()) HOptimizedGraphBuilder(info());
 

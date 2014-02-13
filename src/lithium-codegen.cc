@@ -107,11 +107,9 @@ bool LCodeGenBase::GenerateBody() {
     GenerateBodyInstructionPre(instr);
 
     HValue* value = instr->hydrogen_value();
-    if (value->position() != RelocInfo::kNoPosition) {
-      ASSERT(!graph()->info()->IsOptimizing() ||
-             !FLAG_emit_opt_code_positions ||
-             value->position() != RelocInfo::kNoPosition);
-      RecordAndWritePosition(value->position());
+    if (!value->position().IsUnknown()) {
+      RecordAndWritePosition(
+        chunk()->graph()->SourcePositionToScriptPosition(value->position()));
     }
 
     instr->CompileToNative(codegen);
