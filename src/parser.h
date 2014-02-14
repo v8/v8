@@ -570,7 +570,6 @@ class Parser : public ParserBase<ParserTraits> {
   }
 
   bool inside_with() const { return scope_->inside_with(); }
-  Scanner& scanner()  { return scanner_; }
   Mode mode() const { return mode_; }
   ScriptDataImpl* pre_parse_data() const { return pre_parse_data_; }
   bool is_extended_mode() {
@@ -669,12 +668,12 @@ class Parser : public ParserBase<ParserTraits> {
   bool CheckInOrOf(bool accept_OF, ForEachStatement::VisitMode* visit_mode);
 
   Handle<String> LiteralString(PretenureFlag tenured) {
-    if (scanner().is_literal_ascii()) {
+    if (scanner()->is_literal_ascii()) {
       return isolate_->factory()->NewStringFromAscii(
-          scanner().literal_ascii_string(), tenured);
+          scanner()->literal_ascii_string(), tenured);
     } else {
       return isolate_->factory()->NewStringFromTwoByte(
-            scanner().literal_utf16_string(), tenured);
+            scanner()->literal_utf16_string(), tenured);
     }
   }
 
