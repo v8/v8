@@ -2155,6 +2155,32 @@ void FullCodeGenerator::EmitAssignment(Expression* expr) {
 }
 
 
+void FullCodeGenerator::EmitStoreToStackLocalOrContextSlot(
+    Variable* var, MemOperand location) {
+  __ Str(result_register(), location);
+  if (var->IsContextSlot()) {
+    // RecordWrite may destroy all its register arguments.
+    __ Mov(x10, result_register());
+    int offset = Context::SlotOffset(var->index());
+    __ RecordWriteContextSlot(
+        x1, offset, x10, x11, kLRHasBeenSaved, kDontSaveFPRegs);
+  }
+}
+
+
+void FullCodeGenerator::EmitCallStoreContextSlot(
+    Handle<String> name, LanguageMode mode) {
+  __ Mov(x11, Operand(name));
+  __ Mov(x10, Operand(Smi::FromInt(mode)));
+  // jssp[0]  : mode.
+  // jssp[8]  : name.
+  // jssp[16] : context.
+  // jssp[24] : value.
+  __ Push(x0, cp, x11, x10);
+  __ CallRuntime(Runtime::kStoreContextSlot, 4);
+}
+
+
 void FullCodeGenerator::EmitVariableAssignment(Variable* var,
                                                Token::Value op) {
   ASM_LOCATION("FullCodeGenerator::EmitVariableAssignment");
@@ -2167,33 +2193,25 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
   } else if (op == Token::INIT_CONST) {
     // Const initializers need a write barrier.
     ASSERT(!var->IsParameter());  // No const parameters.
-    if (var->IsStackLocal()) {
-      Label skip;
-      __ Ldr(x1, StackOperand(var));
-      __ JumpIfNotRoot(x1, Heap::kTheHoleValueRootIndex, &skip);
-      __ Str(result_register(), StackOperand(var));
-      __ Bind(&skip);
-    } else {
-      ASSERT(var->IsContextSlot() || var->IsLookupSlot());
-      // Like var declarations, const declarations are hoisted to function
-      // scope.  However, unlike var initializers, const initializers are
-      // able to drill a hole to that function context, even from inside a
-      // 'with' context.  We thus bypass the normal static scope lookup for
-      // var->IsContextSlot().
+    if (var->IsLookupSlot()) {
       __ Push(x0);
       __ Mov(x0, Operand(var->name()));
       __ Push(cp, x0);  // Context and name.
       __ CallRuntime(Runtime::kInitializeConstContextSlot, 3);
+    } else {
+      ASSERT(var->IsStackLocal() || var->IsContextSlot());
+      Label skip;
+      MemOperand location = VarOperand(var, x1);
+      __ Ldr(x10, location);
+      __ JumpIfNotRoot(x10, Heap::kTheHoleValueRootIndex, &skip);
+      EmitStoreToStackLocalOrContextSlot(var, location);
+      __ Bind(&skip);
     }
 
   } else if (var->mode() == LET && op != Token::INIT_LET) {
     // Non-initializing assignment to let variable needs a write barrier.
     if (var->IsLookupSlot()) {
-      __ Push(x0, cp);  // Context, value.
-      __ Mov(x11, Operand(var->name()));
-      __ Mov(x10, Operand(Smi::FromInt(language_mode())));
-      __ Push(x11, x10);  // Strict mode, name.
-      __ CallRuntime(Runtime::kStoreContextSlot, 4);
+      EmitCallStoreContextSlot(var->name(), language_mode());
     } else {
       ASSERT(var->IsStackAllocated() || var->IsContextSlot());
       Label assign;
@@ -2205,44 +2223,23 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
       __ CallRuntime(Runtime::kThrowReferenceError, 1);
       // Perform the assignment.
       __ Bind(&assign);
-      __ Str(result_register(), location);
-      if (var->IsContextSlot()) {
-        // RecordWrite may destroy all its register arguments.
-        __ Mov(x10, result_register());
-        int offset = Context::SlotOffset(var->index());
-        __ RecordWriteContextSlot(
-            x1, offset, x10, x11, kLRHasBeenSaved, kDontSaveFPRegs);
-      }
+      EmitStoreToStackLocalOrContextSlot(var, location);
     }
 
   } else if (!var->is_const_mode() || op == Token::INIT_CONST_HARMONY) {
     // Assignment to var or initializing assignment to let/const
     // in harmony mode.
-    if (var->IsStackAllocated() || var->IsContextSlot()) {
+    if (var->IsLookupSlot()) {
+      EmitCallStoreContextSlot(var->name(), language_mode());
+    } else {
+      ASSERT(var->IsStackAllocated() || var->IsContextSlot());
       MemOperand location = VarOperand(var, x1);
       if (FLAG_debug_code && op == Token::INIT_LET) {
         __ Ldr(x10, location);
         __ CompareRoot(x10, Heap::kTheHoleValueRootIndex);
         __ Check(eq, kLetBindingReInitialization);
       }
-      // Perform the assignment.
-      __ Str(x0, location);
-      if (var->IsContextSlot()) {
-        __ Mov(x10, x0);
-        int offset = Context::SlotOffset(var->index());
-        __ RecordWriteContextSlot(
-            x1, offset, x10, x11, kLRHasBeenSaved, kDontSaveFPRegs);
-      }
-    } else {
-      ASSERT(var->IsLookupSlot());
-      __ Mov(x11, Operand(var->name()));
-      __ Mov(x10, Operand(Smi::FromInt(language_mode())));
-      // jssp[0]  : mode.
-      // jssp[8]  : name.
-      // jssp[16] : context.
-      // jssp[24] : value.
-      __ Push(x0, cp, x11, x10);
-      __ CallRuntime(Runtime::kStoreContextSlot, 4);
+      EmitStoreToStackLocalOrContextSlot(var, location);
     }
   }
   // Non-initializing assignments to consts are ignored.
