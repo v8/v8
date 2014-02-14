@@ -689,9 +689,7 @@ Handle<Code> StubCompiler::CompileLoadPreMonomorphic(Code::Flags flags) {
 
 
 Handle<Code> StubCompiler::CompileLoadMegamorphic(Code::Flags flags) {
-  ExtraICState extra_state = Code::ExtractExtraICStateFromFlags(flags);
-  ContextualMode mode = LoadIC::GetContextualMode(extra_state);
-  LoadIC::GenerateMegamorphic(masm(), mode);
+  LoadIC::GenerateMegamorphic(masm());
   Handle<Code> code = GetCodeWithFlags(flags, "CompileLoadMegamorphic");
   PROFILE(isolate(),
           CodeCreateEvent(Logger::LOAD_MEGAMORPHIC_TAG, *code, 0));
@@ -733,8 +731,7 @@ Handle<Code> StubCompiler::CompileStoreGeneric(Code::Flags flags) {
 
 
 Handle<Code> StubCompiler::CompileStoreMegamorphic(Code::Flags flags) {
-  ExtraICState extra_state = Code::ExtractExtraICStateFromFlags(flags);
-  StoreIC::GenerateMegamorphic(masm(), extra_state);
+  StoreIC::GenerateMegamorphic(masm());
   Handle<Code> code = GetCodeWithFlags(flags, "CompileStoreMegamorphic");
   PROFILE(isolate(),
           CodeCreateEvent(Logger::STORE_MEGAMORPHIC_TAG, *code, 0));
@@ -1235,8 +1232,8 @@ Handle<Code> BaseLoadStoreStubCompiler::GetICCode(Code::Kind kind,
 Handle<Code> BaseLoadStoreStubCompiler::GetCode(Code::Kind kind,
                                                 Code::StubType type,
                                                 Handle<Name> name) {
-  Code::Flags flags = Code::ComputeHandlerFlags(
-      kind, extra_state(), type, cache_holder_);
+  ASSERT_EQ(kNoExtraICState, extra_state());
+  Code::Flags flags = Code::ComputeHandlerFlags(kind, type, cache_holder_);
   Handle<Code> code = GetCodeWithFlags(flags, name);
   PROFILE(isolate(), CodeCreateEvent(log_kind(code), *code, *name));
   JitEvent(name, code);

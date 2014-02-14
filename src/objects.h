@@ -5385,7 +5385,6 @@ class Code: public HeapObject {
 
   static inline Flags ComputeHandlerFlags(
       Kind handler_kind,
-      ExtraICState extra_ic_state = kNoExtraICState,
       StubType type = NORMAL,
       InlineCacheHolderFlag holder = OWN_MAP);
 
@@ -5612,8 +5611,6 @@ class Code: public HeapObject {
       kIsCrankshaftedBit + 1, 29> {};  // NOLINT
   class BackEdgesPatchedForOSRField: public BitField<bool,
       kIsCrankshaftedBit + 1 + 29, 1> {};  // NOLINT
-
-  class HandlerKindField: public BitField<Kind, 17, 4> {};
 
   static const int kArgumentsBits = 16;
   static const int kMaxArguments = (1 << kArgumentsBits) - 1;

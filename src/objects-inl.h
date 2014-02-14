@@ -4498,11 +4498,9 @@ Code::Flags Code::ComputeMonomorphicFlags(Kind kind,
 
 
 Code::Flags Code::ComputeHandlerFlags(Kind handler_kind,
-                                      ExtraICState extra_ic_state,
                                       StubType type,
                                       InlineCacheHolderFlag holder) {
-  ExtraICState extra = HandlerKindField::encode(handler_kind) | extra_ic_state;
-  return ComputeFlags(Code::HANDLER, MONOMORPHIC, extra, type, holder);
+  return ComputeFlags(Code::HANDLER, MONOMORPHIC, handler_kind, type, holder);
 }
 
 
