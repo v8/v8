@@ -5406,8 +5406,12 @@ void CallApiFunctionStub::Generate(MacroAssembler* masm) {
   Operand context_restore_operand(ebp,
                                   (2 + FCA::kContextSaveIndex) * kPointerSize);
   // Stores return the first js argument
-  int return_value_offset =
-      2 + (is_store ? FCA::kArgsLength : FCA::kReturnValueOffset);
+  int return_value_offset = 0;
+  if (is_store) {
+    return_value_offset = 2 + FCA::kArgsLength;
+  } else {
+    return_value_offset = 2 + FCA::kReturnValueOffset;
+  }
   Operand return_value_operand(ebp, return_value_offset * kPointerSize);
   __ CallApiFunctionAndReturn(api_function_address,
                               thunk_address,
