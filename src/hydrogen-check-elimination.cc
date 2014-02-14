@@ -152,11 +152,11 @@ class HCheckTable : public ZoneObject {
       HCheckTableEntry* new_entry = &copy->entries_[i];
       new_entry->object_ = old_entry->object_;
       new_entry->maps_ = old_entry->maps_->Copy(phase_->zone());
+      new_entry->is_stable_ = old_entry->is_stable_;
       // Keep the check if the existing check's block dominates the successor.
       if (old_entry->check_ != NULL &&
           old_entry->check_->block()->Dominates(succ)) {
         new_entry->check_ = old_entry->check_;
-        new_entry->is_stable_ = old_entry->is_stable_;
       } else {
         // Leave it NULL till we meet a new check instruction for this object
         // in the control flow.
