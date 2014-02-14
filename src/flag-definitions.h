@@ -530,6 +530,7 @@ DEFINE_bool(parallel_sweeping, true, "enable parallel sweeping")
 DEFINE_bool(concurrent_sweeping, false, "enable concurrent sweeping")
 DEFINE_int(sweeper_threads, 0,
            "number of parallel and concurrent sweeping threads")
+DEFINE_bool(job_based_sweeping, false, "enable job based sweeping")
 #ifdef VERIFY_HEAP
 DEFINE_bool(verify_heap, false, "verify heap pointers before and after GC")
 #endif
@@ -822,6 +823,9 @@ DEFINE_bool(redirect_code_traces, false,
 DEFINE_string(redirect_code_traces_to, NULL,
             "output deopt information and disassembly into the given file")
 
+DEFINE_bool(hydrogen_track_positions, false,
+            "track source code positions when building IR")
+
 //
 // Disassembler only flags
 //
@@ -854,8 +858,6 @@ DEFINE_bool(print_unopt_code, false, "print unoptimized code before "
             "printing optimized code based on it")
 DEFINE_bool(print_code_verbose, false, "print more information for code")
 DEFINE_bool(print_builtin_code, false, "print generated code for builtins")
-DEFINE_bool(emit_opt_code_positions, false,
-            "annotate optimize code with source code positions")
 
 #ifdef ENABLE_DISASSEMBLER
 DEFINE_bool(sodium, false, "print generated code output suitable for use with "
@@ -864,7 +866,7 @@ DEFINE_bool(sodium, false, "print generated code output suitable for use with "
 DEFINE_implication(sodium, print_code_stubs)
 DEFINE_implication(sodium, print_code)
 DEFINE_implication(sodium, print_opt_code)
-DEFINE_implication(sodium, emit_opt_code_positions)
+DEFINE_implication(sodium, hydrogen_track_positions)
 DEFINE_implication(sodium, code_comments)
 
 DEFINE_bool(print_all_code, false, "enable all flags related to printing code")

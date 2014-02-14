@@ -34,6 +34,7 @@
 #include "heap-profiler.h"
 #include "debug.h"
 #include "types.h"
+#include "v8conversions.h"
 
 namespace v8 {
 namespace internal {
@@ -899,10 +900,16 @@ HeapEntry* V8HeapExplorer::AddEntry(HeapObject* object) {
 HeapEntry* V8HeapExplorer::AddEntry(HeapObject* object,
                                     HeapEntry::Type type,
                                     const char* name) {
-  int object_size = object->Size();
-  SnapshotObjectId object_id =
-      heap_object_map_->FindOrAddEntry(object->address(), object_size);
-  return snapshot_->AddEntry(type, name, object_id, object_size);
+  return AddEntry(object->address(), type, name, object->Size());
+}
+
+
+HeapEntry* V8HeapExplorer::AddEntry(Address address,
+                                    HeapEntry::Type type,
+                                    const char* name,
+                                    int size) {
+  SnapshotObjectId object_id = heap_object_map_->FindOrAddEntry(address, size);
+  return snapshot_->AddEntry(type, name, object_id, size);
 }
 
 
@@ -1029,6 +1036,8 @@ void V8HeapExplorer::ExtractReferences(HeapObject* obj) {
 
   if (obj->IsJSGlobalProxy()) {
     ExtractJSGlobalProxyReferences(entry, JSGlobalProxy::cast(obj));
+  } else if (obj->IsJSArrayBuffer()) {
+    ExtractJSArrayBufferReferences(entry, JSArrayBuffer::cast(obj));
   } else if (obj->IsJSObject()) {
     ExtractJSObjectReferences(entry, JSObject::cast(obj));
   } else if (obj->IsString()) {
@@ -1147,13 +1156,6 @@ void V8HeapExplorer::ExtractJSObjectReferences(
                          JSArrayBufferView::kBufferOffset);
     SetWeakReference(view, entry, "weak_next", view->weak_next(),
                      JSArrayBufferView::kWeakNextOffset);
-  } else if (obj->IsJSArrayBuffer()) {
-    JSArrayBuffer* buffer = JSArrayBuffer::cast(obj);
-    SetWeakReference(buffer, entry, "weak_next", buffer->weak_next(),
-                     JSArrayBuffer::kWeakNextOffset);
-    SetWeakReference(buffer, entry,
-                     "weak_first_view", buffer->weak_first_view(),
-                     JSArrayBuffer::kWeakFirstViewOffset);
   }
   TagObject(js_obj->properties(), "(object properties)");
   SetInternalReference(obj, entry,
@@ -1451,6 +1453,25 @@ void V8HeapExplorer::ExtractAllocationSiteReferences(int entry,
   // and we're not very interested in weak_next field here.
   STATIC_CHECK(AllocationSite::kWeakNextOffset >=
                AllocationSite::BodyDescriptor::kEndOffset);
+}
+
+
+void V8HeapExplorer::ExtractJSArrayBufferReferences(
+    int entry, JSArrayBuffer* buffer) {
+  SetWeakReference(buffer, entry, "weak_next", buffer->weak_next(),
+                   JSArrayBuffer::kWeakNextOffset);
+  SetWeakReference(buffer, entry,
+                   "weak_first_view", buffer->weak_first_view(),
+                   JSArrayBuffer::kWeakFirstViewOffset);
+  // Setup a reference to a native memory backing_store object.
+  size_t data_size = NumberToSize(heap_->isolate(), buffer->byte_length());
+  CHECK(data_size <= static_cast<size_t>(kMaxInt));
+  HeapEntry* data_entry = AddEntry(
+      static_cast<Address>(buffer->backing_store()),
+      HeapEntry::kNative, "system / ArrayBufferData",
+      static_cast<int>(data_size));
+  filler_->SetNamedReference(HeapGraphEdge::kInternal,
+                             entry, "backing_store", data_entry);
 }
 
 

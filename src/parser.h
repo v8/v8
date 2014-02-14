@@ -409,18 +409,41 @@ class SingletonLogger;
 
 class ParserTraits {
  public:
-  typedef Parser* ParserType;
-  // Return types for traversing functions.
-  typedef Handle<String> IdentifierType;
-  typedef Expression* ExpressionType;
+  struct Type {
+    typedef v8::internal::Parser* Parser;
+
+    // Types used by FunctionState and BlockState.
+    typedef v8::internal::Scope Scope;
+    typedef AstNodeFactory<AstConstructionVisitor> Factory;
+    typedef Variable GeneratorVariable;
+    typedef v8::internal::Zone Zone;
+
+    // Return types for traversing functions.
+    typedef Handle<String> Identifier;
+    typedef v8::internal::Expression* Expression;
+  };
 
   explicit ParserTraits(Parser* parser) : parser_(parser) {}
 
+  // Custom operations executed when FunctionStates are created and destructed.
+  template<typename FS>
+  static void SetUpFunctionState(FS* function_state, Zone* zone) {
+    Isolate* isolate = zone->isolate();
+    function_state->isolate_ = isolate;
+    function_state->saved_ast_node_id_ = isolate->ast_node_id();
+    isolate->set_ast_node_id(BailoutId::FirstUsable().ToInt());
+  }
+
+  template<typename FS>
+  static void TearDownFunctionState(FS* function_state) {
+    if (function_state->outer_function_state_ != NULL) {
+      function_state->isolate_->set_ast_node_id(
+          function_state->saved_ast_node_id_);
+    }
+  }
+
   // Helper functions for recursive descent.
-  bool is_classic_mode() const;
-  bool is_generator() const;
   bool IsEvalOrArguments(Handle<String> identifier) const;
-  int NextMaterializedLiteralIndex();
 
   // Reporting errors.
   void ReportMessageAt(Scanner::Location source_location,
@@ -432,20 +455,16 @@ class ParserTraits {
                        Vector<Handle<String> > args);
 
   // "null" return type creators.
-  static IdentifierType EmptyIdentifier() {
+  static Handle<String> EmptyIdentifier() {
     return Handle<String>();
   }
-  static ExpressionType EmptyExpression() {
+  static Expression* EmptyExpression() {
     return NULL;
   }
 
   // Producing data during the recursive descent.
-  IdentifierType GetSymbol();
-  IdentifierType NextLiteralString(PretenureFlag tenured);
-  ExpressionType NewRegExpLiteral(IdentifierType js_pattern,
-                                  IdentifierType js_flags,
-                                  int literal_index,
-                                  int pos);
+  Handle<String> GetSymbol();
+  Handle<String> NextLiteralString(PretenureFlag tenured);
 
  private:
   Parser* parser_;
@@ -492,68 +511,6 @@ class Parser : public ParserBase<ParserTraits> {
   enum VariableDeclarationProperties {
     kHasInitializers,
     kHasNoInitializers
-  };
-
-  class BlockState;
-
-  class FunctionState BASE_EMBEDDED {
-   public:
-    FunctionState(FunctionState** function_state_stack,
-                  Scope** scope_stack, Scope* scope,
-                  Zone* zone);
-    ~FunctionState();
-
-    int NextMaterializedLiteralIndex() {
-      return next_materialized_literal_index_++;
-    }
-    int materialized_literal_count() {
-      return next_materialized_literal_index_ - JSFunction::kLiteralsPrefixSize;
-    }
-
-    int NextHandlerIndex() { return next_handler_index_++; }
-    int handler_count() { return next_handler_index_; }
-
-    void AddProperty() { expected_property_count_++; }
-    int expected_property_count() { return expected_property_count_; }
-
-    void set_generator_object_variable(Variable *variable) {
-      ASSERT(variable != NULL);
-      ASSERT(!is_generator());
-      generator_object_variable_ = variable;
-    }
-    Variable* generator_object_variable() const {
-      return generator_object_variable_;
-    }
-    bool is_generator() const {
-      return generator_object_variable_ != NULL;
-    }
-
-    AstNodeFactory<AstConstructionVisitor>* factory() { return &factory_; }
-
-   private:
-    // Used to assign an index to each literal that needs materialization in
-    // the function.  Includes regexp literals, and boilerplate for object and
-    // array literals.
-    int next_materialized_literal_index_;
-
-    // Used to assign a per-function index to try and catch handlers.
-    int next_handler_index_;
-
-    // Properties count estimation.
-    int expected_property_count_;
-
-    // For generators, the variable that holds the generator object.  This
-    // variable is used by yield expressions and return statements.  NULL
-    // indicates that this function is not a generator.
-    Variable* generator_object_variable_;
-
-    FunctionState** function_state_stack_;
-    FunctionState* outer_function_state_;
-    Scope** scope_stack_;
-    Scope* outer_scope_;
-    Isolate* isolate_;
-    int saved_ast_node_id_;
-    AstNodeFactory<AstConstructionVisitor> factory_;
   };
 
   class ParsingModeScope BASE_EMBEDDED {
@@ -770,19 +727,13 @@ class Parser : public ParserBase<ParserTraits> {
   PreParser::PreParseResult LazyParseFunctionLiteral(
        SingletonLogger* logger);
 
-  AstNodeFactory<AstConstructionVisitor>* factory() {
-    return function_state_->factory();
-  }
-
   Isolate* isolate_;
   ZoneList<Handle<String> > symbol_cache_;
 
   Handle<Script> script_;
   Scanner scanner_;
   PreParser* reusable_preparser_;
-  Scope* scope_;  // Scope stack.
   Scope* original_scope_;  // for ES5 function declarations in sloppy eval
-  FunctionState* function_state_;  // Function state stack.
   Target* target_stack_;  // for break, continue statements
   v8::Extension* extension_;
   ScriptDataImpl* pre_parse_data_;

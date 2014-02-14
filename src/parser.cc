@@ -463,58 +463,6 @@ class TargetScope BASE_EMBEDDED {
 
 
 // ----------------------------------------------------------------------------
-// FunctionState and BlockState together implement the parser's scope stack.
-// The parser's current scope is in scope_.  The BlockState and
-// FunctionState constructors push on the scope stack and the destructors
-// pop.  They are also used to hold the parser's per-function and per-block
-// state.
-
-class Parser::BlockState BASE_EMBEDDED {
- public:
-  BlockState(Scope** scope_stack, Scope* scope)
-      : scope_stack_(scope_stack),
-        outer_scope_(*scope_stack) {
-    *scope_stack = scope;
-  }
-
-  ~BlockState() { *scope_stack_ = outer_scope_; }
-
- private:
-  Scope** scope_stack_;
-  Scope* outer_scope_;
-};
-
-
-Parser::FunctionState::FunctionState(FunctionState** function_state_stack,
-                                     Scope** scope_stack, Scope* scope,
-                                     Zone* zone)
-    : next_materialized_literal_index_(JSFunction::kLiteralsPrefixSize),
-      next_handler_index_(0),
-      expected_property_count_(0),
-      generator_object_variable_(NULL),
-      function_state_stack_(function_state_stack),
-      outer_function_state_(*function_state_stack),
-      scope_stack_(scope_stack),
-      outer_scope_(*scope_stack),
-      isolate_(zone->isolate()),
-      saved_ast_node_id_(isolate_->ast_node_id()),
-      factory_(zone) {
-  *scope_stack_ = scope;
-  *function_state_stack = this;
-  isolate_->set_ast_node_id(BailoutId::FirstUsable().ToInt());
-}
-
-
-Parser::FunctionState::~FunctionState() {
-  *scope_stack_ = outer_scope_;
-  *function_state_stack_ = outer_function_state_;
-  if (outer_function_state_ != NULL) {
-    isolate_->set_ast_node_id(saved_ast_node_id_);
-  }
-}
-
-
-// ----------------------------------------------------------------------------
 // The CHECK_OK macro is a convenient macro to enforce error
 // handling for functions that may fail (by returning !*ok).
 //
@@ -537,26 +485,11 @@ Parser::FunctionState::~FunctionState() {
 // ----------------------------------------------------------------------------
 // Implementation of Parser
 
-bool ParserTraits::is_classic_mode() const {
-  return parser_->scope_->is_classic_mode();
-}
-
-
-bool ParserTraits::is_generator() const {
-  return parser_->function_state_->is_generator();
-}
-
-
 bool ParserTraits::IsEvalOrArguments(Handle<String> identifier) const {
   return identifier.is_identical_to(
              parser_->isolate()->factory()->eval_string()) ||
          identifier.is_identical_to(
              parser_->isolate()->factory()->arguments_string());
-}
-
-
-int ParserTraits::NextMaterializedLiteralIndex() {
-  return parser_->function_state_->NextMaterializedLiteralIndex();
 }
 
 
@@ -623,14 +556,6 @@ Handle<String> ParserTraits::NextLiteralString(PretenureFlag tenured) {
 }
 
 
-Expression* ParserTraits::NewRegExpLiteral(Handle<String> js_pattern,
-                                           Handle<String> js_flags,
-                                           int literal_index,
-                                           int pos) {
-  return parser_->factory()->NewRegExpLiteral(
-      js_pattern, js_flags, literal_index, pos);
-}
-
 Parser::Parser(CompilationInfo* info)
     : ParserBase<ParserTraits>(&scanner_,
                                info->isolate()->stack_guard()->real_climit(),
@@ -640,9 +565,7 @@ Parser::Parser(CompilationInfo* info)
       script_(info->script()),
       scanner_(isolate_->unicode_cache()),
       reusable_preparser_(NULL),
-      scope_(NULL),
       original_scope_(NULL),
-      function_state_(NULL),
       target_stack_(NULL),
       extension_(info->extension()),
       pre_parse_data_(NULL),
@@ -4066,8 +3989,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
 
       // Calling a generator returns a generator object.  That object is stored
       // in a temporary variable, a definition that is used by "yield"
-      // expressions.  Presence of a variable for the generator object in the
-      // FunctionState indicates that this function is a generator.
+      // expressions. This also marks the FunctionState as a generator.
       Variable* temp = scope_->DeclarationScope()->NewTemporary(
           isolate()->factory()->dot_generator_object_string());
       function_state.set_generator_object_variable(temp);

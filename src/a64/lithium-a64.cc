@@ -671,7 +671,6 @@ void LChunkBuilder::DoBasicBlock(HBasicBlock* block) {
 void LChunkBuilder::VisitInstruction(HInstruction* current) {
   HInstruction* old_current = current_instruction_;
   current_instruction_ = current;
-  if (current->has_position()) position_ = current->position();
 
   LInstruction* instr = NULL;
   if (current->CanReplaceWithDummyUses()) {

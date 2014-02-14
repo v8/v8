@@ -1564,7 +1564,8 @@ Isolate::Isolate()
       sweeper_thread_(NULL),
       num_sweeper_threads_(0),
       max_available_threads_(0),
-      stress_deopt_count_(0) {
+      stress_deopt_count_(0),
+      next_optimization_id_(0) {
   id_ = NoBarrier_AtomicIncrement(&isolate_counter_, 1);
   TRACE_ISOLATE(constructor);
 
@@ -1671,6 +1672,10 @@ void Isolate::Deinit() {
     delete[] sweeper_thread_;
     sweeper_thread_ = NULL;
 
+    if (FLAG_job_based_sweeping &&
+        heap_.mark_compact_collector()->IsConcurrentSweepingInProgress()) {
+      heap_.mark_compact_collector()->WaitUntilSweepingCompleted();
+    }
 
     if (FLAG_hydrogen_stats) GetHStatistics()->Print();
 
@@ -2012,7 +2017,10 @@ bool Isolate::Init(Deserializer* des) {
     max_available_threads_ = Max(Min(CPU::NumberOfProcessorsOnline(), 4), 1);
   }
 
-  num_sweeper_threads_ = SweeperThread::NumberOfThreads(max_available_threads_);
+  if (!FLAG_job_based_sweeping) {
+    num_sweeper_threads_ =
+        SweeperThread::NumberOfThreads(max_available_threads_);
+  }
 
   if (FLAG_trace_hydrogen || FLAG_trace_hydrogen_stubs) {
     PrintF("Concurrent recompilation has been disabled for tracing.\n");

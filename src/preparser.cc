@@ -55,21 +55,6 @@ int isfinite(double value);
 namespace v8 {
 namespace internal {
 
-bool PreParserTraits::is_classic_mode() const {
-  return pre_parser_->scope_->language_mode() == CLASSIC_MODE;
-}
-
-
-bool PreParserTraits::is_generator() const {
-  return pre_parser_->function_state_->is_generator();
-}
-
-
-int PreParserTraits::NextMaterializedLiteralIndex() {
-  return pre_parser_->function_state_->NextMaterializedLiteralIndex();
-}
-
-
 void PreParserTraits::ReportMessageAt(Scanner::Location location,
                                       const char* message,
                                       Vector<const char*> args) {
@@ -126,10 +111,12 @@ PreParser::PreParseResult PreParser::PreParseLazyFunction(
     LanguageMode mode, bool is_generator, ParserRecorder* log) {
   log_ = log;
   // Lazy functions always have trivial outer scopes (no with/catch scopes).
-  FunctionState top_scope(&function_state_, &scope_, GLOBAL_SCOPE);
+  PreParserScope top_scope(scope_, GLOBAL_SCOPE);
+  FunctionState top_state(&function_state_, &scope_, &top_scope);
   scope_->SetLanguageMode(mode);
-  FunctionState function_scope(&function_state_, &scope_, FUNCTION_SCOPE);
-  function_scope.set_is_generator(is_generator);
+  PreParserScope function_scope(scope_, FUNCTION_SCOPE);
+  FunctionState function_state(&function_state_, &scope_, &function_scope);
+  function_state.set_is_generator(is_generator);
   ASSERT_EQ(Token::LBRACE, scanner()->current_token());
   bool ok = true;
   int start_position = peek_position();
@@ -602,7 +589,8 @@ PreParser::Statement PreParser::ParseWithStatement(bool* ok) {
   ParseExpression(true, CHECK_OK);
   Expect(Token::RPAREN, CHECK_OK);
 
-  BlockState block_state(&scope_, WITH_SCOPE);
+  PreParserScope with_scope(scope_, WITH_SCOPE);
+  BlockState block_state(&scope_, &with_scope);
   ParseStatement(CHECK_OK);
   return Statement::Default();
 }
@@ -776,7 +764,8 @@ PreParser::Statement PreParser::ParseTryStatement(bool* ok) {
     ParseIdentifier(kDontAllowEvalOrArguments, CHECK_OK);
     Expect(Token::RPAREN, CHECK_OK);
     {
-      BlockState block_state(&scope_, WITH_SCOPE);
+      PreParserScope with_scope(scope_, WITH_SCOPE);
+      BlockState block_state(&scope_, &with_scope);
       ParseBlock(CHECK_OK);
     }
     tok = peek();
@@ -1341,8 +1330,9 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   // Parse function body.
   ScopeType outer_scope_type = scope_->type();
   bool inside_with = scope_->inside_with();
-  FunctionState function_scope(&function_state_, &scope_, FUNCTION_SCOPE);
-  function_scope.set_is_generator(is_generator);
+  PreParserScope function_scope(scope_, FUNCTION_SCOPE);
+  FunctionState function_state(&function_state_, &scope_, &function_scope);
+  function_state.set_is_generator(is_generator);
   //  FormalParameterList ::
   //    '(' (Identifier)*[','] ')'
   Expect(Token::LPAREN, CHECK_OK);
@@ -1452,7 +1442,7 @@ void PreParser::ParseLazyFunctionLiteralBody(bool* ok) {
   int body_end = scanner()->peek_location().end_pos;
   log_->LogFunction(body_start, body_end,
                     function_state_->materialized_literal_count(),
-                    function_state_->expected_properties(),
+                    function_state_->expected_property_count(),
                     scope_->language_mode());
 }
 

@@ -176,9 +176,6 @@
   # BUG(v8:3147). It works on other architectures by accident.
   'regress/regress-conditional-position': [FAIL],
 
-  # BUG(v8:3149). Incorrect register usage exposed in debug mode.
-  'sin-cos': [PASS, ['mode == debug', FAIL]],
-
   # BUG(v8:3148): Invalid branch instruction emitted.
   'debug-references': [PASS, ['mode == debug', SKIP]],
   'mirror-array': [PASS, ['mode == debug', SKIP]],

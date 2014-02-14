@@ -731,6 +731,12 @@ void Deoptimizer::DoComputeOutputFrames() {
     LOG(isolate(), CodeDeoptEvent(compiled_code_));
   }
   ElapsedTimer timer;
+
+  // Determine basic deoptimization information.  The optimized frame is
+  // described by the input data.
+  DeoptimizationInputData* input_data =
+      DeoptimizationInputData::cast(compiled_code_->deoptimization_data());
+
   if (trace_scope_ != NULL) {
     timer.Start();
     PrintF(trace_scope_->file(),
@@ -739,7 +745,8 @@ void Deoptimizer::DoComputeOutputFrames() {
            reinterpret_cast<intptr_t>(function_));
     PrintFunctionName();
     PrintF(trace_scope_->file(),
-           " @%d, FP to SP delta: %d]\n",
+           " (opt #%d) @%d, FP to SP delta: %d]\n",
+           input_data->OptimizationId()->value(),
            bailout_id_,
            fp_to_sp_delta_);
     if (bailout_type_ == EAGER || bailout_type_ == SOFT) {
@@ -747,10 +754,6 @@ void Deoptimizer::DoComputeOutputFrames() {
     }
   }
 
-  // Determine basic deoptimization information.  The optimized frame is
-  // described by the input data.
-  DeoptimizationInputData* input_data =
-      DeoptimizationInputData::cast(compiled_code_->deoptimization_data());
   BailoutId node_id = input_data->AstId(bailout_id_);
   ByteArray* translations = input_data->TranslationByteArray();
   unsigned translation_index =

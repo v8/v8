@@ -67,6 +67,7 @@ MarkCompactCollector::MarkCompactCollector(Heap* heap) :  // NOLINT
       compacting_(false),
       was_marked_incrementally_(false),
       sweeping_pending_(false),
+      pending_sweeper_jobs_semaphore_(0),
       sequential_sweeping_(false),
       tracer_(NULL),
       migration_slots_buffer_(NULL),
@@ -569,6 +570,27 @@ void MarkCompactCollector::ClearMarkbits() {
 }
 
 
+class MarkCompactCollector::SweeperTask : public v8::Task {
+ public:
+  SweeperTask(Heap* heap, PagedSpace* space)
+    : heap_(heap), space_(space) {}
+
+  virtual ~SweeperTask() {}
+
+ private:
+  // v8::Task overrides.
+  virtual void Run() V8_OVERRIDE {
+    heap_->mark_compact_collector()->SweepInParallel(space_);
+    heap_->mark_compact_collector()->pending_sweeper_jobs_semaphore_.Signal();
+  }
+
+  Heap* heap_;
+  PagedSpace* space_;
+
+  DISALLOW_COPY_AND_ASSIGN(SweeperTask);
+};
+
+
 void MarkCompactCollector::StartSweeperThreads() {
   // TODO(hpayer): This check is just used for debugging purpose and
   // should be removed or turned into an assert after investigating the
@@ -579,6 +601,14 @@ void MarkCompactCollector::StartSweeperThreads() {
   for (int i = 0; i < isolate()->num_sweeper_threads(); i++) {
     isolate()->sweeper_threads()[i]->StartSweeping();
   }
+  if (FLAG_job_based_sweeping) {
+    V8::GetCurrentPlatform()->CallOnBackgroundThread(
+        new SweeperTask(heap(), heap()->old_data_space()),
+        v8::Platform::kShortRunningTask);
+    V8::GetCurrentPlatform()->CallOnBackgroundThread(
+        new SweeperTask(heap(), heap()->old_pointer_space()),
+        v8::Platform::kShortRunningTask);
+  }
 }
 
 
@@ -586,6 +616,11 @@ void MarkCompactCollector::WaitUntilSweepingCompleted() {
   ASSERT(sweeping_pending_ == true);
   for (int i = 0; i < isolate()->num_sweeper_threads(); i++) {
     isolate()->sweeper_threads()[i]->WaitForSweeperThread();
+  }
+  if (FLAG_job_based_sweeping) {
+    // Wait twice for both jobs.
+    pending_sweeper_jobs_semaphore_.Wait();
+    pending_sweeper_jobs_semaphore_.Wait();
   }
   sweeping_pending_ = false;
   RefillFreeLists(heap()->paged_space(OLD_DATA_SPACE));
@@ -616,7 +651,7 @@ intptr_t MarkCompactCollector::RefillFreeLists(PagedSpace* space) {
 
 
 bool MarkCompactCollector::AreSweeperThreadsActivated() {
-  return isolate()->sweeper_threads() != NULL;
+  return isolate()->sweeper_threads() != NULL || FLAG_job_based_sweeping;
 }
 
 
@@ -4138,7 +4173,7 @@ void MarkCompactCollector::SweepSpaces() {
 #endif
   SweeperType how_to_sweep =
       FLAG_lazy_sweeping ? LAZY_CONSERVATIVE : CONSERVATIVE;
-  if (isolate()->num_sweeper_threads() > 0) {
+  if (AreSweeperThreadsActivated()) {
     if (FLAG_parallel_sweeping) how_to_sweep = PARALLEL_CONSERVATIVE;
     if (FLAG_concurrent_sweeping) how_to_sweep = CONCURRENT_CONSERVATIVE;
   }
