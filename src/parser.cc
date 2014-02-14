@@ -535,7 +535,7 @@ void ParserTraits::ReportMessageAt(Scanner::Location source_location,
 }
 
 
-Handle<String> ParserTraits::GetSymbol() {
+Handle<String> ParserTraits::GetSymbol(Scanner* scanner) {
   int symbol_id = -1;
   if (parser_->pre_parse_data() != NULL) {
     symbol_id = parser_->pre_parse_data()->GetSymbolIdentifier();
@@ -544,21 +544,99 @@ Handle<String> ParserTraits::GetSymbol() {
 }
 
 
-Handle<String> ParserTraits::NextLiteralString(PretenureFlag tenured) {
-  Scanner& scanner = parser_->scanner();
-  if (scanner.is_next_literal_ascii()) {
+Handle<String> ParserTraits::NextLiteralString(Scanner* scanner,
+                                               PretenureFlag tenured) {
+  if (scanner->is_next_literal_ascii()) {
     return parser_->isolate_->factory()->NewStringFromAscii(
-        scanner.next_literal_ascii_string(), tenured);
+        scanner->next_literal_ascii_string(), tenured);
   } else {
     return parser_->isolate_->factory()->NewStringFromTwoByte(
-        scanner.next_literal_utf16_string(), tenured);
+        scanner->next_literal_utf16_string(), tenured);
   }
+}
+
+
+Expression* ParserTraits::ThisExpression(
+    Scope* scope,
+    AstNodeFactory<AstConstructionVisitor>* factory) {
+  return factory->NewVariableProxy(scope->receiver());
+}
+
+
+Expression* ParserTraits::ExpressionFromLiteral(
+    Token::Value token, int pos,
+    Scanner* scanner,
+    AstNodeFactory<AstConstructionVisitor>* factory) {
+  Factory* isolate_factory = parser_->isolate()->factory();
+  switch (token) {
+    case Token::NULL_LITERAL:
+      return factory->NewLiteral(isolate_factory->null_value(), pos);
+    case Token::TRUE_LITERAL:
+      return factory->NewLiteral(isolate_factory->true_value(), pos);
+    case Token::FALSE_LITERAL:
+      return factory->NewLiteral(isolate_factory->false_value(), pos);
+    case Token::NUMBER: {
+      ASSERT(scanner->is_literal_ascii());
+      double value = StringToDouble(parser_->isolate()->unicode_cache(),
+                                    scanner->literal_ascii_string(),
+                                    ALLOW_HEX | ALLOW_OCTAL |
+                                        ALLOW_IMPLICIT_OCTAL | ALLOW_BINARY);
+      return factory->NewNumberLiteral(value, pos);
+    }
+    default:
+      ASSERT(false);
+  }
+  return NULL;
+}
+
+
+Expression* ParserTraits::ExpressionFromIdentifier(
+    Handle<String> name, int pos, Scope* scope,
+    AstNodeFactory<AstConstructionVisitor>* factory) {
+  if (parser_->fni_ != NULL) parser_->fni_->PushVariableName(name);
+  // The name may refer to a module instance object, so its type is unknown.
+#ifdef DEBUG
+  if (FLAG_print_interface_details)
+    PrintF("# Variable %s ", name->ToAsciiArray());
+#endif
+  Interface* interface = Interface::NewUnknown(parser_->zone());
+  return scope->NewUnresolved(factory, name, interface, pos);
+}
+
+
+Expression* ParserTraits::ExpressionFromString(
+    int pos, Scanner* scanner,
+    AstNodeFactory<AstConstructionVisitor>* factory) {
+  Handle<String> symbol = GetSymbol(scanner);
+  if (parser_->fni_ != NULL) parser_->fni_->PushLiteralName(symbol);
+  return factory->NewLiteral(symbol, pos);
+}
+
+
+Expression* ParserTraits::ParseArrayLiteral(bool* ok) {
+  return parser_->ParseArrayLiteral(ok);
+}
+
+
+Expression* ParserTraits::ParseObjectLiteral(bool* ok) {
+  return parser_->ParseObjectLiteral(ok);
+}
+
+
+Expression* ParserTraits::ParseExpression(bool accept_IN, bool* ok) {
+  return parser_->ParseExpression(accept_IN, ok);
+}
+
+
+Expression* ParserTraits::ParseV8Intrinsic(bool* ok) {
+  return parser_->ParseV8Intrinsic(ok);
 }
 
 
 Parser::Parser(CompilationInfo* info)
     : ParserBase<ParserTraits>(&scanner_,
                                info->isolate()->stack_guard()->real_climit(),
+                               info->extension(),
                                this),
       isolate_(info->isolate()),
       symbol_cache_(0, info->zone()),
@@ -567,7 +645,6 @@ Parser::Parser(CompilationInfo* info)
       reusable_preparser_(NULL),
       original_scope_(NULL),
       target_stack_(NULL),
-      extension_(info->extension()),
       pre_parse_data_(NULL),
       fni_(NULL),
       zone_(info->zone()),
@@ -3427,124 +3504,6 @@ void Parser::ReportInvalidPreparseData(Handle<String> name, bool* ok) {
   ReportMessage("invalid_preparser_data",
                 Vector<const char*>(element, 1));
   *ok = false;
-}
-
-
-Expression* Parser::ParsePrimaryExpression(bool* ok) {
-  // PrimaryExpression ::
-  //   'this'
-  //   'null'
-  //   'true'
-  //   'false'
-  //   Identifier
-  //   Number
-  //   String
-  //   ArrayLiteral
-  //   ObjectLiteral
-  //   RegExpLiteral
-  //   '(' Expression ')'
-
-  int pos = peek_position();
-  Expression* result = NULL;
-  switch (peek()) {
-    case Token::THIS: {
-      Consume(Token::THIS);
-      result = factory()->NewVariableProxy(scope_->receiver());
-      break;
-    }
-
-    case Token::NULL_LITERAL:
-      Consume(Token::NULL_LITERAL);
-      result = factory()->NewLiteral(isolate()->factory()->null_value(), pos);
-      break;
-
-    case Token::TRUE_LITERAL:
-      Consume(Token::TRUE_LITERAL);
-      result = factory()->NewLiteral(isolate()->factory()->true_value(), pos);
-      break;
-
-    case Token::FALSE_LITERAL:
-      Consume(Token::FALSE_LITERAL);
-      result = factory()->NewLiteral(isolate()->factory()->false_value(), pos);
-      break;
-
-    case Token::IDENTIFIER:
-    case Token::YIELD:
-    case Token::FUTURE_STRICT_RESERVED_WORD: {
-      // Using eval or arguments in this context is OK even in strict mode.
-      Handle<String> name = ParseIdentifier(kAllowEvalOrArguments, CHECK_OK);
-      if (fni_ != NULL) fni_->PushVariableName(name);
-      // The name may refer to a module instance object, so its type is unknown.
-#ifdef DEBUG
-      if (FLAG_print_interface_details)
-        PrintF("# Variable %s ", name->ToAsciiArray());
-#endif
-      Interface* interface = Interface::NewUnknown(zone());
-      result = scope_->NewUnresolved(factory(), name, interface, pos);
-      break;
-    }
-
-    case Token::NUMBER: {
-      Consume(Token::NUMBER);
-      ASSERT(scanner().is_literal_ascii());
-      double value = StringToDouble(isolate()->unicode_cache(),
-                                    scanner().literal_ascii_string(),
-                                    ALLOW_HEX | ALLOW_OCTAL |
-                                        ALLOW_IMPLICIT_OCTAL | ALLOW_BINARY);
-      result = factory()->NewNumberLiteral(value, pos);
-      break;
-    }
-
-    case Token::STRING: {
-      Consume(Token::STRING);
-      Handle<String> symbol = GetSymbol();
-      result = factory()->NewLiteral(symbol, pos);
-      if (fni_ != NULL) fni_->PushLiteralName(symbol);
-      break;
-    }
-
-    case Token::ASSIGN_DIV:
-      result = ParseRegExpLiteral(true, CHECK_OK);
-      break;
-
-    case Token::DIV:
-      result = ParseRegExpLiteral(false, CHECK_OK);
-      break;
-
-    case Token::LBRACK:
-      result = ParseArrayLiteral(CHECK_OK);
-      break;
-
-    case Token::LBRACE:
-      result = ParseObjectLiteral(CHECK_OK);
-      break;
-
-    case Token::LPAREN:
-      Consume(Token::LPAREN);
-      // Heuristically try to detect immediately called functions before
-      // seeing the call parentheses.
-      parenthesized_function_ = (peek() == Token::FUNCTION);
-      result = ParseExpression(true, CHECK_OK);
-      Expect(Token::RPAREN, CHECK_OK);
-      break;
-
-    case Token::MOD:
-      if (allow_natives_syntax() || extension_ != NULL) {
-        result = ParseV8Intrinsic(CHECK_OK);
-        break;
-      }
-      // If we're not allowing special syntax we fall-through to the
-      // default case.
-
-    default: {
-      Token::Value tok = Next();
-      ReportUnexpectedToken(tok);
-      *ok = false;
-      return NULL;
-    }
-  }
-
-  return result;
 }
 
 

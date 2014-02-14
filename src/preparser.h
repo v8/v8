@@ -32,6 +32,7 @@
 #include "scopes.h"
 #include "token.h"
 #include "scanner.h"
+#include "v8.h"
 
 namespace v8 {
 namespace internal {
@@ -41,11 +42,13 @@ template <typename Traits>
 class ParserBase : public Traits {
  public:
   ParserBase(Scanner* scanner, uintptr_t stack_limit,
+             v8::Extension* extension,
              typename Traits::Type::Parser this_object)
       : Traits(this_object),
         parenthesized_function_(false),
         scope_(NULL),
         function_state_(NULL),
+        extension_(extension),
         scanner_(scanner),
         stack_limit_(stack_limit),
         stack_overflow_(false),
@@ -329,7 +332,9 @@ class ParserBase : public Traits {
                                                                 bool* ok);
 
   typename Traits::Type::Expression ParseRegExpLiteral(bool seen_equal,
-                                                        bool* ok);
+                                                       bool* ok);
+
+  typename Traits::Type::Expression ParsePrimaryExpression(bool* ok);
 
   // Used to detect duplicates in object literals. Each of the values
   // kGetterProperty, kSetterProperty and kValueProperty represents
@@ -393,6 +398,7 @@ class ParserBase : public Traits {
 
   typename Traits::Type::Scope* scope_;  // Scope stack.
   FunctionState* function_state_;  // Function state stack.
+  v8::Extension* extension_;
 
  private:
   Scanner* scanner_;
@@ -641,10 +647,38 @@ class PreParserTraits {
   }
 
   // Producing data during the recursive descent.
-  PreParserIdentifier GetSymbol();
-  static PreParserIdentifier NextLiteralString(PretenureFlag tenured) {
+  PreParserIdentifier GetSymbol(Scanner* scanner);
+  static PreParserIdentifier NextLiteralString(Scanner* scanner,
+                                               PretenureFlag tenured) {
     return PreParserIdentifier::Default();
   }
+
+  static PreParserExpression ThisExpression(PreParserScope* scope,
+                                            PreParserFactory* factory) {
+    return PreParserExpression::This();
+  }
+
+  static PreParserExpression ExpressionFromLiteral(
+      Token::Value token, int pos, Scanner* scanner,
+      PreParserFactory* factory) {
+    return PreParserExpression::Default();
+  }
+
+  static PreParserExpression ExpressionFromIdentifier(
+      PreParserIdentifier name, int pos, PreParserScope* scope,
+      PreParserFactory* factory) {
+    return PreParserExpression::FromIdentifier(name);
+  }
+
+  PreParserExpression ExpressionFromString(int pos,
+                                           Scanner* scanner,
+                                           PreParserFactory* factory = NULL);
+
+  // Temporary glue; these functions will move to ParserBase.
+  PreParserExpression ParseArrayLiteral(bool* ok);
+  PreParserExpression ParseObjectLiteral(bool* ok);
+  PreParserExpression ParseExpression(bool accept_IN, bool* ok);
+  PreParserExpression ParseV8Intrinsic(bool* ok);
 
  private:
   PreParser* pre_parser_;
@@ -676,7 +710,7 @@ class PreParser : public ParserBase<PreParserTraits> {
   PreParser(Scanner* scanner,
             ParserRecorder* log,
             uintptr_t stack_limit)
-      : ParserBase<PreParserTraits>(scanner, stack_limit, this),
+      : ParserBase<PreParserTraits>(scanner, stack_limit, NULL, this),
         log_(log) {}
 
   // Pre-parse the program from the character stream; returns true on
@@ -823,7 +857,6 @@ class PreParser : public ParserBase<PreParserTraits> {
   Expression ParseNewExpression(bool* ok);
   Expression ParseMemberExpression(bool* ok);
   Expression ParseMemberWithNewPrefixesExpression(unsigned new_count, bool* ok);
-  Expression ParsePrimaryExpression(bool* ok);
   Expression ParseArrayLiteral(bool* ok);
   Expression ParseObjectLiteral(bool* ok);
   Expression ParseV8Intrinsic(bool* ok);
@@ -922,7 +955,7 @@ typename Traits::Type::Identifier ParserBase<Traits>::ParseIdentifier(
     bool* ok) {
   Token::Value next = Next();
   if (next == Token::IDENTIFIER) {
-    typename Traits::Type::Identifier name = this->GetSymbol();
+    typename Traits::Type::Identifier name = this->GetSymbol(scanner());
     if (allow_eval_or_arguments == kDontAllowEvalOrArguments &&
         !is_classic_mode() && this->IsEvalOrArguments(name)) {
       ReportMessageAt(scanner()->location(), "strict_eval_arguments");
@@ -931,7 +964,7 @@ typename Traits::Type::Identifier ParserBase<Traits>::ParseIdentifier(
     return name;
   } else if (is_classic_mode() && (next == Token::FUTURE_STRICT_RESERVED_WORD ||
                                    (next == Token::YIELD && !is_generator()))) {
-    return this->GetSymbol();
+    return this->GetSymbol(scanner());
   } else {
     this->ReportUnexpectedToken(next);
     *ok = false;
@@ -955,7 +988,7 @@ typename Traits::Type::Identifier ParserBase<
     *ok = false;
     return Traits::EmptyIdentifier();
   }
-  return this->GetSymbol();
+  return this->GetSymbol(scanner());
 }
 
 
@@ -969,7 +1002,7 @@ typename Traits::Type::Identifier ParserBase<Traits>::ParseIdentifierName(
     *ok = false;
     return Traits::EmptyIdentifier();
   }
-  return this->GetSymbol();
+  return this->GetSymbol(scanner());
 }
 
 
@@ -1004,7 +1037,7 @@ ParserBase<Traits>::ParseRegExpLiteral(bool seen_equal, bool* ok) {
   int literal_index = function_state_->NextMaterializedLiteralIndex();
 
   typename Traits::Type::Identifier js_pattern =
-      this->NextLiteralString(TENURED);
+      this->NextLiteralString(scanner(), TENURED);
   if (!scanner()->ScanRegExpFlags()) {
     Next();
     ReportMessageAt(scanner()->location(), "invalid_regexp_flags");
@@ -1012,10 +1045,113 @@ ParserBase<Traits>::ParseRegExpLiteral(bool seen_equal, bool* ok) {
     return Traits::EmptyExpression();
   }
   typename Traits::Type::Identifier js_flags =
-      this->NextLiteralString(TENURED);
+      this->NextLiteralString(scanner(), TENURED);
   Next();
   return factory()->NewRegExpLiteral(js_pattern, js_flags, literal_index, pos);
 }
+
+
+#define CHECK_OK  ok); \
+  if (!*ok) return this->EmptyExpression(); \
+  ((void)0
+#define DUMMY )  // to make indentation work
+#undef DUMMY
+
+template <class Traits>
+typename Traits::Type::Expression ParserBase<Traits>::ParsePrimaryExpression(
+    bool* ok) {
+  // PrimaryExpression ::
+  //   'this'
+  //   'null'
+  //   'true'
+  //   'false'
+  //   Identifier
+  //   Number
+  //   String
+  //   ArrayLiteral
+  //   ObjectLiteral
+  //   RegExpLiteral
+  //   '(' Expression ')'
+
+  int pos = peek_position();
+  typename Traits::Type::Expression result = this->EmptyExpression();
+  Token::Value token = peek();
+  switch (token) {
+    case Token::THIS: {
+      Consume(Token::THIS);
+      result = this->ThisExpression(scope_, factory());
+      break;
+    }
+
+    case Token::NULL_LITERAL:
+    case Token::TRUE_LITERAL:
+    case Token::FALSE_LITERAL:
+    case Token::NUMBER:
+      Next();
+      result = this->ExpressionFromLiteral(token, pos, scanner(), factory());
+      break;
+
+    case Token::IDENTIFIER:
+    case Token::YIELD:
+    case Token::FUTURE_STRICT_RESERVED_WORD: {
+      // Using eval or arguments in this context is OK even in strict mode.
+      typename Traits::Type::Identifier name =
+          ParseIdentifier(kAllowEvalOrArguments, CHECK_OK);
+      result =
+          this->ExpressionFromIdentifier(name, pos, scope_, factory());
+      break;
+    }
+
+    case Token::STRING: {
+      Consume(Token::STRING);
+      result = this->ExpressionFromString(pos, scanner(), factory());
+      break;
+    }
+
+    case Token::ASSIGN_DIV:
+      result = this->ParseRegExpLiteral(true, CHECK_OK);
+      break;
+
+    case Token::DIV:
+      result = this->ParseRegExpLiteral(false, CHECK_OK);
+      break;
+
+    case Token::LBRACK:
+      result = this->ParseArrayLiteral(CHECK_OK);
+      break;
+
+    case Token::LBRACE:
+      result = this->ParseObjectLiteral(CHECK_OK);
+      break;
+
+    case Token::LPAREN:
+      Consume(Token::LPAREN);
+      // Heuristically try to detect immediately called functions before
+      // seeing the call parentheses.
+      parenthesized_function_ = (peek() == Token::FUNCTION);
+      result = this->ParseExpression(true, CHECK_OK);
+      Expect(Token::RPAREN, CHECK_OK);
+      break;
+
+    case Token::MOD:
+      if (allow_natives_syntax() || extension_ != NULL) {
+        result = this->ParseV8Intrinsic(CHECK_OK);
+        break;
+      }
+      // If we're not allowing special syntax we fall-through to the
+      // default case.
+
+    default: {
+      Next();
+      ReportUnexpectedToken(token);
+      *ok = false;
+    }
+  }
+
+  return result;
+}
+
+#undef CHECK_OK
 
 
 template <typename Traits>

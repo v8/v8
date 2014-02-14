@@ -463,8 +463,26 @@ class ParserTraits {
   }
 
   // Producing data during the recursive descent.
-  Handle<String> GetSymbol();
-  Handle<String> NextLiteralString(PretenureFlag tenured);
+  Handle<String> GetSymbol(Scanner* scanner = NULL);
+  Handle<String> NextLiteralString(Scanner* scanner,
+                                   PretenureFlag tenured);
+  Expression* ThisExpression(Scope* scope,
+                             AstNodeFactory<AstConstructionVisitor>* factory);
+  Expression* ExpressionFromLiteral(
+      Token::Value token, int pos, Scanner* scanner,
+      AstNodeFactory<AstConstructionVisitor>* factory);
+  Expression* ExpressionFromIdentifier(
+      Handle<String> name, int pos, Scope* scope,
+      AstNodeFactory<AstConstructionVisitor>* factory);
+  Expression* ExpressionFromString(
+      int pos, Scanner* scanner,
+      AstNodeFactory<AstConstructionVisitor>* factory);
+
+  // Temporary glue; these functions will move to ParserBase.
+  Expression* ParseArrayLiteral(bool* ok);
+  Expression* ParseObjectLiteral(bool* ok);
+  Expression* ParseExpression(bool accept_IN, bool* ok);
+  Expression* ParseV8Intrinsic(bool* ok);
 
  private:
   Parser* parser_;
@@ -626,7 +644,6 @@ class Parser : public ParserBase<ParserTraits> {
   Expression* ParseNewPrefix(PositionStack* stack, bool* ok);
   Expression* ParseMemberWithNewPrefixesExpression(PositionStack* stack,
                                                    bool* ok);
-  Expression* ParsePrimaryExpression(bool* ok);
   Expression* ParseArrayLiteral(bool* ok);
   Expression* ParseObjectLiteral(bool* ok);
 
@@ -735,7 +752,6 @@ class Parser : public ParserBase<ParserTraits> {
   PreParser* reusable_preparser_;
   Scope* original_scope_;  // for ES5 function declarations in sloppy eval
   Target* target_stack_;  // for break, continue statements
-  v8::Extension* extension_;
   ScriptDataImpl* pre_parse_data_;
   FuncNameInferrer* fni_;
 

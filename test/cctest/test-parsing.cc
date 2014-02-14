@@ -1391,7 +1391,7 @@ void RunParserSyncTest(const char* context_data[][2],
 
   static const ParserFlag flags[] = {
     kAllowLazy, kAllowHarmonyScoping, kAllowModules, kAllowGenerators,
-    kAllowForOf
+    kAllowForOf, kAllowNativesSyntax
   };
   for (int i = 0; context_data[i][0] != NULL; ++i) {
     for (int j = 0; statement_data[j] != NULL; ++j) {
@@ -2045,4 +2045,21 @@ TEST(NoErrorsRegexpLiteral) {
   };
 
   RunParserSyncTest(context_data, statement_data, kSuccess);
+}
+
+
+TEST(Intrinsics) {
+  const char* context_data[][2] = {
+    {"", ""},
+    { NULL, NULL }
+  };
+
+  const char* statement_data[] = {
+    "%someintrinsic(arg)",
+    NULL
+  };
+
+  // Parsing will fail or succeed depending on whether we allow natives syntax
+  // or not.
+  RunParserSyncTest(context_data, statement_data, kSuccessOrError);
 }

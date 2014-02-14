@@ -81,8 +81,7 @@ void PreParserTraits::ReportMessageAt(int start_pos,
 }
 
 
-PreParserIdentifier PreParserTraits::GetSymbol() {
-  Scanner* scanner = pre_parser_->scanner();
+PreParserIdentifier PreParserTraits::GetSymbol(Scanner* scanner) {
   pre_parser_->LogSymbol();
   if (scanner->current_token() == Token::FUTURE_RESERVED_WORD) {
     return PreParserIdentifier::FutureReserved();
@@ -104,6 +103,42 @@ PreParserIdentifier PreParserTraits::GetSymbol() {
     }
   }
   return PreParserIdentifier::Default();
+}
+
+
+PreParserExpression PreParserTraits::ExpressionFromString(
+    int pos, Scanner* scanner, PreParserFactory* factory) {
+  const int kUseStrictLength = 10;
+  const char* kUseStrictChars = "use strict";
+  pre_parser_->LogSymbol();
+  if (scanner->is_literal_ascii() &&
+      scanner->literal_length() == kUseStrictLength &&
+      !scanner->literal_contains_escapes() &&
+      !strncmp(scanner->literal_ascii_string().start(), kUseStrictChars,
+               kUseStrictLength)) {
+    return PreParserExpression::UseStrictStringLiteral();
+  }
+  return PreParserExpression::StringLiteral();
+}
+
+
+PreParserExpression PreParserTraits::ParseArrayLiteral(bool* ok) {
+  return pre_parser_->ParseArrayLiteral(ok);
+}
+
+
+PreParserExpression PreParserTraits::ParseObjectLiteral(bool* ok) {
+  return pre_parser_->ParseObjectLiteral(ok);
+}
+
+
+PreParserExpression PreParserTraits::ParseExpression(bool accept_IN, bool* ok) {
+  return pre_parser_->ParseExpression(accept_IN, ok);
+}
+
+
+PreParserExpression PreParserTraits::ParseV8Intrinsic(bool* ok) {
+  return pre_parser_->ParseV8Intrinsic(ok);
 }
 
 
@@ -1111,90 +1146,6 @@ PreParser::Expression PreParser::ParseMemberWithNewPrefixesExpression(
 }
 
 
-PreParser::Expression PreParser::ParsePrimaryExpression(bool* ok) {
-  // PrimaryExpression ::
-  //   'this'
-  //   'null'
-  //   'true'
-  //   'false'
-  //   Identifier
-  //   Number
-  //   String
-  //   ArrayLiteral
-  //   ObjectLiteral
-  //   RegExpLiteral
-  //   '(' Expression ')'
-
-  Expression result = Expression::Default();
-  switch (peek()) {
-    case Token::THIS: {
-      Next();
-      result = Expression::This();
-      break;
-    }
-
-    case Token::FUTURE_RESERVED_WORD:
-    case Token::FUTURE_STRICT_RESERVED_WORD:
-    case Token::YIELD:
-    case Token::IDENTIFIER: {
-      // Using eval or arguments in this context is OK even in strict mode.
-      Identifier id = ParseIdentifier(kAllowEvalOrArguments, CHECK_OK);
-      result = Expression::FromIdentifier(id);
-      break;
-    }
-
-    case Token::NULL_LITERAL:
-    case Token::TRUE_LITERAL:
-    case Token::FALSE_LITERAL:
-    case Token::NUMBER: {
-      Next();
-      break;
-    }
-    case Token::STRING: {
-      Next();
-      result = GetStringSymbol();
-      break;
-    }
-
-    case Token::ASSIGN_DIV:
-      result = ParseRegExpLiteral(true, CHECK_OK);
-      break;
-
-    case Token::DIV:
-      result = ParseRegExpLiteral(false, CHECK_OK);
-      break;
-
-    case Token::LBRACK:
-      result = ParseArrayLiteral(CHECK_OK);
-      break;
-
-    case Token::LBRACE:
-      result = ParseObjectLiteral(CHECK_OK);
-      break;
-
-    case Token::LPAREN:
-      Consume(Token::LPAREN);
-      parenthesized_function_ = (peek() == Token::FUNCTION);
-      result = ParseExpression(true, CHECK_OK);
-      Expect(Token::RPAREN, CHECK_OK);
-      break;
-
-    case Token::MOD:
-      result = ParseV8Intrinsic(CHECK_OK);
-      break;
-
-    default: {
-      Token::Value next = Next();
-      ReportUnexpectedToken(next);
-      *ok = false;
-      return Expression::Default();
-    }
-  }
-
-  return result;
-}
-
-
 PreParser::Expression PreParser::ParseArrayLiteral(bool* ok) {
   // ArrayLiteral ::
   //   '[' Expression? (',' Expression?)* ']'
@@ -1266,7 +1217,7 @@ PreParser::Expression PreParser::ParseObjectLiteral(bool* ok) {
       case Token::STRING:
         Consume(next);
         checker.CheckProperty(next, kValueProperty, CHECK_OK);
-        GetStringSymbol();
+        LogSymbol();
         break;
       case Token::NUMBER:
         Consume(next);
@@ -1472,21 +1423,6 @@ void PreParser::LogSymbol() {
   } else {
     log_->LogUtf16Symbol(identifier_pos, scanner()->literal_utf16_string());
   }
-}
-
-
-PreParser::Expression PreParser::GetStringSymbol() {
-  const int kUseStrictLength = 10;
-  const char* kUseStrictChars = "use strict";
-  LogSymbol();
-  if (scanner()->is_literal_ascii() &&
-      scanner()->literal_length() == kUseStrictLength &&
-      !scanner()->literal_contains_escapes() &&
-      !strncmp(scanner()->literal_ascii_string().start(), kUseStrictChars,
-               kUseStrictLength)) {
-    return Expression::UseStrictStringLiteral();
-  }
-  return Expression::StringLiteral();
 }
 
 
