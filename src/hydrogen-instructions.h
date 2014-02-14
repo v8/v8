@@ -6528,6 +6528,7 @@ class HStoreNamedField V8_FINAL : public HTemplateInstruction<3> {
   virtual bool HandleSideEffectDominator(GVNFlag side_effect,
                                          HValue* dominator) V8_OVERRIDE {
     ASSERT(side_effect == kNewSpacePromotion);
+    if (!FLAG_use_write_barrier_elimination) return false;
     new_space_dominator_ = dominator;
     return false;
   }
