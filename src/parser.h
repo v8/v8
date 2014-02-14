@@ -638,8 +638,11 @@ class Parser : public ParserBase<ParserTraits> {
   Expression* ParseUnaryExpression(bool* ok);
   Expression* ParsePostfixExpression(bool* ok);
   Expression* ParseLeftHandSideExpression(bool* ok);
-  Expression* ParseMemberWithNewPrefixesExpression(bool* ok);
+  Expression* ParseNewExpression(bool* ok);
   Expression* ParseMemberExpression(bool* ok);
+  Expression* ParseNewPrefix(PositionStack* stack, bool* ok);
+  Expression* ParseMemberWithNewPrefixesExpression(PositionStack* stack,
+                                                   bool* ok);
   Expression* ParseArrayLiteral(bool* ok);
   Expression* ParseObjectLiteral(bool* ok);
 
