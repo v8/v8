@@ -398,6 +398,7 @@ static void GenerateFastApiCall(MacroAssembler* masm,
                                 Handle<Map> receiver_map,
                                 Register receiver,
                                 Register scratch_in,
+                                bool is_store,
                                 int argc,
                                 Register* values) {
   ASSERT(optimization.is_simple_api_call());
@@ -465,7 +466,7 @@ static void GenerateFastApiCall(MacroAssembler* masm,
       api_function_address, function_address, RelocInfo::EXTERNAL_REFERENCE);
 
   // Jump to stub.
-  CallApiFunctionStub stub(true, call_data_undefined, argc);
+  CallApiFunctionStub stub(is_store, call_data_undefined, argc);
   __ TailCallStub(&stub);
 }
 
@@ -974,7 +975,7 @@ void LoadStubCompiler::GenerateLoadCallback(
     Handle<Map> receiver_map) {
   GenerateFastApiCall(
       masm(), call_optimization, receiver_map,
-      receiver(), scratch1(), 0, NULL);
+      receiver(), scratch1(), false, 0, NULL);
 }
 
 
@@ -1169,7 +1170,7 @@ Handle<Code> StoreStubCompiler::CompileStoreCallback(
   Register values[] = { value() };
   GenerateFastApiCall(
       masm(), call_optimization, handle(object->map()),
-      receiver(), scratch1(), 1, values);
+      receiver(), scratch1(), true, 1, values);
 
   // Return the generated code.
   return GetCode(kind(), Code::FAST, name);

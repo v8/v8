@@ -1012,13 +1012,14 @@ class StoreGlobalStub : public HandlerStub {
 
 class CallApiFunctionStub : public PlatformCodeStub {
  public:
-  CallApiFunctionStub(bool restore_context,
+  CallApiFunctionStub(bool is_store,
                       bool call_data_undefined,
                       int argc) {
     bit_field_ =
-        RestoreContextBits::encode(restore_context) |
+        IsStoreBits::encode(is_store) |
         CallDataUndefinedBits::encode(call_data_undefined) |
         ArgumentBits::encode(argc);
+    ASSERT(!is_store || argc == 1);
   }
 
  private:
@@ -1026,7 +1027,7 @@ class CallApiFunctionStub : public PlatformCodeStub {
   virtual Major MajorKey() V8_OVERRIDE { return CallApiFunction; }
   virtual int MinorKey() V8_OVERRIDE { return bit_field_; }
 
-  class RestoreContextBits: public BitField<bool, 0, 1> {};
+  class IsStoreBits: public BitField<bool, 0, 1> {};
   class CallDataUndefinedBits: public BitField<bool, 1, 1> {};
   class ArgumentBits: public BitField<int, 2, Code::kArgumentsBits> {};
 

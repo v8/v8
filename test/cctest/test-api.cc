@@ -21933,6 +21933,7 @@ class ApiCallOptimizationChecker {
     }
     CHECK(holder == info.Holder());
     count++;
+    info.GetReturnValue().Set(v8_str("returned"));
   }
 
   // TODO(dcarney): move this to v8.h
@@ -22055,39 +22056,45 @@ class ApiCallOptimizationChecker {
             wrap_function,
             "function wrap_f_%d() { var f = g_f; return f(); }\n"
             "function wrap_get_%d() { return this.g_acc; }\n"
-            "function wrap_set_%d() { this.g_acc = 1; }\n",
+            "function wrap_set_%d() { return this.g_acc = 1; }\n",
             key, key, key);
       } else {
         i::OS::SNPrintF(
             wrap_function,
             "function wrap_f_%d() { return receiver_subclass.f(); }\n"
             "function wrap_get_%d() { return receiver_subclass.acc; }\n"
-            "function wrap_set_%d() { receiver_subclass.acc = 1; }\n",
+            "function wrap_set_%d() { return receiver_subclass.acc = 1; }\n",
             key, key, key);
       }
       // build source string
-      i::ScopedVector<char> source(500);
+      i::ScopedVector<char> source(1000);
       i::OS::SNPrintF(
           source,
           "%s\n"  // wrap functions
-          "function wrap_f() { wrap_f_%d(); }\n"
-          "function wrap_get() { wrap_get_%d(); }\n"
-          "function wrap_set() { wrap_set_%d(); }\n"
+          "function wrap_f() { return wrap_f_%d(); }\n"
+          "function wrap_get() { return wrap_get_%d(); }\n"
+          "function wrap_set() { return wrap_set_%d(); }\n"
+          "check = function(returned) {\n"
+          "  if (returned !== 'returned') { throw returned; }\n"
+          "}\n"
           "\n"
-          "wrap_f();\n"
-          "wrap_f();\n"
+          "check(wrap_f());\n"
+          "check(wrap_f());\n"
           "%%OptimizeFunctionOnNextCall(wrap_f_%d);\n"
-          "wrap_f();\n"
+          "check(wrap_f());\n"
           "\n"
-          "wrap_get();\n"
-          "wrap_get();\n"
+          "check(wrap_get());\n"
+          "check(wrap_get());\n"
           "%%OptimizeFunctionOnNextCall(wrap_get_%d);\n"
-          "wrap_get();\n"
+          "check(wrap_get());\n"
           "\n"
-          "wrap_set();\n"
-          "wrap_set();\n"
+          "check = function(returned) {\n"
+          "  if (returned !== 1) { throw returned; }\n"
+          "}\n"
+          "check(wrap_set());\n"
+          "check(wrap_set());\n"
           "%%OptimizeFunctionOnNextCall(wrap_set_%d);\n"
-          "wrap_set();\n",
+          "check(wrap_set());\n",
           wrap_function.start(), key, key, key, key, key, key);
       v8::TryCatch try_catch;
       CompileRun(source.start());

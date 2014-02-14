@@ -7783,6 +7783,7 @@ bool HOptimizedGraphBuilder::TryInlineApiCall(Handle<JSFunction> function,
   }
 
   bool drop_extra = false;
+  bool is_store = false;
   switch (call_type) {
     case kCallApiFunction:
     case kCallApiMethod:
@@ -7809,6 +7810,7 @@ bool HOptimizedGraphBuilder::TryInlineApiCall(Handle<JSFunction> function,
       break;
     case kCallApiSetter:
       {
+        is_store = true;
         // Receiver and prototype chain cannot have changed.
         ASSERT_EQ(1, argc);
         ASSERT_EQ(NULL, receiver);
@@ -7854,7 +7856,7 @@ bool HOptimizedGraphBuilder::TryInlineApiCall(Handle<JSFunction> function,
   CallInterfaceDescriptor* descriptor =
       isolate()->call_descriptor(Isolate::ApiFunctionCall);
 
-  CallApiFunctionStub stub(true, call_data_is_undefined, argc);
+  CallApiFunctionStub stub(is_store, call_data_is_undefined, argc);
   Handle<Code> code = stub.GetCode(isolate());
   HConstant* code_value = Add<HConstant>(code);
 
