@@ -5711,7 +5711,7 @@ void HOptimizedGraphBuilder::HandlePolymorphicNamedFieldAccess(
         smi_check = New<HIsSmiAndBranch>(
             object, empty_smi_block, not_smi_block);
         FinishCurrentBlock(smi_check);
-        Goto(empty_smi_block, number_block);
+        GotoNoSimulate(empty_smi_block, number_block);
         set_current_block(not_smi_block);
       } else {
         BuildCheckHeapObject(object);
@@ -5739,9 +5739,8 @@ void HOptimizedGraphBuilder::HandlePolymorphicNamedFieldAccess(
     FinishCurrentBlock(compare);
 
     if (info.type()->Is(Type::Number())) {
-      Goto(if_true, number_block);
+      GotoNoSimulate(if_true, number_block);
       if_true = number_block;
-      number_block->SetJoinId(ast_id);
     }
 
     set_current_block(if_true);
@@ -6921,7 +6920,7 @@ void HOptimizedGraphBuilder::HandlePolymorphicCallNamed(
         number_block = graph()->CreateBasicBlock();
         FinishCurrentBlock(New<HIsSmiAndBranch>(
                 receiver, empty_smi_block, not_smi_block));
-        Goto(empty_smi_block, number_block);
+        GotoNoSimulate(empty_smi_block, number_block);
         set_current_block(not_smi_block);
       } else {
         BuildCheckHeapObject(receiver);
@@ -6946,9 +6945,8 @@ void HOptimizedGraphBuilder::HandlePolymorphicCallNamed(
     FinishCurrentBlock(compare);
 
     if (info.type()->Is(Type::Number())) {
-      Goto(if_true, number_block);
+      GotoNoSimulate(if_true, number_block);
       if_true = number_block;
-      number_block->SetJoinId(expr->id());
     }
 
     set_current_block(if_true);
