@@ -118,7 +118,7 @@ Handle<Code> StubCache::FindHandler(Handle<Name> name,
                                     Code::Kind kind,
                                     InlineCacheHolderFlag cache_holder) {
   Code::Flags flags = Code::ComputeMonomorphicFlags(
-      Code::HANDLER, kNoExtraICState, cache_holder, Code::NORMAL, kind);
+      Code::HANDLER, kNoExtraICState, cache_holder, Code::NORMAL);
 
   Handle<Object> probe(stub_holder->FindInCodeCache(*name, flags), isolate_);
   if (probe->IsCode()) return Handle<Code>::cast(probe);
@@ -1235,8 +1235,8 @@ Handle<Code> BaseLoadStoreStubCompiler::GetICCode(Code::Kind kind,
 Handle<Code> BaseLoadStoreStubCompiler::GetCode(Code::Kind kind,
                                                 Code::StubType type,
                                                 Handle<Name> name) {
-  Code::Flags flags = Code::ComputeFlags(
-      Code::HANDLER, MONOMORPHIC, extra_state(), type, kind, cache_holder_);
+  Code::Flags flags = Code::ComputeHandlerFlags(
+      kind, extra_state(), type, cache_holder_);
   Handle<Code> code = GetCodeWithFlags(flags, name);
   PROFILE(isolate(), CodeCreateEvent(log_kind(code), *code, *name));
   JitEvent(name, code);

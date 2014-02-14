@@ -4478,7 +4478,6 @@ Code::Flags Code::ComputeFlags(Kind kind,
                                InlineCacheState ic_state,
                                ExtraICState extra_ic_state,
                                StubType type,
-                               Kind handler_kind,
                                InlineCacheHolderFlag holder) {
   // Compute the bit mask.
   unsigned int bits = KindField::encode(kind)
@@ -4486,10 +4485,6 @@ Code::Flags Code::ComputeFlags(Kind kind,
       | TypeField::encode(type)
       | ExtraICStateField::encode(extra_ic_state)
       | CacheHolderField::encode(holder);
-  // TODO(verwaest): Move to the valid uses of |handler_kind|.
-  if (handler_kind != STUB) {
-    bits |= HandlerKindField::encode(handler_kind);
-  }
   return static_cast<Flags>(bits);
 }
 
@@ -4497,10 +4492,17 @@ Code::Flags Code::ComputeFlags(Kind kind,
 Code::Flags Code::ComputeMonomorphicFlags(Kind kind,
                                           ExtraICState extra_ic_state,
                                           InlineCacheHolderFlag holder,
-                                          StubType type,
-                                          Kind handler_kind) {
-  return ComputeFlags(kind, MONOMORPHIC, extra_ic_state, type,
-                      handler_kind, holder);
+                                          StubType type) {
+  return ComputeFlags(kind, MONOMORPHIC, extra_ic_state, type, holder);
+}
+
+
+Code::Flags Code::ComputeHandlerFlags(Kind handler_kind,
+                                      ExtraICState extra_ic_state,
+                                      StubType type,
+                                      InlineCacheHolderFlag holder) {
+  ExtraICState extra = HandlerKindField::encode(handler_kind) | extra_ic_state;
+  return ComputeFlags(Code::HANDLER, MONOMORPHIC, extra, type, holder);
 }
 
 

@@ -188,9 +188,6 @@ class CodeStub BASE_EMBEDDED {
   virtual Code::StubType GetStubType() {
     return Code::NORMAL;
   }
-  virtual Code::Kind GetHandlerKind() {
-    return Code::STUB;
-  }
 
   virtual void PrintName(StringStream* stream);
 
@@ -885,7 +882,9 @@ class HICStub: public HydrogenCodeStub {
 class HandlerStub: public HICStub {
  public:
   virtual Code::Kind GetCodeKind() const { return Code::HANDLER; }
-  virtual Code::Kind GetHandlerKind() { return kind(); }
+  virtual ExtraICState GetExtraICState() {
+    return Code::HandlerKindField::encode(kind());
+  }
 
  protected:
   HandlerStub() : HICStub() { }
@@ -981,8 +980,6 @@ class StoreGlobalStub : public HandlerStub {
       Isolate* isolate,
       CodeStubInterfaceDescriptor* descriptor);
 
-  virtual ExtraICState GetExtraICState() { return bit_field_; }
-
   bool is_constant() {
     return IsConstantBits::decode(bit_field_);
   }
@@ -998,13 +995,10 @@ class StoreGlobalStub : public HandlerStub {
   }
 
  private:
-  virtual int NotMissMinorKey() { return GetExtraICState(); }
   Major MajorKey() { return StoreGlobal; }
 
   class IsConstantBits: public BitField<bool, 0, 1> {};
   class RepresentationBits: public BitField<Representation::Kind, 1, 8> {};
-
-  int bit_field_;
 
   DISALLOW_COPY_AND_ASSIGN(StoreGlobalStub);
 };

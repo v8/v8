@@ -283,9 +283,7 @@ void TypeFeedbackOracle::PropertyReceiverTypes(
   FunctionPrototypeStub proto_stub(Code::LOAD_IC);
   *is_prototype = LoadIsStub(id, &proto_stub);
   if (!*is_prototype) {
-    Code::Flags flags = Code::ComputeFlags(
-        Code::HANDLER, MONOMORPHIC, kNoExtraICState,
-        Code::NORMAL, Code::LOAD_IC);
+    Code::Flags flags = Code::ComputeHandlerFlags(Code::LOAD_IC);
     CollectReceiverTypes(id, name, flags, receiver_types);
   }
 }
@@ -306,9 +304,7 @@ void TypeFeedbackOracle::KeyedPropertyReceiverTypes(
 void TypeFeedbackOracle::AssignmentReceiverTypes(
     TypeFeedbackId id, Handle<String> name, SmallMapList* receiver_types) {
   receiver_types->Clear();
-  Code::Flags flags = Code::ComputeFlags(
-      Code::HANDLER, MONOMORPHIC, kNoExtraICState,
-      Code::NORMAL, Code::STORE_IC);
+  Code::Flags flags = Code::ComputeHandlerFlags(Code::STORE_IC);
   CollectReceiverTypes(id, name, flags, receiver_types);
 }
 

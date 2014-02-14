@@ -435,9 +435,7 @@ void LoadIC::GenerateMegamorphic(MacroAssembler* masm,
   // -----------------------------------
 
   // Probe the stub cache.
-  Code::Flags flags = Code::ComputeFlags(
-      Code::HANDLER, MONOMORPHIC, extra_state,
-      Code::NORMAL, Code::LOAD_IC);
+  Code::Flags flags = Code::ComputeHandlerFlags(Code::LOAD_IC, extra_state);
   masm->isolate()->stub_cache()->GenerateProbe(
       masm, flags, x0, x2, x3, x4, x5, x6);
 
@@ -1220,7 +1218,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
 
 
 void StoreIC::GenerateMegamorphic(MacroAssembler* masm,
-                                  ExtraICState extra_ic_state) {
+                                  ExtraICState extra_state) {
   // ----------- S t a t e -------------
   //  -- x0    : value
   //  -- x1    : receiver
@@ -1229,9 +1227,7 @@ void StoreIC::GenerateMegamorphic(MacroAssembler* masm,
   // -----------------------------------
 
   // Probe the stub cache.
-  Code::Flags flags = Code::ComputeFlags(
-      Code::HANDLER, MONOMORPHIC, extra_ic_state,
-      Code::NORMAL, Code::STORE_IC);
+  Code::Flags flags = Code::ComputeHandlerFlags(Code::STORE_IC, extra_state);
 
   masm->isolate()->stub_cache()->GenerateProbe(
       masm, flags, x1, x2, x3, x4, x5, x6);

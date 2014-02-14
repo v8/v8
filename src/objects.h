@@ -5375,15 +5375,19 @@ class Code: public HeapObject {
       InlineCacheState ic_state = UNINITIALIZED,
       ExtraICState extra_ic_state = kNoExtraICState,
       StubType type = NORMAL,
-      Kind handler_kind = STUB,
       InlineCacheHolderFlag holder = OWN_MAP);
 
   static inline Flags ComputeMonomorphicFlags(
       Kind kind,
       ExtraICState extra_ic_state = kNoExtraICState,
       InlineCacheHolderFlag holder = OWN_MAP,
+      StubType type = NORMAL);
+
+  static inline Flags ComputeHandlerFlags(
+      Kind handler_kind,
+      ExtraICState extra_ic_state = kNoExtraICState,
       StubType type = NORMAL,
-      Kind handler_kind = STUB);
+      InlineCacheHolderFlag holder = OWN_MAP);
 
   static inline InlineCacheState ExtractICStateFromFlags(Flags flags);
   static inline StubType ExtractTypeFromFlags(Flags flags);
