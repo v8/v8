@@ -854,9 +854,8 @@ class PreParser : public ParserBase<PreParserTraits> {
   Expression ParseUnaryExpression(bool* ok);
   Expression ParsePostfixExpression(bool* ok);
   Expression ParseLeftHandSideExpression(bool* ok);
-  Expression ParseNewExpression(bool* ok);
   Expression ParseMemberExpression(bool* ok);
-  Expression ParseMemberWithNewPrefixesExpression(unsigned new_count, bool* ok);
+  Expression ParseMemberWithNewPrefixesExpression(bool* ok);
   Expression ParseArrayLiteral(bool* ok);
   Expression ParseObjectLiteral(bool* ok);
   Expression ParseV8Intrinsic(bool* ok);

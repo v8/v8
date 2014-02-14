@@ -46,49 +46,6 @@
 namespace v8 {
 namespace internal {
 
-// PositionStack is used for on-stack allocation of token positions for
-// new expressions. Please look at ParseNewExpression.
-
-class PositionStack  {
- public:
-  explicit PositionStack(bool* ok) : top_(NULL), ok_(ok) {}
-  ~PositionStack() {
-    ASSERT(!*ok_ || is_empty());
-    USE(ok_);
-  }
-
-  class Element  {
-   public:
-    Element(PositionStack* stack, int value) {
-      previous_ = stack->top();
-      value_ = value;
-      stack->set_top(this);
-    }
-
-   private:
-    Element* previous() { return previous_; }
-    int value() { return value_; }
-    friend class PositionStack;
-    Element* previous_;
-    int value_;
-  };
-
-  bool is_empty() { return top_ == NULL; }
-  int pop() {
-    ASSERT(!is_empty());
-    int result = top_->value();
-    top_ = top_->previous();
-    return result;
-  }
-
- private:
-  Element* top() { return top_; }
-  void set_top(Element* value) { top_ = value; }
-  Element* top_;
-  bool* ok_;
-};
-
-
 RegExpBuilder::RegExpBuilder(Zone* zone)
     : zone_(zone),
       pending_empty_(false),
@@ -3292,12 +3249,7 @@ Expression* Parser::ParseLeftHandSideExpression(bool* ok) {
   // LeftHandSideExpression ::
   //   (NewExpression | MemberExpression) ...
 
-  Expression* result;
-  if (peek() == Token::NEW) {
-    result = ParseNewExpression(CHECK_OK);
-  } else {
-    result = ParseMemberExpression(CHECK_OK);
-  }
+  Expression* result = ParseMemberWithNewPrefixesExpression(CHECK_OK);
 
   while (true) {
     switch (peek()) {
@@ -3366,50 +3318,42 @@ Expression* Parser::ParseLeftHandSideExpression(bool* ok) {
 }
 
 
-Expression* Parser::ParseNewPrefix(PositionStack* stack, bool* ok) {
+Expression* Parser::ParseMemberWithNewPrefixesExpression(bool* ok) {
   // NewExpression ::
   //   ('new')+ MemberExpression
 
-  // The grammar for new expressions is pretty warped. The keyword
-  // 'new' can either be a part of the new expression (where it isn't
-  // followed by an argument list) or a part of the member expression,
-  // where it must be followed by an argument list. To accommodate
-  // this, we parse the 'new' keywords greedily and keep track of how
-  // many we have parsed. This information is then passed on to the
-  // member expression parser, which is only allowed to match argument
-  // lists as long as it has 'new' prefixes left
-  Expect(Token::NEW, CHECK_OK);
-  PositionStack::Element pos(stack, position());
+  // The grammar for new expressions is pretty warped. We can have several 'new'
+  // keywords following each other, and then a MemberExpression. When we see '('
+  // after the MemberExpression, it's associated with the rightmost unassociated
+  // 'new' to create a NewExpression with arguments. However, a NewExpression
+  // can also occur without arguments.
 
-  Expression* result;
+  // Examples of new expression:
+  // new foo.bar().baz means (new (foo.bar)()).baz
+  // new foo()() means (new foo())()
+  // new new foo()() means (new (new foo())())
+  // new new foo means new (new foo)
+  // new new foo() means new (new foo())
+
   if (peek() == Token::NEW) {
-    result = ParseNewPrefix(stack, CHECK_OK);
-  } else {
-    result = ParseMemberWithNewPrefixesExpression(stack, CHECK_OK);
+    Consume(Token::NEW);
+    int new_pos = position();
+    Expression* result = ParseMemberWithNewPrefixesExpression(CHECK_OK);
+    if (peek() == Token::LPAREN) {
+      // NewExpression with arguments.
+      ZoneList<Expression*>* args = ParseArguments(CHECK_OK);
+      return factory()->NewCallNew(result, args, new_pos);
+    }
+    // NewExpression without arguments.
+    return factory()->NewCallNew(
+        result, new(zone()) ZoneList<Expression*>(0, zone()), new_pos);
   }
-
-  if (!stack->is_empty()) {
-    int last = stack->pop();
-    result = factory()->NewCallNew(
-        result, new(zone()) ZoneList<Expression*>(0, zone()), last);
-  }
-  return result;
-}
-
-
-Expression* Parser::ParseNewExpression(bool* ok) {
-  PositionStack stack(ok);
-  return ParseNewPrefix(&stack, ok);
+  // No 'new' keyword.
+  return ParseMemberExpression(ok);
 }
 
 
 Expression* Parser::ParseMemberExpression(bool* ok) {
-  return ParseMemberWithNewPrefixesExpression(NULL, ok);
-}
-
-
-Expression* Parser::ParseMemberWithNewPrefixesExpression(PositionStack* stack,
-                                                         bool* ok) {
   // MemberExpression ::
   //   (PrimaryExpression | FunctionLiteral)
   //     ('[' Expression ']' | '.' Identifier | Arguments)*
@@ -3467,14 +3411,6 @@ Expression* Parser::ParseMemberWithNewPrefixesExpression(PositionStack* stack,
         result = factory()->NewProperty(
             result, factory()->NewLiteral(name, pos), pos);
         if (fni_ != NULL) fni_->PushLiteralName(name);
-        break;
-      }
-      case Token::LPAREN: {
-        if ((stack == NULL) || stack->is_empty()) return result;
-        // Consume one of the new prefixes (already parsed).
-        ZoneList<Expression*>* args = ParseArguments(CHECK_OK);
-        int pos = stack->pop();
-        result = factory()->NewCallNew(result, args, pos);
         break;
       }
       default:
