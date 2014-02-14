@@ -49,7 +49,6 @@ class CodeGenerator:
     self.__dfa = dfa
     self.__default_action = rule_processor.default_action()
     self.__debug_print = debug_print
-    self.__start_node_number = self.__dfa.start_state().node_number()
     self.__log = log
     self.__inline = inline
     self.__switching = switching
@@ -60,9 +59,6 @@ class CodeGenerator:
   @staticmethod
   def __transform_state(encoding, state):
     # action data
-    action = state.action()
-    entry_action = action.entry_action()
-    match_action = action.match_action()
     # generate ordered transitions
     transitions = map(lambda (k, v) : (k, v.node_number()),
                       state.key_state_iter())
@@ -75,6 +71,7 @@ class CodeGenerator:
     transitions = []
     (class_keys, distinct_keys, ranges) = (0, 0, 0)
     zero_transition = None
+    omega_transition = None
     total_transitions = 0
     for key, transition_id in old_transitions:
       keys = []
@@ -95,16 +92,21 @@ class CodeGenerator:
             r = (r[0] + 1, r[1])
           keys.append((t, r))
         elif t == 'UNIQUE':
-          assert r == 'no_match' or r == 'eos'
+          assert r == 'eos'
           assert r not in unique_transitions
           unique_transitions[r] = transition_id
           if r != 'no_match':
             total_transitions += 1
+        elif t == 'OMEGA':
+          assert not omega_transition
+          omega_transition = transition_id
+          assert transition_id  # TODO(dcarney): fix
+          total_transitions += 1
         else:
           raise Exception()
       if keys:
         transitions.append((keys, transition_id))
-    # delay zero transition until last
+    # delay zero transition until after all encoded keys
     if zero_transition != None:
       transitions.append(([('PRIMARY_RANGE', (0, 0))], transition_id))
       ranges += 1
@@ -114,7 +116,8 @@ class CodeGenerator:
       'original_node_number' : state.node_number(),
       'transitions' : transitions,
       # flags for code generator
-      'can_elide_read' : total_transitions == 0,
+      'elide_read' : (total_transitions == 0 or
+                      (total_transitions == 1 and omega_transition)),
       'is_eos_handler' : False,
       'inline' : False,
       'must_not_inline' : False,
@@ -123,9 +126,9 @@ class CodeGenerator:
       'switch_transitions' : [],
       'deferred_transitions' : [],
       'unique_transitions' : unique_transitions,
+      'omega_transition' : omega_transition,
       # state actions
-      'entry_action' : entry_action,
-      'match_action' : match_action,
+      'action' : state.action(),
       # statistics for state
       'total_transitions' : total_transitions,
       'class_keys' : class_keys,
@@ -142,19 +145,28 @@ class CodeGenerator:
     self.__jump_table.append((node_id, label))
     return len(self.__jump_table) - 1
 
+  def __terminates_immediately(self, state_id):
+    transition_count = self.__dfa_states[state_id]['total_transitions']
+    if transition_count == 0:
+      return True
+    omega_transition_id = self.__dfa_states[state_id]['omega_transition']
+    if transition_count == 1 and omega_transition_id:
+      return self.__terminates_immediately(omega_transition_id)
+    return False
+
   def __set_inline(self, count, state):
     inline = False
     if state['must_not_inline']:
       inline = False
     # inline terminal states
-    elif not state['total_transitions']:
+    elif self.__terminates_immediately(state['node_number']):
       inline = True
     # inline next to terminal states with 1 or 2 transitions
     elif state['distinct_keys'] < 3 and state['class_keys'] == 0:
       inline = True
-      # ensure state terminates in 1 step
+      # ensure state terminates in 1 step, excluding omega transitions
       for key, state_id in state['transitions']:
-        if self.__dfa_states[state_id]['total_transitions']:
+        if not self.__terminates_immediately(state_id):
           inline = False
           break
     state['inline'] = inline
@@ -256,6 +268,9 @@ class CodeGenerator:
       CodeGenerator.__reorder(node_number, id_map, dfa_states)
     for node_number in current_node['unique_transitions'].values():
       CodeGenerator.__reorder(node_number, id_map, dfa_states)
+    if current_node['omega_transition'] != None:
+      CodeGenerator.__reorder(
+        current_node['omega_transition'], id_map, dfa_states)
 
   @staticmethod
   def __mark_eos_states(dfa_states, eos_states):
@@ -263,9 +278,9 @@ class CodeGenerator:
       state = dfa_states[state_id]
       state['is_eos_handler'] = True
       state['must_not_inline'] = True
-      assert state['match_action']
-      assert not state['entry_action']
-      assert not state['total_transitions']
+      # TODO(dcarney): bring back
+      # assert state['action']
+      # assert not state['total_transitions']
 
   def __build_dfa_states(self):
     dfa_states = []
@@ -275,51 +290,26 @@ class CodeGenerator:
     dfa_states = map(f, dfa_states)
     id_map = {x['original_node_number'] : x for x in dfa_states}
     dfa_states = []
-    CodeGenerator.__reorder(self.__start_node_number, id_map, dfa_states)
+    start_node_number = self.__dfa.start_state().node_number()
+    CodeGenerator.__reorder(start_node_number, id_map, dfa_states)
     # store states
     eos_states = set([])
+    remap = lambda state_id : id_map[state_id]['node_number']
     def f((key, original_node_number)):
-      return (key, id_map[original_node_number]['node_number'])
+      return (key, remap(original_node_number))
     for state in dfa_states:
       state['transitions'] = map(f, state['transitions'])
-      state['unique_transitions'] = {k : id_map[v]['node_number']
+      state['unique_transitions'] = {k : remap(v)
           for k, v in state['unique_transitions'].items()}
+      if state['omega_transition'] != None:
+        state['omega_transition'] = remap(state['omega_transition'])
       if 'eos' in state['unique_transitions']:
         eos_states.add(state['unique_transitions']['eos'])
-    assert id_map[self.__start_node_number]['node_number'] == 0
+    assert id_map[start_node_number]['node_number'] == 0
     assert len(dfa_states) == self.__dfa.node_count()
     # mark eos states
     self.__mark_eos_states(dfa_states, eos_states)
     self.__dfa_states = dfa_states
-
-  def __rewrite_gotos(self):
-    goto_map = {}
-    states = self.__dfa_states
-    for state in states:
-      if (state['match_action'].name() == 'do_stored_token'):
-        assert not state['match_action'].args()[0] in goto_map
-        goto_map[state['match_action'].args()[0]] = state['node_number']
-    mapped_actions = set([
-      'store_harmony_token_and_goto',
-      'store_token_and_goto',
-      'goto_start'])
-    for state in states:
-      if not state['match_action']:
-        continue
-      action = state['match_action'].name()
-      if action in mapped_actions:
-        value = state['match_action'].args()
-        target_id = goto_map[value[-1]]
-        states[target_id]['must_not_inline'] = True
-        if action != 'goto_start':
-          state['can_elide_read'] = False
-          label = 'after_entry_code'
-        else:
-          states[target_id]['can_elide_read'] = False
-          label = 'state_entry'
-        jump_label = self.__register_jump(target_id, label)
-        new_args = list(value[:-1]) + [str(jump_label)]
-        state['match_action'] = Term(action, *new_args)
 
   def __inlined_state(self, target_id):
     state = deepcopy(self.__dfa_states[target_id])
@@ -364,6 +354,9 @@ class CodeGenerator:
         return (key, self.__register_jump(target_id, jump_type))
       for name in transition_names:
         state[name] = map(generate_jump, state[name])
+      if state['omega_transition'] != None:
+        state['omega_transition'] = generate_jump(
+          (None, state['omega_transition']))[1]
       if 'eos' in state['unique_transitions']:
         eos_state_id = state['unique_transitions']['eos']
         # eos state is not inlined, don't need to look in map
@@ -392,8 +385,6 @@ class CodeGenerator:
     # rewrite deferred transitions
     for state in dfa_states:
       self.__rewrite_deferred_transitions(state)
-    # rewrite gotos
-    self.__rewrite_gotos()
     # set nodes to inline
     if self.__inline:
       inlined = reduce(self.__set_inline, dfa_states, 0)
@@ -407,8 +398,7 @@ class CodeGenerator:
     self.__dfa_states[0]['entry_points']['state_entry'] = True
 
     default_action = self.__default_action
-    assert(default_action and default_action.match_action())
-    default_action = default_action.match_action()
+    assert default_action
 
     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     template_env = jinja2.Environment(

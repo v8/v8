@@ -214,7 +214,7 @@ class RegexParser:
     '''
     if p[2]:
       if p[2][0] == 'REPEAT':
-        p[0] = Term(p[2][0], p[2][1], p[2][2], p[1])
+        p[0] = Term(p[2][0], p[1], p[2][1], p[2][2])
       else:
         p[0] = Term(p[2][0], p[1])
     else:

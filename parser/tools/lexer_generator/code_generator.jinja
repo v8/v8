@@ -68,6 +68,8 @@
 {% macro dispatch_entry_action(type, args) -%}
   {% if type == 'store_token' %}
     stored_token = Token::{{args[0]}};
+  {% elif type == 'no_op' %}
+    {# TODO(dcarney): remove #}
   {% elif type == 'set_marker' %}
     marker = cursor_ - {{args[0]}};
   {% elif type == 'set_has_escapes' %}
@@ -77,6 +79,14 @@
     next_.has_escapes = true;
   {% elif type == 'line_terminator_in_multiline_comment' %}
     has_multiline_comment_before_next_ = true;
+  {% elif type == 'store_token' %}
+    stored_token = Token::{{args[0]}};
+  {% elif type == 'store_harmony_token' %}
+    if (harmony_{{args[0]}}_) {
+      stored_token = Token::{{args[1]}};
+    } else {
+      stored_token = Token::{{args[2]}};
+    }
   {% elif type == 'check_escaped_identifier_start' %}
     if (!ValidIdentifierStart()) goto default_action;
     next_.has_escapes = true;
@@ -120,11 +130,6 @@
   {% elif type == 'token' %}
     DO_TOKEN(Token::{{args[0]}})
     return;
-  {% elif type == 'goto_start' %}
-    {{ jump(args[0]|int) }}
-  {% elif type == 'store_token_and_goto' %}
-    stored_token = Token::{{args[0]}};
-    {{ jump(args[1]|int) }}
   {% elif type == 'do_stored_token' %}
     DO_TOKEN(stored_token)
     return;
@@ -140,13 +145,6 @@
       DO_TOKEN(Token::{{args[2]}});
     }
     return;
-  {% elif type == 'store_harmony_token_and_goto' %}
-    if (harmony_{{args[0]}}_) {
-      stored_token = Token::{{args[1]}};
-    } else {
-      stored_token = Token::{{args[2]}};
-    }
-    {{ jump(args[3]|int) }}
   {% elif type == 'octal_number' %}
     last_octal_end_ = cursor_;
     DO_TOKEN(Token::NUMBER);
@@ -192,10 +190,11 @@
   {%- set state = dfa_states[node_number] -%}
   {%- set used = state['entry_points'][label_name] -%}
   {%- set long_label = label_name ~ '_' ~ node_number -%}
+  {%- set inlined = 'inlined' if state['inline'] else 'not inlined' -%}
   {% if used -%}
-    {{long_label}}:
+    {{long_label}}: // {{inlined}}
   {%- else -%}
-    // {{long_label}}:
+    // {{long_label}}: {{inlined}}
   {%- endif %}
 {% endmacro -%}
 
@@ -206,7 +205,7 @@
 
   {{ write_label('state_entry', node_number) }}
 
-  {% if not state['can_elide_read'] -%}
+  {% if not state['elide_read'] -%}
     READ_CURSOR();
   {%- endif -%}
 
@@ -217,9 +216,13 @@
             cursor_ - buffer_);
   {% endif -%}
 
-  {%- set entry_action = state.entry_action -%}
-  {%- if entry_action %}
-    {{ dispatch_entry_action(entry_action.name(), entry_action.args()) }}
+  {%- set action = state['action'].term() -%}
+  {%- if action %}
+    {%- if not state['total_transitions'] -%}
+      {{ dispatch_match_action(action.name(), action.args()) }}
+    {%- else -%}
+      {{ dispatch_entry_action(action.name(), action.args()) }}
+    {%- endif -%}
   {%- endif %}
 
   {{ write_label('after_entry_code', node_number) }}
@@ -228,10 +231,12 @@
     fprintf(stderr, "char at hand is %c (%d)\n", primary_char, primary_char);
   {% endif -%}
 
-  {%- macro do_transition(jump_id) -%}
+  {%- macro do_transition(jump_id, do_forward = True) -%}
     {%- set transition_state_id = jump_table[jump_id][0] -%}
     {%- set inline_transition = jump_table[jump_id][1] == 'inline' %}
-    FORWARD();
+    {%- if do_forward %}
+      FORWARD();
+    {% endif %}
     {%- if inline_transition %}
       {{ do_dfa_state(transition_state_id) }}
     {% else %}
@@ -277,13 +282,11 @@
     }
   {%- endif -%}
 
-  {%- set match_action = state.match_action -%}
-  {%- if match_action %}
-    {{ dispatch_match_action(match_action.name(), match_action.args()) }}
-    CRASH();
-  {% else %}
-    goto default_action;
-  {%- endif %}
+  {%- if state['omega_transition'] %}
+    {{ do_transition(state['omega_transition'], False) }}
+  {%- endif -%}
+
+  goto default_action; {# this is wrong, should be CRASH(); #}
 
 {%- endmacro %}
 
@@ -343,7 +346,8 @@ void ExperimentalScanner<{{char_type}}>::Scan() {
 {%- if debug_print %}
     fprintf(stderr, "default action\n");
 {% endif -%}
-    {{dispatch_match_action(default_action.name(), default_action.args())}}
+    {%- set action = default_action.term() -%}
+    {{dispatch_match_action(action.name(), action.args())}}
   CRASH();
 
   if (false) {

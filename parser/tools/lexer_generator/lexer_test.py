@@ -32,9 +32,7 @@ from rule_parser import RuleProcessor
 class LexerTestCase(unittest.TestCase):
 
   def __verify_action_stream(self, rules, string, expected):
-    expected = map(lambda (action, s) : (
-        Action(Term.empty_term(), Term(action)), s),
-        expected)
+    expected = map(lambda (action, s) : (Action(Term(action), 0), s), expected)
     rule_processor = RuleProcessor(rules, 'latin1')
     automata = rule_processor.default_automata()
     for automaton in [automata.nfa(), automata.dfa(), automata.minimal_dfa()]:

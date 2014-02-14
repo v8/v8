@@ -42,13 +42,9 @@ class Term(object):
 
   def __init__(self, name, *args):
     assert type(name) == StringType
-    if not name:
-      assert not args, 'empty term must not have args'
+    assert name or not args, 'empty term must not have args'
     for v in args:
-      if type(v) == IntType or type(v) == StringType:
-        continue
-      else:
-        assert isinstance(v, Term)
+      assert type(v) == IntType or type(v) == StringType or isinstance(v, Term)
     self.__tuple = tuple([name] + list(args))
     self.__str = None
 
@@ -81,63 +77,46 @@ class Action(object):
   @staticmethod
   def empty_action():
     if Action.__empty_action == None:
-      Action.__empty_action = Action(Term.empty_term(), Term.empty_term())
+      Action.__empty_action = Action(Term.empty_term(), -1)
     return Action.__empty_action
 
   @staticmethod
-  def dominant_action(state_set):
-    action = Action.empty_action()
-    for state in state_set:
-      if not state.action():
-        continue
+  def dominant_action(actions):
+    dominant = Action.empty_action()
+    for action in actions:
       if not action:
-        action = state.action()
         continue
-      if state.action().precedence() == action.precedence():
-        assert state.action() == action
-      elif state.action().precedence() < action.precedence():
-        action = state.action()
-    return action
+      if not dominant:
+        dominant = action
+        continue
+      if action.precedence() == dominant.precedence():
+        assert action.__term == dominant.__term
+      elif action.precedence() < dominant.precedence():
+        dominant = action
+    return dominant
 
-  def __init__(self, entry_action, match_action, precedence = -1):
-    assert isinstance(match_action, Term)
-    assert isinstance(entry_action, Term)
+  def __init__(self, term, precedence):
+    assert isinstance(term, Term)
     assert type(precedence) == IntType
-    self.__entry_action = entry_action
-    self.__match_action = match_action
+    assert not term or precedence >= 0, 'action must have positive precedence'
+    self.__term = term
     self.__precedence = precedence
 
-  def entry_action(self):
-    return self.__entry_action
+  def name(self):
+    return self.__term.name()
 
-  def match_action(self):
-    return self.__match_action
+  def term(self):
+    return self.__term
 
   def precedence(self):
     return self.__precedence
 
-  def to_term(self):
-    return Term(
-      'action_serialization',
-      self.__entry_action, self.__match_action, str(self.__precedence))
-
-  @staticmethod
-  def from_term(term):
-    assert term.name() == 'action_serialization'
-    return Action(term.args()[0], term.args()[1], int(term.args()[2]))
-
   def __nonzero__(self):
-    return bool(self.__entry_action) or bool(self.__match_action)
-
-  def __hash__(self):
-    return hash((self.__entry_action, self.__match_action))
+    'true <==> self == empty_action'
+    return bool(self.__term)
 
   def __eq__(self, other):
-    return (isinstance(other, self.__class__) and
-            self.__entry_action == other.__entry_action and
-            self.__match_action == other.__match_action)
+    return isinstance(other, self.__class__) and self.__term == other.__term
 
   def __str__(self):
-    parts = map(lambda action : '' if not action else str(action),
-                [self.__entry_action, self.__match_action])
-    return "action< %s >" % " | ".join(parts)
+    return "action <%s>" % ('' if not self.__term else str(self.__term))

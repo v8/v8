@@ -224,6 +224,8 @@ class TransitionKey(object):
         yield ('CLASS', c.args()[0])
       elif c.name() == 'TERM_KEY':
         yield ('UNIQUE', c.args()[0])
+      elif c.name() == 'OMEGA_KEY':
+        yield ('OMEGA', ())
       else:
         assert False, 'unimplemented %s' % c
 
@@ -304,6 +306,10 @@ class TransitionKey(object):
     return 5 * sign  # partial overlap
 
   @staticmethod
+  def __is_composable(term):
+    return term.name() != 'EPSILON_KEY' and term.name() != 'OMEGA_KEY'
+
+  @staticmethod
   def __construct(encoding, components):
     if isinstance(components, Term):
       components = [components]
@@ -312,10 +318,7 @@ class TransitionKey(object):
     last = Term.empty_term()
     for current in TransitionKey.__flatten_components(components):
       name = current.name()
-      if last:
-        assert name != 'EPSILON_KEY' and name != 'OMEGA_KEY', 'cannot merge'
-        c = TransitionKey.__component_compare(last, current)
-        assert c == -1 or c == -2, 'bad order %s %s' % (str(last), str(current))
+      # verify arguments
       if name == 'EPSILON_KEY' or name == 'OMEGA_KEY' or name == 'TERM_KEY':
         pass
       elif name == 'NUMERIC_RANGE_KEY':
@@ -326,6 +329,13 @@ class TransitionKey(object):
         assert encoding.named_range(current.args()[0])
       else:
         raise Exception('illegal component %s' % str(current))
+      # verify ordering, composability
+      if last:
+        assert TransitionKey.__is_composable(current), 'cannot compose'
+        if len(acc) == 1:
+          assert TransitionKey.__is_composable(last), 'cannot compose'
+        c = TransitionKey.__component_compare(last, current)
+        assert c == -1 or c == -2, 'bad order %s %s' % (str(last), str(current))
       acc.append(current)
       last = current
     assert acc, "must have components"
@@ -395,7 +405,6 @@ class TransitionKey(object):
     range_map = {}
     other_keys = set([])
     for x in components:
-      assert x.name() != 'EPSILON_KEY' and x.name() != 'OMEGA_KEY'
       if x.name() != 'NUMERIC_RANGE_KEY':
         other_keys.add(x)
         continue

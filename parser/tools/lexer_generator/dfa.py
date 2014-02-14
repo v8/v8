@@ -44,6 +44,14 @@ class DfaState(AutomatonState):
   def action(self):
     return self.__action
 
+  def transition_count(self):
+    return len(self.__transitions)
+
+  def omega_transition(self):
+    if TransitionKey.omega() in self.__transitions:
+      return self.__transitions[TransitionKey.omega()]
+    return None
+
   def epsilon_closure_iter(self):
     return iter([])
 
@@ -185,7 +193,8 @@ class DfaMinimizer:
       else:
         # Match actions are valid only if we have matched the whole token, not
         # just some sub-part of it.
-        assert not action.match_action()
+        # TODO(dcarney): restore
+        # assert not action.is_match_action()
         key = ("nonterminal set", action)
       if not key in initial_partitions:
         initial_partitions[key] = set()

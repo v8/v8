@@ -82,6 +82,8 @@ def automaton_to_dot(automaton):
     for key, state in node.key_state_iter():
       if key == TransitionKey.epsilon():
         key = "&epsilon;"
+      elif key == TransitionKey.omega():
+        key = "&omega;"
       else:
         key = key.to_string(automaton.encoding())
       edge_content.append("  S_%s -> S_%s [ label = \"%s\" ];" % (

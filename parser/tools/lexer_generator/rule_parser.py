@@ -188,10 +188,8 @@ class RuleParser:
       tree = Term.empty_term()
     else:
       tree = p[1]  # regex case
-    # handle actions
-    if entry_action or match_action:
-      tree = NfaBuilder.add_action(
-        tree, Action(entry_action, match_action, precedence))
+    # install actions
+    tree = NfaBuilder.add_action(tree, entry_action, match_action, precedence)
     # handle transitions
     if not transition:
       pass
@@ -409,4 +407,4 @@ class RuleProcessor(object):
         parser_state.encoding, parser_state.character_classes, rule_map, name)
     # process default_action
     default_action = parser_state.rules['default']['default_action']
-    self.__default_action = Action(Term.empty_term(), default_action)
+    self.__default_action = Action(default_action, 0)

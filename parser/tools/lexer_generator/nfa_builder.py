@@ -46,18 +46,13 @@ class NfaBuilder(object):
     self.__encoding = encoding
     self.__character_classes = character_classes
     self.__states = []
-    self.__global_end_node = None
+    self.__global_end = self.__new_state()
     self.__operation_map = None
     self.__subtree_map = subtree_map
 
   def __new_state(self):
     self.__node_number += 1
     return NfaState()
-
-  def __global_end(self):
-    if not self.__global_end_node:
-      self.__global_end_node = self.__new_state()
-    return self.__global_end_node
 
   def __or(self, *trees):
     start = self.__new_state()
@@ -89,7 +84,7 @@ class NfaBuilder(object):
     start.add_epsilon_transition(node)
     return (start, ends + [start])
 
-  def __repeat(self, param_min, param_max, subtree):
+  def __repeat(self, subtree, param_min, param_max):
     'process regex of form subtree{param_min, param_max}'
     (param_min, param_max) = (int(param_min), int(param_max))
     assert param_min > 1 and param_min <= param_max
@@ -147,17 +142,27 @@ class NfaBuilder(object):
   def __any(self):
     return self.__key_state(TransitionKey.any(self.__encoding))
 
-  def __action(self, subtree, action_term):
+  def __unique_key(self, name):
+    return self.__key_state(TransitionKey.unique(name))
+
+  def __entry_action(self, action, precedence, subtree):
     (start, ends) = self.__process(subtree)
-    action = Action.from_term(action_term)
-    end = self.__new_state()
-    self.__patch_ends(ends, end)
-    end.set_action(action)
+    node = self.__new_state()
+    node.set_action(Action(action, precedence))
+    self.__patch_ends(ends, node)
+    return (start, [node])
+
+  def __match_action(self, action, precedence, subtree):
+    (start, ends) = self.__process(subtree)
+    node = self.__new_state()
+    node.set_action(Action(action, precedence))
     # Force all match actions to be terminal.
-    if action.match_action():
-      global_end = self.__global_end()
-      end.add_epsilon_transition(global_end)
-    return (start, [end])
+    node.close(self.__global_end)
+    # patch via a match edge into existing graph
+    match_node = self.__new_state()
+    match_node.add_transition(TransitionKey.omega(), node)
+    self.__patch_ends(ends, match_node)
+    return (start, [match_node])
 
   def __continue(self, subtree, depth):
     'add an epsilon transitions to the start node of the current subtree'
@@ -169,20 +174,11 @@ class NfaBuilder(object):
     self.__patch_ends(ends, state['start_node'])
     return (start, [])
 
-  def __unique_key(self, name):
-    return self.__key_state(TransitionKey.unique(name))
-
   def __join(self, tree, name):
-    (subtree_start, subtree_end, nodes_in_subtree) = self.__nfa(name)
-    if tree:
-      (start, ends) = self.__process(tree)
-      self.__patch_ends(ends, subtree_start)
-    else:
-      start = subtree_start
-    if subtree_end:
-      return (start, [subtree_end])
-    else:
-      return (start, [])
+    (start, ends) = self.__subgraph(name)
+    (new_start, new_ends) = self.__process(tree)
+    self.__patch_ends(new_ends, start)
+    return (new_start, ends)
 
   def __get_method(self, name):
     'lazily build map of all private bound methods and return the one requested'
@@ -209,79 +205,24 @@ class NfaBuilder(object):
       'name' : name
     })
 
-  def __pop_state(self):
-    return self.__states.pop()
-
-  def __nfa(self, name):
+  def __subgraph(self, name):
     tree = self.__subtree_map[name]
-    start_node_number = self.__node_number
     self.__push_state(name)
     (start, ends) = self.__process(tree)
-    state = self.__pop_state()
+    state = self.__states.pop()
     # move saved start node into start
     if state['start_node']:
       state['start_node'].close(start)
       start = state['start_node']
-    # Don't create an end node for the subgraph if it would be unused (ends can
-    # be an empty list e.g., in the case when everything inside the subgraph is
-    # "continue").
-    end = None
-    if ends:
-      end = self.__new_state()
-      self.__patch_ends(ends, end)
-    return (start, end, self.__node_number - start_node_number)
+    return (start, ends)
 
   @staticmethod
-  def __compute_epsilon_closures(start_state):
-    def outer(node, state):
-      def inner(node, closure):
-        closure.add(node)
-        return closure
-      is_epsilon = lambda k: k == TransitionKey.epsilon()
-      state_iter = lambda node : node.state_iter(key_filter = is_epsilon)
-      edge = set(state_iter(node))
-      closure = Automaton.visit_states(
-          edge, inner, state_iter=state_iter, visit_state=set())
-      node.set_epsilon_closure(closure)
-    Automaton.visit_states(set([start_state]), outer)
-
-  @staticmethod
-  def __replace_catch_all(encoding, state):
-    catch_all = TransitionKey.unique('catch_all')
-    states = list(state.state_iter_for_key(catch_all))
-    if not states:
-      return
-    f = lambda acc, state: acc | set(state.epsilon_closure_iter())
-    reachable_states = reduce(f, states, set())
-    f = lambda acc, state: acc | set(state.key_iter())
-    keys = reduce(f, reachable_states, set())
-    keys.discard(TransitionKey.epsilon())
-    keys.discard(catch_all)
-    keys.discard(TransitionKey.unique('eos'))
-    inverse_key = TransitionKey.inverse_key(encoding, keys)
-    if not inverse_key:
-      inverse_key = TransitionKey.unique('no_match')
-    state.swap_key(catch_all, inverse_key)
-
-  @staticmethod
-  def nfa(encoding, character_classes, subtree_map, name):
-    self = NfaBuilder(encoding, character_classes, subtree_map)
-    (start, end, nodes_created) = self.__nfa(name)
-    # close all ends
-    global_end_to_return = self.__global_end_node or end
-    assert global_end_to_return, "no terminal nodes, default tree continues"
-    if end and self.__global_end_node:
-      end.close(self.__global_end_node)
-    global_end_to_return.close(None)
-    # Prepare the nfa
-    self.__compute_epsilon_closures(start)
-    f = lambda node, state: self.__replace_catch_all(self.__encoding, node)
-    Automaton.visit_states(set([start]), f)
-    return Nfa(self.__encoding, start, global_end_to_return, nodes_created)
-
-  @staticmethod
-  def add_action(term, action):
-    return Term('ACTION', term, action.to_term())
+  def add_action(tree, entry_action, match_action, precedence):
+    if entry_action:
+      tree = Term('ENTRY_ACTION', entry_action, precedence, tree)
+    if match_action:
+      tree = Term('MATCH_ACTION', match_action, precedence, tree)
+    return tree
 
   @staticmethod
   def add_continue(tree, depth):
@@ -293,6 +234,8 @@ class NfaBuilder(object):
 
   @staticmethod
   def join_subtree(tree, subtree_name):
+    if not tree:
+      return Term('SUBGRAPH', subtree_name)
     return Term('JOIN', tree, subtree_name)
 
   __modifer_map = {
@@ -345,3 +288,56 @@ class NfaBuilder(object):
     terms = list(NfaBuilder.__flatten_literals(terms))
     assert terms
     return terms[0] if len(terms) == 1 else Term('CAT', *terms)
+
+  @staticmethod
+  def nfa(encoding, character_classes, subtree_map, name):
+    self = NfaBuilder(encoding, character_classes, subtree_map)
+    (start, ends) = self.__subgraph(name)
+    # close all ends
+    end = self.__global_end
+    end.close(None)
+    # TODO(dcarney): patch in default action
+    self.__patch_ends(ends, end)
+    # Prepare the nfa
+    self.__compute_epsilon_closures(start)
+    f = lambda node, state: self.__replace_catch_all(self.__encoding, node)
+    Automaton.visit_states(set([start]), f)
+    return Nfa(self.__encoding, start, end, self.__node_number)
+
+  @staticmethod
+  def __compute_epsilon_closures(start_state):
+    def outer(node, state):
+      def inner(node, closure):
+        closure.add(node)
+        return closure
+      is_epsilon = lambda k: k == TransitionKey.epsilon()
+      state_iter = lambda node : node.state_iter(key_filter = is_epsilon)
+      edge = set(state_iter(node))
+      closure = Automaton.visit_states(
+          edge, inner, state_iter=state_iter, visit_state=set())
+      node.set_epsilon_closure(closure)
+    Automaton.visit_states(set([start_state]), outer)
+
+  @staticmethod
+  def __replace_catch_all(encoding, state):
+    catch_all = TransitionKey.unique('catch_all')
+    states = list(state.state_iter_for_key(catch_all))
+    if not states:
+      return
+    f = lambda acc, state: acc | set(state.epsilon_closure_iter())
+    reachable_states = reduce(f, states, set())
+    f = lambda acc, state: acc | set(state.key_iter())
+    keys = reduce(f, reachable_states, set())
+    keys.discard(TransitionKey.epsilon())
+    keys.discard(catch_all)
+    keys.discard(TransitionKey.unique('eos'))
+    inverse_key = TransitionKey.inverse_key(encoding, keys)
+    if not inverse_key:
+      inverse_key = TransitionKey.unique('no_match')
+    state.swap_key(catch_all, inverse_key)
+
+  @staticmethod
+  def __install_omega_transitions(start_state, default_action):
+    '''install a match transition, a backtrack transition,
+    or a default transition into all nodes'''
+    pass

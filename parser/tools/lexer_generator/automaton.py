@@ -109,9 +109,16 @@ class Automaton(object):
     return set(chain(iter(states), *map(f, states)))
 
   @staticmethod
-  def __transition_states_for_char(valid_states, c):
-    f = lambda state : state.transition_state_iter_for_char(c)
-    return set(chain(*map(f, Automaton.epsilon_closure(valid_states))))
+  def __omega_closure(states):
+    f = lambda s : s.transition_state_iter_for_key(TransitionKey.omega())
+    new_states = set(chain(*map(f, states)))
+    return set(chain(iter(states), iter(Automaton.epsilon_closure(new_states))))
+
+  @staticmethod
+  def __transition_states_for_char(states, c):
+    f = lambda s : s.transition_state_iter_for_char(c)
+    states = set(chain(*map(f, Automaton.epsilon_closure(states))))
+    return Automaton.__omega_closure(states)
 
   def matches(self, string):
     valid_states = self.start_set()
@@ -119,8 +126,12 @@ class Automaton(object):
       valid_states = Automaton.__transition_states_for_char(valid_states, c)
       if not valid_states:
         return False
-    valid_states = self.epsilon_closure(valid_states)
+    valid_states = self.__omega_closure(self.epsilon_closure(valid_states))
     return len(self.terminal_set().intersection(valid_states)) > 0
+
+  @staticmethod
+  def dominant_action(states):
+    return Action.dominant_action(map(lambda s: s.action(), states))
 
   def lex(self, string, default_action):
     last_position = 0
@@ -130,7 +141,8 @@ class Automaton(object):
       if transitions:
         valid_states = transitions
         continue
-      action = Action.dominant_action(valid_states)
+      # TODO(dcarney): action collection should walk omega transitions
+      action = self.dominant_action(valid_states)
       if not action:
         assert default_action
         action = default_action
@@ -139,8 +151,8 @@ class Automaton(object):
       # lex next token
       valid_states = Automaton.__transition_states_for_char(self.start_set(), c)
       assert valid_states
-    valid_states = self.epsilon_closure(valid_states)
-    action = Action.dominant_action(valid_states)
+    valid_states = self.__omega_closure(self.epsilon_closure(valid_states))
+    action = self.dominant_action(valid_states)
     if not action:
       assert default_action
       action = default_action

@@ -26,7 +26,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from transition_keys import TransitionKey
-from automaton import Term, Action
+from automaton import Term, Action, Automaton
 from dfa import Dfa
 
 # --- Optimization: Replacing tokens with gotos ---
@@ -143,7 +143,7 @@ class DfaOptimizer(object):
     self.__log = log
 
   @staticmethod
-  def transistions_match(encoding, incoming_key, incoming_state, state):
+  def __transistions_match(encoding, incoming_key, incoming_state, state):
     keys = set(state.key_iter())
     keys.add(incoming_key)
     disjoint_keys = TransitionKey.disjoint_keys(encoding, keys)
@@ -155,146 +155,229 @@ class DfaOptimizer(object):
         return False
     return True
 
-  def replace_tokens_with_gotos(self):
+  @staticmethod
+  def __build_incoming_transitions(dfa):
+    incoming_transitions = {}
+    def f(state, visitor_state):
+      for key, transition_state in state.key_state_iter():
+        if not transition_state in incoming_transitions:
+          incoming_transitions[transition_state] = []
+        incoming_transitions[transition_state].append((key, state))
+    dfa.visit_all_states(f)
+    return incoming_transitions
+
+  @staticmethod
+  def __match_action(state):
+    state = state.omega_transition()
+    state = state if state and state.transition_count() == 0 else None
+    return Action.empty_action() if not state else state.action()
+
+  @staticmethod
+  def __build_replacement_map(dfa):
+    replacements = {}
+    encoding = dfa.encoding()
+    incoming_transitions = DfaOptimizer.__build_incoming_transitions(dfa)
+    replacement_targets = set([])
+    # TODO(dcarney): this should be an ordered walk
+    for state, incoming in incoming_transitions.items():
+      if len(incoming) < 10:
+        continue
+      # the states action will be replaced, so we just don't optimize if there
+      # is one
+      if state.action():  # TODO(dcarney): allow this via action chaining
+        continue
+      # We only perform this optimization on 'token' actions
+      match_action = DfaOptimizer.__match_action(state)
+      if not match_action.name() == 'token':
+        continue
+      assert state.omega_transition() in dfa.terminal_set()
+      # we can drop incoming edges for states with a match action
+      # of either 'token' or 'harmony_token'
+      def is_replacement_candidate(state):
+        action = DfaOptimizer.__match_action(state)
+        return action.name() == 'token' or action.name() == 'harmony_token'
+      for (incoming_key, incoming_state) in incoming:
+        # check to see if incoming edges are matched by an outgoing edge
+        if (incoming_state == state or  # drop self edges
+            incoming_key == TransitionKey.omega() or
+            not is_replacement_candidate(incoming_state) or
+            not DfaOptimizer.__transistions_match(
+              encoding, incoming_key, incoming_state, state)):
+          continue
+        assert (not incoming_state in replacements or
+                replacements[incoming_state][0] == state)
+        # set this transition as to be removed
+        if not incoming_state in replacements:
+          replacements[incoming_state] = (state, set())
+        replacements[incoming_state][1].add(incoming_key)
+        replacement_targets.add(state)
+        # now see if we can gather other transistions into the goto
+        for key in incoming_state.key_iter():
+          if (key != TransitionKey.omega() and
+              key not in replacements[incoming_state][1] and
+              DfaOptimizer.__transistions_match(
+                encoding, key, incoming_state, state)):
+            # this transition can be removed
+            replacements[incoming_state][1].add(key)
+    return (replacement_targets, replacements)
+
+  @staticmethod
+  def __new_state(is_terminal, action):
+    return {
+        'transitions' : {},
+        'terminal' : is_terminal,
+        'action' : action,
+      }
+
+  @staticmethod
+  def __new_state_name(state):
+    return str(state.node_number())
+
+  @staticmethod
+  def __split_target_state(state):
+    old_name = DfaOptimizer.__new_state_name(state)
+    old_match_action = DfaOptimizer.__match_action(state)
+    assert old_match_action.name() == 'token', 'unimplemented'
+    precedence = old_match_action.precedence()
+    match_action = Action(Term('do_stored_token'), precedence)
+    head_action = Action(
+      Term('store_token', old_match_action.term().args()[0]), precedence)
+    tail_action = Action(Term('no_op'), precedence)
+    head = DfaOptimizer.__new_state(False, head_action)
+    tail = DfaOptimizer.__new_state(False, tail_action)
+    match = DfaOptimizer.__new_state(True, match_action)
+    head['transitions'][TransitionKey.omega()] = old_name + '_tail'
+    tail['transitions'][TransitionKey.omega()] = old_name + '_match'
+    return (head, tail, match)
+
+  # generate a store action to replace an existing action
+  @staticmethod
+  def __replacement_action(state, transition_state):
+    old_action = DfaOptimizer.__match_action(state)
+    assert old_action
+    transition_action = DfaOptimizer.__match_action(transition_state).term()
+    if old_action.term() == transition_action:
+      # no need to store token
+      return Action.empty_action()
+    new_name = 'store_' + old_action.name()
+    return Action(
+      Term(new_name, *old_action.term().args()), old_action.precedence())
+
+  @staticmethod
+  def __apply_jump(counters, state, new_state, target_state):
+    # generate a new action for the new omega transition
+    new_action = DfaOptimizer.__replacement_action(state, target_state)
+    # determine new jump target
+    jump_target = DfaOptimizer.__new_state_name(target_state)
+    if not new_action:
+      # just jump to entry of target_state, which will be split
+      new_state['transitions'][TransitionKey.omega()] = jump_target
+      counters['goto_start'] += 1
+      return None
+    counters[new_action.name()] += 1
+    # install new match state
+    match_state_id = DfaOptimizer.__new_state_name(state) + '_match'
+    new_state['transitions'][TransitionKey.omega()] = match_state_id
+    match_state = DfaOptimizer.__new_state(False, new_action)
+    match_state['transitions'][TransitionKey.omega()] = jump_target + '_tail'
+    return match_state
+
+  @staticmethod
+  def __remove_orphaned_states(states, orphanable, start_name):
+    seen = set([])
+    def visit(state_id, acc):
+      seen.add(state_id)
+    def state_iter(state_id):
+      return states[state_id]['transitions'].itervalues()
+    Automaton.visit_states(set([start_name]), visit, state_iter=state_iter)
+    def f(name, state):
+      assert name in seen or name in orphanable
+      return name in seen
+    return {k: v for k, v in states.iteritems() if f(k, v)}
+
+  def __replace_tokens_with_gotos(self):
     '''replace states with no entry action and match action of type 'token(X)'
     with new states with entry action store_token(X) and match action
     goto(state_id) which has (far) fewer transitions'''
 
     dfa = self.__dfa
-    encoding = dfa.encoding()
-
-    incoming_transitions = {}
-    def build_incoming_transitions(state, visitor_state):
-      for key, transition_state in state.key_state_iter():
-        if not transition_state in incoming_transitions:
-          incoming_transitions[transition_state] = []
-        incoming_transitions[transition_state].append((key,state))
-    dfa.visit_all_states(build_incoming_transitions)
-
-    def is_replacement_candidate(state):
-      return (state.action().match_action().name() == 'token' or
-              state.action().match_action().name() == 'harmony_token')
-
-    replacements = {}
-    for state, incoming in incoming_transitions.items():
-      if len(incoming) < 10:
-        continue
-      if not is_replacement_candidate(state):
-        continue
-      # check to see if incoming edges are matched by an outgoing edge
-      def match_filter((incoming_key, incoming_state)):
-        return (incoming_state != state and  # drop self transitions
-                is_replacement_candidate(incoming_state) and
-                self.transistions_match(
-                  encoding, incoming_key, incoming_state, state))
-      for incoming_key_state in incoming:
-        if not match_filter(incoming_key_state):
-          continue
-        (incoming_key, incoming_state) = incoming_key_state
-        # set this transition as to be replaced
-        if not incoming_state in replacements:
-          replacements[incoming_state] = {}
-        replacements[incoming_state][incoming_key] = state
-        # now see if we can gather other transistions into the goto
-        for key in incoming_state.key_iter():
-          if key == incoming_key:
-            continue
-          if not self.transistions_match(
-              encoding, key, incoming_state, state):
-            continue
-          # this transition can be removed
-          replacements[incoming_state][key] = None
-    if not replacements:
-      return
+    (replacement_targets, replacements) = self.__build_replacement_map(dfa)
+    if not replacement_targets:
+      return dfa
     # perform replacement
     states = {}
-    name = lambda state : str(state.node_number())
+    name = DfaOptimizer.__new_state_name
     counters = {
       'removals' : 0,
       'goto_start' : 0,
-      'store_token_and_goto' : 0,
-      'store_harmony_token_and_goto' : 0,
+      'store_token' : 0,
+      'store_harmony_token' : 0,
+      'split_state' : 0
       }
-    store_states = set([])
-    # generate a store action to replace an existing action
-    def replacement_action(old_action, transition_state):
-      assert old_action.match_action()
-      state_id = name(transition_state)
-      if old_action.match_action().name() == 'token':
-        old_token = old_action.match_action().args()[0]
-        if (transition_state.action().match_action().name() == 'token' and
-            transition_state.action().match_action().args()[0] == old_token):
-          # no need to store token
-          match_action = Term('goto_start', state_id)
-          counters['goto_start'] += 1
-        else:
-          counters['store_token_and_goto'] += 1
-          match_action = Term('store_token_and_goto', old_token, state_id)
-      elif old_action.match_action().name() == 'harmony_token':
-        new_args = list(old_action.match_action().args()) + [state_id]
-        match_action = Term('store_harmony_token_and_goto', *new_args)
-        counters['store_harmony_token_and_goto'] += 1
-      else:
-        raise Exception(old_action.match_action())
-      return Action(old_action.entry_action(),
-                    match_action,
-                    old_action.precedence())
     # map the old state to the new state, with fewer transitions and
     # goto actions
+    orphanable = set([])
     def replace_state(state, acc):
-      new_state = {
-        'transitions' : {},
-        'terminal' : state in self.__dfa.terminal_set(),
-        'action' : state.action(),
-      }
-      states[name(state)] = new_state
-      state_replacements = replacements[state] if state in replacements else {}
+      if state in replacements:
+        target_state = replacements[state][0]
+        deletions = replacements[state][1]
+      else:
+        deletions = {}
+      # this is a replacement target, so we split the state
+      if state in replacement_targets:
+        assert not deletions
+        (head, tail, match) = DfaOptimizer.__split_target_state(state)
+        new_state = tail
+        states[name(state)] = head
+        states[name(state) + '_tail'] = tail
+        states[name(state) + '_match'] = match
+        counters['split_state'] += 1
+      else:
+        new_state = self.__new_state(state in self.__dfa.terminal_set(),
+                                 state.action())
+        states[name(state)] = new_state
+      assert not TransitionKey.omega() in deletions
       for (transition_key, transition_state) in state.key_state_iter():
-        if not transition_key in state_replacements:
+        # just copy these transitions
+        if transition_key != TransitionKey.omega():
+          if not transition_key in deletions:
+            new_state['transitions'][transition_key] = name(transition_state)
+            continue
+          else:
+            # drop these transitions
+            deletions.remove(transition_key)
+            counters['removals'] += 1
+            continue
+        if transition_key in new_state['transitions']:
+          # this is a split state, omega has already been assigned
+          # mark old match state as orphanable
+          orphanable.add(name(transition_state))
+        elif not state in replacements:
+          # no replacement
           new_state['transitions'][transition_key] = name(transition_state)
-          continue
-        replacement = state_replacements[transition_key]
-        del state_replacements[transition_key]
-        # just drop the transition
-        if replacement == None:
-          counters['removals'] += 1
-          continue
-        assert replacement == transition_state
-        # do goto replacement
-        new_state['action'] = replacement_action(state.action(), replacement)
-        # will need to patch up transition_state
-        store_states.add(name(transition_state))
-      assert not state_replacements
+        else:
+          # mark old omega state as orphanable
+          orphanable.add(name(transition_state))
+          match_state = DfaOptimizer.__apply_jump(
+            counters, state, new_state, target_state)
+          if match_state:
+            states[name(state) + '_match'] = match_state
+      assert not deletions
     self.__dfa.visit_all_states(replace_state)
-    # now patch up all states with stores
     start_name = name(self.__dfa.start_state())
-    for state_id in store_states:
-      old_action = states[state_id]['action']
-      assert not old_action.entry_action()
-      assert old_action.match_action().name() == 'token', 'unimplemented'
-      entry_action = Term('store_token', old_action.match_action().args()[0])
-      match_action = Term('do_stored_token', state_id)
-      precedence = old_action.precedence()
-      states[state_id]['action'] = Action(
-        entry_action, match_action, precedence)
-      # The state might be only reachable via gotos; make sure it's connected in
-      # the state graph by adding a bogus transition from the start state. This
-      # transition doens't match any character.
-      states[start_name]['transitions'][
-          TransitionKey.unique('no_match')] = state_id
-
+    states = self.__remove_orphaned_states(states, orphanable, start_name)
+    # dump stats
     if self.__log:
       print 'goto_start inserted %s' % counters['goto_start']
-      print 'store_token_and_goto inserted %s' % (
-        counters['store_token_and_goto'])
-      print 'store_harmony_token_and_goto %s' % (
-        counters['store_harmony_token_and_goto'])
+      print 'store_token inserted %s' % (
+        counters['store_token'])
+      print 'store_harmony_token %s' % (
+        counters['store_harmony_token'])
       print 'transitions removed %s' % counters['removals']
-      print 'do_stored_token actions added %s' % len(store_states)
-    self.__dfa = Dfa(self.__dfa.encoding(), start_name, states)
+      print 'states split %s' % counters['split_state']
+    return Dfa(self.__dfa.encoding(), start_name, states)
 
   @staticmethod
   def optimize(dfa, log):
     optimizer = DfaOptimizer(dfa, log)
-    optimizer.replace_tokens_with_gotos()
-    return optimizer.__dfa
+    return optimizer.__replace_tokens_with_gotos()
