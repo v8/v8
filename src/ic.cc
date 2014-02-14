@@ -643,7 +643,7 @@ bool IC::UpdatePolymorphicIC(Handle<HeapType> type,
   }
 
   Handle<Code> ic = isolate()->stub_cache()->ComputePolymorphicIC(
-      &types, &handlers, number_of_valid_types, name, extra_ic_state());
+      kind(), &types, &handlers, number_of_valid_types, name, extra_ic_state());
   set_target(*ic);
   return true;
 }
@@ -695,7 +695,7 @@ void IC::UpdateMonomorphicIC(Handle<HeapType> type,
                              Handle<String> name) {
   if (!handler->is_handler()) return set_target(*handler);
   Handle<Code> ic = isolate()->stub_cache()->ComputeMonomorphicIC(
-      name, type, handler, extra_ic_state());
+      kind(), name, type, handler, extra_ic_state());
   set_target(*ic);
 }
 

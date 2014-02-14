@@ -4204,12 +4204,6 @@ Code::StubType Code::type() {
 }
 
 
-int Code::arguments_count() {
-  ASSERT(kind() == STUB || is_handler());
-  return ExtractArgumentsCountFromFlags(flags());
-}
-
-
 // For initialization.
 void Code::set_raw_kind_specific_flags1(int value) {
   WRITE_INT_FIELD(this, kKindSpecificFlags1Offset, value);
@@ -4492,8 +4486,9 @@ Code::Flags Code::ComputeFlags(Kind kind,
       | TypeField::encode(type)
       | ExtraICStateField::encode(extra_ic_state)
       | CacheHolderField::encode(holder);
+  // TODO(verwaest): Move to the valid uses of |handler_kind|.
   if (handler_kind != STUB) {
-    bits |= (handler_kind << kArgumentsCountShift);
+    bits |= HandlerKindField::encode(handler_kind);
   }
   return static_cast<Flags>(bits);
 }
@@ -4526,11 +4521,6 @@ ExtraICState Code::ExtractExtraICStateFromFlags(Flags flags) {
 
 Code::StubType Code::ExtractTypeFromFlags(Flags flags) {
   return TypeField::decode(flags);
-}
-
-
-int Code::ExtractArgumentsCountFromFlags(Flags flags) {
-  return (flags & kArgumentsCountMask) >> kArgumentsCountShift;
 }
 
 

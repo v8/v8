@@ -127,11 +127,11 @@ Handle<Code> StubCache::FindHandler(Handle<Name> name,
 
 
 Handle<Code> StubCache::ComputeMonomorphicIC(
+    Code::Kind kind,
     Handle<Name> name,
     Handle<HeapType> type,
     Handle<Code> handler,
     ExtraICState extra_ic_state) {
-  Code::Kind kind = handler->handler_kind();
   InlineCacheHolderFlag flag = IC::GetCodeCacheFlag(*type);
 
   Handle<Map> stub_holder;
@@ -369,14 +369,13 @@ Handle<Code> StubCache::ComputeLoadElementPolymorphic(
 
 
 Handle<Code> StubCache::ComputePolymorphicIC(
+    Code::Kind kind,
     TypeHandleList* types,
     CodeHandleList* handlers,
     int number_of_valid_types,
     Handle<Name> name,
     ExtraICState extra_ic_state) {
-
   Handle<Code> handler = handlers->at(0);
-  Code::Kind kind = handler->handler_kind();
   Code::StubType type = number_of_valid_types == 1 ? handler->type()
                                                    : Code::NORMAL;
   if (kind == Code::LOAD_IC) {
