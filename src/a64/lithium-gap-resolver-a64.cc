@@ -81,6 +81,7 @@ void LGapResolver::Resolve(LParallelMove* parallel_move) {
   if (need_to_restore_root_) {
     ASSERT(kSavedValue.Is(root));
     __ InitializeRootRegister();
+    need_to_restore_root_ = false;
   }
 
   moves_.Rewind(0);
