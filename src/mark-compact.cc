@@ -622,6 +622,7 @@ void MarkCompactCollector::WaitUntilSweepingCompleted() {
     pending_sweeper_jobs_semaphore_.Wait();
     pending_sweeper_jobs_semaphore_.Wait();
   }
+  ParallelSweepSpacesComplete();
   sweeping_pending_ = false;
   RefillFreeLists(heap()->paged_space(OLD_DATA_SPACE));
   RefillFreeLists(heap()->paged_space(OLD_POINTER_SPACE));
@@ -3946,7 +3947,11 @@ intptr_t MarkCompactCollector::SweepConservatively(PagedSpace* space,
          (mode == MarkCompactCollector::SWEEP_SEQUENTIALLY &&
          free_list == NULL));
 
-  p->MarkSweptConservatively();
+  // When parallel sweeping is active, the page will be marked after
+  // sweeping by the main thread.
+  if (mode != MarkCompactCollector::SWEEP_IN_PARALLEL) {
+    p->MarkSweptConservatively();
+  }
 
   intptr_t freed_bytes = 0;
   size_t size = 0;
@@ -4058,7 +4063,7 @@ void MarkCompactCollector::SweepSpace(PagedSpace* space, SweeperType sweeper) {
   while (it.has_next()) {
     Page* p = it.next();
 
-    ASSERT(p->parallel_sweeping() == 0);
+    ASSERT(p->parallel_sweeping() == MemoryChunk::PARALLEL_SWEEPING_DONE);
     ASSERT(!p->IsEvacuationCandidate());
 
     // Clear sweeping flags indicating that marking bits are still intact.
@@ -4131,7 +4136,7 @@ void MarkCompactCollector::SweepSpace(PagedSpace* space, SweeperType sweeper) {
             PrintF("Sweeping 0x%" V8PRIxPTR " conservatively in parallel.\n",
                    reinterpret_cast<intptr_t>(p));
           }
-          p->set_parallel_sweeping(1);
+          p->set_parallel_sweeping(MemoryChunk::PARALLEL_SWEEPING_PENDING);
           space->IncreaseUnsweptFreeBytes(p);
         }
         break;
@@ -4220,6 +4225,24 @@ void MarkCompactCollector::SweepSpaces() {
 
   // Deallocate evacuated candidate pages.
   ReleaseEvacuationCandidates();
+}
+
+
+void MarkCompactCollector::ParallelSweepSpaceComplete(PagedSpace* space) {
+  PageIterator it(space);
+  while (it.has_next()) {
+    Page* p = it.next();
+    if (p->parallel_sweeping() == MemoryChunk::PARALLEL_SWEEPING_IN_PROGRESS) {
+      p->set_parallel_sweeping(MemoryChunk::PARALLEL_SWEEPING_DONE);
+      p->MarkSweptConservatively();
+    }
+  }
+}
+
+
+void MarkCompactCollector::ParallelSweepSpacesComplete() {
+  ParallelSweepSpaceComplete(heap()->old_pointer_space());
+  ParallelSweepSpaceComplete(heap()->old_data_space());
 }
 
 
