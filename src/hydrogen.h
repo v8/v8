@@ -2468,23 +2468,27 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   void HandleLiteralCompareNil(CompareOperation* expr,
                                Expression* sub_expr,
                                NilValue nil);
-  HControlInstruction* BuildCompareInstruction(Token::Value op,
-                                               HValue* left,
-                                               HValue* right,
-                                               Type* left_type,
-                                               Type* right_type,
-                                               Type* combined_type,
-                                               HSourcePosition left_position,
-                                               HSourcePosition right_position,
-                                               BailoutId bailout_id);
-
-  HInstruction* BuildStringCharCodeAt(HValue* string,
-                                      HValue* index);
 
   enum PushBeforeSimulateBehavior {
     PUSH_BEFORE_SIMULATE,
     NO_PUSH_BEFORE_SIMULATE
   };
+
+  HControlInstruction* BuildCompareInstruction(
+      Token::Value op,
+      HValue* left,
+      HValue* right,
+      Type* left_type,
+      Type* right_type,
+      Type* combined_type,
+      HSourcePosition left_position,
+      HSourcePosition right_position,
+      PushBeforeSimulateBehavior push_sim_result,
+      BailoutId bailout_id);
+
+  HInstruction* BuildStringCharCodeAt(HValue* string,
+                                      HValue* index);
+
   HValue* BuildBinaryOperation(
       BinaryOperation* expr,
       HValue* left,

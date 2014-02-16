@@ -4448,7 +4448,7 @@ void HOptimizedGraphBuilder::VisitSwitchStatement(SwitchStatement* stmt) {
         combined_type,
         ScriptPositionToSourcePosition(stmt->tag()->position()),
         ScriptPositionToSourcePosition(clause->label()->position()),
-        clause->id());
+        PUSH_BEFORE_SIMULATE, clause->id());
 
     HBasicBlock* next_test_block = graph()->CreateBasicBlock();
     HBasicBlock* body_block = graph()->CreateBasicBlock();
@@ -9087,13 +9087,12 @@ HValue* HOptimizedGraphBuilder::BuildBinaryOperation(
   // after phis, which are the result of BuildBinaryOperation when we
   // inlined some complex subgraph.
   if (result->HasObservableSideEffects() || result->IsPhi()) {
-    if (push_sim_result == NO_PUSH_BEFORE_SIMULATE) {
-      Add<HSimulate>(expr->id(), REMOVABLE_SIMULATE);
-    } else {
-      ASSERT(push_sim_result == PUSH_BEFORE_SIMULATE);
+    if (push_sim_result == PUSH_BEFORE_SIMULATE) {
       Push(result);
       Add<HSimulate>(expr->id(), REMOVABLE_SIMULATE);
       Drop(1);
+    } else {
+      Add<HSimulate>(expr->id(), REMOVABLE_SIMULATE);
     }
   }
   return result;
@@ -9611,11 +9610,14 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
     return ast_context()->ReturnInstruction(result, expr->id());
   }
 
+  PushBeforeSimulateBehavior push_behavior =
+    ast_context()->IsEffect() ? NO_PUSH_BEFORE_SIMULATE
+                              : PUSH_BEFORE_SIMULATE;
   HControlInstruction* compare = BuildCompareInstruction(
       op, left, right, left_type, right_type, combined_type,
       ScriptPositionToSourcePosition(expr->left()->position()),
       ScriptPositionToSourcePosition(expr->right()->position()),
-      expr->id());
+      push_behavior, expr->id());
   if (compare == NULL) return;  // Bailed out.
   return ast_context()->ReturnControl(compare, expr->id());
 }
@@ -9630,6 +9632,7 @@ HControlInstruction* HOptimizedGraphBuilder::BuildCompareInstruction(
     Type* combined_type,
     HSourcePosition left_position,
     HSourcePosition right_position,
+    PushBeforeSimulateBehavior push_sim_result,
     BailoutId bailout_id) {
   // Cases handled below depend on collected type feedback. They should
   // soft deoptimize when there is no type feedback.
@@ -9694,9 +9697,13 @@ HControlInstruction* HOptimizedGraphBuilder::BuildCompareInstruction(
       result->set_observed_input_representation(1, left_rep);
       result->set_observed_input_representation(2, right_rep);
       if (result->HasObservableSideEffects()) {
-        Push(result);
-        AddSimulate(bailout_id, REMOVABLE_SIMULATE);
-        Drop(1);
+        if (push_sim_result == PUSH_BEFORE_SIMULATE) {
+          Push(result);
+          AddSimulate(bailout_id, REMOVABLE_SIMULATE);
+          Drop(1);
+        } else {
+          AddSimulate(bailout_id, REMOVABLE_SIMULATE);
+        }
       }
       // TODO(jkummerow): Can we make this more efficient?
       HBranch* branch = New<HBranch>(result);
