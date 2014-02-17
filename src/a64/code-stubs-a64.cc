@@ -539,6 +539,85 @@ void HydrogenCodeStub::GenerateLightweightMiss(MacroAssembler* masm) {
 }
 
 
+void DoubleToIStub::Generate(MacroAssembler* masm) {
+  Label done;
+  Register input = source();
+  Register result = destination();
+  ASSERT(is_truncating());
+
+  ASSERT(result.Is64Bits());
+  ASSERT(jssp.Is(masm->StackPointer()));
+
+  int double_offset = offset();
+
+  DoubleRegister double_scratch = d0;  // only used if !skip_fastpath()
+  Register scratch1 = GetAllocatableRegisterThatIsNotOneOf(input, result);
+  Register scratch2 =
+      GetAllocatableRegisterThatIsNotOneOf(input, result, scratch1);
+
+  __ Push(scratch1, scratch2);
+  // Account for saved regs if input is jssp.
+  if (input.is(jssp)) double_offset += 2 * kPointerSize;
+
+  if (!skip_fastpath()) {
+    __ Push(double_scratch);
+    if (input.is(jssp)) double_offset += 1 * kDoubleSize;
+    __ Ldr(double_scratch, MemOperand(input, double_offset));
+    // Try to convert with a FPU convert instruction.  This handles all
+    // non-saturating cases.
+    __ TryInlineTruncateDoubleToI(result, double_scratch, &done);
+    __ Fmov(result, double_scratch);
+  } else {
+    __ Ldr(result, MemOperand(input, double_offset));
+  }
+
+  // If we reach here we need to manually convert the input to an int32.
+
+  // Extract the exponent.
+  Register exponent = scratch1;
+  __ Ubfx(exponent, result, HeapNumber::kMantissaBits,
+          HeapNumber::kExponentBits);
+
+  // It the exponent is >= 84 (kMantissaBits + 32), the result is always 0 since
+  // the mantissa gets shifted completely out of the int32_t result.
+  __ Cmp(exponent, HeapNumber::kExponentBias + HeapNumber::kMantissaBits + 32);
+  __ CzeroX(result, ge);
+  __ B(ge, &done);
+
+  // The Fcvtzs sequence handles all cases except where the conversion causes
+  // signed overflow in the int64_t target. Since we've already handled
+  // exponents >= 84, we can guarantee that 63 <= exponent < 84.
+
+  if (masm->emit_debug_code()) {
+    __ Cmp(exponent, HeapNumber::kExponentBias + 63);
+    // Exponents less than this should have been handled by the Fcvt case.
+    __ Check(ge, kUnexpectedValue);
+  }
+
+  // Isolate the mantissa bits, and set the implicit '1'.
+  Register mantissa = scratch2;
+  __ Ubfx(mantissa, result, 0, HeapNumber::kMantissaBits);
+  __ Orr(mantissa, mantissa, 1UL << HeapNumber::kMantissaBits);
+
+  // Negate the mantissa if necessary.
+  __ Tst(result, kXSignMask);
+  __ Cneg(mantissa, mantissa, ne);
+
+  // Shift the mantissa bits in the correct place. We know that we have to shift
+  // it left here, because exponent >= 63 >= kMantissaBits.
+  __ Sub(exponent, exponent,
+         HeapNumber::kExponentBias + HeapNumber::kMantissaBits);
+  __ Lsl(result, mantissa, exponent);
+
+  __ Bind(&done);
+  if (!skip_fastpath()) {
+    __ Pop(double_scratch);
+  }
+  __ Pop(scratch2, scratch1);
+  __ Ret();
+}
+
+
 // See call site for description.
 static void EmitIdenticalObjectComparison(MacroAssembler* masm,
                                           Register left,

@@ -5323,8 +5323,7 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr,
     __ JumpIfNotRoot(scratch1, Heap::kHeapNumberMapRootIndex, &check_bools);
 
     // A heap number: load value and convert to int32 using truncating function.
-    __ Ldr(dbl_scratch1, FieldMemOperand(input, HeapNumber::kValueOffset));
-    __ ECMA262ToInt32(output, dbl_scratch1, scratch1, scratch2);
+    __ TruncateHeapNumberToI(output, input);
     __ B(&done);
 
     __ Bind(&check_bools);
@@ -5511,12 +5510,10 @@ void LCodeGen::DoTrapAllocationMemento(LTrapAllocationMemento* instr) {
 void LCodeGen::DoTruncateDoubleToIntOrSmi(LTruncateDoubleToIntOrSmi* instr) {
   DoubleRegister input = ToDoubleRegister(instr->value());
   Register result = ToRegister(instr->result());
-  __ ECMA262ToInt32(result, input,
-                    ToRegister(instr->temp1()),
-                    ToRegister(instr->temp2()),
-                    instr->tag_result()
-                        ? MacroAssembler::SMI
-                        : MacroAssembler::INT32_IN_W);
+  __ TruncateDoubleToI(result, input);
+  if (instr->tag_result()) {
+    __ SmiTag(result, result);
+  }
 }
 
 

@@ -1125,33 +1125,35 @@ class MacroAssembler : public Assembler {
 
   // ---- Floating point helpers ----
 
-  enum ECMA262ToInt32Result {
-    // Provide an untagged int32_t which can be read using result.W(). That is,
-    // the upper 32 bits of result are undefined.
-    INT32_IN_W,
 
-    // Provide an untagged int32_t which can be read using the 64-bit result
-    // register. The int32_t result is sign-extended.
-    INT32_IN_X,
+  // Performs a truncating conversion of a floating point number as used by
+  // the JS bitwise operations. See ECMA-262 9.5: ToInt32. Goes to 'done' if it
+  // succeeds, otherwise falls through if result is saturated. On return
+  // 'result' either holds answer, or is clobbered on fall through.
+  //
+  // Only public for the test code in test-code-stubs-a64.cc.
+  void TryInlineTruncateDoubleToI(Register result,
+                                  DoubleRegister input,
+                                  Label* done);
 
-    // Tag the int32_t result as a smi.
-    SMI
-  };
+  // Performs a truncating conversion of a floating point number as used by
+  // the JS bitwise operations. See ECMA-262 9.5: ToInt32.
+  // Exits with 'result' holding the answer.
+  void TruncateDoubleToI(Register result, DoubleRegister double_input);
 
-  // Applies ECMA-262 ToInt32 (see section 9.5) to a double value.
-  void ECMA262ToInt32(Register result,
-                      DoubleRegister input,
-                      Register scratch1,
-                      Register scratch2,
-                      ECMA262ToInt32Result format = INT32_IN_X);
+  // Performs a truncating conversion of a heap number as used by
+  // the JS bitwise operations. See ECMA-262 9.5: ToInt32. 'result' and 'input'
+  // must be different registers.  Exits with 'result' holding the answer.
+  void TruncateHeapNumberToI(Register result, Register object);
 
-  // As ECMA262ToInt32, but operate on a HeapNumber.
-  void HeapNumberECMA262ToInt32(Register result,
-                                Register heap_number,
-                                Register scratch1,
-                                Register scratch2,
-                                DoubleRegister double_scratch,
-                                ECMA262ToInt32Result format = INT32_IN_X);
+  // Converts the smi or heap number in object to an int32 using the rules
+  // for ToInt32 as described in ECMAScript 9.5.: the value is truncated
+  // and brought into the range -2^31 .. +2^31 - 1. 'result' and 'input' must be
+  // different registers.
+  void TruncateNumberToI(Register object,
+                         Register result,
+                         Register heap_number_map,
+                         Label* not_int32);
 
   // ---- Code generation helpers ----
 

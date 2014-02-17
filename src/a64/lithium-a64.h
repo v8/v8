@@ -2680,17 +2680,13 @@ class LTrapAllocationMemento V8_FINAL : public LTemplateInstruction<0, 1, 2> {
 
 
 class LTruncateDoubleToIntOrSmi V8_FINAL
-    : public LTemplateInstruction<1, 1, 2> {
+    : public LTemplateInstruction<1, 1, 0> {
  public:
-  LTruncateDoubleToIntOrSmi(LOperand* value, LOperand* temp1, LOperand* temp2) {
+  explicit LTruncateDoubleToIntOrSmi(LOperand* value) {
     inputs_[0] = value;
-    temps_[0] = temp1;
-    temps_[1] = temp2;
   }
 
   LOperand* value() { return inputs_[0]; }
-  LOperand* temp1() { return temps_[0]; }
-  LOperand* temp2() { return temps_[1]; }
 
   DECLARE_CONCRETE_INSTRUCTION(TruncateDoubleToIntOrSmi,
                                "truncate-double-to-int-or-smi")

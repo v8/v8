@@ -180,6 +180,19 @@ void RelocInfo::PatchCodeWithCall(Address target, int guard_bytes) {
 }
 
 
+Register GetAllocatableRegisterThatIsNotOneOf(Register reg1, Register reg2,
+                                              Register reg3, Register reg4) {
+  CPURegList regs(reg1, reg2, reg3, reg4);
+  for (int i = 0; i < Register::NumAllocatableRegisters(); i++) {
+    Register candidate = Register::FromAllocationIndex(i);
+    if (regs.IncludesAliasOf(candidate)) continue;
+    return candidate;
+  }
+  UNREACHABLE();
+  return NoReg;
+}
+
+
 bool AreAliased(const CPURegister& reg1, const CPURegister& reg2,
                 const CPURegister& reg3, const CPURegister& reg4,
                 const CPURegister& reg5, const CPURegister& reg6,

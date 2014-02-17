@@ -156,6 +156,8 @@
           'sources': [
             'test-utils-a64.cc',
             'test-assembler-a64.cc',
+            'test-code-stubs.cc',
+            'test-code-stubs-a64.cc',
             'test-disasm-a64.cc',
             'test-fuzz-a64.cc',
             'test-javascript-a64.cc',

@@ -383,6 +383,13 @@ ALIAS_REGISTER(FPRegister, fp_scratch, d31);
 
 #undef ALIAS_REGISTER
 
+
+Register GetAllocatableRegisterThatIsNotOneOf(Register reg1,
+                                              Register reg2 = NoReg,
+                                              Register reg3 = NoReg,
+                                              Register reg4 = NoReg);
+
+
 // AreAliased returns true if any of the named registers overlap. Arguments set
 // to NoReg are ignored. The system stack pointer may be specified.
 bool AreAliased(const CPURegister& reg1,

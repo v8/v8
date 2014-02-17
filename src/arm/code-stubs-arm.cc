@@ -602,6 +602,7 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
   Label out_of_range, only_low, negate, done;
   Register input_reg = source();
   Register result_reg = destination();
+  ASSERT(is_truncating());
 
   int double_offset = offset();
   // Account for saved regs if input is sp.

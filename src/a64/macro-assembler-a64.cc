@@ -2586,26 +2586,20 @@ void MacroAssembler::InvokeFunction(Handle<JSFunction> function,
 }
 
 
-void MacroAssembler::ECMA262ToInt32(Register result,
-                                    DoubleRegister input,
-                                    Register scratch1,
-                                    Register scratch2,
-                                    ECMA262ToInt32Result format) {
-  ASSERT(!AreAliased(result, scratch1, scratch2));
-  ASSERT(result.Is64Bits() && scratch1.Is64Bits() && scratch2.Is64Bits());
+void MacroAssembler::TryInlineTruncateDoubleToI(Register result,
+                                                DoubleRegister double_input,
+                                                Label* done) {
   STATIC_ASSERT(kSmiTag == 0);
   STATIC_ASSERT(kSmiValueSize == 32);
 
-  Label done, tag, manual_conversion;
-
-  // 1. Try to convert with a FPU convert instruction. It's trivial to compute
-  //    the modulo operation on an integer register so we convert to a 64-bit
-  //    integer, then find the 32-bit result from that.
+  // Try to convert with a FPU convert instruction. It's trivial to compute
+  // the modulo operation on an integer register so we convert to a 64-bit
+  // integer, then find the 32-bit result from that.
   //
   // Fcvtzs will saturate to INT64_MIN (0x800...00) or INT64_MAX (0x7ff...ff)
   // when the double is out of range. NaNs and infinities will be converted to 0
   // (as ECMA-262 requires).
-  Fcvtzs(result, input);
+  Fcvtzs(result, double_input);
 
   // The values INT64_MIN (0x800...00) or INT64_MAX (0x7ff...ff) are not
   // representable using a double, so if the result is one of those then we know
@@ -2615,83 +2609,64 @@ void MacroAssembler::ECMA262ToInt32(Register result,
   // 1 will cause signed overflow.
   Cmp(result, 1);
   Ccmp(result, -1, VFlag, vc);
-  B(vc, &tag);
 
-  // 2. Manually convert the input to an int32.
-  Fmov(result, input);
-
-  // Extract the exponent.
-  Register exponent = scratch1;
-  Ubfx(exponent, result, HeapNumber::kMantissaBits, HeapNumber::kExponentBits);
-
-  // It the exponent is >= 84 (kMantissaBits + 32), the result is always 0 since
-  // the mantissa gets shifted completely out of the int32_t result.
-  Cmp(exponent, HeapNumber::kExponentBias + HeapNumber::kMantissaBits + 32);
-  CzeroX(result, ge);
-  B(ge, &done);
-
-  // The Fcvtzs sequence handles all cases except where the conversion causes
-  // signed overflow in the int64_t target. Since we've already handled
-  // exponents >= 84, we can guarantee that 63 <= exponent < 84.
-
-  if (emit_debug_code()) {
-    Cmp(exponent, HeapNumber::kExponentBias + 63);
-    // Exponents less than this should have been handled by the Fcvt case.
-    Check(ge, kUnexpectedValue);
-  }
-
-  // Isolate the mantissa bits, and set the implicit '1'.
-  Register mantissa = scratch2;
-  Ubfx(mantissa, result, 0, HeapNumber::kMantissaBits);
-  Orr(mantissa, mantissa, 1UL << HeapNumber::kMantissaBits);
-
-  // Negate the mantissa if necessary.
-  Tst(result, kXSignMask);
-  Cneg(mantissa, mantissa, ne);
-
-  // Shift the mantissa bits in the correct place. We know that we have to shift
-  // it left here, because exponent >= 63 >= kMantissaBits.
-  Sub(exponent, exponent,
-      HeapNumber::kExponentBias + HeapNumber::kMantissaBits);
-  Lsl(result, mantissa, exponent);
-
-  Bind(&tag);
-  switch (format) {
-    case INT32_IN_W:
-      // There is nothing to do; the upper 32 bits are undefined.
-      if (emit_debug_code()) {
-        __ Mov(scratch1, 0x55555555);
-        __ Bfi(result, scratch1, 32, 32);
-      }
-      break;
-    case INT32_IN_X:
-      Sxtw(result, result);
-      break;
-    case SMI:
-      SmiTag(result);
-      break;
-  }
-
-  Bind(&done);
+  B(vc, done);
 }
 
 
-void MacroAssembler::HeapNumberECMA262ToInt32(Register result,
-                                              Register heap_number,
-                                              Register scratch1,
-                                              Register scratch2,
-                                              DoubleRegister double_scratch,
-                                              ECMA262ToInt32Result format) {
-  if (emit_debug_code()) {
-    // Verify we indeed have a HeapNumber.
-    Label ok;
-    JumpIfHeapNumber(heap_number, &ok);
-    Abort(kExpectedHeapNumber);
-    Bind(&ok);
-  }
+void MacroAssembler::TruncateDoubleToI(Register result,
+                                       DoubleRegister double_input) {
+  Label done;
+  ASSERT(jssp.Is(StackPointer()));
 
-  Ldr(double_scratch, FieldMemOperand(heap_number, HeapNumber::kValueOffset));
-  ECMA262ToInt32(result, double_scratch, scratch1, scratch2, format);
+  TryInlineTruncateDoubleToI(result, double_input, &done);
+
+  // If we fell through then inline version didn't succeed - call stub instead.
+  Push(lr);
+  Push(double_input);  // Put input on stack.
+
+  DoubleToIStub stub(jssp,
+                     result,
+                     0,
+                     true,   // is_truncating
+                     true);  // skip_fastpath
+  CallStub(&stub);  // DoubleToIStub preserves any registers it needs to clobber
+
+  Drop(1, kDoubleSize);  // Drop the double input on the stack.
+  Pop(lr);
+
+  Bind(&done);
+
+  // TODO(rmcilroy): Remove this Sxtw once the following bug is fixed:
+  // https://code.google.com/p/v8/issues/detail?id=3149
+  Sxtw(result, result.W());
+}
+
+
+void MacroAssembler::TruncateHeapNumberToI(Register result,
+                                           Register object) {
+  Label done;
+  ASSERT(!result.is(object));
+  ASSERT(jssp.Is(StackPointer()));
+
+  Ldr(fp_scratch, FieldMemOperand(object, HeapNumber::kValueOffset));
+  TryInlineTruncateDoubleToI(result, fp_scratch, &done);
+
+  // If we fell through then inline version didn't succeed - call stub instead.
+  Push(lr);
+  DoubleToIStub stub(object,
+                     result,
+                     HeapNumber::kValueOffset - kHeapObjectTag,
+                     true,   // is_truncating
+                     true);  // skip_fastpath
+  CallStub(&stub);  // DoubleToIStub preserves any registers it needs to clobber
+  Pop(lr);
+
+  Bind(&done);
+
+  // TODO(rmcilroy): Remove this Sxtw once the following bug is fixed:
+  // https://code.google.com/p/v8/issues/detail?id=3149
+  Sxtw(result, result.W());
 }
 
 

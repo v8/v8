@@ -1120,10 +1120,8 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
       LOperand* value = UseRegister(instr->value());
 
       if (instr->CanTruncateToInt32()) {
-        LOperand* temp1 = TempRegister();
-        LOperand* temp2 = TempRegister();
         LTruncateDoubleToIntOrSmi* result =
-            new(zone()) LTruncateDoubleToIntOrSmi(value, temp1, temp2);
+            new(zone()) LTruncateDoubleToIntOrSmi(value);
         return DefineAsRegister(result);
       } else {
         LDoubleToIntOrSmi* result = new(zone()) LDoubleToIntOrSmi(value);
