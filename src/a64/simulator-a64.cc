@@ -2738,10 +2738,8 @@ bool Simulator::PrintValue(const char* desc) {
   }
 
   int i = CodeFromName(desc);
-  if (i == -1) {
-    return false;
-  }
-  ASSERT(i >= 0);
+  STATIC_ASSERT(kNumberOfRegisters == kNumberOfFPRegisters);
+  if (i < 0 || static_cast<unsigned>(i) >= kNumberOfFPRegisters) return false;
 
   if (desc[0] == 'v') {
     PrintF("%s %s:%s 0x%016" PRIx64 "%s (%s%s:%s %g%s %s:%s %g%s)\n",
