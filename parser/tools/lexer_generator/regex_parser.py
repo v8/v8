@@ -27,7 +27,7 @@
 
 import ply.lex as lex
 import ply.yacc as yacc
-from action import Term
+from term import Term
 from nfa_builder import NfaBuilder
 
 class ParserBuilder:

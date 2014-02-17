@@ -29,9 +29,10 @@ import unittest
 from lexer_generator.dot_utilities import *
 from lexer_generator.automaton import Action
 from lexer_generator.regex_parser import RegexParser
-from lexer_generator.transition_keys import TransitionKey, KeyEncoding
+from lexer_generator.transition_key import TransitionKey, KeyEncoding
 from lexer_generator.nfa_builder import NfaBuilder
 from lexer_generator.dfa import Dfa
+from lexer_generator.dfa_minimizer import DfaMinimizer
 
 class AutomataTestCase(unittest.TestCase):
 
@@ -44,7 +45,7 @@ class AutomataTestCase(unittest.TestCase):
     nfa = NfaBuilder.nfa(encoding, {}, trees, 'main')
     (start_name, dfa_nodes) = nfa.compute_dfa()
     dfa = Dfa(encoding, start_name, dfa_nodes)
-    return (nfa, dfa, dfa.minimize())
+    return (nfa, dfa, DfaMinimizer(dfa).minimize())
 
   # (pattern, should match, should not match)
   __test_data = [
@@ -102,5 +103,5 @@ class AutomataTestCase(unittest.TestCase):
     mapping['S_2']['transitions'][key_c] = 'S_3'
     mapping['S_3']['terminal'] = True
 
-    mdfa = Dfa(encoding, 'S_0', mapping).minimize()
+    mdfa = DfaMinimizer(Dfa(encoding, 'S_0', mapping)).minimize()
     self.assertEqual(3, mdfa.node_count())

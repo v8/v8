@@ -25,7 +25,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from transition_keys import TransitionKey
+from transition_key import TransitionKey
 from automaton import Term, Action, Automaton
 from dfa import Dfa
 

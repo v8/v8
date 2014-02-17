@@ -25,10 +25,61 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from types import TupleType, ListType
+from types import IntType, TupleType, ListType
 from itertools import chain
-from action import Term, Action
-from transition_keys import TransitionKey
+from term import Term
+from transition_key import TransitionKey
+
+class Action(object):
+
+  __empty_action = None
+
+  @staticmethod
+  def empty_action():
+    if Action.__empty_action == None:
+      Action.__empty_action = Action(Term.empty_term(), -1)
+    return Action.__empty_action
+
+  @staticmethod
+  def dominant_action(actions):
+    dominant = Action.empty_action()
+    for action in actions:
+      if not action:
+        continue
+      if not dominant:
+        dominant = action
+        continue
+      if action.precedence() == dominant.precedence():
+        assert action.__term == dominant.__term
+      elif action.precedence() < dominant.precedence():
+        dominant = action
+    return dominant
+
+  def __init__(self, term, precedence):
+    assert isinstance(term, Term)
+    assert type(precedence) == IntType
+    assert not term or precedence >= 0, 'action must have positive precedence'
+    self.__term = term
+    self.__precedence = precedence
+
+  def name(self):
+    return self.__term.name()
+
+  def term(self):
+    return self.__term
+
+  def precedence(self):
+    return self.__precedence
+
+  def __nonzero__(self):
+    'true <==> self == empty_action'
+    return bool(self.__term)
+
+  def __eq__(self, other):
+    return isinstance(other, self.__class__) and self.__term == other.__term
+
+  def __str__(self):
+    return "action <%s>" % ('' if not self.__term else str(self.__term))
 
 class AutomatonState(object):
   '''A base class for dfa and nfa states.  Immutable'''

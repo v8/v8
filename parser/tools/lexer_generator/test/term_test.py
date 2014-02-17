@@ -26,7 +26,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import unittest
-from lexer_generator.action import Term
+from lexer_generator.term import Term
 
 class TermTestCase(unittest.TestCase):
 

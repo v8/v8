@@ -27,12 +27,14 @@
 
 import ply.lex as lex
 import ply.yacc as yacc
-from action import Term, Action
+from term import Term
 from regex_parser import RegexParser, ParserBuilder
+from automaton import Action
 from nfa_builder import NfaBuilder
 from dfa import Dfa
 from dfa_optimizer import DfaOptimizer
-from transition_keys import TransitionKey, KeyEncoding
+from dfa_minimizer import DfaMinimizer
+from transition_key import TransitionKey, KeyEncoding
 
 class RuleLexer:
 
@@ -388,7 +390,7 @@ class RuleProcessor(object):
 
     def minimal_dfa(self):
       if not self.__minimial_dfa:
-        self.__minimial_dfa = self.dfa().minimize()
+        self.__minimial_dfa = DfaMinimizer(self.dfa()).minimize()
       return self.__minimial_dfa
 
   def __process_parser_state(self):

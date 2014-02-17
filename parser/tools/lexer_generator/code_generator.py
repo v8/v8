@@ -30,8 +30,8 @@ import sys
 import jinja2
 from copy import deepcopy
 from dfa import Dfa
-from automaton import Term
-from transition_keys import TransitionKey
+from term import Term
+from transition_key import TransitionKey
 
 class CodeGenerator:
 

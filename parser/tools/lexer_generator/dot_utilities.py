@@ -26,9 +26,9 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from types import IntType, StringType
-from encoding import KeyEncoding
-from action import Term
-from transition_keys import TransitionKey
+from key_encoding import KeyEncoding
+from term import Term
+from transition_key import TransitionKey
 
 def escape_for_dot(v):
   v = str(v)

@@ -27,7 +27,8 @@
 
 from types import TupleType
 from inspect import getmembers
-from action import *
+from term import Term
+from automaton import Action
 from nfa import *
 
 # Nfa is built in two stages:

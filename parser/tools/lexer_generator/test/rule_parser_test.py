@@ -26,7 +26,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import unittest
-from lexer_generator.transition_keys import KeyEncoding
+from lexer_generator.transition_key import KeyEncoding
 from lexer_generator.rule_parser import RuleParserState, RuleParser
 from lexer_generator.regex_parser import RegexParser
 

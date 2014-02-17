@@ -28,7 +28,7 @@
 from types import IntType
 from itertools import chain
 from string import printable
-from action import Term
+from term import Term
 
 class KeyEncoding(object):
 

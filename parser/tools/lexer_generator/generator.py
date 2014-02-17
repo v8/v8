@@ -29,7 +29,8 @@ import argparse
 from dot_utilities import *
 from nfa import Nfa
 from nfa_builder import NfaBuilder
-from dfa import Dfa, DfaMinimizer
+from dfa import Dfa
+from dfa_minimizer import DfaMinimizer
 from rule_parser import RuleParser, RuleParserState, RuleProcessor
 from code_generator import CodeGenerator
 

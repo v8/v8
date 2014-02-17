@@ -26,8 +26,8 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from itertools import chain
-from encoding import KeyEncoding
-from action import Term
+from key_encoding import KeyEncoding
+from term import Term
 
 class TransitionKey(object):
   '''Represents a transition from a state in DFA or NFA to another state.
