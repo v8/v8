@@ -954,19 +954,27 @@ class LoadFieldStub: public HandlerStub {
 
 class StoreGlobalStub : public HandlerStub {
  public:
-  explicit StoreGlobalStub(bool is_constant) {
-    bit_field_ = IsConstantBits::encode(is_constant);
+  explicit StoreGlobalStub(bool is_constant, bool check_global) {
+    bit_field_ = IsConstantBits::encode(is_constant) |
+        CheckGlobalBits::encode(check_global);
+  }
+
+  static Handle<HeapObject> global_placeholder(Isolate* isolate) {
+    return isolate->factory()->uninitialized_value();
   }
 
   Handle<Code> GetCodeCopyFromTemplate(Isolate* isolate,
-                                       Map* receiver_map,
+                                       GlobalObject* global,
                                        PropertyCell* cell) {
     Handle<Code> code = CodeStub::GetCodeCopyFromTemplate(isolate);
-    // Replace the placeholder cell and global object map with the actual global
-    // cell and receiver map.
+    if (check_global()) {
+      // Replace the placeholder cell and global object map with the actual
+      // global cell and receiver map.
+      code->ReplaceNthObject(1, global_placeholder(isolate)->map(), global);
+      code->ReplaceNthObject(1, isolate->heap()->meta_map(), global->map());
+    }
     Map* cell_map = isolate->heap()->global_property_cell_map();
     code->ReplaceNthObject(1, cell_map, cell);
-    code->ReplaceNthObject(1, isolate->heap()->meta_map(), receiver_map);
     return code;
   }
 
@@ -978,8 +986,11 @@ class StoreGlobalStub : public HandlerStub {
       Isolate* isolate,
       CodeStubInterfaceDescriptor* descriptor);
 
-  bool is_constant() {
+  bool is_constant() const {
     return IsConstantBits::decode(bit_field_);
+  }
+  bool check_global() const {
+    return CheckGlobalBits::decode(bit_field_);
   }
   void set_is_constant(bool value) {
     bit_field_ = IsConstantBits::update(bit_field_, value);
@@ -997,6 +1008,7 @@ class StoreGlobalStub : public HandlerStub {
 
   class IsConstantBits: public BitField<bool, 0, 1> {};
   class RepresentationBits: public BitField<Representation::Kind, 1, 8> {};
+  class CheckGlobalBits: public BitField<bool, 9, 1> {};
 
   DISALLOW_COPY_AND_ASSIGN(StoreGlobalStub);
 };
