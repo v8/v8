@@ -89,14 +89,12 @@ class DfaMinimizer:
     # IDs.
     initial_partitions = {}
     terminal_set = self.__dfa.terminal_set()
-    all_keys = [] # Will contain all TransitionKeys in the dfa.
 
     # f fills in initial_partitions, id_to_state and all_keys.
     def f(state, visitor_state):
       state_id = len(id_to_state)
       id_to_state[state_id] = state
       action = state.action()
-      all_keys.append(state.key_iter())
       if state in terminal_set:
         key = ("terminal set", action)
       else:
@@ -133,8 +131,7 @@ class DfaMinimizer:
     # become clear when we check the transition for TransitionKey [c-d] (S1 has
     # a transition to S2, S3 has a transition to S4).
     encoding = self.__dfa.encoding()
-    self.__alphabet = list(
-        TransitionKey.disjoint_keys(encoding, chain(*all_keys)))
+    self.__alphabet = list(self.__dfa.disjoint_keys_iter())
 
     # For each state and each TransitionKey in the alphabet, find out which
     # transition we take from the state with the TransitionKey.

@@ -89,6 +89,7 @@ class Dfa(Automaton):
       name_map[name] = (node, transitions)
       if node_data['terminal']:
         self.__terminal_set.add(node)
+    all_keys = []
     for name, node_data in mapping.items():
       (node, transitions) = name_map[name]
       inversion = {}
@@ -97,16 +98,32 @@ class Dfa(Automaton):
           inversion[state] = []
         inversion[state].append(key)
       for state, keys in inversion.items():
+        all_keys += keys
         merged_key = TransitionKey.merged_key(encoding, keys)
         self.__add_transition(transitions, merged_key, name_map[state][0])
     self.__start = name_map[start_name][0]
     self.__node_count = len(mapping)
+    self.__disjoint_keys = sorted(
+      TransitionKey.disjoint_keys(encoding, all_keys))
     self.__verify()
 
   def __verify(self):
     assert self.__terminal_set
     state_count = self.visit_all_states(lambda state, count: count + 1, 0)
     assert self.__node_count == state_count
+    # assert keys are disjoint
+    def f(state, remaining):
+      remaining = set(TransitionKey.disjoint_keys(self.encoding(),
+                                                  state.key_iter()))
+      for key in state.key_iter():
+        to_drop = set(filter(lambda x : key.is_superset_of_key(x), remaining))
+        assert to_drop
+        remaining -= to_drop
+      assert not remaining
+    self.visit_all_states(f, set(self.disjoint_keys_iter()))
+
+  def disjoint_keys_iter(self):
+    return iter(self.__disjoint_keys)
 
   def node_count(self):
     return self.__node_count
