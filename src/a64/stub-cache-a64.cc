@@ -754,14 +754,16 @@ static void GenerateFastApiCall(MacroAssembler* masm,
                                 int argc,
                                 Register* values) {
   ASSERT(!AreAliased(receiver, scratch));
-  __ Push(receiver);
-  // Write the arguments to stack frame.
+
+  MacroAssembler::PushPopQueue queue(masm);
+  queue.Queue(receiver);
+  // Write the arguments to the stack frame.
   for (int i = 0; i < argc; i++) {
-    // TODO(jbramley): Push these in as few Push() calls as possible.
     Register arg = values[argc-1-i];
     ASSERT(!AreAliased(receiver, scratch, arg));
-    __ Push(arg);
+    queue.Queue(arg);
   }
+  queue.PushQueued();
 
   ASSERT(optimization.is_simple_api_call());
 
