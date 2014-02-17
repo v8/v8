@@ -46,8 +46,8 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
                                               Register destination_reg,
                                               bool inline_fastpath) {
   // Allocate an executable page of memory.
-  size_t actual_size;
-  byte* buffer = static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize,
+  size_t actual_size = 2 * Assembler::kMinimalBufferSize;
+  byte* buffer = static_cast<byte*>(OS::Allocate(actual_size,
                                                  &actual_size,
                                                  true));
   CHECK(buffer);
