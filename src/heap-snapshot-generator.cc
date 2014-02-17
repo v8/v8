@@ -1464,6 +1464,8 @@ void V8HeapExplorer::ExtractJSArrayBufferReferences(
                    "weak_first_view", buffer->weak_first_view(),
                    JSArrayBuffer::kWeakFirstViewOffset);
   // Setup a reference to a native memory backing_store object.
+  if (!buffer->backing_store())
+    return;
   size_t data_size = NumberToSize(heap_->isolate(), buffer->byte_length());
   CHECK(data_size <= static_cast<size_t>(kMaxInt));
   HeapEntry* data_entry = AddEntry(
