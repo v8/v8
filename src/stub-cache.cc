@@ -947,8 +947,10 @@ Handle<Code> LoadStubCompiler::CompileLoadCallback(
   ASSERT(call_optimization.is_simple_api_call());
   Handle<JSFunction> callback = call_optimization.constant_function();
   CallbackHandlerFrontend(type, receiver(), holder, name, callback);
-  GenerateLoadCallback(call_optimization, IC::TypeToMap(*type, isolate()));
-
+  Handle<Map>receiver_map = IC::TypeToMap(*type, isolate());
+  GenerateFastApiCall(
+      masm(), call_optimization, receiver_map,
+      receiver(), scratch1(), false, 0, NULL);
   // Return the generated code.
   return GetCode(kind(), Code::FAST, name);
 }
@@ -1123,6 +1125,22 @@ Handle<Code> StoreStubCompiler::CompileStoreViaSetter(
   HandlerFrontend(type, receiver(), holder, name);
   GenerateStoreViaSetter(masm(), type, setter);
 
+  return GetCode(kind(), Code::FAST, name);
+}
+
+
+Handle<Code> StoreStubCompiler::CompileStoreCallback(
+    Handle<JSObject> object,
+    Handle<JSObject> holder,
+    Handle<Name> name,
+    const CallOptimization& call_optimization) {
+  HandlerFrontend(IC::CurrentTypeOf(object, isolate()),
+                  receiver(), holder, name);
+  Register values[] = { value() };
+  GenerateFastApiCall(
+      masm(), call_optimization, handle(object->map()),
+      receiver(), scratch1(), true, 1, values);
+  // Return the generated code.
   return GetCode(kind(), Code::FAST, name);
 }
 

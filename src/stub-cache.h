@@ -406,6 +406,15 @@ class StubCompiler BASE_EMBEDDED {
 
   void GenerateBooleanCheck(Register object, Label* miss);
 
+  static void GenerateFastApiCall(MacroAssembler* masm,
+                                  const CallOptimization& optimization,
+                                  Handle<Map> receiver_map,
+                                  Register receiver,
+                                  Register scratch,
+                                  bool is_store,
+                                  int argc,
+                                  Register* values);
+
  protected:
   Handle<Code> GetCodeWithFlags(Code::Flags flags, const char* name);
   Handle<Code> GetCodeWithFlags(Code::Flags flags, Handle<Name> name);

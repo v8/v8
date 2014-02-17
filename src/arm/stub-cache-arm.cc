@@ -783,14 +783,14 @@ static void CompileCallLoadPropertyWithInterceptor(
 
 
 // Generate call to api function.
-static void GenerateFastApiCall(MacroAssembler* masm,
-                                const CallOptimization& optimization,
-                                Handle<Map> receiver_map,
-                                Register receiver,
-                                Register scratch_in,
-                                bool is_store,
-                                int argc,
-                                Register* values) {
+void StubCompiler::GenerateFastApiCall(MacroAssembler* masm,
+                                       const CallOptimization& optimization,
+                                       Handle<Map> receiver_map,
+                                       Register receiver,
+                                       Register scratch_in,
+                                       bool is_store,
+                                       int argc,
+                                       Register* values) {
   ASSERT(!receiver.is(scratch_in));
   __ push(receiver);
   // Write the arguments to stack frame.
@@ -1077,15 +1077,6 @@ void LoadStubCompiler::GenerateLoadConstant(Handle<Object> value) {
 
 
 void LoadStubCompiler::GenerateLoadCallback(
-    const CallOptimization& call_optimization,
-    Handle<Map> receiver_map) {
-  GenerateFastApiCall(
-      masm(), call_optimization, receiver_map,
-      receiver(), scratch3(), false, 0, NULL);
-}
-
-
-void LoadStubCompiler::GenerateLoadCallback(
     Register reg,
     Handle<ExecutableAccessorInfo> callback) {
   // Build AccessorInfo::args_ list on the stack and push property name below
@@ -1255,24 +1246,6 @@ Handle<Code> StoreStubCompiler::CompileStoreCallback(
   ExternalReference store_callback_property =
       ExternalReference(IC_Utility(IC::kStoreCallbackProperty), isolate());
   __ TailCallExternalReference(store_callback_property, 5, 1);
-
-  // Return the generated code.
-  return GetCode(kind(), Code::FAST, name);
-}
-
-
-Handle<Code> StoreStubCompiler::CompileStoreCallback(
-    Handle<JSObject> object,
-    Handle<JSObject> holder,
-    Handle<Name> name,
-    const CallOptimization& call_optimization) {
-  HandlerFrontend(IC::CurrentTypeOf(object, isolate()),
-                  receiver(), holder, name);
-
-  Register values[] = { value() };
-  GenerateFastApiCall(
-      masm(), call_optimization, handle(object->map()),
-      receiver(), scratch3(), true, 1, values);
 
   // Return the generated code.
   return GetCode(kind(), Code::FAST, name);

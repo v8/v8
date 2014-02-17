@@ -745,14 +745,14 @@ static void CompileCallLoadPropertyWithInterceptor(
 
 
 // Generate call to api function.
-static void GenerateFastApiCall(MacroAssembler* masm,
-                                const CallOptimization& optimization,
-                                Handle<Map> receiver_map,
-                                Register receiver,
-                                Register scratch,
-                                bool is_store,
-                                int argc,
-                                Register* values) {
+void StubCompiler::GenerateFastApiCall(MacroAssembler* masm,
+                                       const CallOptimization& optimization,
+                                       Handle<Map> receiver_map,
+                                       Register receiver,
+                                       Register scratch,
+                                       bool is_store,
+                                       int argc,
+                                       Register* values) {
   ASSERT(!AreAliased(receiver, scratch));
 
   MacroAssembler::PushPopQueue queue(masm);
@@ -1043,15 +1043,6 @@ void LoadStubCompiler::GenerateLoadConstant(Handle<Object> value) {
   // Return the constant value.
   __ LoadObject(x0, value);
   __ Ret();
-}
-
-
-void LoadStubCompiler::GenerateLoadCallback(
-    const CallOptimization& call_optimization,
-    Handle<Map> receiver_map) {
-  GenerateFastApiCall(
-      masm(), call_optimization, receiver_map,
-      receiver(), scratch3(), false, 0, NULL);
 }
 
 
@@ -1531,23 +1522,6 @@ Handle<Code> KeyedStoreStubCompiler::CompileStorePolymorphic(
 
   return GetICCode(
       kind(), Code::NORMAL, factory()->empty_string(), POLYMORPHIC);
-}
-
-
-Handle<Code> StoreStubCompiler::CompileStoreCallback(
-    Handle<JSObject> object,
-    Handle<JSObject> holder,
-    Handle<Name> name,
-    const CallOptimization& call_optimization) {
-  HandlerFrontend(IC::CurrentTypeOf(object, isolate()),
-                  receiver(), holder, name);
-
-  Register values[] = { value() };
-  GenerateFastApiCall(masm(), call_optimization, handle(object->map()),
-                      receiver(), scratch3(), true, 1, values);
-
-  // Return the generated code.
-  return GetCode(kind(), Code::FAST, name);
 }
 
 
