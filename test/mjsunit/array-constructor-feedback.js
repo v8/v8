@@ -89,7 +89,6 @@ if (support_smi_only_arrays) {
       return new t(len);
     }
 
-    bar(Array, 10);  // Skip premonomorphic state.
     a = bar(Array, 10);
     a[0] = 3.5;
     b = bar(Array, 1);
@@ -109,8 +108,6 @@ if (support_smi_only_arrays) {
     function bar0(t) {
       return new t();
     }
-
-    bar0(Array);  // Skip premonomorphic state.
     a = bar0(Array);
     a[0] = 3.5;
     b = bar0(Array);
@@ -142,8 +139,6 @@ if (support_smi_only_arrays) {
     function bar(len) {
       return new Array(len);
     }
-
-    bar(10);  // Skip premonomorphic state.
     a = bar(10);
     a[0] = "a string";
     a = bar(10);
@@ -195,8 +190,6 @@ if (support_smi_only_arrays) {
     function bar() {
       return new Array();
     }
-
-    bar();  // Skip premonomorphic state.
     a = bar();
     bar();
     %OptimizeFunctionOnNextCall(bar);

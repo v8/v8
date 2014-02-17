@@ -6537,11 +6537,6 @@ Handle<Object> TypeFeedbackInfo::UninitializedSentinel(Isolate* isolate) {
 }
 
 
-Handle<Object> TypeFeedbackInfo::PremonomorphicSentinel(Isolate* isolate) {
-  return isolate->factory()->null_value();
-}
-
-
 Handle<Object> TypeFeedbackInfo::MegamorphicSentinel(Isolate* isolate) {
   return isolate->factory()->undefined_value();
 }
