@@ -2063,3 +2063,61 @@ TEST(Intrinsics) {
   // or not.
   RunParserSyncTest(context_data, statement_data, kSuccessOrError);
 }
+
+
+TEST(NoErrorsNewExpression) {
+  const char* context_data[][2] = {
+    {"", ""},
+    {"var f =", ""},
+    { NULL, NULL }
+  };
+
+  const char* statement_data[] = {
+    "new foo",
+    "new foo();",
+    "new foo(1);",
+    "new foo(1, 2);",
+    // The first () will be processed as a part of the NewExpression and the
+    // second () will be processed as part of LeftHandSideExpression.
+    "new foo()();",
+    // The first () will be processed as a part of the inner NewExpression and
+    // the second () will be processed as a part of the outer NewExpression.
+    "new new foo()();",
+    "new foo.bar;",
+    "new foo.bar();",
+    "new foo.bar.baz;",
+    "new foo.bar().baz;",
+    "new foo[bar];",
+    "new foo[bar]();",
+    "new foo[bar][baz];",
+    "new foo[bar]()[baz];",
+    "new foo[bar].baz(baz)()[bar].baz;",
+    "new \"foo\"",  // Runtime error
+    "new 1",  // Runtime error
+    "new foo++",
+    // This even runs:
+    "(new new Function(\"this.x = 1\")).x;",
+    "new new Test_Two(String, 2).v(0123).length;",
+    NULL
+  };
+
+  RunParserSyncTest(context_data, statement_data, kSuccess);
+}
+
+
+TEST(ErrorsNewExpression) {
+  const char* context_data[][2] = {
+    {"", ""},
+    {"var f =", ""},
+    { NULL, NULL }
+  };
+
+  const char* statement_data[] = {
+    "new foo bar",
+    "new ) foo",
+    "new ++foo",
+    NULL
+  };
+
+  RunParserSyncTest(context_data, statement_data, kError);
+}

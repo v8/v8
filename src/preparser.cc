@@ -1007,12 +1007,7 @@ PreParser::Expression PreParser::ParseLeftHandSideExpression(bool* ok) {
   // LeftHandSideExpression ::
   //   (NewExpression | MemberExpression) ...
 
-  Expression result = Expression::Default();
-  if (peek() == Token::NEW) {
-    result = ParseNewExpression(CHECK_OK);
-  } else {
-    result = ParseMemberExpression(CHECK_OK);
-  }
+  Expression result = ParseMemberWithNewPrefixesExpression(CHECK_OK);
 
   while (true) {
     switch (peek()) {
@@ -1052,38 +1047,37 @@ PreParser::Expression PreParser::ParseLeftHandSideExpression(bool* ok) {
 }
 
 
-PreParser::Expression PreParser::ParseNewExpression(bool* ok) {
+PreParser::Expression PreParser::ParseMemberWithNewPrefixesExpression(
+    bool* ok) {
   // NewExpression ::
   //   ('new')+ MemberExpression
 
-  // The grammar for new expressions is pretty warped. The keyword
-  // 'new' can either be a part of the new expression (where it isn't
-  // followed by an argument list) or a part of the member expression,
-  // where it must be followed by an argument list. To accommodate
-  // this, we parse the 'new' keywords greedily and keep track of how
-  // many we have parsed. This information is then passed on to the
-  // member expression parser, which is only allowed to match argument
-  // lists as long as it has 'new' prefixes left
-  unsigned new_count = 0;
-  do {
-    Consume(Token::NEW);
-    new_count++;
-  } while (peek() == Token::NEW);
+  // See Parser::ParseNewExpression.
 
-  return ParseMemberWithNewPrefixesExpression(new_count, ok);
+  if (peek() == Token::NEW) {
+    Consume(Token::NEW);
+    ParseMemberWithNewPrefixesExpression(CHECK_OK);
+    if (peek() == Token::LPAREN) {
+      // NewExpression with arguments.
+      ParseArguments(CHECK_OK);
+      // The expression can still continue with . or [ after the arguments.
+      ParseMemberExpressionContinuation(Expression::Default(), CHECK_OK);
+    }
+    return Expression::Default();
+  }
+  // No 'new' keyword.
+  return ParseMemberExpression(ok);
 }
 
 
 PreParser::Expression PreParser::ParseMemberExpression(bool* ok) {
-  return ParseMemberWithNewPrefixesExpression(0, ok);
-}
-
-
-PreParser::Expression PreParser::ParseMemberWithNewPrefixesExpression(
-    unsigned new_count, bool* ok) {
   // MemberExpression ::
   //   (PrimaryExpression | FunctionLiteral)
   //     ('[' Expression ']' | '.' Identifier | Arguments)*
+
+  // The '[' Expression ']' and '.' Identifier parts are parsed by
+  // ParseMemberExpressionContinuation, and the Arguments part is parsed by the
+  // caller.
 
   // Parse the initial primary or function expression.
   Expression result = Expression::Default();
@@ -1107,42 +1101,44 @@ PreParser::Expression PreParser::ParseMemberWithNewPrefixesExpression(
   } else {
     result = ParsePrimaryExpression(CHECK_OK);
   }
+  result = ParseMemberExpressionContinuation(result, CHECK_OK);
+  return result;
+}
 
+
+PreParser::Expression PreParser::ParseMemberExpressionContinuation(
+    PreParserExpression expression, bool* ok) {
+  // Parses this part of MemberExpression:
+  // ('[' Expression ']' | '.' Identifier)*
   while (true) {
     switch (peek()) {
       case Token::LBRACK: {
         Consume(Token::LBRACK);
         ParseExpression(true, CHECK_OK);
         Expect(Token::RBRACK, CHECK_OK);
-        if (result.IsThis()) {
-          result = Expression::ThisProperty();
+        if (expression.IsThis()) {
+          expression = Expression::ThisProperty();
         } else {
-          result = Expression::Default();
+          expression = Expression::Default();
         }
         break;
       }
       case Token::PERIOD: {
         Consume(Token::PERIOD);
         ParseIdentifierName(CHECK_OK);
-        if (result.IsThis()) {
-          result = Expression::ThisProperty();
+        if (expression.IsThis()) {
+          expression = Expression::ThisProperty();
         } else {
-          result = Expression::Default();
+          expression = Expression::Default();
         }
         break;
       }
-      case Token::LPAREN: {
-        if (new_count == 0) return result;
-        // Consume one of the new prefixes (already parsed).
-        ParseArguments(CHECK_OK);
-        new_count--;
-        result = Expression::Default();
-        break;
-      }
       default:
-        return result;
+        return expression;
     }
   }
+  ASSERT(false);
+  return PreParserExpression::Default();
 }
 
 
