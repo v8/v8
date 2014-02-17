@@ -1847,6 +1847,8 @@ class Heap {
     return amount_of_external_allocated_memory_;
   }
 
+  void DeoptMarkedAllocationSites();
+
   // ObjectStats are kept in two arrays, counts and sizes. Related stats are
   // stored in a contiguous linear buffer. Stats groups are stored one after
   // another.

@@ -1554,9 +1554,7 @@ inline bool AllocationSite::DigestPretenuringFeedback() {
     set_pretenure_decision(result);
     if (current_mode != GetPretenureMode()) {
       decision_changed = true;
-      dependent_code()->MarkCodeForDeoptimization(
-          GetIsolate(),
-          DependentCode::kAllocationSiteTenuringChangedGroup);
+      set_deopt_dependent_code(true);
     }
   }
 
