@@ -4940,26 +4940,26 @@ static float MinMaxHelper(float n,
   uint32_t raw_n = float_to_rawbits(n);
   uint32_t raw_m = float_to_rawbits(m);
 
-  if (isnan(n) && ((raw_n & kFP32QuietNaNMask) == 0)) {
+  if (std::isnan(n) && ((raw_n & kFP32QuietNaNMask) == 0)) {
     // n is signalling NaN.
     return n;
-  } else if (isnan(m) && ((raw_m & kFP32QuietNaNMask) == 0)) {
+  } else if (std::isnan(m) && ((raw_m & kFP32QuietNaNMask) == 0)) {
     // m is signalling NaN.
     return m;
   } else if (quiet_nan_substitute == 0.0) {
-    if (isnan(n)) {
+    if (std::isnan(n)) {
       // n is quiet NaN.
       return n;
-    } else if (isnan(m)) {
+    } else if (std::isnan(m)) {
       // m is quiet NaN.
       return m;
     }
   } else {
     // Substitute n or m if one is quiet, but not both.
-    if (isnan(n) && !isnan(m)) {
+    if (std::isnan(n) && !std::isnan(m)) {
       // n is quiet NaN: replace with substitute.
       n = quiet_nan_substitute;
-    } else if (!isnan(n) && isnan(m)) {
+    } else if (!std::isnan(n) && std::isnan(m)) {
       // m is quiet NaN: replace with substitute.
       m = quiet_nan_substitute;
     }
@@ -4982,26 +4982,26 @@ static double MinMaxHelper(double n,
   uint64_t raw_n = double_to_rawbits(n);
   uint64_t raw_m = double_to_rawbits(m);
 
-  if (isnan(n) && ((raw_n & kFP64QuietNaNMask) == 0)) {
+  if (std::isnan(n) && ((raw_n & kFP64QuietNaNMask) == 0)) {
     // n is signalling NaN.
     return n;
-  } else if (isnan(m) && ((raw_m & kFP64QuietNaNMask) == 0)) {
+  } else if (std::isnan(m) && ((raw_m & kFP64QuietNaNMask) == 0)) {
     // m is signalling NaN.
     return m;
   } else if (quiet_nan_substitute == 0.0) {
-    if (isnan(n)) {
+    if (std::isnan(n)) {
       // n is quiet NaN.
       return n;
-    } else if (isnan(m)) {
+    } else if (std::isnan(m)) {
       // m is quiet NaN.
       return m;
     }
   } else {
     // Substitute n or m if one is quiet, but not both.
-    if (isnan(n) && !isnan(m)) {
+    if (std::isnan(n) && !std::isnan(m)) {
       // n is quiet NaN: replace with substitute.
       n = quiet_nan_substitute;
-    } else if (!isnan(n) && isnan(m)) {
+    } else if (!std::isnan(n) && std::isnan(m)) {
       // m is quiet NaN: replace with substitute.
       m = quiet_nan_substitute;
     }

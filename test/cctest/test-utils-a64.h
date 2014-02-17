@@ -161,12 +161,13 @@ class RegisterDump {
     uint64_t flags_;
   } dump_;
 
-  STATIC_ASSERT(sizeof(dump_.d_[0]) == kDRegSizeInBytes);
-  STATIC_ASSERT(sizeof(dump_.s_[0]) == kSRegSizeInBytes);
-  STATIC_ASSERT(sizeof(dump_.d_[0]) == kXRegSizeInBytes);
-  STATIC_ASSERT(sizeof(dump_.s_[0]) == kWRegSizeInBytes);
-  STATIC_ASSERT(sizeof(dump_.x_[0]) == kXRegSizeInBytes);
-  STATIC_ASSERT(sizeof(dump_.w_[0]) == kWRegSizeInBytes);
+  static dump_t for_sizeof();
+  STATIC_ASSERT(sizeof(for_sizeof().d_[0]) == kDRegSizeInBytes);
+  STATIC_ASSERT(sizeof(for_sizeof().s_[0]) == kSRegSizeInBytes);
+  STATIC_ASSERT(sizeof(for_sizeof().d_[0]) == kXRegSizeInBytes);
+  STATIC_ASSERT(sizeof(for_sizeof().s_[0]) == kWRegSizeInBytes);
+  STATIC_ASSERT(sizeof(for_sizeof().x_[0]) == kXRegSizeInBytes);
+  STATIC_ASSERT(sizeof(for_sizeof().w_[0]) == kWRegSizeInBytes);
 };
 
 // Some of these methods don't use the RegisterDump argument, but they have to

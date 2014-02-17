@@ -42,9 +42,11 @@ namespace internal {
 byte* fast_exp_a64_machine_code = NULL;
 double fast_exp_simulator(double x) {
   Simulator * simulator = Simulator::current(Isolate::Current());
-  return simulator->CallDouble(fast_exp_a64_machine_code,
-                               Simulator::CallArgument(x),
-                               Simulator::CallArgument::End());
+  Simulator::CallArgument args[] = {
+      Simulator::CallArgument(x),
+      Simulator::CallArgument::End()
+  };
+  return simulator->CallDouble(fast_exp_a64_machine_code, args);
 }
 #endif
 

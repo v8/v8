@@ -56,8 +56,8 @@ static const int kRegListSizeInBits = sizeof(RegList) * kBitsPerByte;
 
 // Some CPURegister methods can return Register and FPRegister types, so we
 // need to declare them in advance.
-class Register;
-class FPRegister;
+struct Register;
+struct FPRegister;
 
 
 struct CPURegister {

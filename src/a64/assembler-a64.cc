@@ -2302,7 +2302,7 @@ void Assembler::GrowBuffer() {
 }
 
 
-void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, int64_t data) {
+void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   // We do not try to reuse pool constants.
   RelocInfo rinfo(reinterpret_cast<byte*>(pc_), rmode, data, NULL);
   if (((rmode >= RelocInfo::JS_RETURN) &&

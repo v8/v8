@@ -203,15 +203,16 @@ class Simulator : public DecoderVisitor {
 
   static Simulator* current(v8::internal::Isolate* isolate);
 
+  class CallArgument;
+
   // Call an arbitrary function taking an arbitrary number of arguments. The
   // varargs list must be a set of arguments with type CallArgument, and
   // terminated by CallArgument::End().
-  void CallVoid(byte* entry, ...);
-  void CallVoid(byte* entry, va_list args);
+  void CallVoid(byte* entry, CallArgument* args);
 
   // Like CallVoid, but expect a return value.
-  int64_t CallInt64(byte* entry, ...);
-  double CallDouble(byte* entry, ...);
+  int64_t CallInt64(byte* entry, CallArgument* args);
+  double CallDouble(byte* entry, CallArgument* args);
 
   // V8 calls into generated JS code with 5 parameters and into
   // generated RegExp code with 10 parameters. These are convenience functions,
