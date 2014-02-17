@@ -8110,8 +8110,7 @@ static void PushPopJsspWXOverlapHelper(int reg_count, int claim) {
   SETUP_SIZE(BUF_SIZE * 2);
 
   // Work out which registers to use, based on reg_size.
-  Register tmp = x8;
-  static RegList const allowed = ~(tmp.Bit() | jssp.Bit());
+  static RegList const allowed = ~(x8.Bit() | x9.Bit() | jssp.Bit());
   if (reg_count == kPushPopJsspMaxRegCount) {
     reg_count = CountSetBits(allowed, kNumberOfRegisters);
   }
@@ -8197,13 +8196,7 @@ static void PushPopJsspWXOverlapHelper(int reg_count, int claim) {
       int times = i % 4 + 1;
       if (i & 1) {
         // Push odd-numbered registers as W registers.
-        if (i & 2) {
-          __ PushMultipleTimes(w[i], times);
-        } else {
-          // Use a register to specify the count.
-          __ Mov(tmp.W(), times);
-          __ PushMultipleTimes(w[i], tmp.W());
-        }
+        __ PushMultipleTimes(times, w[i]);
         // Fill in the expected stack slots.
         for (int j = 0; j < times; j++) {
           if (w[i].Is(wzr)) {
@@ -8215,13 +8208,7 @@ static void PushPopJsspWXOverlapHelper(int reg_count, int claim) {
         }
       } else {
         // Push even-numbered registers as X registers.
-        if (i & 2) {
-          __ PushMultipleTimes(x[i], times);
-        } else {
-          // Use a register to specify the count.
-          __ Mov(tmp, times);
-          __ PushMultipleTimes(x[i], tmp);
-        }
+        __ PushMultipleTimes(times, x[i]);
         // Fill in the expected stack slots.
         for (int j = 0; j < times; j++) {
           if (x[i].IsZero()) {
@@ -8408,156 +8395,6 @@ TEST(push_pop_csp) {
   ASSERT_EQUAL_32(0x00000000U, w27);
   ASSERT_EQUAL_32(0x22222222U, w28);
   ASSERT_EQUAL_32(0x33333333U, w29);
-  TEARDOWN();
-}
-
-
-TEST(push_queued) {
-  INIT_V8();
-  SETUP();
-
-  START();
-
-  ASSERT(__ StackPointer().Is(csp));
-  __ Mov(jssp, __ StackPointer());
-  __ SetStackPointer(jssp);
-
-  MacroAssembler::PushPopQueue queue(&masm);
-
-  // Queue up registers.
-  queue.Queue(x0);
-  queue.Queue(x1);
-  queue.Queue(x2);
-  queue.Queue(x3);
-
-  queue.Queue(w4);
-  queue.Queue(w5);
-  queue.Queue(w6);
-
-  queue.Queue(d0);
-  queue.Queue(d1);
-
-  queue.Queue(s2);
-
-  __ Mov(x0, 0x1234000000000000);
-  __ Mov(x1, 0x1234000100010001);
-  __ Mov(x2, 0x1234000200020002);
-  __ Mov(x3, 0x1234000300030003);
-  __ Mov(w4, 0x12340004);
-  __ Mov(w5, 0x12340005);
-  __ Mov(w6, 0x12340006);
-  __ Fmov(d0, 123400.0);
-  __ Fmov(d1, 123401.0);
-  __ Fmov(s2, 123402.0);
-
-  // Actually push them.
-  queue.PushQueued();
-
-  Clobber(&masm, CPURegList(CPURegister::kRegister, kXRegSize, 0, 6));
-  Clobber(&masm, CPURegList(CPURegister::kFPRegister, kDRegSize, 0, 2));
-
-  // Pop them conventionally.
-  __ Pop(s2);
-  __ Pop(d1, d0);
-  __ Pop(w6, w5, w4);
-  __ Pop(x3, x2, x1, x0);
-
-  __ Mov(csp, __ StackPointer());
-  __ SetStackPointer(csp);
-
-  END();
-
-  RUN();
-
-  ASSERT_EQUAL_64(0x1234000000000000, x0);
-  ASSERT_EQUAL_64(0x1234000100010001, x1);
-  ASSERT_EQUAL_64(0x1234000200020002, x2);
-  ASSERT_EQUAL_64(0x1234000300030003, x3);
-
-  ASSERT_EQUAL_32(0x12340004, w4);
-  ASSERT_EQUAL_32(0x12340005, w5);
-  ASSERT_EQUAL_32(0x12340006, w6);
-
-  ASSERT_EQUAL_FP64(123400.0, d0);
-  ASSERT_EQUAL_FP64(123401.0, d1);
-
-  ASSERT_EQUAL_FP32(123402.0, s2);
-
-  TEARDOWN();
-}
-
-
-TEST(pop_queued) {
-  INIT_V8();
-  SETUP();
-
-  START();
-
-  ASSERT(__ StackPointer().Is(csp));
-  __ Mov(jssp, __ StackPointer());
-  __ SetStackPointer(jssp);
-
-  MacroAssembler::PushPopQueue queue(&masm);
-
-  __ Mov(x0, 0x1234000000000000);
-  __ Mov(x1, 0x1234000100010001);
-  __ Mov(x2, 0x1234000200020002);
-  __ Mov(x3, 0x1234000300030003);
-  __ Mov(w4, 0x12340004);
-  __ Mov(w5, 0x12340005);
-  __ Mov(w6, 0x12340006);
-  __ Fmov(d0, 123400.0);
-  __ Fmov(d1, 123401.0);
-  __ Fmov(s2, 123402.0);
-
-  // Push registers conventionally.
-  __ Push(x0, x1, x2, x3);
-  __ Push(w4, w5, w6);
-  __ Push(d0, d1);
-  __ Push(s2);
-
-  // Queue up a pop.
-  queue.Queue(s2);
-
-  queue.Queue(d1);
-  queue.Queue(d0);
-
-  queue.Queue(w6);
-  queue.Queue(w5);
-  queue.Queue(w4);
-
-  queue.Queue(x3);
-  queue.Queue(x2);
-  queue.Queue(x1);
-  queue.Queue(x0);
-
-  Clobber(&masm, CPURegList(CPURegister::kRegister, kXRegSize, 0, 6));
-  Clobber(&masm, CPURegList(CPURegister::kFPRegister, kDRegSize, 0, 2));
-
-  // Actually pop them.
-  queue.PopQueued();
-
-  __ Mov(csp, __ StackPointer());
-  __ SetStackPointer(csp);
-
-  END();
-
-  RUN();
-
-  ASSERT_EQUAL_64(0x1234000000000000, x0);
-  ASSERT_EQUAL_64(0x1234000100010001, x1);
-  ASSERT_EQUAL_64(0x1234000200020002, x2);
-  ASSERT_EQUAL_64(0x1234000300030003, x3);
-
-  ASSERT_EQUAL_64(0x0000000012340004, x4);
-  ASSERT_EQUAL_64(0x0000000012340005, x5);
-  ASSERT_EQUAL_64(0x0000000012340006, x6);
-
-  ASSERT_EQUAL_FP64(123400.0, d0);
-  ASSERT_EQUAL_FP64(123401.0, d1);
-
-  ASSERT_EQUAL_FP32(123402.0, s2);
-
   TEARDOWN();
 }
 

@@ -523,14 +523,11 @@ void HydrogenCodeStub::GenerateLightweightMiss(MacroAssembler* masm) {
     FrameScope scope(masm, StackFrame::INTERNAL);
     ASSERT((descriptor->register_param_count_ == 0) ||
            x0.Is(descriptor->register_params_[param_count - 1]));
-
     // Push arguments
-    MacroAssembler::PushPopQueue queue(masm);
+    // TODO(jbramley): Try to push these in blocks.
     for (int i = 0; i < param_count; ++i) {
-      queue.Queue(descriptor->register_params_[i]);
+      __ Push(descriptor->register_params_[i]);
     }
-    queue.PushQueued();
-
     ExternalReference miss = descriptor->miss_handler();
     __ CallExternalReference(miss, descriptor->register_param_count_);
   }

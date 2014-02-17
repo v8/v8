@@ -1332,7 +1332,6 @@ class MaybeObject BASE_EMBEDDED {
     "The instruction to patch should be an ori")                              \
   V(kTheSourceAndDestinationAreTheSame,                                       \
     "The source and destination are the same")                                \
-  V(kTheStackPointerIsNotAligned, "The stack pointer is not aligned.")        \
   V(kTheStackWasCorruptedByMacroAssemblerCall,                                \
     "The stack was corrupted by MacroAssembler::Call()")                      \
   V(kTooManyParametersLocals, "Too many parameters/locals")                   \

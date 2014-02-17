@@ -183,7 +183,7 @@ void FullCodeGenerator::Generate() {
 
     if (locals_count > 0) {
       __ LoadRoot(x10, Heap::kUndefinedValueRootIndex);
-      __ PushMultipleTimes(x10, locals_count);
+      __ PushMultipleTimes(locals_count, x10);
     }
   }
 
@@ -4625,11 +4625,20 @@ void FullCodeGenerator::EmitGeneratorResume(Expression *generator,
   __ Ldr(w10, FieldMemOperand(x10,
                               SharedFunctionInfo::kFormalParameterCountOffset));
   __ LoadRoot(the_hole, Heap::kTheHoleValueRootIndex);
-  __ PushMultipleTimes(the_hole, w10);
+
+  // TODO(jbramley): Write a variant of PushMultipleTimes which takes a register
+  // instead of a constant count, and use it to replace this loop.
+  Label push_argument_holes, push_frame;
+  __ Bind(&push_argument_holes);
+  __ Subs(w10, w10, 1);
+  __ B(mi, &push_frame);
+  __ Push(the_hole);
+  __ B(&push_argument_holes);
 
   // Enter a new JavaScript frame, and initialize its slots as they were when
   // the generator was suspended.
   Label resume_frame;
+  __ Bind(&push_frame);
   __ Bl(&resume_frame);
   __ B(&done);
 
@@ -4666,8 +4675,16 @@ void FullCodeGenerator::EmitGeneratorResume(Expression *generator,
 
   // Otherwise, we push holes for the operand stack and call the runtime to fix
   // up the stack and the handlers.
-  __ PushMultipleTimes(the_hole, operand_stack_size);
+  // TODO(jbramley): Write a variant of PushMultipleTimes which takes a register
+  // instead of a constant count, and use it to replace this loop.
+  Label push_operand_holes, call_resume;
+  __ Bind(&push_operand_holes);
+  __ Subs(operand_stack_size, operand_stack_size, 1);
+  __ B(mi, &call_resume);
+  __ Push(the_hole);
+  __ B(&push_operand_holes);
 
+  __ Bind(&call_resume);
   __ Mov(x10, Operand(Smi::FromInt(resume_mode)));
   __ Push(generator_object, result_register(), x10);
   __ CallRuntime(Runtime::kResumeJSGeneratorObject, 3);

@@ -623,56 +623,6 @@ void MacroAssembler::Pop(const CPURegister& dst0, const CPURegister& dst1,
 }
 
 
-void MacroAssembler::PushPopQueue::PushQueued() {
-  if (queued_.empty()) return;
-
-  masm_->PrepareForPush(size_);
-
-  int count = queued_.size();
-  int index = 0;
-  while (index < count) {
-    // PushHelper can only handle registers with the same size and type, and it
-    // can handle only four at a time. Batch them up accordingly.
-    CPURegister batch[4] = {NoReg, NoReg, NoReg, NoReg};
-    int batch_index = 0;
-    do {
-      batch[batch_index++] = queued_[index++];
-    } while ((batch_index < 4) && (index < count) &&
-             batch[0].IsSameSizeAndType(queued_[index]));
-
-    masm_->PushHelper(batch_index, batch[0].SizeInBytes(),
-                      batch[0], batch[1], batch[2], batch[3]);
-  }
-
-  queued_.clear();
-}
-
-
-void MacroAssembler::PushPopQueue::PopQueued() {
-  if (queued_.empty()) return;
-
-  masm_->PrepareForPop(size_);
-
-  int count = queued_.size();
-  int index = 0;
-  while (index < count) {
-    // PopHelper can only handle registers with the same size and type, and it
-    // can handle only four at a time. Batch them up accordingly.
-    CPURegister batch[4] = {NoReg, NoReg, NoReg, NoReg};
-    int batch_index = 0;
-    do {
-      batch[batch_index++] = queued_[index++];
-    } while ((batch_index < 4) && (index < count) &&
-             batch[0].IsSameSizeAndType(queued_[index]));
-
-    masm_->PopHelper(batch_index, batch[0].SizeInBytes(),
-                     batch[0], batch[1], batch[2], batch[3]);
-  }
-
-  queued_.clear();
-}
-
-
 void MacroAssembler::PushCPURegList(CPURegList registers) {
   int size = registers.RegisterSizeInBytes();
 
@@ -718,7 +668,7 @@ void MacroAssembler::PopCPURegList(CPURegList registers) {
 }
 
 
-void MacroAssembler::PushMultipleTimes(CPURegister src, int count) {
+void MacroAssembler::PushMultipleTimes(int count, Register src) {
   int size = src.SizeInBytes();
 
   PrepareForPush(count, size);
@@ -750,51 +700,6 @@ void MacroAssembler::PushMultipleTimes(CPURegister src, int count) {
     count -= 1;
   }
   ASSERT(count == 0);
-}
-
-
-void MacroAssembler::PushMultipleTimes(CPURegister src, Register count) {
-  PrepareForPush(Operand(count, UXTW, WhichPowerOf2(src.SizeInBytes())));
-
-  Register temp = AppropriateTempFor(count);
-
-  if (FLAG_optimize_for_size) {
-    Label loop, done;
-
-    Subs(temp, count, 1);
-    B(mi, &done);
-
-    // Push all registers individually, to save code size.
-    Bind(&loop);
-    Subs(temp, temp, 1);
-    PushHelper(1, src.SizeInBytes(), src, NoReg, NoReg, NoReg);
-    B(pl, &loop);
-
-    Bind(&done);
-  } else {
-    Label loop, leftover2, leftover1, done;
-
-    Subs(temp, count, 4);
-    B(mi, &leftover2);
-
-    // Push groups of four first.
-    Bind(&loop);
-    Subs(temp, temp, 4);
-    PushHelper(4, src.SizeInBytes(), src, src, src, src);
-    B(pl, &loop);
-
-    // Push groups of two.
-    Bind(&leftover2);
-    Tbz(count, 1, &leftover1);
-    PushHelper(2, src.SizeInBytes(), src, src, NoReg, NoReg);
-
-    // Push the last one (if required).
-    Bind(&leftover1);
-    Tbz(count, 0, &done);
-    PushHelper(1, src.SizeInBytes(), src, NoReg, NoReg, NoReg);
-
-    Bind(&done);
-  }
 }
 
 
@@ -879,39 +784,30 @@ void MacroAssembler::PopHelper(int count, int size,
 }
 
 
-void MacroAssembler::PrepareForPush(Operand total_size) {
-  AssertStackConsistency();
+void MacroAssembler::PrepareForPush(int count, int size) {
+  // TODO(jbramley): Use AssertStackConsistency here, if possible. See the
+  // AssertStackConsistency for details of why we can't at the moment.
   if (csp.Is(StackPointer())) {
     // If the current stack pointer is csp, then it must be aligned to 16 bytes
     // on entry and the total size of the specified registers must also be a
     // multiple of 16 bytes.
-    if (total_size.IsImmediate()) {
-      ASSERT((total_size.immediate() % 16) == 0);
-    }
-
-    // Don't check access size for non-immediate sizes. It's difficult to do
-    // well, and it will be caught by hardware (or the simulator) anyway.
+    ASSERT((count * size) % 16 == 0);
   } else {
     // Even if the current stack pointer is not the system stack pointer (csp),
     // the system stack pointer will still be modified in order to comply with
     // ABI rules about accessing memory below the system stack pointer.
-    BumpSystemStackPointer(total_size);
+    BumpSystemStackPointer(count * size);
   }
 }
 
 
-void MacroAssembler::PrepareForPop(Operand total_size) {
+void MacroAssembler::PrepareForPop(int count, int size) {
   AssertStackConsistency();
   if (csp.Is(StackPointer())) {
     // If the current stack pointer is csp, then it must be aligned to 16 bytes
     // on entry and the total size of the specified registers must also be a
     // multiple of 16 bytes.
-    if (total_size.IsImmediate()) {
-      ASSERT((total_size.immediate() % 16) == 0);
-    }
-
-    // Don't check access size for non-immediate sizes. It's difficult to do
-    // well, and it will be caught by hardware (or the simulator) anyway.
+    ASSERT((count * size) % 16 == 0);
   }
 }
 
@@ -1007,24 +903,15 @@ void MacroAssembler::PopCalleeSavedRegisters() {
 
 
 void MacroAssembler::AssertStackConsistency() {
-  if (emit_debug_code()) {
+  if (emit_debug_code() && !csp.Is(StackPointer())) {
     if (csp.Is(StackPointer())) {
-      // We can't check the alignment of csp without using a scratch register
-      // (or clobbering the flags), but the processor (or simulator) will abort
-      // if it is not properly aligned during a load.
-      ldr(xzr, MemOperand(csp, 0));
-    } else if (FLAG_enable_slow_asserts) {
-      Label ok;
-      // Check that csp <= StackPointer(), preserving all registers and NZCV.
-      sub(StackPointer(), csp, StackPointer());
-      cbz(StackPointer(), &ok);                 // Ok if csp == StackPointer().
-      tbnz(StackPointer(), kXSignBit, &ok);     // Ok if csp < StackPointer().
-
-      Abort(kTheCurrentStackPointerIsBelowCsp);
-
-      bind(&ok);
-      // Restore StackPointer().
-      sub(StackPointer(), csp, StackPointer());
+      // TODO(jbramley): Check for csp alignment if it is the stack pointer.
+    } else {
+      // TODO(jbramley): Currently we cannot use this assertion in Push because
+      // some calling code assumes that the flags are preserved. For an example,
+      // look at Builtins::Generate_ArgumentsAdaptorTrampoline.
+      Cmp(csp, StackPointer());
+      Check(ls, kTheCurrentStackPointerIsBelowCsp);
     }
   }
 }
@@ -4432,9 +4319,6 @@ void MacroAssembler::Abort(BailoutReason reason) {
   Adr(x0, &msg_address);
 
   if (use_real_aborts()) {
-    // Avoid infinite recursion; Push contains some assertions that use Abort.
-    NoUseRealAbortsScope no_real_aborts(this);
-
     // Split the message pointer into two SMI to avoid the GC
     // trying to scan the string.
     STATIC_ASSERT((kSmiShift == 32) && (kSmiTag == 0));
