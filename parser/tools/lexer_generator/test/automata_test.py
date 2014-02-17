@@ -26,12 +26,12 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import unittest
-from dot_utilities import *
-from automaton import Action
-from regex_parser import RegexParser
-from transition_keys import TransitionKey, KeyEncoding
-from nfa_builder import NfaBuilder
-from dfa import Dfa
+from lexer_generator.dot_utilities import *
+from lexer_generator.automaton import Action
+from lexer_generator.regex_parser import RegexParser
+from lexer_generator.transition_keys import TransitionKey, KeyEncoding
+from lexer_generator.nfa_builder import NfaBuilder
+from lexer_generator.dfa import Dfa
 
 class AutomataTestCase(unittest.TestCase):
 

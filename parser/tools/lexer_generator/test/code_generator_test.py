@@ -1,4 +1,4 @@
-# Copyright 2014 the V8 project authors. All rights reserved.
+# Copyright 2013 the V8 project authors. All rights reserved.
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
 # met:
@@ -26,26 +26,18 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import unittest
-from action import Term
+from lexer_generator.code_generator import CodeGenerator
+from lexer_generator.rule_parser import RuleProcessor
 
-class TermTestCase(unittest.TestCase):
+class CodeGeneratorTestCase(unittest.TestCase):
 
-  def test_basic(self):
+  def test_simple(self):
+    rules = '''
+    <<default>>
+    "("           <|LBRACE|>
+    ")"           <|RBRACE|>
 
-    t = Term('a')
-    self.assertEqual('a', t.name())
-    self.assertEqual((), t.args())
-    self.assertEqual("(a)", str(t))
-    self.assertEqual(Term('a'), t)
-
-    t = Term('a', 'b', 'c')
-    self.assertEqual('a', t.name())
-    self.assertEqual(('b', 'c'), t.args())
-    self.assertEqual("(a,b,c)", str(t))
-    self.assertEqual(Term('a', 'b', 'c'), t)
-
-    t = Term('a', Term('b', 'c'))
-    self.assertEqual('a', t.name())
-    self.assertEqual((Term('b', 'c'), ), t.args())
-    self.assertEqual("(a,(b,c))", str(t))
-    self.assertEqual(Term('a', Term('b', 'c')), t)
+    "foo"         <|FOO|>
+    eos           <terminate>
+    default_action <DEFAULT>'''
+    CodeGenerator(RuleProcessor(rules, 'latin1'))

@@ -26,8 +26,8 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import unittest
-from automaton import Term, Action
-from rule_parser import RuleProcessor
+from lexer_generator.automaton import Term, Action
+from lexer_generator.rule_parser import RuleProcessor
 
 class LexerTestCase(unittest.TestCase):
 
