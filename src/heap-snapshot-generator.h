@@ -386,6 +386,10 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   void TagGlobalObjects();
   void TagCodeObject(Code* code);
   void TagBuiltinCodeObject(Code* code, const char* name);
+  HeapEntry* AddEntry(Address address,
+                      HeapEntry::Type type,
+                      const char* name,
+                      int size);
 
   static String* GetConstructorName(JSObject* object);
 
@@ -396,10 +400,6 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   HeapEntry* AddEntry(HeapObject* object,
                       HeapEntry::Type type,
                       const char* name);
-  HeapEntry* AddEntry(Address address,
-                      HeapEntry::Type type,
-                      const char* name,
-                      int size);
 
   const char* GetSystemEntryName(HeapObject* object);
 

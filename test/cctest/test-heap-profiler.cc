@@ -2388,6 +2388,51 @@ TEST(ArrayBufferAndArrayBufferView) {
 }
 
 
+static int GetRetainersCount(const v8::HeapSnapshot* snapshot,
+                             const v8::HeapGraphNode* node) {
+  int count = 0;
+  for (int i = 0, l = snapshot->GetNodesCount(); i < l; ++i) {
+    const v8::HeapGraphNode* parent = snapshot->GetNode(i);
+    for (int j = 0, l2 = parent->GetChildrenCount(); j < l2; ++j) {
+      if (parent->GetChild(j)->GetToNode() == node) {
+        ++count;
+      }
+    }
+  }
+  return count;
+}
+
+
+TEST(ArrayBufferSharedBackingStore) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+  v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
+  CompileRun("sin1 = Math.sin(1);");
+  LocalContext env2;
+  CompileRun("sin2 = Math.sin(2);");
+  const v8::HeapSnapshot* snapshot =
+      heap_profiler->TakeHeapSnapshot(v8_str("snapshot"));
+  CHECK(ValidateSnapshot(snapshot));
+  // The 0th-child is (GC Roots), 1st is the user root.
+  const v8::HeapGraphNode* global =
+      snapshot->GetRoot()->GetChild(1)->GetToNode();
+  const v8::HeapGraphNode* builtins =
+      GetProperty(global, v8::HeapGraphEdge::kInternal, "builtins");
+  CHECK_NE(NULL, builtins);
+  const v8::HeapGraphNode* sin_table =
+      GetProperty(builtins, v8::HeapGraphEdge::kProperty, "kSinTable");
+  CHECK_NE(NULL, sin_table);
+  const v8::HeapGraphNode* buffer =
+      GetProperty(sin_table, v8::HeapGraphEdge::kInternal, "buffer");
+  CHECK_NE(NULL, buffer);
+  const v8::HeapGraphNode* backing_store =
+      GetProperty(buffer, v8::HeapGraphEdge::kInternal, "backing_store");
+  CHECK_NE(NULL, backing_store);
+  int retainers = GetRetainersCount(snapshot, backing_store);
+  CHECK_EQ(2, retainers);
+}
+
+
 TEST(BoxObject) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);

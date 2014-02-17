@@ -1456,6 +1456,23 @@ void V8HeapExplorer::ExtractAllocationSiteReferences(int entry,
 }
 
 
+class JSArrayBufferDataEntryAllocator : public HeapEntriesAllocator {
+ public:
+  JSArrayBufferDataEntryAllocator(int size, V8HeapExplorer* explorer)
+      : size_(size)
+      , explorer_(explorer) {
+  }
+  virtual HeapEntry* AllocateEntry(HeapThing ptr) {
+    return explorer_->AddEntry(
+        static_cast<Address>(ptr),
+        HeapEntry::kNative, "system / JSArrayBufferData", size_);
+  }
+ private:
+  int size_;
+  V8HeapExplorer* explorer_;
+};
+
+
 void V8HeapExplorer::ExtractJSArrayBufferReferences(
     int entry, JSArrayBuffer* buffer) {
   SetWeakReference(buffer, entry, "weak_next", buffer->weak_next(),
@@ -1468,10 +1485,9 @@ void V8HeapExplorer::ExtractJSArrayBufferReferences(
     return;
   size_t data_size = NumberToSize(heap_->isolate(), buffer->byte_length());
   CHECK(data_size <= static_cast<size_t>(kMaxInt));
-  HeapEntry* data_entry = AddEntry(
-      static_cast<Address>(buffer->backing_store()),
-      HeapEntry::kNative, "system / ArrayBufferData",
-      static_cast<int>(data_size));
+  JSArrayBufferDataEntryAllocator allocator(static_cast<int>(data_size), this);
+  HeapEntry* data_entry =
+      filler_->FindOrAddEntry(buffer->backing_store(), &allocator);
   filler_->SetNamedReference(HeapGraphEdge::kInternal,
                              entry, "backing_store", data_entry);
 }
