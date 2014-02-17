@@ -128,6 +128,7 @@ if (support_smi_only_arrays) {
   }
 
   // Case: [1,2,3] as allocation site
+  get_standard_literal();  // Skip premonomorphic state.
   obj = fastliteralcase(get_standard_literal(), 1);
   assertKind(elements_kind.fast_smi_only, obj);
   obj = fastliteralcase(get_standard_literal(), 1.5);
@@ -169,6 +170,7 @@ if (support_smi_only_arrays) {
     return literal;
   }
 
+  fastliteralcase_smifast(1);  // Skip premonomorphic state.
   obj = fastliteralcase_smifast(1);
   assertKind(elements_kind.fast_smi_only, obj);
   obj = fastliteralcase_smifast("carter");
@@ -183,6 +185,7 @@ if (support_smi_only_arrays) {
     return literal;
   }
 
+  fastliteralcase_smiholey(5, 1);  // Skip premonomorphic state.
   obj = fastliteralcase_smiholey(5, 1);
   assertKind(elements_kind.fast_smi_only, obj);
   assertHoley(obj);
@@ -197,6 +200,7 @@ if (support_smi_only_arrays) {
   }
 
   // Case: new Array() as allocation site, smi->double
+  newarraycase_smidouble(1);  // Skip premonomorphic state.
   obj = newarraycase_smidouble(1);
   assertKind(elements_kind.fast_smi_only, obj);
   obj = newarraycase_smidouble(1.5);
@@ -211,6 +215,7 @@ if (support_smi_only_arrays) {
   }
 
   // Case: new Array() as allocation site, smi->fast
+  newarraycase_smiobj(1);  // Skip premonomorphic state.
   obj = newarraycase_smiobj(1);
   assertKind(elements_kind.fast_smi_only, obj);
   obj = newarraycase_smiobj("gloria");
@@ -225,6 +230,7 @@ if (support_smi_only_arrays) {
   }
 
   // Case: new Array(length) as allocation site
+  newarraycase_length_smidouble(1);  // Skip premonomorphic state.
   obj = newarraycase_length_smidouble(1);
   assertKind(elements_kind.fast_smi_only, obj);
   obj = newarraycase_length_smidouble(1.5);
@@ -248,6 +254,7 @@ if (support_smi_only_arrays) {
   }
 
   // Case: new Array(<length>) as allocation site, smi->fast
+  newarraycase_length_smiobj(1);  // Skip premonomorphic state.
   obj = newarraycase_length_smiobj(1);
   assertKind(elements_kind.fast_smi_only, obj);
   obj = newarraycase_length_smiobj("gloria");
@@ -261,6 +268,7 @@ if (support_smi_only_arrays) {
     return a;
   }
 
+  newarraycase_list_smidouble(1);  // Skip premonomorphic state.
   obj = newarraycase_list_smidouble(1);
   assertKind(elements_kind.fast_smi_only, obj);
   obj = newarraycase_list_smidouble(1.5);
@@ -274,6 +282,7 @@ if (support_smi_only_arrays) {
     return a;
   }
 
+  newarraycase_list_smiobj(1);  // Skip premonomorphic state.
   obj = newarraycase_list_smiobj(1);
   assertKind(elements_kind.fast_smi_only, obj);
   obj = newarraycase_list_smiobj("coates");
@@ -293,6 +302,7 @@ if (support_smi_only_arrays) {
       return a;
     }
 
+    foo(0); foo(1);  // Skip premonomorphic state.
     for (i = 0; i < 2; i++) {
       a = foo(i);
       b = foo(i);
@@ -313,6 +323,7 @@ if (support_smi_only_arrays) {
     return a;
   }
 
+  newarraycase_onearg(5, 3.5);  // Skip premonomorphic state.
   obj = newarraycase_onearg(5, 3.5);
   assertKind(elements_kind.fast_double, obj);
   obj = newarraycase_onearg(10, 5);
@@ -388,6 +399,7 @@ if (support_smi_only_arrays) {
      return literal;
    }
 
+   get_nested_literal();  // Skip premonomorphic state.
    obj = get_nested_literal();
    assertKind(elements_kind.fast, obj);
    obj[0][0] = 3.5;
@@ -403,6 +415,7 @@ if (support_smi_only_arrays) {
      return literal;
    }
 
+   get_deep_nested_literal();  // Skip premonomorphic state.
    obj = get_deep_nested_literal();
    assertKind(elements_kind.fast_smi_only, obj[1][0]);
    obj[0][0] = 3.5;
@@ -428,6 +441,7 @@ if (support_smi_only_arrays) {
       return literal;
     }
 
+    get_object_literal();  // Skip premonomorphic state.
     obj = get_object_literal();
     assertKind(elements_kind.fast_smi_only, obj.array);
     obj.array[1] = 3.5;
@@ -443,6 +457,7 @@ if (support_smi_only_arrays) {
       return literal;
     }
 
+    get_nested_object_literal();  // Skip premonomorphic state.
     obj = get_nested_object_literal();
     assertKind(elements_kind.fast, obj.array);
     assertKind(elements_kind.fast_smi_only, obj.array[1]);
@@ -462,6 +477,7 @@ if (support_smi_only_arrays) {
       return literal;
     }
 
+    get_nested_literal();  // Skip premonomorphic state.
     obj = get_nested_literal();
     assertKind(elements_kind.fast, obj);
     obj[0][0] = 3.5;
@@ -477,6 +493,7 @@ if (support_smi_only_arrays) {
       return literal;
     }
 
+    get_deep_nested_literal();  // Skip premonomorphic state.
     obj = get_deep_nested_literal();
     assertKind(elements_kind.fast_smi_only, obj[1][0]);
     obj[0][0] = 3.5;

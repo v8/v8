@@ -3017,6 +3017,8 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
             masm->isolate()->heap()->undefined_value());
   ASSERT_EQ(*TypeFeedbackInfo::UninitializedSentinel(masm->isolate()),
             masm->isolate()->heap()->the_hole_value());
+  ASSERT_EQ(*TypeFeedbackInfo::PremonomorphicSentinel(masm->isolate()),
+            masm->isolate()->heap()->null_value());
 
   // Load the cache state into r4.
   __ add(r4, r2, Operand::PointerOffsetFromSmiKey(r3));
@@ -3043,10 +3045,26 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
 
   __ bind(&miss);
 
-  // A monomorphic miss (i.e, here the cache is not uninitialized) goes
-  // megamorphic.
+  // A monomorphic miss (i.e, here the cache is not uninitialized or
+  // pre-monomorphic) goes megamorphic.
+  Label not_uninitialized;
   __ CompareRoot(r4, Heap::kTheHoleValueRootIndex);
+  __ b(ne, &not_uninitialized);
+
+  // PremonomorphicSentinel is an immortal immovable object (null) so no
+  // write-barrier is needed.
+  __ add(r4, r2, Operand::PointerOffsetFromSmiKey(r3));
+  __ LoadRoot(ip, Heap::kNullValueRootIndex);
+  __ str(ip, FieldMemOperand(r4, FixedArray::kHeaderSize));
+  __ jmp(&done);
+
+  // If the cache isn't uninitialized, it is either premonomorphic or
+  // monomorphic. If it is premonomorphic, we initialize it thus making
+  // it monomorphic. Otherwise, we go megamorphic.
+  __ bind(&not_uninitialized);
+  __ CompareRoot(r4, Heap::kNullValueRootIndex);
   __ b(eq, &initialize);
+
   // MegamorphicSentinel is an immortal immovable object (undefined) so no
   // write-barrier is needed.
   __ bind(&megamorphic);

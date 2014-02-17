@@ -2201,10 +2201,25 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
 
   __ bind(&miss);
 
-  // A monomorphic miss (i.e, here the cache is not uninitialized) goes
-  // megamorphic.
+  // A monomorphic miss (i.e, here the cache is not uninitialized or
+  // pre-monomorphic) goes megamorphic.
+  Label not_uninitialized;
   __ Cmp(rcx, TypeFeedbackInfo::UninitializedSentinel(isolate));
+  __ j(not_equal, &not_uninitialized);
+
+  // PremonomorphicSentinel is an immortal immovable object (null) so no
+  // write-barrier is needed.
+  __ Move(FieldOperand(rbx, rdx, times_pointer_size, FixedArray::kHeaderSize),
+          TypeFeedbackInfo::PremonomorphicSentinel(isolate));
+  __ jmp(&done);
+
+  // If the cache isn't uninitialized, it is either premonomorphic or
+  // monomorphic. If it is premonomorphic, we initialize it thus making
+  // it monomorphic. Otherwise, we go megamorphic.
+  __ bind(&not_uninitialized);
+  __ Cmp(rcx, TypeFeedbackInfo::PremonomorphicSentinel(isolate));
   __ j(equal, &initialize);
+
   // MegamorphicSentinel is an immortal immovable object (undefined) so no
   // write-barrier is needed.
   __ bind(&megamorphic);

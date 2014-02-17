@@ -8176,6 +8176,9 @@ class TypeFeedbackInfo: public Struct {
   // The object that indicates an uninitialized cache.
   static inline Handle<Object> UninitializedSentinel(Isolate* isolate);
 
+  // The object that indicates a cache in pre-monomorphic state.
+  static inline Handle<Object> PremonomorphicSentinel(Isolate* isolate);
+
   // The object that indicates a megamorphic state.
   static inline Handle<Object> MegamorphicSentinel(Isolate* isolate);
 
