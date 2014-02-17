@@ -5841,6 +5841,9 @@ void Heap::Verify() {
   VerifyPointersVisitor visitor;
   IterateRoots(&visitor, VISIT_ONLY_STRONG);
 
+  VerifySmisVisitor smis_visitor;
+  IterateSmiRoots(&smis_visitor);
+
   new_space_.Verify();
 
   old_pointer_space_->Verify(&visitor);
@@ -6135,6 +6138,12 @@ void Heap::IterateWeakRoots(ObjectVisitor* v, VisitMode mode) {
     external_string_table_.Iterate(v);
   }
   v->Synchronize(VisitorSynchronization::kExternalStringsTable);
+}
+
+
+void Heap::IterateSmiRoots(ObjectVisitor* v) {
+  v->VisitPointers(&roots_[kSmiRootsStart], &roots_[kRootListLength]);
+  v->Synchronize(VisitorSynchronization::kSmiRootList);
 }
 
 

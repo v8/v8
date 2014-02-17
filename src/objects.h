@@ -10636,6 +10636,7 @@ class BreakPointInfo: public Struct {
   V(kStringTable, "string_table", "(Internalized strings)")             \
   V(kExternalStringsTable, "external_strings_table", "(External strings)") \
   V(kStrongRootList, "strong_root_list", "(Strong roots)")              \
+  V(kSmiRootList, "smi_root_list", "(Smi roots)")                       \
   V(kInternalizedString, "internalized_string", "(Internal string)")    \
   V(kBootstrapper, "bootstrapper", "(Bootstrapper)")                    \
   V(kTop, "top", "(Isolate)")                                           \
