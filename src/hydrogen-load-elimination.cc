@@ -98,6 +98,13 @@ class HLoadEliminationTable : public ZoneObject {
         }
         break;
       }
+      case HValue::kTransitionElementsKind: {
+        HTransitionElementsKind* t = HTransitionElementsKind::cast(instr);
+        HValue* object = t->object()->ActualValue();
+        KillFieldInternal(object, FieldOf(JSArray::kElementsOffset), NULL);
+        KillFieldInternal(object, FieldOf(JSObject::kMapOffset), NULL);
+        break;
+      }
       default: {
         if (instr->CheckChangesFlag(kInobjectFields)) {
           TRACE((" kill-all i%d\n", instr->id()));
