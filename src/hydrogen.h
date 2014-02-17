@@ -1398,8 +1398,6 @@ class HGraphBuilder {
       PropertyAccessType access_type,
       LoadKeyedHoleMode load_mode = NEVER_RETURN_HOLE);
 
-  HLoadNamedField* BuildLoadNamedField(HValue* object, HObjectAccess access);
-  HInstruction* AddLoadNamedField(HValue* object, HObjectAccess access);
   HInstruction* AddLoadStringInstanceType(HValue* string);
   HInstruction* AddLoadStringLength(HValue* string);
   HStoreNamedField* AddStoreMapNoWriteBarrier(HValue* object, HValue* map) {
@@ -2559,6 +2557,8 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
                   BailoutId return_id,
                   bool is_uninitialized = false);
 
+  HInstruction* BuildLoadNamedField(PropertyAccessInfo* info,
+                                    HValue* checked_object);
   HInstruction* BuildStoreNamedField(PropertyAccessInfo* info,
                                      HValue* checked_object,
                                      HValue* value);

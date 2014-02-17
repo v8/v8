@@ -81,6 +81,11 @@ class CodeStubGraphBuilderBase : public HGraphBuilder {
   HContext* context() { return context_; }
   Isolate* isolate() { return info_.isolate(); }
 
+  HLoadNamedField* BuildLoadNamedField(HValue* object,
+                                       Representation representation,
+                                       int offset,
+                                       bool is_inobject);
+
   enum ArgumentClass {
     NONE,
     SINGLE,
@@ -559,14 +564,32 @@ Handle<Code> KeyedLoadFastElementStub::GenerateCode(Isolate* isolate) {
 }
 
 
+HLoadNamedField* CodeStubGraphBuilderBase::BuildLoadNamedField(
+    HValue* object,
+    Representation representation,
+    int offset,
+    bool is_inobject) {
+  HObjectAccess access = is_inobject
+      ? HObjectAccess::ForObservableJSObjectOffset(offset, representation)
+      : HObjectAccess::ForBackingStoreOffset(offset, representation);
+  if (representation.IsDouble()) {
+    // Load the heap number.
+    object = Add<HLoadNamedField>(
+        object, static_cast<HValue*>(NULL),
+        access.WithRepresentation(Representation::Tagged()));
+    // Load the double value from it.
+    access = HObjectAccess::ForHeapNumberValue();
+  }
+  return Add<HLoadNamedField>(object, static_cast<HValue*>(NULL), access);
+}
+
+
 template<>
 HValue* CodeStubGraphBuilder<LoadFieldStub>::BuildCodeStub() {
-  Representation rep = casted_stub()->representation();
-  int offset = casted_stub()->offset();
-  HObjectAccess access = casted_stub()->is_inobject() ?
-      HObjectAccess::ForObservableJSObjectOffset(offset, rep) :
-      HObjectAccess::ForBackingStoreOffset(offset, rep);
-  return AddLoadNamedField(GetParameter(0), access);
+  return BuildLoadNamedField(GetParameter(0),
+                             casted_stub()->representation(),
+                             casted_stub()->offset(),
+                             casted_stub()->is_inobject());
 }
 
 
@@ -577,12 +600,10 @@ Handle<Code> LoadFieldStub::GenerateCode(Isolate* isolate) {
 
 template<>
 HValue* CodeStubGraphBuilder<KeyedLoadFieldStub>::BuildCodeStub() {
-  Representation rep = casted_stub()->representation();
-  int offset = casted_stub()->offset();
-  HObjectAccess access = casted_stub()->is_inobject() ?
-      HObjectAccess::ForObservableJSObjectOffset(offset, rep) :
-      HObjectAccess::ForBackingStoreOffset(offset, rep);
-  return AddLoadNamedField(GetParameter(0), access);
+  return BuildLoadNamedField(GetParameter(0),
+                             casted_stub()->representation(),
+                             casted_stub()->offset(),
+                             casted_stub()->is_inobject());
 }
 
 

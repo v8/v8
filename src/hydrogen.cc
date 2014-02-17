@@ -2821,7 +2821,8 @@ HValue* HGraphBuilder::JSArrayBuilder::EmitMapCode() {
     // No need for a context lookup if the kind_ matches the initial
     // map, because we can just load the map in that case.
     HObjectAccess access = HObjectAccess::ForPrototypeOrInitialMap();
-    return builder()->AddLoadNamedField(constructor_function_, access);
+    return builder()->Add<HLoadNamedField>(
+        constructor_function_, static_cast<HValue*>(NULL), access);
   }
 
   // TODO(mvstanton): we should always have a constructor function if we
@@ -2846,7 +2847,8 @@ HValue* HGraphBuilder::JSArrayBuilder::EmitMapCode() {
 HValue* HGraphBuilder::JSArrayBuilder::EmitInternalMapCode() {
   // Find the map near the constructor function
   HObjectAccess access = HObjectAccess::ForPrototypeOrInitialMap();
-  return builder()->AddLoadNamedField(constructor_function_, access);
+  return builder()->Add<HLoadNamedField>(
+      constructor_function_, static_cast<HValue*>(NULL), access);
 }
 
 
@@ -4889,8 +4891,9 @@ HValue* HOptimizedGraphBuilder::BuildContextChainWalk(Variable* var) {
   HValue* context = environment()->context();
   int length = current_info()->scope()->ContextChainLength(var->scope());
   while (length-- > 0) {
-    context = AddLoadNamedField(
-        context, HObjectAccess::ForContextSlot(Context::PREVIOUS_INDEX));
+    context = Add<HLoadNamedField>(
+        context, static_cast<HValue*>(NULL),
+        HObjectAccess::ForContextSlot(Context::PREVIOUS_INDEX));
   }
   return context;
 }
@@ -5344,6 +5347,24 @@ HCheckMaps* HOptimizedGraphBuilder::AddCheckMap(HValue* object,
 }
 
 
+HInstruction* HOptimizedGraphBuilder::BuildLoadNamedField(
+    PropertyAccessInfo* info,
+    HValue* checked_object) {
+  HObjectAccess access = info->access();
+  if (access.representation().IsDouble()) {
+    // Load the heap number.
+    checked_object = Add<HLoadNamedField>(
+        checked_object, static_cast<HValue*>(NULL),
+        access.WithRepresentation(Representation::Tagged()));
+    checked_object->set_type(HType::HeapNumber());
+    // Load the double value from it.
+    access = HObjectAccess::ForHeapNumberValue();
+  }
+  return New<HLoadNamedField>(
+      checked_object, static_cast<HValue*>(NULL), access);
+}
+
+
 HInstruction* HOptimizedGraphBuilder::BuildStoreNamedField(
     PropertyAccessInfo* info,
     HValue* checked_object,
@@ -5354,7 +5375,7 @@ HInstruction* HOptimizedGraphBuilder::BuildStoreNamedField(
       info->map(), info->lookup(), info->name());
 
   HStoreNamedField *instr;
-  if (FLAG_track_double_fields && field_access.representation().IsDouble()) {
+  if (field_access.representation().IsDouble()) {
     HObjectAccess heap_number_access =
         field_access.WithRepresentation(Representation::Tagged());
     if (transition_to_field) {
@@ -5615,7 +5636,7 @@ HInstruction* HOptimizedGraphBuilder::BuildMonomorphicAccess(
 
   if (info->lookup()->IsField()) {
     if (info->IsLoad()) {
-      return BuildLoadNamedField(checked_holder, info->access());
+      return BuildLoadNamedField(info, checked_holder);
     } else {
       return BuildStoreNamedField(info, checked_object, value);
     }
@@ -6186,29 +6207,6 @@ void HOptimizedGraphBuilder::VisitThrow(Throw* expr) {
 }
 
 
-HLoadNamedField* HGraphBuilder::BuildLoadNamedField(HValue* object,
-                                                    HObjectAccess access) {
-  if (FLAG_track_double_fields && access.representation().IsDouble()) {
-    // load the heap number
-    HLoadNamedField* heap_number = Add<HLoadNamedField>(
-        object, static_cast<HValue*>(NULL),
-        access.WithRepresentation(Representation::Tagged()));
-    heap_number->set_type(HType::HeapNumber());
-    // load the double value from it
-    return New<HLoadNamedField>(
-        heap_number, static_cast<HValue*>(NULL),
-        HObjectAccess::ForHeapNumberValue());
-  }
-  return New<HLoadNamedField>(object, static_cast<HValue*>(NULL), access);
-}
-
-
-HInstruction* HGraphBuilder::AddLoadNamedField(HValue* object,
-                                               HObjectAccess access) {
-  return AddInstruction(BuildLoadNamedField(object, access));
-}
-
-
 HInstruction* HGraphBuilder::AddLoadStringInstanceType(HValue* string) {
   if (string->IsConstant()) {
     HConstant* c_string = HConstant::cast(string);
@@ -6216,9 +6214,10 @@ HInstruction* HGraphBuilder::AddLoadStringInstanceType(HValue* string) {
       return Add<HConstant>(c_string->StringValue()->map()->instance_type());
     }
   }
-  return AddLoadNamedField(
-      AddLoadNamedField(string, HObjectAccess::ForMap()),
-      HObjectAccess::ForMapInstanceType());
+  return Add<HLoadNamedField>(
+      Add<HLoadNamedField>(string, static_cast<HValue*>(NULL),
+                           HObjectAccess::ForMap()),
+      static_cast<HValue*>(NULL), HObjectAccess::ForMapInstanceType());
 }
 
 
@@ -6229,7 +6228,8 @@ HInstruction* HGraphBuilder::AddLoadStringLength(HValue* string) {
       return Add<HConstant>(c_string->StringValue()->length());
     }
   }
-  return AddLoadNamedField(string, HObjectAccess::ForStringLength());
+  return Add<HLoadNamedField>(string, static_cast<HValue*>(NULL),
+                              HObjectAccess::ForStringLength());
 }
 
 
