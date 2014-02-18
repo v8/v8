@@ -59,7 +59,7 @@ PropertyDetails::PropertyDetails(Smi* smi) {
 }
 
 
-Smi* PropertyDetails::AsSmi() {
+Smi* PropertyDetails::AsSmi() const {
   // Ensure the upper 2 bits have the same value by sign extending it. This is
   // necessary to be able to use the 31st bit of the property details.
   int value = value_ << 1;
@@ -67,7 +67,7 @@ Smi* PropertyDetails::AsSmi() {
 }
 
 
-PropertyDetails PropertyDetails::AsDeleted() {
+PropertyDetails PropertyDetails::AsDeleted() const {
   Smi* smi = Smi::FromInt(value_ | DeletedField::encode(1));
   return PropertyDetails(smi);
 }
