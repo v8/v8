@@ -29,6 +29,7 @@
 #define V8_A64_ASSEMBLER_A64_H_
 
 #include <list>
+#include <map>
 
 #include "globals.h"
 #include "utils.h"
@@ -719,6 +720,8 @@ class Assembler : public AssemblerBase {
   // possible to align the pc offset to a multiple
   // of m. m must be a power of 2 (>= 4).
   void Align(int m);
+
+  inline void Unreachable();
 
   // Label --------------------------------------------------------------------
   // Bind a label to the current pc. Note that labels can only be bound once,
@@ -1792,6 +1795,12 @@ class Assembler : public AssemblerBase {
   static inline LoadStorePairNonTemporalOp StorePairNonTemporalOpFor(
     const CPURegister& rt, const CPURegister& rt2);
 
+  // Remove the specified branch from the unbound label link chain.
+  // If available, a veneer for this label can be used for other branches in the
+  // chain if the link chain cannot be fixed up without this branch.
+  void RemoveBranchFromLabelLinkChain(Instruction* branch,
+                                      Label* label,
+                                      Instruction* label_veneer = NULL);
 
  private:
   // Instruction helpers.
@@ -1977,6 +1986,39 @@ class Assembler : public AssemblerBase {
   // relocation info entries, and debug strings encoded in the instruction
   // stream.
   static const int kGap = 128;
+
+ public:
+  class FarBranchInfo {
+   public:
+    FarBranchInfo(int offset, Label* label)
+        : pc_offset_(offset), label_(label) {}
+    // Offset of the branch in the code generation buffer.
+    int pc_offset_;
+    // The label branched to.
+    Label* label_;
+  };
+
+ protected:
+  // Information about unresolved (forward) branches.
+  // The Assembler is only allowed to delete out-of-date information from here
+  // after a label is bound. The MacroAssembler uses this information to
+  // generate veneers.
+  //
+  // The second member gives information about the unresolved branch. The first
+  // member of the pair is the maximum offset that the branch can reach in the
+  // buffer. The map is sorted according to this reachable offset, allowing to
+  // easily check when veneers need to be emitted.
+  // Note that the maximum reachable offset (first member of the pairs) should
+  // always be positive but has the same type as the return value for
+  // pc_offset() for convenience.
+  std::multimap<int, FarBranchInfo> unresolved_branches_;
+
+ private:
+  // If a veneer is emitted for a branch instruction, that instruction must be
+  // removed from the associated label's link chain so that the assembler does
+  // not later attempt (likely unsuccessfully) to patch it to branch directly to
+  // the label.
+  void DeleteUnresolvedBranchInfoForLabel(Label* label);
 
  private:
   // TODO(jbramley): VIXL uses next_literal_pool_check_ and

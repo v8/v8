@@ -558,6 +558,204 @@ void MacroAssembler::Store(const Register& rt,
 }
 
 
+bool MacroAssembler::ShouldEmitVeneer(int max_reachable_pc, int margin) {
+  // Account for the branch around the veneers and the guard.
+  int protection_offset = 2 * kInstructionSize;
+  return pc_offset() > max_reachable_pc - margin - protection_offset -
+    static_cast<int>(unresolved_branches_.size() * kMaxVeneerCodeSize);
+}
+
+
+void MacroAssembler::EmitVeneers(bool need_protection) {
+  RecordComment("[ Veneers");
+
+  Label end;
+  if (need_protection) {
+    B(&end);
+  }
+
+  EmitVeneersGuard();
+
+  {
+    InstructionAccurateScope scope(this);
+    Label size_check;
+
+    std::multimap<int, FarBranchInfo>::iterator it, it_to_delete;
+
+    it = unresolved_branches_.begin();
+    while (it != unresolved_branches_.end()) {
+      if (ShouldEmitVeneer(it->first)) {
+        Instruction* branch = InstructionAt(it->second.pc_offset_);
+        Label* label = it->second.label_;
+
+#ifdef DEBUG
+        __ bind(&size_check);
+#endif
+        // Patch the branch to point to the current position, and emit a branch
+        // to the label.
+        Instruction* veneer = reinterpret_cast<Instruction*>(pc_);
+        RemoveBranchFromLabelLinkChain(branch, label, veneer);
+        branch->SetImmPCOffsetTarget(veneer);
+        b(label);
+#ifdef DEBUG
+        ASSERT(SizeOfCodeGeneratedSince(&size_check) <= kMaxVeneerCodeSize);
+        size_check.Unuse();
+#endif
+
+        it_to_delete = it++;
+        unresolved_branches_.erase(it_to_delete);
+      } else {
+        ++it;
+      }
+    }
+  }
+
+  Bind(&end);
+
+  RecordComment("]");
+}
+
+
+void MacroAssembler::EmitVeneersGuard() {
+  if (emit_debug_code()) {
+    Unreachable();
+  }
+}
+
+
+void MacroAssembler::CheckVeneers(bool need_protection) {
+  if (unresolved_branches_.empty()) {
+    return;
+  }
+
+  CHECK(pc_offset() < unresolved_branches_first_limit());
+  int margin = kVeneerDistanceMargin;
+  if (!need_protection) {
+    // Prefer emitting veneers protected by an existing instruction.
+    // The 4 divisor is a finger in the air guess. With a default margin of 2KB,
+    // that leaves 512B = 128 instructions of extra margin to avoid requiring a
+    // protective branch.
+    margin += margin / 4;
+  }
+  if (ShouldEmitVeneer(unresolved_branches_first_limit(), margin)) {
+    EmitVeneers(need_protection);
+  }
+}
+
+
+bool MacroAssembler::NeedExtraInstructionsOrRegisterBranch(
+    Label *label, ImmBranchType b_type) {
+  bool need_longer_range = false;
+  // There are two situations in which we care about the offset being out of
+  // range:
+  //  - The label is bound but too far away.
+  //  - The label is not bound but linked, and the previous branch
+  //    instruction in the chain is too far away.
+  if (label->is_bound() || label->is_linked()) {
+    need_longer_range =
+      !Instruction::IsValidImmPCOffset(b_type, label->pos() - pc_offset());
+  }
+  if (!need_longer_range && !label->is_bound()) {
+    int max_reachable_pc = pc_offset() + Instruction::ImmBranchRange(b_type);
+    unresolved_branches_.insert(
+        std::pair<int, FarBranchInfo>(max_reachable_pc,
+                                      FarBranchInfo(pc_offset(), label)));
+  }
+  return need_longer_range;
+}
+
+
+void MacroAssembler::B(Label* label, Condition cond) {
+  ASSERT(allow_macro_instructions_);
+  ASSERT((cond != al) && (cond != nv));
+
+  Label done;
+  bool need_extra_instructions =
+    NeedExtraInstructionsOrRegisterBranch(label, CondBranchType);
+
+  if (need_extra_instructions) {
+    b(&done, InvertCondition(cond));
+    b(label);
+  } else {
+    b(label, cond);
+  }
+  CheckVeneers(!need_extra_instructions);
+  bind(&done);
+}
+
+
+void MacroAssembler::Tbnz(const Register& rt, unsigned bit_pos, Label* label) {
+  ASSERT(allow_macro_instructions_);
+
+  Label done;
+  bool need_extra_instructions =
+    NeedExtraInstructionsOrRegisterBranch(label, TestBranchType);
+
+  if (need_extra_instructions) {
+    tbz(rt, bit_pos, &done);
+    b(label);
+  } else {
+    tbnz(rt, bit_pos, label);
+  }
+  CheckVeneers(!need_extra_instructions);
+  bind(&done);
+}
+
+
+void MacroAssembler::Tbz(const Register& rt, unsigned bit_pos, Label* label) {
+  ASSERT(allow_macro_instructions_);
+
+  Label done;
+  bool need_extra_instructions =
+    NeedExtraInstructionsOrRegisterBranch(label, TestBranchType);
+
+  if (need_extra_instructions) {
+    tbnz(rt, bit_pos, &done);
+    b(label);
+  } else {
+    tbz(rt, bit_pos, label);
+  }
+  CheckVeneers(!need_extra_instructions);
+  bind(&done);
+}
+
+
+void MacroAssembler::Cbnz(const Register& rt, Label* label) {
+  ASSERT(allow_macro_instructions_);
+
+  Label done;
+  bool need_extra_instructions =
+    NeedExtraInstructionsOrRegisterBranch(label, CompareBranchType);
+
+  if (need_extra_instructions) {
+    cbz(rt, &done);
+    b(label);
+  } else {
+    cbnz(rt, label);
+  }
+  CheckVeneers(!need_extra_instructions);
+  bind(&done);
+}
+
+
+void MacroAssembler::Cbz(const Register& rt, Label* label) {
+  ASSERT(allow_macro_instructions_);
+
+  Label done;
+  bool need_extra_instructions =
+    NeedExtraInstructionsOrRegisterBranch(label, CompareBranchType);
+
+  if (need_extra_instructions) {
+    cbnz(rt, &done);
+    b(label);
+  } else {
+    cbz(rt, label);
+  }
+  CheckVeneers(!need_extra_instructions);
+  bind(&done);
+}
+
+
 // Pseudo-instructions.
 
 

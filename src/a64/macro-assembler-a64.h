@@ -212,7 +212,7 @@ class MacroAssembler : public Assembler {
   inline void Asr(const Register& rd, const Register& rn, const Register& rm);
   inline void B(Label* label);
   inline void B(Condition cond, Label* label);
-  inline void B(Label* label, Condition cond);
+  void B(Label* label, Condition cond);
   inline void Bfi(const Register& rd,
                   const Register& rn,
                   unsigned lsb,
@@ -226,8 +226,8 @@ class MacroAssembler : public Assembler {
   inline void Blr(const Register& xn);
   inline void Br(const Register& xn);
   inline void Brk(int code);
-  inline void Cbnz(const Register& rt, Label* label);
-  inline void Cbz(const Register& rt, Label* label);
+  void Cbnz(const Register& rt, Label* label);
+  void Cbz(const Register& rt, Label* label);
   inline void Cinc(const Register& rd, const Register& rn, Condition cond);
   inline void Cinv(const Register& rd, const Register& rn, Condition cond);
   inline void Cls(const Register& rd, const Register& rn);
@@ -400,8 +400,8 @@ class MacroAssembler : public Assembler {
   inline void Sxtb(const Register& rd, const Register& rn);
   inline void Sxth(const Register& rd, const Register& rn);
   inline void Sxtw(const Register& rd, const Register& rn);
-  inline void Tbnz(const Register& rt, unsigned bit_pos, Label* label);
-  inline void Tbz(const Register& rt, unsigned bit_pos, Label* label);
+  void Tbnz(const Register& rt, unsigned bit_pos, Label* label);
+  void Tbz(const Register& rt, unsigned bit_pos, Label* label);
   inline void Ubfiz(const Register& rd,
                     const Register& rn,
                     unsigned lsb,
@@ -422,7 +422,6 @@ class MacroAssembler : public Assembler {
                      const Register& rn,
                      const Register& rm,
                      const Register& ra);
-  inline void Unreachable();
   inline void Uxtb(const Register& rd, const Register& rn);
   inline void Uxth(const Register& rd, const Register& rn);
   inline void Uxtw(const Register& rd, const Register& rn);
@@ -2074,6 +2073,58 @@ class MacroAssembler : public Assembler {
                            Heap::RootListIndex map_index,
                            Register scratch1,
                            Register scratch2);
+
+ public:
+  // Far branches resolving.
+  //
+  // The various classes of branch instructions with immediate offsets have
+  // different ranges. While the Assembler will fail to assemble a branch
+  // exceeding its range, the MacroAssembler offers a mechanism to resolve
+  // branches to too distant targets, either by tweaking the generated code to
+  // use branch instructions with wider ranges or generating veneers.
+  //
+  // Currently branches to distant targets are resolved using unconditional
+  // branch isntructions with a range of +-128MB. If that becomes too little
+  // (!), the mechanism can be extended to generate special veneers for really
+  // far targets.
+
+  // Returns true if we should emit a veneer as soon as possible for a branch
+  // which can at most reach to specified pc.
+  bool ShouldEmitVeneer(int max_reachable_pc,
+                        int margin = kVeneerDistanceMargin);
+
+  // The maximum code size generated for a veneer. Currently one branch
+  // instruction. This is for code size checking purposes, and can be extended
+  // in the future for example if we decide to add nops between the veneers.
+  static const int kMaxVeneerCodeSize = 1 * kInstructionSize;
+
+  // Emits veneers for branches that are approaching their maximum range.
+  // If need_protection is true, the veneers are protected by a branch jumping
+  // over the code.
+  void EmitVeneers(bool need_protection);
+  void EmitVeneersGuard();
+  // Checks wether veneers need to be emitted at this point.
+  void CheckVeneers(bool need_protection);
+
+  // Helps resolve branching to labels potentially out of range.
+  // If the label is not bound, it registers the information necessary to later
+  // be able to emit a veneer for this branch if necessary.
+  // If the label is bound, it returns true if the label (or the previous link
+  // in the label chain) is out of range. In that case the caller is responsible
+  // for generating appropriate code.
+  // Otherwise it returns false.
+  // This function also checks wether veneers need to be emitted.
+  bool NeedExtraInstructionsOrRegisterBranch(Label *label,
+                                             ImmBranchType branch_type);
+
+ private:
+  // We generate a veneer for a branch if we reach within this distance of the
+  // limit of the range.
+  static const int kVeneerDistanceMargin = 2 * KB;
+  int unresolved_branches_first_limit() const {
+    ASSERT(!unresolved_branches_.empty());
+    return unresolved_branches_.begin()->first;
+  }
 };
 
 
@@ -2083,20 +2134,13 @@ class MacroAssembler : public Assembler {
 // emitted is what you specified when creating the scope.
 class InstructionAccurateScope BASE_EMBEDDED {
  public:
-  explicit InstructionAccurateScope(MacroAssembler* masm)
-      : masm_(masm), size_(0) {
-    masm_->StartBlockConstPool();
-#ifdef DEBUG
-    previous_allow_macro_instructions_ = masm_->allow_macro_instructions();
-    masm_->set_allow_macro_instructions(false);
-#endif
-  }
-
-  InstructionAccurateScope(MacroAssembler* masm, size_t count)
+  InstructionAccurateScope(MacroAssembler* masm, size_t count = 0)
       : masm_(masm), size_(count * kInstructionSize) {
     masm_->StartBlockConstPool();
 #ifdef DEBUG
-    masm_->bind(&start_);
+    if (count != 0) {
+      masm_->bind(&start_);
+    }
     previous_allow_macro_instructions_ = masm_->allow_macro_instructions();
     masm_->set_allow_macro_instructions(false);
 #endif

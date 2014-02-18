@@ -1947,6 +1947,335 @@ TEST(test_branch) {
 }
 
 
+TEST(far_branch_backward) {
+  INIT_V8();
+
+  // Test that the MacroAssembler correctly resolves backward branches to labels
+  // that are outside the immediate range of branch instructions.
+  int max_range =
+    std::max(Instruction::ImmBranchRange(TestBranchType),
+             std::max(Instruction::ImmBranchRange(CompareBranchType),
+                      Instruction::ImmBranchRange(CondBranchType)));
+
+  SETUP_SIZE(max_range + 1000 * kInstructionSize);
+
+  START();
+
+  Label done, fail;
+  Label test_tbz, test_cbz, test_bcond;
+  Label success_tbz, success_cbz, success_bcond;
+
+  __ Mov(x0, 0);
+  __ Mov(x1, 1);
+  __ Mov(x10, 0);
+
+  __ B(&test_tbz);
+  __ Bind(&success_tbz);
+  __ Orr(x0, x0, 1 << 0);
+  __ B(&test_cbz);
+  __ Bind(&success_cbz);
+  __ Orr(x0, x0, 1 << 1);
+  __ B(&test_bcond);
+  __ Bind(&success_bcond);
+  __ Orr(x0, x0, 1 << 2);
+
+  __ B(&done);
+
+  // Generate enough code to overflow the immediate range of the three types of
+  // branches below.
+  for (unsigned i = 0; i < max_range / kInstructionSize + 1; ++i) {
+    if (i % 100 == 0) {
+      // If we do land in this code, we do not want to execute so many nops
+      // before reaching the end of test (especially if tracing is activated).
+      __ B(&fail);
+    } else {
+      __ Nop();
+    }
+  }
+  __ B(&fail);
+
+  __ Bind(&test_tbz);
+  __ Tbz(x10, 7, &success_tbz);
+  __ Bind(&test_cbz);
+  __ Cbz(x10, &success_cbz);
+  __ Bind(&test_bcond);
+  __ Cmp(x10, 0);
+  __ B(eq, &success_bcond);
+
+  // For each out-of-range branch instructions, at least two instructions should
+  // have been generated.
+  CHECK_GE(7 * kInstructionSize, __ SizeOfCodeGeneratedSince(&test_tbz));
+
+  __ Bind(&fail);
+  __ Mov(x1, 0);
+  __ Bind(&done);
+
+  END();
+
+  RUN();
+
+  ASSERT_EQUAL_64(0x7, x0);
+  ASSERT_EQUAL_64(0x1, x1);
+
+  TEARDOWN();
+}
+
+
+TEST(far_branch_simple_veneer) {
+  INIT_V8();
+
+  // Test that the MacroAssembler correctly emits veneers for forward branches
+  // to labels that are outside the immediate range of branch instructions.
+  int max_range =
+    std::max(Instruction::ImmBranchRange(TestBranchType),
+             std::max(Instruction::ImmBranchRange(CompareBranchType),
+                      Instruction::ImmBranchRange(CondBranchType)));
+
+  SETUP_SIZE(max_range + 1000 * kInstructionSize);
+
+  START();
+
+  Label done, fail;
+  Label test_tbz, test_cbz, test_bcond;
+  Label success_tbz, success_cbz, success_bcond;
+
+  __ Mov(x0, 0);
+  __ Mov(x1, 1);
+  __ Mov(x10, 0);
+
+  __ Bind(&test_tbz);
+  __ Tbz(x10, 7, &success_tbz);
+  __ Bind(&test_cbz);
+  __ Cbz(x10, &success_cbz);
+  __ Bind(&test_bcond);
+  __ Cmp(x10, 0);
+  __ B(eq, &success_bcond);
+
+  // Generate enough code to overflow the immediate range of the three types of
+  // branches below.
+  for (unsigned i = 0; i < max_range / kInstructionSize + 1; ++i) {
+    if (i % 100 == 0) {
+      // If we do land in this code, we do not want to execute so many nops
+      // before reaching the end of test (especially if tracing is activated).
+      // Also, the branches give the MacroAssembler the opportunity to emit the
+      // veneers.
+      __ B(&fail);
+    } else {
+      __ Nop();
+    }
+  }
+  __ B(&fail);
+
+  __ Bind(&success_tbz);
+  __ Orr(x0, x0, 1 << 0);
+  __ B(&test_cbz);
+  __ Bind(&success_cbz);
+  __ Orr(x0, x0, 1 << 1);
+  __ B(&test_bcond);
+  __ Bind(&success_bcond);
+  __ Orr(x0, x0, 1 << 2);
+
+  __ B(&done);
+  __ Bind(&fail);
+  __ Mov(x1, 0);
+  __ Bind(&done);
+
+  END();
+
+  RUN();
+
+  ASSERT_EQUAL_64(0x7, x0);
+  ASSERT_EQUAL_64(0x1, x1);
+
+  TEARDOWN();
+}
+
+
+TEST(far_branch_veneer_link_chain) {
+  INIT_V8();
+
+  // Test that the MacroAssembler correctly emits veneers for forward branches
+  // that target out-of-range labels and are part of multiple instructions
+  // jumping to that label.
+  //
+  // We test the three situations with the different types of instruction:
+  // (1)- When the branch is at the start of the chain with tbz.
+  // (2)- When the branch is in the middle of the chain with cbz.
+  // (3)- When the branch is at the end of the chain with bcond.
+  int max_range =
+    std::max(Instruction::ImmBranchRange(TestBranchType),
+             std::max(Instruction::ImmBranchRange(CompareBranchType),
+                      Instruction::ImmBranchRange(CondBranchType)));
+
+  SETUP_SIZE(max_range + 1000 * kInstructionSize);
+
+  START();
+
+  Label skip, fail, done;
+  Label test_tbz, test_cbz, test_bcond;
+  Label success_tbz, success_cbz, success_bcond;
+
+  __ Mov(x0, 0);
+  __ Mov(x1, 1);
+  __ Mov(x10, 0);
+
+  __ B(&skip);
+  // Branches at the start of the chain for situations (2) and (3).
+  __ B(&success_cbz);
+  __ B(&success_bcond);
+  __ Nop();
+  __ B(&success_bcond);
+  __ B(&success_cbz);
+  __ Bind(&skip);
+
+  __ Bind(&test_tbz);
+  __ Tbz(x10, 7, &success_tbz);
+  __ Bind(&test_cbz);
+  __ Cbz(x10, &success_cbz);
+  __ Bind(&test_bcond);
+  __ Cmp(x10, 0);
+  __ B(eq, &success_bcond);
+
+  skip.Unuse();
+  __ B(&skip);
+  // Branches at the end of the chain for situations (1) and (2).
+  __ B(&success_cbz);
+  __ B(&success_tbz);
+  __ Nop();
+  __ B(&success_tbz);
+  __ B(&success_cbz);
+  __ Bind(&skip);
+
+  // Generate enough code to overflow the immediate range of the three types of
+  // branches below.
+  for (unsigned i = 0; i < max_range / kInstructionSize + 1; ++i) {
+    if (i % 100 == 0) {
+      // If we do land in this code, we do not want to execute so many nops
+      // before reaching the end of test (especially if tracing is activated).
+      // Also, the branches give the MacroAssembler the opportunity to emit the
+      // veneers.
+      __ B(&fail);
+    } else {
+      __ Nop();
+    }
+  }
+  __ B(&fail);
+
+  __ Bind(&success_tbz);
+  __ Orr(x0, x0, 1 << 0);
+  __ B(&test_cbz);
+  __ Bind(&success_cbz);
+  __ Orr(x0, x0, 1 << 1);
+  __ B(&test_bcond);
+  __ Bind(&success_bcond);
+  __ Orr(x0, x0, 1 << 2);
+
+  __ B(&done);
+  __ Bind(&fail);
+  __ Mov(x1, 0);
+  __ Bind(&done);
+
+  END();
+
+  RUN();
+
+  ASSERT_EQUAL_64(0x7, x0);
+  ASSERT_EQUAL_64(0x1, x1);
+
+  TEARDOWN();
+}
+
+
+TEST(far_branch_veneer_broken_link_chain) {
+  INIT_V8();
+
+  // Check that the MacroAssembler correctly handles the situation when removing
+  // a branch from the link chain of a label and the two links on each side of
+  // the removed branch cannot be linked together (out of range).
+  //
+  // We test with tbz because it has a small range.
+  int max_range = Instruction::ImmBranchRange(TestBranchType);
+  int inter_range = max_range / 2 + max_range / 10;
+
+  SETUP_SIZE(3 * inter_range + 1000 * kInstructionSize);
+
+  START();
+
+  Label skip, fail, done;
+  Label test_1, test_2, test_3;
+  Label far_target;
+
+  __ Mov(x0, 0);  // Indicates the origin of the branch.
+  __ Mov(x1, 1);
+  __ Mov(x10, 0);
+
+  // First instruction in the label chain.
+  __ Bind(&test_1);
+  __ Mov(x0, 1);
+  __ B(&far_target);
+
+  for (unsigned i = 0; i < inter_range / kInstructionSize; ++i) {
+    if (i % 100 == 0) {
+      // Do not allow generating veneers. They should not be needed.
+      __ b(&fail);
+    } else {
+      __ Nop();
+    }
+  }
+
+  // Will need a veneer to point to reach the target.
+  __ Bind(&test_2);
+  __ Mov(x0, 2);
+  __ Tbz(x10, 7, &far_target);
+
+  for (unsigned i = 0; i < inter_range / kInstructionSize; ++i) {
+    if (i % 100 == 0) {
+      // Do not allow generating veneers. They should not be needed.
+      __ b(&fail);
+    } else {
+      __ Nop();
+    }
+  }
+
+  // Does not need a veneer to reach the target, but the initial branch
+  // instruction is out of range.
+  __ Bind(&test_3);
+  __ Mov(x0, 3);
+  __ Tbz(x10, 7, &far_target);
+
+  for (unsigned i = 0; i < inter_range / kInstructionSize; ++i) {
+    if (i % 100 == 0) {
+      // Allow generating veneers.
+      __ B(&fail);
+    } else {
+      __ Nop();
+    }
+  }
+
+  __ B(&fail);
+
+  __ Bind(&far_target);
+  __ Cmp(x0, 1);
+  __ B(eq, &test_2);
+  __ Cmp(x0, 2);
+  __ B(eq, &test_3);
+
+  __ B(&done);
+  __ Bind(&fail);
+  __ Mov(x1, 0);
+  __ Bind(&done);
+
+  END();
+
+  RUN();
+
+  ASSERT_EQUAL_64(0x3, x0);
+  ASSERT_EQUAL_64(0x1, x1);
+
+  TEARDOWN();
+}
+
+
 TEST(ldr_str_offset) {
   INIT_V8();
   SETUP();
