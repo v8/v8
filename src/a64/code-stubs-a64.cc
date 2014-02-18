@@ -2539,7 +2539,7 @@ void ArgumentsAccessStub::GenerateNewNonStrictFast(MacroAssembler* masm) {
   Register the_hole = x13;
   Label parameters_loop, parameters_test;
   __ Mov(loop_count, mapped_params);
-  __ Add(index, param_count, Context::MIN_CONTEXT_SLOTS);
+  __ Add(index, param_count, static_cast<int>(Context::MIN_CONTEXT_SLOTS));
   __ Sub(index, index, mapped_params);
   __ SmiTag(index);
   __ LoadRoot(the_hole, Heap::kTheHoleValueRootIndex);

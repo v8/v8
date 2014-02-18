@@ -247,13 +247,7 @@ bool AreSameSizeAndType(const CPURegister& reg1, const CPURegister& reg2,
 }
 
 
-Operand::Operand(const ExternalReference& f)
-    : immediate_(reinterpret_cast<intptr_t>(f.address())),
-      reg_(NoReg),
-      rmode_(RelocInfo::EXTERNAL_REFERENCE) {}
-
-
-Operand::Operand(Handle<Object> handle) : reg_(NoReg) {
+void Operand::initialize_handle(Handle<Object> handle) {
   AllowDeferredHandleDereference using_raw_address;
 
   // Verify all Objects referred by code are NOT in new space.

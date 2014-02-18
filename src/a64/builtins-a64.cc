@@ -1027,7 +1027,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
 
   // 3a. Patch the first argument if necessary when calling a function.
   Label shift_arguments;
-  __ Mov(call_type, call_type_JS_func);
+  __ Mov(call_type, static_cast<int>(call_type_JS_func));
   { Label convert_to_object, use_global_receiver, patch_receiver;
     // Change context eagerly in case we need the global receiver.
     __ Ldr(cp, FieldMemOperand(function, JSFunction::kContextOffset));
@@ -1078,7 +1078,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
 
     // Restore the function and flag in the registers.
     __ Peek(function, Operand(argc, LSL, kXRegSizeInBytesLog2));
-    __ Mov(call_type, call_type_JS_func);
+    __ Mov(call_type, static_cast<int>(call_type_JS_func));
     __ B(&patch_receiver);
 
     __ Bind(&use_global_receiver);
@@ -1096,11 +1096,11 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
 
   // 3b. Check for function proxy.
   __ Bind(&slow);
-  __ Mov(call_type, call_type_func_proxy);
+  __ Mov(call_type, static_cast<int>(call_type_func_proxy));
   __ Cmp(receiver_type, JS_FUNCTION_PROXY_TYPE);
   __ B(eq, &shift_arguments);
   __ Bind(&non_function);
-  __ Mov(call_type, call_type_non_func);
+  __ Mov(call_type, static_cast<int>(call_type_non_func));
 
   // 3c. Patch the first argument when calling a non-function.  The
   //     CALL_NON_FUNCTION builtin expects the non-function callee as
@@ -1138,7 +1138,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ Cbz(call_type, &js_function);
     // Expected number of arguments is 0 for CALL_NON_FUNCTION.
     __ Mov(x2, 0);
-    __ Cmp(call_type, call_type_func_proxy);
+    __ Cmp(call_type, static_cast<int>(call_type_func_proxy));
     __ B(ne, &non_proxy);
 
     __ Push(function);  // Re-add proxy object as additional argument.

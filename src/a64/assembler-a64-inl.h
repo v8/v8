@@ -264,16 +264,65 @@ inline FPRegister CPURegister::D() const {
 
 
 // Operand.
-#define DECLARE_INT_OPERAND_CONSTRUCTOR(type)                                  \
-Operand::Operand(type immediate, RelocInfo::Mode rmode)                        \
-    : immediate_(immediate),                                                   \
-      reg_(NoReg),                                                             \
-      rmode_(rmode) {}
-DECLARE_INT_OPERAND_CONSTRUCTOR(int64_t)
-DECLARE_INT_OPERAND_CONSTRUCTOR(uint64_t)
-DECLARE_INT_OPERAND_CONSTRUCTOR(int32_t)      // NOLINT(readability/casting)
-DECLARE_INT_OPERAND_CONSTRUCTOR(uint32_t)
-#undef DECLARE_INT_OPERAND_CONSTRUCTOR
+template<typename T>
+Operand::Operand(Handle<T> value) : reg_(NoReg) {
+  initialize_handle(value);
+}
+
+
+// Default initializer is for int types
+template<typename int_t>
+struct OperandInitializer {
+  static const bool kIsIntType = true;
+  static inline RelocInfo::Mode rmode_for(int_t) {
+    return sizeof(int_t) == 8 ? RelocInfo::NONE64 : RelocInfo::NONE32;
+  }
+  static inline int64_t immediate_for(int_t t) {
+    STATIC_ASSERT(sizeof(int_t) <= 8);
+    return t;
+  }
+};
+
+
+template<>
+struct OperandInitializer<Smi*> {
+  static const bool kIsIntType = false;
+  static inline RelocInfo::Mode rmode_for(Smi* t) {
+    return RelocInfo::NONE64;
+  }
+  static inline int64_t immediate_for(Smi* t) {;
+    return reinterpret_cast<int64_t>(t);
+  }
+};
+
+
+template<>
+struct OperandInitializer<ExternalReference> {
+  static const bool kIsIntType = false;
+  static inline RelocInfo::Mode rmode_for(ExternalReference t) {
+    return RelocInfo::EXTERNAL_REFERENCE;
+  }
+  static inline int64_t immediate_for(ExternalReference t) {;
+    return reinterpret_cast<int64_t>(t.address());
+  }
+};
+
+
+template<typename T>
+Operand::Operand(T t)
+    : immediate_(OperandInitializer<T>::immediate_for(t)),
+      reg_(NoReg),
+      rmode_(OperandInitializer<T>::rmode_for(t)) {}
+
+
+template<typename T>
+Operand::Operand(T t, RelocInfo::Mode rmode)
+    : immediate_(OperandInitializer<T>::immediate_for(t)),
+      reg_(NoReg),
+      rmode_(rmode) {
+  STATIC_ASSERT(OperandInitializer<T>::kIsIntType);
+}
+
 
 Operand::Operand(Register reg, Shift shift, unsigned shift_amount)
     : reg_(reg),
@@ -300,12 +349,6 @@ Operand::Operand(Register reg, Extend extend, unsigned shift_amount)
   // Extend modes SXTX and UXTX require a 64-bit register.
   ASSERT(reg.Is64Bits() || ((extend != SXTX) && (extend != UXTX)));
 }
-
-
-Operand::Operand(Smi* value)
-    : immediate_(reinterpret_cast<intptr_t>(value)),
-      reg_(NoReg),
-      rmode_(RelocInfo::NONE64) {}
 
 
 bool Operand::IsImmediate() const {

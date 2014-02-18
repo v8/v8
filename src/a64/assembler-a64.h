@@ -570,23 +570,6 @@ class Operand {
   // TODO(all): If necessary, study more in details which methods
   // TODO(all): should be inlined or not.
  public:
-  // #<immediate>
-  // where <immediate> is int64_t.
-  // GCC complains about ambiguous aliasing if we don't explicitly declare the
-  // variants.
-  // The simple literal-value wrappers are allowed to be implicit constructors
-  // because Operand is a wrapper class that doesn't normally perform any type
-  // conversion.
-  inline Operand(int64_t immediate,
-      RelocInfo::Mode rmode = RelocInfo::NONE64);    // NOLINT(runtime/explicit)
-  inline Operand(uint64_t immediate,
-      RelocInfo::Mode rmode = RelocInfo::NONE64);    // NOLINT(runtime/explicit)
-  inline Operand(int32_t immediate,
-      RelocInfo::Mode rmode = RelocInfo::NONE32);    // NOLINT(runtime/explicit)
-  inline Operand(uint32_t immediate,
-      RelocInfo::Mode rmode = RelocInfo::NONE32);    // NOLINT(runtime/explicit)
-
-
   // rm, {<shift> {#<shift_amount>}}
   // where <shift> is one of {LSL, LSR, ASR, ROR}.
   //       <shift_amount> is uint6_t.
@@ -603,9 +586,16 @@ class Operand {
                  Extend extend,
                  unsigned shift_amount = 0);
 
-  inline explicit Operand(Smi* value);
-  explicit Operand(const ExternalReference& f);
-  explicit Operand(Handle<Object> handle);
+  template<typename T>
+  inline explicit Operand(Handle<T> handle);
+
+  // Implicit constructor for all int types, ExternalReference, and Smi.
+  template<typename T>
+  inline Operand(T t);  // NOLINT(runtime/explicit)
+
+  // Implicit constructor for int types.
+  template<typename int_t>
+  inline Operand(int_t t, RelocInfo::Mode rmode);
 
   inline bool IsImmediate() const;
   inline bool IsShiftedRegister() const;
@@ -632,6 +622,7 @@ class Operand {
   inline static Operand UntagSmiAndScale(Register smi, int scale);
 
  private:
+  void initialize_handle(Handle<Object> value);
   int64_t immediate_;
   Register reg_;
   Shift shift_;
