@@ -109,19 +109,19 @@ function MathAtanh(x) {
 }
 
 
-//ES6 draft 09-27-13, section 20.2.2.21.
+// ES6 draft 09-27-13, section 20.2.2.21.
 function MathLog10(x) {
   return MathLog(x) * 0.434294481903251828;  // log10(x) = log(x)/log(10).
 }
 
 
-//ES6 draft 09-27-13, section 20.2.2.22.
+// ES6 draft 09-27-13, section 20.2.2.22.
 function MathLog2(x) {
   return MathLog(x) * 1.442695040888963407;  // log2(x) = log(x)/log(2).
 }
 
 
-//ES6 draft 09-27-13, section 20.2.2.17.
+// ES6 draft 09-27-13, section 20.2.2.17.
 function MathHypot(x, y) {  // Function length is 2.
   // We may want to introduce fast paths for two arguments and when
   // normalization to avoid overflow is not necessary.  For now, we
@@ -154,6 +154,12 @@ function MathHypot(x, y) {  // Function length is 2.
 }
 
 
+// ES6 draft 09-27-13, section 20.2.2.16.
+function MathFround(x) {
+  return %Math_fround(TO_NUMBER_INLINE(x));
+}
+
+
 function ExtendMath() {
   %CheckIsBootstrapping();
 
@@ -169,7 +175,8 @@ function ExtendMath() {
     "atanh", MathAtanh,
     "log10", MathLog10,
     "log2", MathLog2,
-    "hypot", MathHypot
+    "hypot", MathHypot,
+    "fround", MathFround
   ));
 }
 

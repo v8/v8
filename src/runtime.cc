@@ -7829,6 +7829,16 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_sqrt) {
 }
 
 
+RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_fround) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 1);
+
+  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
+  float xf = static_cast<float>(x);
+  return isolate->heap()->AllocateHeapNumber(xf);
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_DateMakeDay) {
   SealHandleScope shs(isolate);
   ASSERT(args.length() == 2);
