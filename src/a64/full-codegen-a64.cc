@@ -2805,16 +2805,13 @@ void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
 
   // Loop through all the keys in the descriptor array. If one of these is the
   // string "valueOf" the result is false.
-  // TODO(all): optimise this loop to combine the add and ldr into an
-  // addressing mode.
   Register valueof_string = x1;
+  int descriptor_size = DescriptorArray::kDescriptorSize * kPointerSize;
   __ Mov(valueof_string, Operand(isolate()->factory()->value_of_string()));
   __ Bind(&loop);
-  __ Ldr(x15, MemOperand(descriptors));
+  __ Ldr(x15, MemOperand(descriptors, descriptor_size, PostIndex));
   __ Cmp(x15, valueof_string);
   __ B(eq, if_false);
-  __ Add(descriptors, descriptors,
-         DescriptorArray::kDescriptorSize * kPointerSize);
   __ Cmp(descriptors, descriptors_end);
   __ B(ne, &loop);
 
