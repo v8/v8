@@ -1505,8 +1505,9 @@ void LCodeGen::DoAllocate(LAllocate* instr) {
     int32_t size = ToInteger32(LConstantOperand::cast(instr->size()));
     __ Allocate(size, result, temp1, temp2, deferred->entry(), flags);
   } else {
-    Register size = ToRegister(instr->size());
-    __ Allocate(size, result, temp1, temp2, deferred->entry(), flags);
+    Register size = ToRegister32(instr->size());
+    __ Sxtw(size.X(), size);
+    __ Allocate(size.X(), result, temp1, temp2, deferred->entry(), flags);
   }
 
   __ Bind(deferred->exit());
@@ -1516,7 +1517,7 @@ void LCodeGen::DoAllocate(LAllocate* instr) {
       int32_t size = ToInteger32(LConstantOperand::cast(instr->size()));
       __ Mov(temp1, size - kPointerSize);
     } else {
-      __ Sub(temp1, ToRegister(instr->size()), kPointerSize);
+      __ Sub(temp1.W(), ToRegister32(instr->size()), kPointerSize);
     }
     __ Sub(result, result, kHeapObjectTag);
 
@@ -1545,7 +1546,7 @@ void LCodeGen::DoDeferredAllocate(LAllocate* instr) {
   if (instr->size()->IsConstantOperand()) {
     __ Mov(size, Operand(ToSmi(LConstantOperand::cast(instr->size()))));
   } else {
-    __ SmiTag(size, ToRegister(instr->size()));
+    __ SmiTag(size, ToRegister32(instr->size()).X());
   }
   int flags = AllocateDoubleAlignFlag::encode(
       instr->hydrogen()->MustAllocateDoubleAligned());
