@@ -29,11 +29,8 @@
 
 using namespace v8::internal;
 
-TEST(Regress340063) {
-  CcTest::InitializeVM();
-  if (!i::FLAG_allocation_site_pretenuring) return;
-  v8::HandleScope scope(CcTest::isolate());
 
+static void SetUpNewSpaceWithPoisonedMementoAtTop() {
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
   NewSpace* new_space = heap->new_space();
@@ -52,8 +49,31 @@ TEST(Regress340063) {
   memento->set_map_no_write_barrier(heap->allocation_memento_map());
   memento->set_allocation_site(
       reinterpret_cast<AllocationSite*>(kHeapObjectTag), SKIP_WRITE_BARRIER);
+}
+
+
+TEST(Regress340063) {
+  CcTest::InitializeVM();
+  if (!i::FLAG_allocation_site_pretenuring) return;
+  v8::HandleScope scope(CcTest::isolate());
+
+
+  SetUpNewSpaceWithPoisonedMementoAtTop();
 
   // Call GC to see if we can handle a poisonous memento right after the
   // current new space top pointer.
-  heap->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+  CcTest::i_isolate()->heap()->CollectAllGarbage(
+      Heap::kAbortIncrementalMarkingMask);
+}
+
+
+TEST(BadMementoAfterTopForceScavenge) {
+  CcTest::InitializeVM();
+  if (!i::FLAG_allocation_site_pretenuring) return;
+  v8::HandleScope scope(CcTest::isolate());
+
+  SetUpNewSpaceWithPoisonedMementoAtTop();
+
+  // Force GC to test the poisoned memento handling
+  CcTest::i_isolate()->heap()->CollectGarbage(i::NEW_SPACE);
 }

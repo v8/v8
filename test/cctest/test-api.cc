@@ -7099,14 +7099,14 @@ THREADED_TEST(IndependentWeakHandle) {
   object_a.handle.MarkIndependent();
   object_b.handle.MarkIndependent();
   CHECK(object_b.handle.IsIndependent());
-  CcTest::heap()->PerformScavenge();
+  CcTest::heap()->CollectGarbage(i::NEW_SPACE);
   CHECK(object_a.flag);
   CHECK(object_b.flag);
 }
 
 
 static void InvokeScavenge() {
-  CcTest::heap()->PerformScavenge();
+  CcTest::heap()->CollectGarbage(i::NEW_SPACE);
 }
 
 
@@ -7188,7 +7188,7 @@ THREADED_TEST(IndependentHandleRevival) {
   object.flag = false;
   object.handle.SetWeak(&object, &RevivingCallback);
   object.handle.MarkIndependent();
-  CcTest::heap()->PerformScavenge();
+  CcTest::heap()->CollectGarbage(i::NEW_SPACE);
   CHECK(object.flag);
   CcTest::heap()->CollectAllGarbage(i::Heap::kAbortIncrementalMarkingMask);
   {
@@ -17650,7 +17650,7 @@ TEST(Regress2107) {
 TEST(Regress2333) {
   LocalContext env;
   for (int i = 0; i < 3; i++) {
-    CcTest::heap()->PerformScavenge();
+    CcTest::heap()->CollectGarbage(i::NEW_SPACE);
   }
 }
 

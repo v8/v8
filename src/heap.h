@@ -1259,10 +1259,6 @@ class Heap {
   // Notify the heap that a context has been disposed.
   int NotifyContextDisposed();
 
-  // Utility to invoke the scavenger. This is needed in test code to
-  // ensure correct callback for weak global handles.
-  void PerformScavenge();
-
   inline void increment_scan_on_scavenge_pages() {
     scan_on_scavenge_pages_++;
     if (FLAG_gc_verbose) {
@@ -2134,6 +2130,11 @@ class Heap {
   // Checks whether a global GC is necessary
   GarbageCollector SelectGarbageCollector(AllocationSpace space,
                                           const char** reason);
+
+  // Make sure there is a filler value behind the top of the new space
+  // so that the GC does not confuse some unintialized/stale memory
+  // with the allocation memento of the object at the top
+  void EnsureFillerObjectAtTop();
 
   // Performs garbage collection operation.
   // Returns whether there is a chance that another major GC could
