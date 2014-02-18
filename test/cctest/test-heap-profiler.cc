@@ -234,9 +234,9 @@ TEST(HeapSnapshotObjectSizes) {
   CHECK_NE(NULL, x2);
 
   // Test sizes.
-  CHECK_NE(0, x->GetSelfSize());
-  CHECK_NE(0, x1->GetSelfSize());
-  CHECK_NE(0, x2->GetSelfSize());
+  CHECK_NE(0, static_cast<int>(x->GetShallowSize()));
+  CHECK_NE(0, static_cast<int>(x1->GetShallowSize()));
+  CHECK_NE(0, static_cast<int>(x2->GetShallowSize()));
 }
 
 
@@ -2067,7 +2067,8 @@ TEST(AllocationSitesAreVisible) {
                   "elements");
   CHECK_NE(NULL, elements);
   CHECK_EQ(v8::HeapGraphNode::kArray, elements->GetType());
-  CHECK_EQ(v8::internal::FixedArray::SizeFor(3), elements->GetSelfSize());
+  CHECK_EQ(v8::internal::FixedArray::SizeFor(3),
+           static_cast<int>(elements->GetShallowSize()));
 
   v8::Handle<v8::Value> array_val =
       heap_profiler->FindObjectById(transition_info->GetId());
@@ -2384,7 +2385,7 @@ TEST(ArrayBufferAndArrayBufferView) {
   const v8::HeapGraphNode* backing_store =
       GetProperty(arr1_buffer, v8::HeapGraphEdge::kInternal, "backing_store");
   CHECK_NE(NULL, backing_store);
-  CHECK_EQ(400, backing_store->GetSelfSize());
+  CHECK_EQ(400, static_cast<int>(backing_store->GetShallowSize()));
 }
 
 

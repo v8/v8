@@ -257,7 +257,11 @@ class V8_EXPORT HeapGraphNode {
   SnapshotObjectId GetId() const;
 
   /** Returns node's own size, in bytes. */
-  int GetSelfSize() const;
+  V8_DEPRECATED("Use GetShallowSize instead",
+                int GetSelfSize() const);
+
+  /** Returns node's own size, in bytes. */
+  size_t GetShallowSize() const;
 
   /** Returns child nodes count of the node. */
   int GetChildrenCount() const;

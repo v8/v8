@@ -73,7 +73,7 @@ HeapEntry::HeapEntry(HeapSnapshot* snapshot,
                      Type type,
                      const char* name,
                      SnapshotObjectId id,
-                     int self_size)
+                     size_t self_size)
     : type_(type),
       children_count_(0),
       children_index_(-1),
@@ -104,7 +104,7 @@ void HeapEntry::SetIndexedReference(HeapGraphEdge::Type type,
 void HeapEntry::Print(
     const char* prefix, const char* edge_name, int max_depth, int indent) {
   STATIC_CHECK(sizeof(unsigned) == sizeof(id()));
-  OS::Print("%6d @%6u %*c %s%s: ",
+  OS::Print("%6"V8PRIuPTR" @%6u %*c %s%s: ",
             self_size(), id(), indent, ' ', prefix, edge_name);
   if (type() != kString) {
     OS::Print("%s %.40s\n", TypeAsString(), name_);
@@ -194,7 +194,7 @@ template <> struct SnapshotSizeConstants<4> {
 
 template <> struct SnapshotSizeConstants<8> {
   static const int kExpectedHeapGraphEdgeSize = 24;
-  static const int kExpectedHeapEntrySize = 32;
+  static const int kExpectedHeapEntrySize = 40;
 };
 
 }  // namespace
@@ -277,7 +277,7 @@ HeapEntry* HeapSnapshot::AddGcSubrootEntry(int tag) {
 HeapEntry* HeapSnapshot::AddEntry(HeapEntry::Type type,
                                   const char* name,
                                   SnapshotObjectId id,
-                                  int size) {
+                                  size_t size) {
   HeapEntry entry(this, type, name, id, size);
   entries_.Add(entry);
   return &entries_.last();
@@ -907,7 +907,7 @@ HeapEntry* V8HeapExplorer::AddEntry(HeapObject* object,
 HeapEntry* V8HeapExplorer::AddEntry(Address address,
                                     HeapEntry::Type type,
                                     const char* name,
-                                    int size) {
+                                    size_t size) {
   SnapshotObjectId object_id = heap_object_map_->FindOrAddEntry(address, size);
   return snapshot_->AddEntry(type, name, object_id, size);
 }
@@ -1458,7 +1458,7 @@ void V8HeapExplorer::ExtractAllocationSiteReferences(int entry,
 
 class JSArrayBufferDataEntryAllocator : public HeapEntriesAllocator {
  public:
-  JSArrayBufferDataEntryAllocator(int size, V8HeapExplorer* explorer)
+  JSArrayBufferDataEntryAllocator(size_t size, V8HeapExplorer* explorer)
       : size_(size)
       , explorer_(explorer) {
   }
@@ -1468,7 +1468,7 @@ class JSArrayBufferDataEntryAllocator : public HeapEntriesAllocator {
         HeapEntry::kNative, "system / JSArrayBufferData", size_);
   }
  private:
-  int size_;
+  size_t size_;
   V8HeapExplorer* explorer_;
 };
 
@@ -1484,8 +1484,7 @@ void V8HeapExplorer::ExtractJSArrayBufferReferences(
   if (!buffer->backing_store())
     return;
   size_t data_size = NumberToSize(heap_->isolate(), buffer->byte_length());
-  CHECK(data_size <= static_cast<size_t>(kMaxInt));
-  JSArrayBufferDataEntryAllocator allocator(static_cast<int>(data_size), this);
+  JSArrayBufferDataEntryAllocator allocator(data_size, this);
   HeapEntry* data_entry =
       filler_->FindOrAddEntry(buffer->backing_store(), &allocator);
   filler_->SetNamedReference(HeapGraphEdge::kInternal,
@@ -2702,9 +2701,26 @@ int HeapSnapshotJSONSerializer::GetStringId(const char* s) {
 }
 
 
-static int utoa(unsigned value, const Vector<char>& buffer, int buffer_pos) {
+namespace {
+
+template<size_t size> struct ToUnsigned;
+
+template<> struct ToUnsigned<4> {
+  typedef uint32_t Type;
+};
+
+template<> struct ToUnsigned<8> {
+  typedef uint64_t Type;
+};
+
+}  // namespace
+
+
+template<typename T>
+static int utoa_impl(T value, const Vector<char>& buffer, int buffer_pos) {
+  STATIC_CHECK(static_cast<T>(-1) > 0);  // Check that T is unsigned
   int number_of_digits = 0;
-  unsigned t = value;
+  T t = value;
   do {
     ++number_of_digits;
   } while (t /= 10);
@@ -2712,11 +2728,19 @@ static int utoa(unsigned value, const Vector<char>& buffer, int buffer_pos) {
   buffer_pos += number_of_digits;
   int result = buffer_pos;
   do {
-    int last_digit = value % 10;
+    int last_digit = static_cast<int>(value % 10);
     buffer[--buffer_pos] = '0' + last_digit;
     value /= 10;
   } while (value);
   return result;
+}
+
+
+template<typename T>
+static int utoa(T value, const Vector<char>& buffer, int buffer_pos) {
+  typename ToUnsigned<sizeof(value)>::Type unsigned_value = value;
+  STATIC_CHECK(sizeof(value) == sizeof(unsigned_value));
+  return utoa_impl(unsigned_value, buffer, buffer_pos);
 }
 
 
@@ -2756,9 +2780,10 @@ void HeapSnapshotJSONSerializer::SerializeEdges() {
 
 
 void HeapSnapshotJSONSerializer::SerializeNode(HeapEntry* entry) {
-  // The buffer needs space for 5 unsigned ints, 5 commas, \n and \0
+  // The buffer needs space for 4 unsigned ints, 1 size_t, 5 commas, \n and \0
   static const int kBufferSize =
-      5 * MaxDecimalDigitsIn<sizeof(unsigned)>::kUnsigned  // NOLINT
+      4 * MaxDecimalDigitsIn<sizeof(unsigned)>::kUnsigned  // NOLINT
+      + MaxDecimalDigitsIn<sizeof(size_t)>::kUnsigned  // NOLINT
       + 5 + 1 + 1;
   EmbeddedVector<char, kBufferSize> buffer;
   int buffer_pos = 0;
