@@ -995,182 +995,180 @@ void Builtins::Generate_OsrAfterStackCheck(MacroAssembler* masm) {
 
 
 void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
+  enum {
+    call_type_JS_func = 0,
+    call_type_func_proxy = 1,
+    call_type_non_func = 2
+  };
+  Register argc = x0;
+  Register function = x1;
+  Register call_type = x4;
+  Register scratch1 = x10;
+  Register scratch2 = x11;
   Register receiver_type = x13;
 
   ASM_LOCATION("Builtins::Generate_FunctionCall");
-  // TODO(all/rames): Optimize and use named registers.
   // 1. Make sure we have at least one argument.
-  // x0: actual number of arguments
   { Label done;
-    __ Cbnz(x0, &done);
-    __ LoadRoot(x10, Heap::kUndefinedValueRootIndex);
-    __ Push(x10);
-    __ Mov(x0, 1);
+    __ Cbnz(argc, &done);
+    __ LoadRoot(scratch1, Heap::kUndefinedValueRootIndex);
+    __ Push(scratch1);
+    __ Mov(argc, 1);
     __ Bind(&done);
   }
 
   // 2. Get the function to call (passed as receiver) from the stack, check
   //    if it is a function.
-  // x0: actual number of arguments
   Label slow, non_function;
-  // TODO(jbramley): Consider giving Peek a unit_size parameter, like Claim and
-  // Drop. This usage pattern is very common.
-  __ Peek(x1, Operand(x0, LSL, kXRegSizeInBytesLog2));
-  __ JumpIfSmi(x1, &non_function);
-  __ JumpIfNotObjectType(x1, x10, receiver_type, JS_FUNCTION_TYPE, &slow);
+  __ Peek(function, Operand(argc, LSL, kXRegSizeInBytesLog2));
+  __ JumpIfSmi(function, &non_function);
+  __ JumpIfNotObjectType(function, scratch1, receiver_type,
+                         JS_FUNCTION_TYPE, &slow);
 
   // 3a. Patch the first argument if necessary when calling a function.
-  // x0: actual number of arguments
-  // x1: function
   Label shift_arguments;
-  __ Mov(x4, 0);  // Indicates a regular JS_FUNCTION.
+  __ Mov(call_type, call_type_JS_func);
   { Label convert_to_object, use_global_receiver, patch_receiver;
     // Change context eagerly in case we need the global receiver.
-    __ Ldr(cp, FieldMemOperand(x1, JSFunction::kContextOffset));
+    __ Ldr(cp, FieldMemOperand(function, JSFunction::kContextOffset));
 
     // Do not transform the receiver for strict mode functions.
-    __ Ldr(x10, FieldMemOperand(x1, JSFunction::kSharedFunctionInfoOffset));
-    __ Ldr(w11, FieldMemOperand(x10, SharedFunctionInfo::kCompilerHintsOffset));
-    __ Tbnz(x11, SharedFunctionInfo::kStrictModeFunction, &shift_arguments);
-
-    // TODO(all): Shoudld we insert space to avoid BTAC collisions?
-    // Do not transform the receiver for native (Compilerhints already in x3).
-    __ Tbnz(x11, SharedFunctionInfo::kNative, &shift_arguments);
+    // Also do not transform the receiver for native (Compilerhints already in
+    // x3).
+    __ Ldr(scratch1,
+           FieldMemOperand(function, JSFunction::kSharedFunctionInfoOffset));
+    __ Ldr(scratch2.W(),
+           FieldMemOperand(scratch1, SharedFunctionInfo::kCompilerHintsOffset));
+    __ TestAndBranchIfAnySet(
+        scratch2.W(),
+        (1 << SharedFunctionInfo::kStrictModeFunction) |
+        (1 << SharedFunctionInfo::kNative),
+        &shift_arguments);
 
     // Compute the receiver in non-strict mode.
-    __ Sub(x10, x0, 1);
-    __ Peek(x2, Operand(x10, LSL, kXRegSizeInBytesLog2));
-    // x0: actual number of arguments
-    // x1: function
-    // x2: first argument
-    __ JumpIfSmi(x2, &convert_to_object);
+    Register receiver = x2;
+    __ Sub(scratch1, argc, 1);
+    __ Peek(receiver, Operand(scratch1, LSL, kXRegSizeInBytesLog2));
+    __ JumpIfSmi(receiver, &convert_to_object);
 
-    // TODO(all): We could potentially work to optimize loads of root values.
-    // TODO(all): If the indexes are successive we can use 'ldp'.
-    __ JumpIfRoot(x2, Heap::kUndefinedValueRootIndex, &use_global_receiver);
-    __ JumpIfRoot(x2, Heap::kNullValueRootIndex, &use_global_receiver);
+    __ JumpIfRoot(receiver, Heap::kUndefinedValueRootIndex,
+                  &use_global_receiver);
+    __ JumpIfRoot(receiver, Heap::kNullValueRootIndex, &use_global_receiver);
 
     STATIC_ASSERT(LAST_SPEC_OBJECT_TYPE == LAST_TYPE);
-    __ JumpIfObjectType(x2, x10, x11, FIRST_SPEC_OBJECT_TYPE, &shift_arguments,
-                        ge);
+    __ JumpIfObjectType(receiver, scratch1, scratch2,
+                        FIRST_SPEC_OBJECT_TYPE, &shift_arguments, ge);
 
     __ Bind(&convert_to_object);
 
     {
       // Enter an internal frame in order to preserve argument count.
       FrameScope scope(masm, StackFrame::INTERNAL);
-      __ SmiTag(x0);
+      __ SmiTag(argc);
 
-      __ Push(x0, x2);
+      __ Push(argc, receiver);
       __ InvokeBuiltin(Builtins::TO_OBJECT, CALL_FUNCTION);
-      __ Mov(x2, x0);
+      __ Mov(receiver, x0);
 
-      __ Pop(x0);
-      __ SmiUntag(x0);
+      __ Pop(argc);
+      __ SmiUntag(argc);
 
       // Exit the internal frame.
     }
 
-    // Restore the function to x1, and the flag to x4.
-    __ Peek(x1, Operand(x0, LSL, kXRegSizeInBytesLog2));
-    __ Mov(x4, 0);
+    // Restore the function and flag in the registers.
+    __ Peek(function, Operand(argc, LSL, kXRegSizeInBytesLog2));
+    __ Mov(call_type, call_type_JS_func);
     __ B(&patch_receiver);
 
     __ Bind(&use_global_receiver);
-    __ Ldr(x2, GlobalObjectMemOperand());
-    __ Ldr(x2, FieldMemOperand(x2, GlobalObject::kGlobalReceiverOffset));
+    __ Ldr(receiver, GlobalObjectMemOperand());
+    __ Ldr(receiver,
+           FieldMemOperand(receiver, GlobalObject::kGlobalReceiverOffset));
+
 
     __ Bind(&patch_receiver);
-    __ Sub(x10, x0, 1);
-    __ Poke(x2, Operand(x10, LSL, kXRegSizeInBytesLog2));
+    __ Sub(scratch1, argc, 1);
+    __ Poke(receiver, Operand(scratch1, LSL, kXRegSizeInBytesLog2));
 
     __ B(&shift_arguments);
   }
 
   // 3b. Check for function proxy.
   __ Bind(&slow);
-  __ Mov(x4, 1);  // Indicate function proxy.
+  __ Mov(call_type, call_type_func_proxy);
   __ Cmp(receiver_type, JS_FUNCTION_PROXY_TYPE);
   __ B(eq, &shift_arguments);
   __ Bind(&non_function);
-  __ Mov(x4, 2);  // Indicate non-function.
+  __ Mov(call_type, call_type_non_func);
 
   // 3c. Patch the first argument when calling a non-function.  The
   //     CALL_NON_FUNCTION builtin expects the non-function callee as
   //     receiver, so overwrite the first argument which will ultimately
   //     become the receiver.
-  // x0: actual number of arguments
-  // x1: function
-  // x4: call type (0: JS function, 1: function proxy, 2: non-function)
-  __ Sub(x10, x0, 1);
-  __ Poke(x1, Operand(x10, LSL, kXRegSizeInBytesLog2));
+  // call type (0: JS function, 1: function proxy, 2: non-function)
+  __ Sub(scratch1, argc, 1);
+  __ Poke(function, Operand(scratch1, LSL, kXRegSizeInBytesLog2));
 
   // 4. Shift arguments and return address one slot down on the stack
   //    (overwriting the original receiver).  Adjust argument count to make
   //    the original first argument the new receiver.
-  // x0: actual number of arguments
-  // x1: function
-  // x4: call type (0: JS function, 1: function proxy, 2: non-function)
+  // call type (0: JS function, 1: function proxy, 2: non-function)
   __ Bind(&shift_arguments);
   { Label loop;
     // Calculate the copy start address (destination). Copy end address is jssp.
-    __ Add(x11, jssp, Operand(x0, LSL, kPointerSizeLog2));
-    __ Sub(x10, x11, kPointerSize);
+    __ Add(scratch2, jssp, Operand(argc, LSL, kPointerSizeLog2));
+    __ Sub(scratch1, scratch2, kPointerSize);
 
-    // TODO(all): Optimize to copy values 2 by 2?
     __ Bind(&loop);
-    __ Ldr(x12, MemOperand(x10, -kPointerSize, PostIndex));
-    __ Str(x12, MemOperand(x11, -kPointerSize, PostIndex));
-    __ Cmp(x10, jssp);
+    __ Ldr(x12, MemOperand(scratch1, -kPointerSize, PostIndex));
+    __ Str(x12, MemOperand(scratch2, -kPointerSize, PostIndex));
+    __ Cmp(scratch1, jssp);
     __ B(ge, &loop);
     // Adjust the actual number of arguments and remove the top element
     // (which is a copy of the last argument).
-    __ Sub(x0, x0, 1);
+    __ Sub(argc, argc, 1);
     __ Drop(1);
   }
 
   // 5a. Call non-function via tail call to CALL_NON_FUNCTION builtin,
   //     or a function proxy via CALL_FUNCTION_PROXY.
-  // x0: actual number of arguments
-  // x1: function
-  // x4: call type (0: JS function, 1: function proxy, 2: non-function)
-  { Label function, non_proxy;
-    __ Cbz(x4, &function);
+  // call type (0: JS function, 1: function proxy, 2: non-function)
+  { Label js_function, non_proxy;
+    __ Cbz(call_type, &js_function);
     // Expected number of arguments is 0 for CALL_NON_FUNCTION.
     __ Mov(x2, 0);
-    __ Cmp(x4, 1);
+    __ Cmp(call_type, call_type_func_proxy);
     __ B(ne, &non_proxy);
 
-    __ Push(x1);  // Re-add proxy object as additional argument.
-    __ Add(x0, x0, 1);
-    __ GetBuiltinFunction(x1, Builtins::CALL_FUNCTION_PROXY);
+    __ Push(function);  // Re-add proxy object as additional argument.
+    __ Add(argc, argc, 1);
+    __ GetBuiltinFunction(function, Builtins::CALL_FUNCTION_PROXY);
     __ Jump(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
             RelocInfo::CODE_TARGET);
 
     __ Bind(&non_proxy);
-    __ GetBuiltinFunction(x1, Builtins::CALL_NON_FUNCTION);
+    __ GetBuiltinFunction(function, Builtins::CALL_NON_FUNCTION);
     __ Jump(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
             RelocInfo::CODE_TARGET);
-    __ Bind(&function);
+    __ Bind(&js_function);
   }
 
   // 5b. Get the code to call from the function and check that the number of
   //     expected arguments matches what we're providing.  If so, jump
   //     (tail-call) to the code in register edx without checking arguments.
-  // x0: actual number of arguments
-  // x1: function
-  __ Ldr(x3, FieldMemOperand(x1, JSFunction::kSharedFunctionInfoOffset));
+  __ Ldr(x3, FieldMemOperand(function, JSFunction::kSharedFunctionInfoOffset));
   __ Ldrsw(x2,
            FieldMemOperand(x3,
              SharedFunctionInfo::kFormalParameterCountOffset));
   Label dont_adapt_args;
-  __ Cmp(x2, x0);  // Check formal and actual parameter counts.
+  __ Cmp(x2, argc);  // Check formal and actual parameter counts.
   __ B(eq, &dont_adapt_args);
   __ Jump(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
           RelocInfo::CODE_TARGET);
   __ Bind(&dont_adapt_args);
 
-  __ Ldr(x3, FieldMemOperand(x1, JSFunction::kCodeEntryOffset));
+  __ Ldr(x3, FieldMemOperand(function, JSFunction::kCodeEntryOffset));
   ParameterCount expected(0);
   __ InvokeCode(x3, expected, expected, JUMP_FUNCTION, NullCallWrapper());
 }
