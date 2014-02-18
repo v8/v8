@@ -1648,7 +1648,7 @@ void LCodeGen::DoArgumentsElements(LArgumentsElements* instr) {
 
 void LCodeGen::DoArgumentsLength(LArgumentsLength* instr) {
   Register elements = ToRegister(instr->elements());
-  Register result = ToRegister(instr->result());
+  Register result = ToRegister32(instr->result());
   Label done;
 
   // If no arguments adaptor frame the number of arguments is fixed.
@@ -1657,10 +1657,10 @@ void LCodeGen::DoArgumentsLength(LArgumentsLength* instr) {
   __ B(eq, &done);
 
   // Arguments adaptor frame present. Get argument length from there.
-  __ Ldr(result, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
-  __ Ldrsw(result,
-           UntagSmiMemOperand(result,
-                              ArgumentsAdaptorFrameConstants::kLengthOffset));
+  __ Ldr(result.X(), MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
+  __ Ldr(result,
+         UntagSmiMemOperand(result.X(),
+                            ArgumentsAdaptorFrameConstants::kLengthOffset));
 
   // Argument length is in result register.
   __ Bind(&done);
