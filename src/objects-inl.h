@@ -2497,6 +2497,11 @@ int DescriptorArray::SearchWithCache(Name* name, Map* map) {
 }
 
 
+PropertyDetails Map::GetLastDescriptorDetails() {
+  return instance_descriptors()->GetDetails(LastAdded());
+}
+
+
 void Map::LookupDescriptor(JSObject* holder,
                            Name* name,
                            LookupResult* result) {
@@ -2514,7 +2519,8 @@ void Map::LookupTransition(JSObject* holder,
     TransitionArray* transition_array = transitions();
     int number = transition_array->Search(name);
     if (number != TransitionArray::kNotFound) {
-      return result->TransitionResult(holder, number);
+      return result->TransitionResult(
+          holder, transition_array->GetTarget(number));
     }
   }
   result->NotFound();

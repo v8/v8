@@ -5555,8 +5555,7 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::CanAccessMonomorphic() {
   if (lookup_.IsPropertyCallbacks()) return true;
   Handle<Map> map = this->map();
   map->LookupTransition(NULL, *name_, &lookup_);
-  if (lookup_.IsTransitionToField(*map) && map->unused_property_fields() > 0) {
-    transition_ = handle(lookup_.GetTransitionMapFromMap(*map));
+  if (lookup_.IsTransitionToField() && map->unused_property_fields() > 0) {
     return true;
   }
   return false;

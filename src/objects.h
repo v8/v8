@@ -6088,6 +6088,8 @@ class Map: public HeapObject {
                                Name* name,
                                LookupResult* result);
 
+  inline PropertyDetails GetLastDescriptorDetails();
+
   // The size of transition arrays are limited so they do not end up in large
   // object space. Otherwise ClearNonLiveTransitions would leak memory while
   // applying in-place right trimming.

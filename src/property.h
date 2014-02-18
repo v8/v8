@@ -184,6 +184,7 @@ class LookupResult BASE_EMBEDDED {
         next_(isolate->top_lookup_result()),
         lookup_type_(NOT_FOUND),
         holder_(NULL),
+        transition_(NULL),
         cacheable_(true),
         details_(NONE, NONEXISTENT, Representation::None()) {
     isolate->set_top_lookup_result(this);
@@ -199,6 +200,7 @@ class LookupResult BASE_EMBEDDED {
   void DescriptorResult(JSObject* holder, PropertyDetails details, int number) {
     lookup_type_ = DESCRIPTOR_TYPE;
     holder_ = holder;
+    transition_ = NULL;
     details_ = details;
     number_ = number;
   }
@@ -209,16 +211,18 @@ class LookupResult BASE_EMBEDDED {
     return value->FitsRepresentation(details_.representation());
   }
 
-  void TransitionResult(JSObject* holder, int number) {
+  void TransitionResult(JSObject* holder, Map* target) {
     lookup_type_ = TRANSITION_TYPE;
     details_ = PropertyDetails(NONE, TRANSITION, Representation::None());
     holder_ = holder;
-    number_ = number;
+    transition_ = target;
+    number_ = 0xAAAA;
   }
 
   void DictionaryResult(JSObject* holder, int entry) {
     lookup_type_ = DICTIONARY_TYPE;
     holder_ = holder;
+    transition_ = NULL;
     details_ = holder->property_dictionary()->DetailsAt(entry);
     number_ = entry;
   }
@@ -226,6 +230,7 @@ class LookupResult BASE_EMBEDDED {
   void HandlerResult(JSProxy* proxy) {
     lookup_type_ = HANDLER_TYPE;
     holder_ = proxy;
+    transition_ = NULL;
     details_ = PropertyDetails(NONE, HANDLER, Representation::Tagged());
     cacheable_ = false;
   }
@@ -233,6 +238,7 @@ class LookupResult BASE_EMBEDDED {
   void InterceptorResult(JSObject* holder) {
     lookup_type_ = INTERCEPTOR_TYPE;
     holder_ = holder;
+    transition_ = NULL;
     details_ = PropertyDetails(NONE, INTERCEPTOR, Representation::Tagged());
   }
 
@@ -240,6 +246,7 @@ class LookupResult BASE_EMBEDDED {
     lookup_type_ = NOT_FOUND;
     details_ = PropertyDetails(NONE, NONEXISTENT, Representation::None());
     holder_ = NULL;
+    transition_ = NULL;
   }
 
   JSObject* holder() const {
@@ -248,7 +255,7 @@ class LookupResult BASE_EMBEDDED {
   }
 
   JSProxy* proxy() const {
-    ASSERT(IsFound());
+    ASSERT(IsHandler());
     return JSProxy::cast(holder_);
   }
 
@@ -373,47 +380,21 @@ class LookupResult BASE_EMBEDDED {
     return NULL;
   }
 
-  Map* GetTransitionTarget(Map* map) const {
-    ASSERT(IsTransition());
-    TransitionArray* transitions = map->transitions();
-    return transitions->GetTarget(number_);
-  }
-
   Map* GetTransitionTarget() const {
-    return GetTransitionTarget(holder()->map());
-  }
-
-  PropertyDetails GetTransitionDetails(Map* map) const {
-    ASSERT(IsTransition());
-    TransitionArray* transitions = map->transitions();
-    return transitions->GetTargetDetails(number_);
+    return transition_;
   }
 
   PropertyDetails GetTransitionDetails() const {
-    return GetTransitionDetails(holder()->map());
-  }
-
-  bool IsTransitionToField(Map* map) const {
-    return IsTransition() && GetTransitionDetails(map).type() == FIELD;
-  }
-
-  bool IsTransitionToConstant(Map* map) const {
-    return IsTransition() && GetTransitionDetails(map).type() == CONSTANT;
-  }
-
-  Map* GetTransitionMap() const {
     ASSERT(IsTransition());
-    return Map::cast(GetValue());
+    return transition_->GetLastDescriptorDetails();
   }
 
-  Map* GetTransitionMapFromMap(Map* map) const {
-    ASSERT(IsTransition());
-    return map->transitions()->GetTarget(number_);
+  bool IsTransitionToField() const {
+    return IsTransition() && GetTransitionDetails().type() == FIELD;
   }
 
-  int GetTransitionIndex() const {
-    ASSERT(IsTransition());
-    return number_;
+  bool IsTransitionToConstant() const {
+    return IsTransition() && GetTransitionDetails().type() == CONSTANT;
   }
 
   int GetDescriptorIndex() const {
@@ -501,6 +482,7 @@ class LookupResult BASE_EMBEDDED {
   } lookup_type_;
 
   JSReceiver* holder_;
+  Map* transition_;
   int number_;
   bool cacheable_;
   PropertyDetails details_;

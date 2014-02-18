@@ -2408,7 +2408,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
     Handle<JSObject> holder() { return holder_; }
     Handle<JSFunction> accessor() { return accessor_; }
     Handle<Object> constant() { return constant_; }
-    Handle<Object> transition() { return transition_; }
+    Handle<Map> transition() { return handle(lookup_.GetTransitionTarget()); }
     HObjectAccess access() { return access_; }
 
    private:
@@ -2435,7 +2435,6 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
     Handle<JSFunction> accessor_;
     Handle<JSObject> api_holder_;
     Handle<Object> constant_;
-    Handle<Map> transition_;
     HObjectAccess access_;
   };
 

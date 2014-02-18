@@ -4376,14 +4376,14 @@ HObjectAccess HObjectAccess::ForBackingStoreOffset(int offset,
 HObjectAccess HObjectAccess::ForField(Handle<Map> map,
                                       LookupResult* lookup,
                                       Handle<String> name) {
-  ASSERT(lookup->IsField() || lookup->IsTransitionToField(*map));
+  ASSERT(lookup->IsField() || lookup->IsTransitionToField());
   int index;
   Representation representation;
   if (lookup->IsField()) {
     index = lookup->GetLocalFieldIndexFromMap(*map);
     representation = lookup->representation();
   } else {
-    Map* transition = lookup->GetTransitionMapFromMap(*map);
+    Map* transition = lookup->GetTransitionTarget();
     int descriptor = transition->LastAdded();
     index = transition->instance_descriptors()->GetFieldIndex(descriptor) -
         map->inobject_properties();
