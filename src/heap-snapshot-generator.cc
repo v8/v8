@@ -104,7 +104,7 @@ void HeapEntry::SetIndexedReference(HeapGraphEdge::Type type,
 void HeapEntry::Print(
     const char* prefix, const char* edge_name, int max_depth, int indent) {
   STATIC_CHECK(sizeof(unsigned) == sizeof(id()));
-  OS::Print("%6"V8PRIuPTR" @%6u %*c %s%s: ",
+  OS::Print("%6" V8PRIuPTR " @%6u %*c %s%s: ",
             self_size(), id(), indent, ' ', prefix, edge_name);
   if (type() != kString) {
     OS::Print("%s %.40s\n", TypeAsString(), name_);
