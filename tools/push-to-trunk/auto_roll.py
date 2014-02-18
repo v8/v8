@@ -52,7 +52,6 @@ class AutoRollOptions(CommonOptions):
     super(AutoRollOptions, self).__init__(options)
     self.requires_editor = False
     self.status_password = options.status_password
-    self.r = options.r
     self.c = options.c
     self.push = getattr(options, 'push', False)
     self.author = getattr(options, 'a', None)
@@ -162,7 +161,7 @@ class PushToTrunk(Step):
               RunPushToTrunk,
               push_to_trunk.CONFIG,
               PushToTrunkOptions.MakeForcedOptions(self._options.author,
-                                                   self._options.r,
+                                                   self._options.reviewer,
                                                    self._options.c),
               self._side_effect_handler)
       finally:
@@ -197,7 +196,7 @@ def BuildOptions():
   result.add_option("-p", "--push",
                     help="Push to trunk if possible. Dry run if unspecified.",
                     default=False, action="store_true")
-  result.add_option("-r", "--reviewer", dest="r",
+  result.add_option("-r", "--reviewer",
                     help=("Specify the account name to be used for reviews."))
   result.add_option("-s", "--step", dest="s",
                     help="Specify the step where to start work. Default: 0.",
@@ -210,7 +209,7 @@ def BuildOptions():
 def Main():
   parser = BuildOptions()
   (options, args) = parser.parse_args()
-  if not options.a or not options.c or not options.r:
+  if not options.a or not options.c or not options.reviewer:
     print "You need to specify author, chromium src location and reviewer."
     parser.print_help()
     return 1

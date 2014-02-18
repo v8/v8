@@ -63,7 +63,6 @@ class PushToTrunkOptions(CommonOptions):
     options.l = None
     options.f = True
     options.m = False
-    options.r = reviewer
     options.c = chrome_path
     options.a = author
     return PushToTrunkOptions(options)
@@ -74,7 +73,7 @@ class PushToTrunkOptions(CommonOptions):
     self.wait_for_lgtm = not options.f
     self.tbr_commit = not options.m
     self.l = options.l
-    self.r = options.r
+    self.reviewer = options.reviewer
     self.c = options.c
     self.author = getattr(options, 'a', None)
 
@@ -240,7 +239,10 @@ class CommitLocal(Step):
 
     # Include optional TBR only in the git command. The persisted commit
     # message is used for finding the commit again later.
-    review = "\n\nTBR=%s" % self._options.r if self._options.tbr_commit else ""
+    if self._options.tbr_commit:
+      review = "\n\nTBR=%s" % self._options.reviewer
+    else:
+      review = ""
     if self.Git("commit -a -m \"%s%s\"" % (prep_commit_msg, review)) is None:
       self.Die("'git commit -a' failed.")
 
@@ -481,9 +483,9 @@ class UploadCL(Step):
     ver = "%s.%s.%s" % (self._state["major"],
                         self._state["minor"],
                         self._state["build"])
-    if self._options.r:
-      print "Using account %s for review." % self._options.r
-      rev = self._options.r
+    if self._options.reviewer:
+      print "Using account %s for review." % self._options.reviewer
+      rev = self._options.reviewer
     else:
       print "Please enter the email address of a reviewer for the roll CL: ",
       self.DieNoManualMode("A reviewer must be specified in forced mode.")
@@ -587,7 +589,7 @@ def BuildOptions():
   result.add_option("-m", "--manual", dest="m",
                     help="Prompt the user at every important step.",
                     default=False, action="store_true")
-  result.add_option("-r", "--reviewer", dest="r",
+  result.add_option("-r", "--reviewer",
                     help=("Specify the account name to be used for reviews."))
   result.add_option("-s", "--step", dest="s",
                     help="Specify the step where to start work. Default: 0.",
@@ -599,7 +601,7 @@ def ProcessOptions(options):
   if options.s < 0:
     print "Bad step number %d" % options.s
     return False
-  if not options.m and not options.r:
+  if not options.m and not options.reviewer:
     print "A reviewer (-r) is required in (semi-)automatic mode."
     return False
   if options.f and options.m:
