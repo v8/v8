@@ -442,7 +442,7 @@ namespace internal {
   F(DebugTrace, 0, 1) \
   F(TraceEnter, 0, 1) \
   F(TraceExit, 1, 1) \
-  F(Abort, 2, 1) \
+  F(Abort, 1, 1) \
   F(AbortJS, 1, 1) \
   /* Logging */ \
   F(Log, 2, 1) \

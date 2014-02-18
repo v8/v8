@@ -14275,9 +14275,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetV8Version) {
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_Abort) {
   SealHandleScope shs(isolate);
-  ASSERT(args.length() == 2);
-  OS::PrintError("abort: %s\n",
-                 reinterpret_cast<char*>(args[0]) + args.smi_at(1));
+  ASSERT(args.length() == 1);
+  CONVERT_SMI_ARG_CHECKED(message_id, 0);
+  const char* message = GetBailoutReason(
+      static_cast<BailoutReason>(message_id));
+  OS::PrintError("abort: %s\n", message);
   isolate->PrintStack(stderr);
   OS::Abort();
   UNREACHABLE();

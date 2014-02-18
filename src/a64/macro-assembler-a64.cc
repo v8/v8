@@ -4315,51 +4315,46 @@ void MacroAssembler::Abort(BailoutReason reason) {
   }
 #endif
 
-  Label msg_address;
-  Adr(x0, &msg_address);
+  // Abort is used in some contexts where csp is the stack pointer. In order to
+  // simplify the CallRuntime code, make sure that jssp is the stack pointer.
+  // There is no risk of register corruption here because Abort doesn't return.
+  Register old_stack_pointer = StackPointer();
+  SetStackPointer(jssp);
+  Mov(jssp, old_stack_pointer);
 
   if (use_real_aborts()) {
-    // Split the message pointer into two SMI to avoid the GC
-    // trying to scan the string.
-    STATIC_ASSERT((kSmiShift == 32) && (kSmiTag == 0));
-    SmiTag(x1, x0);
-    Bic(x0, x0, kSmiShiftMask);
-
-    Push(x0, x1);
+    Mov(x0, Operand(Smi::FromInt(reason)));
+    Push(x0);
 
     if (!has_frame_) {
       // We don't actually want to generate a pile of code for this, so just
       // claim there is a stack frame, without generating one.
       FrameScope scope(this, StackFrame::NONE);
-      CallRuntime(Runtime::kAbort, 2);
+      CallRuntime(Runtime::kAbort, 1);
     } else {
-      CallRuntime(Runtime::kAbort, 2);
+      CallRuntime(Runtime::kAbort, 1);
     }
   } else {
-    // Call Printf directly, to report the error. The message is in x0, which is
-    // the first argument to Printf.
-    if (!csp.Is(StackPointer())) {
-      Bic(csp, StackPointer(), 0xf);
-    }
+    // Load the string to pass to Printf.
+    Label msg_address;
+    Adr(x0, &msg_address);
+
+    // Call Printf directly to report the error.
     CallPrintf();
 
-    // The CallPrintf will return, so this point is actually reachable in this
-    // context. However:
-    //   - We're already executing an abort (which shouldn't be reachable in
-    //     valid code).
-    //   - We need a way to stop execution on both the simulator and real
-    //     hardware, and Unreachable() is the best option.
+    // We need a way to stop execution on both the simulator and real hardware,
+    // and Unreachable() is the best option.
     Unreachable();
+
+    // Emit the message string directly in the instruction stream.
+    {
+      BlockConstPoolScope scope(this);
+      Bind(&msg_address);
+      EmitStringData(GetBailoutReason(reason));
+    }
   }
 
-  // Emit the message string directly in the instruction stream.
-  {
-    BlockConstPoolScope scope(this);
-    Bind(&msg_address);
-    // TODO(jbramley): Since the reason is an enum, why do we still encode the
-    // string (and a pointer to it) in the instruction stream?
-    EmitStringData(GetBailoutReason(reason));
-  }
+  SetStackPointer(old_stack_pointer);
 }
 
 
