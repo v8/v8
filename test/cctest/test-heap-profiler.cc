@@ -2406,31 +2406,47 @@ static int GetRetainersCount(const v8::HeapSnapshot* snapshot,
 
 TEST(ArrayBufferSharedBackingStore) {
   LocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
-  v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
-  CompileRun("sin1 = Math.sin(1);");
-  LocalContext env2;
-  CompileRun("sin2 = Math.sin(2);");
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope handle_scope(isolate);
+  v8::HeapProfiler* heap_profiler = isolate->GetHeapProfiler();
+
+  v8::Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, 1024);
+  CHECK_EQ(1024, static_cast<int>(ab->ByteLength()));
+  CHECK(!ab->IsExternal());
+  v8::ArrayBuffer::Contents ab_contents = ab->Externalize();
+  CHECK(ab->IsExternal());
+
+  CHECK_EQ(1024, static_cast<int>(ab_contents.ByteLength()));
+  void* data = ab_contents.Data();
+  ASSERT(data != NULL);
+  v8::Local<v8::ArrayBuffer> ab2 =
+      v8::ArrayBuffer::New(isolate, data, ab_contents.ByteLength());
+  CHECK(ab2->IsExternal());
+  env->Global()->Set(v8_str("ab1"), ab);
+  env->Global()->Set(v8_str("ab2"), ab2);
+
+  v8::Handle<v8::Value> result = CompileRun("ab2.byteLength");
+  CHECK_EQ(1024, result->Int32Value());
+
   const v8::HeapSnapshot* snapshot =
       heap_profiler->TakeHeapSnapshot(v8_str("snapshot"));
   CHECK(ValidateSnapshot(snapshot));
-  // The 0th-child is (GC Roots), 1st is the user root.
-  const v8::HeapGraphNode* global =
-      snapshot->GetRoot()->GetChild(1)->GetToNode();
-  const v8::HeapGraphNode* builtins =
-      GetProperty(global, v8::HeapGraphEdge::kInternal, "builtins");
-  CHECK_NE(NULL, builtins);
-  const v8::HeapGraphNode* sin_table =
-      GetProperty(builtins, v8::HeapGraphEdge::kProperty, "kSinTable");
-  CHECK_NE(NULL, sin_table);
-  const v8::HeapGraphNode* buffer =
-      GetProperty(sin_table, v8::HeapGraphEdge::kInternal, "buffer");
-  CHECK_NE(NULL, buffer);
-  const v8::HeapGraphNode* backing_store =
-      GetProperty(buffer, v8::HeapGraphEdge::kInternal, "backing_store");
-  CHECK_NE(NULL, backing_store);
-  int retainers = GetRetainersCount(snapshot, backing_store);
-  CHECK_EQ(2, retainers);
+  const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
+  const v8::HeapGraphNode* ab1_node =
+      GetProperty(global, v8::HeapGraphEdge::kProperty, "ab1");
+  CHECK_NE(NULL, ab1_node);
+  const v8::HeapGraphNode* ab1_data =
+      GetProperty(ab1_node, v8::HeapGraphEdge::kInternal, "backing_store");
+  CHECK_NE(NULL, ab1_data);
+  const v8::HeapGraphNode* ab2_node =
+      GetProperty(global, v8::HeapGraphEdge::kProperty, "ab2");
+  CHECK_NE(NULL, ab2_node);
+  const v8::HeapGraphNode* ab2_data =
+      GetProperty(ab2_node, v8::HeapGraphEdge::kInternal, "backing_store");
+  CHECK_NE(NULL, ab2_data);
+  CHECK_EQ(ab1_data, ab2_data);
+  CHECK_EQ(2, GetRetainersCount(snapshot, ab1_data));
+  free(data);
 }
 
 
