@@ -2848,7 +2848,9 @@ TEST(IncrementalMarkingClearsTypeFeedbackInfo) {
   // originating from two different native contexts.
   CcTest::global()->Set(v8_str("fun1"), fun1);
   CcTest::global()->Set(v8_str("fun2"), fun2);
-  CompileRun("function f(a, b) { a(); b(); } f(fun1, fun2);");
+  CompileRun("function f(a, b) { a(); b(); }"
+             "f(fun1, fun2);"  // Run twice to skip premonomorphic state.
+             "f(fun1, fun2)");
 
   Handle<JSFunction> f =
       v8::Utils::OpenHandle(

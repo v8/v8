@@ -2330,7 +2330,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   // edx : slot in feedback vector (Smi)
   // edi : the function to call
   Isolate* isolate = masm->isolate();
-  Label initialize, done, miss, megamorphic, not_array_function;
+  Label check_array, initialize_array, initialize_non_array, megamorphic, done;
 
   // Load the cache state into ecx.
   __ mov(ecx, FieldOperand(ebx, edx, times_half_pointer_size,
@@ -2343,48 +2343,53 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   __ cmp(ecx, Immediate(TypeFeedbackInfo::MegamorphicSentinel(isolate)));
   __ j(equal, &done, Label::kFar);
 
-  // If we came here, we need to see if we are the array function.
-  // If we didn't have a matching function, and we didn't find the megamorph
-  // sentinel, then we have in the slot either some other function or an
-  // AllocationSite. Do a map check on the object in ecx.
-  Handle<Map> allocation_site_map =
-      masm->isolate()->factory()->allocation_site_map();
-  __ cmp(FieldOperand(ecx, 0), Immediate(allocation_site_map));
-  __ j(not_equal, &miss);
-
-  // Load the global or builtins object from the current context
+  // Load the global or builtins object from the current context and check
+  // if we're dealing with the Array function or not.
   __ LoadGlobalContext(ecx);
-  // Make sure the function is the Array() function
   __ cmp(edi, Operand(ecx,
                       Context::SlotOffset(Context::ARRAY_FUNCTION_INDEX)));
+  __ j(equal, &check_array);
+
+  // Non-array cache: Reload the cache state and check it.
+  __ mov(ecx, FieldOperand(ebx, edx, times_half_pointer_size,
+                           FixedArray::kHeaderSize));
+  __ cmp(ecx, Immediate(TypeFeedbackInfo::PremonomorphicSentinel(isolate)));
+  __ j(equal, &initialize_non_array);
+  __ cmp(ecx, Immediate(TypeFeedbackInfo::UninitializedSentinel(isolate)));
   __ j(not_equal, &megamorphic);
+
+  // Non-array cache: Uninitialized -> premonomorphic. The sentinel is an
+  // immortal immovable object (null) so no write-barrier is needed.
+  __ mov(FieldOperand(ebx, edx, times_half_pointer_size,
+                      FixedArray::kHeaderSize),
+         Immediate(TypeFeedbackInfo::PremonomorphicSentinel(isolate)));
   __ jmp(&done, Label::kFar);
 
-  __ bind(&miss);
+  // Array cache: Reload the cache state and check to see if we're in a
+  // monomorphic state where the state object is an AllocationSite object.
+  __ bind(&check_array);
+  __ mov(ecx, FieldOperand(ebx, edx, times_half_pointer_size,
+                           FixedArray::kHeaderSize));
+  Handle<Map> allocation_site_map = isolate->factory()->allocation_site_map();
+  __ cmp(FieldOperand(ecx, 0), Immediate(allocation_site_map));
+  __ j(equal, &done, Label::kFar);
 
-  // A monomorphic miss (i.e, here the cache is not uninitialized) goes
-  // megamorphic.
+  // Array cache: Uninitialized or premonomorphic -> monomorphic.
   __ cmp(ecx, Immediate(TypeFeedbackInfo::UninitializedSentinel(isolate)));
-  __ j(equal, &initialize);
-  // MegamorphicSentinel is an immortal immovable object (undefined) so no
-  // write-barrier is needed.
+  __ j(equal, &initialize_array);
+  __ cmp(ecx, Immediate(TypeFeedbackInfo::PremonomorphicSentinel(isolate)));
+  __ j(equal, &initialize_array);
+
+  // Both caches: Monomorphic -> megamorphic. The sentinel is an
+  // immortal immovable object (undefined) so no write-barrier is needed.
   __ bind(&megamorphic);
   __ mov(FieldOperand(ebx, edx, times_half_pointer_size,
                       FixedArray::kHeaderSize),
          Immediate(TypeFeedbackInfo::MegamorphicSentinel(isolate)));
   __ jmp(&done, Label::kFar);
 
-  // An uninitialized cache is patched with the function or sentinel to
-  // indicate the ElementsKind if function is the Array constructor.
-  __ bind(&initialize);
-  __ LoadGlobalContext(ecx);
-  // Make sure the function is the Array() function
-  __ cmp(edi, Operand(ecx,
-                      Context::SlotOffset(Context::ARRAY_FUNCTION_INDEX)));
-  __ j(not_equal, &not_array_function);
-
-  // The target function is the Array constructor,
-  // Create an AllocationSite if we don't already have it, store it in the slot.
+  // Array cache: Uninitialized or premonomorphic -> monomorphic.
+  __ bind(&initialize_array);
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
 
@@ -2406,11 +2411,11 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   }
   __ jmp(&done);
 
-  __ bind(&not_array_function);
+  // Non-array cache: Premonomorphic -> monomorphic.
+  __ bind(&initialize_non_array);
   __ mov(FieldOperand(ebx, edx, times_half_pointer_size,
                       FixedArray::kHeaderSize),
          edi);
-  // We won't need edx or ebx anymore, just save edi
   __ push(edi);
   __ push(ebx);
   __ push(edx);

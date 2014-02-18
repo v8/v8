@@ -3012,12 +3012,17 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   // r1 : the function to call
   // r2 : Feedback vector
   // r3 : slot in feedback vector (Smi)
-  Label initialize, done, miss, megamorphic, not_array_function;
+  Label check_array, initialize_array, initialize_non_array, megamorphic, done;
 
   ASSERT_EQ(*TypeFeedbackInfo::MegamorphicSentinel(masm->isolate()),
             masm->isolate()->heap()->undefined_value());
+  Heap::RootListIndex kMegamorphicRootIndex = Heap::kUndefinedValueRootIndex;
   ASSERT_EQ(*TypeFeedbackInfo::UninitializedSentinel(masm->isolate()),
             masm->isolate()->heap()->the_hole_value());
+  Heap::RootListIndex kUninitializedRootIndex = Heap::kTheHoleValueRootIndex;
+  ASSERT_EQ(*TypeFeedbackInfo::PremonomorphicSentinel(masm->isolate()),
+            masm->isolate()->heap()->null_value());
+  Heap::RootListIndex kPremonomorphicRootIndex = Heap::kNullValueRootIndex;
 
   // Load the cache state into r4.
   __ add(r4, r2, Operand::PointerOffsetFromSmiKey(r3));
@@ -3027,45 +3032,50 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   // function without changing the state.
   __ cmp(r4, r1);
   __ b(eq, &done);
+  __ CompareRoot(r4, kMegamorphicRootIndex);
+  __ b(eq, &done);
 
-  // If we came here, we need to see if we are the array function.
-  // If we didn't have a matching function, and we didn't find the megamorph
-  // sentinel, then we have in the slot either some other function or an
-  // AllocationSite. Do a map check on the object in ecx.
-  __ ldr(r5, FieldMemOperand(r4, 0));
-  __ CompareRoot(r5, Heap::kAllocationSiteMapRootIndex);
-  __ b(ne, &miss);
+  // Check if we're dealing with the Array function or not.
+  __ LoadArrayFunction(r5);
+  __ cmp(r1, r5);
+  __ b(eq, &check_array);
 
-  // Make sure the function is the Array() function
-  __ LoadArrayFunction(r4);
-  __ cmp(r1, r4);
+  // Non-array cache: Check the cache state.
+  __ CompareRoot(r4, kPremonomorphicRootIndex);
+  __ b(eq, &initialize_non_array);
+  __ CompareRoot(r4, kUninitializedRootIndex);
   __ b(ne, &megamorphic);
-  __ jmp(&done);
 
-  __ bind(&miss);
-
-  // A monomorphic miss (i.e, here the cache is not uninitialized) goes
-  // megamorphic.
-  __ CompareRoot(r4, Heap::kTheHoleValueRootIndex);
-  __ b(eq, &initialize);
-  // MegamorphicSentinel is an immortal immovable object (undefined) so no
-  // write-barrier is needed.
-  __ bind(&megamorphic);
+  // Non-array cache: Uninitialized -> premonomorphic. The sentinel is an
+  // immortal immovable object (null) so no write-barrier is needed.
   __ add(r4, r2, Operand::PointerOffsetFromSmiKey(r3));
-  __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
+  __ LoadRoot(ip, kPremonomorphicRootIndex);
   __ str(ip, FieldMemOperand(r4, FixedArray::kHeaderSize));
   __ jmp(&done);
 
-  // An uninitialized cache is patched with the function or sentinel to
-  // indicate the ElementsKind if function is the Array constructor.
-  __ bind(&initialize);
-  // Make sure the function is the Array() function
-  __ LoadArrayFunction(r4);
-  __ cmp(r1, r4);
-  __ b(ne, &not_array_function);
+  // Array cache: Check the cache state to see if we're in a monomorphic
+  // state where the state object is an AllocationSite object.
+  __ bind(&check_array);
+  __ ldr(r5, FieldMemOperand(r4, 0));
+  __ CompareRoot(r5, Heap::kAllocationSiteMapRootIndex);
+  __ b(eq, &done);
 
-  // The target function is the Array constructor,
-  // Create an AllocationSite if we don't already have it, store it in the slot.
+  // Array cache: Uninitialized or premonomorphic -> monomorphic.
+  __ CompareRoot(r4, kUninitializedRootIndex);
+  __ b(eq, &initialize_array);
+  __ CompareRoot(r4, kPremonomorphicRootIndex);
+  __ b(eq, &initialize_array);
+
+  // Both caches: Monomorphic -> megamorphic. The sentinel is an
+  // immortal immovable object (undefined) so no write-barrier is needed.
+  __ bind(&megamorphic);
+  __ add(r4, r2, Operand::PointerOffsetFromSmiKey(r3));
+  __ LoadRoot(ip, kMegamorphicRootIndex);
+  __ str(ip, FieldMemOperand(r4, FixedArray::kHeaderSize));
+  __ jmp(&done);
+
+  // Array cache: Uninitialized or premonomorphic -> monomorphic.
+  __ bind(&initialize_array);
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
 
@@ -3081,8 +3091,8 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   }
   __ b(&done);
 
-  __ bind(&not_array_function);
-
+  // Non-array cache: Premonomorphic -> monomorphic.
+  __ bind(&initialize_non_array);
   __ add(r4, r2, Operand::PointerOffsetFromSmiKey(r3));
   __ add(r4, r4, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
   __ str(r1, MemOperand(r4, 0));
