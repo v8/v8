@@ -598,7 +598,8 @@ void MacroAssembler::EmitVeneers(bool need_protection) {
         branch->SetImmPCOffsetTarget(veneer);
         b(label);
 #ifdef DEBUG
-        ASSERT(SizeOfCodeGeneratedSince(&size_check) <= kMaxVeneerCodeSize);
+        ASSERT(SizeOfCodeGeneratedSince(&size_check) <=
+               static_cast<uint64_t>(kMaxVeneerCodeSize));
         size_check.Unuse();
 #endif
 
