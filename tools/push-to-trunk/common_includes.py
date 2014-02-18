@@ -227,6 +227,7 @@ class CommonOptions(object):
     self.force_readline_defaults = not manual
     self.force_upload = not manual
     self.manual = manual
+    self.reviewer = getattr(options, 'reviewer', None)
     self.author = getattr(options, 'a', None)
 
 
@@ -300,6 +301,10 @@ class Step(object):
 
   def Git(self, args="", prefix="", pipe=True, retry_on=None):
     cmd = lambda: self._side_effect_handler.Command("git", args, prefix, pipe)
+    return self.Retry(cmd, retry_on, [5, 30])
+
+  def SVN(self, args="", prefix="", pipe=True, retry_on=None):
+    cmd = lambda: self._side_effect_handler.Command("svn", args, prefix, pipe)
     return self.Retry(cmd, retry_on, [5, 30])
 
   def Editor(self, args):
@@ -462,9 +467,9 @@ class UploadStep(Step):
   MESSAGE = "Upload for code review."
 
   def RunStep(self):
-    if self._options.r:
-      print "Using account %s for review." % self._options.r
-      reviewer = self._options.r
+    if self._options.reviewer:
+      print "Using account %s for review." % self._options.reviewer
+      reviewer = self._options.reviewer
     else:
       print "Please enter the email address of a V8 reviewer for your patch: ",
       self.DieNoManualMode("A reviewer must be specified in forced mode.")
