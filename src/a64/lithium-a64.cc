@@ -1381,7 +1381,7 @@ LInstruction* LChunkBuilder::DoDiv(HDiv* instr) {
     ASSERT(instr->right()->representation().Equals(instr->representation()));
     if (instr->RightIsPowerOf2()) {
       ASSERT(!instr->CheckFlag(HValue::kCanBeDivByZero));
-      LOperand* value = UseRegisterAtStart(instr->left());
+      LOperand* value = UseRegister(instr->left());
       LDivI* div = new(zone()) LDivI(value, UseConstant(instr->right()), NULL);
       return AssignEnvironment(DefineAsRegister(div));
     }

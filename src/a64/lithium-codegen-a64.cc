@@ -2583,131 +2583,103 @@ void LCodeGen::DoDeoptimize(LDeoptimize* instr) {
 
 
 void LCodeGen::DoDivI(LDivI* instr) {
-  Register dividend = ToRegister32(instr->left());
-  Register result = ToRegister32(instr->result());
+  if (!instr->is_flooring() && instr->hydrogen()->RightIsPowerOf2()) {
+    HDiv* hdiv = instr->hydrogen();
+    Register dividend = ToRegister32(instr->left());
+    int32_t divisor = hdiv->right()->GetInteger32Constant();
+    Register result = ToRegister32(instr->result());
+    ASSERT(!result.is(dividend));
 
-  bool has_power_of_2_divisor = instr->hydrogen()->RightIsPowerOf2();
-  bool can_overflow = instr->hydrogen()->CheckFlag(HValue::kCanOverflow);
-  bool bailout_on_minus_zero =
-      instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero);
-  bool can_be_div_by_zero =
-      instr->hydrogen()->CheckFlag(HValue::kCanBeDivByZero);
-  bool all_uses_truncating_to_int32 =
-      instr->hydrogen()->CheckFlag(HInstruction::kAllUsesTruncatingToInt32);
-
-  if (has_power_of_2_divisor) {
-    ASSERT(instr->temp() == NULL);
-    int32_t divisor = ToInteger32(LConstantOperand::cast(instr->right()));
-    int32_t power;
-    int32_t power_mask;
-    Label deopt, done;
-
-    ASSERT(divisor != 0);
-    if (divisor > 0) {
-      power = WhichPowerOf2(divisor);
-      power_mask = divisor - 1;
-    } else {
-      // Check for (0 / -x) as that will produce negative zero.
-      if (bailout_on_minus_zero) {
-        if (all_uses_truncating_to_int32) {
-         // If all uses truncate, and the dividend is zero, the truncated
-         // result is zero.
-         __ Mov(result, 0);
-         __ Cbz(dividend, &done);
-        } else {
-          __ Cbz(dividend, &deopt);
-        }
-      }
-      // Check for (kMinInt / -1).
-      if ((divisor == -1) && can_overflow && !all_uses_truncating_to_int32) {
-        // Check for kMinInt by subtracting one and checking for overflow.
-        __ Cmp(dividend, 1);
-        __ B(vs, &deopt);
-      }
-      power = WhichPowerOf2(-divisor);
-      power_mask = -divisor - 1;
+    // Check for (0 / -x) that will produce negative zero.
+    if (hdiv->left()->RangeCanInclude(0) && divisor < 0 &&
+        hdiv->CheckFlag(HValue::kBailoutOnMinusZero)) {
+      __ Cmp(dividend, 0);
+      DeoptimizeIf(eq, instr->environment());
     }
-
-    if (power_mask != 0) {
-      if (all_uses_truncating_to_int32) {
-        __ Cmp(dividend, 0);
-        __ Cneg(result, dividend, lt);
-        __ Asr(result, result, power);
-        if (divisor > 0) __ Cneg(result, result, lt);
-        if (divisor < 0) __ Cneg(result, result, gt);
-        return;  // Don't fall through to negation below.
-      } else {
-        // Deoptimize if remainder is not 0. If the least-significant
-        // power bits aren't 0, it's not a multiple of 2^power, and
-        // therefore, there will be a remainder.
-        __ TestAndBranchIfAnySet(dividend, power_mask, &deopt);
-        __ Asr(result, dividend, power);
-        if (divisor < 0) __ Neg(result, result);
-      }
-    } else {
-      ASSERT((divisor == 1) || (divisor == -1));
-      if (divisor < 0) {
-        __ Neg(result, dividend);
-      } else {
-        __ Mov(result, dividend);
-      }
+    // Check for (kMinInt / -1).
+    if (hdiv->left()->RangeCanInclude(kMinInt) && divisor == -1 &&
+        hdiv->CheckFlag(HValue::kCanOverflow)) {
+      __ Cmp(dividend, kMinInt);
+      DeoptimizeIf(eq, instr->environment());
     }
-    __ B(&done);
-    __ Bind(&deopt);
-    Deoptimize(instr->environment());
-    __ Bind(&done);
-  } else {
-    Register divisor = ToRegister32(instr->right());
-
-    // Issue the division first, and then check for any deopt cases whilst the
-    // result is computed.
-    __ Sdiv(result, dividend, divisor);
-
-    if (!all_uses_truncating_to_int32) {
-      Label deopt;
-      // Check for x / 0.
-      if (can_be_div_by_zero) {
-        __ Cbz(divisor, &deopt);
-      }
-
-      // Check for (0 / -x) as that will produce negative zero.
-      if (bailout_on_minus_zero) {
-        __ Cmp(divisor, 0);
-
-        // If the divisor < 0 (mi), compare the dividend, and deopt if it is
-        // zero, ie. zero dividend with negative divisor deopts.
-        // If the divisor >= 0 (pl, the opposite of mi) set the flags to
-        // condition ne, so we don't deopt, ie. positive divisor doesn't deopt.
-        __ Ccmp(dividend, 0, NoFlag, mi);
-        __ B(eq, &deopt);
-      }
-
-      // Check for (kMinInt / -1).
-      if (can_overflow) {
-        // Test dividend for kMinInt by subtracting one (cmp) and checking for
-        // overflow.
-        __ Cmp(dividend, 1);
-        // If overflow is set, ie. dividend = kMinInt, compare the divisor with
-        // -1. If overflow is clear, set the flags for condition ne, as the
-        // dividend isn't -1, and thus we shouldn't deopt.
-        __ Ccmp(divisor, -1, NoFlag, vs);
-        __ B(eq, &deopt);
-      }
-
-      // Compute remainder and deopt if it's not zero.
-      Register remainder = ToRegister32(instr->temp());
-      __ Msub(remainder, result, divisor, dividend);
-      __ Cbnz(remainder, &deopt);
-
-      Label div_ok;
-      __ B(&div_ok);
-      __ Bind(&deopt);
-      Deoptimize(instr->environment());
-      __ Bind(&div_ok);
-    } else {
-      ASSERT(instr->temp() == NULL);
+    // Deoptimize if remainder will not be 0.
+    if (!hdiv->CheckFlag(HInstruction::kAllUsesTruncatingToInt32) &&
+        Abs(divisor) != 1) {
+      __ Tst(dividend, Abs(divisor) - 1);
+      DeoptimizeIf(ne, instr->environment());
     }
+    if (divisor == -1) {  // Nice shortcut, not needed for correctness.
+      __ Neg(result, dividend);
+      return;
+    }
+    int32_t shift = WhichPowerOf2(Abs(divisor));
+    if (shift == 0) {
+      __ Mov(result, dividend);
+    } else if (shift == 1) {
+      __ Add(result, dividend, Operand(dividend, LSR, 31));
+    } else {
+      __ Mov(result, Operand(dividend, ASR, 31));
+      __ Add(result, dividend, Operand(result, LSR, 32 - shift));
+    }
+    if (shift > 0) __ Mov(result, Operand(result, ASR, shift));
+    if (divisor < 0) __ Neg(result, result);
+    return;
   }
+
+  Register dividend = ToRegister32(instr->left());
+  Register divisor = ToRegister32(instr->right());
+  Register result = ToRegister32(instr->result());
+  HValue* hdiv = instr->hydrogen_value();
+
+  // Issue the division first, and then check for any deopt cases whilst the
+  // result is computed.
+  __ Sdiv(result, dividend, divisor);
+
+  if (hdiv->CheckFlag(HInstruction::kAllUsesTruncatingToInt32)) {
+    ASSERT_EQ(NULL, instr->temp());
+    return;
+  }
+
+  Label deopt;
+  // Check for x / 0.
+  if (hdiv->CheckFlag(HValue::kCanBeDivByZero)) {
+    __ Cbz(divisor, &deopt);
+  }
+
+  // Check for (0 / -x) as that will produce negative zero.
+  if (hdiv->CheckFlag(HValue::kBailoutOnMinusZero)) {
+    __ Cmp(divisor, 0);
+
+    // If the divisor < 0 (mi), compare the dividend, and deopt if it is
+    // zero, ie. zero dividend with negative divisor deopts.
+    // If the divisor >= 0 (pl, the opposite of mi) set the flags to
+    // condition ne, so we don't deopt, ie. positive divisor doesn't deopt.
+    __ Ccmp(dividend, 0, NoFlag, mi);
+    __ B(eq, &deopt);
+  }
+
+  // Check for (kMinInt / -1).
+  if (hdiv->CheckFlag(HValue::kCanOverflow)) {
+    // Test dividend for kMinInt by subtracting one (cmp) and checking for
+    // overflow.
+    __ Cmp(dividend, 1);
+    // If overflow is set, ie. dividend = kMinInt, compare the divisor with
+    // -1. If overflow is clear, set the flags for condition ne, as the
+    // dividend isn't -1, and thus we shouldn't deopt.
+    __ Ccmp(divisor, -1, NoFlag, vs);
+    __ B(eq, &deopt);
+  }
+
+  // Compute remainder and deopt if it's not zero.
+  Register remainder = ToRegister32(instr->temp());
+  __ Msub(remainder, result, divisor, dividend);
+  __ Cbnz(remainder, &deopt);
+
+  Label div_ok;
+  __ B(&div_ok);
+  __ Bind(&deopt);
+  Deoptimize(instr->environment());
+  __ Bind(&div_ok);
 }
 
 
