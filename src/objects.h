@@ -3384,8 +3384,13 @@ class DescriptorArray: public FixedArray {
                                        int new_size,
                                        int modify_index,
                                        StoreMode store_mode,
-                                       Handle<DescriptorArray> other)
-      V8_WARN_UNUSED_RESULT;
+                                       Handle<DescriptorArray> other);
+  MUST_USE_RESULT MaybeObject* Merge(int verbatim,
+                                     int valid,
+                                     int new_size,
+                                     int modify_index,
+                                     StoreMode store_mode,
+                                     DescriptorArray* other);
 
   bool IsMoreGeneralThan(int verbatim,
                          int valid,

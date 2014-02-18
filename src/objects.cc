@@ -7992,15 +7992,6 @@ void DescriptorArray::CopyFrom(int dst_index,
 }
 
 
-// Generalize the |other| descriptor array by merging it into the (at least
-// partly) updated |desc| descriptor array.
-// The method merges two descriptor array in three parts. Both descriptor arrays
-// are identical up to |verbatim|. They also overlap in keys up to |valid|.
-// Between |verbatim| and |valid|, the resulting descriptor type as well as the
-// representation are generalized from both |desc| and |other|. Beyond |valid|,
-// the descriptors are copied verbatim from |other| up to |new_size|.
-// In case of incompatible types, the type and representation of |other| is
-// used.
 Handle<DescriptorArray> DescriptorArray::Merge(Handle<DescriptorArray> desc,
                                                int verbatim,
                                                int valid,
@@ -8008,72 +7999,90 @@ Handle<DescriptorArray> DescriptorArray::Merge(Handle<DescriptorArray> desc,
                                                int modify_index,
                                                StoreMode store_mode,
                                                Handle<DescriptorArray> other) {
+  CALL_HEAP_FUNCTION(desc->GetIsolate(),
+                     desc->Merge(verbatim, valid, new_size, modify_index,
+                                 store_mode, *other),
+                     DescriptorArray);
+}
+
+
+// Generalize the |other| descriptor array by merging it into the (at least
+// partly) updated |this| descriptor array.
+// The method merges two descriptor array in three parts. Both descriptor arrays
+// are identical up to |verbatim|. They also overlap in keys up to |valid|.
+// Between |verbatim| and |valid|, the resulting descriptor type as well as the
+// representation are generalized from both |this| and |other|. Beyond |valid|,
+// the descriptors are copied verbatim from |other| up to |new_size|.
+// In case of incompatible types, the type and representation of |other| is
+// used.
+MaybeObject* DescriptorArray::Merge(int verbatim,
+                                    int valid,
+                                    int new_size,
+                                    int modify_index,
+                                    StoreMode store_mode,
+                                    DescriptorArray* other) {
   ASSERT(verbatim <= valid);
   ASSERT(valid <= new_size);
 
+  DescriptorArray* result;
   // Allocate a new descriptor array large enough to hold the required
   // descriptors, with minimally the exact same size as this descriptor array.
-  Isolate* isolate = desc->GetIsolate();
-  Handle<DescriptorArray> result = isolate->factory()->NewDescriptorArray(
-      new_size, Max(new_size, other->number_of_descriptors()) - new_size);
-  ASSERT(result->length() > desc->length() ||
+  MaybeObject* maybe_descriptors = DescriptorArray::Allocate(
+      GetIsolate(), new_size,
+      Max(new_size, other->number_of_descriptors()) - new_size);
+  if (!maybe_descriptors->To(&result)) return maybe_descriptors;
+  ASSERT(result->length() > length() ||
          result->NumberOfSlackDescriptors() > 0 ||
          result->number_of_descriptors() == other->number_of_descriptors());
   ASSERT(result->number_of_descriptors() == new_size);
+
+  DescriptorArray::WhitenessWitness witness(result);
 
   int descriptor;
 
   // 0 -> |verbatim|
   int current_offset = 0;
   for (descriptor = 0; descriptor < verbatim; descriptor++) {
-    if (desc->GetDetails(descriptor).type() == FIELD) current_offset++;
-    Descriptor d(other->GetKey(descriptor),
-                 other->GetValue(descriptor),
-                 other->GetDetails(descriptor));
-    result->Set(descriptor, &d);
+    if (GetDetails(descriptor).type() == FIELD) current_offset++;
+    result->CopyFrom(descriptor, other, descriptor, witness);
   }
 
   // |verbatim| -> |valid|
   for (; descriptor < valid; descriptor++) {
-    PropertyDetails details = desc->GetDetails(descriptor);
+    Name* key = GetKey(descriptor);
+    PropertyDetails details = GetDetails(descriptor);
     PropertyDetails other_details = other->GetDetails(descriptor);
 
     if (details.type() == FIELD || other_details.type() == FIELD ||
         (store_mode == FORCE_FIELD && descriptor == modify_index) ||
         (details.type() == CONSTANT &&
          other_details.type() == CONSTANT &&
-         desc->GetValue(descriptor) != other->GetValue(descriptor))) {
+         GetValue(descriptor) != other->GetValue(descriptor))) {
       Representation representation =
           details.representation().generalize(other_details.representation());
-      FieldDescriptor d(desc->GetKey(descriptor),
+      FieldDescriptor d(key,
                         current_offset++,
                         other_details.attributes(),
                         representation);
-      result->Set(descriptor, &d);
+      result->Set(descriptor, &d, witness);
     } else {
-      Descriptor d(other->GetKey(descriptor),
-                   other->GetValue(descriptor),
-                   other->GetDetails(descriptor));
-      result->Set(descriptor, &d);
+      result->CopyFrom(descriptor, other, descriptor, witness);
     }
   }
 
   // |valid| -> |new_size|
   for (; descriptor < new_size; descriptor++) {
     PropertyDetails details = other->GetDetails(descriptor);
-
     if (details.type() == FIELD ||
         (store_mode == FORCE_FIELD && descriptor == modify_index)) {
-      FieldDescriptor d(other->GetKey(descriptor),
+      Name* key = other->GetKey(descriptor);
+      FieldDescriptor d(key,
                         current_offset++,
                         details.attributes(),
                         details.representation());
-      result->Set(descriptor, &d);
+      result->Set(descriptor, &d, witness);
     } else {
-      Descriptor d(other->GetKey(descriptor),
-                   other->GetValue(descriptor),
-                   other->GetDetails(descriptor));
-      result->Set(descriptor, &d);
+      result->CopyFrom(descriptor, other, descriptor, witness);
     }
   }
 
