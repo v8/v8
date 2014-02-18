@@ -5647,6 +5647,7 @@ void LCodeGen::DoWrapReceiver(LWrapReceiver* instr) {
   // Deoptimize if the receiver is not a JS object.
   __ JumpIfSmi(receiver, &deopt);
   __ CompareObjectType(receiver, result, result, FIRST_SPEC_OBJECT_TYPE);
+  __ Mov(result, receiver);
   __ B(ge, &done);
   // Otherwise, fall through to deopt.
 
@@ -5654,16 +5655,11 @@ void LCodeGen::DoWrapReceiver(LWrapReceiver* instr) {
   Deoptimize(instr->environment());
 
   __ Bind(&global_object);
-  // We could load directly into the result register here, but the additional
-  // branches required are likely to be more time consuming than one additional
-  // move.
-  __ Ldr(receiver, FieldMemOperand(function, JSFunction::kContextOffset));
-  __ Ldr(receiver, ContextMemOperand(receiver, Context::GLOBAL_OBJECT_INDEX));
-  __ Ldr(receiver,
-         FieldMemOperand(receiver, GlobalObject::kGlobalReceiverOffset));
+  __ Ldr(result, FieldMemOperand(function, JSFunction::kContextOffset));
+  __ Ldr(result, ContextMemOperand(result, Context::GLOBAL_OBJECT_INDEX));
+  __ Ldr(result, FieldMemOperand(result, GlobalObject::kGlobalReceiverOffset));
 
   __ Bind(&done);
-  __ Mov(result, receiver);
 }
 
 
