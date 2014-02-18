@@ -52,11 +52,11 @@ CONFIG = {
 
 class MergeToBranchOptions(CommonOptions):
   def __init__(self, options, args):
-    super(MergeToBranchOptions, self).__init__(options, options.m)
+    super(MergeToBranchOptions, self).__init__(options, True)
     self.requires_editor = True
     self.wait_for_lgtm = True
     self.delete_sentinel = options.f
-    self.message = options.m
+    self.message = getattr(options, "message", "")
     self.revert = "--reverse" if getattr(options, "r", None) else ""
     self.revert_bleeding_edge = getattr(options, "revert_bleeding_edge", False)
     self.patch = getattr(options, "p", "")
