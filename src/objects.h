@@ -2360,10 +2360,6 @@ class JSObject: public JSReceiver {
   // been modified since it was created.  May give false positives.
   bool IsDirty();
 
-  // If the receiver is a JSGlobalProxy this method will return its prototype,
-  // otherwise the result is the receiver itself.
-  inline Object* BypassGlobalProxy();
-
   // Accessors for hidden properties object.
   //
   // Hidden properties are not local properties of the object itself.
