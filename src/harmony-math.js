@@ -160,6 +160,20 @@ function MathFround(x) {
 }
 
 
+function MathClz32(x) {
+  x = ToUint32(TO_NUMBER_INLINE(x));
+  if (x == 0) return 32;
+  var result = 0;
+  // Binary search.
+  if ((x & 0xFFFF0000) === 0) { x <<= 16; result += 16; };
+  if ((x & 0xFF000000) === 0) { x <<=  8; result +=  8; };
+  if ((x & 0xF0000000) === 0) { x <<=  4; result +=  4; };
+  if ((x & 0xC0000000) === 0) { x <<=  2; result +=  2; };
+  if ((x & 0x80000000) === 0) { x <<=  1; result +=  1; };
+  return result;
+}
+
+
 function ExtendMath() {
   %CheckIsBootstrapping();
 
@@ -176,8 +190,10 @@ function ExtendMath() {
     "log10", MathLog10,
     "log2", MathLog2,
     "hypot", MathHypot,
-    "fround", MathFround
+    "fround", MathFround,
+    "clz32", MathClz32
   ));
 }
+
 
 ExtendMath();
