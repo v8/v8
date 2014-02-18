@@ -888,9 +888,13 @@ Register StubCompiler::CheckPrototypes(Handle<HeapType> type,
       reg = holder_reg;  // From now on the object will be in holder_reg.
       __ Ldr(reg, FieldMemOperand(scratch1, Map::kPrototypeOffset));
     } else {
-      Register map_reg = scratch1;
-      // TODO(jbramley): Skip this load when we don't need the map.
-      __ Ldr(map_reg, FieldMemOperand(reg, HeapObject::kMapOffset));
+      bool need_map = (depth != 1 || check == CHECK_ALL_MAPS) ||
+                      heap()->InNewSpace(*prototype);
+      Register map_reg = NoReg;
+      if (need_map) {
+        map_reg = scratch1;
+        __ Ldr(map_reg, FieldMemOperand(reg, HeapObject::kMapOffset));
+      }
 
       if (depth != 1 || check == CHECK_ALL_MAPS) {
         __ CheckMap(map_reg, current_map, miss, DONT_DO_SMI_CHECK);
