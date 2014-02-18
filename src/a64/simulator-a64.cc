@@ -986,6 +986,11 @@ void Simulator::VisitUnconditionalBranchToRegister(Instruction* instr) {
   switch (instr->Mask(UnconditionalBranchToRegisterMask)) {
     case BLR: {
       set_lr(instr->NextInstruction());
+      if (instr->Rn() == 31) {
+        // BLR XZR is used as a guard for the constant pool. We should never hit
+        // this, but if we do trap to allow debugging.
+        Debug();
+      }
       // Fall through.
     }
     case BR:
