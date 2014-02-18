@@ -355,6 +355,10 @@ def RunMergeToBranch(config,
 
 def BuildOptions():
   result = optparse.OptionParser()
+  result.set_usage("""%prog [OPTIONS]... [BRANCH] [REVISION]...
+
+Performs the necessary steps to merge revisions from bleeding_edge
+to other branches, including trunk.""")
   result.add_option("-f",
                     help="Delete sentinel file.",
                     default=False, action="store_true")
@@ -396,7 +400,7 @@ def Main():
   if not ProcessOptions(options, args):
     parser.print_help()
     return 1
-  RunMergeToBranch(CONFIG, MergeToBranchOptions(options))
+  RunMergeToBranch(CONFIG, MergeToBranchOptions(options, args))
 
 if __name__ == "__main__":
   sys.exit(Main())
