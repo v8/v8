@@ -908,7 +908,8 @@ HeapEntry* V8HeapExplorer::AddEntry(Address address,
                                     HeapEntry::Type type,
                                     const char* name,
                                     size_t size) {
-  SnapshotObjectId object_id = heap_object_map_->FindOrAddEntry(address, size);
+  SnapshotObjectId object_id = heap_object_map_->FindOrAddEntry(
+      address, static_cast<unsigned int>(size));
   return snapshot_->AddEntry(type, name, object_id, size);
 }
 
