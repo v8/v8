@@ -216,7 +216,11 @@ class BoundsCheckBbData: public ZoneObject {
   void MoveIndexIfNecessary(HValue* index_raw,
                             HBoundsCheck* insert_before,
                             HInstruction* end_of_scan_range) {
-    ASSERT(index_raw->IsAdd() || index_raw->IsSub());
+    if (!index_raw->IsAdd() && !index_raw->IsSub()) {
+      // index_raw can be HAdd(index_base, offset), HSub(index_base, offset),
+      // or index_base directly. In the latter case, no need to move anything.
+      return;
+    }
     HArithmeticBinaryOperation* index =
         HArithmeticBinaryOperation::cast(index_raw);
     HValue* left_input = index->left();
