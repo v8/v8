@@ -153,15 +153,19 @@ class NfaBuilder(object):
     self.__patch_ends(ends, node)
     return (start, [node])
 
-  def __match_action(self, action, precedence, subtree):
-    (start, ends) = self.__process(subtree)
+  def __build_match_node(self, action):
     node = self.__new_state()
-    node.set_action(Action(action, precedence))
+    node.set_action(action)
     # Force all match actions to be terminal.
     node.close(self.__global_end)
     # patch via a match edge into existing graph
     match_node = self.__new_state()
     match_node.add_transition(TransitionKey.omega(), node)
+    return match_node
+
+  def __match_action(self, action, precedence, subtree):
+    (start, ends) = self.__process(subtree)
+    match_node =  self.__build_match_node(Action(action, precedence))
     self.__patch_ends(ends, match_node)
     return (start, [match_node])
 
@@ -291,14 +295,17 @@ class NfaBuilder(object):
     return terms[0] if len(terms) == 1 else Term('CAT', *terms)
 
   @staticmethod
-  def nfa(encoding, character_classes, subtree_map, name):
+  def nfa(encoding, character_classes, subtree_map,
+          name, default_action = Action.empty_action()):
     self = NfaBuilder(encoding, character_classes, subtree_map)
     (start, ends) = self.__subgraph(name)
     # close all ends
+    for e in ends:
+      match_node =  self.__build_match_node(default_action)
+      e.close(match_node)
+      match_node.close(None)
     end = self.__global_end
     end.close(None)
-    # TODO(dcarney): patch in default action
-    self.__patch_ends(ends, end)
     # Prepare the nfa
     self.__compute_epsilon_closures(start)
     f = lambda node, state: self.__replace_catch_all(self.__encoding, node)

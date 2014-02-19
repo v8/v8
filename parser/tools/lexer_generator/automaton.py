@@ -79,7 +79,7 @@ class Action(object):
     return isinstance(other, self.__class__) and self.__term == other.__term
 
   def __str__(self):
-    return "action <%s>" % ('' if not self.__term else str(self.__term))
+    return str(self.__term)
 
 class AutomatonState(object):
   '''A base class for dfa and nfa states.  Immutable'''

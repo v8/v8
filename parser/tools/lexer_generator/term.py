@@ -67,5 +67,8 @@ class Term(object):
   # TODO(dcarney): escape '(', ')' and ',' in strings
   def __str__(self):
     if self.__str == None:
-      self.__str = '(%s)' % ','.join(map(str, self.__tuple))
+      if not self:
+        self.__str = ''
+      else:
+        self.__str = '%s(%s)' % (self.name(), ','.join(map(str, self.args())))
     return self.__str

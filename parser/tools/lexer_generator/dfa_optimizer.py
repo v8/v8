@@ -167,12 +167,6 @@ class DfaOptimizer(object):
     return incoming_transitions
 
   @staticmethod
-  def __match_action(state):
-    state = state.omega_transition()
-    state = state if state and state.transition_count() == 0 else None
-    return Action.empty_action() if not state else state.action()
-
-  @staticmethod
   def __build_replacement_map(dfa):
     replacements = {}
     encoding = dfa.encoding()
@@ -187,14 +181,14 @@ class DfaOptimizer(object):
       if state.action():  # TODO(dcarney): allow this via action chaining
         continue
       # We only perform this optimization on 'token' actions
-      match_action = DfaOptimizer.__match_action(state)
+      match_action = state.match_action()
       if not match_action.name() == 'token':
         continue
       assert state.omega_transition() in dfa.terminal_set()
       # we can drop incoming edges for states with a match action
       # of either 'token' or 'harmony_token'
       def is_replacement_candidate(state):
-        action = DfaOptimizer.__match_action(state)
+        action = state.match_action()
         return action.name() == 'token' or action.name() == 'harmony_token'
       for (incoming_key, incoming_state) in incoming:
         # check to see if incoming edges are matched by an outgoing edge
@@ -236,13 +230,13 @@ class DfaOptimizer(object):
   @staticmethod
   def __split_target_state(state):
     old_name = DfaOptimizer.__new_state_name(state)
-    old_match_action = DfaOptimizer.__match_action(state)
+    old_match_action = state.match_action()
     assert old_match_action.name() == 'token', 'unimplemented'
     precedence = old_match_action.precedence()
     match_action = Action(Term('do_stored_token'), precedence)
-    head_action = Action(
-      Term('store_token', old_match_action.term().args()[0]), precedence)
-    tail_action = Action(Term('no_op'), precedence)
+    stored_token = old_match_action.term().args()[0]
+    head_action = Action(Term('store_token', stored_token), precedence)
+    tail_action = Action(Term('no_op', stored_token), precedence)
     head = DfaOptimizer.__new_state(False, head_action)
     tail = DfaOptimizer.__new_state(False, tail_action)
     match = DfaOptimizer.__new_state(True, match_action)
@@ -253,9 +247,9 @@ class DfaOptimizer(object):
   # generate a store action to replace an existing action
   @staticmethod
   def __replacement_action(state, transition_state):
-    old_action = DfaOptimizer.__match_action(state)
+    old_action = state.match_action()
     assert old_action
-    transition_action = DfaOptimizer.__match_action(transition_state).term()
+    transition_action = transition_state.match_action().term()
     if old_action.term() == transition_action:
       # no need to store token
       return Action.empty_action()

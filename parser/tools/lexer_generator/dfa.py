@@ -38,19 +38,41 @@ class DfaState(AutomatonState):
     self.__action = action
     assert isinstance(action, Action)
 
+  def sort_transitions(self):
+    self.__transitions = sorted(self.__transitions,
+                                cmp = lambda (k1, v1), (k2, v2): cmp(k1, k2))
+
   def name(self):
     return self.__name
 
   def action(self):
     return self.__action
 
-  def transition_count(self):
-    return len(self.__transitions)
-
   def omega_transition(self):
-    if TransitionKey.omega() in self.__transitions:
-      return self.__transitions[TransitionKey.omega()]
+    if (self.__transitions and
+        self.__transitions[-1][0] == TransitionKey.omega()):
+      return self.__transitions[-1][1]
     return None
+
+  def match_action(self):
+    '''returns an action if this state's omega transition terminates
+    immediately and has an action'''
+    omega_chain = list(self.omega_chain_iter())
+    if len(omega_chain) == 1 and omega_chain[0][1] == 0:
+      return omega_chain[0][0].action()
+    return Action.empty_action()
+
+  def omega_chain_iter(self):
+    state = self
+    while True:
+      state = state.omega_transition()
+      if not state:
+        return
+      transistion_count = len(state.__transitions)
+      yield (state, transistion_count)
+      if not (transistion_count == 0 or
+              (transistion_count == 1 and state.omega_transition())):
+        return
 
   def epsilon_closure_iter(self):
     return iter([])
@@ -66,7 +88,7 @@ class DfaState(AutomatonState):
     state_filter = lambda x: True,
     match_func = lambda x, y: True,
     yield_func = lambda x, y: (x, y)):
-    for key, state in self.__transitions.items():
+    for (key, state) in self.__transitions:
       if key_filter(key) and state_filter(state) and match_func(key, state):
         yield yield_func(key, state)
 
@@ -74,17 +96,15 @@ class Dfa(Automaton):
 
   @staticmethod
   def __add_transition(transitions, key, state):
-    assert key != None
-    assert not key == TransitionKey.epsilon()
-    assert not transitions.has_key(key)
-    transitions[key] = state
+    assert key != None and key != TransitionKey.epsilon()
+    transitions.append((key, state))
 
   def __init__(self, encoding, start_name, mapping):
     super(Dfa, self).__init__(encoding)
     self.__terminal_set = set()
     name_map = {}
     for name, node_data in mapping.items():
-      transitions = {}
+      transitions = []
       node = DfaState(name, node_data['action'], transitions)
       name_map[name] = (node, transitions)
       if node_data['terminal']:
@@ -93,7 +113,10 @@ class Dfa(Automaton):
     for name, node_data in mapping.items():
       (node, transitions) = name_map[name]
       inversion = {}
+      omega_state = None
       for key, state in node_data['transitions'].items():
+        if key == TransitionKey.omega():
+          omega_state = name_map[state][0]
         if not state in inversion:
           inversion[state] = []
         inversion[state].append(key)
@@ -101,6 +124,8 @@ class Dfa(Automaton):
         all_keys += keys
         merged_key = TransitionKey.merged_key(encoding, keys)
         self.__add_transition(transitions, merged_key, name_map[state][0])
+      node.sort_transitions()
+      assert node.omega_transition() == omega_state
     self.__start = name_map[start_name][0]
     self.__node_count = len(mapping)
     self.__disjoint_keys = sorted(

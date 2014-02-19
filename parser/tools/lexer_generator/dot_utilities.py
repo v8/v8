@@ -29,6 +29,7 @@ from types import IntType, StringType
 from key_encoding import KeyEncoding
 from term import Term
 from transition_key import TransitionKey
+from automaton import Action
 
 def escape_for_dot(v):
   v = str(v)
@@ -70,11 +71,51 @@ def term_to_dot(term, term_mapper = None):
   process(term)
   return 'digraph { %s %s }' % ('\n'.join(nodes), '\n'.join(edges))
 
-def automaton_to_dot(automaton):
-
-  def f(node, (node_content, edge_content)):
-    if node.action():
-      action_text = escape_for_dot(node.action())
+def automaton_to_dot(automaton, merge = False):
+  terminal_set = automaton.terminal_set()
+  to_skip = set([])
+  # get a replacement action for a state's omega transition
+  def analyse_omega_chain(state):
+    omega_chain = list(state.omega_chain_iter())
+    if len(omega_chain) == 1:
+      omega_state = omega_chain[0][0]
+      # Handle match nodes
+      if omega_chain[0][1] == 0:
+        if omega_state in terminal_set:
+          to_skip.add(omega_state)  # don't draw omega transition state
+          terminal_set.add(state)
+          return omega_state.action()
+    elif len(omega_chain) == 2:
+      first_action = omega_chain[0][0].action().name()
+      if ((first_action == 'store_token' or
+           first_action == 'store_harmony_token') and
+          omega_chain[1][0].action().name() == 'no_op'):
+        if (omega_chain[0][0].action().term().args() ==
+            omega_chain[1][0].action().term().args()):
+          return Action(Term('goto', omega_chain[0][0].node_number()), 0)
+        else:
+          to_skip.add(omega_chain[0][0])  # don't draw first transition
+          return Action(Term('chain',
+                        omega_chain[0][0].action().term(),
+                        Term('goto', omega_chain[1][0].node_number())), 0)
+    return Action.empty_action()
+  # draw state
+  skipped = set([])
+  drawn = set([])
+  def draw(node, (node_content, edge_content)):
+    if node in to_skip:  # skip match nodes
+      skipped.add(node)
+      return (node_content, edge_content)
+    drawn.add(node)
+    omega_action = analyse_omega_chain(node) if merge else Action.empty_action()
+    node_action = node.action()
+    if node_action.name() == 'no_op':
+      node_action = Action.empty_action()
+    if node_action or omega_action:
+      action_text = str(node.action())
+      if omega_action:
+        action_text += ' | ' + str(omega_action)
+      action_text = '< %s >' % escape_for_dot(action_text)
       node_content.append('  S_l%s[shape = box, label="%s"];' %
                           (node.node_number(), action_text))
       node_content.append('  S_%s -> S_l%s [arrowhead = none];' %
@@ -83,6 +124,8 @@ def automaton_to_dot(automaton):
       if key == TransitionKey.epsilon():
         key = "&epsilon;"
       elif key == TransitionKey.omega():
+        if omega_action:  # don't draw omega transition
+          continue
         key = "&omega;"
       else:
         key = key.to_string(automaton.encoding())
@@ -90,12 +133,15 @@ def automaton_to_dot(automaton):
           node.node_number(), state.node_number(), escape_for_dot(key)))
     return (node_content, edge_content)
 
-  (node_content, edge_content) = automaton.visit_all_states(f, ([], []))
+  (node_content, edge_content) = automaton.visit_all_states(draw, ([], []))
+
+  assert skipped == to_skip
+  terminal_set -= to_skip
+  assert automaton.node_count() == len(skipped) + len(drawn)
 
   start_set = automaton.start_set()
   assert len(start_set) == 1
   start_node = iter(start_set).next()
-  terminal_set = automaton.terminal_set()
 
   terminals = ["S_%d;" % x.node_number() for x in terminal_set]
   start_number = start_node.node_number()

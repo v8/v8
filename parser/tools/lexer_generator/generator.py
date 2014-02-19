@@ -66,7 +66,7 @@ load_outer_template = '''    <script>
 %s
     </script>'''
 
-def generate_html(rule_processor, minimize_default):
+def generate_html(rule_processor, minimize_default, merge):
   scripts = []
   loads = []
   for i, (name, automata) in enumerate(list(rule_processor.automata_iter())):
@@ -77,10 +77,10 @@ def generate_html(rule_processor, minimize_default):
     (nfa_i, dfa_i, mdfa_i) = ("nfa_%d" % i, "dfa_%d" % i, "mdfa_%d" % i)
     scripts.append(script_template % (nfa_i, automaton_to_dot(nfa)))
     loads.append(load_template % ("nfa [%s]" % name, nfa_i))
-    scripts.append(script_template % (dfa_i, automaton_to_dot(dfa)))
+    scripts.append(script_template % (dfa_i, automaton_to_dot(dfa, merge)))
     loads.append(load_template % ("dfa [%s]" % name, dfa_i))
     if mdfa and mdfa.node_count() != dfa.node_count():
-      scripts.append(script_template % (mdfa_i, automaton_to_dot(mdfa)))
+      scripts.append(script_template % (mdfa_i, automaton_to_dot(mdfa, merge)))
       loads.append(load_template % ("mdfa [%s]" % name, mdfa_i))
   body = "\n".join(scripts) + (load_outer_template % "\n".join(loads))
   return file_template % body
@@ -128,6 +128,7 @@ if __name__ == '__main__':
 
   parser = argparse.ArgumentParser()
   parser.add_argument('--html')
+  parser.add_argument('--no-merge-html', action='store_true')
   parser.add_argument('--re', default='src/lexer/lexer_py.re')
   parser.add_argument('--input')
   parser.add_argument('--code')
@@ -169,7 +170,8 @@ if __name__ == '__main__':
 
   html_file = args.html
   if html_file:
-    html = generate_html(rule_processor, minimize_default)
+    html = generate_html(
+      rule_processor, minimize_default, not args.no_merge_html)
     with open(args.html, 'w') as f:
       f.write(html)
       if verbose:

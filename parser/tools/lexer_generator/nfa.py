@@ -131,7 +131,11 @@ class Nfa(Automaton):
     super(Nfa, self).__init__(encoding)
     self.__start = start
     self.__end = end
-    self.__verify(nodes_created)
+    self.__node_count = nodes_created
+    self.__verify()
+
+  def node_count(self):
+    return self.__node_count
 
   def start_state(self):
     return self.__start
@@ -139,12 +143,12 @@ class Nfa(Automaton):
   def terminal_set(self):
     return set([self.__end])
 
-  def __verify(self, nodes_created):
+  def __verify(self):
     def f(node, count):
       node.post_creation_verify()
       return count + 1
     count = self.visit_all_states(f, 0)
-    assert count == nodes_created
+    assert count == self.__node_count
 
   @staticmethod
   def __gather_transition_keys(encoding, state_set):
