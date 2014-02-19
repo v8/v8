@@ -293,7 +293,7 @@ class CodeGenerator:
     start_node_number = self.__dfa.start_state().node_number()
     CodeGenerator.__reorder(start_node_number, id_map, dfa_states)
     # store states
-    eos_states = set([])
+    eos_states = set()
     remap = lambda state_id : id_map[state_id]['node_number']
     def f((key, original_node_number)):
       return (key, remap(original_node_number))

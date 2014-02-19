@@ -35,6 +35,7 @@ from dfa import Dfa
 from dfa_optimizer import DfaOptimizer
 from dfa_minimizer import DfaMinimizer
 from transition_key import TransitionKey, KeyEncoding
+from backtracking_generator import BacktrackingGenerator
 
 class RuleLexer:
 
@@ -354,14 +355,17 @@ class RuleProcessor(object):
   class Automata(object):
     'a container for the resulting automata, which are lazily built'
 
-    def __init__(self, encoding, character_classes, rule_map, name):
-      self.__encoding = encoding
+    def __init__(self, rule_processor, character_classes, rule_map, name):
+      self.__rule_processor = rule_processor
       self.__character_classes = character_classes
       self.__rule_map = rule_map
       self.__name = name
       self.__nfa = None
       self.__dfa = None
       self.__minimial_dfa = None
+
+    def encoding(self):
+      return self.__rule_processor.encoding()
 
     def name(self):
       return self.__name
@@ -372,14 +376,18 @@ class RuleProcessor(object):
     def nfa(self):
       if not self.__nfa:
         self.__nfa = NfaBuilder.nfa(
-          self.__encoding, self.__character_classes,
+          self.encoding(), self.__character_classes,
           self.__rule_map, self.__name)
       return self.__nfa
 
     def dfa(self):
       if not self.__dfa:
         (start, dfa_nodes) = self.nfa().compute_dfa()
-        self.__dfa = Dfa(self.nfa().encoding(), start, dfa_nodes)
+        dfa = Dfa(self.encoding(), start, dfa_nodes)
+        if self.name() == 'default':
+          dfa = BacktrackingGenerator.generate(
+            dfa, self.__rule_processor.default_action())
+        self.__dfa = dfa
       return self.__dfa
 
     def optimize_dfa(self, log = False):
@@ -406,7 +414,7 @@ class RuleProcessor(object):
     # build the automata
     for name, tree in rule_map.items():
       self.__automata[name] = RuleProcessor.Automata(
-        parser_state.encoding, parser_state.character_classes, rule_map, name)
+        self, parser_state.character_classes, rule_map, name)
     # process default_action
     default_action = parser_state.rules['default']['default_action']
     self.__default_action = Action(default_action, 0)

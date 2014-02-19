@@ -138,6 +138,10 @@ from dfa import Dfa
 
 class DfaOptimizer(object):
 
+  @staticmethod
+  def optimize(dfa, log):
+    return DfaOptimizer(dfa, log).__replace_tokens_with_gotos()
+
   def __init__(self, dfa, log):
     self.__dfa = dfa
     self.__log = log
@@ -156,22 +160,11 @@ class DfaOptimizer(object):
     return True
 
   @staticmethod
-  def __build_incoming_transitions(dfa):
-    incoming_transitions = {}
-    def f(state, visitor_state):
-      for key, transition_state in state.key_state_iter():
-        if not transition_state in incoming_transitions:
-          incoming_transitions[transition_state] = []
-        incoming_transitions[transition_state].append((key, state))
-    dfa.visit_all_states(f)
-    return incoming_transitions
-
-  @staticmethod
   def __build_replacement_map(dfa):
     replacements = {}
     encoding = dfa.encoding()
-    incoming_transitions = DfaOptimizer.__build_incoming_transitions(dfa)
-    replacement_targets = set([])
+    incoming_transitions = dfa.build_incoming_transitions_map()
+    replacement_targets = set()
     # TODO(dcarney): this should be an ordered walk
     for state, incoming in incoming_transitions.items():
       if len(incoming) < 10:
@@ -278,7 +271,7 @@ class DfaOptimizer(object):
 
   @staticmethod
   def __remove_orphaned_states(states, orphanable, start_name):
-    seen = set([])
+    seen = set()
     def visit(state_id, acc):
       seen.add(state_id)
     def state_iter(state_id):
@@ -310,7 +303,7 @@ class DfaOptimizer(object):
       }
     # map the old state to the new state, with fewer transitions and
     # goto actions
-    orphanable = set([])
+    orphanable = set()
     def replace_state(state, acc):
       if state in replacements:
         target_state = replacements[state][0]
@@ -370,8 +363,3 @@ class DfaOptimizer(object):
       print 'transitions removed %s' % counters['removals']
       print 'states split %s' % counters['split_state']
     return Dfa(self.__dfa.encoding(), start_name, states)
-
-  @staticmethod
-  def optimize(dfa, log):
-    optimizer = DfaOptimizer(dfa, log)
-    return optimizer.__replace_tokens_with_gotos()

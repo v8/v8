@@ -403,7 +403,7 @@ class TransitionKey(object):
   @staticmethod
   def __disjoint_components(encoding, components, merge_ranges):
     range_map = {}
-    other_keys = set([])
+    other_keys = set()
     for x in components:
       if x.name() != 'NUMERIC_RANGE_KEY':
         other_keys.add(x)

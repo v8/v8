@@ -90,8 +90,6 @@ line_terminator_sequence = /[:line_terminator:]|(\r\n|\n\r)/;
 "/*"          <set_marker(2)||MultiLineComment>
 "<!--"        <||SingleLineComment>
 
-"<!-"  <|backtrack(2, LT)|>
-"<!"   <|backtrack(1, LT)|>
 "-->"  <if_line_terminator_backtrack(1, DEC)||SingleLineComment>
 
 ">>>="        <|token(ASSIGN_SHR)|>

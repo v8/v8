@@ -73,7 +73,7 @@ def term_to_dot(term, term_mapper = None):
 
 def automaton_to_dot(automaton, merge = False):
   terminal_set = automaton.terminal_set()
-  to_skip = set([])
+  to_skip = set()
   # get a replacement action for a state's omega transition
   def analyse_omega_chain(state):
     omega_chain = list(state.omega_chain_iter())
@@ -100,8 +100,8 @@ def automaton_to_dot(automaton, merge = False):
                         Term('goto', omega_chain[1][0].node_number())), 0)
     return Action.empty_action()
   # draw state
-  skipped = set([])
-  drawn = set([])
+  skipped = set()
+  drawn = set()
   def draw(node, (node_content, edge_content)):
     if node in to_skip:  # skip match nodes
       skipped.add(node)

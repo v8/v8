@@ -343,9 +343,3 @@ class NfaBuilder(object):
     if not inverse_key:
       inverse_key = TransitionKey.unique('no_match')
     state.swap_key(catch_all, inverse_key)
-
-  @staticmethod
-  def __install_omega_transitions(start_state, default_action):
-    '''install a match transition, a backtrack transition,
-    or a default transition into all nodes'''
-    pass

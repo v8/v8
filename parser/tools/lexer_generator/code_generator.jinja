@@ -95,8 +95,14 @@
     next_.has_escapes = true;
   {% elif type == 'if_line_terminator_backtrack' %}
     if (!has_line_terminator_before_next_) {
-      {{dispatch_match_action('backtrack', args)}}
+      {{dispatch_match_action('manual_backtrack', args)}}
     }
+  {% elif type == 'store_lexing_state' %}
+    STORE_LEXING_STATE();
+  {% elif type == 'chain' %}
+    {%- for arg in args %}
+      {{dispatch_entry_action(arg.name(), arg.args())}}
+    {% endfor -%}
   {% else %}
     uncompilable code for {{type}} {{args}}
   {% endif -%}
@@ -106,10 +112,10 @@
 {#- match actions must all explicitly jump or return -#}
 {% macro dispatch_match_action(type, args) -%}
   {% if type == 'terminate' %}
-    {{dispatch_match_action('backtrack', ('1', 'EOS'))}}
+    {{dispatch_match_action('manual_backtrack', ('1', 'EOS'))}}
   {% elif type == 'terminate_illegal' %}
     start_ = marker;
-    {{dispatch_match_action('backtrack', ('1', 'ILLEGAL'))}}
+    {{dispatch_match_action('manual_backtrack', ('1', 'ILLEGAL'))}}
   {% elif type == 'skip' %}
     RESET_START();
     {%- if encoding == 'utf16'-%}
@@ -149,10 +155,13 @@
     last_octal_end_ = cursor_;
     DO_TOKEN(Token::NUMBER);
     return;
-  {% elif type == 'backtrack' %}
+  {% elif type == 'manual_backtrack' %}
     BACKWARD({{args[0]}});
     DO_TOKEN(Token::{{args[1]}});
     return;
+  {% elif type == 'backtrack' %}
+    RESTORE_LEXING_STATE();
+    {{dispatch_match_action(args[0].name(), args[0].args())}}
   {% else %}
     uncompilable code for {{type}} {{args}}
   {% endif -%}
@@ -296,6 +305,18 @@
   start_ = cursor_;                   \
 }
 
+#define STORE_LEXING_STATE() {        \
+  stored_marker = marker;             \
+  stored_cursor = cursor_;            \
+  stored_start = start_;              \
+}
+
+#define RESTORE_LEXING_STATE() {      \
+  marker = stored_marker;             \
+  cursor_ = stored_cursor;            \
+  start_ = stored_start;              \
+}
+
 #define DO_TOKEN(T) {                 \
   next_.beg_pos = start_ - buffer_;   \
   next_.end_pos = cursor_ - buffer_;  \
@@ -333,6 +354,9 @@ void ExperimentalScanner<{{char_type}}>::Scan() {
   Token::Value stored_token;
   const {{char_type}} * marker;
   {{char_type}} primary_char;
+  const {{char_type}} * stored_marker;  {# TODO(dcarney): complete this #}
+  const {{char_type}} * stored_cursor;
+  const {{char_type}} * stored_start;
 
 {# first node is start node #}
 {% for dfa_state in dfa_states -%}

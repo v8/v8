@@ -241,6 +241,7 @@
           '../../src/lexer/lexer_py.re',
           '../../tools/lexer_generator/__init__.py',
           '../../tools/lexer_generator/automaton.py',
+          '../../tools/lexer_generator/backtracking_generator.py',
           '../../tools/lexer_generator/code_generator.jinja',
           '../../tools/lexer_generator/code_generator.py',
           '../../tools/lexer_generator/dfa.py',

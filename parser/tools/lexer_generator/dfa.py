@@ -158,3 +158,13 @@ class Dfa(Automaton):
 
   def terminal_set(self):
     return set(self.__terminal_set)
+
+  def build_incoming_transitions_map(self):
+    incoming_transitions = {}
+    def f(state, visitor_state):
+      for key, transition_state in state.key_state_iter():
+        if not transition_state in incoming_transitions:
+          incoming_transitions[transition_state] = []
+        incoming_transitions[transition_state].append((key, state))
+    self.visit_all_states(f)
+    return incoming_transitions
