@@ -2167,6 +2167,9 @@ class InstructionAccurateScope BASE_EMBEDDED {
  public:
   InstructionAccurateScope(MacroAssembler* masm, size_t count = 0)
       : masm_(masm), size_(count * kInstructionSize) {
+    // Before blocking the const pool, see if it needs to be emitted.
+    masm_->CheckConstPool(false, true);
+
     masm_->StartBlockConstPool();
 #ifdef DEBUG
     if (count != 0) {

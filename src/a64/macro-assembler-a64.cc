@@ -1079,7 +1079,8 @@ void MacroAssembler::PopHelper(int count, int size,
 
 
 void MacroAssembler::PrepareForPush(Operand total_size) {
-  AssertStackConsistency();
+  // TODO(jbramley): This assertion generates too much code in some debug tests.
+  // AssertStackConsistency();
   if (csp.Is(StackPointer())) {
     // If the current stack pointer is csp, then it must be aligned to 16 bytes
     // on entry and the total size of the specified registers must also be a
