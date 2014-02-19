@@ -97,8 +97,7 @@ class FreshBranch(Step):
 
   def RunStep(self):
     args = "checkout -b %s svn/bleeding_edge" % self.Config(BRANCHNAME)
-    if self.Git(args) is None:
-      self.Die("Creating branch %s failed." % self.Config(BRANCHNAME))
+    self.Git(args)
 
 
 class DetectLastPush(Step):
@@ -268,9 +267,7 @@ class CommitLocal(Step):
       review = "\n\nTBR=%s" % self._options.reviewer
     else:
       review = ""
-    if self.Git("commit -a -m \"%s%s\""
-                % (self["prep_commit_msg"], review)) is None:
-      self.Die("'git commit -a' failed.")
+    self.Git("commit -a -m \"%s%s\"" % (self["prep_commit_msg"], review))
 
 
 class CommitRepository(Step):
@@ -283,12 +280,8 @@ class CommitRepository(Step):
     TextToFile(GetLastChangeLogEntries(self.Config(CHANGELOG_FILE)),
                self.Config(CHANGELOG_ENTRY_FILE))
 
-    if self.Git("cl presubmit", "PRESUBMIT_TREE_CHECK=\"skip\"") is None:
-      self.Die("'git cl presubmit' failed, please try again.")
-
-    if self.Git("cl dcommit -f --bypass-hooks",
-                retry_on=lambda x: x is None) is None:
-      self.Die("'git cl dcommit' failed, please try again.")
+    self.Git("cl presubmit", "PRESUBMIT_TREE_CHECK=\"skip\"")
+    self.Git("cl dcommit -f --bypass-hooks", retry_on=lambda x: x is None)
 
 
 class StragglerCommits(Step):
@@ -296,8 +289,7 @@ class StragglerCommits(Step):
              "started.")
 
   def RunStep(self):
-    if self.Git("svn fetch") is None:
-      self.Die("'git svn fetch' failed.")
+    self.Git("svn fetch")
     self.Git("checkout svn/bleeding_edge")
     args = "log -1 --format=%%H --grep=\"%s\"" % self["prep_commit_msg"]
     self["prepare_commit_hash"] = self.Git(args).strip()
@@ -342,9 +334,7 @@ class NewBranch(Step):
   MESSAGE = "Create a new branch from trunk."
 
   def RunStep(self):
-    if self.Git("checkout -b %s svn/trunk" % self.Config(TRUNKBRANCH)) is None:
-      self.Die("Checking out a new branch '%s' failed." %
-               self.Config(TRUNKBRANCH))
+    self.Git("checkout -b %s svn/trunk" % self.Config(TRUNKBRANCH))
 
 
 class ApplyChanges(Step):
@@ -380,8 +370,7 @@ class CommitTrunk(Step):
 
   def RunStep(self):
     self.Git("add \"%s\"" % self.Config(VERSION_FILE))
-    if self.Git("commit -F \"%s\"" % self.Config(COMMITMSG_FILE)) is None:
-      self.Die("'git commit' failed.")
+    self.Git("commit -F \"%s\"" % self.Config(COMMITMSG_FILE))
     Command("rm", "-f %s*" % self.Config(COMMITMSG_FILE))
 
 
@@ -423,10 +412,9 @@ class TagRevision(Step):
   MESSAGE = "Tag the new revision."
 
   def RunStep(self):
-    if self.Git(("svn tag %s -m \"Tagging version %s\""
-                 % (self["version"], self["version"])),
-                retry_on=lambda x: x is None) is None:
-      self.Die("'git svn tag' failed.")
+    self.Git(("svn tag %s -m \"Tagging version %s\""
+              % (self["version"], self["version"])),
+             retry_on=lambda x: x is None)
 
 
 class CheckChromium(Step):
@@ -466,14 +454,9 @@ class UpdateChromiumCheckout(Step):
 
   def RunStep(self):
     os.chdir(self["chrome_path"])
-    if self.Git("checkout master") is None:
-      self.Die("'git checkout master' failed.")
-    if self.Git("pull") is None:
-      self.Die("'git pull' failed, please try again.")
-
-    args = "checkout -b v8-roll-%s" % self["trunk_revision"]
-    if self.Git(args) is None:
-      self.Die("Failed to checkout a new branch.")
+    self.Git("checkout master")
+    self.Git("pull")
+    self.Git("checkout -b v8-roll-%s" % self["trunk_revision"])
 
 
 class UploadCL(Step):
@@ -497,17 +480,13 @@ class UploadCL(Step):
       print "Please enter the email address of a reviewer for the roll CL: ",
       self.DieNoManualMode("A reviewer must be specified in forced mode.")
       rev = self.ReadLine()
-    args = ("commit -am \"Update V8 to version %s "
-            "(based on bleeding_edge revision r%s).\n\nTBR=%s\""
-            % (self["version"], self["svn_revision"], rev))
-    if self.Git(args) is None:
-      self.Die("'git commit' failed.")
+    self.Git("commit -am \"Update V8 to version %s "
+             "(based on bleeding_edge revision r%s).\n\nTBR=%s\""
+             % (self["version"], self["svn_revision"], rev))
     author_option = self._options.author
     author = " --email \"%s\"" % author_option if author_option else ""
     force_flag = " -f" if self._options.force_upload else ""
-    if self.Git("cl upload%s --send-mail%s" % (author, force_flag),
-                pipe=False) is None:
-      self.Die("'git cl upload' failed, please try again.")
+    self.Git("cl upload%s --send-mail%s" % (author, force_flag), pipe=False)
     print "CL uploaded."
 
 

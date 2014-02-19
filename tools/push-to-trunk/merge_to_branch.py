@@ -91,10 +91,8 @@ class CreateBranch(Step):
   MESSAGE = "Create a fresh branch for the patch."
 
   def RunStep(self):
-    args = "checkout -b %s svn/%s" % (self.Config(BRANCHNAME),
-                                      self["merge_to_branch"])
-    if self.Git(args) is None:
-      self.die("Creating branch %s failed." % self.Config(BRANCHNAME))
+    self.Git("checkout -b %s svn/%s" % (self.Config(BRANCHNAME),
+                                        self["merge_to_branch"]))
 
 
 class SearchArchitecturePorts(Step):
@@ -226,24 +224,17 @@ class CommitLocal(Step):
   MESSAGE = "Commit to local branch."
 
   def RunStep(self):
-    if self.Git("commit -a -F \"%s\"" % self.Config(COMMITMSG_FILE)) is None:
-      self.Die("'git commit -a' failed.")
+    self.Git("commit -a -F \"%s\"" % self.Config(COMMITMSG_FILE))
 
 
 class CommitRepository(Step):
   MESSAGE = "Commit to the repository."
 
   def RunStep(self):
-    if self.Git("checkout %s" % self.Config(BRANCHNAME)) is None:
-      self.Die("Cannot ensure that the current branch is %s"
-               % self.Config(BRANCHNAME))
+    self.Git("checkout %s" % self.Config(BRANCHNAME))
     self.WaitForLGTM()
-    if self.Git("cl presubmit", "PRESUBMIT_TREE_CHECK=\"skip\"") is None:
-      self.Die("Presubmit failed.")
-
-    if self.Git("cl dcommit -f --bypass-hooks",
-                retry_on=lambda x: x is None) is None:
-      self.Die("Failed to commit to %s" % self._status["merge_to_branch"])
+    self.Git("cl presubmit", "PRESUBMIT_TREE_CHECK=\"skip\"")
+    self.Git("cl dcommit -f --bypass-hooks", retry_on=lambda x: x is None)
 
 
 class PrepareSVN(Step):
@@ -252,8 +243,7 @@ class PrepareSVN(Step):
   def RunStep(self):
     if self._options.revert_bleeding_edge:
       return
-    if self.Git("svn fetch") is None:
-      self.Die("'git svn fetch' failed.")
+    self.Git("svn fetch")
     args = ("log -1 --format=%%H --grep=\"%s\" svn/%s"
             % (self["new_commit_msg"], self["merge_to_branch"]))
     commit_hash = self.Git(args).strip()

@@ -220,6 +220,10 @@ class NoRetryException(Exception):
   pass
 
 
+class GitFailedException(Exception):
+  pass
+
+
 class CommonOptions(object):
   def __init__(self, options, manual=True):
     self.requires_editor = True
@@ -320,7 +324,10 @@ class Step(object):
 
   def Git(self, args="", prefix="", pipe=True, retry_on=None):
     cmd = lambda: self._side_effect_handler.Command("git", args, prefix, pipe)
-    return self.Retry(cmd, retry_on, [5, 30])
+    result = self.Retry(cmd, retry_on, [5, 30])
+    if result is None:
+      raise GitFailedException("'git %s' failed." % args)
+    return result
 
   def SVN(self, args="", prefix="", pipe=True, retry_on=None):
     cmd = lambda: self._side_effect_handler.Command("svn", args, prefix, pipe)
@@ -361,8 +368,7 @@ class Step(object):
       if re.match(r".*\s+%s$" % name, line):
         msg = "Branch %s exists, do you want to delete it?" % name
         if self.Confirm(msg):
-          if self.Git("branch -D %s" % name) is None:
-            self.Die("Deleting branch '%s' failed." % name)
+          self.Git("branch -D %s" % name)
           print "Branch %s deleted." % name
         else:
           msg = "Can't continue. Please delete branch %s and try again." % name
@@ -393,8 +399,7 @@ class Step(object):
         break
 
     # Fetch unfetched revisions.
-    if self.Git("svn fetch") is None:
-      self.Die("'git svn fetch' failed.")
+    self.Git("svn fetch")
 
   def PrepareBranch(self):
     # Get ahold of a safe temporary branch and check it out.
@@ -457,7 +462,9 @@ class Step(object):
   # Takes a file containing the patch to apply as first argument.
   def ApplyPatch(self, patch_file, reverse_patch=""):
     args = "apply --index --reject %s \"%s\"" % (reverse_patch, patch_file)
-    if self.Git(args) is None:
+    try:
+      self.Git(args)
+    except GitFailedException:
       self.WaitForResolvingConflicts(patch_file)
 
   def FindLastTrunkPush(self):
@@ -484,8 +491,7 @@ class UploadStep(Step):
             % (author, reviewer, force_flag))
     # TODO(machenbach): Check output in forced mode. Verify that all required
     # base files were uploaded, if not retry.
-    if self.Git(args, pipe=False) is None:
-      self.Die("'git cl upload' failed, please try again.")
+    self.Git(args, pipe=False)
 
 
 def MakeStep(step_class=Step, number=0, state=None, config=None,
