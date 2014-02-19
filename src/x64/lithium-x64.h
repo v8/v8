@@ -124,6 +124,7 @@ class LCodeGen;
   V(LoadNamedGeneric)                           \
   V(MapEnumLength)                              \
   V(MathAbs)                                    \
+  V(MathClz32)                                  \
   V(MathExp)                                    \
   V(MathFloor)                                  \
   V(MathFloorOfDiv)                             \
@@ -757,6 +758,18 @@ class LMathLog V8_FINAL : public LTemplateInstruction<1, 1, 0> {
   LOperand* value() { return inputs_[0]; }
 
   DECLARE_CONCRETE_INSTRUCTION(MathLog, "math-log")
+};
+
+
+class LMathClz32 V8_FINAL : public LTemplateInstruction<1, 1, 0> {
+ public:
+  explicit LMathClz32(LOperand* value) {
+    inputs_[0] = value;
+  }
+
+  LOperand* value() { return inputs_[0]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(MathClz32, "math-clz32")
 };
 
 
@@ -2529,6 +2542,7 @@ class LChunkBuilder V8_FINAL : public LChunkBuilderBase {
   LInstruction* DoMathExp(HUnaryMathOperation* instr);
   LInstruction* DoMathSqrt(HUnaryMathOperation* instr);
   LInstruction* DoMathPowHalf(HUnaryMathOperation* instr);
+  LInstruction* DoMathClz32(HUnaryMathOperation* instr);
 
  private:
   enum Status {

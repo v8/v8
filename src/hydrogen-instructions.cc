@@ -1147,6 +1147,7 @@ const char* HUnaryMathOperation::OpName() const {
     case kMathExp: return "exp";
     case kMathSqrt: return "sqrt";
     case kMathPowHalf: return "pow-half";
+    case kMathClz32: return "clz32";
     default:
       UNREACHABLE();
       return NULL;
@@ -1156,6 +1157,7 @@ const char* HUnaryMathOperation::OpName() const {
 
 Range* HUnaryMathOperation::InferRange(Zone* zone) {
   Representation r = representation();
+  if (op() == kMathClz32) return new(zone) Range(0, 32);
   if (r.IsSmiOrInteger32() && value()->HasRange()) {
     if (op() == kMathAbs) {
       int upper = value()->range()->upper();
@@ -3925,6 +3927,8 @@ HInstruction* HUnaryMathOperation::New(
         case kMathRound:
         case kMathFloor:
           return H_CONSTANT_DOUBLE(d);
+        case kMathClz32:
+          return H_CONSTANT_INT(32);
         default:
           UNREACHABLE();
           break;
@@ -3950,6 +3954,11 @@ HInstruction* HUnaryMathOperation::New(
         return H_CONSTANT_DOUBLE(std::floor(d + 0.5));
       case kMathFloor:
         return H_CONSTANT_DOUBLE(std::floor(d));
+      case kMathClz32: {
+        uint32_t i = static_cast<uint32_t>(constant->Integer32Value());
+        return H_CONSTANT_INT(
+            (i == 0) ? 32 : CompilerIntrinsics::CountLeadingZeros(i));
+      }
       default:
         UNREACHABLE();
         break;

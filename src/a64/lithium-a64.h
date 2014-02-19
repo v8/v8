@@ -130,6 +130,7 @@ class LCodeGen;
   V(MapEnumLength)                              \
   V(MathAbs)                                    \
   V(MathAbsTagged)                              \
+  V(MathClz32)                                  \
   V(MathExp)                                    \
   V(MathFloor)                                  \
   V(MathFloorOfDiv)                             \
@@ -1903,6 +1904,13 @@ class LMathLog V8_FINAL : public LUnaryMathOperation<0> {
  public:
   explicit LMathLog(LOperand* value) : LUnaryMathOperation<0>(value) { }
   DECLARE_CONCRETE_INSTRUCTION(MathLog, "math-log")
+};
+
+
+class LMathClz32 V8_FINAL : public LUnaryMathOperation<0> {
+ public:
+  explicit LMathClz32(LOperand* value) : LUnaryMathOperation<0>(value) { }
+  DECLARE_CONCRETE_INSTRUCTION(MathClz32, "math-clz32")
 };
 
 

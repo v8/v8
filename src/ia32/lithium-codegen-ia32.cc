@@ -4123,6 +4123,21 @@ void LCodeGen::DoMathLog(LMathLog* instr) {
 }
 
 
+void LCodeGen::DoMathClz32(LMathClz32* instr) {
+  CpuFeatureScope scope(masm(), SSE2);
+  Register input = ToRegister(instr->value());
+  Register result = ToRegister(instr->result());
+  Label not_zero_input;
+  __ bsr(result, input);
+
+  __ j(not_zero, &not_zero_input);
+  __ Set(result, Immediate(63));  // 63^31 == 32
+
+  __ bind(&not_zero_input);
+  __ xor_(result, Immediate(31));  // for x in [0..31], 31^x == 31-x.
+}
+
+
 void LCodeGen::DoMathExp(LMathExp* instr) {
   CpuFeatureScope scope(masm(), SSE2);
   XMMRegister input = ToDoubleRegister(instr->value());

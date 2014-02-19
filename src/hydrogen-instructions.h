@@ -2600,6 +2600,8 @@ class HUnaryMathOperation V8_FINAL : public HTemplateInstruction<2> {
           return Representation::Double();
         case kMathAbs:
           return representation();
+        case kMathClz32:
+          return Representation::Integer32();
         default:
           UNREACHABLE();
           return Representation::None();
@@ -2631,6 +2633,7 @@ class HUnaryMathOperation V8_FINAL : public HTemplateInstruction<2> {
     switch (op) {
       case kMathFloor:
       case kMathRound:
+      case kMathClz32:
         set_representation(Representation::Integer32());
         break;
       case kMathAbs:

@@ -2377,6 +2377,12 @@ LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
       LOperand* input = UseRegisterAtStart(instr->value());
       return DefineAsRegister(new(zone()) LMathSqrt(input));
     }
+    case kMathClz32: {
+      ASSERT(instr->representation().IsInteger32());
+      ASSERT(instr->value()->representation().IsInteger32());
+      LOperand* input = UseRegisterAtStart(instr->value());
+      return DefineAsRegister(new(zone()) LMathClz32(input));
+    }
     default:
       UNREACHABLE();
       return NULL;
