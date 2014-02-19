@@ -840,9 +840,6 @@ Register StubCompiler::CheckPrototypes(Handle<HeapType> type,
                                        Label* miss,
                                        PrototypeCheckType check) {
   Handle<Map> receiver_map(IC::TypeToMap(*type, isolate()));
-  // Make sure that the type feedback oracle harvests the receiver map.
-  // TODO(svenpanne) Remove this hack when all ICs are reworked.
-  __ Mov(scratch1, Operand(receiver_map));
 
   // object_reg and holder_reg registers can alias.
   ASSERT(!AreAliased(object_reg, scratch1, scratch2));
