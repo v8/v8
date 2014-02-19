@@ -3930,8 +3930,11 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
       scope_->DeclareFunctionVar(fvar_declaration);
     }
 
-    // Determine whether the function will be lazily compiled.
-    // The heuristics are:
+    // Determine if the function can be parsed lazily. Lazy parsing is different
+    // from lazy compilation; we need to parse more eagerly than we compile.
+
+    // We can only parse lazily if we also compile lazily. The heuristics for
+    // lazy compilation are:
     // - It must not have been prohibited by the caller to Parse (some callers
     //   need a full AST).
     // - The outer scope must allow lazy compilation of inner functions.
@@ -3941,12 +3944,31 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     //   compiled.
     // These are all things we can know at this point, without looking at the
     // function itself.
-    bool is_lazily_compiled = (mode() == PARSE_LAZILY &&
-                               scope_->AllowsLazyCompilation() &&
-                               !parenthesized_function_);
+
+    // In addition, we need to distinguish between these cases:
+    // (function foo() {
+    //   bar = function() { return 1; }
+    //  })();
+    // and
+    // (function foo() {
+    //   var a = 1;
+    //   bar = function() { return a; }
+    //  })();
+
+    // Now foo will be parsed eagerly and compiled eagerly (optimization: assume
+    // parenthesis before the function means that it will be called
+    // immediately). The inner function *must* be parsed eagerly to resolve the
+    // possible reference to the variable in foo's scope. However, it's possible
+    // that it will be compiled lazily.
+
+    // To make this additional case work, both Parser and PreParser implement a
+    // logic where only top-level functions will be parsed lazily.
+    bool is_lazily_parsed = (mode() == PARSE_LAZILY &&
+                             scope_->AllowsLazyCompilation() &&
+                             !parenthesized_function_);
     parenthesized_function_ = false;  // The bit was set for this function only.
 
-    if (is_lazily_compiled) {
+    if (is_lazily_parsed) {
       int function_block_pos = position();
       FunctionEntry entry;
       if (pre_parse_data_ != NULL) {
@@ -3970,7 +3992,20 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
           expected_property_count = entry.property_count();
           scope_->SetLanguageMode(entry.language_mode());
         } else {
-          is_lazily_compiled = false;
+          // This case happens when we have preparse data but it doesn't contain
+          // an entry for the function. As a safety net, fall back to eager
+          // parsing. It is unclear whether PreParser's laziness analysis can
+          // produce different results than the Parser's laziness analysis (see
+          // https://codereview.chromium.org/7565003 ). This safety net is
+          // guarding against the case where Parser thinks a function should be
+          // lazily parsed, but PreParser thinks it should be eagerly parsed --
+          // in that case we fall back to eager parsing in Parser, too. Note
+          // that the opposite case is worse: if PreParser thinks a function
+          // should be lazily parsed, but Parser thinks it should be eagerly
+          // parsed, it will never advance the preparse data beyond that
+          // function and all further laziness will fail (all functions will be
+          // parsed eagerly).
+          is_lazily_parsed = false;
         }
       } else {
         // With no preparser data, we partially parse the function, without
@@ -4007,7 +4042,9 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
       }
     }
 
-    if (!is_lazily_compiled) {
+    if (!is_lazily_parsed) {
+      // Everything inside an eagerly parsed function will be parsed eagerly
+      // (see comment above).
       ParsingModeScope parsing_mode(this, PARSE_EAGERLY);
       body = new(zone()) ZoneList<Statement*>(8, zone());
       if (fvar != NULL) {
