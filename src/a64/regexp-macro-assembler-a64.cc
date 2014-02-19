@@ -363,11 +363,9 @@ void RegExpMacroAssemblerA64::CheckNotBackReferenceIgnoreCase(
     __ B(ls, &loop_check);  // In range 'a'-'z'.
     // Latin-1: Check for values in range [224,254] but not 247.
     __ Sub(w10, w10, 224 - 'a');
-    // TODO(jbramley): Use Ccmp here.
     __ Cmp(w10, 254 - 224);
-    __ B(hi, &fail);  // Weren't Latin-1 letters.
-    __ Cmp(w10, 247 - 224);  // Check for 247.
-    __ B(eq, &fail);
+    __ Ccmp(w10, 247 - 224, ZFlag, ls);  // Check for 247.
+    __ B(eq, &fail);  // Weren't Latin-1 letters.
 
     __ Bind(&loop_check);
     __ Cmp(capture_start_address, capture_end_addresss);
