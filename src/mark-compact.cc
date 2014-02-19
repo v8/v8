@@ -92,8 +92,7 @@ class VerifyMarkingVisitor: public ObjectVisitor {
 
   void VisitEmbeddedPointer(RelocInfo* rinfo) {
     ASSERT(rinfo->rmode() == RelocInfo::EMBEDDED_OBJECT);
-    if (!Code::IsWeakEmbeddedObject(rinfo->host()->kind(),
-                                    rinfo->target_object())) {
+    if (!rinfo->host()->IsWeakObject(rinfo->target_object())) {
       Object* p = rinfo->target_object();
       VisitPointer(&p);
     }
@@ -102,7 +101,7 @@ class VerifyMarkingVisitor: public ObjectVisitor {
   void VisitCell(RelocInfo* rinfo) {
     Code* code = rinfo->host();
     ASSERT(rinfo->rmode() == RelocInfo::CELL);
-    if (!Code::IsWeakEmbeddedObject(code->kind(), rinfo->target_cell())) {
+    if (!code->IsWeakObject(rinfo->target_cell())) {
       ObjectVisitor::VisitCell(rinfo);
     }
   }

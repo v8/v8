@@ -270,7 +270,7 @@ void StaticMarkingVisitor<StaticVisitor>::VisitEmbeddedPointer(
   // TODO(ulan): It could be better to record slots only for strongly embedded
   // objects here and record slots for weakly embedded object during clearing
   // of non-live references in mark-compact.
-  if (!Code::IsWeakEmbeddedObject(rinfo->host()->kind(), object)) {
+  if (!rinfo->host()->IsWeakObject(object)) {
     StaticVisitor::MarkObject(heap, object);
   }
 }
@@ -282,7 +282,7 @@ void StaticMarkingVisitor<StaticVisitor>::VisitCell(
   ASSERT(rinfo->rmode() == RelocInfo::CELL);
   Cell* cell = rinfo->target_cell();
   // No need to record slots because the cell space is not compacted during GC.
-  if (!Code::IsWeakEmbeddedObject(rinfo->host()->kind(), cell)) {
+  if (!rinfo->host()->IsWeakObject(cell)) {
     StaticVisitor::MarkObject(heap, cell);
   }
 }

@@ -635,7 +635,7 @@ void Code::VerifyEmbeddedObjectsDependency() {
   int mode_mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
   for (RelocIterator it(this, mode_mask); !it.done(); it.next()) {
     Object* obj = it.rinfo()->target_object();
-    if (IsWeakEmbeddedObject(kind(), obj)) {
+    if (IsWeakObject(obj)) {
       if (obj->IsMap()) {
         Map* map = Map::cast(obj);
         CHECK(map->dependent_code()->Contains(

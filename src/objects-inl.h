@@ -4563,6 +4563,21 @@ Object* Code::GetObjectFromEntryAddress(Address location_of_address) {
 }
 
 
+bool Code::IsWeakObjectInOptimizedCode(Object* object) {
+  ASSERT(is_optimized_code());
+  if (object->IsMap()) {
+    return Map::cast(object)->CanTransition() &&
+           FLAG_collect_maps &&
+           FLAG_weak_embedded_maps_in_optimized_code;
+  }
+  if (object->IsJSObject() ||
+      (object->IsCell() && Cell::cast(object)->value()->IsJSObject())) {
+    return FLAG_weak_embedded_objects_in_optimized_code;
+  }
+  return false;
+}
+
+
 Object* Map::prototype() {
   return READ_FIELD(this, kPrototypeOffset);
 }
