@@ -3268,17 +3268,12 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   //  x1 : the function to call
   //  x2 : feedback vector
   //  x3 : slot in feedback vector (smi)
-  Label check_array, initialize_array, initialize_non_array, megamorphic, done;
+  Label initialize, done, miss, megamorphic, not_array_function;
 
   ASSERT_EQ(*TypeFeedbackInfo::MegamorphicSentinel(masm->isolate()),
             masm->isolate()->heap()->undefined_value());
-  Heap::RootListIndex kMegamorphicRootIndex = Heap::kUndefinedValueRootIndex;
   ASSERT_EQ(*TypeFeedbackInfo::UninitializedSentinel(masm->isolate()),
             masm->isolate()->heap()->the_hole_value());
-  Heap::RootListIndex kUninitializedRootIndex = Heap::kTheHoleValueRootIndex;
-  ASSERT_EQ(*TypeFeedbackInfo::PremonomorphicSentinel(masm->isolate()),
-            masm->isolate()->heap()->null_value());
-  Heap::RootListIndex kPremonomorphicRootIndex = Heap::kNullValueRootIndex;
 
   // Load the cache state.
   __ Add(x4, x2, Operand::UntagSmiAndScale(x3, kPointerSizeLog2));
@@ -3288,44 +3283,43 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   // function without changing the state.
   __ Cmp(x4, x1);
   __ B(eq, &done);
-  __ JumpIfRoot(x4, kMegamorphicRootIndex, &done);
 
-  // Check if we're dealing with the Array function or not.
-  __ LoadArrayFunction(x5);
-  __ Cmp(x1, x5);
-  __ B(eq, &check_array);
+  // If we came here, we need to see if we are the array function.
+  // If we didn't have a matching function, and we didn't find the megamorph
+  // sentinel, then we have in the slot either some other function or an
+  // AllocationSite. Do a map check on the object in ecx.
+  __ Ldr(x5, FieldMemOperand(x4, AllocationSite::kMapOffset));
+  __ JumpIfNotRoot(x5, Heap::kAllocationSiteMapRootIndex, &miss);
 
-  // Non-array cache: Check the cache state.
-  __ JumpIfRoot(x4, kPremonomorphicRootIndex, &initialize_non_array);
-  __ JumpIfNotRoot(x4, kUninitializedRootIndex, &megamorphic);
-
-  // Non-array cache: Uninitialized -> premonomorphic. The sentinel is an
-  // immortal immovable object (null) so no write-barrier is needed.
-  __ Add(x4, x2, Operand::UntagSmiAndScale(x3, kPointerSizeLog2));
-  __ LoadRoot(x10, kPremonomorphicRootIndex);
-  __ Str(x10, FieldMemOperand(x4, FixedArray::kHeaderSize));
+  // Make sure the function is the Array() function
+  __ LoadArrayFunction(x4);
+  __ Cmp(x1, x4);
+  __ B(ne, &megamorphic);
   __ B(&done);
 
-  // Array cache: Check the cache state to see if we're in a monomorphic
-  // state where the state object is an AllocationSite object.
-  __ Bind(&check_array);
-  __ Ldr(x5, FieldMemOperand(x4, AllocationSite::kMapOffset));
-  __ JumpIfRoot(x5, Heap::kAllocationSiteMapRootIndex, &done);
+  __ Bind(&miss);
 
-  // Array cache: Uninitialized or premonomorphic -> monomorphic.
-  __ JumpIfRoot(x4, kUninitializedRootIndex, &initialize_array);
-  __ JumpIfRoot(x4, kPremonomorphicRootIndex, &initialize_array);
-
-  // Both caches: Monomorphic -> megamorphic. The sentinel is an
-  // immortal immovable object (undefined) so no write-barrier is needed.
+  // A monomorphic miss (i.e, here the cache is not uninitialized) goes
+  // megamorphic.
+  __ JumpIfRoot(x4, Heap::kTheHoleValueRootIndex, &initialize);
+  // MegamorphicSentinel is an immortal immovable object (undefined) so no
+  // write-barrier is needed.
   __ Bind(&megamorphic);
   __ Add(x4, x2, Operand::UntagSmiAndScale(x3, kPointerSizeLog2));
-  __ LoadRoot(x10, kMegamorphicRootIndex);
+  __ LoadRoot(x10, Heap::kUndefinedValueRootIndex);
   __ Str(x10, FieldMemOperand(x4, FixedArray::kHeaderSize));
   __ B(&done);
 
-  // Array cache: Uninitialized or premonomorphic -> monomorphic.
-  __ Bind(&initialize_array);
+  // An uninitialized cache is patched with the function or sentinel to
+  // indicate the ElementsKind if function is the Array constructor.
+  __ Bind(&initialize);
+  // Make sure the function is the Array() function
+  __ LoadArrayFunction(x4);
+  __ Cmp(x1, x4);
+  __ B(ne, &not_array_function);
+
+  // The target function is the Array constructor,
+  // Create an AllocationSite if we don't already have it, store it in the slot.
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
     CreateAllocationSiteStub create_stub;
@@ -3341,8 +3335,9 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   }
   __ B(&done);
 
-  // Non-array cache: Premonomorphic -> monomorphic.
-  __ Bind(&initialize_non_array);
+  __ Bind(&not_array_function);
+  // An uninitialized cache is patched with the function.
+
   __ Add(x4, x2, Operand::UntagSmiAndScale(x3, kPointerSizeLog2));
   // TODO(all): Does the value need to be left in x4? If not, FieldMemOperand
   // could be used to avoid this add.
@@ -3355,6 +3350,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   __ Pop(x1, x2, x4);
 
   // TODO(all): Are x4, x2 and x1 outputs? This isn't clear.
+
   __ Bind(&done);
 }
 

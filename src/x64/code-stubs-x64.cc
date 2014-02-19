@@ -2169,7 +2169,8 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   // rdx : slot in feedback vector (Smi)
   // rdi : the function to call
   Isolate* isolate = masm->isolate();
-  Label check_array, initialize_array, initialize_non_array, megamorphic, done;
+  Label initialize, done, miss, megamorphic, not_array_function,
+      done_no_smi_convert;
 
   // Load the cache state into rcx.
   __ SmiToInteger32(rdx, rdx);
@@ -2183,49 +2184,44 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   __ Cmp(rcx, TypeFeedbackInfo::MegamorphicSentinel(isolate));
   __ j(equal, &done);
 
-  // Check if we're dealing with the Array function or not.
+  // If we came here, we need to see if we are the array function.
+  // If we didn't have a matching function, and we didn't find the megamorph
+  // sentinel, then we have in the slot either some other function or an
+  // AllocationSite. Do a map check on the object in rcx.
+  Handle<Map> allocation_site_map =
+      masm->isolate()->factory()->allocation_site_map();
+  __ Cmp(FieldOperand(rcx, 0), allocation_site_map);
+  __ j(not_equal, &miss);
+
+  // Make sure the function is the Array() function
   __ LoadArrayFunction(rcx);
   __ cmpq(rdi, rcx);
-  __ j(equal, &check_array);
-
-  // Non-array cache: Reload the cache state and check it.
-  __ movp(rcx, FieldOperand(rbx, rdx, times_pointer_size,
-                            FixedArray::kHeaderSize));
-  __ Cmp(rcx, TypeFeedbackInfo::PremonomorphicSentinel(isolate));
-  __ j(equal, &initialize_non_array);
-  __ Cmp(rcx, TypeFeedbackInfo::UninitializedSentinel(isolate));
   __ j(not_equal, &megamorphic);
+  __ jmp(&done);
 
-  // Non-array cache: Uninitialized -> premonomorphic. The sentinel is an
-  // immortal immovable object (null) so no write-barrier is needed.
-  __ Move(FieldOperand(rbx, rdx, times_pointer_size, FixedArray::kHeaderSize),
-          TypeFeedbackInfo::PremonomorphicSentinel(isolate));
-  __ jmp(&done, Label::kFar);
+  __ bind(&miss);
 
-  // Array cache: Reload the cache state and check to see if we're in a
-  // monomorphic state where the state object is an AllocationSite object.
-  __ bind(&check_array);
-  __ movp(rcx, FieldOperand(rbx, rdx, times_pointer_size,
-                            FixedArray::kHeaderSize));
-  Handle<Map> allocation_site_map = isolate->factory()->allocation_site_map();
-  __ Cmp(FieldOperand(rcx, 0), allocation_site_map);
-  __ j(equal, &done);
-
-  // Array cache: Uninitialized or premonomorphic -> monomorphic.
+  // A monomorphic miss (i.e, here the cache is not uninitialized) goes
+  // megamorphic.
   __ Cmp(rcx, TypeFeedbackInfo::UninitializedSentinel(isolate));
-  __ j(equal, &initialize_array);
-  __ Cmp(rcx, TypeFeedbackInfo::PremonomorphicSentinel(isolate));
-  __ j(equal, &initialize_array);
-
-  // Both caches: Monomorphic -> megamorphic. The sentinel is an
-  // immortal immovable object (undefined) so no write-barrier is needed.
+  __ j(equal, &initialize);
+  // MegamorphicSentinel is an immortal immovable object (undefined) so no
+  // write-barrier is needed.
   __ bind(&megamorphic);
   __ Move(FieldOperand(rbx, rdx, times_pointer_size, FixedArray::kHeaderSize),
           TypeFeedbackInfo::MegamorphicSentinel(isolate));
   __ jmp(&done);
 
-  // Array cache: Uninitialized or premonomorphic -> monomorphic.
-  __ bind(&initialize_array);
+  // An uninitialized cache is patched with the function or sentinel to
+  // indicate the ElementsKind if function is the Array constructor.
+  __ bind(&initialize);
+  // Make sure the function is the Array() function
+  __ LoadArrayFunction(rcx);
+  __ cmpq(rdi, rcx);
+  __ j(not_equal, &not_array_function);
+
+  // The target function is the Array constructor,
+  // Create an AllocationSite if we don't already have it, store it in the slot.
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
 
@@ -2246,13 +2242,13 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
     __ pop(rax);
     __ SmiToInteger32(rax, rax);
   }
-  Label done_no_smi_convert;
   __ jmp(&done_no_smi_convert);
 
-  // Non-array cache: Premonomorphic -> monomorphic.
-  __ bind(&initialize_non_array);
+  __ bind(&not_array_function);
   __ movp(FieldOperand(rbx, rdx, times_pointer_size, FixedArray::kHeaderSize),
           rdi);
+
+  // We won't need rdx or rbx anymore, just save rdi
   __ push(rdi);
   __ push(rbx);
   __ push(rdx);
