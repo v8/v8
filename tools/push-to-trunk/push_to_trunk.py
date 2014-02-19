@@ -51,6 +51,9 @@ CONFIG = {
   DEPS_FILE: "DEPS",
 }
 
+PUSH_MESSAGE_SUFFIX = " (based on bleeding_edge revision r%d)"
+PUSH_MESSAGE_RE = re.compile(r".* \(based on bleeding_edge revision r(\d+)\)$")
+
 
 class PushToTrunkOptions(CommonOptions):
   @staticmethod
@@ -61,6 +64,7 @@ class PushToTrunkOptions(CommonOptions):
     options = Options()
     options.s = 0
     options.l = None
+    options.b = None
     options.f = True
     options.m = False
     options.c = chrome_path
@@ -75,6 +79,7 @@ class PushToTrunkOptions(CommonOptions):
     self.l = options.l
     self.reviewer = options.reviewer
     self.c = options.c
+    self.b = getattr(options, 'b', None)
     self.author = getattr(options, 'a', None)
 
 class Preparation(Step):
@@ -100,16 +105,42 @@ class DetectLastPush(Step):
   MESSAGE = "Detect commit ID of last push to trunk."
 
   def RunStep(self):
-    last_push = (self._options.l or
-                 self.Git("log -1 --format=%H ChangeLog").strip())
+    last_push_trunk = self._options.l or self.FindLastTrunkPush()
     while True:
       # Print assumed commit, circumventing git's pager.
-      print self.Git("log -1 %s" % last_push)
+      print self.Git("log -1 %s" % last_push_trunk)
       if self.Confirm("Is the commit printed above the last push to trunk?"):
         break
-      args = "log -1 --format=%H %s^ ChangeLog" % last_push
-      last_push = self.Git(args).strip()
-    self["last_push"] = last_push
+      args = ("log -1 --format=%%H %s^ --grep=\"%s\""
+              % (last_push_trunk, push_pattern))
+      last_push_trunk = self.Git(args).strip()
+
+    if self._options.b:
+      # Read the bleeding edge revision of the last push from a command-line
+      # option.
+      last_push_bleeding_edge = self._options.b
+    else:
+      # Retrieve the bleeding edge revision of the last push from the text in
+      # the push commit message.
+      args = "log -1 --format=%%s %s" % last_push_trunk
+      last_push_trunk_title = self.Git(args).strip()
+      last_push_be_svn = PUSH_MESSAGE_RE.match(last_push_trunk_title).group(1)
+      if not last_push_be_svn:
+        self.Die("Could not retrieve bleeding edge revision for trunk push %s"
+                 % last_push_trunk)
+      args = "svn find-rev r%s" % last_push_be_svn
+      last_push_bleeding_edge = self.Git(args).strip()
+      if not last_push_bleeding_edge:
+        self.Die("Could not retrieve bleeding edge git hash for trunk push %s"
+                 % last_push_trunk)
+
+    # TODO(machenbach): last_push_trunk points to the svn revision on trunk.
+    # It is not used yet but we'll need it for retrieving the current version.
+    self["last_push_trunk"] = last_push_trunk
+    # TODO(machenbach): This currently points to the prepare push revision that
+    # will be deprecated soon. After the deprecation it will point to the last
+    # bleeding_edge revision that went into the last push.
+    self["last_push_bleeding_edge"] = last_push_bleeding_edge
 
 
 class PrepareChangeLog(Step):
@@ -144,7 +175,7 @@ class PrepareChangeLog(Step):
                                      self["version"])
     TextToFile(output, self.Config(CHANGELOG_ENTRY_FILE))
 
-    args = "log %s..HEAD --format=%%H" % self["last_push"]
+    args = "log %s..HEAD --format=%%H" % self["last_push_bleeding_edge"]
     commits = self.Git(args).strip()
 
     # Cache raw commit messages.
@@ -291,10 +322,8 @@ class SquashCommits(Step):
     # commit message.
     args = "svn find-rev %s" % self["prepare_commit_hash"]
     self["svn_revision"] = self.Git(args).strip()
-    text = MSub(r"^(Version \d+\.\d+\.\d+)$",
-                ("\\1 (based on bleeding_edge revision r%s)"
-                 % self["svn_revision"]),
-                text)
+    suffix = PUSH_MESSAGE_SUFFIX % int(self["svn_revision"])
+    text = MSub(r"^(Version \d+\.\d+\.\d+)$", "\\1%s" % suffix, text)
 
     # Remove indentation and merge paragraphs into single long lines, keeping
     # empty lines between them.
@@ -548,6 +577,11 @@ def BuildOptions():
   result = optparse.OptionParser()
   result.add_option("-a", "--author", dest="a",
                     help=("Specify the author email used for rietveld."))
+  result.add_option("-b", "--last-bleeding-edge", dest="b",
+                    help=("Manually specify the git commit ID of the last "
+                          "bleeding edge revision that was pushed to trunk. "
+                          "This is used for the auto-generated ChangeLog "
+                          "entry."))
   result.add_option("-c", "--chromium", dest="c",
                     help=("Specify the path to your Chromium src/ "
                           "directory to automate the V8 roll."))

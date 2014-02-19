@@ -482,7 +482,7 @@ class ScriptTest(unittest.TestCase):
        "Title\n\nBUG=456\nLOG=N\n\n"],
     ])
 
-    self._state["last_push"] = "1234"
+    self._state["last_push_bleeding_edge"] = "1234"
     self.MakeStep(PrepareChangeLog).Run()
 
     actual_cl = FileToText(TEST_CONFIG[CHANGELOG_ENTRY_FILE])
@@ -668,9 +668,14 @@ Performance and stability improvements on all platforms.""", commit)
       ["branch", "  branch1\n* branch2\n"],
       ["branch", "  branch1\n* branch2\n"],
       ["checkout -b %s svn/bleeding_edge" % TEST_CONFIG[BRANCHNAME], ""],
-      ["log -1 --format=%H ChangeLog", "1234\n"],
-      ["log -1 1234", "Last push ouput\n"],
-      ["log 1234..HEAD --format=%H", "rev1\n"],
+      [("log -1 --format=%H --grep="
+        "\"^Version [[:digit:]]*\.[[:digit:]]*\.[[:digit:]]* (based\" "
+        "svn/trunk"), "hash2\n"],
+      ["log -1 hash2", "Log message\n"],
+      ["log -1 --format=%s hash2",
+       "Version 3.4.5 (based on bleeding_edge revision r1234)\n"],
+      ["svn find-rev r1234", "hash3\n"],
+      ["log hash3..HEAD --format=%H", "rev1\n"],
       ["log -1 rev1 --format=\"%s\"", "Log text 1.\n"],
       ["log -1 rev1 --format=\"%B\"", "Text\nLOG=YES\nBUG=v8:321\nText\n"],
       ["log -1 rev1 --format=\"%an\"", "author1@chromium.org\n"],
@@ -796,7 +801,10 @@ Performance and stability improvements on all platforms.""", commit)
       ["status -s -b -uno", "## some_branch\n"],
       ["svn fetch", ""],
       ["svn log -1 --oneline", "r100 | Text"],
-      ["svn log -1 --oneline ChangeLog", "r65 | Prepare push to trunk..."],
+      [("log -1 --format=%H --grep=\""
+        "^Version [[:digit:]]*\.[[:digit:]]*\.[[:digit:]]* (based\""
+        " svn/trunk"), "push_hash\n"],
+      ["svn find-rev push_hash", "65"],
     ])
 
     auto_roll.RunAutoRoll(TEST_CONFIG, AutoRollOptions(

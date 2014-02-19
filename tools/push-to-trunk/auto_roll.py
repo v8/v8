@@ -104,17 +104,15 @@ class CheckLastPush(Step):
   MESSAGE = "Checking last V8 push to trunk."
 
   def RunStep(self):
-    log = self.Git("svn log -1 --oneline ChangeLog").strip()
-    match = re.match(r"^r(\d+) \| Prepare push to trunk", log)
-    if match:
-      latest = int(self["latest"])
-      last_push = int(match.group(1))
-      # TODO(machebach): This metric counts all revisions. It could be
-      # improved by counting only the revisions on bleeding_edge.
-      if latest - last_push < 10:
-        # This makes sure the script doesn't push twice in a row when the cron
-        # job retries several times.
-        self.Die("Last push too recently: %d" % last_push)
+    last_push_hash = self.FindLastTrunkPush()
+    last_push = int(self.Git("svn find-rev %s" % last_push_hash).strip())
+
+    # TODO(machenbach): This metric counts all revisions. It could be
+    # improved by counting only the revisions on bleeding_edge.
+    if int(self["latest"]) - last_push < 10:
+      # This makes sure the script doesn't push twice in a row when the cron
+      # job retries several times.
+      self.Die("Last push too recently: %d" % last_push)
 
 
 class FetchLKGR(Step):

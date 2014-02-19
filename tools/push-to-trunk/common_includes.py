@@ -460,6 +460,11 @@ class Step(object):
     if self.Git(args) is None:
       self.WaitForResolvingConflicts(patch_file)
 
+  def FindLastTrunkPush(self):
+    push_pattern = "^Version [[:digit:]]*\.[[:digit:]]*\.[[:digit:]]* (based"
+    args = "log -1 --format=%%H --grep=\"%s\" svn/trunk" % push_pattern
+    return self.Git(args).strip()
+
 
 class UploadStep(Step):
   MESSAGE = "Upload for code review."
