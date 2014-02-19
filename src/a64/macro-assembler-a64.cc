@@ -666,6 +666,26 @@ bool MacroAssembler::NeedExtraInstructionsOrRegisterBranch(
 }
 
 
+void MacroAssembler::B(Label* label, BranchType type, Register reg, int bit) {
+  ASSERT((reg.Is(NoReg) || type >= kBranchTypeFirstUsingReg) &&
+         (bit == -1 || type >= kBranchTypeFirstUsingBit));
+  if (kBranchTypeFirstCondition <= type && type <= kBranchTypeLastCondition) {
+    B(static_cast<Condition>(type), label);
+  } else {
+    switch (type) {
+      case always:        B(label);              break;
+      case never:         break;
+      case reg_zero:      Cbz(reg, label);       break;
+      case reg_not_zero:  Cbnz(reg, label);      break;
+      case reg_bit_clear: Tbz(reg, bit, label);  break;
+      case reg_bit_set:   Tbnz(reg, bit, label); break;
+      default:
+        UNREACHABLE();
+    }
+  }
+}
+
+
 void MacroAssembler::B(Label* label, Condition cond) {
   ASSERT(allow_macro_instructions_);
   ASSERT((cond != al) && (cond != nv));
