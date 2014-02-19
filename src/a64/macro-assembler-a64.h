@@ -2166,7 +2166,12 @@ class MacroAssembler : public Assembler {
 class InstructionAccurateScope BASE_EMBEDDED {
  public:
   InstructionAccurateScope(MacroAssembler* masm, size_t count = 0)
-      : masm_(masm), size_(count * kInstructionSize) {
+      : masm_(masm)
+#ifdef DEBUG
+        ,
+        size_(count * kInstructionSize)
+#endif
+  {
     // Before blocking the const pool, see if it needs to be emitted.
     masm_->CheckConstPool(false, true);
 
@@ -2192,8 +2197,8 @@ class InstructionAccurateScope BASE_EMBEDDED {
 
  private:
   MacroAssembler* masm_;
-  size_t size_;
 #ifdef DEBUG
+  size_t size_;
   Label start_;
   bool previous_allow_macro_instructions_;
 #endif
