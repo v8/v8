@@ -3441,18 +3441,14 @@ void MacroAssembler::CompareInstanceType(Register map,
 
 void MacroAssembler::CompareMap(Register obj,
                                 Register scratch,
-                                Handle<Map> map,
-                                Label* early_success) {
-  // TODO(jbramley): The early_success label isn't used. Remove it.
+                                Handle<Map> map) {
   Ldr(scratch, FieldMemOperand(obj, HeapObject::kMapOffset));
-  CompareMap(scratch, map, early_success);
+  CompareMap(scratch, map);
 }
 
 
 void MacroAssembler::CompareMap(Register obj_map,
-                                Handle<Map> map,
-                                Label* early_success) {
-  // TODO(jbramley): The early_success label isn't used. Remove it.
+                                Handle<Map> map) {
   Cmp(obj_map, Operand(map));
 }
 
@@ -3466,10 +3462,8 @@ void MacroAssembler::CheckMap(Register obj,
     JumpIfSmi(obj, fail);
   }
 
-  Label success;
-  CompareMap(obj, scratch, map, &success);
+  CompareMap(obj, scratch, map);
   B(ne, fail);
-  Bind(&success);
 }
 
 
@@ -3493,10 +3487,9 @@ void MacroAssembler::CheckMap(Register obj_map,
   if (smi_check_type == DO_SMI_CHECK) {
     JumpIfSmi(obj_map, fail);
   }
-  Label success;
-  CompareMap(obj_map, map, &success);
+
+  CompareMap(obj_map, map);
   B(ne, fail);
-  Bind(&success);
 }
 
 

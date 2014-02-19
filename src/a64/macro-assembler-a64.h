@@ -1307,20 +1307,16 @@ class MacroAssembler : public Assembler {
                            Register type_reg,
                            InstanceType type);
 
-  // Compare an object's map with the specified map and its transitioned
-  // elements maps if mode is ALLOW_ELEMENT_TRANSITION_MAPS. Condition flags are
-  // set with result of map compare. If multiple map compares are required, the
-  // compare sequences branches to early_success.
+  // Compare an object's map with the specified map. Condition flags are set
+  // with result of map compare.
   void CompareMap(Register obj,
                   Register scratch,
-                  Handle<Map> map,
-                  Label* early_success = NULL);
+                  Handle<Map> map);
 
   // As above, but the map of the object is already loaded into the register
   // which is preserved by the code generated.
   void CompareMap(Register obj_map,
-                  Handle<Map> map,
-                  Label* early_success = NULL);
+                  Handle<Map> map);
 
   // Check if the map of an object is equal to a specified map and branch to
   // label if not. Skip the smi check if not required (object is known to be a
