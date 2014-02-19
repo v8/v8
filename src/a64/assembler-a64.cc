@@ -180,6 +180,19 @@ void RelocInfo::PatchCodeWithCall(Address target, int guard_bytes) {
 }
 
 
+Register GetAllocatableRegisterThatIsNotOneOf(Register reg1, Register reg2,
+                                              Register reg3, Register reg4) {
+  CPURegList regs(reg1, reg2, reg3, reg4);
+  for (int i = 0; i < Register::NumAllocatableRegisters(); i++) {
+    Register candidate = Register::FromAllocationIndex(i);
+    if (regs.IncludesAliasOf(candidate)) continue;
+    return candidate;
+  }
+  UNREACHABLE();
+  return NoReg;
+}
+
+
 bool AreAliased(const CPURegister& reg1, const CPURegister& reg2,
                 const CPURegister& reg3, const CPURegister& reg4,
                 const CPURegister& reg5, const CPURegister& reg6,
@@ -234,13 +247,7 @@ bool AreSameSizeAndType(const CPURegister& reg1, const CPURegister& reg2,
 }
 
 
-Operand::Operand(const ExternalReference& f)
-    : immediate_(reinterpret_cast<intptr_t>(f.address())),
-      reg_(NoReg),
-      rmode_(RelocInfo::EXTERNAL_REFERENCE) {}
-
-
-Operand::Operand(Handle<Object> handle) : reg_(NoReg) {
+void Operand::initialize_handle(Handle<Object> handle) {
   AllowDeferredHandleDereference using_raw_address;
 
   // Verify all Objects referred by code are NOT in new space.
@@ -276,6 +283,7 @@ bool Operand::NeedsRelocation() const {
 Assembler::Assembler(Isolate* isolate, void* buffer, int buffer_size)
     : AssemblerBase(isolate, buffer, buffer_size),
       recorded_ast_id_(TypeFeedbackId::None()),
+      unresolved_branches_(),
       positions_recorder_(this) {
   const_pool_blocked_nesting_ = 0;
   Reset();
@@ -334,17 +342,97 @@ void Assembler::CheckLabelLinkChain(Label const * label) {
 #ifdef DEBUG
   if (label->is_linked()) {
     int linkoffset = label->pos();
-    bool start_of_chain = false;
-    while (!start_of_chain) {
+    bool end_of_chain = false;
+    while (!end_of_chain) {
       Instruction * link = InstructionAt(linkoffset);
       int linkpcoffset = link->ImmPCOffset();
       int prevlinkoffset = linkoffset + linkpcoffset;
 
-      start_of_chain = (linkoffset == prevlinkoffset);
+      end_of_chain = (linkoffset == prevlinkoffset);
       linkoffset = linkoffset + linkpcoffset;
     }
   }
 #endif
+}
+
+
+void Assembler::RemoveBranchFromLabelLinkChain(Instruction* branch,
+                                               Label* label,
+                                               Instruction* label_veneer) {
+  ASSERT(label->is_linked());
+
+  CheckLabelLinkChain(label);
+
+  Instruction* link = InstructionAt(label->pos());
+  Instruction* prev_link = link;
+  Instruction* next_link;
+  bool end_of_chain = false;
+
+  while (link != branch && !end_of_chain) {
+    next_link = link->ImmPCOffsetTarget();
+    end_of_chain = (link == next_link);
+    prev_link = link;
+    link = next_link;
+  }
+
+  ASSERT(branch == link);
+  next_link = branch->ImmPCOffsetTarget();
+
+  if (branch == prev_link) {
+    // The branch is the first instruction in the chain.
+    if (branch == next_link) {
+      // It is also the last instruction in the chain, so it is the only branch
+      // currently referring to this label.
+      label->Unuse();
+    } else {
+      label->link_to(reinterpret_cast<byte*>(next_link) - buffer_);
+    }
+
+  } else if (branch == next_link) {
+    // The branch is the last (but not also the first) instruction in the chain.
+    prev_link->SetImmPCOffsetTarget(prev_link);
+
+  } else {
+    // The branch is in the middle of the chain.
+    if (prev_link->IsTargetInImmPCOffsetRange(next_link)) {
+      prev_link->SetImmPCOffsetTarget(next_link);
+    } else if (label_veneer != NULL) {
+      // Use the veneer for all previous links in the chain.
+      prev_link->SetImmPCOffsetTarget(prev_link);
+
+      end_of_chain = false;
+      link = next_link;
+      while (!end_of_chain) {
+        next_link = link->ImmPCOffsetTarget();
+        end_of_chain = (link == next_link);
+        link->SetImmPCOffsetTarget(label_veneer);
+        link = next_link;
+      }
+    } else {
+      // The assert below will fire.
+      // Some other work could be attempted to fix up the chain, but it would be
+      // rather complicated. If we crash here, we may want to consider using an
+      // other mechanism than a chain of branches.
+      //
+      // Note that this situation currently should not happen, as we always call
+      // this function with a veneer to the target label.
+      // However this could happen with a MacroAssembler in the following state:
+      //    [previous code]
+      //    B(label);
+      //    [20KB code]
+      //    Tbz(label);   // First tbz. Pointing to unconditional branch.
+      //    [20KB code]
+      //    Tbz(label);   // Second tbz. Pointing to the first tbz.
+      //    [more code]
+      // and this function is called to remove the first tbz from the label link
+      // chain. Since tbz has a range of +-32KB, the second tbz cannot point to
+      // the unconditional branch.
+      CHECK(prev_link->IsTargetInImmPCOffsetRange(next_link));
+      UNREACHABLE();
+    }
+  }
+
+  CheckLabelLinkChain(label);
 }
 
 
@@ -397,6 +485,8 @@ void Assembler::bind(Label* label) {
 
   ASSERT(label->is_bound());
   ASSERT(!label->is_linked());
+
+  DeleteUnresolvedBranchInfoForLabel(label);
 }
 
 
@@ -440,6 +530,20 @@ int Assembler::LinkAndGetByteOffsetTo(Label* label) {
   }
 
   return offset;
+}
+
+
+void Assembler::DeleteUnresolvedBranchInfoForLabel(Label* label) {
+  // Branches to this label will be resolved when the label is bound below.
+  std::multimap<int, FarBranchInfo>::iterator it_tmp, it;
+  it = unresolved_branches_.begin();
+  while (it != unresolved_branches_.end()) {
+    it_tmp = it++;
+    if (it_tmp->second.label_ == label) {
+      CHECK(it_tmp->first >= pc_offset());
+      unresolved_branches_.erase(it_tmp);
+    }
+  }
 }
 
 
@@ -513,8 +617,7 @@ void Assembler::ConstantPoolGuard() {
          instr->preceding()->Rt() == xzr.code());
 #endif
 
-  // Crash by branching to 0. lr now points near the fault.
-  // TODO(all): update the simulator to trap this pattern.
+  // We must generate only one instruction.
   Emit(BLR | Rn(xzr));
 }
 
@@ -2289,7 +2392,7 @@ void Assembler::GrowBuffer() {
 }
 
 
-void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, int64_t data) {
+void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   // We do not try to reuse pool constants.
   RelocInfo rinfo(reinterpret_cast<byte*>(pc_), rmode, data, NULL);
   if (((rmode >= RelocInfo::JS_RETURN) &&

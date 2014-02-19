@@ -346,19 +346,13 @@ void MacroAssembler::Asr(const Register& rd,
 
 void MacroAssembler::B(Label* label) {
   b(label);
+  CheckVeneers(false);
 }
 
 
 void MacroAssembler::B(Condition cond, Label* label) {
   ASSERT(allow_macro_instructions_);
   B(label, cond);
-}
-
-
-void MacroAssembler::B(Label* label, Condition cond) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT((cond != al) && (cond != nv));
-  b(label, cond);
 }
 
 
@@ -411,18 +405,6 @@ void MacroAssembler::Br(const Register& xn) {
 void MacroAssembler::Brk(int code) {
   ASSERT(allow_macro_instructions_);
   brk(code);
-}
-
-
-void MacroAssembler::Cbnz(const Register& rt, Label* label) {
-  ASSERT(allow_macro_instructions_);
-  cbnz(rt, label);
-}
-
-
-void MacroAssembler::Cbz(const Register& rt, Label* label) {
-  ASSERT(allow_macro_instructions_);
-  cbz(rt, label);
 }
 
 
@@ -1032,6 +1014,7 @@ void MacroAssembler::Ret(const Register& xn) {
   ASSERT(allow_macro_instructions_);
   ASSERT(!xn.IsZero());
   ret(xn);
+  CheckVeneers(false);
 }
 
 
@@ -1186,18 +1169,6 @@ void MacroAssembler::Sxtw(const Register& rd, const Register& rn) {
 }
 
 
-void MacroAssembler::Tbnz(const Register& rt, unsigned bit_pos, Label* label) {
-  ASSERT(allow_macro_instructions_);
-  tbnz(rt, bit_pos, label);
-}
-
-
-void MacroAssembler::Tbz(const Register& rt, unsigned bit_pos, Label* label) {
-  ASSERT(allow_macro_instructions_);
-  tbz(rt, bit_pos, label);
-}
-
-
 void MacroAssembler::Ubfiz(const Register& rd,
                            const Register& rn,
                            unsigned lsb,
@@ -1252,12 +1223,6 @@ void MacroAssembler::Umsubl(const Register& rd,
   ASSERT(allow_macro_instructions_);
   ASSERT(!rd.IsZero());
   umsubl(rd, rn, rm, ra);
-}
-
-
-void MacroAssembler::Unreachable() {
-  ASSERT(allow_macro_instructions_);
-  hlt(kImmExceptionIsUnreachable);
 }
 
 

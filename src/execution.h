@@ -45,7 +45,7 @@ enum InterruptFlag {
   FULL_DEOPT = 1 << 6,
   INSTALL_CODE = 1 << 7,
   API_INTERRUPT = 1 << 8,
-  DEOPT_MARKED_CODE = 1 << 9
+  DEOPT_MARKED_ALLOCATION_SITES = 1 << 9
 };
 
 
@@ -223,8 +223,8 @@ class StackGuard {
   void RequestInstallCode();
   bool IsFullDeopt();
   void FullDeopt();
-  bool IsDeoptMarkedCode();
-  void DeoptMarkedCode();
+  bool IsDeoptMarkedAllocationSites();
+  void DeoptMarkedAllocationSites();
   void Continue(InterruptFlag after_what);
 
   void RequestInterrupt(InterruptCallback callback, void* data);

@@ -1391,7 +1391,7 @@ void RunParserSyncTest(const char* context_data[][2],
 
   static const ParserFlag flags[] = {
     kAllowLazy, kAllowHarmonyScoping, kAllowModules, kAllowGenerators,
-    kAllowForOf
+    kAllowForOf, kAllowNativesSyntax
   };
   for (int i = 0; context_data[i][0] != NULL; ++i) {
     for (int j = 0; statement_data[j] != NULL; ++j) {
@@ -2045,4 +2045,79 @@ TEST(NoErrorsRegexpLiteral) {
   };
 
   RunParserSyncTest(context_data, statement_data, kSuccess);
+}
+
+
+TEST(Intrinsics) {
+  const char* context_data[][2] = {
+    {"", ""},
+    { NULL, NULL }
+  };
+
+  const char* statement_data[] = {
+    "%someintrinsic(arg)",
+    NULL
+  };
+
+  // Parsing will fail or succeed depending on whether we allow natives syntax
+  // or not.
+  RunParserSyncTest(context_data, statement_data, kSuccessOrError);
+}
+
+
+TEST(NoErrorsNewExpression) {
+  const char* context_data[][2] = {
+    {"", ""},
+    {"var f =", ""},
+    { NULL, NULL }
+  };
+
+  const char* statement_data[] = {
+    "new foo",
+    "new foo();",
+    "new foo(1);",
+    "new foo(1, 2);",
+    // The first () will be processed as a part of the NewExpression and the
+    // second () will be processed as part of LeftHandSideExpression.
+    "new foo()();",
+    // The first () will be processed as a part of the inner NewExpression and
+    // the second () will be processed as a part of the outer NewExpression.
+    "new new foo()();",
+    "new foo.bar;",
+    "new foo.bar();",
+    "new foo.bar.baz;",
+    "new foo.bar().baz;",
+    "new foo[bar];",
+    "new foo[bar]();",
+    "new foo[bar][baz];",
+    "new foo[bar]()[baz];",
+    "new foo[bar].baz(baz)()[bar].baz;",
+    "new \"foo\"",  // Runtime error
+    "new 1",  // Runtime error
+    "new foo++",
+    // This even runs:
+    "(new new Function(\"this.x = 1\")).x;",
+    "new new Test_Two(String, 2).v(0123).length;",
+    NULL
+  };
+
+  RunParserSyncTest(context_data, statement_data, kSuccess);
+}
+
+
+TEST(ErrorsNewExpression) {
+  const char* context_data[][2] = {
+    {"", ""},
+    {"var f =", ""},
+    { NULL, NULL }
+  };
+
+  const char* statement_data[] = {
+    "new foo bar",
+    "new ) foo",
+    "new ++foo",
+    NULL
+  };
+
+  RunParserSyncTest(context_data, statement_data, kError);
 }

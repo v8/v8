@@ -687,7 +687,7 @@ PropertyAttributes JSObject::GetPropertyAttributeWithFailedAccessCheck(
 }
 
 
-Object* JSObject::GetNormalizedProperty(LookupResult* result) {
+Object* JSObject::GetNormalizedProperty(const LookupResult* result) {
   ASSERT(!HasFastProperties());
   Object* value = property_dictionary()->ValueAt(result->GetDictionaryEntry());
   if (IsGlobalObject()) {
@@ -699,7 +699,7 @@ Object* JSObject::GetNormalizedProperty(LookupResult* result) {
 
 
 void JSObject::SetNormalizedProperty(Handle<JSObject> object,
-                                     LookupResult* result,
+                                     const LookupResult* result,
                                      Handle<Object> value) {
   ASSERT(!object->HasFastProperties());
   NameDictionary* property_dictionary = object->property_dictionary();

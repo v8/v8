@@ -254,6 +254,9 @@ DEFINE_bool(use_canonicalizing, true, "use hydrogen instruction canonicalizing")
 DEFINE_bool(use_inlining, true, "use function inlining")
 DEFINE_bool(use_escape_analysis, true, "use hydrogen escape analysis")
 DEFINE_bool(use_allocation_folding, true, "use allocation folding")
+DEFINE_bool(use_local_allocation_folding, false, "only fold in basic blocks")
+DEFINE_bool(use_write_barrier_elimination, true,
+            "eliminate write barriers targeting allocations in optimized code")
 DEFINE_int(max_inlining_levels, 5, "maximum number of inlining levels")
 DEFINE_int(max_inlined_source_size, 600,
            "maximum source size in bytes considered for a single inlining")

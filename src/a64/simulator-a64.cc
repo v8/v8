@@ -112,19 +112,13 @@ Simulator* Simulator::current(Isolate* isolate) {
 }
 
 
-void Simulator::CallVoid(byte* entry, va_list args) {
+void Simulator::CallVoid(byte* entry, CallArgument* args) {
   int index_x = 0;
   int index_d = 0;
 
-  // At this point, we don't know how much stack space we need (for arguments
-  // that don't fit into registers). We can only do one pass through the
-  // va_list, so we store the extra arguments in a vector, then copy them to
-  // their proper locations later.
   std::vector<int64_t> stack_args(0);
-
-  // Process register arguments.
-  CallArgument arg = va_arg(args, CallArgument);
-  while (!arg.IsEnd()) {
+  for (int i = 0; !args[i].IsEnd(); i++) {
+    CallArgument arg = args[i];
     if (arg.IsX() && (index_x < 8)) {
       set_xreg(index_x++, arg.bits());
     } else if (arg.IsD() && (index_d < 8)) {
@@ -133,7 +127,6 @@ void Simulator::CallVoid(byte* entry, va_list args) {
       ASSERT(arg.IsD() || arg.IsX());
       stack_args.push_back(arg.bits());
     }
-    arg = va_arg(args, CallArgument);
   }
 
   // Process stack arguments, and make sure the stack is suitably aligned.
@@ -162,31 +155,14 @@ void Simulator::CallVoid(byte* entry, va_list args) {
 }
 
 
-
-void Simulator::CallVoid(byte* entry, ...) {
-  va_list args;
-  va_start(args, entry);
+int64_t Simulator::CallInt64(byte* entry, CallArgument* args) {
   CallVoid(entry, args);
-  va_end(args);
-}
-
-
-int64_t Simulator::CallInt64(byte* entry, ...) {
-  va_list args;
-  va_start(args, entry);
-  CallVoid(entry, args);
-  va_end(args);
-
   return xreg(0);
 }
 
 
-double Simulator::CallDouble(byte* entry, ...) {
-  va_list args;
-  va_start(args, entry);
+double Simulator::CallDouble(byte* entry, CallArgument* args) {
   CallVoid(entry, args);
-  va_end(args);
-
   return dreg(0);
 }
 
@@ -197,13 +173,15 @@ int64_t Simulator::CallJS(byte* entry,
                           Object* revc,
                           int64_t argc,
                           Object*** argv) {
-  return CallInt64(entry,
-                   CallArgument(function_entry),
-                   CallArgument(func),
-                   CallArgument(revc),
-                   CallArgument(argc),
-                   CallArgument(argv),
-                   CallArgument::End());
+  CallArgument args[] = {
+    CallArgument(function_entry),
+    CallArgument(func),
+    CallArgument(revc),
+    CallArgument(argc),
+    CallArgument(argv),
+    CallArgument::End()
+  };
+  return CallInt64(entry, args);
 }
 
 int64_t Simulator::CallRegExp(byte* entry,
@@ -217,18 +195,20 @@ int64_t Simulator::CallRegExp(byte* entry,
                               int64_t direct_call,
                               void* return_address,
                               Isolate* isolate) {
-  return CallInt64(entry,
-                   CallArgument(input),
-                   CallArgument(start_offset),
-                   CallArgument(input_start),
-                   CallArgument(input_end),
-                   CallArgument(output),
-                   CallArgument(output_size),
-                   CallArgument(stack_base),
-                   CallArgument(direct_call),
-                   CallArgument(return_address),
-                   CallArgument(isolate),
-                   CallArgument::End());
+  CallArgument args[] = {
+    CallArgument(input),
+    CallArgument(start_offset),
+    CallArgument(input_start),
+    CallArgument(input_end),
+    CallArgument(output),
+    CallArgument(output_size),
+    CallArgument(stack_base),
+    CallArgument(direct_call),
+    CallArgument(return_address),
+    CallArgument(isolate),
+    CallArgument::End()
+  };
+  return CallInt64(entry, args);
 }
 
 
@@ -1006,6 +986,11 @@ void Simulator::VisitUnconditionalBranchToRegister(Instruction* instr) {
   switch (instr->Mask(UnconditionalBranchToRegisterMask)) {
     case BLR: {
       set_lr(instr->NextInstruction());
+      if (instr->Rn() == 31) {
+        // BLR XZR is used as a guard for the constant pool. We should never hit
+        // this, but if we do trap to allow debugging.
+        Debug();
+      }
       // Fall through.
     }
     case BR:
@@ -2738,10 +2723,8 @@ bool Simulator::PrintValue(const char* desc) {
   }
 
   int i = CodeFromName(desc);
-  if (i == -1) {
-    return false;
-  }
-  ASSERT(i >= 0);
+  STATIC_ASSERT(kNumberOfRegisters == kNumberOfFPRegisters);
+  if (i < 0 || static_cast<unsigned>(i) >= kNumberOfFPRegisters) return false;
 
   if (desc[0] == 'v') {
     PrintF("%s %s:%s 0x%016" PRIx64 "%s (%s%s:%s %g%s %s:%s %g%s)\n",
@@ -2947,7 +2930,7 @@ void Simulator::Debug() {
           next_arg++;
         }
 
-        int64_t words;
+        int64_t words = 0;
         if (argc == next_arg) {
           words = 10;
         } else if (argc == next_arg + 1) {
@@ -2956,6 +2939,8 @@ void Simulator::Debug() {
             PrintF("Printing 10 double words by default");
             words = 10;
           }
+        } else {
+          UNREACHABLE();
         }
         end = cur + words;
 

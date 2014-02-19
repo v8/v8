@@ -3438,6 +3438,15 @@ bool HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
     return false;
   }
 
+  // Check whether we are folding within the same block for local folding.
+  if (FLAG_use_local_allocation_folding && dominator->block() != block()) {
+    if (FLAG_trace_allocation_folding) {
+      PrintF("#%d (%s) cannot fold into #%d (%s), crosses basic blocks\n",
+          id(), Mnemonic(), dominator->id(), dominator->Mnemonic());
+    }
+    return false;
+  }
+
   HAllocate* dominator_allocate = HAllocate::cast(dominator);
   HValue* dominator_size = dominator_allocate->size();
   HValue* current_size = size();
@@ -4367,14 +4376,14 @@ HObjectAccess HObjectAccess::ForBackingStoreOffset(int offset,
 HObjectAccess HObjectAccess::ForField(Handle<Map> map,
                                       LookupResult* lookup,
                                       Handle<String> name) {
-  ASSERT(lookup->IsField() || lookup->IsTransitionToField(*map));
+  ASSERT(lookup->IsField() || lookup->IsTransitionToField());
   int index;
   Representation representation;
   if (lookup->IsField()) {
     index = lookup->GetLocalFieldIndexFromMap(*map);
     representation = lookup->representation();
   } else {
-    Map* transition = lookup->GetTransitionMapFromMap(*map);
+    Map* transition = lookup->GetTransitionTarget();
     int descriptor = transition->LastAdded();
     index = transition->instance_descriptors()->GetFieldIndex(descriptor) -
         map->inobject_properties();

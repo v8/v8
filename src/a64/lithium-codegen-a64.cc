@@ -1505,8 +1505,9 @@ void LCodeGen::DoAllocate(LAllocate* instr) {
     int32_t size = ToInteger32(LConstantOperand::cast(instr->size()));
     __ Allocate(size, result, temp1, temp2, deferred->entry(), flags);
   } else {
-    Register size = ToRegister(instr->size());
-    __ Allocate(size, result, temp1, temp2, deferred->entry(), flags);
+    Register size = ToRegister32(instr->size());
+    __ Sxtw(size.X(), size);
+    __ Allocate(size.X(), result, temp1, temp2, deferred->entry(), flags);
   }
 
   __ Bind(deferred->exit());
@@ -1516,7 +1517,7 @@ void LCodeGen::DoAllocate(LAllocate* instr) {
       int32_t size = ToInteger32(LConstantOperand::cast(instr->size()));
       __ Mov(temp1, size - kPointerSize);
     } else {
-      __ Sub(temp1, ToRegister(instr->size()), kPointerSize);
+      __ Sub(temp1.W(), ToRegister32(instr->size()), kPointerSize);
     }
     __ Sub(result, result, kHeapObjectTag);
 
@@ -1545,7 +1546,7 @@ void LCodeGen::DoDeferredAllocate(LAllocate* instr) {
   if (instr->size()->IsConstantOperand()) {
     __ Mov(size, Operand(ToSmi(LConstantOperand::cast(instr->size()))));
   } else {
-    __ SmiTag(size, ToRegister(instr->size()));
+    __ SmiTag(size, ToRegister32(instr->size()).X());
   }
   int flags = AllocateDoubleAlignFlag::encode(
       instr->hydrogen()->MustAllocateDoubleAligned());
@@ -1647,7 +1648,7 @@ void LCodeGen::DoArgumentsElements(LArgumentsElements* instr) {
 
 void LCodeGen::DoArgumentsLength(LArgumentsLength* instr) {
   Register elements = ToRegister(instr->elements());
-  Register result = ToRegister(instr->result());
+  Register result = ToRegister32(instr->result());
   Label done;
 
   // If no arguments adaptor frame the number of arguments is fixed.
@@ -1656,10 +1657,10 @@ void LCodeGen::DoArgumentsLength(LArgumentsLength* instr) {
   __ B(eq, &done);
 
   // Arguments adaptor frame present. Get argument length from there.
-  __ Ldr(result, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
-  __ Ldrsw(result,
-           UntagSmiMemOperand(result,
-                              ArgumentsAdaptorFrameConstants::kLengthOffset));
+  __ Ldr(result.X(), MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
+  __ Ldr(result,
+         UntagSmiMemOperand(result.X(),
+                            ArgumentsAdaptorFrameConstants::kLengthOffset));
 
   // Argument length is in result register.
   __ Bind(&done);
@@ -2582,131 +2583,103 @@ void LCodeGen::DoDeoptimize(LDeoptimize* instr) {
 
 
 void LCodeGen::DoDivI(LDivI* instr) {
-  Register dividend = ToRegister32(instr->left());
-  Register result = ToRegister32(instr->result());
+  if (!instr->is_flooring() && instr->hydrogen()->RightIsPowerOf2()) {
+    HDiv* hdiv = instr->hydrogen();
+    Register dividend = ToRegister32(instr->left());
+    int32_t divisor = hdiv->right()->GetInteger32Constant();
+    Register result = ToRegister32(instr->result());
+    ASSERT(!result.is(dividend));
 
-  bool has_power_of_2_divisor = instr->hydrogen()->RightIsPowerOf2();
-  bool can_overflow = instr->hydrogen()->CheckFlag(HValue::kCanOverflow);
-  bool bailout_on_minus_zero =
-      instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero);
-  bool can_be_div_by_zero =
-      instr->hydrogen()->CheckFlag(HValue::kCanBeDivByZero);
-  bool all_uses_truncating_to_int32 =
-      instr->hydrogen()->CheckFlag(HInstruction::kAllUsesTruncatingToInt32);
-
-  if (has_power_of_2_divisor) {
-    ASSERT(instr->temp() == NULL);
-    int32_t divisor = ToInteger32(LConstantOperand::cast(instr->right()));
-    int32_t power;
-    int32_t power_mask;
-    Label deopt, done;
-
-    ASSERT(divisor != 0);
-    if (divisor > 0) {
-      power = WhichPowerOf2(divisor);
-      power_mask = divisor - 1;
-    } else {
-      // Check for (0 / -x) as that will produce negative zero.
-      if (bailout_on_minus_zero) {
-        if (all_uses_truncating_to_int32) {
-         // If all uses truncate, and the dividend is zero, the truncated
-         // result is zero.
-         __ Mov(result, 0);
-         __ Cbz(dividend, &done);
-        } else {
-          __ Cbz(dividend, &deopt);
-        }
-      }
-      // Check for (kMinInt / -1).
-      if ((divisor == -1) && can_overflow && !all_uses_truncating_to_int32) {
-        // Check for kMinInt by subtracting one and checking for overflow.
-        __ Cmp(dividend, 1);
-        __ B(vs, &deopt);
-      }
-      power = WhichPowerOf2(-divisor);
-      power_mask = -divisor - 1;
+    // Check for (0 / -x) that will produce negative zero.
+    if (hdiv->left()->RangeCanInclude(0) && divisor < 0 &&
+        hdiv->CheckFlag(HValue::kBailoutOnMinusZero)) {
+      __ Cmp(dividend, 0);
+      DeoptimizeIf(eq, instr->environment());
     }
-
-    if (power_mask != 0) {
-      if (all_uses_truncating_to_int32) {
-        __ Cmp(dividend, 0);
-        __ Cneg(result, dividend, lt);
-        __ Asr(result, result, power);
-        if (divisor > 0) __ Cneg(result, result, lt);
-        if (divisor < 0) __ Cneg(result, result, gt);
-        return;  // Don't fall through to negation below.
-      } else {
-        // Deoptimize if remainder is not 0. If the least-significant
-        // power bits aren't 0, it's not a multiple of 2^power, and
-        // therefore, there will be a remainder.
-        __ TestAndBranchIfAnySet(dividend, power_mask, &deopt);
-        __ Asr(result, dividend, power);
-        if (divisor < 0) __ Neg(result, result);
-      }
-    } else {
-      ASSERT((divisor == 1) || (divisor == -1));
-      if (divisor < 0) {
-        __ Neg(result, dividend);
-      } else {
-        __ Mov(result, dividend);
-      }
+    // Check for (kMinInt / -1).
+    if (hdiv->left()->RangeCanInclude(kMinInt) && divisor == -1 &&
+        hdiv->CheckFlag(HValue::kCanOverflow)) {
+      __ Cmp(dividend, kMinInt);
+      DeoptimizeIf(eq, instr->environment());
     }
-    __ B(&done);
-    __ Bind(&deopt);
-    Deoptimize(instr->environment());
-    __ Bind(&done);
-  } else {
-    Register divisor = ToRegister32(instr->right());
-
-    // Issue the division first, and then check for any deopt cases whilst the
-    // result is computed.
-    __ Sdiv(result, dividend, divisor);
-
-    if (!all_uses_truncating_to_int32) {
-      Label deopt;
-      // Check for x / 0.
-      if (can_be_div_by_zero) {
-        __ Cbz(divisor, &deopt);
-      }
-
-      // Check for (0 / -x) as that will produce negative zero.
-      if (bailout_on_minus_zero) {
-        __ Cmp(divisor, 0);
-
-        // If the divisor < 0 (mi), compare the dividend, and deopt if it is
-        // zero, ie. zero dividend with negative divisor deopts.
-        // If the divisor >= 0 (pl, the opposite of mi) set the flags to
-        // condition ne, so we don't deopt, ie. positive divisor doesn't deopt.
-        __ Ccmp(dividend, 0, NoFlag, mi);
-        __ B(eq, &deopt);
-      }
-
-      // Check for (kMinInt / -1).
-      if (can_overflow) {
-        // Test dividend for kMinInt by subtracting one (cmp) and checking for
-        // overflow.
-        __ Cmp(dividend, 1);
-        // If overflow is set, ie. dividend = kMinInt, compare the divisor with
-        // -1. If overflow is clear, set the flags for condition ne, as the
-        // dividend isn't -1, and thus we shouldn't deopt.
-        __ Ccmp(divisor, -1, NoFlag, vs);
-        __ B(eq, &deopt);
-      }
-
-      // Compute remainder and deopt if it's not zero.
-      Register remainder = ToRegister32(instr->temp());
-      __ Msub(remainder, result, divisor, dividend);
-      __ Cbnz(remainder, &deopt);
-
-      Label div_ok;
-      __ B(&div_ok);
-      __ Bind(&deopt);
-      Deoptimize(instr->environment());
-      __ Bind(&div_ok);
-    } else {
-      ASSERT(instr->temp() == NULL);
+    // Deoptimize if remainder will not be 0.
+    if (!hdiv->CheckFlag(HInstruction::kAllUsesTruncatingToInt32) &&
+        Abs(divisor) != 1) {
+      __ Tst(dividend, Abs(divisor) - 1);
+      DeoptimizeIf(ne, instr->environment());
     }
+    if (divisor == -1) {  // Nice shortcut, not needed for correctness.
+      __ Neg(result, dividend);
+      return;
+    }
+    int32_t shift = WhichPowerOf2(Abs(divisor));
+    if (shift == 0) {
+      __ Mov(result, dividend);
+    } else if (shift == 1) {
+      __ Add(result, dividend, Operand(dividend, LSR, 31));
+    } else {
+      __ Mov(result, Operand(dividend, ASR, 31));
+      __ Add(result, dividend, Operand(result, LSR, 32 - shift));
+    }
+    if (shift > 0) __ Mov(result, Operand(result, ASR, shift));
+    if (divisor < 0) __ Neg(result, result);
+    return;
   }
+
+  Register dividend = ToRegister32(instr->left());
+  Register divisor = ToRegister32(instr->right());
+  Register result = ToRegister32(instr->result());
+  HValue* hdiv = instr->hydrogen_value();
+
+  // Issue the division first, and then check for any deopt cases whilst the
+  // result is computed.
+  __ Sdiv(result, dividend, divisor);
+
+  if (hdiv->CheckFlag(HInstruction::kAllUsesTruncatingToInt32)) {
+    ASSERT_EQ(NULL, instr->temp());
+    return;
+  }
+
+  Label deopt;
+  // Check for x / 0.
+  if (hdiv->CheckFlag(HValue::kCanBeDivByZero)) {
+    __ Cbz(divisor, &deopt);
+  }
+
+  // Check for (0 / -x) as that will produce negative zero.
+  if (hdiv->CheckFlag(HValue::kBailoutOnMinusZero)) {
+    __ Cmp(divisor, 0);
+
+    // If the divisor < 0 (mi), compare the dividend, and deopt if it is
+    // zero, ie. zero dividend with negative divisor deopts.
+    // If the divisor >= 0 (pl, the opposite of mi) set the flags to
+    // condition ne, so we don't deopt, ie. positive divisor doesn't deopt.
+    __ Ccmp(dividend, 0, NoFlag, mi);
+    __ B(eq, &deopt);
+  }
+
+  // Check for (kMinInt / -1).
+  if (hdiv->CheckFlag(HValue::kCanOverflow)) {
+    // Test dividend for kMinInt by subtracting one (cmp) and checking for
+    // overflow.
+    __ Cmp(dividend, 1);
+    // If overflow is set, ie. dividend = kMinInt, compare the divisor with
+    // -1. If overflow is clear, set the flags for condition ne, as the
+    // dividend isn't -1, and thus we shouldn't deopt.
+    __ Ccmp(divisor, -1, NoFlag, vs);
+    __ B(eq, &deopt);
+  }
+
+  // Compute remainder and deopt if it's not zero.
+  Register remainder = ToRegister32(instr->temp());
+  __ Msub(remainder, result, divisor, dividend);
+  __ Cbnz(remainder, &deopt);
+
+  Label div_ok;
+  __ B(&div_ok);
+  __ Bind(&deopt);
+  Deoptimize(instr->environment());
+  __ Bind(&div_ok);
 }
 
 
@@ -5323,8 +5296,7 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr,
     __ JumpIfNotRoot(scratch1, Heap::kHeapNumberMapRootIndex, &check_bools);
 
     // A heap number: load value and convert to int32 using truncating function.
-    __ Ldr(dbl_scratch1, FieldMemOperand(input, HeapNumber::kValueOffset));
-    __ ECMA262ToInt32(output, dbl_scratch1, scratch1, scratch2);
+    __ TruncateHeapNumberToI(output, input);
     __ B(&done);
 
     __ Bind(&check_bools);
@@ -5511,12 +5483,10 @@ void LCodeGen::DoTrapAllocationMemento(LTrapAllocationMemento* instr) {
 void LCodeGen::DoTruncateDoubleToIntOrSmi(LTruncateDoubleToIntOrSmi* instr) {
   DoubleRegister input = ToDoubleRegister(instr->value());
   Register result = ToRegister(instr->result());
-  __ ECMA262ToInt32(result, input,
-                    ToRegister(instr->temp1()),
-                    ToRegister(instr->temp2()),
-                    instr->tag_result()
-                        ? MacroAssembler::SMI
-                        : MacroAssembler::INT32_IN_W);
+  __ TruncateDoubleToI(result, input);
+  if (instr->tag_result()) {
+    __ SmiTag(result, result);
+  }
 }
 
 
@@ -5677,6 +5647,7 @@ void LCodeGen::DoWrapReceiver(LWrapReceiver* instr) {
   // Deoptimize if the receiver is not a JS object.
   __ JumpIfSmi(receiver, &deopt);
   __ CompareObjectType(receiver, result, result, FIRST_SPEC_OBJECT_TYPE);
+  __ Mov(result, receiver);
   __ B(ge, &done);
   // Otherwise, fall through to deopt.
 
@@ -5684,16 +5655,11 @@ void LCodeGen::DoWrapReceiver(LWrapReceiver* instr) {
   Deoptimize(instr->environment());
 
   __ Bind(&global_object);
-  // We could load directly into the result register here, but the additional
-  // branches required are likely to be more time consuming than one additional
-  // move.
-  __ Ldr(receiver, FieldMemOperand(function, JSFunction::kContextOffset));
-  __ Ldr(receiver, ContextMemOperand(receiver, Context::GLOBAL_OBJECT_INDEX));
-  __ Ldr(receiver,
-         FieldMemOperand(receiver, GlobalObject::kGlobalReceiverOffset));
+  __ Ldr(result, FieldMemOperand(function, JSFunction::kContextOffset));
+  __ Ldr(result, ContextMemOperand(result, Context::GLOBAL_OBJECT_INDEX));
+  __ Ldr(result, FieldMemOperand(result, GlobalObject::kGlobalReceiverOffset));
 
   __ Bind(&done);
-  __ Mov(result, receiver);
 }
 
 

@@ -81,6 +81,11 @@ class CodeStubGraphBuilderBase : public HGraphBuilder {
   HContext* context() { return context_; }
   Isolate* isolate() { return info_.isolate(); }
 
+  HLoadNamedField* BuildLoadNamedField(HValue* object,
+                                       Representation representation,
+                                       int offset,
+                                       bool is_inobject);
+
   enum ArgumentClass {
     NONE,
     SINGLE,
@@ -247,8 +252,7 @@ Handle<Code> HydrogenCodeStub::GenerateLightweightMissCode(Isolate* isolate) {
       GetCodeKind(),
       GetICState(),
       GetExtraICState(),
-      GetStubType(),
-      GetHandlerKind());
+      GetStubType());
   Handle<Code> new_object = factory->NewCode(
       desc, flags, masm.CodeObject(), NeedsImmovableCode());
   return new_object;
@@ -560,14 +564,32 @@ Handle<Code> KeyedLoadFastElementStub::GenerateCode(Isolate* isolate) {
 }
 
 
+HLoadNamedField* CodeStubGraphBuilderBase::BuildLoadNamedField(
+    HValue* object,
+    Representation representation,
+    int offset,
+    bool is_inobject) {
+  HObjectAccess access = is_inobject
+      ? HObjectAccess::ForObservableJSObjectOffset(offset, representation)
+      : HObjectAccess::ForBackingStoreOffset(offset, representation);
+  if (representation.IsDouble()) {
+    // Load the heap number.
+    object = Add<HLoadNamedField>(
+        object, static_cast<HValue*>(NULL),
+        access.WithRepresentation(Representation::Tagged()));
+    // Load the double value from it.
+    access = HObjectAccess::ForHeapNumberValue();
+  }
+  return Add<HLoadNamedField>(object, static_cast<HValue*>(NULL), access);
+}
+
+
 template<>
 HValue* CodeStubGraphBuilder<LoadFieldStub>::BuildCodeStub() {
-  Representation rep = casted_stub()->representation();
-  int offset = casted_stub()->offset();
-  HObjectAccess access = casted_stub()->is_inobject() ?
-      HObjectAccess::ForObservableJSObjectOffset(offset, rep) :
-      HObjectAccess::ForBackingStoreOffset(offset, rep);
-  return AddLoadNamedField(GetParameter(0), access);
+  return BuildLoadNamedField(GetParameter(0),
+                             casted_stub()->representation(),
+                             casted_stub()->offset(),
+                             casted_stub()->is_inobject());
 }
 
 
@@ -578,12 +600,10 @@ Handle<Code> LoadFieldStub::GenerateCode(Isolate* isolate) {
 
 template<>
 HValue* CodeStubGraphBuilder<KeyedLoadFieldStub>::BuildCodeStub() {
-  Representation rep = casted_stub()->representation();
-  int offset = casted_stub()->offset();
-  HObjectAccess access = casted_stub()->is_inobject() ?
-      HObjectAccess::ForObservableJSObjectOffset(offset, rep) :
-      HObjectAccess::ForBackingStoreOffset(offset, rep);
-  return AddLoadNamedField(GetParameter(0), access);
+  return BuildLoadNamedField(GetParameter(0),
+                             casted_stub()->representation(),
+                             casted_stub()->offset(),
+                             casted_stub()->is_inobject());
 }
 
 
@@ -1031,13 +1051,16 @@ HValue* CodeStubGraphBuilder<StoreGlobalStub>::BuildCodeInitializedStub() {
   Handle<PropertyCell> placeholder_cell =
       isolate()->factory()->NewPropertyCell(placeholer_value);
 
-  HParameter* receiver = GetParameter(0);
   HParameter* value = GetParameter(2);
 
-  // Check that the map of the global has not changed: use a placeholder map
-  // that will be replaced later with the global object's map.
-  Handle<Map> placeholder_map = isolate()->factory()->meta_map();
-  Add<HCheckMaps>(receiver, placeholder_map, top_info());
+  if (stub->check_global()) {
+    // Check that the map of the global has not changed: use a placeholder map
+    // that will be replaced later with the global object's map.
+    Handle<Map> placeholder_map = isolate()->factory()->meta_map();
+    HValue* global = Add<HConstant>(
+        StoreGlobalStub::global_placeholder(isolate()));
+    Add<HCheckMaps>(global, placeholder_map, top_info());
+  }
 
   HValue* cell = Add<HConstant>(placeholder_cell);
   HObjectAccess access(HObjectAccess::ForCellPayload(isolate()));

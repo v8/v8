@@ -215,8 +215,7 @@ Code::Flags CompilationInfo::flags() const {
     return Code::ComputeFlags(code_stub()->GetCodeKind(),
                               code_stub()->GetICState(),
                               code_stub()->GetExtraICState(),
-                              code_stub()->GetStubType(),
-                              code_stub()->GetHandlerKind());
+                              code_stub()->GetStubType());
   } else {
     return Code::ComputeFlags(Code::OPTIMIZED_FUNCTION);
   }

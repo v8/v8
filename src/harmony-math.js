@@ -109,19 +109,19 @@ function MathAtanh(x) {
 }
 
 
-//ES6 draft 09-27-13, section 20.2.2.21.
+// ES6 draft 09-27-13, section 20.2.2.21.
 function MathLog10(x) {
   return MathLog(x) * 0.434294481903251828;  // log10(x) = log(x)/log(10).
 }
 
 
-//ES6 draft 09-27-13, section 20.2.2.22.
+// ES6 draft 09-27-13, section 20.2.2.22.
 function MathLog2(x) {
   return MathLog(x) * 1.442695040888963407;  // log2(x) = log(x)/log(2).
 }
 
 
-//ES6 draft 09-27-13, section 20.2.2.17.
+// ES6 draft 09-27-13, section 20.2.2.17.
 function MathHypot(x, y) {  // Function length is 2.
   // We may want to introduce fast paths for two arguments and when
   // normalization to avoid overflow is not necessary.  For now, we
@@ -154,6 +154,26 @@ function MathHypot(x, y) {  // Function length is 2.
 }
 
 
+// ES6 draft 09-27-13, section 20.2.2.16.
+function MathFround(x) {
+  return %Math_fround(TO_NUMBER_INLINE(x));
+}
+
+
+function MathClz32(x) {
+  x = ToUint32(TO_NUMBER_INLINE(x));
+  if (x == 0) return 32;
+  var result = 0;
+  // Binary search.
+  if ((x & 0xFFFF0000) === 0) { x <<= 16; result += 16; };
+  if ((x & 0xFF000000) === 0) { x <<=  8; result +=  8; };
+  if ((x & 0xF0000000) === 0) { x <<=  4; result +=  4; };
+  if ((x & 0xC0000000) === 0) { x <<=  2; result +=  2; };
+  if ((x & 0x80000000) === 0) { x <<=  1; result +=  1; };
+  return result;
+}
+
+
 function ExtendMath() {
   %CheckIsBootstrapping();
 
@@ -169,8 +189,11 @@ function ExtendMath() {
     "atanh", MathAtanh,
     "log10", MathLog10,
     "log2", MathLog2,
-    "hypot", MathHypot
+    "hypot", MathHypot,
+    "fround", MathFround,
+    "clz32", MathClz32
   ));
 }
+
 
 ExtendMath();

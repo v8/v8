@@ -1453,54 +1453,39 @@ void LCodeGen::DoModI(LModI* instr) {
 void LCodeGen::DoDivI(LDivI* instr) {
   if (!instr->is_flooring() && instr->hydrogen()->RightIsPowerOf2()) {
     Register dividend = ToRegister(instr->left());
-    int32_t divisor = instr->hydrogen()->right()->GetInteger32Constant();
-    int32_t test_value = 0;
-    int32_t power = 0;
+    HDiv* hdiv = instr->hydrogen();
+    int32_t divisor = hdiv->right()->GetInteger32Constant();
+    Register result = ToRegister(instr->result());
+    ASSERT(!result.is(dividend));
 
-    if (divisor > 0) {
-      test_value = divisor - 1;
-      power = WhichPowerOf2(divisor);
-    } else {
-      // Check for (0 / -x) that will produce negative zero.
-      if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
-        __ test(dividend, Operand(dividend));
-        DeoptimizeIf(zero, instr->environment());
-      }
-      // Check for (kMinInt / -1).
-      if (divisor == -1 && instr->hydrogen()->CheckFlag(HValue::kCanOverflow)) {
-        __ cmp(dividend, kMinInt);
-        DeoptimizeIf(zero, instr->environment());
-      }
-      test_value = - divisor - 1;
-      power = WhichPowerOf2(-divisor);
+    // Check for (0 / -x) that will produce negative zero.
+    if (hdiv->left()->RangeCanInclude(0) && divisor < 0 &&
+        hdiv->CheckFlag(HValue::kBailoutOnMinusZero)) {
+      __ test(dividend, Operand(dividend));
+      DeoptimizeIf(zero, instr->environment());
     }
-
-    if (test_value != 0) {
-      if (instr->hydrogen()->CheckFlag(
-          HInstruction::kAllUsesTruncatingToInt32)) {
-        Label done, negative;
-        __ cmp(dividend, 0);
-        __ j(less, &negative, Label::kNear);
-        __ sar(dividend, power);
-        if (divisor < 0) __ neg(dividend);
-        __ jmp(&done, Label::kNear);
-
-        __ bind(&negative);
-        __ neg(dividend);
-        __ sar(dividend, power);
-        if (divisor > 0) __ neg(dividend);
-        __ bind(&done);
-        return;  // Don't fall through to "__ neg" below.
-      } else {
-        // Deoptimize if remainder is not 0.
-        __ test(dividend, Immediate(test_value));
+    // Check for (kMinInt / -1).
+    if (hdiv->left()->RangeCanInclude(kMinInt) && divisor == -1 &&
+        hdiv->CheckFlag(HValue::kCanOverflow)) {
+      __ cmp(dividend, kMinInt);
+      DeoptimizeIf(zero, instr->environment());
+    }
+    // Deoptimize if remainder will not be 0.
+    if (!hdiv->CheckFlag(HInstruction::kAllUsesTruncatingToInt32) &&
+        Abs(divisor) != 1) {
+        __ test(dividend, Immediate(Abs(divisor) - 1));
         DeoptimizeIf(not_zero, instr->environment());
-        __ sar(dividend, power);
-      }
     }
-
-    if (divisor < 0) __ neg(dividend);
-
+    __ Move(result, dividend);
+    int32_t shift = WhichPowerOf2(Abs(divisor));
+    if (shift > 0) {
+      // The arithmetic shift is always OK, the 'if' is an optimization only.
+      if (shift > 1) __ sar(result, 31);
+      __ shr(result, 32 - shift);
+      __ add(result, dividend);
+      __ sar(result, shift);
+    }
+    if (divisor < 0) __ neg(result);
     return;
   }
 

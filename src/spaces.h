@@ -467,16 +467,32 @@ class MemoryChunk {
   // Return all current flags.
   intptr_t GetFlags() { return flags_; }
 
-  intptr_t parallel_sweeping() const {
-    return parallel_sweeping_;
+
+  // PARALLEL_SWEEPING_PENDING - This page is ready for parallel sweeping.
+  // PARALLEL_SWEEPING_IN_PROGRESS - This page is currently swept or was
+  // swept by a sweeper thread.
+  // PARALLEL_SWEEPING_DONE - The page state when sweeping is complete or
+  // sweeping must not be performed on that page.
+  enum ParallelSweepingState {
+    PARALLEL_SWEEPING_DONE,
+    PARALLEL_SWEEPING_IN_PROGRESS,
+    PARALLEL_SWEEPING_PENDING
+  };
+
+  ParallelSweepingState parallel_sweeping() {
+    return static_cast<ParallelSweepingState>(
+        NoBarrier_Load(&parallel_sweeping_));
   }
 
-  void set_parallel_sweeping(intptr_t state) {
-    parallel_sweeping_ = state;
+  void set_parallel_sweeping(ParallelSweepingState state) {
+    NoBarrier_Store(&parallel_sweeping_, state);
   }
 
   bool TryParallelSweeping() {
-    return NoBarrier_CompareAndSwap(&parallel_sweeping_, 1, 0) == 1;
+    return NoBarrier_CompareAndSwap(&parallel_sweeping_,
+                                    PARALLEL_SWEEPING_PENDING,
+                                    PARALLEL_SWEEPING_IN_PROGRESS) ==
+                                        PARALLEL_SWEEPING_PENDING;
   }
 
   // Manage live byte count (count of bytes known to be live,
@@ -711,7 +727,7 @@ class MemoryChunk {
   // count highest number of bytes ever allocated on the page.
   int high_water_mark_;
 
-  intptr_t parallel_sweeping_;
+  AtomicWord parallel_sweeping_;
 
   // PagedSpace free-list statistics.
   intptr_t available_in_small_free_list_;

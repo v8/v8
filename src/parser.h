@@ -463,8 +463,26 @@ class ParserTraits {
   }
 
   // Producing data during the recursive descent.
-  Handle<String> GetSymbol();
-  Handle<String> NextLiteralString(PretenureFlag tenured);
+  Handle<String> GetSymbol(Scanner* scanner = NULL);
+  Handle<String> NextLiteralString(Scanner* scanner,
+                                   PretenureFlag tenured);
+  Expression* ThisExpression(Scope* scope,
+                             AstNodeFactory<AstConstructionVisitor>* factory);
+  Expression* ExpressionFromLiteral(
+      Token::Value token, int pos, Scanner* scanner,
+      AstNodeFactory<AstConstructionVisitor>* factory);
+  Expression* ExpressionFromIdentifier(
+      Handle<String> name, int pos, Scope* scope,
+      AstNodeFactory<AstConstructionVisitor>* factory);
+  Expression* ExpressionFromString(
+      int pos, Scanner* scanner,
+      AstNodeFactory<AstConstructionVisitor>* factory);
+
+  // Temporary glue; these functions will move to ParserBase.
+  Expression* ParseArrayLiteral(bool* ok);
+  Expression* ParseObjectLiteral(bool* ok);
+  Expression* ParseExpression(bool accept_IN, bool* ok);
+  Expression* ParseV8Intrinsic(bool* ok);
 
  private:
   Parser* parser_;
@@ -552,7 +570,6 @@ class Parser : public ParserBase<ParserTraits> {
   }
 
   bool inside_with() const { return scope_->inside_with(); }
-  Scanner& scanner()  { return scanner_; }
   Mode mode() const { return mode_; }
   ScriptDataImpl* pre_parse_data() const { return pre_parse_data_; }
   bool is_extended_mode() {
@@ -621,12 +638,10 @@ class Parser : public ParserBase<ParserTraits> {
   Expression* ParseUnaryExpression(bool* ok);
   Expression* ParsePostfixExpression(bool* ok);
   Expression* ParseLeftHandSideExpression(bool* ok);
-  Expression* ParseNewExpression(bool* ok);
+  Expression* ParseMemberWithNewPrefixesExpression(bool* ok);
   Expression* ParseMemberExpression(bool* ok);
-  Expression* ParseNewPrefix(PositionStack* stack, bool* ok);
-  Expression* ParseMemberWithNewPrefixesExpression(PositionStack* stack,
-                                                   bool* ok);
-  Expression* ParsePrimaryExpression(bool* ok);
+  Expression* ParseMemberExpressionContinuation(Expression* expression,
+                                                bool* ok);
   Expression* ParseArrayLiteral(bool* ok);
   Expression* ParseObjectLiteral(bool* ok);
 
@@ -652,12 +667,12 @@ class Parser : public ParserBase<ParserTraits> {
   bool CheckInOrOf(bool accept_OF, ForEachStatement::VisitMode* visit_mode);
 
   Handle<String> LiteralString(PretenureFlag tenured) {
-    if (scanner().is_literal_ascii()) {
+    if (scanner()->is_literal_ascii()) {
       return isolate_->factory()->NewStringFromAscii(
-          scanner().literal_ascii_string(), tenured);
+          scanner()->literal_ascii_string(), tenured);
     } else {
       return isolate_->factory()->NewStringFromTwoByte(
-            scanner().literal_utf16_string(), tenured);
+            scanner()->literal_utf16_string(), tenured);
     }
   }
 
@@ -735,7 +750,6 @@ class Parser : public ParserBase<ParserTraits> {
   PreParser* reusable_preparser_;
   Scope* original_scope_;  // for ES5 function declarations in sloppy eval
   Target* target_stack_;  // for break, continue statements
-  v8::Extension* extension_;
   ScriptDataImpl* pre_parse_data_;
   FuncNameInferrer* fni_;
 

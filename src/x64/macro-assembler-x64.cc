@@ -505,17 +505,8 @@ void MacroAssembler::NegativeZeroTest(Register result,
 
 
 void MacroAssembler::Abort(BailoutReason reason) {
-  // We want to pass the msg string like a smi to avoid GC
-  // problems, however msg is not guaranteed to be aligned
-  // properly. Instead, we pass an aligned pointer that is
-  // a proper v8 smi, but also pass the alignment difference
-  // from the real pointer as a smi.
-  const char* msg = GetBailoutReason(reason);
-  intptr_t p1 = reinterpret_cast<intptr_t>(msg);
-  intptr_t p0 = (p1 & ~kSmiTagMask) + kSmiTag;
-  // Note: p0 might not be a valid Smi _value_, but it has a valid Smi tag.
-  ASSERT(reinterpret_cast<Object*>(p0)->IsSmi());
 #ifdef DEBUG
+  const char* msg = GetBailoutReason(reason);
   if (msg != NULL) {
     RecordComment("Abort message: ");
     RecordComment(msg);
@@ -528,10 +519,7 @@ void MacroAssembler::Abort(BailoutReason reason) {
 #endif
 
   push(rax);
-  Move(kScratchRegister, reinterpret_cast<Smi*>(p0),
-       Assembler::RelocInfoNone());
-  push(kScratchRegister);
-  Move(kScratchRegister, Smi::FromInt(static_cast<int>(p1 - p0)),
+  Move(kScratchRegister, Smi::FromInt(static_cast<int>(reason)),
        Assembler::RelocInfoNone());
   push(kScratchRegister);
 
@@ -539,9 +527,9 @@ void MacroAssembler::Abort(BailoutReason reason) {
     // We don't actually want to generate a pile of code for this, so just
     // claim there is a stack frame, without generating one.
     FrameScope scope(this, StackFrame::NONE);
-    CallRuntime(Runtime::kAbort, 2);
+    CallRuntime(Runtime::kAbort, 1);
   } else {
-    CallRuntime(Runtime::kAbort, 2);
+    CallRuntime(Runtime::kAbort, 1);
   }
   // Control will not return here.
   int3();

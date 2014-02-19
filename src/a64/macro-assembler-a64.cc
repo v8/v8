@@ -558,6 +558,205 @@ void MacroAssembler::Store(const Register& rt,
 }
 
 
+bool MacroAssembler::ShouldEmitVeneer(int max_reachable_pc, int margin) {
+  // Account for the branch around the veneers and the guard.
+  int protection_offset = 2 * kInstructionSize;
+  return pc_offset() > max_reachable_pc - margin - protection_offset -
+    static_cast<int>(unresolved_branches_.size() * kMaxVeneerCodeSize);
+}
+
+
+void MacroAssembler::EmitVeneers(bool need_protection) {
+  RecordComment("[ Veneers");
+
+  Label end;
+  if (need_protection) {
+    B(&end);
+  }
+
+  EmitVeneersGuard();
+
+  {
+    InstructionAccurateScope scope(this);
+    Label size_check;
+
+    std::multimap<int, FarBranchInfo>::iterator it, it_to_delete;
+
+    it = unresolved_branches_.begin();
+    while (it != unresolved_branches_.end()) {
+      if (ShouldEmitVeneer(it->first)) {
+        Instruction* branch = InstructionAt(it->second.pc_offset_);
+        Label* label = it->second.label_;
+
+#ifdef DEBUG
+        __ bind(&size_check);
+#endif
+        // Patch the branch to point to the current position, and emit a branch
+        // to the label.
+        Instruction* veneer = reinterpret_cast<Instruction*>(pc_);
+        RemoveBranchFromLabelLinkChain(branch, label, veneer);
+        branch->SetImmPCOffsetTarget(veneer);
+        b(label);
+#ifdef DEBUG
+        ASSERT(SizeOfCodeGeneratedSince(&size_check) <=
+               static_cast<uint64_t>(kMaxVeneerCodeSize));
+        size_check.Unuse();
+#endif
+
+        it_to_delete = it++;
+        unresolved_branches_.erase(it_to_delete);
+      } else {
+        ++it;
+      }
+    }
+  }
+
+  Bind(&end);
+
+  RecordComment("]");
+}
+
+
+void MacroAssembler::EmitVeneersGuard() {
+  if (emit_debug_code()) {
+    Unreachable();
+  }
+}
+
+
+void MacroAssembler::CheckVeneers(bool need_protection) {
+  if (unresolved_branches_.empty()) {
+    return;
+  }
+
+  CHECK(pc_offset() < unresolved_branches_first_limit());
+  int margin = kVeneerDistanceMargin;
+  if (!need_protection) {
+    // Prefer emitting veneers protected by an existing instruction.
+    // The 4 divisor is a finger in the air guess. With a default margin of 2KB,
+    // that leaves 512B = 128 instructions of extra margin to avoid requiring a
+    // protective branch.
+    margin += margin / 4;
+  }
+  if (ShouldEmitVeneer(unresolved_branches_first_limit(), margin)) {
+    EmitVeneers(need_protection);
+  }
+}
+
+
+bool MacroAssembler::NeedExtraInstructionsOrRegisterBranch(
+    Label *label, ImmBranchType b_type) {
+  bool need_longer_range = false;
+  // There are two situations in which we care about the offset being out of
+  // range:
+  //  - The label is bound but too far away.
+  //  - The label is not bound but linked, and the previous branch
+  //    instruction in the chain is too far away.
+  if (label->is_bound() || label->is_linked()) {
+    need_longer_range =
+      !Instruction::IsValidImmPCOffset(b_type, label->pos() - pc_offset());
+  }
+  if (!need_longer_range && !label->is_bound()) {
+    int max_reachable_pc = pc_offset() + Instruction::ImmBranchRange(b_type);
+    unresolved_branches_.insert(
+        std::pair<int, FarBranchInfo>(max_reachable_pc,
+                                      FarBranchInfo(pc_offset(), label)));
+  }
+  return need_longer_range;
+}
+
+
+void MacroAssembler::B(Label* label, Condition cond) {
+  ASSERT(allow_macro_instructions_);
+  ASSERT((cond != al) && (cond != nv));
+
+  Label done;
+  bool need_extra_instructions =
+    NeedExtraInstructionsOrRegisterBranch(label, CondBranchType);
+
+  if (need_extra_instructions) {
+    b(&done, InvertCondition(cond));
+    b(label);
+  } else {
+    b(label, cond);
+  }
+  CheckVeneers(!need_extra_instructions);
+  bind(&done);
+}
+
+
+void MacroAssembler::Tbnz(const Register& rt, unsigned bit_pos, Label* label) {
+  ASSERT(allow_macro_instructions_);
+
+  Label done;
+  bool need_extra_instructions =
+    NeedExtraInstructionsOrRegisterBranch(label, TestBranchType);
+
+  if (need_extra_instructions) {
+    tbz(rt, bit_pos, &done);
+    b(label);
+  } else {
+    tbnz(rt, bit_pos, label);
+  }
+  CheckVeneers(!need_extra_instructions);
+  bind(&done);
+}
+
+
+void MacroAssembler::Tbz(const Register& rt, unsigned bit_pos, Label* label) {
+  ASSERT(allow_macro_instructions_);
+
+  Label done;
+  bool need_extra_instructions =
+    NeedExtraInstructionsOrRegisterBranch(label, TestBranchType);
+
+  if (need_extra_instructions) {
+    tbnz(rt, bit_pos, &done);
+    b(label);
+  } else {
+    tbz(rt, bit_pos, label);
+  }
+  CheckVeneers(!need_extra_instructions);
+  bind(&done);
+}
+
+
+void MacroAssembler::Cbnz(const Register& rt, Label* label) {
+  ASSERT(allow_macro_instructions_);
+
+  Label done;
+  bool need_extra_instructions =
+    NeedExtraInstructionsOrRegisterBranch(label, CompareBranchType);
+
+  if (need_extra_instructions) {
+    cbz(rt, &done);
+    b(label);
+  } else {
+    cbnz(rt, label);
+  }
+  CheckVeneers(!need_extra_instructions);
+  bind(&done);
+}
+
+
+void MacroAssembler::Cbz(const Register& rt, Label* label) {
+  ASSERT(allow_macro_instructions_);
+
+  Label done;
+  bool need_extra_instructions =
+    NeedExtraInstructionsOrRegisterBranch(label, CompareBranchType);
+
+  if (need_extra_instructions) {
+    cbnz(rt, &done);
+    b(label);
+  } else {
+    cbz(rt, label);
+  }
+  CheckVeneers(!need_extra_instructions);
+  bind(&done);
+}
+
+
 // Pseudo-instructions.
 
 
@@ -2473,26 +2672,20 @@ void MacroAssembler::InvokeFunction(Handle<JSFunction> function,
 }
 
 
-void MacroAssembler::ECMA262ToInt32(Register result,
-                                    DoubleRegister input,
-                                    Register scratch1,
-                                    Register scratch2,
-                                    ECMA262ToInt32Result format) {
-  ASSERT(!AreAliased(result, scratch1, scratch2));
-  ASSERT(result.Is64Bits() && scratch1.Is64Bits() && scratch2.Is64Bits());
+void MacroAssembler::TryInlineTruncateDoubleToI(Register result,
+                                                DoubleRegister double_input,
+                                                Label* done) {
   STATIC_ASSERT(kSmiTag == 0);
   STATIC_ASSERT(kSmiValueSize == 32);
 
-  Label done, tag, manual_conversion;
-
-  // 1. Try to convert with a FPU convert instruction. It's trivial to compute
-  //    the modulo operation on an integer register so we convert to a 64-bit
-  //    integer, then find the 32-bit result from that.
+  // Try to convert with a FPU convert instruction. It's trivial to compute
+  // the modulo operation on an integer register so we convert to a 64-bit
+  // integer, then find the 32-bit result from that.
   //
   // Fcvtzs will saturate to INT64_MIN (0x800...00) or INT64_MAX (0x7ff...ff)
   // when the double is out of range. NaNs and infinities will be converted to 0
   // (as ECMA-262 requires).
-  Fcvtzs(result, input);
+  Fcvtzs(result, double_input);
 
   // The values INT64_MIN (0x800...00) or INT64_MAX (0x7ff...ff) are not
   // representable using a double, so if the result is one of those then we know
@@ -2502,83 +2695,64 @@ void MacroAssembler::ECMA262ToInt32(Register result,
   // 1 will cause signed overflow.
   Cmp(result, 1);
   Ccmp(result, -1, VFlag, vc);
-  B(vc, &tag);
 
-  // 2. Manually convert the input to an int32.
-  Fmov(result, input);
-
-  // Extract the exponent.
-  Register exponent = scratch1;
-  Ubfx(exponent, result, HeapNumber::kMantissaBits, HeapNumber::kExponentBits);
-
-  // It the exponent is >= 84 (kMantissaBits + 32), the result is always 0 since
-  // the mantissa gets shifted completely out of the int32_t result.
-  Cmp(exponent, HeapNumber::kExponentBias + HeapNumber::kMantissaBits + 32);
-  CzeroX(result, ge);
-  B(ge, &done);
-
-  // The Fcvtzs sequence handles all cases except where the conversion causes
-  // signed overflow in the int64_t target. Since we've already handled
-  // exponents >= 84, we can guarantee that 63 <= exponent < 84.
-
-  if (emit_debug_code()) {
-    Cmp(exponent, HeapNumber::kExponentBias + 63);
-    // Exponents less than this should have been handled by the Fcvt case.
-    Check(ge, kUnexpectedValue);
-  }
-
-  // Isolate the mantissa bits, and set the implicit '1'.
-  Register mantissa = scratch2;
-  Ubfx(mantissa, result, 0, HeapNumber::kMantissaBits);
-  Orr(mantissa, mantissa, 1UL << HeapNumber::kMantissaBits);
-
-  // Negate the mantissa if necessary.
-  Tst(result, kXSignMask);
-  Cneg(mantissa, mantissa, ne);
-
-  // Shift the mantissa bits in the correct place. We know that we have to shift
-  // it left here, because exponent >= 63 >= kMantissaBits.
-  Sub(exponent, exponent,
-      HeapNumber::kExponentBias + HeapNumber::kMantissaBits);
-  Lsl(result, mantissa, exponent);
-
-  Bind(&tag);
-  switch (format) {
-    case INT32_IN_W:
-      // There is nothing to do; the upper 32 bits are undefined.
-      if (emit_debug_code()) {
-        __ Mov(scratch1, 0x55555555);
-        __ Bfi(result, scratch1, 32, 32);
-      }
-      break;
-    case INT32_IN_X:
-      Sxtw(result, result);
-      break;
-    case SMI:
-      SmiTag(result);
-      break;
-  }
-
-  Bind(&done);
+  B(vc, done);
 }
 
 
-void MacroAssembler::HeapNumberECMA262ToInt32(Register result,
-                                              Register heap_number,
-                                              Register scratch1,
-                                              Register scratch2,
-                                              DoubleRegister double_scratch,
-                                              ECMA262ToInt32Result format) {
-  if (emit_debug_code()) {
-    // Verify we indeed have a HeapNumber.
-    Label ok;
-    JumpIfHeapNumber(heap_number, &ok);
-    Abort(kExpectedHeapNumber);
-    Bind(&ok);
-  }
+void MacroAssembler::TruncateDoubleToI(Register result,
+                                       DoubleRegister double_input) {
+  Label done;
+  ASSERT(jssp.Is(StackPointer()));
 
-  Ldr(double_scratch, FieldMemOperand(heap_number, HeapNumber::kValueOffset));
-  ECMA262ToInt32(result, double_scratch, scratch1, scratch2, format);
+  TryInlineTruncateDoubleToI(result, double_input, &done);
+
+  // If we fell through then inline version didn't succeed - call stub instead.
+  Push(lr);
+  Push(double_input);  // Put input on stack.
+
+  DoubleToIStub stub(jssp,
+                     result,
+                     0,
+                     true,   // is_truncating
+                     true);  // skip_fastpath
+  CallStub(&stub);  // DoubleToIStub preserves any registers it needs to clobber
+
+  Drop(1, kDoubleSize);  // Drop the double input on the stack.
+  Pop(lr);
+
+  Bind(&done);
+
+  // TODO(rmcilroy): Remove this Sxtw once the following bug is fixed:
+  // https://code.google.com/p/v8/issues/detail?id=3149
+  Sxtw(result, result.W());
+}
+
+
+void MacroAssembler::TruncateHeapNumberToI(Register result,
+                                           Register object) {
+  Label done;
+  ASSERT(!result.is(object));
+  ASSERT(jssp.Is(StackPointer()));
+
+  Ldr(fp_scratch, FieldMemOperand(object, HeapNumber::kValueOffset));
+  TryInlineTruncateDoubleToI(result, fp_scratch, &done);
+
+  // If we fell through then inline version didn't succeed - call stub instead.
+  Push(lr);
+  DoubleToIStub stub(object,
+                     result,
+                     HeapNumber::kValueOffset - kHeapObjectTag,
+                     true,   // is_truncating
+                     true);  // skip_fastpath
+  CallStub(&stub);  // DoubleToIStub preserves any registers it needs to clobber
+  Pop(lr);
+
+  Bind(&done);
+
+  // TODO(rmcilroy): Remove this Sxtw once the following bug is fixed:
+  // https://code.google.com/p/v8/issues/detail?id=3149
+  Sxtw(result, result.W());
 }
 
 
@@ -4340,51 +4514,46 @@ void MacroAssembler::Abort(BailoutReason reason) {
   }
 #endif
 
-  Label msg_address;
-  Adr(x0, &msg_address);
+  // Abort is used in some contexts where csp is the stack pointer. In order to
+  // simplify the CallRuntime code, make sure that jssp is the stack pointer.
+  // There is no risk of register corruption here because Abort doesn't return.
+  Register old_stack_pointer = StackPointer();
+  SetStackPointer(jssp);
+  Mov(jssp, old_stack_pointer);
 
   if (use_real_aborts()) {
-    // Split the message pointer into two SMI to avoid the GC
-    // trying to scan the string.
-    STATIC_ASSERT((kSmiShift == 32) && (kSmiTag == 0));
-    SmiTag(x1, x0);
-    Bic(x0, x0, kSmiShiftMask);
-
-    Push(x0, x1);
+    Mov(x0, Operand(Smi::FromInt(reason)));
+    Push(x0);
 
     if (!has_frame_) {
       // We don't actually want to generate a pile of code for this, so just
       // claim there is a stack frame, without generating one.
       FrameScope scope(this, StackFrame::NONE);
-      CallRuntime(Runtime::kAbort, 2);
+      CallRuntime(Runtime::kAbort, 1);
     } else {
-      CallRuntime(Runtime::kAbort, 2);
+      CallRuntime(Runtime::kAbort, 1);
     }
   } else {
-    // Call Printf directly, to report the error. The message is in x0, which is
-    // the first argument to Printf.
-    if (!csp.Is(StackPointer())) {
-      Bic(csp, StackPointer(), 0xf);
-    }
+    // Load the string to pass to Printf.
+    Label msg_address;
+    Adr(x0, &msg_address);
+
+    // Call Printf directly to report the error.
     CallPrintf();
 
-    // The CallPrintf will return, so this point is actually reachable in this
-    // context. However:
-    //   - We're already executing an abort (which shouldn't be reachable in
-    //     valid code).
-    //   - We need a way to stop execution on both the simulator and real
-    //     hardware, and Unreachable() is the best option.
+    // We need a way to stop execution on both the simulator and real hardware,
+    // and Unreachable() is the best option.
     Unreachable();
+
+    // Emit the message string directly in the instruction stream.
+    {
+      BlockConstPoolScope scope(this);
+      Bind(&msg_address);
+      EmitStringData(GetBailoutReason(reason));
+    }
   }
 
-  // Emit the message string directly in the instruction stream.
-  {
-    BlockConstPoolScope scope(this);
-    Bind(&msg_address);
-    // TODO(jbramley): Since the reason is an enum, why do we still encode the
-    // string (and a pointer to it) in the instruction stream?
-    EmitStringData(GetBailoutReason(reason));
-  }
+  SetStackPointer(old_stack_pointer);
 }
 
 

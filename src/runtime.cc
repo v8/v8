@@ -7829,6 +7829,16 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_sqrt) {
 }
 
 
+RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_fround) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 1);
+
+  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
+  float xf = static_cast<float>(x);
+  return isolate->heap()->AllocateHeapNumber(xf);
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_DateMakeDay) {
   SealHandleScope shs(isolate);
   ASSERT(args.length() == 2);
@@ -14265,9 +14275,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetV8Version) {
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_Abort) {
   SealHandleScope shs(isolate);
-  ASSERT(args.length() == 2);
-  OS::PrintError("abort: %s\n",
-                 reinterpret_cast<char*>(args[0]) + args.smi_at(1));
+  ASSERT(args.length() == 1);
+  CONVERT_SMI_ARG_CHECKED(message_id, 0);
+  const char* message = GetBailoutReason(
+      static_cast<BailoutReason>(message_id));
+  OS::PrintError("abort: %s\n", message);
   isolate->PrintStack(stderr);
   OS::Abort();
   UNREACHABLE();
@@ -14649,7 +14661,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_IsAccessAllowedForObserver) {
   ASSERT(args.length() == 3);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, observer, 0);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 1);
-  ASSERT(object->IsAccessCheckNeeded());
+  ASSERT(object->map()->is_access_check_needed());
   Handle<Object> key = args.at<Object>(2);
   SaveContext save(isolate);
   isolate->set_context(observer->context());
@@ -14762,6 +14774,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ArrayConstructor) {
 
   Handle<AllocationSite> site;
   if (!type_info.is_null() &&
+      *type_info != isolate->heap()->null_value() &&
       *type_info != isolate->heap()->undefined_value()) {
     site = Handle<AllocationSite>::cast(type_info);
     ASSERT(!site->SitePointsToLiteral());

@@ -69,14 +69,7 @@ class zone_allocator {
   void construct(pointer p, const T& val) {
     new(static_cast<void*>(p)) T(val);
   }
-  void destroy(pointer p) { p->~T(); }
-
-  bool operator==(zone_allocator const& other) {
-    return zone_ == other.zone_;
-  }
-  bool operator!=(zone_allocator const& other) {
-    return zone_ != other.zone_;
-  }
+  void destroy(pointer p) { (static_cast<T*>(p))->~T(); }
 
  private:
   Zone* zone_;

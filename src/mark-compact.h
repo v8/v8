@@ -944,6 +944,12 @@ class MarkCompactCollector {
 
   void SweepSpace(PagedSpace* space, SweeperType sweeper);
 
+  // Finalizes the parallel sweeping phase. Marks all the pages that were
+  // swept in parallel.
+  void ParallelSweepSpacesComplete();
+
+  void ParallelSweepSpaceComplete(PagedSpace* space);
+
 #ifdef DEBUG
   friend class MarkObjectVisitor;
   static void VisitObject(HeapObject* obj);

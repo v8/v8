@@ -29,6 +29,7 @@
 #define V8_A64_ASSEMBLER_A64_H_
 
 #include <list>
+#include <map>
 
 #include "globals.h"
 #include "utils.h"
@@ -56,8 +57,8 @@ static const int kRegListSizeInBits = sizeof(RegList) * kBitsPerByte;
 
 // Some CPURegister methods can return Register and FPRegister types, so we
 // need to declare them in advance.
-class Register;
-class FPRegister;
+struct Register;
+struct FPRegister;
 
 
 struct CPURegister {
@@ -383,6 +384,13 @@ ALIAS_REGISTER(FPRegister, fp_scratch, d31);
 
 #undef ALIAS_REGISTER
 
+
+Register GetAllocatableRegisterThatIsNotOneOf(Register reg1,
+                                              Register reg2 = NoReg,
+                                              Register reg3 = NoReg,
+                                              Register reg4 = NoReg);
+
+
 // AreAliased returns true if any of the named registers overlap. Arguments set
 // to NoReg are ignored. The system stack pointer may be specified.
 bool AreAliased(const CPURegister& reg1,
@@ -563,23 +571,6 @@ class Operand {
   // TODO(all): If necessary, study more in details which methods
   // TODO(all): should be inlined or not.
  public:
-  // #<immediate>
-  // where <immediate> is int64_t.
-  // GCC complains about ambiguous aliasing if we don't explicitly declare the
-  // variants.
-  // The simple literal-value wrappers are allowed to be implicit constructors
-  // because Operand is a wrapper class that doesn't normally perform any type
-  // conversion.
-  inline Operand(int64_t immediate,
-      RelocInfo::Mode rmode = RelocInfo::NONE64);    // NOLINT(runtime/explicit)
-  inline Operand(uint64_t immediate,
-      RelocInfo::Mode rmode = RelocInfo::NONE64);    // NOLINT(runtime/explicit)
-  inline Operand(int32_t immediate,
-      RelocInfo::Mode rmode = RelocInfo::NONE32);    // NOLINT(runtime/explicit)
-  inline Operand(uint32_t immediate,
-      RelocInfo::Mode rmode = RelocInfo::NONE32);    // NOLINT(runtime/explicit)
-
-
   // rm, {<shift> {#<shift_amount>}}
   // where <shift> is one of {LSL, LSR, ASR, ROR}.
   //       <shift_amount> is uint6_t.
@@ -596,9 +587,16 @@ class Operand {
                  Extend extend,
                  unsigned shift_amount = 0);
 
-  inline explicit Operand(Smi* value);
-  explicit Operand(const ExternalReference& f);
-  explicit Operand(Handle<Object> handle);
+  template<typename T>
+  inline explicit Operand(Handle<T> handle);
+
+  // Implicit constructor for all int types, ExternalReference, and Smi.
+  template<typename T>
+  inline Operand(T t);  // NOLINT(runtime/explicit)
+
+  // Implicit constructor for int types.
+  template<typename int_t>
+  inline Operand(int_t t, RelocInfo::Mode rmode);
 
   inline bool IsImmediate() const;
   inline bool IsShiftedRegister() const;
@@ -625,6 +623,7 @@ class Operand {
   inline static Operand UntagSmiAndScale(Register smi, int scale);
 
  private:
+  void initialize_handle(Handle<Object> value);
   int64_t immediate_;
   Register reg_;
   Shift shift_;
@@ -721,6 +720,8 @@ class Assembler : public AssemblerBase {
   // possible to align the pc offset to a multiple
   // of m. m must be a power of 2 (>= 4).
   void Align(int m);
+
+  inline void Unreachable();
 
   // Label --------------------------------------------------------------------
   // Bind a label to the current pc. Note that labels can only be bound once,
@@ -1794,6 +1795,12 @@ class Assembler : public AssemblerBase {
   static inline LoadStorePairNonTemporalOp StorePairNonTemporalOpFor(
     const CPURegister& rt, const CPURegister& rt2);
 
+  // Remove the specified branch from the unbound label link chain.
+  // If available, a veneer for this label can be used for other branches in the
+  // chain if the link chain cannot be fixed up without this branch.
+  void RemoveBranchFromLabelLinkChain(Instruction* branch,
+                                      Label* label,
+                                      Instruction* label_veneer = NULL);
 
  private:
   // Instruction helpers.
@@ -1979,6 +1986,39 @@ class Assembler : public AssemblerBase {
   // relocation info entries, and debug strings encoded in the instruction
   // stream.
   static const int kGap = 128;
+
+ public:
+  class FarBranchInfo {
+   public:
+    FarBranchInfo(int offset, Label* label)
+        : pc_offset_(offset), label_(label) {}
+    // Offset of the branch in the code generation buffer.
+    int pc_offset_;
+    // The label branched to.
+    Label* label_;
+  };
+
+ protected:
+  // Information about unresolved (forward) branches.
+  // The Assembler is only allowed to delete out-of-date information from here
+  // after a label is bound. The MacroAssembler uses this information to
+  // generate veneers.
+  //
+  // The second member gives information about the unresolved branch. The first
+  // member of the pair is the maximum offset that the branch can reach in the
+  // buffer. The map is sorted according to this reachable offset, allowing to
+  // easily check when veneers need to be emitted.
+  // Note that the maximum reachable offset (first member of the pairs) should
+  // always be positive but has the same type as the return value for
+  // pc_offset() for convenience.
+  std::multimap<int, FarBranchInfo> unresolved_branches_;
+
+ private:
+  // If a veneer is emitted for a branch instruction, that instruction must be
+  // removed from the associated label's link chain so that the assembler does
+  // not later attempt (likely unsuccessfully) to patch it to branch directly to
+  // the label.
+  void DeleteUnresolvedBranchInfoForLabel(Label* label);
 
  private:
   // TODO(jbramley): VIXL uses next_literal_pool_check_ and

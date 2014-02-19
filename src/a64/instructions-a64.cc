@@ -230,6 +230,18 @@ Instruction* Instruction::ImmPCOffsetTarget() {
 }
 
 
+bool Instruction::IsValidImmPCOffset(ImmBranchType branch_type,
+                                     int32_t offset) {
+  return is_intn(offset, ImmBranchRangeBitwidth(branch_type));
+}
+
+
+bool Instruction::IsTargetInImmPCOffsetRange(Instruction* target) {
+  int offset = target - this;
+  return IsValidImmPCOffset(BranchType(), offset);
+}
+
+
 void Instruction::SetImmPCOffsetTarget(Instruction* target) {
   if (IsPCRelAddressing()) {
     SetPCRelImmTarget(target);

@@ -1120,10 +1120,8 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
       LOperand* value = UseRegister(instr->value());
 
       if (instr->CanTruncateToInt32()) {
-        LOperand* temp1 = TempRegister();
-        LOperand* temp2 = TempRegister();
         LTruncateDoubleToIntOrSmi* result =
-            new(zone()) LTruncateDoubleToIntOrSmi(value, temp1, temp2);
+            new(zone()) LTruncateDoubleToIntOrSmi(value);
         return DefineAsRegister(result);
       } else {
         LDoubleToIntOrSmi* result = new(zone()) LDoubleToIntOrSmi(value);
@@ -1383,7 +1381,7 @@ LInstruction* LChunkBuilder::DoDiv(HDiv* instr) {
     ASSERT(instr->right()->representation().Equals(instr->representation()));
     if (instr->RightIsPowerOf2()) {
       ASSERT(!instr->CheckFlag(HValue::kCanBeDivByZero));
-      LOperand* value = UseRegisterAtStart(instr->left());
+      LOperand* value = UseRegister(instr->left());
       LDivI* div = new(zone()) LDivI(value, UseConstant(instr->right()), NULL);
       return AssignEnvironment(DefineAsRegister(div));
     }

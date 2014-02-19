@@ -536,6 +536,85 @@ void HydrogenCodeStub::GenerateLightweightMiss(MacroAssembler* masm) {
 }
 
 
+void DoubleToIStub::Generate(MacroAssembler* masm) {
+  Label done;
+  Register input = source();
+  Register result = destination();
+  ASSERT(is_truncating());
+
+  ASSERT(result.Is64Bits());
+  ASSERT(jssp.Is(masm->StackPointer()));
+
+  int double_offset = offset();
+
+  DoubleRegister double_scratch = d0;  // only used if !skip_fastpath()
+  Register scratch1 = GetAllocatableRegisterThatIsNotOneOf(input, result);
+  Register scratch2 =
+      GetAllocatableRegisterThatIsNotOneOf(input, result, scratch1);
+
+  __ Push(scratch1, scratch2);
+  // Account for saved regs if input is jssp.
+  if (input.is(jssp)) double_offset += 2 * kPointerSize;
+
+  if (!skip_fastpath()) {
+    __ Push(double_scratch);
+    if (input.is(jssp)) double_offset += 1 * kDoubleSize;
+    __ Ldr(double_scratch, MemOperand(input, double_offset));
+    // Try to convert with a FPU convert instruction.  This handles all
+    // non-saturating cases.
+    __ TryInlineTruncateDoubleToI(result, double_scratch, &done);
+    __ Fmov(result, double_scratch);
+  } else {
+    __ Ldr(result, MemOperand(input, double_offset));
+  }
+
+  // If we reach here we need to manually convert the input to an int32.
+
+  // Extract the exponent.
+  Register exponent = scratch1;
+  __ Ubfx(exponent, result, HeapNumber::kMantissaBits,
+          HeapNumber::kExponentBits);
+
+  // It the exponent is >= 84 (kMantissaBits + 32), the result is always 0 since
+  // the mantissa gets shifted completely out of the int32_t result.
+  __ Cmp(exponent, HeapNumber::kExponentBias + HeapNumber::kMantissaBits + 32);
+  __ CzeroX(result, ge);
+  __ B(ge, &done);
+
+  // The Fcvtzs sequence handles all cases except where the conversion causes
+  // signed overflow in the int64_t target. Since we've already handled
+  // exponents >= 84, we can guarantee that 63 <= exponent < 84.
+
+  if (masm->emit_debug_code()) {
+    __ Cmp(exponent, HeapNumber::kExponentBias + 63);
+    // Exponents less than this should have been handled by the Fcvt case.
+    __ Check(ge, kUnexpectedValue);
+  }
+
+  // Isolate the mantissa bits, and set the implicit '1'.
+  Register mantissa = scratch2;
+  __ Ubfx(mantissa, result, 0, HeapNumber::kMantissaBits);
+  __ Orr(mantissa, mantissa, 1UL << HeapNumber::kMantissaBits);
+
+  // Negate the mantissa if necessary.
+  __ Tst(result, kXSignMask);
+  __ Cneg(mantissa, mantissa, ne);
+
+  // Shift the mantissa bits in the correct place. We know that we have to shift
+  // it left here, because exponent >= 63 >= kMantissaBits.
+  __ Sub(exponent, exponent,
+         HeapNumber::kExponentBias + HeapNumber::kMantissaBits);
+  __ Lsl(result, mantissa, exponent);
+
+  __ Bind(&done);
+  if (!skip_fastpath()) {
+    __ Pop(double_scratch);
+  }
+  __ Pop(scratch2, scratch1);
+  __ Ret();
+}
+
+
 // See call site for description.
 static void EmitIdenticalObjectComparison(MacroAssembler* masm,
                                           Register left,
@@ -2460,7 +2539,7 @@ void ArgumentsAccessStub::GenerateNewNonStrictFast(MacroAssembler* masm) {
   Register the_hole = x13;
   Label parameters_loop, parameters_test;
   __ Mov(loop_count, mapped_params);
-  __ Add(index, param_count, Context::MIN_CONTEXT_SLOTS);
+  __ Add(index, param_count, static_cast<int>(Context::MIN_CONTEXT_SLOTS));
   __ Sub(index, index, mapped_params);
   __ SmiTag(index);
   __ LoadRoot(the_hole, Heap::kTheHoleValueRootIndex);
@@ -3186,12 +3265,17 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   //  x1 : the function to call
   //  x2 : feedback vector
   //  x3 : slot in feedback vector (smi)
-  Label initialize, done, miss, megamorphic, not_array_function;
+  Label check_array, initialize_array, initialize_non_array, megamorphic, done;
 
   ASSERT_EQ(*TypeFeedbackInfo::MegamorphicSentinel(masm->isolate()),
             masm->isolate()->heap()->undefined_value());
+  Heap::RootListIndex kMegamorphicRootIndex = Heap::kUndefinedValueRootIndex;
   ASSERT_EQ(*TypeFeedbackInfo::UninitializedSentinel(masm->isolate()),
             masm->isolate()->heap()->the_hole_value());
+  Heap::RootListIndex kUninitializedRootIndex = Heap::kTheHoleValueRootIndex;
+  ASSERT_EQ(*TypeFeedbackInfo::PremonomorphicSentinel(masm->isolate()),
+            masm->isolate()->heap()->null_value());
+  Heap::RootListIndex kPremonomorphicRootIndex = Heap::kNullValueRootIndex;
 
   // Load the cache state.
   __ Add(x4, x2, Operand::UntagSmiAndScale(x3, kPointerSizeLog2));
@@ -3201,43 +3285,44 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   // function without changing the state.
   __ Cmp(x4, x1);
   __ B(eq, &done);
+  __ JumpIfRoot(x4, kMegamorphicRootIndex, &done);
 
-  // If we came here, we need to see if we are the array function.
-  // If we didn't have a matching function, and we didn't find the megamorph
-  // sentinel, then we have in the slot either some other function or an
-  // AllocationSite. Do a map check on the object in ecx.
-  __ Ldr(x5, FieldMemOperand(x4, AllocationSite::kMapOffset));
-  __ JumpIfNotRoot(x5, Heap::kAllocationSiteMapRootIndex, &miss);
+  // Check if we're dealing with the Array function or not.
+  __ LoadArrayFunction(x5);
+  __ Cmp(x1, x5);
+  __ B(eq, &check_array);
 
-  // Make sure the function is the Array() function
-  __ LoadArrayFunction(x4);
-  __ Cmp(x1, x4);
-  __ B(ne, &megamorphic);
-  __ B(&done);
+  // Non-array cache: Check the cache state.
+  __ JumpIfRoot(x4, kPremonomorphicRootIndex, &initialize_non_array);
+  __ JumpIfNotRoot(x4, kUninitializedRootIndex, &megamorphic);
 
-  __ Bind(&miss);
-
-  // A monomorphic miss (i.e, here the cache is not uninitialized) goes
-  // megamorphic.
-  __ JumpIfRoot(x4, Heap::kTheHoleValueRootIndex, &initialize);
-  // MegamorphicSentinel is an immortal immovable object (undefined) so no
-  // write-barrier is needed.
-  __ Bind(&megamorphic);
+  // Non-array cache: Uninitialized -> premonomorphic. The sentinel is an
+  // immortal immovable object (null) so no write-barrier is needed.
   __ Add(x4, x2, Operand::UntagSmiAndScale(x3, kPointerSizeLog2));
-  __ LoadRoot(x10, Heap::kUndefinedValueRootIndex);
+  __ LoadRoot(x10, kPremonomorphicRootIndex);
   __ Str(x10, FieldMemOperand(x4, FixedArray::kHeaderSize));
   __ B(&done);
 
-  // An uninitialized cache is patched with the function or sentinel to
-  // indicate the ElementsKind if function is the Array constructor.
-  __ Bind(&initialize);
-  // Make sure the function is the Array() function
-  __ LoadArrayFunction(x4);
-  __ Cmp(x1, x4);
-  __ B(ne, &not_array_function);
+  // Array cache: Check the cache state to see if we're in a monomorphic
+  // state where the state object is an AllocationSite object.
+  __ Bind(&check_array);
+  __ Ldr(x5, FieldMemOperand(x4, AllocationSite::kMapOffset));
+  __ JumpIfRoot(x5, Heap::kAllocationSiteMapRootIndex, &done);
 
-  // The target function is the Array constructor,
-  // Create an AllocationSite if we don't already have it, store it in the slot.
+  // Array cache: Uninitialized or premonomorphic -> monomorphic.
+  __ JumpIfRoot(x4, kUninitializedRootIndex, &initialize_array);
+  __ JumpIfRoot(x4, kPremonomorphicRootIndex, &initialize_array);
+
+  // Both caches: Monomorphic -> megamorphic. The sentinel is an
+  // immortal immovable object (undefined) so no write-barrier is needed.
+  __ Bind(&megamorphic);
+  __ Add(x4, x2, Operand::UntagSmiAndScale(x3, kPointerSizeLog2));
+  __ LoadRoot(x10, kMegamorphicRootIndex);
+  __ Str(x10, FieldMemOperand(x4, FixedArray::kHeaderSize));
+  __ B(&done);
+
+  // Array cache: Uninitialized or premonomorphic -> monomorphic.
+  __ Bind(&initialize_array);
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
     CreateAllocationSiteStub create_stub;
@@ -3253,9 +3338,8 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   }
   __ B(&done);
 
-  __ Bind(&not_array_function);
-  // An uninitialized cache is patched with the function.
-
+  // Non-array cache: Premonomorphic -> monomorphic.
+  __ Bind(&initialize_non_array);
   __ Add(x4, x2, Operand::UntagSmiAndScale(x3, kPointerSizeLog2));
   // TODO(all): Does the value need to be left in x4? If not, FieldMemOperand
   // could be used to avoid this add.
@@ -3268,7 +3352,6 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   __ Pop(x1, x2, x4);
 
   // TODO(all): Are x4, x2 and x1 outputs? This isn't clear.
-
   __ Bind(&done);
 }
 
@@ -5581,7 +5664,7 @@ void CallApiFunctionStub::Generate(MacroAssembler* masm) {
   Register context = cp;
 
   int argc = ArgumentBits::decode(bit_field_);
-  bool restore_context = RestoreContextBits::decode(bit_field_);
+  bool is_store = IsStoreBits::decode(bit_field_);
   bool call_data_undefined = CallDataUndefinedBits::decode(bit_field_);
 
   typedef FunctionCallbackArguments FCA;
@@ -5654,8 +5737,14 @@ void CallApiFunctionStub::Generate(MacroAssembler* masm) {
   AllowExternalCallThatCantCauseGC scope(masm);
   MemOperand context_restore_operand(
       fp, (2 + FCA::kContextSaveIndex) * kPointerSize);
-  MemOperand return_value_operand(fp,
-                                  (2 + FCA::kReturnValueOffset) * kPointerSize);
+  // Stores return the first js argument
+  int return_value_offset = 0;
+  if (is_store) {
+    return_value_offset = 2 + FCA::kArgsLength;
+  } else {
+    return_value_offset = 2 + FCA::kReturnValueOffset;
+  }
+  MemOperand return_value_operand(fp, return_value_offset * kPointerSize);
 
   const int spill_offset = 1 + kApiStackSpace;
   __ CallApiFunctionAndReturn(api_function_address,
@@ -5663,8 +5752,7 @@ void CallApiFunctionStub::Generate(MacroAssembler* masm) {
                               kStackUnwindSpace,
                               spill_offset,
                               return_value_operand,
-                              restore_context ?
-                                  &context_restore_operand : NULL);
+                              &context_restore_operand);
 }
 
 

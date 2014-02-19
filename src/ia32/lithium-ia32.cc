@@ -1319,10 +1319,10 @@ LInstruction* LChunkBuilder::DoDiv(HDiv* instr) {
     ASSERT(instr->right()->representation().Equals(instr->representation()));
     if (instr->RightIsPowerOf2()) {
       ASSERT(!instr->CheckFlag(HValue::kCanBeDivByZero));
-      LOperand* value = UseRegisterAtStart(instr->left());
+      LOperand* value = UseRegister(instr->left());
       LDivI* div =
           new(zone()) LDivI(value, UseOrConstant(instr->right()), NULL);
-      return AssignEnvironment(DefineSameAsFirst(div));
+      return AssignEnvironment(DefineAsRegister(div));
     }
     // The temporary operand is necessary to ensure that right is not allocated
     // into edx.

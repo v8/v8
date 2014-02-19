@@ -359,11 +359,12 @@ native.check: native
 	    --arch-and-mode=. $(TESTFLAGS)
 
 FASTTESTMODES = ia32.release,x64.release,ia32.optdebug,x64.optdebug,arm.optdebug
+FASTCOMPILEMODES = $(FASTTESTMODES),a64.optdebug
 
 COMMA = ,
 EMPTY =
 SPACE = $(EMPTY) $(EMPTY)
-quickcheck: $(subst $(COMMA),$(SPACE),$(FASTTESTMODES))
+quickcheck: $(subst $(COMMA),$(SPACE),$(FASTCOMPILEMODES))
 	tools/run-tests.py $(TESTJOBS) --outdir=$(OUTDIR) \
 	    --arch-and-mode=$(FASTTESTMODES) $(TESTFLAGS) --quickcheck
 qc: quickcheck

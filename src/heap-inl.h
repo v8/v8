@@ -820,6 +820,13 @@ void VerifyPointersVisitor::VisitPointers(Object** start, Object** end) {
 }
 
 
+void VerifySmisVisitor::VisitPointers(Object** start, Object** end) {
+  for (Object** current = start; current < end; current++) {
+     CHECK((*current)->IsSmi());
+  }
+}
+
+
 double GCTracer::SizeOfHeapObjects() {
   return (static_cast<double>(heap_->SizeOfObjects())) / MB;
 }

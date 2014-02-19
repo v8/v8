@@ -150,6 +150,19 @@ class IC {
   // Get the call-site target; used for determining the state.
   Handle<Code> target() const { return target_; }
 
+  TypeHandleList* types() { return &types_; }
+  CodeHandleList* handlers() { return &handlers_; }
+  Map* first_map() {
+    return types_.length() == 0 ? NULL : *TypeToMap(*types_.at(0), isolate_);
+  }
+  Code* first_handler() {
+    return handlers_.length() == 0 ? NULL : *handlers_.at(0);
+  }
+  void GetMapsFromTypes(MapHandleList* maps) {
+    for (int i = 0; i < types_.length(); ++i) {
+      maps->Add(TypeToMap(*types_.at(i), isolate_));
+    }
+  }
   Address fp() const { return fp_; }
   Address pc() const { return *pc_address_; }
   Isolate* isolate() const { return isolate_; }
@@ -209,7 +222,7 @@ class IC {
   virtual void UpdateMegamorphicCache(HeapType* type, Name* name, Code* code);
 
   void CopyICToMegamorphicCache(Handle<String> name);
-  bool IsTransitionOfMonomorphicTarget(Handle<HeapType> type);
+  bool IsTransitionOfMonomorphicTarget(Map* source_map, Map* target_map);
   void PatchCache(Handle<HeapType> type,
                   Handle<String> name,
                   Handle<Code> code);
@@ -259,6 +272,9 @@ class IC {
   bool target_set_;
 
   ExtraICState extra_ic_state_;
+
+  TypeHandleList types_;
+  CodeHandleList handlers_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(IC);
 };
@@ -320,8 +336,7 @@ class LoadIC: public IC {
     GenerateMiss(masm);
   }
   static void GenerateMiss(MacroAssembler* masm);
-  static void GenerateMegamorphic(MacroAssembler* masm,
-                                  ExtraICState extra_state);
+  static void GenerateMegamorphic(MacroAssembler* masm);
   static void GenerateNormal(MacroAssembler* masm);
   static void GenerateRuntimeGetProperty(MacroAssembler* masm);
 
@@ -482,8 +497,7 @@ class StoreIC: public IC {
     GenerateMiss(masm);
   }
   static void GenerateMiss(MacroAssembler* masm);
-  static void GenerateMegamorphic(MacroAssembler* masm,
-                                  ExtraICState extra_ic_state);
+  static void GenerateMegamorphic(MacroAssembler* masm);
   static void GenerateNormal(MacroAssembler* masm);
   static void GenerateRuntimeSetProperty(MacroAssembler* masm,
                                          StrictModeFlag strict_mode);

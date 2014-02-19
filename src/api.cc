@@ -6971,6 +6971,13 @@ SnapshotObjectId HeapGraphNode::GetId() const {
 
 
 int HeapGraphNode::GetSelfSize() const {
+  size_t size = ToInternal(this)->self_size();
+  CHECK(size <= static_cast<size_t>(internal::kMaxInt));
+  return static_cast<int>(size);
+}
+
+
+size_t HeapGraphNode::GetShallowSize() const {
   return ToInternal(this)->self_size();
 }
 

@@ -280,6 +280,29 @@ class Instruction {
     }
   }
 
+  static int ImmBranchRangeBitwidth(ImmBranchType branch_type) {
+    switch (branch_type) {
+      case UncondBranchType:
+        return ImmUncondBranch_width;
+      case CondBranchType:
+        return ImmCondBranch_width;
+      case CompareBranchType:
+        return ImmCmpBranch_width;
+      case TestBranchType:
+        return ImmTestBranch_width;
+      default:
+        UNREACHABLE();
+        return 0;
+    }
+  }
+
+  // The range of the branch instruction, expressed as 'instr +- range'.
+  static int32_t ImmBranchRange(ImmBranchType branch_type) {
+    return
+      (1 << (ImmBranchRangeBitwidth(branch_type) + kInstructionSizeLog2)) / 2 -
+      kInstructionSize;
+  }
+
   int ImmBranch() const {
     switch (BranchType()) {
       case CondBranchType: return ImmCondBranch();
@@ -329,6 +352,8 @@ class Instruction {
   // PC-relative addressing instruction.
   Instruction* ImmPCOffsetTarget();
 
+  static bool IsValidImmPCOffset(ImmBranchType branch_type, int32_t offset);
+  bool IsTargetInImmPCOffsetRange(Instruction* target);
   // Patch a PC-relative offset to refer to 'target'. 'this' may be a branch or
   // a PC-relative addressing instruction.
   void SetImmPCOffsetTarget(Instruction* target);

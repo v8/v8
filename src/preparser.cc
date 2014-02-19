@@ -81,8 +81,7 @@ void PreParserTraits::ReportMessageAt(int start_pos,
 }
 
 
-PreParserIdentifier PreParserTraits::GetSymbol() {
-  Scanner* scanner = pre_parser_->scanner();
+PreParserIdentifier PreParserTraits::GetSymbol(Scanner* scanner) {
   pre_parser_->LogSymbol();
   if (scanner->current_token() == Token::FUTURE_RESERVED_WORD) {
     return PreParserIdentifier::FutureReserved();
@@ -104,6 +103,42 @@ PreParserIdentifier PreParserTraits::GetSymbol() {
     }
   }
   return PreParserIdentifier::Default();
+}
+
+
+PreParserExpression PreParserTraits::ExpressionFromString(
+    int pos, Scanner* scanner, PreParserFactory* factory) {
+  const int kUseStrictLength = 10;
+  const char* kUseStrictChars = "use strict";
+  pre_parser_->LogSymbol();
+  if (scanner->is_literal_ascii() &&
+      scanner->literal_length() == kUseStrictLength &&
+      !scanner->literal_contains_escapes() &&
+      !strncmp(scanner->literal_ascii_string().start(), kUseStrictChars,
+               kUseStrictLength)) {
+    return PreParserExpression::UseStrictStringLiteral();
+  }
+  return PreParserExpression::StringLiteral();
+}
+
+
+PreParserExpression PreParserTraits::ParseArrayLiteral(bool* ok) {
+  return pre_parser_->ParseArrayLiteral(ok);
+}
+
+
+PreParserExpression PreParserTraits::ParseObjectLiteral(bool* ok) {
+  return pre_parser_->ParseObjectLiteral(ok);
+}
+
+
+PreParserExpression PreParserTraits::ParseExpression(bool accept_IN, bool* ok) {
+  return pre_parser_->ParseExpression(accept_IN, ok);
+}
+
+
+PreParserExpression PreParserTraits::ParseV8Intrinsic(bool* ok) {
+  return pre_parser_->ParseV8Intrinsic(ok);
 }
 
 
@@ -972,12 +1007,7 @@ PreParser::Expression PreParser::ParseLeftHandSideExpression(bool* ok) {
   // LeftHandSideExpression ::
   //   (NewExpression | MemberExpression) ...
 
-  Expression result = Expression::Default();
-  if (peek() == Token::NEW) {
-    result = ParseNewExpression(CHECK_OK);
-  } else {
-    result = ParseMemberExpression(CHECK_OK);
-  }
+  Expression result = ParseMemberWithNewPrefixesExpression(CHECK_OK);
 
   while (true) {
     switch (peek()) {
@@ -1017,38 +1047,37 @@ PreParser::Expression PreParser::ParseLeftHandSideExpression(bool* ok) {
 }
 
 
-PreParser::Expression PreParser::ParseNewExpression(bool* ok) {
+PreParser::Expression PreParser::ParseMemberWithNewPrefixesExpression(
+    bool* ok) {
   // NewExpression ::
   //   ('new')+ MemberExpression
 
-  // The grammar for new expressions is pretty warped. The keyword
-  // 'new' can either be a part of the new expression (where it isn't
-  // followed by an argument list) or a part of the member expression,
-  // where it must be followed by an argument list. To accommodate
-  // this, we parse the 'new' keywords greedily and keep track of how
-  // many we have parsed. This information is then passed on to the
-  // member expression parser, which is only allowed to match argument
-  // lists as long as it has 'new' prefixes left
-  unsigned new_count = 0;
-  do {
-    Consume(Token::NEW);
-    new_count++;
-  } while (peek() == Token::NEW);
+  // See Parser::ParseNewExpression.
 
-  return ParseMemberWithNewPrefixesExpression(new_count, ok);
+  if (peek() == Token::NEW) {
+    Consume(Token::NEW);
+    ParseMemberWithNewPrefixesExpression(CHECK_OK);
+    if (peek() == Token::LPAREN) {
+      // NewExpression with arguments.
+      ParseArguments(CHECK_OK);
+      // The expression can still continue with . or [ after the arguments.
+      ParseMemberExpressionContinuation(Expression::Default(), CHECK_OK);
+    }
+    return Expression::Default();
+  }
+  // No 'new' keyword.
+  return ParseMemberExpression(ok);
 }
 
 
 PreParser::Expression PreParser::ParseMemberExpression(bool* ok) {
-  return ParseMemberWithNewPrefixesExpression(0, ok);
-}
-
-
-PreParser::Expression PreParser::ParseMemberWithNewPrefixesExpression(
-    unsigned new_count, bool* ok) {
   // MemberExpression ::
   //   (PrimaryExpression | FunctionLiteral)
   //     ('[' Expression ']' | '.' Identifier | Arguments)*
+
+  // The '[' Expression ']' and '.' Identifier parts are parsed by
+  // ParseMemberExpressionContinuation, and the Arguments part is parsed by the
+  // caller.
 
   // Parse the initial primary or function expression.
   Expression result = Expression::Default();
@@ -1072,126 +1101,44 @@ PreParser::Expression PreParser::ParseMemberWithNewPrefixesExpression(
   } else {
     result = ParsePrimaryExpression(CHECK_OK);
   }
+  result = ParseMemberExpressionContinuation(result, CHECK_OK);
+  return result;
+}
 
+
+PreParser::Expression PreParser::ParseMemberExpressionContinuation(
+    PreParserExpression expression, bool* ok) {
+  // Parses this part of MemberExpression:
+  // ('[' Expression ']' | '.' Identifier)*
   while (true) {
     switch (peek()) {
       case Token::LBRACK: {
         Consume(Token::LBRACK);
         ParseExpression(true, CHECK_OK);
         Expect(Token::RBRACK, CHECK_OK);
-        if (result.IsThis()) {
-          result = Expression::ThisProperty();
+        if (expression.IsThis()) {
+          expression = Expression::ThisProperty();
         } else {
-          result = Expression::Default();
+          expression = Expression::Default();
         }
         break;
       }
       case Token::PERIOD: {
         Consume(Token::PERIOD);
         ParseIdentifierName(CHECK_OK);
-        if (result.IsThis()) {
-          result = Expression::ThisProperty();
+        if (expression.IsThis()) {
+          expression = Expression::ThisProperty();
         } else {
-          result = Expression::Default();
+          expression = Expression::Default();
         }
         break;
       }
-      case Token::LPAREN: {
-        if (new_count == 0) return result;
-        // Consume one of the new prefixes (already parsed).
-        ParseArguments(CHECK_OK);
-        new_count--;
-        result = Expression::Default();
-        break;
-      }
       default:
-        return result;
+        return expression;
     }
   }
-}
-
-
-PreParser::Expression PreParser::ParsePrimaryExpression(bool* ok) {
-  // PrimaryExpression ::
-  //   'this'
-  //   'null'
-  //   'true'
-  //   'false'
-  //   Identifier
-  //   Number
-  //   String
-  //   ArrayLiteral
-  //   ObjectLiteral
-  //   RegExpLiteral
-  //   '(' Expression ')'
-
-  Expression result = Expression::Default();
-  switch (peek()) {
-    case Token::THIS: {
-      Next();
-      result = Expression::This();
-      break;
-    }
-
-    case Token::FUTURE_RESERVED_WORD:
-    case Token::FUTURE_STRICT_RESERVED_WORD:
-    case Token::YIELD:
-    case Token::IDENTIFIER: {
-      // Using eval or arguments in this context is OK even in strict mode.
-      Identifier id = ParseIdentifier(kAllowEvalOrArguments, CHECK_OK);
-      result = Expression::FromIdentifier(id);
-      break;
-    }
-
-    case Token::NULL_LITERAL:
-    case Token::TRUE_LITERAL:
-    case Token::FALSE_LITERAL:
-    case Token::NUMBER: {
-      Next();
-      break;
-    }
-    case Token::STRING: {
-      Next();
-      result = GetStringSymbol();
-      break;
-    }
-
-    case Token::ASSIGN_DIV:
-      result = ParseRegExpLiteral(true, CHECK_OK);
-      break;
-
-    case Token::DIV:
-      result = ParseRegExpLiteral(false, CHECK_OK);
-      break;
-
-    case Token::LBRACK:
-      result = ParseArrayLiteral(CHECK_OK);
-      break;
-
-    case Token::LBRACE:
-      result = ParseObjectLiteral(CHECK_OK);
-      break;
-
-    case Token::LPAREN:
-      Consume(Token::LPAREN);
-      parenthesized_function_ = (peek() == Token::FUNCTION);
-      result = ParseExpression(true, CHECK_OK);
-      Expect(Token::RPAREN, CHECK_OK);
-      break;
-
-    case Token::MOD:
-      result = ParseV8Intrinsic(CHECK_OK);
-      break;
-
-    default: {
-      Token::Value next = Next();
-      ReportUnexpectedToken(next);
-      *ok = false;
-      return Expression::Default();
-    }
-  }
-
-  return result;
+  ASSERT(false);
+  return PreParserExpression::Default();
 }
 
 
@@ -1266,7 +1213,7 @@ PreParser::Expression PreParser::ParseObjectLiteral(bool* ok) {
       case Token::STRING:
         Consume(next);
         checker.CheckProperty(next, kValueProperty, CHECK_OK);
-        GetStringSymbol();
+        LogSymbol();
         break;
       case Token::NUMBER:
         Consume(next);
@@ -1472,21 +1419,6 @@ void PreParser::LogSymbol() {
   } else {
     log_->LogUtf16Symbol(identifier_pos, scanner()->literal_utf16_string());
   }
-}
-
-
-PreParser::Expression PreParser::GetStringSymbol() {
-  const int kUseStrictLength = 10;
-  const char* kUseStrictChars = "use strict";
-  LogSymbol();
-  if (scanner()->is_literal_ascii() &&
-      scanner()->literal_length() == kUseStrictLength &&
-      !scanner()->literal_contains_escapes() &&
-      !strncmp(scanner()->literal_ascii_string().start(), kUseStrictChars,
-               kUseStrictLength)) {
-    return Expression::UseStrictStringLiteral();
-  }
-  return Expression::StringLiteral();
 }
 
 

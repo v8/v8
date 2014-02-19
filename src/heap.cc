@@ -545,7 +545,9 @@ void Heap::ProcessPretenuringFeedback() {
       }
     }
 
-    if (trigger_deoptimization) isolate_->stack_guard()->DeoptMarkedCode();
+    if (trigger_deoptimization) {
+      isolate_->stack_guard()->DeoptMarkedAllocationSites();
+    }
 
     FlushAllocationSitesScratchpad();
 
@@ -564,6 +566,25 @@ void Heap::ProcessPretenuringFeedback() {
              dont_tenure_decisions);
     }
   }
+}
+
+
+void Heap::DeoptMarkedAllocationSites() {
+  // TODO(hpayer): If iterating over the allocation sites list becomes a
+  // performance issue, use a cache heap data structure instead (similar to the
+  // allocation sites scratchpad).
+  Object* list_element = allocation_sites_list();
+  while (list_element->IsAllocationSite()) {
+    AllocationSite* site = AllocationSite::cast(list_element);
+    if (site->deopt_dependent_code()) {
+      site->dependent_code()->MarkCodeForDeoptimization(
+          isolate_,
+          DependentCode::kAllocationSiteTenuringChangedGroup);
+      site->set_deopt_dependent_code(false);
+    }
+    list_element = site->weak_next();
+  }
+  Deoptimizer::DeoptimizeMarkedCode(isolate_);
 }
 
 
@@ -752,6 +773,21 @@ void Heap::CollectAllAvailableGarbage(const char* gc_reason) {
 }
 
 
+void Heap::EnsureFillerObjectAtTop() {
+  // There may be an allocation memento behind every object in new space.
+  // If we evacuate a not full new space or if we are on the last page of
+  // the new space, then there may be uninitialized memory behind the top
+  // pointer of the new space page. We store a filler object there to
+  // identify the unused space.
+  Address from_top = new_space_.top();
+  Address from_limit = new_space_.limit();
+  if (from_top < from_limit) {
+    int remaining_in_page = static_cast<int>(from_limit - from_top);
+    CreateFillerObjectAt(from_top, remaining_in_page);
+  }
+}
+
+
 bool Heap::CollectGarbage(GarbageCollector collector,
                           const char* gc_reason,
                           const char* collector_reason,
@@ -768,17 +804,7 @@ bool Heap::CollectGarbage(GarbageCollector collector,
   allocation_timeout_ = Max(6, FLAG_gc_interval);
 #endif
 
-  // There may be an allocation memento behind every object in new space.
-  // If we evacuate a not full new space or if we are on the last page of
-  // the new space, then there may be uninitialized memory behind the top
-  // pointer of the new space page. We store a filler object there to
-  // identify the unused space.
-  Address from_top = new_space_.top();
-  Address from_limit = new_space_.limit();
-  if (from_top < from_limit) {
-    int remaining_in_page = static_cast<int>(from_limit - from_top);
-    CreateFillerObjectAt(from_top, remaining_in_page);
-  }
+  EnsureFillerObjectAtTop();
 
   if (collector == SCAVENGER && !incremental_marking()->IsStopped()) {
     if (FLAG_trace_incremental_marking) {
@@ -849,16 +875,6 @@ int Heap::NotifyContextDisposed() {
   flush_monomorphic_ics_ = true;
   AgeInlineCaches();
   return ++contexts_disposed_;
-}
-
-
-void Heap::PerformScavenge() {
-  GCTracer tracer(this, NULL, NULL);
-  if (incremental_marking()->IsStopped()) {
-    PerformGarbageCollection(SCAVENGER, &tracer);
-  } else {
-    PerformGarbageCollection(MARK_COMPACTOR, &tracer);
-  }
 }
 
 
@@ -2000,14 +2016,12 @@ void Heap::ResetAllAllocationSitesDependentCode(PretenureFlag flag) {
     AllocationSite* casted = AllocationSite::cast(cur);
     if (casted->GetPretenureMode() == flag) {
       casted->ResetPretenureDecision();
-      bool got_marked = casted->dependent_code()->MarkCodeForDeoptimization(
-          isolate_,
-          DependentCode::kAllocationSiteTenuringChangedGroup);
-      if (got_marked) marked = true;
+      casted->set_deopt_dependent_code(true);
+      marked = true;
     }
     cur = casted->weak_next();
   }
-  if (marked) isolate_->stack_guard()->DeoptMarkedCode();
+  if (marked) isolate_->stack_guard()->DeoptMarkedAllocationSites();
 }
 
 
@@ -5841,6 +5855,9 @@ void Heap::Verify() {
   VerifyPointersVisitor visitor;
   IterateRoots(&visitor, VISIT_ONLY_STRONG);
 
+  VerifySmisVisitor smis_visitor;
+  IterateSmiRoots(&smis_visitor);
+
   new_space_.Verify();
 
   old_pointer_space_->Verify(&visitor);
@@ -6135,6 +6152,12 @@ void Heap::IterateWeakRoots(ObjectVisitor* v, VisitMode mode) {
     external_string_table_.Iterate(v);
   }
   v->Synchronize(VisitorSynchronization::kExternalStringsTable);
+}
+
+
+void Heap::IterateSmiRoots(ObjectVisitor* v) {
+  v->VisitPointers(&roots_[kSmiRootsStart], &roots_[kRootListLength]);
+  v->Synchronize(VisitorSynchronization::kSmiRootList);
 }
 
 

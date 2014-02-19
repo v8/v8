@@ -2284,12 +2284,12 @@ class JSObject: public JSReceiver {
 
   // Retrieve a value in a normalized object given a lookup result.
   // Handles the special representation of JS global objects.
-  Object* GetNormalizedProperty(LookupResult* result);
+  Object* GetNormalizedProperty(const LookupResult* result);
 
   // Sets the property value in a normalized object given a lookup result.
   // Handles the special representation of JS global objects.
   static void SetNormalizedProperty(Handle<JSObject> object,
-                                    LookupResult* result,
+                                    const LookupResult* result,
                                     Handle<Object> value);
 
   // Sets the property value in a normalized object given (key, value, details).
@@ -2359,10 +2359,6 @@ class JSObject: public JSReceiver {
   // Returns true if this is an instance of an api function and has
   // been modified since it was created.  May give false positives.
   bool IsDirty();
-
-  // If the receiver is a JSGlobalProxy this method will return its prototype,
-  // otherwise the result is the receiver itself.
-  inline Object* BypassGlobalProxy();
 
   // Accessors for hidden properties object.
   //
@@ -5233,14 +5229,10 @@ class Code: public HeapObject {
 
   // [flags]: Access to specific code flags.
   inline Kind kind();
-  inline Kind handler_kind() {
-    return static_cast<Kind>(arguments_count());
-  }
   inline InlineCacheState ic_state();  // Only valid for IC stubs.
   inline ExtraICState extra_ic_state();  // Only valid for IC stubs.
 
   inline StubType type();  // Only valid for monomorphic IC stubs.
-  inline int arguments_count();  // Only valid for call IC stubs.
 
   // Testers for IC stub kinds.
   inline bool is_inline_cache_stub();
@@ -5379,22 +5371,24 @@ class Code: public HeapObject {
       InlineCacheState ic_state = UNINITIALIZED,
       ExtraICState extra_ic_state = kNoExtraICState,
       StubType type = NORMAL,
-      Kind handler_kind = STUB,
       InlineCacheHolderFlag holder = OWN_MAP);
 
   static inline Flags ComputeMonomorphicFlags(
       Kind kind,
       ExtraICState extra_ic_state = kNoExtraICState,
       InlineCacheHolderFlag holder = OWN_MAP,
+      StubType type = NORMAL);
+
+  static inline Flags ComputeHandlerFlags(
+      Kind handler_kind,
       StubType type = NORMAL,
-      Kind handler_kind = STUB);
+      InlineCacheHolderFlag holder = OWN_MAP);
 
   static inline InlineCacheState ExtractICStateFromFlags(Flags flags);
   static inline StubType ExtractTypeFromFlags(Flags flags);
   static inline Kind ExtractKindFromFlags(Flags flags);
   static inline InlineCacheHolderFlag ExtractCacheHolderFromFlags(Flags flags);
   static inline ExtraICState ExtractExtraICStateFromFlags(Flags flags);
-  static inline int ExtractArgumentsCountFromFlags(Flags flags);
 
   static inline Flags RemoveTypeFromFlags(Flags flags);
 
@@ -5614,11 +5608,7 @@ class Code: public HeapObject {
   class BackEdgesPatchedForOSRField: public BitField<bool,
       kIsCrankshaftedBit + 1 + 29, 1> {};  // NOLINT
 
-  // Signed field cannot be encoded using the BitField class.
-  static const int kArgumentsCountShift = 17;
-  static const int kArgumentsCountMask = ~((1 << kArgumentsCountShift) - 1);
-  static const int kArgumentsBits =
-      PlatformSmiTagging::kSmiValueSize - Code::kArgumentsCountShift + 1;
+  static const int kArgumentsBits = 16;
   static const int kMaxArguments = (1 << kArgumentsBits) - 1;
 
   // This constant should be encodable in an ARM instruction.
@@ -6097,6 +6087,8 @@ class Map: public HeapObject {
   inline void LookupTransition(JSObject* holder,
                                Name* name,
                                LookupResult* result);
+
+  inline PropertyDetails GetLastDescriptorDetails();
 
   // The size of transition arrays are limited so they do not end up in large
   // object space. Otherwise ClearNonLiveTransitions would leak memory while
@@ -8182,6 +8174,9 @@ class TypeFeedbackInfo: public Struct {
   // The object that indicates an uninitialized cache.
   static inline Handle<Object> UninitializedSentinel(Isolate* isolate);
 
+  // The object that indicates a cache in pre-monomorphic state.
+  static inline Handle<Object> PremonomorphicSentinel(Isolate* isolate);
+
   // The object that indicates a megamorphic state.
   static inline Handle<Object> MegamorphicSentinel(Isolate* isolate);
 
@@ -8258,8 +8253,9 @@ class AllocationSite: public Struct {
   class DoNotInlineBit:         public BitField<bool,         29,  1> {};
 
   // Bitfields for pretenure_data
-  class MementoFoundCountBits:  public BitField<int,          0, 28> {};
-  class PretenureDecisionBits:  public BitField<PretenureDecision, 28, 2> {};
+  class MementoFoundCountBits:  public BitField<int,               0, 27> {};
+  class PretenureDecisionBits:  public BitField<PretenureDecision, 27, 2> {};
+  class DeoptDependentCodeBit:  public BitField<bool,              29, 1> {};
   STATIC_ASSERT(PretenureDecisionBits::kMax >= kLastPretenureDecisionValue);
 
   // Increments the mementos found counter and returns true when the first
@@ -8281,6 +8277,18 @@ class AllocationSite: public Struct {
     int value = pretenure_data()->value();
     set_pretenure_data(
         Smi::FromInt(PretenureDecisionBits::update(value, decision)),
+        SKIP_WRITE_BARRIER);
+  }
+
+  bool deopt_dependent_code() {
+    int value = pretenure_data()->value();
+    return DeoptDependentCodeBit::decode(value);
+  }
+
+  void set_deopt_dependent_code(bool deopt) {
+    int value = pretenure_data()->value();
+    set_pretenure_data(
+        Smi::FromInt(DeoptDependentCodeBit::update(value, deopt)),
         SKIP_WRITE_BARRIER);
   }
 
@@ -10642,6 +10650,7 @@ class BreakPointInfo: public Struct {
   V(kStringTable, "string_table", "(Internalized strings)")             \
   V(kExternalStringsTable, "external_strings_table", "(External strings)") \
   V(kStrongRootList, "strong_root_list", "(Strong roots)")              \
+  V(kSmiRootList, "smi_root_list", "(Smi roots)")                       \
   V(kInternalizedString, "internalized_string", "(Internal string)")    \
   V(kBootstrapper, "bootstrapper", "(Bootstrapper)")                    \
   V(kTop, "top", "(Isolate)")                                           \

@@ -212,7 +212,7 @@ class MacroAssembler : public Assembler {
   inline void Asr(const Register& rd, const Register& rn, const Register& rm);
   inline void B(Label* label);
   inline void B(Condition cond, Label* label);
-  inline void B(Label* label, Condition cond);
+  void B(Label* label, Condition cond);
   inline void Bfi(const Register& rd,
                   const Register& rn,
                   unsigned lsb,
@@ -226,8 +226,8 @@ class MacroAssembler : public Assembler {
   inline void Blr(const Register& xn);
   inline void Br(const Register& xn);
   inline void Brk(int code);
-  inline void Cbnz(const Register& rt, Label* label);
-  inline void Cbz(const Register& rt, Label* label);
+  void Cbnz(const Register& rt, Label* label);
+  void Cbz(const Register& rt, Label* label);
   inline void Cinc(const Register& rd, const Register& rn, Condition cond);
   inline void Cinv(const Register& rd, const Register& rn, Condition cond);
   inline void Cls(const Register& rd, const Register& rn);
@@ -400,8 +400,8 @@ class MacroAssembler : public Assembler {
   inline void Sxtb(const Register& rd, const Register& rn);
   inline void Sxth(const Register& rd, const Register& rn);
   inline void Sxtw(const Register& rd, const Register& rn);
-  inline void Tbnz(const Register& rt, unsigned bit_pos, Label* label);
-  inline void Tbz(const Register& rt, unsigned bit_pos, Label* label);
+  void Tbnz(const Register& rt, unsigned bit_pos, Label* label);
+  void Tbz(const Register& rt, unsigned bit_pos, Label* label);
   inline void Ubfiz(const Register& rd,
                     const Register& rn,
                     unsigned lsb,
@@ -422,7 +422,6 @@ class MacroAssembler : public Assembler {
                      const Register& rn,
                      const Register& rm,
                      const Register& ra);
-  inline void Unreachable();
   inline void Uxtb(const Register& rd, const Register& rn);
   inline void Uxth(const Register& rd, const Register& rn);
   inline void Uxtw(const Register& rd, const Register& rn);
@@ -1093,33 +1092,35 @@ class MacroAssembler : public Assembler {
 
   // ---- Floating point helpers ----
 
-  enum ECMA262ToInt32Result {
-    // Provide an untagged int32_t which can be read using result.W(). That is,
-    // the upper 32 bits of result are undefined.
-    INT32_IN_W,
 
-    // Provide an untagged int32_t which can be read using the 64-bit result
-    // register. The int32_t result is sign-extended.
-    INT32_IN_X,
+  // Performs a truncating conversion of a floating point number as used by
+  // the JS bitwise operations. See ECMA-262 9.5: ToInt32. Goes to 'done' if it
+  // succeeds, otherwise falls through if result is saturated. On return
+  // 'result' either holds answer, or is clobbered on fall through.
+  //
+  // Only public for the test code in test-code-stubs-a64.cc.
+  void TryInlineTruncateDoubleToI(Register result,
+                                  DoubleRegister input,
+                                  Label* done);
 
-    // Tag the int32_t result as a smi.
-    SMI
-  };
+  // Performs a truncating conversion of a floating point number as used by
+  // the JS bitwise operations. See ECMA-262 9.5: ToInt32.
+  // Exits with 'result' holding the answer.
+  void TruncateDoubleToI(Register result, DoubleRegister double_input);
 
-  // Applies ECMA-262 ToInt32 (see section 9.5) to a double value.
-  void ECMA262ToInt32(Register result,
-                      DoubleRegister input,
-                      Register scratch1,
-                      Register scratch2,
-                      ECMA262ToInt32Result format = INT32_IN_X);
+  // Performs a truncating conversion of a heap number as used by
+  // the JS bitwise operations. See ECMA-262 9.5: ToInt32. 'result' and 'input'
+  // must be different registers.  Exits with 'result' holding the answer.
+  void TruncateHeapNumberToI(Register result, Register object);
 
-  // As ECMA262ToInt32, but operate on a HeapNumber.
-  void HeapNumberECMA262ToInt32(Register result,
-                                Register heap_number,
-                                Register scratch1,
-                                Register scratch2,
-                                DoubleRegister double_scratch,
-                                ECMA262ToInt32Result format = INT32_IN_X);
+  // Converts the smi or heap number in object to an int32 using the rules
+  // for ToInt32 as described in ECMAScript 9.5.: the value is truncated
+  // and brought into the range -2^31 .. +2^31 - 1. 'result' and 'input' must be
+  // different registers.
+  void TruncateNumberToI(Register object,
+                         Register result,
+                         Register heap_number_map,
+                         Label* not_int32);
 
   // ---- Code generation helpers ----
 
@@ -2072,6 +2073,58 @@ class MacroAssembler : public Assembler {
                            Heap::RootListIndex map_index,
                            Register scratch1,
                            Register scratch2);
+
+ public:
+  // Far branches resolving.
+  //
+  // The various classes of branch instructions with immediate offsets have
+  // different ranges. While the Assembler will fail to assemble a branch
+  // exceeding its range, the MacroAssembler offers a mechanism to resolve
+  // branches to too distant targets, either by tweaking the generated code to
+  // use branch instructions with wider ranges or generating veneers.
+  //
+  // Currently branches to distant targets are resolved using unconditional
+  // branch isntructions with a range of +-128MB. If that becomes too little
+  // (!), the mechanism can be extended to generate special veneers for really
+  // far targets.
+
+  // Returns true if we should emit a veneer as soon as possible for a branch
+  // which can at most reach to specified pc.
+  bool ShouldEmitVeneer(int max_reachable_pc,
+                        int margin = kVeneerDistanceMargin);
+
+  // The maximum code size generated for a veneer. Currently one branch
+  // instruction. This is for code size checking purposes, and can be extended
+  // in the future for example if we decide to add nops between the veneers.
+  static const int kMaxVeneerCodeSize = 1 * kInstructionSize;
+
+  // Emits veneers for branches that are approaching their maximum range.
+  // If need_protection is true, the veneers are protected by a branch jumping
+  // over the code.
+  void EmitVeneers(bool need_protection);
+  void EmitVeneersGuard();
+  // Checks wether veneers need to be emitted at this point.
+  void CheckVeneers(bool need_protection);
+
+  // Helps resolve branching to labels potentially out of range.
+  // If the label is not bound, it registers the information necessary to later
+  // be able to emit a veneer for this branch if necessary.
+  // If the label is bound, it returns true if the label (or the previous link
+  // in the label chain) is out of range. In that case the caller is responsible
+  // for generating appropriate code.
+  // Otherwise it returns false.
+  // This function also checks wether veneers need to be emitted.
+  bool NeedExtraInstructionsOrRegisterBranch(Label *label,
+                                             ImmBranchType branch_type);
+
+ private:
+  // We generate a veneer for a branch if we reach within this distance of the
+  // limit of the range.
+  static const int kVeneerDistanceMargin = 2 * KB;
+  int unresolved_branches_first_limit() const {
+    ASSERT(!unresolved_branches_.empty());
+    return unresolved_branches_.begin()->first;
+  }
 };
 
 
@@ -2081,20 +2134,13 @@ class MacroAssembler : public Assembler {
 // emitted is what you specified when creating the scope.
 class InstructionAccurateScope BASE_EMBEDDED {
  public:
-  explicit InstructionAccurateScope(MacroAssembler* masm)
-      : masm_(masm), size_(0) {
-    masm_->StartBlockConstPool();
-#ifdef DEBUG
-    previous_allow_macro_instructions_ = masm_->allow_macro_instructions();
-    masm_->set_allow_macro_instructions(false);
-#endif
-  }
-
-  InstructionAccurateScope(MacroAssembler* masm, size_t count)
+  InstructionAccurateScope(MacroAssembler* masm, size_t count = 0)
       : masm_(masm), size_(count * kInstructionSize) {
     masm_->StartBlockConstPool();
 #ifdef DEBUG
-    masm_->bind(&start_);
+    if (count != 0) {
+      masm_->bind(&start_);
+    }
     previous_allow_macro_instructions_ = masm_->allow_macro_instructions();
     masm_->set_allow_macro_instructions(false);
 #endif

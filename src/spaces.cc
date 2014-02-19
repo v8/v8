@@ -483,7 +483,7 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap,
   chunk->write_barrier_counter_ = kWriteBarrierCounterGranularity;
   chunk->progress_bar_ = 0;
   chunk->high_water_mark_ = static_cast<int>(area_start - base);
-  chunk->parallel_sweeping_ = 0;
+  chunk->set_parallel_sweeping(PARALLEL_SWEEPING_DONE);
   chunk->available_in_small_free_list_ = 0;
   chunk->available_in_medium_free_list_ = 0;
   chunk->available_in_large_free_list_ = 0;

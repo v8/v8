@@ -27,6 +27,8 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from collections import OrderedDict
+import optparse
+import sys
 
 from common_includes import *
 
@@ -50,11 +52,11 @@ CONFIG = {
 
 class MergeToBranchOptions(CommonOptions):
   def __init__(self, options, args):
-    super(MergeToBranchOptions, self).__init__(options, options.m)
+    super(MergeToBranchOptions, self).__init__(options, True)
     self.requires_editor = True
     self.wait_for_lgtm = True
     self.delete_sentinel = options.f
-    self.message = options.m
+    self.message = getattr(options, "message", "")
     self.revert = "--reverse" if getattr(options, "r", None) else ""
     self.revert_bleeding_edge = getattr(options, "revert_bleeding_edge", False)
     self.patch = getattr(options, "p", "")
@@ -353,6 +355,10 @@ def RunMergeToBranch(config,
 
 def BuildOptions():
   result = optparse.OptionParser()
+  result.set_usage("""%prog [OPTIONS]... [BRANCH] [REVISION]...
+
+Performs the necessary steps to merge revisions from bleeding_edge
+to other branches, including trunk.""")
   result.add_option("-f",
                     help="Delete sentinel file.",
                     default=False, action="store_true")
@@ -394,7 +400,7 @@ def Main():
   if not ProcessOptions(options, args):
     parser.print_help()
     return 1
-  RunMergeToBranch(CONFIG, MergeToBranchOptions(options))
+  RunMergeToBranch(CONFIG, MergeToBranchOptions(options, args))
 
 if __name__ == "__main__":
   sys.exit(Main())
