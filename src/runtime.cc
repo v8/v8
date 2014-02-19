@@ -7647,33 +7647,110 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringCompare) {
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_acos) {
-  SealHandleScope shs(isolate);
-  ASSERT(args.length() == 1);
-  isolate->counters()->math_acos()->Increment();
+#define RUNTIME_UNARY_MATH(NAME)                                               \
+RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_##NAME) {                          \
+  SealHandleScope shs(isolate);                                                \
+  ASSERT(args.length() == 1);                                                  \
+  isolate->counters()->math_##NAME()->Increment();                             \
+  CONVERT_DOUBLE_ARG_CHECKED(x, 0);                                            \
+  return isolate->heap()->AllocateHeapNumber(std::NAME(x));                    \
+}
 
-  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  return isolate->heap()->AllocateHeapNumber(std::acos(x));
+RUNTIME_UNARY_MATH(acos)
+RUNTIME_UNARY_MATH(asin)
+RUNTIME_UNARY_MATH(atan)
+RUNTIME_UNARY_MATH(log)
+#undef RUNTIME_UNARY_MATH
+
+
+// Cube root approximation, refer to: http://metamerist.com/cbrt/cbrt.htm
+// Using initial approximation adapted from Kahan's cbrt and 4 iterations
+// of Newton's method.
+inline double CubeRootNewtonIteration(double approx, double x) {
+  return (1.0 / 3.0) * (x / (approx * approx) + 2 * approx);
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_asin) {
-  SealHandleScope shs(isolate);
-  ASSERT(args.length() == 1);
-  isolate->counters()->math_asin()->Increment();
+inline double CubeRoot(double x) {
+  static const uint64_t magic = V8_2PART_UINT64_C(0x2A9F7893, 00000000);
+  uint64_t xhigh = double_to_uint64(x);
+  double approx = uint64_to_double(xhigh / 3 + magic);
 
-  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  return isolate->heap()->AllocateHeapNumber(std::asin(x));
+  approx = CubeRootNewtonIteration(approx, x);
+  approx = CubeRootNewtonIteration(approx, x);
+  approx = CubeRootNewtonIteration(approx, x);
+  return CubeRootNewtonIteration(approx, x);
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_atan) {
+RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_cbrt) {
   SealHandleScope shs(isolate);
   ASSERT(args.length() == 1);
-  isolate->counters()->math_atan()->Increment();
-
   CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  return isolate->heap()->AllocateHeapNumber(std::atan(x));
+  if (x == 0 || std::isinf(x)) return args[0];
+  double result = (x > 0) ? CubeRoot(x) : -CubeRoot(-x);
+  return isolate->heap()->AllocateHeapNumber(result);
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_log1p) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 1);
+  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
+
+  double x_abs = std::fabs(x);
+  // Use Taylor series to approximate. With y = x + 1;
+  // log(y) at 1 == log(1) + log'(1)(y-1)/1! + log''(1)(y-1)^2/2! + ...
+  //             == 0 + x - x^2/2 + x^3/3 ...
+  // The closer x is to 0, the fewer terms are required.
+  static const double threshold_2 = 1.0 / 0x00800000;
+  static const double threshold_3 = 1.0 / 0x00008000;
+  static const double threshold_7 = 1.0 / 0x00000080;
+
+  double result;
+  if (x_abs < threshold_2) {
+    result = x * (1.0/1.0 - x * 1.0/2.0);
+  } else if (x_abs < threshold_3) {
+    result = x * (1.0/1.0 - x * (1.0/2.0 - x * (1.0/3.0)));
+  } else if (x_abs < threshold_7) {
+    result = x * (1.0/1.0 - x * (1.0/2.0 - x * (
+                  1.0/3.0 - x * (1.0/4.0 - x * (
+                  1.0/5.0 - x * (1.0/6.0 - x * (
+                  1.0/7.0)))))));
+  } else {  // Use regular log if not close enough to 0.
+    result = std::log(1.0 + x);
+  }
+  return isolate->heap()->AllocateHeapNumber(result);
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_expm1) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 1);
+  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
+
+  double x_abs = std::fabs(x);
+  // Use Taylor series to approximate.
+  // exp(x) - 1 at 0 == -1 + exp(0) + exp'(0)*x/1! + exp''(0)*x^2/2! + ...
+  //                 == x/1! + x^2/2! + x^3/3! + ...
+  // The closer x is to 0, the fewer terms are required.
+  static const double threshold_2 = 1.0 / 0x00400000;
+  static const double threshold_3 = 1.0 / 0x00004000;
+  static const double threshold_6 = 1.0 / 0x00000040;
+
+  double result;
+  if (x_abs < threshold_2) {
+    result = x * (1.0/1.0 + x * (1.0/2.0));
+  } else if (x_abs < threshold_3) {
+    result = x * (1.0/1.0 + x * (1.0/2.0 + x * (1.0/6.0)));
+  } else if (x_abs < threshold_6) {
+    result = x * (1.0/1.0 + x * (1.0/2.0 + x * (
+                  1.0/6.0 + x * (1.0/24.0 + x * (
+                  1.0/120.0 + x * (1.0/720.0))))));
+  } else {  // Use regular exp if not close enough to 0.
+    result = std::exp(x) - 1.0;
+  }
+  return isolate->heap()->AllocateHeapNumber(result);
 }
 
 
@@ -7721,16 +7798,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_floor) {
 
   CONVERT_DOUBLE_ARG_CHECKED(x, 0);
   return isolate->heap()->NumberFromDouble(std::floor(x));
-}
-
-
-RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_log) {
-  SealHandleScope shs(isolate);
-  ASSERT(args.length() == 1);
-  isolate->counters()->math_log()->Increment();
-
-  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  return isolate->heap()->AllocateHeapNumber(std::log(x));
 }
 
 
