@@ -80,6 +80,8 @@ MaybeObject* Object::ToObject(Context* native_context) {
     return CreateJSValue(native_context->boolean_function(), this);
   } else if (IsString()) {
     return CreateJSValue(native_context->string_function(), this);
+  } else if (IsSymbol()) {
+    return CreateJSValue(native_context->symbol_function(), this);
   }
   ASSERT(IsJSObject());
   return this;

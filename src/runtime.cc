@@ -633,7 +633,14 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreatePrivateSymbol) {
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_SymbolName) {
+RUNTIME_FUNCTION(MaybeObject*, Runtime_NewSymbolWrapper) {
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_CHECKED(Symbol, symbol, 0);
+  return symbol->ToObject(isolate);
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SymbolDescription) {
   SealHandleScope shs(isolate);
   ASSERT(args.length() == 1);
   CONVERT_ARG_CHECKED(Symbol, symbol, 0);
