@@ -76,9 +76,9 @@ class Preparation(Step):
 
     self.InitialEnvironmentChecks()
     if self._options.revert_bleeding_edge:
-      self.Persist("merge_to_branch", "bleeding_edge")
+      self["merge_to_branch"] = "bleeding_edge"
     elif self._options.args[0]:
-      self.Persist("merge_to_branch", self._options.args[0])
+      self["merge_to_branch"] = self._options.args[0]
       self._options.args = self._options.args[1:]
     else:
       self.Die("Please specify a branch to merge to")
@@ -91,9 +91,8 @@ class CreateBranch(Step):
   MESSAGE = "Create a fresh branch for the patch."
 
   def RunStep(self):
-    self.RestoreIfUnset("merge_to_branch")
     args = "checkout -b %s svn/%s" % (self.Config(BRANCHNAME),
-                                      self._state["merge_to_branch"])
+                                      self["merge_to_branch"])
     if self.Git(args) is None:
       self.die("Creating branch %s failed." % self.Config(BRANCHNAME))
 
@@ -102,9 +101,9 @@ class SearchArchitecturePorts(Step):
   MESSAGE = "Search for corresponding architecture ports."
 
   def RunStep(self):
-    full_revision_list = list(OrderedDict.fromkeys(self._options.args))
+    self["full_revision_list"] = list(OrderedDict.fromkeys(self._options.args))
     port_revision_list = []
-    for revision in full_revision_list:
+    for revision in self["full_revision_list"]:
       # Search for commits which matches the "Port rXXX" pattern.
       args = ("log svn/bleeding_edge --reverse "
               "--format=%%H --grep=\"Port r%d\"" % int(revision))
@@ -117,7 +116,7 @@ class SearchArchitecturePorts(Step):
         revision_title = self.Git("log -1 --format=%%s %s" % git_hash)
 
         # Is this revision included in the original revision list?
-        if svn_revision in full_revision_list:
+        if svn_revision in self["full_revision_list"]:
           print("Found port of r%s -> r%s (already included): %s"
                 % (revision, svn_revision, revision_title))
         else:
@@ -130,76 +129,61 @@ class SearchArchitecturePorts(Step):
       if self.Confirm("Automatically add corresponding ports (%s)?"
                       % ", ".join(port_revision_list)):
         #: 'y': Add ports to revision list.
-        full_revision_list.extend(port_revision_list)
-    self.Persist("full_revision_list", ",".join(full_revision_list))
+        self["full_revision_list"].extend(port_revision_list)
 
 
 class FindGitRevisions(Step):
   MESSAGE = "Find the git revisions associated with the patches."
 
   def RunStep(self):
-    self.RestoreIfUnset("full_revision_list")
-    self.RestoreIfUnset("merge_to_branch")
-    full_revision_list = self._state["full_revision_list"].split(",")
-    patch_commit_hashes = []
-    for revision in full_revision_list:
+    self["patch_commit_hashes"] = []
+    for revision in self["full_revision_list"]:
       next_hash = self.Git("svn find-rev \"r%s\" svn/bleeding_edge" % revision)
       if not next_hash:
         self.Die("Cannot determine git hash for r%s" % revision)
-      patch_commit_hashes.append(next_hash)
+      self["patch_commit_hashes"].append(next_hash)
 
     # Stringify: [123, 234] -> "r123, r234"
-    revision_list = ", ".join(map(lambda s: "r%s" % s, full_revision_list))
+    self["revision_list"] = ", ".join(map(lambda s: "r%s" % s,
+                                      self["full_revision_list"]))
 
-    if not revision_list:
+    if not self["revision_list"]:
       self.Die("Revision list is empty.")
 
     if self._options.revert:
       if not self._options.revert_bleeding_edge:
-        new_commit_msg = ("Rollback of %s in %s branch."
-                          % (revision_list, self._state["merge_to_branch"]))
+        self["new_commit_msg"] = ("Rollback of %s in %s branch."
+            % (self["revision_list"], self["merge_to_branch"]))
       else:
-        new_commit_msg = "Revert %s ." % revision_list
+        self["new_commit_msg"] = "Revert %s." % self["revision_list"]
     else:
-      new_commit_msg = ("Merged %s into %s branch."
-                        % (revision_list, self._state["merge_to_branch"]))
-    new_commit_msg += "\n\n"
+      self["new_commit_msg"] = ("Merged %s into %s branch."
+          % (self["revision_list"], self["merge_to_branch"]))
+    self["new_commit_msg"] += "\n\n"
 
-    for commit_hash in patch_commit_hashes:
+    for commit_hash in self["patch_commit_hashes"]:
       patch_merge_desc = self.Git("log -1 --format=%%s %s" % commit_hash)
-      new_commit_msg += "%s\n\n" % patch_merge_desc.strip()
+      self["new_commit_msg"] += "%s\n\n" % patch_merge_desc.strip()
 
     bugs = []
-    for commit_hash in patch_commit_hashes:
+    for commit_hash in self["patch_commit_hashes"]:
       msg = self.Git("log -1 %s" % commit_hash)
       for bug in re.findall(r"^[ \t]*BUG[ \t]*=[ \t]*(.*?)[ \t]*$", msg,
                             re.M):
         bugs.extend(map(lambda s: s.strip(), bug.split(",")))
     bug_aggregate = ",".join(sorted(bugs))
     if bug_aggregate:
-      new_commit_msg += "BUG=%s\nLOG=N\n" % bug_aggregate
-    TextToFile(new_commit_msg, self.Config(COMMITMSG_FILE))
-    self.Persist("new_commit_msg", new_commit_msg)
-    self.Persist("revision_list", revision_list)
-    self._state["patch_commit_hashes"] = patch_commit_hashes
-    self.Persist("patch_commit_hashes_list", " ".join(patch_commit_hashes))
+      self["new_commit_msg"] += "BUG=%s\nLOG=N\n" % bug_aggregate
+    TextToFile(self["new_commit_msg"], self.Config(COMMITMSG_FILE))
 
 
 class ApplyPatches(Step):
   MESSAGE = "Apply patches for selected revisions."
 
   def RunStep(self):
-    self.RestoreIfUnset("merge_to_branch")
-    self.RestoreIfUnset("patch_commit_hashes_list")
-    patch_commit_hashes = self._state.get("patch_commit_hashes")
-    if not patch_commit_hashes:
-      patch_commit_hashes = (
-          self._state.get("patch_commit_hashes_list").strip().split(" "))
-    if not patch_commit_hashes and not options.patch:
-      self.Die("Variable patch_commit_hashes could not be restored.")
-    for commit_hash in patch_commit_hashes:
+    for commit_hash in self["patch_commit_hashes"]:
       print("Applying patch for %s to %s..."
-            % (commit_hash, self._state["merge_to_branch"]))
+            % (commit_hash, self["merge_to_branch"]))
       patch = self.Git("log -1 -p %s" % commit_hash)
       TextToFile(patch, self.Config(TEMPORARY_PATCH_FILE))
       self.ApplyPatch(self.Config(TEMPORARY_PATCH_FILE), self._options.revert)
@@ -223,8 +207,7 @@ class IncrementVersion(Step):
   def RunStep(self):
     if self._options.revert_bleeding_edge:
       return
-    self.RestoreIfUnset("patch")
-    new_patch = str(int(self._state["patch"]) + 1)
+    new_patch = str(int(self["patch"]) + 1)
     if self.Confirm("Automatically increment PATCH_LEVEL? (Saying 'n' will "
                     "fire up your EDITOR on %s so you can make arbitrary "
                     "changes. When you're done, save the file and exit your "
@@ -251,7 +234,6 @@ class CommitRepository(Step):
   MESSAGE = "Commit to the repository."
 
   def RunStep(self):
-    self.RestoreIfUnset("merge_to_branch")
     if self.Git("checkout %s" % self.Config(BRANCHNAME)) is None:
       self.Die("Cannot ensure that the current branch is %s"
                % self.Config(BRANCHNAME))
@@ -270,18 +252,16 @@ class PrepareSVN(Step):
   def RunStep(self):
     if self._options.revert_bleeding_edge:
       return
-    self.RestoreIfUnset("new_commit_msg")
-    self.RestoreIfUnset("merge_to_branch")
     if self.Git("svn fetch") is None:
       self.Die("'git svn fetch' failed.")
     args = ("log -1 --format=%%H --grep=\"%s\" svn/%s"
-            % (self._state["new_commit_msg"], self._state["merge_to_branch"]))
+            % (self["new_commit_msg"], self["merge_to_branch"]))
     commit_hash = self.Git(args).strip()
     if not commit_hash:
       self.Die("Unable to map git commit to svn revision.")
-    svn_revision = self.Git("svn find-rev %s" % commit_hash).strip()
-    print "subversion revision number is r%s" % svn_revision
-    self.Persist("svn_revision", svn_revision)
+    self["svn_revision"] = self.Git(
+        "svn find-rev %s" % commit_hash).strip()
+    print "subversion revision number is r%s" % self["svn_revision"]
 
 
 class TagRevision(Step):
@@ -290,45 +270,34 @@ class TagRevision(Step):
   def RunStep(self):
     if self._options.revert_bleeding_edge:
       return
-    self.RestoreVersionIfUnset("new_")
-    self.RestoreIfUnset("svn_revision")
-    self.RestoreIfUnset("merge_to_branch")
-    ver = "%s.%s.%s.%s" % (self._state["new_major"],
-                           self._state["new_minor"],
-                           self._state["new_build"],
-                           self._state["new_patch"])
-    print "Creating tag svn/tags/%s" % ver
-    if self._state["merge_to_branch"] == "trunk":
-      to_url = "trunk"
+    self["version"] = "%s.%s.%s.%s" % (self["new_major"],
+                                       self["new_minor"],
+                                       self["new_build"],
+                                       self["new_patch"])
+    print "Creating tag svn/tags/%s" % self["version"]
+    if self["merge_to_branch"] == "trunk":
+      self["to_url"] = "trunk"
     else:
-      to_url = "branches/%s" % self._state["merge_to_branch"]
+      self["to_url"] = "branches/%s" % self["merge_to_branch"]
     self.SVN("copy -r %s https://v8.googlecode.com/svn/%s "
              "https://v8.googlecode.com/svn/tags/%s -m "
              "\"Tagging version %s\""
-             % (self._state["svn_revision"], to_url, ver, ver))
-    self.Persist("to_url", to_url)
+             % (self["svn_revision"], self["to_url"],
+                self["version"], self["version"]))
 
 
 class CleanUp(Step):
   MESSAGE = "Cleanup."
 
   def RunStep(self):
-    self.RestoreIfUnset("svn_revision")
-    self.RestoreIfUnset("to_url")
-    self.RestoreIfUnset("revision_list")
-    self.RestoreVersionIfUnset("new_")
-    ver = "%s.%s.%s.%s" % (self._state["new_major"],
-                           self._state["new_minor"],
-                           self._state["new_build"],
-                           self._state["new_patch"])
     self.CommonCleanup()
     if not self._options.revert_bleeding_edge:
       print "*** SUMMARY ***"
-      print "version: %s" % ver
-      print "branch: %s" % self._state["to_url"]
-      print "svn revision: %s" % self._state["svn_revision"]
-      if self._state["revision_list"]:
-        print "patches: %s" % self._state["revision_list"]
+      print "version: %s" % self["version"]
+      print "branch: %s" % self["to_url"]
+      print "svn revision: %s" % self["svn_revision"]
+      if self["revision_list"]:
+        print "patches: %s" % self["revision_list"]
 
 
 def RunMergeToBranch(config,

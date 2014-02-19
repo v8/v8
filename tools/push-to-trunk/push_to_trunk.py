@@ -109,8 +109,7 @@ class DetectLastPush(Step):
         break
       args = "log -1 --format=%H %s^ ChangeLog" % last_push
       last_push = self.Git(args).strip()
-    self.Persist("last_push", last_push)
-    self._state["last_push"] = last_push
+    self["last_push"] = last_push
 
 
 class PrepareChangeLog(Step):
@@ -124,7 +123,8 @@ class PrepareChangeLog(Step):
     match = re.search(r"^Review URL: https://codereview\.chromium\.org/(\d+)$",
                       body, flags=re.M)
     if match:
-      cl_url = "https://codereview.chromium.org/%s/description" % match.group(1)
+      cl_url = ("https://codereview.chromium.org/%s/description"
+                % match.group(1))
       try:
         # Fetch from Rietveld but only retry once with one second delay since
         # there might be many revisions.
@@ -134,20 +134,17 @@ class PrepareChangeLog(Step):
     return body
 
   def RunStep(self):
-    self.RestoreIfUnset("last_push")
-
     # These version numbers are used again later for the trunk commit.
     self.ReadAndPersistVersion()
-
-    date = self.GetDate()
-    self.Persist("date", date)
-    output = "%s: Version %s.%s.%s\n\n" % (date,
-                                           self._state["major"],
-                                           self._state["minor"],
-                                           self._state["build"])
+    self["date"] = self.GetDate()
+    self["version"] = "%s.%s.%s" % (self["major"],
+                                    self["minor"],
+                                    self["build"])
+    output = "%s: Version %s\n\n" % (self["date"],
+                                     self["version"])
     TextToFile(output, self.Config(CHANGELOG_ENTRY_FILE))
 
-    args = "log %s..HEAD --format=%%H" % self._state["last_push"]
+    args = "log %s..HEAD --format=%%H" % self["last_push"]
     commits = self.Git(args).strip()
 
     # Cache raw commit messages.
@@ -208,8 +205,7 @@ class IncrementVersion(Step):
   MESSAGE = "Increment version number."
 
   def RunStep(self):
-    self.RestoreIfUnset("build")
-    new_build = str(int(self._state["build"]) + 1)
+    new_build = str(int(self["build"]) + 1)
 
     if self.Confirm(("Automatically increment BUILD_NUMBER? (Saying 'n' will "
                      "fire up your EDITOR on %s so you can make arbitrary "
@@ -230,12 +226,10 @@ class CommitLocal(Step):
   MESSAGE = "Commit to local branch."
 
   def RunStep(self):
-    self.RestoreVersionIfUnset("new_")
-    prep_commit_msg = ("Prepare push to trunk.  "
-        "Now working on version %s.%s.%s." % (self._state["new_major"],
-                                              self._state["new_minor"],
-                                              self._state["new_build"]))
-    self.Persist("prep_commit_msg", prep_commit_msg)
+    self["prep_commit_msg"] = ("Prepare push to trunk.  "
+        "Now working on version %s.%s.%s." % (self["new_major"],
+                                              self["new_minor"],
+                                              self["new_build"]))
 
     # Include optional TBR only in the git command. The persisted commit
     # message is used for finding the commit again later.
@@ -243,7 +237,8 @@ class CommitLocal(Step):
       review = "\n\nTBR=%s" % self._options.reviewer
     else:
       review = ""
-    if self.Git("commit -a -m \"%s%s\"" % (prep_commit_msg, review)) is None:
+    if self.Git("commit -a -m \"%s%s\""
+                % (self["prep_commit_msg"], review)) is None:
       self.Die("'git commit -a' failed.")
 
 
@@ -273,10 +268,8 @@ class StragglerCommits(Step):
     if self.Git("svn fetch") is None:
       self.Die("'git svn fetch' failed.")
     self.Git("checkout svn/bleeding_edge")
-    self.RestoreIfUnset("prep_commit_msg")
-    args = "log -1 --format=%%H --grep=\"%s\"" % self._state["prep_commit_msg"]
-    prepare_commit_hash = self.Git(args).strip()
-    self.Persist("prepare_commit_hash", prepare_commit_hash)
+    args = "log -1 --format=%%H --grep=\"%s\"" % self["prep_commit_msg"]
+    self["prepare_commit_hash"] = self.Git(args).strip()
 
 
 class SquashCommits(Step):
@@ -285,24 +278,22 @@ class SquashCommits(Step):
   def RunStep(self):
     # Instead of relying on "git rebase -i", we'll just create a diff, because
     # that's easier to automate.
-    self.RestoreIfUnset("prepare_commit_hash")
-    args = "diff svn/trunk %s" % self._state["prepare_commit_hash"]
+    args = "diff svn/trunk %s" % self["prepare_commit_hash"]
     TextToFile(self.Git(args), self.Config(PATCH_FILE))
 
     # Convert the ChangeLog entry to commit message format.
-    self.RestoreIfUnset("date")
     text = FileToText(self.Config(CHANGELOG_ENTRY_FILE))
 
     # Remove date and trailing white space.
-    text = re.sub(r"^%s: " % self._state["date"], "", text.rstrip())
+    text = re.sub(r"^%s: " % self["date"], "", text.rstrip())
 
     # Retrieve svn revision for showing the used bleeding edge revision in the
     # commit message.
-    args = "svn find-rev %s" % self._state["prepare_commit_hash"]
-    svn_revision = self.Git(args).strip()
-    self.Persist("svn_revision", svn_revision)
+    args = "svn find-rev %s" % self["prepare_commit_hash"]
+    self["svn_revision"] = self.Git(args).strip()
     text = MSub(r"^(Version \d+\.\d+\.\d+)$",
-                "\\1 (based on bleeding_edge revision r%s)" % svn_revision,
+                ("\\1 (based on bleeding_edge revision r%s)"
+                 % self["svn_revision"]),
                 text)
 
     # Remove indentation and merge paragraphs into single long lines, keeping
@@ -339,15 +330,14 @@ class SetVersion(Step):
   MESSAGE = "Set correct version for trunk."
 
   def RunStep(self):
-    self.RestoreVersionIfUnset()
     output = ""
     for line in FileToText(self.Config(VERSION_FILE)).splitlines():
       if line.startswith("#define MAJOR_VERSION"):
-        line = re.sub("\d+$", self._state["major"], line)
+        line = re.sub("\d+$", self["major"], line)
       elif line.startswith("#define MINOR_VERSION"):
-        line = re.sub("\d+$", self._state["minor"], line)
+        line = re.sub("\d+$", self["minor"], line)
       elif line.startswith("#define BUILD_NUMBER"):
-        line = re.sub("\d+$", self._state["build"], line)
+        line = re.sub("\d+$", self["build"], line)
       elif line.startswith("#define PATCH_LEVEL"):
         line = re.sub("\d+$", "0", line)
       elif line.startswith("#define IS_CANDIDATE_VERSION"):
@@ -386,30 +376,26 @@ class CommitSVN(Step):
     result = filter(lambda x: re.search(r"^Committed r[0-9]+", x),
                     result.splitlines())
     if len(result) > 0:
-      trunk_revision = re.sub(r"^Committed r([0-9]+)", r"\1", result[0])
+      self["trunk_revision"] = re.sub(r"^Committed r([0-9]+)", r"\1",result[0])
 
     # Sometimes grepping for the revision fails. No idea why. If you figure
     # out why it is flaky, please do fix it properly.
-    if not trunk_revision:
+    if not self["trunk_revision"]:
       print("Sorry, grepping for the SVN revision failed. Please look for it "
             "in the last command's output above and provide it manually (just "
             "the number, without the leading \"r\").")
       self.DieNoManualMode("Can't prompt in forced mode.")
-      while not trunk_revision:
+      while not self["trunk_revision"]:
         print "> ",
-        trunk_revision = self.ReadLine()
-    self.Persist("trunk_revision", trunk_revision)
+        self["trunk_revision"] = self.ReadLine()
 
 
 class TagRevision(Step):
   MESSAGE = "Tag the new revision."
 
   def RunStep(self):
-    self.RestoreVersionIfUnset()
-    ver = "%s.%s.%s" % (self._state["major"],
-                        self._state["minor"],
-                        self._state["build"])
-    if self.Git("svn tag %s -m \"Tagging version %s\"" % (ver, ver),
+    if self.Git(("svn tag %s -m \"Tagging version %s\""
+                 % (self["version"], self["version"])),
                 retry_on=lambda x: x is None) is None:
       self.Die("'git svn tag' failed.")
 
@@ -418,16 +404,15 @@ class CheckChromium(Step):
   MESSAGE = "Ask for chromium checkout."
 
   def Run(self):
-    chrome_path = self._options.c
-    if not chrome_path:
+    self["chrome_path"] = self._options.c
+    if not self["chrome_path"]:
       self.DieNoManualMode("Please specify the path to a Chromium checkout in "
                           "forced mode.")
       print ("Do you have a \"NewGit\" Chromium checkout and want "
           "this script to automate creation of the roll CL? If yes, enter the "
           "path to (and including) the \"src\" directory here, otherwise just "
           "press <Return>: "),
-      chrome_path = self.ReadLine()
-    self.Persist("chrome_path", chrome_path)
+      self["chrome_path"] = self.ReadLine()
 
 
 class SwitchChromium(Step):
@@ -435,9 +420,8 @@ class SwitchChromium(Step):
   REQUIRES = "chrome_path"
 
   def RunStep(self):
-    v8_path = os.getcwd()
-    self.Persist("v8_path", v8_path)
-    os.chdir(self._state["chrome_path"])
+    self["v8_path"] = os.getcwd()
+    os.chdir(self["chrome_path"])
     self.InitialEnvironmentChecks()
     # Check for a clean workdir.
     if self.Git("status -s -uno").strip() != "":
@@ -452,14 +436,13 @@ class UpdateChromiumCheckout(Step):
   REQUIRES = "chrome_path"
 
   def RunStep(self):
-    os.chdir(self._state["chrome_path"])
+    os.chdir(self["chrome_path"])
     if self.Git("checkout master") is None:
       self.Die("'git checkout master' failed.")
     if self.Git("pull") is None:
       self.Die("'git pull' failed, please try again.")
 
-    self.RestoreIfUnset("trunk_revision")
-    args = "checkout -b v8-roll-%s" % self._state["trunk_revision"]
+    args = "checkout -b v8-roll-%s" % self["trunk_revision"]
     if self.Git(args) is None:
       self.Die("Failed to checkout a new branch.")
 
@@ -469,20 +452,15 @@ class UploadCL(Step):
   REQUIRES = "chrome_path"
 
   def RunStep(self):
-    os.chdir(self._state["chrome_path"])
+    os.chdir(self["chrome_path"])
 
     # Patch DEPS file.
-    self.RestoreIfUnset("trunk_revision")
     deps = FileToText(self.Config(DEPS_FILE))
     deps = re.sub("(?<=\"v8_revision\": \")([0-9]+)(?=\")",
-                  self._state["trunk_revision"],
+                  self["trunk_revision"],
                   deps)
     TextToFile(deps, self.Config(DEPS_FILE))
 
-    self.RestoreVersionIfUnset()
-    ver = "%s.%s.%s" % (self._state["major"],
-                        self._state["minor"],
-                        self._state["build"])
     if self._options.reviewer:
       print "Using account %s for review." % self._options.reviewer
       rev = self._options.reviewer
@@ -490,10 +468,9 @@ class UploadCL(Step):
       print "Please enter the email address of a reviewer for the roll CL: ",
       self.DieNoManualMode("A reviewer must be specified in forced mode.")
       rev = self.ReadLine()
-    self.RestoreIfUnset("svn_revision")
     args = ("commit -am \"Update V8 to version %s "
             "(based on bleeding_edge revision r%s).\n\nTBR=%s\""
-            % (ver, self._state["svn_revision"], rev))
+            % (self["version"], self["svn_revision"], rev))
     if self.Git(args) is None:
       self.Die("'git commit' failed.")
     author_option = self._options.author
@@ -510,33 +487,27 @@ class SwitchV8(Step):
   REQUIRES = "chrome_path"
 
   def RunStep(self):
-    self.RestoreIfUnset("v8_path")
-    os.chdir(self._state["v8_path"])
+    os.chdir(self["v8_path"])
 
 
 class CleanUp(Step):
   MESSAGE = "Done!"
 
   def RunStep(self):
-    self.RestoreVersionIfUnset()
-    ver = "%s.%s.%s" % (self._state["major"],
-                        self._state["minor"],
-                        self._state["build"])
-    self.RestoreIfUnset("trunk_revision")
-    self.RestoreIfUnset("chrome_path")
-
-    if self._state["chrome_path"]:
+    if self["chrome_path"]:
       print("Congratulations, you have successfully created the trunk "
             "revision %s and rolled it into Chromium. Please don't forget to "
-            "update the v8rel spreadsheet:" % ver)
+            "update the v8rel spreadsheet:" % self["version"])
     else:
       print("Congratulations, you have successfully created the trunk "
             "revision %s. Please don't forget to roll this new version into "
-            "Chromium, and to update the v8rel spreadsheet:" % ver)
-    print "%s\ttrunk\t%s" % (ver, self._state["trunk_revision"])
+            "Chromium, and to update the v8rel spreadsheet:"
+            % self["version"])
+    print "%s\ttrunk\t%s" % (self["version"],
+                             self["trunk_revision"])
 
     self.CommonCleanup()
-    if self.Config(TRUNKBRANCH) != self._state["current_branch"]:
+    if self.Config(TRUNKBRANCH) != self["current_branch"]:
       self.Git("branch -D %s" % self.Config(TRUNKBRANCH))
 
 

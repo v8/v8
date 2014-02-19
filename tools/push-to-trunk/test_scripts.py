@@ -298,6 +298,7 @@ class ScriptTest(unittest.TestCase):
   def MakeStep(self, step_class=Step, state=None, options=None):
     """Convenience wrapper."""
     options = options or CommonOptions(MakeOptions())
+    state = state if state is not None else self._state
     return MakeStep(step_class=step_class, number=0, state=state,
                     config=TEST_CONFIG, options=options,
                     side_effect_handler=self)
@@ -356,6 +357,7 @@ class ScriptTest(unittest.TestCase):
     self._rl_mock = SimpleMock("readline")
     self._url_mock = SimpleMock("readurl")
     self._tmp_files = []
+    self._state = {}
 
   def tearDown(self):
     Command("rm", "-rf %s*" % TEST_CONFIG[PERSISTFILE_BASENAME])
@@ -368,12 +370,6 @@ class ScriptTest(unittest.TestCase):
     self._git_mock.AssertFinished()
     self._rl_mock.AssertFinished()
     self._url_mock.AssertFinished()
-
-  def testPersistRestore(self):
-    self.MakeStep().Persist("test1", "")
-    self.assertEquals("", self.MakeStep().Restore("test1"))
-    self.MakeStep().Persist("test2", "AB123")
-    self.assertEquals("AB123", self.MakeStep().Restore("test2"))
 
   def testGitOrig(self):
     self.assertTrue(Command("git", "--version").startswith("git version"))
@@ -396,7 +392,7 @@ class ScriptTest(unittest.TestCase):
     self.ExpectReadline(["Y"])
     self.MakeStep().CommonPrepare()
     self.MakeStep().PrepareBranch()
-    self.assertEquals("some_branch", self.MakeStep().Restore("current_branch"))
+    self.assertEquals("some_branch", self._state["current_branch"])
 
   def testCommonPrepareNoConfirm(self):
     self.ExpectGit([
@@ -408,7 +404,7 @@ class ScriptTest(unittest.TestCase):
     self.ExpectReadline(["n"])
     self.MakeStep().CommonPrepare()
     self.assertRaises(Exception, self.MakeStep().PrepareBranch)
-    self.assertEquals("some_branch", self.MakeStep().Restore("current_branch"))
+    self.assertEquals("some_branch", self._state["current_branch"])
 
   def testCommonPrepareDeleteBranchFailure(self):
     self.ExpectGit([
@@ -421,7 +417,7 @@ class ScriptTest(unittest.TestCase):
     self.ExpectReadline(["Y"])
     self.MakeStep().CommonPrepare()
     self.assertRaises(Exception, self.MakeStep().PrepareBranch)
-    self.assertEquals("some_branch", self.MakeStep().Restore("current_branch"))
+    self.assertEquals("some_branch", self._state["current_branch"])
 
   def testInitialEnvironmentChecks(self):
     TEST_CONFIG[DOT_GIT_LOCATION] = self.MakeEmptyTempFile()
@@ -432,14 +428,10 @@ class ScriptTest(unittest.TestCase):
     TEST_CONFIG[VERSION_FILE] = self.MakeTempVersionFile()
     step = self.MakeStep()
     step.ReadAndPersistVersion()
-    self.assertEquals("3", self.MakeStep().Restore("major"))
-    self.assertEquals("22", self.MakeStep().Restore("minor"))
-    self.assertEquals("5", self.MakeStep().Restore("build"))
-    self.assertEquals("0", self.MakeStep().Restore("patch"))
-    self.assertEquals("3", step._state["major"])
-    self.assertEquals("22", step._state["minor"])
-    self.assertEquals("5", step._state["build"])
-    self.assertEquals("0", step._state["patch"])
+    self.assertEquals("3", step["major"])
+    self.assertEquals("22", step["minor"])
+    self.assertEquals("5", step["build"])
+    self.assertEquals("0", step["patch"])
 
   def testRegex(self):
     self.assertEqual("(issue 321)",
@@ -490,7 +482,7 @@ class ScriptTest(unittest.TestCase):
        "Title\n\nBUG=456\nLOG=N\n\n"],
     ])
 
-    self.MakeStep().Persist("last_push", "1234")
+    self._state["last_push"] = "1234"
     self.MakeStep(PrepareChangeLog).Run()
 
     actual_cl = FileToText(TEST_CONFIG[CHANGELOG_ENTRY_FILE])
@@ -522,10 +514,10 @@ class ScriptTest(unittest.TestCase):
 #"""
 
     self.assertEquals(expected_cl, actual_cl)
-    self.assertEquals("3", self.MakeStep().Restore("major"))
-    self.assertEquals("22", self.MakeStep().Restore("minor"))
-    self.assertEquals("5", self.MakeStep().Restore("build"))
-    self.assertEquals("0", self.MakeStep().Restore("patch"))
+    self.assertEquals("3", self._state["major"])
+    self.assertEquals("22", self._state["minor"])
+    self.assertEquals("5", self._state["build"])
+    self.assertEquals("0", self._state["patch"])
 
   def testEditChangeLog(self):
     TEST_CONFIG[CHANGELOG_ENTRY_FILE] = self.MakeEmptyTempFile()
@@ -545,7 +537,7 @@ class ScriptTest(unittest.TestCase):
 
   def testIncrementVersion(self):
     TEST_CONFIG[VERSION_FILE] = self.MakeTempVersionFile()
-    self.MakeStep().Persist("build", "5")
+    self._state["build"] = "5"
 
     self.ExpectReadline([
       "Y",  # Increment build number.
@@ -553,10 +545,10 @@ class ScriptTest(unittest.TestCase):
 
     self.MakeStep(IncrementVersion).Run()
 
-    self.assertEquals("3", self.MakeStep().Restore("new_major"))
-    self.assertEquals("22", self.MakeStep().Restore("new_minor"))
-    self.assertEquals("6", self.MakeStep().Restore("new_build"))
-    self.assertEquals("0", self.MakeStep().Restore("new_patch"))
+    self.assertEquals("3", self._state["new_major"])
+    self.assertEquals("22", self._state["new_minor"])
+    self.assertEquals("6", self._state["new_build"])
+    self.assertEquals("0", self._state["new_patch"])
 
   def testLastChangeLogEntries(self):
     TEST_CONFIG[CHANGELOG_FILE] = self.MakeEmptyTempFile()
@@ -584,8 +576,8 @@ class ScriptTest(unittest.TestCase):
       ["svn find-rev hash1", "123455\n"],
     ])
 
-    self.MakeStep().Persist("prepare_commit_hash", "hash1")
-    self.MakeStep().Persist("date", "1999-11-11")
+    self._state["prepare_commit_hash"] = "hash1"
+    self._state["date"] = "1999-11-11"
 
     self.MakeStep(SquashCommits).Run()
     self.assertEquals(FileToText(TEST_CONFIG[COMMITMSG_FILE]), expected_msg)
@@ -810,8 +802,11 @@ Performance and stability improvements on all platforms.""", commit)
     auto_roll.RunAutoRoll(TEST_CONFIG, AutoRollOptions(
         MakeOptions(status_password=status_password)), self)
 
-    self.assertEquals("100", self.MakeStep().Restore("lkgr"))
-    self.assertEquals("100", self.MakeStep().Restore("latest"))
+    state = json.loads(FileToText("%s-state.json"
+                                  % TEST_CONFIG[PERSISTFILE_BASENAME]))
+
+    self.assertEquals("100", state["lkgr"])
+    self.assertEquals("100", state["latest"])
 
   def testAutoRollStoppedBySettings(self):
     TEST_CONFIG[DOT_GIT_LOCATION] = self.MakeEmptyTempFile()
@@ -906,6 +901,10 @@ LOG=N
       ["svn find-rev hash3 svn/bleeding_edge", "56789"],
       ["log -1 --format=%s hash3", "Title3"],
       ["svn find-rev \"r12345\" svn/bleeding_edge", "hash4"],
+      # Simulate svn being down which stops the script.
+      ["svn find-rev \"r23456\" svn/bleeding_edge", None],
+      # Restart script in the failing step.
+      ["svn find-rev \"r12345\" svn/bleeding_edge", "hash4"],
       ["svn find-rev \"r23456\" svn/bleeding_edge", "hash2"],
       ["svn find-rev \"r34567\" svn/bleeding_edge", "hash3"],
       ["svn find-rev \"r45678\" svn/bleeding_edge", "hash1"],
@@ -964,6 +963,15 @@ LOG=N
     # ports of r12345. r56789 is the MIPS port of r34567.
     args = ["trunk", "12345", "23456", "34567"]
     self.assertTrue(merge_to_branch.ProcessOptions(options, args))
+
+    # The first run of the script stops because of the svn being down.
+    self.assertRaises(Exception,
+        lambda: RunMergeToBranch(TEST_CONFIG,
+                                 MergeToBranchOptions(options, args),
+                                 self))
+
+    # Test that state recovery after restarting the script works.
+    options.s = 3
     RunMergeToBranch(TEST_CONFIG, MergeToBranchOptions(options, args), self)
 
 

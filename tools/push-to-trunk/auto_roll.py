@@ -83,10 +83,10 @@ class CheckTreeStatus(Step):
   def RunStep(self):
     status_url = "https://v8-status.appspot.com/current?format=json"
     status_json = self.ReadURL(status_url, wait_plan=[5, 20, 300, 300])
-    message = json.loads(status_json)["message"]
-    if re.search(r"nopush|no push", message, flags=re.I):
-      self.Die("Push to trunk disabled by tree state: %s" % message)
-    self.Persist("tree_message", message)
+    self["tree_message"] = json.loads(status_json)["message"]
+    if re.search(r"nopush|no push", self["tree_message"], flags=re.I):
+      self.Die("Push to trunk disabled by tree state: %s"
+               % self["tree_message"])
 
 
 class FetchLatestRevision(Step):
@@ -97,18 +97,17 @@ class FetchLatestRevision(Step):
     match = re.match(r"^r(\d+) ", log)
     if not match:
       self.Die("Could not extract current svn revision from log.")
-    self.Persist("latest", match.group(1))
+    self["latest"] = match.group(1)
 
 
 class CheckLastPush(Step):
   MESSAGE = "Checking last V8 push to trunk."
 
   def RunStep(self):
-    self.RestoreIfUnset("latest")
     log = self.Git("svn log -1 --oneline ChangeLog").strip()
     match = re.match(r"^r(\d+) \| Prepare push to trunk", log)
     if match:
-      latest = int(self._state["latest"])
+      latest = int(self["latest"])
       last_push = int(match.group(1))
       # TODO(machebach): This metric counts all revisions. It could be
       # improved by counting only the revisions on bleeding_edge.
@@ -124,7 +123,7 @@ class FetchLKGR(Step):
   def RunStep(self):
     lkgr_url = "https://v8-status.appspot.com/lkgr"
     # Retry several times since app engine might have issues.
-    self.Persist("lkgr", self.ReadURL(lkgr_url, wait_plan=[5, 20, 300, 300]))
+    self["lkgr"] = self.ReadURL(lkgr_url, wait_plan=[5, 20, 300, 300])
 
 
 class PushToTrunk(Step):
@@ -145,11 +144,8 @@ class PushToTrunk(Step):
                  wait_plan=[5, 20])
 
   def RunStep(self):
-    self.RestoreIfUnset("latest")
-    self.RestoreIfUnset("lkgr")
-    self.RestoreIfUnset("tree_message")
-    latest = int(self._state["latest"])
-    lkgr = int(self._state["lkgr"])
+    latest = int(self["latest"])
+    lkgr = int(self["lkgr"])
     if latest == lkgr:
       print "ToT (r%d) is clean. Pushing to trunk." % latest
       self.PushTreeStatus("Tree is closed (preparing to push)")
@@ -165,7 +161,7 @@ class PushToTrunk(Step):
                                                    self._options.c),
               self._side_effect_handler)
       finally:
-        self.PushTreeStatus(self._state["tree_message"])
+        self.PushTreeStatus(self["tree_message"])
     else:
       print("ToT (r%d) is ahead of the LKGR (r%d). Skipping push to trunk."
             % (latest, lkgr))

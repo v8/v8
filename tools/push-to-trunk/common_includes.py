@@ -27,6 +27,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import datetime
+import json
 import os
 import re
 import subprocess
@@ -246,16 +247,34 @@ class Step(object):
     assert self._side_effect_handler is not None
     assert isinstance(options, CommonOptions)
 
+  def __getitem__(self, key):
+    # Convenience method to allow direct [] access on step classes for
+    # manipulating the backed state dict.
+    return self._state[key]
+
+  def __setitem__(self, key, value):
+    # Convenience method to allow direct [] access on step classes for
+    # manipulating the backed state dict.
+    self._state[key] = value
+
   def Config(self, key):
     return self._config[key]
 
   def Run(self):
-    if self._requires:
-      self.RestoreIfUnset(self._requires)
-      if not self._state[self._requires]:
-        return
+    # Restore state.
+    state_file = "%s-state.json" % self._config[PERSISTFILE_BASENAME]
+    if not self._state and os.path.exists(state_file):
+      self._state.update(json.loads(FileToText(state_file)))
+
+    # Skip step if requirement is not met.
+    if self._requires and not self._state.get(self._requires):
+      return
+
     print ">>> Step %d: %s" % (self._number, self._text)
     self.RunStep()
+
+    # Persist state.
+    TextToFile(json.dumps(self._state), state_file)
 
   def RunStep(self):
     raise NotImplementedError
@@ -349,19 +368,6 @@ class Step(object):
           msg = "Can't continue. Please delete branch %s and try again." % name
           self.Die(msg)
 
-  def Persist(self, var, value):
-    value = value or "__EMPTY__"
-    TextToFile(value, "%s-%s" % (self._config[PERSISTFILE_BASENAME], var))
-
-  def Restore(self, var):
-    value = FileToText("%s-%s" % (self._config[PERSISTFILE_BASENAME], var))
-    value = value or self.Die("Variable '%s' could not be restored." % var)
-    return "" if value == "__EMPTY__" else value
-
-  def RestoreIfUnset(self, var_name):
-    if self._state.get(var_name) is None:
-      self._state[var_name] = self.Restore(var_name)
-
   def InitialEnvironmentChecks(self):
     # Cancel if this is not a git checkout.
     if not os.path.exists(self._config[DOT_GIT_LOCATION]):
@@ -378,14 +384,13 @@ class Step(object):
       self.Die("Workspace is not clean. Please commit or undo your changes.")
 
     # Persist current branch.
-    current_branch = ""
+    self["current_branch"] = ""
     git_result = self.Git("status -s -b -uno").strip()
     for line in git_result.splitlines():
       match = re.match(r"^## (.+)", line)
       if match:
-        current_branch = match.group(1)
+        self["current_branch"] = match.group(1)
         break
-    self.Persist("current_branch", current_branch)
 
     # Fetch unfetched revisions.
     if self.Git("svn fetch") is None:
@@ -393,8 +398,7 @@ class Step(object):
 
   def PrepareBranch(self):
     # Get ahold of a safe temporary branch and check it out.
-    self.RestoreIfUnset("current_branch")
-    if self._state["current_branch"] != self._config[TEMP_BRANCH]:
+    if self["current_branch"] != self._config[TEMP_BRANCH]:
       self.DeleteBranch(self._config[TEMP_BRANCH])
       self.Git("checkout -b %s" % self._config[TEMP_BRANCH])
 
@@ -402,11 +406,10 @@ class Step(object):
     self.DeleteBranch(self._config[BRANCHNAME])
 
   def CommonCleanup(self):
-    self.RestoreIfUnset("current_branch")
-    self.Git("checkout -f %s" % self._state["current_branch"])
-    if self._config[TEMP_BRANCH] != self._state["current_branch"]:
+    self.Git("checkout -f %s" % self["current_branch"])
+    if self._config[TEMP_BRANCH] != self["current_branch"]:
       self.Git("branch -D %s" % self._config[TEMP_BRANCH])
-    if self._config[BRANCHNAME] != self._state["current_branch"]:
+    if self._config[BRANCHNAME] != self["current_branch"]:
       self.Git("branch -D %s" % self._config[BRANCHNAME])
 
     # Clean up all temporary files.
@@ -417,18 +420,13 @@ class Step(object):
       match = re.match(r"^#define %s\s+(\d*)" % def_name, line)
       if match:
         value = match.group(1)
-        self.Persist("%s%s" % (prefix, var_name), value)
-        self._state["%s%s" % (prefix, var_name)] = value
+        self["%s%s" % (prefix, var_name)] = value
     for line in LinesInFile(self._config[VERSION_FILE]):
       for (var_name, def_name) in [("major", "MAJOR_VERSION"),
                                    ("minor", "MINOR_VERSION"),
                                    ("build", "BUILD_NUMBER"),
                                    ("patch", "PATCH_LEVEL")]:
         ReadAndPersist(var_name, def_name)
-
-  def RestoreVersionIfUnset(self, prefix=""):
-    for v in ["major", "minor", "build", "patch"]:
-      self.RestoreIfUnset("%s%s" % (prefix, v))
 
   def WaitForLGTM(self):
     print ("Please wait for an LGTM, then type \"LGTM<Return>\" to commit "
@@ -509,6 +507,9 @@ def RunScript(step_classes,
               config,
               options,
               side_effect_handler=DEFAULT_SIDE_EFFECT_HANDLER):
+  state_file = "%s-state.json" % config[PERSISTFILE_BASENAME]
+  if options.s == 0 and os.path.exists(state_file):
+    os.remove(state_file)
   state = {}
   steps = []
   for (number, step_class) in enumerate(step_classes):
