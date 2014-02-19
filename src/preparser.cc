@@ -122,18 +122,14 @@ PreParserExpression PreParserTraits::ExpressionFromString(
 }
 
 
-PreParserExpression PreParserTraits::ParseArrayLiteral(bool* ok) {
-  return pre_parser_->ParseArrayLiteral(ok);
-}
-
-
 PreParserExpression PreParserTraits::ParseObjectLiteral(bool* ok) {
   return pre_parser_->ParseObjectLiteral(ok);
 }
 
 
-PreParserExpression PreParserTraits::ParseExpression(bool accept_IN, bool* ok) {
-  return pre_parser_->ParseExpression(accept_IN, ok);
+PreParserExpression PreParserTraits::ParseAssignmentExpression(bool accept_IN,
+                                                               bool* ok) {
+  return pre_parser_->ParseAssignmentExpression(accept_IN, ok);
 }
 
 
@@ -834,22 +830,6 @@ PreParser::Statement PreParser::ParseDebuggerStatement(bool* ok) {
 #undef DUMMY
 
 
-// Precedence = 1
-PreParser::Expression PreParser::ParseExpression(bool accept_IN, bool* ok) {
-  // Expression ::
-  //   AssignmentExpression
-  //   Expression ',' AssignmentExpression
-
-  Expression result = ParseAssignmentExpression(accept_IN, CHECK_OK);
-  while (peek() == Token::COMMA) {
-    Expect(Token::COMMA, CHECK_OK);
-    ParseAssignmentExpression(accept_IN, CHECK_OK);
-    result = Expression::Default();
-  }
-  return result;
-}
-
-
 // Precedence = 2
 PreParser::Expression PreParser::ParseAssignmentExpression(bool accept_IN,
                                                            bool* ok) {
@@ -1139,25 +1119,6 @@ PreParser::Expression PreParser::ParseMemberExpressionContinuation(
   }
   ASSERT(false);
   return PreParserExpression::Default();
-}
-
-
-PreParser::Expression PreParser::ParseArrayLiteral(bool* ok) {
-  // ArrayLiteral ::
-  //   '[' Expression? (',' Expression?)* ']'
-  Expect(Token::LBRACK, CHECK_OK);
-  while (peek() != Token::RBRACK) {
-    if (peek() != Token::COMMA) {
-      ParseAssignmentExpression(true, CHECK_OK);
-    }
-    if (peek() != Token::RBRACK) {
-      Expect(Token::COMMA, CHECK_OK);
-    }
-  }
-  Expect(Token::RBRACK, CHECK_OK);
-
-  function_state_->NextMaterializedLiteralIndex();
-  return Expression::Default();
 }
 
 
