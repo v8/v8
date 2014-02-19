@@ -28,6 +28,8 @@
 #ifndef V8_A64_MACRO_ASSEMBLER_A64_H_
 #define V8_A64_MACRO_ASSEMBLER_A64_H_
 
+#include <vector>
+
 #include "v8globals.h"
 #include "globals.h"
 
@@ -516,7 +518,8 @@ class MacroAssembler : public Assembler {
   }
 
   // Push the specified register 'count' times.
-  void PushMultipleTimes(int count, Register src);
+  void PushMultipleTimes(CPURegister src, Register count);
+  void PushMultipleTimes(CPURegister src, int count);
 
   // This is a convenience method for pushing a single Handle<Object>.
   inline void Push(Handle<Object> handle);
@@ -529,6 +532,35 @@ class MacroAssembler : public Assembler {
   inline void pop(Register dst) {
     Pop(dst);
   }
+
+  // Sometimes callers need to push or pop multiple registers in a way that is
+  // difficult to structure efficiently for fixed Push or Pop calls. This scope
+  // allows push requests to be queued up, then flushed at once. The
+  // MacroAssembler will try to generate the most efficient sequence required.
+  //
+  // Unlike the other Push and Pop macros, PushPopQueue can handle mixed sets of
+  // register sizes and types.
+  class PushPopQueue {
+   public:
+    explicit PushPopQueue(MacroAssembler* masm) : masm_(masm), size_(0) { }
+
+    ~PushPopQueue() {
+      ASSERT(queued_.empty());
+    }
+
+    void Queue(const CPURegister& rt) {
+      size_ += rt.SizeInBytes();
+      queued_.push_back(rt);
+    }
+
+    void PushQueued();
+    void PopQueued();
+
+   private:
+    MacroAssembler* masm_;
+    int size_;
+    std::vector<CPURegister> queued_;
+  };
 
   // Poke 'src' onto the stack. The offset is in bytes.
   //
@@ -1307,20 +1339,16 @@ class MacroAssembler : public Assembler {
                            Register type_reg,
                            InstanceType type);
 
-  // Compare an object's map with the specified map and its transitioned
-  // elements maps if mode is ALLOW_ELEMENT_TRANSITION_MAPS. Condition flags are
-  // set with result of map compare. If multiple map compares are required, the
-  // compare sequences branches to early_success.
+  // Compare an object's map with the specified map. Condition flags are set
+  // with result of map compare.
   void CompareMap(Register obj,
                   Register scratch,
-                  Handle<Map> map,
-                  Label* early_success = NULL);
+                  Handle<Map> map);
 
   // As above, but the map of the object is already loaded into the register
   // which is preserved by the code generated.
   void CompareMap(Register obj_map,
-                  Handle<Map> map,
-                  Label* early_success = NULL);
+                  Handle<Map> map);
 
   // Check if the map of an object is equal to a specified map and branch to
   // label if not. Skip the smi check if not required (object is known to be a
@@ -2002,9 +2030,12 @@ class MacroAssembler : public Assembler {
 
   // Perform necessary maintenance operations before a push or pop.
   //
-  // Note that size is per register, and is specified in bytes.
-  void PrepareForPush(int count, int size);
-  void PrepareForPop(int count, int size);
+  // Note that size is specified in bytes.
+  void PrepareForPush(Operand total_size);
+  void PrepareForPop(Operand total_size);
+
+  void PrepareForPush(int count, int size) { PrepareForPush(count * size); }
+  void PrepareForPop(int count, int size) { PrepareForPop(count * size); }
 
   // Call Printf. On a native build, a simple call will be generated, but if the
   // simulator is being used then a suitable pseudo-instruction is used. The

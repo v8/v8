@@ -338,7 +338,9 @@ class HCheckTable : public ZoneObject {
             HCheckMaps* check = HCheckMaps::cast(entry->check_);
             TRACE(("CheckMaps #%d at B%d narrowed\n", check->id(),
                 check->block()->block_id()));
+            // Update map set and ensure that the check is alive.
             check->set_map_set(intersection, graph->zone());
+            check->ClearFlag(HValue::kIsDead);
             TRACE(("Replacing redundant CheckMaps #%d at B%d with #%d\n",
                 instr->id(), instr->block()->block_id(), entry->check_->id()));
             instr->DeleteAndReplaceWith(entry->check_);

@@ -2109,7 +2109,7 @@ void LCodeGen::DoCheckMaps(LCheckMaps* instr) {
   Label success;
   for (int i = 0; i < map_set.size(); i++) {
     Handle<Map> map = map_set.at(i).handle();
-    __ CompareMap(map_reg, map, &success);
+    __ CompareMap(map_reg, map);
     __ B(eq, &success);
   }
 

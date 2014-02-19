@@ -754,14 +754,16 @@ void StubCompiler::GenerateFastApiCall(MacroAssembler* masm,
                                        int argc,
                                        Register* values) {
   ASSERT(!AreAliased(receiver, scratch));
-  __ Push(receiver);
-  // Write the arguments to stack frame.
+
+  MacroAssembler::PushPopQueue queue(masm);
+  queue.Queue(receiver);
+  // Write the arguments to the stack frame.
   for (int i = 0; i < argc; i++) {
-    // TODO(jbramley): Push these in as few Push() calls as possible.
     Register arg = values[argc-1-i];
     ASSERT(!AreAliased(receiver, scratch, arg));
-    __ Push(arg);
+    queue.Queue(arg);
   }
+  queue.PushQueued();
 
   ASSERT(optimization.is_simple_api_call());
 
@@ -840,9 +842,6 @@ Register StubCompiler::CheckPrototypes(Handle<HeapType> type,
                                        Label* miss,
                                        PrototypeCheckType check) {
   Handle<Map> receiver_map(IC::TypeToMap(*type, isolate()));
-  // Make sure that the type feedback oracle harvests the receiver map.
-  // TODO(svenpanne) Remove this hack when all ICs are reworked.
-  __ Mov(scratch1, Operand(receiver_map));
 
   // object_reg and holder_reg registers can alias.
   ASSERT(!AreAliased(object_reg, scratch1, scratch2));

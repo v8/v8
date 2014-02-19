@@ -65,9 +65,9 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
 
   // Push the double argument.
   __ Push(d0);
-  if (!source_reg.is(jssp)) {
-    __ Mov(source_reg, jssp);
-  }
+  __ Mov(source_reg, jssp);
+
+  MacroAssembler::PushPopQueue queue(&masm);
 
   // Save registers make sure they don't get clobbered.
   int source_reg_offset = kDoubleSize;
@@ -75,13 +75,14 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
   for (;reg_num < Register::NumAllocatableRegisters(); ++reg_num) {
     Register reg = Register::from_code(reg_num);
     if (!reg.is(destination_reg)) {
-      __ Push(reg);
+      queue.Queue(reg);
       source_reg_offset += kPointerSize;
     }
   }
-
   // Re-push the double argument.
-  __ Push(d0);
+  queue.Queue(d0);
+
+  queue.PushQueued();
 
   // Call through to the actual stub
   if (inline_fastpath) {

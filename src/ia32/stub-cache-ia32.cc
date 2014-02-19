@@ -861,9 +861,6 @@ Register StubCompiler::CheckPrototypes(Handle<HeapType> type,
                                        Label* miss,
                                        PrototypeCheckType check) {
   Handle<Map> receiver_map(IC::TypeToMap(*type, isolate()));
-  // Make sure that the type feedback oracle harvests the receiver map.
-  // TODO(svenpanne) Remove this hack when all ICs are reworked.
-  __ mov(scratch1, receiver_map);
 
   // Make sure there's no overlap between holder and object registers.
   ASSERT(!scratch1.is(object_reg) && !scratch1.is(holder_reg));

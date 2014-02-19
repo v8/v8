@@ -421,6 +421,7 @@ class ParserTraits {
     // Return types for traversing functions.
     typedef Handle<String> Identifier;
     typedef v8::internal::Expression* Expression;
+    typedef ZoneList<v8::internal::Expression*>* ExpressionList;
   };
 
   explicit ParserTraits(Parser* parser) : parser_(parser) {}
@@ -462,6 +463,10 @@ class ParserTraits {
     return NULL;
   }
 
+  // Odd-ball literal creators.
+  Literal* GetLiteralTheHole(int position,
+                             AstNodeFactory<AstConstructionVisitor>* factory);
+
   // Producing data during the recursive descent.
   Handle<String> GetSymbol(Scanner* scanner = NULL);
   Handle<String> NextLiteralString(Scanner* scanner,
@@ -477,11 +482,13 @@ class ParserTraits {
   Expression* ExpressionFromString(
       int pos, Scanner* scanner,
       AstNodeFactory<AstConstructionVisitor>* factory);
+  ZoneList<v8::internal::Expression*>* NewExpressionList(int size, Zone* zone) {
+    return new(zone) ZoneList<v8::internal::Expression*>(size, zone);
+  }
 
   // Temporary glue; these functions will move to ParserBase.
-  Expression* ParseArrayLiteral(bool* ok);
   Expression* ParseObjectLiteral(bool* ok);
-  Expression* ParseExpression(bool accept_IN, bool* ok);
+  Expression* ParseAssignmentExpression(bool accept_IN, bool* ok);
   Expression* ParseV8Intrinsic(bool* ok);
 
  private:
@@ -554,7 +561,6 @@ class Parser : public ParserBase<ParserTraits> {
   FunctionLiteral* ParseLazy(Utf16CharacterStream* source);
 
   Isolate* isolate() { return isolate_; }
-  Zone* zone() const { return zone_; }
   CompilationInfo* info() const { return info_; }
 
   // Called by ParseProgram after setting up the scanner.
@@ -630,7 +636,6 @@ class Parser : public ParserBase<ParserTraits> {
   // Support for hamony block scoped bindings.
   Block* ParseScopedBlock(ZoneStringList* labels, bool* ok);
 
-  Expression* ParseExpression(bool accept_IN, bool* ok);
   Expression* ParseAssignmentExpression(bool accept_IN, bool* ok);
   Expression* ParseYieldExpression(bool* ok);
   Expression* ParseConditionalExpression(bool accept_IN, bool* ok);
@@ -642,7 +647,6 @@ class Parser : public ParserBase<ParserTraits> {
   Expression* ParseMemberExpression(bool* ok);
   Expression* ParseMemberExpressionContinuation(Expression* expression,
                                                 bool* ok);
-  Expression* ParseArrayLiteral(bool* ok);
   Expression* ParseObjectLiteral(bool* ok);
 
   // Initialize the components of a for-in / for-of statement.
@@ -678,7 +682,6 @@ class Parser : public ParserBase<ParserTraits> {
 
   // Get odd-ball literals.
   Literal* GetLiteralUndefined(int position);
-  Literal* GetLiteralTheHole(int position);
 
   // Determine if the expression is a variable proxy and mark it as being used
   // in an assignment or with a increment/decrement operator. This is currently
@@ -755,7 +758,6 @@ class Parser : public ParserBase<ParserTraits> {
 
   Mode mode_;
 
-  Zone* zone_;
   CompilationInfo* info_;
 };
 

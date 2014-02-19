@@ -43,6 +43,7 @@ class ParserBase : public Traits {
  public:
   ParserBase(Scanner* scanner, uintptr_t stack_limit,
              v8::Extension* extension,
+             typename Traits::Type::Zone* zone,
              typename Traits::Type::Parser this_object)
       : Traits(this_object),
         parenthesized_function_(false),
@@ -55,7 +56,8 @@ class ParserBase : public Traits {
         allow_lazy_(false),
         allow_natives_syntax_(false),
         allow_generators_(false),
-        allow_for_of_(false) { }
+        allow_for_of_(false),
+        zone_(zone) { }
 
   // Getters that indicate whether certain syntactical constructs are
   // allowed to be parsed by this instance of the parser.
@@ -185,6 +187,7 @@ class ParserBase : public Traits {
   int peek_position() { return scanner_->peek_location().beg_pos; }
   bool stack_overflow() const { return stack_overflow_; }
   void set_stack_overflow() { stack_overflow_ = true; }
+  typename Traits::Type::Zone* zone() const { return zone_; }
 
   INLINE(Token::Value peek()) {
     if (stack_overflow_) return Token::ILLEGAL;
@@ -335,6 +338,8 @@ class ParserBase : public Traits {
                                                        bool* ok);
 
   typename Traits::Type::Expression ParsePrimaryExpression(bool* ok);
+  typename Traits::Type::Expression ParseExpression(bool accept_IN, bool* ok);
+  typename Traits::Type::Expression ParseArrayLiteral(bool* ok);
 
   // Used to detect duplicates in object literals. Each of the values
   // kGetterProperty, kSetterProperty and kValueProperty represents
@@ -409,6 +414,8 @@ class ParserBase : public Traits {
   bool allow_natives_syntax_;
   bool allow_generators_;
   bool allow_for_of_;
+
+  typename Traits::Type::Zone* zone_;  // Only used by Parser.
 };
 
 
@@ -541,6 +548,16 @@ class PreParserExpression {
 };
 
 
+// PreParserExpressionList doesn't actually store the expressions because
+// PreParser doesn't need to.
+class PreParserExpressionList {
+ public:
+  // These functions make list->Add(some_expression) work (and do nothing).
+  PreParserExpressionList* operator->() { return this; }
+  void Add(PreParserExpression, void*) { }
+};
+
+
 class PreParserScope {
  public:
   explicit PreParserScope(PreParserScope* outer_scope, ScopeType scope_type)
@@ -589,6 +606,16 @@ class PreParserFactory {
                                        int pos) {
     return PreParserExpression::Default();
   }
+  PreParserExpression NewBinaryOperation(Token::Value op,
+                                         PreParserExpression left,
+                                         PreParserExpression right, int pos) {
+    return PreParserExpression::Default();
+  }
+  PreParserExpression NewArrayLiteral(PreParserExpressionList values,
+                                      int literal_index,
+                                      int pos) {
+    return PreParserExpression::Default();
+  }
 };
 
 
@@ -610,6 +637,7 @@ class PreParserTraits {
     // Return types for traversing functions.
     typedef PreParserIdentifier Identifier;
     typedef PreParserExpression Expression;
+    typedef PreParserExpressionList ExpressionList;
   };
 
   explicit PreParserTraits(PreParser* pre_parser) : pre_parser_(pre_parser) {}
@@ -646,6 +674,12 @@ class PreParserTraits {
     return PreParserExpression::Default();
   }
 
+  // Odd-ball literal creators.
+  static PreParserExpression GetLiteralTheHole(int position,
+                                               PreParserFactory* factory) {
+    return PreParserExpression::Default();
+  }
+
   // Producing data during the recursive descent.
   PreParserIdentifier GetSymbol(Scanner* scanner);
   static PreParserIdentifier NextLiteralString(Scanner* scanner,
@@ -674,10 +708,13 @@ class PreParserTraits {
                                            Scanner* scanner,
                                            PreParserFactory* factory = NULL);
 
+  static PreParserExpressionList NewExpressionList(int size, void* zone) {
+    return PreParserExpressionList();
+  }
+
   // Temporary glue; these functions will move to ParserBase.
-  PreParserExpression ParseArrayLiteral(bool* ok);
+  PreParserExpression ParseAssignmentExpression(bool accept_IN, bool* ok);
   PreParserExpression ParseObjectLiteral(bool* ok);
-  PreParserExpression ParseExpression(bool accept_IN, bool* ok);
   PreParserExpression ParseV8Intrinsic(bool* ok);
 
  private:
@@ -710,7 +747,7 @@ class PreParser : public ParserBase<PreParserTraits> {
   PreParser(Scanner* scanner,
             ParserRecorder* log,
             uintptr_t stack_limit)
-      : ParserBase<PreParserTraits>(scanner, stack_limit, NULL, this),
+      : ParserBase<PreParserTraits>(scanner, stack_limit, NULL, NULL, this),
         log_(log) {}
 
   // Pre-parse the program from the character stream; returns true on
@@ -846,7 +883,6 @@ class PreParser : public ParserBase<PreParserTraits> {
   Statement ParseTryStatement(bool* ok);
   Statement ParseDebuggerStatement(bool* ok);
 
-  Expression ParseExpression(bool accept_IN, bool* ok);
   Expression ParseAssignmentExpression(bool accept_IN, bool* ok);
   Expression ParseYieldExpression(bool* ok);
   Expression ParseConditionalExpression(bool accept_IN, bool* ok);
@@ -858,7 +894,6 @@ class PreParser : public ParserBase<PreParserTraits> {
   Expression ParseMemberExpressionContinuation(PreParserExpression expression,
                                                bool* ok);
   Expression ParseMemberWithNewPrefixesExpression(bool* ok);
-  Expression ParseArrayLiteral(bool* ok);
   Expression ParseObjectLiteral(bool* ok);
   Expression ParseV8Intrinsic(bool* ok);
 
@@ -1150,6 +1185,57 @@ typename Traits::Type::Expression ParserBase<Traits>::ParsePrimaryExpression(
   }
 
   return result;
+}
+
+// Precedence = 1
+template <class Traits>
+typename Traits::Type::Expression ParserBase<Traits>::ParseExpression(
+    bool accept_IN, bool* ok) {
+  // Expression ::
+  //   AssignmentExpression
+  //   Expression ',' AssignmentExpression
+
+  typename Traits::Type::Expression result =
+      this->ParseAssignmentExpression(accept_IN, CHECK_OK);
+  while (peek() == Token::COMMA) {
+    Expect(Token::COMMA, CHECK_OK);
+    int pos = position();
+    typename Traits::Type::Expression right =
+        this->ParseAssignmentExpression(accept_IN, CHECK_OK);
+    result = factory()->NewBinaryOperation(Token::COMMA, result, right, pos);
+  }
+  return result;
+}
+
+
+template <class Traits>
+typename Traits::Type::Expression ParserBase<Traits>::ParseArrayLiteral(
+    bool* ok) {
+  // ArrayLiteral ::
+  //   '[' Expression? (',' Expression?)* ']'
+
+  int pos = peek_position();
+  typename Traits::Type::ExpressionList values =
+      this->NewExpressionList(4, zone_);
+  Expect(Token::LBRACK, CHECK_OK);
+  while (peek() != Token::RBRACK) {
+    typename Traits::Type::Expression elem = this->EmptyExpression();
+    if (peek() == Token::COMMA) {
+      elem = this->GetLiteralTheHole(peek_position(), factory());
+    } else {
+      elem = this->ParseAssignmentExpression(true, CHECK_OK);
+    }
+    values->Add(elem, zone_);
+    if (peek() != Token::RBRACK) {
+      Expect(Token::COMMA, CHECK_OK);
+    }
+  }
+  Expect(Token::RBRACK, CHECK_OK);
+
+  // Update the scope information before the pre-parsing bailout.
+  int literal_index = function_state_->NextMaterializedLiteralIndex();
+
+  return factory()->NewArrayLiteral(values, literal_index, pos);
 }
 
 #undef CHECK_OK

@@ -393,7 +393,7 @@ $(OUT_MAKEFILES): $(GYPFILES) $(ENVFILE)
 	build/gyp/gyp --generator-output="$(OUTDIR)" build/all.gyp \
 	              -Ibuild/standalone.gypi --depth=. \
 	              -Dv8_target_arch=$(subst .,,$(suffix $(basename $@))) \
-	              -Dv8_optimized_debug=$(if $(findstring optdebug,$@),2,0) \
+	              $(if $(findstring optdebug,$@),-Dv8_optimized_debug=2,) \
 	              -S$(suffix $(basename $@))$(suffix $@) $(GYPFLAGS)
 
 $(OUTDIR)/Makefile.native: $(GYPFILES) $(ENVFILE)

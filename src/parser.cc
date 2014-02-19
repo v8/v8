@@ -570,8 +570,10 @@ Expression* ParserTraits::ExpressionFromString(
 }
 
 
-Expression* ParserTraits::ParseArrayLiteral(bool* ok) {
-  return parser_->ParseArrayLiteral(ok);
+Literal* ParserTraits::GetLiteralTheHole(
+    int position, AstNodeFactory<AstConstructionVisitor>* factory) {
+  return factory->NewLiteral(parser_->isolate()->factory()->the_hole_value(),
+                             RelocInfo::kNoPosition);
 }
 
 
@@ -580,8 +582,8 @@ Expression* ParserTraits::ParseObjectLiteral(bool* ok) {
 }
 
 
-Expression* ParserTraits::ParseExpression(bool accept_IN, bool* ok) {
-  return parser_->ParseExpression(accept_IN, ok);
+Expression* ParserTraits::ParseAssignmentExpression(bool accept_IN, bool* ok) {
+  return parser_->ParseAssignmentExpression(accept_IN, ok);
 }
 
 
@@ -594,6 +596,7 @@ Parser::Parser(CompilationInfo* info)
     : ParserBase<ParserTraits>(&scanner_,
                                info->isolate()->stack_guard()->real_climit(),
                                info->extension(),
+                               info->zone(),
                                this),
       isolate_(info->isolate()),
       symbol_cache_(0, info->zone()),
@@ -604,7 +607,6 @@ Parser::Parser(CompilationInfo* info)
       target_stack_(NULL),
       pre_parse_data_(NULL),
       fni_(NULL),
-      zone_(info->zone()),
       info_(info) {
   ASSERT(!script_.is_null());
   isolate_->set_ast_node_id(0);
@@ -2874,23 +2876,6 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
 }
 
 
-// Precedence = 1
-Expression* Parser::ParseExpression(bool accept_IN, bool* ok) {
-  // Expression ::
-  //   AssignmentExpression
-  //   Expression ',' AssignmentExpression
-
-  Expression* result = ParseAssignmentExpression(accept_IN, CHECK_OK);
-  while (peek() == Token::COMMA) {
-    Expect(Token::COMMA, CHECK_OK);
-    int pos = position();
-    Expression* right = ParseAssignmentExpression(accept_IN, CHECK_OK);
-    result = factory()->NewBinaryOperation(Token::COMMA, result, right, pos);
-  }
-  return result;
-}
-
-
 // Precedence = 2
 Expression* Parser::ParseAssignmentExpression(bool accept_IN, bool* ok) {
   // AssignmentExpression ::
@@ -3459,34 +3444,6 @@ void Parser::ReportInvalidPreparseData(Handle<String> name, bool* ok) {
   ReportMessage("invalid_preparser_data",
                 Vector<const char*>(element, 1));
   *ok = false;
-}
-
-
-Expression* Parser::ParseArrayLiteral(bool* ok) {
-  // ArrayLiteral ::
-  //   '[' Expression? (',' Expression?)* ']'
-
-  int pos = peek_position();
-  ZoneList<Expression*>* values = new(zone()) ZoneList<Expression*>(4, zone());
-  Expect(Token::LBRACK, CHECK_OK);
-  while (peek() != Token::RBRACK) {
-    Expression* elem;
-    if (peek() == Token::COMMA) {
-      elem = GetLiteralTheHole(peek_position());
-    } else {
-      elem = ParseAssignmentExpression(true, CHECK_OK);
-    }
-    values->Add(elem, zone());
-    if (peek() != Token::RBRACK) {
-      Expect(Token::COMMA, CHECK_OK);
-    }
-  }
-  Expect(Token::RBRACK, CHECK_OK);
-
-  // Update the scope information before the pre-parsing bailout.
-  int literal_index = function_state_->NextMaterializedLiteralIndex();
-
-  return factory()->NewArrayLiteral(values, literal_index, pos);
 }
 
 
@@ -4255,12 +4212,6 @@ Expression* Parser::ParseV8Intrinsic(bool* ok) {
 Literal* Parser::GetLiteralUndefined(int position) {
   return factory()->NewLiteral(
       isolate()->factory()->undefined_value(), position);
-}
-
-
-Literal* Parser::GetLiteralTheHole(int position) {
-  return factory()->NewLiteral(
-      isolate()->factory()->the_hole_value(), RelocInfo::kNoPosition);
 }
 
 
