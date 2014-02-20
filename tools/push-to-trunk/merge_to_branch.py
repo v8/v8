@@ -57,7 +57,7 @@ class MergeToBranchOptions(CommonOptions):
     self.wait_for_lgtm = True
     self.delete_sentinel = options.f
     self.message = getattr(options, "message", "")
-    self.revert = "--reverse" if getattr(options, "r", None) else ""
+    self.revert = getattr(options, "r", False)
     self.revert_bleeding_edge = getattr(options, "revert_bleeding_edge", False)
     self.patch = getattr(options, "p", "")
     self.args = args
@@ -91,8 +91,8 @@ class CreateBranch(Step):
   MESSAGE = "Create a fresh branch for the patch."
 
   def RunStep(self):
-    self.Git("checkout -b %s svn/%s" % (self.Config(BRANCHNAME),
-                                        self["merge_to_branch"]))
+    self.GitCreateBranch(self.Config(BRANCHNAME),
+                         "svn/%s" % self["merge_to_branch"])
 
 
 class SearchArchitecturePorts(Step):
@@ -103,15 +103,14 @@ class SearchArchitecturePorts(Step):
     port_revision_list = []
     for revision in self["full_revision_list"]:
       # Search for commits which matches the "Port rXXX" pattern.
-      args = ("log svn/bleeding_edge --reverse "
-              "--format=%%H --grep=\"Port r%d\"" % int(revision))
-      git_hashes = self.Git(args) or ""
-      for git_hash in git_hashes.strip().splitlines():
-        args = "svn find-rev %s svn/bleeding_edge" % git_hash
-        svn_revision = self.Git(args).strip()
+      git_hashes = self.GitLog(reverse=True, format="%H",
+                               grep="Port r%d" % int(revision),
+                               branch="svn/bleeding_edge")
+      for git_hash in git_hashes.splitlines():
+        svn_revision = self.GitSVNFindSVNRev(git_hash, "svn/bleeding_edge")
         if not svn_revision:
           self.Die("Cannot determine svn revision for %s" % git_hash)
-        revision_title = self.Git("log -1 --format=%%s %s" % git_hash)
+        revision_title = self.GitLog(n=1, format="%s", git_hash=git_hash)
 
         # Is this revision included in the original revision list?
         if svn_revision in self["full_revision_list"]:
@@ -136,7 +135,7 @@ class FindGitRevisions(Step):
   def RunStep(self):
     self["patch_commit_hashes"] = []
     for revision in self["full_revision_list"]:
-      next_hash = self.Git("svn find-rev \"r%s\" svn/bleeding_edge" % revision)
+      next_hash = self.GitSVNFindGitHash(revision, "svn/bleeding_edge")
       if not next_hash:
         self.Die("Cannot determine git hash for r%s" % revision)
       self["patch_commit_hashes"].append(next_hash)
@@ -160,12 +159,12 @@ class FindGitRevisions(Step):
     self["new_commit_msg"] += "\n\n"
 
     for commit_hash in self["patch_commit_hashes"]:
-      patch_merge_desc = self.Git("log -1 --format=%%s %s" % commit_hash)
-      self["new_commit_msg"] += "%s\n\n" % patch_merge_desc.strip()
+      patch_merge_desc = self.GitLog(n=1, format="%s", git_hash=commit_hash)
+      self["new_commit_msg"] += "%s\n\n" % patch_merge_desc
 
     bugs = []
     for commit_hash in self["patch_commit_hashes"]:
-      msg = self.Git("log -1 %s" % commit_hash)
+      msg = self.GitLog(n=1, git_hash=commit_hash)
       for bug in re.findall(r"^[ \t]*BUG[ \t]*=[ \t]*(.*?)[ \t]*$", msg,
                             re.M):
         bugs.extend(map(lambda s: s.strip(), bug.split(",")))
@@ -182,7 +181,7 @@ class ApplyPatches(Step):
     for commit_hash in self["patch_commit_hashes"]:
       print("Applying patch for %s to %s..."
             % (commit_hash, self["merge_to_branch"]))
-      patch = self.Git("log -1 -p %s" % commit_hash)
+      patch = self.GitLog(n=1, patch=True, git_hash=commit_hash)
       TextToFile(patch, self.Config(TEMPORARY_PATCH_FILE))
       self.ApplyPatch(self.Config(TEMPORARY_PATCH_FILE), self._options.revert)
     if self._options.patch:
@@ -224,17 +223,17 @@ class CommitLocal(Step):
   MESSAGE = "Commit to local branch."
 
   def RunStep(self):
-    self.Git("commit -a -F \"%s\"" % self.Config(COMMITMSG_FILE))
+    self.GitCommit(file_name=self.Config(COMMITMSG_FILE))
 
 
 class CommitRepository(Step):
   MESSAGE = "Commit to the repository."
 
   def RunStep(self):
-    self.Git("checkout %s" % self.Config(BRANCHNAME))
+    self.GitCheckout(self.Config(BRANCHNAME))
     self.WaitForLGTM()
-    self.Git("cl presubmit", "PRESUBMIT_TREE_CHECK=\"skip\"")
-    self.Git("cl dcommit -f --bypass-hooks", retry_on=lambda x: x is None)
+    self.GitPresubmit()
+    self.GitDCommit()
 
 
 class PrepareSVN(Step):
@@ -243,14 +242,12 @@ class PrepareSVN(Step):
   def RunStep(self):
     if self._options.revert_bleeding_edge:
       return
-    self.Git("svn fetch")
-    args = ("log -1 --format=%%H --grep=\"%s\" svn/%s"
-            % (self["new_commit_msg"], self["merge_to_branch"]))
-    commit_hash = self.Git(args).strip()
+    self.GitSVNFetch()
+    commit_hash = self.GitLog(n=1, format="%H", grep=self["new_commit_msg"],
+                              branch="svn/%s" % self["merge_to_branch"])
     if not commit_hash:
       self.Die("Unable to map git commit to svn revision.")
-    self["svn_revision"] = self.Git(
-        "svn find-rev %s" % commit_hash).strip()
+    self["svn_revision"] = self.GitSVNFindSVNRev(commit_hash)
     print "subversion revision number is r%s" % self["svn_revision"]
 
 

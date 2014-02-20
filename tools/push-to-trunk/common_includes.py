@@ -36,6 +36,8 @@ import textwrap
 import time
 import urllib2
 
+from git_recipes import GitRecipesMixin
+
 PERSISTFILE_BASENAME = "PERSISTFILE_BASENAME"
 TEMP_BRANCH = "TEMP_BRANCH"
 BRANCHNAME = "BRANCHNAME"
@@ -232,11 +234,11 @@ class CommonOptions(object):
     self.force_readline_defaults = not manual
     self.force_upload = not manual
     self.manual = manual
-    self.reviewer = getattr(options, 'reviewer', None)
-    self.author = getattr(options, 'a', None)
+    self.reviewer = getattr(options, 'reviewer', "")
+    self.author = getattr(options, 'a', "")
 
 
-class Step(object):
+class Step(GitRecipesMixin):
   def __init__(self, text, requires, number, config, state, options, handler):
     self._text = text
     self._requires = requires
@@ -363,12 +365,11 @@ class Step(object):
     return answer == "" or answer == "Y" or answer == "y"
 
   def DeleteBranch(self, name):
-    git_result = self.Git("branch").strip()
-    for line in git_result.splitlines():
+    for line in self.GitBranch().splitlines():
       if re.match(r".*\s+%s$" % name, line):
         msg = "Branch %s exists, do you want to delete it?" % name
         if self.Confirm(msg):
-          self.Git("branch -D %s" % name)
+          self.GitDeleteBranch(name)
           print "Branch %s deleted." % name
         else:
           msg = "Can't continue. Please delete branch %s and try again." % name
@@ -386,36 +387,30 @@ class Step(object):
 
   def CommonPrepare(self):
     # Check for a clean workdir.
-    if self.Git("status -s -uno").strip() != "":
+    if not self.GitIsWorkdirClean():
       self.Die("Workspace is not clean. Please commit or undo your changes.")
 
     # Persist current branch.
-    self["current_branch"] = ""
-    git_result = self.Git("status -s -b -uno").strip()
-    for line in git_result.splitlines():
-      match = re.match(r"^## (.+)", line)
-      if match:
-        self["current_branch"] = match.group(1)
-        break
+    self["current_branch"] = self.GitCurrentBranch()
 
     # Fetch unfetched revisions.
-    self.Git("svn fetch")
+    self.GitSVNFetch()
 
   def PrepareBranch(self):
     # Get ahold of a safe temporary branch and check it out.
     if self["current_branch"] != self._config[TEMP_BRANCH]:
       self.DeleteBranch(self._config[TEMP_BRANCH])
-      self.Git("checkout -b %s" % self._config[TEMP_BRANCH])
+      self.GitCreateBranch(self._config[TEMP_BRANCH])
 
     # Delete the branch that will be created later if it exists already.
     self.DeleteBranch(self._config[BRANCHNAME])
 
   def CommonCleanup(self):
-    self.Git("checkout -f %s" % self["current_branch"])
+    self.GitCheckout(self["current_branch"])
     if self._config[TEMP_BRANCH] != self["current_branch"]:
-      self.Git("branch -D %s" % self._config[TEMP_BRANCH])
+      self.GitDeleteBranch(self._config[TEMP_BRANCH])
     if self._config[BRANCHNAME] != self["current_branch"]:
-      self.Git("branch -D %s" % self._config[BRANCHNAME])
+      self.GitDeleteBranch(self._config[BRANCHNAME])
 
     # Clean up all temporary files.
     Command("rm", "-f %s*" % self._config[PERSISTFILE_BASENAME])
@@ -460,17 +455,17 @@ class Step(object):
       answer = self.ReadLine()
 
   # Takes a file containing the patch to apply as first argument.
-  def ApplyPatch(self, patch_file, reverse_patch=""):
-    args = "apply --index --reject %s \"%s\"" % (reverse_patch, patch_file)
+  def ApplyPatch(self, patch_file, revert=False):
     try:
-      self.Git(args)
+      self.GitApplyPatch(patch_file, revert)
     except GitFailedException:
       self.WaitForResolvingConflicts(patch_file)
 
-  def FindLastTrunkPush(self):
+  def FindLastTrunkPush(self, parent_hash=""):
     push_pattern = "^Version [[:digit:]]*\.[[:digit:]]*\.[[:digit:]]* (based"
-    args = "log -1 --format=%%H --grep=\"%s\" svn/trunk" % push_pattern
-    return self.Git(args).strip()
+    branch = "" if parent_hash else "svn/trunk"
+    return self.GitLog(n=1, format="%H", grep=push_pattern,
+                       parent_hash=parent_hash, branch=branch)
 
 
 class UploadStep(Step):
@@ -484,14 +479,7 @@ class UploadStep(Step):
       print "Please enter the email address of a V8 reviewer for your patch: ",
       self.DieNoManualMode("A reviewer must be specified in forced mode.")
       reviewer = self.ReadLine()
-    author_option = self._options.author
-    author = " --email \"%s\"" % author_option if author_option else ""
-    force_flag = " -f" if self._options.force_upload else ""
-    args = ("cl upload%s -r \"%s\" --send-mail%s"
-            % (author, reviewer, force_flag))
-    # TODO(machenbach): Check output in forced mode. Verify that all required
-    # base files were uploaded, if not retry.
-    self.Git(args, pipe=False)
+    self.GitUpload(reviewer, self._options.author, self._options.force_upload)
 
 
 def MakeStep(step_class=Step, number=0, state=None, config=None,
