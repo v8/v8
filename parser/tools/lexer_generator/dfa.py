@@ -168,3 +168,37 @@ class Dfa(Automaton):
         incoming_transitions[transition_state].append((key, state))
     self.visit_all_states(f)
     return incoming_transitions
+
+  def path_iter(self):
+    '''Walk all paths through the dfa, ending at nodes with no transitions
+    or the first reappearance of a node.  Yields data structures which cannot
+    be modified or stored.
+    Yields path: [(key, state)], states_in_path: set, is_terminal : boolean
+    path always starts with (None, state_state)'''
+    start_state = self.start_state()
+    path = [(None, start_state)]
+    in_path = set([start_state])
+    iters = [(start_state.key_state_iter(), False)]
+    while path:
+      assert len(path) == len(in_path)
+      assert len(path) == len(iters)
+      try:
+        (it, called) = iters[-1]
+        (key, state) = it.next()
+        if not called:
+          iters[-1] = (it, True)
+        path.append((key, state))
+        if state in in_path:
+          # Terminate nested iteration.
+          yield path, in_path, False
+          path.pop()
+          continue
+        # Continue nesting.
+        in_path.add(state)
+        iters.append((state.key_state_iter(), False))
+      except StopIteration:
+        # No more transitions in iterator, pop everything.
+        (it, called) = iters.pop()
+        if not called:
+          yield path, in_path, True
+        in_path.remove(path.pop()[1])

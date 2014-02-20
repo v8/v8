@@ -142,8 +142,8 @@ harmony_number "\\"             <|token(ILLEGAL)|>
 line_terminator+   <|line_terminator|>
 /[:whitespace:]+/  <|skip|>
 
-"\""           <set_marker(1)||DoubleQuoteString>
-"'"            <set_marker(1)||SingleQuoteString>
+"\""           <set_marker(1)|token(ILLEGAL)|DoubleQuoteString>
+"'"            <set_marker(1)|token(ILLEGAL)|SingleQuoteString>
 
 # all keywords
 "break"       <|token(BREAK)|>
@@ -192,11 +192,12 @@ line_terminator+   <|line_terminator|>
 "with"        <|token(WITH)|>
 "yield"       <|token(YIELD)|>
 
-identifier_start <|token(IDENTIFIER)|Identifier>
-unicode_escape <check_escaped_identifier_start|token(IDENTIFIER)|Identifier>
+identifier_start  <|token(IDENTIFIER)|Identifier>
+unicode_escape    <check_escaped_identifier_start|token(IDENTIFIER)|Identifier>
+"\\"              <|token(ILLEGAL)|>  # ambiguous backtracking otherwise
 
 eos             <terminate>
-default_action  <do_token_and_go_forward(ILLEGAL)>
+default_action  <default>
 
 <<DoubleQuoteString>>
 epsilon                       <StringSubgraph>
@@ -222,8 +223,9 @@ unicode_escape                <set_has_escapes||continue(1)>
 line_terminator               <|token(ILLEGAL)|>
 
 <<Identifier>>
-identifier_char <|token(IDENTIFIER)|continue>
-/\\u[:hex_digit:]{4}/ <check_escaped_identifier_part|token(IDENTIFIER)|continue>
+identifier_char  <|token(IDENTIFIER)|continue>
+unicode_escape   <check_escaped_identifier_part|token(IDENTIFIER)|continue>
+"\\"             <|token(ILLEGAL)|>  # ambiguous backtracking otherwise
 
 <<SingleLineComment>>
 line_terminator  <|line_terminator|>
@@ -232,7 +234,6 @@ eos              <skip_and_terminate>
 
 <<MultiLineComment>>
 /\*+\//          <|skip|>
-# TODO(dcarney): find a way to generate the below rule
 /\*+[^\/*]/      <||continue>
 line_terminator  <line_terminator_in_multiline_comment||continue>
 catch_all        <||continue>

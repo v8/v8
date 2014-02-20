@@ -139,8 +139,8 @@
   {% elif type == 'do_stored_token' %}
     DO_TOKEN(stored_token)
     return;
-  {% elif type == 'do_token_and_go_forward' %}
-    DO_TOKEN(Token::{{args[0]}});
+  {% elif type == 'default' %}
+    DO_TOKEN(Token::ILLEGAL);
     FORWARD();
     RESET_START();
     return;

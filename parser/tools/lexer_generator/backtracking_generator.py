@@ -40,6 +40,36 @@ class BacktrackingGenerator(object):
     self.__default_action = default_action
     self.__log = log
 
+  @staticmethod
+  def __process_error_states(dfa, error_map, action_state_map):
+    path_map = { k : [] for k in error_map.iterkeys()}
+    error_states = set(error_map.iterkeys())
+    for path, states_in_path, terminal in dfa.path_iter():
+      matching = error_states & states_in_path
+      if not matching:
+        continue
+      last_action = None
+      path_length = 0
+      for (key, state) in path:
+        if state in error_states:
+          assert last_action != None
+          path_map[state].append([k for k, s in path[1:path_length]])
+        elif state in action_state_map:
+          last_action = state
+        path_length += 1
+    print reduce(lambda acc, x : acc + len(x), path_map.itervalues(), 0)
+    for state, key_paths in path_map.iteritems():
+      count = 0
+      action_str = map(str, error_map[state][0])
+      for key_path in key_paths:
+        print "path %d %s %s" % (
+          state.node_number(),
+          action_str,
+          " --> ".join(map(str, key_path)))
+        count += 1
+        if count > 10:
+          break
+
   def __generate(self):
     dfa = self.__dfa
     default_action = self.__default_action
@@ -72,6 +102,7 @@ class BacktrackingGenerator(object):
     if (not start_state in incoming_transitions and
         not start_state in action_states):
       action_states[start_state] = default_action
+    error_map = {}
     for state in incoming_transitions.iterkeys():
       if state in omega_states or state in action_states:
         continue
@@ -98,12 +129,11 @@ class BacktrackingGenerator(object):
               next.add(incoming_state)
         seen |= unchecked
         unchecked = next - seen
-      # accumulate unique actions
+      # Accumulate unique actions.
       actions = set(map(lambda x : action_states[x].term(), match_edge))
       assert actions
       if not len(actions) == 1:
-        # TODO(dcarney): need to warn here after second pass
-        # actions = set([default_action])
+        error_map[state] = actions, match_edge
         continue
       action = iter(actions).next()
       # don't install default actions
@@ -111,6 +141,11 @@ class BacktrackingGenerator(object):
         continue
       store_states |= match_edge
       backtracking_map[state.node_number()] = (action, match_edge)
+    # Bail if error occurred.
+    if error_map:
+      self.__process_error_states(dfa, error_map, action_states)
+      raise Exception('ambiguous backtracking')
+    # Now install backtracking everywhere.
     def install_backtracking_action(new_states, node_number):
       omega_state_id = str(node_number) + '_bt'
       key = TransitionKey.omega()

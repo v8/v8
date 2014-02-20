@@ -141,6 +141,7 @@ if __name__ == '__main__':
   parser.add_argument('--debug-code', action='store_true')
   parser.add_argument('--profile', action='store_true')
   parser.add_argument('--rule-html')
+  parser.add_argument('--count-paths', action='store_true')
   args = parser.parse_args()
 
   minimize_default = not args.no_minimize_default
@@ -167,6 +168,13 @@ if __name__ == '__main__':
       print "nodes reduced from %s to %s" % (
         dfa.node_count(), mdfa.node_count())
     DfaMinimizer.set_verify(True)
+
+  if args.count_paths:
+    path_count = 0
+    print 'counting'
+    for path in rule_processor.default_automata().minimal_dfa().path_iter():
+      path_count += 1
+    print 'done', path_count
 
   html_file = args.html
   if html_file:
