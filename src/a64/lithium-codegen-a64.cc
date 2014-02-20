@@ -5161,7 +5161,7 @@ void LCodeGen::DoStringCharCodeAt(LStringCharCodeAt* instr) {
 
   StringCharLoadGenerator::Generate(masm(),
                                     ToRegister(instr->string()),
-                                    ToRegister(instr->index()),
+                                    ToRegister32(instr->index()),
                                     ToRegister(instr->result()),
                                     deferred->entry());
   __ Bind(deferred->exit());
@@ -5208,13 +5208,13 @@ void LCodeGen::DoStringCharFromCode(LStringCharFromCode* instr) {
       new(zone()) DeferredStringCharFromCode(this, instr);
 
   ASSERT(instr->hydrogen()->value()->representation().IsInteger32());
-  Register char_code = ToRegister(instr->char_code());
+  Register char_code = ToRegister32(instr->char_code());
   Register result = ToRegister(instr->result());
 
-  __ Cmp(char_code, Operand(String::kMaxOneByteCharCode));
+  __ Cmp(char_code, String::kMaxOneByteCharCode);
   __ B(hi, deferred->entry());
   __ LoadRoot(result, Heap::kSingleCharacterStringCacheRootIndex);
-  __ Add(result, result, Operand(char_code, LSL, kPointerSizeLog2));
+  __ Add(result, result, Operand(char_code, SXTW, kPointerSizeLog2));
   __ Ldr(result, FieldMemOperand(result, FixedArray::kHeaderSize));
   __ CompareRoot(result, Heap::kUndefinedValueRootIndex);
   __ B(eq, deferred->entry());

@@ -3540,7 +3540,7 @@ void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
 
   StringCharLoadGenerator::Generate(masm,
                                     object_,
-                                    index_,
+                                    index_.W(),
                                     result_,
                                     &call_runtime_);
   __ SmiTag(result_);

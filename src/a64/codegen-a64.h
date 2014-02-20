@@ -38,7 +38,8 @@ class StringCharLoadGenerator : public AllStatic {
  public:
   // Generates the code for handling different string types and loading the
   // indexed character into |result|.  We expect |index| as untagged input and
-  // |result| as untagged output.
+  // |result| as untagged output. Register index is asserted to be a 32-bit W
+  // register.
   static void Generate(MacroAssembler* masm,
                        Register string,
                        Register index,
