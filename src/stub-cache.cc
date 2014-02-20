@@ -116,9 +116,9 @@ Handle<Code> StubCache::FindIC(Handle<Name> name,
 Handle<Code> StubCache::FindHandler(Handle<Name> name,
                                     Handle<Map> stub_holder,
                                     Code::Kind kind,
-                                    InlineCacheHolderFlag cache_holder) {
-  Code::Flags flags = Code::ComputeMonomorphicFlags(
-      Code::HANDLER, kNoExtraICState, cache_holder, Code::NORMAL);
+                                    InlineCacheHolderFlag cache_holder,
+                                    Code::StubType type) {
+  Code::Flags flags = Code::ComputeHandlerFlags(kind, type, cache_holder);
 
   Handle<Object> probe(stub_holder->FindInCodeCache(*name, flags), isolate_);
   if (probe->IsCode()) return Handle<Code>::cast(probe);
@@ -192,8 +192,17 @@ Handle<Code> StubCache::ComputeLoadNonexistent(Handle<Name> name,
   // Compile the stub that is either shared for all names or
   // name specific if there are global objects involved.
   Handle<Code> handler = FindHandler(
-      cache_name, stub_holder, Code::LOAD_IC, flag);
-  if (!handler.is_null()) return handler;
+      cache_name, stub_holder, Code::LOAD_IC, flag, Code::FAST);
+  if (!handler.is_null()) {
+#ifdef DEBUG
+    LoadStubCompiler compiler(isolate_, kNoExtraICState, flag);
+    Handle<Code> compiled = compiler.CompileLoadNonexistent(
+        type, last, cache_name);
+    ASSERT(compiled->major_key() == handler->major_key());
+    ASSERT(compiled->flags() == handler->flags());
+#endif
+    return handler;
+  }
 
   LoadStubCompiler compiler(isolate_, kNoExtraICState, flag);
   handler = compiler.CompileLoadNonexistent(type, last, cache_name);

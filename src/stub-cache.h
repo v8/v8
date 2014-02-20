@@ -89,7 +89,8 @@ class StubCache {
   Handle<Code> FindHandler(Handle<Name> name,
                            Handle<Map> map,
                            Code::Kind kind,
-                           InlineCacheHolderFlag cache_holder = OWN_MAP);
+                           InlineCacheHolderFlag cache_holder,
+                           Code::StubType type);
 
   Handle<Code> ComputeMonomorphicIC(Code::Kind kind,
                                     Handle<Name> name,
