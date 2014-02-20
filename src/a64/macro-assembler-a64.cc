@@ -4710,29 +4710,6 @@ void MacroAssembler::LoadTransitionedArrayMapConditional(
 }
 
 
-void MacroAssembler::LoadInitialArrayMap(Register function_in,
-                                         Register scratch,
-                                         Register map_out,
-                                         ArrayHasHoles holes) {
-  ASSERT(!AreAliased(function_in, scratch, map_out));
-  Label done;
-  Ldr(map_out, FieldMemOperand(function_in,
-                               JSFunction::kPrototypeOrInitialMapOffset));
-
-  if (!FLAG_smi_only_arrays) {
-    ElementsKind kind = (holes == kArrayCanHaveHoles) ? FAST_HOLEY_ELEMENTS
-                                                      : FAST_ELEMENTS;
-    LoadTransitionedArrayMapConditional(FAST_SMI_ELEMENTS, kind, map_out,
-                                        scratch, &done);
-  } else if (holes == kArrayCanHaveHoles) {
-    LoadTransitionedArrayMapConditional(FAST_SMI_ELEMENTS,
-                                        FAST_HOLEY_SMI_ELEMENTS, map_out,
-                                        scratch, &done);
-  }
-  Bind(&done);
-}
-
-
 void MacroAssembler::LoadArrayFunction(Register function) {
   // Load the global or builtins object from the current context.
   Ldr(function, GlobalObjectMemOperand());

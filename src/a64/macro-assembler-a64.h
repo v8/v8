@@ -1886,12 +1886,6 @@ class MacroAssembler : public Assembler {
       Register scratch,
       Label* no_map_match);
 
-  // Load the initial map for new Arrays from a JSFunction.
-  void LoadInitialArrayMap(Register function_in,
-                           Register scratch,
-                           Register map_out,
-                           ArrayHasHoles holes);
-
   void LoadArrayFunction(Register function);
   void LoadGlobalFunction(int index, Register function);
 
