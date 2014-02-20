@@ -1926,7 +1926,11 @@ void Simulator::ConfigureTypeRegister(Instruction* instr,
           alu_out = rs_u * rt_u;  // Only the lower 32 bits are kept.
           break;
         case CLZ:
-          alu_out = __builtin_clz(rs_u);
+          // MIPS32 spec: If no bits were set in GPR rs, the result written to
+          // GPR rd is 32.
+          // GCC __builtin_clz: If input is 0, the result is undefined.
+          alu_out =
+              rs_u == 0 ? 32 : CompilerIntrinsics::CountLeadingZeros(rs_u);
           break;
         default:
           UNREACHABLE();
