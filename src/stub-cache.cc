@@ -194,12 +194,6 @@ Handle<Code> StubCache::ComputeLoadNonexistent(Handle<Name> name,
   Handle<Code> handler = FindHandler(
       cache_name, stub_holder, Code::LOAD_IC, flag, Code::FAST);
   if (!handler.is_null()) {
-#ifdef DEBUG
-    LoadStubCompiler compiler(isolate_, kNoExtraICState, flag);
-    Handle<Code> compiled = compiler.CompileLoadNonexistent(
-        type, last, cache_name);
-    ASSERT(compiled->flags() == handler->flags());
-#endif
     return handler;
   }
 

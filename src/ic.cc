@@ -842,11 +842,6 @@ Handle<Code> IC::ComputeHandler(LookupResult* lookup,
       name, handle(stub_holder->map()), kind(), cache_holder,
       lookup->holder()->HasFastProperties() ? Code::FAST : Code::NORMAL);
   if (!code.is_null()) {
-#ifdef DEBUG
-    Handle<Code> compiled = CompileHandler(
-        lookup, object, name, value, cache_holder);
-    ASSERT(compiled->flags() == code->flags());
-#endif
     return code;
   }
 
