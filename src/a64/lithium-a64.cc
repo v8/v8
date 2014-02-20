@@ -812,12 +812,10 @@ LInstruction* LChunkBuilder::DoBoundsCheckBaseIndexInformation(
 
 
 LInstruction* LChunkBuilder::DoAccessArgumentsAt(HAccessArgumentsAt* instr) {
-  // TODO(all): Try to improve this, like ARM r17925.
   info()->MarkAsRequiresFrame();
   LOperand* args = NULL;
   LOperand* length = NULL;
   LOperand* index = NULL;
-  LOperand* temp = NULL;
 
   if (instr->length()->IsConstant() && instr->index()->IsConstant()) {
     args = UseRegisterAtStart(instr->arguments());
@@ -827,11 +825,9 @@ LInstruction* LChunkBuilder::DoAccessArgumentsAt(HAccessArgumentsAt* instr) {
     args = UseRegister(instr->arguments());
     length = UseRegisterAtStart(instr->length());
     index = UseRegisterOrConstantAtStart(instr->index());
-    temp = TempRegister();
   }
 
-  return DefineAsRegister(
-      new(zone()) LAccessArgumentsAt(args, length, index, temp));
+  return DefineAsRegister(new(zone()) LAccessArgumentsAt(args, length, index));
 }
 
 

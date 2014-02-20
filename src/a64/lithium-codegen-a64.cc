@@ -1404,27 +1404,36 @@ void LCodeGen::DoGap(LGap* gap) {
 
 
 void LCodeGen::DoAccessArgumentsAt(LAccessArgumentsAt* instr) {
-  // TODO(all): Try to improve this, like ARM r17925.
   Register arguments = ToRegister(instr->arguments());
   Register result = ToRegister(instr->result());
 
+  // The pointer to the arguments array come from DoArgumentsElements.
+  // It does not point directly to the arguments and there is an offest of
+  // two words that we must take into account when accessing an argument.
+  // Subtracting the index from length accounts for one, so we add one more.
+
   if (instr->length()->IsConstantOperand() &&
       instr->index()->IsConstantOperand()) {
-    ASSERT(instr->temp() == NULL);
     int index = ToInteger32(LConstantOperand::cast(instr->index()));
     int length = ToInteger32(LConstantOperand::cast(instr->length()));
     int offset = ((length - index) + 1) * kPointerSize;
     __ Ldr(result, MemOperand(arguments, offset));
+  } else if (instr->index()->IsConstantOperand()) {
+    Register length = ToRegister32(instr->length());
+    int index = ToInteger32(LConstantOperand::cast(instr->index()));
+    int loc = index - 1;
+    if (loc != 0) {
+      __ Sub(result.W(), length, loc);
+      __ Ldr(result, MemOperand(arguments, result, UXTW, kPointerSizeLog2));
+    } else {
+      __ Ldr(result, MemOperand(arguments, length, UXTW, kPointerSizeLog2));
+    }
   } else {
-    ASSERT(instr->temp() != NULL);
-    Register temp = ToRegister32(instr->temp());
     Register length = ToRegister32(instr->length());
     Operand index = ToOperand32I(instr->index());
-    // There are two words between the frame pointer and the last arguments.
-    // Subtracting from length accounts for only one, so we add one more.
-    __ Sub(temp, length, index);
-    __ Add(temp, temp, 1);
-    __ Ldr(result, MemOperand(arguments, temp, UXTW, kPointerSizeLog2));
+    __ Sub(result.W(), length, index);
+    __ Add(result.W(), result.W(), 1);
+    __ Ldr(result, MemOperand(arguments, result, UXTW, kPointerSizeLog2));
   }
 }
 

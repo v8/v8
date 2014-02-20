@@ -541,16 +541,14 @@ class LOsrEntry V8_FINAL : public LTemplateInstruction<0, 0, 0> {
 };
 
 
-class LAccessArgumentsAt V8_FINAL : public LTemplateInstruction<1, 3, 1> {
+class LAccessArgumentsAt V8_FINAL : public LTemplateInstruction<1, 3, 0> {
  public:
   LAccessArgumentsAt(LOperand* arguments,
                      LOperand* length,
-                     LOperand* index,
-                     LOperand* temp) {
+                     LOperand* index) {
     inputs_[0] = arguments;
     inputs_[1] = length;
     inputs_[2] = index;
-    temps_[0] = temp;
   }
 
   DECLARE_CONCRETE_INSTRUCTION(AccessArgumentsAt, "access-arguments-at")
@@ -558,7 +556,6 @@ class LAccessArgumentsAt V8_FINAL : public LTemplateInstruction<1, 3, 1> {
   LOperand* arguments() { return inputs_[0]; }
   LOperand* length() { return inputs_[1]; }
   LOperand* index() { return inputs_[2]; }
-  LOperand* temp() { return temps_[0]; }
 
   virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
 };
