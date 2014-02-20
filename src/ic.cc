@@ -845,7 +845,6 @@ Handle<Code> IC::ComputeHandler(LookupResult* lookup,
 #ifdef DEBUG
     Handle<Code> compiled = CompileHandler(
         lookup, object, name, value, cache_holder);
-    ASSERT(compiled->major_key() == code->major_key());
     ASSERT(compiled->flags() == code->flags());
 #endif
     return code;
