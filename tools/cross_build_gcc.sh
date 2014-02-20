@@ -37,6 +37,7 @@ export AR=$1ar
 export RANLIB=$1ranlib
 export CC=$1gcc
 export LD=$1g++
+export LINK=$1g++
 
 OK=1
 if [ ! -x "$CXX" ]; then
@@ -57,6 +58,10 @@ if [ ! -x "$CC" ]; then
 fi
 if [ ! -x "$LD" ]; then
   echo "Error: $LD does not exist or is not executable."
+  OK=0
+fi
+if [ ! -x "$LINK" ]; then
+  echo "Error: $LINK does not exist or is not executable."
   OK=0
 fi
 if [ $OK -ne 1 ]; then
