@@ -82,6 +82,8 @@ bool V8::Initialize(Deserializer* des) {
 #ifdef V8_USE_DEFAULT_PLATFORM
   DefaultPlatform* platform = static_cast<DefaultPlatform*>(platform_);
   platform->SetThreadPoolSize(isolate->max_available_threads());
+  // We currently only start the threads early, if we know that we'll use them.
+  if (FLAG_job_based_sweeping) platform->EnsureInitialized();
 #endif
 
   return isolate->Init(des);
