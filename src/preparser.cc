@@ -1184,6 +1184,7 @@ PreParser::Expression PreParser::ParseObjectLiteral(bool* ok) {
         if (Token::IsKeyword(next)) {
           Consume(next);
           checker.CheckProperty(next, kValueProperty, CHECK_OK);
+          LogSymbol();
         } else {
           // Unexpected token.
           *ok = false;

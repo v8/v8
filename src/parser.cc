@@ -207,12 +207,12 @@ void RegExpBuilder::AddQuantifierToAtom(
 
 
 Handle<String> Parser::LookupSymbol(int symbol_id) {
-  // Length of symbol cache is the number of identified symbols.
-  // If we are larger than that, or negative, it's not a cached symbol.
-  // This might also happen if there is no preparser symbol data, even
-  // if there is some preparser data.
-  if (static_cast<unsigned>(symbol_id)
-      >= static_cast<unsigned>(symbol_cache_.length())) {
+  // If there is no preparser symbol data, a negative number will be passed. In
+  // that case, we'll just read the literal from Scanner. This also guards
+  // against corrupt preparse data where the symbol id is larger than the symbol
+  // count.
+  if (symbol_id < 0 ||
+      (pre_parse_data_ && symbol_id >= pre_parse_data_->symbol_count())) {
     if (scanner()->is_literal_ascii()) {
       return isolate()->factory()->InternalizeOneByteString(
           Vector<const uint8_t>::cast(scanner()->literal_ascii_string()));

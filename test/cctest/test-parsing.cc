@@ -324,6 +324,43 @@ TEST(StandAlonePreParserNoNatives) {
 }
 
 
+TEST(PreparsingObjectLiterals) {
+  // Regression test for a bug where the symbol stream produced by PreParser
+  // didn't match what Parser wanted to consume.
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope handles(isolate);
+  v8::Local<v8::Context> context = v8::Context::New(isolate);
+  v8::Context::Scope context_scope(context);
+  int marker;
+  CcTest::i_isolate()->stack_guard()->SetStackLimit(
+      reinterpret_cast<uintptr_t>(&marker) - 128 * 1024);
+
+  {
+    const char* source = "var myo = {if: \"foo\"}; myo.if;";
+    v8::Local<v8::Value> result = PreCompileCompileRun(source);
+    CHECK(result->IsString());
+    v8::String::Utf8Value utf8(result);
+    CHECK_EQ("foo", *utf8);
+  }
+
+  {
+    const char* source = "var myo = {\"bar\": \"foo\"}; myo[\"bar\"];";
+    v8::Local<v8::Value> result = PreCompileCompileRun(source);
+    CHECK(result->IsString());
+    v8::String::Utf8Value utf8(result);
+    CHECK_EQ("foo", *utf8);
+  }
+
+  {
+    const char* source = "var myo = {1: \"foo\"}; myo[1];";
+    v8::Local<v8::Value> result = PreCompileCompileRun(source);
+    CHECK(result->IsString());
+    v8::String::Utf8Value utf8(result);
+    CHECK_EQ("foo", *utf8);
+  }
+}
+
+
 TEST(RegressChromium62639) {
   v8::V8::Initialize();
   i::Isolate* isolate = CcTest::i_isolate();
