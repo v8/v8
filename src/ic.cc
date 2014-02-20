@@ -840,7 +840,7 @@ Handle<Code> IC::ComputeHandler(LookupResult* lookup,
 
   Handle<Code> code = isolate()->stub_cache()->FindHandler(
       name, handle(stub_holder->map()), kind(), cache_holder,
-      lookup->IsNormal() ? Code::NORMAL : Code::FAST);
+      lookup->holder()->HasFastProperties() ? Code::FAST : Code::NORMAL);
   if (!code.is_null()) {
 #ifdef DEBUG
     Handle<Code> compiled = CompileHandler(
