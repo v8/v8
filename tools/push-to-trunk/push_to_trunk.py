@@ -68,6 +68,7 @@ class PushToTrunkOptions(CommonOptions):
     options.f = True
     options.m = False
     options.c = chrome_path
+    options.reviewer = reviewer
     options.a = author
     return PushToTrunkOptions(options)
 
@@ -81,6 +82,7 @@ class PushToTrunkOptions(CommonOptions):
     self.c = options.c
     self.b = getattr(options, 'b', None)
     self.author = getattr(options, 'a', None)
+
 
 class Preparation(Step):
   MESSAGE = "Preparation."
