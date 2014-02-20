@@ -15710,6 +15710,7 @@ MaybeObject* NameDictionary::TransformPropertiesToFastFor(
         // instance descriptor.
         MaybeObject* maybe_key = heap->InternalizeString(String::cast(k));
         if (!maybe_key->To(&key)) return maybe_key;
+        if (key->Equals(heap->empty_string())) return this;
       }
 
       PropertyDetails details = DetailsAt(i);
