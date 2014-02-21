@@ -3638,10 +3638,9 @@ void ICCompareStub::GenerateSmis(MacroAssembler* masm) {
   // Bail out (to 'miss') unless both x0 and x1 are smis.
   __ JumpIfEitherNotSmi(x0, x1, &miss);
 
-  // TODO(jbramley): Why do we only set the flags for EQ?
   if (GetCondition() == eq) {
     // For equality we do not care about the sign of the result.
-    __ Subs(x0, x0, x1);
+    __ Sub(x0, x0, x1);
   } else {
     // Untag before subtracting to avoid handling overflow.
     __ SmiUntag(x1);
