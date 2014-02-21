@@ -2200,7 +2200,7 @@ class MacroAssembler : public Assembler {
  private:
   // We generate a veneer for a branch if we reach within this distance of the
   // limit of the range.
-  static const int kVeneerDistanceMargin = 2 * KB;
+  static const int kVeneerDistanceMargin = 4 * KB;
   int unresolved_branches_first_limit() const {
     ASSERT(!unresolved_branches_.empty());
     return unresolved_branches_.begin()->first;
