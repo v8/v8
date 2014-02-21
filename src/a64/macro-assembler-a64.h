@@ -1179,16 +1179,18 @@ class MacroAssembler : public Assembler {
 
   // ---- Floating point helpers ----
 
-
-  // Performs a truncating conversion of a floating point number as used by
-  // the JS bitwise operations. See ECMA-262 9.5: ToInt32. Goes to 'done' if it
-  // succeeds, otherwise falls through if result is saturated. On return
-  // 'result' either holds answer, or is clobbered on fall through.
+  // Perform a conversion from a double to a signed int64. If the input fits in
+  // range of the 64-bit result, execution branches to done. Otherwise,
+  // execution falls through, and the sign of the result can be used to
+  // determine if overflow was towards positive or negative infinity.
+  //
+  // On successful conversion, the least significant 32 bits of the result are
+  // equivalent to the ECMA-262 operation "ToInt32".
   //
   // Only public for the test code in test-code-stubs-a64.cc.
-  void TryInlineTruncateDoubleToI(Register result,
-                                  DoubleRegister input,
-                                  Label* done);
+  void TryConvertDoubleToInt64(Register result,
+                               DoubleRegister input,
+                               Label* done);
 
   // Performs a truncating conversion of a floating point number as used by
   // the JS bitwise operations. See ECMA-262 9.5: ToInt32.

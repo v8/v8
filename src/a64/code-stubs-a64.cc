@@ -565,7 +565,7 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
     __ Ldr(double_scratch, MemOperand(input, double_offset));
     // Try to convert with a FPU convert instruction.  This handles all
     // non-saturating cases.
-    __ TryInlineTruncateDoubleToI(result, double_scratch, &done);
+    __ TryConvertDoubleToInt64(result, double_scratch, &done);
     __ Fmov(result, double_scratch);
   } else {
     __ Ldr(result, MemOperand(input, double_offset));
