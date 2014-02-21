@@ -1,3 +1,8 @@
+2014-02-21: Version 3.25.1
+
+        Performance and stability improvements on all platforms.
+
+
 2014-02-19: Version 3.25.0
 
         ES6: Tighten up Object.prototype.__proto__ (issue 3064).
