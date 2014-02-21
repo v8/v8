@@ -2106,17 +2106,14 @@ bool Isolate::Init(Deserializer* des) {
     CodeStub::GenerateFPStubs(this);
     StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime(this);
     StubFailureTrampolineStub::GenerateAheadOfTime(this);
-    // TODO(mstarzinger): The following is an ugly hack to make sure the
-    // interface descriptor is initialized even when stubs have been
-    // deserialized out of the snapshot without the graph builder.
-    FastCloneShallowArrayStub stub(FastCloneShallowArrayStub::CLONE_ELEMENTS,
-                                   DONT_TRACK_ALLOCATION_SITE, 0);
-    stub.InitializeInterfaceDescriptor(
-        this, code_stub_interface_descriptor(CodeStub::FastCloneShallowArray));
+    // Ensure interface descriptors are initialized even when stubs have been
+    // deserialized out of the snapshot without using the graph builder.
+    FastCloneShallowArrayStub::InstallDescriptors(this);
     BinaryOpICStub::InstallDescriptors(this);
     BinaryOpWithAllocationSiteStub::InstallDescriptors(this);
-    CompareNilICStub::InitializeForIsolate(this);
-    ToBooleanStub::InitializeForIsolate(this);
+    CompareNilICStub::InstallDescriptors(this);
+    ToBooleanStub::InstallDescriptors(this);
+    ToNumberStub::InstallDescriptors(this);
     ArrayConstructorStubBase::InstallDescriptors(this);
     InternalArrayConstructorStubBase::InstallDescriptors(this);
     FastNewClosureStub::InstallDescriptors(this);

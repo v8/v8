@@ -486,6 +486,13 @@ class ToNumberStub: public HydrogenCodeStub {
       Isolate* isolate,
       CodeStubInterfaceDescriptor* descriptor);
 
+  static void InstallDescriptors(Isolate* isolate) {
+    ToNumberStub stub;
+    stub.InitializeInterfaceDescriptor(
+        isolate,
+        isolate->code_stub_interface_descriptor(CodeStub::ToNumber));
+  }
+
  private:
   Major MajorKey() { return ToNumber; }
   int NotMissMinorKey() { return 0; }
@@ -623,6 +630,8 @@ class FastCloneShallowArrayStub : public HydrogenCodeStub {
   virtual void InitializeInterfaceDescriptor(
       Isolate* isolate,
       CodeStubInterfaceDescriptor* descriptor);
+
+  static void InstallDescriptors(Isolate* isolate);
 
  private:
   Mode mode_;
@@ -1375,7 +1384,7 @@ class CompareNilICStub : public HydrogenCodeStub  {
       Isolate* isolate,
       CodeStubInterfaceDescriptor* descriptor);
 
-  static void InitializeForIsolate(Isolate* isolate) {
+  static void InstallDescriptors(Isolate* isolate) {
     CompareNilICStub compare_stub(kNullValue, UNINITIALIZED);
     compare_stub.InitializeInterfaceDescriptor(
         isolate,
@@ -2332,7 +2341,7 @@ class ToBooleanStub: public HydrogenCodeStub {
 
   virtual bool SometimesSetsUpAFrame() { return false; }
 
-  static void InitializeForIsolate(Isolate* isolate) {
+  static void InstallDescriptors(Isolate* isolate) {
     ToBooleanStub stub;
     stub.InitializeInterfaceDescriptor(
         isolate,
