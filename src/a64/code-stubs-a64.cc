@@ -1884,8 +1884,6 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // x2: receiver.
   // x3: argc.
   // x4: argv.
-  // TODO(jbramley): The latest ARM code checks is_construct and conditionally
-  // uses construct_entry. We probably need to do the same here.
   ExternalReference entry(is_construct ? Builtins::kJSConstructEntryTrampoline
                                        : Builtins::kJSEntryTrampoline,
                           isolate);
