@@ -50,7 +50,9 @@ class zone_allocator {
   explicit zone_allocator(Zone* zone) throw() : zone_(zone) {}
   explicit zone_allocator(const zone_allocator& other) throw()
       : zone_(other.zone_) {}
-  template<typename U> zone_allocator(const zone_allocator<U>&) throw() {}
+  template<typename U> zone_allocator(const zone_allocator<U>& other) throw()
+      : zone_(other.zone_) {}
+  template<typename U> friend class zone_allocator;
 
   pointer address(reference x) const {return &x;}
   const_pointer address(const_reference x) const {return &x;}
@@ -79,6 +81,7 @@ class zone_allocator {
   }
 
  private:
+  zone_allocator();
   Zone* zone_;
 };
 

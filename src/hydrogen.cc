@@ -7459,6 +7459,7 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinFunctionCall(Call* expr) {
     case kMathAbs:
     case kMathSqrt:
     case kMathLog:
+    case kMathClz32:
       if (expr->arguments()->length() == 1) {
         HValue* argument = Pop();
         Drop(2);  // Receiver and function.
@@ -7529,6 +7530,7 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
     case kMathAbs:
     case kMathSqrt:
     case kMathLog:
+    case kMathClz32:
       if (argument_count == 2) {
         HValue* argument = Pop();
         Drop(2);  // Receiver and function.

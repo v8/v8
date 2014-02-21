@@ -1259,6 +1259,14 @@ void Assembler::bts(const Operand& dst, Register src) {
 }
 
 
+void Assembler::bsr(Register dst, const Operand& src) {
+  EnsureSpace ensure_space(this);
+  EMIT(0x0F);
+  EMIT(0xBD);
+  emit_operand(dst, src);
+}
+
+
 void Assembler::hlt() {
   EnsureSpace ensure_space(this);
   EMIT(0xF4);

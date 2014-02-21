@@ -2786,7 +2786,7 @@ THREADED_TEST(SymbolProperties) {
   CHECK(sym_obj->IsSymbolObject());
   CHECK(!sym2->IsSymbolObject());
   CHECK(!obj->IsSymbolObject());
-  CHECK(sym_obj->Equals(sym2));
+  CHECK(!sym_obj->Equals(sym2));
   CHECK(!sym_obj->StrictEquals(sym2));
   CHECK(v8::SymbolObject::Cast(*sym_obj)->Equals(sym_obj));
   CHECK(v8::SymbolObject::Cast(*sym_obj)->ValueOf()->Equals(sym2));

@@ -895,7 +895,7 @@ void LCodeGen::FinishCode(Handle<Code> code) {
   ASSERT(is_done());
   code->set_stack_slots(GetStackSlotCount());
   code->set_safepoint_table_offset(safepoints_.GetCodeOffset());
-  RegisterDependentCodeForEmbeddedMaps(code);
+  if (code->is_optimized_code()) RegisterWeakObjectsInOptimizedCode(code);
   PopulateDeoptimizationData(code);
   info()->CommitDependencies(code);
 }
@@ -960,22 +960,26 @@ void LCodeGen::PopulateDeoptimizationLiteralsWithInlinedFunctions() {
 }
 
 
-Deoptimizer::BailoutType LCodeGen::DeoptimizeHeader(
+void LCodeGen::DeoptimizeBranch(
     LEnvironment* environment,
+    BranchType branch_type, Register reg, int bit,
     Deoptimizer::BailoutType* override_bailout_type) {
   RegisterEnvironmentForDeoptimization(environment, Safepoint::kNoLazyDeopt);
+  Deoptimizer::BailoutType bailout_type =
+    info()->IsStub() ? Deoptimizer::LAZY : Deoptimizer::EAGER;
+
+  if (override_bailout_type != NULL) {
+    bailout_type = *override_bailout_type;
+  }
+
   ASSERT(environment->HasBeenRegistered());
   ASSERT(info()->IsOptimizing() || info()->IsStub());
   int id = environment->deoptimization_index();
-  Deoptimizer::BailoutType bailout_type =
-      info()->IsStub() ? Deoptimizer::LAZY : Deoptimizer::EAGER;
-  if (override_bailout_type) bailout_type = *override_bailout_type;
   Address entry =
       Deoptimizer::GetDeoptimizationEntry(isolate(), id, bailout_type);
 
   if (entry == NULL) {
     Abort(kBailoutWasNotPrepared);
-    return bailout_type;
   }
 
   if (FLAG_deopt_every_n_times != 0 && !info()->IsStub()) {
@@ -1001,26 +1005,20 @@ Deoptimizer::BailoutType LCodeGen::DeoptimizeHeader(
     __ Pop(x0, x1, x2);
   }
 
-  return bailout_type;
-}
-
-
-void LCodeGen::Deoptimize(LEnvironment* environment,
-                          Deoptimizer::BailoutType bailout_type) {
-  ASSERT(environment->HasBeenRegistered());
-  ASSERT(info()->IsOptimizing() || info()->IsStub());
-  int id = environment->deoptimization_index();
-  Address entry =
-      Deoptimizer::GetDeoptimizationEntry(isolate(), id, bailout_type);
-
   if (info()->ShouldTrapOnDeopt()) {
+    Label dont_trap;
+    __ B(&dont_trap, InvertBranchType(branch_type), reg, bit);
     __ Debug("trap_on_deopt", __LINE__, BREAK);
+    __ Bind(&dont_trap);
   }
 
   ASSERT(info()->IsStub() || frame_is_built_);
   // Go through jump table if we need to build frame, or restore caller doubles.
   if (frame_is_built_ && !info()->saves_caller_doubles()) {
+    Label dont_deopt;
+    __ B(&dont_deopt, InvertBranchType(branch_type), reg, bit);
     __ Call(entry, RelocInfo::RUNTIME_ENTRY);
+    __ Bind(&dont_deopt);
   } else {
     // We often have several deopts to the same entry, reuse the last
     // jump entry if this is the case.
@@ -1033,82 +1031,58 @@ void LCodeGen::Deoptimize(LEnvironment* environment,
                                               !frame_is_built_);
       deopt_jump_table_.Add(table_entry, zone());
     }
-    __ B(&deopt_jump_table_.last().label);
+    __ B(&deopt_jump_table_.last().label,
+         branch_type, reg, bit);
   }
 }
 
 
-void LCodeGen::Deoptimize(LEnvironment* environment) {
-  Deoptimizer::BailoutType bailout_type = DeoptimizeHeader(environment, NULL);
-  Deoptimize(environment, bailout_type);
+void LCodeGen::Deoptimize(LEnvironment* environment,
+                          Deoptimizer::BailoutType* override_bailout_type) {
+  DeoptimizeBranch(environment, always, NoReg, -1, override_bailout_type);
 }
 
 
 void LCodeGen::DeoptimizeIf(Condition cond, LEnvironment* environment) {
-  Label dont_deopt;
-  Deoptimizer::BailoutType bailout_type = DeoptimizeHeader(environment, NULL);
-  __ B(InvertCondition(cond), &dont_deopt);
-  Deoptimize(environment, bailout_type);
-  __ Bind(&dont_deopt);
+  DeoptimizeBranch(environment, static_cast<BranchType>(cond));
 }
 
 
 void LCodeGen::DeoptimizeIfZero(Register rt, LEnvironment* environment) {
-  Label dont_deopt;
-  Deoptimizer::BailoutType bailout_type = DeoptimizeHeader(environment, NULL);
-  __ Cbnz(rt, &dont_deopt);
-  Deoptimize(environment, bailout_type);
-  __ Bind(&dont_deopt);
+  DeoptimizeBranch(environment, reg_zero, rt);
 }
 
 
 void LCodeGen::DeoptimizeIfNegative(Register rt, LEnvironment* environment) {
-  Label dont_deopt;
-  Deoptimizer::BailoutType bailout_type = DeoptimizeHeader(environment, NULL);
-  __ Tbz(rt, rt.Is64Bits() ? kXSignBit : kWSignBit, &dont_deopt);
-  Deoptimize(environment, bailout_type);
-  __ Bind(&dont_deopt);
+  int sign_bit = rt.Is64Bits() ? kXSignBit : kWSignBit;
+  DeoptimizeBranch(environment, reg_bit_set, rt, sign_bit);
 }
 
 
 void LCodeGen::DeoptimizeIfSmi(Register rt,
                                LEnvironment* environment) {
-  Label dont_deopt;
-  Deoptimizer::BailoutType bailout_type = DeoptimizeHeader(environment, NULL);
-  __ JumpIfNotSmi(rt, &dont_deopt);
-  Deoptimize(environment, bailout_type);
-  __ Bind(&dont_deopt);
+  DeoptimizeBranch(environment, reg_bit_clear, rt, MaskToBit(kSmiTagMask));
 }
 
 
 void LCodeGen::DeoptimizeIfNotSmi(Register rt, LEnvironment* environment) {
-  Label dont_deopt;
-  Deoptimizer::BailoutType bailout_type = DeoptimizeHeader(environment, NULL);
-  __ JumpIfSmi(rt, &dont_deopt);
-  Deoptimize(environment, bailout_type);
-  __ Bind(&dont_deopt);
+  DeoptimizeBranch(environment, reg_bit_set, rt, MaskToBit(kSmiTagMask));
 }
 
 
 void LCodeGen::DeoptimizeIfRoot(Register rt,
                                 Heap::RootListIndex index,
                                 LEnvironment* environment) {
-  Label dont_deopt;
-  Deoptimizer::BailoutType bailout_type = DeoptimizeHeader(environment, NULL);
-  __ JumpIfNotRoot(rt, index, &dont_deopt);
-  Deoptimize(environment, bailout_type);
-  __ Bind(&dont_deopt);
+  __ CompareRoot(rt, index);
+  DeoptimizeIf(eq, environment);
 }
 
 
 void LCodeGen::DeoptimizeIfNotRoot(Register rt,
                                    Heap::RootListIndex index,
                                    LEnvironment* environment) {
-  Label dont_deopt;
-  Deoptimizer::BailoutType bailout_type = DeoptimizeHeader(environment, NULL);
-  __ JumpIfRoot(rt, index, &dont_deopt);
-  Deoptimize(environment, bailout_type);
-  __ Bind(&dont_deopt);
+  __ CompareRoot(rt, index);
+  DeoptimizeIf(ne, environment);
 }
 
 
@@ -1404,27 +1378,36 @@ void LCodeGen::DoGap(LGap* gap) {
 
 
 void LCodeGen::DoAccessArgumentsAt(LAccessArgumentsAt* instr) {
-  // TODO(all): Try to improve this, like ARM r17925.
   Register arguments = ToRegister(instr->arguments());
   Register result = ToRegister(instr->result());
 
+  // The pointer to the arguments array come from DoArgumentsElements.
+  // It does not point directly to the arguments and there is an offest of
+  // two words that we must take into account when accessing an argument.
+  // Subtracting the index from length accounts for one, so we add one more.
+
   if (instr->length()->IsConstantOperand() &&
       instr->index()->IsConstantOperand()) {
-    ASSERT(instr->temp() == NULL);
     int index = ToInteger32(LConstantOperand::cast(instr->index()));
     int length = ToInteger32(LConstantOperand::cast(instr->length()));
     int offset = ((length - index) + 1) * kPointerSize;
     __ Ldr(result, MemOperand(arguments, offset));
+  } else if (instr->index()->IsConstantOperand()) {
+    Register length = ToRegister32(instr->length());
+    int index = ToInteger32(LConstantOperand::cast(instr->index()));
+    int loc = index - 1;
+    if (loc != 0) {
+      __ Sub(result.W(), length, loc);
+      __ Ldr(result, MemOperand(arguments, result, UXTW, kPointerSizeLog2));
+    } else {
+      __ Ldr(result, MemOperand(arguments, length, UXTW, kPointerSizeLog2));
+    }
   } else {
-    ASSERT(instr->temp() != NULL);
-    Register temp = ToRegister32(instr->temp());
     Register length = ToRegister32(instr->length());
     Operand index = ToOperand32I(instr->index());
-    // There are two words between the frame pointer and the last arguments.
-    // Subtracting from length accounts for only one, so we add one more.
-    __ Sub(temp, length, index);
-    __ Add(temp, temp, 1);
-    __ Ldr(result, MemOperand(arguments, temp, UXTW, kPointerSizeLog2));
+    __ Sub(result.W(), length, index);
+    __ Add(result.W(), result.W(), 1);
+    __ Ldr(result, MemOperand(arguments, result, UXTW, kPointerSizeLog2));
   }
 }
 
@@ -2126,9 +2109,6 @@ void LCodeGen::DoCheckMaps(LCheckMaps* instr) {
 
 void LCodeGen::DoCheckNonSmi(LCheckNonSmi* instr) {
   if (!instr->hydrogen()->value()->IsHeapObject()) {
-    // TODO(all): Depending of how we chose to implement the deopt, if we could
-    // guarantee that we have a deopt handler reachable by a tbz instruction,
-    // we could use tbz here and produce less code to support this instruction.
     DeoptimizeIfSmi(ToRegister(instr->value()), instr->environment());
   }
 }
@@ -2137,7 +2117,6 @@ void LCodeGen::DoCheckNonSmi(LCheckNonSmi* instr) {
 void LCodeGen::DoCheckSmi(LCheckSmi* instr) {
   Register value = ToRegister(instr->value());
   ASSERT(!instr->result() || ToRegister(instr->result()).Is(value));
-  // TODO(all): See DoCheckNonSmi for comments on use of tbz.
   DeoptimizeIfNotSmi(value, instr->environment());
 }
 
@@ -2577,8 +2556,7 @@ void LCodeGen::DoDeoptimize(LDeoptimize* instr) {
   }
 
   Comment(";;; deoptimize: %s", instr->hydrogen()->reason());
-  DeoptimizeHeader(instr->environment(), &type);
-  Deoptimize(instr->environment(), type);
+  Deoptimize(instr->environment(), &type);
 }
 
 
@@ -3849,6 +3827,13 @@ void LCodeGen::DoMathLog(LMathLog* instr) {
   __ CallCFunction(ExternalReference::math_log_double_function(isolate()),
                    0, 1);
   ASSERT(ToDoubleRegister(instr->result()).Is(d0));
+}
+
+
+void LCodeGen::DoMathClz32(LMathClz32* instr) {
+  Register input = ToRegister32(instr->value());
+  Register result = ToRegister32(instr->result());
+  __ Clz(result, input);
 }
 
 
@@ -5154,7 +5139,7 @@ void LCodeGen::DoStringCharCodeAt(LStringCharCodeAt* instr) {
 
   StringCharLoadGenerator::Generate(masm(),
                                     ToRegister(instr->string()),
-                                    ToRegister(instr->index()),
+                                    ToRegister32(instr->index()),
                                     ToRegister(instr->result()),
                                     deferred->entry());
   __ Bind(deferred->exit());
@@ -5201,13 +5186,13 @@ void LCodeGen::DoStringCharFromCode(LStringCharFromCode* instr) {
       new(zone()) DeferredStringCharFromCode(this, instr);
 
   ASSERT(instr->hydrogen()->value()->representation().IsInteger32());
-  Register char_code = ToRegister(instr->char_code());
+  Register char_code = ToRegister32(instr->char_code());
   Register result = ToRegister(instr->result());
 
-  __ Cmp(char_code, Operand(String::kMaxOneByteCharCode));
+  __ Cmp(char_code, String::kMaxOneByteCharCode);
   __ B(hi, deferred->entry());
   __ LoadRoot(result, Heap::kSingleCharacterStringCacheRootIndex);
-  __ Add(result, result, Operand(char_code, LSL, kPointerSizeLog2));
+  __ Add(result, result, Operand(char_code, SXTW, kPointerSizeLog2));
   __ Ldr(result, FieldMemOperand(result, FixedArray::kHeaderSize));
   __ CompareRoot(result, Heap::kUndefinedValueRootIndex);
   __ B(eq, deferred->entry());

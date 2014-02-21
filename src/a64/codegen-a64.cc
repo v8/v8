@@ -410,6 +410,7 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
                                        Register index,
                                        Register result,
                                        Label* call_runtime) {
+  ASSERT(string.Is64Bits() && index.Is32Bits() && result.Is64Bits());
   // Fetch the instance type of the receiver into result register.
   __ Ldr(result, FieldMemOperand(string, HeapObject::kMapOffset));
   __ Ldrb(result, FieldMemOperand(result, Map::kInstanceTypeOffset));
@@ -424,10 +425,10 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
 
   // Handle slices.
   Label indirect_string_loaded;
-  __ Ldrsw(result,
-           UntagSmiFieldMemOperand(string, SlicedString::kOffsetOffset));
+  __ Ldr(result.W(),
+         UntagSmiFieldMemOperand(string, SlicedString::kOffsetOffset));
   __ Ldr(string, FieldMemOperand(string, SlicedString::kParentOffset));
-  __ Add(index, index, result);
+  __ Add(index, index, result.W());
   __ B(&indirect_string_loaded);
 
   // Handle cons strings.
@@ -479,11 +480,11 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
   STATIC_ASSERT(kTwoByteStringTag == 0);
   __ TestAndBranchIfAnySet(result, kStringEncodingMask, &ascii);
   // Two-byte string.
-  __ Ldrh(result, MemOperand(string, index, LSL, 1));
+  __ Ldrh(result, MemOperand(string, index, SXTW, 1));
   __ B(&done);
   __ Bind(&ascii);
   // Ascii string.
-  __ Ldrb(result, MemOperand(string, index));
+  __ Ldrb(result, MemOperand(string, index, SXTW));
   __ Bind(&done);
 }
 

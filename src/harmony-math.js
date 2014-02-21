@@ -174,6 +174,24 @@ function MathClz32(x) {
 }
 
 
+//ES6 draft 09-27-13, section 20.2.2.9.
+function MathCbrt(x) {
+  return %Math_cbrt(TO_NUMBER_INLINE(x));
+}
+
+
+//ES6 draft 09-27-13, section 20.2.2.14.
+function MathExpm1(x) {
+  return %Math_expm1(TO_NUMBER_INLINE(x));
+}
+
+
+//ES6 draft 09-27-13, section 20.2.2.20.
+function MathLog1p(x) {
+  return %Math_log1p(TO_NUMBER_INLINE(x));
+}
+
+
 function ExtendMath() {
   %CheckIsBootstrapping();
 
@@ -191,7 +209,10 @@ function ExtendMath() {
     "log2", MathLog2,
     "hypot", MathHypot,
     "fround", MathFround,
-    "clz32", MathClz32
+    "clz32", MathClz32,
+    "cbrt", MathCbrt,
+    "log1p", MathLog1p,
+    "expm1", MathExpm1
   ));
 }
 

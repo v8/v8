@@ -80,6 +80,8 @@ MaybeObject* Object::ToObject(Context* native_context) {
     return CreateJSValue(native_context->boolean_function(), this);
   } else if (IsString()) {
     return CreateJSValue(native_context->string_function(), this);
+  } else if (IsSymbol()) {
+    return CreateJSValue(native_context->symbol_function(), this);
   }
   ASSERT(IsJSObject());
   return this;
@@ -7509,9 +7511,11 @@ MaybeObject* CodeCache::UpdateNormalTypeCache(Name* name, Code* code) {
 
 
 Object* CodeCache::Lookup(Name* name, Code::Flags flags) {
-  flags = Code::RemoveTypeFromFlags(flags);
-  Object* result = LookupDefaultCache(name, flags);
-  if (result->IsCode()) return result;
+  Object* result = LookupDefaultCache(name, Code::RemoveTypeFromFlags(flags));
+  if (result->IsCode()) {
+    if (Code::cast(result)->flags() == flags) return result;
+    return GetHeap()->undefined_value();
+  }
   return LookupNormalTypeCache(name, flags);
 }
 
@@ -11264,24 +11268,6 @@ MaybeObject* JSObject::SetFastElementsCapacityAndLength(
     JSArray::cast(this)->set_length(Smi::FromInt(length));
   }
   return new_elements;
-}
-
-
-bool Code::IsWeakEmbeddedObject(Kind kind, Object* object) {
-  if (kind != Code::OPTIMIZED_FUNCTION) return false;
-
-  if (object->IsMap()) {
-    return Map::cast(object)->CanTransition() &&
-           FLAG_collect_maps &&
-           FLAG_weak_embedded_maps_in_optimized_code;
-  }
-
-  if (object->IsJSObject() ||
-      (object->IsCell() && Cell::cast(object)->value()->IsJSObject())) {
-    return FLAG_weak_embedded_objects_in_optimized_code;
-  }
-
-  return false;
 }
 
 
@@ -15724,6 +15710,7 @@ MaybeObject* NameDictionary::TransformPropertiesToFastFor(
         // instance descriptor.
         MaybeObject* maybe_key = heap->InternalizeString(String::cast(k));
         if (!maybe_key->To(&key)) return maybe_key;
+        if (key->Equals(heap->empty_string())) return this;
       }
 
       PropertyDetails details = DetailsAt(i);

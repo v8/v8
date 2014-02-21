@@ -218,12 +218,12 @@ class LCodeGen: public LCodeGenBase {
                                    Register temp,
                                    LOperand* index,
                                    String::Encoding encoding);
-  Deoptimizer::BailoutType DeoptimizeHeader(
+  void DeoptimizeBranch(
       LEnvironment* environment,
-      Deoptimizer::BailoutType* override_bailout_type);
-  void Deoptimize(LEnvironment* environment);
+      BranchType branch_type, Register reg = NoReg, int bit = -1,
+      Deoptimizer::BailoutType* override_bailout_type = NULL);
   void Deoptimize(LEnvironment* environment,
-                  Deoptimizer::BailoutType bailout_type);
+                  Deoptimizer::BailoutType* override_bailout_type = NULL);
   void DeoptimizeIf(Condition cc, LEnvironment* environment);
   void DeoptimizeIfZero(Register rt, LEnvironment* environment);
   void DeoptimizeIfNegative(Register rt, LEnvironment* environment);

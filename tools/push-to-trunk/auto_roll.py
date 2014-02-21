@@ -93,8 +93,7 @@ class FetchLatestRevision(Step):
   MESSAGE = "Fetching latest V8 revision."
 
   def RunStep(self):
-    log = self.Git("svn log -1 --oneline").strip()
-    match = re.match(r"^r(\d+) ", log)
+    match = re.match(r"^r(\d+) ", self.GitSVNLog())
     if not match:
       self.Die("Could not extract current svn revision from log.")
     self["latest"] = match.group(1)
@@ -105,7 +104,7 @@ class CheckLastPush(Step):
 
   def RunStep(self):
     last_push_hash = self.FindLastTrunkPush()
-    last_push = int(self.Git("svn find-rev %s" % last_push_hash).strip())
+    last_push = int(self.GitSVNFindSVNRev(last_push_hash))
 
     # TODO(machenbach): This metric counts all revisions. It could be
     # improved by counting only the revisions on bleeding_edge.

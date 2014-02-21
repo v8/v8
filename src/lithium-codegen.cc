@@ -148,7 +148,8 @@ int LCodeGenBase::GetNextEmittedBlock() const {
 }
 
 
-void LCodeGenBase::RegisterDependentCodeForEmbeddedMaps(Handle<Code> code) {
+void LCodeGenBase::RegisterWeakObjectsInOptimizedCode(Handle<Code> code) {
+  ASSERT(code->is_optimized_code());
   ZoneList<Handle<Map> > maps(1, zone());
   ZoneList<Handle<JSObject> > objects(1, zone());
   ZoneList<Handle<Cell> > cells(1, zone());
@@ -157,11 +158,11 @@ void LCodeGenBase::RegisterDependentCodeForEmbeddedMaps(Handle<Code> code) {
   for (RelocIterator it(*code, mode_mask); !it.done(); it.next()) {
     RelocInfo::Mode mode = it.rinfo()->rmode();
     if (mode == RelocInfo::CELL &&
-        Code::IsWeakEmbeddedObject(code->kind(), it.rinfo()->target_cell())) {
+        code->IsWeakObjectInOptimizedCode(it.rinfo()->target_cell())) {
       Handle<Cell> cell(it.rinfo()->target_cell());
       cells.Add(cell, zone());
     } else if (mode == RelocInfo::EMBEDDED_OBJECT &&
-        Code::IsWeakEmbeddedObject(code->kind(), it.rinfo()->target_object())) {
+               code->IsWeakObjectInOptimizedCode(it.rinfo()->target_object())) {
       if (it.rinfo()->target_object()->IsMap()) {
         Handle<Map> map(Map::cast(it.rinfo()->target_object()));
         maps.Add(map, zone());

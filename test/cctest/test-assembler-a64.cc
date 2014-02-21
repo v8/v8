@@ -2276,6 +2276,63 @@ TEST(far_branch_veneer_broken_link_chain) {
 }
 
 
+TEST(branch_type) {
+  INIT_V8();
+
+  SETUP();
+
+  Label fail, done;
+
+  START();
+  __ Mov(x0, 0x0);
+  __ Mov(x10, 0x7);
+  __ Mov(x11, 0x0);
+
+  // Test non taken branches.
+  __ Cmp(x10, 0x7);
+  __ B(&fail, ne);
+  __ B(&fail, never);
+  __ B(&fail, reg_zero, x10);
+  __ B(&fail, reg_not_zero, x11);
+  __ B(&fail, reg_bit_clear, x10, 0);
+  __ B(&fail, reg_bit_set, x10, 3);
+
+  // Test taken branches.
+  Label l1, l2, l3, l4, l5;
+  __ Cmp(x10, 0x7);
+  __ B(&l1, eq);
+  __ B(&fail);
+  __ Bind(&l1);
+  __ B(&l2, always);
+  __ B(&fail);
+  __ Bind(&l2);
+  __ B(&l3, reg_not_zero, x10);
+  __ B(&fail);
+  __ Bind(&l3);
+  __ B(&l4, reg_bit_clear, x10, 15);
+  __ B(&fail);
+  __ Bind(&l4);
+  __ B(&l5, reg_bit_set, x10, 1);
+  __ B(&fail);
+  __ Bind(&l5);
+
+  __ B(&done);
+
+  __ Bind(&fail);
+  __ Mov(x0, 0x1);
+
+  __ Bind(&done);
+
+  END();
+
+  RUN();
+
+  ASSERT_EQUAL_64(0x0, x0);
+
+  TEARDOWN();
+}
+
+
 TEST(ldr_str_offset) {
   INIT_V8();
   SETUP();

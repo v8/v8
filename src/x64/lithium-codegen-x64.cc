@@ -87,7 +87,7 @@ void LCodeGen::FinishCode(Handle<Code> code) {
   ASSERT(is_done());
   code->set_stack_slots(GetStackSlotCount());
   code->set_safepoint_table_offset(safepoints_.GetCodeOffset());
-  RegisterDependentCodeForEmbeddedMaps(code);
+  if (code->is_optimized_code()) RegisterWeakObjectsInOptimizedCode(code);
   PopulateDeoptimizationData(code);
   info()->CommitDependencies(code);
 }
@@ -3726,6 +3726,20 @@ void LCodeGen::DoMathLog(LMathLog* instr) {
   __ movsd(input_reg, Operand(rsp, 0));
   __ addq(rsp, Immediate(kDoubleSize));
   __ bind(&done);
+}
+
+
+void LCodeGen::DoMathClz32(LMathClz32* instr) {
+  Register input = ToRegister(instr->value());
+  Register result = ToRegister(instr->result());
+  Label not_zero_input;
+  __ bsrl(result, input);
+
+  __ j(not_zero, &not_zero_input);
+  __ Set(result, 63);  // 63^31 == 32
+
+  __ bind(&not_zero_input);
+  __ xorl(result, Immediate(31));  // for x in [0..31], 31^x == 31-x.
 }
 
 

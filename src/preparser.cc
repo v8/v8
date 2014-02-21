@@ -1184,6 +1184,7 @@ PreParser::Expression PreParser::ParseObjectLiteral(bool* ok) {
         if (Token::IsKeyword(next)) {
           Consume(next);
           checker.CheckProperty(next, kValueProperty, CHECK_OK);
+          LogSymbol();
         } else {
           // Unexpected token.
           *ok = false;
@@ -1284,16 +1285,15 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   }
   Expect(Token::RPAREN, CHECK_OK);
 
-  // Determine if the function will be lazily compiled.
-  // Currently only happens to top-level functions.
-  // Optimistically assume that all top-level functions are lazily compiled.
-  bool is_lazily_compiled = (outer_scope_type == GLOBAL_SCOPE &&
-                             !inside_with && allow_lazy() &&
-                             !parenthesized_function_);
+  // See Parser::ParseFunctionLiteral for more information about lazy parsing
+  // and lazy compilation.
+  bool is_lazily_parsed = (outer_scope_type == GLOBAL_SCOPE &&
+                           !inside_with && allow_lazy() &&
+                           !parenthesized_function_);
   parenthesized_function_ = false;
 
   Expect(Token::LBRACE, CHECK_OK);
-  if (is_lazily_compiled) {
+  if (is_lazily_parsed) {
     ParseLazyFunctionLiteralBody(CHECK_OK);
   } else {
     ParseSourceElements(Token::RBRACE, ok);

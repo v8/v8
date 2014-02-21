@@ -315,6 +315,18 @@ static inline v8::Local<v8::Value> CompileRun(const char* source) {
 }
 
 
+static inline v8::Local<v8::Value> PreCompileCompileRun(const char* source) {
+  v8::Local<v8::String> script_source =
+      v8::String::NewFromUtf8(v8::Isolate::GetCurrent(), source);
+  v8::ScriptData* preparse = v8::ScriptData::PreCompile(script_source);
+  v8::Local<v8::Script> script =
+      v8::Script::Compile(script_source, NULL, preparse);
+  v8::Local<v8::Value> result = script->Run();
+  delete preparse;
+  return result;
+}
+
+
 // Helper function that compiles and runs the source with given origin.
 static inline v8::Local<v8::Value> CompileRunWithOrigin(const char* source,
                                                         const char* origin_url,

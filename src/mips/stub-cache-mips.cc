@@ -1439,10 +1439,11 @@ Handle<Code> BaseLoadStoreStubCompiler::CompilePolymorphicIC(
   }
 
   Label number_case;
+  Register match = scratch1();
   Label* smi_target = IncludesNumberType(types) ? &number_case : &miss;
-  __ JumpIfSmi(receiver(), smi_target);
+  __ JumpIfSmi(receiver(), smi_target, match);  // Reg match is 0 if Smi.
 
-  Register map_reg = scratch1();
+  Register map_reg = scratch2();
 
   int receiver_count = types->length();
   int number_of_handled_maps = 0;
@@ -1452,12 +1453,15 @@ Handle<Code> BaseLoadStoreStubCompiler::CompilePolymorphicIC(
     Handle<Map> map = IC::TypeToMap(*type, isolate());
     if (!map->is_deprecated()) {
       number_of_handled_maps++;
+      // Check map and tail call if there's a match.
+      // Separate compare from branch, to provide path for above JumpIfSmi().
+      __ Subu(match, map_reg, Operand(map));
       if (type->Is(HeapType::Number())) {
         ASSERT(!number_case.is_unused());
         __ bind(&number_case);
       }
       __ Jump(handlers->at(current), RelocInfo::CODE_TARGET,
-          eq, map_reg, Operand(map));
+          eq, match, Operand(zero_reg));
     }
   }
   ASSERT(number_of_handled_maps != 0);

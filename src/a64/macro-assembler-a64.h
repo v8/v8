@@ -64,6 +64,53 @@ inline MemOperand UntagSmiMemOperand(Register object, int offset);
 // ----------------------------------------------------------------------------
 // MacroAssembler
 
+enum BranchType {
+  // Copies of architectural conditions.
+  // The associated conditions can be used in place of those, the code will
+  // take care of reinterpreting them with the correct type.
+  integer_eq = eq,
+  integer_ne = ne,
+  integer_hs = hs,
+  integer_lo = lo,
+  integer_mi = mi,
+  integer_pl = pl,
+  integer_vs = vs,
+  integer_vc = vc,
+  integer_hi = hi,
+  integer_ls = ls,
+  integer_ge = ge,
+  integer_lt = lt,
+  integer_gt = gt,
+  integer_le = le,
+  integer_al = al,
+  integer_nv = nv,
+
+  // These two are *different* from the architectural codes al and nv.
+  // 'always' is used to generate unconditional branches.
+  // 'never' is used to not generate a branch (generally as the inverse
+  // branch type of 'always).
+  always, never,
+  // cbz and cbnz
+  reg_zero, reg_not_zero,
+  // tbz and tbnz
+  reg_bit_clear, reg_bit_set,
+
+  // Aliases.
+  kBranchTypeFirstCondition = eq,
+  kBranchTypeLastCondition = nv,
+  kBranchTypeFirstUsingReg = reg_zero,
+  kBranchTypeFirstUsingBit = reg_bit_clear
+};
+
+inline BranchType InvertBranchType(BranchType type) {
+  if (kBranchTypeFirstCondition <= type && type <= kBranchTypeLastCondition) {
+    return static_cast<BranchType>(
+        InvertCondition(static_cast<Condition>(type)));
+  } else {
+    return static_cast<BranchType>(type ^ 1);
+  }
+}
+
 enum RememberedSetAction { EMIT_REMEMBERED_SET, OMIT_REMEMBERED_SET };
 enum SmiCheck { INLINE_SMI_CHECK, OMIT_SMI_CHECK };
 enum LinkRegisterStatus { kLRHasNotBeenSaved, kLRHasBeenSaved };
@@ -212,6 +259,14 @@ class MacroAssembler : public Assembler {
   inline void Adr(const Register& rd, Label* label);
   inline void Asr(const Register& rd, const Register& rn, unsigned shift);
   inline void Asr(const Register& rd, const Register& rn, const Register& rm);
+
+  // Branch type inversion relies on these relations.
+  STATIC_ASSERT((reg_zero      == (reg_not_zero ^ 1)) &&
+                (reg_bit_clear == (reg_bit_set ^ 1)) &&
+                (always        == (never ^ 1)));
+
+  void B(Label* label, BranchType type, Register reg = NoReg, int bit = -1);
+
   inline void B(Label* label);
   inline void B(Condition cond, Label* label);
   void B(Label* label, Condition cond);
@@ -1831,12 +1886,6 @@ class MacroAssembler : public Assembler {
       Register scratch,
       Label* no_map_match);
 
-  // Load the initial map for new Arrays from a JSFunction.
-  void LoadInitialArrayMap(Register function_in,
-                           Register scratch,
-                           Register map_out,
-                           ArrayHasHoles holes);
-
   void LoadArrayFunction(Register function);
   void LoadGlobalFunction(int index, Register function);
 
@@ -2166,7 +2215,15 @@ class MacroAssembler : public Assembler {
 class InstructionAccurateScope BASE_EMBEDDED {
  public:
   InstructionAccurateScope(MacroAssembler* masm, size_t count = 0)
-      : masm_(masm), size_(count * kInstructionSize) {
+      : masm_(masm)
+#ifdef DEBUG
+        ,
+        size_(count * kInstructionSize)
+#endif
+  {
+    // Before blocking the const pool, see if it needs to be emitted.
+    masm_->CheckConstPool(false, true);
+
     masm_->StartBlockConstPool();
 #ifdef DEBUG
     if (count != 0) {
@@ -2189,8 +2246,8 @@ class InstructionAccurateScope BASE_EMBEDDED {
 
  private:
   MacroAssembler* masm_;
-  size_t size_;
 #ifdef DEBUG
+  size_t size_;
   Label start_;
   bool previous_allow_macro_instructions_;
 #endif

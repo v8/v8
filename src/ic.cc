@@ -839,8 +839,11 @@ Handle<Code> IC::ComputeHandler(LookupResult* lookup,
       isolate(), *object, cache_holder));
 
   Handle<Code> code = isolate()->stub_cache()->FindHandler(
-      name, handle(stub_holder->map()), kind(), cache_holder);
-  if (!code.is_null()) return code;
+      name, handle(stub_holder->map()), kind(), cache_holder,
+      lookup->holder()->HasFastProperties() ? Code::FAST : Code::NORMAL);
+  if (!code.is_null()) {
+    return code;
+  }
 
   code = CompileHandler(lookup, object, name, value, cache_holder);
   ASSERT(code->is_handler());
