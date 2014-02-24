@@ -375,7 +375,8 @@ BoundsCheckBbData* HBoundsCheckEliminationPhase::PreProcessBlock(
       check->DeleteAndReplaceWith(check->ActualValue());
     } else if (data->BasicBlock() == bb) {
       data->CoverCheck(check, offset);
-    } else {
+    } else if (graph()->use_optimistic_licm() ||
+               bb->IsLoopSuccessorDominator()) {
       int32_t new_lower_offset = offset < data->LowerOffset()
           ? offset
           : data->LowerOffset();
