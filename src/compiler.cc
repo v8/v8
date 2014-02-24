@@ -789,6 +789,13 @@ static Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
        String::cast(script->source())->length() > FLAG_min_preparse_length) &&
       !DebuggerWantsEagerCompilation(info);
 
+  if (!parse_allow_lazy && info->pre_parse_data() != NULL) {
+    // We are going to parse eagerly, but we have preparse data produced by lazy
+    // preparsing. We cannot use it, since it won't contain all the symbols we
+    // need for eager parsing.
+    info->SetPreParseData(NULL);
+  }
+
   Handle<SharedFunctionInfo> result;
 
   { VMState<COMPILER> state(info->isolate());
