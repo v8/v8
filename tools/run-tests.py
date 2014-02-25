@@ -63,10 +63,10 @@ VARIANT_FLAGS = {
 VARIANTS = ["default", "stress", "nocrankshaft"]
 
 MODE_FLAGS = {
-    "debug"   : ["--nobreak-on-abort", "--nodead-code-elimination",
+    "debug"   : ["--nohard-abort", "--nodead-code-elimination",
                  "--nofold-constants", "--enable-slow-asserts",
                  "--debug-code", "--verify-heap"],
-    "release" : ["--nobreak-on-abort", "--nodead-code-elimination",
+    "release" : ["--nohard-abort", "--nodead-code-elimination",
                  "--nofold-constants"]}
 
 GC_STRESS_FLAGS = ["--gc-interval=500", "--stress-compaction",

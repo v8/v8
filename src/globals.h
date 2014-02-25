@@ -390,6 +390,12 @@ F FUNCTION_CAST(Address addr) {
 #define DISABLE_ASAN
 #endif
 
+#if V8_CC_GNU
+#define V8_IMMEDIATE_CRASH() __builtin_trap()
+#else
+#define V8_IMMEDIATE_CRASH() ((void(*)())0)()
+#endif
+
 
 // -----------------------------------------------------------------------------
 // Forward declarations for frequently used classes

@@ -470,7 +470,7 @@ DEFINE_bool(debugger_auto_break, true,
             "automatically set the debug break flag when debugger commands are "
             "in the queue")
 DEFINE_bool(enable_liveedit, true, "enable liveedit experimental feature")
-DEFINE_bool(break_on_abort, true, "always cause a debug break before aborting")
+DEFINE_bool(hard_abort, true, "abort by crashing")
 
 // execution.cc
 // Slightly less than 1MB on 64-bit, since Windows' default stack size for
