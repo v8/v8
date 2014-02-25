@@ -1617,6 +1617,7 @@ class HCompareMap V8_FINAL : public HUnaryControlInstruction {
       map->AddDependentCompilationInfo(
           DependentCode::kPrototypeCheckGroup, info);
     }
+    set_representation(Representation::Tagged());
   }
 
   int known_successor_index_;
