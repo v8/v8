@@ -76,7 +76,9 @@ class HLoadEliminationTable : public ZoneObject {
                FieldOf(l->access()),
                l->object()->ActualValue()->id()));
         HValue* result = load(l);
-        if (result != instr) {
+        if (result != instr &&
+            result->type().Equals(instr->type()) &&
+            result->representation().Equals(instr->representation())) {
           // The load can be replaced with a previous load or a value.
           TRACE(("  replace L%d -> v%d\n", instr->id(), result->id()));
           instr->DeleteAndReplaceWith(result);

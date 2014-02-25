@@ -486,6 +486,13 @@ class ToNumberStub: public HydrogenCodeStub {
       Isolate* isolate,
       CodeStubInterfaceDescriptor* descriptor);
 
+  static void InstallDescriptors(Isolate* isolate) {
+    ToNumberStub stub;
+    stub.InitializeInterfaceDescriptor(
+        isolate,
+        isolate->code_stub_interface_descriptor(CodeStub::ToNumber));
+  }
+
  private:
   Major MajorKey() { return ToNumber; }
   int NotMissMinorKey() { return 0; }
@@ -623,6 +630,8 @@ class FastCloneShallowArrayStub : public HydrogenCodeStub {
   virtual void InitializeInterfaceDescriptor(
       Isolate* isolate,
       CodeStubInterfaceDescriptor* descriptor);
+
+  static void InstallDescriptors(Isolate* isolate);
 
  private:
   Mode mode_;
@@ -954,27 +963,19 @@ class LoadFieldStub: public HandlerStub {
 
 class StoreGlobalStub : public HandlerStub {
  public:
-  explicit StoreGlobalStub(bool is_constant, bool check_global) {
-    bit_field_ = IsConstantBits::encode(is_constant) |
-        CheckGlobalBits::encode(check_global);
-  }
-
-  static Handle<HeapObject> global_placeholder(Isolate* isolate) {
-    return isolate->factory()->uninitialized_value();
+  explicit StoreGlobalStub(bool is_constant) {
+    bit_field_ = IsConstantBits::encode(is_constant);
   }
 
   Handle<Code> GetCodeCopyFromTemplate(Isolate* isolate,
-                                       GlobalObject* global,
+                                       Map* receiver_map,
                                        PropertyCell* cell) {
     Handle<Code> code = CodeStub::GetCodeCopyFromTemplate(isolate);
-    if (check_global()) {
-      // Replace the placeholder cell and global object map with the actual
-      // global cell and receiver map.
-      code->ReplaceNthObject(1, global_placeholder(isolate)->map(), global);
-      code->ReplaceNthObject(1, isolate->heap()->meta_map(), global->map());
-    }
+    // Replace the placeholder cell and global object map with the actual global
+    // cell and receiver map.
     Map* cell_map = isolate->heap()->global_property_cell_map();
     code->ReplaceNthObject(1, cell_map, cell);
+    code->ReplaceNthObject(1, isolate->heap()->meta_map(), receiver_map);
     return code;
   }
 
@@ -986,11 +987,8 @@ class StoreGlobalStub : public HandlerStub {
       Isolate* isolate,
       CodeStubInterfaceDescriptor* descriptor);
 
-  bool is_constant() const {
+  bool is_constant() {
     return IsConstantBits::decode(bit_field_);
-  }
-  bool check_global() const {
-    return CheckGlobalBits::decode(bit_field_);
   }
   void set_is_constant(bool value) {
     bit_field_ = IsConstantBits::update(bit_field_, value);
@@ -1008,7 +1006,6 @@ class StoreGlobalStub : public HandlerStub {
 
   class IsConstantBits: public BitField<bool, 0, 1> {};
   class RepresentationBits: public BitField<Representation::Kind, 1, 8> {};
-  class CheckGlobalBits: public BitField<bool, 9, 1> {};
 
   DISALLOW_COPY_AND_ASSIGN(StoreGlobalStub);
 };
@@ -1375,7 +1372,7 @@ class CompareNilICStub : public HydrogenCodeStub  {
       Isolate* isolate,
       CodeStubInterfaceDescriptor* descriptor);
 
-  static void InitializeForIsolate(Isolate* isolate) {
+  static void InstallDescriptors(Isolate* isolate) {
     CompareNilICStub compare_stub(kNullValue, UNINITIALIZED);
     compare_stub.InitializeInterfaceDescriptor(
         isolate,
@@ -2332,7 +2329,7 @@ class ToBooleanStub: public HydrogenCodeStub {
 
   virtual bool SometimesSetsUpAFrame() { return false; }
 
-  static void InitializeForIsolate(Isolate* isolate) {
+  static void InstallDescriptors(Isolate* isolate) {
     ToBooleanStub stub;
     stub.InitializeInterfaceDescriptor(
         isolate,

@@ -1246,8 +1246,6 @@ LInstruction* LChunkBuilder::DoCompareNumericAndBranch(
     HCompareNumericAndBranch* instr) {
   Representation r = instr->representation();
 
-  // TODO(all): This instruction has been replaced by HCompareNumericAndBranch
-  // on bleeding_edge. We should update when we'll do the rebase.
   if (r.IsSmiOrInteger32()) {
     ASSERT(instr->left()->representation().Equals(r));
     ASSERT(instr->right()->representation().Equals(r));

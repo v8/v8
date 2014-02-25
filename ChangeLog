@@ -1,3 +1,32 @@
+2014-02-25: Version 3.25.2
+
+        Fix the bit massaging code in CompleteParserRecorder::WriteNumber.
+        (Chromium issue 346221)
+
+        Revert r19455 "Load target types and handlers before IC computation."
+        (Chromium issue 346149)
+
+        Don't eliminate loads with incompatible types or representations.
+        (Chromium issue 346343)
+
+        Fix for a smi stores optimization on x64 with a regression test.
+        (Chromium issue 345715)
+
+        Check that after a weak callback, the handle is either dead or strong
+        (Chromium issue 346061)
+
+        negative bounds checking on realm calls
+        (Chromium issue 344285)
+
+        Lazy preparsing vs. lazy parsing fix.
+        (Chromium issue 346207)
+
+        Fix optimistic BCE to back off after deopt
+        (issue 3176)
+
+        Performance and stability improvements on all platforms.
+
+
 2014-02-21: Version 3.25.1
 
         Performance and stability improvements on all platforms.

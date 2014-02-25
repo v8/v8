@@ -748,6 +748,14 @@ void FastNewContextStub::InstallDescriptors(Isolate* isolate) {
 
 
 // static
+void FastCloneShallowArrayStub::InstallDescriptors(Isolate* isolate) {
+  FastCloneShallowArrayStub stub(FastCloneShallowArrayStub::CLONE_ELEMENTS,
+                                 DONT_TRACK_ALLOCATION_SITE, 0);
+  InstallDescriptor(isolate, &stub);
+}
+
+
+// static
 void BinaryOpICStub::InstallDescriptors(Isolate* isolate) {
   BinaryOpICStub stub(Token::ADD, NO_OVERWRITE);
   InstallDescriptor(isolate, &stub);

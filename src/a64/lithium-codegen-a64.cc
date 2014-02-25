@@ -5346,17 +5346,11 @@ void LCodeGen::DoTaggedToI(LTaggedToI* instr) {
   Register output = ToRegister(instr->result());
 
   if (instr->hydrogen()->value()->representation().IsSmi()) {
-    __ SmiUntag(input);
+    __ SmiUntag(output, input);
   } else {
     DeferredTaggedToI* deferred = new(zone()) DeferredTaggedToI(this, instr);
 
-    // TODO(jbramley): We can't use JumpIfNotSmi here because the tbz it uses
-    // doesn't always have enough range. Consider making a variant of it, or a
-    // TestIsSmi helper.
-    STATIC_ASSERT(kSmiTag == 0);
-    __ Tst(input, kSmiTagMask);
-    __ B(ne, deferred->entry());
-
+    __ JumpIfNotSmi(input, deferred->entry());
     __ SmiUntag(output, input);
     __ Bind(deferred->exit());
   }

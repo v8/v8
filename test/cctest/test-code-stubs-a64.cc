@@ -87,7 +87,7 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
   // Call through to the actual stub
   if (inline_fastpath) {
     __ Ldr(d0, MemOperand(source_reg));
-    __ TryInlineTruncateDoubleToI(destination_reg, d0, &done);
+    __ TryConvertDoubleToInt64(destination_reg, d0, &done);
     if (destination_reg.is(source_reg)) {
       // Restore clobbered source_reg.
       __ add(source_reg, jssp, Operand(source_reg_offset));

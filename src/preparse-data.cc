@@ -167,16 +167,26 @@ Vector<unsigned> CompleteParserRecorder::ExtractData() {
 
 
 void CompleteParserRecorder::WriteNumber(int number) {
+  // Split the number into chunks of 7 bits. Write them one after another (the
+  // most significant first). Use the MSB of each byte for signalling that the
+  // number continues. See ScriptDataImpl::ReadNumber for the reading side.
   ASSERT(number >= 0);
 
   int mask = (1 << 28) - 1;
-  for (int i = 28; i > 0; i -= 7) {
-    if (number > mask) {
-      symbol_store_.Add(static_cast<byte>(number >> i) | 0x80u);
-      number &= mask;
-    }
+  int i = 28;
+  // 26 million symbols ought to be enough for anybody.
+  ASSERT(number <= mask);
+  while (number < mask) {
     mask >>= 7;
+    i -= 7;
   }
+  while (i > 0) {
+    symbol_store_.Add(static_cast<byte>(number >> i) | 0x80u);
+    number &= mask;
+    mask >>= 7;
+    i -= 7;
+  }
+  ASSERT(number < (1 << 7));
   symbol_store_.Add(static_cast<byte>(number));
 }
 

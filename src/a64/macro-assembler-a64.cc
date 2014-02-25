@@ -2806,20 +2806,17 @@ void MacroAssembler::InvokeFunction(Handle<JSFunction> function,
 }
 
 
-void MacroAssembler::TryInlineTruncateDoubleToI(Register result,
-                                                DoubleRegister double_input,
-                                                Label* done) {
-  STATIC_ASSERT(kSmiTag == 0);
-  STATIC_ASSERT(kSmiValueSize == 32);
-
-  // Try to convert with a FPU convert instruction. It's trivial to compute
+void MacroAssembler::TryConvertDoubleToInt64(Register result,
+                                             DoubleRegister double_input,
+                                             Label* done) {
+  // Try to convert with an FPU convert instruction. It's trivial to compute
   // the modulo operation on an integer register so we convert to a 64-bit
-  // integer, then find the 32-bit result from that.
+  // integer.
   //
   // Fcvtzs will saturate to INT64_MIN (0x800...00) or INT64_MAX (0x7ff...ff)
   // when the double is out of range. NaNs and infinities will be converted to 0
   // (as ECMA-262 requires).
-  Fcvtzs(result, double_input);
+  Fcvtzs(result.X(), double_input);
 
   // The values INT64_MIN (0x800...00) or INT64_MAX (0x7ff...ff) are not
   // representable using a double, so if the result is one of those then we know
@@ -2827,8 +2824,8 @@ void MacroAssembler::TryInlineTruncateDoubleToI(Register result,
   //
   // It is easy to detect INT64_MIN and INT64_MAX because adding or subtracting
   // 1 will cause signed overflow.
-  Cmp(result, 1);
-  Ccmp(result, -1, VFlag, vc);
+  Cmp(result.X(), 1);
+  Ccmp(result.X(), -1, VFlag, vc);
 
   B(vc, done);
 }
@@ -2839,7 +2836,9 @@ void MacroAssembler::TruncateDoubleToI(Register result,
   Label done;
   ASSERT(jssp.Is(StackPointer()));
 
-  TryInlineTruncateDoubleToI(result, double_input, &done);
+  // Try to convert the double to an int64. If successful, the bottom 32 bits
+  // contain our truncated int32 result.
+  TryConvertDoubleToInt64(result, double_input, &done);
 
   // If we fell through then inline version didn't succeed - call stub instead.
   Push(lr);
@@ -2870,7 +2869,10 @@ void MacroAssembler::TruncateHeapNumberToI(Register result,
   ASSERT(jssp.Is(StackPointer()));
 
   Ldr(fp_scratch, FieldMemOperand(object, HeapNumber::kValueOffset));
-  TryInlineTruncateDoubleToI(result, fp_scratch, &done);
+
+  // Try to convert the double to an int64. If successful, the bottom 32 bits
+  // contain our truncated int32 result.
+  TryConvertDoubleToInt64(result, fp_scratch, &done);
 
   // If we fell through then inline version didn't succeed - call stub instead.
   Push(lr);

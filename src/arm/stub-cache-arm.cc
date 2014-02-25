@@ -1307,12 +1307,31 @@ void StoreStubCompiler::GenerateStoreViaSetter(
 Handle<Code> StoreStubCompiler::CompileStoreInterceptor(
     Handle<JSObject> object,
     Handle<Name> name) {
+  Label miss;
+
+  // Check that the map of the object hasn't changed.
+  __ CheckMap(receiver(), scratch1(), Handle<Map>(object->map()), &miss,
+              DO_SMI_CHECK);
+
+  // Perform global security token check if needed.
+  if (object->IsJSGlobalProxy()) {
+    __ CheckAccessGlobalProxy(receiver(), scratch1(), &miss);
+  }
+
+  // Stub is never generated for non-global objects that require access
+  // checks.
+  ASSERT(object->IsJSGlobalProxy() || !object->IsAccessCheckNeeded());
+
   __ Push(receiver(), this->name(), value());
 
   // Do tail-call to the runtime system.
   ExternalReference store_ic_property =
       ExternalReference(IC_Utility(IC::kStoreInterceptorProperty), isolate());
   __ TailCallExternalReference(store_ic_property, 3, 1);
+
+  // Handle store cache miss.
+  __ bind(&miss);
+  TailCallBuiltin(masm(), MissBuiltin(kind()));
 
   // Return the generated code.
   return GetCode(kind(), Code::FAST, name);
