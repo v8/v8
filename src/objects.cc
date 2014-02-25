@@ -15492,8 +15492,7 @@ int Dictionary<Shape, Key>::NumberOfElementsFilterAttributes(
   int result = 0;
   for (int i = 0; i < capacity; i++) {
     Object* k = HashTable<Shape, Key>::KeyAt(i);
-    if (HashTable<Shape, Key>::IsKey(k) &&
-        !FilterKey(k, filter)) {
+    if (HashTable<Shape, Key>::IsKey(k) && !FilterKey(k, filter)) {
       PropertyDetails details = DetailsAt(i);
       if (details.IsDeleted()) continue;
       PropertyAttributes attr = details.attributes();
@@ -15516,12 +15515,12 @@ void Dictionary<Shape, Key>::CopyKeysTo(
     FixedArray* storage,
     PropertyAttributes filter,
     typename Dictionary<Shape, Key>::SortMode sort_mode) {
-  ASSERT(storage->length() >= NumberOfEnumElements());
+  ASSERT(storage->length() >= NumberOfElementsFilterAttributes(filter));
   int capacity = HashTable<Shape, Key>::Capacity();
   int index = 0;
   for (int i = 0; i < capacity; i++) {
      Object* k = HashTable<Shape, Key>::KeyAt(i);
-     if (HashTable<Shape, Key>::IsKey(k)) {
+     if (HashTable<Shape, Key>::IsKey(k) && !FilterKey(k, filter)) {
        PropertyDetails details = DetailsAt(i);
        if (details.IsDeleted()) continue;
        PropertyAttributes attr = details.attributes();
@@ -15583,12 +15582,11 @@ void Dictionary<Shape, Key>::CopyKeysTo(
     int index,
     PropertyAttributes filter,
     typename Dictionary<Shape, Key>::SortMode sort_mode) {
-  ASSERT(storage->length() >= NumberOfElementsFilterAttributes(
-      static_cast<PropertyAttributes>(NONE)));
+  ASSERT(storage->length() >= NumberOfElementsFilterAttributes(filter));
   int capacity = HashTable<Shape, Key>::Capacity();
   for (int i = 0; i < capacity; i++) {
     Object* k = HashTable<Shape, Key>::KeyAt(i);
-    if (HashTable<Shape, Key>::IsKey(k)) {
+    if (HashTable<Shape, Key>::IsKey(k) && !FilterKey(k, filter)) {
       PropertyDetails details = DetailsAt(i);
       if (details.IsDeleted()) continue;
       PropertyAttributes attr = details.attributes();
