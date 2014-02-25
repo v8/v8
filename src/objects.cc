@@ -2579,6 +2579,7 @@ void Map::DeprecateTarget(Name* key, DescriptorArray* new_descriptors) {
 
   DescriptorArray* to_replace = instance_descriptors();
   Map* current = this;
+  GetHeap()->incremental_marking()->RecordWrites(to_replace);
   while (current->instance_descriptors() == to_replace) {
     current->SetEnumLength(kInvalidEnumCacheSentinel);
     current->set_instance_descriptors(new_descriptors);
@@ -6814,6 +6815,8 @@ MaybeObject* Map::ShareDescriptor(DescriptorArray* descriptors,
 
       Map* map;
       // Replace descriptors by new_descriptors in all maps that share it.
+
+      GetHeap()->incremental_marking()->RecordWrites(descriptors);
       for (Object* current = GetBackPointer();
            !current->IsUndefined();
            current = map->GetBackPointer()) {
