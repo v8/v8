@@ -9924,9 +9924,11 @@ void HOptimizedGraphBuilder::BuildEmitInObjectProperties(
         Add<HStoreNamedField>(double_box, HObjectAccess::ForHeapNumberValue(),
                               Add<HConstant>(value));
         value_instruction = double_box;
-      } else if (representation.IsSmi() && value->IsUninitialized()) {
-        value_instruction = graph()->GetConstant0();
-        // Ensure that Constant0 is stored as smi.
+      } else if (representation.IsSmi()) {
+        value_instruction = value->IsUninitialized()
+            ? graph()->GetConstant0()
+            : Add<HConstant>(value);
+        // Ensure that value is stored as smi.
         access = access.WithRepresentation(representation);
       } else {
         value_instruction = Add<HConstant>(value);
