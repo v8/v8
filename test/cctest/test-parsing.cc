@@ -360,6 +360,50 @@ TEST(PreparsingObjectLiterals) {
   }
 }
 
+namespace v8 {
+namespace internal {
+
+void FakeWritingSymbolIdInPreParseData(i::CompleteParserRecorder* log,
+                                       int number) {
+  log->WriteNumber(number);
+  if (log->symbol_id_ < number + 1) {
+    log->symbol_id_ = number + 1;
+  }
+}
+
+}
+}
+
+
+TEST(StoringNumbersInPreParseData) {
+  // Symbol IDs are split into chunks of 7 bits for storing. This is a
+  // regression test for a bug where a symbol id was incorrectly stored if some
+  // of the chunks in the middle were all zeros.
+  i::CompleteParserRecorder log;
+  for (int i = 0; i < 18; ++i) {
+    FakeWritingSymbolIdInPreParseData(&log, 1 << i);
+  }
+  for (int i = 1; i < 18; ++i) {
+    FakeWritingSymbolIdInPreParseData(&log, (1 << i) + 1);
+  }
+  for (int i = 6; i < 18; ++i) {
+    FakeWritingSymbolIdInPreParseData(&log, (3 << i) + (5 << (i - 6)));
+  }
+  i::Vector<unsigned> store = log.ExtractData();
+  i::ScriptDataImpl script_data(store);
+  script_data.Initialize();
+  // Check that we get the same symbols back.
+  for (int i = 0; i < 18; ++i) {
+    CHECK_EQ(1 << i, script_data.GetSymbolIdentifier());
+  }
+  for (int i = 1; i < 18; ++i) {
+    CHECK_EQ((1 << i) + 1, script_data.GetSymbolIdentifier());
+  }
+  for (int i = 6; i < 18; ++i) {
+    CHECK_EQ((3 << i) + (5 << (i - 6)), script_data.GetSymbolIdentifier());
+  }
+}
+
 
 TEST(RegressChromium62639) {
   v8::V8::Initialize();

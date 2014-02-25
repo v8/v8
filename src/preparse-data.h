@@ -183,6 +183,10 @@ class CompleteParserRecorder: public FunctionLoggingParserRecorder {
   virtual int symbol_ids() { return symbol_id_; }
 
  private:
+  // For testing. Defined in test-parsing.cc.
+  friend void FakeWritingSymbolIdInPreParseData(CompleteParserRecorder* log,
+                                                int number);
+
   struct Key {
     bool is_ascii;
     Vector<const byte> literal_bytes;
