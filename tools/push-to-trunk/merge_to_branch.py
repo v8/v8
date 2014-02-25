@@ -26,8 +26,8 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+import argparse
 from collections import OrderedDict
-import optparse
 import sys
 
 from common_includes import *
@@ -51,7 +51,7 @@ CONFIG = {
 
 
 class MergeToBranchOptions(CommonOptions):
-  def __init__(self, options, args):
+  def __init__(self, options):
     super(MergeToBranchOptions, self).__init__(options, True)
     self.requires_editor = True
     self.wait_for_lgtm = True
@@ -60,7 +60,8 @@ class MergeToBranchOptions(CommonOptions):
     self.revert = getattr(options, "r", False)
     self.revert_bleeding_edge = getattr(options, "revert_bleeding_edge", False)
     self.patch = getattr(options, "p", "")
-    self.args = args
+    self.branch = options.branch
+    self.revisions = options.revisions
 
 
 class Preparation(Step):
@@ -77,9 +78,8 @@ class Preparation(Step):
     self.InitialEnvironmentChecks()
     if self._options.revert_bleeding_edge:
       self["merge_to_branch"] = "bleeding_edge"
-    elif self._options.args[0]:
-      self["merge_to_branch"] = self._options.args[0]
-      self._options.args = self._options.args[1:]
+    elif self._options.branch:
+      self["merge_to_branch"] = self._options.branch
     else:
       self.Die("Please specify a branch to merge to")
 
@@ -99,7 +99,8 @@ class SearchArchitecturePorts(Step):
   MESSAGE = "Search for corresponding architecture ports."
 
   def RunStep(self):
-    self["full_revision_list"] = list(OrderedDict.fromkeys(self._options.args))
+    self["full_revision_list"] = list(OrderedDict.fromkeys(
+        self._options.revisions))
     port_revision_list = []
     for revision in self["full_revision_list"]:
       # Search for commits which matches the "Port rXXX" pattern.
@@ -310,53 +311,53 @@ def RunMergeToBranch(config,
 
 
 def BuildOptions():
-  result = optparse.OptionParser()
-  result.set_usage("""%prog [OPTIONS]... [BRANCH] [REVISION]...
+  parser = argparse.ArgumentParser(
+      description=("Performs the necessary steps to merge revisions from "
+                   "bleeding_edge to other branches, including trunk."))
+  group = parser.add_mutually_exclusive_group(required=True)
+  group.add_argument("--branch", help="The branch to merge to.")
+  group.add_argument("-R", "--revert-bleeding-edge",
+                     help="Revert specified patches from bleeding edge.",
+                     default=False, action="store_true")
+  parser.add_argument("revisions", nargs="*",
+                      help="The revisions to merge.")
+  parser.add_argument("-a", "--author", default="",
+                       help="The author email used for rietveld.")
+  parser.add_argument("-f",
+                      help="Delete sentinel file.",
+                      default=False, action="store_true")
+  parser.add_argument("-m", "--message",
+                      help="A commit message for the patch.")
+  parser.add_argument("-r", "--revert",
+                      help="Revert specified patches.",
+                      default=False, action="store_true")
+  parser.add_argument("-p", "--patch", dest="p",
+                      help="A patch file to apply as part of the merge.")
+  parser.add_argument("-s", "--step", dest="s",
+                      help="The step where to start work. Default: 0.",
+                      default=0, type=int)
+  return parser
 
-Performs the necessary steps to merge revisions from bleeding_edge
-to other branches, including trunk.""")
-  result.add_option("-f",
-                    help="Delete sentinel file.",
-                    default=False, action="store_true")
-  result.add_option("-m", "--message",
-                    help="Specify a commit message for the patch.")
-  result.add_option("-r", "--revert",
-                    help="Revert specified patches.",
-                    default=False, action="store_true")
-  result.add_option("-R", "--revert-bleeding-edge",
-                    help="Revert specified patches from bleeding edge.",
-                    default=False, action="store_true")
-  result.add_option("-p", "--patch", dest="p",
-                    help="Specify a patch file to apply as part of the merge.")
-  result.add_option("-s", "--step", dest="s",
-                    help="Specify the step where to start work. Default: 0.",
-                    default=0, type="int")
-  return result
 
-
-def ProcessOptions(options, args):
-  revert_from_bleeding_edge = 1 if options.revert_bleeding_edge else 0
-  min_exp_args = 2 - revert_from_bleeding_edge
-  if len(args) < min_exp_args:
-    if not options.p:
+def ProcessOptions(options):
+  # TODO(machenbach): Add a test that covers revert from bleeding_edge
+  if len(options.revisions) < 1:
+    if not options.patch:
       print "Either a patch file or revision numbers must be specified"
       return False
     if not options.message:
       print "You must specify a merge comment if no patches are specified"
       return False
-  if options.s < 0:
-    print "Bad step number %d" % options.s
-    return False
   return True
 
 
 def Main():
   parser = BuildOptions()
-  (options, args) = parser.parse_args()
-  if not ProcessOptions(options, args):
+  options = parser.parse_args()
+  if not ProcessOptions(options):
     parser.print_help()
     return 1
-  RunMergeToBranch(CONFIG, MergeToBranchOptions(options, args))
+  RunMergeToBranch(CONFIG, MergeToBranchOptions(options))
 
 if __name__ == "__main__":
   sys.exit(Main())

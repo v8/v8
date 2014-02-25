@@ -64,6 +64,12 @@ TEST_CONFIG = {
   TEMPORARY_PATCH_FILE: "/tmp/test-merge-to-branch-tempfile-temporary-patch",
 }
 
+AUTO_ROLL_ARGS = [
+  "-a", "author@chromium.org",
+  "-c", TEST_CONFIG[CHROMIUM],
+  "-r", "reviewer@chromium.org",
+]
+
 
 def MakeOptions(s=0, l=None, f=False, m=True, r=None, c=None, a=None,
                 status_password=None, revert_bleeding_edge=None, p=None):
@@ -740,9 +746,11 @@ Performance and stability improvements on all platforms.""", commit)
     if force:
       self.ExpectReadline([])
 
-    options = MakeOptions(f=force, m=manual, a="author@chromium.org",
-                          r="reviewer@chromium.org" if not manual else None,
-                          c = TEST_CONFIG[CHROMIUM])
+    args = ["-a", "author@chromium.org", "-c", TEST_CONFIG[CHROMIUM]]
+    if force: args.append("-f")
+    if manual: args.append("-m")
+    else: args += ["-r", "reviewer@chromium.org"]
+    options = push_to_trunk.BuildOptions().parse_args(args)
     RunPushToTrunk(TEST_CONFIG, PushToTrunkOptions(options), self)
 
     deps = FileToText(TEST_CONFIG[DEPS_FILE])
@@ -777,8 +785,8 @@ Performance and stability improvements on all platforms.""", commit)
     self.assertRaises(Exception, self.MakeStep(CheckLastPush, state=state).Run)
 
   def testAutoRoll(self):
-    status_password = self.MakeEmptyTempFile()
-    TextToFile("PW", status_password)
+    password = self.MakeEmptyTempFile()
+    TextToFile("PW", password)
     TEST_CONFIG[DOT_GIT_LOCATION] = self.MakeEmptyTempFile()
     TEST_CONFIG[SETTINGS_LOCATION] = "~/.doesnotexist"
 
@@ -807,8 +815,9 @@ Performance and stability improvements on all platforms.""", commit)
       ["svn find-rev push_hash", "65"],
     ])
 
-    auto_roll.RunAutoRoll(TEST_CONFIG, AutoRollOptions(
-        MakeOptions(status_password=status_password)), self)
+    options = auto_roll.BuildOptions().parse_args(
+        AUTO_ROLL_ARGS + ["--status-password", password])
+    auto_roll.RunAutoRoll(TEST_CONFIG, AutoRollOptions(options), self)
 
     state = json.loads(FileToText("%s-state.json"
                                   % TEST_CONFIG[PERSISTFILE_BASENAME]))
@@ -829,8 +838,9 @@ Performance and stability improvements on all platforms.""", commit)
       ["svn fetch", ""],
     ])
 
+    options = auto_roll.BuildOptions().parse_args(AUTO_ROLL_ARGS)
     def RunAutoRoll():
-      auto_roll.RunAutoRoll(TEST_CONFIG, AutoRollOptions(MakeOptions()), self)
+      auto_roll.RunAutoRoll(TEST_CONFIG, AutoRollOptions(options), self)
     self.assertRaises(Exception, RunAutoRoll)
 
   def testAutoRollStoppedByTreeStatus(self):
@@ -848,8 +858,9 @@ Performance and stability improvements on all platforms.""", commit)
       ["svn fetch", ""],
     ])
 
+    options = auto_roll.BuildOptions().parse_args(AUTO_ROLL_ARGS)
     def RunAutoRoll():
-      auto_roll.RunAutoRoll(TEST_CONFIG, AutoRollOptions(MakeOptions()), self)
+      auto_roll.RunAutoRoll(TEST_CONFIG, AutoRollOptions(options), self)
     self.assertRaises(Exception, RunAutoRoll)
 
   def testMergeToBranch(self):
@@ -966,21 +977,22 @@ LOG=N
       "LGTM",  # Enter LGTM for V8 CL.
     ])
 
-    options = MakeOptions(p=extra_patch, f=True)
     # r12345 and r34567 are patches. r23456 (included) and r45678 are the MIPS
     # ports of r12345. r56789 is the MIPS port of r34567.
-    args = ["trunk", "12345", "23456", "34567"]
-    self.assertTrue(merge_to_branch.ProcessOptions(options, args))
+    args = ["-f", "-p", extra_patch, "--branch", "trunk", "12345", "23456",
+            "34567"]
+    options = merge_to_branch.BuildOptions().parse_args(args)
+    self.assertTrue(merge_to_branch.ProcessOptions(options))
 
     # The first run of the script stops because of the svn being down.
     self.assertRaises(GitFailedException,
         lambda: RunMergeToBranch(TEST_CONFIG,
-                                 MergeToBranchOptions(options, args),
+                                 MergeToBranchOptions(options),
                                  self))
 
     # Test that state recovery after restarting the script works.
     options.s = 3
-    RunMergeToBranch(TEST_CONFIG, MergeToBranchOptions(options, args), self)
+    RunMergeToBranch(TEST_CONFIG, MergeToBranchOptions(options), self)
 
 
 class SystemTest(unittest.TestCase):

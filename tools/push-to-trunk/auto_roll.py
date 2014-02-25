@@ -26,8 +26,8 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+import argparse
 import json
-import optparse
 import os
 import re
 import sys
@@ -180,28 +180,28 @@ def RunAutoRoll(config,
 
 
 def BuildOptions():
-  result = optparse.OptionParser()
-  result.add_option("-a", "--author", dest="a",
-                    help=("Specify the author email used for rietveld."))
-  result.add_option("-c", "--chromium", dest="c",
-                    help=("Specify the path to your Chromium src/ "
-                          "directory to automate the V8 roll."))
-  result.add_option("-p", "--push",
-                    help="Push to trunk if possible. Dry run if unspecified.",
-                    default=False, action="store_true")
-  result.add_option("-r", "--reviewer",
-                    help=("Specify the account name to be used for reviews."))
-  result.add_option("-s", "--step", dest="s",
-                    help="Specify the step where to start work. Default: 0.",
-                    default=0, type="int")
-  result.add_option("--status-password",
-                    help="A file with the password to the status app.")
-  return result
+  parser = argparse.ArgumentParser()
+  parser.add_argument("-a", "--author", dest="a",
+                      help="The author email used for rietveld.")
+  parser.add_argument("-c", "--chromium", dest="c",
+                      help=("The path to your Chromium src/ directory to "
+                            "automate the V8 roll."))
+  parser.add_argument("-p", "--push",
+                      help="Push to trunk if possible. Dry run if unspecified.",
+                      default=False, action="store_true")
+  parser.add_argument("-r", "--reviewer",
+                      help="The account name to be used for reviews.")
+  parser.add_argument("-s", "--step", dest="s",
+                      help="Specify the step where to start work. Default: 0.",
+                      default=0, type=int)
+  parser.add_argument("--status-password",
+                      help="A file with the password to the status app.")
+  return parser
 
 
 def Main():
   parser = BuildOptions()
-  (options, args) = parser.parse_args()
+  options = parser.parse_args()
   if not options.a or not options.c or not options.reviewer:
     print "You need to specify author, chromium src location and reviewer."
     parser.print_help()
