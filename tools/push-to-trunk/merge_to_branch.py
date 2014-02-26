@@ -182,7 +182,7 @@ class ApplyPatches(Step):
     for commit_hash in self["patch_commit_hashes"]:
       print("Applying patch for %s to %s..."
             % (commit_hash, self["merge_to_branch"]))
-      patch = self.GitLog(n=1, patch=True, git_hash=commit_hash)
+      patch = self.GitGetPatch(commit_hash)
       TextToFile(patch, self.Config(TEMPORARY_PATCH_FILE))
       self.ApplyPatch(self.Config(TEMPORARY_PATCH_FILE), self._options.revert)
     if self._options.patch:

@@ -72,7 +72,7 @@ class GitRecipesMixin(object):
 
   @Strip
   def GitLog(self, n=0, format="", grep="", git_hash="", parent_hash="",
-             branch="", reverse=False, patch=False):
+             branch="", reverse=False):
     assert not (git_hash and parent_hash)
     args = ["log"]
     if n > 0:
@@ -83,14 +83,16 @@ class GitRecipesMixin(object):
       args.append("--grep=\"%s\"" % grep)
     if reverse:
       args.append("--reverse")
-    if patch:
-      args.append("-p")
     if git_hash:
       args.append(git_hash)
     if parent_hash:
       args.append("%s^" % parent_hash)
     args.append(branch)
     return self.Git(MakeArgs(args))
+
+  def GitGetPatch(self, git_hash):
+    assert git_hash
+    return self.Git(MakeArgs(["log", "-1", "-p", git_hash]))
 
   def GitAdd(self, name):
     assert name
