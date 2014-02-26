@@ -97,13 +97,11 @@ class DecoderVisitor {
 };
 
 
-class Decoder {
+// A visitor that dispatches to a list of visitors.
+class DispatchingDecoderVisitor : public DecoderVisitor {
  public:
-  Decoder() {}
-
-  // Top-level instruction decoder function. Decodes an instruction and calls
-  // the visitor functions registered with the Decoder class.
-  void Decode(Instruction *instr);
+  DispatchingDecoderVisitor() {}
+  virtual ~DispatchingDecoderVisitor() {}
 
   // Register a new visitor class with the decoder.
   // Decode() will call the corresponding visitor method from all registered
@@ -137,6 +135,20 @@ class Decoder {
   #define DECLARE(A) void Visit##A(Instruction* instr);
   VISITOR_LIST(DECLARE)
   #undef DECLARE
+
+ private:
+  // Visitors are registered in a list.
+  std::list<DecoderVisitor*> visitors_;
+};
+
+
+class Decoder : public DispatchingDecoderVisitor {
+ public:
+  Decoder() {}
+
+  // Top-level instruction decoder function. Decodes an instruction and calls
+  // the visitor functions registered with the Decoder class.
+  void Decode(Instruction *instr);
 
  private:
   // Decode the PC relative addressing instruction, and call the corresponding
@@ -188,9 +200,6 @@ class Decoder {
   // tree, and call the corresponding visitors.
   // On entry, instruction bits 27:25 = 0x7.
   void DecodeAdvSIMDDataProcessing(Instruction* instr);
-
-  // Visitors are registered in a list.
-  std::list<DecoderVisitor*> visitors_;
 };
 
 
