@@ -26,7 +26,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-import optparse
+import argparse
 import sys
 import tempfile
 import urllib2
@@ -545,32 +545,31 @@ def RunPushToTrunk(config,
 
 
 def BuildOptions():
-  result = optparse.OptionParser()
-  result.add_option("-a", "--author", dest="a",
-                    help=("Specify the author email used for rietveld."))
-  result.add_option("-b", "--last-bleeding-edge", dest="b",
-                    help=("Manually specify the git commit ID of the last "
-                          "bleeding edge revision that was pushed to trunk. "
-                          "This is used for the auto-generated ChangeLog "
-                          "entry."))
-  result.add_option("-c", "--chromium", dest="c",
-                    help=("Specify the path to your Chromium src/ "
-                          "directory to automate the V8 roll."))
-  result.add_option("-f", "--force", dest="f",
-                    help="Don't prompt the user.",
-                    default=False, action="store_true")
-  result.add_option("-l", "--last-push", dest="l",
-                    help=("Manually specify the git commit ID "
-                          "of the last push to trunk."))
-  result.add_option("-m", "--manual", dest="m",
-                    help="Prompt the user at every important step.",
-                    default=False, action="store_true")
-  result.add_option("-r", "--reviewer",
-                    help=("Specify the account name to be used for reviews."))
-  result.add_option("-s", "--step", dest="s",
-                    help="Specify the step where to start work. Default: 0.",
-                    default=0, type="int")
-  return result
+  parser = argparse.ArgumentParser()
+  group = parser.add_mutually_exclusive_group()
+  group.add_argument("-f", "--force", dest="f",
+                     help="Don't prompt the user.",
+                     default=False, action="store_true")
+  group.add_argument("-m", "--manual", dest="m",
+                     help="Prompt the user at every important step.",
+                     default=False, action="store_true")
+  parser.add_argument("-a", "--author", dest="a",
+                      help="The author email used for rietveld.")
+  parser.add_argument("-b", "--last-bleeding-edge", dest="b",
+                      help=("The git commit ID of the last bleeding edge "
+                            "revision that was pushed to trunk. This is used "
+                            "for the auto-generated ChangeLog entry."))
+  parser.add_argument("-c", "--chromium", dest="c",
+                      help=("The path to your Chromium src/ directory to "
+                            "automate the V8 roll."))
+  parser.add_argument("-l", "--last-push", dest="l",
+                      help="The git commit ID of the last push to trunk.")
+  parser.add_argument("-r", "--reviewer",
+                      help="The account name to be used for reviews.")
+  parser.add_argument("-s", "--step", dest="s",
+                      help="The step where to start work. Default: 0.",
+                      default=0, type=int)
+  return parser
 
 
 def ProcessOptions(options):
@@ -579,9 +578,6 @@ def ProcessOptions(options):
     return False
   if not options.m and not options.reviewer:
     print "A reviewer (-r) is required in (semi-)automatic mode."
-    return False
-  if options.f and options.m:
-    print "Manual and forced mode cannot be combined."
     return False
   if not options.m and not options.c:
     print "A chromium checkout (-c) is required in (semi-)automatic mode."
@@ -594,7 +590,7 @@ def ProcessOptions(options):
 
 def Main():
   parser = BuildOptions()
-  (options, args) = parser.parse_args()
+  options = parser.parse_args()
   if not ProcessOptions(options):
     parser.print_help()
     return 1
