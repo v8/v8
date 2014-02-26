@@ -195,6 +195,7 @@ class Simulator : public DecoderVisitor {
   explicit Simulator(Decoder<DispatchingDecoderVisitor>* decoder,
                      Isolate* isolate = NULL,
                      FILE* stream = stderr);
+  Simulator();
   ~Simulator();
 
   // System functions.
@@ -334,10 +335,14 @@ class Simulator : public DecoderVisitor {
     pc_modified_ = false;
   }
 
+  virtual void Decode(Instruction* instr) {
+    decoder_->Decode(instr);
+  }
+
   void ExecuteInstruction() {
     ASSERT(IsAligned(reinterpret_cast<uintptr_t>(pc_), kInstructionSize));
     CheckBreakNext();
-    decoder_->Decode(pc_);
+    Decode(pc_);
     LogProcessorState();
     increment_pc();
     CheckBreakpoints();
@@ -582,12 +587,18 @@ class Simulator : public DecoderVisitor {
 
   int log_parameters() { return log_parameters_; }
   void set_log_parameters(int new_parameters) {
+    log_parameters_ = new_parameters;
+    if (!decoder_) {
+      if (new_parameters & LOG_DISASM) {
+        PrintF("Run --debug-sim to dynamically turn on disassembler\n");
+      }
+      return;
+    }
     if (new_parameters & LOG_DISASM) {
       decoder_->InsertVisitorBefore(print_disasm_, this);
     } else {
       decoder_->RemoveVisitor(print_disasm_);
     }
-    log_parameters_ = new_parameters;
   }
 
   static inline const char* WRegNameForCode(unsigned code,
@@ -819,6 +830,8 @@ class Simulator : public DecoderVisitor {
   char* last_debugger_input_;
 
  private:
+  void Init(FILE* stream);
+
   int  log_parameters_;
   Isolate* isolate_;
 };

@@ -105,8 +105,12 @@ Simulator* Simulator::current(Isolate* isolate) {
 
   Simulator* sim = isolate_data->simulator();
   if (sim == NULL) {
-    // TODO(146): delete the simulator object when a thread/isolate goes away.
-    sim = new Simulator(new Decoder<DispatchingDecoderVisitor>(), isolate);
+    if (FLAG_trace_sim || FLAG_log_instruction_stats || FLAG_debug_sim) {
+      sim = new Simulator(new Decoder<DispatchingDecoderVisitor>(), isolate);
+    } else {
+      sim = new Decoder<Simulator>();
+      sim->isolate_ = isolate;
+    }
     isolate_data->set_simulator(sim);
   }
   return sim;
@@ -343,6 +347,32 @@ Simulator::Simulator(Decoder<DispatchingDecoderVisitor>* decoder,
   // Setup the decoder.
   decoder_->AppendVisitor(this);
 
+  Init(stream);
+
+  if (FLAG_trace_sim) {
+    decoder_->InsertVisitorBefore(print_disasm_, this);
+    log_parameters_ = LOG_ALL;
+  }
+
+  if (FLAG_log_instruction_stats) {
+    instrument_ = new Instrument(FLAG_log_instruction_file,
+                                 FLAG_log_instruction_period);
+    decoder_->AppendVisitor(instrument_);
+  }
+}
+
+
+Simulator::Simulator()
+    : decoder_(NULL),
+      last_debugger_input_(NULL),
+      log_parameters_(NO_PARAM),
+      isolate_(NULL) {
+  Init(NULL);
+  CHECK(!FLAG_trace_sim && !FLAG_log_instruction_stats);
+}
+
+
+void Simulator::Init(FILE* stream) {
   ResetState();
 
   // Allocate and setup the simulator stack.
@@ -356,21 +386,10 @@ Simulator::Simulator(Decoder<DispatchingDecoderVisitor>* decoder,
   stream_ = stream;
   print_disasm_ = new PrintDisassembler(stream_);
 
-  if (FLAG_trace_sim) {
-    decoder_->InsertVisitorBefore(print_disasm_, this);
-    log_parameters_ = LOG_ALL;
-  }
-
   // The debugger needs to disassemble code without the simulator executing an
   // instruction, so we create a dedicated decoder.
   disassembler_decoder_ = new Decoder<DispatchingDecoderVisitor>();
   disassembler_decoder_->AppendVisitor(print_disasm_);
-
-  if (FLAG_log_instruction_stats) {
-    instrument_ = new Instrument(FLAG_log_instruction_file,
-                                 FLAG_log_instruction_period);
-    decoder_->AppendVisitor(instrument_);
-  }
 }
 
 
@@ -405,6 +424,7 @@ Simulator::~Simulator() {
   delete disassembler_decoder_;
   delete print_disasm_;
   DeleteArray(last_debugger_input_);
+  delete decoder_;
 }
 
 

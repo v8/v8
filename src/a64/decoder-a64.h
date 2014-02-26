@@ -146,10 +146,11 @@ template<typename V>
 class Decoder : public V {
  public:
   Decoder() {}
+  virtual ~Decoder() {}
 
   // Top-level instruction decoder function. Decodes an instruction and calls
   // the visitor functions registered with the Decoder class.
-  void Decode(Instruction *instr);
+  virtual void Decode(Instruction *instr);
 
  private:
   // Decode the PC relative addressing instruction, and call the corresponding
