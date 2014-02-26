@@ -89,23 +89,17 @@ namespace internal {
 // must provide implementations for all of these functions.
 class DecoderVisitor {
  public:
+  virtual ~DecoderVisitor() {}
+
   #define DECLARE(A) virtual void Visit##A(Instruction* instr) = 0;
   VISITOR_LIST(DECLARE)
   #undef DECLARE
-
-  virtual ~DecoderVisitor() {}
-
- private:
-  // Visitors are registered in a list.
-  std::list<DecoderVisitor*> visitors_;
-
-  friend class Decoder;
 };
 
 
-class Decoder: public DecoderVisitor {
+class Decoder {
  public:
-  explicit Decoder() {}
+  Decoder() {}
 
   // Top-level instruction decoder function. Decodes an instruction and calls
   // the visitor functions registered with the Decoder class.
@@ -194,6 +188,9 @@ class Decoder: public DecoderVisitor {
   // tree, and call the corresponding visitors.
   // On entry, instruction bits 27:25 = 0x7.
   void DecodeAdvSIMDDataProcessing(Instruction* instr);
+
+  // Visitors are registered in a list.
+  std::list<DecoderVisitor*> visitors_;
 };
 
 
