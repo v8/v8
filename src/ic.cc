@@ -1140,8 +1140,7 @@ static bool LookupForWrite(Handle<JSObject> receiver,
   // receiver when trying to fetch extra information from the transition.
   receiver->map()->LookupTransition(*holder, *name, lookup);
   if (!lookup->IsTransition()) return false;
-  PropertyDetails target_details =
-      lookup->GetTransitionDetails(receiver->map());
+  PropertyDetails target_details = lookup->GetTransitionDetails();
   if (target_details.IsReadOnly()) return false;
 
   // If the value that's being stored does not fit in the field that the
@@ -1152,7 +1151,7 @@ static bool LookupForWrite(Handle<JSObject> receiver,
   // transition target.
   ASSERT(!receiver->map()->is_deprecated());
   if (!value->FitsRepresentation(target_details.representation())) {
-    Handle<Map> target(lookup->GetTransitionMapFromMap(receiver->map()));
+    Handle<Map> target(lookup->GetTransitionTarget());
     Map::GeneralizeRepresentation(
         target, target->LastAdded(),
         value->OptimalRepresentation(), FORCE_FIELD);
@@ -1325,12 +1324,8 @@ Handle<Code> StoreIC::CompileHandler(LookupResult* lookup,
     case TRANSITION: {
       // Explicitly pass in the receiver map since LookupForWrite may have
       // stored something else than the receiver in the holder.
-      Handle<Map> transition(
-          lookup->GetTransitionTarget(receiver->map()), isolate());
-      int descriptor = transition->LastAdded();
-
-      DescriptorArray* target_descriptors = transition->instance_descriptors();
-      PropertyDetails details = target_descriptors->GetDetails(descriptor);
+      Handle<Map> transition(lookup->GetTransitionTarget());
+      PropertyDetails details = transition->GetLastDescriptorDetails();
 
       if (details.type() == CALLBACKS || details.attributes() != NONE) break;
 
