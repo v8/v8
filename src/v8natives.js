@@ -1384,19 +1384,15 @@ function ObjectIs(obj1, obj2) {
 }
 
 
-// ECMA-262, Edition 6, section B.2.2.1.1
+// Harmony __proto__ getter.
 function ObjectGetProto() {
-  return %GetPrototype(ToObject(this));
+  return %GetPrototype(this);
 }
 
 
-// ECMA-262, Edition 6, section B.2.2.1.2
-function ObjectSetProto(proto) {
-  CHECK_OBJECT_COERCIBLE(this, "Object.prototype.__proto__");
-
-  if (IS_SPEC_OBJECT(proto) || IS_NULL(proto) && IS_SPEC_OBJECT(this)) {
-    %SetPrototype(this, proto);
-  }
+// Harmony __proto__ setter.
+function ObjectSetProto(obj) {
+  return %SetPrototype(this, obj);
 }
 
 
@@ -1893,30 +1889,10 @@ SetUpFunction();
 // Eventually, we should move to a real event queue that allows to maintain
 // relative ordering of different kinds of tasks.
 
-function GetMicrotaskQueue() {
-  var microtaskState = %GetMicrotaskState();
-  if (IS_UNDEFINED(microtaskState.queue)) {
-    microtaskState.queue = new InternalArray;
-  }
-  return microtaskState.queue;
-}
+RunMicrotasks.runners = new InternalArray;
 
 function RunMicrotasks() {
   while (%SetMicrotaskPending(false)) {
-    var microtaskState = %GetMicrotaskState();
-    if (IS_UNDEFINED(microtaskState.queue))
-      return;
-
-    var microtasks = microtaskState.queue;
-    microtaskState.queue = new InternalArray;
-
-    for (var i = 0; i < microtasks.length; i++) {
-      microtasks[i]();
-    }
+    for (var i in RunMicrotasks.runners) RunMicrotasks.runners[i]();
   }
-}
-
-function EnqueueExternalMicrotask(fn) {
-  GetMicrotaskQueue().push(fn);
-  %SetMicrotaskPending(true);
 }

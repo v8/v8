@@ -30,16 +30,6 @@
 
 var symbols = []
 
-
-// Returns true if the string is a valid
-// serialization of Symbols added to the 'symbols'
-// array. Adjust if you extend 'symbols' with other
-// values.
-function isValidSymbolString(s) {
-  return ["Symbol(66)"].indexOf(s) >= 0;
-}
-
-
 // Test different forms of constructor calls, all equivalent.
 function TestNew() {
   for (var i = 0; i < 2; ++i) {
@@ -59,6 +49,7 @@ function TestType() {
     assertTrue(typeof symbols[i] === "symbol")
     assertTrue(%SymbolIsPrivate(symbols[i]))
     assertEquals(null, %_ClassOf(symbols[i]))
+    assertEquals("Symbol", %_ClassOf(new Symbol(symbols[i])))
     assertEquals("Symbol", %_ClassOf(Object(symbols[i])))
   }
 }
@@ -76,21 +67,28 @@ TestPrototype()
 function TestConstructor() {
   for (var i in symbols) {
     assertSame(Symbol, symbols[i].__proto__.constructor)
-    assertSame(Symbol, Object(symbols[i]).__proto__.constructor)
   }
 }
 TestConstructor()
+
+
+function TestName() {
+  for (var i in symbols) {
+    var name = symbols[i].name
+    assertTrue(name === "66")
+  }
+}
+TestName()
 
 
 function TestToString() {
   for (var i in symbols) {
     assertThrows(function() { String(symbols[i]) }, TypeError)
     assertThrows(function() { symbols[i] + "" }, TypeError)
-    assertTrue(isValidSymbolString(symbols[i].toString()))
-    assertTrue(isValidSymbolString(Object(symbols[i]).toString()))
-    assertTrue(isValidSymbolString(Symbol.prototype.toString.call(symbols[i])))
-    assertEquals(
-        "[object Symbol]", Object.prototype.toString.call(symbols[i]))
+    assertThrows(function() { symbols[i].toString() }, TypeError)
+    assertThrows(function() { (new Symbol(symbols[i])).toString() }, TypeError)
+    assertThrows(function() { Object(symbols[i]).toString() }, TypeError)
+    assertEquals("[object Symbol]", Object.prototype.toString.call(symbols[i]))
   }
 }
 TestToString()
@@ -130,14 +128,10 @@ function TestEquality() {
     assertTrue(Object.is(symbols[i], symbols[i]))
     assertTrue(symbols[i] === symbols[i])
     assertTrue(symbols[i] == symbols[i])
-    assertFalse(symbols[i] === Object(symbols[i]))
-    assertFalse(Object(symbols[i]) === symbols[i])
-    assertFalse(symbols[i] == Object(symbols[i]))
-    assertFalse(Object(symbols[i]) == symbols[i])
-    assertTrue(symbols[i] === symbols[i].valueOf())
-    assertTrue(symbols[i].valueOf() === symbols[i])
-    assertTrue(symbols[i] == symbols[i].valueOf())
-    assertTrue(symbols[i].valueOf() == symbols[i])
+    assertFalse(symbols[i] === new Symbol(symbols[i]))
+    assertFalse(new Symbol(symbols[i]) === symbols[i])
+    assertTrue(symbols[i] == new Symbol(symbols[i]))
+    assertTrue(new Symbol(symbols[i]) == symbols[i])
   }
 
   // All symbols should be distinct.
@@ -165,7 +159,7 @@ TestEquality()
 
 function TestGet() {
   for (var i in symbols) {
-    assertTrue(isValidSymbolString(symbols[i].toString()))
+    assertThrows(function() { symbols[i].toString() }, TypeError)
     assertEquals(symbols[i], symbols[i].valueOf())
     assertEquals(undefined, symbols[i].a)
     assertEquals(undefined, symbols[i]["a" + "b"])
@@ -179,7 +173,7 @@ TestGet()
 function TestSet() {
   for (var i in symbols) {
     symbols[i].toString = 0
-    assertTrue(isValidSymbolString(symbols[i].toString()))
+    assertThrows(function() { symbols[i].toString() }, TypeError)
     symbols[i].valueOf = 0
     assertEquals(symbols[i], symbols[i].valueOf())
     symbols[i].a = 0

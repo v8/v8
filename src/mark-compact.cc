@@ -67,7 +67,6 @@ MarkCompactCollector::MarkCompactCollector(Heap* heap) :  // NOLINT
       compacting_(false),
       was_marked_incrementally_(false),
       sweeping_pending_(false),
-      pending_sweeper_jobs_semaphore_(0),
       sequential_sweeping_(false),
       tracer_(NULL),
       migration_slots_buffer_(NULL),
@@ -92,7 +91,8 @@ class VerifyMarkingVisitor: public ObjectVisitor {
 
   void VisitEmbeddedPointer(RelocInfo* rinfo) {
     ASSERT(rinfo->rmode() == RelocInfo::EMBEDDED_OBJECT);
-    if (!rinfo->host()->IsWeakObject(rinfo->target_object())) {
+    if (!Code::IsWeakEmbeddedObject(rinfo->host()->kind(),
+                                    rinfo->target_object())) {
       Object* p = rinfo->target_object();
       VisitPointer(&p);
     }
@@ -101,7 +101,7 @@ class VerifyMarkingVisitor: public ObjectVisitor {
   void VisitCell(RelocInfo* rinfo) {
     Code* code = rinfo->host();
     ASSERT(rinfo->rmode() == RelocInfo::CELL);
-    if (!code->IsWeakObject(rinfo->target_cell())) {
+    if (!Code::IsWeakEmbeddedObject(code->kind(), rinfo->target_cell())) {
       ObjectVisitor::VisitCell(rinfo);
     }
   }
@@ -569,27 +569,6 @@ void MarkCompactCollector::ClearMarkbits() {
 }
 
 
-class MarkCompactCollector::SweeperTask : public v8::Task {
- public:
-  SweeperTask(Heap* heap, PagedSpace* space)
-    : heap_(heap), space_(space) {}
-
-  virtual ~SweeperTask() {}
-
- private:
-  // v8::Task overrides.
-  virtual void Run() V8_OVERRIDE {
-    heap_->mark_compact_collector()->SweepInParallel(space_);
-    heap_->mark_compact_collector()->pending_sweeper_jobs_semaphore_.Signal();
-  }
-
-  Heap* heap_;
-  PagedSpace* space_;
-
-  DISALLOW_COPY_AND_ASSIGN(SweeperTask);
-};
-
-
 void MarkCompactCollector::StartSweeperThreads() {
   // TODO(hpayer): This check is just used for debugging purpose and
   // should be removed or turned into an assert after investigating the
@@ -600,14 +579,6 @@ void MarkCompactCollector::StartSweeperThreads() {
   for (int i = 0; i < isolate()->num_sweeper_threads(); i++) {
     isolate()->sweeper_threads()[i]->StartSweeping();
   }
-  if (FLAG_job_based_sweeping) {
-    V8::GetCurrentPlatform()->CallOnBackgroundThread(
-        new SweeperTask(heap(), heap()->old_data_space()),
-        v8::Platform::kShortRunningTask);
-    V8::GetCurrentPlatform()->CallOnBackgroundThread(
-        new SweeperTask(heap(), heap()->old_pointer_space()),
-        v8::Platform::kShortRunningTask);
-  }
 }
 
 
@@ -616,12 +587,6 @@ void MarkCompactCollector::WaitUntilSweepingCompleted() {
   for (int i = 0; i < isolate()->num_sweeper_threads(); i++) {
     isolate()->sweeper_threads()[i]->WaitForSweeperThread();
   }
-  if (FLAG_job_based_sweeping) {
-    // Wait twice for both jobs.
-    pending_sweeper_jobs_semaphore_.Wait();
-    pending_sweeper_jobs_semaphore_.Wait();
-  }
-  ParallelSweepSpacesComplete();
   sweeping_pending_ = false;
   RefillFreeLists(heap()->paged_space(OLD_DATA_SPACE));
   RefillFreeLists(heap()->paged_space(OLD_POINTER_SPACE));
@@ -651,7 +616,7 @@ intptr_t MarkCompactCollector::RefillFreeLists(PagedSpace* space) {
 
 
 bool MarkCompactCollector::AreSweeperThreadsActivated() {
-  return isolate()->sweeper_threads() != NULL || FLAG_job_based_sweeping;
+  return isolate()->sweeper_threads() != NULL;
 }
 
 
@@ -3420,6 +3385,13 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
     EvacuateNewSpace();
   }
 
+  // We have to travers our allocation sites scratchpad which contains raw
+  // pointers before we move objects. During new space evacauation we
+  // gathered pretenuring statistics. The found allocation sites may not be
+  // valid after compacting old space.
+  heap()->ProcessPretenuringFeedback();
+
+
   { GCTracer::Scope gc_scope(tracer_, GCTracer::Scope::MC_EVACUATE_PAGES);
     EvacuatePages();
   }
@@ -3946,11 +3918,7 @@ intptr_t MarkCompactCollector::SweepConservatively(PagedSpace* space,
          (mode == MarkCompactCollector::SWEEP_SEQUENTIALLY &&
          free_list == NULL));
 
-  // When parallel sweeping is active, the page will be marked after
-  // sweeping by the main thread.
-  if (mode != MarkCompactCollector::SWEEP_IN_PARALLEL) {
-    p->MarkSweptConservatively();
-  }
+  p->MarkSweptConservatively();
 
   intptr_t freed_bytes = 0;
   size_t size = 0;
@@ -4062,7 +4030,7 @@ void MarkCompactCollector::SweepSpace(PagedSpace* space, SweeperType sweeper) {
   while (it.has_next()) {
     Page* p = it.next();
 
-    ASSERT(p->parallel_sweeping() == MemoryChunk::PARALLEL_SWEEPING_DONE);
+    ASSERT(p->parallel_sweeping() == 0);
     ASSERT(!p->IsEvacuationCandidate());
 
     // Clear sweeping flags indicating that marking bits are still intact.
@@ -4135,7 +4103,7 @@ void MarkCompactCollector::SweepSpace(PagedSpace* space, SweeperType sweeper) {
             PrintF("Sweeping 0x%" V8PRIxPTR " conservatively in parallel.\n",
                    reinterpret_cast<intptr_t>(p));
           }
-          p->set_parallel_sweeping(MemoryChunk::PARALLEL_SWEEPING_PENDING);
+          p->set_parallel_sweeping(1);
           space->IncreaseUnsweptFreeBytes(p);
         }
         break;
@@ -4177,7 +4145,7 @@ void MarkCompactCollector::SweepSpaces() {
 #endif
   SweeperType how_to_sweep =
       FLAG_lazy_sweeping ? LAZY_CONSERVATIVE : CONSERVATIVE;
-  if (AreSweeperThreadsActivated()) {
+  if (isolate()->num_sweeper_threads() > 0) {
     if (FLAG_parallel_sweeping) how_to_sweep = PARALLEL_CONSERVATIVE;
     if (FLAG_concurrent_sweeping) how_to_sweep = CONCURRENT_CONSERVATIVE;
   }
@@ -4224,24 +4192,6 @@ void MarkCompactCollector::SweepSpaces() {
 
   // Deallocate evacuated candidate pages.
   ReleaseEvacuationCandidates();
-}
-
-
-void MarkCompactCollector::ParallelSweepSpaceComplete(PagedSpace* space) {
-  PageIterator it(space);
-  while (it.has_next()) {
-    Page* p = it.next();
-    if (p->parallel_sweeping() == MemoryChunk::PARALLEL_SWEEPING_IN_PROGRESS) {
-      p->set_parallel_sweeping(MemoryChunk::PARALLEL_SWEEPING_DONE);
-      p->MarkSweptConservatively();
-    }
-  }
-}
-
-
-void MarkCompactCollector::ParallelSweepSpacesComplete() {
-  ParallelSweepSpaceComplete(heap()->old_pointer_space());
-  ParallelSweepSpaceComplete(heap()->old_data_space());
 }
 
 

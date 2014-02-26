@@ -1184,7 +1184,6 @@ LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
     case kMathExp: return DoMathExp(instr);
     case kMathSqrt: return DoMathSqrt(instr);
     case kMathPowHalf: return DoMathPowHalf(instr);
-    case kMathClz32: return DoMathClz32(instr);
     default:
       UNREACHABLE();
       return NULL;
@@ -1220,13 +1219,6 @@ LInstruction* LChunkBuilder::DoMathLog(HUnaryMathOperation* instr) {
   ASSERT(instr->value()->representation().IsDouble());
   LOperand* input = UseRegisterAtStart(instr->value());
   return MarkAsCall(DefineSameAsFirst(new(zone()) LMathLog(input)), instr);
-}
-
-
-LInstruction* LChunkBuilder::DoMathClz32(HUnaryMathOperation* instr) {
-  LOperand* input = UseRegisterAtStart(instr->value());
-  LMathClz32* result = new(zone()) LMathClz32(input);
-  return DefineAsRegister(result);
 }
 
 
@@ -1327,10 +1319,10 @@ LInstruction* LChunkBuilder::DoDiv(HDiv* instr) {
     ASSERT(instr->right()->representation().Equals(instr->representation()));
     if (instr->RightIsPowerOf2()) {
       ASSERT(!instr->CheckFlag(HValue::kCanBeDivByZero));
-      LOperand* value = UseRegister(instr->left());
+      LOperand* value = UseRegisterAtStart(instr->left());
       LDivI* div =
           new(zone()) LDivI(value, UseOrConstant(instr->right()), NULL);
-      return AssignEnvironment(DefineAsRegister(div));
+      return AssignEnvironment(DefineSameAsFirst(div));
     }
     // The temporary operand is necessary to ensure that right is not allocated
     // into edx.

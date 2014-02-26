@@ -125,7 +125,6 @@ class LCodeGen;
   V(MapEnumLength)                              \
   V(MathAbs)                                    \
   V(MathExp)                                    \
-  V(MathClz32)                                  \
   V(MathFloor)                                  \
   V(MathFloorOfDiv)                             \
   V(MathLog)                                    \
@@ -800,18 +799,6 @@ class LMathLog V8_FINAL : public LTemplateInstruction<1, 1, 0> {
   LOperand* value() { return inputs_[0]; }
 
   DECLARE_CONCRETE_INSTRUCTION(MathLog, "math-log")
-};
-
-
-class LMathClz32 V8_FINAL : public LTemplateInstruction<1, 1, 0> {
- public:
-  explicit LMathClz32(LOperand* value) {
-    inputs_[0] = value;
-  }
-
-  LOperand* value() { return inputs_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(MathClz32, "math-clz32")
 };
 
 
@@ -2567,6 +2554,7 @@ class LChunkBuilder V8_FINAL : public LChunkBuilderBase {
         current_block_(NULL),
         next_block_(NULL),
         allocator_(allocator),
+        position_(RelocInfo::kNoPosition),
         instruction_pending_deoptimization_environment_(NULL),
         pending_deoptimization_ast_id_(BailoutId::None()) { }
 
@@ -2591,7 +2579,6 @@ class LChunkBuilder V8_FINAL : public LChunkBuilderBase {
   LInstruction* DoMathExp(HUnaryMathOperation* instr);
   LInstruction* DoMathSqrt(HUnaryMathOperation* instr);
   LInstruction* DoMathPowHalf(HUnaryMathOperation* instr);
-  LInstruction* DoMathClz32(HUnaryMathOperation* instr);
 
  private:
   enum Status {
@@ -2703,6 +2690,7 @@ class LChunkBuilder V8_FINAL : public LChunkBuilderBase {
   HBasicBlock* current_block_;
   HBasicBlock* next_block_;
   LAllocator* allocator_;
+  int position_;
   LInstruction* instruction_pending_deoptimization_environment_;
   BailoutId pending_deoptimization_ast_id_;
 

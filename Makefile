@@ -223,11 +223,11 @@ endif
 
 # Architectures and modes to be compiled. Consider these to be internal
 # variables, don't override them (use the targets instead).
-ARCHES = ia32 x64 arm a64 mipsel
+ARCHES = ia32 x64 arm mipsel
 DEFAULT_ARCHES = ia32 x64 arm
 MODES = release debug optdebug
 DEFAULT_MODES = release debug
-ANDROID_ARCHES = android_ia32 android_arm android_a64 android_mipsel
+ANDROID_ARCHES = android_ia32 android_arm android_mipsel
 NACL_ARCHES = nacl_ia32 nacl_x64
 
 # List of files that trigger Makefile regeneration:
@@ -359,12 +359,11 @@ native.check: native
 	    --arch-and-mode=. $(TESTFLAGS)
 
 FASTTESTMODES = ia32.release,x64.release,ia32.optdebug,x64.optdebug,arm.optdebug
-FASTCOMPILEMODES = $(FASTTESTMODES),a64.optdebug
 
 COMMA = ,
 EMPTY =
 SPACE = $(EMPTY) $(EMPTY)
-quickcheck: $(subst $(COMMA),$(SPACE),$(FASTCOMPILEMODES))
+quickcheck: $(subst $(COMMA),$(SPACE),$(FASTTESTMODES))
 	tools/run-tests.py $(TESTJOBS) --outdir=$(OUTDIR) \
 	    --arch-and-mode=$(FASTTESTMODES) $(TESTFLAGS) --quickcheck
 qc: quickcheck
@@ -393,7 +392,7 @@ $(OUT_MAKEFILES): $(GYPFILES) $(ENVFILE)
 	build/gyp/gyp --generator-output="$(OUTDIR)" build/all.gyp \
 	              -Ibuild/standalone.gypi --depth=. \
 	              -Dv8_target_arch=$(subst .,,$(suffix $(basename $@))) \
-	              $(if $(findstring optdebug,$@),-Dv8_optimized_debug=2,) \
+	              -Dv8_optimized_debug=$(if $(findstring optdebug,$@),2,0) \
 	              -S$(suffix $(basename $@))$(suffix $@) $(GYPFLAGS)
 
 $(OUTDIR)/Makefile.native: $(GYPFILES) $(ENVFILE)

@@ -87,7 +87,7 @@ void LCodeGen::FinishCode(Handle<Code> code) {
   ASSERT(is_done());
   code->set_stack_slots(GetStackSlotCount());
   code->set_safepoint_table_offset(safepoints_.GetCodeOffset());
-  if (code->is_optimized_code()) RegisterWeakObjectsInOptimizedCode(code);
+  RegisterDependentCodeForEmbeddedMaps(code);
   PopulateDeoptimizationData(code);
   info()->CommitDependencies(code);
 }
@@ -328,8 +328,7 @@ bool LCodeGen::GenerateDeferredCode() {
 
       HValue* value =
           instructions_->at(code->instruction_index())->hydrogen_value();
-      RecordAndWritePosition(
-          chunk()->graph()->SourcePositionToScriptPosition(value->position()));
+      RecordAndWritePosition(value->position());
 
       Comment(";;; <@%d,#%d> "
               "-------------------- Deferred %s --------------------",
@@ -792,7 +791,6 @@ void LCodeGen::PopulateDeoptimizationData(Handle<Code> code) {
       translations_.CreateByteArray(isolate()->factory());
   data->SetTranslationByteArray(*translations);
   data->SetInlinedFunctionCount(Smi::FromInt(inlined_function_count_));
-  data->SetOptimizationId(Smi::FromInt(info_->optimization_id()));
 
   Handle<FixedArray> literals =
       factory()->NewFixedArray(deoptimization_literals_.length(), TENURED);
@@ -1152,38 +1150,55 @@ void LCodeGen::DoMathFloorOfDiv(LMathFloorOfDiv* instr) {
 void LCodeGen::DoDivI(LDivI* instr) {
   if (!instr->is_flooring() && instr->hydrogen()->RightIsPowerOf2()) {
     Register dividend = ToRegister(instr->left());
-    HDiv* hdiv = instr->hydrogen();
-    int32_t divisor = hdiv->right()->GetInteger32Constant();
-    Register result = ToRegister(instr->result());
-    ASSERT(!result.is(dividend));
+    int32_t divisor =
+        HConstant::cast(instr->hydrogen()->right())->Integer32Value();
+    int32_t test_value = 0;
+    int32_t power = 0;
 
-    // Check for (0 / -x) that will produce negative zero.
-    if (hdiv->left()->RangeCanInclude(0) && divisor < 0 &&
-          hdiv->CheckFlag(HValue::kBailoutOnMinusZero)) {
-      __ testl(dividend, dividend);
-      DeoptimizeIf(zero, instr->environment());
+    if (divisor > 0) {
+      test_value = divisor - 1;
+      power = WhichPowerOf2(divisor);
+    } else {
+      // Check for (0 / -x) that will produce negative zero.
+      if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+        __ testl(dividend, dividend);
+        DeoptimizeIf(zero, instr->environment());
+      }
+      // Check for (kMinInt / -1).
+      if (divisor == -1 && instr->hydrogen()->CheckFlag(HValue::kCanOverflow)) {
+        __ cmpl(dividend, Immediate(kMinInt));
+        DeoptimizeIf(zero, instr->environment());
+      }
+      test_value = - divisor - 1;
+      power = WhichPowerOf2(-divisor);
     }
-    // Check for (kMinInt / -1).
-    if (hdiv->left()->RangeCanInclude(kMinInt) && divisor == -1 &&
-        hdiv->CheckFlag(HValue::kCanOverflow)) {
-      __ cmpl(dividend, Immediate(kMinInt));
-      DeoptimizeIf(zero, instr->environment());
+
+    if (test_value != 0) {
+      if (instr->hydrogen()->CheckFlag(
+          HInstruction::kAllUsesTruncatingToInt32)) {
+        Label done, negative;
+        __ cmpl(dividend, Immediate(0));
+        __ j(less, &negative, Label::kNear);
+        __ sarl(dividend, Immediate(power));
+        if (divisor < 0) __ negl(dividend);
+        __ jmp(&done, Label::kNear);
+
+        __ bind(&negative);
+        __ negl(dividend);
+        __ sarl(dividend, Immediate(power));
+        if (divisor > 0) __ negl(dividend);
+        __ bind(&done);
+        return;  // Don't fall through to "__ neg" below.
+      } else {
+        // Deoptimize if remainder is not 0.
+        __ testl(dividend, Immediate(test_value));
+        DeoptimizeIf(not_zero, instr->environment());
+        __ sarl(dividend, Immediate(power));
+      }
     }
-    // Deoptimize if remainder will not be 0.
-    if (!hdiv->CheckFlag(HInstruction::kAllUsesTruncatingToInt32)) {
-      __ testl(dividend, Immediate(Abs(divisor) - 1));
-      DeoptimizeIf(not_zero, instr->environment());
-    }
-    __ Move(result, dividend);
-    int32_t shift = WhichPowerOf2(Abs(divisor));
-    if (shift > 0) {
-      // The arithmetic shift is always OK, the 'if' is an optimization only.
-      if (shift > 1) __ sarl(result, Immediate(31));
-      __ shrl(result, Immediate(32 - shift));
-      __ addl(result, dividend);
-      __ sarl(result, Immediate(shift));
-    }
-    if (divisor < 0) __ negl(result);
+
+    if (divisor < 0) __ negl(dividend);
+
     return;
   }
 
@@ -2764,12 +2779,6 @@ void LCodeGen::DoLoadNamedField(LLoadNamedField* instr) {
   Representation representation = access.representation();
   if (representation.IsSmi() &&
       instr->hydrogen()->representation().IsInteger32()) {
-#ifdef DEBUG
-    Register scratch = kScratchRegister;
-    __ Load(scratch, FieldOperand(object, offset), representation);
-    __ AssertSmi(scratch);
-#endif
-
     // Read int value directly from upper half of the smi.
     STATIC_ASSERT(kSmiTag == 0);
     STATIC_ASSERT(kSmiTagSize + kSmiShiftSize == 32);
@@ -3015,17 +3024,6 @@ void LCodeGen::DoLoadKeyedFixedArray(LLoadKeyed* instr) {
   if (representation.IsInteger32() &&
       hinstr->elements_kind() == FAST_SMI_ELEMENTS) {
     ASSERT(!requires_hole_check);
-#ifdef DEBUG
-    Register scratch = kScratchRegister;
-    __ Load(scratch,
-            BuildFastArrayOperand(instr->elements(),
-                                  key,
-                                  FAST_ELEMENTS,
-                                  offset,
-                                  instr->additional_index()),
-            Representation::Smi());
-    __ AssertSmi(scratch);
-#endif
     // Read int value directly from upper half of the smi.
     STATIC_ASSERT(kSmiTag == 0);
     STATIC_ASSERT(kSmiTagSize + kSmiShiftSize == 32);
@@ -3314,7 +3312,7 @@ void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
     if (function.is_identical_to(info()->closure())) {
       __ CallSelf();
     } else {
-      __ Call(FieldOperand(rdi, JSFunction::kCodeEntryOffset));
+      __ call(FieldOperand(rdi, JSFunction::kCodeEntryOffset));
     }
 
     // Set up deoptimization.
@@ -3379,7 +3377,7 @@ void LCodeGen::DoCallJSFunction(LCallJSFunction* instr) {
   } else {
     Operand target = FieldOperand(rdi, JSFunction::kCodeEntryOffset);
     generator.BeforeCall(__ CallSize(target));
-    __ Call(target);
+    __ call(target);
   }
   generator.AfterCall();
 }
@@ -3729,20 +3727,6 @@ void LCodeGen::DoMathLog(LMathLog* instr) {
 }
 
 
-void LCodeGen::DoMathClz32(LMathClz32* instr) {
-  Register input = ToRegister(instr->value());
-  Register result = ToRegister(instr->result());
-  Label not_zero_input;
-  __ bsrl(result, input);
-
-  __ j(not_zero, &not_zero_input);
-  __ Set(result, 63);  // 63^31 == 32
-
-  __ bind(&not_zero_input);
-  __ xorl(result, Immediate(31));  // for x in [0..31], 31^x == 31-x.
-}
-
-
 void LCodeGen::DoInvokeFunction(LInvokeFunction* instr) {
   ASSERT(ToRegister(instr->context()).is(rsi));
   ASSERT(ToRegister(instr->function()).is(rdi));
@@ -3871,6 +3855,7 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
     Register value = ToRegister(instr->value());
     if (instr->object()->IsConstantOperand()) {
       ASSERT(value.is(rax));
+      ASSERT(!access.representation().IsSpecialization());
       LConstantOperand* object = LConstantOperand::cast(instr->object());
       __ store_rax(ToExternalReference(object));
     } else {
@@ -3882,8 +3867,6 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
 
   Register object = ToRegister(instr->object());
   Handle<Map> transition = instr->transition();
-  SmiCheck check_needed = hinstr->value()->IsHeapObject()
-                          ? OMIT_SMI_CHECK : INLINE_SMI_CHECK;
 
   if (FLAG_track_fields && representation.IsSmi()) {
     if (instr->value()->IsConstantOperand()) {
@@ -3904,9 +3887,6 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
         Register value = ToRegister(instr->value());
         Condition cc = masm()->CheckSmi(value);
         DeoptimizeIf(cc, instr->environment());
-
-        // We know that value is a smi now, so we can omit the check below.
-        check_needed = OMIT_SMI_CHECK;
       }
     }
   } else if (representation.IsDouble()) {
@@ -3937,6 +3917,9 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
   }
 
   // Do the store.
+  SmiCheck check_needed = hinstr->value()->IsHeapObject()
+                          ? OMIT_SMI_CHECK : INLINE_SMI_CHECK;
+
   Register write_register = object;
   if (!access.IsInobject()) {
     write_register = ToRegister(instr->temp());
@@ -3946,11 +3929,6 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
   if (representation.IsSmi() &&
       hinstr->value()->representation().IsInteger32()) {
     ASSERT(hinstr->store_mode() == STORE_TO_INITIALIZED_ENTRY);
-#ifdef DEBUG
-    Register scratch = kScratchRegister;
-    __ Load(scratch, FieldOperand(write_register, offset), representation);
-    __ AssertSmi(scratch);
-#endif
     // Store int value directly to upper half of the smi.
     STATIC_ASSERT(kSmiTag == 0);
     STATIC_ASSERT(kSmiTagSize + kSmiShiftSize == 32);
@@ -4204,17 +4182,6 @@ void LCodeGen::DoStoreKeyedFixedArray(LStoreKeyed* instr) {
   if (representation.IsInteger32()) {
     ASSERT(hinstr->store_mode() == STORE_TO_INITIALIZED_ENTRY);
     ASSERT(hinstr->elements_kind() == FAST_SMI_ELEMENTS);
-#ifdef DEBUG
-    Register scratch = kScratchRegister;
-    __ Load(scratch,
-            BuildFastArrayOperand(instr->elements(),
-                                  key,
-                                  FAST_ELEMENTS,
-                                  offset,
-                                  instr->additional_index()),
-            Representation::Smi());
-    __ AssertSmi(scratch);
-#endif
     // Store int value directly to upper half of the smi.
     STATIC_ASSERT(kSmiTag == 0);
     STATIC_ASSERT(kSmiTagSize + kSmiShiftSize == 32);

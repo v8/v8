@@ -66,7 +66,7 @@ class LCodeGenBase BASE_EMBEDDED {
 
   int GetNextEmittedBlock() const;
 
-  void RegisterWeakObjectsInOptimizedCode(Handle<Code> code);
+  void RegisterDependentCodeForEmbeddedMaps(Handle<Code> code);
 
  protected:
   enum Status {

@@ -231,7 +231,6 @@ class Genesis BASE_EMBEDDED {
   // Installs the contents of the native .js files on the global objects.
   // Used for creating a context from scratch.
   void InstallNativeFunctions();
-  void InstallExperimentalBuiltinFunctionIds();
   void InstallExperimentalNativeFunctions();
   Handle<JSFunction> InstallInternalArray(Handle<JSBuiltinsObject> builtins,
                                           const char* name,
@@ -1583,9 +1582,6 @@ void Genesis::InstallNativeFunctions() {
 
 void Genesis::InstallExperimentalNativeFunctions() {
   INSTALL_NATIVE(JSFunction, "RunMicrotasks", run_microtasks);
-  INSTALL_NATIVE(JSFunction, "EnqueueExternalMicrotask",
-                 enqueue_external_microtask);
-
   if (FLAG_harmony_proxies) {
     INSTALL_NATIVE(JSFunction, "DerivedHasTrap", derived_has_trap);
     INSTALL_NATIVE(JSFunction, "DerivedGetTrap", derived_get_trap);
@@ -2061,7 +2057,7 @@ bool Genesis::InstallExperimentalNatives() {
   }
 
   InstallExperimentalNativeFunctions();
-  InstallExperimentalBuiltinFunctionIds();
+
   return true;
 }
 
@@ -2108,15 +2104,6 @@ void Genesis::InstallBuiltinFunctionIds() {
   }
   FUNCTIONS_WITH_ID_LIST(INSTALL_BUILTIN_ID)
 #undef INSTALL_BUILTIN_ID
-}
-
-
-void Genesis::InstallExperimentalBuiltinFunctionIds() {
-  HandleScope scope(isolate());
-  if (FLAG_harmony_maths) {
-    Handle<JSObject> holder = ResolveBuiltinIdHolder(native_context(), "Math");
-    InstallBuiltinFunctionId(holder, "clz32", kMathClz32);
-  }
 }
 
 
@@ -2579,9 +2566,7 @@ class NoTrackDoubleFieldsForSerializerScope {
     }
   }
   ~NoTrackDoubleFieldsForSerializerScope() {
-    if (Serializer::enabled()) {
-      FLAG_track_double_fields = flag_;
-    }
+    FLAG_track_double_fields = flag_;
   }
 
  private:

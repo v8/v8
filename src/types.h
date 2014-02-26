@@ -560,10 +560,6 @@ struct BoundsImpl {
     TypeHandle upper = Type::Intersect(b.upper, t, region);
     return BoundsImpl(lower, upper);
   }
-
-  bool Narrows(BoundsImpl that) {
-    return that.lower->Is(this->lower) && this->upper->Is(that.upper);
-  }
 };
 
 typedef BoundsImpl<ZoneTypeConfig> Bounds;

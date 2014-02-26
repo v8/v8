@@ -103,7 +103,7 @@ void LCodeGen::FinishCode(Handle<Code> code) {
   ASSERT(is_done());
   code->set_stack_slots(GetStackSlotCount());
   code->set_safepoint_table_offset(safepoints_.GetCodeOffset());
-  if (code->is_optimized_code()) RegisterWeakObjectsInOptimizedCode(code);
+  RegisterDependentCodeForEmbeddedMaps(code);
   PopulateDeoptimizationData(code);
   if (!info()->IsStub()) {
     Deoptimizer::EnsureRelocSpaceForLazyDeoptimization(code);
@@ -476,8 +476,7 @@ bool LCodeGen::GenerateDeferredCode() {
 
       HValue* value =
           instructions_->at(code->instruction_index())->hydrogen_value();
-      RecordAndWritePosition(
-          chunk()->graph()->SourcePositionToScriptPosition(value->position()));
+      RecordAndWritePosition(value->position());
 
       Comment(";;; <@%d,#%d> "
               "-------------------- Deferred %s --------------------",
@@ -1179,7 +1178,6 @@ void LCodeGen::PopulateDeoptimizationData(Handle<Code> code) {
       translations_.CreateByteArray(isolate()->factory());
   data->SetTranslationByteArray(*translations);
   data->SetInlinedFunctionCount(Smi::FromInt(inlined_function_count_));
-  data->SetOptimizationId(Smi::FromInt(info_->optimization_id()));
 
   Handle<FixedArray> literals =
       factory()->NewFixedArray(deoptimization_literals_.length(), TENURED);
@@ -1453,39 +1451,54 @@ void LCodeGen::DoModI(LModI* instr) {
 void LCodeGen::DoDivI(LDivI* instr) {
   if (!instr->is_flooring() && instr->hydrogen()->RightIsPowerOf2()) {
     Register dividend = ToRegister(instr->left());
-    HDiv* hdiv = instr->hydrogen();
-    int32_t divisor = hdiv->right()->GetInteger32Constant();
-    Register result = ToRegister(instr->result());
-    ASSERT(!result.is(dividend));
+    int32_t divisor = instr->hydrogen()->right()->GetInteger32Constant();
+    int32_t test_value = 0;
+    int32_t power = 0;
 
-    // Check for (0 / -x) that will produce negative zero.
-    if (hdiv->left()->RangeCanInclude(0) && divisor < 0 &&
-        hdiv->CheckFlag(HValue::kBailoutOnMinusZero)) {
-      __ test(dividend, Operand(dividend));
-      DeoptimizeIf(zero, instr->environment());
+    if (divisor > 0) {
+      test_value = divisor - 1;
+      power = WhichPowerOf2(divisor);
+    } else {
+      // Check for (0 / -x) that will produce negative zero.
+      if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+        __ test(dividend, Operand(dividend));
+        DeoptimizeIf(zero, instr->environment());
+      }
+      // Check for (kMinInt / -1).
+      if (divisor == -1 && instr->hydrogen()->CheckFlag(HValue::kCanOverflow)) {
+        __ cmp(dividend, kMinInt);
+        DeoptimizeIf(zero, instr->environment());
+      }
+      test_value = - divisor - 1;
+      power = WhichPowerOf2(-divisor);
     }
-    // Check for (kMinInt / -1).
-    if (hdiv->left()->RangeCanInclude(kMinInt) && divisor == -1 &&
-        hdiv->CheckFlag(HValue::kCanOverflow)) {
-      __ cmp(dividend, kMinInt);
-      DeoptimizeIf(zero, instr->environment());
-    }
-    // Deoptimize if remainder will not be 0.
-    if (!hdiv->CheckFlag(HInstruction::kAllUsesTruncatingToInt32) &&
-        Abs(divisor) != 1) {
-        __ test(dividend, Immediate(Abs(divisor) - 1));
+
+    if (test_value != 0) {
+      if (instr->hydrogen()->CheckFlag(
+          HInstruction::kAllUsesTruncatingToInt32)) {
+        Label done, negative;
+        __ cmp(dividend, 0);
+        __ j(less, &negative, Label::kNear);
+        __ sar(dividend, power);
+        if (divisor < 0) __ neg(dividend);
+        __ jmp(&done, Label::kNear);
+
+        __ bind(&negative);
+        __ neg(dividend);
+        __ sar(dividend, power);
+        if (divisor > 0) __ neg(dividend);
+        __ bind(&done);
+        return;  // Don't fall through to "__ neg" below.
+      } else {
+        // Deoptimize if remainder is not 0.
+        __ test(dividend, Immediate(test_value));
         DeoptimizeIf(not_zero, instr->environment());
+        __ sar(dividend, power);
+      }
     }
-    __ Move(result, dividend);
-    int32_t shift = WhichPowerOf2(Abs(divisor));
-    if (shift > 0) {
-      // The arithmetic shift is always OK, the 'if' is an optimization only.
-      if (shift > 1) __ sar(result, 31);
-      __ shr(result, 32 - shift);
-      __ add(result, dividend);
-      __ sar(result, shift);
-    }
-    if (divisor < 0) __ neg(result);
+
+    if (divisor < 0) __ neg(dividend);
+
     return;
   }
 
@@ -4123,21 +4136,6 @@ void LCodeGen::DoMathLog(LMathLog* instr) {
 }
 
 
-void LCodeGen::DoMathClz32(LMathClz32* instr) {
-  CpuFeatureScope scope(masm(), SSE2);
-  Register input = ToRegister(instr->value());
-  Register result = ToRegister(instr->result());
-  Label not_zero_input;
-  __ bsr(result, input);
-
-  __ j(not_zero, &not_zero_input);
-  __ Set(result, Immediate(63));  // 63^31 == 32
-
-  __ bind(&not_zero_input);
-  __ xor_(result, Immediate(31));  // for x in [0..31], 31^x == 31-x.
-}
-
-
 void LCodeGen::DoMathExp(LMathExp* instr) {
   CpuFeatureScope scope(masm(), SSE2);
   XMMRegister input = ToDoubleRegister(instr->value());
@@ -4291,9 +4289,6 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
 
   Register object = ToRegister(instr->object());
   Handle<Map> transition = instr->transition();
-  SmiCheck check_needed =
-      instr->hydrogen()->value()->IsHeapObject()
-          ? OMIT_SMI_CHECK : INLINE_SMI_CHECK;
 
   if (FLAG_track_fields && representation.IsSmi()) {
     if (instr->value()->IsConstantOperand()) {
@@ -4313,9 +4308,6 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
         Register value = ToRegister(instr->value());
         __ test(value, Immediate(kSmiTagMask));
         DeoptimizeIf(zero, instr->environment());
-
-        // We know that value is a smi now, so we can omit the check below.
-        check_needed = OMIT_SMI_CHECK;
       }
     }
   } else if (representation.IsDouble()) {
@@ -4353,6 +4345,10 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
   }
 
   // Do the store.
+  SmiCheck check_needed =
+      instr->hydrogen()->value()->IsHeapObject()
+          ? OMIT_SMI_CHECK : INLINE_SMI_CHECK;
+
   Register write_register = object;
   if (!access.IsInobject()) {
     write_register = ToRegister(instr->temp());

@@ -50,8 +50,6 @@ class DefaultPlatform : public Platform {
 
   void SetThreadPoolSize(int thread_pool_size);
 
-  void EnsureInitialized();
-
   // v8::Platform implementation.
   virtual void CallOnBackgroundThread(
       Task *task, ExpectedRuntime expected_runtime) V8_OVERRIDE;
@@ -60,6 +58,8 @@ class DefaultPlatform : public Platform {
 
  private:
   static const int kMaxThreadPoolSize = 4;
+
+  void EnsureInitialized();
 
   Mutex lock_;
   bool initialized_;

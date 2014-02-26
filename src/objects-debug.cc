@@ -367,7 +367,7 @@ void PolymorphicCodeCache::PolymorphicCodeCacheVerify() {
 void TypeFeedbackInfo::TypeFeedbackInfoVerify() {
   VerifyObjectField(kStorage1Offset);
   VerifyObjectField(kStorage2Offset);
-  VerifyHeapPointer(feedback_vector());
+  VerifyHeapPointer(type_feedback_cells());
 }
 
 
@@ -490,6 +490,7 @@ void JSMessageObject::JSMessageObjectVerify() {
   VerifyObjectField(kEndPositionOffset);
   VerifyObjectField(kArgumentsOffset);
   VerifyObjectField(kScriptOffset);
+  VerifyObjectField(kStackTraceOffset);
   VerifyObjectField(kStackFramesOffset);
 }
 
@@ -635,7 +636,7 @@ void Code::VerifyEmbeddedObjectsDependency() {
   int mode_mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
   for (RelocIterator it(this, mode_mask); !it.done(); it.next()) {
     Object* obj = it.rinfo()->target_object();
-    if (IsWeakObject(obj)) {
+    if (IsWeakEmbeddedObject(kind(), obj)) {
       if (obj->IsMap()) {
         Map* map = Map::cast(obj);
         CHECK(map->dependent_code()->Contains(

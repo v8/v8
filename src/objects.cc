@@ -80,8 +80,6 @@ MaybeObject* Object::ToObject(Context* native_context) {
     return CreateJSValue(native_context->boolean_function(), this);
   } else if (IsString()) {
     return CreateJSValue(native_context->string_function(), this);
-  } else if (IsSymbol()) {
-    return CreateJSValue(native_context->symbol_function(), this);
   }
   ASSERT(IsJSObject());
   return this;
@@ -689,7 +687,7 @@ PropertyAttributes JSObject::GetPropertyAttributeWithFailedAccessCheck(
 }
 
 
-Object* JSObject::GetNormalizedProperty(const LookupResult* result) {
+Object* JSObject::GetNormalizedProperty(LookupResult* result) {
   ASSERT(!HasFastProperties());
   Object* value = property_dictionary()->ValueAt(result->GetDictionaryEntry());
   if (IsGlobalObject()) {
@@ -701,7 +699,7 @@ Object* JSObject::GetNormalizedProperty(const LookupResult* result) {
 
 
 void JSObject::SetNormalizedProperty(Handle<JSObject> object,
-                                     const LookupResult* result,
+                                     LookupResult* result,
                                      Handle<Object> value) {
   ASSERT(!object->HasFastProperties());
   NameDictionary* property_dictionary = object->property_dictionary();
@@ -734,7 +732,7 @@ void JSObject::SetNormalizedProperty(Handle<JSObject> object,
   Handle<NameDictionary> property_dictionary(object->property_dictionary());
 
   if (!name->IsUniqueName()) {
-    name = object->GetIsolate()->factory()->InternalizeString(
+    name = object->GetIsolate()->factory()->InternalizedStringFromString(
         Handle<String>::cast(name));
   }
 
@@ -2154,7 +2152,7 @@ Handle<Object> JSObject::AddProperty(Handle<JSObject> object,
   Isolate* isolate = object->GetIsolate();
 
   if (!name->IsUniqueName()) {
-    name = isolate->factory()->InternalizeString(
+    name = isolate->factory()->InternalizedStringFromString(
         Handle<String>::cast(name));
   }
 
@@ -3137,7 +3135,7 @@ static int AppendUniqueCallbacks(NeanderArray* callbacks,
     Handle<AccessorInfo> entry(AccessorInfo::cast(callbacks->get(i)));
     if (entry->name()->IsUniqueName()) continue;
     Handle<String> key =
-        isolate->factory()->InternalizeString(
+        isolate->factory()->InternalizedStringFromString(
             Handle<String>(String::cast(entry->name())));
     entry->set_name(*key);
   }
@@ -7511,11 +7509,9 @@ MaybeObject* CodeCache::UpdateNormalTypeCache(Name* name, Code* code) {
 
 
 Object* CodeCache::Lookup(Name* name, Code::Flags flags) {
-  Object* result = LookupDefaultCache(name, Code::RemoveTypeFromFlags(flags));
-  if (result->IsCode()) {
-    if (Code::cast(result)->flags() == flags) return result;
-    return GetHeap()->undefined_value();
-  }
+  flags = Code::RemoveTypeFromFlags(flags);
+  Object* result = LookupDefaultCache(name, flags);
+  if (result->IsCode()) return result;
   return LookupNormalTypeCache(name, flags);
 }
 
@@ -10635,18 +10631,18 @@ void Code::ClearInlineCaches(Code::Kind* kind) {
 }
 
 
-void Code::ClearTypeFeedbackInfo(Heap* heap) {
+void Code::ClearTypeFeedbackCells(Heap* heap) {
   if (kind() != FUNCTION) return;
   Object* raw_info = type_feedback_info();
   if (raw_info->IsTypeFeedbackInfo()) {
-    FixedArray* feedback_vector =
-        TypeFeedbackInfo::cast(raw_info)->feedback_vector();
-    for (int i = 0; i < feedback_vector->length(); i++) {
-      Object* obj = feedback_vector->get(i);
-      if (!obj->IsAllocationSite()) {
-        // TODO(mvstanton): Can't I avoid a write barrier for this sentinel?
-        feedback_vector->set(i,
-                             TypeFeedbackInfo::RawUninitializedSentinel(heap));
+    TypeFeedbackCells* type_feedback_cells =
+        TypeFeedbackInfo::cast(raw_info)->type_feedback_cells();
+    for (int i = 0; i < type_feedback_cells->CellCount(); i++) {
+      Cell* cell = type_feedback_cells->GetCell(i);
+      // Don't clear AllocationSites
+      Object* value = cell->value();
+      if (value == NULL || !value->IsAllocationSite()) {
+        cell->set_value(TypeFeedbackCells::RawUninitializedSentinel(heap));
       }
     }
   }
@@ -11095,7 +11091,8 @@ void Code::Disassemble(const char* name, FILE* out) {
   }
   if (is_inline_cache_stub()) {
     PrintF(out, "ic_state = %s\n", ICState2String(ic_state()));
-    PrintExtraICState(out, kind(), extra_ic_state());
+    PrintExtraICState(out, kind(), needs_extended_extra_ic_state(kind()) ?
+        extended_extra_ic_state() : extra_ic_state());
     if (ic_state() == MONOMORPHIC) {
       PrintF(out, "type = %s\n", StubType2String(type()));
     }
@@ -11268,6 +11265,24 @@ MaybeObject* JSObject::SetFastElementsCapacityAndLength(
     JSArray::cast(this)->set_length(Smi::FromInt(length));
   }
   return new_elements;
+}
+
+
+bool Code::IsWeakEmbeddedObject(Kind kind, Object* object) {
+  if (kind != Code::OPTIMIZED_FUNCTION) return false;
+
+  if (object->IsMap()) {
+    return Map::cast(object)->CanTransition() &&
+           FLAG_collect_maps &&
+           FLAG_weak_embedded_maps_in_optimized_code;
+  }
+
+  if (object->IsJSObject() ||
+      (object->IsCell() && Cell::cast(object)->value()->IsJSObject())) {
+    return FLAG_weak_embedded_objects_in_optimized_code;
+  }
+
+  return false;
 }
 
 
@@ -11749,14 +11764,23 @@ bool DependentCode::MarkCodeForDeoptimization(
   // Mark all the code that needs to be deoptimized.
   bool marked = false;
   for (int i = start; i < end; i++) {
-    if (is_code_at(i)) {
-      Code* code = code_at(i);
+    Object* object = object_at(i);
+    // TODO(hpayer): This is a temporary hack. Foreign objects move after
+    // new space evacuation. Since pretenuring may mark these objects as aborted
+    // we have to follow the forwarding pointer in that case.
+    MapWord map_word = HeapObject::cast(object)->map_word();
+    if (map_word.IsForwardingAddress()) {
+      object = map_word.ToForwardingAddress();
+    }
+    if (object->IsCode()) {
+      Code* code = Code::cast(object);
       if (!code->marked_for_deoptimization()) {
         code->set_marked_for_deoptimization(true);
         marked = true;
       }
     } else {
-      CompilationInfo* info = compilation_info_at(i);
+      CompilationInfo* info = reinterpret_cast<CompilationInfo*>(
+          Foreign::cast(object)->foreign_address());
       info->AbortDueToDependencyChange();
     }
   }
@@ -15492,7 +15516,8 @@ int Dictionary<Shape, Key>::NumberOfElementsFilterAttributes(
   int result = 0;
   for (int i = 0; i < capacity; i++) {
     Object* k = HashTable<Shape, Key>::KeyAt(i);
-    if (HashTable<Shape, Key>::IsKey(k) && !FilterKey(k, filter)) {
+    if (HashTable<Shape, Key>::IsKey(k) &&
+        !FilterKey(k, filter)) {
       PropertyDetails details = DetailsAt(i);
       if (details.IsDeleted()) continue;
       PropertyAttributes attr = details.attributes();
@@ -15515,12 +15540,12 @@ void Dictionary<Shape, Key>::CopyKeysTo(
     FixedArray* storage,
     PropertyAttributes filter,
     typename Dictionary<Shape, Key>::SortMode sort_mode) {
-  ASSERT(storage->length() >= NumberOfElementsFilterAttributes(filter));
+  ASSERT(storage->length() >= NumberOfEnumElements());
   int capacity = HashTable<Shape, Key>::Capacity();
   int index = 0;
   for (int i = 0; i < capacity; i++) {
      Object* k = HashTable<Shape, Key>::KeyAt(i);
-     if (HashTable<Shape, Key>::IsKey(k) && !FilterKey(k, filter)) {
+     if (HashTable<Shape, Key>::IsKey(k)) {
        PropertyDetails details = DetailsAt(i);
        if (details.IsDeleted()) continue;
        PropertyAttributes attr = details.attributes();
@@ -15582,11 +15607,12 @@ void Dictionary<Shape, Key>::CopyKeysTo(
     int index,
     PropertyAttributes filter,
     typename Dictionary<Shape, Key>::SortMode sort_mode) {
-  ASSERT(storage->length() >= NumberOfElementsFilterAttributes(filter));
+  ASSERT(storage->length() >= NumberOfElementsFilterAttributes(
+      static_cast<PropertyAttributes>(NONE)));
   int capacity = HashTable<Shape, Key>::Capacity();
   for (int i = 0; i < capacity; i++) {
     Object* k = HashTable<Shape, Key>::KeyAt(i);
-    if (HashTable<Shape, Key>::IsKey(k) && !FilterKey(k, filter)) {
+    if (HashTable<Shape, Key>::IsKey(k)) {
       PropertyDetails details = DetailsAt(i);
       if (details.IsDeleted()) continue;
       PropertyAttributes attr = details.attributes();
@@ -15708,7 +15734,6 @@ MaybeObject* NameDictionary::TransformPropertiesToFastFor(
         // instance descriptor.
         MaybeObject* maybe_key = heap->InternalizeString(String::cast(k));
         if (!maybe_key->To(&key)) return maybe_key;
-        if (key->Equals(heap->empty_string())) return this;
       }
 
       PropertyDetails details = DetailsAt(i);

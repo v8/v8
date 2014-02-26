@@ -320,7 +320,8 @@ class LoadIC: public IC {
     GenerateMiss(masm);
   }
   static void GenerateMiss(MacroAssembler* masm);
-  static void GenerateMegamorphic(MacroAssembler* masm);
+  static void GenerateMegamorphic(MacroAssembler* masm,
+                                  ExtraICState extra_state);
   static void GenerateNormal(MacroAssembler* masm);
   static void GenerateRuntimeGetProperty(MacroAssembler* masm);
 
@@ -481,7 +482,8 @@ class StoreIC: public IC {
     GenerateMiss(masm);
   }
   static void GenerateMiss(MacroAssembler* masm);
-  static void GenerateMegamorphic(MacroAssembler* masm);
+  static void GenerateMegamorphic(MacroAssembler* masm,
+                                  ExtraICState extra_ic_state);
   static void GenerateNormal(MacroAssembler* masm);
   static void GenerateRuntimeSetProperty(MacroAssembler* masm,
                                          StrictModeFlag strict_mode);
