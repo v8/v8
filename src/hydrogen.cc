@@ -5230,7 +5230,7 @@ HInstruction* HOptimizedGraphBuilder::BuildStoreNamedField(
   }
 
   HObjectAccess field_access = HObjectAccess::ForField(map, lookup, name);
-  bool transition_to_field = lookup->IsTransitionToField(*map);
+  bool transition_to_field = lookup->IsTransitionToField();
 
   HStoreNamedField *instr;
   if (FLAG_track_double_fields && field_access.representation().IsDouble()) {
@@ -5266,7 +5266,7 @@ HInstruction* HOptimizedGraphBuilder::BuildStoreNamedField(
   }
 
   if (transition_to_field) {
-    Handle<Map> transition(lookup->GetTransitionMapFromMap(*map));
+    Handle<Map> transition(lookup->GetTransitionTarget());
     HConstant* transition_constant = Add<HConstant>(transition);
     instr->SetTransition(transition_constant, top_info());
     // TODO(fschneider): Record the new map type of the object in the IR to
@@ -5306,7 +5306,7 @@ static bool ComputeStoreField(Handle<Map> type,
   if (!lookup_transition) return false;
 
   type->LookupTransition(NULL, *name, lookup);
-  return lookup->IsTransitionToField(*type) &&
+  return lookup->IsTransitionToField() &&
       (type->unused_property_fields() > 0);
 }
 
