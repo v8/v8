@@ -34,6 +34,7 @@
 #include "macro-assembler.h"
 #include "a64/assembler-a64.h"
 #include "a64/macro-assembler-a64.h"
+#include "a64/decoder-a64-inl.h"
 #include "a64/disasm-a64.h"
 #include "a64/utils-a64.h"
 
@@ -43,15 +44,16 @@ using namespace v8::internal;
 
 #define EXP_SIZE   (256)
 #define INSTR_SIZE (1024)
-#define SET_UP_CLASS(ASMCLASS)                                                 \
-  InitializeVM();                                                              \
-  Isolate* isolate = Isolate::Current();                                       \
-  HandleScope scope(isolate);                                                  \
-  byte* buf = static_cast<byte*>(malloc(INSTR_SIZE));                          \
-  uint32_t encoding = 0;                                                       \
-  ASMCLASS* assm = new ASMCLASS(isolate, buf, INSTR_SIZE);                     \
-  Decoder* decoder = new Decoder();                                            \
-  Disassembler* disasm = new Disassembler();                                   \
+#define SET_UP_CLASS(ASMCLASS)                             \
+  InitializeVM();                                          \
+  Isolate* isolate = Isolate::Current();                   \
+  HandleScope scope(isolate);                              \
+  byte* buf = static_cast<byte*>(malloc(INSTR_SIZE));      \
+  uint32_t encoding = 0;                                   \
+  ASMCLASS* assm = new ASMCLASS(isolate, buf, INSTR_SIZE); \
+  Decoder<DispatchingDecoderVisitor>* decoder =            \
+      new Decoder<DispatchingDecoderVisitor>();            \
+  Disassembler* disasm = new Disassembler();               \
   decoder->AppendVisitor(disasm)
 
 #define SET_UP() SET_UP_CLASS(Assembler)

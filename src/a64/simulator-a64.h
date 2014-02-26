@@ -192,7 +192,7 @@ typedef SimRegisterBase<kDRegSizeInBytes> SimFPRegister;    // v0-v31
 
 class Simulator : public DecoderVisitor {
  public:
-  explicit Simulator(Decoder* decoder,
+  explicit Simulator(Decoder<DispatchingDecoderVisitor>* decoder,
                      Isolate* isolate = NULL,
                      FILE* stream = stderr);
   ~Simulator();
@@ -796,8 +796,8 @@ class Simulator : public DecoderVisitor {
   byte* stack_limit_;
   // TODO(aleram): protect the stack.
 
-  Decoder* decoder_;
-  Decoder* disassembler_decoder_;
+  Decoder<DispatchingDecoderVisitor>* decoder_;
+  Decoder<DispatchingDecoderVisitor>* disassembler_decoder_;
 
   // Indicates if the pc has been modified by the instruction and should not be
   // automatically incremented.

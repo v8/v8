@@ -664,6 +664,7 @@
             '../../src/a64/debugger-a64.h',
             '../../src/a64/decoder-a64.cc',
             '../../src/a64/decoder-a64.h',
+            '../../src/a64/decoder-a64-inl.h',
             '../../src/a64/deoptimizer-a64.cc',
             '../../src/a64/disasm-a64.cc',
             '../../src/a64/disasm-a64.h',

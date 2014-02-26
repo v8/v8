@@ -26,6 +26,7 @@
 #include "cctest.h"
 
 #include "a64/decoder-a64.h"
+#include "a64/decoder-a64-inl.h"
 #include "a64/disasm-a64.h"
 
 using namespace v8::internal;
@@ -38,7 +39,7 @@ TEST(FUZZ_decoder) {
   uint16_t seed[3] = {1, 2, 3};
   seed48(seed);
 
-  Decoder decoder;
+  Decoder<DispatchingDecoderVisitor> decoder;
   Instruction buffer[kInstructionSize];
 
   for (int i = 0; i < instruction_count; i++) {
@@ -57,7 +58,7 @@ TEST(FUZZ_disasm) {
   uint16_t seed[3] = {42, 43, 44};
   seed48(seed);
 
-  Decoder decoder;
+  Decoder<DispatchingDecoderVisitor> decoder;
   Disassembler disasm;
   Instruction buffer[kInstructionSize];
 

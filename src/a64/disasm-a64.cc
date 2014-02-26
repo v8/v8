@@ -35,6 +35,7 @@
 #if V8_TARGET_ARCH_A64
 
 #include "disasm.h"
+#include "a64/decoder-a64-inl.h"
 #include "a64/disasm-a64.h"
 #include "macro-assembler.h"
 #include "platform.h"
@@ -1824,7 +1825,7 @@ Disassembler::~Disassembler() {}
 
 int Disassembler::InstructionDecode(v8::internal::Vector<char> buffer,
                                     byte* instr) {
-  v8::internal::Decoder decoder;
+  v8::internal::Decoder<v8::internal::DispatchingDecoderVisitor> decoder;
   BufferDisassembler disasm(buffer);
   decoder.AppendVisitor(&disasm);
 
@@ -1840,7 +1841,7 @@ int Disassembler::ConstantPoolSizeAt(byte* instr) {
 
 
 void Disassembler::Disassemble(FILE* file, byte* start, byte* end) {
-  v8::internal::Decoder decoder;
+  v8::internal::Decoder<v8::internal::DispatchingDecoderVisitor> decoder;
   v8::internal::PrintDisassembler disasm(file);
   decoder.AppendVisitor(&disasm);
 

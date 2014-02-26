@@ -142,7 +142,8 @@ class DispatchingDecoderVisitor : public DecoderVisitor {
 };
 
 
-class Decoder : public DispatchingDecoderVisitor {
+template<typename V>
+class Decoder : public V {
  public:
   Decoder() {}
 

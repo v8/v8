@@ -41,7 +41,7 @@ namespace internal {
 
 class Debugger : public Simulator {
  public:
-  Debugger(Decoder* decoder, FILE* stream = stderr)
+  Debugger(Decoder<DispatchingDecoderVisitor>* decoder, FILE* stream = stderr)
     : Simulator(decoder, NULL, stream) {}
 
   // Functions overloading.

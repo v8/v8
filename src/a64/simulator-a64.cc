@@ -34,6 +34,7 @@
 
 #include "disasm.h"
 #include "assembler.h"
+#include "a64/decoder-a64-inl.h"
 #include "a64/simulator-a64.h"
 #include "macro-assembler.h"
 
@@ -105,7 +106,7 @@ Simulator* Simulator::current(Isolate* isolate) {
   Simulator* sim = isolate_data->simulator();
   if (sim == NULL) {
     // TODO(146): delete the simulator object when a thread/isolate goes away.
-    sim = new Simulator(new Decoder(), isolate);
+    sim = new Simulator(new Decoder<DispatchingDecoderVisitor>(), isolate);
     isolate_data->set_simulator(sim);
   }
   return sim;
@@ -333,8 +334,11 @@ uintptr_t Simulator::StackLimit() const {
 }
 
 
-Simulator::Simulator(Decoder* decoder, Isolate* isolate, FILE* stream)
-    : decoder_(decoder), last_debugger_input_(NULL), log_parameters_(NO_PARAM),
+Simulator::Simulator(Decoder<DispatchingDecoderVisitor>* decoder,
+                     Isolate* isolate, FILE* stream)
+    : decoder_(decoder),
+      last_debugger_input_(NULL),
+      log_parameters_(NO_PARAM),
       isolate_(isolate) {
   // Setup the decoder.
   decoder_->AppendVisitor(this);
@@ -359,7 +363,7 @@ Simulator::Simulator(Decoder* decoder, Isolate* isolate, FILE* stream)
 
   // The debugger needs to disassemble code without the simulator executing an
   // instruction, so we create a dedicated decoder.
-  disassembler_decoder_ = new Decoder();
+  disassembler_decoder_ = new Decoder<DispatchingDecoderVisitor>();
   disassembler_decoder_->AppendVisitor(print_disasm_);
 
   if (FLAG_log_instruction_stats) {
