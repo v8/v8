@@ -3204,13 +3204,21 @@ enum SkipListRebuildingMode {
 };
 
 
+enum FreeSpaceTreatmentMode {
+  IGNORE_FREE_SPACE,
+  ZAP_FREE_SPACE
+};
+
+
 // Sweep a space precisely.  After this has been done the space can
 // be iterated precisely, hitting only the live objects.  Code space
 // is always swept precisely because we want to be able to iterate
 // over it.  Map space is swept precisely, because it is not compacted.
 // Slots in live objects pointing into evacuation candidates are updated
 // if requested.
-template<SweepingMode sweeping_mode, SkipListRebuildingMode skip_list_mode>
+template<SweepingMode sweeping_mode,
+         SkipListRebuildingMode skip_list_mode,
+         FreeSpaceTreatmentMode free_space_mode>
 static void SweepPrecisely(PagedSpace* space,
                            Page* p,
                            ObjectVisitor* v) {
@@ -3244,6 +3252,9 @@ static void SweepPrecisely(PagedSpace* space,
     for ( ; live_objects != 0; live_objects--) {
       Address free_end = cell_base + offsets[live_index++] * kPointerSize;
       if (free_end != free_start) {
+        if (free_space_mode == ZAP_FREE_SPACE) {
+          memset(free_start, 0xcc, static_cast<int>(free_end - free_start));
+        }
         space->Free(free_start, static_cast<int>(free_end - free_start));
 #ifdef ENABLE_GDB_JIT_INTERFACE
         if (FLAG_gdbjit && space->identity() == CODE_SPACE) {
@@ -3275,6 +3286,9 @@ static void SweepPrecisely(PagedSpace* space,
     *cell = 0;
   }
   if (free_start != p->area_end()) {
+    if (free_space_mode == ZAP_FREE_SPACE) {
+      memset(free_start, 0xcc, static_cast<int>(p->area_end() - free_start));
+    }
     space->Free(free_start, static_cast<int>(p->area_end() - free_start));
 #ifdef ENABLE_GDB_JIT_INTERFACE
     if (FLAG_gdbjit && space->identity() == CODE_SPACE) {
@@ -3520,12 +3534,23 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
             SweepConservatively<SWEEP_SEQUENTIALLY>(space, NULL, p);
             break;
           case OLD_POINTER_SPACE:
-            SweepPrecisely<SWEEP_AND_VISIT_LIVE_OBJECTS, IGNORE_SKIP_LIST>(
+            SweepPrecisely<SWEEP_AND_VISIT_LIVE_OBJECTS,
+                           IGNORE_SKIP_LIST,
+                           IGNORE_FREE_SPACE>(
                 space, p, &updating_visitor);
             break;
           case CODE_SPACE:
-            SweepPrecisely<SWEEP_AND_VISIT_LIVE_OBJECTS, REBUILD_SKIP_LIST>(
-                space, p, &updating_visitor);
+            if (FLAG_zap_code_space) {
+              SweepPrecisely<SWEEP_AND_VISIT_LIVE_OBJECTS,
+                             REBUILD_SKIP_LIST,
+                             ZAP_FREE_SPACE>(
+                  space, p, &updating_visitor);
+            } else {
+              SweepPrecisely<SWEEP_AND_VISIT_LIVE_OBJECTS,
+                             REBUILD_SKIP_LIST,
+                             IGNORE_FREE_SPACE>(
+                  space, p, &updating_visitor);
+            }
             break;
           default:
             UNREACHABLE();
@@ -4145,10 +4170,15 @@ void MarkCompactCollector::SweepSpace(PagedSpace* space, SweeperType sweeper) {
           PrintF("Sweeping 0x%" V8PRIxPTR " precisely.\n",
                  reinterpret_cast<intptr_t>(p));
         }
-        if (space->identity() == CODE_SPACE) {
-          SweepPrecisely<SWEEP_ONLY, REBUILD_SKIP_LIST>(space, p, NULL);
+        if (space->identity() == CODE_SPACE && FLAG_zap_code_space) {
+          SweepPrecisely<SWEEP_ONLY, REBUILD_SKIP_LIST, ZAP_FREE_SPACE>(
+              space, p, NULL);
+        } else if (space->identity() == CODE_SPACE) {
+          SweepPrecisely<SWEEP_ONLY, REBUILD_SKIP_LIST, IGNORE_FREE_SPACE>(
+              space, p, NULL);
         } else {
-          SweepPrecisely<SWEEP_ONLY, IGNORE_SKIP_LIST>(space, p, NULL);
+          SweepPrecisely<SWEEP_ONLY, IGNORE_SKIP_LIST, IGNORE_FREE_SPACE>(
+              space, p, NULL);
         }
         pages_swept++;
         break;

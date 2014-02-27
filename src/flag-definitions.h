@@ -572,6 +572,8 @@ DEFINE_bool(cleanup_code_caches_at_gc, true,
 DEFINE_bool(use_marking_progress_bar, true,
             "Use a progress bar to scan large objects in increments when "
             "incremental marking is active.")
+DEFINE_bool(zap_code_space, true,
+            "Zap free memory in code space with 0xCC while sweeping.")
 DEFINE_int(random_seed, 0,
            "Default seed for initializing random generator "
            "(0, the default, means to use system random).")
