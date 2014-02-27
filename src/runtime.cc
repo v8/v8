@@ -2478,7 +2478,7 @@ RUNTIME_FUNCTION(MaybeObject*,
   ASSERT(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
   CONVERT_SMI_ARG_CHECKED(properties, 1);
-  if (object->HasFastProperties()) {
+  if (object->HasFastProperties() && !object->IsJSGlobalProxy()) {
     JSObject::NormalizeProperties(object, KEEP_INOBJECT_PROPERTIES, properties);
   }
   return *object;
