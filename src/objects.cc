@@ -12471,7 +12471,8 @@ Handle<Object> JSObject::SetFastDoubleElement(
   // Otherwise default to slow case.
   ASSERT(object->HasFastDoubleElements());
   ASSERT(object->map()->has_fast_double_elements());
-  ASSERT(object->elements()->IsFixedDoubleArray());
+  ASSERT(object->elements()->IsFixedDoubleArray() ||
+         object->elements()->length() == 0);
 
   NormalizeElements(object);
   ASSERT(object->HasDictionaryElements());
