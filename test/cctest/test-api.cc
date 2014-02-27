@@ -21925,7 +21925,6 @@ class ApiCallOptimizationChecker {
 
   static void OptimizationCallback(
       const v8::FunctionCallbackInfo<v8::Value>& info) {
-    ApiTestFuzzer::Fuzz();
     CHECK(callee == info.Callee());
     CHECK(data == info.Data());
     CHECK(receiver == info.This());
