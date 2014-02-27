@@ -9475,7 +9475,7 @@ void HOptimizedGraphBuilder::BuildEmitInObjectProperties(
       Add<HStoreNamedField>(object, access, result);
     } else {
       Representation representation = details.representation();
-      HInstruction* value_instruction;
+      HInstruction* value_instruction = Add<HConstant>(value);
 
       if (representation.IsDouble()) {
         // Allocate a HeapNumber box and store the value into it.
@@ -9490,16 +9490,8 @@ void HOptimizedGraphBuilder::BuildEmitInObjectProperties(
         AddStoreMapConstant(double_box,
             isolate()->factory()->heap_number_map());
         Add<HStoreNamedField>(double_box, HObjectAccess::ForHeapNumberValue(),
-                              Add<HConstant>(value));
+            value_instruction);
         value_instruction = double_box;
-      } else if (representation.IsSmi()) {
-        value_instruction = value->IsUninitialized()
-            ? graph()->GetConstant0()
-            : Add<HConstant>(value);
-        // Ensure that value is stored as smi.
-        access = access.WithRepresentation(representation);
-      } else {
-        value_instruction = Add<HConstant>(value);
       }
 
       Add<HStoreNamedField>(object, access, value_instruction);
