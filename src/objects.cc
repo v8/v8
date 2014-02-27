@@ -11559,7 +11559,7 @@ Handle<Map> Map::PutPrototypeTransition(Handle<Map> map,
 
   cache->set(entry + kProtoTransitionPrototypeOffset, *prototype);
   cache->set(entry + kProtoTransitionMapOffset, *target_map);
-  map->SetNumberOfProtoTransitions(transitions);
+  map->SetNumberOfProtoTransitions(last + 1);
 
   return map;
 }

@@ -2653,6 +2653,7 @@ void MarkCompactCollector::ClearNonLivePrototypeTransitions(Map* map) {
     Object* prototype = prototype_transitions->get(proto_offset + i * step);
     Object* cached_map = prototype_transitions->get(map_offset + i * step);
     if (IsMarked(prototype) && IsMarked(cached_map)) {
+      ASSERT(!prototype->IsUndefined());
       int proto_index = proto_offset + new_number_of_transitions * step;
       int map_index = map_offset + new_number_of_transitions * step;
       if (new_number_of_transitions != i) {
