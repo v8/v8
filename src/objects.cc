@@ -5444,6 +5444,12 @@ bool JSObject::ReferencesObject(Object* obj) {
 
     // Check the context extension (if any) if it can have references.
     if (context->has_extension() && !context->IsCatchContext()) {
+      // With harmony scoping, a JSFunction may have a global context.
+      // TODO(mvstanton): walk into the ScopeInfo.
+      if (FLAG_harmony_scoping && context->IsGlobalContext()) {
+        return false;
+      }
+
       return JSObject::cast(context->extension())->ReferencesObject(obj);
     }
   }

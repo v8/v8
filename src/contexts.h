@@ -226,8 +226,11 @@ enum BindingFlags {
 // In addition, function contexts may have statically allocated context slots
 // to store local variables/functions that are accessed from inner functions
 // (via static context addresses) or through 'eval' (dynamic context lookups).
-// Finally, the native context contains additional slots for fast access to
-// native properties.
+// The native context contains additional slots for fast access to native
+// properties.
+//
+// Finally, with Harmony scoping, the JSFunction representing a top level
+// script will have the GlobalContext rather than a FunctionContext.
 
 class Context: public FixedArray {
  public:
