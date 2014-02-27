@@ -13089,8 +13089,9 @@ void JSObject::GetElementsCapacityAndUsage(int* capacity, int* used) {
       }
       // Fall through if packing is not guaranteed.
     case FAST_HOLEY_DOUBLE_ELEMENTS: {
-      FixedDoubleArray* elms = FixedDoubleArray::cast(elements());
-      *capacity = elms->length();
+      *capacity = elements()->length();
+      if (*capacity == 0) break;
+      FixedDoubleArray * elms = FixedDoubleArray::cast(elements());
       for (int i = 0; i < *capacity; i++) {
         if (!elms->is_the_hole(i)) ++(*used);
       }
