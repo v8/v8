@@ -968,7 +968,6 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
         function_info->GetLiteralsFromOptimizedCodeMap(index);
     if (literals != NULL) result->set_literals(literals);
     Code* code = function_info->GetCodeFromOptimizedCodeMap(index);
-    ASSERT(!code->marked_for_deoptimization());
     result->ReplaceCode(code);
     return result;
   }
