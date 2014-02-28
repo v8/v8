@@ -8532,8 +8532,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NotifyDeoptimized) {
   }
   // Evict optimized code for this function from the cache so that it doesn't
   // get used for new closures.
-  function->shared()->EvictFromOptimizedCodeMap(*optimized_code,
-                                                "notify deoptimized");
+  function->shared()->EvictFromOptimizedCodeMap(
+      function->context()->native_context(), "notify deoptimized");
 
   return isolate->heap()->undefined_value();
 }

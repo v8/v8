@@ -5427,11 +5427,6 @@ void JSFunction::ReplaceCode(Code* code) {
   bool was_optimized = IsOptimized();
   bool is_optimized = code->kind() == Code::OPTIMIZED_FUNCTION;
 
-  if (was_optimized && is_optimized) {
-    shared()->EvictFromOptimizedCodeMap(
-      this->code(), "Replacing with another optimized code");
-  }
-
   set_code(code);
 
   // Add/remove the function from the list of optimized functions for this
@@ -5442,6 +5437,8 @@ void JSFunction::ReplaceCode(Code* code) {
   if (was_optimized && !is_optimized) {
     // TODO(titzer): linear in the number of optimized functions; fix!
     context()->native_context()->RemoveOptimizedFunction(this);
+    shared()->EvictFromOptimizedCodeMap(context()->native_context(),
+                                        "Removing optimized code");
   }
 }
 
