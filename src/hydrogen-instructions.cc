@@ -3955,7 +3955,7 @@ HInstruction* HUnaryMathOperation::New(
       case kMathFloor:
         return H_CONSTANT_DOUBLE(std::floor(d));
       case kMathClz32: {
-        uint32_t i = static_cast<uint32_t>(constant->Integer32Value());
+        uint32_t i = DoubleToUint32(d);
         return H_CONSTANT_INT(
             (i == 0) ? 32 : CompilerIntrinsics::CountLeadingZeros(i));
       }
