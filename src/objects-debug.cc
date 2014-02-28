@@ -931,7 +931,6 @@ void Script::ScriptVerify() {
   VerifyPointer(name());
   line_offset()->SmiVerify();
   column_offset()->SmiVerify();
-  VerifyPointer(data());
   VerifyPointer(wrapper());
   type()->SmiVerify();
   VerifyPointer(line_ends());

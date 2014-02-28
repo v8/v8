@@ -1342,9 +1342,6 @@ void V8HeapExplorer::ExtractScriptReferences(int entry, Script* script) {
                        "name", script->name(),
                        Script::kNameOffset);
   SetInternalReference(obj, entry,
-                       "data", script->data(),
-                       Script::kDataOffset);
-  SetInternalReference(obj, entry,
                        "context_data", script->context_data(),
                        Script::kContextOffset);
   TagObject(script->line_ends(), "(script line ends)");

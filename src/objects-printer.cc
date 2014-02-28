@@ -1147,8 +1147,6 @@ void Script::ScriptPrint(FILE* out) {
   type()->ShortPrint(out);
   PrintF(out, "\n - id: ");
   id()->ShortPrint(out);
-  PrintF(out, "\n - data: ");
-  data()->ShortPrint(out);
   PrintF(out, "\n - context data: ");
   context_data()->ShortPrint(out);
   PrintF(out, "\n - wrapper: ");

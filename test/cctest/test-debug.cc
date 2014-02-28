@@ -581,24 +581,6 @@ const char* frame_script_name_source =
 v8::Local<v8::Function> frame_script_name;
 
 
-// Source for the JavaScript function which picks out the script data for the
-// top frame.
-const char* frame_script_data_source =
-    "function frame_script_data(exec_state) {"
-    "  return exec_state.frame(0).func().script().data();"
-    "}";
-v8::Local<v8::Function> frame_script_data;
-
-
-// Source for the JavaScript function which picks out the script data from
-// AfterCompile event
-const char* compiled_script_data_source =
-    "function compiled_script_data(event_data) {"
-    "  return event_data.script().data();"
-    "}";
-v8::Local<v8::Function> compiled_script_data;
-
-
 // Source for the JavaScript function which returns the number of frames.
 static const char* frame_count_source =
     "function frame_count(exec_state) {"
@@ -610,10 +592,8 @@ v8::Handle<v8::Function> frame_count;
 // Global variable to store the last function hit - used by some tests.
 char last_function_hit[80];
 
-// Global variable to store the name and data for last script hit - used by some
-// tests.
+// Global variable to store the name for last script hit - used by some tests.
 char last_script_name_hit[80];
-char last_script_data_hit[80];
 
 // Global variables to store the last source position - used by some tests.
 int last_source_line = -1;
@@ -626,7 +606,6 @@ static void DebugEventBreakPointHitCount(
     const v8::Debug::EventDetails& event_details) {
   v8::DebugEvent event = event_details.GetEvent();
   v8::Handle<v8::Object> exec_state = event_details.GetExecutionState();
-  v8::Handle<v8::Object> event_data = event_details.GetEventData();
   v8::internal::Isolate* isolate = CcTest::i_isolate();
   Debug* debug = isolate->debug();
   // When hitting a debug event listener there must be a break set.
@@ -687,39 +666,10 @@ static void DebugEventBreakPointHitCount(
       }
     }
 
-    if (!frame_script_data.IsEmpty()) {
-      // Get the script data of the function script.
-      const int argc = 1;
-      v8::Handle<v8::Value> argv[argc] = { exec_state };
-      v8::Handle<v8::Value> result = frame_script_data->Call(exec_state,
-                                                             argc, argv);
-      if (result->IsUndefined()) {
-        last_script_data_hit[0] = '\0';
-      } else {
-        result = result->ToString();
-        CHECK(result->IsString());
-        v8::Handle<v8::String> script_data(result->ToString());
-        script_data->WriteUtf8(last_script_data_hit);
-      }
-    }
-
     // Perform a full deoptimization when the specified number of
     // breaks have been hit.
     if (break_point_hit_count == break_point_hit_count_deoptimize) {
       i::Deoptimizer::DeoptimizeAll(isolate);
-    }
-  } else if (event == v8::AfterCompile && !compiled_script_data.IsEmpty()) {
-    const int argc = 1;
-    v8::Handle<v8::Value> argv[argc] = { event_data };
-    v8::Handle<v8::Value> result = compiled_script_data->Call(exec_state,
-                                                              argc, argv);
-    if (result->IsUndefined()) {
-      last_script_data_hit[0] = '\0';
-    } else {
-      result = result->ToString();
-      CHECK(result->IsString());
-      v8::Handle<v8::String> script_data(result->ToString());
-      script_data->WriteUtf8(last_script_data_hit);
     }
   }
 }
@@ -6249,12 +6199,6 @@ TEST(ScriptNameAndData) {
   frame_script_name = CompileFunction(&env,
                                       frame_script_name_source,
                                       "frame_script_name");
-  frame_script_data = CompileFunction(&env,
-                                      frame_script_data_source,
-                                      "frame_script_data");
-  compiled_script_data = CompileFunction(&env,
-                                         compiled_script_data_source,
-                                         "compiled_script_data");
 
   v8::Debug::SetDebugEventListener2(DebugEventBreakPointHitCount);
 
@@ -6267,7 +6211,6 @@ TEST(ScriptNameAndData) {
   v8::ScriptOrigin origin1 =
       v8::ScriptOrigin(v8::String::NewFromUtf8(env->GetIsolate(), "name"));
   v8::Handle<v8::Script> script1 = v8::Script::Compile(script, &origin1);
-  script1->SetData(v8::String::NewFromUtf8(env->GetIsolate(), "data"));
   script1->Run();
   v8::Local<v8::Function> f;
   f = v8::Local<v8::Function>::Cast(
@@ -6276,7 +6219,6 @@ TEST(ScriptNameAndData) {
   f->Call(env->Global(), 0, NULL);
   CHECK_EQ(1, break_point_hit_count);
   CHECK_EQ("name", last_script_name_hit);
-  CHECK_EQ("data", last_script_data_hit);
 
   // Compile the same script again without setting data. As the compilation
   // cache is disabled when debugging expect the data to be missing.
@@ -6286,7 +6228,6 @@ TEST(ScriptNameAndData) {
   f->Call(env->Global(), 0, NULL);
   CHECK_EQ(2, break_point_hit_count);
   CHECK_EQ("name", last_script_name_hit);
-  CHECK_EQ("", last_script_data_hit);  // Undefined results in empty string.
 
   v8::Local<v8::String> data_obj_source = v8::String::NewFromUtf8(
       env->GetIsolate(),
@@ -6294,29 +6235,24 @@ TEST(ScriptNameAndData) {
       "  b: 123,\n"
       "  toString: function() { return this.a + ' ' + this.b; }\n"
       "})\n");
-  v8::Local<v8::Value> data_obj = v8::Script::Compile(data_obj_source)->Run();
+  v8::Script::Compile(data_obj_source)->Run();
   v8::ScriptOrigin origin2 =
       v8::ScriptOrigin(v8::String::NewFromUtf8(env->GetIsolate(), "new name"));
   v8::Handle<v8::Script> script2 = v8::Script::Compile(script, &origin2);
   script2->Run();
-  script2->SetData(data_obj->ToString());
   f = v8::Local<v8::Function>::Cast(
       env->Global()->Get(v8::String::NewFromUtf8(env->GetIsolate(), "f")));
   f->Call(env->Global(), 0, NULL);
   CHECK_EQ(3, break_point_hit_count);
   CHECK_EQ("new name", last_script_name_hit);
-  CHECK_EQ("abc 123", last_script_data_hit);
 
   v8::Handle<v8::Script> script3 = v8::Script::Compile(
-      script, &origin2, NULL,
-      v8::String::NewFromUtf8(env->GetIsolate(), "in compile"));
-  CHECK_EQ("in compile", last_script_data_hit);
+      script, &origin2, NULL);
   script3->Run();
   f = v8::Local<v8::Function>::Cast(
       env->Global()->Get(v8::String::NewFromUtf8(env->GetIsolate(), "f")));
   f->Call(env->Global(), 0, NULL);
   CHECK_EQ(4, break_point_hit_count);
-  CHECK_EQ("in compile", last_script_data_hit);
 }
 
 
