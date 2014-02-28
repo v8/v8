@@ -5627,6 +5627,7 @@ class Code: public HeapObject {
 
  private:
   friend class RelocIterator;
+  friend class Deoptimizer;  // For FindCodeAgeSequence.
 
   void ClearInlineCaches(Kind* kind);
 

@@ -49,6 +49,26 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
   // code patching below, and is not needed any more.
   code->InvalidateRelocation();
 
+  if (FLAG_zap_code_space) {
+    // Fail hard and early if we enter this code object again.
+    byte* pointer = code->FindCodeAgeSequence();
+    if (pointer != NULL) {
+      pointer += kNoCodeAgeSequenceLength;
+    } else {
+      pointer = code->instruction_start();
+    }
+    CodePatcher patcher(pointer, 1);
+    patcher.masm()->break_(0xCC);
+
+    DeoptimizationInputData* data =
+        DeoptimizationInputData::cast(code->deoptimization_data());
+    int osr_offset = data->OsrPcOffset()->value();
+    if (osr_offset > 0) {
+      CodePatcher osr_patcher(code->instruction_start() + osr_offset, 1);
+      osr_patcher.masm()->break_(0xCC);
+    }
+  }
+
   // For each LLazyBailout instruction insert a call to the corresponding
   // deoptimization entry.
   DeoptimizationInputData* deopt_data =

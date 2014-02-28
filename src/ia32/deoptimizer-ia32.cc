@@ -116,6 +116,27 @@ void Deoptimizer::EnsureRelocSpaceForLazyDeoptimization(Handle<Code> code) {
 
 void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
   Address code_start_address = code->instruction_start();
+
+  if (FLAG_zap_code_space) {
+    // Fail hard and early if we enter this code object again.
+    byte* pointer = code->FindCodeAgeSequence();
+    if (pointer != NULL) {
+      pointer += kNoCodeAgeSequenceLength;
+    } else {
+      pointer = code->instruction_start();
+    }
+    CodePatcher patcher(pointer, 1);
+    patcher.masm()->int3();
+
+    DeoptimizationInputData* data =
+        DeoptimizationInputData::cast(code->deoptimization_data());
+    int osr_offset = data->OsrPcOffset()->value();
+    if (osr_offset > 0) {
+      CodePatcher osr_patcher(code->instruction_start() + osr_offset, 1);
+      osr_patcher.masm()->int3();
+    }
+  }
+
   // We will overwrite the code's relocation info in-place. Relocation info
   // is written backward. The relocation info is the payload of a byte
   // array.  Later on we will slide this to the start of the byte array and

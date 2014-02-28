@@ -50,6 +50,9 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
   // code patching below, and is not needed any more.
   code->InvalidateRelocation();
 
+  // TODO(jkummerow): if (FLAG_zap_code_space), make the code object's
+  // entry sequence unusable (see other architectures).
+
   // For each LLazyBailout instruction insert a call to the corresponding
   // deoptimization entry.
   DeoptimizationInputData* deopt_data =
