@@ -8620,7 +8620,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NeverOptimizeFunction) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);
   CONVERT_ARG_CHECKED(JSFunction, function, 0);
-  ASSERT(!function->IsOptimized());
   function->shared()->set_optimization_disabled(true);
   return isolate->heap()->undefined_value();
 }
