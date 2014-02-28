@@ -1463,6 +1463,13 @@ Isolate::ThreadDataTable::~ThreadDataTable() {
 }
 
 
+Isolate::PerIsolateThreadData::~PerIsolateThreadData() {
+#if defined(USE_SIMULATOR)
+  delete simulator_;
+#endif
+}
+
+
 Isolate::PerIsolateThreadData*
     Isolate::ThreadDataTable::Lookup(Isolate* isolate,
                                      ThreadId thread_id) {

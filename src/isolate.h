@@ -396,6 +396,7 @@ class Isolate {
 #endif
           next_(NULL),
           prev_(NULL) { }
+    ~PerIsolateThreadData();
     Isolate* isolate() const { return isolate_; }
     ThreadId thread_id() const { return thread_id_; }
 
