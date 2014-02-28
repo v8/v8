@@ -64,6 +64,7 @@ TEST_CONFIG = {
   TEMPORARY_PATCH_FILE: "/tmp/test-merge-to-branch-tempfile-temporary-patch",
 }
 
+
 AUTO_ROLL_ARGS = [
   "-a", "author@chromium.org",
   "-c", TEST_CONFIG[CHROMIUM],
