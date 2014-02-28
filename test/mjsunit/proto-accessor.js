@@ -27,6 +27,10 @@
 
 // Flags: --harmony-symbols
 
+// Fake Symbol if undefined, allowing test to run in non-Harmony mode as well.
+this.Symbol = typeof Symbol != 'undefined' ? Symbol : String;
+
+
 var desc = Object.getOwnPropertyDescriptor(Object.prototype, "__proto__");
 var getProto = desc.get;
 var setProto = desc.set;
