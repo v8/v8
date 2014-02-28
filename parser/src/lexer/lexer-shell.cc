@@ -100,11 +100,32 @@ enum Encoding {
 };
 
 
-struct HarmonySettings {
-  bool numeric_literals;
-  bool modules;
-  bool scoping;
-  HarmonySettings() : numeric_literals(false), modules(false), scoping(false) {}
+struct LexerShellSettings {
+  Encoding encoding;
+  bool print_tokens;
+  bool run_baseline;
+  bool run_experimental;
+  bool check_tokens;
+  bool dump_tokens;
+  bool break_after_illegal;
+  bool eos_test;
+  int repeat;
+  bool harmony_numeric_literals;
+  bool harmony_modules;
+  bool harmony_scoping;
+  LexerShellSettings()
+      : encoding(LATIN1),
+        print_tokens(false),
+        run_baseline(true),
+        run_experimental(true),
+        check_tokens(true),
+        dump_tokens(false),
+        break_after_illegal(false),
+        eos_test(false),
+        repeat(1),
+        harmony_numeric_literals(false),
+        harmony_modules(false),
+        harmony_scoping(false) {}
 };
 
 class BaselineScanner {
@@ -112,17 +133,15 @@ class BaselineScanner {
   BaselineScanner(const byte* source,
                   const byte* source_end,
                   Isolate* isolate,
-                  Encoding encoding,
                   ElapsedTimer* timer,
-                  int repeat,
-                  HarmonySettings harmony_settings)
+                  const LexerShellSettings& settings)
       : source_(source), stream_(NULL) {
     unicode_cache_ = new UnicodeCache();
     scanner_ = new Scanner(unicode_cache_);
-    scanner_->SetHarmonyNumericLiterals(harmony_settings.numeric_literals);
-    scanner_->SetHarmonyModules(harmony_settings.modules);
-    scanner_->SetHarmonyScoping(harmony_settings.scoping);
-    switch (encoding) {
+    scanner_->SetHarmonyNumericLiterals(settings.harmony_numeric_literals);
+    scanner_->SetHarmonyModules(settings.harmony_modules);
+    scanner_->SetHarmonyScoping(settings.harmony_scoping);
+    switch (settings.encoding) {
       case UTF8:
       case UTF8TO16:
         stream_ = new Utf8ToUtf16CharacterStream(source_, source_end - source_);
@@ -238,23 +257,18 @@ TokenWithLocation GetTokenWithLocation(Scanner *scanner, Token::Value token) {
 TimeDelta RunBaselineScanner(const byte* source,
                              const byte* source_end,
                              Isolate* isolate,
-                             Encoding encoding,
-                             bool dump_tokens,
                              std::vector<TokenWithLocation>* tokens,
-                             int repeat,
-                             HarmonySettings harmony_settings) {
+                             const LexerShellSettings& settings) {
   ElapsedTimer timer;
   BaselineScanner scanner(source,
                           source_end,
                           isolate,
-                          encoding,
                           &timer,
-                          repeat,
-                          harmony_settings);
+                          settings);
   Token::Value token;
   do {
     token = scanner.scanner_->Next();
-    if (dump_tokens) {
+    if (settings.dump_tokens) {
       tokens->push_back(GetTokenWithLocation(scanner.scanner_, token));
     } else if (HasLiteral(token)) {
       if (scanner.scanner_->is_literal_ascii()) {
@@ -271,23 +285,20 @@ TimeDelta RunBaselineScanner(const byte* source,
 template<typename Char>
 TimeDelta RunExperimentalScanner(Handle<String> source,
                                  Isolate* isolate,
-                                 Encoding encoding,
-                                 bool dump_tokens,
                                  std::vector<TokenWithLocation>* tokens,
-                                 int repeat,
-                                 HarmonySettings harmony_settings) {
+                                 LexerShellSettings settings) {
   ElapsedTimer timer;
   ExperimentalScanner<Char> scanner(source, isolate);
-  scanner.SetHarmonyNumericLiterals(harmony_settings.numeric_literals);
-  scanner.SetHarmonyModules(harmony_settings.modules);
-  scanner.SetHarmonyScoping(harmony_settings.scoping);
+  scanner.SetHarmonyNumericLiterals(settings.harmony_numeric_literals);
+  scanner.SetHarmonyModules(settings.harmony_modules);
+  scanner.SetHarmonyScoping(settings.harmony_scoping);
 
   timer.Start();
   scanner.Init();
   Token::Value token;
   do {
     token = scanner.Next();
-    if (dump_tokens) {
+    if (settings.dump_tokens) {
       tokens->push_back(GetTokenWithLocation(&scanner, token));
     } else if (HasLiteral(token)) {
       if (scanner.is_literal_ascii()) {
@@ -314,54 +325,48 @@ void PrintTokens(const char* name,
 
 std::pair<TimeDelta, TimeDelta> ProcessFile(
     const char* fname,
-    Encoding encoding,
     Isolate* isolate,
-    bool run_baseline,
-    bool run_experimental,
-    bool print_tokens,
-    bool check_tokens,
-    bool break_after_illegal,
-    int repeat,
-    HarmonySettings harmony_settings,
+    const LexerShellSettings& settings,
     int truncate_by,
     bool* can_truncate) {
+  const bool print_tokens = settings.print_tokens;
+  const bool run_baseline = settings.run_baseline;
+  const bool run_experimental = settings.run_experimental;
   if (print_tokens) {
     printf("Processing file %s, truncating by %d bytes\n", fname, truncate_by);
   }
   HandleScope handle_scope(isolate);
   std::vector<TokenWithLocation> baseline_tokens, experimental_tokens;
   TimeDelta baseline_time, experimental_time;
-  if (run_baseline) {
+  if (settings.run_baseline) {
     const byte* buffer_end = 0;
-    const byte* buffer = ReadFile(fname, &buffer_end, repeat, false);
+    const byte* buffer = ReadFile(fname, &buffer_end, settings.repeat, false);
     if (truncate_by > buffer_end - buffer) {
       *can_truncate = false;
     } else {
       buffer_end -= truncate_by;
       baseline_time = RunBaselineScanner(
-          buffer, buffer_end, isolate, encoding, print_tokens || check_tokens,
-          &baseline_tokens, repeat, harmony_settings);
+          buffer, buffer_end, isolate, &baseline_tokens, settings);
     }
     delete[] buffer;
   }
   if (run_experimental) {
     Handle<String> source;
     const byte* buffer_end = 0;
-    const byte* buffer = ReadFile(fname, &buffer_end, repeat,
-                                  encoding == UTF8TO16);
+    const byte* buffer = ReadFile(fname, &buffer_end, settings.repeat,
+                                  settings.encoding == UTF8TO16);
     if (truncate_by > buffer_end - buffer) {
       *can_truncate = false;
     } else {
       buffer_end -= truncate_by;
-      switch (encoding) {
+      switch (settings.encoding) {
         case UTF8:
         case LATIN1:
           source = isolate->factory()->NewStringFromAscii(
               Vector<const char>(reinterpret_cast<const char*>(buffer),
                                  buffer_end - buffer));
           experimental_time = RunExperimentalScanner<uint8_t>(
-              source, isolate, encoding, print_tokens || check_tokens,
-              &experimental_tokens, repeat, harmony_settings);
+              source, isolate, &experimental_tokens, settings);
           break;
         case UTF16:
         case UTF8TO16: {
@@ -373,12 +378,10 @@ std::pair<TimeDelta, TimeDelta> ProcessFile(
           // and doesn't store it as two byte.
           if (!source->IsTwoByteRepresentation()) {
             experimental_time = RunExperimentalScanner<uint8_t>(
-                source, isolate, encoding, print_tokens || check_tokens,
-                &experimental_tokens, repeat, harmony_settings);
+              source, isolate, &experimental_tokens, settings);
           } else {
             experimental_time = RunExperimentalScanner<uint16_t>(
-                source, isolate, encoding, print_tokens || check_tokens,
-                &experimental_tokens, repeat, harmony_settings);
+              source, isolate, &experimental_tokens, settings);
           }
           break;
         }
@@ -396,7 +399,8 @@ std::pair<TimeDelta, TimeDelta> ProcessFile(
   if (print_tokens && !run_baseline) {
     PrintTokens("Experimental", experimental_tokens);
   }
-  if ((print_tokens || check_tokens) && run_baseline && run_experimental) {
+  if ((print_tokens || settings.check_tokens) &&
+       run_baseline && run_experimental) {
     if (print_tokens) {
       printf("No of tokens in Baseline:     %d\n",
              static_cast<int>(baseline_tokens.size()));
@@ -414,7 +418,7 @@ std::pair<TimeDelta, TimeDelta> ProcessFile(
           experimental_tokens[i].Print("Actual:   ");
           exit(1);
         }
-        if (break_after_illegal)
+        if (settings.break_after_illegal)
           break;
         continue;
       }
@@ -433,52 +437,48 @@ std::pair<TimeDelta, TimeDelta> ProcessFile(
 int main(int argc, char* argv[]) {
   v8::V8::InitializeICU();
   v8::V8::SetFlagsFromCommandLine(&argc, argv, true);
-  Encoding encoding = LATIN1;
-  bool print_tokens = false;
-  bool run_baseline = true;
-  bool run_experimental = true;
-  bool check_tokens = true;
-  bool break_after_illegal = false;
-  bool eos_test = false;
   std::vector<std::string> fnames;
   std::string benchmark;
-  int repeat = 1;
-  HarmonySettings harmony_settings;
+  LexerShellSettings settings;
   for (int i = 0; i < argc; ++i) {
     if (strcmp(argv[i], "--latin1") == 0) {
-      encoding = LATIN1;
+      settings.encoding = LATIN1;
     } else if (strcmp(argv[i], "--utf8") == 0) {
-      encoding = UTF8;
+      settings.encoding = UTF8;
     } else if (strcmp(argv[i], "--utf16") == 0) {
-      encoding = UTF16;
+      settings.encoding = UTF16;
     } else if (strcmp(argv[i], "--utf8to16") == 0) {
-      encoding = UTF8TO16;
+      settings.encoding = UTF8TO16;
     } else if (strcmp(argv[i], "--print-tokens") == 0) {
-      print_tokens = true;
+      settings.print_tokens = true;
     } else if (strcmp(argv[i], "--no-baseline") == 0) {
-      run_baseline = false;
+      settings.run_baseline = false;
     } else if (strcmp(argv[i], "--no-experimental") == 0) {
-      run_experimental = false;
+      settings.run_experimental = false;
     } else if (strcmp(argv[i], "--no-check") == 0) {
-      check_tokens = false;
+      settings.check_tokens = false;
     } else if (strcmp(argv[i], "--break-after-illegal") == 0) {
-      break_after_illegal = true;
+      settings.break_after_illegal = true;
     } else if (strcmp(argv[i], "--use-harmony") == 0) {
-      harmony_settings.numeric_literals = true;
-      harmony_settings.modules = true;
-      harmony_settings.scoping = true;
+      settings.harmony_numeric_literals = true;
+      settings.harmony_modules = true;
+      settings.harmony_scoping = true;
     } else if (strncmp(argv[i], "--benchmark=", 12) == 0) {
       benchmark = std::string(argv[i]).substr(12);
     } else if (strncmp(argv[i], "--repeat=", 9) == 0) {
       std::string repeat_str = std::string(argv[i]).substr(9);
-      repeat = atoi(repeat_str.c_str());
+      settings.repeat = atoi(repeat_str.c_str());
     } else if (strcmp(argv[i], "--eos-test") == 0) {
-      eos_test = true;
+      settings.eos_test = true;
     } else if (i > 0 && argv[i][0] != '-') {
       fnames.push_back(std::string(argv[i]));
     }
   }
-  check_tokens = check_tokens && run_baseline && run_experimental;
+  settings.check_tokens =
+      settings.check_tokens &&
+      settings.run_baseline &&
+      settings.run_experimental;
+  settings.dump_tokens = settings.check_tokens || settings.print_tokens;
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
   {
     v8::HandleScope handle_scope(isolate);
@@ -491,19 +491,12 @@ int main(int argc, char* argv[]) {
       double baseline_total = 0, experimental_total = 0;
       for (size_t i = 0; i < fnames.size(); i++) {
         std::pair<TimeDelta, TimeDelta> times;
-        bool can_truncate = eos_test;
+        bool can_truncate = settings.eos_test;
         int truncate_by = 0;
         do {
           times = ProcessFile(fnames[i].c_str(),
-                              encoding,
                               internal_isolate,
-                              run_baseline,
-                              run_experimental,
-                              print_tokens,
-                              check_tokens,
-                              break_after_illegal,
-                              repeat,
-                              harmony_settings,
+                              settings,
                               truncate_by,
                               &can_truncate);
           baseline_total += times.first.InMillisecondsF();
@@ -511,11 +504,11 @@ int main(int argc, char* argv[]) {
           ++truncate_by;
         } while (can_truncate);
       }
-      if (run_baseline) {
+      if (settings.run_baseline) {
         printf("Baseline%s(RunTime): %.f ms\n", benchmark.c_str(),
                baseline_total);
       }
-      if (run_experimental) {
+      if (settings.run_experimental) {
         if (benchmark.empty()) benchmark = "Experimental";
         printf("%s(RunTime): %.f ms\n", benchmark.c_str(),
                experimental_total);
