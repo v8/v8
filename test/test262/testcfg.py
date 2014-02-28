@@ -28,6 +28,7 @@
 
 import hashlib
 import os
+import shutil
 import sys
 import tarfile
 import urllib
@@ -98,6 +99,8 @@ class Test262TestSuite(testsuite.TestSuite):
       print "Downloading test data from %s ..." % archive_url
       urllib.urlretrieve(archive_url, archive_name)
       if os.path.exists(directory_name):
+        if os.path.exists(directory_old_name):
+          shutil.rmtree(directory_old_name)
         os.rename(directory_name, directory_old_name)
     if not os.path.exists(directory_name):
       print "Extracting test262-%s.tar.bz2 ..." % revision
