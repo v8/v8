@@ -358,7 +358,7 @@ native.check: native
 	@tools/run-tests.py $(TESTJOBS) --outdir=$(OUTDIR)/native \
 	    --arch-and-mode=. $(TESTFLAGS)
 
-FASTTESTMODES = ia32.release,x64.release,ia32.optdebug,x64.optdebug,arm.optdebug
+FASTTESTMODES = ia32.release,x64.release,ia32.optdebug,x64.optdebug,arm.optdebug,a64.release
 FASTCOMPILEMODES = $(FASTTESTMODES),a64.optdebug
 
 COMMA = ,
