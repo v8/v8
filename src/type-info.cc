@@ -154,7 +154,7 @@ KeyedAccessStoreMode TypeFeedbackOracle::GetStoreMode(
 Handle<JSFunction> TypeFeedbackOracle::GetCallTarget(int slot) {
   Handle<Object> info = GetInfo(slot);
   if (info->IsAllocationSite()) {
-    return Handle<JSFunction>(isolate()->global_context()->array_function());
+    return Handle<JSFunction>(isolate()->native_context()->array_function());
   } else {
     return Handle<JSFunction>::cast(info);
   }
@@ -164,7 +164,7 @@ Handle<JSFunction> TypeFeedbackOracle::GetCallTarget(int slot) {
 Handle<JSFunction> TypeFeedbackOracle::GetCallNewTarget(int slot) {
   Handle<Object> info = GetInfo(slot);
   if (info->IsAllocationSite()) {
-    return Handle<JSFunction>(isolate()->global_context()->array_function());
+    return Handle<JSFunction>(isolate()->native_context()->array_function());
   } else {
     return Handle<JSFunction>::cast(info);
   }

@@ -8225,16 +8225,17 @@ static bool IsAllocationInlineable(Handle<JSFunction> constructor) {
 
 
 bool HOptimizedGraphBuilder::IsCallNewArrayInlineable(CallNew* expr) {
-  bool inline_ok = false;
+  Handle<AllocationSite> site = expr->allocation_site();
+  if (site.is_null()) return false;
+
   Handle<JSFunction> caller = current_info()->closure();
-  Handle<JSFunction> target(isolate()->global_context()->array_function(),
+  Handle<JSFunction> target(isolate()->native_context()->array_function(),
                             isolate());
   int argument_count = expr->arguments()->length();
   // We should have the function plus array arguments on the environment stack.
   ASSERT(environment()->length() >= (argument_count + 1));
-  Handle<AllocationSite> site = expr->allocation_site();
-  ASSERT(!site.is_null());
 
+  bool inline_ok = false;
   if (site->CanInlineCall()) {
     // We also want to avoid inlining in certain 1 argument scenarios.
     if (argument_count == 1) {
@@ -8374,7 +8375,7 @@ void HOptimizedGraphBuilder::VisitCallNew(CallNew* expr) {
     // The constructor function is both an operand to the instruction and an
     // argument to the construct call.
     Handle<JSFunction> array_function(
-        isolate()->global_context()->array_function(), isolate());
+        isolate()->native_context()->array_function(), isolate());
     bool use_call_new_array = expr->target().is_identical_to(array_function);
     if (use_call_new_array && IsCallNewArrayInlineable(expr)) {
       // Verify we are still calling the array function for our native context.
