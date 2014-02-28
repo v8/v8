@@ -400,28 +400,39 @@ void JSObject::PrintTransitions(FILE* out) {
   if (!map()->HasTransitionArray()) return;
   TransitionArray* transitions = map()->transitions();
   for (int i = 0; i < transitions->number_of_transitions(); i++) {
+    Name* key = transitions->GetKey(i);
     PrintF(out, "   ");
-    transitions->GetKey(i)->NamePrint(out);
+    key->NamePrint(out);
     PrintF(out, ": ");
-    switch (transitions->GetTargetDetails(i).type()) {
-      case FIELD: {
-        PrintF(out, " (transition to field)\n");
-        break;
+    if (key == GetHeap()->frozen_symbol()) {
+      PrintF(out, " (transition to frozen)\n");
+    } else if (key == GetHeap()->elements_transition_symbol()) {
+      PrintF(out, " (transition to ");
+      PrintElementsKind(out, transitions->GetTarget(i)->elements_kind());
+      PrintF(out, ")\n");
+    } else if (key == GetHeap()->observed_symbol()) {
+      PrintF(out, " (transition to Object.observe)\n");
+    } else {
+      switch (transitions->GetTargetDetails(i).type()) {
+        case FIELD: {
+          PrintF(out, " (transition to field)\n");
+          break;
+        }
+        case CONSTANT:
+          PrintF(out, " (transition to constant)\n");
+          break;
+        case CALLBACKS:
+          PrintF(out, " (transition to callback)\n");
+          break;
+        // Values below are never in the target descriptor array.
+        case NORMAL:
+        case HANDLER:
+        case INTERCEPTOR:
+        case TRANSITION:
+        case NONEXISTENT:
+          UNREACHABLE();
+          break;
       }
-      case CONSTANT:
-        PrintF(out, " (transition to constant)\n");
-        break;
-      case CALLBACKS:
-        PrintF(out, " (transition to callback)\n");
-        break;
-      // Values below are never in the target descriptor array.
-      case NORMAL:
-      case HANDLER:
-      case INTERCEPTOR:
-      case TRANSITION:
-      case NONEXISTENT:
-        UNREACHABLE();
-        break;
     }
   }
 }
