@@ -113,15 +113,16 @@ static void InitializeVM() {
 #ifdef USE_SIMULATOR
 
 // Run tests with the simulator.
-#define SETUP_SIZE(buf_size)                   \
-  Isolate* isolate = Isolate::Current();       \
-  HandleScope scope(isolate);                  \
-  ASSERT(isolate != NULL);                     \
-  byte* buf = new byte[buf_size];              \
-  MacroAssembler masm(isolate, buf, buf_size); \
-  Decoder<DispatchingDecoderVisitor> decoder;  \
-  Simulator simulator(&decoder);               \
-  PrintDisassembler* pdis = NULL;              \
+#define SETUP_SIZE(buf_size)                    \
+  Isolate* isolate = Isolate::Current();        \
+  HandleScope scope(isolate);                   \
+  ASSERT(isolate != NULL);                      \
+  byte* buf = new byte[buf_size];               \
+  MacroAssembler masm(isolate, buf, buf_size);  \
+  Decoder<DispatchingDecoderVisitor>* decoder = \
+      new Decoder<DispatchingDecoderVisitor>(); \
+  Simulator simulator(decoder);                 \
+  PrintDisassembler* pdis = NULL;               \
   RegisterDump core;
 
 /*  if (Cctest::trace_sim()) {                                                 \
