@@ -33,15 +33,14 @@ class BacktrackingGenerator(object):
 
   @staticmethod
   def generate(dfa, default_action):
-    return BacktrackingGenerator(dfa, default_action, None).__generate()
+    return BacktrackingGenerator(dfa, default_action).__generate()
 
-  def __init__(self, dfa, default_action, log):
+  def __init__(self, dfa, default_action):
     self.__dfa = dfa
     self.__default_action = default_action
-    self.__log = log
 
   @staticmethod
-  def __process_error_states(dfa, error_map, action_state_map):
+  def __print_ambiguous_paths(dfa, error_map, action_state_map):
     path_map = { k : [] for k in error_map.iterkeys()}
     error_states = set(error_map.iterkeys())
     for path, states_in_path, terminal in dfa.path_iter():
@@ -70,9 +69,8 @@ class BacktrackingGenerator(object):
         if count > 10:
           break
 
-  def __generate(self):
-    dfa = self.__dfa
-    default_action = self.__default_action
+  @staticmethod
+  def __compute_action_states(dfa, default_action):
     terminal_set = dfa.terminal_set()
     # Collect states that terminate currently.
     action_states = {}
@@ -93,7 +91,11 @@ class BacktrackingGenerator(object):
       action_states[state] = match_action
     dfa.visit_all_states(f)
     assert omega_states == terminal_set
-    # Find nodes that need backtracking edges
+    return action_states, omega_states
+
+  @staticmethod
+  def __build_backtracking_map(
+      dfa, default_action, action_states, omega_states):
     incoming_transitions = dfa.build_incoming_transitions_map()
     backtracking_map = {}
     store_states = set()
@@ -141,11 +143,10 @@ class BacktrackingGenerator(object):
         continue
       store_states |= match_edge
       backtracking_map[state.node_number()] = (action, match_edge)
-    # Bail if error occurred.
-    if error_map:
-      self.__process_error_states(dfa, error_map, action_states)
-      raise Exception('ambiguous backtracking')
-    # Now install backtracking everywhere.
+    return backtracking_map, store_states, error_map
+
+  @staticmethod
+  def __construct_dfa_with_backtracking(dfa, backtracking_map, store_states):
     def install_backtracking_action(new_states, node_number):
       omega_state_id = str(node_number) + '_bt'
       key = TransitionKey.omega()
@@ -167,6 +168,7 @@ class BacktrackingGenerator(object):
         term = Term('chain', term, action.term())
       return Action(term, 0)
     # Now generate the new dfa.
+    terminal_set = dfa.terminal_set()
     def convert(old_state, new_states):
       node_number = old_state.node_number()
       # Clone existing state.
@@ -176,9 +178,27 @@ class BacktrackingGenerator(object):
         'action' : new_state_action(old_state),
         'terminal' : old_state in terminal_set
       }
-      # install a backtracking action
+      # Install a backtracking action.
       if node_number in backtracking_map:
         install_backtracking_action(new_states, node_number)
       return new_states
-    new_states = dfa.visit_all_states(convert, {})
+    return dfa.visit_all_states(convert, {})
+
+  def __generate(self):
+    dfa = self.__dfa
+    default_action = self.__default_action
+    # Find nodes that have actions.
+    action_states, omega_states= self.__compute_action_states(
+      dfa, default_action)
+    # Find nodes that need backtracking edges.
+    backtracking_map, store_states, error_map  = self.__build_backtracking_map(
+      dfa, default_action, action_states, omega_states)
+    # Bail if error occurred.
+    if error_map:
+      self.__print_ambiguous_paths(dfa, error_map, action_states)
+      raise Exception('ambiguous backtracking')
+    # Now install backtracking everywhere.
+    new_states = self.__construct_dfa_with_backtracking(
+      dfa, backtracking_map, store_states)
+    start_state = dfa.start_state()
     return Dfa(dfa.encoding(), str(start_state.node_number()), new_states)
