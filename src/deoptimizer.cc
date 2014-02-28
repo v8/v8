@@ -2992,8 +2992,7 @@ SlotRef SlotRefValueBuilder::ComputeSlotForNextArgument(
     }
 
     case Translation::ARGUMENTS_OBJECT:
-      // This can be only emitted for local slots not for argument slots.
-      break;
+      return SlotRef::NewArgumentsObject(iterator->Next());
 
     case Translation::CAPTURED_OBJECT: {
       return SlotRef::NewDeferredObject(iterator->Next());
@@ -3043,7 +3042,7 @@ SlotRef SlotRefValueBuilder::ComputeSlotForNextArgument(
       break;
   }
 
-  UNREACHABLE();
+  FATAL("We should never get here - unexpected deopt info.");
   return SlotRef();
 }
 
@@ -3123,9 +3122,8 @@ SlotRefValueBuilder::SlotRefValueBuilder(JavaScriptFrame* frame,
         // the nested slots of captured objects
         number_of_slots--;
         SlotRef& slot = slot_refs_.last();
-        if (slot.Representation() == SlotRef::DEFERRED_OBJECT) {
-          number_of_slots += slot.DeferredObjectLength();
-        }
+        ASSERT(slot.Representation() != SlotRef::ARGUMENTS_OBJECT);
+        number_of_slots += slot.GetChildrenCount();
         if (slot.Representation() == SlotRef::DEFERRED_OBJECT ||
             slot.Representation() == SlotRef::DUPLICATE_OBJECT) {
           should_deopt = true;
@@ -3179,7 +3177,7 @@ Handle<Object> SlotRef::GetValue(Isolate* isolate) {
       return literal_;
 
     default:
-      UNREACHABLE();
+      FATAL("We should never get here - unexpected deopt info.");
       return Handle<Object>::null();
   }
 }
@@ -3209,19 +3207,18 @@ Handle<Object> SlotRefValueBuilder::GetPreviouslyMaterialized(
       previously_materialized_objects_->get(object_index), isolate);
   materialized_objects_.Add(return_value);
 
-  // Now need to skip all nested objects (and possibly read them from
-  // the materialization store, too)
+  // Now need to skip all the nested objects (and possibly read them from
+  // the materialization store, too).
   for (int i = 0; i < length; i++) {
     SlotRef& slot = slot_refs_[current_slot_];
     current_slot_++;
 
-    // For nested deferred objects, we need to read its properties
-    if (slot.Representation() == SlotRef::DEFERRED_OBJECT) {
-      length += slot.DeferredObjectLength();
-    }
+    // We need to read all the nested objects - add them to the
+    // number of objects we need to process.
+    length += slot.GetChildrenCount();
 
-    // For nested deferred and duplicate objects, we need to put them into
-    // our materialization array
+    // Put the nested deferred/duplicate objects into our materialization
+    // array.
     if (slot.Representation() == SlotRef::DEFERRED_OBJECT ||
         slot.Representation() == SlotRef::DUPLICATE_OBJECT) {
       int nested_object_index = materialized_objects_.length();
@@ -3247,8 +3244,20 @@ Handle<Object> SlotRefValueBuilder::GetNext(Isolate* isolate, int lvl) {
     case SlotRef::LITERAL: {
       return slot.GetValue(isolate);
     }
+    case SlotRef::ARGUMENTS_OBJECT: {
+      // We should never need to materialize an arguments object,
+      // but we still need to put something into the array
+      // so that the indexing is consistent.
+      materialized_objects_.Add(isolate->factory()->undefined_value());
+      int length = slot.GetChildrenCount();
+      for (int i = 0; i < length; ++i) {
+        // We don't need the argument, just ignore it
+        GetNext(isolate, lvl + 1);
+      }
+      return isolate->factory()->undefined_value();
+    }
     case SlotRef::DEFERRED_OBJECT: {
-      int length = slot.DeferredObjectLength();
+      int length = slot.GetChildrenCount();
       ASSERT(slot_refs_[current_slot_].Representation() == SlotRef::LITERAL ||
              slot_refs_[current_slot_].Representation() == SlotRef::TAGGED);
 
@@ -3317,7 +3326,7 @@ Handle<Object> SlotRefValueBuilder::GetNext(Isolate* isolate, int lvl) {
       break;
   }
 
-  UNREACHABLE();
+  FATAL("We should never get here - unexpected deopt slot kind.");
   return Handle<Object>::null();
 }
 
