@@ -137,6 +137,12 @@ class HCheckTable : public ZoneObject {
                              Zone* zone) {
     if (state == NULL) {
       block->MarkUnreachable();
+    } else if (block->IsUnreachable()) {
+      state = NULL;
+    }
+    if (FLAG_trace_check_elimination) {
+      PrintF("Processing B%d, checkmaps-table:\n", block->block_id());
+      Print(state);
     }
     return state;
   }
@@ -147,6 +153,7 @@ class HCheckTable : public ZoneObject {
     HCheckTable* copy = new(phase_->zone()) HCheckTable(phase_);
     for (int i = 0; i < size_; i++) {
       HCheckTableEntry* old_entry = &entries_[i];
+      ASSERT(old_entry->maps_->size() > 0);
       HCheckTableEntry* new_entry = &copy->entries_[i];
       new_entry->object_ = old_entry->object_;
       new_entry->maps_ = old_entry->maps_->Copy(phase_->zone());
@@ -236,7 +243,7 @@ class HCheckTable : public ZoneObject {
              succ->block_id(),
              learned ? "learned" : "copied",
              from_block->block_id());
-      copy->Print();
+      Print(copy);
     }
 
     return copy;
@@ -283,7 +290,7 @@ class HCheckTable : public ZoneObject {
     if (FLAG_trace_check_elimination) {
       PrintF("B%d checkmaps-table merged with B%d table:\n",
              succ->block_id(), pred_block->block_id());
-      Print();
+      Print(this);
     }
     return this;
   }
@@ -346,7 +353,7 @@ class HCheckTable : public ZoneObject {
           }
 
           if (FLAG_trace_check_elimination) {
-            Print();
+            Print(this);
           }
           INC_STAT(narrowed_);
         }
@@ -540,9 +547,14 @@ class HCheckTable : public ZoneObject {
     cursor_ = size_;  // Move cursor to end.
   }
 
-  void Print() {
-    for (int i = 0; i < size_; i++) {
-      HCheckTableEntry* entry = &entries_[i];
+  static void Print(HCheckTable* table) {
+    if (table == NULL) {
+      PrintF("  unreachable\n");
+      return;
+    }
+
+    for (int i = 0; i < table->size_; i++) {
+      HCheckTableEntry* entry = &table->entries_[i];
       ASSERT(entry->object_ != NULL);
       PrintF("  checkmaps-table @%d: %s #%d ", i,
              entry->object_->IsPhi() ? "phi" : "object", entry->object_->id());
