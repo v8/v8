@@ -71,7 +71,7 @@ class Preparation(Step):
     if os.path.exists(self.Config(ALREADY_MERGING_SENTINEL_FILE)):
       if self._options.delete_sentinel:
         os.remove(self.Config(ALREADY_MERGING_SENTINEL_FILE))
-      elif self._options.s == 0:
+      elif self._options.step == 0:
         self.Die("A merge is already in progress")
     open(self.Config(ALREADY_MERGING_SENTINEL_FILE), "a").close()
 
@@ -333,7 +333,7 @@ def BuildOptions():
                       default=False, action="store_true")
   parser.add_argument("-p", "--patch", dest="p",
                       help="A patch file to apply as part of the merge.")
-  parser.add_argument("-s", "--step", dest="s",
+  parser.add_argument("-s", "--step",
                       help="The step where to start work. Default: 0.",
                       default=0, type=int)
   return parser

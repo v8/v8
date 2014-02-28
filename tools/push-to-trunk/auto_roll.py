@@ -52,9 +52,9 @@ class AutoRollOptions(CommonOptions):
     super(AutoRollOptions, self).__init__(options)
     self.requires_editor = False
     self.status_password = options.status_password
-    self.c = options.c
+    self.chromium = options.chromium
     self.push = getattr(options, 'push', False)
-    self.author = getattr(options, 'a', None)
+    self.author = getattr(options, 'author', None)
 
 
 class Preparation(Step):
@@ -155,7 +155,7 @@ class PushToTrunk(Step):
               push_to_trunk.CONFIG,
               PushToTrunkOptions.MakeForcedOptions(self._options.author,
                                                    self._options.reviewer,
-                                                   self._options.c),
+                                                   self._options.chromium),
               self._side_effect_handler)
       finally:
         self.PushTreeStatus(self["tree_message"])
@@ -181,9 +181,9 @@ def RunAutoRoll(config,
 
 def BuildOptions():
   parser = argparse.ArgumentParser()
-  parser.add_argument("-a", "--author", dest="a",
+  parser.add_argument("-a", "--author",
                       help="The author email used for rietveld.")
-  parser.add_argument("-c", "--chromium", dest="c",
+  parser.add_argument("-c", "--chromium",
                       help=("The path to your Chromium src/ directory to "
                             "automate the V8 roll."))
   parser.add_argument("-p", "--push",
@@ -191,7 +191,7 @@ def BuildOptions():
                       default=False, action="store_true")
   parser.add_argument("-r", "--reviewer",
                       help="The account name to be used for reviews.")
-  parser.add_argument("-s", "--step", dest="s",
+  parser.add_argument("-s", "--step",
                       help="Specify the step where to start work. Default: 0.",
                       default=0, type=int)
   parser.add_argument("--status-password",
@@ -202,7 +202,7 @@ def BuildOptions():
 def Main():
   parser = BuildOptions()
   options = parser.parse_args()
-  if not options.a or not options.c or not options.reviewer:
+  if not options.author or not options.chromium or not options.reviewer:
     print "You need to specify author, chromium src location and reviewer."
     parser.print_help()
     return 1

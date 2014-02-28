@@ -62,26 +62,26 @@ class PushToTrunkOptions(CommonOptions):
     class Options(object):
       pass
     options = Options()
-    options.s = 0
-    options.l = None
-    options.b = None
-    options.f = True
-    options.m = False
-    options.c = chrome_path
+    options.step = 0
+    options.last_push = None
+    options.last_bleeding_edge = None
+    options.force = True
+    options.manual = False
+    options.chromium = chrome_path
     options.reviewer = reviewer
-    options.a = author
+    options.author = author
     return PushToTrunkOptions(options)
 
   def __init__(self, options):
-    super(PushToTrunkOptions, self).__init__(options, options.m)
-    self.requires_editor = not options.f
-    self.wait_for_lgtm = not options.f
-    self.tbr_commit = not options.m
-    self.l = options.l
+    super(PushToTrunkOptions, self).__init__(options, options.manual)
+    self.requires_editor = not options.force
+    self.wait_for_lgtm = not options.force
+    self.tbr_commit = not options.manual
+    self.last_push = options.last_push
     self.reviewer = options.reviewer
-    self.c = options.c
-    self.b = getattr(options, 'b', None)
-    self.author = getattr(options, 'a', None)
+    self.chromium = options.chromium
+    self.last_bleeding_edge = getattr(options, 'last_bleeding_edge', None)
+    self.author = getattr(options, 'author', None)
 
 
 class Preparation(Step):
@@ -105,7 +105,7 @@ class DetectLastPush(Step):
   MESSAGE = "Detect commit ID of last push to trunk."
 
   def RunStep(self):
-    last_push = self._options.l or self.FindLastTrunkPush()
+    last_push = self._options.last_push or self.FindLastTrunkPush()
     while True:
       # Print assumed commit, circumventing git's pager.
       print self.GitLog(n=1, git_hash=last_push)
@@ -113,10 +113,10 @@ class DetectLastPush(Step):
         break
       last_push = self.FindLastTrunkPush(parent_hash=last_push)
 
-    if self._options.b:
+    if self._options.last_bleeding_edge:
       # Read the bleeding edge revision of the last push from a command-line
       # option.
-      last_push_bleeding_edge = self._options.b
+      last_push_bleeding_edge = self._options.last_bleeding_edge
     else:
       # Retrieve the bleeding edge revision of the last push from the text in
       # the push commit message.
@@ -415,7 +415,7 @@ class CheckChromium(Step):
   MESSAGE = "Ask for chromium checkout."
 
   def Run(self):
-    self["chrome_path"] = self._options.c
+    self["chrome_path"] = self._options.chromium
     if not self["chrome_path"]:
       self.DieNoManualMode("Please specify the path to a Chromium checkout in "
                           "forced mode.")
@@ -547,42 +547,42 @@ def RunPushToTrunk(config,
 def BuildOptions():
   parser = argparse.ArgumentParser()
   group = parser.add_mutually_exclusive_group()
-  group.add_argument("-f", "--force", dest="f",
+  group.add_argument("-f", "--force",
                      help="Don't prompt the user.",
                      default=False, action="store_true")
-  group.add_argument("-m", "--manual", dest="m",
+  group.add_argument("-m", "--manual",
                      help="Prompt the user at every important step.",
                      default=False, action="store_true")
-  parser.add_argument("-a", "--author", dest="a",
+  parser.add_argument("-a", "--author",
                       help="The author email used for rietveld.")
-  parser.add_argument("-b", "--last-bleeding-edge", dest="b",
+  parser.add_argument("-b", "--last-bleeding-edge",
                       help=("The git commit ID of the last bleeding edge "
                             "revision that was pushed to trunk. This is used "
                             "for the auto-generated ChangeLog entry."))
-  parser.add_argument("-c", "--chromium", dest="c",
+  parser.add_argument("-c", "--chromium",
                       help=("The path to your Chromium src/ directory to "
                             "automate the V8 roll."))
-  parser.add_argument("-l", "--last-push", dest="l",
+  parser.add_argument("-l", "--last-push",
                       help="The git commit ID of the last push to trunk.")
   parser.add_argument("-r", "--reviewer",
                       help="The account name to be used for reviews.")
-  parser.add_argument("-s", "--step", dest="s",
+  parser.add_argument("-s", "--step",
                       help="The step where to start work. Default: 0.",
                       default=0, type=int)
   return parser
 
 
 def ProcessOptions(options):
-  if options.s < 0:
-    print "Bad step number %d" % options.s
+  if options.step < 0:
+    print "Bad step number %d" % options.step
     return False
-  if not options.m and not options.reviewer:
+  if not options.manual and not options.reviewer:
     print "A reviewer (-r) is required in (semi-)automatic mode."
     return False
-  if not options.m and not options.c:
+  if not options.manual and not options.chromium:
     print "A chromium checkout (-c) is required in (semi-)automatic mode."
     return False
-  if not options.m and not options.a:
+  if not options.manual and not options.author:
     print "Specify your chromium.org email with -a in (semi-)automatic mode."
     return False
   return True

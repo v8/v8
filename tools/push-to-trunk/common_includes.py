@@ -230,12 +230,12 @@ class CommonOptions(object):
   def __init__(self, options, manual=True):
     self.requires_editor = True
     self.wait_for_lgtm = True
-    self.s = options.s
+    self.step = options.step
     self.force_readline_defaults = not manual
     self.force_upload = not manual
     self.manual = manual
     self.reviewer = getattr(options, 'reviewer', "")
-    self.author = getattr(options, 'a', "")
+    self.author = getattr(options, 'author', "")
 
 
 class Step(GitRecipesMixin):
@@ -507,7 +507,7 @@ def RunScript(step_classes,
               options,
               side_effect_handler=DEFAULT_SIDE_EFFECT_HANDLER):
   state_file = "%s-state.json" % config[PERSISTFILE_BASENAME]
-  if options.s == 0 and os.path.exists(state_file):
+  if options.step == 0 and os.path.exists(state_file):
     os.remove(state_file)
   state = {}
   steps = []
@@ -515,5 +515,5 @@ def RunScript(step_classes,
     steps.append(MakeStep(step_class, number, state, config,
                           options, side_effect_handler))
 
-  for step in steps[options.s:]:
+  for step in steps[options.step:]:
     step.Run()
