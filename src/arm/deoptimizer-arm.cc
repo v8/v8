@@ -54,7 +54,7 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
     // Fail hard and early if we enter this code object again.
     byte* pointer = code->FindCodeAgeSequence();
     if (pointer != NULL) {
-      pointer += kNoCodeAgeSequenceLength;
+      pointer += kNoCodeAgeSequenceLength * Assembler::kInstrSize;
     } else {
       pointer = code->instruction_start();
     }
