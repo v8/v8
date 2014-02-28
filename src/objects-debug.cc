@@ -264,8 +264,9 @@ void FixedTypedArray<Traits>::FixedTypedArrayVerify() {
 
 
 bool JSObject::ElementsAreSafeToExamine() {
-  return (FLAG_use_gvn && FLAG_use_allocation_folding) ||
-      reinterpret_cast<Map*>(elements()) !=
+  // If a GC was caused while constructing this object, the elements
+  // pointer may point to a one pointer filler map.
+  return reinterpret_cast<Map*>(elements()) !=
       GetHeap()->one_pointer_filler_map();
 }
 
