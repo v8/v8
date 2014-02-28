@@ -138,7 +138,7 @@ class Representation {
 
     ASSERT(kind_ != kExternal);
     ASSERT(other.kind_ != kExternal);
-    if (IsHeapObject()) return other.IsDouble() || other.IsNone();
+    if (IsHeapObject()) return other.IsNone();
     if (kind_ == kUInteger8 && other.kind_ == kInteger8) return false;
     if (kind_ == kUInteger16 && other.kind_ == kInteger16) return false;
     return kind_ > other.kind_;
