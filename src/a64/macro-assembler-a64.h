@@ -1888,7 +1888,6 @@ class MacroAssembler : public Assembler {
       Register scratch,
       Label* no_map_match);
 
-  void LoadArrayFunction(Register function);
   void LoadGlobalFunction(int index, Register function);
 
   // Load the initial map from the global function. The registers function and

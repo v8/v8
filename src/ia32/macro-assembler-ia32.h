@@ -262,8 +262,6 @@ class MacroAssembler: public Assembler {
       Register scratch,
       Label* no_map_match);
 
-  void LoadGlobalContext(Register global_context);
-
   // Load the global function with the given index.
   void LoadGlobalFunction(int index, Register function);
 

@@ -4712,17 +4712,6 @@ void MacroAssembler::LoadTransitionedArrayMapConditional(
 }
 
 
-void MacroAssembler::LoadArrayFunction(Register function) {
-  // Load the global or builtins object from the current context.
-  Ldr(function, GlobalObjectMemOperand());
-  // Load the global context from the global or builtins object.
-  Ldr(function,
-      FieldMemOperand(function, GlobalObject::kGlobalContextOffset));
-  // Load the array function from the native context.
-  Ldr(function, ContextMemOperand(function, Context::ARRAY_FUNCTION_INDEX));
-}
-
-
 void MacroAssembler::LoadGlobalFunction(int index, Register function) {
   // Load the global or builtins object from the current context.
   Ldr(function, GlobalObjectMemOperand());

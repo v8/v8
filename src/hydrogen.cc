@@ -8225,15 +8225,14 @@ static bool IsAllocationInlineable(Handle<JSFunction> constructor) {
 
 
 bool HOptimizedGraphBuilder::IsCallNewArrayInlineable(CallNew* expr) {
-  Handle<AllocationSite> site = expr->allocation_site();
-  if (site.is_null()) return false;
-
   Handle<JSFunction> caller = current_info()->closure();
   Handle<JSFunction> target(isolate()->native_context()->array_function(),
                             isolate());
   int argument_count = expr->arguments()->length();
   // We should have the function plus array arguments on the environment stack.
   ASSERT(environment()->length() >= (argument_count + 1));
+  Handle<AllocationSite> site = expr->allocation_site();
+  ASSERT(!site.is_null());
 
   bool inline_ok = false;
   if (site->CanInlineCall()) {

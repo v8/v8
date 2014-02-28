@@ -1236,7 +1236,6 @@ class MacroAssembler: public Assembler {
 
   // Load the global function with the given index.
   void LoadGlobalFunction(int index, Register function);
-  void LoadArrayFunction(Register function);
 
   // Load the initial map from the global function. The registers
   // function and map can be the same.

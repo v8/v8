@@ -3037,7 +3037,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   __ b(ne, &miss);
 
   // Make sure the function is the Array() function
-  __ LoadArrayFunction(r4);
+  __ LoadGlobalFunction(Context::ARRAY_FUNCTION_INDEX, r4);
   __ cmp(r1, r4);
   __ b(ne, &megamorphic);
   __ jmp(&done);
@@ -3060,7 +3060,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   // indicate the ElementsKind if function is the Array constructor.
   __ bind(&initialize);
   // Make sure the function is the Array() function
-  __ LoadArrayFunction(r4);
+  __ LoadGlobalFunction(Context::ARRAY_FUNCTION_INDEX, r4);
   __ cmp(r1, r4);
   __ b(ne, &not_array_function);
 

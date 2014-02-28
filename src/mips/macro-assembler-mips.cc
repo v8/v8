@@ -4442,19 +4442,6 @@ void MacroAssembler::LoadGlobalFunction(int index, Register function) {
 }
 
 
-void MacroAssembler::LoadArrayFunction(Register function) {
-  // Load the global or builtins object from the current context.
-  lw(function,
-     MemOperand(cp, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
-  // Load the global context from the global or builtins object.
-  lw(function,
-     FieldMemOperand(function, GlobalObject::kGlobalContextOffset));
-  // Load the array function from the native context.
-  lw(function,
-     MemOperand(function, Context::SlotOffset(Context::ARRAY_FUNCTION_INDEX)));
-}
-
-
 void MacroAssembler::LoadGlobalFunctionInitialMap(Register function,
                                                   Register map,
                                                   Register scratch) {

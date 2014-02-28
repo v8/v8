@@ -2194,7 +2194,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   __ j(not_equal, &miss);
 
   // Make sure the function is the Array() function
-  __ LoadArrayFunction(rcx);
+  __ LoadGlobalFunction(Context::ARRAY_FUNCTION_INDEX, rcx);
   __ cmpq(rdi, rcx);
   __ j(not_equal, &megamorphic);
   __ jmp(&done);
@@ -2216,7 +2216,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   // indicate the ElementsKind if function is the Array constructor.
   __ bind(&initialize);
   // Make sure the function is the Array() function
-  __ LoadArrayFunction(rcx);
+  __ LoadGlobalFunction(Context::ARRAY_FUNCTION_INDEX, rcx);
   __ cmpq(rdi, rcx);
   __ j(not_equal, &not_array_function);
 

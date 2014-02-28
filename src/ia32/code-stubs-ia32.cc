@@ -2352,11 +2352,9 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   __ cmp(FieldOperand(ecx, 0), Immediate(allocation_site_map));
   __ j(not_equal, &miss);
 
-  // Load the global or builtins object from the current context
-  __ LoadGlobalContext(ecx);
   // Make sure the function is the Array() function
-  __ cmp(edi, Operand(ecx,
-                      Context::SlotOffset(Context::ARRAY_FUNCTION_INDEX)));
+  __ LoadGlobalFunction(Context::ARRAY_FUNCTION_INDEX, ecx);
+  __ cmp(edi, ecx);
   __ j(not_equal, &megamorphic);
   __ jmp(&done, Label::kFar);
 
@@ -2377,10 +2375,9 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   // An uninitialized cache is patched with the function or sentinel to
   // indicate the ElementsKind if function is the Array constructor.
   __ bind(&initialize);
-  __ LoadGlobalContext(ecx);
   // Make sure the function is the Array() function
-  __ cmp(edi, Operand(ecx,
-                      Context::SlotOffset(Context::ARRAY_FUNCTION_INDEX)));
+  __ LoadGlobalFunction(Context::ARRAY_FUNCTION_INDEX, ecx);
+  __ cmp(edi, ecx);
   __ j(not_equal, &not_array_function);
 
   // The target function is the Array constructor,
