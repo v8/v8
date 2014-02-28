@@ -390,10 +390,10 @@ class RuleProcessor(object):
         self.__dfa = dfa
       return self.__dfa
 
-    def optimize_dfa(self, log = False):
+    def optimize_dfa(self):
       assert not self.__dfa
       assert not self.__minimial_dfa
-      self.__dfa = DfaOptimizer.optimize(self.minimal_dfa(), log)
+      self.__dfa = DfaOptimizer.optimize(self.minimal_dfa())
       self.__minimial_dfa = None
 
     def minimal_dfa(self):

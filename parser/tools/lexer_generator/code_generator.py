@@ -27,6 +27,7 @@
 
 import os
 import sys
+import logging
 import jinja2
 from copy import deepcopy
 from dfa import Dfa
@@ -40,8 +41,7 @@ class CodeGenerator:
                minimize_default = True,
                inline = True,
                switching = True,
-               debug_print = False,
-               log = False):
+               debug_print = False):
     if minimize_default:
       dfa = rule_processor.default_automata().minimal_dfa()
     else:
@@ -49,7 +49,6 @@ class CodeGenerator:
     self.__dfa = dfa
     self.__default_action = rule_processor.default_action()
     self.__debug_print = debug_print
-    self.__log = log
     self.__inline = inline
     self.__switching = switching
     self.__jump_table = []
@@ -380,20 +379,17 @@ class CodeGenerator:
     dfa_states = self.__dfa_states
     # split transitions
     switched = reduce(self.__split_transitions, dfa_states, 0)
-    if self.__log:
-      print "%s states use switch (instead of if)" % switched
+    logging.info("%s states use switch (instead of if)" % switched)
     # rewrite deferred transitions
     for state in dfa_states:
       self.__rewrite_deferred_transitions(state)
     # set nodes to inline
     if self.__inline:
       inlined = reduce(self.__set_inline, dfa_states, 0)
-      if self.__log:
-        print "%s states inlined" % inlined
+      logging.info("%s states inlined" % inlined)
     # rewrite transitions to use jumps
     inlined_nodes = self.__rewrite_transitions_to_jumps(0, len(dfa_states), {})
-    if self.__log:
-      print "%s inlined nodes created" % inlined_nodes
+    logging.info("%s inlined nodes created" % inlined_nodes)
     # mark the entry point in case there are implicit jumps to it
     self.__dfa_states[0]['entry_points']['state_entry'] = True
 

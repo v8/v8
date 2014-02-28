@@ -25,6 +25,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+import logging
 from transition_key import TransitionKey
 from automaton import Term, Action, Automaton
 from dfa import Dfa
@@ -139,12 +140,11 @@ from dfa import Dfa
 class DfaOptimizer(object):
 
   @staticmethod
-  def optimize(dfa, log):
-    return DfaOptimizer(dfa, log).__replace_tokens_with_gotos()
+  def optimize(dfa):
+    return DfaOptimizer(dfa).__replace_tokens_with_gotos()
 
-  def __init__(self, dfa, log):
+  def __init__(self, dfa):
     self.__dfa = dfa
-    self.__log = log
 
   @staticmethod
   def __transistions_match(encoding, incoming_key, incoming_state, state):
@@ -354,12 +354,9 @@ class DfaOptimizer(object):
     start_name = name(self.__dfa.start_state())
     states = self.__remove_orphaned_states(states, orphanable, start_name)
     # dump stats
-    if self.__log:
-      print 'goto_start inserted %s' % counters['goto_start']
-      print 'store_token inserted %s' % (
-        counters['store_token'])
-      print 'store_harmony_token %s' % (
-        counters['store_harmony_token'])
-      print 'transitions removed %s' % counters['removals']
-      print 'states split %s' % counters['split_state']
+    logging.info('goto_start inserted %s' % counters['goto_start'])
+    logging.info('store_token inserted %s' % (counters['store_token']))
+    logging.info('store_harmony_token %s' % (counters['store_harmony_token']))
+    logging.info('transitions removed %s' % counters['removals'])
+    logging.info('states split %s' % counters['split_state'])
     return Dfa(self.__dfa.encoding(), start_name, states)

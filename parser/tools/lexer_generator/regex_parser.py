@@ -25,50 +25,12 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+import logging
 import ply.lex as lex
 import ply.yacc as yacc
 from term import Term
 from nfa_builder import NfaBuilder
-
-class ParserBuilder:
-
-  class Logger(object):
-    def debug(self,msg,*args,**kwargs):
-      pass
-
-    def info(self,msg,*args,**kwargs):
-      pass
-
-    def warning(self,msg,*args,**kwargs):
-      raise Exception("warning: "+ (msg % args) + "\n")
-
-    def error(self,msg,*args,**kwargs):
-      raise Exception("error: "+ (msg % args) + "\n")
-
-  __static_instances = {}
-  @staticmethod
-  def parse(
-      string, name, new_lexer, new_parser, preparse = None, postparse = None):
-    if not name in ParserBuilder.__static_instances:
-      logger = ParserBuilder.Logger()
-      lexer_instance = new_lexer()
-      lexer_instance.lex = lex.lex(module=lexer_instance)
-      instance = new_parser()
-      instance.yacc = yacc.yacc(
-        module=instance, debug=True, write_tables=0,
-        debuglog=logger, errorlog=logger)
-      ParserBuilder.__static_instances[name] = (lexer_instance, instance)
-    (lexer_instance, instance) = ParserBuilder.__static_instances[name]
-    if preparse:
-      preparse(instance)
-    try:
-      return_value = instance.yacc.parse(string, lexer=lexer_instance.lex)
-    except Exception:
-      del ParserBuilder.__static_instances[name]
-      raise
-    if postparse:
-      postparse(instance)
-    return return_value
+from ply_utilities import ParserBuilder
 
 def build_escape_map(chars):
   def add_escape(d, char):

@@ -252,6 +252,7 @@
           '../../tools/lexer_generator/key_encoding.py',
           '../../tools/lexer_generator/nfa.py',
           '../../tools/lexer_generator/nfa_builder.py',
+          '../../tools/lexer_generator/ply_utilities.py',
           '../../tools/lexer_generator/regex_parser.py',
           '../../tools/lexer_generator/rule_parser.py',
           '../../tools/lexer_generator/term.py',

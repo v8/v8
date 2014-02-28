@@ -25,6 +25,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+import logging
 import argparse
 from dot_utilities import *
 from nfa import Nfa
@@ -141,40 +142,31 @@ if __name__ == '__main__':
   parser.add_argument('--debug-code', action='store_true')
   parser.add_argument('--profile', action='store_true')
   parser.add_argument('--rule-html')
-  parser.add_argument('--count-paths', action='store_true')
   args = parser.parse_args()
 
   minimize_default = not args.no_minimize_default
-  verbose = args.verbose
+  if args.verbose:
+    logging.basicConfig(level=logging.INFO)
 
   if args.profile:
     profiler = start_profiling()
 
   re_file = args.re
-  if verbose:
-    print "parsing %s" % re_file
+  logging.info("parsing %s" % re_file)
   with open(re_file, 'r') as f:
     rule_processor = RuleProcessor(f.read(), args.encoding)
 
   if not args.no_optimize_default:
-    rule_processor.default_automata().optimize_dfa(log = args.verbose)
+    rule_processor.default_automata().optimize_dfa()
 
   if minimize_default:
     if args.no_verify_default:
       DfaMinimizer.set_verify(False)
     dfa = rule_processor.default_automata().dfa()
     mdfa = rule_processor.default_automata().minimal_dfa()
-    if verbose:
-      print "nodes reduced from %s to %s" % (
-        dfa.node_count(), mdfa.node_count())
+    logging.info("nodes reduced from %s to %s" % (
+        dfa.node_count(), mdfa.node_count()))
     DfaMinimizer.set_verify(True)
-
-  if args.count_paths:
-    path_count = 0
-    print 'counting'
-    for path in rule_processor.default_automata().minimal_dfa().path_iter():
-      path_count += 1
-    print 'done', path_count
 
   html_file = args.html
   if html_file:
@@ -182,29 +174,25 @@ if __name__ == '__main__':
       rule_processor, minimize_default, not args.no_merge_html)
     with open(args.html, 'w') as f:
       f.write(html)
-      if verbose:
-        print "wrote html to %s" % html_file
+      logging.info("wrote html to %s" % html_file)
 
   rule_html_file = args.rule_html
   if rule_html_file:
     html = generate_rule_tree_html(rule_processor)
     with open(rule_html_file, 'w') as f:
       f.write(html)
-      if verbose:
-        print "wrote html to %s" % rule_html_file
+      logging.info("wrote html to %s" % rule_html_file)
 
   code_file = args.code
   if code_file:
     code_generator = CodeGenerator(rule_processor,
                                    minimize_default = minimize_default,
-                                   log = verbose,
                                    inline = not args.no_inline,
                                    debug_print = args.debug_code)
     code = code_generator.process()
     with open(code_file, 'w') as f:
       f.write(code)
-      if verbose:
-        print "wrote code to %s" % code_file
+      logging.info("wrote code to %s" % code_file)
 
   input_file = args.input
   if input_file:
