@@ -631,6 +631,7 @@ class Compiler : public AllStatic {
                                                   Handle<Context> context,
                                                   v8::Extension* extension,
                                                   ScriptDataImpl* pre_data,
+                                                  Handle<Object> script_data,
                                                   NativesFlag is_natives_code);
 
   // Create a shared function info object (the code may be lazily compiled).

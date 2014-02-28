@@ -700,6 +700,7 @@ Handle<Script> Factory::NewScript(Handle<String> source) {
   script->set_id(Smi::FromInt(id));
   script->set_line_offset(Smi::FromInt(0));
   script->set_column_offset(Smi::FromInt(0));
+  script->set_data(heap->undefined_value());
   script->set_context_data(heap->undefined_value());
   script->set_type(Smi::FromInt(Script::TYPE_NORMAL));
   script->set_wrapper(*wrapper);

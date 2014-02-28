@@ -67,6 +67,7 @@ static Handle<JSFunction> Compile(const char* source) {
                               false,
                               Handle<Context>(isolate->native_context()),
                               NULL, NULL,
+                              Handle<String>::null(),
                               NOT_NATIVES_CODE);
   return isolate->factory()->NewFunctionFromSharedFunctionInfo(
       shared_function, isolate->native_context());

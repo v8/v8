@@ -763,6 +763,7 @@ bool Debug::CompileDebuggerScript(Isolate* isolate, int index) {
                                           false,
                                           context,
                                           NULL, NULL,
+                                          Handle<String>::null(),
                                           NATIVES_CODE);
 
   // Silently ignore stack overflows during compilation.
