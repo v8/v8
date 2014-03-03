@@ -4710,7 +4710,7 @@ void RecordWriteStub::GenerateIncremental(MacroAssembler* masm, Mode mode) {
     // remembered set.
     CheckNeedsToInformIncrementalMarker(
         masm, kUpdateRememberedSetOnNoNeedToInformIncrementalMarker, mode);
-    InformIncrementalMarker(masm, mode);
+    InformIncrementalMarker(masm);
     regs_.Restore(masm);  // Restore the extra scratch registers we used.
     __ RememberedSetHelper(object_,
                            address_,
@@ -4723,13 +4723,13 @@ void RecordWriteStub::GenerateIncremental(MacroAssembler* masm, Mode mode) {
 
   CheckNeedsToInformIncrementalMarker(
       masm, kReturnOnNoNeedToInformIncrementalMarker, mode);
-  InformIncrementalMarker(masm, mode);
+  InformIncrementalMarker(masm);
   regs_.Restore(masm);  // Restore the extra scratch registers we used.
   __ Ret();
 }
 
 
-void RecordWriteStub::InformIncrementalMarker(MacroAssembler* masm, Mode mode) {
+void RecordWriteStub::InformIncrementalMarker(MacroAssembler* masm) {
   regs_.SaveCallerSaveRegisters(masm, save_fp_regs_mode_);
   Register address =
     x0.Is(regs_.address()) ? regs_.scratch0() : regs_.address();
@@ -4741,10 +4741,8 @@ void RecordWriteStub::InformIncrementalMarker(MacroAssembler* masm, Mode mode) {
   __ Mov(x2, Operand(ExternalReference::isolate_address(masm->isolate())));
 
   AllowExternalCallThatCantCauseGC scope(masm);
-  ExternalReference function = (mode == INCREMENTAL_COMPACTION)
-      ? ExternalReference::incremental_evacuation_record_write_function(
-          masm->isolate())
-      : ExternalReference::incremental_marking_record_write_function(
+  ExternalReference function =
+      ExternalReference::incremental_marking_record_write_function(
           masm->isolate());
   __ CallCFunction(function, 3, 0);
 
