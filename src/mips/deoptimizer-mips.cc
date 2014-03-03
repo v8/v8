@@ -69,13 +69,16 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
     }
   }
 
-  // For each LLazyBailout instruction insert a call to the corresponding
-  // deoptimization entry.
   DeoptimizationInputData* deopt_data =
       DeoptimizationInputData::cast(code->deoptimization_data());
+  SharedFunctionInfo* shared =
+      SharedFunctionInfo::cast(deopt_data->SharedFunctionInfo());
+  shared->EvictFromOptimizedCodeMap(code, "deoptimized code");
 #ifdef DEBUG
   Address prev_call_address = NULL;
 #endif
+  // For each LLazyBailout instruction insert a call to the corresponding
+  // deoptimization entry.
   for (int i = 0; i < deopt_data->DeoptCount(); i++) {
     if (deopt_data->Pc(i)->value() == -1) continue;
     Address call_address = code_start_address + deopt_data->Pc(i)->value();

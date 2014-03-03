@@ -342,8 +342,6 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(Context* context) {
       // Unlink this function and evict from optimized code map.
       SharedFunctionInfo* shared = function->shared();
       function->set_code(shared->code());
-      shared->EvictFromOptimizedCodeMap(function->context()->native_context(),
-                                        "deoptimized function");
 
       if (FLAG_trace_deopt) {
         CodeTracer::Scope scope(code->GetHeap()->isolate()->GetCodeTracer());

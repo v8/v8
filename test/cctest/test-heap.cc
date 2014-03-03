@@ -3036,6 +3036,11 @@ void ReleaseStackTraceDataTest(const char* source, const char* accessor) {
 
 
 TEST(ReleaseStackTraceData) {
+  if (i::FLAG_always_opt) {
+    // TODO(ulan): Remove this once the memory leak via code_next_link is fixed.
+    // See: https://codereview.chromium.org/181833004/
+    return;
+  }
   FLAG_use_ic = false;  // ICs retain objects.
   FLAG_concurrent_recompilation = false;
   CcTest::InitializeVM();

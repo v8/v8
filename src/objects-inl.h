@@ -5437,8 +5437,6 @@ void JSFunction::ReplaceCode(Code* code) {
   if (was_optimized && !is_optimized) {
     // TODO(titzer): linear in the number of optimized functions; fix!
     context()->native_context()->RemoveOptimizedFunction(this);
-    shared()->EvictFromOptimizedCodeMap(context()->native_context(),
-                                        "Removing optimized code");
   }
 }
 

@@ -145,9 +145,6 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
   Address reloc_end_address = reloc_info->address() + reloc_info->Size();
   RelocInfoWriter reloc_info_writer(reloc_end_address, code_start_address);
 
-  // For each LLazyBailout instruction insert a call to the corresponding
-  // deoptimization entry.
-
   // Since the call is a relative encoding, write new
   // reloc info.  We do not need any of the existing reloc info because the
   // existing code will not be used again (we zap it in debug builds).
@@ -155,9 +152,14 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
   // Emit call to lazy deoptimization at all lazy deopt points.
   DeoptimizationInputData* deopt_data =
       DeoptimizationInputData::cast(code->deoptimization_data());
+  SharedFunctionInfo* shared =
+      SharedFunctionInfo::cast(deopt_data->SharedFunctionInfo());
+  shared->EvictFromOptimizedCodeMap(code, "deoptimized code");
 #ifdef DEBUG
   Address prev_call_address = NULL;
 #endif
+  // For each LLazyBailout instruction insert a call to the corresponding
+  // deoptimization entry.
   for (int i = 0; i < deopt_data->DeoptCount(); i++) {
     if (deopt_data->Pc(i)->value() == -1) continue;
     // Patch lazy deoptimization entry.

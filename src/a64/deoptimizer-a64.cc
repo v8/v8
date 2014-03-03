@@ -53,15 +53,17 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
   // TODO(jkummerow): if (FLAG_zap_code_space), make the code object's
   // entry sequence unusable (see other architectures).
 
-  // For each LLazyBailout instruction insert a call to the corresponding
-  // deoptimization entry.
   DeoptimizationInputData* deopt_data =
       DeoptimizationInputData::cast(code->deoptimization_data());
+  SharedFunctionInfo* shared =
+      SharedFunctionInfo::cast(deopt_data->SharedFunctionInfo());
+  shared->EvictFromOptimizedCodeMap(code, "deoptimized code");
   Address code_start_address = code->instruction_start();
 #ifdef DEBUG
   Address prev_call_address = NULL;
 #endif
-
+  // For each LLazyBailout instruction insert a call to the corresponding
+  // deoptimization entry.
   for (int i = 0; i < deopt_data->DeoptCount(); i++) {
     if (deopt_data->Pc(i)->value() == -1) continue;
 

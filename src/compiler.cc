@@ -1070,10 +1070,7 @@ static Handle<Code> GetCodeFromOptimizedCodeMap(Handle<JSFunction> function,
       }
       FixedArray* literals = shared->GetLiteralsFromOptimizedCodeMap(index);
       if (literals != NULL) function->set_literals(literals);
-      Handle<Code> code(shared->GetCodeFromOptimizedCodeMap(index));
-      if (!code->marked_for_deoptimization()) return code;
-      shared->EvictFromOptimizedCodeMap(function->context()->native_context(),
-                                        "code was already marked for deopt");
+      return Handle<Code>(shared->GetCodeFromOptimizedCodeMap(index));
     }
   }
   return Handle<Code>::null();
