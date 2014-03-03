@@ -1576,7 +1576,12 @@ void Map::PrintGeneralization(FILE* file,
   PrintF(file, "[generalizing ");
   constructor_name()->PrintOn(file);
   PrintF(file, "] ");
-  String::cast(instance_descriptors()->GetKey(modify_index))->PrintOn(file);
+  Name* name = instance_descriptors()->GetKey(modify_index);
+  if (name->IsString()) {
+    String::cast(name)->PrintOn(file);
+  } else {
+    PrintF(file, "{symbol %p}", static_cast<void*>(name));
+  }
   if (constant_to_field) {
     PrintF(file, ":c->f");
   } else {
@@ -1616,7 +1621,7 @@ void JSObject::PrintInstanceMigration(FILE* file,
       if (name->IsString()) {
         String::cast(name)->PrintOn(file);
       } else {
-        PrintF(file, "???");
+        PrintF(file, "{symbol %p}", static_cast<void*>(name));
       }
       PrintF(file, " ");
     }
