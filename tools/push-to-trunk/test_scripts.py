@@ -238,7 +238,7 @@ class SimpleMock(object):
   def Expect(self, recipe):
     self._recipe = recipe
 
-  def Call(self, *args):
+  def Call(self, *args):  # pragma: no cover
     self._index += 1
     try:
       expected_call = self._recipe[self._index]
@@ -276,7 +276,7 @@ class SimpleMock(object):
       raise return_value
     return return_value
 
-  def AssertFinished(self):
+  def AssertFinished(self):  # pragma: no cover
     if self._index < len(self._recipe) -1:
       raise NoRetryException("Called %s too seldom: %d vs. %d"
                              % (self._name, self._index, len(self._recipe)))
