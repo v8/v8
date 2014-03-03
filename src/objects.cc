@@ -9640,38 +9640,42 @@ void SharedFunctionInfo::EvictFromOptimizedCodeMap(Code* optimized_code,
                                                    const char* reason) {
   if (optimized_code_map()->IsSmi()) return;
 
-  int i;
-  bool removed_entry = false;
   FixedArray* code_map = FixedArray::cast(optimized_code_map());
-  for (i = kEntriesStart; i < code_map->length(); i += kEntryLength) {
-    ASSERT(code_map->get(i)->IsNativeContext());
-    if (Code::cast(code_map->get(i + 1)) == optimized_code) {
+  int dst = kEntriesStart;
+  int length = code_map->length();
+  for (int src = kEntriesStart; src < length; src += kEntryLength) {
+    ASSERT(code_map->get(src)->IsNativeContext());
+    if (Code::cast(code_map->get(src + kCachedCodeOffset)) == optimized_code) {
+      // Evict the src entry by not copying it to the dst entry.
       if (FLAG_trace_opt) {
         PrintF("[evicting entry from optimizing code map (%s) for ", reason);
         ShortPrint();
-        PrintF("]\n");
+        BailoutId osr(Smi::cast(code_map->get(src + kOsrAstIdOffset))->value());
+        if (osr.IsNone()) {
+          PrintF("]\n");
+        } else {
+          PrintF(" (osr ast id %d)]\n", osr.ToInt());
+        }
       }
-      removed_entry = true;
-      break;
+    } else {
+      // Keep the src entry by copying it to the dst entry.
+      if (dst != src) {
+        code_map->set(dst + kContextOffset,
+                      code_map->get(src + kContextOffset));
+        code_map->set(dst + kCachedCodeOffset,
+                      code_map->get(src + kCachedCodeOffset));
+        code_map->set(dst + kLiteralsOffset,
+                      code_map->get(src + kLiteralsOffset));
+        code_map->set(dst + kOsrAstIdOffset,
+                      code_map->get(src + kOsrAstIdOffset));
+      }
+      dst += kEntryLength;
     }
   }
-  while (i < (code_map->length() - kEntryLength)) {
-    code_map->set(i + kContextOffset,
-                  code_map->get(i + kContextOffset + kEntryLength));
-    code_map->set(i + kCachedCodeOffset,
-                  code_map->get(i + kCachedCodeOffset + kEntryLength));
-    code_map->set(i + kLiteralsOffset,
-                  code_map->get(i + kLiteralsOffset + kEntryLength));
-    code_map->set(i + kOsrAstIdOffset,
-                  code_map->get(i + kOsrAstIdOffset + kEntryLength));
-    i += kEntryLength;
-  }
-  if (removed_entry) {
+  if (dst != length) {
     // Always trim even when array is cleared because of heap verifier.
-    RightTrimFixedArray<FROM_MUTATOR>(GetHeap(), code_map, kEntryLength);
-    if (code_map->length() == kEntriesStart) {
-      ClearOptimizedCodeMap();
-    }
+    RightTrimFixedArray<FROM_MUTATOR>(GetHeap(), code_map, length - dst);
+    if (code_map->length() == kEntriesStart) ClearOptimizedCodeMap();
   }
 }
 
