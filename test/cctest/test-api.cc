@@ -764,7 +764,7 @@ THREADED_TEST(UsingExternalString) {
     CcTest::heap()->CollectGarbage(i::NEW_SPACE);  // in survivor space now
     CcTest::heap()->CollectGarbage(i::NEW_SPACE);  // in old gen now
     i::Handle<i::String> isymbol =
-        factory->InternalizedStringFromString(istring);
+        factory->InternalizeString(istring);
     CHECK(isymbol->IsInternalizedString());
   }
   CcTest::heap()->CollectAllGarbage(i::Heap::kNoGCFlags);
@@ -784,7 +784,7 @@ THREADED_TEST(UsingExternalAsciiString) {
     CcTest::heap()->CollectGarbage(i::NEW_SPACE);  // in survivor space now
     CcTest::heap()->CollectGarbage(i::NEW_SPACE);  // in old gen now
     i::Handle<i::String> isymbol =
-        factory->InternalizedStringFromString(istring);
+        factory->InternalizeString(istring);
     CHECK(isymbol->IsInternalizedString());
   }
   CcTest::heap()->CollectAllGarbage(i::Heap::kNoGCFlags);
@@ -2786,7 +2786,7 @@ THREADED_TEST(SymbolProperties) {
   CHECK(sym_obj->IsSymbolObject());
   CHECK(!sym2->IsSymbolObject());
   CHECK(!obj->IsSymbolObject());
-  CHECK(sym_obj->Equals(sym2));
+  CHECK(!sym_obj->Equals(sym2));
   CHECK(!sym_obj->StrictEquals(sym2));
   CHECK(v8::SymbolObject::Cast(*sym_obj)->Equals(sym_obj));
   CHECK(v8::SymbolObject::Cast(*sym_obj)->ValueOf()->Equals(sym2));
@@ -7099,14 +7099,14 @@ THREADED_TEST(IndependentWeakHandle) {
   object_a.handle.MarkIndependent();
   object_b.handle.MarkIndependent();
   CHECK(object_b.handle.IsIndependent());
-  CcTest::heap()->PerformScavenge();
+  CcTest::heap()->CollectGarbage(i::NEW_SPACE);
   CHECK(object_a.flag);
   CHECK(object_b.flag);
 }
 
 
 static void InvokeScavenge() {
-  CcTest::heap()->PerformScavenge();
+  CcTest::heap()->CollectGarbage(i::NEW_SPACE);
 }
 
 
@@ -7188,7 +7188,7 @@ THREADED_TEST(IndependentHandleRevival) {
   object.flag = false;
   object.handle.SetWeak(&object, &RevivingCallback);
   object.handle.MarkIndependent();
-  CcTest::heap()->PerformScavenge();
+  CcTest::heap()->CollectGarbage(i::NEW_SPACE);
   CHECK(object.flag);
   CcTest::heap()->CollectAllGarbage(i::Heap::kAbortIncrementalMarkingMask);
   {
@@ -17520,6 +17520,29 @@ TEST(DynamicWithSourceURLInStackTrace) {
 }
 
 
+TEST(DynamicWithSourceURLInStackTraceString) {
+  LocalContext context;
+  v8::HandleScope scope(context->GetIsolate());
+
+  const char *source =
+    "function outer() {\n"
+    "  function foo() {\n"
+    "    FAIL.FAIL;\n"
+    "  }\n"
+    "  foo();\n"
+    "}\n"
+    "outer()\n%s";
+
+  i::ScopedVector<char> code(1024);
+  i::OS::SNPrintF(code, source, "//# sourceURL=source_url");
+  v8::TryCatch try_catch;
+  CompileRunWithOrigin(code.start(), "", 0, 0);
+  CHECK(try_catch.HasCaught());
+  v8::String::Utf8Value stack(try_catch.StackTrace());
+  CHECK(strstr(*stack, "at foo (source_url:3:5)") != NULL);
+}
+
+
 static void CreateGarbageInOldSpace() {
   i::Factory* factory = CcTest::i_isolate()->factory();
   v8::HandleScope scope(CcTest::isolate());
@@ -17627,7 +17650,7 @@ TEST(Regress2107) {
 TEST(Regress2333) {
   LocalContext env;
   for (int i = 0; i < 3; i++) {
-    CcTest::heap()->PerformScavenge();
+    CcTest::heap()->CollectGarbage(i::NEW_SPACE);
   }
 }
 
@@ -20491,6 +20514,102 @@ TEST(CallCompletedCallbackTwoExceptions) {
 }
 
 
+static void MicrotaskOne(const v8::FunctionCallbackInfo<Value>& info) {
+  v8::HandleScope scope(info.GetIsolate());
+  CompileRun("ext1Calls++;");
+}
+
+
+static void MicrotaskTwo(const v8::FunctionCallbackInfo<Value>& info) {
+  v8::HandleScope scope(info.GetIsolate());
+  CompileRun("ext2Calls++;");
+}
+
+
+TEST(EnqueueMicrotask) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+  CompileRun(
+      "var ext1Calls = 0;"
+      "var ext2Calls = 0;");
+  CompileRun("1+1;");
+  CHECK_EQ(0, CompileRun("ext1Calls")->Int32Value());
+  CHECK_EQ(0, CompileRun("ext2Calls")->Int32Value());
+
+  v8::V8::EnqueueMicrotask(env->GetIsolate(),
+                           Function::New(env->GetIsolate(), MicrotaskOne));
+  CompileRun("1+1;");
+  CHECK_EQ(1, CompileRun("ext1Calls")->Int32Value());
+  CHECK_EQ(0, CompileRun("ext2Calls")->Int32Value());
+
+  v8::V8::EnqueueMicrotask(env->GetIsolate(),
+                           Function::New(env->GetIsolate(), MicrotaskOne));
+  v8::V8::EnqueueMicrotask(env->GetIsolate(),
+                           Function::New(env->GetIsolate(), MicrotaskTwo));
+  CompileRun("1+1;");
+  CHECK_EQ(2, CompileRun("ext1Calls")->Int32Value());
+  CHECK_EQ(1, CompileRun("ext2Calls")->Int32Value());
+
+  v8::V8::EnqueueMicrotask(env->GetIsolate(),
+                           Function::New(env->GetIsolate(), MicrotaskTwo));
+  CompileRun("1+1;");
+  CHECK_EQ(2, CompileRun("ext1Calls")->Int32Value());
+  CHECK_EQ(2, CompileRun("ext2Calls")->Int32Value());
+
+  CompileRun("1+1;");
+  CHECK_EQ(2, CompileRun("ext1Calls")->Int32Value());
+  CHECK_EQ(2, CompileRun("ext2Calls")->Int32Value());
+}
+
+
+TEST(SetAutorunMicrotasks) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+  CompileRun(
+      "var ext1Calls = 0;"
+      "var ext2Calls = 0;");
+  CompileRun("1+1;");
+  CHECK_EQ(0, CompileRun("ext1Calls")->Int32Value());
+  CHECK_EQ(0, CompileRun("ext2Calls")->Int32Value());
+
+  v8::V8::EnqueueMicrotask(env->GetIsolate(),
+                           Function::New(env->GetIsolate(), MicrotaskOne));
+  CompileRun("1+1;");
+  CHECK_EQ(1, CompileRun("ext1Calls")->Int32Value());
+  CHECK_EQ(0, CompileRun("ext2Calls")->Int32Value());
+
+  V8::SetAutorunMicrotasks(env->GetIsolate(), false);
+  v8::V8::EnqueueMicrotask(env->GetIsolate(),
+                           Function::New(env->GetIsolate(), MicrotaskOne));
+  v8::V8::EnqueueMicrotask(env->GetIsolate(),
+                           Function::New(env->GetIsolate(), MicrotaskTwo));
+  CompileRun("1+1;");
+  CHECK_EQ(1, CompileRun("ext1Calls")->Int32Value());
+  CHECK_EQ(0, CompileRun("ext2Calls")->Int32Value());
+
+  V8::RunMicrotasks(env->GetIsolate());
+  CHECK_EQ(2, CompileRun("ext1Calls")->Int32Value());
+  CHECK_EQ(1, CompileRun("ext2Calls")->Int32Value());
+
+  v8::V8::EnqueueMicrotask(env->GetIsolate(),
+                           Function::New(env->GetIsolate(), MicrotaskTwo));
+  CompileRun("1+1;");
+  CHECK_EQ(2, CompileRun("ext1Calls")->Int32Value());
+  CHECK_EQ(1, CompileRun("ext2Calls")->Int32Value());
+
+  V8::RunMicrotasks(env->GetIsolate());
+  CHECK_EQ(2, CompileRun("ext1Calls")->Int32Value());
+  CHECK_EQ(2, CompileRun("ext2Calls")->Int32Value());
+
+  V8::SetAutorunMicrotasks(env->GetIsolate(), true);
+  v8::V8::EnqueueMicrotask(env->GetIsolate(),
+                           Function::New(env->GetIsolate(), MicrotaskTwo));
+  CompileRun("1+1;");
+  CHECK_EQ(2, CompileRun("ext1Calls")->Int32Value());
+  CHECK_EQ(3, CompileRun("ext2Calls")->Int32Value());
+}
+
+
 static int probes_counter = 0;
 static int misses_counter = 0;
 static int updates_counter = 0;
@@ -21814,6 +21933,7 @@ class ApiCallOptimizationChecker {
     }
     CHECK(holder == info.Holder());
     count++;
+    info.GetReturnValue().Set(v8_str("returned"));
   }
 
   // TODO(dcarney): move this to v8.h
@@ -21836,7 +21956,27 @@ class ApiCallOptimizationChecker {
   }
 
   public:
-    void Run(bool use_signature, bool global) {
+    enum SignatureType {
+      kNoSignature,
+      kSignatureOnReceiver,
+      kSignatureOnPrototype
+    };
+
+    void RunAll() {
+      SignatureType signature_types[] =
+        {kNoSignature, kSignatureOnReceiver, kSignatureOnPrototype};
+      for (unsigned i = 0; i < ARRAY_SIZE(signature_types); i++) {
+        SignatureType signature_type = signature_types[i];
+        for (int j = 0; j < 2; j++) {
+          bool global = j == 0;
+          int key = signature_type +
+              ARRAY_SIZE(signature_types) * (global ? 1 : 0);
+          Run(signature_type, global, key);
+        }
+      }
+    }
+
+    void Run(SignatureType signature_type, bool global, int key) {
       v8::Isolate* isolate = CcTest::isolate();
       v8::HandleScope scope(isolate);
       // Build a template for signature checks.
@@ -21849,8 +21989,15 @@ class ApiCallOptimizationChecker {
         Local<v8::FunctionTemplate> function_template
             = FunctionTemplate::New(isolate);
         function_template->Inherit(parent_template);
-        if (use_signature) {
-          signature = v8::Signature::New(isolate, parent_template);
+        switch (signature_type) {
+          case kNoSignature:
+            break;
+          case kSignatureOnReceiver:
+            signature = v8::Signature::New(isolate, function_template);
+            break;
+          case kSignatureOnPrototype:
+            signature = v8::Signature::New(isolate, parent_template);
+            break;
         }
         signature_template = function_template->InstanceTemplate();
       }
@@ -21864,15 +22011,17 @@ class ApiCallOptimizationChecker {
       // Get the holder objects.
       Local<Object> inner_global =
           Local<Object>::Cast(context->Global()->GetPrototype());
-      Local<Object> function_holder =
-          Local<Object>::Cast(function_receiver->GetPrototype());
-      // Install function on hidden prototype object.
+      // Install functions on hidden prototype object if there is one.
       data = Object::New(isolate);
       Local<FunctionTemplate> function_template = FunctionTemplate::New(
           isolate, OptimizationCallback, data, signature);
       Local<Function> function = function_template->GetFunction();
-      Local<Object> global_holder = Local<Object>::Cast(
-          inner_global->GetPrototype());
+      Local<Object> global_holder = inner_global;
+      Local<Object> function_holder = function_receiver;
+      if (signature_type == kSignatureOnPrototype) {
+        function_holder = Local<Object>::Cast(function_holder->GetPrototype());
+        global_holder = Local<Object>::Cast(global_holder->GetPrototype());
+      }
       global_holder->Set(v8_str("g_f"), function);
       SetAccessorProperty(global_holder, v8_str("g_acc"), function, function);
       function_holder->Set(v8_str("f"), function);
@@ -21887,7 +22036,7 @@ class ApiCallOptimizationChecker {
         holder = function_receiver;
         // If not using a signature, add something else to the prototype chain
         // to test the case that holder != receiver
-        if (!use_signature) {
+        if (signature_type == kNoSignature) {
           receiver = Local<Object>::Cast(CompileRun(
               "var receiver_subclass = {};\n"
               "receiver_subclass.__proto__ = function_receiver;\n"
@@ -21899,48 +22048,53 @@ class ApiCallOptimizationChecker {
         }
       }
       // With no signature, the holder is not set.
-      if (!use_signature) holder = receiver;
+      if (signature_type == kNoSignature) holder = receiver;
       // build wrap_function
-      int key = (use_signature ? 1 : 0) + 2 * (global ? 1 : 0);
       i::ScopedVector<char> wrap_function(200);
       if (global) {
         i::OS::SNPrintF(
             wrap_function,
             "function wrap_f_%d() { var f = g_f; return f(); }\n"
             "function wrap_get_%d() { return this.g_acc; }\n"
-            "function wrap_set_%d() { this.g_acc = 1; }\n",
+            "function wrap_set_%d() { return this.g_acc = 1; }\n",
             key, key, key);
       } else {
         i::OS::SNPrintF(
             wrap_function,
             "function wrap_f_%d() { return receiver_subclass.f(); }\n"
             "function wrap_get_%d() { return receiver_subclass.acc; }\n"
-            "function wrap_set_%d() { receiver_subclass.acc = 1; }\n",
+            "function wrap_set_%d() { return receiver_subclass.acc = 1; }\n",
             key, key, key);
       }
       // build source string
-      i::ScopedVector<char> source(500);
+      i::ScopedVector<char> source(1000);
       i::OS::SNPrintF(
           source,
           "%s\n"  // wrap functions
-          "function wrap_f() { wrap_f_%d(); }\n"
-          "function wrap_get() { wrap_get_%d(); }\n"
-          "function wrap_set() { wrap_set_%d(); }\n"
+          "function wrap_f() { return wrap_f_%d(); }\n"
+          "function wrap_get() { return wrap_get_%d(); }\n"
+          "function wrap_set() { return wrap_set_%d(); }\n"
+          "check = function(returned) {\n"
+          "  if (returned !== 'returned') { throw returned; }\n"
+          "}\n"
           "\n"
-          "wrap_f();\n"
-          "wrap_f();\n"
+          "check(wrap_f());\n"
+          "check(wrap_f());\n"
           "%%OptimizeFunctionOnNextCall(wrap_f_%d);\n"
-          "wrap_f();\n"
+          "check(wrap_f());\n"
           "\n"
-          "wrap_get();\n"
-          "wrap_get();\n"
+          "check(wrap_get());\n"
+          "check(wrap_get());\n"
           "%%OptimizeFunctionOnNextCall(wrap_get_%d);\n"
-          "wrap_get();\n"
+          "check(wrap_get());\n"
           "\n"
-          "wrap_set();\n"
-          "wrap_set();\n"
+          "check = function(returned) {\n"
+          "  if (returned !== 1) { throw returned; }\n"
+          "}\n"
+          "check(wrap_set());\n"
+          "check(wrap_set());\n"
           "%%OptimizeFunctionOnNextCall(wrap_set_%d);\n"
-          "wrap_set();\n",
+          "check(wrap_set());\n",
           wrap_function.start(), key, key, key, key, key, key);
       v8::TryCatch try_catch;
       CompileRun(source.start());
@@ -21960,8 +22114,5 @@ int ApiCallOptimizationChecker::count = 0;
 TEST(TestFunctionCallOptimization) {
   i::FLAG_allow_natives_syntax = true;
   ApiCallOptimizationChecker checker;
-  checker.Run(true, true);
-  checker.Run(false, true);
-  checker.Run(true, false);
-  checker.Run(false, false);
+  checker.RunAll();
 }

@@ -400,28 +400,39 @@ void JSObject::PrintTransitions(FILE* out) {
   if (!map()->HasTransitionArray()) return;
   TransitionArray* transitions = map()->transitions();
   for (int i = 0; i < transitions->number_of_transitions(); i++) {
+    Name* key = transitions->GetKey(i);
     PrintF(out, "   ");
-    transitions->GetKey(i)->NamePrint(out);
+    key->NamePrint(out);
     PrintF(out, ": ");
-    switch (transitions->GetTargetDetails(i).type()) {
-      case FIELD: {
-        PrintF(out, " (transition to field)\n");
-        break;
+    if (key == GetHeap()->frozen_symbol()) {
+      PrintF(out, " (transition to frozen)\n");
+    } else if (key == GetHeap()->elements_transition_symbol()) {
+      PrintF(out, " (transition to ");
+      PrintElementsKind(out, transitions->GetTarget(i)->elements_kind());
+      PrintF(out, ")\n");
+    } else if (key == GetHeap()->observed_symbol()) {
+      PrintF(out, " (transition to Object.observe)\n");
+    } else {
+      switch (transitions->GetTargetDetails(i).type()) {
+        case FIELD: {
+          PrintF(out, " (transition to field)\n");
+          break;
+        }
+        case CONSTANT:
+          PrintF(out, " (transition to constant)\n");
+          break;
+        case CALLBACKS:
+          PrintF(out, " (transition to callback)\n");
+          break;
+        // Values below are never in the target descriptor array.
+        case NORMAL:
+        case HANDLER:
+        case INTERCEPTOR:
+        case TRANSITION:
+        case NONEXISTENT:
+          UNREACHABLE();
+          break;
       }
-      case CONSTANT:
-        PrintF(out, " (transition to constant)\n");
-        break;
-      case CALLBACKS:
-        PrintF(out, " (transition to callback)\n");
-        break;
-      // Values below are never in the target descriptor array.
-      case NORMAL:
-      case HANDLER:
-      case INTERCEPTOR:
-      case TRANSITION:
-      case NONEXISTENT:
-        UNREACHABLE();
-        break;
     }
   }
 }
@@ -555,8 +566,8 @@ void TypeFeedbackInfo::TypeFeedbackInfoPrint(FILE* out) {
   HeapObject::PrintHeader(out, "TypeFeedbackInfo");
   PrintF(out, " - ic_total_count: %d, ic_with_type_info_count: %d\n",
          ic_total_count(), ic_with_type_info_count());
-  PrintF(out, " - type_feedback_cells: ");
-  type_feedback_cells()->FixedArrayPrint(out);
+  PrintF(out, " - feedback_vector: ");
+  feedback_vector()->FixedArrayPrint(out);
 }
 
 
@@ -624,8 +635,6 @@ void JSMessageObject::JSMessageObjectPrint(FILE* out) {
   PrintF(out, "\n - end_position: %d", end_position());
   PrintF(out, "\n - script: ");
   script()->ShortPrint(out);
-  PrintF(out, "\n - stack_trace: ");
-  stack_trace()->ShortPrint(out);
   PrintF(out, "\n - stack_frames: ");
   stack_frames()->ShortPrint(out);
   PrintF(out, "\n");

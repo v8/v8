@@ -216,7 +216,7 @@ var knownProblems = {
   "DataViewInitialize":true,
   "DataViewGetBuffer": true,
   "DataViewGetByteLength": true,
-  "DataViewGetByteOffset": true
+  "DataViewGetByteOffset": true,
 };
 
 var currentlyUncallable = {

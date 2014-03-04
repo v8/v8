@@ -342,7 +342,6 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(Context* context) {
       // Unlink this function and evict from optimized code map.
       SharedFunctionInfo* shared = function->shared();
       function->set_code(shared->code());
-      shared->EvictFromOptimizedCodeMap(code, "deoptimized function");
 
       if (FLAG_trace_deopt) {
         CodeTracer::Scope scope(code->GetHeap()->isolate()->GetCodeTracer());
@@ -731,6 +730,12 @@ void Deoptimizer::DoComputeOutputFrames() {
     LOG(isolate(), CodeDeoptEvent(compiled_code_));
   }
   ElapsedTimer timer;
+
+  // Determine basic deoptimization information.  The optimized frame is
+  // described by the input data.
+  DeoptimizationInputData* input_data =
+      DeoptimizationInputData::cast(compiled_code_->deoptimization_data());
+
   if (trace_scope_ != NULL) {
     timer.Start();
     PrintF(trace_scope_->file(),
@@ -739,7 +744,8 @@ void Deoptimizer::DoComputeOutputFrames() {
            reinterpret_cast<intptr_t>(function_));
     PrintFunctionName();
     PrintF(trace_scope_->file(),
-           " @%d, FP to SP delta: %d]\n",
+           " (opt #%d) @%d, FP to SP delta: %d]\n",
+           input_data->OptimizationId()->value(),
            bailout_id_,
            fp_to_sp_delta_);
     if (bailout_type_ == EAGER || bailout_type_ == SOFT) {
@@ -747,10 +753,6 @@ void Deoptimizer::DoComputeOutputFrames() {
     }
   }
 
-  // Determine basic deoptimization information.  The optimized frame is
-  // described by the input data.
-  DeoptimizationInputData* input_data =
-      DeoptimizationInputData::cast(compiled_code_->deoptimization_data());
   BailoutId node_id = input_data->AstId(bailout_id_);
   ByteArray* translations = input_data->TranslationByteArray();
   unsigned translation_index =
@@ -2688,6 +2690,9 @@ FrameDescription::FrameDescription(uint32_t frame_size,
       constant_pool_(kZapUint32) {
   // Zap all the registers.
   for (int r = 0; r < Register::kNumRegisters; r++) {
+    // TODO(jbramley): It isn't safe to use kZapUint32 here. If the register
+    // isn't used before the next safepoint, the GC will try to scan it as a
+    // tagged value. kZapUint32 looks like a valid tagged pointer, but it isn't.
     SetRegister(r, kZapUint32);
   }
 

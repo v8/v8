@@ -119,8 +119,7 @@ Handle<Code> PlatformCodeStub::GenerateCode(Isolate* isolate) {
       GetCodeKind(),
       GetICState(),
       GetExtraICState(),
-      GetStubType(),
-      GetStubFlags());
+      GetStubType());
   Handle<Code> new_object = factory->NewCode(
       desc, flags, masm.CodeObject(), NeedsImmovableCode());
   return new_object;
@@ -744,6 +743,14 @@ void FastNewClosureStub::InstallDescriptors(Isolate* isolate) {
 
 void FastNewContextStub::InstallDescriptors(Isolate* isolate) {
   FastNewContextStub stub(FastNewContextStub::kMaximumSlots);
+  InstallDescriptor(isolate, &stub);
+}
+
+
+// static
+void FastCloneShallowArrayStub::InstallDescriptors(Isolate* isolate) {
+  FastCloneShallowArrayStub stub(FastCloneShallowArrayStub::CLONE_ELEMENTS,
+                                 DONT_TRACK_ALLOCATION_SITE, 0);
   InstallDescriptor(isolate, &stub);
 }
 

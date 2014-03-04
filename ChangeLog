@@ -1,3 +1,120 @@
+2014-03-04: Version 3.25.3
+
+        Clear optimized code cache in shared function info when code gets
+        deoptimized (Chromium issue 343609).
+
+        Fixed constant folding for Math.clz32 (Chromium issue 347906).
+
+        Fix JSObject::PrintTransitions (Chromium issue 347912).
+
+        Fix handling of constant global variable assignments (Chromium issue
+        347904).
+
+        Removed bogus ASSERT (Chromium issue 347542).
+
+        Mark HCompareMap as having Tagged representation (Chromium issue
+        346636).
+
+        Fix crasher in Object.getOwnPropertySymbols (Chromium issue 346141).
+
+        Fix the bit massaging code in CompleteParserRecorder::WriteNumber
+        (Chromium issue 346221).
+
+        Don't eliminate loads with incompatible types or representations
+        (Chromium issue 346343).
+
+        Check that after a weak callback, the handle is either dead or strong
+        (Chromium issue 346061).
+
+        Lazy preparsing vs. lazy parsing fix (Chromium issue 346207).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-02-25: Version 3.25.2
+
+        Fix the bit massaging code in CompleteParserRecorder::WriteNumber
+        (Chromium issue 346221).
+
+        Revert r19455 "Load target types and handlers before IC computation."
+        (Chromium issue 346149).
+
+        Don't eliminate loads with incompatible types or representations
+        (Chromium issue 346343).
+
+        Fix for a smi stores optimization on x64 with a regression test
+        (Chromium issue 345715).
+
+        Check that after a weak callback, the handle is either dead or strong
+        (Chromium issue 346061).
+
+        negative bounds checking on realm calls (Chromium issue 344285).
+
+        Lazy preparsing vs. lazy parsing fix (Chromium issue 346207).
+
+        Fix optimistic BCE to back off after deopt (issue 3176).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-02-21: Version 3.25.1
+
+        Performance and stability improvements on all platforms.
+
+
+2014-02-19: Version 3.25.0
+
+        ES6: Tighten up Object.prototype.__proto__ (issue 3064).
+
+        Fix Hydrogen bounds check elimination (Chromium issue 344186).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-02-19: Version 3.24.40
+
+        A64: Let the MacroAssembler resolve branches to distant targets (issue
+        3148).
+
+        Fixed and improved code for integral division. Fixed and extended tests
+        (issue 3151).
+
+        MIPS: Fix assignment of function name constant (issue 3138).
+
+        Fix assignment of function name constant (issue 3138).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-02-14: Version 3.24.39
+
+        Introduce --job-based-sweeping flag and use individual jobs for sweeping
+        if set (issue 3104).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-02-13: Version 3.24.38
+
+        Merge experimental/a64 to bleeding_edge (issue 3113).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-02-12: Version 3.24.37
+
+        Fix spec violations in JSON.stringify wrt replacer array (issue 3135).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-02-11: Version 3.24.36
+
+        Fix inconsistencies wrt whitespaces (issue 3109).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-02-10: Version 3.24.35
 
         Fix inconsistencies wrt whitespaces (issue 3109).

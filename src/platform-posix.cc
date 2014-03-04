@@ -265,10 +265,10 @@ void OS::Sleep(int milliseconds) {
 
 
 void OS::Abort() {
-  // Redirect to std abort to signal abnormal program termination.
-  if (FLAG_break_on_abort) {
-    DebugBreak();
+  if (FLAG_hard_abort) {
+    V8_IMMEDIATE_CRASH();
   }
+  // Redirect to std abort to signal abnormal program termination.
   abort();
 }
 
@@ -276,6 +276,8 @@ void OS::Abort() {
 void OS::DebugBreak() {
 #if V8_HOST_ARCH_ARM
   asm("bkpt 0");
+#elif V8_HOST_ARCH_A64
+  asm("brk 0");
 #elif V8_HOST_ARCH_MIPS
   asm("break");
 #elif V8_HOST_ARCH_IA32

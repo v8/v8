@@ -505,17 +505,8 @@ void MacroAssembler::NegativeZeroTest(Register result,
 
 
 void MacroAssembler::Abort(BailoutReason reason) {
-  // We want to pass the msg string like a smi to avoid GC
-  // problems, however msg is not guaranteed to be aligned
-  // properly. Instead, we pass an aligned pointer that is
-  // a proper v8 smi, but also pass the alignment difference
-  // from the real pointer as a smi.
-  const char* msg = GetBailoutReason(reason);
-  intptr_t p1 = reinterpret_cast<intptr_t>(msg);
-  intptr_t p0 = (p1 & ~kSmiTagMask) + kSmiTag;
-  // Note: p0 might not be a valid Smi _value_, but it has a valid Smi tag.
-  ASSERT(reinterpret_cast<Object*>(p0)->IsSmi());
 #ifdef DEBUG
+  const char* msg = GetBailoutReason(reason);
   if (msg != NULL) {
     RecordComment("Abort message: ");
     RecordComment(msg);
@@ -528,10 +519,7 @@ void MacroAssembler::Abort(BailoutReason reason) {
 #endif
 
   push(rax);
-  Move(kScratchRegister, reinterpret_cast<Smi*>(p0),
-       Assembler::RelocInfoNone());
-  push(kScratchRegister);
-  Move(kScratchRegister, Smi::FromInt(static_cast<int>(p1 - p0)),
+  Move(kScratchRegister, Smi::FromInt(static_cast<int>(reason)),
        Assembler::RelocInfoNone());
   push(kScratchRegister);
 
@@ -539,9 +527,9 @@ void MacroAssembler::Abort(BailoutReason reason) {
     // We don't actually want to generate a pile of code for this, so just
     // claim there is a stack frame, without generating one.
     FrameScope scope(this, StackFrame::NONE);
-    CallRuntime(Runtime::kAbort, 2);
+    CallRuntime(Runtime::kAbort, 1);
   } else {
-    CallRuntime(Runtime::kAbort, 2);
+    CallRuntime(Runtime::kAbort, 1);
   }
   // Control will not return here.
   int3();
@@ -984,12 +972,17 @@ void MacroAssembler::Set(Register dst, int64_t x) {
 }
 
 
-void MacroAssembler::Set(const Operand& dst, int64_t x) {
-  if (is_int32(x)) {
-    movq(dst, Immediate(static_cast<int32_t>(x)));
+void MacroAssembler::Set(const Operand& dst, intptr_t x) {
+  if (kPointerSize == kInt64Size) {
+    if (is_int32(x)) {
+      movp(dst, Immediate(static_cast<int32_t>(x)));
+    } else {
+      Set(kScratchRegister, x);
+      movp(dst, kScratchRegister);
+    }
   } else {
-    Set(kScratchRegister, x);
-    movq(dst, kScratchRegister);
+    ASSERT(kPointerSize == kInt32Size);
+    movp(dst, Immediate(static_cast<int32_t>(x)));
   }
 }
 
@@ -2592,6 +2585,17 @@ void MacroAssembler::Jump(ExternalReference ext) {
 }
 
 
+void MacroAssembler::Jump(const Operand& op) {
+  if (kPointerSize == kInt64Size) {
+    jmp(op);
+  } else {
+    ASSERT(kPointerSize == kInt32Size);
+    movp(kScratchRegister, op);
+    jmp(kScratchRegister);
+  }
+}
+
+
 void MacroAssembler::Jump(Address destination, RelocInfo::Mode rmode) {
   Move(kScratchRegister, destination, rmode);
   jmp(kScratchRegister);
@@ -2620,6 +2624,17 @@ void MacroAssembler::Call(ExternalReference ext) {
 #ifdef DEBUG
   CHECK_EQ(end_position, pc_offset());
 #endif
+}
+
+
+void MacroAssembler::Call(const Operand& op) {
+  if (kPointerSize == kInt64Size) {
+    call(op);
+  } else {
+    ASSERT(kPointerSize == kInt32Size);
+    movp(kScratchRegister, op);
+    call(kScratchRegister);
+  }
 }
 
 
@@ -4515,30 +4530,6 @@ void MacroAssembler::LoadTransitionedArrayMapConditional(
 }
 
 
-void MacroAssembler::LoadInitialArrayMap(
-    Register function_in, Register scratch,
-    Register map_out, bool can_have_holes) {
-  ASSERT(!function_in.is(map_out));
-  Label done;
-  movp(map_out, FieldOperand(function_in,
-                             JSFunction::kPrototypeOrInitialMapOffset));
-  if (!FLAG_smi_only_arrays) {
-    ElementsKind kind = can_have_holes ? FAST_HOLEY_ELEMENTS : FAST_ELEMENTS;
-    LoadTransitionedArrayMapConditional(FAST_SMI_ELEMENTS,
-                                        kind,
-                                        map_out,
-                                        scratch,
-                                        &done);
-  } else if (can_have_holes) {
-    LoadTransitionedArrayMapConditional(FAST_SMI_ELEMENTS,
-                                        FAST_HOLEY_SMI_ELEMENTS,
-                                        map_out,
-                                        scratch,
-                                        &done);
-  }
-  bind(&done);
-}
-
 #ifdef _WIN64
 static const int kRegisterPassedArguments = 4;
 #else
@@ -4553,15 +4544,6 @@ void MacroAssembler::LoadGlobalFunction(int index, Register function) {
   movp(function, FieldOperand(function, GlobalObject::kNativeContextOffset));
   // Load the function from the native context.
   movp(function, Operand(function, Context::SlotOffset(index)));
-}
-
-
-void MacroAssembler::LoadArrayFunction(Register function) {
-  movp(function,
-       Operand(rsi, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
-  movp(function, FieldOperand(function, GlobalObject::kGlobalContextOffset));
-  movp(function,
-       Operand(function, Context::SlotOffset(Context::ARRAY_FUNCTION_INDEX)));
 }
 
 

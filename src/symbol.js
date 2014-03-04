@@ -36,34 +36,28 @@ var $Symbol = global.Symbol;
 // -------------------------------------------------------------------
 
 function SymbolConstructor(x) {
-  var value =
-    IS_SYMBOL(x) ? x : %CreateSymbol(IS_UNDEFINED(x) ? x : ToString(x));
   if (%_IsConstructCall()) {
-    %_SetValueOf(this, value);
-  } else {
-    return value;
+    throw MakeTypeError('not_constructor', ["Symbol"]);
   }
+  // NOTE: Passing in a Symbol value will throw on ToString().
+  return %CreateSymbol(IS_UNDEFINED(x) ? x : ToString(x));
 }
 
-function SymbolGetName() {
-  var symbol = IS_SYMBOL_WRAPPER(this) ? %_ValueOf(this) : this;
-  if (!IS_SYMBOL(symbol)) {
-    throw MakeTypeError(
-        'incompatible_method_receiver', ["Symbol.prototype.name", this]);
-  }
-  return %SymbolName(symbol);
-}
 
 function SymbolToString() {
-  throw MakeTypeError('symbol_to_string');
+  if (!(IS_SYMBOL(this) || IS_SYMBOL_WRAPPER(this))) {
+    throw MakeTypeError(
+      'incompatible_method_receiver', ["Symbol.prototype.toString", this]);
+  }
+  var description = %SymbolDescription(%_ValueOf(this));
+  return "Symbol(" + (IS_UNDEFINED(description) ? "" : description) + ")";
 }
 
+
 function SymbolValueOf() {
-  // NOTE: Both Symbol objects and values can enter here as
-  // 'this'. This is not as dictated by ECMA-262.
-  if (!IS_SYMBOL(this) && !IS_SYMBOL_WRAPPER(this)) {
+  if (!(IS_SYMBOL(this) || IS_SYMBOL_WRAPPER(this))) {
     throw MakeTypeError(
-        'incompatible_method_receiver', ["Symbol.prototype.valueOf", this]);
+      'incompatible_method_receiver', ["Symbol.prototype.valueOf", this]);
   }
   return %_ValueOf(this);
 }
@@ -88,10 +82,9 @@ function SetUpSymbol() {
   %CheckIsBootstrapping();
 
   %SetCode($Symbol, SymbolConstructor);
-  %FunctionSetPrototype($Symbol, new $Symbol());
-  %SetProperty($Symbol.prototype, "constructor", $Symbol, DONT_ENUM);
+  %FunctionSetPrototype($Symbol, new $Object());
 
-  InstallGetter($Symbol.prototype, "name", SymbolGetName);
+  %SetProperty($Symbol.prototype, "constructor", $Symbol, DONT_ENUM);
   InstallFunctions($Symbol.prototype, DONT_ENUM, $Array(
     "toString", SymbolToString,
     "valueOf", SymbolValueOf

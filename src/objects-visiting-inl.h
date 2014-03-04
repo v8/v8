@@ -270,7 +270,7 @@ void StaticMarkingVisitor<StaticVisitor>::VisitEmbeddedPointer(
   // TODO(ulan): It could be better to record slots only for strongly embedded
   // objects here and record slots for weakly embedded object during clearing
   // of non-live references in mark-compact.
-  if (!Code::IsWeakEmbeddedObject(rinfo->host()->kind(), object)) {
+  if (!rinfo->host()->IsWeakObject(object)) {
     StaticVisitor::MarkObject(heap, object);
   }
 }
@@ -282,7 +282,7 @@ void StaticMarkingVisitor<StaticVisitor>::VisitCell(
   ASSERT(rinfo->rmode() == RelocInfo::CELL);
   Cell* cell = rinfo->target_cell();
   // No need to record slots because the cell space is not compacted during GC.
-  if (!Code::IsWeakEmbeddedObject(rinfo->host()->kind(), cell)) {
+  if (!rinfo->host()->IsWeakObject(cell)) {
     StaticVisitor::MarkObject(heap, cell);
   }
 }
@@ -427,7 +427,7 @@ void StaticMarkingVisitor<StaticVisitor>::VisitCode(
   Heap* heap = map->GetHeap();
   Code* code = Code::cast(object);
   if (FLAG_cleanup_code_caches_at_gc) {
-    code->ClearTypeFeedbackCells(heap);
+    code->ClearTypeFeedbackInfo(heap);
   }
   if (FLAG_age_code && !Serializer::enabled()) {
     code->MakeOlder(heap->mark_compact_collector()->marking_parity());

@@ -44,27 +44,6 @@ namespace internal {
 
 // Utility functions
 
-// Test whether a 64-bit value is in a specific range.
-inline bool is_uint32(int64_t x) {
-  static const uint64_t kMaxUInt32 = V8_UINT64_C(0xffffffff);
-  return static_cast<uint64_t>(x) <= kMaxUInt32;
-}
-
-inline bool is_int32(int64_t x) {
-  static const int64_t kMinInt32 = -V8_INT64_C(0x80000000);
-  return is_uint32(x - kMinInt32);
-}
-
-inline bool uint_is_int32(uint64_t x) {
-  static const uint64_t kMaxInt32 = V8_UINT64_C(0x7fffffff);
-  return x <= kMaxInt32;
-}
-
-inline bool is_uint32(uint64_t x) {
-  static const uint64_t kMaxUInt32 = V8_UINT64_C(0xffffffff);
-  return x <= kMaxUInt32;
-}
-
 // CPU Registers.
 //
 // 1) We would prefer to use an enum, but enum values are assignment-
@@ -1215,6 +1194,7 @@ class Assembler : public AssemblerBase {
   // Bit operations.
   void bt(const Operand& dst, Register src);
   void bts(const Operand& dst, Register src);
+  void bsrl(Register dst, Register src);
 
   // Miscellaneous
   void clc();
@@ -1260,9 +1240,6 @@ class Assembler : public AssemblerBase {
   // Call near absolute indirect, address in register
   void call(Register adr);
 
-  // Call near indirect
-  void call(const Operand& operand);
-
   // Jumps
   // Jump short or near relative.
   // Use a 32-bit signed displacement.
@@ -1273,9 +1250,6 @@ class Assembler : public AssemblerBase {
 
   // Jump near absolute indirect (r64)
   void jmp(Register adr);
-
-  // Jump near absolute indirect (m64)
-  void jmp(const Operand& src);
 
   // Conditional jumps
   void j(Condition cc,
@@ -1498,6 +1472,13 @@ class Assembler : public AssemblerBase {
 
   byte byte_at(int pos)  { return buffer_[pos]; }
   void set_byte_at(int pos, byte value) { buffer_[pos] = value; }
+
+ protected:
+  // Call near indirect
+  void call(const Operand& operand);
+
+  // Jump near absolute indirect (m64)
+  void jmp(const Operand& src);
 
  private:
   byte* addr_at(int pos)  { return buffer_ + pos; }

@@ -31,15 +31,17 @@ import tempfile
 import traceback
 import unittest
 
-import common_includes
-from common_includes import *
-import push_to_trunk
-from push_to_trunk import *
 import auto_roll
 from auto_roll import AutoRollOptions
 from auto_roll import CheckLastPush
 from auto_roll import FetchLatestRevision
 from auto_roll import SETTINGS_LOCATION
+import common_includes
+from common_includes import *
+import merge_to_branch
+from merge_to_branch import *
+import push_to_trunk
+from push_to_trunk import *
 
 
 TEST_CONFIG = {
@@ -56,22 +58,36 @@ TEST_CONFIG = {
   CHROMIUM: "/tmp/test-v8-push-to-trunk-tempfile-chromium",
   DEPS_FILE: "/tmp/test-v8-push-to-trunk-tempfile-chromium/DEPS",
   SETTINGS_LOCATION: None,
+  ALREADY_MERGING_SENTINEL_FILE:
+      "/tmp/test-merge-to-branch-tempfile-already-merging",
+  COMMIT_HASHES_FILE: "/tmp/test-merge-to-branch-tempfile-PATCH_COMMIT_HASHES",
+  TEMPORARY_PATCH_FILE: "/tmp/test-merge-to-branch-tempfile-temporary-patch",
 }
 
 
-def MakeOptions(s=0, l=None, f=False, m=True, r=None, c=None,
-                status_password=None):
+AUTO_ROLL_ARGS = [
+  "-a", "author@chromium.org",
+  "-c", TEST_CONFIG[CHROMIUM],
+  "-r", "reviewer@chromium.org",
+]
+
+
+def MakeOptions(s=0, l=None, f=False, m=True, r=None, c=None, a=None,
+                status_password=None, revert_bleeding_edge=None, p=None):
   """Convenience wrapper."""
   class Options(object):
       pass
   options = Options()
-  options.s = s
-  options.l = l
-  options.f = f
-  options.m = m
-  options.r = r
-  options.c = c
+  options.step = s
+  options.last_push = l
+  options.force = f
+  options.manual = m
+  options.reviewer = r
+  options.chromium = c
+  options.author = a
+  options.push = p
   options.status_password = status_password
+  options.revert_bleeding_edge = revert_bleeding_edge
   return options
 
 
@@ -222,12 +238,12 @@ class SimpleMock(object):
   def Expect(self, recipe):
     self._recipe = recipe
 
-  def Call(self, *args):
+  def Call(self, *args):  # pragma: no cover
     self._index += 1
     try:
       expected_call = self._recipe[self._index]
     except IndexError:
-      raise Exception("Calling %s %s" % (self._name, " ".join(args)))
+      raise NoRetryException("Calling %s %s" % (self._name, " ".join(args)))
 
     # Pack expectations without arguments into a list.
     if not isinstance(expected_call, list):
@@ -260,7 +276,7 @@ class SimpleMock(object):
       raise return_value
     return return_value
 
-  def AssertFinished(self):
+  def AssertFinished(self):  # pragma: no cover
     if self._index < len(self._recipe) -1:
       raise NoRetryException("Called %s too seldom: %d vs. %d"
                              % (self._name, self._index, len(self._recipe)))
@@ -289,6 +305,7 @@ class ScriptTest(unittest.TestCase):
   def MakeStep(self, step_class=Step, state=None, options=None):
     """Convenience wrapper."""
     options = options or CommonOptions(MakeOptions())
+    state = state if state is not None else self._state
     return MakeStep(step_class=step_class, number=0, state=state,
                     config=TEST_CONFIG, options=options,
                     side_effect_handler=self)
@@ -302,6 +319,10 @@ class ScriptTest(unittest.TestCase):
 
   MOCKS = {
     "git": GitMock,
+    # TODO(machenbach): Little hack to reuse the git mock for the one svn call
+    # in merge-to-branch. The command should be made explicit in the test
+    # expectations.
+    "svn": GitMock,
     "vi": LogMock,
   }
 
@@ -343,6 +364,7 @@ class ScriptTest(unittest.TestCase):
     self._rl_mock = SimpleMock("readline")
     self._url_mock = SimpleMock("readurl")
     self._tmp_files = []
+    self._state = {}
 
   def tearDown(self):
     Command("rm", "-rf %s*" % TEST_CONFIG[PERSISTFILE_BASENAME])
@@ -355,12 +377,6 @@ class ScriptTest(unittest.TestCase):
     self._git_mock.AssertFinished()
     self._rl_mock.AssertFinished()
     self._url_mock.AssertFinished()
-
-  def testPersistRestore(self):
-    self.MakeStep().Persist("test1", "")
-    self.assertEquals("", self.MakeStep().Restore("test1"))
-    self.MakeStep().Persist("test2", "AB123")
-    self.assertEquals("AB123", self.MakeStep().Restore("test2"))
 
   def testGitOrig(self):
     self.assertTrue(Command("git", "--version").startswith("git version"))
@@ -383,7 +399,7 @@ class ScriptTest(unittest.TestCase):
     self.ExpectReadline(["Y"])
     self.MakeStep().CommonPrepare()
     self.MakeStep().PrepareBranch()
-    self.assertEquals("some_branch", self.MakeStep().Restore("current_branch"))
+    self.assertEquals("some_branch", self._state["current_branch"])
 
   def testCommonPrepareNoConfirm(self):
     self.ExpectGit([
@@ -395,7 +411,7 @@ class ScriptTest(unittest.TestCase):
     self.ExpectReadline(["n"])
     self.MakeStep().CommonPrepare()
     self.assertRaises(Exception, self.MakeStep().PrepareBranch)
-    self.assertEquals("some_branch", self.MakeStep().Restore("current_branch"))
+    self.assertEquals("some_branch", self._state["current_branch"])
 
   def testCommonPrepareDeleteBranchFailure(self):
     self.ExpectGit([
@@ -408,7 +424,7 @@ class ScriptTest(unittest.TestCase):
     self.ExpectReadline(["Y"])
     self.MakeStep().CommonPrepare()
     self.assertRaises(Exception, self.MakeStep().PrepareBranch)
-    self.assertEquals("some_branch", self.MakeStep().Restore("current_branch"))
+    self.assertEquals("some_branch", self._state["current_branch"])
 
   def testInitialEnvironmentChecks(self):
     TEST_CONFIG[DOT_GIT_LOCATION] = self.MakeEmptyTempFile()
@@ -419,14 +435,10 @@ class ScriptTest(unittest.TestCase):
     TEST_CONFIG[VERSION_FILE] = self.MakeTempVersionFile()
     step = self.MakeStep()
     step.ReadAndPersistVersion()
-    self.assertEquals("3", self.MakeStep().Restore("major"))
-    self.assertEquals("22", self.MakeStep().Restore("minor"))
-    self.assertEquals("5", self.MakeStep().Restore("build"))
-    self.assertEquals("0", self.MakeStep().Restore("patch"))
-    self.assertEquals("3", step._state["major"])
-    self.assertEquals("22", step._state["minor"])
-    self.assertEquals("5", step._state["build"])
-    self.assertEquals("0", step._state["patch"])
+    self.assertEquals("3", step["major"])
+    self.assertEquals("22", step["minor"])
+    self.assertEquals("5", step["build"])
+    self.assertEquals("0", step["patch"])
 
   def testRegex(self):
     self.assertEqual("(issue 321)",
@@ -454,21 +466,21 @@ class ScriptTest(unittest.TestCase):
     TEST_CONFIG[CHANGELOG_ENTRY_FILE] = self.MakeEmptyTempFile()
 
     self.ExpectGit([
-      ["log 1234..HEAD --format=%H", "rev1\nrev2\nrev3\nrev4"],
-      ["log -1 rev1 --format=\"%s\"", "Title text 1"],
-      ["log -1 rev1 --format=\"%B\"", "Title\n\nBUG=\nLOG=y\n"],
-      ["log -1 rev1 --format=\"%an\"", "author1@chromium.org"],
-      ["log -1 rev2 --format=\"%s\"", "Title text 2."],
-      ["log -1 rev2 --format=\"%B\"", "Title\n\nBUG=123\nLOG= \n"],
-      ["log -1 rev2 --format=\"%an\"", "author2@chromium.org"],
-      ["log -1 rev3 --format=\"%s\"", "Title text 3"],
-      ["log -1 rev3 --format=\"%B\"", "Title\n\nBUG=321\nLOG=true\n"],
-      ["log -1 rev3 --format=\"%an\"", "author3@chromium.org"],
-      ["log -1 rev4 --format=\"%s\"", "Title text 4"],
-      ["log -1 rev4 --format=\"%B\"",
+      ["log --format=%H 1234..HEAD", "rev1\nrev2\nrev3\nrev4"],
+      ["log -1 --format=%s rev1", "Title text 1"],
+      ["log -1 --format=%B rev1", "Title\n\nBUG=\nLOG=y\n"],
+      ["log -1 --format=%an rev1", "author1@chromium.org"],
+      ["log -1 --format=%s rev2", "Title text 2."],
+      ["log -1 --format=%B rev2", "Title\n\nBUG=123\nLOG= \n"],
+      ["log -1 --format=%an rev2", "author2@chromium.org"],
+      ["log -1 --format=%s rev3", "Title text 3"],
+      ["log -1 --format=%B rev3", "Title\n\nBUG=321\nLOG=true\n"],
+      ["log -1 --format=%an rev3", "author3@chromium.org"],
+      ["log -1 --format=%s rev4", "Title text 4"],
+      ["log -1 --format=%B rev4",
        ("Title\n\nBUG=456\nLOG=Y\n\n"
         "Review URL: https://codereview.chromium.org/9876543210\n")],
-      ["log -1 rev4 --format=\"%an\"", "author4@chromium.org"],
+      ["log -1 --format=%an rev4", "author4@chromium.org"],
     ])
 
     # The cl for rev4 on rietveld has an updated LOG flag.
@@ -477,7 +489,7 @@ class ScriptTest(unittest.TestCase):
        "Title\n\nBUG=456\nLOG=N\n\n"],
     ])
 
-    self.MakeStep().Persist("last_push", "1234")
+    self._state["last_push_bleeding_edge"] = "1234"
     self.MakeStep(PrepareChangeLog).Run()
 
     actual_cl = FileToText(TEST_CONFIG[CHANGELOG_ENTRY_FILE])
@@ -509,10 +521,10 @@ class ScriptTest(unittest.TestCase):
 #"""
 
     self.assertEquals(expected_cl, actual_cl)
-    self.assertEquals("3", self.MakeStep().Restore("major"))
-    self.assertEquals("22", self.MakeStep().Restore("minor"))
-    self.assertEquals("5", self.MakeStep().Restore("build"))
-    self.assertEquals("0", self.MakeStep().Restore("patch"))
+    self.assertEquals("3", self._state["major"])
+    self.assertEquals("22", self._state["minor"])
+    self.assertEquals("5", self._state["build"])
+    self.assertEquals("0", self._state["patch"])
 
   def testEditChangeLog(self):
     TEST_CONFIG[CHANGELOG_ENTRY_FILE] = self.MakeEmptyTempFile()
@@ -532,7 +544,7 @@ class ScriptTest(unittest.TestCase):
 
   def testIncrementVersion(self):
     TEST_CONFIG[VERSION_FILE] = self.MakeTempVersionFile()
-    self.MakeStep().Persist("build", "5")
+    self._state["build"] = "5"
 
     self.ExpectReadline([
       "Y",  # Increment build number.
@@ -540,10 +552,10 @@ class ScriptTest(unittest.TestCase):
 
     self.MakeStep(IncrementVersion).Run()
 
-    self.assertEquals("3", self.MakeStep().Restore("new_major"))
-    self.assertEquals("22", self.MakeStep().Restore("new_minor"))
-    self.assertEquals("6", self.MakeStep().Restore("new_build"))
-    self.assertEquals("0", self.MakeStep().Restore("new_patch"))
+    self.assertEquals("3", self._state["new_major"])
+    self.assertEquals("22", self._state["new_minor"])
+    self.assertEquals("6", self._state["new_build"])
+    self.assertEquals("0", self._state["new_patch"])
 
   def testLastChangeLogEntries(self):
     TEST_CONFIG[CHANGELOG_FILE] = self.MakeEmptyTempFile()
@@ -571,8 +583,8 @@ class ScriptTest(unittest.TestCase):
       ["svn find-rev hash1", "123455\n"],
     ])
 
-    self.MakeStep().Persist("prepare_commit_hash", "hash1")
-    self.MakeStep().Persist("date", "1999-11-11")
+    self._state["prepare_commit_hash"] = "hash1"
+    self._state["date"] = "1999-11-11"
 
     self.MakeStep(SquashCommits).Run()
     self.assertEquals(FileToText(TEST_CONFIG[COMMITMSG_FILE]), expected_msg)
@@ -663,42 +675,49 @@ Performance and stability improvements on all platforms.""", commit)
       ["branch", "  branch1\n* branch2\n"],
       ["branch", "  branch1\n* branch2\n"],
       ["checkout -b %s svn/bleeding_edge" % TEST_CONFIG[BRANCHNAME], ""],
-      ["log -1 --format=%H ChangeLog", "1234\n"],
-      ["log -1 1234", "Last push ouput\n"],
-      ["log 1234..HEAD --format=%H", "rev1\n"],
-      ["log -1 rev1 --format=\"%s\"", "Log text 1.\n"],
-      ["log -1 rev1 --format=\"%B\"", "Text\nLOG=YES\nBUG=v8:321\nText\n"],
-      ["log -1 rev1 --format=\"%an\"", "author1@chromium.org\n"],
-      [("commit -a -m \"Prepare push to trunk.  "
+      [("log -1 --format=%H --grep="
+        "\"^Version [[:digit:]]*\.[[:digit:]]*\.[[:digit:]]* (based\" "
+        "svn/trunk"), "hash2\n"],
+      ["log -1 hash2", "Log message\n"],
+      ["log -1 --format=%s hash2",
+       "Version 3.4.5 (based on bleeding_edge revision r1234)\n"],
+      ["svn find-rev r1234", "hash3\n"],
+      ["log --format=%H hash3..HEAD", "rev1\n"],
+      ["log -1 --format=%s rev1", "Log text 1.\n"],
+      ["log -1 --format=%B rev1", "Text\nLOG=YES\nBUG=v8:321\nText\n"],
+      ["log -1 --format=%an rev1", "author1@chromium.org\n"],
+      [("commit -am \"Prepare push to trunk.  "
         "Now working on version 3.22.6.%s\"" % review_suffix),
        " 2 files changed\n",
         CheckPreparePush],
-      ["cl upload -r \"reviewer@chromium.org\" --send-mail%s" % force_flag,
+      [("cl upload --send-mail --email \"author@chromium.org\" "
+        "-r \"reviewer@chromium.org\"%s" % force_flag),
        "done\n"],
       ["cl presubmit", "Presubmit successfull\n"],
       ["cl dcommit -f --bypass-hooks", "Closing issue\n"],
       ["svn fetch", "fetch result\n"],
-      ["checkout svn/bleeding_edge", ""],
+      ["checkout -f svn/bleeding_edge", ""],
       [("log -1 --format=%H --grep=\"Prepare push to trunk.  "
         "Now working on version 3.22.6.\""),
        "hash1\n"],
       ["diff svn/trunk hash1", "patch content\n"],
       ["svn find-rev hash1", "123455\n"],
       ["checkout -b %s svn/trunk" % TEST_CONFIG[TRUNKBRANCH], ""],
-      ["apply --index --reject  \"%s\"" % TEST_CONFIG[PATCH_FILE], ""],
+      ["apply --index --reject \"%s\"" % TEST_CONFIG[PATCH_FILE], ""],
       ["add \"%s\"" % TEST_CONFIG[VERSION_FILE], ""],
-      ["commit -F \"%s\"" % TEST_CONFIG[COMMITMSG_FILE], "", CheckSVNCommit],
+      ["commit -aF \"%s\"" % TEST_CONFIG[COMMITMSG_FILE], "", CheckSVNCommit],
       ["svn dcommit 2>&1", "Some output\nCommitted r123456\nSome output\n"],
       ["svn tag 3.22.5 -m \"Tagging version 3.22.5\"", ""],
       ["status -s -uno", ""],
-      ["checkout master", ""],
+      ["checkout -f master", ""],
       ["pull", ""],
       ["checkout -b v8-roll-123456", ""],
       [("commit -am \"Update V8 to version 3.22.5 "
         "(based on bleeding_edge revision r123455).\n\n"
         "TBR=reviewer@chromium.org\""),
        ""],
-      ["cl upload --send-mail%s" % force_flag, ""],
+      ["cl upload --send-mail --email \"author@chromium.org\"%s" % force_flag,
+       ""],
       ["checkout -f some_branch", ""],
       ["branch -D %s" % TEST_CONFIG[TEMP_BRANCH], ""],
       ["branch -D %s" % TEST_CONFIG[BRANCHNAME], ""],
@@ -728,9 +747,11 @@ Performance and stability improvements on all platforms.""", commit)
     if force:
       self.ExpectReadline([])
 
-    options = MakeOptions(f=force, m=manual,
-                          r="reviewer@chromium.org" if not manual else None,
-                          c = TEST_CONFIG[CHROMIUM])
+    args = ["-a", "author@chromium.org", "-c", TEST_CONFIG[CHROMIUM]]
+    if force: args.append("-f")
+    if manual: args.append("-m")
+    else: args += ["-r", "reviewer@chromium.org"]
+    options = push_to_trunk.BuildOptions().parse_args(args)
     RunPushToTrunk(TEST_CONFIG, PushToTrunkOptions(options), self)
 
     deps = FileToText(TEST_CONFIG[DEPS_FILE])
@@ -765,8 +786,8 @@ Performance and stability improvements on all platforms.""", commit)
     self.assertRaises(Exception, self.MakeStep(CheckLastPush, state=state).Run)
 
   def testAutoRoll(self):
-    status_password = self.MakeEmptyTempFile()
-    TextToFile("PW", status_password)
+    password = self.MakeEmptyTempFile()
+    TextToFile("PW", password)
     TEST_CONFIG[DOT_GIT_LOCATION] = self.MakeEmptyTempFile()
     TEST_CONFIG[SETTINGS_LOCATION] = "~/.doesnotexist"
 
@@ -789,14 +810,21 @@ Performance and stability improvements on all platforms.""", commit)
       ["status -s -b -uno", "## some_branch\n"],
       ["svn fetch", ""],
       ["svn log -1 --oneline", "r100 | Text"],
-      ["svn log -1 --oneline ChangeLog", "r65 | Prepare push to trunk..."],
+      [("log -1 --format=%H --grep=\""
+        "^Version [[:digit:]]*\.[[:digit:]]*\.[[:digit:]]* (based\""
+        " svn/trunk"), "push_hash\n"],
+      ["svn find-rev push_hash", "65"],
     ])
 
-    auto_roll.RunAutoRoll(TEST_CONFIG, AutoRollOptions(
-        MakeOptions(status_password=status_password)), self)
+    options = auto_roll.BuildOptions().parse_args(
+        AUTO_ROLL_ARGS + ["--status-password", password])
+    auto_roll.RunAutoRoll(TEST_CONFIG, AutoRollOptions(options), self)
 
-    self.assertEquals("100", self.MakeStep().Restore("lkgr"))
-    self.assertEquals("100", self.MakeStep().Restore("latest"))
+    state = json.loads(FileToText("%s-state.json"
+                                  % TEST_CONFIG[PERSISTFILE_BASENAME]))
+
+    self.assertEquals("100", state["lkgr"])
+    self.assertEquals("100", state["latest"])
 
   def testAutoRollStoppedBySettings(self):
     TEST_CONFIG[DOT_GIT_LOCATION] = self.MakeEmptyTempFile()
@@ -811,8 +839,9 @@ Performance and stability improvements on all platforms.""", commit)
       ["svn fetch", ""],
     ])
 
+    options = auto_roll.BuildOptions().parse_args(AUTO_ROLL_ARGS)
     def RunAutoRoll():
-      auto_roll.RunAutoRoll(TEST_CONFIG, AutoRollOptions(MakeOptions()), self)
+      auto_roll.RunAutoRoll(TEST_CONFIG, AutoRollOptions(options), self)
     self.assertRaises(Exception, RunAutoRoll)
 
   def testAutoRollStoppedByTreeStatus(self):
@@ -830,9 +859,142 @@ Performance and stability improvements on all platforms.""", commit)
       ["svn fetch", ""],
     ])
 
+    options = auto_roll.BuildOptions().parse_args(AUTO_ROLL_ARGS)
     def RunAutoRoll():
-      auto_roll.RunAutoRoll(TEST_CONFIG, AutoRollOptions(MakeOptions()), self)
+      auto_roll.RunAutoRoll(TEST_CONFIG, AutoRollOptions(options), self)
     self.assertRaises(Exception, RunAutoRoll)
+
+  def testMergeToBranch(self):
+    TEST_CONFIG[ALREADY_MERGING_SENTINEL_FILE] = self.MakeEmptyTempFile()
+    TEST_CONFIG[DOT_GIT_LOCATION] = self.MakeEmptyTempFile()
+    TEST_CONFIG[VERSION_FILE] = self.MakeTempVersionFile()
+    os.environ["EDITOR"] = "vi"
+    extra_patch = self.MakeEmptyTempFile()
+
+    def VerifyPatch(patch):
+      return lambda: self.assertEquals(patch,
+          FileToText(TEST_CONFIG[TEMPORARY_PATCH_FILE]))
+
+    msg = """Merged r12345, r23456, r34567, r45678, r56789 into trunk branch.
+
+Title4
+
+Title2
+
+Title3
+
+Title1
+
+Title5
+
+BUG=123,234,345,456,567,v8:123
+LOG=N
+"""
+
+    def VerifySVNCommit():
+      commit = FileToText(TEST_CONFIG[COMMITMSG_FILE])
+      self.assertEquals(msg, commit)
+      version = FileToText(TEST_CONFIG[VERSION_FILE])
+      self.assertTrue(re.search(r"#define MINOR_VERSION\s+22", version))
+      self.assertTrue(re.search(r"#define BUILD_NUMBER\s+5", version))
+      self.assertTrue(re.search(r"#define PATCH_LEVEL\s+1", version))
+      self.assertTrue(re.search(r"#define IS_CANDIDATE_VERSION\s+0", version))
+
+    self.ExpectGit([
+      ["status -s -uno", ""],
+      ["status -s -b -uno", "## some_branch\n"],
+      ["svn fetch", ""],
+      ["branch", "  branch1\n* branch2\n"],
+      ["checkout -b %s" % TEST_CONFIG[TEMP_BRANCH], ""],
+      ["branch", "  branch1\n* branch2\n"],
+      ["checkout -b %s svn/trunk" % TEST_CONFIG[BRANCHNAME], ""],
+      ["log --format=%H --grep=\"Port r12345\" --reverse svn/bleeding_edge",
+       "hash1\nhash2"],
+      ["svn find-rev hash1 svn/bleeding_edge", "45678"],
+      ["log -1 --format=%s hash1", "Title1"],
+      ["svn find-rev hash2 svn/bleeding_edge", "23456"],
+      ["log -1 --format=%s hash2", "Title2"],
+      ["log --format=%H --grep=\"Port r23456\" --reverse svn/bleeding_edge",
+       ""],
+      ["log --format=%H --grep=\"Port r34567\" --reverse svn/bleeding_edge",
+       "hash3"],
+      ["svn find-rev hash3 svn/bleeding_edge", "56789"],
+      ["log -1 --format=%s hash3", "Title3"],
+      ["svn find-rev r12345 svn/bleeding_edge", "hash4"],
+      # Simulate svn being down which stops the script.
+      ["svn find-rev r23456 svn/bleeding_edge", None],
+      # Restart script in the failing step.
+      ["svn find-rev r12345 svn/bleeding_edge", "hash4"],
+      ["svn find-rev r23456 svn/bleeding_edge", "hash2"],
+      ["svn find-rev r34567 svn/bleeding_edge", "hash3"],
+      ["svn find-rev r45678 svn/bleeding_edge", "hash1"],
+      ["svn find-rev r56789 svn/bleeding_edge", "hash5"],
+      ["log -1 --format=%s hash4", "Title4"],
+      ["log -1 --format=%s hash2", "Title2"],
+      ["log -1 --format=%s hash3", "Title3"],
+      ["log -1 --format=%s hash1", "Title1"],
+      ["log -1 --format=%s hash5", "Title5"],
+      ["log -1 hash4", "Title4\nBUG=123\nBUG=234"],
+      ["log -1 hash2", "Title2\n BUG = v8:123,345"],
+      ["log -1 hash3", "Title3\nLOG=n\nBUG=567, 456"],
+      ["log -1 hash1", "Title1"],
+      ["log -1 hash5", "Title5"],
+      ["log -1 -p hash4", "patch4"],
+      ["apply --index --reject \"%s\"" % TEST_CONFIG[TEMPORARY_PATCH_FILE],
+       "", VerifyPatch("patch4")],
+      ["log -1 -p hash2", "patch2"],
+      ["apply --index --reject \"%s\"" % TEST_CONFIG[TEMPORARY_PATCH_FILE],
+       "", VerifyPatch("patch2")],
+      ["log -1 -p hash3", "patch3"],
+      ["apply --index --reject \"%s\"" % TEST_CONFIG[TEMPORARY_PATCH_FILE],
+       "", VerifyPatch("patch3")],
+      ["log -1 -p hash1", "patch1"],
+      ["apply --index --reject \"%s\"" % TEST_CONFIG[TEMPORARY_PATCH_FILE],
+       "", VerifyPatch("patch1")],
+      ["log -1 -p hash5", "patch5\n"],
+      ["apply --index --reject \"%s\"" % TEST_CONFIG[TEMPORARY_PATCH_FILE],
+       "", VerifyPatch("patch5\n")],
+      ["apply --index --reject \"%s\"" % extra_patch, ""],
+      ["commit -aF \"%s\"" % TEST_CONFIG[COMMITMSG_FILE], ""],
+      ["cl upload --send-mail -r \"reviewer@chromium.org\"", ""],
+      ["checkout -f %s" % TEST_CONFIG[BRANCHNAME], ""],
+      ["cl presubmit", "Presubmit successfull\n"],
+      ["cl dcommit -f --bypass-hooks", "Closing issue\n", VerifySVNCommit],
+      ["svn fetch", ""],
+      ["log -1 --format=%%H --grep=\"%s\" svn/trunk" % msg, "hash6"],
+      ["svn find-rev hash6", "1324"],
+      [("copy -r 1324 https://v8.googlecode.com/svn/trunk "
+        "https://v8.googlecode.com/svn/tags/3.22.5.1 -m "
+        "\"Tagging version 3.22.5.1\""), ""],
+      ["checkout -f some_branch", ""],
+      ["branch -D %s" % TEST_CONFIG[TEMP_BRANCH], ""],
+      ["branch -D %s" % TEST_CONFIG[BRANCHNAME], ""],
+    ])
+
+    self.ExpectReadline([
+      "Y",  # Automatically add corresponding ports (34567, 56789)?
+      "Y",  # Automatically increment patch level?
+      "reviewer@chromium.org",  # V8 reviewer.
+      "LGTM",  # Enter LGTM for V8 CL.
+    ])
+
+    # r12345 and r34567 are patches. r23456 (included) and r45678 are the MIPS
+    # ports of r12345. r56789 is the MIPS port of r34567.
+    args = ["-f", "-p", extra_patch, "--branch", "trunk", "12345", "23456",
+            "34567"]
+    options = merge_to_branch.BuildOptions().parse_args(args)
+    self.assertTrue(merge_to_branch.ProcessOptions(options))
+
+    # The first run of the script stops because of the svn being down.
+    self.assertRaises(GitFailedException,
+        lambda: RunMergeToBranch(TEST_CONFIG,
+                                 MergeToBranchOptions(options),
+                                 self))
+
+    # Test that state recovery after restarting the script works.
+    options.step = 3
+    RunMergeToBranch(TEST_CONFIG, MergeToBranchOptions(options), self)
+
 
 class SystemTest(unittest.TestCase):
   def testReload(self):

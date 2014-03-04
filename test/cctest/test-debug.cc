@@ -7700,4 +7700,39 @@ TEST(LiveEditDisabled) {
 }
 
 
+TEST(PrecompiledFunction) {
+  // Regression test for crbug.com/346207. If we have preparse data, parsing the
+  // function in the presence of the debugger (and breakpoints) should still
+  // succeed. The bug was that preparsing was done lazily and parsing was done
+  // eagerly, so, the symbol streams didn't match.
+  DebugLocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+  env.ExposeDebug();
+  v8::Debug::SetDebugEventListener2(DebugBreakInlineListener);
+
+  v8::Local<v8::Function> break_here =
+      CompileFunction(&env, "function break_here(){}", "break_here");
+  SetBreakPoint(break_here, 0);
+
+  const char* source =
+      "var a = b = c = 1;              \n"
+      "function this_is_lazy() {       \n"
+      // This symbol won't appear in the preparse data.
+      "  var a;                        \n"
+      "}                               \n"
+      "function bar() {                \n"
+      "  return \"bar\";               \n"
+      "};                              \n"
+      "a = b = c = 2;                  \n"
+      "bar();                          \n";
+  v8::Local<v8::Value> result = PreCompileCompileRun(source);
+  CHECK(result->IsString());
+  v8::String::Utf8Value utf8(result);
+  CHECK_EQ("bar", *utf8);
+
+  v8::Debug::SetDebugEventListener2(NULL);
+  CheckDebuggerUnloaded();
+}
+
+
 #endif  // ENABLE_DEBUGGER_SUPPORT

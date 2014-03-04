@@ -89,9 +89,11 @@ class StubCache {
   Handle<Code> FindHandler(Handle<Name> name,
                            Handle<Map> map,
                            Code::Kind kind,
-                           InlineCacheHolderFlag cache_holder = OWN_MAP);
+                           InlineCacheHolderFlag cache_holder,
+                           Code::StubType type);
 
-  Handle<Code> ComputeMonomorphicIC(Handle<Name> name,
+  Handle<Code> ComputeMonomorphicIC(Code::Kind kind,
+                                    Handle<Name> name,
                                     Handle<HeapType> type,
                                     Handle<Code> handler,
                                     ExtraICState extra_ic_state);
@@ -122,7 +124,8 @@ class StubCache {
                                               KeyedAccessStoreMode store_mode,
                                               StrictModeFlag strict_mode);
 
-  Handle<Code> ComputePolymorphicIC(TypeHandleList* types,
+  Handle<Code> ComputePolymorphicIC(Code::Kind kind,
+                                    TypeHandleList* types,
                                     CodeHandleList* handlers,
                                     int number_of_valid_maps,
                                     Handle<Name> name,
@@ -403,6 +406,15 @@ class StubCompiler BASE_EMBEDDED {
                            PrototypeCheckType check = CHECK_ALL_MAPS);
 
   void GenerateBooleanCheck(Register object, Label* miss);
+
+  static void GenerateFastApiCall(MacroAssembler* masm,
+                                  const CallOptimization& optimization,
+                                  Handle<Map> receiver_map,
+                                  Register receiver,
+                                  Register scratch,
+                                  bool is_store,
+                                  int argc,
+                                  Register* values);
 
  protected:
   Handle<Code> GetCodeWithFlags(Code::Flags flags, const char* name);

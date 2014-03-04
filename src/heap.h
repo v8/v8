@@ -78,7 +78,6 @@ namespace internal {
   V(ByteArray, empty_byte_array, EmptyByteArray)                               \
   V(DescriptorArray, empty_descriptor_array, EmptyDescriptorArray)             \
   V(ConstantPoolArray, empty_constant_pool_array, EmptyConstantPoolArray)      \
-  V(Smi, stack_limit, StackLimit)                                              \
   V(Oddball, arguments_marker, ArgumentsMarker)                                \
   /* The roots above this line should be boring from a GC point of view.    */ \
   /* This means they are never in new space and never on a page that is     */ \
@@ -186,14 +185,8 @@ namespace internal {
   V(Code, js_entry_code, JsEntryCode)                                          \
   V(Code, js_construct_entry_code, JsConstructEntryCode)                       \
   V(FixedArray, natives_source_cache, NativesSourceCache)                      \
-  V(Smi, last_script_id, LastScriptId)                                         \
   V(Script, empty_script, EmptyScript)                                         \
-  V(Smi, real_stack_limit, RealStackLimit)                                     \
   V(NameDictionary, intrinsic_function_names, IntrinsicFunctionNames)          \
-  V(Smi, arguments_adaptor_deopt_pc_offset, ArgumentsAdaptorDeoptPCOffset)     \
-  V(Smi, construct_stub_deopt_pc_offset, ConstructStubDeoptPCOffset)           \
-  V(Smi, getter_stub_deopt_pc_offset, GetterStubDeoptPCOffset)                 \
-  V(Smi, setter_stub_deopt_pc_offset, SetterStubDeoptPCOffset)                 \
   V(Cell, undefined_cell, UndefineCell)                                        \
   V(JSObject, observation_state, ObservationState)                             \
   V(Map, external_map, ExternalMap)                                            \
@@ -203,10 +196,22 @@ namespace internal {
       EmptySlowElementDictionary)                                              \
   V(Symbol, observed_symbol, ObservedSymbol)                                   \
   V(FixedArray, materialized_objects, MaterializedObjects)                     \
-  V(FixedArray, allocation_sites_scratchpad, AllocationSitesScratchpad)
+  V(FixedArray, allocation_sites_scratchpad, AllocationSitesScratchpad)        \
+  V(JSObject, microtask_state, MicrotaskState)
+
+// Entries in this list are limited to Smis and are not visited during GC.
+#define SMI_ROOT_LIST(V)                                                       \
+  V(Smi, stack_limit, StackLimit)                                              \
+  V(Smi, real_stack_limit, RealStackLimit)                                     \
+  V(Smi, last_script_id, LastScriptId)                                         \
+  V(Smi, arguments_adaptor_deopt_pc_offset, ArgumentsAdaptorDeoptPCOffset)     \
+  V(Smi, construct_stub_deopt_pc_offset, ConstructStubDeoptPCOffset)           \
+  V(Smi, getter_stub_deopt_pc_offset, GetterStubDeoptPCOffset)                 \
+  V(Smi, setter_stub_deopt_pc_offset, SetterStubDeoptPCOffset)
 
 #define ROOT_LIST(V)                                  \
   STRONG_ROOT_LIST(V)                                 \
+  SMI_ROOT_LIST(V)                                    \
   V(StringTable, string_table, StringTable)
 
 // Heap roots that are known to be immortal immovable, for which we can safely
@@ -1134,7 +1139,6 @@ class Heap {
       int start_position,
       int end_position,
       Object* script,
-      Object* stack_trace,
       Object* stack_frames);
 
   // Allocate a new external string object, which is backed by a string
@@ -1255,10 +1259,6 @@ class Heap {
   // Notify the heap that a context has been disposed.
   int NotifyContextDisposed();
 
-  // Utility to invoke the scavenger. This is needed in test code to
-  // ensure correct callback for weak global handles.
-  void PerformScavenge();
-
   inline void increment_scan_on_scavenge_pages() {
     scan_on_scavenge_pages_++;
     if (FLAG_gc_verbose) {
@@ -1347,6 +1347,9 @@ class Heap {
   void IterateRoots(ObjectVisitor* v, VisitMode mode);
   // Iterates over all strong roots in the heap.
   void IterateStrongRoots(ObjectVisitor* v, VisitMode mode);
+  // Iterates over entries in the smi roots list.  Only interesting to the
+  // serializer/deserializer, since GC does not care about smis.
+  void IterateSmiRoots(ObjectVisitor* v);
   // Iterates over all the other roots in the heap.
   void IterateWeakRoots(ObjectVisitor* v, VisitMode mode);
 
@@ -1582,7 +1585,7 @@ class Heap {
   // Implements the corresponding V8 API function.
   bool IdleNotification(int hint);
 
-  // Declare all the root indices.
+  // Declare all the root indices.  This defines the root list order.
   enum RootListIndex {
 #define ROOT_INDEX_DECLARATION(type, name, camel_name) k##camel_name##RootIndex,
     STRONG_ROOT_LIST(ROOT_INDEX_DECLARATION)
@@ -1598,8 +1601,14 @@ class Heap {
 #undef DECLARE_STRUCT_MAP
 
     kStringTableRootIndex,
+
+#define ROOT_INDEX_DECLARATION(type, name, camel_name) k##camel_name##RootIndex,
+    SMI_ROOT_LIST(ROOT_INDEX_DECLARATION)
+#undef ROOT_INDEX_DECLARATION
+
+    kRootListLength,
     kStrongRootListLength = kStringTableRootIndex,
-    kRootListLength
+    kSmiRootsStart = kStringTableRootIndex + 1
   };
 
   STATIC_CHECK(kUndefinedValueRootIndex == Internals::kUndefinedValueRootIndex);
@@ -1833,6 +1842,8 @@ class Heap {
   int64_t amount_of_external_allocated_memory() {
     return amount_of_external_allocated_memory_;
   }
+
+  void DeoptMarkedAllocationSites();
 
   // ObjectStats are kept in two arrays, counts and sizes. Related stats are
   // stored in a contiguous linear buffer. Stats groups are stored one after
@@ -2119,6 +2130,11 @@ class Heap {
   // Checks whether a global GC is necessary
   GarbageCollector SelectGarbageCollector(AllocationSpace space,
                                           const char** reason);
+
+  // Make sure there is a filler value behind the top of the new space
+  // so that the GC does not confuse some unintialized/stale memory
+  // with the allocation memento of the object at the top
+  void EnsureFillerObjectAtTop();
 
   // Performs garbage collection operation.
   // Returns whether there is a chance that another major GC could
@@ -2584,6 +2600,13 @@ class NoWeakObjectVerificationScope {
 // Caveat: Heap::Contains is an approximation because it can return true for
 // objects in a heap space but above the allocation pointer.
 class VerifyPointersVisitor: public ObjectVisitor {
+ public:
+  inline void VisitPointers(Object** start, Object** end);
+};
+
+
+// Verify that all objects are Smis.
+class VerifySmisVisitor: public ObjectVisitor {
  public:
   inline void VisitPointers(Object** start, Object** end);
 };

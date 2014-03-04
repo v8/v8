@@ -148,9 +148,7 @@ IC::IC(FrameDepth depth, Isolate* isolate)
   pc_address_ = StackFrame::ResolveReturnAddressLocation(pc_address);
   target_ = handle(raw_target(), isolate);
   state_ = target_->ic_state();
-  extra_ic_state_ = target_->needs_extended_extra_ic_state(target_->kind())
-      ? target_->extended_extra_ic_state()
-      : target_->extra_ic_state();
+  extra_ic_state_ = target_->extra_ic_state();
 }
 
 
@@ -645,7 +643,7 @@ bool IC::UpdatePolymorphicIC(Handle<HeapType> type,
   }
 
   Handle<Code> ic = isolate()->stub_cache()->ComputePolymorphicIC(
-      &types, &handlers, number_of_valid_types, name, extra_ic_state());
+      kind(), &types, &handlers, number_of_valid_types, name, extra_ic_state());
   set_target(*ic);
   return true;
 }
@@ -697,7 +695,7 @@ void IC::UpdateMonomorphicIC(Handle<HeapType> type,
                              Handle<String> name) {
   if (!handler->is_handler()) return set_target(*handler);
   Handle<Code> ic = isolate()->stub_cache()->ComputeMonomorphicIC(
-      name, type, handler, extra_ic_state());
+      kind(), name, type, handler, extra_ic_state());
   set_target(*ic);
 }
 
@@ -847,8 +845,11 @@ Handle<Code> IC::ComputeHandler(LookupResult* lookup,
       isolate(), *object, cache_holder));
 
   Handle<Code> code = isolate()->stub_cache()->FindHandler(
-      name, handle(stub_holder->map()), kind(), cache_holder);
-  if (!code.is_null()) return code;
+      name, handle(stub_holder->map()), kind(), cache_holder,
+      lookup->holder()->HasFastProperties() ? Code::FAST : Code::NORMAL);
+  if (!code.is_null()) {
+    return code;
+  }
 
   code = CompileHandler(lookup, object, name, value, cache_holder);
   ASSERT(code->is_handler());
@@ -1063,8 +1064,8 @@ MaybeObject* KeyedLoadIC::Load(Handle<Object> object, Handle<Object> key) {
   MaybeObject* maybe_object = NULL;
   Handle<Code> stub = generic_stub();
 
-  // Check for values that can be converted into an internalized string directly
-  // or is representable as a smi.
+  // Check for non-string values that can be converted into an
+  // internalized string directly or is representable as a smi.
   key = TryConvertKey(key, isolate());
 
   if (key->IsInternalizedString()) {
@@ -1655,8 +1656,8 @@ MaybeObject* KeyedStoreIC::Store(Handle<Object> object,
     return *result;
   }
 
-  // Check for values that can be converted into an internalized string directly
-  // or is representable as a smi.
+  // Check for non-string values that can be converted into an
+  // internalized string directly or is representable as a smi.
   key = TryConvertKey(key, isolate());
 
   MaybeObject* maybe_object = NULL;
@@ -2366,7 +2367,7 @@ Type* BinaryOpIC::State::KindToType(Kind kind, Zone* zone) {
 MaybeObject* BinaryOpIC::Transition(Handle<AllocationSite> allocation_site,
                                     Handle<Object> left,
                                     Handle<Object> right) {
-  State state(target()->extended_extra_ic_state());
+  State state(target()->extra_ic_state());
 
   // Compute the actual result using the builtin for the binary operation.
   Object* builtin = isolate()->js_builtins_object()->javascript_builtin(
@@ -2682,7 +2683,7 @@ RUNTIME_FUNCTION(Code*, CompareIC_Miss) {
 
 void CompareNilIC::Clear(Address address, Code* target) {
   if (IsCleared(target)) return;
-  ExtraICState state = target->extended_extra_ic_state();
+  ExtraICState state = target->extra_ic_state();
 
   CompareNilICStub stub(state, HydrogenCodeStub::UNINITIALIZED);
   stub.ClearState();
@@ -2704,7 +2705,7 @@ MaybeObject* CompareNilIC::DoCompareNilSlow(NilValue nil,
 
 
 MaybeObject* CompareNilIC::CompareNil(Handle<Object> object) {
-  ExtraICState extra_ic_state = target()->extended_extra_ic_state();
+  ExtraICState extra_ic_state = target()->extra_ic_state();
 
   CompareNilICStub stub(extra_ic_state);
 
@@ -2788,7 +2789,7 @@ Builtins::JavaScript BinaryOpIC::TokenToJSBuiltin(Token::Value op) {
 
 
 MaybeObject* ToBooleanIC::ToBoolean(Handle<Object> object) {
-  ToBooleanStub stub(target()->extended_extra_ic_state());
+  ToBooleanStub stub(target()->extra_ic_state());
   bool to_boolean_value = stub.UpdateStatus(object);
   Handle<Code> code = stub.GetCode(isolate());
   set_target(*code);

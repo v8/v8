@@ -167,6 +167,7 @@ enum BindingFlags {
   V(ERROR_MESSAGE_FOR_CODE_GEN_FROM_STRINGS_INDEX, Object, \
     error_message_for_code_gen_from_strings) \
   V(RUN_MICROTASKS_INDEX, JSFunction, run_microtasks) \
+  V(ENQUEUE_EXTERNAL_MICROTASK_INDEX, JSFunction, enqueue_external_microtask) \
   V(TO_COMPLETE_PROPERTY_DESCRIPTOR_INDEX, JSFunction, \
     to_complete_property_descriptor) \
   V(DERIVED_HAS_TRAP_INDEX, JSFunction, derived_has_trap) \
@@ -225,8 +226,11 @@ enum BindingFlags {
 // In addition, function contexts may have statically allocated context slots
 // to store local variables/functions that are accessed from inner functions
 // (via static context addresses) or through 'eval' (dynamic context lookups).
-// Finally, the native context contains additional slots for fast access to
-// native properties.
+// The native context contains additional slots for fast access to native
+// properties.
+//
+// Finally, with Harmony scoping, the JSFunction representing a top level
+// script will have the GlobalContext rather than a FunctionContext.
 
 class Context: public FixedArray {
  public:
@@ -318,6 +322,7 @@ class Context: public FixedArray {
     ALLOW_CODE_GEN_FROM_STRINGS_INDEX,
     ERROR_MESSAGE_FOR_CODE_GEN_FROM_STRINGS_INDEX,
     RUN_MICROTASKS_INDEX,
+    ENQUEUE_EXTERNAL_MICROTASK_INDEX,
     TO_COMPLETE_PROPERTY_DESCRIPTOR_INDEX,
     DERIVED_HAS_TRAP_INDEX,
     DERIVED_GET_TRAP_INDEX,

@@ -81,6 +81,11 @@ class CodeStubGraphBuilderBase : public HGraphBuilder {
   HContext* context() { return context_; }
   Isolate* isolate() { return info_.isolate(); }
 
+  HLoadNamedField* BuildLoadNamedField(HValue* object,
+                                       Representation representation,
+                                       int offset,
+                                       bool is_inobject);
+
   enum ArgumentClass {
     NONE,
     SINGLE,
@@ -247,8 +252,7 @@ Handle<Code> HydrogenCodeStub::GenerateLightweightMissCode(Isolate* isolate) {
       GetCodeKind(),
       GetICState(),
       GetExtraICState(),
-      GetStubType(),
-      GetStubFlags());
+      GetStubType());
   Handle<Code> new_object = factory->NewCode(
       desc, flags, masm.CodeObject(), NeedsImmovableCode());
   return new_object;
@@ -530,15 +534,11 @@ HValue* CodeStubGraphBuilder<CreateAllocationSiteStub>::BuildCodeStub() {
   Add<HStoreNamedField>(site_list, HObjectAccess::ForAllocationSiteList(),
                         object);
 
-  // We use a hammer (SkipWriteBarrier()) to indicate that we know the input
-  // cell is really a Cell, and so no write barrier is needed.
-  // TODO(mvstanton): Add a debug_code check to verify the input cell is really
-  // a cell. (perhaps with a new instruction, HAssert).
-  HInstruction* cell = GetParameter(0);
-  HObjectAccess access = HObjectAccess::ForCellValue();
-  store = Add<HStoreNamedField>(cell, access, object);
-  store->SkipWriteBarrier();
-  return cell;
+  HInstruction* feedback_vector = GetParameter(0);
+  HInstruction* slot = GetParameter(1);
+  Add<HStoreKeyed>(feedback_vector, slot, object, FAST_ELEMENTS,
+                   INITIALIZING_STORE);
+  return feedback_vector;
 }
 
 
@@ -552,7 +552,7 @@ HValue* CodeStubGraphBuilder<KeyedLoadFastElementStub>::BuildCodeStub() {
   HInstruction* load = BuildUncheckedMonomorphicElementAccess(
       GetParameter(0), GetParameter(1), NULL,
       casted_stub()->is_js_array(), casted_stub()->elements_kind(),
-      false, NEVER_RETURN_HOLE, STANDARD_STORE);
+      LOAD, NEVER_RETURN_HOLE, STANDARD_STORE);
   return load;
 }
 
@@ -562,14 +562,32 @@ Handle<Code> KeyedLoadFastElementStub::GenerateCode(Isolate* isolate) {
 }
 
 
+HLoadNamedField* CodeStubGraphBuilderBase::BuildLoadNamedField(
+    HValue* object,
+    Representation representation,
+    int offset,
+    bool is_inobject) {
+  HObjectAccess access = is_inobject
+      ? HObjectAccess::ForObservableJSObjectOffset(offset, representation)
+      : HObjectAccess::ForBackingStoreOffset(offset, representation);
+  if (representation.IsDouble()) {
+    // Load the heap number.
+    object = Add<HLoadNamedField>(
+        object, static_cast<HValue*>(NULL),
+        access.WithRepresentation(Representation::Tagged()));
+    // Load the double value from it.
+    access = HObjectAccess::ForHeapNumberValue();
+  }
+  return Add<HLoadNamedField>(object, static_cast<HValue*>(NULL), access);
+}
+
+
 template<>
 HValue* CodeStubGraphBuilder<LoadFieldStub>::BuildCodeStub() {
-  Representation rep = casted_stub()->representation();
-  int offset = casted_stub()->offset();
-  HObjectAccess access = casted_stub()->is_inobject() ?
-      HObjectAccess::ForObservableJSObjectOffset(offset, rep) :
-      HObjectAccess::ForBackingStoreOffset(offset, rep);
-  return AddLoadNamedField(GetParameter(0), access);
+  return BuildLoadNamedField(GetParameter(0),
+                             casted_stub()->representation(),
+                             casted_stub()->offset(),
+                             casted_stub()->is_inobject());
 }
 
 
@@ -580,12 +598,10 @@ Handle<Code> LoadFieldStub::GenerateCode(Isolate* isolate) {
 
 template<>
 HValue* CodeStubGraphBuilder<KeyedLoadFieldStub>::BuildCodeStub() {
-  Representation rep = casted_stub()->representation();
-  int offset = casted_stub()->offset();
-  HObjectAccess access = casted_stub()->is_inobject() ?
-      HObjectAccess::ForObservableJSObjectOffset(offset, rep) :
-      HObjectAccess::ForBackingStoreOffset(offset, rep);
-  return AddLoadNamedField(GetParameter(0), access);
+  return BuildLoadNamedField(GetParameter(0),
+                             casted_stub()->representation(),
+                             casted_stub()->offset(),
+                             casted_stub()->is_inobject());
 }
 
 
@@ -599,7 +615,7 @@ HValue* CodeStubGraphBuilder<KeyedStoreFastElementStub>::BuildCodeStub() {
   BuildUncheckedMonomorphicElementAccess(
       GetParameter(0), GetParameter(1), GetParameter(2),
       casted_stub()->is_js_array(), casted_stub()->elements_kind(),
-      true, NEVER_RETURN_HOLE, casted_stub()->store_mode());
+      STORE, NEVER_RETURN_HOLE, casted_stub()->store_mode());
 
   return GetParameter(2);
 }
@@ -1096,7 +1112,7 @@ HValue* CodeStubGraphBuilder<ElementsTransitionAndStoreStub>::BuildCodeStub() {
     BuildUncheckedMonomorphicElementAccess(object, key, value,
                                            casted_stub()->is_jsarray(),
                                            casted_stub()->to_kind(),
-                                           true, ALLOW_RETURN_HOLE,
+                                           STORE, ALLOW_RETURN_HOLE,
                                            casted_stub()->store_mode());
   }
 

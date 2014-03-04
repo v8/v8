@@ -177,14 +177,18 @@ namespace internal {
   F(Math_acos, 1, 1) \
   F(Math_asin, 1, 1) \
   F(Math_atan, 1, 1) \
-  F(Math_atan2, 2, 1) \
+  F(Math_log, 1, 1) \
+  F(Math_cbrt, 1, 1) \
+  F(Math_log1p, 1, 1) \
+  F(Math_expm1, 1, 1) \
+  F(Math_sqrt, 1, 1) \
   F(Math_exp, 1, 1) \
   F(Math_floor, 1, 1) \
-  F(Math_log, 1, 1) \
   F(Math_pow, 2, 1) \
   F(Math_pow_cfunction, 2, 1) \
+  F(Math_atan2, 2, 1) \
   F(RoundNumber, 1, 1) \
-  F(Math_sqrt, 1, 1) \
+  F(Math_fround, 1, 1) \
   \
   /* Regular expressions */ \
   F(RegExpCompile, 3, 1) \
@@ -308,13 +312,17 @@ namespace internal {
   /* ES5 */ \
   F(ObjectFreeze, 1, 1) \
   \
+  /* Harmony Microtasks */ \
+  F(GetMicrotaskState, 0, 1) \
+  \
   /* Harmony modules */ \
   F(IsJSModule, 1, 1) \
   \
   /* Harmony symbols */ \
   F(CreateSymbol, 1, 1) \
   F(CreatePrivateSymbol, 1, 1) \
-  F(SymbolName, 1, 1) \
+  F(NewSymbolWrapper, 1, 1) \
+  F(SymbolDescription, 1, 1) \
   F(SymbolIsPrivate, 1, 1) \
   \
   /* Harmony proxies */ \
@@ -351,6 +359,7 @@ namespace internal {
   \
   /* Harmony events */ \
   F(SetMicrotaskPending, 1, 1) \
+  F(RunMicrotasks, 0, 1) \
   \
   /* Harmony observe */ \
   F(IsObserved, 1, 1) \
@@ -437,7 +446,7 @@ namespace internal {
   F(DebugTrace, 0, 1) \
   F(TraceEnter, 0, 1) \
   F(TraceExit, 1, 1) \
-  F(Abort, 2, 1) \
+  F(Abort, 1, 1) \
   F(AbortJS, 1, 1) \
   /* Logging */ \
   F(Log, 2, 1) \

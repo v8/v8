@@ -324,6 +324,87 @@ TEST(StandAlonePreParserNoNatives) {
 }
 
 
+TEST(PreparsingObjectLiterals) {
+  // Regression test for a bug where the symbol stream produced by PreParser
+  // didn't match what Parser wanted to consume.
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope handles(isolate);
+  v8::Local<v8::Context> context = v8::Context::New(isolate);
+  v8::Context::Scope context_scope(context);
+  int marker;
+  CcTest::i_isolate()->stack_guard()->SetStackLimit(
+      reinterpret_cast<uintptr_t>(&marker) - 128 * 1024);
+
+  {
+    const char* source = "var myo = {if: \"foo\"}; myo.if;";
+    v8::Local<v8::Value> result = PreCompileCompileRun(source);
+    CHECK(result->IsString());
+    v8::String::Utf8Value utf8(result);
+    CHECK_EQ("foo", *utf8);
+  }
+
+  {
+    const char* source = "var myo = {\"bar\": \"foo\"}; myo[\"bar\"];";
+    v8::Local<v8::Value> result = PreCompileCompileRun(source);
+    CHECK(result->IsString());
+    v8::String::Utf8Value utf8(result);
+    CHECK_EQ("foo", *utf8);
+  }
+
+  {
+    const char* source = "var myo = {1: \"foo\"}; myo[1];";
+    v8::Local<v8::Value> result = PreCompileCompileRun(source);
+    CHECK(result->IsString());
+    v8::String::Utf8Value utf8(result);
+    CHECK_EQ("foo", *utf8);
+  }
+}
+
+namespace v8 {
+namespace internal {
+
+void FakeWritingSymbolIdInPreParseData(i::CompleteParserRecorder* log,
+                                       int number) {
+  log->WriteNumber(number);
+  if (log->symbol_id_ < number + 1) {
+    log->symbol_id_ = number + 1;
+  }
+}
+
+}
+}
+
+
+TEST(StoringNumbersInPreParseData) {
+  // Symbol IDs are split into chunks of 7 bits for storing. This is a
+  // regression test for a bug where a symbol id was incorrectly stored if some
+  // of the chunks in the middle were all zeros.
+  i::CompleteParserRecorder log;
+  for (int i = 0; i < 18; ++i) {
+    FakeWritingSymbolIdInPreParseData(&log, 1 << i);
+  }
+  for (int i = 1; i < 18; ++i) {
+    FakeWritingSymbolIdInPreParseData(&log, (1 << i) + 1);
+  }
+  for (int i = 6; i < 18; ++i) {
+    FakeWritingSymbolIdInPreParseData(&log, (3 << i) + (5 << (i - 6)));
+  }
+  i::Vector<unsigned> store = log.ExtractData();
+  i::ScriptDataImpl script_data(store);
+  script_data.Initialize();
+  // Check that we get the same symbols back.
+  for (int i = 0; i < 18; ++i) {
+    CHECK_EQ(1 << i, script_data.GetSymbolIdentifier());
+  }
+  for (int i = 1; i < 18; ++i) {
+    CHECK_EQ((1 << i) + 1, script_data.GetSymbolIdentifier());
+  }
+  for (int i = 6; i < 18; ++i) {
+    CHECK_EQ((3 << i) + (5 << (i - 6)), script_data.GetSymbolIdentifier());
+  }
+}
+
+
 TEST(RegressChromium62639) {
   v8::V8::Initialize();
   i::Isolate* isolate = CcTest::i_isolate();
@@ -1108,8 +1189,9 @@ enum ParserSyncTestResult {
   kError
 };
 
-
-void SetParserFlags(i::ParserBase* parser, i::EnumSet<ParserFlag> flags) {
+template <typename Traits>
+void SetParserFlags(i::ParserBase<Traits>* parser,
+                    i::EnumSet<ParserFlag> flags) {
   parser->set_allow_lazy(flags.Contains(kAllowLazy));
   parser->set_allow_natives_syntax(flags.Contains(kAllowNativesSyntax));
   parser->set_allow_harmony_scoping(flags.Contains(kAllowHarmonyScoping));
@@ -1390,7 +1472,7 @@ void RunParserSyncTest(const char* context_data[][2],
 
   static const ParserFlag flags[] = {
     kAllowLazy, kAllowHarmonyScoping, kAllowModules, kAllowGenerators,
-    kAllowForOf
+    kAllowForOf, kAllowNativesSyntax
   };
   for (int i = 0; context_data[i][0] != NULL; ++i) {
     for (int j = 0; statement_data[j] != NULL; ++j) {
@@ -2012,4 +2094,111 @@ TEST(NoErrorsTryCatchFinally) {
   };
 
   RunParserSyncTest(context_data, statement_data, kSuccess);
+}
+
+
+TEST(ErrorsRegexpLiteral) {
+  const char* context_data[][2] = {
+    {"var r = ", ""},
+    { NULL, NULL }
+  };
+
+  const char* statement_data[] = {
+    "/unterminated",
+    NULL
+  };
+
+  RunParserSyncTest(context_data, statement_data, kError);
+}
+
+
+TEST(NoErrorsRegexpLiteral) {
+  const char* context_data[][2] = {
+    {"var r = ", ""},
+    { NULL, NULL }
+  };
+
+  const char* statement_data[] = {
+    "/foo/",
+    "/foo/g",
+    "/foo/whatever",  // This is an error but not detected by the parser.
+    NULL
+  };
+
+  RunParserSyncTest(context_data, statement_data, kSuccess);
+}
+
+
+TEST(Intrinsics) {
+  const char* context_data[][2] = {
+    {"", ""},
+    { NULL, NULL }
+  };
+
+  const char* statement_data[] = {
+    "%someintrinsic(arg)",
+    NULL
+  };
+
+  // Parsing will fail or succeed depending on whether we allow natives syntax
+  // or not.
+  RunParserSyncTest(context_data, statement_data, kSuccessOrError);
+}
+
+
+TEST(NoErrorsNewExpression) {
+  const char* context_data[][2] = {
+    {"", ""},
+    {"var f =", ""},
+    { NULL, NULL }
+  };
+
+  const char* statement_data[] = {
+    "new foo",
+    "new foo();",
+    "new foo(1);",
+    "new foo(1, 2);",
+    // The first () will be processed as a part of the NewExpression and the
+    // second () will be processed as part of LeftHandSideExpression.
+    "new foo()();",
+    // The first () will be processed as a part of the inner NewExpression and
+    // the second () will be processed as a part of the outer NewExpression.
+    "new new foo()();",
+    "new foo.bar;",
+    "new foo.bar();",
+    "new foo.bar.baz;",
+    "new foo.bar().baz;",
+    "new foo[bar];",
+    "new foo[bar]();",
+    "new foo[bar][baz];",
+    "new foo[bar]()[baz];",
+    "new foo[bar].baz(baz)()[bar].baz;",
+    "new \"foo\"",  // Runtime error
+    "new 1",  // Runtime error
+    "new foo++",
+    // This even runs:
+    "(new new Function(\"this.x = 1\")).x;",
+    "new new Test_Two(String, 2).v(0123).length;",
+    NULL
+  };
+
+  RunParserSyncTest(context_data, statement_data, kSuccess);
+}
+
+
+TEST(ErrorsNewExpression) {
+  const char* context_data[][2] = {
+    {"", ""},
+    {"var f =", ""},
+    { NULL, NULL }
+  };
+
+  const char* statement_data[] = {
+    "new foo bar",
+    "new ) foo",
+    "new ++foo",
+    NULL
+  };
+
+  RunParserSyncTest(context_data, statement_data, kError);
 }
