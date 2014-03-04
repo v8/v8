@@ -3876,6 +3876,7 @@ void HStringAdd::PrintDataTo(StringStream* stream) {
   } else if ((flags() & STRING_ADD_CHECK_BOTH) == STRING_ADD_CHECK_RIGHT) {
     stream->Add("_CheckRight");
   }
+  HBinaryOperation::PrintDataTo(stream);
   stream->Add(" (");
   if (pretenure_flag() == NOT_TENURED) stream->Add("N");
   else if (pretenure_flag() == TENURED) stream->Add("D");
