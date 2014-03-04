@@ -32,7 +32,6 @@ import traceback
 import unittest
 
 import auto_roll
-from auto_roll import AutoRollOptions
 from auto_roll import CheckLastPush
 from auto_roll import FetchLatestRevision
 from auto_roll import SETTINGS_LOCATION
@@ -70,25 +69,6 @@ AUTO_ROLL_ARGS = [
   "-c", TEST_CONFIG[CHROMIUM],
   "-r", "reviewer@chromium.org",
 ]
-
-
-def MakeOptions(s=0, l=None, f=False, m=True, r=None, c=None, a=None,
-                status_password=None, revert_bleeding_edge=None, p=None):
-  """Convenience wrapper."""
-  class Options(object):
-      pass
-  options = Options()
-  options.step = s
-  options.last_push = l
-  options.force = f
-  options.manual = m
-  options.reviewer = r
-  options.chromium = c
-  options.author = a
-  options.push = p
-  options.status_password = status_password
-  options.revert_bleeding_edge = revert_bleeding_edge
-  return options
 
 
 class ToplevelTest(unittest.TestCase):
@@ -302,13 +282,17 @@ class ScriptTest(unittest.TestCase):
       f.write("#define IS_CANDIDATE_VERSION 0\n")
     return name
 
-  def MakeStep(self, step_class=Step, state=None, options=None):
+  def MakeStep(self):
     """Convenience wrapper."""
-    options = options or CommonOptions(MakeOptions())
-    state = state if state is not None else self._state
-    return MakeStep(step_class=step_class, number=0, state=state,
-                    config=TEST_CONFIG, options=options,
-                    side_effect_handler=self)
+    options = ScriptsBase(TEST_CONFIG, self, self._state).MakeOptions([])
+    return MakeStep(step_class=Step, state=self._state,
+                    config=TEST_CONFIG, side_effect_handler=self,
+                    options=options)
+
+  def RunStep(self, script=PushToTrunk, step_class=Step, args=None):
+    """Convenience wrapper."""
+    args = args or ["-m"]
+    return script(TEST_CONFIG, self, self._state).RunSteps([step_class], args)
 
   def GitMock(self, cmd, args="", pipe=True):
     print "%s %s" % (cmd, args)
@@ -490,7 +474,7 @@ class ScriptTest(unittest.TestCase):
     ])
 
     self._state["last_push_bleeding_edge"] = "1234"
-    self.MakeStep(PrepareChangeLog).Run()
+    self.RunStep(PushToTrunk, PrepareChangeLog)
 
     actual_cl = FileToText(TEST_CONFIG[CHANGELOG_ENTRY_FILE])
 
@@ -537,7 +521,7 @@ class ScriptTest(unittest.TestCase):
       "",  # Open editor.
     ])
 
-    self.MakeStep(EditChangeLog).Run()
+    self.RunStep(PushToTrunk, EditChangeLog)
 
     self.assertEquals("New\n        Lines\n\n\n        Original CL",
                       FileToText(TEST_CONFIG[CHANGELOG_FILE]))
@@ -550,7 +534,7 @@ class ScriptTest(unittest.TestCase):
       "Y",  # Increment build number.
     ])
 
-    self.MakeStep(IncrementVersion).Run()
+    self.RunStep(PushToTrunk, IncrementVersion)
 
     self.assertEquals("3", self._state["new_major"])
     self.assertEquals("22", self._state["new_minor"])
@@ -586,7 +570,7 @@ class ScriptTest(unittest.TestCase):
     self._state["prepare_commit_hash"] = "hash1"
     self._state["date"] = "1999-11-11"
 
-    self.MakeStep(SquashCommits).Run()
+    self.RunStep(PushToTrunk, SquashCommits)
     self.assertEquals(FileToText(TEST_CONFIG[COMMITMSG_FILE]), expected_msg)
 
     patch = FileToText(TEST_CONFIG[ PATCH_FILE])
@@ -751,8 +735,7 @@ Performance and stability improvements on all platforms.""", commit)
     if force: args.append("-f")
     if manual: args.append("-m")
     else: args += ["-r", "reviewer@chromium.org"]
-    options = push_to_trunk.BuildOptions().parse_args(args)
-    RunPushToTrunk(TEST_CONFIG, PushToTrunkOptions(options), self)
+    PushToTrunk(TEST_CONFIG, self).Run(args)
 
     deps = FileToText(TEST_CONFIG[DEPS_FILE])
     self.assertTrue(re.search("\"v8_revision\": \"123456\"", deps))
@@ -781,9 +764,10 @@ Performance and stability improvements on all platforms.""", commit)
       ["svn log -1 --oneline ChangeLog", "r99 | Prepare push to trunk..."],
     ])
 
-    state = {}
-    self.MakeStep(FetchLatestRevision, state=state).Run()
-    self.assertRaises(Exception, self.MakeStep(CheckLastPush, state=state).Run)
+    self.RunStep(auto_roll.AutoRoll, FetchLatestRevision, AUTO_ROLL_ARGS)
+    self.assertRaises(Exception, lambda: self.RunStep(auto_roll.AutoRoll,
+                                                      CheckLastPush,
+                                                      AUTO_ROLL_ARGS))
 
   def testAutoRoll(self):
     password = self.MakeEmptyTempFile()
@@ -816,9 +800,8 @@ Performance and stability improvements on all platforms.""", commit)
       ["svn find-rev push_hash", "65"],
     ])
 
-    options = auto_roll.BuildOptions().parse_args(
+    auto_roll.AutoRoll(TEST_CONFIG, self).Run(
         AUTO_ROLL_ARGS + ["--status-password", password])
-    auto_roll.RunAutoRoll(TEST_CONFIG, AutoRollOptions(options), self)
 
     state = json.loads(FileToText("%s-state.json"
                                   % TEST_CONFIG[PERSISTFILE_BASENAME]))
@@ -839,9 +822,8 @@ Performance and stability improvements on all platforms.""", commit)
       ["svn fetch", ""],
     ])
 
-    options = auto_roll.BuildOptions().parse_args(AUTO_ROLL_ARGS)
     def RunAutoRoll():
-      auto_roll.RunAutoRoll(TEST_CONFIG, AutoRollOptions(options), self)
+      auto_roll.AutoRoll(TEST_CONFIG, self).Run(AUTO_ROLL_ARGS)
     self.assertRaises(Exception, RunAutoRoll)
 
   def testAutoRollStoppedByTreeStatus(self):
@@ -859,9 +841,8 @@ Performance and stability improvements on all platforms.""", commit)
       ["svn fetch", ""],
     ])
 
-    options = auto_roll.BuildOptions().parse_args(AUTO_ROLL_ARGS)
     def RunAutoRoll():
-      auto_roll.RunAutoRoll(TEST_CONFIG, AutoRollOptions(options), self)
+      auto_roll.AutoRoll(TEST_CONFIG, self).Run(AUTO_ROLL_ARGS)
     self.assertRaises(Exception, RunAutoRoll)
 
   def testMergeToBranch(self):
@@ -982,24 +963,19 @@ LOG=N
     # ports of r12345. r56789 is the MIPS port of r34567.
     args = ["-f", "-p", extra_patch, "--branch", "trunk", "12345", "23456",
             "34567"]
-    options = merge_to_branch.BuildOptions().parse_args(args)
-    self.assertTrue(merge_to_branch.ProcessOptions(options))
 
     # The first run of the script stops because of the svn being down.
     self.assertRaises(GitFailedException,
-        lambda: RunMergeToBranch(TEST_CONFIG,
-                                 MergeToBranchOptions(options),
-                                 self))
+        lambda: MergeToBranch(TEST_CONFIG, self).Run(args))
 
     # Test that state recovery after restarting the script works.
-    options.step = 3
-    RunMergeToBranch(TEST_CONFIG, MergeToBranchOptions(options), self)
+    args += ["-s", "3"]
+    MergeToBranch(TEST_CONFIG, self).Run(args)
 
 
 class SystemTest(unittest.TestCase):
   def testReload(self):
     step = MakeStep(step_class=PrepareChangeLog, number=0, state={}, config={},
-                    options=CommonOptions(MakeOptions()),
                     side_effect_handler=DEFAULT_SIDE_EFFECT_HANDLER)
     body = step.Reload(
 """------------------------------------------------------------------------
