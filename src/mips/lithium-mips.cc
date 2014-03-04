@@ -1771,12 +1771,16 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
       HValue* val = instr->value();
       LOperand* value = UseRegisterAtStart(val);
       if (val->CheckFlag(HInstruction::kUint32)) {
-        LNumberTagU* result = new(zone()) LNumberTagU(value);
+        LOperand* temp1 = TempRegister();
+        LOperand* temp2 = TempRegister();
+        LNumberTagU* result = new(zone()) LNumberTagU(value, temp1, temp2);
         return AssignEnvironment(AssignPointerMap(DefineAsRegister(result)));
       } else if (val->HasRange() && val->range()->IsInSmiRange()) {
         return DefineAsRegister(new(zone()) LSmiTag(value));
       } else {
-        LNumberTagI* result = new(zone()) LNumberTagI(value);
+        LOperand* temp1 = TempRegister();
+        LOperand* temp2 = TempRegister();
+        LNumberTagI* result = new(zone()) LNumberTagI(value, temp1, temp2);
         return AssignEnvironment(AssignPointerMap(DefineAsRegister(result)));
       }
     } else if (to.IsSmi()) {
