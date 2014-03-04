@@ -414,7 +414,7 @@ void LCodeGen::CallCodeGeneric(Handle<Code> code,
                                SafepointMode safepoint_mode) {
   ASSERT(instr != NULL);
 
-  Assembler::BlockConstPoolScope scope(masm_);
+  Assembler::BlockPoolsScope scope(masm_);
   __ Call(code, mode);
   RecordSafepointWithLazyDeopt(instr, safepoint_mode);
 

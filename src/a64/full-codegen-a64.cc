@@ -93,7 +93,7 @@ class JumpPatchSite BASE_EMBEDDED {
   }
 
   void EmitPatchInfo() {
-    Assembler::BlockConstPoolScope scope(masm_);
+    Assembler::BlockPoolsScope scope(masm_);
     InlineSmiCheckInfo::Emit(masm_, reg_, &patch_site_);
 #ifdef DEBUG
     info_emitted_ = true;
@@ -350,7 +350,7 @@ void FullCodeGenerator::EmitBackEdgeBookkeeping(IterationStatement* stmt,
   ASSERT(jssp.Is(__ StackPointer()));
   Comment cmnt(masm_, "[ Back edge bookkeeping");
   // Block literal pools whilst emitting back edge code.
-  Assembler::BlockConstPoolScope block_const_pool(masm_);
+  Assembler::BlockPoolsScope block_const_pool(masm_);
   Label ok;
 
   ASSERT(back_edge_target->is_bound());
@@ -2006,7 +2006,7 @@ void FullCodeGenerator::EmitInlineSmiBinaryOp(BinaryOperation* expr,
   __ Bind(&stub_call);
   BinaryOpICStub stub(op, mode);
   {
-    Assembler::BlockConstPoolScope scope(masm_);
+    Assembler::BlockPoolsScope scope(masm_);
     CallIC(stub.GetCode(isolate()), expr->BinaryOperationFeedbackId());
     patch_site.EmitPatchInfo();
   }
@@ -2092,7 +2092,7 @@ void FullCodeGenerator::EmitBinaryOp(BinaryOperation* expr,
   BinaryOpICStub stub(op, mode);
   JumpPatchSite patch_site(masm_);    // Unbound, signals no inlined smi code.
   {
-    Assembler::BlockConstPoolScope scope(masm_);
+    Assembler::BlockPoolsScope scope(masm_);
     CallIC(stub.GetCode(isolate()), expr->BinaryOperationFeedbackId());
     patch_site.EmitPatchInfo();
   }
@@ -4116,7 +4116,7 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
   SetSourcePosition(expr->position());
 
   {
-    Assembler::BlockConstPoolScope scope(masm_);
+    Assembler::BlockPoolsScope scope(masm_);
     BinaryOpICStub stub(Token::ADD, NO_OVERWRITE);
     CallIC(stub.GetCode(isolate()), expr->CountBinOpFeedbackId());
     patch_site.EmitPatchInfo();

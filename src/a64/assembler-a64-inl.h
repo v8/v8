@@ -1178,7 +1178,10 @@ inline void Assembler::CheckBuffer() {
   if (buffer_space() < kGap) {
     GrowBuffer();
   }
-  if (pc_offset() >= next_buffer_check_) {
+  if (pc_offset() >= next_veneer_pool_check_) {
+    CheckVeneerPool(true);
+  }
+  if (pc_offset() >= next_constant_pool_check_) {
     CheckConstPool(false, true);
   }
 }
