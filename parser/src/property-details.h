@@ -59,8 +59,8 @@ namespace internal {
 
 class Smi;
 template<class> class TypeImpl;
-struct HeapTypeConfig;
-typedef TypeImpl<HeapTypeConfig> Type;
+struct ZoneTypeConfig;
+typedef TypeImpl<ZoneTypeConfig> Type;
 class TypeInfo;
 
 // Type of properties.
@@ -116,7 +116,7 @@ class Representation {
 
   static Representation FromKind(Kind kind) { return Representation(kind); }
 
-  static Representation FromType(Handle<Type> type);
+  static Representation FromType(Type* type);
 
   bool Equals(const Representation& other) const {
     return kind_ == other.kind_;
@@ -138,7 +138,7 @@ class Representation {
 
     ASSERT(kind_ != kExternal);
     ASSERT(other.kind_ != kExternal);
-    if (IsHeapObject()) return other.IsDouble() || other.IsNone();
+    if (IsHeapObject()) return other.IsNone();
     if (kind_ == kUInteger8 && other.kind_ == kInteger8) return false;
     if (kind_ == kUInteger16 && other.kind_ == kInteger16) return false;
     return kind_ > other.kind_;
@@ -233,11 +233,11 @@ class PropertyDetails BASE_EMBEDDED {
         | FieldIndexField::encode(field_index);
   }
 
-  int pointer() { return DescriptorPointer::decode(value_); }
+  int pointer() const { return DescriptorPointer::decode(value_); }
 
   PropertyDetails set_pointer(int i) { return PropertyDetails(value_, i); }
 
-  PropertyDetails CopyWithRepresentation(Representation representation) {
+  PropertyDetails CopyWithRepresentation(Representation representation) const {
     return PropertyDetails(value_, representation);
   }
   PropertyDetails CopyAddAttributes(PropertyAttributes new_attributes) {
@@ -248,7 +248,7 @@ class PropertyDetails BASE_EMBEDDED {
 
   // Conversion for storing details as Object*.
   explicit inline PropertyDetails(Smi* smi);
-  inline Smi* AsSmi();
+  inline Smi* AsSmi() const;
 
   static uint8_t EncodeRepresentation(Representation representation) {
     return representation.kind();
@@ -258,26 +258,26 @@ class PropertyDetails BASE_EMBEDDED {
     return Representation::FromKind(static_cast<Representation::Kind>(bits));
   }
 
-  PropertyType type() { return TypeField::decode(value_); }
+  PropertyType type() const { return TypeField::decode(value_); }
 
   PropertyAttributes attributes() const {
     return AttributesField::decode(value_);
   }
 
-  int dictionary_index() {
+  int dictionary_index() const {
     return DictionaryStorageField::decode(value_);
   }
 
-  Representation representation() {
+  Representation representation() const {
     ASSERT(type() != NORMAL);
     return DecodeRepresentation(RepresentationField::decode(value_));
   }
 
-  int  field_index() {
+  int field_index() const {
     return FieldIndexField::decode(value_);
   }
 
-  inline PropertyDetails AsDeleted();
+  inline PropertyDetails AsDeleted() const;
 
   static bool IsValidIndex(int index) {
     return DictionaryStorageField::is_valid(index);

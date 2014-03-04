@@ -25,8 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --smi-only-arrays --expose-gc
-// Flags: --nostress-opt --nostress-compaction --gc-interval=-1
+// Flags: --allow-natives-syntax --smi-only-arrays --expose-gc --nostress-opt
 
 // Test element kind of objects.
 // Since --smi-only-arrays affects builtins, its default setting at compile
@@ -66,31 +65,31 @@ function getKind(obj) {
   if (%HasDictionaryElements(obj)) return elements_kind.dictionary;
   // Every external kind is also an external array.
   assertTrue(%HasExternalArrayElements(obj));
-  if (%HasExternalByteElements(obj)) {
+  if (%HasExternalInt8Elements(obj)) {
     return elements_kind.external_byte;
   }
-  if (%HasExternalUnsignedByteElements(obj)) {
+  if (%HasExternalUint8Elements(obj)) {
     return elements_kind.external_unsigned_byte;
   }
-  if (%HasExternalShortElements(obj)) {
+  if (%HasExternalInt16Elements(obj)) {
     return elements_kind.external_short;
   }
-  if (%HasExternalUnsignedShortElements(obj)) {
+  if (%HasExternalUint16Elements(obj)) {
     return elements_kind.external_unsigned_short;
   }
-  if (%HasExternalIntElements(obj)) {
+  if (%HasExternalInt32Elements(obj)) {
     return elements_kind.external_int;
   }
-  if (%HasExternalUnsignedIntElements(obj)) {
+  if (%HasExternalUint32Elements(obj)) {
     return elements_kind.external_unsigned_int;
   }
-  if (%HasExternalFloatElements(obj)) {
+  if (%HasExternalFloat32Elements(obj)) {
     return elements_kind.external_float;
   }
-  if (%HasExternalDoubleElements(obj)) {
+  if (%HasExternalFloat64Elements(obj)) {
     return elements_kind.external_double;
   }
-  if (%HasExternalPixelElements(obj)) {
+  if (%HasExternalUint8ClampedElements(obj)) {
     return elements_kind.external_pixel;
   }
 }

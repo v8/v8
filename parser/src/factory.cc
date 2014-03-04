@@ -967,7 +967,9 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
     FixedArray* literals =
         function_info->GetLiteralsFromOptimizedCodeMap(index);
     if (literals != NULL) result->set_literals(literals);
-    result->ReplaceCode(function_info->GetCodeFromOptimizedCodeMap(index));
+    Code* code = function_info->GetCodeFromOptimizedCodeMap(index);
+    ASSERT(!code->marked_for_deoptimization());
+    result->ReplaceCode(code);
     return result;
   }
 
@@ -1300,12 +1302,6 @@ Handle<Code> Factory::CopyCode(Handle<Code> code, Vector<byte> reloc_info) {
 }
 
 
-Handle<String> Factory::InternalizedStringFromString(Handle<String> value) {
-  CALL_HEAP_FUNCTION(isolate(),
-                     isolate()->heap()->InternalizeString(*value), String);
-}
-
-
 Handle<JSObject> Factory::NewJSObject(Handle<JSFunction> constructor,
                                       PretenureFlag pretenure) {
   JSFunction::EnsureHasInitialMap(constructor);
@@ -1492,32 +1488,12 @@ static JSFunction* GetTypedArrayFun(ExternalArrayType type,
                                     Isolate* isolate) {
   Context* native_context = isolate->context()->native_context();
   switch (type) {
-    case kExternalUnsignedByteArray:
-      return native_context->uint8_array_fun();
+#define TYPED_ARRAY_FUN(Type, type, TYPE, ctype, size)                        \
+    case kExternal##Type##Array:                                              \
+      return native_context->type##_array_fun();
 
-    case kExternalByteArray:
-      return native_context->int8_array_fun();
-
-    case kExternalUnsignedShortArray:
-      return native_context->uint16_array_fun();
-
-    case kExternalShortArray:
-      return native_context->int16_array_fun();
-
-    case kExternalUnsignedIntArray:
-      return native_context->uint32_array_fun();
-
-    case kExternalIntArray:
-      return native_context->int32_array_fun();
-
-    case kExternalFloatArray:
-      return native_context->float_array_fun();
-
-    case kExternalDoubleArray:
-      return native_context->double_array_fun();
-
-    case kExternalPixelArray:
-      return native_context->uint8c_array_fun();
+    TYPED_ARRAYS(TYPED_ARRAY_FUN)
+#undef TYPED_ARRAY_FUN
 
     default:
       UNREACHABLE();
@@ -1592,7 +1568,6 @@ Handle<JSMessageObject> Factory::NewJSMessageObject(
     int start_position,
     int end_position,
     Handle<Object> script,
-    Handle<Object> stack_trace,
     Handle<Object> stack_frames) {
   CALL_HEAP_FUNCTION(isolate(),
                      isolate()->heap()->AllocateJSMessageObject(*type,
@@ -1600,7 +1575,6 @@ Handle<JSMessageObject> Factory::NewJSMessageObject(
                          start_position,
                          end_position,
                          *script,
-                         *stack_trace,
                          *stack_frames),
                      JSMessageObject);
 }

@@ -33,6 +33,10 @@
 namespace v8 {
 namespace internal {
 
+
+#ifndef V8_USE_GENERATED_LEXER
+
+
 // A buffered character stream based on a random access character
 // source (ReadBlock can be called with pos_ pointing to any position,
 // even positions before the current).
@@ -123,6 +127,57 @@ class ExternalTwoByteStringUtf16CharacterStream: public Utf16CharacterStream {
   Handle<ExternalTwoByteString> source_;
   const uc16* raw_data_;  // Pointer to the actual array of characters.
 };
+
+
+#else
+
+
+class Utf8ToUtf16CharacterStream: public Utf16CharacterStream {
+ public:
+  Utf8ToUtf16CharacterStream(const byte* data, unsigned length)
+      : Utf16CharacterStream(kUtf8ToUtf16),
+        data_(reinterpret_cast<const int8_t*>(data)),
+        length_(length) {}
+
+  const int8_t* const data_;
+  const unsigned length_;
+};
+
+
+class GenericStringUtf16CharacterStream: public Utf16CharacterStream {
+ public:
+  GenericStringUtf16CharacterStream(Handle<String> data,
+                                    unsigned start_position,
+                                    unsigned end_position)
+      : Utf16CharacterStream(kGenericStringUtf16),
+        data_(data),
+        start_position_(start_position),
+        end_position_(end_position) {}
+
+  const Handle<String> data_;
+  const unsigned start_position_;
+  const unsigned end_position_;
+};
+
+
+class ExternalTwoByteStringUtf16CharacterStream: public Utf16CharacterStream {
+ public:
+  ExternalTwoByteStringUtf16CharacterStream(Handle<ExternalTwoByteString> data,
+                                            int start_position,
+                                            int end_position)
+      : Utf16CharacterStream(kExternalTwoByteStringUtf16),
+        data_(data),
+        start_position_(start_position),
+        end_position_(end_position) {}
+
+  const Handle<ExternalTwoByteString> data_;
+  const int start_position_;
+  const int end_position_;
+};
+
+
+#endif
+
 
 } }  // namespace v8::internal
 

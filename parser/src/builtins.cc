@@ -1321,7 +1321,8 @@ static void Generate_LoadIC_Normal(MacroAssembler* masm) {
 
 static void Generate_LoadIC_Getter_ForDeopt(MacroAssembler* masm) {
   LoadStubCompiler::GenerateLoadViaGetter(
-      masm, LoadStubCompiler::registers()[0], Handle<JSFunction>());
+      masm, Handle<HeapType>::null(),
+      LoadStubCompiler::registers()[0], Handle<JSFunction>());
 }
 
 
@@ -1386,7 +1387,8 @@ static void Generate_StoreIC_Normal(MacroAssembler* masm) {
 
 
 static void Generate_StoreIC_Setter_ForDeopt(MacroAssembler* masm) {
-  StoreStubCompiler::GenerateStoreViaSetter(masm, Handle<JSFunction>());
+  StoreStubCompiler::GenerateStoreViaSetter(
+      masm, Handle<HeapType>::null(), Handle<JSFunction>());
 }
 
 
@@ -1597,9 +1599,7 @@ void Builtins::InitBuiltinFunctionTable() {
     functions->c_code = NULL;                                               \
     functions->s_name = #aname;                                             \
     functions->name = k##aname;                                             \
-    functions->flags = Code::ComputeFlags(                                  \
-        Code::HANDLER, MONOMORPHIC, kNoExtraICState,                        \
-        Code::NORMAL, Code::kind);                                          \
+    functions->flags = Code::ComputeHandlerFlags(Code::kind);               \
     functions->extra_args = NO_EXTRA_ARGUMENTS;                             \
     ++functions;
 
@@ -1625,7 +1625,9 @@ void Builtins::SetUp(Isolate* isolate, bool create_heap_objects) {
   // For now we generate builtin adaptor code into a stack-allocated
   // buffer, before copying it into individual code objects. Be careful
   // with alignment, some platforms don't like unaligned code.
-  union { int force_alignment; byte buffer[8*KB]; } u;
+  // TODO(jbramley): I had to increase the size of this buffer from 8KB because
+  // we can generate a lot of debug code on A64.
+  union { int force_alignment; byte buffer[16*KB]; } u;
 
   // Traverse the list of builtins and generate an adaptor in a
   // separate code object for each one.

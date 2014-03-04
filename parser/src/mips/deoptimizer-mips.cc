@@ -49,13 +49,36 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
   // code patching below, and is not needed any more.
   code->InvalidateRelocation();
 
-  // For each LLazyBailout instruction insert a call to the corresponding
-  // deoptimization entry.
+  if (FLAG_zap_code_space) {
+    // Fail hard and early if we enter this code object again.
+    byte* pointer = code->FindCodeAgeSequence();
+    if (pointer != NULL) {
+      pointer += kNoCodeAgeSequenceLength * Assembler::kInstrSize;
+    } else {
+      pointer = code->instruction_start();
+    }
+    CodePatcher patcher(pointer, 1);
+    patcher.masm()->break_(0xCC);
+
+    DeoptimizationInputData* data =
+        DeoptimizationInputData::cast(code->deoptimization_data());
+    int osr_offset = data->OsrPcOffset()->value();
+    if (osr_offset > 0) {
+      CodePatcher osr_patcher(code->instruction_start() + osr_offset, 1);
+      osr_patcher.masm()->break_(0xCC);
+    }
+  }
+
   DeoptimizationInputData* deopt_data =
       DeoptimizationInputData::cast(code->deoptimization_data());
+  SharedFunctionInfo* shared =
+      SharedFunctionInfo::cast(deopt_data->SharedFunctionInfo());
+  shared->EvictFromOptimizedCodeMap(code, "deoptimized code");
 #ifdef DEBUG
   Address prev_call_address = NULL;
 #endif
+  // For each LLazyBailout instruction insert a call to the corresponding
+  // deoptimization entry.
   for (int i = 0; i < deopt_data->DeoptCount(); i++) {
     if (deopt_data->Pc(i)->value() == -1) continue;
     Address call_address = code_start_address + deopt_data->Pc(i)->value();
@@ -239,13 +262,13 @@ void Deoptimizer::EntryGenerator::Generate() {
   __ Addu(a3, a1, Operand(FrameDescription::frame_content_offset()));
   Label pop_loop;
   Label pop_loop_header;
-  __ Branch(&pop_loop_header);
+  __ BranchShort(&pop_loop_header);
   __ bind(&pop_loop);
   __ pop(t0);
   __ sw(t0, MemOperand(a3, 0));
   __ addiu(a3, a3, sizeof(uint32_t));
   __ bind(&pop_loop_header);
-  __ Branch(&pop_loop, ne, a2, Operand(sp));
+  __ BranchShort(&pop_loop, ne, a2, Operand(sp));
 
   // Compute the output frame in the deoptimizer.
   __ push(a0);  // Preserve deoptimizer object across call.
@@ -280,11 +303,11 @@ void Deoptimizer::EntryGenerator::Generate() {
   __ lw(t3, MemOperand(t2, FrameDescription::frame_content_offset()));
   __ push(t3);
   __ bind(&inner_loop_header);
-  __ Branch(&inner_push_loop, ne, a3, Operand(zero_reg));
+  __ BranchShort(&inner_push_loop, ne, a3, Operand(zero_reg));
 
   __ Addu(t0, t0, Operand(kPointerSize));
   __ bind(&outer_loop_header);
-  __ Branch(&outer_push_loop, lt, t0, Operand(a1));
+  __ BranchShort(&outer_push_loop, lt, t0, Operand(a1));
 
   __ lw(a1, MemOperand(a0, Deoptimizer::input_offset()));
   for (int i = 0; i < FPURegister::kMaxNumAllocatableRegisters; ++i) {

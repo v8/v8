@@ -58,7 +58,7 @@ macro TYPED_ARRAY_CONSTRUCTOR(ARRAY_ID, NAME, ELEMENT_SIZE)
 
       if (offset % ELEMENT_SIZE !== 0) {
         throw MakeRangeError("invalid_typed_array_alignment",
-            "start offset", "NAME", ELEMENT_SIZE);
+            ["start offset", "NAME", ELEMENT_SIZE]);
       }
       if (offset > bufferByteLength) {
         throw MakeRangeError("invalid_typed_array_offset");
@@ -70,7 +70,7 @@ macro TYPED_ARRAY_CONSTRUCTOR(ARRAY_ID, NAME, ELEMENT_SIZE)
     if (IS_UNDEFINED(length)) {
       if (bufferByteLength % ELEMENT_SIZE !== 0) {
         throw MakeRangeError("invalid_typed_array_alignment",
-          "byte length", "NAME", ELEMENT_SIZE);
+          ["byte length", "NAME", ELEMENT_SIZE]);
       }
       newByteLength = bufferByteLength - offset;
       newLength = newByteLength / ELEMENT_SIZE;
@@ -242,6 +242,10 @@ function TypedArraySet(obj, offset) {
   var intOffset = IS_UNDEFINED(offset) ? 0 : TO_INTEGER(offset);
   if (intOffset < 0) {
     throw MakeTypeError("typed_array_set_negative_offset");
+  }
+
+  if (intOffset > %MaxSmi()) {
+    throw MakeRangeError("typed_array_set_source_too_large");
   }
   switch (%TypedArraySetFastCases(this, obj, intOffset)) {
     // These numbers should be synchronized with runtime.cc.

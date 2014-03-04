@@ -430,6 +430,7 @@
         '../../src/factory.h',
         '../../src/fast-dtoa.cc',
         '../../src/fast-dtoa.h',
+        '../../src/feedback-slots.h',
         '../../src/fixed-dtoa.cc',
         '../../src/fixed-dtoa.h',
         '../../src/flag-definitions.h',
@@ -530,8 +531,8 @@
         '../../src/jsregexp.cc',
         '../../src/jsregexp.h',
         '../../src/lazy-instance.h',
-        '../../src/lexer/experimental-scanner.cc',
-        '../../src/lexer/experimental-scanner.h',
+        '../../src/lexer/lexer.cc',
+        '../../src/lexer/lexer.h',
         # TODO(jochen): move libplatform/ files to their own target.
         '../../src/libplatform/default-platform.cc',
         '../../src/libplatform/default-platform.h',
@@ -735,6 +736,54 @@
             '../../src/arm/regexp-macro-assembler-arm.h',
             '../../src/arm/simulator-arm.cc',
             '../../src/arm/stub-cache-arm.cc',
+          ],
+        }],
+        ['v8_target_arch=="a64"', {
+          'sources': [  ### gcmole(arch:a64) ###
+            '../../src/a64/assembler-a64.cc',
+            '../../src/a64/assembler-a64.h',
+            '../../src/a64/assembler-a64-inl.h',
+            '../../src/a64/builtins-a64.cc',
+            '../../src/a64/codegen-a64.cc',
+            '../../src/a64/codegen-a64.h',
+            '../../src/a64/code-stubs-a64.cc',
+            '../../src/a64/code-stubs-a64.h',
+            '../../src/a64/constants-a64.h',
+            '../../src/a64/cpu-a64.cc',
+            '../../src/a64/cpu-a64.h',
+            '../../src/a64/debug-a64.cc',
+            '../../src/a64/debugger-a64.cc',
+            '../../src/a64/debugger-a64.h',
+            '../../src/a64/decoder-a64.cc',
+            '../../src/a64/decoder-a64.h',
+            '../../src/a64/decoder-a64-inl.h',
+            '../../src/a64/deoptimizer-a64.cc',
+            '../../src/a64/disasm-a64.cc',
+            '../../src/a64/disasm-a64.h',
+            '../../src/a64/frames-a64.cc',
+            '../../src/a64/frames-a64.h',
+            '../../src/a64/full-codegen-a64.cc',
+            '../../src/a64/ic-a64.cc',
+            '../../src/a64/instructions-a64.cc',
+            '../../src/a64/instructions-a64.h',
+            '../../src/a64/instrument-a64.cc',
+            '../../src/a64/instrument-a64.h',
+            '../../src/a64/lithium-a64.cc',
+            '../../src/a64/lithium-a64.h',
+            '../../src/a64/lithium-codegen-a64.cc',
+            '../../src/a64/lithium-codegen-a64.h',
+            '../../src/a64/lithium-gap-resolver-a64.cc',
+            '../../src/a64/lithium-gap-resolver-a64.h',
+            '../../src/a64/macro-assembler-a64.cc',
+            '../../src/a64/macro-assembler-a64.h',
+            '../../src/a64/macro-assembler-a64-inl.h',
+            '../../src/a64/regexp-macro-assembler-a64.cc',
+            '../../src/a64/regexp-macro-assembler-a64.h',
+            '../../src/a64/simulator-a64.cc',
+            '../../src/a64/simulator-a64.h',
+            '../../src/a64/stub-cache-a64.cc',
+            '../../src/a64/utils-a64.cc',
+            '../../src/a64/utils-a64.h',
           ],
         }],
         ['v8_target_arch=="ia32" or v8_target_arch=="mac" or OS=="mac"', {
@@ -1208,32 +1257,6 @@
           'toolsets': ['host'],
         }, {
           'toolsets': ['target'],
-        }],
-        ['v8_compress_startup_data=="bz2"', {
-          'libraries': [
-            '-lbz2',
-          ]
-        }],
-      ],
-    },
-    {
-      'target_name': 'v8_shell',
-      'type': 'executable',
-      'dependencies': [
-        'v8'
-      ],
-      'sources': [
-        '../../samples/shell.cc',
-      ],
-      'conditions': [
-        ['want_separate_host_toolset==1', {
-          'toolsets': ['host'],
-        }, {
-          'toolsets': ['target'],
-        }],
-        ['OS=="win"', {
-          # This could be gotten by not setting chromium_code, if that's OK.
-          'defines': ['_CRT_SECURE_NO_WARNINGS'],
         }],
         ['v8_compress_startup_data=="bz2"', {
           'libraries': [

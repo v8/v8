@@ -180,7 +180,7 @@ TEST(HeapObjects) {
   CHECK(value->IsNumber());
   CHECK_EQ(Smi::kMaxValue, Smi::cast(value)->value());
 
-#ifndef V8_TARGET_ARCH_X64
+#if !defined(V8_TARGET_ARCH_X64) && !defined(V8_TARGET_ARCH_A64)
   // TODO(lrn): We need a NumberFromIntptr function in order to test this.
   value = heap->NumberFromInt32(Smi::kMinValue - 1)->ToObjectChecked();
   CHECK(value->IsHeapNumber());
@@ -433,7 +433,7 @@ TEST(WeakGlobalHandlesScavenge) {
                           &TestWeakGlobalHandleCallback);
 
   // Scavenge treats weak pointers as normal roots.
-  heap->PerformScavenge();
+  heap->CollectGarbage(NEW_SPACE);
 
   CHECK((*h1)->IsString());
   CHECK((*h2)->IsHeapNumber());
@@ -518,7 +518,7 @@ TEST(DeleteWeakGlobalHandle) {
                           &TestWeakGlobalHandleCallback);
 
   // Scanvenge does not recognize weak reference.
-  heap->PerformScavenge();
+  heap->CollectGarbage(NEW_SPACE);
 
   CHECK(!WeakPointerCleared);
 
@@ -918,7 +918,7 @@ TEST(Iteration) {
       factory->NewStringFromAscii(CStrVector("abcdefghij"), TENURED);
 
   // Allocate a large string (for large object space).
-  int large_size = Page::kMaxNonCodeHeapObjectSize + 1;
+  int large_size = Page::kMaxRegularHeapObjectSize + 1;
   char* str = new char[large_size];
   for (int i = 0; i < large_size - 1; ++i) str[i] = 'a';
   str[large_size - 1] = '\0';
@@ -987,7 +987,7 @@ TEST(Regression39128) {
   // just enough room to allocate JSObject and thus fill the newspace.
 
   int allocation_amount = Min(FixedArray::kMaxSize,
-                              Page::kMaxNonCodeHeapObjectSize + kPointerSize);
+                              Page::kMaxRegularHeapObjectSize + kPointerSize);
   int allocation_len = LenFromSize(allocation_amount);
   NewSpace* new_space = heap->new_space();
   Address* top_addr = new_space->allocation_top_address();
@@ -1436,7 +1436,7 @@ TEST(TestInternalWeakLists) {
 
     // Scavenge treats these references as strong.
     for (int j = 0; j < 10; j++) {
-      CcTest::heap()->PerformScavenge();
+      CcTest::heap()->CollectGarbage(NEW_SPACE);
       CHECK_EQ(opt ? 5 : 0, CountOptimizedUserFunctions(ctx[i]));
     }
 
@@ -1448,14 +1448,14 @@ TEST(TestInternalWeakLists) {
     // Get rid of f3 and f5 in the same way.
     CompileRun("f3=null");
     for (int j = 0; j < 10; j++) {
-      CcTest::heap()->PerformScavenge();
+      CcTest::heap()->CollectGarbage(NEW_SPACE);
       CHECK_EQ(opt ? 4 : 0, CountOptimizedUserFunctions(ctx[i]));
     }
     CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
     CHECK_EQ(opt ? 3 : 0, CountOptimizedUserFunctions(ctx[i]));
     CompileRun("f5=null");
     for (int j = 0; j < 10; j++) {
-      CcTest::heap()->PerformScavenge();
+      CcTest::heap()->CollectGarbage(NEW_SPACE);
       CHECK_EQ(opt ? 3 : 0, CountOptimizedUserFunctions(ctx[i]));
     }
     CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
@@ -1477,7 +1477,7 @@ TEST(TestInternalWeakLists) {
 
     // Scavenge treats these references as strong.
     for (int j = 0; j < 10; j++) {
-      CcTest::heap()->PerformScavenge();
+      CcTest::heap()->CollectGarbage(i::NEW_SPACE);
       CHECK_EQ(kNumTestContexts - i, CountNativeContexts());
     }
 
@@ -2191,6 +2191,7 @@ TEST(OptimizedAllocationAlwaysInNewSpace) {
 TEST(OptimizedPretenuringAllocationFolding) {
   i::FLAG_allow_natives_syntax = true;
   i::FLAG_max_new_space_size = 2048;
+  i::FLAG_allocation_site_pretenuring = false;
   CcTest::InitializeVM();
   if (!CcTest::i_isolate()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
@@ -2209,10 +2210,10 @@ TEST(OptimizedPretenuringAllocationFolding) {
       "var number_elements = 20000;"
       "var elements = new Array();"
       "function f() {"
-      "  for (var i = 0; i < 20000-1; i++) {"
+      "  for (var i = 0; i < number_elements; i++) {"
       "    elements[i] = new DataObject();"
       "  }"
-      "  return new DataObject()"
+      "  return elements[number_elements-1]"
       "};"
       "f(); f(); f();"
       "%OptimizeFunctionOnNextCall(f);"
@@ -2233,6 +2234,7 @@ TEST(OptimizedPretenuringAllocationFolding) {
 TEST(OptimizedPretenuringAllocationFoldingBlocks) {
   i::FLAG_allow_natives_syntax = true;
   i::FLAG_max_new_space_size = 2048;
+  i::FLAG_allocation_site_pretenuring = false;
   CcTest::InitializeVM();
   if (!CcTest::i_isolate()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
@@ -2374,7 +2376,7 @@ TEST(OptimizedPretenuringdoubleArrayLiterals) {
   v8::HandleScope scope(CcTest::isolate());
 
   v8::Local<v8::Value> res = CompileRun(
-      "var number_elements = 20000;"
+      "var number_elements = 30000;"
       "var elements = new Array(number_elements);"
       "function f() {"
       "  for (var i = 0; i < number_elements; i++) {"
@@ -2824,7 +2826,7 @@ TEST(Regress2211) {
 }
 
 
-TEST(IncrementalMarkingClearsTypeFeedbackCells) {
+TEST(IncrementalMarkingClearsTypeFeedbackInfo) {
   if (i::FLAG_always_opt) return;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -2847,23 +2849,25 @@ TEST(IncrementalMarkingClearsTypeFeedbackCells) {
   CcTest::global()->Set(v8_str("fun1"), fun1);
   CcTest::global()->Set(v8_str("fun2"), fun2);
   CompileRun("function f(a, b) { a(); b(); } f(fun1, fun2);");
+
   Handle<JSFunction> f =
       v8::Utils::OpenHandle(
           *v8::Handle<v8::Function>::Cast(
               CcTest::global()->Get(v8_str("f"))));
-  Handle<TypeFeedbackCells> cells(TypeFeedbackInfo::cast(
-      f->shared()->code()->type_feedback_info())->type_feedback_cells());
 
-  CHECK_EQ(2, cells->CellCount());
-  CHECK(cells->GetCell(0)->value()->IsJSFunction());
-  CHECK(cells->GetCell(1)->value()->IsJSFunction());
+  Handle<FixedArray> feedback_vector(TypeFeedbackInfo::cast(
+      f->shared()->code()->type_feedback_info())->feedback_vector());
+
+  CHECK_EQ(2, feedback_vector->length());
+  CHECK(feedback_vector->get(0)->IsJSFunction());
+  CHECK(feedback_vector->get(1)->IsJSFunction());
 
   SimulateIncrementalMarking();
   CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
 
-  CHECK_EQ(2, cells->CellCount());
-  CHECK(cells->GetCell(0)->value()->IsTheHole());
-  CHECK(cells->GetCell(1)->value()->IsTheHole());
+  CHECK_EQ(2, feedback_vector->length());
+  CHECK(feedback_vector->get(0)->IsTheHole());
+  CHECK(feedback_vector->get(1)->IsTheHole());
 }
 
 
@@ -3032,6 +3036,11 @@ void ReleaseStackTraceDataTest(const char* source, const char* accessor) {
 
 
 TEST(ReleaseStackTraceData) {
+  if (i::FLAG_always_opt) {
+    // TODO(ulan): Remove this once the memory leak via code_next_link is fixed.
+    // See: https://codereview.chromium.org/181833004/
+    return;
+  }
   FLAG_use_ic = false;  // ICs retain objects.
   FLAG_concurrent_recompilation = false;
   CcTest::InitializeVM();
@@ -3074,69 +3083,6 @@ TEST(ReleaseStackTraceData) {
   ReleaseStackTraceDataTest(source2, getter);
   ReleaseStackTraceDataTest(source3, getter);
   ReleaseStackTraceDataTest(source4, getter);
-}
-
-
-TEST(Regression144230) {
-  i::FLAG_stress_compaction = false;
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  Heap* heap = isolate->heap();
-  HandleScope scope(isolate);
-
-  // First make sure that the uninitialized CallIC stub is on a single page
-  // that will later be selected as an evacuation candidate.
-  {
-    HandleScope inner_scope(isolate);
-    AlwaysAllocateScope always_allocate;
-    SimulateFullSpace(heap->code_space());
-    isolate->stub_cache()->ComputeCallInitialize(9);
-  }
-
-  // Second compile a CallIC and execute it once so that it gets patched to
-  // the pre-monomorphic stub. These code objects are on yet another page.
-  {
-    HandleScope inner_scope(isolate);
-    AlwaysAllocateScope always_allocate;
-    SimulateFullSpace(heap->code_space());
-    CompileRun("var o = { f:function(a,b,c,d,e,f,g,h,i) {}};"
-               "function call() { o.f(1,2,3,4,5,6,7,8,9); };"
-               "call();");
-  }
-
-  // Third we fill up the last page of the code space so that it does not get
-  // chosen as an evacuation candidate.
-  {
-    HandleScope inner_scope(isolate);
-    AlwaysAllocateScope always_allocate;
-    CompileRun("for (var i = 0; i < 2000; i++) {"
-               "  eval('function f' + i + '() { return ' + i +'; };' +"
-               "       'f' + i + '();');"
-               "}");
-  }
-  heap->CollectAllGarbage(Heap::kNoGCFlags);
-
-  // Fourth is the tricky part. Make sure the code containing the CallIC is
-  // visited first without clearing the IC. The shared function info is then
-  // visited later, causing the CallIC to be cleared.
-  Handle<String> name = isolate->factory()->InternalizeUtf8String("call");
-  Handle<GlobalObject> global(isolate->context()->global_object());
-  Handle<Smi> zero(Smi::FromInt(0), isolate);
-  MaybeObject* maybe_call = global->GetProperty(*name);
-  JSFunction* call = JSFunction::cast(maybe_call->ToObjectChecked());
-  JSReceiver::SetProperty(global, name, zero, NONE, kNonStrictMode);
-  isolate->compilation_cache()->Clear();
-  call->shared()->set_ic_age(heap->global_ic_age() + 1);
-  Handle<Object> call_code(call->code(), isolate);
-  Handle<Object> call_function(call, isolate);
-
-  // Now we are ready to mess up the heap.
-  heap->CollectAllGarbage(Heap::kReduceMemoryFootprintMask);
-
-  // Either heap verification caught the problem already or we go kaboom once
-  // the CallIC is executed the next time.
-  JSReceiver::SetProperty(global, name, call_function, NONE, kNonStrictMode);
-  CompileRun("call();");
 }
 
 
@@ -3544,7 +3490,7 @@ TEST(DeferredHandles) {
   DeferredHandleScope deferred(isolate);
   DummyVisitor visitor;
   isolate->handle_scope_implementer()->Iterate(&visitor);
-  deferred.Detach();
+  delete deferred.Detach();
 }
 
 

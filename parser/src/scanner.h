@@ -55,6 +55,9 @@ inline int HexValue(uc32 c) {
 }
 
 
+#ifndef V8_USE_GENERATED_LEXER
+
+
 // ---------------------------------------------------------------------
 // Buffered stream of UTF-16 code units, using an internal UTF-16 buffer.
 // A code unit is a 16 bit value representing either a 16 bit code point
@@ -123,6 +126,23 @@ class Utf16CharacterStream {
 };
 
 
+#else
+
+class Utf16CharacterStream {
+ public:
+  enum StreamType {
+    kUtf8ToUtf16, kGenericStringUtf16, kExternalTwoByteStringUtf16
+  };
+
+  explicit Utf16CharacterStream(StreamType stream_type)
+      : stream_type_(stream_type) {}
+
+  const StreamType stream_type_;
+};
+
+#endif
+
+
 // ---------------------------------------------------------------------
 // Caching predicates used by scanners.
 
@@ -139,6 +159,9 @@ class UnicodeCache {
   bool IsIdentifierPart(unibrow::uchar c) { return kIsIdentifierPart.get(c); }
   bool IsLineTerminator(unibrow::uchar c) { return kIsLineTerminator.get(c); }
   bool IsWhiteSpace(unibrow::uchar c) { return kIsWhiteSpace.get(c); }
+  bool IsWhiteSpaceOrLineTerminator(unibrow::uchar c) {
+    return kIsWhiteSpaceOrLineTerminator.get(c);
+  }
   bool IsByteOrderMark(unibrow::uchar c) { return c == 0xfffe || c == 0xfeff; }
   bool IsWhiteSpaceNotLineTerminator(unibrow::uchar c) {
     return (kIsWhiteSpace.get(c) && !kIsLineTerminator.get(c)) ||
@@ -153,9 +176,11 @@ class UnicodeCache {
   unibrow::Predicate<IdentifierStart, 128> kIsIdentifierStart;
   unibrow::Predicate<IdentifierPart, 128> kIsIdentifierPart;
   unibrow::Predicate<unibrow::LineTerminator, 128> kIsLineTerminator;
-  unibrow::Predicate<unibrow::WhiteSpace, 128> kIsWhiteSpace;
+  unibrow::Predicate<WhiteSpace, 128> kIsWhiteSpace;
   unibrow::Predicate<unibrow::Letter, 128> kIsLetter;
   unibrow::Predicate<IdentifierPartNotLetter, 128> kIsIdentifierPartNotLetter;
+  unibrow::Predicate<WhiteSpaceOrLineTerminator, 128>
+      kIsWhiteSpaceOrLineTerminator;
   StaticResource<Utf8Decoder> utf8_decoder_;
 
   DISALLOW_COPY_AND_ASSIGN(UnicodeCache);
@@ -319,6 +344,9 @@ class LiteralBuffer {
 
   DISALLOW_COPY_AND_ASSIGN(LiteralBuffer);
 };
+
+
+#ifndef V8_USE_GENERATED_LEXER
 
 
 // ----------------------------------------------------------------------------
@@ -629,6 +657,10 @@ class Scanner {
   // Whether we scan 0o777 and 0b111 as numbers.
   bool harmony_numeric_literals_;
 };
+
+
+#endif
+
 
 } }  // namespace v8::internal
 

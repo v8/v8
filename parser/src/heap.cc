@@ -134,6 +134,7 @@ Heap::Heap()
       last_gc_end_timestamp_(0.0),
       marking_time_(0.0),
       sweeping_time_(0.0),
+      mark_compact_collector_(this),
       store_buffer_(this),
       marking_(this),
       incremental_marking_(this),
@@ -149,9 +150,10 @@ Heap::Heap()
 #ifdef VERIFY_HEAP
       no_weak_object_verification_scope_depth_(0),
 #endif
-      allocation_sites_scratchpad_length(0),
+      allocation_sites_scratchpad_length_(0),
       promotion_queue_(this),
       configured_(false),
+      external_string_table_(this),
       chunks_queued_for_free_(NULL),
       relocation_mutex_(NULL) {
   // Allow build-time customization of the max semispace size. Building
@@ -177,8 +179,6 @@ Heap::Heap()
   native_contexts_list_ = NULL;
   array_buffers_list_ = Smi::FromInt(0);
   allocation_sites_list_ = Smi::FromInt(0);
-  mark_compact_collector_.heap_ = this;
-  external_string_table_.heap_ = this;
   // Put a dummy entry in the remembered pages so we can find the list the
   // minidump even if there are no real unmapped pages.
   RememberUnmappedPage(NULL, false);
@@ -506,8 +506,7 @@ void Heap::RepairFreeListsAfterBoot() {
 
 
 void Heap::ProcessPretenuringFeedback() {
-  if (FLAG_allocation_site_pretenuring &&
-      new_space_high_promotion_mode_active_) {
+  if (FLAG_allocation_site_pretenuring) {
     int tenure_decisions = 0;
     int dont_tenure_decisions = 0;
     int allocation_mementos_found = 0;
@@ -517,16 +516,17 @@ void Heap::ProcessPretenuringFeedback() {
     // If the scratchpad overflowed, we have to iterate over the allocation
     // sites list.
     bool use_scratchpad =
-        allocation_sites_scratchpad_length < kAllocationSiteScratchpadSize;
+        allocation_sites_scratchpad_length_ < kAllocationSiteScratchpadSize;
 
     int i = 0;
     Object* list_element = allocation_sites_list();
     bool trigger_deoptimization = false;
     while (use_scratchpad ?
-              i < allocation_sites_scratchpad_length :
+              i < allocation_sites_scratchpad_length_ :
               list_element->IsAllocationSite()) {
       AllocationSite* site = use_scratchpad ?
-        allocation_sites_scratchpad[i] : AllocationSite::cast(list_element);
+          AllocationSite::cast(allocation_sites_scratchpad()->get(i)) :
+          AllocationSite::cast(list_element);
       allocation_mementos_found += site->memento_found_count();
       if (site->memento_found_count() > 0) {
         active_allocation_sites++;
@@ -545,14 +545,13 @@ void Heap::ProcessPretenuringFeedback() {
       }
     }
 
-    if (trigger_deoptimization) isolate_->stack_guard()->DeoptMarkedCode();
+    if (trigger_deoptimization) {
+      isolate_->stack_guard()->DeoptMarkedAllocationSites();
+    }
 
-    allocation_sites_scratchpad_length = 0;
+    FlushAllocationSitesScratchpad();
 
-    // TODO(mvstanton): Pretenure decisions are only made once for an allocation
-    // site. Find a sane way to decide about revisiting the decision later.
-
-    if (FLAG_trace_track_allocation_sites &&
+    if (FLAG_trace_pretenuring_statistics &&
         (allocation_mementos_found > 0 ||
          tenure_decisions > 0 ||
          dont_tenure_decisions > 0)) {
@@ -570,6 +569,25 @@ void Heap::ProcessPretenuringFeedback() {
 }
 
 
+void Heap::DeoptMarkedAllocationSites() {
+  // TODO(hpayer): If iterating over the allocation sites list becomes a
+  // performance issue, use a cache heap data structure instead (similar to the
+  // allocation sites scratchpad).
+  Object* list_element = allocation_sites_list();
+  while (list_element->IsAllocationSite()) {
+    AllocationSite* site = AllocationSite::cast(list_element);
+    if (site->deopt_dependent_code()) {
+      site->dependent_code()->MarkCodeForDeoptimization(
+          isolate_,
+          DependentCode::kAllocationSiteTenuringChangedGroup);
+      site->set_deopt_dependent_code(false);
+    }
+    list_element = site->weak_next();
+  }
+  Deoptimizer::DeoptimizeMarkedCode(isolate_);
+}
+
+
 void Heap::GarbageCollectionEpilogue() {
   store_buffer()->GCEpilogue();
 
@@ -577,6 +595,9 @@ void Heap::GarbageCollectionEpilogue() {
   if (Heap::ShouldZapGarbage()) {
     ZapFromSpace();
   }
+
+  // Process pretenuring feedback and update allocation sites.
+  ProcessPretenuringFeedback();
 
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
@@ -740,7 +761,7 @@ void Heap::CollectAllAvailableGarbage(const char* gc_reason) {
   const int kMaxNumberOfAttempts = 7;
   const int kMinNumberOfAttempts = 2;
   for (int attempt = 0; attempt < kMaxNumberOfAttempts; attempt++) {
-    if (!CollectGarbage(OLD_POINTER_SPACE, MARK_COMPACTOR, gc_reason, NULL) &&
+    if (!CollectGarbage(MARK_COMPACTOR, gc_reason, NULL) &&
         attempt + 1 >= kMinNumberOfAttempts) {
       break;
     }
@@ -752,8 +773,22 @@ void Heap::CollectAllAvailableGarbage(const char* gc_reason) {
 }
 
 
-bool Heap::CollectGarbage(AllocationSpace space,
-                          GarbageCollector collector,
+void Heap::EnsureFillerObjectAtTop() {
+  // There may be an allocation memento behind every object in new space.
+  // If we evacuate a not full new space or if we are on the last page of
+  // the new space, then there may be uninitialized memory behind the top
+  // pointer of the new space page. We store a filler object there to
+  // identify the unused space.
+  Address from_top = new_space_.top();
+  Address from_limit = new_space_.limit();
+  if (from_top < from_limit) {
+    int remaining_in_page = static_cast<int>(from_limit - from_top);
+    CreateFillerObjectAt(from_top, remaining_in_page);
+  }
+}
+
+
+bool Heap::CollectGarbage(GarbageCollector collector,
                           const char* gc_reason,
                           const char* collector_reason,
                           const v8::GCCallbackFlags gc_callback_flags) {
@@ -768,6 +803,8 @@ bool Heap::CollectGarbage(AllocationSpace space,
   // allocation attempts to go through.
   allocation_timeout_ = Max(6, FLAG_gc_interval);
 #endif
+
+  EnsureFillerObjectAtTop();
 
   if (collector == SCAVENGER && !incremental_marking()->IsStopped()) {
     if (FLAG_trace_incremental_marking) {
@@ -838,16 +875,6 @@ int Heap::NotifyContextDisposed() {
   flush_monomorphic_ics_ = true;
   AgeInlineCaches();
   return ++contexts_disposed_;
-}
-
-
-void Heap::PerformScavenge() {
-  GCTracer tracer(this, NULL, NULL);
-  if (incremental_marking()->IsStopped()) {
-    PerformGarbageCollection(SCAVENGER, &tracer);
-  } else {
-    PerformGarbageCollection(MARK_COMPACTOR, &tracer);
-  }
 }
 
 
@@ -1113,9 +1140,7 @@ bool Heap::PerformGarbageCollection(
     // to deoptimize all optimized code in global pretenuring mode and all
     // code which should be tenured in local pretenuring mode.
     if (FLAG_pretenuring) {
-      if (FLAG_allocation_site_pretenuring) {
-        ResetAllAllocationSitesDependentCode(NOT_TENURED);
-      } else {
+      if (!FLAG_allocation_site_pretenuring) {
         isolate_->stack_guard()->FullDeopt();
       }
     }
@@ -1612,8 +1637,6 @@ void Heap::Scavenge() {
   IncrementYoungSurvivorsCounter(static_cast<int>(
       (PromotedSpaceSizeOfObjects() - survived_watermark) + new_space_.Size()));
 
-  ProcessPretenuringFeedback();
-
   LOG(isolate_, ResourceEvent("scavenge", "end"));
 
   gc_state_ = NOT_IN_GC;
@@ -1986,7 +2009,6 @@ void Heap::ProcessAllocationSites(WeakObjectRetainer* retainer,
 
 
 void Heap::ResetAllAllocationSitesDependentCode(PretenureFlag flag) {
-  ASSERT(AllowCodeDependencyChange::IsAllowed());
   DisallowHeapAllocation no_allocation_scope;
   Object* cur = allocation_sites_list();
   bool marked = false;
@@ -1994,14 +2016,12 @@ void Heap::ResetAllAllocationSitesDependentCode(PretenureFlag flag) {
     AllocationSite* casted = AllocationSite::cast(cur);
     if (casted->GetPretenureMode() == flag) {
       casted->ResetPretenureDecision();
-      bool got_marked = casted->dependent_code()->MarkCodeForDeoptimization(
-          isolate_,
-          DependentCode::kAllocationSiteTenuringChangedGroup);
-      if (got_marked) marked = true;
+      casted->set_deopt_dependent_code(true);
+      marked = true;
     }
     cur = casted->weak_next();
   }
-  if (marked) isolate_->stack_guard()->DeoptMarkedCode();
+  if (marked) isolate_->stack_guard()->DeoptMarkedAllocationSites();
 }
 
 
@@ -2283,7 +2303,7 @@ class ScavengingVisitor : public StaticVisitorBase {
                                     HeapObject** slot,
                                     HeapObject* object,
                                     int object_size) {
-    SLOW_ASSERT(object_size <= Page::kMaxNonCodeHeapObjectSize);
+    SLOW_ASSERT(object_size <= Page::kMaxRegularHeapObjectSize);
     SLOW_ASSERT(object->Size() == object_size);
 
     int allocation_size = object_size;
@@ -2664,8 +2684,7 @@ MaybeObject* Heap::AllocateTypeFeedbackInfo() {
     if (!maybe_info->To(&info)) return maybe_info;
   }
   info->initialize_storage();
-  info->set_type_feedback_cells(TypeFeedbackCells::cast(empty_fixed_array()),
-                                SKIP_WRITE_BARRIER);
+  info->set_feedback_vector(empty_fixed_array(), SKIP_WRITE_BARRIER);
   return info;
 }
 
@@ -2834,31 +2853,19 @@ bool Heap::CreateInitialMaps() {
     ALLOCATE_VARSIZE_MAP(BYTE_ARRAY_TYPE, byte_array)
     ALLOCATE_VARSIZE_MAP(FREE_SPACE_TYPE, free_space)
 
-#define ALLOCATE_EXTERNAL_ARRAY_MAP(TYPE, type)                               \
+#define ALLOCATE_EXTERNAL_ARRAY_MAP(Type, type, TYPE, ctype, size)            \
     ALLOCATE_MAP(EXTERNAL_##TYPE##_ARRAY_TYPE, ExternalArray::kAlignedSize,   \
         external_##type##_array)
 
-    ALLOCATE_EXTERNAL_ARRAY_MAP(PIXEL, pixel)
-    ALLOCATE_EXTERNAL_ARRAY_MAP(BYTE, byte)
-    ALLOCATE_EXTERNAL_ARRAY_MAP(UNSIGNED_BYTE, unsigned_byte)
-    ALLOCATE_EXTERNAL_ARRAY_MAP(SHORT, short)  // NOLINT
-    ALLOCATE_EXTERNAL_ARRAY_MAP(UNSIGNED_SHORT, unsigned_short)
-    ALLOCATE_EXTERNAL_ARRAY_MAP(INT, int)
-    ALLOCATE_EXTERNAL_ARRAY_MAP(UNSIGNED_INT, unsigned_int)
-    ALLOCATE_EXTERNAL_ARRAY_MAP(FLOAT, float)
-    ALLOCATE_EXTERNAL_ARRAY_MAP(DOUBLE, double)
+     TYPED_ARRAYS(ALLOCATE_EXTERNAL_ARRAY_MAP)
 #undef ALLOCATE_EXTERNAL_ARRAY_MAP
 
-    ALLOCATE_VARSIZE_MAP(FIXED_UINT8_ARRAY_TYPE, fixed_uint8_array)
-    ALLOCATE_VARSIZE_MAP(FIXED_UINT8_CLAMPED_ARRAY_TYPE,
-        fixed_uint8_clamped_array)
-    ALLOCATE_VARSIZE_MAP(FIXED_INT8_ARRAY_TYPE, fixed_int8_array)
-    ALLOCATE_VARSIZE_MAP(FIXED_UINT16_ARRAY_TYPE, fixed_uint16_array)
-    ALLOCATE_VARSIZE_MAP(FIXED_INT16_ARRAY_TYPE, fixed_int16_array)
-    ALLOCATE_VARSIZE_MAP(FIXED_UINT32_ARRAY_TYPE, fixed_uint32_array)
-    ALLOCATE_VARSIZE_MAP(FIXED_INT32_ARRAY_TYPE, fixed_int32_array)
-    ALLOCATE_VARSIZE_MAP(FIXED_FLOAT32_ARRAY_TYPE, fixed_float32_array)
-    ALLOCATE_VARSIZE_MAP(FIXED_FLOAT64_ARRAY_TYPE, fixed_float64_array)
+#define ALLOCATE_FIXED_TYPED_ARRAY_MAP(Type, type, TYPE, ctype, size)         \
+    ALLOCATE_VARSIZE_MAP(FIXED_##TYPE##_ARRAY_TYPE,                           \
+        fixed_##type##_array)
+
+     TYPED_ARRAYS(ALLOCATE_FIXED_TYPED_ARRAY_MAP)
+#undef ALLOCATE_FIXED_TYPED_ARRAY_MAP
 
     ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, non_strict_arguments_elements)
 
@@ -2910,22 +2917,14 @@ bool Heap::CreateInitialMaps() {
       set_empty_byte_array(byte_array);
     }
 
-#define ALLOCATE_EMPTY_EXTERNAL_ARRAY(Type, type)                              \
+#define ALLOCATE_EMPTY_EXTERNAL_ARRAY(Type, type, TYPE, ctype, size)           \
     { ExternalArray* obj;                                                      \
       if (!AllocateEmptyExternalArray(kExternal##Type##Array)->To(&obj))       \
           return false;                                                        \
       set_empty_external_##type##_array(obj);                                  \
     }
 
-    ALLOCATE_EMPTY_EXTERNAL_ARRAY(Byte, byte)
-    ALLOCATE_EMPTY_EXTERNAL_ARRAY(UnsignedByte, unsigned_byte)
-    ALLOCATE_EMPTY_EXTERNAL_ARRAY(Short, short)  // NOLINT
-    ALLOCATE_EMPTY_EXTERNAL_ARRAY(UnsignedShort, unsigned_short)
-    ALLOCATE_EMPTY_EXTERNAL_ARRAY(Int, int)
-    ALLOCATE_EMPTY_EXTERNAL_ARRAY(UnsignedInt, unsigned_int)
-    ALLOCATE_EMPTY_EXTERNAL_ARRAY(Float, float)
-    ALLOCATE_EMPTY_EXTERNAL_ARRAY(Double, double)
-    ALLOCATE_EMPTY_EXTERNAL_ARRAY(Pixel, pixel)
+    TYPED_ARRAYS(ALLOCATE_EMPTY_EXTERNAL_ARRAY)
 #undef ALLOCATE_EMPTY_EXTERNAL_ARRAY
   }
   ASSERT(!InNewSpace(empty_fixed_array()));
@@ -2937,7 +2936,8 @@ MaybeObject* Heap::AllocateHeapNumber(double value, PretenureFlag pretenure) {
   // Statically ensure that it is safe to allocate heap numbers in paged
   // spaces.
   int size = HeapNumber::kSize;
-  STATIC_ASSERT(HeapNumber::kSize <= Page::kNonCodeObjectAreaSize);
+  STATIC_ASSERT(HeapNumber::kSize <= Page::kMaxRegularHeapObjectSize);
+
   AllocationSpace space = SelectSpace(size, OLD_DATA_SPACE, pretenure);
 
   Object* result;
@@ -2953,7 +2953,7 @@ MaybeObject* Heap::AllocateHeapNumber(double value, PretenureFlag pretenure) {
 
 MaybeObject* Heap::AllocateCell(Object* value) {
   int size = Cell::kSize;
-  STATIC_ASSERT(Cell::kSize <= Page::kNonCodeObjectAreaSize);
+  STATIC_ASSERT(Cell::kSize <= Page::kMaxRegularHeapObjectSize);
 
   Object* result;
   { MaybeObject* maybe_result = AllocateRaw(size, CELL_SPACE, CELL_SPACE);
@@ -2967,7 +2967,7 @@ MaybeObject* Heap::AllocateCell(Object* value) {
 
 MaybeObject* Heap::AllocatePropertyCell() {
   int size = PropertyCell::kSize;
-  STATIC_ASSERT(PropertyCell::kSize <= Page::kNonCodeObjectAreaSize);
+  STATIC_ASSERT(PropertyCell::kSize <= Page::kMaxRegularHeapObjectSize);
 
   Object* result;
   MaybeObject* maybe_result =
@@ -2980,7 +2980,7 @@ MaybeObject* Heap::AllocatePropertyCell() {
   cell->set_dependent_code(DependentCode::cast(empty_fixed_array()),
                            SKIP_WRITE_BARRIER);
   cell->set_value(the_hole_value());
-  cell->set_type(Type::None());
+  cell->set_type(HeapType::None());
   return result;
 }
 
@@ -3066,6 +3066,17 @@ void Heap::CreateFixedStubs() {
   // The eliminates the need for doing dictionary lookup in the
   // stub cache for these stubs.
   HandleScope scope(isolate());
+
+  // Create stubs that should be there, so we don't unexpectedly have to
+  // create them if we need them during the creation of another stub.
+  // Stub creation mixes raw pointers and handles in an unsafe manner so
+  // we cannot create stubs while we are creating stubs.
+  CodeStub::GenerateStubsAheadOfTime(isolate());
+
+  // MacroAssembler::Abort calls (usually enabled with --debug-code) depend on
+  // CEntryStub, so we need to call GenerateStubsAheadOfTime before JSEntryStub
+  // is created.
+
   // gcc-4.4 has problem generating correct code of following snippet:
   // {  JSEntryStub stub;
   //    js_entry_code_ = *stub.GetCode();
@@ -3076,18 +3087,6 @@ void Heap::CreateFixedStubs() {
   // To workaround the problem, make separate functions without inlining.
   Heap::CreateJSEntryStub();
   Heap::CreateJSConstructEntryStub();
-
-  // Create stubs that should be there, so we don't unexpectedly have to
-  // create them if we need them during the creation of another stub.
-  // Stub creation mixes raw pointers and handles in an unsafe manner so
-  // we cannot create stubs while we are creating stubs.
-  CodeStub::GenerateStubsAheadOfTime(isolate());
-}
-
-
-void Heap::CreateStubsRequiringBuiltins() {
-  HandleScope scope(isolate());
-  CodeStub::GenerateStubsRequiringBuiltinsAheadOfTime(isolate());
 }
 
 
@@ -3289,6 +3288,15 @@ bool Heap::CreateInitialObjects() {
   }
   set_observation_state(JSObject::cast(obj));
 
+  // Allocate object to hold object microtask state.
+  { MaybeObject* maybe_obj = AllocateMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
+    if (!maybe_obj->ToObject(&obj)) return false;
+  }
+  { MaybeObject* maybe_obj = AllocateJSObjectFromMap(Map::cast(obj));
+    if (!maybe_obj->ToObject(&obj)) return false;
+  }
+  set_microtask_state(JSObject::cast(obj));
+
   { MaybeObject* maybe_obj = AllocateSymbol();
     if (!maybe_obj->ToObject(&obj)) return false;
   }
@@ -3313,8 +3321,19 @@ bool Heap::CreateInitialObjects() {
   Symbol::cast(obj)->set_is_private(true);
   set_observed_symbol(Symbol::cast(obj));
 
+  { MaybeObject* maybe_obj = AllocateFixedArray(0, TENURED);
+    if (!maybe_obj->ToObject(&obj)) return false;
+  }
+  set_materialized_objects(FixedArray::cast(obj));
+
   // Handling of script id generation is in Factory::NewScript.
   set_last_script_id(Smi::FromInt(v8::Script::kNoScriptId));
+
+  { MaybeObject* maybe_obj = AllocateAllocationSitesScratchpad();
+    if (!maybe_obj->ToObject(&obj)) return false;
+  }
+  set_allocation_sites_scratchpad(FixedArray::cast(obj));
+  InitializeAllocationSitesScratchpad();
 
   // Initialize keyed lookup cache.
   isolate_->keyed_lookup_cache()->Clear();
@@ -3563,8 +3582,7 @@ void Heap::SetNumberStringCache(Object* number, String* string) {
 
 
 MaybeObject* Heap::NumberToString(Object* number,
-                                  bool check_number_string_cache,
-                                  PretenureFlag pretenure) {
+                                  bool check_number_string_cache) {
   isolate_->counters()->number_to_string_runtime()->Increment();
   if (check_number_string_cache) {
     Object* cached = GetNumberStringCache(number);
@@ -3585,8 +3603,11 @@ MaybeObject* Heap::NumberToString(Object* number,
   }
 
   Object* js_string;
+
+  // We tenure the allocated string since it is referenced from the
+  // number-string cache which lives in the old space.
   MaybeObject* maybe_js_string =
-      AllocateStringFromOneByte(CStrVector(str), pretenure);
+      AllocateStringFromOneByte(CStrVector(str), TENURED);
   if (maybe_js_string->ToObject(&js_string)) {
     SetNumberStringCache(number, String::cast(js_string));
   }
@@ -3603,6 +3624,45 @@ MaybeObject* Heap::Uint32ToString(uint32_t value,
 }
 
 
+MaybeObject* Heap::AllocateAllocationSitesScratchpad() {
+  MaybeObject* maybe_obj =
+      AllocateFixedArray(kAllocationSiteScratchpadSize, TENURED);
+  return maybe_obj;
+}
+
+
+void Heap::FlushAllocationSitesScratchpad() {
+  for (int i = 0; i < allocation_sites_scratchpad_length_; i++) {
+    allocation_sites_scratchpad()->set_undefined(i);
+  }
+  allocation_sites_scratchpad_length_ = 0;
+}
+
+
+void Heap::InitializeAllocationSitesScratchpad() {
+  ASSERT(allocation_sites_scratchpad()->length() ==
+         kAllocationSiteScratchpadSize);
+  for (int i = 0; i < kAllocationSiteScratchpadSize; i++) {
+    allocation_sites_scratchpad()->set_undefined(i);
+  }
+}
+
+
+void Heap::AddAllocationSiteToScratchpad(AllocationSite* site) {
+  if (allocation_sites_scratchpad_length_ < kAllocationSiteScratchpadSize) {
+    // We cannot use the normal write-barrier because slots need to be
+    // recorded with non-incremental marking as well. We have to explicitly
+    // record the slot to take evacuation candidates into account.
+    allocation_sites_scratchpad()->set(
+        allocation_sites_scratchpad_length_, site, SKIP_WRITE_BARRIER);
+    Object** slot = allocation_sites_scratchpad()->RawFieldOfElementAt(
+        allocation_sites_scratchpad_length_);
+    mark_compact_collector()->RecordSlot(slot, slot, *slot);
+    allocation_sites_scratchpad_length_++;
+  }
+}
+
+
 Map* Heap::MapForExternalArrayType(ExternalArrayType array_type) {
   return Map::cast(roots_[RootIndexForExternalArrayType(array_type)]);
 }
@@ -3611,24 +3671,13 @@ Map* Heap::MapForExternalArrayType(ExternalArrayType array_type) {
 Heap::RootListIndex Heap::RootIndexForExternalArrayType(
     ExternalArrayType array_type) {
   switch (array_type) {
-    case kExternalByteArray:
-      return kExternalByteArrayMapRootIndex;
-    case kExternalUnsignedByteArray:
-      return kExternalUnsignedByteArrayMapRootIndex;
-    case kExternalShortArray:
-      return kExternalShortArrayMapRootIndex;
-    case kExternalUnsignedShortArray:
-      return kExternalUnsignedShortArrayMapRootIndex;
-    case kExternalIntArray:
-      return kExternalIntArrayMapRootIndex;
-    case kExternalUnsignedIntArray:
-      return kExternalUnsignedIntArrayMapRootIndex;
-    case kExternalFloatArray:
-      return kExternalFloatArrayMapRootIndex;
-    case kExternalDoubleArray:
-      return kExternalDoubleArrayMapRootIndex;
-    case kExternalPixelArray:
-      return kExternalPixelArrayMapRootIndex;
+#define ARRAY_TYPE_TO_ROOT_INDEX(Type, type, TYPE, ctype, size)               \
+    case kExternal##Type##Array:                                              \
+      return kExternal##Type##ArrayMapRootIndex;
+
+    TYPED_ARRAYS(ARRAY_TYPE_TO_ROOT_INDEX)
+#undef ARRAY_TYPE_TO_ROOT_INDEX
+
     default:
       UNREACHABLE();
       return kUndefinedValueRootIndex;
@@ -3644,24 +3693,13 @@ Map* Heap::MapForFixedTypedArray(ExternalArrayType array_type) {
 Heap::RootListIndex Heap::RootIndexForFixedTypedArray(
     ExternalArrayType array_type) {
   switch (array_type) {
-    case kExternalByteArray:
-      return kFixedInt8ArrayMapRootIndex;
-    case kExternalUnsignedByteArray:
-      return kFixedUint8ArrayMapRootIndex;
-    case kExternalShortArray:
-      return kFixedInt16ArrayMapRootIndex;
-    case kExternalUnsignedShortArray:
-      return kFixedUint16ArrayMapRootIndex;
-    case kExternalIntArray:
-      return kFixedInt32ArrayMapRootIndex;
-    case kExternalUnsignedIntArray:
-      return kFixedUint32ArrayMapRootIndex;
-    case kExternalFloatArray:
-      return kFixedFloat32ArrayMapRootIndex;
-    case kExternalDoubleArray:
-      return kFixedFloat64ArrayMapRootIndex;
-    case kExternalPixelArray:
-      return kFixedUint8ClampedArrayMapRootIndex;
+#define ARRAY_TYPE_TO_ROOT_INDEX(Type, type, TYPE, ctype, size)               \
+    case kExternal##Type##Array:                                              \
+      return kFixed##Type##ArrayMapRootIndex;
+
+    TYPED_ARRAYS(ARRAY_TYPE_TO_ROOT_INDEX)
+#undef ARRAY_TYPE_TO_ROOT_INDEX
+
     default:
       UNREACHABLE();
       return kUndefinedValueRootIndex;
@@ -3672,24 +3710,13 @@ Heap::RootListIndex Heap::RootIndexForFixedTypedArray(
 Heap::RootListIndex Heap::RootIndexForEmptyExternalArray(
     ElementsKind elementsKind) {
   switch (elementsKind) {
-    case EXTERNAL_BYTE_ELEMENTS:
-      return kEmptyExternalByteArrayRootIndex;
-    case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
-      return kEmptyExternalUnsignedByteArrayRootIndex;
-    case EXTERNAL_SHORT_ELEMENTS:
-      return kEmptyExternalShortArrayRootIndex;
-    case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
-      return kEmptyExternalUnsignedShortArrayRootIndex;
-    case EXTERNAL_INT_ELEMENTS:
-      return kEmptyExternalIntArrayRootIndex;
-    case EXTERNAL_UNSIGNED_INT_ELEMENTS:
-      return kEmptyExternalUnsignedIntArrayRootIndex;
-    case EXTERNAL_FLOAT_ELEMENTS:
-      return kEmptyExternalFloatArrayRootIndex;
-    case EXTERNAL_DOUBLE_ELEMENTS:
-      return kEmptyExternalDoubleArrayRootIndex;
-    case EXTERNAL_PIXEL_ELEMENTS:
-      return kEmptyExternalPixelArrayRootIndex;
+#define ELEMENT_KIND_TO_ROOT_INDEX(Type, type, TYPE, ctype, size)             \
+    case EXTERNAL_##TYPE##_ELEMENTS:                                          \
+      return kEmptyExternal##Type##ArrayRootIndex;
+
+    TYPED_ARRAYS(ELEMENT_KIND_TO_ROOT_INDEX)
+#undef ELEMENT_KIND_TO_ROOT_INDEX
+
     default:
       UNREACHABLE();
       return kUndefinedValueRootIndex;
@@ -3723,7 +3750,7 @@ MaybeObject* Heap::NumberFromDouble(double value, PretenureFlag pretenure) {
 
 MaybeObject* Heap::AllocateForeign(Address address, PretenureFlag pretenure) {
   // Statically ensure that it is safe to allocate foreigns in paged spaces.
-  STATIC_ASSERT(Foreign::kSize <= Page::kMaxNonCodeHeapObjectSize);
+  STATIC_ASSERT(Foreign::kSize <= Page::kMaxRegularHeapObjectSize);
   AllocationSpace space = (pretenure == TENURED) ? OLD_DATA_SPACE : NEW_SPACE;
   Foreign* result;
   MaybeObject* maybe_result = Allocate(foreign_map(), space);
@@ -3777,7 +3804,6 @@ MaybeObject* Heap::AllocateJSMessageObject(String* type,
                                            int start_position,
                                            int end_position,
                                            Object* script,
-                                           Object* stack_trace,
                                            Object* stack_frames) {
   Object* result;
   { MaybeObject* maybe_result = Allocate(message_object_map(), NEW_SPACE);
@@ -3792,7 +3818,6 @@ MaybeObject* Heap::AllocateJSMessageObject(String* type,
   message->set_start_position(start_position);
   message->set_end_position(end_position);
   message->set_script(script);
-  message->set_stack_trace(stack_trace);
   message->set_stack_frames(stack_frames);
   return result;
 }
@@ -3931,42 +3956,15 @@ static void ForFixedTypedArray(ExternalArrayType array_type,
                                int* element_size,
                                ElementsKind* element_kind) {
   switch (array_type) {
-    case kExternalUnsignedByteArray:
-      *element_size = 1;
-      *element_kind = UINT8_ELEMENTS;
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size)                       \
+    case kExternal##Type##Array:                                              \
+      *element_size = size;                                                   \
+      *element_kind = TYPE##_ELEMENTS;                                        \
       return;
-    case kExternalByteArray:
-      *element_size = 1;
-      *element_kind = INT8_ELEMENTS;
-      return;
-    case kExternalUnsignedShortArray:
-      *element_size = 2;
-      *element_kind = UINT16_ELEMENTS;
-      return;
-    case kExternalShortArray:
-      *element_size = 2;
-      *element_kind = INT16_ELEMENTS;
-      return;
-    case kExternalUnsignedIntArray:
-      *element_size = 4;
-      *element_kind = UINT32_ELEMENTS;
-      return;
-    case kExternalIntArray:
-      *element_size = 4;
-      *element_kind = INT32_ELEMENTS;
-      return;
-    case kExternalFloatArray:
-      *element_size = 4;
-      *element_kind = FLOAT32_ELEMENTS;
-      return;
-    case kExternalDoubleArray:
-      *element_size = 8;
-      *element_kind = FLOAT64_ELEMENTS;
-      return;
-    case kExternalPixelArray:
-      *element_size = 1;
-      *element_kind = UINT8_CLAMPED_ELEMENTS;
-      return;
+
+    TYPED_ARRAYS(TYPED_ARRAY_CASE)
+#undef TYPED_ARRAY_CASE
+
     default:
       *element_size = 0;  // Bogus
       *element_kind = UINT8_ELEMENTS;  // Bogus
@@ -3984,7 +3982,7 @@ MaybeObject* Heap::AllocateFixedTypedArray(int length,
   int size = OBJECT_POINTER_ALIGN(
       length * element_size + FixedTypedArrayBase::kDataOffset);
 #ifndef V8_HOST_ARCH_64_BIT
-  if (array_type == kExternalDoubleArray) {
+  if (array_type == kExternalFloat64Array) {
     size += kPointerSize;
   }
 #endif
@@ -3994,7 +3992,7 @@ MaybeObject* Heap::AllocateFixedTypedArray(int length,
   MaybeObject* maybe_object = AllocateRaw(size, space, OLD_DATA_SPACE);
   if (!maybe_object->To(&object)) return maybe_object;
 
-  if (array_type == kExternalDoubleArray) {
+  if (array_type == kExternalFloat64Array) {
     object = EnsureDoubleAligned(this, object, size);
   }
 
@@ -4054,9 +4052,6 @@ MaybeObject* Heap::CreateCode(const CodeDesc& desc,
   code->set_flags(flags);
   code->set_raw_kind_specific_flags1(0);
   code->set_raw_kind_specific_flags2(0);
-  if (code->is_call_stub() || code->is_keyed_call_stub()) {
-    code->set_check_type(RECEIVER_MAP_CHECK);
-  }
   code->set_is_crankshafted(crankshafted);
   code->set_deoptimization_data(empty_fixed_array(), SKIP_WRITE_BARRIER);
   code->set_raw_type_feedback_info(undefined_value());
@@ -5347,7 +5342,7 @@ MaybeObject* Heap::AllocateHashTable(int length, PretenureFlag pretenure) {
 
 MaybeObject* Heap::AllocateSymbol() {
   // Statically ensure that it is safe to allocate symbols in paged spaces.
-  STATIC_ASSERT(Symbol::kSize <= Page::kNonCodeObjectAreaSize);
+  STATIC_ASSERT(Symbol::kSize <= Page::kMaxRegularHeapObjectSize);
 
   Object* result;
   MaybeObject* maybe =
@@ -5619,7 +5614,7 @@ bool Heap::IdleNotification(int hint) {
     return false;
   }
 
-  if (!FLAG_incremental_marking || FLAG_expose_gc || Serializer::enabled()) {
+  if (!FLAG_incremental_marking || Serializer::enabled()) {
     return IdleGlobalGC();
   }
 
@@ -5859,6 +5854,9 @@ void Heap::Verify() {
 
   VerifyPointersVisitor visitor;
   IterateRoots(&visitor, VISIT_ONLY_STRONG);
+
+  VerifySmisVisitor smis_visitor;
+  IterateSmiRoots(&smis_visitor);
 
   new_space_.Verify();
 
@@ -6157,6 +6155,12 @@ void Heap::IterateWeakRoots(ObjectVisitor* v, VisitMode mode) {
 }
 
 
+void Heap::IterateSmiRoots(ObjectVisitor* v) {
+  v->VisitPointers(&roots_[kSmiRootsStart], &roots_[kRootListLength]);
+  v->Synchronize(VisitorSynchronization::kSmiRootList);
+}
+
+
 void Heap::IterateStrongRoots(ObjectVisitor* v, VisitMode mode) {
   v->VisitPointers(&roots_[0], &roots_[kStrongRootListLength]);
   v->Synchronize(VisitorSynchronization::kStrongRootList);
@@ -6311,7 +6315,7 @@ bool Heap::ConfigureHeap(int max_semispace_size,
                                          Page::kPageSize));
 
   // We rely on being able to allocate new arrays in paged spaces.
-  ASSERT(MaxRegularSpaceAllocationSize() >=
+  ASSERT(Page::kMaxRegularHeapObjectSize >=
          (JSArray::kSize +
           FixedArray::SizeFor(JSObject::kInitialMaxFastElementArray) +
           AllocationMemento::kSize));
@@ -6379,7 +6383,7 @@ intptr_t Heap::PromotedSpaceSizeOfObjects() {
 
 
 bool Heap::AdvanceSweepers(int step_size) {
-  ASSERT(isolate()->num_sweeper_threads() == 0);
+  ASSERT(!mark_compact_collector()->AreSweeperThreadsActivated());
   bool sweeping_complete = old_data_space()->AdvanceSweeper(step_size);
   sweeping_complete &= old_pointer_space()->AdvanceSweeper(step_size);
   return sweeping_complete;
@@ -6395,7 +6399,7 @@ int64_t Heap::PromotedExternalMemorySize() {
 
 
 void Heap::EnableInlineAllocation() {
-  ASSERT(inline_allocation_disabled_);
+  if (!inline_allocation_disabled_) return;
   inline_allocation_disabled_ = false;
 
   // Update inline allocation limit for new space.
@@ -6404,7 +6408,7 @@ void Heap::EnableInlineAllocation() {
 
 
 void Heap::DisableInlineAllocation() {
-  ASSERT(!inline_allocation_disabled_);
+  if (inline_allocation_disabled_) return;
   inline_allocation_disabled_ = true;
 
   // Update inline allocation limit for new space.
@@ -6530,6 +6534,8 @@ bool Heap::SetUp() {
   LOG(isolate_, IntPtrTEvent("heap-available", Available()));
 
   store_buffer()->SetUp();
+
+  mark_compact_collector()->SetUp();
 
   if (FLAG_concurrent_recompilation) relocation_mutex_ = new Mutex;
 

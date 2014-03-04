@@ -418,7 +418,7 @@ AllocationSpace Heap::TargetSpaceId(InstanceType type) {
 }
 
 
-bool Heap::AllowedToBeMigrated(HeapObject* object, AllocationSpace dst) {
+bool Heap::AllowedToBeMigrated(HeapObject* obj, AllocationSpace dst) {
   // Object migration is governed by the following rules:
   //
   // 1) Objects in new-space can be migrated to one of the old spaces
@@ -428,18 +428,22 @@ bool Heap::AllowedToBeMigrated(HeapObject* object, AllocationSpace dst) {
   //    fixed arrays in new-space, old-data-space and old-pointer-space.
   // 4) Fillers (one word) can never migrate, they are skipped by
   //    incremental marking explicitly to prevent invalid pattern.
+  // 5) Short external strings can end up in old pointer space when a cons
+  //    string in old pointer space is made external (String::MakeExternal).
   //
   // Since this function is used for debugging only, we do not place
   // asserts here, but check everything explicitly.
-  if (object->map() == one_pointer_filler_map()) return false;
-  InstanceType type = object->map()->instance_type();
-  MemoryChunk* chunk = MemoryChunk::FromAddress(object->address());
+  if (obj->map() == one_pointer_filler_map()) return false;
+  InstanceType type = obj->map()->instance_type();
+  MemoryChunk* chunk = MemoryChunk::FromAddress(obj->address());
   AllocationSpace src = chunk->owner()->identity();
   switch (src) {
     case NEW_SPACE:
       return dst == src || dst == TargetSpaceId(type);
     case OLD_POINTER_SPACE:
-      return dst == src && (dst == TargetSpaceId(type) || object->IsFiller());
+      return dst == src &&
+          (dst == TargetSpaceId(type) || obj->IsFiller() ||
+          (obj->IsExternalString() && ExternalString::cast(obj)->is_short()));
     case OLD_DATA_SPACE:
       return dst == src && dst == TargetSpaceId(type);
     case CODE_SPACE:
@@ -488,32 +492,33 @@ void Heap::ScavengePointer(HeapObject** p) {
 
 void Heap::UpdateAllocationSiteFeedback(HeapObject* object) {
   Heap* heap = object->GetHeap();
-  ASSERT(heap->InNewSpace(object));
+  ASSERT(heap->InFromSpace(object));
 
   if (!FLAG_allocation_site_pretenuring ||
-      !heap->new_space_high_promotion_mode_active_ ||
       !AllocationSite::CanTrack(object->map()->instance_type())) return;
 
-  // Either object is the last object in the from space, or there is another
-  // object of at least word size (the header map word) following it, so
-  // suffices to compare ptr and top here.
-  Address ptr = object->address() + object->Size();
-  Address top = heap->new_space()->FromSpacePageHigh();
-  ASSERT(ptr == top || ptr + HeapObject::kHeaderSize <= top);
-  if (ptr == top) return;
+  // Check if there is potentially a memento behind the object. If
+  // the last word of the momento is on another page we return
+  // immediatelly. Note that we do not have to compare with the current
+  // top pointer of the from space page, since we always install filler
+  // objects above the top pointer of a from space page when performing
+  // a garbage collection.
+  Address object_address = object->address();
+  Address memento_address = object_address + object->Size();
+  Address last_memento_word_address = memento_address + kPointerSize;
+  if (!NewSpacePage::OnSamePage(object_address,
+                                last_memento_word_address)) {
+    return;
+  }
 
-  HeapObject* candidate = HeapObject::FromAddress(ptr);
+  HeapObject* candidate = HeapObject::FromAddress(memento_address);
   if (candidate->map() != heap->allocation_memento_map()) return;
 
   AllocationMemento* memento = AllocationMemento::cast(candidate);
   if (!memento->IsValid()) return;
 
-  if (memento->GetAllocationSite()->IncrementMementoFoundCount() &&
-      heap->allocation_sites_scratchpad_length <
-      kAllocationSiteScratchpadSize) {
-    heap->allocation_sites_scratchpad[
-        heap->allocation_sites_scratchpad_length++] =
-        memento->GetAllocationSite();
+  if (memento->GetAllocationSite()->IncrementMementoFoundCount()) {
+    heap->AddAllocationSiteToScratchpad(memento->GetAllocationSite());
   }
 }
 
@@ -550,8 +555,7 @@ bool Heap::CollectGarbage(AllocationSpace space,
                           const v8::GCCallbackFlags callbackFlags) {
   const char* collector_reason = NULL;
   GarbageCollector collector = SelectGarbageCollector(space, &collector_reason);
-  return CollectGarbage(
-      space, collector, gc_reason, collector_reason, callbackFlags);
+  return CollectGarbage(collector, gc_reason, collector_reason, callbackFlags);
 }
 
 
@@ -812,6 +816,13 @@ void VerifyPointersVisitor::VisitPointers(Object** start, Object** end) {
       CHECK(object->GetIsolate()->heap()->Contains(object));
       CHECK(object->map()->IsMap());
     }
+  }
+}
+
+
+void VerifySmisVisitor::VisitPointers(Object** start, Object** end) {
+  for (Object** current = start; current < end; current++) {
+     CHECK((*current)->IsSmi());
   }
 }
 

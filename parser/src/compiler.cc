@@ -60,7 +60,8 @@ CompilationInfo::CompilationInfo(Handle<Script> script,
       script_(script),
       osr_ast_id_(BailoutId::None()),
       parameter_count_(0),
-      this_has_uses_(true) {
+      this_has_uses_(true),
+      optimization_id_(-1) {
   Initialize(script->GetIsolate(), BASE, zone);
 }
 
@@ -72,7 +73,8 @@ CompilationInfo::CompilationInfo(Handle<SharedFunctionInfo> shared_info,
       script_(Handle<Script>(Script::cast(shared_info->script()))),
       osr_ast_id_(BailoutId::None()),
       parameter_count_(0),
-      this_has_uses_(true) {
+      this_has_uses_(true),
+      optimization_id_(-1) {
   Initialize(script_->GetIsolate(), BASE, zone);
 }
 
@@ -86,7 +88,8 @@ CompilationInfo::CompilationInfo(Handle<JSFunction> closure,
       context_(closure->context()),
       osr_ast_id_(BailoutId::None()),
       parameter_count_(0),
-      this_has_uses_(true) {
+      this_has_uses_(true),
+      optimization_id_(-1) {
   Initialize(script_->GetIsolate(), BASE, zone);
 }
 
@@ -98,7 +101,8 @@ CompilationInfo::CompilationInfo(HydrogenCodeStub* stub,
              IsLazy::encode(true)),
       osr_ast_id_(BailoutId::None()),
       parameter_count_(0),
-      this_has_uses_(true) {
+      this_has_uses_(true),
+      optimization_id_(-1) {
   Initialize(isolate, STUB, zone);
   code_stub_ = stub;
 }
@@ -211,8 +215,7 @@ Code::Flags CompilationInfo::flags() const {
     return Code::ComputeFlags(code_stub()->GetCodeKind(),
                               code_stub()->GetICState(),
                               code_stub()->GetExtraICState(),
-                              code_stub()->GetStubType(),
-                              code_stub()->GetStubFlags());
+                              code_stub()->GetStubType());
   } else {
     return Code::ComputeFlags(Code::OPTIMIZED_FUNCTION);
   }
@@ -240,6 +243,13 @@ bool CompilationInfo::ShouldSelfOptimize() {
       !function()->dont_optimize() &&
       function()->scope()->AllowsLazyCompilation() &&
       (shared_info().is_null() || !shared_info()->optimization_disabled());
+}
+
+
+void CompilationInfo::PrepareForCompilation(Scope* scope) {
+  ASSERT(scope_ == NULL);
+  scope_ = scope;
+  function()->ProcessFeedbackSlots(isolate_);
 }
 
 
@@ -363,7 +373,7 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
     // Note that we use the same AST that we will use for generating the
     // optimized code.
     unoptimized.SetFunction(info()->function());
-    unoptimized.SetScope(info()->scope());
+    unoptimized.PrepareForCompilation(info()->scope());
     unoptimized.SetContext(info()->context());
     if (should_recompile) unoptimized.EnableDeoptimizationSupport();
     bool succeeded = FullCodeGenerator::MakeCode(&unoptimized);
@@ -398,7 +408,7 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
   // Type-check the function.
   AstTyper::Run(info());
 
-  graph_builder_ = FLAG_emit_opt_code_positions
+  graph_builder_ = FLAG_hydrogen_track_positions
       ? new(info()->zone()) HOptimizedGraphBuilderWithPositions(info())
       : new(info()->zone()) HOptimizedGraphBuilder(info());
 
@@ -779,6 +789,13 @@ static Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
        String::cast(script->source())->length() > FLAG_min_preparse_length) &&
       !DebuggerWantsEagerCompilation(info);
 
+  if (!parse_allow_lazy && info->pre_parse_data() != NULL) {
+    // We are going to parse eagerly, but we have preparse data produced by lazy
+    // preparsing. We cannot use it, since it won't contain all the symbols we
+    // need for eager parsing.
+    info->SetPreParseData(NULL);
+  }
+
   Handle<SharedFunctionInfo> result;
 
   { VMState<COMPILER> state(info->isolate());
@@ -982,7 +999,7 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(FunctionLiteral* literal,
   // Precondition: code has been parsed and scopes have been analyzed.
   CompilationInfoWithZone info(script);
   info.SetFunction(literal);
-  info.SetScope(literal->scope());
+  info.PrepareForCompilation(literal->scope());
   info.SetLanguageMode(literal->scope()->language_mode());
 
   Isolate* isolate = info.isolate();
@@ -1178,7 +1195,7 @@ Handle<Code> Compiler::GetOptimizedCode(Handle<JSFunction> function,
   if (FLAG_trace_opt) {
     PrintF("[failed to optimize ");
     function->PrintName();
-    PrintF("]\n");
+    PrintF(": %s]\n", GetBailoutReason(info->bailout_reason()));
   }
 
   if (isolate->has_pending_exception()) isolate->clear_pending_exception();

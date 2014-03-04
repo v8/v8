@@ -64,7 +64,7 @@ int signbit(double x);
 #endif
 
 // Microsoft Visual C++ specific stuff.
-#if V8_CC_MSVC
+#if V8_LIBC_MSVCRT
 
 #include "win32-headers.h"
 #include "win32-math.h"
@@ -91,7 +91,7 @@ inline int lrint(double flt) {
 }
 #endif  // _MSC_VER < 1800
 
-#endif  // V8_CC_MSVC
+#endif  // V8_LIBC_MSVCRT
 
 namespace v8 {
 namespace internal {

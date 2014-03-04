@@ -46,6 +46,7 @@ namespace internal {
 
 // Forward declarations.
 class HBasicBlock;
+class HDiv;
 class HEnvironment;
 class HInferRepresentationPhase;
 class HInstruction;
@@ -108,7 +109,6 @@ class LChunkBuilder;
   V(Deoptimize)                                \
   V(Div)                                       \
   V(DummyUse)                                  \
-  V(ElementsKind)                              \
   V(EnterInlined)                              \
   V(EnvironmentMarker)                         \
   V(ForceRepresentation)                       \
@@ -116,8 +116,6 @@ class LChunkBuilder;
   V(ForInPrepareMap)                           \
   V(FunctionLiteral)                           \
   V(GetCachedArrayIndex)                       \
-  V(GlobalObject)                              \
-  V(GlobalReceiver)                            \
   V(Goto)                                      \
   V(HasCachedArrayIndexAndBranch)              \
   V(HasInstanceTypeAndBranch)                  \
@@ -132,7 +130,6 @@ class LChunkBuilder;
   V(IsUndetectableAndBranch)                   \
   V(LeaveInlined)                              \
   V(LoadContextSlot)                           \
-  V(LoadExternalArrayPointer)                  \
   V(LoadFieldByIndex)                          \
   V(LoadFunctionPrototype)                     \
   V(LoadGlobalCell)                            \
@@ -148,7 +145,6 @@ class LChunkBuilder;
   V(Mod)                                       \
   V(Mul)                                       \
   V(OsrEntry)                                  \
-  V(OuterContext)                              \
   V(Parameter)                                 \
   V(Power)                                     \
   V(PushArgument)                              \
@@ -175,7 +171,6 @@ class LChunkBuilder;
   V(StringCompareAndBranch)                    \
   V(Sub)                                       \
   V(ThisFunction)                              \
-  V(Throw)                                     \
   V(ToFastProperties)                          \
   V(TransitionElementsKind)                    \
   V(TrapAllocationMemento)                     \
@@ -184,7 +179,6 @@ class LChunkBuilder;
   V(UnaryMathOperation)                        \
   V(UnknownOSRValue)                           \
   V(UseConst)                                  \
-  V(ValueOf)                                   \
   V(WrapReceiver)
 
 #define GVN_TRACKED_FLAG_LIST(V)               \
@@ -228,6 +222,9 @@ class LChunkBuilder;
   virtual Opcode opcode() const V8_FINAL V8_OVERRIDE {  \
     return HValue::k##type;                             \
   }
+
+
+enum PropertyAccessType { LOAD, STORE };
 
 
 class Range V8_FINAL : public ZoneObject {
@@ -479,21 +476,26 @@ class HUseIterator V8_FINAL BASE_EMBEDDED {
 };
 
 
-// There must be one corresponding kDepends flag for every kChanges flag and
-// the order of the kChanges flags must be exactly the same as of the kDepends
-// flags. All tracked flags should appear before untracked ones.
+// All tracked flags should appear before untracked ones.
 enum GVNFlag {
   // Declare global value numbering flags.
-#define DECLARE_FLAG(type) kChanges##type, kDependsOn##type,
+#define DECLARE_FLAG(Type) k##Type,
   GVN_TRACKED_FLAG_LIST(DECLARE_FLAG)
   GVN_UNTRACKED_FLAG_LIST(DECLARE_FLAG)
 #undef DECLARE_FLAG
-  kAfterLastFlag,
-  kLastFlag = kAfterLastFlag - 1,
-#define COUNT_FLAG(type) + 1
-  kNumberOfTrackedSideEffects = 0 GVN_TRACKED_FLAG_LIST(COUNT_FLAG)
+#define COUNT_FLAG(Type) + 1
+  kNumberOfTrackedSideEffects = 0 GVN_TRACKED_FLAG_LIST(COUNT_FLAG),
+  kNumberOfUntrackedSideEffects = 0 GVN_UNTRACKED_FLAG_LIST(COUNT_FLAG),
 #undef COUNT_FLAG
+  kNumberOfFlags = kNumberOfTrackedSideEffects + kNumberOfUntrackedSideEffects
 };
+
+
+static inline GVNFlag GVNFlagFromInt(int i) {
+  ASSERT(i >= 0);
+  ASSERT(i < kNumberOfFlags);
+  return static_cast<GVNFlag>(i);
+}
 
 
 class DecompositionResult V8_FINAL BASE_EMBEDDED {
@@ -541,7 +543,62 @@ class DecompositionResult V8_FINAL BASE_EMBEDDED {
 };
 
 
-typedef EnumSet<GVNFlag, int64_t> GVNFlagSet;
+typedef EnumSet<GVNFlag, int32_t> GVNFlagSet;
+
+
+// This class encapsulates encoding and decoding of sources positions from
+// which hydrogen values originated.
+// When FLAG_track_hydrogen_positions is set this object encodes the
+// identifier of the inlining and absolute offset from the start of the
+// inlined function.
+// When the flag is not set we simply track absolute offset from the
+// script start.
+class HSourcePosition {
+ public:
+  HSourcePosition(const HSourcePosition& other) : value_(other.value_) { }
+
+  static HSourcePosition Unknown() {
+    return HSourcePosition(RelocInfo::kNoPosition);
+  }
+
+  bool IsUnknown() const { return value_ == RelocInfo::kNoPosition; }
+
+  int position() const { return PositionField::decode(value_); }
+  void set_position(int position) {
+    if (FLAG_hydrogen_track_positions) {
+      value_ = static_cast<int>(PositionField::update(value_, position));
+    } else {
+      value_ = position;
+    }
+  }
+
+  int inlining_id() const { return InliningIdField::decode(value_); }
+  void set_inlining_id(int inlining_id) {
+    if (FLAG_hydrogen_track_positions) {
+      value_ = static_cast<int>(InliningIdField::update(value_, inlining_id));
+    }
+  }
+
+  int raw() const { return value_; }
+
+  void PrintTo(FILE* f);
+
+ private:
+  typedef BitField<int, 0, 9> InliningIdField;
+
+  // Offset from the start of the inlined function.
+  typedef BitField<int, 9, 22> PositionField;
+
+  // On HPositionInfo can use this constructor.
+  explicit HSourcePosition(int value) : value_(value) { }
+
+  friend class HPositionInfo;
+
+  // If FLAG_hydrogen_track_positions is set contains bitfields InliningIdField
+  // and PositionField.
+  // Otherwise contains absolute offset from the script start.
+  int value_;
+};
 
 
 class HValue : public ZoneObject {
@@ -573,7 +630,7 @@ class HValue : public ZoneObject {
     kIsDead,
     // Instructions that are allowed to produce full range unsigned integer
     // values are marked with kUint32 flag. If arithmetic shift or a load from
-    // EXTERNAL_UNSIGNED_INT_ELEMENTS array is not marked with this flag
+    // EXTERNAL_UINT32_ELEMENTS array is not marked with this flag
     // it will deoptimize if result does not fit into signed integer range.
     // HGraph::ComputeSafeUint32Operations is responsible for setting this
     // flag.
@@ -591,18 +648,6 @@ class HValue : public ZoneObject {
   };
 
   STATIC_ASSERT(kLastFlag < kBitsPerInt);
-
-  static const int kChangesToDependsFlagsLeftShift = 1;
-
-  static GVNFlag ChangesFlagFromInt(int x) {
-    return static_cast<GVNFlag>(x * 2);
-  }
-  static GVNFlag DependsOnFlagFromInt(int x) {
-    return static_cast<GVNFlag>(x * 2 + 1);
-  }
-  static GVNFlagSet ConvertChangesToDependsFlags(GVNFlagSet flags) {
-    return GVNFlagSet(flags.ToIntegral() << kChangesToDependsFlagsLeftShift);
-  }
 
   static HValue* cast(HValue* value) { return value; }
 
@@ -637,8 +682,12 @@ class HValue : public ZoneObject {
         flags_(0) {}
   virtual ~HValue() {}
 
-  virtual int position() const { return RelocInfo::kNoPosition; }
-  virtual int operand_position(int index) const { return position(); }
+  virtual HSourcePosition position() const {
+    return HSourcePosition::Unknown();
+  }
+  virtual HSourcePosition operand_position(int index) const {
+    return position();
+  }
 
   HBasicBlock* block() const { return block_; }
   void SetBlock(HBasicBlock* block);
@@ -779,43 +828,38 @@ class HValue : public ZoneObject {
   // of uses is non-empty.
   bool HasAtLeastOneUseWithFlagAndNoneWithout(Flag f) const;
 
-  GVNFlagSet gvn_flags() const { return gvn_flags_; }
-  void SetGVNFlag(GVNFlag f) { gvn_flags_.Add(f); }
-  void ClearGVNFlag(GVNFlag f) { gvn_flags_.Remove(f); }
-  bool CheckGVNFlag(GVNFlag f) const { return gvn_flags_.Contains(f); }
-  void SetAllSideEffects() { gvn_flags_.Add(AllSideEffectsFlagSet()); }
+  GVNFlagSet ChangesFlags() const { return changes_flags_; }
+  GVNFlagSet DependsOnFlags() const { return depends_on_flags_; }
+  void SetChangesFlag(GVNFlag f) { changes_flags_.Add(f); }
+  void SetDependsOnFlag(GVNFlag f) { depends_on_flags_.Add(f); }
+  void ClearChangesFlag(GVNFlag f) { changes_flags_.Remove(f); }
+  void ClearDependsOnFlag(GVNFlag f) { depends_on_flags_.Remove(f); }
+  bool CheckChangesFlag(GVNFlag f) const {
+    return changes_flags_.Contains(f);
+  }
+  bool CheckDependsOnFlag(GVNFlag f) const {
+    return depends_on_flags_.Contains(f);
+  }
+  void SetAllSideEffects() { changes_flags_.Add(AllSideEffectsFlagSet()); }
   void ClearAllSideEffects() {
-    gvn_flags_.Remove(AllSideEffectsFlagSet());
+    changes_flags_.Remove(AllSideEffectsFlagSet());
   }
   bool HasSideEffects() const {
-    return gvn_flags_.ContainsAnyOf(AllSideEffectsFlagSet());
+    return changes_flags_.ContainsAnyOf(AllSideEffectsFlagSet());
   }
   bool HasObservableSideEffects() const {
     return !CheckFlag(kHasNoObservableSideEffects) &&
-        gvn_flags_.ContainsAnyOf(AllObservableSideEffectsFlagSet());
-  }
-
-  GVNFlagSet DependsOnFlags() const {
-    GVNFlagSet result = gvn_flags_;
-    result.Intersect(AllDependsOnFlagSet());
-    return result;
+        changes_flags_.ContainsAnyOf(AllObservableSideEffectsFlagSet());
   }
 
   GVNFlagSet SideEffectFlags() const {
-    GVNFlagSet result = gvn_flags_;
+    GVNFlagSet result = ChangesFlags();
     result.Intersect(AllSideEffectsFlagSet());
     return result;
   }
 
-  GVNFlagSet ChangesFlags() const {
-    GVNFlagSet result = gvn_flags_;
-    result.Intersect(AllChangesFlagSet());
-    return result;
-  }
-
   GVNFlagSet ObservableChangesFlags() const {
-    GVNFlagSet result = gvn_flags_;
-    result.Intersect(AllChangesFlagSet());
+    GVNFlagSet result = ChangesFlags();
     result.Intersect(AllObservableSideEffectsFlagSet());
     return result;
   }
@@ -881,9 +925,11 @@ class HValue : public ZoneObject {
   // This function must be overridden for instructions which have the
   // kTrackSideEffectDominators flag set, to track instructions that are
   // dominating side effects.
-  virtual void HandleSideEffectDominator(GVNFlag side_effect,
+  // It returns true if it removed an instruction which had side effects.
+  virtual bool HandleSideEffectDominator(GVNFlag side_effect,
                                          HValue* dominator) {
     UNREACHABLE();
+    return false;
   }
 
   // Check if this instruction has some reason that prevents elimination.
@@ -954,20 +1000,9 @@ class HValue : public ZoneObject {
     representation_ = r;
   }
 
-  static GVNFlagSet AllDependsOnFlagSet() {
+  static GVNFlagSet AllFlagSet() {
     GVNFlagSet result;
-    // Create changes mask.
-#define ADD_FLAG(type) result.Add(kDependsOn##type);
-  GVN_TRACKED_FLAG_LIST(ADD_FLAG)
-  GVN_UNTRACKED_FLAG_LIST(ADD_FLAG)
-#undef ADD_FLAG
-    return result;
-  }
-
-  static GVNFlagSet AllChangesFlagSet() {
-    GVNFlagSet result;
-    // Create changes mask.
-#define ADD_FLAG(type) result.Add(kChanges##type);
+#define ADD_FLAG(Type) result.Add(k##Type);
   GVN_TRACKED_FLAG_LIST(ADD_FLAG)
   GVN_UNTRACKED_FLAG_LIST(ADD_FLAG)
 #undef ADD_FLAG
@@ -976,19 +1011,19 @@ class HValue : public ZoneObject {
 
   // A flag mask to mark an instruction as having arbitrary side effects.
   static GVNFlagSet AllSideEffectsFlagSet() {
-    GVNFlagSet result = AllChangesFlagSet();
-    result.Remove(kChangesOsrEntries);
+    GVNFlagSet result = AllFlagSet();
+    result.Remove(kOsrEntries);
     return result;
   }
 
   // A flag mask of all side effects that can make observable changes in
   // an executing program (i.e. are not safe to repeat, move or remove);
   static GVNFlagSet AllObservableSideEffectsFlagSet() {
-    GVNFlagSet result = AllChangesFlagSet();
-    result.Remove(kChangesNewSpacePromotion);
-    result.Remove(kChangesElementsKind);
-    result.Remove(kChangesElementsPointer);
-    result.Remove(kChangesMaps);
+    GVNFlagSet result = AllFlagSet();
+    result.Remove(kNewSpacePromotion);
+    result.Remove(kElementsKind);
+    result.Remove(kElementsPointer);
+    result.Remove(kMaps);
     return result;
   }
 
@@ -1009,7 +1044,8 @@ class HValue : public ZoneObject {
   HUseListNode* use_list_;
   Range* range_;
   int flags_;
-  GVNFlagSet gvn_flags_;
+  GVNFlagSet changes_flags_;
+  GVNFlagSet depends_on_flags_;
 
  private:
   virtual bool IsDeletable() const { return false; }
@@ -1108,25 +1144,22 @@ class HValue : public ZoneObject {
 // In the first case it contains intruction's position as a tagged value.
 // In the second case it points to an array which contains instruction's
 // position and operands' positions.
-// TODO(vegorov): what we really want to track here is a combination of
-// source position and a script id because cross script inlining can easily
-// result in optimized functions composed of several scripts.
 class HPositionInfo {
  public:
   explicit HPositionInfo(int pos) : data_(TagPosition(pos)) { }
 
-  int position() const {
+  HSourcePosition position() const {
     if (has_operand_positions()) {
-      return static_cast<int>(operand_positions()[kInstructionPosIndex]);
+      return operand_positions()[kInstructionPosIndex];
     }
-    return static_cast<int>(UntagPosition(data_));
+    return HSourcePosition(static_cast<int>(UntagPosition(data_)));
   }
 
-  void set_position(int pos) {
+  void set_position(HSourcePosition pos) {
     if (has_operand_positions()) {
       operand_positions()[kInstructionPosIndex] = pos;
     } else {
-      data_ = TagPosition(pos);
+      data_ = TagPosition(pos.raw());
     }
   }
 
@@ -1136,27 +1169,27 @@ class HPositionInfo {
     }
 
     const int length = kFirstOperandPosIndex + operand_count;
-    intptr_t* positions =
-        zone->NewArray<intptr_t>(length);
+    HSourcePosition* positions =
+        zone->NewArray<HSourcePosition>(length);
     for (int i = 0; i < length; i++) {
-      positions[i] = RelocInfo::kNoPosition;
+      positions[i] = HSourcePosition::Unknown();
     }
 
-    const int pos = position();
+    const HSourcePosition pos = position();
     data_ = reinterpret_cast<intptr_t>(positions);
     set_position(pos);
 
     ASSERT(has_operand_positions());
   }
 
-  int operand_position(int idx) const {
+  HSourcePosition operand_position(int idx) const {
     if (!has_operand_positions()) {
       return position();
     }
-    return static_cast<int>(*operand_position_slot(idx));
+    return *operand_position_slot(idx);
   }
 
-  void set_operand_position(int idx, int pos) {
+  void set_operand_position(int idx, HSourcePosition pos) {
     *operand_position_slot(idx) = pos;
   }
 
@@ -1164,7 +1197,7 @@ class HPositionInfo {
   static const intptr_t kInstructionPosIndex = 0;
   static const intptr_t kFirstOperandPosIndex = 1;
 
-  intptr_t* operand_position_slot(int idx) const {
+  HSourcePosition* operand_position_slot(int idx) const {
     ASSERT(has_operand_positions());
     return &(operand_positions()[kFirstOperandPosIndex + idx]);
   }
@@ -1173,9 +1206,9 @@ class HPositionInfo {
     return !IsTaggedPosition(data_);
   }
 
-  intptr_t* operand_positions() const {
+  HSourcePosition* operand_positions() const {
     ASSERT(has_operand_positions());
-    return reinterpret_cast<intptr_t*>(data_);
+    return reinterpret_cast<HSourcePosition*>(data_);
   }
 
   static const intptr_t kPositionTag = 1;
@@ -1207,27 +1240,39 @@ class HInstruction : public HValue {
 
   bool IsLinked() const { return block() != NULL; }
   void Unlink();
+
   void InsertBefore(HInstruction* next);
+
+  template<class T> T* Prepend(T* instr) {
+    instr->InsertBefore(this);
+    return instr;
+  }
+
   void InsertAfter(HInstruction* previous);
 
+  template<class T> T* Append(T* instr) {
+    instr->InsertAfter(this);
+    return instr;
+  }
+
   // The position is a write-once variable.
-  virtual int position() const V8_OVERRIDE {
-    return position_.position();
+  virtual HSourcePosition position() const V8_OVERRIDE {
+    return HSourcePosition(position_.position());
   }
   bool has_position() const {
-    return position_.position() != RelocInfo::kNoPosition;
+    return !position().IsUnknown();
   }
-  void set_position(int position) {
+  void set_position(HSourcePosition position) {
     ASSERT(!has_position());
-    ASSERT(position != RelocInfo::kNoPosition);
+    ASSERT(!position.IsUnknown());
     position_.set_position(position);
   }
 
-  virtual int operand_position(int index) const V8_OVERRIDE {
-    const int pos = position_.operand_position(index);
-    return (pos != RelocInfo::kNoPosition) ? pos : position();
+  virtual HSourcePosition operand_position(int index) const V8_OVERRIDE {
+    const HSourcePosition pos = position_.operand_position(index);
+    return pos.IsUnknown() ? position() : pos;
   }
-  void set_operand_position(Zone* zone, int index, int pos) {
+  void set_operand_position(Zone* zone, int index, HSourcePosition pos) {
     ASSERT(0 <= index && index < OperandCount());
     position_.ensure_storage_for_operand_positions(zone, OperandCount());
     position_.set_operand_position(index, pos);
@@ -1251,7 +1296,7 @@ class HInstruction : public HValue {
         next_(NULL),
         previous_(NULL),
         position_(RelocInfo::kNoPosition) {
-    SetGVNFlag(kDependsOnOsrEntries);
+    SetDependsOnFlag(kOsrEntries);
   }
 
   virtual void DeleteFromGraph() V8_OVERRIDE { Unlink(); }
@@ -1523,7 +1568,22 @@ class HCompareMap V8_FINAL : public HUnaryControlInstruction {
   DECLARE_INSTRUCTION_FACTORY_P4(HCompareMap, HValue*, Handle<Map>,
                                  HBasicBlock*, HBasicBlock*);
 
+  virtual bool KnownSuccessorBlock(HBasicBlock** block) V8_OVERRIDE {
+    if (known_successor_index() != kNoKnownSuccessorIndex) {
+      *block = SuccessorAt(known_successor_index());
+      return true;
+    }
+    *block = NULL;
+    return false;
+  }
+
   virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
+
+  static const int kNoKnownSuccessorIndex = -1;
+  int known_successor_index() const { return known_successor_index_; }
+  void set_known_successor_index(int known_successor_index) {
+    known_successor_index_ = known_successor_index;
+  }
 
   Unique<Map> map() const { return map_; }
 
@@ -1542,10 +1602,12 @@ class HCompareMap V8_FINAL : public HUnaryControlInstruction {
               HBasicBlock* true_target = NULL,
               HBasicBlock* false_target = NULL)
       : HUnaryControlInstruction(value, true_target, false_target),
-        map_(Unique<Map>(map)) {
+        known_successor_index_(kNoKnownSuccessorIndex), map_(Unique<Map>(map)) {
     ASSERT(!map.is_null());
+    set_representation(Representation::Tagged());
   }
 
+  int known_successor_index_;
   Unique<Map> map_;
 };
 
@@ -1581,6 +1643,8 @@ class HReturn V8_FINAL : public HTemplateControlInstruction<0, 3> {
   DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P1(HReturn, HValue*);
 
   virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
+    // TODO(titzer): require an Int32 input for faster returns.
+    if (index == 2) return Representation::Smi();
     return Representation::Tagged();
   }
 
@@ -1628,28 +1692,6 @@ class HUnaryOperation : public HTemplateInstruction<1> {
 
   HValue* value() const { return OperandAt(0); }
   virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
-};
-
-
-class HThrow V8_FINAL : public HTemplateInstruction<2> {
- public:
-  DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P1(HThrow, HValue*);
-
-  virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
-    return Representation::Tagged();
-  }
-
-  HValue* context() { return OperandAt(0); }
-  HValue* value() { return OperandAt(1); }
-
-  DECLARE_CONCRETE_INSTRUCTION(Throw)
-
- private:
-  HThrow(HValue* context, HValue* value) {
-    SetOperandAt(0, context);
-    SetOperandAt(1, value);
-    SetAllSideEffects();
-  }
 };
 
 
@@ -1715,7 +1757,7 @@ class HChange V8_FINAL : public HUnaryOperation {
       set_type(HType::Smi());
     } else {
       set_type(HType::TaggedNumber());
-      if (to.IsTagged()) SetGVNFlag(kChangesNewSpacePromotion);
+      if (to.IsTagged()) SetChangesFlag(kNewSpacePromotion);
     }
   }
 
@@ -1961,7 +2003,7 @@ class HStackCheck V8_FINAL : public HTemplateInstruction<1> {
  private:
   HStackCheck(HValue* context, Type type) : type_(type) {
     SetOperandAt(0, context);
-    SetGVNFlag(kChangesNewSpacePromotion);
+    SetChangesFlag(kNewSpacePromotion);
   }
 
   Type type_;
@@ -1969,8 +2011,7 @@ class HStackCheck V8_FINAL : public HTemplateInstruction<1> {
 
 
 enum InliningKind {
-  NORMAL_RETURN,          // Normal function/method call and return.
-  DROP_EXTRA_ON_RETURN,   // Drop an extra value from the environment on return.
+  NORMAL_RETURN,          // Drop the function from the environment on return.
   CONSTRUCT_CALL_RETURN,  // Either use allocated receiver or return value.
   GETTER_CALL_RETURN,     // Returning from a getter, need to restore context.
   SETTER_CALL_RETURN      // Use the RHS of the assignment as the return value.
@@ -2111,29 +2152,6 @@ class HThisFunction V8_FINAL : public HTemplateInstruction<0> {
 };
 
 
-class HOuterContext V8_FINAL : public HUnaryOperation {
- public:
-  DECLARE_INSTRUCTION_FACTORY_P1(HOuterContext, HValue*);
-
-  DECLARE_CONCRETE_INSTRUCTION(OuterContext);
-
-  virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
-    return Representation::Tagged();
-  }
-
- protected:
-  virtual bool DataEquals(HValue* other) V8_OVERRIDE { return true; }
-
- private:
-  explicit HOuterContext(HValue* inner) : HUnaryOperation(inner) {
-    set_representation(Representation::Tagged());
-    SetFlag(kUseGVN);
-  }
-
-  virtual bool IsDeletable() const V8_OVERRIDE { return true; }
-};
-
-
 class HDeclareGlobals V8_FINAL : public HUnaryOperation {
  public:
   DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P2(HDeclareGlobals,
@@ -2163,53 +2181,6 @@ class HDeclareGlobals V8_FINAL : public HUnaryOperation {
 
   Handle<FixedArray> pairs_;
   int flags_;
-};
-
-
-class HGlobalObject V8_FINAL : public HUnaryOperation {
- public:
-  DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P0(HGlobalObject);
-
-  DECLARE_CONCRETE_INSTRUCTION(GlobalObject)
-
-  virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
-    return Representation::Tagged();
-  }
-
- protected:
-  virtual bool DataEquals(HValue* other) V8_OVERRIDE { return true; }
-
- private:
-  explicit HGlobalObject(HValue* context) : HUnaryOperation(context) {
-    set_representation(Representation::Tagged());
-    SetFlag(kUseGVN);
-  }
-
-  virtual bool IsDeletable() const V8_OVERRIDE { return true; }
-};
-
-
-class HGlobalReceiver V8_FINAL : public HUnaryOperation {
- public:
-  DECLARE_INSTRUCTION_FACTORY_P1(HGlobalReceiver, HValue*);
-
-  DECLARE_CONCRETE_INSTRUCTION(GlobalReceiver)
-
-  virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
-    return Representation::Tagged();
-  }
-
- protected:
-  virtual bool DataEquals(HValue* other) V8_OVERRIDE { return true; }
-
- private:
-  explicit HGlobalReceiver(HValue* global_object)
-      : HUnaryOperation(global_object) {
-    set_representation(Representation::Tagged());
-    SetFlag(kUseGVN);
-  }
-
-  virtual bool IsDeletable() const V8_OVERRIDE { return true; }
 };
 
 
@@ -2457,39 +2428,28 @@ class HInvokeFunction V8_FINAL : public HBinaryCall {
 };
 
 
-enum CallMode {
-  NORMAL_CALL,
-  TAIL_CALL,
-  NORMAL_CONTEXTUAL_CALL
-};
-
-
 class HCallFunction V8_FINAL : public HBinaryCall {
  public:
   DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P2(HCallFunction, HValue*, int);
   DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P3(
-      HCallFunction, HValue*, int, CallMode);
+      HCallFunction, HValue*, int, CallFunctionFlags);
 
-  bool IsTailCall() const { return call_mode_ == TAIL_CALL; }
-  bool IsContextualCall() const { return call_mode_ == NORMAL_CONTEXTUAL_CALL; }
   HValue* context() { return first(); }
   HValue* function() { return second(); }
+  CallFunctionFlags function_flags() const { return function_flags_; }
 
   DECLARE_CONCRETE_INSTRUCTION(CallFunction)
 
-  virtual int argument_delta() const V8_OVERRIDE {
-    if (IsTailCall()) return 0;
-    return -argument_count();
-  }
+  virtual int argument_delta() const V8_OVERRIDE { return -argument_count(); }
 
  private:
   HCallFunction(HValue* context,
                 HValue* function,
                 int argument_count,
-                CallMode mode = NORMAL_CALL)
-      : HBinaryCall(context, function, argument_count), call_mode_(mode) {
+                CallFunctionFlags flags = NO_CALL_FUNCTION_FLAGS)
+      : HBinaryCall(context, function, argument_count), function_flags_(flags) {
   }
-  CallMode call_mode_;
+  CallFunctionFlags function_flags_;
 };
 
 
@@ -2510,10 +2470,9 @@ class HCallNew V8_FINAL : public HBinaryCall {
 
 class HCallNewArray V8_FINAL : public HBinaryCall {
  public:
-  DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P4(HCallNewArray,
+  DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P3(HCallNewArray,
                                               HValue*,
                                               int,
-                                              Handle<Cell>,
                                               ElementsKind);
 
   HValue* context() { return first(); }
@@ -2521,23 +2480,17 @@ class HCallNewArray V8_FINAL : public HBinaryCall {
 
   virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
 
-  Handle<Cell> property_cell() const {
-    return type_cell_;
-  }
-
   ElementsKind elements_kind() const { return elements_kind_; }
 
   DECLARE_CONCRETE_INSTRUCTION(CallNewArray)
 
  private:
   HCallNewArray(HValue* context, HValue* constructor, int argument_count,
-                Handle<Cell> type_cell, ElementsKind elements_kind)
+                ElementsKind elements_kind)
       : HBinaryCall(context, constructor, argument_count),
-        elements_kind_(elements_kind),
-        type_cell_(type_cell) {}
+        elements_kind_(elements_kind) {}
 
   ElementsKind elements_kind_;
-  Handle<Cell> type_cell_;
 };
 
 
@@ -2598,31 +2551,9 @@ class HMapEnumLength V8_FINAL : public HUnaryOperation {
       : HUnaryOperation(value, HType::Smi()) {
     set_representation(Representation::Smi());
     SetFlag(kUseGVN);
-    SetGVNFlag(kDependsOnMaps);
+    SetDependsOnFlag(kMaps);
   }
 
-  virtual bool IsDeletable() const V8_OVERRIDE { return true; }
-};
-
-
-class HElementsKind V8_FINAL : public HUnaryOperation {
- public:
-  explicit HElementsKind(HValue* value) : HUnaryOperation(value) {
-    set_representation(Representation::Integer32());
-    SetFlag(kUseGVN);
-    SetGVNFlag(kDependsOnElementsKind);
-  }
-
-  virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
-    return Representation::Tagged();
-  }
-
-  DECLARE_CONCRETE_INSTRUCTION(ElementsKind)
-
- protected:
-  virtual bool DataEquals(HValue* other) V8_OVERRIDE { return true; }
-
- private:
   virtual bool IsDeletable() const V8_OVERRIDE { return true; }
 };
 
@@ -2656,6 +2587,8 @@ class HUnaryMathOperation V8_FINAL : public HTemplateInstruction<2> {
           return Representation::Double();
         case kMathAbs:
           return representation();
+        case kMathClz32:
+          return Representation::Integer32();
         default:
           UNREACHABLE();
           return Representation::None();
@@ -2687,6 +2620,7 @@ class HUnaryMathOperation V8_FINAL : public HTemplateInstruction<2> {
     switch (op) {
       case kMathFloor:
       case kMathRound:
+      case kMathClz32:
         set_representation(Representation::Integer32());
         break;
       case kMathAbs:
@@ -2694,7 +2628,7 @@ class HUnaryMathOperation V8_FINAL : public HTemplateInstruction<2> {
         SetFlag(kFlexibleRepresentation);
         // TODO(svenpanne) This flag is actually only needed if representation()
         // is tagged, and not when it is an unboxed double or unboxed integer.
-        SetGVNFlag(kChangesNewSpacePromotion);
+        SetChangesFlag(kNewSpacePromotion);
         break;
       case kMathLog:
       case kMathExp:
@@ -2710,6 +2644,9 @@ class HUnaryMathOperation V8_FINAL : public HTemplateInstruction<2> {
   }
 
   virtual bool IsDeletable() const V8_OVERRIDE { return true; }
+
+  HValue* SimplifiedDividendForMathFloorOfDiv(HDiv* hdiv);
+  HValue* SimplifiedDivisorForMathFloorOfDiv(HDiv* hdiv);
 
   BuiltinFunctionId op_;
 };
@@ -2740,7 +2677,7 @@ class HLoadRoot V8_FINAL : public HTemplateInstruction<0> {
     SetFlag(kUseGVN);
     // TODO(bmeurer): We'll need kDependsOnRoots once we add the
     // corresponding HStoreRoot instruction.
-    SetGVNFlag(kDependsOnCalls);
+    SetDependsOnFlag(kCalls);
   }
 
   virtual bool IsDeletable() const V8_OVERRIDE { return true; }
@@ -2749,46 +2686,14 @@ class HLoadRoot V8_FINAL : public HTemplateInstruction<0> {
 };
 
 
-class HLoadExternalArrayPointer V8_FINAL : public HUnaryOperation {
- public:
-  DECLARE_INSTRUCTION_FACTORY_P1(HLoadExternalArrayPointer, HValue*);
-
-  virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
-    return Representation::Tagged();
-  }
-
-  virtual HType CalculateInferredType() V8_OVERRIDE {
-    return HType::None();
-  }
-
-  DECLARE_CONCRETE_INSTRUCTION(LoadExternalArrayPointer)
-
- protected:
-  virtual bool DataEquals(HValue* other) V8_OVERRIDE { return true; }
-
- private:
-  explicit HLoadExternalArrayPointer(HValue* value)
-      : HUnaryOperation(value) {
-    set_representation(Representation::External());
-    // The result of this instruction is idempotent as long as its inputs don't
-    // change.  The external array of a specialized array elements object cannot
-    // change once set, so it's no necessary to introduce any additional
-    // dependencies on top of the inputs.
-    SetFlag(kUseGVN);
-  }
-
-  virtual bool IsDeletable() const V8_OVERRIDE { return true; }
-};
-
-
 class HCheckMaps V8_FINAL : public HTemplateInstruction<2> {
  public:
   static HCheckMaps* New(Zone* zone, HValue* context, HValue* value,
                          Handle<Map> map, CompilationInfo* info,
-                         HValue *typecheck = NULL);
+                         HValue* typecheck = NULL);
   static HCheckMaps* New(Zone* zone, HValue* context,
                          HValue* value, SmallMapList* maps,
-                         HValue *typecheck = NULL) {
+                         HValue* typecheck = NULL) {
     HCheckMaps* check_map = new(zone) HCheckMaps(value, zone, typecheck);
     for (int i = 0; i < maps->length(); i++) {
       check_map->Add(maps->at(i), zone);
@@ -2802,14 +2707,22 @@ class HCheckMaps V8_FINAL : public HTemplateInstruction<2> {
   virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
     return Representation::Tagged();
   }
-  virtual void HandleSideEffectDominator(GVNFlag side_effect,
+  virtual bool HandleSideEffectDominator(GVNFlag side_effect,
                                          HValue* dominator) V8_OVERRIDE;
   virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
 
   HValue* value() { return OperandAt(0); }
+  HValue* typecheck() { return OperandAt(1); }
 
   Unique<Map> first_map() const { return map_set_.at(0); }
   UniqueSet<Map> map_set() const { return map_set_; }
+
+  void set_map_set(UniqueSet<Map>* maps, Zone *zone) {
+    map_set_.Clear();
+    for (int i = 0; i < maps->size(); i++) {
+      map_set_.Add(maps->at(i), zone);
+    }
+  }
 
   bool has_migration_target() const {
     return has_migration_target_;
@@ -2827,9 +2740,12 @@ class HCheckMaps V8_FINAL : public HTemplateInstruction<2> {
  private:
   void Add(Handle<Map> map, Zone* zone) {
     map_set_.Add(Unique<Map>(map), zone);
+    SetDependsOnFlag(kMaps);
+    SetDependsOnFlag(kElementsKind);
+
     if (!has_migration_target_ && map->is_migration_target()) {
       has_migration_target_ = true;
-      SetGVNFlag(kChangesNewSpacePromotion);
+      SetChangesFlag(kNewSpacePromotion);
     }
   }
 
@@ -2843,8 +2759,6 @@ class HCheckMaps V8_FINAL : public HTemplateInstruction<2> {
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
     SetFlag(kTrackSideEffectDominators);
-    SetGVNFlag(kDependsOnMaps);
-    SetGVNFlag(kDependsOnElementsKind);
   }
 
   bool omit_;
@@ -3283,7 +3197,7 @@ class HPhi V8_FINAL : public HValue {
   bool IsReceiver() const { return merged_index_ == 0; }
   bool HasMergedIndex() const { return merged_index_ != kInvalidMergedIndex; }
 
-  virtual int position() const V8_OVERRIDE;
+  virtual HSourcePosition position() const V8_OVERRIDE;
 
   int merged_index() const { return merged_index_; }
 
@@ -3448,7 +3362,7 @@ class HCapturedObject V8_FINAL : public HDematerializedObject {
   void ReuseSideEffectsFromStore(HInstruction* store) {
     ASSERT(store->HasObservableSideEffects());
     ASSERT(store->IsStoreNamedField());
-    gvn_flags_.Add(store->gvn_flags());
+    changes_flags_.Add(store->ChangesFlags());
   }
 
   // Replay effects of this instruction on the given environment.
@@ -3481,10 +3395,8 @@ class HConstant V8_FINAL : public HTemplateInstruction<0> {
                                          int32_t value,
                                          Representation representation,
                                          HInstruction* instruction) {
-    HConstant* new_constant =
-        HConstant::New(zone, context, value, representation);
-    new_constant->InsertAfter(instruction);
-    return new_constant;
+    return instruction->Append(HConstant::New(
+        zone, context, value, representation));
   }
 
   static HConstant* CreateAndInsertBefore(Zone* zone,
@@ -3492,21 +3404,17 @@ class HConstant V8_FINAL : public HTemplateInstruction<0> {
                                           int32_t value,
                                           Representation representation,
                                           HInstruction* instruction) {
-    HConstant* new_constant =
-        HConstant::New(zone, context, value, representation);
-    new_constant->InsertBefore(instruction);
-    return new_constant;
+    return instruction->Prepend(HConstant::New(
+        zone, context, value, representation));
   }
 
   static HConstant* CreateAndInsertBefore(Zone* zone,
                                           Unique<Object> unique,
                                           bool is_not_in_new_space,
                                           HInstruction* instruction) {
-    HConstant* new_constant = new(zone) HConstant(unique,
-        Representation::Tagged(), HType::Tagged(), false, is_not_in_new_space,
-        false, false);
-    new_constant->InsertBefore(instruction);
-    return new_constant;
+    return instruction->Prepend(new(zone) HConstant(
+        unique, Representation::Tagged(), HType::Tagged(), false,
+        is_not_in_new_space, false, false));
   }
 
   Handle<Object> handle(Isolate* isolate) {
@@ -3538,33 +3446,7 @@ class HConstant V8_FINAL : public HTemplateInstruction<0> {
     return is_not_in_new_space_;
   }
 
-  bool ImmortalImmovable() const {
-    if (has_int32_value_) {
-      return false;
-    }
-    if (has_double_value_) {
-      if (IsSpecialDouble()) {
-        return true;
-      }
-      return false;
-    }
-    if (has_external_reference_value_) {
-      return false;
-    }
-
-    ASSERT(!object_.handle().is_null());
-    Heap* heap = isolate()->heap();
-    ASSERT(!object_.IsKnownGlobal(heap->minus_zero_value()));
-    ASSERT(!object_.IsKnownGlobal(heap->nan_value()));
-    return
-        object_.IsKnownGlobal(heap->undefined_value()) ||
-        object_.IsKnownGlobal(heap->null_value()) ||
-        object_.IsKnownGlobal(heap->true_value()) ||
-        object_.IsKnownGlobal(heap->false_value()) ||
-        object_.IsKnownGlobal(heap->the_hole_value()) ||
-        object_.IsKnownGlobal(heap->empty_string()) ||
-        object_.IsKnownGlobal(heap->empty_fixed_array());
-  }
+  bool ImmortalImmovable() const;
 
   bool IsCell() const {
     return is_cell_;
@@ -3820,7 +3702,9 @@ class HBinaryOperation : public HTemplateInstruction<3> {
     return representation();
   }
 
-  void SetOperandPositions(Zone* zone, int left_pos, int right_pos) {
+  void SetOperandPositions(Zone* zone,
+                           HSourcePosition left_pos,
+                           HSourcePosition right_pos) {
     set_operand_position(zone, 1, left_pos);
     set_operand_position(zone, 2, right_pos);
   }
@@ -3839,6 +3723,8 @@ class HWrapReceiver V8_FINAL : public HTemplateInstruction<2> {
  public:
   DECLARE_INSTRUCTION_FACTORY_P2(HWrapReceiver, HValue*, HValue*);
 
+  virtual bool DataEquals(HValue* other) V8_OVERRIDE { return true; }
+
   virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
     return Representation::Tagged();
   }
@@ -3849,15 +3735,21 @@ class HWrapReceiver V8_FINAL : public HTemplateInstruction<2> {
   virtual HValue* Canonicalize() V8_OVERRIDE;
 
   virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
+  bool known_function() const { return known_function_; }
 
   DECLARE_CONCRETE_INSTRUCTION(WrapReceiver)
 
  private:
   HWrapReceiver(HValue* receiver, HValue* function) {
+    known_function_ = function->IsConstant() &&
+        HConstant::cast(function)->handle(function->isolate())->IsJSFunction();
     set_representation(Representation::Tagged());
     SetOperandAt(0, receiver);
     SetOperandAt(1, function);
+    SetFlag(kUseGVN);
   }
+
+  bool known_function_;
 };
 
 
@@ -4105,7 +3997,7 @@ class HBitwiseBinaryOperation : public HBinaryOperation {
   }
 
   virtual void RepresentationChanged(Representation to) V8_OVERRIDE {
-    if (to.IsTagged()) SetGVNFlag(kChangesNewSpacePromotion);
+    if (to.IsTagged()) SetChangesFlag(kNewSpacePromotion);
     if (to.IsTagged() &&
         (left()->ToNumberCanBeObserved() || right()->ToNumberCanBeObserved())) {
       SetAllSideEffects();
@@ -4182,7 +4074,7 @@ class HArithmeticBinaryOperation : public HBinaryOperation {
   }
 
   virtual void RepresentationChanged(Representation to) V8_OVERRIDE {
-    if (to.IsTagged()) SetGVNFlag(kChangesNewSpacePromotion);
+    if (to.IsTagged()) SetChangesFlag(kNewSpacePromotion);
     if (to.IsTagged() &&
         (left()->ToNumberCanBeObserved() || right()->ToNumberCanBeObserved())) {
       SetAllSideEffects();
@@ -4193,7 +4085,14 @@ class HArithmeticBinaryOperation : public HBinaryOperation {
     }
   }
 
+  bool RightIsPowerOf2() {
+    if (!right()->IsInteger32Constant()) return false;
+    int32_t value = right()->GetInteger32Constant();
+    return value != 0 && (IsPowerOf2(value) || IsPowerOf2(-value));
+  }
+
   DECLARE_ABSTRACT_INSTRUCTION(ArithmeticBinaryOperation)
+
  private:
   virtual bool IsDeletable() const V8_OVERRIDE { return true; }
 };
@@ -4260,7 +4159,9 @@ class HCompareNumericAndBranch : public HTemplateControlInstruction<2, 2> {
   }
   virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
 
-  void SetOperandPositions(Zone* zone, int left_pos, int right_pos) {
+  void SetOperandPositions(Zone* zone,
+                           HSourcePosition left_pos,
+                           HSourcePosition right_pos) {
     set_operand_position(zone, 0, left_pos);
     set_operand_position(zone, 1, right_pos);
   }
@@ -4410,6 +4311,9 @@ class HIsStringAndBranch V8_FINAL : public HUnaryControlInstruction {
 
   DECLARE_CONCRETE_INSTRUCTION(IsStringAndBranch)
 
+ protected:
+  virtual int RedefinedOperandIndex() { return 0; }
+
  private:
   HIsStringAndBranch(HValue* value,
                      HBasicBlock* true_target = NULL,
@@ -4432,6 +4336,7 @@ class HIsSmiAndBranch V8_FINAL : public HUnaryControlInstruction {
 
  protected:
   virtual bool DataEquals(HValue* other) V8_OVERRIDE { return true; }
+  virtual int RedefinedOperandIndex() { return 0; }
 
  private:
   HIsSmiAndBranch(HValue* value,
@@ -4496,7 +4401,7 @@ class HStringCompareAndBranch : public HTemplateControlInstruction<2, 3> {
     SetOperandAt(1, left);
     SetOperandAt(2, right);
     set_representation(Representation::Tagged());
-    SetGVNFlag(kChangesNewSpacePromotion);
+    SetChangesFlag(kNewSpacePromotion);
   }
 
   Token::Value token_;
@@ -4721,7 +4626,7 @@ class HPower V8_FINAL : public HTemplateInstruction<2> {
     SetOperandAt(1, right);
     set_representation(Representation::Double());
     SetFlag(kUseGVN);
-    SetGVNFlag(kChangesNewSpacePromotion);
+    SetChangesFlag(kNewSpacePromotion);
   }
 
   virtual bool IsDeletable() const V8_OVERRIDE {
@@ -4763,7 +4668,7 @@ class HAdd V8_FINAL : public HArithmeticBinaryOperation {
 
   virtual void RepresentationChanged(Representation to) V8_OVERRIDE {
     if (to.IsTagged()) {
-      SetGVNFlag(kChangesNewSpacePromotion);
+      SetChangesFlag(kNewSpacePromotion);
       ClearFlag(kAllowUndefinedAsNaN);
     }
     if (to.IsTagged() &&
@@ -4892,16 +4797,6 @@ class HMod V8_FINAL : public HArithmeticBinaryOperation {
                            HValue* left,
                            HValue* right);
 
-  bool HasPowerOf2Divisor() {
-    if (right()->IsConstant() &&
-        HConstant::cast(right())->HasInteger32Value()) {
-      int32_t value = HConstant::cast(right())->Integer32Value();
-      return value != 0 && (IsPowerOf2(value) || IsPowerOf2(-value));
-    }
-
-    return false;
-  }
-
   virtual HValue* EnsureAndPropagateNotMinusZero(
       BitVector* visited) V8_OVERRIDE;
 
@@ -4937,15 +4832,6 @@ class HDiv V8_FINAL : public HArithmeticBinaryOperation {
                            HValue* context,
                            HValue* left,
                            HValue* right);
-
-  bool HasPowerOf2Divisor() {
-    if (right()->IsInteger32Constant()) {
-      int32_t value = right()->GetInteger32Constant();
-      return value != 0 && (IsPowerOf2(value) || IsPowerOf2(-value));
-    }
-
-    return false;
-  }
 
   virtual HValue* EnsureAndPropagateNotMinusZero(
       BitVector* visited) V8_OVERRIDE;
@@ -5239,8 +5125,8 @@ class HOsrEntry V8_FINAL : public HTemplateInstruction<0> {
 
  private:
   explicit HOsrEntry(BailoutId ast_id) : ast_id_(ast_id) {
-    SetGVNFlag(kChangesOsrEntries);
-    SetGVNFlag(kChangesNewSpacePromotion);
+    SetChangesFlag(kOsrEntries);
+    SetChangesFlag(kNewSpacePromotion);
   }
 
   BailoutId ast_id_;
@@ -5382,7 +5268,7 @@ class HLoadGlobalCell V8_FINAL : public HTemplateInstruction<0> {
     : cell_(Unique<Cell>::CreateUninitialized(cell)), details_(details) {
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
-    SetGVNFlag(kDependsOnGlobalVars);
+    SetDependsOnFlag(kGlobalVars);
   }
 
   virtual bool IsDeletable() const V8_OVERRIDE { return !RequiresHoleCheck(); }
@@ -5502,7 +5388,7 @@ class HAllocate V8_FINAL : public HTemplateInstruction<2> {
     flags_ = static_cast<HAllocate::Flags>(flags_ | ALLOCATE_DOUBLE_ALIGNED);
   }
 
-  virtual void HandleSideEffectDominator(GVNFlag side_effect,
+  virtual bool HandleSideEffectDominator(GVNFlag side_effect,
                                          HValue* dominator) V8_OVERRIDE;
 
   virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
@@ -5534,8 +5420,8 @@ class HAllocate V8_FINAL : public HTemplateInstruction<2> {
     SetOperandAt(1, size);
     set_representation(Representation::Tagged());
     SetFlag(kTrackSideEffectDominators);
-    SetGVNFlag(kChangesNewSpacePromotion);
-    SetGVNFlag(kDependsOnNewSpacePromotion);
+    SetChangesFlag(kNewSpacePromotion);
+    SetDependsOnFlag(kNewSpacePromotion);
 
     if (FLAG_trace_pretenuring) {
       PrintF("HAllocate with AllocationSite %p %s\n",
@@ -5733,7 +5619,7 @@ class HStoreGlobalCell V8_FINAL : public HUnaryOperation {
       : HUnaryOperation(value),
         cell_(Unique<PropertyCell>::CreateUninitialized(cell)),
         details_(details) {
-    SetGVNFlag(kChangesGlobalVars);
+    SetChangesFlag(kGlobalVars);
   }
 
   Unique<PropertyCell> cell_;
@@ -5772,7 +5658,7 @@ class HLoadContextSlot V8_FINAL : public HUnaryOperation {
     }
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
-    SetGVNFlag(kDependsOnContextSlots);
+    SetDependsOnFlag(kContextSlots);
   }
 
   int slot_index() const { return slot_index_; }
@@ -5856,7 +5742,7 @@ class HStoreContextSlot V8_FINAL : public HTemplateInstruction<2> {
       : slot_index_(slot_index), mode_(mode) {
     SetOperandAt(0, context);
     SetOperandAt(1, value);
-    SetGVNFlag(kChangesContextSlots);
+    SetChangesFlag(kContextSlots);
   }
 
   int slot_index_;
@@ -5896,8 +5782,15 @@ class HObjectAccess V8_FINAL {
     return ImmutableField::decode(value_);
   }
 
+  // Returns true if access is being made to an in-object property that
+  // was already added to the object.
+  inline bool existing_inobject_property() const {
+    return ExistingInobjectPropertyField::decode(value_);
+  }
+
   inline HObjectAccess WithRepresentation(Representation representation) {
-    return HObjectAccess(portion(), offset(), representation, name());
+    return HObjectAccess(portion(), offset(), representation, name(),
+                         immutable(), existing_inobject_property());
   }
 
   static HObjectAccess ForHeapNumberValue() {
@@ -5941,7 +5834,8 @@ class HObjectAccess V8_FINAL {
   static HObjectAccess ForAllocationSiteOffset(int offset);
 
   static HObjectAccess ForAllocationSiteList() {
-    return HObjectAccess(kExternalMemory, 0, Representation::Tagged());
+    return HObjectAccess(kExternalMemory, 0, Representation::Tagged(),
+                         Handle<String>::null(), false, false);
   }
 
   static HObjectAccess ForFixedArrayLength() {
@@ -6043,15 +5937,28 @@ class HObjectAccess V8_FINAL {
   }
 
   static HObjectAccess ForCounter() {
-    return HObjectAccess(kExternalMemory, 0, Representation::Integer32());
+    return HObjectAccess(kExternalMemory, 0, Representation::Integer32(),
+                         Handle<String>::null(), false, false);
   }
 
   // Create an access to an offset in a fixed array header.
   static HObjectAccess ForFixedArrayHeader(int offset);
 
   // Create an access to an in-object property in a JSObject.
-  static HObjectAccess ForJSObjectOffset(int offset,
+  // This kind of access must be used when the object |map| is known and
+  // in-object properties are being accessed. Accesses of the in-object
+  // properties can have different semantics depending on whether corresponding
+  // property was added to the map or not.
+  static HObjectAccess ForMapAndOffset(Handle<Map> map, int offset,
       Representation representation = Representation::Tagged());
+
+  // Create an access to an in-object property in a JSObject.
+  // This kind of access can be used for accessing object header fields or
+  // in-object properties if the map of the object is not known.
+  static HObjectAccess ForObservableJSObjectOffset(int offset,
+      Representation representation = Representation::Tagged()) {
+    return ForMapAndOffset(Handle<Map>::null(), offset, representation);
+  }
 
   // Create an access to an in-object property in a JSArray.
   static HObjectAccess ForJSArrayOffset(int offset);
@@ -6070,50 +5977,57 @@ class HObjectAccess V8_FINAL {
   static HObjectAccess ForCellPayload(Isolate* isolate);
 
   static HObjectAccess ForJSTypedArrayLength() {
-    return HObjectAccess::ForJSObjectOffset(JSTypedArray::kLengthOffset);
+    return HObjectAccess::ForObservableJSObjectOffset(
+        JSTypedArray::kLengthOffset);
   }
 
   static HObjectAccess ForJSArrayBufferBackingStore() {
-    return HObjectAccess::ForJSObjectOffset(
+    return HObjectAccess::ForObservableJSObjectOffset(
         JSArrayBuffer::kBackingStoreOffset, Representation::External());
   }
 
   static HObjectAccess ForExternalArrayExternalPointer() {
-    return HObjectAccess::ForJSObjectOffset(
+    return HObjectAccess::ForObservableJSObjectOffset(
         ExternalArray::kExternalPointerOffset, Representation::External());
   }
 
   static HObjectAccess ForJSArrayBufferViewWeakNext() {
-    return HObjectAccess::ForJSObjectOffset(JSArrayBufferView::kWeakNextOffset);
+    return HObjectAccess::ForObservableJSObjectOffset(
+        JSArrayBufferView::kWeakNextOffset);
   }
 
   static HObjectAccess ForJSArrayBufferWeakFirstView() {
-    return HObjectAccess::ForJSObjectOffset(
+    return HObjectAccess::ForObservableJSObjectOffset(
         JSArrayBuffer::kWeakFirstViewOffset);
   }
 
   static HObjectAccess ForJSArrayBufferViewBuffer() {
-    return HObjectAccess::ForJSObjectOffset(JSArrayBufferView::kBufferOffset);
+    return HObjectAccess::ForObservableJSObjectOffset(
+        JSArrayBufferView::kBufferOffset);
   }
 
   static HObjectAccess ForJSArrayBufferViewByteOffset() {
-    return HObjectAccess::ForJSObjectOffset(
+    return HObjectAccess::ForObservableJSObjectOffset(
         JSArrayBufferView::kByteOffsetOffset);
   }
 
   static HObjectAccess ForJSArrayBufferViewByteLength() {
-    return HObjectAccess::ForJSObjectOffset(
+    return HObjectAccess::ForObservableJSObjectOffset(
         JSArrayBufferView::kByteLengthOffset);
   }
 
-  void PrintTo(StringStream* stream);
+  static HObjectAccess ForGlobalObjectNativeContext() {
+    return HObjectAccess(kInobject, GlobalObject::kNativeContextOffset);
+  }
+
+  void PrintTo(StringStream* stream) const;
 
   inline bool Equals(HObjectAccess that) const {
     return value_ == that.value_;  // portion and offset must match
   }
 
  protected:
-  void SetGVNFlags(HValue *instr, bool is_store);
+  void SetGVNFlags(HValue *instr, PropertyAccessType access_type);
 
  private:
   // internal use only; different parts of an object or array
@@ -6128,32 +6042,41 @@ class HObjectAccess V8_FINAL {
     kExternalMemory    // some field in external memory
   };
 
+  HObjectAccess() : value_(0) {}
+
   HObjectAccess(Portion portion, int offset,
                 Representation representation = Representation::Tagged(),
                 Handle<String> name = Handle<String>::null(),
-                bool immutable = false)
+                bool immutable = false,
+                bool existing_inobject_property = true)
     : value_(PortionField::encode(portion) |
              RepresentationField::encode(representation.kind()) |
              ImmutableField::encode(immutable ? 1 : 0) |
+             ExistingInobjectPropertyField::encode(
+                 existing_inobject_property ? 1 : 0) |
              OffsetField::encode(offset)),
       name_(name) {
     // assert that the fields decode correctly
     ASSERT(this->offset() == offset);
     ASSERT(this->portion() == portion);
     ASSERT(this->immutable() == immutable);
+    ASSERT(this->existing_inobject_property() == existing_inobject_property);
     ASSERT(RepresentationField::decode(value_) == representation.kind());
+    ASSERT(!this->existing_inobject_property() || IsInobject());
   }
 
   class PortionField : public BitField<Portion, 0, 3> {};
   class RepresentationField : public BitField<Representation::Kind, 3, 4> {};
   class ImmutableField : public BitField<bool, 7, 1> {};
-  class OffsetField : public BitField<int, 8, 24> {};
+  class ExistingInobjectPropertyField : public BitField<bool, 8, 1> {};
+  class OffsetField : public BitField<int, 9, 23> {};
 
   uint32_t value_;  // encodes portion, representation, immutable, and offset
   Handle<String> name_;
 
   friend class HLoadNamedField;
   friend class HStoreNamedField;
+  friend class SideEffectsTracker;
 
   inline Portion portion() const {
     return PortionField::decode(value_);
@@ -6161,12 +6084,17 @@ class HObjectAccess V8_FINAL {
 };
 
 
-class HLoadNamedField V8_FINAL : public HTemplateInstruction<1> {
+class HLoadNamedField V8_FINAL : public HTemplateInstruction<2> {
  public:
-  DECLARE_INSTRUCTION_FACTORY_P2(HLoadNamedField, HValue*, HObjectAccess);
+  DECLARE_INSTRUCTION_FACTORY_P3(HLoadNamedField, HValue*, HValue*,
+                                 HObjectAccess);
 
   HValue* object() { return OperandAt(0); }
-  bool HasTypeCheck() { return object()->IsCheckMaps(); }
+  HValue* dependency() {
+    ASSERT(HasDependency());
+    return OperandAt(1);
+  }
+  bool HasDependency() const { return OperandAt(0) != OperandAt(1); }
   HObjectAccess access() const { return access_; }
   Representation field_representation() const {
       return access_.representation();
@@ -6195,9 +6123,12 @@ class HLoadNamedField V8_FINAL : public HTemplateInstruction<1> {
   }
 
  private:
-  HLoadNamedField(HValue* object, HObjectAccess access) : access_(access) {
+  HLoadNamedField(HValue* object,
+                  HValue* dependency,
+                  HObjectAccess access) : access_(access) {
     ASSERT(object != NULL);
     SetOperandAt(0, object);
+    SetOperandAt(1, dependency != NULL ? dependency : object);
 
     Representation representation = access.representation();
     if (representation.IsInteger8() ||
@@ -6223,7 +6154,7 @@ class HLoadNamedField V8_FINAL : public HTemplateInstruction<1> {
     } else {
       set_representation(Representation::Tagged());
     }
-    access.SetGVNFlags(this, false);
+    access.SetGVNFlags(this, LOAD);
   }
 
   virtual bool IsDeletable() const V8_OVERRIDE { return true; }
@@ -6282,7 +6213,7 @@ class HLoadFunctionPrototype V8_FINAL : public HUnaryOperation {
       : HUnaryOperation(function) {
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
-    SetGVNFlag(kDependsOnCalls);
+    SetDependsOnFlag(kCalls);
   }
 };
 
@@ -6427,14 +6358,14 @@ class HLoadKeyed V8_FINAL
           set_representation(Representation::Tagged());
         }
 
-        SetGVNFlag(kDependsOnArrayElements);
+        SetDependsOnFlag(kArrayElements);
       } else {
         set_representation(Representation::Double());
-        SetGVNFlag(kDependsOnDoubleArrayElements);
+        SetDependsOnFlag(kDoubleArrayElements);
       }
     } else {
-      if (elements_kind == EXTERNAL_FLOAT_ELEMENTS ||
-          elements_kind == EXTERNAL_DOUBLE_ELEMENTS ||
+      if (elements_kind == EXTERNAL_FLOAT32_ELEMENTS ||
+          elements_kind == EXTERNAL_FLOAT64_ELEMENTS ||
           elements_kind == FLOAT32_ELEMENTS ||
           elements_kind == FLOAT64_ELEMENTS) {
         set_representation(Representation::Double());
@@ -6443,14 +6374,14 @@ class HLoadKeyed V8_FINAL
       }
 
       if (is_external()) {
-        SetGVNFlag(kDependsOnExternalMemory);
+        SetDependsOnFlag(kExternalMemory);
       } else if (is_fixed_typed_array()) {
-        SetGVNFlag(kDependsOnTypedArrayElements);
+        SetDependsOnFlag(kTypedArrayElements);
       } else {
         UNREACHABLE();
       }
       // Native code could change the specialized array.
-      SetGVNFlag(kDependsOnCalls);
+      SetDependsOnFlag(kCalls);
     }
 
     SetFlag(kUseGVN);
@@ -6525,7 +6456,10 @@ class HLoadKeyedGeneric V8_FINAL : public HTemplateInstruction<3> {
 // Indicates whether the store is a store to an entry that was previously
 // initialized or not.
 enum StoreFieldOrKeyedMode {
+  // The entry could be either previously initialized or not.
   INITIALIZING_STORE,
+  // At the time of this store it is guaranteed that the entry is already
+  // initialized.
   STORE_TO_INITIALIZED_ENTRY
 };
 
@@ -6569,10 +6503,12 @@ class HStoreNamedField V8_FINAL : public HTemplateInstruction<3> {
     }
     return Representation::Tagged();
   }
-  virtual void HandleSideEffectDominator(GVNFlag side_effect,
+  virtual bool HandleSideEffectDominator(GVNFlag side_effect,
                                          HValue* dominator) V8_OVERRIDE {
-    ASSERT(side_effect == kChangesNewSpacePromotion);
+    ASSERT(side_effect == kNewSpacePromotion);
+    if (!FLAG_use_write_barrier_elimination) return false;
     new_space_dominator_ = dominator;
+    return false;
   }
   virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
 
@@ -6646,10 +6582,14 @@ class HStoreNamedField V8_FINAL : public HTemplateInstruction<3> {
         write_barrier_mode_(UPDATE_WRITE_BARRIER),
         has_transition_(false),
         store_mode_(store_mode) {
+    // Stores to a non existing in-object property are allowed only to the
+    // newly allocated objects (via HAllocate or HInnerAllocatedObject).
+    ASSERT(!access.IsInobject() || access.existing_inobject_property() ||
+           obj->IsAllocate() || obj->IsInnerAllocatedObject());
     SetOperandAt(0, obj);
     SetOperandAt(1, val);
     SetOperandAt(2, obj);
-    access.SetGVNFlags(this, true);
+    access.SetGVNFlags(this, STORE);
   }
 
   HObjectAccess access_;
@@ -6795,10 +6735,11 @@ class HStoreKeyed V8_FINAL
     return value()->IsConstant() && HConstant::cast(value())->IsTheHole();
   }
 
-  virtual void HandleSideEffectDominator(GVNFlag side_effect,
+  virtual bool HandleSideEffectDominator(GVNFlag side_effect,
                                          HValue* dominator) V8_OVERRIDE {
-    ASSERT(side_effect == kChangesNewSpacePromotion);
+    ASSERT(side_effect == kNewSpacePromotion);
     new_space_dominator_ = dominator;
+    return false;
   }
 
   HValue* new_space_dominator() const { return new_space_dominator_; }
@@ -6838,25 +6779,25 @@ class HStoreKeyed V8_FINAL
 
     if (IsFastObjectElementsKind(elements_kind)) {
       SetFlag(kTrackSideEffectDominators);
-      SetGVNFlag(kDependsOnNewSpacePromotion);
+      SetDependsOnFlag(kNewSpacePromotion);
     }
     if (is_external()) {
-      SetGVNFlag(kChangesExternalMemory);
+      SetChangesFlag(kExternalMemory);
       SetFlag(kAllowUndefinedAsNaN);
     } else if (IsFastDoubleElementsKind(elements_kind)) {
-      SetGVNFlag(kChangesDoubleArrayElements);
+      SetChangesFlag(kDoubleArrayElements);
     } else if (IsFastSmiElementsKind(elements_kind)) {
-      SetGVNFlag(kChangesArrayElements);
+      SetChangesFlag(kArrayElements);
     } else if (is_fixed_typed_array()) {
-      SetGVNFlag(kChangesTypedArrayElements);
+      SetChangesFlag(kTypedArrayElements);
       SetFlag(kAllowUndefinedAsNaN);
     } else {
-      SetGVNFlag(kChangesArrayElements);
+      SetChangesFlag(kArrayElements);
     }
 
     // EXTERNAL_{UNSIGNED_,}{BYTE,SHORT,INT}_ELEMENTS are truncating.
-    if ((elements_kind >= EXTERNAL_BYTE_ELEMENTS &&
-        elements_kind <= EXTERNAL_UNSIGNED_INT_ELEMENTS) ||
+    if ((elements_kind >= EXTERNAL_INT8_ELEMENTS &&
+        elements_kind <= EXTERNAL_UINT32_ELEMENTS) ||
         (elements_kind >= UINT8_ELEMENTS &&
         elements_kind <= INT32_ELEMENTS)) {
       SetFlag(kTruncatingToInt32);
@@ -6955,10 +6896,10 @@ class HTransitionElementsKind V8_FINAL : public HTemplateInstruction<2> {
     SetOperandAt(0, object);
     SetOperandAt(1, context);
     SetFlag(kUseGVN);
-    SetGVNFlag(kChangesElementsKind);
+    SetChangesFlag(kElementsKind);
     if (!IsSimpleMapChangeTransition(from_kind_, to_kind_)) {
-      SetGVNFlag(kChangesElementsPointer);
-      SetGVNFlag(kChangesNewSpacePromotion);
+      SetChangesFlag(kElementsPointer);
+      SetChangesFlag(kNewSpacePromotion);
     }
     set_representation(Representation::Tagged());
   }
@@ -7009,8 +6950,8 @@ class HStringAdd V8_FINAL : public HBinaryOperation {
         flags_(flags), pretenure_flag_(pretenure_flag) {
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
-    SetGVNFlag(kDependsOnMaps);
-    SetGVNFlag(kChangesNewSpacePromotion);
+    SetDependsOnFlag(kMaps);
+    SetChangesFlag(kNewSpacePromotion);
     if (FLAG_trace_pretenuring) {
       PrintF("HStringAdd with AllocationSite %p %s\n",
              allocation_site.is_null()
@@ -7061,9 +7002,9 @@ class HStringCharCodeAt V8_FINAL : public HTemplateInstruction<3> {
     SetOperandAt(2, index);
     set_representation(Representation::Integer32());
     SetFlag(kUseGVN);
-    SetGVNFlag(kDependsOnMaps);
-    SetGVNFlag(kDependsOnStringChars);
-    SetGVNFlag(kChangesNewSpacePromotion);
+    SetDependsOnFlag(kMaps);
+    SetDependsOnFlag(kStringChars);
+    SetChangesFlag(kNewSpacePromotion);
   }
 
   // No side effects: runtime function assumes string + number inputs.
@@ -7097,7 +7038,7 @@ class HStringCharFromCode V8_FINAL : public HTemplateInstruction<2> {
     SetOperandAt(1, char_code);
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
-    SetGVNFlag(kChangesNewSpacePromotion);
+    SetChangesFlag(kNewSpacePromotion);
   }
 
   virtual bool IsDeletable() const V8_OVERRIDE {
@@ -7206,7 +7147,7 @@ class HFunctionLiteral V8_FINAL : public HTemplateInstruction<1> {
         language_mode_(shared->language_mode()) {
     SetOperandAt(0, context);
     set_representation(Representation::Tagged());
-    SetGVNFlag(kChangesNewSpacePromotion);
+    SetChangesFlag(kNewSpacePromotion);
   }
 
   virtual bool IsDeletable() const V8_OVERRIDE { return true; }
@@ -7277,7 +7218,7 @@ class HToFastProperties V8_FINAL : public HUnaryOperation {
  private:
   explicit HToFastProperties(HValue* value) : HUnaryOperation(value) {
     set_representation(Representation::Tagged());
-    SetGVNFlag(kChangesNewSpacePromotion);
+    SetChangesFlag(kNewSpacePromotion);
 
     // This instruction is not marked as kChangesMaps, but does
     // change the map of the input operand. Use it only when creating
@@ -7287,25 +7228,6 @@ class HToFastProperties V8_FINAL : public HUnaryOperation {
     const Runtime::Function* function = HCallRuntime::cast(value)->function();
     ASSERT(function->function_id == Runtime::kCreateObjectLiteral);
 #endif
-  }
-
-  virtual bool IsDeletable() const V8_OVERRIDE { return true; }
-};
-
-
-class HValueOf V8_FINAL : public HUnaryOperation {
- public:
-  DECLARE_INSTRUCTION_FACTORY_P1(HValueOf, HValue*);
-
-  virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
-    return Representation::Tagged();
-  }
-
-  DECLARE_CONCRETE_INSTRUCTION(ValueOf)
-
- private:
-  explicit HValueOf(HValue* value) : HUnaryOperation(value) {
-    set_representation(Representation::Tagged());
   }
 
   virtual bool IsDeletable() const V8_OVERRIDE { return true; }
@@ -7375,7 +7297,7 @@ class HSeqStringGetChar V8_FINAL : public HTemplateInstruction<2> {
     SetOperandAt(1, index);
     set_representation(Representation::Integer32());
     SetFlag(kUseGVN);
-    SetGVNFlag(kDependsOnStringChars);
+    SetDependsOnFlag(kStringChars);
   }
 
   virtual bool IsDeletable() const V8_OVERRIDE { return true; }
@@ -7414,7 +7336,7 @@ class HSeqStringSetChar V8_FINAL : public HTemplateInstruction<4> {
     SetOperandAt(2, index);
     SetOperandAt(3, value);
     set_representation(Representation::Tagged());
-    SetGVNFlag(kChangesStringChars);
+    SetChangesFlag(kStringChars);
   }
 
   String::Encoding encoding_;
@@ -7454,8 +7376,8 @@ class HCheckMapValue V8_FINAL : public HTemplateInstruction<2> {
     SetOperandAt(1, map);
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
-    SetGVNFlag(kDependsOnMaps);
-    SetGVNFlag(kDependsOnElementsKind);
+    SetDependsOnFlag(kMaps);
+    SetDependsOnFlag(kElementsKind);
   }
 };
 

@@ -45,8 +45,6 @@
 #include "string-stream.h"
 #include "scanner.h"
 
-#include "experimental-scanner.h"
-
 using namespace v8::internal;
 
 byte* ReadFile(const char* name, const byte** end, int repeat,
@@ -79,12 +77,13 @@ byte* ReadFile(const char* name, const byte** end, int repeat,
   {
     Utf8ToUtf16CharacterStream stream(chars, size);
     uint16_t* cursor = new_chars;
-    uc32 c;
+    // uc32 c;
     // The 32-bit char type is probably only so that we can have -1 as a return
     // value. If the char is not -1, it should fit into 16 bits.
-    while ((c = stream.Advance()) != -1) {
-      *cursor++ = c;
-    }
+    CHECK(false);
+    // while ((c = stream.Advance()) != -1) {
+    //   *cursor++ = c;
+    // }
     *end = reinterpret_cast<byte*>(cursor);
   }
   delete[] chars;
@@ -136,8 +135,7 @@ class BaselineScanner {
                   ElapsedTimer* timer,
                   const LexerShellSettings& settings)
       : source_(source), stream_(NULL) {
-    unicode_cache_ = new UnicodeCache();
-    scanner_ = new Scanner(unicode_cache_);
+    scanner_ = new Scanner(isolate->unicode_cache());
     scanner_->SetHarmonyNumericLiterals(settings.harmony_numeric_literals);
     scanner_->SetHarmonyModules(settings.harmony_modules);
     scanner_->SetHarmonyScoping(settings.harmony_scoping);
@@ -178,7 +176,7 @@ class BaselineScanner {
  private:
   UnicodeCache* unicode_cache_;
   const byte* source_;
-  BufferedUtf16CharacterStream* stream_;
+  Utf16CharacterStream* stream_;
 };
 
 
@@ -282,36 +280,6 @@ TimeDelta RunBaselineScanner(const byte* source,
 }
 
 
-template<typename Char>
-TimeDelta RunExperimentalScanner(Handle<String> source,
-                                 Isolate* isolate,
-                                 std::vector<TokenWithLocation>* tokens,
-                                 LexerShellSettings settings) {
-  ElapsedTimer timer;
-  ExperimentalScanner<Char> scanner(source, isolate);
-  scanner.SetHarmonyNumericLiterals(settings.harmony_numeric_literals);
-  scanner.SetHarmonyModules(settings.harmony_modules);
-  scanner.SetHarmonyScoping(settings.harmony_scoping);
-
-  timer.Start();
-  scanner.Init();
-  Token::Value token;
-  do {
-    token = scanner.Next();
-    if (settings.dump_tokens) {
-      tokens->push_back(GetTokenWithLocation(&scanner, token));
-    } else if (HasLiteral(token)) {
-      if (scanner.is_literal_ascii()) {
-        scanner.literal_ascii_string();
-      } else {
-        scanner.literal_utf16_string();
-      }
-    }
-  } while (token != Token::EOS);
-  return timer.Elapsed();
-}
-
-
 void PrintTokens(const char* name,
                  const std::vector<TokenWithLocation>& tokens) {
   printf("No of tokens: %d\n",
@@ -347,49 +315,6 @@ std::pair<TimeDelta, TimeDelta> ProcessFile(
       buffer_end -= truncate_by;
       baseline_time = RunBaselineScanner(
           buffer, buffer_end, isolate, &baseline_tokens, settings);
-    }
-    delete[] buffer;
-  }
-  if (run_experimental) {
-    Handle<String> source;
-    const byte* buffer_end = 0;
-    const byte* buffer = ReadFile(fname, &buffer_end, settings.repeat,
-                                  settings.encoding == UTF8TO16);
-    if (truncate_by > buffer_end - buffer) {
-      *can_truncate = false;
-    } else {
-      buffer_end -= truncate_by;
-      switch (settings.encoding) {
-        case UTF8:
-        case LATIN1:
-          source = isolate->factory()->NewStringFromAscii(
-              Vector<const char>(reinterpret_cast<const char*>(buffer),
-                                 buffer_end - buffer));
-          experimental_time = RunExperimentalScanner<uint8_t>(
-              source, isolate, &experimental_tokens, settings);
-          break;
-        case UTF16:
-        case UTF8TO16: {
-          const uc16* buffer_16 = reinterpret_cast<const uc16*>(buffer);
-          const uc16* buffer_end_16 = reinterpret_cast<const uc16*>(buffer_end);
-          source = isolate->factory()->NewStringFromTwoByte(
-              Vector<const uc16>(buffer_16, buffer_end_16 - buffer_16));
-          // If the string was just an expaneded one byte string, V8 detects it
-          // and doesn't store it as two byte.
-          if (!source->IsTwoByteRepresentation()) {
-            experimental_time = RunExperimentalScanner<uint8_t>(
-              source, isolate, &experimental_tokens, settings);
-          } else {
-            experimental_time = RunExperimentalScanner<uint16_t>(
-              source, isolate, &experimental_tokens, settings);
-          }
-          break;
-        }
-        default:
-          printf("Encoding not supported by the experimental scanner\n");
-          exit(1);
-          break;
-      }
     }
     delete[] buffer;
   }
@@ -452,9 +377,7 @@ int main(int argc, char* argv[]) {
     } else if (strcmp(argv[i], "--print-tokens") == 0) {
       settings.print_tokens = true;
     } else if (strcmp(argv[i], "--no-baseline") == 0) {
-      settings.run_baseline = false;
     } else if (strcmp(argv[i], "--no-experimental") == 0) {
-      settings.run_experimental = false;
     } else if (strcmp(argv[i], "--no-check") == 0) {
       settings.check_tokens = false;
     } else if (strcmp(argv[i], "--break-after-illegal") == 0) {

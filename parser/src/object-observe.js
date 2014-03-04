@@ -390,11 +390,13 @@ function ObserverEnqueueIfActive(observer, objectInfo, changeRecord,
   }
 
   var callbackInfo = CallbackInfoNormalize(callback);
-  if (!observationState.pendingObservers)
+  if (IS_NULL(observationState.pendingObservers)) {
     observationState.pendingObservers = nullProtoObject();
+    GetMicrotaskQueue().push(ObserveMicrotaskRunner);
+    %SetMicrotaskPending(true);
+  }
   observationState.pendingObservers[callbackInfo.priority] = callback;
   callbackInfo.push(changeRecord);
-  %SetMicrotaskPending(true);
 }
 
 function ObjectInfoEnqueueExternalChangeRecord(objectInfo, changeRecord, type) {
@@ -583,7 +585,6 @@ function ObserveMicrotaskRunner() {
     }
   }
 }
-RunMicrotasks.runners.push(ObserveMicrotaskRunner);
 
 function SetupObjectObserve() {
   %CheckIsBootstrapping();

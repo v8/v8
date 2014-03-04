@@ -57,14 +57,15 @@ class HeapGraphEdge BASE_EMBEDDED {
 
   Type type() const { return static_cast<Type>(type_); }
   int index() const {
-    ASSERT(type_ == kElement || type_ == kHidden || type_ == kWeak);
+    ASSERT(type_ == kElement || type_ == kHidden);
     return index_;
   }
   const char* name() const {
     ASSERT(type_ == kContextVariable
         || type_ == kProperty
         || type_ == kInternal
-        || type_ == kShortcut);
+        || type_ == kShortcut
+        || type_ == kWeak);
     return name_;
   }
   INLINE(HeapEntry* from() const);
@@ -113,14 +114,14 @@ class HeapEntry BASE_EMBEDDED {
             Type type,
             const char* name,
             SnapshotObjectId id,
-            int self_size);
+            size_t self_size);
 
   HeapSnapshot* snapshot() { return snapshot_; }
   Type type() { return static_cast<Type>(type_); }
   const char* name() { return name_; }
   void set_name(const char* name) { name_ = name; }
   inline SnapshotObjectId id() { return id_; }
-  int self_size() { return self_size_; }
+  size_t self_size() { return self_size_; }
   INLINE(int index() const);
   int children_count() const { return children_count_; }
   INLINE(int set_children_index(int index));
@@ -145,7 +146,7 @@ class HeapEntry BASE_EMBEDDED {
   unsigned type_: 4;
   int children_count_: 28;
   int children_index_;
-  int self_size_;
+  size_t self_size_;
   SnapshotObjectId id_;
   HeapSnapshot* snapshot_;
   const char* name_;
@@ -185,7 +186,7 @@ class HeapSnapshot {
   HeapEntry* AddEntry(HeapEntry::Type type,
                       const char* name,
                       SnapshotObjectId id,
-                      int size);
+                      size_t size);
   HeapEntry* AddRootEntry();
   HeapEntry* AddGcRootsEntry();
   HeapEntry* AddGcSubrootEntry(int tag);
@@ -384,7 +385,11 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   bool IterateAndExtractReferences(SnapshotFillerInterface* filler);
   void TagGlobalObjects();
   void TagCodeObject(Code* code);
-  void TagCodeObject(Code* code, const char* external_name);
+  void TagBuiltinCodeObject(Code* code, const char* name);
+  HeapEntry* AddEntry(Address address,
+                      HeapEntry::Type type,
+                      const char* name,
+                      size_t size);
 
   static String* GetConstructorName(JSObject* object);
 
@@ -395,6 +400,7 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   HeapEntry* AddEntry(HeapObject* object,
                       HeapEntry::Type type,
                       const char* name);
+
   const char* GetSystemEntryName(HeapObject* object);
 
   void ExtractReferences(HeapObject* obj);
@@ -409,9 +415,11 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   void ExtractAccessorPairReferences(int entry, AccessorPair* accessors);
   void ExtractCodeCacheReferences(int entry, CodeCache* code_cache);
   void ExtractCodeReferences(int entry, Code* code);
+  void ExtractBoxReferences(int entry, Box* box);
   void ExtractCellReferences(int entry, Cell* cell);
   void ExtractPropertyCellReferences(int entry, PropertyCell* cell);
   void ExtractAllocationSiteReferences(int entry, AllocationSite* site);
+  void ExtractJSArrayBufferReferences(int entry, JSArrayBuffer* buffer);
   void ExtractClosureReferences(JSObject* js_obj, int entry);
   void ExtractPropertyReferences(JSObject* js_obj, int entry);
   bool ExtractAccessorPairProperty(JSObject* js_obj, int entry,
@@ -448,7 +456,7 @@ class V8HeapExplorer : public HeapEntriesAllocator {
                           Object* child);
   void SetWeakReference(HeapObject* parent_obj,
                         int parent,
-                        int index,
+                        const char* reference_name,
                         Object* child_obj,
                         int field_offset);
   void SetPropertyReference(HeapObject* parent_obj,

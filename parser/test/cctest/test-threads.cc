@@ -159,18 +159,18 @@ TEST(ThreadIdValidation) {
   const int kNThreads = 100;
   i::List<ThreadIdValidationThread*> threads(kNThreads);
   i::List<i::ThreadId> refs(kNThreads);
-  i::Semaphore* semaphore = new i::Semaphore(0);
+  i::Semaphore semaphore(0);
   ThreadIdValidationThread* prev = NULL;
   for (int i = kNThreads - 1; i >= 0; i--) {
     ThreadIdValidationThread* newThread =
-        new ThreadIdValidationThread(prev, &refs, i, semaphore);
+        new ThreadIdValidationThread(prev, &refs, i, &semaphore);
     threads.Add(newThread);
     prev = newThread;
     refs.Add(i::ThreadId::Invalid());
   }
   prev->Start();
   for (int i = 0; i < kNThreads; i++) {
-    semaphore->Wait();
+    semaphore.Wait();
   }
   for (int i = 0; i < kNThreads; i++) {
     delete threads[i];

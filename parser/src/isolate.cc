@@ -39,7 +39,7 @@
 #include "heap-profiler.h"
 #include "hydrogen.h"
 #include "isolate-inl.h"
-#include "lexer/experimental-scanner.h"
+#include "lexer/lexer.h"
 #include "lithium-allocator.h"
 #include "log.h"
 #include "messages.h"
@@ -947,6 +947,7 @@ Failure* Isolate::ReThrow(MaybeObject* exception) {
 
 
 Failure* Isolate::ThrowIllegalOperation() {
+  if (FLAG_stack_trace_on_illegal) PrintStack(stdout);
   return Throw(heap_.illegal_access_string());
 }
 
@@ -1083,22 +1084,6 @@ bool Isolate::IsErrorObject(Handle<Object> obj) {
   return false;
 }
 
-
-void Isolate::UpdateScannersAfterGC(v8::Isolate* isolate,
-                                    GCType,
-                                    GCCallbackFlags) {
-  reinterpret_cast<i::Isolate*>(isolate)->UpdateScannersAfterGC();
-}
-
-
-void Isolate::UpdateScannersAfterGC() {
-  for (std::set<ScannerBase*>::const_iterator it = scanners_.begin();
-       it != scanners_.end(); ++it) {
-    (*it)->UpdateBufferBasedOnHandle();
-  }
-}
-
-
 static int fatal_exception_depth = 0;
 
 void Isolate::DoThrow(Object* exception, MessageLocation* location) {
@@ -1139,8 +1124,6 @@ void Isolate::DoThrow(Object* exception, MessageLocation* location) {
     // while the bootstrapper is active since the infrastructure may not have
     // been properly initialized.
     if (!bootstrapping) {
-      Handle<String> stack_trace;
-      if (FLAG_trace_exception) stack_trace = StackTraceString();
       Handle<JSArray> stack_trace_object;
       if (capture_stack_trace_for_uncaught_exceptions_) {
         if (IsErrorObject(exception_handle)) {
@@ -1180,7 +1163,6 @@ void Isolate::DoThrow(Object* exception, MessageLocation* location) {
           "uncaught_exception",
           location,
           HandleVector<Object>(&exception_arg, 1),
-          stack_trace,
           stack_trace_object);
       thread_local_top()->pending_message_obj_ = *message_obj;
       if (location != NULL) {
@@ -1482,6 +1464,13 @@ Isolate::ThreadDataTable::~ThreadDataTable() {
 }
 
 
+Isolate::PerIsolateThreadData::~PerIsolateThreadData() {
+#if defined(USE_SIMULATOR)
+  delete simulator_;
+#endif
+}
+
+
 Isolate::PerIsolateThreadData*
     Isolate::ThreadDataTable::Lookup(Isolate* isolate,
                                      ThreadId thread_id) {
@@ -1546,6 +1535,7 @@ Isolate::Isolate()
       stats_table_(NULL),
       stub_cache_(NULL),
       deoptimizer_data_(NULL),
+      materialized_object_store_(NULL),
       capture_stack_trace_for_uncaught_exceptions_(false),
       stack_trace_for_uncaught_exceptions_frame_limit_(0),
       stack_trace_for_uncaught_exceptions_options_(StackTrace::kOverview),
@@ -1582,7 +1572,9 @@ Isolate::Isolate()
       sweeper_thread_(NULL),
       num_sweeper_threads_(0),
       max_available_threads_(0),
-      stress_deopt_count_(0) {
+      stress_deopt_count_(0),
+      lexer_gc_handler_(0),
+      next_optimization_id_(0) {
   id_ = NoBarrier_AtomicIncrement(&isolate_counter_, 1);
   TRACE_ISOLATE(constructor);
 
@@ -1598,6 +1590,7 @@ Isolate::Isolate()
   thread_manager_->isolate_ = this;
 
 #if V8_TARGET_ARCH_ARM && !defined(__arm__) || \
+    V8_TARGET_ARCH_A64 && !defined(__aarch64__) || \
     V8_TARGET_ARCH_MIPS && !defined(__mips__)
   simulator_initialized_ = false;
   simulator_i_cache_ = NULL;
@@ -1688,6 +1681,10 @@ void Isolate::Deinit() {
     delete[] sweeper_thread_;
     sweeper_thread_ = NULL;
 
+    if (FLAG_job_based_sweeping &&
+        heap_.mark_compact_collector()->IsConcurrentSweepingInProgress()) {
+      heap_.mark_compact_collector()->WaitUntilSweepingCompleted();
+    }
 
     if (FLAG_hydrogen_stats) GetHStatistics()->Print();
 
@@ -1794,6 +1791,9 @@ Isolate::~Isolate() {
   delete stats_table_;
   stats_table_ = NULL;
 
+  delete materialized_object_store_;
+  materialized_object_store_ = NULL;
+
   delete logger_;
   logger_ = NULL;
 
@@ -1835,6 +1835,9 @@ Isolate::~Isolate() {
 
   delete random_number_generator_;
   random_number_generator_ = NULL;
+
+  delete lexer_gc_handler_;
+  lexer_gc_handler_ = NULL;
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   delete debugger_;
@@ -1964,6 +1967,7 @@ bool Isolate::Init(Deserializer* des) {
   bootstrapper_ = new Bootstrapper(this);
   handle_scope_implementer_ = new HandleScopeImplementer(this);
   stub_cache_ = new StubCache(this);
+  materialized_object_store_ = new MaterializedObjectStore(this);
   regexp_stack_ = new RegExpStack();
   regexp_stack_->isolate_ = this;
   date_cache_ = new DateCache();
@@ -1973,13 +1977,14 @@ bool Isolate::Init(Deserializer* des) {
       new CallInterfaceDescriptor[NUMBER_OF_CALL_DESCRIPTORS];
   cpu_profiler_ = new CpuProfiler(this);
   heap_profiler_ = new HeapProfiler(heap());
+  lexer_gc_handler_ = new LexerGCHandler(this);
 
   // Enable logging before setting up the heap
   logger_->SetUp(this);
 
   // Initialize other runtime facilities
 #if defined(USE_SIMULATOR)
-#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_MIPS
+#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_A64 || V8_TARGET_ARCH_MIPS
   Simulator::Initialize(this);
 #endif
 #endif
@@ -2017,8 +2022,6 @@ bool Isolate::Init(Deserializer* des) {
   bootstrapper_->Initialize(create_heap_objects);
   builtins_.SetUp(this, create_heap_objects);
 
-  if (create_heap_objects) heap_.CreateStubsRequiringBuiltins();
-
   // Set default value if not yet set.
   // TODO(yangguo): move this to ResourceConstraints::ConfigureDefaults
   // once ResourceConstraints becomes an argument to the Isolate constructor.
@@ -2027,7 +2030,10 @@ bool Isolate::Init(Deserializer* des) {
     max_available_threads_ = Max(Min(CPU::NumberOfProcessorsOnline(), 4), 1);
   }
 
-  num_sweeper_threads_ = SweeperThread::NumberOfThreads(max_available_threads_);
+  if (!FLAG_job_based_sweeping) {
+    num_sweeper_threads_ =
+        SweeperThread::NumberOfThreads(max_available_threads_);
+  }
 
   if (FLAG_trace_hydrogen || FLAG_trace_hydrogen_stubs) {
     PrintF("Concurrent recompilation has been disabled for tracing.\n");
@@ -2113,23 +2119,21 @@ bool Isolate::Init(Deserializer* des) {
     CodeStub::GenerateFPStubs(this);
     StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime(this);
     StubFailureTrampolineStub::GenerateAheadOfTime(this);
-    StubFailureTailCallTrampolineStub::GenerateAheadOfTime(this);
-    // TODO(mstarzinger): The following is an ugly hack to make sure the
-    // interface descriptor is initialized even when stubs have been
-    // deserialized out of the snapshot without the graph builder.
-    FastCloneShallowArrayStub stub(FastCloneShallowArrayStub::CLONE_ELEMENTS,
-                                   DONT_TRACK_ALLOCATION_SITE, 0);
-    stub.InitializeInterfaceDescriptor(
-        this, code_stub_interface_descriptor(CodeStub::FastCloneShallowArray));
+    // Ensure interface descriptors are initialized even when stubs have been
+    // deserialized out of the snapshot without using the graph builder.
+    FastCloneShallowArrayStub::InstallDescriptors(this);
     BinaryOpICStub::InstallDescriptors(this);
     BinaryOpWithAllocationSiteStub::InstallDescriptors(this);
-    CompareNilICStub::InitializeForIsolate(this);
-    ToBooleanStub::InitializeForIsolate(this);
+    CompareNilICStub::InstallDescriptors(this);
+    ToBooleanStub::InstallDescriptors(this);
+    ToNumberStub::InstallDescriptors(this);
     ArrayConstructorStubBase::InstallDescriptors(this);
     InternalArrayConstructorStubBase::InstallDescriptors(this);
     FastNewClosureStub::InstallDescriptors(this);
+    FastNewContextStub::InstallDescriptors(this);
     NumberToStringStub::InstallDescriptors(this);
-    NewStringAddStub::InstallDescriptors(this);
+    StringAddStub::InstallDescriptors(this);
+    RegExpConstructResultStub::InstallDescriptors(this);
   }
 
   CallDescriptors::InitializeForIsolate(this);
@@ -2321,24 +2325,6 @@ CallInterfaceDescriptor*
 Object* Isolate::FindCodeObject(Address a) {
   return inner_pointer_to_code_cache()->GcSafeFindCodeForInnerPointer(a);
 }
-
-
-void Isolate::AddScanner(ScannerBase* scanner) {
-  if (scanners_.empty()) {
-    heap()->AddGCEpilogueCallback(
-        &Isolate::UpdateScannersAfterGC, kGCTypeAll, true);
-  }
-  scanners_.insert(scanner);
-}
-
-
-void Isolate::RemoveScanner(ScannerBase* scanner) {
-  scanners_.erase(scanner);
-  if (scanners_.empty()) {
-    heap()->RemoveGCEpilogueCallback(&Isolate::UpdateScannersAfterGC);
-  }
-}
-
 
 #ifdef DEBUG
 #define ISOLATE_FIELD_OFFSET(type, name, ignored)                       \

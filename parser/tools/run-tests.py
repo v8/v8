@@ -33,6 +33,7 @@ import multiprocessing
 import optparse
 import os
 from os.path import join
+import platform
 import shlex
 import subprocess
 import sys
@@ -48,25 +49,30 @@ from testrunner.objects import context
 
 
 ARCH_GUESS = utils.DefaultArch()
-DEFAULT_TESTS = ["lexer", "mjsunit", "cctest"]
+DEFAULT_TESTS = ["mjsunit", "cctest", "message", "preparser", "lexer"]
 TIMEOUT_DEFAULT = 60
 TIMEOUT_SCALEFACTOR = {"debug"   : 4,
                        "release" : 1 }
 
 # Use this to run several variants of the tests.
-
-VARIANTS = ["default"]
-
 VARIANT_FLAGS = {
-    "default": []
-}
+    "default": [],
+    "stress": ["--stress-opt", "--always-opt"],
+    "nocrankshaft": ["--nocrankshaft"]}
+
+VARIANTS = ["default", "stress", "nocrankshaft"]
 
 MODE_FLAGS = {
-    "debug"   : ["--nobreak-on-abort", "--nodead-code-elimination",
+    "debug"   : ["--nohard-abort", "--nodead-code-elimination",
                  "--nofold-constants", "--enable-slow-asserts",
                  "--debug-code", "--verify-heap"],
-    "release" : ["--nobreak-on-abort", "--nodead-code-elimination",
+    "release" : ["--nohard-abort", "--nodead-code-elimination",
                  "--nofold-constants"]}
+
+GC_STRESS_FLAGS = ["--gc-interval=500", "--stress-compaction",
+                   "--concurrent-recompilation-queue-length=64",
+                   "--concurrent-recompilation-delay=500",
+                   "--concurrent-recompilation"]
 
 SUPPORTED_ARCHS = ["android_arm",
                    "android_ia32",
@@ -75,14 +81,16 @@ SUPPORTED_ARCHS = ["android_arm",
                    "mipsel",
                    "nacl_ia32",
                    "nacl_x64",
-                   "x64"]
+                   "x64",
+                   "a64"]
 # Double the timeout for these:
 SLOW_ARCHS = ["android_arm",
               "android_ia32",
               "arm",
               "mipsel",
               "nacl_ia32",
-              "nacl_x64"]
+              "nacl_x64",
+              "a64"]
 
 
 def BuildOptions():
@@ -94,6 +102,9 @@ def BuildOptions():
   result.add_option("--arch-and-mode",
                     help="Architecture and mode in the format 'arch.mode'",
                     default=None)
+  result.add_option("--asan",
+                    help="Regard test expectations for ASAN",
+                    default=False, action="store_true")
   result.add_option("--buildbot",
                     help="Adapt to path structure used on buildbots",
                     default=False, action="store_true")
@@ -108,6 +119,9 @@ def BuildOptions():
   result.add_option("--pass-fail-tests",
                     help="Regard pass|fail tests (run|skip|dontcare)",
                     default="dontcare")
+  result.add_option("--gc-stress",
+                    help="Switch on GC stress mode",
+                    default=False, action="store_true")
   result.add_option("--command-prefix",
                     help="Prepended to each shell command used to run a test",
                     default="")
@@ -160,6 +174,10 @@ def BuildOptions():
   result.add_option("--shell", help="DEPRECATED! use --shell-dir", default="")
   result.add_option("--shell-dir", help="Directory containing executables",
                     default="")
+  result.add_option("--dont-skip-slow-simulator-tests",
+                    help="Don't skip more slow tests when using a simulator.",
+                    default=False, action="store_true",
+                    dest="dont_skip_simulator_slow_tests")
   result.add_option("--stress-only",
                     help="Only run tests with --always-opt --stress-opt",
                     default=False, action="store_true")
@@ -220,6 +238,10 @@ def ProcessOptions(options):
     options.no_network = True
   options.command_prefix = shlex.split(options.command_prefix)
   options.extra_flags = shlex.split(options.extra_flags)
+
+  if options.gc_stress:
+    options.extra_flags += GC_STRESS_FLAGS
+
   if options.j == 0:
     options.j = multiprocessing.cpu_count()
 
@@ -269,6 +291,8 @@ def ProcessOptions(options):
     return False
   if not CheckTestMode("pass|fail test", options.pass_fail_tests):
     return False
+  if not options.no_i18n:
+    DEFAULT_TESTS.append("intl")
   return True
 
 
@@ -369,14 +393,21 @@ def Execute(arch, mode, args, options, suites, workspace):
                         options.extra_flags,
                         options.no_i18n)
 
+  # TODO(all): Combine "simulator" and "simulator_run".
+  simulator_run = not options.dont_skip_simulator_slow_tests and \
+      arch in ['a64', 'arm', 'mips'] and ARCH_GUESS and arch != ARCH_GUESS
   # Find available test suites and read test cases from them.
   variables = {
-    "mode": mode,
     "arch": arch,
-    "system": utils.GuessOS(),
-    "isolates": options.isolates,
+    "asan": options.asan,
     "deopt_fuzzer": False,
+    "gc_stress": options.gc_stress,
+    "isolates": options.isolates,
+    "mode": mode,
     "no_i18n": options.no_i18n,
+    "simulator_run": simulator_run,
+    "simulator": utils.UseSimulator(arch),
+    "system": utils.GuessOS(),
   }
   all_tests = []
   num_tests = 0

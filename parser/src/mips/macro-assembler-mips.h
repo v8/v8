@@ -169,6 +169,7 @@ class MacroAssembler: public Assembler {
 
   DECLARE_BRANCH_PROTOTYPES(Branch)
   DECLARE_BRANCH_PROTOTYPES(BranchAndLink)
+  DECLARE_BRANCH_PROTOTYPES(BranchShort)
 
 #undef DECLARE_BRANCH_PROTOTYPES
 #undef COND_TYPED_ARGS
@@ -870,14 +871,7 @@ class MacroAssembler: public Assembler {
       Register scratch,
       Label* no_map_match);
 
-  // Load the initial map for new Arrays from a JSFunction.
-  void LoadInitialArrayMap(Register function_in,
-                           Register scratch,
-                           Register map_out,
-                           bool can_have_holes);
-
   void LoadGlobalFunction(int index, Register function);
-  void LoadArrayFunction(Register function);
 
   // Load the initial map from the global function. The registers
   // function and map can be the same, function is then overwritten.
@@ -1276,10 +1270,8 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
   // from handle and propagates exceptions.  Restores context.  stack_space
   // - space to be unwound on exit (includes the call JS arguments space and
   // the additional space allocated for the fast call).
-  void CallApiFunctionAndReturn(ExternalReference function,
-                                Address function_address,
+  void CallApiFunctionAndReturn(Register function_address,
                                 ExternalReference thunk_ref,
-                                Register thunk_last_arg,
                                 int stack_space,
                                 MemOperand return_value_operand,
                                 MemOperand* context_restore_operand);
@@ -1572,14 +1564,6 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
                            int num_reg_arguments,
                            int num_double_arguments);
 
-  void BranchShort(int16_t offset, BranchDelaySlot bdslot = PROTECT);
-  void BranchShort(int16_t offset, Condition cond, Register rs,
-                   const Operand& rt,
-                   BranchDelaySlot bdslot = PROTECT);
-  void BranchShort(Label* L, BranchDelaySlot bdslot = PROTECT);
-  void BranchShort(Label* L, Condition cond, Register rs,
-                   const Operand& rt,
-                   BranchDelaySlot bdslot = PROTECT);
   void BranchAndLinkShort(int16_t offset, BranchDelaySlot bdslot = PROTECT);
   void BranchAndLinkShort(int16_t offset, Condition cond, Register rs,
                           const Operand& rt,

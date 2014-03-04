@@ -88,10 +88,14 @@
       stored_token = Token::{{args[2]}};
     }
   {% elif type == 'check_escaped_identifier_start' %}
-    if (!ValidIdentifierStart()) goto default_action;
+    if (!unicode_cache_->IsIdentifierStart(ScanHexNumber(4))) {
+      goto default_action;
+    }
     next_.has_escapes = true;
   {% elif type == 'check_escaped_identifier_part' %}
-    if (!ValidIdentifierPart()) goto default_action;
+    if (!unicode_cache_->IsIdentifierPart(ScanHexNumber(4))) {
+      goto default_action;
+    }
     next_.has_escapes = true;
   {% elif type == 'if_line_terminator_backtrack' %}
     if (!has_line_terminator_before_next_) {
@@ -299,7 +303,7 @@
 
 {%- endmacro %}
 
-#include "lexer/experimental-scanner.h"
+#include "lexer/lexer.h"
 
 #define RESET_START() {               \
   start_ = cursor_;                   \
@@ -343,10 +347,11 @@
 #define CRASH() { }
 #endif
 
+
 namespace v8 {
 namespace internal {
 template<>
-void ExperimentalScanner<{{char_type}}>::Scan() {
+void Lexer<{{char_type}}>::Scan() {
 
   // Setup environment.
   next_.has_escapes = false;

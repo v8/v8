@@ -35,10 +35,13 @@
 #include "char-predicates-inl.h"
 #include "conversions-inl.h"
 #include "list-inl.h"
+#include "v8.h"
 
 namespace v8 {
 namespace internal {
 
+
+#ifndef V8_USE_GENERATED_LEXER
 // ----------------------------------------------------------------------------
 // Scanner
 
@@ -246,7 +249,8 @@ Token::Value Scanner::Next() {
 }
 
 
-static inline bool IsByteOrderMark(uc32 c) {
+// TODO(yangguo): check whether this is actually necessary.
+static inline bool IsLittleEndianByteOrderMark(uc32 c) {
   // The Unicode value U+FFFE is guaranteed never to be assigned as a
   // Unicode character; this implies that in a Unicode context the
   // 0xFF, 0xFE byte pattern can only be interpreted as the U+FEFF
@@ -254,7 +258,7 @@ static inline bool IsByteOrderMark(uc32 c) {
   // not be a U+FFFE character expressed in big-endian byte
   // order). Nevertheless, we check for it to be compatible with
   // Spidermonkey.
-  return c == 0xFEFF || c == 0xFFFE;
+  return c == 0xFFFE;
 }
 
 
@@ -262,14 +266,14 @@ bool Scanner::SkipWhiteSpace() {
   int start_position = source_pos();
 
   while (true) {
-    // We treat byte-order marks (BOMs) as whitespace for better
-    // compatibility with Spidermonkey and other JavaScript engines.
-    while (unicode_cache_->IsWhiteSpace(c0_) || IsByteOrderMark(c0_)) {
-      // IsWhiteSpace() includes line terminators!
+    while (true) {
+      // Advance as long as character is a WhiteSpace or LineTerminator.
+      // Remember if the latter is the case.
       if (unicode_cache_->IsLineTerminator(c0_)) {
-        // Ignore line terminators, but remember them. This is necessary
-        // for automatic semicolon insertion.
         has_line_terminator_before_next_ = true;
+      } else if (!unicode_cache_->IsWhiteSpace(c0_) &&
+                 !IsLittleEndianByteOrderMark(c0_)) {
+        break;
       }
       Advance();
     }
@@ -1111,6 +1115,9 @@ bool Scanner::ScanRegExpFlags() {
   next_.location.end_pos = source_pos() - 1;
   return true;
 }
+
+
+#endif
 
 
 int DuplicateFinder::AddAsciiSymbol(Vector<const char> key, int value) {

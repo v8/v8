@@ -45,30 +45,24 @@ class TypeFeedbackOracle: public ZoneObject {
  public:
   TypeFeedbackOracle(Handle<Code> code,
                      Handle<Context> native_context,
-                     Isolate* isolate,
                      Zone* zone);
 
   bool LoadIsUninitialized(TypeFeedbackId id);
-  bool LoadIsPreMonomorphic(TypeFeedbackId id);
   bool StoreIsUninitialized(TypeFeedbackId id);
-  bool StoreIsPreMonomorphic(TypeFeedbackId id);
   bool StoreIsKeyedPolymorphic(TypeFeedbackId id);
+  bool CallIsMonomorphic(int slot);
   bool CallIsMonomorphic(TypeFeedbackId aid);
   bool KeyedArrayCallIsHoley(TypeFeedbackId id);
-  bool CallNewIsMonomorphic(TypeFeedbackId id);
+  bool CallNewIsMonomorphic(int slot);
 
   // TODO(1571) We can't use ForInStatement::ForInType as the return value due
   // to various cycles in our headers.
   // TODO(rossberg): once all oracle access is removed from ast.cc, it should
   // be possible.
-  byte ForInType(TypeFeedbackId id);
+  byte ForInType(int feedback_vector_slot);
 
   KeyedAccessStoreMode GetStoreMode(TypeFeedbackId id);
 
-  void CallReceiverTypes(TypeFeedbackId id,
-                         Handle<String> name,
-                         int arity,
-                         SmallMapList* types);
   void PropertyReceiverTypes(TypeFeedbackId id,
                              Handle<String> name,
                              SmallMapList* receiver_types,
@@ -92,10 +86,9 @@ class TypeFeedbackOracle: public ZoneObject {
   static bool CanRetainOtherContext(JSFunction* function,
                                     Context* native_context);
 
-  CheckType GetCallCheckType(TypeFeedbackId id);
-  Handle<JSFunction> GetCallTarget(TypeFeedbackId id);
-  Handle<JSFunction> GetCallNewTarget(TypeFeedbackId id);
-  Handle<Cell> GetCallNewAllocationInfoCell(TypeFeedbackId id);
+  Handle<JSFunction> GetCallTarget(int slot);
+  Handle<JSFunction> GetCallNewTarget(int slot);
+  Handle<AllocationSite> GetCallNewAllocationSite(int slot);
 
   bool LoadIsBuiltin(TypeFeedbackId id, Builtins::Name builtin_id);
   bool LoadIsStub(TypeFeedbackId id, ICStub* stub);
@@ -107,22 +100,22 @@ class TypeFeedbackOracle: public ZoneObject {
 
   // Get type information for arithmetic operations and compares.
   void BinaryType(TypeFeedbackId id,
-                  Handle<Type>* left,
-                  Handle<Type>* right,
-                  Handle<Type>* result,
+                  Type** left,
+                  Type** right,
+                  Type** result,
                   Maybe<int>* fixed_right_arg,
                   Handle<AllocationSite>* allocation_site,
                   Token::Value operation);
 
   void CompareType(TypeFeedbackId id,
-                   Handle<Type>* left,
-                   Handle<Type>* right,
-                   Handle<Type>* combined);
+                   Type** left,
+                   Type** right,
+                   Type** combined);
 
-  Handle<Type> CountType(TypeFeedbackId id);
+  Type* CountType(TypeFeedbackId id);
 
   Zone* zone() const { return zone_; }
-  Isolate* isolate() const { return isolate_; }
+  Isolate* isolate() const { return zone_->isolate(); }
 
  private:
   void CollectReceiverTypes(TypeFeedbackId id,
@@ -139,20 +132,20 @@ class TypeFeedbackOracle: public ZoneObject {
                           byte* old_start,
                           byte* new_start);
   void ProcessRelocInfos(ZoneList<RelocInfo>* infos);
-  void ProcessTypeFeedbackCells(Handle<Code> code);
 
   // Returns an element from the backing store. Returns undefined if
   // there is no information.
   Handle<Object> GetInfo(TypeFeedbackId id);
 
-  // Return the cell that contains type feedback.
-  Handle<Cell> GetInfoCell(TypeFeedbackId id);
+  // Returns an element from the type feedback vector. Returns undefined
+  // if there is no information.
+  Handle<Object> GetInfo(int slot);
 
  private:
   Handle<Context> native_context_;
-  Isolate* isolate_;
   Zone* zone_;
   Handle<UnseededNumberDictionary> dictionary_;
+  Handle<FixedArray> feedback_vector_;
 
   DISALLOW_COPY_AND_ASSIGN(TypeFeedbackOracle);
 };

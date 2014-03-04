@@ -1412,7 +1412,7 @@ void Builtins::Generate_OnStackReplacement(MacroAssembler* masm) {
   __ lea(rax, Operand(rax, rbx, times_1, Code::kHeaderSize - kHeapObjectTag));
 
   // Overwrite the return address on the stack.
-  __ movq(Operand(rsp, 0), rax);
+  __ movq(StackOperandForReturnAddress(0), rax);
 
   // And "return" to the OSR entry point of the function.
   __ ret(0);

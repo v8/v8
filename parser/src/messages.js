@@ -78,7 +78,7 @@ var kMessages = {
   getter_must_be_callable:       ["Getter must be a function: ", "%0"],
   setter_must_be_callable:       ["Setter must be a function: ", "%0"],
   value_and_accessor:            ["Invalid property.  A property cannot both have accessors and be writable or have a value, ", "%0"],
-  proto_object_or_null:          ["Object prototype may only be an Object or null"],
+  proto_object_or_null:          ["Object prototype may only be an Object or null: ", "%0"],
   property_desc_object:          ["Property description must be an object: ", "%0"],
   redefine_disallowed:           ["Cannot redefine property: ", "%0"],
   define_disallowed:             ["Cannot define property:", "%0", ", object is not extensible."],
@@ -104,7 +104,6 @@ var kMessages = {
   observe_perform_non_string:    ["Invalid non-string changeType"],
   observe_perform_non_function:  ["Cannot perform non-function"],
   observe_notify_non_notifier:   ["notify called on non-notifier object"],
-  proto_poison_pill:             ["Generic use of __proto__ accessor not allowed"],
   not_typed_array:               ["this is not a typed array."],
   invalid_argument:              ["invalid_argument"],
   data_view_not_array_buffer:    ["First argument to DataView constructor must be an ArrayBuffer"],
@@ -114,12 +113,14 @@ var kMessages = {
   promise_cyclic:                ["Chaining cycle detected for promise ", "%0"],
   array_functions_on_frozen:     ["Cannot modify frozen array elements"],
   array_functions_change_sealed: ["Cannot add/remove sealed array elements"],
+  first_argument_not_regexp:     ["First argument to ", "%0", " must not be a regular expression"],
   // RangeError
   invalid_array_length:          ["Invalid array length"],
   invalid_array_buffer_length:   ["Invalid array buffer length"],
+  invalid_string_length:         ["Invalid string length"],
   invalid_typed_array_offset:    ["Start offset is too large:"],
   invalid_typed_array_length:    ["Invalid typed array length"],
-  invalid_typed_array_alignment: ["%0", "of", "%1", "should be a multiple of", "%3"],
+  invalid_typed_array_alignment: ["%0", " of ", "%1", " should be a multiple of ", "%2"],
   typed_array_set_source_too_large:
                                  ["Source is too large"],
   typed_array_set_negative_offset:
@@ -153,22 +154,15 @@ var kMessages = {
   illegal_access:                ["Illegal access"],
   invalid_preparser_data:        ["Invalid preparser data for function ", "%0"],
   strict_mode_with:              ["Strict mode code may not include a with statement"],
-  strict_catch_variable:         ["Catch variable may not be eval or arguments in strict mode"],
+  strict_eval_arguments:         ["Unexpected eval or arguments in strict mode"],
   too_many_arguments:            ["Too many arguments in function call (only 32766 allowed)"],
   too_many_parameters:           ["Too many parameters in function definition (only 32766 allowed)"],
   too_many_variables:            ["Too many variables declared (only 131071 allowed)"],
-  strict_param_name:             ["Parameter name eval or arguments is not allowed in strict mode"],
   strict_param_dupe:             ["Strict mode function may not have duplicate parameter names"],
-  strict_var_name:               ["Variable name may not be eval or arguments in strict mode"],
-  strict_function_name:          ["Function name may not be eval or arguments in strict mode"],
   strict_octal_literal:          ["Octal literals are not allowed in strict mode."],
   strict_duplicate_property:     ["Duplicate data property in object literal not allowed in strict mode"],
   accessor_data_property:        ["Object literal may not have data and accessor property with the same name"],
   accessor_get_set:              ["Object literal may not have multiple get/set accessors with the same name"],
-  strict_lhs_assignment:         ["Assignment to eval or arguments is not allowed in strict mode"],
-  strict_lhs_postfix:            ["Postfix increment/decrement may not have eval or arguments operand in strict mode"],
-  strict_lhs_prefix:             ["Prefix increment/decrement may not have eval or arguments operand in strict mode"],
-  strict_reserved_word:          ["Use of future reserved word in strict mode"],
   strict_delete:                 ["Delete of an unqualified identifier in strict mode."],
   strict_delete_property:        ["Cannot delete property '", "%0", "' of ", "%1"],
   strict_const:                  ["Use of const in strict mode."],
@@ -182,7 +176,8 @@ var kMessages = {
   cant_prevent_ext_external_array_elements: ["Cannot prevent extension of an object with external array elements"],
   redef_external_array_element:  ["Cannot redefine a property of an object with external array elements"],
   harmony_const_assign:          ["Assignment to constant variable."],
-  symbol_to_string:              ["Conversion from symbol to string"],
+  symbol_to_string:              ["Cannot convert a Symbol value to a string"],
+  symbol_to_primitive:           ["Cannot convert a Symbol wrapper object to a primitive value"],
   invalid_module_path:           ["Module does not export '", "%0", "', or export is not itself a module"],
   module_type_error:             ["Module '", "%0", "' used improperly"],
   module_export_undefined:       ["Export '", "%0", "' is not defined in module"]
@@ -945,14 +940,10 @@ function CallSiteToString() {
   if (this.isNative()) {
     fileLocation = "native";
   } else {
-    if (this.isEval()) {
-      fileName = this.getScriptNameOrSourceURL();
-      if (!fileName) {
-        fileLocation = this.getEvalOrigin();
-        fileLocation += ", ";  // Expecting source position to follow.
-      }
-    } else {
-      fileName = this.getFileName();
+    fileName = this.getScriptNameOrSourceURL();
+    if (!fileName && this.isEval()) {
+      fileLocation = this.getEvalOrigin();
+      fileLocation += ", ";  // Expecting source position to follow.
     }
 
     if (fileName) {

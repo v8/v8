@@ -345,7 +345,6 @@ bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
                         info->function()->scope()->AllowsLazyCompilation());
   cgen.PopulateDeoptimizationData(code);
   cgen.PopulateTypeFeedbackInfo(code);
-  cgen.PopulateTypeFeedbackCells(code);
   code->set_has_deoptimization_support(info->HasDeoptimizationSupport());
   code->set_handler_table(*cgen.handler_table());
 #ifdef ENABLE_DEBUGGER_SUPPORT
@@ -387,6 +386,15 @@ unsigned FullCodeGenerator::EmitBackEdgeTable() {
 }
 
 
+void FullCodeGenerator::InitializeFeedbackVector() {
+  int length = info_->function()->slot_count();
+  ASSERT_EQ(isolate()->heap()->the_hole_value(),
+            *TypeFeedbackInfo::UninitializedSentinel(isolate()));
+  feedback_vector_ = isolate()->factory()->NewFixedArrayWithHoles(length,
+                                                                  TENURED);
+}
+
+
 void FullCodeGenerator::PopulateDeoptimizationData(Handle<Code> code) {
   // Fill in the deoptimization information.
   ASSERT(info_->HasDeoptimizationSupport() || bailout_entries_.is_empty());
@@ -405,6 +413,7 @@ void FullCodeGenerator::PopulateDeoptimizationData(Handle<Code> code) {
 void FullCodeGenerator::PopulateTypeFeedbackInfo(Handle<Code> code) {
   Handle<TypeFeedbackInfo> info = isolate()->factory()->NewTypeFeedbackInfo();
   info->set_ic_total_count(ic_total_count_);
+  info->set_feedback_vector(*FeedbackVector());
   ASSERT(!isolate()->heap()->InNewSpace(*info));
   code->set_type_feedback_info(*info);
 }
@@ -421,22 +430,7 @@ void FullCodeGenerator::Initialize() {
                          !Snapshot::HaveASnapshotToStartFrom();
   masm_->set_emit_debug_code(generate_debug_code_);
   masm_->set_predictable_code_size(true);
-  InitializeAstVisitor(info_->isolate());
-}
-
-
-void FullCodeGenerator::PopulateTypeFeedbackCells(Handle<Code> code) {
-  if (type_feedback_cells_.is_empty()) return;
-  int length = type_feedback_cells_.length();
-  int array_size = TypeFeedbackCells::LengthOfFixedArray(length);
-  Handle<TypeFeedbackCells> cache = Handle<TypeFeedbackCells>::cast(
-      isolate()->factory()->NewFixedArray(array_size, TENURED));
-  for (int i = 0; i < length; i++) {
-    cache->SetAstId(i, type_feedback_cells_[i].ast_id);
-    cache->SetCell(i, *type_feedback_cells_[i].cell);
-  }
-  TypeFeedbackInfo::cast(code->type_feedback_info())->set_type_feedback_cells(
-      *cache);
+  InitializeAstVisitor(info_->zone());
 }
 
 
@@ -445,15 +439,17 @@ void FullCodeGenerator::PrepareForBailout(Expression* node, State state) {
 }
 
 
-void FullCodeGenerator::CallLoadIC(ContextualMode mode, TypeFeedbackId id) {
-  Handle<Code> ic = LoadIC::initialize_stub(isolate(), mode);
-  CallIC(ic, mode, id);
+void FullCodeGenerator::CallLoadIC(ContextualMode contextual_mode,
+                                   TypeFeedbackId id) {
+  ExtraICState extra_state = LoadIC::ComputeExtraICState(contextual_mode);
+  Handle<Code> ic = LoadIC::initialize_stub(isolate(), extra_state);
+  CallIC(ic, id);
 }
 
 
-void FullCodeGenerator::CallStoreIC(ContextualMode mode, TypeFeedbackId id) {
+void FullCodeGenerator::CallStoreIC(TypeFeedbackId id) {
   Handle<Code> ic = StoreIC::initialize_stub(isolate(), strict_mode());
-  CallIC(ic, mode, id);
+  CallIC(ic, id);
 }
 
 
@@ -485,13 +481,6 @@ void FullCodeGenerator::PrepareForBailoutForId(BailoutId id, State state) {
   ASSERT(!prepared_bailout_ids_.Contains(id.ToInt()));
   prepared_bailout_ids_.Add(id.ToInt(), zone());
   bailout_entries_.Add(entry, zone());
-}
-
-
-void FullCodeGenerator::RecordTypeFeedbackCell(
-    TypeFeedbackId id, Handle<Cell> cell) {
-  TypeFeedbackCellEntry entry = { id, cell };
-  type_feedback_cells_.Add(entry, zone());
 }
 
 
@@ -847,7 +836,7 @@ void FullCodeGenerator::SetStatementPosition(Statement* stmt) {
   } else {
     // Check if the statement will be breakable without adding a debug break
     // slot.
-    BreakableStatementChecker checker(isolate());
+    BreakableStatementChecker checker(zone());
     checker.Check(stmt);
     // Record the statement position right here if the statement is not
     // breakable. For breakable statements the actual recording of the
@@ -873,7 +862,7 @@ void FullCodeGenerator::SetExpressionPosition(Expression* expr) {
   } else {
     // Check if the expression will be breakable without adding a debug break
     // slot.
-    BreakableStatementChecker checker(isolate());
+    BreakableStatementChecker checker(zone());
     checker.Check(expr);
     // Record a statement position right here if the expression is not
     // breakable. For breakable expressions the actual recording of the
@@ -1098,16 +1087,9 @@ void FullCodeGenerator::VisitBlock(Block* stmt) {
     scope_ = stmt->scope();
     ASSERT(!scope_->is_module_scope());
     { Comment cmnt(masm_, "[ Extend block context");
-      Handle<ScopeInfo> scope_info = scope_->GetScopeInfo();
-      int heap_slots = scope_info->ContextLength() - Context::MIN_CONTEXT_SLOTS;
-      __ Push(scope_info);
+      __ Push(scope_->GetScopeInfo());
       PushFunctionArgumentForContextAllocation();
-      if (heap_slots <= FastNewBlockContextStub::kMaximumSlots) {
-        FastNewBlockContextStub stub(heap_slots);
-        __ CallStub(&stub);
-      } else {
-        __ CallRuntime(Runtime::kPushBlockContext, 2);
-      }
+      __ CallRuntime(Runtime::kPushBlockContext, 2);
 
       // Replace the context stored in the frame.
       StoreToFrameField(StandardFrameConstants::kContextOffset,

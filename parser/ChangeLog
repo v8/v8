@@ -1,3 +1,213 @@
+2014-02-25: Version 3.25.2
+
+        Fix the bit massaging code in CompleteParserRecorder::WriteNumber
+        (Chromium issue 346221).
+
+        Revert r19455 "Load target types and handlers before IC computation."
+        (Chromium issue 346149).
+
+        Don't eliminate loads with incompatible types or representations
+        (Chromium issue 346343).
+
+        Fix for a smi stores optimization on x64 with a regression test
+        (Chromium issue 345715).
+
+        Check that after a weak callback, the handle is either dead or strong
+        (Chromium issue 346061).
+
+        negative bounds checking on realm calls (Chromium issue 344285).
+
+        Lazy preparsing vs. lazy parsing fix (Chromium issue 346207).
+
+        Fix optimistic BCE to back off after deopt (issue 3176).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-02-21: Version 3.25.1
+
+        Performance and stability improvements on all platforms.
+
+
+2014-02-19: Version 3.25.0
+
+        ES6: Tighten up Object.prototype.__proto__ (issue 3064).
+
+        Fix Hydrogen bounds check elimination (Chromium issue 344186).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-02-19: Version 3.24.40
+
+        A64: Let the MacroAssembler resolve branches to distant targets (issue
+        3148).
+
+        Fixed and improved code for integral division. Fixed and extended tests
+        (issue 3151).
+
+        MIPS: Fix assignment of function name constant (issue 3138).
+
+        Fix assignment of function name constant (issue 3138).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-02-14: Version 3.24.39
+
+        Introduce --job-based-sweeping flag and use individual jobs for sweeping
+        if set (issue 3104).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-02-13: Version 3.24.38
+
+        Merge experimental/a64 to bleeding_edge (issue 3113).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-02-12: Version 3.24.37
+
+        Fix spec violations in JSON.stringify wrt replacer array (issue 3135).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-02-11: Version 3.24.36
+
+        Fix inconsistencies wrt whitespaces (issue 3109).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-02-10: Version 3.24.35
+
+        Fix inconsistencies wrt whitespaces (issue 3109).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-02-07: Version 3.24.34
+
+        Performance and stability improvements on all platforms.
+
+
+2014-02-06: Version 3.24.33
+
+        Allow externalizing strings in old pointer space (Chromium issue
+        268686).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-02-05: Version 3.24.32
+
+        Add Box object to heap profiler.
+
+        Check the offset argument of TypedArray.set for fitting into Smi
+        (Chromium issue 340125).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-02-04: Version 3.24.31
+
+        Fix short-circuiting logical and/or in HOptimizedGraphBuilder (Chromium
+        issue 336148).
+
+        Elements field of newly allocated JSArray could be left uninitialized in
+        some cases (fast literal case) (Chromium issue 340124).
+
+        Re-enable escape analysis.
+
+        Performance and stability improvements on all platforms.
+
+
+2014-02-03: Version 3.24.30
+
+        Performance and stability improvements on all platforms.
+
+
+2014-02-01: Version 3.24.29
+
+        Performance and stability improvements on all platforms.
+
+
+2014-01-31: Version 3.24.28
+
+        Don't crash in Array.join() if the resulting string exceeds the max
+        string length (Chromium issue 336820).
+
+        Implements ES6 String.prototype.normalize method (issue 2943).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-01-30: Version 3.24.27
+
+        Performance and stability improvements on all platforms.
+
+
+2014-01-29: Version 3.24.26
+
+        ES6: Map and Set needs to normalize minus zero (issue 3069).
+
+        Make `String.prototype.{starts,ends}With` throw when passing a regular
+        expression (issue 3070).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-01-28: Version 3.24.25
+
+        Performance and stability improvements on all platforms.
+
+
+2014-01-27: Version 3.24.24
+
+        MIPS: Reduce the stack requirements of GetNoCodeAgeSequence (issue
+        3111).
+
+        Delete v8_shell target now that chrome uses d8 (Chromium issue 331585).
+
+        ARM: Reduce the stack requirements of GetNoCodeAgeSequence (issue 3111).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-01-24: Version 3.24.23
+
+        Performance and stability improvements on all platforms.
+
+
+2014-01-23: Version 3.24.22
+
+        Fix compilation on x64 architectures (issue 3110).
+
+        Ensure we don't overwrite transitions in SetPropertyIgnoreAttributes
+        (Chromium issue 326155).
+
+        ES6: Implement Object.setPrototypeOf (issue 2675).
+
+        Fixed floor-of-div optimization (Chromium issue 334708).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-01-22: Version 3.24.21
+
+        Performance and stability improvements on all platforms.
+
+
+2014-01-21: Version 3.24.20
+
+        ES6: Implement Object.setPrototypeOf (issue 2675).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-01-20: Version 3.24.19
 
         Introduce a setting to control the toolset for which d8 is compiled

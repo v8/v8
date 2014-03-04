@@ -1555,7 +1555,7 @@ TEST(SmiIndex) {
   // Allocate an executable page of memory.
   size_t actual_size;
   byte* buffer =
-      static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize * 4,
+      static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize * 5,
                                       &actual_size,
                                       true));
   CHECK(buffer);

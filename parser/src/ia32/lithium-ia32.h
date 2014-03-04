@@ -93,13 +93,10 @@ class LCodeGen;
   V(Drop)                                       \
   V(Dummy)                                      \
   V(DummyUse)                                   \
-  V(ElementsKind)                               \
   V(ForInCacheArray)                            \
   V(ForInPrepareMap)                            \
   V(FunctionLiteral)                            \
   V(GetCachedArrayIndex)                        \
-  V(GlobalObject)                               \
-  V(GlobalReceiver)                             \
   V(Goto)                                       \
   V(HasCachedArrayIndexAndBranch)               \
   V(HasInstanceTypeAndBranch)                   \
@@ -118,7 +115,6 @@ class LCodeGen;
   V(Label)                                      \
   V(LazyBailout)                                \
   V(LoadContextSlot)                            \
-  V(LoadExternalArrayPointer)                   \
   V(LoadFieldByIndex)                           \
   V(LoadFunctionPrototype)                      \
   V(LoadGlobalCell)                             \
@@ -130,6 +126,7 @@ class LCodeGen;
   V(LoadRoot)                                   \
   V(MapEnumLength)                              \
   V(MathAbs)                                    \
+  V(MathClz32)                                  \
   V(MathExp)                                    \
   V(MathFloor)                                  \
   V(MathFloorOfDiv)                             \
@@ -145,7 +142,6 @@ class LCodeGen;
   V(NumberTagU)                                 \
   V(NumberUntagD)                               \
   V(OsrEntry)                                   \
-  V(OuterContext)                               \
   V(Parameter)                                  \
   V(Power)                                      \
   V(PushArgument)                               \
@@ -171,7 +167,6 @@ class LCodeGen;
   V(SubI)                                       \
   V(TaggedToI)                                  \
   V(ThisFunction)                               \
-  V(Throw)                                      \
   V(ToFastProperties)                           \
   V(TransitionElementsKind)                     \
   V(TrapAllocationMemento)                      \
@@ -180,7 +175,6 @@ class LCodeGen;
   V(Uint32ToDouble)                             \
   V(Uint32ToSmi)                                \
   V(UnknownOSRValue)                            \
-  V(ValueOf)                                    \
   V(WrapReceiver)
 
 
@@ -572,6 +566,7 @@ class LWrapReceiver V8_FINAL : public LTemplateInstruction<1, 2, 1> {
   LOperand* temp() { return temps_[0]; }
 
   DECLARE_CONCRETE_INSTRUCTION(WrapReceiver, "wrap-receiver")
+  DECLARE_HYDROGEN_ACCESSOR(WrapReceiver)
 };
 
 
@@ -785,6 +780,18 @@ class LMathLog V8_FINAL : public LTemplateInstruction<1, 1, 0> {
   LOperand* value() { return inputs_[0]; }
 
   DECLARE_CONCRETE_INSTRUCTION(MathLog, "math-log")
+};
+
+
+class LMathClz32 V8_FINAL : public LTemplateInstruction<1, 1, 0> {
+ public:
+  explicit LMathClz32(LOperand* value) {
+    inputs_[0] = value;
+  }
+
+  LOperand* value() { return inputs_[0]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(MathClz32, "math-clz32")
 };
 
 
@@ -1272,34 +1279,6 @@ class LMapEnumLength V8_FINAL : public LTemplateInstruction<1, 1, 0> {
 };
 
 
-class LElementsKind V8_FINAL : public LTemplateInstruction<1, 1, 0> {
- public:
-  explicit LElementsKind(LOperand* value) {
-    inputs_[0] = value;
-  }
-
-  LOperand* value() { return inputs_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(ElementsKind, "elements-kind")
-  DECLARE_HYDROGEN_ACCESSOR(ElementsKind)
-};
-
-
-class LValueOf V8_FINAL : public LTemplateInstruction<1, 1, 1> {
- public:
-  LValueOf(LOperand* value, LOperand* temp) {
-    inputs_[0] = value;
-    temps_[0] = temp;
-  }
-
-  LOperand* value() { return inputs_[0]; }
-  LOperand* temp() { return temps_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(ValueOf, "value-of")
-  DECLARE_HYDROGEN_ACCESSOR(ValueOf)
-};
-
-
 class LDateField V8_FINAL : public LTemplateInstruction<1, 1, 1> {
  public:
   LDateField(LOperand* date, LOperand* temp, Smi* index)
@@ -1354,20 +1333,6 @@ class LSeqStringSetChar V8_FINAL : public LTemplateInstruction<1, 4, 0> {
 
   DECLARE_CONCRETE_INSTRUCTION(SeqStringSetChar, "seq-string-set-char")
   DECLARE_HYDROGEN_ACCESSOR(SeqStringSetChar)
-};
-
-
-class LThrow V8_FINAL : public LTemplateInstruction<0, 2, 0> {
- public:
-  LThrow(LOperand* context, LOperand* value) {
-    inputs_[0] = context;
-    inputs_[1] = value;
-  }
-
-  LOperand* context() { return inputs_[0]; }
-  LOperand* value() { return inputs_[1]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(Throw, "throw")
 };
 
 
@@ -1552,20 +1517,6 @@ class LLoadRoot V8_FINAL : public LTemplateInstruction<1, 0, 0> {
 };
 
 
-class LLoadExternalArrayPointer V8_FINAL
-    : public LTemplateInstruction<1, 1, 0> {
- public:
-  explicit LLoadExternalArrayPointer(LOperand* object) {
-    inputs_[0] = object;
-  }
-
-  LOperand* object() { return inputs_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(LoadExternalArrayPointer,
-                               "load-external-array-pointer")
-};
-
-
 class LLoadKeyed V8_FINAL : public LTemplateInstruction<1, 2, 0> {
  public:
   LLoadKeyed(LOperand* elements, LOperand* key) {
@@ -1605,9 +1556,9 @@ inline static bool ExternalArrayOpRequiresTemp(
   // an index cannot fold the scale operation into a load and need an extra
   // temp register to do the work.
   return key_representation.IsSmi() &&
-      (elements_kind == EXTERNAL_BYTE_ELEMENTS ||
-       elements_kind == EXTERNAL_UNSIGNED_BYTE_ELEMENTS ||
-       elements_kind == EXTERNAL_PIXEL_ELEMENTS ||
+      (elements_kind == EXTERNAL_INT8_ELEMENTS ||
+       elements_kind == EXTERNAL_UINT8_ELEMENTS ||
+       elements_kind == EXTERNAL_UINT8_CLAMPED_ELEMENTS ||
        elements_kind == UINT8_ELEMENTS ||
        elements_kind == INT8_ELEMENTS ||
        elements_kind == UINT8_CLAMPED_ELEMENTS);
@@ -1778,18 +1729,6 @@ class LContext V8_FINAL : public LTemplateInstruction<1, 0, 0> {
 };
 
 
-class LOuterContext V8_FINAL : public LTemplateInstruction<1, 1, 0> {
- public:
-  explicit LOuterContext(LOperand* context) {
-    inputs_[0] = context;
-  }
-
-  LOperand* context() { return inputs_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(OuterContext, "outer-context")
-};
-
-
 class LDeclareGlobals V8_FINAL : public LTemplateInstruction<0, 1, 0> {
  public:
   explicit LDeclareGlobals(LOperand* context) {
@@ -1800,30 +1739,6 @@ class LDeclareGlobals V8_FINAL : public LTemplateInstruction<0, 1, 0> {
 
   DECLARE_CONCRETE_INSTRUCTION(DeclareGlobals, "declare-globals")
   DECLARE_HYDROGEN_ACCESSOR(DeclareGlobals)
-};
-
-
-class LGlobalObject V8_FINAL : public LTemplateInstruction<1, 1, 0> {
- public:
-  explicit LGlobalObject(LOperand* context) {
-    inputs_[0] = context;
-  }
-
-  LOperand* context() { return inputs_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(GlobalObject, "global-object")
-};
-
-
-class LGlobalReceiver V8_FINAL : public LTemplateInstruction<1, 1, 0> {
- public:
-  explicit LGlobalReceiver(LOperand* global_object) {
-    inputs_[0] = global_object;
-  }
-
-  LOperand* global() { return inputs_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(GlobalReceiver, "global-receiver")
 };
 
 
@@ -2703,8 +2618,6 @@ class LChunkBuilder V8_FINAL : public LChunkBuilderBase {
   HYDROGEN_CONCRETE_INSTRUCTION_LIST(DECLARE_DO)
 #undef DECLARE_DO
 
-  static HValue* SimplifiedDivisorForMathFloorOfDiv(HValue* val);
-
   LInstruction* DoMathFloor(HUnaryMathOperation* instr);
   LInstruction* DoMathRound(HUnaryMathOperation* instr);
   LInstruction* DoMathAbs(HUnaryMathOperation* instr);
@@ -2712,6 +2625,7 @@ class LChunkBuilder V8_FINAL : public LChunkBuilderBase {
   LInstruction* DoMathExp(HUnaryMathOperation* instr);
   LInstruction* DoMathSqrt(HUnaryMathOperation* instr);
   LInstruction* DoMathPowHalf(HUnaryMathOperation* instr);
+  LInstruction* DoMathClz32(HUnaryMathOperation* instr);
 
  private:
   enum Status {

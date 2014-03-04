@@ -232,6 +232,7 @@ TEST(UncaughtThrow) {
 //   |      JS       |
 //   |   C-to-JS     |
 TEST(C2JSFrames) {
+  FLAG_expose_gc = true;
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> context =
     CcTest::NewContext(PRINT_EXTENSION | GC_EXTENSION);

@@ -231,6 +231,7 @@ class Genesis BASE_EMBEDDED {
   // Installs the contents of the native .js files on the global objects.
   // Used for creating a context from scratch.
   void InstallNativeFunctions();
+  void InstallExperimentalBuiltinFunctionIds();
   void InstallExperimentalNativeFunctions();
   Handle<JSFunction> InstallInternalArray(Handle<JSBuiltinsObject> builtins,
                                           const char* name,
@@ -1094,33 +1095,14 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
   }
 
   { // -- T y p e d A r r a y s
-    Handle<JSFunction> int8_fun = InstallTypedArray("Int8Array",
-        EXTERNAL_BYTE_ELEMENTS);
-    native_context()->set_int8_array_fun(*int8_fun);
-    Handle<JSFunction> uint8_fun = InstallTypedArray("Uint8Array",
-        EXTERNAL_UNSIGNED_BYTE_ELEMENTS);
-    native_context()->set_uint8_array_fun(*uint8_fun);
-    Handle<JSFunction> int16_fun = InstallTypedArray("Int16Array",
-        EXTERNAL_SHORT_ELEMENTS);
-    native_context()->set_int16_array_fun(*int16_fun);
-    Handle<JSFunction> uint16_fun = InstallTypedArray("Uint16Array",
-        EXTERNAL_UNSIGNED_SHORT_ELEMENTS);
-    native_context()->set_uint16_array_fun(*uint16_fun);
-    Handle<JSFunction> int32_fun = InstallTypedArray("Int32Array",
-        EXTERNAL_INT_ELEMENTS);
-    native_context()->set_int32_array_fun(*int32_fun);
-    Handle<JSFunction> uint32_fun = InstallTypedArray("Uint32Array",
-        EXTERNAL_UNSIGNED_INT_ELEMENTS);
-    native_context()->set_uint32_array_fun(*uint32_fun);
-    Handle<JSFunction> float_fun = InstallTypedArray("Float32Array",
-        EXTERNAL_FLOAT_ELEMENTS);
-    native_context()->set_float_array_fun(*float_fun);
-    Handle<JSFunction> double_fun = InstallTypedArray("Float64Array",
-        EXTERNAL_DOUBLE_ELEMENTS);
-    native_context()->set_double_array_fun(*double_fun);
-    Handle<JSFunction> uint8c_fun = InstallTypedArray("Uint8ClampedArray",
-        EXTERNAL_PIXEL_ELEMENTS);
-    native_context()->set_uint8c_array_fun(*uint8c_fun);
+#define INSTALL_TYPED_ARRAY(Type, type, TYPE, ctype, size)                    \
+    {                                                                         \
+      Handle<JSFunction> fun = InstallTypedArray(#Type "Array",               \
+          EXTERNAL_##TYPE##_ELEMENTS);                                        \
+      native_context()->set_##type##_array_fun(*fun);                         \
+    }
+    TYPED_ARRAYS(INSTALL_TYPED_ARRAY)
+#undef INSTALL_TYPED_ARRAY
 
     Handle<JSFunction> data_view_fun =
         InstallFunction(
@@ -1601,6 +1583,9 @@ void Genesis::InstallNativeFunctions() {
 
 void Genesis::InstallExperimentalNativeFunctions() {
   INSTALL_NATIVE(JSFunction, "RunMicrotasks", run_microtasks);
+  INSTALL_NATIVE(JSFunction, "EnqueueExternalMicrotask",
+                 enqueue_external_microtask);
+
   if (FLAG_harmony_proxies) {
     INSTALL_NATIVE(JSFunction, "DerivedHasTrap", derived_has_trap);
     INSTALL_NATIVE(JSFunction, "DerivedGetTrap", derived_get_trap);
@@ -2076,7 +2061,7 @@ bool Genesis::InstallExperimentalNatives() {
   }
 
   InstallExperimentalNativeFunctions();
-
+  InstallExperimentalBuiltinFunctionIds();
   return true;
 }
 
@@ -2123,6 +2108,15 @@ void Genesis::InstallBuiltinFunctionIds() {
   }
   FUNCTIONS_WITH_ID_LIST(INSTALL_BUILTIN_ID)
 #undef INSTALL_BUILTIN_ID
+}
+
+
+void Genesis::InstallExperimentalBuiltinFunctionIds() {
+  HandleScope scope(isolate());
+  if (FLAG_harmony_maths) {
+    Handle<JSObject> holder = ResolveBuiltinIdHolder(native_context(), "Math");
+    InstallBuiltinFunctionId(holder, "clz32", kMathClz32);
+  }
 }
 
 
@@ -2575,12 +2569,33 @@ void Genesis::MakeFunctionInstancePrototypeWritable() {
 }
 
 
+class NoTrackDoubleFieldsForSerializerScope {
+ public:
+  NoTrackDoubleFieldsForSerializerScope() : flag_(FLAG_track_double_fields) {
+    if (Serializer::enabled()) {
+      // Disable tracking double fields because heap numbers treated as
+      // immutable by the serializer.
+      FLAG_track_double_fields = false;
+    }
+  }
+  ~NoTrackDoubleFieldsForSerializerScope() {
+    if (Serializer::enabled()) {
+      FLAG_track_double_fields = flag_;
+    }
+  }
+
+ private:
+  bool flag_;
+};
+
+
 Genesis::Genesis(Isolate* isolate,
                  Handle<Object> global_object,
                  v8::Handle<v8::ObjectTemplate> global_template,
                  v8::ExtensionConfiguration* extensions)
     : isolate_(isolate),
       active_(isolate->bootstrapper()) {
+  NoTrackDoubleFieldsForSerializerScope disable_double_tracking_for_serializer;
   result_ = Handle<Context>::null();
   // If V8 cannot be initialized, just return.
   if (!V8::Initialize(NULL)) return;

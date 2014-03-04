@@ -88,9 +88,10 @@ class Accessors : public AllStatic {
 
   // Returns true for properties that are accessors to object fields.
   // If true, *object_offset contains offset of object field.
-  static bool IsJSObjectFieldAccessor(
-      Handle<Map> map, Handle<String> name,
-      int* object_offset);
+  template <class T>
+  static bool IsJSObjectFieldAccessor(typename T::TypeHandle type,
+                                      Handle<String> name,
+                                      int* object_offset);
 
 
  private:

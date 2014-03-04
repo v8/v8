@@ -113,7 +113,6 @@ struct TickSample;
   V(BUILTIN_TAG,                    "Builtin")                          \
   V(CALL_DEBUG_BREAK_TAG,           "CallDebugBreak")                   \
   V(CALL_DEBUG_PREPARE_STEP_IN_TAG, "CallDebugPrepareStepIn")           \
-  V(CALL_IC_TAG,                    "CallIC")                           \
   V(CALL_INITIALIZE_TAG,            "CallInitialize")                   \
   V(CALL_MEGAMORPHIC_TAG,           "CallMegamorphic")                  \
   V(CALL_MISS_TAG,                  "CallMiss")                         \
@@ -129,7 +128,6 @@ struct TickSample;
   V(KEYED_CALL_DEBUG_BREAK_TAG,     "KeyedCallDebugBreak")              \
   V(KEYED_CALL_DEBUG_PREPARE_STEP_IN_TAG,                               \
     "KeyedCallDebugPrepareStepIn")                                      \
-  V(KEYED_CALL_IC_TAG,              "KeyedCallIC")                      \
   V(KEYED_CALL_INITIALIZE_TAG,      "KeyedCallInitialize")              \
   V(KEYED_CALL_MEGAMORPHIC_TAG,     "KeyedCallMegamorphic")             \
   V(KEYED_CALL_MISS_TAG,            "KeyedCallMiss")                    \

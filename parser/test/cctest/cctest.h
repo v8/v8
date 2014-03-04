@@ -130,6 +130,10 @@ class CcTest {
       CcTestExtensionFlags extensions,
       v8::Isolate* isolate = CcTest::isolate());
 
+  static void TearDown() {
+    if (isolate_ != NULL) isolate_->Dispose();
+  }
+
  private:
   friend int main(int argc, char** argv);
   TestFunction* callback_;
@@ -308,6 +312,18 @@ static inline v8::Local<v8::Script> v8_compile(const char* x) {
 static inline v8::Local<v8::Value> CompileRun(const char* source) {
   return v8::Script::Compile(
       v8::String::NewFromUtf8(v8::Isolate::GetCurrent(), source))->Run();
+}
+
+
+static inline v8::Local<v8::Value> PreCompileCompileRun(const char* source) {
+  v8::Local<v8::String> script_source =
+      v8::String::NewFromUtf8(v8::Isolate::GetCurrent(), source);
+  v8::ScriptData* preparse = v8::ScriptData::PreCompile(script_source);
+  v8::Local<v8::Script> script =
+      v8::Script::Compile(script_source, NULL, preparse);
+  v8::Local<v8::Value> result = script->Run();
+  delete preparse;
+  return result;
 }
 
 

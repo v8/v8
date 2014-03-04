@@ -1628,7 +1628,11 @@ class V8_EXPORT String : public Primitive {
     NO_OPTIONS = 0,
     HINT_MANY_WRITES_EXPECTED = 1,
     NO_NULL_TERMINATION = 2,
-    PRESERVE_ASCII_NULL = 4
+    PRESERVE_ASCII_NULL = 4,
+    // Used by WriteUtf8 to replace orphan surrogate code units with the
+    // unicode replacement character. Needs to be set to guarantee valid UTF-8
+    // output.
+    REPLACE_INVALID_UTF8 = 8
   };
 
   // 16-bit character codes.
@@ -1996,15 +2000,26 @@ enum PropertyAttribute {
 };
 
 enum ExternalArrayType {
-  kExternalByteArray = 1,
-  kExternalUnsignedByteArray,
-  kExternalShortArray,
-  kExternalUnsignedShortArray,
-  kExternalIntArray,
-  kExternalUnsignedIntArray,
-  kExternalFloatArray,
-  kExternalDoubleArray,
-  kExternalPixelArray
+  kExternalInt8Array = 1,
+  kExternalUint8Array,
+  kExternalInt16Array,
+  kExternalUint16Array,
+  kExternalInt32Array,
+  kExternalUint32Array,
+  kExternalFloat32Array,
+  kExternalFloat64Array,
+  kExternalUint8ClampedArray,
+
+  // Legacy constant names
+  kExternalByteArray = kExternalInt8Array,
+  kExternalUnsignedByteArray = kExternalUint8Array,
+  kExternalShortArray = kExternalInt16Array,
+  kExternalUnsignedShortArray = kExternalUint16Array,
+  kExternalIntArray = kExternalInt32Array,
+  kExternalUnsignedIntArray = kExternalUint32Array,
+  kExternalFloatArray = kExternalFloat32Array,
+  kExternalDoubleArray = kExternalFloat64Array,
+  kExternalPixelArray = kExternalUint8ClampedArray
 };
 
 /**
@@ -4564,6 +4579,22 @@ class V8_EXPORT V8 {
   static void RemoveCallCompletedCallback(CallCompletedCallback callback);
 
   /**
+   * Experimental: Runs the Microtask Work Queue until empty
+   */
+  static void RunMicrotasks(Isolate* isolate);
+
+  /**
+   * Experimental: Enqueues the callback to the Microtask Work Queue
+   */
+  static void EnqueueMicrotask(Isolate* isolate, Handle<Function> microtask);
+
+   /**
+   * Experimental: Controls whether the Microtask Work Queue is automatically
+   * run when the script call depth decrements to zero.
+   */
+  static void SetAutorunMicrotasks(Isolate *source, bool autorun);
+
+  /**
    * Initializes from snapshot if possible. Otherwise, attempts to
    * initialize from scratch.  This function is called implicitly if
    * you use the API without calling it first.
@@ -5383,7 +5414,7 @@ class Internals {
   static const int kNullValueRootIndex = 7;
   static const int kTrueValueRootIndex = 8;
   static const int kFalseValueRootIndex = 9;
-  static const int kEmptyStringRootIndex = 145;
+  static const int kEmptyStringRootIndex = 141;
 
   static const int kNodeClassIdOffset = 1 * kApiPointerSize;
   static const int kNodeFlagsOffset = 1 * kApiPointerSize + 3;

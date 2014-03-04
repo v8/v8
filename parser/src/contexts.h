@@ -131,9 +131,9 @@ enum BindingFlags {
   V(INT16_ARRAY_FUN_INDEX, JSFunction, int16_array_fun) \
   V(UINT32_ARRAY_FUN_INDEX, JSFunction, uint32_array_fun) \
   V(INT32_ARRAY_FUN_INDEX, JSFunction, int32_array_fun) \
-  V(FLOAT_ARRAY_FUN_INDEX, JSFunction, float_array_fun) \
-  V(DOUBLE_ARRAY_FUN_INDEX, JSFunction, double_array_fun) \
-  V(UINT8C_ARRAY_FUN_INDEX, JSFunction, uint8c_array_fun) \
+  V(FLOAT32_ARRAY_FUN_INDEX, JSFunction, float32_array_fun) \
+  V(FLOAT64_ARRAY_FUN_INDEX, JSFunction, float64_array_fun) \
+  V(UINT8_CLAMPED_ARRAY_FUN_INDEX, JSFunction, uint8_clamped_array_fun) \
   V(DATA_VIEW_FUN_INDEX, JSFunction, data_view_fun) \
   V(FUNCTION_MAP_INDEX, Map, function_map) \
   V(STRICT_MODE_FUNCTION_MAP_INDEX, Map, strict_mode_function_map) \
@@ -167,6 +167,7 @@ enum BindingFlags {
   V(ERROR_MESSAGE_FOR_CODE_GEN_FROM_STRINGS_INDEX, Object, \
     error_message_for_code_gen_from_strings) \
   V(RUN_MICROTASKS_INDEX, JSFunction, run_microtasks) \
+  V(ENQUEUE_EXTERNAL_MICROTASK_INDEX, JSFunction, enqueue_external_microtask) \
   V(TO_COMPLETE_PROPERTY_DESCRIPTOR_INDEX, JSFunction, \
     to_complete_property_descriptor) \
   V(DERIVED_HAS_TRAP_INDEX, JSFunction, derived_has_trap) \
@@ -225,8 +226,11 @@ enum BindingFlags {
 // In addition, function contexts may have statically allocated context slots
 // to store local variables/functions that are accessed from inner functions
 // (via static context addresses) or through 'eval' (dynamic context lookups).
-// Finally, the native context contains additional slots for fast access to
-// native properties.
+// The native context contains additional slots for fast access to native
+// properties.
+//
+// Finally, with Harmony scoping, the JSFunction representing a top level
+// script will have the GlobalContext rather than a FunctionContext.
 
 class Context: public FixedArray {
  public:
@@ -296,9 +300,9 @@ class Context: public FixedArray {
     INT16_ARRAY_FUN_INDEX,
     UINT32_ARRAY_FUN_INDEX,
     INT32_ARRAY_FUN_INDEX,
-    FLOAT_ARRAY_FUN_INDEX,
-    DOUBLE_ARRAY_FUN_INDEX,
-    UINT8C_ARRAY_FUN_INDEX,
+    FLOAT32_ARRAY_FUN_INDEX,
+    FLOAT64_ARRAY_FUN_INDEX,
+    UINT8_CLAMPED_ARRAY_FUN_INDEX,
     DATA_VIEW_FUN_INDEX,
     MESSAGE_LISTENERS_INDEX,
     MAKE_MESSAGE_FUN_INDEX,
@@ -318,6 +322,7 @@ class Context: public FixedArray {
     ALLOW_CODE_GEN_FROM_STRINGS_INDEX,
     ERROR_MESSAGE_FOR_CODE_GEN_FROM_STRINGS_INDEX,
     RUN_MICROTASKS_INDEX,
+    ENQUEUE_EXTERNAL_MICROTASK_INDEX,
     TO_COMPLETE_PROPERTY_DESCRIPTOR_INDEX,
     DERIVED_HAS_TRAP_INDEX,
     DERIVED_GET_TRAP_INDEX,

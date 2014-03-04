@@ -100,7 +100,7 @@ namespace internal {
   F(GetOptimizationCount, 1, 1) \
   F(UnblockConcurrentRecompilation, 0, 1) \
   F(CompileForOnStackReplacement, 1, 1) \
-  F(SetAllocationTimeout, 2, 1) \
+  F(SetAllocationTimeout, -1 /* 2 || 3 */, 1) \
   F(AllocateInNewSpace, 1, 1) \
   F(AllocateInTargetSpace, 2, 1) \
   F(SetNativeFlag, 1, 1) \
@@ -177,14 +177,18 @@ namespace internal {
   F(Math_acos, 1, 1) \
   F(Math_asin, 1, 1) \
   F(Math_atan, 1, 1) \
-  F(Math_atan2, 2, 1) \
+  F(Math_log, 1, 1) \
+  F(Math_cbrt, 1, 1) \
+  F(Math_log1p, 1, 1) \
+  F(Math_expm1, 1, 1) \
+  F(Math_sqrt, 1, 1) \
   F(Math_exp, 1, 1) \
   F(Math_floor, 1, 1) \
-  F(Math_log, 1, 1) \
   F(Math_pow, 2, 1) \
   F(Math_pow_cfunction, 2, 1) \
+  F(Math_atan2, 2, 1) \
   F(RoundNumber, 1, 1) \
-  F(Math_sqrt, 1, 1) \
+  F(Math_fround, 1, 1) \
   \
   /* Regular expressions */ \
   F(RegExpCompile, 3, 1) \
@@ -308,13 +312,17 @@ namespace internal {
   /* ES5 */ \
   F(ObjectFreeze, 1, 1) \
   \
+  /* Harmony Microtasks */ \
+  F(GetMicrotaskState, 0, 1) \
+  \
   /* Harmony modules */ \
   F(IsJSModule, 1, 1) \
   \
   /* Harmony symbols */ \
   F(CreateSymbol, 1, 1) \
   F(CreatePrivateSymbol, 1, 1) \
-  F(SymbolName, 1, 1) \
+  F(NewSymbolWrapper, 1, 1) \
+  F(SymbolDescription, 1, 1) \
   F(SymbolIsPrivate, 1, 1) \
   \
   /* Harmony proxies */ \
@@ -351,6 +359,7 @@ namespace internal {
   \
   /* Harmony events */ \
   F(SetMicrotaskPending, 1, 1) \
+  F(RunMicrotasks, 0, 1) \
   \
   /* Harmony observe */ \
   F(IsObserved, 1, 1) \
@@ -437,7 +446,7 @@ namespace internal {
   F(DebugTrace, 0, 1) \
   F(TraceEnter, 0, 1) \
   F(TraceExit, 1, 1) \
-  F(Abort, 2, 1) \
+  F(Abort, 1, 1) \
   F(AbortJS, 1, 1) \
   /* Logging */ \
   F(Log, 2, 1) \
@@ -461,16 +470,16 @@ namespace internal {
   F(HasFastHoleyElements, 1, 1) \
   F(HasDictionaryElements, 1, 1) \
   F(HasNonStrictArgumentsElements, 1, 1) \
-  F(HasExternalPixelElements, 1, 1) \
+  F(HasExternalUint8ClampedElements, 1, 1) \
   F(HasExternalArrayElements, 1, 1) \
-  F(HasExternalByteElements, 1, 1) \
-  F(HasExternalUnsignedByteElements, 1, 1) \
-  F(HasExternalShortElements, 1, 1) \
-  F(HasExternalUnsignedShortElements, 1, 1) \
-  F(HasExternalIntElements, 1, 1) \
-  F(HasExternalUnsignedIntElements, 1, 1) \
-  F(HasExternalFloatElements, 1, 1) \
-  F(HasExternalDoubleElements, 1, 1) \
+  F(HasExternalInt8Elements, 1, 1) \
+  F(HasExternalUint8Elements, 1, 1) \
+  F(HasExternalInt16Elements, 1, 1) \
+  F(HasExternalUint16Elements, 1, 1) \
+  F(HasExternalInt32Elements, 1, 1) \
+  F(HasExternalUint32Elements, 1, 1) \
+  F(HasExternalFloat32Elements, 1, 1) \
+  F(HasExternalFloat64Elements, 1, 1) \
   F(HasFastProperties, 1, 1) \
   F(TransitionElementsKind, 2, 1) \
   F(HaveSameMap, 2, 1) \
@@ -568,6 +577,9 @@ namespace internal {
   F(CreateCollator, 3, 1) \
   F(InternalCompare, 3, 1) \
   \
+  /* String.prototype.normalize. */ \
+  F(StringNormalize, 2, 1) \
+  \
   /* Break iterator. */ \
   F(CreateBreakIterator, 3, 1) \
   F(BreakIteratorAdoptText, 2, 1) \
@@ -631,7 +643,6 @@ namespace internal {
   F(MathSqrt, 1, 1)                                                          \
   F(MathLog, 1, 1)                                                           \
   F(IsMinusZero, 1, 1)                                                       \
-  F(IsRegExpEquivalent, 2, 1)                                                \
   F(HasCachedArrayIndex, 1, 1)                                               \
   F(GetCachedArrayIndex, 1, 1)                                               \
   F(FastAsciiArrayJoin, 2, 1)                                                \
@@ -839,7 +850,7 @@ class Runtime : public AllStatic {
     ARRAY_ID_INT32 = 6,
     ARRAY_ID_FLOAT32 = 7,
     ARRAY_ID_FLOAT64 = 8,
-    ARRAY_ID_UINT8C = 9
+    ARRAY_ID_UINT8_CLAMPED = 9
   };
 
   static void ArrayIdToTypeAndSize(int array_id,

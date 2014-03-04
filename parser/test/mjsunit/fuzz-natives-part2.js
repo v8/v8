@@ -172,6 +172,7 @@ var knownProblems = {
 
   // Vararg with minimum number > 0.
   "Call": true,
+  "SetAllocationTimeout": true,
 
   // Requires integer arguments to be non-negative.
   "Apply": true,

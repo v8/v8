@@ -934,6 +934,7 @@ int DisassemblerX64::RegisterFPUInstruction(int escape_opcode,
             case 0xF5: mnem = "fprem1"; break;
             case 0xF7: mnem = "fincstp"; break;
             case 0xF8: mnem = "fprem"; break;
+            case 0xFC: mnem = "frndint"; break;
             case 0xFD: mnem = "fscale"; break;
             case 0xFE: mnem = "fsin"; break;
             case 0xFF: mnem = "fcos"; break;
@@ -956,6 +957,8 @@ int DisassemblerX64::RegisterFPUInstruction(int escape_opcode,
         has_register = true;
       } else if (modrm_byte  == 0xE2) {
         mnem = "fclex";
+      } else if (modrm_byte == 0xE3) {
+        mnem = "fninit";
       } else {
         UnimplementedInstruction();
       }
@@ -1323,6 +1326,12 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
     } else {
       AppendToBuffer(",%s,cl", NameOfCPURegister(regop));
     }
+  } else if (opcode == 0xBD) {
+    AppendToBuffer("%s%c ", mnemonic, operand_size_code());
+    int mod, regop, rm;
+    get_modrm(*current, &mod, &regop, &rm);
+    AppendToBuffer("%s,", NameOfCPURegister(regop));
+    current += PrintRightOperand(current);
   } else {
     UnimplementedInstruction();
   }
@@ -1365,6 +1374,8 @@ const char* DisassemblerX64::TwoByteMnemonic(byte opcode) {
       return "movzxb";
     case 0xB7:
       return "movzxw";
+    case 0xBD:
+      return "bsr";
     case 0xBE:
       return "movsxb";
     case 0xBF:
@@ -1448,7 +1459,8 @@ int DisassemblerX64::InstructionDecode(v8::internal::Vector<char> out_buffer,
           data += 3;
           break;
         case OPERAND_DOUBLEWORD_SIZE:
-          addr = reinterpret_cast<byte*>(*reinterpret_cast<int32_t*>(data + 1));
+          addr =
+              reinterpret_cast<byte*>(*reinterpret_cast<uint32_t*>(data + 1));
           data += 5;
           break;
         case OPERAND_QUADWORD_SIZE:

@@ -61,6 +61,9 @@
 
     # Use the v8 provided v8::Platform implementation.
     'v8_use_default_platform%': 1,
+
+    # Use the generated lexer.
+    'v8_use_generated_lexer%': 0,
   },
   'target_defaults': {
     'conditions': [
@@ -90,6 +93,9 @@
       }],
       ['v8_use_default_platform==1', {
         'defines': ['V8_USE_DEFAULT_PLATFORM',],
+      }],
+      ['v8_use_generated_lexer==1', {
+        'defines': ['V8_USE_GENERATED_LEXER',],
       }],
       ['v8_compress_startup_data=="bz2"', {
         'defines': [

@@ -35,6 +35,8 @@
 #include "ia32/lithium-ia32.h"
 #elif V8_TARGET_ARCH_X64
 #include "x64/lithium-x64.h"
+#elif V8_TARGET_ARCH_A64
+#include "a64/lithium-a64.h"
 #elif V8_TARGET_ARCH_ARM
 #include "arm/lithium-arm.h"
 #elif V8_TARGET_ARCH_MIPS
@@ -604,11 +606,11 @@ void HValue::PrintChangesTo(StringStream* stream) {
     stream->Add("*");
   } else {
     bool add_comma = false;
-#define PRINT_DO(type)                            \
-    if (changes_flags.Contains(kChanges##type)) { \
-      if (add_comma) stream->Add(",");            \
-      add_comma = true;                           \
-      stream->Add(#type);                         \
+#define PRINT_DO(Type)                      \
+    if (changes_flags.Contains(k##Type)) {  \
+      if (add_comma) stream->Add(",");      \
+      add_comma = true;                     \
+      stream->Add(#Type);                   \
     }
     GVN_TRACKED_FLAG_LIST(PRINT_DO);
     GVN_UNTRACKED_FLAG_LIST(PRINT_DO);
@@ -680,6 +682,19 @@ void HValue::ComputeInitialRange(Zone* zone) {
 }
 
 
+void HSourcePosition::PrintTo(FILE* out) {
+  if (IsUnknown()) {
+    PrintF(out, "<?>");
+  } else {
+    if (FLAG_hydrogen_track_positions) {
+      PrintF(out, "<%d:%d>", inlining_id(), position());
+    } else {
+      PrintF(out, "<0:%d>", raw());
+    }
+  }
+}
+
+
 void HInstruction::PrintTo(StringStream* stream) {
   PrintMnemonicTo(stream);
   PrintDataTo(stream);
@@ -688,6 +703,9 @@ void HInstruction::PrintTo(StringStream* stream) {
   PrintTypeTo(stream);
   if (CheckFlag(HValue::kHasNoObservableSideEffects)) {
     stream->Add(" [noOSE]");
+  }
+  if (CheckFlag(HValue::kIsDead)) {
+    stream->Add(" [dead]");
   }
 }
 
@@ -733,8 +751,7 @@ void HInstruction::InsertBefore(HInstruction* next) {
   next_ = next;
   previous_ = prev;
   SetBlock(next->block());
-  if (position() == RelocInfo::kNoPosition &&
-      next->position() != RelocInfo::kNoPosition) {
+  if (!has_position() && next->has_position()) {
     set_position(next->position());
   }
 }
@@ -771,8 +788,7 @@ void HInstruction::InsertAfter(HInstruction* previous) {
   if (block->last() == previous) {
     block->set_last(this);
   }
-  if (position() == RelocInfo::kNoPosition &&
-      previous->position() != RelocInfo::kNoPosition) {
+  if (!has_position() && previous->has_position()) {
     set_position(previous->position());
   }
 }
@@ -1114,6 +1130,11 @@ void HCompareMap::PrintDataTo(StringStream* stream) {
   value()->PrintNameTo(stream);
   stream->Add(" (%p)", *map().handle());
   HControlInstruction::PrintDataTo(stream);
+  if (known_successor_index() == 0) {
+    stream->Add(" [true]");
+  } else if (known_successor_index() == 1) {
+    stream->Add(" [false]");
+  }
 }
 
 
@@ -1126,6 +1147,7 @@ const char* HUnaryMathOperation::OpName() const {
     case kMathExp: return "exp";
     case kMathSqrt: return "sqrt";
     case kMathPowHalf: return "pow-half";
+    case kMathClz32: return "clz32";
     default:
       UNREACHABLE();
       return NULL;
@@ -1135,6 +1157,7 @@ const char* HUnaryMathOperation::OpName() const {
 
 Range* HUnaryMathOperation::InferRange(Zone* zone) {
   Representation r = representation();
+  if (op() == kMathClz32) return new(zone) Range(0, 32);
   if (r.IsSmiOrInteger32() && value()->HasRange()) {
     if (op() == kMathAbs) {
       int upper = value()->range()->upper();
@@ -1408,91 +1431,51 @@ void HChange::PrintDataTo(StringStream* stream) {
 }
 
 
-static HValue* SimplifiedDividendForMathFloorOfDiv(HValue* dividend) {
-  // A value with an integer representation does not need to be transformed.
-  if (dividend->representation().IsInteger32()) {
-    return dividend;
-  }
-  // A change from an integer32 can be replaced by the integer32 value.
-  if (dividend->IsChange() &&
-      HChange::cast(dividend)->from().IsInteger32()) {
-    return HChange::cast(dividend)->value();
-  }
-  return NULL;
-}
-
-
 HValue* HUnaryMathOperation::Canonicalize() {
   if (op() == kMathRound || op() == kMathFloor) {
     HValue* val = value();
     if (val->IsChange()) val = HChange::cast(val)->value();
-
-    // If the input is smi or integer32 then we replace the instruction with its
-    // input.
     if (val->representation().IsSmiOrInteger32()) {
-      if (!val->representation().Equals(representation())) {
-        HChange* result = new(block()->zone()) HChange(
-            val, representation(), false, false);
-        result->InsertBefore(this);
-        return result;
-      }
-      return val;
+      if (val->representation().Equals(representation())) return val;
+      return Prepend(new(block()->zone()) HChange(
+          val, representation(), false, false));
     }
   }
+  if (op() == kMathFloor && value()->IsDiv() && value()->UseCount() == 1) {
+    HDiv* hdiv = HDiv::cast(value());
 
-  if (op() == kMathFloor) {
-    HValue* val = value();
-    if (val->IsChange()) val = HChange::cast(val)->value();
-    if (val->IsDiv() && (val->UseCount() == 1)) {
-      HDiv* hdiv = HDiv::cast(val);
-      HValue* left = hdiv->left();
-      HValue* right = hdiv->right();
-      // Try to simplify left and right values of the division.
-      HValue* new_left = SimplifiedDividendForMathFloorOfDiv(left);
-      if (new_left == NULL &&
-          hdiv->observed_input_representation(1).IsSmiOrInteger32()) {
-        new_left = new(block()->zone()) HChange(
-            left, Representation::Integer32(), false, false);
-        HChange::cast(new_left)->InsertBefore(this);
-      }
-      HValue* new_right =
-          LChunkBuilder::SimplifiedDivisorForMathFloorOfDiv(right);
-      if (new_right == NULL &&
-#if V8_TARGET_ARCH_ARM
-          CpuFeatures::IsSupported(SUDIV) &&
-#endif
-          hdiv->observed_input_representation(2).IsSmiOrInteger32()) {
-        new_right = new(block()->zone()) HChange(
-            right, Representation::Integer32(), false, false);
-        HChange::cast(new_right)->InsertBefore(this);
-      }
-
-      // Return if left or right are not optimizable.
-      if ((new_left == NULL) || (new_right == NULL)) return this;
-
-      // Insert the new values in the graph.
-      if (new_left->IsInstruction() &&
-          !HInstruction::cast(new_left)->IsLinked()) {
-        HInstruction::cast(new_left)->InsertBefore(this);
-      }
-      if (new_right->IsInstruction() &&
-          !HInstruction::cast(new_right)->IsLinked()) {
-        HInstruction::cast(new_right)->InsertBefore(this);
-      }
-      HMathFloorOfDiv* instr =
-          HMathFloorOfDiv::New(block()->zone(), context(), new_left, new_right);
-      // Replace this HMathFloor instruction by the new HMathFloorOfDiv.
-      instr->InsertBefore(this);
-      ReplaceAllUsesWith(instr);
-      Kill();
-      // We know the division had no other uses than this HMathFloor. Delete it.
-      // Dead code elimination will deal with |left| and |right| if
-      // appropriate.
-      hdiv->DeleteAndReplaceWith(NULL);
-
-      // Return NULL to remove this instruction from the graph.
-      return NULL;
+    HValue* left = hdiv->left();
+    if (left->representation().IsInteger32()) {
+      // A value with an integer representation does not need to be transformed.
+    } else if (left->IsChange() && HChange::cast(left)->from().IsInteger32()) {
+      // A change from an integer32 can be replaced by the integer32 value.
+      left = HChange::cast(left)->value();
+    } else if (hdiv->observed_input_representation(1).IsSmiOrInteger32()) {
+      left = Prepend(new(block()->zone()) HChange(
+          left, Representation::Integer32(), false, false));
+    } else {
+      return this;
     }
+
+    HValue* right = hdiv->right();
+    if (right->IsInteger32Constant()) {
+      right = Prepend(HConstant::cast(right)->CopyToRepresentation(
+          Representation::Integer32(), right->block()->zone()));
+    } else if (right->representation().IsInteger32()) {
+      // A value with an integer representation does not need to be transformed.
+    } else if (right->IsChange() &&
+               HChange::cast(right)->from().IsInteger32()) {
+      // A change from an integer32 can be replaced by the integer32 value.
+      right = HChange::cast(right)->value();
+    } else if (hdiv->observed_input_representation(2).IsSmiOrInteger32()) {
+      right = Prepend(new(block()->zone()) HChange(
+          right, Representation::Integer32(), false, false));
+    } else {
+      return this;
+    }
+
+    return Prepend(HMathFloorOfDiv::New(
+        block()->zone(), context(), left, right));
   }
   return this;
 }
@@ -1546,21 +1529,22 @@ void HCheckInstanceType::GetCheckMaskAndTag(uint8_t* mask, uint8_t* tag) {
 }
 
 
-void HCheckMaps::HandleSideEffectDominator(GVNFlag side_effect,
+bool HCheckMaps::HandleSideEffectDominator(GVNFlag side_effect,
                                            HValue* dominator) {
-  ASSERT(side_effect == kChangesMaps);
+  ASSERT(side_effect == kMaps);
   // TODO(mstarzinger): For now we specialize on HStoreNamedField, but once
   // type information is rich enough we should generalize this to any HType
   // for which the map is known.
   if (HasNoUses() && dominator->IsStoreNamedField()) {
     HStoreNamedField* store = HStoreNamedField::cast(dominator);
-    if (!store->has_transition() || store->object() != value()) return;
+    if (!store->has_transition() || store->object() != value()) return false;
     HConstant* transition = HConstant::cast(store->transition());
     if (map_set_.Contains(transition->GetUnique())) {
       DeleteAndReplaceWith(NULL);
-      return;
+      return true;
     }
   }
+  return false;
 }
 
 
@@ -1655,7 +1639,7 @@ Range* HChange::InferRange(Zone* zone) {
         input_range != NULL &&
         input_range->IsInSmiRange()))) {
     set_type(HType::Smi());
-    ClearGVNFlag(kChangesNewSpacePromotion);
+    ClearChangesFlag(kNewSpacePromotion);
   }
   Range* result = (input_range != NULL)
       ? input_range->Copy(zone)
@@ -1678,7 +1662,7 @@ Range* HConstant::InferRange(Zone* zone) {
 }
 
 
-int HPhi::position() const {
+HSourcePosition HPhi::position() const {
   return block()->first()->position();
 }
 
@@ -2531,6 +2515,7 @@ HConstant::HConstant(Handle<Object> handle, Representation r)
     has_smi_value_ = has_int32_value_ && Smi::IsValid(int32_value_);
     double_value_ = n;
     has_double_value_ = true;
+    // TODO(titzer): if this heap number is new space, tenure a new one.
   } else {
     is_internalized_string_ = handle->IsInternalizedString();
   }
@@ -2647,6 +2632,41 @@ void HConstant::Initialize(Representation r) {
 }
 
 
+bool HConstant::ImmortalImmovable() const {
+  if (has_int32_value_) {
+    return false;
+  }
+  if (has_double_value_) {
+    if (IsSpecialDouble()) {
+      return true;
+    }
+    return false;
+  }
+  if (has_external_reference_value_) {
+    return false;
+  }
+
+  ASSERT(!object_.handle().is_null());
+  Heap* heap = isolate()->heap();
+  ASSERT(!object_.IsKnownGlobal(heap->minus_zero_value()));
+  ASSERT(!object_.IsKnownGlobal(heap->nan_value()));
+  return
+#define IMMORTAL_IMMOVABLE_ROOT(name) \
+      object_.IsKnownGlobal(heap->name()) ||
+      IMMORTAL_IMMOVABLE_ROOT_LIST(IMMORTAL_IMMOVABLE_ROOT)
+#undef IMMORTAL_IMMOVABLE_ROOT
+#define INTERNALIZED_STRING(name, value) \
+      object_.IsKnownGlobal(heap->name()) ||
+      INTERNALIZED_STRING_LIST(INTERNALIZED_STRING)
+#undef INTERNALIZED_STRING
+#define STRING_TYPE(NAME, size, name, Name) \
+      object_.IsKnownGlobal(heap->name##_map()) ||
+      STRING_TYPE_LIST(STRING_TYPE)
+#undef STRING_TYPE
+      false;
+}
+
+
 bool HConstant::EmitAtUses() {
   ASSERT(IsLinked());
   if (block()->graph()->has_osr() &&
@@ -2728,6 +2748,9 @@ void HConstant::PrintDataTo(StringStream* stream) {
             external_reference_value_.address()));
   } else {
     handle(Isolate::Current())->ShortPrint(stream);
+  }
+  if (!is_not_in_new_space_) {
+    stream->Add("[new space] ");
   }
 }
 
@@ -2945,14 +2968,14 @@ Range* HLoadNamedField::InferRange(Zone* zone) {
 
 Range* HLoadKeyed::InferRange(Zone* zone) {
   switch (elements_kind()) {
-    case EXTERNAL_BYTE_ELEMENTS:
+    case EXTERNAL_INT8_ELEMENTS:
       return new(zone) Range(kMinInt8, kMaxInt8);
-    case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
-    case EXTERNAL_PIXEL_ELEMENTS:
+    case EXTERNAL_UINT8_ELEMENTS:
+    case EXTERNAL_UINT8_CLAMPED_ELEMENTS:
       return new(zone) Range(kMinUInt8, kMaxUInt8);
-    case EXTERNAL_SHORT_ELEMENTS:
+    case EXTERNAL_INT16_ELEMENTS:
       return new(zone) Range(kMinInt16, kMaxInt16);
-    case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
+    case EXTERNAL_UINT16_ELEMENTS:
       return new(zone) Range(kMinUInt16, kMaxUInt16);
     default:
       return HValue::InferRange(zone);
@@ -3082,6 +3105,11 @@ void HParameter::PrintDataTo(StringStream* stream) {
 void HLoadNamedField::PrintDataTo(StringStream* stream) {
   object()->PrintNameTo(stream);
   access_.PrintTo(stream);
+
+  if (HasDependency()) {
+    stream->Add(" ");
+    dependency()->PrintNameTo(stream);
+  }
 }
 
 
@@ -3232,10 +3260,8 @@ HValue* HLoadKeyedGeneric::Canonicalize() {
             key_load->elements_kind());
         map_check->InsertBefore(this);
         index->InsertBefore(this);
-        HLoadFieldByIndex* load = new(block()->zone()) HLoadFieldByIndex(
-            object(), index);
-        load->InsertBefore(this);
-        return load;
+        return Prepend(new(block()->zone()) HLoadFieldByIndex(
+            object(), index));
       }
     }
   }
@@ -3399,11 +3425,11 @@ Representation HUnaryMathOperation::RepresentationFromInputs() {
 }
 
 
-void HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
+bool HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
                                           HValue* dominator) {
-  ASSERT(side_effect == kChangesNewSpacePromotion);
+  ASSERT(side_effect == kNewSpacePromotion);
   Zone* zone = block()->zone();
-  if (!FLAG_use_allocation_folding) return;
+  if (!FLAG_use_allocation_folding) return false;
 
   // Try to fold allocations together with their dominating allocations.
   if (!dominator->IsAllocate()) {
@@ -3411,7 +3437,16 @@ void HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
       PrintF("#%d (%s) cannot fold into #%d (%s)\n",
           id(), Mnemonic(), dominator->id(), dominator->Mnemonic());
     }
-    return;
+    return false;
+  }
+
+  // Check whether we are folding within the same block for local folding.
+  if (FLAG_use_local_allocation_folding && dominator->block() != block()) {
+    if (FLAG_trace_allocation_folding) {
+      PrintF("#%d (%s) cannot fold into #%d (%s), crosses basic blocks\n",
+          id(), Mnemonic(), dominator->id(), dominator->Mnemonic());
+    }
+    return false;
   }
 
   HAllocate* dominator_allocate = HAllocate::cast(dominator);
@@ -3425,12 +3460,12 @@ void HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
       PrintF("#%d (%s) cannot fold into #%d (%s), dynamic allocation size\n",
           id(), Mnemonic(), dominator->id(), dominator->Mnemonic());
     }
-    return;
+    return false;
   }
 
   dominator_allocate = GetFoldableDominator(dominator_allocate);
   if (dominator_allocate == NULL) {
-    return;
+    return false;
   }
 
   ASSERT((IsNewSpaceAllocation() &&
@@ -3459,13 +3494,15 @@ void HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
     }
   }
 
-  if (new_dominator_size > isolate()->heap()->MaxRegularSpaceAllocationSize()) {
+  // Since we clear the first word after folded memory, we cannot use the
+  // whole Page::kMaxRegularHeapObjectSize memory.
+  if (new_dominator_size > Page::kMaxRegularHeapObjectSize - kPointerSize) {
     if (FLAG_trace_allocation_folding) {
       PrintF("#%d (%s) cannot fold into #%d (%s) due to size: %d\n",
           id(), Mnemonic(), dominator_allocate->id(),
           dominator_allocate->Mnemonic(), new_dominator_size);
     }
-    return;
+    return false;
   }
 
   HInstruction* new_dominator_size_constant = HConstant::CreateAndInsertBefore(
@@ -3513,6 +3550,7 @@ void HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
         id(), Mnemonic(), dominator_allocate->id(),
         dominator_allocate->Mnemonic());
   }
+  return true;
 }
 
 
@@ -3622,8 +3660,9 @@ void HAllocate::CreateFreeSpaceFiller(int32_t free_space_size) {
       zone, context(), free_space_size, Representation::Smi(), store_map);
   // Must force Smi representation for x64 (see comment above).
   HObjectAccess access =
-      HObjectAccess::ForJSObjectOffset(FreeSpace::kSizeOffset,
-          Representation::Smi());
+      HObjectAccess::ForMapAndOffset(isolate()->factory()->free_space_map(),
+                                     FreeSpace::kSizeOffset,
+                                     Representation::Smi());
   HStoreNamedField* store_size = HStoreNamedField::New(zone, context(),
       free_space_instr, access, filler_size);
   store_size->SetFlag(HValue::kHasNoObservableSideEffects);
@@ -3635,7 +3674,8 @@ void HAllocate::CreateFreeSpaceFiller(int32_t free_space_size) {
 void HAllocate::ClearNextMapWord(int offset) {
   if (MustClearNextMapWord()) {
     Zone* zone = block()->zone();
-    HObjectAccess access = HObjectAccess::ForJSObjectOffset(offset);
+    HObjectAccess access =
+        HObjectAccess::ForObservableJSObjectOffset(offset);
     HStoreNamedField* clear_next_map =
         HStoreNamedField::New(zone, context(), this, access,
             block()->graph()->GetConstant0());
@@ -3887,6 +3927,8 @@ HInstruction* HUnaryMathOperation::New(
         case kMathRound:
         case kMathFloor:
           return H_CONSTANT_DOUBLE(d);
+        case kMathClz32:
+          return H_CONSTANT_INT(32);
         default:
           UNREACHABLE();
           break;
@@ -3912,6 +3954,11 @@ HInstruction* HUnaryMathOperation::New(
         return H_CONSTANT_DOUBLE(std::floor(d + 0.5));
       case kMathFloor:
         return H_CONSTANT_DOUBLE(std::floor(d));
+      case kMathClz32: {
+        uint32_t i = DoubleToUint32(d);
+        return H_CONSTANT_INT(
+            (i == 0) ? 32 : CompilerIntrinsics::CountLeadingZeros(i));
+      }
       default:
         UNREACHABLE();
         break;
@@ -4262,7 +4309,7 @@ HObjectAccess HObjectAccess::ForFixedArrayHeader(int offset) {
 }
 
 
-HObjectAccess HObjectAccess::ForJSObjectOffset(int offset,
+HObjectAccess HObjectAccess::ForMapAndOffset(Handle<Map> map, int offset,
     Representation representation) {
   ASSERT(offset >= 0);
   Portion portion = kInobject;
@@ -4272,7 +4319,13 @@ HObjectAccess HObjectAccess::ForJSObjectOffset(int offset,
   } else if (offset == JSObject::kMapOffset) {
     portion = kMaps;
   }
-  return HObjectAccess(portion, offset, representation);
+  bool existing_inobject_property = true;
+  if (!map.is_null()) {
+    existing_inobject_property = (offset <
+        map->instance_size() - map->unused_property_fields() * kPointerSize);
+  }
+  return HObjectAccess(portion, offset, representation, Handle<String>::null(),
+                       false, existing_inobject_property);
 }
 
 
@@ -4324,20 +4377,22 @@ HObjectAccess HObjectAccess::ForJSArrayOffset(int offset) {
 HObjectAccess HObjectAccess::ForBackingStoreOffset(int offset,
     Representation representation) {
   ASSERT(offset >= 0);
-  return HObjectAccess(kBackingStore, offset, representation);
+  return HObjectAccess(kBackingStore, offset, representation,
+                       Handle<String>::null(), false, false);
 }
 
 
 HObjectAccess HObjectAccess::ForField(Handle<Map> map,
-    LookupResult *lookup, Handle<String> name) {
-  ASSERT(lookup->IsField() || lookup->IsTransitionToField(*map));
+                                      LookupResult* lookup,
+                                      Handle<String> name) {
+  ASSERT(lookup->IsField() || lookup->IsTransitionToField());
   int index;
   Representation representation;
   if (lookup->IsField()) {
     index = lookup->GetLocalFieldIndexFromMap(*map);
     representation = lookup->representation();
   } else {
-    Map* transition = lookup->GetTransitionMapFromMap(*map);
+    Map* transition = lookup->GetTransitionTarget();
     int descriptor = transition->LastAdded();
     index = transition->instance_descriptors()->GetFieldIndex(descriptor) -
         map->inobject_properties();
@@ -4349,11 +4404,12 @@ HObjectAccess HObjectAccess::ForField(Handle<Map> map,
     // Negative property indices are in-object properties, indexed
     // from the end of the fixed part of the object.
     int offset = (index * kPointerSize) + map->instance_size();
-    return HObjectAccess(kInobject, offset, representation);
+    return HObjectAccess(kInobject, offset, representation, name, false, true);
   } else {
     // Non-negative property indices are in the properties array.
     int offset = (index * kPointerSize) + FixedArray::kHeaderSize;
-    return HObjectAccess(kBackingStore, offset, representation, name);
+    return HObjectAccess(kBackingStore, offset, representation, name,
+                         false, false);
   }
 }
 
@@ -4365,56 +4421,80 @@ HObjectAccess HObjectAccess::ForCellPayload(Isolate* isolate) {
 }
 
 
-void HObjectAccess::SetGVNFlags(HValue *instr, bool is_store) {
+void HObjectAccess::SetGVNFlags(HValue *instr, PropertyAccessType access_type) {
   // set the appropriate GVN flags for a given load or store instruction
-  if (is_store) {
+  if (access_type == STORE) {
     // track dominating allocations in order to eliminate write barriers
-    instr->SetGVNFlag(kDependsOnNewSpacePromotion);
+    instr->SetDependsOnFlag(::v8::internal::kNewSpacePromotion);
     instr->SetFlag(HValue::kTrackSideEffectDominators);
   } else {
     // try to GVN loads, but don't hoist above map changes
     instr->SetFlag(HValue::kUseGVN);
-    instr->SetGVNFlag(kDependsOnMaps);
+    instr->SetDependsOnFlag(::v8::internal::kMaps);
   }
 
   switch (portion()) {
     case kArrayLengths:
-      instr->SetGVNFlag(is_store
-          ? kChangesArrayLengths : kDependsOnArrayLengths);
+      if (access_type == STORE) {
+        instr->SetChangesFlag(::v8::internal::kArrayLengths);
+      } else {
+        instr->SetDependsOnFlag(::v8::internal::kArrayLengths);
+      }
       break;
     case kStringLengths:
-      instr->SetGVNFlag(is_store
-          ? kChangesStringLengths : kDependsOnStringLengths);
+      if (access_type == STORE) {
+        instr->SetChangesFlag(::v8::internal::kStringLengths);
+      } else {
+        instr->SetDependsOnFlag(::v8::internal::kStringLengths);
+      }
       break;
     case kInobject:
-      instr->SetGVNFlag(is_store
-          ? kChangesInobjectFields : kDependsOnInobjectFields);
+      if (access_type == STORE) {
+        instr->SetChangesFlag(::v8::internal::kInobjectFields);
+      } else {
+        instr->SetDependsOnFlag(::v8::internal::kInobjectFields);
+      }
       break;
     case kDouble:
-      instr->SetGVNFlag(is_store
-          ? kChangesDoubleFields : kDependsOnDoubleFields);
+      if (access_type == STORE) {
+        instr->SetChangesFlag(::v8::internal::kDoubleFields);
+      } else {
+        instr->SetDependsOnFlag(::v8::internal::kDoubleFields);
+      }
       break;
     case kBackingStore:
-      instr->SetGVNFlag(is_store
-          ? kChangesBackingStoreFields : kDependsOnBackingStoreFields);
+      if (access_type == STORE) {
+        instr->SetChangesFlag(::v8::internal::kBackingStoreFields);
+      } else {
+        instr->SetDependsOnFlag(::v8::internal::kBackingStoreFields);
+      }
       break;
     case kElementsPointer:
-      instr->SetGVNFlag(is_store
-          ? kChangesElementsPointer : kDependsOnElementsPointer);
+      if (access_type == STORE) {
+        instr->SetChangesFlag(::v8::internal::kElementsPointer);
+      } else {
+        instr->SetDependsOnFlag(::v8::internal::kElementsPointer);
+      }
       break;
     case kMaps:
-      instr->SetGVNFlag(is_store
-          ? kChangesMaps : kDependsOnMaps);
+      if (access_type == STORE) {
+        instr->SetChangesFlag(::v8::internal::kMaps);
+      } else {
+        instr->SetDependsOnFlag(::v8::internal::kMaps);
+      }
       break;
     case kExternalMemory:
-      instr->SetGVNFlag(is_store
-          ? kChangesExternalMemory : kDependsOnExternalMemory);
+      if (access_type == STORE) {
+        instr->SetChangesFlag(::v8::internal::kExternalMemory);
+      } else {
+        instr->SetDependsOnFlag(::v8::internal::kExternalMemory);
+      }
       break;
   }
 }
 
 
-void HObjectAccess::PrintTo(StringStream* stream) {
+void HObjectAccess::PrintTo(StringStream* stream) const {
   stream->Add(".");
 
   switch (portion()) {

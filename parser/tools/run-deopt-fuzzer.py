@@ -55,11 +55,11 @@ TIMEOUT_SCALEFACTOR = {"debug"   : 4,
                        "release" : 1 }
 
 MODE_FLAGS = {
-    "debug"   : ["--nobreak-on-abort", "--nodead-code-elimination",
+    "debug"   : ["--nohard-abort", "--nodead-code-elimination",
                  "--nofold-constants", "--enable-slow-asserts",
                  "--debug-code", "--verify-heap",
                  "--noconcurrent-recompilation"],
-    "release" : ["--nobreak-on-abort", "--nodead-code-elimination",
+    "release" : ["--nohard-abort", "--nodead-code-elimination",
                  "--nofold-constants", "--noconcurrent-recompilation"]}
 
 SUPPORTED_ARCHS = ["android_arm",
@@ -154,6 +154,9 @@ def BuildOptions():
   result.add_option("--arch-and-mode",
                     help="Architecture and mode in the format 'arch.mode'",
                     default=None)
+  result.add_option("--asan",
+                    help="Regard test expectations for ASAN",
+                    default=False, action="store_true")
   result.add_option("--buildbot",
                     help="Adapt to path structure used on buildbots",
                     default=False, action="store_true")
@@ -363,12 +366,15 @@ def Execute(arch, mode, args, options, suites, workspace):
 
   # Find available test suites and read test cases from them.
   variables = {
-    "mode": mode,
     "arch": arch,
-    "system": utils.GuessOS(),
-    "isolates": options.isolates,
+    "asan": options.asan,
     "deopt_fuzzer": True,
+    "gc_stress": False,
+    "isolates": options.isolates,
+    "mode": mode,
     "no_i18n": False,
+    "simulator": utils.UseSimulator(arch),
+    "system": utils.GuessOS(),
   }
   all_tests = []
   num_tests = 0

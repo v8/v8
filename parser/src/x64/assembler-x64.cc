@@ -110,7 +110,7 @@ void RelocInfo::PatchCodeWithCall(Address target, int guard_bytes) {
 #endif
 
   // Patch the code.
-  patcher.masm()->movp(kScratchRegister, target, RelocInfo::NONE64);
+  patcher.masm()->movp(kScratchRegister, target, Assembler::RelocInfoNone());
   patcher.masm()->call(kScratchRegister);
 
   // Check that the size of the code generated is as expected.
@@ -747,6 +747,15 @@ void Assembler::bts(const Operand& dst, Register src) {
   emit(0x0F);
   emit(0xAB);
   emit_operand(src, dst);
+}
+
+
+void Assembler::bsrl(Register dst, Register src) {
+  EnsureSpace ensure_space(this);
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0xBD);
+  emit_modrm(dst, src);
 }
 
 

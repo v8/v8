@@ -89,12 +89,12 @@ void CodeGenerator::MakeCodePrologue(CompilationInfo* info, const char* kind) {
 #ifdef DEBUG
   if (!info->IsStub() && print_source) {
     PrintF("--- Source from AST ---\n%s\n",
-           PrettyPrinter(info->isolate()).PrintProgram(info->function()));
+           PrettyPrinter(info->zone()).PrintProgram(info->function()));
   }
 
   if (!info->IsStub() && print_ast) {
     PrintF("--- AST ---\n%s\n",
-           AstPrinter(info->isolate()).PrintProgram(info->function()));
+           AstPrinter(info->zone()).PrintProgram(info->function()));
   }
 #endif  // DEBUG
 }
@@ -165,6 +165,8 @@ void CodeGenerator::PrintCode(Handle<Code> code, CompilationInfo* info) {
             function->debug_name()->ToCString().get(), tracing_scope.file());
       }
       PrintF(tracing_scope.file(), "--- Optimized code ---\n");
+      PrintF(tracing_scope.file(),
+             "optimization_id = %d\n", info->optimization_id());
     } else {
       PrintF(tracing_scope.file(), "--- Code ---\n");
     }

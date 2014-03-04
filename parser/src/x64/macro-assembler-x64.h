@@ -391,7 +391,7 @@ class MacroAssembler: public Assembler {
 
   void InitializeSmiConstantRegister() {
     Move(kSmiConstantRegister, Smi::FromInt(kSmiConstantRegisterValue),
-         RelocInfo::NONE64);
+         Assembler::RelocInfoNone());
   }
 
   // Conversions between tagged smi values and non-tagged integer values.
@@ -802,7 +802,7 @@ class MacroAssembler: public Assembler {
 
   // Load a register with a long value as efficiently as possible.
   void Set(Register dst, int64_t x);
-  void Set(const Operand& dst, int64_t x);
+  void Set(const Operand& dst, intptr_t x);
 
   // cvtsi2sd instruction only writes to the low 64-bit of dst register, which
   // hinders register renaming and makes dependence chains longer. So we use
@@ -841,9 +841,6 @@ class MacroAssembler: public Assembler {
   void Pop(Register dst) { pop(dst); }
   void PushReturnAddressFrom(Register src) { push(src); }
   void PopReturnAddressTo(Register dst) { pop(dst); }
-  void MoveDouble(Register dst, const Operand& src) { movq(dst, src); }
-  void MoveDouble(const Operand& dst, Register src) { movq(dst, src); }
-
   void Move(Register dst, ExternalReference ext) {
     movp(dst, reinterpret_cast<Address>(ext.address()),
          RelocInfo::EXTERNAL_REFERENCE);
@@ -868,16 +865,18 @@ class MacroAssembler: public Assembler {
   // Control Flow
   void Jump(Address destination, RelocInfo::Mode rmode);
   void Jump(ExternalReference ext);
+  void Jump(const Operand& op);
   void Jump(Handle<Code> code_object, RelocInfo::Mode rmode);
 
   void Call(Address destination, RelocInfo::Mode rmode);
   void Call(ExternalReference ext);
+  void Call(const Operand& op);
   void Call(Handle<Code> code_object,
             RelocInfo::Mode rmode,
             TypeFeedbackId ast_id = TypeFeedbackId::None());
 
   // The size of the code generated for different call instructions.
-  int CallSize(Address destination, RelocInfo::Mode rmode) {
+  int CallSize(Address destination) {
     return kCallSequenceLength;
   }
   int CallSize(ExternalReference ext);
@@ -1235,15 +1234,8 @@ class MacroAssembler: public Assembler {
       Register scratch,
       Label* no_map_match);
 
-  // Load the initial map for new Arrays from a JSFunction.
-  void LoadInitialArrayMap(Register function_in,
-                           Register scratch,
-                           Register map_out,
-                           bool can_have_holes);
-
   // Load the global function with the given index.
   void LoadGlobalFunction(int index, Register function);
-  void LoadArrayFunction(Register function);
 
   // Load the initial map from the global function. The registers
   // function and map can be the same.
@@ -1309,7 +1301,7 @@ class MacroAssembler: public Assembler {
   // from handle and propagates exceptions.  Clobbers r14, r15, rbx and
   // caller-save registers.  Restores context.  On return removes
   // stack_space * kPointerSize (GCed).
-  void CallApiFunctionAndReturn(Address function_address,
+  void CallApiFunctionAndReturn(Register function_address,
                                 Address thunk_address,
                                 Register thunk_last_arg,
                                 int stack_space,

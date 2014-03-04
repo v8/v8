@@ -174,6 +174,7 @@ static void XSetter(Local<Value> value, const Info& info, int offset) {
   CHECK_EQ(x_holder, info.This());
   CHECK_EQ(x_holder, info.Holder());
   x_register[offset] = value->Int32Value();
+  info.GetReturnValue().Set(v8_num(-1));
 }
 
 
@@ -210,20 +211,20 @@ THREADED_TEST(AccessorIC) {
     "var key_1 = 'x1';"
     "for (var j = 0; j < 10; j++) {"
     "  var i = 4*j;"
-    "  holder.x0 = i;"
+    "  result.push(holder.x0 = i);"
     "  result.push(obj.x0);"
-    "  holder.x1 = i + 1;"
+    "  result.push(holder.x1 = i + 1);"
     "  result.push(obj.x1);"
-    "  holder[key_0] = i + 2;"
+    "  result.push(holder[key_0] = i + 2);"
     "  result.push(obj[key_0]);"
-    "  holder[key_1] = i + 3;"
+    "  result.push(holder[key_1] = i + 3);"
     "  result.push(obj[key_1]);"
     "}"
     "result"));
-  CHECK_EQ(40, array->Length());
-  for (int i = 0; i < 40; i++) {
+  CHECK_EQ(80, array->Length());
+  for (int i = 0; i < 80; i++) {
     v8::Handle<Value> entry = array->Get(v8::Integer::New(isolate, i));
-    CHECK_EQ(v8::Integer::New(isolate, i), entry);
+    CHECK_EQ(v8::Integer::New(isolate, i/2), entry);
   }
 }
 
@@ -580,16 +581,47 @@ THREADED_TEST(JSONStringifyNamedInterceptorObject) {
 }
 
 
+static v8::Local<v8::Context> expected_current_context;
+static v8::Local<v8::Context> expected_calling_context;
+
+
+static void check_contexts(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  ApiTestFuzzer::Fuzz();
+  CHECK(expected_current_context == info.GetIsolate()->GetCurrentContext());
+  CHECK(expected_calling_context == info.GetIsolate()->GetCallingContext());
+}
+
+
 THREADED_TEST(AccessorPropertyCrossContext) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
-  v8::Handle<v8::Function> fun = v8::Function::New(isolate, handle_property);
+  v8::Handle<v8::Function> fun = v8::Function::New(isolate, check_contexts);
   LocalContext switch_context;
   switch_context->Global()->Set(v8_str("fun"), fun);
   v8::TryCatch try_catch;
+  expected_current_context = env.local();
+  expected_calling_context = switch_context.local();
   CompileRun(
       "var o = Object.create(null, { n: { get:fun } });"
       "for (var i = 0; i < 10; i++) o.n;");
   CHECK(!try_catch.HasCaught());
+}
+
+
+THREADED_TEST(GlobalObjectAccessor) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  CompileRun(
+      "var set_value = 1;"
+      "Object.defineProperty(this.__proto__, 'x', {"
+      "    get : function() { return this; },"
+      "    set : function() { set_value = this; }"
+      "});"
+      "function getter() { return x; }"
+      "function setter() { x = 1; }"
+      "for (var i = 0; i < 4; i++) { getter(); setter(); }");
+  CHECK(v8::Utils::OpenHandle(*CompileRun("getter()"))->IsJSGlobalProxy());
+  CHECK(v8::Utils::OpenHandle(*CompileRun("set_value"))->IsJSGlobalProxy());
 }

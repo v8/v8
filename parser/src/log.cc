@@ -1878,14 +1878,6 @@ void Logger::LogCodeObject(Object* object) {
       description = "A keyed store IC from the snapshot";
       tag = Logger::KEYED_STORE_IC_TAG;
       break;
-    case Code::CALL_IC:
-      description = "A call IC from the snapshot";
-      tag = Logger::CALL_IC_TAG;
-      break;
-    case Code::KEYED_CALL_IC:
-      description = "A keyed call IC from the snapshot";
-      tag = Logger::KEYED_CALL_IC_TAG;
-      break;
     case Code::NUMBER_OF_KINDS:
       break;
   }

@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Platform specific code for Win32.
+// Platform-specific code for Win32.
 
 // Secure API functions are not available using MinGW with msvcrt.dll
 // on Windows XP. Make sure MINGW_HAS_SECURE_API is not defined to
@@ -923,12 +923,11 @@ void OS::Sleep(int milliseconds) {
 
 
 void OS::Abort() {
-  if (IsDebuggerPresent() || FLAG_break_on_abort) {
-    DebugBreak();
-  } else {
-    // Make the MSVCRT do a silent abort.
-    raise(SIGABRT);
+  if (FLAG_hard_abort) {
+    V8_IMMEDIATE_CRASH();
   }
+  // Make the MSVCRT do a silent abort.
+  raise(SIGABRT);
 }
 
 

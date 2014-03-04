@@ -483,7 +483,7 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap,
   chunk->write_barrier_counter_ = kWriteBarrierCounterGranularity;
   chunk->progress_bar_ = 0;
   chunk->high_water_mark_ = static_cast<int>(area_start - base);
-  chunk->parallel_sweeping_ = 0;
+  chunk->set_parallel_sweeping(PARALLEL_SWEEPING_DONE);
   chunk->available_in_small_free_list_ = 0;
   chunk->available_in_medium_free_list_ = 0;
   chunk->available_in_large_free_list_ = 0;
@@ -560,21 +560,12 @@ bool MemoryChunk::CommitArea(size_t requested) {
 
 
 void MemoryChunk::InsertAfter(MemoryChunk* other) {
-  next_chunk_ = other->next_chunk_;
-  prev_chunk_ = other;
+  MemoryChunk* other_next = other->next_chunk();
 
-  // This memory barrier is needed since concurrent sweeper threads may iterate
-  // over the list of pages while a new page is inserted.
-  // TODO(hpayer): find a cleaner way to guarantee that the page list can be
-  // expanded concurrently
-  MemoryBarrier();
-
-  // The following two write operations can take effect in arbitrary order
-  // since pages are always iterated by the sweeper threads in LIFO order, i.e,
-  // the inserted page becomes visible for the sweeper threads after
-  // other->next_chunk_ = this;
-  other->next_chunk_->prev_chunk_ = this;
-  other->next_chunk_ = this;
+  set_next_chunk(other_next);
+  set_prev_chunk(other);
+  other_next->set_prev_chunk(this);
+  other->set_next_chunk(this);
 }
 
 
@@ -583,10 +574,12 @@ void MemoryChunk::Unlink() {
     heap_->decrement_scan_on_scavenge_pages();
     ClearFlag(SCAN_ON_SCAVENGE);
   }
-  next_chunk_->prev_chunk_ = prev_chunk_;
-  prev_chunk_->next_chunk_ = next_chunk_;
-  prev_chunk_ = NULL;
-  next_chunk_ = NULL;
+  MemoryChunk* next_element = next_chunk();
+  MemoryChunk* prev_element = prev_chunk();
+  next_element->set_prev_chunk(prev_element);
+  prev_element->set_next_chunk(next_element);
+  set_prev_chunk(NULL);
+  set_next_chunk(NULL);
 }
 
 
@@ -1141,6 +1134,11 @@ void PagedSpace::ReleasePage(Page* page, bool unlink) {
   } else {
     DecreaseUnsweptFreeBytes(page);
   }
+
+  // TODO(hpayer): This check is just used for debugging purpose and
+  // should be removed or turned into an assert after investigating the
+  // crash in concurrent sweeping.
+  CHECK(!free_list_.ContainsPageFreeListItems(page));
 
   if (Page::FromAllocationTop(allocation_info_.top()) == page) {
     allocation_info_.set_top(NULL);
@@ -2077,20 +2075,21 @@ void FreeListNode::set_next(FreeListNode* next) {
 
 intptr_t FreeListCategory::Concatenate(FreeListCategory* category) {
   intptr_t free_bytes = 0;
-  if (category->top_ != NULL) {
-    ASSERT(category->end_ != NULL);
+  if (category->top() != NULL) {
     // This is safe (not going to deadlock) since Concatenate operations
     // are never performed on the same free lists at the same time in
     // reverse order.
     LockGuard<Mutex> target_lock_guard(mutex());
     LockGuard<Mutex> source_lock_guard(category->mutex());
+    ASSERT(category->end_ != NULL);
     free_bytes = category->available();
     if (end_ == NULL) {
       end_ = category->end();
     } else {
-      category->end()->set_next(top_);
+      category->end()->set_next(top());
     }
-    top_ = category->top();
+    set_top(category->top());
+    NoBarrier_Store(&top_, category->top_);
     available_ += category->available();
     category->Reset();
   }
@@ -2099,15 +2098,16 @@ intptr_t FreeListCategory::Concatenate(FreeListCategory* category) {
 
 
 void FreeListCategory::Reset() {
-  top_ = NULL;
-  end_ = NULL;
-  available_ = 0;
+  set_top(NULL);
+  set_end(NULL);
+  set_available(0);
 }
 
 
 intptr_t FreeListCategory::EvictFreeListItemsInList(Page* p) {
   int sum = 0;
-  FreeListNode** n = &top_;
+  FreeListNode* t = top();
+  FreeListNode** n = &t;
   while (*n != NULL) {
     if (Page::FromAddress((*n)->address()) == p) {
       FreeSpace* free_space = reinterpret_cast<FreeSpace*>(*n);
@@ -2117,16 +2117,27 @@ intptr_t FreeListCategory::EvictFreeListItemsInList(Page* p) {
       n = (*n)->next_address();
     }
   }
-  if (top_ == NULL) {
-    end_ = NULL;
+  set_top(t);
+  if (top() == NULL) {
+    set_end(NULL);
   }
   available_ -= sum;
   return sum;
 }
 
 
+bool FreeListCategory::ContainsPageFreeListItemsInList(Page* p) {
+  FreeListNode* node = top();
+  while (node != NULL) {
+    if (Page::FromAddress(node->address()) == p) return true;
+    node = node->next();
+  }
+  return false;
+}
+
+
 FreeListNode* FreeListCategory::PickNodeFromList(int *node_size) {
-  FreeListNode* node = top_;
+  FreeListNode* node = top();
 
   if (node == NULL) return NULL;
 
@@ -2165,8 +2176,8 @@ FreeListNode* FreeListCategory::PickNodeFromList(int size_in_bytes,
 
 
 void FreeListCategory::Free(FreeListNode* node, int size_in_bytes) {
-  node->set_next(top_);
-  top_ = node;
+  node->set_next(top());
+  set_top(node);
   if (end_ == NULL) {
     end_ = node;
   }
@@ -2175,7 +2186,7 @@ void FreeListCategory::Free(FreeListNode* node, int size_in_bytes) {
 
 
 void FreeListCategory::RepairFreeList(Heap* heap) {
-  FreeListNode* n = top_;
+  FreeListNode* n = top();
   while (n != NULL) {
     Map** map_location = reinterpret_cast<Map**>(n->address());
     if (*map_location == NULL) {
@@ -2284,7 +2295,8 @@ FreeListNode* FreeList::FindNodeFor(int size_in_bytes, int* node_size) {
   }
 
   int huge_list_available = huge_list_.available();
-  for (FreeListNode** cur = huge_list_.GetTopAddress();
+  FreeListNode* top_node = huge_list_.top();
+  for (FreeListNode** cur = &top_node;
        *cur != NULL;
        cur = (*cur)->next_address()) {
     FreeListNode* cur_node = *cur;
@@ -2318,6 +2330,7 @@ FreeListNode* FreeList::FindNodeFor(int size_in_bytes, int* node_size) {
     }
   }
 
+  huge_list_.set_top(top_node);
   if (huge_list_.top() == NULL) {
     huge_list_.set_end(NULL);
   }
@@ -2452,6 +2465,14 @@ intptr_t FreeList::EvictFreeListItems(Page* p) {
 }
 
 
+bool FreeList::ContainsPageFreeListItems(Page* p) {
+  return huge_list_.EvictFreeListItemsInList(p) ||
+         small_list_.EvictFreeListItemsInList(p) ||
+         medium_list_.EvictFreeListItemsInList(p) ||
+         large_list_.EvictFreeListItemsInList(p);
+}
+
+
 void FreeList::RepairLists(Heap* heap) {
   small_list_.RepairFreeList(heap);
   medium_list_.RepairFreeList(heap);
@@ -2463,7 +2484,7 @@ void FreeList::RepairLists(Heap* heap) {
 #ifdef DEBUG
 intptr_t FreeListCategory::SumFreeList() {
   intptr_t sum = 0;
-  FreeListNode* cur = top_;
+  FreeListNode* cur = top();
   while (cur != NULL) {
     ASSERT(cur->map() == cur->GetHeap()->raw_unchecked_free_space_map());
     FreeSpace* cur_as_free_space = reinterpret_cast<FreeSpace*>(cur);
@@ -2479,7 +2500,7 @@ static const int kVeryLongFreeList = 500;
 
 int FreeListCategory::FreeListLength() {
   int length = 0;
-  FreeListNode* cur = top_;
+  FreeListNode* cur = top();
   while (cur != NULL) {
     length++;
     cur = cur->next();
@@ -2612,7 +2633,7 @@ bool PagedSpace::EnsureSweeperProgress(intptr_t size_in_bytes) {
   MarkCompactCollector* collector = heap()->mark_compact_collector();
   if (collector->AreSweeperThreadsActivated()) {
     if (collector->IsConcurrentSweepingInProgress()) {
-      if (collector->StealMemoryFromSweeperThreads(this) < size_in_bytes) {
+      if (collector->RefillFreeLists(this) < size_in_bytes) {
         if (!collector->sequential_sweeping()) {
           collector->WaitUntilSweepingCompleted();
           return true;

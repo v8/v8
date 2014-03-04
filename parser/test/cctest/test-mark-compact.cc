@@ -82,7 +82,7 @@ TEST(Promotion) {
 
   // Allocate a fixed array in the new space.
   int array_length =
-      (Page::kMaxNonCodeHeapObjectSize - FixedArray::kHeaderSize) /
+      (Page::kMaxRegularHeapObjectSize - FixedArray::kHeaderSize) /
       (4 * kPointerSize);
   Object* obj = heap->AllocateFixedArray(array_length)->ToObjectChecked();
   Handle<FixedArray> array(FixedArray::cast(obj));
@@ -107,7 +107,7 @@ TEST(NoPromotion) {
 
   // Allocate a big fixed array in the new space.
   int array_length =
-      (Page::kMaxNonCodeHeapObjectSize - FixedArray::kHeaderSize) /
+      (Page::kMaxRegularHeapObjectSize - FixedArray::kHeaderSize) /
       (2 * kPointerSize);
   Object* obj = heap->AllocateFixedArray(array_length)->ToObjectChecked();
   Handle<FixedArray> array(FixedArray::cast(obj));
@@ -496,6 +496,7 @@ TEST(BootUpMemoryUse) {
   intptr_t initial_memory = MemoryInUse();
   // Avoid flakiness.
   FLAG_crankshaft = false;
+  FLAG_concurrent_osr = false;
   FLAG_concurrent_recompilation = false;
 
   // Only Linux has the proc filesystem and only if it is mapped.  If it's not

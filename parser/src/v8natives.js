@@ -247,10 +247,7 @@ function ObjectToString() {
 
 // ECMA-262 - 15.2.4.3
 function ObjectToLocaleString() {
-  if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
-    throw MakeTypeError("called_on_null_or_undefined",
-                        ["Object.prototype.toLocaleString"]);
-  }
+  CHECK_OBJECT_COERCIBLE(this, "Object.prototype.toLocaleString");
   return this.toString();
 }
 
@@ -276,10 +273,7 @@ function ObjectHasOwnProperty(V) {
 
 // ECMA-262 - 15.2.4.6
 function ObjectIsPrototypeOf(V) {
-  if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
-    throw MakeTypeError("called_on_null_or_undefined",
-                        ["Object.prototype.isPrototypeOf"]);
-  }
+  CHECK_OBJECT_COERCIBLE(this, "Object.prototype.isPrototypeOf");
   if (!IS_SPEC_OBJECT(V)) return false;
   return %IsInPrototypeChain(this, V);
 }
@@ -403,8 +397,7 @@ function FromPropertyDescriptor(desc) {
   }
   // Must be an AccessorDescriptor then. We never return a generic descriptor.
   return { get: desc.getGet(),
-           set: desc.getSet() === ObjectSetProto ? ObjectPoisonProto
-                                                 : desc.getSet(),
+           set: desc.getSet(),
            enumerable: desc.isEnumerable(),
            configurable: desc.isConfigurable() };
 }
@@ -1015,6 +1008,21 @@ function ObjectGetPrototypeOf(obj) {
   return %GetPrototype(obj);
 }
 
+// ES6 section 19.1.2.19.
+function ObjectSetPrototypeOf(obj, proto) {
+  CHECK_OBJECT_COERCIBLE(obj, "Object.setPrototypeOf");
+
+  if (proto !== null && !IS_SPEC_OBJECT(proto)) {
+    throw MakeTypeError("proto_object_or_null", [proto]);
+  }
+
+  if (IS_SPEC_OBJECT(obj)) {
+    %SetPrototype(obj, proto);
+  }
+
+  return obj;
+}
+
 
 // ES5 section 15.2.3.3
 function ObjectGetOwnPropertyDescriptor(obj, p) {
@@ -1376,21 +1384,19 @@ function ObjectIs(obj1, obj2) {
 }
 
 
-// Harmony __proto__ getter.
+// ECMA-262, Edition 6, section B.2.2.1.1
 function ObjectGetProto() {
-  return %GetPrototype(this);
+  return %GetPrototype(ToObject(this));
 }
 
 
-// Harmony __proto__ setter.
-function ObjectSetProto(obj) {
-  return %SetPrototype(this, obj);
-}
+// ECMA-262, Edition 6, section B.2.2.1.2
+function ObjectSetProto(proto) {
+  CHECK_OBJECT_COERCIBLE(this, "Object.prototype.__proto__");
 
-
-// Harmony __proto__ poison pill.
-function ObjectPoisonProto(obj) {
-  throw MakeTypeError("proto_poison_pill", []);
+  if (IS_SPEC_OBJECT(proto) || IS_NULL(proto) && IS_SPEC_OBJECT(this)) {
+    %SetPrototype(this, proto);
+  }
 }
 
 
@@ -1413,8 +1419,6 @@ function SetUpObject() {
 
   %SetNativeFlag($Object);
   %SetCode($Object, ObjectConstructor);
-  %FunctionSetName(ObjectPoisonProto, "__proto__");
-  %FunctionRemovePrototype(ObjectPoisonProto);
   %SetExpectedNumberOfProperties($Object, 4);
 
   %SetProperty($Object.prototype, "constructor", $Object, DONT_ENUM);
@@ -1443,6 +1447,7 @@ function SetUpObject() {
     "defineProperties", ObjectDefineProperties,
     "freeze", ObjectFreeze,
     "getPrototypeOf", ObjectGetPrototypeOf,
+    "setPrototypeOf", ObjectSetPrototypeOf,
     "getOwnPropertyDescriptor", ObjectGetOwnPropertyDescriptor,
     "getOwnPropertyNames", ObjectGetOwnPropertyNames,
     // getOwnPropertySymbols is added in symbol.js.
@@ -1888,10 +1893,30 @@ SetUpFunction();
 // Eventually, we should move to a real event queue that allows to maintain
 // relative ordering of different kinds of tasks.
 
-RunMicrotasks.runners = new InternalArray;
+function GetMicrotaskQueue() {
+  var microtaskState = %GetMicrotaskState();
+  if (IS_UNDEFINED(microtaskState.queue)) {
+    microtaskState.queue = new InternalArray;
+  }
+  return microtaskState.queue;
+}
 
 function RunMicrotasks() {
   while (%SetMicrotaskPending(false)) {
-    for (var i in RunMicrotasks.runners) RunMicrotasks.runners[i]();
+    var microtaskState = %GetMicrotaskState();
+    if (IS_UNDEFINED(microtaskState.queue))
+      return;
+
+    var microtasks = microtaskState.queue;
+    microtaskState.queue = new InternalArray;
+
+    for (var i = 0; i < microtasks.length; i++) {
+      microtasks[i]();
+    }
   }
+}
+
+function EnqueueExternalMicrotask(fn) {
+  GetMicrotaskQueue().push(fn);
+  %SetMicrotaskPending(true);
 }
