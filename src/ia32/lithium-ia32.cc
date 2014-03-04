@@ -1862,12 +1862,14 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
       if (val->HasRange() && val->range()->IsInSmiRange()) {
         return DefineSameAsFirst(new(zone()) LSmiTag(value));
       } else if (val->CheckFlag(HInstruction::kUint32)) {
-        LOperand* temp = CpuFeatures::IsSupported(SSE2) ? FixedTemp(xmm1)
-                                                        : NULL;
-        LNumberTagU* result = new(zone()) LNumberTagU(value, temp);
+        LOperand* temp1 = TempRegister();
+        LOperand* temp2 = CpuFeatures::IsSupported(SSE2) ? FixedTemp(xmm1)
+                                                         : NULL;
+        LNumberTagU* result = new(zone()) LNumberTagU(value, temp1, temp2);
         return AssignEnvironment(AssignPointerMap(DefineSameAsFirst(result)));
       } else {
-        LNumberTagI* result = new(zone()) LNumberTagI(value);
+        LOperand* temp = TempRegister();
+        LNumberTagI* result = new(zone()) LNumberTagI(value, temp);
         return AssignEnvironment(AssignPointerMap(DefineSameAsFirst(result)));
       }
     } else if (to.IsSmi()) {

@@ -1892,15 +1892,17 @@ class LNumberTagI V8_FINAL : public LTemplateInstruction<1, 1, 0> {
 };
 
 
-class LNumberTagU V8_FINAL : public LTemplateInstruction<1, 1, 1> {
+class LNumberTagU V8_FINAL : public LTemplateInstruction<1, 1, 2> {
  public:
-  explicit LNumberTagU(LOperand* value, LOperand* temp) {
+  LNumberTagU(LOperand* value, LOperand* temp1, LOperand* temp2) {
     inputs_[0] = value;
-    temps_[0] = temp;
+    temps_[0] = temp1;
+    temps_[1] = temp2;
   }
 
   LOperand* value() { return inputs_[0]; }
-  LOperand* temp() { return temps_[0]; }
+  LOperand* temp1() { return temps_[0]; }
+  LOperand* temp2() { return temps_[1]; }
 
   DECLARE_CONCRETE_INSTRUCTION(NumberTagU, "number-tag-u")
 };

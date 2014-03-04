@@ -4545,15 +4545,11 @@ void LCodeGen::DoNumberTagU(LNumberTagU* instr) {
 
 
 void LCodeGen::DoDeferredNumberTagU(LNumberTagU* instr) {
-  Label slow;
+  Label done, slow;
   Register reg = ToRegister(instr->value());
-  Register tmp = reg.is(rax) ? rcx : rax;
-  XMMRegister temp_xmm = ToDoubleRegister(instr->temp());
+  Register tmp = ToRegister(instr->temp1());
+  XMMRegister temp_xmm = ToDoubleRegister(instr->temp2());
 
-  // Preserve the value of all registers.
-  PushSafepointRegistersScope scope(this);
-
-  Label done;
   // Load value into temp_xmm which will be preserved across potential call to
   // runtime (MacroAssembler::EnterExitFrameEpilogue preserves only allocatable
   // XMM registers on x64).
@@ -4567,29 +4563,31 @@ void LCodeGen::DoDeferredNumberTagU(LNumberTagU* instr) {
 
   // Slow case: Call the runtime system to do the number allocation.
   __ bind(&slow);
+  {
+    // Put a valid pointer value in the stack slot where the result
+    // register is stored, as this register is in the pointer map, but contains
+    // an integer value.
+    __ Set(reg, 0);
 
-  // Put a valid pointer value in the stack slot where the result
-  // register is stored, as this register is in the pointer map, but contains an
-  // integer value.
-  __ StoreToSafepointRegisterSlot(reg, Immediate(0));
+    // Preserve the value of all registers.
+    PushSafepointRegistersScope scope(this);
 
-  // NumberTagU uses the context from the frame, rather than
-  // the environment's HContext or HInlinedContext value.
-  // They only call Runtime::kAllocateHeapNumber.
-  // The corresponding HChange instructions are added in a phase that does
-  // not have easy access to the local context.
-  __ movp(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
-  __ CallRuntimeSaveDoubles(Runtime::kAllocateHeapNumber);
-  RecordSafepointWithRegisters(
-      instr->pointer_map(), 0, Safepoint::kNoLazyDeopt);
-
-  if (!reg.is(rax)) __ movp(reg, rax);
+    // NumberTagU uses the context from the frame, rather than
+    // the environment's HContext or HInlinedContext value.
+    // They only call Runtime::kAllocateHeapNumber.
+    // The corresponding HChange instructions are added in a phase that does
+    // not have easy access to the local context.
+    __ movp(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
+    __ CallRuntimeSaveDoubles(Runtime::kAllocateHeapNumber);
+    RecordSafepointWithRegisters(
+        instr->pointer_map(), 0, Safepoint::kNoLazyDeopt);
+    __ StoreToSafepointRegisterSlot(reg, rax);
+  }
 
   // Done. Put the value in temp_xmm into the value of the allocated heap
   // number.
   __ bind(&done);
   __ movsd(FieldOperand(reg, HeapNumber::kValueOffset), temp_xmm);
-  __ StoreToSafepointRegisterSlot(reg, reg);
 }
 
 
