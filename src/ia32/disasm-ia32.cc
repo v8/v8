@@ -449,8 +449,12 @@ int DisassemblerIA32::PrintRightOperandHelper(
       } else {
         // No sib.
         int disp =
-            mod == 2 ? *reinterpret_cast<int32_t*>(modrmp + 1) : *(modrmp + 1);
-        AppendToBuffer("[%s+0x%x]", (this->*register_name)(rm), disp);
+            mod == 2 ? *reinterpret_cast<int32_t*>(modrmp + 1) :
+                       *reinterpret_cast<int8_t*>(modrmp + 1);
+        AppendToBuffer("[%s%s0x%x]",
+                       (this->*register_name)(rm),
+                       disp < 0 ? "-" : "+",
+                       disp < 0 ? -disp : disp);
         return mod == 2 ? 5 : 2;
       }
       break;
