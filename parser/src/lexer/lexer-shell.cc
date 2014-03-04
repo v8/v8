@@ -44,6 +44,7 @@
 #include "scopeinfo.h"
 #include "string-stream.h"
 #include "scanner.h"
+#include "lexer/lexer.h"
 
 using namespace v8::internal;
 

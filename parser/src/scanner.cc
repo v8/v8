@@ -35,7 +35,7 @@
 #include "char-predicates-inl.h"
 #include "conversions-inl.h"
 #include "list-inl.h"
-#include "v8.h"
+#include "lexer/lexer.h"
 
 namespace v8 {
 namespace internal {

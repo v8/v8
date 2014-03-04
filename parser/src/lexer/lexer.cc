@@ -172,9 +172,7 @@ Lexer<Char>::Lexer(UnicodeCache* unicode_cache,
                    int end_position)
     : LexerBase(unicode_cache),
       isolate_(source->GetIsolate()),
-      // TODO(dcarney): don't need to allocate here, used stored positions
-      source_handle_(isolate_->factory()->NewSubString(
-          source, start_position, end_position)),
+      source_handle_(FlattenGetString(source)),
       source_ptr_(NULL),
       start_position_(start_position),
       end_position_(end_position),
@@ -183,14 +181,15 @@ Lexer<Char>::Lexer(UnicodeCache* unicode_cache,
       start_(NULL),
       cursor_(NULL),
       last_octal_end_(NULL) {
-  ASSERT(source->IsFlat());
-  fprintf(stderr, "%s %d %d %d %d %d\n",
-    __func__, start_position_, end_position_,
-    source->length(), source_handle_->length(),
-    source->IsOneByteRepresentation());
   UpdateBufferBasedOnHandle();
   current_.beg_pos = current_.end_pos = next_.beg_pos = next_.end_pos = 0;
   isolate_->lexer_gc_handler()->AddLexer(this);
+  // TODO(dcarney): move this to UpdateBufferBasedOnHandle
+  cursor_ = buffer_ + start_position;
+  buffer_end_ = buffer_ + end_position;
+  start_ = cursor_;
+  has_line_terminator_before_next_ = false;
+  has_multiline_comment_before_next_ = false;
 }
 
 
