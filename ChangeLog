@@ -1,3 +1,36 @@
+2014-03-04: Version 3.25.3
+
+        Clear optimized code cache in shared function info when code gets
+        deoptimized (Chromium issue 343609).
+
+        Fixed constant folding for Math.clz32 (Chromium issue 347906).
+
+        Fix JSObject::PrintTransitions (Chromium issue 347912).
+
+        Fix handling of constant global variable assignments (Chromium issue
+        347904).
+
+        Removed bogus ASSERT (Chromium issue 347542).
+
+        Mark HCompareMap as having Tagged representation (Chromium issue
+        346636).
+
+        Fix crasher in Object.getOwnPropertySymbols (Chromium issue 346141).
+
+        Fix the bit massaging code in CompleteParserRecorder::WriteNumber
+        (Chromium issue 346221).
+
+        Don't eliminate loads with incompatible types or representations
+        (Chromium issue 346343).
+
+        Check that after a weak callback, the handle is either dead or strong
+        (Chromium issue 346061).
+
+        Lazy preparsing vs. lazy parsing fix (Chromium issue 346207).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-02-25: Version 3.25.2
 
         Fix the bit massaging code in CompleteParserRecorder::WriteNumber
