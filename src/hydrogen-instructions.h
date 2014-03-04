@@ -3541,6 +3541,10 @@ class HConstant V8_FINAL : public HTemplateInstruction<0> {
     return object_;
   }
 
+  bool EqualsUnique(Unique<Object> other) const {
+    return object_.IsInitialized() && object_ == other;
+  }
+
 #ifdef DEBUG
   virtual void Verify() V8_OVERRIDE { }
 #endif

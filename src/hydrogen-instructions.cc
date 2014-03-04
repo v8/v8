@@ -1539,7 +1539,7 @@ bool HCheckMaps::HandleSideEffectDominator(GVNFlag side_effect,
     HStoreNamedField* store = HStoreNamedField::cast(dominator);
     if (!store->has_transition() || store->object() != value()) return false;
     HConstant* transition = HConstant::cast(store->transition());
-    if (map_set_.Contains(transition->GetUnique())) {
+    if (map_set_.Contains(Unique<Map>::cast(transition->GetUnique()))) {
       DeleteAndReplaceWith(NULL);
       return true;
     }
@@ -1567,9 +1567,7 @@ void HCheckValue::PrintDataTo(StringStream* stream) {
 
 HValue* HCheckValue::Canonicalize() {
   return (value()->IsConstant() &&
-          HConstant::cast(value())->GetUnique() == object_)
-      ? NULL
-      : this;
+          HConstant::cast(value())->EqualsUnique(object_)) ? NULL : this;
 }
 
 
