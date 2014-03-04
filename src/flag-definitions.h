@@ -653,7 +653,6 @@ DEFINE_bool(profile_hydrogen_code_stub_compilation, false,
             "Print the time it takes to lazily compile hydrogen code stubs.")
 
 DEFINE_bool(predictable, false, "enable predictable mode")
-DEFINE_neg_implication(predictable, randomize_hashes)
 DEFINE_neg_implication(predictable, concurrent_recompilation)
 DEFINE_neg_implication(predictable, concurrent_osr)
 DEFINE_neg_implication(predictable, concurrent_sweeping)
