@@ -1640,10 +1640,9 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
   int properties_count = constant_properties->length() / 2;
   const int max_cloned_properties =
       FastCloneShallowObjectStub::kMaximumClonedProperties;
-  if ((FLAG_track_double_fields && expr->may_store_doubles()) ||
-      (expr->depth() > 1) || Serializer::enabled() ||
-      (flags != ObjectLiteral::kFastElements) ||
-      (properties_count > max_cloned_properties)) {
+  if (expr->may_store_doubles() || expr->depth() > 1 || Serializer::enabled() ||
+      flags != ObjectLiteral::kFastElements ||
+      properties_count > max_cloned_properties) {
     __ Push(x3, x2, x1, x0);
     __ CallRuntime(Runtime::kCreateObjectLiteral, 4);
   } else {

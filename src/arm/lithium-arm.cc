@@ -2195,11 +2195,9 @@ LInstruction* LChunkBuilder::DoStoreNamedField(HStoreNamedField* instr) {
   }
 
   LOperand* val;
-  if (needs_write_barrier ||
-      (FLAG_track_fields && instr->field_representation().IsSmi())) {
+  if (needs_write_barrier || instr->field_representation().IsSmi()) {
     val = UseTempRegister(instr->value());
-  } else if (FLAG_track_double_fields &&
-             instr->field_representation().IsDouble()) {
+  } else if (instr->field_representation().IsDouble()) {
     val = UseRegisterAtStart(instr->value());
   } else {
     val = UseRegister(instr->value());
@@ -2209,8 +2207,7 @@ LInstruction* LChunkBuilder::DoStoreNamedField(HStoreNamedField* instr) {
   LOperand* temp = needs_write_barrier_for_map ? TempRegister() : NULL;
 
   LStoreNamedField* result = new(zone()) LStoreNamedField(obj, val, temp);
-  if (FLAG_track_heap_object_fields &&
-      instr->field_representation().IsHeapObject()) {
+  if (instr->field_representation().IsHeapObject()) {
     if (!instr->value()->type().IsHeapObject()) {
       return AssignEnvironment(result);
     }

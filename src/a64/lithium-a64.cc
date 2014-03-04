@@ -2132,8 +2132,7 @@ LInstruction* LChunkBuilder::DoStoreNamedField(HStoreNamedField* instr) {
 
   LStoreNamedField* result =
       new(zone()) LStoreNamedField(object, value, temp0, temp1);
-  if (FLAG_track_heap_object_fields &&
-      instr->field_representation().IsHeapObject() &&
+  if (instr->field_representation().IsHeapObject() &&
       !instr->value()->type().IsHeapObject()) {
     return AssignEnvironment(result);
   }

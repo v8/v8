@@ -1844,14 +1844,12 @@ RUNTIME_FUNCTION(MaybeObject*, SharedStoreIC_ExtendStorage) {
 
   Object* to_store = value;
 
-  if (FLAG_track_double_fields) {
-    DescriptorArray* descriptors = transition->instance_descriptors();
-    PropertyDetails details = descriptors->GetDetails(transition->LastAdded());
-    if (details.representation().IsDouble()) {
-      MaybeObject* maybe_storage =
-          isolate->heap()->AllocateHeapNumber(value->Number());
-      if (!maybe_storage->To(&to_store)) return maybe_storage;
-    }
+  DescriptorArray* descriptors = transition->instance_descriptors();
+  PropertyDetails details = descriptors->GetDetails(transition->LastAdded());
+  if (details.representation().IsDouble()) {
+    MaybeObject* maybe_storage =
+        isolate->heap()->AllocateHeapNumber(value->Number());
+    if (!maybe_storage->To(&to_store)) return maybe_storage;
   }
 
   new_storage->set(old_storage->length(), to_store);

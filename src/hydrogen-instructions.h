@@ -5830,9 +5830,8 @@ class HObjectAccess V8_FINAL {
     return HObjectAccess(
         kArrayLengths,
         JSArray::kLengthOffset,
-        IsFastElementsKind(elements_kind) &&
-            FLAG_track_fields
-                ? Representation::Smi() : Representation::Tagged());
+        IsFastElementsKind(elements_kind)
+            ? Representation::Smi() : Representation::Tagged());
   }
 
   static HObjectAccess ForAllocationSiteOffset(int offset);
@@ -5846,7 +5845,7 @@ class HObjectAccess V8_FINAL {
     return HObjectAccess(
         kArrayLengths,
         FixedArray::kLengthOffset,
-        FLAG_track_fields ? Representation::Smi() : Representation::Tagged());
+        Representation::Smi());
   }
 
   static HObjectAccess ForStringHashField() {
@@ -5860,7 +5859,7 @@ class HObjectAccess V8_FINAL {
     return HObjectAccess(
         kStringLengths,
         String::kLengthOffset,
-        FLAG_track_fields ? Representation::Smi() : Representation::Tagged());
+        Representation::Smi());
   }
 
   static HObjectAccess ForConsStringFirst() {
@@ -6151,8 +6150,7 @@ class HLoadNamedField V8_FINAL : public HTemplateInstruction<2> {
                representation.IsExternal() ||
                representation.IsInteger32()) {
       set_representation(representation);
-    } else if (FLAG_track_heap_object_fields &&
-               representation.IsHeapObject()) {
+    } else if (representation.IsHeapObject()) {
       set_type(HType::NonPrimitive());
       set_representation(Representation::Tagged());
     } else {
@@ -6550,8 +6548,7 @@ class HStoreNamedField V8_FINAL : public HTemplateInstruction<3> {
   }
 
   bool NeedsWriteBarrier() {
-    ASSERT(!(FLAG_track_double_fields && field_representation().IsDouble()) ||
-           !has_transition());
+    ASSERT(!field_representation().IsDouble() || !has_transition());
     if (IsSkipWriteBarrier()) return false;
     if (field_representation().IsDouble()) return false;
     if (field_representation().IsSmi()) return false;

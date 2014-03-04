@@ -4950,8 +4950,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_KeyedGetProperty) {
           int offset = result.GetFieldIndex().field_index();
           // Do not track double fields in the keyed lookup cache. Reading
           // double values requires boxing.
-          if (!FLAG_track_double_fields ||
-              !result.representation().IsDouble()) {
+          if (!result.representation().IsDouble()) {
             keyed_lookup_cache->Update(receiver_map, key, offset);
           }
           return receiver->FastPropertyAt(result.representation(), offset);

@@ -278,10 +278,9 @@ bool Object::HasValidElements() {
 
 MaybeObject* Object::AllocateNewStorageFor(Heap* heap,
                                            Representation representation) {
-  if (FLAG_track_fields && representation.IsSmi() && IsUninitialized()) {
+  if (representation.IsSmi() && IsUninitialized()) {
     return Smi::FromInt(0);
   }
-  if (!FLAG_track_double_fields) return this;
   if (!representation.IsDouble()) return this;
   if (IsUninitialized()) {
     return heap->AllocateHeapNumber(0);
@@ -3985,8 +3984,7 @@ void Map::set_is_shared(bool value) {
 
 
 bool Map::is_shared() {
-  return IsShared::decode(bit_field3());
-}
+  return IsShared::decode(bit_field3()); }
 
 
 void Map::set_dictionary_map(bool value) {
@@ -4032,7 +4030,6 @@ void Map::deprecate() {
 
 
 bool Map::is_deprecated() {
-  if (!FLAG_track_fields) return false;
   return Deprecated::decode(bit_field3());
 }
 
@@ -4043,7 +4040,6 @@ void Map::set_migration_target(bool value) {
 
 
 bool Map::is_migration_target() {
-  if (!FLAG_track_fields) return false;
   return IsMigrationTarget::decode(bit_field3());
 }
 
@@ -4077,22 +4073,11 @@ bool Map::CanBeDeprecated() {
   int descriptor = LastAdded();
   for (int i = 0; i <= descriptor; i++) {
     PropertyDetails details = instance_descriptors()->GetDetails(i);
-    if (FLAG_track_fields && details.representation().IsNone()) {
-      return true;
-    }
-    if (FLAG_track_fields && details.representation().IsSmi()) {
-      return true;
-    }
-    if (FLAG_track_double_fields && details.representation().IsDouble()) {
-      return true;
-    }
-    if (FLAG_track_heap_object_fields &&
-        details.representation().IsHeapObject()) {
-      return true;
-    }
-    if (FLAG_track_fields && details.type() == CONSTANT) {
-      return true;
-    }
+    if (details.representation().IsNone()) return true;
+    if (details.representation().IsSmi()) return true;
+    if (details.representation().IsDouble()) return true;
+    if (details.representation().IsHeapObject()) return true;
+    if (details.type() == CONSTANT) return true;
   }
   return false;
 }

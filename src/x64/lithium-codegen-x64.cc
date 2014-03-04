@@ -3892,7 +3892,7 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
   SmiCheck check_needed = hinstr->value()->IsHeapObject()
                           ? OMIT_SMI_CHECK : INLINE_SMI_CHECK;
 
-  if (FLAG_track_fields && representation.IsSmi()) {
+  if (representation.IsSmi()) {
     if (instr->value()->IsConstantOperand()) {
       LConstantOperand* operand_value = LConstantOperand::cast(instr->value());
       if (!IsInteger32Constant(operand_value) &&
@@ -3900,7 +3900,7 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
         DeoptimizeIf(no_condition, instr->environment());
       }
     }
-  } else if (FLAG_track_heap_object_fields && representation.IsHeapObject()) {
+  } else if (representation.IsHeapObject()) {
     if (instr->value()->IsConstantOperand()) {
       LConstantOperand* operand_value = LConstantOperand::cast(instr->value());
       if (IsInteger32Constant(operand_value)) {
