@@ -14800,8 +14800,26 @@ static MaybeObject* ArrayConstructorCommon(Isolate* isolate,
       site->SetElementsKind(to_kind);
     }
 
-    maybe_array = isolate->heap()->AllocateJSObjectWithAllocationSite(
-        *constructor, site);
+    // We should allocate with an initial map that reflects the allocation site
+    // advice. Therefore we use AllocateJSObjectFromMap instead of passing
+    // the constructor.
+    Map* initial_map = constructor->initial_map();
+    if (to_kind != initial_map->elements_kind()) {
+      MaybeObject* maybe_new_map = initial_map->AsElementsKind(to_kind);
+      if (!maybe_new_map->To(&initial_map)) return maybe_new_map;
+    }
+
+    // If we don't care to track arrays of to_kind ElementsKind, then
+    // don't emit a memento for them.
+    AllocationSite* allocation_site =
+        (AllocationSite::GetMode(to_kind) == TRACK_ALLOCATION_SITE)
+        ? *site
+        : NULL;
+
+    maybe_array = isolate->heap()->AllocateJSObjectFromMap(initial_map,
+                                                           NOT_TENURED,
+                                                           true,
+                                                           allocation_site);
     if (!maybe_array->To(&array)) return maybe_array;
   } else {
     maybe_array = isolate->heap()->AllocateJSObject(*constructor);

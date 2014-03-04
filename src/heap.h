@@ -684,14 +684,13 @@ class Heap {
   // constructor.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
+  // If allocation_site is non-null, then a memento is emitted after the object
+  // that points to the site.
   // Please note this does not perform a garbage collection.
   MUST_USE_RESULT MaybeObject* AllocateJSObject(
       JSFunction* constructor,
-      PretenureFlag pretenure = NOT_TENURED);
-
-  MUST_USE_RESULT MaybeObject* AllocateJSObjectWithAllocationSite(
-      JSFunction* constructor,
-      Handle<AllocationSite> allocation_site);
+      PretenureFlag pretenure = NOT_TENURED,
+      AllocationSite* allocation_site = NULL);
 
   MUST_USE_RESULT MaybeObject* AllocateJSModule(Context* context,
                                                 ScopeInfo* scope_info);
@@ -771,21 +770,21 @@ class Heap {
   // Allocates and initializes a new JavaScript object based on a map.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
+  // Passing an allocation site means that a memento will be created that
+  // points to the site.
   // Please note this does not perform a garbage collection.
   MUST_USE_RESULT MaybeObject* AllocateJSObjectFromMap(
-      Map* map, PretenureFlag pretenure = NOT_TENURED, bool alloc_props = true);
-
-  MUST_USE_RESULT MaybeObject* AllocateJSObjectFromMapWithAllocationSite(
-      Map* map, Handle<AllocationSite> allocation_site);
+      Map* map,
+      PretenureFlag pretenure = NOT_TENURED,
+      bool alloc_props = true,
+      AllocationSite* allocation_site = NULL);
 
   // Allocates a heap object based on the map.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this function does not perform a garbage collection.
-  MUST_USE_RESULT MaybeObject* Allocate(Map* map, AllocationSpace space);
-
-  MUST_USE_RESULT MaybeObject* AllocateWithAllocationSite(Map* map,
-      AllocationSpace space, Handle<AllocationSite> allocation_site);
+  MUST_USE_RESULT MaybeObject* Allocate(Map* map, AllocationSpace space,
+                                        AllocationSite* allocation_site = NULL);
 
   // Allocates a JS Map in the heap.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
