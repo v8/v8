@@ -179,7 +179,7 @@ Handle<Code> StubCache::ComputeLoadNonexistent(Handle<Name> name,
   // therefore the stub will be specific to the name.
   Handle<Map> current_map = stub_holder;
   Handle<Name> cache_name = current_map->is_dictionary_map()
-      ? name : Handle<Name>::cast(isolate()->factory()->empty_string());
+      ? name : Handle<Name>::cast(isolate()->factory()->nonexistent_symbol());
   Handle<Object> next(current_map->prototype(), isolate());
   Handle<JSObject> last = Handle<JSObject>::null();
   while (!next->IsNull()) {

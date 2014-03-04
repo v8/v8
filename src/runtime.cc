@@ -5356,6 +5356,17 @@ MaybeObject* Runtime::DeleteObjectProperty(Isolate* isolate,
 }
 
 
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SetHiddenProperty) {
+  HandleScope scope(isolate);
+  RUNTIME_ASSERT(args.length() == 3);
+
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
+  CONVERT_ARG_HANDLE_CHECKED(String, key, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
+  return *JSObject::SetHiddenProperty(object, key, value);
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_SetProperty) {
   HandleScope scope(isolate);
   RUNTIME_ASSERT(args.length() == 4 || args.length() == 5);

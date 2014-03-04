@@ -8242,7 +8242,7 @@ static bool IsIdentifier(UnicodeCache* cache, Name* name) {
   // Checks whether the buffer contains an identifier (no escape).
   if (!name->IsString()) return false;
   String* string = String::cast(name);
-  if (string->length() == 0) return false;
+  if (string->length() == 0) return true;
   ConsStringIteratorOp op;
   StringCharacterStream stream(string, &op);
   if (!cache->IsIdentifierStart(stream.GetNext())) {
@@ -8258,9 +8258,7 @@ static bool IsIdentifier(UnicodeCache* cache, Name* name) {
 
 
 bool Name::IsCacheable(Isolate* isolate) {
-  return IsSymbol() ||
-      IsIdentifier(isolate->unicode_cache(), this) ||
-      this == isolate->heap()->hidden_string();
+  return IsSymbol() || IsIdentifier(isolate->unicode_cache(), this);
 }
 
 
@@ -15728,7 +15726,6 @@ MaybeObject* NameDictionary::TransformPropertiesToFastFor(
         // instance descriptor.
         MaybeObject* maybe_key = heap->InternalizeString(String::cast(k));
         if (!maybe_key->To(&key)) return maybe_key;
-        if (key->Equals(heap->empty_string())) return this;
       }
 
       PropertyDetails details = DetailsAt(i);
