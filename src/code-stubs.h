@@ -945,11 +945,10 @@ class LoadFieldStub: public HandlerStub {
                   bool inobject,
                   int index,
                   Representation representation) {
-    bool unboxed_double = FLAG_track_double_fields && representation.IsDouble();
     bit_field_ = KindBits::encode(kind)
         | InobjectBits::encode(inobject)
         | IndexBits::encode(index)
-        | UnboxedDoubleBits::encode(unboxed_double);
+        | UnboxedDoubleBits::encode(representation.IsDouble());
   }
 
  private:

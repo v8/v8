@@ -322,7 +322,7 @@ void StubCompiler::GenerateFastPropertyLoad(MacroAssembler* masm,
                                             bool inobject,
                                             int index,
                                             Representation representation) {
-  ASSERT(!FLAG_track_double_fields || !representation.IsDouble());
+  ASSERT(!representation.IsDouble());
   int offset = index * kPointerSize;
   if (!inobject) {
     // Calculate the offset into the properties array.
@@ -481,11 +481,11 @@ void StoreStubCompiler::GenerateStoreTransition(MacroAssembler* masm,
     __ Move(scratch1, constant);
     __ cmp(value_reg, scratch1);
     __ b(ne, miss_label);
-  } else if (FLAG_track_fields && representation.IsSmi()) {
+  } else if (representation.IsSmi()) {
     __ JumpIfNotSmi(value_reg, miss_label);
-  } else if (FLAG_track_heap_object_fields && representation.IsHeapObject()) {
+  } else if (representation.IsHeapObject()) {
     __ JumpIfSmi(value_reg, miss_label);
-  } else if (FLAG_track_double_fields && representation.IsDouble()) {
+  } else if (representation.IsDouble()) {
     Label do_store, heap_number;
     __ LoadRoot(scratch3, Heap::kHeapNumberMapRootIndex);
     __ AllocateHeapNumber(storage_reg, scratch1, scratch2, scratch3, slow);
@@ -559,15 +559,15 @@ void StoreStubCompiler::GenerateStoreTransition(MacroAssembler* masm,
   if (index < 0) {
     // Set the property straight into the object.
     int offset = object->map()->instance_size() + (index * kPointerSize);
-    if (FLAG_track_double_fields && representation.IsDouble()) {
+    if (representation.IsDouble()) {
       __ str(storage_reg, FieldMemOperand(receiver_reg, offset));
     } else {
       __ str(value_reg, FieldMemOperand(receiver_reg, offset));
     }
 
-    if (!FLAG_track_fields || !representation.IsSmi()) {
+    if (!representation.IsSmi()) {
       // Update the write barrier for the array address.
-      if (!FLAG_track_double_fields || !representation.IsDouble()) {
+      if (!representation.IsDouble()) {
         __ mov(storage_reg, value_reg);
       }
       __ RecordWriteField(receiver_reg,
@@ -585,15 +585,15 @@ void StoreStubCompiler::GenerateStoreTransition(MacroAssembler* masm,
     // Get the properties array
     __ ldr(scratch1,
            FieldMemOperand(receiver_reg, JSObject::kPropertiesOffset));
-    if (FLAG_track_double_fields && representation.IsDouble()) {
+    if (representation.IsDouble()) {
       __ str(storage_reg, FieldMemOperand(scratch1, offset));
     } else {
       __ str(value_reg, FieldMemOperand(scratch1, offset));
     }
 
-    if (!FLAG_track_fields || !representation.IsSmi()) {
+    if (!representation.IsSmi()) {
       // Update the write barrier for the array address.
-      if (!FLAG_track_double_fields || !representation.IsDouble()) {
+      if (!representation.IsDouble()) {
         __ mov(storage_reg, value_reg);
       }
       __ RecordWriteField(scratch1,
@@ -643,11 +643,11 @@ void StoreStubCompiler::GenerateStoreField(MacroAssembler* masm,
 
   Representation representation = lookup->representation();
   ASSERT(!representation.IsNone());
-  if (FLAG_track_fields && representation.IsSmi()) {
+  if (representation.IsSmi()) {
     __ JumpIfNotSmi(value_reg, miss_label);
-  } else if (FLAG_track_heap_object_fields && representation.IsHeapObject()) {
+  } else if (representation.IsHeapObject()) {
     __ JumpIfSmi(value_reg, miss_label);
-  } else if (FLAG_track_double_fields && representation.IsDouble()) {
+  } else if (representation.IsDouble()) {
     // Load the double storage.
     if (index < 0) {
       int offset = object->map()->instance_size() + (index * kPointerSize);
@@ -688,7 +688,7 @@ void StoreStubCompiler::GenerateStoreField(MacroAssembler* masm,
     int offset = object->map()->instance_size() + (index * kPointerSize);
     __ str(value_reg, FieldMemOperand(receiver_reg, offset));
 
-    if (!FLAG_track_fields || !representation.IsSmi()) {
+    if (!representation.IsSmi()) {
       // Skip updating write barrier if storing a smi.
       __ JumpIfSmi(value_reg, &exit);
 
@@ -712,7 +712,7 @@ void StoreStubCompiler::GenerateStoreField(MacroAssembler* masm,
            FieldMemOperand(receiver_reg, JSObject::kPropertiesOffset));
     __ str(value_reg, FieldMemOperand(scratch1, offset));
 
-    if (!FLAG_track_fields || !representation.IsSmi()) {
+    if (!representation.IsSmi()) {
       // Skip updating write barrier if storing a smi.
       __ JumpIfSmi(value_reg, &exit);
 

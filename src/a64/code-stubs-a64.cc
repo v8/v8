@@ -1844,7 +1844,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // checking for constant pool emission, but we do not want to depend on
   // that.
   {
-    Assembler::BlockConstPoolScope block_const_pool(masm);
+    Assembler::BlockPoolsScope block_pools(masm);
     __ bind(&handler_entry);
     handler_offset_ = handler_entry.pos();
     // Caught exception: Store result (exception) in the pending exception
@@ -4948,7 +4948,7 @@ void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) {
   if (masm->isolate()->function_entry_hook() != NULL) {
     // TODO(all): This needs to be reliably consistent with
     // kReturnAddressDistanceFromFunctionStart in ::Generate.
-    Assembler::BlockConstPoolScope no_const_pools(masm);
+    Assembler::BlockPoolsScope no_pools(masm);
     ProfileEntryHookStub stub;
     __ Push(lr);
     __ CallStub(&stub);

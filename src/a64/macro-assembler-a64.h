@@ -2169,24 +2169,6 @@ class MacroAssembler : public Assembler {
   // (!), the mechanism can be extended to generate special veneers for really
   // far targets.
 
-  // Returns true if we should emit a veneer as soon as possible for a branch
-  // which can at most reach to specified pc.
-  bool ShouldEmitVeneer(int max_reachable_pc,
-                        int margin = kVeneerDistanceMargin);
-
-  // The maximum code size generated for a veneer. Currently one branch
-  // instruction. This is for code size checking purposes, and can be extended
-  // in the future for example if we decide to add nops between the veneers.
-  static const int kMaxVeneerCodeSize = 1 * kInstructionSize;
-
-  // Emits veneers for branches that are approaching their maximum range.
-  // If need_protection is true, the veneers are protected by a branch jumping
-  // over the code.
-  void EmitVeneers(bool need_protection);
-  void EmitVeneersGuard();
-  // Checks wether veneers need to be emitted at this point.
-  void CheckVeneers(bool need_protection);
-
   // Helps resolve branching to labels potentially out of range.
   // If the label is not bound, it registers the information necessary to later
   // be able to emit a veneer for this branch if necessary.
@@ -2197,15 +2179,6 @@ class MacroAssembler : public Assembler {
   // This function also checks wether veneers need to be emitted.
   bool NeedExtraInstructionsOrRegisterBranch(Label *label,
                                              ImmBranchType branch_type);
-
- private:
-  // We generate a veneer for a branch if we reach within this distance of the
-  // limit of the range.
-  static const int kVeneerDistanceMargin = 4 * KB;
-  int unresolved_branches_first_limit() const {
-    ASSERT(!unresolved_branches_.empty());
-    return unresolved_branches_.begin()->first;
-  }
 };
 
 

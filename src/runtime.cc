@@ -2063,11 +2063,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeclareGlobals) {
       // value of the variable if the property is already there.
       // Do the lookup locally only, see ES5 erratum.
       LookupResult lookup(isolate);
-      if (FLAG_es52_globals) {
-        global->LocalLookup(*name, &lookup, true);
-      } else {
-        global->Lookup(*name, &lookup);
-      }
+      global->LocalLookup(*name, &lookup, true);
       if (lookup.IsFound()) {
         // We found an existing property. Unless it was an interceptor
         // that claims the property is absent, skip this declaration.
@@ -4950,8 +4946,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_KeyedGetProperty) {
           int offset = result.GetFieldIndex().field_index();
           // Do not track double fields in the keyed lookup cache. Reading
           // double values requires boxing.
-          if (!FLAG_track_double_fields ||
-              !result.representation().IsDouble()) {
+          if (!result.representation().IsDouble()) {
             keyed_lookup_cache->Update(receiver_map, key, offset);
           }
           return receiver->FastPropertyAt(result.representation(), offset);
@@ -5353,6 +5348,17 @@ MaybeObject* Runtime::DeleteObjectProperty(Isolate* isolate,
   Handle<Object> result = JSReceiver::DeleteProperty(receiver, name, mode);
   RETURN_IF_EMPTY_HANDLE(isolate, result);
   return *result;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SetHiddenProperty) {
+  HandleScope scope(isolate);
+  RUNTIME_ASSERT(args.length() == 3);
+
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
+  CONVERT_ARG_HANDLE_CHECKED(String, key, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
+  return *JSObject::SetHiddenProperty(object, key, value);
 }
 
 
@@ -14790,8 +14796,26 @@ static MaybeObject* ArrayConstructorCommon(Isolate* isolate,
       site->SetElementsKind(to_kind);
     }
 
-    maybe_array = isolate->heap()->AllocateJSObjectWithAllocationSite(
-        *constructor, site);
+    // We should allocate with an initial map that reflects the allocation site
+    // advice. Therefore we use AllocateJSObjectFromMap instead of passing
+    // the constructor.
+    Map* initial_map = constructor->initial_map();
+    if (to_kind != initial_map->elements_kind()) {
+      MaybeObject* maybe_new_map = initial_map->AsElementsKind(to_kind);
+      if (!maybe_new_map->To(&initial_map)) return maybe_new_map;
+    }
+
+    // If we don't care to track arrays of to_kind ElementsKind, then
+    // don't emit a memento for them.
+    AllocationSite* allocation_site =
+        (AllocationSite::GetMode(to_kind) == TRACK_ALLOCATION_SITE)
+        ? *site
+        : NULL;
+
+    maybe_array = isolate->heap()->AllocateJSObjectFromMap(initial_map,
+                                                           NOT_TENURED,
+                                                           true,
+                                                           allocation_site);
     if (!maybe_array->To(&array)) return maybe_array;
   } else {
     maybe_array = isolate->heap()->AllocateJSObject(*constructor);

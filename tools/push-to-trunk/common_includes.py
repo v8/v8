@@ -26,6 +26,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+import argparse
 import datetime
 import json
 import os
@@ -226,18 +227,6 @@ class GitFailedException(Exception):
   pass
 
 
-class CommonOptions(object):
-  def __init__(self, options, manual=True):
-    self.requires_editor = True
-    self.wait_for_lgtm = True
-    self.step = options.step
-    self.force_readline_defaults = not manual
-    self.force_upload = not manual
-    self.manual = manual
-    self.reviewer = getattr(options, 'reviewer', "")
-    self.author = getattr(options, 'author', "")
-
-
 class Step(GitRecipesMixin):
   def __init__(self, text, requires, number, config, state, options, handler):
     self._text = text
@@ -251,7 +240,6 @@ class Step(GitRecipesMixin):
     assert self._config is not None
     assert self._state is not None
     assert self._side_effect_handler is not None
-    assert isinstance(options, CommonOptions)
 
   def __getitem__(self, key):
     # Convenience method to allow direct [] access on step classes for
@@ -502,18 +490,81 @@ def MakeStep(step_class=Step, number=0, state=None, config=None,
                       handler=side_effect_handler)
 
 
-def RunScript(step_classes,
-              config,
-              options,
-              side_effect_handler=DEFAULT_SIDE_EFFECT_HANDLER):
-  state_file = "%s-state.json" % config[PERSISTFILE_BASENAME]
-  if options.step == 0 and os.path.exists(state_file):
-    os.remove(state_file)
-  state = {}
-  steps = []
-  for (number, step_class) in enumerate(step_classes):
-    steps.append(MakeStep(step_class, number, state, config,
-                          options, side_effect_handler))
+class ScriptsBase(object):
+  # TODO(machenbach): Move static config here.
+  def __init__(self, config, side_effect_handler=DEFAULT_SIDE_EFFECT_HANDLER,
+               state=None):
+    self._config = config
+    self._side_effect_handler = side_effect_handler
+    self._state = state if state is not None else {}
 
-  for step in steps[options.step:]:
-    step.Run()
+  def _Description(self):
+    return None
+
+  def _PrepareOptions(self, parser):
+    pass
+
+  def _ProcessOptions(self, options):
+    return True
+
+  def _Steps(self):
+    raise Exception("Not implemented.")
+
+  def MakeOptions(self, args=None):
+    parser = argparse.ArgumentParser(description=self._Description())
+    parser.add_argument("-a", "--author", default="",
+                        help="The author email used for rietveld.")
+    parser.add_argument("-r", "--reviewer", default="",
+                        help="The account name to be used for reviews.")
+    parser.add_argument("-s", "--step",
+                      help="Specify the step where to start work. Default: 0.",
+                      default=0, type=int)
+
+    self._PrepareOptions(parser)
+
+    if args is None:
+      options = parser.parse_args()
+    else:
+      options = parser.parse_args(args)
+
+    # Process common options.
+    if options.step < 0:
+      print "Bad step number %d" % options.step
+      parser.print_help()
+      return None
+
+    # Defaults for options, common to all scripts.
+    options.manual = getattr(options, "manual", True)
+    options.force = getattr(options, "force", False)
+
+    # Derived options.
+    options.requires_editor = not options.force
+    options.wait_for_lgtm = not options.force
+    options.force_readline_defaults = not options.manual
+    options.force_upload = not options.manual
+
+    # Process script specific options.
+    if not self._ProcessOptions(options):
+      parser.print_help()
+      return None
+    return options
+
+  def RunSteps(self, step_classes, args=None):
+    options = self.MakeOptions(args)
+    if not options:
+      return 1
+
+    state_file = "%s-state.json" % self._config[PERSISTFILE_BASENAME]
+    if options.step == 0 and os.path.exists(state_file):
+      os.remove(state_file)
+
+    steps = []
+    for (number, step_class) in enumerate(step_classes):
+      steps.append(MakeStep(step_class, number, self._state, self._config,
+                            options, self._side_effect_handler))
+    for step in steps[options.step:]:
+      step.Run()
+    return 0
+
+  def Run(self, args=None):
+    return self.RunSteps(self._Steps(), args)

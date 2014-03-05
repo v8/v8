@@ -571,10 +571,6 @@ void LCodeGen::AddToTranslation(LEnvironment* environment,
     }
   } else if (op->IsDoubleStackSlot()) {
     translation->StoreDoubleStackSlot(op->index());
-  } else if (op->IsArgument()) {
-    ASSERT(is_tagged);
-    int src_index = GetStackSlotCount() + op->index();
-    translation->StoreStackSlot(src_index);
   } else if (op->IsRegister()) {
     Register reg = ToRegister(op);
     if (is_tagged) {
@@ -3892,7 +3888,7 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
   SmiCheck check_needed = hinstr->value()->IsHeapObject()
                           ? OMIT_SMI_CHECK : INLINE_SMI_CHECK;
 
-  if (FLAG_track_fields && representation.IsSmi()) {
+  if (representation.IsSmi()) {
     if (instr->value()->IsConstantOperand()) {
       LConstantOperand* operand_value = LConstantOperand::cast(instr->value());
       if (!IsInteger32Constant(operand_value) &&
@@ -3900,7 +3896,7 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
         DeoptimizeIf(no_condition, instr->environment());
       }
     }
-  } else if (FLAG_track_heap_object_fields && representation.IsHeapObject()) {
+  } else if (representation.IsHeapObject()) {
     if (instr->value()->IsConstantOperand()) {
       LConstantOperand* operand_value = LConstantOperand::cast(instr->value());
       if (IsInteger32Constant(operand_value)) {
@@ -4545,15 +4541,11 @@ void LCodeGen::DoNumberTagU(LNumberTagU* instr) {
 
 
 void LCodeGen::DoDeferredNumberTagU(LNumberTagU* instr) {
-  Label slow;
+  Label done, slow;
   Register reg = ToRegister(instr->value());
-  Register tmp = reg.is(rax) ? rcx : rax;
-  XMMRegister temp_xmm = ToDoubleRegister(instr->temp());
+  Register tmp = ToRegister(instr->temp1());
+  XMMRegister temp_xmm = ToDoubleRegister(instr->temp2());
 
-  // Preserve the value of all registers.
-  PushSafepointRegistersScope scope(this);
-
-  Label done;
   // Load value into temp_xmm which will be preserved across potential call to
   // runtime (MacroAssembler::EnterExitFrameEpilogue preserves only allocatable
   // XMM registers on x64).
@@ -4567,29 +4559,31 @@ void LCodeGen::DoDeferredNumberTagU(LNumberTagU* instr) {
 
   // Slow case: Call the runtime system to do the number allocation.
   __ bind(&slow);
+  {
+    // Put a valid pointer value in the stack slot where the result
+    // register is stored, as this register is in the pointer map, but contains
+    // an integer value.
+    __ Set(reg, 0);
 
-  // Put a valid pointer value in the stack slot where the result
-  // register is stored, as this register is in the pointer map, but contains an
-  // integer value.
-  __ StoreToSafepointRegisterSlot(reg, Immediate(0));
+    // Preserve the value of all registers.
+    PushSafepointRegistersScope scope(this);
 
-  // NumberTagU uses the context from the frame, rather than
-  // the environment's HContext or HInlinedContext value.
-  // They only call Runtime::kAllocateHeapNumber.
-  // The corresponding HChange instructions are added in a phase that does
-  // not have easy access to the local context.
-  __ movp(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
-  __ CallRuntimeSaveDoubles(Runtime::kAllocateHeapNumber);
-  RecordSafepointWithRegisters(
-      instr->pointer_map(), 0, Safepoint::kNoLazyDeopt);
-
-  if (!reg.is(rax)) __ movp(reg, rax);
+    // NumberTagU uses the context from the frame, rather than
+    // the environment's HContext or HInlinedContext value.
+    // They only call Runtime::kAllocateHeapNumber.
+    // The corresponding HChange instructions are added in a phase that does
+    // not have easy access to the local context.
+    __ movp(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
+    __ CallRuntimeSaveDoubles(Runtime::kAllocateHeapNumber);
+    RecordSafepointWithRegisters(
+        instr->pointer_map(), 0, Safepoint::kNoLazyDeopt);
+    __ StoreToSafepointRegisterSlot(reg, rax);
+  }
 
   // Done. Put the value in temp_xmm into the value of the allocated heap
   // number.
   __ bind(&done);
   __ movsd(FieldOperand(reg, HeapNumber::kValueOffset), temp_xmm);
-  __ StoreToSafepointRegisterSlot(reg, reg);
 }
 
 

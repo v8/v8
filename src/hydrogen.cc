@@ -3892,26 +3892,11 @@ void HOptimizedGraphBuilder::VisitForTypeOf(Expression* expr) {
 }
 
 
-
 void HOptimizedGraphBuilder::VisitForControl(Expression* expr,
                                              HBasicBlock* true_block,
                                              HBasicBlock* false_block) {
   TestContext for_test(this, expr, true_block, false_block);
   Visit(expr);
-}
-
-
-void HOptimizedGraphBuilder::VisitArgument(Expression* expr) {
-  CHECK_ALIVE(VisitForValue(expr));
-  Push(Add<HPushArgument>(Pop()));
-}
-
-
-void HOptimizedGraphBuilder::VisitArgumentList(
-    ZoneList<Expression*>* arguments) {
-  for (int i = 0; i < arguments->length(); i++) {
-    CHECK_ALIVE(VisitArgument(arguments->at(i)));
-  }
 }
 
 
@@ -8055,6 +8040,10 @@ void HOptimizedGraphBuilder::VisitCall(Call* expr) {
       return Bailout(kPossibleDirectCallToEval);
     }
 
+    // The function is on the stack in the unoptimized code during
+    // evaluation of the arguments.
+    CHECK_ALIVE(VisitForValue(expr->expression()));
+    HValue* function = Top();
     bool global_call = proxy != NULL && proxy->var()->IsUnallocated();
     if (global_call) {
       Variable* var = proxy->var();
@@ -8069,8 +8058,6 @@ void HOptimizedGraphBuilder::VisitCall(Call* expr) {
         Handle<GlobalObject> global(current_info()->global_object());
         known_global_function = expr->ComputeGlobalTarget(global, &lookup);
       }
-      CHECK_ALIVE(VisitForValue(expr->expression()));
-      HValue* function = Top();
       if (known_global_function) {
         Add<HCheckValue>(function, expr->target());
 
@@ -8097,18 +8084,13 @@ void HOptimizedGraphBuilder::VisitCall(Call* expr) {
         PushArgumentsFromEnvironment(argument_count);
         call = BuildCallConstantFunction(expr->target(), argument_count);
       } else {
-        Push(Add<HPushArgument>(graph()->GetConstantUndefined()));
-        CHECK_ALIVE(VisitArgumentList(expr->arguments()));
+        Push(graph()->GetConstantUndefined());
+        CHECK_ALIVE(VisitExpressions(expr->arguments()));
+        PushArgumentsFromEnvironment(argument_count);
         call = New<HCallFunction>(function, argument_count);
-        Drop(argument_count);
       }
 
     } else if (expr->IsMonomorphic()) {
-      // The function is on the stack in the unoptimized code during
-      // evaluation of the arguments.
-      CHECK_ALIVE(VisitForValue(expr->expression()));
-      HValue* function = Top();
-
       Add<HCheckValue>(function, expr->target());
 
       Push(graph()->GetConstantUndefined());
@@ -8134,13 +8116,10 @@ void HOptimizedGraphBuilder::VisitCall(Call* expr) {
           function, expr->target(), argument_count));
 
     } else {
-      CHECK_ALIVE(VisitForValue(expr->expression()));
-      HValue* function = Top();
-      HValue* receiver = graph()->GetConstantUndefined();
-      Push(Add<HPushArgument>(receiver));
-      CHECK_ALIVE(VisitArgumentList(expr->arguments()));
+      Push(graph()->GetConstantUndefined());
+      CHECK_ALIVE(VisitExpressions(expr->arguments()));
+      PushArgumentsFromEnvironment(argument_count);
       call = New<HCallFunction>(function, argument_count);
-      Drop(argument_count);
     }
   }
 
@@ -8580,13 +8559,13 @@ void HOptimizedGraphBuilder::VisitTypedArrayInitialize(
   if (!is_zero_byte_offset) {
     byte_offset_smi.Else();
     { //  byte_offset is not Smi.
-      Push(Add<HPushArgument>(obj));
-      VisitArgument(arguments->at(kArrayIdArg));
-      Push(Add<HPushArgument>(buffer));
-      Push(Add<HPushArgument>(byte_offset));
-      Push(Add<HPushArgument>(byte_length));
+      Push(obj);
+      CHECK_ALIVE(VisitForValue(arguments->at(kArrayIdArg)));
+      Push(buffer);
+      Push(byte_offset);
+      Push(byte_length);
+      PushArgumentsFromEnvironment(kArgsLength);
       Add<HCallRuntime>(expr->name(), expr->function(), kArgsLength);
-      Drop(kArgsLength);
     }
   }
   byte_offset_smi.End();
@@ -8633,13 +8612,12 @@ void HOptimizedGraphBuilder::VisitCallRuntime(CallRuntime* expr) {
     (this->*generator)(expr);
   } else {
     ASSERT(function->intrinsic_type == Runtime::RUNTIME);
-    CHECK_ALIVE(VisitArgumentList(expr->arguments()));
-
     Handle<String> name = expr->name();
     int argument_count = expr->arguments()->length();
+    CHECK_ALIVE(VisitExpressions(expr->arguments()));
+    PushArgumentsFromEnvironment(argument_count);
     HCallRuntime* call = New<HCallRuntime>(name, function,
                                            argument_count);
-    Drop(argument_count);
     return ast_context()->ReturnInstruction(call, expr->id());
   }
 }
@@ -10504,9 +10482,9 @@ void HOptimizedGraphBuilder::GenerateStringAdd(CallRuntime* call) {
 // Fast support for SubString.
 void HOptimizedGraphBuilder::GenerateSubString(CallRuntime* call) {
   ASSERT_EQ(3, call->arguments()->length());
-  CHECK_ALIVE(VisitArgumentList(call->arguments()));
+  CHECK_ALIVE(VisitExpressions(call->arguments()));
+  PushArgumentsFromEnvironment(call->arguments()->length());
   HCallStub* result = New<HCallStub>(CodeStub::SubString, 3);
-  Drop(3);
   return ast_context()->ReturnInstruction(result, call->id());
 }
 
@@ -10514,9 +10492,9 @@ void HOptimizedGraphBuilder::GenerateSubString(CallRuntime* call) {
 // Fast support for StringCompare.
 void HOptimizedGraphBuilder::GenerateStringCompare(CallRuntime* call) {
   ASSERT_EQ(2, call->arguments()->length());
-  CHECK_ALIVE(VisitArgumentList(call->arguments()));
+  CHECK_ALIVE(VisitExpressions(call->arguments()));
+  PushArgumentsFromEnvironment(call->arguments()->length());
   HCallStub* result = New<HCallStub>(CodeStub::StringCompare, 2);
-  Drop(2);
   return ast_context()->ReturnInstruction(result, call->id());
 }
 
@@ -10524,9 +10502,9 @@ void HOptimizedGraphBuilder::GenerateStringCompare(CallRuntime* call) {
 // Support for direct calls from JavaScript to native RegExp code.
 void HOptimizedGraphBuilder::GenerateRegExpExec(CallRuntime* call) {
   ASSERT_EQ(4, call->arguments()->length());
-  CHECK_ALIVE(VisitArgumentList(call->arguments()));
+  CHECK_ALIVE(VisitExpressions(call->arguments()));
+  PushArgumentsFromEnvironment(call->arguments()->length());
   HCallStub* result = New<HCallStub>(CodeStub::RegExpExec, 4);
-  Drop(4);
   return ast_context()->ReturnInstruction(result, call->id());
 }
 
@@ -10567,12 +10545,11 @@ void HOptimizedGraphBuilder::GenerateCallFunction(CallRuntime* call) {
   int arg_count = call->arguments()->length() - 1;
   ASSERT(arg_count >= 1);  // There's always at least a receiver.
 
-  for (int i = 0; i < arg_count; ++i) {
-    CHECK_ALIVE(VisitArgument(call->arguments()->at(i)));
-  }
-  CHECK_ALIVE(VisitForValue(call->arguments()->last()));
-
+  CHECK_ALIVE(VisitExpressions(call->arguments()));
+  // The function is the last argument
   HValue* function = Pop();
+  // Push the arguments to the stack
+  PushArgumentsFromEnvironment(arg_count);
 
   IfBuilder if_is_jsfunction(this);
   if_is_jsfunction.If<HHasInstanceTypeAndBranch>(function, JS_FUNCTION_TYPE);
@@ -10581,7 +10558,6 @@ void HOptimizedGraphBuilder::GenerateCallFunction(CallRuntime* call) {
   {
     HInstruction* invoke_result =
         Add<HInvokeFunction>(function, arg_count);
-    Drop(arg_count);
     if (!ast_context()->IsEffect()) {
       Push(invoke_result);
     }
@@ -10592,7 +10568,6 @@ void HOptimizedGraphBuilder::GenerateCallFunction(CallRuntime* call) {
   {
     HInstruction* call_result =
         Add<HCallFunction>(function, arg_count);
-    Drop(arg_count);
     if (!ast_context()->IsEffect()) {
       Push(call_result);
     }

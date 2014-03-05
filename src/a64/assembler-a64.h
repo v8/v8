@@ -730,7 +730,7 @@ class Assembler : public AssemblerBase {
   void bind(Label* label);
 
 
-  // RelocInfo and constant pool ----------------------------------------------
+  // RelocInfo and pools ------------------------------------------------------
 
   // Record relocation information for current pc_.
   void RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data = 0);
@@ -841,6 +841,28 @@ class Assembler : public AssemblerBase {
   void ConstantPoolMarker(uint32_t size);
   void ConstantPoolGuard();
 
+  // Prevent veneer pool emission until EndBlockVeneerPool is called.
+  // Call to this function can be nested but must be followed by an equal
+  // number of call to EndBlockConstpool.
+  void StartBlockVeneerPool();
+
+  // Resume constant pool emission. Need to be called as many time as
+  // StartBlockVeneerPool to have an effect.
+  void EndBlockVeneerPool();
+
+  bool is_veneer_pool_blocked() const {
+    return veneer_pool_blocked_nesting_ > 0;
+  }
+
+  // Block/resume emission of constant pools and veneer pools.
+  void StartBlockPools() {
+    StartBlockConstPool();
+    StartBlockVeneerPool();
+  }
+  void EndBlockPools() {
+    EndBlockConstPool();
+    EndBlockVeneerPool();
+  }
 
   // Debugging ----------------------------------------------------------------
   PositionsRecorder* positions_recorder() { return &positions_recorder_; }
@@ -1718,6 +1740,44 @@ class Assembler : public AssemblerBase {
   // Check if is time to emit a constant pool.
   void CheckConstPool(bool force_emit, bool require_jump);
 
+
+  // Returns true if we should emit a veneer as soon as possible for a branch
+  // which can at most reach to specified pc.
+  bool ShouldEmitVeneer(int max_reachable_pc,
+                        int margin = kVeneerDistanceMargin);
+  bool ShouldEmitVeneers(int margin = kVeneerDistanceMargin) {
+    return ShouldEmitVeneer(unresolved_branches_first_limit(), margin);
+  }
+
+  // The maximum code size generated for a veneer. Currently one branch
+  // instruction. This is for code size checking purposes, and can be extended
+  // in the future for example if we decide to add nops between the veneers.
+  static const int kMaxVeneerCodeSize = 1 * kInstructionSize;
+
+  // Emits veneers for branches that are approaching their maximum range.
+  // If need_protection is true, the veneers are protected by a branch jumping
+  // over the code.
+  void EmitVeneers(bool need_protection, int margin = kVeneerDistanceMargin);
+  void EmitVeneersGuard();
+  // Checks whether veneers need to be emitted at this point.
+  void CheckVeneerPool(bool require_jump, int margin = kVeneerDistanceMargin);
+
+
+  class BlockPoolsScope {
+   public:
+    explicit BlockPoolsScope(Assembler* assem) : assem_(assem) {
+      assem_->StartBlockPools();
+    }
+    ~BlockPoolsScope() {
+      assem_->EndBlockPools();
+    }
+
+   private:
+    Assembler* assem_;
+
+    DISALLOW_IMPLICIT_CONSTRUCTORS(BlockPoolsScope);
+  };
+
   // Available for constrained code generation scopes. Prefer
   // MacroAssembler::Mov() when possible.
   inline void LoadRelocated(const CPURegister& rt, const Operand& operand);
@@ -1903,8 +1963,8 @@ class Assembler : public AssemblerBase {
   void GrowBuffer();
   void CheckBuffer();
 
-  // Pc offset of the next buffer check.
-  int next_buffer_check_;
+  // Pc offset of the next constant pool check.
+  int next_constant_pool_check_;
 
   // Constant pool generation
   // Pools are emitted in the instruction stream, preferably after unconditional
@@ -1920,15 +1980,16 @@ class Assembler : public AssemblerBase {
   // expensive. By default we only check again once a number of instructions
   // has been generated. That also means that the sizing of the buffers is not
   // an exact science, and that we rely on some slop to not overrun buffers.
-  static const int kCheckPoolIntervalInst = 128;
-  static const int kCheckPoolInterval =
-    kCheckPoolIntervalInst * kInstructionSize;
+  static const int kCheckConstPoolIntervalInst = 128;
+  static const int kCheckConstPoolInterval =
+    kCheckConstPoolIntervalInst * kInstructionSize;
 
   // Constants in pools are accessed via pc relative addressing, which can
   // reach +/-4KB thereby defining a maximum distance between the instruction
   // and the accessed constant.
-  static const int kMaxDistToPool = 4 * KB;
-  static const int kMaxNumPendingRelocInfo = kMaxDistToPool / kInstructionSize;
+  static const int kMaxDistToConstPool = 4 * KB;
+  static const int kMaxNumPendingRelocInfo =
+    kMaxDistToConstPool / kInstructionSize;
 
 
   // Average distance beetween a constant pool and the first instruction
@@ -1936,7 +1997,8 @@ class Assembler : public AssemblerBase {
   // pollution.
   // In practice the distance will be smaller since constant pool emission is
   // forced after function return and sometimes after unconditional branches.
-  static const int kAvgDistToPool = kMaxDistToPool - kCheckPoolInterval;
+  static const int kAvgDistToConstPool =
+    kMaxDistToConstPool - kCheckConstPoolInterval;
 
   // Emission of the constant pool may be blocked in some code sequences.
   int const_pool_blocked_nesting_;  // Block emission if this is not zero.
@@ -1945,6 +2007,9 @@ class Assembler : public AssemblerBase {
   // Keep track of the first instruction requiring a constant pool entry
   // since the previous constant pool was emitted.
   int first_const_pool_use_;
+
+  // Emission of the veneer pools may be blocked in some code sequences.
+  int veneer_pool_blocked_nesting_;  // Block emission if this is not zero.
 
   // Relocation info generation
   // Each relocation is encoded as a variable size value
@@ -2013,6 +2078,25 @@ class Assembler : public AssemblerBase {
   // pc_offset() for convenience.
   std::multimap<int, FarBranchInfo> unresolved_branches_;
 
+  // We generate a veneer for a branch if we reach within this distance of the
+  // limit of the range.
+  static const int kVeneerDistanceMargin = 1 * KB;
+  // The factor of 2 is a finger in the air guess. With a default margin of
+  // 1KB, that leaves us an addional 256 instructions to avoid generating a
+  // protective branch.
+  static const int kVeneerNoProtectionFactor = 2;
+  static const int kVeneerDistanceCheckMargin =
+    kVeneerNoProtectionFactor * kVeneerDistanceMargin;
+  int unresolved_branches_first_limit() const {
+    ASSERT(!unresolved_branches_.empty());
+    return unresolved_branches_.begin()->first;
+  }
+  // This is similar to next_constant_pool_check_ and helps reduce the overhead
+  // of checking for veneer pools.
+  // It is maintained to the closest unresolved branch limit minus the maximum
+  // veneer margin (or kMaxInt if there are no unresolved branches).
+  int next_veneer_pool_check_;
+
  private:
   // If a veneer is emitted for a branch instruction, that instruction must be
   // removed from the associated label's link chain so that the assembler does
@@ -2021,14 +2105,6 @@ class Assembler : public AssemblerBase {
   void DeleteUnresolvedBranchInfoForLabel(Label* label);
 
  private:
-  // TODO(jbramley): VIXL uses next_literal_pool_check_ and
-  // literal_pool_monitor_ to determine when to consider emitting a literal
-  // pool. V8 doesn't use them, so they should either not be here at all, or
-  // should replace or be merged with next_buffer_check_ and
-  // const_pool_blocked_nesting_.
-  Instruction* next_literal_pool_check_;
-  unsigned literal_pool_monitor_;
-
   PositionsRecorder positions_recorder_;
   friend class PositionsRecorder;
   friend class EnsureSpace;

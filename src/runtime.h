@@ -285,6 +285,7 @@ namespace internal {
   F(DefineOrRedefineAccessorProperty, 5, 1) \
   F(IgnoreAttributesAndSetProperty, -1 /* 3 or 4 */, 1) \
   F(GetDataProperty, 2, 1) \
+  F(SetHiddenProperty, 3, 1) \
   \
   /* Arrays */ \
   F(RemoveArrayHoles, 2, 1) \

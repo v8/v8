@@ -111,9 +111,6 @@ void LOperand::PrintTo(StringStream* stream) {
     case DOUBLE_REGISTER:
       stream->Add("[%s|R]", DoubleRegister::AllocationIndexToString(index()));
       break;
-    case ARGUMENT:
-      stream->Add("[arg:%d]", index());
-      break;
   }
 }
 
@@ -498,10 +495,9 @@ LEnvironment* LChunkBuilderBase::CreateEnvironment(
 
     LOperand* op;
     HValue* value = hydrogen_env->values()->at(i);
+    CHECK(!value->IsPushArgument());  // Do not deopt outgoing arguments
     if (value->IsArgumentsObject() || value->IsCapturedObject()) {
       op = LEnvironment::materialization_marker();
-    } else if (value->IsPushArgument()) {
-      op = new(zone()) LArgument(argument_index++);
     } else {
       op = UseAny(value);
     }

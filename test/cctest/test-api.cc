@@ -12929,7 +12929,6 @@ static void ChildGetter(Local<String> name,
 
 
 THREADED_TEST(Overriding) {
-  i::FLAG_es5_readonly = true;
   LocalContext context;
   v8::Isolate* isolate = context->GetIsolate();
   v8::HandleScope scope(isolate);
@@ -15200,7 +15199,6 @@ TEST(RegExpInterruption) {
 // Test that we cannot set a property on the global object if there
 // is a read-only property in the prototype chain.
 TEST(ReadOnlyPropertyInGlobalProto) {
-  i::FLAG_es5_readonly = true;
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Handle<v8::ObjectTemplate> templ = v8::ObjectTemplate::New(isolate);
@@ -15555,7 +15553,6 @@ THREADED_TEST(GetCallingContext) {
 // Check that a variable declaration with no explicit initialization
 // value does shadow an existing property in the prototype chain.
 THREADED_TEST(InitGlobalVarInProtoChain) {
-  i::FLAG_es52_globals = true;
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
   // Introduce a variable in the prototype chain.
