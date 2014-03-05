@@ -57,10 +57,7 @@ class LexerBase {
     Location(int b, int e) : beg_pos(b), end_pos(e) { }
     Location() : beg_pos(0), end_pos(0) { }
 
-    bool IsValid() const {
-      return beg_pos >= 0 && end_pos >= beg_pos;
-    }
-
+    bool IsValid() const { return beg_pos >= 0 && end_pos >= beg_pos; }
     static Location invalid() { return Location(-1, -1); }
 
     int beg_pos;
@@ -120,12 +117,12 @@ class LexerBase {
 
   Vector<const uint8_t> literal_one_byte_string() {
     EnsureCurrentLiteralIsValid();
-    return current_literal_->one_byte_string;
+    return current_literal_->one_byte_string();
   }
 
   Vector<const uint16_t> literal_two_byte_string() {
     EnsureCurrentLiteralIsValid();
-    return current_literal_->two_byte_string;
+    return current_literal_->two_byte_string();
   }
 
   int literal_length() {
@@ -135,7 +132,7 @@ class LexerBase {
 
   bool is_literal_one_byte() {
     EnsureCurrentLiteralIsValid();
-    return current_literal_->is_one_byte;
+    return current_literal_->is_one_byte();
   }
 
   bool is_literal_contextual_keyword(Vector<const uint8_t> keyword) {
@@ -151,12 +148,12 @@ class LexerBase {
 
   Vector<const uint8_t> next_literal_one_byte_string() {
     EnsureNextLiteralIsValid();
-    return next_literal_->one_byte_string;
+    return next_literal_->one_byte_string();
   }
 
   Vector<const uint16_t> next_literal_two_byte_string() {
     EnsureNextLiteralIsValid();
-    return next_literal_->two_byte_string;
+    return next_literal_->two_byte_string();
   }
 
   int next_literal_length() {
@@ -166,7 +163,7 @@ class LexerBase {
 
   bool is_next_literal_one_byte() {
     EnsureNextLiteralIsValid();
-    return next_literal_->is_one_byte;
+    return next_literal_->is_one_byte();
   }
 
   bool is_next_contextual_keyword(Vector<const uint8_t> keyword) {
@@ -202,41 +199,71 @@ class LexerBase {
 
   UnicodeCache* unicode_cache() { return unicode_cache_; }
 
+  class LiteralDesc {
+   public:
+    LiteralDesc()
+        : beg_pos(-1),
+          offset(0),
+          length(0),
+          is_one_byte_(false),
+          is_in_buffer_(false),
+          is_one_byte_string_owned_(false)  // TODO(dcarney): move to buffer
+    { }
+
+    ~LiteralDesc() {
+      if (is_one_byte_string_owned_) {
+        one_byte_string_.Dispose();
+      }
+    }
+
+    inline bool is_one_byte() { return is_one_byte_; }
+    inline Vector<const uint8_t> one_byte_string() {
+      ASSERT(is_one_byte_);
+      return one_byte_string_;
+    }
+    inline  Vector<const uint16_t> two_byte_string() {
+      ASSERT(!is_one_byte_);
+      return two_byte_string_;
+    }
+
+    inline bool Valid(int pos) { return beg_pos == pos; }
+    inline void Invalidate() { if (is_in_buffer_) beg_pos = -1; }
+
+    // TODO(dcarney): make private as well.
+    int beg_pos;
+    int offset;
+    int length;
+    LiteralBuffer buffer;
+
+    void SetOneByteString(Vector<const uint8_t> string, bool owned);
+    void SetTwoByteString(Vector<const uint16_t> string);
+    void SetStringFromLiteralBuffer();
+
+   private:
+    bool is_one_byte_;
+    bool is_in_buffer_;
+    bool is_one_byte_string_owned_;
+    Vector<const uint8_t> one_byte_string_;
+    Vector<const uint16_t> two_byte_string_;
+
+    DISALLOW_COPY_AND_ASSIGN(LiteralDesc);
+  };
+
  protected:
   struct TokenDesc {
-    Token::Value token;
     int beg_pos;
     int end_pos;
+    Token::Value token;
     bool has_escapes;
     bool is_onebyte;
   };
 
-  struct LiteralDesc {
-    int beg_pos;
-    bool is_one_byte;
-    bool is_in_buffer;
-    int offset;
-    int length;
-    Vector<const uint8_t> one_byte_string;
-    Vector<const uint16_t> two_byte_string;
-    LiteralBuffer buffer;
-    LiteralDesc() : beg_pos(-1), is_one_byte(false), is_in_buffer(false),
-                    offset(0), length(0) { }
-    bool Valid(int pos) { return beg_pos == pos; }
-  };
-
   virtual void Scan() = 0;
-
   virtual void UpdateBufferBasedOnHandle() = 0;
   virtual bool FillLiteral(const TokenDesc& token, LiteralDesc* literal) = 0;
   virtual Handle<String> InternalizeLiteral(LiteralDesc* literal) = 0;
   virtual Handle<String> AllocateLiteral(LiteralDesc* literal,
                                          PretenureFlag tenured) = 0;
-
-  void ResetLiterals() {
-    if (!current_literal_->is_in_buffer) current_literal_->beg_pos = -1;
-    if (!next_literal_->is_in_buffer) next_literal_->beg_pos = -1;
-  }
 
   void EnsureCurrentLiteralIsValid() {
     if (!current_literal_->Valid(current_.beg_pos)) {
@@ -251,19 +278,18 @@ class LexerBase {
   }
 
   UnicodeCache* unicode_cache_;
-
-  bool has_line_terminator_before_next_;
-  // Whether there is a multiline comment *with a line break* before the next
-  // token.
-  bool has_multiline_comment_before_next_;
-
-  TokenDesc current_;  // desc for current token (as returned by Next())
-  TokenDesc next_;     // desc for next token (one token look-ahead)
-
   LiteralDesc* current_literal_;
   LiteralDesc* next_literal_;
   LiteralDesc literals_[2];
 
+  TokenDesc current_;  // desc for current token (as returned by Next())
+  TokenDesc next_;     // desc for next token (one token look-ahead)
+
+  // TODO(dcarney): encode flags in uint8_t
+  bool has_line_terminator_before_next_;
+  // Whether there is a multiline comment *with a line break* before the next
+  // token.
+  bool has_multiline_comment_before_next_;
   bool harmony_numeric_literals_;
   bool harmony_modules_;
   bool harmony_scoping_;
@@ -292,6 +318,11 @@ class Lexer : public LexerBase {
  protected:
   virtual void Scan();
 
+ private:
+  uc32 ScanHexNumber(int length);
+
+  bool ScanLiteralUnicodeEscape();
+
   const Char* GetNewBufferBasedOnHandle() const;
   virtual void UpdateBufferBasedOnHandle();
 
@@ -300,27 +331,10 @@ class Lexer : public LexerBase {
   virtual Handle<String> AllocateLiteral(LiteralDesc* literal,
                                          PretenureFlag tenured);
 
- private:
-  uc32 ScanHexNumber(int length);
-
-  bool ScanLiteralUnicodeEscape();
-
-  const Char* ScanHexNumber(const Char* start,
-                            const Char* end,
-                            uc32* result);
-  const Char* ScanOctalEscape(const Char* start,
-                              const Char* end,
-                              uc32* result);
-  const Char* ScanIdentifierUnicodeEscape(const Char* start,
-                                          const Char* end,
-                                          uc32* result);
-  const Char* ScanEscape(const Char* start,
-                         const Char* end,
-                         LiteralBuffer* literal);
-
-  // Returns true if the literal of the token can be represented as a
-  // substring of the source.
-  bool IsSubstringOfSource(const TokenDesc& token);
+  // Helper function for FillLiteral.
+  template<bool is_one_byte>
+  static void SetLiteral(
+      const Char* start, const Char* end, LiteralDesc* literal);
 
   bool CopyToLiteralBuffer(const Char* start,
                            const Char* end,
@@ -332,7 +346,6 @@ class Lexer : public LexerBase {
   Isolate* isolate_;
   const Handle<String> source_handle_;
   const Char* const source_ptr_;
-  const int start_position_;
   const int end_position_;
   // Stream variables.
   const Char* buffer_;
