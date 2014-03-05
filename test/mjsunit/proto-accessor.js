@@ -102,12 +102,13 @@ var values = [1, true, false, 's', Symbol()];
 
 
 function TestSetProtoOfValues() {
+  var proto = {};
   for (var i = 0; i < values.length; i++) {
-    assertEquals(setProto.call(values[i], i), undefined);
+    assertEquals(setProto.call(values[i], proto), undefined);
   }
 
-  assertThrows(function() { setProto.call(null, 7); }, TypeError);
-  assertThrows(function() { setProto.call(undefined, 8); }, TypeError);
+  assertThrows(function() { setProto.call(null, proto); }, TypeError);
+  assertThrows(function() { setProto.call(undefined, proto); }, TypeError);
 }
 TestSetProtoOfValues();
 

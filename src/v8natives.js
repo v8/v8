@@ -1394,7 +1394,7 @@ function ObjectGetProto() {
 function ObjectSetProto(proto) {
   CHECK_OBJECT_COERCIBLE(this, "Object.prototype.__proto__");
 
-  if (IS_SPEC_OBJECT(proto) || IS_NULL(proto) && IS_SPEC_OBJECT(this)) {
+  if ((IS_SPEC_OBJECT(proto) || IS_NULL(proto)) && IS_SPEC_OBJECT(this)) {
     %SetPrototype(this, proto);
   }
 }
