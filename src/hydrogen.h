@@ -2214,11 +2214,6 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
                        HBasicBlock* true_block,
                        HBasicBlock* false_block);
 
-  // Visit an argument subexpression and emit a push to the outgoing arguments.
-  void VisitArgument(Expression* expr);
-
-  void VisitArgumentList(ZoneList<Expression*>* arguments);
-
   // Visit a list of expressions from left to right, each in a value context.
   void VisitExpressions(ZoneList<Expression*>* exprs);
 

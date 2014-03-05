@@ -47,7 +47,6 @@ class HValue;
 class BitVector;
 class StringStream;
 
-class LArgument;
 class LPlatformChunk;
 class LOperand;
 class LUnallocated;

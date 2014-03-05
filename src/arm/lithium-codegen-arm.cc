@@ -427,7 +427,7 @@ Register LCodeGen::EmitLoadRegister(LOperand* op, Register scratch) {
       __ Move(scratch, literal);
     }
     return scratch;
-  } else if (op->IsStackSlot() || op->IsArgument()) {
+  } else if (op->IsStackSlot()) {
     __ ldr(scratch, ToMemOperand(op));
     return scratch;
   }
@@ -463,7 +463,7 @@ DwVfpRegister LCodeGen::EmitLoadDoubleRegister(LOperand* op,
     } else if (r.IsTagged()) {
       Abort(kUnsupportedTaggedImmediate);
     }
-  } else if (op->IsStackSlot() || op->IsArgument()) {
+  } else if (op->IsStackSlot()) {
     // TODO(regis): Why is vldr not taking a MemOperand?
     // __ vldr(dbl_scratch, ToMemOperand(op));
     MemOperand mem_op = ToMemOperand(op);
@@ -683,10 +683,6 @@ void LCodeGen::AddToTranslation(LEnvironment* environment,
     }
   } else if (op->IsDoubleStackSlot()) {
     translation->StoreDoubleStackSlot(op->index());
-  } else if (op->IsArgument()) {
-    ASSERT(is_tagged);
-    int src_index = GetStackSlotCount() + op->index();
-    translation->StoreStackSlot(src_index);
   } else if (op->IsRegister()) {
     Register reg = ToRegister(op);
     if (is_tagged) {
@@ -1669,7 +1665,7 @@ void LCodeGen::DoBitI(LBitI* instr) {
   Register result = ToRegister(instr->result());
   Operand right(no_reg);
 
-  if (right_op->IsStackSlot() || right_op->IsArgument()) {
+  if (right_op->IsStackSlot()) {
     right = Operand(EmitLoadRegister(right_op, ip));
   } else {
     ASSERT(right_op->IsRegister() || right_op->IsConstantOperand());
@@ -1792,7 +1788,7 @@ void LCodeGen::DoSubI(LSubI* instr) {
   bool can_overflow = instr->hydrogen()->CheckFlag(HValue::kCanOverflow);
   SBit set_cond = can_overflow ? SetCC : LeaveCC;
 
-  if (right->IsStackSlot() || right->IsArgument()) {
+  if (right->IsStackSlot()) {
     Register right_reg = EmitLoadRegister(right, ip);
     __ sub(ToRegister(result), ToRegister(left), Operand(right_reg), set_cond);
   } else {
@@ -1813,7 +1809,7 @@ void LCodeGen::DoRSubI(LRSubI* instr) {
   bool can_overflow = instr->hydrogen()->CheckFlag(HValue::kCanOverflow);
   SBit set_cond = can_overflow ? SetCC : LeaveCC;
 
-  if (right->IsStackSlot() || right->IsArgument()) {
+  if (right->IsStackSlot()) {
     Register right_reg = EmitLoadRegister(right, ip);
     __ rsb(ToRegister(result), ToRegister(left), Operand(right_reg), set_cond);
   } else {
@@ -1986,7 +1982,7 @@ void LCodeGen::DoAddI(LAddI* instr) {
   bool can_overflow = instr->hydrogen()->CheckFlag(HValue::kCanOverflow);
   SBit set_cond = can_overflow ? SetCC : LeaveCC;
 
-  if (right->IsStackSlot() || right->IsArgument()) {
+  if (right->IsStackSlot()) {
     Register right_reg = EmitLoadRegister(right, ip);
     __ add(ToRegister(result), ToRegister(left), Operand(right_reg), set_cond);
   } else {

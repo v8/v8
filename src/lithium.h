@@ -52,8 +52,7 @@ class LOperand : public ZoneObject {
     STACK_SLOT,
     DOUBLE_STACK_SLOT,
     REGISTER,
-    DOUBLE_REGISTER,
-    ARGUMENT
+    DOUBLE_REGISTER
   };
 
   LOperand() : value_(KindField::encode(INVALID)) { }
@@ -63,7 +62,6 @@ class LOperand : public ZoneObject {
 #define LITHIUM_OPERAND_PREDICATE(name, type) \
   bool Is##name() const { return kind() == type; }
   LITHIUM_OPERAND_LIST(LITHIUM_OPERAND_PREDICATE)
-  LITHIUM_OPERAND_PREDICATE(Argument, ARGUMENT)
   LITHIUM_OPERAND_PREDICATE(Unallocated, UNALLOCATED)
   LITHIUM_OPERAND_PREDICATE(Ignored, INVALID)
 #undef LITHIUM_OPERAND_PREDICATE
@@ -339,17 +337,6 @@ class LConstantOperand V8_FINAL : public LOperand {
 
   LConstantOperand() : LOperand() { }
   explicit LConstantOperand(int index) : LOperand(CONSTANT_OPERAND, index) { }
-};
-
-
-class LArgument V8_FINAL : public LOperand {
- public:
-  explicit LArgument(int index) : LOperand(ARGUMENT, index) { }
-
-  static LArgument* cast(LOperand* op) {
-    ASSERT(op->IsArgument());
-    return reinterpret_cast<LArgument*>(op);
-  }
 };
 
 
@@ -679,7 +666,7 @@ class ShallowIterator V8_FINAL BASE_EMBEDDED {
 
  private:
   bool ShouldSkip(LOperand* op) {
-    return op == NULL || op->IsConstantOperand() || op->IsArgument();
+    return op == NULL || op->IsConstantOperand();
   }
 
   // Skip until something interesting, beginning with and including current_.

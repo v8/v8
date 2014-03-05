@@ -571,10 +571,6 @@ void LCodeGen::AddToTranslation(LEnvironment* environment,
     }
   } else if (op->IsDoubleStackSlot()) {
     translation->StoreDoubleStackSlot(op->index());
-  } else if (op->IsArgument()) {
-    ASSERT(is_tagged);
-    int src_index = GetStackSlotCount() + op->index();
-    translation->StoreStackSlot(src_index);
   } else if (op->IsRegister()) {
     Register reg = ToRegister(op);
     if (is_tagged) {

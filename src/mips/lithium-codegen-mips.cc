@@ -401,7 +401,7 @@ Register LCodeGen::EmitLoadRegister(LOperand* op, Register scratch) {
       __ li(scratch, literal);
     }
     return scratch;
-  } else if (op->IsStackSlot() || op->IsArgument()) {
+  } else if (op->IsStackSlot()) {
     __ lw(scratch, ToMemOperand(op));
     return scratch;
   }
@@ -437,7 +437,7 @@ DoubleRegister LCodeGen::EmitLoadDoubleRegister(LOperand* op,
     } else if (r.IsTagged()) {
       Abort(kUnsupportedTaggedImmediate);
     }
-  } else if (op->IsStackSlot() || op->IsArgument()) {
+  } else if (op->IsStackSlot()) {
     MemOperand mem_op = ToMemOperand(op);
     __ ldc1(dbl_scratch, mem_op);
     return dbl_scratch;
@@ -655,10 +655,6 @@ void LCodeGen::AddToTranslation(LEnvironment* environment,
     }
   } else if (op->IsDoubleStackSlot()) {
     translation->StoreDoubleStackSlot(op->index());
-  } else if (op->IsArgument()) {
-    ASSERT(is_tagged);
-    int src_index = GetStackSlotCount() + op->index();
-    translation->StoreStackSlot(src_index);
   } else if (op->IsRegister()) {
     Register reg = ToRegister(op);
     if (is_tagged) {
@@ -1467,7 +1463,7 @@ void LCodeGen::DoBitI(LBitI* instr) {
   Register result = ToRegister(instr->result());
   Operand right(no_reg);
 
-  if (right_op->IsStackSlot() || right_op->IsArgument()) {
+  if (right_op->IsStackSlot()) {
     right = Operand(EmitLoadRegister(right_op, at));
   } else {
     ASSERT(right_op->IsRegister() || right_op->IsConstantOperand());
@@ -1589,7 +1585,7 @@ void LCodeGen::DoSubI(LSubI* instr) {
   bool can_overflow = instr->hydrogen()->CheckFlag(HValue::kCanOverflow);
 
   if (!can_overflow) {
-    if (right->IsStackSlot() || right->IsArgument()) {
+    if (right->IsStackSlot()) {
       Register right_reg = EmitLoadRegister(right, at);
       __ Subu(ToRegister(result), ToRegister(left), Operand(right_reg));
     } else {
@@ -1599,9 +1595,7 @@ void LCodeGen::DoSubI(LSubI* instr) {
   } else {  // can_overflow.
     Register overflow = scratch0();
     Register scratch = scratch1();
-    if (right->IsStackSlot() ||
-        right->IsArgument() ||
-        right->IsConstantOperand()) {
+    if (right->IsStackSlot() || right->IsConstantOperand()) {
       Register right_reg = EmitLoadRegister(right, scratch);
       __ SubuAndCheckForOverflow(ToRegister(result),
                                  ToRegister(left),
@@ -1781,7 +1775,7 @@ void LCodeGen::DoAddI(LAddI* instr) {
   bool can_overflow = instr->hydrogen()->CheckFlag(HValue::kCanOverflow);
 
   if (!can_overflow) {
-    if (right->IsStackSlot() || right->IsArgument()) {
+    if (right->IsStackSlot()) {
       Register right_reg = EmitLoadRegister(right, at);
       __ Addu(ToRegister(result), ToRegister(left), Operand(right_reg));
     } else {
@@ -1792,7 +1786,6 @@ void LCodeGen::DoAddI(LAddI* instr) {
     Register overflow = scratch0();
     Register scratch = scratch1();
     if (right->IsStackSlot() ||
-        right->IsArgument() ||
         right->IsConstantOperand()) {
       Register right_reg = EmitLoadRegister(right, scratch);
       __ AdduAndCheckForOverflow(ToRegister(result),
