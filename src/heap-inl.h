@@ -490,7 +490,8 @@ void Heap::ScavengePointer(HeapObject** p) {
 }
 
 
-void Heap::UpdateAllocationSiteFeedback(HeapObject* object) {
+void Heap::UpdateAllocationSiteFeedback(HeapObject* object,
+                                        ScratchpadSlotMode mode) {
   Heap* heap = object->GetHeap();
   ASSERT(heap->InFromSpace(object));
 
@@ -518,7 +519,7 @@ void Heap::UpdateAllocationSiteFeedback(HeapObject* object) {
   if (!memento->IsValid()) return;
 
   if (memento->GetAllocationSite()->IncrementMementoFoundCount()) {
-    heap->AddAllocationSiteToScratchpad(memento->GetAllocationSite());
+    heap->AddAllocationSiteToScratchpad(memento->GetAllocationSite(), mode);
   }
 }
 
@@ -541,7 +542,7 @@ void Heap::ScavengeObject(HeapObject** p, HeapObject* object) {
     return;
   }
 
-  UpdateAllocationSiteFeedback(object);
+  UpdateAllocationSiteFeedback(object, IGNORE_SCRATCHPAD_SLOT);
 
   // AllocationMementos are unrooted and shouldn't survive a scavenge
   ASSERT(object->map() != object->GetHeap()->allocation_memento_map());

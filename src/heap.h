@@ -1504,10 +1504,16 @@ class Heap {
   static inline void ScavengePointer(HeapObject** p);
   static inline void ScavengeObject(HeapObject** p, HeapObject* object);
 
+  enum ScratchpadSlotMode {
+    IGNORE_SCRATCHPAD_SLOT,
+    RECORD_SCRATCHPAD_SLOT
+  };
+
   // An object may have an AllocationSite associated with it through a trailing
   // AllocationMemento. Its feedback should be updated when objects are found
   // in the heap.
-  static inline void UpdateAllocationSiteFeedback(HeapObject* object);
+  static inline void UpdateAllocationSiteFeedback(
+      HeapObject* object, ScratchpadSlotMode mode);
 
   // Support for partial snapshots.  After calling this we have a linear
   // space to write objects in each space.
@@ -2312,7 +2318,8 @@ class Heap {
   void InitializeAllocationSitesScratchpad();
 
   // Adds an allocation site to the scratchpad if there is space left.
-  void AddAllocationSiteToScratchpad(AllocationSite* site);
+  void AddAllocationSiteToScratchpad(AllocationSite* site,
+                                     ScratchpadSlotMode mode);
 
   void UpdateSurvivalRateTrend(int start_new_space_size);
 

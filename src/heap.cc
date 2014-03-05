@@ -3654,7 +3654,8 @@ void Heap::InitializeAllocationSitesScratchpad() {
 }
 
 
-void Heap::AddAllocationSiteToScratchpad(AllocationSite* site) {
+void Heap::AddAllocationSiteToScratchpad(AllocationSite* site,
+                                         ScratchpadSlotMode mode) {
   if (allocation_sites_scratchpad_length_ < kAllocationSiteScratchpadSize) {
     // We cannot use the normal write-barrier because slots need to be
     // recorded with non-incremental marking as well. We have to explicitly
@@ -3663,7 +3664,15 @@ void Heap::AddAllocationSiteToScratchpad(AllocationSite* site) {
         allocation_sites_scratchpad_length_, site, SKIP_WRITE_BARRIER);
     Object** slot = allocation_sites_scratchpad()->RawFieldOfElementAt(
         allocation_sites_scratchpad_length_);
-    mark_compact_collector()->RecordSlot(slot, slot, *slot);
+
+    if (mode == RECORD_SCRATCHPAD_SLOT) {
+      // We need to allow slots buffer overflow here since the evacuation
+      // candidates are not part of the global list of old space pages and
+      // releasing an evacuation candidate due to a slots buffer overflow
+      // results in lost pages.
+      mark_compact_collector()->RecordSlot(
+          slot, slot, *slot, SlotsBuffer::IGNORE_OVERFLOW);
+    }
     allocation_sites_scratchpad_length_++;
   }
 }

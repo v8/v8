@@ -2053,7 +2053,7 @@ int MarkCompactCollector::DiscoverAndPromoteBlackObjectsOnPage(
       int size = object->Size();
       survivors_size += size;
 
-      Heap::UpdateAllocationSiteFeedback(object);
+      Heap::UpdateAllocationSiteFeedback(object, Heap::RECORD_SCRATCHPAD_SLOT);
 
       offset++;
       current_cell >>= 1;
