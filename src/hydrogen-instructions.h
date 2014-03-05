@@ -1548,6 +1548,7 @@ class HCompareMap V8_FINAL : public HUnaryControlInstruction {
       : HUnaryControlInstruction(value, true_target, false_target),
         map_(Unique<Map>(map)) {
     ASSERT(!map.is_null());
+    set_representation(Representation::Tagged());
   }
 
   Unique<Map> map_;
