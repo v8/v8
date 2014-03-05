@@ -3074,7 +3074,6 @@ Handle<Object> JSObject::SetPropertyViaPrototypes(Handle<JSObject> object,
         break;
       }
       case CALLBACKS: {
-        if (!FLAG_es5_readonly && result.IsReadOnly()) break;
         *done = true;
         Handle<Object> callback_object(result.GetCallbackObject(), isolate);
         return SetPropertyWithCallback(object, callback_object, name, value,
@@ -3093,7 +3092,6 @@ Handle<Object> JSObject::SetPropertyViaPrototypes(Handle<JSObject> object,
   }
 
   // If we get here with *done true, we have encountered a read-only property.
-  if (!FLAG_es5_readonly) *done = false;
   if (*done) {
     if (strict_mode == kNonStrictMode) return value;
     Handle<Object> args[] = { name, object };

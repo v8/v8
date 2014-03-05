@@ -167,10 +167,7 @@ struct MaybeBoolFlag {
 
 // Flags for language modes and experimental language features.
 DEFINE_bool(use_strict, false, "enforce strict mode")
-DEFINE_bool(es5_readonly, true,
-            "activate correct semantics for inheriting readonliness")
-DEFINE_bool(es52_globals, true,
-            "activate new semantics for global var declarations")
+DEFINE_bool(es_staging, false, "enable upcoming ES6+ features")
 
 DEFINE_bool(harmony_typeof, false, "enable harmony semantics for typeof")
 DEFINE_bool(harmony_scoping, false, "enable harmony block scoping")
@@ -192,6 +189,7 @@ DEFINE_bool(harmony_strings, false, "enable harmony string")
 DEFINE_bool(harmony_arrays, false, "enable harmony arrays")
 DEFINE_bool(harmony_maths, false, "enable harmony math functions")
 DEFINE_bool(harmony, false, "enable all harmony features (except typeof)")
+DEFINE_implication(harmony, es_staging)
 DEFINE_implication(harmony, harmony_scoping)
 DEFINE_implication(harmony, harmony_modules)
 DEFINE_implication(harmony, harmony_symbols)
