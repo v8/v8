@@ -1752,7 +1752,11 @@ Handle<Object> Deoptimizer::MaterializeNextHeapObject() {
     Handle<JSObject> arguments = Handle<JSObject>::cast(
         Accessors::FunctionGetArguments(function));
     materialized_objects_->Add(arguments);
-    materialization_value_index_ += length;
+    // To keep consistent object counters, we still materialize the
+    // nested values (but we throw them away).
+    for (int i = 0; i < length; ++i) {
+      MaterializeNextValue();
+    }
   } else if (desc.is_arguments()) {
     // Construct an arguments object and copy the parameters to a newly
     // allocated arguments object backing store.
