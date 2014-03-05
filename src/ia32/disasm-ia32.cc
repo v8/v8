@@ -407,10 +407,11 @@ int DisassemblerIA32::PrintRightOperandHelper(
           return 2;
         } else if (base == ebp) {
           int32_t disp = *reinterpret_cast<int32_t*>(modrmp + 2);
-          AppendToBuffer("[%s*%d+0x%x]",
+          AppendToBuffer("[%s*%d%s0x%x]",
                          (this->*register_name)(index),
                          1 << scale,
-                         disp);
+                         disp < 0 ? "-" : "+",
+                         disp < 0 ? -disp : disp);
           return 6;
         } else if (index != esp && base != ebp) {
           // [base+index*scale]
@@ -434,23 +435,26 @@ int DisassemblerIA32::PrintRightOperandHelper(
         byte sib = *(modrmp + 1);
         int scale, index, base;
         get_sib(sib, &scale, &index, &base);
-        int disp =
-            mod == 2 ? *reinterpret_cast<int32_t*>(modrmp + 2) : *(modrmp + 2);
+        int disp = mod == 2 ? *reinterpret_cast<int32_t*>(modrmp + 2)
+                            : *reinterpret_cast<int8_t*>(modrmp + 2);
         if (index == base && index == rm /*esp*/ && scale == 0 /*times_1*/) {
-          AppendToBuffer("[%s+0x%x]", (this->*register_name)(rm), disp);
+          AppendToBuffer("[%s%s0x%x]",
+                         (this->*register_name)(rm),
+                         disp < 0 ? "-" : "+",
+                         disp < 0 ? -disp : disp);
         } else {
-          AppendToBuffer("[%s+%s*%d+0x%x]",
+          AppendToBuffer("[%s+%s*%d%s0x%x]",
                          (this->*register_name)(base),
                          (this->*register_name)(index),
                          1 << scale,
-                         disp);
+                         disp < 0 ? "-" : "+",
+                         disp < 0 ? -disp : disp);
         }
         return mod == 2 ? 6 : 3;
       } else {
         // No sib.
-        int disp =
-            mod == 2 ? *reinterpret_cast<int32_t*>(modrmp + 1) :
-                       *reinterpret_cast<int8_t*>(modrmp + 1);
+        int disp = mod == 2 ? *reinterpret_cast<int32_t*>(modrmp + 1)
+                            : *reinterpret_cast<int8_t*>(modrmp + 1);
         AppendToBuffer("[%s%s0x%x]",
                        (this->*register_name)(rm),
                        disp < 0 ? "-" : "+",
