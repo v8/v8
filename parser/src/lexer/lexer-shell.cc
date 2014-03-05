@@ -361,6 +361,7 @@ std::pair<TimeDelta, TimeDelta> ProcessFile(
 
 
 int main(int argc, char* argv[]) {
+  return 0;
   v8::V8::InitializeICU();
   v8::V8::SetFlagsFromCommandLine(&argc, argv, true);
   std::vector<std::string> fnames;

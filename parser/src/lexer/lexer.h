@@ -45,8 +45,9 @@ class LexerGCHandler {
   void UpdateLexersAfterGC();
 
  private:
+  typedef std::set<LexerBase*> LexerSet;
   Isolate* isolate_;
-  std::set<LexerBase*> lexers_;
+  LexerSet lexers_;
 };
 
 
@@ -66,16 +67,7 @@ class LexerBase {
     int end_pos;
   };
 
-  explicit LexerBase(UnicodeCache* unicode_cache)
-      : unicode_cache_(unicode_cache),
-        has_line_terminator_before_next_(true),
-        has_multiline_comment_before_next_(false),
-        current_literal_(&literals_[0]),
-        next_literal_(&literals_[1]),
-        harmony_numeric_literals_(false),
-        harmony_modules_(false),
-        harmony_scoping_(false) {
-  }
+  explicit LexerBase(UnicodeCache* unicode_cache);
 
   virtual ~LexerBase();
 
@@ -105,8 +97,6 @@ class LexerBase {
   // we need to decide if pos is counted in characters or in bytes.
   virtual void SeekForward(int pos) = 0;
 
-  virtual void SetEnd(int pos) = 0;
-
   // Scans the input as a regular expression pattern, previous character(s) must
   // be /(=). Returns true if a pattern is scanned. FIXME: this won't work for
   // utf-8 newlines.
@@ -128,29 +118,14 @@ class LexerBase {
            has_multiline_comment_before_next_;
   }
 
-  Handle<String> GetLiteralSymbol() {
+  Vector<const uint8_t> literal_one_byte_string() {
     EnsureCurrentLiteralIsValid();
-    return InternalizeLiteral(current_literal_);
+    return current_literal_->one_byte_string;
   }
 
-  Handle<String> GetLiteralString(PretenureFlag tenured) {
+  Vector<const uint16_t> literal_two_byte_string() {
     EnsureCurrentLiteralIsValid();
-    return AllocateLiteral(current_literal_, tenured);
-  }
-
-  Handle<String> GetNextLiteralString(PretenureFlag tenured) {
-    EnsureNextLiteralIsValid();
-    return AllocateLiteral(next_literal_, tenured);
-  }
-
-  Vector<const char> literal_ascii_string() {
-    EnsureCurrentLiteralIsValid();
-    return current_literal_->ascii_string;
-  }
-
-  Vector<const uc16> literal_utf16_string() {
-    EnsureCurrentLiteralIsValid();
-    return current_literal_->utf16_string;
+    return current_literal_->two_byte_string;
   }
 
   int literal_length() {
@@ -158,14 +133,14 @@ class LexerBase {
     return current_literal_->length;
   }
 
-  bool is_literal_ascii() {
+  bool is_literal_one_byte() {
     EnsureCurrentLiteralIsValid();
-    return current_literal_->is_ascii;
+    return current_literal_->is_one_byte;
   }
 
-  bool is_literal_contextual_keyword(Vector<const char> keyword) {
-    if (!is_literal_ascii()) return false;
-    Vector<const char> literal = literal_ascii_string();
+  bool is_literal_contextual_keyword(Vector<const uint8_t> keyword) {
+    if (!is_literal_one_byte()) return false;
+    Vector<const uint8_t> literal = literal_one_byte_string();
     return literal.length() == keyword.length() &&
         (memcmp(literal.start(), keyword.start(), literal.length()) == 0);
   }
@@ -174,14 +149,14 @@ class LexerBase {
     return current_.has_escapes;
   }
 
-  Vector<const char> next_literal_ascii_string() {
+  Vector<const uint8_t> next_literal_one_byte_string() {
     EnsureNextLiteralIsValid();
-    return next_literal_->ascii_string;
+    return next_literal_->one_byte_string;
   }
 
-  Vector<const uc16> next_literal_utf16_string() {
+  Vector<const uint16_t> next_literal_two_byte_string() {
     EnsureNextLiteralIsValid();
-    return next_literal_->utf16_string;
+    return next_literal_->two_byte_string;
   }
 
   int next_literal_length() {
@@ -189,14 +164,14 @@ class LexerBase {
     return next_literal_->length;
   }
 
-  bool is_next_literal_ascii() {
+  bool is_next_literal_one_byte() {
     EnsureNextLiteralIsValid();
-    return next_literal_->is_ascii;
+    return next_literal_->is_one_byte;
   }
 
-  bool is_next_contextual_keyword(Vector<const char> keyword) {
-    if (!is_next_literal_ascii()) return false;
-    Vector<const char> literal = next_literal_ascii_string();
+  bool is_next_contextual_keyword(Vector<const uint8_t> keyword) {
+    if (!is_next_literal_one_byte()) return false;
+    Vector<const uint8_t> literal = next_literal_one_byte_string();
     return literal.length() == keyword.length() &&
         (memcmp(literal.start(), keyword.start(), literal.length()) == 0);
   }
@@ -238,14 +213,14 @@ class LexerBase {
 
   struct LiteralDesc {
     int beg_pos;
-    bool is_ascii;
+    bool is_one_byte;
     bool is_in_buffer;
     int offset;
     int length;
-    Vector<const char> ascii_string;
-    Vector<const uc16> utf16_string;
+    Vector<const uint8_t> one_byte_string;
+    Vector<const uint16_t> two_byte_string;
     LiteralBuffer buffer;
-    LiteralDesc() : beg_pos(-1), is_ascii(false), is_in_buffer(false),
+    LiteralDesc() : beg_pos(-1), is_one_byte(false), is_in_buffer(false),
                     offset(0), length(0) { }
     bool Valid(int pos) { return beg_pos == pos; }
   };
@@ -303,13 +278,12 @@ class Lexer : public LexerBase {
  public:
   Lexer(UnicodeCache* unicode_cache,
         Handle<String> source,
-        int start_position_,
-        int end_position_);
+        int start_position,
+        int end_position);
   Lexer(UnicodeCache* unicode_cache, const Char* source_ptr, int length);
   virtual ~Lexer();
 
   virtual void SeekForward(int pos);
-  virtual void SetEnd(int pos);
   virtual bool ScanRegExpPattern(bool seen_equal);
   virtual bool ScanRegExpFlags();
   virtual Location octal_position() const;
@@ -353,16 +327,18 @@ class Lexer : public LexerBase {
                            const TokenDesc& token,
                            LiteralDesc* literal);
 
+  // One of source_handle_ or source_ptr_ is set.
+  // If source_ptr_ is set, isolate_ is 0 and no isolate accesses are allowed.
   Isolate* isolate_;
   const Handle<String> source_handle_;
   const Char* const source_ptr_;
   const int start_position_;
   const int end_position_;
+  // Stream variables.
   const Char* buffer_;
   const Char* buffer_end_;
   const Char* start_;
   const Char* cursor_;
-
   // Where we have seen the last octal number or an octal escape inside a
   // string. Used by octal_position().
   const Char* last_octal_end_;
@@ -384,8 +360,6 @@ class Scanner {
   void Initialize(Utf16CharacterStream* source);
 
   inline void SeekForward(int pos) { lexer_->SeekForward(pos); }
-
-  inline void SetEnd(int pos) { lexer_->SetEnd(pos); }
 
   inline bool ScanRegExpPattern(bool seen_equal) {
     return lexer_->ScanRegExpPattern(seen_equal);
@@ -440,24 +414,12 @@ class Scanner {
     return lexer_->HasAnyLineTerminatorBeforeNext();
   }
 
-  inline Handle<String> GetLiteralSymbol() {
-    return lexer_->GetLiteralSymbol();
-  }
-
-  inline Handle<String> GetLiteralString(PretenureFlag tenured) {
-    return lexer_->GetLiteralString(tenured);
-  }
-
-  inline Handle<String> GetNextLiteralString(PretenureFlag tenured) {
-    return lexer_->GetNextLiteralString(tenured);
-  }
-
   inline Vector<const char> literal_ascii_string() {
-    return lexer_->literal_ascii_string();
+    return Vector<const char>::cast(lexer_->literal_one_byte_string());
   }
 
   inline Vector<const uc16> literal_utf16_string() {
-    return lexer_->literal_utf16_string();
+    return lexer_->literal_two_byte_string();
   }
 
   inline int literal_length() {
@@ -465,11 +427,13 @@ class Scanner {
   }
 
   inline bool is_literal_ascii() {
-    return lexer_->is_literal_ascii();
+    return lexer_->is_literal_one_byte();
   }
 
-  inline bool is_literal_contextual_keyword(Vector<const char> keyword) {
-    return lexer_->is_literal_contextual_keyword(keyword);
+  inline bool is_literal_contextual_keyword(
+      Vector<const char>& keyword) {  // NOLINT
+    return lexer_->is_literal_contextual_keyword(
+        Vector<const uint8_t>::cast(keyword));
   }
 
   inline bool literal_contains_escapes() const {
@@ -477,11 +441,11 @@ class Scanner {
   }
 
   inline Vector<const char> next_literal_ascii_string() {
-    return lexer_->next_literal_ascii_string();
+    return Vector<const char>::cast(lexer_->next_literal_one_byte_string());
   }
 
   inline Vector<const uc16> next_literal_utf16_string() {
-    return lexer_->next_literal_utf16_string();
+    return lexer_->next_literal_two_byte_string();
   }
 
   inline int next_literal_length() {
@@ -489,11 +453,13 @@ class Scanner {
   }
 
   inline bool is_next_literal_ascii() {
-    return lexer_->is_next_literal_ascii();
+    return lexer_->is_next_literal_one_byte();
   }
 
-  inline bool is_next_contextual_keyword(Vector<const char> keyword) {
-    return lexer_->is_next_contextual_keyword(keyword);
+  inline bool is_next_contextual_keyword(
+      Vector<const char>& keyword) {  // NOLINT
+    return lexer_->is_next_contextual_keyword(
+        Vector<const uint8_t>::cast(keyword));
   }
 
  private:

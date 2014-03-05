@@ -113,12 +113,16 @@ void LexerGCHandler::AddLexer(LexerBase* lexer) {
     isolate_->heap()->AddGCEpilogueCallback(
         &i::UpdateLexersAfterGC, kGCTypeAll, true);
   }
-  lexers_.insert(lexer);
+  std::pair<LexerSet::iterator, bool> res = lexers_.insert(lexer);
+  USE(res);
+  ASSERT(res.second);
 }
 
 
 void LexerGCHandler::RemoveLexer(LexerBase* lexer) {
-  lexers_.erase(lexer);
+  LexerSet::iterator it = lexers_.find(lexer);
+  ASSERT(it != lexers_.end());
+  lexers_.erase(it);
   if (lexers_.empty()) {
     isolate_->heap()->RemoveGCEpilogueCallback(&i::UpdateLexersAfterGC);
   }
@@ -130,6 +134,18 @@ void LexerGCHandler::UpdateLexersAfterGC() {
   for (It it = lexers_.begin(); it != lexers_.end(); ++it) {
     (*it)->UpdateBufferBasedOnHandle();
   }
+}
+
+
+LexerBase::LexerBase(UnicodeCache* unicode_cache)
+    : unicode_cache_(unicode_cache),
+      has_line_terminator_before_next_(true),
+      has_multiline_comment_before_next_(false),
+      current_literal_(&literals_[0]),
+      next_literal_(&literals_[1]),
+      harmony_numeric_literals_(false),
+      harmony_modules_(false),
+      harmony_scoping_(false) {
 }
 
 
@@ -188,8 +204,6 @@ Lexer<Char>::Lexer(UnicodeCache* unicode_cache,
   cursor_ = buffer_ + start_position;
   buffer_end_ = buffer_ + end_position;
   start_ = cursor_;
-  has_line_terminator_before_next_ = false;
-  has_multiline_comment_before_next_ = false;
 }
 
 
@@ -208,12 +222,6 @@ void Lexer<Char>::SeekForward(int pos) {
   has_line_terminator_before_next_ = false;
   has_multiline_comment_before_next_ = false;
   Scan();  // Fills in next_.
-}
-
-
-template<typename Char>
-void Lexer<Char>::SetEnd(int pos) {
-  buffer_end_ = buffer_ + pos;
 }
 
 
@@ -518,12 +526,11 @@ bool Lexer<uint8_t>::FillLiteral(
     --end;
   }
   if (IsSubstringOfSource(token)) {
-    literal->is_ascii = true;
+    literal->is_one_byte = true;
     literal->is_in_buffer = false;
     literal->offset = start - buffer_;
     literal->length = end - start;
-    literal->ascii_string = Vector<const char>(
-        reinterpret_cast<const char*>(start), literal->length);
+    literal->one_byte_string = Vector<const uint8_t>(start, literal->length);
     return true;
   }
   return CopyToLiteralBuffer(start, end, token, literal);
@@ -541,11 +548,11 @@ bool Lexer<uint16_t>::FillLiteral(
     --end;
   }
   if (IsSubstringOfSource(token)) {
-    literal->is_ascii = false;
+    literal->is_one_byte = false;
     literal->is_in_buffer = false;
     literal->offset = start - buffer_;
     literal->length = end - start;
-    literal->utf16_string = Vector<const uint16_t>(start, literal->length);
+    literal->two_byte_string = Vector<const uint16_t>(start, literal->length);
     return true;
   }
   return CopyToLiteralBuffer(start, end, token, literal);
@@ -588,13 +595,14 @@ bool Lexer<Char>::CopyToLiteralBuffer(const Char* start,
         literal->buffer.AddChar(*cursor++);
     }
   }
-  literal->is_ascii = literal->buffer.is_ascii();
+  literal->is_one_byte = literal->buffer.is_ascii();
   literal->is_in_buffer = true;
   literal->length = literal->buffer.length();
-  if (literal->is_ascii) {
-    literal->ascii_string = literal->buffer.ascii_literal();
+  if (literal->is_one_byte) {
+    literal->one_byte_string =
+        Vector<const uint8_t>::cast(literal->buffer.ascii_literal());
   } else {
-    literal->utf16_string = literal->buffer.utf16_literal();
+    literal->two_byte_string = literal->buffer.utf16_literal();
   }
   return true;
 }
@@ -605,10 +613,10 @@ Handle<String> Lexer<Char>::InternalizeLiteral(
     LiteralDesc* literal) {
   Factory* factory = isolate_->factory();
   if (literal->is_in_buffer) {
-    return literal->is_ascii
+    return literal->is_one_byte
         ? factory->InternalizeOneByteString(
-            Vector<const uint8_t>::cast(literal->ascii_string))
-        : factory->InternalizeTwoByteString(literal->utf16_string);
+            Vector<const uint8_t>::cast(literal->one_byte_string))
+        : factory->InternalizeTwoByteString(literal->two_byte_string);
   }
   if (sizeof(Char) == 1) {
     SubStringKey<uint8_t> key(
@@ -627,9 +635,9 @@ Handle<String> Lexer<uint8_t>::AllocateLiteral(
     LiteralDesc* literal, PretenureFlag pretenured) {
   Factory* factory = isolate_->factory();
   if (literal->is_in_buffer) {
-    return literal->is_ascii
-        ? factory->NewStringFromAscii(literal->ascii_string, pretenured)
-        : factory->NewStringFromTwoByte(literal->utf16_string, pretenured);
+    return literal->is_one_byte
+        ? factory->NewStringFromOneByte(literal->one_byte_string, pretenured)
+        : factory->NewStringFromTwoByte(literal->two_byte_string, pretenured);
   }
   int from = literal->offset;
   int length = literal->length;
@@ -647,9 +655,9 @@ Handle<String> Lexer<uint16_t>::AllocateLiteral(
     LiteralDesc* literal, PretenureFlag pretenured) {
   Factory* factory = isolate_->factory();
   if (literal->is_in_buffer) {
-    return literal->is_ascii
-        ? factory->NewStringFromAscii(literal->ascii_string, pretenured)
-        : factory->NewStringFromTwoByte(literal->utf16_string, pretenured);
+    return literal->is_one_byte
+        ? factory->NewStringFromOneByte(literal->one_byte_string, pretenured)
+        : factory->NewStringFromTwoByte(literal->two_byte_string, pretenured);
   }
   // Save the offset and the length before allocating the string as it may
   // cause a GC, invalidate the literal, and move the source.
