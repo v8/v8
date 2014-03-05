@@ -1566,6 +1566,7 @@ class HCompareMap V8_FINAL : public HUnaryControlInstruction {
       : HUnaryControlInstruction(value, true_target, false_target),
         known_successor_index_(kNoKnownSuccessorIndex), map_(Unique<Map>(map)) {
     ASSERT(!map.is_null());
+    set_representation(Representation::Tagged());
   }
 
   int known_successor_index_;
