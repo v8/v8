@@ -25,7 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include <assert.h>
 #include <fcntl.h>
 #include <string.h>
 #include <stdio.h>
@@ -48,8 +47,8 @@
 
 using namespace v8::internal;
 
-byte* ReadFile(const char* name, const byte** end, int repeat,
-               bool convert_to_utf16) {
+static byte* ReadFile(const char* name, const byte** end, int repeat,
+                      bool convert_to_utf16) {
   FILE* file = fopen(name, "rb");
   if (file == NULL) return NULL;
 
@@ -103,10 +102,6 @@ enum Encoding {
 struct LexerShellSettings {
   Encoding encoding;
   bool print_tokens;
-  bool run_baseline;
-  bool run_experimental;
-  bool check_tokens;
-  bool dump_tokens;
   bool break_after_illegal;
   bool eos_test;
   int repeat;
@@ -116,68 +111,12 @@ struct LexerShellSettings {
   LexerShellSettings()
       : encoding(LATIN1),
         print_tokens(false),
-        run_baseline(true),
-        run_experimental(true),
-        check_tokens(true),
-        dump_tokens(false),
         break_after_illegal(false),
         eos_test(false),
         repeat(1),
         harmony_numeric_literals(false),
         harmony_modules(false),
         harmony_scoping(false) {}
-};
-
-class BaselineScanner {
- public:
-  BaselineScanner(const byte* source,
-                  const byte* source_end,
-                  Isolate* isolate,
-                  ElapsedTimer* timer,
-                  const LexerShellSettings& settings)
-      : source_(source), stream_(NULL) {
-    scanner_ = new Scanner(isolate->unicode_cache());
-    scanner_->SetHarmonyNumericLiterals(settings.harmony_numeric_literals);
-    scanner_->SetHarmonyModules(settings.harmony_modules);
-    scanner_->SetHarmonyScoping(settings.harmony_scoping);
-    switch (settings.encoding) {
-      case UTF8:
-      case UTF8TO16:
-        stream_ = new Utf8ToUtf16CharacterStream(source_, source_end - source_);
-        break;
-      case UTF16: {
-        Handle<String> result = isolate->factory()->NewStringFromTwoByte(
-            Vector<const uint16_t>(
-                reinterpret_cast<const uint16_t*>(source_),
-                (source_end - source_) / 2));
-        stream_ =
-            new GenericStringUtf16CharacterStream(result, 0, result->length());
-        break;
-      }
-      case LATIN1: {
-        Handle<String> result = isolate->factory()->NewStringFromOneByte(
-            Vector<const uint8_t>(source_, source_end - source_));
-        stream_ =
-            new GenericStringUtf16CharacterStream(result, 0, result->length());
-        break;
-      }
-    }
-    timer->Start();
-    scanner_->Initialize(stream_);
-  }
-
-  ~BaselineScanner() {
-    delete scanner_;
-    delete stream_;
-    delete unicode_cache_;
-  }
-
-  Scanner* scanner_;
-
- private:
-  UnicodeCache* unicode_cache_;
-  const byte* source_;
-  Utf16CharacterStream* stream_;
 };
 
 
@@ -219,7 +158,7 @@ struct TokenWithLocation {
 };
 
 
-bool HasLiteral(Token::Value token) {
+static bool HasLiteral(Token::Value token) {
   return token == Token::IDENTIFIER ||
          token == Token::STRING ||
          token == Token::NUMBER;
@@ -227,7 +166,7 @@ bool HasLiteral(Token::Value token) {
 
 
 template<typename Char>
-std::vector<int> ToStdVector(const Vector<Char>& literal) {
+static std::vector<int> ToStdVector(const Vector<Char>& literal) {
   std::vector<int> result;
   for (int i = 0; i < literal.length(); i++) {
     result.push_back(literal[i]);
@@ -237,7 +176,8 @@ std::vector<int> ToStdVector(const Vector<Char>& literal) {
 
 
 template<typename Scanner>
-TokenWithLocation GetTokenWithLocation(Scanner *scanner, Token::Value token) {
+static TokenWithLocation GetTokenWithLocation(
+    Scanner *scanner, Token::Value token) {
   int beg = scanner->location().beg_pos;
   int end = scanner->location().end_pos;
   TokenWithLocation result(token, beg, end, scanner->octal_position().beg_pos);
@@ -253,27 +193,51 @@ TokenWithLocation GetTokenWithLocation(Scanner *scanner, Token::Value token) {
 }
 
 
-TimeDelta RunBaselineScanner(const byte* source,
-                             const byte* source_end,
-                             Isolate* isolate,
-                             std::vector<TokenWithLocation>* tokens,
-                             const LexerShellSettings& settings) {
+static TimeDelta RunLexer(const byte* source,
+                          const byte* source_end,
+                          Isolate* isolate,
+                          std::vector<TokenWithLocation>* tokens,
+                          const LexerShellSettings& settings) {
+  SmartPointer<Utf16CharacterStream> stream;
+  switch (settings.encoding) {
+    case UTF8:
+    case UTF8TO16:
+      stream.Reset(new Utf8ToUtf16CharacterStream(source, source_end - source));
+      break;
+    case UTF16: {
+      Handle<String> result = isolate->factory()->NewStringFromTwoByte(
+          Vector<const uint16_t>(
+              reinterpret_cast<const uint16_t*>(source),
+              (source_end - source) / 2));
+      stream.Reset(
+          new GenericStringUtf16CharacterStream(result, 0, result->length()));
+      break;
+    }
+    case LATIN1: {
+      Handle<String> result = isolate->factory()->NewStringFromOneByte(
+          Vector<const uint8_t>(source, source_end - source));
+      stream.Reset(
+          new GenericStringUtf16CharacterStream(result, 0, result->length()));
+      break;
+    }
+  }
+  Scanner scanner(isolate->unicode_cache());
+  scanner.SetHarmonyNumericLiterals(settings.harmony_numeric_literals);
+  scanner.SetHarmonyModules(settings.harmony_modules);
+  scanner.SetHarmonyScoping(settings.harmony_scoping);
   ElapsedTimer timer;
-  BaselineScanner scanner(source,
-                          source_end,
-                          isolate,
-                          &timer,
-                          settings);
+  timer.Start();
+  scanner.Initialize(stream.get());
   Token::Value token;
   do {
-    token = scanner.scanner_->Next();
-    if (settings.dump_tokens) {
-      tokens->push_back(GetTokenWithLocation(scanner.scanner_, token));
+    token = scanner.Next();
+    if (settings.print_tokens) {
+      tokens->push_back(GetTokenWithLocation(&scanner, token));
     } else if (HasLiteral(token)) {
-      if (scanner.scanner_->is_literal_ascii()) {
-        scanner.scanner_->literal_ascii_string();
+      if (scanner.is_literal_ascii()) {
+        scanner.literal_ascii_string();
       } else {
-        scanner.scanner_->literal_utf16_string();
+        scanner.literal_utf16_string();
       }
     }
   } while (token != Token::EOS);
@@ -281,91 +245,47 @@ TimeDelta RunBaselineScanner(const byte* source,
 }
 
 
-void PrintTokens(const char* name,
-                 const std::vector<TokenWithLocation>& tokens) {
-  printf("No of tokens: %d\n",
-         static_cast<int>(tokens.size()));
-  printf("%s:\n", name);
-  for (size_t i = 0; i < tokens.size(); ++i) {
-    tokens[i].Print("=>");
-  }
-}
-
-
-std::pair<TimeDelta, TimeDelta> ProcessFile(
+static TimeDelta ProcessFile(
     const char* fname,
     Isolate* isolate,
     const LexerShellSettings& settings,
     int truncate_by,
     bool* can_truncate) {
-  const bool print_tokens = settings.print_tokens;
-  const bool run_baseline = settings.run_baseline;
-  const bool run_experimental = settings.run_experimental;
-  if (print_tokens) {
+  if (settings.print_tokens) {
     printf("Processing file %s, truncating by %d bytes\n", fname, truncate_by);
   }
   HandleScope handle_scope(isolate);
-  std::vector<TokenWithLocation> baseline_tokens, experimental_tokens;
-  TimeDelta baseline_time, experimental_time;
-  if (settings.run_baseline) {
+  std::vector<TokenWithLocation> tokens;
+  TimeDelta time;
+  {
     const byte* buffer_end = 0;
     const byte* buffer = ReadFile(fname, &buffer_end, settings.repeat, false);
     if (truncate_by > buffer_end - buffer) {
       *can_truncate = false;
     } else {
       buffer_end -= truncate_by;
-      baseline_time = RunBaselineScanner(
-          buffer, buffer_end, isolate, &baseline_tokens, settings);
+      time = RunLexer(buffer, buffer_end, isolate, &tokens, settings);
     }
     delete[] buffer;
   }
-  if (print_tokens && !run_experimental) {
-    PrintTokens("Baseline", baseline_tokens);
-  }
-  if (print_tokens && !run_baseline) {
-    PrintTokens("Experimental", experimental_tokens);
-  }
-  if ((print_tokens || settings.check_tokens) &&
-       run_baseline && run_experimental) {
-    if (print_tokens) {
-      printf("No of tokens in Baseline:     %d\n",
-             static_cast<int>(baseline_tokens.size()));
-      printf("No of tokens in Experimental: %d\n",
-             static_cast<int>(experimental_tokens.size()));
-      printf("Baseline and Experimental:\n");
-    }
-    for (size_t i = 0; i < experimental_tokens.size(); ++i) {
-      if (print_tokens) experimental_tokens[i].Print("=>");
-      if (baseline_tokens[i].value == Token::ILLEGAL) {
-        if (experimental_tokens[i].value != Token::ILLEGAL ||
-            experimental_tokens[i].beg != baseline_tokens[i].beg) {
-          printf("MISMATCH:\n");
-          baseline_tokens[i].Print("Expected: ");
-          experimental_tokens[i].Print("Actual:   ");
-          exit(1);
-        }
+  if (settings.print_tokens) {
+    printf("No of tokens:\t%d\n", static_cast<int>(tokens.size()));
+    for (size_t i = 0; i < tokens.size(); ++i) {
+      tokens[i].Print("=>");
+      if (tokens[i].value == Token::ILLEGAL) {
         if (settings.break_after_illegal)
           break;
-        continue;
-      }
-      if (experimental_tokens[i] != baseline_tokens[i]) {
-        printf("MISMATCH:\n");
-        baseline_tokens[i].Print("Expected: ");
-        experimental_tokens[i].Print("Actual:   ");
-        exit(1);
       }
     }
   }
-  return std::make_pair(baseline_time, experimental_time);
+  return time;
 }
 
 
 int main(int argc, char* argv[]) {
-  return 0;
   v8::V8::InitializeICU();
   v8::V8::SetFlagsFromCommandLine(&argc, argv, true);
   std::vector<std::string> fnames;
-  std::string benchmark;
   LexerShellSettings settings;
   for (int i = 0; i < argc; ++i) {
     if (strcmp(argv[i], "--latin1") == 0) {
@@ -379,9 +299,11 @@ int main(int argc, char* argv[]) {
     } else if (strcmp(argv[i], "--print-tokens") == 0) {
       settings.print_tokens = true;
     } else if (strcmp(argv[i], "--no-baseline") == 0) {
+      // Ignore.
     } else if (strcmp(argv[i], "--no-experimental") == 0) {
+      // Ignore.
     } else if (strcmp(argv[i], "--no-check") == 0) {
-      settings.check_tokens = false;
+      // Ignore.
     } else if (strcmp(argv[i], "--break-after-illegal") == 0) {
       settings.break_after_illegal = true;
     } else if (strcmp(argv[i], "--use-harmony") == 0) {
@@ -389,7 +311,7 @@ int main(int argc, char* argv[]) {
       settings.harmony_modules = true;
       settings.harmony_scoping = true;
     } else if (strncmp(argv[i], "--benchmark=", 12) == 0) {
-      benchmark = std::string(argv[i]).substr(12);
+      // Ignore.
     } else if (strncmp(argv[i], "--repeat=", 9) == 0) {
       std::string repeat_str = std::string(argv[i]).substr(9);
       settings.repeat = atoi(repeat_str.c_str());
@@ -399,46 +321,29 @@ int main(int argc, char* argv[]) {
       fnames.push_back(std::string(argv[i]));
     }
   }
-  settings.check_tokens =
-      settings.check_tokens &&
-      settings.run_baseline &&
-      settings.run_experimental;
-  settings.dump_tokens = settings.check_tokens || settings.print_tokens;
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
   {
+    v8::Isolate* isolate = v8::Isolate::GetCurrent();
     v8::HandleScope handle_scope(isolate);
-    v8::Handle<v8::ObjectTemplate> global = v8::ObjectTemplate::New();
-    v8::Local<v8::Context> context = v8::Context::New(isolate, NULL, global);
-    ASSERT(!context.IsEmpty());
-    {
-      v8::Context::Scope scope(context);
-      Isolate* internal_isolate = Isolate::Current();
-      double baseline_total = 0, experimental_total = 0;
-      for (size_t i = 0; i < fnames.size(); i++) {
-        std::pair<TimeDelta, TimeDelta> times;
-        bool can_truncate = settings.eos_test;
-        int truncate_by = 0;
-        do {
-          times = ProcessFile(fnames[i].c_str(),
-                              internal_isolate,
-                              settings,
-                              truncate_by,
-                              &can_truncate);
-          baseline_total += times.first.InMillisecondsF();
-          experimental_total += times.second.InMillisecondsF();
-          ++truncate_by;
-        } while (can_truncate);
-      }
-      if (settings.run_baseline) {
-        printf("Baseline%s(RunTime): %.f ms\n", benchmark.c_str(),
-               baseline_total);
-      }
-      if (settings.run_experimental) {
-        if (benchmark.empty()) benchmark = "Experimental";
-        printf("%s(RunTime): %.f ms\n", benchmark.c_str(),
-               experimental_total);
-      }
+    v8::Local<v8::Context> context = v8::Context::New(isolate);
+    CHECK(!context.IsEmpty());
+    v8::Context::Scope scope(context);
+    Isolate* internal_isolate = Isolate::Current();
+    double total_time = 0;
+    for (size_t i = 0; i < fnames.size(); i++) {
+      std::pair<TimeDelta, TimeDelta> times;
+      bool can_truncate = settings.eos_test;
+      int truncate_by = 0;
+      do {
+        TimeDelta t = ProcessFile(fnames[i].c_str(),
+                                  internal_isolate,
+                                  settings,
+                                  truncate_by,
+                                  &can_truncate);
+        total_time += t.InMillisecondsF();
+        ++truncate_by;
+      } while (can_truncate);
     }
+    printf("RunTime: %.f ms\n", total_time);
   }
   v8::V8::Dispose();
   return 0;
