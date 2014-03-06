@@ -1689,7 +1689,9 @@ MaybeObject* KeyedStoreIC::Store(Handle<Object> object,
         bool key_is_smi_like = key->IsSmi() || !key->ToSmi()->IsFailure();
         if (receiver->elements()->map() ==
             isolate()->heap()->non_strict_arguments_elements_map()) {
-          stub = non_strict_arguments_stub();
+          if (strict_mode() == kNonStrictMode) {
+            stub = non_strict_arguments_stub();
+          }
         } else if (key_is_smi_like &&
                    !(target().is_identical_to(non_strict_arguments_stub()))) {
           // We should go generic if receiver isn't a dictionary, but our
