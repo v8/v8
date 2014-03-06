@@ -2562,7 +2562,11 @@ HConstant::HConstant(int32_t integer_value,
     boolean_value_(integer_value != 0),
     int32_value_(integer_value),
     double_value_(FastI2D(integer_value)) {
-  set_type(has_smi_value_ ? HType::Smi() : HType::TaggedNumber());
+  // It's possible to create a constant with a value in Smi-range but stored
+  // in a (pre-existing) HeapNumber. See crbug.com/349878.
+  bool could_be_heapobject = r.IsTagged() && !object.handle().is_null();
+  bool is_smi = has_smi_value_ && !could_be_heapobject;
+  set_type(is_smi ? HType::Smi() : HType::TaggedNumber());
   Initialize(r);
 }
 
@@ -2582,7 +2586,11 @@ HConstant::HConstant(double double_value,
     int32_value_(DoubleToInt32(double_value)),
     double_value_(double_value) {
   has_smi_value_ = has_int32_value_ && Smi::IsValid(int32_value_);
-  set_type(has_smi_value_ ? HType::Smi() : HType::TaggedNumber());
+  // It's possible to create a constant with a value in Smi-range but stored
+  // in a (pre-existing) HeapNumber. See crbug.com/349878.
+  bool could_be_heapobject = r.IsTagged() && !object.handle().is_null();
+  bool is_smi = has_smi_value_ && !could_be_heapobject;
+  set_type(is_smi ? HType::Smi() : HType::TaggedNumber());
   Initialize(r);
 }
 
