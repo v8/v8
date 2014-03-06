@@ -2605,8 +2605,8 @@ HConstant::HConstant(ExternalReference reference)
 
 void HConstant::Initialize(Representation r) {
   if (r.IsNone()) {
-    if (has_smi_value_ && SmiValuesAre31Bits()) {
-      r = Representation::Smi();
+    if (has_smi_value_) {
+      r = Representation::FromType(Type::Smi());
     } else if (has_int32_value_) {
       r = Representation::Integer32();
     } else if (has_double_value_) {
