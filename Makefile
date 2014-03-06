@@ -247,13 +247,15 @@ NACL_BUILDS = $(foreach mode,$(MODES), \
                    $(addsuffix .$(mode),$(NACL_ARCHES)))
 # Generates corresponding test targets, e.g. "ia32.release.check".
 CHECKS = $(addsuffix .check,$(BUILDS))
+QUICKCHECKS = $(addsuffix .quickcheck,$(BUILDS))
 ANDROID_CHECKS = $(addsuffix .check,$(ANDROID_BUILDS))
 NACL_CHECKS = $(addsuffix .check,$(NACL_BUILDS))
 # File where previously used GYPFLAGS are stored.
 ENVFILE = $(OUTDIR)/environment
 
 .PHONY: all check clean dependencies $(ENVFILE).new native \
-        qc quickcheck \
+        qc quickcheck $(QUICKCHECKS) \
+        $(addsuffix .quickcheck,$(MODES)) $(addsuffix .quickcheck,$(ARCHES)) \
         $(ARCHES) $(MODES) $(BUILDS) $(CHECKS) $(addsuffix .clean,$(ARCHES)) \
         $(addsuffix .check,$(MODES)) $(addsuffix .check,$(ARCHES)) \
         $(ANDROID_ARCHES) $(ANDROID_BUILDS) $(ANDROID_CHECKS) \
@@ -331,6 +333,18 @@ $(addsuffix .check,$(ARCHES)): $$(basename $$@)
 $(CHECKS): $$(basename $$@)
 	@tools/run-tests.py $(TESTJOBS) --outdir=$(OUTDIR) \
 	    --arch-and-mode=$(basename $@) $(TESTFLAGS)
+
+$(addsuffix .quickcheck,$(MODES)): $$(basename $$@)
+	@tools/run-tests.py $(TESTJOBS) --outdir=$(OUTDIR) \
+	    --mode=$(basename $@) $(TESTFLAGS) --quickcheck
+
+$(addsuffix .quickcheck,$(ARCHES)): $$(basename $$@)
+	@tools/run-tests.py $(TESTJOBS) --outdir=$(OUTDIR) \
+	    --arch=$(basename $@) $(TESTFLAGS) --quickcheck
+
+$(QUICKCHECKS): $$(basename $$@)
+	@tools/run-tests.py $(TESTJOBS) --outdir=$(OUTDIR) \
+	    --arch-and-mode=$(basename $@) $(TESTFLAGS) --quickcheck
 
 $(addsuffix .sync, $(ANDROID_BUILDS)): $$(basename $$@)
 	@tools/android-sync.sh $(basename $@) $(OUTDIR) \

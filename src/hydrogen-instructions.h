@@ -6885,6 +6885,8 @@ class HTransitionElementsKind V8_FINAL : public HTemplateInstruction<2> {
            transitioned_map_ == instr->transitioned_map_;
   }
 
+  virtual int RedefinedOperandIndex() { return 0; }
+
  private:
   HTransitionElementsKind(HValue* context,
                           HValue* object,

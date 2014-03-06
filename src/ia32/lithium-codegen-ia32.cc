@@ -5789,11 +5789,7 @@ void LCodeGen::DoAllocate(LAllocate* instr) {
 
   if (instr->size()->IsConstantOperand()) {
     int32_t size = ToInteger32(LConstantOperand::cast(instr->size()));
-    if (size <= Page::kMaxRegularHeapObjectSize) {
-      __ Allocate(size, result, temp, no_reg, deferred->entry(), flags);
-    } else {
-      __ jmp(deferred->entry());
-    }
+    __ Allocate(size, result, temp, no_reg, deferred->entry(), flags);
   } else {
     Register size = ToRegister(instr->size());
     __ Allocate(size, result, temp, no_reg, deferred->entry(), flags);

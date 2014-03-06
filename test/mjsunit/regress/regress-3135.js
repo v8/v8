@@ -19,10 +19,21 @@ assertEquals('{"y":4,"x":3}', JSON.stringify({ x : 3, y : 4}, ["y", "x"]));
 assertEquals('{"y":4,"1":2,"x":3}',
              JSON.stringify({ x : 3, y : 4, 1 : 2 }, ["y", 1, "x"]));
 
-// __proto__ is ignored and doesn't break anything.
+// With a replacer array the value of the property is retrieved using [[Get]]
+// ignoring own and enumerability.
 var a = { x : 8 };
+assertEquals('{"__proto__":{"__proto__":null},"x":8}',
+             JSON.stringify(a, ["__proto__", "x", "__proto__"]));
 a.__proto__ = { x : 7 };
-assertEquals('{"x":8}', JSON.stringify(a, ["__proto__", "x", "__proto__"]));
+assertEquals('{"__proto__":{"__proto__":{"__proto__":null},"x":7},"x":8}',
+             JSON.stringify(a, ["__proto__", "x"]));
+var b = { __proto__: { x: 9 } };
+assertEquals('{}', JSON.stringify(b));
+assertEquals('{"x":9}', JSON.stringify(b, ["x"]));
+var c = {x: 10};
+Object.defineProperty(c, 'x', { enumerable: false });
+assertEquals('{}', JSON.stringify(c));
+assertEquals('{"x":10}', JSON.stringify(c, ["x"]));
 
 // Arrays are not affected by the replacer array.
 assertEquals("[9,8,7]", JSON.stringify([9, 8, 7], [1, 1]));
@@ -51,3 +62,12 @@ assertEquals('{}',
 assertEquals('{}',
              JSON.stringify({ x : 1, "1": 1 },
                             [{ valueOf: function() { return 1;} }]));
+
+// Make sure that property names that clash with the names of Object.prototype
+// still works.
+assertEquals('{"toString":42}', JSON.stringify({ toString: 42 }, ["toString"]));
+
+// Number wrappers and String wrappers should be unwrapped.
+assertEquals('{"1":1,"s":"s"}',
+             JSON.stringify({ 1: 1, s: "s" },
+                            [new Number(1), new String("s")]));

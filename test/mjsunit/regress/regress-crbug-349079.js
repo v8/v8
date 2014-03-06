@@ -21,3 +21,16 @@ crash();
 crash();
 %OptimizeFunctionOnNextCall(crash);
 crash();
+
+function f() {
+  var v1 = 0;
+  var v2 = -0;
+  var t = v2++;
+  v2++;
+  return Math.max(v2++, v1++);
+}
+
+f();
+f();
+%OptimizeFunctionOnNextCall(f);
+f();
