@@ -78,7 +78,10 @@ void HRepresentationChangesPhase::InsertRepresentationChangesForValue(
     HValue* value) {
   Representation r = value->representation();
   if (r.IsNone()) return;
-  if (value->HasNoUses()) return;
+  if (value->HasNoUses()) {
+    if (value->IsForceRepresentation()) value->DeleteAndReplaceWith(NULL);
+    return;
+  }
 
   for (HUseIterator it(value->uses()); !it.Done(); it.Advance()) {
     HValue* use_value = it.value();
