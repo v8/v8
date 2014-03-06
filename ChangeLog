@@ -1,3 +1,13 @@
+2014-03-06: Version 3.25.5
+
+        Fix HConstants with Smi-ranged HeapNumber values (Chromium issue
+        349878).
+
+        Fix issues with JSON stringify replacer array (issues 3200, 3201).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-03-05: Version 3.25.4
 
         x64: Fix LMathMinMax for constant Smi right-hand operands (Chromium
