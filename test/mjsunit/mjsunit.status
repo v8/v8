@@ -165,7 +165,7 @@
   # Long running tests.
   'regress/regress-2185': [PASS, ['mode == debug', PASS, TIMEOUT]],
   'regress/regress-2185-2': [PASS, TIMEOUT],
-  'whitespaces': [PASS, TIMEOUT],
+  'whitespaces': [PASS, TIMEOUT, SLOW],
 
   # Stack manipulations in LiveEdit is not implemented for this arch.
   'debug-liveedit-check-stack': [SKIP],
@@ -211,8 +211,6 @@
   'unicodelctest-no-optimization': [PASS, SLOW],
   'unicodelctest': [PASS, SLOW],
   'unicode-test': [PASS, SLOW],
-  'whitespaces': [PASS, SLOW],
-  'whitespaces': [PASS, SLOW],
 }],  # 'arch == a64'
 
 ['arch == a64 and mode == debug and simulator_run == True', {
