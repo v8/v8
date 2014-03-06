@@ -2540,7 +2540,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_RegExpConstructResult) {
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_RegExpInitializeObject) {
   HandleScope scope(isolate);
-  DisallowHeapAllocation no_allocation;
   ASSERT(args.length() == 5);
   CONVERT_ARG_HANDLE_CHECKED(JSRegExp, regexp, 0);
   CONVERT_ARG_HANDLE_CHECKED(String, source, 1);
