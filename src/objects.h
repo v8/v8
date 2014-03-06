@@ -2412,6 +2412,9 @@ class JSObject: public JSReceiver {
       uint32_t arg_count,
       EnsureElementsMode mode);
 
+  // Would we convert a fast elements array to dictionary mode given
+  // an access at key?
+  bool WouldConvertToSlowElements(Handle<Object> key);
   // Do we want to keep the elements in fast case when increasing the
   // capacity?
   bool ShouldConvertToSlowElements(int new_capacity);

@@ -13113,6 +13113,21 @@ void JSObject::GetElementsCapacityAndUsage(int* capacity, int* used) {
 }
 
 
+bool JSObject::WouldConvertToSlowElements(Handle<Object> key) {
+  uint32_t index;
+  if (HasFastElements() && key->ToArrayIndex(&index)) {
+    Handle<FixedArrayBase> backing_store(FixedArrayBase::cast(elements()));
+    uint32_t capacity = static_cast<uint32_t>(backing_store->length());
+    if (index >= capacity) {
+      if ((index - capacity) >= kMaxGap) return true;
+      uint32_t new_capacity = NewElementsCapacity(index + 1);
+      return ShouldConvertToSlowElements(new_capacity);
+    }
+  }
+  return false;
+}
+
+
 bool JSObject::ShouldConvertToSlowElements(int new_capacity) {
   STATIC_ASSERT(kMaxUncheckedOldFastElementsLength <=
                 kMaxUncheckedFastElementsLength);

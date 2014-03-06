@@ -1701,7 +1701,12 @@ MaybeObject* KeyedStoreIC::Store(Handle<Object> object,
           if (!(receiver->map()->DictionaryElementsInPrototypeChainOnly())) {
             KeyedAccessStoreMode store_mode =
                 GetStoreMode(receiver, key, value);
-            stub = StoreElementStub(receiver, store_mode);
+            // Use the generic stub if the store would send the receiver to
+            // dictionary mode.
+            if (!IsGrowStoreMode(store_mode) ||
+                !receiver->WouldConvertToSlowElements(key)) {
+              stub = StoreElementStub(receiver, store_mode);
+            }
           }
         }
       }
