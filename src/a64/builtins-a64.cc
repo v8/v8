@@ -184,12 +184,13 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
   __ Sub(argc, argc, 1);
   __ Claim(argc, kXRegSizeInBytes);
   // jssp now point to args[0], load and drop args[0] + receiver.
-  // TODO(jbramley): Consider adding ClaimAndPoke.
-  __ Ldr(argc, MemOperand(jssp, 2 * kPointerSize, PostIndex));
+  Register arg = argc;
+  __ Ldr(arg, MemOperand(jssp, 2 * kPointerSize, PostIndex));
+  argc = NoReg;
 
   Register argument = x2;
   Label not_cached, argument_is_string;
-  __ LookupNumberStringCache(argc,       // Input.
+  __ LookupNumberStringCache(arg,        // Input.
                              argument,   // Result.
                              x10,        // Scratch.
                              x11,        // Scratch.
@@ -237,13 +238,13 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
   // if it's a string already before calling the conversion builtin.
   Label convert_argument;
   __ Bind(&not_cached);
-  __ JumpIfSmi(argc, &convert_argument);
+  __ JumpIfSmi(arg, &convert_argument);
 
   // Is it a String?
   __ Ldr(x10, FieldMemOperand(x0, HeapObject::kMapOffset));
   __ Ldrb(x11, FieldMemOperand(x10, Map::kInstanceTypeOffset));
   __ Tbnz(x11, MaskToBit(kIsNotStringMask), &convert_argument);
-  __ Mov(argument, argc);
+  __ Mov(argument, arg);
   __ IncrementCounter(counters->string_ctor_string_value(), 1, x10, x11);
   __ B(&argument_is_string);
 
@@ -253,7 +254,7 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
   __ IncrementCounter(counters->string_ctor_conversions(), 1, x10, x11);
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
-    __ Push(argc);
+    __ Push(arg);
     __ InvokeBuiltin(Builtins::TO_STRING, CALL_FUNCTION);
   }
   __ Pop(function);
@@ -708,9 +709,6 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     // x28 : JS stack pointer (jssp).
     // x29 : frame pointer (fp).
 
-    // TODO(alexandre): Revisit the MAsm function invocation mechanisms.
-    // Currently there is a mix of statically and dynamically allocated
-    // registers.
     __ Mov(x0, argc);
     if (is_construct) {
       // No type feedback cell is available.

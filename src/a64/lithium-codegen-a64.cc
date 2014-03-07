@@ -3743,12 +3743,7 @@ void LCodeGen::DoMathAbsTagged(LMathAbsTagged* instr) {
   // case in DoMathAbs, except that it operates on 64-bit values.
   STATIC_ASSERT((kSmiValueSize == 32) && (kSmiShift == 32) && (kSmiTag == 0));
 
-  // TODO(jbramley): We can't use JumpIfNotSmi here because the tbz it uses
-  // doesn't always have enough range. Consider making a variant of it, or a
-  // TestIsSmi helper.
-  STATIC_ASSERT(kSmiTag == 0);
-  __ Tst(input, kSmiTagMask);
-  __ B(ne, deferred->entry());
+  __ JumpIfNotSmi(input, deferred->entry());
 
   __ Abs(result, input, NULL, &done);
 

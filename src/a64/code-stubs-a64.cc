@@ -4640,10 +4640,9 @@ void ArrayPushStub::Generate(MacroAssembler* masm) {
   __ Str(argument, MemOperand(end_elements));
   // Fill the rest with holes.
   __ LoadRoot(x10, Heap::kTheHoleValueRootIndex);
-  for (int i = 1; i < kAllocationDelta; i++) {
-    // TODO(all): Try to use stp here.
-    __ Str(x10, MemOperand(end_elements, i * kPointerSize));
-  }
+  ASSERT(kAllocationDelta == 4);
+  __ Stp(x10, x10, MemOperand(end_elements, 1 * kPointerSize));
+  __ Stp(x10, x10, MemOperand(end_elements, 3 * kPointerSize));
 
   // Update elements' and array's sizes.
   __ Str(length, FieldMemOperand(receiver, JSArray::kLengthOffset));
@@ -4970,7 +4969,6 @@ void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
   MacroAssembler::NoUseRealAbortsScope no_use_real_aborts(masm);
   // The entry hook is a "BumpSystemStackPointer" instruction (sub), followed by
   // a "Push lr" instruction, followed by a call.
-  // TODO(jbramley): Verify that this call is always made with relocation.
   static const int kReturnAddressDistanceFromFunctionStart =
       Assembler::kCallSizeWithRelocation + (2 * kInstructionSize);
 
@@ -5394,8 +5392,6 @@ static void CreateArrayDispatchOneArgument(MacroAssembler* masm,
     for (int i = 0; i <= last_index; ++i) {
       Label next;
       ElementsKind candidate_kind = GetFastElementsKindFromSequenceIndex(i);
-      // TODO(jbramley): Is this the best way to handle this? Can we make the
-      // tail calls conditional, rather than hopping over each one?
       __ CompareAndBranch(kind, candidate_kind, ne, &next);
       ArraySingleArgumentConstructorStub stub(candidate_kind);
       __ TailCallStub(&stub);
@@ -5725,16 +5721,13 @@ void CallApiFunctionStub::Generate(MacroAssembler* masm) {
   // x0 = FunctionCallbackInfo&
   // Arguments is after the return address.
   __ Add(x0, masm->StackPointer(), 1 * kPointerSize);
-  // FunctionCallbackInfo::implicit_args_
-  __ Str(args, MemOperand(x0, 0 * kPointerSize));
-  // FunctionCallbackInfo::values_
+  // FunctionCallbackInfo::implicit_args_ and FunctionCallbackInfo::values_
   __ Add(x10, args, Operand((FCA::kArgsLength - 1 + argc) * kPointerSize));
-  __ Str(x10, MemOperand(x0, 1 * kPointerSize));
-  // FunctionCallbackInfo::length_ = argc
-  __ Mov(x10, argc);
-  __ Str(x10, MemOperand(x0, 2 * kPointerSize));
+  __ Stp(args, x10, MemOperand(x0, 0 * kPointerSize));
+  // FunctionCallbackInfo::length_ = argc and
   // FunctionCallbackInfo::is_construct_call = 0
-  __ Str(xzr, MemOperand(x0, 3 * kPointerSize));
+  __ Mov(x10, argc);
+  __ Stp(x10, xzr, MemOperand(x0, 2 * kPointerSize));
 
   const int kStackUnwindSpace = argc + FCA::kArgsLength + 1;
   Address thunk_address = FUNCTION_ADDR(&InvokeFunctionCallback);

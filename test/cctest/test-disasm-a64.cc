@@ -782,14 +782,14 @@ TEST_(dp_2_source) {
 TEST_(adr) {
   SET_UP();
 
-  COMPARE(adr(x0, 0), "adr x0, #+0x0");
-  COMPARE(adr(x1, 1), "adr x1, #+0x1");
-  COMPARE(adr(x2, -1), "adr x2, #-0x1");
-  COMPARE(adr(x3, 4), "adr x3, #+0x4");
-  COMPARE(adr(x4, -4), "adr x4, #-0x4");
-  COMPARE(adr(x5, 0x000fffff), "adr x5, #+0xfffff");
-  COMPARE(adr(x6, -0x00100000), "adr x6, #-0x100000");
-  COMPARE(adr(xzr, 0), "adr xzr, #+0x0");
+  COMPARE_PREFIX(adr(x0, 0), "adr x0, #+0x0");
+  COMPARE_PREFIX(adr(x1, 1), "adr x1, #+0x1");
+  COMPARE_PREFIX(adr(x2, -1), "adr x2, #-0x1");
+  COMPARE_PREFIX(adr(x3, 4), "adr x3, #+0x4");
+  COMPARE_PREFIX(adr(x4, -4), "adr x4, #-0x4");
+  COMPARE_PREFIX(adr(x5, 0x000fffff), "adr x5, #+0xfffff");
+  COMPARE_PREFIX(adr(x6, -0x00100000), "adr x6, #-0x100000");
+  COMPARE_PREFIX(adr(xzr, 0), "adr xzr, #+0x0");
 
   CLEANUP();
 }
@@ -799,30 +799,30 @@ TEST_(branch) {
   SET_UP();
 
   #define INST_OFF(x) ((x) >> kInstructionSizeLog2)
-  COMPARE(b(INST_OFF(0x4)), "b #+0x4");
-  COMPARE(b(INST_OFF(-0x4)), "b #-0x4");
-  COMPARE(b(INST_OFF(0x7fffffc)), "b #+0x7fffffc");
-  COMPARE(b(INST_OFF(-0x8000000)), "b #-0x8000000");
-  COMPARE(b(INST_OFF(0xffffc), eq), "b.eq #+0xffffc");
-  COMPARE(b(INST_OFF(-0x100000), mi), "b.mi #-0x100000");
-  COMPARE(bl(INST_OFF(0x4)), "bl #+0x4");
-  COMPARE(bl(INST_OFF(-0x4)), "bl #-0x4");
-  COMPARE(bl(INST_OFF(0xffffc)), "bl #+0xffffc");
-  COMPARE(bl(INST_OFF(-0x100000)), "bl #-0x100000");
-  COMPARE(cbz(w0, INST_OFF(0xffffc)), "cbz w0, #+0xffffc");
-  COMPARE(cbz(x1, INST_OFF(-0x100000)), "cbz x1, #-0x100000");
-  COMPARE(cbnz(w2, INST_OFF(0xffffc)), "cbnz w2, #+0xffffc");
-  COMPARE(cbnz(x3, INST_OFF(-0x100000)), "cbnz x3, #-0x100000");
-  COMPARE(tbz(w4, 0, INST_OFF(0x7ffc)), "tbz w4, #0, #+0x7ffc");
-  COMPARE(tbz(x5, 63, INST_OFF(-0x8000)), "tbz x5, #63, #-0x8000");
-  COMPARE(tbz(w6, 31, INST_OFF(0)), "tbz w6, #31, #+0x0");
-  COMPARE(tbz(x7, 31, INST_OFF(0x4)), "tbz w7, #31, #+0x4");
-  COMPARE(tbz(x8, 32, INST_OFF(0x8)), "tbz x8, #32, #+0x8");
-  COMPARE(tbnz(w8, 0, INST_OFF(0x7ffc)), "tbnz w8, #0, #+0x7ffc");
-  COMPARE(tbnz(x9, 63, INST_OFF(-0x8000)), "tbnz x9, #63, #-0x8000");
-  COMPARE(tbnz(w10, 31, INST_OFF(0)), "tbnz w10, #31, #+0x0");
-  COMPARE(tbnz(x11, 31, INST_OFF(0x4)), "tbnz w11, #31, #+0x4");
-  COMPARE(tbnz(x12, 32, INST_OFF(0x8)), "tbnz x12, #32, #+0x8");
+  COMPARE_PREFIX(b(INST_OFF(0x4)), "b #+0x4");
+  COMPARE_PREFIX(b(INST_OFF(-0x4)), "b #-0x4");
+  COMPARE_PREFIX(b(INST_OFF(0x7fffffc)), "b #+0x7fffffc");
+  COMPARE_PREFIX(b(INST_OFF(-0x8000000)), "b #-0x8000000");
+  COMPARE_PREFIX(b(INST_OFF(0xffffc), eq), "b.eq #+0xffffc");
+  COMPARE_PREFIX(b(INST_OFF(-0x100000), mi), "b.mi #-0x100000");
+  COMPARE_PREFIX(bl(INST_OFF(0x4)), "bl #+0x4");
+  COMPARE_PREFIX(bl(INST_OFF(-0x4)), "bl #-0x4");
+  COMPARE_PREFIX(bl(INST_OFF(0xffffc)), "bl #+0xffffc");
+  COMPARE_PREFIX(bl(INST_OFF(-0x100000)), "bl #-0x100000");
+  COMPARE_PREFIX(cbz(w0, INST_OFF(0xffffc)), "cbz w0, #+0xffffc");
+  COMPARE_PREFIX(cbz(x1, INST_OFF(-0x100000)), "cbz x1, #-0x100000");
+  COMPARE_PREFIX(cbnz(w2, INST_OFF(0xffffc)), "cbnz w2, #+0xffffc");
+  COMPARE_PREFIX(cbnz(x3, INST_OFF(-0x100000)), "cbnz x3, #-0x100000");
+  COMPARE_PREFIX(tbz(w4, 0, INST_OFF(0x7ffc)), "tbz w4, #0, #+0x7ffc");
+  COMPARE_PREFIX(tbz(x5, 63, INST_OFF(-0x8000)), "tbz x5, #63, #-0x8000");
+  COMPARE_PREFIX(tbz(w6, 31, INST_OFF(0)), "tbz w6, #31, #+0x0");
+  COMPARE_PREFIX(tbz(x7, 31, INST_OFF(0x4)), "tbz w7, #31, #+0x4");
+  COMPARE_PREFIX(tbz(x8, 32, INST_OFF(0x8)), "tbz x8, #32, #+0x8");
+  COMPARE_PREFIX(tbnz(w8, 0, INST_OFF(0x7ffc)), "tbnz w8, #0, #+0x7ffc");
+  COMPARE_PREFIX(tbnz(x9, 63, INST_OFF(-0x8000)), "tbnz x9, #63, #-0x8000");
+  COMPARE_PREFIX(tbnz(w10, 31, INST_OFF(0)), "tbnz w10, #31, #+0x0");
+  COMPARE_PREFIX(tbnz(x11, 31, INST_OFF(0x4)), "tbnz w11, #31, #+0x4");
+  COMPARE_PREFIX(tbnz(x12, 32, INST_OFF(0x8)), "tbnz x12, #32, #+0x8");
   COMPARE(br(x0), "br x0");
   COMPARE(blr(x1), "blr x1");
   COMPARE(ret(x2), "ret x2");
