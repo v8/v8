@@ -179,8 +179,6 @@ namespace internal {
   F(Math_atan, 1, 1) \
   F(Math_log, 1, 1) \
   F(Math_cbrt, 1, 1) \
-  F(Math_log1p, 1, 1) \
-  F(Math_expm1, 1, 1) \
   F(Math_sqrt, 1, 1) \
   F(Math_exp, 1, 1) \
   F(Math_floor, 1, 1) \

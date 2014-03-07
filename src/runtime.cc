@@ -7694,67 +7694,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_cbrt) {
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_log1p) {
-  SealHandleScope shs(isolate);
-  ASSERT(args.length() == 1);
-  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-
-  double x_abs = std::fabs(x);
-  // Use Taylor series to approximate. With y = x + 1;
-  // log(y) at 1 == log(1) + log'(1)(y-1)/1! + log''(1)(y-1)^2/2! + ...
-  //             == 0 + x - x^2/2 + x^3/3 ...
-  // The closer x is to 0, the fewer terms are required.
-  static const double threshold_2 = 1.0 / 0x00800000;
-  static const double threshold_3 = 1.0 / 0x00008000;
-  static const double threshold_7 = 1.0 / 0x00000080;
-
-  double result;
-  if (x_abs < threshold_2) {
-    result = x * (1.0/1.0 - x * 1.0/2.0);
-  } else if (x_abs < threshold_3) {
-    result = x * (1.0/1.0 - x * (1.0/2.0 - x * (1.0/3.0)));
-  } else if (x_abs < threshold_7) {
-    result = x * (1.0/1.0 - x * (1.0/2.0 - x * (
-                  1.0/3.0 - x * (1.0/4.0 - x * (
-                  1.0/5.0 - x * (1.0/6.0 - x * (
-                  1.0/7.0)))))));
-  } else {  // Use regular log if not close enough to 0.
-    result = std::log(1.0 + x);
-  }
-  return isolate->heap()->AllocateHeapNumber(result);
-}
-
-
-RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_expm1) {
-  SealHandleScope shs(isolate);
-  ASSERT(args.length() == 1);
-  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-
-  double x_abs = std::fabs(x);
-  // Use Taylor series to approximate.
-  // exp(x) - 1 at 0 == -1 + exp(0) + exp'(0)*x/1! + exp''(0)*x^2/2! + ...
-  //                 == x/1! + x^2/2! + x^3/3! + ...
-  // The closer x is to 0, the fewer terms are required.
-  static const double threshold_2 = 1.0 / 0x00400000;
-  static const double threshold_3 = 1.0 / 0x00004000;
-  static const double threshold_6 = 1.0 / 0x00000040;
-
-  double result;
-  if (x_abs < threshold_2) {
-    result = x * (1.0/1.0 + x * (1.0/2.0));
-  } else if (x_abs < threshold_3) {
-    result = x * (1.0/1.0 + x * (1.0/2.0 + x * (1.0/6.0)));
-  } else if (x_abs < threshold_6) {
-    result = x * (1.0/1.0 + x * (1.0/2.0 + x * (
-                  1.0/6.0 + x * (1.0/24.0 + x * (
-                  1.0/120.0 + x * (1.0/720.0))))));
-  } else {  // Use regular exp if not close enough to 0.
-    result = std::exp(x) - 1.0;
-  }
-  return isolate->heap()->AllocateHeapNumber(result);
-}
-
-
 static const double kPiDividedBy4 = 0.78539816339744830962;
 
 
