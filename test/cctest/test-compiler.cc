@@ -316,6 +316,7 @@ TEST(FeedbackVectorPreservedAcrossRecompiles) {
   if (i::FLAG_always_opt || !i::FLAG_crankshaft) return;
   i::FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
+  if (!CcTest::i_isolate()->use_crankshaft()) return;
   v8::HandleScope scope(CcTest::isolate());
 
   // Make sure function f has a call that uses a type feedback slot.
