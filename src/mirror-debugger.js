@@ -889,9 +889,12 @@ FunctionMirror.prototype.script = function() {
   // Return script if function is resolved. Otherwise just fall through
   // to return undefined.
   if (this.resolved()) {
+    if (this.script_) {
+      return this.script_;
+    }
     var script = %FunctionGetScript(this.value_);
     if (script) {
-      return MakeMirror(script);
+      return this.script_ = MakeMirror(script);
     }
   }
 };
@@ -917,9 +920,11 @@ FunctionMirror.prototype.sourcePosition_ = function() {
  * @return {Location or undefined} in-script location for the function begin
  */
 FunctionMirror.prototype.sourceLocation = function() {
-  if (this.resolved() && this.script()) {
-    return this.script().locationFromPosition(this.sourcePosition_(),
-                                              true);
+  if (this.resolved()) {
+    var script = this.script();
+    if (script) {
+      return script.locationFromPosition(this.sourcePosition_(), true);
+    }
   }
 };
 
@@ -949,7 +954,10 @@ FunctionMirror.prototype.constructedBy = function(opt_max_instances) {
 
 FunctionMirror.prototype.scopeCount = function() {
   if (this.resolved()) {
-    return %GetFunctionScopeCount(this.value());
+    if (IS_UNDEFINED(this.scopeCount_)) {
+      this.scopeCount_ = %GetFunctionScopeCount(this.value());
+    }
+    return this.scopeCount_;
   } else {
     return 0;
   }
@@ -1506,7 +1514,10 @@ FrameDetails.prototype.returnValue = function() {
 
 
 FrameDetails.prototype.scopeCount = function() {
-  return %GetScopeCount(this.break_id_, this.frameId());
+  if (IS_UNDEFINED(this.scopeCount_)) {
+    this.scopeCount_ = %GetScopeCount(this.break_id_, this.frameId());
+  }
+  return this.scopeCount_;
 };
 
 
@@ -1538,6 +1549,10 @@ FrameMirror.prototype.index = function() {
 
 
 FrameMirror.prototype.func = function() {
+  if (this.func_) {
+    return this.func_;
+  }
+
   // Get the function for this frame from the VM.
   var f = this.details_.func();
 
@@ -1545,7 +1560,7 @@ FrameMirror.prototype.func = function() {
   // value returned from the VM might be a string if the function for the
   // frame is unresolved.
   if (IS_FUNCTION(f)) {
-    return MakeMirror(f);
+    return this.func_ = MakeMirror(f);
   } else {
     return new UnresolvedFunctionMirror(f);
   }
@@ -1628,39 +1643,36 @@ FrameMirror.prototype.sourcePosition = function() {
 
 
 FrameMirror.prototype.sourceLocation = function() {
-  if (this.func().resolved() && this.func().script()) {
-    return this.func().script().locationFromPosition(this.sourcePosition(),
-                                                     true);
+  var func = this.func();
+  if (func.resolved()) {
+    var script = func.script();
+    if (script) {
+      return script.locationFromPosition(this.sourcePosition(), true);
+    }
   }
 };
 
 
 FrameMirror.prototype.sourceLine = function() {
-  if (this.func().resolved()) {
-    var location = this.sourceLocation();
-    if (location) {
-      return location.line;
-    }
+  var location = this.sourceLocation();
+  if (location) {
+    return location.line;
   }
 };
 
 
 FrameMirror.prototype.sourceColumn = function() {
-  if (this.func().resolved()) {
-    var location = this.sourceLocation();
-    if (location) {
-      return location.column;
-    }
+  var location = this.sourceLocation();
+  if (location) {
+    return location.column;
   }
 };
 
 
 FrameMirror.prototype.sourceLineText = function() {
-  if (this.func().resolved()) {
-    var location = this.sourceLocation();
-    if (location) {
-      return location.sourceText();
-    }
+  var location = this.sourceLocation();
+  if (location) {
+    return location.sourceText();
   }
 };
 
@@ -1793,9 +1805,10 @@ FrameMirror.prototype.sourceAndPositionText = function() {
   var result = '';
   var func = this.func();
   if (func.resolved()) {
-    if (func.script()) {
-      if (func.script().name()) {
-        result += func.script().name();
+    var script = func.script();
+    if (script) {
+      if (script.name()) {
+        result += script.name();
       } else {
         result += '[unnamed]';
       }
@@ -2575,8 +2588,9 @@ JSONProtocolSerializer.prototype.serializeFrame_ = function(mirror, content) {
   content.receiver = this.serializeReference(mirror.receiver());
   var func = mirror.func();
   content.func = this.serializeReference(func);
-  if (func.script()) {
-    content.script = this.serializeReference(func.script());
+  var script = func.script();
+  if (script) {
+    content.script = this.serializeReference(script);
   }
   content.constructCall = mirror.isConstructCall();
   content.atReturn = mirror.isAtReturn();
