@@ -4936,18 +4936,15 @@ void MacroAssembler::FlooringDiv(Register result,
                                  Register dividend,
                                  int32_t divisor) {
   Register tmp = WTmp0();
-  ASSERT(!AreAliased(dividend, result, tmp));
+  ASSERT(!AreAliased(result, dividend, tmp));
+  ASSERT(result.Is32Bits() && dividend.Is32Bits());
   MultiplierAndShift ms(divisor);
   Mov(tmp, Operand(ms.multiplier()));
   Smull(result.X(), dividend, tmp);
-  Mov(result.X(), Operand(result.X(), ASR, 32));
-  if (divisor > 0 && ms.multiplier() < 0) {
-    Add(result, result, Operand(dividend));
-  }
-  if (divisor < 0 && ms.multiplier() > 0) {
-    Sub(result, result, Operand(dividend));
-  }
-  if (ms.shift() > 0) Mov(result, Operand(result, ASR, ms.shift()));
+  Asr(result.X(), result.X(), 32);
+  if (divisor > 0 && ms.multiplier() < 0) Add(result, result, dividend);
+  if (divisor < 0 && ms.multiplier() > 0) Sub(result, result, dividend);
+  if (ms.shift() > 0) Asr(result, result, ms.shift());
   Add(result, result, Operand(dividend, LSR, 31));
 }
 

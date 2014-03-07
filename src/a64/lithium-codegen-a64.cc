@@ -2630,8 +2630,7 @@ void LCodeGen::DoDivByConstI(LDivByConstI* instr) {
   HDiv* hdiv = instr->hydrogen();
   if (hdiv->CheckFlag(HValue::kBailoutOnMinusZero) &&
       hdiv->left()->RangeCanInclude(0) && divisor < 0) {
-    __ Cmp(dividend, 0);
-    DeoptimizeIf(eq, instr->environment());
+    DeoptimizeIfZero(dividend, instr->environment());
   }
 
   __ FlooringDiv(result, dividend, Abs(divisor));
