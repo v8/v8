@@ -1155,10 +1155,6 @@ class MacroAssembler: public Assembler {
   }
 
 
-  // Emit code for a flooring division by a constant. The dividend register is
-  // unchanged and ip gets clobbered. Dividend and result must be different.
-  void FlooringDiv(Register result, Register dividend, int32_t divisor);
-
   // ---------------------------------------------------------------------------
   // StatsCounter support
 

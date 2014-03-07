@@ -1677,10 +1677,6 @@ class MacroAssembler : public Assembler {
 
   void LoadContext(Register dst, int context_chain_length);
 
-  // Emit code for a flooring division by a constant. The dividend register is
-  // unchanged and Tmp0() gets clobbered. Dividend and result must be different.
-  void FlooringDiv(Register result, Register dividend, int32_t divisor);
-
   // ---------------------------------------------------------------------------
   // StatsCounter support
 

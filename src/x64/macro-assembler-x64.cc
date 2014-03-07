@@ -4979,21 +4979,6 @@ void MacroAssembler::JumpIfDictionaryInPrototypeChain(
 }
 
 
-void MacroAssembler::FlooringDiv(Register dividend, int32_t divisor) {
-  ASSERT(!dividend.is(rax));
-  ASSERT(!dividend.is(rdx));
-  MultiplierAndShift ms(divisor);
-  movl(rax, Immediate(ms.multiplier()));
-  imull(dividend);
-  if (divisor > 0 && ms.multiplier() < 0) addl(rdx, dividend);
-  if (divisor < 0 && ms.multiplier() > 0) subl(rdx, dividend);
-  if (ms.shift() > 0) sarl(rdx, Immediate(ms.shift()));
-  movl(rax, dividend);
-  shrl(rax, Immediate(31));
-  addl(rdx, rax);
-}
-
-
 } }  // namespace v8::internal
 
 #endif  // V8_TARGET_ARCH_X64

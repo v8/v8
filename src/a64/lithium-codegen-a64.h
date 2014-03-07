@@ -226,7 +226,6 @@ class LCodeGen: public LCodeGenBase {
                   Deoptimizer::BailoutType* override_bailout_type = NULL);
   void DeoptimizeIf(Condition cc, LEnvironment* environment);
   void DeoptimizeIfZero(Register rt, LEnvironment* environment);
-  void DeoptimizeIfNotZero(Register rt, LEnvironment* environment);
   void DeoptimizeIfNegative(Register rt, LEnvironment* environment);
   void DeoptimizeIfSmi(Register rt, LEnvironment* environment);
   void DeoptimizeIfNotSmi(Register rt, LEnvironment* environment);

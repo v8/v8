@@ -1261,26 +1261,6 @@ LInstruction* LChunkBuilder::DoDivByPowerOf2I(HDiv* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoDivByConstI(HDiv* instr) {
-  ASSERT(instr->representation().IsInteger32());
-  ASSERT(instr->left()->representation().Equals(instr->representation()));
-  ASSERT(instr->right()->representation().Equals(instr->representation()));
-  LOperand* dividend = UseRegister(instr->left());
-  int32_t divisor = instr->right()->GetInteger32Constant();
-  LOperand* temp1 = FixedTemp(rax);
-  LOperand* temp2 = FixedTemp(rdx);
-  LInstruction* result =
-      DefineFixed(
-          new(zone()) LDivByConstI(dividend, divisor, temp1, temp2), rdx);
-  bool can_deopt =
-      divisor == 0 ||
-      (instr->CheckFlag(HValue::kBailoutOnMinusZero) &&
-       instr->left()->RangeCanInclude(0) && divisor < 0) ||
-      !instr->CheckFlag(HInstruction::kAllUsesTruncatingToInt32);
-  return can_deopt ? AssignEnvironment(result) : result;
-}
-
-
 LInstruction* LChunkBuilder::DoDivI(HBinaryOperation* instr) {
   ASSERT(instr->representation().IsSmiOrInteger32());
   ASSERT(instr->left()->representation().Equals(instr->representation()));
@@ -1296,13 +1276,7 @@ LInstruction* LChunkBuilder::DoDivI(HBinaryOperation* instr) {
 
 LInstruction* LChunkBuilder::DoDiv(HDiv* instr) {
   if (instr->representation().IsSmiOrInteger32()) {
-    if (instr->RightIsPowerOf2()) {
-      return DoDivByPowerOf2I(instr);
-    } else if (instr->right()->IsConstant()) {
-      return DoDivByConstI(instr);
-    } else {
-      return DoDivI(instr);
-    }
+    return instr->RightIsPowerOf2() ? DoDivByPowerOf2I(instr) : DoDivI(instr);
   } else if (instr->representation().IsDouble()) {
     return DoArithmeticD(Token::DIV, instr);
   } else {
@@ -1324,23 +1298,13 @@ LInstruction* LChunkBuilder::DoFlooringDivByPowerOf2I(HMathFloorOfDiv* instr) {
 
 
 LInstruction* LChunkBuilder::DoFlooringDivByConstI(HMathFloorOfDiv* instr) {
-  ASSERT(instr->representation().IsInteger32());
-  ASSERT(instr->left()->representation().Equals(instr->representation()));
-  ASSERT(instr->right()->representation().Equals(instr->representation()));
-  LOperand* dividend = UseRegister(instr->left());
+  LOperand* dividend = UseRegisterAtStart(instr->left());
   int32_t divisor = instr->right()->GetInteger32Constant();
-  LOperand* temp1 = FixedTemp(rax);
-  LOperand* temp2 = FixedTemp(rdx);
+  LOperand* temp = TempRegister();
   LInstruction* result =
-      DefineFixed(new(zone()) LFlooringDivByConstI(dividend,
-                                                   divisor,
-                                                   temp1,
-                                                   temp2),
-                  rdx);
-  bool can_deopt =
-      divisor == 0 ||
-      (instr->CheckFlag(HValue::kBailoutOnMinusZero) &&
-       instr->left()->RangeCanInclude(0) && divisor < 0);
+      DefineAsRegister(
+          new(zone()) LFlooringDivByConstI(dividend, divisor, temp));
+  bool can_deopt = divisor <= 0;
   return can_deopt ? AssignEnvironment(result) : result;
 }
 
@@ -1371,25 +1335,6 @@ LInstruction* LChunkBuilder::DoModByPowerOf2I(HMod* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoModByConstI(HMod* instr) {
-  ASSERT(instr->representation().IsSmiOrInteger32());
-  ASSERT(instr->left()->representation().Equals(instr->representation()));
-  ASSERT(instr->right()->representation().Equals(instr->representation()));
-  LOperand* dividend = UseRegister(instr->left());
-  int32_t divisor = instr->right()->GetInteger32Constant();
-  LOperand* temp1 = FixedTemp(rax);
-  LOperand* temp2 = FixedTemp(rdx);
-  LInstruction* result =
-      DefineFixed(
-          new(zone()) LModByConstI(dividend, divisor, temp1, temp2), rax);
-  bool can_deopt =
-      divisor == 0 ||
-      (instr->CheckFlag(HValue::kBailoutOnMinusZero) &&
-       instr->left()->CanBeNegative());
-  return can_deopt ? AssignEnvironment(result) : result;
-}
-
-
 LInstruction* LChunkBuilder::DoModI(HMod* instr) {
   ASSERT(instr->representation().IsSmiOrInteger32());
   ASSERT(instr->left()->representation().Equals(instr->representation()));
@@ -1412,13 +1357,7 @@ LInstruction* LChunkBuilder::DoModI(HMod* instr) {
 
 LInstruction* LChunkBuilder::DoMod(HMod* instr) {
   if (instr->representation().IsSmiOrInteger32()) {
-    if (instr->RightIsPowerOf2()) {
-      return DoModByPowerOf2I(instr);
-    } else if (instr->right()->IsConstant()) {
-      return DoModByConstI(instr);
-    } else {
-      return DoModI(instr);
-    }
+    return  instr->RightIsPowerOf2() ? DoModByPowerOf2I(instr) : DoModI(instr);
   } else if (instr->representation().IsDouble()) {
     return DoArithmeticD(Token::MOD, instr);
   } else {

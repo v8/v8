@@ -4032,22 +4032,6 @@ void CodePatcher::EmitCondition(Condition cond) {
 }
 
 
-void MacroAssembler::FlooringDiv(Register result,
-                                 Register dividend,
-                                 int32_t divisor) {
-  ASSERT(!dividend.is(result));
-  ASSERT(!dividend.is(ip));
-  ASSERT(!result.is(ip));
-  MultiplierAndShift ms(divisor);
-  mov(ip, Operand(ms.multiplier()));
-  smull(result, ip, dividend, ip);
-  if (divisor > 0 && ms.multiplier() < 0) add(ip, ip, Operand(dividend));
-  if (divisor < 0 && ms.multiplier() > 0) sub(ip, ip, Operand(dividend));
-  if (ms.shift() > 0) mov(ip, Operand(ip, ASR, ms.shift()));
-  add(result, ip, Operand(dividend, LSR, 31));
-}
-
-
 } }  // namespace v8::internal
 
 #endif  // V8_TARGET_ARCH_ARM

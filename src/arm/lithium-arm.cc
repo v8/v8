@@ -1257,23 +1257,6 @@ LInstruction* LChunkBuilder::DoDivByPowerOf2I(HDiv* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoDivByConstI(HDiv* instr) {
-  ASSERT(instr->representation().IsInteger32());
-  ASSERT(instr->left()->representation().Equals(instr->representation()));
-  ASSERT(instr->right()->representation().Equals(instr->representation()));
-  LOperand* dividend = UseRegister(instr->left());
-  int32_t divisor = instr->right()->GetInteger32Constant();
-  LInstruction* result =
-      DefineAsRegister(new(zone()) LDivByConstI(dividend, divisor));
-  bool can_deopt =
-      divisor == 0 ||
-      (instr->CheckFlag(HValue::kBailoutOnMinusZero) &&
-       instr->left()->RangeCanInclude(0) && divisor < 0) ||
-      !instr->CheckFlag(HInstruction::kAllUsesTruncatingToInt32);
-  return can_deopt ? AssignEnvironment(result) : result;
-}
-
-
 LInstruction* LChunkBuilder::DoDivI(HBinaryOperation* instr) {
   ASSERT(instr->representation().IsSmiOrInteger32());
   ASSERT(instr->left()->representation().Equals(instr->representation()));
@@ -1288,18 +1271,35 @@ LInstruction* LChunkBuilder::DoDivI(HBinaryOperation* instr) {
 
 LInstruction* LChunkBuilder::DoDiv(HDiv* instr) {
   if (instr->representation().IsSmiOrInteger32()) {
-    if (instr->RightIsPowerOf2()) {
-      return DoDivByPowerOf2I(instr);
-    } else if (instr->right()->IsConstant()) {
-      return DoDivByConstI(instr);
-    } else {
-      return DoDivI(instr);
-    }
+    return instr->RightIsPowerOf2() ? DoDivByPowerOf2I(instr) : DoDivI(instr);
   } else if (instr->representation().IsDouble()) {
     return DoArithmeticD(Token::DIV, instr);
   } else {
     return DoArithmeticT(Token::DIV, instr);
   }
+}
+
+
+bool LChunkBuilder::HasMagicNumberForDivisor(int32_t divisor) {
+  uint32_t divisor_abs = abs(divisor);
+  // Dividing by 0 or powers of 2 is easy.
+  if (divisor == 0 || IsPowerOf2(divisor_abs)) return true;
+
+  // We have magic numbers for a few specific divisors.
+  // Details and proofs can be found in:
+  // - Hacker's Delight, Henry S. Warren, Jr.
+  // - The PowerPC Compiler Writer’s Guide
+  // and probably many others.
+  //
+  // We handle
+  //   <divisor with magic numbers> * <power of 2>
+  // but not
+  //   <divisor with magic numbers> * <other divisor with magic numbers>
+  int32_t power_of_2_factor =
+    CompilerIntrinsics::CountTrailingZeros(divisor_abs);
+  DivMagicNumbers magic_numbers =
+    DivMagicNumberFor(divisor_abs >> power_of_2_factor);
+  return magic_numbers.M != InvalidDivMagicNumber.M;
 }
 
 
@@ -1317,18 +1317,15 @@ LInstruction* LChunkBuilder::DoFlooringDivByPowerOf2I(HMathFloorOfDiv* instr) {
 
 
 LInstruction* LChunkBuilder::DoFlooringDivByConstI(HMathFloorOfDiv* instr) {
-  ASSERT(instr->representation().IsInteger32());
-  ASSERT(instr->left()->representation().Equals(instr->representation()));
-  ASSERT(instr->right()->representation().Equals(instr->representation()));
   LOperand* dividend = UseRegister(instr->left());
-  int32_t divisor = instr->right()->GetInteger32Constant();
+  LOperand* divisor = CpuFeatures::IsSupported(SUDIV)
+      ? UseRegister(instr->right())
+      : UseOrConstant(instr->right());
+  LOperand* remainder = TempRegister();
   LInstruction* result =
-      DefineAsRegister(new(zone()) LFlooringDivByConstI(dividend, divisor));
-  bool can_deopt =
-      divisor == 0 ||
-      (instr->CheckFlag(HValue::kBailoutOnMinusZero) &&
-       instr->left()->RangeCanInclude(0) && divisor < 0);
-  return can_deopt ? AssignEnvironment(result) : result;
+      DefineAsRegister(
+          new(zone()) LFlooringDivByConstI(dividend, divisor, remainder));
+  return AssignEnvironment(result);
 }
 
 
@@ -1336,7 +1333,12 @@ LInstruction* LChunkBuilder::DoMathFloorOfDiv(HMathFloorOfDiv* instr) {
   if (instr->RightIsPowerOf2()) {
     return DoFlooringDivByPowerOf2I(instr);
   } else if (instr->right()->IsConstant()) {
-    return DoFlooringDivByConstI(instr);
+    // LMathFloorOfDiv can currently only handle a subset of divisors, so fall
+    // back to a flooring division in all other cases.
+    return (CpuFeatures::IsSupported(SUDIV) ||
+            HasMagicNumberForDivisor(instr->right()->GetInteger32Constant()))
+        ? DoFlooringDivByConstI(instr)
+        : DoDivI(instr);
   } else {
     return DoDivI(instr);
   }
@@ -1354,22 +1356,6 @@ LInstruction* LChunkBuilder::DoModByPowerOf2I(HMod* instr) {
   bool can_deopt =
       instr->CheckFlag(HValue::kBailoutOnMinusZero) &&
       instr->left()->CanBeNegative();
-  return can_deopt ? AssignEnvironment(result) : result;
-}
-
-
-LInstruction* LChunkBuilder::DoModByConstI(HMod* instr) {
-  ASSERT(instr->representation().IsSmiOrInteger32());
-  ASSERT(instr->left()->representation().Equals(instr->representation()));
-  ASSERT(instr->right()->representation().Equals(instr->representation()));
-  LOperand* dividend = UseRegister(instr->left());
-  int32_t divisor = instr->right()->GetInteger32Constant();
-  LInstruction* result =
-      DefineAsRegister(new(zone()) LModByConstI(dividend, divisor));
-  bool can_deopt =
-      divisor == 0 ||
-      (instr->CheckFlag(HValue::kBailoutOnMinusZero) &&
-       instr->left()->CanBeNegative());
   return can_deopt ? AssignEnvironment(result) : result;
 }
 
@@ -1409,13 +1395,7 @@ LInstruction* LChunkBuilder::DoModI(HMod* instr) {
 
 LInstruction* LChunkBuilder::DoMod(HMod* instr) {
   if (instr->representation().IsSmiOrInteger32()) {
-    if (instr->RightIsPowerOf2()) {
-      return DoModByPowerOf2I(instr);
-    } else if (instr->right()->IsConstant()) {
-      return DoModByConstI(instr);
-    } else {
-      return DoModI(instr);
-    }
+    return instr->RightIsPowerOf2() ? DoModByPowerOf2I(instr) : DoModI(instr);
   } else if (instr->representation().IsDouble()) {
     return DoArithmeticD(Token::MOD, instr);
   } else {
