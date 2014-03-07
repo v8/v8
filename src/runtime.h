@@ -655,7 +655,10 @@ namespace internal {
   F(RegExpExec, 4, 1)                                                        \
   F(RegExpConstructResult, 3, 1)                                             \
   F(GetFromCache, 2, 1)                                                      \
-  F(NumberToString, 1, 1)
+  F(NumberToString, 1, 1)                                                    \
+  F(DoubleHi, 1, 1)                                                          \
+  F(DoubleLo, 1, 1)                                                          \
+  F(ConstructDouble, 2, 1)
 
 
 //---------------------------------------------------------------------------

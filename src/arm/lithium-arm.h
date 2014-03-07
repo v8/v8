@@ -80,12 +80,14 @@ class LCodeGen;
   V(ConstantI)                                  \
   V(ConstantS)                                  \
   V(ConstantT)                                  \
+  V(ConstructDouble)                            \
   V(Context)                                    \
   V(DateField)                                  \
   V(DebugBreak)                                 \
   V(DeclareGlobals)                             \
   V(Deoptimize)                                 \
   V(DivI)                                       \
+  V(DoubleBits)                                 \
   V(DoubleToI)                                  \
   V(DoubleToSmi)                                \
   V(Drop)                                       \
@@ -2383,6 +2385,33 @@ class LClampTToUint8 V8_FINAL : public LTemplateInstruction<1, 1, 1> {
   LOperand* temp() { return temps_[0]; }
 
   DECLARE_CONCRETE_INSTRUCTION(ClampTToUint8, "clamp-t-to-uint8")
+};
+
+
+class LDoubleBits V8_FINAL : public LTemplateInstruction<1, 1, 0> {
+ public:
+  explicit LDoubleBits(LOperand* value) {
+    inputs_[0] = value;
+  }
+
+  LOperand* value() { return inputs_[0]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(DoubleBits, "double-bits")
+  DECLARE_HYDROGEN_ACCESSOR(DoubleBits)
+};
+
+
+class LConstructDouble V8_FINAL : public LTemplateInstruction<1, 2, 0> {
+ public:
+  LConstructDouble(LOperand* hi, LOperand* lo) {
+    inputs_[0] = hi;
+    inputs_[1] = lo;
+  }
+
+  LOperand* hi() { return inputs_[0]; }
+  LOperand* lo() { return inputs_[1]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(ConstructDouble, "construct-double")
 };
 
 

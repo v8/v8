@@ -1939,6 +1939,20 @@ LInstruction* LChunkBuilder::DoClampToUint8(HClampToUint8* instr) {
 }
 
 
+LInstruction* LChunkBuilder::DoDoubleBits(HDoubleBits* instr) {
+  HValue* value = instr->value();
+  ASSERT(value->representation().IsDouble());
+  return DefineAsRegister(new(zone()) LDoubleBits(UseRegister(value)));
+}
+
+
+LInstruction* LChunkBuilder::DoConstructDouble(HConstructDouble* instr) {
+  LOperand* lo = UseRegister(instr->lo());
+  LOperand* hi = UseRegister(instr->hi());
+  return DefineAsRegister(new(zone()) LConstructDouble(hi, lo));
+}
+
+
 LInstruction* LChunkBuilder::DoReturn(HReturn* instr) {
   LOperand* context = info()->IsStub()
       ? UseFixed(instr->context(), cp)

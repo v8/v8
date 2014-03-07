@@ -1089,6 +1089,11 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
       } else if (opcode == 0x50) {
         AppendToBuffer("movmskpd %s,", NameOfCPURegister(regop));
         current += PrintRightXMMOperand(current);
+      } else if (opcode == 0x73) {
+        current += 1;
+        ASSERT(regop == 6);
+        AppendToBuffer("psllq,%s,%d", NameOfXMMRegister(rm), *current & 0x7f);
+        current += 1;
       } else {
         const char* mnemonic = "?";
         if (opcode == 0x54) {

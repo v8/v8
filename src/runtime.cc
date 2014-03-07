@@ -7664,6 +7664,34 @@ RUNTIME_UNARY_MATH(log)
 #undef RUNTIME_UNARY_MATH
 
 
+RUNTIME_FUNCTION(MaybeObject*, Runtime_DoubleHi) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 1);
+  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
+  return isolate->heap()->NumberFromDouble(
+      static_cast<int32_t>(double_to_uint64(x) >> 32));
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_DoubleLo) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 1);
+  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
+  return isolate->heap()->NumberFromDouble(
+      static_cast<int32_t>(double_to_uint64(x) & 0xFFFFFFFFu));
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_ConstructDouble) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 2);
+  CONVERT_NUMBER_CHECKED(uint32_t, hi, Uint32, args[0]);
+  CONVERT_NUMBER_CHECKED(uint32_t, lo, Uint32, args[1]);
+  uint64_t result = (static_cast<uint64_t>(hi) << 32) | lo;
+  return isolate->heap()->AllocateHeapNumber(uint64_to_double(result));
+}
+
+
 // Cube root approximation, refer to: http://metamerist.com/cbrt/cbrt.htm
 // Using initial approximation adapted from Kahan's cbrt and 4 iterations
 // of Newton's method.
