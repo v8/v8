@@ -93,6 +93,7 @@ class LCodeGen;
   V(Drop)                                       \
   V(Dummy)                                      \
   V(DummyUse)                                   \
+  V(FlooringDivByConstI)                        \
   V(ForInCacheArray)                            \
   V(ForInPrepareMap)                            \
   V(FunctionLiteral)                            \
@@ -135,6 +136,7 @@ class LCodeGen;
   V(MathPowHalf)                                \
   V(MathRound)                                  \
   V(MathSqrt)                                   \
+  V(ModByPowerOf2I)                             \
   V(ModI)                                       \
   V(MulI)                                       \
   V(MultiplyAddD)                               \
@@ -616,36 +618,34 @@ class LArgumentsElements V8_FINAL : public LTemplateInstruction<1, 0, 0> {
 };
 
 
+class LModByPowerOf2I V8_FINAL : public LTemplateInstruction<1, 1, 0> {
+ public:
+  LModByPowerOf2I(LOperand* dividend, int32_t divisor) {
+    inputs_[0] = dividend;
+    divisor_ = divisor;
+  }
+
+  LOperand* dividend() { return inputs_[0]; }
+  int32_t divisor() const { return divisor_; }
+
+  DECLARE_CONCRETE_INSTRUCTION(ModByPowerOf2I, "mod-by-power-of-2-i")
+  DECLARE_HYDROGEN_ACCESSOR(Mod)
+
+ private:
+  int32_t divisor_;
+};
+
+
 class LModI V8_FINAL : public LTemplateInstruction<1, 2, 3> {
  public:
-  // Used when the right hand is a constant power of 2.
   LModI(LOperand* left,
         LOperand* right) {
     inputs_[0] = left;
     inputs_[1] = right;
-    temps_[0] = NULL;
-    temps_[1] = NULL;
-    temps_[2] = NULL;
-  }
-
-  // Used for the standard case.
-  LModI(LOperand* left,
-        LOperand* right,
-        LOperand* temp,
-        LOperand* temp2,
-        LOperand* temp3) {
-    inputs_[0] = left;
-    inputs_[1] = right;
-    temps_[0] = temp;
-    temps_[1] = temp2;
-    temps_[2] = temp3;
   }
 
   LOperand* left() { return inputs_[0]; }
   LOperand* right() { return inputs_[1]; }
-  LOperand* temp() { return temps_[0]; }
-  LOperand* temp2() { return temps_[1]; }
-  LOperand* temp3() { return temps_[2]; }
 
   DECLARE_CONCRETE_INSTRUCTION(ModI, "mod-i")
   DECLARE_HYDROGEN_ACCESSOR(Mod)
@@ -663,7 +663,24 @@ class LDivI V8_FINAL : public LTemplateInstruction<1, 2, 0> {
   LOperand* right() { return inputs_[1]; }
 
   DECLARE_CONCRETE_INSTRUCTION(DivI, "div-i")
-  DECLARE_HYDROGEN_ACCESSOR(Div)
+  DECLARE_HYDROGEN_ACCESSOR(BinaryOperation)
+};
+
+
+class LFlooringDivByConstI V8_FINAL : public LTemplateInstruction<1, 2, 1> {
+ public:
+  LFlooringDivByConstI(LOperand* dividend, LOperand* divisor, LOperand* temp) {
+    inputs_[0] = dividend;
+    inputs_[1] = divisor;
+    temps_[0] = temp;
+  }
+
+  LOperand* dividend() { return inputs_[0]; }
+  LOperand* divisor() { return inputs_[1]; }
+  LOperand* temp() { return temps_[0]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(FlooringDivByConstI, "flooring-div-by-const-i")
+  DECLARE_HYDROGEN_ACCESSOR(MathFloorOfDiv)
 };
 
 
@@ -2629,6 +2646,10 @@ class LChunkBuilder V8_FINAL : public LChunkBuilderBase {
   LInstruction* DoMathSqrt(HUnaryMathOperation* instr);
   LInstruction* DoMathPowHalf(HUnaryMathOperation* instr);
   LInstruction* DoMathClz32(HUnaryMathOperation* instr);
+  LInstruction* DoDivI(HBinaryOperation* instr);
+  LInstruction* DoModByPowerOf2I(HMod* instr);
+  LInstruction* DoModI(HMod* instr);
+  LInstruction* DoFlooringDivByConstI(HMathFloorOfDiv* instr);
 
  private:
   enum Status {

@@ -1244,14 +1244,20 @@ LInstruction* LChunkBuilder::DoBitwise(HBitwise* instr) {
 }
 
 
+LInstruction* LChunkBuilder::DoDivI(HBinaryOperation* instr) {
+  ASSERT(instr->representation().IsSmiOrInteger32());
+  ASSERT(instr->left()->representation().Equals(instr->representation()));
+  ASSERT(instr->right()->representation().Equals(instr->representation()));
+  LOperand* dividend = UseRegister(instr->left());
+  LOperand* divisor = UseRegister(instr->right());
+  LDivI* div = new(zone()) LDivI(dividend, divisor);
+  return AssignEnvironment(DefineAsRegister(div));
+}
+
+
 LInstruction* LChunkBuilder::DoDiv(HDiv* instr) {
   if (instr->representation().IsSmiOrInteger32()) {
-    ASSERT(instr->left()->representation().Equals(instr->representation()));
-    ASSERT(instr->right()->representation().Equals(instr->representation()));
-    LOperand* dividend = UseRegister(instr->left());
-    LOperand* divisor = UseRegister(instr->right());
-    LDivI* div = new(zone()) LDivI(dividend, divisor);
-    return AssignEnvironment(DefineAsRegister(div));
+    return DoDivI(instr);
   } else if (instr->representation().IsDouble()) {
     return DoArithmeticD(Token::DIV, instr);
   } else {
@@ -1262,10 +1268,8 @@ LInstruction* LChunkBuilder::DoDiv(HDiv* instr) {
 
 bool LChunkBuilder::HasMagicNumberForDivisor(int32_t divisor) {
   uint32_t divisor_abs = abs(divisor);
-  // Dividing by 0, 1, and powers of 2 is easy.
-  // Note that IsPowerOf2(0) returns true;
-  ASSERT(IsPowerOf2(0) == true);
-  if (IsPowerOf2(divisor_abs)) return true;
+  // Dividing by 0 or powers of 2 is easy.
+  if (divisor == 0 || IsPowerOf2(divisor_abs)) return true;
 
   // We have magic numbers for a few specific divisors.
   // Details and proofs can be found in:
@@ -1281,51 +1285,73 @@ bool LChunkBuilder::HasMagicNumberForDivisor(int32_t divisor) {
     CompilerIntrinsics::CountTrailingZeros(divisor_abs);
   DivMagicNumbers magic_numbers =
     DivMagicNumberFor(divisor_abs >> power_of_2_factor);
-  if (magic_numbers.M != InvalidDivMagicNumber.M) return true;
+  return magic_numbers.M != InvalidDivMagicNumber.M;
+}
 
-  return false;
+
+LInstruction* LChunkBuilder::DoFlooringDivByConstI(HMathFloorOfDiv* instr) {
+  LOperand* dividend = UseRegister(instr->left());
+  LOperand* divisor = UseOrConstant(instr->right());
+  LOperand* remainder = TempRegister();
+  LInstruction* result =
+      DefineAsRegister(
+          new(zone()) LFlooringDivByConstI(dividend, divisor, remainder));
+  return AssignEnvironment(result);
 }
 
 
 LInstruction* LChunkBuilder::DoMathFloorOfDiv(HMathFloorOfDiv* instr) {
+  if (instr->right()->IsConstant()) {
+    return DoFlooringDivByConstI(instr);
+  } else {
     HValue* right = instr->right();
     LOperand* dividend = UseRegister(instr->left());
     LOperand* divisor = UseRegisterOrConstant(right);
     LOperand* remainder = TempRegister();
     return AssignEnvironment(DefineAsRegister(
-          new(zone()) LMathFloorOfDiv(dividend, divisor, remainder)));
+        new(zone()) LMathFloorOfDiv(dividend, divisor, remainder)));
+  }
+}
+
+
+LInstruction* LChunkBuilder::DoModByPowerOf2I(HMod* instr) {
+  ASSERT(instr->representation().IsSmiOrInteger32());
+  ASSERT(instr->left()->representation().Equals(instr->representation()));
+  ASSERT(instr->right()->representation().Equals(instr->representation()));
+  LOperand* dividend = UseRegisterAtStart(instr->left());
+  int32_t divisor = instr->right()->GetInteger32Constant();
+  LInstruction* result =
+      DefineSameAsFirst(new(zone()) LModByPowerOf2I(dividend, divisor));
+  bool can_deopt =
+      instr->CheckFlag(HValue::kBailoutOnMinusZero) &&
+      instr->left()->CanBeNegative();
+  return can_deopt ? AssignEnvironment(result) : result;
+}
+
+
+LInstruction* LChunkBuilder::DoModI(HMod* instr) {
+  ASSERT(instr->representation().IsSmiOrInteger32());
+  ASSERT(instr->left()->representation().Equals(instr->representation()));
+  ASSERT(instr->right()->representation().Equals(instr->representation()));
+  LOperand* dividend = UseRegister(instr->left());
+  LOperand* divisor = UseRegister(instr->right());
+  LModI* mod = new(zone()) LModI(dividend,
+                                 divisor);
+  LInstruction* result = DefineAsRegister(mod);
+  bool can_deopt = (instr->right()->CanBeZero() ||
+                    (instr->left()->RangeCanInclude(kMinInt) &&
+                     instr->right()->RangeCanInclude(-1) &&
+                     instr->CheckFlag(HValue::kBailoutOnMinusZero)) ||
+                    (instr->left()->CanBeNegative() &&
+                     instr->CanBeZero() &&
+                     instr->CheckFlag(HValue::kBailoutOnMinusZero)));
+  return can_deopt ? AssignEnvironment(result) : result;
 }
 
 
 LInstruction* LChunkBuilder::DoMod(HMod* instr) {
-  HValue* left = instr->left();
-  HValue* right = instr->right();
   if (instr->representation().IsSmiOrInteger32()) {
-    ASSERT(instr->left()->representation().Equals(instr->representation()));
-    ASSERT(instr->right()->representation().Equals(instr->representation()));
-    if (instr->RightIsPowerOf2()) {
-      ASSERT(!right->CanBeZero());
-      LModI* mod = new(zone()) LModI(UseRegisterAtStart(left),
-                                     UseConstant(right));
-      LInstruction* result = DefineAsRegister(mod);
-      return (left->CanBeNegative() &&
-              instr->CheckFlag(HValue::kBailoutOnMinusZero))
-          ? AssignEnvironment(result)
-          : result;
-    } else {
-      LModI* mod = new(zone()) LModI(UseRegister(left),
-                                     UseRegister(right),
-                                     TempRegister(),
-                                     FixedTemp(f20),
-                                     FixedTemp(f22));
-      LInstruction* result = DefineAsRegister(mod);
-      return (right->CanBeZero() ||
-              (left->RangeCanInclude(kMinInt) &&
-               right->RangeCanInclude(-1)) ||
-              instr->CheckFlag(HValue::kBailoutOnMinusZero))
-          ? AssignEnvironment(result)
-          : result;
-    }
+    return instr->RightIsPowerOf2() ? DoModByPowerOf2I(instr) : DoModI(instr);
   } else if (instr->representation().IsDouble()) {
     return DoArithmeticD(Token::MOD, instr);
   } else {
