@@ -1622,7 +1622,8 @@ MultiplierAndShift::MultiplierAndShift(int32_t d) {
     }
     delta = ad - r2;
   } while (q1 < delta || (q1 == delta && r1 == 0));
-  multiplier_ = (d < 0) ? -(q2 + 1) : (q2 + 1);
+  int32_t mul = static_cast<int32_t>(q2 + 1);
+  multiplier_ = (d < 0) ? -mul : mul;
   shift_ = p - 32;
 }
 
