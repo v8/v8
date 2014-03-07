@@ -983,264 +983,275 @@ void LCodeGen::DoUnknownOSRValue(LUnknownOSRValue* instr) {
 }
 
 
-void LCodeGen::DoModI(LModI* instr) {
+void LCodeGen::DoModByPowerOf2I(LModByPowerOf2I* instr) {
+  Register dividend = ToRegister(instr->dividend());
+  int32_t divisor = instr->divisor();
+  ASSERT(dividend.is(ToRegister(instr->result())));
+
+  // Theoretically, a variation of the branch-free code for integer division by
+  // a power of 2 (calculating the remainder via an additional multiplication
+  // (which gets simplified to an 'and') and subtraction) should be faster, and
+  // this is exactly what GCC and clang emit. Nevertheless, benchmarks seem to
+  // indicate that positive dividends are heavily favored, so the branching
+  // version performs better.
   HMod* hmod = instr->hydrogen();
-  HValue* left = hmod->left();
-  HValue* right = hmod->right();
-  if (hmod->RightIsPowerOf2()) {
-    // TODO(svenpanne) We should really do the strength reduction on the
-    // Hydrogen level.
-    Register left_reg = ToRegister(instr->left());
-    ASSERT(left_reg.is(ToRegister(instr->result())));
-
-    // Note: The code below even works when right contains kMinInt.
-    int32_t divisor = Abs(right->GetInteger32Constant());
-
-    Label left_is_not_negative, done;
-    if (left->CanBeNegative()) {
-      __ testl(left_reg, left_reg);
-      __ j(not_sign, &left_is_not_negative, Label::kNear);
-      __ negl(left_reg);
-      __ andl(left_reg, Immediate(divisor - 1));
-      __ negl(left_reg);
-      if (hmod->CheckFlag(HValue::kBailoutOnMinusZero)) {
-        DeoptimizeIf(zero, instr->environment());
-      }
-      __ jmp(&done, Label::kNear);
-    }
-
-    __ bind(&left_is_not_negative);
-    __ andl(left_reg, Immediate(divisor - 1));
-    __ bind(&done);
-  } else {
-    Register left_reg = ToRegister(instr->left());
-    ASSERT(left_reg.is(rax));
-    Register right_reg = ToRegister(instr->right());
-    ASSERT(!right_reg.is(rax));
-    ASSERT(!right_reg.is(rdx));
-    Register result_reg = ToRegister(instr->result());
-    ASSERT(result_reg.is(rdx));
-
-    Label done;
-    // Check for x % 0, idiv would signal a divide error. We have to
-    // deopt in this case because we can't return a NaN.
-    if (right->CanBeZero()) {
-      __ testl(right_reg, right_reg);
+  int32_t mask = divisor < 0 ? -(divisor + 1) : (divisor - 1);
+  Label dividend_is_not_negative, done;
+  if (hmod->left()->CanBeNegative()) {
+    __ testl(dividend, dividend);
+    __ j(not_sign, &dividend_is_not_negative, Label::kNear);
+    // Note that this is correct even for kMinInt operands.
+    __ negl(dividend);
+    __ andl(dividend, Immediate(mask));
+    __ negl(dividend);
+    if (hmod->CheckFlag(HValue::kBailoutOnMinusZero)) {
       DeoptimizeIf(zero, instr->environment());
     }
-
-    // Check for kMinInt % -1, idiv would signal a divide error. We
-    // have to deopt if we care about -0, because we can't return that.
-    if (left->RangeCanInclude(kMinInt) && right->RangeCanInclude(-1)) {
-      Label no_overflow_possible;
-      __ cmpl(left_reg, Immediate(kMinInt));
-      __ j(not_zero, &no_overflow_possible, Label::kNear);
-      __ cmpl(right_reg, Immediate(-1));
-      if (hmod->CheckFlag(HValue::kBailoutOnMinusZero)) {
-        DeoptimizeIf(equal, instr->environment());
-      } else {
-        __ j(not_equal, &no_overflow_possible, Label::kNear);
-        __ Set(result_reg, 0);
-        __ jmp(&done, Label::kNear);
-      }
-      __ bind(&no_overflow_possible);
-    }
-
-    // Sign extend dividend in eax into edx:eax, since we are using only the low
-    // 32 bits of the values.
-    __ cdq();
-
-    // If we care about -0, test if the dividend is <0 and the result is 0.
-    if (left->CanBeNegative() &&
-        hmod->CanBeZero() &&
-        hmod->CheckFlag(HValue::kBailoutOnMinusZero)) {
-      Label positive_left;
-      __ testl(left_reg, left_reg);
-      __ j(not_sign, &positive_left, Label::kNear);
-      __ idivl(right_reg);
-      __ testl(result_reg, result_reg);
-      DeoptimizeIf(zero, instr->environment());
-      __ jmp(&done, Label::kNear);
-      __ bind(&positive_left);
-    }
-    __ idivl(right_reg);
-    __ bind(&done);
+    __ jmp(&done, Label::kNear);
   }
+
+  __ bind(&dividend_is_not_negative);
+  __ andl(dividend, Immediate(mask));
+  __ bind(&done);
 }
 
 
-void LCodeGen::DoMathFloorOfDiv(LMathFloorOfDiv* instr) {
-  ASSERT(instr->right()->IsConstantOperand());
+void LCodeGen::DoModI(LModI* instr) {
+  if (instr->hydrogen()->RightIsPowerOf2()) {
+    return DoModByPowerOf2I(reinterpret_cast<LModByPowerOf2I*>(instr));
+  }
+  HMod* hmod = instr->hydrogen();
+  HValue* left = hmod->left();
+  HValue* right = hmod->right();
 
-  const Register dividend = ToRegister(instr->left());
-  int32_t divisor = ToInteger32(LConstantOperand::cast(instr->right()));
-  const Register result = ToRegister(instr->result());
+  Register left_reg = ToRegister(instr->left());
+  ASSERT(left_reg.is(rax));
+  Register right_reg = ToRegister(instr->right());
+  ASSERT(!right_reg.is(rax));
+  ASSERT(!right_reg.is(rdx));
+  Register result_reg = ToRegister(instr->result());
+  ASSERT(result_reg.is(rdx));
 
-  switch (divisor) {
-  case 0:
+  Label done;
+  // Check for x % 0, idiv would signal a divide error. We have to
+  // deopt in this case because we can't return a NaN.
+  if (right->CanBeZero()) {
+    __ testl(right_reg, right_reg);
+    DeoptimizeIf(zero, instr->environment());
+  }
+
+  // Check for kMinInt % -1, idiv would signal a divide error. We
+  // have to deopt if we care about -0, because we can't return that.
+  if (left->RangeCanInclude(kMinInt) && right->RangeCanInclude(-1)) {
+    Label no_overflow_possible;
+    __ cmpl(left_reg, Immediate(kMinInt));
+    __ j(not_zero, &no_overflow_possible, Label::kNear);
+    __ cmpl(right_reg, Immediate(-1));
+    if (hmod->CheckFlag(HValue::kBailoutOnMinusZero)) {
+      DeoptimizeIf(equal, instr->environment());
+    } else {
+      __ j(not_equal, &no_overflow_possible, Label::kNear);
+      __ Set(result_reg, 0);
+      __ jmp(&done, Label::kNear);
+    }
+    __ bind(&no_overflow_possible);
+  }
+
+  // Sign extend dividend in eax into edx:eax, since we are using only the low
+  // 32 bits of the values.
+  __ cdq();
+
+  // If we care about -0, test if the dividend is <0 and the result is 0.
+  if (left->CanBeNegative() &&
+      hmod->CanBeZero() &&
+      hmod->CheckFlag(HValue::kBailoutOnMinusZero)) {
+    Label positive_left;
+    __ testl(left_reg, left_reg);
+    __ j(not_sign, &positive_left, Label::kNear);
+    __ idivl(right_reg);
+    __ testl(result_reg, result_reg);
+    DeoptimizeIf(zero, instr->environment());
+    __ jmp(&done, Label::kNear);
+    __ bind(&positive_left);
+  }
+  __ idivl(right_reg);
+  __ bind(&done);
+}
+
+
+void LCodeGen::DoFlooringDivByPowerOf2I(LFlooringDivByPowerOf2I* instr) {
+  Register dividend = ToRegister(instr->dividend());
+  int32_t divisor = instr->divisor();
+  ASSERT(dividend.is(ToRegister(instr->result())));
+
+  // If the divisor is positive, things are easy: There can be no deopts and we
+  // can simply do an arithmetic right shift.
+  if (divisor == 1) return;
+  int32_t shift = WhichPowerOf2Abs(divisor);
+  if (divisor > 1) {
+    __ sarl(dividend, Immediate(shift));
+    return;
+  }
+
+  // If the divisor is negative, we have to negate and handle edge cases.
+  Label not_kmin_int, done;
+  __ negl(dividend);
+  if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+    DeoptimizeIf(zero, instr->environment());
+  }
+  if (instr->hydrogen()->left()->RangeCanInclude(kMinInt)) {
+    // Note that we could emit branch-free code, but that would need one more
+    // register.
+    __ j(no_overflow, &not_kmin_int, Label::kNear);
+    if (divisor == -1) {
+      DeoptimizeIf(no_condition, instr->environment());
+    } else {
+      __ movl(dividend, Immediate(kMinInt / divisor));
+      __ jmp(&done, Label::kNear);
+    }
+  }
+  __ bind(&not_kmin_int);
+  __ sarl(dividend, Immediate(shift));
+  __ bind(&done);
+}
+
+
+void LCodeGen::DoFlooringDivByConstI(LFlooringDivByConstI* instr) {
+  Register dividend = ToRegister(instr->dividend());
+  int32_t divisor = instr->divisor();
+  Register temp = ToRegister(instr->temp());
+  Register result = ToRegister(instr->result());
+
+  if (divisor == 0) {
     DeoptimizeIf(no_condition, instr->environment());
     return;
-
-  case 1:
-    if (!result.is(dividend)) {
-        __ movl(result, dividend);
-    }
-    return;
-
-  case -1:
-    if (!result.is(dividend)) {
-      __ movl(result, dividend);
-    }
-    __ negl(result);
-    if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
-      DeoptimizeIf(zero, instr->environment());
-    }
-    if (instr->hydrogen()->CheckFlag(HValue::kCanOverflow)) {
-      DeoptimizeIf(overflow, instr->environment());
-    }
-    return;
   }
 
+  // Find b which: 2^b < divisor_abs < 2^(b+1).
   uint32_t divisor_abs = abs(divisor);
-  if (IsPowerOf2(divisor_abs)) {
-    int32_t power = WhichPowerOf2(divisor_abs);
-    if (divisor < 0) {
-      __ movsxlq(result, dividend);
-      __ neg(result);
-      if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
-        DeoptimizeIf(zero, instr->environment());
-      }
-      __ sar(result, Immediate(power));
-    } else {
-      if (!result.is(dividend)) {
-        __ movl(result, dividend);
-      }
-      __ sarl(result, Immediate(power));
-    }
+  unsigned b = 31 - CompilerIntrinsics::CountLeadingZeros(divisor_abs);
+  unsigned shift = 32 + b;  // Precision +1bit (effectively).
+  double multiplier_f =
+      static_cast<double>(static_cast<uint64_t>(1) << shift) / divisor_abs;
+  int64_t multiplier;
+  if (multiplier_f - std::floor(multiplier_f) < 0.5) {
+    multiplier = static_cast<int64_t>(std::floor(multiplier_f));
   } else {
-    Register reg1 = ToRegister(instr->temp());
-    Register reg2 = ToRegister(instr->result());
-
-    // Find b which: 2^b < divisor_abs < 2^(b+1).
-    unsigned b = 31 - CompilerIntrinsics::CountLeadingZeros(divisor_abs);
-    unsigned shift = 32 + b;  // Precision +1bit (effectively).
-    double multiplier_f =
-        static_cast<double>(static_cast<uint64_t>(1) << shift) / divisor_abs;
-    int64_t multiplier;
-    if (multiplier_f - std::floor(multiplier_f) < 0.5) {
-        multiplier = static_cast<int64_t>(std::floor(multiplier_f));
-    } else {
-        multiplier = static_cast<int64_t>(std::floor(multiplier_f)) + 1;
-    }
-    // The multiplier is a uint32.
-    ASSERT(multiplier > 0 &&
-           multiplier < (static_cast<int64_t>(1) << 32));
-    // The multiply is int64, so sign-extend to r64.
-    __ movsxlq(reg1, dividend);
-    if (divisor < 0 &&
-        instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
-      __ neg(reg1);
-      DeoptimizeIf(zero, instr->environment());
-    }
-    __ Set(reg2, multiplier);
-    // Result just fit in r64, because it's int32 * uint32.
-    __ imul(reg2, reg1);
-
-    __ addq(reg2, Immediate(1 << 30));
-    __ sar(reg2, Immediate(shift));
+    multiplier = static_cast<int64_t>(std::floor(multiplier_f)) + 1;
   }
+  // The multiplier is a uint32.
+  ASSERT(multiplier > 0 &&
+         multiplier < (static_cast<int64_t>(1) << 32));
+  // The multiply is int64, so sign-extend to r64.
+  __ movsxlq(temp, dividend);
+  if (divisor < 0 &&
+      instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+    __ neg(temp);
+    DeoptimizeIf(zero, instr->environment());
+  }
+  __ Set(result, multiplier);
+  // Result just fit in r64, because it's int32 * uint32.
+  __ imul(result, temp);
+
+  __ addq(result, Immediate(1 << 30));
+  __ sar(result, Immediate(shift));
+}
+
+
+void LCodeGen::DoDivByPowerOf2I(LDivByPowerOf2I* instr) {
+  Register dividend = ToRegister(instr->dividend());
+  int32_t divisor = instr->divisor();
+  Register result = ToRegister(instr->result());
+  ASSERT(divisor == kMinInt || (divisor != 0 && IsPowerOf2(Abs(divisor))));
+  ASSERT(!result.is(dividend));
+
+  // Check for (0 / -x) that will produce negative zero.
+  HDiv* hdiv = instr->hydrogen();
+  if (hdiv->CheckFlag(HValue::kBailoutOnMinusZero) &&
+      hdiv->left()->RangeCanInclude(0) && divisor < 0) {
+    __ testl(dividend, dividend);
+    DeoptimizeIf(zero, instr->environment());
+  }
+  // Check for (kMinInt / -1).
+  if (hdiv->CheckFlag(HValue::kCanOverflow) &&
+      hdiv->left()->RangeCanInclude(kMinInt) && divisor == -1) {
+    __ cmpl(dividend, Immediate(kMinInt));
+    DeoptimizeIf(zero, instr->environment());
+  }
+  // Deoptimize if remainder will not be 0.
+  if (!hdiv->CheckFlag(HInstruction::kAllUsesTruncatingToInt32) &&
+      divisor != 1 && divisor != -1) {
+    int32_t mask = divisor < 0 ? -(divisor + 1) : (divisor - 1);
+    __ testl(dividend, Immediate(mask));
+    DeoptimizeIf(not_zero, instr->environment());
+  }
+  __ Move(result, dividend);
+  int32_t shift = WhichPowerOf2Abs(divisor);
+  if (shift > 0) {
+    // The arithmetic shift is always OK, the 'if' is an optimization only.
+    if (shift > 1) __ sarl(result, Immediate(31));
+    __ shrl(result, Immediate(32 - shift));
+    __ addl(result, dividend);
+    __ sarl(result, Immediate(shift));
+  }
+  if (divisor < 0) __ negl(result);
 }
 
 
 void LCodeGen::DoDivI(LDivI* instr) {
-  if (!instr->is_flooring() && instr->hydrogen()->RightIsPowerOf2()) {
-    Register dividend = ToRegister(instr->left());
-    HDiv* hdiv = instr->hydrogen();
-    int32_t divisor = hdiv->right()->GetInteger32Constant();
-    Register result = ToRegister(instr->result());
-    ASSERT(!result.is(dividend));
-
-    // Check for (0 / -x) that will produce negative zero.
-    if (hdiv->left()->RangeCanInclude(0) && divisor < 0 &&
-          hdiv->CheckFlag(HValue::kBailoutOnMinusZero)) {
-      __ testl(dividend, dividend);
-      DeoptimizeIf(zero, instr->environment());
-    }
-    // Check for (kMinInt / -1).
-    if (hdiv->left()->RangeCanInclude(kMinInt) && divisor == -1 &&
-        hdiv->CheckFlag(HValue::kCanOverflow)) {
-      __ cmpl(dividend, Immediate(kMinInt));
-      DeoptimizeIf(zero, instr->environment());
-    }
-    // Deoptimize if remainder will not be 0.
-    if (!hdiv->CheckFlag(HInstruction::kAllUsesTruncatingToInt32)) {
-      __ testl(dividend, Immediate(Abs(divisor) - 1));
-      DeoptimizeIf(not_zero, instr->environment());
-    }
-    __ Move(result, dividend);
-    int32_t shift = WhichPowerOf2(Abs(divisor));
-    if (shift > 0) {
-      // The arithmetic shift is always OK, the 'if' is an optimization only.
-      if (shift > 1) __ sarl(result, Immediate(31));
-      __ shrl(result, Immediate(32 - shift));
-      __ addl(result, dividend);
-      __ sarl(result, Immediate(shift));
-    }
-    if (divisor < 0) __ negl(result);
-    return;
-  }
-
-  LOperand* right = instr->right();
-  ASSERT(ToRegister(instr->result()).is(rax));
-  ASSERT(ToRegister(instr->left()).is(rax));
-  ASSERT(!ToRegister(instr->right()).is(rax));
-  ASSERT(!ToRegister(instr->right()).is(rdx));
-
-  Register left_reg = rax;
+  Register dividend = ToRegister(instr->left());
+  Register divisor = ToRegister(instr->right());
+  Register remainder = ToRegister(instr->temp());
+  Register result = ToRegister(instr->result());
+  ASSERT(dividend.is(rax));
+  ASSERT(remainder.is(rdx));
+  ASSERT(result.is(rax));
+  ASSERT(!divisor.is(rax));
+  ASSERT(!divisor.is(rdx));
 
   // Check for x / 0.
-  Register right_reg = ToRegister(right);
-  if (instr->hydrogen_value()->CheckFlag(HValue::kCanBeDivByZero)) {
-    __ testl(right_reg, right_reg);
+  HBinaryOperation* hdiv = instr->hydrogen();
+  if (hdiv->CheckFlag(HValue::kCanBeDivByZero)) {
+    __ testl(divisor, divisor);
     DeoptimizeIf(zero, instr->environment());
   }
 
   // Check for (0 / -x) that will produce negative zero.
-  if (instr->hydrogen_value()->CheckFlag(HValue::kBailoutOnMinusZero)) {
-    Label left_not_zero;
-    __ testl(left_reg, left_reg);
-    __ j(not_zero, &left_not_zero, Label::kNear);
-    __ testl(right_reg, right_reg);
+  if (hdiv->CheckFlag(HValue::kBailoutOnMinusZero)) {
+    Label dividend_not_zero;
+    __ testl(dividend, dividend);
+    __ j(not_zero, &dividend_not_zero, Label::kNear);
+    __ testl(divisor, divisor);
     DeoptimizeIf(sign, instr->environment());
-    __ bind(&left_not_zero);
+    __ bind(&dividend_not_zero);
   }
 
   // Check for (kMinInt / -1).
-  if (instr->hydrogen_value()->CheckFlag(HValue::kCanOverflow)) {
-    Label left_not_min_int;
-    __ cmpl(left_reg, Immediate(kMinInt));
-    __ j(not_zero, &left_not_min_int, Label::kNear);
-    __ cmpl(right_reg, Immediate(-1));
+  if (hdiv->CheckFlag(HValue::kCanOverflow)) {
+    Label dividend_not_min_int;
+    __ cmpl(dividend, Immediate(kMinInt));
+    __ j(not_zero, &dividend_not_min_int, Label::kNear);
+    __ cmpl(divisor, Immediate(-1));
     DeoptimizeIf(zero, instr->environment());
-    __ bind(&left_not_min_int);
+    __ bind(&dividend_not_min_int);
   }
 
-  // Sign extend to rdx.
+  // Sign extend to rdx (= remainder).
   __ cdq();
-  __ idivl(right_reg);
+  __ idivl(divisor);
 
   if (instr->is_flooring()) {
     Label done;
-    __ testl(rdx, rdx);
+    __ testl(remainder, remainder);
     __ j(zero, &done, Label::kNear);
-    __ xorl(rdx, right_reg);
-    __ sarl(rdx, Immediate(31));
-    __ addl(rax, rdx);
+    __ xorl(remainder, divisor);
+    __ sarl(remainder, Immediate(31));
+    __ addl(result, remainder);
     __ bind(&done);
   } else if (!instr->hydrogen()->CheckFlag(
       HInstruction::kAllUsesTruncatingToInt32)) {
     // Deoptimize if remainder is not 0.
-    __ testl(rdx, rdx);
+    __ testl(remainder, remainder);
     DeoptimizeIf(not_zero, instr->environment());
   }
 }

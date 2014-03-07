@@ -87,12 +87,15 @@ class LCodeGen;
   V(DebugBreak)                                 \
   V(DeclareGlobals)                             \
   V(Deoptimize)                                 \
+  V(DivByPowerOf2I)                             \
   V(DivI)                                       \
   V(DoubleToI)                                  \
   V(DoubleToSmi)                                \
   V(Drop)                                       \
   V(Dummy)                                      \
   V(DummyUse)                                   \
+  V(FlooringDivByConstI)                        \
+  V(FlooringDivByPowerOf2I)                     \
   V(ForInCacheArray)                            \
   V(ForInPrepareMap)                            \
   V(FunctionLiteral)                            \
@@ -129,12 +132,12 @@ class LCodeGen;
   V(MathClz32)                                  \
   V(MathExp)                                    \
   V(MathFloor)                                  \
-  V(MathFloorOfDiv)                             \
   V(MathLog)                                    \
   V(MathMinMax)                                 \
   V(MathPowHalf)                                \
   V(MathRound)                                  \
   V(MathSqrt)                                   \
+  V(ModByPowerOf2I)                             \
   V(ModI)                                       \
   V(MulI)                                       \
   V(NumberTagD)                                 \
@@ -634,6 +637,24 @@ class LDebugBreak V8_FINAL : public LTemplateInstruction<0, 0, 0> {
 };
 
 
+class LModByPowerOf2I V8_FINAL : public LTemplateInstruction<1, 1, 0> {
+ public:
+  LModByPowerOf2I(LOperand* dividend, int32_t divisor) {
+    inputs_[0] = dividend;
+    divisor_ = divisor;
+  }
+
+  LOperand* dividend() { return inputs_[0]; }
+  int32_t divisor() const { return divisor_; }
+
+  DECLARE_CONCRETE_INSTRUCTION(ModByPowerOf2I, "mod-by-power-of-2-i")
+  DECLARE_HYDROGEN_ACCESSOR(Mod)
+
+ private:
+  int32_t divisor_;
+};
+
+
 class LModI V8_FINAL : public LTemplateInstruction<1, 2, 1> {
  public:
   LModI(LOperand* left, LOperand* right, LOperand* temp) {
@@ -651,6 +672,24 @@ class LModI V8_FINAL : public LTemplateInstruction<1, 2, 1> {
 };
 
 
+class LDivByPowerOf2I V8_FINAL : public LTemplateInstruction<1, 1, 0> {
+ public:
+  LDivByPowerOf2I(LOperand* dividend, int32_t divisor) {
+    inputs_[0] = dividend;
+    divisor_ = divisor;
+  }
+
+  LOperand* dividend() { return inputs_[0]; }
+  int32_t divisor() const { return divisor_; }
+
+  DECLARE_CONCRETE_INSTRUCTION(DivByPowerOf2I, "div-by-power-of-2-i")
+  DECLARE_HYDROGEN_ACCESSOR(Div)
+
+ private:
+  int32_t divisor_;
+};
+
+
 class LDivI V8_FINAL : public LTemplateInstruction<1, 2, 1> {
  public:
   LDivI(LOperand* left, LOperand* right, LOperand* temp) {
@@ -661,30 +700,51 @@ class LDivI V8_FINAL : public LTemplateInstruction<1, 2, 1> {
 
   LOperand* left() { return inputs_[0]; }
   LOperand* right() { return inputs_[1]; }
+  LOperand* temp() { return temps_[0]; }
 
   bool is_flooring() { return hydrogen_value()->IsMathFloorOfDiv(); }
 
   DECLARE_CONCRETE_INSTRUCTION(DivI, "div-i")
-  DECLARE_HYDROGEN_ACCESSOR(Div)
+  DECLARE_HYDROGEN_ACCESSOR(BinaryOperation)
 };
 
 
-class LMathFloorOfDiv V8_FINAL : public LTemplateInstruction<1, 2, 1> {
+class LFlooringDivByPowerOf2I V8_FINAL : public LTemplateInstruction<1, 1, 0> {
  public:
-  LMathFloorOfDiv(LOperand* left,
-                  LOperand* right,
-                  LOperand* temp = NULL) {
-    inputs_[0] = left;
-    inputs_[1] = right;
+  LFlooringDivByPowerOf2I(LOperand* dividend, int32_t divisor) {
+    inputs_[0] = dividend;
+    divisor_ = divisor;
+  }
+
+  LOperand* dividend() { return inputs_[0]; }
+  int32_t divisor() const { return divisor_; }
+
+  DECLARE_CONCRETE_INSTRUCTION(FlooringDivByPowerOf2I,
+                               "flooring-div-by-power-of-2-i")
+  DECLARE_HYDROGEN_ACCESSOR(MathFloorOfDiv)
+
+ private:
+  int32_t divisor_;
+};
+
+
+class LFlooringDivByConstI V8_FINAL : public LTemplateInstruction<1, 1, 1> {
+ public:
+  LFlooringDivByConstI(LOperand* dividend, int32_t divisor, LOperand* temp) {
+    inputs_[0] = dividend;
+    divisor_ = divisor;
     temps_[0] = temp;
   }
 
-  LOperand* left() { return inputs_[0]; }
-  LOperand* right() { return inputs_[1]; }
+  LOperand* dividend() { return inputs_[0]; }
+  int32_t divisor() const { return divisor_; }
   LOperand* temp() { return temps_[0]; }
 
-  DECLARE_CONCRETE_INSTRUCTION(MathFloorOfDiv, "math-floor-of-div")
+  DECLARE_CONCRETE_INSTRUCTION(FlooringDivByConstI, "flooring-div-by-const-i")
   DECLARE_HYDROGEN_ACCESSOR(MathFloorOfDiv)
+
+ private:
+  int32_t divisor_;
 };
 
 
@@ -2630,6 +2690,12 @@ class LChunkBuilder V8_FINAL : public LChunkBuilderBase {
   LInstruction* DoMathSqrt(HUnaryMathOperation* instr);
   LInstruction* DoMathPowHalf(HUnaryMathOperation* instr);
   LInstruction* DoMathClz32(HUnaryMathOperation* instr);
+  LInstruction* DoDivByPowerOf2I(HDiv* instr);
+  LInstruction* DoDivI(HBinaryOperation* instr);
+  LInstruction* DoModByPowerOf2I(HMod* instr);
+  LInstruction* DoModI(HMod* instr);
+  LInstruction* DoFlooringDivByPowerOf2I(HMathFloorOfDiv* instr);
+  LInstruction* DoFlooringDivByConstI(HMathFloorOfDiv* instr);
 
  private:
   enum Status {

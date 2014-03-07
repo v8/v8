@@ -283,6 +283,12 @@ inline int StrLength(const char* string) {
 }
 
 
+// TODO(svenpanne) Clean up the whole power-of-2 mess.
+inline int32_t WhichPowerOf2Abs(int32_t x) {
+  return (x == kMinInt) ? 31 : WhichPowerOf2(Abs(x));
+}
+
+
 // ----------------------------------------------------------------------------
 // BitField is a help template for encoding and decode bitfield with
 // unsigned content.

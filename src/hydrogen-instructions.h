@@ -3713,6 +3713,12 @@ class HBinaryOperation : public HTemplateInstruction<3> {
     set_operand_position(zone, 2, right_pos);
   }
 
+  bool RightIsPowerOf2() {
+    if (!right()->IsInteger32Constant()) return false;
+    int32_t value = right()->GetInteger32Constant();
+    return value != 0 && (IsPowerOf2(value) || IsPowerOf2(-value));
+  }
+
   DECLARE_ABSTRACT_INSTRUCTION(BinaryOperation)
 
  private:
@@ -4087,12 +4093,6 @@ class HArithmeticBinaryOperation : public HBinaryOperation {
       ClearAllSideEffects();
       SetFlag(kUseGVN);
     }
-  }
-
-  bool RightIsPowerOf2() {
-    if (!right()->IsInteger32Constant()) return false;
-    int32_t value = right()->GetInteger32Constant();
-    return value != 0 && (IsPowerOf2(value) || IsPowerOf2(-value));
   }
 
   DECLARE_ABSTRACT_INSTRUCTION(ArithmeticBinaryOperation)
