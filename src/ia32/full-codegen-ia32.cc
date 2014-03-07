@@ -2273,10 +2273,9 @@ void FullCodeGenerator::EmitInlineSmiBinaryOp(BinaryOperation* expr,
 
   switch (op) {
     case Token::SAR:
-      __ SmiUntag(eax);
       __ SmiUntag(ecx);
       __ sar_cl(eax);  // No checks of result necessary
-      __ SmiTag(eax);
+      __ and_(eax, Immediate(~kSmiTagMask));
       break;
     case Token::SHL: {
       Label result_ok;
