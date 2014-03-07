@@ -497,7 +497,6 @@ class FullCodeGenerator: public AstVisitor {
 #define EMIT_INLINE_RUNTIME_CALL(name, x, y) \
   void Emit##name(CallRuntime* expr);
   INLINE_FUNCTION_LIST(EMIT_INLINE_RUNTIME_CALL)
-  INLINE_RUNTIME_FUNCTION_LIST(EMIT_INLINE_RUNTIME_CALL)
 #undef EMIT_INLINE_RUNTIME_CALL
 
   // Platform-specific code for resuming generators.

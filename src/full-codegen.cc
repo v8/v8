@@ -905,7 +905,6 @@ void FullCodeGenerator::SetSourcePosition(int pos) {
 const FullCodeGenerator::InlineFunctionGenerator
   FullCodeGenerator::kInlineFunctionGenerators[] = {
     INLINE_FUNCTION_LIST(INLINE_FUNCTION_GENERATOR_ADDRESS)
-    INLINE_RUNTIME_FUNCTION_LIST(INLINE_FUNCTION_GENERATOR_ADDRESS)
   };
 #undef INLINE_FUNCTION_GENERATOR_ADDRESS
 

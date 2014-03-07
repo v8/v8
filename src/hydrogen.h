@@ -2119,7 +2119,6 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   void Generate##Name(CallRuntime* call);
 
   INLINE_FUNCTION_LIST(INLINE_FUNCTION_GENERATOR_DECLARATION)
-  INLINE_RUNTIME_FUNCTION_LIST(INLINE_FUNCTION_GENERATOR_DECLARATION)
 #undef INLINE_FUNCTION_GENERATOR_DECLARATION
 
   void VisitDelete(UnaryOperation* expr);

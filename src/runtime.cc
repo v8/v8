@@ -14461,8 +14461,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ListNatives) {
 #define COUNT_ENTRY(Name, argc, ressize) + 1
   int entry_count = 0
       RUNTIME_FUNCTION_LIST(COUNT_ENTRY)
-      INLINE_FUNCTION_LIST(COUNT_ENTRY)
-      INLINE_RUNTIME_FUNCTION_LIST(COUNT_ENTRY);
+      INLINE_FUNCTION_LIST(COUNT_ENTRY);
 #undef COUNT_ENTRY
   Factory* factory = isolate->factory();
   Handle<FixedArray> elements = factory->NewFixedArray(entry_count);
@@ -14490,7 +14489,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ListNatives) {
   RUNTIME_FUNCTION_LIST(ADD_ENTRY)
   inline_runtime_functions = true;
   INLINE_FUNCTION_LIST(ADD_ENTRY)
-  INLINE_RUNTIME_FUNCTION_LIST(ADD_ENTRY)
 #undef ADD_ENTRY
   ASSERT_EQ(index, entry_count);
   Handle<JSArray> result = factory->NewJSArrayWithElements(elements);
@@ -14854,8 +14852,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_MaxSmi) {
 static const Runtime::Function kIntrinsicFunctions[] = {
   RUNTIME_FUNCTION_LIST(F)
   INLINE_FUNCTION_LIST(I)
-  INLINE_RUNTIME_FUNCTION_LIST(I)
 };
+
+#undef I
+#undef F
 
 
 MaybeObject* Runtime::InitializeIntrinsicFunctionNames(Heap* heap,
