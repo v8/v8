@@ -8740,7 +8740,7 @@ HInstruction* HOptimizedGraphBuilder::BuildIncrement(
   // The input to the count operation is on top of the expression stack.
   Representation rep = Representation::FromType(expr->type());
   if (rep.IsNone() || rep.IsTagged()) {
-    rep = Representation::FromType(Type::Smi());
+    rep = Representation::Smi();
   }
 
   if (returns_original_input) {
@@ -8990,8 +8990,14 @@ bool CanBeZero(HValue* right) {
 
 HValue* HGraphBuilder::EnforceNumberType(HValue* number,
                                          Type* expected) {
-  return AddUncasted<HForceRepresentation>(
-      number, Representation::FromType(expected));
+  if (expected->Is(Type::Smi())) {
+    return AddUncasted<HForceRepresentation>(number, Representation::Smi());
+  }
+  if (expected->Is(Type::Signed32())) {
+    return AddUncasted<HForceRepresentation>(number,
+                                             Representation::Integer32());
+  }
+  return number;
 }
 
 
