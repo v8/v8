@@ -1687,6 +1687,18 @@ FrameMirror.prototype.scope = function(index) {
 };
 
 
+FrameMirror.prototype.allScopes = function() {
+  var scopeDetails = %GetAllScopesDetails(this.break_id_,
+                                          this.details_.frameId(),
+                                          this.details_.inlinedFrameIndex());
+  var result = [];
+  for (var i = 0; i < scopeDetails.length; ++i) {
+    result.push(new ScopeMirror(this, UNDEFINED, i, scopeDetails[i]));
+  }
+  return result;
+};
+
+
 FrameMirror.prototype.stepInPositions = function() {
   var script = this.func().script();
   var funcOffset = this.func().sourcePosition_();
@@ -1878,17 +1890,18 @@ FrameMirror.prototype.toText = function(opt_locals) {
 var kScopeDetailsTypeIndex = 0;
 var kScopeDetailsObjectIndex = 1;
 
-function ScopeDetails(frame, fun, index) {
+function ScopeDetails(frame, fun, index, opt_details) {
   if (frame) {
     this.break_id_ = frame.break_id_;
-    this.details_ = %GetScopeDetails(frame.break_id_,
+    this.details_ = opt_details ||
+                    %GetScopeDetails(frame.break_id_,
                                      frame.details_.frameId(),
                                      frame.details_.inlinedFrameIndex(),
                                      index);
     this.frame_id_ = frame.details_.frameId();
     this.inlined_frame_id_ = frame.details_.inlinedFrameIndex();
   } else {
-    this.details_ = %GetFunctionScopeDetails(fun.value(), index);
+    this.details_ = opt_details || %GetFunctionScopeDetails(fun.value(), index);
     this.fun_value_ = fun.value();
     this.break_id_ = undefined;
   }
@@ -1934,10 +1947,11 @@ ScopeDetails.prototype.setVariableValueImpl = function(name, new_value) {
  * @param {FrameMirror} frame The frame this scope is a part of
  * @param {FunctionMirror} function The function this scope is a part of
  * @param {number} index The scope index in the frame
+ * @param {Array=} opt_details Raw scope details data
  * @constructor
  * @extends Mirror
  */
-function ScopeMirror(frame, function, index) {
+function ScopeMirror(frame, function, index, opt_details) {
   %_CallFunction(this, SCOPE_TYPE, Mirror);
   if (frame) {
     this.frame_index_ = frame.index_;
@@ -1945,7 +1959,7 @@ function ScopeMirror(frame, function, index) {
     this.frame_index_ = undefined;
   }
   this.scope_index_ = index;
-  this.details_ = new ScopeDetails(frame, function, index);
+  this.details_ = new ScopeDetails(frame, function, index, opt_details);
 }
 inherits(ScopeMirror, Mirror);
 

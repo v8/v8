@@ -492,6 +492,7 @@ namespace internal {
   F(GetScopeCount, 2, 1) \
   F(GetStepInPositions, 2, 1) \
   F(GetScopeDetails, 4, 1) \
+  F(GetAllScopesDetails, 3, 1) \
   F(GetFunctionScopeCount, 1, 1) \
   F(GetFunctionScopeDetails, 2, 1) \
   F(SetScopeVariableValue, 6, 1) \

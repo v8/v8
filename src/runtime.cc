@@ -12177,7 +12177,7 @@ static const int kScopeDetailsObjectIndex = 1;
 static const int kScopeDetailsSize = 2;
 
 
-static MaybeObject* MaterializeScopeDetails(Isolate* isolate,
+static Handle<JSObject> MaterializeScopeDetails(Isolate* isolate,
     ScopeIterator* it) {
   // Calculate the size of the result.
   int details_size = kScopeDetailsSize;
@@ -12186,10 +12186,10 @@ static MaybeObject* MaterializeScopeDetails(Isolate* isolate,
   // Fill in scope details.
   details->set(kScopeDetailsTypeIndex, Smi::FromInt(it->Type()));
   Handle<JSObject> scope_object = it->ScopeObject();
-  RETURN_IF_EMPTY_HANDLE(isolate, scope_object);
+  RETURN_IF_EMPTY_HANDLE_VALUE(isolate, scope_object, Handle<JSObject>());
   details->set(kScopeDetailsObjectIndex, *scope_object);
 
-  return *isolate->factory()->NewJSArrayWithElements(details);
+  return isolate->factory()->NewJSArrayWithElements(details);
 }
 
 
@@ -12230,7 +12230,51 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetScopeDetails) {
   if (it.Done()) {
     return isolate->heap()->undefined_value();
   }
-  return MaterializeScopeDetails(isolate, &it);
+  Handle<JSObject> details = MaterializeScopeDetails(isolate, &it);
+  RETURN_IF_EMPTY_HANDLE(isolate, details);
+  return *details;
+}
+
+
+// Return an array of scope details
+// args[0]: number: break id
+// args[1]: number: frame index
+// args[2]: number: inlined frame index
+//
+// The array returned contains arrays with the following information:
+// 0: Scope type
+// 1: Scope object
+RUNTIME_FUNCTION(MaybeObject*, Runtime_GetAllScopesDetails) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 3);
+
+  // Check arguments.
+  Object* check;
+  { MaybeObject* maybe_check = Runtime_CheckExecutionState(
+      RUNTIME_ARGUMENTS(isolate, args));
+    if (!maybe_check->ToObject(&check)) return maybe_check;
+  }
+  CONVERT_SMI_ARG_CHECKED(wrapped_id, 1);
+  CONVERT_NUMBER_CHECKED(int, inlined_jsframe_index, Int32, args[2]);
+
+  // Get the frame where the debugging is performed.
+  StackFrame::Id id = UnwrapFrameId(wrapped_id);
+  JavaScriptFrameIterator frame_it(isolate, id);
+  JavaScriptFrame* frame = frame_it.frame();
+
+  List<Handle<JSObject> > result(4);
+  ScopeIterator it(isolate, frame, inlined_jsframe_index);
+  for (; !it.Done(); it.Next()) {
+    Handle<JSObject> details = MaterializeScopeDetails(isolate, &it);
+    RETURN_IF_EMPTY_HANDLE(isolate, details);
+    result.Add(details);
+  }
+
+  Handle<FixedArray> array = isolate->factory()->NewFixedArray(result.length());
+  for (int i = 0; i < result.length(); ++i) {
+    array->set(i, *result[i]);
+  }
+  return *isolate->factory()->NewJSArrayWithElements(array);
 }
 
 
@@ -12269,7 +12313,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFunctionScopeDetails) {
     return isolate->heap()->undefined_value();
   }
 
-  return MaterializeScopeDetails(isolate, &it);
+  Handle<JSObject> details = MaterializeScopeDetails(isolate, &it);
+  RETURN_IF_EMPTY_HANDLE(isolate, details);
+  return *details;
 }
 
 
