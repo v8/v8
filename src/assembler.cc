@@ -1593,4 +1593,37 @@ bool PositionsRecorder::WriteRecordedPositions() {
   return written;
 }
 
+
+MultiplierAndShift::MultiplierAndShift(int32_t d) {
+  ASSERT(d <= -2 || 2 <= d);
+  const uint32_t two31 = 0x80000000;
+  uint32_t ad = Abs(d);
+  uint32_t t = two31 + (uint32_t(d) >> 31);
+  uint32_t anc = t - 1 - t % ad;   // Absolute value of nc.
+  int32_t p = 31;                  // Init. p.
+  uint32_t q1 = two31 / anc;       // Init. q1 = 2**p/|nc|.
+  uint32_t r1 = two31 - q1 * anc;  // Init. r1 = rem(2**p, |nc|).
+  uint32_t q2 = two31 / ad;        // Init. q2 = 2**p/|d|.
+  uint32_t r2 = two31 - q2 * ad;   // Init. r2 = rem(2**p, |d|).
+  uint32_t delta;
+  do {
+    p++;
+    q1 *= 2;          // Update q1 = 2**p/|nc|.
+    r1 *= 2;          // Update r1 = rem(2**p, |nc|).
+    if (r1 >= anc) {  // Must be an unsigned comparison here.
+      q1++;
+      r1 = r1 - anc;
+    }
+    q2 *= 2;          // Update q2 = 2**p/|d|.
+    r2 *= 2;          // Update r2 = rem(2**p, |d|).
+    if (r2 >= ad) {   // Must be an unsigned comparison here.
+      q2++;
+      r2 = r2 - ad;
+    }
+    delta = ad - r2;
+  } while (q1 < delta || (q1 == delta && r1 == 0));
+  multiplier_ = (d < 0) ? -(q2 + 1) : (q2 + 1);
+  shift_ = p - 32;
+}
+
 } }  // namespace v8::internal

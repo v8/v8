@@ -937,6 +937,7 @@ class Assembler : public AssemblerBase {
   void imul(Register dst, const Operand& src);           // dst = dst * src.
   void imul(Register dst, Register src, Immediate imm);  // dst = src * imm.
   // Signed 32-bit multiply instructions.
+  void imull(Register src);                              // edx:eax = eax * src.
   void imull(Register dst, Register src);                 // dst = dst * src.
   void imull(Register dst, const Operand& src);           // dst = dst * src.
   void imull(Register dst, Register src, Immediate imm);  // dst = src * imm.

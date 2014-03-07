@@ -1037,6 +1037,21 @@ class NullCallWrapper : public CallWrapper {
   virtual void AfterCall() const { }
 };
 
+
+// The multiplier and shift for signed division via multiplication, see Warren's
+// "Hacker's Delight", chapter 10.
+class MultiplierAndShift {
+ public:
+  explicit MultiplierAndShift(int32_t d);
+  int32_t multiplier() const { return multiplier_; }
+  int32_t shift() const { return shift_; }
+
+ private:
+  int32_t multiplier_;
+  int32_t shift_;
+};
+
+
 } }  // namespace v8::internal
 
 #endif  // V8_ASSEMBLER_H_

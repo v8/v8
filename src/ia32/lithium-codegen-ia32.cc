@@ -1401,6 +1401,34 @@ void LCodeGen::DoModByPowerOf2I(LModByPowerOf2I* instr) {
 }
 
 
+void LCodeGen::DoModByConstI(LModByConstI* instr) {
+  Register dividend = ToRegister(instr->dividend());
+  int32_t divisor = instr->divisor();
+  ASSERT(ToRegister(instr->result()).is(eax));
+
+  if (divisor == 0) {
+    DeoptimizeIf(no_condition, instr->environment());
+    return;
+  }
+
+  __ FlooringDiv(dividend, Abs(divisor));
+  __ imul(edx, edx, Abs(divisor));
+  __ mov(eax, dividend);
+  __ sub(eax, edx);
+
+  // Check for negative zero.
+  HMod* hmod = instr->hydrogen();
+  if (hmod->CheckFlag(HValue::kBailoutOnMinusZero) &&
+      hmod->left()->CanBeNegative()) {
+    Label remainder_not_zero;
+    __ j(not_zero, &remainder_not_zero, Label::kNear);
+    __ cmp(dividend, Immediate(0));
+    DeoptimizeIf(less, instr->environment());
+    __ bind(&remainder_not_zero);
+  }
+}
+
+
 void LCodeGen::DoModI(LModI* instr) {
   HMod* hmod = instr->hydrogen();
   HValue* left = hmod->left();
@@ -1497,6 +1525,36 @@ void LCodeGen::DoDivByPowerOf2I(LDivByPowerOf2I* instr) {
     __ sar(result, shift);
   }
   if (divisor < 0) __ neg(result);
+}
+
+
+void LCodeGen::DoDivByConstI(LDivByConstI* instr) {
+  Register dividend = ToRegister(instr->dividend());
+  int32_t divisor = instr->divisor();
+  ASSERT(ToRegister(instr->result()).is(edx));
+
+  if (divisor == 0) {
+    DeoptimizeIf(no_condition, instr->environment());
+    return;
+  }
+
+  // Check for (0 / -x) that will produce negative zero.
+  HDiv* hdiv = instr->hydrogen();
+  if (hdiv->CheckFlag(HValue::kBailoutOnMinusZero) &&
+      hdiv->left()->RangeCanInclude(0) && divisor < 0) {
+    __ test(dividend, dividend);
+    DeoptimizeIf(zero, instr->environment());
+  }
+
+  __ FlooringDiv(dividend, Abs(divisor));
+  if (divisor < 0) __ neg(edx);
+
+  if (!hdiv->CheckFlag(HInstruction::kAllUsesTruncatingToInt32)) {
+    __ mov(eax, edx);
+    __ imul(eax, eax, divisor);
+    __ sub(eax, dividend);
+    DeoptimizeIf(not_equal, instr->environment());
+  }
 }
 
 
@@ -1599,8 +1657,6 @@ void LCodeGen::DoFlooringDivByPowerOf2I(LFlooringDivByPowerOf2I* instr) {
 void LCodeGen::DoFlooringDivByConstI(LFlooringDivByConstI* instr) {
   Register dividend = ToRegister(instr->dividend());
   int32_t divisor = instr->divisor();
-  Register scratch = ToRegister(instr->temp());
-  ASSERT(ToRegister(instr->dividend()).is(eax));
   ASSERT(ToRegister(instr->result()).is(edx));
 
   if (divisor == 0) {
@@ -1608,52 +1664,15 @@ void LCodeGen::DoFlooringDivByConstI(LFlooringDivByConstI* instr) {
     return;
   }
 
-  // Find b which: 2^b < divisor_abs < 2^(b+1).
-  uint32_t divisor_abs = abs(divisor);
-  unsigned b = 31 - CompilerIntrinsics::CountLeadingZeros(divisor_abs);
-  unsigned shift = 32 + b;  // Precision +1bit (effectively).
-  double multiplier_f =
-      static_cast<double>(static_cast<uint64_t>(1) << shift) / divisor_abs;
-  int64_t multiplier;
-  if (multiplier_f - std::floor(multiplier_f) < 0.5) {
-    multiplier = static_cast<int64_t>(std::floor(multiplier_f));
-  } else {
-    multiplier = static_cast<int64_t>(std::floor(multiplier_f)) + 1;
-  }
-  // The multiplier is a uint32.
-  ASSERT(multiplier > 0 &&
-         multiplier < (static_cast<int64_t>(1) << 32));
-  __ mov(scratch, dividend);
-  if (divisor < 0 &&
-      instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+  // Check for (0 / -x) that will produce negative zero.
+  HMathFloorOfDiv* hdiv = instr->hydrogen();
+  if (hdiv->CheckFlag(HValue::kBailoutOnMinusZero) &&
+      hdiv->left()->RangeCanInclude(0) && divisor < 0) {
     __ test(dividend, dividend);
     DeoptimizeIf(zero, instr->environment());
   }
-  __ mov(edx, static_cast<int32_t>(multiplier));
-  __ imul(edx);
-  if (static_cast<int32_t>(multiplier) < 0) {
-    __ add(edx, scratch);
-  }
-  Register reg_lo = eax;
-  Register reg_byte_scratch = scratch;
-  if (!reg_byte_scratch.is_byte_register()) {
-    __ xchg(reg_lo, reg_byte_scratch);
-    reg_lo = scratch;
-    reg_byte_scratch = eax;
-  }
-  if (divisor < 0) {
-    __ xor_(reg_byte_scratch, reg_byte_scratch);
-    __ cmp(reg_lo, 0x40000000);
-    __ setcc(above, reg_byte_scratch);
-    __ neg(edx);
-    __ sub(edx, reg_byte_scratch);
-  } else {
-    __ xor_(reg_byte_scratch, reg_byte_scratch);
-    __ cmp(reg_lo, 0xC0000000);
-    __ setcc(above_equal, reg_byte_scratch);
-    __ add(edx, reg_byte_scratch);
-  }
-  __ sar(edx, shift - 32);
+
+  __ FlooringDiv(dividend, divisor);
 }
 
 

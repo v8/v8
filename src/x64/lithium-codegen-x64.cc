@@ -1016,6 +1016,34 @@ void LCodeGen::DoModByPowerOf2I(LModByPowerOf2I* instr) {
 }
 
 
+void LCodeGen::DoModByConstI(LModByConstI* instr) {
+  Register dividend = ToRegister(instr->dividend());
+  int32_t divisor = instr->divisor();
+  ASSERT(ToRegister(instr->result()).is(rax));
+
+  if (divisor == 0) {
+    DeoptimizeIf(no_condition, instr->environment());
+    return;
+  }
+
+  __ FlooringDiv(dividend, Abs(divisor));
+  __ imull(rdx, rdx, Immediate(Abs(divisor)));
+  __ movl(rax, dividend);
+  __ subl(rax, rdx);
+
+  // Check for negative zero.
+  HMod* hmod = instr->hydrogen();
+  if (hmod->CheckFlag(HValue::kBailoutOnMinusZero) &&
+      hmod->left()->CanBeNegative()) {
+    Label remainder_not_zero;
+    __ j(not_zero, &remainder_not_zero, Label::kNear);
+    __ cmpl(dividend, Immediate(0));
+    DeoptimizeIf(less, instr->environment());
+    __ bind(&remainder_not_zero);
+  }
+}
+
+
 void LCodeGen::DoModI(LModI* instr) {
   if (instr->hydrogen()->RightIsPowerOf2()) {
     return DoModByPowerOf2I(reinterpret_cast<LModByPowerOf2I*>(instr));
@@ -1119,42 +1147,22 @@ void LCodeGen::DoFlooringDivByPowerOf2I(LFlooringDivByPowerOf2I* instr) {
 void LCodeGen::DoFlooringDivByConstI(LFlooringDivByConstI* instr) {
   Register dividend = ToRegister(instr->dividend());
   int32_t divisor = instr->divisor();
-  Register temp = ToRegister(instr->temp());
-  Register result = ToRegister(instr->result());
+  ASSERT(ToRegister(instr->result()).is(rdx));
 
   if (divisor == 0) {
     DeoptimizeIf(no_condition, instr->environment());
     return;
   }
 
-  // Find b which: 2^b < divisor_abs < 2^(b+1).
-  uint32_t divisor_abs = abs(divisor);
-  unsigned b = 31 - CompilerIntrinsics::CountLeadingZeros(divisor_abs);
-  unsigned shift = 32 + b;  // Precision +1bit (effectively).
-  double multiplier_f =
-      static_cast<double>(static_cast<uint64_t>(1) << shift) / divisor_abs;
-  int64_t multiplier;
-  if (multiplier_f - std::floor(multiplier_f) < 0.5) {
-    multiplier = static_cast<int64_t>(std::floor(multiplier_f));
-  } else {
-    multiplier = static_cast<int64_t>(std::floor(multiplier_f)) + 1;
-  }
-  // The multiplier is a uint32.
-  ASSERT(multiplier > 0 &&
-         multiplier < (static_cast<int64_t>(1) << 32));
-  // The multiply is int64, so sign-extend to r64.
-  __ movsxlq(temp, dividend);
-  if (divisor < 0 &&
-      instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
-    __ neg(temp);
+  // Check for (0 / -x) that will produce negative zero.
+  HMathFloorOfDiv* hdiv = instr->hydrogen();
+  if (hdiv->CheckFlag(HValue::kBailoutOnMinusZero) &&
+      hdiv->left()->RangeCanInclude(0) && divisor < 0) {
+    __ testl(dividend, dividend);
     DeoptimizeIf(zero, instr->environment());
   }
-  __ Set(result, multiplier);
-  // Result just fit in r64, because it's int32 * uint32.
-  __ imul(result, temp);
 
-  __ addq(result, Immediate(1 << 30));
-  __ sar(result, Immediate(shift));
+  __ FlooringDiv(dividend, divisor);
 }
 
 
@@ -1195,6 +1203,36 @@ void LCodeGen::DoDivByPowerOf2I(LDivByPowerOf2I* instr) {
     __ sarl(result, Immediate(shift));
   }
   if (divisor < 0) __ negl(result);
+}
+
+
+void LCodeGen::DoDivByConstI(LDivByConstI* instr) {
+  Register dividend = ToRegister(instr->dividend());
+  int32_t divisor = instr->divisor();
+  ASSERT(ToRegister(instr->result()).is(rdx));
+
+  if (divisor == 0) {
+    DeoptimizeIf(no_condition, instr->environment());
+    return;
+  }
+
+  // Check for (0 / -x) that will produce negative zero.
+  HDiv* hdiv = instr->hydrogen();
+  if (hdiv->CheckFlag(HValue::kBailoutOnMinusZero) &&
+      hdiv->left()->RangeCanInclude(0) && divisor < 0) {
+    __ testl(dividend, dividend);
+    DeoptimizeIf(zero, instr->environment());
+  }
+
+  __ FlooringDiv(dividend, Abs(divisor));
+  if (divisor < 0) __ neg(rdx);
+
+  if (!hdiv->CheckFlag(HInstruction::kAllUsesTruncatingToInt32)) {
+    __ movl(rax, rdx);
+    __ imull(rax, rax, Immediate(divisor));
+    __ subl(rax, dividend);
+    DeoptimizeIf(not_equal, instr->environment());
+  }
 }
 
 
