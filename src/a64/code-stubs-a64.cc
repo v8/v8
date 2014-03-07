@@ -3257,15 +3257,22 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 }
 
 
-// TODO(jbramley): Don't use static registers here, but take them as arguments.
-static void GenerateRecordCallTarget(MacroAssembler* masm) {
+static void GenerateRecordCallTarget(MacroAssembler* masm,
+                                     Register argc,
+                                     Register function,
+                                     Register feedback_vector,
+                                     Register index,
+                                     Register scratch1,
+                                     Register scratch2) {
   ASM_LOCATION("GenerateRecordCallTarget");
+  ASSERT(!AreAliased(scratch1, scratch2,
+                     argc, function, feedback_vector, index));
   // Cache the called function in a feedback vector slot. Cache states are
   // uninitialized, monomorphic (indicated by a JSFunction), and megamorphic.
-  //  x0 : number of arguments to the construct function
-  //  x1 : the function to call
-  //  x2 : feedback vector
-  //  x3 : slot in feedback vector (smi)
+  //  argc :            number of arguments to the construct function
+  //  function :        the function to call
+  //  feedback_vector : the feedback vector
+  //  index :           slot in feedback vector (smi)
   Label initialize, done, miss, megamorphic, not_array_function;
 
   ASSERT_EQ(*TypeFeedbackInfo::MegamorphicSentinel(masm->isolate()),
@@ -3274,24 +3281,25 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
             masm->isolate()->heap()->the_hole_value());
 
   // Load the cache state.
-  __ Add(x4, x2, Operand::UntagSmiAndScale(x3, kPointerSizeLog2));
-  __ Ldr(x4, FieldMemOperand(x4, FixedArray::kHeaderSize));
+  __ Add(scratch1, feedback_vector,
+         Operand::UntagSmiAndScale(index, kPointerSizeLog2));
+  __ Ldr(scratch1, FieldMemOperand(scratch1, FixedArray::kHeaderSize));
 
   // A monomorphic cache hit or an already megamorphic state: invoke the
   // function without changing the state.
-  __ Cmp(x4, x1);
+  __ Cmp(scratch1, function);
   __ B(eq, &done);
 
   // If we came here, we need to see if we are the array function.
   // If we didn't have a matching function, and we didn't find the megamorph
   // sentinel, then we have in the slot either some other function or an
-  // AllocationSite. Do a map check on the object in ecx.
-  __ Ldr(x5, FieldMemOperand(x4, AllocationSite::kMapOffset));
-  __ JumpIfNotRoot(x5, Heap::kAllocationSiteMapRootIndex, &miss);
+  // AllocationSite. Do a map check on the object in scratch1 register.
+  __ Ldr(scratch2, FieldMemOperand(scratch1, AllocationSite::kMapOffset));
+  __ JumpIfNotRoot(scratch2, Heap::kAllocationSiteMapRootIndex, &miss);
 
   // Make sure the function is the Array() function
-  __ LoadGlobalFunction(Context::ARRAY_FUNCTION_INDEX, x4);
-  __ Cmp(x1, x4);
+  __ LoadGlobalFunction(Context::ARRAY_FUNCTION_INDEX, scratch1);
+  __ Cmp(function, scratch1);
   __ B(ne, &megamorphic);
   __ B(&done);
 
@@ -3299,21 +3307,22 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
 
   // A monomorphic miss (i.e, here the cache is not uninitialized) goes
   // megamorphic.
-  __ JumpIfRoot(x4, Heap::kTheHoleValueRootIndex, &initialize);
+  __ JumpIfRoot(scratch1, Heap::kTheHoleValueRootIndex, &initialize);
   // MegamorphicSentinel is an immortal immovable object (undefined) so no
   // write-barrier is needed.
   __ Bind(&megamorphic);
-  __ Add(x4, x2, Operand::UntagSmiAndScale(x3, kPointerSizeLog2));
-  __ LoadRoot(x10, Heap::kUndefinedValueRootIndex);
-  __ Str(x10, FieldMemOperand(x4, FixedArray::kHeaderSize));
+  __ Add(scratch1, feedback_vector,
+         Operand::UntagSmiAndScale(index, kPointerSizeLog2));
+  __ LoadRoot(scratch2, Heap::kUndefinedValueRootIndex);
+  __ Str(scratch2, FieldMemOperand(scratch1, FixedArray::kHeaderSize));
   __ B(&done);
 
   // An uninitialized cache is patched with the function or sentinel to
   // indicate the ElementsKind if function is the Array constructor.
   __ Bind(&initialize);
   // Make sure the function is the Array() function
-  __ LoadGlobalFunction(Context::ARRAY_FUNCTION_INDEX, x4);
-  __ Cmp(x1, x4);
+  __ LoadGlobalFunction(Context::ARRAY_FUNCTION_INDEX, scratch1);
+  __ Cmp(function, scratch1);
   __ B(ne, &not_array_function);
 
   // The target function is the Array constructor,
@@ -3323,31 +3332,31 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
     CreateAllocationSiteStub create_stub;
 
     // Arguments register must be smi-tagged to call out.
-    __ SmiTag(x0);
-    __ Push(x0, x1, x2, x3);
+    __ SmiTag(argc);
+    __ Push(argc, function, feedback_vector, index);
 
+    // CreateAllocationSiteStub expect the feedback vector in x2 and the slot
+    // index in x3.
+    ASSERT(feedback_vector.Is(x2) && index.Is(x3));
     __ CallStub(&create_stub);
 
-    __ Pop(x3, x2, x1, x0);
-    __ SmiUntag(x0);
+    __ Pop(index, feedback_vector, function, argc);
+    __ SmiUntag(argc);
   }
   __ B(&done);
 
   __ Bind(&not_array_function);
   // An uninitialized cache is patched with the function.
 
-  __ Add(x4, x2, Operand::UntagSmiAndScale(x3, kPointerSizeLog2));
-  // TODO(all): Does the value need to be left in x4? If not, FieldMemOperand
-  // could be used to avoid this add.
-  __ Add(x4, x4, FixedArray::kHeaderSize - kHeapObjectTag);
-  __ Str(x1, MemOperand(x4, 0));
+  __ Add(scratch1, feedback_vector,
+         Operand::UntagSmiAndScale(index, kPointerSizeLog2));
+  __ Add(scratch1, scratch1, FixedArray::kHeaderSize - kHeapObjectTag);
+  __ Str(function, MemOperand(scratch1, 0));
 
-  __ Push(x4, x2, x1);
-  __ RecordWrite(x2, x4, x1, kLRHasNotBeenSaved, kDontSaveFPRegs,
-                 EMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
-  __ Pop(x1, x2, x4);
-
-  // TODO(all): Are x4, x2 and x1 outputs? This isn't clear.
+  __ Push(function);
+  __ RecordWrite(feedback_vector, scratch1, function, kLRHasNotBeenSaved,
+                 kDontSaveFPRegs, EMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
+  __ Pop(function);
 
   __ Bind(&done);
 }
@@ -3375,7 +3384,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
     __ JumpIfNotObjectType(function, x10, type, JS_FUNCTION_TYPE, &slow);
 
     if (RecordCallTarget()) {
-      GenerateRecordCallTarget(masm);
+      GenerateRecordCallTarget(masm, x0, function, cache_cell, slot, x4, x5);
     }
   }
 
@@ -3480,7 +3489,7 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
                          &slow);
 
   if (RecordCallTarget()) {
-    GenerateRecordCallTarget(masm);
+    GenerateRecordCallTarget(masm, x0, function, x2, x3, x4, x5);
   }
 
   // Jump to the function-specific construct stub.
