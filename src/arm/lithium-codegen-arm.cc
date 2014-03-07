@@ -5276,6 +5276,26 @@ void LCodeGen::DoClampTToUint8(LClampTToUint8* instr) {
 }
 
 
+void LCodeGen::DoDoubleBits(LDoubleBits* instr) {
+  DwVfpRegister value_reg = ToDoubleRegister(instr->value());
+  Register result_reg = ToRegister(instr->result());
+  if (instr->hydrogen()->bits() == HDoubleBits::HIGH) {
+    __ VmovHigh(result_reg, value_reg);
+  } else {
+    __ VmovLow(result_reg, value_reg);
+  }
+}
+
+
+void LCodeGen::DoConstructDouble(LConstructDouble* instr) {
+  Register hi_reg = ToRegister(instr->hi());
+  Register lo_reg = ToRegister(instr->lo());
+  DwVfpRegister result_reg = ToDoubleRegister(instr->result());
+  __ VmovHigh(result_reg, hi_reg);
+  __ VmovLow(result_reg, lo_reg);
+}
+
+
 void LCodeGen::DoAllocate(LAllocate* instr) {
   class DeferredAllocate V8_FINAL : public LDeferredCode {
    public:

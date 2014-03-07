@@ -1922,6 +1922,21 @@ LInstruction* LChunkBuilder::DoRegExpLiteral(HRegExpLiteral* instr) {
 }
 
 
+LInstruction* LChunkBuilder::DoDoubleBits(HDoubleBits* instr) {
+  HValue* value = instr->value();
+  ASSERT(value->representation().IsDouble());
+  return DefineAsRegister(new(zone()) LDoubleBits(UseRegister(value)));
+}
+
+
+LInstruction* LChunkBuilder::DoConstructDouble(HConstructDouble* instr) {
+  LOperand* lo = UseRegister(instr->lo());
+  LOperand* hi = UseRegister(instr->hi());
+  LOperand* temp = TempRegister();
+  return DefineAsRegister(new(zone()) LConstructDouble(hi, lo, temp));
+}
+
+
 LInstruction* LChunkBuilder::DoReturn(HReturn* instr) {
   LOperand* context = info()->IsStub()
       ? UseFixed(instr->context(), cp)

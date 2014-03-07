@@ -31,7 +31,7 @@
     'console%': '',
     # Enable support for Intel VTune. Supported on ia32/x64 only
     'v8_enable_vtunejit%': 0,
-    'v8_enable_i18n_support%': 1,
+    'v8_enable_i18n_support%': 0,
     'v8_toolset_for_d8%': 'target',
   },
   'includes': ['../build/toolchain.gypi', '../build/features.gypi'],

@@ -102,12 +102,14 @@ class LChunkBuilder;
   V(CompareObjectEqAndBranch)                  \
   V(CompareMap)                                \
   V(Constant)                                  \
+  V(ConstructDouble)                           \
   V(Context)                                   \
   V(DateField)                                 \
   V(DebugBreak)                                \
   V(DeclareGlobals)                            \
   V(Deoptimize)                                \
   V(Div)                                       \
+  V(DoubleBits)                                \
   V(DummyUse)                                  \
   V(EnterInlined)                              \
   V(EnvironmentMarker)                         \
@@ -1814,6 +1816,65 @@ class HClampToUint8 V8_FINAL : public HUnaryOperation {
     set_representation(Representation::Integer32());
     SetFlag(kAllowUndefinedAsNaN);
     SetFlag(kUseGVN);
+  }
+
+  virtual bool IsDeletable() const V8_OVERRIDE { return true; }
+};
+
+
+class HDoubleBits V8_FINAL : public HUnaryOperation {
+ public:
+  enum Bits { HIGH, LOW };
+  DECLARE_INSTRUCTION_FACTORY_P2(HDoubleBits, HValue*, Bits);
+
+  virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
+    return Representation::Double();
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(DoubleBits)
+
+  Bits bits() { return bits_; }
+
+ protected:
+  virtual bool DataEquals(HValue* other) V8_OVERRIDE {
+    return other->IsDoubleBits() && HDoubleBits::cast(other)->bits() == bits();
+  }
+
+ private:
+  HDoubleBits(HValue* value, Bits bits)
+      : HUnaryOperation(value), bits_(bits) {
+    set_representation(Representation::Integer32());
+    SetFlag(kUseGVN);
+  }
+
+  virtual bool IsDeletable() const V8_OVERRIDE { return true; }
+
+  Bits bits_;
+};
+
+
+class HConstructDouble V8_FINAL : public HTemplateInstruction<2> {
+ public:
+  DECLARE_INSTRUCTION_FACTORY_P2(HConstructDouble, HValue*, HValue*);
+
+  virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
+    return Representation::Integer32();
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(ConstructDouble)
+
+  HValue* hi() { return OperandAt(0); }
+  HValue* lo() { return OperandAt(1); }
+
+ protected:
+  virtual bool DataEquals(HValue* other) V8_OVERRIDE { return true; }
+
+ private:
+  explicit HConstructDouble(HValue* hi, HValue* lo) {
+    set_representation(Representation::Double());
+    SetFlag(kUseGVN);
+    SetOperandAt(0, hi);
+    SetOperandAt(1, lo);
   }
 
   virtual bool IsDeletable() const V8_OVERRIDE { return true; }
