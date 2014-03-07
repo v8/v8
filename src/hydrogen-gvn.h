@@ -58,7 +58,6 @@ class SideEffects V8_FINAL {
   bool ContainsAnyOf(SideEffects set) const { return (bits_ & set.bits_) != 0; }
   void Add(SideEffects set) { bits_ |= set.bits_; }
   void AddSpecial(int special) { bits_ |= MaskSpecial(special); }
-  void AddAllSpecial() { bits_ |= ~static_cast<uint64_t>(0) << kNumberOfFlags; }
   void RemoveFlag(GVNFlag flag) { bits_ &= ~MaskFlag(flag); }
   void RemoveAll() { bits_ = 0; }
   uint64_t ToIntegral() const { return bits_; }
@@ -79,21 +78,42 @@ class SideEffects V8_FINAL {
 };
 
 
-// Tracks inobject field loads/stores in a fine grained fashion, and represents
-// them using the "special" dynamic side effects of the SideEffects class (see
-// above). This way unrelated inobject field stores don't prevent hoisting and
-// merging of inobject field loads.
+// Tracks global variable and inobject field loads/stores in a fine grained
+// fashion, and represents them using the "special" dynamic side effects of the
+// SideEffects class (see above). This way unrelated global variable/inobject
+// field stores don't prevent hoisting and merging of global variable/inobject
+// field loads.
 class SideEffectsTracker V8_FINAL BASE_EMBEDDED {
  public:
-  SideEffectsTracker() : num_inobject_fields_(0) {}
+  SideEffectsTracker() : num_global_vars_(0), num_inobject_fields_(0) {}
   SideEffects ComputeChanges(HInstruction* instr);
   SideEffects ComputeDependsOn(HInstruction* instr);
   void PrintSideEffectsTo(StringStream* stream, SideEffects side_effects) const;
 
  private:
+  bool ComputeGlobalVar(Unique<Cell> cell, int* index);
   bool ComputeInobjectField(HObjectAccess access, int* index);
 
-  HObjectAccess inobject_fields_[SideEffects::kNumberOfSpecials];
+  static int GlobalVar(int index) {
+    ASSERT(index >= 0);
+    ASSERT(index < kNumberOfGlobalVars);
+    return index;
+  }
+  static int InobjectField(int index) {
+    ASSERT(index >= 0);
+    ASSERT(index < kNumberOfInobjectFields);
+    return index + kNumberOfGlobalVars;
+  }
+
+  // Track up to four global vars.
+  static const int kNumberOfGlobalVars = 4;
+  Unique<Cell> global_vars_[kNumberOfGlobalVars];
+  int num_global_vars_;
+
+  // Track up to n inobject fields.
+  static const int kNumberOfInobjectFields =
+      SideEffects::kNumberOfSpecials - kNumberOfGlobalVars;
+  HObjectAccess inobject_fields_[kNumberOfInobjectFields];
   int num_inobject_fields_;
 };
 
