@@ -1689,30 +1689,29 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
           }
           break;
         }
-        // Duplicate receiver on stack.
-        __ Peek(x0, 0);
-        __ Push(x0);
-        VisitForStackValue(key);
-        VisitForStackValue(value);
         if (property->emit_store()) {
+          // Duplicate receiver on stack.
+          __ Peek(x0, 0);
+          __ Push(x0);
+          VisitForStackValue(key);
+          VisitForStackValue(value);
           __ Mov(x0, Operand(Smi::FromInt(NONE)));  // PropertyAttributes
           __ Push(x0);
           __ CallRuntime(Runtime::kSetProperty, 4);
         } else {
-          __ Drop(3);
+          VisitForEffect(key);
+          VisitForEffect(value);
         }
         break;
       case ObjectLiteral::Property::PROTOTYPE:
-        // Duplicate receiver on stack.
-        __ Peek(x0, 0);
-        // TODO(jbramley): This push shouldn't be necessary if we don't call the
-        // runtime below. In that case, skip it.
-        __ Push(x0);
-        VisitForStackValue(value);
         if (property->emit_store()) {
+          // Duplicate receiver on stack.
+          __ Peek(x0, 0);
+          __ Push(x0);
+          VisitForStackValue(value);
           __ CallRuntime(Runtime::kSetPrototype, 2);
         } else {
-          __ Drop(2);
+          VisitForEffect(value);
         }
         break;
       case ObjectLiteral::Property::GETTER:
