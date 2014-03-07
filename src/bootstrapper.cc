@@ -1520,7 +1520,6 @@ bool Genesis::CompileScriptCached(Isolate* isolate,
         top_context,
         extension,
         NULL,
-        Handle<String>::null(),
         use_runtime_context ? NATIVES_CODE : NOT_NATIVES_CODE);
     if (function_info.is_null()) return false;
     if (cache != NULL) cache->Add(name, function_info);
@@ -1755,9 +1754,6 @@ bool Genesis::InstallNatives() {
             STATIC_ASCII_VECTOR("column_offset")));
     Handle<Foreign> script_column_offset(
         factory()->NewForeign(&Accessors::ScriptColumnOffset));
-    Handle<String> data_string(factory()->InternalizeOneByteString(
-        STATIC_ASCII_VECTOR("data")));
-    Handle<Foreign> script_data(factory()->NewForeign(&Accessors::ScriptData));
     Handle<String> type_string(factory()->InternalizeOneByteString(
         STATIC_ASCII_VECTOR("type")));
     Handle<Foreign> script_type(factory()->NewForeign(&Accessors::ScriptType));
@@ -1818,11 +1814,6 @@ bool Genesis::InstallNatives() {
     {
       CallbacksDescriptor d(
           *column_offset_string, *script_column_offset, attribs);
-      script_map->AppendDescriptor(&d, witness);
-    }
-
-    {
-      CallbacksDescriptor d(*data_string, *script_data, attribs);
       script_map->AppendDescriptor(&d, witness);
     }
 

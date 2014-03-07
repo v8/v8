@@ -927,7 +927,6 @@ Handle<SharedFunctionInfo> Compiler::CompileScript(Handle<String> source,
                                                    Handle<Context> context,
                                                    v8::Extension* extension,
                                                    ScriptDataImpl* pre_data,
-                                                   Handle<Object> script_data,
                                                    NativesFlag natives) {
   Isolate* isolate = source->GetIsolate();
   int source_length = source->length();
@@ -968,9 +967,6 @@ Handle<SharedFunctionInfo> Compiler::CompileScript(Handle<String> source,
       script->set_column_offset(Smi::FromInt(column_offset));
     }
     script->set_is_shared_cross_origin(is_shared_cross_origin);
-
-    script->set_data(script_data.is_null() ? isolate->heap()->undefined_value()
-                                           : *script_data);
 
     // Compile the function and add it to the cache.
     CompilationInfoWithZone info(script);

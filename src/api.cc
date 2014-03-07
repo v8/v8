@@ -1616,8 +1616,7 @@ ScriptData* ScriptData::New(const char* data, int length) {
 
 Local<Script> Script::New(v8::Handle<String> source,
                           v8::ScriptOrigin* origin,
-                          v8::ScriptData* pre_data,
-                          v8::Handle<String> script_data) {
+                          v8::ScriptData* pre_data) {
   i::Handle<i::String> str = Utils::OpenHandle(*source);
   i::Isolate* isolate = str->GetIsolate();
   ON_BAILOUT(isolate, "v8::Script::New()", return Local<Script>());
@@ -1665,7 +1664,6 @@ Local<Script> Script::New(v8::Handle<String> source,
                                    isolate->global_context(),
                                    NULL,
                                    pre_data_impl,
-                                   Utils::OpenHandle(*script_data, true),
                                    i::NOT_NATIVES_CODE);
     has_pending_exception = result.is_null();
     EXCEPTION_BAILOUT_CHECK(isolate, Local<Script>());
@@ -1685,14 +1683,13 @@ Local<Script> Script::New(v8::Handle<String> source,
 
 Local<Script> Script::Compile(v8::Handle<String> source,
                               v8::ScriptOrigin* origin,
-                              v8::ScriptData* pre_data,
-                              v8::Handle<String> script_data) {
+                              v8::ScriptData* pre_data) {
   i::Handle<i::String> str = Utils::OpenHandle(*source);
   i::Isolate* isolate = str->GetIsolate();
   ON_BAILOUT(isolate, "v8::Script::Compile()", return Local<Script>());
   LOG_API(isolate, "Script::Compile");
   ENTER_V8(isolate);
-  Local<Script> generic = New(source, origin, pre_data, script_data);
+  Local<Script> generic = New(source, origin, pre_data);
   if (generic.IsEmpty())
     return generic;
   i::Handle<i::Object> obj = Utils::OpenHandle(*generic);
@@ -1707,10 +1704,9 @@ Local<Script> Script::Compile(v8::Handle<String> source,
 
 
 Local<Script> Script::Compile(v8::Handle<String> source,
-                              v8::Handle<Value> file_name,
-                              v8::Handle<String> script_data) {
+                              v8::Handle<Value> file_name) {
   ScriptOrigin origin(file_name);
-  return Compile(source, &origin, 0, script_data);
+  return Compile(source, &origin);
 }
 
 
@@ -1805,22 +1801,6 @@ Handle<Value> Script::GetScriptName() {
     return Utils::ToLocal(i::Handle<i::Object>(name, isolate));
   } else {
     return Handle<String>();
-  }
-}
-
-
-void Script::SetData(v8::Handle<String> data) {
-  i::Handle<i::HeapObject> obj =
-      i::Handle<i::HeapObject>::cast(Utils::OpenHandle(this));
-  i::Isolate* isolate = obj->GetIsolate();
-  ON_BAILOUT(isolate, "v8::Script::SetData()", return);
-  LOG_API(isolate, "Script::SetData");
-  {
-    i::HandleScope scope(isolate);
-    i::Handle<i::SharedFunctionInfo> function_info = OpenScript(this);
-    i::Handle<i::Object> raw_data = Utils::OpenHandle(*data);
-    i::Handle<i::Script> script(i::Script::cast(function_info->script()));
-    script->set_data(*raw_data);
   }
 }
 
@@ -1977,21 +1957,6 @@ v8::Handle<Value> Message::GetScriptResourceName() const {
   i::Handle<i::Object> resource_name(i::Script::cast(script->value())->name(),
                                      isolate);
   return scope.Escape(Utils::ToLocal(resource_name));
-}
-
-
-v8::Handle<Value> Message::GetScriptData() const {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  ENTER_V8(isolate);
-  EscapableHandleScope scope(reinterpret_cast<Isolate*>(isolate));
-  i::Handle<i::JSMessageObject> message =
-      i::Handle<i::JSMessageObject>::cast(Utils::OpenHandle(this));
-  // Return this.script.data.
-  i::Handle<i::JSValue> script =
-      i::Handle<i::JSValue>::cast(i::Handle<i::Object>(message->script(),
-                                                       isolate));
-  i::Handle<i::Object> data(i::Script::cast(script->value())->data(), isolate);
-  return scope.Escape(Utils::ToLocal(data));
 }
 
 

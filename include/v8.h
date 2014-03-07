@@ -1011,16 +1011,12 @@ class V8_EXPORT Script {
    * \param pre_data Pre-parsing data, as obtained by ScriptData::PreCompile()
    *   using pre_data speeds compilation if it's done multiple times.
    *   Owned by caller, no references are kept when New() returns.
-   * \param script_data Arbitrary data associated with script. Using
-   *   this has same effect as calling SetData(), but allows data to be
-   *   available to compile event handlers.
    * \return Compiled script object (context independent; when run it
    *   will use the currently entered context).
    */
   static Local<Script> New(Handle<String> source,
                            ScriptOrigin* origin = NULL,
-                           ScriptData* pre_data = NULL,
-                           Handle<String> script_data = Handle<String>());
+                           ScriptData* pre_data = NULL);
 
   /**
    * Compiles the specified script using the specified file name
@@ -1044,17 +1040,13 @@ class V8_EXPORT Script {
    * \param pre_data Pre-parsing data, as obtained by ScriptData::PreCompile()
    *   using pre_data speeds compilation if it's done multiple times.
    *   Owned by caller, no references are kept when Compile() returns.
-   * \param script_data Arbitrary data associated with script. Using
-   *   this has same effect as calling SetData(), but makes data available
-   *   earlier (i.e. to compile event handlers).
    * \return Compiled script object, bound to the context that was active
    *   when this function was called.  When run it will always use this
    *   context.
    */
   static Local<Script> Compile(Handle<String> source,
                                ScriptOrigin* origin = NULL,
-                               ScriptData* pre_data = NULL,
-                               Handle<String> script_data = Handle<String>());
+                               ScriptData* pre_data = NULL);
 
   /**
    * Compiles the specified script using the specified file name
@@ -1062,16 +1054,12 @@ class V8_EXPORT Script {
    *
    * \param source Script source code.
    * \param file_name File name to use as script's origin
-   * \param script_data Arbitrary data associated with script. Using
-   *   this has same effect as calling SetData(), but makes data available
-   *   earlier (i.e. to compile event handlers).
    * \return Compiled script object, bound to the context that was active
    *   when this function was called.  When run it will always use this
    *   context.
    */
   static Local<Script> Compile(Handle<String> source,
-                               Handle<Value> file_name,
-                               Handle<String> script_data = Handle<String>());
+                               Handle<Value> file_name);
 
   /**
    * Runs the script returning the resulting value.  If the script is
@@ -1086,13 +1074,6 @@ class V8_EXPORT Script {
    * Returns the script id.
    */
   int GetId();
-
-  /**
-   * Associate an additional data object with the script. This is mainly used
-   * with the debugger as this data object is only available through the
-   * debugger API.
-   */
-  void SetData(Handle<String> data);
 
   /**
    * Returns the name value of one Script.
