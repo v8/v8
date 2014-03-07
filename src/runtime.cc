@@ -6250,38 +6250,27 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringParseFloat) {
 template <class Converter>
 MUST_USE_RESULT static MaybeObject* ConvertCaseHelper(
     Isolate* isolate,
-    String* s,
-    String::Encoding result_encoding,
-    int length,
-    int input_string_length,
+    String* string,
+    SeqString* result,
+    int result_length,
     unibrow::Mapping<Converter, 128>* mapping) {
+  DisallowHeapAllocation no_gc;
   // We try this twice, once with the assumption that the result is no longer
   // than the input and, if that assumption breaks, again with the exact
   // length.  This may not be pretty, but it is nicer than what was here before
   // and I hereby claim my vaffel-is.
   //
-  // Allocate the resulting string.
-  //
   // NOTE: This assumes that the upper/lower case of an ASCII
   // character is also ASCII.  This is currently the case, but it
   // might break in the future if we implement more context and locale
   // dependent upper/lower conversions.
-  Object* o;
-  { MaybeObject* maybe_o = result_encoding == String::ONE_BYTE_ENCODING
-        ? isolate->heap()->AllocateRawOneByteString(length)
-        : isolate->heap()->AllocateRawTwoByteString(length);
-    if (!maybe_o->ToObject(&o)) return maybe_o;
-  }
-  String* result = String::cast(o);
   bool has_changed_character = false;
-
-  DisallowHeapAllocation no_gc;
 
   // Convert all characters to upper case, assuming that they will fit
   // in the buffer
   Access<ConsStringIteratorOp> op(
       isolate->runtime_state()->string_iterator());
-  StringCharacterStream stream(s, op.value());
+  StringCharacterStream stream(string, op.value());
   unibrow::uchar chars[Converter::kMaxWidth];
   // We can assume that the string is not empty
   uc32 current = stream.GetNext();
@@ -6289,7 +6278,7 @@ MUST_USE_RESULT static MaybeObject* ConvertCaseHelper(
   // when converting to uppercase.
   static const uc32 yuml_code = 0xff;
   bool ignore_yuml = result->IsSeqTwoByteString() || Converter::kIsToLower;
-  for (int i = 0; i < length;) {
+  for (int i = 0; i < result_length;) {
     bool has_next = stream.HasMore();
     uc32 next = has_next ? stream.GetNext() : 0;
     int char_length = mapping->get(current, next, chars);
@@ -6303,7 +6292,7 @@ MUST_USE_RESULT static MaybeObject* ConvertCaseHelper(
       result->Set(i, chars[0]);
       has_changed_character = true;
       i++;
-    } else if (length == input_string_length) {
+    } else if (result_length == string->length()) {
       bool found_yuml = (current == yuml_code);
       // We've assumed that the result would be as long as the
       // input but here is a character that converts to several
@@ -6357,7 +6346,7 @@ MUST_USE_RESULT static MaybeObject* ConvertCaseHelper(
     // we simple return the result and let the converted string
     // become garbage; there is no reason to keep two identical strings
     // alive.
-    return s;
+    return string;
   }
 }
 
@@ -6388,7 +6377,7 @@ static inline uintptr_t AsciiRangeMask(uintptr_t w, char m, char n) {
 
 #ifdef DEBUG
 static bool CheckFastAsciiConvert(char* dst,
-                                  char* src,
+                                  const char* src,
                                   int length,
                                   bool changed,
                                   bool is_to_lower) {
@@ -6411,12 +6400,12 @@ static bool CheckFastAsciiConvert(char* dst,
 
 template<class Converter>
 static bool FastAsciiConvert(char* dst,
-                             char* src,
+                             const char* src,
                              int length,
                              bool* changed_out) {
 #ifdef DEBUG
     char* saved_dst = dst;
-    char* saved_src = src;
+    const char* saved_src = src;
 #endif
   DisallowHeapAllocation no_gc;
   // We rely on the distance between upper and lower case letters
@@ -6427,12 +6416,12 @@ static bool FastAsciiConvert(char* dst,
   static const char hi = Converter::kIsToLower ? 'Z' + 1 : 'z' + 1;
   bool changed = false;
   uintptr_t or_acc = 0;
-  char* const limit = src + length;
+  const char* const limit = src + length;
 #ifdef V8_HOST_CAN_READ_UNALIGNED
   // Process the prefix of the input that requires no conversion one
   // (machine) word at a time.
   while (src <= limit - sizeof(uintptr_t)) {
-    uintptr_t w = *reinterpret_cast<uintptr_t*>(src);
+    const uintptr_t w = *reinterpret_cast<const uintptr_t*>(src);
     or_acc |= w;
     if (AsciiRangeMask(w, lo, hi) != 0) {
       changed = true;
@@ -6445,7 +6434,7 @@ static bool FastAsciiConvert(char* dst,
   // Process the remainder of the input performing conversion when
   // required one word at a time.
   while (src <= limit - sizeof(uintptr_t)) {
-    uintptr_t w = *reinterpret_cast<uintptr_t*>(src);
+    const uintptr_t w = *reinterpret_cast<const uintptr_t*>(src);
     or_acc |= w;
     uintptr_t m = AsciiRangeMask(w, lo, hi);
     // The mask has high (7th) bit set in every byte that needs
@@ -6488,13 +6477,12 @@ MUST_USE_RESULT static MaybeObject* ConvertCase(
     Arguments args,
     Isolate* isolate,
     unibrow::Mapping<Converter, 128>* mapping) {
-  SealHandleScope shs(isolate);
-  CONVERT_ARG_CHECKED(String, s, 0);
-  s = s->TryFlattenGetString();
-
-  const int length = s->length();
+  HandleScope handle_scope(isolate);
+  CONVERT_ARG_HANDLE_CHECKED(String, s, 0);
+  s = FlattenGetString(s);
+  int length = s->length();
   // Assume that the string is not empty; we need this assumption later
-  if (length == 0) return s;
+  if (length == 0) return *s;
 
   // Simpler handling of ASCII strings.
   //
@@ -6502,42 +6490,43 @@ MUST_USE_RESULT static MaybeObject* ConvertCase(
   // character is also ASCII.  This is currently the case, but it
   // might break in the future if we implement more context and locale
   // dependent upper/lower conversions.
-  if (s->IsSeqOneByteString()) {
-    Object* o;
-    { MaybeObject* maybe_o = isolate->heap()->AllocateRawOneByteString(length);
-      if (!maybe_o->ToObject(&o)) return maybe_o;
-    }
-    SeqOneByteString* result = SeqOneByteString::cast(o);
+  if (s->IsOneByteRepresentationUnderneath()) {
+    Handle<SeqOneByteString> result =
+        isolate->factory()->NewRawOneByteString(length);
+
+    DisallowHeapAllocation no_gc;
+    String::FlatContent flat_content = s->GetFlatContent();
+    ASSERT(flat_content.IsFlat());
     bool has_changed_character = false;
     bool is_ascii = FastAsciiConvert<Converter>(
         reinterpret_cast<char*>(result->GetChars()),
-        reinterpret_cast<char*>(SeqOneByteString::cast(s)->GetChars()),
+        reinterpret_cast<const char*>(flat_content.ToOneByteVector().start()),
         length,
         &has_changed_character);
     // If not ASCII, we discard the result and take the 2 byte path.
-    if (is_ascii) {
-      return has_changed_character ? result : s;
-    }
+    if (is_ascii)  return has_changed_character ? *result : *s;
   }
 
-  String::Encoding result_encoding = s->IsOneByteRepresentation()
-      ? String::ONE_BYTE_ENCODING : String::TWO_BYTE_ENCODING;
+  Handle<SeqString> result;
+  if (s->IsOneByteRepresentation()) {
+    result = isolate->factory()->NewRawOneByteString(length);
+  } else {
+    result = isolate->factory()->NewRawTwoByteString(length);
+  }
+  MaybeObject* maybe = ConvertCaseHelper(isolate, *s, *result, length, mapping);
   Object* answer;
-  { MaybeObject* maybe_answer = ConvertCaseHelper(
-        isolate, s, result_encoding, length, length, mapping);
-    if (!maybe_answer->ToObject(&answer)) return maybe_answer;
+  if (!maybe->ToObject(&answer)) return maybe;
+  if (answer->IsString()) return answer;
+
+  ASSERT(answer->IsSmi());
+  length = Smi::cast(answer)->value();
+  if (s->IsOneByteRepresentation() && length > 0) {
+    result = isolate->factory()->NewRawOneByteString(length);
+  } else {
+    if (length < 0) length = -length;
+    result = isolate->factory()->NewRawTwoByteString(length);
   }
-  if (answer->IsSmi()) {
-    int new_length = Smi::cast(answer)->value();
-    if (new_length < 0) {
-      result_encoding = String::TWO_BYTE_ENCODING;
-      new_length = -new_length;
-    }
-    MaybeObject* maybe_answer = ConvertCaseHelper(
-        isolate, s, result_encoding, new_length, length, mapping);
-    if (!maybe_answer->ToObject(&answer)) return maybe_answer;
-  }
-  return answer;
+  return ConvertCaseHelper(isolate, *s, *result, length, mapping);
 }
 
 
