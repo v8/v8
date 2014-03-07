@@ -1488,7 +1488,7 @@ int Disassembler::SubstituteImmediateField(Instruction* instr,
       return 6;
     }
     default: {
-      UNIMPLEMENTED();
+      UNREACHABLE();
       return 0;
     }
   }
@@ -1564,7 +1564,7 @@ int Disassembler::SubstituteShiftField(Instruction* instr, const char* format) {
       return 3;
     }
     default:
-      UNIMPLEMENTED();
+      UNREACHABLE();
       return 0;
   }
 }
@@ -1626,7 +1626,7 @@ int Disassembler::SubstituteBranchTargetField(Instruction* instr,
     case 'm': offset = instr->ImmCmpBranch(); break;
     // BImmTest - test and branch immediate.
     case 'e': offset = instr->ImmTestBranch(); break;
-    default: UNIMPLEMENTED();
+    default: UNREACHABLE();
   }
   offset <<= kInstructionSizeLog2;
   char sign = '+';
