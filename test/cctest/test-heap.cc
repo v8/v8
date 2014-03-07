@@ -2866,8 +2866,10 @@ TEST(IncrementalMarkingClearsTypeFeedbackInfo) {
   CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
 
   CHECK_EQ(2, feedback_vector->length());
-  CHECK(feedback_vector->get(0)->IsTheHole());
-  CHECK(feedback_vector->get(1)->IsTheHole());
+  CHECK_EQ(feedback_vector->get(0),
+           *TypeFeedbackInfo::UninitializedSentinel(CcTest::i_isolate()));
+  CHECK_EQ(feedback_vector->get(1),
+           *TypeFeedbackInfo::UninitializedSentinel(CcTest::i_isolate()));
 }
 
 

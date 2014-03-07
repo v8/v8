@@ -388,10 +388,13 @@ unsigned FullCodeGenerator::EmitBackEdgeTable() {
 
 void FullCodeGenerator::InitializeFeedbackVector() {
   int length = info_->function()->slot_count();
-  ASSERT_EQ(isolate()->heap()->the_hole_value(),
-            *TypeFeedbackInfo::UninitializedSentinel(isolate()));
-  feedback_vector_ = isolate()->factory()->NewFixedArrayWithHoles(length,
-                                                                  TENURED);
+  feedback_vector_ = isolate()->factory()->NewFixedArray(length, TENURED);
+  Handle<Object> sentinel = TypeFeedbackInfo::UninitializedSentinel(isolate());
+  // Ensure that it's safe to set without using a write barrier.
+  ASSERT_EQ(isolate()->heap()->uninitialized_symbol(), *sentinel);
+  for (int i = 0; i < length; i++) {
+    feedback_vector_->set(i, *sentinel, SKIP_WRITE_BARRIER);
+  }
 }
 
 

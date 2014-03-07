@@ -6526,12 +6526,12 @@ MaybeObject* ConstantPoolArray::Copy() {
 
 
 Handle<Object> TypeFeedbackInfo::UninitializedSentinel(Isolate* isolate) {
-  return isolate->factory()->the_hole_value();
+  return isolate->factory()->uninitialized_symbol();
 }
 
 
 Handle<Object> TypeFeedbackInfo::MegamorphicSentinel(Isolate* isolate) {
-  return isolate->factory()->undefined_value();
+  return isolate->factory()->megamorphic_symbol();
 }
 
 
@@ -6542,7 +6542,7 @@ Handle<Object> TypeFeedbackInfo::MonomorphicArraySentinel(Isolate* isolate,
 
 
 Object* TypeFeedbackInfo::RawUninitializedSentinel(Heap* heap) {
-  return heap->the_hole_value();
+  return heap->uninitialized_symbol();
 }
 
 
