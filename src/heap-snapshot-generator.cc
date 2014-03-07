@@ -2878,7 +2878,7 @@ void HeapSnapshotJSONSerializer::SerializeSnapshot() {
         JSON_S("column")) ","
     JSON_S("trace_node_fields") ":" JSON_A(
         JSON_S("id") ","
-        JSON_S("function_id") ","
+        JSON_S("function_info_index") ","
         JSON_S("count") ","
         JSON_S("size") ","
         JSON_S("children"))));
@@ -2893,7 +2893,7 @@ void HeapSnapshotJSONSerializer::SerializeSnapshot() {
   uint32_t count = 0;
   AllocationTracker* tracker = snapshot_->profiler()->allocation_tracker();
   if (tracker) {
-    count = tracker->id_to_function_info()->occupancy();
+    count = tracker->function_info_list().length();
   }
   writer_->AddNumber(count);
 }
@@ -2926,7 +2926,7 @@ void HeapSnapshotJSONSerializer::SerializeTraceNode(AllocationTraceNode* node) {
   int buffer_pos = 0;
   buffer_pos = utoa(node->id(), buffer, buffer_pos);
   buffer[buffer_pos++] = ',';
-  buffer_pos = utoa(node->function_id(), buffer, buffer_pos);
+  buffer_pos = utoa(node->function_info_index(), buffer, buffer_pos);
   buffer[buffer_pos++] = ',';
   buffer_pos = utoa(node->allocation_count(), buffer, buffer_pos);
   buffer[buffer_pos++] = ',';
@@ -2968,22 +2968,18 @@ void HeapSnapshotJSONSerializer::SerializeTraceNodeInfos() {
       6 * MaxDecimalDigitsIn<sizeof(unsigned)>::kUnsigned  // NOLINT
       + 6 + 1 + 1;
   EmbeddedVector<char, kBufferSize> buffer;
-  HashMap* id_to_function_info = tracker->id_to_function_info();
+  const List<AllocationTracker::FunctionInfo*>& list =
+      tracker->function_info_list();
   bool first_entry = true;
-  for (HashMap::Entry* p = id_to_function_info->Start();
-       p != NULL;
-       p = id_to_function_info->Next(p)) {
-    SnapshotObjectId id =
-        static_cast<SnapshotObjectId>(reinterpret_cast<intptr_t>(p->key));
-    AllocationTracker::FunctionInfo* info =
-        reinterpret_cast<AllocationTracker::FunctionInfo* >(p->value);
+  for (int i = 0; i < list.length(); i++) {
+    AllocationTracker::FunctionInfo* info = list[i];
     int buffer_pos = 0;
     if (first_entry) {
       first_entry = false;
     } else {
       buffer[buffer_pos++] = ',';
     }
-    buffer_pos = utoa(id, buffer, buffer_pos);
+    buffer_pos = utoa(info->function_id, buffer, buffer_pos);
     buffer[buffer_pos++] = ',';
     buffer_pos = utoa(GetStringId(info->name), buffer, buffer_pos);
     buffer[buffer_pos++] = ',';

@@ -2216,8 +2216,9 @@ static AllocationTraceNode* FindNode(
     Vector<AllocationTraceNode*> children = node->children();
     node = NULL;
     for (int j = 0; j < children.length(); j++) {
-      v8::SnapshotObjectId id = children[j]->function_id();
-      AllocationTracker::FunctionInfo* info = tracker->GetFunctionInfo(id);
+      unsigned index = children[j]->function_info_index();
+      AllocationTracker::FunctionInfo* info =
+          tracker->function_info_list()[index];
       if (info && strcmp(info->name, name) == 0) {
         node = children[j];
         break;
@@ -2361,6 +2362,34 @@ TEST(TrackBumpPointerAllocations) {
     CcTest::heap()->DisableInlineAllocation();
     heap_profiler->StopTrackingHeapObjects();
   }
+}
+
+
+TEST(TrackV8ApiAllocation) {
+  v8::HandleScope scope(v8::Isolate::GetCurrent());
+  LocalContext env;
+
+  v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
+  const char* names[] = { "(V8 API)" };
+  heap_profiler->StartTrackingHeapObjects(true);
+
+  v8::Handle<v8::Object> o1 = v8::Object::New(env->GetIsolate());
+  o1->Clone();
+
+  AllocationTracker* tracker =
+      reinterpret_cast<i::HeapProfiler*>(heap_profiler)->allocation_tracker();
+  CHECK_NE(NULL, tracker);
+  // Resolve all function locations.
+  tracker->PrepareForSerialization();
+  // Print for better diagnostics in case of failure.
+  tracker->trace_tree()->Print(tracker);
+
+  AllocationTraceNode* node =
+      FindNode(tracker, Vector<const char*>(names, ARRAY_SIZE(names)));
+  CHECK_NE(NULL, node);
+  CHECK_GE(node->allocation_count(), 2);
+  CHECK_GE(node->allocation_size(), 4 * node->allocation_count());
+  heap_profiler->StopTrackingHeapObjects();
 }
 
 
