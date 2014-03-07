@@ -141,6 +141,15 @@ void CompilationInfo::Initialize(Isolate* isolate,
     SetLanguageMode(shared_info_->language_mode());
   }
   set_bailout_reason(kUnknown);
+
+  if (!shared_info().is_null()) {
+    FixedArray* info_feedback_vector = shared_info()->feedback_vector();
+    if (info_feedback_vector->length() > 0) {
+      // We should initialize the CompilationInfo feedback vector from the
+      // passed in shared info, rather than creating a new one.
+      feedback_vector_ = Handle<FixedArray>(info_feedback_vector, isolate);
+    }
+  }
 }
 
 
@@ -250,6 +259,20 @@ void CompilationInfo::PrepareForCompilation(Scope* scope) {
   ASSERT(scope_ == NULL);
   scope_ = scope;
   function()->ProcessFeedbackSlots(isolate_);
+  int length = function()->slot_count();
+  if (feedback_vector_.is_null()) {
+    // Allocate the feedback vector too.
+    feedback_vector_ = isolate()->factory()->NewFixedArray(length, TENURED);
+    // Ensure we can skip the write barrier
+    ASSERT_EQ(isolate()->heap()->uninitialized_symbol(),
+              *TypeFeedbackInfo::UninitializedSentinel(isolate()));
+    for (int i = 0; i < length; i++) {
+      feedback_vector_->set(i,
+          *TypeFeedbackInfo::UninitializedSentinel(isolate()),
+          SKIP_WRITE_BARRIER);
+    }
+  }
+  ASSERT(feedback_vector_->length() == length);
 }
 
 
@@ -571,6 +594,8 @@ static void UpdateSharedFunctionInfo(CompilationInfo* info) {
   shared->ReplaceCode(*code);
   if (shared->optimization_disabled()) code->set_optimizable(false);
 
+  shared->set_feedback_vector(*info->feedback_vector());
+
   // Set the expected number of properties for instances.
   FunctionLiteral* lit = info->function();
   int expected = lit->expected_property_count();
@@ -826,7 +851,8 @@ static Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
         lit->materialized_literal_count(),
         lit->is_generator(),
         info->code(),
-        ScopeInfo::Create(info->scope(), info->zone()));
+        ScopeInfo::Create(info->scope(), info->zone()),
+        info->feedback_vector());
 
     ASSERT_EQ(RelocInfo::kNoPosition, lit->function_token_position());
     SetFunctionInfo(result, lit, true, script);
@@ -1033,7 +1059,8 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(FunctionLiteral* literal,
                                      literal->materialized_literal_count(),
                                      literal->is_generator(),
                                      info.code(),
-                                     scope_info);
+                                     scope_info,
+                                     info.feedback_vector());
   SetFunctionInfo(result, literal, false, script);
   RecordFunctionCompilation(Logger::FUNCTION_TAG, &info, result);
   result->set_allows_lazy_compilation(allow_lazy);

@@ -119,8 +119,6 @@ void FullCodeGenerator::Generate() {
   handler_table_ =
       isolate()->factory()->NewFixedArray(function()->handler_count(), TENURED);
 
-  InitializeFeedbackVector();
-
   profiling_counter_ = isolate()->factory()->NewCell(
       Handle<Smi>(Smi::FromInt(FLAG_interrupt_budget), isolate()));
   SetFunctionPosition(function());
@@ -1127,15 +1125,10 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   Label non_proxy;
   __ bind(&fixed_array);
 
-  Handle<Object> feedback = Handle<Object>(
-      Smi::FromInt(TypeFeedbackInfo::kForInFastCaseMarker),
-      isolate());
-  StoreFeedbackVectorSlot(slot, feedback);
-
   // No need for a write barrier, we are storing a Smi in the feedback vector.
   __ Move(rbx, FeedbackVector());
   __ Move(FieldOperand(rbx, FixedArray::OffsetOfElementAt(slot)),
-          Smi::FromInt(TypeFeedbackInfo::kForInSlowCaseMarker));
+          TypeFeedbackInfo::MegamorphicSentinel(isolate()));
   __ Move(rbx, Smi::FromInt(1));  // Smi indicates slow check
   __ movp(rcx, Operand(rsp, 0 * kPointerSize));  // Get enumerated object
   STATIC_ASSERT(FIRST_JS_PROXY_TYPE == FIRST_SPEC_OBJECT_TYPE);
@@ -2649,9 +2642,6 @@ void FullCodeGenerator::EmitCallWithStub(Call* expr) {
   // Record source position for debugger.
   SetSourcePosition(expr->position());
 
-  Handle<Object> uninitialized =
-      TypeFeedbackInfo::UninitializedSentinel(isolate());
-  StoreFeedbackVectorSlot(expr->CallFeedbackSlot(), uninitialized);
   __ Move(rbx, FeedbackVector());
   __ Move(rdx, Smi::FromInt(expr->CallFeedbackSlot()));
 
@@ -2829,9 +2819,6 @@ void FullCodeGenerator::VisitCallNew(CallNew* expr) {
   __ movp(rdi, Operand(rsp, arg_count * kPointerSize));
 
   // Record call targets in unoptimized code, but not in the snapshot.
-  Handle<Object> uninitialized =
-      TypeFeedbackInfo::UninitializedSentinel(isolate());
-  StoreFeedbackVectorSlot(expr->CallNewFeedbackSlot(), uninitialized);
   __ Move(rbx, FeedbackVector());
   __ Move(rdx, Smi::FromInt(expr->CallNewFeedbackSlot()));
 

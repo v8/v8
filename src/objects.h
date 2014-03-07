@@ -5469,8 +5469,6 @@ class Code: public HeapObject {
   void ClearInlineCaches();
   void ClearInlineCaches(Kind kind);
 
-  void ClearTypeFeedbackInfo(Heap* heap);
-
   BailoutId TranslatePcOffsetToAstId(uint32_t pc_offset);
   uint32_t TranslateAstIdToPcOffset(BailoutId ast_id);
 
@@ -6666,6 +6664,8 @@ class SharedFunctionInfo: public HeapObject {
   // Removed a specific optimized code object from the optimized code map.
   void EvictFromOptimizedCodeMap(Code* optimized_code, const char* reason);
 
+  void ClearTypeFeedbackInfo(Heap* heap);
+
   // Trims the optimized code map after entries have been removed.
   void TrimOptimizedCodeMap(int shrink_by);
 
@@ -6780,6 +6780,12 @@ class SharedFunctionInfo: public HeapObject {
   // the tracking phase.
   inline int construction_count();
   inline void set_construction_count(int value);
+
+  // [feedback_vector] - accumulates ast node feedback from full-codegen and
+  // (increasingly) from crankshafted code where sufficient feedback isn't
+  // available. Currently the field is duplicated in
+  // TypeFeedbackInfo::feedback_vector, but the allocation is done here.
+  DECL_ACCESSORS(feedback_vector, FixedArray)
 
   // [initial_map]: initial map of the first function called as a constructor.
   // Saved for the duration of the tracking phase.
@@ -7072,8 +7078,10 @@ class SharedFunctionInfo: public HeapObject {
   static const int kScriptOffset = kFunctionDataOffset + kPointerSize;
   static const int kDebugInfoOffset = kScriptOffset + kPointerSize;
   static const int kInferredNameOffset = kDebugInfoOffset + kPointerSize;
-  static const int kInitialMapOffset =
+  static const int kFeedbackVectorOffset =
       kInferredNameOffset + kPointerSize;
+  static const int kInitialMapOffset =
+      kFeedbackVectorOffset + kPointerSize;
   // ast_node_count is a Smi field. It could be grouped with another Smi field
   // into a PSEUDO_SMI_ACCESSORS pair (on x64), if one becomes available.
   static const int kAstNodeCountOffset =
@@ -8168,8 +8176,6 @@ class TypeFeedbackInfo: public Struct {
   inline void set_inlined_type_change_checksum(int checksum);
   inline bool matches_inlined_type_change_checksum(int checksum);
 
-  DECL_ACCESSORS(feedback_vector, FixedArray)
-
   static inline TypeFeedbackInfo* cast(Object* obj);
 
   // Dispatched behavior.
@@ -8178,10 +8184,9 @@ class TypeFeedbackInfo: public Struct {
 
   static const int kStorage1Offset = HeapObject::kHeaderSize;
   static const int kStorage2Offset = kStorage1Offset + kPointerSize;
-  static const int kFeedbackVectorOffset =
-      kStorage2Offset + kPointerSize;
-  static const int kSize = kFeedbackVectorOffset + kPointerSize;
+  static const int kSize = kStorage2Offset + kPointerSize;
 
+  // TODO(mvstanton): move these sentinel declarations to shared function info.
   // The object that indicates an uninitialized cache.
   static inline Handle<Object> UninitializedSentinel(Isolate* isolate);
 
@@ -8196,9 +8201,6 @@ class TypeFeedbackInfo: public Struct {
   // A raw version of the uninitialized sentinel that's safe to read during
   // garbage collection (e.g., for patching the cache).
   static inline Object* RawUninitializedSentinel(Heap* heap);
-
-  static const int kForInFastCaseMarker = 0;
-  static const int kForInSlowCaseMarker = 1;
 
  private:
   static const int kTypeChangeChecksumBits = 7;
