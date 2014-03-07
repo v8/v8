@@ -173,7 +173,7 @@ void AddressToTraceMap::Clear() {
 
 
 void AddressToTraceMap::Print() {
-  PrintF("[AddressToTraceMap (%lu): \n", ranges_.size());
+  PrintF("[AddressToTraceMap (%" V8PRIuPTR "): \n", ranges_.size());
   for (RangeMap::iterator it = ranges_.begin(); it != ranges_.end(); ++it) {
     PrintF("[%p - %p] => %u\n", it->second.start, it->first,
         it->second.trace_node_id);
