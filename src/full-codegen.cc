@@ -952,34 +952,6 @@ void FullCodeGenerator::EmitDebugBreakInOptimizedCode(CallRuntime* expr) {
 }
 
 
-void FullCodeGenerator::EmitDoubleHi(CallRuntime* expr) {
-  ZoneList<Expression*>* args = expr->arguments();
-  ASSERT(args->length() == 1);
-  VisitForStackValue(args->at(0));
-  masm()->CallRuntime(Runtime::kDoubleHi, 1);
-  context()->Plug(result_register());
-}
-
-
-void FullCodeGenerator::EmitDoubleLo(CallRuntime* expr) {
-  ZoneList<Expression*>* args = expr->arguments();
-  ASSERT(args->length() == 1);
-  VisitForStackValue(args->at(0));
-  masm()->CallRuntime(Runtime::kDoubleLo, 1);
-  context()->Plug(result_register());
-}
-
-
-void FullCodeGenerator::EmitConstructDouble(CallRuntime* expr) {
-  ZoneList<Expression*>* args = expr->arguments();
-  ASSERT(args->length() == 2);
-  VisitForStackValue(args->at(0));
-  VisitForStackValue(args->at(1));
-  masm()->CallRuntime(Runtime::kConstructDouble, 2);
-  context()->Plug(result_register());
-}
-
-
 void FullCodeGenerator::VisitBinaryOperation(BinaryOperation* expr) {
   switch (expr->op()) {
     case Token::COMMA:

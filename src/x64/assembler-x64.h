@@ -1381,8 +1381,6 @@ class Assembler : public AssemblerBase {
 
   void movapd(XMMRegister dst, XMMRegister src);
 
-  void psllq(XMMRegister reg, byte imm8);
-
   void cvttsd2si(Register dst, const Operand& src);
   void cvttsd2si(Register dst, XMMRegister src);
   void cvttsd2siq(Register dst, XMMRegister src);

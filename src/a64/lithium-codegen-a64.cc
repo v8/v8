@@ -2224,30 +2224,6 @@ void LCodeGen::DoClampTToUint8(LClampTToUint8* instr) {
 }
 
 
-void LCodeGen::DoDoubleBits(LDoubleBits* instr) {
-  DoubleRegister value_reg = ToDoubleRegister(instr->value());
-  Register result_reg = ToRegister(instr->result());
-  if (instr->hydrogen()->bits() == HDoubleBits::HIGH) {
-    __ Fmov(result_reg, value_reg);
-    __ Mov(result_reg, Operand(result_reg, LSR, 32));
-  } else {
-    __ Fmov(result_reg.W(), value_reg.S());
-  }
-}
-
-
-void LCodeGen::DoConstructDouble(LConstructDouble* instr) {
-  Register hi_reg = ToRegister(instr->hi());
-  Register lo_reg = ToRegister(instr->lo());
-  Register temp = ToRegister(instr->temp());
-  DoubleRegister result_reg = ToDoubleRegister(instr->result());
-
-  __ And(temp, lo_reg, Operand(0xffffffff));
-  __ Orr(temp, temp, Operand(hi_reg, LSL, 32));
-  __ Fmov(result_reg, temp);
-}
-
-
 void LCodeGen::DoClassOfTestAndBranch(LClassOfTestAndBranch* instr) {
   Handle<String> class_name = instr->hydrogen()->class_name();
   Label* true_label = instr->TrueLabel(chunk_);
