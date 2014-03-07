@@ -2506,3 +2506,63 @@ TEST(BoxObject) {
       GetProperty(box_node, v8::HeapGraphEdge::kInternal, "value");
   CHECK_NE(NULL, box_value);
 }
+
+
+static inline i::Address ToAddress(int n) {
+  return reinterpret_cast<i::Address>(n);
+}
+
+
+TEST(AddressToTraceMap) {
+  i::AddressToTraceMap map;
+
+  CHECK_EQ(0, map.GetTraceNodeId(ToAddress(150)));
+
+  // [0x100, 0x200) -> 1
+  map.AddRange(ToAddress(0x100), 0x100, 1U);
+  CHECK_EQ(0, map.GetTraceNodeId(ToAddress(0x50)));
+  CHECK_EQ(1, map.GetTraceNodeId(ToAddress(0x100)));
+  CHECK_EQ(1, map.GetTraceNodeId(ToAddress(0x150)));
+  CHECK_EQ(0, map.GetTraceNodeId(ToAddress(0x100 + 0x100)));
+  CHECK_EQ(1, map.size());
+
+  // [0x100, 0x200) -> 1, [0x200, 0x300) -> 2
+  map.AddRange(ToAddress(0x200), 0x100, 2U);
+  CHECK_EQ(2, map.GetTraceNodeId(ToAddress(0x2a0)));
+  CHECK_EQ(2, map.size());
+
+  // [0x100, 0x180) -> 1, [0x180, 0x280) -> 3, [0x280, 0x300) -> 2
+  map.AddRange(ToAddress(0x180), 0x100, 3U);
+  CHECK_EQ(1, map.GetTraceNodeId(ToAddress(0x17F)));
+  CHECK_EQ(2, map.GetTraceNodeId(ToAddress(0x280)));
+  CHECK_EQ(3, map.GetTraceNodeId(ToAddress(0x180)));
+  CHECK_EQ(3, map.size());
+
+  // [0x100, 0x180) -> 1, [0x180, 0x280) -> 3, [0x280, 0x300) -> 2,
+  // [0x400, 0x500) -> 4
+  map.AddRange(ToAddress(0x400), 0x100, 4U);
+  CHECK_EQ(1, map.GetTraceNodeId(ToAddress(0x17F)));
+  CHECK_EQ(2, map.GetTraceNodeId(ToAddress(0x280)));
+  CHECK_EQ(3, map.GetTraceNodeId(ToAddress(0x180)));
+  CHECK_EQ(4, map.GetTraceNodeId(ToAddress(0x450)));
+  CHECK_EQ(0, map.GetTraceNodeId(ToAddress(0x500)));
+  CHECK_EQ(0, map.GetTraceNodeId(ToAddress(0x350)));
+  CHECK_EQ(4, map.size());
+
+  // [0x100, 0x180) -> 1, [0x180, 0x200) -> 3, [0x200, 0x600) -> 5
+  map.AddRange(ToAddress(0x200), 0x400, 5U);
+  CHECK_EQ(5, map.GetTraceNodeId(ToAddress(0x200)));
+  CHECK_EQ(5, map.GetTraceNodeId(ToAddress(0x400)));
+  CHECK_EQ(3, map.size());
+
+  // [0x100, 0x180) -> 1, [0x180, 0x200) -> 7, [0x200, 0x600) ->5
+  map.AddRange(ToAddress(0x180), 0x80, 6U);
+  map.AddRange(ToAddress(0x180), 0x80, 7U);
+  CHECK_EQ(7, map.GetTraceNodeId(ToAddress(0x180)));
+  CHECK_EQ(5, map.GetTraceNodeId(ToAddress(0x200)));
+  CHECK_EQ(3, map.size());
+
+  map.Clear();
+  CHECK_EQ(0, map.size());
+  CHECK_EQ(0, map.GetTraceNodeId(ToAddress(0x400)));
+}

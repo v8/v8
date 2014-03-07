@@ -28,6 +28,8 @@
 #ifndef V8_ALLOCATION_TRACKER_H_
 #define V8_ALLOCATION_TRACKER_H_
 
+#include <map>
+
 namespace v8 {
 namespace internal {
 
@@ -81,6 +83,30 @@ class AllocationTraceTree {
 };
 
 
+class AddressToTraceMap {
+ public:
+  void AddRange(Address addr, int size, unsigned node_id);
+  unsigned GetTraceNodeId(Address addr);
+  void MoveObject(Address from, Address to, int size);
+  void Clear();
+  size_t size() { return ranges_.size(); }
+  void Print();
+
+ private:
+  struct RangeStack {
+    RangeStack(Address start, unsigned node_id)
+        : start(start), trace_node_id(node_id) {}
+    Address start;
+    unsigned trace_node_id;
+  };
+  // [start, end) -> trace
+  typedef std::map<Address, RangeStack> RangeMap;
+
+  void RemoveRange(Address start, Address end);
+
+  RangeMap ranges_;
+};
+
 class AllocationTracker {
  public:
   struct FunctionInfo {
@@ -103,6 +129,7 @@ class AllocationTracker {
   const List<FunctionInfo*>& function_info_list() const {
     return function_info_list_;
   }
+  AddressToTraceMap* address_to_trace() { return &address_to_trace_; }
 
  private:
   unsigned AddFunctionInfo(SharedFunctionInfo* info, SnapshotObjectId id);
@@ -134,6 +161,7 @@ class AllocationTracker {
   HashMap id_to_function_info_index_;
   List<UnresolvedLocation*> unresolved_locations_;
   unsigned info_index_for_other_state_;
+  AddressToTraceMap address_to_trace_;
 
   DISALLOW_COPY_AND_ASSIGN(AllocationTracker);
 };

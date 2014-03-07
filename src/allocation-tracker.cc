@@ -139,6 +139,78 @@ AllocationTracker::FunctionInfo::FunctionInfo()
 }
 
 
+void AddressToTraceMap::AddRange(Address start, int size,
+                                 unsigned trace_node_id) {
+  Address end = start + size;
+  RemoveRange(start, end);
+
+  RangeStack new_range(start, trace_node_id);
+  ranges_.insert(RangeMap::value_type(end, new_range));
+}
+
+
+unsigned AddressToTraceMap::GetTraceNodeId(Address addr) {
+  RangeMap::const_iterator it = ranges_.upper_bound(addr);
+  if (it == ranges_.end()) return 0;
+  if (it->second.start <= addr) {
+    return it->second.trace_node_id;
+  }
+  return 0;
+}
+
+
+void AddressToTraceMap::MoveObject(Address from, Address to, int size) {
+  unsigned trace_node_id = GetTraceNodeId(from);
+  if (trace_node_id == 0) return;
+  RemoveRange(from, from + size);
+  AddRange(to, size, trace_node_id);
+}
+
+
+void AddressToTraceMap::Clear() {
+  ranges_.clear();
+}
+
+
+void AddressToTraceMap::Print() {
+  PrintF("[AddressToTraceMap (%lu): \n", ranges_.size());
+  for (RangeMap::iterator it = ranges_.begin(); it != ranges_.end(); ++it) {
+    PrintF("[%p - %p] => %u\n", it->second.start, it->first,
+        it->second.trace_node_id);
+  }
+  PrintF("]\n");
+}
+
+
+void AddressToTraceMap::RemoveRange(Address start, Address end) {
+  RangeMap::iterator it = ranges_.upper_bound(start);
+  if (it == ranges_.end()) return;
+
+  RangeStack prev_range(0, 0);
+
+  RangeMap::iterator to_remove_begin = it;
+  if (it->second.start < start) {
+    prev_range = it->second;
+  }
+  do {
+    if (it->first > end) {
+      if (it->second.start < end) {
+        it->second.start = end;
+      }
+      break;
+    }
+    ++it;
+  }
+  while (it != ranges_.end());
+
+  ranges_.erase(to_remove_begin, it);
+
+  if (prev_range.start != 0) {
+    ranges_.insert(RangeMap::value_type(start, prev_range));
+  }
+}
+
+
 static bool AddressesMatch(void* key1, void* key2) {
   return key1 == key2;
 }
@@ -208,6 +280,8 @@ void AllocationTracker::AllocationEvent(Address addr, int size) {
   AllocationTraceNode* top_node = trace_tree_.AddPathFromEnd(
       Vector<unsigned>(allocation_trace_buffer_, length));
   top_node->AddAllocation(size);
+
+  address_to_trace_.AddRange(addr, size, top_node->id());
 }
 
 
