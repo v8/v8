@@ -2124,7 +2124,7 @@ LInstruction* LChunkBuilder::DoStoreKeyed(HStoreKeyed* instr) {
   LOperand* temp = NULL;
   LOperand* elements = NULL;
   LOperand* val = NULL;
-  LOperand* key = NULL;
+  LOperand* key = UseRegisterOrConstantAtStart(instr->key());
 
   if (!instr->is_typed_elements() &&
       instr->value()->representation().IsTagged() &&
@@ -2132,11 +2132,11 @@ LInstruction* LChunkBuilder::DoStoreKeyed(HStoreKeyed* instr) {
     // RecordWrite() will clobber all registers.
     elements = UseRegisterAndClobber(instr->elements());
     val = UseRegisterAndClobber(instr->value());
-    key = UseRegisterAndClobber(instr->key());
+    temp = TempRegister();
   } else {
     elements = UseRegister(instr->elements());
     val = UseRegister(instr->value());
-    key = UseRegisterOrConstantAtStart(instr->key());
+    temp = instr->key()->IsConstant() ? NULL : TempRegister();
   }
 
   if (instr->is_typed_elements()) {
@@ -2148,23 +2148,16 @@ LInstruction* LChunkBuilder::DoStoreKeyed(HStoreKeyed* instr) {
             instr->elements()->representation().IsTagged()) ||
            (instr->is_external() &&
             instr->elements()->representation().IsExternal()));
-    temp = instr->key()->IsConstant() ? NULL : TempRegister();
     return new(zone()) LStoreKeyedExternal(elements, key, val, temp);
 
   } else if (instr->value()->representation().IsDouble()) {
     ASSERT(instr->elements()->representation().IsTagged());
-
-    // The constraint used here is UseRegister, even though the StoreKeyed
-    // instruction may canonicalize the value in the register if it is a NaN.
-    temp = TempRegister();
     return new(zone()) LStoreKeyedFixedDouble(elements, key, val, temp);
 
   } else {
     ASSERT(instr->elements()->representation().IsTagged());
     ASSERT(instr->value()->representation().IsSmiOrTagged() ||
            instr->value()->representation().IsInteger32());
-
-    temp = TempRegister();
     return new(zone()) LStoreKeyedFixed(elements, key, val, temp);
   }
 }

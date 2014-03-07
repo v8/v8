@@ -4989,7 +4989,7 @@ void LCodeGen::DoStoreKeyedExternal(LStoreKeyedExternal* instr) {
 void LCodeGen::DoStoreKeyedFixedDouble(LStoreKeyedFixedDouble* instr) {
   Register elements = ToRegister(instr->elements());
   DoubleRegister value = ToDoubleRegister(instr->value());
-  Register store_base = ToRegister(instr->temp());
+  Register store_base = no_reg;
   int offset = 0;
 
   if (instr->key()->IsConstantOperand()) {
@@ -5001,6 +5001,7 @@ void LCodeGen::DoStoreKeyedFixedDouble(LStoreKeyedFixedDouble* instr) {
                                                  instr->additional_index());
     store_base = elements;
   } else {
+    store_base = ToRegister(instr->temp());
     Register key = ToRegister(instr->key());
     bool key_is_tagged = instr->hydrogen()->key()->representation().IsSmi();
     CalcKeyedArrayBaseRegister(store_base, elements, key, key_is_tagged,
@@ -5023,17 +5024,23 @@ void LCodeGen::DoStoreKeyedFixedDouble(LStoreKeyedFixedDouble* instr) {
 void LCodeGen::DoStoreKeyedFixed(LStoreKeyedFixed* instr) {
   Register value = ToRegister(instr->value());
   Register elements = ToRegister(instr->elements());
-  Register store_base = ToRegister(instr->temp());
+  Register scratch = no_reg;
+  Register store_base = no_reg;
   Register key = no_reg;
   int offset = 0;
 
+  if (!instr->key()->IsConstantOperand() ||
+      instr->hydrogen()->NeedsWriteBarrier()) {
+    scratch = ToRegister(instr->temp());
+  }
+
   if (instr->key()->IsConstantOperand()) {
-    ASSERT(!instr->hydrogen()->NeedsWriteBarrier());
     LConstantOperand* const_operand = LConstantOperand::cast(instr->key());
     offset = FixedArray::OffsetOfElementAt(ToInteger32(const_operand) +
                                            instr->additional_index());
     store_base = elements;
   } else {
+    store_base = scratch;
     key = ToRegister(instr->key());
     bool key_is_tagged = instr->hydrogen()->key()->representation().IsSmi();
     CalcKeyedArrayBaseRegister(store_base, elements, key, key_is_tagged,
@@ -5052,13 +5059,16 @@ void LCodeGen::DoStoreKeyedFixed(LStoreKeyedFixed* instr) {
   }
 
   if (instr->hydrogen()->NeedsWriteBarrier()) {
+    ASSERT(representation.IsTagged());
+    // This assignment may cause element_addr to alias store_base.
+    Register element_addr = scratch;
     SmiCheck check_needed =
         instr->hydrogen()->value()->IsHeapObject()
             ? OMIT_SMI_CHECK : INLINE_SMI_CHECK;
     // Compute address of modified element and store it into key register.
-    __ Add(key, store_base, offset - kHeapObjectTag);
-    __ RecordWrite(elements, key, value, GetLinkRegisterState(), kSaveFPRegs,
-                   EMIT_REMEMBERED_SET, check_needed);
+    __ Add(element_addr, store_base, offset - kHeapObjectTag);
+    __ RecordWrite(elements, element_addr, value, GetLinkRegisterState(),
+                   kSaveFPRegs, EMIT_REMEMBERED_SET, check_needed);
   }
 }
 
