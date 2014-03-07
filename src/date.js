@@ -42,16 +42,19 @@ function ThrowDateTypeError() {
 
 
 var timezone_cache_time = NAN;
+var timezone_cache_timezone_offset = NAN;
 var timezone_cache_timezone;
 
-function LocalTimezone(t) {
+function LocalTimezone(t, timezone_offset) {
   if (NUMBER_IS_NAN(t)) return "";
-  if (t == timezone_cache_time) {
+  if (t == timezone_cache_time &&
+      timezone_offset == timezone_cache_timezone_offset) {
     return timezone_cache_timezone;
   }
   var timezone = %DateLocalTimezone(t);
   timezone_cache_time = t;
   timezone_cache_timezone = timezone;
+  timezone_cache_timezone_offset = timezone_offset;
   return timezone;
 }
 
@@ -245,9 +248,8 @@ function TimeStringUTC(date) {
 
 
 function LocalTimezoneString(date) {
-  var timezone = LocalTimezone(UTC_DATE_VALUE(date));
-
   var timezoneOffset = -TIMEZONE_OFFSET(date);
+  var timezone = LocalTimezone(UTC_DATE_VALUE(date), timezoneOffset);
   var sign = (timezoneOffset >= 0) ? 1 : -1;
   var hours = FLOOR((sign * timezoneOffset)/60);
   var min   = FLOOR((sign * timezoneOffset)%60);

@@ -16348,6 +16348,7 @@ Object* JSDate::GetUTCField(FieldIndex index,
   int64_t time_ms = static_cast<int64_t>(value);
 
   if (index == kTimezoneOffset) {
+    date_cache->CheckTimezone();
     return Smi::FromInt(date_cache->TimezoneOffset(time_ms));
   }
 

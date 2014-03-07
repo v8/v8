@@ -122,6 +122,13 @@ class DateCache {
     return static_cast<int>((time_ms - local_ms) / kMsPerMin);
   }
 
+  void CheckTimezone() {
+    if (local_offset_ms_ != kInvalidLocalOffsetInMs &&
+        local_offset_ms_ != GetLocalOffsetFromOS()) {
+      ResetDateCache();
+    }
+  }
+
   // ECMA 262 - 15.9.1.9
   int64_t ToLocal(int64_t time_ms) {
     return time_ms + LocalOffsetInMs() + DaylightSavingsOffsetInMs(time_ms);
