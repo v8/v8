@@ -2199,8 +2199,7 @@ Handle<Object> JSObject::AddProperty(Handle<JSObject> object,
     AddSlowProperty(object, name, value, attributes);
   }
 
-  if (FLAG_harmony_observation &&
-      object->map()->is_observed() &&
+  if (object->map()->is_observed() &&
       *name != isolate->heap()->hidden_string()) {
     Handle<Object> old_value = isolate->factory()->the_hole_value();
     EnqueueChangeRecord(object, "add", name, old_value);
@@ -4090,8 +4089,7 @@ Handle<Object> JSObject::SetPropertyForResult(Handle<JSObject> object,
   }
 
   Handle<Object> old_value = isolate->factory()->the_hole_value();
-  bool is_observed = FLAG_harmony_observation &&
-                     object->map()->is_observed() &&
+  bool is_observed = object->map()->is_observed() &&
                      *name != isolate->heap()->hidden_string();
   if (is_observed && lookup->IsDataProperty()) {
     old_value = Object::GetProperty(object, name);
@@ -4213,8 +4211,7 @@ Handle<Object> JSObject::SetLocalPropertyIgnoreAttributes(
 
   Handle<Object> old_value = isolate->factory()->the_hole_value();
   PropertyAttributes old_attributes = ABSENT;
-  bool is_observed = FLAG_harmony_observation &&
-                     object->map()->is_observed() &&
+  bool is_observed = object->map()->is_observed() &&
                      *name != isolate->heap()->hidden_string();
   if (is_observed && lookup.IsProperty()) {
     if (lookup.IsDataProperty()) old_value =
@@ -5196,7 +5193,7 @@ Handle<Object> JSObject::DeleteElement(Handle<JSObject> object,
 
   Handle<Object> old_value;
   bool should_enqueue_change_record = false;
-  if (FLAG_harmony_observation && object->map()->is_observed()) {
+  if (object->map()->is_observed()) {
     should_enqueue_change_record = HasLocalElement(object, index);
     if (should_enqueue_change_record) {
       old_value = object->GetLocalElementAccessorPair(index) != NULL
@@ -5267,8 +5264,7 @@ Handle<Object> JSObject::DeleteProperty(Handle<JSObject> object,
   }
 
   Handle<Object> old_value = isolate->factory()->the_hole_value();
-  bool is_observed = FLAG_harmony_observation &&
-                     object->map()->is_observed() &&
+  bool is_observed = object->map()->is_observed() &&
                      *name != isolate->heap()->hidden_string();
   if (is_observed && lookup.IsDataProperty()) {
     old_value = Object::GetProperty(object, name);
@@ -5504,7 +5500,7 @@ Handle<Object> JSObject::PreventExtensions(Handle<JSObject> object) {
   object->set_map(*new_map);
   ASSERT(!object->map()->is_extensible());
 
-  if (FLAG_harmony_observation && object->map()->is_observed()) {
+  if (object->map()->is_observed()) {
     EnqueueChangeRecord(object, "preventExtensions", Handle<Name>(),
                         isolate->factory()->the_hole_value());
   }
@@ -6361,8 +6357,7 @@ void JSObject::DefineAccessor(Handle<JSObject> object,
   bool is_element = name->AsArrayIndex(&index);
 
   Handle<Object> old_value = isolate->factory()->the_hole_value();
-  bool is_observed = FLAG_harmony_observation &&
-                     object->map()->is_observed() &&
+  bool is_observed = object->map()->is_observed() &&
                      *name != isolate->heap()->hidden_string();
   bool preexists = false;
   if (is_observed) {
@@ -11422,7 +11417,7 @@ static void EndPerformSplice(Handle<JSArray> object) {
 MaybeObject* JSArray::SetElementsLength(Object* len) {
   // We should never end in here with a pixel or external array.
   ASSERT(AllowsSetElementsLength());
-  if (!(FLAG_harmony_observation && map()->is_observed()))
+  if (!map()->is_observed())
     return GetElementsAccessor()->SetLength(this, len);
 
   Isolate* isolate = GetIsolate();
@@ -12553,7 +12548,7 @@ Handle<Object> JSObject::SetElement(Handle<JSObject> object,
     dictionary->set_requires_slow_elements();
   }
 
-  if (!(FLAG_harmony_observation && object->map()->is_observed())) {
+  if (!object->map()->is_observed()) {
     return object->HasIndexedInterceptor()
       ? SetElementWithInterceptor(object, index, value, attributes, strict_mode,
                                   check_prototype,
@@ -13154,7 +13149,7 @@ bool JSObject::ShouldConvertToFastElements() {
   if (IsAccessCheckNeeded()) return false;
   // Observed objects may not go to fast mode because they rely on map checks,
   // and for fast element accesses we sometimes check element kinds only.
-  if (FLAG_harmony_observation && map()->is_observed()) return false;
+  if (map()->is_observed()) return false;
 
   FixedArray* elements = FixedArray::cast(this->elements());
   SeededNumberDictionary* dictionary = NULL;
