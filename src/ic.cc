@@ -1205,7 +1205,7 @@ MaybeObject* StoreIC::Store(Handle<Object> object,
   }
 
   // Observed objects are always modified through the runtime.
-  if (receiver->map()->is_observed()) {
+  if (FLAG_harmony_observation && receiver->map()->is_observed()) {
     Handle<Object> result = JSReceiver::SetProperty(
         receiver, name, value, NONE, strict_mode(), store_mode);
     RETURN_IF_EMPTY_HANDLE(isolate(), result);
@@ -1671,7 +1671,7 @@ MaybeObject* KeyedStoreIC::Store(Handle<Object> object,
     if (maybe_object->IsFailure()) return maybe_object;
   } else {
     bool use_ic = FLAG_use_ic && !object->IsAccessCheckNeeded() &&
-        !(object->IsJSObject() &&
+        !(FLAG_harmony_observation && object->IsJSObject() &&
           JSObject::cast(*object)->map()->is_observed());
     if (use_ic && !object->IsSmi()) {
       // Don't use ICs for maps of the objects in Array's prototype chain. We
