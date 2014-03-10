@@ -700,7 +700,6 @@ Handle<Script> Factory::NewScript(Handle<String> source) {
   script->set_id(Smi::FromInt(id));
   script->set_line_offset(Smi::FromInt(0));
   script->set_column_offset(Smi::FromInt(0));
-  script->set_data(heap->undefined_value());
   script->set_context_data(heap->undefined_value());
   script->set_type(Smi::FromInt(Script::TYPE_NORMAL));
   script->set_wrapper(*wrapper);
@@ -1542,10 +1541,12 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
     int number_of_literals,
     bool is_generator,
     Handle<Code> code,
-    Handle<ScopeInfo> scope_info) {
+    Handle<ScopeInfo> scope_info,
+    Handle<FixedArray> feedback_vector) {
   Handle<SharedFunctionInfo> shared = NewSharedFunctionInfo(name);
   shared->set_code(*code);
   shared->set_scope_info(*scope_info);
+  shared->set_feedback_vector(*feedback_vector);
   int literals_array_size = number_of_literals;
   // If the function contains object, regexp or array literals,
   // allocate extra space for a literals array prefix containing the

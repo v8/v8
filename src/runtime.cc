@@ -1621,7 +1621,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetPrototype) {
         !isolate->MayNamedAccessWrapper(Handle<JSObject>::cast(obj),
                                         isolate->factory()->proto_string(),
                                         v8::ACCESS_GET)) {
-      isolate->ReportFailedAccessCheck(JSObject::cast(*obj), v8::ACCESS_GET);
+      isolate->ReportFailedAccessCheckWrapper(Handle<JSObject>::cast(obj),
+                                              v8::ACCESS_GET);
       RETURN_IF_SCHEDULED_EXCEPTION(isolate);
       return isolate->heap()->undefined_value();
     }
@@ -1648,7 +1649,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetPrototype) {
   ASSERT(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, obj, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, prototype, 1);
-  if (FLAG_harmony_observation && obj->map()->is_observed()) {
+  if (obj->map()->is_observed()) {
     Handle<Object> old_value(
         GetPrototypeSkipHiddenPrototypes(isolate, *obj), isolate);
 
@@ -1747,7 +1748,7 @@ static AccessCheckResult CheckPropertyAccess(Handle<JSObject> obj,
       return ACCESS_ALLOWED;
     }
 
-    obj->GetIsolate()->ReportFailedAccessCheck(*obj, access_type);
+    obj->GetIsolate()->ReportFailedAccessCheckWrapper(obj, access_type);
     return ACCESS_FORBIDDEN;
   }
 
@@ -1786,7 +1787,7 @@ static AccessCheckResult CheckPropertyAccess(Handle<JSObject> obj,
       break;
   }
 
-  isolate->ReportFailedAccessCheck(*obj, access_type);
+  isolate->ReportFailedAccessCheckWrapper(obj, access_type);
   return ACCESS_FORBIDDEN;
 }
 
@@ -2942,6 +2943,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetCode) {
   // Set the code, scope info, formal parameter count, and the length
   // of the target shared function info.
   target_shared->ReplaceCode(source_shared->code());
+  target_shared->set_feedback_vector(source_shared->feedback_vector());
   target_shared->set_scope_info(source_shared->scope_info());
   target_shared->set_length(source_shared->length());
   target_shared->set_formal_parameter_count(
@@ -5742,10 +5744,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetLocalPropertyNames) {
   if (obj->IsJSGlobalProxy()) {
     // Only collect names if access is permitted.
     if (obj->IsAccessCheckNeeded() &&
-        !isolate->MayNamedAccess(*obj,
-                                 isolate->heap()->undefined_value(),
-                                 v8::ACCESS_KEYS)) {
-      isolate->ReportFailedAccessCheck(*obj, v8::ACCESS_KEYS);
+        !isolate->MayNamedAccessWrapper(obj,
+                                        isolate->factory()->undefined_value(),
+                                        v8::ACCESS_KEYS)) {
+      isolate->ReportFailedAccessCheckWrapper(obj, v8::ACCESS_KEYS);
       RETURN_IF_SCHEDULED_EXCEPTION(isolate);
       return *isolate->factory()->NewJSArray(0);
     }
@@ -5762,10 +5764,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetLocalPropertyNames) {
   for (int i = 0; i < length; i++) {
     // Only collect names if access is permitted.
     if (jsproto->IsAccessCheckNeeded() &&
-        !isolate->MayNamedAccess(*jsproto,
-                                 isolate->heap()->undefined_value(),
-                                 v8::ACCESS_KEYS)) {
-      isolate->ReportFailedAccessCheck(*jsproto, v8::ACCESS_KEYS);
+        !isolate->MayNamedAccessWrapper(jsproto,
+                                        isolate->factory()->undefined_value(),
+                                        v8::ACCESS_KEYS)) {
+      isolate->ReportFailedAccessCheckWrapper(jsproto, v8::ACCESS_KEYS);
       RETURN_IF_SCHEDULED_EXCEPTION(isolate);
       return *isolate->factory()->NewJSArray(0);
     }
@@ -5913,9 +5915,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_LocalKeys) {
   if (object->IsJSGlobalProxy()) {
     // Do access checks before going to the global object.
     if (object->IsAccessCheckNeeded() &&
-        !isolate->MayNamedAccess(*object, isolate->heap()->undefined_value(),
-                             v8::ACCESS_KEYS)) {
-      isolate->ReportFailedAccessCheck(*object, v8::ACCESS_KEYS);
+        !isolate->MayNamedAccessWrapper(object,
+                                        isolate->factory()->undefined_value(),
+                                        v8::ACCESS_KEYS)) {
+      isolate->ReportFailedAccessCheckWrapper(object, v8::ACCESS_KEYS);
       RETURN_IF_SCHEDULED_EXCEPTION(isolate);
       return *isolate->factory()->NewJSArray(0);
     }
@@ -6250,38 +6253,27 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringParseFloat) {
 template <class Converter>
 MUST_USE_RESULT static MaybeObject* ConvertCaseHelper(
     Isolate* isolate,
-    String* s,
-    String::Encoding result_encoding,
-    int length,
-    int input_string_length,
+    String* string,
+    SeqString* result,
+    int result_length,
     unibrow::Mapping<Converter, 128>* mapping) {
+  DisallowHeapAllocation no_gc;
   // We try this twice, once with the assumption that the result is no longer
   // than the input and, if that assumption breaks, again with the exact
   // length.  This may not be pretty, but it is nicer than what was here before
   // and I hereby claim my vaffel-is.
   //
-  // Allocate the resulting string.
-  //
   // NOTE: This assumes that the upper/lower case of an ASCII
   // character is also ASCII.  This is currently the case, but it
   // might break in the future if we implement more context and locale
   // dependent upper/lower conversions.
-  Object* o;
-  { MaybeObject* maybe_o = result_encoding == String::ONE_BYTE_ENCODING
-        ? isolate->heap()->AllocateRawOneByteString(length)
-        : isolate->heap()->AllocateRawTwoByteString(length);
-    if (!maybe_o->ToObject(&o)) return maybe_o;
-  }
-  String* result = String::cast(o);
   bool has_changed_character = false;
-
-  DisallowHeapAllocation no_gc;
 
   // Convert all characters to upper case, assuming that they will fit
   // in the buffer
   Access<ConsStringIteratorOp> op(
       isolate->runtime_state()->string_iterator());
-  StringCharacterStream stream(s, op.value());
+  StringCharacterStream stream(string, op.value());
   unibrow::uchar chars[Converter::kMaxWidth];
   // We can assume that the string is not empty
   uc32 current = stream.GetNext();
@@ -6289,7 +6281,7 @@ MUST_USE_RESULT static MaybeObject* ConvertCaseHelper(
   // when converting to uppercase.
   static const uc32 yuml_code = 0xff;
   bool ignore_yuml = result->IsSeqTwoByteString() || Converter::kIsToLower;
-  for (int i = 0; i < length;) {
+  for (int i = 0; i < result_length;) {
     bool has_next = stream.HasMore();
     uc32 next = has_next ? stream.GetNext() : 0;
     int char_length = mapping->get(current, next, chars);
@@ -6303,7 +6295,7 @@ MUST_USE_RESULT static MaybeObject* ConvertCaseHelper(
       result->Set(i, chars[0]);
       has_changed_character = true;
       i++;
-    } else if (length == input_string_length) {
+    } else if (result_length == string->length()) {
       bool found_yuml = (current == yuml_code);
       // We've assumed that the result would be as long as the
       // input but here is a character that converts to several
@@ -6357,7 +6349,7 @@ MUST_USE_RESULT static MaybeObject* ConvertCaseHelper(
     // we simple return the result and let the converted string
     // become garbage; there is no reason to keep two identical strings
     // alive.
-    return s;
+    return string;
   }
 }
 
@@ -6388,7 +6380,7 @@ static inline uintptr_t AsciiRangeMask(uintptr_t w, char m, char n) {
 
 #ifdef DEBUG
 static bool CheckFastAsciiConvert(char* dst,
-                                  char* src,
+                                  const char* src,
                                   int length,
                                   bool changed,
                                   bool is_to_lower) {
@@ -6411,12 +6403,12 @@ static bool CheckFastAsciiConvert(char* dst,
 
 template<class Converter>
 static bool FastAsciiConvert(char* dst,
-                             char* src,
+                             const char* src,
                              int length,
                              bool* changed_out) {
 #ifdef DEBUG
     char* saved_dst = dst;
-    char* saved_src = src;
+    const char* saved_src = src;
 #endif
   DisallowHeapAllocation no_gc;
   // We rely on the distance between upper and lower case letters
@@ -6427,12 +6419,12 @@ static bool FastAsciiConvert(char* dst,
   static const char hi = Converter::kIsToLower ? 'Z' + 1 : 'z' + 1;
   bool changed = false;
   uintptr_t or_acc = 0;
-  char* const limit = src + length;
+  const char* const limit = src + length;
 #ifdef V8_HOST_CAN_READ_UNALIGNED
   // Process the prefix of the input that requires no conversion one
   // (machine) word at a time.
   while (src <= limit - sizeof(uintptr_t)) {
-    uintptr_t w = *reinterpret_cast<uintptr_t*>(src);
+    const uintptr_t w = *reinterpret_cast<const uintptr_t*>(src);
     or_acc |= w;
     if (AsciiRangeMask(w, lo, hi) != 0) {
       changed = true;
@@ -6445,7 +6437,7 @@ static bool FastAsciiConvert(char* dst,
   // Process the remainder of the input performing conversion when
   // required one word at a time.
   while (src <= limit - sizeof(uintptr_t)) {
-    uintptr_t w = *reinterpret_cast<uintptr_t*>(src);
+    const uintptr_t w = *reinterpret_cast<const uintptr_t*>(src);
     or_acc |= w;
     uintptr_t m = AsciiRangeMask(w, lo, hi);
     // The mask has high (7th) bit set in every byte that needs
@@ -6488,13 +6480,12 @@ MUST_USE_RESULT static MaybeObject* ConvertCase(
     Arguments args,
     Isolate* isolate,
     unibrow::Mapping<Converter, 128>* mapping) {
-  SealHandleScope shs(isolate);
-  CONVERT_ARG_CHECKED(String, s, 0);
-  s = s->TryFlattenGetString();
-
-  const int length = s->length();
+  HandleScope handle_scope(isolate);
+  CONVERT_ARG_HANDLE_CHECKED(String, s, 0);
+  s = FlattenGetString(s);
+  int length = s->length();
   // Assume that the string is not empty; we need this assumption later
-  if (length == 0) return s;
+  if (length == 0) return *s;
 
   // Simpler handling of ASCII strings.
   //
@@ -6502,42 +6493,43 @@ MUST_USE_RESULT static MaybeObject* ConvertCase(
   // character is also ASCII.  This is currently the case, but it
   // might break in the future if we implement more context and locale
   // dependent upper/lower conversions.
-  if (s->IsSeqOneByteString()) {
-    Object* o;
-    { MaybeObject* maybe_o = isolate->heap()->AllocateRawOneByteString(length);
-      if (!maybe_o->ToObject(&o)) return maybe_o;
-    }
-    SeqOneByteString* result = SeqOneByteString::cast(o);
+  if (s->IsOneByteRepresentationUnderneath()) {
+    Handle<SeqOneByteString> result =
+        isolate->factory()->NewRawOneByteString(length);
+
+    DisallowHeapAllocation no_gc;
+    String::FlatContent flat_content = s->GetFlatContent();
+    ASSERT(flat_content.IsFlat());
     bool has_changed_character = false;
     bool is_ascii = FastAsciiConvert<Converter>(
         reinterpret_cast<char*>(result->GetChars()),
-        reinterpret_cast<char*>(SeqOneByteString::cast(s)->GetChars()),
+        reinterpret_cast<const char*>(flat_content.ToOneByteVector().start()),
         length,
         &has_changed_character);
     // If not ASCII, we discard the result and take the 2 byte path.
-    if (is_ascii) {
-      return has_changed_character ? result : s;
-    }
+    if (is_ascii)  return has_changed_character ? *result : *s;
   }
 
-  String::Encoding result_encoding = s->IsOneByteRepresentation()
-      ? String::ONE_BYTE_ENCODING : String::TWO_BYTE_ENCODING;
+  Handle<SeqString> result;
+  if (s->IsOneByteRepresentation()) {
+    result = isolate->factory()->NewRawOneByteString(length);
+  } else {
+    result = isolate->factory()->NewRawTwoByteString(length);
+  }
+  MaybeObject* maybe = ConvertCaseHelper(isolate, *s, *result, length, mapping);
   Object* answer;
-  { MaybeObject* maybe_answer = ConvertCaseHelper(
-        isolate, s, result_encoding, length, length, mapping);
-    if (!maybe_answer->ToObject(&answer)) return maybe_answer;
+  if (!maybe->ToObject(&answer)) return maybe;
+  if (answer->IsString()) return answer;
+
+  ASSERT(answer->IsSmi());
+  length = Smi::cast(answer)->value();
+  if (s->IsOneByteRepresentation() && length > 0) {
+    result = isolate->factory()->NewRawOneByteString(length);
+  } else {
+    if (length < 0) length = -length;
+    result = isolate->factory()->NewRawTwoByteString(length);
   }
-  if (answer->IsSmi()) {
-    int new_length = Smi::cast(answer)->value();
-    if (new_length < 0) {
-      result_encoding = String::TWO_BYTE_ENCODING;
-      new_length = -new_length;
-    }
-    MaybeObject* maybe_answer = ConvertCaseHelper(
-        isolate, s, result_encoding, new_length, length, mapping);
-    if (!maybe_answer->ToObject(&answer)) return maybe_answer;
-  }
-  return answer;
+  return ConvertCaseHelper(isolate, *s, *result, length, mapping);
 }
 
 
@@ -7675,94 +7667,32 @@ RUNTIME_UNARY_MATH(log)
 #undef RUNTIME_UNARY_MATH
 
 
-// Cube root approximation, refer to: http://metamerist.com/cbrt/cbrt.htm
-// Using initial approximation adapted from Kahan's cbrt and 4 iterations
-// of Newton's method.
-inline double CubeRootNewtonIteration(double approx, double x) {
-  return (1.0 / 3.0) * (x / (approx * approx) + 2 * approx);
-}
-
-
-inline double CubeRoot(double x) {
-  static const uint64_t magic = V8_2PART_UINT64_C(0x2A9F7893, 00000000);
-  uint64_t xhigh = double_to_uint64(x);
-  double approx = uint64_to_double(xhigh / 3 + magic);
-
-  approx = CubeRootNewtonIteration(approx, x);
-  approx = CubeRootNewtonIteration(approx, x);
-  approx = CubeRootNewtonIteration(approx, x);
-  return CubeRootNewtonIteration(approx, x);
-}
-
-
-RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_cbrt) {
+RUNTIME_FUNCTION(MaybeObject*, Runtime_DoubleHi) {
   SealHandleScope shs(isolate);
   ASSERT(args.length() == 1);
   CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  if (x == 0 || std::isinf(x)) return args[0];
-  double result = (x > 0) ? CubeRoot(x) : -CubeRoot(-x);
-  return isolate->heap()->AllocateHeapNumber(result);
+  uint64_t integer = double_to_uint64(x);
+  integer = (integer >> 32) & 0xFFFFFFFFu;
+  return isolate->heap()->NumberFromDouble(static_cast<int32_t>(integer));
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_log1p) {
+RUNTIME_FUNCTION(MaybeObject*, Runtime_DoubleLo) {
   SealHandleScope shs(isolate);
   ASSERT(args.length() == 1);
   CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-
-  double x_abs = std::fabs(x);
-  // Use Taylor series to approximate. With y = x + 1;
-  // log(y) at 1 == log(1) + log'(1)(y-1)/1! + log''(1)(y-1)^2/2! + ...
-  //             == 0 + x - x^2/2 + x^3/3 ...
-  // The closer x is to 0, the fewer terms are required.
-  static const double threshold_2 = 1.0 / 0x00800000;
-  static const double threshold_3 = 1.0 / 0x00008000;
-  static const double threshold_7 = 1.0 / 0x00000080;
-
-  double result;
-  if (x_abs < threshold_2) {
-    result = x * (1.0/1.0 - x * 1.0/2.0);
-  } else if (x_abs < threshold_3) {
-    result = x * (1.0/1.0 - x * (1.0/2.0 - x * (1.0/3.0)));
-  } else if (x_abs < threshold_7) {
-    result = x * (1.0/1.0 - x * (1.0/2.0 - x * (
-                  1.0/3.0 - x * (1.0/4.0 - x * (
-                  1.0/5.0 - x * (1.0/6.0 - x * (
-                  1.0/7.0)))))));
-  } else {  // Use regular log if not close enough to 0.
-    result = std::log(1.0 + x);
-  }
-  return isolate->heap()->AllocateHeapNumber(result);
+  return isolate->heap()->NumberFromDouble(
+      static_cast<int32_t>(double_to_uint64(x) & 0xFFFFFFFFu));
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_expm1) {
+RUNTIME_FUNCTION(MaybeObject*, Runtime_ConstructDouble) {
   SealHandleScope shs(isolate);
-  ASSERT(args.length() == 1);
-  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-
-  double x_abs = std::fabs(x);
-  // Use Taylor series to approximate.
-  // exp(x) - 1 at 0 == -1 + exp(0) + exp'(0)*x/1! + exp''(0)*x^2/2! + ...
-  //                 == x/1! + x^2/2! + x^3/3! + ...
-  // The closer x is to 0, the fewer terms are required.
-  static const double threshold_2 = 1.0 / 0x00400000;
-  static const double threshold_3 = 1.0 / 0x00004000;
-  static const double threshold_6 = 1.0 / 0x00000040;
-
-  double result;
-  if (x_abs < threshold_2) {
-    result = x * (1.0/1.0 + x * (1.0/2.0));
-  } else if (x_abs < threshold_3) {
-    result = x * (1.0/1.0 + x * (1.0/2.0 + x * (1.0/6.0)));
-  } else if (x_abs < threshold_6) {
-    result = x * (1.0/1.0 + x * (1.0/2.0 + x * (
-                  1.0/6.0 + x * (1.0/24.0 + x * (
-                  1.0/120.0 + x * (1.0/720.0))))));
-  } else {  // Use regular exp if not close enough to 0.
-    result = std::exp(x) - 1.0;
-  }
-  return isolate->heap()->AllocateHeapNumber(result);
+  ASSERT(args.length() == 2);
+  CONVERT_NUMBER_CHECKED(uint32_t, hi, Uint32, args[0]);
+  CONVERT_NUMBER_CHECKED(uint32_t, lo, Uint32, args[1]);
+  uint64_t result = (static_cast<uint64_t>(hi) << 32) | lo;
+  return isolate->heap()->AllocateHeapNumber(uint64_to_double(result));
 }
 
 
@@ -8560,10 +8490,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ClearFunctionTypeFeedback) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
+  function->shared()->ClearTypeFeedbackInfo(isolate->heap());
   Code* unoptimized = function->shared()->code();
   if (unoptimized->kind() == Code::FUNCTION) {
     unoptimized->ClearInlineCaches();
-    unoptimized->ClearTypeFeedbackInfo(isolate->heap());
   }
   return isolate->heap()->undefined_value();
 }
@@ -9619,6 +9549,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DateCurrentTime) {
   // time is milliseconds. Therefore, we floor the result of getting
   // the OS time.
   double millis = std::floor(OS::TimeCurrentMillis());
+  isolate->date_cache()->CheckTimezone();
   return isolate->heap()->NumberFromDouble(millis);
 }
 
@@ -9665,6 +9596,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DateLocalTimezone) {
   ASSERT(args.length() == 1);
 
   CONVERT_DOUBLE_ARG_CHECKED(x, 0);
+  isolate->date_cache()->CheckTimezone();
   int64_t time = isolate->date_cache()->EquivalentTime(static_cast<int64_t>(x));
   const char* zone = OS::LocalTimezone(static_cast<double>(time));
   return isolate->heap()->AllocateStringFromUtf8(CStrVector(zone));
@@ -12246,7 +12178,7 @@ static const int kScopeDetailsObjectIndex = 1;
 static const int kScopeDetailsSize = 2;
 
 
-static MaybeObject* MaterializeScopeDetails(Isolate* isolate,
+static Handle<JSObject> MaterializeScopeDetails(Isolate* isolate,
     ScopeIterator* it) {
   // Calculate the size of the result.
   int details_size = kScopeDetailsSize;
@@ -12255,10 +12187,10 @@ static MaybeObject* MaterializeScopeDetails(Isolate* isolate,
   // Fill in scope details.
   details->set(kScopeDetailsTypeIndex, Smi::FromInt(it->Type()));
   Handle<JSObject> scope_object = it->ScopeObject();
-  RETURN_IF_EMPTY_HANDLE(isolate, scope_object);
+  RETURN_IF_EMPTY_HANDLE_VALUE(isolate, scope_object, Handle<JSObject>());
   details->set(kScopeDetailsObjectIndex, *scope_object);
 
-  return *isolate->factory()->NewJSArrayWithElements(details);
+  return isolate->factory()->NewJSArrayWithElements(details);
 }
 
 
@@ -12299,7 +12231,51 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetScopeDetails) {
   if (it.Done()) {
     return isolate->heap()->undefined_value();
   }
-  return MaterializeScopeDetails(isolate, &it);
+  Handle<JSObject> details = MaterializeScopeDetails(isolate, &it);
+  RETURN_IF_EMPTY_HANDLE(isolate, details);
+  return *details;
+}
+
+
+// Return an array of scope details
+// args[0]: number: break id
+// args[1]: number: frame index
+// args[2]: number: inlined frame index
+//
+// The array returned contains arrays with the following information:
+// 0: Scope type
+// 1: Scope object
+RUNTIME_FUNCTION(MaybeObject*, Runtime_GetAllScopesDetails) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 3);
+
+  // Check arguments.
+  Object* check;
+  { MaybeObject* maybe_check = Runtime_CheckExecutionState(
+      RUNTIME_ARGUMENTS(isolate, args));
+    if (!maybe_check->ToObject(&check)) return maybe_check;
+  }
+  CONVERT_SMI_ARG_CHECKED(wrapped_id, 1);
+  CONVERT_NUMBER_CHECKED(int, inlined_jsframe_index, Int32, args[2]);
+
+  // Get the frame where the debugging is performed.
+  StackFrame::Id id = UnwrapFrameId(wrapped_id);
+  JavaScriptFrameIterator frame_it(isolate, id);
+  JavaScriptFrame* frame = frame_it.frame();
+
+  List<Handle<JSObject> > result(4);
+  ScopeIterator it(isolate, frame, inlined_jsframe_index);
+  for (; !it.Done(); it.Next()) {
+    Handle<JSObject> details = MaterializeScopeDetails(isolate, &it);
+    RETURN_IF_EMPTY_HANDLE(isolate, details);
+    result.Add(details);
+  }
+
+  Handle<FixedArray> array = isolate->factory()->NewFixedArray(result.length());
+  for (int i = 0; i < result.length(); ++i) {
+    array->set(i, *result[i]);
+  }
+  return *isolate->factory()->NewJSArrayWithElements(array);
 }
 
 
@@ -12338,7 +12314,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFunctionScopeDetails) {
     return isolate->heap()->undefined_value();
   }
 
-  return MaterializeScopeDetails(isolate, &it);
+  Handle<JSObject> details = MaterializeScopeDetails(isolate, &it);
+  RETURN_IF_EMPTY_HANDLE(isolate, details);
+  return *details;
 }
 
 
@@ -14533,8 +14511,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ListNatives) {
 #define COUNT_ENTRY(Name, argc, ressize) + 1
   int entry_count = 0
       RUNTIME_FUNCTION_LIST(COUNT_ENTRY)
-      INLINE_FUNCTION_LIST(COUNT_ENTRY)
-      INLINE_RUNTIME_FUNCTION_LIST(COUNT_ENTRY);
+      INLINE_FUNCTION_LIST(COUNT_ENTRY);
 #undef COUNT_ENTRY
   Factory* factory = isolate->factory();
   Handle<FixedArray> elements = factory->NewFixedArray(entry_count);
@@ -14562,7 +14539,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ListNatives) {
   RUNTIME_FUNCTION_LIST(ADD_ENTRY)
   inline_runtime_functions = true;
   INLINE_FUNCTION_LIST(ADD_ENTRY)
-  INLINE_RUNTIME_FUNCTION_LIST(ADD_ENTRY)
 #undef ADD_ENTRY
   ASSERT_EQ(index, entry_count);
   Handle<JSArray> result = factory->NewJSArrayWithElements(elements);
@@ -14744,8 +14720,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_IsAccessAllowedForObserver) {
   Handle<Object> key = args.at<Object>(2);
   SaveContext save(isolate);
   isolate->set_context(observer->context());
-  if (!isolate->MayNamedAccess(*object, isolate->heap()->undefined_value(),
-                               v8::ACCESS_KEYS)) {
+  if (!isolate->MayNamedAccessWrapper(object,
+                                      isolate->factory()->undefined_value(),
+                                      v8::ACCESS_KEYS)) {
     return isolate->heap()->false_value();
   }
   bool access_allowed = false;
@@ -14753,11 +14730,12 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_IsAccessAllowedForObserver) {
   if (key->ToArrayIndex(&index) ||
       (key->IsString() && String::cast(*key)->AsArrayIndex(&index))) {
     access_allowed =
-        isolate->MayIndexedAccess(*object, index, v8::ACCESS_GET) &&
-        isolate->MayIndexedAccess(*object, index, v8::ACCESS_HAS);
+        isolate->MayIndexedAccessWrapper(object, index, v8::ACCESS_GET) &&
+        isolate->MayIndexedAccessWrapper(object, index, v8::ACCESS_HAS);
   } else {
-    access_allowed = isolate->MayNamedAccess(*object, *key, v8::ACCESS_GET) &&
-        isolate->MayNamedAccess(*object, *key, v8::ACCESS_HAS);
+    access_allowed =
+        isolate->MayNamedAccessWrapper(object, key, v8::ACCESS_GET) &&
+        isolate->MayNamedAccessWrapper(object, key, v8::ACCESS_HAS);
   }
   return isolate->heap()->ToBoolean(access_allowed);
 }
@@ -14871,7 +14849,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ArrayConstructor) {
 
   Handle<AllocationSite> site;
   if (!type_info.is_null() &&
-      *type_info != isolate->heap()->undefined_value()) {
+      !type_info.is_identical_to(
+          TypeFeedbackInfo::MegamorphicSentinel(isolate))) {
     site = Handle<AllocationSite>::cast(type_info);
     ASSERT(!site->SitePointsToLiteral());
   }
@@ -14926,8 +14905,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_MaxSmi) {
 static const Runtime::Function kIntrinsicFunctions[] = {
   RUNTIME_FUNCTION_LIST(F)
   INLINE_FUNCTION_LIST(I)
-  INLINE_RUNTIME_FUNCTION_LIST(I)
 };
+
+#undef I
+#undef F
 
 
 MaybeObject* Runtime::InitializeIntrinsicFunctionNames(Heap* heap,

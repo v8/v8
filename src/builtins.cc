@@ -1320,9 +1320,7 @@ static void Generate_LoadIC_Normal(MacroAssembler* masm) {
 
 
 static void Generate_LoadIC_Getter_ForDeopt(MacroAssembler* masm) {
-  LoadStubCompiler::GenerateLoadViaGetter(
-      masm, Handle<HeapType>::null(),
-      LoadStubCompiler::registers()[0], Handle<JSFunction>());
+  LoadStubCompiler::GenerateLoadViaGetterForDeopt(masm);
 }
 
 
@@ -1387,8 +1385,7 @@ static void Generate_StoreIC_Normal(MacroAssembler* masm) {
 
 
 static void Generate_StoreIC_Setter_ForDeopt(MacroAssembler* masm) {
-  StoreStubCompiler::GenerateStoreViaSetter(
-      masm, Handle<HeapType>::null(), Handle<JSFunction>());
+  StoreStubCompiler::GenerateStoreViaSetterForDeopt(masm);
 }
 
 

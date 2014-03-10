@@ -340,6 +340,7 @@ typedef List<HeapObject*> DebugObjectCache;
   /* A previously allocated buffer of kMinimalBufferSize bytes, or NULL. */    \
   V(byte*, assembler_spare_buffer, NULL)                                       \
   V(FatalErrorCallback, exception_behavior, NULL)                              \
+  V(LogEventCallback, event_logger, NULL)                                      \
   V(AllowCodeGenerationFromStringsCallback, allow_code_gen_callback, NULL)     \
   /* To distinguish the function templates, so that we can find them in the */ \
   /* function cache of the native context. */                                  \
@@ -740,6 +741,10 @@ class Isolate {
                                uint32_t index,
                                v8::AccessType type) {
     return MayIndexedAccess(*receiver, index, type);
+  }
+  void ReportFailedAccessCheckWrapper(Handle<JSObject> receiver,
+                                      v8::AccessType type) {
+    ReportFailedAccessCheck(*receiver, type);
   }
 
   bool MayNamedAccess(JSObject* receiver,

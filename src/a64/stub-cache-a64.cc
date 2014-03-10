@@ -1239,22 +1239,18 @@ Handle<Code> StoreStubCompiler::CompileStoreCallback(
 void StoreStubCompiler::GenerateStoreViaSetter(
     MacroAssembler* masm,
     Handle<HeapType> type,
+    Register receiver,
     Handle<JSFunction> setter) {
   // ----------- S t a t e -------------
-  //  -- x0    : value
-  //  -- x1    : receiver
-  //  -- x2    : name
   //  -- lr    : return address
   // -----------------------------------
-  Register value = x0;
-  Register receiver = x1;
   Label miss;
 
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
 
     // Save value register, so we can restore it later.
-    __ Push(value);
+    __ Push(value());
 
     if (!setter.is_null()) {
       // Call the JavaScript setter with receiver and value on the stack.
@@ -1264,7 +1260,7 @@ void StoreStubCompiler::GenerateStoreViaSetter(
                FieldMemOperand(
                    receiver, JSGlobalObject::kGlobalReceiverOffset));
       }
-      __ Push(receiver, value);
+      __ Push(receiver, value());
       ParameterCount actual(1);
       ParameterCount expected(setter);
       __ InvokeFunction(setter, expected, actual,
@@ -1276,7 +1272,7 @@ void StoreStubCompiler::GenerateStoreViaSetter(
     }
 
     // We have to return the passed value, not the return value of the setter.
-    __ Pop(value);
+    __ Pop(x0);
 
     // Restore context register.
     __ Ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
@@ -1343,16 +1339,21 @@ Register* KeyedLoadStubCompiler::registers() {
 }
 
 
+Register StoreStubCompiler::value() {
+  return x0;
+}
+
+
 Register* StoreStubCompiler::registers() {
-  // receiver, name, value, scratch1, scratch2, scratch3.
-  static Register registers[] = { x1, x2, x0, x3, x4, x5 };
+  // receiver, value, scratch1, scratch2, scratch3.
+  static Register registers[] = { x1, x2, x3, x4, x5 };
   return registers;
 }
 
 
 Register* KeyedStoreStubCompiler::registers() {
-  // receiver, name, value, scratch1, scratch2, scratch3.
-  static Register registers[] = { x2, x1, x0, x3, x4, x5 };
+  // receiver, name, scratch1, scratch2, scratch3.
+  static Register registers[] = { x2, x1, x3, x4, x5 };
   return registers;
 }
 

@@ -351,26 +351,6 @@ const AccessorDescriptor Accessors::ScriptColumnOffset = {
 
 
 //
-// Accessors::ScriptData
-//
-
-
-MaybeObject* Accessors::ScriptGetData(Isolate* isolate,
-                                      Object* object,
-                                      void*) {
-  Object* script = JSValue::cast(object)->value();
-  return Script::cast(script)->data();
-}
-
-
-const AccessorDescriptor Accessors::ScriptData = {
-  ScriptGetData,
-  IllegalSetter,
-  0
-};
-
-
-//
 // Accessors::ScriptType
 //
 
@@ -620,10 +600,7 @@ MaybeObject* Accessors::FunctionSetPrototype(Isolate* isolate,
   }
 
   Handle<Object> old_value;
-  bool is_observed =
-      FLAG_harmony_observation &&
-      *function == *object &&
-      function->map()->is_observed();
+  bool is_observed = *function == *object && function->map()->is_observed();
   if (is_observed) {
     if (function->has_prototype())
       old_value = handle(function->prototype(), isolate);

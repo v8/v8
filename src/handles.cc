@@ -537,10 +537,10 @@ Handle<FixedArray> GetKeysInFixedArrayFor(Handle<JSReceiver> object,
 
     // Check access rights if required.
     if (current->IsAccessCheckNeeded() &&
-        !isolate->MayNamedAccess(*current,
-                                 isolate->heap()->undefined_value(),
-                                 v8::ACCESS_KEYS)) {
-      isolate->ReportFailedAccessCheck(*current, v8::ACCESS_KEYS);
+        !isolate->MayNamedAccessWrapper(current,
+                                        isolate->factory()->undefined_value(),
+                                        v8::ACCESS_KEYS)) {
+      isolate->ReportFailedAccessCheckWrapper(current, v8::ACCESS_KEYS);
       if (isolate->has_scheduled_exception()) {
         isolate->PromoteScheduledException();
         *threw = true;

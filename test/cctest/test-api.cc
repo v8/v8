@@ -2634,6 +2634,10 @@ THREADED_TEST(InternalFieldsAlignedPointers) {
 
   void* huge = reinterpret_cast<void*>(~static_cast<uintptr_t>(1));
   CheckAlignedPointerInInternalField(obj, huge);
+
+  v8::UniquePersistent<v8::Object> persistent(isolate, obj);
+  CHECK_EQ(1, Object::InternalFieldCount(persistent));
+  CHECK_EQ(huge, Object::GetAlignedPointerFromInternalField(persistent, 0));
 }
 
 
@@ -2844,7 +2848,8 @@ THREADED_TEST(PrivateProperties) {
 
   v8::Local<v8::Object> obj = v8::Object::New(isolate);
   v8::Local<v8::Private> priv1 = v8::Private::New(isolate);
-  v8::Local<v8::Private> priv2 = v8::Private::New(isolate, "my-private");
+  v8::Local<v8::Private> priv2 = v8::Private::New(isolate,
+                                                  v8_str("my-private"));
 
   CcTest::heap()->CollectAllGarbage(i::Heap::kNoGCFlags);
 
@@ -3974,7 +3979,6 @@ static void check_message_0(v8::Handle<v8::Message> message,
                             v8::Handle<Value> data) {
   CHECK_EQ(5.76, data->NumberValue());
   CHECK_EQ(6.75, message->GetScriptResourceName()->NumberValue());
-  CHECK_EQ(7.56, message->GetScriptData()->NumberValue());
   CHECK(!message->IsSharedCrossOrigin());
   message_received = true;
 }
@@ -3990,7 +3994,6 @@ THREADED_TEST(MessageHandler0) {
       v8::ScriptOrigin(v8_str("6.75"));
   v8::Handle<v8::Script> script = Script::Compile(v8_str("throw 'error'"),
                                                   &origin);
-  script->SetData(v8_str("7.56"));
   script->Run();
   CHECK(message_received);
   // clear out the message listener
@@ -22112,4 +22115,28 @@ TEST(TestFunctionCallOptimization) {
   i::FLAG_allow_natives_syntax = true;
   ApiCallOptimizationChecker checker;
   checker.RunAll();
+}
+
+
+static const char* last_event_message;
+static int last_event_status;
+void StoringEventLoggerCallback(const char* message, int status) {
+    last_event_message = message;
+    last_event_status = status;
+}
+
+
+TEST(EventLogging) {
+  v8::Isolate* isolate = CcTest::isolate();
+  isolate->SetEventLogger(StoringEventLoggerCallback);
+  v8::internal::HistogramTimer* histogramTimer =
+      new v8::internal::HistogramTimer(
+          "V8.Test", 0, 10000, 50,
+          reinterpret_cast<v8::internal::Isolate*>(isolate));
+  histogramTimer->Start();
+  CHECK_EQ("V8.Test", last_event_message);
+  CHECK_EQ(0, last_event_status);
+  histogramTimer->Stop();
+  CHECK_EQ("V8.Test", last_event_message);
+  CHECK_EQ(1, last_event_status);
 }

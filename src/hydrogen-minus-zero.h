@@ -38,14 +38,22 @@ class HComputeMinusZeroChecksPhase : public HPhase {
  public:
   explicit HComputeMinusZeroChecksPhase(HGraph* graph)
       : HPhase("H_Compute minus zero checks", graph),
-        visited_(graph->GetMaximumValueID(), zone()) { }
+        in_worklist_(graph->GetMaximumValueID(), zone()),
+        worklist_(32, zone()) {}
 
   void Run();
 
  private:
+  void AddToWorklist(HValue* value) {
+    if (value->CheckFlag(HValue::kBailoutOnMinusZero)) return;
+    if (in_worklist_.Contains(value->id())) return;
+    in_worklist_.Add(value->id());
+    worklist_.Add(value, zone());
+  }
   void PropagateMinusZeroChecks(HValue* value);
 
-  BitVector visited_;
+  BitVector in_worklist_;
+  ZoneList<HValue*> worklist_;
 
   DISALLOW_COPY_AND_ASSIGN(HComputeMinusZeroChecksPhase);
 };

@@ -114,7 +114,8 @@ class HeapEntry BASE_EMBEDDED {
             Type type,
             const char* name,
             SnapshotObjectId id,
-            size_t self_size);
+            size_t self_size,
+            unsigned trace_node_id);
 
   HeapSnapshot* snapshot() { return snapshot_; }
   Type type() { return static_cast<Type>(type_); }
@@ -122,6 +123,7 @@ class HeapEntry BASE_EMBEDDED {
   void set_name(const char* name) { name_ = name; }
   inline SnapshotObjectId id() { return id_; }
   size_t self_size() { return self_size_; }
+  unsigned trace_node_id() const { return trace_node_id_; }
   INLINE(int index() const);
   int children_count() const { return children_count_; }
   INLINE(int set_children_index(int index));
@@ -147,9 +149,11 @@ class HeapEntry BASE_EMBEDDED {
   int children_count_: 28;
   int children_index_;
   size_t self_size_;
-  SnapshotObjectId id_;
   HeapSnapshot* snapshot_;
   const char* name_;
+  SnapshotObjectId id_;
+  // id of allocation stack trace top node
+  unsigned trace_node_id_;
 };
 
 
@@ -186,7 +190,8 @@ class HeapSnapshot {
   HeapEntry* AddEntry(HeapEntry::Type type,
                       const char* name,
                       SnapshotObjectId id,
-                      size_t size);
+                      size_t size,
+                      unsigned trace_node_id);
   HeapEntry* AddRootEntry();
   HeapEntry* AddGcRootsEntry();
   HeapEntry* AddGcSubrootEntry(int tag);
@@ -228,7 +233,7 @@ class HeapObjectsMap {
   SnapshotObjectId FindOrAddEntry(Address addr,
                                   unsigned int size,
                                   bool accessed = true);
-  void MoveObject(Address from, Address to, int size);
+  bool MoveObject(Address from, Address to, int size);
   void UpdateObjectSize(Address addr, int size);
   SnapshotObjectId last_assigned_id() const {
     return next_id_ - kObjectIdStep;

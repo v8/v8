@@ -7210,6 +7210,7 @@ bool HOptimizedGraphBuilder::TryInline(Handle<JSFunction> target,
       target_shared->set_scope_info(*target_scope_info);
     }
     target_shared->EnableDeoptimizationSupport(*target_info.code());
+    target_shared->set_feedback_vector(*target_info.feedback_vector());
     Compiler::RecordFunctionCompilation(Logger::FUNCTION_TAG,
                                         &target_info,
                                         target_shared);
@@ -8387,7 +8388,6 @@ void HOptimizedGraphBuilder::VisitCallNew(CallNew* expr) {
 const HOptimizedGraphBuilder::InlineFunctionGenerator
     HOptimizedGraphBuilder::kInlineFunctionGenerators[] = {
         INLINE_FUNCTION_LIST(INLINE_FUNCTION_GENERATOR_ADDRESS)
-        INLINE_RUNTIME_FUNCTION_LIST(INLINE_FUNCTION_GENERATOR_ADDRESS)
 };
 #undef INLINE_FUNCTION_GENERATOR_ADDRESS
 
@@ -8741,7 +8741,7 @@ HInstruction* HOptimizedGraphBuilder::BuildIncrement(
   // The input to the count operation is on top of the expression stack.
   Representation rep = Representation::FromType(expr->type());
   if (rep.IsNone() || rep.IsTagged()) {
-    rep = Representation::FromType(Type::Smi());
+    rep = Representation::Smi();
   }
 
   if (returns_original_input) {
@@ -8991,8 +8991,14 @@ bool CanBeZero(HValue* right) {
 
 HValue* HGraphBuilder::EnforceNumberType(HValue* number,
                                          Type* expected) {
-  return AddUncasted<HForceRepresentation>(
-      number, Representation::FromType(expected));
+  if (expected->Is(Type::Smi())) {
+    return AddUncasted<HForceRepresentation>(number, Representation::Smi());
+  }
+  if (expected->Is(Type::Signed32())) {
+    return AddUncasted<HForceRepresentation>(number,
+                                             Representation::Integer32());
+  }
+  return number;
 }
 
 
@@ -10499,6 +10505,35 @@ void HOptimizedGraphBuilder::GenerateRegExpExec(CallRuntime* call) {
   CHECK_ALIVE(VisitExpressions(call->arguments()));
   PushArgumentsFromEnvironment(call->arguments()->length());
   HCallStub* result = New<HCallStub>(CodeStub::RegExpExec, 4);
+  return ast_context()->ReturnInstruction(result, call->id());
+}
+
+
+void HOptimizedGraphBuilder::GenerateDoubleLo(CallRuntime* call) {
+  ASSERT_EQ(1, call->arguments()->length());
+  CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
+  HValue* value = Pop();
+  HInstruction* result = NewUncasted<HDoubleBits>(value, HDoubleBits::LOW);
+  return ast_context()->ReturnInstruction(result, call->id());
+}
+
+
+void HOptimizedGraphBuilder::GenerateDoubleHi(CallRuntime* call) {
+  ASSERT_EQ(1, call->arguments()->length());
+  CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
+  HValue* value = Pop();
+  HInstruction* result = NewUncasted<HDoubleBits>(value, HDoubleBits::HIGH);
+  return ast_context()->ReturnInstruction(result, call->id());
+}
+
+
+void HOptimizedGraphBuilder::GenerateConstructDouble(CallRuntime* call) {
+  ASSERT_EQ(2, call->arguments()->length());
+  CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
+  CHECK_ALIVE(VisitForValue(call->arguments()->at(1)));
+  HValue* lo = Pop();
+  HValue* hi = Pop();
+  HInstruction* result = NewUncasted<HConstructDouble>(hi, lo);
   return ast_context()->ReturnInstruction(result, call->id());
 }
 

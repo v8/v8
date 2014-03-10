@@ -45,17 +45,13 @@ void HComputeMinusZeroChecksPhase::Run() {
           ASSERT(change->to().IsTagged() ||
                  change->to().IsDouble() ||
                  change->to().IsSmiOrInteger32());
-          ASSERT(visited_.IsEmpty());
           PropagateMinusZeroChecks(change->value());
-          visited_.Clear();
         }
       } else if (current->IsCompareMinusZeroAndBranch()) {
         HCompareMinusZeroAndBranch* check =
             HCompareMinusZeroAndBranch::cast(current);
         if (check->value()->representation().IsSmiOrInteger32()) {
-          ASSERT(visited_.IsEmpty());
           PropagateMinusZeroChecks(check->value());
-          visited_.Clear();
         }
       }
     }
@@ -64,28 +60,77 @@ void HComputeMinusZeroChecksPhase::Run() {
 
 
 void HComputeMinusZeroChecksPhase::PropagateMinusZeroChecks(HValue* value) {
-  for (HValue* current = value;
-       current != NULL && !visited_.Contains(current->id());
-       current = current->EnsureAndPropagateNotMinusZero(&visited_)) {
-    // For phis, we must propagate the check to all of its inputs.
-    if (current->IsPhi()) {
-      visited_.Add(current->id());
-      HPhi* phi = HPhi::cast(current);
-      for (int i = 0; i < phi->OperandCount(); ++i) {
-        PropagateMinusZeroChecks(phi->OperandAt(i));
-      }
-      break;
-    }
+  ASSERT(worklist_.is_empty());
+  ASSERT(in_worklist_.IsEmpty());
 
-    // For multiplication, division, and Math.min/max(), we must propagate
-    // to the left and the right side.
-    if (current->IsMul() || current->IsDiv() || current->IsMathMinMax()) {
-      HBinaryOperation* operation = HBinaryOperation::cast(current);
-      operation->EnsureAndPropagateNotMinusZero(&visited_);
-      PropagateMinusZeroChecks(operation->left());
-      PropagateMinusZeroChecks(operation->right());
+  AddToWorklist(value);
+  while (!worklist_.is_empty()) {
+    value = worklist_.RemoveLast();
+
+    if (value->IsPhi()) {
+      // For phis, we must propagate the check to all of its inputs.
+      HPhi* phi = HPhi::cast(value);
+      for (int i = 0; i < phi->OperandCount(); ++i) {
+        AddToWorklist(phi->OperandAt(i));
+      }
+    } else if (value->IsUnaryMathOperation()) {
+      HUnaryMathOperation* instr = HUnaryMathOperation::cast(value);
+      if (instr->representation().IsSmiOrInteger32() &&
+          !instr->value()->representation().Equals(instr->representation())) {
+        if (instr->value()->range() == NULL ||
+            instr->value()->range()->CanBeMinusZero()) {
+          instr->SetFlag(HValue::kBailoutOnMinusZero);
+        }
+      }
+      if (instr->RequiredInputRepresentation(0).IsSmiOrInteger32() &&
+          instr->representation().Equals(
+              instr->RequiredInputRepresentation(0))) {
+        AddToWorklist(instr->value());
+      }
+    } else if (value->IsChange()) {
+      HChange* instr = HChange::cast(value);
+      if (!instr->from().IsSmiOrInteger32() &&
+          !instr->CanTruncateToInt32() &&
+          (instr->value()->range() == NULL ||
+           instr->value()->range()->CanBeMinusZero())) {
+        instr->SetFlag(HValue::kBailoutOnMinusZero);
+      }
+    } else if (value->IsForceRepresentation()) {
+      HForceRepresentation* instr = HForceRepresentation::cast(value);
+      AddToWorklist(instr->value());
+    } else if (value->IsMod()) {
+      HMod* instr = HMod::cast(value);
+      if (instr->range() == NULL || instr->range()->CanBeMinusZero()) {
+        instr->SetFlag(HValue::kBailoutOnMinusZero);
+        AddToWorklist(instr->left());
+      }
+    } else if (value->IsDiv() || value->IsMul()) {
+      HBinaryOperation* instr = HBinaryOperation::cast(value);
+      if (instr->range() == NULL || instr->range()->CanBeMinusZero()) {
+        instr->SetFlag(HValue::kBailoutOnMinusZero);
+      }
+      AddToWorklist(instr->right());
+      AddToWorklist(instr->left());
+    } else if (value->IsMathFloorOfDiv()) {
+      HMathFloorOfDiv* instr = HMathFloorOfDiv::cast(value);
+      instr->SetFlag(HValue::kBailoutOnMinusZero);
+    } else if (value->IsAdd() || value->IsSub()) {
+      HBinaryOperation* instr = HBinaryOperation::cast(value);
+      if (instr->range() == NULL || instr->range()->CanBeMinusZero()) {
+        // Propagate to the left argument. If the left argument cannot be -0,
+        // then the result of the add/sub operation cannot be either.
+        AddToWorklist(instr->left());
+      }
+    } else if (value->IsMathMinMax()) {
+      HMathMinMax* instr = HMathMinMax::cast(value);
+      AddToWorklist(instr->right());
+      AddToWorklist(instr->left());
     }
   }
+
+  in_worklist_.Clear();
+  ASSERT(in_worklist_.IsEmpty());
+  ASSERT(worklist_.is_empty());
 }
 
 } }  // namespace v8::internal

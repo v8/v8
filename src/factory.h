@@ -516,7 +516,8 @@ class Factory {
       int number_of_literals,
       bool is_generator,
       Handle<Code> code,
-      Handle<ScopeInfo> scope_info);
+      Handle<ScopeInfo> scope_info,
+      Handle<FixedArray> feedback_vector);
   Handle<SharedFunctionInfo> NewSharedFunctionInfo(Handle<String> name);
 
   Handle<JSMessageObject> NewJSMessageObject(

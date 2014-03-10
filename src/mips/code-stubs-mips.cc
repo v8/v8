@@ -3162,9 +3162,9 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   Label initialize, done, miss, megamorphic, not_array_function;
 
   ASSERT_EQ(*TypeFeedbackInfo::MegamorphicSentinel(masm->isolate()),
-            masm->isolate()->heap()->undefined_value());
+            masm->isolate()->heap()->megamorphic_symbol());
   ASSERT_EQ(*TypeFeedbackInfo::UninitializedSentinel(masm->isolate()),
-            masm->isolate()->heap()->the_hole_value());
+            masm->isolate()->heap()->uninitialized_symbol());
 
   // Load the cache state into t0.
   __ sll(t0, a3, kPointerSizeLog2 - kSmiTagSize);
@@ -3192,14 +3192,14 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
 
   // A monomorphic miss (i.e, here the cache is not uninitialized) goes
   // megamorphic.
-  __ LoadRoot(at, Heap::kTheHoleValueRootIndex);
+  __ LoadRoot(at, Heap::kUninitializedSymbolRootIndex);
   __ Branch(&initialize, eq, t0, Operand(at));
   // MegamorphicSentinel is an immortal immovable object (undefined) so no
   // write-barrier is needed.
   __ bind(&megamorphic);
   __ sll(t0, a3, kPointerSizeLog2 - kSmiTagSize);
   __ Addu(t0, a2, Operand(t0));
-  __ LoadRoot(at, Heap::kUndefinedValueRootIndex);
+  __ LoadRoot(at, Heap::kMegamorphicSymbolRootIndex);
   __ sw(at, FieldMemOperand(t0, FixedArray::kHeaderSize));
   __ jmp(&done);
 
@@ -3251,7 +3251,8 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
 void CallFunctionStub::Generate(MacroAssembler* masm) {
   // a1 : the function to call
   // a2 : feedback vector
-  // a3 : (only if a2 is not undefined) slot in feedback vector (Smi)
+  // a3 : (only if a2 is not the megamorphic symbol) slot in feedback
+  //      vector (Smi)
   Label slow, non_function, wrap, cont;
 
   if (NeedsChecks()) {
@@ -3305,12 +3306,12 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
     if (RecordCallTarget()) {
       // If there is a call target cache, mark it megamorphic in the
       // non-function case.  MegamorphicSentinel is an immortal immovable
-      // object (undefined) so no write barrier is needed.
+      // object (megamorphic symbol) so no write barrier is needed.
       ASSERT_EQ(*TypeFeedbackInfo::MegamorphicSentinel(masm->isolate()),
-                masm->isolate()->heap()->undefined_value());
+                masm->isolate()->heap()->megamorphic_symbol());
       __ sll(t1, a3, kPointerSizeLog2 - kSmiTagSize);
       __ Addu(t1, a2, Operand(t1));
-      __ LoadRoot(at, Heap::kUndefinedValueRootIndex);
+      __ LoadRoot(at, Heap::kMegamorphicSymbolRootIndex);
       __ sw(at, FieldMemOperand(t1, FixedArray::kHeaderSize));
     }
     // Check for function proxy.
@@ -5478,11 +5479,15 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- a0 : argc (only if argument_count_ == ANY)
   //  -- a1 : constructor
-  //  -- a2 : feedback vector (fixed array or undefined)
+  //  -- a2 : feedback vector (fixed array or megamorphic symbol)
   //  -- a3 : slot index (if a2 is fixed array)
   //  -- sp[0] : return address
   //  -- sp[4] : last argument
   // -----------------------------------
+
+  ASSERT_EQ(*TypeFeedbackInfo::MegamorphicSentinel(masm->isolate()),
+            masm->isolate()->heap()->megamorphic_symbol());
+
   if (FLAG_debug_code) {
     // The array construct code is only set for the global and natives
     // builtin Array functions which always have maps.
@@ -5497,10 +5502,11 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
     __ Assert(eq, kUnexpectedInitialMapForArrayFunction,
         t1, Operand(MAP_TYPE));
 
-    // We should either have undefined in a2 or a valid fixed array.
+    // We should either have the megamorphic symbol in a2 or a valid
+    // fixed array.
     Label okay_here;
     Handle<Map> fixed_array_map = masm->isolate()->factory()->fixed_array_map();
-    __ LoadRoot(at, Heap::kUndefinedValueRootIndex);
+    __ LoadRoot(at, Heap::kMegamorphicSymbolRootIndex);
     __ Branch(&okay_here, eq, a2, Operand(at));
     __ lw(t0, FieldMemOperand(a2, 0));
     __ Assert(eq, kExpectedFixedArrayInRegisterA2,
@@ -5514,7 +5520,7 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
 
   Label no_info;
   // Get the elements kind and case on that.
-  __ LoadRoot(at, Heap::kUndefinedValueRootIndex);
+  __ LoadRoot(at, Heap::kMegamorphicSymbolRootIndex);
   __ Branch(&no_info, eq, a2, Operand(at));
   __ sll(t0, a3, kPointerSizeLog2 - kSmiTagSize);
   __ Addu(a2, a2, Operand(t0));

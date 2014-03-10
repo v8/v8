@@ -1488,7 +1488,7 @@ int Disassembler::SubstituteImmediateField(Instruction* instr,
       return 6;
     }
     default: {
-      UNIMPLEMENTED();
+      UNREACHABLE();
       return 0;
     }
   }
@@ -1564,7 +1564,7 @@ int Disassembler::SubstituteShiftField(Instruction* instr, const char* format) {
       return 3;
     }
     default:
-      UNIMPLEMENTED();
+      UNREACHABLE();
       return 0;
   }
 }
@@ -1606,8 +1606,8 @@ int Disassembler::SubstitutePCRelAddressField(Instruction* instr,
     offset = -offset;
     sign = '-';
   }
-  // TODO(jbramley): Can we print the target address here?
-  AppendToOutput("#%c0x%x", sign, offset);
+  STATIC_ASSERT(sizeof(*instr) == 1);
+  AppendToOutput("#%c0x%x (addr %p)", sign, offset, instr + offset);
   return 13;
 }
 
@@ -1626,7 +1626,7 @@ int Disassembler::SubstituteBranchTargetField(Instruction* instr,
     case 'm': offset = instr->ImmCmpBranch(); break;
     // BImmTest - test and branch immediate.
     case 'e': offset = instr->ImmTestBranch(); break;
-    default: UNIMPLEMENTED();
+    default: UNREACHABLE();
   }
   offset <<= kInstructionSizeLog2;
   char sign = '+';
@@ -1634,8 +1634,8 @@ int Disassembler::SubstituteBranchTargetField(Instruction* instr,
     offset = -offset;
     sign = '-';
   }
-  // TODO(mcapewel): look up pc + offset in label table.
-  AppendToOutput("#%c0x%" PRIx64, sign, offset);
+  STATIC_ASSERT(sizeof(*instr) == 1);
+  AppendToOutput("#%c0x%" PRIx64 " (addr %p)", sign, offset, instr + offset);
   return 8;
 }
 

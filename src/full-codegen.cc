@@ -386,15 +386,6 @@ unsigned FullCodeGenerator::EmitBackEdgeTable() {
 }
 
 
-void FullCodeGenerator::InitializeFeedbackVector() {
-  int length = info_->function()->slot_count();
-  ASSERT_EQ(isolate()->heap()->the_hole_value(),
-            *TypeFeedbackInfo::UninitializedSentinel(isolate()));
-  feedback_vector_ = isolate()->factory()->NewFixedArrayWithHoles(length,
-                                                                  TENURED);
-}
-
-
 void FullCodeGenerator::PopulateDeoptimizationData(Handle<Code> code) {
   // Fill in the deoptimization information.
   ASSERT(info_->HasDeoptimizationSupport() || bailout_entries_.is_empty());
@@ -413,7 +404,6 @@ void FullCodeGenerator::PopulateDeoptimizationData(Handle<Code> code) {
 void FullCodeGenerator::PopulateTypeFeedbackInfo(Handle<Code> code) {
   Handle<TypeFeedbackInfo> info = isolate()->factory()->NewTypeFeedbackInfo();
   info->set_ic_total_count(ic_total_count_);
-  info->set_feedback_vector(*FeedbackVector());
   ASSERT(!isolate()->heap()->InNewSpace(*info));
   code->set_type_feedback_info(*info);
 }
@@ -905,7 +895,6 @@ void FullCodeGenerator::SetSourcePosition(int pos) {
 const FullCodeGenerator::InlineFunctionGenerator
   FullCodeGenerator::kInlineFunctionGenerators[] = {
     INLINE_FUNCTION_LIST(INLINE_FUNCTION_GENERATOR_ADDRESS)
-    INLINE_RUNTIME_FUNCTION_LIST(INLINE_FUNCTION_GENERATOR_ADDRESS)
   };
 #undef INLINE_FUNCTION_GENERATOR_ADDRESS
 
@@ -947,6 +936,34 @@ void FullCodeGenerator::EmitGeneratorThrow(CallRuntime* expr) {
 
 void FullCodeGenerator::EmitDebugBreakInOptimizedCode(CallRuntime* expr) {
   context()->Plug(handle(Smi::FromInt(0), isolate()));
+}
+
+
+void FullCodeGenerator::EmitDoubleHi(CallRuntime* expr) {
+  ZoneList<Expression*>* args = expr->arguments();
+  ASSERT(args->length() == 1);
+  VisitForStackValue(args->at(0));
+  masm()->CallRuntime(Runtime::kDoubleHi, 1);
+  context()->Plug(result_register());
+}
+
+
+void FullCodeGenerator::EmitDoubleLo(CallRuntime* expr) {
+  ZoneList<Expression*>* args = expr->arguments();
+  ASSERT(args->length() == 1);
+  VisitForStackValue(args->at(0));
+  masm()->CallRuntime(Runtime::kDoubleLo, 1);
+  context()->Plug(result_register());
+}
+
+
+void FullCodeGenerator::EmitConstructDouble(CallRuntime* expr) {
+  ZoneList<Expression*>* args = expr->arguments();
+  ASSERT(args->length() == 2);
+  VisitForStackValue(args->at(0));
+  VisitForStackValue(args->at(1));
+  masm()->CallRuntime(Runtime::kConstructDouble, 2);
+  context()->Plug(result_register());
 }
 
 
@@ -1588,7 +1605,8 @@ void FullCodeGenerator::VisitNativeFunctionLiteral(
   bool is_generator = false;
   Handle<SharedFunctionInfo> shared =
       isolate()->factory()->NewSharedFunctionInfo(name, literals, is_generator,
-          code, Handle<ScopeInfo>(fun->shared()->scope_info()));
+          code, Handle<ScopeInfo>(fun->shared()->scope_info()),
+          Handle<FixedArray>(fun->shared()->feedback_vector()));
   shared->set_construct_stub(*construct_stub);
 
   // Copy the function data to the shared function info.

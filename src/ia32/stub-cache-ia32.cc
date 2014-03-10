@@ -1259,30 +1259,26 @@ Handle<Code> StoreStubCompiler::CompileStoreCallback(
 void StoreStubCompiler::GenerateStoreViaSetter(
     MacroAssembler* masm,
     Handle<HeapType> type,
+    Register receiver,
     Handle<JSFunction> setter) {
   // ----------- S t a t e -------------
-  //  -- eax    : value
-  //  -- ecx    : name
-  //  -- edx    : receiver
   //  -- esp[0] : return address
   // -----------------------------------
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
-    Register receiver = edx;
-    Register value = eax;
 
     // Save value register, so we can restore it later.
-    __ push(value);
+    __ push(value());
 
     if (!setter.is_null()) {
       // Call the JavaScript setter with receiver and value on the stack.
       if (IC::TypeToMap(*type, masm->isolate())->IsJSGlobalObjectMap()) {
         // Swap in the global receiver.
         __ mov(receiver,
-                FieldOperand(receiver, JSGlobalObject::kGlobalReceiverOffset));
+               FieldOperand(receiver, JSGlobalObject::kGlobalReceiverOffset));
       }
       __ push(receiver);
-      __ push(value);
+      __ push(value());
       ParameterCount actual(1);
       ParameterCount expected(setter);
       __ InvokeFunction(setter, expected, actual,
@@ -1383,16 +1379,21 @@ Register* KeyedLoadStubCompiler::registers() {
 }
 
 
+Register StoreStubCompiler::value() {
+  return eax;
+}
+
+
 Register* StoreStubCompiler::registers() {
-  // receiver, name, value, scratch1, scratch2, scratch3.
-  static Register registers[] = { edx, ecx, eax, ebx, edi, no_reg };
+  // receiver, name, scratch1, scratch2, scratch3.
+  static Register registers[] = { edx, ecx, ebx, edi, no_reg };
   return registers;
 }
 
 
 Register* KeyedStoreStubCompiler::registers() {
-  // receiver, name, value, scratch1, scratch2, scratch3.
-  static Register registers[] = { edx, ecx, eax, ebx, edi, no_reg };
+  // receiver, name, scratch1, scratch2, scratch3.
+  static Register registers[] = { edx, ecx, ebx, edi, no_reg };
   return registers;
 }
 

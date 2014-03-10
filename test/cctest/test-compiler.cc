@@ -67,7 +67,6 @@ static Handle<JSFunction> Compile(const char* source) {
                               false,
                               Handle<Context>(isolate->native_context()),
                               NULL, NULL,
-                              Handle<String>::null(),
                               NOT_NATIVES_CODE);
   return isolate->factory()->NewFunctionFromSharedFunctionInfo(
       shared_function, isolate->native_context());
@@ -310,6 +309,41 @@ TEST(GetScriptLineNumber) {
             v8::String::NewFromUtf8(CcTest::isolate(), "f")));
     CHECK_EQ(i, f->GetScriptLineNumber());
   }
+}
+
+
+TEST(FeedbackVectorPreservedAcrossRecompiles) {
+  if (i::FLAG_always_opt || !i::FLAG_crankshaft) return;
+  i::FLAG_allow_natives_syntax = true;
+  CcTest::InitializeVM();
+  if (!CcTest::i_isolate()->use_crankshaft()) return;
+  v8::HandleScope scope(CcTest::isolate());
+
+  // Make sure function f has a call that uses a type feedback slot.
+  CompileRun("function fun() {};"
+             "fun1 = fun;"
+             "function f(a) { a(); } f(fun1);");
+
+  Handle<JSFunction> f =
+      v8::Utils::OpenHandle(
+          *v8::Handle<v8::Function>::Cast(
+              CcTest::global()->Get(v8_str("f"))));
+
+  // We shouldn't have deoptimization support. We want to recompile and
+  // verify that our feedback vector preserves information.
+  CHECK(!f->shared()->has_deoptimization_support());
+  Handle<FixedArray> feedback_vector(f->shared()->feedback_vector());
+
+  // Verify that we gathered feedback.
+  CHECK_EQ(1, feedback_vector->length());
+  CHECK(feedback_vector->get(0)->IsJSFunction());
+
+  CompileRun("%OptimizeFunctionOnNextCall(f); f(fun1);");
+
+  // Verify that the feedback is still "gathered" despite a recompilation
+  // of the full code.
+  CHECK(f->shared()->has_deoptimization_support());
+  CHECK(f->shared()->feedback_vector()->get(0)->IsJSFunction());
 }
 
 

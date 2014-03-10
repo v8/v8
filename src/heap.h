@@ -196,6 +196,8 @@ namespace internal {
   V(SeededNumberDictionary, empty_slow_element_dictionary,                     \
       EmptySlowElementDictionary)                                              \
   V(Symbol, observed_symbol, ObservedSymbol)                                   \
+  V(Symbol, uninitialized_symbol, UninitializedSymbol)                         \
+  V(Symbol, megamorphic_symbol, MegamorphicSymbol)                             \
   V(FixedArray, materialized_objects, MaterializedObjects)                     \
   V(FixedArray, allocation_sites_scratchpad, AllocationSitesScratchpad)        \
   V(JSObject, microtask_state, MicrotaskState)

@@ -1557,7 +1557,6 @@ static Handle<Script> CreateScriptCopy(Handle<Script> original) {
   copy->set_name(original->name());
   copy->set_line_offset(original->line_offset());
   copy->set_column_offset(original->column_offset());
-  copy->set_data(original->data());
   copy->set_type(original->type());
   copy->set_context_data(original->context_data());
   copy->set_eval_from_shared(original->eval_from_shared());

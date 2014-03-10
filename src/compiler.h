@@ -181,6 +181,9 @@ class CompilationInfo {
     ASSERT(global_scope_ == NULL);
     global_scope_ = global_scope;
   }
+  Handle<FixedArray> feedback_vector() const {
+    return feedback_vector_;
+  }
   void SetCode(Handle<Code> code) { code_ = code; }
   void SetExtension(v8::Extension* extension) {
     ASSERT(!is_lazy());
@@ -409,6 +412,9 @@ class CompilationInfo {
   // global script. Will be a null handle otherwise.
   Handle<Context> context_;
 
+  // Used by codegen, ultimately kept rooted by the SharedFunctionInfo.
+  Handle<FixedArray> feedback_vector_;
+
   // Compilation mode flag and whether deoptimization is allowed.
   Mode mode_;
   BailoutId osr_ast_id_;
@@ -631,7 +637,6 @@ class Compiler : public AllStatic {
                                                   Handle<Context> context,
                                                   v8::Extension* extension,
                                                   ScriptDataImpl* pre_data,
-                                                  Handle<Object> script_data,
                                                   NativesFlag is_natives_code);
 
   // Create a shared function info object (the code may be lazily compiled).

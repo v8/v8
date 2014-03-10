@@ -102,12 +102,14 @@ class LChunkBuilder;
   V(CompareObjectEqAndBranch)                  \
   V(CompareMap)                                \
   V(Constant)                                  \
+  V(ConstructDouble)                           \
   V(Context)                                   \
   V(DateField)                                 \
   V(DebugBreak)                                \
   V(DeclareGlobals)                            \
   V(Deoptimize)                                \
   V(Div)                                       \
+  V(DoubleBits)                                \
   V(DummyUse)                                  \
   V(EnterInlined)                              \
   V(EnvironmentMarker)                         \
@@ -735,21 +737,6 @@ class HValue : public ZoneObject {
 
   bool IsHeapObject() {
     return representation_.IsHeapObject() || type_.IsHeapObject();
-  }
-
-  // An operation needs to override this function iff:
-  //   1) it can produce an int32 output.
-  //   2) the true value of its output can potentially be minus zero.
-  // The implementation must set a flag so that it bails out in the case where
-  // it would otherwise output what should be a minus zero as an int32 zero.
-  // If the operation also exists in a form that takes int32 and outputs int32
-  // then the operation should return its input value so that we can propagate
-  // back.  There are three operations that need to propagate back to more than
-  // one input.  They are phi and binary div and mul.  They always return NULL
-  // and expect the caller to take care of things.
-  virtual HValue* EnsureAndPropagateNotMinusZero(BitVector* visited) {
-    visited->Add(id());
-    return NULL;
   }
 
   // There are HInstructions that do not really change a value, they
@@ -1717,9 +1704,6 @@ class HForceRepresentation V8_FINAL : public HTemplateInstruction<1> {
 
   HValue* value() { return OperandAt(0); }
 
-  virtual HValue* EnsureAndPropagateNotMinusZero(
-      BitVector* visited) V8_OVERRIDE;
-
   virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
     return representation();  // Same as the output representation.
   }
@@ -1765,8 +1749,6 @@ class HChange V8_FINAL : public HUnaryOperation {
     return CheckUsesForFlag(kAllowUndefinedAsNaN);
   }
 
-  virtual HValue* EnsureAndPropagateNotMinusZero(
-      BitVector* visited) V8_OVERRIDE;
   virtual HType CalculateInferredType() V8_OVERRIDE;
   virtual HValue* Canonicalize() V8_OVERRIDE;
 
@@ -1814,6 +1796,65 @@ class HClampToUint8 V8_FINAL : public HUnaryOperation {
     set_representation(Representation::Integer32());
     SetFlag(kAllowUndefinedAsNaN);
     SetFlag(kUseGVN);
+  }
+
+  virtual bool IsDeletable() const V8_OVERRIDE { return true; }
+};
+
+
+class HDoubleBits V8_FINAL : public HUnaryOperation {
+ public:
+  enum Bits { HIGH, LOW };
+  DECLARE_INSTRUCTION_FACTORY_P2(HDoubleBits, HValue*, Bits);
+
+  virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
+    return Representation::Double();
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(DoubleBits)
+
+  Bits bits() { return bits_; }
+
+ protected:
+  virtual bool DataEquals(HValue* other) V8_OVERRIDE {
+    return other->IsDoubleBits() && HDoubleBits::cast(other)->bits() == bits();
+  }
+
+ private:
+  HDoubleBits(HValue* value, Bits bits)
+      : HUnaryOperation(value), bits_(bits) {
+    set_representation(Representation::Integer32());
+    SetFlag(kUseGVN);
+  }
+
+  virtual bool IsDeletable() const V8_OVERRIDE { return true; }
+
+  Bits bits_;
+};
+
+
+class HConstructDouble V8_FINAL : public HTemplateInstruction<2> {
+ public:
+  DECLARE_INSTRUCTION_FACTORY_P2(HConstructDouble, HValue*, HValue*);
+
+  virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
+    return Representation::Integer32();
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(ConstructDouble)
+
+  HValue* hi() { return OperandAt(0); }
+  HValue* lo() { return OperandAt(1); }
+
+ protected:
+  virtual bool DataEquals(HValue* other) V8_OVERRIDE { return true; }
+
+ private:
+  explicit HConstructDouble(HValue* hi, HValue* lo) {
+    set_representation(Representation::Double());
+    SetFlag(kUseGVN);
+    SetOperandAt(0, hi);
+    SetOperandAt(1, lo);
   }
 
   virtual bool IsDeletable() const V8_OVERRIDE { return true; }
@@ -2569,9 +2610,6 @@ class HUnaryMathOperation V8_FINAL : public HTemplateInstruction<2> {
   HValue* value() { return OperandAt(1); }
 
   virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
-
-  virtual HValue* EnsureAndPropagateNotMinusZero(
-      BitVector* visited) V8_OVERRIDE;
 
   virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
     if (index == 0) {
@@ -3713,6 +3751,12 @@ class HBinaryOperation : public HTemplateInstruction<3> {
     set_operand_position(zone, 2, right_pos);
   }
 
+  bool RightIsPowerOf2() {
+    if (!right()->IsInteger32Constant()) return false;
+    int32_t value = right()->GetInteger32Constant();
+    return value != 0 && (IsPowerOf2(value) || IsPowerOf2(-value));
+  }
+
   DECLARE_ABSTRACT_INSTRUCTION(BinaryOperation)
 
  private:
@@ -4044,9 +4088,6 @@ class HMathFloorOfDiv V8_FINAL : public HBinaryOperation {
                                               HValue*,
                                               HValue*);
 
-  virtual HValue* EnsureAndPropagateNotMinusZero(
-      BitVector* visited) V8_OVERRIDE;
-
   DECLARE_CONCRETE_INSTRUCTION(MathFloorOfDiv)
 
  protected:
@@ -4087,12 +4128,6 @@ class HArithmeticBinaryOperation : public HBinaryOperation {
       ClearAllSideEffects();
       SetFlag(kUseGVN);
     }
-  }
-
-  bool RightIsPowerOf2() {
-    if (!right()->IsInteger32Constant()) return false;
-    int32_t value = right()->GetInteger32Constant();
-    return value != 0 && (IsPowerOf2(value) || IsPowerOf2(-value));
   }
 
   DECLARE_ABSTRACT_INSTRUCTION(ArithmeticBinaryOperation)
@@ -4653,9 +4688,6 @@ class HAdd V8_FINAL : public HArithmeticBinaryOperation {
     return !representation().IsTagged() && !representation().IsExternal();
   }
 
-  virtual HValue* EnsureAndPropagateNotMinusZero(
-      BitVector* visited) V8_OVERRIDE;
-
   virtual HValue* Canonicalize() V8_OVERRIDE;
 
   virtual bool TryDecompose(DecompositionResult* decomposition) V8_OVERRIDE {
@@ -4712,9 +4744,6 @@ class HSub V8_FINAL : public HArithmeticBinaryOperation {
                            HValue* left,
                            HValue* right);
 
-  virtual HValue* EnsureAndPropagateNotMinusZero(
-      BitVector* visited) V8_OVERRIDE;
-
   virtual HValue* Canonicalize() V8_OVERRIDE;
 
   virtual bool TryDecompose(DecompositionResult* decomposition) V8_OVERRIDE {
@@ -4761,9 +4790,6 @@ class HMul V8_FINAL : public HArithmeticBinaryOperation {
     return mul;
   }
 
-  virtual HValue* EnsureAndPropagateNotMinusZero(
-      BitVector* visited) V8_OVERRIDE;
-
   virtual HValue* Canonicalize() V8_OVERRIDE;
 
   // Only commutative if it is certain that not two objects are multiplicated.
@@ -4801,9 +4827,6 @@ class HMod V8_FINAL : public HArithmeticBinaryOperation {
                            HValue* left,
                            HValue* right);
 
-  virtual HValue* EnsureAndPropagateNotMinusZero(
-      BitVector* visited) V8_OVERRIDE;
-
   virtual HValue* Canonicalize() V8_OVERRIDE;
 
   virtual void UpdateRepresentation(Representation new_rep,
@@ -4836,9 +4859,6 @@ class HDiv V8_FINAL : public HArithmeticBinaryOperation {
                            HValue* context,
                            HValue* left,
                            HValue* right);
-
-  virtual HValue* EnsureAndPropagateNotMinusZero(
-      BitVector* visited) V8_OVERRIDE;
 
   virtual HValue* Canonicalize() V8_OVERRIDE;
 

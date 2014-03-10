@@ -131,7 +131,6 @@ namespace internal {
   F(URIEscape, 1, 1) \
   F(URIUnescape, 1, 1) \
   \
-  F(NumberToString, 1, 1) \
   F(NumberToStringSkipCache, 1, 1) \
   F(NumberToInteger, 1, 1) \
   F(NumberToPositiveInteger, 1, 1) \
@@ -151,7 +150,6 @@ namespace internal {
   F(NumberAlloc, 0, 1) \
   F(NumberImul, 2, 1) \
   \
-  F(StringAdd, 2, 1) \
   F(StringBuilderConcat, 3, 1) \
   F(StringBuilderJoin, 3, 1) \
   F(SparseJoinWithSeparator, 3, 1) \
@@ -171,16 +169,12 @@ namespace internal {
   \
   F(NumberCompare, 3, 1) \
   F(SmiLexicographicCompare, 2, 1) \
-  F(StringCompare, 2, 1) \
   \
   /* Math */ \
   F(Math_acos, 1, 1) \
   F(Math_asin, 1, 1) \
   F(Math_atan, 1, 1) \
   F(Math_log, 1, 1) \
-  F(Math_cbrt, 1, 1) \
-  F(Math_log1p, 1, 1) \
-  F(Math_expm1, 1, 1) \
   F(Math_sqrt, 1, 1) \
   F(Math_exp, 1, 1) \
   F(Math_floor, 1, 1) \
@@ -192,10 +186,8 @@ namespace internal {
   \
   /* Regular expressions */ \
   F(RegExpCompile, 3, 1) \
-  F(RegExpExec, 4, 1) \
   F(RegExpExecMultiple, 4, 1) \
   F(RegExpInitializeObject, 5, 1) \
-  F(RegExpConstructResult, 3, 1) \
   \
   /* JSON */ \
   F(ParseJson, 1, 1) \
@@ -203,11 +195,9 @@ namespace internal {
   F(QuoteJSONString, 1, 1) \
   \
   /* Strings */ \
-  F(StringCharCodeAt, 2, 1) \
   F(StringIndexOf, 3, 1) \
   F(StringLastIndexOf, 3, 1) \
   F(StringLocaleCompare, 2, 1) \
-  F(SubString, 3, 1) \
   F(StringReplaceGlobalRegExpWithString, 4, 1) \
   F(StringReplaceOneCharWithString, 3, 1) \
   F(StringMatch, 3, 1) \
@@ -250,7 +240,6 @@ namespace internal {
   F(GetAndClearOverflowedStackTrace, 1, 1) \
   F(GetV8Version, 0, 1) \
   \
-  F(ClassOf, 1, 1) \
   F(SetCode, 2, 1) \
   F(SetExpectedNumberOfProperties, 2, 1) \
   \
@@ -449,12 +438,8 @@ namespace internal {
   F(TraceExit, 1, 1) \
   F(Abort, 1, 1) \
   F(AbortJS, 1, 1) \
-  /* Logging */ \
-  F(Log, 2, 1) \
   /* ES5 */ \
   F(LocalKeys, 1, 1) \
-  /* Cache suport */ \
-  F(GetFromCache, 2, 1) \
   \
   /* Message objects */ \
   F(MessageGetStartPosition, 1, 1) \
@@ -506,6 +491,7 @@ namespace internal {
   F(GetScopeCount, 2, 1) \
   F(GetStepInPositions, 2, 1) \
   F(GetScopeDetails, 4, 1) \
+  F(GetAllScopesDetails, 3, 1) \
   F(GetFunctionScopeCount, 1, 1) \
   F(GetFunctionScopeDetails, 2, 1) \
   F(SetScopeVariableValue, 6, 1) \
@@ -612,7 +598,8 @@ namespace internal {
   RUNTIME_FUNCTION_LIST_ALWAYS_2(F) \
   RUNTIME_FUNCTION_LIST_DEBUG(F) \
   RUNTIME_FUNCTION_LIST_DEBUGGER_SUPPORT(F) \
-  RUNTIME_FUNCTION_LIST_I18N_SUPPORT(F)
+  RUNTIME_FUNCTION_LIST_I18N_SUPPORT(F) \
+  INLINE_RUNTIME_FUNCTION_LIST(F)
 
 // ----------------------------------------------------------------------------
 // INLINE_FUNCTION_LIST defines all inlined functions accessed
@@ -649,7 +636,8 @@ namespace internal {
   F(FastAsciiArrayJoin, 2, 1)                                                \
   F(GeneratorNext, 2, 1)                                                     \
   F(GeneratorThrow, 2, 1)                                                    \
-  F(DebugBreakInOptimizedCode, 0, 1)
+  F(DebugBreakInOptimizedCode, 0, 1)                                         \
+  INLINE_RUNTIME_FUNCTION_LIST(F)
 
 
 // ----------------------------------------------------------------------------
@@ -667,7 +655,10 @@ namespace internal {
   F(RegExpExec, 4, 1)                                                        \
   F(RegExpConstructResult, 3, 1)                                             \
   F(GetFromCache, 2, 1)                                                      \
-  F(NumberToString, 1, 1)
+  F(NumberToString, 1, 1)                                                    \
+  F(DoubleHi, 1, 1)                                                          \
+  F(DoubleLo, 1, 1)                                                          \
+  F(ConstructDouble, 2, 1)
 
 
 //---------------------------------------------------------------------------
@@ -723,7 +714,6 @@ class Runtime : public AllStatic {
 #undef F
 #define F(name, nargs, ressize) kInline##name,
     INLINE_FUNCTION_LIST(F)
-    INLINE_RUNTIME_FUNCTION_LIST(F)
 #undef F
     kNumFunctions,
     kFirstInlineFunction = kInlineIsSmi

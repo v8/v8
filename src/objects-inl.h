@@ -1474,7 +1474,7 @@ AllocationSiteMode AllocationSite::GetMode(
 AllocationSiteMode AllocationSite::GetMode(ElementsKind from,
                                            ElementsKind to) {
   if (IsFastSmiElementsKind(from) &&
-      IsMoreGeneralElementsKindTransition(from, to)) {
+       IsMoreGeneralElementsKindTransition(from, to)) {
     return TRACK_ALLOCATION_SITE;
   }
 
@@ -4901,7 +4901,6 @@ ACCESSORS(Script, name, Object, kNameOffset)
 ACCESSORS(Script, id, Smi, kIdOffset)
 ACCESSORS_TO_SMI(Script, line_offset, kLineOffsetOffset)
 ACCESSORS_TO_SMI(Script, column_offset, kColumnOffsetOffset)
-ACCESSORS(Script, data, Object, kDataOffset)
 ACCESSORS(Script, context_data, Object, kContextOffset)
 ACCESSORS(Script, wrapper, Foreign, kWrapperOffset)
 ACCESSORS_TO_SMI(Script, type, kTypeOffset)
@@ -4946,6 +4945,8 @@ ACCESSORS(SharedFunctionInfo, name, Object, kNameOffset)
 ACCESSORS(SharedFunctionInfo, optimized_code_map, Object,
                  kOptimizedCodeMapOffset)
 ACCESSORS(SharedFunctionInfo, construct_stub, Code, kConstructStubOffset)
+ACCESSORS(SharedFunctionInfo, feedback_vector, FixedArray,
+          kFeedbackVectorOffset)
 ACCESSORS(SharedFunctionInfo, initial_map, Object, kInitialMapOffset)
 ACCESSORS(SharedFunctionInfo, instance_class_name, Object,
           kInstanceClassNameOffset)
@@ -6527,12 +6528,12 @@ MaybeObject* ConstantPoolArray::Copy() {
 
 
 Handle<Object> TypeFeedbackInfo::UninitializedSentinel(Isolate* isolate) {
-  return isolate->factory()->the_hole_value();
+  return isolate->factory()->uninitialized_symbol();
 }
 
 
 Handle<Object> TypeFeedbackInfo::MegamorphicSentinel(Isolate* isolate) {
-  return isolate->factory()->undefined_value();
+  return isolate->factory()->megamorphic_symbol();
 }
 
 
@@ -6543,7 +6544,7 @@ Handle<Object> TypeFeedbackInfo::MonomorphicArraySentinel(Isolate* isolate,
 
 
 Object* TypeFeedbackInfo::RawUninitializedSentinel(Heap* heap) {
-  return heap->the_hole_value();
+  return heap->uninitialized_symbol();
 }
 
 
@@ -6623,10 +6624,6 @@ bool TypeFeedbackInfo::matches_inlined_type_change_checksum(int checksum) {
   int mask = (1 << kTypeChangeChecksumBits) - 1;
   return InlinedTypeChangeChecksum::decode(value) == (checksum & mask);
 }
-
-
-ACCESSORS(TypeFeedbackInfo, feedback_vector, FixedArray,
-          kFeedbackVectorOffset)
 
 
 SMI_ACCESSORS(AliasedArgumentsEntry, aliased_context_slot, kAliasedContextSlot)

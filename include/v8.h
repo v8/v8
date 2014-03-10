@@ -576,6 +576,7 @@ template <class T> class PersistentBase {
   template<class F> friend class UniquePersistent;
   template<class F> friend class PersistentBase;
   template<class F> friend class ReturnValue;
+  friend class Object;
 
   explicit V8_INLINE PersistentBase(T* val) : val_(val) {}
   PersistentBase(PersistentBase& other); // NOLINT
@@ -1011,16 +1012,12 @@ class V8_EXPORT Script {
    * \param pre_data Pre-parsing data, as obtained by ScriptData::PreCompile()
    *   using pre_data speeds compilation if it's done multiple times.
    *   Owned by caller, no references are kept when New() returns.
-   * \param script_data Arbitrary data associated with script. Using
-   *   this has same effect as calling SetData(), but allows data to be
-   *   available to compile event handlers.
    * \return Compiled script object (context independent; when run it
    *   will use the currently entered context).
    */
   static Local<Script> New(Handle<String> source,
                            ScriptOrigin* origin = NULL,
-                           ScriptData* pre_data = NULL,
-                           Handle<String> script_data = Handle<String>());
+                           ScriptData* pre_data = NULL);
 
   /**
    * Compiles the specified script using the specified file name
@@ -1044,17 +1041,13 @@ class V8_EXPORT Script {
    * \param pre_data Pre-parsing data, as obtained by ScriptData::PreCompile()
    *   using pre_data speeds compilation if it's done multiple times.
    *   Owned by caller, no references are kept when Compile() returns.
-   * \param script_data Arbitrary data associated with script. Using
-   *   this has same effect as calling SetData(), but makes data available
-   *   earlier (i.e. to compile event handlers).
    * \return Compiled script object, bound to the context that was active
    *   when this function was called.  When run it will always use this
    *   context.
    */
   static Local<Script> Compile(Handle<String> source,
                                ScriptOrigin* origin = NULL,
-                               ScriptData* pre_data = NULL,
-                               Handle<String> script_data = Handle<String>());
+                               ScriptData* pre_data = NULL);
 
   /**
    * Compiles the specified script using the specified file name
@@ -1062,16 +1055,12 @@ class V8_EXPORT Script {
    *
    * \param source Script source code.
    * \param file_name File name to use as script's origin
-   * \param script_data Arbitrary data associated with script. Using
-   *   this has same effect as calling SetData(), but makes data available
-   *   earlier (i.e. to compile event handlers).
    * \return Compiled script object, bound to the context that was active
    *   when this function was called.  When run it will always use this
    *   context.
    */
   static Local<Script> Compile(Handle<String> source,
-                               Handle<Value> file_name,
-                               Handle<String> script_data = Handle<String>());
+                               Handle<Value> file_name);
 
   /**
    * Runs the script returning the resulting value.  If the script is
@@ -1086,13 +1075,6 @@ class V8_EXPORT Script {
    * Returns the script id.
    */
   int GetId();
-
-  /**
-   * Associate an additional data object with the script. This is mainly used
-   * with the debugger as this data object is only available through the
-   * debugger API.
-   */
-  void SetData(Handle<String> data);
 
   /**
    * Returns the name value of one Script.
@@ -1933,8 +1915,8 @@ class V8_EXPORT Private : public Data {
   Local<Value> Name() const;
 
   // Create a private symbol. If data is not NULL, it will be the print name.
-  static Local<Private> New(
-      Isolate *isolate, const char* data = NULL, int length = -1);
+  static Local<Private> New(Isolate *isolate,
+                            Local<String> name = Local<String>());
 
  private:
   Private();
@@ -2185,6 +2167,12 @@ class V8_EXPORT Object : public Value {
   /** Gets the number of internal fields for this Object. */
   int InternalFieldCount();
 
+  /** Same as above, but works for Persistents */
+  V8_INLINE static int InternalFieldCount(
+      const PersistentBase<Object>& object) {
+    return object.val_->InternalFieldCount();
+  }
+
   /** Gets the value from an internal field. */
   V8_INLINE Local<Value> GetInternalField(int index);
 
@@ -2197,6 +2185,12 @@ class V8_EXPORT Object : public Value {
    * leads to undefined behavior.
    */
   V8_INLINE void* GetAlignedPointerFromInternalField(int index);
+
+  /** Same as above, but works for Persistents */
+  V8_INLINE static void* GetAlignedPointerFromInternalField(
+      const PersistentBase<Object>& object, int index) {
+    return object.val_->GetAlignedPointerFromInternalField(index);
+  }
 
   /**
    * Sets a 2-byte-aligned native pointer in an internal field. To retrieve such
@@ -3805,6 +3799,9 @@ typedef void (*FatalErrorCallback)(const char* location, const char* message);
 
 typedef void (*MessageCallback)(Handle<Message> message, Handle<Value> error);
 
+// --- Tracing ---
+
+typedef void (*LogEventCallback)(const char* name, int event);
 
 /**
  * Create new error objects by calling the corresponding error object
@@ -4190,6 +4187,11 @@ class V8_EXPORT Isolate {
    * instead to influence the garbage collection schedule.
    */
   void RequestGarbageCollectionForTesting(GarbageCollectionType type);
+
+  /**
+   * Set the callback to invoke for logging event.
+   */
+  void SetEventLogger(LogEventCallback that);
 
  private:
   Isolate();
@@ -5414,7 +5416,7 @@ class Internals {
   static const int kNullValueRootIndex = 7;
   static const int kTrueValueRootIndex = 8;
   static const int kFalseValueRootIndex = 9;
-  static const int kEmptyStringRootIndex = 142;
+  static const int kEmptyStringRootIndex = 144;
 
   static const int kNodeClassIdOffset = 1 * kApiPointerSize;
   static const int kNodeFlagsOffset = 1 * kApiPointerSize + 3;

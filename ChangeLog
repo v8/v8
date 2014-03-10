@@ -1,3 +1,28 @@
+2014-03-10: Version 3.25.6
+
+        Replace the recursion in PropagateMinusZeroChecks() with a loop and a
+        worklist (issue 3204).
+
+        Reland "Enable Object.observe by default" (issue 2409).
+
+        Enable Object.observe by default (issue 2409).
+
+        AllocationTracker now maintains a map from address range to stack trace
+        that allocated the range. When snapshot is generated the map is used to
+        find construction stack trace for an object using its address (Chromium
+        issue 277984).
+
+        Introduce Runtime_GetAllScopesDetails to get all scopes at once for a
+        frame (Chromium issue 340285).
+
+        Reduce heavy runtime calls from debug mirrors (Chromium issue 340285).
+
+        Check and clear date cache in DateCurrentTime, DateLocalTimezone and
+        getTimezoneOffset (Chromium issue 142141).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-03-06: Version 3.25.5
 
         Fix HConstants with Smi-ranged HeapNumber values (Chromium issue
