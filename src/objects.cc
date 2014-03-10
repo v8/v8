@@ -615,7 +615,7 @@ Handle<Object> JSObject::GetPropertyWithFailedAccessCheck(
 
   // No accessible property found.
   *attributes = ABSENT;
-  isolate->ReportFailedAccessCheck(*object, v8::ACCESS_GET);
+  isolate->ReportFailedAccessCheckWrapper(object, v8::ACCESS_GET);
   RETURN_HANDLE_IF_SCHEDULED_EXCEPTION(isolate, Object);
   return isolate->factory()->undefined_value();
 }
@@ -3381,6 +3381,7 @@ MaybeObject* Map::AsElementsKind(ElementsKind kind) {
 
 
 void JSObject::LocalLookupRealNamedProperty(Name* name, LookupResult* result) {
+  DisallowHeapAllocation no_gc;
   if (IsJSGlobalProxy()) {
     Object* proto = GetPrototype();
     if (proto->IsNull()) return result->NotFound();
@@ -3516,7 +3517,7 @@ Handle<Object> JSObject::SetPropertyWithFailedAccessCheck(
   }
 
   Isolate* isolate = object->GetIsolate();
-  isolate->ReportFailedAccessCheck(*object, v8::ACCESS_SET);
+  isolate->ReportFailedAccessCheckWrapper(object, v8::ACCESS_SET);
   RETURN_HANDLE_IF_SCHEDULED_EXCEPTION(isolate, Object);
   return value;
 }
@@ -4046,7 +4047,7 @@ Handle<Object> JSObject::SetPropertyForResult(Handle<JSObject> object,
 
   // Check access rights if needed.
   if (object->IsAccessCheckNeeded()) {
-    if (!isolate->MayNamedAccess(*object, *name, v8::ACCESS_SET)) {
+    if (!isolate->MayNamedAccessWrapper(object, name, v8::ACCESS_SET)) {
       return SetPropertyWithFailedAccessCheck(object, lookup, name, value,
                                               true, strict_mode);
     }
@@ -4180,7 +4181,7 @@ Handle<Object> JSObject::SetLocalPropertyIgnoreAttributes(
 
   // Check access rights if needed.
   if (object->IsAccessCheckNeeded()) {
-    if (!isolate->MayNamedAccess(*object, *name, v8::ACCESS_SET)) {
+    if (!isolate->MayNamedAccessWrapper(object, name, v8::ACCESS_SET)) {
       return SetPropertyWithFailedAccessCheck(object, &lookup, name, value,
                                               false, kNonStrictMode);
     }
@@ -5164,8 +5165,8 @@ Handle<Object> JSObject::DeleteElement(Handle<JSObject> object,
 
   // Check access rights if needed.
   if (object->IsAccessCheckNeeded() &&
-      !isolate->MayIndexedAccess(*object, index, v8::ACCESS_DELETE)) {
-    isolate->ReportFailedAccessCheck(*object, v8::ACCESS_DELETE);
+      !isolate->MayIndexedAccessWrapper(object, index, v8::ACCESS_DELETE)) {
+    isolate->ReportFailedAccessCheckWrapper(object, v8::ACCESS_DELETE);
     RETURN_HANDLE_IF_SCHEDULED_EXCEPTION(isolate, Object);
     return factory->false_value();
   }
@@ -5228,8 +5229,8 @@ Handle<Object> JSObject::DeleteProperty(Handle<JSObject> object,
 
   // Check access rights if needed.
   if (object->IsAccessCheckNeeded() &&
-      !isolate->MayNamedAccess(*object, *name, v8::ACCESS_DELETE)) {
-    isolate->ReportFailedAccessCheck(*object, v8::ACCESS_DELETE);
+      !isolate->MayNamedAccessWrapper(object, name, v8::ACCESS_DELETE)) {
+    isolate->ReportFailedAccessCheckWrapper(object, v8::ACCESS_DELETE);
     RETURN_HANDLE_IF_SCHEDULED_EXCEPTION(isolate, Object);
     return isolate->factory()->false_value();
   }
@@ -5458,10 +5459,10 @@ Handle<Object> JSObject::PreventExtensions(Handle<JSObject> object) {
   if (!object->map()->is_extensible()) return object;
 
   if (object->IsAccessCheckNeeded() &&
-      !isolate->MayNamedAccess(*object,
-                               isolate->heap()->undefined_value(),
-                               v8::ACCESS_KEYS)) {
-    isolate->ReportFailedAccessCheck(*object, v8::ACCESS_KEYS);
+      !isolate->MayNamedAccessWrapper(object,
+                                      isolate->factory()->undefined_value(),
+                                      v8::ACCESS_KEYS)) {
+    isolate->ReportFailedAccessCheckWrapper(object, v8::ACCESS_KEYS);
     RETURN_HANDLE_IF_SCHEDULED_EXCEPTION(isolate, Object);
     return isolate->factory()->false_value();
   }
@@ -5538,10 +5539,10 @@ Handle<Object> JSObject::Freeze(Handle<JSObject> object) {
 
   Isolate* isolate = object->GetIsolate();
   if (object->IsAccessCheckNeeded() &&
-      !isolate->MayNamedAccess(*object,
-                               isolate->heap()->undefined_value(),
-                               v8::ACCESS_KEYS)) {
-    isolate->ReportFailedAccessCheck(*object, v8::ACCESS_KEYS);
+      !isolate->MayNamedAccessWrapper(object,
+                                      isolate->factory()->undefined_value(),
+                                      v8::ACCESS_KEYS)) {
+    isolate->ReportFailedAccessCheckWrapper(object, v8::ACCESS_KEYS);
     RETURN_HANDLE_IF_SCHEDULED_EXCEPTION(isolate, Object);
     return isolate->factory()->false_value();
   }
@@ -6201,9 +6202,10 @@ void JSObject::DefinePropertyAccessor(Handle<JSObject> object,
 }
 
 
-bool JSObject::CanSetCallback(Name* name) {
-  ASSERT(!IsAccessCheckNeeded() ||
-         GetIsolate()->MayNamedAccess(this, name, v8::ACCESS_SET));
+bool JSObject::CanSetCallback(Handle<JSObject> object, Handle<Name> name) {
+  Isolate* isolate = object->GetIsolate();
+  ASSERT(!object->IsAccessCheckNeeded() ||
+         isolate->MayNamedAccessWrapper(object, name, v8::ACCESS_SET));
 
   // Check if there is an API defined callback object which prohibits
   // callback overwriting in this object or its prototype chain.
@@ -6211,15 +6213,15 @@ bool JSObject::CanSetCallback(Name* name) {
   // certain accessors such as window.location should not be allowed
   // to be overwritten because allowing overwriting could potentially
   // cause security problems.
-  LookupResult callback_result(GetIsolate());
-  LookupCallbackProperty(name, &callback_result);
+  LookupResult callback_result(isolate);
+  object->LookupCallbackProperty(*name, &callback_result);
   if (callback_result.IsFound()) {
-    Object* obj = callback_result.GetCallbackObject();
-    if (obj->IsAccessorInfo()) {
-      return !AccessorInfo::cast(obj)->prohibits_overwriting();
+    Object* callback_obj = callback_result.GetCallbackObject();
+    if (callback_obj->IsAccessorInfo()) {
+      return !AccessorInfo::cast(callback_obj)->prohibits_overwriting();
     }
-    if (obj->IsAccessorPair()) {
-      return !AccessorPair::cast(obj)->prohibits_overwriting();
+    if (callback_obj->IsAccessorPair()) {
+      return !AccessorPair::cast(callback_obj)->prohibits_overwriting();
     }
   }
   return true;
@@ -6326,8 +6328,8 @@ void JSObject::DefineAccessor(Handle<JSObject> object,
   Isolate* isolate = object->GetIsolate();
   // Check access rights if needed.
   if (object->IsAccessCheckNeeded() &&
-      !isolate->MayNamedAccess(*object, *name, v8::ACCESS_SET)) {
-    isolate->ReportFailedAccessCheck(*object, v8::ACCESS_SET);
+      !isolate->MayNamedAccessWrapper(object, name, v8::ACCESS_SET)) {
+    isolate->ReportFailedAccessCheckWrapper(object, v8::ACCESS_SET);
     return;
   }
 
@@ -6351,7 +6353,7 @@ void JSObject::DefineAccessor(Handle<JSObject> object,
   // Try to flatten before operating on the string.
   if (name->IsString()) String::cast(*name)->TryFlatten();
 
-  if (!object->CanSetCallback(*name)) return;
+  if (!JSObject::CanSetCallback(object, name)) return;
 
   uint32_t index = 0;
   bool is_element = name->AsArrayIndex(&index);
@@ -6518,8 +6520,8 @@ Handle<Object> JSObject::SetAccessor(Handle<JSObject> object,
 
   // Check access rights if needed.
   if (object->IsAccessCheckNeeded() &&
-      !isolate->MayNamedAccess(*object, *name, v8::ACCESS_SET)) {
-    isolate->ReportFailedAccessCheck(*object, v8::ACCESS_SET);
+      !isolate->MayNamedAccessWrapper(object, name, v8::ACCESS_SET)) {
+    isolate->ReportFailedAccessCheckWrapper(object, v8::ACCESS_SET);
     RETURN_HANDLE_IF_SCHEDULED_EXCEPTION(isolate, Object);
     return factory->undefined_value();
   }
@@ -6538,7 +6540,9 @@ Handle<Object> JSObject::SetAccessor(Handle<JSObject> object,
   // Try to flatten before operating on the string.
   if (name->IsString()) FlattenString(Handle<String>::cast(name));
 
-  if (!object->CanSetCallback(*name)) return factory->undefined_value();
+  if (!JSObject::CanSetCallback(object, name)) {
+    return factory->undefined_value();
+  }
 
   uint32_t index = 0;
   bool is_element = name->AsArrayIndex(&index);
@@ -6602,8 +6606,8 @@ Handle<Object> JSObject::GetAccessor(Handle<JSObject> object,
 
   // Check access rights if needed.
   if (object->IsAccessCheckNeeded() &&
-      !isolate->MayNamedAccess(*object, *name, v8::ACCESS_HAS)) {
-    isolate->ReportFailedAccessCheck(*object, v8::ACCESS_HAS);
+      !isolate->MayNamedAccessWrapper(object, name, v8::ACCESS_HAS)) {
+    isolate->ReportFailedAccessCheckWrapper(object, v8::ACCESS_HAS);
     RETURN_HANDLE_IF_SCHEDULED_EXCEPTION(isolate, Object);
     return isolate->factory()->undefined_value();
   }
@@ -12514,8 +12518,8 @@ Handle<Object> JSObject::SetElement(Handle<JSObject> object,
 
   // Check access rights if needed.
   if (object->IsAccessCheckNeeded()) {
-    if (!isolate->MayIndexedAccess(*object, index, v8::ACCESS_SET)) {
-      isolate->ReportFailedAccessCheck(*object, v8::ACCESS_SET);
+    if (!isolate->MayIndexedAccessWrapper(object, index, v8::ACCESS_SET)) {
+      isolate->ReportFailedAccessCheckWrapper(object, v8::ACCESS_SET);
       RETURN_HANDLE_IF_SCHEDULED_EXCEPTION(isolate, Object);
       return value;
     }
@@ -13343,8 +13347,8 @@ bool JSObject::HasRealNamedProperty(Handle<JSObject> object,
   SealHandleScope shs(isolate);
   // Check access rights if needed.
   if (object->IsAccessCheckNeeded()) {
-    if (!isolate->MayNamedAccess(*object, *key, v8::ACCESS_HAS)) {
-      isolate->ReportFailedAccessCheck(*object, v8::ACCESS_HAS);
+    if (!isolate->MayNamedAccessWrapper(object, key, v8::ACCESS_HAS)) {
+      isolate->ReportFailedAccessCheckWrapper(object, v8::ACCESS_HAS);
       return false;
     }
   }
@@ -13360,8 +13364,8 @@ bool JSObject::HasRealElementProperty(Handle<JSObject> object, uint32_t index) {
   SealHandleScope shs(isolate);
   // Check access rights if needed.
   if (object->IsAccessCheckNeeded()) {
-    if (!isolate->MayIndexedAccess(*object, index, v8::ACCESS_HAS)) {
-      isolate->ReportFailedAccessCheck(*object, v8::ACCESS_HAS);
+    if (!isolate->MayIndexedAccessWrapper(object, index, v8::ACCESS_HAS)) {
+      isolate->ReportFailedAccessCheckWrapper(object, v8::ACCESS_HAS);
       return false;
     }
   }
@@ -13385,8 +13389,8 @@ bool JSObject::HasRealNamedCallbackProperty(Handle<JSObject> object,
   SealHandleScope shs(isolate);
   // Check access rights if needed.
   if (object->IsAccessCheckNeeded()) {
-    if (!isolate->MayNamedAccess(*object, *key, v8::ACCESS_HAS)) {
-      isolate->ReportFailedAccessCheck(*object, v8::ACCESS_HAS);
+    if (!isolate->MayNamedAccessWrapper(object, key, v8::ACCESS_HAS)) {
+      isolate->ReportFailedAccessCheckWrapper(object, v8::ACCESS_HAS);
       return false;
     }
   }

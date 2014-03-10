@@ -2923,7 +2923,7 @@ class JSObject: public JSReceiver {
   // Gets the current elements capacity and the number of used elements.
   void GetElementsCapacityAndUsage(int* capacity, int* used);
 
-  bool CanSetCallback(Name* name);
+  static bool CanSetCallback(Handle<JSObject> object, Handle<Name> name);
   static void SetElementCallback(Handle<JSObject> object,
                                  uint32_t index,
                                  Handle<Object> structure,

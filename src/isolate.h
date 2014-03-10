@@ -741,6 +741,10 @@ class Isolate {
                                v8::AccessType type) {
     return MayIndexedAccess(*receiver, index, type);
   }
+  void ReportFailedAccessCheckWrapper(Handle<JSObject> receiver,
+                                      v8::AccessType type) {
+    ReportFailedAccessCheck(*receiver, type);
+  }
 
   bool MayNamedAccess(JSObject* receiver,
                       Object* key,
