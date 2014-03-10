@@ -142,6 +142,7 @@ void LCodeGenBase::Comment(const char* format, ...) {
 
 int LCodeGenBase::GetNextEmittedBlock() const {
   for (int i = current_block_ + 1; i < graph()->blocks()->length(); ++i) {
+    if (!graph()->blocks()->at(i)->IsReachable()) continue;
     if (!chunk_->GetLabel(i)->HasReplacement()) return i;
   }
   return -1;
