@@ -94,6 +94,7 @@ class LCodeGen;
   V(Dummy)                                      \
   V(DummyUse)                                   \
   V(FlooringDivByConstI)                        \
+  V(FlooringDivByPowerOf2I)                     \
   V(ForInCacheArray)                            \
   V(ForInPrepareMap)                            \
   V(FunctionLiteral)                            \
@@ -667,20 +668,41 @@ class LDivI V8_FINAL : public LTemplateInstruction<1, 2, 0> {
 };
 
 
-class LFlooringDivByConstI V8_FINAL : public LTemplateInstruction<1, 2, 1> {
+class LFlooringDivByPowerOf2I V8_FINAL : public LTemplateInstruction<1, 1, 0> {
  public:
-  LFlooringDivByConstI(LOperand* dividend, LOperand* divisor, LOperand* temp) {
+  LFlooringDivByPowerOf2I(LOperand* dividend, int32_t divisor) {
     inputs_[0] = dividend;
-    inputs_[1] = divisor;
-    temps_[0] = temp;
+    divisor_ = divisor;
   }
 
   LOperand* dividend() { return inputs_[0]; }
-  LOperand* divisor() { return inputs_[1]; }
-  LOperand* temp() { return temps_[0]; }
+  int32_t divisor() { return divisor_; }
+
+  DECLARE_CONCRETE_INSTRUCTION(FlooringDivByPowerOf2I,
+                               "flooring-div-by-power-of-2-i")
+  DECLARE_HYDROGEN_ACCESSOR(MathFloorOfDiv)
+
+ private:
+  int32_t divisor_;
+};
+
+
+class LFlooringDivByConstI V8_FINAL : public LTemplateInstruction<1, 1, 0> {
+ public:
+  LFlooringDivByConstI(LOperand* dividend, int32_t divisor) {
+    inputs_[0] = dividend;
+    divisor_ = divisor;
+  }
+
+  LOperand* dividend() { return inputs_[0]; }
+  int32_t divisor() const { return divisor_; }
+  LOperand* temp1() { return temps_[0]; }
 
   DECLARE_CONCRETE_INSTRUCTION(FlooringDivByConstI, "flooring-div-by-const-i")
   DECLARE_HYDROGEN_ACCESSOR(MathFloorOfDiv)
+
+ private:
+  int32_t divisor_;
 };
 
 
@@ -2649,6 +2671,7 @@ class LChunkBuilder V8_FINAL : public LChunkBuilderBase {
   LInstruction* DoDivI(HBinaryOperation* instr);
   LInstruction* DoModByPowerOf2I(HMod* instr);
   LInstruction* DoModI(HMod* instr);
+  LInstruction* DoFlooringDivByPowerOf2I(HMathFloorOfDiv* instr);
   LInstruction* DoFlooringDivByConstI(HMathFloorOfDiv* instr);
 
  private:

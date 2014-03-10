@@ -1266,42 +1266,39 @@ LInstruction* LChunkBuilder::DoDiv(HDiv* instr) {
 }
 
 
-bool LChunkBuilder::HasMagicNumberForDivisor(int32_t divisor) {
-  uint32_t divisor_abs = abs(divisor);
-  // Dividing by 0 or powers of 2 is easy.
-  if (divisor == 0 || IsPowerOf2(divisor_abs)) return true;
-
-  // We have magic numbers for a few specific divisors.
-  // Details and proofs can be found in:
-  // - Hacker's Delight, Henry S. Warren, Jr.
-  // - The PowerPC Compiler Writer's Guide
-  // and probably many others.
-  //
-  // We handle
-  //   <divisor with magic numbers> * <power of 2>
-  // but not
-  //   <divisor with magic numbers> * <other divisor with magic numbers>
-  int32_t power_of_2_factor =
-    CompilerIntrinsics::CountTrailingZeros(divisor_abs);
-  DivMagicNumbers magic_numbers =
-    DivMagicNumberFor(divisor_abs >> power_of_2_factor);
-  return magic_numbers.M != InvalidDivMagicNumber.M;
+LInstruction* LChunkBuilder::DoFlooringDivByPowerOf2I(HMathFloorOfDiv* instr) {
+  LOperand* dividend = UseRegisterAtStart(instr->left());
+  int32_t divisor = instr->right()->GetInteger32Constant();
+  LInstruction* result =
+      DefineSameAsFirst(
+          new(zone()) LFlooringDivByPowerOf2I(dividend, divisor));
+  bool can_deopt =
+      (instr->CheckFlag(HValue::kBailoutOnMinusZero) && divisor < 0) ||
+      (instr->left()->RangeCanInclude(kMinInt) && divisor == -1);
+  return can_deopt ? AssignEnvironment(result) : result;
 }
 
 
 LInstruction* LChunkBuilder::DoFlooringDivByConstI(HMathFloorOfDiv* instr) {
+  ASSERT(instr->representation().IsInteger32());
+  ASSERT(instr->left()->representation().Equals(instr->representation()));
+  ASSERT(instr->right()->representation().Equals(instr->representation()));
   LOperand* dividend = UseRegister(instr->left());
-  LOperand* divisor = UseOrConstant(instr->right());
-  LOperand* remainder = TempRegister();
+  int32_t divisor = instr->right()->GetInteger32Constant();
   LInstruction* result =
-      DefineAsRegister(
-          new(zone()) LFlooringDivByConstI(dividend, divisor, remainder));
-  return AssignEnvironment(result);
+      DefineAsRegister(new(zone()) LFlooringDivByConstI(dividend, divisor));
+  bool can_deopt =
+      divisor == 0 ||
+      (instr->CheckFlag(HValue::kBailoutOnMinusZero) &&
+       instr->left()->RangeCanInclude(0) && divisor < 0);
+  return can_deopt ? AssignEnvironment(result) : result;
 }
 
 
 LInstruction* LChunkBuilder::DoMathFloorOfDiv(HMathFloorOfDiv* instr) {
-  if (instr->right()->IsConstant()) {
+  if (instr->RightIsPowerOf2()) {
+    return DoFlooringDivByPowerOf2I(instr);
+  } else if (instr->right()->IsConstant()) {
     return DoFlooringDivByConstI(instr);
   } else {
     HValue* right = instr->right();
