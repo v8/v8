@@ -7694,36 +7694,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ConstructDouble) {
 }
 
 
-// Cube root approximation, refer to: http://metamerist.com/cbrt/cbrt.htm
-// Using initial approximation adapted from Kahan's cbrt and 4 iterations
-// of Newton's method.
-inline double CubeRootNewtonIteration(double approx, double x) {
-  return (1.0 / 3.0) * (x / (approx * approx) + 2 * approx);
-}
-
-
-inline double CubeRoot(double x) {
-  static const uint64_t magic = V8_2PART_UINT64_C(0x2A9F7893, 00000000);
-  uint64_t xhigh = double_to_uint64(x);
-  double approx = uint64_to_double(xhigh / 3 + magic);
-
-  approx = CubeRootNewtonIteration(approx, x);
-  approx = CubeRootNewtonIteration(approx, x);
-  approx = CubeRootNewtonIteration(approx, x);
-  return CubeRootNewtonIteration(approx, x);
-}
-
-
-RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_cbrt) {
-  SealHandleScope shs(isolate);
-  ASSERT(args.length() == 1);
-  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  if (x == 0 || std::isinf(x)) return args[0];
-  double result = (x > 0) ? CubeRoot(x) : -CubeRoot(-x);
-  return isolate->heap()->AllocateHeapNumber(result);
-}
-
-
 static const double kPiDividedBy4 = 0.78539816339744830962;
 
 

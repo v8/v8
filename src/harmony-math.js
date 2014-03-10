@@ -175,9 +175,28 @@ function MathClz32(x) {
 
 
 // ES6 draft 09-27-13, section 20.2.2.9.
+// Cube root approximation, refer to: http://metamerist.com/cbrt/cbrt.htm
+// Using initial approximation adapted from Kahan's cbrt and 4 iterations
+// of Newton's method.
 function MathCbrt(x) {
-  return %Math_cbrt(TO_NUMBER_INLINE(x));
+  if (!IS_NUMBER(x)) x = NonNumberToNumber(x);
+  if (x == 0 || !NUMBER_IS_FINITE(x)) return x;
+  return x >= 0 ? CubeRoot(x) : -CubeRoot(-x);
 }
+
+macro NEWTON_ITERATION_CBRT(x, approx)
+  (1.0 / 3.0) * (x / (approx * approx) + 2 * approx);
+endmacro
+
+function CubeRoot(x) {
+  var approx_hi = MathFloor(%_DoubleHi(x) / 3) + 0x2A9F7893;
+  var approx = %_ConstructDouble(approx_hi, 0);
+  approx = NEWTON_ITERATION_CBRT(x, approx);
+  approx = NEWTON_ITERATION_CBRT(x, approx);
+  approx = NEWTON_ITERATION_CBRT(x, approx);
+  return NEWTON_ITERATION_CBRT(x, approx);
+}
+
 
 
 // ES6 draft 09-27-13, section 20.2.2.14.

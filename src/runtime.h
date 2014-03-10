@@ -175,7 +175,6 @@ namespace internal {
   F(Math_asin, 1, 1) \
   F(Math_atan, 1, 1) \
   F(Math_log, 1, 1) \
-  F(Math_cbrt, 1, 1) \
   F(Math_sqrt, 1, 1) \
   F(Math_exp, 1, 1) \
   F(Math_floor, 1, 1) \
