@@ -3799,6 +3799,9 @@ typedef void (*FatalErrorCallback)(const char* location, const char* message);
 
 typedef void (*MessageCallback)(Handle<Message> message, Handle<Value> error);
 
+// --- Tracing ---
+
+typedef void (*LogEventCallback)(const char* name, int event);
 
 /**
  * Create new error objects by calling the corresponding error object
@@ -4184,6 +4187,11 @@ class V8_EXPORT Isolate {
    * instead to influence the garbage collection schedule.
    */
   void RequestGarbageCollectionForTesting(GarbageCollectionType type);
+
+  /**
+   * Set the callback to invoke for logging event.
+   */
+  void SetEventLogger(LogEventCallback that);
 
  private:
   Isolate();

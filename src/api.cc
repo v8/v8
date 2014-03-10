@@ -6381,6 +6381,11 @@ void Isolate::GetHeapStatistics(HeapStatistics* heap_statistics) {
 }
 
 
+void Isolate::SetEventLogger(LogEventCallback that) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  isolate->set_event_logger(that);
+}
+
 String::Utf8Value::Utf8Value(v8::Handle<v8::Value> obj)
     : str_(NULL), length_(0) {
   i::Isolate* isolate = i::Isolate::Current();

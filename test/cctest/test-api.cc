@@ -22116,3 +22116,27 @@ TEST(TestFunctionCallOptimization) {
   ApiCallOptimizationChecker checker;
   checker.RunAll();
 }
+
+
+static const char* last_event_message;
+static int last_event_status;
+void StoringEventLoggerCallback(const char* message, int status) {
+    last_event_message = message;
+    last_event_status = status;
+}
+
+
+TEST(EventLogging) {
+  v8::Isolate* isolate = CcTest::isolate();
+  isolate->SetEventLogger(StoringEventLoggerCallback);
+  v8::internal::HistogramTimer* histogramTimer =
+      new v8::internal::HistogramTimer(
+          "V8.Test", 0, 10000, 50,
+          reinterpret_cast<v8::internal::Isolate*>(isolate));
+  histogramTimer->Start();
+  CHECK_EQ("V8.Test", last_event_message);
+  CHECK_EQ(0, last_event_status);
+  histogramTimer->Stop();
+  CHECK_EQ("V8.Test", last_event_message);
+  CHECK_EQ(1, last_event_status);
+}
