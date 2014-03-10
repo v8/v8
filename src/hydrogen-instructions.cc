@@ -3145,8 +3145,8 @@ bool HCompareMinusZeroAndBranch::KnownSuccessorBlock(HBasicBlock** block) {
     if (constant->HasDoubleValue()) {
       *block = IsMinusZero(constant->DoubleValue())
           ? FirstSuccessor() : SecondSuccessor();
+      return true;
     }
-    return true;
   }
   if (value()->representation().IsSmiOrInteger32()) {
     // A Smi or Integer32 cannot contain minus zero.
