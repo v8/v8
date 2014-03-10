@@ -739,21 +739,6 @@ class HValue : public ZoneObject {
     return representation_.IsHeapObject() || type_.IsHeapObject();
   }
 
-  // An operation needs to override this function iff:
-  //   1) it can produce an int32 output.
-  //   2) the true value of its output can potentially be minus zero.
-  // The implementation must set a flag so that it bails out in the case where
-  // it would otherwise output what should be a minus zero as an int32 zero.
-  // If the operation also exists in a form that takes int32 and outputs int32
-  // then the operation should return its input value so that we can propagate
-  // back.  There are three operations that need to propagate back to more than
-  // one input.  They are phi and binary div and mul.  They always return NULL
-  // and expect the caller to take care of things.
-  virtual HValue* EnsureAndPropagateNotMinusZero(BitVector* visited) {
-    visited->Add(id());
-    return NULL;
-  }
-
   // There are HInstructions that do not really change a value, they
   // only add pieces of information to it (like bounds checks, map checks,
   // smi checks...).
@@ -1719,9 +1704,6 @@ class HForceRepresentation V8_FINAL : public HTemplateInstruction<1> {
 
   HValue* value() { return OperandAt(0); }
 
-  virtual HValue* EnsureAndPropagateNotMinusZero(
-      BitVector* visited) V8_OVERRIDE;
-
   virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
     return representation();  // Same as the output representation.
   }
@@ -1767,8 +1749,6 @@ class HChange V8_FINAL : public HUnaryOperation {
     return CheckUsesForFlag(kAllowUndefinedAsNaN);
   }
 
-  virtual HValue* EnsureAndPropagateNotMinusZero(
-      BitVector* visited) V8_OVERRIDE;
   virtual HType CalculateInferredType() V8_OVERRIDE;
   virtual HValue* Canonicalize() V8_OVERRIDE;
 
@@ -2630,9 +2610,6 @@ class HUnaryMathOperation V8_FINAL : public HTemplateInstruction<2> {
   HValue* value() { return OperandAt(1); }
 
   virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
-
-  virtual HValue* EnsureAndPropagateNotMinusZero(
-      BitVector* visited) V8_OVERRIDE;
 
   virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
     if (index == 0) {
@@ -4111,9 +4088,6 @@ class HMathFloorOfDiv V8_FINAL : public HBinaryOperation {
                                               HValue*,
                                               HValue*);
 
-  virtual HValue* EnsureAndPropagateNotMinusZero(
-      BitVector* visited) V8_OVERRIDE;
-
   DECLARE_CONCRETE_INSTRUCTION(MathFloorOfDiv)
 
  protected:
@@ -4714,9 +4688,6 @@ class HAdd V8_FINAL : public HArithmeticBinaryOperation {
     return !representation().IsTagged() && !representation().IsExternal();
   }
 
-  virtual HValue* EnsureAndPropagateNotMinusZero(
-      BitVector* visited) V8_OVERRIDE;
-
   virtual HValue* Canonicalize() V8_OVERRIDE;
 
   virtual bool TryDecompose(DecompositionResult* decomposition) V8_OVERRIDE {
@@ -4773,9 +4744,6 @@ class HSub V8_FINAL : public HArithmeticBinaryOperation {
                            HValue* left,
                            HValue* right);
 
-  virtual HValue* EnsureAndPropagateNotMinusZero(
-      BitVector* visited) V8_OVERRIDE;
-
   virtual HValue* Canonicalize() V8_OVERRIDE;
 
   virtual bool TryDecompose(DecompositionResult* decomposition) V8_OVERRIDE {
@@ -4822,9 +4790,6 @@ class HMul V8_FINAL : public HArithmeticBinaryOperation {
     return mul;
   }
 
-  virtual HValue* EnsureAndPropagateNotMinusZero(
-      BitVector* visited) V8_OVERRIDE;
-
   virtual HValue* Canonicalize() V8_OVERRIDE;
 
   // Only commutative if it is certain that not two objects are multiplicated.
@@ -4862,9 +4827,6 @@ class HMod V8_FINAL : public HArithmeticBinaryOperation {
                            HValue* left,
                            HValue* right);
 
-  virtual HValue* EnsureAndPropagateNotMinusZero(
-      BitVector* visited) V8_OVERRIDE;
-
   virtual HValue* Canonicalize() V8_OVERRIDE;
 
   virtual void UpdateRepresentation(Representation new_rep,
@@ -4897,9 +4859,6 @@ class HDiv V8_FINAL : public HArithmeticBinaryOperation {
                            HValue* context,
                            HValue* left,
                            HValue* right);
-
-  virtual HValue* EnsureAndPropagateNotMinusZero(
-      BitVector* visited) V8_OVERRIDE;
 
   virtual HValue* Canonicalize() V8_OVERRIDE;
 
