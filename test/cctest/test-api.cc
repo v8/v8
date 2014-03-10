@@ -2634,6 +2634,10 @@ THREADED_TEST(InternalFieldsAlignedPointers) {
 
   void* huge = reinterpret_cast<void*>(~static_cast<uintptr_t>(1));
   CheckAlignedPointerInInternalField(obj, huge);
+
+  v8::UniquePersistent<v8::Object> persistent(isolate, obj);
+  CHECK_EQ(1, Object::InternalFieldCount(persistent));
+  CHECK_EQ(huge, Object::GetAlignedPointerFromInternalField(persistent, 0));
 }
 
 
