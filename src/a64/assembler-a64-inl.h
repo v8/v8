@@ -179,9 +179,9 @@ inline void CPURegList::Combine(const CPURegList& other) {
 
 inline void CPURegList::Remove(const CPURegList& other) {
   ASSERT(IsValid());
-  ASSERT(other.type() == type_);
-  ASSERT(other.RegisterSizeInBits() == size_);
-  list_ &= ~other.list();
+  if (other.type() == type_) {
+    list_ &= ~other.list();
+  }
 }
 
 
@@ -192,10 +192,14 @@ inline void CPURegList::Combine(const CPURegister& other) {
 }
 
 
-inline void CPURegList::Remove(const CPURegister& other) {
-  ASSERT(other.type() == type_);
-  ASSERT(other.SizeInBits() == size_);
-  Remove(other.code());
+inline void CPURegList::Remove(const CPURegister& other1,
+                               const CPURegister& other2,
+                               const CPURegister& other3,
+                               const CPURegister& other4) {
+  if (!other1.IsNone() && (other1.type() == type_)) Remove(other1.code());
+  if (!other2.IsNone() && (other2.type() == type_)) Remove(other2.code());
+  if (!other3.IsNone() && (other3.type() == type_)) Remove(other3.code());
+  if (!other4.IsNone() && (other4.type() == type_)) Remove(other4.code());
 }
 
 

@@ -845,7 +845,13 @@ bool LCodeGen::GenerateDeoptJumpTable() {
     }
     if (deopt_jump_table_[i].needs_frame) {
       ASSERT(!info()->saves_caller_doubles());
-      __ Mov(__ Tmp0(), Operand(ExternalReference::ForDeoptEntry(entry)));
+
+      UseScratchRegisterScope temps(masm());
+      Register stub_deopt_entry = temps.AcquireX();
+      Register stub_marker = temps.AcquireX();
+
+      __ Mov(stub_deopt_entry,
+             Operand(ExternalReference::ForDeoptEntry(entry)));
       if (needs_frame.is_bound()) {
         __ B(&needs_frame);
       } else {
@@ -853,12 +859,11 @@ bool LCodeGen::GenerateDeoptJumpTable() {
         // This variant of deopt can only be used with stubs. Since we don't
         // have a function pointer to install in the stack frame that we're
         // building, install a special marker there instead.
-        // TODO(jochen): Revisit the use of TmpX().
         ASSERT(info()->IsStub());
-        __ Mov(__ Tmp1(), Operand(Smi::FromInt(StackFrame::STUB)));
-        __ Push(lr, fp, cp, __ Tmp1());
+        __ Mov(stub_marker, Operand(Smi::FromInt(StackFrame::STUB)));
+        __ Push(lr, fp, cp, stub_marker);
         __ Add(fp, __ StackPointer(), 2 * kPointerSize);
-        __ Call(__ Tmp0());
+        __ Call(stub_deopt_entry);
       }
     } else {
       if (info()->saves_caller_doubles()) {

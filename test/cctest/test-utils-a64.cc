@@ -323,11 +323,10 @@ void RegisterDump::Dump(MacroAssembler* masm) {
   ASSERT(__ StackPointer().Is(csp));
 
   // Ensure that we don't unintentionally clobber any registers.
-  Register old_tmp0 = __ Tmp0();
-  Register old_tmp1 = __ Tmp1();
-  FPRegister old_fptmp0 = __ FPTmp0();
-  __ SetScratchRegisters(NoReg, NoReg);
-  __ SetFPScratchRegister(NoFPReg);
+  RegList old_tmp_list = masm->TmpList()->list();
+  RegList old_fptmp_list = masm->FPTmpList()->list();
+  masm->TmpList()->set_list(0);
+  masm->FPTmpList()->set_list(0);
 
   // Preserve some temporary registers.
   Register dump_base = x0;
@@ -419,8 +418,8 @@ void RegisterDump::Dump(MacroAssembler* masm) {
   __ Ldr(dump2, MemOperand(dump2, dump2.code() * kXRegSizeInBytes));
 
   // Restore the MacroAssembler's scratch registers.
-  __ SetScratchRegisters(old_tmp0, old_tmp1);
-  __ SetFPScratchRegister(old_fptmp0);
+  masm->TmpList()->set_list(old_tmp_list);
+  masm->FPTmpList()->set_list(old_fptmp_list);
 
   completed_ = true;
 }

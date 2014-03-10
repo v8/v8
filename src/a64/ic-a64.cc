@@ -1074,6 +1074,7 @@ static void KeyedStoreGenerateGenericHelper(
                                          FAST_DOUBLE_ELEMENTS,
                                          receiver_map,
                                          x10,
+                                         x11,
                                          slow);
   ASSERT(receiver_map.Is(x3));  // Transition code expects map in x3.
   AllocationSiteMode mode = AllocationSite::GetMode(FAST_SMI_ELEMENTS,
@@ -1088,6 +1089,7 @@ static void KeyedStoreGenerateGenericHelper(
                                          FAST_ELEMENTS,
                                          receiver_map,
                                          x10,
+                                         x11,
                                          slow);
   ASSERT(receiver_map.Is(x3));  // Transition code expects map in x3.
   mode = AllocationSite::GetMode(FAST_SMI_ELEMENTS, FAST_ELEMENTS);
@@ -1104,6 +1106,7 @@ static void KeyedStoreGenerateGenericHelper(
                                          FAST_ELEMENTS,
                                          receiver_map,
                                          x10,
+                                         x11,
                                          slow);
   ASSERT(receiver_map.Is(x3));  // Transition code expects map in x3.
   mode = AllocationSite::GetMode(FAST_DOUBLE_ELEMENTS, FAST_ELEMENTS);

@@ -340,6 +340,9 @@ const int Deoptimizer::table_entry_size_ = 2 * kInstructionSize;
 
 
 void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
+  UseScratchRegisterScope temps(masm());
+  Register entry_id = temps.AcquireX();
+
   // Create a sequence of deoptimization entries.
   // Note that registers are still live when jumping to an entry.
   Label done;
@@ -354,15 +357,13 @@ void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
     for (int i = 0; i < count(); i++) {
       int start = masm()->pc_offset();
       USE(start);
-      __ movz(masm()->Tmp0(), i);
+      __ movz(entry_id, i);
       __ b(&done);
       ASSERT(masm()->pc_offset() - start == table_entry_size_);
     }
   }
   __ Bind(&done);
-  // TODO(all): We need to add some kind of assertion to verify that Tmp0()
-  // is not clobbered by Push.
-  __ Push(masm()->Tmp0());
+  __ Push(entry_id);
 }
 
 

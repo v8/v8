@@ -903,7 +903,8 @@ Register StubCompiler::CheckPrototypes(Handle<HeapType> type,
       // the map check so that we know that the object is actually a global
       // object.
       if (current_map->IsJSGlobalProxyMap()) {
-        __ CheckAccessGlobalProxy(reg, scratch2, miss);
+        UseScratchRegisterScope temps(masm());
+        __ CheckAccessGlobalProxy(reg, scratch2, temps.AcquireX(), miss);
       } else if (current_map->IsJSGlobalObjectMap()) {
         GenerateCheckPropertyCell(
             masm(), Handle<JSGlobalObject>::cast(current), name,
@@ -940,7 +941,7 @@ Register StubCompiler::CheckPrototypes(Handle<HeapType> type,
   ASSERT(current_map->IsJSGlobalProxyMap() ||
          !current_map->is_access_check_needed());
   if (current_map->IsJSGlobalProxyMap()) {
-    __ CheckAccessGlobalProxy(reg, scratch1, miss);
+    __ CheckAccessGlobalProxy(reg, scratch1, scratch2, miss);
   }
 
   // Return the register containing the holder.

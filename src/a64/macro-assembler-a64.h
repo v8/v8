@@ -520,7 +520,6 @@ class MacroAssembler : public Assembler {
   //
   // Other than the registers passed into Pop, the stack pointer and (possibly)
   // the system stack pointer, these methods do not modify any other registers.
-  // Scratch registers such as Tmp0() and Tmp1() are preserved.
   void Push(const CPURegister& src0, const CPURegister& src1 = NoReg,
             const CPURegister& src2 = NoReg, const CPURegister& src3 = NoReg);
   void Pop(const CPURegister& dst0, const CPURegister& dst1 = NoReg,
@@ -746,7 +745,7 @@ class MacroAssembler : public Assembler {
 
   // Set the current stack pointer, but don't generate any code.
   inline void SetStackPointer(const Register& stack_pointer) {
-    ASSERT(!AreAliased(stack_pointer, Tmp0(), Tmp1()));
+    ASSERT(!TmpList()->IncludesAliasOf(stack_pointer));
     sp_ = stack_pointer;
   }
 
@@ -940,13 +939,13 @@ class MacroAssembler : public Assembler {
 
   // Copy fields from 'src' to 'dst', where both are tagged objects.
   // The 'temps' list is a list of X registers which can be used for scratch
-  // values. The temps list must include at least one register, and it must not
-  // contain Tmp0() or Tmp1().
+  // values. The temps list must include at least one register.
   //
   // Currently, CopyFields cannot make use of more than three registers from
   // the 'temps' list.
   //
-  // As with several MacroAssembler methods, Tmp0() and Tmp1() will be used.
+  // CopyFields expects to be able to take at least two registers from
+  // MacroAssembler::TmpList().
   void CopyFields(Register dst, Register src, CPURegList temps, unsigned count);
 
   // Copies a number of bytes from src to dst. All passed registers are
@@ -1449,7 +1448,6 @@ class MacroAssembler : public Assembler {
   void LoadElementsKind(Register result, Register object);
 
   // Compare the object in a register to a value from the root list.
-  // Uses the Tmp0() register as scratch.
   void CompareRoot(const Register& obj, Heap::RootListIndex index);
 
   // Compare the object in a register to a value and jump if they are equal.
@@ -1556,7 +1554,8 @@ class MacroAssembler : public Assembler {
   // on access to global objects across environments. The holder register
   // is left untouched, whereas both scratch registers are clobbered.
   void CheckAccessGlobalProxy(Register holder_reg,
-                              Register scratch,
+                              Register scratch1,
+                              Register scratch2,
                               Label* miss);
 
   // Hash the interger value in 'key' register.
@@ -1588,8 +1587,6 @@ class MacroAssembler : public Assembler {
   // Frames.
 
   // Activation support.
-  // Note that Tmp0() and Tmp1() are used as a scratch registers. This is safe
-  // because these methods are not used in Crankshaft.
   void EnterFrame(StackFrame::Type type);
   void LeaveFrame(StackFrame::Type type);
 
@@ -1678,7 +1675,7 @@ class MacroAssembler : public Assembler {
   void LoadContext(Register dst, int context_chain_length);
 
   // Emit code for a flooring division by a constant. The dividend register is
-  // unchanged and Tmp0() gets clobbered. Dividend and result must be different.
+  // unchanged. Dividend and result must be different.
   void FlooringDiv(Register result, Register dividend, int32_t divisor);
 
   // ---------------------------------------------------------------------------
@@ -1704,7 +1701,7 @@ class MacroAssembler : public Assembler {
   // in new space.
   void RememberedSetHelper(Register object,  // Used for debug code.
                            Register addr,
-                           Register scratch,
+                           Register scratch1,
                            SaveFPRegsMode save_fp,
                            RememberedSetFinalAction and_then);
 
@@ -1889,7 +1886,8 @@ class MacroAssembler : public Assembler {
       ElementsKind expected_kind,
       ElementsKind transitioned_kind,
       Register map_in_out,
-      Register scratch,
+      Register scratch1,
+      Register scratch2,
       Label* no_map_match);
 
   void LoadGlobalFunction(int index, Register function);
@@ -1900,72 +1898,8 @@ class MacroAssembler : public Assembler {
                                     Register map,
                                     Register scratch);
 
-  // --------------------------------------------------------------------------
-  // Set the registers used internally by the MacroAssembler as scratch
-  // registers. These registers are used to implement behaviours which are not
-  // directly supported by A64, and where an intermediate result is required.
-  //
-  // Both tmp0 and tmp1 may be set to any X register except for xzr, sp,
-  // and StackPointer(). Also, they must not be the same register (though they
-  // may both be NoReg).
-  //
-  // It is valid to set either or both of these registers to NoReg if you don't
-  // want the MacroAssembler to use any scratch registers. In a debug build, the
-  // Assembler will assert that any registers it uses are valid. Be aware that
-  // this check is not present in release builds. If this is a problem, use the
-  // Assembler directly.
-  void SetScratchRegisters(const Register& tmp0, const Register& tmp1) {
-    // V8 assumes the macro assembler uses ip0 and ip1 as temp registers.
-    ASSERT(tmp0.IsNone() || tmp0.Is(ip0));
-    ASSERT(tmp1.IsNone() || tmp1.Is(ip1));
-
-    ASSERT(!AreAliased(xzr, csp, tmp0, tmp1));
-    ASSERT(!AreAliased(StackPointer(), tmp0, tmp1));
-    tmp0_ = tmp0;
-    tmp1_ = tmp1;
-  }
-
-  const Register& Tmp0() const {
-    return tmp0_;
-  }
-
-  const Register& Tmp1() const {
-    return tmp1_;
-  }
-
-  const Register WTmp0() const {
-    return Register::Create(tmp0_.code(), kWRegSize);
-  }
-
-  const Register WTmp1() const {
-    return Register::Create(tmp1_.code(), kWRegSize);
-  }
-
-  void SetFPScratchRegister(const FPRegister& fptmp0) {
-    fptmp0_ = fptmp0;
-  }
-
-  const FPRegister& FPTmp0() const {
-    return fptmp0_;
-  }
-
-  const Register AppropriateTempFor(
-      const Register& target,
-      const CPURegister& forbidden = NoCPUReg) const {
-    Register candidate = forbidden.Is(Tmp0()) ? Tmp1() : Tmp0();
-    ASSERT(!candidate.Is(target));
-    return Register::Create(candidate.code(), target.SizeInBits());
-  }
-
-  const FPRegister AppropriateTempFor(
-      const FPRegister& target,
-      const CPURegister& forbidden = NoCPUReg) const {
-    USE(forbidden);
-    FPRegister candidate = FPTmp0();
-    ASSERT(!candidate.Is(forbidden));
-    ASSERT(!candidate.Is(target));
-    return FPRegister::Create(candidate.code(), target.SizeInBits());
-  }
+  CPURegList* TmpList() { return &tmp_list_; }
+  CPURegList* FPTmpList() { return &fptmp_list_; }
 
   // Like printf, but print at run-time from generated code.
   //
@@ -1978,7 +1912,7 @@ class MacroAssembler : public Assembler {
   // size.
   //
   // The following registers cannot be printed:
-  //    Tmp0(), Tmp1(), StackPointer(), csp.
+  //    StackPointer(), csp.
   //
   // This function automatically preserves caller-saved registers so that
   // calling code can use Printf at any point without having to worry about
@@ -2063,11 +1997,14 @@ class MacroAssembler : public Assembler {
   // These each implement CopyFields in a different way.
   void CopyFieldsLoopPairsHelper(Register dst, Register src, unsigned count,
                                  Register scratch1, Register scratch2,
-                                 Register scratch3);
+                                 Register scratch3, Register scratch4,
+                                 Register scratch5);
   void CopyFieldsUnrolledPairsHelper(Register dst, Register src, unsigned count,
-                                     Register scratch1, Register scratch2);
+                                     Register scratch1, Register scratch2,
+                                     Register scratch3, Register scratch4);
   void CopyFieldsUnrolledHelper(Register dst, Register src, unsigned count,
-                                Register scratch1);
+                                Register scratch1, Register scratch2,
+                                Register scratch3);
 
   // The actual Push and Pop implementations. These don't generate any code
   // other than that required for the push or pop. This allows
@@ -2148,10 +2085,9 @@ class MacroAssembler : public Assembler {
   // The register to use as a stack pointer for stack operations.
   Register sp_;
 
-  // Scratch registers used internally by the MacroAssembler.
-  Register tmp0_;
-  Register tmp1_;
-  FPRegister fptmp0_;
+  // Scratch registers available for use by the MacroAssembler.
+  CPURegList tmp_list_;
+  CPURegList fptmp_list_;
 
   void InitializeNewString(Register string,
                            Register length,
@@ -2229,6 +2165,49 @@ class InstructionAccurateScope BASE_EMBEDDED {
   Label start_;
   bool previous_allow_macro_instructions_;
 #endif
+};
+
+
+// This scope utility allows scratch registers to be managed safely. The
+// MacroAssembler's TmpList() (and FPTmpList()) is used as a pool of scratch
+// registers. These registers can be allocated on demand, and will be returned
+// at the end of the scope.
+//
+// When the scope ends, the MacroAssembler's lists will be restored to their
+// original state, even if the lists were modified by some other means.
+class UseScratchRegisterScope {
+ public:
+  explicit UseScratchRegisterScope(MacroAssembler* masm)
+      : available_(masm->TmpList()),
+        availablefp_(masm->FPTmpList()),
+        old_available_(available_->list()),
+        old_availablefp_(availablefp_->list()) {
+    ASSERT(available_->type() == CPURegister::kRegister);
+    ASSERT(availablefp_->type() == CPURegister::kFPRegister);
+  }
+
+  ~UseScratchRegisterScope();
+
+  // Take a register from the appropriate temps list. It will be returned
+  // automatically when the scope ends.
+  Register AcquireW() { return AcquireNextAvailable(available_).W(); }
+  Register AcquireX() { return AcquireNextAvailable(available_).X(); }
+  FPRegister AcquireS() { return AcquireNextAvailable(availablefp_).S(); }
+  FPRegister AcquireD() { return AcquireNextAvailable(availablefp_).D(); }
+
+  Register AcquireSameSizeAs(const Register& reg);
+  FPRegister AcquireSameSizeAs(const FPRegister& reg);
+
+ private:
+  static CPURegister AcquireNextAvailable(CPURegList* available);
+
+  // Available scratch registers.
+  CPURegList* available_;     // kRegister
+  CPURegList* availablefp_;   // kFPRegister
+
+  // The state of the available lists at the start of this scope.
+  RegList old_available_;     // kRegister
+  RegList old_availablefp_;   // kFPRegister
 };
 
 

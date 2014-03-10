@@ -175,8 +175,7 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
     ASSERT((object_regs & non_object_regs) == 0);
     ASSERT((scratch.Bit() & object_regs) == 0);
     ASSERT((scratch.Bit() & non_object_regs) == 0);
-    ASSERT((ip0.Bit() & (object_regs | non_object_regs)) == 0);
-    ASSERT((ip1.Bit() & (object_regs | non_object_regs)) == 0);
+    ASSERT((masm->TmpList()->list() & (object_regs | non_object_regs)) == 0);
     STATIC_ASSERT(kSmiValueSize == 32);
 
     CPURegList non_object_list =
