@@ -9549,7 +9549,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DateCurrentTime) {
   // time is milliseconds. Therefore, we floor the result of getting
   // the OS time.
   double millis = std::floor(OS::TimeCurrentMillis());
-  isolate->date_cache()->CheckTimezone();
   return isolate->heap()->NumberFromDouble(millis);
 }
 
@@ -9596,7 +9595,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DateLocalTimezone) {
   ASSERT(args.length() == 1);
 
   CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  isolate->date_cache()->CheckTimezone();
   int64_t time = isolate->date_cache()->EquivalentTime(static_cast<int64_t>(x));
   const char* zone = OS::LocalTimezone(static_cast<double>(time));
   return isolate->heap()->AllocateStringFromUtf8(CStrVector(zone));
