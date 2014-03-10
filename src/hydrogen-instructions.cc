@@ -1215,18 +1215,52 @@ void HHasInstanceTypeAndBranch::PrintDataTo(StringStream* stream) {
 
 void HTypeofIsAndBranch::PrintDataTo(StringStream* stream) {
   value()->PrintNameTo(stream);
-  stream->Add(" == %o", *type_literal_);
+  stream->Add(" == %o", *type_literal_.handle());
   HControlInstruction::PrintDataTo(stream);
 }
 
 
-bool HTypeofIsAndBranch::KnownSuccessorBlock(HBasicBlock** block) {
-  if (value()->representation().IsSpecialization()) {
-    if (compares_number_type()) {
-      *block = FirstSuccessor();
-    } else {
-      *block = SecondSuccessor();
+static String* TypeOfString(HConstant* constant, Isolate* isolate) {
+  Heap* heap = isolate->heap();
+  if (constant->HasNumberValue()) return heap->number_string();
+  if (constant->IsUndetectable()) return heap->undefined_string();
+  if (constant->HasStringValue()) return heap->string_string();
+  switch (constant->GetInstanceType()) {
+    case ODDBALL_TYPE: {
+      Unique<Object> unique = constant->GetUnique();
+      if (unique.IsKnownGlobal(heap->true_value()) ||
+          unique.IsKnownGlobal(heap->false_value())) {
+        return heap->boolean_string();
+      }
+      if (unique.IsKnownGlobal(heap->null_value())) {
+        return FLAG_harmony_typeof ? heap->null_string()
+                                   : heap->object_string();
+      }
+      ASSERT(unique.IsKnownGlobal(heap->undefined_value()));
+      return heap->undefined_string();
     }
+    case SYMBOL_TYPE:
+      return heap->symbol_string();
+    case JS_FUNCTION_TYPE:
+    case JS_FUNCTION_PROXY_TYPE:
+      return heap->function_string();
+    default:
+      return heap->object_string();
+  }
+}
+
+
+bool HTypeofIsAndBranch::KnownSuccessorBlock(HBasicBlock** block) {
+  if (FLAG_fold_constants && value()->IsConstant()) {
+    HConstant* constant = HConstant::cast(value());
+    String* type_string = TypeOfString(constant, isolate());
+    bool same_type = type_literal_.IsKnownGlobal(type_string);
+    *block = same_type ? FirstSuccessor() : SecondSuccessor();
+    return true;
+  } else if (value()->representation().IsSpecialization()) {
+    bool number_type =
+        type_literal_.IsKnownGlobal(isolate()->heap()->number_string());
+    *block = number_type ? FirstSuccessor() : SecondSuccessor();
     return true;
   }
   *block = NULL;
@@ -2498,13 +2532,16 @@ HConstant::HConstant(Handle<Object> handle, Representation r)
     has_int32_value_(false),
     has_double_value_(false),
     has_external_reference_value_(false),
-    is_internalized_string_(false),
     is_not_in_new_space_(true),
-    is_cell_(false),
-    boolean_value_(handle->BooleanValue()) {
+    boolean_value_(handle->BooleanValue()),
+    is_undetectable_(false),
+    instance_type_(kUnknownInstanceType) {
   if (handle->IsHeapObject()) {
-    Heap* heap = Handle<HeapObject>::cast(handle)->GetHeap();
+    Handle<HeapObject> heap_obj = Handle<HeapObject>::cast(handle);
+    Heap* heap = heap_obj->GetHeap();
     is_not_in_new_space_ = !heap->InNewSpace(*handle);
+    instance_type_ = heap_obj->map()->instance_type();
+    is_undetectable_ = heap_obj->map()->is_undetectable();
   }
   if (handle->IsNumber()) {
     double n = handle->Number();
@@ -2514,12 +2551,8 @@ HConstant::HConstant(Handle<Object> handle, Representation r)
     double_value_ = n;
     has_double_value_ = true;
     // TODO(titzer): if this heap number is new space, tenure a new one.
-  } else {
-    is_internalized_string_ = handle->IsInternalizedString();
   }
 
-  is_cell_ = !handle.is_null() &&
-      (handle->IsCell() || handle->IsPropertyCell());
   Initialize(r);
 }
 
@@ -2527,20 +2560,20 @@ HConstant::HConstant(Handle<Object> handle, Representation r)
 HConstant::HConstant(Unique<Object> unique,
                      Representation r,
                      HType type,
-                     bool is_internalize_string,
                      bool is_not_in_new_space,
-                     bool is_cell,
-                     bool boolean_value)
+                     bool boolean_value,
+                     bool is_undetectable,
+                     InstanceType instance_type)
   : HTemplateInstruction<0>(type),
     object_(unique),
     has_smi_value_(false),
     has_int32_value_(false),
     has_double_value_(false),
     has_external_reference_value_(false),
-    is_internalized_string_(is_internalize_string),
     is_not_in_new_space_(is_not_in_new_space),
-    is_cell_(is_cell),
-    boolean_value_(boolean_value) {
+    boolean_value_(boolean_value),
+    is_undetectable_(is_undetectable),
+    instance_type_(instance_type) {
   ASSERT(!unique.handle().is_null());
   ASSERT(!type.IsTaggedNumber());
   Initialize(r);
@@ -2556,12 +2589,12 @@ HConstant::HConstant(int32_t integer_value,
     has_int32_value_(true),
     has_double_value_(true),
     has_external_reference_value_(false),
-    is_internalized_string_(false),
     is_not_in_new_space_(is_not_in_new_space),
-    is_cell_(false),
     boolean_value_(integer_value != 0),
+    is_undetectable_(false),
     int32_value_(integer_value),
-    double_value_(FastI2D(integer_value)) {
+    double_value_(FastI2D(integer_value)),
+    instance_type_(kUnknownInstanceType) {
   // It's possible to create a constant with a value in Smi-range but stored
   // in a (pre-existing) HeapNumber. See crbug.com/349878.
   bool could_be_heapobject = r.IsTagged() && !object.handle().is_null();
@@ -2579,12 +2612,12 @@ HConstant::HConstant(double double_value,
     has_int32_value_(IsInteger32(double_value)),
     has_double_value_(true),
     has_external_reference_value_(false),
-    is_internalized_string_(false),
     is_not_in_new_space_(is_not_in_new_space),
-    is_cell_(false),
     boolean_value_(double_value != 0 && !std::isnan(double_value)),
+    is_undetectable_(false),
     int32_value_(DoubleToInt32(double_value)),
-    double_value_(double_value) {
+    double_value_(double_value),
+    instance_type_(kUnknownInstanceType) {
   has_smi_value_ = has_int32_value_ && Smi::IsValid(int32_value_);
   // It's possible to create a constant with a value in Smi-range but stored
   // in a (pre-existing) HeapNumber. See crbug.com/349878.
@@ -2602,11 +2635,11 @@ HConstant::HConstant(ExternalReference reference)
     has_int32_value_(false),
     has_double_value_(false),
     has_external_reference_value_(true),
-    is_internalized_string_(false),
     is_not_in_new_space_(true),
-    is_cell_(false),
     boolean_value_(true),
-    external_reference_value_(reference) {
+    is_undetectable_(false),
+    external_reference_value_(reference),
+    instance_type_(kUnknownInstanceType) {
   Initialize(Representation::External());
 }
 
@@ -2705,10 +2738,10 @@ HConstant* HConstant::CopyToRepresentation(Representation r, Zone* zone) const {
   return new(zone) HConstant(object_,
                              r,
                              type_,
-                             is_internalized_string_,
                              is_not_in_new_space_,
-                             is_cell_,
-                             boolean_value_);
+                             boolean_value_,
+                             is_undetectable_,
+                             instance_type_);
 }
 
 
@@ -3022,12 +3055,77 @@ void HCompareObjectEqAndBranch::PrintDataTo(StringStream* stream) {
 
 
 bool HCompareObjectEqAndBranch::KnownSuccessorBlock(HBasicBlock** block) {
-  if (left()->IsConstant() && right()->IsConstant()) {
-    bool comparison_result =
-        HConstant::cast(left())->Equals(HConstant::cast(right()));
-    *block = comparison_result
-        ? FirstSuccessor()
-        : SecondSuccessor();
+  if (FLAG_fold_constants && left()->IsConstant() && right()->IsConstant()) {
+    *block = HConstant::cast(left())->Equals(HConstant::cast(right()))
+        ? FirstSuccessor() : SecondSuccessor();
+    return true;
+  }
+  *block = NULL;
+  return false;
+}
+
+
+bool ConstantIsObject(HConstant* constant, Isolate* isolate) {
+  if (constant->HasNumberValue()) return false;
+  if (constant->GetUnique().IsKnownGlobal(isolate->heap()->null_value())) {
+    return true;
+  }
+  if (constant->IsUndetectable()) return false;
+  InstanceType type = constant->GetInstanceType();
+  return (FIRST_NONCALLABLE_SPEC_OBJECT_TYPE <= type) &&
+         (type <= LAST_NONCALLABLE_SPEC_OBJECT_TYPE);
+}
+
+
+bool HIsObjectAndBranch::KnownSuccessorBlock(HBasicBlock** block) {
+  if (FLAG_fold_constants && value()->IsConstant()) {
+    *block = ConstantIsObject(HConstant::cast(value()), isolate())
+        ? FirstSuccessor() : SecondSuccessor();
+    return true;
+  }
+  *block = NULL;
+  return false;
+}
+
+
+bool HIsStringAndBranch::KnownSuccessorBlock(HBasicBlock** block) {
+  if (FLAG_fold_constants && value()->IsConstant()) {
+    *block = HConstant::cast(value())->HasStringValue()
+        ? FirstSuccessor() : SecondSuccessor();
+    return true;
+  }
+  *block = NULL;
+  return false;
+}
+
+
+bool HIsSmiAndBranch::KnownSuccessorBlock(HBasicBlock** block) {
+  if (FLAG_fold_constants && value()->IsConstant()) {
+    *block = HConstant::cast(value())->HasSmiValue()
+        ? FirstSuccessor() : SecondSuccessor();
+    return true;
+  }
+  *block = NULL;
+  return false;
+}
+
+
+bool HIsUndetectableAndBranch::KnownSuccessorBlock(HBasicBlock** block) {
+  if (FLAG_fold_constants && value()->IsConstant()) {
+    *block = HConstant::cast(value())->IsUndetectable()
+        ? FirstSuccessor() : SecondSuccessor();
+    return true;
+  }
+  *block = NULL;
+  return false;
+}
+
+
+bool HHasInstanceTypeAndBranch::KnownSuccessorBlock(HBasicBlock** block) {
+  if (FLAG_fold_constants && value()->IsConstant()) {
+    InstanceType type = HConstant::cast(value())->GetInstanceType();
+    *block = (from_ <= type) && (type <= to_)
+        ? FirstSuccessor() : SecondSuccessor();
     return true;
   }
   *block = NULL;
@@ -3042,6 +3140,14 @@ void HCompareHoleAndBranch::InferRepresentation(
 
 
 bool HCompareMinusZeroAndBranch::KnownSuccessorBlock(HBasicBlock** block) {
+  if (FLAG_fold_constants && value()->IsConstant()) {
+    HConstant* constant = HConstant::cast(value());
+    if (constant->HasDoubleValue()) {
+      *block = IsMinusZero(constant->DoubleValue())
+          ? FirstSuccessor() : SecondSuccessor();
+    }
+    return true;
+  }
   if (value()->representation().IsSmiOrInteger32()) {
     // A Smi or Integer32 cannot contain minus zero.
     *block = SecondSuccessor();
