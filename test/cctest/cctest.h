@@ -308,10 +308,33 @@ static inline v8::Local<v8::Script> v8_compile(const char* x) {
 }
 
 
-// Helper function that compiles and runs the source.
+static inline v8::Local<v8::Script> v8_compile(v8::Local<v8::String> x) {
+  return v8::Script::Compile(x);
+}
+
+
+static inline v8::Local<v8::Script> CompileWithOrigin(const char* source,
+                                                      const char* origin_url) {
+  v8::ScriptOrigin origin(v8_str(origin_url));
+  return v8::Script::Compile(v8_str(source), &origin);
+}
+
+
+static inline v8::Local<v8::Script> CompileWithOrigin(
+    v8::Local<v8::String> source, const char* origin_url) {
+  v8::ScriptOrigin origin(v8_str(origin_url));
+  return v8::Script::Compile(source, &origin);
+}
+
+
+// Helper functions that compile and run the source.
 static inline v8::Local<v8::Value> CompileRun(const char* source) {
-  return v8::Script::Compile(
-      v8::String::NewFromUtf8(v8::Isolate::GetCurrent(), source))->Run();
+  return v8::Script::Compile(v8_str(source))->Run();
+}
+
+
+static inline v8::Local<v8::Value> CompileRun(v8::Local<v8::String> source) {
+  return v8::Script::Compile(source)->Run();
 }
 
 
@@ -327,17 +350,23 @@ static inline v8::Local<v8::Value> PreCompileCompileRun(const char* source) {
 }
 
 
-// Helper function that compiles and runs the source with given origin.
+// Helper functions that compile and run the source with given origin.
 static inline v8::Local<v8::Value> CompileRunWithOrigin(const char* source,
                                                         const char* origin_url,
                                                         int line_number,
                                                         int column_number) {
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
-  v8::ScriptOrigin origin(v8::String::NewFromUtf8(isolate, origin_url),
+  v8::ScriptOrigin origin(v8_str(origin_url),
                           v8::Integer::New(isolate, line_number),
                           v8::Integer::New(isolate, column_number));
-  return v8::Script::Compile(v8::String::NewFromUtf8(isolate, source), &origin)
-      ->Run();
+  return v8::Script::Compile(v8_str(source), &origin)->Run();
+}
+
+
+static inline v8::Local<v8::Value> CompileRunWithOrigin(
+    const char* source, const char* origin_url) {
+  v8::ScriptOrigin origin(v8_str(origin_url));
+  return v8::Script::Compile(v8_str(source), &origin)->Run();
 }
 
 
