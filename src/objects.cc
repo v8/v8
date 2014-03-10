@@ -1280,14 +1280,13 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
   // - the space the existing string occupies is too small for a regular
   //   external string.
   // - the existing string is in old pointer space and the backing store of
-  //   the external string is not aligned.  The GC cannot deal with fields
-  //   containing an unaligned address that points to outside of V8's heap.
+  //   the external string is not aligned.  The GC cannot deal with a field
+  //   containing a possibly unaligned address to outside of V8's heap.
   // In either case we resort to a short external string instead, omitting
   // the field caching the address of the backing store.  When we encounter
   // short external strings in generated code, we need to bailout to runtime.
   if (size < ExternalString::kSize ||
-      (!IsAligned(reinterpret_cast<intptr_t>(resource->data()), kPointerSize) &&
-       heap->old_pointer_space()->Contains(this))) {
+      heap->old_pointer_space()->Contains(this)) {
     this->set_map_no_write_barrier(
         is_internalized
             ? (is_ascii
@@ -1351,14 +1350,13 @@ bool String::MakeExternal(v8::String::ExternalAsciiStringResource* resource) {
   // - the space the existing string occupies is too small for a regular
   //   external string.
   // - the existing string is in old pointer space and the backing store of
-  //   the external string is not aligned.  The GC cannot deal with fields
-  //   containing an unaligned address that points to outside of V8's heap.
+  //   the external string is not aligned.  The GC cannot deal with a field
+  //   containing a possibly unaligned address to outside of V8's heap.
   // In either case we resort to a short external string instead, omitting
   // the field caching the address of the backing store.  When we encounter
   // short external strings in generated code, we need to bailout to runtime.
   if (size < ExternalString::kSize ||
-      (!IsAligned(reinterpret_cast<intptr_t>(resource->data()), kPointerSize) &&
-       heap->old_pointer_space()->Contains(this))) {
+      heap->old_pointer_space()->Contains(this)) {
     this->set_map_no_write_barrier(
         is_internalized ? heap->short_external_ascii_internalized_string_map()
                         : heap->short_external_ascii_string_map());
