@@ -855,6 +855,10 @@ class MacroAssembler: public Assembler {
   // Insert code to verify that the x87 stack has the specified depth (0-7)
   void VerifyX87StackDepth(uint32_t depth);
 
+  // Emit code for a flooring division by a constant. The dividend register is
+  // unchanged, the result is in edx, and eax gets clobbered.
+  void FlooringDiv(Register dividend, int32_t divisor);
+
   // ---------------------------------------------------------------------------
   // StatsCounter support
 

@@ -1057,6 +1057,11 @@ void LCodeGen::DeoptimizeIfZero(Register rt, LEnvironment* environment) {
 }
 
 
+void LCodeGen::DeoptimizeIfNotZero(Register rt, LEnvironment* environment) {
+  DeoptimizeBranch(environment, reg_not_zero, rt);
+}
+
+
 void LCodeGen::DeoptimizeIfNegative(Register rt, LEnvironment* environment) {
   int sign_bit = rt.Is64Bits() ? kXSignBit : kWSignBit;
   DeoptimizeBranch(environment, reg_bit_set, rt, sign_bit);
@@ -2634,6 +2639,39 @@ void LCodeGen::DoDivByPowerOf2I(LDivByPowerOf2I* instr) {
 }
 
 
+void LCodeGen::DoDivByConstI(LDivByConstI* instr) {
+  Register dividend = ToRegister32(instr->dividend());
+  int32_t divisor = instr->divisor();
+  Register result = ToRegister32(instr->result());
+  ASSERT(!AreAliased(dividend, result));
+
+  if (divisor == 0) {
+    Deoptimize(instr->environment());
+    return;
+  }
+
+  // Check for (0 / -x) that will produce negative zero.
+  HDiv* hdiv = instr->hydrogen();
+  if (hdiv->CheckFlag(HValue::kBailoutOnMinusZero) &&
+      hdiv->left()->RangeCanInclude(0) && divisor < 0) {
+    DeoptimizeIfZero(dividend, instr->environment());
+  }
+
+  __ FlooringDiv(result, dividend, Abs(divisor));
+  __ Add(result, result, Operand(dividend, LSR, 31));
+  if (divisor < 0) __ Neg(result, result);
+
+  if (!hdiv->CheckFlag(HInstruction::kAllUsesTruncatingToInt32)) {
+    Register temp = ToRegister32(instr->temp());
+    ASSERT(!AreAliased(dividend, result, temp));
+    __ Sxtw(dividend.X(), dividend);
+    __ Mov(temp, divisor);
+    __ Smsubl(temp.X(), result, temp, dividend.X());
+    DeoptimizeIfNotZero(temp, instr->environment());
+  }
+}
+
+
 void LCodeGen::DoDivI(LDivI* instr) {
   Register dividend = ToRegister32(instr->left());
   Register divisor = ToRegister32(instr->right());
@@ -3839,6 +3877,29 @@ void LCodeGen::DoFlooringDivByPowerOf2I(LFlooringDivByPowerOf2I* instr) {
 }
 
 
+void LCodeGen::DoFlooringDivByConstI(LFlooringDivByConstI* instr) {
+  Register dividend = ToRegister32(instr->dividend());
+  int32_t divisor = instr->divisor();
+  Register result = ToRegister32(instr->result());
+  ASSERT(!AreAliased(dividend, result));
+
+  if (divisor == 0) {
+    Deoptimize(instr->environment());
+    return;
+  }
+
+  // Check for (0 / -x) that will produce negative zero.
+  HMathFloorOfDiv* hdiv = instr->hydrogen();
+  if (hdiv->CheckFlag(HValue::kBailoutOnMinusZero) &&
+      hdiv->left()->RangeCanInclude(0) && divisor < 0) {
+    __ Cmp(dividend, 0);
+    DeoptimizeIf(eq, instr->environment());
+  }
+
+  __ FlooringDiv(result, dividend, divisor);
+}
+
+
 void LCodeGen::DoFlooringDivI(LFlooringDivI* instr) {
   Register dividend = ToRegister32(instr->dividend());
   Register divisor = ToRegister32(instr->divisor());
@@ -4095,6 +4156,36 @@ void LCodeGen::DoModByPowerOf2I(LModByPowerOf2I* instr) {
   __ bind(&dividend_is_not_negative);
   __ And(dividend, dividend, Operand(mask));
   __ bind(&done);
+}
+
+
+void LCodeGen::DoModByConstI(LModByConstI* instr) {
+  Register dividend = ToRegister32(instr->dividend());
+  int32_t divisor = instr->divisor();
+  Register result = ToRegister32(instr->result());
+  Register temp = ToRegister32(instr->temp());
+  ASSERT(!AreAliased(dividend, result, temp));
+
+  if (divisor == 0) {
+    Deoptimize(instr->environment());
+    return;
+  }
+
+  __ FlooringDiv(result, dividend, Abs(divisor));
+  __ Add(result, result, Operand(dividend, LSR, 31));
+  __ Sxtw(dividend.X(), dividend);
+  __ Mov(temp, Abs(divisor));
+  __ Smsubl(result.X(), result, temp, dividend.X());
+
+  // Check for negative zero.
+  HMod* hmod = instr->hydrogen();
+  if (hmod->CheckFlag(HValue::kBailoutOnMinusZero) &&
+      hmod->left()->CanBeNegative()) {
+    Label remainder_not_zero;
+    __ Cbnz(result, &remainder_not_zero);
+    DeoptimizeIfNegative(dividend, instr->environment());
+    __ bind(&remainder_not_zero);
+  }
 }
 
 

@@ -4932,6 +4932,22 @@ bool MacroAssembler::IsCodeAgeSequence(byte* sequence) {
 #endif
 
 
+void MacroAssembler::FlooringDiv(Register result,
+                                 Register dividend,
+                                 int32_t divisor) {
+  Register tmp = WTmp0();
+  ASSERT(!AreAliased(result, dividend, tmp));
+  ASSERT(result.Is32Bits() && dividend.Is32Bits());
+  MultiplierAndShift ms(divisor);
+  Mov(tmp, Operand(ms.multiplier()));
+  Smull(result.X(), dividend, tmp);
+  Asr(result.X(), result.X(), 32);
+  if (divisor > 0 && ms.multiplier() < 0) Add(result, result, dividend);
+  if (divisor < 0 && ms.multiplier() > 0) Sub(result, result, dividend);
+  if (ms.shift() > 0) Asr(result, result, ms.shift());
+}
+
+
 #undef __
 #define __ masm->
 

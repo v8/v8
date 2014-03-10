@@ -1065,6 +1065,14 @@ void Assembler::imul(Register dst, Register src, Immediate imm) {
 }
 
 
+void Assembler::imull(Register src) {
+  EnsureSpace ensure_space(this);
+  emit_optional_rex_32(src);
+  emit(0xF7);
+  emit_modrm(0x5, src);
+}
+
+
 void Assembler::imull(Register dst, Register src) {
   EnsureSpace ensure_space(this);
   emit_optional_rex_32(dst, src);
