@@ -696,8 +696,8 @@ class MarkCompactCollector {
                          SlotsBuffer::AdditionMode mode =
                              SlotsBuffer::FAIL_ON_OVERFLOW));
 
-  void MigrateObject(Address dst,
-                     Address src,
+  void MigrateObject(HeapObject* dst,
+                     HeapObject* src,
                      int size,
                      AllocationSpace to_old_space);
 

@@ -2198,8 +2198,12 @@ bool FixedDoubleArray::is_the_hole(int index) {
 }
 
 
-SMI_ACCESSORS(ConstantPoolArray, first_ptr_index, kFirstPointerIndexOffset)
-SMI_ACCESSORS(ConstantPoolArray, first_int32_index, kFirstInt32IndexOffset)
+SMI_ACCESSORS(
+    ConstantPoolArray, first_code_ptr_index, kFirstCodePointerIndexOffset)
+SMI_ACCESSORS(
+    ConstantPoolArray, first_heap_ptr_index, kFirstHeapPointerIndexOffset)
+SMI_ACCESSORS(
+    ConstantPoolArray, first_int32_index, kFirstInt32IndexOffset)
 
 
 int ConstantPoolArray::first_int64_index() {
@@ -2208,12 +2212,17 @@ int ConstantPoolArray::first_int64_index() {
 
 
 int ConstantPoolArray::count_of_int64_entries() {
-  return first_ptr_index();
+  return first_code_ptr_index();
 }
 
 
-int ConstantPoolArray::count_of_ptr_entries() {
-  return first_int32_index() - first_ptr_index();
+int ConstantPoolArray::count_of_code_ptr_entries() {
+  return first_heap_ptr_index() - first_code_ptr_index();
+}
+
+
+int ConstantPoolArray::count_of_heap_ptr_entries() {
+  return first_int32_index() - first_heap_ptr_index();
 }
 
 
@@ -2223,32 +2232,44 @@ int ConstantPoolArray::count_of_int32_entries() {
 
 
 void ConstantPoolArray::SetEntryCounts(int number_of_int64_entries,
-                                       int number_of_ptr_entries,
+                                       int number_of_code_ptr_entries,
+                                       int number_of_heap_ptr_entries,
                                        int number_of_int32_entries) {
-  set_first_ptr_index(number_of_int64_entries);
-  set_first_int32_index(number_of_int64_entries + number_of_ptr_entries);
-  set_length(number_of_int64_entries + number_of_ptr_entries +
-             number_of_int32_entries);
+  int current_index = number_of_int64_entries;
+  set_first_code_ptr_index(current_index);
+  current_index += number_of_code_ptr_entries;
+  set_first_heap_ptr_index(current_index);
+  current_index += number_of_heap_ptr_entries;
+  set_first_int32_index(current_index);
+  current_index += number_of_int32_entries;
+  set_length(current_index);
 }
 
 
 int64_t ConstantPoolArray::get_int64_entry(int index) {
   ASSERT(map() == GetHeap()->constant_pool_array_map());
-  ASSERT(index >= 0 && index < first_ptr_index());
+  ASSERT(index >= 0 && index < first_code_ptr_index());
   return READ_INT64_FIELD(this, OffsetOfElementAt(index));
 }
 
 double ConstantPoolArray::get_int64_entry_as_double(int index) {
   STATIC_ASSERT(kDoubleSize == kInt64Size);
   ASSERT(map() == GetHeap()->constant_pool_array_map());
-  ASSERT(index >= 0 && index < first_ptr_index());
+  ASSERT(index >= 0 && index < first_code_ptr_index());
   return READ_DOUBLE_FIELD(this, OffsetOfElementAt(index));
 }
 
 
-Object* ConstantPoolArray::get_ptr_entry(int index) {
+Address ConstantPoolArray::get_code_ptr_entry(int index) {
   ASSERT(map() == GetHeap()->constant_pool_array_map());
-  ASSERT(index >= first_ptr_index() && index < first_int32_index());
+  ASSERT(index >= first_code_ptr_index() && index < first_heap_ptr_index());
+  return reinterpret_cast<Address>(READ_FIELD(this, OffsetOfElementAt(index)));
+}
+
+
+Object* ConstantPoolArray::get_heap_ptr_entry(int index) {
+  ASSERT(map() == GetHeap()->constant_pool_array_map());
+  ASSERT(index >= first_heap_ptr_index() && index < first_int32_index());
   return READ_FIELD(this, OffsetOfElementAt(index));
 }
 
@@ -2260,9 +2281,16 @@ int32_t ConstantPoolArray::get_int32_entry(int index) {
 }
 
 
+void ConstantPoolArray::set(int index, Address value) {
+  ASSERT(map() == GetHeap()->constant_pool_array_map());
+  ASSERT(index >= first_code_ptr_index() && index < first_heap_ptr_index());
+  WRITE_FIELD(this, OffsetOfElementAt(index), reinterpret_cast<Object*>(value));
+}
+
+
 void ConstantPoolArray::set(int index, Object* value) {
   ASSERT(map() == GetHeap()->constant_pool_array_map());
-  ASSERT(index >= first_ptr_index() && index < first_int32_index());
+  ASSERT(index >= first_code_ptr_index() && index < first_int32_index());
   WRITE_FIELD(this, OffsetOfElementAt(index), value);
   WRITE_BARRIER(GetHeap(), this, OffsetOfElementAt(index), value);
 }
@@ -2270,7 +2298,7 @@ void ConstantPoolArray::set(int index, Object* value) {
 
 void ConstantPoolArray::set(int index, int64_t value) {
   ASSERT(map() == GetHeap()->constant_pool_array_map());
-  ASSERT(index >= first_int64_index() && index < first_ptr_index());
+  ASSERT(index >= first_int64_index() && index < first_code_ptr_index());
   WRITE_INT64_FIELD(this, OffsetOfElementAt(index), value);
 }
 
@@ -2278,7 +2306,7 @@ void ConstantPoolArray::set(int index, int64_t value) {
 void ConstantPoolArray::set(int index, double value) {
   STATIC_ASSERT(kDoubleSize == kInt64Size);
   ASSERT(map() == GetHeap()->constant_pool_array_map());
-  ASSERT(index >= first_int64_index() && index < first_ptr_index());
+  ASSERT(index >= first_int64_index() && index < first_code_ptr_index());
   WRITE_DOUBLE_FIELD(this, OffsetOfElementAt(index), value);
 }
 
@@ -3846,7 +3874,8 @@ int HeapObject::SizeFromMap(Map* map) {
   if (instance_type == CONSTANT_POOL_ARRAY_TYPE) {
     return ConstantPoolArray::SizeFor(
         reinterpret_cast<ConstantPoolArray*>(this)->count_of_int64_entries(),
-        reinterpret_cast<ConstantPoolArray*>(this)->count_of_ptr_entries(),
+        reinterpret_cast<ConstantPoolArray*>(this)->count_of_code_ptr_entries(),
+        reinterpret_cast<ConstantPoolArray*>(this)->count_of_heap_ptr_entries(),
         reinterpret_cast<ConstantPoolArray*>(this)->count_of_int32_entries());
   }
   if (instance_type >= FIRST_FIXED_TYPED_ARRAY_TYPE &&

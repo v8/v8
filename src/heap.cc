@@ -5084,20 +5084,23 @@ MaybeObject* Heap::CopyFixedDoubleArrayWithMap(FixedDoubleArray* src,
 MaybeObject* Heap::CopyConstantPoolArrayWithMap(ConstantPoolArray* src,
                                                 Map* map) {
   int int64_entries = src->count_of_int64_entries();
-  int ptr_entries = src->count_of_ptr_entries();
+  int code_ptr_entries = src->count_of_code_ptr_entries();
+  int heap_ptr_entries = src->count_of_heap_ptr_entries();
   int int32_entries = src->count_of_int32_entries();
   Object* obj;
   { MaybeObject* maybe_obj =
-        AllocateConstantPoolArray(int64_entries, ptr_entries, int32_entries);
+        AllocateConstantPoolArray(int64_entries, code_ptr_entries,
+                                  heap_ptr_entries, int32_entries);
     if (!maybe_obj->ToObject(&obj)) return maybe_obj;
   }
   HeapObject* dst = HeapObject::cast(obj);
   dst->set_map_no_write_barrier(map);
+  int size = ConstantPoolArray::SizeFor(
+        int64_entries, code_ptr_entries, heap_ptr_entries, int32_entries);
   CopyBlock(
       dst->address() + ConstantPoolArray::kLengthOffset,
       src->address() + ConstantPoolArray::kLengthOffset,
-      ConstantPoolArray::SizeFor(int64_entries, ptr_entries, int32_entries)
-          - ConstantPoolArray::kLengthOffset);
+      size - ConstantPoolArray::kLengthOffset);
   return obj;
 }
 
@@ -5234,12 +5237,14 @@ MaybeObject* Heap::AllocateRawFixedDoubleArray(int length,
 
 
 MaybeObject* Heap::AllocateConstantPoolArray(int number_of_int64_entries,
-                                             int number_of_ptr_entries,
+                                             int number_of_code_ptr_entries,
+                                             int number_of_heap_ptr_entries,
                                              int number_of_int32_entries) {
-  ASSERT(number_of_int64_entries > 0 || number_of_ptr_entries > 0 ||
-         number_of_int32_entries > 0);
+  ASSERT(number_of_int64_entries > 0 || number_of_code_ptr_entries > 0 ||
+         number_of_heap_ptr_entries > 0 || number_of_int32_entries > 0);
   int size = ConstantPoolArray::SizeFor(number_of_int64_entries,
-                                        number_of_ptr_entries,
+                                        number_of_code_ptr_entries,
+                                        number_of_heap_ptr_entries,
                                         number_of_int32_entries);
 #ifndef V8_HOST_ARCH_64_BIT
   size += kPointerSize;
@@ -5256,29 +5261,38 @@ MaybeObject* Heap::AllocateConstantPoolArray(int number_of_int64_entries,
   ConstantPoolArray* constant_pool =
       reinterpret_cast<ConstantPoolArray*>(object);
   constant_pool->SetEntryCounts(number_of_int64_entries,
-                                number_of_ptr_entries,
+                                number_of_code_ptr_entries,
+                                number_of_heap_ptr_entries,
                                 number_of_int32_entries);
-  if (number_of_ptr_entries > 0) {
+  if (number_of_code_ptr_entries > 0) {
+    int offset =
+        constant_pool->OffsetOfElementAt(constant_pool->first_code_ptr_index());
     MemsetPointer(
-        HeapObject::RawField(
-            constant_pool,
-            constant_pool->OffsetOfElementAt(constant_pool->first_ptr_index())),
+        reinterpret_cast<Address*>(HeapObject::RawField(constant_pool, offset)),
+        isolate()->builtins()->builtin(Builtins::kIllegal)->entry(),
+        number_of_code_ptr_entries);
+  }
+  if (number_of_heap_ptr_entries > 0) {
+    int offset =
+        constant_pool->OffsetOfElementAt(constant_pool->first_code_ptr_index());
+    MemsetPointer(
+        HeapObject::RawField(constant_pool, offset),
         undefined_value(),
-        number_of_ptr_entries);
+        number_of_heap_ptr_entries);
   }
   return constant_pool;
 }
 
 
 MaybeObject* Heap::AllocateEmptyConstantPoolArray() {
-  int size = ConstantPoolArray::SizeFor(0, 0, 0);
+  int size = ConstantPoolArray::SizeFor(0, 0, 0, 0);
   Object* result;
   { MaybeObject* maybe_result =
         AllocateRaw(size, OLD_DATA_SPACE, OLD_DATA_SPACE);
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
   HeapObject::cast(result)->set_map_no_write_barrier(constant_pool_array_map());
-  ConstantPoolArray::cast(result)->SetEntryCounts(0, 0, 0);
+  ConstantPoolArray::cast(result)->SetEntryCounts(0, 0, 0, 0);
   return result;
 }
 

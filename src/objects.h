@@ -3158,29 +3158,35 @@ class FixedDoubleArray: public FixedArrayBase {
 // ConstantPoolArray describes a fixed-sized array containing constant pool
 // entires.
 // The format of the pool is:
-//   [0]: Field holding the first index which is a pointer entry
-//   [1]: Field holding the first index which is a int32 entry
-//   [2] ... [first_ptr_index() - 1]: 64 bit entries
-//   [first_ptr_index()] ... [first_int32_index() - 1]: pointer entries
-//   [first_int32_index()] ... [length - 1]: 32 bit entries
+//   [0]: Field holding the first index which is a raw code target pointer entry
+//   [1]: Field holding the first index which is a heap pointer entry
+//   [2]: Field holding the first index which is a int32 entry
+//   [3]                      ... [first_code_ptr_index() - 1] : 64 bit entries
+//   [first_code_ptr_index()] ... [first_heap_ptr_index() - 1] : code pointers
+//   [first_heap_ptr_index()] ... [first_int32_index() - 1]    : heap pointers
+//   [first_int32_index()]    ... [length - 1]                 : 32 bit entries
 class ConstantPoolArray: public FixedArrayBase {
  public:
   // Getters for the field storing the first index for different type entries.
-  inline int first_ptr_index();
+  inline int first_code_ptr_index();
+  inline int first_heap_ptr_index();
   inline int first_int64_index();
   inline int first_int32_index();
 
   // Getters for counts of different type entries.
-  inline int count_of_ptr_entries();
+  inline int count_of_code_ptr_entries();
+  inline int count_of_heap_ptr_entries();
   inline int count_of_int64_entries();
   inline int count_of_int32_entries();
 
   // Setter and getter for pool elements.
-  inline Object* get_ptr_entry(int index);
+  inline Address get_code_ptr_entry(int index);
+  inline Object* get_heap_ptr_entry(int index);
   inline int64_t get_int64_entry(int index);
   inline int32_t get_int32_entry(int index);
   inline double get_int64_entry_as_double(int index);
 
+  inline void set(int index, Address value);
   inline void set(int index, Object* value);
   inline void set(int index, int64_t value);
   inline void set(int index, double value);
@@ -3188,7 +3194,8 @@ class ConstantPoolArray: public FixedArrayBase {
 
   // Set up initial state.
   inline void SetEntryCounts(int number_of_int64_entries,
-                             int number_of_ptr_entries,
+                             int number_of_code_ptr_entries,
+                             int number_of_heap_ptr_entries,
                              int number_of_int32_entries);
 
   // Copy operations
@@ -3196,10 +3203,12 @@ class ConstantPoolArray: public FixedArrayBase {
 
   // Garbage collection support.
   inline static int SizeFor(int number_of_int64_entries,
-                            int number_of_ptr_entries,
+                            int number_of_code_ptr_entries,
+                            int number_of_heap_ptr_entries,
                             int number_of_int32_entries) {
     return RoundUp(OffsetAt(number_of_int64_entries,
-                            number_of_ptr_entries,
+                            number_of_code_ptr_entries,
+                            number_of_heap_ptr_entries,
                             number_of_int32_entries),
                    kPointerSize);
   }
@@ -3208,22 +3217,33 @@ class ConstantPoolArray: public FixedArrayBase {
   inline int OffsetOfElementAt(int index) {
     ASSERT(index < length());
     if (index >= first_int32_index()) {
-      return OffsetAt(count_of_int64_entries(), count_of_ptr_entries(),
-                      index - first_int32_index());
-    } else if (index >= first_ptr_index()) {
-      return OffsetAt(count_of_int64_entries(), index - first_ptr_index(), 0);
+      return OffsetAt(count_of_int64_entries(), count_of_code_ptr_entries(),
+                      count_of_heap_ptr_entries(), index - first_int32_index());
+    } else if (index >= first_heap_ptr_index()) {
+      return OffsetAt(count_of_int64_entries(), count_of_code_ptr_entries(),
+                      index - first_heap_ptr_index(), 0);
+    } else if (index >= first_code_ptr_index()) {
+      return OffsetAt(count_of_int64_entries(), index - first_code_ptr_index(),
+                      0, 0);
     } else {
-      return OffsetAt(index, 0, 0);
+      return OffsetAt(index, 0, 0, 0);
     }
   }
 
   // Casting.
   static inline ConstantPoolArray* cast(Object* obj);
 
+  // Garbage collection support.
+  Object** RawFieldOfElementAt(int index) {
+    return HeapObject::RawField(this, OffsetOfElementAt(index));
+  }
+
   // Layout description.
-  static const int kFirstPointerIndexOffset = FixedArray::kHeaderSize;
+  static const int kFirstCodePointerIndexOffset = FixedArray::kHeaderSize;
+  static const int kFirstHeapPointerIndexOffset =
+      kFirstCodePointerIndexOffset + kPointerSize;
   static const int kFirstInt32IndexOffset =
-      kFirstPointerIndexOffset + kPointerSize;
+      kFirstHeapPointerIndexOffset + kPointerSize;
   static const int kFirstOffset = kFirstInt32IndexOffset + kPointerSize;
 
   // Dispatched behavior.
@@ -3233,15 +3253,18 @@ class ConstantPoolArray: public FixedArrayBase {
   DECLARE_VERIFIER(ConstantPoolArray)
 
  private:
-  inline void set_first_ptr_index(int value);
+  inline void set_first_code_ptr_index(int value);
+  inline void set_first_heap_ptr_index(int value);
   inline void set_first_int32_index(int value);
 
   inline static int OffsetAt(int number_of_int64_entries,
-                             int number_of_ptr_entries,
+                             int number_of_code_ptr_entries,
+                             int number_of_heap_ptr_entries,
                              int number_of_int32_entries) {
     return kFirstOffset
         + (number_of_int64_entries * kInt64Size)
-        + (number_of_ptr_entries * kPointerSize)
+        + (number_of_code_ptr_entries * kPointerSize)
+        + (number_of_heap_ptr_entries * kPointerSize)
         + (number_of_int32_entries * kInt32Size);
   }
 

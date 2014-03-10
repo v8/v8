@@ -403,6 +403,13 @@ void FixedDoubleArray::FixedDoubleArrayVerify() {
 
 void ConstantPoolArray::ConstantPoolArrayVerify() {
   CHECK(IsConstantPoolArray());
+  for (int i = 0; i < count_of_code_ptr_entries(); i++) {
+    Address code_entry = get_code_ptr_entry(first_code_ptr_index() + i);
+    VerifyPointer(Code::GetCodeFromTargetAddress(code_entry));
+  }
+  for (int i = 0; i < count_of_heap_ptr_entries(); i++) {
+    VerifyObjectField(OffsetOfElementAt(first_heap_ptr_index() + i));
+  }
 }
 
 

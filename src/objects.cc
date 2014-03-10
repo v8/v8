@@ -9452,13 +9452,13 @@ bool Map::EquivalentToForNormalization(Map* other,
 
 
 void ConstantPoolArray::ConstantPoolIterateBody(ObjectVisitor* v) {
-  if (count_of_ptr_entries() > 0) {
-    int first_ptr_offset = OffsetOfElementAt(first_ptr_index());
-    int last_ptr_offset =
-        OffsetOfElementAt(first_ptr_index() + count_of_ptr_entries() - 1);
-    v->VisitPointers(
-        HeapObject::RawField(this, first_ptr_offset),
-        HeapObject::RawField(this, last_ptr_offset));
+  for (int i = 0; i < count_of_code_ptr_entries(); i++) {
+    int index = first_code_ptr_index() + i;
+    v->VisitCodeEntry(reinterpret_cast<Address>(RawFieldOfElementAt(index)));
+  }
+  for (int i = 0; i < count_of_heap_ptr_entries(); i++) {
+    int index = first_heap_ptr_index() + i;
+    v->VisitPointer(RawFieldOfElementAt(index));
   }
 }
 
