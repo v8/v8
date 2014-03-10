@@ -4990,7 +4990,7 @@ bool RegExpParser::ParseIntervalQuantifier(int* min_out, int* max_out) {
 
 
 uc32 RegExpParser::ParseOctalLiteral() {
-  ASSERT('0' <= current() && current() <= '7');
+  ASSERT(('0' <= current() && current() <= '7') || current() == kEndMarker);
   // For compatibility with some other browsers (not all), we parse
   // up to three octal digits with a value below 256.
   uc32 value = current() - '0';
