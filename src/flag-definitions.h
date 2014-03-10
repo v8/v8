@@ -241,7 +241,6 @@ DEFINE_bool(string_slices, true, "use string slices")
 // Flags for Crankshaft.
 DEFINE_bool(crankshaft, true, "use crankshaft")
 DEFINE_string(hydrogen_filter, "*", "optimization filter")
-DEFINE_bool(use_range, true, "use hydrogen range analysis")
 DEFINE_bool(use_gvn, true, "use hydrogen global value numbering")
 DEFINE_int(gvn_iterations, 3, "maximum number of GVN fix-point iterations")
 DEFINE_bool(use_canonicalizing, true, "use hydrogen instruction canonicalizing")

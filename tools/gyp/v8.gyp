@@ -407,8 +407,6 @@
         '../../src/hydrogen-mark-deoptimize.h',
         '../../src/hydrogen-mark-unreachable.cc',
         '../../src/hydrogen-mark-unreachable.h',
-        '../../src/hydrogen-minus-zero.cc',
-        '../../src/hydrogen-minus-zero.h',
         '../../src/hydrogen-osr.cc',
         '../../src/hydrogen-osr.h',
         '../../src/hydrogen-range-analysis.cc',

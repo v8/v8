@@ -48,7 +48,6 @@
 #include "hydrogen-gvn.h"
 #include "hydrogen-mark-deoptimize.h"
 #include "hydrogen-mark-unreachable.h"
-#include "hydrogen-minus-zero.h"
 #include "hydrogen-osr.h"
 #include "hydrogen-range-analysis.h"
 #include "hydrogen-redundant-phi.h"
@@ -4049,10 +4048,9 @@ bool HGraph::Optimize(BailoutReason* bailout_reason) {
 
   if (FLAG_check_elimination) Run<HCheckEliminationPhase>();
 
-  if (FLAG_use_range) Run<HRangeAnalysisPhase>();
+  Run<HRangeAnalysisPhase>();
 
   Run<HComputeChangeUndefinedToNaN>();
-  Run<HComputeMinusZeroChecksPhase>();
 
   // Eliminate redundant stack checks on backwards branches.
   Run<HStackCheckEliminationPhase>();
