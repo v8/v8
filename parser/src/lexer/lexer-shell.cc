@@ -47,49 +47,6 @@
 
 using namespace v8::internal;
 
-static byte* ReadFile(const char* name, const byte** end, int repeat,
-                      bool convert_to_utf16) {
-  FILE* file = fopen(name, "rb");
-  if (file == NULL) return NULL;
-
-  fseek(file, 0, SEEK_END);
-  int file_size = ftell(file);
-  rewind(file);
-
-  int size = file_size * repeat;
-
-  byte* chars = new byte[size];
-  for (int i = 0; i < file_size;) {
-    int read = static_cast<int>(fread(&chars[i], 1, file_size - i, file));
-    i += read;
-  }
-  fclose(file);
-
-  for (int i = file_size; i < size; i++) {
-    chars[i] = chars[i - file_size];
-  }
-  *end = &chars[size];
-
-  if (!convert_to_utf16) return chars;
-
-  // Length of new_chars is not strictly accurate, but should be enough.
-  uint16_t* new_chars = new uint16_t[size];
-  {
-    Utf8ToUtf16CharacterStream stream(chars, size);
-    uint16_t* cursor = new_chars;
-    // uc32 c;
-    // The 32-bit char type is probably only so that we can have -1 as a return
-    // value. If the char is not -1, it should fit into 16 bits.
-    CHECK(false);
-    // while ((c = stream.Advance()) != -1) {
-    //   *cursor++ = c;
-    // }
-    *end = reinterpret_cast<byte*>(cursor);
-  }
-  delete[] chars;
-  return reinterpret_cast<byte*>(new_chars);
-}
-
 
 enum Encoding {
   LATIN1,
@@ -118,6 +75,90 @@ struct LexerShellSettings {
         harmony_modules(false),
         harmony_scoping(false) {}
 };
+
+
+static uint16_t* ReadFile(const char* name, const uint8_t** end,
+                          const LexerShellSettings& settings) {
+  FILE* file = fopen(name, "rb");
+  CHECK(file != NULL);
+
+  fseek(file, 0, SEEK_END);
+  unsigned file_size = ftell(file);
+  rewind(file);
+
+  uint16_t* two_byte_data = new uint16_t[file_size / 2 + file_size % 2];
+
+  uint8_t* char_data = reinterpret_cast<uint8_t*>(two_byte_data);
+  for (unsigned i = 0; i < file_size;) {
+    i += fread(&char_data[i], 1, file_size - i, file);
+  }
+  fclose(file);
+
+  if (settings.encoding == UTF8TO16) {
+    const uint32_t kMaxUtf16Character = 0xffff;
+    // Get utf8 length.
+    unsigned utf16_chars = 0;
+    {
+      unsigned position = 0;
+      while (position < file_size) {
+        uint32_t c = char_data[position];
+        if (c <= unibrow::Utf8::kMaxOneByteChar) {
+          position++;
+        } else {
+          c =  unibrow::Utf8::CalculateValue(char_data + position,
+                                             file_size - position,
+                                             &position);
+        }
+        if (c > kMaxUtf16Character) {
+          utf16_chars += 2;
+        } else {
+          utf16_chars += 1;
+        }
+      }
+    }
+    // Write new buffer out.
+    uint16_t* data = new uint16_t[utf16_chars];
+    unsigned position = 0;
+    unsigned i = 0;
+    while (position < file_size) {
+      uint32_t c = char_data[position];
+      if (c <= unibrow::Utf8::kMaxOneByteChar) {
+        position++;
+      } else {
+        c =  unibrow::Utf8::CalculateValue(char_data + position,
+                                           file_size - position,
+                                           &position);
+      }
+      if (c > kMaxUtf16Character) {
+        data[i++] = unibrow::Utf16::LeadSurrogate(c);
+        data[i++] = unibrow::Utf16::TrailSurrogate(c);
+      } else {
+        data[i++] = static_cast<uc16>(c);
+      }
+    }
+    // Swap buffers.
+    delete two_byte_data;
+    file_size = utf16_chars * 2;
+    two_byte_data = data;
+    char_data = reinterpret_cast<uint8_t*>(two_byte_data);
+  }
+
+  // Duplicate buffer if necessary.
+  if (settings.repeat > 1) {
+    unsigned size = file_size * settings.repeat;
+    uint16_t* data = new uint16_t[size / 2 + size % 2];
+    char_data = reinterpret_cast<uint8_t*>(two_byte_data);
+    for (int i = 0; i < settings.repeat; i++) {
+      memcpy(&char_data[i * file_size], two_byte_data, file_size);
+    }
+    delete two_byte_data;
+    file_size = size;
+    two_byte_data = data;
+  }
+
+  *end = &char_data[file_size];
+  return two_byte_data;
+}
 
 
 struct TokenWithLocation {
@@ -193,29 +234,30 @@ static TokenWithLocation GetTokenWithLocation(
 }
 
 
-static TimeDelta RunLexer(const byte* source,
-                          const byte* source_end,
+static TimeDelta RunLexer(const uint16_t* source,
+                          const uint8_t* source_end,
                           Isolate* isolate,
                           std::vector<TokenWithLocation>* tokens,
                           const LexerShellSettings& settings) {
   SmartPointer<Utf16CharacterStream> stream;
+  const uint8_t* one_byte_source = reinterpret_cast<const uint8_t*>(source);
+  int bytes = source_end - one_byte_source;
   switch (settings.encoding) {
     case UTF8:
-    case UTF8TO16:
-      stream.Reset(new Utf8ToUtf16CharacterStream(source, source_end - source));
+      stream.Reset(new Utf8ToUtf16CharacterStream(one_byte_source, bytes));
       break;
+    case UTF8TO16:
     case UTF16: {
+      CHECK_EQ(0, bytes % 2);
       Handle<String> result = isolate->factory()->NewStringFromTwoByte(
-          Vector<const uint16_t>(
-              reinterpret_cast<const uint16_t*>(source),
-              (source_end - source) / 2));
+          Vector<const uint16_t>(source, bytes / 2));
       stream.Reset(
           new GenericStringUtf16CharacterStream(result, 0, result->length()));
       break;
     }
     case LATIN1: {
       Handle<String> result = isolate->factory()->NewStringFromOneByte(
-          Vector<const uint8_t>(source, source_end - source));
+          Vector<const uint8_t>(one_byte_source, bytes));
       stream.Reset(
           new GenericStringUtf16CharacterStream(result, 0, result->length()));
       break;
@@ -258,9 +300,9 @@ static TimeDelta ProcessFile(
   std::vector<TokenWithLocation> tokens;
   TimeDelta time;
   {
-    const byte* buffer_end = 0;
-    const byte* buffer = ReadFile(fname, &buffer_end, settings.repeat, false);
-    if (truncate_by > buffer_end - buffer) {
+    const uint8_t* buffer_end = 0;
+    const uint16_t* buffer = ReadFile(fname, &buffer_end, settings);
+    if (truncate_by > buffer_end - reinterpret_cast<const uint8_t*>(buffer)) {
       *can_truncate = false;
     } else {
       buffer_end -= truncate_by;
