@@ -1915,8 +1915,8 @@ class V8_EXPORT Private : public Data {
   Local<Value> Name() const;
 
   // Create a private symbol. If data is not NULL, it will be the print name.
-  static Local<Private> New(
-      Isolate *isolate, const char* data = NULL, int length = -1);
+  static Local<Private> New(Isolate *isolate,
+                            Local<String> name = Local<String>());
 
  private:
   Private();

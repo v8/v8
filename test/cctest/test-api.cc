@@ -2848,7 +2848,8 @@ THREADED_TEST(PrivateProperties) {
 
   v8::Local<v8::Object> obj = v8::Object::New(isolate);
   v8::Local<v8::Private> priv1 = v8::Private::New(isolate);
-  v8::Local<v8::Private> priv2 = v8::Private::New(isolate, "my-private");
+  v8::Local<v8::Private> priv2 = v8::Private::New(isolate,
+                                                  v8_str("my-private"));
 
   CcTest::heap()->CollectAllGarbage(i::Heap::kNoGCFlags);
 

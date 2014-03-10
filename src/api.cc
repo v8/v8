@@ -5949,18 +5949,13 @@ Local<Symbol> v8::Symbol::New(Isolate* isolate, const char* data, int length) {
 
 
 Local<Private> v8::Private::New(
-    Isolate* isolate, const char* data, int length) {
+    Isolate* isolate, Local<String> name) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   EnsureInitializedForIsolate(i_isolate, "v8::Private::New()");
   LOG_API(i_isolate, "Private::New()");
   ENTER_V8(i_isolate);
   i::Handle<i::Symbol> symbol = i_isolate->factory()->NewPrivateSymbol();
-  if (data != NULL) {
-    if (length == -1) length = i::StrLength(data);
-    i::Handle<i::String> name = i_isolate->factory()->NewStringFromUtf8(
-        i::Vector<const char>(data, length));
-    symbol->set_name(*name);
-  }
+  if (!name.IsEmpty()) symbol->set_name(*Utils::OpenHandle(*name));
   Local<Symbol> result = Utils::ToLocal(symbol);
   return v8::Handle<Private>(reinterpret_cast<Private*>(*result));
 }
