@@ -3492,10 +3492,11 @@ Handle<FixedArray> CompileTimeValue::GetElements(Handle<FixedArray> value) {
 
 Expression* Parser::ParseObjectLiteral(bool* ok) {
   // ObjectLiteral ::
-  //   '{' (
-  //       ((IdentifierName | String | Number) ':' AssignmentExpression)
-  //     | (('get' | 'set') (IdentifierName | String | Number) FunctionLiteral)
-  //    )*[','] '}'
+  // '{' ((
+  //       ((IdentifierName | String | Number) ':' AssignmentExpression) |
+  //       (('get' | 'set') (IdentifierName | String | Number) FunctionLiteral)
+  //      ) ',')* '}'
+  // (Except that trailing comma is not required and not allowed.)
 
   int pos = peek_position();
   ZoneList<ObjectLiteral::Property*>* properties =
@@ -3529,14 +3530,12 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
           // { ... , get foo() { ... }, ... , set foo(v) { ... v ... } , ... }
           // We have already read the "get" or "set" keyword.
           Token::Value next = Next();
-          bool is_keyword = Token::IsKeyword(next);
           if (next != i::Token::IDENTIFIER &&
               next != i::Token::FUTURE_RESERVED_WORD &&
               next != i::Token::FUTURE_STRICT_RESERVED_WORD &&
               next != i::Token::NUMBER &&
               next != i::Token::STRING &&
-              !is_keyword) {
-            // Unexpected token.
+              !Token::IsKeyword(next)) {
             ReportUnexpectedToken(next);
             *ok = false;
             return NULL;
@@ -3544,9 +3543,7 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
           // Validate the property.
           PropertyKind type = is_getter ? kGetterProperty : kSetterProperty;
           checker.CheckProperty(next, type, CHECK_OK);
-          Handle<String> name = is_keyword
-              ? isolate_->factory()->InternalizeUtf8String(Token::String(next))
-              : GetSymbol();
+          Handle<String> name = GetSymbol();
           FunctionLiteral* value =
               ParseFunctionLiteral(name,
                                    scanner()->location(),
@@ -3571,8 +3568,8 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
           }
           continue;  // restart the while
         }
-        // Failed to parse as get/set property, so it's just a property
-        // called "get" or "set".
+        // Failed to parse as get/set property, so it's just a normal property
+        // (which might be called "get" or "set" or something else).
         key = factory()->NewLiteral(id, next_pos);
         break;
       }
@@ -3604,7 +3601,6 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
           Handle<String> string = GetSymbol();
           key = factory()->NewLiteral(string, next_pos);
         } else {
-          // Unexpected token.
           Token::Value next = Next();
           ReportUnexpectedToken(next);
           *ok = false;

@@ -1124,10 +1124,11 @@ PreParser::Expression PreParser::ParseMemberExpressionContinuation(
 
 PreParser::Expression PreParser::ParseObjectLiteral(bool* ok) {
   // ObjectLiteral ::
-  //   '{' (
-  //       ((IdentifierName | String | Number) ':' AssignmentExpression)
-  //     | (('get' | 'set') (IdentifierName | String | Number) FunctionLiteral)
-  //    )*[','] '}'
+  // '{' ((
+  //       ((IdentifierName | String | Number) ':' AssignmentExpression) |
+  //       (('get' | 'set') (IdentifierName | String | Number) FunctionLiteral)
+  //      ) ',')* '}'
+  // (Except that trailing comma is not required and not allowed.)
 
   ObjectLiteralChecker checker(this, scope_->language_mode());
 
@@ -1142,23 +1143,22 @@ PreParser::Expression PreParser::ParseObjectLiteral(bool* ok) {
         bool is_setter = false;
         ParseIdentifierNameOrGetOrSet(&is_getter, &is_setter, CHECK_OK);
         if ((is_getter || is_setter) && peek() != Token::COLON) {
-            Token::Value name = Next();
-            bool is_keyword = Token::IsKeyword(name);
-            if (name != Token::IDENTIFIER &&
-                name != Token::FUTURE_RESERVED_WORD &&
-                name != Token::FUTURE_STRICT_RESERVED_WORD &&
-                name != Token::NUMBER &&
-                name != Token::STRING &&
-                !is_keyword) {
+            Token::Value next = Next();
+            if (next != Token::IDENTIFIER &&
+                next != Token::FUTURE_RESERVED_WORD &&
+                next != Token::FUTURE_STRICT_RESERVED_WORD &&
+                next != Token::NUMBER &&
+                next != Token::STRING &&
+                !Token::IsKeyword(next)) {
+              ReportUnexpectedToken(next);
               *ok = false;
               return Expression::Default();
             }
-            if (!is_keyword) {
-              LogSymbol();
-            }
+            // Validate the property
             PropertyKind type = is_getter ? kGetterProperty : kSetterProperty;
-            checker.CheckProperty(name, type, CHECK_OK);
-            ParseFunctionLiteral(Identifier::Default(),
+            checker.CheckProperty(next, type, CHECK_OK);
+            PreParserIdentifier name = GetSymbol(scanner());
+            ParseFunctionLiteral(name,
                                  scanner()->location(),
                                  false,  // reserved words are allowed here
                                  false,  // not a generator
@@ -1168,29 +1168,29 @@ PreParser::Expression PreParser::ParseObjectLiteral(bool* ok) {
             }
             continue;  // restart the while
         }
-        checker.CheckProperty(next, kValueProperty, CHECK_OK);
         break;
       }
       case Token::STRING:
         Consume(next);
-        checker.CheckProperty(next, kValueProperty, CHECK_OK);
         LogSymbol();
         break;
       case Token::NUMBER:
         Consume(next);
-        checker.CheckProperty(next, kValueProperty, CHECK_OK);
         break;
       default:
         if (Token::IsKeyword(next)) {
           Consume(next);
-          checker.CheckProperty(next, kValueProperty, CHECK_OK);
           LogSymbol();
         } else {
-          // Unexpected token.
+          Token::Value next = Next();
+          ReportUnexpectedToken(next);
           *ok = false;
           return Expression::Default();
         }
     }
+
+    // Validate the property
+    checker.CheckProperty(next, kValueProperty, CHECK_OK);
 
     Expect(Token::COLON, CHECK_OK);
     ParseAssignmentExpression(true, CHECK_OK);

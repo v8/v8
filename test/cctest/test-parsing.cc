@@ -1962,7 +1962,6 @@ TEST(DontRegressPreParserDataSizes) {
   // These tests make sure that PreParser doesn't start producing less data.
 
   v8::V8::Initialize();
-
   int marker;
   CcTest::i_isolate()->stack_guard()->SetStackLimit(
       reinterpret_cast<uintptr_t>(&marker) - 128 * 1024);
@@ -1972,9 +1971,18 @@ TEST(DontRegressPreParserDataSizes) {
     int symbols;
     int functions;
   } test_cases[] = {
-    // Labels, variables and functions are recorded as symbols.
+    // Labels and variables are recorded as symbols.
     {"{label: 42}", 1, 0}, {"{label: 42; label2: 43}", 2, 0},
     {"var x = 42;", 1, 0}, {"var x = 42, y = 43;", 2, 0},
+    {"var x = {y: 1};", 2, 0},
+    {"var x = {}; x.y = 1", 2, 0},
+    // "get" is recorded as a symbol too.
+    {"var x = {get foo(){} };", 3, 1},
+    // When keywords are used as identifiers, they're logged as symbols, too:
+    {"var x = {if: 1};", 2, 0},
+    {"var x = {}; x.if = 1", 2, 0},
+    {"var x = {get if(){} };", 3, 1},
+    // Functions
     {"function foo() {}", 1, 1}, {"function foo() {} function bar() {}", 2, 2},
     // Labels, variables and functions insize lazy functions are not recorded.
     {"function lazy() { var a, b, c; }", 1, 1},
@@ -2201,4 +2209,112 @@ TEST(ErrorsNewExpression) {
   };
 
   RunParserSyncTest(context_data, statement_data, kError);
+}
+
+
+TEST(StrictObjectLiteralChecking) {
+  const char* strict_context_data[][2] = {
+    {"\"use strict\"; var myobject = {", "};"},
+    { NULL, NULL }
+  };
+  const char* non_strict_context_data[][2] = {
+    {"var myobject = {", "};"},
+    { NULL, NULL }
+  };
+
+  // These are only errors in strict mode.
+  const char* statement_data[] = {
+    "foo: 1, foo: 2",
+    "\"foo\": 1, \"foo\": 2",
+    "foo: 1, \"foo\": 2",
+    "1: 1, 1: 2",
+    "1: 1, \"1\": 2",
+    "get: 1, get: 2",  // Not a getter for real, just a property called get.
+    "set: 1, set: 2",  // Not a setter for real, just a property called set.
+    NULL
+  };
+
+  RunParserSyncTest(non_strict_context_data, statement_data, kSuccess);
+  RunParserSyncTest(strict_context_data, statement_data, kError);
+}
+
+
+TEST(ErrorsObjectLiteralChecking) {
+  const char* context_data[][2] = {
+    {"\"use strict\"; var myobject = {", "};"},
+    {"var myobject = {", "};"},
+    { NULL, NULL }
+  };
+
+  const char* statement_data[] = {
+    "foo: 1, get foo() {}",
+    "foo: 1, set foo() {}",
+    "\"foo\": 1, get \"foo\"() {}",
+    "\"foo\": 1, set \"foo\"() {}",
+    "1: 1, get 1() {}",
+    "1: 1, set 1() {}",
+    // It's counter-intuitive, but these collide too (even in classic
+    // mode). Note that we can have "foo" and foo as properties in classic mode,
+    // but we cannot have "foo" and get foo, or foo and get "foo".
+    "foo: 1, get \"foo\"() {}",
+    "foo: 1, set \"foo\"() {}",
+    "\"foo\": 1, get foo() {}",
+    "\"foo\": 1, set foo() {}",
+    "1: 1, get \"1\"() {}",
+    "1: 1, set \"1\"() {}",
+    "\"1\": 1, get 1() {}"
+    "\"1\": 1, set 1() {}"
+    // Parsing FunctionLiteral for getter or setter fails
+    "get foo( +",
+    "get foo() \"error\"",
+    NULL
+  };
+
+  RunParserSyncTest(context_data, statement_data, kError);
+}
+
+
+TEST(NoErrorsObjectLiteralChecking) {
+  const char* context_data[][2] = {
+    {"var myobject = {", "};"},
+    {"\"use strict\"; var myobject = {", "};"},
+    { NULL, NULL }
+  };
+
+  const char* statement_data[] = {
+    "foo: 1, bar: 2",
+    "\"foo\": 1, \"bar\": 2",
+    "1: 1, 2: 2",
+    // Syntax: IdentifierName ':' AssignmentExpression
+    "foo: bar = 5 + baz",
+    // Syntax: 'get' (IdentifierName | String | Number) FunctionLiteral
+    "get foo() {}",
+    "get \"foo\"() {}",
+    "get 1() {}",
+    // Syntax: 'set' (IdentifierName | String | Number) FunctionLiteral
+    "set foo() {}",
+    "set \"foo\"() {}",
+    "set 1() {}",
+    // Non-colliding getters and setters -> no errors
+    "foo: 1, get bar() {}",
+    "foo: 1, set bar(b) {}",
+    "\"foo\": 1, get \"bar\"() {}",
+    "\"foo\": 1, set \"bar\"() {}",
+    "1: 1, get 2() {}",
+    "1: 1, set 2() {}",
+    // Weird number of parameters -> no errors
+    "get bar() {}, set bar() {}",
+    "get bar(x) {}, set bar(x) {}",
+    "get bar(x, y) {}, set bar(x, y) {}",
+    // Keywords, future reserved and strict future reserved are also allowed as
+    // property names.
+    "if: 4",
+    "interface: 5",
+    "super: 6",
+    "eval: 7",
+    "arguments: 8",
+    NULL
+  };
+
+  RunParserSyncTest(context_data, statement_data, kSuccess);
 }
