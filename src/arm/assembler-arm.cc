@@ -300,6 +300,11 @@ bool RelocInfo::IsCodedSpecially() {
 }
 
 
+bool RelocInfo::IsInConstantPool() {
+  return Assembler::IsLdrPcImmediateOffset(Memory::int32_at(pc_));
+}
+
+
 void RelocInfo::PatchCode(byte* instructions, int instruction_count) {
   // Patch the code at the current address with the supplied instructions.
   Instr* pc = reinterpret_cast<Instr*>(pc_);

@@ -113,6 +113,13 @@ Address RelocInfo::target_address_address() {
 }
 
 
+Address RelocInfo::constant_pool_entry_address() {
+  ASSERT(IsInConstantPool());
+  ASSERT(Assembler::IsLdrPcImmediateOffset(Memory::int32_at(pc_)));
+  return Assembler::target_pointer_address_at(pc_);
+}
+
+
 int RelocInfo::target_address_size() {
   return kPointerSize;
 }

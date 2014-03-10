@@ -3212,6 +3212,12 @@ bool RelocInfo::IsCodedSpecially() {
   return (1 << rmode_) & kApplyMask;
 }
 
+
+bool RelocInfo::IsInConstantPool() {
+  return false;
+}
+
+
 } }  // namespace v8::internal
 
 #endif  // V8_TARGET_ARCH_X64

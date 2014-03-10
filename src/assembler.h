@@ -384,6 +384,10 @@ class RelocInfo BASE_EMBEDDED {
   // instructions).
   bool IsCodedSpecially();
 
+  // If true, the pointer this relocation info refers to is an entry in the
+  // constant pool, otherwise the pointer is embedded in the instruction stream.
+  bool IsInConstantPool();
+
   // Read/modify the code target in the branch/call instruction
   // this relocation applies to;
   // can only be called if IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_)
@@ -406,6 +410,10 @@ class RelocInfo BASE_EMBEDDED {
   INLINE(Code* code_age_stub());
   INLINE(void set_code_age_stub(Code* stub));
 
+  // Returns the address of the constant pool entry where the target address
+  // is held.  This should only be called if IsInConstantPool returns true.
+  INLINE(Address constant_pool_entry_address());
+
   // Read the address of the word containing the target_address in an
   // instruction stream.  What this means exactly is architecture-independent.
   // The only architecture-independent user of this function is the serializer.
@@ -413,6 +421,7 @@ class RelocInfo BASE_EMBEDDED {
   // output before the next target.  Architecture-independent code shouldn't
   // dereference the pointer it gets back from this.
   INLINE(Address target_address_address());
+
   // This indicates how much space a target takes up when deserializing a code
   // stream.  For most architectures this is just the size of a pointer.  For
   // an instruction like movw/movt where the target bits are mixed into the

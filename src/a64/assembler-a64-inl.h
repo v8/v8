@@ -653,6 +653,12 @@ Address RelocInfo::target_address_address() {
 }
 
 
+Address RelocInfo::constant_pool_entry_address() {
+  ASSERT(IsInConstantPool());
+  return Assembler::target_pointer_address_at(pc_);
+}
+
+
 Object* RelocInfo::target_object() {
   ASSERT(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
   return reinterpret_cast<Object*>(Assembler::target_address_at(pc_));

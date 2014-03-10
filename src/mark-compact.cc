@@ -4370,14 +4370,33 @@ static inline SlotsBuffer::SlotType SlotTypeForRMode(RelocInfo::Mode rmode) {
 
 void MarkCompactCollector::RecordRelocSlot(RelocInfo* rinfo, Object* target) {
   Page* target_page = Page::FromAddress(reinterpret_cast<Address>(target));
+  RelocInfo::Mode rmode = rinfo->rmode();
   if (target_page->IsEvacuationCandidate() &&
       (rinfo->host() == NULL ||
        !ShouldSkipEvacuationSlotRecording(rinfo->host()))) {
-    if (!SlotsBuffer::AddTo(&slots_buffer_allocator_,
-                            target_page->slots_buffer_address(),
-                            SlotTypeForRMode(rinfo->rmode()),
-                            rinfo->pc(),
-                            SlotsBuffer::FAIL_ON_OVERFLOW)) {
+    bool success;
+    if (RelocInfo::IsEmbeddedObject(rmode) && rinfo->IsInConstantPool()) {
+      // This doesn't need to be typed since it is just a normal heap pointer.
+      Object** target_pointer =
+          reinterpret_cast<Object**>(rinfo->constant_pool_entry_address());
+      success = SlotsBuffer::AddTo(&slots_buffer_allocator_,
+                                   target_page->slots_buffer_address(),
+                                   target_pointer,
+                                   SlotsBuffer::FAIL_ON_OVERFLOW);
+    } else if (RelocInfo::IsCodeTarget(rmode) && rinfo->IsInConstantPool()) {
+      success = SlotsBuffer::AddTo(&slots_buffer_allocator_,
+                                   target_page->slots_buffer_address(),
+                                   SlotsBuffer::CODE_ENTRY_SLOT,
+                                   rinfo->constant_pool_entry_address(),
+                                   SlotsBuffer::FAIL_ON_OVERFLOW);
+    } else {
+      success = SlotsBuffer::AddTo(&slots_buffer_allocator_,
+                                  target_page->slots_buffer_address(),
+                                  SlotTypeForRMode(rmode),
+                                  rinfo->pc(),
+                                  SlotsBuffer::FAIL_ON_OVERFLOW);
+    }
+    if (!success) {
       EvictEvacuationCandidate(target_page);
     }
   }
