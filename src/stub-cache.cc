@@ -1125,7 +1125,7 @@ Handle<Code> StoreStubCompiler::CompileStoreViaSetter(
     Handle<JSFunction> setter) {
   Handle<HeapType> type = IC::CurrentTypeOf(object, isolate());
   HandlerFrontend(type, receiver(), holder, name);
-  GenerateStoreViaSetter(masm(), type, setter);
+  GenerateStoreViaSetter(masm(), type, receiver(), setter);
 
   return GetCode(kind(), Code::FAST, name);
 }

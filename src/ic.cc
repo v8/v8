@@ -1353,7 +1353,6 @@ Handle<Code> StoreIC::CompileHandler(LookupResult* lookup,
       ASSERT(holder.is_identical_to(receiver));
       return isolate()->builtins()->StoreIC_Normal();
     case CALLBACKS: {
-      if (kind() == Code::KEYED_STORE_IC) break;
       Handle<Object> callback(lookup->GetCallbackObject(), isolate());
       if (callback->IsExecutableAccessorInfo()) {
         Handle<ExecutableAccessorInfo> info =
