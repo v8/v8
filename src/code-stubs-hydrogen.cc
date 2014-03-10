@@ -1049,13 +1049,16 @@ HValue* CodeStubGraphBuilder<StoreGlobalStub>::BuildCodeInitializedStub() {
   Handle<PropertyCell> placeholder_cell =
       isolate()->factory()->NewPropertyCell(placeholer_value);
 
-  HParameter* receiver = GetParameter(0);
   HParameter* value = GetParameter(2);
 
-  // Check that the map of the global has not changed: use a placeholder map
-  // that will be replaced later with the global object's map.
-  Handle<Map> placeholder_map = isolate()->factory()->meta_map();
-  Add<HCheckMaps>(receiver, placeholder_map, top_info());
+  if (stub->check_global()) {
+    // Check that the map of the global has not changed: use a placeholder map
+    // that will be replaced later with the global object's map.
+    Handle<Map> placeholder_map = isolate()->factory()->meta_map();
+    HValue* global = Add<HConstant>(
+        StoreGlobalStub::global_placeholder(isolate()));
+    Add<HCheckMaps>(global, placeholder_map, top_info());
+  }
 
   HValue* cell = Add<HConstant>(placeholder_cell);
   HObjectAccess access(HObjectAccess::ForCellPayload(isolate()));
