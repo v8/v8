@@ -248,6 +248,10 @@ function PromiseCast(x) {
 function PromiseAll(values) {
   var deferred = %_CallFunction(this, PromiseDeferred);
   var resolutions = [];
+  if (!%_IsArray(values)) {
+    deferred.reject(MakeTypeError('invalid_argument'));
+    return deferred.promise;
+  }
   try {
     var count = values.length;
     if (count === 0) {
@@ -271,6 +275,10 @@ function PromiseAll(values) {
 
 function PromiseOne(values) {
   var deferred = %_CallFunction(this, PromiseDeferred);
+  if (!%_IsArray(values)) {
+    deferred.reject(MakeTypeError('invalid_argument'));
+    return deferred.promise;
+  }
   try {
     for (var i = 0; i < values.length; ++i) {
       this.cast(values[i]).then(
