@@ -53,6 +53,7 @@
         'test-alloc.cc',
         'test-api.cc',
         'test-ast.cc',
+        'test-atomicops.cc',
         'test-bignum.cc',
         'test-bignum-dtoa.cc',
         'test-circular-queue.cc',
