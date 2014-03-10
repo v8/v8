@@ -254,7 +254,7 @@ function PromiseAll(values) {
       deferred.resolve(resolutions);
     } else {
       for (var i = 0; i < values.length; ++i) {
-        this.cast(values[i]).chain(
+        this.cast(values[i]).then(
           function(i, x) {
             resolutions[i] = x;
             if (--count === 0) deferred.resolve(resolutions);
@@ -273,7 +273,7 @@ function PromiseOne(values) {
   var deferred = %_CallFunction(this, PromiseDeferred);
   try {
     for (var i = 0; i < values.length; ++i) {
-      this.cast(values[i]).chain(
+      this.cast(values[i]).then(
         function(x) { deferred.resolve(x) },
         function(r) { deferred.reject(r) }
       );
