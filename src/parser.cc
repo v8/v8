@@ -3360,14 +3360,14 @@ Expression* Parser::ParseMemberExpression(bool* ok) {
     Handle<String> name;
     bool is_strict_reserved_name = false;
     Scanner::Location function_name_location = Scanner::Location::invalid();
+    FunctionLiteral::FunctionType function_type =
+        FunctionLiteral::ANONYMOUS_EXPRESSION;
     if (peek_any_identifier()) {
       name = ParseIdentifierOrStrictReservedWord(&is_strict_reserved_name,
                                                  CHECK_OK);
       function_name_location = scanner()->location();
+      function_type = FunctionLiteral::NAMED_EXPRESSION;
     }
-    FunctionLiteral::FunctionType function_type = name.is_null()
-        ? FunctionLiteral::ANONYMOUS_EXPRESSION
-        : FunctionLiteral::NAMED_EXPRESSION;
     result = ParseFunctionLiteral(name,
                                   function_name_location,
                                   is_strict_reserved_name,

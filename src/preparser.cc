@@ -347,7 +347,7 @@ PreParser::Statement PreParser::ParseFunctionDeclaration(bool* ok) {
   //   'function' '*' Identifier '(' FormalParameterListopt ')'
   //      '{' FunctionBody '}'
   Expect(Token::FUNCTION, CHECK_OK);
-
+  int pos = position();
   bool is_generator = allow_generators() && Check(Token::MUL);
   bool is_strict_reserved = false;
   Identifier name = ParseIdentifierOrStrictReservedWord(
@@ -356,6 +356,8 @@ PreParser::Statement PreParser::ParseFunctionDeclaration(bool* ok) {
                        scanner()->location(),
                        is_strict_reserved,
                        is_generator,
+                       pos,
+                       FunctionLiteral::DECLARATION,
                        CHECK_OK);
   return Statement::FunctionDeclaration();
 }
@@ -1063,20 +1065,25 @@ PreParser::Expression PreParser::ParseMemberExpression(bool* ok) {
   Expression result = Expression::Default();
   if (peek() == Token::FUNCTION) {
     Consume(Token::FUNCTION);
-
+    int function_token_position = position();
     bool is_generator = allow_generators() && Check(Token::MUL);
     Identifier name = Identifier::Default();
     bool is_strict_reserved_name = false;
     Scanner::Location function_name_location = Scanner::Location::invalid();
+    FunctionLiteral::FunctionType function_type =
+        FunctionLiteral::ANONYMOUS_EXPRESSION;
     if (peek_any_identifier()) {
       name = ParseIdentifierOrStrictReservedWord(&is_strict_reserved_name,
                                                  CHECK_OK);
       function_name_location = scanner()->location();
+      function_type = FunctionLiteral::NAMED_EXPRESSION;
     }
     result = ParseFunctionLiteral(name,
                                   function_name_location,
                                   is_strict_reserved_name,
                                   is_generator,
+                                  function_token_position,
+                                  function_type,
                                   CHECK_OK);
   } else {
     result = ParsePrimaryExpression(CHECK_OK);
@@ -1162,6 +1169,8 @@ PreParser::Expression PreParser::ParseObjectLiteral(bool* ok) {
                                  scanner()->location(),
                                  false,  // reserved words are allowed here
                                  false,  // not a generator
+                                 RelocInfo::kNoPosition,
+                                 FunctionLiteral::ANONYMOUS_EXPRESSION,
                                  CHECK_OK);
             if (peek() != Token::RBRACE) {
               Expect(Token::COMMA, CHECK_OK);
@@ -1232,6 +1241,8 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
     Scanner::Location function_name_location,
     bool name_is_strict_reserved,
     bool is_generator,
+    int function_token_pos,
+    FunctionLiteral::FunctionType function_type,
     bool* ok) {
   // Function ::
   //   '(' FormalParameterList? ')' '{' FunctionBody '}'
