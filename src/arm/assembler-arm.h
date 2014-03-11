@@ -1292,12 +1292,6 @@ class Assembler : public AssemblerBase {
   // Jump unconditionally to given label.
   void jmp(Label* L) { b(L, al); }
 
-  static bool use_immediate_embedded_pointer_loads(
-      const Assembler* assembler) {
-    return CpuFeatures::IsSupported(MOVW_MOVT_IMMEDIATE_LOADS) &&
-        (assembler == NULL || !assembler->predictable_code_size());
-  }
-
   // Check the code size generated from label to here.
   int SizeOfCodeGeneratedSince(Label* label) {
     return pc_offset() - label->pos();
@@ -1565,10 +1559,9 @@ class Assembler : public AssemblerBase {
   inline void emit(Instr x);
 
   // 32-bit immediate values
-  void move_32_bit_immediate(Condition cond,
-                             Register rd,
-                             SBit s,
-                             const Operand& x);
+  void move_32_bit_immediate(Register rd,
+                             const Operand& x,
+                             Condition cond = al);
 
   // Instruction generation
   void addrmod1(Instr instr, Register rn, Register rd, const Operand& x);
