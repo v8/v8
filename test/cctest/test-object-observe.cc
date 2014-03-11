@@ -32,10 +32,33 @@
 using namespace v8;
 namespace i = v8::internal;
 
+namespace {
+// Need to create a new isolate when FLAG_harmony_observation is on.
+class HarmonyIsolate {
+ public:
+  HarmonyIsolate() {
+    i::FLAG_harmony_observation = true;
+    isolate_ = Isolate::New();
+    isolate_->Enter();
+  }
+
+  ~HarmonyIsolate() {
+    isolate_->Exit();
+    isolate_->Dispose();
+  }
+
+  Isolate* GetIsolate() const { return isolate_; }
+
+ private:
+  Isolate* isolate_;
+};
+}
+
 
 TEST(PerIsolateState) {
-  HandleScope scope(CcTest::isolate());
-  LocalContext context1(CcTest::isolate());
+  HarmonyIsolate isolate;
+  HandleScope scope(isolate.GetIsolate());
+  LocalContext context1(isolate.GetIsolate());
   CompileRun(
       "var count = 0;"
       "var calls = 0;"
@@ -48,29 +71,29 @@ TEST(PerIsolateState) {
       "(function() { obj.foo = 'bar'; })");
   Handle<Value> notify_fun2;
   {
-    LocalContext context2(CcTest::isolate());
-    context2->Global()->Set(String::NewFromUtf8(CcTest::isolate(), "obj"),
+    LocalContext context2(isolate.GetIsolate());
+    context2->Global()->Set(String::NewFromUtf8(isolate.GetIsolate(), "obj"),
                             obj);
     notify_fun2 = CompileRun(
         "(function() { obj.foo = 'baz'; })");
   }
   Handle<Value> notify_fun3;
   {
-    LocalContext context3(CcTest::isolate());
-    context3->Global()->Set(String::NewFromUtf8(CcTest::isolate(), "obj"),
+    LocalContext context3(isolate.GetIsolate());
+    context3->Global()->Set(String::NewFromUtf8(isolate.GetIsolate(), "obj"),
                             obj);
     notify_fun3 = CompileRun(
         "(function() { obj.foo = 'bat'; })");
   }
   {
-    LocalContext context4(CcTest::isolate());
+    LocalContext context4(isolate.GetIsolate());
     context4->Global()->Set(
-        String::NewFromUtf8(CcTest::isolate(), "observer"), observer);
-    context4->Global()->Set(String::NewFromUtf8(CcTest::isolate(), "fun1"),
+        String::NewFromUtf8(isolate.GetIsolate(), "observer"), observer);
+    context4->Global()->Set(String::NewFromUtf8(isolate.GetIsolate(), "fun1"),
                             notify_fun1);
-    context4->Global()->Set(String::NewFromUtf8(CcTest::isolate(), "fun2"),
+    context4->Global()->Set(String::NewFromUtf8(isolate.GetIsolate(), "fun2"),
                             notify_fun2);
-    context4->Global()->Set(String::NewFromUtf8(CcTest::isolate(), "fun3"),
+    context4->Global()->Set(String::NewFromUtf8(isolate.GetIsolate(), "fun3"),
                             notify_fun3);
     CompileRun("fun1(); fun2(); fun3(); Object.deliverChangeRecords(observer)");
   }
@@ -80,8 +103,9 @@ TEST(PerIsolateState) {
 
 
 TEST(EndOfMicrotaskDelivery) {
-  HandleScope scope(CcTest::isolate());
-  LocalContext context(CcTest::isolate());
+  HarmonyIsolate isolate;
+  HandleScope scope(isolate.GetIsolate());
+  LocalContext context(isolate.GetIsolate());
   CompileRun(
       "var obj = {};"
       "var count = 0;"
@@ -93,8 +117,9 @@ TEST(EndOfMicrotaskDelivery) {
 
 
 TEST(DeliveryOrdering) {
-  HandleScope scope(CcTest::isolate());
-  LocalContext context(CcTest::isolate());
+  HarmonyIsolate isolate;
+  HandleScope scope(isolate.GetIsolate());
+  LocalContext context(isolate.GetIsolate());
   CompileRun(
       "var obj1 = {};"
       "var obj2 = {};"
@@ -124,8 +149,9 @@ TEST(DeliveryOrdering) {
 
 
 TEST(DeliveryOrderingReentrant) {
-  HandleScope scope(CcTest::isolate());
-  LocalContext context(CcTest::isolate());
+  HarmonyIsolate isolate;
+  HandleScope scope(isolate.GetIsolate());
+  LocalContext context(isolate.GetIsolate());
   CompileRun(
       "var obj = {};"
       "var reentered = false;"
@@ -155,8 +181,9 @@ TEST(DeliveryOrderingReentrant) {
 
 
 TEST(DeliveryOrderingDeliverChangeRecords) {
-  HandleScope scope(CcTest::isolate());
-  LocalContext context(CcTest::isolate());
+  HarmonyIsolate isolate;
+  HandleScope scope(isolate.GetIsolate());
+  LocalContext context(isolate.GetIsolate());
   CompileRun(
       "var obj = {};"
       "var ordering = [];"
@@ -179,20 +206,21 @@ TEST(DeliveryOrderingDeliverChangeRecords) {
 
 
 TEST(ObjectHashTableGrowth) {
-  HandleScope scope(CcTest::isolate());
+  HarmonyIsolate isolate;
+  HandleScope scope(isolate.GetIsolate());
   // Initializing this context sets up initial hash tables.
-  LocalContext context(CcTest::isolate());
+  LocalContext context(isolate.GetIsolate());
   Handle<Value> obj = CompileRun("obj = {};");
   Handle<Value> observer = CompileRun(
       "var ran = false;"
       "(function() { ran = true })");
   {
     // As does initializing this context.
-    LocalContext context2(CcTest::isolate());
-    context2->Global()->Set(String::NewFromUtf8(CcTest::isolate(), "obj"),
+    LocalContext context2(isolate.GetIsolate());
+    context2->Global()->Set(String::NewFromUtf8(isolate.GetIsolate(), "obj"),
                             obj);
     context2->Global()->Set(
-        String::NewFromUtf8(CcTest::isolate(), "observer"), observer);
+        String::NewFromUtf8(isolate.GetIsolate(), "observer"), observer);
     CompileRun(
         "var objArr = [];"
         // 100 objects should be enough to make the hash table grow
@@ -210,8 +238,9 @@ TEST(ObjectHashTableGrowth) {
 
 
 TEST(GlobalObjectObservation) {
-  LocalContext context(CcTest::isolate());
-  HandleScope scope(CcTest::isolate());
+  HarmonyIsolate isolate;
+  LocalContext context(isolate.GetIsolate());
+  HandleScope scope(isolate.GetIsolate());
   Handle<Object> global_proxy = context->Global();
   CompileRun(
       "var records = [];"
@@ -232,7 +261,7 @@ TEST(GlobalObjectObservation) {
   // to the old context.
   context->DetachGlobal();
   {
-    LocalContext context2(CcTest::isolate());
+    LocalContext context2(isolate.GetIsolate());
     CompileRun(
         "var records2 = [];"
         "var global = this;"
@@ -250,7 +279,7 @@ TEST(GlobalObjectObservation) {
   {
     // Delegates to Context::New
     LocalContext context3(
-        CcTest::isolate(), NULL, Handle<ObjectTemplate>(), global_proxy);
+        isolate.GetIsolate(), NULL, Handle<ObjectTemplate>(), global_proxy);
     CompileRun(
         "var records3 = [];"
         "Object.observe(this, function(r) { [].push.apply(records3, r) });"
@@ -298,11 +327,12 @@ static void ExpectRecords(v8::Isolate* isolate,
 }
 
 #define EXPECT_RECORDS(records, expectations)                \
-  ExpectRecords(CcTest::isolate(), records, expectations, \
+  ExpectRecords(isolate.GetIsolate(), records, expectations, \
                 ARRAY_SIZE(expectations))
 
 TEST(APITestBasicMutation) {
-  v8::Isolate* v8_isolate = CcTest::isolate();
+  HarmonyIsolate isolate;
+  v8::Isolate* v8_isolate = isolate.GetIsolate();
   HandleScope scope(v8_isolate);
   LocalContext context(v8_isolate);
   Handle<Object> obj = Handle<Object>::Cast(CompileRun(
@@ -349,7 +379,8 @@ TEST(APITestBasicMutation) {
 
 
 TEST(HiddenPrototypeObservation) {
-  v8::Isolate* v8_isolate = CcTest::isolate();
+  HarmonyIsolate isolate;
+  v8::Isolate* v8_isolate = isolate.GetIsolate();
   HandleScope scope(v8_isolate);
   LocalContext context(v8_isolate);
   Handle<FunctionTemplate> tmpl = FunctionTemplate::New(v8_isolate);
@@ -400,14 +431,15 @@ static int NumberOfElements(i::Handle<i::JSWeakMap> map) {
 
 
 TEST(ObservationWeakMap) {
-  HandleScope scope(CcTest::isolate());
-  LocalContext context(CcTest::isolate());
+  HarmonyIsolate isolate;
+  HandleScope scope(isolate.GetIsolate());
+  LocalContext context(isolate.GetIsolate());
   CompileRun(
       "var obj = {};"
       "Object.observe(obj, function(){});"
       "Object.getNotifier(obj);"
       "obj = null;");
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(CcTest::isolate());
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate.GetIsolate());
   i::Handle<i::JSObject> observation_state =
       i_isolate->factory()->observation_state();
   i::Handle<i::JSWeakMap> callbackInfoMap =
@@ -496,16 +528,17 @@ static Handle<Object> CreateAccessCheckedObject(
 
 
 TEST(NamedAccessCheck) {
+  HarmonyIsolate isolate;
   const AccessType types[] = { ACCESS_GET, ACCESS_HAS };
   for (size_t i = 0; i < ARRAY_SIZE(types); ++i) {
-    HandleScope scope(CcTest::isolate());
-    LocalContext context(CcTest::isolate());
+    HandleScope scope(isolate.GetIsolate());
+    LocalContext context(isolate.GetIsolate());
     g_access_block_type = types[i];
     Handle<Object> instance = CreateAccessCheckedObject(
-        CcTest::isolate(),
+        isolate.GetIsolate(),
         NamedAccessAllowUnlessBlocked,
         IndexedAccessAlwaysAllowed,
-        String::NewFromUtf8(CcTest::isolate(), "foo"));
+        String::NewFromUtf8(isolate.GetIsolate(), "foo"));
     CompileRun("var records = null;"
                "var objNoCheck = {};"
                "var observer = function(r) { records = r };"
@@ -513,11 +546,11 @@ TEST(NamedAccessCheck) {
                "Object.observe(objNoCheck, observer);");
     Handle<Value> obj_no_check = CompileRun("objNoCheck");
     {
-      LocalContext context2(CcTest::isolate());
-      context2->Global()->Set(String::NewFromUtf8(CcTest::isolate(), "obj"),
+      LocalContext context2(isolate.GetIsolate());
+      context2->Global()->Set(String::NewFromUtf8(isolate.GetIsolate(), "obj"),
                               instance);
       context2->Global()->Set(
-          String::NewFromUtf8(CcTest::isolate(), "objNoCheck"),
+          String::NewFromUtf8(isolate.GetIsolate(), "objNoCheck"),
           obj_no_check);
       CompileRun("var records2 = null;"
                  "var observer2 = function(r) { records2 = r };"
@@ -531,9 +564,9 @@ TEST(NamedAccessCheck) {
       const RecordExpectation expected_records2[] = {
         { instance, "add", "foo", Handle<Value>() },
         { instance, "update", "foo",
-          String::NewFromUtf8(CcTest::isolate(), "bar") },
+          String::NewFromUtf8(isolate.GetIsolate(), "bar") },
         { instance, "reconfigure", "foo",
-          Number::New(CcTest::isolate(), 5) },
+          Number::New(isolate.GetIsolate(), 5) },
         { instance, "add", "bar", Handle<Value>() },
         { obj_no_check, "add", "baz", Handle<Value>() },
       };
@@ -549,14 +582,15 @@ TEST(NamedAccessCheck) {
 
 
 TEST(IndexedAccessCheck) {
+  HarmonyIsolate isolate;
   const AccessType types[] = { ACCESS_GET, ACCESS_HAS };
   for (size_t i = 0; i < ARRAY_SIZE(types); ++i) {
-    HandleScope scope(CcTest::isolate());
-    LocalContext context(CcTest::isolate());
+    HandleScope scope(isolate.GetIsolate());
+    LocalContext context(isolate.GetIsolate());
     g_access_block_type = types[i];
     Handle<Object> instance = CreateAccessCheckedObject(
-        CcTest::isolate(), NamedAccessAlwaysAllowed,
-        IndexedAccessAllowUnlessBlocked, Number::New(CcTest::isolate(), 7));
+        isolate.GetIsolate(), NamedAccessAlwaysAllowed,
+        IndexedAccessAllowUnlessBlocked, Number::New(isolate.GetIsolate(), 7));
     CompileRun("var records = null;"
                "var objNoCheck = {};"
                "var observer = function(r) { records = r };"
@@ -564,11 +598,11 @@ TEST(IndexedAccessCheck) {
                "Object.observe(objNoCheck, observer);");
     Handle<Value> obj_no_check = CompileRun("objNoCheck");
     {
-      LocalContext context2(CcTest::isolate());
-      context2->Global()->Set(String::NewFromUtf8(CcTest::isolate(), "obj"),
+      LocalContext context2(isolate.GetIsolate());
+      context2->Global()->Set(String::NewFromUtf8(isolate.GetIsolate(), "obj"),
                               instance);
       context2->Global()->Set(
-          String::NewFromUtf8(CcTest::isolate(), "objNoCheck"),
+          String::NewFromUtf8(isolate.GetIsolate(), "objNoCheck"),
           obj_no_check);
       CompileRun("var records2 = null;"
                  "var observer2 = function(r) { records2 = r };"
@@ -582,8 +616,8 @@ TEST(IndexedAccessCheck) {
       const RecordExpectation expected_records2[] = {
         { instance, "add", "7", Handle<Value>() },
         { instance, "update", "7",
-          String::NewFromUtf8(CcTest::isolate(), "foo") },
-        { instance, "reconfigure", "7", Number::New(CcTest::isolate(), 5) },
+          String::NewFromUtf8(isolate.GetIsolate(), "foo") },
+        { instance, "reconfigure", "7", Number::New(isolate.GetIsolate(), 5) },
         { instance, "add", "8", Handle<Value>() },
         { obj_no_check, "add", "42", Handle<Value>() }
       };
@@ -599,12 +633,13 @@ TEST(IndexedAccessCheck) {
 
 
 TEST(SpliceAccessCheck) {
-  HandleScope scope(CcTest::isolate());
-  LocalContext context(CcTest::isolate());
+  HarmonyIsolate isolate;
+  HandleScope scope(isolate.GetIsolate());
+  LocalContext context(isolate.GetIsolate());
   g_access_block_type = ACCESS_GET;
   Handle<Object> instance = CreateAccessCheckedObject(
-      CcTest::isolate(), NamedAccessAlwaysAllowed,
-      IndexedAccessAllowUnlessBlocked, Number::New(CcTest::isolate(), 1));
+      isolate.GetIsolate(), NamedAccessAlwaysAllowed,
+      IndexedAccessAllowUnlessBlocked, Number::New(isolate.GetIsolate(), 1));
   CompileRun("var records = null;"
              "obj[1] = 'foo';"
              "obj.length = 2;"
@@ -614,11 +649,11 @@ TEST(SpliceAccessCheck) {
              "Array.observe(objNoCheck, observer);");
   Handle<Value> obj_no_check = CompileRun("objNoCheck");
   {
-    LocalContext context2(CcTest::isolate());
-    context2->Global()->Set(String::NewFromUtf8(CcTest::isolate(), "obj"),
+    LocalContext context2(isolate.GetIsolate());
+    context2->Global()->Set(String::NewFromUtf8(isolate.GetIsolate(), "obj"),
                             instance);
     context2->Global()->Set(
-        String::NewFromUtf8(CcTest::isolate(), "objNoCheck"), obj_no_check);
+        String::NewFromUtf8(isolate.GetIsolate(), "objNoCheck"), obj_no_check);
     CompileRun("var records2 = null;"
                "var observer2 = function(r) { records2 = r };"
                "Array.observe(obj, observer2);"
@@ -645,10 +680,11 @@ TEST(SpliceAccessCheck) {
 
 
 TEST(DisallowAllForAccessKeys) {
-  HandleScope scope(CcTest::isolate());
-  LocalContext context(CcTest::isolate());
+  HarmonyIsolate isolate;
+  HandleScope scope(isolate.GetIsolate());
+  LocalContext context(isolate.GetIsolate());
   Handle<Object> instance = CreateAccessCheckedObject(
-      CcTest::isolate(), BlockAccessKeys, IndexedAccessAlwaysAllowed);
+      isolate.GetIsolate(), BlockAccessKeys, IndexedAccessAlwaysAllowed);
   CompileRun("var records = null;"
              "var objNoCheck = {};"
              "var observer = function(r) { records = r };"
@@ -656,11 +692,11 @@ TEST(DisallowAllForAccessKeys) {
              "Object.observe(objNoCheck, observer);");
   Handle<Value> obj_no_check = CompileRun("objNoCheck");
   {
-    LocalContext context2(CcTest::isolate());
-    context2->Global()->Set(String::NewFromUtf8(CcTest::isolate(), "obj"),
+    LocalContext context2(isolate.GetIsolate());
+    context2->Global()->Set(String::NewFromUtf8(isolate.GetIsolate(), "obj"),
                             instance);
     context2->Global()->Set(
-        String::NewFromUtf8(CcTest::isolate(), "objNoCheck"), obj_no_check);
+        String::NewFromUtf8(isolate.GetIsolate(), "objNoCheck"), obj_no_check);
     CompileRun("var records2 = null;"
                "var observer2 = function(r) { records2 = r };"
                "Object.observe(obj, observer2);"
@@ -683,23 +719,24 @@ TEST(DisallowAllForAccessKeys) {
 
 
 TEST(AccessCheckDisallowApiModifications) {
-  HandleScope scope(CcTest::isolate());
-  LocalContext context(CcTest::isolate());
+  HarmonyIsolate isolate;
+  HandleScope scope(isolate.GetIsolate());
+  LocalContext context(isolate.GetIsolate());
   Handle<Object> instance = CreateAccessCheckedObject(
-      CcTest::isolate(), BlockAccessKeys, IndexedAccessAlwaysAllowed);
+      isolate.GetIsolate(), BlockAccessKeys, IndexedAccessAlwaysAllowed);
   CompileRun("var records = null;"
              "var observer = function(r) { records = r };"
              "Object.observe(obj, observer);");
   {
-    LocalContext context2(CcTest::isolate());
-    context2->Global()->Set(String::NewFromUtf8(CcTest::isolate(), "obj"),
+    LocalContext context2(isolate.GetIsolate());
+    context2->Global()->Set(String::NewFromUtf8(isolate.GetIsolate(), "obj"),
                             instance);
     CompileRun("var records2 = null;"
                "var observer2 = function(r) { records2 = r };"
                "Object.observe(obj, observer2);");
-    instance->Set(5, String::NewFromUtf8(CcTest::isolate(), "bar"));
-    instance->Set(String::NewFromUtf8(CcTest::isolate(), "foo"),
-                  String::NewFromUtf8(CcTest::isolate(), "bar"));
+    instance->Set(5, String::NewFromUtf8(isolate.GetIsolate(), "bar"));
+    instance->Set(String::NewFromUtf8(isolate.GetIsolate(), "foo"),
+                  String::NewFromUtf8(isolate.GetIsolate(), "bar"));
     CompileRun("");  // trigger delivery
     const RecordExpectation expected_records2[] = {
       { instance, "add", "5", Handle<Value>() },
@@ -712,17 +749,18 @@ TEST(AccessCheckDisallowApiModifications) {
 
 
 TEST(HiddenPropertiesLeakage) {
-  HandleScope scope(CcTest::isolate());
-  LocalContext context(CcTest::isolate());
+  HarmonyIsolate isolate;
+  HandleScope scope(isolate.GetIsolate());
+  LocalContext context(isolate.GetIsolate());
   CompileRun("var obj = {};"
              "var records = null;"
              "var observer = function(r) { records = r };"
              "Object.observe(obj, observer);");
   Handle<Value> obj =
-      context->Global()->Get(String::NewFromUtf8(CcTest::isolate(), "obj"));
+      context->Global()->Get(String::NewFromUtf8(isolate.GetIsolate(), "obj"));
   Handle<Object>::Cast(obj)
-      ->SetHiddenValue(String::NewFromUtf8(CcTest::isolate(), "foo"),
-                       Null(CcTest::isolate()));
+      ->SetHiddenValue(String::NewFromUtf8(isolate.GetIsolate(), "foo"),
+                       Null(isolate.GetIsolate()));
   CompileRun("");  // trigger delivery
   CHECK(CompileRun("records")->IsNull());
 }
