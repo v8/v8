@@ -3056,7 +3056,7 @@ void HCompareObjectEqAndBranch::PrintDataTo(StringStream* stream) {
 
 bool HCompareObjectEqAndBranch::KnownSuccessorBlock(HBasicBlock** block) {
   if (FLAG_fold_constants && left()->IsConstant() && right()->IsConstant()) {
-    *block = HConstant::cast(left())->Equals(HConstant::cast(right()))
+    *block = HConstant::cast(left())->DataEquals(HConstant::cast(right()))
         ? FirstSuccessor() : SecondSuccessor();
     return true;
   }

@@ -3584,15 +3584,6 @@ class HConstant V8_FINAL : public HTemplateInstruction<0> {
     return object_.IsInitialized() && object_ == other;
   }
 
-#ifdef DEBUG
-  virtual void Verify() V8_OVERRIDE { }
-#endif
-
-  DECLARE_CONCRETE_INSTRUCTION(Constant)
-
- protected:
-  virtual Range* InferRange(Zone* zone) V8_OVERRIDE;
-
   virtual bool DataEquals(HValue* other) V8_OVERRIDE {
     HConstant* other_constant = HConstant::cast(other);
     if (has_int32_value_) {
@@ -3616,6 +3607,15 @@ class HConstant V8_FINAL : public HTemplateInstruction<0> {
       return other_constant->object_ == object_;
     }
   }
+
+#ifdef DEBUG
+  virtual void Verify() V8_OVERRIDE { }
+#endif
+
+  DECLARE_CONCRETE_INSTRUCTION(Constant)
+
+ protected:
+  virtual Range* InferRange(Zone* zone) V8_OVERRIDE;
 
  private:
   friend class HGraph;
@@ -4280,24 +4280,6 @@ class HCompareMinusZeroAndBranch V8_FINAL : public HUnaryControlInstruction {
 
 class HCompareObjectEqAndBranch : public HTemplateControlInstruction<2, 2> {
  public:
-  HCompareObjectEqAndBranch(HValue* left,
-                            HValue* right,
-                            HBasicBlock* true_target = NULL,
-                            HBasicBlock* false_target = NULL) {
-    // TODO(danno): make this private when the IfBuilder properly constructs
-    // control flow instructions.
-    ASSERT(!left->IsConstant() ||
-           (!HConstant::cast(left)->HasInteger32Value() ||
-            HConstant::cast(left)->HasSmiValue()));
-    ASSERT(!right->IsConstant() ||
-           (!HConstant::cast(right)->HasInteger32Value() ||
-            HConstant::cast(right)->HasSmiValue()));
-    SetOperandAt(0, left);
-    SetOperandAt(1, right);
-    SetSuccessorAt(0, true_target);
-    SetSuccessorAt(1, false_target);
-  }
-
   DECLARE_INSTRUCTION_FACTORY_P2(HCompareObjectEqAndBranch, HValue*, HValue*);
   DECLARE_INSTRUCTION_FACTORY_P4(HCompareObjectEqAndBranch, HValue*, HValue*,
                                  HBasicBlock*, HBasicBlock*);
@@ -4318,6 +4300,23 @@ class HCompareObjectEqAndBranch : public HTemplateControlInstruction<2, 2> {
   }
 
   DECLARE_CONCRETE_INSTRUCTION(CompareObjectEqAndBranch)
+
+ private:
+  HCompareObjectEqAndBranch(HValue* left,
+                            HValue* right,
+                            HBasicBlock* true_target = NULL,
+                            HBasicBlock* false_target = NULL) {
+    ASSERT(!left->IsConstant() ||
+           (!HConstant::cast(left)->HasInteger32Value() ||
+            HConstant::cast(left)->HasSmiValue()));
+    ASSERT(!right->IsConstant() ||
+           (!HConstant::cast(right)->HasInteger32Value() ||
+            HConstant::cast(right)->HasSmiValue()));
+    SetOperandAt(0, left);
+    SetOperandAt(1, right);
+    SetSuccessorAt(0, true_target);
+    SetSuccessorAt(1, false_target);
+  }
 };
 
 
