@@ -444,7 +444,7 @@ struct ZoneTypeConfig {
   }
   static int lub_bitset(Type* type) {
     ASSERT(is_class(type) || is_constant(type));
-    return tagged_get<intptr_t>(as_tagged(type), 0);
+    return static_cast<int>(tagged_get<intptr_t>(as_tagged(type), 0));
   }
 };
 
