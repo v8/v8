@@ -4941,8 +4941,7 @@ void StoreArrayLiteralElementStub::Generate(MacroAssembler* masm) {
 
 
 void StubFailureTrampolineStub::Generate(MacroAssembler* masm) {
-  // TODO(jbramley): The ARM code leaves the (shifted) offset in r1. Why?
-  CEntryStub ces(1, kSaveFPRegs);
+  CEntryStub ces(1, fp_registers_ ? kSaveFPRegs : kDontSaveFPRegs);
   __ Call(ces.GetCode(masm->isolate()), RelocInfo::CODE_TARGET);
   int parameter_count_offset =
       StubFailureTrampolineFrame::kCallerStackParameterCountFrameOffset;

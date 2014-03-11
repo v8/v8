@@ -474,12 +474,8 @@ void LoadIC::GenerateMiss(MacroAssembler* masm) {
 
   __ IncrementCounter(isolate->counters()->load_miss(), 1, x3, x4);
 
-  // TODO(jbramley): Does the target actually expect an argument in x3, or is
-  // this inherited from ARM's push semantics?
-  __ Mov(x3, x0);
-  __ Push(x3, x2);
-
   // Perform tail call to the entry.
+  __ Push(x0, x2);
   ExternalReference ref =
       ExternalReference(IC_Utility(kLoadIC_Miss), isolate);
   __ TailCallExternalReference(ref, 2, 1);
@@ -493,11 +489,7 @@ void LoadIC::GenerateRuntimeGetProperty(MacroAssembler* masm) {
   //  -- x0    : receiver
   // -----------------------------------
 
-  // TODO(jbramley): Does the target actually expect an argument in x3, or is
-  // this inherited from ARM's push semantics?
-  __ Mov(x3, x0);
-  __ Push(x3, x2);
-
+  __ Push(x0, x2);
   __ TailCallRuntime(Runtime::kGetProperty, 2, 1);
 }
 
@@ -985,8 +977,6 @@ static void KeyedStoreGenerateGenericHelper(
   // We have to go to the runtime if the current value is the hole because there
   // may be a callback on the element.
   Label holecheck_passed;
-  // TODO(all): This address calculation is repeated later (for the store
-  // itself). We should keep the result to avoid doing the work twice.
   __ Add(x10, elements, FixedArray::kHeaderSize - kHeapObjectTag);
   __ Add(x10, x10, Operand::UntagSmiAndScale(key, kPointerSizeLog2));
   __ Ldr(x11, MemOperand(x10));
@@ -1039,8 +1029,6 @@ static void KeyedStoreGenerateGenericHelper(
   // HOLECHECK: guards "A[i] double hole?"
   // We have to see if the double version of the hole is present. If so go to
   // the runtime.
-  // TODO(all): This address calculation was done earlier. We should keep the
-  // result to avoid doing the work twice.
   __ Add(x10, elements, FixedDoubleArray::kHeaderSize - kHeapObjectTag);
   __ Add(x10, x10, Operand::UntagSmiAndScale(key, kPointerSizeLog2));
   __ Ldr(x11, MemOperand(x10));

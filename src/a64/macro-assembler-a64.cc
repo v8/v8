@@ -1516,12 +1516,7 @@ void MacroAssembler::AssertNotSmi(Register object, BailoutReason reason) {
 
 void MacroAssembler::AssertName(Register object) {
   if (emit_debug_code()) {
-    STATIC_ASSERT(kSmiTag == 0);
-    // TODO(jbramley): Add AbortIfSmi and related functions.
-    Label not_smi;
-    JumpIfNotSmi(object, &not_smi);
-    Abort(kOperandIsASmiAndNotAName);
-    Bind(&not_smi);
+    AssertNotSmi(object, kOperandIsASmiAndNotAName);
 
     UseScratchRegisterScope temps(this);
     Register temp = temps.AcquireX();
@@ -2847,8 +2842,6 @@ void MacroAssembler::Prologue(PrologueFrameMode frame_mode) {
     ASSERT(StackPointer().Is(jssp));
     UseScratchRegisterScope temps(this);
     Register temp = temps.AcquireX();
-    // TODO(jbramley): Does x1 contain a JSFunction here, or does it already
-    // have the special STUB smi?
     __ Mov(temp, Operand(Smi::FromInt(StackFrame::STUB)));
     // Compiled stubs don't age, and so they don't need the predictable code
     // ageing sequence.
