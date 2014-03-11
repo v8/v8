@@ -1095,8 +1095,6 @@ void LCodeGen::DoModByPowerOf2I(LModByPowerOf2I* instr) {
 
 void LCodeGen::DoModI(LModI* instr) {
   HMod* hmod = instr->hydrogen();
-  HValue* left = hmod->left();
-  HValue* right = hmod->right();
   const Register left_reg = ToRegister(instr->left());
   const Register right_reg = ToRegister(instr->right());
   const Register result_reg = ToRegister(instr->result());
@@ -1107,24 +1105,28 @@ void LCodeGen::DoModI(LModI* instr) {
   Label done;
   // Check for x % 0, we have to deopt in this case because we can't return a
   // NaN.
-  if (right->CanBeZero()) {
+  if (hmod->CheckFlag(HValue::kCanBeDivByZero)) {
     DeoptimizeIf(eq, instr->environment(), right_reg, Operand(zero_reg));
   }
 
-  // Check for kMinInt % -1, we have to deopt if we care about -0, because we
-  // can't return that.
-  if (left->RangeCanInclude(kMinInt) && right->RangeCanInclude(-1)) {
-    Label left_not_min_int;
-    __ Branch(&left_not_min_int, ne, left_reg, Operand(kMinInt));
-    // TODO(svenpanne) Don't deopt when we don't care about -0.
-    DeoptimizeIf(eq, instr->environment(), right_reg, Operand(-1));
-    __ bind(&left_not_min_int);
+  // Check for kMinInt % -1, div will return kMinInt, which is not what we
+  // want. We have to deopt if we care about -0, because we can't return that.
+  if (hmod->CheckFlag(HValue::kCanOverflow)) {
+    Label no_overflow_possible;
+    __ Branch(&no_overflow_possible, ne, left_reg, Operand(kMinInt));
+    if (hmod->CheckFlag(HValue::kBailoutOnMinusZero)) {
+      DeoptimizeIf(eq, instr->environment(), right_reg, Operand(-1));
+    } else {
+      __ Branch(&no_overflow_possible, ne, right_reg, Operand(-1));
+      __ Branch(USE_DELAY_SLOT, &done);
+      __ mov(result_reg, zero_reg);
+    }
+    __ bind(&no_overflow_possible);
   }
 
-  // TODO(svenpanne) Only emit the test/deopt if we have to.
+  // If we care about -0, test if the dividend is <0 and the result is 0.
   __ Branch(USE_DELAY_SLOT, &done, ge, left_reg, Operand(zero_reg));
   __ mfhi(result_reg);
-
   if (hmod->CheckFlag(HValue::kBailoutOnMinusZero)) {
     DeoptimizeIf(eq, instr->environment(), result_reg, Operand(zero_reg));
   }
@@ -1133,6 +1135,7 @@ void LCodeGen::DoModI(LModI* instr) {
 
 
 void LCodeGen::DoDivI(LDivI* instr) {
+  HBinaryOperation* hdiv = instr->hydrogen();
   const Register left = ToRegister(instr->left());
   const Register right = ToRegister(instr->right());
   const Register result = ToRegister(instr->result());
@@ -1142,12 +1145,12 @@ void LCodeGen::DoDivI(LDivI* instr) {
   __ div(left, right);
 
   // Check for x / 0.
-  if (instr->hydrogen()->CheckFlag(HValue::kCanBeDivByZero)) {
+  if (hdiv->CheckFlag(HValue::kCanBeDivByZero)) {
     DeoptimizeIf(eq, instr->environment(), right, Operand(zero_reg));
   }
 
   // Check for (0 / -x) that will produce negative zero.
-  if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+  if (hdiv->CheckFlag(HValue::kBailoutOnMinusZero)) {
     Label left_not_zero;
     __ Branch(&left_not_zero, ne, left, Operand(zero_reg));
     DeoptimizeIf(lt, instr->environment(), right, Operand(zero_reg));
@@ -1155,14 +1158,15 @@ void LCodeGen::DoDivI(LDivI* instr) {
   }
 
   // Check for (kMinInt / -1).
-  if (instr->hydrogen()->CheckFlag(HValue::kCanOverflow)) {
+  if (hdiv->CheckFlag(HValue::kCanOverflow) &&
+      !hdiv->CheckFlag(HValue::kAllUsesTruncatingToInt32)) {
     Label left_not_min_int;
     __ Branch(&left_not_min_int, ne, left, Operand(kMinInt));
     DeoptimizeIf(eq, instr->environment(), right, Operand(-1));
     __ bind(&left_not_min_int);
   }
 
-  if (!instr->hydrogen()->CheckFlag(HInstruction::kAllUsesTruncatingToInt32)) {
+  if (!hdiv->CheckFlag(HValue::kAllUsesTruncatingToInt32)) {
     __ mfhi(result);
     DeoptimizeIf(ne, instr->environment(), result, Operand(zero_reg));
   }
@@ -1233,8 +1237,7 @@ void LCodeGen::DoFlooringDivByConstI(LFlooringDivByConstI* instr) {
 
   // Check for (0 / -x) that will produce negative zero.
   HMathFloorOfDiv* hdiv = instr->hydrogen();
-  if (hdiv->CheckFlag(HValue::kBailoutOnMinusZero) &&
-      hdiv->left()->RangeCanInclude(0) && divisor < 0) {
+  if (hdiv->CheckFlag(HValue::kBailoutOnMinusZero) && divisor < 0) {
     DeoptimizeIf(eq, instr->environment(), dividend, Operand(zero_reg));
   }
 

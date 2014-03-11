@@ -1289,8 +1289,7 @@ LInstruction* LChunkBuilder::DoFlooringDivByConstI(HMathFloorOfDiv* instr) {
       DefineAsRegister(new(zone()) LFlooringDivByConstI(dividend, divisor));
   bool can_deopt =
       divisor == 0 ||
-      (instr->CheckFlag(HValue::kBailoutOnMinusZero) &&
-       instr->left()->RangeCanInclude(0) && divisor < 0);
+      (instr->CheckFlag(HValue::kBailoutOnMinusZero) && divisor < 0);
   return can_deopt ? AssignEnvironment(result) : result;
 }
 
@@ -1317,12 +1316,12 @@ LInstruction* LChunkBuilder::DoModByPowerOf2I(HMod* instr) {
   ASSERT(instr->right()->representation().Equals(instr->representation()));
   LOperand* dividend = UseRegisterAtStart(instr->left());
   int32_t divisor = instr->right()->GetInteger32Constant();
-  LInstruction* result =
-      DefineSameAsFirst(new(zone()) LModByPowerOf2I(dividend, divisor));
-  bool can_deopt =
-      instr->CheckFlag(HValue::kBailoutOnMinusZero) &&
-      instr->left()->CanBeNegative();
-  return can_deopt ? AssignEnvironment(result) : result;
+  LInstruction* result = DefineSameAsFirst(new(zone()) LModByPowerOf2I(
+          dividend, divisor));
+  if (instr->CheckFlag(HValue::kBailoutOnMinusZero)) {
+    result = AssignEnvironment(result);
+  }
+  return result;
 }
 
 
@@ -1332,17 +1331,13 @@ LInstruction* LChunkBuilder::DoModI(HMod* instr) {
   ASSERT(instr->right()->representation().Equals(instr->representation()));
   LOperand* dividend = UseRegister(instr->left());
   LOperand* divisor = UseRegister(instr->right());
-  LModI* mod = new(zone()) LModI(dividend,
-                                 divisor);
-  LInstruction* result = DefineAsRegister(mod);
-  bool can_deopt = (instr->right()->CanBeZero() ||
-                    (instr->left()->RangeCanInclude(kMinInt) &&
-                     instr->right()->RangeCanInclude(-1) &&
-                     instr->CheckFlag(HValue::kBailoutOnMinusZero)) ||
-                    (instr->left()->CanBeNegative() &&
-                     instr->CanBeZero() &&
-                     instr->CheckFlag(HValue::kBailoutOnMinusZero)));
-  return can_deopt ? AssignEnvironment(result) : result;
+  LInstruction* result = DefineAsRegister(new(zone()) LModI(
+      dividend, divisor));
+  if (instr->CheckFlag(HValue::kCanBeDivByZero) ||
+      instr->CheckFlag(HValue::kBailoutOnMinusZero)) {
+    result = AssignEnvironment(result);
+  }
+  return result;
 }
 
 
