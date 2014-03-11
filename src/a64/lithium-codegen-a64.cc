@@ -3732,8 +3732,7 @@ void LCodeGen::DoDeferredMathAbsTagged(LMathAbsTagged* instr,
     Register input = ToRegister(instr->value());
     __ JumpIfSmi(result, &result_ok);
     __ Cmp(input, result);
-    // TODO(all): Shouldn't we assert here?
-    DeoptimizeIf(ne, instr->environment());
+    __ Assert(eq, kUnexpectedValue);
     __ Bind(&result_ok);
   }
 
