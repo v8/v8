@@ -5626,9 +5626,10 @@ void v8::Date::DateTimeConfigurationChangeNotification(Isolate* isolate) {
       i::Handle<i::FixedArray>::cast(i_isolate->eternal_handles()->GetSingleton(
           i::EternalHandles::DATE_CACHE_VERSION));
   ASSERT_EQ(1, date_cache_version->length());
-  ASSERT(date_cache_version->get(0)->IsNumber());
-  date_cache_version->set(0, i::Smi::FromInt(
-                                 date_cache_version->get(0)->Number() + 1));
+  CHECK(date_cache_version->get(0)->IsSmi());
+  date_cache_version->set(
+      0,
+      i::Smi::FromInt(i::Smi::cast(date_cache_version->get(0))->value() + 1));
 }
 
 
