@@ -3699,6 +3699,7 @@ TEST(ObjectsInOptimizedCodeAreWeak) {
 }
 
 
+#ifdef DEBUG
 TEST(AddInstructionChangesNewSpacePromotion) {
   i::FLAG_allow_natives_syntax = true;
   i::FLAG_expose_gc = true;
@@ -3739,3 +3740,4 @@ TEST(AddInstructionChangesNewSpacePromotion) {
   g->Call(global, 1, args1);
   heap->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
 }
+#endif
