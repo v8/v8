@@ -5172,36 +5172,20 @@ void LCodeGen::DoStoreKeyedGeneric(LStoreKeyedGeneric* instr) {
 }
 
 
-// TODO(jbramley): Once the merge is done and we're tracking bleeding_edge, try
-// to tidy up this function.
 void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
   Representation representation = instr->representation();
 
   Register object = ToRegister(instr->object());
-  Register temp0 = ToRegister(instr->temp0());
-  Register temp1 = ToRegister(instr->temp1());
   HObjectAccess access = instr->hydrogen()->access();
+  Handle<Map> transition = instr->transition();
   int offset = access.offset();
 
   if (access.IsExternalMemory()) {
+    ASSERT(transition.is_null());
+    ASSERT(!instr->hydrogen()->NeedsWriteBarrier());
     Register value = ToRegister(instr->value());
     __ Store(value, MemOperand(object, offset), representation);
     return;
-  }
-
-  Handle<Map> transition = instr->transition();
-  SmiCheck check_needed =
-      instr->hydrogen()->value()->IsHeapObject()
-          ? OMIT_SMI_CHECK : INLINE_SMI_CHECK;
-
-  if (representation.IsHeapObject()) {
-    Register value = ToRegister(instr->value());
-    if (!instr->hydrogen()->value()->type().IsHeapObject()) {
-      DeoptimizeIfSmi(value, instr->environment());
-
-      // We know that value is a smi now, so we can omit the check below.
-      check_needed = OMIT_SMI_CHECK;
-    }
   } else if (representation.IsDouble()) {
     ASSERT(transition.is_null());
     ASSERT(access.IsInobject());
@@ -5211,9 +5195,22 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
     return;
   }
 
+  Register value = ToRegister(instr->value());
+
+  SmiCheck check_needed = instr->hydrogen()->value()->IsHeapObject()
+      ? OMIT_SMI_CHECK : INLINE_SMI_CHECK;
+
+  if (representation.IsHeapObject() &&
+      !instr->hydrogen()->value()->type().IsHeapObject()) {
+    DeoptimizeIfSmi(value, instr->environment());
+
+    // We know that value is a smi now, so we can omit the check below.
+    check_needed = OMIT_SMI_CHECK;
+  }
+
   if (!transition.is_null()) {
     // Store the new map value.
-    Register new_map_value = temp0;
+    Register new_map_value = ToRegister(instr->temp0());
     __ Mov(new_map_value, Operand(transition));
     __ Str(new_map_value, FieldMemOperand(object, HeapObject::kMapOffset));
     if (instr->hydrogen()->NeedsWriteBarrierForMap()) {
@@ -5221,7 +5218,7 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
       __ RecordWriteField(object,
                           HeapObject::kMapOffset,
                           new_map_value,
-                          temp1,
+                          ToRegister(instr->temp1()),
                           GetLinkRegisterState(),
                           kSaveFPRegs,
                           OMIT_REMEMBERED_SET,
@@ -5230,21 +5227,28 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
   }
 
   // Do the store.
-  Register value = ToRegister(instr->value());
   Register destination;
   if (access.IsInobject()) {
     destination = object;
   } else {
+    Register temp0 = ToRegister(instr->temp0());
     __ Ldr(temp0, FieldMemOperand(object, JSObject::kPropertiesOffset));
     destination = temp0;
   }
 
   if (representation.IsSmi() &&
-      instr->hydrogen()->value()->representation().IsInteger32()) {
+     instr->hydrogen()->value()->representation().IsInteger32()) {
     ASSERT(instr->hydrogen()->store_mode() == STORE_TO_INITIALIZED_ENTRY);
 #ifdef DEBUG
-    __ Ldr(temp1, FieldMemOperand(destination, offset));
-    __ AssertSmi(temp1);
+    Register temp0 = ToRegister(instr->temp0());
+    __ Ldr(temp0, FieldMemOperand(destination, offset));
+    __ AssertSmi(temp0);
+    // If destination aliased temp0, restore it to the address calculated
+    // earlier.
+    if (destination.Is(temp0)) {
+      ASSERT(!access.IsInobject());
+      __ Ldr(destination, FieldMemOperand(object, JSObject::kPropertiesOffset));
+    }
 #endif
     STATIC_ASSERT(kSmiValueSize == 32 && kSmiShift == 32 && kSmiTag == 0);
     __ Store(value, UntagSmiFieldMemOperand(destination, offset),
@@ -5255,8 +5259,8 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
   if (instr->hydrogen()->NeedsWriteBarrier()) {
     __ RecordWriteField(destination,
                         offset,
-                        value,      // Clobbered.
-                        temp1,      // Clobbered.
+                        value,                        // Clobbered.
+                        ToRegister(instr->temp1()),   // Clobbered.
                         GetLinkRegisterState(),
                         kSaveFPRegs,
                         EMIT_REMEMBERED_SET,

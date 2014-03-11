@@ -2236,17 +2236,29 @@ LInstruction* LChunkBuilder::DoStoreKeyedGeneric(HStoreKeyedGeneric* instr) {
 
 
 LInstruction* LChunkBuilder::DoStoreNamedField(HStoreNamedField* instr) {
-  // TODO(jbramley): Optimize register usage in this instruction. For now, it
-  // allocates everything that it might need because it keeps changing in the
-  // merge and keeping it valid is time-consuming.
-
   // TODO(jbramley): It might be beneficial to allow value to be a constant in
   // some cases. x64 makes use of this with FLAG_track_fields, for example.
 
   LOperand* object = UseRegister(instr->object());
-  LOperand* value = UseRegisterAndClobber(instr->value());
-  LOperand* temp0 = TempRegister();
-  LOperand* temp1 = TempRegister();
+  LOperand* value;
+  LOperand* temp0 = NULL;
+  LOperand* temp1 = NULL;
+
+  if (instr->access().IsExternalMemory() ||
+      instr->field_representation().IsDouble()) {
+    value = UseRegister(instr->value());
+  } else if (instr->NeedsWriteBarrier()) {
+    value = UseRegisterAndClobber(instr->value());
+    temp0 = TempRegister();
+    temp1 = TempRegister();
+  } else if (instr->NeedsWriteBarrierForMap()) {
+    value = UseRegister(instr->value());
+    temp0 = TempRegister();
+    temp1 = TempRegister();
+  } else {
+    value = UseRegister(instr->value());
+    temp0 = TempRegister();
+  }
 
   LStoreNamedField* result =
       new(zone()) LStoreNamedField(object, value, temp0, temp1);
