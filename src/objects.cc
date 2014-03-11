@@ -5912,9 +5912,9 @@ bool JSReceiver::IsSimpleEnum() {
     JSObject* curr = JSObject::cast(o);
     int enum_length = curr->map()->EnumLength();
     if (enum_length == kInvalidEnumCacheSentinel) return false;
+    if (curr->IsAccessCheckNeeded()) return false;
     ASSERT(!curr->HasNamedInterceptor());
     ASSERT(!curr->HasIndexedInterceptor());
-    ASSERT(!curr->IsAccessCheckNeeded());
     if (curr->NumberOfEnumElements() > 0) return false;
     if (curr != this && enum_length != 0) return false;
   }
