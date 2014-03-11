@@ -4049,7 +4049,6 @@ class HBitwiseBinaryOperation : public HBinaryOperation {
   }
 
   virtual void RepresentationChanged(Representation to) V8_OVERRIDE {
-    if (to.IsTagged()) SetChangesFlag(kNewSpacePromotion);
     if (to.IsTagged() &&
         (left()->ToNumberCanBeObserved() || right()->ToNumberCanBeObserved())) {
       SetAllSideEffects();
@@ -4058,6 +4057,7 @@ class HBitwiseBinaryOperation : public HBinaryOperation {
       ClearAllSideEffects();
       SetFlag(kUseGVN);
     }
+    if (to.IsTagged()) SetChangesFlag(kNewSpacePromotion);
   }
 
   virtual void UpdateRepresentation(Representation new_rep,
@@ -4123,7 +4123,6 @@ class HArithmeticBinaryOperation : public HBinaryOperation {
   }
 
   virtual void RepresentationChanged(Representation to) V8_OVERRIDE {
-    if (to.IsTagged()) SetChangesFlag(kNewSpacePromotion);
     if (to.IsTagged() &&
         (left()->ToNumberCanBeObserved() || right()->ToNumberCanBeObserved())) {
       SetAllSideEffects();
@@ -4132,6 +4131,7 @@ class HArithmeticBinaryOperation : public HBinaryOperation {
       ClearAllSideEffects();
       SetFlag(kUseGVN);
     }
+    if (to.IsTagged()) SetChangesFlag(kNewSpacePromotion);
   }
 
   DECLARE_ABSTRACT_INSTRUCTION(ArithmeticBinaryOperation)
@@ -4716,10 +4716,6 @@ class HAdd V8_FINAL : public HArithmeticBinaryOperation {
   }
 
   virtual void RepresentationChanged(Representation to) V8_OVERRIDE {
-    if (to.IsTagged()) {
-      SetChangesFlag(kNewSpacePromotion);
-      ClearFlag(kAllowUndefinedAsNaN);
-    }
     if (to.IsTagged() &&
         (left()->ToNumberCanBeObserved() || right()->ToNumberCanBeObserved() ||
          left()->ToStringCanBeObserved() || right()->ToStringCanBeObserved())) {
@@ -4728,6 +4724,10 @@ class HAdd V8_FINAL : public HArithmeticBinaryOperation {
     } else {
       ClearAllSideEffects();
       SetFlag(kUseGVN);
+    }
+    if (to.IsTagged()) {
+      SetChangesFlag(kNewSpacePromotion);
+      ClearFlag(kAllowUndefinedAsNaN);
     }
   }
 

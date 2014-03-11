@@ -3697,3 +3697,45 @@ TEST(ObjectsInOptimizedCodeAreWeak) {
 
   ASSERT(code->marked_for_deoptimization());
 }
+
+
+TEST(AddInstructionChangesNewSpacePromotion) {
+  i::FLAG_allow_natives_syntax = true;
+  i::FLAG_expose_gc = true;
+  i::FLAG_stress_compaction = true;
+  i::FLAG_gc_interval = 1000;
+  CcTest::InitializeVM();
+  if (!i::FLAG_allocation_site_pretenuring) return;
+  v8::HandleScope scope(CcTest::isolate());
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+
+  CompileRun(
+      "function add(a, b) {"
+      "  return a + b;"
+      "}"
+      "add(1, 2);"
+      "add(\"a\", \"b\");"
+      "var oldSpaceObject;"
+      "gc();"
+      "function crash(x) {"
+      "  var object = {a: null, b: null};"
+      "  var result = add(1.5, x | 0);"
+      "  object.a = result;"
+      "  oldSpaceObject = object;"
+      "  return object;"
+      "}"
+      "crash(1);"
+      "crash(1);"
+      "%OptimizeFunctionOnNextCall(crash);"
+      "crash(1);");
+
+  v8::Handle<v8::Object> global = CcTest::global();
+    v8::Handle<v8::Function> g =
+        v8::Handle<v8::Function>::Cast(global->Get(v8_str("crash")));
+  v8::Handle<v8::Value> args1[] = { v8_num(1) };
+  heap->DisableInlineAllocation();
+  heap->set_allocation_timeout(1);
+  g->Call(global, 1, args1);
+  heap->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+}
