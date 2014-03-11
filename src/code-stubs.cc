@@ -561,7 +561,7 @@ void KeyedStoreElementStub::Generate(MacroAssembler* masm) {
     case DICTIONARY_ELEMENTS:
       KeyedStoreStubCompiler::GenerateStoreDictionaryElement(masm);
       break;
-    case NON_STRICT_ARGUMENTS_ELEMENTS:
+    case SLOPPY_ARGUMENTS_ELEMENTS:
       UNREACHABLE();
       break;
   }
@@ -572,8 +572,8 @@ void ArgumentsAccessStub::PrintName(StringStream* stream) {
   stream->Add("ArgumentsAccessStub_");
   switch (type_) {
     case READ_ELEMENT: stream->Add("ReadElement"); break;
-    case NEW_NON_STRICT_FAST: stream->Add("NewNonStrictFast"); break;
-    case NEW_NON_STRICT_SLOW: stream->Add("NewNonStrictSlow"); break;
+    case NEW_SLOPPY_FAST: stream->Add("NewSloppyFast"); break;
+    case NEW_SLOPPY_SLOW: stream->Add("NewSloppySlow"); break;
     case NEW_STRICT: stream->Add("NewStrict"); break;
   }
 }

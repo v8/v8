@@ -543,7 +543,7 @@ class FastNewClosureStub : public HydrogenCodeStub {
 
   Major MajorKey() { return FastNewClosure; }
   int NotMissMinorKey() {
-    return StrictModeBits::encode(language_mode_ != CLASSIC_MODE) |
+    return StrictModeBits::encode(language_mode_ != SLOPPY_MODE) |
       IsGeneratorBits::encode(is_generator_);
   }
 
@@ -1535,8 +1535,8 @@ class ArgumentsAccessStub: public PlatformCodeStub {
  public:
   enum Type {
     READ_ELEMENT,
-    NEW_NON_STRICT_FAST,
-    NEW_NON_STRICT_SLOW,
+    NEW_SLOPPY_FAST,
+    NEW_SLOPPY_SLOW,
     NEW_STRICT
   };
 
@@ -1551,8 +1551,8 @@ class ArgumentsAccessStub: public PlatformCodeStub {
   void Generate(MacroAssembler* masm);
   void GenerateReadElement(MacroAssembler* masm);
   void GenerateNewStrict(MacroAssembler* masm);
-  void GenerateNewNonStrictFast(MacroAssembler* masm);
-  void GenerateNewNonStrictSlow(MacroAssembler* masm);
+  void GenerateNewSloppyFast(MacroAssembler* masm);
+  void GenerateNewSloppySlow(MacroAssembler* masm);
 
   virtual void PrintName(StringStream* stream);
 };

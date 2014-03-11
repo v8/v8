@@ -1174,7 +1174,7 @@ MUST_USE_RESULT static MaybeObject* HandleApiCallHelper(
   }
 
   SharedFunctionInfo* shared = function->shared();
-  if (shared->is_classic_mode() && !shared->native()) {
+  if (shared->is_sloppy_mode() && !shared->native()) {
     Object* recv = args[0];
     ASSERT(!recv->IsNull());
     if (recv->IsUndefined()) {
@@ -1364,8 +1364,8 @@ static void Generate_KeyedLoadIC_IndexedInterceptor(MacroAssembler* masm) {
 }
 
 
-static void Generate_KeyedLoadIC_NonStrictArguments(MacroAssembler* masm) {
-  KeyedLoadIC::GenerateNonStrictArguments(masm);
+static void Generate_KeyedLoadIC_SloppyArguments(MacroAssembler* masm) {
+  KeyedLoadIC::GenerateSloppyArguments(masm);
 }
 
 
@@ -1390,7 +1390,7 @@ static void Generate_StoreIC_Setter_ForDeopt(MacroAssembler* masm) {
 
 
 static void Generate_KeyedStoreIC_Generic(MacroAssembler* masm) {
-  KeyedStoreIC::GenerateGeneric(masm, kNonStrictMode);
+  KeyedStoreIC::GenerateGeneric(masm, kSloppyMode);
 }
 
 
@@ -1429,8 +1429,8 @@ static void Generate_KeyedStoreIC_PreMonomorphic_Strict(MacroAssembler* masm) {
 }
 
 
-static void Generate_KeyedStoreIC_NonStrictArguments(MacroAssembler* masm) {
-  KeyedStoreIC::GenerateNonStrictArguments(masm);
+static void Generate_KeyedStoreIC_SloppyArguments(MacroAssembler* masm) {
+  KeyedStoreIC::GenerateSloppyArguments(masm);
 }
 
 

@@ -56,7 +56,7 @@ namespace internal {
 
 CompilationInfo::CompilationInfo(Handle<Script> script,
                                  Zone* zone)
-    : flags_(LanguageModeField::encode(CLASSIC_MODE)),
+    : flags_(LanguageModeField::encode(SLOPPY_MODE)),
       script_(script),
       osr_ast_id_(BailoutId::None()),
       parameter_count_(0),
@@ -68,7 +68,7 @@ CompilationInfo::CompilationInfo(Handle<Script> script,
 
 CompilationInfo::CompilationInfo(Handle<SharedFunctionInfo> shared_info,
                                  Zone* zone)
-    : flags_(LanguageModeField::encode(CLASSIC_MODE) | IsLazy::encode(true)),
+    : flags_(LanguageModeField::encode(SLOPPY_MODE) | IsLazy::encode(true)),
       shared_info_(shared_info),
       script_(Handle<Script>(Script::cast(shared_info->script()))),
       osr_ast_id_(BailoutId::None()),
@@ -81,7 +81,7 @@ CompilationInfo::CompilationInfo(Handle<SharedFunctionInfo> shared_info,
 
 CompilationInfo::CompilationInfo(Handle<JSFunction> closure,
                                  Zone* zone)
-    : flags_(LanguageModeField::encode(CLASSIC_MODE) | IsLazy::encode(true)),
+    : flags_(LanguageModeField::encode(SLOPPY_MODE) | IsLazy::encode(true)),
       closure_(closure),
       shared_info_(Handle<SharedFunctionInfo>(closure->shared())),
       script_(Handle<Script>(Script::cast(shared_info_->script()))),
@@ -97,7 +97,7 @@ CompilationInfo::CompilationInfo(Handle<JSFunction> closure,
 CompilationInfo::CompilationInfo(HydrogenCodeStub* stub,
                                  Isolate* isolate,
                                  Zone* zone)
-    : flags_(LanguageModeField::encode(CLASSIC_MODE) |
+    : flags_(LanguageModeField::encode(SLOPPY_MODE) |
              IsLazy::encode(true)),
       osr_ast_id_(BailoutId::None()),
       parameter_count_(0),
@@ -137,7 +137,7 @@ void CompilationInfo::Initialize(Isolate* isolate,
     MarkAsNative();
   }
   if (!shared_info_.is_null()) {
-    ASSERT(language_mode() == CLASSIC_MODE);
+    ASSERT(language_mode() == SLOPPY_MODE);
     SetLanguageMode(shared_info_->language_mode());
   }
   set_bailout_reason(kUnknown);
@@ -237,7 +237,7 @@ void CompilationInfo::DisableOptimization() {
     FLAG_optimize_closures &&
     closure_.is_null() &&
     !scope_->HasTrivialOuterContext() &&
-    !scope_->outer_scope_calls_non_strict_eval() &&
+    !scope_->outer_scope_calls_sloppy_eval() &&
     !scope_->inside_with();
   SetMode(is_optimizable_closure ? BASE : NONOPT);
 }
@@ -926,7 +926,7 @@ Handle<JSFunction> Compiler::GetFunctionFromEval(Handle<String> source,
       // If caller is strict mode, the result must be in strict mode or
       // extended mode as well, but not the other way around. Consider:
       // eval("'use strict'; ...");
-      ASSERT(language_mode != STRICT_MODE || !shared_info->is_classic_mode());
+      ASSERT(language_mode != STRICT_MODE || !shared_info->is_sloppy_mode());
       // If caller is in extended mode, the result must also be in
       // extended mode.
       ASSERT(language_mode != EXTENDED_MODE ||

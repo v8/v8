@@ -68,7 +68,7 @@ class FunctionEntry BASE_EMBEDDED {
   int literal_count() { return backing_[kLiteralCountIndex]; }
   int property_count() { return backing_[kPropertyCountIndex]; }
   LanguageMode language_mode() {
-    ASSERT(backing_[kLanguageModeIndex] == CLASSIC_MODE ||
+    ASSERT(backing_[kLanguageModeIndex] == SLOPPY_MODE ||
            backing_[kLanguageModeIndex] == STRICT_MODE ||
            backing_[kLanguageModeIndex] == EXTENDED_MODE);
     return static_cast<LanguageMode>(backing_[kLanguageModeIndex]);

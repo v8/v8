@@ -136,10 +136,9 @@ class CompilationCacheScript : public CompilationSubCache {
 // entries:
 // 1. The source string.
 // 2. The shared function info of the calling function.
-// 3. Whether the source should be compiled as strict code or as non-strict
-//    code.
+// 3. Whether the source should be compiled as strict code or as sloppy code.
 //    Note: Currently there are clients of CompileEval that always compile
-//    non-strict code even if the calling function is a strict mode function.
+//    sloppy code even if the calling function is a strict mode function.
 //    More specifically these are the CompileString, DebugEvaluate and
 //    DebugEvaluateGlobal runtime functions.
 // 4. The start position of the calling scope.

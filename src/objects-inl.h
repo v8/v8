@@ -1739,7 +1739,7 @@ MaybeObject* JSObject::ResetElements() {
     SeededNumberDictionary* dictionary;
     MaybeObject* maybe = SeededNumberDictionary::Allocate(GetHeap(), 0);
     if (!maybe->To(&dictionary)) return maybe;
-    if (map() == GetHeap()->non_strict_arguments_elements_map()) {
+    if (map() == GetHeap()->sloppy_arguments_elements_map()) {
       FixedArray::cast(elements())->set(1, dictionary);
     } else {
       set_elements(dictionary);
@@ -5153,27 +5153,27 @@ LanguageMode SharedFunctionInfo::language_mode() {
     return EXTENDED_MODE;
   }
   return BooleanBit::get(hints, kStrictModeFunction)
-      ? STRICT_MODE : CLASSIC_MODE;
+      ? STRICT_MODE : SLOPPY_MODE;
 }
 
 
 void SharedFunctionInfo::set_language_mode(LanguageMode language_mode) {
   // We only allow language mode transitions that go set the same language mode
   // again or go up in the chain:
-  //   CLASSIC_MODE -> STRICT_MODE -> EXTENDED_MODE.
-  ASSERT(this->language_mode() == CLASSIC_MODE ||
+  //   SLOPPY_MODE -> STRICT_MODE -> EXTENDED_MODE.
+  ASSERT(this->language_mode() == SLOPPY_MODE ||
          this->language_mode() == language_mode ||
          language_mode == EXTENDED_MODE);
   int hints = compiler_hints();
   hints = BooleanBit::set(
-      hints, kStrictModeFunction, language_mode != CLASSIC_MODE);
+      hints, kStrictModeFunction, language_mode != SLOPPY_MODE);
   hints = BooleanBit::set(
       hints, kExtendedModeFunction, language_mode == EXTENDED_MODE);
   set_compiler_hints(hints);
 }
 
 
-bool SharedFunctionInfo::is_classic_mode() {
+bool SharedFunctionInfo::is_sloppy_mode() {
   return !BooleanBit::get(compiler_hints(), kStrictModeFunction);
 }
 
@@ -5925,7 +5925,7 @@ ElementsKind JSObject::GetElementsKind() {
             fixed_array->IsFixedArray() &&
             fixed_array->IsDictionary()) ||
            (kind > DICTIONARY_ELEMENTS));
-    ASSERT((kind != NON_STRICT_ARGUMENTS_ELEMENTS) ||
+    ASSERT((kind != SLOPPY_ARGUMENTS_ELEMENTS) ||
            (elements()->IsFixedArray() && elements()->length() >= 2));
   }
 #endif
@@ -5973,8 +5973,8 @@ bool JSObject::HasDictionaryElements() {
 }
 
 
-bool JSObject::HasNonStrictArgumentsElements() {
-  return GetElementsKind() == NON_STRICT_ARGUMENTS_ELEMENTS;
+bool JSObject::HasSloppyArgumentsElements() {
+  return GetElementsKind() == SLOPPY_ARGUMENTS_ELEMENTS;
 }
 
 

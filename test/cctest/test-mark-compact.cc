@@ -170,7 +170,7 @@ TEST(MarkCompactCollector) {
                                   JSObject::kHeaderSize)->ToObjectChecked());
   function->set_initial_map(initial_map);
   JSReceiver::SetProperty(
-      global, handle(func_name), handle(function), NONE, kNonStrictMode);
+      global, handle(func_name), handle(function), NONE, kSloppyMode);
 
   JSObject* obj = JSObject::cast(
       heap->AllocateJSObject(function)->ToObjectChecked());
@@ -188,12 +188,12 @@ TEST(MarkCompactCollector) {
   String* obj_name =
       String::cast(heap->InternalizeUtf8String("theObject")->ToObjectChecked());
   JSReceiver::SetProperty(
-      global, handle(obj_name), handle(obj), NONE, kNonStrictMode);
+      global, handle(obj_name), handle(obj), NONE, kSloppyMode);
   String* prop_name =
       String::cast(heap->InternalizeUtf8String("theSlot")->ToObjectChecked());
   Handle<Smi> twenty_three(Smi::FromInt(23), isolate);
   JSReceiver::SetProperty(
-      handle(obj), handle(prop_name), twenty_three, NONE, kNonStrictMode);
+      handle(obj), handle(prop_name), twenty_three, NONE, kSloppyMode);
 
   heap->CollectGarbage(OLD_POINTER_SPACE, "trigger 5");
 

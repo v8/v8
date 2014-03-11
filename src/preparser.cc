@@ -157,7 +157,7 @@ PreParser::PreParseResult PreParser::PreParseLazyFunction(
     ReportUnexpectedToken(scanner()->current_token());
   } else {
     ASSERT_EQ(Token::RBRACE, scanner()->peek());
-    if (!scope_->is_classic_mode()) {
+    if (!scope_->is_sloppy_mode()) {
       int end_pos = scanner()->location().end_pos;
       CheckOctalLiteral(start_position, end_pos, &ok);
     }
@@ -319,7 +319,7 @@ PreParser::Statement PreParser::ParseStatement(bool* ok) {
       Scanner::Location start_location = scanner()->peek_location();
       Statement statement = ParseFunctionDeclaration(CHECK_OK);
       Scanner::Location end_location = scanner()->location();
-      if (!scope_->is_classic_mode()) {
+      if (!scope_->is_sloppy_mode()) {
         PreParserTraits::ReportMessageAt(start_location.beg_pos,
                                          end_location.end_pos,
                                          "strict_function",
@@ -432,12 +432,12 @@ PreParser::Statement PreParser::ParseVariableDeclarations(
     // * It is a Syntax Error if the code that matches this production is not
     //   contained in extended code.
     //
-    // However disallowing const in classic mode will break compatibility with
+    // However disallowing const in sloppy mode will break compatibility with
     // existing pages. Therefore we keep allowing const with the old
-    // non-harmony semantics in classic mode.
+    // non-harmony semantics in sloppy mode.
     Consume(Token::CONST);
     switch (scope_->language_mode()) {
-      case CLASSIC_MODE:
+      case SLOPPY_MODE:
         break;
       case STRICT_MODE: {
         Scanner::Location location = scanner()->peek_location();
@@ -515,7 +515,7 @@ PreParser::Statement PreParser::ParseExpressionOrLabelledStatement(bool* ok) {
     // Expression is a single identifier, and not, e.g., a parenthesized
     // identifier.
     ASSERT(!expr.AsIdentifier().IsFutureReserved());
-    ASSERT(scope_->is_classic_mode() ||
+    ASSERT(scope_->is_sloppy_mode() ||
            (!expr.AsIdentifier().IsFutureStrictReserved() &&
             !expr.AsIdentifier().IsYield()));
     Consume(Token::COLON);
@@ -613,7 +613,7 @@ PreParser::Statement PreParser::ParseWithStatement(bool* ok) {
   // WithStatement ::
   //   'with' '(' Expression ')' Statement
   Expect(Token::WITH, CHECK_OK);
-  if (!scope_->is_classic_mode()) {
+  if (!scope_->is_sloppy_mode()) {
     ReportMessageAt(scanner()->location(), "strict_mode_with");
     *ok = false;
     return Statement::Default();
@@ -852,7 +852,7 @@ PreParser::Expression PreParser::ParseAssignmentExpression(bool accept_IN,
     return expression;
   }
 
-  if (!scope_->is_classic_mode() &&
+  if (!scope_->is_sloppy_mode() &&
       expression.IsIdentifier() &&
       expression.AsIdentifier().IsEvalOrArguments()) {
     Scanner::Location after = scanner()->location();
@@ -946,7 +946,7 @@ PreParser::Expression PreParser::ParseUnaryExpression(bool* ok) {
     op = Next();
     Scanner::Location before = scanner()->peek_location();
     Expression expression = ParseUnaryExpression(CHECK_OK);
-    if (!scope_->is_classic_mode() &&
+    if (!scope_->is_sloppy_mode() &&
         expression.IsIdentifier() &&
         expression.AsIdentifier().IsEvalOrArguments()) {
       Scanner::Location after = scanner()->location();
@@ -969,7 +969,7 @@ PreParser::Expression PreParser::ParsePostfixExpression(bool* ok) {
   Expression expression = ParseLeftHandSideExpression(CHECK_OK);
   if (!scanner()->HasAnyLineTerminatorBeforeNext() &&
       Token::IsCountOp(peek())) {
-    if (!scope_->is_classic_mode() &&
+    if (!scope_->is_sloppy_mode() &&
         expression.IsIdentifier() &&
         expression.AsIdentifier().IsEvalOrArguments()) {
       Scanner::Location after = scanner()->location();
@@ -1313,7 +1313,7 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
 
   // Validate strict mode. We can do this only after parsing the function,
   // since the function can declare itself strict.
-  if (!scope_->is_classic_mode()) {
+  if (!scope_->is_sloppy_mode()) {
     if (function_name.IsEvalOrArguments()) {
       ReportMessageAt(function_name_location, "strict_eval_arguments");
       *ok = false;

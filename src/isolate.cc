@@ -453,10 +453,10 @@ Handle<JSArray> Isolate::CaptureSimpleStackTrace(Handle<JSObject> error_object,
   // If the caller parameter is a function we skip frames until we're
   // under it before starting to collect.
   bool seen_caller = !caller->IsJSFunction();
-  // First element is reserved to store the number of non-strict frames.
+  // First element is reserved to store the number of sloppy frames.
   int cursor = 1;
   int frames_seen = 0;
-  int non_strict_frames = 0;
+  int sloppy_frames = 0;
   bool encountered_strict_function = false;
   for (StackFrameIterator iter(this);
        !iter.done() && frames_seen < limit;
@@ -487,13 +487,13 @@ Handle<JSArray> Isolate::CaptureSimpleStackTrace(Handle<JSObject> error_object,
         Handle<Smi> offset(Smi::FromInt(frames[i].offset()), this);
         // The stack trace API should not expose receivers and function
         // objects on frames deeper than the top-most one with a strict
-        // mode function.  The number of non-strict frames is stored as
+        // mode function.  The number of sloppy frames is stored as
         // first element in the result array.
         if (!encountered_strict_function) {
-          if (!fun->shared()->is_classic_mode()) {
+          if (!fun->shared()->is_sloppy_mode()) {
             encountered_strict_function = true;
           } else {
-            non_strict_frames++;
+            sloppy_frames++;
           }
         }
         elements->set(cursor++, *recv);
@@ -503,7 +503,7 @@ Handle<JSArray> Isolate::CaptureSimpleStackTrace(Handle<JSObject> error_object,
       }
     }
   }
-  elements->set(0, Smi::FromInt(non_strict_frames));
+  elements->set(0, Smi::FromInt(sloppy_frames));
   Handle<JSArray> result = factory()->NewJSArrayWithElements(elements);
   result->set_length(Smi::FromInt(cursor));
   return result;

@@ -409,18 +409,15 @@ template <typename T, class P = FreeStoreAllocationPolicy> class List;
 
 // The different language modes that V8 implements. ES5 defines two language
 // modes: an unrestricted mode respectively a strict mode which are indicated by
-// CLASSIC_MODE respectively STRICT_MODE in the enum. The harmony spec drafts
+// SLOPPY_MODE respectively STRICT_MODE in the enum. The harmony spec drafts
 // for the next ES standard specify a new third mode which is called 'extended
 // mode'. The extended mode is only available if the harmony flag is set. It is
 // based on the 'strict mode' and adds new functionality to it. This means that
 // most of the semantics of these two modes coincide.
-//
-// In the current draft the term 'base code' is used to refer to code that is
-// neither in strict nor extended mode. However, the more distinguishing term
-// 'classic mode' is used in V8 instead to avoid mix-ups.
+// TODO(rossberg): remove extended mode.
 
 enum LanguageMode {
-  CLASSIC_MODE,
+  SLOPPY_MODE,
   STRICT_MODE,
   EXTENDED_MODE
 };
@@ -432,7 +429,7 @@ enum LanguageMode {
 // there is no semantic difference between the strict and the extended mode in
 // the backend, so both modes are represented by the kStrictMode value.
 enum StrictModeFlag {
-  kNonStrictMode,
+  kSloppyMode,
   kStrictMode
 };
 

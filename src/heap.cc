@@ -2866,7 +2866,7 @@ bool Heap::CreateInitialMaps() {
      TYPED_ARRAYS(ALLOCATE_FIXED_TYPED_ARRAY_MAP)
 #undef ALLOCATE_FIXED_TYPED_ARRAY_MAP
 
-    ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, non_strict_arguments_elements)
+    ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, sloppy_arguments_elements)
 
     ALLOCATE_VARSIZE_MAP(CODE_TYPE, code)
 
@@ -4277,7 +4277,7 @@ MaybeObject* Heap::AllocateArgumentsObject(Object* callee, int length) {
   JSObject* boilerplate;
   int arguments_object_size;
   bool strict_mode_callee = callee->IsJSFunction() &&
-      !JSFunction::cast(callee)->shared()->is_classic_mode();
+      !JSFunction::cast(callee)->shared()->is_sloppy_mode();
   if (strict_mode_callee) {
     boilerplate =
         isolate()->context()->native_context()->
@@ -4312,7 +4312,7 @@ MaybeObject* Heap::AllocateArgumentsObject(Object* callee, int length) {
   JSObject::cast(result)->InObjectPropertyAtPut(kArgumentsLengthIndex,
                                                 Smi::FromInt(length),
                                                 SKIP_WRITE_BARRIER);
-  // Set the callee property for non-strict mode arguments object only.
+  // Set the callee property for sloppy mode arguments object only.
   if (!strict_mode_callee) {
     JSObject::cast(result)->InObjectPropertyAtPut(kArgumentsCalleeIndex,
                                                   callee);

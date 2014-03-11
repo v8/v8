@@ -519,7 +519,7 @@ Handle<JSFunction> Genesis::CreateEmptyFunction(Isolate* isolate) {
   Handle<String> empty_string =
       factory->InternalizeOneByteString(STATIC_ASCII_VECTOR("Empty"));
   Handle<JSFunction> empty_function =
-      factory->NewFunctionWithoutPrototype(empty_string, CLASSIC_MODE);
+      factory->NewFunctionWithoutPrototype(empty_string, SLOPPY_MODE);
 
   // --- E m p t y ---
   Handle<Code> code =
@@ -604,7 +604,7 @@ Handle<JSFunction> Genesis::GetThrowTypeErrorFunction() {
     Handle<String> name = factory()->InternalizeOneByteString(
         STATIC_ASCII_VECTOR("ThrowTypeError"));
     throw_type_error_function =
-      factory()->NewFunctionWithoutPrototype(name, CLASSIC_MODE);
+      factory()->NewFunctionWithoutPrototype(name, SLOPPY_MODE);
     Handle<Code> code(isolate()->builtins()->builtin(
         Builtins::kStrictModePoisonPill));
     throw_type_error_function->set_map(
@@ -1173,7 +1173,7 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
   {  // --- aliased_arguments_boilerplate_
     // Set up a well-formed parameter map to make assertions happy.
     Handle<FixedArray> elements = factory->NewFixedArray(2);
-    elements->set_map(heap->non_strict_arguments_elements_map());
+    elements->set_map(heap->sloppy_arguments_elements_map());
     Handle<FixedArray> array;
     array = factory->NewFixedArray(0);
     elements->set(0, *array);
@@ -1186,9 +1186,9 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     Handle<JSObject> result = factory->NewJSObjectFromMap(new_map);
     // Set elements kind after allocating the object because
     // NewJSObjectFromMap assumes a fast elements map.
-    new_map->set_elements_kind(NON_STRICT_ARGUMENTS_ELEMENTS);
+    new_map->set_elements_kind(SLOPPY_ARGUMENTS_ELEMENTS);
     result->set_elements(*elements);
-    ASSERT(result->HasNonStrictArgumentsElements());
+    ASSERT(result->HasSloppyArgumentsElements());
     native_context()->set_aliased_arguments_boilerplate(*result);
   }
 
@@ -1240,7 +1240,7 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     map->set_pre_allocated_property_fields(1);
     map->set_inobject_properties(1);
 
-    // Copy constructor from the non-strict arguments boilerplate.
+    // Copy constructor from the sloppy arguments boilerplate.
     map->set_constructor(
       native_context()->arguments_boilerplate()->map()->constructor());
 

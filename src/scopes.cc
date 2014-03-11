@@ -191,8 +191,8 @@ void Scope::SetDefaults(ScopeType scope_type,
   scope_calls_eval_ = false;
   // Inherit the strict mode from the parent scope.
   language_mode_ = (outer_scope != NULL)
-      ? outer_scope->language_mode_ : CLASSIC_MODE;
-  outer_scope_calls_non_strict_eval_ = false;
+      ? outer_scope->language_mode_ : SLOPPY_MODE;
+  outer_scope_calls_sloppy_eval_ = false;
   inner_scope_calls_eval_ = false;
   force_eager_compilation_ = false;
   force_context_allocation_ = (outer_scope != NULL && !is_function_scope())
@@ -643,13 +643,13 @@ void Scope::CollectStackAndContextLocals(ZoneList<Variable*>* stack_locals,
 bool Scope::AllocateVariables(CompilationInfo* info,
                               AstNodeFactory<AstNullVisitor>* factory) {
   // 1) Propagate scope information.
-  bool outer_scope_calls_non_strict_eval = false;
+  bool outer_scope_calls_sloppy_eval = false;
   if (outer_scope_ != NULL) {
-    outer_scope_calls_non_strict_eval =
-        outer_scope_->outer_scope_calls_non_strict_eval() |
-        outer_scope_->calls_non_strict_eval();
+    outer_scope_calls_sloppy_eval =
+        outer_scope_->outer_scope_calls_sloppy_eval() |
+        outer_scope_->calls_sloppy_eval();
   }
-  PropagateScopeInfo(outer_scope_calls_non_strict_eval);
+  PropagateScopeInfo(outer_scope_calls_sloppy_eval);
 
   // 2) Allocate module instances.
   if (FLAG_harmony_modules && (is_global_scope() || is_module_scope())) {
@@ -882,7 +882,7 @@ void Scope::Print(int n) {
     Indent(n1, "// scope has trivial outer context\n");
   }
   switch (language_mode()) {
-    case CLASSIC_MODE:
+    case SLOPPY_MODE:
       break;
     case STRICT_MODE:
       Indent(n1, "// strict mode scope\n");
@@ -894,8 +894,8 @@ void Scope::Print(int n) {
   if (scope_inside_with_) Indent(n1, "// scope inside 'with'\n");
   if (scope_contains_with_) Indent(n1, "// scope contains 'with'\n");
   if (scope_calls_eval_) Indent(n1, "// scope calls 'eval'\n");
-  if (outer_scope_calls_non_strict_eval_) {
-    Indent(n1, "// outer scope calls 'eval' in non-strict context\n");
+  if (outer_scope_calls_sloppy_eval_) {
+    Indent(n1, "// outer scope calls 'eval' in sloppy context\n");
   }
   if (inner_scope_calls_eval_) Indent(n1, "// inner scope calls 'eval'\n");
   if (num_stack_slots_ > 0) { Indent(n1, "// ");
@@ -1017,9 +1017,9 @@ Variable* Scope::LookupRecursive(Handle<String> name,
     // object).
     *binding_kind = DYNAMIC_LOOKUP;
     return NULL;
-  } else if (calls_non_strict_eval()) {
+  } else if (calls_sloppy_eval()) {
     // A variable binding may have been found in an outer scope, but the current
-    // scope makes a non-strict 'eval' call, so the found variable may not be
+    // scope makes a sloppy 'eval' call, so the found variable may not be
     // the correct one (the 'eval' may introduce a binding with the same name).
     // In that case, change the lookup result to reflect this situation.
     if (*binding_kind == BOUND) {
@@ -1071,8 +1071,7 @@ bool Scope::ResolveVariable(CompilationInfo* info,
       break;
 
     case UNBOUND_EVAL_SHADOWED:
-      // No binding has been found. But some scope makes a
-      // non-strict 'eval' call.
+      // No binding has been found. But some scope makes a sloppy 'eval' call.
       var = NonLocal(proxy->name(), DYNAMIC_GLOBAL);
       break;
 
@@ -1157,16 +1156,16 @@ bool Scope::ResolveVariablesRecursively(
 }
 
 
-bool Scope::PropagateScopeInfo(bool outer_scope_calls_non_strict_eval ) {
-  if (outer_scope_calls_non_strict_eval) {
-    outer_scope_calls_non_strict_eval_ = true;
+bool Scope::PropagateScopeInfo(bool outer_scope_calls_sloppy_eval ) {
+  if (outer_scope_calls_sloppy_eval) {
+    outer_scope_calls_sloppy_eval_ = true;
   }
 
-  bool calls_non_strict_eval =
-      this->calls_non_strict_eval() || outer_scope_calls_non_strict_eval_;
+  bool calls_sloppy_eval =
+      this->calls_sloppy_eval() || outer_scope_calls_sloppy_eval_;
   for (int i = 0; i < inner_scopes_.length(); i++) {
     Scope* inner_scope = inner_scopes_[i];
-    if (inner_scope->PropagateScopeInfo(calls_non_strict_eval)) {
+    if (inner_scope->PropagateScopeInfo(calls_sloppy_eval)) {
       inner_scope_calls_eval_ = true;
     }
     if (inner_scope->force_eager_compilation_) {
@@ -1246,7 +1245,7 @@ void Scope::AllocateParameterLocals() {
   Variable* arguments = LocalLookup(isolate_->factory()->arguments_string());
   ASSERT(arguments != NULL);  // functions have 'arguments' declared implicitly
 
-  bool uses_nonstrict_arguments = false;
+  bool uses_sloppy_arguments = false;
 
   if (MustAllocate(arguments) && !HasArgumentsParameter()) {
     // 'arguments' is used. Unless there is also a parameter called
@@ -1265,7 +1264,7 @@ void Scope::AllocateParameterLocals() {
     // In strict mode 'arguments' does not alias formal parameters.
     // Therefore in strict mode we allocate parameters as if 'arguments'
     // were not used.
-    uses_nonstrict_arguments = is_classic_mode();
+    uses_sloppy_arguments = is_sloppy_mode();
   }
 
   // The same parameter may occur multiple times in the parameters_ list.
@@ -1275,7 +1274,7 @@ void Scope::AllocateParameterLocals() {
   for (int i = params_.length() - 1; i >= 0; --i) {
     Variable* var = params_[i];
     ASSERT(var->scope() == this);
-    if (uses_nonstrict_arguments) {
+    if (uses_sloppy_arguments) {
       // Force context allocation of the parameter.
       var->ForceContextAllocation();
     }

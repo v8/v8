@@ -68,7 +68,7 @@
 //     - FixedFloat64ElementsAccessor
 //     - FixedUint8ClampedElementsAccessor
 //   - DictionaryElementsAccessor
-//   - NonStrictArgumentsElementsAccessor
+//   - SloppyArgumentsElementsAccessor
 
 
 namespace v8 {
@@ -95,7 +95,7 @@ static const int kPackedSizeNotKnown = -1;
     FixedDoubleArray)                                                   \
   V(DictionaryElementsAccessor, DICTIONARY_ELEMENTS,                    \
     SeededNumberDictionary)                                             \
-  V(NonStrictArgumentsElementsAccessor, NON_STRICT_ARGUMENTS_ELEMENTS,  \
+  V(SloppyArgumentsElementsAccessor, SLOPPY_ARGUMENTS_ELEMENTS,         \
     FixedArray)                                                         \
   V(ExternalInt8ElementsAccessor, EXTERNAL_INT8_ELEMENTS,               \
     ExternalInt8Array)                                                  \
@@ -920,7 +920,7 @@ class FastElementsAccessor
                              KindTraits>(name) {}
  protected:
   friend class ElementsAccessorBase<FastElementsAccessorSubclass, KindTraits>;
-  friend class NonStrictArgumentsElementsAccessor;
+  friend class SloppyArgumentsElementsAccessor;
 
   typedef typename KindTraits::BackingStore BackingStore;
 
@@ -998,9 +998,9 @@ class FastElementsAccessor
     }
     typename KindTraits::BackingStore* backing_store =
         KindTraits::BackingStore::cast(elements);
-    bool is_non_strict_arguments_elements_map =
-        backing_store->map() == heap->non_strict_arguments_elements_map();
-    if (is_non_strict_arguments_elements_map) {
+    bool is_sloppy_arguments_elements_map =
+        backing_store->map() == heap->sloppy_arguments_elements_map();
+    if (is_sloppy_arguments_elements_map) {
       backing_store = KindTraits::BackingStore::cast(
           FixedArray::cast(backing_store)->get(1));
     }
@@ -1009,7 +1009,7 @@ class FastElementsAccessor
         ? Smi::cast(JSArray::cast(obj)->length())->value()
         : backing_store->length());
     if (key < length) {
-      if (!is_non_strict_arguments_elements_map) {
+      if (!is_sloppy_arguments_elements_map) {
         ElementsKind kind = KindTraits::Kind;
         if (IsFastPackedElementsKind(kind)) {
           MaybeObject* transitioned =
@@ -1152,9 +1152,9 @@ class FastSmiOrObjectElementsAccessor
         CopyDictionaryToObjectElements(
             from, from_start, to, to_kind, to_start, copy_size);
         return to->GetHeap()->undefined_value();
-      case NON_STRICT_ARGUMENTS_ELEMENTS: {
+      case SLOPPY_ARGUMENTS_ELEMENTS: {
         // TODO(verwaest): This is a temporary hack to support extending
-        // NON_STRICT_ARGUMENTS_ELEMENTS in SetFastElementsCapacityAndLength.
+        // SLOPPY_ARGUMENTS_ELEMENTS in SetFastElementsCapacityAndLength.
         // This case should be UNREACHABLE().
         FixedArray* parameter_map = FixedArray::cast(from);
         FixedArrayBase* arguments = FixedArrayBase::cast(parameter_map->get(1));
@@ -1282,7 +1282,7 @@ class FastDoubleElementsAccessor
         CopyDictionaryToDoubleElements(
             from, from_start, to, to_start, copy_size);
         break;
-      case NON_STRICT_ARGUMENTS_ELEMENTS:
+      case SLOPPY_ARGUMENTS_ELEMENTS:
         UNREACHABLE();
 
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size)                       \
@@ -1492,7 +1492,7 @@ class DictionaryElementsAccessor
     Heap* heap = isolate->heap();
     FixedArray* backing_store = FixedArray::cast(obj->elements());
     bool is_arguments =
-        (obj->GetElementsKind() == NON_STRICT_ARGUMENTS_ELEMENTS);
+        (obj->GetElementsKind() == SLOPPY_ARGUMENTS_ELEMENTS);
     if (is_arguments) {
       backing_store = FixedArray::cast(backing_store->get(1));
     }
@@ -1632,18 +1632,18 @@ class DictionaryElementsAccessor
 };
 
 
-class NonStrictArgumentsElementsAccessor : public ElementsAccessorBase<
-    NonStrictArgumentsElementsAccessor,
-    ElementsKindTraits<NON_STRICT_ARGUMENTS_ELEMENTS> > {
+class SloppyArgumentsElementsAccessor : public ElementsAccessorBase<
+    SloppyArgumentsElementsAccessor,
+    ElementsKindTraits<SLOPPY_ARGUMENTS_ELEMENTS> > {
  public:
-  explicit NonStrictArgumentsElementsAccessor(const char* name)
+  explicit SloppyArgumentsElementsAccessor(const char* name)
       : ElementsAccessorBase<
-          NonStrictArgumentsElementsAccessor,
-          ElementsKindTraits<NON_STRICT_ARGUMENTS_ELEMENTS> >(name) {}
+          SloppyArgumentsElementsAccessor,
+          ElementsKindTraits<SLOPPY_ARGUMENTS_ELEMENTS> >(name) {}
  protected:
   friend class ElementsAccessorBase<
-      NonStrictArgumentsElementsAccessor,
-      ElementsKindTraits<NON_STRICT_ARGUMENTS_ELEMENTS> >;
+      SloppyArgumentsElementsAccessor,
+      ElementsKindTraits<SLOPPY_ARGUMENTS_ELEMENTS> >;
 
   MUST_USE_RESULT static MaybeObject* GetImpl(Object* receiver,
                                               JSObject* obj,

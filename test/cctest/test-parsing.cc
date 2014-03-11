@@ -924,28 +924,28 @@ TEST(ScopePositions) {
   };
 
   const SourceData source_data[] = {
-    { "  with ({}) ", "{ block; }", " more;", i::WITH_SCOPE, i::CLASSIC_MODE },
-    { "  with ({}) ", "{ block; }", "; more;", i::WITH_SCOPE, i::CLASSIC_MODE },
+    { "  with ({}) ", "{ block; }", " more;", i::WITH_SCOPE, i::SLOPPY_MODE },
+    { "  with ({}) ", "{ block; }", "; more;", i::WITH_SCOPE, i::SLOPPY_MODE },
     { "  with ({}) ", "{\n"
       "    block;\n"
       "  }", "\n"
-      "  more;", i::WITH_SCOPE, i::CLASSIC_MODE },
-    { "  with ({}) ", "statement;", " more;", i::WITH_SCOPE, i::CLASSIC_MODE },
+      "  more;", i::WITH_SCOPE, i::SLOPPY_MODE },
+    { "  with ({}) ", "statement;", " more;", i::WITH_SCOPE, i::SLOPPY_MODE },
     { "  with ({}) ", "statement", "\n"
-      "  more;", i::WITH_SCOPE, i::CLASSIC_MODE },
+      "  more;", i::WITH_SCOPE, i::SLOPPY_MODE },
     { "  with ({})\n"
       "    ", "statement;", "\n"
-      "  more;", i::WITH_SCOPE, i::CLASSIC_MODE },
+      "  more;", i::WITH_SCOPE, i::SLOPPY_MODE },
     { "  try {} catch ", "(e) { block; }", " more;",
-      i::CATCH_SCOPE, i::CLASSIC_MODE },
+      i::CATCH_SCOPE, i::SLOPPY_MODE },
     { "  try {} catch ", "(e) { block; }", "; more;",
-      i::CATCH_SCOPE, i::CLASSIC_MODE },
+      i::CATCH_SCOPE, i::SLOPPY_MODE },
     { "  try {} catch ", "(e) {\n"
       "    block;\n"
       "  }", "\n"
-      "  more;", i::CATCH_SCOPE, i::CLASSIC_MODE },
+      "  more;", i::CATCH_SCOPE, i::SLOPPY_MODE },
     { "  try {} catch ", "(e) { block; }", " finally { block; } more;",
-      i::CATCH_SCOPE, i::CLASSIC_MODE },
+      i::CATCH_SCOPE, i::SLOPPY_MODE },
     { "  start;\n"
       "  ", "{ let block; }", " more;", i::BLOCK_SCOPE, i::EXTENDED_MODE },
     { "  start;\n"
@@ -957,14 +957,14 @@ TEST(ScopePositions) {
       "  more;", i::BLOCK_SCOPE, i::EXTENDED_MODE },
     { "  start;\n"
       "  function fun", "(a,b) { infunction; }", " more;",
-      i::FUNCTION_SCOPE, i::CLASSIC_MODE },
+      i::FUNCTION_SCOPE, i::SLOPPY_MODE },
     { "  start;\n"
       "  function fun", "(a,b) {\n"
       "    infunction;\n"
       "  }", "\n"
-      "  more;", i::FUNCTION_SCOPE, i::CLASSIC_MODE },
+      "  more;", i::FUNCTION_SCOPE, i::SLOPPY_MODE },
     { "  (function fun", "(a,b) { infunction; }", ")();",
-      i::FUNCTION_SCOPE, i::CLASSIC_MODE },
+      i::FUNCTION_SCOPE, i::SLOPPY_MODE },
     { "  for ", "(let x = 1 ; x < 10; ++ x) { block; }", " more;",
       i::BLOCK_SCOPE, i::EXTENDED_MODE },
     { "  for ", "(let x = 1 ; x < 10; ++ x) { block; }", "; more;",
@@ -1000,87 +1000,87 @@ TEST(ScopePositions) {
     // 6 byte encoding.
     { "  'foo\355\240\201\355\260\211';\n"
       "  (function fun", "(a,b) { infunction; }", ")();",
-      i::FUNCTION_SCOPE, i::CLASSIC_MODE },
+      i::FUNCTION_SCOPE, i::SLOPPY_MODE },
     // 4 byte encoding.
     { "  'foo\360\220\220\212';\n"
       "  (function fun", "(a,b) { infunction; }", ")();",
-      i::FUNCTION_SCOPE, i::CLASSIC_MODE },
+      i::FUNCTION_SCOPE, i::SLOPPY_MODE },
     // 3 byte encoding of \u0fff.
     { "  'foo\340\277\277';\n"
       "  (function fun", "(a,b) { infunction; }", ")();",
-      i::FUNCTION_SCOPE, i::CLASSIC_MODE },
+      i::FUNCTION_SCOPE, i::SLOPPY_MODE },
     // Broken 6 byte encoding with missing last byte.
     { "  'foo\355\240\201\355\211';\n"
       "  (function fun", "(a,b) { infunction; }", ")();",
-      i::FUNCTION_SCOPE, i::CLASSIC_MODE },
+      i::FUNCTION_SCOPE, i::SLOPPY_MODE },
     // Broken 3 byte encoding of \u0fff with missing last byte.
     { "  'foo\340\277';\n"
       "  (function fun", "(a,b) { infunction; }", ")();",
-      i::FUNCTION_SCOPE, i::CLASSIC_MODE },
+      i::FUNCTION_SCOPE, i::SLOPPY_MODE },
     // Broken 3 byte encoding of \u0fff with missing 2 last bytes.
     { "  'foo\340';\n"
       "  (function fun", "(a,b) { infunction; }", ")();",
-      i::FUNCTION_SCOPE, i::CLASSIC_MODE },
+      i::FUNCTION_SCOPE, i::SLOPPY_MODE },
     // Broken 3 byte encoding of \u00ff should be a 2 byte encoding.
     { "  'foo\340\203\277';\n"
       "  (function fun", "(a,b) { infunction; }", ")();",
-      i::FUNCTION_SCOPE, i::CLASSIC_MODE },
+      i::FUNCTION_SCOPE, i::SLOPPY_MODE },
     // Broken 3 byte encoding of \u007f should be a 2 byte encoding.
     { "  'foo\340\201\277';\n"
       "  (function fun", "(a,b) { infunction; }", ")();",
-      i::FUNCTION_SCOPE, i::CLASSIC_MODE },
+      i::FUNCTION_SCOPE, i::SLOPPY_MODE },
     // Unpaired lead surrogate.
     { "  'foo\355\240\201';\n"
       "  (function fun", "(a,b) { infunction; }", ")();",
-      i::FUNCTION_SCOPE, i::CLASSIC_MODE },
+      i::FUNCTION_SCOPE, i::SLOPPY_MODE },
     // Unpaired lead surrogate where following code point is a 3 byte sequence.
     { "  'foo\355\240\201\340\277\277';\n"
       "  (function fun", "(a,b) { infunction; }", ")();",
-      i::FUNCTION_SCOPE, i::CLASSIC_MODE },
+      i::FUNCTION_SCOPE, i::SLOPPY_MODE },
     // Unpaired lead surrogate where following code point is a 4 byte encoding
     // of a trail surrogate.
     { "  'foo\355\240\201\360\215\260\211';\n"
       "  (function fun", "(a,b) { infunction; }", ")();",
-      i::FUNCTION_SCOPE, i::CLASSIC_MODE },
+      i::FUNCTION_SCOPE, i::SLOPPY_MODE },
     // Unpaired trail surrogate.
     { "  'foo\355\260\211';\n"
       "  (function fun", "(a,b) { infunction; }", ")();",
-      i::FUNCTION_SCOPE, i::CLASSIC_MODE },
+      i::FUNCTION_SCOPE, i::SLOPPY_MODE },
     // 2 byte encoding of \u00ff.
     { "  'foo\303\277';\n"
       "  (function fun", "(a,b) { infunction; }", ")();",
-      i::FUNCTION_SCOPE, i::CLASSIC_MODE },
+      i::FUNCTION_SCOPE, i::SLOPPY_MODE },
     // Broken 2 byte encoding of \u00ff with missing last byte.
     { "  'foo\303';\n"
       "  (function fun", "(a,b) { infunction; }", ")();",
-      i::FUNCTION_SCOPE, i::CLASSIC_MODE },
+      i::FUNCTION_SCOPE, i::SLOPPY_MODE },
     // Broken 2 byte encoding of \u007f should be a 1 byte encoding.
     { "  'foo\301\277';\n"
       "  (function fun", "(a,b) { infunction; }", ")();",
-      i::FUNCTION_SCOPE, i::CLASSIC_MODE },
+      i::FUNCTION_SCOPE, i::SLOPPY_MODE },
     // Illegal 5 byte encoding.
     { "  'foo\370\277\277\277\277';\n"
       "  (function fun", "(a,b) { infunction; }", ")();",
-      i::FUNCTION_SCOPE, i::CLASSIC_MODE },
+      i::FUNCTION_SCOPE, i::SLOPPY_MODE },
     // Illegal 6 byte encoding.
     { "  'foo\374\277\277\277\277\277';\n"
       "  (function fun", "(a,b) { infunction; }", ")();",
-      i::FUNCTION_SCOPE, i::CLASSIC_MODE },
+      i::FUNCTION_SCOPE, i::SLOPPY_MODE },
     // Illegal 0xfe byte
     { "  'foo\376\277\277\277\277\277\277';\n"
       "  (function fun", "(a,b) { infunction; }", ")();",
-      i::FUNCTION_SCOPE, i::CLASSIC_MODE },
+      i::FUNCTION_SCOPE, i::SLOPPY_MODE },
     // Illegal 0xff byte
     { "  'foo\377\277\277\277\277\277\277\277';\n"
       "  (function fun", "(a,b) { infunction; }", ")();",
-      i::FUNCTION_SCOPE, i::CLASSIC_MODE },
+      i::FUNCTION_SCOPE, i::SLOPPY_MODE },
     { "  'foo';\n"
       "  (function fun", "(a,b) { 'bar\355\240\201\355\260\213'; }", ")();",
-      i::FUNCTION_SCOPE, i::CLASSIC_MODE },
+      i::FUNCTION_SCOPE, i::SLOPPY_MODE },
     { "  'foo';\n"
       "  (function fun", "(a,b) { 'bar\360\220\220\214'; }", ")();",
-      i::FUNCTION_SCOPE, i::CLASSIC_MODE },
-    { NULL, NULL, NULL, i::EVAL_SCOPE, i::CLASSIC_MODE }
+      i::FUNCTION_SCOPE, i::SLOPPY_MODE },
+    { NULL, NULL, NULL, i::EVAL_SCOPE, i::SLOPPY_MODE }
   };
 
   i::Isolate* isolate = CcTest::i_isolate();
@@ -1152,7 +1152,7 @@ i::Handle<i::String> FormatMessage(i::ScriptDataImpl* data) {
     i::JSArray::SetElement(
         args_array, i, v8::Utils::OpenHandle(*v8::String::NewFromUtf8(
                                                   CcTest::isolate(), args[i])),
-        NONE, i::kNonStrictMode);
+        NONE, i::kSloppyMode);
   }
   i::Handle<i::JSObject> builtins(isolate->js_builtins_object());
   i::Handle<i::Object> format_fun =
@@ -1537,7 +1537,7 @@ TEST(ErrorsEvalAndArguments) {
 }
 
 
-TEST(NoErrorsEvalAndArgumentsClassic) {
+TEST(NoErrorsEvalAndArgumentsSloppy) {
   // Tests that both preparsing and parsing accept "eval" and "arguments" as
   // identifiers when needed.
   const char* context_data[][2] = {
@@ -1682,8 +1682,8 @@ TEST(ErrorsReservedWords) {
 }
 
 
-TEST(NoErrorsYieldClassic) {
-  // In classic mode, it's okay to use "yield" as identifier, *except* inside a
+TEST(NoErrorsYieldSloppy) {
+  // In sloppy mode, it's okay to use "yield" as identifier, *except* inside a
   // generator (see next test).
   const char* context_data[][2] = {
     { "", "" },
@@ -1709,7 +1709,7 @@ TEST(NoErrorsYieldClassic) {
 }
 
 
-TEST(ErrorsYieldClassicGenerator) {
+TEST(ErrorsYieldSloppyGenerator) {
   const char* context_data[][2] = {
     { "function * is_gen() {", "}" },
     { NULL, NULL }
@@ -1825,7 +1825,7 @@ TEST(NoErrorsNameOfStrictFunction) {
 
 
 
-TEST(ErrorsIllegalWordsAsLabelsClassic) {
+TEST(ErrorsIllegalWordsAsLabelsSloppy) {
   // Using future reserved words as labels is always an error.
   const char* context_data[][2] = {
     { "", ""},

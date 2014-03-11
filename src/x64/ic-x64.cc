@@ -852,7 +852,7 @@ static Operand GenerateMappedArgumentsLookup(MacroAssembler* masm,
 
   // Load the elements into scratch1 and check its map. If not, jump
   // to the unmapped lookup with the parameter map in scratch1.
-  Handle<Map> arguments_map(heap->non_strict_arguments_elements_map());
+  Handle<Map> arguments_map(heap->sloppy_arguments_elements_map());
   __ movp(scratch1, FieldOperand(object, JSObject::kElementsOffset));
   __ CheckMap(scratch1, arguments_map, slow_case, DONT_DO_SMI_CHECK);
 
@@ -909,7 +909,7 @@ static Operand GenerateUnmappedArgumentsLookup(MacroAssembler* masm,
 }
 
 
-void KeyedLoadIC::GenerateNonStrictArguments(MacroAssembler* masm) {
+void KeyedLoadIC::GenerateSloppyArguments(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- rax    : key
   //  -- rdx    : receiver
@@ -934,7 +934,7 @@ void KeyedLoadIC::GenerateNonStrictArguments(MacroAssembler* masm) {
 }
 
 
-void KeyedStoreIC::GenerateNonStrictArguments(MacroAssembler* masm) {
+void KeyedStoreIC::GenerateSloppyArguments(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- rax    : value
   //  -- rcx    : key

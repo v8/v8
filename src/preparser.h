@@ -297,7 +297,7 @@ class ParserBase : public Traits {
     return function_state_->factory();
   }
 
-  bool is_classic_mode() const { return scope_->is_classic_mode(); }
+  bool is_sloppy_mode() const { return scope_->is_sloppy_mode(); }
 
   bool is_generator() const { return function_state_->is_generator(); }
 
@@ -568,13 +568,13 @@ class PreParserScope {
       language_mode_ = outer_scope->language_mode();
     } else {
       scope_inside_with_ = is_with_scope();
-      language_mode_ = CLASSIC_MODE;
+      language_mode_ = SLOPPY_MODE;
     }
   }
 
   bool is_with_scope() const { return scope_type_ == WITH_SCOPE; }
-  bool is_classic_mode() const {
-    return language_mode() == CLASSIC_MODE;
+  bool is_sloppy_mode() const {
+    return language_mode() == SLOPPY_MODE;
   }
   bool is_extended_mode() {
     return language_mode() == EXTENDED_MODE;
@@ -763,7 +763,7 @@ class PreParser : public ParserBase<PreParserTraits> {
     if (stack_overflow()) return kPreParseStackOverflow;
     if (!ok) {
       ReportUnexpectedToken(scanner()->current_token());
-    } else if (!scope_->is_classic_mode()) {
+    } else if (!scope_->is_sloppy_mode()) {
       CheckOctalLiteral(start_position, scanner()->location().end_pos, &ok);
     }
     return kPreParseSuccess;
@@ -976,7 +976,7 @@ void ParserBase<Traits>::ReportUnexpectedToken(Token::Value token) {
     case Token::YIELD:
     case Token::FUTURE_STRICT_RESERVED_WORD:
       return ReportMessageAt(source_location,
-                             is_classic_mode() ? "unexpected_token_identifier"
+                             is_sloppy_mode() ? "unexpected_token_identifier"
                                                : "unexpected_strict_reserved");
     default:
       const char* name = Token::String(token);
@@ -995,12 +995,12 @@ typename Traits::Type::Identifier ParserBase<Traits>::ParseIdentifier(
   if (next == Token::IDENTIFIER) {
     typename Traits::Type::Identifier name = this->GetSymbol(scanner());
     if (allow_eval_or_arguments == kDontAllowEvalOrArguments &&
-        !is_classic_mode() && this->IsEvalOrArguments(name)) {
+        !is_sloppy_mode() && this->IsEvalOrArguments(name)) {
       ReportMessageAt(scanner()->location(), "strict_eval_arguments");
       *ok = false;
     }
     return name;
-  } else if (is_classic_mode() && (next == Token::FUTURE_STRICT_RESERVED_WORD ||
+  } else if (is_sloppy_mode() && (next == Token::FUTURE_STRICT_RESERVED_WORD ||
                                    (next == Token::YIELD && !is_generator()))) {
     return this->GetSymbol(scanner());
   } else {
@@ -1260,7 +1260,7 @@ void ParserBase<Traits>::ObjectLiteralChecker::CheckProperty(
   if (HasConflict(old_type, type)) {
     if (IsDataDataConflict(old_type, type)) {
       // Both are data properties.
-      if (language_mode_ == CLASSIC_MODE) return;
+      if (language_mode_ == SLOPPY_MODE) return;
       parser()->ReportMessageAt(scanner()->location(),
                                "strict_duplicate_property");
     } else if (IsDataAccessorConflict(old_type, type)) {

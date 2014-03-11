@@ -2303,7 +2303,7 @@ void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
 }
 
 
-void ArgumentsAccessStub::GenerateNewNonStrictSlow(MacroAssembler* masm) {
+void ArgumentsAccessStub::GenerateNewSloppySlow(MacroAssembler* masm) {
   // Stack layout on entry.
   //  jssp[0]:  number of parameters (tagged)
   //  jssp[8]:  address of receiver argument
@@ -2333,7 +2333,7 @@ void ArgumentsAccessStub::GenerateNewNonStrictSlow(MacroAssembler* masm) {
 }
 
 
-void ArgumentsAccessStub::GenerateNewNonStrictFast(MacroAssembler* masm) {
+void ArgumentsAccessStub::GenerateNewSloppyFast(MacroAssembler* masm) {
   // Stack layout on entry.
   //  jssp[0]:  number of parameters (tagged)
   //  jssp[8]:  address of receiver argument
@@ -2498,7 +2498,7 @@ void ArgumentsAccessStub::GenerateNewNonStrictFast(MacroAssembler* masm) {
   __ CmovX(backing_store, elements, eq);
   __ B(eq, &skip_parameter_map);
 
-  __ LoadRoot(x10, Heap::kNonStrictArgumentsElementsMapRootIndex);
+  __ LoadRoot(x10, Heap::kSloppyArgumentsElementsMapRootIndex);
   __ Str(x10, FieldMemOperand(elements, FixedArray::kMapOffset));
   __ Add(x10, mapped_params, 2);
   __ SmiTag(x10);
@@ -3405,7 +3405,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
       __ Tbnz(w4, SharedFunctionInfo::kNative, &cont);
     }
 
-    // Compute the receiver in non-strict mode.
+    // Compute the receiver in sloppy mode.
     __ Peek(x3, argc_ * kPointerSize);
 
     if (NeedsChecks()) {

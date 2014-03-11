@@ -164,7 +164,7 @@ namespace internal {
   V(Map, fixed_float32_array_map, FixedFloat32ArrayMap)                        \
   V(Map, fixed_float64_array_map, FixedFloat64ArrayMap)                        \
   V(Map, fixed_uint8_clamped_array_map, FixedUint8ClampedArrayMap)             \
-  V(Map, non_strict_arguments_elements_map, NonStrictArgumentsElementsMap)     \
+  V(Map, sloppy_arguments_elements_map, SloppyArgumentsElementsMap)            \
   V(Map, function_context_map, FunctionContextMap)                             \
   V(Map, catch_context_map, CatchContextMap)                                   \
   V(Map, with_context_map, WithContextMap)                                     \
@@ -250,7 +250,7 @@ namespace internal {
   V(empty_constant_pool_array)            \
   V(arguments_marker)                     \
   V(symbol_map)                           \
-  V(non_strict_arguments_elements_map)    \
+  V(sloppy_arguments_elements_map)        \
   V(function_context_map)                 \
   V(catch_context_map)                    \
   V(with_context_map)                     \
@@ -1086,7 +1086,7 @@ class Heap {
       JSObject::kHeaderSize + 1 * kPointerSize;
   // Indicies for direct access into argument objects.
   static const int kArgumentsLengthIndex = 0;
-  // callee is only valid in non-strict mode.
+  // callee is only valid in sloppy mode.
   static const int kArgumentsCalleeIndex = 1;
 
   // Allocates an arguments object - optionally with an elements array.

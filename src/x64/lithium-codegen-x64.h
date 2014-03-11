@@ -131,7 +131,7 @@ class LCodeGen: public LCodeGenBase {
 
  private:
   StrictModeFlag strict_mode_flag() const {
-    return info()->is_classic_mode() ? kNonStrictMode : kStrictMode;
+    return info()->is_sloppy_mode() ? kSloppyMode : kStrictMode;
   }
 
   LPlatformChunk* chunk() const { return chunk_; }

@@ -2163,7 +2163,7 @@ Handle<Object> JSObject::AddProperty(Handle<JSObject> object,
 
   if (extensibility_check == PERFORM_EXTENSIBILITY_CHECK &&
       !object->map()->is_extensible()) {
-    if (strict_mode == kNonStrictMode) {
+    if (strict_mode == kSloppyMode) {
       return value;
     } else {
       Handle<Object> args[1] = { name };
@@ -2953,7 +2953,7 @@ Handle<Object> JSObject::SetPropertyWithCallback(Handle<JSObject> object,
       return SetPropertyWithDefinedSetter(
           object, Handle<JSReceiver>::cast(setter), value);
     } else {
-      if (strict_mode == kNonStrictMode) {
+      if (strict_mode == kSloppyMode) {
         return value;
       }
       Handle<Object> args[2] = { name, holder };
@@ -3090,7 +3090,7 @@ Handle<Object> JSObject::SetPropertyViaPrototypes(Handle<JSObject> object,
 
   // If we get here with *done true, we have encountered a read-only property.
   if (*done) {
-    if (strict_mode == kNonStrictMode) return value;
+    if (strict_mode == kSloppyMode) return value;
     Handle<Object> args[] = { name, object };
     Handle<Object> error = isolate->factory()->NewTypeError(
         "strict_read_only_property", HandleVector(args, ARRAY_SIZE(args)));
@@ -3646,7 +3646,7 @@ Handle<Object> JSProxy::SetPropertyViaPrototypesWithHandler(
     ASSERT(writable->IsTrue() || writable->IsFalse());
     *done = writable->IsFalse();
     if (!*done) return isolate->factory()->the_hole_value();
-    if (strict_mode == kNonStrictMode) return value;
+    if (strict_mode == kSloppyMode) return value;
     Handle<Object> args[] = { name, receiver };
     Handle<Object> error = isolate->factory()->NewTypeError(
         "strict_read_only_property", HandleVector(args, ARRAY_SIZE(args)));
@@ -3665,7 +3665,7 @@ Handle<Object> JSProxy::SetPropertyViaPrototypesWithHandler(
         receiver, Handle<JSReceiver>::cast(setter), value);
   }
 
-  if (strict_mode == kNonStrictMode) return value;
+  if (strict_mode == kSloppyMode) return value;
   Handle<Object> args2[] = { name, proxy };
   Handle<Object> error = isolate->factory()->NewTypeError(
       "no_setter_in_callback", HandleVector(args2, ARRAY_SIZE(args2)));
@@ -3915,7 +3915,7 @@ Handle<Object> JSObject::SetPropertyUsingTransition(
     // of the map. If we get a fast copy of the map, all field representations
     // will be tagged since the transition is omitted.
     return JSObject::AddProperty(
-        object, name, value, attributes, kNonStrictMode,
+        object, name, value, attributes, kSloppyMode,
         JSReceiver::CERTAINLY_NOT_STORE_FROM_KEYED,
         JSReceiver::OMIT_EXTENSIBILITY_CHECK,
         JSObject::FORCE_TAGGED, FORCE_FIELD, OMIT_TRANSITION);
@@ -4181,7 +4181,7 @@ Handle<Object> JSObject::SetLocalPropertyIgnoreAttributes(
   if (object->IsAccessCheckNeeded()) {
     if (!isolate->MayNamedAccessWrapper(object, name, v8::ACCESS_SET)) {
       return SetPropertyWithFailedAccessCheck(object, &lookup, name, value,
-                                              false, kNonStrictMode);
+                                              false, kSloppyMode);
     }
   }
 
@@ -4204,7 +4204,7 @@ Handle<Object> JSObject::SetLocalPropertyIgnoreAttributes(
     TransitionFlag flag = lookup.IsFound()
         ? OMIT_TRANSITION : INSERT_TRANSITION;
     // Neither properties nor transitions found.
-    return AddProperty(object, name, value, attributes, kNonStrictMode,
+    return AddProperty(object, name, value, attributes, kSloppyMode,
         MAY_BE_STORE_FROM_KEYED, extensibility_check, value_type, mode, flag);
   }
 
@@ -4733,7 +4733,7 @@ MaybeObject* JSObject::NormalizeElements() {
   FixedArrayBase* array = FixedArrayBase::cast(elements());
   Map* old_map = array->map();
   bool is_arguments =
-      (old_map == old_map->GetHeap()->non_strict_arguments_elements_map());
+      (old_map == old_map->GetHeap()->sloppy_arguments_elements_map());
   if (is_arguments) {
     array = FixedArrayBase::cast(FixedArray::cast(array)->get(1));
   }
@@ -5385,7 +5385,7 @@ bool JSObject::ReferencesObject(Object* obj) {
       if (ReferencesObjectFromElements(elements, kind, obj)) return true;
       break;
     }
-    case NON_STRICT_ARGUMENTS_ELEMENTS: {
+    case SLOPPY_ARGUMENTS_ELEMENTS: {
       FixedArray* parameter_map = FixedArray::cast(elements());
       // Check the mapped parameters.
       int length = parameter_map->length();
@@ -5529,8 +5529,8 @@ static void FreezeDictionary(Dictionary* dictionary) {
 
 
 Handle<Object> JSObject::Freeze(Handle<JSObject> object) {
-  // Freezing non-strict arguments should be handled elsewhere.
-  ASSERT(!object->HasNonStrictArgumentsElements());
+  // Freezing sloppy arguments should be handled elsewhere.
+  ASSERT(!object->HasSloppyArgumentsElements());
   ASSERT(!object->map()->is_observed());
 
   if (object->map()->is_frozen()) return object;
@@ -5797,7 +5797,7 @@ Handle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
           if (copying) {
             // Creating object copy for literals. No strict mode needed.
             CHECK_NOT_EMPTY_HANDLE(isolate, JSObject::SetProperty(
-                copy, key_string, result, NONE, kNonStrictMode));
+                copy, key_string, result, NONE, kSloppyMode));
           }
         }
       }
@@ -5856,7 +5856,7 @@ Handle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
         }
         break;
       }
-      case NON_STRICT_ARGUMENTS_ELEMENTS:
+      case SLOPPY_ARGUMENTS_ELEMENTS:
         UNIMPLEMENTED();
         break;
 
@@ -6117,7 +6117,7 @@ void JSObject::DefineElementAccessor(Handle<JSObject> object,
         return;
       }
       break;
-    case NON_STRICT_ARGUMENTS_ELEMENTS: {
+    case SLOPPY_ARGUMENTS_ELEMENTS: {
       // Ascertain whether we have read-only properties or an existing
       // getter/setter pair in an arguments elements dictionary backing
       // store.
@@ -6269,7 +6269,7 @@ void JSObject::SetElementCallback(Handle<JSObject> object,
   dictionary->set_requires_slow_elements();
 
   // Update the dictionary backing store on the object.
-  if (object->elements()->map() == heap->non_strict_arguments_elements_map()) {
+  if (object->elements()->map() == heap->sloppy_arguments_elements_map()) {
     // Also delete any parameter alias.
     //
     // TODO(kmillikin): when deleting the last parameter alias we could
@@ -6570,7 +6570,7 @@ Handle<Object> JSObject::SetAccessor(Handle<JSObject> object,
 
       case DICTIONARY_ELEMENTS:
         break;
-      case NON_STRICT_ARGUMENTS_ELEMENTS:
+      case SLOPPY_ARGUMENTS_ELEMENTS:
         UNIMPLEMENTED();
         break;
     }
@@ -9806,13 +9806,13 @@ void JSFunction::SetPrototype(Handle<JSFunction> function,
 
 void JSFunction::RemovePrototype() {
   Context* native_context = context()->native_context();
-  Map* no_prototype_map = shared()->is_classic_mode()
+  Map* no_prototype_map = shared()->is_sloppy_mode()
       ? native_context->function_without_prototype_map()
       : native_context->strict_mode_function_without_prototype_map();
 
   if (map() == no_prototype_map) return;
 
-  ASSERT(map() == (shared()->is_classic_mode()
+  ASSERT(map() == (shared()->is_sloppy_mode()
                    ? native_context->function_map()
                    : native_context->strict_mode_function_map()));
 
@@ -11242,7 +11242,7 @@ MaybeObject* JSObject::SetFastElementsCapacityAndLength(
       accessor->CopyElements(this, new_elements, elements_kind);
   if (maybe_obj->IsFailure()) return maybe_obj;
 
-  if (elements_kind != NON_STRICT_ARGUMENTS_ELEMENTS) {
+  if (elements_kind != SLOPPY_ARGUMENTS_ELEMENTS) {
     Map* new_map = map();
     if (new_elements_kind != elements_kind) {
       MaybeObject* maybe =
@@ -11314,7 +11314,7 @@ MaybeObject* JSObject::SetFastDoubleElementsCapacityAndLength(
         accessor->CopyElements(this, elems, elements_kind);
     if (maybe_obj->IsFailure()) return maybe_obj;
   }
-  if (elements_kind != NON_STRICT_ARGUMENTS_ELEMENTS) {
+  if (elements_kind != SLOPPY_ARGUMENTS_ELEMENTS) {
     ValidateElements();
     set_map_and_elements(new_map, elems);
   } else {
@@ -11485,12 +11485,12 @@ MaybeObject* JSArray::SetElementsLength(Object* len) {
   if (delete_count > 0) {
     for (int i = indices.length() - 1; i >= 0; i--) {
       JSObject::SetElement(deleted, indices[i] - index, old_values[i], NONE,
-                           kNonStrictMode);
+                           kSloppyMode);
     }
 
     SetProperty(deleted, isolate->factory()->length_string(),
                 isolate->factory()->NewNumberFromUint(delete_count),
-                NONE, kNonStrictMode);
+                NONE, kSloppyMode);
   }
 
   EnqueueSpliceRecord(self, index, deleted, add_count);
@@ -12056,7 +12056,7 @@ Handle<Object> JSObject::SetElementWithCallback(Handle<JSObject> object,
       return SetPropertyWithDefinedSetter(
           object, Handle<JSReceiver>::cast(setter), value);
     } else {
-      if (strict_mode == kNonStrictMode) {
+      if (strict_mode == kSloppyMode) {
         return value;
       }
       Handle<Object> key(isolate->factory()->NewNumberFromUint(index));
@@ -12080,7 +12080,7 @@ bool JSObject::HasFastArgumentsElements() {
   Heap* heap = GetHeap();
   if (!elements()->IsFixedArray()) return false;
   FixedArray* elements = FixedArray::cast(this->elements());
-  if (elements->map() != heap->non_strict_arguments_elements_map()) {
+  if (elements->map() != heap->sloppy_arguments_elements_map()) {
     return false;
   }
   FixedArray* arguments = FixedArray::cast(elements->get(1));
@@ -12092,7 +12092,7 @@ bool JSObject::HasDictionaryArgumentsElements() {
   Heap* heap = GetHeap();
   if (!elements()->IsFixedArray()) return false;
   FixedArray* elements = FixedArray::cast(this->elements());
-  if (elements->map() != heap->non_strict_arguments_elements_map()) {
+  if (elements->map() != heap->sloppy_arguments_elements_map()) {
     return false;
   }
   FixedArray* arguments = FixedArray::cast(elements->get(1));
@@ -12124,7 +12124,7 @@ Handle<Object> JSObject::SetFastElement(Handle<JSObject> object,
 
   Handle<FixedArray> backing_store(FixedArray::cast(object->elements()));
   if (backing_store->map() ==
-      isolate->heap()->non_strict_arguments_elements_map()) {
+      isolate->heap()->sloppy_arguments_elements_map()) {
     backing_store = handle(FixedArray::cast(backing_store->get(1)));
   } else {
     backing_store = EnsureWritableFastElements(object);
@@ -12245,7 +12245,7 @@ Handle<Object> JSObject::SetDictionaryElement(Handle<JSObject> object,
   // Insert element in the dictionary.
   Handle<FixedArray> elements(FixedArray::cast(object->elements()));
   bool is_arguments =
-      (elements->map() == isolate->heap()->non_strict_arguments_elements_map());
+      (elements->map() == isolate->heap()->sloppy_arguments_elements_map());
   Handle<SeededNumberDictionary> dictionary(is_arguments
     ? SeededNumberDictionary::cast(elements->get(1))
     : SeededNumberDictionary::cast(*elements));
@@ -12267,7 +12267,7 @@ Handle<Object> JSObject::SetDictionaryElement(Handle<JSObject> object,
             attributes, NORMAL, details.dictionary_index());
         dictionary->DetailsAtPut(entry, details);
       } else if (details.IsReadOnly() && !element->IsTheHole()) {
-        if (strict_mode == kNonStrictMode) {
+        if (strict_mode == kSloppyMode) {
           return isolate->factory()->undefined_value();
         } else {
           Handle<Object> number = isolate->factory()->NewNumberFromUint(index);
@@ -12305,7 +12305,7 @@ Handle<Object> JSObject::SetDictionaryElement(Handle<JSObject> object,
     // When we set the is_extensible flag to false we always force the
     // element into dictionary mode (and force them to stay there).
     if (!object->map()->is_extensible()) {
-      if (strict_mode == kNonStrictMode) {
+      if (strict_mode == kSloppyMode) {
         return isolate->factory()->undefined_value();
       } else {
         Handle<Object> number = isolate->factory()->NewNumberFromUint(index);
@@ -12680,7 +12680,7 @@ Handle<Object> JSObject::SetElementWithoutInterceptor(
       return SetDictionaryElement(object, index, value, attributes, strict_mode,
                                   check_prototype,
                                   set_mode);
-    case NON_STRICT_ARGUMENTS_ELEMENTS: {
+    case SLOPPY_ARGUMENTS_ELEMENTS: {
       Handle<FixedArray> parameter_map(FixedArray::cast(object->elements()));
       uint32_t length = parameter_map->length();
       Handle<Object> probe = index < length - 2 ?
@@ -13039,7 +13039,7 @@ void JSObject::GetElementsCapacityAndUsage(int* capacity, int* used) {
   FixedArrayBase* backing_store_base = FixedArrayBase::cast(elements());
   FixedArray* backing_store = NULL;
   switch (GetElementsKind()) {
-    case NON_STRICT_ARGUMENTS_ELEMENTS:
+    case SLOPPY_ARGUMENTS_ELEMENTS:
       backing_store_base =
           FixedArray::cast(FixedArray::cast(backing_store_base)->get(1));
       backing_store = FixedArray::cast(backing_store_base);
@@ -13155,7 +13155,7 @@ bool JSObject::ShouldConvertToFastElements() {
 
   FixedArray* elements = FixedArray::cast(this->elements());
   SeededNumberDictionary* dictionary = NULL;
-  if (elements->map() == GetHeap()->non_strict_arguments_elements_map()) {
+  if (elements->map() == GetHeap()->sloppy_arguments_elements_map()) {
     dictionary = SeededNumberDictionary::cast(elements->get(1));
   } else {
     dictionary = SeededNumberDictionary::cast(elements);
@@ -13635,7 +13635,7 @@ int JSObject::GetLocalElementKeys(FixedArray* storage,
       counter += element_dictionary()->NumberOfElementsFilterAttributes(filter);
       break;
     }
-    case NON_STRICT_ARGUMENTS_ELEMENTS: {
+    case SLOPPY_ARGUMENTS_ELEMENTS: {
       FixedArray* parameter_map = FixedArray::cast(elements());
       int mapped_length = parameter_map->length() - 2;
       FixedArray* arguments = FixedArray::cast(parameter_map->get(1));
@@ -13746,7 +13746,7 @@ class StringSharedKey : public HashTableKey {
     SharedFunctionInfo* shared = SharedFunctionInfo::cast(other_array->get(0));
     if (shared != shared_) return false;
     int language_unchecked = Smi::cast(other_array->get(2))->value();
-    ASSERT(language_unchecked == CLASSIC_MODE ||
+    ASSERT(language_unchecked == SLOPPY_MODE ||
            language_unchecked == STRICT_MODE ||
            language_unchecked == EXTENDED_MODE);
     LanguageMode language_mode = static_cast<LanguageMode>(language_unchecked);
@@ -13787,7 +13787,7 @@ class StringSharedKey : public HashTableKey {
     SharedFunctionInfo* shared = SharedFunctionInfo::cast(other_array->get(0));
     String* source = String::cast(other_array->get(1));
     int language_unchecked = Smi::cast(other_array->get(2))->value();
-    ASSERT(language_unchecked == CLASSIC_MODE ||
+    ASSERT(language_unchecked == SLOPPY_MODE ||
            language_unchecked == STRICT_MODE ||
            language_unchecked == EXTENDED_MODE);
     LanguageMode language_mode = static_cast<LanguageMode>(language_unchecked);
@@ -15012,7 +15012,7 @@ MaybeObject* StringTable::LookupKey(HashTableKey* key, Object** s) {
 static LanguageMode CurrentGlobalLanguageMode() {
   return FLAG_use_strict
       ? (FLAG_harmony_scoping ? EXTENDED_MODE : STRICT_MODE)
-      : CLASSIC_MODE;
+      : SLOPPY_MODE;
 }
 
 

@@ -66,7 +66,7 @@ class CompilationInfo {
   bool is_lazy() const { return IsLazy::decode(flags_); }
   bool is_eval() const { return IsEval::decode(flags_); }
   bool is_global() const { return IsGlobal::decode(flags_); }
-  bool is_classic_mode() const { return language_mode() == CLASSIC_MODE; }
+  bool is_sloppy_mode() const { return language_mode() == SLOPPY_MODE; }
   bool is_extended_mode() const { return language_mode() == EXTENDED_MODE; }
   LanguageMode language_mode() const {
     return LanguageModeField::decode(flags_);
@@ -110,7 +110,7 @@ class CompilationInfo {
     return this_has_uses_;
   }
   void SetLanguageMode(LanguageMode language_mode) {
-    ASSERT(this->language_mode() == CLASSIC_MODE ||
+    ASSERT(this->language_mode() == SLOPPY_MODE ||
            this->language_mode() == language_mode ||
            language_mode == EXTENDED_MODE);
     flags_ = LanguageModeField::update(flags_, language_mode);

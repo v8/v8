@@ -163,9 +163,9 @@ Handle<Object> Execution::Call(Isolate* isolate,
   }
   Handle<JSFunction> func = Handle<JSFunction>::cast(callable);
 
-  // In non-strict mode, convert receiver.
+  // In sloppy mode, convert receiver.
   if (convert_receiver && !receiver->IsJSReceiver() &&
-      !func->shared()->native() && func->shared()->is_classic_mode()) {
+      !func->shared()->native() && func->shared()->is_sloppy_mode()) {
     if (receiver->IsUndefined() || receiver->IsNull()) {
       Object* global = func->context()->global_object()->global_receiver();
       // Under some circumstances, 'global' can be the JSBuiltinsObject

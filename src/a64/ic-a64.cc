@@ -369,7 +369,7 @@ static MemOperand GenerateMappedArgumentsLookup(MacroAssembler* masm,
   __ Tbnz(key, kXSignBit, slow_case);
 
   // Load the elements object and check its map.
-  Handle<Map> arguments_map(heap->non_strict_arguments_elements_map());
+  Handle<Map> arguments_map(heap->sloppy_arguments_elements_map());
   __ Ldr(map, FieldMemOperand(object, JSObject::kElementsOffset));
   __ CheckMap(map, scratch1, arguments_map, slow_case, DONT_DO_SMI_CHECK);
 
@@ -502,7 +502,7 @@ void LoadIC::GenerateRuntimeGetProperty(MacroAssembler* masm) {
 }
 
 
-void KeyedLoadIC::GenerateNonStrictArguments(MacroAssembler* masm) {
+void KeyedLoadIC::GenerateSloppyArguments(MacroAssembler* masm) {
   // ---------- S t a t e --------------
   //  -- lr     : return address
   //  -- x0     : key
@@ -534,8 +534,8 @@ void KeyedLoadIC::GenerateNonStrictArguments(MacroAssembler* masm) {
 }
 
 
-void KeyedStoreIC::GenerateNonStrictArguments(MacroAssembler* masm) {
-  ASM_LOCATION("KeyedStoreIC::GenerateNonStrictArguments");
+void KeyedStoreIC::GenerateSloppyArguments(MacroAssembler* masm) {
+  ASM_LOCATION("KeyedStoreIC::GenerateSloppyArguments");
   // ---------- S t a t e --------------
   //  -- lr     : return address
   //  -- x0     : value

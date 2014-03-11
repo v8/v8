@@ -602,9 +602,9 @@ class FullCodeGenerator: public AstVisitor {
   Handle<Script> script() { return info_->script(); }
   bool is_eval() { return info_->is_eval(); }
   bool is_native() { return info_->is_native(); }
-  bool is_classic_mode() { return language_mode() == CLASSIC_MODE; }
+  bool is_sloppy_mode() { return language_mode() == SLOPPY_MODE; }
   StrictModeFlag strict_mode() {
-    return is_classic_mode() ? kNonStrictMode : kStrictMode;
+    return is_sloppy_mode() ? kSloppyMode : kStrictMode;
   }
   LanguageMode language_mode() { return function()->language_mode(); }
   FunctionLiteral* function() { return info_->function(); }

@@ -668,11 +668,11 @@ bool LCodeGen::GeneratePrologue() {
 
     // TODO(all): Add support for stop_t FLAG in DEBUG mode.
 
-    // Classic mode functions and builtins need to replace the receiver with the
+    // Sloppy mode functions and builtins need to replace the receiver with the
     // global proxy when called as functions (without an explicit receiver
     // object).
     if (info_->this_has_uses() &&
-        info_->is_classic_mode() &&
+        info_->is_sloppy_mode() &&
         !info_->is_native()) {
       Label ok;
       int receiver_offset = info_->scope()->num_parameters() * kXRegSizeInBytes;
@@ -3469,7 +3469,7 @@ void LCodeGen::DoLoadKeyedExternal(LLoadKeyedExternal* instr) {
       case FAST_ELEMENTS:
       case FAST_SMI_ELEMENTS:
       case DICTIONARY_ELEMENTS:
-      case NON_STRICT_ARGUMENTS_ELEMENTS:
+      case SLOPPY_ARGUMENTS_ELEMENTS:
         UNREACHABLE();
         break;
     }
@@ -5067,7 +5067,7 @@ void LCodeGen::DoStoreKeyedExternal(LStoreKeyedExternal* instr) {
       case FAST_HOLEY_ELEMENTS:
       case FAST_HOLEY_SMI_ELEMENTS:
       case DICTIONARY_ELEMENTS:
-      case NON_STRICT_ARGUMENTS_ELEMENTS:
+      case SLOPPY_ARGUMENTS_ELEMENTS:
         UNREACHABLE();
         break;
     }

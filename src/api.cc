@@ -2988,7 +2988,7 @@ bool v8::Object::Set(v8::Handle<Value> key, v8::Handle<Value> value,
       key_obj,
       value_obj,
       static_cast<PropertyAttributes>(attribs),
-      i::kNonStrictMode);
+      i::kSloppyMode);
   has_pending_exception = obj.is_null();
   EXCEPTION_BAILOUT_CHECK(isolate, false);
   return true;
@@ -3008,7 +3008,7 @@ bool v8::Object::Set(uint32_t index, v8::Handle<Value> value) {
       index,
       value_obj,
       NONE,
-      i::kNonStrictMode);
+      i::kSloppyMode);
   has_pending_exception = obj.is_null();
   EXCEPTION_BAILOUT_CHECK(isolate, false);
   return true;

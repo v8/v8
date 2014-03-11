@@ -293,23 +293,21 @@ class Scope: public ZoneObject {
     return is_eval_scope() || is_function_scope() ||
         is_module_scope() || is_global_scope();
   }
-  bool is_classic_mode() const {
-    return language_mode() == CLASSIC_MODE;
+  bool is_sloppy_mode() const {
+    return language_mode() == SLOPPY_MODE;
   }
   bool is_extended_mode() const {
     return language_mode() == EXTENDED_MODE;
   }
   bool is_strict_or_extended_eval_scope() const {
-    return is_eval_scope() && !is_classic_mode();
+    return is_eval_scope() && !is_sloppy_mode();
   }
 
   // Information about which scopes calls eval.
   bool calls_eval() const { return scope_calls_eval_; }
-  bool calls_non_strict_eval() {
-    return scope_calls_eval_ && is_classic_mode();
-  }
-  bool outer_scope_calls_non_strict_eval() const {
-    return outer_scope_calls_non_strict_eval_;
+  bool calls_sloppy_eval() { return scope_calls_eval_ && is_sloppy_mode(); }
+  bool outer_scope_calls_sloppy_eval() const {
+    return outer_scope_calls_sloppy_eval_;
   }
 
   // Is this scope inside a with statement.
@@ -500,7 +498,7 @@ class Scope: public ZoneObject {
   int end_position_;
 
   // Computed via PropagateScopeInfo.
-  bool outer_scope_calls_non_strict_eval_;
+  bool outer_scope_calls_sloppy_eval_;
   bool inner_scope_calls_eval_;
   bool force_eager_compilation_;
   bool force_context_allocation_;
@@ -538,13 +536,13 @@ class Scope: public ZoneObject {
     // The variable reference could be statically resolved to a variable binding
     // which is returned. There is no 'with' statement between the reference and
     // the binding and no scope between the reference scope (inclusive) and
-    // binding scope (exclusive) makes a non-strict 'eval' call.
+    // binding scope (exclusive) makes a sloppy 'eval' call.
     BOUND,
 
     // The variable reference could be statically resolved to a variable binding
     // which is returned. There is no 'with' statement between the reference and
     // the binding, but some scope between the reference scope (inclusive) and
-    // binding scope (exclusive) makes a non-strict 'eval' call, that might
+    // binding scope (exclusive) makes a sloppy 'eval' call, that might
     // possibly introduce variable bindings shadowing the found one. Thus the
     // found variable binding is just a guess.
     BOUND_EVAL_SHADOWED,
@@ -553,13 +551,13 @@ class Scope: public ZoneObject {
     // and thus should be considered referencing a global variable. NULL is
     // returned. The variable reference is not inside any 'with' statement and
     // no scope between the reference scope (inclusive) and global scope
-    // (exclusive) makes a non-strict 'eval' call.
+    // (exclusive) makes a sloppy 'eval' call.
     UNBOUND,
 
     // The variable reference could not be statically resolved to any binding
     // NULL is returned. The variable reference is not inside any 'with'
     // statement, but some scope between the reference scope (inclusive) and
-    // global scope (exclusive) makes a non-strict 'eval' call, that might
+    // global scope (exclusive) makes a sloppy 'eval' call, that might
     // possibly introduce a variable binding. Thus the reference should be
     // considered referencing a global variable unless it is shadowed by an
     // 'eval' introduced binding.
@@ -591,7 +589,7 @@ class Scope: public ZoneObject {
                                    AstNodeFactory<AstNullVisitor>* factory);
 
   // Scope analysis.
-  bool PropagateScopeInfo(bool outer_scope_calls_non_strict_eval);
+  bool PropagateScopeInfo(bool outer_scope_calls_sloppy_eval);
   bool HasTrivialContext() const;
 
   // Predicates.

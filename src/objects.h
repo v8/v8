@@ -2155,14 +2155,14 @@ class JSObject: public JSReceiver {
   // In the fast mode elements is a FixedArray and so each element can
   // be quickly accessed. This fact is used in the generated code. The
   // elements array can have one of three maps in this mode:
-  // fixed_array_map, non_strict_arguments_elements_map or
+  // fixed_array_map, sloppy_arguments_elements_map or
   // fixed_cow_array_map (for copy-on-write arrays). In the latter case
   // the elements array may be shared by a few objects and so before
   // writing to any element the array must be copied. Use
   // EnsureWritableFastElements in this case.
   //
   // In the slow mode the elements is either a NumberDictionary, an
-  // ExternalArray, or a FixedArray parameter map for a (non-strict)
+  // ExternalArray, or a FixedArray parameter map for a (sloppy)
   // arguments object.
   DECL_ACCESSORS(elements, FixedArrayBase)
   inline void initialize_elements();
@@ -2184,7 +2184,7 @@ class JSObject: public JSReceiver {
   // Returns true if an object has elements of FAST_HOLEY_*_ELEMENTS
   // ElementsKind.
   inline bool HasFastHoleyElements();
-  inline bool HasNonStrictArgumentsElements();
+  inline bool HasSloppyArgumentsElements();
   inline bool HasDictionaryElements();
 
   inline bool HasExternalUint8ClampedElements();
@@ -4342,9 +4342,9 @@ class ScopeInfo : public FixedArray {
   // Return the language mode of this scope.
   LanguageMode language_mode();
 
-  // Does this scope make a non-strict eval call?
-  bool CallsNonStrictEval() {
-    return CallsEval() && (language_mode() == CLASSIC_MODE);
+  // Does this scope make a sloppy eval call?
+  bool CallsSloppyEval() {
+    return CallsEval() && (language_mode() == SLOPPY_MODE);
   }
 
   // Return the total number of locals allocated on the stack and in the
@@ -5932,8 +5932,8 @@ class Map: public HeapObject {
     return IsFastElementsKind(elements_kind());
   }
 
-  inline bool has_non_strict_arguments_elements() {
-    return elements_kind() == NON_STRICT_ARGUMENTS_ELEMENTS;
+  inline bool has_sloppy_arguments_elements() {
+    return elements_kind() == SLOPPY_ARGUMENTS_ELEMENTS;
   }
 
   inline bool has_external_array_elements() {
@@ -5950,7 +5950,7 @@ class Map: public HeapObject {
 
   inline bool has_slow_elements_kind() {
     return elements_kind() == DICTIONARY_ELEMENTS
-        || elements_kind() == NON_STRICT_ARGUMENTS_ELEMENTS;
+        || elements_kind() == SLOPPY_ARGUMENTS_ELEMENTS;
   }
 
   static bool IsValidElementsTransition(ElementsKind from_kind,
@@ -6941,14 +6941,14 @@ class SharedFunctionInfo: public HeapObject {
   // Indicates the language mode of the function's code as defined by the
   // current harmony drafts for the next ES language standard. Possible
   // values are:
-  // 1. CLASSIC_MODE - Unrestricted syntax and semantics, same as in ES5.
+  // 1. SLOPPY_MODE - Unrestricted syntax and semantics, same as in ES5.
   // 2. STRICT_MODE - Restricted syntax and semantics, same as in ES5.
   // 3. EXTENDED_MODE - Only available under the harmony flag, not part of ES5.
   inline LanguageMode language_mode();
   inline void set_language_mode(LanguageMode language_mode);
 
-  // Indicates whether the language mode of this function is CLASSIC_MODE.
-  inline bool is_classic_mode();
+  // Indicates whether the language mode of this function is SLOPPY_MODE.
+  inline bool is_sloppy_mode();
 
   // Indicates whether the language mode of this function is EXTENDED_MODE.
   inline bool is_extended_mode();
@@ -8454,8 +8454,8 @@ class AllocationMemento: public Struct {
 };
 
 
-// Representation of a slow alias as part of a non-strict arguments objects.
-// For fast aliases (if HasNonStrictArgumentsElements()):
+// Representation of a slow alias as part of a sloppy arguments objects.
+// For fast aliases (if HasSloppyArgumentsElements()):
 // - the parameter map contains an index into the context
 // - all attributes of the element have default values
 // For slow aliases (if HasDictionaryArgumentsElements()):

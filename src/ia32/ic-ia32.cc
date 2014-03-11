@@ -351,7 +351,7 @@ static Operand GenerateMappedArgumentsLookup(MacroAssembler* masm,
   __ j(not_zero, slow_case);
 
   // Load the elements into scratch1 and check its map.
-  Handle<Map> arguments_map(heap->non_strict_arguments_elements_map());
+  Handle<Map> arguments_map(heap->sloppy_arguments_elements_map());
   __ mov(scratch1, FieldOperand(object, JSObject::kElementsOffset));
   __ CheckMap(scratch1, arguments_map, slow_case, DONT_DO_SMI_CHECK);
 
@@ -657,7 +657,7 @@ void KeyedLoadIC::GenerateIndexedInterceptor(MacroAssembler* masm) {
 }
 
 
-void KeyedLoadIC::GenerateNonStrictArguments(MacroAssembler* masm) {
+void KeyedLoadIC::GenerateSloppyArguments(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- ecx    : key
   //  -- edx    : receiver
@@ -682,7 +682,7 @@ void KeyedLoadIC::GenerateNonStrictArguments(MacroAssembler* masm) {
 }
 
 
-void KeyedStoreIC::GenerateNonStrictArguments(MacroAssembler* masm) {
+void KeyedStoreIC::GenerateSloppyArguments(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- eax    : value
   //  -- ecx    : key

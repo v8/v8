@@ -682,7 +682,7 @@ FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info,
     }
     original_scope_ = scope;
     if (info->is_eval()) {
-      if (!scope->is_global_scope() || info->language_mode() != CLASSIC_MODE) {
+      if (!scope->is_global_scope() || info->language_mode() != SLOPPY_MODE) {
         scope = NewScope(scope, EVAL_SCOPE);
       }
     } else if (info->is_global()) {
@@ -708,7 +708,7 @@ FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info,
     bool ok = true;
     int beg_pos = scanner()->location().beg_pos;
     ParseSourceElements(body, Token::EOS, info->is_eval(), true, &ok);
-    if (ok && !scope_->is_classic_mode()) {
+    if (ok && !scope_->is_sloppy_mode()) {
       CheckOctalLiteral(beg_pos, scanner()->location().end_pos, &ok);
     }
 
@@ -817,7 +817,7 @@ FunctionLiteral* Parser::ParseLazy(Utf16CharacterStream* source) {
     }
     original_scope_ = scope;
     FunctionState function_state(&function_state_, &scope_, scope, zone());
-    ASSERT(scope->language_mode() != STRICT_MODE || !info()->is_classic_mode());
+    ASSERT(scope->language_mode() != STRICT_MODE || !info()->is_sloppy_mode());
     ASSERT(scope->language_mode() != EXTENDED_MODE ||
            info()->is_extended_mode());
     ASSERT(info()->language_mode() == shared_info->language_mode());
@@ -897,7 +897,7 @@ void* Parser::ParseSourceElements(ZoneList<Statement*>* processor,
         Handle<String> directive = Handle<String>::cast(literal->value());
 
         // Check "use strict" directive (ES5 14.1).
-        if (scope_->is_classic_mode() &&
+        if (scope_->is_sloppy_mode() &&
             directive->Equals(isolate()->heap()->use_strict_string()) &&
             token_loc.end_pos - token_loc.beg_pos ==
               isolate()->heap()->use_strict_string()->length() + 2) {
@@ -1443,7 +1443,7 @@ Statement* Parser::ParseStatement(ZoneStringList* labels, bool* ok) {
       // In Harmony mode, this case also handles the extension:
       // Statement:
       //    GeneratorDeclaration
-      if (!scope_->is_classic_mode()) {
+      if (!scope_->is_sloppy_mode()) {
         ReportMessageAt(scanner()->peek_location(), "strict_function");
         *ok = false;
         return NULL;
@@ -1567,8 +1567,8 @@ void Parser::Declare(Declaration* declaration, bool resolve, bool* ok) {
         declaration_scope, name, mode, true, kind,
         kNeedsInitialization, proxy->interface());
   } else if (declaration_scope->is_eval_scope() &&
-             declaration_scope->is_classic_mode()) {
-    // For variable declarations in a non-strict eval scope the proxy is bound
+             declaration_scope->is_sloppy_mode()) {
+    // For variable declarations in a sloppy eval scope the proxy is bound
     // to a lookup variable to force a dynamic declaration using the
     // DeclareContextSlot runtime function.
     Variable::Kind kind = Variable::NORMAL;
@@ -1826,12 +1826,12 @@ Block* Parser::ParseVariableDeclarations(
     // * It is a Syntax Error if the code that matches this production is not
     //   contained in extended code.
     //
-    // However disallowing const in classic mode will break compatibility with
+    // However disallowing const in sloppy mode will break compatibility with
     // existing pages. Therefore we keep allowing const with the old
-    // non-harmony semantics in classic mode.
+    // non-harmony semantics in sloppy mode.
     Consume(Token::CONST);
     switch (scope_->language_mode()) {
-      case CLASSIC_MODE:
+      case SLOPPY_MODE:
         mode = CONST;
         init_op = Token::INIT_CONST;
         break;
@@ -2333,7 +2333,7 @@ Statement* Parser::ParseWithStatement(ZoneStringList* labels, bool* ok) {
   Expect(Token::WITH, CHECK_OK);
   int pos = position();
 
-  if (!scope_->is_classic_mode()) {
+  if (!scope_->is_sloppy_mode()) {
     ReportMessage("strict_mode_with", Vector<const char*>::empty());
     *ok = false;
     return NULL;
@@ -2907,7 +2907,7 @@ Expression* Parser::ParseAssignmentExpression(bool accept_IN, bool* ok) {
     expression = NewThrowReferenceError(message);
   }
 
-  if (!scope_->is_classic_mode()) {
+  if (!scope_->is_sloppy_mode()) {
     // Assignment to eval or arguments is disallowed in strict mode.
     CheckStrictModeLValue(expression, CHECK_OK);
   }
@@ -3131,7 +3131,7 @@ Expression* Parser::ParseUnaryExpression(bool* ok) {
     }
 
     // "delete identifier" is a syntax error in strict mode.
-    if (op == Token::DELETE && !scope_->is_classic_mode()) {
+    if (op == Token::DELETE && !scope_->is_sloppy_mode()) {
       VariableProxy* operand = expression->AsVariableProxy();
       if (operand != NULL && !operand->is_this()) {
         ReportMessage("strict_delete", Vector<const char*>::empty());
@@ -3179,7 +3179,7 @@ Expression* Parser::ParseUnaryExpression(bool* ok) {
       expression = NewThrowReferenceError(message);
     }
 
-    if (!scope_->is_classic_mode()) {
+    if (!scope_->is_sloppy_mode()) {
       // Prefix expression operand in strict mode may not be eval or arguments.
       CheckStrictModeLValue(expression, CHECK_OK);
     }
@@ -3213,7 +3213,7 @@ Expression* Parser::ParsePostfixExpression(bool* ok) {
       expression = NewThrowReferenceError(message);
     }
 
-    if (!scope_->is_classic_mode()) {
+    if (!scope_->is_sloppy_mode()) {
       // Postfix expression operand in strict mode may not be eval or arguments.
       CheckStrictModeLValue(expression, CHECK_OK);
     }
@@ -4098,7 +4098,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
 
     // Validate strict mode. We can do this only after parsing the function,
     // since the function can declare itself strict.
-    if (!scope_->is_classic_mode()) {
+    if (!scope_->is_sloppy_mode()) {
       if (IsEvalOrArguments(function_name)) {
         ReportMessageAt(function_name_location, "strict_eval_arguments");
         *ok = false;
@@ -4261,7 +4261,7 @@ void Parser::MarkAsLValue(Expression* expression) {
 // in strict mode.
 void Parser::CheckStrictModeLValue(Expression* expression,
                                    bool* ok) {
-  ASSERT(!scope_->is_classic_mode());
+  ASSERT(!scope_->is_sloppy_mode());
   VariableProxy* lhs = expression != NULL
       ? expression->AsVariableProxy()
       : NULL;

@@ -852,7 +852,7 @@ bool Debug::Load() {
                               key,
                               Handle<Object>(global->builtins(), isolate_),
                               NONE,
-                              kNonStrictMode),
+                              kSloppyMode),
       false);
 
   // Compile the JavaScript for the debugger in the debugger context.

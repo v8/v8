@@ -1282,7 +1282,7 @@ HValue* HGraphBuilder::BuildWrapReceiver(HValue* object, HValue* function) {
     Handle<JSFunction> f = Handle<JSFunction>::cast(
         HConstant::cast(function)->handle(isolate()));
     SharedFunctionInfo* shared = f->shared();
-    if (!shared->is_classic_mode() || shared->native()) return object;
+    if (!shared->is_sloppy_mode() || shared->native()) return object;
   }
   return Add<HWrapReceiver>(object, function);
 }
@@ -5584,7 +5584,7 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::CanAccessAsMonomorphic(
 
 static bool NeedsWrappingFor(Type* type, Handle<JSFunction> target) {
   return type->Is(Type::NumberOrString()) &&
-      target->shared()->is_classic_mode() &&
+      target->shared()->is_sloppy_mode() &&
       !target->shared()->native();
 }
 
@@ -7937,7 +7937,7 @@ bool HOptimizedGraphBuilder::TryCallApply(Call* expr) {
 HValue* HOptimizedGraphBuilder::ImplicitReceiverFor(HValue* function,
                                                     Handle<JSFunction> target) {
   SharedFunctionInfo* shared = target->shared();
-  if (shared->is_classic_mode() && !shared->native()) {
+  if (shared->is_sloppy_mode() && !shared->native()) {
     // Cannot embed a direct reference to the global proxy
     // as is it dropped on deserialization.
     CHECK(!Serializer::enabled());

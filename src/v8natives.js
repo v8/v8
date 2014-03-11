@@ -1282,7 +1282,7 @@ function ObjectFreeze(obj) {
     throw MakeTypeError("called_on_non_object", ["Object.freeze"]);
   }
   var isProxy = %IsJSProxy(obj);
-  if (isProxy || %HasNonStrictArgumentsElements(obj) || %IsObserved(obj)) {
+  if (isProxy || %HasSloppyArgumentsElements(obj) || %IsObserved(obj)) {
     if (isProxy) {
       ProxyFix(obj);
     }

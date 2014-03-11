@@ -1251,7 +1251,7 @@ Handle<JSFunction> Factory::NewFunctionWithPrototype(Handle<String> name,
 Handle<JSFunction> Factory::NewFunctionWithoutPrototype(Handle<String> name,
                                                         Handle<Code> code) {
   Handle<JSFunction> function = NewFunctionWithoutPrototype(name,
-                                                            CLASSIC_MODE);
+                                                            SLOPPY_MODE);
   function->shared()->set_code(*code);
   function->set_code(*code);
   ASSERT(!function->has_initial_map());
@@ -1646,7 +1646,7 @@ Handle<JSFunction> Factory::NewFunctionWithoutPrototypeHelper(
     Handle<String> name,
     LanguageMode language_mode) {
   Handle<SharedFunctionInfo> function_share = NewSharedFunctionInfo(name);
-  Handle<Map> map = (language_mode == CLASSIC_MODE)
+  Handle<Map> map = (language_mode == SLOPPY_MODE)
       ? isolate()->function_without_prototype_map()
       : isolate()->strict_mode_function_without_prototype_map();
   CALL_HEAP_FUNCTION(isolate(),

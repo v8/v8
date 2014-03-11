@@ -5940,7 +5940,7 @@ THREADED_TEST(IndexedInterceptorUnboxedDoubleWithIndexedAccessor) {
 }
 
 
-void NonStrictArgsIndexedPropertyEnumerator(
+void SloppyArgsIndexedPropertyEnumerator(
     const v8::PropertyCallbackInfo<v8::Array>& info) {
   // Force the list of returned keys to be stored in a Arguments object.
   Local<Script> indexed_property_names_script = v8_compile(
@@ -5959,7 +5959,7 @@ void NonStrictArgsIndexedPropertyEnumerator(
 }
 
 
-static void NonStrictIndexedPropertyGetter(
+static void SloppyIndexedPropertyGetter(
     uint32_t index,
     const v8::PropertyCallbackInfo<v8::Value>& info) {
   ApiTestFuzzer::Fuzz();
@@ -5971,15 +5971,15 @@ static void NonStrictIndexedPropertyGetter(
 
 // Make sure that the the interceptor code in the runtime properly handles
 // merging property name lists for non-string arguments arrays.
-THREADED_TEST(IndexedInterceptorNonStrictArgsWithIndexedAccessor) {
+THREADED_TEST(IndexedInterceptorSloppyArgsWithIndexedAccessor) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
-  templ->SetIndexedPropertyHandler(NonStrictIndexedPropertyGetter,
+  templ->SetIndexedPropertyHandler(SloppyIndexedPropertyGetter,
                                    0,
                                    0,
                                    0,
-                                   NonStrictArgsIndexedPropertyEnumerator);
+                                   SloppyArgsIndexedPropertyEnumerator);
   LocalContext context;
   context->Global()->Set(v8_str("obj"), templ->NewInstance());
   Local<Script> create_args_script = v8_compile(
@@ -15654,19 +15654,19 @@ THREADED_TEST(PixelArray) {
                           reinterpret_cast<i::Isolate*>(context->GetIsolate()));
   i::Handle<i::Object> no_failure;
   no_failure =
-      i::JSObject::SetElement(jsobj, 1, value, NONE, i::kNonStrictMode);
+      i::JSObject::SetElement(jsobj, 1, value, NONE, i::kSloppyMode);
   ASSERT(!no_failure.is_null());
   i::USE(no_failure);
   CheckElementValue(isolate, 2, jsobj, 1);
   *value.location() = i::Smi::FromInt(256);
   no_failure =
-      i::JSObject::SetElement(jsobj, 1, value, NONE, i::kNonStrictMode);
+      i::JSObject::SetElement(jsobj, 1, value, NONE, i::kSloppyMode);
   ASSERT(!no_failure.is_null());
   i::USE(no_failure);
   CheckElementValue(isolate, 255, jsobj, 1);
   *value.location() = i::Smi::FromInt(-1);
   no_failure =
-      i::JSObject::SetElement(jsobj, 1, value, NONE, i::kNonStrictMode);
+      i::JSObject::SetElement(jsobj, 1, value, NONE, i::kSloppyMode);
   ASSERT(!no_failure.is_null());
   i::USE(no_failure);
   CheckElementValue(isolate, 0, jsobj, 1);

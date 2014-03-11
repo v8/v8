@@ -154,10 +154,10 @@ bool LCodeGen::GeneratePrologue() {
     }
 #endif
 
-    // Classic mode functions need to replace the receiver with the global proxy
+    // Sloppy mode functions need to replace the receiver with the global proxy
     // when called as functions (without an explicit receiver object).
     if (info_->this_has_uses() &&
-        info_->is_classic_mode() &&
+        info_->is_sloppy_mode() &&
         !info_->is_native()) {
       Label ok;
       StackArgumentsAccessor args(rsp, scope()->num_parameters());
@@ -2988,7 +2988,7 @@ void LCodeGen::DoLoadKeyedExternalArray(LLoadKeyed* instr) {
       case FAST_HOLEY_SMI_ELEMENTS:
       case FAST_HOLEY_DOUBLE_ELEMENTS:
       case DICTIONARY_ELEMENTS:
-      case NON_STRICT_ARGUMENTS_ELEMENTS:
+      case SLOPPY_ARGUMENTS_ELEMENTS:
         UNREACHABLE();
         break;
     }
@@ -4185,7 +4185,7 @@ void LCodeGen::DoStoreKeyedExternalArray(LStoreKeyed* instr) {
       case FAST_HOLEY_SMI_ELEMENTS:
       case FAST_HOLEY_DOUBLE_ELEMENTS:
       case DICTIONARY_ELEMENTS:
-      case NON_STRICT_ARGUMENTS_ELEMENTS:
+      case SLOPPY_ARGUMENTS_ELEMENTS:
         UNREACHABLE();
         break;
     }

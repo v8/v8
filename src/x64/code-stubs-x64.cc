@@ -1062,7 +1062,7 @@ void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
 }
 
 
-void ArgumentsAccessStub::GenerateNewNonStrictFast(MacroAssembler* masm) {
+void ArgumentsAccessStub::GenerateNewSloppyFast(MacroAssembler* masm) {
   // Stack layout:
   //  rsp[0]  : return address
   //  rsp[8]  : number of parameters (tagged)
@@ -1187,7 +1187,7 @@ void ArgumentsAccessStub::GenerateNewNonStrictFast(MacroAssembler* masm) {
   __ testq(rbx, rbx);
   __ j(zero, &skip_parameter_map);
 
-  __ LoadRoot(kScratchRegister, Heap::kNonStrictArgumentsElementsMapRootIndex);
+  __ LoadRoot(kScratchRegister, Heap::kSloppyArgumentsElementsMapRootIndex);
   // rbx contains the untagged argument count. Add 2 and tag to write.
   __ movp(FieldOperand(rdi, FixedArray::kMapOffset), kScratchRegister);
   __ Integer64PlusConstantToSmi(r9, rbx, 2);
@@ -1280,7 +1280,7 @@ void ArgumentsAccessStub::GenerateNewNonStrictFast(MacroAssembler* masm) {
 }
 
 
-void ArgumentsAccessStub::GenerateNewNonStrictSlow(MacroAssembler* masm) {
+void ArgumentsAccessStub::GenerateNewSloppySlow(MacroAssembler* masm) {
   // rsp[0]  : return address
   // rsp[8]  : number of parameters
   // rsp[16] : receiver displacement

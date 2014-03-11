@@ -1038,7 +1038,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ tst(r3, Operand(1 << (SharedFunctionInfo::kNative + kSmiTagSize)));
     __ b(ne, &shift_arguments);
 
-    // Compute the receiver in non-strict mode.
+    // Compute the receiver in sloppy mode.
     __ add(r2, sp, Operand(r0, LSL, kPointerSizeLog2));
     __ ldr(r2, MemOperand(r2, -kPointerSize));
     // r0: actual number of arguments
@@ -1246,7 +1246,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
     __ tst(r2, Operand(1 << (SharedFunctionInfo::kNative + kSmiTagSize)));
     __ b(ne, &push_receiver);
 
-    // Compute the receiver in non-strict mode.
+    // Compute the receiver in sloppy mode.
     __ JumpIfSmi(r0, &call_to_object);
     __ LoadRoot(r1, Heap::kNullValueRootIndex);
     __ cmp(r0, r1);

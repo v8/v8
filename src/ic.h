@@ -399,7 +399,7 @@ class KeyedLoadIC: public LoadIC {
   static void GenerateGeneric(MacroAssembler* masm);
   static void GenerateString(MacroAssembler* masm);
   static void GenerateIndexedInterceptor(MacroAssembler* masm);
-  static void GenerateNonStrictArguments(MacroAssembler* masm);
+  static void GenerateSloppyArguments(MacroAssembler* masm);
 
   // Bit mask to be tested against bit field for the cases when
   // generic stub should go into slow case.
@@ -436,8 +436,8 @@ class KeyedLoadIC: public LoadIC {
   Handle<Code> indexed_interceptor_stub() {
     return isolate()->builtins()->KeyedLoadIC_IndexedInterceptor();
   }
-  Handle<Code> non_strict_arguments_stub() {
-    return isolate()->builtins()->KeyedLoadIC_NonStrictArguments();
+  Handle<Code> sloppy_arguments_stub() {
+    return isolate()->builtins()->KeyedLoadIC_SloppyArguments();
   }
   Handle<Code> string_stub() {
     return isolate()->builtins()->KeyedLoadIC_String();
@@ -589,7 +589,7 @@ class KeyedStoreIC: public StoreIC {
   static void GenerateRuntimeSetProperty(MacroAssembler* masm,
                                          StrictModeFlag strict_mode);
   static void GenerateGeneric(MacroAssembler* masm, StrictModeFlag strict_mode);
-  static void GenerateNonStrictArguments(MacroAssembler* masm);
+  static void GenerateSloppyArguments(MacroAssembler* masm);
 
  protected:
   virtual Code::Kind kind() const { return Code::KEYED_STORE_IC; }
@@ -637,8 +637,8 @@ class KeyedStoreIC: public StoreIC {
     }
   }
 
-  Handle<Code> non_strict_arguments_stub() {
-    return isolate()->builtins()->KeyedStoreIC_NonStrictArguments();
+  Handle<Code> sloppy_arguments_stub() {
+    return isolate()->builtins()->KeyedStoreIC_SloppyArguments();
   }
 
   static void Clear(Isolate* isolate, Address address, Code* target);

@@ -495,10 +495,10 @@ class Context: public FixedArray {
 
   static int FunctionMapIndex(LanguageMode language_mode, bool is_generator) {
     return is_generator
-      ? (language_mode == CLASSIC_MODE
+      ? (language_mode == SLOPPY_MODE
          ? GENERATOR_FUNCTION_MAP_INDEX
          : STRICT_MODE_GENERATOR_FUNCTION_MAP_INDEX)
-      : (language_mode == CLASSIC_MODE
+      : (language_mode == SLOPPY_MODE
          ? FUNCTION_MAP_INDEX
          : STRICT_MODE_FUNCTION_MAP_INDEX);
   }

@@ -378,7 +378,7 @@ void JSObject::PrintElements(FILE* out) {
     case DICTIONARY_ELEMENTS:
       elements()->Print(out);
       break;
-    case NON_STRICT_ARGUMENTS_ELEMENTS: {
+    case SLOPPY_ARGUMENTS_ELEMENTS: {
       FixedArray* p = FixedArray::cast(elements());
       PrintF(out, "   parameter map:");
       for (int i = 2; i < p->length(); i++) {

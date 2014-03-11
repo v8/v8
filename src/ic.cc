@@ -943,8 +943,8 @@ Handle<Code> LoadIC::CompileHandler(LookupResult* lookup,
         Handle<JSFunction> function = Handle<JSFunction>::cast(getter);
         if (!object->IsJSObject() &&
             !function->IsBuiltin() &&
-            function->shared()->is_classic_mode()) {
-          // Calling non-strict non-builtins with a value as the receiver
+            function->shared()->is_sloppy_mode()) {
+          // Calling sloppy non-builtins with a value as the receiver
           // requires boxing.
           break;
         }
@@ -1078,12 +1078,12 @@ MaybeObject* KeyedLoadIC::Load(Handle<Object> object, Handle<Object> key) {
     } else if (object->IsJSObject()) {
       Handle<JSObject> receiver = Handle<JSObject>::cast(object);
       if (receiver->elements()->map() ==
-          isolate()->heap()->non_strict_arguments_elements_map()) {
-        stub = non_strict_arguments_stub();
+          isolate()->heap()->sloppy_arguments_elements_map()) {
+        stub = sloppy_arguments_stub();
       } else if (receiver->HasIndexedInterceptor()) {
         stub = indexed_interceptor_stub();
       } else if (!key->ToSmi()->IsFailure() &&
-                 (!target().is_identical_to(non_strict_arguments_stub()))) {
+                 (!target().is_identical_to(sloppy_arguments_stub()))) {
         stub = LoadElementStub(receiver);
       }
     }
@@ -1316,7 +1316,7 @@ Handle<Code> StoreIC::CompileHandler(LookupResult* lookup,
 
   Handle<JSObject> holder(lookup->holder());
   // Handlers do not use strict mode.
-  StoreStubCompiler compiler(isolate(), kNonStrictMode, kind());
+  StoreStubCompiler compiler(isolate(), kSloppyMode, kind());
   switch (lookup->type()) {
     case FIELD:
       return compiler.CompileStoreField(receiver, lookup, name);
@@ -1687,12 +1687,12 @@ MaybeObject* KeyedStoreIC::Store(Handle<Object> object,
         Handle<JSObject> receiver = Handle<JSObject>::cast(object);
         bool key_is_smi_like = key->IsSmi() || !key->ToSmi()->IsFailure();
         if (receiver->elements()->map() ==
-            isolate()->heap()->non_strict_arguments_elements_map()) {
-          if (strict_mode() == kNonStrictMode) {
-            stub = non_strict_arguments_stub();
+            isolate()->heap()->sloppy_arguments_elements_map()) {
+          if (strict_mode() == kSloppyMode) {
+            stub = sloppy_arguments_stub();
           }
         } else if (key_is_smi_like &&
-                   !(target().is_identical_to(non_strict_arguments_stub()))) {
+                   !(target().is_identical_to(sloppy_arguments_stub()))) {
           // We should go generic if receiver isn't a dictionary, but our
           // prototype chain does have dictionary elements. This ensures that
           // other non-dictionary receivers in the polymorphic case benefit

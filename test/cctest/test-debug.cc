@@ -114,7 +114,7 @@ class DebugLocalContext {
     v8::internal::Runtime::SetObjectProperty(isolate, global, debug_string,
         Handle<Object>(debug->debug_context()->global_proxy(), isolate),
         DONT_ENUM,
-        ::v8::internal::kNonStrictMode);
+        ::v8::internal::kSloppyMode);
   }
 
  private:

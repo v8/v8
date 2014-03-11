@@ -165,7 +165,7 @@ bool ScopeInfo::CallsEval() {
 
 
 LanguageMode ScopeInfo::language_mode() {
-  return length() > 0 ? LanguageModeField::decode(Flags()) : CLASSIC_MODE;
+  return length() > 0 ? LanguageModeField::decode(Flags()) : SLOPPY_MODE;
 }
 
 
@@ -378,7 +378,7 @@ bool ScopeInfo::CopyContextLocalsToScopeObject(Handle<ScopeInfo> scope_info,
         Handle<String>(String::cast(scope_info->get(i))),
         Handle<Object>(context->get(context_index), isolate),
         ::NONE,
-        kNonStrictMode);
+        kSloppyMode);
     RETURN_IF_EMPTY_HANDLE_VALUE(isolate, result, false);
   }
   return true;

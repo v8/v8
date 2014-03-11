@@ -49,14 +49,14 @@ namespace internal {
 #ifdef ENABLE_DEBUGGER_SUPPORT
 
 
-void SetElementNonStrict(Handle<JSObject> object,
-                         uint32_t index,
-                         Handle<Object> value) {
+void SetElementSloppy(Handle<JSObject> object,
+                      uint32_t index,
+                      Handle<Object> value) {
   // Ignore return value from SetElement. It can only be a failure if there
   // are element setters causing exceptions and the debugger context has none
   // of these.
   Handle<Object> no_failure =
-      JSObject::SetElement(object, index, value, NONE, kNonStrictMode);
+      JSObject::SetElement(object, index, value, NONE, kSloppyMode);
   ASSERT(!no_failure.is_null());
   USE(no_failure);
 }
@@ -359,17 +359,17 @@ class CompareOutputArrayWriter {
 
   void WriteChunk(int char_pos1, int char_pos2, int char_len1, int char_len2) {
     Isolate* isolate = array_->GetIsolate();
-    SetElementNonStrict(array_,
-                        current_size_,
-                        Handle<Object>(Smi::FromInt(char_pos1), isolate));
-    SetElementNonStrict(array_,
-                        current_size_ + 1,
-                        Handle<Object>(Smi::FromInt(char_pos1 + char_len1),
-                                       isolate));
-    SetElementNonStrict(array_,
-                        current_size_ + 2,
-                        Handle<Object>(Smi::FromInt(char_pos2 + char_len2),
-                                       isolate));
+    SetElementSloppy(array_,
+                     current_size_,
+                     Handle<Object>(Smi::FromInt(char_pos1), isolate));
+    SetElementSloppy(array_,
+                     current_size_ + 1,
+                     Handle<Object>(Smi::FromInt(char_pos1 + char_len1),
+                                    isolate));
+    SetElementSloppy(array_,
+                     current_size_ + 2,
+                     Handle<Object>(Smi::FromInt(char_pos2 + char_len2),
+                                    isolate));
     current_size_ += 3;
   }
 
@@ -662,12 +662,12 @@ class JSArrayBasedStruct {
 
  protected:
   void SetField(int field_position, Handle<Object> value) {
-    SetElementNonStrict(array_, field_position, value);
+    SetElementSloppy(array_, field_position, value);
   }
   void SetSmiValueField(int field_position, int value) {
-    SetElementNonStrict(array_,
-                        field_position,
-                        Handle<Smi>(Smi::FromInt(value), isolate()));
+    SetElementSloppy(array_,
+                     field_position,
+                     Handle<Smi>(Smi::FromInt(value), isolate()));
   }
   Object* GetField(int field_position) {
     return array_->GetElementNoExceptionThrown(isolate(), field_position);
@@ -818,7 +818,7 @@ class FunctionInfoListener {
                               fun->materialized_literal_count(),
                               current_parent_index_);
     current_parent_index_ = len_;
-    SetElementNonStrict(result_, len_, info.GetJSArray());
+    SetElementSloppy(result_, len_, info.GetJSArray());
     len_++;
   }
 
@@ -885,20 +885,20 @@ class FunctionInfoListener {
       context_list.Sort(&Variable::CompareIndex);
 
       for (int i = 0; i < context_list.length(); i++) {
-        SetElementNonStrict(scope_info_list,
-                            scope_info_length,
-                            context_list[i]->name());
+        SetElementSloppy(scope_info_list,
+                         scope_info_length,
+                         context_list[i]->name());
         scope_info_length++;
-        SetElementNonStrict(
+        SetElementSloppy(
             scope_info_list,
             scope_info_length,
             Handle<Smi>(Smi::FromInt(context_list[i]->index()), isolate()));
         scope_info_length++;
       }
-      SetElementNonStrict(scope_info_list,
-                          scope_info_length,
-                          Handle<Object>(isolate()->heap()->null_value(),
-                                         isolate()));
+      SetElementSloppy(scope_info_list,
+                       scope_info_length,
+                       Handle<Object>(isolate()->heap()->null_value(),
+                                      isolate()));
       scope_info_length++;
 
       current_scope = current_scope->outer_scope();
@@ -959,11 +959,11 @@ JSArray* LiveEdit::GatherCompileInfo(Handle<Script> script,
       Handle<Smi> end_pos(Smi::FromInt(message_location.end_pos()), isolate);
       Handle<JSValue> script_obj = GetScriptWrapper(message_location.script());
       JSReceiver::SetProperty(
-          rethrow_exception, start_pos_key, start_pos, NONE, kNonStrictMode);
+          rethrow_exception, start_pos_key, start_pos, NONE, kSloppyMode);
       JSReceiver::SetProperty(
-          rethrow_exception, end_pos_key, end_pos, NONE, kNonStrictMode);
+          rethrow_exception, end_pos_key, end_pos, NONE, kSloppyMode);
       JSReceiver::SetProperty(
-          rethrow_exception, script_obj_key, script_obj, NONE, kNonStrictMode);
+          rethrow_exception, script_obj_key, script_obj, NONE, kSloppyMode);
     }
   }
 
@@ -992,7 +992,7 @@ void LiveEdit::WrapSharedFunctionInfos(Handle<JSArray> array) {
     Handle<String> name_handle(String::cast(info->name()));
     info_wrapper.SetProperties(name_handle, info->start_position(),
                                info->end_position(), info);
-    SetElementNonStrict(array, i, info_wrapper.GetJSArray());
+    SetElementSloppy(array, i, info_wrapper.GetJSArray());
   }
 }
 
@@ -1639,8 +1639,7 @@ static bool CheckActivation(Handle<JSArray> shared_info_array,
         UnwrapSharedFunctionInfoFromJSValue(jsvalue);
 
     if (function->shared() == *shared || IsInlined(*function, *shared)) {
-      SetElementNonStrict(result, i, Handle<Smi>(Smi::FromInt(status),
-                                                 isolate));
+      SetElementSloppy(result, i, Handle<Smi>(Smi::FromInt(status), isolate));
       return true;
     }
   }
@@ -1954,7 +1953,7 @@ static const char* DropActivationsInActiveThread(
         Smi::FromInt(LiveEdit::FUNCTION_BLOCKED_ON_ACTIVE_STACK)) {
       Handle<Object> replaced(
           Smi::FromInt(LiveEdit::FUNCTION_REPLACED_ON_ACTIVE_STACK), isolate);
-      SetElementNonStrict(result, i, replaced);
+      SetElementSloppy(result, i, replaced);
     }
   }
   return NULL;
@@ -1995,7 +1994,7 @@ Handle<JSArray> LiveEdit::CheckAndDropActivations(
 
   // Fill the default values.
   for (int i = 0; i < len; i++) {
-    SetElementNonStrict(
+    SetElementSloppy(
         result,
         i,
         Handle<Smi>(Smi::FromInt(FUNCTION_AVAILABLE_FOR_PATCH), isolate));
@@ -2018,7 +2017,7 @@ Handle<JSArray> LiveEdit::CheckAndDropActivations(
     // Add error message as an array extra element.
     Vector<const char> vector_message(error_message, StrLength(error_message));
     Handle<String> str = isolate->factory()->NewStringFromAscii(vector_message);
-    SetElementNonStrict(result, len, str);
+    SetElementSloppy(result, len, str);
   }
   return result;
 }

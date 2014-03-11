@@ -1074,15 +1074,15 @@ function FormatErrorString(error) {
 
 function GetStackFrames(raw_stack) {
   var frames = new InternalArray();
-  var non_strict_frames = raw_stack[0];
+  var sloppy_frames = raw_stack[0];
   for (var i = 1; i < raw_stack.length; i += 4) {
     var recv = raw_stack[i];
     var fun = raw_stack[i + 1];
     var code = raw_stack[i + 2];
     var pc = raw_stack[i + 3];
     var pos = %FunctionGetPositionForOffset(code, pc);
-    non_strict_frames--;
-    frames.push(new CallSite(recv, fun, pos, (non_strict_frames < 0)));
+    sloppy_frames--;
+    frames.push(new CallSite(recv, fun, pos, (sloppy_frames < 0)));
   }
   return frames;
 }

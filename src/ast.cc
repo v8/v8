@@ -379,9 +379,9 @@ void ArrayLiteral::BuildConstantElements(Isolate* isolate) {
     } else if (boilerplate_value->IsUninitialized()) {
       is_simple = false;
       JSObject::SetOwnElement(
-          array, i, handle(Smi::FromInt(0), isolate), kNonStrictMode);
+          array, i, handle(Smi::FromInt(0), isolate), kSloppyMode);
     } else {
-      JSObject::SetOwnElement(array, i, boilerplate_value, kNonStrictMode);
+      JSObject::SetOwnElement(array, i, boilerplate_value, kSloppyMode);
     }
   }
 

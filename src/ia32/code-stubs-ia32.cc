@@ -1190,7 +1190,7 @@ void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
 }
 
 
-void ArgumentsAccessStub::GenerateNewNonStrictSlow(MacroAssembler* masm) {
+void ArgumentsAccessStub::GenerateNewSloppySlow(MacroAssembler* masm) {
   // esp[0] : return address
   // esp[4] : number of parameters
   // esp[8] : receiver displacement
@@ -1215,7 +1215,7 @@ void ArgumentsAccessStub::GenerateNewNonStrictSlow(MacroAssembler* masm) {
 }
 
 
-void ArgumentsAccessStub::GenerateNewNonStrictFast(MacroAssembler* masm) {
+void ArgumentsAccessStub::GenerateNewSloppyFast(MacroAssembler* masm) {
   Isolate* isolate = masm->isolate();
 
   // esp[0] : return address
@@ -1349,7 +1349,7 @@ void ArgumentsAccessStub::GenerateNewNonStrictFast(MacroAssembler* masm) {
   __ j(zero, &skip_parameter_map);
 
   __ mov(FieldOperand(edi, FixedArray::kMapOffset),
-         Immediate(isolate->factory()->non_strict_arguments_elements_map()));
+         Immediate(isolate->factory()->sloppy_arguments_elements_map()));
   __ lea(eax, Operand(ebx, reinterpret_cast<intptr_t>(Smi::FromInt(2))));
   __ mov(FieldOperand(edi, FixedArray::kLengthOffset), eax);
   __ mov(FieldOperand(edi, FixedArray::kHeaderSize + 0 * kPointerSize), esi);
