@@ -153,10 +153,10 @@ void FullCodeGenerator::Generate() {
   }
 #endif
 
-  // Classic mode functions and builtins need to replace the receiver with the
+  // Sloppy mode functions and builtins need to replace the receiver with the
   // global proxy when called as functions (without an explicit receiver
   // object).
-  if (info->is_classic_mode() && !info->is_native()) {
+  if (info->is_sloppy_mode() && !info->is_native()) {
     Label ok;
     int receiver_offset = info->scope()->num_parameters() * kPointerSize;
     __ lw(at, MemOperand(sp, receiver_offset));
@@ -271,12 +271,12 @@ void FullCodeGenerator::Generate() {
     // The stub will rewrite receiever and parameter count if the previous
     // stack frame was an arguments adapter frame.
     ArgumentsAccessStub::Type type;
-    if (!is_classic_mode()) {
+    if (!is_sloppy_mode()) {
       type = ArgumentsAccessStub::NEW_STRICT;
     } else if (function()->has_duplicate_parameters()) {
-      type = ArgumentsAccessStub::NEW_NON_STRICT_SLOW;
+      type = ArgumentsAccessStub::NEW_SLOPPY_SLOW;
     } else {
-      type = ArgumentsAccessStub::NEW_NON_STRICT_FAST;
+      type = ArgumentsAccessStub::NEW_SLOPPY_FAST;
     }
     ArgumentsAccessStub stub(type);
     __ CallStub(&stub);
@@ -1366,7 +1366,7 @@ void FullCodeGenerator::EmitLoadGlobalCheckExtensions(Variable* var,
   Scope* s = scope();
   while (s != NULL) {
     if (s->num_heap_slots() > 0) {
-      if (s->calls_non_strict_eval()) {
+      if (s->calls_sloppy_eval()) {
         // Check that extension is NULL.
         __ lw(temp, ContextOperand(current, Context::EXTENSION_INDEX));
         __ Branch(slow, ne, temp, Operand(zero_reg));
@@ -1378,7 +1378,7 @@ void FullCodeGenerator::EmitLoadGlobalCheckExtensions(Variable* var,
     }
     // If no outer scope calls eval, we do not need to check more
     // context extensions.
-    if (!s->outer_scope_calls_non_strict_eval() || s->is_eval_scope()) break;
+    if (!s->outer_scope_calls_sloppy_eval() || s->is_eval_scope()) break;
     s = s->outer_scope();
   }
 
@@ -1419,7 +1419,7 @@ MemOperand FullCodeGenerator::ContextSlotOperandCheckExtensions(Variable* var,
 
   for (Scope* s = scope(); s != var->scope(); s = s->outer_scope()) {
     if (s->num_heap_slots() > 0) {
-      if (s->calls_non_strict_eval()) {
+      if (s->calls_sloppy_eval()) {
         // Check that extension is NULL.
         __ lw(temp, ContextOperand(context, Context::EXTENSION_INDEX));
         __ Branch(slow, ne, temp, Operand(zero_reg));
@@ -2459,7 +2459,7 @@ void FullCodeGenerator::EmitAssignment(Expression* expr) {
       VisitForAccumulatorValue(prop->key());
       __ mov(a1, result_register());
       __ Pop(a0, a2);  // a0 = restored value.
-      Handle<Code> ic = is_classic_mode()
+      Handle<Code> ic = is_sloppy_mode()
         ? isolate()->builtins()->KeyedStoreIC_Initialize()
         : isolate()->builtins()->KeyedStoreIC_Initialize_Strict();
       CallIC(ic);
@@ -2591,7 +2591,7 @@ void FullCodeGenerator::EmitKeyedPropertyAssignment(Assignment* expr) {
   __ mov(a0, result_register());
   __ Pop(a2, a1);  // a1 = key.
 
-  Handle<Code> ic = is_classic_mode()
+  Handle<Code> ic = is_sloppy_mode()
       ? isolate()->builtins()->KeyedStoreIC_Initialize()
       : isolate()->builtins()->KeyedStoreIC_Initialize_Strict();
   CallIC(ic, expr->AssignmentFeedbackId());
@@ -2641,7 +2641,7 @@ void FullCodeGenerator::EmitCallWithIC(Call* expr) {
       PrepareForBailout(callee, NO_REGISTERS);
     }
     // Push undefined as receiver. This is patched in the method prologue if it
-    // is a classic mode method.
+    // is a sloppy mode method.
     __ Push(isolate()->factory()->undefined_value());
     flags = NO_CALL_FUNCTION_FLAGS;
   } else {
@@ -4227,8 +4227,8 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
       if (property != NULL) {
         VisitForStackValue(property->obj());
         VisitForStackValue(property->key());
-        StrictModeFlag strict_mode_flag = (language_mode() == CLASSIC_MODE)
-            ? kNonStrictMode : kStrictMode;
+        StrictModeFlag strict_mode_flag = (language_mode() == SLOPPY_MODE)
+            ? kSloppyMode : kStrictMode;
         __ li(a1, Operand(Smi::FromInt(strict_mode_flag)));
         __ push(a1);
         __ InvokeBuiltin(Builtins::DELETE, CALL_FUNCTION);
@@ -4237,11 +4237,11 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
         Variable* var = proxy->var();
         // Delete of an unqualified identifier is disallowed in strict mode
         // but "delete this" is allowed.
-        ASSERT(language_mode() == CLASSIC_MODE || var->is_this());
+        ASSERT(language_mode() == SLOPPY_MODE || var->is_this());
         if (var->IsUnallocated()) {
           __ lw(a2, GlobalObjectOperand());
           __ li(a1, Operand(var->name()));
-          __ li(a0, Operand(Smi::FromInt(kNonStrictMode)));
+          __ li(a0, Operand(Smi::FromInt(kSloppyMode)));
           __ Push(a2, a1, a0);
           __ InvokeBuiltin(Builtins::DELETE, CALL_FUNCTION);
           context()->Plug(v0);
@@ -4500,7 +4500,7 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
     case KEYED_PROPERTY: {
       __ mov(a0, result_register());  // Value.
       __ Pop(a2, a1);  // a1 = key, a2 = receiver.
-      Handle<Code> ic = is_classic_mode()
+      Handle<Code> ic = is_sloppy_mode()
           ? isolate()->builtins()->KeyedStoreIC_Initialize()
           : isolate()->builtins()->KeyedStoreIC_Initialize_Strict();
       CallIC(ic, expr->CountStoreFeedbackId());

@@ -146,7 +146,7 @@ bool LCodeGen::GeneratePrologue() {
     // fp: Caller's frame pointer.
     // lr: Caller's pc.
 
-    // Classic mode functions and builtins need to replace the receiver with the
+    // Sloppy mode functions and builtins need to replace the receiver with the
     // global proxy when called as functions (without an explicit receiver
     // object).
     if (info_->this_has_uses() &&

@@ -2365,7 +2365,7 @@ void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
 }
 
 
-void ArgumentsAccessStub::GenerateNewNonStrictSlow(MacroAssembler* masm) {
+void ArgumentsAccessStub::GenerateNewSloppySlow(MacroAssembler* masm) {
   // sp[0] : number of parameters
   // sp[4] : receiver displacement
   // sp[8] : function
@@ -2391,7 +2391,7 @@ void ArgumentsAccessStub::GenerateNewNonStrictSlow(MacroAssembler* masm) {
 }
 
 
-void ArgumentsAccessStub::GenerateNewNonStrictFast(MacroAssembler* masm) {
+void ArgumentsAccessStub::GenerateNewSloppyFast(MacroAssembler* masm) {
   // Stack layout:
   //  sp[0] : number of parameters (tagged)
   //  sp[4] : address of receiver argument
@@ -2523,7 +2523,7 @@ void ArgumentsAccessStub::GenerateNewNonStrictFast(MacroAssembler* masm) {
 
   __ Branch(&skip_parameter_map, eq, a1, Operand(Smi::FromInt(0)));
 
-  __ LoadRoot(t2, Heap::kNonStrictArgumentsElementsMapRootIndex);
+  __ LoadRoot(t2, Heap::kSloppyArgumentsElementsMapRootIndex);
   __ sw(t2, FieldMemOperand(t0, FixedArray::kMapOffset));
   __ Addu(t2, a1, Operand(Smi::FromInt(2)));
   __ sw(t2, FieldMemOperand(t0, FixedArray::kLengthOffset));
@@ -3285,7 +3285,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
       __ Branch(&cont, ne, at, Operand(zero_reg));
     }
 
-    // Compute the receiver in non-strict mode.
+    // Compute the receiver in sloppy mode.
     __ lw(a3, MemOperand(sp, argc_ * kPointerSize));
 
     if (NeedsChecks()) {
