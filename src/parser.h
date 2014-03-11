@@ -488,6 +488,9 @@ class ParserTraits {
   static Literal* EmptyLiteral() {
     return NULL;
   }
+  static ZoneList<Expression*>* NullExpressionList() {
+    return NULL;
+  }
 
   // Odd-ball literal creators.
   Literal* GetLiteralTheHole(int position,
@@ -687,7 +690,6 @@ class Parser : public ParserBase<ParserTraits> {
                                   Expression* subject,
                                   Statement* body);
 
-  ZoneList<Expression*>* ParseArguments(bool* ok);
   FunctionLiteral* ParseFunctionLiteral(
       Handle<String> name,
       Scanner::Location function_name_location,

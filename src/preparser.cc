@@ -1135,28 +1135,6 @@ PreParser::Expression PreParser::ParseMemberExpressionContinuation(
 }
 
 
-PreParser::Arguments PreParser::ParseArguments(bool* ok) {
-  // Arguments ::
-  //   '(' (AssignmentExpression)*[','] ')'
-
-  Expect(Token::LPAREN, ok);
-  if (!*ok) return -1;
-  bool done = (peek() == Token::RPAREN);
-  int argc = 0;
-  while (!done) {
-    ParseAssignmentExpression(true, ok);
-    if (!*ok) return -1;
-    argc++;
-    done = (peek() == Token::RPAREN);
-    if (!done) {
-      Expect(Token::COMMA, ok);
-      if (!*ok) return -1;
-    }
-  }
-  Expect(Token::RPAREN, ok);
-  return argc;
-}
-
 PreParser::Expression PreParser::ParseFunctionLiteral(
     Identifier function_name,
     Scanner::Location function_name_location,

@@ -342,6 +342,7 @@ class ParserBase : public Traits {
   typename Traits::Type::Expression ParseExpression(bool accept_IN, bool* ok);
   typename Traits::Type::Expression ParseArrayLiteral(bool* ok);
   typename Traits::Type::Expression ParseObjectLiteral(bool* ok);
+  typename Traits::Type::ExpressionList ParseArguments(bool* ok);
 
   // Used to detect duplicates in object literals. Each of the values
   // kGetterProperty, kSetterProperty and kValueProperty represents
@@ -556,8 +557,12 @@ class PreParserExpression {
 class PreParserExpressionList {
  public:
   // These functions make list->Add(some_expression) work (and do nothing).
+  PreParserExpressionList() : length_(0) {}
   PreParserExpressionList* operator->() { return this; }
-  void Add(PreParserExpression, void*) { }
+  void Add(PreParserExpression, void*) { ++length_; }
+  int length() const { return length_; }
+ private:
+  int length_;
 };
 
 
@@ -719,6 +724,9 @@ class PreParserTraits {
   }
   static PreParserExpression EmptyLiteral() {
     return PreParserExpression::Default();
+  }
+  static PreParserExpressionList NullExpressionList() {
+    return PreParserExpressionList();
   }
 
   // Odd-ball literal creators.
@@ -910,8 +918,6 @@ class PreParser : public ParserBase<PreParserTraits> {
     kUnknownSourceElements
   };
 
-  typedef int Arguments;
-
   // All ParseXXX functions take as the last argument an *ok parameter
   // which is set to false if parsing failed; it is unchanged otherwise.
   // By making the 'exception handling' explicit, we are forced to check
@@ -955,7 +961,6 @@ class PreParser : public ParserBase<PreParserTraits> {
   Expression ParseObjectLiteral(bool* ok);
   Expression ParseV8Intrinsic(bool* ok);
 
-  Arguments ParseArguments(bool* ok);
   Expression ParseFunctionLiteral(
       Identifier name,
       Scanner::Location function_name_location,
@@ -1149,6 +1154,13 @@ ParserBase<Traits>::ParseRegExpLiteral(bool seen_equal, bool* ok) {
 
 #define CHECK_OK  ok); \
   if (!*ok) return this->EmptyExpression(); \
+  ((void)0
+#define DUMMY )  // to make indentation work
+#undef DUMMY
+
+// Used in functions where the return type is not Traits::Type::Expression.
+#define CHECK_OK_CUSTOM(x) ok); \
+  if (!*ok) return this->x(); \
   ((void)0
 #define DUMMY )  // to make indentation work
 #undef DUMMY
@@ -1370,7 +1382,10 @@ typename Traits::Type::Expression ParserBase<Traits>::ParseObjectLiteral(
             number_of_boilerplate_properties++;
           }
           properties->Add(property, zone());
-          if (peek() != Token::RBRACE) Expect(Token::COMMA, CHECK_OK);
+          if (peek() != Token::RBRACE) {
+            // Need {} because of the CHECK_OK macro.
+            Expect(Token::COMMA, CHECK_OK);
+          }
 
           if (fni_ != NULL) {
             fni_->Infer();
@@ -1437,7 +1452,10 @@ typename Traits::Type::Expression ParserBase<Traits>::ParseObjectLiteral(
     properties->Add(property, zone());
 
     // TODO(1240767): Consider allowing trailing comma.
-    if (peek() != Token::RBRACE) Expect(Token::COMMA, CHECK_OK);
+    if (peek() != Token::RBRACE) {
+      // Need {} because of the CHECK_OK macro.
+      Expect(Token::COMMA, CHECK_OK);
+    }
 
     if (fni_ != NULL) {
       fni_->Infer();
@@ -1457,8 +1475,39 @@ typename Traits::Type::Expression ParserBase<Traits>::ParseObjectLiteral(
 }
 
 
+template <class Traits>
+typename Traits::Type::ExpressionList ParserBase<Traits>::ParseArguments(
+    bool* ok) {
+  // Arguments ::
+  //   '(' (AssignmentExpression)*[','] ')'
+
+  typename Traits::Type::ExpressionList result =
+      this->NewExpressionList(4, zone_);
+  Expect(Token::LPAREN, CHECK_OK_CUSTOM(NullExpressionList));
+  bool done = (peek() == Token::RPAREN);
+  while (!done) {
+    typename Traits::Type::Expression argument =
+        this->ParseAssignmentExpression(true,
+                                        CHECK_OK_CUSTOM(NullExpressionList));
+    result->Add(argument, zone_);
+    if (result->length() > Code::kMaxArguments) {
+      ReportMessageAt(scanner()->location(), "too_many_arguments");
+      *ok = false;
+      return this->NullExpressionList();
+    }
+    done = (peek() == Token::RPAREN);
+    if (!done) {
+      // Need {} because of the CHECK_OK_CUSTOM macro.
+      Expect(Token::COMMA, CHECK_OK_CUSTOM(NullExpressionList));
+    }
+  }
+  Expect(Token::RPAREN, CHECK_OK_CUSTOM(NullExpressionList));
+  return result;
+}
+
 
 #undef CHECK_OK
+#undef CHECK_OK_CUSTOM
 
 
 template <typename Traits>

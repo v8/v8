@@ -3501,29 +3501,6 @@ Handle<FixedArray> CompileTimeValue::GetElements(Handle<FixedArray> value) {
 }
 
 
-ZoneList<Expression*>* Parser::ParseArguments(bool* ok) {
-  // Arguments ::
-  //   '(' (AssignmentExpression)*[','] ')'
-
-  ZoneList<Expression*>* result = new(zone()) ZoneList<Expression*>(4, zone());
-  Expect(Token::LPAREN, CHECK_OK);
-  bool done = (peek() == Token::RPAREN);
-  while (!done) {
-    Expression* argument = ParseAssignmentExpression(true, CHECK_OK);
-    result->Add(argument, zone());
-    if (result->length() > Code::kMaxArguments) {
-      ReportMessageAt(scanner()->location(), "too_many_arguments");
-      *ok = false;
-      return NULL;
-    }
-    done = (peek() == Token::RPAREN);
-    if (!done) Expect(Token::COMMA, CHECK_OK);
-  }
-  Expect(Token::RPAREN, CHECK_OK);
-  return result;
-}
-
-
 class SingletonLogger : public ParserRecorder {
  public:
   SingletonLogger() : has_error_(false), start_(-1), end_(-1) { }

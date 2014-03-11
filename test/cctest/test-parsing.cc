@@ -35,6 +35,7 @@
 #include "compiler.h"
 #include "execution.h"
 #include "isolate.h"
+#include "objects.h"
 #include "parser.h"
 #include "preparser.h"
 #include "scanner-character-streams.h"
@@ -1463,7 +1464,9 @@ TEST(PreparserStrictOctal) {
 
 void RunParserSyncTest(const char* context_data[][2],
                        const char* statement_data[],
-                       ParserSyncTestResult result) {
+                       ParserSyncTestResult result,
+                       const ParserFlag* flags = NULL,
+                       int flags_len = 0) {
   v8::HandleScope handles(CcTest::isolate());
   v8::Handle<v8::Context> context = v8::Context::New(CcTest::isolate());
   v8::Context::Scope context_scope(context);
@@ -1472,10 +1475,14 @@ void RunParserSyncTest(const char* context_data[][2],
   CcTest::i_isolate()->stack_guard()->SetStackLimit(
       reinterpret_cast<uintptr_t>(&marker) - 128 * 1024);
 
-  static const ParserFlag flags[] = {
+  static const ParserFlag default_flags[] = {
     kAllowLazy, kAllowHarmonyScoping, kAllowModules, kAllowGenerators,
     kAllowForOf, kAllowNativesSyntax
   };
+  if (!flags) {
+    flags = default_flags;
+    flags_len = ARRAY_SIZE(default_flags);
+  }
   for (int i = 0; context_data[i][0] != NULL; ++i) {
     for (int j = 0; statement_data[j] != NULL; ++j) {
       int kPrefixLen = i::StrLength(context_data[i][0]);
@@ -1493,7 +1500,7 @@ void RunParserSyncTest(const char* context_data[][2],
       CHECK(length == kProgramSize);
       TestParserSync(program.start(),
                      flags,
-                     ARRAY_SIZE(flags),
+                     flags_len,
                      result);
     }
   }
@@ -2319,4 +2326,28 @@ TEST(NoErrorsObjectLiteralChecking) {
   };
 
   RunParserSyncTest(context_data, statement_data, kSuccess);
+}
+
+
+TEST(TooManyArguments) {
+  const char* context_data[][2] = {
+    {"foo(", "0)"},
+    { NULL, NULL }
+  };
+
+  using v8::internal::Code;
+  char statement[Code::kMaxArguments * 2];
+  for (int i = 0; i < Code::kMaxArguments; ++i) {
+    statement[2 * i] = '0';
+    statement[2 * i + 1] = ',';
+  }
+
+  const char* statement_data[] = {
+    statement,
+    NULL
+  };
+
+  // The test is quite slow, so run it with a reduced set of flags.
+  static const ParserFlag empty_flags[] = {kAllowLazy};
+  RunParserSyncTest(context_data, statement_data, kError, empty_flags, 1);
 }
