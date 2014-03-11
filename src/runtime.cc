@@ -5794,7 +5794,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetLocalPropertyNames) {
       }
     }
     next_copy_index += local_property_count[i];
-    if (jsproto->HasHiddenProperties()) {
+
+    // Hidden properties only show up if the filter does not skip strings.
+    if ((filter & STRING) == 0 && jsproto->HasHiddenProperties()) {
       hidden_strings++;
     }
     if (i < length - 1) {
