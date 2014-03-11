@@ -846,9 +846,6 @@ class Assembler : public AssemblerBase {
     return SizeOfCodeGeneratedSince(label) / kInstructionSize;
   }
 
-  // TODO(all): Initialize these constants related with code patching.
-  // TODO(all): Set to -1 to hopefully crash if mistakenly used.
-
   // Number of instructions generated for the return sequence in
   // FullCodeGenerator::EmitReturnSequence.
   static const int kJSRetSequenceInstructions = 7;

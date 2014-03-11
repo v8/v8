@@ -1758,11 +1758,13 @@ void MacroAssembler::GetBuiltinFunction(Register target,
 }
 
 
-void MacroAssembler::GetBuiltinEntry(Register target, Builtins::JavaScript id) {
-  ASSERT(!target.is(x1));
-  GetBuiltinFunction(x1, id);
+void MacroAssembler::GetBuiltinEntry(Register target,
+                                     Register function,
+                                     Builtins::JavaScript id) {
+  ASSERT(!AreAliased(target, function));
+  GetBuiltinFunction(function, id);
   // Load the code entry point from the builtins object.
-  Ldr(target, FieldMemOperand(x1, JSFunction::kCodeEntryOffset));
+  Ldr(target, FieldMemOperand(function, JSFunction::kCodeEntryOffset));
 }
 
 
@@ -1773,7 +1775,8 @@ void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id,
   // You can't call a builtin without a valid frame.
   ASSERT(flag == JUMP_FUNCTION || has_frame());
 
-  GetBuiltinEntry(x2, id);
+  // Get the builtin entry in x2 and setup the function object in x1.
+  GetBuiltinEntry(x2, x1, id);
   if (flag == CALL_FUNCTION) {
     call_wrapper.BeforeCall(CallSize(x2));
     Call(x2);

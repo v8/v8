@@ -1047,7 +1047,6 @@ class MacroAssembler : public Assembler {
     CallRuntime(Runtime::FunctionForId(id), num_arguments, save_doubles);
   }
 
-  // TODO(all): Why does this variant save FP regs unconditionally?
   void CallRuntimeSaveDoubles(Runtime::FunctionId id) {
     const Runtime::Function* function = Runtime::FunctionForId(id);
     CallRuntime(function, function->nargs, kSaveFPRegs);
@@ -1110,9 +1109,10 @@ class MacroAssembler : public Assembler {
                      const CallWrapper& call_wrapper = NullCallWrapper());
 
   // Store the code object for the given builtin in the target register and
-  // setup the function in x1.
-  // TODO(all): Can we use another register than x1?
-  void GetBuiltinEntry(Register target, Builtins::JavaScript id);
+  // setup the function in the function register.
+  void GetBuiltinEntry(Register target,
+                       Register function,
+                       Builtins::JavaScript id);
 
   // Store the function for the given builtin in the target register.
   void GetBuiltinFunction(Register target, Builtins::JavaScript id);
