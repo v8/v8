@@ -162,6 +162,9 @@ namespace internal {
 #error Unknown target architecture endiannes
 #endif
 
+// Determine whether the architecture uses an out-of-line constant pool.
+#define V8_OOL_CONSTANT_POOL 0
+
 // Support for alternative bool type. This is only enabled if the code is
 // compiled with USE_MYBOOL defined. This catches some nasty type bugs.
 // For instance, 'bool b = "false";' results in b == true! This is a hidden

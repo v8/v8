@@ -893,7 +893,7 @@ DEFINE_implication(print_all_code, trace_codegen)
 #define FLAG FLAG_READONLY
 
 // assembler-arm.h
-DEFINE_bool(enable_ool_constant_pool, false,
+DEFINE_bool(enable_ool_constant_pool, V8_OOL_CONSTANT_POOL,
             "enable use of out-of-line constant pools (ARM only)")
 
 // Cleanup...

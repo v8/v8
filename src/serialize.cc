@@ -1145,15 +1145,15 @@ void Deserializer::ReadChunk(Object** current,
       // allocation point and write a pointer to it to the current object.
       ALL_SPACES(kBackref, kPlain, kStartOfObject)
       ALL_SPACES(kBackrefWithSkip, kPlain, kStartOfObject)
-#if V8_TARGET_ARCH_MIPS
+#if defined(V8_TARGET_ARCH_MIPS) || V8_OOL_CONSTANT_POOL
       // Deserialize a new object from pointer found in code and write
-      // a pointer to it to the current object. Required only for MIPS, and
-      // omitted on the other architectures because it is fully unrolled and
-      // would cause bloat.
+      // a pointer to it to the current object. Required only for MIPS or ARM
+      // with ool constant pool, and omitted on the other architectures because
+      // it is fully unrolled and would cause bloat.
       ALL_SPACES(kNewObject, kFromCode, kStartOfObject)
       // Find a recently deserialized code object using its offset from the
       // current allocation point and write a pointer to it to the current
-      // object. Required only for MIPS.
+      // object. Required only for MIPS or ARM with ool constant pool.
       ALL_SPACES(kBackref, kFromCode, kStartOfObject)
       ALL_SPACES(kBackrefWithSkip, kFromCode, kStartOfObject)
 #endif
@@ -1374,12 +1374,11 @@ int Serializer::RootIndex(HeapObject* heap_object, HowToCode from) {
   for (int i = 0; i < root_index_wave_front_; i++) {
     Object* root = heap->roots_array_start()[i];
     if (!root->IsSmi() && root == heap_object) {
-#if V8_TARGET_ARCH_MIPS
+#if defined(V8_TARGET_ARCH_MIPS) || V8_OOL_CONSTANT_POOL
       if (from == kFromCode) {
         // In order to avoid code bloat in the deserializer we don't have
         // support for the encoding that specifies a particular root should
-        // be written into the lui/ori instructions on MIPS.  Therefore we
-        // should not generate such serialization data for MIPS.
+        // be written from within code.
         return kInvalidRootIndex;
       }
 #endif
@@ -1632,6 +1631,9 @@ void Serializer::ObjectSerializer::VisitPointers(Object** start,
 
 
 void Serializer::ObjectSerializer::VisitEmbeddedPointer(RelocInfo* rinfo) {
+  // Out-of-line constant pool entries will be visited by the ConstantPoolArray.
+  if (FLAG_enable_ool_constant_pool && rinfo->IsInConstantPool()) return;
+
   int skip = OutputRawData(rinfo->target_address_address(),
                            kCanReturnSkipInsteadOfSkipping);
   HowToCode how_to_code = rinfo->IsCodedSpecially() ? kFromCode : kPlain;
@@ -1677,6 +1679,9 @@ void Serializer::ObjectSerializer::VisitRuntimeEntry(RelocInfo* rinfo) {
 
 
 void Serializer::ObjectSerializer::VisitCodeTarget(RelocInfo* rinfo) {
+  // Out-of-line constant pool entries will be visited by the ConstantPoolArray.
+  if (FLAG_enable_ool_constant_pool && rinfo->IsInConstantPool()) return;
+
   int skip = OutputRawData(rinfo->target_address_address(),
                            kCanReturnSkipInsteadOfSkipping);
   Code* object = Code::GetCodeFromTargetAddress(rinfo->target_address());
@@ -1694,6 +1699,9 @@ void Serializer::ObjectSerializer::VisitCodeEntry(Address entry_address) {
 
 
 void Serializer::ObjectSerializer::VisitCell(RelocInfo* rinfo) {
+  // Out-of-line constant pool entries will be visited by the ConstantPoolArray.
+  if (FLAG_enable_ool_constant_pool && rinfo->IsInConstantPool()) return;
+
   int skip = OutputRawData(rinfo->pc(), kCanReturnSkipInsteadOfSkipping);
   Cell* object = Cell::cast(rinfo->target_cell());
   serializer_->SerializeObject(object, kPlain, kInnerPointer, skip);
@@ -1739,7 +1747,9 @@ static void WipeOutRelocations(Code* code) {
       RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE) |
       RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY);
   for (RelocIterator it(code, mode_mask); !it.done(); it.next()) {
-    it.rinfo()->WipeOut();
+    if (!(FLAG_enable_ool_constant_pool && it.rinfo()->IsInConstantPool())) {
+      it.rinfo()->WipeOut();
+    }
   }
 }
 
