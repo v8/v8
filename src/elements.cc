@@ -1859,9 +1859,17 @@ MUST_USE_RESULT MaybeObject* ElementsAccessorBase<ElementsAccessorSubclass,
       MaybeObject* result = ElementsAccessorSubclass::
           SetLengthWithoutNormalize(backing_store, array, smi_length, value);
       if (!result->ToObject(&new_length)) return result;
-      ASSERT(new_length->IsSmi() || new_length->IsUndefined());
+      // even though the proposed length was a smi, new_length could
+      // still be a heap number because SetLengthWithoutNormalize doesn't
+      // allow the array length property to drop below the index of
+      // non-deletable elements.
+      ASSERT(new_length->IsSmi() || new_length->IsHeapNumber() ||
+             new_length->IsUndefined());
       if (new_length->IsSmi()) {
         array->set_length(Smi::cast(new_length));
+        return array;
+      } else if (new_length->IsHeapNumber()) {
+        array->set_length(new_length);
         return array;
       }
     } else {
