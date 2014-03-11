@@ -1282,7 +1282,7 @@ HValue* HGraphBuilder::BuildWrapReceiver(HValue* object, HValue* function) {
     Handle<JSFunction> f = Handle<JSFunction>::cast(
         HConstant::cast(function)->handle(isolate()));
     SharedFunctionInfo* shared = f->shared();
-    if (!shared->is_sloppy_mode() || shared->native()) return object;
+    if (shared->strict_mode() == STRICT || shared->native()) return object;
   }
   return Add<HWrapReceiver>(object, function);
 }
@@ -5584,7 +5584,7 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::CanAccessAsMonomorphic(
 
 static bool NeedsWrappingFor(Type* type, Handle<JSFunction> target) {
   return type->Is(Type::NumberOrString()) &&
-      target->shared()->is_sloppy_mode() &&
+      target->shared()->strict_mode() == SLOPPY &&
       !target->shared()->native();
 }
 
@@ -5925,7 +5925,7 @@ void HOptimizedGraphBuilder::HandleGlobalVariableAssignment(
         HObjectAccess::ForContextSlot(Context::GLOBAL_OBJECT_INDEX));
     HStoreNamedGeneric* instr =
         Add<HStoreNamedGeneric>(global_object, var->name(),
-                                 value, function_strict_mode_flag());
+                                 value, function_strict_mode());
     USE(instr);
     ASSERT(instr->HasObservableSideEffects());
     Add<HSimulate>(ast_id, REMOVABLE_SIMULATE);
@@ -5960,7 +5960,7 @@ void HOptimizedGraphBuilder::HandleCompoundAssignment(Assignment* expr) {
 
       case Variable::PARAMETER:
       case Variable::LOCAL:
-        if (var->mode() == CONST)  {
+        if (var->mode() == CONST_LEGACY)  {
           return Bailout(kUnsupportedConstCompoundAssignment);
         }
         BindIfLive(var, Top());
@@ -5989,11 +5989,11 @@ void HOptimizedGraphBuilder::HandleCompoundAssignment(Assignment* expr) {
             mode = HStoreContextSlot::kCheckDeoptimize;
             break;
           case CONST:
-            return ast_context()->ReturnValue(Pop());
-          case CONST_HARMONY:
             // This case is checked statically so no need to
             // perform checks here
             UNREACHABLE();
+          case CONST_LEGACY:
+            return ast_context()->ReturnValue(Pop());
           default:
             mode = HStoreContextSlot::kNoCheck;
         }
@@ -6058,6 +6058,10 @@ void HOptimizedGraphBuilder::VisitAssignment(Assignment* expr) {
 
     if (var->mode() == CONST) {
       if (expr->op() != Token::INIT_CONST) {
+        return Bailout(kNonInitializerAssignmentToConst);
+      }
+    } else if (var->mode() == CONST_LEGACY) {
+      if (expr->op() != Token::INIT_CONST_LEGACY) {
         CHECK_ALIVE(VisitForValue(expr->value()));
         return ast_context()->ReturnValue(Pop());
       }
@@ -6067,10 +6071,6 @@ void HOptimizedGraphBuilder::VisitAssignment(Assignment* expr) {
         // variables (e.g. initialization inside a loop).
         HValue* old_value = environment()->Lookup(var);
         Add<HUseConst>(old_value);
-      }
-    } else if (var->mode() == CONST_HARMONY) {
-      if (expr->op() != Token::INIT_CONST_HARMONY) {
-        return Bailout(kNonInitializerAssignmentToConst);
       }
     }
 
@@ -6127,20 +6127,20 @@ void HOptimizedGraphBuilder::VisitAssignment(Assignment* expr) {
               mode = HStoreContextSlot::kCheckDeoptimize;
               break;
             case CONST:
-              return ast_context()->ReturnValue(Pop());
-            case CONST_HARMONY:
               // This case is checked statically so no need to
               // perform checks here
               UNREACHABLE();
+            case CONST_LEGACY:
+              return ast_context()->ReturnValue(Pop());
             default:
               mode = HStoreContextSlot::kNoCheck;
           }
         } else if (expr->op() == Token::INIT_VAR ||
                    expr->op() == Token::INIT_LET ||
-                   expr->op() == Token::INIT_CONST_HARMONY) {
+                   expr->op() == Token::INIT_CONST) {
           mode = HStoreContextSlot::kNoCheck;
         } else {
-          ASSERT(expr->op() == Token::INIT_CONST);
+          ASSERT(expr->op() == Token::INIT_CONST_LEGACY);
 
           mode = HStoreContextSlot::kCheckIgnoreAssignment;
         }
@@ -6234,8 +6234,7 @@ HInstruction* HOptimizedGraphBuilder::BuildNamedGeneric(
   if (access_type == LOAD) {
     return New<HLoadNamedGeneric>(object, name);
   } else {
-    return New<HStoreNamedGeneric>(
-        object, name, value, function_strict_mode_flag());
+    return New<HStoreNamedGeneric>(object, name, value, function_strict_mode());
   }
 }
 
@@ -6249,8 +6248,7 @@ HInstruction* HOptimizedGraphBuilder::BuildKeyedGeneric(
   if (access_type == LOAD) {
     return New<HLoadKeyedGeneric>(object, key);
   } else {
-    return New<HStoreKeyedGeneric>(
-        object, key, value, function_strict_mode_flag());
+    return New<HStoreKeyedGeneric>(object, key, value, function_strict_mode());
   }
 }
 
@@ -7937,7 +7935,7 @@ bool HOptimizedGraphBuilder::TryCallApply(Call* expr) {
 HValue* HOptimizedGraphBuilder::ImplicitReceiverFor(HValue* function,
                                                     Handle<JSFunction> target) {
   SharedFunctionInfo* shared = target->shared();
-  if (shared->is_sloppy_mode() && !shared->native()) {
+  if (shared->strict_mode() == SLOPPY && !shared->native()) {
     // Cannot embed a direct reference to the global proxy
     // as is it dropped on deserialization.
     CHECK(!Serializer::enabled());
@@ -8646,7 +8644,7 @@ void HOptimizedGraphBuilder::VisitDelete(UnaryOperation* expr) {
     HValue* function = AddLoadJSBuiltin(Builtins::DELETE);
     Add<HPushArgument>(obj);
     Add<HPushArgument>(key);
-    Add<HPushArgument>(Add<HConstant>(function_strict_mode_flag()));
+    Add<HPushArgument>(Add<HConstant>(function_strict_mode()));
     // TODO(olivf) InvokeFunction produces a check for the parameter count,
     // even though we are certain to pass the correct number of arguments here.
     HInstruction* instr = New<HInvokeFunction>(function, 3);
@@ -8810,7 +8808,7 @@ void HOptimizedGraphBuilder::VisitCountOperation(CountOperation* expr) {
 
   if (proxy != NULL) {
     Variable* var = proxy->var();
-    if (var->mode() == CONST)  {
+    if (var->mode() == CONST_LEGACY)  {
       return Bailout(kUnsupportedCountOperationWithConst);
     }
     // Argument of the count operation is a variable, not a property.
@@ -10020,7 +10018,7 @@ void HOptimizedGraphBuilder::VisitDeclarations(
     for (int i = 0; i < globals_.length(); ++i) array->set(i, *globals_.at(i));
     int flags = DeclareGlobalsEvalFlag::encode(current_info()->is_eval()) |
         DeclareGlobalsNativeFlag::encode(current_info()->is_native()) |
-        DeclareGlobalsLanguageMode::encode(current_info()->language_mode());
+        DeclareGlobalsStrictMode::encode(current_info()->strict_mode());
     Add<HDeclareGlobals>(array, flags);
     globals_.Clear();
   }
@@ -10032,7 +10030,7 @@ void HOptimizedGraphBuilder::VisitVariableDeclaration(
   VariableProxy* proxy = declaration->proxy();
   VariableMode mode = declaration->mode();
   Variable* variable = proxy->var();
-  bool hole_init = mode == CONST || mode == CONST_HARMONY || mode == LET;
+  bool hole_init = mode == LET || mode == CONST || mode == CONST_LEGACY;
   switch (variable->location()) {
     case Variable::UNALLOCATED:
       globals_.Add(variable->name(), zone());

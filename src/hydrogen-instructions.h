@@ -5682,10 +5682,10 @@ class HLoadContextSlot V8_FINAL : public HUnaryOperation {
     ASSERT(var->IsContextSlot());
     switch (var->mode()) {
       case LET:
-      case CONST_HARMONY:
+      case CONST:
         mode_ = kCheckDeoptimize;
         break;
-      case CONST:
+      case CONST_LEGACY:
         mode_ = kCheckReturnUndefined;
         break;
       default:
@@ -6636,12 +6636,12 @@ class HStoreNamedGeneric V8_FINAL : public HTemplateInstruction<3> {
  public:
   DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P4(HStoreNamedGeneric, HValue*,
                                               Handle<String>, HValue*,
-                                              StrictModeFlag);
+                                              StrictMode);
   HValue* object() { return OperandAt(0); }
   HValue* value() { return OperandAt(1); }
   HValue* context() { return OperandAt(2); }
   Handle<String> name() { return name_; }
-  StrictModeFlag strict_mode_flag() { return strict_mode_flag_; }
+  StrictMode strict_mode() { return strict_mode_; }
 
   virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
 
@@ -6656,9 +6656,9 @@ class HStoreNamedGeneric V8_FINAL : public HTemplateInstruction<3> {
                      HValue* object,
                      Handle<String> name,
                      HValue* value,
-                     StrictModeFlag strict_mode_flag)
+                     StrictMode strict_mode)
       : name_(name),
-        strict_mode_flag_(strict_mode_flag) {
+        strict_mode_(strict_mode) {
     SetOperandAt(0, object);
     SetOperandAt(1, value);
     SetOperandAt(2, context);
@@ -6666,7 +6666,7 @@ class HStoreNamedGeneric V8_FINAL : public HTemplateInstruction<3> {
   }
 
   Handle<String> name_;
-  StrictModeFlag strict_mode_flag_;
+  StrictMode strict_mode_;
 };
 
 
@@ -6848,13 +6848,13 @@ class HStoreKeyed V8_FINAL
 class HStoreKeyedGeneric V8_FINAL : public HTemplateInstruction<4> {
  public:
   DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P4(HStoreKeyedGeneric, HValue*,
-                                              HValue*, HValue*, StrictModeFlag);
+                                              HValue*, HValue*, StrictMode);
 
   HValue* object() { return OperandAt(0); }
   HValue* key() { return OperandAt(1); }
   HValue* value() { return OperandAt(2); }
   HValue* context() { return OperandAt(3); }
-  StrictModeFlag strict_mode_flag() { return strict_mode_flag_; }
+  StrictMode strict_mode() { return strict_mode_; }
 
   virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
     // tagged[tagged] = tagged
@@ -6870,8 +6870,8 @@ class HStoreKeyedGeneric V8_FINAL : public HTemplateInstruction<4> {
                      HValue* object,
                      HValue* key,
                      HValue* value,
-                     StrictModeFlag strict_mode_flag)
-      : strict_mode_flag_(strict_mode_flag) {
+                     StrictMode strict_mode)
+      : strict_mode_(strict_mode) {
     SetOperandAt(0, object);
     SetOperandAt(1, key);
     SetOperandAt(2, value);
@@ -6879,7 +6879,7 @@ class HStoreKeyedGeneric V8_FINAL : public HTemplateInstruction<4> {
     SetAllSideEffects();
   }
 
-  StrictModeFlag strict_mode_flag_;
+  StrictMode strict_mode_;
 };
 
 
@@ -7167,7 +7167,7 @@ class HFunctionLiteral V8_FINAL : public HTemplateInstruction<1> {
   bool pretenure() const { return pretenure_; }
   bool has_no_literals() const { return has_no_literals_; }
   bool is_generator() const { return is_generator_; }
-  LanguageMode language_mode() const { return language_mode_; }
+  StrictMode strict_mode() const { return strict_mode_; }
 
  private:
   HFunctionLiteral(HValue* context,
@@ -7178,7 +7178,7 @@ class HFunctionLiteral V8_FINAL : public HTemplateInstruction<1> {
         pretenure_(pretenure),
         has_no_literals_(shared->num_literals() == 0),
         is_generator_(shared->is_generator()),
-        language_mode_(shared->language_mode()) {
+        strict_mode_(shared->strict_mode()) {
     SetOperandAt(0, context);
     set_representation(Representation::Tagged());
     SetChangesFlag(kNewSpacePromotion);
@@ -7190,7 +7190,7 @@ class HFunctionLiteral V8_FINAL : public HTemplateInstruction<1> {
   bool pretenure_ : 1;
   bool has_no_literals_ : 1;
   bool is_generator_ : 1;
-  LanguageMode language_mode_;
+  StrictMode strict_mode_;
 };
 
 

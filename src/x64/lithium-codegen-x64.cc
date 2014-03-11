@@ -157,7 +157,7 @@ bool LCodeGen::GeneratePrologue() {
     // Sloppy mode functions need to replace the receiver with the global proxy
     // when called as functions (without an explicit receiver object).
     if (info_->this_has_uses() &&
-        info_->is_sloppy_mode() &&
+        info_->strict_mode() == SLOPPY &&
         !info_->is_native()) {
       Label ok;
       StackArgumentsAccessor args(rsp, scope()->num_parameters());
@@ -4049,8 +4049,7 @@ void LCodeGen::DoStoreNamedGeneric(LStoreNamedGeneric* instr) {
   ASSERT(ToRegister(instr->value()).is(rax));
 
   __ Move(rcx, instr->hydrogen()->name());
-  Handle<Code> ic = StoreIC::initialize_stub(isolate(),
-                                             instr->strict_mode_flag());
+  Handle<Code> ic = StoreIC::initialize_stub(isolate(), instr->strict_mode());
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
 }
 
@@ -4336,7 +4335,7 @@ void LCodeGen::DoStoreKeyedGeneric(LStoreKeyedGeneric* instr) {
   ASSERT(ToRegister(instr->key()).is(rcx));
   ASSERT(ToRegister(instr->value()).is(rax));
 
-  Handle<Code> ic = (instr->strict_mode_flag() == kStrictMode)
+  Handle<Code> ic = instr->strict_mode() == STRICT
       ? isolate()->builtins()->KeyedStoreIC_Initialize_Strict()
       : isolate()->builtins()->KeyedStoreIC_Initialize();
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
@@ -5288,7 +5287,7 @@ void LCodeGen::DoFunctionLiteral(LFunctionLiteral* instr) {
   // space for nested functions that don't need literals cloning.
   bool pretenure = instr->hydrogen()->pretenure();
   if (!pretenure && instr->hydrogen()->has_no_literals()) {
-    FastNewClosureStub stub(instr->hydrogen()->language_mode(),
+    FastNewClosureStub stub(instr->hydrogen()->strict_mode(),
                             instr->hydrogen()->is_generator());
     __ Move(rbx, instr->hydrogen()->shared_info());
     CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);

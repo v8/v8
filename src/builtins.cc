@@ -677,8 +677,8 @@ BUILTIN(ArraySlice) {
   } else {
     // Array.slice(arguments, ...) is quite a common idiom (notably more
     // than 50% of invocations in Web apps).  Treat it in C++ as well.
-    Map* arguments_map =
-        isolate->context()->native_context()->arguments_boilerplate()->map();
+    Map* arguments_map = isolate->context()->native_context()->
+        sloppy_arguments_boilerplate()->map();
 
     bool is_arguments_object_with_fast_elements =
         receiver->IsJSObject() &&
@@ -1174,7 +1174,7 @@ MUST_USE_RESULT static MaybeObject* HandleApiCallHelper(
   }
 
   SharedFunctionInfo* shared = function->shared();
-  if (shared->is_sloppy_mode() && !shared->native()) {
+  if (shared->strict_mode() == SLOPPY && !shared->native()) {
     Object* recv = args[0];
     ASSERT(!recv->IsNull());
     if (recv->IsUndefined()) {
@@ -1390,12 +1390,12 @@ static void Generate_StoreIC_Setter_ForDeopt(MacroAssembler* masm) {
 
 
 static void Generate_KeyedStoreIC_Generic(MacroAssembler* masm) {
-  KeyedStoreIC::GenerateGeneric(masm, kSloppyMode);
+  KeyedStoreIC::GenerateGeneric(masm, SLOPPY);
 }
 
 
 static void Generate_KeyedStoreIC_Generic_Strict(MacroAssembler* masm) {
-  KeyedStoreIC::GenerateGeneric(masm, kStrictMode);
+  KeyedStoreIC::GenerateGeneric(masm, STRICT);
 }
 
 

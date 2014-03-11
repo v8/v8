@@ -56,7 +56,7 @@ namespace internal {
 
 CompilationInfo::CompilationInfo(Handle<Script> script,
                                  Zone* zone)
-    : flags_(LanguageModeField::encode(SLOPPY_MODE)),
+    : flags_(StrictModeField::encode(SLOPPY)),
       script_(script),
       osr_ast_id_(BailoutId::None()),
       parameter_count_(0),
@@ -68,7 +68,7 @@ CompilationInfo::CompilationInfo(Handle<Script> script,
 
 CompilationInfo::CompilationInfo(Handle<SharedFunctionInfo> shared_info,
                                  Zone* zone)
-    : flags_(LanguageModeField::encode(SLOPPY_MODE) | IsLazy::encode(true)),
+    : flags_(StrictModeField::encode(SLOPPY) | IsLazy::encode(true)),
       shared_info_(shared_info),
       script_(Handle<Script>(Script::cast(shared_info->script()))),
       osr_ast_id_(BailoutId::None()),
@@ -81,7 +81,7 @@ CompilationInfo::CompilationInfo(Handle<SharedFunctionInfo> shared_info,
 
 CompilationInfo::CompilationInfo(Handle<JSFunction> closure,
                                  Zone* zone)
-    : flags_(LanguageModeField::encode(SLOPPY_MODE) | IsLazy::encode(true)),
+    : flags_(StrictModeField::encode(SLOPPY) | IsLazy::encode(true)),
       closure_(closure),
       shared_info_(Handle<SharedFunctionInfo>(closure->shared())),
       script_(Handle<Script>(Script::cast(shared_info_->script()))),
@@ -97,8 +97,7 @@ CompilationInfo::CompilationInfo(Handle<JSFunction> closure,
 CompilationInfo::CompilationInfo(HydrogenCodeStub* stub,
                                  Isolate* isolate,
                                  Zone* zone)
-    : flags_(LanguageModeField::encode(SLOPPY_MODE) |
-             IsLazy::encode(true)),
+    : flags_(StrictModeField::encode(SLOPPY) | IsLazy::encode(true)),
       osr_ast_id_(BailoutId::None()),
       parameter_count_(0),
       this_has_uses_(true),
@@ -137,8 +136,8 @@ void CompilationInfo::Initialize(Isolate* isolate,
     MarkAsNative();
   }
   if (!shared_info_.is_null()) {
-    ASSERT(language_mode() == SLOPPY_MODE);
-    SetLanguageMode(shared_info_->language_mode());
+    ASSERT(strict_mode() == SLOPPY);
+    SetStrictMode(shared_info_->strict_mode());
   }
   set_bailout_reason(kUnknown);
 
@@ -606,7 +605,7 @@ static void UpdateSharedFunctionInfo(CompilationInfo* info) {
   shared->set_dont_optimize_reason(lit->dont_optimize_reason());
   shared->set_dont_inline(lit->flags()->Contains(kDontInline));
   shared->set_ast_node_count(lit->ast_node_count());
-  shared->set_language_mode(lit->language_mode());
+  shared->set_strict_mode(lit->strict_mode());
 }
 
 
@@ -631,7 +630,7 @@ static void SetFunctionInfo(Handle<SharedFunctionInfo> function_info,
   function_info->set_allows_lazy_compilation(lit->AllowsLazyCompilation());
   function_info->set_allows_lazy_compilation_without_context(
       lit->AllowsLazyCompilationWithoutContext());
-  function_info->set_language_mode(lit->language_mode());
+  function_info->set_strict_mode(lit->strict_mode());
   function_info->set_uses_arguments(lit->scope()->arguments() != NULL);
   function_info->set_has_duplicate_parameters(lit->has_duplicate_parameters());
   function_info->set_ast_node_count(lit->ast_node_count());
@@ -662,8 +661,7 @@ static Handle<Code> GetUnoptimizedCodeCommon(CompilationInfo* info) {
   VMState<COMPILER> state(info->isolate());
   PostponeInterruptsScope postpone(info->isolate());
   if (!Parser::Parse(info)) return Handle<Code>::null();
-  LanguageMode language_mode = info->function()->language_mode();
-  info->SetLanguageMode(language_mode);
+  info->SetStrictMode(info->function()->strict_mode());
 
   if (!CompileUnoptimizedCode(info)) return Handle<Code>::null();
   Compiler::RecordFunctionCompilation(
@@ -771,8 +769,7 @@ void Compiler::CompileForLiveEdit(Handle<Script> script) {
 
   info.MarkAsGlobal();
   if (!Parser::Parse(&info)) return;
-  LanguageMode language_mode = info.function()->language_mode();
-  info.SetLanguageMode(language_mode);
+  info.SetStrictMode(info.function()->strict_mode());
 
   LiveEditFunctionTracker tracker(info.isolate(), info.function());
   if (!CompileUnoptimizedCode(&info)) return;
@@ -889,7 +886,7 @@ static Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
 
 Handle<JSFunction> Compiler::GetFunctionFromEval(Handle<String> source,
                                                  Handle<Context> context,
-                                                 LanguageMode language_mode,
+                                                 StrictMode strict_mode,
                                                  ParseRestriction restriction,
                                                  int scope_position) {
   Isolate* isolate = source->GetIsolate();
@@ -899,14 +896,14 @@ Handle<JSFunction> Compiler::GetFunctionFromEval(Handle<String> source,
 
   CompilationCache* compilation_cache = isolate->compilation_cache();
   Handle<SharedFunctionInfo> shared_info = compilation_cache->LookupEval(
-      source, context, language_mode, scope_position);
+      source, context, strict_mode, scope_position);
 
   if (shared_info.is_null()) {
     Handle<Script> script = isolate->factory()->NewScript(source);
     CompilationInfoWithZone info(script);
     info.MarkAsEval();
     if (context->IsNativeContext()) info.MarkAsGlobal();
-    info.SetLanguageMode(language_mode);
+    info.SetStrictMode(strict_mode);
     info.SetParseRestriction(restriction);
     info.SetContext(context);
 
@@ -923,14 +920,8 @@ Handle<JSFunction> Compiler::GetFunctionFromEval(Handle<String> source,
       // to handle eval-code in the optimizing compiler.
       shared_info->DisableOptimization(kEval);
 
-      // If caller is strict mode, the result must be in strict mode or
-      // extended mode as well, but not the other way around. Consider:
-      // eval("'use strict'; ...");
-      ASSERT(language_mode != STRICT_MODE || !shared_info->is_sloppy_mode());
-      // If caller is in extended mode, the result must also be in
-      // extended mode.
-      ASSERT(language_mode != EXTENDED_MODE ||
-             shared_info->is_extended_mode());
+      // If caller is strict mode, the result must be in strict mode as well.
+      ASSERT(strict_mode == SLOPPY || shared_info->strict_mode() == STRICT);
       if (!shared_info->dont_cache()) {
         compilation_cache->PutEval(
             source, context, shared_info, scope_position);
@@ -1000,9 +991,7 @@ Handle<SharedFunctionInfo> Compiler::CompileScript(Handle<String> source,
     info.SetExtension(extension);
     info.SetPreParseData(pre_data);
     info.SetContext(context);
-    if (FLAG_use_strict) {
-      info.SetLanguageMode(FLAG_harmony_scoping ? EXTENDED_MODE : STRICT_MODE);
-    }
+    if (FLAG_use_strict) info.SetStrictMode(STRICT);
     result = CompileToplevel(&info);
     if (extension == NULL && !result.is_null() && !result->dont_cache()) {
       compilation_cache->PutScript(source, context, result);
@@ -1022,7 +1011,7 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(FunctionLiteral* literal,
   CompilationInfoWithZone info(script);
   info.SetFunction(literal);
   info.PrepareForCompilation(literal->scope());
-  info.SetLanguageMode(literal->scope()->language_mode());
+  info.SetStrictMode(literal->scope()->strict_mode());
 
   Isolate* isolate = info.isolate();
   Factory* factory = isolate->factory();
@@ -1118,8 +1107,7 @@ static void InsertCodeIntoOptimizedCodeMap(CompilationInfo* info) {
 
 static bool CompileOptimizedPrologue(CompilationInfo* info) {
   if (!Parser::Parse(info)) return false;
-  LanguageMode language_mode = info->function()->language_mode();
-  info->SetLanguageMode(language_mode);
+  info->SetStrictMode(info->function()->strict_mode());
 
   if (!Rewriter::Rewrite(info)) return false;
   if (!Scope::Analyze(info)) return false;

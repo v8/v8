@@ -556,7 +556,7 @@ class FullCodeGenerator: public AstVisitor {
   // Helper functions to EmitVariableAssignment
   void EmitStoreToStackLocalOrContextSlot(Variable* var,
                                           MemOperand location);
-  void EmitCallStoreContextSlot(Handle<String> name, LanguageMode mode);
+  void EmitCallStoreContextSlot(Handle<String> name, StrictMode strict_mode);
 
   // Complete a named property assignment.  The receiver is expected on top
   // of the stack and the right-hand-side value in the accumulator.
@@ -602,11 +602,7 @@ class FullCodeGenerator: public AstVisitor {
   Handle<Script> script() { return info_->script(); }
   bool is_eval() { return info_->is_eval(); }
   bool is_native() { return info_->is_native(); }
-  bool is_sloppy_mode() { return language_mode() == SLOPPY_MODE; }
-  StrictModeFlag strict_mode() {
-    return is_sloppy_mode() ? kSloppyMode : kStrictMode;
-  }
-  LanguageMode language_mode() { return function()->language_mode(); }
+  StrictMode strict_mode() { return function()->strict_mode(); }
   FunctionLiteral* function() { return info_->function(); }
   Scope* scope() { return scope_; }
 

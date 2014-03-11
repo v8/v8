@@ -943,7 +943,7 @@ Handle<Code> LoadIC::CompileHandler(LookupResult* lookup,
         Handle<JSFunction> function = Handle<JSFunction>::cast(getter);
         if (!object->IsJSObject() &&
             !function->IsBuiltin() &&
-            function->shared()->is_sloppy_mode()) {
+            function->shared()->strict_mode() == SLOPPY) {
           // Calling sloppy non-builtins with a value as the receiver
           // requires boxing.
           break;
@@ -1182,7 +1182,7 @@ MaybeObject* StoreIC::Store(Handle<Object> object,
   }
 
   // The length property of string values is read-only. Throw in strict mode.
-  if (strict_mode() == kStrictMode && object->IsString() &&
+  if (strict_mode() == STRICT && object->IsString() &&
       name->Equals(isolate()->heap()->length_string())) {
     return TypeError("strict_read_only_property", object, name);
   }
@@ -1233,7 +1233,7 @@ MaybeObject* StoreIC::Store(Handle<Object> object,
   LookupResult lookup(isolate());
   bool can_store = LookupForWrite(receiver, name, value, &lookup, this);
   if (!can_store &&
-      strict_mode() == kStrictMode &&
+      strict_mode() == STRICT &&
       !(lookup.IsProperty() && lookup.IsReadOnly()) &&
       object->IsGlobalObject()) {
     // Strict mode doesn't allow setting non-existent global property.
@@ -1263,7 +1263,7 @@ MaybeObject* StoreIC::Store(Handle<Object> object,
 
 
 Handle<Code> StoreIC::initialize_stub(Isolate* isolate,
-                                      StrictModeFlag strict_mode) {
+                                      StrictMode strict_mode) {
   ExtraICState extra_state = ComputeExtraICState(strict_mode);
   Handle<Code> ic = isolate->stub_cache()->ComputeStore(
       UNINITIALIZED, extra_state);
@@ -1282,7 +1282,7 @@ Handle<Code> StoreIC::generic_stub() const {
 
 
 Handle<Code> StoreIC::pre_monomorphic_stub(Isolate* isolate,
-                                           StrictModeFlag strict_mode) {
+                                           StrictMode strict_mode) {
   ExtraICState state = ComputeExtraICState(strict_mode);
   return isolate->stub_cache()->ComputeStore(PREMONOMORPHIC, state);
 }
@@ -1316,7 +1316,7 @@ Handle<Code> StoreIC::CompileHandler(LookupResult* lookup,
 
   Handle<JSObject> holder(lookup->holder());
   // Handlers do not use strict mode.
-  StoreStubCompiler compiler(isolate(), kSloppyMode, kind());
+  StoreStubCompiler compiler(isolate(), SLOPPY, kind());
   switch (lookup->type()) {
     case FIELD:
       return compiler.CompileStoreField(receiver, lookup, name);
@@ -1688,7 +1688,7 @@ MaybeObject* KeyedStoreIC::Store(Handle<Object> object,
         bool key_is_smi_like = key->IsSmi() || !key->ToSmi()->IsFailure();
         if (receiver->elements()->map() ==
             isolate()->heap()->sloppy_arguments_elements_map()) {
-          if (strict_mode() == kSloppyMode) {
+          if (strict_mode() == SLOPPY) {
             stub = sloppy_arguments_stub();
           }
         } else if (key_is_smi_like &&
@@ -1899,7 +1899,7 @@ RUNTIME_FUNCTION(MaybeObject*, StoreIC_Slow) {
   Handle<Object> object = args.at<Object>(0);
   Handle<Object> key = args.at<Object>(1);
   Handle<Object> value = args.at<Object>(2);
-  StrictModeFlag strict_mode = ic.strict_mode();
+  StrictMode strict_mode = ic.strict_mode();
   Handle<Object> result = Runtime::SetObjectProperty(isolate, object, key,
                                                      value,
                                                      NONE,
@@ -1916,7 +1916,7 @@ RUNTIME_FUNCTION(MaybeObject*, KeyedStoreIC_Slow) {
   Handle<Object> object = args.at<Object>(0);
   Handle<Object> key = args.at<Object>(1);
   Handle<Object> value = args.at<Object>(2);
-  StrictModeFlag strict_mode = ic.strict_mode();
+  StrictMode strict_mode = ic.strict_mode();
   Handle<Object> result = Runtime::SetObjectProperty(isolate, object, key,
                                                      value,
                                                      NONE,
@@ -1934,7 +1934,7 @@ RUNTIME_FUNCTION(MaybeObject*, ElementsTransitionAndStoreIC_Miss) {
   Handle<Map> map = args.at<Map>(1);
   Handle<Object> key = args.at<Object>(2);
   Handle<Object> object = args.at<Object>(3);
-  StrictModeFlag strict_mode = ic.strict_mode();
+  StrictMode strict_mode = ic.strict_mode();
   if (object->IsJSObject()) {
     JSObject::TransitionElementsKind(Handle<JSObject>::cast(object),
                                      map->elements_kind());

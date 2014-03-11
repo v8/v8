@@ -522,8 +522,8 @@ class NumberToStringStub V8_FINAL : public HydrogenCodeStub {
 
 class FastNewClosureStub : public HydrogenCodeStub {
  public:
-  explicit FastNewClosureStub(LanguageMode language_mode, bool is_generator)
-    : language_mode_(language_mode),
+  explicit FastNewClosureStub(StrictMode strict_mode, bool is_generator)
+    : strict_mode_(strict_mode),
       is_generator_(is_generator) { }
 
   virtual Handle<Code> GenerateCode(Isolate* isolate);
@@ -534,7 +534,7 @@ class FastNewClosureStub : public HydrogenCodeStub {
 
   static void InstallDescriptors(Isolate* isolate);
 
-  LanguageMode language_mode() const { return language_mode_; }
+  StrictMode strict_mode() const { return strict_mode_; }
   bool is_generator() const { return is_generator_; }
 
  private:
@@ -543,11 +543,11 @@ class FastNewClosureStub : public HydrogenCodeStub {
 
   Major MajorKey() { return FastNewClosure; }
   int NotMissMinorKey() {
-    return StrictModeBits::encode(language_mode_ != SLOPPY_MODE) |
+    return StrictModeBits::encode(strict_mode_ == STRICT) |
       IsGeneratorBits::encode(is_generator_);
   }
 
-  LanguageMode language_mode_;
+  StrictMode strict_mode_;
   bool is_generator_;
 };
 
@@ -659,8 +659,7 @@ class FastCloneShallowObjectStub : public HydrogenCodeStub {
   // Maximum number of properties in copied object.
   static const int kMaximumClonedProperties = 6;
 
-  explicit FastCloneShallowObjectStub(int length)
-      : length_(length) {
+  explicit FastCloneShallowObjectStub(int length) : length_(length) {
     ASSERT_GE(length_, 0);
     ASSERT_LE(length_, kMaximumClonedProperties);
   }
@@ -847,7 +846,7 @@ class StringLengthStub: public ICStub {
 
 class StoreICStub: public ICStub {
  public:
-  StoreICStub(Code::Kind kind, StrictModeFlag strict_mode)
+  StoreICStub(Code::Kind kind, StrictMode strict_mode)
       : ICStub(kind), strict_mode_(strict_mode) { }
 
  protected:
@@ -862,13 +861,13 @@ class StoreICStub: public ICStub {
     return KindBits::encode(kind()) | StrictModeBits::encode(strict_mode_);
   }
 
-  StrictModeFlag strict_mode_;
+  StrictMode strict_mode_;
 };
 
 
 class StoreArrayLengthStub: public StoreICStub {
  public:
-  explicit StoreArrayLengthStub(Code::Kind kind, StrictModeFlag strict_mode)
+  explicit StoreArrayLengthStub(Code::Kind kind, StrictMode strict_mode)
       : StoreICStub(kind, strict_mode) { }
   virtual void Generate(MacroAssembler* masm);
 

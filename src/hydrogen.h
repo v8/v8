@@ -2109,9 +2109,8 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   void ClearInlinedTestContext() {
     function_state()->ClearInlinedTestContext();
   }
-  StrictModeFlag function_strict_mode_flag() {
-    return function_state()->compilation_info()->is_sloppy_mode()
-        ? kSloppyMode : kStrictMode;
+  StrictMode function_strict_mode() {
+    return function_state()->compilation_info()->strict_mode();
   }
 
   // Generators for inline runtime functions.

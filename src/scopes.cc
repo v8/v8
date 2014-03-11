@@ -190,8 +190,7 @@ void Scope::SetDefaults(ScopeType scope_type,
   scope_contains_with_ = false;
   scope_calls_eval_ = false;
   // Inherit the strict mode from the parent scope.
-  language_mode_ = (outer_scope != NULL)
-      ? outer_scope->language_mode_ : SLOPPY_MODE;
+  strict_mode_ = outer_scope != NULL ? outer_scope->strict_mode_ : SLOPPY;
   outer_scope_calls_sloppy_eval_ = false;
   inner_scope_calls_eval_ = false;
   force_eager_compilation_ = false;
@@ -207,7 +206,7 @@ void Scope::SetDefaults(ScopeType scope_type,
   end_position_ = RelocInfo::kNoPosition;
   if (!scope_info.is_null()) {
     scope_calls_eval_ = scope_info->CallsEval();
-    language_mode_ = scope_info->language_mode();
+    strict_mode_ = scope_info->strict_mode();
   }
 }
 
@@ -470,7 +469,7 @@ Variable* Scope::DeclareLocal(Handle<String> name,
                               InitializationFlag init_flag,
                               Interface* interface) {
   ASSERT(!already_resolved());
-  // This function handles VAR and CONST modes.  DYNAMIC variables are
+  // This function handles VAR, LET, and CONST modes.  DYNAMIC variables are
   // introduces during variable allocation, INTERNAL variables are allocated
   // explicitly, and TEMPORARY variables are allocated via NewTemporary().
   ASSERT(IsDeclaredVariableMode(mode));
@@ -881,15 +880,8 @@ void Scope::Print(int n) {
   if (HasTrivialOuterContext()) {
     Indent(n1, "// scope has trivial outer context\n");
   }
-  switch (language_mode()) {
-    case SLOPPY_MODE:
-      break;
-    case STRICT_MODE:
-      Indent(n1, "// strict mode scope\n");
-      break;
-    case EXTENDED_MODE:
-      Indent(n1, "// extended mode scope\n");
-      break;
+  if (strict_mode() == STRICT) {
+    Indent(n1, "// strict mode scope\n");
   }
   if (scope_inside_with_) Indent(n1, "// scope inside 'with'\n");
   if (scope_contains_with_) Indent(n1, "// scope contains 'with'\n");
@@ -1083,7 +1075,7 @@ bool Scope::ResolveVariable(CompilationInfo* info,
 
   ASSERT(var != NULL);
 
-  if (FLAG_harmony_scoping && is_extended_mode() &&
+  if (FLAG_harmony_scoping && strict_mode() == STRICT &&
       var->is_const_mode() && proxy->IsLValue()) {
     // Assignment to const. Throw a syntax error.
     MessageLocation location(
@@ -1122,7 +1114,7 @@ bool Scope::ResolveVariable(CompilationInfo* info,
       Isolate* isolate = info->isolate();
       Factory* factory = isolate->factory();
       Handle<JSArray> array = factory->NewJSArray(1);
-      USE(JSObject::SetElement(array, 0, var->name(), NONE, kStrictMode));
+      USE(JSObject::SetElement(array, 0, var->name(), NONE, STRICT));
       Handle<Object> result =
           factory->NewSyntaxError("module_type_error", array);
       isolate->Throw(*result, &location);
@@ -1264,7 +1256,7 @@ void Scope::AllocateParameterLocals() {
     // In strict mode 'arguments' does not alias formal parameters.
     // Therefore in strict mode we allocate parameters as if 'arguments'
     // were not used.
-    uses_sloppy_arguments = is_sloppy_mode();
+    uses_sloppy_arguments = strict_mode() == SLOPPY;
   }
 
   // The same parameter may occur multiple times in the parameters_ list.

@@ -519,7 +519,7 @@ Handle<Object> JSProxy::SetElementWithHandler(Handle<JSProxy> proxy,
                                               Handle<JSReceiver> receiver,
                                               uint32_t index,
                                               Handle<Object> value,
-                                              StrictModeFlag strict_mode) {
+                                              StrictMode strict_mode) {
   Isolate* isolate = proxy->GetIsolate();
   Handle<String> name = isolate->factory()->Uint32ToString(index);
   return SetPropertyWithHandler(
@@ -2147,7 +2147,7 @@ Handle<Object> JSObject::AddProperty(Handle<JSObject> object,
                                      Handle<Name> name,
                                      Handle<Object> value,
                                      PropertyAttributes attributes,
-                                     StrictModeFlag strict_mode,
+                                     StrictMode strict_mode,
                                      JSReceiver::StoreFromKeyed store_mode,
                                      ExtensibilityCheck extensibility_check,
                                      ValueType value_type,
@@ -2163,7 +2163,7 @@ Handle<Object> JSObject::AddProperty(Handle<JSObject> object,
 
   if (extensibility_check == PERFORM_EXTENSIBILITY_CHECK &&
       !object->map()->is_extensible()) {
-    if (strict_mode == kSloppyMode) {
+    if (strict_mode == SLOPPY) {
       return value;
     } else {
       Handle<Object> args[1] = { name };
@@ -2235,7 +2235,7 @@ Handle<Object> JSObject::SetPropertyPostInterceptor(
     Handle<Name> name,
     Handle<Object> value,
     PropertyAttributes attributes,
-    StrictModeFlag strict_mode) {
+    StrictMode strict_mode) {
   // Check local property, ignore interceptor.
   LookupResult result(object->GetIsolate());
   object->LocalLookupRealNamedProperty(*name, &result);
@@ -2845,7 +2845,7 @@ Handle<Object> JSObject::SetPropertyWithInterceptor(
     Handle<Name> name,
     Handle<Object> value,
     PropertyAttributes attributes,
-    StrictModeFlag strict_mode) {
+    StrictMode strict_mode) {
   // TODO(rossberg): Support symbols in the API.
   if (name->IsSymbol()) return value;
   Isolate* isolate = object->GetIsolate();
@@ -2877,7 +2877,7 @@ Handle<Object> JSReceiver::SetProperty(Handle<JSReceiver> object,
                                        Handle<Name> name,
                                        Handle<Object> value,
                                        PropertyAttributes attributes,
-                                       StrictModeFlag strict_mode,
+                                       StrictMode strict_mode,
                                        StoreFromKeyed store_mode) {
   LookupResult result(object->GetIsolate());
   object->LocalLookup(*name, &result, true);
@@ -2894,7 +2894,7 @@ Handle<Object> JSObject::SetPropertyWithCallback(Handle<JSObject> object,
                                                  Handle<Name> name,
                                                  Handle<Object> value,
                                                  Handle<JSObject> holder,
-                                                 StrictModeFlag strict_mode) {
+                                                 StrictMode strict_mode) {
   Isolate* isolate = object->GetIsolate();
 
   // We should never get here to initialize a const with the hole
@@ -2953,9 +2953,7 @@ Handle<Object> JSObject::SetPropertyWithCallback(Handle<JSObject> object,
       return SetPropertyWithDefinedSetter(
           object, Handle<JSReceiver>::cast(setter), value);
     } else {
-      if (strict_mode == kSloppyMode) {
-        return value;
-      }
+      if (strict_mode == SLOPPY) return value;
       Handle<Object> args[2] = { name, holder };
       Handle<Object> error =
           isolate->factory()->NewTypeError("no_setter_in_callback",
@@ -3006,7 +3004,7 @@ Handle<Object> JSObject::SetElementWithCallbackSetterInPrototypes(
     uint32_t index,
     Handle<Object> value,
     bool* found,
-    StrictModeFlag strict_mode) {
+    StrictMode strict_mode) {
   Isolate *isolate = object->GetIsolate();
   for (Handle<Object> proto = handle(object->GetPrototype(), isolate);
        !proto->IsNull();
@@ -3046,7 +3044,7 @@ Handle<Object> JSObject::SetPropertyViaPrototypes(Handle<JSObject> object,
                                                   Handle<Name> name,
                                                   Handle<Object> value,
                                                   PropertyAttributes attributes,
-                                                  StrictModeFlag strict_mode,
+                                                  StrictMode strict_mode,
                                                   bool* done) {
   Isolate* isolate = object->GetIsolate();
 
@@ -3090,7 +3088,7 @@ Handle<Object> JSObject::SetPropertyViaPrototypes(Handle<JSObject> object,
 
   // If we get here with *done true, we have encountered a read-only property.
   if (*done) {
-    if (strict_mode == kSloppyMode) return value;
+    if (strict_mode == SLOPPY) return value;
     Handle<Object> args[] = { name, object };
     Handle<Object> error = isolate->factory()->NewTypeError(
         "strict_read_only_property", HandleVector(args, ARRAY_SIZE(args)));
@@ -3459,7 +3457,7 @@ Handle<Object> JSObject::SetPropertyWithFailedAccessCheck(
     Handle<Name> name,
     Handle<Object> value,
     bool check_prototype,
-    StrictModeFlag strict_mode) {
+    StrictMode strict_mode) {
   if (check_prototype && !result->IsProperty()) {
     object->LookupRealNamedPropertyInPrototypes(*name, result);
   }
@@ -3526,7 +3524,7 @@ Handle<Object> JSReceiver::SetProperty(Handle<JSReceiver> object,
                                        Handle<Name> key,
                                        Handle<Object> value,
                                        PropertyAttributes attributes,
-                                       StrictModeFlag strict_mode,
+                                       StrictMode strict_mode,
                                        StoreFromKeyed store_mode) {
   if (result->IsHandler()) {
     return JSProxy::SetPropertyWithHandler(handle(result->proxy()),
@@ -3558,7 +3556,7 @@ Handle<Object> JSProxy::SetPropertyWithHandler(Handle<JSProxy> proxy,
                                                Handle<Name> name,
                                                Handle<Object> value,
                                                PropertyAttributes attributes,
-                                               StrictModeFlag strict_mode) {
+                                               StrictMode strict_mode) {
   Isolate* isolate = proxy->GetIsolate();
 
   // TODO(rossberg): adjust once there is a story for symbols vs proxies.
@@ -3578,7 +3576,7 @@ Handle<Object> JSProxy::SetPropertyViaPrototypesWithHandler(
     Handle<Name> name,
     Handle<Object> value,
     PropertyAttributes attributes,
-    StrictModeFlag strict_mode,
+    StrictMode strict_mode,
     bool* done) {
   Isolate* isolate = proxy->GetIsolate();
   Handle<Object> handler(proxy->handler(), isolate);  // Trap might morph proxy.
@@ -3646,7 +3644,7 @@ Handle<Object> JSProxy::SetPropertyViaPrototypesWithHandler(
     ASSERT(writable->IsTrue() || writable->IsFalse());
     *done = writable->IsFalse();
     if (!*done) return isolate->factory()->the_hole_value();
-    if (strict_mode == kSloppyMode) return value;
+    if (strict_mode == SLOPPY) return value;
     Handle<Object> args[] = { name, receiver };
     Handle<Object> error = isolate->factory()->NewTypeError(
         "strict_read_only_property", HandleVector(args, ARRAY_SIZE(args)));
@@ -3665,7 +3663,7 @@ Handle<Object> JSProxy::SetPropertyViaPrototypesWithHandler(
         receiver, Handle<JSReceiver>::cast(setter), value);
   }
 
-  if (strict_mode == kSloppyMode) return value;
+  if (strict_mode == SLOPPY) return value;
   Handle<Object> args2[] = { name, proxy };
   Handle<Object> error = isolate->factory()->NewTypeError(
       "no_setter_in_callback", HandleVector(args2, ARRAY_SIZE(args2)));
@@ -3915,7 +3913,7 @@ Handle<Object> JSObject::SetPropertyUsingTransition(
     // of the map. If we get a fast copy of the map, all field representations
     // will be tagged since the transition is omitted.
     return JSObject::AddProperty(
-        object, name, value, attributes, kSloppyMode,
+        object, name, value, attributes, SLOPPY,
         JSReceiver::CERTAINLY_NOT_STORE_FROM_KEYED,
         JSReceiver::OMIT_EXTENSIBILITY_CHECK,
         JSObject::FORCE_TAGGED, FORCE_FIELD, OMIT_TRANSITION);
@@ -4027,7 +4025,7 @@ Handle<Object> JSObject::SetPropertyForResult(Handle<JSObject> object,
                                               Handle<Name> name,
                                               Handle<Object> value,
                                               PropertyAttributes attributes,
-                                              StrictModeFlag strict_mode,
+                                              StrictMode strict_mode,
                                               StoreFromKeyed store_mode) {
   Isolate* isolate = object->GetIsolate();
 
@@ -4076,7 +4074,7 @@ Handle<Object> JSObject::SetPropertyForResult(Handle<JSObject> object,
   }
 
   if (lookup->IsProperty() && lookup->IsReadOnly()) {
-    if (strict_mode == kStrictMode) {
+    if (strict_mode == STRICT) {
       Handle<Object> args[] = { name, object };
       Handle<Object> error = isolate->factory()->NewTypeError(
           "strict_read_only_property", HandleVector(args, ARRAY_SIZE(args)));
@@ -4181,7 +4179,7 @@ Handle<Object> JSObject::SetLocalPropertyIgnoreAttributes(
   if (object->IsAccessCheckNeeded()) {
     if (!isolate->MayNamedAccessWrapper(object, name, v8::ACCESS_SET)) {
       return SetPropertyWithFailedAccessCheck(object, &lookup, name, value,
-                                              false, kSloppyMode);
+                                              false, SLOPPY);
     }
   }
 
@@ -4204,7 +4202,7 @@ Handle<Object> JSObject::SetLocalPropertyIgnoreAttributes(
     TransitionFlag flag = lookup.IsFound()
         ? OMIT_TRANSITION : INSERT_TRANSITION;
     // Neither properties nor transitions found.
-    return AddProperty(object, name, value, attributes, kSloppyMode,
+    return AddProperty(object, name, value, attributes, SLOPPY,
         MAY_BE_STORE_FROM_KEYED, extensibility_check, value_type, mode, flag);
   }
 
@@ -5407,7 +5405,7 @@ bool JSObject::ReferencesObject(Object* obj) {
     // Get the constructor function for arguments array.
     JSObject* arguments_boilerplate =
         heap->isolate()->context()->native_context()->
-            arguments_boilerplate();
+            sloppy_arguments_boilerplate();
     JSFunction* arguments_function =
         JSFunction::cast(arguments_boilerplate->map()->constructor());
 
@@ -5797,7 +5795,7 @@ Handle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
           if (copying) {
             // Creating object copy for literals. No strict mode needed.
             CHECK_NOT_EMPTY_HANDLE(isolate, JSObject::SetProperty(
-                copy, key_string, result, NONE, kSloppyMode));
+                copy, key_string, result, NONE, SLOPPY));
           }
         }
       }
@@ -9806,15 +9804,15 @@ void JSFunction::SetPrototype(Handle<JSFunction> function,
 
 void JSFunction::RemovePrototype() {
   Context* native_context = context()->native_context();
-  Map* no_prototype_map = shared()->is_sloppy_mode()
-      ? native_context->function_without_prototype_map()
-      : native_context->strict_mode_function_without_prototype_map();
+  Map* no_prototype_map = shared()->strict_mode() == SLOPPY
+      ? native_context->sloppy_function_without_prototype_map()
+      : native_context->strict_function_without_prototype_map();
 
   if (map() == no_prototype_map) return;
 
-  ASSERT(map() == (shared()->is_sloppy_mode()
-                   ? native_context->function_map()
-                   : native_context->strict_mode_function_map()));
+  ASSERT(map() == (shared()->strict_mode() == SLOPPY
+                   ? native_context->sloppy_function_map()
+                   : native_context->strict_function_map()));
 
   set_map(no_prototype_map);
   set_prototype_or_initial_map(no_prototype_map->GetHeap()->the_hole_value());
@@ -11073,9 +11071,7 @@ void Code::PrintExtraICState(FILE* out, Kind kind, ExtraICState extra) {
   switch (kind) {
     case STORE_IC:
     case KEYED_STORE_IC:
-      if (extra == kStrictMode) {
-        name = "STRICT";
-      }
+      if (extra == STRICT) name = "STRICT";
       break;
     default:
       break;
@@ -11485,12 +11481,12 @@ MaybeObject* JSArray::SetElementsLength(Object* len) {
   if (delete_count > 0) {
     for (int i = indices.length() - 1; i >= 0; i--) {
       JSObject::SetElement(deleted, indices[i] - index, old_values[i], NONE,
-                           kSloppyMode);
+                           SLOPPY);
     }
 
     SetProperty(deleted, isolate->factory()->length_string(),
                 isolate->factory()->NewNumberFromUint(delete_count),
-                NONE, kSloppyMode);
+                NONE, SLOPPY);
   }
 
   EnqueueSpliceRecord(self, index, deleted, add_count);
@@ -11929,7 +11925,7 @@ Handle<Object> JSObject::SetElementWithInterceptor(
     uint32_t index,
     Handle<Object> value,
     PropertyAttributes attributes,
-    StrictModeFlag strict_mode,
+    StrictMode strict_mode,
     bool check_prototype,
     SetPropertyMode set_mode) {
   Isolate* isolate = object->GetIsolate();
@@ -12017,7 +12013,7 @@ Handle<Object> JSObject::SetElementWithCallback(Handle<JSObject> object,
                                                 uint32_t index,
                                                 Handle<Object> value,
                                                 Handle<JSObject> holder,
-                                                StrictModeFlag strict_mode) {
+                                                StrictMode strict_mode) {
   Isolate* isolate = object->GetIsolate();
 
   // We should never get here to initialize a const with the hole
@@ -12056,9 +12052,7 @@ Handle<Object> JSObject::SetElementWithCallback(Handle<JSObject> object,
       return SetPropertyWithDefinedSetter(
           object, Handle<JSReceiver>::cast(setter), value);
     } else {
-      if (strict_mode == kSloppyMode) {
-        return value;
-      }
+      if (strict_mode == SLOPPY) return value;
       Handle<Object> key(isolate->factory()->NewNumberFromUint(index));
       Handle<Object> args[2] = { key, holder };
       Handle<Object> error = isolate->factory()->NewTypeError(
@@ -12106,7 +12100,7 @@ bool JSObject::HasDictionaryArgumentsElements() {
 Handle<Object> JSObject::SetFastElement(Handle<JSObject> object,
                                         uint32_t index,
                                         Handle<Object> value,
-                                        StrictModeFlag strict_mode,
+                                        StrictMode strict_mode,
                                         bool check_prototype) {
   ASSERT(object->HasFastSmiOrObjectElements() ||
          object->HasFastArgumentsElements());
@@ -12235,7 +12229,7 @@ Handle<Object> JSObject::SetDictionaryElement(Handle<JSObject> object,
                                               uint32_t index,
                                               Handle<Object> value,
                                               PropertyAttributes attributes,
-                                              StrictModeFlag strict_mode,
+                                              StrictMode strict_mode,
                                               bool check_prototype,
                                               SetPropertyMode set_mode) {
   ASSERT(object->HasDictionaryElements() ||
@@ -12267,7 +12261,7 @@ Handle<Object> JSObject::SetDictionaryElement(Handle<JSObject> object,
             attributes, NORMAL, details.dictionary_index());
         dictionary->DetailsAtPut(entry, details);
       } else if (details.IsReadOnly() && !element->IsTheHole()) {
-        if (strict_mode == kSloppyMode) {
+        if (strict_mode == SLOPPY) {
           return isolate->factory()->undefined_value();
         } else {
           Handle<Object> number = isolate->factory()->NewNumberFromUint(index);
@@ -12305,7 +12299,7 @@ Handle<Object> JSObject::SetDictionaryElement(Handle<JSObject> object,
     // When we set the is_extensible flag to false we always force the
     // element into dictionary mode (and force them to stay there).
     if (!object->map()->is_extensible()) {
-      if (strict_mode == kSloppyMode) {
+      if (strict_mode == SLOPPY) {
         return isolate->factory()->undefined_value();
       } else {
         Handle<Object> number = isolate->factory()->NewNumberFromUint(index);
@@ -12378,7 +12372,7 @@ Handle<Object> JSObject::SetFastDoubleElement(
     Handle<JSObject> object,
     uint32_t index,
     Handle<Object> value,
-    StrictModeFlag strict_mode,
+    StrictMode strict_mode,
     bool check_prototype) {
   ASSERT(object->HasFastDoubleElements());
 
@@ -12476,7 +12470,7 @@ Handle<Object> JSReceiver::SetElement(Handle<JSReceiver> object,
                                       uint32_t index,
                                       Handle<Object> value,
                                       PropertyAttributes attributes,
-                                      StrictModeFlag strict_mode) {
+                                      StrictMode strict_mode) {
   if (object->IsJSProxy()) {
     return JSProxy::SetElementWithHandler(
         Handle<JSProxy>::cast(object), object, index, value, strict_mode);
@@ -12489,7 +12483,7 @@ Handle<Object> JSReceiver::SetElement(Handle<JSReceiver> object,
 Handle<Object> JSObject::SetOwnElement(Handle<JSObject> object,
                                        uint32_t index,
                                        Handle<Object> value,
-                                       StrictModeFlag strict_mode) {
+                                       StrictMode strict_mode) {
   ASSERT(!object->HasExternalArrayElements());
   return JSObject::SetElement(object, index, value, NONE, strict_mode, false);
 }
@@ -12499,7 +12493,7 @@ Handle<Object> JSObject::SetElement(Handle<JSObject> object,
                                     uint32_t index,
                                     Handle<Object> value,
                                     PropertyAttributes attributes,
-                                    StrictModeFlag strict_mode,
+                                    StrictMode strict_mode,
                                     bool check_prototype,
                                     SetPropertyMode set_mode) {
   Isolate* isolate = object->GetIsolate();
@@ -12632,7 +12626,7 @@ Handle<Object> JSObject::SetElementWithoutInterceptor(
     uint32_t index,
     Handle<Object> value,
     PropertyAttributes attributes,
-    StrictModeFlag strict_mode,
+    StrictMode strict_mode,
     bool check_prototype,
     SetPropertyMode set_mode) {
   ASSERT(object->HasDictionaryElements() ||
@@ -13733,11 +13727,11 @@ class StringSharedKey : public HashTableKey {
  public:
   StringSharedKey(String* source,
                   SharedFunctionInfo* shared,
-                  LanguageMode language_mode,
+                  StrictMode strict_mode,
                   int scope_position)
       : source_(source),
         shared_(shared),
-        language_mode_(language_mode),
+        strict_mode_(strict_mode),
         scope_position_(scope_position) { }
 
   bool IsMatch(Object* other) {
@@ -13745,12 +13739,10 @@ class StringSharedKey : public HashTableKey {
     FixedArray* other_array = FixedArray::cast(other);
     SharedFunctionInfo* shared = SharedFunctionInfo::cast(other_array->get(0));
     if (shared != shared_) return false;
-    int language_unchecked = Smi::cast(other_array->get(2))->value();
-    ASSERT(language_unchecked == SLOPPY_MODE ||
-           language_unchecked == STRICT_MODE ||
-           language_unchecked == EXTENDED_MODE);
-    LanguageMode language_mode = static_cast<LanguageMode>(language_unchecked);
-    if (language_mode != language_mode_) return false;
+    int strict_unchecked = Smi::cast(other_array->get(2))->value();
+    ASSERT(strict_unchecked == SLOPPY || strict_unchecked == STRICT);
+    StrictMode strict_mode = static_cast<StrictMode>(strict_unchecked);
+    if (strict_mode != strict_mode_) return false;
     int scope_position = Smi::cast(other_array->get(3))->value();
     if (scope_position != scope_position_) return false;
     String* source = String::cast(other_array->get(1));
@@ -13759,7 +13751,7 @@ class StringSharedKey : public HashTableKey {
 
   static uint32_t StringSharedHashHelper(String* source,
                                          SharedFunctionInfo* shared,
-                                         LanguageMode language_mode,
+                                         StrictMode strict_mode,
                                          int scope_position) {
     uint32_t hash = source->Hash();
     if (shared->HasSourceCode()) {
@@ -13770,8 +13762,7 @@ class StringSharedKey : public HashTableKey {
       // collection.
       Script* script = Script::cast(shared->script());
       hash ^= String::cast(script->source())->Hash();
-      if (language_mode == STRICT_MODE) hash ^= 0x8000;
-      if (language_mode == EXTENDED_MODE) hash ^= 0x0080;
+      if (strict_mode == STRICT) hash ^= 0x8000;
       hash += scope_position;
     }
     return hash;
@@ -13779,21 +13770,19 @@ class StringSharedKey : public HashTableKey {
 
   uint32_t Hash() {
     return StringSharedHashHelper(
-        source_, shared_, language_mode_, scope_position_);
+        source_, shared_, strict_mode_, scope_position_);
   }
 
   uint32_t HashForObject(Object* obj) {
     FixedArray* other_array = FixedArray::cast(obj);
     SharedFunctionInfo* shared = SharedFunctionInfo::cast(other_array->get(0));
     String* source = String::cast(other_array->get(1));
-    int language_unchecked = Smi::cast(other_array->get(2))->value();
-    ASSERT(language_unchecked == SLOPPY_MODE ||
-           language_unchecked == STRICT_MODE ||
-           language_unchecked == EXTENDED_MODE);
-    LanguageMode language_mode = static_cast<LanguageMode>(language_unchecked);
+    int strict_unchecked = Smi::cast(other_array->get(2))->value();
+    ASSERT(strict_unchecked == SLOPPY || strict_unchecked == STRICT);
+    StrictMode strict_mode = static_cast<StrictMode>(strict_unchecked);
     int scope_position = Smi::cast(other_array->get(3))->value();
     return StringSharedHashHelper(
-        source, shared, language_mode, scope_position);
+        source, shared, strict_mode, scope_position);
   }
 
   MUST_USE_RESULT MaybeObject* AsObject(Heap* heap) {
@@ -13804,7 +13793,7 @@ class StringSharedKey : public HashTableKey {
     FixedArray* other_array = FixedArray::cast(obj);
     other_array->set(0, shared_);
     other_array->set(1, source_);
-    other_array->set(2, Smi::FromInt(language_mode_));
+    other_array->set(2, Smi::FromInt(strict_mode_));
     other_array->set(3, Smi::FromInt(scope_position_));
     return other_array;
   }
@@ -13812,7 +13801,7 @@ class StringSharedKey : public HashTableKey {
  private:
   String* source_;
   SharedFunctionInfo* shared_;
-  LanguageMode language_mode_;
+  StrictMode strict_mode_;
   int scope_position_;
 };
 
@@ -15005,22 +14994,11 @@ MaybeObject* StringTable::LookupKey(HashTableKey* key, Object** s) {
 }
 
 
-// The key for the script compilation cache is dependent on the mode flags,
-// because they change the global language mode and thus binding behaviour.
-// If flags change at some point, we must ensure that we do not hit the cache
-// for code compiled with different settings.
-static LanguageMode CurrentGlobalLanguageMode() {
-  return FLAG_use_strict
-      ? (FLAG_harmony_scoping ? EXTENDED_MODE : STRICT_MODE)
-      : SLOPPY_MODE;
-}
-
-
 Object* CompilationCacheTable::Lookup(String* src, Context* context) {
   SharedFunctionInfo* shared = context->closure()->shared();
   StringSharedKey key(src,
                       shared,
-                      CurrentGlobalLanguageMode(),
+                      FLAG_use_strict ? STRICT : SLOPPY,
                       RelocInfo::kNoPosition);
   int entry = FindEntry(&key);
   if (entry == kNotFound) return GetHeap()->undefined_value();
@@ -15030,11 +15008,11 @@ Object* CompilationCacheTable::Lookup(String* src, Context* context) {
 
 Object* CompilationCacheTable::LookupEval(String* src,
                                           Context* context,
-                                          LanguageMode language_mode,
+                                          StrictMode strict_mode,
                                           int scope_position) {
   StringSharedKey key(src,
                       context->closure()->shared(),
-                      language_mode,
+                      strict_mode,
                       scope_position);
   int entry = FindEntry(&key);
   if (entry == kNotFound) return GetHeap()->undefined_value();
@@ -15057,7 +15035,7 @@ MaybeObject* CompilationCacheTable::Put(String* src,
   SharedFunctionInfo* shared = context->closure()->shared();
   StringSharedKey key(src,
                       shared,
-                      CurrentGlobalLanguageMode(),
+                      FLAG_use_strict ? STRICT : SLOPPY,
                       RelocInfo::kNoPosition);
   CompilationCacheTable* cache;
   MaybeObject* maybe_cache = EnsureCapacity(1, &key);
@@ -15081,7 +15059,7 @@ MaybeObject* CompilationCacheTable::PutEval(String* src,
                                             int scope_position) {
   StringSharedKey key(src,
                       context->closure()->shared(),
-                      value->language_mode(),
+                      value->strict_mode(),
                       scope_position);
   Object* obj;
   { MaybeObject* maybe_obj = EnsureCapacity(1, &key);

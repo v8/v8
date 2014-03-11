@@ -1275,7 +1275,7 @@ void ArgumentsAccessStub::GenerateNewSloppyFast(MacroAssembler* masm) {
   __ lea(ebx, Operand(ebx, ecx, times_2, FixedArray::kHeaderSize));
 
   // 3. Arguments object.
-  __ add(ebx, Immediate(Heap::kArgumentsObjectSize));
+  __ add(ebx, Immediate(Heap::kSloppyArgumentsObjectSize));
 
   // Do the allocation of all three objects in one go.
   __ Allocate(ebx, eax, edx, edi, &runtime, TAG_OBJECT);
@@ -1293,7 +1293,7 @@ void ArgumentsAccessStub::GenerateNewSloppyFast(MacroAssembler* masm) {
   __ test(ebx, ebx);
   __ j(not_zero, &has_mapped_parameters, Label::kNear);
   __ mov(edi, Operand(edi,
-         Context::SlotOffset(Context::ARGUMENTS_BOILERPLATE_INDEX)));
+         Context::SlotOffset(Context::SLOPPY_ARGUMENTS_BOILERPLATE_INDEX)));
   __ jmp(&copy, Label::kNear);
 
   __ bind(&has_mapped_parameters);
@@ -1330,7 +1330,7 @@ void ArgumentsAccessStub::GenerateNewSloppyFast(MacroAssembler* masm) {
   // Set up the elements pointer in the allocated arguments object.
   // If we allocated a parameter map, edi will point there, otherwise to the
   // backing store.
-  __ lea(edi, Operand(eax, Heap::kArgumentsObjectSize));
+  __ lea(edi, Operand(eax, Heap::kSloppyArgumentsObjectSize));
   __ mov(FieldOperand(eax, JSObject::kElementsOffset), edi);
 
   // eax = address of new object (tagged)
@@ -1475,7 +1475,7 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
   __ j(zero, &add_arguments_object, Label::kNear);
   __ lea(ecx, Operand(ecx, times_2, FixedArray::kHeaderSize));
   __ bind(&add_arguments_object);
-  __ add(ecx, Immediate(Heap::kArgumentsObjectSizeStrict));
+  __ add(ecx, Immediate(Heap::kStrictArgumentsObjectSize));
 
   // Do the allocation of both objects in one go.
   __ Allocate(ecx, eax, edx, ebx, &runtime, TAG_OBJECT);
@@ -1484,7 +1484,7 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
   __ mov(edi, Operand(esi, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
   __ mov(edi, FieldOperand(edi, GlobalObject::kNativeContextOffset));
   const int offset =
-      Context::SlotOffset(Context::STRICT_MODE_ARGUMENTS_BOILERPLATE_INDEX);
+      Context::SlotOffset(Context::STRICT_ARGUMENTS_BOILERPLATE_INDEX);
   __ mov(edi, Operand(edi, offset));
 
   // Copy the JS object part.
@@ -1510,7 +1510,7 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
 
   // Set up the elements pointer in the allocated arguments object and
   // initialize the header in the elements fixed array.
-  __ lea(edi, Operand(eax, Heap::kArgumentsObjectSizeStrict));
+  __ lea(edi, Operand(eax, Heap::kStrictArgumentsObjectSize));
   __ mov(FieldOperand(eax, JSObject::kElementsOffset), edi);
   __ mov(FieldOperand(edi, FixedArray::kMapOffset),
          Immediate(isolate->factory()->fixed_array_map()));

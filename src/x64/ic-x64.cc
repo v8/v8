@@ -734,7 +734,7 @@ static void KeyedStoreGenerateGenericHelper(
 
 
 void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
-                                   StrictModeFlag strict_mode) {
+                                   StrictMode strict_mode) {
   // ----------- S t a t e -------------
   //  -- rax    : value
   //  -- rcx    : key
@@ -1151,7 +1151,7 @@ void StoreIC::GenerateNormal(MacroAssembler* masm) {
 
 
 void StoreIC::GenerateRuntimeSetProperty(MacroAssembler* masm,
-                                         StrictModeFlag strict_mode) {
+                                         StrictMode strict_mode) {
   // ----------- S t a t e -------------
   //  -- rax    : value
   //  -- rcx    : name
@@ -1172,7 +1172,7 @@ void StoreIC::GenerateRuntimeSetProperty(MacroAssembler* masm,
 
 
 void KeyedStoreIC::GenerateRuntimeSetProperty(MacroAssembler* masm,
-                                              StrictModeFlag strict_mode) {
+                                              StrictMode strict_mode) {
   // ----------- S t a t e -------------
   //  -- rax    : value
   //  -- rcx    : key

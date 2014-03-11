@@ -4277,16 +4277,15 @@ MaybeObject* Heap::AllocateArgumentsObject(Object* callee, int length) {
   JSObject* boilerplate;
   int arguments_object_size;
   bool strict_mode_callee = callee->IsJSFunction() &&
-      !JSFunction::cast(callee)->shared()->is_sloppy_mode();
+      JSFunction::cast(callee)->shared()->strict_mode() == STRICT;
   if (strict_mode_callee) {
     boilerplate =
-        isolate()->context()->native_context()->
-            strict_mode_arguments_boilerplate();
-    arguments_object_size = kArgumentsObjectSizeStrict;
+        isolate()->context()->native_context()->strict_arguments_boilerplate();
+    arguments_object_size = kStrictArgumentsObjectSize;
   } else {
     boilerplate =
-        isolate()->context()->native_context()->arguments_boilerplate();
-    arguments_object_size = kArgumentsObjectSize;
+        isolate()->context()->native_context()->sloppy_arguments_boilerplate();
+    arguments_object_size = kSloppyArgumentsObjectSize;
   }
 
   // Check that the size of the boilerplate matches our

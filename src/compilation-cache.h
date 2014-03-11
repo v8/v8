@@ -149,7 +149,7 @@ class CompilationCacheEval: public CompilationSubCache {
 
   Handle<SharedFunctionInfo> Lookup(Handle<String> source,
                                     Handle<Context> context,
-                                    LanguageMode language_mode,
+                                    StrictMode strict_mode,
                                     int scope_position);
 
   void Put(Handle<String> source,
@@ -221,7 +221,7 @@ class CompilationCache {
   // contain a script for the given source string.
   Handle<SharedFunctionInfo> LookupEval(Handle<String> source,
                                         Handle<Context> context,
-                                        LanguageMode language_mode,
+                                        StrictMode strict_mode,
                                         int scope_position);
 
   // Returns the regexp data associated with the given regexp if it

@@ -891,7 +891,7 @@ MaybeObject* Accessors::FunctionGetCaller(Isolate* isolate,
   // Censor if the caller is not a sloppy mode function.
   // Change from ES5, which used to throw, see:
   // https://bugs.ecmascript.org/show_bug.cgi?id=310
-  if (!caller->shared()->is_sloppy_mode()) {
+  if (caller->shared()->strict_mode() == STRICT) {
     return isolate->heap()->null_value();
   }
 

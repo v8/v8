@@ -927,7 +927,7 @@ Handle<JSFunction> Factory::BaseNewFunctionFromSharedFunctionInfo(
 static Handle<Map> MapForNewFunction(Isolate *isolate,
                                      Handle<SharedFunctionInfo> function_info) {
   Context *context = isolate->context()->native_context();
-  int map_index = Context::FunctionMapIndex(function_info->language_mode(),
+  int map_index = Context::FunctionMapIndex(function_info->strict_mode(),
                                             function_info->is_generator());
   return Handle<Map>(Map::cast(context->get(map_index)));
 }
@@ -1250,8 +1250,7 @@ Handle<JSFunction> Factory::NewFunctionWithPrototype(Handle<String> name,
 
 Handle<JSFunction> Factory::NewFunctionWithoutPrototype(Handle<String> name,
                                                         Handle<Code> code) {
-  Handle<JSFunction> function = NewFunctionWithoutPrototype(name,
-                                                            SLOPPY_MODE);
+  Handle<JSFunction> function = NewFunctionWithoutPrototype(name, SLOPPY);
   function->shared()->set_code(*code);
   function->set_code(*code);
   ASSERT(!function->has_initial_map());
@@ -1627,7 +1626,7 @@ Handle<JSFunction> Factory::NewFunctionHelper(Handle<String> name,
   Handle<SharedFunctionInfo> function_share = NewSharedFunctionInfo(name);
   CALL_HEAP_FUNCTION(
       isolate(),
-      isolate()->heap()->AllocateFunction(*isolate()->function_map(),
+      isolate()->heap()->AllocateFunction(*isolate()->sloppy_function_map(),
                                           *function_share,
                                           *prototype),
       JSFunction);
@@ -1644,11 +1643,11 @@ Handle<JSFunction> Factory::NewFunction(Handle<String> name,
 
 Handle<JSFunction> Factory::NewFunctionWithoutPrototypeHelper(
     Handle<String> name,
-    LanguageMode language_mode) {
+    StrictMode strict_mode) {
   Handle<SharedFunctionInfo> function_share = NewSharedFunctionInfo(name);
-  Handle<Map> map = (language_mode == SLOPPY_MODE)
-      ? isolate()->function_without_prototype_map()
-      : isolate()->strict_mode_function_without_prototype_map();
+  Handle<Map> map = strict_mode == SLOPPY
+      ? isolate()->sloppy_function_without_prototype_map()
+      : isolate()->strict_function_without_prototype_map();
   CALL_HEAP_FUNCTION(isolate(),
                      isolate()->heap()->AllocateFunction(
                          *map,
@@ -1660,9 +1659,8 @@ Handle<JSFunction> Factory::NewFunctionWithoutPrototypeHelper(
 
 Handle<JSFunction> Factory::NewFunctionWithoutPrototype(
     Handle<String> name,
-    LanguageMode language_mode) {
-  Handle<JSFunction> fun =
-      NewFunctionWithoutPrototypeHelper(name, language_mode);
+    StrictMode strict_mode) {
+  Handle<JSFunction> fun = NewFunctionWithoutPrototypeHelper(name, strict_mode);
   fun->set_context(isolate()->context()->native_context());
   return fun;
 }

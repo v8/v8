@@ -54,7 +54,7 @@ class FunctionEntry BASE_EMBEDDED {
     kEndPositionIndex,
     kLiteralCountIndex,
     kPropertyCountIndex,
-    kLanguageModeIndex,
+    kStrictModeIndex,
     kSize
   };
 
@@ -67,11 +67,10 @@ class FunctionEntry BASE_EMBEDDED {
   int end_pos() { return backing_[kEndPositionIndex]; }
   int literal_count() { return backing_[kLiteralCountIndex]; }
   int property_count() { return backing_[kPropertyCountIndex]; }
-  LanguageMode language_mode() {
-    ASSERT(backing_[kLanguageModeIndex] == SLOPPY_MODE ||
-           backing_[kLanguageModeIndex] == STRICT_MODE ||
-           backing_[kLanguageModeIndex] == EXTENDED_MODE);
-    return static_cast<LanguageMode>(backing_[kLanguageModeIndex]);
+  StrictMode strict_mode() {
+    ASSERT(backing_[kStrictModeIndex] == SLOPPY ||
+           backing_[kStrictModeIndex] == STRICT);
+    return static_cast<StrictMode>(backing_[kStrictModeIndex]);
   }
 
   bool is_valid() { return !backing_.is_empty(); }
@@ -578,10 +577,6 @@ class Parser : public ParserBase<ParserTraits> {
   bool inside_with() const { return scope_->inside_with(); }
   Mode mode() const { return mode_; }
   ScriptDataImpl* pre_parse_data() const { return pre_parse_data_; }
-  bool is_extended_mode() {
-    ASSERT(scope_ != NULL);
-    return scope_->is_extended_mode();
-  }
   Scope* DeclarationScope(VariableMode mode) {
     return IsLexicalVariableMode(mode)
         ? scope_ : scope_->DeclarationScope();

@@ -407,31 +407,9 @@ template <typename T, class P = FreeStoreAllocationPolicy> class List;
 // -----------------------------------------------------------------------------
 // Declarations for use in both the preparser and the rest of V8.
 
-// The different language modes that V8 implements. ES5 defines two language
-// modes: an unrestricted mode respectively a strict mode which are indicated by
-// SLOPPY_MODE respectively STRICT_MODE in the enum. The harmony spec drafts
-// for the next ES standard specify a new third mode which is called 'extended
-// mode'. The extended mode is only available if the harmony flag is set. It is
-// based on the 'strict mode' and adds new functionality to it. This means that
-// most of the semantics of these two modes coincide.
-// TODO(rossberg): remove extended mode.
-
-enum LanguageMode {
-  SLOPPY_MODE,
-  STRICT_MODE,
-  EXTENDED_MODE
-};
-
-
 // The Strict Mode (ECMA-262 5th edition, 4.2.2).
-//
-// This flag is used in the backend to represent the language mode. So far
-// there is no semantic difference between the strict and the extended mode in
-// the backend, so both modes are represented by the kStrictMode value.
-enum StrictModeFlag {
-  kSloppyMode,
-  kStrictMode
-};
+
+enum StrictMode { SLOPPY, STRICT };
 
 
 } }  // namespace v8::internal

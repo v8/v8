@@ -2315,8 +2315,7 @@ class FunctionLiteral V8_FINAL : public Expression {
   int SourceSize() const { return end_position() - start_position(); }
   bool is_expression() const { return IsExpression::decode(bitfield_); }
   bool is_anonymous() const { return IsAnonymous::decode(bitfield_); }
-  bool is_sloppy_mode() const { return language_mode() == SLOPPY_MODE; }
-  LanguageMode language_mode() const;
+  StrictMode strict_mode() const;
 
   int materialized_literal_count() { return materialized_literal_count_; }
   int expected_property_count() { return expected_property_count_; }

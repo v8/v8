@@ -509,7 +509,7 @@ Handle<FixedArray> GetKeysInFixedArrayFor(Handle<JSReceiver> object,
   Isolate* isolate = object->GetIsolate();
   Handle<FixedArray> content = isolate->factory()->empty_fixed_array();
   Handle<JSObject> arguments_boilerplate = Handle<JSObject>(
-      isolate->context()->native_context()->arguments_boilerplate(),
+      isolate->context()->native_context()->sloppy_arguments_boilerplate(),
       isolate);
   Handle<JSFunction> arguments_function = Handle<JSFunction>(
       JSFunction::cast(arguments_boilerplate->map()->constructor()),

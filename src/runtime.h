@@ -786,7 +786,7 @@ class Runtime : public AllStatic {
       Handle<Object> key,
       Handle<Object> value,
       PropertyAttributes attr,
-      StrictModeFlag strict_mode);
+      StrictMode strict_mode);
 
   static Handle<Object> ForceSetObjectProperty(
       Isolate* isolate,
@@ -862,12 +862,12 @@ class Runtime : public AllStatic {
 //---------------------------------------------------------------------------
 // Constants used by interface to runtime functions.
 
-class AllocateDoubleAlignFlag:    public BitField<bool,            0, 1> {};
-class AllocateTargetSpace:        public BitField<AllocationSpace, 1, 3> {};
+class AllocateDoubleAlignFlag:  public BitField<bool,            0, 1> {};
+class AllocateTargetSpace:      public BitField<AllocationSpace, 1, 3> {};
 
-class DeclareGlobalsEvalFlag:     public BitField<bool,         0, 1> {};
-class DeclareGlobalsNativeFlag:   public BitField<bool,         1, 1> {};
-class DeclareGlobalsLanguageMode: public BitField<LanguageMode, 2, 2> {};
+class DeclareGlobalsEvalFlag:   public BitField<bool,       0, 1> {};
+class DeclareGlobalsNativeFlag: public BitField<bool,       1, 1> {};
+class DeclareGlobalsStrictMode: public BitField<StrictMode, 2, 1> {};
 
 } }  // namespace v8::internal
 

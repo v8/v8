@@ -163,7 +163,7 @@ class LCodeGen: public LCodeGenBase {
 #undef DECLARE_DO
 
  private:
-  StrictModeFlag strict_mode_flag() const {
+  StrictMode strict_mode_flag() const {
     return info()->is_sloppy_mode() ? kSloppyMode : kStrictMode;
   }
 

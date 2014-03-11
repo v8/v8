@@ -180,8 +180,8 @@ int FunctionLiteral::end_position() const {
 }
 
 
-LanguageMode FunctionLiteral::language_mode() const {
-  return scope()->language_mode();
+StrictMode FunctionLiteral::strict_mode() const {
+  return scope()->strict_mode();
 }
 
 
@@ -379,9 +379,9 @@ void ArrayLiteral::BuildConstantElements(Isolate* isolate) {
     } else if (boilerplate_value->IsUninitialized()) {
       is_simple = false;
       JSObject::SetOwnElement(
-          array, i, handle(Smi::FromInt(0), isolate), kSloppyMode);
+          array, i, handle(Smi::FromInt(0), isolate), SLOPPY);
     } else {
-      JSObject::SetOwnElement(array, i, boilerplate_value, kSloppyMode);
+      JSObject::SetOwnElement(array, i, boilerplate_value, SLOPPY);
     }
   }
 

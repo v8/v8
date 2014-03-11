@@ -56,7 +56,7 @@ void SetElementSloppy(Handle<JSObject> object,
   // are element setters causing exceptions and the debugger context has none
   // of these.
   Handle<Object> no_failure =
-      JSObject::SetElement(object, index, value, NONE, kSloppyMode);
+      JSObject::SetElement(object, index, value, NONE, SLOPPY);
   ASSERT(!no_failure.is_null());
   USE(no_failure);
 }
@@ -959,11 +959,11 @@ JSArray* LiveEdit::GatherCompileInfo(Handle<Script> script,
       Handle<Smi> end_pos(Smi::FromInt(message_location.end_pos()), isolate);
       Handle<JSValue> script_obj = GetScriptWrapper(message_location.script());
       JSReceiver::SetProperty(
-          rethrow_exception, start_pos_key, start_pos, NONE, kSloppyMode);
+          rethrow_exception, start_pos_key, start_pos, NONE, SLOPPY);
       JSReceiver::SetProperty(
-          rethrow_exception, end_pos_key, end_pos, NONE, kSloppyMode);
+          rethrow_exception, end_pos_key, end_pos, NONE, SLOPPY);
       JSReceiver::SetProperty(
-          rethrow_exception, script_obj_key, script_obj, NONE, kSloppyMode);
+          rethrow_exception, script_obj_key, script_obj, NONE, SLOPPY);
     }
   }
 

@@ -1078,11 +1078,11 @@ class Heap {
       Object* prototype,
       PretenureFlag pretenure = TENURED);
 
-  // Arguments object size.
-  static const int kArgumentsObjectSize =
+  // Sloppy mode arguments object size.
+  static const int kSloppyArgumentsObjectSize =
       JSObject::kHeaderSize + 2 * kPointerSize;
   // Strict mode arguments has no callee so it is smaller.
-  static const int kArgumentsObjectSizeStrict =
+  static const int kStrictArgumentsObjectSize =
       JSObject::kHeaderSize + 1 * kPointerSize;
   // Indicies for direct access into argument objects.
   static const int kArgumentsLengthIndex = 0;

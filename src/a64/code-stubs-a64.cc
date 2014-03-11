@@ -2419,7 +2419,8 @@ void ArgumentsAccessStub::GenerateNewSloppyFast(MacroAssembler* masm) {
 
   // 2. Add the size of the backing store and arguments object.
   __ Add(size, size, Operand(arg_count, LSL, kPointerSizeLog2));
-  __ Add(size, size, FixedArray::kHeaderSize + Heap::kArgumentsObjectSize);
+  __ Add(size, size,
+         FixedArray::kHeaderSize + Heap::kSloppyArgumentsObjectSize);
 
   // Do the allocation of all three objects in one go. Assign this to x0, as it
   // will be returned to the caller.
@@ -2446,8 +2447,9 @@ void ArgumentsAccessStub::GenerateNewSloppyFast(MacroAssembler* masm) {
   __ Ldr(global_ctx, FieldMemOperand(global_object,
                                      GlobalObject::kNativeContextOffset));
 
-  __ Ldr(args_offset, ContextMemOperand(global_ctx,
-                                        Context::ARGUMENTS_BOILERPLATE_INDEX));
+  __ Ldr(args_offset,
+         ContextMemOperand(global_ctx,
+                           Context::SLOPPY_ARGUMENTS_BOILERPLATE_INDEX));
   __ Ldr(aliased_args_offset,
          ContextMemOperand(global_ctx,
                            Context::ALIASED_ARGUMENTS_BOILERPLATE_INDEX));
@@ -2486,7 +2488,7 @@ void ArgumentsAccessStub::GenerateNewSloppyFast(MacroAssembler* masm) {
   //   x14  recv_arg      pointer to receiver arguments
 
   Register elements = x5;
-  __ Add(elements, alloc_obj, Heap::kArgumentsObjectSize);
+  __ Add(elements, alloc_obj, Heap::kSloppyArgumentsObjectSize);
   __ Str(elements, FieldMemOperand(alloc_obj, JSObject::kElementsOffset));
 
   // Initialize parameter map. If there are no mapped arguments, we're done.
@@ -2651,7 +2653,7 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
   __ Add(size, param_count, FixedArray::kHeaderSize / kPointerSize);
   __ Cmp(param_count, 0);
   __ CzeroX(size, eq);
-  __ Add(size, size, Heap::kArgumentsObjectSizeStrict / kPointerSize);
+  __ Add(size, size, Heap::kStrictArgumentsObjectSize / kPointerSize);
 
   // Do the allocation of both objects in one go. Assign this to x0, as it will
   // be returned to the caller.
@@ -2668,7 +2670,7 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
                                      GlobalObject::kNativeContextOffset));
   __ Ldr(args_offset,
          ContextMemOperand(global_ctx,
-                           Context::STRICT_MODE_ARGUMENTS_BOILERPLATE_INDEX));
+                           Context::STRICT_ARGUMENTS_BOILERPLATE_INDEX));
 
   //   x0   alloc_obj         pointer to allocated objects: parameter array and
   //                          arguments object
@@ -2695,7 +2697,7 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
   // Set up the elements pointer in the allocated arguments object and
   // initialize the header in the elements fixed array.
   Register elements = x5;
-  __ Add(elements, alloc_obj, Heap::kArgumentsObjectSizeStrict);
+  __ Add(elements, alloc_obj, Heap::kStrictArgumentsObjectSize);
   __ Str(elements, FieldMemOperand(alloc_obj, JSObject::kElementsOffset));
   __ LoadRoot(x10, Heap::kFixedArrayMapRootIndex);
   __ Str(x10, FieldMemOperand(elements, FixedArray::kMapOffset));

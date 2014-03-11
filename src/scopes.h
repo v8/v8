@@ -234,9 +234,7 @@ class Scope: public ZoneObject {
   void RecordEvalCall() { if (!is_global_scope()) scope_calls_eval_ = true; }
 
   // Set the strict mode flag (unless disabled by a global flag).
-  void SetLanguageMode(LanguageMode language_mode) {
-    language_mode_ = language_mode;
-  }
+  void SetStrictMode(StrictMode strict_mode) { strict_mode_ = strict_mode; }
 
   // Position in the source where this scope begins and ends.
   //
@@ -293,19 +291,15 @@ class Scope: public ZoneObject {
     return is_eval_scope() || is_function_scope() ||
         is_module_scope() || is_global_scope();
   }
-  bool is_sloppy_mode() const {
-    return language_mode() == SLOPPY_MODE;
-  }
-  bool is_extended_mode() const {
-    return language_mode() == EXTENDED_MODE;
-  }
-  bool is_strict_or_extended_eval_scope() const {
-    return is_eval_scope() && !is_sloppy_mode();
+  bool is_strict_eval_scope() const {
+    return is_eval_scope() && strict_mode_ == STRICT;
   }
 
   // Information about which scopes calls eval.
   bool calls_eval() const { return scope_calls_eval_; }
-  bool calls_sloppy_eval() { return scope_calls_eval_ && is_sloppy_mode(); }
+  bool calls_sloppy_eval() {
+    return scope_calls_eval_ && strict_mode_ == SLOPPY;
+  }
   bool outer_scope_calls_sloppy_eval() const {
     return outer_scope_calls_sloppy_eval_;
   }
@@ -322,7 +316,7 @@ class Scope: public ZoneObject {
   ScopeType scope_type() const { return scope_type_; }
 
   // The language mode of this scope.
-  LanguageMode language_mode() const { return language_mode_; }
+  StrictMode strict_mode() const { return strict_mode_; }
 
   // The variable corresponding the 'this' value.
   Variable* receiver() { return receiver_; }
@@ -491,8 +485,8 @@ class Scope: public ZoneObject {
   // This scope or a nested catch scope or with scope contain an 'eval' call. At
   // the 'eval' call site this scope is the declaration scope.
   bool scope_calls_eval_;
-  // The language mode of this scope.
-  LanguageMode language_mode_;
+  // The strict mode of this scope.
+  StrictMode strict_mode_;
   // Source positions.
   int start_position_;
   int end_position_;

@@ -736,7 +736,7 @@ void NumberToStringStub::InstallDescriptors(Isolate* isolate) {
 
 
 void FastNewClosureStub::InstallDescriptors(Isolate* isolate) {
-  FastNewClosureStub stub(STRICT_MODE, false);
+  FastNewClosureStub stub(STRICT, false);
   InstallDescriptor(isolate, &stub);
 }
 

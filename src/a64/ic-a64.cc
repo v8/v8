@@ -930,7 +930,7 @@ void KeyedStoreIC::GenerateSlow(MacroAssembler* masm) {
 
 
 void KeyedStoreIC::GenerateRuntimeSetProperty(MacroAssembler* masm,
-                                              StrictModeFlag strict_mode) {
+                                              StrictMode strict_mode) {
   ASM_LOCATION("KeyedStoreIC::GenerateRuntimeSetProperty");
   // ---------- S t a t e --------------
   //  -- x0     : value
@@ -1117,7 +1117,7 @@ static void KeyedStoreGenerateGenericHelper(
 
 
 void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
-                                   StrictModeFlag strict_mode) {
+                                   StrictMode strict_mode) {
   ASM_LOCATION("KeyedStoreIC::GenerateGeneric");
   // ---------- S t a t e --------------
   //  -- x0     : value
@@ -1283,7 +1283,7 @@ void StoreIC::GenerateNormal(MacroAssembler* masm) {
 
 
 void StoreIC::GenerateRuntimeSetProperty(MacroAssembler* masm,
-                                  StrictModeFlag strict_mode) {
+                                         StrictMode strict_mode) {
   ASM_LOCATION("StoreIC::GenerateRuntimeSetProperty");
   // ----------- S t a t e -------------
   //  -- x0    : value

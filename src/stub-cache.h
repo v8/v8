@@ -103,7 +103,7 @@ class StubCache {
   Handle<Code> ComputeKeyedLoadElement(Handle<Map> receiver_map);
 
   Handle<Code> ComputeKeyedStoreElement(Handle<Map> receiver_map,
-                                        StrictModeFlag strict_mode,
+                                        StrictMode strict_mode,
                                         KeyedAccessStoreMode store_mode);
 
   // ---
@@ -122,7 +122,7 @@ class StubCache {
   Handle<Code> ComputeLoadElementPolymorphic(MapHandleList* receiver_maps);
   Handle<Code> ComputeStoreElementPolymorphic(MapHandleList* receiver_maps,
                                               KeyedAccessStoreMode store_mode,
-                                              StrictModeFlag strict_mode);
+                                              StrictMode strict_mode);
 
   Handle<Code> ComputePolymorphicIC(Code::Kind kind,
                                     TypeHandleList* types,
