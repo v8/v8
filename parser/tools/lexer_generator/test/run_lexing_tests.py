@@ -27,6 +27,7 @@
 
 import argparse
 import subprocess
+import select
 import sys
 import time
 import logging
@@ -40,25 +41,47 @@ class ProcessRunner:
     self.left_path = args.left_path
     self.right_path = args.right_path
     self.max_process_count = args.parallel_process_count
+    self.buffer_size = 16*1024
     self.args = ['--break-after-illegal']
     if args.use_harmony:
       self.args.append('--use-harmony')
     self.args.append('--%s' % args.encoding)
     if self.right_path:
-      self.args.append('--print-tokens')
+      self.args.append('--print-tokens-for-compare')
 
   def build_process_map(self):
     process_map = self.process_map
     for i, f in enumerate(self.files):
-      process_map[2 * i] = {
-        'file': f, 'path' : self.left_path, 'type' : 'left' }
+      def data(path, cmp_id):
+        return {'file': f, 'path' : path, 'cmp_id' : cmp_id, 'buffer' : [] }
+      process_map[2 * i] = data(self.left_path, 2 * i + 1)
       if self.right_path:
-        process_map[2 * i + 1] = {
-          'file': f, 'path' : self.right, 'type' : 'right' }
+        process_map[2 * i + 1] = data(self.right_path, 2 * i)
+
+  def read_running_processes(self, running_processes):
+    if not self.right_path:
+      return
+    stdouts = {
+      self.process_map[i]['process'].stdout : self.process_map[i]['buffer']
+        for i in running_processes }
+    while True:
+      ready = select.select(stdouts.iterkeys(), [], [], 0)[0]
+      if not ready:
+        return
+      did_something = False
+      for fd in ready:
+        c = fd.read(self.buffer_size)
+        if c == "":
+          continue
+        did_something = True
+        stdouts[fd].append(c)
+      if not did_something:
+        break
 
   def wait_processes(self, running_processes):
     complete_ids = []
     while True:
+      self.read_running_processes(running_processes)
       for i in running_processes:
         data = self.process_map[i]
         response = data['process'].poll()
@@ -73,20 +96,52 @@ class ProcessRunner:
       running_processes.remove(i)
       del self.process_map[i]
 
+  @staticmethod
+  def crashed(data):
+    return data['process'].returncode != 0
+
+  @staticmethod
+  def buffer_contents(data):
+    data['buffer'].append(data['process'].stdout.read())
+    return ''.join(data['buffer'])
+
+  def compare_results(self, left, right):
+    f = left['file']
+    assert f == right['file']
+    logging.info('checking results for %s' % f)
+    if self.crashed(left) or self.crashed(right):
+      print "%s failed" % f
+      return
+    if left['path'] == self.right_path:
+      left, right = right, left
+    left_data = self.buffer_contents(left)
+    right_data = self.buffer_contents(right)
+    if left_data != right_data:
+      # TODO(dcarney): analyse differences
+      print "%s failed" % f
+      return
+    print "%s succeeded" % f
+
   def process_complete_processes(self):
     complete_processes = self.complete_processes
     complete_ids = []
     for i, data in complete_processes.iteritems():
-      p = data['process']
       if not self.right_path:
-        if p.returncode:
+        assert not i in complete_ids
+        if self.crashed(data):
           print "%s failed" % data['file']
         else:
           print "%s succeeded" % data['file']
         complete_ids.append(i)
       else:
-        # TODO(dcarney): perform compare
-        pass
+        if i in complete_ids:
+          continue
+        cmp_id = data['cmp_id']
+        if not cmp_id in complete_processes:
+          continue
+        complete_ids.append(i)
+        complete_ids.append(cmp_id)
+        self.compare_results(data, complete_processes[cmp_id])
     # clear processed data
     for i in complete_ids:
       del complete_processes[i]
@@ -104,13 +159,13 @@ class ProcessRunner:
             continue
           if len(running_processes) == self.max_process_count:
             break
-          out = sys.PIPE if self.right_path else dev_null
+          out = subprocess.PIPE if self.right_path else dev_null
           args = [data['path'], data['file']] + self.args
           logging.info("running [%s]" % ' '.join(args))
           data['process'] = subprocess.Popen(args,
                                              stdout=out,
                                              stderr=dev_null,
-                                             bufsize=16*1024)
+                                             bufsize=self.buffer_size)
           running_processes.add(id)
         if not running_processes:
           break
