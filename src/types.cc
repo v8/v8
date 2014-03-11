@@ -141,9 +141,11 @@ int TypeImpl<Config>::LubBitset() {
     }
     return bitset;
   } else if (this->IsClass()) {
-    return LubBitset(*this->AsClass());
+    int bitset = Config::lub_bitset(this);
+    return bitset ? bitset : LubBitset(*this->AsClass());
   } else {
-    return LubBitset(*this->AsConstant());
+    int bitset = Config::lub_bitset(this);
+    return bitset ? bitset : LubBitset(*this->AsConstant());
   }
 }
 
@@ -548,9 +550,9 @@ typename TypeImpl<Config>::TypeHandle TypeImpl<Config>::Convert(
   if (type->IsBitset()) {
     return Config::from_bitset(type->AsBitset(), region);
   } else if (type->IsClass()) {
-    return Config::from_class(type->AsClass(), region);
+    return Config::from_class(type->AsClass(), type->LubBitset(), region);
   } else if (type->IsConstant()) {
-    return Config::from_constant(type->AsConstant(), region);
+    return Config::from_constant(type->AsConstant(), type->LubBitset(), region);
   } else {
     ASSERT(type->IsUnion());
     typename OtherType::UnionedHandle unioned = type->AsUnion();
