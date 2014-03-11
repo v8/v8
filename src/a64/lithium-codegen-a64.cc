@@ -4318,7 +4318,7 @@ void LCodeGen::DoMulI(LMulI* instr) {
   bool bailout_on_minus_zero =
     instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero);
 
-  if (bailout_on_minus_zero) {
+  if (bailout_on_minus_zero && !left.Is(right)) {
     // If one operand is zero and the other is negative, the result is -0.
     //  - Set Z (eq) if either left or right, or both, are 0.
     __ Cmp(left, 0);
@@ -4348,7 +4348,7 @@ void LCodeGen::DoMulS(LMulS* instr) {
   bool bailout_on_minus_zero =
     instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero);
 
-  if (bailout_on_minus_zero) {
+  if (bailout_on_minus_zero && !left.Is(right)) {
     // If one operand is zero and the other is negative, the result is -0.
     //  - Set Z (eq) if either left or right, or both, are 0.
     __ Cmp(left, 0);
@@ -4366,10 +4366,25 @@ void LCodeGen::DoMulS(LMulS* instr) {
     __ SmiTag(result);
     DeoptimizeIf(ne, instr->environment());
   } else {
-    // TODO(jbramley): This could be rewritten to support UseRegisterAtStart.
-    ASSERT(!AreAliased(result, right));
-    __ SmiUntag(result, left);
-    __ Mul(result, result, right);
+    if (AreAliased(result, left, right)) {
+      // All three registers are the same: half untag the input and then
+      // multiply, giving a tagged result.
+      STATIC_ASSERT((kSmiShift % 2) == 0);
+      __ Asr(result, left, kSmiShift / 2);
+      __ Mul(result, result, result);
+    } else if (result.Is(left) && !left.Is(right)) {
+      // Registers result and left alias, right is distinct: untag left into
+      // result, and then multiply by right, giving a tagged result.
+      __ SmiUntag(result, left);
+      __ Mul(result, result, right);
+    } else {
+      ASSERT(!left.Is(result));
+      // Registers result and right alias, left is distinct, or all registers
+      // are distinct: untag right into result, and then multiply by left,
+      // giving a tagged result.
+      __ SmiUntag(result, right);
+      __ Mul(result, left, result);
+    }
   }
 }
 

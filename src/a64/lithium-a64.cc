@@ -1906,8 +1906,7 @@ LInstruction* LChunkBuilder::DoMul(HMul* instr) {
     // allocated for the second operand.
     LInstruction* result;
     if (instr->representation().IsSmi()) {
-      // TODO(jbramley/rmcilroy): Fix LMulS so we can UseRegisterAtStart here.
-      LOperand* right = UseRegister(most_const);
+      LOperand* right = UseRegisterAtStart(most_const);
       result = DefineAsRegister(new(zone()) LMulS(left, right));
     } else {
       LOperand* right = UseRegisterAtStart(most_const);
