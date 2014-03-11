@@ -257,6 +257,7 @@ namespace internal {
   F(DateToUTC, 1, 1) \
   F(DateMakeDay, 2, 1) \
   F(DateSetValue, 3, 1) \
+  F(DateCacheVersion, 0, 1) \
   \
   /* Numbers */ \
   \

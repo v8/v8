@@ -5618,30 +5618,17 @@ void v8::Date::DateTimeConfigurationChangeNotification(Isolate* isolate) {
 
   i_isolate->date_cache()->ResetDateCache();
 
-  i::HandleScope scope(i_isolate);
-  // Get the function ResetDateCache (defined in date.js).
-  i::Handle<i::String> func_name_str =
-      i_isolate->factory()->InternalizeOneByteString(
-          STATIC_ASCII_VECTOR("ResetDateCache"));
-  i::MaybeObject* result =
-      i_isolate->js_builtins_object()->GetProperty(*func_name_str);
-  i::Object* object_func;
-  if (!result->ToObject(&object_func)) {
+  if (!i_isolate->eternal_handles()->Exists(
+          i::EternalHandles::DATE_CACHE_VERSION)) {
     return;
   }
-
-  if (object_func->IsJSFunction()) {
-    i::Handle<i::JSFunction> func =
-        i::Handle<i::JSFunction>(i::JSFunction::cast(object_func));
-
-    // Call ResetDateCache(0 but expect no exceptions:
-    bool caught_exception = false;
-    i::Execution::TryCall(func,
-                          i_isolate->js_builtins_object(),
-                          0,
-                          NULL,
-                          &caught_exception);
-  }
+  i::Handle<i::FixedArray> date_cache_version =
+      i::Handle<i::FixedArray>::cast(i_isolate->eternal_handles()->GetSingleton(
+          i::EternalHandles::DATE_CACHE_VERSION));
+  ASSERT_EQ(1, date_cache_version->length());
+  ASSERT(date_cache_version->get(0)->IsNumber());
+  date_cache_version->set(0, i::Smi::FromInt(
+                                 date_cache_version->get(0)->Number() + 1));
 }
 
 

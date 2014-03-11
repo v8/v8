@@ -9612,6 +9612,28 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DateToUTC) {
 }
 
 
+RUNTIME_FUNCTION(MaybeObject*, Runtime_DateCacheVersion) {
+  HandleScope hs(isolate);
+  ASSERT(args.length() == 0);
+  if (!isolate->eternal_handles()->Exists(EternalHandles::DATE_CACHE_VERSION)) {
+    Handle<FixedArray> date_cache_version =
+        isolate->factory()->NewFixedArray(1, TENURED);
+    date_cache_version->set(0, Smi::FromInt(0));
+    isolate->eternal_handles()->CreateSingleton(
+        isolate, *date_cache_version, EternalHandles::DATE_CACHE_VERSION);
+  }
+  Handle<FixedArray> date_cache_version =
+      Handle<FixedArray>::cast(isolate->eternal_handles()->GetSingleton(
+          EternalHandles::DATE_CACHE_VERSION));
+  // Return result as a JS array.
+  Handle<JSObject> result =
+      isolate->factory()->NewJSObject(isolate->array_function());
+  isolate->factory()->SetContent(Handle<JSArray>::cast(result),
+                                 date_cache_version);
+  return *result;
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_GlobalReceiver) {
   SealHandleScope shs(isolate);
   ASSERT(args.length() == 1);
