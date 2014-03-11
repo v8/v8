@@ -8735,7 +8735,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CompileForOnStackReplacement) {
     PrintF(" at AST id %d]\n", ast_id.ToInt());
   }
 
-  function->ReplaceCode(function->shared()->code());
+  if (!function->IsOptimized()) {
+    function->ReplaceCode(function->shared()->code());
+  }
   return NULL;
 }
 
