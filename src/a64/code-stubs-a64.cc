@@ -1182,7 +1182,6 @@ void MathPowStub::Generate(MacroAssembler* masm) {
     if (exponent_type_ == ON_STACK) {
       FPRegister  half_double = d3;
       FPRegister  minus_half_double = d4;
-      FPRegister  zero_double = d5;
       // Detect square root case. Crankshaft detects constant +/-0.5 at compile
       // time and uses DoMathPowHalf instead. We then skip this check for
       // non-constant cases of +/-0.5 as these hardly occur.
@@ -1215,8 +1214,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
       // where base is -INFINITY or -0.
 
       // Add +0 to base. This has no effect other than turning -0 into +0.
-      __ Fmov(zero_double, 0.0);
-      __ Fadd(base_double, base_double, zero_double);
+      __ Fadd(base_double, base_double, fp_zero);
       // The operation -0+0 results in +0 in all cases except where the
       // FPCR rounding mode is 'round towards minus infinity' (RM). The
       // A64 simulator does not currently simulate FPCR (where the rounding
@@ -1224,18 +1222,17 @@ void MathPowStub::Generate(MacroAssembler* masm) {
       if (masm->emit_debug_code()) {
         UseScratchRegisterScope temps(masm);
         Register temp = temps.AcquireX();
-        //  d5  zero_double   The value +0.0 as a double.
-        __ Fneg(scratch0_double, zero_double);
+        __ Fneg(scratch0_double, fp_zero);
         // Verify that we correctly generated +0.0 and -0.0.
         //  bits(+0.0) = 0x0000000000000000
         //  bits(-0.0) = 0x8000000000000000
-        __ Fmov(temp, zero_double);
+        __ Fmov(temp, fp_zero);
         __ CheckRegisterIsClear(temp, kCouldNotGenerateZero);
         __ Fmov(temp, scratch0_double);
         __ Eor(temp, temp, kDSignMask);
         __ CheckRegisterIsClear(temp, kCouldNotGenerateNegativeZero);
         // Check that -0.0 + 0.0 == +0.0.
-        __ Fadd(scratch0_double, scratch0_double, zero_double);
+        __ Fadd(scratch0_double, scratch0_double, fp_zero);
         __ Fmov(temp, scratch0_double);
         __ CheckRegisterIsClear(temp, kExpectedPositiveZero);
       }
@@ -1792,6 +1789,9 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   __ SetStackPointer(jssp);
 
   ProfileEntryHookStub::MaybeCallEntryHook(masm);
+
+  // Set up the reserved register for 0.0.
+  __ Fmov(fp_zero, 0.0);
 
   // Build an entry frame (see layout below).
   Isolate* isolate = masm->isolate();

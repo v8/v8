@@ -149,7 +149,7 @@ void Deoptimizer::EntryGenerator::Generate() {
 
   // Save all allocatable floating point registers.
   CPURegList saved_fp_registers(CPURegister::kFPRegister, kDRegSize,
-                                0, FPRegister::NumAllocatableRegisters() - 1);
+                                FPRegister::kAllocatableFPRegisters);
   __ PushCPURegList(saved_fp_registers);
 
   // We save all the registers expcept jssp, sp and lr.

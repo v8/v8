@@ -3979,9 +3979,7 @@ void LCodeGen::DoMathPowHalf(LMathPowHalf* instr) {
   __ B(&done, eq);
 
   // Add +0.0 to convert -0.0 to +0.0.
-  // TODO(jbramley): A constant zero register would be helpful here.
-  __ Fmov(double_scratch(), 0.0);
-  __ Fadd(double_scratch(), input, double_scratch());
+  __ Fadd(double_scratch(), input, fp_zero);
   __ Fsqrt(result, double_scratch());
 
   __ Bind(&done);
