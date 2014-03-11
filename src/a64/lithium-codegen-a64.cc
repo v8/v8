@@ -2607,14 +2607,12 @@ void LCodeGen::DoDivByPowerOf2I(LDivByPowerOf2I* instr) {
 
   // Check for (0 / -x) that will produce negative zero.
   HDiv* hdiv = instr->hydrogen();
-  if (hdiv->CheckFlag(HValue::kBailoutOnMinusZero) &&
-      hdiv->left()->RangeCanInclude(0) && divisor < 0) {
+  if (hdiv->CheckFlag(HValue::kBailoutOnMinusZero) && divisor < 0) {
     __ Cmp(dividend, 0);
     DeoptimizeIf(eq, instr->environment());
   }
   // Check for (kMinInt / -1).
-  if (hdiv->CheckFlag(HValue::kCanOverflow) &&
-      hdiv->left()->RangeCanInclude(kMinInt) && divisor == -1) {
+  if (hdiv->CheckFlag(HValue::kCanOverflow) && divisor == -1) {
     __ Cmp(dividend, kMinInt);
     DeoptimizeIf(eq, instr->environment());
   }
@@ -2657,8 +2655,7 @@ void LCodeGen::DoDivByConstI(LDivByConstI* instr) {
 
   // Check for (0 / -x) that will produce negative zero.
   HDiv* hdiv = instr->hydrogen();
-  if (hdiv->CheckFlag(HValue::kBailoutOnMinusZero) &&
-      hdiv->left()->RangeCanInclude(0) && divisor < 0) {
+  if (hdiv->CheckFlag(HValue::kBailoutOnMinusZero) && divisor < 0) {
     DeoptimizeIfZero(dividend, instr->environment());
   }
 
@@ -2678,16 +2675,16 @@ void LCodeGen::DoDivByConstI(LDivByConstI* instr) {
 
 
 void LCodeGen::DoDivI(LDivI* instr) {
+  HBinaryOperation* hdiv = instr->hydrogen();
   Register dividend = ToRegister32(instr->left());
   Register divisor = ToRegister32(instr->right());
   Register result = ToRegister32(instr->result());
-  HValue* hdiv = instr->hydrogen_value();
 
   // Issue the division first, and then check for any deopt cases whilst the
   // result is computed.
   __ Sdiv(result, dividend, divisor);
 
-  if (hdiv->CheckFlag(HInstruction::kAllUsesTruncatingToInt32)) {
+  if (hdiv->CheckFlag(HValue::kAllUsesTruncatingToInt32)) {
     ASSERT_EQ(NULL, instr->temp());
     return;
   }
@@ -3895,8 +3892,7 @@ void LCodeGen::DoFlooringDivByConstI(LFlooringDivByConstI* instr) {
 
   // Check for (0 / -x) that will produce negative zero.
   HMathFloorOfDiv* hdiv = instr->hydrogen();
-  if (hdiv->CheckFlag(HValue::kBailoutOnMinusZero) &&
-      hdiv->left()->RangeCanInclude(0) && divisor < 0) {
+  if (hdiv->CheckFlag(HValue::kBailoutOnMinusZero) && divisor < 0) {
     __ Cmp(dividend, 0);
     DeoptimizeIf(eq, instr->environment());
   }
@@ -4184,8 +4180,7 @@ void LCodeGen::DoModByConstI(LModByConstI* instr) {
 
   // Check for negative zero.
   HMod* hmod = instr->hydrogen();
-  if (hmod->CheckFlag(HValue::kBailoutOnMinusZero) &&
-      hmod->left()->CanBeNegative()) {
+  if (hmod->CheckFlag(HValue::kBailoutOnMinusZero)) {
     Label remainder_not_zero;
     __ Cbnz(result, &remainder_not_zero);
     DeoptimizeIfNegative(dividend, instr->environment());
@@ -4202,7 +4197,7 @@ void LCodeGen::DoModI(LModI* instr) {
   Label deopt, done;
   // modulo = dividend - quotient * divisor
   __ Sdiv(result, dividend, divisor);
-  if (instr->hydrogen()->right()->CanBeZero()) {
+  if (instr->hydrogen()->CheckFlag(HValue::kCanBeDivByZero)) {
     // Combine the deoptimization sites.
     Label ok;
     __ Cbnz(divisor, &ok);
@@ -4211,9 +4206,7 @@ void LCodeGen::DoModI(LModI* instr) {
     __ Bind(&ok);
   }
   __ Msub(result, result, divisor, dividend);
-  if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero) &&
-      instr->hydrogen()->left()->CanBeNegative() &&
-      instr->hydrogen()->CanBeZero()) {
+  if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
     __ Cbnz(result, &done);
     if (deopt.is_bound()) {  // TODO(all) This is a hack, remove this...
       __ Tbnz(dividend, kWSignBit, &deopt);

@@ -1163,8 +1163,7 @@ void LCodeGen::DoModByConstI(LModByConstI* instr) {
 
   // Check for negative zero.
   HMod* hmod = instr->hydrogen();
-  if (hmod->CheckFlag(HValue::kBailoutOnMinusZero) &&
-      hmod->left()->CanBeNegative()) {
+  if (hmod->CheckFlag(HValue::kBailoutOnMinusZero)) {
     Label remainder_not_zero;
     __ b(ne, &remainder_not_zero);
     __ cmp(dividend, Operand::Zero());
@@ -1176,8 +1175,6 @@ void LCodeGen::DoModByConstI(LModByConstI* instr) {
 
 void LCodeGen::DoModI(LModI* instr) {
   HMod* hmod = instr->hydrogen();
-  HValue* left = hmod->left();
-  HValue* right = hmod->right();
   if (CpuFeatures::IsSupported(SUDIV)) {
     CpuFeatureScope scope(masm(), SUDIV);
 
@@ -1188,14 +1185,14 @@ void LCodeGen::DoModI(LModI* instr) {
     Label done;
     // Check for x % 0, sdiv might signal an exception. We have to deopt in this
     // case because we can't return a NaN.
-    if (right->CanBeZero()) {
+    if (hmod->CheckFlag(HValue::kCanBeDivByZero)) {
       __ cmp(right_reg, Operand::Zero());
       DeoptimizeIf(eq, instr->environment());
     }
 
     // Check for kMinInt % -1, sdiv will return kMinInt, which is not what we
     // want. We have to deopt if we care about -0, because we can't return that.
-    if (left->RangeCanInclude(kMinInt) && right->RangeCanInclude(-1)) {
+    if (hmod->CheckFlag(HValue::kCanOverflow)) {
       Label no_overflow_possible;
       __ cmp(left_reg, Operand(kMinInt));
       __ b(ne, &no_overflow_possible);
@@ -1218,9 +1215,7 @@ void LCodeGen::DoModI(LModI* instr) {
     __ mls(result_reg, result_reg, right_reg, left_reg);
 
     // If we care about -0, test if the dividend is <0 and the result is 0.
-    if (left->CanBeNegative() &&
-        hmod->CanBeZero() &&
-        hmod->CheckFlag(HValue::kBailoutOnMinusZero)) {
+    if (hmod->CheckFlag(HValue::kBailoutOnMinusZero)) {
       __ cmp(result_reg, Operand::Zero());
       __ b(ne, &done);
       __ cmp(left_reg, Operand::Zero());
@@ -1247,7 +1242,7 @@ void LCodeGen::DoModI(LModI* instr) {
     Label done;
     // Check for x % 0, we have to deopt in this case because we can't return a
     // NaN.
-    if (right->CanBeZero()) {
+    if (hmod->CheckFlag(HValue::kCanBeDivByZero)) {
       __ cmp(right_reg, Operand::Zero());
       DeoptimizeIf(eq, instr->environment());
     }
@@ -1276,9 +1271,7 @@ void LCodeGen::DoModI(LModI* instr) {
     __ sub(result_reg, left_reg, scratch, SetCC);
 
     // If we care about -0, test if the dividend is <0 and the result is 0.
-    if (left->CanBeNegative() &&
-        hmod->CanBeZero() &&
-        hmod->CheckFlag(HValue::kBailoutOnMinusZero)) {
+    if (hmod->CheckFlag(HValue::kBailoutOnMinusZero)) {
       __ b(ne, &done);
       __ cmp(left_reg, Operand::Zero());
       DeoptimizeIf(mi, instr->environment());
@@ -1297,14 +1290,12 @@ void LCodeGen::DoDivByPowerOf2I(LDivByPowerOf2I* instr) {
 
   // Check for (0 / -x) that will produce negative zero.
   HDiv* hdiv = instr->hydrogen();
-  if (hdiv->CheckFlag(HValue::kBailoutOnMinusZero) &&
-      hdiv->left()->RangeCanInclude(0) && divisor < 0) {
+  if (hdiv->CheckFlag(HValue::kBailoutOnMinusZero) && divisor < 0) {
     __ cmp(dividend, Operand::Zero());
     DeoptimizeIf(eq, instr->environment());
   }
   // Check for (kMinInt / -1).
-  if (hdiv->CheckFlag(HValue::kCanOverflow) &&
-      hdiv->left()->RangeCanInclude(kMinInt) && divisor == -1) {
+  if (hdiv->CheckFlag(HValue::kCanOverflow) && divisor == -1) {
     __ cmp(dividend, Operand(kMinInt));
     DeoptimizeIf(eq, instr->environment());
   }
@@ -1347,8 +1338,7 @@ void LCodeGen::DoDivByConstI(LDivByConstI* instr) {
 
   // Check for (0 / -x) that will produce negative zero.
   HDiv* hdiv = instr->hydrogen();
-  if (hdiv->CheckFlag(HValue::kBailoutOnMinusZero) &&
-      hdiv->left()->RangeCanInclude(0) && divisor < 0) {
+  if (hdiv->CheckFlag(HValue::kBailoutOnMinusZero) && divisor < 0) {
     __ cmp(dividend, Operand::Zero());
     DeoptimizeIf(eq, instr->environment());
   }
@@ -1367,18 +1357,19 @@ void LCodeGen::DoDivByConstI(LDivByConstI* instr) {
 
 
 void LCodeGen::DoDivI(LDivI* instr) {
+  HBinaryOperation* hdiv = instr->hydrogen();
   const Register left = ToRegister(instr->left());
   const Register right = ToRegister(instr->right());
   const Register result = ToRegister(instr->result());
 
   // Check for x / 0.
-  if (instr->hydrogen_value()->CheckFlag(HValue::kCanBeDivByZero)) {
+  if (hdiv->CheckFlag(HValue::kCanBeDivByZero)) {
     __ cmp(right, Operand::Zero());
     DeoptimizeIf(eq, instr->environment());
   }
 
   // Check for (0 / -x) that will produce negative zero.
-  if (instr->hydrogen_value()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+  if (hdiv->CheckFlag(HValue::kBailoutOnMinusZero)) {
     Label positive;
     if (!instr->hydrogen_value()->CheckFlag(HValue::kCanBeDivByZero)) {
       // Do the test only if it hadn't be done above.
@@ -1391,10 +1382,9 @@ void LCodeGen::DoDivI(LDivI* instr) {
   }
 
   // Check for (kMinInt / -1).
-  if (instr->hydrogen_value()->CheckFlag(HValue::kCanOverflow) &&
+  if (hdiv->CheckFlag(HValue::kCanOverflow) &&
       (!CpuFeatures::IsSupported(SUDIV) ||
-       !instr->hydrogen_value()->CheckFlag(
-           HValue::kAllUsesTruncatingToInt32))) {
+       !hdiv->CheckFlag(HValue::kAllUsesTruncatingToInt32))) {
     // We don't need to check for overflow when truncating with sdiv
     // support because, on ARM, sdiv kMinInt, -1 -> kMinInt.
     __ cmp(left, Operand(kMinInt));
@@ -1406,8 +1396,7 @@ void LCodeGen::DoDivI(LDivI* instr) {
     CpuFeatureScope scope(masm(), SUDIV);
     __ sdiv(result, left, right);
 
-    if (!instr->hydrogen_value()->CheckFlag(
-        HInstruction::kAllUsesTruncatingToInt32)) {
+    if (!hdiv->CheckFlag(HValue::kAllUsesTruncatingToInt32)) {
       // Compute remainder and deopt if it's not zero.
       const Register remainder = scratch0();
       __ mls(remainder, result, right, left);
@@ -1425,8 +1414,7 @@ void LCodeGen::DoDivI(LDivI* instr) {
     __ vcvt_s32_f64(double_scratch0().low(), vleft);
     __ vmov(result, double_scratch0().low());
 
-    if (!instr->hydrogen_value()->CheckFlag(
-        HInstruction::kAllUsesTruncatingToInt32)) {
+    if (!hdiv->CheckFlag(HValue::kAllUsesTruncatingToInt32)) {
       // Deopt if exact conversion to integer was not possible.
       // Use vright as scratch register.
       __ vcvt_f64_s32(double_scratch0(), double_scratch0().low());
@@ -1511,8 +1499,7 @@ void LCodeGen::DoFlooringDivByConstI(LFlooringDivByConstI* instr) {
 
   // Check for (0 / -x) that will produce negative zero.
   HMathFloorOfDiv* hdiv = instr->hydrogen();
-  if (hdiv->CheckFlag(HValue::kBailoutOnMinusZero) &&
-      hdiv->left()->RangeCanInclude(0) && divisor < 0) {
+  if (hdiv->CheckFlag(HValue::kBailoutOnMinusZero) && divisor < 0) {
     __ cmp(dividend, Operand::Zero());
     DeoptimizeIf(eq, instr->environment());
   }

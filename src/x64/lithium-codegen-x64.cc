@@ -1036,8 +1036,7 @@ void LCodeGen::DoModByConstI(LModByConstI* instr) {
 
   // Check for negative zero.
   HMod* hmod = instr->hydrogen();
-  if (hmod->CheckFlag(HValue::kBailoutOnMinusZero) &&
-      hmod->left()->CanBeNegative()) {
+  if (hmod->CheckFlag(HValue::kBailoutOnMinusZero)) {
     Label remainder_not_zero;
     __ j(not_zero, &remainder_not_zero, Label::kNear);
     __ cmpl(dividend, Immediate(0));
@@ -1048,12 +1047,7 @@ void LCodeGen::DoModByConstI(LModByConstI* instr) {
 
 
 void LCodeGen::DoModI(LModI* instr) {
-  if (instr->hydrogen()->RightIsPowerOf2()) {
-    return DoModByPowerOf2I(reinterpret_cast<LModByPowerOf2I*>(instr));
-  }
   HMod* hmod = instr->hydrogen();
-  HValue* left = hmod->left();
-  HValue* right = hmod->right();
 
   Register left_reg = ToRegister(instr->left());
   ASSERT(left_reg.is(rax));
@@ -1066,14 +1060,14 @@ void LCodeGen::DoModI(LModI* instr) {
   Label done;
   // Check for x % 0, idiv would signal a divide error. We have to
   // deopt in this case because we can't return a NaN.
-  if (right->CanBeZero()) {
+  if (hmod->CheckFlag(HValue::kCanBeDivByZero)) {
     __ testl(right_reg, right_reg);
     DeoptimizeIf(zero, instr->environment());
   }
 
   // Check for kMinInt % -1, idiv would signal a divide error. We
   // have to deopt if we care about -0, because we can't return that.
-  if (left->RangeCanInclude(kMinInt) && right->RangeCanInclude(-1)) {
+  if (hmod->CheckFlag(HValue::kCanOverflow)) {
     Label no_overflow_possible;
     __ cmpl(left_reg, Immediate(kMinInt));
     __ j(not_zero, &no_overflow_possible, Label::kNear);
@@ -1093,9 +1087,7 @@ void LCodeGen::DoModI(LModI* instr) {
   __ cdq();
 
   // If we care about -0, test if the dividend is <0 and the result is 0.
-  if (left->CanBeNegative() &&
-      hmod->CanBeZero() &&
-      hmod->CheckFlag(HValue::kBailoutOnMinusZero)) {
+  if (hmod->CheckFlag(HValue::kBailoutOnMinusZero)) {
     Label positive_left;
     __ testl(left_reg, left_reg);
     __ j(not_sign, &positive_left, Label::kNear);
@@ -1159,8 +1151,7 @@ void LCodeGen::DoFlooringDivByConstI(LFlooringDivByConstI* instr) {
 
   // Check for (0 / -x) that will produce negative zero.
   HMathFloorOfDiv* hdiv = instr->hydrogen();
-  if (hdiv->CheckFlag(HValue::kBailoutOnMinusZero) &&
-      hdiv->left()->RangeCanInclude(0) && divisor < 0) {
+  if (hdiv->CheckFlag(HValue::kBailoutOnMinusZero) && divisor < 0) {
     __ testl(dividend, dividend);
     DeoptimizeIf(zero, instr->environment());
   }
@@ -1178,14 +1169,12 @@ void LCodeGen::DoDivByPowerOf2I(LDivByPowerOf2I* instr) {
 
   // Check for (0 / -x) that will produce negative zero.
   HDiv* hdiv = instr->hydrogen();
-  if (hdiv->CheckFlag(HValue::kBailoutOnMinusZero) &&
-      hdiv->left()->RangeCanInclude(0) && divisor < 0) {
+  if (hdiv->CheckFlag(HValue::kBailoutOnMinusZero) && divisor < 0) {
     __ testl(dividend, dividend);
     DeoptimizeIf(zero, instr->environment());
   }
   // Check for (kMinInt / -1).
-  if (hdiv->CheckFlag(HValue::kCanOverflow) &&
-      hdiv->left()->RangeCanInclude(kMinInt) && divisor == -1) {
+  if (hdiv->CheckFlag(HValue::kCanOverflow) && divisor == -1) {
     __ cmpl(dividend, Immediate(kMinInt));
     DeoptimizeIf(zero, instr->environment());
   }
@@ -1221,8 +1210,7 @@ void LCodeGen::DoDivByConstI(LDivByConstI* instr) {
 
   // Check for (0 / -x) that will produce negative zero.
   HDiv* hdiv = instr->hydrogen();
-  if (hdiv->CheckFlag(HValue::kBailoutOnMinusZero) &&
-      hdiv->left()->RangeCanInclude(0) && divisor < 0) {
+  if (hdiv->CheckFlag(HValue::kBailoutOnMinusZero) && divisor < 0) {
     __ testl(dividend, dividend);
     DeoptimizeIf(zero, instr->environment());
   }
@@ -1243,6 +1231,7 @@ void LCodeGen::DoDivByConstI(LDivByConstI* instr) {
 
 
 void LCodeGen::DoDivI(LDivI* instr) {
+  HBinaryOperation* hdiv = instr->hydrogen();
   Register dividend = ToRegister(instr->left());
   Register divisor = ToRegister(instr->right());
   Register remainder = ToRegister(instr->temp());
@@ -1254,7 +1243,6 @@ void LCodeGen::DoDivI(LDivI* instr) {
   ASSERT(!divisor.is(rdx));
 
   // Check for x / 0.
-  HBinaryOperation* hdiv = instr->hydrogen();
   if (hdiv->CheckFlag(HValue::kCanBeDivByZero)) {
     __ testl(divisor, divisor);
     DeoptimizeIf(zero, instr->environment());
@@ -1284,7 +1272,7 @@ void LCodeGen::DoDivI(LDivI* instr) {
   __ cdq();
   __ idivl(divisor);
 
-  if (instr->is_flooring()) {
+  if (hdiv->IsMathFloorOfDiv()) {
     Label done;
     __ testl(remainder, remainder);
     __ j(zero, &done, Label::kNear);
@@ -1292,8 +1280,7 @@ void LCodeGen::DoDivI(LDivI* instr) {
     __ sarl(remainder, Immediate(31));
     __ addl(result, remainder);
     __ bind(&done);
-  } else if (!instr->hydrogen()->CheckFlag(
-      HInstruction::kAllUsesTruncatingToInt32)) {
+  } else if (!hdiv->CheckFlag(HValue::kAllUsesTruncatingToInt32)) {
     // Deoptimize if remainder is not 0.
     __ testl(remainder, remainder);
     DeoptimizeIf(not_zero, instr->environment());

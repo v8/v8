@@ -737,8 +737,6 @@ class LDivI V8_FINAL : public LTemplateInstruction<1, 2, 1> {
   LOperand* right() { return inputs_[1]; }
   LOperand* temp() { return temps_[0]; }
 
-  bool is_flooring() { return hydrogen_value()->IsMathFloorOfDiv(); }
-
   DECLARE_CONCRETE_INSTRUCTION(DivI, "div-i")
   DECLARE_HYDROGEN_ACCESSOR(BinaryOperation)
 };

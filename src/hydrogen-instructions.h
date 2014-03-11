@@ -855,7 +855,6 @@ class HValue : public ZoneObject {
   // TODO(svenpanne) We should really use the null object pattern here.
   bool HasRange() const { return range_ != NULL; }
   bool CanBeNegative() const { return !HasRange() || range()->CanBeNegative(); }
-  bool CanBeZero() const { return !HasRange() || range()->CanBeZero(); }
   bool RangeCanInclude(int value) const {
     return !HasRange() || range()->Includes(value);
   }
