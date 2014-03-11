@@ -5430,6 +5430,11 @@ void JSFunction::ReplaceCode(Code* code) {
   bool was_optimized = IsOptimized();
   bool is_optimized = code->kind() == Code::OPTIMIZED_FUNCTION;
 
+  if (was_optimized && is_optimized) {
+    shared()->EvictFromOptimizedCodeMap(this->code(),
+        "Replacing with another optimized code");
+  }
+
   set_code(code);
 
   // Add/remove the function from the list of optimized functions for this
