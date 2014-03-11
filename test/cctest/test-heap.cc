@@ -2004,14 +2004,8 @@ TEST(PrototypeTransitionClearing) {
   Factory* factory = isolate->factory();
   v8::HandleScope scope(CcTest::isolate());
 
-  CompileRun("var base = {};");
-  Handle<JSObject> baseObject =
-      v8::Utils::OpenHandle(
-          *v8::Handle<v8::Object>::Cast(
-              CcTest::global()->Get(v8_str("base"))));
-  int initialTransitions = baseObject->map()->NumberOfProtoTransitions();
-
   CompileRun(
+      "var base = {};"
       "var live = [];"
       "for (var i = 0; i < 10; i++) {"
       "  var object = {};"
@@ -2020,22 +2014,25 @@ TEST(PrototypeTransitionClearing) {
       "  if (i >= 3) live.push(object, prototype);"
       "}");
 
+  Handle<JSObject> baseObject =
+      v8::Utils::OpenHandle(
+          *v8::Handle<v8::Object>::Cast(
+              CcTest::global()->Get(v8_str("base"))));
+
   // Verify that only dead prototype transitions are cleared.
-  CHECK_EQ(initialTransitions + 10,
-      baseObject->map()->NumberOfProtoTransitions());
+  CHECK_EQ(10, baseObject->map()->NumberOfProtoTransitions());
   CcTest::heap()->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
   const int transitions = 10 - 3;
-  CHECK_EQ(initialTransitions + transitions,
-      baseObject->map()->NumberOfProtoTransitions());
+  CHECK_EQ(transitions, baseObject->map()->NumberOfProtoTransitions());
 
   // Verify that prototype transitions array was compacted.
   FixedArray* trans = baseObject->map()->GetPrototypeTransitions();
-  for (int i = initialTransitions; i < initialTransitions + transitions; i++) {
+  for (int i = 0; i < transitions; i++) {
     int j = Map::kProtoTransitionHeaderSize +
         i * Map::kProtoTransitionElementsPerEntry;
     CHECK(trans->get(j + Map::kProtoTransitionMapOffset)->IsMap());
     Object* proto = trans->get(j + Map::kProtoTransitionPrototypeOffset);
-    CHECK(proto->IsJSObject());
+    CHECK(proto->IsTheHole() || proto->IsJSObject());
   }
 
   // Make sure next prototype is placed on an old-space evacuation candidate.

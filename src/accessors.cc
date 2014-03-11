@@ -600,7 +600,10 @@ MaybeObject* Accessors::FunctionSetPrototype(Isolate* isolate,
   }
 
   Handle<Object> old_value;
-  bool is_observed = *function == *object && function->map()->is_observed();
+  bool is_observed =
+      FLAG_harmony_observation &&
+      *function == *object &&
+      function->map()->is_observed();
   if (is_observed) {
     if (function->has_prototype())
       old_value = handle(function->prototype(), isolate);
