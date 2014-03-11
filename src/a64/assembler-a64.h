@@ -780,8 +780,15 @@ class Assembler : public AssemblerBase {
   inline static Address target_pointer_address_at(Address pc);
 
   // Read/Modify the code target address in the branch/call instruction at pc.
-  inline static Address target_address_at(Address pc);
-  inline static void set_target_address_at(Address pc, Address target);
+  inline static Address target_address_at(Address pc,
+                                          ConstantPoolArray* constant_pool);
+  inline static void set_target_address_at(Address pc,
+                                           ConstantPoolArray* constant_pool,
+                                           Address target);
+  static inline Address target_address_at(Address pc, Code* code);
+  static inline void set_target_address_at(Address pc,
+                                           Code* code,
+                                           Address target);
 
   // Return the code target address at a call site from the return address of
   // that call in the instruction stream.
@@ -794,7 +801,7 @@ class Assembler : public AssemblerBase {
   // This sets the branch destination (which is in the constant pool on ARM).
   // This is for calls and branches within generated code.
   inline static void deserialization_set_special_target_at(
-      Address constant_pool_entry, Address target);
+      Address constant_pool_entry, Code* code, Address target);
 
   // All addresses in the constant pool are the same size as pointers.
   static const int kSpecialTargetSize = kPointerSize;

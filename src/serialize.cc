@@ -983,6 +983,7 @@ void Deserializer::ReadChunk(Object** current,
                 reinterpret_cast<Address>(current);                            \
             Assembler::deserialization_set_special_target_at(                  \
                 location_of_branch_data,                                       \
+                Code::cast(HeapObject::FromAddress(current_object_address)),   \
                 reinterpret_cast<Address>(new_object));                        \
             location_of_branch_data += Assembler::kSpecialTargetSize;          \
             current = reinterpret_cast<Object**>(location_of_branch_data);     \
