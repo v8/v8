@@ -251,6 +251,8 @@ class Win32Time {
   // timestamp taking into account daylight saving.
   char* LocalTimezone();
 
+  static void TimeZoneChanged() { tz_initialized_ = false; }
+
  private:
   // Constants for time conversion.
   static const int64_t kTimeEpoc = 116444736000000000LL;
@@ -608,6 +610,11 @@ double OS::LocalTimeOffset() {
 double OS::DaylightSavingsOffset(double time) {
   int64_t offset = Win32Time(time).DaylightSavingsOffset();
   return static_cast<double>(offset);
+}
+
+
+void OS::TimeZoneChanged() {
+  Win32Time::TimeZoneChanged();
 }
 
 

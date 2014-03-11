@@ -193,6 +193,8 @@ class OS {
   // Returns the daylight savings offset for the given time.
   static double DaylightSavingsOffset(double time);
 
+  static void TimeZoneChanged();
+
   // Returns last OS error.
   static int GetLastError();
 
