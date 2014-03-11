@@ -205,15 +205,12 @@ void Assembler::emit_optional_rex_32(const Operand& op) {
 }
 
 
-Address Assembler::target_address_at(Address pc,
-                                     ConstantPoolArray* constant_pool) {
+Address Assembler::target_address_at(Address pc) {
   return Memory::int32_at(pc) + pc + 4;
 }
 
 
-void Assembler::set_target_address_at(Address pc,
-                                      ConstantPoolArray* constant_pool,
-                                      Address target) {
+void Assembler::set_target_address_at(Address pc, Address target) {
   Memory::int32_at(pc) = static_cast<int32_t>(target - pc - 4);
   CPU::FlushICache(pc, sizeof(int32_t));
 }
@@ -258,7 +255,7 @@ void RelocInfo::apply(intptr_t delta) {
 
 Address RelocInfo::target_address() {
   ASSERT(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_));
-  return Assembler::target_address_at(pc_, host_);
+  return Assembler::target_address_at(pc_);
 }
 
 
@@ -287,7 +284,7 @@ int RelocInfo::target_address_size() {
 
 void RelocInfo::set_target_address(Address target, WriteBarrierMode mode) {
   ASSERT(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_));
-  Assembler::set_target_address_at(pc_, host_, target);
+  Assembler::set_target_address_at(pc_, target);
   if (mode == UPDATE_WRITE_BARRIER && host() != NULL && IsCodeTarget(rmode_)) {
     Object* target_code = Code::GetCodeFromTargetAddress(target);
     host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(
@@ -378,7 +375,7 @@ void RelocInfo::WipeOut() {
     Memory::Address_at(pc_) = NULL;
   } else if (IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_)) {
     // Effectively write zero into the relocation.
-    Assembler::set_target_address_at(pc_, host_, pc_ + sizeof(int32_t));
+    Assembler::set_target_address_at(pc_, pc_ + sizeof(int32_t));
   } else {
     UNREACHABLE();
   }
@@ -417,14 +414,14 @@ Code* RelocInfo::code_age_stub() {
   ASSERT(rmode_ == RelocInfo::CODE_AGE_SEQUENCE);
   ASSERT(*pc_ == kCallOpcode);
   return Code::GetCodeFromTargetAddress(
-      Assembler::target_address_at(pc_ + 1, host_));
+      Assembler::target_address_at(pc_ + 1));
 }
 
 
 void RelocInfo::set_code_age_stub(Code* stub) {
   ASSERT(*pc_ == kCallOpcode);
   ASSERT(rmode_ == RelocInfo::CODE_AGE_SEQUENCE);
-  Assembler::set_target_address_at(pc_ + 1, host_, stub->instruction_start());
+  Assembler::set_target_address_at(pc_ + 1, stub->instruction_start());
 }
 
 

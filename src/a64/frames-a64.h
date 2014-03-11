@@ -69,8 +69,6 @@ class ExitFrameConstants : public AllStatic {
   static const int kSPOffset             = -1 * kPointerSize;
   static const int kCodeOffset           = -2 * kPointerSize;
   static const int kLastExitFrameField   = kCodeOffset;
-
-  static const int kConstantPoolOffset   = 0;  // Not used
 };
 
 

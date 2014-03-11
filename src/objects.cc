@@ -10635,8 +10635,7 @@ void Code::ClearInlineCaches(Code::Kind* kind) {
     Code* target(Code::GetCodeFromTargetAddress(info->target_address()));
     if (target->is_inline_cache_stub()) {
       if (kind == NULL || *kind == target->kind()) {
-        IC::Clear(this->GetIsolate(), info->pc(),
-                  info->host()->constant_pool());
+        IC::Clear(this->GetIsolate(), info->pc());
       }
     }
   }

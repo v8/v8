@@ -4863,7 +4863,6 @@ void BackEdgeTable::PatchAt(Code* unoptimized_code,
   }
 
   Assembler::set_target_address_at(call_target_address,
-                                   unoptimized_code,
                                    replacement_code->entry());
   unoptimized_code->GetHeap()->incremental_marking()->RecordCodeTargetPatch(
       unoptimized_code, call_target_address, replacement_code);
@@ -4881,22 +4880,20 @@ BackEdgeTable::BackEdgeState BackEdgeTable::GetBackEdgeState(
   if (*jns_instr_address == kJnsInstruction) {
     ASSERT_EQ(kJnsOffset, *(call_target_address - 2));
     ASSERT_EQ(isolate->builtins()->InterruptCheck()->entry(),
-              Assembler::target_address_at(call_target_address,
-                                           unoptimized_code));
+              Assembler::target_address_at(call_target_address));
     return INTERRUPT;
   }
 
   ASSERT_EQ(kNopByteOne, *jns_instr_address);
   ASSERT_EQ(kNopByteTwo, *(call_target_address - 2));
 
-  if (Assembler::target_address_at(call_target_address, unoptimized_code) ==
+  if (Assembler::target_address_at(call_target_address) ==
       isolate->builtins()->OnStackReplacement()->entry()) {
     return ON_STACK_REPLACEMENT;
   }
 
   ASSERT_EQ(isolate->builtins()->OsrAfterStackCheck()->entry(),
-            Assembler::target_address_at(call_target_address,
-                                         unoptimized_code));
+            Assembler::target_address_at(call_target_address));
   return OSR_AFTER_STACK_CHECK;
 }
 

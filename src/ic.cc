@@ -127,11 +127,6 @@ IC::IC(FrameDepth depth, Isolate* isolate)
   // running DeltaBlue and a ~25% speedup of gbemu with the '--nouse-ic' flag.
   const Address entry =
       Isolate::c_entry_fp(isolate->thread_local_top());
-  Address constant_pool = NULL;
-  if (FLAG_enable_ool_constant_pool) {
-    constant_pool = Memory::Address_at(
-        entry + ExitFrameConstants::kConstantPoolOffset);
-  }
   Address* pc_address =
       reinterpret_cast<Address*>(entry + ExitFrameConstants::kCallerPCOffset);
   Address fp = Memory::Address_at(entry + ExitFrameConstants::kCallerFPOffset);
@@ -139,10 +134,6 @@ IC::IC(FrameDepth depth, Isolate* isolate)
   // StubFailureTrampoline, we need to look one frame further down the stack to
   // find the frame pointer and the return address stack slot.
   if (depth == EXTRA_CALL_FRAME) {
-    if (FLAG_enable_ool_constant_pool) {
-      constant_pool = Memory::Address_at(
-          fp + StandardFrameConstants::kConstantPoolOffset);
-    }
     const int kCallerPCOffset = StandardFrameConstants::kCallerPCOffset;
     pc_address = reinterpret_cast<Address*>(fp + kCallerPCOffset);
     fp = Memory::Address_at(fp + StandardFrameConstants::kCallerFPOffset);
@@ -154,11 +145,6 @@ IC::IC(FrameDepth depth, Isolate* isolate)
   ASSERT(fp == frame->fp() && pc_address == frame->pc_address());
 #endif
   fp_ = fp;
-  if (FLAG_enable_ool_constant_pool) {
-    raw_constant_pool_ = handle(
-        ConstantPoolArray::cast(reinterpret_cast<Object*>(constant_pool)),
-        isolate);
-  }
   pc_address_ = StackFrame::ResolveReturnAddressLocation(pc_address);
   target_ = handle(raw_target(), isolate);
   state_ = target_->ic_state();
@@ -167,7 +153,8 @@ IC::IC(FrameDepth depth, Isolate* isolate)
 
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
-SharedFunctionInfo* IC::GetSharedFunctionInfo() const {
+Address IC::OriginalCodeAddress() const {
+  HandleScope scope(isolate());
   // Compute the JavaScript frame for the frame pointer of this IC
   // structure. We need this to be able to find the function
   // corresponding to the frame.
@@ -177,25 +164,21 @@ SharedFunctionInfo* IC::GetSharedFunctionInfo() const {
   // Find the function on the stack and both the active code for the
   // function and the original code.
   JSFunction* function = frame->function();
-  return function->shared();
-}
-
-
-Code* IC::GetCode() const {
-  HandleScope scope(isolate());
-  Handle<SharedFunctionInfo> shared(GetSharedFunctionInfo(), isolate());
+  Handle<SharedFunctionInfo> shared(function->shared(), isolate());
   Code* code = shared->code();
-  return code;
-}
-
-
-Code* IC::GetOriginalCode() const {
-  HandleScope scope(isolate());
-  Handle<SharedFunctionInfo> shared(GetSharedFunctionInfo(), isolate());
   ASSERT(Debug::HasDebugInfo(shared));
   Code* original_code = Debug::GetDebugInfo(shared)->original_code();
   ASSERT(original_code->IsCode());
-  return original_code;
+  // Get the address of the call site in the active code. This is the
+  // place where the call to DebugBreakXXX is and where the IC
+  // normally would be.
+  Address addr = Assembler::target_address_from_return_address(pc());
+  // Return the address in the original code. This is the place where
+  // the call which has been overwritten by the DebugBreakXXX resides
+  // and the place where the inline cache system should look.
+  intptr_t delta =
+      original_code->instruction_start() - code->instruction_start();
+  return addr + delta;
 }
 #endif
 
@@ -426,26 +409,21 @@ void IC::PostPatching(Address address, Code* target, Code* old_target) {
 }
 
 
-void IC::Clear(Isolate* isolate, Address address,
-    ConstantPoolArray* constant_pool) {
-  Code* target = GetTargetAtAddress(address, constant_pool);
+void IC::Clear(Isolate* isolate, Address address) {
+  Code* target = GetTargetAtAddress(address);
 
   // Don't clear debug break inline cache as it will remove the break point.
   if (target->is_debug_stub()) return;
 
   switch (target->kind()) {
-    case Code::LOAD_IC:
-      return LoadIC::Clear(isolate, address, target, constant_pool);
+    case Code::LOAD_IC: return LoadIC::Clear(isolate, address, target);
     case Code::KEYED_LOAD_IC:
-      return KeyedLoadIC::Clear(isolate, address, target, constant_pool);
-    case Code::STORE_IC:
-      return StoreIC::Clear(isolate, address, target, constant_pool);
+      return KeyedLoadIC::Clear(isolate, address, target);
+    case Code::STORE_IC: return StoreIC::Clear(isolate, address, target);
     case Code::KEYED_STORE_IC:
-      return KeyedStoreIC::Clear(isolate, address, target, constant_pool);
-    case Code::COMPARE_IC:
-      return CompareIC::Clear(isolate, address, target, constant_pool);
-    case Code::COMPARE_NIL_IC:
-      return CompareNilIC::Clear(address, target, constant_pool);
+      return KeyedStoreIC::Clear(isolate, address, target);
+    case Code::COMPARE_IC: return CompareIC::Clear(isolate, address, target);
+    case Code::COMPARE_NIL_IC: return CompareNilIC::Clear(address, target);
     case Code::BINARY_OP_IC:
     case Code::TO_BOOLEAN_IC:
       // Clearing these is tricky and does not
@@ -456,56 +434,40 @@ void IC::Clear(Isolate* isolate, Address address,
 }
 
 
-void KeyedLoadIC::Clear(Isolate* isolate,
-                        Address address,
-                        Code* target,
-                        ConstantPoolArray* constant_pool) {
+void KeyedLoadIC::Clear(Isolate* isolate, Address address, Code* target) {
   if (IsCleared(target)) return;
   // Make sure to also clear the map used in inline fast cases.  If we
   // do not clear these maps, cached code can keep objects alive
   // through the embedded maps.
-  SetTargetAtAddress(address, *pre_monomorphic_stub(isolate), constant_pool);
+  SetTargetAtAddress(address, *pre_monomorphic_stub(isolate));
 }
 
 
-void LoadIC::Clear(Isolate* isolate,
-                   Address address,
-                   Code* target,
-                   ConstantPoolArray* constant_pool) {
+void LoadIC::Clear(Isolate* isolate, Address address, Code* target) {
   if (IsCleared(target)) return;
   Code* code = target->GetIsolate()->stub_cache()->FindPreMonomorphicIC(
       Code::LOAD_IC, target->extra_ic_state());
-  SetTargetAtAddress(address, code, constant_pool);
+  SetTargetAtAddress(address, code);
 }
 
 
-void StoreIC::Clear(Isolate* isolate,
-                    Address address,
-                    Code* target,
-                    ConstantPoolArray* constant_pool) {
+void StoreIC::Clear(Isolate* isolate, Address address, Code* target) {
   if (IsCleared(target)) return;
   Code* code = target->GetIsolate()->stub_cache()->FindPreMonomorphicIC(
       Code::STORE_IC, target->extra_ic_state());
-  SetTargetAtAddress(address, code, constant_pool);
+  SetTargetAtAddress(address, code);
 }
 
 
-void KeyedStoreIC::Clear(Isolate* isolate,
-                         Address address,
-                         Code* target,
-                         ConstantPoolArray* constant_pool) {
+void KeyedStoreIC::Clear(Isolate* isolate, Address address, Code* target) {
   if (IsCleared(target)) return;
   SetTargetAtAddress(address,
       *pre_monomorphic_stub(
-          isolate, StoreIC::GetStrictMode(target->extra_ic_state())),
-      constant_pool);
+          isolate, StoreIC::GetStrictMode(target->extra_ic_state())));
 }
 
 
-void CompareIC::Clear(Isolate* isolate,
-                      Address address,
-                      Code* target,
-                      ConstantPoolArray* constant_pool) {
+void CompareIC::Clear(Isolate* isolate, Address address, Code* target) {
   ASSERT(target->major_key() == CodeStub::CompareIC);
   CompareIC::State handler_state;
   Token::Value op;
@@ -513,7 +475,7 @@ void CompareIC::Clear(Isolate* isolate,
                                 &handler_state, &op);
   // Only clear CompareICs that can retain objects.
   if (handler_state != KNOWN_OBJECT) return;
-  SetTargetAtAddress(address, GetRawUninitialized(isolate, op), constant_pool);
+  SetTargetAtAddress(address, GetRawUninitialized(isolate, op));
   PatchInlinedSmiCode(address, DISABLE_INLINED_SMI_CHECK);
 }
 
@@ -2723,9 +2685,7 @@ RUNTIME_FUNCTION(Code*, CompareIC_Miss) {
 }
 
 
-void CompareNilIC::Clear(Address address,
-                         Code* target,
-                         ConstantPoolArray* constant_pool) {
+void CompareNilIC::Clear(Address address, Code* target) {
   if (IsCleared(target)) return;
   ExtraICState state = target->extra_ic_state();
 
@@ -2735,7 +2695,7 @@ void CompareNilIC::Clear(Address address,
   Code* code = NULL;
   CHECK(stub.FindCodeInCache(&code, target->GetIsolate()));
 
-  SetTargetAtAddress(address, code, constant_pool);
+  SetTargetAtAddress(address, code);
 }
 
 
