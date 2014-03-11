@@ -52,7 +52,8 @@ enum Encoding {
   LATIN1,
   UTF8,
   UTF16,
-  UTF8TO16  // Read as UTF8, convert to UTF16 before giving it to the lexers.
+  UTF8TO16,  // Convert stream via scanner input stream
+  UTF8TO16_PRECONVERT  // Convert stream during file read
 };
 
 
@@ -77,49 +78,15 @@ struct LexerShellSettings {
 };
 
 
-static uint16_t* ReadFile(const char* name, const uint8_t** end,
-                          const LexerShellSettings& settings) {
-  FILE* file = fopen(name, "rb");
-  CHECK(file != NULL);
-
-  fseek(file, 0, SEEK_END);
-  unsigned file_size = ftell(file);
-  rewind(file);
-
-  uint16_t* two_byte_data = new uint16_t[file_size / 2 + file_size % 2];
-
-  uint8_t* char_data = reinterpret_cast<uint8_t*>(two_byte_data);
-  for (unsigned i = 0; i < file_size;) {
-    i += fread(&char_data[i], 1, file_size - i, file);
-  }
-  fclose(file);
-
-  if (settings.encoding == UTF8TO16) {
-    const uint32_t kMaxUtf16Character = 0xffff;
-    // Get utf8 length.
-    unsigned utf16_chars = 0;
-    {
-      unsigned position = 0;
-      while (position < file_size) {
-        uint32_t c = char_data[position];
-        if (c <= unibrow::Utf8::kMaxOneByteChar) {
-          position++;
-        } else {
-          c =  unibrow::Utf8::CalculateValue(char_data + position,
-                                             file_size - position,
-                                             &position);
-        }
-        if (c > kMaxUtf16Character) {
-          utf16_chars += 2;
-        } else {
-          utf16_chars += 1;
-        }
-      }
-    }
-    // Write new buffer out.
-    uint16_t* data = new uint16_t[utf16_chars];
+static uint16_t* ConvertUtf8ToUtf16(const uint16_t* const data_in,
+                                    unsigned* length) {
+  const unsigned file_size = *length;
+  const uint8_t* char_data = reinterpret_cast<const uint8_t*>(data_in);
+  const uint32_t kMaxUtf16Character = 0xffff;
+  // Get utf8 length.
+  unsigned utf16_chars = 0;
+  {
     unsigned position = 0;
-    unsigned i = 0;
     while (position < file_size) {
       uint32_t c = char_data[position];
       if (c <= unibrow::Utf8::kMaxOneByteChar) {
@@ -130,34 +97,91 @@ static uint16_t* ReadFile(const char* name, const uint8_t** end,
                                            &position);
       }
       if (c > kMaxUtf16Character) {
-        data[i++] = unibrow::Utf16::LeadSurrogate(c);
-        data[i++] = unibrow::Utf16::TrailSurrogate(c);
+        utf16_chars += 2;
       } else {
-        data[i++] = static_cast<uc16>(c);
+        utf16_chars += 1;
       }
     }
-    // Swap buffers.
-    delete two_byte_data;
-    file_size = utf16_chars * 2;
-    two_byte_data = data;
-    char_data = reinterpret_cast<uint8_t*>(two_byte_data);
   }
-
-  // Duplicate buffer if necessary.
-  if (settings.repeat > 1) {
-    unsigned size = file_size * settings.repeat;
-    uint16_t* data = new uint16_t[size / 2 + size % 2];
-    char_data = reinterpret_cast<uint8_t*>(two_byte_data);
-    for (int i = 0; i < settings.repeat; i++) {
-      memcpy(&char_data[i * file_size], two_byte_data, file_size);
+  // Write new buffer out.
+  uint16_t* data = new uint16_t[utf16_chars];
+  unsigned position = 0;
+  unsigned i = 0;
+  while (position < file_size) {
+    uint32_t c = char_data[position];
+    if (c <= unibrow::Utf8::kMaxOneByteChar) {
+      position++;
+    } else {
+      c =  unibrow::Utf8::CalculateValue(char_data + position,
+                                         file_size - position,
+                                         &position);
     }
-    delete two_byte_data;
-    file_size = size;
-    two_byte_data = data;
+    if (c > kMaxUtf16Character) {
+      data[i++] = unibrow::Utf16::LeadSurrogate(c);
+      data[i++] = unibrow::Utf16::TrailSurrogate(c);
+    } else {
+      data[i++] = static_cast<uc16>(c);
+    }
+  }
+  *length = 2 * utf16_chars;
+  return data;
+}
+
+
+static uint16_t* Repeat(int repeat,
+                        const uint16_t* const data_in,
+                        unsigned* length) {
+  const unsigned file_size = *length;
+  unsigned size = file_size * repeat;
+  uint16_t* data = new uint16_t[size / 2 + size % 2];
+  uint8_t* char_data = reinterpret_cast<uint8_t*>(data);
+  for (int i = 0; i < repeat; i++) {
+    memcpy(&char_data[i * file_size], data_in, file_size);
+  }
+  *length = size;
+  return data;
+}
+
+
+static uint16_t* ReadFile(const char* name, unsigned* length) {
+  FILE* file = fopen(name, "rb");
+  CHECK(file != NULL);
+  // Get file size.
+  fseek(file, 0, SEEK_END);
+  unsigned file_size = ftell(file);
+  rewind(file);
+  // Read file contents.
+  uint16_t* data = new uint16_t[file_size / 2 + file_size % 2];
+  uint8_t* char_data = reinterpret_cast<uint8_t*>(data);
+  for (unsigned i = 0; i < file_size;) {
+    i += fread(&char_data[i], 1, file_size - i, file);
+  }
+  fclose(file);
+  *length = file_size;
+  return data;
+}
+
+
+static uint16_t* ReadFile(const char* name,
+                          const LexerShellSettings& settings,
+                          unsigned* length) {
+  uint16_t* data = ReadFile(name, length);
+  CHECK_GE(*length, 0);
+  if (*length == 0) return data;
+
+  if (settings.encoding == UTF8TO16_PRECONVERT) {
+    uint16_t* new_data = ConvertUtf8ToUtf16(data, length);
+    delete data;
+    data = new_data;
   }
 
-  *end = &char_data[file_size];
-  return two_byte_data;
+  if (settings.repeat > 1) {
+    uint16_t* new_data = Repeat(settings.repeat, data, length);
+    delete data;
+    data = new_data;
+  }
+
+  return data;
 }
 
 
@@ -243,10 +267,11 @@ static TimeDelta RunLexer(const uint16_t* source,
   const uint8_t* one_byte_source = reinterpret_cast<const uint8_t*>(source);
   int bytes = source_end - one_byte_source;
   switch (settings.encoding) {
+    case UTF8TO16:
     case UTF8:
       stream.Reset(new Utf8ToUtf16CharacterStream(one_byte_source, bytes));
       break;
-    case UTF8TO16:
+    case UTF8TO16_PRECONVERT:
     case UTF16: {
       CHECK_EQ(0, bytes % 2);
       Handle<String> result = isolate->factory()->NewStringFromTwoByte(
@@ -300,9 +325,11 @@ static TimeDelta ProcessFile(
   std::vector<TokenWithLocation> tokens;
   TimeDelta time;
   {
-    const uint8_t* buffer_end = 0;
-    const uint16_t* buffer = ReadFile(fname, &buffer_end, settings);
-    if (truncate_by > buffer_end - reinterpret_cast<const uint8_t*>(buffer)) {
+    unsigned length_in_bytes;
+    const uint16_t* buffer = ReadFile(fname, settings, &length_in_bytes);
+    const uint8_t* char_data = reinterpret_cast<const uint8_t*>(buffer);
+    const uint8_t* buffer_end = &char_data[length_in_bytes];
+    if (truncate_by > buffer_end - char_data) {
       *can_truncate = false;
     } else {
       buffer_end -= truncate_by;
@@ -337,7 +364,11 @@ int main(int argc, char* argv[]) {
     } else if (strcmp(argv[i], "--utf16") == 0) {
       settings.encoding = UTF16;
     } else if (strcmp(argv[i], "--utf8to16") == 0) {
+#ifdef V8_USE_GENERATED_LEXER
+      settings.encoding = UTF8TO16_PRECONVERT;
+#else
       settings.encoding = UTF8TO16;
+#endif
     } else if (strcmp(argv[i], "--print-tokens") == 0) {
       settings.print_tokens = true;
     } else if (strcmp(argv[i], "--no-baseline") == 0) {
