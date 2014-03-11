@@ -524,8 +524,8 @@ DEFINE_bool(trace_incremental_marking, false,
             "trace progress of the incremental marking")
 DEFINE_bool(track_gc_object_stats, false,
             "track object counts and memory usage")
-DEFINE_bool(parallel_sweeping, false, "enable parallel sweeping")
-DEFINE_bool(concurrent_sweeping, true, "enable concurrent sweeping")
+DEFINE_bool(parallel_sweeping, true, "enable parallel sweeping")
+DEFINE_bool(concurrent_sweeping, false, "enable concurrent sweeping")
 DEFINE_int(sweeper_threads, 0,
            "number of parallel and concurrent sweeping threads")
 DEFINE_bool(job_based_sweeping, false, "enable job based sweeping")
