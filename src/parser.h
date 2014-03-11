@@ -39,7 +39,6 @@ namespace v8 {
 namespace internal {
 
 class CompilationInfo;
-class FuncNameInferrer;
 class ParserLog;
 class PositionStack;
 class Target;
@@ -420,7 +419,11 @@ class ParserTraits {
     // Return types for traversing functions.
     typedef Handle<String> Identifier;
     typedef v8::internal::Expression* Expression;
+    typedef v8::internal::FunctionLiteral* FunctionLiteral;
+    typedef v8::internal::Literal* Literal;
+    typedef ObjectLiteral::Property* ObjectLiteralProperty;
     typedef ZoneList<v8::internal::Expression*>* ExpressionList;
+    typedef ZoneList<ObjectLiteral::Property*>* PropertyList;
   };
 
   explicit ParserTraits(Parser* parser) : parser_(parser) {}
@@ -445,6 +448,27 @@ class ParserTraits {
   // Helper functions for recursive descent.
   bool IsEvalOrArguments(Handle<String> identifier) const;
 
+  static bool IsBoilerplateProperty(ObjectLiteral::Property* property) {
+    return ObjectLiteral::IsBoilerplateProperty(property);
+  }
+
+  static bool IsArrayIndex(Handle<String> string, uint32_t* index) {
+    return !string.is_null() && string->AsArrayIndex(index);
+  }
+
+  static void PushLiteralName(FuncNameInferrer* fni, Handle<String> id) {
+    fni->PushLiteralName(id);
+  }
+
+  static void CheckFunctionLiteralInsideTopLevelObjectLiteral(
+      Scope* scope, Expression* value, bool* has_function) {
+    if (scope->DeclarationScope()->is_global_scope() &&
+        value->AsFunctionLiteral() != NULL) {
+      *has_function = true;
+      value->AsFunctionLiteral()->set_pretenure();
+    }
+  }
+
   // Reporting errors.
   void ReportMessageAt(Scanner::Location source_location,
                        const char* message,
@@ -461,6 +485,9 @@ class ParserTraits {
   static Expression* EmptyExpression() {
     return NULL;
   }
+  static Literal* EmptyLiteral() {
+    return NULL;
+  }
 
   // Odd-ball literal creators.
   Literal* GetLiteralTheHole(int position,
@@ -472,7 +499,7 @@ class ParserTraits {
                                    PretenureFlag tenured);
   Expression* ThisExpression(Scope* scope,
                              AstNodeFactory<AstConstructionVisitor>* factory);
-  Expression* ExpressionFromLiteral(
+  Literal* ExpressionFromLiteral(
       Token::Value token, int pos, Scanner* scanner,
       AstNodeFactory<AstConstructionVisitor>* factory);
   Expression* ExpressionFromIdentifier(
@@ -484,11 +511,21 @@ class ParserTraits {
   ZoneList<v8::internal::Expression*>* NewExpressionList(int size, Zone* zone) {
     return new(zone) ZoneList<v8::internal::Expression*>(size, zone);
   }
+  ZoneList<ObjectLiteral::Property*>* NewPropertyList(int size, Zone* zone) {
+    return new(zone) ZoneList<ObjectLiteral::Property*>(size, zone);
+  }
 
   // Temporary glue; these functions will move to ParserBase.
-  Expression* ParseObjectLiteral(bool* ok);
   Expression* ParseAssignmentExpression(bool accept_IN, bool* ok);
   Expression* ParseV8Intrinsic(bool* ok);
+  FunctionLiteral* ParseFunctionLiteral(
+      Handle<String> name,
+      Scanner::Location function_name_location,
+      bool name_is_strict_reserved,
+      bool is_generator,
+      int function_token_position,
+      FunctionLiteral::FunctionType type,
+      bool* ok);
 
  private:
   Parser* parser_;
@@ -749,7 +786,6 @@ class Parser : public ParserBase<ParserTraits> {
   Scope* original_scope_;  // for ES5 function declarations in sloppy eval
   Target* target_stack_;  // for break, continue statements
   ScriptDataImpl* pre_parse_data_;
-  FuncNameInferrer* fni_;
 
   Mode mode_;
 

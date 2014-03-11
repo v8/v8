@@ -33,7 +33,6 @@
 #include "char-predicates-inl.h"
 #include "codegen.h"
 #include "compiler.h"
-#include "func-name-inferrer.h"
 #include "messages.h"
 #include "parser.h"
 #include "platform.h"
@@ -520,7 +519,7 @@ Expression* ParserTraits::ThisExpression(
 }
 
 
-Expression* ParserTraits::ExpressionFromLiteral(
+Literal* ParserTraits::ExpressionFromLiteral(
     Token::Value token, int pos,
     Scanner* scanner,
     AstNodeFactory<AstConstructionVisitor>* factory) {
@@ -577,11 +576,6 @@ Literal* ParserTraits::GetLiteralTheHole(
 }
 
 
-Expression* ParserTraits::ParseObjectLiteral(bool* ok) {
-  return parser_->ParseObjectLiteral(ok);
-}
-
-
 Expression* ParserTraits::ParseAssignmentExpression(bool accept_IN, bool* ok) {
   return parser_->ParseAssignmentExpression(accept_IN, ok);
 }
@@ -589,6 +583,20 @@ Expression* ParserTraits::ParseAssignmentExpression(bool accept_IN, bool* ok) {
 
 Expression* ParserTraits::ParseV8Intrinsic(bool* ok) {
   return parser_->ParseV8Intrinsic(ok);
+}
+
+
+FunctionLiteral* ParserTraits::ParseFunctionLiteral(
+    Handle<String> name,
+    Scanner::Location function_name_location,
+    bool name_is_strict_reserved,
+    bool is_generator,
+    int function_token_position,
+    FunctionLiteral::FunctionType type,
+    bool* ok) {
+  return parser_->ParseFunctionLiteral(name, function_name_location,
+                                       name_is_strict_reserved, is_generator,
+                                       function_token_position, type, ok);
 }
 
 
@@ -606,7 +614,6 @@ Parser::Parser(CompilationInfo* info)
       original_scope_(NULL),
       target_stack_(NULL),
       pre_parse_data_(NULL),
-      fni_(NULL),
       info_(info) {
   ASSERT(!script_.is_null());
   isolate_->set_ast_node_id(0);
@@ -3491,169 +3498,6 @@ CompileTimeValue::LiteralType CompileTimeValue::GetLiteralType(
 
 Handle<FixedArray> CompileTimeValue::GetElements(Handle<FixedArray> value) {
   return Handle<FixedArray>(FixedArray::cast(value->get(kElementsSlot)));
-}
-
-
-Expression* Parser::ParseObjectLiteral(bool* ok) {
-  // ObjectLiteral ::
-  // '{' ((
-  //       ((IdentifierName | String | Number) ':' AssignmentExpression) |
-  //       (('get' | 'set') (IdentifierName | String | Number) FunctionLiteral)
-  //      ) ',')* '}'
-  // (Except that trailing comma is not required and not allowed.)
-
-  int pos = peek_position();
-  ZoneList<ObjectLiteral::Property*>* properties =
-      new(zone()) ZoneList<ObjectLiteral::Property*>(4, zone());
-  int number_of_boilerplate_properties = 0;
-  bool has_function = false;
-
-  ObjectLiteralChecker checker(this, strict_mode());
-
-  Expect(Token::LBRACE, CHECK_OK);
-
-  while (peek() != Token::RBRACE) {
-    if (fni_ != NULL) fni_->Enter();
-
-    Literal* key = NULL;
-    Token::Value next = peek();
-    int next_pos = peek_position();
-
-    switch (next) {
-      case Token::FUTURE_RESERVED_WORD:
-      case Token::FUTURE_STRICT_RESERVED_WORD:
-      case Token::IDENTIFIER: {
-        bool is_getter = false;
-        bool is_setter = false;
-        Handle<String> id =
-            ParseIdentifierNameOrGetOrSet(&is_getter, &is_setter, CHECK_OK);
-        if (fni_ != NULL) fni_->PushLiteralName(id);
-
-        if ((is_getter || is_setter) && peek() != Token::COLON) {
-          // Special handling of getter and setter syntax:
-          // { ... , get foo() { ... }, ... , set foo(v) { ... v ... } , ... }
-          // We have already read the "get" or "set" keyword.
-          Token::Value next = Next();
-          if (next != i::Token::IDENTIFIER &&
-              next != i::Token::FUTURE_RESERVED_WORD &&
-              next != i::Token::FUTURE_STRICT_RESERVED_WORD &&
-              next != i::Token::NUMBER &&
-              next != i::Token::STRING &&
-              !Token::IsKeyword(next)) {
-            ReportUnexpectedToken(next);
-            *ok = false;
-            return NULL;
-          }
-          // Validate the property.
-          PropertyKind type = is_getter ? kGetterProperty : kSetterProperty;
-          checker.CheckProperty(next, type, CHECK_OK);
-          Handle<String> name = GetSymbol();
-          FunctionLiteral* value =
-              ParseFunctionLiteral(name,
-                                   scanner()->location(),
-                                   false,   // reserved words are allowed here
-                                   false,   // not a generator
-                                   RelocInfo::kNoPosition,
-                                   FunctionLiteral::ANONYMOUS_EXPRESSION,
-                                   CHECK_OK);
-          // Allow any number of parameters for compatibilty with JSC.
-          // Specification only allows zero parameters for get and one for set.
-          ObjectLiteral::Property* property =
-              factory()->NewObjectLiteralProperty(is_getter, value, next_pos);
-          if (ObjectLiteral::IsBoilerplateProperty(property)) {
-            number_of_boilerplate_properties++;
-          }
-          properties->Add(property, zone());
-          if (peek() != Token::RBRACE) Expect(Token::COMMA, CHECK_OK);
-
-          if (fni_ != NULL) {
-            fni_->Infer();
-            fni_->Leave();
-          }
-          continue;  // restart the while
-        }
-        // Failed to parse as get/set property, so it's just a normal property
-        // (which might be called "get" or "set" or something else).
-        key = factory()->NewLiteral(id, next_pos);
-        break;
-      }
-      case Token::STRING: {
-        Consume(Token::STRING);
-        Handle<String> string = GetSymbol();
-        if (fni_ != NULL) fni_->PushLiteralName(string);
-        uint32_t index;
-        if (!string.is_null() && string->AsArrayIndex(&index)) {
-          key = factory()->NewNumberLiteral(index, next_pos);
-          break;
-        }
-        key = factory()->NewLiteral(string, next_pos);
-        break;
-      }
-      case Token::NUMBER: {
-        Consume(Token::NUMBER);
-        ASSERT(scanner()->is_literal_ascii());
-        double value = StringToDouble(isolate()->unicode_cache(),
-                                      scanner()->literal_ascii_string(),
-                                      ALLOW_HEX | ALLOW_OCTAL |
-                                          ALLOW_IMPLICIT_OCTAL | ALLOW_BINARY);
-        key = factory()->NewNumberLiteral(value, next_pos);
-        break;
-      }
-      default:
-        if (Token::IsKeyword(next)) {
-          Consume(next);
-          Handle<String> string = GetSymbol();
-          key = factory()->NewLiteral(string, next_pos);
-        } else {
-          Token::Value next = Next();
-          ReportUnexpectedToken(next);
-          *ok = false;
-          return NULL;
-        }
-    }
-
-    // Validate the property
-    checker.CheckProperty(next, kValueProperty, CHECK_OK);
-
-    Expect(Token::COLON, CHECK_OK);
-    Expression* value = ParseAssignmentExpression(true, CHECK_OK);
-
-    ObjectLiteral::Property* property =
-        factory()->NewObjectLiteralProperty(key, value);
-
-    // Mark top-level object literals that contain function literals and
-    // pretenure the literal so it can be added as a constant function
-    // property.
-    if (scope_->DeclarationScope()->is_global_scope() &&
-        value->AsFunctionLiteral() != NULL) {
-      has_function = true;
-      value->AsFunctionLiteral()->set_pretenure();
-    }
-
-    // Count CONSTANT or COMPUTED properties to maintain the enumeration order.
-    if (ObjectLiteral::IsBoilerplateProperty(property)) {
-      number_of_boilerplate_properties++;
-    }
-    properties->Add(property, zone());
-
-    // TODO(1240767): Consider allowing trailing comma.
-    if (peek() != Token::RBRACE) Expect(Token::COMMA, CHECK_OK);
-
-    if (fni_ != NULL) {
-      fni_->Infer();
-      fni_->Leave();
-    }
-  }
-  Expect(Token::RBRACE, CHECK_OK);
-
-  // Computation of literal_index must happen before pre parse bailout.
-  int literal_index = function_state_->NextMaterializedLiteralIndex();
-
-  return factory()->NewObjectLiteral(properties,
-                                     literal_index,
-                                     number_of_boilerplate_properties,
-                                     has_function,
-                                     pos);
 }
 
 

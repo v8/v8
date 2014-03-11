@@ -122,11 +122,6 @@ PreParserExpression PreParserTraits::ExpressionFromString(
 }
 
 
-PreParserExpression PreParserTraits::ParseObjectLiteral(bool* ok) {
-  return pre_parser_->ParseObjectLiteral(ok);
-}
-
-
 PreParserExpression PreParserTraits::ParseAssignmentExpression(bool accept_IN,
                                                                bool* ok) {
   return pre_parser_->ParseAssignmentExpression(accept_IN, ok);
@@ -135,6 +130,20 @@ PreParserExpression PreParserTraits::ParseAssignmentExpression(bool accept_IN,
 
 PreParserExpression PreParserTraits::ParseV8Intrinsic(bool* ok) {
   return pre_parser_->ParseV8Intrinsic(ok);
+}
+
+
+PreParserExpression PreParserTraits::ParseFunctionLiteral(
+    PreParserIdentifier name,
+    Scanner::Location function_name_location,
+    bool name_is_strict_reserved,
+    bool is_generator,
+    int function_token_position,
+    FunctionLiteral::FunctionType type,
+    bool* ok) {
+  return pre_parser_->ParseFunctionLiteral(
+      name, function_name_location, name_is_strict_reserved, is_generator,
+      function_token_position, type, ok);
 }
 
 
@@ -1123,91 +1132,6 @@ PreParser::Expression PreParser::ParseMemberExpressionContinuation(
   }
   ASSERT(false);
   return PreParserExpression::Default();
-}
-
-
-PreParser::Expression PreParser::ParseObjectLiteral(bool* ok) {
-  // ObjectLiteral ::
-  // '{' ((
-  //       ((IdentifierName | String | Number) ':' AssignmentExpression) |
-  //       (('get' | 'set') (IdentifierName | String | Number) FunctionLiteral)
-  //      ) ',')* '}'
-  // (Except that trailing comma is not required and not allowed.)
-
-  ObjectLiteralChecker checker(this, strict_mode());
-
-  Expect(Token::LBRACE, CHECK_OK);
-  while (peek() != Token::RBRACE) {
-    Token::Value next = peek();
-    switch (next) {
-      case Token::IDENTIFIER:
-      case Token::FUTURE_RESERVED_WORD:
-      case Token::FUTURE_STRICT_RESERVED_WORD: {
-        bool is_getter = false;
-        bool is_setter = false;
-        ParseIdentifierNameOrGetOrSet(&is_getter, &is_setter, CHECK_OK);
-        if ((is_getter || is_setter) && peek() != Token::COLON) {
-            Token::Value next = Next();
-            if (next != Token::IDENTIFIER &&
-                next != Token::FUTURE_RESERVED_WORD &&
-                next != Token::FUTURE_STRICT_RESERVED_WORD &&
-                next != Token::NUMBER &&
-                next != Token::STRING &&
-                !Token::IsKeyword(next)) {
-              ReportUnexpectedToken(next);
-              *ok = false;
-              return Expression::Default();
-            }
-            // Validate the property
-            PropertyKind type = is_getter ? kGetterProperty : kSetterProperty;
-            checker.CheckProperty(next, type, CHECK_OK);
-            PreParserIdentifier name = GetSymbol(scanner());
-            ParseFunctionLiteral(name,
-                                 scanner()->location(),
-                                 false,  // reserved words are allowed here
-                                 false,  // not a generator
-                                 RelocInfo::kNoPosition,
-                                 FunctionLiteral::ANONYMOUS_EXPRESSION,
-                                 CHECK_OK);
-            if (peek() != Token::RBRACE) {
-              Expect(Token::COMMA, CHECK_OK);
-            }
-            continue;  // restart the while
-        }
-        break;
-      }
-      case Token::STRING:
-        Consume(next);
-        LogSymbol();
-        break;
-      case Token::NUMBER:
-        Consume(next);
-        break;
-      default:
-        if (Token::IsKeyword(next)) {
-          Consume(next);
-          LogSymbol();
-        } else {
-          Token::Value next = Next();
-          ReportUnexpectedToken(next);
-          *ok = false;
-          return Expression::Default();
-        }
-    }
-
-    // Validate the property
-    checker.CheckProperty(next, kValueProperty, CHECK_OK);
-
-    Expect(Token::COLON, CHECK_OK);
-    ParseAssignmentExpression(true, CHECK_OK);
-
-    // TODO(1240767): Consider allowing trailing comma.
-    if (peek() != Token::RBRACE) Expect(Token::COMMA, CHECK_OK);
-  }
-  Expect(Token::RBRACE, CHECK_OK);
-
-  function_state_->NextMaterializedLiteralIndex();
-  return Expression::Default();
 }
 
 
