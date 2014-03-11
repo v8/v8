@@ -134,10 +134,6 @@
   'osr-elements-kind': [SKIP],
   'regress/regress-165637': [SKIP],
   'regress/regress-2249': [SKIP],
-
-  # Tests failing GC stress - possible bugs.
-  # BUG(v8:3208)
-  'string-case': [FLAKY, PASS],
 }],  # 'gc_stress == True'
 
 ##############################################################################
