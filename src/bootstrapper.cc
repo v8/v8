@@ -1592,6 +1592,15 @@ void Genesis::InstallExperimentalNativeFunctions() {
   INSTALL_NATIVE(JSFunction, "EnqueueExternalMicrotask",
                  enqueue_external_microtask);
 
+  if (FLAG_harmony_promises) {
+    INSTALL_NATIVE(JSFunction, "IsPromise", is_promise);
+    INSTALL_NATIVE(JSFunction, "PromiseCreate", promise_create);
+    INSTALL_NATIVE(JSFunction, "PromiseResolve", promise_resolve);
+    INSTALL_NATIVE(JSFunction, "PromiseReject", promise_reject);
+    INSTALL_NATIVE(JSFunction, "PromiseChain", promise_chain);
+    INSTALL_NATIVE(JSFunction, "PromiseCatch", promise_catch);
+  }
+
   if (FLAG_harmony_proxies) {
     INSTALL_NATIVE(JSFunction, "DerivedHasTrap", derived_has_trap);
     INSTALL_NATIVE(JSFunction, "DerivedGetTrap", derived_get_trap);

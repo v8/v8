@@ -170,6 +170,12 @@ enum BindingFlags {
     error_message_for_code_gen_from_strings) \
   V(RUN_MICROTASKS_INDEX, JSFunction, run_microtasks) \
   V(ENQUEUE_EXTERNAL_MICROTASK_INDEX, JSFunction, enqueue_external_microtask) \
+  V(IS_PROMISE_INDEX, JSFunction, is_promise) \
+  V(PROMISE_CREATE_INDEX, JSFunction, promise_create) \
+  V(PROMISE_RESOLVE_INDEX, JSFunction, promise_resolve) \
+  V(PROMISE_REJECT_INDEX, JSFunction, promise_reject) \
+  V(PROMISE_CHAIN_INDEX, JSFunction, promise_chain) \
+  V(PROMISE_CATCH_INDEX, JSFunction, promise_catch) \
   V(TO_COMPLETE_PROPERTY_DESCRIPTOR_INDEX, JSFunction, \
     to_complete_property_descriptor) \
   V(DERIVED_HAS_TRAP_INDEX, JSFunction, derived_has_trap) \
@@ -324,6 +330,12 @@ class Context: public FixedArray {
     ERROR_MESSAGE_FOR_CODE_GEN_FROM_STRINGS_INDEX,
     RUN_MICROTASKS_INDEX,
     ENQUEUE_EXTERNAL_MICROTASK_INDEX,
+    IS_PROMISE_INDEX,
+    PROMISE_CREATE_INDEX,
+    PROMISE_RESOLVE_INDEX,
+    PROMISE_REJECT_INDEX,
+    PROMISE_CHAIN_INDEX,
+    PROMISE_CATCH_INDEX,
     TO_COMPLETE_PROPERTY_DESCRIPTOR_INDEX,
     DERIVED_HAS_TRAP_INDEX,
     DERIVED_GET_TRAP_INDEX,

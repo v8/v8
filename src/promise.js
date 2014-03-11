@@ -102,6 +102,15 @@ function PromiseReject(promise, r) {
 }
 
 
+// For API.
+
+function PromiseNopResolver() {}
+
+function PromiseCreate() {
+  return new Promise(PromiseNopResolver)
+}
+
+
 // Convenience.
 
 function PromiseDeferred() {

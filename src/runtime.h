@@ -303,7 +303,7 @@ namespace internal {
   /* ES5 */ \
   F(ObjectFreeze, 1, 1) \
   \
-  /* Harmony Microtasks */ \
+  /* Harmony microtasks */ \
   F(GetMicrotaskState, 0, 1) \
   \
   /* Harmony modules */ \
