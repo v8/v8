@@ -86,10 +86,10 @@ class JumpPatchSite BASE_EMBEDDED {
   }
 
   void EmitJumpIfEitherNotSmi(Register reg1, Register reg2, Label* target) {
-    // We need to use ip0, so don't allow access to the MacroAssembler.
-    InstructionAccurateScope scope(masm_);
-    __ orr(ip0, reg1, reg2);
-    EmitJumpIfNotSmi(ip0, target);
+    UseScratchRegisterScope temps(masm_);
+    Register temp = temps.AcquireX();
+    __ Orr(temp, reg1, reg2);
+    EmitJumpIfNotSmi(temp, target);
   }
 
   void EmitPatchInfo() {

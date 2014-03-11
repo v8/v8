@@ -903,6 +903,8 @@ class PreParser : public ParserBase<PreParserTraits> {
       Scanner::Location function_name_location,
       bool name_is_strict_reserved,
       bool is_generator,
+      int function_token_pos,
+      FunctionLiteral::FunctionType function_type,
       bool* ok);
   void ParseLazyFunctionLiteralBody(bool* ok);
 

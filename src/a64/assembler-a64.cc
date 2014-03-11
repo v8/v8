@@ -160,6 +160,12 @@ bool RelocInfo::IsCodedSpecially() {
 }
 
 
+bool RelocInfo::IsInConstantPool() {
+  Instruction* instr = reinterpret_cast<Instruction*>(pc_);
+  return instr->IsLdrLiteralX();
+}
+
+
 void RelocInfo::PatchCode(byte* instructions, int instruction_count) {
   // Patch the code at the current address with the supplied instructions.
   Instr* pc = reinterpret_cast<Instr*>(pc_);

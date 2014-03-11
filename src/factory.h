@@ -61,7 +61,8 @@ class Factory {
 
   Handle<ConstantPoolArray> NewConstantPoolArray(
       int number_of_int64_entries,
-      int number_of_ptr_entries,
+      int number_of_code_ptr_entries,
+      int number_of_heap_ptr_entries,
       int number_of_int32_entries);
 
   Handle<SeededNumberDictionary> NewSeededNumberDictionary(

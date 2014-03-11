@@ -1012,9 +1012,10 @@ class Heap {
       PretenureFlag pretenure = NOT_TENURED);
 
   MUST_USE_RESULT MaybeObject* AllocateConstantPoolArray(
-      int first_int64_index,
-      int first_ptr_index,
-      int first_int32_index);
+      int number_of_int64_entries,
+      int number_of_code_ptr_entries,
+      int number_of_heap_ptr_entries,
+      int number_of_int32_entries);
 
   // Allocates a fixed double array with uninitialized values. Returns
   // Failure::RetryAfterGC(requested_bytes, space) if the allocation failed.

@@ -3451,8 +3451,8 @@ class HConstant V8_FINAL : public HTemplateInstruction<0> {
                                           bool is_not_in_new_space,
                                           HInstruction* instruction) {
     return instruction->Prepend(new(zone) HConstant(
-        unique, Representation::Tagged(), HType::Tagged(), false,
-        is_not_in_new_space, false, false));
+        unique, Representation::Tagged(), HType::Tagged(),
+        is_not_in_new_space, false, false, kUnknownInstanceType));
   }
 
   Handle<Object> handle(Isolate* isolate) {
@@ -3487,7 +3487,7 @@ class HConstant V8_FINAL : public HTemplateInstruction<0> {
   bool ImmortalImmovable() const;
 
   bool IsCell() const {
-    return is_cell_;
+    return instance_type_ == CELL_TYPE || instance_type_ == PROPERTY_CELL_TYPE;
   }
 
   virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
@@ -3535,14 +3535,14 @@ class HConstant V8_FINAL : public HTemplateInstruction<0> {
   bool HasStringValue() const {
     if (has_double_value_ || has_int32_value_) return false;
     ASSERT(!object_.handle().is_null());
-    return type_.IsString();
+    return instance_type_ < FIRST_NONSTRING_TYPE;
   }
   Handle<String> StringValue() const {
     ASSERT(HasStringValue());
     return Handle<String>::cast(object_.handle());
   }
   bool HasInternalizedStringValue() const {
-    return HasStringValue() && is_internalized_string_;
+    return HasStringValue() && StringShape(instance_type_).IsInternalized();
   }
 
   bool HasExternalReferenceValue() const {
@@ -3554,6 +3554,8 @@ class HConstant V8_FINAL : public HTemplateInstruction<0> {
 
   bool HasBooleanValue() const { return type_.IsBoolean(); }
   bool BooleanValue() const { return boolean_value_; }
+  bool IsUndetectable() const { return is_undetectable_; }
+  InstanceType GetInstanceType() const { return instance_type_; }
 
   virtual intptr_t Hashcode() V8_OVERRIDE {
     if (has_int32_value_) {
@@ -3630,10 +3632,10 @@ class HConstant V8_FINAL : public HTemplateInstruction<0> {
   HConstant(Unique<Object> unique,
             Representation r,
             HType type,
-            bool is_internalized_string,
             bool is_not_in_new_space,
-            bool is_cell,
-            bool boolean_value);
+            bool boolean_value,
+            bool is_undetectable,
+            InstanceType instance_type);
 
   explicit HConstant(ExternalReference reference);
 
@@ -3656,13 +3658,15 @@ class HConstant V8_FINAL : public HTemplateInstruction<0> {
   bool has_int32_value_ : 1;
   bool has_double_value_ : 1;
   bool has_external_reference_value_ : 1;
-  bool is_internalized_string_ : 1;  // TODO(yangguo): make this part of HType.
   bool is_not_in_new_space_ : 1;
-  bool is_cell_ : 1;
   bool boolean_value_ : 1;
+  bool is_undetectable_: 1;
   int32_t int32_value_;
   double double_value_;
   ExternalReference external_reference_value_;
+
+  static const InstanceType kUnknownInstanceType = FILLER_TYPE;
+  InstanceType instance_type_;
 };
 
 
@@ -4328,6 +4332,8 @@ class HIsObjectAndBranch V8_FINAL : public HUnaryControlInstruction {
     return Representation::Tagged();
   }
 
+  virtual bool KnownSuccessorBlock(HBasicBlock** block) V8_OVERRIDE;
+
   DECLARE_CONCRETE_INSTRUCTION(IsObjectAndBranch)
 
  private:
@@ -4347,6 +4353,8 @@ class HIsStringAndBranch V8_FINAL : public HUnaryControlInstruction {
   virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
     return Representation::Tagged();
   }
+
+  virtual bool KnownSuccessorBlock(HBasicBlock** block) V8_OVERRIDE;
 
   DECLARE_CONCRETE_INSTRUCTION(IsStringAndBranch)
 
@@ -4373,6 +4381,8 @@ class HIsSmiAndBranch V8_FINAL : public HUnaryControlInstruction {
     return Representation::Tagged();
   }
 
+  virtual bool KnownSuccessorBlock(HBasicBlock** block) V8_OVERRIDE;
+
  protected:
   virtual bool DataEquals(HValue* other) V8_OVERRIDE { return true; }
   virtual int RedefinedOperandIndex() { return 0; }
@@ -4394,6 +4404,8 @@ class HIsUndetectableAndBranch V8_FINAL : public HUnaryControlInstruction {
   virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
     return Representation::Tagged();
   }
+
+  virtual bool KnownSuccessorBlock(HBasicBlock** block) V8_OVERRIDE;
 
   DECLARE_CONCRETE_INSTRUCTION(IsUndetectableAndBranch)
 
@@ -4477,6 +4489,8 @@ class HHasInstanceTypeAndBranch V8_FINAL : public HUnaryControlInstruction {
     return Representation::Tagged();
   }
 
+  virtual bool KnownSuccessorBlock(HBasicBlock** block) V8_OVERRIDE;
+
   DECLARE_CONCRETE_INSTRUCTION(HasInstanceTypeAndBranch)
 
  private:
@@ -4558,8 +4572,7 @@ class HTypeofIsAndBranch V8_FINAL : public HUnaryControlInstruction {
  public:
   DECLARE_INSTRUCTION_FACTORY_P2(HTypeofIsAndBranch, HValue*, Handle<String>);
 
-  Handle<String> type_literal() { return type_literal_; }
-  bool compares_number_type() { return compares_number_type_; }
+  Handle<String> type_literal() { return type_literal_.handle(); }
   virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
 
   DECLARE_CONCRETE_INSTRUCTION(TypeofIsAndBranch)
@@ -4570,16 +4583,16 @@ class HTypeofIsAndBranch V8_FINAL : public HUnaryControlInstruction {
 
   virtual bool KnownSuccessorBlock(HBasicBlock** block) V8_OVERRIDE;
 
+  virtual void FinalizeUniqueness() V8_OVERRIDE {
+    type_literal_ = Unique<String>(type_literal_.handle());
+  }
+
  private:
   HTypeofIsAndBranch(HValue* value, Handle<String> type_literal)
       : HUnaryControlInstruction(value, NULL, NULL),
-        type_literal_(type_literal) {
-    Heap* heap = type_literal->GetHeap();
-    compares_number_type_ = type_literal->Equals(heap->number_string());
-  }
+        type_literal_(Unique<String>::CreateUninitialized(type_literal)) { }
 
-  Handle<String> type_literal_;
-  bool compares_number_type_ : 1;
+  Unique<String> type_literal_;
 };
 
 

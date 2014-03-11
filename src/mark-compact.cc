@@ -2076,8 +2076,8 @@ int MarkCompactCollector::DiscoverAndPromoteBlackObjectsOnPage(
       }
       Object* target = allocation->ToObjectUnchecked();
 
-      MigrateObject(HeapObject::cast(target)->address(),
-                    object->address(),
+      MigrateObject(HeapObject::cast(target),
+                    object,
                     size,
                     NEW_SPACE);
     }
@@ -2819,19 +2819,21 @@ void MarkCompactCollector::ClearWeakCollections() {
 // pointer iteration.  This is an issue if the store buffer overflows and we
 // have to scan the entire old space, including dead objects, looking for
 // pointers to new space.
-void MarkCompactCollector::MigrateObject(Address dst,
-                                         Address src,
+void MarkCompactCollector::MigrateObject(HeapObject* dst,
+                                         HeapObject* src,
                                          int size,
                                          AllocationSpace dest) {
+  Address dst_addr = dst->address();
+  Address src_addr = src->address();
   HeapProfiler* heap_profiler = heap()->isolate()->heap_profiler();
   if (heap_profiler->is_tracking_object_moves()) {
-    heap_profiler->ObjectMoveEvent(src, dst, size);
+    heap_profiler->ObjectMoveEvent(src_addr, dst_addr, size);
   }
-  ASSERT(heap()->AllowedToBeMigrated(HeapObject::FromAddress(src), dest));
+  ASSERT(heap()->AllowedToBeMigrated(src, dest));
   ASSERT(dest != LO_SPACE && size <= Page::kMaxRegularHeapObjectSize);
   if (dest == OLD_POINTER_SPACE) {
-    Address src_slot = src;
-    Address dst_slot = dst;
+    Address src_slot = src_addr;
+    Address dst_slot = dst_addr;
     ASSERT(IsAligned(size, kPointerSize));
 
     for (int remaining = size / kPointerSize; remaining > 0; remaining--) {
@@ -2852,8 +2854,8 @@ void MarkCompactCollector::MigrateObject(Address dst,
       dst_slot += kPointerSize;
     }
 
-    if (compacting_ && HeapObject::FromAddress(dst)->IsJSFunction()) {
-      Address code_entry_slot = dst + JSFunction::kCodeEntryOffset;
+    if (compacting_ && dst->IsJSFunction()) {
+      Address code_entry_slot = dst_addr + JSFunction::kCodeEntryOffset;
       Address code_entry = Memory::Address_at(code_entry_slot);
 
       if (Page::FromAddress(code_entry)->IsEvacuationCandidate()) {
@@ -2863,21 +2865,36 @@ void MarkCompactCollector::MigrateObject(Address dst,
                            code_entry_slot,
                            SlotsBuffer::IGNORE_OVERFLOW);
       }
+    } else if (compacting_ && dst->IsConstantPoolArray()) {
+      ConstantPoolArray* constant_pool = ConstantPoolArray::cast(dst);
+      for (int i = 0; i < constant_pool->count_of_code_ptr_entries(); i++) {
+        Address code_entry_slot =
+            dst_addr + constant_pool->OffsetOfElementAt(i);
+        Address code_entry = Memory::Address_at(code_entry_slot);
+
+        if (Page::FromAddress(code_entry)->IsEvacuationCandidate()) {
+          SlotsBuffer::AddTo(&slots_buffer_allocator_,
+                             &migration_slots_buffer_,
+                             SlotsBuffer::CODE_ENTRY_SLOT,
+                             code_entry_slot,
+                             SlotsBuffer::IGNORE_OVERFLOW);
+        }
+      }
     }
   } else if (dest == CODE_SPACE) {
-    PROFILE(isolate(), CodeMoveEvent(src, dst));
-    heap()->MoveBlock(dst, src, size);
+    PROFILE(isolate(), CodeMoveEvent(src_addr, dst_addr));
+    heap()->MoveBlock(dst_addr, src_addr, size);
     SlotsBuffer::AddTo(&slots_buffer_allocator_,
                        &migration_slots_buffer_,
                        SlotsBuffer::RELOCATED_CODE_OBJECT,
-                       dst,
+                       dst_addr,
                        SlotsBuffer::IGNORE_OVERFLOW);
-    Code::cast(HeapObject::FromAddress(dst))->Relocate(dst - src);
+    Code::cast(dst)->Relocate(dst_addr - src_addr);
   } else {
     ASSERT(dest == OLD_DATA_SPACE || dest == NEW_SPACE);
-    heap()->MoveBlock(dst, src, size);
+    heap()->MoveBlock(dst_addr, src_addr, size);
   }
-  Memory::Address_at(src) = dst;
+  Memory::Address_at(src_addr) = dst_addr;
 }
 
 
@@ -3012,8 +3029,8 @@ bool MarkCompactCollector::TryPromoteObject(HeapObject* object,
   MaybeObject* maybe_result = target_space->AllocateRaw(object_size);
   if (maybe_result->ToObject(&result)) {
     HeapObject* target = HeapObject::cast(result);
-    MigrateObject(target->address(),
-                  object->address(),
+    MigrateObject(target,
+                  object,
                   object_size,
                   target_space->identity());
     heap()->mark_compact_collector()->tracer()->
@@ -3091,8 +3108,8 @@ void MarkCompactCollector::EvacuateLiveObjectsFromPage(Page* p) {
 
       Object* target_object = target->ToObjectUnchecked();
 
-      MigrateObject(HeapObject::cast(target_object)->address(),
-                    object_addr,
+      MigrateObject(HeapObject::cast(target_object),
+                    object,
                     size,
                     space->identity());
       ASSERT(object->map_word().IsForwardingAddress());
@@ -4370,14 +4387,33 @@ static inline SlotsBuffer::SlotType SlotTypeForRMode(RelocInfo::Mode rmode) {
 
 void MarkCompactCollector::RecordRelocSlot(RelocInfo* rinfo, Object* target) {
   Page* target_page = Page::FromAddress(reinterpret_cast<Address>(target));
+  RelocInfo::Mode rmode = rinfo->rmode();
   if (target_page->IsEvacuationCandidate() &&
       (rinfo->host() == NULL ||
        !ShouldSkipEvacuationSlotRecording(rinfo->host()))) {
-    if (!SlotsBuffer::AddTo(&slots_buffer_allocator_,
-                            target_page->slots_buffer_address(),
-                            SlotTypeForRMode(rinfo->rmode()),
-                            rinfo->pc(),
-                            SlotsBuffer::FAIL_ON_OVERFLOW)) {
+    bool success;
+    if (RelocInfo::IsEmbeddedObject(rmode) && rinfo->IsInConstantPool()) {
+      // This doesn't need to be typed since it is just a normal heap pointer.
+      Object** target_pointer =
+          reinterpret_cast<Object**>(rinfo->constant_pool_entry_address());
+      success = SlotsBuffer::AddTo(&slots_buffer_allocator_,
+                                   target_page->slots_buffer_address(),
+                                   target_pointer,
+                                   SlotsBuffer::FAIL_ON_OVERFLOW);
+    } else if (RelocInfo::IsCodeTarget(rmode) && rinfo->IsInConstantPool()) {
+      success = SlotsBuffer::AddTo(&slots_buffer_allocator_,
+                                   target_page->slots_buffer_address(),
+                                   SlotsBuffer::CODE_ENTRY_SLOT,
+                                   rinfo->constant_pool_entry_address(),
+                                   SlotsBuffer::FAIL_ON_OVERFLOW);
+    } else {
+      success = SlotsBuffer::AddTo(&slots_buffer_allocator_,
+                                  target_page->slots_buffer_address(),
+                                  SlotTypeForRMode(rmode),
+                                  rinfo->pc(),
+                                  SlotsBuffer::FAIL_ON_OVERFLOW);
+    }
+    if (!success) {
       EvictEvacuationCandidate(target_page);
     }
   }

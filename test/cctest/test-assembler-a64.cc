@@ -5614,51 +5614,58 @@ TEST(fcmp) {
 
   // Some of these tests require a floating-point scratch register assigned to
   // the macro assembler, but most do not.
-  __ SetFPScratchRegister(NoFPReg);
+  {
+    // We're going to mess around with the available scratch registers in this
+    // test. A UseScratchRegisterScope will make sure that they are restored to
+    // the default values once we're finished.
+    UseScratchRegisterScope temps(&masm);
+    masm.FPTmpList()->set_list(0);
 
-  __ Fmov(s8, 0.0);
-  __ Fmov(s9, 0.5);
-  __ Mov(w18, 0x7f800001);  // Single precision NaN.
-  __ Fmov(s18, w18);
+    __ Fmov(s8, 0.0);
+    __ Fmov(s9, 0.5);
+    __ Mov(w18, 0x7f800001);  // Single precision NaN.
+    __ Fmov(s18, w18);
 
-  __ Fcmp(s8, s8);
-  __ Mrs(x0, NZCV);
-  __ Fcmp(s8, s9);
-  __ Mrs(x1, NZCV);
-  __ Fcmp(s9, s8);
-  __ Mrs(x2, NZCV);
-  __ Fcmp(s8, s18);
-  __ Mrs(x3, NZCV);
-  __ Fcmp(s18, s18);
-  __ Mrs(x4, NZCV);
-  __ Fcmp(s8, 0.0);
-  __ Mrs(x5, NZCV);
-  __ SetFPScratchRegister(d0);
-  __ Fcmp(s8, 255.0);
-  __ SetFPScratchRegister(NoFPReg);
-  __ Mrs(x6, NZCV);
+    __ Fcmp(s8, s8);
+    __ Mrs(x0, NZCV);
+    __ Fcmp(s8, s9);
+    __ Mrs(x1, NZCV);
+    __ Fcmp(s9, s8);
+    __ Mrs(x2, NZCV);
+    __ Fcmp(s8, s18);
+    __ Mrs(x3, NZCV);
+    __ Fcmp(s18, s18);
+    __ Mrs(x4, NZCV);
+    __ Fcmp(s8, 0.0);
+    __ Mrs(x5, NZCV);
+    masm.FPTmpList()->set_list(d0.Bit());
+    __ Fcmp(s8, 255.0);
+    masm.FPTmpList()->set_list(0);
+    __ Mrs(x6, NZCV);
 
-  __ Fmov(d19, 0.0);
-  __ Fmov(d20, 0.5);
-  __ Mov(x21, 0x7ff0000000000001UL);   // Double precision NaN.
-  __ Fmov(d21, x21);
+    __ Fmov(d19, 0.0);
+    __ Fmov(d20, 0.5);
+    __ Mov(x21, 0x7ff0000000000001UL);   // Double precision NaN.
+    __ Fmov(d21, x21);
 
-  __ Fcmp(d19, d19);
-  __ Mrs(x10, NZCV);
-  __ Fcmp(d19, d20);
-  __ Mrs(x11, NZCV);
-  __ Fcmp(d20, d19);
-  __ Mrs(x12, NZCV);
-  __ Fcmp(d19, d21);
-  __ Mrs(x13, NZCV);
-  __ Fcmp(d21, d21);
-  __ Mrs(x14, NZCV);
-  __ Fcmp(d19, 0.0);
-  __ Mrs(x15, NZCV);
-  __ SetFPScratchRegister(d0);
-  __ Fcmp(d19, 12.3456);
-  __ SetFPScratchRegister(NoFPReg);
-  __ Mrs(x16, NZCV);
+    __ Fcmp(d19, d19);
+    __ Mrs(x10, NZCV);
+    __ Fcmp(d19, d20);
+    __ Mrs(x11, NZCV);
+    __ Fcmp(d20, d19);
+    __ Mrs(x12, NZCV);
+    __ Fcmp(d19, d21);
+    __ Mrs(x13, NZCV);
+    __ Fcmp(d21, d21);
+    __ Mrs(x14, NZCV);
+    __ Fcmp(d19, 0.0);
+    __ Mrs(x15, NZCV);
+    masm.FPTmpList()->set_list(d0.Bit());
+    __ Fcmp(d19, 12.3456);
+    masm.FPTmpList()->set_list(0);
+    __ Mrs(x16, NZCV);
+  }
+
   END();
 
   RUN();

@@ -81,14 +81,16 @@ Handle<FixedDoubleArray> Factory::NewFixedDoubleArray(int size,
 
 Handle<ConstantPoolArray> Factory::NewConstantPoolArray(
     int number_of_int64_entries,
-    int number_of_ptr_entries,
+    int number_of_code_ptr_entries,
+    int number_of_heap_ptr_entries,
     int number_of_int32_entries) {
-  ASSERT(number_of_int64_entries > 0 || number_of_ptr_entries > 0 ||
-         number_of_int32_entries > 0);
+  ASSERT(number_of_int64_entries > 0 || number_of_code_ptr_entries > 0 ||
+         number_of_heap_ptr_entries > 0 || number_of_int32_entries > 0);
   CALL_HEAP_FUNCTION(
       isolate(),
       isolate()->heap()->AllocateConstantPoolArray(number_of_int64_entries,
-                                                   number_of_ptr_entries,
+                                                   number_of_code_ptr_entries,
+                                                   number_of_heap_ptr_entries,
                                                    number_of_int32_entries),
       ConstantPoolArray);
 }

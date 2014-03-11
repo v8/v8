@@ -3360,14 +3360,14 @@ Expression* Parser::ParseMemberExpression(bool* ok) {
     Handle<String> name;
     bool is_strict_reserved_name = false;
     Scanner::Location function_name_location = Scanner::Location::invalid();
+    FunctionLiteral::FunctionType function_type =
+        FunctionLiteral::ANONYMOUS_EXPRESSION;
     if (peek_any_identifier()) {
       name = ParseIdentifierOrStrictReservedWord(&is_strict_reserved_name,
                                                  CHECK_OK);
       function_name_location = scanner()->location();
+      function_type = FunctionLiteral::NAMED_EXPRESSION;
     }
-    FunctionLiteral::FunctionType function_type = name.is_null()
-        ? FunctionLiteral::ANONYMOUS_EXPRESSION
-        : FunctionLiteral::NAMED_EXPRESSION;
     result = ParseFunctionLiteral(name,
                                   function_name_location,
                                   is_strict_reserved_name,
@@ -3492,10 +3492,11 @@ Handle<FixedArray> CompileTimeValue::GetElements(Handle<FixedArray> value) {
 
 Expression* Parser::ParseObjectLiteral(bool* ok) {
   // ObjectLiteral ::
-  //   '{' (
-  //       ((IdentifierName | String | Number) ':' AssignmentExpression)
-  //     | (('get' | 'set') (IdentifierName | String | Number) FunctionLiteral)
-  //    )*[','] '}'
+  // '{' ((
+  //       ((IdentifierName | String | Number) ':' AssignmentExpression) |
+  //       (('get' | 'set') (IdentifierName | String | Number) FunctionLiteral)
+  //      ) ',')* '}'
+  // (Except that trailing comma is not required and not allowed.)
 
   int pos = peek_position();
   ZoneList<ObjectLiteral::Property*>* properties =
@@ -3529,14 +3530,12 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
           // { ... , get foo() { ... }, ... , set foo(v) { ... v ... } , ... }
           // We have already read the "get" or "set" keyword.
           Token::Value next = Next();
-          bool is_keyword = Token::IsKeyword(next);
           if (next != i::Token::IDENTIFIER &&
               next != i::Token::FUTURE_RESERVED_WORD &&
               next != i::Token::FUTURE_STRICT_RESERVED_WORD &&
               next != i::Token::NUMBER &&
               next != i::Token::STRING &&
-              !is_keyword) {
-            // Unexpected token.
+              !Token::IsKeyword(next)) {
             ReportUnexpectedToken(next);
             *ok = false;
             return NULL;
@@ -3544,9 +3543,7 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
           // Validate the property.
           PropertyKind type = is_getter ? kGetterProperty : kSetterProperty;
           checker.CheckProperty(next, type, CHECK_OK);
-          Handle<String> name = is_keyword
-              ? isolate_->factory()->InternalizeUtf8String(Token::String(next))
-              : GetSymbol();
+          Handle<String> name = GetSymbol();
           FunctionLiteral* value =
               ParseFunctionLiteral(name,
                                    scanner()->location(),
@@ -3571,8 +3568,8 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
           }
           continue;  // restart the while
         }
-        // Failed to parse as get/set property, so it's just a property
-        // called "get" or "set".
+        // Failed to parse as get/set property, so it's just a normal property
+        // (which might be called "get" or "set" or something else).
         key = factory()->NewLiteral(id, next_pos);
         break;
       }
@@ -3604,7 +3601,6 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
           Handle<String> string = GetSymbol();
           key = factory()->NewLiteral(string, next_pos);
         } else {
-          // Unexpected token.
           Token::Value next = Next();
           ReportUnexpectedToken(next);
           *ok = false;
@@ -4994,7 +4990,7 @@ bool RegExpParser::ParseIntervalQuantifier(int* min_out, int* max_out) {
 
 
 uc32 RegExpParser::ParseOctalLiteral() {
-  ASSERT('0' <= current() && current() <= '7');
+  ASSERT(('0' <= current() && current() <= '7') || current() == kEndMarker);
   // For compatibility with some other browsers (not all), we parse
   // up to three octal digits with a value below 256.
   uc32 value = current() - '0';

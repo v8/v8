@@ -461,6 +461,11 @@ class CPURegList {
     return list_;
   }
 
+  inline void set_list(RegList new_list) {
+    ASSERT(IsValid());
+    list_ = new_list;
+  }
+
   // Combine another CPURegList into this one. Registers that already exist in
   // this list are left unchanged. The type and size of the registers in the
   // 'other' list must match those in this list.
@@ -471,9 +476,12 @@ class CPURegList {
   // in the 'other' list must match those in this list.
   void Remove(const CPURegList& other);
 
-  // Variants of Combine and Remove which take a single register.
+  // Variants of Combine and Remove which take CPURegisters.
   void Combine(const CPURegister& other);
-  void Remove(const CPURegister& other);
+  void Remove(const CPURegister& other1,
+              const CPURegister& other2 = NoCPUReg,
+              const CPURegister& other3 = NoCPUReg,
+              const CPURegister& other4 = NoCPUReg);
 
   // Variants of Combine and Remove which take a single register by its code;
   // the type and size of the register is inferred from this list.
@@ -503,9 +511,17 @@ class CPURegList {
     return list_ == 0;
   }
 
-  bool IncludesAliasOf(const CPURegister& other) const {
+  bool IncludesAliasOf(const CPURegister& other1,
+                       const CPURegister& other2 = NoCPUReg,
+                       const CPURegister& other3 = NoCPUReg,
+                       const CPURegister& other4 = NoCPUReg) const {
     ASSERT(IsValid());
-    return (type_ == other.type()) && (other.Bit() & list_);
+    RegList list = 0;
+    if (!other1.IsNone() && (other1.type() == type_)) list |= other1.Bit();
+    if (!other2.IsNone() && (other2.type() == type_)) list |= other2.Bit();
+    if (!other3.IsNone() && (other3.type() == type_)) list |= other3.Bit();
+    if (!other4.IsNone() && (other4.type() == type_)) list |= other4.Bit();
+    return (list_ & list) != 0;
   }
 
   int Count() const {

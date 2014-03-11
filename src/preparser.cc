@@ -347,7 +347,7 @@ PreParser::Statement PreParser::ParseFunctionDeclaration(bool* ok) {
   //   'function' '*' Identifier '(' FormalParameterListopt ')'
   //      '{' FunctionBody '}'
   Expect(Token::FUNCTION, CHECK_OK);
-
+  int pos = position();
   bool is_generator = allow_generators() && Check(Token::MUL);
   bool is_strict_reserved = false;
   Identifier name = ParseIdentifierOrStrictReservedWord(
@@ -356,6 +356,8 @@ PreParser::Statement PreParser::ParseFunctionDeclaration(bool* ok) {
                        scanner()->location(),
                        is_strict_reserved,
                        is_generator,
+                       pos,
+                       FunctionLiteral::DECLARATION,
                        CHECK_OK);
   return Statement::FunctionDeclaration();
 }
@@ -1063,20 +1065,25 @@ PreParser::Expression PreParser::ParseMemberExpression(bool* ok) {
   Expression result = Expression::Default();
   if (peek() == Token::FUNCTION) {
     Consume(Token::FUNCTION);
-
+    int function_token_position = position();
     bool is_generator = allow_generators() && Check(Token::MUL);
     Identifier name = Identifier::Default();
     bool is_strict_reserved_name = false;
     Scanner::Location function_name_location = Scanner::Location::invalid();
+    FunctionLiteral::FunctionType function_type =
+        FunctionLiteral::ANONYMOUS_EXPRESSION;
     if (peek_any_identifier()) {
       name = ParseIdentifierOrStrictReservedWord(&is_strict_reserved_name,
                                                  CHECK_OK);
       function_name_location = scanner()->location();
+      function_type = FunctionLiteral::NAMED_EXPRESSION;
     }
     result = ParseFunctionLiteral(name,
                                   function_name_location,
                                   is_strict_reserved_name,
                                   is_generator,
+                                  function_token_position,
+                                  function_type,
                                   CHECK_OK);
   } else {
     result = ParsePrimaryExpression(CHECK_OK);
@@ -1124,10 +1131,11 @@ PreParser::Expression PreParser::ParseMemberExpressionContinuation(
 
 PreParser::Expression PreParser::ParseObjectLiteral(bool* ok) {
   // ObjectLiteral ::
-  //   '{' (
-  //       ((IdentifierName | String | Number) ':' AssignmentExpression)
-  //     | (('get' | 'set') (IdentifierName | String | Number) FunctionLiteral)
-  //    )*[','] '}'
+  // '{' ((
+  //       ((IdentifierName | String | Number) ':' AssignmentExpression) |
+  //       (('get' | 'set') (IdentifierName | String | Number) FunctionLiteral)
+  //      ) ',')* '}'
+  // (Except that trailing comma is not required and not allowed.)
 
   ObjectLiteralChecker checker(this, scope_->language_mode());
 
@@ -1142,55 +1150,56 @@ PreParser::Expression PreParser::ParseObjectLiteral(bool* ok) {
         bool is_setter = false;
         ParseIdentifierNameOrGetOrSet(&is_getter, &is_setter, CHECK_OK);
         if ((is_getter || is_setter) && peek() != Token::COLON) {
-            Token::Value name = Next();
-            bool is_keyword = Token::IsKeyword(name);
-            if (name != Token::IDENTIFIER &&
-                name != Token::FUTURE_RESERVED_WORD &&
-                name != Token::FUTURE_STRICT_RESERVED_WORD &&
-                name != Token::NUMBER &&
-                name != Token::STRING &&
-                !is_keyword) {
+            Token::Value next = Next();
+            if (next != Token::IDENTIFIER &&
+                next != Token::FUTURE_RESERVED_WORD &&
+                next != Token::FUTURE_STRICT_RESERVED_WORD &&
+                next != Token::NUMBER &&
+                next != Token::STRING &&
+                !Token::IsKeyword(next)) {
+              ReportUnexpectedToken(next);
               *ok = false;
               return Expression::Default();
             }
-            if (!is_keyword) {
-              LogSymbol();
-            }
+            // Validate the property
             PropertyKind type = is_getter ? kGetterProperty : kSetterProperty;
-            checker.CheckProperty(name, type, CHECK_OK);
-            ParseFunctionLiteral(Identifier::Default(),
+            checker.CheckProperty(next, type, CHECK_OK);
+            PreParserIdentifier name = GetSymbol(scanner());
+            ParseFunctionLiteral(name,
                                  scanner()->location(),
                                  false,  // reserved words are allowed here
                                  false,  // not a generator
+                                 RelocInfo::kNoPosition,
+                                 FunctionLiteral::ANONYMOUS_EXPRESSION,
                                  CHECK_OK);
             if (peek() != Token::RBRACE) {
               Expect(Token::COMMA, CHECK_OK);
             }
             continue;  // restart the while
         }
-        checker.CheckProperty(next, kValueProperty, CHECK_OK);
         break;
       }
       case Token::STRING:
         Consume(next);
-        checker.CheckProperty(next, kValueProperty, CHECK_OK);
         LogSymbol();
         break;
       case Token::NUMBER:
         Consume(next);
-        checker.CheckProperty(next, kValueProperty, CHECK_OK);
         break;
       default:
         if (Token::IsKeyword(next)) {
           Consume(next);
-          checker.CheckProperty(next, kValueProperty, CHECK_OK);
           LogSymbol();
         } else {
-          // Unexpected token.
+          Token::Value next = Next();
+          ReportUnexpectedToken(next);
           *ok = false;
           return Expression::Default();
         }
     }
+
+    // Validate the property
+    checker.CheckProperty(next, kValueProperty, CHECK_OK);
 
     Expect(Token::COLON, CHECK_OK);
     ParseAssignmentExpression(true, CHECK_OK);
@@ -1232,6 +1241,8 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
     Scanner::Location function_name_location,
     bool name_is_strict_reserved,
     bool is_generator,
+    int function_token_pos,
+    FunctionLiteral::FunctionType function_type,
     bool* ok) {
   // Function ::
   //   '(' FormalParameterList? ')' '{' FunctionBody '}'

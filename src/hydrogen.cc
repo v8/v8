@@ -48,7 +48,6 @@
 #include "hydrogen-gvn.h"
 #include "hydrogen-mark-deoptimize.h"
 #include "hydrogen-mark-unreachable.h"
-#include "hydrogen-minus-zero.h"
 #include "hydrogen-osr.h"
 #include "hydrogen-range-analysis.h"
 #include "hydrogen-redundant-phi.h"
@@ -708,10 +707,10 @@ HConstant* HGraph::GetConstant##Name() {                                       \
         Unique<Object>::CreateImmovable(isolate()->factory()->name##_value()), \
         Representation::Tagged(),                                              \
         htype,                                                                 \
-        false,                                                                 \
         true,                                                                  \
+        boolean_value,                                                         \
         false,                                                                 \
-        boolean_value);                                                        \
+        ODDBALL_TYPE);                                                         \
     constant->InsertAfter(entry_block()->first());                             \
     constant_##name##_.set(constant);                                          \
   }                                                                            \
@@ -4049,10 +4048,9 @@ bool HGraph::Optimize(BailoutReason* bailout_reason) {
 
   if (FLAG_check_elimination) Run<HCheckEliminationPhase>();
 
-  if (FLAG_use_range) Run<HRangeAnalysisPhase>();
+  Run<HRangeAnalysisPhase>();
 
   Run<HComputeChangeUndefinedToNaN>();
-  Run<HComputeMinusZeroChecksPhase>();
 
   // Eliminate redundant stack checks on backwards branches.
   Run<HStackCheckEliminationPhase>();

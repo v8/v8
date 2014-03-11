@@ -604,11 +604,14 @@ void ConstantPoolArray::ConstantPoolArrayPrint(FILE* out) {
   HeapObject::PrintHeader(out, "ConstantPoolArray");
   PrintF(out, " - length: %d", length());
   for (int i = 0; i < length(); i++) {
-    if (i < first_ptr_index()) {
+    if (i < first_code_ptr_index()) {
       PrintF(out, "\n  [%d]: double: %g", i, get_int64_entry_as_double(i));
+    } else if (i < first_heap_ptr_index()) {
+      PrintF(out, "\n  [%d]: code target pointer: %p", i,
+             reinterpret_cast<void*>(get_code_ptr_entry(i)));
     } else if (i < first_int32_index()) {
-      PrintF(out, "\n  [%d]: pointer: %p", i,
-             reinterpret_cast<void*>(get_ptr_entry(i)));
+      PrintF(out, "\n  [%d]: heap pointer: %p", i,
+             reinterpret_cast<void*>(get_heap_ptr_entry(i)));
     } else {
       PrintF(out, "\n  [%d]: int32: %d", i, get_int32_entry(i));
     }

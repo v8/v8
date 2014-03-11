@@ -1222,7 +1222,8 @@ void MathPowStub::Generate(MacroAssembler* masm) {
       // A64 simulator does not currently simulate FPCR (where the rounding
       // mode is set), so test the operation with some debug code.
       if (masm->emit_debug_code()) {
-        Register temp = masm->Tmp1();
+        UseScratchRegisterScope temps(masm);
+        Register temp = temps.AcquireX();
         //  d5  zero_double   The value +0.0 as a double.
         __ Fneg(scratch0_double, zero_double);
         // Verify that we correctly generated +0.0 and -0.0.
@@ -1500,7 +1501,8 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   if (__ emit_debug_code()) {
     // Verify that the slot below fp[kSPOffset]-8 points to the return location
     // (currently in x12).
-    Register temp = masm->Tmp1();
+    UseScratchRegisterScope temps(masm);
+    Register temp = temps.AcquireX();
     __ Ldr(temp, MemOperand(fp, ExitFrameConstants::kSPOffset));
     __ Ldr(temp, MemOperand(temp, -static_cast<int64_t>(kXRegSizeInBytes)));
     __ Cmp(temp, x12);
@@ -4720,9 +4722,10 @@ void RecordWriteStub::GenerateIncremental(MacroAssembler* masm, Mode mode) {
         masm, kUpdateRememberedSetOnNoNeedToInformIncrementalMarker, mode);
     InformIncrementalMarker(masm);
     regs_.Restore(masm);  // Restore the extra scratch registers we used.
+
     __ RememberedSetHelper(object_,
                            address_,
-                           value_,
+                           value_,            // scratch1
                            save_fp_regs_mode_,
                            MacroAssembler::kReturnAtEnd);
 
@@ -4783,7 +4786,7 @@ void RecordWriteStub::CheckNeedsToInformIncrementalMarker(
   if (on_no_need == kUpdateRememberedSetOnNoNeedToInformIncrementalMarker) {
     __ RememberedSetHelper(object_,
                            address_,
-                           value_,
+                           value_,            // scratch1
                            save_fp_regs_mode_,
                            MacroAssembler::kReturnAtEnd);
   } else {
@@ -4826,7 +4829,7 @@ void RecordWriteStub::CheckNeedsToInformIncrementalMarker(
   if (on_no_need == kUpdateRememberedSetOnNoNeedToInformIncrementalMarker) {
     __ RememberedSetHelper(object_,
                            address_,
-                           value_,
+                           value_,            // scratch1
                            save_fp_regs_mode_,
                            MacroAssembler::kReturnAtEnd);
   } else {
@@ -4859,7 +4862,7 @@ void RecordWriteStub::Generate(MacroAssembler* masm) {
   if (remembered_set_action_ == EMIT_REMEMBERED_SET) {
     __ RememberedSetHelper(object_,
                            address_,
-                           value_,
+                           value_,            // scratch1
                            save_fp_regs_mode_,
                            MacroAssembler::kReturnAtEnd);
   }
@@ -5090,12 +5093,11 @@ void NameDictionaryLookupStub::GeneratePositiveLookup(
     __ Add(scratch2, scratch2, Operand(scratch2, LSL, 1));
 
     // Check if the key is identical to the name.
+    UseScratchRegisterScope temps(masm);
+    Register scratch3 = temps.AcquireX();
     __ Add(scratch2, elements, Operand(scratch2, LSL, kPointerSizeLog2));
-    // TODO(jbramley): We need another scratch here, but some callers can't
-    // provide a scratch3 so we have to use Tmp1(). We should find a clean way
-    // to make it unavailable to the MacroAssembler for a short time.
-    __ Ldr(__ Tmp1(), FieldMemOperand(scratch2, kElementsStartOffset));
-    __ Cmp(name, __ Tmp1());
+    __ Ldr(scratch3, FieldMemOperand(scratch2, kElementsStartOffset));
+    __ Cmp(name, scratch3);
     __ B(eq, done);
   }
 
