@@ -217,7 +217,7 @@ function PromiseThen(onResolve, onReject) {
 PromiseCoerce.table = new $WeakMap;
 
 function PromiseCoerce(constructor, x) {
-  if (!(IsPromise(x) || IS_NULL_OR_UNDEFINED(x))) {
+  if (!IsPromise(x) && IS_SPEC_OBJECT(x)) {
     var then = x.then;
     if (typeof then === 'function') {
       if (PromiseCoerce.table.has(x)) {
