@@ -1016,12 +1016,6 @@ ParserBase<Traits>::FunctionState::~FunctionState() {
 
 template<class Traits>
 void ParserBase<Traits>::ReportUnexpectedToken(Token::Value token) {
-  // We don't report stack overflows here, to avoid increasing the
-  // stack depth even further.  Instead we report it after parsing is
-  // over, in ParseProgram.
-  if (token == Token::ILLEGAL && stack_overflow()) {
-    return;
-  }
   Scanner::Location source_location = scanner()->location();
 
   // Four of the tokens are treated specially
