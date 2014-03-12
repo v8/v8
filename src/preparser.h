@@ -1114,12 +1114,7 @@ ParserBase<Traits>::ParseIdentifierNameOrGetOrSet(bool* is_get,
                                                   bool* ok) {
   typename Traits::Type::Identifier result = ParseIdentifierName(ok);
   if (!*ok) return Traits::EmptyIdentifier();
-  if (scanner()->is_literal_ascii() &&
-      scanner()->literal_length() == 3) {
-    const char* token = scanner()->literal_ascii_string().start();
-    *is_get = strncmp(token, "get", 3) == 0;
-    *is_set = !*is_get && strncmp(token, "set", 3) == 0;
-  }
+  scanner()->IsGetOrSet(is_get, is_set);
   return result;
 }
 
@@ -1517,9 +1512,9 @@ void ParserBase<Traits>::ObjectLiteralChecker::CheckProperty(
     bool* ok) {
   int old;
   if (property == Token::NUMBER) {
-    old = finder_.AddNumber(scanner()->literal_ascii_string(), type);
-  } else if (scanner()->is_literal_ascii()) {
-    old = finder_.AddAsciiSymbol(scanner()->literal_ascii_string(), type);
+    old = finder_.AddNumber(scanner()->literal_one_byte_string(), type);
+  } else if (scanner()->is_literal_one_byte()) {
+    old = finder_.AddAsciiSymbol(scanner()->literal_one_byte_string(), type);
   } else {
     old = finder_.AddUtf16Symbol(scanner()->literal_utf16_string(), type);
   }

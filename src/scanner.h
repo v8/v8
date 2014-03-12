@@ -176,19 +176,19 @@ class DuplicateFinder {
   int AddNumber(Vector<const char> key, int value);
 
  private:
-  int AddSymbol(Vector<const byte> key, bool is_ascii, int value);
+  int AddSymbol(Vector<const byte> key, bool is_one_byte, int value);
   // Backs up the key and its length in the backing store.
   // The backup is stored with a base 127 encoding of the
   // length (plus a bit saying whether the string is ASCII),
   // followed by the bytes of the key.
-  byte* BackupKey(Vector<const byte> key, bool is_ascii);
+  byte* BackupKey(Vector<const byte> key, bool is_one_byte);
 
   // Compare two encoded keys (both pointing into the backing store)
   // for having the same base-127 encoded lengths and ASCII-ness,
   // and then having the same 'length' bytes following.
   static bool Match(void* first, void* second);
   // Creates a hash from a sequence of bytes.
-  static uint32_t Hash(Vector<const byte> key, bool is_ascii);
+  static uint32_t Hash(Vector<const byte> key, bool is_one_byte);
   // Checks whether a string containing a JS number is its canonical
   // form.
   static bool IsNumberCanonical(Vector<const char> key);
@@ -211,7 +211,7 @@ class DuplicateFinder {
 
 class LiteralBuffer {
  public:
-  LiteralBuffer() : is_ascii_(true), position_(0), backing_store_() { }
+  LiteralBuffer() : is_one_byte_(true), position_(0), backing_store_() { }
 
   ~LiteralBuffer() {
     if (backing_store_.length() > 0) {
@@ -221,7 +221,7 @@ class LiteralBuffer {
 
   INLINE(void AddChar(uint32_t code_unit)) {
     if (position_ >= backing_store_.length()) ExpandBuffer();
-    if (is_ascii_) {
+    if (is_one_byte_) {
       if (code_unit <= unibrow::Latin1::kMaxChar) {
         backing_store_[position_] = static_cast<byte>(code_unit);
         position_ += kOneByteSize;
@@ -234,35 +234,35 @@ class LiteralBuffer {
     position_ += kUC16Size;
   }
 
-  bool is_ascii() { return is_ascii_; }
+  bool is_one_byte() { return is_one_byte_; }
 
   bool is_contextual_keyword(Vector<const char> keyword) {
-    return is_ascii() && keyword.length() == position_ &&
+    return is_one_byte() && keyword.length() == position_ &&
         (memcmp(keyword.start(), backing_store_.start(), position_) == 0);
   }
 
   Vector<const uc16> utf16_literal() {
-    ASSERT(!is_ascii_);
+    ASSERT(!is_one_byte_);
     ASSERT((position_ & 0x1) == 0);
     return Vector<const uc16>(
         reinterpret_cast<const uc16*>(backing_store_.start()),
         position_ >> 1);
   }
 
-  Vector<const char> ascii_literal() {
-    ASSERT(is_ascii_);
+  Vector<const char> one_byte_literal() {
+    ASSERT(is_one_byte_);
     return Vector<const char>(
         reinterpret_cast<const char*>(backing_store_.start()),
         position_);
   }
 
   int length() {
-    return is_ascii_ ? position_ : (position_ >> 1);
+    return is_one_byte_ ? position_ : (position_ >> 1);
   }
 
   void Reset() {
     position_ = 0;
-    is_ascii_ = true;
+    is_one_byte_ = true;
   }
 
  private:
@@ -284,7 +284,7 @@ class LiteralBuffer {
   }
 
   void ConvertToUtf16() {
-    ASSERT(is_ascii_);
+    ASSERT(is_one_byte_);
     Vector<byte> new_store;
     int new_content_size = position_ * kUC16Size;
     if (new_content_size >= backing_store_.length()) {
@@ -304,10 +304,10 @@ class LiteralBuffer {
       backing_store_ = new_store;
     }
     position_ = new_content_size;
-    is_ascii_ = false;
+    is_one_byte_ = false;
   }
 
-  bool is_ascii_;
+  bool is_one_byte_;
   int position_;
   Vector<byte> backing_store_;
 
@@ -376,17 +376,17 @@ class Scanner {
   // numbers.
   // These functions only give the correct result if the literal
   // was scanned between calls to StartLiteral() and TerminateLiteral().
-  Vector<const char> literal_ascii_string() {
+  Vector<const char> literal_one_byte_string() {
     ASSERT_NOT_NULL(current_.literal_chars);
-    return current_.literal_chars->ascii_literal();
+    return current_.literal_chars->one_byte_literal();
   }
   Vector<const uc16> literal_utf16_string() {
     ASSERT_NOT_NULL(current_.literal_chars);
     return current_.literal_chars->utf16_literal();
   }
-  bool is_literal_ascii() {
+  bool is_literal_one_byte() {
     ASSERT_NOT_NULL(current_.literal_chars);
-    return current_.literal_chars->is_ascii();
+    return current_.literal_chars->is_one_byte();
   }
   bool is_literal_contextual_keyword(Vector<const char> keyword) {
     ASSERT_NOT_NULL(current_.literal_chars);
@@ -416,17 +416,17 @@ class Scanner {
 
   // Returns the literal string for the next token (the token that
   // would be returned if Next() were called).
-  Vector<const char> next_literal_ascii_string() {
+  Vector<const char> next_literal_one_byte_string() {
     ASSERT_NOT_NULL(next_.literal_chars);
-    return next_.literal_chars->ascii_literal();
+    return next_.literal_chars->one_byte_literal();
   }
   Vector<const uc16> next_literal_utf16_string() {
     ASSERT_NOT_NULL(next_.literal_chars);
     return next_.literal_chars->utf16_literal();
   }
-  bool is_next_literal_ascii() {
+  bool is_next_literal_one_byte() {
     ASSERT_NOT_NULL(next_.literal_chars);
-    return next_.literal_chars->is_ascii();
+    return next_.literal_chars->is_one_byte();
   }
   bool is_next_contextual_keyword(Vector<const char> keyword) {
     ASSERT_NOT_NULL(next_.literal_chars);
@@ -435,6 +435,30 @@ class Scanner {
   int next_literal_length() const {
     ASSERT_NOT_NULL(next_.literal_chars);
     return next_.literal_chars->length();
+  }
+
+  Handle<String> AllocateLiteralString(Isolate* isolate, PretenureFlag tenured);
+  Handle<String> AllocateNextLiteralString(Isolate* isolate,
+                                           PretenureFlag tenured);
+  Handle<String> AllocateInternalizedString(Isolate* isolate);
+
+  double DoubleValue();
+  bool UnescapedLiteralMatches(const char* data, int length) {
+    if (is_literal_one_byte() &&
+        literal_length() == length &&
+        !literal_contains_escapes()) {
+      return !strncmp(literal_one_byte_string().start(), data, length);
+    }
+    return false;
+  }
+  void IsGetOrSet(bool* is_get, bool* is_set) {
+    if (is_literal_one_byte() &&
+        literal_length() == 3 &&
+        !literal_contains_escapes()) {
+      const char* token = literal_one_byte_string().start();
+      *is_get = strncmp(token, "get", 3) == 0;
+      *is_set = !*is_get && strncmp(token, "set", 3) == 0;
+    }
   }
 
   UnicodeCache* unicode_cache() { return unicode_cache_; }

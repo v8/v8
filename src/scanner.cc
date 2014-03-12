@@ -35,6 +35,7 @@
 #include "char-predicates-inl.h"
 #include "conversions-inl.h"
 #include "list-inl.h"
+#include "v8.h"
 
 namespace v8 {
 namespace internal {
@@ -982,8 +983,8 @@ Token::Value Scanner::ScanIdentifierOrKeyword() {
 
   literal.Complete();
 
-  if (next_.literal_chars->is_ascii()) {
-    Vector<const char> chars = next_.literal_chars->ascii_literal();
+  if (next_.literal_chars->is_one_byte()) {
+    Vector<const char> chars = next_.literal_chars->one_byte_literal();
     return KeywordOrIdentifierToken(chars.start(),
                                     chars.length(),
                                     harmony_scoping_,
@@ -1114,6 +1115,49 @@ bool Scanner::ScanRegExpFlags() {
 }
 
 
+Handle<String> Scanner::AllocateLiteralString(Isolate* isolate,
+                                              PretenureFlag tenured) {
+  if (is_literal_one_byte()) {
+    return isolate->factory()->NewStringFromOneByte(
+        Vector<const uint8_t>::cast(literal_one_byte_string()), tenured);
+  } else {
+    return isolate->factory()->NewStringFromTwoByte(
+          literal_utf16_string(), tenured);
+  }
+}
+
+
+Handle<String> Scanner::AllocateNextLiteralString(Isolate* isolate,
+                                                  PretenureFlag tenured) {
+  if (is_next_literal_one_byte()) {
+    return isolate->factory()->NewStringFromOneByte(
+        Vector<const uint8_t>::cast(next_literal_one_byte_string()), tenured);
+  } else {
+    return isolate->factory()->NewStringFromTwoByte(
+          next_literal_utf16_string(), tenured);
+  }
+}
+
+
+Handle<String> Scanner::AllocateInternalizedString(Isolate* isolate) {
+  if (is_literal_one_byte()) {
+    return isolate->factory()->InternalizeOneByteString(
+        Vector<const uint8_t>::cast(literal_one_byte_string()));
+  } else {
+    return isolate->factory()->InternalizeTwoByteString(
+        literal_utf16_string());
+  }
+}
+
+
+double Scanner::DoubleValue() {
+  ASSERT(is_literal_one_byte());
+  return StringToDouble(
+      unicode_cache_, literal_one_byte_string(),
+      ALLOW_HEX | ALLOW_OCTAL | ALLOW_IMPLICIT_OCTAL | ALLOW_BINARY);
+}
+
+
 int DuplicateFinder::AddAsciiSymbol(Vector<const char> key, int value) {
   return AddSymbol(Vector<const byte>::cast(key), true, value);
 }
@@ -1125,10 +1169,10 @@ int DuplicateFinder::AddUtf16Symbol(Vector<const uint16_t> key, int value) {
 
 
 int DuplicateFinder::AddSymbol(Vector<const byte> key,
-                               bool is_ascii,
+                               bool is_one_byte,
                                int value) {
-  uint32_t hash = Hash(key, is_ascii);
-  byte* encoding = BackupKey(key, is_ascii);
+  uint32_t hash = Hash(key, is_one_byte);
+  byte* encoding = BackupKey(key, is_one_byte);
   HashMap::Entry* entry = map_.Lookup(encoding, hash, true);
   int old_value = static_cast<int>(reinterpret_cast<intptr_t>(entry->value));
   entry->value =
@@ -1189,11 +1233,11 @@ bool DuplicateFinder::IsNumberCanonical(Vector<const char> number) {
 }
 
 
-uint32_t DuplicateFinder::Hash(Vector<const byte> key, bool is_ascii) {
+uint32_t DuplicateFinder::Hash(Vector<const byte> key, bool is_one_byte) {
   // Primitive hash function, almost identical to the one used
   // for strings (except that it's seeded by the length and ASCII-ness).
   int length = key.length();
-  uint32_t hash = (length << 1) | (is_ascii ? 1 : 0) ;
+  uint32_t hash = (length << 1) | (is_one_byte ? 1 : 0) ;
   for (int i = 0; i < length; i++) {
     uint32_t c = key[i];
     hash = (hash + c) * 1025;
@@ -1211,39 +1255,39 @@ bool DuplicateFinder::Match(void* first, void* second) {
   // was ASCII.
   byte* s1 = reinterpret_cast<byte*>(first);
   byte* s2 = reinterpret_cast<byte*>(second);
-  uint32_t length_ascii_field = 0;
+  uint32_t length_one_byte_field = 0;
   byte c1;
   do {
     c1 = *s1;
     if (c1 != *s2) return false;
-    length_ascii_field = (length_ascii_field << 7) | (c1 & 0x7f);
+    length_one_byte_field = (length_one_byte_field << 7) | (c1 & 0x7f);
     s1++;
     s2++;
   } while ((c1 & 0x80) != 0);
-  int length = static_cast<int>(length_ascii_field >> 1);
+  int length = static_cast<int>(length_one_byte_field >> 1);
   return memcmp(s1, s2, length) == 0;
 }
 
 
 byte* DuplicateFinder::BackupKey(Vector<const byte> bytes,
-                                 bool is_ascii) {
-  uint32_t ascii_length = (bytes.length() << 1) | (is_ascii ? 1 : 0);
+                                 bool is_one_byte) {
+  uint32_t one_byte_length = (bytes.length() << 1) | (is_one_byte ? 1 : 0);
   backing_store_.StartSequence();
-  // Emit ascii_length as base-128 encoded number, with the 7th bit set
+  // Emit one_byte_length as base-128 encoded number, with the 7th bit set
   // on the byte of every heptet except the last, least significant, one.
-  if (ascii_length >= (1 << 7)) {
-    if (ascii_length >= (1 << 14)) {
-      if (ascii_length >= (1 << 21)) {
-        if (ascii_length >= (1 << 28)) {
-          backing_store_.Add(static_cast<byte>((ascii_length >> 28) | 0x80));
+  if (one_byte_length >= (1 << 7)) {
+    if (one_byte_length >= (1 << 14)) {
+      if (one_byte_length >= (1 << 21)) {
+        if (one_byte_length >= (1 << 28)) {
+          backing_store_.Add(static_cast<byte>((one_byte_length >> 28) | 0x80));
         }
-        backing_store_.Add(static_cast<byte>((ascii_length >> 21) | 0x80u));
+        backing_store_.Add(static_cast<byte>((one_byte_length >> 21) | 0x80u));
       }
-      backing_store_.Add(static_cast<byte>((ascii_length >> 14) | 0x80u));
+      backing_store_.Add(static_cast<byte>((one_byte_length >> 14) | 0x80u));
     }
-    backing_store_.Add(static_cast<byte>((ascii_length >> 7) | 0x80u));
+    backing_store_.Add(static_cast<byte>((one_byte_length >> 7) | 0x80u));
   }
-  backing_store_.Add(static_cast<byte>(ascii_length & 0x7f));
+  backing_store_.Add(static_cast<byte>(one_byte_length & 0x7f));
 
   backing_store_.AddBlock(bytes);
   return backing_store_.EndSequence().start();

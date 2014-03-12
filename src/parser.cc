@@ -212,13 +212,7 @@ Handle<String> Parser::LookupSymbol(int symbol_id) {
   // count.
   if (symbol_id < 0 ||
       (pre_parse_data_ && symbol_id >= pre_parse_data_->symbol_count())) {
-    if (scanner()->is_literal_ascii()) {
-      return isolate()->factory()->InternalizeOneByteString(
-          Vector<const uint8_t>::cast(scanner()->literal_ascii_string()));
-    } else {
-      return isolate()->factory()->InternalizeTwoByteString(
-          scanner()->literal_utf16_string());
-    }
+    return scanner()->AllocateInternalizedString(isolate_);
   }
   return LookupCachedSymbol(symbol_id);
 }
@@ -233,13 +227,7 @@ Handle<String> Parser::LookupCachedSymbol(int symbol_id) {
   }
   Handle<String> result = symbol_cache_.at(symbol_id);
   if (result.is_null()) {
-    if (scanner()->is_literal_ascii()) {
-      result = isolate()->factory()->InternalizeOneByteString(
-          Vector<const uint8_t>::cast(scanner()->literal_ascii_string()));
-    } else {
-      result = isolate()->factory()->InternalizeTwoByteString(
-          scanner()->literal_utf16_string());
-    }
+    result = scanner()->AllocateInternalizedString(isolate_);
     symbol_cache_.at(symbol_id) = result;
     return result;
   }
@@ -514,13 +502,7 @@ Handle<String> ParserTraits::GetSymbol(Scanner* scanner) {
 
 Handle<String> ParserTraits::NextLiteralString(Scanner* scanner,
                                                PretenureFlag tenured) {
-  if (scanner->is_next_literal_ascii()) {
-    return parser_->isolate_->factory()->NewStringFromAscii(
-        scanner->next_literal_ascii_string(), tenured);
-  } else {
-    return parser_->isolate_->factory()->NewStringFromTwoByte(
-        scanner->next_literal_utf16_string(), tenured);
-  }
+  return scanner->AllocateNextLiteralString(parser_->isolate(), tenured);
 }
 
 
@@ -544,11 +526,7 @@ Literal* ParserTraits::ExpressionFromLiteral(
     case Token::FALSE_LITERAL:
       return factory->NewLiteral(isolate_factory->false_value(), pos);
     case Token::NUMBER: {
-      ASSERT(scanner->is_literal_ascii());
-      double value = StringToDouble(parser_->isolate()->unicode_cache(),
-                                    scanner->literal_ascii_string(),
-                                    ALLOW_HEX | ALLOW_OCTAL |
-                                        ALLOW_IMPLICIT_OCTAL | ALLOW_BINARY);
+      double value = scanner->DoubleValue();
       return factory->NewNumberLiteral(value, pos);
     }
     default:
