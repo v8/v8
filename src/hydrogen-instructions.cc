@@ -1788,7 +1788,7 @@ Range* HMul::InferRange(Zone* zone) {
 }
 
 
-Range* HDiv::InferRange(Zone* zone) {
+Range* HBinaryOperation::InferRangeForDiv(Zone* zone) {
   if (representation().IsInteger32()) {
     Range* a = left()->range();
     Range* b = right()->range();
@@ -1797,16 +1797,26 @@ Range* HDiv::InferRange(Zone* zone) {
                                   (a->CanBeMinusZero() ||
                                    (a->CanBeZero() && b->CanBeNegative())));
     if (!a->Includes(kMinInt) || !b->Includes(-1)) {
-      ClearFlag(HValue::kCanOverflow);
+      ClearFlag(kCanOverflow);
     }
 
     if (!b->CanBeZero()) {
-      ClearFlag(HValue::kCanBeDivByZero);
+      ClearFlag(kCanBeDivByZero);
     }
     return result;
   } else {
     return HValue::InferRange(zone);
   }
+}
+
+
+Range* HDiv::InferRange(Zone* zone) {
+  return InferRangeForDiv(zone);
+}
+
+
+Range* HMathFloorOfDiv::InferRange(Zone* zone) {
+  return InferRangeForDiv(zone);
 }
 
 

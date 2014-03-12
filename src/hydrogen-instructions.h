@@ -3762,6 +3762,9 @@ class HBinaryOperation : public HTemplateInstruction<3> {
 
   DECLARE_ABSTRACT_INSTRUCTION(BinaryOperation)
 
+ protected:
+  Range* InferRangeForDiv(Zone* zone);
+
  private:
   bool IgnoreObservedOutputRepresentation(Representation current_rep);
 
@@ -4102,11 +4105,11 @@ class HMathFloorOfDiv V8_FINAL : public HBinaryOperation {
     set_representation(Representation::Integer32());
     SetFlag(kUseGVN);
     SetFlag(kCanOverflow);
-    if (!right->IsConstant()) {
-      SetFlag(kCanBeDivByZero);
-    }
+    SetFlag(kCanBeDivByZero);
     SetFlag(kAllowUndefinedAsNaN);
   }
+
+  virtual Range* InferRange(Zone* zone) V8_OVERRIDE;
 
   virtual bool IsDeletable() const V8_OVERRIDE { return true; }
 };
