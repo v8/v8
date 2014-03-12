@@ -6696,13 +6696,6 @@ class SharedFunctionInfo: public HeapObject {
   static const int kLiteralsOffset = 2;
   static const int kOsrAstIdOffset = 3;
   static const int kEntryLength = 4;
-  static const int kFirstContextSlot = FixedArray::kHeaderSize +
-      (kEntriesStart + kContextOffset) * kPointerSize;
-  static const int kFirstCodeSlot = FixedArray::kHeaderSize +
-      (kEntriesStart + kCachedCodeOffset) * kPointerSize;
-  static const int kFirstOsrAstIdSlot = FixedArray::kHeaderSize +
-      (kEntriesStart + kOsrAstIdOffset) * kPointerSize;
-  static const int kSecondEntryIndex = kEntryLength + kEntriesStart;
   static const int kInitialLength = kEntriesStart + kEntryLength;
 
   // [scope_info]: Scope info.
