@@ -1,3 +1,28 @@
+2014-03-12: Version 3.25.8
+
+        Fix HIsSmiAndBranch::KnownSuccessorBlock() by deleting it (Chromium
+        issue 351320).
+
+        Fix handling of polymorphic array accesses with constant index (Chromium
+        issue 351319).
+
+        Fix lazy deopt after tagged binary ops (Chromium issue 350434).
+
+        MIPS: Cleanup some of the range uses in ModI/DivI (issue 3204).
+
+        Fix issue with getOwnPropertySymbols and hidden properties (Chromium
+        issue 350864).
+
+        Cleanup some of the range uses in ModI/DivI (issue 3204).
+
+        PromiseCoerce should ignore primitive values (Chromium issue 347095).
+
+        Use a per-isolate cache for the date object JS bits (Chromium issue
+        348856).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-03-11: Version 3.25.7
 
         Promise.all and Promise.race should reject non-array parameter (Chromium
