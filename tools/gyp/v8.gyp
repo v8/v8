@@ -658,8 +658,6 @@
             '../../src/a64/cpu-a64.cc',
             '../../src/a64/cpu-a64.h',
             '../../src/a64/debug-a64.cc',
-            '../../src/a64/debugger-a64.cc',
-            '../../src/a64/debugger-a64.h',
             '../../src/a64/decoder-a64.cc',
             '../../src/a64/decoder-a64.h',
             '../../src/a64/decoder-a64-inl.h',
