@@ -57,7 +57,7 @@ class Preparation(Step):
     if os.path.exists(self.Config(ALREADY_MERGING_SENTINEL_FILE)):
       if self._options.force:
         os.remove(self.Config(ALREADY_MERGING_SENTINEL_FILE))
-      elif self._options.step == 0:
+      elif self._options.step == 0:  # pragma: no cover
         self.Die("A merge is already in progress")
     open(self.Config(ALREADY_MERGING_SENTINEL_FILE), "a").close()
 
@@ -66,7 +66,7 @@ class Preparation(Step):
       self["merge_to_branch"] = "bleeding_edge"
     elif self._options.branch:
       self["merge_to_branch"] = self._options.branch
-    else:
+    else:  # pragma: no cover
       self.Die("Please specify a branch to merge to")
 
     self.CommonPrepare()
@@ -95,7 +95,7 @@ class SearchArchitecturePorts(Step):
                                branch="svn/bleeding_edge")
       for git_hash in git_hashes.splitlines():
         svn_revision = self.GitSVNFindSVNRev(git_hash, "svn/bleeding_edge")
-        if not svn_revision:
+        if not svn_revision:  # pragma: no cover
           self.Die("Cannot determine svn revision for %s" % git_hash)
         revision_title = self.GitLog(n=1, format="%s", git_hash=git_hash)
 
@@ -123,7 +123,7 @@ class FindGitRevisions(Step):
     self["patch_commit_hashes"] = []
     for revision in self["full_revision_list"]:
       next_hash = self.GitSVNFindGitHash(revision, "svn/bleeding_edge")
-      if not next_hash:
+      if not next_hash:  # pragma: no cover
         self.Die("Cannot determine git hash for r%s" % revision)
       self["patch_commit_hashes"].append(next_hash)
 
@@ -131,7 +131,7 @@ class FindGitRevisions(Step):
     self["revision_list"] = ", ".join(map(lambda s: "r%s" % s,
                                       self["full_revision_list"]))
 
-    if not self["revision_list"]:
+    if not self["revision_list"]:  # pragma: no cover
       self.Die("Revision list is empty.")
 
     if self._options.revert:
@@ -232,7 +232,7 @@ class PrepareSVN(Step):
     self.GitSVNFetch()
     commit_hash = self.GitLog(n=1, format="%H", grep=self["new_commit_msg"],
                               branch="svn/%s" % self["merge_to_branch"])
-    if not commit_hash:
+    if not commit_hash:  # pragma: no cover
       self.Die("Unable to map git commit to svn revision.")
     self["svn_revision"] = self.GitSVNFindSVNRev(commit_hash)
     print "subversion revision number is r%s" % self["svn_revision"]
@@ -327,5 +327,5 @@ class MergeToBranch(ScriptsBase):
     ]
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
   sys.exit(MergeToBranch(CONFIG).Run())

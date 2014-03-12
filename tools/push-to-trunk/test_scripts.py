@@ -802,7 +802,7 @@ Performance and stability improvements on all platforms.""", commit)
     ])
 
     auto_roll.AutoRoll(TEST_CONFIG, self).Run(
-        AUTO_ROLL_ARGS + ["--status-password", password])
+        AUTO_ROLL_ARGS + ["--status-password", password, "--push"])
 
     state = json.loads(FileToText("%s-state.json"
                                   % TEST_CONFIG[PERSISTFILE_BASENAME]))
