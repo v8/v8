@@ -2114,7 +2114,7 @@ LInstruction* LChunkBuilder::DoStoreKeyed(HStoreKeyed* instr) {
     Representation value_representation = instr->value()->representation();
     if (value_representation.IsDouble()) {
       object = UseRegisterAtStart(instr->elements());
-      val = UseTempRegister(instr->value());
+      val = UseRegisterAtStart(instr->value());
       key = UseRegisterOrConstantAtStart(instr->key());
     } else {
       ASSERT(value_representation.IsSmiOrTagged() ||
