@@ -3112,17 +3112,6 @@ bool HIsStringAndBranch::KnownSuccessorBlock(HBasicBlock** block) {
 }
 
 
-bool HIsSmiAndBranch::KnownSuccessorBlock(HBasicBlock** block) {
-  if (FLAG_fold_constants && value()->IsConstant()) {
-    *block = HConstant::cast(value())->HasSmiValue()
-        ? FirstSuccessor() : SecondSuccessor();
-    return true;
-  }
-  *block = NULL;
-  return false;
-}
-
-
 bool HIsUndetectableAndBranch::KnownSuccessorBlock(HBasicBlock** block) {
   if (FLAG_fold_constants && value()->IsConstant()) {
     *block = HConstant::cast(value())->IsUndetectable()

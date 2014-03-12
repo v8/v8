@@ -4384,8 +4384,6 @@ class HIsSmiAndBranch V8_FINAL : public HUnaryControlInstruction {
     return Representation::Tagged();
   }
 
-  virtual bool KnownSuccessorBlock(HBasicBlock** block) V8_OVERRIDE;
-
  protected:
   virtual bool DataEquals(HValue* other) V8_OVERRIDE { return true; }
   virtual int RedefinedOperandIndex() { return 0; }
