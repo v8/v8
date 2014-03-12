@@ -3515,25 +3515,25 @@ static void TestPersistentValueMap() {
   v8::internal::GlobalHandles* global_handles =
       reinterpret_cast<v8::internal::Isolate*>(isolate)->global_handles();
   int initial_handle_count = global_handles->global_handles_count();
-  CHECK_EQ(0, map.Size());
+  CHECK_EQ(0, static_cast<int>(map.Size()));
   {
     HandleScope scope(isolate);
     Local<v8::Object> obj = map.Get(7);
     CHECK(obj.IsEmpty());
     Local<v8::Object> expected = v8::Object::New(isolate);
     map.Set(7, expected);
-    CHECK_EQ(1, map.Size());
+    CHECK_EQ(1, static_cast<int>(map.Size()));
     obj = map.Get(7);
     CHECK_EQ(expected, obj);
     v8::UniquePersistent<v8::Object> removed = map.Remove(7);
-    CHECK_EQ(0, map.Size());
+    CHECK_EQ(0, static_cast<int>(map.Size()));
     CHECK(expected == removed);
     removed = map.Remove(7);
     CHECK(removed.IsEmpty());
     map.Set(8, expected);
-    CHECK_EQ(1, map.Size());
+    CHECK_EQ(1, static_cast<int>(map.Size()));
     map.Set(8, expected);
-    CHECK_EQ(1, map.Size());
+    CHECK_EQ(1, static_cast<int>(map.Size()));
   }
   CHECK_EQ(initial_handle_count + 1, global_handles->global_handles_count());
   if (is_weak) {
@@ -3542,7 +3542,7 @@ static void TestPersistentValueMap() {
   } else {
     map.Clear();
   }
-  CHECK_EQ(0, map.Size());
+  CHECK_EQ(0, static_cast<int>(map.Size()));
   CHECK_EQ(initial_handle_count, global_handles->global_handles_count());
 }
 
