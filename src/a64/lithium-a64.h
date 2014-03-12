@@ -2976,9 +2976,7 @@ class LChunkBuilder V8_FINAL : public LChunkBuilderBase {
         status_(UNUSED),
         current_instruction_(NULL),
         current_block_(NULL),
-        allocator_(allocator),
-        instruction_pending_deoptimization_environment_(NULL),
-        pending_deoptimization_ast_id_(BailoutId::None()) { }
+        allocator_(allocator) { }
 
   // Build the sequence for the graph.
   LPlatformChunk* Build();
@@ -3115,8 +3113,6 @@ class LChunkBuilder V8_FINAL : public LChunkBuilderBase {
   HInstruction* current_instruction_;
   HBasicBlock* current_block_;
   LAllocator* allocator_;
-  LInstruction* instruction_pending_deoptimization_environment_;
-  BailoutId pending_deoptimization_ast_id_;
 
   DISALLOW_COPY_AND_ASSIGN(LChunkBuilder);
 };

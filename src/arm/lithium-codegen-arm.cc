@@ -269,6 +269,13 @@ void LCodeGen::GenerateOsrPrologue() {
 }
 
 
+void LCodeGen::GenerateBodyInstructionPre(LInstruction* instr) {
+  if (!instr->IsLazyBailout() && !instr->IsGap()) {
+    safepoints_.BumpLastLazySafepointIndex();
+  }
+}
+
+
 bool LCodeGen::GenerateDeferredCode() {
   ASSERT(is_generating());
   if (deferred_.length() > 0) {
@@ -2066,7 +2073,6 @@ void LCodeGen::DoArithmeticT(LArithmeticT* instr) {
   // is in the correct position.
   Assembler::BlockConstPoolScope block_const_pool(masm());
   CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
-  __ nop();  // Signals no inlined code.
 }
 
 

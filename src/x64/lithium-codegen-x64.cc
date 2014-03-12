@@ -273,6 +273,13 @@ void LCodeGen::GenerateOsrPrologue() {
 }
 
 
+void LCodeGen::GenerateBodyInstructionPre(LInstruction* instr) {
+  if (!instr->IsLazyBailout() && !instr->IsGap()) {
+    safepoints_.BumpLastLazySafepointIndex();
+  }
+}
+
+
 bool LCodeGen::GenerateJumpTable() {
   Label needs_frame;
   if (jump_table_.length() > 0) {
@@ -1900,7 +1907,6 @@ void LCodeGen::DoArithmeticT(LArithmeticT* instr) {
 
   BinaryOpICStub stub(instr->op(), NO_OVERWRITE);
   CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
-  __ nop();  // Signals no inlined code.
 }
 
 

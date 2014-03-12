@@ -276,6 +276,7 @@ class LCodeGen: public LCodeGenBase {
   void RestoreCallerDoubles();
 
   // Code generation steps.  Returns true if code generation should continue.
+  void GenerateBodyInstructionPre(LInstruction* instr) V8_OVERRIDE;
   bool GeneratePrologue();
   bool GenerateDeferredCode();
   bool GenerateDeoptJumpTable();

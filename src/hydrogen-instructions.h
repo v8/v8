@@ -1877,7 +1877,8 @@ class HSimulate V8_FINAL : public HInstruction {
         values_(2, zone),
         assigned_indexes_(2, zone),
         zone_(zone),
-        removable_(removable) {}
+        removable_(removable),
+        done_with_replay_(false) {}
   ~HSimulate() {}
 
   virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
@@ -1960,7 +1961,8 @@ class HSimulate V8_FINAL : public HInstruction {
   ZoneList<HValue*> values_;
   ZoneList<int> assigned_indexes_;
   Zone* zone_;
-  RemovableSimulate removable_;
+  RemovableSimulate removable_ : 2;
+  bool done_with_replay_ : 1;
 
 #ifdef DEBUG
   Handle<JSFunction> closure_;
