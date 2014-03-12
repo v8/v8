@@ -286,9 +286,12 @@ int Label::pos() const {
 //                              00 [4 bit middle_tag] 11 followed by
 //                              00 [6 bit pc delta]
 //
-//      1101: constant pool. Used on ARM only for now.
-//        The format is:       11 1101 11
-//                             signed int (size of the constant pool).
+//      1101: constant or veneer pool. Used only on ARM and A64 for now.
+//        The format is:       [2-bit sub-type] 1101 11
+//                             signed int (size of the pool).
+//          The 2-bit sub-types are:
+//            00: constant pool
+//            01: veneer pool
 //      1110: long_data_record
 //        The format is:       [2-bit data_type_tag] 1110 11
 //                             signed intptr_t, lowest byte written first
@@ -345,8 +348,9 @@ const int kNonstatementPositionTag = 1;
 const int kStatementPositionTag = 2;
 const int kCommentTag = 3;
 
-const int kConstPoolExtraTag = kPCJumpExtraTag - 2;
-const int kConstPoolTag = 3;
+const int kPoolExtraTag = kPCJumpExtraTag - 2;
+const int kConstPoolTag = 0;
+const int kVeneerPoolTag = 1;
 
 
 uint32_t RelocInfoWriter::WriteVariableLengthPCJump(uint32_t pc_delta) {
@@ -406,8 +410,8 @@ void RelocInfoWriter::WriteExtraTaggedIntData(int data_delta, int top_tag) {
 }
 
 
-void RelocInfoWriter::WriteExtraTaggedConstPoolData(int data) {
-  WriteExtraTag(kConstPoolExtraTag, kConstPoolTag);
+void RelocInfoWriter::WriteExtraTaggedPoolData(int data, int pool_type) {
+  WriteExtraTag(kPoolExtraTag, pool_type);
   for (int i = 0; i < kIntSize; i++) {
     *--pos_ = static_cast<byte>(data);
     // Signed right shift is arithmetic shift.  Tested in test-utils.cc.
@@ -479,9 +483,11 @@ void RelocInfoWriter::Write(const RelocInfo* rinfo) {
     WriteExtraTaggedPC(pc_delta, kPCJumpExtraTag);
     WriteExtraTaggedData(rinfo->data(), kCommentTag);
     ASSERT(begin_pos - pos_ >= RelocInfo::kMinRelocCommentSize);
-  } else if (RelocInfo::IsConstPool(rmode)) {
+  } else if (RelocInfo::IsConstPool(rmode) || RelocInfo::IsVeneerPool(rmode)) {
       WriteExtraTaggedPC(pc_delta, kPCJumpExtraTag);
-      WriteExtraTaggedConstPoolData(static_cast<int>(rinfo->data()));
+      WriteExtraTaggedPoolData(static_cast<int>(rinfo->data()),
+                               RelocInfo::IsConstPool(rmode) ? kConstPoolTag
+                                                             : kVeneerPoolTag);
   } else {
     ASSERT(rmode > RelocInfo::LAST_COMPACT_ENUM);
     int saved_mode = rmode - RelocInfo::LAST_COMPACT_ENUM;
@@ -532,7 +538,7 @@ void RelocIterator::AdvanceReadId() {
 }
 
 
-void RelocIterator::AdvanceReadConstPoolData() {
+void RelocIterator::AdvanceReadPoolData() {
   int x = 0;
   for (int i = 0; i < kIntSize; i++) {
     x |= static_cast<int>(*--pos_) << i * kBitsPerByte;
@@ -674,10 +680,13 @@ void RelocIterator::next() {
           }
           Advance(kIntptrSize);
         }
-      } else if ((extra_tag == kConstPoolExtraTag) &&
-                 (GetTopTag() == kConstPoolTag)) {
-        if (SetMode(RelocInfo::CONST_POOL)) {
-          AdvanceReadConstPoolData();
+      } else if (extra_tag == kPoolExtraTag) {
+        int pool_type = GetTopTag();
+        ASSERT(pool_type == kConstPoolTag || pool_type == kVeneerPoolTag);
+        RelocInfo::Mode rmode = (pool_type == kConstPoolTag) ?
+          RelocInfo::CONST_POOL : RelocInfo::VENEER_POOL;
+        if (SetMode(rmode)) {
+          AdvanceReadPoolData();
           return;
         }
         Advance(kIntSize);
@@ -796,6 +805,8 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
       return "internal reference";
     case RelocInfo::CONST_POOL:
       return "constant pool";
+    case RelocInfo::VENEER_POOL:
+      return "veneer pool";
     case RelocInfo::DEBUG_BREAK_SLOT:
 #ifndef ENABLE_DEBUGGER_SUPPORT
       UNREACHABLE();
@@ -883,6 +894,7 @@ void RelocInfo::Verify() {
     case EXTERNAL_REFERENCE:
     case INTERNAL_REFERENCE:
     case CONST_POOL:
+    case VENEER_POOL:
     case DEBUG_BREAK_SLOT:
     case NONE32:
     case NONE64:

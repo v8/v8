@@ -1899,30 +1899,34 @@ static void RedirectActivationsToRecompiledCodeOnThread(
     }
 
     // Iterate over the RelocInfo in the original code to compute the sum of the
-    // constant pools sizes. (See Assembler::CheckConstPool())
-    // Note that this is only useful for architectures using constant pools.
-    int constpool_mask = RelocInfo::ModeMask(RelocInfo::CONST_POOL);
-    int frame_const_pool_size = 0;
-    for (RelocIterator it(*frame_code, constpool_mask); !it.done(); it.next()) {
+    // constant pools and veneer pools sizes. (See Assembler::CheckConstPool()
+    // and Assembler::CheckVeneerPool())
+    // Note that this is only useful for architectures using constant pools or
+    // veneer pools.
+    int pool_mask = RelocInfo::ModeMask(RelocInfo::CONST_POOL) |
+                    RelocInfo::ModeMask(RelocInfo::VENEER_POOL);
+    int frame_pool_size = 0;
+    for (RelocIterator it(*frame_code, pool_mask); !it.done(); it.next()) {
       RelocInfo* info = it.rinfo();
       if (info->pc() >= frame->pc()) break;
-      frame_const_pool_size += static_cast<int>(info->data());
+      frame_pool_size += static_cast<int>(info->data());
     }
     intptr_t frame_offset =
-      frame->pc() - frame_code->instruction_start() - frame_const_pool_size;
+      frame->pc() - frame_code->instruction_start() - frame_pool_size;
 
     // Iterate over the RelocInfo for new code to find the number of bytes
     // generated for debug slots and constant pools.
     int debug_break_slot_bytes = 0;
-    int new_code_const_pool_size = 0;
+    int new_code_pool_size = 0;
     int mask = RelocInfo::ModeMask(RelocInfo::DEBUG_BREAK_SLOT) |
-               RelocInfo::ModeMask(RelocInfo::CONST_POOL);
+               RelocInfo::ModeMask(RelocInfo::CONST_POOL) |
+               RelocInfo::ModeMask(RelocInfo::VENEER_POOL);
     for (RelocIterator it(*new_code, mask); !it.done(); it.next()) {
       // Check if the pc in the new code with debug break
       // slots is before this slot.
       RelocInfo* info = it.rinfo();
       intptr_t new_offset = info->pc() - new_code->instruction_start() -
-                            new_code_const_pool_size - debug_break_slot_bytes;
+                            new_code_pool_size - debug_break_slot_bytes;
       if (new_offset >= frame_offset) {
         break;
       }
@@ -1931,14 +1935,14 @@ static void RedirectActivationsToRecompiledCodeOnThread(
         debug_break_slot_bytes += Assembler::kDebugBreakSlotLength;
       } else {
         ASSERT(RelocInfo::IsConstPool(info->rmode()));
-        // The size of the constant pool is encoded in the data.
-        new_code_const_pool_size += static_cast<int>(info->data());
+        // The size of the pools is encoded in the data.
+        new_code_pool_size += static_cast<int>(info->data());
       }
     }
 
     // Compute the equivalent pc in the new code.
     byte* new_pc = new_code->instruction_start() + frame_offset +
-                   debug_break_slot_bytes + new_code_const_pool_size;
+                   debug_break_slot_bytes + new_code_pool_size;
 
     if (FLAG_trace_deopt) {
       PrintF("Replacing code %08" V8PRIxPTR " - %08" V8PRIxPTR " (%d) "

@@ -10030,3 +10030,58 @@ TEST(abs) {
   AbsHelperW(kWMinInt);
   AbsHelperW(kWMaxInt);
 }
+
+
+TEST(pool_size) {
+  INIT_V8();
+  SETUP();
+
+  // This test does not execute any code. It only tests that the size of the
+  // pools is read correctly from the RelocInfo.
+
+  Label exit;
+  __ b(&exit);
+
+  const unsigned constant_pool_size = 312;
+  const unsigned veneer_pool_size = 184;
+
+  __ RecordConstPool(constant_pool_size);
+  for (unsigned i = 0; i < constant_pool_size / 4; ++i) {
+    __ dc32(0);
+  }
+
+  __ RecordVeneerPool(masm.pc_offset(), veneer_pool_size);
+  for (unsigned i = 0; i < veneer_pool_size / kInstructionSize; ++i) {
+    __ nop();
+  }
+
+  __ bind(&exit);
+
+  Heap* heap = isolate->heap();
+  CodeDesc desc;
+  Object* code_object = NULL;
+  Code* code;
+  masm.GetCode(&desc);
+  MaybeObject* maybe_code = heap->CreateCode(desc, 0, masm.CodeObject());
+  maybe_code->ToObject(&code_object);
+  code = Code::cast(code_object);
+
+  unsigned pool_count = 0;
+  int pool_mask = RelocInfo::ModeMask(RelocInfo::CONST_POOL) |
+                  RelocInfo::ModeMask(RelocInfo::VENEER_POOL);
+  for (RelocIterator it(code, pool_mask); !it.done(); it.next()) {
+    RelocInfo* info = it.rinfo();
+    if (RelocInfo::IsConstPool(info->rmode())) {
+      ASSERT(info->data() == constant_pool_size);
+      ++pool_count;
+    }
+    if (RelocInfo::IsVeneerPool(info->rmode())) {
+      ASSERT(info->data() == veneer_pool_size);
+      ++pool_count;
+    }
+  }
+
+  ASSERT(pool_count == 2);
+
+  TEARDOWN();
+}

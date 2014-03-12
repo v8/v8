@@ -631,6 +631,13 @@ void Assembler::ConstantPoolMarker(uint32_t size) {
 }
 
 
+void Assembler::EmitPoolGuard() {
+  // We must generate only one instruction as this is used in scopes that
+  // control the size of the code generated.
+  Emit(BLR | Rn(xzr));
+}
+
+
 void Assembler::ConstantPoolGuard() {
 #ifdef DEBUG
   // Currently this is only used after a constant pool marker.
@@ -639,9 +646,7 @@ void Assembler::ConstantPoolGuard() {
   ASSERT(instr->preceding()->IsLdrLiteralX() &&
          instr->preceding()->Rt() == xzr.code());
 #endif
-
-  // We must generate only one instruction.
-  Emit(BLR | Rn(xzr));
+  EmitPoolGuard();
 }
 
 
@@ -2434,13 +2439,15 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   RelocInfo rinfo(reinterpret_cast<byte*>(pc_), rmode, data, NULL);
   if (((rmode >= RelocInfo::JS_RETURN) &&
        (rmode <= RelocInfo::DEBUG_BREAK_SLOT)) ||
-      (rmode == RelocInfo::CONST_POOL)) {
+      (rmode == RelocInfo::CONST_POOL) ||
+      (rmode == RelocInfo::VENEER_POOL)) {
     // Adjust code for new modes.
     ASSERT(RelocInfo::IsDebugBreakSlot(rmode)
            || RelocInfo::IsJSReturn(rmode)
            || RelocInfo::IsComment(rmode)
            || RelocInfo::IsPosition(rmode)
-           || RelocInfo::IsConstPool(rmode));
+           || RelocInfo::IsConstPool(rmode)
+           || RelocInfo::IsVeneerPool(rmode));
     // These modes do not need an entry in the constant pool.
   } else {
     ASSERT(num_pending_reloc_info_ < kMaxNumPendingRelocInfo);
@@ -2577,7 +2584,8 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
       ASSERT(rinfo.rmode() != RelocInfo::COMMENT &&
              rinfo.rmode() != RelocInfo::POSITION &&
              rinfo.rmode() != RelocInfo::STATEMENT_POSITION &&
-             rinfo.rmode() != RelocInfo::CONST_POOL);
+             rinfo.rmode() != RelocInfo::CONST_POOL &&
+             rinfo.rmode() != RelocInfo::VENEER_POOL);
 
       Instruction* instr = reinterpret_cast<Instruction*>(rinfo.pc());
       // Instruction to patch must be 'ldr rd, [pc, #offset]' with offset == 0.
@@ -2615,9 +2623,31 @@ bool Assembler::ShouldEmitVeneer(int max_reachable_pc, int margin) {
 }
 
 
+void Assembler::RecordVeneerPool(int location_offset, int size) {
+#ifdef ENABLE_DEBUGGER_SUPPORT
+  RelocInfo rinfo(buffer_ + location_offset,
+                  RelocInfo::VENEER_POOL, static_cast<intptr_t>(size),
+                  NULL);
+  reloc_info_writer.Write(&rinfo);
+#endif
+}
+
+
 void Assembler::EmitVeneers(bool need_protection, int margin) {
   BlockPoolsScope scope(this);
   RecordComment("[ Veneers");
+
+  // The exact size of the veneer pool must be recorded (see the comment at the
+  // declaration site of RecordConstPool()), but computing the number of
+  // veneers that will be generated is not obvious. So instead we remember the
+  // current position and will record the size after the pool has been
+  // generated.
+  Label size_check;
+  bind(&size_check);
+  int veneer_pool_relocinfo_loc = pc_offset();
+#ifdef DEBUG
+  byte* reloc_writer_record_pos = reloc_info_writer.pos();
+#endif
 
   Label end;
   if (need_protection) {
@@ -2626,7 +2656,7 @@ void Assembler::EmitVeneers(bool need_protection, int margin) {
 
   EmitVeneersGuard();
 
-  Label size_check;
+  Label veneer_size_check;
 
   std::multimap<int, FarBranchInfo>::iterator it, it_to_delete;
 
@@ -2637,7 +2667,7 @@ void Assembler::EmitVeneers(bool need_protection, int margin) {
       Label* label = it->second.label_;
 
 #ifdef DEBUG
-      bind(&size_check);
+      bind(&veneer_size_check);
 #endif
       // Patch the branch to point to the current position, and emit a branch
       // to the label.
@@ -2646,9 +2676,9 @@ void Assembler::EmitVeneers(bool need_protection, int margin) {
       branch->SetImmPCOffsetTarget(veneer);
       b(label);
 #ifdef DEBUG
-      ASSERT(SizeOfCodeGeneratedSince(&size_check) <=
+      ASSERT(SizeOfCodeGeneratedSince(&veneer_size_check) <=
              static_cast<uint64_t>(kMaxVeneerCodeSize));
-      size_check.Unuse();
+      veneer_size_check.Unuse();
 #endif
 
       it_to_delete = it++;
@@ -2657,6 +2687,11 @@ void Assembler::EmitVeneers(bool need_protection, int margin) {
       ++it;
     }
   }
+
+  // Record the veneer pool size.
+  ASSERT(reloc_writer_record_pos == reloc_info_writer.pos());
+  int pool_size = SizeOfCodeGeneratedSince(&size_check);
+  RecordVeneerPool(veneer_pool_relocinfo_loc, pool_size);
 
   if (unresolved_branches_.empty()) {
     next_veneer_pool_check_ = kMaxInt;
@@ -2668,13 +2703,6 @@ void Assembler::EmitVeneers(bool need_protection, int margin) {
   bind(&end);
 
   RecordComment("]");
-}
-
-
-void Assembler::EmitVeneersGuard() {
-  if (emit_debug_code()) {
-    Unreachable();
-  }
 }
 
 

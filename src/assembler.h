@@ -276,9 +276,10 @@ class RelocInfo BASE_EMBEDDED {
     EXTERNAL_REFERENCE,  // The address of an external C++ function.
     INTERNAL_REFERENCE,  // An address inside the same function.
 
-    // Marks a constant pool. Only used on ARM.
-    // It uses a custom noncompact encoding.
+    // Marks constant and veneer pools. Only used on ARM and A64.
+    // They use a custom noncompact encoding.
     CONST_POOL,
+    VENEER_POOL,
 
     // add more as needed
     // Pseudo-types
@@ -288,7 +289,7 @@ class RelocInfo BASE_EMBEDDED {
     CODE_AGE_SEQUENCE,  // Not stored in RelocInfo array, used explictly by
                         // code aging.
     FIRST_REAL_RELOC_MODE = CODE_TARGET,
-    LAST_REAL_RELOC_MODE = CONST_POOL,
+    LAST_REAL_RELOC_MODE = VENEER_POOL,
     FIRST_PSEUDO_RELOC_MODE = CODE_AGE_SEQUENCE,
     LAST_PSEUDO_RELOC_MODE = CODE_AGE_SEQUENCE,
     LAST_CODE_ENUM = DEBUG_BREAK,
@@ -341,6 +342,9 @@ class RelocInfo BASE_EMBEDDED {
   }
   static inline bool IsConstPool(Mode mode) {
     return mode == CONST_POOL;
+  }
+  static inline bool IsVeneerPool(Mode mode) {
+    return mode == VENEER_POOL;
   }
   static inline bool IsPosition(Mode mode) {
     return mode == POSITION || mode == STATEMENT_POSITION;
@@ -546,7 +550,7 @@ class RelocInfoWriter BASE_EMBEDDED {
   inline void WriteTaggedPC(uint32_t pc_delta, int tag);
   inline void WriteExtraTaggedPC(uint32_t pc_delta, int extra_tag);
   inline void WriteExtraTaggedIntData(int data_delta, int top_tag);
-  inline void WriteExtraTaggedConstPoolData(int data);
+  inline void WriteExtraTaggedPoolData(int data, int pool_type);
   inline void WriteExtraTaggedData(intptr_t data_delta, int top_tag);
   inline void WriteTaggedData(intptr_t data_delta, int tag);
   inline void WriteExtraTag(int extra_tag, int top_tag);
@@ -597,7 +601,7 @@ class RelocIterator: public Malloced {
   void ReadTaggedPC();
   void AdvanceReadPC();
   void AdvanceReadId();
-  void AdvanceReadConstPoolData();
+  void AdvanceReadPoolData();
   void AdvanceReadPosition();
   void AdvanceReadData();
   void AdvanceReadVariableLengthPCJump();
