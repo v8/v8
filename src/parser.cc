@@ -452,6 +452,12 @@ bool ParserTraits::IsEvalOrArguments(Handle<String> identifier) const {
 void ParserTraits::ReportMessageAt(Scanner::Location source_location,
                                    const char* message,
                                    Vector<const char*> args) {
+  if (parser_->stack_overflow()) {
+    // Suppress the error message (syntax error or such) in the presence of a
+    // stack overflow. The isolate allows only one pending exception at at time
+    // and we want to report the stack overflow later.
+    return;
+  }
   MessageLocation location(parser_->script_,
                            source_location.beg_pos,
                            source_location.end_pos);
@@ -477,6 +483,12 @@ void ParserTraits::ReportMessage(const char* message,
 void ParserTraits::ReportMessageAt(Scanner::Location source_location,
                                    const char* message,
                                    Vector<Handle<String> > args) {
+  if (parser_->stack_overflow()) {
+    // Suppress the error message (syntax error or such) in the presence of a
+    // stack overflow. The isolate allows only one pending exception at at time
+    // and we want to report the stack overflow later.
+    return;
+  }
   MessageLocation location(parser_->script_,
                            source_location.beg_pos,
                            source_location.end_pos);
