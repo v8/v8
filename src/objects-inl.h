@@ -1739,7 +1739,7 @@ MaybeObject* JSObject::ResetElements() {
     SeededNumberDictionary* dictionary;
     MaybeObject* maybe = SeededNumberDictionary::Allocate(GetHeap(), 0);
     if (!maybe->To(&dictionary)) return maybe;
-    if (map() == GetHeap()->non_strict_arguments_elements_map()) {
+    if (map() == GetHeap()->sloppy_arguments_elements_map()) {
       FixedArray::cast(elements())->set(1, dictionary);
     } else {
       set_elements(dictionary);
@@ -5146,39 +5146,21 @@ int SharedFunctionInfo::profiler_ticks() {
 }
 
 
-LanguageMode SharedFunctionInfo::language_mode() {
-  int hints = compiler_hints();
-  if (BooleanBit::get(hints, kExtendedModeFunction)) {
-    ASSERT(BooleanBit::get(hints, kStrictModeFunction));
-    return EXTENDED_MODE;
-  }
-  return BooleanBit::get(hints, kStrictModeFunction)
-      ? STRICT_MODE : CLASSIC_MODE;
+StrictMode SharedFunctionInfo::strict_mode() {
+  return BooleanBit::get(compiler_hints(), kStrictModeFunction)
+      ? STRICT : SLOPPY;
 }
 
 
-void SharedFunctionInfo::set_language_mode(LanguageMode language_mode) {
-  // We only allow language mode transitions that go set the same language mode
-  // again or go up in the chain:
-  //   CLASSIC_MODE -> STRICT_MODE -> EXTENDED_MODE.
-  ASSERT(this->language_mode() == CLASSIC_MODE ||
-         this->language_mode() == language_mode ||
-         language_mode == EXTENDED_MODE);
+void SharedFunctionInfo::set_strict_mode(StrictMode strict_mode) {
+  // We only allow mode transitions from sloppy to strict.
+  ASSERT(this->strict_mode() == SLOPPY || this->strict_mode() == strict_mode);
   int hints = compiler_hints();
-  hints = BooleanBit::set(
-      hints, kStrictModeFunction, language_mode != CLASSIC_MODE);
-  hints = BooleanBit::set(
-      hints, kExtendedModeFunction, language_mode == EXTENDED_MODE);
+  hints = BooleanBit::set(hints, kStrictModeFunction, strict_mode == STRICT);
   set_compiler_hints(hints);
 }
 
 
-bool SharedFunctionInfo::is_classic_mode() {
-  return !BooleanBit::get(compiler_hints(), kStrictModeFunction);
-}
-
-BOOL_GETTER(SharedFunctionInfo, compiler_hints, is_extended_mode,
-            kExtendedModeFunction)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, native, kNative)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, inline_builtin,
                kInlineBuiltin)
@@ -5448,6 +5430,11 @@ void JSFunction::ReplaceCode(Code* code) {
   bool was_optimized = IsOptimized();
   bool is_optimized = code->kind() == Code::OPTIMIZED_FUNCTION;
 
+  if (was_optimized && is_optimized) {
+    shared()->EvictFromOptimizedCodeMap(this->code(),
+        "Replacing with another optimized code");
+  }
+
   set_code(code);
 
   // Add/remove the function from the list of optimized functions for this
@@ -5704,6 +5691,7 @@ void Code::WipeOutHeader() {
   WRITE_FIELD(this, kRelocationInfoOffset, NULL);
   WRITE_FIELD(this, kHandlerTableOffset, NULL);
   WRITE_FIELD(this, kDeoptimizationDataOffset, NULL);
+  WRITE_FIELD(this, kConstantPoolOffset, NULL);
   // Do not wipe out e.g. a minor key.
   if (!READ_FIELD(this, kTypeFeedbackInfoOffset)->IsSmi()) {
     WRITE_FIELD(this, kTypeFeedbackInfoOffset, NULL);
@@ -5925,7 +5913,7 @@ ElementsKind JSObject::GetElementsKind() {
             fixed_array->IsFixedArray() &&
             fixed_array->IsDictionary()) ||
            (kind > DICTIONARY_ELEMENTS));
-    ASSERT((kind != NON_STRICT_ARGUMENTS_ELEMENTS) ||
+    ASSERT((kind != SLOPPY_ARGUMENTS_ELEMENTS) ||
            (elements()->IsFixedArray() && elements()->length() >= 2));
   }
 #endif
@@ -5973,8 +5961,8 @@ bool JSObject::HasDictionaryElements() {
 }
 
 
-bool JSObject::HasNonStrictArgumentsElements() {
-  return GetElementsKind() == NON_STRICT_ARGUMENTS_ELEMENTS;
+bool JSObject::HasSloppyArgumentsElements() {
+  return GetElementsKind() == SLOPPY_ARGUMENTS_ELEMENTS;
 }
 
 

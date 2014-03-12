@@ -1042,7 +1042,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
         (1 << SharedFunctionInfo::kNative),
         &shift_arguments);
 
-    // Compute the receiver in non-strict mode.
+    // Compute the receiver in sloppy mode.
     Register receiver = x2;
     __ Sub(scratch1, argc, 1);
     __ Peek(receiver, Operand(scratch1, LSL, kXRegSizeInBytesLog2));
@@ -1244,7 +1244,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
     // Do not transform the receiver for native functions.
     __ Tbnz(x10, SharedFunctionInfo::kNative, &push_receiver);
 
-    // Compute the receiver in non-strict mode.
+    // Compute the receiver in sloppy mode.
     __ JumpIfSmi(receiver, &convert_receiver_to_object);
     __ JumpIfRoot(receiver, Heap::kNullValueRootIndex, &use_global_receiver);
     __ JumpIfRoot(receiver, Heap::kUndefinedValueRootIndex,

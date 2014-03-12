@@ -175,11 +175,11 @@ bool LCodeGen::GeneratePrologue() {
     }
 #endif
 
-    // Classic mode functions and builtins need to replace the receiver with the
+    // Sloppy mode functions and builtins need to replace the receiver with the
     // global proxy when called as functions (without an explicit receiver
     // object).
     if (info_->this_has_uses() &&
-        info_->is_classic_mode() &&
+        info_->strict_mode() == SLOPPY &&
         !info_->is_native()) {
       Label ok;
       // +1 for return address.
@@ -390,6 +390,9 @@ void LCodeGen::GenerateOsrPrologue() {
 
 
 void LCodeGen::GenerateBodyInstructionPre(LInstruction* instr) {
+  if (!instr->IsLazyBailout() && !instr->IsGap()) {
+    safepoints_.BumpLastLazySafepointIndex();
+  }
   if (!CpuFeatures::IsSupported(SSE2)) FlushX87StackIfNecessary(instr);
 }
 
@@ -1421,8 +1424,7 @@ void LCodeGen::DoModByConstI(LModByConstI* instr) {
 
   // Check for negative zero.
   HMod* hmod = instr->hydrogen();
-  if (hmod->CheckFlag(HValue::kBailoutOnMinusZero) &&
-      hmod->left()->CanBeNegative()) {
+  if (hmod->CheckFlag(HValue::kBailoutOnMinusZero)) {
     Label remainder_not_zero;
     __ j(not_zero, &remainder_not_zero, Label::kNear);
     __ cmp(dividend, Immediate(0));
@@ -1434,8 +1436,6 @@ void LCodeGen::DoModByConstI(LModByConstI* instr) {
 
 void LCodeGen::DoModI(LModI* instr) {
   HMod* hmod = instr->hydrogen();
-  HValue* left = hmod->left();
-  HValue* right = hmod->right();
 
   Register left_reg = ToRegister(instr->left());
   ASSERT(left_reg.is(eax));
@@ -1448,14 +1448,14 @@ void LCodeGen::DoModI(LModI* instr) {
   Label done;
   // Check for x % 0, idiv would signal a divide error. We have to
   // deopt in this case because we can't return a NaN.
-  if (right->CanBeZero()) {
+  if (hmod->CheckFlag(HValue::kCanBeDivByZero)) {
     __ test(right_reg, Operand(right_reg));
     DeoptimizeIf(zero, instr->environment());
   }
 
   // Check for kMinInt % -1, idiv would signal a divide error. We
   // have to deopt if we care about -0, because we can't return that.
-  if (left->RangeCanInclude(kMinInt) && right->RangeCanInclude(-1)) {
+  if (hmod->CheckFlag(HValue::kCanOverflow)) {
     Label no_overflow_possible;
     __ cmp(left_reg, kMinInt);
     __ j(not_equal, &no_overflow_possible, Label::kNear);
@@ -1474,9 +1474,7 @@ void LCodeGen::DoModI(LModI* instr) {
   __ cdq();
 
   // If we care about -0, test if the dividend is <0 and the result is 0.
-  if (left->CanBeNegative() &&
-      hmod->CanBeZero() &&
-      hmod->CheckFlag(HValue::kBailoutOnMinusZero)) {
+  if (hmod->CheckFlag(HValue::kBailoutOnMinusZero)) {
     Label positive_left;
     __ test(left_reg, Operand(left_reg));
     __ j(not_sign, &positive_left, Label::kNear);
@@ -1500,14 +1498,12 @@ void LCodeGen::DoDivByPowerOf2I(LDivByPowerOf2I* instr) {
 
   // Check for (0 / -x) that will produce negative zero.
   HDiv* hdiv = instr->hydrogen();
-  if (hdiv->CheckFlag(HValue::kBailoutOnMinusZero) &&
-      hdiv->left()->RangeCanInclude(0) && divisor < 0) {
+  if (hdiv->CheckFlag(HValue::kBailoutOnMinusZero) && divisor < 0) {
     __ test(dividend, dividend);
     DeoptimizeIf(zero, instr->environment());
   }
   // Check for (kMinInt / -1).
-  if (hdiv->CheckFlag(HValue::kCanOverflow) &&
-      hdiv->left()->RangeCanInclude(kMinInt) && divisor == -1) {
+  if (hdiv->CheckFlag(HValue::kCanOverflow) && divisor == -1) {
     __ cmp(dividend, kMinInt);
     DeoptimizeIf(zero, instr->environment());
   }
@@ -1543,8 +1539,7 @@ void LCodeGen::DoDivByConstI(LDivByConstI* instr) {
 
   // Check for (0 / -x) that will produce negative zero.
   HDiv* hdiv = instr->hydrogen();
-  if (hdiv->CheckFlag(HValue::kBailoutOnMinusZero) &&
-      hdiv->left()->RangeCanInclude(0) && divisor < 0) {
+  if (hdiv->CheckFlag(HValue::kBailoutOnMinusZero) && divisor < 0) {
     __ test(dividend, dividend);
     DeoptimizeIf(zero, instr->environment());
   }
@@ -1565,6 +1560,7 @@ void LCodeGen::DoDivByConstI(LDivByConstI* instr) {
 
 
 void LCodeGen::DoDivI(LDivI* instr) {
+  HBinaryOperation* hdiv = instr->hydrogen();
   Register dividend = ToRegister(instr->left());
   Register divisor = ToRegister(instr->right());
   Register remainder = ToRegister(instr->temp());
@@ -1576,7 +1572,6 @@ void LCodeGen::DoDivI(LDivI* instr) {
   ASSERT(!divisor.is(edx));
 
   // Check for x / 0.
-  HBinaryOperation* hdiv = instr->hydrogen();
   if (hdiv->CheckFlag(HValue::kCanBeDivByZero)) {
     __ test(divisor, divisor);
     DeoptimizeIf(zero, instr->environment());
@@ -1606,7 +1601,7 @@ void LCodeGen::DoDivI(LDivI* instr) {
   __ cdq();
   __ idiv(divisor);
 
-  if (instr->is_flooring()) {
+  if (hdiv->IsMathFloorOfDiv()) {
     Label done;
     __ test(remainder, remainder);
     __ j(zero, &done, Label::kNear);
@@ -1614,8 +1609,7 @@ void LCodeGen::DoDivI(LDivI* instr) {
     __ sar(remainder, 31);
     __ add(result, remainder);
     __ bind(&done);
-  } else if (!instr->hydrogen()->CheckFlag(
-      HInstruction::kAllUsesTruncatingToInt32)) {
+  } else if (!hdiv->CheckFlag(HValue::kAllUsesTruncatingToInt32)) {
     // Deoptimize if remainder is not 0.
     __ test(remainder, remainder);
     DeoptimizeIf(not_zero, instr->environment());
@@ -1672,8 +1666,7 @@ void LCodeGen::DoFlooringDivByConstI(LFlooringDivByConstI* instr) {
 
   // Check for (0 / -x) that will produce negative zero.
   HMathFloorOfDiv* hdiv = instr->hydrogen();
-  if (hdiv->CheckFlag(HValue::kBailoutOnMinusZero) &&
-      hdiv->left()->RangeCanInclude(0) && divisor < 0) {
+  if (hdiv->CheckFlag(HValue::kBailoutOnMinusZero) && divisor < 0) {
     __ test(dividend, dividend);
     DeoptimizeIf(zero, instr->environment());
   }
@@ -2295,7 +2288,6 @@ void LCodeGen::DoArithmeticT(LArithmeticT* instr) {
 
   BinaryOpICStub stub(instr->op(), NO_OVERWRITE);
   CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
-  __ nop();  // Signals no inlined code.
 }
 
 
@@ -3428,7 +3420,7 @@ void LCodeGen::DoLoadKeyedExternalArray(LLoadKeyed* instr) {
       case FAST_HOLEY_ELEMENTS:
       case FAST_HOLEY_DOUBLE_ELEMENTS:
       case DICTIONARY_ELEMENTS:
-      case NON_STRICT_ARGUMENTS_ELEMENTS:
+      case SLOPPY_ARGUMENTS_ELEMENTS:
         UNREACHABLE();
         break;
     }
@@ -4435,8 +4427,7 @@ void LCodeGen::DoStoreNamedGeneric(LStoreNamedGeneric* instr) {
   ASSERT(ToRegister(instr->value()).is(eax));
 
   __ mov(ecx, instr->name());
-  Handle<Code> ic = StoreIC::initialize_stub(isolate(),
-                                             instr->strict_mode_flag());
+  Handle<Code> ic = StoreIC::initialize_stub(isolate(), instr->strict_mode());
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
 }
 
@@ -4541,7 +4532,7 @@ void LCodeGen::DoStoreKeyedExternalArray(LStoreKeyed* instr) {
       case FAST_HOLEY_ELEMENTS:
       case FAST_HOLEY_DOUBLE_ELEMENTS:
       case DICTIONARY_ELEMENTS:
-      case NON_STRICT_ARGUMENTS_ELEMENTS:
+      case SLOPPY_ARGUMENTS_ELEMENTS:
         UNREACHABLE();
         break;
     }
@@ -4687,7 +4678,7 @@ void LCodeGen::DoStoreKeyedGeneric(LStoreKeyedGeneric* instr) {
   ASSERT(ToRegister(instr->key()).is(ecx));
   ASSERT(ToRegister(instr->value()).is(eax));
 
-  Handle<Code> ic = (instr->strict_mode_flag() == kStrictMode)
+  Handle<Code> ic = instr->strict_mode() == STRICT
       ? isolate()->builtins()->KeyedStoreIC_Initialize_Strict()
       : isolate()->builtins()->KeyedStoreIC_Initialize();
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
@@ -5998,7 +5989,7 @@ void LCodeGen::DoFunctionLiteral(LFunctionLiteral* instr) {
   // space for nested functions that don't need literals cloning.
   bool pretenure = instr->hydrogen()->pretenure();
   if (!pretenure && instr->hydrogen()->has_no_literals()) {
-    FastNewClosureStub stub(instr->hydrogen()->language_mode(),
+    FastNewClosureStub stub(instr->hydrogen()->strict_mode(),
                             instr->hydrogen()->is_generator());
     __ mov(ebx, Immediate(instr->hydrogen()->shared_info()));
     CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);

@@ -222,11 +222,11 @@ void ArgumentsAccessStub::Generate(MacroAssembler* masm) {
     case READ_ELEMENT:
       GenerateReadElement(masm);
       break;
-    case NEW_NON_STRICT_FAST:
-      GenerateNewNonStrictFast(masm);
+    case NEW_SLOPPY_FAST:
+      GenerateNewSloppyFast(masm);
       break;
-    case NEW_NON_STRICT_SLOW:
-      GenerateNewNonStrictSlow(masm);
+    case NEW_SLOPPY_SLOW:
+      GenerateNewSloppySlow(masm);
       break;
     case NEW_STRICT:
       GenerateNewStrict(masm);

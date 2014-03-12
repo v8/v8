@@ -192,7 +192,7 @@ def Command(cmd, args="", prefix="", pipe=True):
 
 
 # Wrapper for side effects.
-class SideEffectHandler(object):
+class SideEffectHandler(object):  # pragma: no cover
   def Call(self, fun, *args, **kwargs):
     return fun(*args, **kwargs)
 
@@ -270,7 +270,7 @@ class Step(GitRecipesMixin):
     # Persist state.
     TextToFile(json.dumps(self._state), state_file)
 
-  def RunStep(self):
+  def RunStep(self):  # pragma: no cover
     raise NotImplementedError
 
   def Retry(self, cb, retry_on=None, wait_plan=None):
@@ -295,7 +295,7 @@ class Step(GitRecipesMixin):
       except Exception:
         got_exception = True
       if got_exception or retry_on(result):
-        if not wait_plan:
+        if not wait_plan:  # pragma: no cover
           raise Exception("Retried too often. Giving up.")
         wait_time = wait_plan.pop()
         print "Waiting for %f seconds." % wait_time
@@ -343,7 +343,7 @@ class Step(GitRecipesMixin):
     raise Exception(msg)
 
   def DieNoManualMode(self, msg=""):
-    if not self._options.manual:
+    if not self._options.manual:  # pragma: no cover
       msg = msg or "Only available in manual mode."
       self.Die(msg)
 
@@ -365,17 +365,17 @@ class Step(GitRecipesMixin):
 
   def InitialEnvironmentChecks(self):
     # Cancel if this is not a git checkout.
-    if not os.path.exists(self._config[DOT_GIT_LOCATION]):
+    if not os.path.exists(self._config[DOT_GIT_LOCATION]):  # pragma: no cover
       self.Die("This is not a git checkout, this script won't work for you.")
 
     # Cancel if EDITOR is unset or not executable.
     if (self._options.requires_editor and (not os.environ.get("EDITOR") or
-        Command("which", os.environ["EDITOR"]) is None)):
+        Command("which", os.environ["EDITOR"]) is None)):  # pragma: no cover
       self.Die("Please set your EDITOR environment variable, you'll need it.")
 
   def CommonPrepare(self):
     # Check for a clean workdir.
-    if not self.GitIsWorkdirClean():
+    if not self.GitIsWorkdirClean():  # pragma: no cover
       self.Die("Workspace is not clean. Please commit or undo your changes.")
 
     # Persist current branch.
@@ -507,7 +507,7 @@ class ScriptsBase(object):
   def _ProcessOptions(self, options):
     return True
 
-  def _Steps(self):
+  def _Steps(self):  # pragma: no cover
     raise Exception("Not implemented.")
 
   def MakeOptions(self, args=None):
@@ -522,13 +522,13 @@ class ScriptsBase(object):
 
     self._PrepareOptions(parser)
 
-    if args is None:
+    if args is None:  # pragma: no cover
       options = parser.parse_args()
     else:
       options = parser.parse_args(args)
 
     # Process common options.
-    if options.step < 0:
+    if options.step < 0:  # pragma: no cover
       print "Bad step number %d" % options.step
       parser.print_help()
       return None

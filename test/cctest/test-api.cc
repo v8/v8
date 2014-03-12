@@ -5940,7 +5940,7 @@ THREADED_TEST(IndexedInterceptorUnboxedDoubleWithIndexedAccessor) {
 }
 
 
-void NonStrictArgsIndexedPropertyEnumerator(
+void SloppyArgsIndexedPropertyEnumerator(
     const v8::PropertyCallbackInfo<v8::Array>& info) {
   // Force the list of returned keys to be stored in a Arguments object.
   Local<Script> indexed_property_names_script = v8_compile(
@@ -5959,7 +5959,7 @@ void NonStrictArgsIndexedPropertyEnumerator(
 }
 
 
-static void NonStrictIndexedPropertyGetter(
+static void SloppyIndexedPropertyGetter(
     uint32_t index,
     const v8::PropertyCallbackInfo<v8::Value>& info) {
   ApiTestFuzzer::Fuzz();
@@ -5971,15 +5971,15 @@ static void NonStrictIndexedPropertyGetter(
 
 // Make sure that the the interceptor code in the runtime properly handles
 // merging property name lists for non-string arguments arrays.
-THREADED_TEST(IndexedInterceptorNonStrictArgsWithIndexedAccessor) {
+THREADED_TEST(IndexedInterceptorSloppyArgsWithIndexedAccessor) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
-  templ->SetIndexedPropertyHandler(NonStrictIndexedPropertyGetter,
+  templ->SetIndexedPropertyHandler(SloppyIndexedPropertyGetter,
                                    0,
                                    0,
                                    0,
-                                   NonStrictArgsIndexedPropertyEnumerator);
+                                   SloppyArgsIndexedPropertyEnumerator);
   LocalContext context;
   context->Global()->Set(v8_str("obj"), templ->NewInstance());
   Local<Script> create_args_script = v8_compile(
@@ -15653,20 +15653,17 @@ THREADED_TEST(PixelArray) {
   i::Handle<i::Smi> value(i::Smi::FromInt(2),
                           reinterpret_cast<i::Isolate*>(context->GetIsolate()));
   i::Handle<i::Object> no_failure;
-  no_failure =
-      i::JSObject::SetElement(jsobj, 1, value, NONE, i::kNonStrictMode);
+  no_failure = i::JSObject::SetElement(jsobj, 1, value, NONE, i::SLOPPY);
   ASSERT(!no_failure.is_null());
   i::USE(no_failure);
   CheckElementValue(isolate, 2, jsobj, 1);
   *value.location() = i::Smi::FromInt(256);
-  no_failure =
-      i::JSObject::SetElement(jsobj, 1, value, NONE, i::kNonStrictMode);
+  no_failure = i::JSObject::SetElement(jsobj, 1, value, NONE, i::SLOPPY);
   ASSERT(!no_failure.is_null());
   i::USE(no_failure);
   CheckElementValue(isolate, 255, jsobj, 1);
   *value.location() = i::Smi::FromInt(-1);
-  no_failure =
-      i::JSObject::SetElement(jsobj, 1, value, NONE, i::kNonStrictMode);
+  no_failure = i::JSObject::SetElement(jsobj, 1, value, NONE, i::SLOPPY);
   ASSERT(!no_failure.is_null());
   i::USE(no_failure);
   CheckElementValue(isolate, 0, jsobj, 1);
@@ -22112,4 +22109,98 @@ TEST(EventLogging) {
   histogramTimer->Stop();
   CHECK_EQ("V8.Test", last_event_message);
   CHECK_EQ(1, last_event_status);
+}
+
+
+TEST(Promises) {
+  i::FLAG_harmony_promises = true;
+
+  LocalContext context;
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::HandleScope scope(isolate);
+  Handle<Object> global = context->Global();
+
+  // Creation.
+  Handle<v8::Promise> p = v8::Promise::New(isolate);
+  Handle<v8::Promise> r = v8::Promise::New(isolate);
+
+  // IsPromise predicate.
+  CHECK(p->IsPromise());
+  CHECK(r->IsPromise());
+  Handle<Value> o = v8::Object::New(isolate);
+  CHECK(!o->IsPromise());
+
+  // Resolution and rejection.
+  p->Resolve(v8::Integer::New(isolate, 1));
+  CHECK(p->IsPromise());
+  r->Reject(v8::Integer::New(isolate, 2));
+  CHECK(r->IsPromise());
+
+  // Chaining non-pending promises.
+  CompileRun(
+      "var x1 = 0;\n"
+      "var x2 = 0;\n"
+      "function f1(x) { x1 = x; return x+1 };\n"
+      "function f2(x) { x2 = x; return x+1 };\n");
+  Handle<Function> f1 = Handle<Function>::Cast(global->Get(v8_str("f1")));
+  Handle<Function> f2 = Handle<Function>::Cast(global->Get(v8_str("f2")));
+
+  p->Chain(f1);
+  CHECK_EQ(0, global->Get(v8_str("x1"))->Int32Value());
+  V8::RunMicrotasks(isolate);
+  CHECK_EQ(1, global->Get(v8_str("x1"))->Int32Value());
+
+  p->Catch(f2);
+  V8::RunMicrotasks(isolate);
+  CHECK_EQ(0, global->Get(v8_str("x2"))->Int32Value());
+
+  r->Catch(f2);
+  CHECK_EQ(0, global->Get(v8_str("x2"))->Int32Value());
+  V8::RunMicrotasks(isolate);
+  CHECK_EQ(2, global->Get(v8_str("x2"))->Int32Value());
+
+  r->Chain(f1);
+  V8::RunMicrotasks(isolate);
+  CHECK_EQ(1, global->Get(v8_str("x1"))->Int32Value());
+
+  // Chaining pending promises.
+  CompileRun("x1 = x2 = 0;");
+  p = v8::Promise::New(isolate);
+  r = v8::Promise::New(isolate);
+
+  p->Chain(f1);
+  r->Catch(f2);
+  V8::RunMicrotasks(isolate);
+  CHECK_EQ(0, global->Get(v8_str("x1"))->Int32Value());
+  CHECK_EQ(0, global->Get(v8_str("x2"))->Int32Value());
+
+  p->Resolve(v8::Integer::New(isolate, 1));
+  r->Reject(v8::Integer::New(isolate, 2));
+  CHECK_EQ(0, global->Get(v8_str("x1"))->Int32Value());
+  CHECK_EQ(0, global->Get(v8_str("x2"))->Int32Value());
+
+  V8::RunMicrotasks(isolate);
+  CHECK_EQ(1, global->Get(v8_str("x1"))->Int32Value());
+  CHECK_EQ(2, global->Get(v8_str("x2"))->Int32Value());
+
+  // Multi-chaining.
+  CompileRun("x1 = x2 = 0;");
+  p = v8::Promise::New(isolate);
+  p->Chain(f1)->Chain(f2);
+  p->Resolve(v8::Integer::New(isolate, 3));
+  CHECK_EQ(0, global->Get(v8_str("x1"))->Int32Value());
+  CHECK_EQ(0, global->Get(v8_str("x2"))->Int32Value());
+  V8::RunMicrotasks(isolate);
+  CHECK_EQ(3, global->Get(v8_str("x1"))->Int32Value());
+  CHECK_EQ(4, global->Get(v8_str("x2"))->Int32Value());
+
+  CompileRun("x1 = x2 = 0;");
+  r = v8::Promise::New(isolate);
+  r->Catch(f1)->Chain(f2);
+  r->Reject(v8::Integer::New(isolate, 3));
+  CHECK_EQ(0, global->Get(v8_str("x1"))->Int32Value());
+  CHECK_EQ(0, global->Get(v8_str("x2"))->Int32Value());
+  V8::RunMicrotasks(isolate);
+  CHECK_EQ(3, global->Get(v8_str("x1"))->Int32Value());
+  CHECK_EQ(4, global->Get(v8_str("x2"))->Int32Value());
 }

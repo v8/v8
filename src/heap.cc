@@ -614,6 +614,9 @@ void Heap::GarbageCollectionEpilogue() {
   if (FLAG_code_stats) ReportCodeStatistics("After GC");
 #endif
   if (FLAG_deopt_every_n_garbage_collections > 0) {
+    // TODO(jkummerow/ulan/jarin): This is not safe! We can't assume that
+    // the topmost optimized frame can be deoptimized safely, because it
+    // might not have a lazy bailout point right after its current PC.
     if (++gcs_since_last_deopt_ == FLAG_deopt_every_n_garbage_collections) {
       Deoptimizer::DeoptimizeAll(isolate());
       gcs_since_last_deopt_ = 0;
@@ -2866,7 +2869,7 @@ bool Heap::CreateInitialMaps() {
      TYPED_ARRAYS(ALLOCATE_FIXED_TYPED_ARRAY_MAP)
 #undef ALLOCATE_FIXED_TYPED_ARRAY_MAP
 
-    ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, non_strict_arguments_elements)
+    ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, sloppy_arguments_elements)
 
     ALLOCATE_VARSIZE_MAP(CODE_TYPE, code)
 
@@ -4277,16 +4280,15 @@ MaybeObject* Heap::AllocateArgumentsObject(Object* callee, int length) {
   JSObject* boilerplate;
   int arguments_object_size;
   bool strict_mode_callee = callee->IsJSFunction() &&
-      !JSFunction::cast(callee)->shared()->is_classic_mode();
+      JSFunction::cast(callee)->shared()->strict_mode() == STRICT;
   if (strict_mode_callee) {
     boilerplate =
-        isolate()->context()->native_context()->
-            strict_mode_arguments_boilerplate();
-    arguments_object_size = kArgumentsObjectSizeStrict;
+        isolate()->context()->native_context()->strict_arguments_boilerplate();
+    arguments_object_size = kStrictArgumentsObjectSize;
   } else {
     boilerplate =
-        isolate()->context()->native_context()->arguments_boilerplate();
-    arguments_object_size = kArgumentsObjectSize;
+        isolate()->context()->native_context()->sloppy_arguments_boilerplate();
+    arguments_object_size = kSloppyArgumentsObjectSize;
   }
 
   // Check that the size of the boilerplate matches our
@@ -4312,7 +4314,7 @@ MaybeObject* Heap::AllocateArgumentsObject(Object* callee, int length) {
   JSObject::cast(result)->InObjectPropertyAtPut(kArgumentsLengthIndex,
                                                 Smi::FromInt(length),
                                                 SKIP_WRITE_BARRIER);
-  // Set the callee property for non-strict mode arguments object only.
+  // Set the callee property for sloppy mode arguments object only.
   if (!strict_mode_callee) {
     JSObject::cast(result)->InObjectPropertyAtPut(kArgumentsCalleeIndex,
                                                   callee);

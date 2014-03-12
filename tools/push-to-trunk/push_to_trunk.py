@@ -36,6 +36,7 @@ from common_includes import *
 TRUNKBRANCH = "TRUNKBRANCH"
 CHROMIUM = "CHROMIUM"
 DEPS_FILE = "DEPS_FILE"
+NEW_CHANGELOG_FILE = "NEW_CHANGELOG_FILE"
 
 CONFIG = {
   BRANCHNAME: "prepare-push",
@@ -45,6 +46,7 @@ CONFIG = {
   DOT_GIT_LOCATION: ".git",
   VERSION_FILE: "src/version.cc",
   CHANGELOG_FILE: "ChangeLog",
+  NEW_CHANGELOG_FILE: "/tmp/v8-push-to-trunk-tempfile-new-changelog",
   CHANGELOG_ENTRY_FILE: "/tmp/v8-push-to-trunk-tempfile-changelog-entry",
   PATCH_FILE: "/tmp/v8-push-to-trunk-tempfile-patch-file",
   COMMITMSG_FILE: "/tmp/v8-push-to-trunk-tempfile-commitmsg",
@@ -93,11 +95,11 @@ class DetectLastPush(Step):
       # the push commit message.
       last_push_title = self.GitLog(n=1, format="%s", git_hash=last_push)
       last_push_be_svn = PUSH_MESSAGE_RE.match(last_push_title).group(1)
-      if not last_push_be_svn:
+      if not last_push_be_svn:  # pragma: no cover
         self.Die("Could not retrieve bleeding edge revision for trunk push %s"
                  % last_push)
       last_push_bleeding_edge = self.GitSVNFindGitHash(last_push_be_svn)
-      if not last_push_bleeding_edge:
+      if not last_push_bleeding_edge:  # pragma: no cover
         self.Die("Could not retrieve bleeding edge git hash for trunk push %s"
                  % last_push)
 
@@ -127,7 +129,7 @@ class PrepareChangeLog(Step):
         # Fetch from Rietveld but only retry once with one second delay since
         # there might be many revisions.
         body = self.ReadURL(cl_url, wait_plan=[1])
-      except urllib2.URLError:
+      except urllib2.URLError:  # pragma: no cover
         pass
     return body
 
@@ -177,8 +179,6 @@ class EditChangeLog(Step):
            "save the file and exit your EDITOR. ")
     self.ReadLine(default="")
     self.Editor(self.Config(CHANGELOG_ENTRY_FILE))
-    handle, new_changelog = tempfile.mkstemp()
-    os.close(handle)
 
     # Strip comments and reformat with correct indentation.
     changelog_entry = FileToText(self.Config(CHANGELOG_ENTRY_FILE)).rstrip()
@@ -186,16 +186,15 @@ class EditChangeLog(Step):
     changelog_entry = "\n".join(map(Fill80, changelog_entry.splitlines()))
     changelog_entry = changelog_entry.lstrip()
 
-    if changelog_entry == "":
+    if changelog_entry == "":  # pragma: no cover
       self.Die("Empty ChangeLog entry.")
 
-    with open(new_changelog, "w") as f:
-      f.write(changelog_entry)
-      f.write("\n\n\n")  # Explicitly insert two empty lines.
+    # Safe new change log for adding it later to the trunk patch.
+    TextToFile(changelog_entry, self.Config(NEW_CHANGELOG_FILE))
 
-    AppendToFile(FileToText(self.Config(CHANGELOG_FILE)), new_changelog)
-    TextToFile(FileToText(new_changelog), self.Config(CHANGELOG_FILE))
-    os.remove(new_changelog)
+    old_change_log = FileToText(self.Config(CHANGELOG_FILE))
+    new_change_log = "%s\n\n\n%s" % (changelog_entry, old_change_log)
+    TextToFile(new_change_log, self.Config(CHANGELOG_FILE))
 
 
 class IncrementVersion(Step):
@@ -291,7 +290,7 @@ class SquashCommits(Step):
     strip = lambda line: line.strip()
     text = SplitMapJoin("\n\n", SplitMapJoin("\n", strip, " "), "\n\n")(text)
 
-    if not text:
+    if not text:  # pragma: no cover
       self.Die("Commit message editing failed.")
     TextToFile(text, self.Config(COMMITMSG_FILE))
     os.remove(self.Config(CHANGELOG_ENTRY_FILE))
@@ -348,7 +347,7 @@ class SanityCheck(Step):
     if not self.Confirm("Please check if your local checkout is sane: Inspect "
         "%s, compile, run tests. Do you want to commit this new trunk "
         "revision to the repository?" % self.Config(VERSION_FILE)):
-      self.Die("Execution canceled.")
+      self.Die("Execution canceled.")  # pragma: no cover
 
 
 class CommitSVN(Step):
@@ -356,7 +355,7 @@ class CommitSVN(Step):
 
   def RunStep(self):
     result = self.GitSVNDCommit()
-    if not result:
+    if not result:  # pragma: no cover
       self.Die("'git svn dcommit' failed.")
     result = filter(lambda x: re.search(r"^Committed r[0-9]+", x),
                     result.splitlines())
@@ -406,10 +405,10 @@ class SwitchChromium(Step):
     os.chdir(self["chrome_path"])
     self.InitialEnvironmentChecks()
     # Check for a clean workdir.
-    if not self.GitIsWorkdirClean():
+    if not self.GitIsWorkdirClean():  # pragma: no cover
       self.Die("Workspace is not clean. Please commit or undo your changes.")
     # Assert that the DEPS file is there.
-    if not os.path.exists(self.Config(DEPS_FILE)):
+    if not os.path.exists(self.Config(DEPS_FILE)):  # pragma: no cover
       self.Die("DEPS file not present.")
 
 
@@ -469,7 +468,7 @@ class CleanUp(Step):
       print("Congratulations, you have successfully created the trunk "
             "revision %s and rolled it into Chromium. Please don't forget to "
             "update the v8rel spreadsheet:" % self["version"])
-    else:
+    else:  # pragma: no cover
       print("Congratulations, you have successfully created the trunk "
             "revision %s. Please don't forget to roll this new version into "
             "Chromium, and to update the v8rel spreadsheet:"
@@ -501,7 +500,7 @@ class PushToTrunk(ScriptsBase):
     parser.add_argument("-l", "--last-push",
                         help="The git commit ID of the last push to trunk.")
 
-  def _ProcessOptions(self, options):
+  def _ProcessOptions(self, options):  # pragma: no cover
     if not options.manual and not options.reviewer:
       print "A reviewer (-r) is required in (semi-)automatic mode."
       return False
@@ -544,5 +543,5 @@ class PushToTrunk(ScriptsBase):
     ]
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
   sys.exit(PushToTrunk(CONFIG).Run())

@@ -619,15 +619,6 @@ LInstruction* LChunkBuilder::MarkAsCall(LInstruction* instr,
   instr->MarkAsCall();
   instr = AssignPointerMap(instr);
 
-  if (hinstr->HasObservableSideEffects()) {
-    ASSERT(hinstr->next()->IsSimulate());
-    HSimulate* sim = HSimulate::cast(hinstr->next());
-    ASSERT(instruction_pending_deoptimization_environment_ == NULL);
-    ASSERT(pending_deoptimization_ast_id_.IsNone());
-    instruction_pending_deoptimization_environment_ = instr;
-    pending_deoptimization_ast_id_ = sim->ast_id();
-  }
-
   // If instruction does not have side-effects lazy deoptimization
   // after the call will try to deoptimize to the point before the call.
   // Thus we still need to attach environment to this call even if
@@ -913,6 +904,26 @@ void LChunkBuilder::VisitInstruction(HInstruction* current) {
       instr = AssignEnvironment(instr);
     }
     chunk_->AddInstruction(instr, current_block_);
+
+    if (instr->IsCall()) {
+      HValue* hydrogen_value_for_lazy_bailout = current;
+      LInstruction* instruction_needing_environment = NULL;
+      if (current->HasObservableSideEffects()) {
+        HSimulate* sim = HSimulate::cast(current->next());
+        instruction_needing_environment = instr;
+        sim->ReplayEnvironment(current_block_->last_environment());
+        hydrogen_value_for_lazy_bailout = sim;
+      }
+      LInstruction* bailout = AssignEnvironment(new(zone()) LLazyBailout());
+      bailout->set_hydrogen_value(hydrogen_value_for_lazy_bailout);
+      chunk_->AddInstruction(bailout, current_block_);
+      if (instruction_needing_environment != NULL) {
+        // Store the lazy deopt environment with the instruction if needed.
+        // Right now it is only used for LInstanceOfKnownGlobal.
+        instruction_needing_environment->
+            SetDeferredLazyDeoptimizationEnvironment(bailout->environment());
+      }
+    }
   }
   current_instruction_ = old_current;
 }
@@ -1289,8 +1300,7 @@ LInstruction* LChunkBuilder::DoFlooringDivByConstI(HMathFloorOfDiv* instr) {
       DefineAsRegister(new(zone()) LFlooringDivByConstI(dividend, divisor));
   bool can_deopt =
       divisor == 0 ||
-      (instr->CheckFlag(HValue::kBailoutOnMinusZero) &&
-       instr->left()->RangeCanInclude(0) && divisor < 0);
+      (instr->CheckFlag(HValue::kBailoutOnMinusZero) && divisor < 0);
   return can_deopt ? AssignEnvironment(result) : result;
 }
 
@@ -1317,12 +1327,12 @@ LInstruction* LChunkBuilder::DoModByPowerOf2I(HMod* instr) {
   ASSERT(instr->right()->representation().Equals(instr->representation()));
   LOperand* dividend = UseRegisterAtStart(instr->left());
   int32_t divisor = instr->right()->GetInteger32Constant();
-  LInstruction* result =
-      DefineSameAsFirst(new(zone()) LModByPowerOf2I(dividend, divisor));
-  bool can_deopt =
-      instr->CheckFlag(HValue::kBailoutOnMinusZero) &&
-      instr->left()->CanBeNegative();
-  return can_deopt ? AssignEnvironment(result) : result;
+  LInstruction* result = DefineSameAsFirst(new(zone()) LModByPowerOf2I(
+          dividend, divisor));
+  if (instr->CheckFlag(HValue::kBailoutOnMinusZero)) {
+    result = AssignEnvironment(result);
+  }
+  return result;
 }
 
 
@@ -1332,17 +1342,13 @@ LInstruction* LChunkBuilder::DoModI(HMod* instr) {
   ASSERT(instr->right()->representation().Equals(instr->representation()));
   LOperand* dividend = UseRegister(instr->left());
   LOperand* divisor = UseRegister(instr->right());
-  LModI* mod = new(zone()) LModI(dividend,
-                                 divisor);
-  LInstruction* result = DefineAsRegister(mod);
-  bool can_deopt = (instr->right()->CanBeZero() ||
-                    (instr->left()->RangeCanInclude(kMinInt) &&
-                     instr->right()->RangeCanInclude(-1) &&
-                     instr->CheckFlag(HValue::kBailoutOnMinusZero)) ||
-                    (instr->left()->CanBeNegative() &&
-                     instr->CanBeZero() &&
-                     instr->CheckFlag(HValue::kBailoutOnMinusZero)));
-  return can_deopt ? AssignEnvironment(result) : result;
+  LInstruction* result = DefineAsRegister(new(zone()) LModI(
+      dividend, divisor));
+  if (instr->CheckFlag(HValue::kCanBeDivByZero) ||
+      instr->CheckFlag(HValue::kBailoutOnMinusZero)) {
+    result = AssignEnvironment(result);
+  }
+  return result;
 }
 
 
@@ -2352,21 +2358,6 @@ LInstruction* LChunkBuilder::DoIsConstructCallAndBranch(
 
 LInstruction* LChunkBuilder::DoSimulate(HSimulate* instr) {
   instr->ReplayEnvironment(current_block_->last_environment());
-
-  // If there is an instruction pending deoptimization environment create a
-  // lazy bailout instruction to capture the environment.
-  if (pending_deoptimization_ast_id_ == instr->ast_id()) {
-    LInstruction* result = new(zone()) LLazyBailout;
-    result = AssignEnvironment(result);
-    // Store the lazy deopt environment with the instruction if needed. Right
-    // now it is only used for LInstanceOfKnownGlobal.
-    instruction_pending_deoptimization_environment_->
-        SetDeferredLazyDeoptimizationEnvironment(result->environment());
-    instruction_pending_deoptimization_environment_ = NULL;
-    pending_deoptimization_ast_id_ = BailoutId::None();
-    return result;
-  }
-
   return NULL;
 }
 

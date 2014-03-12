@@ -1412,6 +1412,11 @@ class V8_EXPORT Value : public Data {
    */
   bool IsRegExp() const;
 
+  /**
+   * Returns true if this value is a Promise.
+   * This is an experimental feature.
+   */
+  bool IsPromise() const;
 
   /**
    * Returns true if this value is an ArrayBuffer.
@@ -2535,6 +2540,42 @@ class V8_EXPORT Function : public Object {
   Function();
   static void CheckCast(Value* obj);
 };
+
+
+/**
+ * An instance of the built-in Promise constructor (ES6 draft).
+ * This API is experimental. Only works with --harmony flag.
+ */
+class V8_EXPORT Promise : public Object {
+ public:
+  /**
+   * Create a new Promise in pending state.
+   */
+  static Local<Promise> New(Isolate* isolate);
+
+  /**
+   * Resolve/reject a promise with a given value.
+   * Ignored if the promise is not unresolved.
+   */
+  void Resolve(Handle<Value> value);
+  void Reject(Handle<Value> value);
+
+  /**
+   * Register a resolution/rejection handler with a promise.
+   * The handler is given the respective resolution/rejection value as
+   * an argument. If the promise is already resolved/rejected, the handler is
+   * invoked at the end of turn.
+   */
+  Local<Promise> Chain(Handle<Function> handler);
+  Local<Promise> Catch(Handle<Function> handler);
+
+  V8_INLINE static Promise* Cast(Value* obj);
+
+ private:
+  Promise();
+  static void CheckCast(Value* obj);
+};
+
 
 #ifndef V8_ARRAY_BUFFER_INTERNAL_FIELD_COUNT
 // The number of required internal fields can be defined by embedder.
@@ -6186,6 +6227,14 @@ Array* Array::Cast(v8::Value* value) {
   CheckCast(value);
 #endif
   return static_cast<Array*>(value);
+}
+
+
+Promise* Promise::Cast(v8::Value* value) {
+#ifdef V8_ENABLE_CHECKS
+  CheckCast(value);
+#endif
+  return static_cast<Promise*>(value);
 }
 
 

@@ -155,8 +155,8 @@ var kMessages = {
   invalid_preparser_data:        ["Invalid preparser data for function ", "%0"],
   strict_mode_with:              ["Strict mode code may not include a with statement"],
   strict_eval_arguments:         ["Unexpected eval or arguments in strict mode"],
-  too_many_arguments:            ["Too many arguments in function call (only 32766 allowed)"],
-  too_many_parameters:           ["Too many parameters in function definition (only 32766 allowed)"],
+  too_many_arguments:            ["Too many arguments in function call (only 65535 allowed)"],
+  too_many_parameters:           ["Too many parameters in function definition (only 65535 allowed)"],
   too_many_variables:            ["Too many variables declared (only 131071 allowed)"],
   strict_param_dupe:             ["Strict mode function may not have duplicate parameter names"],
   strict_octal_literal:          ["Octal literals are not allowed in strict mode."],
@@ -1074,15 +1074,15 @@ function FormatErrorString(error) {
 
 function GetStackFrames(raw_stack) {
   var frames = new InternalArray();
-  var non_strict_frames = raw_stack[0];
+  var sloppy_frames = raw_stack[0];
   for (var i = 1; i < raw_stack.length; i += 4) {
     var recv = raw_stack[i];
     var fun = raw_stack[i + 1];
     var code = raw_stack[i + 2];
     var pc = raw_stack[i + 3];
     var pos = %FunctionGetPositionForOffset(code, pc);
-    non_strict_frames--;
-    frames.push(new CallSite(recv, fun, pos, (non_strict_frames < 0)));
+    sloppy_frames--;
+    frames.push(new CallSite(recv, fun, pos, (sloppy_frames < 0)));
   }
   return frames;
 }

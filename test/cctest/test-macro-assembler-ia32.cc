@@ -122,6 +122,17 @@ TEST(LoadAndStoreWithRepresentation) {
   __ cmp(ebx, edx);
   __ j(not_equal, &exit);
 
+  // Test 5.
+  __ Move(edx, Immediate(0));  // Test Move()
+  __ cmp(edx, Immediate(0));
+  __ j(not_equal, &exit);
+  __ Move(ecx, Immediate(-1));
+  __ cmp(ecx, Immediate(-1));
+  __ j(not_equal, &exit);
+  __ Move(ebx, Immediate(0x77));
+  __ cmp(ebx, Immediate(0x77));
+  __ j(not_equal, &exit);
+
   __ xor_(eax, eax);  // Success.
   __ bind(&exit);
   __ add(esp, Immediate(1 * kPointerSize));

@@ -799,7 +799,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
              Immediate(1 << SharedFunctionInfo::kNativeBitWithinByte));
     __ j(not_zero, &shift_arguments);
 
-    // Compute the receiver in non-strict mode.
+    // Compute the receiver in sloppy mode.
     __ movp(rbx, args.GetArgumentOperand(1));
     __ JumpIfSmi(rbx, &convert_to_object, Label::kNear);
 
@@ -990,7 +990,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
              Immediate(1 << SharedFunctionInfo::kNativeBitWithinByte));
     __ j(not_equal, &push_receiver);
 
-    // Compute the receiver in non-strict mode.
+    // Compute the receiver in sloppy mode.
     __ JumpIfSmi(rbx, &call_to_object, Label::kNear);
     __ CompareRoot(rbx, Heap::kNullValueRootIndex);
     __ j(equal, &use_global_receiver);

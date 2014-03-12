@@ -2043,14 +2043,14 @@ class JSReceiver: public HeapObject {
                                     Handle<Name> key,
                                     Handle<Object> value,
                                     PropertyAttributes attributes,
-                                    StrictModeFlag strict_mode,
+                                    StrictMode strict_mode,
                                     StoreFromKeyed store_mode =
                                         MAY_BE_STORE_FROM_KEYED);
   static Handle<Object> SetElement(Handle<JSReceiver> object,
                                    uint32_t index,
                                    Handle<Object> value,
                                    PropertyAttributes attributes,
-                                   StrictModeFlag strict_mode);
+                                   StrictMode strict_mode);
 
   // Implementation of [[HasProperty]], ECMA-262 5th edition, section 8.12.6.
   static inline bool HasProperty(Handle<JSReceiver> object, Handle<Name> name);
@@ -2123,7 +2123,7 @@ class JSReceiver: public HeapObject {
                                     Handle<Name> key,
                                     Handle<Object> value,
                                     PropertyAttributes attributes,
-                                    StrictModeFlag strict_mode,
+                                    StrictMode strict_mode,
                                     StoreFromKeyed store_from_keyed);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSReceiver);
@@ -2155,14 +2155,14 @@ class JSObject: public JSReceiver {
   // In the fast mode elements is a FixedArray and so each element can
   // be quickly accessed. This fact is used in the generated code. The
   // elements array can have one of three maps in this mode:
-  // fixed_array_map, non_strict_arguments_elements_map or
+  // fixed_array_map, sloppy_arguments_elements_map or
   // fixed_cow_array_map (for copy-on-write arrays). In the latter case
   // the elements array may be shared by a few objects and so before
   // writing to any element the array must be copied. Use
   // EnsureWritableFastElements in this case.
   //
   // In the slow mode the elements is either a NumberDictionary, an
-  // ExternalArray, or a FixedArray parameter map for a (non-strict)
+  // ExternalArray, or a FixedArray parameter map for a (sloppy)
   // arguments object.
   DECL_ACCESSORS(elements, FixedArrayBase)
   inline void initialize_elements();
@@ -2184,7 +2184,7 @@ class JSObject: public JSReceiver {
   // Returns true if an object has elements of FAST_HOLEY_*_ELEMENTS
   // ElementsKind.
   inline bool HasFastHoleyElements();
-  inline bool HasNonStrictArgumentsElements();
+  inline bool HasSloppyArgumentsElements();
   inline bool HasDictionaryElements();
 
   inline bool HasExternalUint8ClampedElements();
@@ -2236,14 +2236,14 @@ class JSObject: public JSReceiver {
       Handle<Name> name,
       Handle<Object> value,
       Handle<JSObject> holder,
-      StrictModeFlag strict_mode);
+      StrictMode strict_mode);
 
   static Handle<Object> SetPropertyWithInterceptor(
       Handle<JSObject> object,
       Handle<Name> name,
       Handle<Object> value,
       PropertyAttributes attributes,
-      StrictModeFlag strict_mode);
+      StrictMode strict_mode);
 
   static Handle<Object> SetPropertyForResult(
       Handle<JSObject> object,
@@ -2251,7 +2251,7 @@ class JSObject: public JSReceiver {
       Handle<Name> name,
       Handle<Object> value,
       PropertyAttributes attributes,
-      StrictModeFlag strict_mode,
+      StrictMode strict_mode,
       StoreFromKeyed store_mode = MAY_BE_STORE_FROM_KEYED);
 
   static Handle<Object> SetLocalPropertyIgnoreAttributes(
@@ -2436,13 +2436,13 @@ class JSObject: public JSReceiver {
 
   static Handle<Object> SetFastElement(Handle<JSObject> object, uint32_t index,
                                        Handle<Object> value,
-                                       StrictModeFlag strict_mode,
+                                       StrictMode strict_mode,
                                        bool check_prototype);
 
   static Handle<Object> SetOwnElement(Handle<JSObject> object,
                                       uint32_t index,
                                       Handle<Object> value,
-                                      StrictModeFlag strict_mode);
+                                      StrictMode strict_mode);
 
   // Empty handle is returned if the element cannot be set to the given value.
   static Handle<Object> SetElement(
@@ -2450,7 +2450,7 @@ class JSObject: public JSReceiver {
       uint32_t index,
       Handle<Object> value,
       PropertyAttributes attributes,
-      StrictModeFlag strict_mode,
+      StrictMode strict_mode,
       bool check_prototype = true,
       SetPropertyMode set_mode = SET_PROPERTY);
 
@@ -2771,13 +2771,13 @@ class JSObject: public JSReceiver {
       uint32_t index,
       Handle<Object> value,
       Handle<JSObject> holder,
-      StrictModeFlag strict_mode);
+      StrictMode strict_mode);
   static Handle<Object> SetElementWithInterceptor(
       Handle<JSObject> object,
       uint32_t index,
       Handle<Object> value,
       PropertyAttributes attributes,
-      StrictModeFlag strict_mode,
+      StrictMode strict_mode,
       bool check_prototype,
       SetPropertyMode set_mode);
   static Handle<Object> SetElementWithoutInterceptor(
@@ -2785,7 +2785,7 @@ class JSObject: public JSReceiver {
       uint32_t index,
       Handle<Object> value,
       PropertyAttributes attributes,
-      StrictModeFlag strict_mode,
+      StrictMode strict_mode,
       bool check_prototype,
       SetPropertyMode set_mode);
   static Handle<Object> SetElementWithCallbackSetterInPrototypes(
@@ -2793,20 +2793,20 @@ class JSObject: public JSReceiver {
       uint32_t index,
       Handle<Object> value,
       bool* found,
-      StrictModeFlag strict_mode);
+      StrictMode strict_mode);
   static Handle<Object> SetDictionaryElement(
       Handle<JSObject> object,
       uint32_t index,
       Handle<Object> value,
       PropertyAttributes attributes,
-      StrictModeFlag strict_mode,
+      StrictMode strict_mode,
       bool check_prototype,
       SetPropertyMode set_mode = SET_PROPERTY);
   static Handle<Object> SetFastDoubleElement(
       Handle<JSObject> object,
       uint32_t index,
       Handle<Object> value,
-      StrictModeFlag strict_mode,
+      StrictMode strict_mode,
       bool check_prototype = true);
 
   // Searches the prototype chain for property 'name'. If it is found and
@@ -2818,14 +2818,14 @@ class JSObject: public JSReceiver {
       Handle<Name> name,
       Handle<Object> value,
       PropertyAttributes attributes,
-      StrictModeFlag strict_mode,
+      StrictMode strict_mode,
       bool* done);
   static Handle<Object> SetPropertyPostInterceptor(
       Handle<JSObject> object,
       Handle<Name> name,
       Handle<Object> value,
       PropertyAttributes attributes,
-      StrictModeFlag strict_mode);
+      StrictMode strict_mode);
   static Handle<Object> SetPropertyUsingTransition(
       Handle<JSObject> object,
       LookupResult* lookup,
@@ -2838,7 +2838,7 @@ class JSObject: public JSReceiver {
       Handle<Name> name,
       Handle<Object> value,
       bool check_prototype,
-      StrictModeFlag strict_mode);
+      StrictMode strict_mode);
 
   // Add a property to an object.
   static Handle<Object> AddProperty(
@@ -2846,7 +2846,7 @@ class JSObject: public JSReceiver {
       Handle<Name> name,
       Handle<Object> value,
       PropertyAttributes attributes,
-      StrictModeFlag strict_mode,
+      StrictMode strict_mode,
       StoreFromKeyed store_mode = MAY_BE_STORE_FROM_KEYED,
       ExtensibilityCheck extensibility_check = PERFORM_EXTENSIBILITY_CHECK,
       ValueType value_type = OPTIMAL_REPRESENTATION,
@@ -4339,13 +4339,11 @@ class ScopeInfo : public FixedArray {
   // Does this scope call eval?
   bool CallsEval();
 
-  // Return the language mode of this scope.
-  LanguageMode language_mode();
+  // Return the strict mode of this scope.
+  StrictMode strict_mode();
 
-  // Does this scope make a non-strict eval call?
-  bool CallsNonStrictEval() {
-    return CallsEval() && (language_mode() == CLASSIC_MODE);
-  }
+  // Does this scope make a sloppy eval call?
+  bool CallsSloppyEval() { return CallsEval() && strict_mode() == SLOPPY; }
 
   // Return the total number of locals allocated on the stack and in the
   // context. This includes the parameters that are allocated in the context.
@@ -4519,9 +4517,9 @@ class ScopeInfo : public FixedArray {
   // Properties of scopes.
   class ScopeTypeField:        public BitField<ScopeType,            0, 3> {};
   class CallsEvalField:        public BitField<bool,                 3, 1> {};
-  class LanguageModeField:     public BitField<LanguageMode,         4, 2> {};
-  class FunctionVariableField: public BitField<FunctionVariableInfo, 6, 2> {};
-  class FunctionVariableMode:  public BitField<VariableMode,         8, 3> {};
+  class StrictModeField:       public BitField<StrictMode,           4, 1> {};
+  class FunctionVariableField: public BitField<FunctionVariableInfo, 5, 2> {};
+  class FunctionVariableMode:  public BitField<VariableMode,         7, 3> {};
 
   // BitFields representing the encoded information for context locals in the
   // ContextLocalInfoEntries part.
@@ -5932,8 +5930,8 @@ class Map: public HeapObject {
     return IsFastElementsKind(elements_kind());
   }
 
-  inline bool has_non_strict_arguments_elements() {
-    return elements_kind() == NON_STRICT_ARGUMENTS_ELEMENTS;
+  inline bool has_sloppy_arguments_elements() {
+    return elements_kind() == SLOPPY_ARGUMENTS_ELEMENTS;
   }
 
   inline bool has_external_array_elements() {
@@ -5950,7 +5948,7 @@ class Map: public HeapObject {
 
   inline bool has_slow_elements_kind() {
     return elements_kind() == DICTIONARY_ELEMENTS
-        || elements_kind() == NON_STRICT_ARGUMENTS_ELEMENTS;
+        || elements_kind() == SLOPPY_ARGUMENTS_ELEMENTS;
   }
 
   static bool IsValidElementsTransition(ElementsKind from_kind,
@@ -6938,20 +6936,9 @@ class SharedFunctionInfo: public HeapObject {
   // spending time attempting to optimize it again.
   DECL_BOOLEAN_ACCESSORS(optimization_disabled)
 
-  // Indicates the language mode of the function's code as defined by the
-  // current harmony drafts for the next ES language standard. Possible
-  // values are:
-  // 1. CLASSIC_MODE - Unrestricted syntax and semantics, same as in ES5.
-  // 2. STRICT_MODE - Restricted syntax and semantics, same as in ES5.
-  // 3. EXTENDED_MODE - Only available under the harmony flag, not part of ES5.
-  inline LanguageMode language_mode();
-  inline void set_language_mode(LanguageMode language_mode);
-
-  // Indicates whether the language mode of this function is CLASSIC_MODE.
-  inline bool is_classic_mode();
-
-  // Indicates whether the language mode of this function is EXTENDED_MODE.
-  inline bool is_extended_mode();
+  // Indicates the language mode.
+  inline StrictMode strict_mode();
+  inline void set_strict_mode(StrictMode strict_mode);
 
   // False if the function definitely does not allocate an arguments object.
   DECL_BOOLEAN_ACCESSORS(uses_arguments)
@@ -7202,7 +7189,6 @@ class SharedFunctionInfo: public HeapObject {
     kLiveObjectsMayExist,
     kOptimizationDisabled,
     kStrictModeFunction,
-    kExtendedModeFunction,
     kUsesArguments,
     kHasDuplicateParameters,
     kNative,
@@ -7247,26 +7233,18 @@ class SharedFunctionInfo: public HeapObject {
   static const int kStrictModeBitWithinByte =
       (kStrictModeFunction + kCompilerHintsSmiTagSize) % kBitsPerByte;
 
-  static const int kExtendedModeBitWithinByte =
-      (kExtendedModeFunction + kCompilerHintsSmiTagSize) % kBitsPerByte;
-
   static const int kNativeBitWithinByte =
       (kNative + kCompilerHintsSmiTagSize) % kBitsPerByte;
 
 #if __BYTE_ORDER == __LITTLE_ENDIAN
   static const int kStrictModeByteOffset = kCompilerHintsOffset +
       (kStrictModeFunction + kCompilerHintsSmiTagSize) / kBitsPerByte;
-  static const int kExtendedModeByteOffset = kCompilerHintsOffset +
-      (kExtendedModeFunction + kCompilerHintsSmiTagSize) / kBitsPerByte;
   static const int kNativeByteOffset = kCompilerHintsOffset +
       (kNative + kCompilerHintsSmiTagSize) / kBitsPerByte;
 #elif __BYTE_ORDER == __BIG_ENDIAN
   static const int kStrictModeByteOffset = kCompilerHintsOffset +
       (kCompilerHintsSize - 1) -
       ((kStrictModeFunction + kCompilerHintsSmiTagSize) / kBitsPerByte);
-  static const int kExtendedModeByteOffset = kCompilerHintsOffset +
-      (kCompilerHintsSize - 1) -
-      ((kExtendedModeFunction + kCompilerHintsSmiTagSize) / kBitsPerByte);
   static const int kNativeByteOffset = kCompilerHintsOffset +
       (kCompilerHintsSize - 1) -
       ((kNative + kCompilerHintsSmiTagSize) / kBitsPerByte);
@@ -8017,7 +7995,7 @@ class CompilationCacheTable: public HashTable<CompilationCacheShape,
   Object* Lookup(String* src, Context* context);
   Object* LookupEval(String* src,
                      Context* context,
-                     LanguageMode language_mode,
+                     StrictMode strict_mode,
                      int scope_position);
   Object* LookupRegExp(String* source, JSRegExp::Flags flags);
   MUST_USE_RESULT MaybeObject* Put(String* src,
@@ -8454,8 +8432,8 @@ class AllocationMemento: public Struct {
 };
 
 
-// Representation of a slow alias as part of a non-strict arguments objects.
-// For fast aliases (if HasNonStrictArgumentsElements()):
+// Representation of a slow alias as part of a sloppy arguments objects.
+// For fast aliases (if HasSloppyArgumentsElements()):
 // - the parameter map contains an index into the context
 // - all attributes of the element have default values
 // For slow aliases (if HasDictionaryArgumentsElements()):
@@ -9633,7 +9611,7 @@ class JSProxy: public JSReceiver {
       Handle<Name> name,
       Handle<Object> value,
       PropertyAttributes attributes,
-      StrictModeFlag strict_mode,
+      StrictMode strict_mode,
       bool* done);
 
   MUST_USE_RESULT PropertyAttributes GetPropertyAttributeWithHandler(
@@ -9684,12 +9662,12 @@ class JSProxy: public JSReceiver {
                                                Handle<Name> name,
                                                Handle<Object> value,
                                                PropertyAttributes attributes,
-                                               StrictModeFlag strict_mode);
+                                               StrictMode strict_mode);
   static Handle<Object> SetElementWithHandler(Handle<JSProxy> proxy,
                                               Handle<JSReceiver> receiver,
                                               uint32_t index,
                                               Handle<Object> value,
-                                              StrictModeFlag strict_mode);
+                                              StrictMode strict_mode);
 
   static bool HasPropertyWithHandler(Handle<JSProxy> proxy, Handle<Name> name);
   static bool HasElementWithHandler(Handle<JSProxy> proxy, uint32_t index);

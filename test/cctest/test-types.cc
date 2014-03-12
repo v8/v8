@@ -190,10 +190,10 @@ struct ZoneRep {
     return static_cast<int>(reinterpret_cast<intptr_t>(t) >> 1);
   }
   static Map* AsClass(Type* t) {
-    return *reinterpret_cast<Map**>(AsTagged(t)->at(1));
+    return *reinterpret_cast<Map**>(AsTagged(t)->at(2));
   }
   static Object* AsConstant(Type* t) {
-    return *reinterpret_cast<Object**>(AsTagged(t)->at(1));
+    return *reinterpret_cast<Object**>(AsTagged(t)->at(2));
   }
   static ZoneList<Type*>* AsUnion(Type* t) {
     return reinterpret_cast<ZoneList<Type*>*>(AsTagged(t));

@@ -546,13 +546,11 @@ void MathExpGenerator::EmitMathExp(MacroAssembler* masm,
   // Continue the common case first. 'mi' tests N == 1.
   __ B(&result_is_finite_non_zero, mi);
 
-  // TODO(jbramley): Add (and use) a zero D register for A64.
   // TODO(jbramley): Consider adding a +infinity register for A64.
   __ Ldr(double_temp2, ExpConstant(constants, 2));    // Synthesize +infinity.
-  __ Fsub(double_temp1, double_temp1, double_temp1);  // Synthesize +0.0.
 
   // Select between +0.0 and +infinity. 'lo' tests C == 0.
-  __ Fcsel(result, double_temp1, double_temp2, lo);
+  __ Fcsel(result, fp_zero, double_temp2, lo);
   // Select between {+0.0 or +infinity} and input. 'vc' tests V == 0.
   __ Fcsel(result, result, input, vc);
   __ B(&done);

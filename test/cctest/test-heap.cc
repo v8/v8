@@ -275,11 +275,11 @@ TEST(GarbageCollection) {
     Handle<Map> initial_map =
         factory->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
     function->set_initial_map(*initial_map);
-    JSReceiver::SetProperty(global, name, function, NONE, kNonStrictMode);
+    JSReceiver::SetProperty(global, name, function, NONE, SLOPPY);
     // Allocate an object.  Unrooted after leaving the scope.
     Handle<JSObject> obj = factory->NewJSObject(function);
-    JSReceiver::SetProperty(obj, prop_name, twenty_three, NONE, kNonStrictMode);
-    JSReceiver::SetProperty(obj, prop_namex, twenty_four, NONE, kNonStrictMode);
+    JSReceiver::SetProperty(obj, prop_name, twenty_three, NONE, SLOPPY);
+    JSReceiver::SetProperty(obj, prop_namex, twenty_four, NONE, SLOPPY);
 
     CHECK_EQ(Smi::FromInt(23), obj->GetProperty(*prop_name));
     CHECK_EQ(Smi::FromInt(24), obj->GetProperty(*prop_namex));
@@ -299,8 +299,8 @@ TEST(GarbageCollection) {
     HandleScope inner_scope(isolate);
     // Allocate another object, make it reachable from global.
     Handle<JSObject> obj = factory->NewJSObject(function);
-    JSReceiver::SetProperty(global, obj_name, obj, NONE, kNonStrictMode);
-    JSReceiver::SetProperty(obj, prop_name, twenty_three, NONE, kNonStrictMode);
+    JSReceiver::SetProperty(global, obj_name, obj, NONE, SLOPPY);
+    JSReceiver::SetProperty(obj, prop_name, twenty_three, NONE, SLOPPY);
   }
 
   // After gc, it should survive.
@@ -635,11 +635,10 @@ TEST(FunctionAllocation) {
 
   Handle<String> prop_name = factory->InternalizeUtf8String("theSlot");
   Handle<JSObject> obj = factory->NewJSObject(function);
-  JSReceiver::SetProperty(obj, prop_name, twenty_three, NONE, kNonStrictMode);
+  JSReceiver::SetProperty(obj, prop_name, twenty_three, NONE, SLOPPY);
   CHECK_EQ(Smi::FromInt(23), obj->GetProperty(*prop_name));
   // Check that we can add properties to function objects.
-  JSReceiver::SetProperty(function, prop_name, twenty_four, NONE,
-                          kNonStrictMode);
+  JSReceiver::SetProperty(function, prop_name, twenty_four, NONE, SLOPPY);
   CHECK_EQ(Smi::FromInt(24), function->GetProperty(*prop_name));
 }
 
@@ -666,7 +665,7 @@ TEST(ObjectProperties) {
   CHECK(!JSReceiver::HasLocalProperty(obj, first));
 
   // add first
-  JSReceiver::SetProperty(obj, first, one, NONE, kNonStrictMode);
+  JSReceiver::SetProperty(obj, first, one, NONE, SLOPPY);
   CHECK(JSReceiver::HasLocalProperty(obj, first));
 
   // delete first
@@ -674,8 +673,8 @@ TEST(ObjectProperties) {
   CHECK(!JSReceiver::HasLocalProperty(obj, first));
 
   // add first and then second
-  JSReceiver::SetProperty(obj, first, one, NONE, kNonStrictMode);
-  JSReceiver::SetProperty(obj, second, two, NONE, kNonStrictMode);
+  JSReceiver::SetProperty(obj, first, one, NONE, SLOPPY);
+  JSReceiver::SetProperty(obj, second, two, NONE, SLOPPY);
   CHECK(JSReceiver::HasLocalProperty(obj, first));
   CHECK(JSReceiver::HasLocalProperty(obj, second));
 
@@ -687,8 +686,8 @@ TEST(ObjectProperties) {
   CHECK(!JSReceiver::HasLocalProperty(obj, second));
 
   // add first and then second
-  JSReceiver::SetProperty(obj, first, one, NONE, kNonStrictMode);
-  JSReceiver::SetProperty(obj, second, two, NONE, kNonStrictMode);
+  JSReceiver::SetProperty(obj, first, one, NONE, SLOPPY);
+  JSReceiver::SetProperty(obj, second, two, NONE, SLOPPY);
   CHECK(JSReceiver::HasLocalProperty(obj, first));
   CHECK(JSReceiver::HasLocalProperty(obj, second));
 
@@ -702,14 +701,14 @@ TEST(ObjectProperties) {
   // check string and internalized string match
   const char* string1 = "fisk";
   Handle<String> s1 = factory->NewStringFromAscii(CStrVector(string1));
-  JSReceiver::SetProperty(obj, s1, one, NONE, kNonStrictMode);
+  JSReceiver::SetProperty(obj, s1, one, NONE, SLOPPY);
   Handle<String> s1_string = factory->InternalizeUtf8String(string1);
   CHECK(JSReceiver::HasLocalProperty(obj, s1_string));
 
   // check internalized string and string match
   const char* string2 = "fugl";
   Handle<String> s2_string = factory->InternalizeUtf8String(string2);
-  JSReceiver::SetProperty(obj, s2_string, one, NONE, kNonStrictMode);
+  JSReceiver::SetProperty(obj, s2_string, one, NONE, SLOPPY);
   Handle<String> s2 = factory->NewStringFromAscii(CStrVector(string2));
   CHECK(JSReceiver::HasLocalProperty(obj, s2));
 }
@@ -733,7 +732,7 @@ TEST(JSObjectMaps) {
 
   // Set a propery
   Handle<Smi> twenty_three(Smi::FromInt(23), isolate);
-  JSReceiver::SetProperty(obj, prop_name, twenty_three, NONE, kNonStrictMode);
+  JSReceiver::SetProperty(obj, prop_name, twenty_three, NONE, SLOPPY);
   CHECK_EQ(Smi::FromInt(23), obj->GetProperty(*prop_name));
 
   // Check the map has changed
@@ -766,7 +765,7 @@ TEST(JSArray) {
   CHECK(array->HasFastSmiOrObjectElements());
 
   // array[length] = name.
-  JSReceiver::SetElement(array, 0, name, NONE, kNonStrictMode);
+  JSReceiver::SetElement(array, 0, name, NONE, SLOPPY);
   CHECK_EQ(Smi::FromInt(1), array->length());
   CHECK_EQ(array->GetElement(isolate, 0), *name);
 
@@ -781,7 +780,7 @@ TEST(JSArray) {
   CHECK(array->HasDictionaryElements());  // Must be in slow mode.
 
   // array[length] = name.
-  JSReceiver::SetElement(array, int_length, name, NONE, kNonStrictMode);
+  JSReceiver::SetElement(array, int_length, name, NONE, SLOPPY);
   uint32_t new_int_length = 0;
   CHECK(array->length()->ToArrayIndex(&new_int_length));
   CHECK_EQ(static_cast<double>(int_length), new_int_length - 1);
@@ -808,11 +807,11 @@ TEST(JSObjectCopy) {
   Handle<Smi> one(Smi::FromInt(1), isolate);
   Handle<Smi> two(Smi::FromInt(2), isolate);
 
-  JSReceiver::SetProperty(obj, first, one, NONE, kNonStrictMode);
-  JSReceiver::SetProperty(obj, second, two, NONE, kNonStrictMode);
+  JSReceiver::SetProperty(obj, first, one, NONE, SLOPPY);
+  JSReceiver::SetProperty(obj, second, two, NONE, SLOPPY);
 
-  JSReceiver::SetElement(obj, 0, first, NONE, kNonStrictMode);
-  JSReceiver::SetElement(obj, 1, second, NONE, kNonStrictMode);
+  JSReceiver::SetElement(obj, 0, first, NONE, SLOPPY);
+  JSReceiver::SetElement(obj, 1, second, NONE, SLOPPY);
 
   // Make the clone.
   Handle<JSObject> clone = JSObject::Copy(obj);
@@ -825,11 +824,11 @@ TEST(JSObjectCopy) {
   CHECK_EQ(obj->GetProperty(*second), clone->GetProperty(*second));
 
   // Flip the values.
-  JSReceiver::SetProperty(clone, first, two, NONE, kNonStrictMode);
-  JSReceiver::SetProperty(clone, second, one, NONE, kNonStrictMode);
+  JSReceiver::SetProperty(clone, first, two, NONE, SLOPPY);
+  JSReceiver::SetProperty(clone, second, one, NONE, SLOPPY);
 
-  JSReceiver::SetElement(clone, 0, second, NONE, kNonStrictMode);
-  JSReceiver::SetElement(clone, 1, first, NONE, kNonStrictMode);
+  JSReceiver::SetElement(clone, 0, second, NONE, SLOPPY);
+  JSReceiver::SetElement(clone, 1, first, NONE, SLOPPY);
 
   CHECK_EQ(obj->GetElement(isolate, 1), clone->GetElement(isolate, 0));
   CHECK_EQ(obj->GetElement(isolate, 0), clone->GetElement(isolate, 1));
@@ -3694,3 +3693,47 @@ TEST(ObjectsInOptimizedCodeAreWeak) {
 
   ASSERT(code->marked_for_deoptimization());
 }
+
+
+#ifdef DEBUG
+TEST(AddInstructionChangesNewSpacePromotion) {
+  i::FLAG_allow_natives_syntax = true;
+  i::FLAG_expose_gc = true;
+  i::FLAG_stress_compaction = true;
+  i::FLAG_gc_interval = 1000;
+  CcTest::InitializeVM();
+  if (!i::FLAG_allocation_site_pretenuring) return;
+  v8::HandleScope scope(CcTest::isolate());
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+
+  CompileRun(
+      "function add(a, b) {"
+      "  return a + b;"
+      "}"
+      "add(1, 2);"
+      "add(\"a\", \"b\");"
+      "var oldSpaceObject;"
+      "gc();"
+      "function crash(x) {"
+      "  var object = {a: null, b: null};"
+      "  var result = add(1.5, x | 0);"
+      "  object.a = result;"
+      "  oldSpaceObject = object;"
+      "  return object;"
+      "}"
+      "crash(1);"
+      "crash(1);"
+      "%OptimizeFunctionOnNextCall(crash);"
+      "crash(1);");
+
+  v8::Handle<v8::Object> global = CcTest::global();
+    v8::Handle<v8::Function> g =
+        v8::Handle<v8::Function>::Cast(global->Get(v8_str("crash")));
+  v8::Handle<v8::Value> args1[] = { v8_num(1) };
+  heap->DisableInlineAllocation();
+  heap->set_allocation_timeout(1);
+  g->Call(global, 1, args1);
+  heap->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+}
+#endif

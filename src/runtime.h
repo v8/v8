@@ -64,7 +64,7 @@ namespace internal {
   F(ToFastProperties, 1, 1) \
   F(FinishArrayPrototypeSetup, 1, 1) \
   F(SpecialArrayFunctions, 1, 1) \
-  F(IsClassicModeFunction, 1, 1) \
+  F(IsSloppyModeFunction, 1, 1) \
   F(GetDefaultReceiver, 1, 1) \
   \
   F(GetPrototype, 1, 1) \
@@ -257,6 +257,7 @@ namespace internal {
   F(DateToUTC, 1, 1) \
   F(DateMakeDay, 2, 1) \
   F(DateSetValue, 3, 1) \
+  F(DateCacheVersion, 0, 1) \
   \
   /* Numbers */ \
   \
@@ -302,7 +303,7 @@ namespace internal {
   /* ES5 */ \
   F(ObjectFreeze, 1, 1) \
   \
-  /* Harmony Microtasks */ \
+  /* Harmony microtasks */ \
   F(GetMicrotaskState, 0, 1) \
   \
   /* Harmony modules */ \
@@ -455,7 +456,7 @@ namespace internal {
   F(HasFastDoubleElements, 1, 1) \
   F(HasFastHoleyElements, 1, 1) \
   F(HasDictionaryElements, 1, 1) \
-  F(HasNonStrictArgumentsElements, 1, 1) \
+  F(HasSloppyArgumentsElements, 1, 1) \
   F(HasExternalUint8ClampedElements, 1, 1) \
   F(HasExternalArrayElements, 1, 1) \
   F(HasExternalInt8Elements, 1, 1) \
@@ -785,7 +786,7 @@ class Runtime : public AllStatic {
       Handle<Object> key,
       Handle<Object> value,
       PropertyAttributes attr,
-      StrictModeFlag strict_mode);
+      StrictMode strict_mode);
 
   static Handle<Object> ForceSetObjectProperty(
       Isolate* isolate,
@@ -861,12 +862,12 @@ class Runtime : public AllStatic {
 //---------------------------------------------------------------------------
 // Constants used by interface to runtime functions.
 
-class AllocateDoubleAlignFlag:    public BitField<bool,            0, 1> {};
-class AllocateTargetSpace:        public BitField<AllocationSpace, 1, 3> {};
+class AllocateDoubleAlignFlag:  public BitField<bool,            0, 1> {};
+class AllocateTargetSpace:      public BitField<AllocationSpace, 1, 3> {};
 
-class DeclareGlobalsEvalFlag:     public BitField<bool,         0, 1> {};
-class DeclareGlobalsNativeFlag:   public BitField<bool,         1, 1> {};
-class DeclareGlobalsLanguageMode: public BitField<LanguageMode, 2, 2> {};
+class DeclareGlobalsEvalFlag:   public BitField<bool,       0, 1> {};
+class DeclareGlobalsNativeFlag: public BitField<bool,       1, 1> {};
+class DeclareGlobalsStrictMode: public BitField<StrictMode, 2, 1> {};
 
 } }  // namespace v8::internal
 

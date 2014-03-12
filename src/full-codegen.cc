@@ -802,10 +802,10 @@ void FullCodeGenerator::VisitModuleUrl(ModuleUrl* module) {
 
 
 int FullCodeGenerator::DeclareGlobalsFlags() {
-  ASSERT(DeclareGlobalsLanguageMode::is_valid(language_mode()));
+  ASSERT(DeclareGlobalsStrictMode::is_valid(strict_mode()));
   return DeclareGlobalsEvalFlag::encode(is_eval()) |
       DeclareGlobalsNativeFlag::encode(is_native()) |
-      DeclareGlobalsLanguageMode::encode(language_mode());
+      DeclareGlobalsStrictMode::encode(strict_mode());
 }
 
 

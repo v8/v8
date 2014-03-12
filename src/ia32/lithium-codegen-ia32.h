@@ -179,9 +179,7 @@ class LCodeGen: public LCodeGenBase {
 #undef DECLARE_DO
 
  private:
-  StrictModeFlag strict_mode_flag() const {
-    return info()->is_classic_mode() ? kNonStrictMode : kStrictMode;
-  }
+  StrictMode strict_mode() const { return info()->strict_mode(); }
 
   Scope* scope() const { return scope_; }
 

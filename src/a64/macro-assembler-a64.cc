@@ -1516,12 +1516,7 @@ void MacroAssembler::AssertNotSmi(Register object, BailoutReason reason) {
 
 void MacroAssembler::AssertName(Register object) {
   if (emit_debug_code()) {
-    STATIC_ASSERT(kSmiTag == 0);
-    // TODO(jbramley): Add AbortIfSmi and related functions.
-    Label not_smi;
-    JumpIfNotSmi(object, &not_smi);
-    Abort(kOperandIsASmiAndNotAName);
-    Bind(&not_smi);
+    AssertNotSmi(object, kOperandIsASmiAndNotAName);
 
     UseScratchRegisterScope temps(this);
     Register temp = temps.AcquireX();
@@ -1763,11 +1758,13 @@ void MacroAssembler::GetBuiltinFunction(Register target,
 }
 
 
-void MacroAssembler::GetBuiltinEntry(Register target, Builtins::JavaScript id) {
-  ASSERT(!target.is(x1));
-  GetBuiltinFunction(x1, id);
+void MacroAssembler::GetBuiltinEntry(Register target,
+                                     Register function,
+                                     Builtins::JavaScript id) {
+  ASSERT(!AreAliased(target, function));
+  GetBuiltinFunction(function, id);
   // Load the code entry point from the builtins object.
-  Ldr(target, FieldMemOperand(x1, JSFunction::kCodeEntryOffset));
+  Ldr(target, FieldMemOperand(function, JSFunction::kCodeEntryOffset));
 }
 
 
@@ -1778,7 +1775,8 @@ void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id,
   // You can't call a builtin without a valid frame.
   ASSERT(flag == JUMP_FUNCTION || has_frame());
 
-  GetBuiltinEntry(x2, id);
+  // Get the builtin entry in x2 and setup the function object in x1.
+  GetBuiltinEntry(x2, x1, id);
   if (flag == CALL_FUNCTION) {
     call_wrapper.BeforeCall(CallSize(x2));
     Call(x2);
@@ -2847,8 +2845,6 @@ void MacroAssembler::Prologue(PrologueFrameMode frame_mode) {
     ASSERT(StackPointer().Is(jssp));
     UseScratchRegisterScope temps(this);
     Register temp = temps.AcquireX();
-    // TODO(jbramley): Does x1 contain a JSFunction here, or does it already
-    // have the special STUB smi?
     __ Mov(temp, Operand(Smi::FromInt(StackFrame::STUB)));
     // Compiled stubs don't age, and so they don't need the predictable code
     // ageing sequence.

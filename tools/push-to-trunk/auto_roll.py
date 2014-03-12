@@ -82,7 +82,7 @@ class FetchLatestRevision(Step):
 
   def RunStep(self):
     match = re.match(r"^r(\d+) ", self.GitSVNLog())
-    if not match:
+    if not match:  # pragma: no cover
       self.Die("Could not extract current svn revision from log.")
     self["latest"] = match.group(1)
 
@@ -96,7 +96,7 @@ class CheckLastPush(Step):
 
     # TODO(machenbach): This metric counts all revisions. It could be
     # improved by counting only the revisions on bleeding_edge.
-    if int(self["latest"]) - last_push < 10:
+    if int(self["latest"]) - last_push < 10:  # pragma: no cover
       # This makes sure the script doesn't push twice in a row when the cron
       # job retries several times.
       self.Die("Last push too recently: %d" % last_push)
@@ -138,8 +138,9 @@ class PushToTrunk(Step):
       # TODO(machenbach): Update the script before calling it.
       try:
         if self._options.push:
+          P = push_to_trunk.PushToTrunk
           self._side_effect_handler.Call(
-              PushToTrunk(push_to_trunk.CONFIG, self._side_effect_handler).Run,
+              P(push_to_trunk.CONFIG, self._side_effect_handler).Run,
               ["-a", self._options.author,
                "-c", self._options.chromium,
                "-r", self._options.reviewer,
@@ -163,7 +164,7 @@ class AutoRoll(ScriptsBase):
                         help="A file with the password to the status app.")
 
   def _ProcessOptions(self, options):
-    if not options.author or not options.reviewer:
+    if not options.author or not options.reviewer:  # pragma: no cover
       print "You need to specify author and reviewer."
       return False
     options.requires_editor = False
@@ -181,5 +182,5 @@ class AutoRoll(ScriptsBase):
     ]
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
   sys.exit(AutoRoll(CONFIG).Run())

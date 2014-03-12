@@ -843,6 +843,9 @@ class MacroAssembler: public Assembler {
   // Move if the registers are not identical.
   void Move(Register target, Register source);
 
+  // Move a constant into a register using the most efficient encoding.
+  void Move(Register dst, Immediate imm);
+
   // Push a handle value.
   void Push(Handle<Object> handle) { push(Immediate(handle)); }
   void Push(Smi* smi) { Push(Handle<Smi>(smi, isolate())); }

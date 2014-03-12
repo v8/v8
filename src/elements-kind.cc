@@ -66,7 +66,7 @@ int ElementsKindToShiftSize(ElementsKind elements_kind) {
     case FAST_HOLEY_SMI_ELEMENTS:
     case FAST_HOLEY_ELEMENTS:
     case DICTIONARY_ELEMENTS:
-    case NON_STRICT_ARGUMENTS_ELEMENTS:
+    case SLOPPY_ARGUMENTS_ELEMENTS:
       return kPointerSizeLog2;
   }
   UNREACHABLE();

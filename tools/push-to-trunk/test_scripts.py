@@ -52,6 +52,7 @@ TEST_CONFIG = {
   VERSION_FILE: None,
   CHANGELOG_FILE: None,
   CHANGELOG_ENTRY_FILE: "/tmp/test-v8-push-to-trunk-tempfile-changelog-entry",
+  NEW_CHANGELOG_FILE: "/tmp/test-v8-push-to-trunk-tempfile-new-changelog",
   PATCH_FILE: "/tmp/test-v8-push-to-trunk-tempfile-patch",
   COMMITMSG_FILE: "/tmp/test-v8-push-to-trunk-tempfile-commitmsg",
   CHROMIUM: "/tmp/test-v8-push-to-trunk-tempfile-chromium",
@@ -801,7 +802,7 @@ Performance and stability improvements on all platforms.""", commit)
     ])
 
     auto_roll.AutoRoll(TEST_CONFIG, self).Run(
-        AUTO_ROLL_ARGS + ["--status-password", password])
+        AUTO_ROLL_ARGS + ["--status-password", password, "--push"])
 
     state = json.loads(FileToText("%s-state.json"
                                   % TEST_CONFIG[PERSISTFILE_BASENAME]))

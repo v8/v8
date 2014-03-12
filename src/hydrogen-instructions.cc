@@ -30,6 +30,7 @@
 #include "double.h"
 #include "factory.h"
 #include "hydrogen-infer-representation.h"
+#include "property-details-inl.h"
 
 #if V8_TARGET_ARCH_IA32
 #include "ia32/lithium-ia32.h"
@@ -1433,19 +1434,19 @@ void HTypeof::PrintDataTo(StringStream* stream) {
 
 
 HInstruction* HForceRepresentation::New(Zone* zone, HValue* context,
-       HValue* value, Representation required_representation) {
+       HValue* value, Representation representation) {
   if (FLAG_fold_constants && value->IsConstant()) {
     HConstant* c = HConstant::cast(value);
     if (c->HasNumberValue()) {
       double double_res = c->DoubleValue();
-      if (IsInt32Double(double_res)) {
+      if (representation.CanContainDouble(double_res)) {
         return HConstant::New(zone, context,
                               static_cast<int32_t>(double_res),
-                              required_representation);
+                              representation);
       }
     }
   }
-  return new(zone) HForceRepresentation(value, required_representation);
+  return new(zone) HForceRepresentation(value, representation);
 }
 
 
@@ -1788,7 +1789,7 @@ Range* HMul::InferRange(Zone* zone) {
 }
 
 
-Range* HDiv::InferRange(Zone* zone) {
+Range* HBinaryOperation::InferRangeForDiv(Zone* zone) {
   if (representation().IsInteger32()) {
     Range* a = left()->range();
     Range* b = right()->range();
@@ -1797,16 +1798,26 @@ Range* HDiv::InferRange(Zone* zone) {
                                   (a->CanBeMinusZero() ||
                                    (a->CanBeZero() && b->CanBeNegative())));
     if (!a->Includes(kMinInt) || !b->Includes(-1)) {
-      ClearFlag(HValue::kCanOverflow);
+      ClearFlag(kCanOverflow);
     }
 
     if (!b->CanBeZero()) {
-      ClearFlag(HValue::kCanBeDivByZero);
+      ClearFlag(kCanBeDivByZero);
     }
     return result;
   } else {
     return HValue::InferRange(zone);
   }
+}
+
+
+Range* HDiv::InferRange(Zone* zone) {
+  return InferRangeForDiv(zone);
+}
+
+
+Range* HMathFloorOfDiv::InferRange(Zone* zone) {
+  return InferRangeForDiv(zone);
 }
 
 
@@ -2460,6 +2471,7 @@ void HSimulate::PrintDataTo(StringStream* stream) {
 
 
 void HSimulate::ReplayEnvironment(HEnvironment* env) {
+  if (done_with_replay_) return;
   ASSERT(env != NULL);
   env->set_ast_id(ast_id());
   env->Drop(pop_count());
@@ -2471,6 +2483,7 @@ void HSimulate::ReplayEnvironment(HEnvironment* env) {
       env->Push(value);
     }
   }
+  done_with_replay_ = true;
 }
 
 
@@ -3056,7 +3069,7 @@ void HCompareObjectEqAndBranch::PrintDataTo(StringStream* stream) {
 
 bool HCompareObjectEqAndBranch::KnownSuccessorBlock(HBasicBlock** block) {
   if (FLAG_fold_constants && left()->IsConstant() && right()->IsConstant()) {
-    *block = HConstant::cast(left())->Equals(HConstant::cast(right()))
+    *block = HConstant::cast(left())->DataEquals(HConstant::cast(right()))
         ? FirstSuccessor() : SecondSuccessor();
     return true;
   }
@@ -3091,17 +3104,6 @@ bool HIsObjectAndBranch::KnownSuccessorBlock(HBasicBlock** block) {
 bool HIsStringAndBranch::KnownSuccessorBlock(HBasicBlock** block) {
   if (FLAG_fold_constants && value()->IsConstant()) {
     *block = HConstant::cast(value())->HasStringValue()
-        ? FirstSuccessor() : SecondSuccessor();
-    return true;
-  }
-  *block = NULL;
-  return false;
-}
-
-
-bool HIsSmiAndBranch::KnownSuccessorBlock(HBasicBlock** block) {
-  if (FLAG_fold_constants && value()->IsConstant()) {
-    *block = HConstant::cast(value())->HasSmiValue()
         ? FirstSuccessor() : SecondSuccessor();
     return true;
   }

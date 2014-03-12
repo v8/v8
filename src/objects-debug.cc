@@ -275,7 +275,7 @@ void JSObject::JSObjectVerify() {
   VerifyHeapPointer(properties());
   VerifyHeapPointer(elements());
 
-  if (GetElementsKind() == NON_STRICT_ARGUMENTS_ELEMENTS) {
+  if (GetElementsKind() == SLOPPY_ARGUMENTS_ELEMENTS) {
     CHECK(this->elements()->IsFixedArray());
     CHECK_GE(this->elements()->length(), 2);
   }
@@ -1060,7 +1060,7 @@ void JSObject::IncrementSpillStatistics(SpillInformation* info) {
           dict->Capacity() - dict->NumberOfElements();
       break;
     }
-    case NON_STRICT_ARGUMENTS_ELEMENTS:
+    case SLOPPY_ARGUMENTS_ELEMENTS:
       break;
   }
 }

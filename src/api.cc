@@ -2651,6 +2651,13 @@ void v8::Array::CheckCast(Value* that) {
 }
 
 
+void v8::Promise::CheckCast(Value* that) {
+  Utils::ApiCheck(that->IsPromise(),
+                  "v8::Promise::Cast()",
+                  "Could not convert to promise");
+}
+
+
 void v8::ArrayBuffer::CheckCast(Value* that) {
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
   Utils::ApiCheck(obj->IsJSArrayBuffer(),
@@ -2988,7 +2995,7 @@ bool v8::Object::Set(v8::Handle<Value> key, v8::Handle<Value> value,
       key_obj,
       value_obj,
       static_cast<PropertyAttributes>(attribs),
-      i::kNonStrictMode);
+      i::SLOPPY);
   has_pending_exception = obj.is_null();
   EXCEPTION_BAILOUT_CHECK(isolate, false);
   return true;
@@ -3008,7 +3015,7 @@ bool v8::Object::Set(uint32_t index, v8::Handle<Value> value) {
       index,
       value_obj,
       NONE,
-      i::kNonStrictMode);
+      i::SLOPPY);
   has_pending_exception = obj.is_null();
   EXCEPTION_BAILOUT_CHECK(isolate, false);
   return true;
@@ -5618,30 +5625,18 @@ void v8::Date::DateTimeConfigurationChangeNotification(Isolate* isolate) {
 
   i_isolate->date_cache()->ResetDateCache();
 
-  i::HandleScope scope(i_isolate);
-  // Get the function ResetDateCache (defined in date.js).
-  i::Handle<i::String> func_name_str =
-      i_isolate->factory()->InternalizeOneByteString(
-          STATIC_ASCII_VECTOR("ResetDateCache"));
-  i::MaybeObject* result =
-      i_isolate->js_builtins_object()->GetProperty(*func_name_str);
-  i::Object* object_func;
-  if (!result->ToObject(&object_func)) {
+  if (!i_isolate->eternal_handles()->Exists(
+          i::EternalHandles::DATE_CACHE_VERSION)) {
     return;
   }
-
-  if (object_func->IsJSFunction()) {
-    i::Handle<i::JSFunction> func =
-        i::Handle<i::JSFunction>(i::JSFunction::cast(object_func));
-
-    // Call ResetDateCache(0 but expect no exceptions:
-    bool caught_exception = false;
-    i::Execution::TryCall(func,
-                          i_isolate->js_builtins_object(),
-                          0,
-                          NULL,
-                          &caught_exception);
-  }
+  i::Handle<i::FixedArray> date_cache_version =
+      i::Handle<i::FixedArray>::cast(i_isolate->eternal_handles()->GetSingleton(
+          i::EternalHandles::DATE_CACHE_VERSION));
+  ASSERT_EQ(1, date_cache_version->length());
+  CHECK(date_cache_version->get(0)->IsSmi());
+  date_cache_version->set(
+      0,
+      i::Smi::FromInt(i::Smi::cast(date_cache_version->get(0))->value() + 1));
 }
 
 
@@ -5740,6 +5735,124 @@ Local<Object> Array::CloneElementAt(uint32_t index) {
   has_pending_exception = result.is_null();
   EXCEPTION_BAILOUT_CHECK(isolate, Local<Object>());
   return Utils::ToLocal(result);
+}
+
+
+bool Value::IsPromise() const {
+  i::Handle<i::Object> val = Utils::OpenHandle(this);
+  if (!i::FLAG_harmony_promises || !val->IsJSObject()) return false;
+  i::Handle<i::JSObject> obj = i::Handle<i::JSObject>::cast(val);
+  i::Isolate* isolate = obj->GetIsolate();
+  LOG_API(isolate, "IsPromise");
+  ENTER_V8(isolate);
+  EXCEPTION_PREAMBLE(isolate);
+  i::Handle<i::Object> argv[] = { obj };
+  i::Handle<i::Object> b = i::Execution::Call(
+      isolate,
+      handle(
+          isolate->context()->global_object()->native_context()->is_promise()),
+      isolate->factory()->undefined_value(),
+      ARRAY_SIZE(argv), argv,
+      &has_pending_exception,
+      false);
+  EXCEPTION_BAILOUT_CHECK(isolate, false);
+  return b->BooleanValue();
+}
+
+
+Local<Promise> Promise::New(Isolate* v8_isolate) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  LOG_API(isolate, "Promise::New");
+  ENTER_V8(isolate);
+  EXCEPTION_PREAMBLE(isolate);
+  i::Handle<i::Object> result = i::Execution::Call(
+      isolate,
+      handle(isolate->context()->global_object()->native_context()->
+             promise_create()),
+      isolate->factory()->undefined_value(),
+      0, NULL,
+      &has_pending_exception,
+      false);
+  EXCEPTION_BAILOUT_CHECK(isolate, Local<Promise>());
+  return Local<Promise>::Cast(Utils::ToLocal(result));
+}
+
+
+void Promise::Resolve(Handle<Value> value) {
+  i::Handle<i::JSObject> promise = Utils::OpenHandle(this);
+  i::Isolate* isolate = promise->GetIsolate();
+  LOG_API(isolate, "Promise::Resolve");
+  ENTER_V8(isolate);
+  EXCEPTION_PREAMBLE(isolate);
+  i::Handle<i::Object> argv[] = { promise, Utils::OpenHandle(*value) };
+  i::Execution::Call(
+      isolate,
+      handle(isolate->context()->global_object()->native_context()->
+             promise_resolve()),
+      isolate->factory()->undefined_value(),
+      ARRAY_SIZE(argv), argv,
+      &has_pending_exception,
+      false);
+  EXCEPTION_BAILOUT_CHECK(isolate, /* void */ ;);
+}
+
+
+void Promise::Reject(Handle<Value> value) {
+  i::Handle<i::JSObject> promise = Utils::OpenHandle(this);
+  i::Isolate* isolate = promise->GetIsolate();
+  LOG_API(isolate, "Promise::Reject");
+  ENTER_V8(isolate);
+  EXCEPTION_PREAMBLE(isolate);
+  i::Handle<i::Object> argv[] = { promise, Utils::OpenHandle(*value) };
+  i::Execution::Call(
+      isolate,
+      handle(isolate->context()->global_object()->native_context()->
+             promise_reject()),
+      isolate->factory()->undefined_value(),
+      ARRAY_SIZE(argv), argv,
+      &has_pending_exception,
+      false);
+  EXCEPTION_BAILOUT_CHECK(isolate, /* void */ ;);
+}
+
+
+Local<Promise> Promise::Chain(Handle<Function> handler) {
+  i::Handle<i::JSObject> promise = Utils::OpenHandle(this);
+  i::Isolate* isolate = promise->GetIsolate();
+  LOG_API(isolate, "Promise::Chain");
+  ENTER_V8(isolate);
+  EXCEPTION_PREAMBLE(isolate);
+  i::Handle<i::Object> argv[] = { Utils::OpenHandle(*handler) };
+  i::Handle<i::Object> result = i::Execution::Call(
+      isolate,
+      handle(isolate->context()->global_object()->native_context()->
+             promise_chain()),
+      promise,
+      ARRAY_SIZE(argv), argv,
+      &has_pending_exception,
+      false);
+  EXCEPTION_BAILOUT_CHECK(isolate, Local<Promise>());
+  return Local<Promise>::Cast(Utils::ToLocal(result));
+}
+
+
+Local<Promise> Promise::Catch(Handle<Function> handler) {
+  i::Handle<i::JSObject> promise = Utils::OpenHandle(this);
+  i::Isolate* isolate = promise->GetIsolate();
+  LOG_API(isolate, "Promise::Catch");
+  ENTER_V8(isolate);
+  EXCEPTION_PREAMBLE(isolate);
+  i::Handle<i::Object> argv[] = { Utils::OpenHandle(*handler) };
+  i::Handle<i::Object> result = i::Execution::Call(
+      isolate,
+      handle(isolate->context()->global_object()->native_context()->
+             promise_catch()),
+      promise,
+      ARRAY_SIZE(argv), argv,
+      &has_pending_exception,
+      false);
+  EXCEPTION_BAILOUT_CHECK(isolate, Local<Promise>());
+  return Local<Promise>::Cast(Utils::ToLocal(result));
 }
 
 

@@ -377,7 +377,7 @@ class Factory {
 
   Handle<JSFunction> NewFunctionWithoutPrototype(
       Handle<String> name,
-      LanguageMode language_mode);
+      StrictMode strict_mode);
 
   Handle<JSFunction> NewFunction(Handle<Object> super, bool is_global);
 
@@ -580,7 +580,7 @@ class Factory {
 
   Handle<JSFunction> NewFunctionWithoutPrototypeHelper(
       Handle<String> name,
-      LanguageMode language_mode);
+      StrictMode strict_mode);
 
   // Create a new map cache.
   Handle<MapCache> NewMapCache(int at_least_space_for);

@@ -725,8 +725,6 @@ class LDivI V8_FINAL : public LTemplateInstruction<1, 2, 1> {
   LOperand* right() { return inputs_[1]; }
   LOperand* temp() { return temps_[0]; }
 
-  bool is_flooring() { return hydrogen_value()->IsMathFloorOfDiv(); }
-
   DECLARE_CONCRETE_INSTRUCTION(DivI, "div-i")
   DECLARE_HYDROGEN_ACCESSOR(BinaryOperation)
 };
@@ -2217,7 +2215,7 @@ class LStoreNamedGeneric V8_FINAL : public LTemplateInstruction<0, 3, 0> {
   virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
 
   Handle<Object> name() const { return hydrogen()->name(); }
-  StrictModeFlag strict_mode_flag() { return hydrogen()->strict_mode_flag(); }
+  StrictMode strict_mode() { return hydrogen()->strict_mode(); }
 };
 
 
@@ -2280,7 +2278,7 @@ class LStoreKeyedGeneric V8_FINAL : public LTemplateInstruction<0, 4, 0> {
 
   virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
 
-  StrictModeFlag strict_mode_flag() { return hydrogen()->strict_mode_flag(); }
+  StrictMode strict_mode() { return hydrogen()->strict_mode(); }
 };
 
 
@@ -2722,9 +2720,7 @@ class LChunkBuilder V8_FINAL : public LChunkBuilderBase {
         current_instruction_(NULL),
         current_block_(NULL),
         next_block_(NULL),
-        allocator_(allocator),
-        instruction_pending_deoptimization_environment_(NULL),
-        pending_deoptimization_ast_id_(BailoutId::None()) { }
+        allocator_(allocator) { }
 
   // Build the sequence for the graph.
   LPlatformChunk* Build();
@@ -2868,8 +2864,6 @@ class LChunkBuilder V8_FINAL : public LChunkBuilderBase {
   HBasicBlock* current_block_;
   HBasicBlock* next_block_;
   LAllocator* allocator_;
-  LInstruction* instruction_pending_deoptimization_environment_;
-  BailoutId pending_deoptimization_ast_id_;
 
   DISALLOW_COPY_AND_ASSIGN(LChunkBuilder);
 };

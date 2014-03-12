@@ -2258,7 +2258,7 @@ void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
 }
 
 
-void ArgumentsAccessStub::GenerateNewNonStrictSlow(MacroAssembler* masm) {
+void ArgumentsAccessStub::GenerateNewSloppySlow(MacroAssembler* masm) {
   // sp[0] : number of parameters
   // sp[4] : receiver displacement
   // sp[8] : function
@@ -2282,7 +2282,7 @@ void ArgumentsAccessStub::GenerateNewNonStrictSlow(MacroAssembler* masm) {
 }
 
 
-void ArgumentsAccessStub::GenerateNewNonStrictFast(MacroAssembler* masm) {
+void ArgumentsAccessStub::GenerateNewSloppyFast(MacroAssembler* masm) {
   // Stack layout:
   //  sp[0] : number of parameters (tagged)
   //  sp[4] : address of receiver argument
@@ -2336,7 +2336,7 @@ void ArgumentsAccessStub::GenerateNewNonStrictFast(MacroAssembler* masm) {
   __ add(r9, r9, Operand(FixedArray::kHeaderSize));
 
   // 3. Arguments object.
-  __ add(r9, r9, Operand(Heap::kArgumentsObjectSize));
+  __ add(r9, r9, Operand(Heap::kSloppyArgumentsObjectSize));
 
   // Do the allocation of all three objects in one go.
   __ Allocate(r9, r0, r3, r4, &runtime, TAG_OBJECT);
@@ -2345,7 +2345,7 @@ void ArgumentsAccessStub::GenerateNewNonStrictFast(MacroAssembler* masm) {
   // r2 = argument count (tagged)
   // Get the arguments boilerplate from the current native context into r4.
   const int kNormalOffset =
-      Context::SlotOffset(Context::ARGUMENTS_BOILERPLATE_INDEX);
+      Context::SlotOffset(Context::SLOPPY_ARGUMENTS_BOILERPLATE_INDEX);
   const int kAliasedOffset =
       Context::SlotOffset(Context::ALIASED_ARGUMENTS_BOILERPLATE_INDEX);
 
@@ -2381,7 +2381,7 @@ void ArgumentsAccessStub::GenerateNewNonStrictFast(MacroAssembler* masm) {
   // Set up the elements pointer in the allocated arguments object.
   // If we allocated a parameter map, r4 will point there, otherwise
   // it will point to the backing store.
-  __ add(r4, r0, Operand(Heap::kArgumentsObjectSize));
+  __ add(r4, r0, Operand(Heap::kSloppyArgumentsObjectSize));
   __ str(r4, FieldMemOperand(r0, JSObject::kElementsOffset));
 
   // r0 = address of new object (tagged)
@@ -2396,7 +2396,7 @@ void ArgumentsAccessStub::GenerateNewNonStrictFast(MacroAssembler* masm) {
   __ mov(r3, r4, LeaveCC, eq);
   __ b(eq, &skip_parameter_map);
 
-  __ LoadRoot(r6, Heap::kNonStrictArgumentsElementsMapRootIndex);
+  __ LoadRoot(r6, Heap::kSloppyArgumentsElementsMapRootIndex);
   __ str(r6, FieldMemOperand(r4, FixedArray::kMapOffset));
   __ add(r6, r1, Operand(Smi::FromInt(2)));
   __ str(r6, FieldMemOperand(r4, FixedArray::kLengthOffset));
@@ -2426,7 +2426,7 @@ void ArgumentsAccessStub::GenerateNewNonStrictFast(MacroAssembler* masm) {
   // r1 = mapping index (tagged)
   // r3 = address of backing store (tagged)
   // r4 = address of parameter map (tagged), which is also the address of new
-  //      object + Heap::kArgumentsObjectSize (tagged)
+  //      object + Heap::kSloppyArgumentsObjectSize (tagged)
   // r0 = temporary scratch (a.o., for address calculation)
   // r5 = the hole value
   __ jmp(&parameters_test);
@@ -2444,7 +2444,7 @@ void ArgumentsAccessStub::GenerateNewNonStrictFast(MacroAssembler* masm) {
   __ b(ne, &parameters_loop);
 
   // Restore r0 = new object (tagged)
-  __ sub(r0, r4, Operand(Heap::kArgumentsObjectSize));
+  __ sub(r0, r4, Operand(Heap::kSloppyArgumentsObjectSize));
 
   __ bind(&skip_parameter_map);
   // r0 = address of new object (tagged)
@@ -2517,7 +2517,7 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
   __ b(eq, &add_arguments_object);
   __ add(r1, r1, Operand(FixedArray::kHeaderSize / kPointerSize));
   __ bind(&add_arguments_object);
-  __ add(r1, r1, Operand(Heap::kArgumentsObjectSizeStrict / kPointerSize));
+  __ add(r1, r1, Operand(Heap::kStrictArgumentsObjectSize / kPointerSize));
 
   // Do the allocation of both objects in one go.
   __ Allocate(r1, r0, r2, r3, &runtime,
@@ -2527,7 +2527,7 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
   __ ldr(r4, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
   __ ldr(r4, FieldMemOperand(r4, GlobalObject::kNativeContextOffset));
   __ ldr(r4, MemOperand(r4, Context::SlotOffset(
-      Context::STRICT_MODE_ARGUMENTS_BOILERPLATE_INDEX)));
+      Context::STRICT_ARGUMENTS_BOILERPLATE_INDEX)));
 
   // Copy the JS object part.
   __ CopyFields(r0, r4, d0, JSObject::kHeaderSize / kPointerSize);
@@ -2548,7 +2548,7 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
 
   // Set up the elements pointer in the allocated arguments object and
   // initialize the header in the elements fixed array.
-  __ add(r4, r0, Operand(Heap::kArgumentsObjectSizeStrict));
+  __ add(r4, r0, Operand(Heap::kStrictArgumentsObjectSize));
   __ str(r4, FieldMemOperand(r0, JSObject::kElementsOffset));
   __ LoadRoot(r3, Heap::kFixedArrayMapRootIndex);
   __ str(r3, FieldMemOperand(r4, FixedArray::kMapOffset));
@@ -3134,7 +3134,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
       __ b(ne, &cont);
     }
 
-    // Compute the receiver in non-strict mode.
+    // Compute the receiver in sloppy mode.
     __ ldr(r3, MemOperand(sp, argc_ * kPointerSize));
 
     if (NeedsChecks()) {
