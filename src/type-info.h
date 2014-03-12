@@ -130,8 +130,8 @@ class TypeFeedbackOracle: public ZoneObject {
   void GetRelocInfos(Handle<Code> code, ZoneList<RelocInfo>* infos);
   void CreateDictionary(Handle<Code> code, ZoneList<RelocInfo>* infos);
   void RelocateRelocInfos(ZoneList<RelocInfo>* infos,
-                          byte* old_start,
-                          byte* new_start);
+                          Code* old_code,
+                          Code* new_code);
   void ProcessRelocInfos(ZoneList<RelocInfo>* infos);
 
   // Returns an element from the backing store. Returns undefined if

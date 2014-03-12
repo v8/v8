@@ -379,6 +379,7 @@ class RelocInfo BASE_EMBEDDED {
     return BitCast<uint64_t>(data64_);
   }
   Code* host() const { return host_; }
+  void set_host(Code* host) { host_ = host; }
 
   // Apply a relocation by delta bytes
   INLINE(void apply(intptr_t delta));
