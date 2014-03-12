@@ -49,7 +49,7 @@ endmacro
 
 macro TYPED_ARRAY_CONSTRUCTOR(ARRAY_ID, NAME, ELEMENT_SIZE)
   function NAMEConstructByArrayBuffer(obj, buffer, byteOffset, length) {
-    var bufferByteLength = buffer.byteLength;
+    var bufferByteLength = %ArrayBufferGetByteLength(buffer);
     var offset;
     if (IS_UNDEFINED(byteOffset)) {
       offset = 0;
@@ -317,7 +317,7 @@ function DataViewConstructor(buffer, byteOffset, byteLength) { // length = 3
     if (!IS_ARRAYBUFFER(buffer)) {
       throw MakeTypeError('data_view_not_array_buffer', []);
     }
-    var bufferByteLength = buffer.byteLength;
+    var bufferByteLength = %ArrayBufferGetByteLength(buffer);
     var offset = IS_UNDEFINED(byteOffset) ?
       0 : ToPositiveInteger(byteOffset, 'invalid_data_view_offset');
     if (offset > bufferByteLength) {
