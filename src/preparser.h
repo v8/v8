@@ -38,7 +38,46 @@
 namespace v8 {
 namespace internal {
 
-// Common base class shared between parser and pre-parser.
+// Common base class shared between parser and pre-parser. Traits encapsulate
+// the differences between Parser and PreParser:
+
+// - Return types: For example, Parser functions return Expression* and
+// PreParser functions return PreParserExpression.
+
+// - Creating parse tree nodes: Parser generates an AST during the recursive
+// descent. PreParser doesn't create a tree. Instead, it passes around minimal
+// data objects (PreParserExpression, PreParserIdentifier etc.) which contain
+// just enough data for the upper layer functions. PreParserFactory is
+// responsible for creating these dummy objects. It provides a similar kind of
+// interface as AstNodeFactory, so ParserBase doesn't need to care which one is
+// used.
+
+// - Miscellanous other tasks interleaved with the recursive descent. For
+// example, Parser keeps track of which function literals should be marked as
+// pretenured, and PreParser doesn't care.
+
+// The traits are expected to contain the following typedefs:
+// struct Traits {
+//   // In particular...
+//   struct Type {
+//     // Used by FunctionState and BlockState.
+//     typedef Scope;
+//     typedef GeneratorVariable;
+//     typedef Zone;
+//     // Return types for traversing functions.
+//     typedef Identifier;
+//     typedef Expression;
+//     typedef FunctionLiteral;
+//     typedef ObjectLiteralProperty;
+//     typedef Literal;
+//     typedef ExpressionList;
+//     typedef PropertyList;
+//     // For constructing objects returned by the traversing functions.
+//     typedef Factory;
+//   };
+//   // ...
+// };
+
 template <typename Traits>
 class ParserBase : public Traits {
  public:
@@ -652,11 +691,12 @@ class PreParser;
 class PreParserTraits {
  public:
   struct Type {
+    // TODO(marja): To be removed. The Traits object should contain all the data
+    // it needs.
     typedef PreParser* Parser;
 
-    // Types used by FunctionState and BlockState.
+    // Used by FunctionState and BlockState.
     typedef PreParserScope Scope;
-    typedef PreParserFactory Factory;
     // PreParser doesn't need to store generator variables.
     typedef void GeneratorVariable;
     // No interaction with Zones.
@@ -670,6 +710,9 @@ class PreParserTraits {
     typedef PreParserExpression Literal;
     typedef PreParserExpressionList ExpressionList;
     typedef PreParserExpressionList PropertyList;
+
+    // For constructing objects returned by the traversing functions.
+    typedef PreParserFactory Factory;
   };
 
   explicit PreParserTraits(PreParser* pre_parser) : pre_parser_(pre_parser) {}

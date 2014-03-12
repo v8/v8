@@ -408,11 +408,12 @@ class SingletonLogger;
 class ParserTraits {
  public:
   struct Type {
+    // TODO(marja): To be removed. The Traits object should contain all the data
+    // it needs.
     typedef v8::internal::Parser* Parser;
 
-    // Types used by FunctionState and BlockState.
+    // Used by FunctionState and BlockState.
     typedef v8::internal::Scope Scope;
-    typedef AstNodeFactory<AstConstructionVisitor> Factory;
     typedef Variable GeneratorVariable;
     typedef v8::internal::Zone Zone;
 
@@ -424,6 +425,9 @@ class ParserTraits {
     typedef ObjectLiteral::Property* ObjectLiteralProperty;
     typedef ZoneList<v8::internal::Expression*>* ExpressionList;
     typedef ZoneList<ObjectLiteral::Property*>* PropertyList;
+
+    // For constructing objects returned by the traversing functions.
+    typedef AstNodeFactory<AstConstructionVisitor> Factory;
   };
 
   explicit ParserTraits(Parser* parser) : parser_(parser) {}
