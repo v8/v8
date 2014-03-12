@@ -44,7 +44,7 @@ void RelocInfo::apply(intptr_t delta) {
 
 void RelocInfo::set_target_address(Address target, WriteBarrierMode mode) {
   ASSERT(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_));
-  Assembler::set_target_address_at(pc_, target);
+  Assembler::set_target_address_at(pc_, host_, target);
   if (mode == UPDATE_WRITE_BARRIER && host() != NULL && IsCodeTarget(rmode_)) {
     Object* target_code = Code::GetCodeFromTargetAddress(target);
     host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(
@@ -558,8 +558,15 @@ Address Assembler::target_pointer_address_at(Address pc) {
 
 
 // Read/Modify the code target address in the branch/call instruction at pc.
-Address Assembler::target_address_at(Address pc) {
+Address Assembler::target_address_at(Address pc,
+                                     ConstantPoolArray* constant_pool) {
   return Memory::Address_at(target_pointer_address_at(pc));
+}
+
+
+Address Assembler::target_address_at(Address pc, Code* code) {
+  ConstantPoolArray* constant_pool = code ? code->constant_pool() : NULL;
+  return target_address_at(pc, constant_pool);
 }
 
 
@@ -616,12 +623,14 @@ Address Assembler::return_address_from_call_start(Address pc) {
 
 
 void Assembler::deserialization_set_special_target_at(
-    Address constant_pool_entry, Address target) {
+    Address constant_pool_entry, Code* code, Address target) {
   Memory::Address_at(constant_pool_entry) = target;
 }
 
 
-void Assembler::set_target_address_at(Address pc, Address target) {
+void Assembler::set_target_address_at(Address pc,
+                                      ConstantPoolArray* constant_pool,
+                                      Address target) {
   Memory::Address_at(target_pointer_address_at(pc)) = target;
   // Intuitively, we would think it is necessary to always flush the
   // instruction cache after patching a target address in the code as follows:
@@ -634,6 +643,14 @@ void Assembler::set_target_address_at(Address pc, Address target) {
 }
 
 
+void Assembler::set_target_address_at(Address pc,
+                                      Code* code,
+                                      Address target) {
+  ConstantPoolArray* constant_pool = code ? code->constant_pool() : NULL;
+  set_target_address_at(pc, constant_pool, target);
+}
+
+
 int RelocInfo::target_address_size() {
   return kPointerSize;
 }
@@ -641,7 +658,7 @@ int RelocInfo::target_address_size() {
 
 Address RelocInfo::target_address() {
   ASSERT(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_));
-  return Assembler::target_address_at(pc_);
+  return Assembler::target_address_at(pc_, host_);
 }
 
 
@@ -661,21 +678,22 @@ Address RelocInfo::constant_pool_entry_address() {
 
 Object* RelocInfo::target_object() {
   ASSERT(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
-  return reinterpret_cast<Object*>(Assembler::target_address_at(pc_));
+  return reinterpret_cast<Object*>(Assembler::target_address_at(pc_, host_));
 }
 
 
 Handle<Object> RelocInfo::target_object_handle(Assembler* origin) {
   ASSERT(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
   return Handle<Object>(reinterpret_cast<Object**>(
-      Assembler::target_address_at(pc_)));
+      Assembler::target_address_at(pc_, host_)));
 }
 
 
 void RelocInfo::set_target_object(Object* target, WriteBarrierMode mode) {
   ASSERT(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
   ASSERT(!target->IsConsString());
-  Assembler::set_target_address_at(pc_, reinterpret_cast<Address>(target));
+  Assembler::set_target_address_at(pc_, host_,
+                                   reinterpret_cast<Address>(target));
   if (mode == UPDATE_WRITE_BARRIER &&
       host() != NULL &&
       target->IsHeapObject()) {
@@ -687,7 +705,7 @@ void RelocInfo::set_target_object(Object* target, WriteBarrierMode mode) {
 
 Address RelocInfo::target_reference() {
   ASSERT(rmode_ == EXTERNAL_REFERENCE);
-  return Assembler::target_address_at(pc_);
+  return Assembler::target_address_at(pc_, host_);
 }
 
 
@@ -756,14 +774,14 @@ Address RelocInfo::call_address() {
          (IsDebugBreakSlot(rmode()) && IsPatchedDebugBreakSlotSequence()));
   // For the above sequences the Relocinfo points to the load literal loading
   // the call address.
-  return Assembler::target_address_at(pc_);
+  return Assembler::target_address_at(pc_, host_);
 }
 
 
 void RelocInfo::set_call_address(Address target) {
   ASSERT((IsJSReturn(rmode()) && IsPatchedReturnSequence()) ||
          (IsDebugBreakSlot(rmode()) && IsPatchedDebugBreakSlotSequence()));
-  Assembler::set_target_address_at(pc_, target);
+  Assembler::set_target_address_at(pc_, host_, target);
   if (host() != NULL) {
     Object* target_code = Code::GetCodeFromTargetAddress(target);
     host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(
@@ -777,7 +795,7 @@ void RelocInfo::WipeOut() {
          IsCodeTarget(rmode_) ||
          IsRuntimeEntry(rmode_) ||
          IsExternalReference(rmode_));
-  Assembler::set_target_address_at(pc_, NULL);
+  Assembler::set_target_address_at(pc_, host_, NULL);
 }
 
 
