@@ -10508,6 +10508,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GlobalPrint) {
 // and are followed by non-existing element. Does not change the length
 // property.
 // Returns the number of non-undefined elements collected.
+// Returns -1 if hole removal is not supported by this method.
 RUNTIME_FUNCTION(MaybeObject*, Runtime_RemoveArrayHoles) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 2);

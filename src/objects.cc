@@ -14437,8 +14437,11 @@ MaybeObject* JSObject::PrepareSlowElementsForSort(uint32_t limit) {
 Handle<Object> JSObject::PrepareElementsForSort(Handle<JSObject> object,
                                                 uint32_t limit) {
   Isolate* isolate = object->GetIsolate();
+  if (object->HasSloppyArgumentsElements() ||
+      object->map()->is_observed()) {
+    return handle(Smi::FromInt(-1), isolate);
+  }
 
-  ASSERT(!object->map()->is_observed());
   if (object->HasDictionaryElements()) {
     // Convert to fast elements containing only the existing properties.
     // Ordering is irrelevant, since we are going to sort anyway.
