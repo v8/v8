@@ -109,14 +109,14 @@ inline bool CPURegister::IsValid() const {
 
 inline bool CPURegister::IsValidRegister() const {
   return IsRegister() &&
-         ((reg_size == kWRegSize) || (reg_size == kXRegSize)) &&
+         ((reg_size == kWRegSizeInBits) || (reg_size == kXRegSizeInBits)) &&
          ((reg_code < kNumberOfRegisters) || (reg_code == kSPRegInternalCode));
 }
 
 
 inline bool CPURegister::IsValidFPRegister() const {
   return IsFPRegister() &&
-         ((reg_size == kSRegSize) || (reg_size == kDRegSize)) &&
+         ((reg_size == kSRegSizeInBits) || (reg_size == kDRegSizeInBits)) &&
          (reg_code < kNumberOfFPRegisters);
 }
 
@@ -221,25 +221,25 @@ inline Register Register::XRegFromCode(unsigned code) {
   // This function returns the zero register when code = 31. The stack pointer
   // can not be returned.
   ASSERT(code < kNumberOfRegisters);
-  return Register::Create(code, kXRegSize);
+  return Register::Create(code, kXRegSizeInBits);
 }
 
 
 inline Register Register::WRegFromCode(unsigned code) {
   ASSERT(code < kNumberOfRegisters);
-  return Register::Create(code, kWRegSize);
+  return Register::Create(code, kWRegSizeInBits);
 }
 
 
 inline FPRegister FPRegister::SRegFromCode(unsigned code) {
   ASSERT(code < kNumberOfFPRegisters);
-  return FPRegister::Create(code, kSRegSize);
+  return FPRegister::Create(code, kSRegSizeInBits);
 }
 
 
 inline FPRegister FPRegister::DRegFromCode(unsigned code) {
   ASSERT(code < kNumberOfFPRegisters);
-  return FPRegister::Create(code, kDRegSize);
+  return FPRegister::Create(code, kDRegSizeInBits);
 }
 
 
@@ -334,8 +334,8 @@ Operand::Operand(Register reg, Shift shift, unsigned shift_amount)
       extend_(NO_EXTEND),
       shift_amount_(shift_amount),
       rmode_(reg.Is64Bits() ? RelocInfo::NONE64 : RelocInfo::NONE32) {
-  ASSERT(reg.Is64Bits() || (shift_amount < kWRegSize));
-  ASSERT(reg.Is32Bits() || (shift_amount < kXRegSize));
+  ASSERT(reg.Is64Bits() || (shift_amount < kWRegSizeInBits));
+  ASSERT(reg.Is32Bits() || (shift_amount < kXRegSizeInBits));
   ASSERT(!reg.IsSP());
 }
 
@@ -1006,16 +1006,16 @@ Instr Assembler::ImmAddSub(int64_t imm) {
 
 
 Instr Assembler::ImmS(unsigned imms, unsigned reg_size) {
-  ASSERT(((reg_size == kXRegSize) && is_uint6(imms)) ||
-         ((reg_size == kWRegSize) && is_uint5(imms)));
+  ASSERT(((reg_size == kXRegSizeInBits) && is_uint6(imms)) ||
+         ((reg_size == kWRegSizeInBits) && is_uint5(imms)));
   USE(reg_size);
   return imms << ImmS_offset;
 }
 
 
 Instr Assembler::ImmR(unsigned immr, unsigned reg_size) {
-  ASSERT(((reg_size == kXRegSize) && is_uint6(immr)) ||
-         ((reg_size == kWRegSize) && is_uint5(immr)));
+  ASSERT(((reg_size == kXRegSizeInBits) && is_uint6(immr)) ||
+         ((reg_size == kWRegSizeInBits) && is_uint5(immr)));
   USE(reg_size);
   ASSERT(is_uint6(immr));
   return immr << ImmR_offset;
@@ -1023,18 +1023,18 @@ Instr Assembler::ImmR(unsigned immr, unsigned reg_size) {
 
 
 Instr Assembler::ImmSetBits(unsigned imms, unsigned reg_size) {
-  ASSERT((reg_size == kWRegSize) || (reg_size == kXRegSize));
+  ASSERT((reg_size == kWRegSizeInBits) || (reg_size == kXRegSizeInBits));
   ASSERT(is_uint6(imms));
-  ASSERT((reg_size == kXRegSize) || is_uint6(imms + 3));
+  ASSERT((reg_size == kXRegSizeInBits) || is_uint6(imms + 3));
   USE(reg_size);
   return imms << ImmSetBits_offset;
 }
 
 
 Instr Assembler::ImmRotate(unsigned immr, unsigned reg_size) {
-  ASSERT((reg_size == kWRegSize) || (reg_size == kXRegSize));
-  ASSERT(((reg_size == kXRegSize) && is_uint6(immr)) ||
-         ((reg_size == kWRegSize) && is_uint5(immr)));
+  ASSERT((reg_size == kWRegSizeInBits) || (reg_size == kXRegSizeInBits));
+  ASSERT(((reg_size == kXRegSizeInBits) && is_uint6(immr)) ||
+         ((reg_size == kWRegSizeInBits) && is_uint5(immr)));
   USE(reg_size);
   return immr << ImmRotate_offset;
 }
@@ -1047,8 +1047,8 @@ Instr Assembler::ImmLLiteral(int imm19) {
 
 
 Instr Assembler::BitN(unsigned bitn, unsigned reg_size) {
-  ASSERT((reg_size == kWRegSize) || (reg_size == kXRegSize));
-  ASSERT((reg_size == kXRegSize) || (bitn == 0));
+  ASSERT((reg_size == kWRegSizeInBits) || (reg_size == kXRegSizeInBits));
+  ASSERT((reg_size == kXRegSizeInBits) || (bitn == 0));
   USE(reg_size);
   return bitn << BitN_offset;
 }

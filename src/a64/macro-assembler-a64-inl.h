@@ -747,12 +747,12 @@ void MacroAssembler::Fmov(FPRegister fd, double imm) {
     // TODO(all): The Assembler would try to relocate the immediate with
     // Assembler::ldr(const FPRegister& ft, double imm) but it is not
     // implemented yet.
-    if (fd.SizeInBits() == kDRegSize) {
+    if (fd.SizeInBits() == kDRegSizeInBits) {
       Register tmp = temps.AcquireX();
       Mov(tmp, double_to_rawbits(imm));
       Fmov(fd, tmp);
     } else {
-      ASSERT(fd.SizeInBits() == kSRegSize);
+      ASSERT(fd.SizeInBits() == kSRegSizeInBits);
       Register tmp = temps.AcquireW();
       Mov(tmp, float_to_rawbits(static_cast<float>(imm)));
       Fmov(fd, tmp);
@@ -1476,7 +1476,7 @@ void MacroAssembler::Claim(const Register& count, uint64_t unit_size) {
     return;
   }
 
-  const int shift = CountTrailingZeros(unit_size, kXRegSize);
+  const int shift = CountTrailingZeros(unit_size, kXRegSizeInBits);
   const Operand size(count, LSL, shift);
 
   if (size.IsZero()) {
@@ -1493,7 +1493,7 @@ void MacroAssembler::Claim(const Register& count, uint64_t unit_size) {
 
 void MacroAssembler::ClaimBySMI(const Register& count_smi, uint64_t unit_size) {
   ASSERT(IsPowerOf2(unit_size));
-  const int shift = CountTrailingZeros(unit_size, kXRegSize) - kSmiShift;
+  const int shift = CountTrailingZeros(unit_size, kXRegSizeInBits) - kSmiShift;
   const Operand size(count_smi,
                      (shift >= 0) ? (LSL) : (LSR),
                      (shift >= 0) ? (shift) : (-shift));
@@ -1537,7 +1537,7 @@ void MacroAssembler::Drop(const Register& count, uint64_t unit_size) {
     return;
   }
 
-  const int shift = CountTrailingZeros(unit_size, kXRegSize);
+  const int shift = CountTrailingZeros(unit_size, kXRegSizeInBits);
   const Operand size(count, LSL, shift);
 
   if (size.IsZero()) {
@@ -1557,7 +1557,7 @@ void MacroAssembler::Drop(const Register& count, uint64_t unit_size) {
 
 void MacroAssembler::DropBySMI(const Register& count_smi, uint64_t unit_size) {
   ASSERT(IsPowerOf2(unit_size));
-  const int shift = CountTrailingZeros(unit_size, kXRegSize) - kSmiShift;
+  const int shift = CountTrailingZeros(unit_size, kXRegSizeInBits) - kSmiShift;
   const Operand size(count_smi,
                      (shift >= 0) ? (LSL) : (LSR),
                      (shift >= 0) ? (shift) : (-shift));

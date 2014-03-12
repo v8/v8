@@ -148,7 +148,7 @@ void FullCodeGenerator::Generate() {
   // object).
   if (info->strict_mode() == SLOPPY && !info->is_native()) {
     Label ok;
-    int receiver_offset = info->scope()->num_parameters() * kXRegSizeInBytes;
+    int receiver_offset = info->scope()->num_parameters() * kXRegSize;
     __ Peek(x10, receiver_offset);
     __ JumpIfNotRoot(x10, Heap::kUndefinedValueRootIndex, &ok);
 
@@ -425,7 +425,7 @@ void FullCodeGenerator::EmitReturnSequence() {
       ASSERT(!current_sp.Is(csp));
       __ mov(current_sp, fp);
       int no_frame_start = masm_->pc_offset();
-      __ ldp(fp, lr, MemOperand(current_sp, 2 * kXRegSizeInBytes, PostIndex));
+      __ ldp(fp, lr, MemOperand(current_sp, 2 * kXRegSize, PostIndex));
       // Drop the arguments and receiver and return.
       // TODO(all): This implementation is overkill as it supports 2**31+1
       // arguments, consider how to improve it without creating a security
@@ -433,7 +433,7 @@ void FullCodeGenerator::EmitReturnSequence() {
       __ LoadLiteral(ip0, 3 * kInstructionSize);
       __ add(current_sp, current_sp, ip0);
       __ ret();
-      __ dc64(kXRegSizeInBytes * (info_->scope()->num_parameters() + 1));
+      __ dc64(kXRegSize * (info_->scope()->num_parameters() + 1));
       info_->AddNoFrameRange(no_frame_start, masm_->pc_offset());
     }
   }
@@ -692,7 +692,7 @@ void FullCodeGenerator::Split(Condition cond,
 
 MemOperand FullCodeGenerator::StackOperand(Variable* var) {
   // Offset is negative because higher indexes are at lower addresses.
-  int offset = -var->index() * kXRegSizeInBytes;
+  int offset = -var->index() * kXRegSize;
   // Adjust by a (parameter or local) base offset.
   if (var->IsParameter()) {
     offset += (info_->scope()->num_parameters() + 1) * kPointerSize;
@@ -1184,18 +1184,18 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ B(hs, loop_statement.break_label());
 
   // Get the current entry of the array into register r3.
-  __ Peek(x10, 2 * kXRegSizeInBytes);
+  __ Peek(x10, 2 * kXRegSize);
   __ Add(x10, x10, Operand::UntagSmiAndScale(x0, kPointerSizeLog2));
   __ Ldr(x3, MemOperand(x10, FixedArray::kHeaderSize - kHeapObjectTag));
 
   // Get the expected map from the stack or a smi in the
   // permanent slow case into register x10.
-  __ Peek(x2, 3 * kXRegSizeInBytes);
+  __ Peek(x2, 3 * kXRegSize);
 
   // Check if the expected map still matches that of the enumerable.
   // If not, we may have to filter the key.
   Label update_each;
-  __ Peek(x1, 4 * kXRegSizeInBytes);
+  __ Peek(x1, 4 * kXRegSize);
   __ Ldr(x11, FieldMemOperand(x1, HeapObject::kMapOffset));
   __ Cmp(x11, x2);
   __ B(eq, &update_each);
@@ -2053,7 +2053,7 @@ void FullCodeGenerator::EmitInlineSmiBinaryOp(BinaryOperation* expr,
       __ B(&done);
       __ Bind(&not_minus_zero);
       __ Cls(x11, x10);
-      __ Cmp(x11, kXRegSize - kSmiShift);
+      __ Cmp(x11, kXRegSizeInBits - kSmiShift);
       __ B(lt, &stub_call);
       __ SmiTag(result, x10);
       __ Bind(&done);
@@ -2413,7 +2413,7 @@ void FullCodeGenerator::EmitCallWithStub(Call* expr) {
 
   // Record call targets in unoptimized code.
   CallFunctionStub stub(arg_count, RECORD_CALL_TARGET);
-  __ Peek(x1, (arg_count + 1) * kXRegSizeInBytes);
+  __ Peek(x1, (arg_count + 1) * kXRegSize);
   __ CallStub(&stub);
   RecordJSReturnSite(expr);
   // Restore context register.
@@ -2427,7 +2427,7 @@ void FullCodeGenerator::EmitResolvePossiblyDirectEval(int arg_count) {
   // Prepare to push a copy of the first argument or undefined if it doesn't
   // exist.
   if (arg_count > 0) {
-    __ Peek(x10, arg_count * kXRegSizeInBytes);
+    __ Peek(x10, arg_count * kXRegSize);
   } else {
     __ LoadRoot(x10, Heap::kUndefinedValueRootIndex);
   }
@@ -2498,7 +2498,7 @@ void FullCodeGenerator::VisitCall(Call* expr) {
 
     // Call the evaluated function.
     CallFunctionStub stub(arg_count, NO_CALL_FUNCTION_FLAGS);
-    __ Peek(x1, (arg_count + 1) * kXRegSizeInBytes);
+    __ Peek(x1, (arg_count + 1) * kXRegSize);
     __ CallStub(&stub);
     RecordJSReturnSite(expr);
     // Restore context register.
@@ -2601,7 +2601,7 @@ void FullCodeGenerator::VisitCallNew(CallNew* expr) {
 
   // Load function and argument count into x1 and x0.
   __ Mov(x0, arg_count);
-  __ Peek(x1, arg_count * kXRegSizeInBytes);
+  __ Peek(x1, arg_count * kXRegSize);
 
   // Record call targets in unoptimized code.
   __ LoadObject(x2, FeedbackVector());
@@ -4083,10 +4083,10 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
           __ Push(x0);
           break;
         case NAMED_PROPERTY:
-          __ Poke(x0, kXRegSizeInBytes);
+          __ Poke(x0, kXRegSize);
           break;
         case KEYED_PROPERTY:
-          __ Poke(x0, 2 * kXRegSizeInBytes);
+          __ Poke(x0, 2 * kXRegSize);
           break;
       }
     }

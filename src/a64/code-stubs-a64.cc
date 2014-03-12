@@ -1501,7 +1501,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
     UseScratchRegisterScope temps(masm);
     Register temp = temps.AcquireX();
     __ Ldr(temp, MemOperand(fp, ExitFrameConstants::kSPOffset));
-    __ Ldr(temp, MemOperand(temp, -static_cast<int64_t>(kXRegSizeInBytes)));
+    __ Ldr(temp, MemOperand(temp, -static_cast<int64_t>(kXRegSize)));
     __ Cmp(temp, x12);
     __ Check(eq, kReturnAddressNotFoundInFrame);
   }
@@ -2323,10 +2323,10 @@ void ArgumentsAccessStub::GenerateNewSloppySlow(MacroAssembler* masm) {
   // Patch the arguments.length and parameters pointer in the current frame.
   __ Ldr(x11, MemOperand(caller_fp,
                          ArgumentsAdaptorFrameConstants::kLengthOffset));
-  __ Poke(x11, 0 * kXRegSizeInBytes);
+  __ Poke(x11, 0 * kXRegSize);
   __ Add(x10, caller_fp, Operand::UntagSmiAndScale(x11, kPointerSizeLog2));
   __ Add(x10, x10, Operand(StandardFrameConstants::kCallerSPOffset));
-  __ Poke(x10, 1 * kXRegSizeInBytes);
+  __ Poke(x10, 1 * kXRegSize);
 
   __ Bind(&runtime);
   __ TailCallRuntime(Runtime::kNewArgumentsFast, 3, 1);
@@ -3162,7 +3162,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // Read two 32 bit values from the static offsets vector buffer into
   // an X register
   __ Ldr(current_offset,
-         MemOperand(offsets_vector_index, kWRegSizeInBytes * 2, PostIndex));
+         MemOperand(offsets_vector_index, kWRegSize * 2, PostIndex));
   // Store the smi values in the last match info.
   __ SmiTag(x10, current_offset);
   // Clearing the 32 bottom bits gives us a Smi.
@@ -3170,7 +3170,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ And(x11, current_offset, ~kWRegMask);
   __ Stp(x10,
          x11,
-         MemOperand(last_match_offsets, kXRegSizeInBytes * 2, PostIndex));
+         MemOperand(last_match_offsets, kXRegSize * 2, PostIndex));
   __ B(&next_capture);
   __ Bind(&done);
 
@@ -3454,7 +3454,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
     // CALL_NON_FUNCTION expects the non-function callee as receiver (instead
     // of the original receiver from the call site).
     __ Bind(&non_function);
-    __ Poke(function, argc_ * kXRegSizeInBytes);
+    __ Poke(function, argc_ * kXRegSize);
     __ Mov(x0, argc_);  // Set up the number of arguments.
     __ Mov(x2, 0);
     __ GetBuiltinFunction(function, Builtins::CALL_NON_FUNCTION);
@@ -5105,7 +5105,7 @@ void NameDictionaryLookupStub::GeneratePositiveLookup(
   // The inlined probes didn't find the entry.
   // Call the complete stub to scan the whole dictionary.
 
-  CPURegList spill_list(CPURegister::kRegister, kXRegSize, 0, 6);
+  CPURegList spill_list(CPURegister::kRegister, kXRegSizeInBits, 0, 6);
   spill_list.Combine(lr);
   spill_list.Remove(scratch1);
   spill_list.Remove(scratch2);
@@ -5185,7 +5185,7 @@ void NameDictionaryLookupStub::GenerateNegativeLookup(MacroAssembler* masm,
     __ Bind(&good);
   }
 
-  CPURegList spill_list(CPURegister::kRegister, kXRegSize, 0, 6);
+  CPURegList spill_list(CPURegister::kRegister, kXRegSizeInBits, 0, 6);
   spill_list.Combine(lr);
   spill_list.Remove(scratch0);  // Scratch registers don't need to be preserved.
 

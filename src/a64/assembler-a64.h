@@ -227,7 +227,7 @@ struct Register : public CPURegister {
 
   static Register from_code(int code) {
     // Always return an X register.
-    return Register::Create(code, kXRegSize);
+    return Register::Create(code, kXRegSizeInBits);
   }
 
   // End of V8 compatibility section -----------------------
@@ -322,7 +322,7 @@ struct FPRegister : public CPURegister {
 
   static FPRegister from_code(int code) {
     // Always return a D register.
-    return FPRegister::Create(code, kDRegSize);
+    return FPRegister::Create(code, kDRegSizeInBits);
   }
   // End of V8 compatibility section -----------------------
 };
@@ -358,20 +358,23 @@ INITIALIZE_REGISTER(CPURegister, NoCPUReg, 0, 0, CPURegister::kNoRegister);
 INITIALIZE_REGISTER(Register, no_reg, 0, 0, CPURegister::kNoRegister);
 
 #define DEFINE_REGISTERS(N)                                                  \
-  INITIALIZE_REGISTER(Register, w##N, N, kWRegSize, CPURegister::kRegister); \
-  INITIALIZE_REGISTER(Register, x##N, N, kXRegSize, CPURegister::kRegister);
+  INITIALIZE_REGISTER(Register, w##N, N,                                     \
+                      kWRegSizeInBits, CPURegister::kRegister);              \
+  INITIALIZE_REGISTER(Register, x##N, N,                                     \
+                      kXRegSizeInBits, CPURegister::kRegister);
 REGISTER_CODE_LIST(DEFINE_REGISTERS)
 #undef DEFINE_REGISTERS
 
-INITIALIZE_REGISTER(Register, wcsp, kSPRegInternalCode, kWRegSize,
+INITIALIZE_REGISTER(Register, wcsp, kSPRegInternalCode, kWRegSizeInBits,
                     CPURegister::kRegister);
-INITIALIZE_REGISTER(Register, csp, kSPRegInternalCode, kXRegSize,
+INITIALIZE_REGISTER(Register, csp, kSPRegInternalCode, kXRegSizeInBits,
                     CPURegister::kRegister);
 
-#define DEFINE_FPREGISTERS(N)                         \
-  INITIALIZE_REGISTER(FPRegister, s##N, N, kSRegSize, \
-                      CPURegister::kFPRegister);      \
-  INITIALIZE_REGISTER(FPRegister, d##N, N, kDRegSize, CPURegister::kFPRegister);
+#define DEFINE_FPREGISTERS(N)                                                  \
+  INITIALIZE_REGISTER(FPRegister, s##N, N,                                     \
+                      kSRegSizeInBits, CPURegister::kFPRegister);              \
+  INITIALIZE_REGISTER(FPRegister, d##N, N,                                     \
+                      kDRegSizeInBits, CPURegister::kFPRegister);
 REGISTER_CODE_LIST(DEFINE_FPREGISTERS)
 #undef DEFINE_FPREGISTERS
 
@@ -520,12 +523,12 @@ class CPURegList {
   CPURegister PopHighestIndex();
 
   // AAPCS64 callee-saved registers.
-  static CPURegList GetCalleeSaved(unsigned size = kXRegSize);
-  static CPURegList GetCalleeSavedFP(unsigned size = kDRegSize);
+  static CPURegList GetCalleeSaved(unsigned size = kXRegSizeInBits);
+  static CPURegList GetCalleeSavedFP(unsigned size = kDRegSizeInBits);
 
   // AAPCS64 caller-saved registers. Note that this includes lr.
-  static CPURegList GetCallerSaved(unsigned size = kXRegSize);
-  static CPURegList GetCallerSavedFP(unsigned size = kDRegSize);
+  static CPURegList GetCallerSaved(unsigned size = kXRegSizeInBits);
+  static CPURegList GetCallerSavedFP(unsigned size = kDRegSizeInBits);
 
   // Registers saved as safepoints.
   static CPURegList GetSafepointSavedRegisters();

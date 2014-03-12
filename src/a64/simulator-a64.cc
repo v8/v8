@@ -306,8 +306,8 @@ void Simulator::CorruptAllCallerSavedCPURegisters() {
 // Extending the stack by 2 * 64 bits is required for stack alignment purposes.
 // TODO(all): Insert a marker in the extra space allocated on the stack.
 uintptr_t Simulator::PushAddress(uintptr_t address) {
-  ASSERT(sizeof(uintptr_t) < 2 * kXRegSizeInBytes);
-  intptr_t new_sp = sp() - 2 * kXRegSizeInBytes;
+  ASSERT(sizeof(uintptr_t) < 2 * kXRegSize);
+  intptr_t new_sp = sp() - 2 * kXRegSize;
   uintptr_t* stack_slot = reinterpret_cast<uintptr_t*>(new_sp);
   *stack_slot = address;
   set_sp(new_sp);
@@ -319,8 +319,8 @@ uintptr_t Simulator::PopAddress() {
   intptr_t current_sp = sp();
   uintptr_t* stack_slot = reinterpret_cast<uintptr_t*>(current_sp);
   uintptr_t address = *stack_slot;
-  ASSERT(sizeof(uintptr_t) < 2 * kXRegSizeInBytes);
-  set_sp(current_sp + 2 * kXRegSizeInBytes);
+  ASSERT(sizeof(uintptr_t) < 2 * kXRegSize);
+  set_sp(current_sp + 2 * kXRegSize);
   return address;
 }
 
@@ -614,7 +614,7 @@ int64_t Simulator::AddWithCarry(unsigned reg_size,
                                 int64_t src2,
                                 int64_t carry_in) {
   ASSERT((carry_in == 0) || (carry_in == 1));
-  ASSERT((reg_size == kXRegSize) || (reg_size == kWRegSize));
+  ASSERT((reg_size == kXRegSizeInBits) || (reg_size == kWRegSizeInBits));
 
   uint64_t u1, u2;
   int64_t result;
@@ -622,7 +622,7 @@ int64_t Simulator::AddWithCarry(unsigned reg_size,
 
   uint32_t N, Z, C, V;
 
-  if (reg_size == kWRegSize) {
+  if (reg_size == kWRegSizeInBits) {
     u1 = static_cast<uint64_t>(src1) & kWRegMask;
     u2 = static_cast<uint64_t>(src2) & kWRegMask;
 
@@ -632,9 +632,9 @@ int64_t Simulator::AddWithCarry(unsigned reg_size,
         ((kWMaxUInt - u1 - carry_in) < u2);
     // Overflow iff the sign bit is the same for the two inputs and different
     // for the result.
-    int64_t s_src1 = src1 << (kXRegSize - kWRegSize);
-    int64_t s_src2 = src2 << (kXRegSize - kWRegSize);
-    int64_t s_result = result << (kXRegSize - kWRegSize);
+    int64_t s_src1 = src1 << (kXRegSizeInBits - kWRegSizeInBits);
+    int64_t s_src2 = src2 << (kXRegSizeInBits - kWRegSizeInBits);
+    int64_t s_result = result << (kXRegSizeInBits - kWRegSizeInBits);
     V = ((s_src1 ^ s_src2) >= 0) && ((s_src1 ^ s_result) < 0);
 
   } else {
@@ -670,7 +670,7 @@ int64_t Simulator::ShiftOperand(unsigned reg_size,
   if (amount == 0) {
     return value;
   }
-  int64_t mask = reg_size == kXRegSize ? kXRegMask : kWRegMask;
+  int64_t mask = reg_size == kXRegSizeInBits ? kXRegMask : kWRegMask;
   switch (shift_type) {
     case LSL:
       return (value << amount) & mask;
@@ -678,13 +678,13 @@ int64_t Simulator::ShiftOperand(unsigned reg_size,
       return static_cast<uint64_t>(value) >> amount;
     case ASR: {
       // Shift used to restore the sign.
-      unsigned s_shift = kXRegSize - reg_size;
+      unsigned s_shift = kXRegSizeInBits - reg_size;
       // Value with its sign restored.
       int64_t s_value = (value << s_shift) >> s_shift;
       return (s_value >> amount) & mask;
     }
     case ROR: {
-      if (reg_size == kWRegSize) {
+      if (reg_size == kWRegSizeInBits) {
         value &= kWRegMask;
       }
       return (static_cast<uint64_t>(value) >> amount) |
@@ -726,7 +726,7 @@ int64_t Simulator::ExtendValue(unsigned reg_size,
     default:
       UNREACHABLE();
   }
-  int64_t mask = (reg_size == kXRegSize) ? kXRegMask : kWRegMask;
+  int64_t mask = (reg_size == kXRegSizeInBits) ? kXRegMask : kWRegMask;
   return (value << left_shift) & mask;
 }
 
@@ -1056,7 +1056,8 @@ void Simulator::VisitCompareBranch(Instruction* instr) {
 
 
 void Simulator::AddSubHelper(Instruction* instr, int64_t op2) {
-  unsigned reg_size = instr->SixtyFourBits() ? kXRegSize : kWRegSize;
+  unsigned reg_size = instr->SixtyFourBits() ? kXRegSizeInBits
+                                             : kWRegSizeInBits;
   bool set_flags = instr->FlagsUpdate();
   int64_t new_val = 0;
   Instr operation = instr->Mask(AddSubOpMask);
@@ -1087,7 +1088,8 @@ void Simulator::AddSubHelper(Instruction* instr, int64_t op2) {
 
 
 void Simulator::VisitAddSubShifted(Instruction* instr) {
-  unsigned reg_size = instr->SixtyFourBits() ? kXRegSize : kWRegSize;
+  unsigned reg_size = instr->SixtyFourBits() ? kXRegSizeInBits
+                                             : kWRegSizeInBits;
   int64_t op2 = ShiftOperand(reg_size,
                              reg(reg_size, instr->Rm()),
                              static_cast<Shift>(instr->ShiftDP()),
@@ -1103,7 +1105,8 @@ void Simulator::VisitAddSubImmediate(Instruction* instr) {
 
 
 void Simulator::VisitAddSubExtended(Instruction* instr) {
-  unsigned reg_size = instr->SixtyFourBits() ? kXRegSize : kWRegSize;
+  unsigned reg_size = instr->SixtyFourBits() ? kXRegSizeInBits
+                                             : kWRegSizeInBits;
   int64_t op2 = ExtendValue(reg_size,
                             reg(reg_size, instr->Rm()),
                             static_cast<Extend>(instr->ExtendMode()),
@@ -1113,7 +1116,8 @@ void Simulator::VisitAddSubExtended(Instruction* instr) {
 
 
 void Simulator::VisitAddSubWithCarry(Instruction* instr) {
-  unsigned reg_size = instr->SixtyFourBits() ? kXRegSize : kWRegSize;
+  unsigned reg_size = instr->SixtyFourBits() ? kXRegSizeInBits
+                                             : kWRegSizeInBits;
   int64_t op2 = reg(reg_size, instr->Rm());
   int64_t new_val;
 
@@ -1132,7 +1136,8 @@ void Simulator::VisitAddSubWithCarry(Instruction* instr) {
 
 
 void Simulator::VisitLogicalShifted(Instruction* instr) {
-  unsigned reg_size = instr->SixtyFourBits() ? kXRegSize : kWRegSize;
+  unsigned reg_size = instr->SixtyFourBits() ? kXRegSizeInBits
+                                             : kWRegSizeInBits;
   Shift shift_type = static_cast<Shift>(instr->ShiftDP());
   unsigned shift_amount = instr->ImmDPShift();
   int64_t op2 = ShiftOperand(reg_size, reg(reg_size, instr->Rm()), shift_type,
@@ -1150,7 +1155,8 @@ void Simulator::VisitLogicalImmediate(Instruction* instr) {
 
 
 void Simulator::LogicalHelper(Instruction* instr, int64_t op2) {
-  unsigned reg_size = instr->SixtyFourBits() ? kXRegSize : kWRegSize;
+  unsigned reg_size = instr->SixtyFourBits() ? kXRegSizeInBits
+                                             : kWRegSizeInBits;
   int64_t op1 = reg(reg_size, instr->Rn());
   int64_t result = 0;
   bool update_flags = false;
@@ -1178,7 +1184,8 @@ void Simulator::LogicalHelper(Instruction* instr, int64_t op2) {
 
 
 void Simulator::VisitConditionalCompareRegister(Instruction* instr) {
-  unsigned reg_size = instr->SixtyFourBits() ? kXRegSize : kWRegSize;
+  unsigned reg_size = instr->SixtyFourBits() ? kXRegSizeInBits
+                                             : kWRegSizeInBits;
   ConditionalCompareHelper(instr, reg(reg_size, instr->Rm()));
 }
 
@@ -1189,7 +1196,8 @@ void Simulator::VisitConditionalCompareImmediate(Instruction* instr) {
 
 
 void Simulator::ConditionalCompareHelper(Instruction* instr, int64_t op2) {
-  unsigned reg_size = instr->SixtyFourBits() ? kXRegSize : kWRegSize;
+  unsigned reg_size = instr->SixtyFourBits() ? kXRegSizeInBits
+                                             : kWRegSizeInBits;
   int64_t op1 = reg(reg_size, instr->Rn());
 
   if (ConditionPassed(static_cast<Condition>(instr->Condition()))) {
@@ -1234,7 +1242,7 @@ void Simulator::VisitLoadStoreRegisterOffset(Instruction* instr) {
   ASSERT((ext == UXTW) || (ext == UXTX) || (ext == SXTW) || (ext == SXTX));
   unsigned shift_amount = instr->ImmShiftLS() * instr->SizeLS();
 
-  int64_t offset = ExtendValue(kXRegSize, xreg(instr->Rm()), ext,
+  int64_t offset = ExtendValue(kXRegSizeInBits, xreg(instr->Rm()), ext,
                                shift_amount);
   LoadStoreHelper(instr, offset, Offset);
 }
@@ -1275,23 +1283,28 @@ void Simulator::LoadStoreHelper(Instruction* instr,
     case STR_w:
     case STR_x: MemoryWrite(address, xreg(srcdst), num_bytes); break;
     case LDRSB_w: {
-      set_wreg(srcdst, ExtendValue(kWRegSize, MemoryRead8(address), SXTB));
+      set_wreg(srcdst,
+               ExtendValue(kWRegSizeInBits, MemoryRead8(address), SXTB));
       break;
     }
     case LDRSB_x: {
-      set_xreg(srcdst, ExtendValue(kXRegSize, MemoryRead8(address), SXTB));
+      set_xreg(srcdst,
+               ExtendValue(kXRegSizeInBits, MemoryRead8(address), SXTB));
       break;
     }
     case LDRSH_w: {
-      set_wreg(srcdst, ExtendValue(kWRegSize, MemoryRead16(address), SXTH));
+      set_wreg(srcdst,
+               ExtendValue(kWRegSizeInBits, MemoryRead16(address), SXTH));
       break;
     }
     case LDRSH_x: {
-      set_xreg(srcdst, ExtendValue(kXRegSize, MemoryRead16(address), SXTH));
+      set_xreg(srcdst,
+               ExtendValue(kXRegSizeInBits, MemoryRead16(address), SXTH));
       break;
     }
     case LDRSW_x: {
-      set_xreg(srcdst, ExtendValue(kXRegSize, MemoryRead32(address), SXTW));
+      set_xreg(srcdst,
+               ExtendValue(kXRegSizeInBits, MemoryRead32(address), SXTW));
       break;
     }
     case LDR_s: set_sreg(srcdst, MemoryReadFP32(address)); break;
@@ -1372,48 +1385,48 @@ void Simulator::LoadStorePairHelper(Instruction* instr,
   switch (op) {
     case LDP_w: {
       set_wreg(rt, MemoryRead32(address));
-      set_wreg(rt2, MemoryRead32(address + kWRegSizeInBytes));
+      set_wreg(rt2, MemoryRead32(address + kWRegSize));
       break;
     }
     case LDP_s: {
       set_sreg(rt, MemoryReadFP32(address));
-      set_sreg(rt2, MemoryReadFP32(address + kSRegSizeInBytes));
+      set_sreg(rt2, MemoryReadFP32(address + kSRegSize));
       break;
     }
     case LDP_x: {
       set_xreg(rt, MemoryRead64(address));
-      set_xreg(rt2, MemoryRead64(address + kXRegSizeInBytes));
+      set_xreg(rt2, MemoryRead64(address + kXRegSize));
       break;
     }
     case LDP_d: {
       set_dreg(rt, MemoryReadFP64(address));
-      set_dreg(rt2, MemoryReadFP64(address + kDRegSizeInBytes));
+      set_dreg(rt2, MemoryReadFP64(address + kDRegSize));
       break;
     }
     case LDPSW_x: {
-      set_xreg(rt, ExtendValue(kXRegSize, MemoryRead32(address), SXTW));
-      set_xreg(rt2, ExtendValue(kXRegSize,
-               MemoryRead32(address + kWRegSizeInBytes), SXTW));
+      set_xreg(rt, ExtendValue(kXRegSizeInBits, MemoryRead32(address), SXTW));
+      set_xreg(rt2, ExtendValue(kXRegSizeInBits,
+               MemoryRead32(address + kWRegSize), SXTW));
       break;
     }
     case STP_w: {
       MemoryWrite32(address, wreg(rt));
-      MemoryWrite32(address + kWRegSizeInBytes, wreg(rt2));
+      MemoryWrite32(address + kWRegSize, wreg(rt2));
       break;
     }
     case STP_s: {
       MemoryWriteFP32(address, sreg(rt));
-      MemoryWriteFP32(address + kSRegSizeInBytes, sreg(rt2));
+      MemoryWriteFP32(address + kSRegSize, sreg(rt2));
       break;
     }
     case STP_x: {
       MemoryWrite64(address, xreg(rt));
-      MemoryWrite64(address + kXRegSizeInBytes, xreg(rt2));
+      MemoryWrite64(address + kXRegSize, xreg(rt2));
       break;
     }
     case STP_d: {
       MemoryWriteFP64(address, dreg(rt));
-      MemoryWriteFP64(address + kDRegSizeInBytes, dreg(rt2));
+      MemoryWriteFP64(address + kDRegSize, dreg(rt2));
       break;
     }
     default: UNREACHABLE();
@@ -1624,7 +1637,8 @@ void Simulator::VisitConditionalSelect(Instruction* instr) {
       default: UNIMPLEMENTED();
     }
   }
-  unsigned reg_size = instr->SixtyFourBits() ? kXRegSize : kWRegSize;
+  unsigned reg_size = instr->SixtyFourBits() ? kXRegSizeInBits
+                                             : kWRegSizeInBits;
   set_reg(reg_size, instr->Rd(), new_val);
 }
 
@@ -1634,21 +1648,23 @@ void Simulator::VisitDataProcessing1Source(Instruction* instr) {
   unsigned src = instr->Rn();
 
   switch (instr->Mask(DataProcessing1SourceMask)) {
-    case RBIT_w: set_wreg(dst, ReverseBits(wreg(src), kWRegSize)); break;
-    case RBIT_x: set_xreg(dst, ReverseBits(xreg(src), kXRegSize)); break;
+    case RBIT_w: set_wreg(dst, ReverseBits(wreg(src), kWRegSizeInBits)); break;
+    case RBIT_x: set_xreg(dst, ReverseBits(xreg(src), kXRegSizeInBits)); break;
     case REV16_w: set_wreg(dst, ReverseBytes(wreg(src), Reverse16)); break;
     case REV16_x: set_xreg(dst, ReverseBytes(xreg(src), Reverse16)); break;
     case REV_w: set_wreg(dst, ReverseBytes(wreg(src), Reverse32)); break;
     case REV32_x: set_xreg(dst, ReverseBytes(xreg(src), Reverse32)); break;
     case REV_x: set_xreg(dst, ReverseBytes(xreg(src), Reverse64)); break;
-    case CLZ_w: set_wreg(dst, CountLeadingZeros(wreg(src), kWRegSize)); break;
-    case CLZ_x: set_xreg(dst, CountLeadingZeros(xreg(src), kXRegSize)); break;
+    case CLZ_w: set_wreg(dst, CountLeadingZeros(wreg(src), kWRegSizeInBits));
+                break;
+    case CLZ_x: set_xreg(dst, CountLeadingZeros(xreg(src), kXRegSizeInBits));
+                break;
     case CLS_w: {
-      set_wreg(dst, CountLeadingSignBits(wreg(src), kWRegSize));
+      set_wreg(dst, CountLeadingSignBits(wreg(src), kWRegSizeInBits));
       break;
     }
     case CLS_x: {
-      set_xreg(dst, CountLeadingSignBits(xreg(src), kXRegSize));
+      set_xreg(dst, CountLeadingSignBits(xreg(src), kXRegSizeInBits));
       break;
     }
     default: UNIMPLEMENTED();
@@ -1657,7 +1673,7 @@ void Simulator::VisitDataProcessing1Source(Instruction* instr) {
 
 
 uint64_t Simulator::ReverseBits(uint64_t value, unsigned num_bits) {
-  ASSERT((num_bits == kWRegSize) || (num_bits == kXRegSize));
+  ASSERT((num_bits == kWRegSizeInBits) || (num_bits == kXRegSizeInBits));
   uint64_t result = 0;
   for (unsigned i = 0; i < num_bits; i++) {
     result = (result << 1) | (value & 1);
@@ -1762,7 +1778,8 @@ void Simulator::VisitDataProcessing2Source(Instruction* instr) {
     default: UNIMPLEMENTED();
   }
 
-  unsigned reg_size = instr->SixtyFourBits() ? kXRegSize : kWRegSize;
+  unsigned reg_size = instr->SixtyFourBits() ? kXRegSizeInBits
+                                             : kWRegSizeInBits;
   if (shift_op != NO_SHIFT) {
     // Shift distance encoded in the least-significant five/six bits of the
     // register.
@@ -1798,7 +1815,8 @@ static int64_t MultiplyHighSigned(int64_t u, int64_t v) {
 
 
 void Simulator::VisitDataProcessing3Source(Instruction* instr) {
-  unsigned reg_size = instr->SixtyFourBits() ? kXRegSize : kWRegSize;
+  unsigned reg_size = instr->SixtyFourBits() ? kXRegSizeInBits
+                                             : kWRegSizeInBits;
 
   int64_t result = 0;
   // Extract and sign- or zero-extend 32-bit arguments for widening operations.
@@ -1830,7 +1848,8 @@ void Simulator::VisitDataProcessing3Source(Instruction* instr) {
 
 
 void Simulator::VisitBitfield(Instruction* instr) {
-  unsigned reg_size = instr->SixtyFourBits() ? kXRegSize : kWRegSize;
+  unsigned reg_size = instr->SixtyFourBits() ? kXRegSizeInBits
+                                             : kWRegSizeInBits;
   int64_t reg_mask = instr->SixtyFourBits() ? kXRegMask : kWRegMask;
   int64_t R = instr->ImmR();
   int64_t S = instr->ImmS();
@@ -1884,8 +1903,8 @@ void Simulator::VisitBitfield(Instruction* instr) {
 
 void Simulator::VisitExtract(Instruction* instr) {
   unsigned lsb = instr->ImmS();
-  unsigned reg_size = (instr->SixtyFourBits() == 1) ? kXRegSize
-                                                    : kWRegSize;
+  unsigned reg_size = (instr->SixtyFourBits() == 1) ? kXRegSizeInBits
+                                                    : kWRegSizeInBits;
   set_reg(reg_size,
           instr->Rd(),
           (static_cast<uint64_t>(reg(reg_size, instr->Rm())) >> lsb) |
@@ -2081,7 +2100,8 @@ uint64_t Simulator::FPToUInt64(double value, FPRounding rmode) {
 void Simulator::VisitFPCompare(Instruction* instr) {
   AssertSupportedFPCR();
 
-  unsigned reg_size = instr->FPType() == FP32 ? kSRegSize : kDRegSize;
+  unsigned reg_size = instr->FPType() == FP32 ? kSRegSizeInBits
+                                              : kDRegSizeInBits;
   double fn_val = fpreg(reg_size, instr->Rn());
 
   switch (instr->Mask(FPCompareMask)) {
@@ -2103,7 +2123,8 @@ void Simulator::VisitFPConditionalCompare(Instruction* instr) {
       if (ConditionPassed(static_cast<Condition>(instr->Condition()))) {
         // If the condition passes, set the status flags to the result of
         // comparing the operands.
-        unsigned reg_size = instr->FPType() == FP32 ? kSRegSize : kDRegSize;
+        unsigned reg_size = instr->FPType() == FP32 ? kSRegSizeInBits
+                                                    : kDRegSizeInBits;
         FPCompare(fpreg(reg_size, instr->Rn()), fpreg(reg_size, instr->Rm()));
       } else {
         // If the condition fails, set the status flags to the nzcv immediate.

@@ -120,7 +120,8 @@ CPURegList CPURegList::GetCallerSavedFP(unsigned size) {
 // this mapping.
 CPURegList CPURegList::GetSafepointSavedRegisters() {
   CPURegList list = CPURegList::GetCalleeSaved();
-  list.Combine(CPURegList(CPURegister::kRegister, kXRegSize, kJSCallerSaved));
+  list.Combine(
+      CPURegList(CPURegister::kRegister, kXRegSizeInBits, kJSCallerSaved));
 
   // Note that unfortunately we can't use symbolic names for registers and have
   // to directly use register codes. This is because this function is used to
@@ -748,7 +749,7 @@ void Assembler::tbz(const Register& rt,
                     unsigned bit_pos,
                     int imm14) {
   positions_recorder()->WriteRecordedPositions();
-  ASSERT(rt.Is64Bits() || (rt.Is32Bits() && (bit_pos < kWRegSize)));
+  ASSERT(rt.Is64Bits() || (rt.Is32Bits() && (bit_pos < kWRegSizeInBits)));
   Emit(TBZ | ImmTestBranchBit(bit_pos) | ImmTestBranch(imm14) | Rt(rt));
 }
 
@@ -765,7 +766,7 @@ void Assembler::tbnz(const Register& rt,
                      unsigned bit_pos,
                      int imm14) {
   positions_recorder()->WriteRecordedPositions();
-  ASSERT(rt.Is64Bits() || (rt.Is32Bits() && (bit_pos < kWRegSize)));
+  ASSERT(rt.Is64Bits() || (rt.Is32Bits() && (bit_pos < kWRegSizeInBits)));
   Emit(TBNZ | ImmTestBranchBit(bit_pos) | ImmTestBranch(imm14) | Rt(rt));
 }
 
@@ -2085,7 +2086,7 @@ void Assembler::EmitExtendShift(const Register& rd,
       case SXTW: sbfm(rd, rn_, non_shift_bits, high_bit); break;
       case UXTX:
       case SXTX: {
-        ASSERT(rn.SizeInBits() == kXRegSize);
+        ASSERT(rn.SizeInBits() == kXRegSizeInBits);
         // Nothing to extend. Just shift.
         lsl(rd, rn_, left_shift);
         break;
@@ -2230,7 +2231,7 @@ bool Assembler::IsImmLogical(uint64_t value,
                              unsigned* imm_s,
                              unsigned* imm_r) {
   ASSERT((n != NULL) && (imm_s != NULL) && (imm_r != NULL));
-  ASSERT((width == kWRegSize) || (width == kXRegSize));
+  ASSERT((width == kWRegSizeInBits) || (width == kXRegSizeInBits));
 
   // Logical immediates are encoded using parameters n, imm_s and imm_r using
   // the following table:
@@ -2257,7 +2258,7 @@ bool Assembler::IsImmLogical(uint64_t value,
 
   // 1. If the value has all set or all clear bits, it can't be encoded.
   if ((value == 0) || (value == 0xffffffffffffffffUL) ||
-      ((width == kWRegSize) && (value == 0xffffffff))) {
+      ((width == kWRegSizeInBits) && (value == 0xffffffff))) {
     return false;
   }
 
@@ -2271,7 +2272,7 @@ bool Assembler::IsImmLogical(uint64_t value,
   // If width == 64 (X reg), start at 0xFFFFFF80.
   // If width == 32 (W reg), start at 0xFFFFFFC0, as the iteration for 64-bit
   // widths won't be executed.
-  int imm_s_fixed = (width == kXRegSize) ? -128 : -64;
+  int imm_s_fixed = (width == kXRegSizeInBits) ? -128 : -64;
   int imm_s_mask = 0x3F;
 
   for (;;) {

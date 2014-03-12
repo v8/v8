@@ -182,7 +182,7 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
   __ Cbz(argc, &no_arguments);
   // First args = sp[(argc - 1) * 8].
   __ Sub(argc, argc, 1);
-  __ Claim(argc, kXRegSizeInBytes);
+  __ Claim(argc, kXRegSize);
   // jssp now point to args[0], load and drop args[0] + receiver.
   Register arg = argc;
   __ Ldr(arg, MemOperand(jssp, 2 * kPointerSize, PostIndex));
@@ -532,8 +532,8 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // jssp[1]: receiver
     // jssp[2]: constructor function
     // jssp[3]: number of arguments (smi-tagged)
-    __ Peek(constructor, 2 * kXRegSizeInBytes);  // Load constructor.
-    __ Peek(argc, 3 * kXRegSizeInBytes);  // Load number of arguments.
+    __ Peek(constructor, 2 * kXRegSize);  // Load constructor.
+    __ Peek(argc, 3 * kXRegSize);  // Load number of arguments.
     __ SmiUntag(argc);
 
     // Set up pointer to last argument.
@@ -617,7 +617,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // jssp[0]: receiver (newly allocated object)
     // jssp[1]: constructor function
     // jssp[2]: number of arguments (smi-tagged)
-    __ Peek(x1, 2 * kXRegSizeInBytes);
+    __ Peek(x1, 2 * kXRegSize);
 
     // Leave construct frame.
   }
@@ -1017,7 +1017,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   // 2. Get the function to call (passed as receiver) from the stack, check
   //    if it is a function.
   Label slow, non_function;
-  __ Peek(function, Operand(argc, LSL, kXRegSizeInBytesLog2));
+  __ Peek(function, Operand(argc, LSL, kXRegSizeLog2));
   __ JumpIfSmi(function, &non_function);
   __ JumpIfNotObjectType(function, scratch1, receiver_type,
                          JS_FUNCTION_TYPE, &slow);
@@ -1045,7 +1045,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     // Compute the receiver in sloppy mode.
     Register receiver = x2;
     __ Sub(scratch1, argc, 1);
-    __ Peek(receiver, Operand(scratch1, LSL, kXRegSizeInBytesLog2));
+    __ Peek(receiver, Operand(scratch1, LSL, kXRegSizeLog2));
     __ JumpIfSmi(receiver, &convert_to_object);
 
     __ JumpIfRoot(receiver, Heap::kUndefinedValueRootIndex,
@@ -1074,7 +1074,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     }
 
     // Restore the function and flag in the registers.
-    __ Peek(function, Operand(argc, LSL, kXRegSizeInBytesLog2));
+    __ Peek(function, Operand(argc, LSL, kXRegSizeLog2));
     __ Mov(call_type, static_cast<int>(call_type_JS_func));
     __ B(&patch_receiver);
 
@@ -1086,7 +1086,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
 
     __ Bind(&patch_receiver);
     __ Sub(scratch1, argc, 1);
-    __ Poke(receiver, Operand(scratch1, LSL, kXRegSizeInBytesLog2));
+    __ Poke(receiver, Operand(scratch1, LSL, kXRegSizeLog2));
 
     __ B(&shift_arguments);
   }
@@ -1105,7 +1105,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   //     become the receiver.
   // call type (0: JS function, 1: function proxy, 2: non-function)
   __ Sub(scratch1, argc, 1);
-  __ Poke(function, Operand(scratch1, LSL, kXRegSizeInBytesLog2));
+  __ Poke(function, Operand(scratch1, LSL, kXRegSizeLog2));
 
   // 4. Shift arguments and return address one slot down on the stack
   //    (overwriting the original receiver).  Adjust argument count to make
@@ -1351,7 +1351,7 @@ static void LeaveArgumentsAdaptorFrame(MacroAssembler* masm) {
                                kPointerSize)));
   __ Mov(jssp, fp);
   __ Pop(fp, lr);
-  __ DropBySMI(x10, kXRegSizeInBytes);
+  __ DropBySMI(x10, kXRegSize);
   __ Drop(1);
 }
 

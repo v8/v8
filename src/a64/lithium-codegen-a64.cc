@@ -675,7 +675,7 @@ bool LCodeGen::GeneratePrologue() {
         info_->strict_mode() == SLOPPY &&
         !info_->is_native()) {
       Label ok;
-      int receiver_offset = info_->scope()->num_parameters() * kXRegSizeInBytes;
+      int receiver_offset = info_->scope()->num_parameters() * kXRegSize;
       __ Peek(x10, receiver_offset);
       __ JumpIfNotRoot(x10, Heap::kUndefinedValueRootIndex, &ok);
 
@@ -2867,7 +2867,7 @@ void LCodeGen::DoGetCachedArrayIndex(LGetCachedArrayIndex* instr) {
   __ AssertString(input);
 
   // Assert that we can use a W register load to get the hash.
-  ASSERT((String::kHashShift + String::kArrayIndexValueBits) < kWRegSize);
+  ASSERT((String::kHashShift + String::kArrayIndexValueBits) < kWRegSizeInBits);
   __ Ldr(result.W(), FieldMemOperand(input, String::kHashFieldOffset));
   __ IndexFromHash(result, result);
 }

@@ -7150,7 +7150,7 @@ static void TestUScvtfHelper(uint64_t in,
   // Corrupt the top word, in case it is accidentally used during W-register
   // conversions.
   __ Mov(x11, 0x5555555555555555);
-  __ Bfi(x11, x10, 0, kWRegSize);
+  __ Bfi(x11, x10, 0, kWRegSizeInBits);
 
   // Test integer conversions.
   __ Scvtf(d0, x10);
@@ -7168,10 +7168,10 @@ static void TestUScvtfHelper(uint64_t in,
     __ Ucvtf(d1, x10, fbits);
     __ Scvtf(d2, w11, fbits);
     __ Ucvtf(d3, w11, fbits);
-    __ Str(d0, MemOperand(x0, fbits * kDRegSizeInBytes));
-    __ Str(d1, MemOperand(x1, fbits * kDRegSizeInBytes));
-    __ Str(d2, MemOperand(x2, fbits * kDRegSizeInBytes));
-    __ Str(d3, MemOperand(x3, fbits * kDRegSizeInBytes));
+    __ Str(d0, MemOperand(x0, fbits * kDRegSize));
+    __ Str(d1, MemOperand(x1, fbits * kDRegSize));
+    __ Str(d2, MemOperand(x2, fbits * kDRegSize));
+    __ Str(d3, MemOperand(x3, fbits * kDRegSize));
   }
 
   // Conversions from W registers can only handle fbits values <= 32, so just
@@ -7179,8 +7179,8 @@ static void TestUScvtfHelper(uint64_t in,
   for (int fbits = 33; fbits <= 64; fbits++) {
     __ Scvtf(d0, x10, fbits);
     __ Ucvtf(d1, x10, fbits);
-    __ Str(d0, MemOperand(x0, fbits * kDRegSizeInBytes));
-    __ Str(d1, MemOperand(x1, fbits * kDRegSizeInBytes));
+    __ Str(d0, MemOperand(x0, fbits * kDRegSize));
+    __ Str(d1, MemOperand(x1, fbits * kDRegSize));
   }
 
   END();
@@ -7305,7 +7305,7 @@ static void TestUScvtf32Helper(uint64_t in,
   // Corrupt the top word, in case it is accidentally used during W-register
   // conversions.
   __ Mov(x11, 0x5555555555555555);
-  __ Bfi(x11, x10, 0, kWRegSize);
+  __ Bfi(x11, x10, 0, kWRegSizeInBits);
 
   // Test integer conversions.
   __ Scvtf(s0, x10);
@@ -7323,10 +7323,10 @@ static void TestUScvtf32Helper(uint64_t in,
     __ Ucvtf(s1, x10, fbits);
     __ Scvtf(s2, w11, fbits);
     __ Ucvtf(s3, w11, fbits);
-    __ Str(s0, MemOperand(x0, fbits * kSRegSizeInBytes));
-    __ Str(s1, MemOperand(x1, fbits * kSRegSizeInBytes));
-    __ Str(s2, MemOperand(x2, fbits * kSRegSizeInBytes));
-    __ Str(s3, MemOperand(x3, fbits * kSRegSizeInBytes));
+    __ Str(s0, MemOperand(x0, fbits * kSRegSize));
+    __ Str(s1, MemOperand(x1, fbits * kSRegSize));
+    __ Str(s2, MemOperand(x2, fbits * kSRegSize));
+    __ Str(s3, MemOperand(x3, fbits * kSRegSize));
   }
 
   // Conversions from W registers can only handle fbits values <= 32, so just
@@ -7334,8 +7334,8 @@ static void TestUScvtf32Helper(uint64_t in,
   for (int fbits = 33; fbits <= 64; fbits++) {
     __ Scvtf(s0, x10, fbits);
     __ Ucvtf(s1, x10, fbits);
-    __ Str(s0, MemOperand(x0, fbits * kSRegSizeInBytes));
-    __ Str(s1, MemOperand(x1, fbits * kSRegSizeInBytes));
+    __ Str(s0, MemOperand(x0, fbits * kSRegSize));
+    __ Str(s1, MemOperand(x1, fbits * kSRegSize));
   }
 
   END();
@@ -7981,7 +7981,7 @@ TEST(peek_poke_mixed) {
     __ SetStackPointer(x4);
 
     __ Poke(wzr, 0);    // Clobber the space we're about to drop.
-    __ Drop(1, kWRegSizeInBytes);
+    __ Drop(1, kWRegSize);
     __ Peek(x6, 0);
     __ Claim(1);
     __ Peek(w7, 10);
@@ -8163,23 +8163,23 @@ TEST(push_pop_jssp_simple_32) {
   INIT_V8();
   for (int claim = 0; claim <= 8; claim++) {
     for (int count = 0; count <= 8; count++) {
-      PushPopJsspSimpleHelper(count, claim, kWRegSize,
+      PushPopJsspSimpleHelper(count, claim, kWRegSizeInBits,
                               PushPopByFour, PushPopByFour);
-      PushPopJsspSimpleHelper(count, claim, kWRegSize,
+      PushPopJsspSimpleHelper(count, claim, kWRegSizeInBits,
                               PushPopByFour, PushPopRegList);
-      PushPopJsspSimpleHelper(count, claim, kWRegSize,
+      PushPopJsspSimpleHelper(count, claim, kWRegSizeInBits,
                               PushPopRegList, PushPopByFour);
-      PushPopJsspSimpleHelper(count, claim, kWRegSize,
+      PushPopJsspSimpleHelper(count, claim, kWRegSizeInBits,
                               PushPopRegList, PushPopRegList);
     }
     // Test with the maximum number of registers.
-    PushPopJsspSimpleHelper(kPushPopJsspMaxRegCount, claim, kWRegSize,
+    PushPopJsspSimpleHelper(kPushPopJsspMaxRegCount, claim, kWRegSizeInBits,
                             PushPopByFour, PushPopByFour);
-    PushPopJsspSimpleHelper(kPushPopJsspMaxRegCount, claim, kWRegSize,
+    PushPopJsspSimpleHelper(kPushPopJsspMaxRegCount, claim, kWRegSizeInBits,
                             PushPopByFour, PushPopRegList);
-    PushPopJsspSimpleHelper(kPushPopJsspMaxRegCount, claim, kWRegSize,
+    PushPopJsspSimpleHelper(kPushPopJsspMaxRegCount, claim, kWRegSizeInBits,
                             PushPopRegList, PushPopByFour);
-    PushPopJsspSimpleHelper(kPushPopJsspMaxRegCount, claim, kWRegSize,
+    PushPopJsspSimpleHelper(kPushPopJsspMaxRegCount, claim, kWRegSizeInBits,
                             PushPopRegList, PushPopRegList);
   }
 }
@@ -8189,23 +8189,23 @@ TEST(push_pop_jssp_simple_64) {
   INIT_V8();
   for (int claim = 0; claim <= 8; claim++) {
     for (int count = 0; count <= 8; count++) {
-      PushPopJsspSimpleHelper(count, claim, kXRegSize,
+      PushPopJsspSimpleHelper(count, claim, kXRegSizeInBits,
                               PushPopByFour, PushPopByFour);
-      PushPopJsspSimpleHelper(count, claim, kXRegSize,
+      PushPopJsspSimpleHelper(count, claim, kXRegSizeInBits,
                               PushPopByFour, PushPopRegList);
-      PushPopJsspSimpleHelper(count, claim, kXRegSize,
+      PushPopJsspSimpleHelper(count, claim, kXRegSizeInBits,
                               PushPopRegList, PushPopByFour);
-      PushPopJsspSimpleHelper(count, claim, kXRegSize,
+      PushPopJsspSimpleHelper(count, claim, kXRegSizeInBits,
                               PushPopRegList, PushPopRegList);
     }
     // Test with the maximum number of registers.
-    PushPopJsspSimpleHelper(kPushPopJsspMaxRegCount, claim, kXRegSize,
+    PushPopJsspSimpleHelper(kPushPopJsspMaxRegCount, claim, kXRegSizeInBits,
                             PushPopByFour, PushPopByFour);
-    PushPopJsspSimpleHelper(kPushPopJsspMaxRegCount, claim, kXRegSize,
+    PushPopJsspSimpleHelper(kPushPopJsspMaxRegCount, claim, kXRegSizeInBits,
                             PushPopByFour, PushPopRegList);
-    PushPopJsspSimpleHelper(kPushPopJsspMaxRegCount, claim, kXRegSize,
+    PushPopJsspSimpleHelper(kPushPopJsspMaxRegCount, claim, kXRegSizeInBits,
                             PushPopRegList, PushPopByFour);
-    PushPopJsspSimpleHelper(kPushPopJsspMaxRegCount, claim, kXRegSize,
+    PushPopJsspSimpleHelper(kPushPopJsspMaxRegCount, claim, kXRegSizeInBits,
                             PushPopRegList, PushPopRegList);
   }
 }
@@ -8346,23 +8346,23 @@ TEST(push_pop_fp_jssp_simple_32) {
   INIT_V8();
   for (int claim = 0; claim <= 8; claim++) {
     for (int count = 0; count <= 8; count++) {
-      PushPopFPJsspSimpleHelper(count, claim, kSRegSize,
+      PushPopFPJsspSimpleHelper(count, claim, kSRegSizeInBits,
                                 PushPopByFour, PushPopByFour);
-      PushPopFPJsspSimpleHelper(count, claim, kSRegSize,
+      PushPopFPJsspSimpleHelper(count, claim, kSRegSizeInBits,
                                 PushPopByFour, PushPopRegList);
-      PushPopFPJsspSimpleHelper(count, claim, kSRegSize,
+      PushPopFPJsspSimpleHelper(count, claim, kSRegSizeInBits,
                                 PushPopRegList, PushPopByFour);
-      PushPopFPJsspSimpleHelper(count, claim, kSRegSize,
+      PushPopFPJsspSimpleHelper(count, claim, kSRegSizeInBits,
                                 PushPopRegList, PushPopRegList);
     }
     // Test with the maximum number of registers.
-    PushPopFPJsspSimpleHelper(kPushPopFPJsspMaxRegCount, claim, kSRegSize,
+    PushPopFPJsspSimpleHelper(kPushPopFPJsspMaxRegCount, claim, kSRegSizeInBits,
                               PushPopByFour, PushPopByFour);
-    PushPopFPJsspSimpleHelper(kPushPopFPJsspMaxRegCount, claim, kSRegSize,
+    PushPopFPJsspSimpleHelper(kPushPopFPJsspMaxRegCount, claim, kSRegSizeInBits,
                               PushPopByFour, PushPopRegList);
-    PushPopFPJsspSimpleHelper(kPushPopFPJsspMaxRegCount, claim, kSRegSize,
+    PushPopFPJsspSimpleHelper(kPushPopFPJsspMaxRegCount, claim, kSRegSizeInBits,
                               PushPopRegList, PushPopByFour);
-    PushPopFPJsspSimpleHelper(kPushPopFPJsspMaxRegCount, claim, kSRegSize,
+    PushPopFPJsspSimpleHelper(kPushPopFPJsspMaxRegCount, claim, kSRegSizeInBits,
                               PushPopRegList, PushPopRegList);
   }
 }
@@ -8372,23 +8372,23 @@ TEST(push_pop_fp_jssp_simple_64) {
   INIT_V8();
   for (int claim = 0; claim <= 8; claim++) {
     for (int count = 0; count <= 8; count++) {
-      PushPopFPJsspSimpleHelper(count, claim, kDRegSize,
+      PushPopFPJsspSimpleHelper(count, claim, kDRegSizeInBits,
                                 PushPopByFour, PushPopByFour);
-      PushPopFPJsspSimpleHelper(count, claim, kDRegSize,
+      PushPopFPJsspSimpleHelper(count, claim, kDRegSizeInBits,
                                 PushPopByFour, PushPopRegList);
-      PushPopFPJsspSimpleHelper(count, claim, kDRegSize,
+      PushPopFPJsspSimpleHelper(count, claim, kDRegSizeInBits,
                                 PushPopRegList, PushPopByFour);
-      PushPopFPJsspSimpleHelper(count, claim, kDRegSize,
+      PushPopFPJsspSimpleHelper(count, claim, kDRegSizeInBits,
                                 PushPopRegList, PushPopRegList);
     }
     // Test with the maximum number of registers.
-    PushPopFPJsspSimpleHelper(kPushPopFPJsspMaxRegCount, claim, kDRegSize,
+    PushPopFPJsspSimpleHelper(kPushPopFPJsspMaxRegCount, claim, kDRegSizeInBits,
                               PushPopByFour, PushPopByFour);
-    PushPopFPJsspSimpleHelper(kPushPopFPJsspMaxRegCount, claim, kDRegSize,
+    PushPopFPJsspSimpleHelper(kPushPopFPJsspMaxRegCount, claim, kDRegSizeInBits,
                               PushPopByFour, PushPopRegList);
-    PushPopFPJsspSimpleHelper(kPushPopFPJsspMaxRegCount, claim, kDRegSize,
+    PushPopFPJsspSimpleHelper(kPushPopFPJsspMaxRegCount, claim, kDRegSizeInBits,
                               PushPopRegList, PushPopByFour);
-    PushPopFPJsspSimpleHelper(kPushPopFPJsspMaxRegCount, claim, kDRegSize,
+    PushPopFPJsspSimpleHelper(kPushPopFPJsspMaxRegCount, claim, kDRegSizeInBits,
                               PushPopRegList, PushPopRegList);
   }
 }
@@ -8486,7 +8486,7 @@ static void PushPopJsspMixedMethodsHelper(int claim, int reg_size) {
 TEST(push_pop_jssp_mixed_methods_64) {
   INIT_V8();
   for (int claim = 0; claim <= 8; claim++) {
-    PushPopJsspMixedMethodsHelper(claim, kXRegSize);
+    PushPopJsspMixedMethodsHelper(claim, kXRegSizeInBits);
   }
 }
 
@@ -8494,7 +8494,7 @@ TEST(push_pop_jssp_mixed_methods_64) {
 TEST(push_pop_jssp_mixed_methods_32) {
   INIT_V8();
   for (int claim = 0; claim <= 8; claim++) {
-    PushPopJsspMixedMethodsHelper(claim, kWRegSize);
+    PushPopJsspMixedMethodsHelper(claim, kWRegSizeInBits);
   }
 }
 
@@ -8633,7 +8633,7 @@ static void PushPopJsspWXOverlapHelper(int reg_count, int claim) {
     // Because we were pushing several registers at a time, we probably pushed
     // more than we needed to.
     if (active_w_slots > requested_w_slots) {
-      __ Drop(active_w_slots - requested_w_slots, kWRegSizeInBytes);
+      __ Drop(active_w_slots - requested_w_slots, kWRegSize);
       // Bump the number of active W-sized slots back to where it should be,
       // and fill the empty space with a dummy value.
       do {
@@ -8848,8 +8848,8 @@ TEST(push_queued) {
   // Actually push them.
   queue.PushQueued();
 
-  Clobber(&masm, CPURegList(CPURegister::kRegister, kXRegSize, 0, 6));
-  Clobber(&masm, CPURegList(CPURegister::kFPRegister, kDRegSize, 0, 2));
+  Clobber(&masm, CPURegList(CPURegister::kRegister, kXRegSizeInBits, 0, 6));
+  Clobber(&masm, CPURegList(CPURegister::kFPRegister, kDRegSizeInBits, 0, 2));
 
   // Pop them conventionally.
   __ Pop(s2);
@@ -8926,8 +8926,8 @@ TEST(pop_queued) {
   queue.Queue(x1);
   queue.Queue(x0);
 
-  Clobber(&masm, CPURegList(CPURegister::kRegister, kXRegSize, 0, 6));
-  Clobber(&masm, CPURegList(CPURegister::kFPRegister, kDRegSize, 0, 2));
+  Clobber(&masm, CPURegList(CPURegister::kRegister, kXRegSizeInBits, 0, 6));
+  Clobber(&masm, CPURegList(CPURegister::kFPRegister, kDRegSizeInBits, 0, 2));
 
   // Actually pop them.
   queue.PopQueued();
@@ -9419,10 +9419,10 @@ TEST(cpureglist_utils_empty) {
   // Test an empty list.
   // Empty lists can have type and size properties. Check that we can create
   // them, and that they are empty.
-  CPURegList reg32(CPURegister::kRegister, kWRegSize, 0);
-  CPURegList reg64(CPURegister::kRegister, kXRegSize, 0);
-  CPURegList fpreg32(CPURegister::kFPRegister, kSRegSize, 0);
-  CPURegList fpreg64(CPURegister::kFPRegister, kDRegSize, 0);
+  CPURegList reg32(CPURegister::kRegister, kWRegSizeInBits, 0);
+  CPURegList reg64(CPURegister::kRegister, kXRegSizeInBits, 0);
+  CPURegList fpreg32(CPURegister::kFPRegister, kSRegSizeInBits, 0);
+  CPURegList fpreg64(CPURegister::kFPRegister, kDRegSizeInBits, 0);
 
   CHECK(reg32.IsEmpty());
   CHECK(reg64.IsEmpty());

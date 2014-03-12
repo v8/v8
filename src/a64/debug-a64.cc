@@ -179,7 +179,7 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
     STATIC_ASSERT(kSmiValueSize == 32);
 
     CPURegList non_object_list =
-        CPURegList(CPURegister::kRegister, kXRegSize, non_object_regs);
+        CPURegList(CPURegister::kRegister, kXRegSizeInBits, non_object_regs);
     while (!non_object_list.IsEmpty()) {
       // Store each non-object register as two SMIs.
       Register reg = Register(non_object_list.PopLowestIndex());
@@ -213,7 +213,7 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
     }
 
     non_object_list =
-        CPURegList(CPURegister::kRegister, kXRegSize, non_object_regs);
+        CPURegList(CPURegister::kRegister, kXRegSizeInBits, non_object_regs);
     while (!non_object_list.IsEmpty()) {
       // Load each non-object register from two SMIs.
       // Stack:
