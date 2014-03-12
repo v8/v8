@@ -952,6 +952,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_TypedArrayInitializeFromArrayLike) {
   Runtime::ArrayIdToTypeAndSize(arrayId, &array_type, &element_size);
 
   Handle<JSArrayBuffer> buffer = isolate->factory()->NewJSArrayBuffer();
+  if (source->IsJSTypedArray() &&
+      JSTypedArray::cast(*source)->type() == array_type) {
+    length_obj = Handle<Object>(JSTypedArray::cast(*source)->length(), isolate);
+  }
   size_t length = NumberToSize(isolate, *length_obj);
 
   if ((length > static_cast<unsigned>(Smi::kMaxValue)) ||
