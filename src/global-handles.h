@@ -161,7 +161,7 @@ class GlobalHandles {
   }
 
   // Clear the weakness of a global handle.
-  static void* ClearWeakness(Object** location);
+  static void ClearWeakness(Object** location);
 
   // Clear the weakness of a global handle.
   static void MarkIndependent(Object** location);

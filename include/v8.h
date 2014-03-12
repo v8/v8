@@ -140,7 +140,6 @@ class ObjectOperationDescriptor;
 class RawOperationDescriptor;
 class CallHandlerHelper;
 class EscapableHandleScope;
-template<typename T> class ReturnValue;
 
 namespace internal {
 class Arguments;
@@ -413,7 +412,6 @@ template <class T> class Local : public Handle<T> {
   template<class F> friend class internal::CustomArguments;
   friend class HandleScope;
   friend class EscapableHandleScope;
-  template<class F1, class F2, class F3> friend class PersistentValueMap;
 
   V8_INLINE static Local<T> New(Isolate* isolate, T* that);
 };
@@ -529,11 +527,7 @@ template <class T> class PersistentBase {
       P* parameter,
       typename WeakCallbackData<S, P>::Callback callback);
 
-  template<typename P>
-  V8_INLINE P* ClearWeak();
-
-  // TODO(dcarney): remove this.
-  V8_INLINE void ClearWeak() { ClearWeak<void>(); }
+  V8_INLINE void ClearWeak();
 
   /**
    * Marks the reference to this object independent. Garbage collector is free
@@ -582,7 +576,6 @@ template <class T> class PersistentBase {
   template<class F> friend class UniquePersistent;
   template<class F> friend class PersistentBase;
   template<class F> friend class ReturnValue;
-  template<class F1, class F2, class F3> friend class PersistentValueMap;
   friend class Object;
 
   explicit V8_INLINE PersistentBase(T* val) : val_(val) {}
@@ -751,7 +744,7 @@ class UniquePersistent : public PersistentBase<T> {
   };
 
  public:
-  /**
+    /**
    * A UniquePersistent with no storage cell.
    */
   V8_INLINE UniquePersistent() : PersistentBase<T>(0) { }
@@ -789,7 +782,6 @@ class UniquePersistent : public PersistentBase<T> {
   template<class S>
   V8_INLINE UniquePersistent& operator=(UniquePersistent<S> rhs) {
     TYPE_CHECK(T, S);
-    this->Reset();
     this->val_ = rhs.val_;
     rhs.val_ = 0;
     return *this;
@@ -806,145 +798,6 @@ class UniquePersistent : public PersistentBase<T> {
  private:
   UniquePersistent(UniquePersistent&);
   void operator=(UniquePersistent&);
-};
-
-
-typedef uintptr_t PersistentContainerValue;
-static const uintptr_t kPersistentContainerNotFound = 0;
-
-/**
- * A map wrapper that allows using UniquePersistent as a mapped value.
- * C++11 embedders don't need this class, as they can use UniquePersistent
- * directly in std containers.
- *
- * The map relies on a backing map, whose type and accessors are described
- * by the Traits class. The backing map will handle values of type
- * PersistentContainerValue, with all conversion into and out of V8
- * handles being transparently handled by this class.
- */
-template<class K, class V, class Traits>
-class PersistentValueMap {
- public:
-  V8_INLINE explicit PersistentValueMap(Isolate* isolate) : isolate_(isolate) {}
-
-  V8_INLINE ~PersistentValueMap() { Clear(); }
-
-  V8_INLINE Isolate* GetIsolate() { return isolate_; }
-
-  /**
-   * Return size of the map.
-   */
-  V8_INLINE size_t Size() { return Traits::Size(&impl_); }
-
-  /**
-   * Get value stored in map.
-   */
-  V8_INLINE Local<V> Get(const K& key) {
-    return Local<V>::New(isolate_, FromVal(Traits::Get(&impl_, key)));
-  }
-
-  /**
-   * Check whether a value is contained in the map.
-   */
-  V8_INLINE bool Contains(const K& key) {
-    return Traits::Get(&impl_, key) != 0;
-  }
-
-  /**
-   * Get value stored in map and set it in returnValue.
-   * Return true if a value was found.
-   */
-  V8_INLINE bool SetReturnValue(const K& key,
-    ReturnValue<Value>& returnValue);
-
-  /**
-   * Call Isolate::SetReference with the given parent and the map value.
-   */
-  V8_INLINE void SetReference(const K& key,
-      const v8::Persistent<v8::Object>& parent) {
-    GetIsolate()->SetReference(
-      reinterpret_cast<internal::Object**>(parent.val_),
-      reinterpret_cast<internal::Object**>(FromVal(Traits::Get(&impl_, key))));
-  }
-
-  /**
-   * Put value into map. Depending on Traits::kIsWeak, the value will be held
-   * by the map strongly or weakly.
-   * Returns old value as UniquePersistent.
-   */
-  UniquePersistent<V> Set(const K& key, Local<V> value) {
-    UniquePersistent<V> persistent(isolate_, value);
-    return SetUnique(key, &persistent);
-  }
-
-  /**
-   * Put value into map, like Set(const K&, Local<V>).
-   */
-  UniquePersistent<V> Set(const K& key, UniquePersistent<V> value) {
-    return SetUnique(key, &value);
-  }
-
-  /**
-   * Return value for key and remove it from the map.
-   */
-  V8_INLINE UniquePersistent<V> Remove(const K& key) {
-    return Release(Traits::Remove(&impl_, key)).Pass();
-  }
-
-  /**
-  * Traverses the map repeatedly,
-  * in case side effects of disposal cause insertions.
-  **/
-  void Clear();
-
- private:
-  PersistentValueMap(PersistentValueMap&);
-  void operator=(PersistentValueMap&);
-
-  /**
-   * Put the value into the map, and set the 'weak' callback when demanded
-   * by the Traits class.
-   */
-  UniquePersistent<V> SetUnique(const K& key, UniquePersistent<V>* persistent) {
-    if (Traits::kIsWeak) {
-      Local<V> value(Local<V>::New(isolate_, *persistent));
-      persistent->template SetWeak<typename Traits::WeakCallbackDataType>(
-        Traits::WeakCallbackParameter(&impl_, key, value), WeakCallback);
-    }
-    PersistentContainerValue old_value =
-        Traits::Set(&impl_, key, ClearAndLeak(persistent));
-    return Release(old_value).Pass();
-  }
-
-  static void WeakCallback(
-      const WeakCallbackData<V, typename Traits::WeakCallbackDataType>& data);
-  V8_INLINE static V* FromVal(PersistentContainerValue v) {
-    return reinterpret_cast<V*>(v);
-  }
-  V8_INLINE static PersistentContainerValue ClearAndLeak(
-      UniquePersistent<V>* persistent) {
-    V* v = persistent->val_;
-    persistent->val_ = 0;
-    return reinterpret_cast<PersistentContainerValue>(v);
-  }
-
-  /**
-   * Return a container value as UniquePersistent and make sure the weak
-   * callback is properly disposed of. All remove functionality should go
-   * through this.
-   */
-  V8_INLINE static UniquePersistent<V> Release(PersistentContainerValue v) {
-    UniquePersistent<V> p;
-    p.val_ = FromVal(v);
-    if (Traits::kIsWeak && !p.IsEmpty()) {
-      Traits::DisposeCallbackData(
-          p.template ClearWeak<typename Traits::WeakCallbackDataType>());
-    }
-    return p.Pass();
-  }
-
-  Isolate* isolate_;
-  typename Traits::Impl impl_;
 };
 
 
@@ -2535,8 +2388,6 @@ class ReturnValue {
   template<class F> friend class ReturnValue;
   template<class F> friend class FunctionCallbackInfo;
   template<class F> friend class PropertyCallbackInfo;
-  template<class F, class G, class H> friend class PersistentValueMap;
-  V8_INLINE void SetInternal(internal::Object* value) { *value_ = value; }
   V8_INLINE internal::Object* GetDefaultValue();
   V8_INLINE explicit ReturnValue(internal::Object** slot);
   internal::Object** value_;
@@ -4384,8 +4235,6 @@ class V8_EXPORT Isolate {
   void SetEventLogger(LogEventCallback that);
 
  private:
-  template<class K, class V, class Traits> friend class PersistentValueMap;
-
   Isolate();
   Isolate(const Isolate&);
   ~Isolate();
@@ -4980,7 +4829,7 @@ class V8_EXPORT V8 {
   static void MakeWeak(internal::Object** global_handle,
                        void* data,
                        WeakCallback weak_callback);
-  static void* ClearWeak(internal::Object** global_handle);
+  static void ClearWeak(internal::Object** global_handle);
   static void Eternalize(Isolate* isolate,
                          Value* handle,
                          int* index);
@@ -5893,10 +5742,8 @@ void PersistentBase<T>::SetWeak(
 
 
 template <class T>
-template<typename P>
-P* PersistentBase<T>::ClearWeak() {
-  return reinterpret_cast<P*>(
-    V8::ClearWeak(reinterpret_cast<internal::Object**>(this->val_)));
+void PersistentBase<T>::ClearWeak() {
+  V8::ClearWeak(reinterpret_cast<internal::Object**>(this->val_));
 }
 
 
@@ -5946,44 +5793,6 @@ uint16_t PersistentBase<T>::WrapperClassId() const {
   internal::Object** obj = reinterpret_cast<internal::Object**>(this->val_);
   uint8_t* addr = reinterpret_cast<uint8_t*>(obj) + I::kNodeClassIdOffset;
   return *reinterpret_cast<uint16_t*>(addr);
-}
-
-
-template <class K, class V, class Traits>
-bool PersistentValueMap<K, V, Traits>::SetReturnValue(const K& key,
-    ReturnValue<Value>& returnValue) {
-  PersistentContainerValue value = Traits::Get(&impl_, key);
-  bool hasValue = value != 0;
-  if (hasValue) {
-    returnValue.SetInternal(
-        *reinterpret_cast<internal::Object**>(FromVal(value)));
-  }
-  return hasValue;
-}
-
-template <class K, class V, class Traits>
-void PersistentValueMap<K, V, Traits>::Clear() {
-  typedef typename Traits::Iterator It;
-  HandleScope handle_scope(isolate_);
-  // TODO(dcarney): figure out if this swap and loop is necessary.
-  while (!Traits::Empty(&impl_)) {
-    typename Traits::Impl impl;
-    Traits::Swap(impl_, impl);
-    for (It i = Traits::Begin(&impl); i != Traits::End(&impl); ++i) {
-      Traits::Dispose(isolate_, Release(Traits::Value(i)).Pass(), &impl,
-        Traits::Key(i));
-    }
-  }
-}
-
-
-template <class K, class V, class Traits>
-void PersistentValueMap<K, V, Traits>::WeakCallback(
-    const WeakCallbackData<V, typename Traits::WeakCallbackDataType>& data) {
-  typename Traits::Impl* impl = Traits::ImplFromWeakCallbackData(data);
-  K key = Traits::KeyFromWeakCallbackData(data);
-  PersistentContainerValue value = Traits::Remove(impl, key);
-  Traits::Dispose(data.GetIsolate(), Release(value).Pass(), impl, key);
 }
 
 
