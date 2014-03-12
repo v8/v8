@@ -1458,6 +1458,14 @@ class Assembler : public AssemblerBase {
   // Check if is time to emit a constant pool.
   void CheckConstPool(bool force_emit, bool require_jump);
 
+  bool can_use_constant_pool() const {
+    return is_constant_pool_available() && !constant_pool_full_;
+  }
+
+  void set_constant_pool_full() {
+    constant_pool_full_ = true;
+  }
+
  protected:
   // Relocation for a type-recording IC has the AST id added to it.  This
   // member variable is a way to pass the information from the call site to
@@ -1509,6 +1517,14 @@ class Assembler : public AssemblerBase {
   bool is_const_pool_blocked() const {
     return (const_pool_blocked_nesting_ > 0) ||
            (pc_offset() < no_const_pool_before_);
+  }
+
+  bool is_constant_pool_available() const {
+    return constant_pool_available_;
+  }
+
+  void set_constant_pool_available(bool available) {
+    constant_pool_available_ = available;
   }
 
  private:
@@ -1571,6 +1587,13 @@ class Assembler : public AssemblerBase {
   // The bound position, before this we cannot do instruction elimination.
   int last_bound_pos_;
 
+  // Indicates whether the constant pool can be accessed, which is only possible
+  // if the pp register points to the current code object's constant pool.
+  bool constant_pool_available_;
+  // Indicates whether the constant pool is too full to accept new entries due
+  // to the ldr instruction's limitted immediate offset range.
+  bool constant_pool_full_;
+
   // Code emission
   inline void CheckBuffer();
   void GrowBuffer();
@@ -1607,6 +1630,8 @@ class Assembler : public AssemblerBase {
   friend class RelocInfo;
   friend class CodePatcher;
   friend class BlockConstPoolScope;
+  friend class FrameAndConstantPoolScope;
+  friend class ConstantPoolUnavailableScope;
 
   PositionsRecorder positions_recorder_;
   friend class PositionsRecorder;

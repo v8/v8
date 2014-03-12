@@ -173,7 +173,6 @@ bool LCodeGen::GeneratePrologue() {
     __ Prologue(info()->IsStub() ? BUILD_STUB_FRAME : BUILD_FUNCTION_FRAME);
     frame_is_built_ = true;
     info_->AddNoFrameRange(0, masm_->pc_offset());
-    __ LoadConstantPoolPointerRegister();
   }
 
   // Reserve space for the stack slots needed by the code.

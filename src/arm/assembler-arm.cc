@@ -530,6 +530,8 @@ Assembler::Assembler(Isolate* isolate, void* buffer, int buffer_size)
   first_const_pool_32_use_ = -1;
   first_const_pool_64_use_ = -1;
   last_bound_pos_ = 0;
+  constant_pool_available_ = !FLAG_enable_ool_constant_pool;
+  constant_pool_full_ = false;
   ClearRecordedAstId();
 }
 

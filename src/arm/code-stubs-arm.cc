@@ -490,7 +490,7 @@ void HydrogenCodeStub::GenerateLightweightMiss(MacroAssembler* masm) {
   int param_count = descriptor->register_param_count_;
   {
     // Call the runtime system in a fresh internal frame.
-    FrameScope scope(masm, StackFrame::INTERNAL);
+    FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
     ASSERT(descriptor->register_param_count_ == 0 ||
            r0.is(descriptor->register_params_[param_count - 1]));
     // Push arguments
@@ -1606,14 +1606,15 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   JumpIfOOM(masm, r0, ip, throw_out_of_memory_exception);
 
   // Clear the pending exception.
-  __ mov(r3, Operand(isolate->factory()->the_hole_value()));
+  __ LoadRoot(r3, Heap::kTheHoleValueRootIndex);
   __ mov(ip, Operand(ExternalReference(Isolate::kPendingExceptionAddress,
                                        isolate)));
   __ str(r3, MemOperand(ip));
 
   // Special handling of termination exceptions which are uncatchable
   // by javascript code.
-  __ cmp(r0, Operand(isolate->factory()->termination_exception()));
+  __ LoadRoot(r3, Heap::kTerminationExceptionRootIndex);
+  __ cmp(r0, r3);
   __ b(eq, throw_termination_exception);
 
   // Handle normal exception.
@@ -1645,7 +1646,7 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   __ sub(r6, r6, Operand(kPointerSize));
 
   // Enter the exit frame that transitions from JavaScript to C++.
-  FrameScope scope(masm, StackFrame::MANUAL);
+  FrameAndConstantPoolScope scope(masm, StackFrame::MANUAL);
   __ EnterExitFrame(save_doubles_);
 
   // Set up argc and the builtin function in callee-saved registers.
@@ -2057,7 +2058,7 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   __ InvokeBuiltin(Builtins::INSTANCE_OF, JUMP_FUNCTION);
   } else {
     {
-      FrameScope scope(masm, StackFrame::INTERNAL);
+      FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
       __ Push(r0, r1);
       __ InvokeBuiltin(Builtins::INSTANCE_OF, CALL_FUNCTION);
     }
@@ -3066,7 +3067,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   // The target function is the Array constructor,
   // Create an AllocationSite if we don't already have it, store it in the slot.
   {
-    FrameScope scope(masm, StackFrame::INTERNAL);
+    FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
 
     // Arguments register must be smi-tagged to call out.
     __ SmiTag(r0);
@@ -3189,7 +3190,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   if (CallAsMethod()) {
     __ bind(&wrap);
     // Wrap the receiver and patch it back onto the stack.
-    { FrameScope frame_scope(masm, StackFrame::INTERNAL);
+    { FrameAndConstantPoolScope frame_scope(masm, StackFrame::INTERNAL);
       __ Push(r1, r3);
       __ InvokeBuiltin(Builtins::TO_OBJECT, CALL_FUNCTION);
       __ pop(r1);
@@ -4474,7 +4475,7 @@ void ICCompareStub::GenerateMiss(MacroAssembler* masm) {
     ExternalReference miss =
         ExternalReference(IC_Utility(IC::kCompareIC_Miss), masm->isolate());
 
-    FrameScope scope(masm, StackFrame::INTERNAL);
+    FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
     __ Push(r1, r0);
     __ Push(lr, r1, r0);
     __ mov(ip, Operand(Smi::FromInt(op_)));
@@ -5496,7 +5497,7 @@ void CallApiFunctionStub::Generate(MacroAssembler* masm) {
   // it's not controlled by GC.
   const int kApiStackSpace = 4;
 
-  FrameScope frame_scope(masm, StackFrame::MANUAL);
+  FrameAndConstantPoolScope frame_scope(masm, StackFrame::MANUAL);
   __ EnterExitFrame(false, kApiStackSpace);
 
   ASSERT(!api_function_address.is(r0) && !scratch.is(r0));
@@ -5556,7 +5557,7 @@ void CallApiGetterStub::Generate(MacroAssembler* masm) {
   __ add(r1, r0, Operand(1 * kPointerSize));  // r1 = PCA
 
   const int kApiStackSpace = 1;
-  FrameScope frame_scope(masm, StackFrame::MANUAL);
+  FrameAndConstantPoolScope frame_scope(masm, StackFrame::MANUAL);
   __ EnterExitFrame(false, kApiStackSpace);
 
   // Create PropertyAccessorInfo instance on the stack above the exit frame with
