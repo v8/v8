@@ -141,13 +141,11 @@ void CompilationInfo::Initialize(Isolate* isolate,
   }
   set_bailout_reason(kUnknown);
 
-  if (!shared_info().is_null()) {
-    FixedArray* info_feedback_vector = shared_info()->feedback_vector();
-    if (info_feedback_vector->length() > 0) {
-      // We should initialize the CompilationInfo feedback vector from the
-      // passed in shared info, rather than creating a new one.
-      feedback_vector_ = Handle<FixedArray>(info_feedback_vector, isolate);
-    }
+  if (!shared_info().is_null() && shared_info()->is_compiled()) {
+    // We should initialize the CompilationInfo feedback vector from the
+    // passed in shared info, rather than creating a new one.
+    feedback_vector_ = Handle<FixedArray>(shared_info()->feedback_vector(),
+                                          isolate);
   }
 }
 
