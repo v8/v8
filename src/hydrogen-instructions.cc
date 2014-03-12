@@ -30,6 +30,7 @@
 #include "double.h"
 #include "factory.h"
 #include "hydrogen-infer-representation.h"
+#include "property-details-inl.h"
 
 #if V8_TARGET_ARCH_IA32
 #include "ia32/lithium-ia32.h"
@@ -1433,19 +1434,19 @@ void HTypeof::PrintDataTo(StringStream* stream) {
 
 
 HInstruction* HForceRepresentation::New(Zone* zone, HValue* context,
-       HValue* value, Representation required_representation) {
+       HValue* value, Representation representation) {
   if (FLAG_fold_constants && value->IsConstant()) {
     HConstant* c = HConstant::cast(value);
     if (c->HasNumberValue()) {
       double double_res = c->DoubleValue();
-      if (IsInt32Double(double_res)) {
+      if (representation.CanContainDouble(double_res)) {
         return HConstant::New(zone, context,
                               static_cast<int32_t>(double_res),
-                              required_representation);
+                              representation);
       }
     }
   }
-  return new(zone) HForceRepresentation(value, required_representation);
+  return new(zone) HForceRepresentation(value, representation);
 }
 
 
