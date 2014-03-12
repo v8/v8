@@ -36,6 +36,7 @@ from common_includes import *
 TRUNKBRANCH = "TRUNKBRANCH"
 CHROMIUM = "CHROMIUM"
 DEPS_FILE = "DEPS_FILE"
+NEW_CHANGELOG_FILE = "NEW_CHANGELOG_FILE"
 
 CONFIG = {
   BRANCHNAME: "prepare-push",
@@ -45,6 +46,7 @@ CONFIG = {
   DOT_GIT_LOCATION: ".git",
   VERSION_FILE: "src/version.cc",
   CHANGELOG_FILE: "ChangeLog",
+  NEW_CHANGELOG_FILE: "/tmp/v8-push-to-trunk-tempfile-new-changelog",
   CHANGELOG_ENTRY_FILE: "/tmp/v8-push-to-trunk-tempfile-changelog-entry",
   PATCH_FILE: "/tmp/v8-push-to-trunk-tempfile-patch-file",
   COMMITMSG_FILE: "/tmp/v8-push-to-trunk-tempfile-commitmsg",
@@ -177,8 +179,6 @@ class EditChangeLog(Step):
            "save the file and exit your EDITOR. ")
     self.ReadLine(default="")
     self.Editor(self.Config(CHANGELOG_ENTRY_FILE))
-    handle, new_changelog = tempfile.mkstemp()
-    os.close(handle)
 
     # Strip comments and reformat with correct indentation.
     changelog_entry = FileToText(self.Config(CHANGELOG_ENTRY_FILE)).rstrip()
@@ -189,13 +189,12 @@ class EditChangeLog(Step):
     if changelog_entry == "":
       self.Die("Empty ChangeLog entry.")
 
-    with open(new_changelog, "w") as f:
-      f.write(changelog_entry)
-      f.write("\n\n\n")  # Explicitly insert two empty lines.
+    # Safe new change log for adding it later to the trunk patch.
+    TextToFile(changelog_entry, self.Config(NEW_CHANGELOG_FILE))
 
-    AppendToFile(FileToText(self.Config(CHANGELOG_FILE)), new_changelog)
-    TextToFile(FileToText(new_changelog), self.Config(CHANGELOG_FILE))
-    os.remove(new_changelog)
+    old_change_log = FileToText(self.Config(CHANGELOG_FILE))
+    new_change_log = "%s\n\n\n%s" % (changelog_entry, old_change_log)
+    TextToFile(new_change_log, self.Config(CHANGELOG_FILE))
 
 
 class IncrementVersion(Step):
