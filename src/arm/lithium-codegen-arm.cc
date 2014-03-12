@@ -1365,9 +1365,9 @@ void LCodeGen::DoDivByConstI(LDivByConstI* instr) {
 
 void LCodeGen::DoDivI(LDivI* instr) {
   HBinaryOperation* hdiv = instr->hydrogen();
-  const Register left = ToRegister(instr->left());
-  const Register right = ToRegister(instr->right());
-  const Register result = ToRegister(instr->result());
+  Register left = ToRegister(instr->left());
+  Register right = ToRegister(instr->right());
+  Register result = ToRegister(instr->result());
 
   // Check for x / 0.
   if (hdiv->CheckFlag(HValue::kCanBeDivByZero)) {
@@ -1402,17 +1402,9 @@ void LCodeGen::DoDivI(LDivI* instr) {
   if (CpuFeatures::IsSupported(SUDIV)) {
     CpuFeatureScope scope(masm(), SUDIV);
     __ sdiv(result, left, right);
-
-    if (!hdiv->CheckFlag(HValue::kAllUsesTruncatingToInt32)) {
-      // Compute remainder and deopt if it's not zero.
-      const Register remainder = scratch0();
-      __ mls(remainder, result, right, left);
-      __ cmp(remainder, Operand::Zero());
-      DeoptimizeIf(ne, instr->environment());
-    }
   } else {
-    const DoubleRegister vleft = ToDoubleRegister(instr->temp());
-    const DoubleRegister vright = double_scratch0();
+    DoubleRegister vleft = ToDoubleRegister(instr->temp());
+    DoubleRegister vright = double_scratch0();
     __ vmov(double_scratch0().low(), left);
     __ vcvt_f64_s32(vleft, double_scratch0().low());
     __ vmov(double_scratch0().low(), right);
@@ -1420,14 +1412,23 @@ void LCodeGen::DoDivI(LDivI* instr) {
     __ vdiv(vleft, vleft, vright);  // vleft now contains the result.
     __ vcvt_s32_f64(double_scratch0().low(), vleft);
     __ vmov(result, double_scratch0().low());
+  }
 
-    if (!hdiv->CheckFlag(HValue::kAllUsesTruncatingToInt32)) {
-      // Deopt if exact conversion to integer was not possible.
-      // Use vright as scratch register.
-      __ vcvt_f64_s32(double_scratch0(), double_scratch0().low());
-      __ VFPCompareAndSetFlags(vleft, double_scratch0());
-      DeoptimizeIf(ne, instr->environment());
-    }
+  if (hdiv->IsMathFloorOfDiv()) {
+    Label done;
+    Register remainder = scratch0();
+    __ mls(remainder, result, right, left);
+    __ cmp(remainder, Operand::Zero());
+    __ b(eq, &done);
+    __ eor(remainder, remainder, Operand(right));
+    __ add(result, result, Operand(remainder, ASR, 31));
+    __ bind(&done);
+  } else if (!hdiv->CheckFlag(HValue::kAllUsesTruncatingToInt32)) {
+    // Compute remainder and deopt if it's not zero.
+    Register remainder = scratch0();
+    __ mls(remainder, result, right, left);
+    __ cmp(remainder, Operand::Zero());
+    DeoptimizeIf(ne, instr->environment());
   }
 }
 
