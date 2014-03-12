@@ -1435,19 +1435,19 @@ Handle<Code> KeyedStoreIC::StoreElementStub(Handle<JSObject> receiver,
       KeyedStoreIC::GetKeyedAccessStoreMode(target()->extra_ic_state());
   Handle<Map> previous_receiver_map = target_receiver_maps.at(0);
   if (state() == MONOMORPHIC) {
-      // If the "old" and "new" maps are in the same elements map family, stay
-      // MONOMORPHIC and use the map for the most generic ElementsKind.
-    Handle<Map> transitioned_receiver_map = receiver_map;
     if (IsTransitionStoreMode(store_mode)) {
-      transitioned_receiver_map =
+      // If the "old" and "new" maps are in the same elements map family, or
+      // if they at least come from the same origin for a transitioning store,
+      // stay MONOMORPHIC and use the map for the most generic ElementsKind.
+      Handle<Map> transitioned_receiver_map =
           ComputeTransitionedMap(receiver, store_mode);
-    }
-    if (IsTransitionOfMonomorphicTarget(
-            MapToType<HeapType>(transitioned_receiver_map, isolate()))) {
-      // Element family is the same, use the "worst" case map.
-      store_mode = GetNonTransitioningStoreMode(store_mode);
-      return isolate()->stub_cache()->ComputeKeyedStoreElement(
-          transitioned_receiver_map, strict_mode(), store_mode);
+      if (*previous_receiver_map == receiver->map() ||
+          IsTransitionOfMonomorphicTarget(
+              MapToType<HeapType>(transitioned_receiver_map, isolate()))) {
+        store_mode = GetNonTransitioningStoreMode(store_mode);
+        return isolate()->stub_cache()->ComputeKeyedStoreElement(
+            transitioned_receiver_map, strict_mode(), store_mode);
+      }
     } else if (*previous_receiver_map == receiver->map() &&
                old_store_mode == STANDARD_STORE &&
                (IsGrowStoreMode(store_mode) ||
