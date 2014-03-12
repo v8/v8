@@ -3444,6 +3444,115 @@ THREADED_TEST(UniquePersistent) {
 }
 
 
+template<typename K, typename V, bool is_weak>
+class StdPersistentValueMapTraits {
+ public:
+  static const bool kIsWeak = is_weak;
+  typedef v8::PersistentContainerValue VInt;
+  typedef std::map<K, VInt> Impl;
+  struct WeakCallbackDataType {
+    Impl* impl;
+    K key;
+  };
+  typedef typename Impl::iterator Iterator;
+  static bool Empty(Impl* impl) { return impl->empty(); }
+  static size_t Size(Impl* impl) { return impl->size(); }
+  static void Swap(Impl& a, Impl& b) { std::swap(a, b); }  // NOLINT
+  static Iterator Begin(Impl* impl) { return impl->begin(); }
+  static Iterator End(Impl* impl) { return impl->end(); }
+  static K Key(Iterator it) { return it->first; }
+  static VInt Value(Iterator it) { return it->second; }
+  static VInt Set(Impl* impl, K key, VInt value) {
+    std::pair<Iterator, bool> res = impl->insert(std::make_pair(key, value));
+    VInt old_value = v8::kPersistentContainerNotFound;
+    if (!res.second) {
+      old_value = res.first->second;
+      res.first->second = value;
+    }
+    return old_value;
+  }
+  static VInt Get(Impl* impl, K key) {
+    Iterator it = impl->find(key);
+    if (it == impl->end()) return v8::kPersistentContainerNotFound;
+    return it->second;
+  }
+  static VInt Remove(Impl* impl, K key) {
+    Iterator it = impl->find(key);
+    if (it == impl->end()) return v8::kPersistentContainerNotFound;
+    impl->erase(it);
+    return it->second;
+  }
+  static void Dispose(v8::Isolate* isolate, v8::UniquePersistent<V> value,
+      Impl* impl, K key) {}
+  static WeakCallbackDataType* WeakCallbackParameter(
+      Impl* impl, const K& key, Local<V> value) {
+    WeakCallbackDataType* data = new WeakCallbackDataType;
+    data->impl = impl;
+    data->key = key;
+    return data;
+  }
+  static Impl* ImplFromWeakCallbackData(
+      const v8::WeakCallbackData<V, WeakCallbackDataType>& data) {
+    return data.GetParameter()->impl;
+  }
+  static K KeyFromWeakCallbackData(
+      const v8::WeakCallbackData<V, WeakCallbackDataType>& data) {
+    return data.GetParameter()->key;
+  }
+  static void DisposeCallbackData(WeakCallbackDataType* data) {
+    delete data;
+  }
+};
+
+
+template<bool is_weak>
+static void TestPersistentValueMap() {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  typedef v8::PersistentValueMap<int, v8::Object,
+      StdPersistentValueMapTraits<int, v8::Object, is_weak> > Map;
+  Map map(isolate);
+  v8::internal::GlobalHandles* global_handles =
+      reinterpret_cast<v8::internal::Isolate*>(isolate)->global_handles();
+  int initial_handle_count = global_handles->global_handles_count();
+  CHECK_EQ(0, map.Size());
+  {
+    HandleScope scope(isolate);
+    Local<v8::Object> obj = map.Get(7);
+    CHECK(obj.IsEmpty());
+    Local<v8::Object> expected = v8::Object::New(isolate);
+    map.Set(7, expected);
+    CHECK_EQ(1, map.Size());
+    obj = map.Get(7);
+    CHECK_EQ(expected, obj);
+    v8::UniquePersistent<v8::Object> removed = map.Remove(7);
+    CHECK_EQ(0, map.Size());
+    CHECK(expected == removed);
+    removed = map.Remove(7);
+    CHECK(removed.IsEmpty());
+    map.Set(8, expected);
+    CHECK_EQ(1, map.Size());
+    map.Set(8, expected);
+    CHECK_EQ(1, map.Size());
+  }
+  CHECK_EQ(initial_handle_count + 1, global_handles->global_handles_count());
+  if (is_weak) {
+    reinterpret_cast<v8::internal::Isolate*>(isolate)->heap()->
+        CollectAllGarbage(i::Heap::kAbortIncrementalMarkingMask);
+  } else {
+    map.Clear();
+  }
+  CHECK_EQ(0, map.Size());
+  CHECK_EQ(initial_handle_count, global_handles->global_handles_count());
+}
+
+
+TEST(PersistentValueMap) {
+  TestPersistentValueMap<false>();
+  TestPersistentValueMap<true>();
+}
+
+
 THREADED_TEST(GlobalHandleUpcast) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
