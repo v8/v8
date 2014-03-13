@@ -139,6 +139,8 @@ void FullCodeGenerator::Generate() {
   handler_table_ =
       isolate()->factory()->NewFixedArray(function()->handler_count(), TENURED);
 
+  InitializeFeedbackVector();
+
   profiling_counter_ = isolate()->factory()->NewCell(
       Handle<Smi>(Smi::FromInt(FLAG_interrupt_budget), isolate()));
   SetFunctionPosition(function());
@@ -1174,8 +1176,12 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   Label non_proxy;
   __ bind(&fixed_array);
 
+  Handle<Object> feedback = Handle<Object>(
+      Smi::FromInt(TypeFeedbackInfo::kForInFastCaseMarker),
+      isolate());
+  StoreFeedbackVectorSlot(slot, feedback);
   __ li(a1, FeedbackVector());
-  __ li(a2, Operand(TypeFeedbackInfo::MegamorphicSentinel(isolate())));
+  __ li(a2, Operand(Smi::FromInt(TypeFeedbackInfo::kForInSlowCaseMarker)));
   __ sw(a2, FieldMemOperand(a1, FixedArray::OffsetOfElementAt(slot)));
 
   __ li(a1, Operand(Smi::FromInt(1)));  // Smi indicates slow check
@@ -2729,6 +2735,9 @@ void FullCodeGenerator::EmitCallWithStub(Call* expr) {
   // Record source position for debugger.
   SetSourcePosition(expr->position());
 
+  Handle<Object> uninitialized =
+      TypeFeedbackInfo::UninitializedSentinel(isolate());
+  StoreFeedbackVectorSlot(expr->CallFeedbackSlot(), uninitialized);
   __ li(a2, FeedbackVector());
   __ li(a3, Operand(Smi::FromInt(expr->CallFeedbackSlot())));
 
@@ -2913,6 +2922,9 @@ void FullCodeGenerator::VisitCallNew(CallNew* expr) {
   __ lw(a1, MemOperand(sp, arg_count * kPointerSize));
 
   // Record call targets in unoptimized code.
+  Handle<Object> uninitialized =
+      TypeFeedbackInfo::UninitializedSentinel(isolate());
+  StoreFeedbackVectorSlot(expr->CallNewFeedbackSlot(), uninitialized);
   __ li(a2, FeedbackVector());
   __ li(a3, Operand(Smi::FromInt(expr->CallNewFeedbackSlot())));
 
