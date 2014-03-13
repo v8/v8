@@ -15511,7 +15511,7 @@ int Dictionary<Shape, Key>::NumberOfElementsFilterAttributes(
 template<typename Shape, typename Key>
 int Dictionary<Shape, Key>::NumberOfEnumElements() {
   return NumberOfElementsFilterAttributes(
-      static_cast<PropertyAttributes>(DONT_ENUM));
+      static_cast<PropertyAttributes>(DONT_ENUM | SYMBOLIC));
 }
 
 
@@ -15539,45 +15539,38 @@ void Dictionary<Shape, Key>::CopyKeysTo(
 }
 
 
-FixedArray* NameDictionary::CopyEnumKeysTo(FixedArray* storage) {
+struct EnumIndexComparator {
+  explicit EnumIndexComparator(NameDictionary* dict) : dict(dict) { }
+  bool operator() (Smi* a, Smi* b) {
+    PropertyDetails da(dict->DetailsAt(a->value()));
+    PropertyDetails db(dict->DetailsAt(b->value()));
+    return da.dictionary_index() < db.dictionary_index();
+  }
+  NameDictionary* dict;
+};
+
+
+void NameDictionary::CopyEnumKeysTo(FixedArray* storage) {
   int length = storage->length();
-  ASSERT(length >= NumberOfEnumElements());
-  Heap* heap = GetHeap();
-  Object* undefined_value = heap->undefined_value();
   int capacity = Capacity();
   int properties = 0;
-
-  // Fill in the enumeration array by assigning enumerable keys at their
-  // enumeration index. This will leave holes in the array if there are keys
-  // that are deleted or not enumerable.
   for (int i = 0; i < capacity; i++) {
      Object* k = KeyAt(i);
      if (IsKey(k) && !k->IsSymbol()) {
        PropertyDetails details = DetailsAt(i);
        if (details.IsDeleted() || details.IsDontEnum()) continue;
+       storage->set(properties, Smi::FromInt(i));
        properties++;
-       storage->set(details.dictionary_index() - 1, k);
        if (properties == length) break;
      }
   }
-
-  // There are holes in the enumeration array if less properties were assigned
-  // than the length of the array. If so, crunch all the existing properties
-  // together by shifting them to the left (maintaining the enumeration order),
-  // and trimming of the right side of the array.
-  if (properties < length) {
-    if (properties == 0) return heap->empty_fixed_array();
-    properties = 0;
-    for (int i = 0; i < length; ++i) {
-      Object* value = storage->get(i);
-      if (value != undefined_value) {
-        storage->set(properties, value);
-        ++properties;
-      }
-    }
-    RightTrimFixedArray<FROM_MUTATOR>(heap, storage, length - properties);
+  EnumIndexComparator cmp(this);
+  Smi** start = reinterpret_cast<Smi**>(storage->GetFirstElementAddress());
+  std::sort(start, start + length, cmp);
+  for (int i = 0; i < length; i++) {
+    int index = Smi::cast(storage->get(i))->value();
+    storage->set(i, KeyAt(index));
   }
-  return storage;
 }
 
 

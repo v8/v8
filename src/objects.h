@@ -4036,7 +4036,7 @@ class NameDictionary: public Dictionary<NameDictionaryShape, Name*> {
   }
 
   // Copies enumerable keys to preallocated fixed array.
-  FixedArray* CopyEnumKeysTo(FixedArray* storage);
+  void CopyEnumKeysTo(FixedArray* storage);
   static void DoGenerateNewEnumerationIndices(
       Handle<NameDictionary> dictionary);
 
