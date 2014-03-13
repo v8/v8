@@ -3700,13 +3700,13 @@ TEST(ObjectsInOptimizedCodeAreWeak) {
 
 
 static Handle<JSFunction> OptimizeDummyFunction(const char* name) {
-  char source[256];
-  snprintf(source, sizeof(source),
-           "function %s() { return 0; }"
-           "%s(); %s();"
-           "%%OptimizeFunctionOnNextCall(%s);"
-           "%s();", name, name, name, name, name);
-  CompileRun(source);
+  EmbeddedVector<char, 256> source;
+  OS::SNPrintF(source,
+              "function %s() { return 0; }"
+              "%s(); %s();"
+              "%%OptimizeFunctionOnNextCall(%s);"
+              "%s();", name, name, name, name, name);
+  CompileRun(source.start());
   Handle<JSFunction> fun =
       v8::Utils::OpenHandle(
           *v8::Handle<v8::Function>::Cast(
