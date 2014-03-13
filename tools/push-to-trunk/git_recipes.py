@@ -133,8 +133,11 @@ class GitRecipesMixin(object):
   def GitDCommit(self):
     self.Git("cl dcommit -f --bypass-hooks", retry_on=lambda x: x is None)
 
-  def GitDiff(self, loc1, loc2):
-    return self.Git(MakeArgs(["diff", loc1, loc2]))
+  def GitDiff(self, loc1, loc2, exclude=None):
+    exclude = exclude or []
+    files = self.Git(MakeArgs(["diff", "--name-only", loc1, loc2]))
+    files = filter(lambda f: f not in exclude, files.strip().splitlines())
+    return self.Git(MakeArgs(["diff", loc1, loc2] + files))
 
   def GitPull(self):
     self.Git("pull")

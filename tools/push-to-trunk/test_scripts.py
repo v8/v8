@@ -589,7 +589,8 @@ class ScriptTest(unittest.TestCase):
       f.write(change_log)
 
     self.ExpectGit([
-      Git("diff svn/trunk hash1", "patch content"),
+      Git("diff --name-only svn/trunk hash1", "file1\nfile2\n"),
+      Git("diff svn/trunk hash1 file1 file2", "patch content"),
       Git("svn find-rev hash1", "123455\n"),
     ])
 
@@ -710,7 +711,8 @@ Performance and stability improvements on all platforms.""", commit)
       Git(("log -1 --format=%H --grep=\"Prepare push to trunk.  "
            "Now working on version 3.22.6.\""),
           "hash1\n"),
-      Git("diff svn/trunk hash1", "patch content\n"),
+      Git("diff --name-only svn/trunk hash1", "file1\nfile2\n"),
+      Git("diff svn/trunk hash1 file1 file2", "patch content"),
       Git("svn find-rev hash1", "123455\n"),
       Git("checkout -b %s svn/trunk" % TEST_CONFIG[TRUNKBRANCH], ""),
       Git("apply --index --reject \"%s\"" % TEST_CONFIG[PATCH_FILE], ""),
