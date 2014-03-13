@@ -267,8 +267,12 @@ class SquashCommits(Step):
 
   def RunStep(self):
     # Instead of relying on "git rebase -i", we'll just create a diff, because
-    # that's easier to automate.
-    TextToFile(self.GitDiff("svn/trunk", self["prepare_commit_hash"]),
+    # that's easier to automate. Exclude the ChangeLog file. It is not
+    # maintained on bleeding edge. Changes will be added in a separate step
+    # below.
+    TextToFile(self.GitDiff("svn/trunk",
+                            self["prepare_commit_hash"],
+                            exclude=[self.Config(CHANGELOG_FILE)]),
                self.Config(PATCH_FILE))
 
     # Convert the ChangeLog entry to commit message format.
@@ -310,6 +314,16 @@ class ApplyChanges(Step):
     self.ApplyPatch(self.Config(PATCH_FILE))
     Command("rm", "-f %s*" % self.Config(PATCH_FILE))
 
+
+class AddChangeLog(Step):
+  MESSAGE = "Add ChangeLog changes to trunk branch."
+
+  def RunStep(self):
+    changelog_entry = FileToText(self.Config(NEW_CHANGELOG_FILE))
+    old_change_log = FileToText(self.Config(CHANGELOG_FILE))
+    new_change_log = "%s\n\n\n%s" % (changelog_entry, old_change_log)
+    TextToFile(new_change_log, self.Config(CHANGELOG_FILE))
+    os.remove(self.Config(NEW_CHANGELOG_FILE))
 
 class SetVersion(Step):
   MESSAGE = "Set correct version for trunk."
@@ -529,6 +543,7 @@ class PushToTrunk(ScriptsBase):
       SquashCommits,
       NewBranch,
       ApplyChanges,
+      AddChangeLog,
       SetVersion,
       CommitTrunk,
       SanityCheck,
