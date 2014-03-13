@@ -9225,21 +9225,15 @@ HValue* HGraphBuilder::BuildBinaryOperation(
         instr = AddUncasted<HMul>(left, right);
         break;
       case Token::MOD: {
-        if (fixed_right_arg.has_value) {
-          if (right->IsConstant()) {
-            HConstant* c_right = HConstant::cast(right);
-            if (c_right->HasInteger32Value()) {
-              ASSERT_EQ(fixed_right_arg.value, c_right->Integer32Value());
-            }
-          } else {
-            HConstant* fixed_right = Add<HConstant>(
-                static_cast<int>(fixed_right_arg.value));
-            IfBuilder if_same(this);
-            if_same.If<HCompareNumericAndBranch>(right, fixed_right, Token::EQ);
-            if_same.Then();
-            if_same.ElseDeopt("Unexpected RHS of binary operation");
-            right = fixed_right;
-          }
+        if (fixed_right_arg.has_value &&
+            !right->EqualsInteger32Constant(fixed_right_arg.value)) {
+          HConstant* fixed_right = Add<HConstant>(
+              static_cast<int>(fixed_right_arg.value));
+          IfBuilder if_same(this);
+          if_same.If<HCompareNumericAndBranch>(right, fixed_right, Token::EQ);
+          if_same.Then();
+          if_same.ElseDeopt("Unexpected RHS of binary operation");
+          right = fixed_right;
         }
         instr = AddUncasted<HMod>(left, right);
         break;
