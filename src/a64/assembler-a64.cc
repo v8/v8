@@ -2653,9 +2653,6 @@ void Assembler::EmitVeneers(bool need_protection, int margin) {
   Label size_check;
   bind(&size_check);
   int veneer_pool_relocinfo_loc = pc_offset();
-#ifdef DEBUG
-  byte* reloc_writer_record_pos = reloc_info_writer.pos();
-#endif
 
   Label end;
   if (need_protection) {
@@ -2697,7 +2694,6 @@ void Assembler::EmitVeneers(bool need_protection, int margin) {
   }
 
   // Record the veneer pool size.
-  ASSERT(reloc_writer_record_pos == reloc_info_writer.pos());
   int pool_size = SizeOfCodeGeneratedSince(&size_check);
   RecordVeneerPool(veneer_pool_relocinfo_loc, pool_size);
 
