@@ -235,10 +235,12 @@ class GlobalHandles::Node {
     weak_callback_ = weak_callback;
   }
 
-  void ClearWeakness() {
+  void* ClearWeakness() {
     ASSERT(state() != FREE);
+    void* p = parameter();
     set_state(NORMAL);
     set_parameter(NULL);
+    return p;
   }
 
   bool PostGarbageCollectionProcessing(Isolate* isolate) {
@@ -502,8 +504,8 @@ void GlobalHandles::MakeWeak(Object** location,
 }
 
 
-void GlobalHandles::ClearWeakness(Object** location) {
-  Node::FromLocation(location)->ClearWeakness();
+void* GlobalHandles::ClearWeakness(Object** location) {
+  return Node::FromLocation(location)->ClearWeakness();
 }
 
 
