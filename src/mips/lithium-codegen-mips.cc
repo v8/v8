@@ -1082,7 +1082,7 @@ void LCodeGen::DoModByPowerOf2I(LModByPowerOf2I* instr) {
   int32_t mask = divisor < 0 ? -(divisor + 1) : (divisor - 1);
   Label dividend_is_not_negative, done;
 
-  if (hmod->left()->CanBeNegative()) {
+  if (hmod->CheckFlag(HValue::kLeftCanBeNegative)) {
     __ Branch(&dividend_is_not_negative, ge, dividend, Operand(zero_reg));
     // Note: The code below even works when right contains kMinInt.
     __ subu(dividend, zero_reg, dividend);
