@@ -2076,13 +2076,23 @@ class JSReceiver: public HeapObject {
   // function that was used to instantiate the object).
   String* constructor_name();
 
-  inline PropertyAttributes GetPropertyAttribute(Name* name);
-  PropertyAttributes GetPropertyAttributeWithReceiver(JSReceiver* receiver,
-                                                      Name* name);
-  PropertyAttributes GetLocalPropertyAttribute(Name* name);
+  static inline PropertyAttributes GetPropertyAttribute(
+      Handle<JSReceiver> object,
+      Handle<Name> name);
+  static PropertyAttributes GetPropertyAttributeWithReceiver(
+      Handle<JSReceiver> object,
+      Handle<JSReceiver> receiver,
+      Handle<Name> name);
+  static PropertyAttributes GetLocalPropertyAttribute(
+      Handle<JSReceiver> object,
+      Handle<Name> name);
 
-  inline PropertyAttributes GetElementAttribute(uint32_t index);
-  inline PropertyAttributes GetLocalElementAttribute(uint32_t index);
+  static inline PropertyAttributes GetElementAttribute(
+      Handle<JSReceiver> object,
+      uint32_t index);
+  static inline PropertyAttributes GetLocalElementAttribute(
+      Handle<JSReceiver> object,
+      uint32_t index);
 
   // Return the object's prototype (might be Heap::null_value()).
   inline Object* GetPrototype();
@@ -2113,10 +2123,12 @@ class JSReceiver: public HeapObject {
                                                      Handle<Object> value);
 
  private:
-  PropertyAttributes GetPropertyAttributeForResult(JSReceiver* receiver,
-                                                   LookupResult* result,
-                                                   Name* name,
-                                                   bool continue_search);
+  static PropertyAttributes GetPropertyAttributeForResult(
+      Handle<JSReceiver> object,
+      Handle<JSReceiver> receiver,
+      LookupResult* result,
+      Handle<Name> name,
+      bool continue_search);
 
   static Handle<Object> SetProperty(Handle<JSReceiver> receiver,
                                     LookupResult* result,
@@ -2307,20 +2319,26 @@ class JSObject: public JSReceiver {
   InterceptorInfo* GetIndexedInterceptor();
 
   // Used from JSReceiver.
-  PropertyAttributes GetPropertyAttributePostInterceptor(JSObject* receiver,
-                                                         Name* name,
-                                                         bool continue_search);
-  PropertyAttributes GetPropertyAttributeWithInterceptor(JSObject* receiver,
-                                                         Name* name,
-                                                         bool continue_search);
-  PropertyAttributes GetPropertyAttributeWithFailedAccessCheck(
-      Object* receiver,
-      LookupResult* result,
-      Name* name,
+  static PropertyAttributes GetPropertyAttributePostInterceptor(
+      Handle<JSObject> object,
+      Handle<JSObject> receiver,
+      Handle<Name> name,
       bool continue_search);
-  PropertyAttributes GetElementAttributeWithReceiver(JSReceiver* receiver,
-                                                     uint32_t index,
-                                                     bool continue_search);
+  static PropertyAttributes GetPropertyAttributeWithInterceptor(
+      Handle<JSObject> object,
+      Handle<JSObject> receiver,
+      Handle<Name> name,
+      bool continue_search);
+  static PropertyAttributes GetPropertyAttributeWithFailedAccessCheck(
+      Handle<JSObject> object,
+      LookupResult* result,
+      Handle<Name> name,
+      bool continue_search);
+  static PropertyAttributes GetElementAttributeWithReceiver(
+      Handle<JSObject> object,
+      Handle<JSReceiver> receiver,
+      uint32_t index,
+      bool continue_search);
 
   // Retrieves an AccessorPair property from the given object. Might return
   // undefined if the property doesn't exist or is of a different kind.
@@ -2384,7 +2402,7 @@ class JSObject: public JSReceiver {
   static void DeleteHiddenProperty(Handle<JSObject> object,
                                    Handle<Name> key);
   // Returns true if the object has a property with the hidden string as name.
-  bool HasHiddenProperties();
+  static bool HasHiddenProperties(Handle<JSObject> object);
 
   static void SetIdentityHash(Handle<JSObject> object, Handle<Smi> hash);
 
@@ -2757,12 +2775,14 @@ class JSObject: public JSReceiver {
                                                       Object* structure,
                                                       uint32_t index,
                                                       Object* holder);
-  MUST_USE_RESULT PropertyAttributes GetElementAttributeWithInterceptor(
-      JSReceiver* receiver,
+  static PropertyAttributes GetElementAttributeWithInterceptor(
+      Handle<JSObject> object,
+      Handle<JSReceiver> receiver,
       uint32_t index,
       bool continue_search);
-  MUST_USE_RESULT PropertyAttributes GetElementAttributeWithoutInterceptor(
-      JSReceiver* receiver,
+  static PropertyAttributes GetElementAttributeWithoutInterceptor(
+      Handle<JSObject> object,
+      Handle<JSReceiver> receiver,
       uint32_t index,
       bool continue_search);
   static Handle<Object> SetElementWithCallback(
@@ -9598,11 +9618,13 @@ class JSProxy: public JSReceiver {
       StrictMode strict_mode,
       bool* done);
 
-  MUST_USE_RESULT PropertyAttributes GetPropertyAttributeWithHandler(
-      JSReceiver* receiver,
-      Name* name);
-  MUST_USE_RESULT PropertyAttributes GetElementAttributeWithHandler(
-      JSReceiver* receiver,
+  static PropertyAttributes GetPropertyAttributeWithHandler(
+      Handle<JSProxy> proxy,
+      Handle<JSReceiver> receiver,
+      Handle<Name> name);
+  static PropertyAttributes GetElementAttributeWithHandler(
+      Handle<JSProxy> proxy,
+      Handle<JSReceiver> receiver,
       uint32_t index);
 
   // Turn the proxy into an (empty) JSObject.

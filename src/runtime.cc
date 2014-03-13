@@ -1813,7 +1813,7 @@ static Handle<Object> GetOwnProperty(Isolate* isolate,
     case ACCESS_ABSENT: return factory->undefined_value();
   }
 
-  PropertyAttributes attrs = obj->GetLocalPropertyAttribute(*name);
+  PropertyAttributes attrs = JSReceiver::GetLocalPropertyAttribute(obj, name);
   if (attrs == ABSENT) {
     RETURN_HANDLE_IF_SCHEDULED_EXCEPTION(isolate, Object);
     return factory->undefined_value();
@@ -2061,8 +2061,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeclareGlobals) {
         // We found an existing property. Unless it was an interceptor
         // that claims the property is absent, skip this declaration.
         if (!lookup.IsInterceptor()) continue;
-        PropertyAttributes attributes = global->GetPropertyAttribute(*name);
-        if (attributes != ABSENT) continue;
+        if (JSReceiver::GetPropertyAttribute(global, name) != ABSENT) continue;
         // Fall-through and introduce the absent property by using
         // SetProperty.
       }
@@ -2252,15 +2251,15 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InitializeVarGlobal) {
   LookupResult lookup(isolate);
   isolate->context()->global_object()->LocalLookup(*name, &lookup, true);
   if (lookup.IsInterceptor()) {
+    Handle<JSObject> holder(lookup.holder());
     PropertyAttributes intercepted =
-        lookup.holder()->GetPropertyAttribute(*name);
+        JSReceiver::GetPropertyAttribute(holder, name);
     if (intercepted != ABSENT && (intercepted & READ_ONLY) == 0) {
       // Found an interceptor that's not read only.
       if (assign) {
         CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
         Handle<Object> result = JSObject::SetPropertyForResult(
-            handle(lookup.holder()), &lookup, name, value, attributes,
-            strict_mode);
+            holder, &lookup, name, value, attributes, strict_mode);
         RETURN_IF_EMPTY_HANDLE(isolate, result);
         return *result;
       } else {
@@ -5644,13 +5643,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_HasElement) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_IsPropertyEnumerable) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 2);
 
-  CONVERT_ARG_CHECKED(JSObject, object, 0);
-  CONVERT_ARG_CHECKED(Name, key, 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Name, key, 1);
 
-  PropertyAttributes att = object->GetLocalPropertyAttribute(key);
+  PropertyAttributes att = JSReceiver::GetLocalPropertyAttribute(object, key);
   if (att == ABSENT || (att & DONT_ENUM) != 0) {
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     return isolate->heap()->false_value();
@@ -5800,7 +5799,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetLocalPropertyNames) {
     next_copy_index += local_property_count[i];
 
     // Hidden properties only show up if the filter does not skip strings.
-    if ((filter & STRING) == 0 && jsproto->HasHiddenProperties()) {
+    if ((filter & STRING) == 0 && JSObject::HasHiddenProperties(jsproto)) {
       hidden_strings++;
     }
     if (i < length - 1) {
@@ -9339,7 +9338,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StoreContextSlot) {
 
   // Set the property if it's not read only or doesn't yet exist.
   if ((attributes & READ_ONLY) == 0 ||
-      (object->GetLocalPropertyAttribute(*name) == ABSENT)) {
+      (JSReceiver::GetLocalPropertyAttribute(object, name) == ABSENT)) {
     RETURN_IF_EMPTY_HANDLE(
         isolate,
         JSReceiver::SetProperty(object, name, value, NONE, strict_mode));

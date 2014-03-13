@@ -6177,7 +6177,7 @@ bool JSReceiver::HasProperty(Handle<JSReceiver> object,
     Handle<JSProxy> proxy = Handle<JSProxy>::cast(object);
     return JSProxy::HasPropertyWithHandler(proxy, name);
   }
-  return object->GetPropertyAttribute(*name) != ABSENT;
+  return GetPropertyAttribute(object, name) != ABSENT;
 }
 
 
@@ -6187,25 +6187,28 @@ bool JSReceiver::HasLocalProperty(Handle<JSReceiver> object,
     Handle<JSProxy> proxy = Handle<JSProxy>::cast(object);
     return JSProxy::HasPropertyWithHandler(proxy, name);
   }
-  return object->GetLocalPropertyAttribute(*name) != ABSENT;
+  return GetLocalPropertyAttribute(object, name) != ABSENT;
 }
 
 
-PropertyAttributes JSReceiver::GetPropertyAttribute(Name* key) {
+PropertyAttributes JSReceiver::GetPropertyAttribute(Handle<JSReceiver> object,
+                                                    Handle<Name> key) {
   uint32_t index;
-  if (IsJSObject() && key->AsArrayIndex(&index)) {
-    return GetElementAttribute(index);
+  if (object->IsJSObject() && key->AsArrayIndex(&index)) {
+    return GetElementAttribute(object, index);
   }
-  return GetPropertyAttributeWithReceiver(this, key);
+  return GetPropertyAttributeWithReceiver(object, object, key);
 }
 
 
-PropertyAttributes JSReceiver::GetElementAttribute(uint32_t index) {
-  if (IsJSProxy()) {
-    return JSProxy::cast(this)->GetElementAttributeWithHandler(this, index);
+PropertyAttributes JSReceiver::GetElementAttribute(Handle<JSReceiver> object,
+                                                   uint32_t index) {
+  if (object->IsJSProxy()) {
+    return JSProxy::GetElementAttributeWithHandler(
+        Handle<JSProxy>::cast(object), object, index);
   }
-  return JSObject::cast(this)->GetElementAttributeWithReceiver(
-      this, index, true);
+  return JSObject::GetElementAttributeWithReceiver(
+      Handle<JSObject>::cast(object), object, index, true);
 }
 
 
@@ -6238,8 +6241,8 @@ bool JSReceiver::HasElement(Handle<JSReceiver> object, uint32_t index) {
     Handle<JSProxy> proxy = Handle<JSProxy>::cast(object);
     return JSProxy::HasElementWithHandler(proxy, index);
   }
-  return Handle<JSObject>::cast(object)->GetElementAttributeWithReceiver(
-      *object, index, true) != ABSENT;
+  return JSObject::GetElementAttributeWithReceiver(
+      Handle<JSObject>::cast(object), object, index, true) != ABSENT;
 }
 
 
@@ -6248,17 +6251,19 @@ bool JSReceiver::HasLocalElement(Handle<JSReceiver> object, uint32_t index) {
     Handle<JSProxy> proxy = Handle<JSProxy>::cast(object);
     return JSProxy::HasElementWithHandler(proxy, index);
   }
-  return Handle<JSObject>::cast(object)->GetElementAttributeWithReceiver(
-      *object, index, false) != ABSENT;
+  return JSObject::GetElementAttributeWithReceiver(
+      Handle<JSObject>::cast(object), object, index, false) != ABSENT;
 }
 
 
-PropertyAttributes JSReceiver::GetLocalElementAttribute(uint32_t index) {
-  if (IsJSProxy()) {
-    return JSProxy::cast(this)->GetElementAttributeWithHandler(this, index);
+PropertyAttributes JSReceiver::GetLocalElementAttribute(
+    Handle<JSReceiver> object, uint32_t index) {
+  if (object->IsJSProxy()) {
+    return JSProxy::GetElementAttributeWithHandler(
+        Handle<JSProxy>::cast(object), object, index);
   }
-  return JSObject::cast(this)->GetElementAttributeWithReceiver(
-      this, index, false);
+  return JSObject::GetElementAttributeWithReceiver(
+      Handle<JSObject>::cast(object), object, index, false);
 }
 
 

@@ -622,22 +622,22 @@ Handle<Object> JSObject::GetPropertyWithFailedAccessCheck(
 
 
 PropertyAttributes JSObject::GetPropertyAttributeWithFailedAccessCheck(
-    Object* receiver,
+    Handle<JSObject> object,
     LookupResult* result,
-    Name* name,
+    Handle<Name> name,
     bool continue_search) {
   if (result->IsProperty()) {
     switch (result->type()) {
       case CALLBACKS: {
         // Only allow API accessors.
-        Object* obj = result->GetCallbackObject();
+        Handle<Object> obj(result->GetCallbackObject(), object->GetIsolate());
         if (obj->IsAccessorInfo()) {
-          AccessorInfo* info = AccessorInfo::cast(obj);
+          Handle<AccessorInfo> info = Handle<AccessorInfo>::cast(obj);
           if (info->all_can_read()) {
             return result->GetAttributes();
           }
         } else if (obj->IsAccessorPair()) {
-          AccessorPair* pair = AccessorPair::cast(obj);
+          Handle<AccessorPair> pair = Handle<AccessorPair>::cast(obj);
           if (pair->all_can_read()) {
             return result->GetAttributes();
           }
@@ -650,13 +650,11 @@ PropertyAttributes JSObject::GetPropertyAttributeWithFailedAccessCheck(
       case CONSTANT: {
         if (!continue_search) break;
         // Search ALL_CAN_READ accessors in prototype chain.
-        LookupResult r(GetIsolate());
-        result->holder()->LookupRealNamedPropertyInPrototypes(name, &r);
+        LookupResult r(object->GetIsolate());
+        result->holder()->LookupRealNamedPropertyInPrototypes(*name, &r);
         if (r.IsProperty()) {
-          return GetPropertyAttributeWithFailedAccessCheck(receiver,
-                                                           &r,
-                                                           name,
-                                                           continue_search);
+          return GetPropertyAttributeWithFailedAccessCheck(
+              object, &r, name, continue_search);
         }
         break;
       }
@@ -664,17 +662,15 @@ PropertyAttributes JSObject::GetPropertyAttributeWithFailedAccessCheck(
       case INTERCEPTOR: {
         // If the object has an interceptor, try real named properties.
         // No access check in GetPropertyAttributeWithInterceptor.
-        LookupResult r(GetIsolate());
+        LookupResult r(object->GetIsolate());
         if (continue_search) {
-          result->holder()->LookupRealNamedProperty(name, &r);
+          result->holder()->LookupRealNamedProperty(*name, &r);
         } else {
-          result->holder()->LocalLookupRealNamedProperty(name, &r);
+          result->holder()->LocalLookupRealNamedProperty(*name, &r);
         }
         if (!r.IsFound()) break;
-        return GetPropertyAttributeWithFailedAccessCheck(receiver,
-                                                         &r,
-                                                         name,
-                                                         continue_search);
+        return GetPropertyAttributeWithFailedAccessCheck(
+            object, &r, name, continue_search);
       }
 
       case HANDLER:
@@ -684,7 +680,7 @@ PropertyAttributes JSObject::GetPropertyAttributeWithFailedAccessCheck(
     }
   }
 
-  GetIsolate()->ReportFailedAccessCheck(this, v8::ACCESS_HAS);
+  object->GetIsolate()->ReportFailedAccessCheckWrapper(object, v8::ACCESS_HAS);
   return ABSENT;
 }
 
@@ -3062,9 +3058,8 @@ Handle<Object> JSObject::SetPropertyViaPrototypes(Handle<JSObject> object,
         *done = result.IsReadOnly();
         break;
       case INTERCEPTOR: {
-        PropertyAttributes attr =
-            result.holder()->GetPropertyAttributeWithInterceptor(
-                *object, *name, true);
+        PropertyAttributes attr = GetPropertyAttributeWithInterceptor(
+            handle(result.holder()), object, name, true);
         *done = !!(attr & READ_ONLY);
         break;
       }
@@ -3707,21 +3702,18 @@ Handle<Object> JSProxy::DeleteElementWithHandler(
 }
 
 
-MUST_USE_RESULT PropertyAttributes JSProxy::GetPropertyAttributeWithHandler(
-    JSReceiver* receiver_raw,
-    Name* name_raw) {
-  Isolate* isolate = GetIsolate();
+PropertyAttributes JSProxy::GetPropertyAttributeWithHandler(
+    Handle<JSProxy> proxy,
+    Handle<JSReceiver> receiver,
+    Handle<Name> name) {
+  Isolate* isolate = proxy->GetIsolate();
   HandleScope scope(isolate);
-  Handle<JSProxy> proxy(this);
-  Handle<Object> handler(this->handler(), isolate);  // Trap might morph proxy.
-  Handle<JSReceiver> receiver(receiver_raw);
-  Handle<Object> name(name_raw, isolate);
 
   // TODO(rossberg): adjust once there is a story for symbols vs proxies.
   if (name->IsSymbol()) return ABSENT;
 
   Handle<Object> args[] = { name };
-  Handle<Object> result = CallTrap(
+  Handle<Object> result = proxy->CallTrap(
     "getPropertyDescriptor", Handle<Object>(), ARRAY_SIZE(args), args);
   if (isolate->has_pending_exception()) return NONE;
 
@@ -3756,6 +3748,7 @@ MUST_USE_RESULT PropertyAttributes JSProxy::GetPropertyAttributeWithHandler(
   }
 
   if (configurable->IsFalse()) {
+    Handle<Object> handler(proxy->handler(), isolate);
     Handle<String> trap = isolate->factory()->InternalizeOneByteString(
         STATIC_ASCII_VECTOR("getPropertyDescriptor"));
     Handle<Object> args[] = { handler, trap, name };
@@ -3773,15 +3766,13 @@ MUST_USE_RESULT PropertyAttributes JSProxy::GetPropertyAttributeWithHandler(
 }
 
 
-MUST_USE_RESULT PropertyAttributes JSProxy::GetElementAttributeWithHandler(
-    JSReceiver* receiver_raw,
+PropertyAttributes JSProxy::GetElementAttributeWithHandler(
+    Handle<JSProxy> proxy,
+    Handle<JSReceiver> receiver,
     uint32_t index) {
-  Isolate* isolate = GetIsolate();
-  HandleScope scope(isolate);
-  Handle<JSProxy> proxy(this);
-  Handle<JSReceiver> receiver(receiver_raw);
+  Isolate* isolate = proxy->GetIsolate();
   Handle<String> name = isolate->factory()->Uint32ToString(index);
-  return proxy->GetPropertyAttributeWithHandler(*receiver, *name);
+  return GetPropertyAttributeWithHandler(proxy, receiver, name);
 }
 
 
@@ -4266,20 +4257,22 @@ Handle<Object> JSObject::SetLocalPropertyIgnoreAttributes(
 
 
 PropertyAttributes JSObject::GetPropertyAttributePostInterceptor(
-      JSObject* receiver,
-      Name* name,
-      bool continue_search) {
+    Handle<JSObject> object,
+    Handle<JSObject> receiver,
+    Handle<Name> name,
+    bool continue_search) {
   // Check local property, ignore interceptor.
-  LookupResult result(GetIsolate());
-  LocalLookupRealNamedProperty(name, &result);
+  Isolate* isolate = object->GetIsolate();
+  LookupResult result(isolate);
+  object->LocalLookupRealNamedProperty(*name, &result);
   if (result.IsFound()) return result.GetAttributes();
 
   if (continue_search) {
     // Continue searching via the prototype chain.
-    Object* pt = GetPrototype();
-    if (!pt->IsNull()) {
-      return JSObject::cast(pt)->
-        GetPropertyAttributeWithReceiver(receiver, name);
+    Handle<Object> proto(object->GetPrototype(), isolate);
+    if (!proto->IsNull()) {
+      return JSReceiver::GetPropertyAttributeWithReceiver(
+          Handle<JSObject>::cast(proto), receiver, name);
     }
   }
   return ABSENT;
@@ -4287,31 +4280,30 @@ PropertyAttributes JSObject::GetPropertyAttributePostInterceptor(
 
 
 PropertyAttributes JSObject::GetPropertyAttributeWithInterceptor(
-      JSObject* receiver,
-      Name* name,
-      bool continue_search) {
+    Handle<JSObject> object,
+    Handle<JSObject> receiver,
+    Handle<Name> name,
+    bool continue_search) {
   // TODO(rossberg): Support symbols in the API.
   if (name->IsSymbol()) return ABSENT;
 
-  Isolate* isolate = GetIsolate();
+  Isolate* isolate = object->GetIsolate();
   HandleScope scope(isolate);
 
   // Make sure that the top context does not change when doing
   // callbacks or interceptor calls.
   AssertNoContextChange ncc(isolate);
 
-  Handle<InterceptorInfo> interceptor(GetNamedInterceptor());
-  Handle<JSObject> receiver_handle(receiver);
-  Handle<JSObject> holder_handle(this);
-  Handle<String> name_handle(String::cast(name));
-  PropertyCallbackArguments args(isolate, interceptor->data(), receiver, this);
+  Handle<InterceptorInfo> interceptor(object->GetNamedInterceptor());
+  PropertyCallbackArguments args(
+      isolate, interceptor->data(), *receiver, *object);
   if (!interceptor->query()->IsUndefined()) {
     v8::NamedPropertyQueryCallback query =
         v8::ToCData<v8::NamedPropertyQueryCallback>(interceptor->query());
     LOG(isolate,
-        ApiNamedPropertyAccess("interceptor-named-has", *holder_handle, name));
+        ApiNamedPropertyAccess("interceptor-named-has", *object, *name));
     v8::Handle<v8::Integer> result =
-        args.Call(query, v8::Utils::ToLocal(name_handle));
+        args.Call(query, v8::Utils::ToLocal(Handle<String>::cast(name)));
     if (!result.IsEmpty()) {
       ASSERT(result->IsInt32());
       return static_cast<PropertyAttributes>(result->Int32Value());
@@ -4320,44 +4312,45 @@ PropertyAttributes JSObject::GetPropertyAttributeWithInterceptor(
     v8::NamedPropertyGetterCallback getter =
         v8::ToCData<v8::NamedPropertyGetterCallback>(interceptor->getter());
     LOG(isolate,
-        ApiNamedPropertyAccess("interceptor-named-get-has", this, name));
+        ApiNamedPropertyAccess("interceptor-named-get-has", *object, *name));
     v8::Handle<v8::Value> result =
-        args.Call(getter, v8::Utils::ToLocal(name_handle));
+        args.Call(getter, v8::Utils::ToLocal(Handle<String>::cast(name)));
     if (!result.IsEmpty()) return DONT_ENUM;
   }
-  return holder_handle->GetPropertyAttributePostInterceptor(*receiver_handle,
-                                                            *name_handle,
-                                                            continue_search);
+  return GetPropertyAttributePostInterceptor(
+      object, receiver, name, continue_search);
 }
 
 
 PropertyAttributes JSReceiver::GetPropertyAttributeWithReceiver(
-      JSReceiver* receiver,
-      Name* key) {
+    Handle<JSReceiver> object,
+    Handle<JSReceiver> receiver,
+    Handle<Name> key) {
   uint32_t index = 0;
-  if (IsJSObject() && key->AsArrayIndex(&index)) {
-    return JSObject::cast(this)->GetElementAttributeWithReceiver(
-        receiver, index, true);
+  if (object->IsJSObject() && key->AsArrayIndex(&index)) {
+    return JSObject::GetElementAttributeWithReceiver(
+        Handle<JSObject>::cast(object), receiver, index, true);
   }
   // Named property.
-  LookupResult lookup(GetIsolate());
-  Lookup(key, &lookup);
-  return GetPropertyAttributeForResult(receiver, &lookup, key, true);
+  LookupResult lookup(object->GetIsolate());
+  object->Lookup(*key, &lookup);
+  return GetPropertyAttributeForResult(object, receiver, &lookup, key, true);
 }
 
 
 PropertyAttributes JSReceiver::GetPropertyAttributeForResult(
-    JSReceiver* receiver,
+    Handle<JSReceiver> object,
+    Handle<JSReceiver> receiver,
     LookupResult* lookup,
-    Name* name,
+    Handle<Name> name,
     bool continue_search) {
   // Check access rights if needed.
-  if (IsAccessCheckNeeded()) {
-    JSObject* this_obj = JSObject::cast(this);
-    Heap* heap = GetHeap();
-    if (!heap->isolate()->MayNamedAccess(this_obj, name, v8::ACCESS_HAS)) {
-      return this_obj->GetPropertyAttributeWithFailedAccessCheck(
-          receiver, lookup, name, continue_search);
+  if (object->IsAccessCheckNeeded()) {
+    Heap* heap = object->GetHeap();
+    Handle<JSObject> obj = Handle<JSObject>::cast(object);
+    if (!heap->isolate()->MayNamedAccessWrapper(obj, name, v8::ACCESS_HAS)) {
+      return JSObject::GetPropertyAttributeWithFailedAccessCheck(
+          obj, lookup, name, continue_search);
     }
   }
   if (lookup->IsFound()) {
@@ -4368,12 +4361,15 @@ PropertyAttributes JSReceiver::GetPropertyAttributeForResult(
       case CALLBACKS:
         return lookup->GetAttributes();
       case HANDLER: {
-        return JSProxy::cast(lookup->proxy())->GetPropertyAttributeWithHandler(
-            receiver, name);
+        return JSProxy::GetPropertyAttributeWithHandler(
+            handle(lookup->proxy()), receiver, name);
       }
       case INTERCEPTOR:
-        return lookup->holder()->GetPropertyAttributeWithInterceptor(
-            JSObject::cast(receiver), name, continue_search);
+        return JSObject::GetPropertyAttributeWithInterceptor(
+            handle(lookup->holder()),
+            Handle<JSObject>::cast(receiver),
+            name,
+            continue_search);
       case TRANSITION:
       case NONEXISTENT:
         UNREACHABLE();
@@ -4383,67 +4379,74 @@ PropertyAttributes JSReceiver::GetPropertyAttributeForResult(
 }
 
 
-PropertyAttributes JSReceiver::GetLocalPropertyAttribute(Name* name) {
+PropertyAttributes JSReceiver::GetLocalPropertyAttribute(
+    Handle<JSReceiver> object, Handle<Name> name) {
   // Check whether the name is an array index.
   uint32_t index = 0;
-  if (IsJSObject() && name->AsArrayIndex(&index)) {
-    return GetLocalElementAttribute(index);
+  if (object->IsJSObject() && name->AsArrayIndex(&index)) {
+    return GetLocalElementAttribute(object, index);
   }
   // Named property.
-  LookupResult lookup(GetIsolate());
-  LocalLookup(name, &lookup, true);
-  return GetPropertyAttributeForResult(this, &lookup, name, false);
+  LookupResult lookup(object->GetIsolate());
+  object->LocalLookup(*name, &lookup, true);
+  return GetPropertyAttributeForResult(object, object, &lookup, name, false);
 }
 
 
 PropertyAttributes JSObject::GetElementAttributeWithReceiver(
-    JSReceiver* receiver, uint32_t index, bool continue_search) {
-  Isolate* isolate = GetIsolate();
+    Handle<JSObject> object,
+    Handle<JSReceiver> receiver,
+    uint32_t index,
+    bool continue_search) {
+  Isolate* isolate = object->GetIsolate();
 
   // Check access rights if needed.
-  if (IsAccessCheckNeeded()) {
-    if (!isolate->MayIndexedAccess(this, index, v8::ACCESS_HAS)) {
-      isolate->ReportFailedAccessCheck(this, v8::ACCESS_HAS);
+  if (object->IsAccessCheckNeeded()) {
+    if (!isolate->MayIndexedAccessWrapper(object, index, v8::ACCESS_HAS)) {
+      isolate->ReportFailedAccessCheckWrapper(object, v8::ACCESS_HAS);
       return ABSENT;
     }
   }
 
-  if (IsJSGlobalProxy()) {
-    Object* proto = GetPrototype();
+  if (object->IsJSGlobalProxy()) {
+    Handle<Object> proto(object->GetPrototype(), isolate);
     if (proto->IsNull()) return ABSENT;
     ASSERT(proto->IsJSGlobalObject());
-    return JSObject::cast(proto)->GetElementAttributeWithReceiver(
-        receiver, index, continue_search);
+    return JSObject::GetElementAttributeWithReceiver(
+        Handle<JSObject>::cast(proto), receiver, index, continue_search);
   }
 
   // Check for lookup interceptor except when bootstrapping.
-  if (HasIndexedInterceptor() && !isolate->bootstrapper()->IsActive()) {
-    return GetElementAttributeWithInterceptor(receiver, index, continue_search);
+  if (object->HasIndexedInterceptor() && !isolate->bootstrapper()->IsActive()) {
+    return JSObject::GetElementAttributeWithInterceptor(
+        object, receiver, index, continue_search);
   }
 
   return GetElementAttributeWithoutInterceptor(
-      receiver, index, continue_search);
+      object, receiver, index, continue_search);
 }
 
 
 PropertyAttributes JSObject::GetElementAttributeWithInterceptor(
-    JSReceiver* receiver, uint32_t index, bool continue_search) {
-  Isolate* isolate = GetIsolate();
+    Handle<JSObject> object,
+    Handle<JSReceiver> receiver,
+    uint32_t index,
+    bool continue_search) {
+  Isolate* isolate = object->GetIsolate();
   HandleScope scope(isolate);
 
   // Make sure that the top context does not change when doing
   // callbacks or interceptor calls.
   AssertNoContextChange ncc(isolate);
 
-  Handle<InterceptorInfo> interceptor(GetIndexedInterceptor());
-  Handle<JSReceiver> hreceiver(receiver);
-  Handle<JSObject> holder(this);
-  PropertyCallbackArguments args(isolate, interceptor->data(), receiver, this);
+  Handle<InterceptorInfo> interceptor(object->GetIndexedInterceptor());
+  PropertyCallbackArguments args(
+      isolate, interceptor->data(), *receiver, *object);
   if (!interceptor->query()->IsUndefined()) {
     v8::IndexedPropertyQueryCallback query =
         v8::ToCData<v8::IndexedPropertyQueryCallback>(interceptor->query());
     LOG(isolate,
-        ApiIndexedPropertyAccess("interceptor-indexed-has", this, index));
+        ApiIndexedPropertyAccess("interceptor-indexed-has", *object, index));
     v8::Handle<v8::Integer> result = args.Call(query, index);
     if (!result.IsEmpty())
       return static_cast<PropertyAttributes>(result->Int32Value());
@@ -4451,37 +4454,42 @@ PropertyAttributes JSObject::GetElementAttributeWithInterceptor(
     v8::IndexedPropertyGetterCallback getter =
         v8::ToCData<v8::IndexedPropertyGetterCallback>(interceptor->getter());
     LOG(isolate,
-        ApiIndexedPropertyAccess("interceptor-indexed-get-has", this, index));
+        ApiIndexedPropertyAccess(
+            "interceptor-indexed-get-has", *object, index));
     v8::Handle<v8::Value> result = args.Call(getter, index);
     if (!result.IsEmpty()) return NONE;
   }
 
-  return holder->GetElementAttributeWithoutInterceptor(
-      *hreceiver, index, continue_search);
+  return GetElementAttributeWithoutInterceptor(
+       object, receiver, index, continue_search);
 }
 
 
 PropertyAttributes JSObject::GetElementAttributeWithoutInterceptor(
-      JSReceiver* receiver, uint32_t index, bool continue_search) {
-  PropertyAttributes attr = GetElementsAccessor()->GetAttributes(
-      receiver, this, index);
+    Handle<JSObject> object,
+    Handle<JSReceiver> receiver,
+    uint32_t index,
+    bool continue_search) {
+  PropertyAttributes attr = object->GetElementsAccessor()->GetAttributes(
+      *receiver, *object, index);
   if (attr != ABSENT) return attr;
 
   // Handle [] on String objects.
-  if (IsStringObjectWithCharacterAt(index)) {
+  if (object->IsStringObjectWithCharacterAt(index)) {
     return static_cast<PropertyAttributes>(READ_ONLY | DONT_DELETE);
   }
 
   if (!continue_search) return ABSENT;
 
-  Object* pt = GetPrototype();
-  if (pt->IsJSProxy()) {
+  Handle<Object> proto(object->GetPrototype(), object->GetIsolate());
+  if (proto->IsJSProxy()) {
     // We need to follow the spec and simulate a call to [[GetOwnProperty]].
-    return JSProxy::cast(pt)->GetElementAttributeWithHandler(receiver, index);
+    return JSProxy::GetElementAttributeWithHandler(
+        Handle<JSProxy>::cast(proto), receiver, index);
   }
-  if (pt->IsNull()) return ABSENT;
-  return JSObject::cast(pt)->GetElementAttributeWithReceiver(
-      receiver, index, true);
+  if (proto->IsNull()) return ABSENT;
+  return GetElementAttributeWithReceiver(
+      Handle<JSObject>::cast(proto), receiver, index, true);
 }
 
 
@@ -4940,10 +4948,10 @@ void JSObject::DeleteHiddenProperty(Handle<JSObject> object, Handle<Name> key) {
 }
 
 
-bool JSObject::HasHiddenProperties() {
-  return GetPropertyAttributePostInterceptor(this,
-                                             GetHeap()->hidden_string(),
-                                             false) != ABSENT;
+bool JSObject::HasHiddenProperties(Handle<JSObject> object) {
+  Handle<Name> hidden = object->GetIsolate()->factory()->hidden_string();
+  return GetPropertyAttributePostInterceptor(
+      object, object, hidden, false) != ABSENT;
 }
 
 
@@ -5024,7 +5032,7 @@ Handle<Object> JSObject::SetHiddenPropertiesHashTable(Handle<JSObject> object,
 
   // We can store the identity hash inline iff there is no backing store
   // for hidden properties yet.
-  ASSERT(object->HasHiddenProperties() != value->IsSmi());
+  ASSERT(JSObject::HasHiddenProperties(object) != value->IsSmi());
   if (object->HasFastProperties()) {
     // If the object has fast properties, check whether the first slot
     // in the descriptor array matches the hidden string. Since the
@@ -5774,7 +5782,7 @@ Handle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
         ASSERT(names->get(i)->IsString());
         Handle<String> key_string(String::cast(names->get(i)));
         PropertyAttributes attributes =
-            copy->GetLocalPropertyAttribute(*key_string);
+            JSReceiver::GetLocalPropertyAttribute(copy, key_string);
         // Only deep copy fields from the object literal expression.
         // In particular, don't try to copy the length attribute of
         // an array.
@@ -11347,7 +11355,8 @@ static bool GetOldValue(Isolate* isolate,
                         uint32_t index,
                         List<Handle<Object> >* old_values,
                         List<uint32_t>* indices) {
-  PropertyAttributes attributes = object->GetLocalElementAttribute(index);
+  PropertyAttributes attributes =
+      JSReceiver::GetLocalElementAttribute(object, index);
   ASSERT(attributes != ABSENT);
   if (attributes == DONT_DELETE) return false;
   old_values->Add(object->GetLocalElementAccessorPair(index) == NULL
@@ -12550,7 +12559,8 @@ Handle<Object> JSObject::SetElement(Handle<JSObject> object,
                                      set_mode);
   }
 
-  PropertyAttributes old_attributes = object->GetLocalElementAttribute(index);
+  PropertyAttributes old_attributes =
+      JSReceiver::GetLocalElementAttribute(object, index);
   Handle<Object> old_value = isolate->factory()->the_hole_value();
   Handle<Object> old_length_handle;
   Handle<Object> new_length_handle;
@@ -12576,7 +12586,7 @@ Handle<Object> JSObject::SetElement(Handle<JSObject> object,
   RETURN_IF_EMPTY_HANDLE_VALUE(isolate, result, Handle<Object>());
 
   Handle<String> name = isolate->factory()->Uint32ToString(index);
-  PropertyAttributes new_attributes = object->GetLocalElementAttribute(index);
+  PropertyAttributes new_attributes = GetLocalElementAttribute(object, index);
   if (old_attributes == ABSENT) {
     if (object->IsJSArray() &&
         !old_length_handle->SameValue(
@@ -13349,7 +13359,7 @@ bool JSObject::HasRealNamedProperty(Handle<JSObject> object,
 
 bool JSObject::HasRealElementProperty(Handle<JSObject> object, uint32_t index) {
   Isolate* isolate = object->GetIsolate();
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   // Check access rights if needed.
   if (object->IsAccessCheckNeeded()) {
     if (!isolate->MayIndexedAccessWrapper(object, index, v8::ACCESS_HAS)) {
@@ -13366,8 +13376,8 @@ bool JSObject::HasRealElementProperty(Handle<JSObject> object, uint32_t index) {
     return HasRealElementProperty(Handle<JSObject>::cast(proto), index);
   }
 
-  return object->GetElementAttributeWithoutInterceptor(
-             *object, index, false) != ABSENT;
+  return GetElementAttributeWithoutInterceptor(
+             object, object, index, false) != ABSENT;
 }
 
 
