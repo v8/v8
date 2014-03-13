@@ -1,3 +1,20 @@
+2014-03-13: Version 3.25.10
+
+        MIPS: Fix uses of range analysis results in HChange (issue 3204).
+
+        Make translation of modulus operation '--stress-opt'-proof (Chromium
+        issue 352059).
+
+        Remove uses of CanBeNegative() in HMod (issue 3204).
+
+        Remove uses of RangeCanInclude() in flooring division by power of 2
+        (issue 3204).
+
+        Fix uses of range analysis results in HChange (issue 3204).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-03-13: Version 3.25.9
 
         Reland "Enable Object.observe by default" again (issue 2409).
