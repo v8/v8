@@ -4456,22 +4456,6 @@ void LCodeGen::DoInteger32ToDouble(LInteger32ToDouble* instr) {
 }
 
 
-void LCodeGen::DoInteger32ToSmi(LInteger32ToSmi* instr) {
-  LOperand* input = instr->value();
-  LOperand* output = instr->result();
-  Register scratch = scratch0();
-
-  ASSERT(output->IsRegister());
-  if (!instr->hydrogen()->value()->HasRange() ||
-      !instr->hydrogen()->value()->range()->IsInSmiRange()) {
-    __ SmiTagCheckOverflow(ToRegister(output), ToRegister(input), scratch);
-    DeoptimizeIf(lt, instr->environment(), scratch, Operand(zero_reg));
-  } else {
-    __ SmiTag(ToRegister(output), ToRegister(input));
-  }
-}
-
-
 void LCodeGen::DoUint32ToDouble(LUint32ToDouble* instr) {
   LOperand* input = instr->value();
   LOperand* output = instr->result();
@@ -4479,19 +4463,6 @@ void LCodeGen::DoUint32ToDouble(LUint32ToDouble* instr) {
   FPURegister dbl_scratch = double_scratch0();
   __ mtc1(ToRegister(input), dbl_scratch);
   __ Cvt_d_uw(ToDoubleRegister(output), dbl_scratch, f22);
-}
-
-
-void LCodeGen::DoUint32ToSmi(LUint32ToSmi* instr) {
-  LOperand* input = instr->value();
-  LOperand* output = instr->result();
-  if (!instr->hydrogen()->value()->HasRange() ||
-      !instr->hydrogen()->value()->range()->IsInSmiRange()) {
-    Register scratch = scratch0();
-    __ And(scratch, ToRegister(input), Operand(0xc0000000));
-    DeoptimizeIf(ne, instr->environment(), scratch, Operand(zero_reg));
-  }
-  __ SmiTag(ToRegister(output), ToRegister(input));
 }
 
 
@@ -4675,8 +4646,21 @@ void LCodeGen::DoDeferredNumberTagD(LNumberTagD* instr) {
 
 
 void LCodeGen::DoSmiTag(LSmiTag* instr) {
-  ASSERT(!instr->hydrogen_value()->CheckFlag(HValue::kCanOverflow));
-  __ SmiTag(ToRegister(instr->result()), ToRegister(instr->value()));
+  HChange* hchange = instr->hydrogen();
+  Register input = ToRegister(instr->value());
+  Register output = ToRegister(instr->result());
+  if (hchange->CheckFlag(HValue::kCanOverflow) &&
+      hchange->value()->CheckFlag(HValue::kUint32)) {
+    __ And(at, input, Operand(0xc0000000));
+    DeoptimizeIf(ne, instr->environment(), at, Operand(zero_reg));
+  }
+  if (hchange->CheckFlag(HValue::kCanOverflow) &&
+      !hchange->value()->CheckFlag(HValue::kUint32)) {
+    __ SmiTagCheckOverflow(output, input, at);
+    DeoptimizeIf(lt, instr->environment(), at, Operand(zero_reg));
+  } else {
+    __ SmiTag(output, input);
+  }
 }
 
 
