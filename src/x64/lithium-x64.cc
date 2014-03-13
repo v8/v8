@@ -1133,8 +1133,9 @@ LInstruction* LChunkBuilder::DoMathFloor(HUnaryMathOperation* instr) {
 
 
 LInstruction* LChunkBuilder::DoMathRound(HUnaryMathOperation* instr) {
-  LOperand* input = UseRegisterAtStart(instr->value());
-  LMathRound* result = new(zone()) LMathRound(input);
+  LOperand* input = UseRegister(instr->value());
+  LOperand* temp = FixedTemp(xmm4);
+  LMathRound* result = new(zone()) LMathRound(input, temp);
   return AssignEnvironment(DefineAsRegister(result));
 }
 

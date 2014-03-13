@@ -3604,10 +3604,11 @@ void LCodeGen::DoMathRound(LMathRound* instr) {
   const XMMRegister xmm_scratch = double_scratch0();
   Register output_reg = ToRegister(instr->result());
   XMMRegister input_reg = ToDoubleRegister(instr->value());
+  XMMRegister input_temp = ToDoubleRegister(instr->temp());
   static int64_t one_half = V8_INT64_C(0x3FE0000000000000);  // 0.5
   static int64_t minus_one_half = V8_INT64_C(0xBFE0000000000000);  // -0.5
 
-  Label done, round_to_zero, below_one_half, do_not_compensate, restore;
+  Label done, round_to_zero, below_one_half;
   Label::Distance dist = DeoptEveryNTimes() ? Label::kFar : Label::kNear;
   __ movq(kScratchRegister, one_half);
   __ movq(xmm_scratch, kScratchRegister);
@@ -3631,21 +3632,19 @@ void LCodeGen::DoMathRound(LMathRound* instr) {
 
   // CVTTSD2SI rounds towards zero, we use ceil(x - (-0.5)) and then
   // compare and compensate.
-  __ movq(kScratchRegister, input_reg);  // Back up input_reg.
-  __ subsd(input_reg, xmm_scratch);
-  __ cvttsd2si(output_reg, input_reg);
+  __ movq(input_temp, input_reg);  // Do not alter input_reg.
+  __ subsd(input_temp, xmm_scratch);
+  __ cvttsd2si(output_reg, input_temp);
   // Catch minint due to overflow, and to prevent overflow when compensating.
   __ cmpl(output_reg, Immediate(0x80000000));
   __ RecordComment("D2I conversion overflow");
   DeoptimizeIf(equal, instr->environment());
 
   __ Cvtlsi2sd(xmm_scratch, output_reg);
-  __ ucomisd(input_reg, xmm_scratch);
-  __ j(equal, &restore, Label::kNear);
+  __ ucomisd(xmm_scratch, input_temp);
+  __ j(equal, &done, dist);
   __ subl(output_reg, Immediate(1));
   // No overflow because we already ruled out minint.
-  __ bind(&restore);
-  __ movq(input_reg, kScratchRegister);  // Restore input_reg.
   __ jmp(&done, dist);
 
   __ bind(&round_to_zero);
