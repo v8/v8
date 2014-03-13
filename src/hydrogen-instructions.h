@@ -623,6 +623,7 @@ class HValue : public ZoneObject {
     kBailoutOnMinusZero,
     kCanBeDivByZero,
     kLeftCanBeMinInt,
+    kLeftCanBeNegative,
     kAllowUndefinedAsNaN,
     kIsArguments,
     kTruncatingToInt32,
@@ -855,7 +856,6 @@ class HValue : public ZoneObject {
   Range* range() const { return range_; }
   // TODO(svenpanne) We should really use the null object pattern here.
   bool HasRange() const { return range_ != NULL; }
-  bool CanBeNegative() const { return !HasRange() || range()->CanBeNegative(); }
   void AddNewRange(Range* r, Zone* zone);
   void RemoveLastAddedRange();
   void ComputeInitialRange(Zone* zone);
@@ -4860,6 +4860,7 @@ class HMod V8_FINAL : public HArithmeticBinaryOperation {
        HValue* right) : HArithmeticBinaryOperation(context, left, right) {
     SetFlag(kCanBeDivByZero);
     SetFlag(kCanOverflow);
+    SetFlag(kLeftCanBeNegative);
   }
 };
 

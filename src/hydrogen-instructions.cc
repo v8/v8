@@ -1865,6 +1865,10 @@ Range* HMod::InferRange(Zone* zone) {
     result->set_can_be_minus_zero(!CheckFlag(kAllUsesTruncatingToInt32) &&
                                   left_can_be_negative);
 
+    if (!a->CanBeNegative()) {
+      ClearFlag(HValue::kLeftCanBeNegative);
+    }
+
     if (!a->Includes(kMinInt) || !b->Includes(-1)) {
       ClearFlag(HValue::kCanOverflow);
     }

@@ -1385,7 +1385,7 @@ void LCodeGen::DoModByPowerOf2I(LModByPowerOf2I* instr) {
   HMod* hmod = instr->hydrogen();
   int32_t mask = divisor < 0 ? -(divisor + 1) : (divisor - 1);
   Label dividend_is_not_negative, done;
-  if (hmod->left()->CanBeNegative()) {
+  if (hmod->CheckFlag(HValue::kLeftCanBeNegative)) {
     __ test(dividend, dividend);
     __ j(not_sign, &dividend_is_not_negative, Label::kNear);
     // Note that this is correct even for kMinInt operands.
