@@ -2355,11 +2355,12 @@ TEST(TooManyArguments) {
   };
 
   using v8::internal::Code;
-  char statement[Code::kMaxArguments * 2];
+  char statement[Code::kMaxArguments * 2 + 1];
   for (int i = 0; i < Code::kMaxArguments; ++i) {
     statement[2 * i] = '0';
     statement[2 * i + 1] = ',';
   }
+  statement[Code::kMaxArguments * 2] = 0;
 
   const char* statement_data[] = {
     statement,
