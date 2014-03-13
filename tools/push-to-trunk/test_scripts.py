@@ -210,6 +210,31 @@ Committed: https://code.google.com/p/v8/source/detail?r=18210
                                                 "BUG=1234567890\n"))
 
 
+def Git(*args, **kwargs):
+  """Convenience function returning a git test expectation."""
+  return {
+    "name": "git",
+    "args": args[:-1],
+    "ret": args[-1],
+    "cb": kwargs.get("cb"),
+  }
+
+
+def RL(text, cb=None):
+  """Convenience function returning a readline test expectation."""
+  return {"name": "readline", "args": [], "ret": text, "cb": cb}
+
+
+def URL(*args, **kwargs):
+  """Convenience function returning a readurl test expectation."""
+  return {
+    "name": "readurl",
+    "args": args[:-1],
+    "ret": args[-1],
+    "cb": kwargs.get("cb"),
+  }
+
+
 class SimpleMock(object):
   def __init__(self, name):
     self._name = name
@@ -219,43 +244,43 @@ class SimpleMock(object):
   def Expect(self, recipe):
     self._recipe = recipe
 
-  def Call(self, *args):  # pragma: no cover
+  def Call(self, name, *args):  # pragma: no cover
     self._index += 1
     try:
       expected_call = self._recipe[self._index]
     except IndexError:
-      raise NoRetryException("Calling %s %s" % (self._name, " ".join(args)))
+      raise NoRetryException("Calling %s %s" % (name, " ".join(args)))
 
-    # Pack expectations without arguments into a list.
-    if not isinstance(expected_call, list):
-      expected_call = [expected_call]
+    if not isinstance(expected_call, dict):
+      raise NoRetryException("Found wrong expectation type for %s %s"
+                             % (name, " ".join(args)))
+
 
     # The number of arguments in the expectation must match the actual
     # arguments.
-    if len(args) > len(expected_call):
+    if len(args) > len(expected_call['args']):
       raise NoRetryException("When calling %s with arguments, the "
           "expectations must consist of at least as many arguments.")
 
     # Compare expected and actual arguments.
-    for (expected_arg, actual_arg) in zip(expected_call, args):
+    for (expected_arg, actual_arg) in zip(expected_call['args'], args):
       if expected_arg != actual_arg:
         raise NoRetryException("Expected: %s - Actual: %s"
                                % (expected_arg, actual_arg))
 
-    # The expectation list contains a mandatory return value and an optional
-    # callback for checking the context at the time of the call.
-    if len(expected_call) == len(args) + 2:
+    # The expected call contains an optional callback for checking the context
+    # at the time of the call.
+    if expected_call['cb']:
       try:
-        expected_call[len(args) + 1]()
+        expected_call['cb']()
       except:
         tb = traceback.format_exc()
         raise NoRetryException("Caught exception from callback: %s" % tb)
-    return_value = expected_call[len(args)]
 
     # If the return value is an exception, raise it instead of returning.
-    if isinstance(return_value, Exception):
-      raise return_value
-    return return_value
+    if isinstance(expected_call['ret'], Exception):
+      raise expected_call['ret']
+    return expected_call['ret']
 
   def AssertFinished(self):  # pragma: no cover
     if self._index < len(self._recipe) -1:
@@ -297,7 +322,7 @@ class ScriptTest(unittest.TestCase):
 
   def GitMock(self, cmd, args="", pipe=True):
     print "%s %s" % (cmd, args)
-    return self._git_mock.Call(args)
+    return self._git_mock.Call("git", args)
 
   def LogMock(self, cmd, args=""):
     print "Log: %s %s" % (cmd, args)
@@ -318,13 +343,13 @@ class ScriptTest(unittest.TestCase):
     return ScriptTest.MOCKS[cmd](self, cmd, args)
 
   def ReadLine(self):
-    return self._rl_mock.Call()
+    return self._rl_mock.Call("readline")
 
   def ReadURL(self, url, params):
     if params is not None:
-      return self._url_mock.Call(url, params)
+      return self._url_mock.Call("readurl", url, params)
     else:
-      return self._url_mock.Call(url)
+      return self._url_mock.Call("readurl", url)
 
   def Sleep(self, seconds):
     pass
@@ -367,46 +392,46 @@ class ScriptTest(unittest.TestCase):
     self.assertTrue(Command("git", "--version").startswith("git version"))
 
   def testGitMock(self):
-    self.ExpectGit([["--version", "git version 1.2.3"], ["dummy", ""]])
+    self.ExpectGit([Git("--version", "git version 1.2.3"), Git("dummy", "")])
     self.assertEquals("git version 1.2.3", self.MakeStep().Git("--version"))
     self.assertEquals("", self.MakeStep().Git("dummy"))
 
   def testCommonPrepareDefault(self):
     self.ExpectGit([
-      ["status -s -uno", ""],
-      ["status -s -b -uno", "## some_branch"],
-      ["svn fetch", ""],
-      ["branch", "  branch1\n* %s" % TEST_CONFIG[TEMP_BRANCH]],
-      ["branch -D %s" % TEST_CONFIG[TEMP_BRANCH], ""],
-      ["checkout -b %s" % TEST_CONFIG[TEMP_BRANCH], ""],
-      ["branch", ""],
+      Git("status -s -uno", ""),
+      Git("status -s -b -uno", "## some_branch"),
+      Git("svn fetch", ""),
+      Git("branch", "  branch1\n* %s" % TEST_CONFIG[TEMP_BRANCH]),
+      Git("branch -D %s" % TEST_CONFIG[TEMP_BRANCH], ""),
+      Git("checkout -b %s" % TEST_CONFIG[TEMP_BRANCH], ""),
+      Git("branch", ""),
     ])
-    self.ExpectReadline(["Y"])
+    self.ExpectReadline([RL("Y")])
     self.MakeStep().CommonPrepare()
     self.MakeStep().PrepareBranch()
     self.assertEquals("some_branch", self._state["current_branch"])
 
   def testCommonPrepareNoConfirm(self):
     self.ExpectGit([
-      ["status -s -uno", ""],
-      ["status -s -b -uno", "## some_branch"],
-      ["svn fetch", ""],
-      ["branch", "  branch1\n* %s" % TEST_CONFIG[TEMP_BRANCH]],
+      Git("status -s -uno", ""),
+      Git("status -s -b -uno", "## some_branch"),
+      Git("svn fetch", ""),
+      Git("branch", "  branch1\n* %s" % TEST_CONFIG[TEMP_BRANCH]),
     ])
-    self.ExpectReadline(["n"])
+    self.ExpectReadline([RL("n")])
     self.MakeStep().CommonPrepare()
     self.assertRaises(Exception, self.MakeStep().PrepareBranch)
     self.assertEquals("some_branch", self._state["current_branch"])
 
   def testCommonPrepareDeleteBranchFailure(self):
     self.ExpectGit([
-      ["status -s -uno", ""],
-      ["status -s -b -uno", "## some_branch"],
-      ["svn fetch", ""],
-      ["branch", "  branch1\n* %s" % TEST_CONFIG[TEMP_BRANCH]],
-      ["branch -D %s" % TEST_CONFIG[TEMP_BRANCH], None],
+      Git("status -s -uno", ""),
+      Git("status -s -b -uno", "## some_branch"),
+      Git("svn fetch", ""),
+      Git("branch", "  branch1\n* %s" % TEST_CONFIG[TEMP_BRANCH]),
+      Git("branch -D %s" % TEST_CONFIG[TEMP_BRANCH], None),
     ])
-    self.ExpectReadline(["Y"])
+    self.ExpectReadline([RL("Y")])
     self.MakeStep().CommonPrepare()
     self.assertRaises(Exception, self.MakeStep().PrepareBranch)
     self.assertEquals("some_branch", self._state["current_branch"])
@@ -451,27 +476,27 @@ class ScriptTest(unittest.TestCase):
     TEST_CONFIG[CHANGELOG_ENTRY_FILE] = self.MakeEmptyTempFile()
 
     self.ExpectGit([
-      ["log --format=%H 1234..HEAD", "rev1\nrev2\nrev3\nrev4"],
-      ["log -1 --format=%s rev1", "Title text 1"],
-      ["log -1 --format=%B rev1", "Title\n\nBUG=\nLOG=y\n"],
-      ["log -1 --format=%an rev1", "author1@chromium.org"],
-      ["log -1 --format=%s rev2", "Title text 2."],
-      ["log -1 --format=%B rev2", "Title\n\nBUG=123\nLOG= \n"],
-      ["log -1 --format=%an rev2", "author2@chromium.org"],
-      ["log -1 --format=%s rev3", "Title text 3"],
-      ["log -1 --format=%B rev3", "Title\n\nBUG=321\nLOG=true\n"],
-      ["log -1 --format=%an rev3", "author3@chromium.org"],
-      ["log -1 --format=%s rev4", "Title text 4"],
-      ["log -1 --format=%B rev4",
+      Git("log --format=%H 1234..HEAD", "rev1\nrev2\nrev3\nrev4"),
+      Git("log -1 --format=%s rev1", "Title text 1"),
+      Git("log -1 --format=%B rev1", "Title\n\nBUG=\nLOG=y\n"),
+      Git("log -1 --format=%an rev1", "author1@chromium.org"),
+      Git("log -1 --format=%s rev2", "Title text 2."),
+      Git("log -1 --format=%B rev2", "Title\n\nBUG=123\nLOG= \n"),
+      Git("log -1 --format=%an rev2", "author2@chromium.org"),
+      Git("log -1 --format=%s rev3", "Title text 3"),
+      Git("log -1 --format=%B rev3", "Title\n\nBUG=321\nLOG=true\n"),
+      Git("log -1 --format=%an rev3", "author3@chromium.org"),
+      Git("log -1 --format=%s rev4", "Title text 4"),
+      Git("log -1 --format=%B rev4",
        ("Title\n\nBUG=456\nLOG=Y\n\n"
-        "Review URL: https://codereview.chromium.org/9876543210\n")],
-      ["log -1 --format=%an rev4", "author4@chromium.org"],
+        "Review URL: https://codereview.chromium.org/9876543210\n")),
+      Git("log -1 --format=%an rev4", "author4@chromium.org"),
     ])
 
     # The cl for rev4 on rietveld has an updated LOG flag.
     self.ExpectReadURL([
-      ["https://codereview.chromium.org/9876543210/description",
-       "Title\n\nBUG=456\nLOG=N\n\n"],
+      URL("https://codereview.chromium.org/9876543210/description",
+          "Title\n\nBUG=456\nLOG=N\n\n"),
     ])
 
     self._state["last_push_bleeding_edge"] = "1234"
@@ -519,7 +544,7 @@ class ScriptTest(unittest.TestCase):
     os.environ["EDITOR"] = "vi"
 
     self.ExpectReadline([
-      "",  # Open editor.
+      RL(""),  # Open editor.
     ])
 
     self.RunStep(PushToTrunk, EditChangeLog)
@@ -532,7 +557,7 @@ class ScriptTest(unittest.TestCase):
     self._state["build"] = "5"
 
     self.ExpectReadline([
-      "Y",  # Increment build number.
+      RL("Y"),  # Increment build number.
     ])
 
     self.RunStep(PushToTrunk, IncrementVersion)
@@ -564,8 +589,8 @@ class ScriptTest(unittest.TestCase):
       f.write(change_log)
 
     self.ExpectGit([
-      ["diff svn/trunk hash1", "patch content"],
-      ["svn find-rev hash1", "123455\n"],
+      Git("diff svn/trunk hash1", "patch content"),
+      Git("svn find-rev hash1", "123455\n"),
     ])
 
     self._state["prepare_commit_hash"] = "hash1"
@@ -652,80 +677,81 @@ Performance and stability improvements on all platforms.""", commit)
     force_flag = " -f" if not manual else ""
     review_suffix = "\n\nTBR=reviewer@chromium.org" if not manual else ""
     self.ExpectGit([
-      ["status -s -uno", ""],
-      ["status -s -b -uno", "## some_branch\n"],
-      ["svn fetch", ""],
-      ["branch", "  branch1\n* branch2\n"],
-      ["checkout -b %s" % TEST_CONFIG[TEMP_BRANCH], ""],
-      ["branch", "  branch1\n* branch2\n"],
-      ["branch", "  branch1\n* branch2\n"],
-      ["checkout -b %s svn/bleeding_edge" % TEST_CONFIG[BRANCHNAME], ""],
-      [("log -1 --format=%H --grep="
-        "\"^Version [[:digit:]]*\.[[:digit:]]*\.[[:digit:]]* (based\" "
-        "svn/trunk"), "hash2\n"],
-      ["log -1 hash2", "Log message\n"],
-      ["log -1 --format=%s hash2",
-       "Version 3.4.5 (based on bleeding_edge revision r1234)\n"],
-      ["svn find-rev r1234", "hash3\n"],
-      ["log --format=%H hash3..HEAD", "rev1\n"],
-      ["log -1 --format=%s rev1", "Log text 1.\n"],
-      ["log -1 --format=%B rev1", "Text\nLOG=YES\nBUG=v8:321\nText\n"],
-      ["log -1 --format=%an rev1", "author1@chromium.org\n"],
-      [("commit -am \"Prepare push to trunk.  "
-        "Now working on version 3.22.6.%s\"" % review_suffix),
-       " 2 files changed\n",
-        CheckPreparePush],
-      [("cl upload --send-mail --email \"author@chromium.org\" "
-        "-r \"reviewer@chromium.org\"%s" % force_flag),
-       "done\n"],
-      ["cl presubmit", "Presubmit successfull\n"],
-      ["cl dcommit -f --bypass-hooks", "Closing issue\n"],
-      ["svn fetch", "fetch result\n"],
-      ["checkout -f svn/bleeding_edge", ""],
-      [("log -1 --format=%H --grep=\"Prepare push to trunk.  "
-        "Now working on version 3.22.6.\""),
-       "hash1\n"],
-      ["diff svn/trunk hash1", "patch content\n"],
-      ["svn find-rev hash1", "123455\n"],
-      ["checkout -b %s svn/trunk" % TEST_CONFIG[TRUNKBRANCH], ""],
-      ["apply --index --reject \"%s\"" % TEST_CONFIG[PATCH_FILE], ""],
-      ["add \"%s\"" % TEST_CONFIG[VERSION_FILE], ""],
-      ["commit -aF \"%s\"" % TEST_CONFIG[COMMITMSG_FILE], "", CheckSVNCommit],
-      ["svn dcommit 2>&1", "Some output\nCommitted r123456\nSome output\n"],
-      ["svn tag 3.22.5 -m \"Tagging version 3.22.5\"", ""],
-      ["status -s -uno", ""],
-      ["checkout -f master", ""],
-      ["pull", ""],
-      ["checkout -b v8-roll-123456", ""],
-      [("commit -am \"Update V8 to version 3.22.5 "
-        "(based on bleeding_edge revision r123455).\n\n"
-        "TBR=reviewer@chromium.org\""),
-       ""],
-      ["cl upload --send-mail --email \"author@chromium.org\"%s" % force_flag,
-       ""],
-      ["checkout -f some_branch", ""],
-      ["branch -D %s" % TEST_CONFIG[TEMP_BRANCH], ""],
-      ["branch -D %s" % TEST_CONFIG[BRANCHNAME], ""],
-      ["branch -D %s" % TEST_CONFIG[TRUNKBRANCH], ""],
+      Git("status -s -uno", ""),
+      Git("status -s -b -uno", "## some_branch\n"),
+      Git("svn fetch", ""),
+      Git("branch", "  branch1\n* branch2\n"),
+      Git("checkout -b %s" % TEST_CONFIG[TEMP_BRANCH], ""),
+      Git("branch", "  branch1\n* branch2\n"),
+      Git("branch", "  branch1\n* branch2\n"),
+      Git("checkout -b %s svn/bleeding_edge" % TEST_CONFIG[BRANCHNAME], ""),
+      Git(("log -1 --format=%H --grep="
+           "\"^Version [[:digit:]]*\.[[:digit:]]*\.[[:digit:]]* (based\" "
+           "svn/trunk"), "hash2\n"),
+      Git("log -1 hash2", "Log message\n"),
+      Git("log -1 --format=%s hash2",
+       "Version 3.4.5 (based on bleeding_edge revision r1234)\n"),
+      Git("svn find-rev r1234", "hash3\n"),
+      Git("log --format=%H hash3..HEAD", "rev1\n"),
+      Git("log -1 --format=%s rev1", "Log text 1.\n"),
+      Git("log -1 --format=%B rev1", "Text\nLOG=YES\nBUG=v8:321\nText\n"),
+      Git("log -1 --format=%an rev1", "author1@chromium.org\n"),
+      Git(("commit -am \"Prepare push to trunk.  "
+           "Now working on version 3.22.6.%s\"" % review_suffix),
+          " 2 files changed\n",
+          cb=CheckPreparePush),
+      Git(("cl upload --send-mail --email \"author@chromium.org\" "
+           "-r \"reviewer@chromium.org\"%s" % force_flag),
+          "done\n"),
+      Git("cl presubmit", "Presubmit successfull\n"),
+      Git("cl dcommit -f --bypass-hooks", "Closing issue\n"),
+      Git("svn fetch", "fetch result\n"),
+      Git("checkout -f svn/bleeding_edge", ""),
+      Git(("log -1 --format=%H --grep=\"Prepare push to trunk.  "
+           "Now working on version 3.22.6.\""),
+          "hash1\n"),
+      Git("diff svn/trunk hash1", "patch content\n"),
+      Git("svn find-rev hash1", "123455\n"),
+      Git("checkout -b %s svn/trunk" % TEST_CONFIG[TRUNKBRANCH], ""),
+      Git("apply --index --reject \"%s\"" % TEST_CONFIG[PATCH_FILE], ""),
+      Git("add \"%s\"" % TEST_CONFIG[VERSION_FILE], ""),
+      Git("commit -aF \"%s\"" % TEST_CONFIG[COMMITMSG_FILE], "",
+          cb=CheckSVNCommit),
+      Git("svn dcommit 2>&1", "Some output\nCommitted r123456\nSome output\n"),
+      Git("svn tag 3.22.5 -m \"Tagging version 3.22.5\"", ""),
+      Git("status -s -uno", ""),
+      Git("checkout -f master", ""),
+      Git("pull", ""),
+      Git("checkout -b v8-roll-123456", ""),
+      Git(("commit -am \"Update V8 to version 3.22.5 "
+           "(based on bleeding_edge revision r123455).\n\n"
+           "TBR=reviewer@chromium.org\""),
+          ""),
+      Git(("cl upload --send-mail --email \"author@chromium.org\"%s"
+           % force_flag), ""),
+      Git("checkout -f some_branch", ""),
+      Git("branch -D %s" % TEST_CONFIG[TEMP_BRANCH], ""),
+      Git("branch -D %s" % TEST_CONFIG[BRANCHNAME], ""),
+      Git("branch -D %s" % TEST_CONFIG[TRUNKBRANCH], ""),
     ])
 
     # Expected keyboard input in manual mode:
     if manual:
       self.ExpectReadline([
-        "Y",  # Confirm last push.
-        "",  # Open editor.
-        "Y",  # Increment build number.
-        "reviewer@chromium.org",  # V8 reviewer.
-        "LGTX",  # Enter LGTM for V8 CL (wrong).
-        "LGTM",  # Enter LGTM for V8 CL.
-        "Y",  # Sanity check.
-        "reviewer@chromium.org",  # Chromium reviewer.
+        RL("Y"),  # Confirm last push.
+        RL(""),  # Open editor.
+        RL("Y"),  # Increment build number.
+        RL("reviewer@chromium.org"),  # V8 reviewer.
+        RL("LGTX"),  # Enter LGTM for V8 CL (wrong).
+        RL("LGTM"),  # Enter LGTM for V8 CL.
+        RL("Y"),  # Sanity check.
+        RL("reviewer@chromium.org"),  # Chromium reviewer.
       ])
 
     # Expected keyboard input in semi-automatic mode:
     if not manual and not force:
       self.ExpectReadline([
-        "LGTM",  # Enter LGTM for V8 CL.
+        RL("LGTM"),  # Enter LGTM for V8 CL.
       ])
 
     # No keyboard input in forced mode:
@@ -761,8 +787,8 @@ Performance and stability improvements on all platforms.""", commit)
 
   def testCheckLastPushRecently(self):
     self.ExpectGit([
-      ["svn log -1 --oneline", "r101 | Text"],
-      ["svn log -1 --oneline ChangeLog", "r99 | Prepare push to trunk..."],
+      Git("svn log -1 --oneline", "r101 | Text"),
+      Git("svn log -1 --oneline ChangeLog", "r99 | Prepare push to trunk..."),
     ])
 
     self.RunStep(auto_roll.AutoRoll, FetchLatestRevision, AUTO_ROLL_ARGS)
@@ -777,28 +803,27 @@ Performance and stability improvements on all platforms.""", commit)
     TEST_CONFIG[SETTINGS_LOCATION] = "~/.doesnotexist"
 
     self.ExpectReadURL([
-      ["https://v8-status.appspot.com/current?format=json",
-       "{\"message\": \"Tree is throttled\"}"],
-      ["https://v8-status.appspot.com/lkgr", Exception("Network problem")],
-      ["https://v8-status.appspot.com/lkgr", "100"],
-      ["https://v8-status.appspot.com/status",
-       ("username=v8-auto-roll%40chromium.org&"
-        "message=Tree+is+closed+%28preparing+to+push%29&password=PW"),
-       ""],
-      ["https://v8-status.appspot.com/status",
-       ("username=v8-auto-roll%40chromium.org&"
-        "message=Tree+is+throttled&password=PW"), ""],
+      URL("https://v8-status.appspot.com/current?format=json",
+          "{\"message\": \"Tree is throttled\"}"),
+      URL("https://v8-status.appspot.com/lkgr", Exception("Network problem")),
+      URL("https://v8-status.appspot.com/lkgr", "100"),
+      URL("https://v8-status.appspot.com/status",
+          ("username=v8-auto-roll%40chromium.org&"
+           "message=Tree+is+closed+%28preparing+to+push%29&password=PW"), ""),
+      URL("https://v8-status.appspot.com/status",
+          ("username=v8-auto-roll%40chromium.org&"
+           "message=Tree+is+throttled&password=PW"), ""),
     ])
 
     self.ExpectGit([
-      ["status -s -uno", ""],
-      ["status -s -b -uno", "## some_branch\n"],
-      ["svn fetch", ""],
-      ["svn log -1 --oneline", "r100 | Text"],
-      [("log -1 --format=%H --grep=\""
-        "^Version [[:digit:]]*\.[[:digit:]]*\.[[:digit:]]* (based\""
-        " svn/trunk"), "push_hash\n"],
-      ["svn find-rev push_hash", "65"],
+      Git("status -s -uno", ""),
+      Git("status -s -b -uno", "## some_branch\n"),
+      Git("svn fetch", ""),
+      Git("svn log -1 --oneline", "r100 | Text"),
+      Git(("log -1 --format=%H --grep=\""
+           "^Version [[:digit:]]*\.[[:digit:]]*\.[[:digit:]]* (based\""
+           " svn/trunk"), "push_hash\n"),
+      Git("svn find-rev push_hash", "65"),
     ])
 
     auto_roll.AutoRoll(TEST_CONFIG, self).Run(
@@ -818,9 +843,9 @@ Performance and stability improvements on all platforms.""", commit)
     self.ExpectReadURL([])
 
     self.ExpectGit([
-      ["status -s -uno", ""],
-      ["status -s -b -uno", "## some_branch\n"],
-      ["svn fetch", ""],
+      Git("status -s -uno", ""),
+      Git("status -s -b -uno", "## some_branch\n"),
+      Git("svn fetch", ""),
     ])
 
     def RunAutoRoll():
@@ -832,14 +857,14 @@ Performance and stability improvements on all platforms.""", commit)
     TEST_CONFIG[SETTINGS_LOCATION] = "~/.doesnotexist"
 
     self.ExpectReadURL([
-      ["https://v8-status.appspot.com/current?format=json",
-       "{\"message\": \"Tree is throttled (no push)\"}"],
+      URL("https://v8-status.appspot.com/current?format=json",
+          "{\"message\": \"Tree is throttled (no push)\"}"),
     ])
 
     self.ExpectGit([
-      ["status -s -uno", ""],
-      ["status -s -b -uno", "## some_branch\n"],
-      ["svn fetch", ""],
+      Git("status -s -uno", ""),
+      Git("status -s -b -uno", "## some_branch\n"),
+      Git("svn fetch", ""),
     ])
 
     def RunAutoRoll():
@@ -883,81 +908,81 @@ LOG=N
       self.assertTrue(re.search(r"#define IS_CANDIDATE_VERSION\s+0", version))
 
     self.ExpectGit([
-      ["status -s -uno", ""],
-      ["status -s -b -uno", "## some_branch\n"],
-      ["svn fetch", ""],
-      ["branch", "  branch1\n* branch2\n"],
-      ["checkout -b %s" % TEST_CONFIG[TEMP_BRANCH], ""],
-      ["branch", "  branch1\n* branch2\n"],
-      ["checkout -b %s svn/trunk" % TEST_CONFIG[BRANCHNAME], ""],
-      ["log --format=%H --grep=\"Port r12345\" --reverse svn/bleeding_edge",
-       "hash1\nhash2"],
-      ["svn find-rev hash1 svn/bleeding_edge", "45678"],
-      ["log -1 --format=%s hash1", "Title1"],
-      ["svn find-rev hash2 svn/bleeding_edge", "23456"],
-      ["log -1 --format=%s hash2", "Title2"],
-      ["log --format=%H --grep=\"Port r23456\" --reverse svn/bleeding_edge",
-       ""],
-      ["log --format=%H --grep=\"Port r34567\" --reverse svn/bleeding_edge",
-       "hash3"],
-      ["svn find-rev hash3 svn/bleeding_edge", "56789"],
-      ["log -1 --format=%s hash3", "Title3"],
-      ["svn find-rev r12345 svn/bleeding_edge", "hash4"],
+      Git("status -s -uno", ""),
+      Git("status -s -b -uno", "## some_branch\n"),
+      Git("svn fetch", ""),
+      Git("branch", "  branch1\n* branch2\n"),
+      Git("checkout -b %s" % TEST_CONFIG[TEMP_BRANCH], ""),
+      Git("branch", "  branch1\n* branch2\n"),
+      Git("checkout -b %s svn/trunk" % TEST_CONFIG[BRANCHNAME], ""),
+      Git("log --format=%H --grep=\"Port r12345\" --reverse svn/bleeding_edge",
+          "hash1\nhash2"),
+      Git("svn find-rev hash1 svn/bleeding_edge", "45678"),
+      Git("log -1 --format=%s hash1", "Title1"),
+      Git("svn find-rev hash2 svn/bleeding_edge", "23456"),
+      Git("log -1 --format=%s hash2", "Title2"),
+      Git("log --format=%H --grep=\"Port r23456\" --reverse svn/bleeding_edge",
+          ""),
+      Git("log --format=%H --grep=\"Port r34567\" --reverse svn/bleeding_edge",
+          "hash3"),
+      Git("svn find-rev hash3 svn/bleeding_edge", "56789"),
+      Git("log -1 --format=%s hash3", "Title3"),
+      Git("svn find-rev r12345 svn/bleeding_edge", "hash4"),
       # Simulate svn being down which stops the script.
-      ["svn find-rev r23456 svn/bleeding_edge", None],
+      Git("svn find-rev r23456 svn/bleeding_edge", None),
       # Restart script in the failing step.
-      ["svn find-rev r12345 svn/bleeding_edge", "hash4"],
-      ["svn find-rev r23456 svn/bleeding_edge", "hash2"],
-      ["svn find-rev r34567 svn/bleeding_edge", "hash3"],
-      ["svn find-rev r45678 svn/bleeding_edge", "hash1"],
-      ["svn find-rev r56789 svn/bleeding_edge", "hash5"],
-      ["log -1 --format=%s hash4", "Title4"],
-      ["log -1 --format=%s hash2", "Title2"],
-      ["log -1 --format=%s hash3", "Title3"],
-      ["log -1 --format=%s hash1", "Title1"],
-      ["log -1 --format=%s hash5", "Title5"],
-      ["log -1 hash4", "Title4\nBUG=123\nBUG=234"],
-      ["log -1 hash2", "Title2\n BUG = v8:123,345"],
-      ["log -1 hash3", "Title3\nLOG=n\nBUG=567, 456"],
-      ["log -1 hash1", "Title1"],
-      ["log -1 hash5", "Title5"],
-      ["log -1 -p hash4", "patch4"],
-      ["apply --index --reject \"%s\"" % TEST_CONFIG[TEMPORARY_PATCH_FILE],
-       "", VerifyPatch("patch4")],
-      ["log -1 -p hash2", "patch2"],
-      ["apply --index --reject \"%s\"" % TEST_CONFIG[TEMPORARY_PATCH_FILE],
-       "", VerifyPatch("patch2")],
-      ["log -1 -p hash3", "patch3"],
-      ["apply --index --reject \"%s\"" % TEST_CONFIG[TEMPORARY_PATCH_FILE],
-       "", VerifyPatch("patch3")],
-      ["log -1 -p hash1", "patch1"],
-      ["apply --index --reject \"%s\"" % TEST_CONFIG[TEMPORARY_PATCH_FILE],
-       "", VerifyPatch("patch1")],
-      ["log -1 -p hash5", "patch5\n"],
-      ["apply --index --reject \"%s\"" % TEST_CONFIG[TEMPORARY_PATCH_FILE],
-       "", VerifyPatch("patch5\n")],
-      ["apply --index --reject \"%s\"" % extra_patch, ""],
-      ["commit -aF \"%s\"" % TEST_CONFIG[COMMITMSG_FILE], ""],
-      ["cl upload --send-mail -r \"reviewer@chromium.org\"", ""],
-      ["checkout -f %s" % TEST_CONFIG[BRANCHNAME], ""],
-      ["cl presubmit", "Presubmit successfull\n"],
-      ["cl dcommit -f --bypass-hooks", "Closing issue\n", VerifySVNCommit],
-      ["svn fetch", ""],
-      ["log -1 --format=%%H --grep=\"%s\" svn/trunk" % msg, "hash6"],
-      ["svn find-rev hash6", "1324"],
-      [("copy -r 1324 https://v8.googlecode.com/svn/trunk "
-        "https://v8.googlecode.com/svn/tags/3.22.5.1 -m "
-        "\"Tagging version 3.22.5.1\""), ""],
-      ["checkout -f some_branch", ""],
-      ["branch -D %s" % TEST_CONFIG[TEMP_BRANCH], ""],
-      ["branch -D %s" % TEST_CONFIG[BRANCHNAME], ""],
+      Git("svn find-rev r12345 svn/bleeding_edge", "hash4"),
+      Git("svn find-rev r23456 svn/bleeding_edge", "hash2"),
+      Git("svn find-rev r34567 svn/bleeding_edge", "hash3"),
+      Git("svn find-rev r45678 svn/bleeding_edge", "hash1"),
+      Git("svn find-rev r56789 svn/bleeding_edge", "hash5"),
+      Git("log -1 --format=%s hash4", "Title4"),
+      Git("log -1 --format=%s hash2", "Title2"),
+      Git("log -1 --format=%s hash3", "Title3"),
+      Git("log -1 --format=%s hash1", "Title1"),
+      Git("log -1 --format=%s hash5", "Title5"),
+      Git("log -1 hash4", "Title4\nBUG=123\nBUG=234"),
+      Git("log -1 hash2", "Title2\n BUG = v8:123,345"),
+      Git("log -1 hash3", "Title3\nLOG=n\nBUG=567, 456"),
+      Git("log -1 hash1", "Title1"),
+      Git("log -1 hash5", "Title5"),
+      Git("log -1 -p hash4", "patch4"),
+      Git("apply --index --reject \"%s\"" % TEST_CONFIG[TEMPORARY_PATCH_FILE],
+          "", cb=VerifyPatch("patch4")),
+      Git("log -1 -p hash2", "patch2"),
+      Git("apply --index --reject \"%s\"" % TEST_CONFIG[TEMPORARY_PATCH_FILE],
+          "", cb=VerifyPatch("patch2")),
+      Git("log -1 -p hash3", "patch3"),
+      Git("apply --index --reject \"%s\"" % TEST_CONFIG[TEMPORARY_PATCH_FILE],
+          "", cb=VerifyPatch("patch3")),
+      Git("log -1 -p hash1", "patch1"),
+      Git("apply --index --reject \"%s\"" % TEST_CONFIG[TEMPORARY_PATCH_FILE],
+          "", cb=VerifyPatch("patch1")),
+      Git("log -1 -p hash5", "patch5\n"),
+      Git("apply --index --reject \"%s\"" % TEST_CONFIG[TEMPORARY_PATCH_FILE],
+          "", cb=VerifyPatch("patch5\n")),
+      Git("apply --index --reject \"%s\"" % extra_patch, ""),
+      Git("commit -aF \"%s\"" % TEST_CONFIG[COMMITMSG_FILE], ""),
+      Git("cl upload --send-mail -r \"reviewer@chromium.org\"", ""),
+      Git("checkout -f %s" % TEST_CONFIG[BRANCHNAME], ""),
+      Git("cl presubmit", "Presubmit successfull\n"),
+      Git("cl dcommit -f --bypass-hooks", "Closing issue\n", cb=VerifySVNCommit),
+      Git("svn fetch", ""),
+      Git("log -1 --format=%%H --grep=\"%s\" svn/trunk" % msg, "hash6"),
+      Git("svn find-rev hash6", "1324"),
+      Git(("copy -r 1324 https://v8.googlecode.com/svn/trunk "
+           "https://v8.googlecode.com/svn/tags/3.22.5.1 -m "
+           "\"Tagging version 3.22.5.1\""), ""),
+      Git("checkout -f some_branch", ""),
+      Git("branch -D %s" % TEST_CONFIG[TEMP_BRANCH], ""),
+      Git("branch -D %s" % TEST_CONFIG[BRANCHNAME], ""),
     ])
 
     self.ExpectReadline([
-      "Y",  # Automatically add corresponding ports (34567, 56789)?
-      "Y",  # Automatically increment patch level?
-      "reviewer@chromium.org",  # V8 reviewer.
-      "LGTM",  # Enter LGTM for V8 CL.
+      RL("Y"),  # Automatically add corresponding ports (34567, 56789)?
+      RL("Y"),  # Automatically increment patch level?
+      RL("reviewer@chromium.org"),  # V8 reviewer.
+      RL("LGTM"),  # Enter LGTM for V8 CL.
     ])
 
     # r12345 and r34567 are patches. r23456 (included) and r45678 are the MIPS

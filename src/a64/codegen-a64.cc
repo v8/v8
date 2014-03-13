@@ -529,7 +529,7 @@ void MathExpGenerator::EmitMathExp(MacroAssembler* masm,
   Label result_is_finite_non_zero;
   // Assert that we can load offset 0 (the small input threshold) and offset 1
   // (the large input threshold) with a single ldp.
-  ASSERT(kDRegSizeInBytes == (ExpConstant(constants, 1).offset() -
+  ASSERT(kDRegSize == (ExpConstant(constants, 1).offset() -
                               ExpConstant(constants, 0).offset()));
   __ Ldp(double_temp1, double_temp2, ExpConstant(constants, 0));
 
@@ -559,7 +559,7 @@ void MathExpGenerator::EmitMathExp(MacroAssembler* masm,
   __ Bind(&result_is_finite_non_zero);
 
   // Assert that we can load offset 3 and offset 4 with a single ldp.
-  ASSERT(kDRegSizeInBytes == (ExpConstant(constants, 4).offset() -
+  ASSERT(kDRegSize == (ExpConstant(constants, 4).offset() -
                               ExpConstant(constants, 3).offset()));
   __ Ldp(double_temp1, double_temp3, ExpConstant(constants, 3));
   __ Fmadd(double_temp1, double_temp1, input, double_temp3);
@@ -567,7 +567,7 @@ void MathExpGenerator::EmitMathExp(MacroAssembler* masm,
   __ Fsub(double_temp1, double_temp1, double_temp3);
 
   // Assert that we can load offset 5 and offset 6 with a single ldp.
-  ASSERT(kDRegSizeInBytes == (ExpConstant(constants, 6).offset() -
+  ASSERT(kDRegSize == (ExpConstant(constants, 6).offset() -
                               ExpConstant(constants, 5).offset()));
   __ Ldp(double_temp2, double_temp3, ExpConstant(constants, 5));
   // TODO(jbramley): Consider using Fnmsub here.
@@ -597,7 +597,7 @@ void MathExpGenerator::EmitMathExp(MacroAssembler* masm,
   // Do the final table lookup.
   __ Mov(temp3, Operand(ExternalReference::math_exp_log_table()));
 
-  __ Add(temp3, temp3, Operand(temp2, LSL, kDRegSizeInBytesLog2));
+  __ Add(temp3, temp3, Operand(temp2, LSL, kDRegSizeLog2));
   __ Ldp(temp2.W(), temp3.W(), MemOperand(temp3));
   __ Orr(temp1.W(), temp3.W(), Operand(temp1.W(), LSL, 20));
   __ Bfi(temp2, temp1, 32, 32);

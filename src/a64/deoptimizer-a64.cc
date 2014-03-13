@@ -148,21 +148,21 @@ void Deoptimizer::EntryGenerator::Generate() {
   // in the input frame.
 
   // Save all allocatable floating point registers.
-  CPURegList saved_fp_registers(CPURegister::kFPRegister, kDRegSize,
+  CPURegList saved_fp_registers(CPURegister::kFPRegister, kDRegSizeInBits,
                                 FPRegister::kAllocatableFPRegisters);
   __ PushCPURegList(saved_fp_registers);
 
   // We save all the registers expcept jssp, sp and lr.
-  CPURegList saved_registers(CPURegister::kRegister, kXRegSize, 0, 27);
+  CPURegList saved_registers(CPURegister::kRegister, kXRegSizeInBits, 0, 27);
   saved_registers.Combine(fp);
   __ PushCPURegList(saved_registers);
 
   const int kSavedRegistersAreaSize =
-      (saved_registers.Count() * kXRegSizeInBytes) +
-      (saved_fp_registers.Count() * kDRegSizeInBytes);
+      (saved_registers.Count() * kXRegSize) +
+      (saved_fp_registers.Count() * kDRegSize);
 
   // Floating point registers are saved on the stack above core registers.
-  const int kFPRegistersOffset = saved_registers.Count() * kXRegSizeInBytes;
+  const int kFPRegistersOffset = saved_registers.Count() * kXRegSize;
 
   // Get the bailout id from the stack.
   Register bailout_id = x2;
@@ -221,7 +221,7 @@ void Deoptimizer::EntryGenerator::Generate() {
   }
 
   // Remove the bailout id and the saved registers from the stack.
-  __ Drop(1 + (kSavedRegistersAreaSize / kXRegSizeInBytes));
+  __ Drop(1 + (kSavedRegistersAreaSize / kXRegSize));
 
   // Compute a pointer to the unwinding limit in register x2; that is
   // the first stack slot not part of the input frame.

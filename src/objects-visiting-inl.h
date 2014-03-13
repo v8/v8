@@ -313,7 +313,8 @@ void StaticMarkingVisitor<StaticVisitor>::VisitCodeTarget(
       && (target->ic_state() == MEGAMORPHIC || target->ic_state() == GENERIC ||
           target->ic_state() == POLYMORPHIC || heap->flush_monomorphic_ics() ||
           Serializer::enabled() || target->ic_age() != heap->global_ic_age())) {
-    IC::Clear(target->GetIsolate(), rinfo->pc());
+    IC::Clear(target->GetIsolate(), rinfo->pc(),
+              rinfo->host()->constant_pool());
     target = Code::GetCodeFromTargetAddress(rinfo->target_address());
   }
   heap->mark_compact_collector()->RecordRelocSlot(rinfo, target);

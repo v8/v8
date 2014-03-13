@@ -1975,31 +1975,6 @@ static Handle<Object> NewStorageFor(Isolate* isolate,
 }
 
 
-void JSObject::AddFastPropertyUsingMap(Handle<JSObject> object,
-                                       Handle<Map> new_map,
-                                       Handle<Name> name,
-                                       Handle<Object> value,
-                                       int field_index,
-                                       Representation representation) {
-  Isolate* isolate = object->GetIsolate();
-
-  // This method is used to transition to a field. If we are transitioning to a
-  // double field, allocate new storage.
-  Handle<Object> storage = NewStorageFor(isolate, value, representation);
-
-  if (object->map()->unused_property_fields() == 0) {
-    int new_unused = new_map->unused_property_fields();
-    Handle<FixedArray> properties(object->properties());
-    Handle<FixedArray> values = isolate->factory()->CopySizeFixedArray(
-        properties, properties->length() + new_unused + 1);
-    object->set_properties(*values);
-  }
-
-  object->set_map(*new_map);
-  object->FastPropertyAtPut(field_index, *storage);
-}
-
-
 static MaybeObject* CopyAddFieldDescriptor(Map* map,
                                            Name* name,
                                            int index,
@@ -2064,7 +2039,16 @@ void JSObject::AddFastProperty(Handle<JSObject> object,
   Handle<Map> new_map = CopyAddFieldDescriptor(
       handle(object->map()), name, index, attributes, representation, flag);
 
-  AddFastPropertyUsingMap(object, new_map, name, value, index, representation);
+  JSObject::MigrateToMap(object, new_map);
+
+  if (representation.IsDouble()) {
+    // Nothing more to be done.
+    if (value->IsUninitialized()) return;
+    HeapNumber* box = HeapNumber::cast(object->RawFastPropertyAt(index));
+    box->set_value(value->Number());
+  } else {
+    object->FastPropertyAtPut(index, *value);
+  }
 }
 
 
@@ -2108,7 +2092,7 @@ void JSObject::AddConstantProperty(Handle<JSObject> object,
   Handle<Map> new_map = CopyAddConstantDescriptor(
       handle(object->map()), name, constant, attributes, flag);
 
-  object->set_map(*new_map);
+  JSObject::MigrateToMap(object, new_map);
 }
 
 
@@ -2197,8 +2181,7 @@ Handle<Object> JSObject::AddProperty(Handle<JSObject> object,
     AddSlowProperty(object, name, value, attributes);
   }
 
-  if (FLAG_harmony_observation &&
-      object->map()->is_observed() &&
+  if (object->map()->is_observed() &&
       *name != isolate->heap()->hidden_string()) {
     Handle<Object> old_value = isolate->factory()->the_hole_value();
     EnqueueChangeRecord(object, "add", name, old_value);
@@ -2419,9 +2402,14 @@ void JSObject::MigrateToMap(Handle<JSObject> object, Handle<Map> new_map) {
 
   Handle<DescriptorArray> old_descriptors(old_map->instance_descriptors());
   Handle<DescriptorArray> new_descriptors(new_map->instance_descriptors());
-  int descriptors = new_map->NumberOfOwnDescriptors();
+  int old_nof = old_map->NumberOfOwnDescriptors();
+  int new_nof = new_map->NumberOfOwnDescriptors();
 
-  for (int i = 0; i < descriptors; i++) {
+  // This method only supports generalizing instances to at least the same
+  // number of properties.
+  ASSERT(old_nof <= new_nof);
+
+  for (int i = 0; i < old_nof; i++) {
     PropertyDetails details = new_descriptors->GetDetails(i);
     if (details.type() != FIELD) continue;
     PropertyDetails old_details = old_descriptors->GetDetails(i);
@@ -2446,6 +2434,17 @@ void JSObject::MigrateToMap(Handle<JSObject> object, Handle<Map> new_map) {
     int target_index = new_descriptors->GetFieldIndex(i) - inobject;
     if (target_index < 0) target_index += total_size;
     array->set(target_index, *value);
+  }
+
+  for (int i = old_nof; i < new_nof; i++) {
+    PropertyDetails details = new_descriptors->GetDetails(i);
+    if (details.type() != FIELD) continue;
+    if (details.representation().IsDouble()) {
+      int target_index = new_descriptors->GetFieldIndex(i) - inobject;
+      if (target_index < 0) target_index += total_size;
+      Handle<Object> box = isolate->factory()->NewHeapNumber(0);
+      array->set(target_index, *box);
+    }
   }
 
   // From here on we cannot fail and we shouldn't GC anymore.
@@ -3858,16 +3857,7 @@ void JSObject::AllocateStorageForMap(Handle<JSObject> object, Handle<Map> map) {
     }
     map = MapAsElementsKind(map, to_kind);
   }
-  int total_size =
-      map->NumberOfOwnDescriptors() + map->unused_property_fields();
-  int out_of_object = total_size - map->inobject_properties();
-  if (out_of_object != object->properties()->length()) {
-    Isolate* isolate = object->GetIsolate();
-    Handle<FixedArray> new_properties = isolate->factory()->CopySizeFixedArray(
-        handle(object->properties()), out_of_object);
-    object->set_properties(*new_properties);
-  }
-  object->set_map(*map);
+  JSObject::MigrateToMap(object, map);
 }
 
 
@@ -3923,29 +3913,31 @@ Handle<Object> JSObject::SetPropertyUsingTransition(
   // Keep the target CONSTANT if the same value is stored.
   // TODO(verwaest): Also support keeping the placeholder
   // (value->IsUninitialized) as constant.
-  if (details.type() == CONSTANT &&
-      descriptors->GetValue(descriptor) == *value) {
-    object->set_map(*transition_map);
-    return value;
-  }
-
-  Representation representation = details.representation();
-
-  if (!value->FitsRepresentation(representation) ||
-      details.type() == CONSTANT) {
+  if (!value->FitsRepresentation(details.representation()) ||
+      (details.type() == CONSTANT &&
+       descriptors->GetValue(descriptor) != *value)) {
     transition_map = Map::GeneralizeRepresentation(transition_map,
         descriptor, value->OptimalRepresentation(), FORCE_FIELD);
-    Object* back = transition_map->GetBackPointer();
-    if (back->IsMap()) {
-      MigrateToMap(object, handle(Map::cast(back)));
-    }
-    descriptors = transition_map->instance_descriptors();
-    representation = descriptors->GetDetails(descriptor).representation();
   }
 
+  JSObject::MigrateToMap(object, transition_map);
+
+  // Reload.
+  descriptors = transition_map->instance_descriptors();
+  details = descriptors->GetDetails(descriptor);
+
+  if (details.type() != FIELD) return value;
+
   int field_index = descriptors->GetFieldIndex(descriptor);
-  AddFastPropertyUsingMap(
-      object, transition_map, name, value, field_index, representation);
+  if (details.representation().IsDouble()) {
+    // Nothing more to be done.
+    if (value->IsUninitialized()) return value;
+    HeapNumber* box = HeapNumber::cast(object->RawFastPropertyAt(field_index));
+    box->set_value(value->Number());
+  } else {
+    object->FastPropertyAtPut(field_index, *value);
+  }
+
   return value;
 }
 
@@ -4087,8 +4079,7 @@ Handle<Object> JSObject::SetPropertyForResult(Handle<JSObject> object,
   }
 
   Handle<Object> old_value = isolate->factory()->the_hole_value();
-  bool is_observed = FLAG_harmony_observation &&
-                     object->map()->is_observed() &&
+  bool is_observed = object->map()->is_observed() &&
                      *name != isolate->heap()->hidden_string();
   if (is_observed && lookup->IsDataProperty()) {
     old_value = Object::GetProperty(object, name);
@@ -4210,8 +4201,7 @@ Handle<Object> JSObject::SetLocalPropertyIgnoreAttributes(
 
   Handle<Object> old_value = isolate->factory()->the_hole_value();
   PropertyAttributes old_attributes = ABSENT;
-  bool is_observed = FLAG_harmony_observation &&
-                     object->map()->is_observed() &&
+  bool is_observed = object->map()->is_observed() &&
                      *name != isolate->heap()->hidden_string();
   if (is_observed && lookup.IsProperty()) {
     if (lookup.IsDataProperty()) old_value =
@@ -4769,6 +4759,7 @@ MaybeObject* JSObject::NormalizeElements() {
     MaybeObject* maybe = GetElementsTransitionMap(GetIsolate(),
                                                   DICTIONARY_ELEMENTS);
     if (!maybe->To(&new_map)) return maybe;
+    // TODO(verwaest): Replace by MigrateToMap.
     set_map(new_map);
     set_elements(dictionary);
   }
@@ -5193,7 +5184,7 @@ Handle<Object> JSObject::DeleteElement(Handle<JSObject> object,
 
   Handle<Object> old_value;
   bool should_enqueue_change_record = false;
-  if (FLAG_harmony_observation && object->map()->is_observed()) {
+  if (object->map()->is_observed()) {
     should_enqueue_change_record = HasLocalElement(object, index);
     if (should_enqueue_change_record) {
       old_value = object->GetLocalElementAccessorPair(index) != NULL
@@ -5264,8 +5255,7 @@ Handle<Object> JSObject::DeleteProperty(Handle<JSObject> object,
   }
 
   Handle<Object> old_value = isolate->factory()->the_hole_value();
-  bool is_observed = FLAG_harmony_observation &&
-                     object->map()->is_observed() &&
+  bool is_observed = object->map()->is_observed() &&
                      *name != isolate->heap()->hidden_string();
   if (is_observed && lookup.IsDataProperty()) {
     old_value = Object::GetProperty(object, name);
@@ -5498,10 +5488,10 @@ Handle<Object> JSObject::PreventExtensions(Handle<JSObject> object) {
   Handle<Map> new_map = Map::Copy(handle(object->map()));
 
   new_map->set_is_extensible(false);
-  object->set_map(*new_map);
+  JSObject::MigrateToMap(object, new_map);
   ASSERT(!object->map()->is_extensible());
 
-  if (FLAG_harmony_observation && object->map()->is_observed()) {
+  if (object->map()->is_observed()) {
     EnqueueChangeRecord(object, "preventExtensions", Handle<Name>(),
                         isolate->factory()->the_hole_value());
   }
@@ -5591,11 +5581,11 @@ Handle<Object> JSObject::Freeze(Handle<JSObject> object) {
   Handle<Map> old_map(object->map());
   old_map->LookupTransition(*object, isolate->heap()->frozen_symbol(), &result);
   if (result.IsTransition()) {
-    Map* transition_map = result.GetTransitionTarget();
+    Handle<Map> transition_map(result.GetTransitionTarget());
     ASSERT(transition_map->has_dictionary_elements());
     ASSERT(transition_map->is_frozen());
     ASSERT(!transition_map->is_extensible());
-    object->set_map(transition_map);
+    JSObject::MigrateToMap(object, transition_map);
   } else if (object->HasFastProperties() && old_map->CanHaveMoreTransitions()) {
     // Create a new descriptor array with fully-frozen properties
     int num_descriptors = old_map->NumberOfOwnDescriptors();
@@ -5608,7 +5598,7 @@ Handle<Object> JSObject::Freeze(Handle<JSObject> object) {
     new_map->freeze();
     new_map->set_is_extensible(false);
     new_map->set_elements_kind(DICTIONARY_ELEMENTS);
-    object->set_map(*new_map);
+    JSObject::MigrateToMap(object, new_map);
   } else {
     // Slow path: need to normalize properties for safety
     NormalizeProperties(object, CLEAR_INOBJECT_PROPERTIES, 0);
@@ -5619,7 +5609,7 @@ Handle<Object> JSObject::Freeze(Handle<JSObject> object) {
     new_map->freeze();
     new_map->set_is_extensible(false);
     new_map->set_elements_kind(DICTIONARY_ELEMENTS);
-    object->set_map(*new_map);
+    JSObject::MigrateToMap(object, new_map);
 
     // Freeze dictionary-mode properties
     FreezeDictionary(object->property_dictionary());
@@ -5663,7 +5653,7 @@ void JSObject::SetObserved(Handle<JSObject> object) {
     new_map = Map::Copy(handle(object->map()));
     new_map->set_is_observed();
   }
-  object->set_map(*new_map);
+  JSObject::MigrateToMap(object, new_map);
 }
 
 
@@ -6359,8 +6349,7 @@ void JSObject::DefineAccessor(Handle<JSObject> object,
   bool is_element = name->AsArrayIndex(&index);
 
   Handle<Object> old_value = isolate->factory()->the_hole_value();
-  bool is_observed = FLAG_harmony_observation &&
-                     object->map()->is_observed() &&
+  bool is_observed = object->map()->is_observed() &&
                      *name != isolate->heap()->hidden_string();
   bool preexists = false;
   if (is_observed) {
@@ -6394,11 +6383,11 @@ void JSObject::DefineAccessor(Handle<JSObject> object,
 }
 
 
-static bool TryAccessorTransition(JSObject* self,
-                                  Map* transitioned_map,
+static bool TryAccessorTransition(Handle<JSObject> self,
+                                  Handle<Map> transitioned_map,
                                   int target_descriptor,
                                   AccessorComponent component,
-                                  Object* accessor,
+                                  Handle<Object> accessor,
                                   PropertyAttributes attributes) {
   DescriptorArray* descs = transitioned_map->instance_descriptors();
   PropertyDetails details = descs->GetDetails(target_descriptor);
@@ -6412,8 +6401,8 @@ static bool TryAccessorTransition(JSObject* self,
   PropertyAttributes target_attributes = details.attributes();
 
   // Reuse transition if adding same accessor with same attributes.
-  if (target_accessor == accessor && target_attributes == attributes) {
-    self->set_map(transitioned_map);
+  if (target_accessor == *accessor && target_attributes == attributes) {
+    JSObject::MigrateToMap(self, transitioned_map);
     return true;
   }
 
@@ -6475,14 +6464,14 @@ bool JSObject::DefineFastAccessor(Handle<JSObject> object,
     object->map()->LookupTransition(*object, *name, &result);
 
     if (result.IsFound()) {
-      Map* target = result.GetTransitionTarget();
+      Handle<Map> target(result.GetTransitionTarget());
       ASSERT(target->NumberOfOwnDescriptors() ==
              object->map()->NumberOfOwnDescriptors());
       // This works since descriptors are sorted in order of addition.
       ASSERT(object->map()->instance_descriptors()->
              GetKey(descriptor_number) == *name);
-      return TryAccessorTransition(*object, target, descriptor_number,
-                                   component, *accessor, attributes);
+      return TryAccessorTransition(object, target, descriptor_number,
+                                   component, accessor, attributes);
     }
   } else {
     // If not, lookup a transition.
@@ -6490,12 +6479,12 @@ bool JSObject::DefineFastAccessor(Handle<JSObject> object,
 
     // If there is a transition, try to follow it.
     if (result.IsFound()) {
-      Map* target = result.GetTransitionTarget();
+      Handle<Map> target(result.GetTransitionTarget());
       int descriptor_number = target->LastAdded();
       ASSERT(target->instance_descriptors()->GetKey(descriptor_number)
              ->Equals(*name));
-      return TryAccessorTransition(*object, target, descriptor_number,
-                                   component, *accessor, attributes);
+      return TryAccessorTransition(object, target, descriptor_number,
+                                   component, accessor, attributes);
     }
   }
 
@@ -6508,7 +6497,7 @@ bool JSObject::DefineFastAccessor(Handle<JSObject> object,
   accessors->set(component, *accessor);
   Handle<Map> new_map = CopyInsertDescriptor(Handle<Map>(object->map()),
                                              name, accessors, attributes);
-  object->set_map(*new_map);
+  JSObject::MigrateToMap(object, new_map);
   return true;
 }
 
@@ -9792,7 +9781,7 @@ void JSFunction::SetPrototype(Handle<JSFunction> function,
     // different prototype.
     Handle<Map> new_map = Map::Copy(handle(function->map()));
 
-    function->set_map(*new_map);
+    JSObject::MigrateToMap(function, new_map);
     new_map->set_constructor(*value);
     new_map->set_non_instance_prototype(true);
     Isolate* isolate = new_map->GetIsolate();
@@ -10635,7 +10624,8 @@ void Code::ClearInlineCaches(Code::Kind* kind) {
     Code* target(Code::GetCodeFromTargetAddress(info->target_address()));
     if (target->is_inline_cache_stub()) {
       if (kind == NULL || *kind == target->kind()) {
-        IC::Clear(this->GetIsolate(), info->pc());
+        IC::Clear(this->GetIsolate(), info->pc(),
+                  info->host()->constant_pool());
       }
     }
   }
@@ -11420,7 +11410,7 @@ static void EndPerformSplice(Handle<JSArray> object) {
 MaybeObject* JSArray::SetElementsLength(Object* len) {
   // We should never end in here with a pixel or external array.
   ASSERT(AllowsSetElementsLength());
-  if (!(FLAG_harmony_observation && map()->is_observed()))
+  if (!map()->is_observed())
     return GetElementsAccessor()->SetLength(this, len);
 
   Isolate* isolate = GetIsolate();
@@ -11864,7 +11854,7 @@ Handle<Object> JSObject::SetPrototype(Handle<JSObject> object,
     new_map->set_prototype(*value);
   }
   ASSERT(new_map->prototype() == *value);
-  real_receiver->set_map(*new_map);
+  JSObject::MigrateToMap(real_receiver, new_map);
 
   if (!dictionary_elements_in_chain &&
       new_map->DictionaryElementsInPrototypeChainOnly()) {
@@ -12203,7 +12193,7 @@ Handle<Object> JSObject::SetFastElement(Handle<JSObject> object,
 
     UpdateAllocationSite(object, kind);
     Handle<Map> new_map = GetElementsTransitionMap(object, kind);
-    object->set_map(*new_map);
+    JSObject::MigrateToMap(object, new_map);
     ASSERT(IsFastObjectElementsKind(object->GetElementsKind()));
   }
   // Increase backing store capacity if that's been decided previously.
@@ -12549,7 +12539,7 @@ Handle<Object> JSObject::SetElement(Handle<JSObject> object,
     dictionary->set_requires_slow_elements();
   }
 
-  if (!(FLAG_harmony_observation && object->map()->is_observed())) {
+  if (!object->map()->is_observed()) {
     return object->HasIndexedInterceptor()
       ? SetElementWithInterceptor(object, index, value, attributes, strict_mode,
                                   check_prototype,
@@ -12892,6 +12882,7 @@ MaybeObject* JSObject::TransitionElementsKind(ElementsKind to_kind) {
     MaybeObject* maybe_new_map = GetElementsTransitionMap(isolate, to_kind);
     Map* new_map;
     if (!maybe_new_map->To(&new_map)) return maybe_new_map;
+    // TODO(verwaest): Replace by MigrateToMap.
     set_map(new_map);
     if (FLAG_trace_elements_transitions) {
       FixedArrayBase* elms = FixedArrayBase::cast(elements());
@@ -13150,7 +13141,7 @@ bool JSObject::ShouldConvertToFastElements() {
   if (IsAccessCheckNeeded()) return false;
   // Observed objects may not go to fast mode because they rely on map checks,
   // and for fast element accesses we sometimes check element kinds only.
-  if (FLAG_harmony_observation && map()->is_observed()) return false;
+  if (map()->is_observed()) return false;
 
   FixedArray* elements = FixedArray::cast(this->elements());
   SeededNumberDictionary* dictionary = NULL;
@@ -14442,8 +14433,11 @@ MaybeObject* JSObject::PrepareSlowElementsForSort(uint32_t limit) {
 Handle<Object> JSObject::PrepareElementsForSort(Handle<JSObject> object,
                                                 uint32_t limit) {
   Isolate* isolate = object->GetIsolate();
+  if (object->HasSloppyArgumentsElements() ||
+      object->map()->is_observed()) {
+    return handle(Smi::FromInt(-1), isolate);
+  }
 
-  ASSERT(!object->map()->is_observed());
   if (object->HasDictionaryElements()) {
     // Convert to fast elements containing only the existing properties.
     // Ordering is irrelevant, since we are going to sort anyway.

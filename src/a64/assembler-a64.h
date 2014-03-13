@@ -227,7 +227,7 @@ struct Register : public CPURegister {
 
   static Register from_code(int code) {
     // Always return an X register.
-    return Register::Create(code, kXRegSize);
+    return Register::Create(code, kXRegSizeInBits);
   }
 
   // End of V8 compatibility section -----------------------
@@ -322,7 +322,7 @@ struct FPRegister : public CPURegister {
 
   static FPRegister from_code(int code) {
     // Always return a D register.
-    return FPRegister::Create(code, kDRegSize);
+    return FPRegister::Create(code, kDRegSizeInBits);
   }
   // End of V8 compatibility section -----------------------
 };
@@ -358,20 +358,23 @@ INITIALIZE_REGISTER(CPURegister, NoCPUReg, 0, 0, CPURegister::kNoRegister);
 INITIALIZE_REGISTER(Register, no_reg, 0, 0, CPURegister::kNoRegister);
 
 #define DEFINE_REGISTERS(N)                                                  \
-  INITIALIZE_REGISTER(Register, w##N, N, kWRegSize, CPURegister::kRegister); \
-  INITIALIZE_REGISTER(Register, x##N, N, kXRegSize, CPURegister::kRegister);
+  INITIALIZE_REGISTER(Register, w##N, N,                                     \
+                      kWRegSizeInBits, CPURegister::kRegister);              \
+  INITIALIZE_REGISTER(Register, x##N, N,                                     \
+                      kXRegSizeInBits, CPURegister::kRegister);
 REGISTER_CODE_LIST(DEFINE_REGISTERS)
 #undef DEFINE_REGISTERS
 
-INITIALIZE_REGISTER(Register, wcsp, kSPRegInternalCode, kWRegSize,
+INITIALIZE_REGISTER(Register, wcsp, kSPRegInternalCode, kWRegSizeInBits,
                     CPURegister::kRegister);
-INITIALIZE_REGISTER(Register, csp, kSPRegInternalCode, kXRegSize,
+INITIALIZE_REGISTER(Register, csp, kSPRegInternalCode, kXRegSizeInBits,
                     CPURegister::kRegister);
 
-#define DEFINE_FPREGISTERS(N)                         \
-  INITIALIZE_REGISTER(FPRegister, s##N, N, kSRegSize, \
-                      CPURegister::kFPRegister);      \
-  INITIALIZE_REGISTER(FPRegister, d##N, N, kDRegSize, CPURegister::kFPRegister);
+#define DEFINE_FPREGISTERS(N)                                                  \
+  INITIALIZE_REGISTER(FPRegister, s##N, N,                                     \
+                      kSRegSizeInBits, CPURegister::kFPRegister);              \
+  INITIALIZE_REGISTER(FPRegister, d##N, N,                                     \
+                      kDRegSizeInBits, CPURegister::kFPRegister);
 REGISTER_CODE_LIST(DEFINE_FPREGISTERS)
 #undef DEFINE_FPREGISTERS
 
@@ -520,12 +523,12 @@ class CPURegList {
   CPURegister PopHighestIndex();
 
   // AAPCS64 callee-saved registers.
-  static CPURegList GetCalleeSaved(unsigned size = kXRegSize);
-  static CPURegList GetCalleeSavedFP(unsigned size = kDRegSize);
+  static CPURegList GetCalleeSaved(unsigned size = kXRegSizeInBits);
+  static CPURegList GetCalleeSavedFP(unsigned size = kDRegSizeInBits);
 
   // AAPCS64 caller-saved registers. Note that this includes lr.
-  static CPURegList GetCallerSaved(unsigned size = kXRegSize);
-  static CPURegList GetCallerSavedFP(unsigned size = kDRegSize);
+  static CPURegList GetCallerSaved(unsigned size = kXRegSizeInBits);
+  static CPURegList GetCallerSavedFP(unsigned size = kDRegSizeInBits);
 
   // Registers saved as safepoints.
   static CPURegList GetSafepointSavedRegisters();
@@ -780,8 +783,15 @@ class Assembler : public AssemblerBase {
   inline static Address target_pointer_address_at(Address pc);
 
   // Read/Modify the code target address in the branch/call instruction at pc.
-  inline static Address target_address_at(Address pc);
-  inline static void set_target_address_at(Address pc, Address target);
+  inline static Address target_address_at(Address pc,
+                                          ConstantPoolArray* constant_pool);
+  inline static void set_target_address_at(Address pc,
+                                           ConstantPoolArray* constant_pool,
+                                           Address target);
+  static inline Address target_address_at(Address pc, Code* code);
+  static inline void set_target_address_at(Address pc,
+                                           Code* code,
+                                           Address target);
 
   // Return the code target address at a call site from the return address of
   // that call in the instruction stream.
@@ -794,7 +804,7 @@ class Assembler : public AssemblerBase {
   // This sets the branch destination (which is in the constant pool on ARM).
   // This is for calls and branches within generated code.
   inline static void deserialization_set_special_target_at(
-      Address constant_pool_entry, Address target);
+      Address constant_pool_entry, Code* code, Address target);
 
   // All addresses in the constant pool are the same size as pointers.
   static const int kSpecialTargetSize = kPointerSize;
@@ -876,6 +886,7 @@ class Assembler : public AssemblerBase {
   static int ConstantPoolSizeAt(Instruction* instr);
   // See Assembler::CheckConstPool for more info.
   void ConstantPoolMarker(uint32_t size);
+  void EmitPoolGuard();
   void ConstantPoolGuard();
 
   // Prevent veneer pool emission until EndBlockVeneerPool is called.
@@ -914,20 +925,20 @@ class Assembler : public AssemblerBase {
 
   // Record the emission of a constant pool.
   //
-  // The emission of constant pool depends on the size of the code generated and
-  // the number of RelocInfo recorded.
+  // The emission of constant and veneer pools depends on the size of the code
+  // generated and the number of RelocInfo recorded.
   // The Debug mechanism needs to map code offsets between two versions of a
   // function, compiled with and without debugger support (see for example
   // Debug::PrepareForBreakPoints()).
   // Compiling functions with debugger support generates additional code
-  // (Debug::GenerateSlot()). This may affect the emission of the constant
-  // pools and cause the version of the code with debugger support to have
-  // constant pools generated in different places.
-  // Recording the position and size of emitted constant pools allows to
-  // correctly compute the offset mappings between the different versions of a
-  // function in all situations.
+  // (Debug::GenerateSlot()). This may affect the emission of the pools and
+  // cause the version of the code with debugger support to have pools generated
+  // in different places.
+  // Recording the position and size of emitted pools allows to correctly
+  // compute the offset mappings between the different versions of a function in
+  // all situations.
   //
-  // The parameter indicates the size of the constant pool (in bytes), including
+  // The parameter indicates the size of the pool (in bytes), including
   // the marker and branch over the data.
   void RecordConstPool(int size);
 
@@ -1791,11 +1802,12 @@ class Assembler : public AssemblerBase {
   // in the future for example if we decide to add nops between the veneers.
   static const int kMaxVeneerCodeSize = 1 * kInstructionSize;
 
+  void RecordVeneerPool(int location_offset, int size);
   // Emits veneers for branches that are approaching their maximum range.
   // If need_protection is true, the veneers are protected by a branch jumping
   // over the code.
   void EmitVeneers(bool need_protection, int margin = kVeneerDistanceMargin);
-  void EmitVeneersGuard();
+  void EmitVeneersGuard() { EmitPoolGuard(); }
   // Checks whether veneers need to be emitted at this point.
   void CheckVeneerPool(bool require_jump, int margin = kVeneerDistanceMargin);
 

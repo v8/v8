@@ -434,20 +434,21 @@ void TypeFeedbackOracle::GetRelocInfos(Handle<Code> code,
 void TypeFeedbackOracle::CreateDictionary(Handle<Code> code,
                                           ZoneList<RelocInfo>* infos) {
   AllowHeapAllocation allocation_allowed;
-  byte* old_start = code->instruction_start();
+  Code* old_code = *code;
   dictionary_ =
       isolate()->factory()->NewUnseededNumberDictionary(infos->length());
-  byte* new_start = code->instruction_start();
-  RelocateRelocInfos(infos, old_start, new_start);
+  RelocateRelocInfos(infos, old_code, *code);
 }
 
 
 void TypeFeedbackOracle::RelocateRelocInfos(ZoneList<RelocInfo>* infos,
-                                            byte* old_start,
-                                            byte* new_start) {
+                                            Code* old_code,
+                                            Code* new_code) {
   for (int i = 0; i < infos->length(); i++) {
     RelocInfo* info = &(*infos)[i];
-    info->set_pc(new_start + (info->pc() - old_start));
+    info->set_host(new_code);
+    info->set_pc(new_code->instruction_start() +
+                 (info->pc() - old_code->instruction_start()));
   }
 }
 

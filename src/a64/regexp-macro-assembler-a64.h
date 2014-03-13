@@ -144,9 +144,9 @@ class RegExpMacroAssemblerA64: public NativeRegExpMacroAssembler {
   static const int kSuccessCounter = kInput - kPointerSize;
   // First position register address on the stack. Following positions are
   // below it. A position is a 32 bit value.
-  static const int kFirstRegisterOnStack = kSuccessCounter - kWRegSizeInBytes;
+  static const int kFirstRegisterOnStack = kSuccessCounter - kWRegSize;
   // A capture is a 64 bit value holding two position.
-  static const int kFirstCaptureOnStack = kSuccessCounter - kXRegSizeInBytes;
+  static const int kFirstCaptureOnStack = kSuccessCounter - kXRegSize;
 
   // Initial size of code buffer.
   static const size_t kRegExpCodeSize = 1024;

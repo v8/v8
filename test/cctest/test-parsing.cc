@@ -802,8 +802,8 @@ void TestScanRegExp(const char* re_source, const char* expected) {
   CHECK(start == i::Token::DIV || start == i::Token::ASSIGN_DIV);
   CHECK(scanner.ScanRegExpPattern(start == i::Token::ASSIGN_DIV));
   scanner.Next();  // Current token is now the regexp literal.
-  CHECK(scanner.is_literal_ascii());
-  i::Vector<const char> actual = scanner.literal_ascii_string();
+  CHECK(scanner.is_literal_one_byte());
+  i::Vector<const char> actual = scanner.literal_one_byte_string();
   for (int i = 0; i < actual.length(); i++) {
     CHECK_NE('\0', expected[i]);
     CHECK_EQ(expected[i], actual[i]);

@@ -38,7 +38,46 @@
 namespace v8 {
 namespace internal {
 
-// Common base class shared between parser and pre-parser.
+// Common base class shared between parser and pre-parser. Traits encapsulate
+// the differences between Parser and PreParser:
+
+// - Return types: For example, Parser functions return Expression* and
+// PreParser functions return PreParserExpression.
+
+// - Creating parse tree nodes: Parser generates an AST during the recursive
+// descent. PreParser doesn't create a tree. Instead, it passes around minimal
+// data objects (PreParserExpression, PreParserIdentifier etc.) which contain
+// just enough data for the upper layer functions. PreParserFactory is
+// responsible for creating these dummy objects. It provides a similar kind of
+// interface as AstNodeFactory, so ParserBase doesn't need to care which one is
+// used.
+
+// - Miscellanous other tasks interleaved with the recursive descent. For
+// example, Parser keeps track of which function literals should be marked as
+// pretenured, and PreParser doesn't care.
+
+// The traits are expected to contain the following typedefs:
+// struct Traits {
+//   // In particular...
+//   struct Type {
+//     // Used by FunctionState and BlockState.
+//     typedef Scope;
+//     typedef GeneratorVariable;
+//     typedef Zone;
+//     // Return types for traversing functions.
+//     typedef Identifier;
+//     typedef Expression;
+//     typedef FunctionLiteral;
+//     typedef ObjectLiteralProperty;
+//     typedef Literal;
+//     typedef ExpressionList;
+//     typedef PropertyList;
+//     // For constructing objects returned by the traversing functions.
+//     typedef Factory;
+//   };
+//   // ...
+// };
+
 template <typename Traits>
 class ParserBase : public Traits {
  public:
@@ -652,11 +691,12 @@ class PreParser;
 class PreParserTraits {
  public:
   struct Type {
+    // TODO(marja): To be removed. The Traits object should contain all the data
+    // it needs.
     typedef PreParser* Parser;
 
-    // Types used by FunctionState and BlockState.
+    // Used by FunctionState and BlockState.
     typedef PreParserScope Scope;
-    typedef PreParserFactory Factory;
     // PreParser doesn't need to store generator variables.
     typedef void GeneratorVariable;
     // No interaction with Zones.
@@ -670,6 +710,9 @@ class PreParserTraits {
     typedef PreParserExpression Literal;
     typedef PreParserExpressionList ExpressionList;
     typedef PreParserExpressionList PropertyList;
+
+    // For constructing objects returned by the traversing functions.
+    typedef PreParserFactory Factory;
   };
 
   explicit PreParserTraits(PreParser* pre_parser) : pre_parser_(pre_parser) {}
@@ -1016,12 +1059,6 @@ ParserBase<Traits>::FunctionState::~FunctionState() {
 
 template<class Traits>
 void ParserBase<Traits>::ReportUnexpectedToken(Token::Value token) {
-  // We don't report stack overflows here, to avoid increasing the
-  // stack depth even further.  Instead we report it after parsing is
-  // over, in ParseProgram.
-  if (token == Token::ILLEGAL && stack_overflow()) {
-    return;
-  }
   Scanner::Location source_location = scanner()->location();
 
   // Four of the tokens are treated specially
@@ -1114,12 +1151,7 @@ ParserBase<Traits>::ParseIdentifierNameOrGetOrSet(bool* is_get,
                                                   bool* ok) {
   typename Traits::Type::Identifier result = ParseIdentifierName(ok);
   if (!*ok) return Traits::EmptyIdentifier();
-  if (scanner()->is_literal_ascii() &&
-      scanner()->literal_length() == 3) {
-    const char* token = scanner()->literal_ascii_string().start();
-    *is_get = strncmp(token, "get", 3) == 0;
-    *is_set = !*is_get && strncmp(token, "set", 3) == 0;
-  }
+  scanner()->IsGetOrSet(is_get, is_set);
   return result;
 }
 
@@ -1517,9 +1549,9 @@ void ParserBase<Traits>::ObjectLiteralChecker::CheckProperty(
     bool* ok) {
   int old;
   if (property == Token::NUMBER) {
-    old = finder_.AddNumber(scanner()->literal_ascii_string(), type);
-  } else if (scanner()->is_literal_ascii()) {
-    old = finder_.AddAsciiSymbol(scanner()->literal_ascii_string(), type);
+    old = finder_.AddNumber(scanner()->literal_one_byte_string(), type);
+  } else if (scanner()->is_literal_one_byte()) {
+    old = finder_.AddAsciiSymbol(scanner()->literal_one_byte_string(), type);
   } else {
     old = finder_.AddUtf16Symbol(scanner()->literal_utf16_string(), type);
   }

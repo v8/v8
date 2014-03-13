@@ -221,10 +221,10 @@ RegList PopulateRegisterArray(Register* w, Register* x, Register* r,
         r[i] = Register::Create(n, reg_size);
       }
       if (x) {
-        x[i] = Register::Create(n, kXRegSize);
+        x[i] = Register::Create(n, kXRegSizeInBits);
       }
       if (w) {
-        w[i] = Register::Create(n, kWRegSize);
+        w[i] = Register::Create(n, kWRegSizeInBits);
       }
       list |= (1UL << n);
       i++;
@@ -248,10 +248,10 @@ RegList PopulateFPRegisterArray(FPRegister* s, FPRegister* d, FPRegister* v,
         v[i] = FPRegister::Create(n, reg_size);
       }
       if (d) {
-        d[i] = FPRegister::Create(n, kDRegSize);
+        d[i] = FPRegister::Create(n, kDRegSizeInBits);
       }
       if (s) {
-        s[i] = FPRegister::Create(n, kSRegSize);
+        s[i] = FPRegister::Create(n, kSRegSizeInBits);
       }
       list |= (1UL << n);
       i++;
@@ -268,7 +268,7 @@ void Clobber(MacroAssembler* masm, RegList reg_list, uint64_t const value) {
   Register first = NoReg;
   for (unsigned i = 0; i < kNumberOfRegisters; i++) {
     if (reg_list & (1UL << i)) {
-      Register xn = Register::Create(i, kXRegSize);
+      Register xn = Register::Create(i, kXRegSizeInBits);
       // We should never write into csp here.
       ASSERT(!xn.Is(csp));
       if (!xn.IsZero()) {
@@ -291,7 +291,7 @@ void ClobberFP(MacroAssembler* masm, RegList reg_list, double const value) {
   FPRegister first = NoFPReg;
   for (unsigned i = 0; i < kNumberOfFPRegisters; i++) {
     if (reg_list & (1UL << i)) {
-      FPRegister dn = FPRegister::Create(i, kDRegSize);
+      FPRegister dn = FPRegister::Create(i, kDRegSizeInBits);
       if (!first.IsValid()) {
         // This is the first register we've hit, so construct the literal.
         __ Fmov(dn, value);
@@ -354,37 +354,37 @@ void RegisterDump::Dump(MacroAssembler* masm) {
   // The stack pointer cannot be stored directly; it needs to be moved into
   // another register first. Also, we pushed four X registers, so we need to
   // compensate here.
-  __ Add(tmp, csp, 4 * kXRegSizeInBytes);
+  __ Add(tmp, csp, 4 * kXRegSize);
   __ Str(tmp, MemOperand(dump_base, sp_offset));
-  __ Add(tmp_w, wcsp, 4 * kXRegSizeInBytes);
+  __ Add(tmp_w, wcsp, 4 * kXRegSize);
   __ Str(tmp_w, MemOperand(dump_base, wsp_offset));
 
   // Dump X registers.
   __ Add(dump, dump_base, x_offset);
   for (unsigned i = 0; i < kNumberOfRegisters; i += 2) {
     __ Stp(Register::XRegFromCode(i), Register::XRegFromCode(i + 1),
-           MemOperand(dump, i * kXRegSizeInBytes));
+           MemOperand(dump, i * kXRegSize));
   }
 
   // Dump W registers.
   __ Add(dump, dump_base, w_offset);
   for (unsigned i = 0; i < kNumberOfRegisters; i += 2) {
     __ Stp(Register::WRegFromCode(i), Register::WRegFromCode(i + 1),
-           MemOperand(dump, i * kWRegSizeInBytes));
+           MemOperand(dump, i * kWRegSize));
   }
 
   // Dump D registers.
   __ Add(dump, dump_base, d_offset);
   for (unsigned i = 0; i < kNumberOfFPRegisters; i += 2) {
     __ Stp(FPRegister::DRegFromCode(i), FPRegister::DRegFromCode(i + 1),
-           MemOperand(dump, i * kDRegSizeInBytes));
+           MemOperand(dump, i * kDRegSize));
   }
 
   // Dump S registers.
   __ Add(dump, dump_base, s_offset);
   for (unsigned i = 0; i < kNumberOfFPRegisters; i += 2) {
     __ Stp(FPRegister::SRegFromCode(i), FPRegister::SRegFromCode(i + 1),
-           MemOperand(dump, i * kSRegSizeInBytes));
+           MemOperand(dump, i * kSRegSize));
   }
 
   // Dump the flags.
@@ -404,18 +404,18 @@ void RegisterDump::Dump(MacroAssembler* masm) {
   __ Pop(tmp, dump, dump_base, xzr);
 
   __ Add(dump2, dump2_base, w_offset);
-  __ Str(dump_base_w, MemOperand(dump2, dump_base.code() * kWRegSizeInBytes));
-  __ Str(dump_w, MemOperand(dump2, dump.code() * kWRegSizeInBytes));
-  __ Str(tmp_w, MemOperand(dump2, tmp.code() * kWRegSizeInBytes));
+  __ Str(dump_base_w, MemOperand(dump2, dump_base.code() * kWRegSize));
+  __ Str(dump_w, MemOperand(dump2, dump.code() * kWRegSize));
+  __ Str(tmp_w, MemOperand(dump2, tmp.code() * kWRegSize));
 
   __ Add(dump2, dump2_base, x_offset);
-  __ Str(dump_base, MemOperand(dump2, dump_base.code() * kXRegSizeInBytes));
-  __ Str(dump, MemOperand(dump2, dump.code() * kXRegSizeInBytes));
-  __ Str(tmp, MemOperand(dump2, tmp.code() * kXRegSizeInBytes));
+  __ Str(dump_base, MemOperand(dump2, dump_base.code() * kXRegSize));
+  __ Str(dump, MemOperand(dump2, dump.code() * kXRegSize));
+  __ Str(tmp, MemOperand(dump2, tmp.code() * kXRegSize));
 
   // Finally, restore dump2_base and dump2.
-  __ Ldr(dump2_base, MemOperand(dump2, dump2_base.code() * kXRegSizeInBytes));
-  __ Ldr(dump2, MemOperand(dump2, dump2.code() * kXRegSizeInBytes));
+  __ Ldr(dump2_base, MemOperand(dump2, dump2_base.code() * kXRegSize));
+  __ Ldr(dump2, MemOperand(dump2, dump2.code() * kXRegSize));
 
   // Restore the MacroAssembler's scratch registers.
   masm->TmpList()->set_list(old_tmp_list);

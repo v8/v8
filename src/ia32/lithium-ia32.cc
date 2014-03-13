@@ -1442,8 +1442,8 @@ LInstruction* LChunkBuilder::DoFlooringDivByConstI(HMathFloorOfDiv* instr) {
 LInstruction* LChunkBuilder::DoMathFloorOfDiv(HMathFloorOfDiv* instr) {
   if (instr->RightIsPowerOf2()) {
     return DoFlooringDivByPowerOf2I(instr);
-  } else if (instr->right()->IsConstant()) {
-    return DoFlooringDivByConstI(instr);
+  } else if (false && instr->right()->IsConstant()) {
+    return DoFlooringDivByConstI(instr);  // TODO(svenpanne) Fix and re-enable.
   } else {
     return DoDivI(instr);
   }

@@ -262,7 +262,7 @@ class RecordWriteStub: public PlatformCodeStub {
       //  - x29 frame pointer
       //  - x30 link register(lr)
       //  - x31 xzr/stack pointer
-      CPURegList list(CPURegister::kRegister, kXRegSize, 0, 25);
+      CPURegList list(CPURegister::kRegister, kXRegSizeInBits, 0, 25);
 
       // We also remove MacroAssembler's scratch registers.
       list.Remove(ip0);

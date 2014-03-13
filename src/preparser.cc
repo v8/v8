@@ -91,16 +91,11 @@ PreParserIdentifier PreParserTraits::GetSymbol(Scanner* scanner) {
   } else if (scanner->current_token() == Token::YIELD) {
     return PreParserIdentifier::Yield();
   }
-  if (scanner->is_literal_ascii()) {
-    // Detect strict-mode poison words.
-    if (scanner->literal_length() == 4 &&
-        !strncmp(scanner->literal_ascii_string().start(), "eval", 4)) {
-      return PreParserIdentifier::Eval();
-    }
-    if (scanner->literal_length() == 9 &&
-        !strncmp(scanner->literal_ascii_string().start(), "arguments", 9)) {
-      return PreParserIdentifier::Arguments();
-    }
+  if (scanner->UnescapedLiteralMatches("eval", 4)) {
+    return PreParserIdentifier::Eval();
+  }
+  if (scanner->UnescapedLiteralMatches("arguments", 9)) {
+    return PreParserIdentifier::Arguments();
   }
   return PreParserIdentifier::Default();
 }
@@ -108,14 +103,8 @@ PreParserIdentifier PreParserTraits::GetSymbol(Scanner* scanner) {
 
 PreParserExpression PreParserTraits::ExpressionFromString(
     int pos, Scanner* scanner, PreParserFactory* factory) {
-  const int kUseStrictLength = 10;
-  const char* kUseStrictChars = "use strict";
   pre_parser_->LogSymbol();
-  if (scanner->is_literal_ascii() &&
-      scanner->literal_length() == kUseStrictLength &&
-      !scanner->literal_contains_escapes() &&
-      !strncmp(scanner->literal_ascii_string().start(), kUseStrictChars,
-               kUseStrictLength)) {
+  if (scanner->UnescapedLiteralMatches("use strict", 10)) {
     return PreParserExpression::UseStrictStringLiteral();
   }
   return PreParserExpression::StringLiteral();
@@ -1176,9 +1165,9 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
     }
 
     int prev_value;
-    if (scanner()->is_literal_ascii()) {
-      prev_value =
-          duplicate_finder.AddAsciiSymbol(scanner()->literal_ascii_string(), 1);
+    if (scanner()->is_literal_one_byte()) {
+      prev_value = duplicate_finder.AddAsciiSymbol(
+          scanner()->literal_one_byte_string(), 1);
     } else {
       prev_value =
           duplicate_finder.AddUtf16Symbol(scanner()->literal_utf16_string(), 1);
@@ -1285,8 +1274,8 @@ PreParser::Expression PreParser::ParseV8Intrinsic(bool* ok) {
 
 void PreParser::LogSymbol() {
   int identifier_pos = position();
-  if (scanner()->is_literal_ascii()) {
-    log_->LogAsciiSymbol(identifier_pos, scanner()->literal_ascii_string());
+  if (scanner()->is_literal_one_byte()) {
+    log_->LogAsciiSymbol(identifier_pos, scanner()->literal_one_byte_string());
   } else {
     log_->LogUtf16Symbol(identifier_pos, scanner()->literal_utf16_string());
   }

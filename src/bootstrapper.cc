@@ -1578,6 +1578,12 @@ void Genesis::InstallNativeFunctions() {
   INSTALL_NATIVE(JSObject, "functionCache", function_cache);
   INSTALL_NATIVE(JSFunction, "ToCompletePropertyDescriptor",
                  to_complete_property_descriptor);
+  INSTALL_NATIVE(JSFunction, "NotifyChange", observers_notify_change);
+  INSTALL_NATIVE(JSFunction, "EnqueueSpliceRecord", observers_enqueue_splice);
+  INSTALL_NATIVE(JSFunction, "BeginPerformSplice",
+                 observers_begin_perform_splice);
+  INSTALL_NATIVE(JSFunction, "EndPerformSplice",
+                 observers_end_perform_splice);
 }
 
 
@@ -1600,14 +1606,6 @@ void Genesis::InstallExperimentalNativeFunctions() {
     INSTALL_NATIVE(JSFunction, "DerivedGetTrap", derived_get_trap);
     INSTALL_NATIVE(JSFunction, "DerivedSetTrap", derived_set_trap);
     INSTALL_NATIVE(JSFunction, "ProxyEnumerate", proxy_enumerate);
-  }
-  if (FLAG_harmony_observation) {
-    INSTALL_NATIVE(JSFunction, "NotifyChange", observers_notify_change);
-    INSTALL_NATIVE(JSFunction, "EnqueueSpliceRecord", observers_enqueue_splice);
-    INSTALL_NATIVE(JSFunction, "BeginPerformSplice",
-                   observers_begin_perform_splice);
-    INSTALL_NATIVE(JSFunction, "EndPerformSplice",
-                   observers_end_perform_splice);
   }
 }
 
@@ -2052,7 +2050,6 @@ bool Genesis::InstallExperimentalNatives() {
     INSTALL_EXPERIMENTAL_NATIVE(i, symbols, "symbol.js")
     INSTALL_EXPERIMENTAL_NATIVE(i, proxies, "proxy.js")
     INSTALL_EXPERIMENTAL_NATIVE(i, collections, "collection.js")
-    INSTALL_EXPERIMENTAL_NATIVE(i, observation, "object-observe.js")
     INSTALL_EXPERIMENTAL_NATIVE(i, promises, "promise.js")
     INSTALL_EXPERIMENTAL_NATIVE(i, generators, "generator.js")
     INSTALL_EXPERIMENTAL_NATIVE(i, iteration, "array-iterator.js")

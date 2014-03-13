@@ -2874,15 +2874,6 @@ class JSObject: public JSReceiver {
                               ValueType value_type,
                               TransitionFlag flag);
 
-  // Add a property to a fast-case object using a map transition to
-  // new_map.
-  static void AddFastPropertyUsingMap(Handle<JSObject> object,
-                                      Handle<Map> new_map,
-                                      Handle<Name> name,
-                                      Handle<Object> value,
-                                      int field_index,
-                                      Representation representation);
-
   // Add a property to a slow-case object.
   static void AddSlowProperty(Handle<JSObject> object,
                               Handle<Name> name,
@@ -6705,13 +6696,6 @@ class SharedFunctionInfo: public HeapObject {
   static const int kLiteralsOffset = 2;
   static const int kOsrAstIdOffset = 3;
   static const int kEntryLength = 4;
-  static const int kFirstContextSlot = FixedArray::kHeaderSize +
-      (kEntriesStart + kContextOffset) * kPointerSize;
-  static const int kFirstCodeSlot = FixedArray::kHeaderSize +
-      (kEntriesStart + kCachedCodeOffset) * kPointerSize;
-  static const int kFirstOsrAstIdSlot = FixedArray::kHeaderSize +
-      (kEntriesStart + kOsrAstIdOffset) * kPointerSize;
-  static const int kSecondEntryIndex = kEntryLength + kEntriesStart;
   static const int kInitialLength = kEntriesStart + kEntryLength;
 
   // [scope_info]: Scope info.

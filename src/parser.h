@@ -408,11 +408,12 @@ class SingletonLogger;
 class ParserTraits {
  public:
   struct Type {
+    // TODO(marja): To be removed. The Traits object should contain all the data
+    // it needs.
     typedef v8::internal::Parser* Parser;
 
-    // Types used by FunctionState and BlockState.
+    // Used by FunctionState and BlockState.
     typedef v8::internal::Scope Scope;
-    typedef AstNodeFactory<AstConstructionVisitor> Factory;
     typedef Variable GeneratorVariable;
     typedef v8::internal::Zone Zone;
 
@@ -424,6 +425,9 @@ class ParserTraits {
     typedef ObjectLiteral::Property* ObjectLiteralProperty;
     typedef ZoneList<v8::internal::Expression*>* ExpressionList;
     typedef ZoneList<ObjectLiteral::Property*>* PropertyList;
+
+    // For constructing objects returned by the traversing functions.
+    typedef AstNodeFactory<AstConstructionVisitor> Factory;
   };
 
   explicit ParserTraits(Parser* parser) : parser_(parser) {}
@@ -703,16 +707,6 @@ class Parser : public ParserBase<ParserTraits> {
   Expression* ParseV8Intrinsic(bool* ok);
 
   bool CheckInOrOf(bool accept_OF, ForEachStatement::VisitMode* visit_mode);
-
-  Handle<String> LiteralString(PretenureFlag tenured) {
-    if (scanner()->is_literal_ascii()) {
-      return isolate_->factory()->NewStringFromAscii(
-          scanner()->literal_ascii_string(), tenured);
-    } else {
-      return isolate_->factory()->NewStringFromTwoByte(
-            scanner()->literal_utf16_string(), tenured);
-    }
-  }
 
   // Get odd-ball literals.
   Literal* GetLiteralUndefined(int position);

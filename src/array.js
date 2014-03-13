@@ -1115,8 +1115,8 @@ function ArraySort(comparefn) {
     max_prototype_element = CopyFromPrototype(this, length);
   }
 
-  var num_non_undefined = %IsObserved(this) ?
-      -1 : %RemoveArrayHoles(this, length);
+  // %RemoveArrayHoles returns -1 if fast removal is not supported.
+  var num_non_undefined = %RemoveArrayHoles(this, length);
 
   if (num_non_undefined == -1) {
     // The array is observed, or there were indexed accessors in the array.
