@@ -36,6 +36,7 @@
 #include "conversions-inl.h"
 #include "list-inl.h"
 #include "v8.h"
+#include "parser.h"
 
 namespace v8 {
 namespace internal {
@@ -1115,18 +1116,6 @@ bool Scanner::ScanRegExpFlags() {
 }
 
 
-Handle<String> Scanner::AllocateLiteralString(Isolate* isolate,
-                                              PretenureFlag tenured) {
-  if (is_literal_one_byte()) {
-    return isolate->factory()->NewStringFromOneByte(
-        Vector<const uint8_t>::cast(literal_one_byte_string()), tenured);
-  } else {
-    return isolate->factory()->NewStringFromTwoByte(
-          literal_utf16_string(), tenured);
-  }
-}
-
-
 Handle<String> Scanner::AllocateNextLiteralString(Isolate* isolate,
                                                   PretenureFlag tenured) {
   if (is_next_literal_one_byte()) {
@@ -1155,6 +1144,28 @@ double Scanner::DoubleValue() {
   return StringToDouble(
       unicode_cache_, literal_one_byte_string(),
       ALLOW_HEX | ALLOW_OCTAL | ALLOW_IMPLICIT_OCTAL | ALLOW_BINARY);
+}
+
+
+int Scanner::FindNumber(DuplicateFinder* finder, int value) {
+  return finder->AddNumber(literal_one_byte_string(), value);
+}
+
+
+int Scanner::FindSymbol(DuplicateFinder* finder, int value) {
+  if (is_literal_one_byte()) {
+    return finder->AddAsciiSymbol(literal_one_byte_string(), value);
+  }
+  return finder->AddUtf16Symbol(literal_utf16_string(), value);
+}
+
+
+void Scanner::LogSymbol(ParserRecorder* log, int position) {
+  if (is_literal_one_byte()) {
+    log->LogAsciiSymbol(position, literal_one_byte_string());
+  } else {
+    log->LogUtf16Symbol(position, literal_utf16_string());
+  }
 }
 
 

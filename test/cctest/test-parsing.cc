@@ -795,6 +795,7 @@ void TestScanRegExp(const char* re_source, const char* expected) {
   i::Utf8ToUtf16CharacterStream stream(
        reinterpret_cast<const i::byte*>(re_source),
        static_cast<unsigned>(strlen(re_source)));
+  i::HandleScope scope(CcTest::i_isolate());
   i::Scanner scanner(CcTest::i_isolate()->unicode_cache());
   scanner.Initialize(&stream);
 
@@ -802,8 +803,12 @@ void TestScanRegExp(const char* re_source, const char* expected) {
   CHECK(start == i::Token::DIV || start == i::Token::ASSIGN_DIV);
   CHECK(scanner.ScanRegExpPattern(start == i::Token::ASSIGN_DIV));
   scanner.Next();  // Current token is now the regexp literal.
-  CHECK(scanner.is_literal_one_byte());
-  i::Vector<const char> actual = scanner.literal_one_byte_string();
+  i::Handle<i::String> val =
+      scanner.AllocateInternalizedString(CcTest::i_isolate());
+  i::DisallowHeapAllocation no_alloc;
+  i::String::FlatContent content = val->GetFlatContent();
+  CHECK(content.IsAscii());
+  i::Vector<const uint8_t> actual = content.ToOneByteVector();
   for (int i = 0; i < actual.length(); i++) {
     CHECK_NE('\0', expected[i]);
     CHECK_EQ(expected[i], actual[i]);

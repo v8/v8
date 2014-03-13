@@ -44,6 +44,9 @@ namespace v8 {
 namespace internal {
 
 
+class ParserRecorder;
+
+
 // Returns the value (0 .. 15) of a hexadecimal character c.
 // If c is not a legal hexadecimal character, returns a value < 0.
 inline int HexValue(uc32 c) {
@@ -370,32 +373,13 @@ class Scanner {
   // Returns the location information for the current token
   // (the token last returned by Next()).
   Location location() const { return current_.location; }
-  // Returns the literal string, if any, for the current token (the
-  // token last returned by Next()). The string is 0-terminated.
-  // Literal strings are collected for identifiers, strings, and
-  // numbers.
-  // These functions only give the correct result if the literal
-  // was scanned between calls to StartLiteral() and TerminateLiteral().
-  Vector<const char> literal_one_byte_string() {
-    ASSERT_NOT_NULL(current_.literal_chars);
-    return current_.literal_chars->one_byte_literal();
-  }
-  Vector<const uc16> literal_utf16_string() {
-    ASSERT_NOT_NULL(current_.literal_chars);
-    return current_.literal_chars->utf16_literal();
-  }
-  bool is_literal_one_byte() {
-    ASSERT_NOT_NULL(current_.literal_chars);
-    return current_.literal_chars->is_one_byte();
-  }
-  bool is_literal_contextual_keyword(Vector<const char> keyword) {
-    ASSERT_NOT_NULL(current_.literal_chars);
-    return current_.literal_chars->is_contextual_keyword(keyword);
-  }
-  int literal_length() const {
-    ASSERT_NOT_NULL(current_.literal_chars);
-    return current_.literal_chars->length();
-  }
+
+  // Similar functions for the upcoming token.
+
+  // One token look-ahead (past the token returned by Next()).
+  Token::Value peek() const { return next_.token; }
+
+  Location peek_location() const { return next_.location; }
 
   bool literal_contains_escapes() const {
     Location location = current_.location;
@@ -406,38 +390,15 @@ class Scanner {
     }
     return current_.literal_chars->length() != source_length;
   }
-
-  // Similar functions for the upcoming token.
-
-  // One token look-ahead (past the token returned by Next()).
-  Token::Value peek() const { return next_.token; }
-
-  Location peek_location() const { return next_.location; }
-
-  // Returns the literal string for the next token (the token that
-  // would be returned if Next() were called).
-  Vector<const char> next_literal_one_byte_string() {
-    ASSERT_NOT_NULL(next_.literal_chars);
-    return next_.literal_chars->one_byte_literal();
-  }
-  Vector<const uc16> next_literal_utf16_string() {
-    ASSERT_NOT_NULL(next_.literal_chars);
-    return next_.literal_chars->utf16_literal();
-  }
-  bool is_next_literal_one_byte() {
-    ASSERT_NOT_NULL(next_.literal_chars);
-    return next_.literal_chars->is_one_byte();
+  bool is_literal_contextual_keyword(Vector<const char> keyword) {
+    ASSERT_NOT_NULL(current_.literal_chars);
+    return current_.literal_chars->is_contextual_keyword(keyword);
   }
   bool is_next_contextual_keyword(Vector<const char> keyword) {
     ASSERT_NOT_NULL(next_.literal_chars);
     return next_.literal_chars->is_contextual_keyword(keyword);
   }
-  int next_literal_length() const {
-    ASSERT_NOT_NULL(next_.literal_chars);
-    return next_.literal_chars->length();
-  }
 
-  Handle<String> AllocateLiteralString(Isolate* isolate, PretenureFlag tenured);
   Handle<String> AllocateNextLiteralString(Isolate* isolate,
                                            PretenureFlag tenured);
   Handle<String> AllocateInternalizedString(Isolate* isolate);
@@ -461,12 +422,12 @@ class Scanner {
     }
   }
 
+  int FindNumber(DuplicateFinder* finder, int value);
+  int FindSymbol(DuplicateFinder* finder, int value);
+
+  void LogSymbol(ParserRecorder* log, int position);
+
   UnicodeCache* unicode_cache() { return unicode_cache_; }
-
-  static const int kCharacterLookaheadBufferSize = 1;
-
-  // Scans octal escape sequence. Also accepts "\0" decimal escape sequence.
-  uc32 ScanOctalEscape(uc32 c, int length);
 
   // Returns the location of the last seen octal literal.
   Location octal_position() const { return octal_pos_; }
@@ -518,6 +479,11 @@ class Scanner {
     Location location;
     LiteralBuffer* literal_chars;
   };
+
+  static const int kCharacterLookaheadBufferSize = 1;
+
+  // Scans octal escape sequence. Also accepts "\0" decimal escape sequence.
+  uc32 ScanOctalEscape(uc32 c, int length);
 
   // Call this after setting source_ to the input.
   void Init() {
@@ -577,6 +543,47 @@ class Scanner {
     } else {
       return else_;
     }
+  }
+
+  // Returns the literal string, if any, for the current token (the
+  // token last returned by Next()). The string is 0-terminated.
+  // Literal strings are collected for identifiers, strings, and
+  // numbers.
+  // These functions only give the correct result if the literal
+  // was scanned between calls to StartLiteral() and TerminateLiteral().
+  Vector<const char> literal_one_byte_string() {
+    ASSERT_NOT_NULL(current_.literal_chars);
+    return current_.literal_chars->one_byte_literal();
+  }
+  Vector<const uc16> literal_utf16_string() {
+    ASSERT_NOT_NULL(current_.literal_chars);
+    return current_.literal_chars->utf16_literal();
+  }
+  bool is_literal_one_byte() {
+    ASSERT_NOT_NULL(current_.literal_chars);
+    return current_.literal_chars->is_one_byte();
+  }
+  int literal_length() const {
+    ASSERT_NOT_NULL(current_.literal_chars);
+    return current_.literal_chars->length();
+  }
+  // Returns the literal string for the next token (the token that
+  // would be returned if Next() were called).
+  Vector<const char> next_literal_one_byte_string() {
+    ASSERT_NOT_NULL(next_.literal_chars);
+    return next_.literal_chars->one_byte_literal();
+  }
+  Vector<const uc16> next_literal_utf16_string() {
+    ASSERT_NOT_NULL(next_.literal_chars);
+    return next_.literal_chars->utf16_literal();
+  }
+  bool is_next_literal_one_byte() {
+    ASSERT_NOT_NULL(next_.literal_chars);
+    return next_.literal_chars->is_one_byte();
+  }
+  int next_literal_length() const {
+    ASSERT_NOT_NULL(next_.literal_chars);
+    return next_.literal_chars->length();
   }
 
   uc32 ScanHexNumber(int expected_length);
