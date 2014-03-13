@@ -187,6 +187,26 @@ void KeyedLoadFieldStub::InitializeInterfaceDescriptor(
 }
 
 
+void StringLengthStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  static Register registers[] = { x0, x2 };
+  descriptor->register_param_count_ = 2;
+  descriptor->register_params_ = registers;
+  descriptor->deoptimization_handler_ = NULL;
+}
+
+
+void KeyedStringLengthStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  static Register registers[] = { x1, x0 };
+  descriptor->register_param_count_ = 2;
+  descriptor->register_params_ = registers;
+  descriptor->deoptimization_handler_ = NULL;
+}
+
+
 void KeyedStoreFastElementStub::InitializeInterfaceDescriptor(
     Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
@@ -1962,38 +1982,6 @@ void FunctionPrototypeStub::Generate(MacroAssembler* masm) {
   }
 
   StubCompiler::GenerateLoadFunctionPrototype(masm, receiver, x10, x11, &miss);
-
-  __ Bind(&miss);
-  StubCompiler::TailCallBuiltin(masm,
-                                BaseLoadStoreStubCompiler::MissBuiltin(kind()));
-}
-
-
-void StringLengthStub::Generate(MacroAssembler* masm) {
-  Label miss;
-  Register receiver;
-  if (kind() == Code::KEYED_LOAD_IC) {
-    // ----------- S t a t e -------------
-    //  -- lr    : return address
-    //  -- x1    : receiver
-    //  -- x0    : key
-    // -----------------------------------
-    Register key = x0;
-    receiver = x1;
-    __ Cmp(key, Operand(masm->isolate()->factory()->length_string()));
-    __ B(ne, &miss);
-  } else {
-    ASSERT(kind() == Code::LOAD_IC);
-    // ----------- S t a t e -------------
-    //  -- lr    : return address
-    //  -- x2    : name
-    //  -- x0    : receiver
-    //  -- sp[0] : receiver
-    // -----------------------------------
-    receiver = x0;
-  }
-
-  StubCompiler::GenerateLoadStringLength(masm, receiver, x10, x11, &miss);
 
   __ Bind(&miss);
   StubCompiler::TailCallBuiltin(masm,

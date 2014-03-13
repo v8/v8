@@ -536,31 +536,6 @@ MaybeObject* LoadIC::Load(Handle<Object> object,
   }
 
   if (FLAG_use_ic) {
-    // Use specialized code for getting the length of strings and
-    // string wrapper objects.  The length property of string wrapper
-    // objects is read-only and therefore always returns the length of
-    // the underlying string value.  See ECMA-262 15.5.5.1.
-    if (object->IsStringWrapper() &&
-        name->Equals(isolate()->heap()->length_string())) {
-      Handle<Code> stub;
-      if (state() == UNINITIALIZED) {
-        stub = pre_monomorphic_stub();
-      } else if (state() == PREMONOMORPHIC || state() == MONOMORPHIC) {
-        StringLengthStub string_length_stub(kind());
-        stub = string_length_stub.GetCode(isolate());
-      } else if (state() != MEGAMORPHIC) {
-        ASSERT(state() != GENERIC);
-        stub = megamorphic_stub();
-      }
-      if (!stub.is_null()) {
-        set_target(*stub);
-        if (FLAG_trace_ic) PrintF("[LoadIC : +#length /stringwrapper]\n");
-      }
-      // Get the string if we have a string wrapper object.
-      String* string = String::cast(JSValue::cast(*object)->value());
-      return Smi::FromInt(string->length());
-    }
-
     // Use specialized code for getting prototype of functions.
     if (object->IsJSFunction() &&
         name->Equals(isolate()->heap()->prototype_string()) &&
@@ -908,6 +883,17 @@ Handle<Code> LoadIC::CompileHandler(LookupResult* lookup,
   if (object->IsString() && name->Equals(isolate()->heap()->length_string())) {
     int length_index = String::kLengthOffset / kPointerSize;
     return SimpleFieldLoad(length_index);
+  }
+
+  if (object->IsStringWrapper() &&
+      name->Equals(isolate()->heap()->length_string())) {
+    if (kind() == Code::LOAD_IC) {
+      StringLengthStub string_length_stub;
+      return string_length_stub.GetCode(isolate());
+    } else {
+      KeyedStringLengthStub string_length_stub;
+      return string_length_stub.GetCode(isolate());
+    }
   }
 
   Handle<HeapType> type = CurrentTypeOf(object, isolate());

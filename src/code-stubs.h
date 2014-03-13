@@ -51,7 +51,6 @@ namespace internal {
   V(CompareIC)                           \
   V(CompareNilIC)                        \
   V(MathPow)                             \
-  V(StringLength)                        \
   V(FunctionPrototype)                   \
   V(StoreArrayLength)                    \
   V(RecordWrite)                         \
@@ -98,7 +97,9 @@ namespace internal {
   V(CallApiGetter)                       \
   /* IC Handler stubs */                 \
   V(LoadField)                           \
-  V(KeyedLoadField)
+  V(KeyedLoadField)                      \
+  V(StringLength)                        \
+  V(KeyedStringLength)
 
 // List of code stubs only used on ARM platforms.
 #if defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_A64)
@@ -833,17 +834,6 @@ class FunctionPrototypeStub: public ICStub {
 };
 
 
-class StringLengthStub: public ICStub {
- public:
-  explicit StringLengthStub(Code::Kind kind) : ICStub(kind) { }
-  virtual void Generate(MacroAssembler* masm);
-
- private:
-  STATIC_ASSERT(KindBits::kSize == 4);
-    virtual CodeStub::Major MajorKey() { return StringLength; }
-};
-
-
 class StoreICStub: public ICStub {
  public:
   StoreICStub(Code::Kind kind, StrictMode strict_mode)
@@ -959,6 +949,44 @@ class LoadFieldStub: public HandlerStub {
 };
 
 
+class StringLengthStub: public HandlerStub {
+ public:
+  explicit StringLengthStub() : HandlerStub() {
+    Initialize(Code::LOAD_IC);
+  }
+  virtual Handle<Code> GenerateCode(Isolate* isolate);
+  virtual void InitializeInterfaceDescriptor(
+      Isolate* isolate,
+      CodeStubInterfaceDescriptor* descriptor);
+
+ protected:
+  virtual Code::Kind kind() const {
+    return KindBits::decode(bit_field_);
+  }
+
+  void Initialize(Code::Kind kind) {
+    bit_field_ = KindBits::encode(kind);
+  }
+
+ private:
+  virtual CodeStub::Major MajorKey() { return StringLength; }
+};
+
+
+class KeyedStringLengthStub: public StringLengthStub {
+ public:
+  explicit KeyedStringLengthStub() : StringLengthStub() {
+    Initialize(Code::KEYED_LOAD_IC);
+  }
+  virtual void InitializeInterfaceDescriptor(
+      Isolate* isolate,
+      CodeStubInterfaceDescriptor* descriptor);
+
+ private:
+  virtual CodeStub::Major MajorKey() { return KeyedStringLength; }
+};
+
+
 class StoreGlobalStub : public HandlerStub {
  public:
   explicit StoreGlobalStub(bool is_constant, bool check_global) {
@@ -1071,8 +1099,6 @@ class KeyedLoadFieldStub: public LoadFieldStub {
   virtual void InitializeInterfaceDescriptor(
       Isolate* isolate,
       CodeStubInterfaceDescriptor* descriptor);
-
-  virtual Handle<Code> GenerateCode(Isolate* isolate);
 
  private:
   virtual CodeStub::Major MajorKey() { return KeyedLoadField; }
