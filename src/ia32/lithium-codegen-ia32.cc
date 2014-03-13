@@ -1637,13 +1637,13 @@ void LCodeGen::DoFlooringDivByPowerOf2I(LFlooringDivByPowerOf2I* instr) {
   if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
     DeoptimizeIf(zero, instr->environment());
   }
-  if (instr->hydrogen()->left()->RangeCanInclude(kMinInt)) {
+  if (instr->hydrogen()->CheckFlag(HValue::kLeftCanBeMinInt)) {
     // Note that we could emit branch-free code, but that would need one more
     // register.
-    __ j(no_overflow, &not_kmin_int, Label::kNear);
     if (divisor == -1) {
-      DeoptimizeIf(no_condition, instr->environment());
+      DeoptimizeIf(overflow, instr->environment());
     } else {
+      __ j(no_overflow, &not_kmin_int, Label::kNear);
       __ mov(dividend, Immediate(kMinInt / divisor));
       __ jmp(&done, Label::kNear);
     }

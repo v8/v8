@@ -1129,7 +1129,7 @@ void LCodeGen::DoFlooringDivByPowerOf2I(LFlooringDivByPowerOf2I* instr) {
   if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
     DeoptimizeIf(zero, instr->environment());
   }
-  if (instr->hydrogen()->left()->RangeCanInclude(kMinInt)) {
+  if (instr->hydrogen()->CheckFlag(HValue::kLeftCanBeMinInt)) {
     // Note that we could emit branch-free code, but that would need one more
     // register.
     __ j(no_overflow, &not_kmin_int, Label::kNear);

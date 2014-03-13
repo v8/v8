@@ -3839,37 +3839,37 @@ void LCodeGen::DoMathFloor(LMathFloor* instr) {
 
 void LCodeGen::DoFlooringDivByPowerOf2I(LFlooringDivByPowerOf2I* instr) {
   Register dividend = ToRegister32(instr->dividend());
+  Register result = ToRegister32(instr->result());
   int32_t divisor = instr->divisor();
-  ASSERT(dividend.is(ToRegister32(instr->result())));
 
   // If the divisor is positive, things are easy: There can be no deopts and we
   // can simply do an arithmetic right shift.
   if (divisor == 1) return;
   int32_t shift = WhichPowerOf2Abs(divisor);
   if (divisor > 1) {
-    __ Mov(dividend, Operand(dividend, ASR, shift));
+    __ Mov(result, Operand(dividend, ASR, shift));
     return;
   }
 
   // If the divisor is negative, we have to negate and handle edge cases.
   Label not_kmin_int, done;
-  __ Negs(dividend, dividend);
+  __ Negs(result, dividend);
   if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
     DeoptimizeIf(eq, instr->environment());
   }
-  if (instr->hydrogen()->left()->RangeCanInclude(kMinInt)) {
+  if (instr->hydrogen()->CheckFlag(HValue::kLeftCanBeMinInt)) {
     // Note that we could emit branch-free code, but that would need one more
     // register.
-    __ B(vc, &not_kmin_int);
     if (divisor == -1) {
-      Deoptimize(instr->environment());
+      DeoptimizeIf(vs, instr->environment());
     } else {
-      __ Mov(dividend, kMinInt / divisor);
+      __ B(vc, &not_kmin_int);
+      __ Mov(result, kMinInt / divisor);
       __ B(&done);
     }
   }
   __ bind(&not_kmin_int);
-  __ Mov(dividend, Operand(dividend, ASR, shift));
+  __ Mov(result, Operand(dividend, ASR, shift));
   __ bind(&done);
 }
 

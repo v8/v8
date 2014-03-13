@@ -1749,12 +1749,13 @@ LInstruction* LChunkBuilder::DoFlooringDivByPowerOf2I(HMathFloorOfDiv* instr) {
   ASSERT(instr->right()->representation().Equals(instr->representation()));
   LOperand* dividend = UseRegisterAtStart(instr->left());
   int32_t divisor = instr->right()->GetInteger32Constant();
-  LInstruction* result =
-      DefineSameAsFirst(new(zone()) LFlooringDivByPowerOf2I(dividend, divisor));
-  bool can_deopt =
-      (instr->CheckFlag(HValue::kBailoutOnMinusZero) && divisor < 0) ||
-      (instr->left()->RangeCanInclude(kMinInt) && divisor == -1);
-  return can_deopt ? AssignEnvironment(result) : result;
+  LInstruction* result = DefineAsRegister(new(zone()) LFlooringDivByPowerOf2I(
+          dividend, divisor));
+  if ((instr->CheckFlag(HValue::kBailoutOnMinusZero) && divisor < 0) ||
+      (instr->CheckFlag(HValue::kLeftCanBeMinInt) && divisor == -1)) {
+    result = AssignEnvironment(result);
+  }
+  return result;
 }
 
 
