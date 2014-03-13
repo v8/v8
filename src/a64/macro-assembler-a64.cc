@@ -2824,10 +2824,6 @@ void MacroAssembler::TruncateDoubleToI(Register result,
   Pop(lr);
 
   Bind(&done);
-
-  // TODO(rmcilroy): Remove this Sxtw once the following bug is fixed:
-  // https://code.google.com/p/v8/issues/detail?id=3149
-  Sxtw(result, result.W());
 }
 
 
@@ -2854,10 +2850,6 @@ void MacroAssembler::TruncateHeapNumberToI(Register result,
   Pop(lr);
 
   Bind(&done);
-
-  // TODO(rmcilroy): Remove this Sxtw once the following bug is fixed:
-  // https://code.google.com/p/v8/issues/detail?id=3149
-  Sxtw(result, result.W());
 }
 
 
