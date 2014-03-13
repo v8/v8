@@ -1058,6 +1058,7 @@
           '../../src/regexp.js',
           '../../src/arraybuffer.js',
           '../../src/typedarray.js',
+          '../../src/object-observe.js',
           '../../src/macros.py',
         ],
         'experimental_library_files': [
@@ -1065,7 +1066,6 @@
           '../../src/symbol.js',
           '../../src/proxy.js',
           '../../src/collection.js',
-          '../../src/object-observe.js',
           '../../src/promise.js',
           '../../src/generator.js',
           '../../src/array-iterator.js',
