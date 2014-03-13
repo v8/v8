@@ -4642,8 +4642,7 @@ MemOperand LCodeGen::BuildSeqStringOperand(Register string,
     STATIC_ASSERT(kCharSize == 1);
     return FieldMemOperand(string, SeqString::kHeaderSize + offset);
   }
-  ASSERT(!temp.is(string));
-  ASSERT(!temp.is(ToRegister(index)));
+
   if (encoding == String::ONE_BYTE_ENCODING) {
     __ Add(temp, string, Operand(ToRegister32(index), SXTW));
   } else {
@@ -4661,15 +4660,21 @@ void LCodeGen::DoSeqStringGetChar(LSeqStringGetChar* instr) {
   Register temp = ToRegister(instr->temp());
 
   if (FLAG_debug_code) {
-    __ Ldr(temp, FieldMemOperand(string, HeapObject::kMapOffset));
-    __ Ldrb(temp, FieldMemOperand(temp, Map::kInstanceTypeOffset));
+    // Even though this lithium instruction comes with a temp register, we
+    // can't use it here because we want to use "AtStart" constraints on the
+    // inputs and the debug code here needs a scratch register.
+    UseScratchRegisterScope temps(masm());
+    Register dbg_temp = temps.AcquireX();
 
-    __ And(temp, temp,
+    __ Ldr(dbg_temp, FieldMemOperand(string, HeapObject::kMapOffset));
+    __ Ldrb(dbg_temp, FieldMemOperand(dbg_temp, Map::kInstanceTypeOffset));
+
+    __ And(dbg_temp, dbg_temp,
            Operand(kStringRepresentationMask | kStringEncodingMask));
     static const uint32_t one_byte_seq_type = kSeqStringTag | kOneByteStringTag;
     static const uint32_t two_byte_seq_type = kSeqStringTag | kTwoByteStringTag;
-    __ Cmp(temp, Operand(encoding == String::ONE_BYTE_ENCODING
-                         ? one_byte_seq_type : two_byte_seq_type));
+    __ Cmp(dbg_temp, Operand(encoding == String::ONE_BYTE_ENCODING
+                             ? one_byte_seq_type : two_byte_seq_type));
     __ Check(eq, kUnexpectedStringType);
   }
 
