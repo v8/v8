@@ -1195,39 +1195,48 @@ void LCodeGen::DoMultiplyAddD(LMultiplyAddD* instr) {
 
 void LCodeGen::DoFlooringDivByPowerOf2I(LFlooringDivByPowerOf2I* instr) {
   Register dividend = ToRegister(instr->dividend());
+  Register result = ToRegister(instr->result());
   int32_t divisor = instr->divisor();
-  ASSERT(dividend.is(ToRegister(instr->result())));
   Register scratch = scratch0();
+  ASSERT(!scratch.is(dividend));
 
   // If the divisor is positive, things are easy: There can be no deopts and we
   // can simply do an arithmetic right shift.
   if (divisor == 1) return;
   uint16_t shift = WhichPowerOf2Abs(divisor);
   if (divisor > 1) {
-    __ sra(dividend, dividend, shift);
+    __ sra(result, dividend, shift);
     return;
   }
 
   // If the divisor is negative, we have to negate and handle edge cases.
-  Label not_kmin_int, done;
-  __ Subu(scratch, zero_reg, dividend);
-  if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
-    DeoptimizeIf(eq, instr->environment(), scratch, Operand(zero_reg));
+  if (instr->hydrogen()->CheckFlag(HValue::kLeftCanBeMinInt)) {
+    __ Move(scratch, dividend);
   }
-  if (instr->hydrogen()->left()->RangeCanInclude(kMinInt)) {
+  __ Subu(result, zero_reg, dividend);
+  if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+    DeoptimizeIf(eq, instr->environment(), result, Operand(zero_reg));
+  }
+  if (instr->hydrogen()->CheckFlag(HValue::kLeftCanBeMinInt)) {
     // Note that we could emit branch-free code, but that would need one more
     // register.
-    __ Branch(&not_kmin_int, ne, dividend, Operand(kMinInt));
+
+    __ Xor(at, scratch, result);
     if (divisor == -1) {
-      DeoptimizeIf(al, instr->environment());
+      DeoptimizeIf(ge, instr->environment(), at, Operand(zero_reg));
+      __ sra(result, dividend, shift);
     } else {
-      __ li(dividend, Operand(kMinInt / divisor));
+      Label no_overflow, done;
+      __ Branch(&no_overflow, lt, at, Operand(zero_reg));
+      __ li(result, Operand(kMinInt / divisor));
       __ Branch(&done);
+      __ bind(&no_overflow);
+      __ sra(result, dividend, shift);
+      __ bind(&done);
     }
+  } else {
+    __ sra(result, dividend, shift);
   }
-  __ bind(&not_kmin_int);
-  __ sra(dividend, scratch, shift);
-  __ bind(&done);
 }
 
 
