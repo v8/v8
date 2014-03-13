@@ -1898,13 +1898,13 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
     if (to.IsTagged()) {
       HValue* val = instr->value();
       LOperand* value = UseRegisterAtStart(val);
-      if (val->CheckFlag(HInstruction::kUint32)) {
+      if (!instr->CheckFlag(HValue::kCanOverflow)) {
+        return DefineAsRegister(new(zone()) LSmiTag(value));
+      } else if (val->CheckFlag(HInstruction::kUint32)) {
         LOperand* temp1 = TempRegister();
         LOperand* temp2 = TempRegister();
         LNumberTagU* result = new(zone()) LNumberTagU(value, temp1, temp2);
         return AssignEnvironment(AssignPointerMap(DefineAsRegister(result)));
-      } else if (val->HasRange() && val->range()->IsInSmiRange()) {
-        return DefineAsRegister(new(zone()) LSmiTag(value));
       } else {
         LOperand* temp1 = TempRegister();
         LOperand* temp2 = TempRegister();
@@ -1914,13 +1914,11 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
     } else if (to.IsSmi()) {
       HValue* val = instr->value();
       LOperand* value = UseRegister(val);
-      LInstruction* result = val->CheckFlag(HInstruction::kUint32)
-          ? DefineAsRegister(new(zone()) LUint32ToSmi(value))
-          : DefineAsRegister(new(zone()) LInteger32ToSmi(value));
-      if (val->HasRange() && val->range()->IsInSmiRange()) {
-        return result;
+      LInstruction* result = DefineAsRegister(new(zone()) LSmiTag(value));
+      if (instr->CheckFlag(HValue::kCanOverflow)) {
+        result = AssignEnvironment(result);
       }
-      return AssignEnvironment(result);
+      return result;
     } else {
       ASSERT(to.IsDouble());
       if (instr->value()->CheckFlag(HInstruction::kUint32)) {

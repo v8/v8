@@ -1947,7 +1947,7 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
     if (to.IsTagged()) {
       HValue* val = instr->value();
       LOperand* value = UseRegister(val);
-      if (val->HasRange() && val->range()->IsInSmiRange()) {
+      if (!instr->CheckFlag(HValue::kCanOverflow)) {
         return DefineSameAsFirst(new(zone()) LSmiTag(value));
       } else if (val->CheckFlag(HInstruction::kUint32)) {
         LOperand* temp1 = TempRegister();
@@ -1963,13 +1963,11 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
     } else if (to.IsSmi()) {
       HValue* val = instr->value();
       LOperand* value = UseRegister(val);
-      LInstruction* result = val->CheckFlag(HInstruction::kUint32)
-           ? DefineSameAsFirst(new(zone()) LUint32ToSmi(value))
-           : DefineSameAsFirst(new(zone()) LInteger32ToSmi(value));
-      if (val->HasRange() && val->range()->IsInSmiRange()) {
-        return result;
+      LInstruction* result = DefineSameAsFirst(new(zone()) LSmiTag(value));
+      if (instr->CheckFlag(HValue::kCanOverflow)) {
+        result = AssignEnvironment(result);
       }
-      return AssignEnvironment(result);
+      return result;
     } else {
       ASSERT(to.IsDouble());
       if (instr->value()->CheckFlag(HInstruction::kUint32)) {

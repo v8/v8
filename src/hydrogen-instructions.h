@@ -1731,6 +1731,7 @@ class HChange V8_FINAL : public HUnaryOperation {
     ASSERT(!value->representation().Equals(to));
     set_representation(to);
     SetFlag(kUseGVN);
+    SetFlag(kCanOverflow);
     if (is_truncating_to_smi) {
       SetFlag(kTruncatingToSmi);
       SetFlag(kTruncatingToInt32);

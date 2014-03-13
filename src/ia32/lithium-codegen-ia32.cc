@@ -4875,16 +4875,6 @@ void LCodeGen::DoInteger32ToDouble(LInteger32ToDouble* instr) {
 }
 
 
-void LCodeGen::DoInteger32ToSmi(LInteger32ToSmi* instr) {
-  Register input = ToRegister(instr->value());
-  __ SmiTag(input);
-  if (!instr->hydrogen()->value()->HasRange() ||
-      !instr->hydrogen()->value()->range()->IsInSmiRange()) {
-    DeoptimizeIf(overflow, instr->environment());
-  }
-}
-
-
 void LCodeGen::DoUint32ToDouble(LUint32ToDouble* instr) {
   LOperand* input = instr->value();
   LOperand* output = instr->result();
@@ -4901,17 +4891,6 @@ void LCodeGen::DoUint32ToDouble(LUint32ToDouble* instr) {
     __ LoadUint32NoSSE2(ToRegister(input));
     X87CommitWrite(res);
   }
-}
-
-
-void LCodeGen::DoUint32ToSmi(LUint32ToSmi* instr) {
-  Register input = ToRegister(instr->value());
-  if (!instr->hydrogen()->value()->HasRange() ||
-      !instr->hydrogen()->value()->range()->IsInSmiRange()) {
-    __ test(input, Immediate(0xc0000000));
-    DeoptimizeIf(not_zero, instr->environment());
-  }
-  __ SmiTag(input);
 }
 
 
@@ -5116,10 +5095,18 @@ void LCodeGen::DoDeferredNumberTagD(LNumberTagD* instr) {
 
 
 void LCodeGen::DoSmiTag(LSmiTag* instr) {
-  LOperand* input = instr->value();
-  ASSERT(input->IsRegister() && input->Equals(instr->result()));
-  ASSERT(!instr->hydrogen_value()->CheckFlag(HValue::kCanOverflow));
-  __ SmiTag(ToRegister(input));
+  HChange* hchange = instr->hydrogen();
+  Register input = ToRegister(instr->value());
+  if (hchange->CheckFlag(HValue::kCanOverflow) &&
+      hchange->value()->CheckFlag(HValue::kUint32)) {
+    __ test(input, Immediate(0xc0000000));
+    DeoptimizeIf(not_zero, instr->environment());
+  }
+  __ SmiTag(input);
+  if (hchange->CheckFlag(HValue::kCanOverflow) &&
+      !hchange->value()->CheckFlag(HValue::kUint32)) {
+    DeoptimizeIf(overflow, instr->environment());
+  }
 }
 
 

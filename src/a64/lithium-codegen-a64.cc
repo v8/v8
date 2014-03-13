@@ -3102,17 +3102,6 @@ void LCodeGen::DoInteger32ToDouble(LInteger32ToDouble* instr) {
 }
 
 
-void LCodeGen::DoInteger32ToSmi(LInteger32ToSmi* instr) {
-  // A64 smis can represent all Integer32 values, so this cannot deoptimize.
-  ASSERT(!instr->hydrogen()->value()->HasRange() ||
-         instr->hydrogen()->value()->range()->IsInSmiRange());
-
-  Register value = ToRegister32(instr->value());
-  Register result = ToRegister(instr->result());
-  __ SmiTag(result, value.X());
-}
-
-
 void LCodeGen::DoInvokeFunction(LInvokeFunction* instr) {
   ASSERT(ToRegister(instr->context()).is(cp));
   // The function is required to be in x1.
@@ -4723,8 +4712,14 @@ void LCodeGen::DoSeqStringSetChar(LSeqStringSetChar* instr) {
 
 
 void LCodeGen::DoSmiTag(LSmiTag* instr) {
-  ASSERT(!instr->hydrogen_value()->CheckFlag(HValue::kCanOverflow));
-  __ SmiTag(ToRegister(instr->result()), ToRegister(instr->value()));
+  HChange* hchange = instr->hydrogen();
+  Register input = ToRegister(instr->value());
+  Register output = ToRegister(instr->result());
+  if (hchange->CheckFlag(HValue::kCanOverflow) &&
+      hchange->value()->CheckFlag(HValue::kUint32)) {
+    DeoptimizeIfNegative(input.W(), instr->environment());
+  }
+  __ SmiTag(output, input);
 }
 
 
@@ -5756,21 +5751,6 @@ void LCodeGen::DoTypeofIsAndBranch(LTypeofIsAndBranch* instr) {
 
 void LCodeGen::DoUint32ToDouble(LUint32ToDouble* instr) {
   __ Ucvtf(ToDoubleRegister(instr->result()), ToRegister32(instr->value()));
-}
-
-
-void LCodeGen::DoUint32ToSmi(LUint32ToSmi* instr) {
-  Register value = ToRegister(instr->value());
-  Register result = ToRegister(instr->result());
-
-  if (!instr->hydrogen()->value()->HasRange() ||
-      !instr->hydrogen()->value()->range()->IsInSmiRange() ||
-      instr->hydrogen()->value()->range()->upper() == kMaxInt) {
-    // The Range class can't express upper bounds in the (kMaxInt, kMaxUint32]
-    // interval, so we treat kMaxInt as a sentinel for this entire interval.
-    DeoptimizeIfNegative(value.W(), instr->environment());
-  }
-  __ SmiTag(result, value);
 }
 
 

@@ -1837,13 +1837,13 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
     if (to.IsTagged()) {
       HValue* val = instr->value();
       LOperand* value = UseRegister(val);
-      if (val->CheckFlag(HInstruction::kUint32)) {
+      if (!instr->CheckFlag(HValue::kCanOverflow)) {
+        return DefineAsRegister(new(zone()) LSmiTag(value));
+      } else if (val->CheckFlag(HInstruction::kUint32)) {
         LOperand* temp1 = TempRegister();
         LOperand* temp2 = FixedTemp(xmm1);
         LNumberTagU* result = new(zone()) LNumberTagU(value, temp1, temp2);
         return AssignEnvironment(AssignPointerMap(DefineSameAsFirst(result)));
-      } else if (val->HasRange() && val->range()->IsInSmiRange()) {
-        return DefineSameAsFirst(new(zone()) LSmiTag(value));
       } else {
         LNumberTagI* result = new(zone()) LNumberTagI(value);
         return AssignEnvironment(AssignPointerMap(DefineSameAsFirst(result)));
@@ -1851,20 +1851,12 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
     } else if (to.IsSmi()) {
       HValue* val = instr->value();
       LOperand* value = UseRegister(val);
-      LInstruction* result = NULL;
-      if (val->CheckFlag(HInstruction::kUint32)) {
-        result = DefineAsRegister(new(zone()) LUint32ToSmi(value));
-        if (val->HasRange() && val->range()->IsInSmiRange() &&
-            val->range()->upper() != kMaxInt) {
-          return result;
-        }
-      } else {
-        result = DefineAsRegister(new(zone()) LInteger32ToSmi(value));
-        if (val->HasRange() && val->range()->IsInSmiRange()) {
-          return result;
-        }
+      LInstruction* result = DefineAsRegister(new(zone()) LSmiTag(value));
+      if (instr->CheckFlag(HValue::kCanOverflow)) {
+        ASSERT(val->CheckFlag(HValue::kUint32));
+        result = AssignEnvironment(result);
       }
-      return AssignEnvironment(result);
+      return result;
     } else {
       if (instr->value()->CheckFlag(HInstruction::kUint32)) {
         LOperand* temp = FixedTemp(xmm1);

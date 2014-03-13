@@ -1152,13 +1152,11 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
       }
     } else if (to.IsSmi()) {
       LOperand* value = UseRegisterAtStart(instr->value());
+      LInstruction* result = DefineAsRegister(new(zone()) LSmiTag(value));
       if (instr->value()->CheckFlag(HInstruction::kUint32)) {
-        LUint32ToSmi* result = new(zone()) LUint32ToSmi(value);
-        return AssignEnvironment(DefineAsRegister(result));
-      } else {
-        // This cannot deoptimize because an A64 smi can represent any int32.
-        return DefineAsRegister(new(zone()) LInteger32ToSmi(value));
+        result = AssignEnvironment(result);
       }
+      return result;
     } else {
       ASSERT(to.IsDouble());
       if (instr->value()->CheckFlag(HInstruction::kUint32)) {

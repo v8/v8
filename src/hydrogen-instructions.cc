@@ -1674,6 +1674,16 @@ Range* HChange::InferRange(Zone* zone) {
     set_type(HType::Smi());
     ClearChangesFlag(kNewSpacePromotion);
   }
+  if (to().IsSmiOrTagged() &&
+      input_range != NULL &&
+      input_range->IsInSmiRange() &&
+      (!SmiValuesAre32Bits() ||
+       !value()->CheckFlag(HValue::kUint32) ||
+       input_range->upper() != kMaxInt)) {
+    // The Range class can't express upper bounds in the (kMaxInt, kMaxUint32]
+    // interval, so we treat kMaxInt as a sentinel for this entire interval.
+    ClearFlag(kCanOverflow);
+  }
   Range* result = (input_range != NULL)
       ? input_range->Copy(zone)
       : HValue::InferRange(zone);

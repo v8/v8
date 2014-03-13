@@ -4522,18 +4522,6 @@ void LCodeGen::DoInteger32ToDouble(LInteger32ToDouble* instr) {
 }
 
 
-void LCodeGen::DoInteger32ToSmi(LInteger32ToSmi* instr) {
-  LOperand* input = instr->value();
-  ASSERT(input->IsRegister());
-  LOperand* output = instr->result();
-  __ Integer32ToSmi(ToRegister(output), ToRegister(input));
-  if (!instr->hydrogen()->value()->HasRange() ||
-      !instr->hydrogen()->value()->range()->IsInSmiRange()) {
-    DeoptimizeIf(overflow, instr->environment());
-  }
-}
-
-
 void LCodeGen::DoUint32ToDouble(LUint32ToDouble* instr) {
   LOperand* input = instr->value();
   LOperand* output = instr->result();
@@ -4542,22 +4530,6 @@ void LCodeGen::DoUint32ToDouble(LUint32ToDouble* instr) {
   __ LoadUint32(ToDoubleRegister(output),
                 ToRegister(input),
                 ToDoubleRegister(temp));
-}
-
-
-void LCodeGen::DoUint32ToSmi(LUint32ToSmi* instr) {
-  LOperand* input = instr->value();
-  ASSERT(input->IsRegister());
-  LOperand* output = instr->result();
-  if (!instr->hydrogen()->value()->HasRange() ||
-      !instr->hydrogen()->value()->range()->IsInSmiRange() ||
-      instr->hydrogen()->value()->range()->upper() == kMaxInt) {
-    // The Range class can't express upper bounds in the (kMaxInt, kMaxUint32]
-    // interval, so we treat kMaxInt as a sentinel for this entire interval.
-    __ testl(ToRegister(input), Immediate(0x80000000));
-    DeoptimizeIf(not_zero, instr->environment());
-  }
-  __ Integer32ToSmi(ToRegister(output), ToRegister(input));
 }
 
 
@@ -4695,10 +4667,19 @@ void LCodeGen::DoDeferredNumberTagD(LNumberTagD* instr) {
 
 
 void LCodeGen::DoSmiTag(LSmiTag* instr) {
-  ASSERT(instr->value()->Equals(instr->result()));
+  HChange* hchange = instr->hydrogen();
   Register input = ToRegister(instr->value());
-  ASSERT(!instr->hydrogen_value()->CheckFlag(HValue::kCanOverflow));
-  __ Integer32ToSmi(input, input);
+  Register output = ToRegister(instr->result());
+  if (hchange->CheckFlag(HValue::kCanOverflow) &&
+      hchange->value()->CheckFlag(HValue::kUint32)) {
+    __ testl(input, Immediate(0x80000000));
+    DeoptimizeIf(not_zero, instr->environment());
+  }
+  __ Integer32ToSmi(output, input);
+  if (hchange->CheckFlag(HValue::kCanOverflow) &&
+      !hchange->value()->CheckFlag(HValue::kUint32)) {
+    DeoptimizeIf(overflow, instr->environment());
+  }
 }
 
 
