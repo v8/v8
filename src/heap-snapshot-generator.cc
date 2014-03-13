@@ -927,10 +927,68 @@ HeapEntry* V8HeapExplorer::AddEntry(Address address,
 }
 
 
+class SnapshotFiller {
+ public:
+  explicit SnapshotFiller(HeapSnapshot* snapshot, HeapEntriesMap* entries)
+      : snapshot_(snapshot),
+        names_(snapshot->profiler()->names()),
+        entries_(entries) { }
+  HeapEntry* AddEntry(HeapThing ptr, HeapEntriesAllocator* allocator) {
+    HeapEntry* entry = allocator->AllocateEntry(ptr);
+    entries_->Pair(ptr, entry->index());
+    return entry;
+  }
+  HeapEntry* FindEntry(HeapThing ptr) {
+    int index = entries_->Map(ptr);
+    return index != HeapEntry::kNoEntry ? &snapshot_->entries()[index] : NULL;
+  }
+  HeapEntry* FindOrAddEntry(HeapThing ptr, HeapEntriesAllocator* allocator) {
+    HeapEntry* entry = FindEntry(ptr);
+    return entry != NULL ? entry : AddEntry(ptr, allocator);
+  }
+  void SetIndexedReference(HeapGraphEdge::Type type,
+                           int parent,
+                           int index,
+                           HeapEntry* child_entry) {
+    HeapEntry* parent_entry = &snapshot_->entries()[parent];
+    parent_entry->SetIndexedReference(type, index, child_entry);
+  }
+  void SetIndexedAutoIndexReference(HeapGraphEdge::Type type,
+                                    int parent,
+                                    HeapEntry* child_entry) {
+    HeapEntry* parent_entry = &snapshot_->entries()[parent];
+    int index = parent_entry->children_count() + 1;
+    parent_entry->SetIndexedReference(type, index, child_entry);
+  }
+  void SetNamedReference(HeapGraphEdge::Type type,
+                         int parent,
+                         const char* reference_name,
+                         HeapEntry* child_entry) {
+    HeapEntry* parent_entry = &snapshot_->entries()[parent];
+    parent_entry->SetNamedReference(type, reference_name, child_entry);
+  }
+  void SetNamedAutoIndexReference(HeapGraphEdge::Type type,
+                                  int parent,
+                                  HeapEntry* child_entry) {
+    HeapEntry* parent_entry = &snapshot_->entries()[parent];
+    int index = parent_entry->children_count() + 1;
+    parent_entry->SetNamedReference(
+        type,
+        names_->GetName(index),
+        child_entry);
+  }
+
+ private:
+  HeapSnapshot* snapshot_;
+  StringsStorage* names_;
+  HeapEntriesMap* entries_;
+};
+
+
 class GcSubrootsEnumerator : public ObjectVisitor {
  public:
   GcSubrootsEnumerator(
-      SnapshotFillerInterface* filler, V8HeapExplorer* explorer)
+      SnapshotFiller* filler, V8HeapExplorer* explorer)
       : filler_(filler),
         explorer_(explorer),
         previous_object_count_(0),
@@ -947,14 +1005,14 @@ class GcSubrootsEnumerator : public ObjectVisitor {
     }
   }
  private:
-  SnapshotFillerInterface* filler_;
+  SnapshotFiller* filler_;
   V8HeapExplorer* explorer_;
   intptr_t previous_object_count_;
   intptr_t object_count_;
 };
 
 
-void V8HeapExplorer::AddRootEntries(SnapshotFillerInterface* filler) {
+void V8HeapExplorer::AddRootEntries(SnapshotFiller* filler) {
   filler->AddEntry(kInternalRootObject, this);
   filler->AddEntry(kGcRootsObject, this);
   GcSubrootsEnumerator enumerator(filler, this);
@@ -1764,7 +1822,7 @@ class RootsReferencesExtractor : public ObjectVisitor {
 
 
 bool V8HeapExplorer::IterateAndExtractReferences(
-    SnapshotFillerInterface* filler) {
+    SnapshotFiller* filler) {
   filler_ = filler;
 
   // Make sure builtin code objects get their builtin tags
@@ -2275,7 +2333,7 @@ List<HeapObject*>* NativeObjectsExplorer::GetListMaybeDisposeInfo(
 
 
 bool NativeObjectsExplorer::IterateAndExtractReferences(
-    SnapshotFillerInterface* filler) {
+    SnapshotFiller* filler) {
   filler_ = filler;
   FillRetainedObjects();
   FillImplicitReferences();
@@ -2400,64 +2458,6 @@ void NativeObjectsExplorer::VisitSubtreeWrapper(Object** p, uint16_t class_id) {
   if (info == NULL) return;
   GetListMaybeDisposeInfo(info)->Add(HeapObject::cast(*p));
 }
-
-
-class SnapshotFiller : public SnapshotFillerInterface {
- public:
-  explicit SnapshotFiller(HeapSnapshot* snapshot, HeapEntriesMap* entries)
-      : snapshot_(snapshot),
-        names_(snapshot->profiler()->names()),
-        entries_(entries) { }
-  HeapEntry* AddEntry(HeapThing ptr, HeapEntriesAllocator* allocator) {
-    HeapEntry* entry = allocator->AllocateEntry(ptr);
-    entries_->Pair(ptr, entry->index());
-    return entry;
-  }
-  HeapEntry* FindEntry(HeapThing ptr) {
-    int index = entries_->Map(ptr);
-    return index != HeapEntry::kNoEntry ? &snapshot_->entries()[index] : NULL;
-  }
-  HeapEntry* FindOrAddEntry(HeapThing ptr, HeapEntriesAllocator* allocator) {
-    HeapEntry* entry = FindEntry(ptr);
-    return entry != NULL ? entry : AddEntry(ptr, allocator);
-  }
-  void SetIndexedReference(HeapGraphEdge::Type type,
-                           int parent,
-                           int index,
-                           HeapEntry* child_entry) {
-    HeapEntry* parent_entry = &snapshot_->entries()[parent];
-    parent_entry->SetIndexedReference(type, index, child_entry);
-  }
-  void SetIndexedAutoIndexReference(HeapGraphEdge::Type type,
-                                    int parent,
-                                    HeapEntry* child_entry) {
-    HeapEntry* parent_entry = &snapshot_->entries()[parent];
-    int index = parent_entry->children_count() + 1;
-    parent_entry->SetIndexedReference(type, index, child_entry);
-  }
-  void SetNamedReference(HeapGraphEdge::Type type,
-                         int parent,
-                         const char* reference_name,
-                         HeapEntry* child_entry) {
-    HeapEntry* parent_entry = &snapshot_->entries()[parent];
-    parent_entry->SetNamedReference(type, reference_name, child_entry);
-  }
-  void SetNamedAutoIndexReference(HeapGraphEdge::Type type,
-                                  int parent,
-                                  HeapEntry* child_entry) {
-    HeapEntry* parent_entry = &snapshot_->entries()[parent];
-    int index = parent_entry->children_count() + 1;
-    parent_entry->SetNamedReference(
-        type,
-        names_->GetName(index),
-        child_entry);
-  }
-
- private:
-  HeapSnapshot* snapshot_;
-  StringsStorage* names_;
-  HeapEntriesMap* entries_;
-};
 
 
 HeapSnapshotGenerator::HeapSnapshotGenerator(
