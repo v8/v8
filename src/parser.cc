@@ -437,6 +437,59 @@ bool ParserTraits::IsEvalOrArguments(Handle<String> identifier) const {
 }
 
 
+bool ParserTraits::IsThisProperty(Expression* expression) {
+  ASSERT(expression != NULL);
+  Property* property = expression->AsProperty();
+  return property != NULL &&
+      property->obj()->AsVariableProxy() != NULL &&
+      property->obj()->AsVariableProxy()->is_this();
+}
+
+
+void ParserTraits::CheckAssigningFunctionLiteralToProperty(Expression* left,
+                                                           Expression* right) {
+  ASSERT(left != NULL);
+  if (left->AsProperty() != NULL &&
+      right->AsFunctionLiteral() != NULL) {
+    right->AsFunctionLiteral()->set_pretenure();
+  }
+}
+
+
+Expression* ParserTraits::ValidateAssignmentLeftHandSide(
+    Expression* expression) const {
+  ASSERT(expression != NULL);
+  if (!expression->IsValidLeftHandSide()) {
+    Handle<String> message =
+        parser_->isolate()->factory()->invalid_lhs_in_assignment_string();
+    expression = parser_->NewThrowReferenceError(message);
+  }
+  return expression;
+}
+
+
+Expression* ParserTraits::MarkExpressionAsLValue(Expression* expression) {
+  VariableProxy* proxy = expression != NULL
+      ? expression->AsVariableProxy()
+      : NULL;
+  if (proxy != NULL) proxy->MarkAsLValue();
+  return expression;
+}
+
+
+void ParserTraits::CheckStrictModeLValue(Expression* expression,
+                                         bool* ok) {
+  VariableProxy* lhs = expression != NULL
+      ? expression->AsVariableProxy()
+      : NULL;
+  if (lhs != NULL && !lhs->is_this() && IsEvalOrArguments(lhs->name())) {
+    parser_->ReportMessage("strict_eval_arguments",
+                           Vector<const char*>::empty());
+    *ok = false;
+  }
+}
+
+
 void ParserTraits::ReportMessageAt(Scanner::Location source_location,
                                    const char* message,
                                    Vector<const char*> args) {
@@ -566,11 +619,6 @@ Literal* ParserTraits::GetLiteralTheHole(
 }
 
 
-Expression* ParserTraits::ParseAssignmentExpression(bool accept_IN, bool* ok) {
-  return parser_->ParseAssignmentExpression(accept_IN, ok);
-}
-
-
 Expression* ParserTraits::ParseV8Intrinsic(bool* ok) {
   return parser_->ParseV8Intrinsic(ok);
 }
@@ -587,6 +635,16 @@ FunctionLiteral* ParserTraits::ParseFunctionLiteral(
   return parser_->ParseFunctionLiteral(name, function_name_location,
                                        name_is_strict_reserved, is_generator,
                                        function_token_position, type, ok);
+}
+
+
+Expression* ParserTraits::ParseYieldExpression(bool* ok) {
+  return parser_->ParseYieldExpression(ok);
+}
+
+
+Expression* ParserTraits::ParseConditionalExpression(bool accept_IN, bool* ok) {
+  return parser_->ParseConditionalExpression(accept_IN, ok);
 }
 
 
@@ -2877,85 +2935,6 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
 }
 
 
-// Precedence = 2
-Expression* Parser::ParseAssignmentExpression(bool accept_IN, bool* ok) {
-  // AssignmentExpression ::
-  //   ConditionalExpression
-  //   YieldExpression
-  //   LeftHandSideExpression AssignmentOperator AssignmentExpression
-
-  if (peek() == Token::YIELD && is_generator()) {
-    return ParseYieldExpression(ok);
-  }
-
-  if (fni_ != NULL) fni_->Enter();
-  Expression* expression = ParseConditionalExpression(accept_IN, CHECK_OK);
-
-  if (!Token::IsAssignmentOp(peek())) {
-    if (fni_ != NULL) fni_->Leave();
-    // Parsed conditional expression only (no assignment).
-    return expression;
-  }
-
-  // Signal a reference error if the expression is an invalid left-hand
-  // side expression.  We could report this as a syntax error here but
-  // for compatibility with JSC we choose to report the error at
-  // runtime.
-  // TODO(ES5): Should change parsing for spec conformance.
-  if (expression == NULL || !expression->IsValidLeftHandSide()) {
-    Handle<String> message =
-        isolate()->factory()->invalid_lhs_in_assignment_string();
-    expression = NewThrowReferenceError(message);
-  }
-
-  if (strict_mode() == STRICT) {
-    // Assignment to eval or arguments is disallowed in strict mode.
-    CheckStrictModeLValue(expression, CHECK_OK);
-  }
-  MarkAsLValue(expression);
-
-  Token::Value op = Next();  // Get assignment operator.
-  int pos = position();
-  Expression* right = ParseAssignmentExpression(accept_IN, CHECK_OK);
-
-  // TODO(1231235): We try to estimate the set of properties set by
-  // constructors. We define a new property whenever there is an
-  // assignment to a property of 'this'. We should probably only add
-  // properties if we haven't seen them before. Otherwise we'll
-  // probably overestimate the number of properties.
-  Property* property = expression ? expression->AsProperty() : NULL;
-  if (op == Token::ASSIGN &&
-      property != NULL &&
-      property->obj()->AsVariableProxy() != NULL &&
-      property->obj()->AsVariableProxy()->is_this()) {
-    function_state_->AddProperty();
-  }
-
-  // If we assign a function literal to a property we pretenure the
-  // literal so it can be added as a constant function property.
-  if (property != NULL && right->AsFunctionLiteral() != NULL) {
-    right->AsFunctionLiteral()->set_pretenure();
-  }
-
-  if (fni_ != NULL) {
-    // Check if the right hand side is a call to avoid inferring a
-    // name if we're dealing with "a = function(){...}();"-like
-    // expression.
-    if ((op == Token::INIT_VAR
-         || op == Token::INIT_CONST_LEGACY
-         || op == Token::ASSIGN)
-        && (right->AsCall() == NULL && right->AsCallNew() == NULL)) {
-      fni_->Infer();
-    } else {
-      fni_->RemoveLastFunction();
-    }
-    fni_->Leave();
-  }
-
-  return factory()->NewAssignment(op, expression, right, pos);
-}
-
-
 Expression* Parser::ParseYieldExpression(bool* ok) {
   // YieldExpression ::
   //   'yield' '*'? AssignmentExpression
@@ -3184,7 +3163,7 @@ Expression* Parser::ParseUnaryExpression(bool* ok) {
       // Prefix expression operand in strict mode may not be eval or arguments.
       CheckStrictModeLValue(expression, CHECK_OK);
     }
-    MarkAsLValue(expression);
+    MarkExpressionAsLValue(expression);
 
     return factory()->NewCountOperation(op,
                                         true /* prefix */,
@@ -3218,7 +3197,7 @@ Expression* Parser::ParsePostfixExpression(bool* ok) {
       // Postfix expression operand in strict mode may not be eval or arguments.
       CheckStrictModeLValue(expression, CHECK_OK);
     }
-    MarkAsLValue(expression);
+    MarkExpressionAsLValue(expression);
 
     Token::Value next = Next();
     expression =
@@ -3971,31 +3950,6 @@ Expression* Parser::ParseV8Intrinsic(bool* ok) {
 Literal* Parser::GetLiteralUndefined(int position) {
   return factory()->NewLiteral(
       isolate()->factory()->undefined_value(), position);
-}
-
-
-void Parser::MarkAsLValue(Expression* expression) {
-  VariableProxy* proxy = expression != NULL
-      ? expression->AsVariableProxy()
-      : NULL;
-
-  if (proxy != NULL) proxy->MarkAsLValue();
-}
-
-
-// Checks LHS expression for assignment and prefix/postfix increment/decrement
-// in strict mode.
-void Parser::CheckStrictModeLValue(Expression* expression,
-                                   bool* ok) {
-  ASSERT(strict_mode() == STRICT);
-  VariableProxy* lhs = expression != NULL
-      ? expression->AsVariableProxy()
-      : NULL;
-
-  if (lhs != NULL && !lhs->is_this() && IsEvalOrArguments(lhs->name())) {
-    ReportMessage("strict_eval_arguments", Vector<const char*>::empty());
-    *ok = false;
-  }
 }
 
 

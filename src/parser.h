@@ -452,6 +452,9 @@ class ParserTraits {
   // Helper functions for recursive descent.
   bool IsEvalOrArguments(Handle<String> identifier) const;
 
+  // Returns true if the expression is of type "this.foo".
+  static bool IsThisProperty(Expression* expression);
+
   static bool IsBoilerplateProperty(ObjectLiteral::Property* property) {
     return ObjectLiteral::IsBoilerplateProperty(property);
   }
@@ -460,6 +463,8 @@ class ParserTraits {
     return !string.is_null() && string->AsArrayIndex(index);
   }
 
+  // Functions for encapsulating the differences between parsing and preparsing;
+  // operations interleaved with the recursive descent.
   static void PushLiteralName(FuncNameInferrer* fni, Handle<String> id) {
     fni->PushLiteralName(id);
   }
@@ -472,6 +477,25 @@ class ParserTraits {
       value->AsFunctionLiteral()->set_pretenure();
     }
   }
+
+  // If we assign a function literal to a property we pretenure the
+  // literal so it can be added as a constant function property.
+  static void CheckAssigningFunctionLiteralToProperty(Expression* left,
+                                                      Expression* right);
+
+  // Signal a reference error if the expression is an invalid left-hand side
+  // expression. We could report this as a syntax error but for compatibility
+  // with JSC we choose to report the error at runtime.
+  Expression* ValidateAssignmentLeftHandSide(Expression* expression) const;
+
+  // Determine if the expression is a variable proxy and mark it as being used
+  // in an assignment or with a increment/decrement operator. This is currently
+  // used on for the statically checking assignments to harmony const bindings.
+  static Expression* MarkExpressionAsLValue(Expression* expression);
+
+  // Checks LHS expression for assignment and prefix/postfix increment/decrement
+  // in strict mode.
+  void CheckStrictModeLValue(Expression*expression, bool* ok);
 
   // Reporting errors.
   void ReportMessageAt(Scanner::Location source_location,
@@ -523,7 +547,6 @@ class ParserTraits {
   }
 
   // Temporary glue; these functions will move to ParserBase.
-  Expression* ParseAssignmentExpression(bool accept_IN, bool* ok);
   Expression* ParseV8Intrinsic(bool* ok);
   FunctionLiteral* ParseFunctionLiteral(
       Handle<String> name,
@@ -533,6 +556,8 @@ class ParserTraits {
       int function_token_position,
       FunctionLiteral::FunctionType type,
       bool* ok);
+  Expression* ParseYieldExpression(bool* ok);
+  Expression* ParseConditionalExpression(bool accept_IN, bool* ok);
 
  private:
   Parser* parser_;
@@ -675,7 +700,6 @@ class Parser : public ParserBase<ParserTraits> {
   // Support for hamony block scoped bindings.
   Block* ParseScopedBlock(ZoneStringList* labels, bool* ok);
 
-  Expression* ParseAssignmentExpression(bool accept_IN, bool* ok);
   Expression* ParseYieldExpression(bool* ok);
   Expression* ParseConditionalExpression(bool accept_IN, bool* ok);
   Expression* ParseBinaryExpression(int prec, bool accept_IN, bool* ok);
@@ -710,15 +734,6 @@ class Parser : public ParserBase<ParserTraits> {
 
   // Get odd-ball literals.
   Literal* GetLiteralUndefined(int position);
-
-  // Determine if the expression is a variable proxy and mark it as being used
-  // in an assignment or with a increment/decrement operator. This is currently
-  // used on for the statically checking assignments to harmony const bindings.
-  void MarkAsLValue(Expression* expression);
-
-  // Strict mode validation of LValue expressions
-  void CheckStrictModeLValue(Expression* expression,
-                             bool* ok);
 
   // For harmony block scoping mode: Check if the scope has conflicting var/let
   // declarations from different scopes. It covers for example

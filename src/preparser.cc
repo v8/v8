@@ -55,6 +55,18 @@ int isfinite(double value);
 namespace v8 {
 namespace internal {
 
+
+void PreParserTraits::CheckStrictModeLValue(PreParserExpression expression,
+                                            bool* ok) {
+  if (expression.IsIdentifier() &&
+      expression.AsIdentifier().IsEvalOrArguments()) {
+    pre_parser_->ReportMessage("strict_eval_arguments",
+                               Vector<const char*>::empty());
+    *ok = false;
+  }
+}
+
+
 void PreParserTraits::ReportMessageAt(Scanner::Location location,
                                       const char* message,
                                       Vector<const char*> args) {
@@ -111,12 +123,6 @@ PreParserExpression PreParserTraits::ExpressionFromString(
 }
 
 
-PreParserExpression PreParserTraits::ParseAssignmentExpression(bool accept_IN,
-                                                               bool* ok) {
-  return pre_parser_->ParseAssignmentExpression(accept_IN, ok);
-}
-
-
 PreParserExpression PreParserTraits::ParseV8Intrinsic(bool* ok) {
   return pre_parser_->ParseV8Intrinsic(ok);
 }
@@ -133,6 +139,17 @@ PreParserExpression PreParserTraits::ParseFunctionLiteral(
   return pre_parser_->ParseFunctionLiteral(
       name, function_name_location, name_is_strict_reserved, is_generator,
       function_token_position, type, ok);
+}
+
+
+PreParserExpression PreParserTraits::ParseYieldExpression(bool* ok) {
+  return pre_parser_->ParseYieldExpression(ok);
+}
+
+
+PreParserExpression PreParserTraits::ParseConditionalExpression(bool accept_IN,
+                                                                bool* ok) {
+  return pre_parser_->ParseConditionalExpression(accept_IN, ok);
 }
 
 
@@ -827,47 +844,6 @@ PreParser::Statement PreParser::ParseDebuggerStatement(bool* ok) {
 #undef DUMMY
 
 
-// Precedence = 2
-PreParser::Expression PreParser::ParseAssignmentExpression(bool accept_IN,
-                                                           bool* ok) {
-  // AssignmentExpression ::
-  //   ConditionalExpression
-  //   YieldExpression
-  //   LeftHandSideExpression AssignmentOperator AssignmentExpression
-
-  if (function_state_->is_generator() && peek() == Token::YIELD) {
-    return ParseYieldExpression(ok);
-  }
-
-  Scanner::Location before = scanner()->peek_location();
-  Expression expression = ParseConditionalExpression(accept_IN, CHECK_OK);
-
-  if (!Token::IsAssignmentOp(peek())) {
-    // Parsed conditional expression only (no assignment).
-    return expression;
-  }
-
-  if (strict_mode() == STRICT &&
-      expression.IsIdentifier() &&
-      expression.AsIdentifier().IsEvalOrArguments()) {
-    Scanner::Location after = scanner()->location();
-    PreParserTraits::ReportMessageAt(before.beg_pos, after.end_pos,
-                                     "strict_eval_arguments", NULL);
-    *ok = false;
-    return Expression::Default();
-  }
-
-  Token::Value op = Next();  // Get assignment operator.
-  ParseAssignmentExpression(accept_IN, CHECK_OK);
-
-  if ((op == Token::ASSIGN) && expression.IsThisProperty()) {
-    function_state_->AddProperty();
-  }
-
-  return Expression::Default();
-}
-
-
 // Precedence = 3
 PreParser::Expression PreParser::ParseYieldExpression(bool* ok) {
   // YieldExpression ::
@@ -939,15 +915,9 @@ PreParser::Expression PreParser::ParseUnaryExpression(bool* ok) {
     return Expression::Default();
   } else if (Token::IsCountOp(op)) {
     op = Next();
-    Scanner::Location before = scanner()->peek_location();
     Expression expression = ParseUnaryExpression(CHECK_OK);
-    if (strict_mode() == STRICT &&
-        expression.IsIdentifier() &&
-        expression.AsIdentifier().IsEvalOrArguments()) {
-      Scanner::Location after = scanner()->location();
-      PreParserTraits::ReportMessageAt(before.beg_pos, after.end_pos,
-                                       "strict_eval_arguments", NULL);
-      *ok = false;
+    if (strict_mode() == STRICT) {
+      CheckStrictModeLValue(expression, CHECK_OK);
     }
     return Expression::Default();
   } else {
@@ -960,18 +930,11 @@ PreParser::Expression PreParser::ParsePostfixExpression(bool* ok) {
   // PostfixExpression ::
   //   LeftHandSideExpression ('++' | '--')?
 
-  Scanner::Location before = scanner()->peek_location();
   Expression expression = ParseLeftHandSideExpression(CHECK_OK);
   if (!scanner()->HasAnyLineTerminatorBeforeNext() &&
       Token::IsCountOp(peek())) {
-    if (strict_mode() == STRICT &&
-        expression.IsIdentifier() &&
-        expression.AsIdentifier().IsEvalOrArguments()) {
-      Scanner::Location after = scanner()->location();
-      PreParserTraits::ReportMessageAt(before.beg_pos, after.end_pos,
-                                       "strict_eval_arguments", NULL);
-      *ok = false;
-      return Expression::Default();
+    if (strict_mode() == STRICT) {
+      CheckStrictModeLValue(expression, CHECK_OK);
     }
     Next();
     return Expression::Default();
