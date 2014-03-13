@@ -4085,7 +4085,6 @@ MaybeObject* Heap::CreateCode(const CodeDesc& desc,
   code->set_is_crankshafted(crankshafted);
   code->set_deoptimization_data(empty_fixed_array(), SKIP_WRITE_BARRIER);
   code->set_raw_type_feedback_info(undefined_value());
-  code->set_next_code_link(undefined_value());
   code->set_handler_table(empty_fixed_array(), SKIP_WRITE_BARRIER);
   code->set_gc_metadata(Smi::FromInt(0));
   code->set_ic_age(global_ic_age_);

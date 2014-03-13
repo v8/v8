@@ -1893,8 +1893,6 @@ class HeapObject: public Object {
   inline void IteratePointers(ObjectVisitor* v, int start, int end);
   // as above, for the single element at "offset"
   inline void IteratePointer(ObjectVisitor* v, int offset);
-  // as above, for the next code link of a code object.
-  inline void IterateNextCodeLink(ObjectVisitor* v, int offset);
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(HeapObject);
@@ -5231,6 +5229,7 @@ class Code: public HeapObject {
   // the kind of the code object.
   //   FUNCTION           => type feedback information.
   //   STUB               => various things, e.g. a SMI
+  //   OPTIMIZED_FUNCTION => the next_code_link for optimized code list.
   DECL_ACCESSORS(raw_type_feedback_info, Object)
   inline Object* type_feedback_info();
   inline void set_type_feedback_info(
@@ -5558,8 +5557,8 @@ class Code: public HeapObject {
       kHandlerTableOffset + kPointerSize;
   static const int kTypeFeedbackInfoOffset =
       kDeoptimizationDataOffset + kPointerSize;
-  static const int kNextCodeLinkOffset = kTypeFeedbackInfoOffset + kPointerSize;
-  static const int kGCMetadataOffset = kNextCodeLinkOffset + kPointerSize;
+  static const int kNextCodeLinkOffset = kTypeFeedbackInfoOffset;  // Shared.
+  static const int kGCMetadataOffset = kTypeFeedbackInfoOffset + kPointerSize;
   static const int kICAgeOffset =
       kGCMetadataOffset + kPointerSize;
   static const int kFlagsOffset = kICAgeOffset + kIntSize;
@@ -10703,9 +10702,6 @@ class ObjectVisitor BASE_EMBEDDED {
 
   // Handy shorthand for visiting a single pointer.
   virtual void VisitPointer(Object** p) { VisitPointers(p, p + 1); }
-
-  // Visit weak next_code_link in Code object.
-  virtual void VisitNextCodeLink(Object** p) { VisitPointers(p, p + 1); }
 
   // To allow lazy clearing of inline caches the visitor has
   // a rich interface for iterating over Code objects..
