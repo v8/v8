@@ -1232,9 +1232,10 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
 
 void PreParser::ParseLazyFunctionLiteralBody(bool* ok) {
   int body_start = position();
-  log_->PauseRecording();
+  bool is_logging = log_->ShouldLogSymbols();
+  if (is_logging) log_->PauseRecording();
   ParseSourceElements(Token::RBRACE, ok);
-  log_->ResumeRecording();
+  if (is_logging) log_->ResumeRecording();
   if (!*ok) return;
 
   // Position right after terminal '}'.
@@ -1266,7 +1267,9 @@ PreParser::Expression PreParser::ParseV8Intrinsic(bool* ok) {
 
 
 void PreParser::LogSymbol() {
-  scanner()->LogSymbol(log_, position());
+  if (log_->ShouldLogSymbols()) {
+    scanner()->LogSymbol(log_, position());
+  }
 }
 
 
