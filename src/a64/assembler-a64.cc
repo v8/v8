@@ -1419,16 +1419,24 @@ void Assembler::ldrsw(const Register& rt, const MemOperand& src) {
 
 void Assembler::ldr(const Register& rt, uint64_t imm) {
   // TODO(all): Constant pool may be garbage collected. Hence we cannot store
-  // TODO(all): arbitrary values in them. Manually move it for now.
-  // TODO(all): Fix MacroAssembler::Fmov when this is implemented.
+  // arbitrary values in them. Manually move it for now. Fix
+  // MacroAssembler::Fmov when this is implemented.
   UNIMPLEMENTED();
 }
 
 
 void Assembler::ldr(const FPRegister& ft, double imm) {
   // TODO(all): Constant pool may be garbage collected. Hence we cannot store
-  // TODO(all): arbitrary values in them. Manually move it for now.
-  // TODO(all): Fix MacroAssembler::Fmov when this is implemented.
+  // arbitrary values in them. Manually move it for now. Fix
+  // MacroAssembler::Fmov when this is implemented.
+  UNIMPLEMENTED();
+}
+
+
+void Assembler::ldr(const FPRegister& ft, float imm) {
+  // TODO(all): Constant pool may be garbage collected. Hence we cannot store
+  // arbitrary values in them. Manually move it for now. Fix
+  // MacroAssembler::Fmov when this is implemented.
   UNIMPLEMENTED();
 }
 
@@ -1483,16 +1491,16 @@ void Assembler::isb() {
 
 
 void Assembler::fmov(FPRegister fd, double imm) {
-  if (fd.Is64Bits() && IsImmFP64(imm)) {
-    Emit(FMOV_d_imm | Rd(fd) | ImmFP64(imm));
-  } else if (fd.Is32Bits() && IsImmFP32(imm)) {
-    Emit(FMOV_s_imm | Rd(fd) | ImmFP32(static_cast<float>(imm)));
-  } else if ((imm == 0.0) && (copysign(1.0, imm) == 1.0)) {
-    Register zr = AppropriateZeroRegFor(fd);
-    fmov(fd, zr);
-  } else {
-    ldr(fd, imm);
-  }
+  ASSERT(fd.Is64Bits());
+  ASSERT(IsImmFP64(imm));
+  Emit(FMOV_d_imm | Rd(fd) | ImmFP64(imm));
+}
+
+
+void Assembler::fmov(FPRegister fd, float imm) {
+  ASSERT(fd.Is32Bits());
+  ASSERT(IsImmFP32(imm));
+  Emit(FMOV_s_imm | Rd(fd) | ImmFP32(imm));
 }
 
 

@@ -5473,14 +5473,8 @@ static void FminFmaxFloatHelper(float n, float m, float min, float max,
   SETUP();
 
   START();
-  // TODO(all): Signalling NaNs are sometimes converted by the C compiler to
-  // quiet NaNs on implicit casts from float to double. Here, we move the raw
-  // bits into a W register first, so we get the correct value. Fix Fmov so this
-  // additional step is no longer needed.
-  __ Mov(w0, float_to_rawbits(n));
-  __ Fmov(s0, w0);
-  __ Mov(w0, float_to_rawbits(m));
-  __ Fmov(s1, w0);
+  __ Fmov(s0, n);
+  __ Fmov(s1, m);
   __ Fmin(s28, s0, s1);
   __ Fmax(s29, s0, s1);
   __ Fminnm(s30, s0, s1);
