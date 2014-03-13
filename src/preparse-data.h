@@ -52,8 +52,8 @@ class ParserRecorder {
                            StrictMode strict_mode) = 0;
 
   // Logs a symbol creation of a literal or identifier.
-  virtual void LogAsciiSymbol(int start, Vector<const char> literal) { }
-  virtual void LogUtf16Symbol(int start, Vector<const uc16> literal) { }
+  virtual void LogOneByteSymbol(int start, Vector<const uint8_t> literal) = 0;
+  virtual void LogTwoByteSymbol(int start, Vector<const uint16_t> literal) = 0;
 
   // Logs an error message and marks the log as containing an error.
   // Further logging will be ignored, and ExtractData will return a vector
@@ -148,8 +148,8 @@ class FunctionLoggingParserRecorder : public ParserRecorder {
 class PartialParserRecorder : public FunctionLoggingParserRecorder {
  public:
   PartialParserRecorder() : FunctionLoggingParserRecorder() { }
-  virtual void LogAsciiSymbol(int start, Vector<const char> literal) { }
-  virtual void LogUtf16Symbol(int start, Vector<const uc16> literal) { }
+  virtual void LogOneByteSymbol(int start, Vector<const uint8_t> literal) { }
+  virtual void LogTwoByteSymbol(int start, Vector<const uint16_t> literal) { }
   virtual ~PartialParserRecorder() { }
   virtual Vector<unsigned> ExtractData();
   virtual int symbol_position() { return 0; }
@@ -165,13 +165,13 @@ class CompleteParserRecorder: public FunctionLoggingParserRecorder {
   CompleteParserRecorder();
   virtual ~CompleteParserRecorder() { }
 
-  virtual void LogAsciiSymbol(int start, Vector<const char> literal) {
+  virtual void LogOneByteSymbol(int start, Vector<const uint8_t> literal) {
     if (!is_recording_) return;
     int hash = vector_hash(literal);
-    LogSymbol(start, hash, true, Vector<const byte>::cast(literal));
+    LogSymbol(start, hash, true, literal);
   }
 
-  virtual void LogUtf16Symbol(int start, Vector<const uc16> literal) {
+  virtual void LogTwoByteSymbol(int start, Vector<const uint16_t> literal) {
     if (!is_recording_) return;
     int hash = vector_hash(literal);
     LogSymbol(start, hash, false, Vector<const byte>::cast(literal));

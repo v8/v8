@@ -3512,8 +3512,8 @@ class SingletonLogger : public ParserRecorder {
   };
 
   // Logs a symbol creation of a literal or identifier.
-  virtual void LogAsciiSymbol(int start, Vector<const char> literal) { }
-  virtual void LogUtf16Symbol(int start, Vector<const uc16> literal) { }
+  virtual void LogOneByteSymbol(int start, Vector<const uint8_t> literal) { }
+  virtual void LogTwoByteSymbol(int start, Vector<const uint16_t> literal) { }
 
   // Logs an error message and marks the log as containing an error.
   // Further logging will be ignored, and ExtractData will return a vector
