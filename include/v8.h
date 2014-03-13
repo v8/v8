@@ -108,6 +108,7 @@ class ObjectTemplate;
 class Platform;
 class Primitive;
 class RawOperationDescriptor;
+class Script;
 class Signature;
 class StackFrame;
 class StackTrace;
@@ -1146,86 +1147,16 @@ class ScriptOrigin {
 
 
 /**
- * A compiled JavaScript script.
+ * A compiled JavaScript script, not yet tied to a Context.
  */
-class V8_EXPORT Script {
+class V8_EXPORT UnboundScript {
  public:
   /**
-   * Compiles the specified script (context-independent).
-   *
-   * \param source Script source code.
-   * \param origin Script origin, owned by caller, no references are kept
-   *   when New() returns
-   * \param pre_data Pre-parsing data, as obtained by ScriptData::PreCompile()
-   *   using pre_data speeds compilation if it's done multiple times.
-   *   Owned by caller, no references are kept when New() returns.
-   * \return Compiled script object (context independent; when run it
-   *   will use the currently entered context).
+   * Binds the script to the currently entered context.
    */
-  static Local<Script> New(Handle<String> source,
-                           ScriptOrigin* origin = NULL,
-                           ScriptData* pre_data = NULL);
+  Local<Script> BindToCurrentContext();
 
-  /**
-   * Compiles the specified script using the specified file name
-   * object (typically a string) as the script's origin.
-   *
-   * \param source Script source code.
-   * \param file_name file name object (typically a string) to be used
-   *   as the script's origin.
-   * \return Compiled script object (context independent; when run it
-   *   will use the currently entered context).
-   */
-  static Local<Script> New(Handle<String> source,
-                           Handle<Value> file_name);
-
-  /**
-   * Compiles the specified script (bound to current context).
-   *
-   * \param source Script source code.
-   * \param origin Script origin, owned by caller, no references are kept
-   *   when Compile() returns
-   * \param pre_data Pre-parsing data, as obtained by ScriptData::PreCompile()
-   *   using pre_data speeds compilation if it's done multiple times.
-   *   Owned by caller, no references are kept when Compile() returns.
-   * \return Compiled script object, bound to the context that was active
-   *   when this function was called.  When run it will always use this
-   *   context.
-   */
-  static Local<Script> Compile(Handle<String> source,
-                               ScriptOrigin* origin = NULL,
-                               ScriptData* pre_data = NULL);
-
-  /**
-   * Compiles the specified script using the specified file name
-   * object (typically a string) as the script's origin.
-   *
-   * \param source Script source code.
-   * \param file_name File name to use as script's origin
-   * \return Compiled script object, bound to the context that was active
-   *   when this function was called.  When run it will always use this
-   *   context.
-   */
-  static Local<Script> Compile(Handle<String> source,
-                               Handle<Value> file_name);
-
-  /**
-   * Runs the script returning the resulting value.  If the script is
-   * context independent (created using ::New) it will be run in the
-   * currently entered context.  If it is context specific (created
-   * using ::Compile) it will be run in the context in which it was
-   * compiled.
-   */
-  Local<Value> Run();
-
-  /**
-   * Returns the script id.
-   */
   int GetId();
-
-  /**
-   * Returns the name value of one Script.
-   */
   Handle<Value> GetScriptName();
 
   /**
@@ -1235,6 +1166,134 @@ class V8_EXPORT Script {
   int GetLineNumber(int code_pos);
 
   static const int kNoScriptId = 0;
+};
+
+
+/**
+ * A compiled JavaScript script, tied to a Context which was active when the
+ * script was compiled.
+ */
+class V8_EXPORT Script {
+ public:
+  /**
+   * A shorthand for ScriptCompiler::CompileBound().
+   */
+  static Local<Script> Compile(Handle<String> source,
+                               ScriptOrigin* origin = NULL);
+
+  // To be decprecated, use the Compile above.
+  static Local<Script> Compile(Handle<String> source,
+                               Handle<String> file_name);
+
+  /**
+   * Runs the script returning the resulting value. It will be run in the
+   * context in which it was created (ScriptCompiler::CompileBound or
+   * UnboundScript::BindToGlobalContext()).
+   */
+  Local<Value> Run();
+
+  /**
+   * Returns the corresponding context-unbound script.
+   */
+  Local<UnboundScript> GetUnboundScript();
+
+  // To be deprecated; use GetUnboundScript()->GetId();
+  int GetId() {
+    return GetUnboundScript()->GetId();
+  }
+
+  // Use GetUnboundScript()->GetId();
+  V8_DEPRECATED("Use GetUnboundScript()->GetId()",
+                Handle<Value> GetScriptName()) {
+    return GetUnboundScript()->GetScriptName();
+  }
+
+  /**
+   * Returns zero based line number of the code_pos location in the script.
+   * -1 will be returned if no information available.
+   */
+  V8_DEPRECATED("Use GetUnboundScript()->GetLineNumber()",
+                int GetLineNumber(int code_pos)) {
+    return GetUnboundScript()->GetLineNumber(code_pos);
+  }
+};
+
+
+/**
+ * For compiling scripts.
+ */
+class V8_EXPORT ScriptCompiler {
+ public:
+  /**
+   * Compilation data that the embedder can cache and pass back to speed up
+   * future compilations. The data is produced if the CompilerOptions passed to
+   * the compilation functions in ScriptCompiler contains produce_data_to_cache
+   * = true. The data to cache can then can be retrieved from
+   * UnboundScript.
+   */
+  struct V8_EXPORT CachedData {
+    CachedData() : data(NULL), length(0) {}
+    // Caller keeps the ownership of data and guarantees that the data stays
+    // alive long enough.
+    CachedData(const uint8_t* data, int length) : data(data), length(length) {}
+    // TODO(marja): Async compilation; add constructors which take a callback
+    // which will be called when V8 no longer needs the data.
+    const uint8_t* data;
+    int length;
+  };
+
+  /**
+   * Source code which can be then compiled to a UnboundScript or
+   * BoundScript.
+   */
+  struct V8_EXPORT Source {
+    Source(Local<String> source_string, const ScriptOrigin& origin,
+           const CachedData& cached_data = CachedData());
+    Source(Local<String> source_string,
+           const CachedData& cached_data = CachedData());
+
+    Local<String> source_string;
+
+    // Origin information
+    Handle<Value> resource_name;
+    Handle<Integer> resource_line_offset;
+    Handle<Integer> resource_column_offset;
+    Handle<Boolean> resource_is_shared_cross_origin;
+
+    // Cached data from previous compilation (if any).
+    CachedData cached_data;
+  };
+
+  enum CompileOptions {
+    kNoCompileOptions,
+    kProduceDataToCache = 1 << 0
+  };
+
+  /**
+   * Compiles the specified script (context-independent).
+   *
+   * \param source Script source code.
+   * \return Compiled script object (context independent; for running it must be
+   *   bound to a context).
+   */
+  static Local<UnboundScript> CompileUnbound(
+      Isolate* isolate, const Source& source,
+      CompileOptions options = kNoCompileOptions);
+
+  /**
+   * Compiles the specified script (bound to current context).
+   *
+   * \param source Script source code.
+   * \param pre_data Pre-parsing data, as obtained by ScriptData::PreCompile()
+   *   using pre_data speeds compilation if it's done multiple times.
+   *   Owned by caller, no references are kept when this function returns.
+   * \return Compiled script object, bound to the context that was active
+   *   when this function was called. When run it will always use this
+   *   context.
+   */
+  static Local<Script> Compile(
+      Isolate* isolate, const Source& source,
+      CompileOptions options = kNoCompileOptions);
 };
 
 
