@@ -612,22 +612,25 @@ class LAddS V8_FINAL : public LTemplateInstruction<1, 2, 0> {
 };
 
 
-class LAllocate V8_FINAL : public LTemplateInstruction<1, 2, 2> {
+class LAllocate V8_FINAL : public LTemplateInstruction<1, 2, 3> {
  public:
   LAllocate(LOperand* context,
             LOperand* size,
             LOperand* temp1,
-            LOperand* temp2) {
+            LOperand* temp2,
+            LOperand* temp3) {
     inputs_[0] = context;
     inputs_[1] = size;
     temps_[0] = temp1;
     temps_[1] = temp2;
+    temps_[2] = temp3;
   }
 
   LOperand* context() { return inputs_[0]; }
   LOperand* size() { return inputs_[1]; }
   LOperand* temp1() { return temps_[0]; }
   LOperand* temp2() { return temps_[1]; }
+  LOperand* temp3() { return temps_[2]; }
 
   DECLARE_CONCRETE_INSTRUCTION(Allocate, "allocate")
   DECLARE_HYDROGEN_ACCESSOR(Allocate)

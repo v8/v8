@@ -878,7 +878,8 @@ LInstruction* LChunkBuilder::DoAllocate(HAllocate* instr) {
   LOperand* size = UseRegisterOrConstant(instr->size());
   LOperand* temp1 = TempRegister();
   LOperand* temp2 = TempRegister();
-  LAllocate* result = new(zone()) LAllocate(context, size, temp1, temp2);
+  LOperand* temp3 = instr->MustPrefillWithFiller() ? TempRegister() : NULL;
+  LAllocate* result = new(zone()) LAllocate(context, size, temp1, temp2, temp3);
   return AssignPointerMap(DefineAsRegister(result));
 }
 

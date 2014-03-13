@@ -1517,23 +1517,22 @@ void LCodeGen::DoAllocate(LAllocate* instr) {
   __ Bind(deferred->exit());
 
   if (instr->hydrogen()->MustPrefillWithFiller()) {
+    Register filler_count = temp1;
+    Register filler = temp2;
+    Register untagged_result = ToRegister(instr->temp3());
+
     if (instr->size()->IsConstantOperand()) {
       int32_t size = ToInteger32(LConstantOperand::cast(instr->size()));
-      __ Mov(temp1, size - kPointerSize);
+      __ Mov(filler_count, size / kPointerSize);
     } else {
-      __ Sub(temp1.W(), ToRegister32(instr->size()), kPointerSize);
+      __ Lsr(filler_count.W(), ToRegister32(instr->size()), kPointerSizeLog2);
     }
-    __ Sub(result, result, kHeapObjectTag);
 
-    // TODO(jbramley): Optimize this loop using stp.
-    Label loop;
-    __ Bind(&loop);
-    __ Mov(temp2, Operand(isolate()->factory()->one_pointer_filler_map()));
-    __ Str(temp2, MemOperand(result, temp1));
-    __ Subs(temp1, temp1, kPointerSize);
-    __ B(ge, &loop);
-
-    __ Add(result, result, kHeapObjectTag);
+    __ Sub(untagged_result, result, kHeapObjectTag);
+    __ Mov(filler, Operand(isolate()->factory()->one_pointer_filler_map()));
+    __ FillFields(untagged_result, filler_count, filler);
+  } else {
+    ASSERT(instr->temp3() == NULL);
   }
 }
 

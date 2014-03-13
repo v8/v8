@@ -964,6 +964,12 @@ class MacroAssembler : public Assembler {
   // MacroAssembler::TmpList().
   void CopyFields(Register dst, Register src, CPURegList temps, unsigned count);
 
+  // Starting at address in dst, initialize field_count 64-bit fields with
+  // 64-bit value in register filler. Register dst is corrupted.
+  void FillFields(Register dst,
+                  Register field_count,
+                  Register filler);
+
   // Copies a number of bytes from src to dst. All passed registers are
   // clobbered. On exit src and dst will point to the place just after where the
   // last byte was read or written and length will be zero. Hint may be used to
@@ -973,13 +979,6 @@ class MacroAssembler : public Assembler {
                  Register length,
                  Register scratch,
                  CopyHint hint = kCopyUnknown);
-
-  // Initialize fields with filler values. Fields starting at start_offset not
-  // including end_offset are overwritten with the value in filler. At the end
-  // of the loop, start_offset takes the value of end_offset.
-  void InitializeFieldsWithFiller(Register start_offset,
-                                  Register end_offset,
-                                  Register filler);
 
   // ---- String Utilities ----
 

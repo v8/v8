@@ -2452,17 +2452,40 @@ void MacroAssembler::CopyBytes(Register dst,
 }
 
 
-void MacroAssembler::InitializeFieldsWithFiller(Register start_offset,
-                                                Register end_offset,
-                                                Register filler) {
-  Label loop, entry;
+void MacroAssembler::FillFields(Register dst,
+                                Register field_count,
+                                Register filler) {
+  ASSERT(!dst.Is(csp));
+  UseScratchRegisterScope temps(this);
+  Register field_ptr = temps.AcquireX();
+  Register counter = temps.AcquireX();
+  Label done;
+
+  // Decrement count. If the result < zero, count was zero, and there's nothing
+  // to do. If count was one, flags are set to fail the gt condition at the end
+  // of the pairs loop.
+  Subs(counter, field_count, 1);
+  B(lt, &done);
+
+  // There's at least one field to fill, so do this unconditionally.
+  Str(filler, MemOperand(dst, kPointerSize, PostIndex));
+
+  // If the bottom bit of counter is set, there are an even number of fields to
+  // fill, so pull the start pointer back by one field, allowing the pairs loop
+  // to overwrite the field that was stored above.
+  And(field_ptr, counter, 1);
+  Sub(field_ptr, dst, Operand(field_ptr, LSL, kPointerSizeLog2));
+
+  // Store filler to memory in pairs.
+  Label entry, loop;
   B(&entry);
   Bind(&loop);
-  // TODO(all): consider using stp here.
-  Str(filler, MemOperand(start_offset, kPointerSize, PostIndex));
+  Stp(filler, filler, MemOperand(field_ptr, 2 * kPointerSize, PostIndex));
+  Subs(counter, counter, 2);
   Bind(&entry);
-  Cmp(start_offset, end_offset);
-  B(lt, &loop);
+  B(gt, &loop);
+
+  Bind(&done);
 }
 
 
