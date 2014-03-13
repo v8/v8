@@ -8932,13 +8932,7 @@ static bool ShiftAmountsAllowReplaceByRotate(HValue* sa,
   }
   if (!const32_minus_sa->IsSub()) return false;
   HSub* sub = HSub::cast(const32_minus_sa);
-  if (sa != sub->right()) return false;
-  HValue* const32 = sub->left();
-  if (!const32->IsConstant() ||
-      HConstant::cast(const32)->Integer32Value() != 32) {
-    return false;
-  }
-  return (sub->right() == sa);
+  return sub->left()->EqualsInteger32Constant(32) && sub->right() == sa;
 }
 
 
