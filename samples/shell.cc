@@ -304,8 +304,7 @@ bool ExecuteString(v8::Isolate* isolate,
                    bool report_exceptions) {
   v8::HandleScope handle_scope(isolate);
   v8::TryCatch try_catch;
-  v8::ScriptOrigin origin(name);
-  v8::Handle<v8::Script> script = v8::Script::Compile(source, &origin);
+  v8::Handle<v8::Script> script = v8::Script::Compile(source, name);
   if (script.IsEmpty()) {
     // Print errors that happened during compilation.
     if (report_exceptions)

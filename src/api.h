@@ -183,8 +183,7 @@ class RegisteredExtension {
   V(DataView, JSDataView)                      \
   V(String, String)                            \
   V(Symbol, Symbol)                            \
-  V(Script, JSFunction)                        \
-  V(UnboundScript, SharedFunctionInfo)         \
+  V(Script, Object)                            \
   V(Function, JSFunction)                      \
   V(Message, JSObject)                         \
   V(Context, Context)                          \

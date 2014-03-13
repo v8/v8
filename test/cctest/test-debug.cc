@@ -2218,7 +2218,8 @@ TEST(ScriptBreakPointLineTopLevel) {
   v8::Local<v8::Function> f;
   {
     v8::HandleScope scope(env->GetIsolate());
-    CompileRunWithOrigin(script, "test.html");
+    v8::Script::Compile(
+        script, v8::String::NewFromUtf8(env->GetIsolate(), "test.html"))->Run();
   }
   f = v8::Local<v8::Function>::Cast(
       env->Global()->Get(v8::String::NewFromUtf8(env->GetIsolate(), "f")));
@@ -2234,7 +2235,8 @@ TEST(ScriptBreakPointLineTopLevel) {
 
   // Recompile and run script and check that break point was hit.
   break_point_hit_count = 0;
-  CompileRunWithOrigin(script, "test.html");
+  v8::Script::Compile(
+      script, v8::String::NewFromUtf8(env->GetIsolate(), "test.html"))->Run();
   CHECK_EQ(1, break_point_hit_count);
 
   // Call f and check that there are still no break points.
@@ -2269,7 +2271,9 @@ TEST(ScriptBreakPointTopLevelCrash) {
   {
     v8::HandleScope scope(env->GetIsolate());
     break_point_hit_count = 0;
-    CompileRunWithOrigin(script_source, "test.html");
+    v8::Script::Compile(script_source,
+                        v8::String::NewFromUtf8(env->GetIsolate(), "test.html"))
+        ->Run();
     CHECK_EQ(1, break_point_hit_count);
   }
 
@@ -6242,7 +6246,8 @@ TEST(ScriptNameAndData) {
   CHECK_EQ(3, break_point_hit_count);
   CHECK_EQ("new name", last_script_name_hit);
 
-  v8::Handle<v8::Script> script3 = v8::Script::Compile(script, &origin2);
+  v8::Handle<v8::Script> script3 = v8::Script::Compile(
+      script, &origin2, NULL);
   script3->Run();
   f = v8::Local<v8::Function>::Cast(
       env->Global()->Get(v8::String::NewFromUtf8(env->GetIsolate(), "f")));
@@ -6983,7 +6988,7 @@ TEST(Backtrace) {
 
   v8::Handle<v8::String> void0 =
       v8::String::NewFromUtf8(env->GetIsolate(), "void(0)");
-  v8::Handle<v8::Script> script = CompileWithOrigin(void0, void0);
+  v8::Handle<v8::Script> script = v8::Script::Compile(void0, void0);
 
   // Check backtrace from "void(0)" script.
   BacktraceData::frame_counter = -10;
@@ -7003,20 +7008,18 @@ TEST(Backtrace) {
 
 TEST(GetMirror) {
   DebugLocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
-  v8::HandleScope scope(isolate);
+  v8::HandleScope scope(env->GetIsolate());
   v8::Handle<v8::Value> obj =
-      v8::Debug::GetMirror(v8::String::NewFromUtf8(isolate, "hodja"));
+      v8::Debug::GetMirror(v8::String::NewFromUtf8(env->GetIsolate(), "hodja"));
   v8::Handle<v8::Function> run_test =
-      v8::Handle<v8::Function>::Cast(
-          v8::ScriptCompiler::CompileUnbound(
-              isolate,
-              v8::ScriptCompiler::Source(v8_str(
-                  "function runTest(mirror) {"
-                  "  return mirror.isString() && (mirror.length() == 5);"
-                  "}"
-                  ""
-                  "runTest;")))->BindToCurrentContext()->Run());
+      v8::Handle<v8::Function>::Cast(v8::Script::New(
+          v8::String::NewFromUtf8(
+              env->GetIsolate(),
+              "function runTest(mirror) {"
+              "  return mirror.isString() && (mirror.length() == 5);"
+              "}"
+              ""
+              "runTest;"))->Run());
   v8::Handle<v8::Value> result = run_test->Call(env->Global(), 1, &obj);
   CHECK(result->IsTrue());
 }

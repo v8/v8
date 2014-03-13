@@ -213,25 +213,18 @@ TEST(Preparsing) {
   {
     i::FLAG_lazy = true;
     ScriptResource* resource = new ScriptResource(source, source_length);
-    v8::ScriptCompiler::Source script_source(
-        v8::String::NewExternal(isolate, resource),
-        v8::ScriptCompiler::CachedData(
-            reinterpret_cast<const uint8_t*>(preparse->Data()),
-            preparse->Length()));
-    v8::ScriptCompiler::Compile(isolate,
-                                v8::ScriptCompiler::Source(script_source));
+    v8::Local<v8::String> script_source =
+        v8::String::NewExternal(isolate, resource);
+    v8::Script::Compile(script_source, NULL, preparse);
   }
 
   {
     i::FLAG_lazy = false;
 
     ScriptResource* resource = new ScriptResource(source, source_length);
-    v8::ScriptCompiler::Source script_source(
-        v8::String::NewExternal(isolate, resource),
-        v8::ScriptCompiler::CachedData(
-            reinterpret_cast<const uint8_t*>(preparse->Data()),
-            preparse->Length()));
-    v8::ScriptCompiler::CompileUnbound(isolate, script_source);
+    v8::Local<v8::String> script_source =
+        v8::String::NewExternal(isolate, resource);
+    v8::Script::New(script_source, NULL, preparse);
   }
   delete preparse;
   i::FLAG_lazy = lazy_flag;

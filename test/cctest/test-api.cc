@@ -14952,13 +14952,8 @@ TEST(PreCompileInvalidPreparseDataError) {
   sd_data[kHeaderSize + 1 * kFunctionEntrySize + kFunctionEntryEndOffset] = 0;
   v8::TryCatch try_catch;
 
-  v8::ScriptCompiler::Source script_source(
-      String::NewFromUtf8(isolate, script),
-      v8::ScriptCompiler::CachedData(
-          reinterpret_cast<const uint8_t*>(sd->Data()), sd->Length()));
-  Local<v8::UnboundScript> compiled_script =
-      v8::ScriptCompiler::CompileUnbound(isolate, script_source);
-
+  Local<String> source = String::NewFromUtf8(isolate, script);
+  Local<Script> compiled_script = Script::New(source, NULL, sd);
   CHECK(try_catch.HasCaught());
   String::Utf8Value exception_value(try_catch.Message()->Get());
   CHECK_EQ("Uncaught SyntaxError: Invalid preparser data for function bar",
@@ -14975,12 +14970,7 @@ TEST(PreCompileInvalidPreparseDataError) {
   sd_data = reinterpret_cast<unsigned*>(const_cast<char*>(sd->Data()));
   sd_data[kHeaderSize + 1 * kFunctionEntrySize + kFunctionEntryStartOffset] =
       200;
-  v8::ScriptCompiler::Source script_source2(
-      String::NewFromUtf8(isolate, script),
-      v8::ScriptCompiler::CachedData(
-          reinterpret_cast<const uint8_t*>(sd->Data()), sd->Length()));
-  compiled_script =
-      v8::ScriptCompiler::CompileUnbound(isolate, script_source2);
+  compiled_script = Script::New(source, NULL, sd);
   CHECK(!try_catch.HasCaught());
 
   delete sd;
@@ -17091,19 +17081,17 @@ THREADED_TEST(ScriptContextDependence) {
   const char *source = "foo";
   v8::Handle<v8::Script> dep =
       v8_compile(source);
-  v8::Handle<v8::UnboundScript> indep =
-      v8::ScriptCompiler::CompileUnbound(
-          c1->GetIsolate(), v8::ScriptCompiler::Source(v8::String::NewFromUtf8(
-                                c1->GetIsolate(), source)));
+  v8::Handle<v8::Script> indep =
+      v8::Script::New(v8::String::NewFromUtf8(c1->GetIsolate(), source));
   c1->Global()->Set(v8::String::NewFromUtf8(c1->GetIsolate(), "foo"),
                     v8::Integer::New(c1->GetIsolate(), 100));
   CHECK_EQ(dep->Run()->Int32Value(), 100);
-  CHECK_EQ(indep->BindToCurrentContext()->Run()->Int32Value(), 100);
+  CHECK_EQ(indep->Run()->Int32Value(), 100);
   LocalContext c2;
   c2->Global()->Set(v8::String::NewFromUtf8(c2->GetIsolate(), "foo"),
                     v8::Integer::New(c2->GetIsolate(), 101));
   CHECK_EQ(dep->Run()->Int32Value(), 100);
-  CHECK_EQ(indep->BindToCurrentContext()->Run()->Int32Value(), 101);
+  CHECK_EQ(indep->Run()->Int32Value(), 101);
 }
 
 
@@ -17116,11 +17104,7 @@ THREADED_TEST(StackTrace) {
       v8::String::NewFromUtf8(context->GetIsolate(), source);
   v8::Handle<v8::String> origin =
       v8::String::NewFromUtf8(context->GetIsolate(), "stack-trace-test");
-  v8::ScriptCompiler::CompileUnbound(
-      context->GetIsolate(),
-      v8::ScriptCompiler::Source(src, v8::ScriptOrigin(origin)))
-      ->BindToCurrentContext()
-      ->Run();
+  v8::Script::New(src, origin)->Run();
   CHECK(try_catch.HasCaught());
   v8::String::Utf8Value stack(try_catch.StackTrace());
   CHECK(strstr(*stack, "at foo (stack-trace-test") != NULL);
@@ -17227,11 +17211,7 @@ TEST(CaptureStackTrace) {
   v8::Handle<v8::String> overview_src =
       v8::String::NewFromUtf8(isolate, overview_source);
   v8::Handle<Value> overview_result(
-      v8::ScriptCompiler::CompileUnbound(
-          isolate,
-          v8::ScriptCompiler::Source(overview_src, v8::ScriptOrigin(origin)))
-          ->BindToCurrentContext()
-          ->Run());
+      v8::Script::New(overview_src, origin)->Run());
   CHECK(!overview_result.IsEmpty());
   CHECK(overview_result->IsObject());
 
@@ -17250,11 +17230,9 @@ TEST(CaptureStackTrace) {
   v8::Handle<v8::Integer> line_offset = v8::Integer::New(isolate, 3);
   v8::Handle<v8::Integer> column_offset = v8::Integer::New(isolate, 5);
   v8::ScriptOrigin detailed_origin(origin, line_offset, column_offset);
-  v8::Handle<v8::UnboundScript> detailed_script(
-      v8::ScriptCompiler::CompileUnbound(
-          isolate, v8::ScriptCompiler::Source(detailed_src, detailed_origin)));
-  v8::Handle<Value> detailed_result(
-      detailed_script->BindToCurrentContext()->Run());
+  v8::Handle<v8::Script> detailed_script(
+      v8::Script::New(detailed_src, &detailed_origin));
+  v8::Handle<Value> detailed_result(detailed_script->Run());
   CHECK(!detailed_result.IsEmpty());
   CHECK(detailed_result->IsObject());
 }

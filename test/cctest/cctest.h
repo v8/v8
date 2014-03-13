@@ -313,23 +313,17 @@ static inline v8::Local<v8::Script> v8_compile(v8::Local<v8::String> x) {
 }
 
 
-static inline v8::Local<v8::Script> CompileWithOrigin(
-    v8::Local<v8::String> source, v8::Local<v8::String> origin_url) {
-  v8::ScriptOrigin origin(origin_url);
-  return v8::ScriptCompiler::Compile(
-      v8::Isolate::GetCurrent(), v8::ScriptCompiler::Source(source, origin));
+static inline v8::Local<v8::Script> CompileWithOrigin(const char* source,
+                                                      const char* origin_url) {
+  v8::ScriptOrigin origin(v8_str(origin_url));
+  return v8::Script::Compile(v8_str(source), &origin);
 }
 
 
 static inline v8::Local<v8::Script> CompileWithOrigin(
     v8::Local<v8::String> source, const char* origin_url) {
-  return CompileWithOrigin(source, v8_str(origin_url));
-}
-
-
-static inline v8::Local<v8::Script> CompileWithOrigin(const char* source,
-                                                      const char* origin_url) {
-  return CompileWithOrigin(v8_str(source), v8_str(origin_url));
+  v8::ScriptOrigin origin(v8_str(origin_url));
+  return v8::Script::Compile(source, &origin);
 }
 
 
@@ -345,16 +339,11 @@ static inline v8::Local<v8::Value> CompileRun(v8::Local<v8::String> source) {
 
 
 static inline v8::Local<v8::Value> PreCompileCompileRun(const char* source) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
-  v8::Local<v8::String> source_string =
-      v8::String::NewFromUtf8(isolate, source);
-  v8::ScriptData* preparse = v8::ScriptData::PreCompile(source_string);
-  v8::ScriptCompiler::Source script_source(
-      source_string, v8::ScriptCompiler::CachedData(
-                         reinterpret_cast<const uint8_t*>(preparse->Data()),
-                         preparse->Length()));
-  v8::Local<v8::Script> script = v8::ScriptCompiler::Compile(
-      isolate, v8::ScriptCompiler::Source(script_source));
+  v8::Local<v8::String> script_source =
+      v8::String::NewFromUtf8(v8::Isolate::GetCurrent(), source);
+  v8::ScriptData* preparse = v8::ScriptData::PreCompile(script_source);
+  v8::Local<v8::Script> script =
+      v8::Script::Compile(script_source, NULL, preparse);
   v8::Local<v8::Value> result = script->Run();
   delete preparse;
   return result;
@@ -370,24 +359,14 @@ static inline v8::Local<v8::Value> CompileRunWithOrigin(const char* source,
   v8::ScriptOrigin origin(v8_str(origin_url),
                           v8::Integer::New(isolate, line_number),
                           v8::Integer::New(isolate, column_number));
-  return v8::ScriptCompiler::Compile(
-             isolate, v8::ScriptCompiler::Source(v8_str(source), origin))
-      ->Run();
-}
-
-
-static inline v8::Local<v8::Value> CompileRunWithOrigin(
-    v8::Local<v8::String> source, const char* origin_url) {
-  v8::ScriptOrigin origin(v8_str(origin_url));
-  return v8::ScriptCompiler::Compile(
-      v8::Isolate::GetCurrent(),
-      v8::ScriptCompiler::Source(source, origin))->Run();
+  return v8::Script::Compile(v8_str(source), &origin)->Run();
 }
 
 
 static inline v8::Local<v8::Value> CompileRunWithOrigin(
     const char* source, const char* origin_url) {
-  return CompileRunWithOrigin(v8_str(source), origin_url);
+  v8::ScriptOrigin origin(v8_str(origin_url));
+  return v8::Script::Compile(v8_str(source), &origin)->Run();
 }
 
 

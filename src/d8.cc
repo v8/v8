@@ -205,9 +205,7 @@ bool Shell::ExecuteString(Isolate* isolate,
     // When debugging make exceptions appear to be uncaught.
     try_catch.SetVerbose(true);
   }
-  ScriptOrigin origin(name);
-  Handle<UnboundScript> script = ScriptCompiler::CompileUnbound(
-      isolate, ScriptCompiler::Source(source, origin));
+  Handle<Script> script = Script::New(source, name);
   if (script.IsEmpty()) {
     // Print errors that happened during compilation.
     if (report_exceptions && !FLAG_debugger)
@@ -218,7 +216,7 @@ bool Shell::ExecuteString(Isolate* isolate,
     Local<Context> realm =
         Local<Context>::New(isolate, data->realms_[data->realm_current_]);
     realm->Enter();
-    Handle<Value> result = script->BindToCurrentContext()->Run();
+    Handle<Value> result = script->Run();
     realm->Exit();
     data->realm_current_ = data->realm_switch_;
     if (result.IsEmpty()) {
@@ -407,12 +405,11 @@ void Shell::RealmEval(const v8::FunctionCallbackInfo<v8::Value>& args) {
     Throw(args.GetIsolate(), "Invalid argument");
     return;
   }
-  Handle<UnboundScript> script = ScriptCompiler::CompileUnbound(
-      isolate, ScriptCompiler::Source(args[1]->ToString()));
+  Handle<Script> script = Script::New(args[1]->ToString());
   if (script.IsEmpty()) return;
   Local<Context> realm = Local<Context>::New(isolate, data->realms_[index]);
   realm->Enter();
-  Handle<Value> result = script->BindToCurrentContext()->Run();
+  Handle<Value> result = script->Run();
   realm->Exit();
   args.GetReturnValue().Set(result);
 }
@@ -809,8 +806,7 @@ void Shell::InstallUtilityScript(Isolate* isolate) {
   Handle<String> name =
       String::NewFromUtf8(isolate, shell_source_name.start(),
                           String::kNormalString, shell_source_name.length());
-  ScriptOrigin origin(name);
-  Handle<Script> script = Script::Compile(source, &origin);
+  Handle<Script> script = Script::Compile(source, name);
   script->Run();
   // Mark the d8 shell script as native to avoid it showing up as normal source
   // in the debugger.

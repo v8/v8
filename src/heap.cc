@@ -3347,7 +3347,7 @@ bool Heap::CreateInitialObjects() {
   set_materialized_objects(FixedArray::cast(obj));
 
   // Handling of script id generation is in Factory::NewScript.
-  set_last_script_id(Smi::FromInt(v8::UnboundScript::kNoScriptId));
+  set_last_script_id(Smi::FromInt(v8::Script::kNoScriptId));
 
   { MaybeObject* maybe_obj = AllocateAllocationSitesScratchpad();
     if (!maybe_obj->ToObject(&obj)) return false;
