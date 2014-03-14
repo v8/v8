@@ -4139,7 +4139,7 @@ void LCodeGen::DoModByPowerOf2I(LModByPowerOf2I* instr) {
     // Note that this is correct even for kMinInt operands.
     __ Neg(dividend, dividend);
     __ And(dividend, dividend, Operand(mask));
-    __ Neg(dividend, dividend);
+    __ Negs(dividend, dividend);
     if (hmod->CheckFlag(HValue::kBailoutOnMinusZero)) {
       DeoptimizeIf(eq, instr->environment());
     }
