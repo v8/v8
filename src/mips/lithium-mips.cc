@@ -1255,6 +1255,41 @@ LInstruction* LChunkBuilder::DoBitwise(HBitwise* instr) {
 }
 
 
+LInstruction* LChunkBuilder::DoDivByPowerOf2I(HDiv* instr) {
+  ASSERT(instr->representation().IsSmiOrInteger32());
+  ASSERT(instr->left()->representation().Equals(instr->representation()));
+  ASSERT(instr->right()->representation().Equals(instr->representation()));
+  LOperand* dividend = UseRegister(instr->left());
+  int32_t divisor = instr->right()->GetInteger32Constant();
+  LInstruction* result = DefineAsRegister(new(zone()) LDivByPowerOf2I(
+          dividend, divisor));
+  if ((instr->CheckFlag(HValue::kBailoutOnMinusZero) && divisor < 0) ||
+      (instr->CheckFlag(HValue::kCanOverflow) && divisor == -1) ||
+      (!instr->CheckFlag(HInstruction::kAllUsesTruncatingToInt32) &&
+       divisor != 1 && divisor != -1)) {
+    result = AssignEnvironment(result);
+  }
+  return result;
+}
+
+
+LInstruction* LChunkBuilder::DoDivByConstI(HDiv* instr) {
+  ASSERT(instr->representation().IsInteger32());
+  ASSERT(instr->left()->representation().Equals(instr->representation()));
+  ASSERT(instr->right()->representation().Equals(instr->representation()));
+  LOperand* dividend = UseRegister(instr->left());
+  int32_t divisor = instr->right()->GetInteger32Constant();
+  LInstruction* result = DefineAsRegister(new(zone()) LDivByConstI(
+          dividend, divisor));
+  if (divisor == 0 ||
+      (instr->CheckFlag(HValue::kBailoutOnMinusZero) && divisor < 0) ||
+      !instr->CheckFlag(HInstruction::kAllUsesTruncatingToInt32)) {
+    result = AssignEnvironment(result);
+  }
+  return result;
+}
+
+
 LInstruction* LChunkBuilder::DoDivI(HBinaryOperation* instr) {
   ASSERT(instr->representation().IsSmiOrInteger32());
   ASSERT(instr->left()->representation().Equals(instr->representation()));
@@ -1268,7 +1303,13 @@ LInstruction* LChunkBuilder::DoDivI(HBinaryOperation* instr) {
 
 LInstruction* LChunkBuilder::DoDiv(HDiv* instr) {
   if (instr->representation().IsSmiOrInteger32()) {
-    return DoDivI(instr);
+    if (instr->RightIsPowerOf2()) {
+      return DoDivByPowerOf2I(instr);
+    } else if (instr->right()->IsConstant()) {
+      return DoDivByConstI(instr);
+    } else {
+      return DoDivI(instr);
+    }
   } else if (instr->representation().IsDouble()) {
     return DoArithmeticD(Token::DIV, instr);
   } else {
@@ -1308,15 +1349,10 @@ LInstruction* LChunkBuilder::DoFlooringDivByConstI(HMathFloorOfDiv* instr) {
 LInstruction* LChunkBuilder::DoMathFloorOfDiv(HMathFloorOfDiv* instr) {
   if (instr->RightIsPowerOf2()) {
     return DoFlooringDivByPowerOf2I(instr);
-  } else if (instr->right()->IsConstant()) {
-    return DoFlooringDivByConstI(instr);
+  } else if (false && instr->right()->IsConstant()) {
+    return DoFlooringDivByConstI(instr);  // TODO(svenpanne) Fix and re-enable.
   } else {
-    HValue* right = instr->right();
-    LOperand* dividend = UseRegister(instr->left());
-    LOperand* divisor = UseRegisterOrConstant(right);
-    LOperand* remainder = TempRegister();
-    return AssignEnvironment(DefineAsRegister(
-        new(zone()) LMathFloorOfDiv(dividend, divisor, remainder)));
+    return DoDivI(instr);
   }
 }
 
@@ -1330,6 +1366,21 @@ LInstruction* LChunkBuilder::DoModByPowerOf2I(HMod* instr) {
   LInstruction* result = DefineSameAsFirst(new(zone()) LModByPowerOf2I(
           dividend, divisor));
   if (instr->CheckFlag(HValue::kBailoutOnMinusZero)) {
+    result = AssignEnvironment(result);
+  }
+  return result;
+}
+
+
+LInstruction* LChunkBuilder::DoModByConstI(HMod* instr) {
+  ASSERT(instr->representation().IsSmiOrInteger32());
+  ASSERT(instr->left()->representation().Equals(instr->representation()));
+  ASSERT(instr->right()->representation().Equals(instr->representation()));
+  LOperand* dividend = UseRegister(instr->left());
+  int32_t divisor = instr->right()->GetInteger32Constant();
+  LInstruction* result = DefineAsRegister(new(zone()) LModByConstI(
+          dividend, divisor));
+  if (divisor == 0 || instr->CheckFlag(HValue::kBailoutOnMinusZero)) {
     result = AssignEnvironment(result);
   }
   return result;

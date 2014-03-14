@@ -86,6 +86,8 @@ class LCodeGen;
   V(DebugBreak)                                 \
   V(DeclareGlobals)                             \
   V(Deoptimize)                                 \
+  V(DivByConstI)                                \
+  V(DivByPowerOf2I)                             \
   V(DivI)                                       \
   V(DoubleToI)                                  \
   V(DoubleBits)                                 \
@@ -130,12 +132,12 @@ class LCodeGen;
   V(MathExp)                                    \
   V(MathClz32)                                  \
   V(MathFloor)                                  \
-  V(MathFloorOfDiv)                             \
   V(MathLog)                                    \
   V(MathMinMax)                                 \
   V(MathPowHalf)                                \
   V(MathRound)                                  \
   V(MathSqrt)                                   \
+  V(ModByConstI)                                \
   V(ModByPowerOf2I)                             \
   V(ModI)                                       \
   V(MulI)                                       \
@@ -635,6 +637,24 @@ class LModByPowerOf2I V8_FINAL : public LTemplateInstruction<1, 1, 0> {
 };
 
 
+class LModByConstI V8_FINAL : public LTemplateInstruction<1, 1, 0> {
+ public:
+  LModByConstI(LOperand* dividend, int32_t divisor) {
+    inputs_[0] = dividend;
+    divisor_ = divisor;
+  }
+
+  LOperand* dividend() { return inputs_[0]; }
+  int32_t divisor() const { return divisor_; }
+
+  DECLARE_CONCRETE_INSTRUCTION(ModByConstI, "mod-by-const-i")
+  DECLARE_HYDROGEN_ACCESSOR(Mod)
+
+ private:
+  int32_t divisor_;
+};
+
+
 class LModI V8_FINAL : public LTemplateInstruction<1, 2, 3> {
  public:
   LModI(LOperand* left,
@@ -648,6 +668,42 @@ class LModI V8_FINAL : public LTemplateInstruction<1, 2, 3> {
 
   DECLARE_CONCRETE_INSTRUCTION(ModI, "mod-i")
   DECLARE_HYDROGEN_ACCESSOR(Mod)
+};
+
+
+class LDivByPowerOf2I V8_FINAL : public LTemplateInstruction<1, 1, 0> {
+ public:
+  LDivByPowerOf2I(LOperand* dividend, int32_t divisor) {
+    inputs_[0] = dividend;
+    divisor_ = divisor;
+  }
+
+  LOperand* dividend() { return inputs_[0]; }
+  int32_t divisor() const { return divisor_; }
+
+  DECLARE_CONCRETE_INSTRUCTION(DivByPowerOf2I, "div-by-power-of-2-i")
+  DECLARE_HYDROGEN_ACCESSOR(Div)
+
+ private:
+  int32_t divisor_;
+};
+
+
+class LDivByConstI V8_FINAL : public LTemplateInstruction<1, 1, 0> {
+ public:
+  LDivByConstI(LOperand* dividend, int32_t divisor) {
+    inputs_[0] = dividend;
+    divisor_ = divisor;
+  }
+
+  LOperand* dividend() { return inputs_[0]; }
+  int32_t divisor() const { return divisor_; }
+
+  DECLARE_CONCRETE_INSTRUCTION(DivByConstI, "div-by-const-i")
+  DECLARE_HYDROGEN_ACCESSOR(Div)
+
+ private:
+  int32_t divisor_;
 };
 
 
@@ -701,25 +757,6 @@ class LFlooringDivByConstI V8_FINAL : public LTemplateInstruction<1, 1, 0> {
 
  private:
   int32_t divisor_;
-};
-
-
-class LMathFloorOfDiv V8_FINAL : public LTemplateInstruction<1, 2, 1> {
- public:
-  LMathFloorOfDiv(LOperand* left,
-                  LOperand* right,
-                  LOperand* temp = NULL) {
-    inputs_[0] = left;
-    inputs_[1] = right;
-    temps_[0] = temp;
-  }
-
-  LOperand* left() { return inputs_[0]; }
-  LOperand* right() { return inputs_[1]; }
-  LOperand* temp() { return temps_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(MathFloorOfDiv, "math-floor-of-div")
-  DECLARE_HYDROGEN_ACCESSOR(MathFloorOfDiv)
 };
 
 
@@ -2639,8 +2676,11 @@ class LChunkBuilder V8_FINAL : public LChunkBuilderBase {
   LInstruction* DoMathSqrt(HUnaryMathOperation* instr);
   LInstruction* DoMathPowHalf(HUnaryMathOperation* instr);
   LInstruction* DoMathClz32(HUnaryMathOperation* instr);
+  LInstruction* DoDivByPowerOf2I(HDiv* instr);
+  LInstruction* DoDivByConstI(HDiv* instr);
   LInstruction* DoDivI(HBinaryOperation* instr);
   LInstruction* DoModByPowerOf2I(HMod* instr);
+  LInstruction* DoModByConstI(HMod* instr);
   LInstruction* DoModI(HMod* instr);
   LInstruction* DoFlooringDivByPowerOf2I(HMathFloorOfDiv* instr);
   LInstruction* DoFlooringDivByConstI(HMathFloorOfDiv* instr);
