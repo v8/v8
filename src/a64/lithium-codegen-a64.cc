@@ -1030,11 +1030,9 @@ void LCodeGen::DeoptimizeBranch(
 
   ASSERT(info()->IsStub() || frame_is_built_);
   // Go through jump table if we need to build frame, or restore caller doubles.
-  if (frame_is_built_ && !info()->saves_caller_doubles()) {
-    Label dont_deopt;
-    __ B(&dont_deopt, InvertBranchType(branch_type), reg, bit);
+  if (branch_type == always &&
+      frame_is_built_ && !info()->saves_caller_doubles()) {
     __ Call(entry, RelocInfo::RUNTIME_ENTRY);
-    __ Bind(&dont_deopt);
   } else {
     // We often have several deopts to the same entry, reuse the last
     // jump entry if this is the case.
