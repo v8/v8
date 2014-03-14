@@ -354,16 +354,31 @@ double OS::TimeCurrentMillis() {
 }
 
 
-double OS::DaylightSavingsOffset(double time) {
+class TimezoneCache {};
+
+
+TimezoneCache* OS::CreateTimezoneCache() {
+  return NULL;
+}
+
+
+void OS::DisposeTimezoneCache(TimezoneCache* cache) {
+  ASSERT(cache == NULL);
+}
+
+
+void OS::ClearTimezoneCache(TimezoneCache* cache) {
+  ASSERT(cache == NULL);
+}
+
+
+double OS::DaylightSavingsOffset(double time, TimezoneCache*) {
   if (std::isnan(time)) return nan_value();
   time_t tv = static_cast<time_t>(std::floor(time/msPerSecond));
   struct tm* t = localtime(&tv);
   if (NULL == t) return nan_value();
   return t->tm_isdst > 0 ? 3600 * msPerSecond : 0;
 }
-
-
-void OS::TimeZoneChanged() {}
 
 
 int OS::GetLastError() {

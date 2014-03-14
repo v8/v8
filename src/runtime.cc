@@ -9583,8 +9583,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DateLocalTimezone) {
   ASSERT(args.length() == 1);
 
   CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  int64_t time = isolate->date_cache()->EquivalentTime(static_cast<int64_t>(x));
-  const char* zone = OS::LocalTimezone(static_cast<double>(time));
+  const char* zone =
+      isolate->date_cache()->LocalTimezone(static_cast<int64_t>(x));
   return isolate->heap()->AllocateStringFromUtf8(CStrVector(zone));
 }
 
