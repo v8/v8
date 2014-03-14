@@ -309,11 +309,28 @@ class ThreadLocalTop BASE_EMBEDDED {
 
 #endif
 
+
+#if V8_TARGET_ARCH_ARM && !defined(__arm__) || \
+    V8_TARGET_ARCH_A64 && !defined(__aarch64__) || \
+    V8_TARGET_ARCH_MIPS && !defined(__mips__)
+
+#define ISOLATE_INIT_SIMULATOR_LIST(V)                                         \
+  V(bool, simulator_initialized, false)                                        \
+  V(HashMap*, simulator_i_cache, NULL)                                         \
+  V(Redirection*, simulator_redirection, NULL)
+#else
+
+#define ISOLATE_INIT_SIMULATOR_LIST(V)
+
+#endif
+
+
 #ifdef DEBUG
 
 #define ISOLATE_INIT_DEBUG_ARRAY_LIST(V)                                       \
   V(CommentStatistic, paged_space_comments_statistics,                         \
-      CommentStatistic::kMaxComments + 1)
+      CommentStatistic::kMaxComments + 1)                                      \
+  V(int, code_kind_statistics, Code::NUMBER_OF_KINDS)
 #else
 
 #define ISOLATE_INIT_DEBUG_ARRAY_LIST(V)
@@ -346,7 +363,6 @@ typedef List<HeapObject*> DebugObjectCache;
   /* function cache of the native context. */                                  \
   V(int, next_serial_number, 0)                                                \
   V(ExternalReferenceRedirectorPointer*, external_reference_redirector, NULL)  \
-  V(bool, always_allow_natives_syntax, false)                                  \
   /* Part of the state of liveedit. */                                         \
   V(FunctionInfoListener*, active_function_info_listener, NULL)                \
   /* State for Relocatable. */                                                 \
@@ -363,6 +379,9 @@ typedef List<HeapObject*> DebugObjectCache;
   V(HStatistics*, hstatistics, NULL)                                           \
   V(HTracer*, htracer, NULL)                                                   \
   V(CodeTracer*, code_tracer, NULL)                                            \
+  V(bool, fp_stubs_generated, false)                                           \
+  V(int, max_available_threads, 0)                                             \
+  ISOLATE_INIT_SIMULATOR_LIST(V)                                               \
   ISOLATE_DEBUGGER_INIT_LIST(V)
 
 #define THREAD_LOCAL_TOP_ACCESSOR(type, name)                        \
@@ -935,8 +954,6 @@ class Isolate {
 
   RuntimeState* runtime_state() { return &runtime_state_; }
 
-  FIELD_ACCESSOR(bool, fp_stubs_generated);
-
   Builtins* builtins() { return &builtins_; }
 
   void NotifyExtensionInstalled() {
@@ -982,16 +999,6 @@ class Isolate {
   JSObject::SpillInformation* js_spill_information() {
     return &js_spill_information_;
   }
-
-  int* code_kind_statistics() { return code_kind_statistics_; }
-#endif
-
-#if V8_TARGET_ARCH_ARM && !defined(__arm__) || \
-    V8_TARGET_ARCH_A64 && !defined(__aarch64__) || \
-    V8_TARGET_ARCH_MIPS && !defined(__mips__)
-  FIELD_ACCESSOR(bool, simulator_initialized)
-  FIELD_ACCESSOR(HashMap*, simulator_i_cache)
-  FIELD_ACCESSOR(Redirection*, simulator_redirection)
 #endif
 
   Factory* factory() { return reinterpret_cast<Factory*>(this); }
@@ -1060,8 +1067,6 @@ class Isolate {
 #ifdef DEBUG
   bool IsDeferredHandle(Object** location);
 #endif  // DEBUG
-
-  FIELD_ACCESSOR(int, max_available_threads);
 
   bool concurrent_recompilation_enabled() {
     // Thread is only available with flag enabled.
@@ -1266,7 +1271,6 @@ class Isolate {
   EternalHandles* eternal_handles_;
   ThreadManager* thread_manager_;
   RuntimeState runtime_state_;
-  bool fp_stubs_generated_;
   Builtins builtins_;
   bool has_installed_extensions_;
   StringTracker* string_tracker_;
@@ -1296,19 +1300,10 @@ class Isolate {
   // Time stamp at initialization.
   double time_millis_at_init_;
 
-#if V8_TARGET_ARCH_ARM && !defined(__arm__) || \
-    V8_TARGET_ARCH_A64 && !defined(__aarch64__) || \
-    V8_TARGET_ARCH_MIPS && !defined(__mips__)
-  bool simulator_initialized_;
-  HashMap* simulator_i_cache_;
-  Redirection* simulator_redirection_;
-#endif
-
 #ifdef DEBUG
   // A static array of histogram info for each type.
   HistogramInfo heap_histograms_[LAST_TYPE + 1];
   JSObject::SpillInformation js_spill_information_;
-  int code_kind_statistics_[Code::NUMBER_OF_KINDS];
 #endif
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
@@ -1344,10 +1339,6 @@ class Isolate {
   OptimizingCompilerThread* optimizing_compiler_thread_;
   SweeperThread** sweeper_thread_;
   int num_sweeper_threads_;
-
-  // TODO(yangguo): This will become obsolete once ResourceConstraints
-  // becomes an argument to Isolate constructor.
-  int max_available_threads_;
 
   // Counts deopt points if deopt_every_n_times is enabled.
   unsigned int stress_deopt_count_;

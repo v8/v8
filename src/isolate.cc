@@ -1550,7 +1550,6 @@ Isolate::Isolate()
       global_handles_(NULL),
       eternal_handles_(NULL),
       thread_manager_(NULL),
-      fp_stubs_generated_(false),
       has_installed_extensions_(false),
       string_tracker_(NULL),
       regexp_stack_(NULL),
@@ -1570,7 +1569,6 @@ Isolate::Isolate()
       optimizing_compiler_thread_(NULL),
       sweeper_thread_(NULL),
       num_sweeper_threads_(0),
-      max_available_threads_(0),
       stress_deopt_count_(0),
       next_optimization_id_(0) {
   id_ = NoBarrier_AtomicIncrement(&isolate_counter_, 1);
@@ -1587,19 +1585,9 @@ Isolate::Isolate()
   thread_manager_ = new ThreadManager();
   thread_manager_->isolate_ = this;
 
-#if V8_TARGET_ARCH_ARM && !defined(__arm__) || \
-    V8_TARGET_ARCH_A64 && !defined(__aarch64__) || \
-    V8_TARGET_ARCH_MIPS && !defined(__mips__)
-  simulator_initialized_ = false;
-  simulator_i_cache_ = NULL;
-  simulator_redirection_ = NULL;
-#endif
-
 #ifdef DEBUG
   // heap_histograms_ initializes itself.
   memset(&js_spill_information_, 0, sizeof(js_spill_information_));
-  memset(code_kind_statistics_, 0,
-         sizeof(code_kind_statistics_[0]) * Code::NUMBER_OF_KINDS);
 #endif
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
