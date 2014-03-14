@@ -592,9 +592,7 @@ void HGlobalValueNumberingPhase::LoopInvariantCodeMotion() {
               graph()->use_optimistic_licm() ? "yes" : "no");
   for (int i = graph()->blocks()->length() - 1; i >= 0; --i) {
     HBasicBlock* block = graph()->blocks()->at(i);
-    if (block->IsLoopHeader() &&
-        block->IsReachable() &&
-        !block->IsDeoptimizing()) {
+    if (block->IsLoopHeader()) {
       SideEffects side_effects = loop_side_effects_[block->block_id()];
       if (FLAG_trace_gvn) {
         HeapStringAllocator allocator;
@@ -618,7 +616,6 @@ void HGlobalValueNumberingPhase::ProcessLoopBlock(
     HBasicBlock* block,
     HBasicBlock* loop_header,
     SideEffects loop_kills) {
-  if (!block->IsReachable() || block->IsDeoptimizing()) return;
   HBasicBlock* pre_header = loop_header->predecessors()->at(0);
   if (FLAG_trace_gvn) {
     HeapStringAllocator allocator;
@@ -683,8 +680,10 @@ bool HGlobalValueNumberingPhase::AllowCodeMotion() {
 
 bool HGlobalValueNumberingPhase::ShouldMove(HInstruction* instr,
                                             HBasicBlock* loop_header) {
-  // If we've disabled code motion, don't move any instructions.
-  return AllowCodeMotion();
+  // If we've disabled code motion or we're in a block that unconditionally
+  // deoptimizes, don't move any instructions.
+  return AllowCodeMotion() && !instr->block()->IsDeoptimizing() &&
+      instr->block()->IsReachable();
 }
 
 
@@ -777,18 +776,20 @@ class GvnBasicBlockState: public ZoneObject {
   }
 
   GvnBasicBlockState* next_dominated(Zone* zone) {
-    while (++dominated_index_ < length_) {
-      HBasicBlock* block = block_->dominated_blocks()->at(dominated_index_);
-      if (block->IsReachable()) {
-        if (dominated_index_ == length_ - 1) {
-          // No need to copy the map for the last child in the dominator tree.
-          Initialize(block, map(), dominators(), false, zone);
-          return this;
-        }
-        return push(zone, block);
-      }
+    dominated_index_++;
+    if (dominated_index_ == length_ - 1) {
+      // No need to copy the map for the last child in the dominator tree.
+      Initialize(block_->dominated_blocks()->at(dominated_index_),
+                 map(),
+                 dominators(),
+                 false,
+                 zone);
+      return this;
+    } else if (dominated_index_ < length_) {
+      return push(zone, block_->dominated_blocks()->at(dominated_index_));
+    } else {
+      return NULL;
     }
-    return NULL;
   }
 
   GvnBasicBlockState* push(Zone* zone, HBasicBlock* block) {
