@@ -218,19 +218,23 @@ class TokenWithLocation {
   // The location of the latest octal position when the token was seen.
   int octal_beg;
   int octal_end;
-  TokenWithLocation(Token::Value token, Scanner* scanner) : value(token) {
+  TokenWithLocation(Token::Value token,
+                    Scanner* scanner,
+                    Handle<String> literal_string)
+      : value(token) {
     beg = scanner->location().beg_pos;
     end = scanner->location().end_pos;
     octal_beg = scanner->octal_position().beg_pos;
     octal_end = scanner->octal_position().end_pos;
     is_one_byte = false;
     literal_length = 0;
-    if (HasLiteral(token)) {
-      is_one_byte = scanner->is_literal_ascii();
-      if (scanner->is_literal_ascii()) {
-        Copy(scanner->literal_ascii_string(), &literal, &literal_length);
+    if (!literal_string.is_null()) {
+      DisallowHeapAllocation no_alloc;
+      String::FlatContent content = literal_string->GetFlatContent();
+      if (content.IsAscii()) {
+        Copy(content.ToOneByteVector(), &literal, &literal_length);
       } else {
-        Copy(scanner->literal_utf16_string(), &literal, &literal_length);
+        Copy(content.ToUC16Vector(), &literal, &literal_length);
       }
     }
   }
@@ -298,14 +302,12 @@ static TimeDelta RunLexer(const uint16_t* source,
   Token::Value token;
   do {
     token = scanner.Next();
+    Handle<String> literal;
+    if (HasLiteral(token)) {
+      literal = scanner.AllocateInternalizedString(isolate);
+    }
     if (settings.print_tokens) {
-      tokens.push_back(new TokenWithLocation(token, &scanner));
-    } else if (HasLiteral(token)) {
-      if (scanner.is_literal_ascii()) {
-        scanner.literal_ascii_string();
-      } else {
-        scanner.literal_utf16_string();
-      }
+      tokens.push_back(new TokenWithLocation(token, &scanner, literal));
     }
     if (token == Token::ILLEGAL && settings.break_after_illegal) break;
   } while (token != Token::EOS);

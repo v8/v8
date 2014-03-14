@@ -511,7 +511,7 @@ void LexerBase::LiteralDesc::SetTwoByteString(Vector<const uint16_t> string) {
 
 
 void LexerBase::LiteralDesc::SetStringFromLiteralBuffer() {
-  is_one_byte_ = buffer.is_ascii();
+  is_one_byte_ = buffer.is_one_byte();
   is_in_buffer_ = true;
   length = buffer.length();
   if (is_one_byte_) {
@@ -519,9 +519,9 @@ void LexerBase::LiteralDesc::SetStringFromLiteralBuffer() {
       one_byte_string_.Dispose();
     }
     is_one_byte_string_owned_ = false;
-    one_byte_string_ = Vector<const uint8_t>::cast(buffer.ascii_literal());
+    one_byte_string_ = buffer.one_byte_literal();
   } else {
-    two_byte_string_ = buffer.utf16_literal();
+    two_byte_string_ = buffer.two_byte_literal();
   }
 }
 
