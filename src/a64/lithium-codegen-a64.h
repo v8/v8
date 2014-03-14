@@ -347,7 +347,7 @@ class LCodeGen: public LCodeGenBase {
   void EnsureSpaceForLazyDeopt(int space_needed) V8_OVERRIDE;
 
   ZoneList<LEnvironment*> deoptimizations_;
-  ZoneList<Deoptimizer::JumpTableEntry> deopt_jump_table_;
+  ZoneList<Deoptimizer::JumpTableEntry*> deopt_jump_table_;
   ZoneList<Handle<Object> > deoptimization_literals_;
   int inlined_function_count_;
   Scope* const scope_;

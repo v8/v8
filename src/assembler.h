@@ -210,6 +210,12 @@ class Label BASE_EMBEDDED {
   friend class Assembler;
   friend class Displacement;
   friend class RegExpMacroAssemblerIrregexp;
+
+#if V8_TARGET_ARCH_A64
+  // On A64, the Assembler keeps track of pointers to Labels to resolve branches
+  // to distant targets. Copying labels would confuse the Assembler.
+  DISALLOW_COPY_AND_ASSIGN(Label);  // NOLINT
+#endif
 };
 
 

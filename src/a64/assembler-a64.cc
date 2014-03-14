@@ -2548,7 +2548,7 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
 
   // Emit veneers for branches that would go out of range during emission of the
   // constant pool.
-  CheckVeneerPool(require_jump, kVeneerDistanceMargin - pool_size);
+  CheckVeneerPool(require_jump, kVeneerDistanceMargin + pool_size);
 
   Label size_check;
   bind(&size_check);

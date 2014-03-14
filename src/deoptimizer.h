@@ -134,7 +134,7 @@ class Deoptimizer : public Malloced {
 
   static const int kBailoutTypesWithCodeEntry = SOFT + 1;
 
-  struct JumpTableEntry {
+  struct JumpTableEntry : public ZoneObject {
     inline JumpTableEntry(Address entry,
                           Deoptimizer::BailoutType type,
                           bool frame)
