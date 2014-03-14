@@ -50,6 +50,7 @@
 #include "unicode-inl.h"
 #include "utils.h"
 #include "vm-state.h"
+#include "../include/v8-util.h"
 
 static const bool kLogThreading = false;
 
