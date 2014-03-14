@@ -76,13 +76,24 @@ function EndTest() {
 }
 
 
+// Check that two scope are the same.
+function CheckScopeMirrors(scope1, scope2) {
+  assertEquals(scope1.scopeType(), scope2.scopeType());
+  assertEquals(scope1.frameIndex(), scope2.frameIndex());
+  assertEquals(scope1.scopeIndex(), scope2.scopeIndex());
+}
+
+
 // Check that the scope chain contains the expected types of scopes.
 function CheckScopeChain(scopes, exec_state) {
+  var all_scopes = exec_state.frame().allScopes();
   assertEquals(scopes.length, exec_state.frame().scopeCount());
+  assertEquals(scopes.length, all_scopes.length, "FrameMirror.allScopes length");
   for (var i = 0; i < scopes.length; i++) {
     var scope = exec_state.frame().scope(i);
     assertTrue(scope.isScope());
     assertEquals(scopes[i], scope.scopeType());
+    CheckScopeMirrors(all_scopes[i], scope);
 
     // Check the global object when hitting the global scope.
     if (scopes[i] == debug.ScopeType.Global) {

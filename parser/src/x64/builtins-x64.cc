@@ -533,9 +533,9 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     // Invoke the code.
     if (is_construct) {
       // No type feedback cell is available
-      Handle<Object> undefined_sentinel(
-          masm->isolate()->factory()->undefined_value());
-      __ Move(rbx, undefined_sentinel);
+      Handle<Object> megamorphic_sentinel =
+          TypeFeedbackInfo::MegamorphicSentinel(masm->isolate());
+      __ Move(rbx, megamorphic_sentinel);
       // Expects rdi to hold function pointer.
       CallConstructStub stub(NO_CALL_FUNCTION_FLAGS);
       __ CallStub(&stub);
@@ -799,7 +799,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
              Immediate(1 << SharedFunctionInfo::kNativeBitWithinByte));
     __ j(not_zero, &shift_arguments);
 
-    // Compute the receiver in non-strict mode.
+    // Compute the receiver in sloppy mode.
     __ movp(rbx, args.GetArgumentOperand(1));
     __ JumpIfSmi(rbx, &convert_to_object, Label::kNear);
 
@@ -990,7 +990,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
              Immediate(1 << SharedFunctionInfo::kNativeBitWithinByte));
     __ j(not_equal, &push_receiver);
 
-    // Compute the receiver in non-strict mode.
+    // Compute the receiver in sloppy mode.
     __ JumpIfSmi(rbx, &call_to_object, Label::kNear);
     __ CompareRoot(rbx, Heap::kNullValueRootIndex);
     __ j(equal, &use_global_receiver);
@@ -1128,10 +1128,9 @@ void Builtins::Generate_ArrayCode(MacroAssembler* masm) {
 
   // Run the native code for the Array function called as a normal function.
   // tail call a stub
-  Handle<Object> undefined_sentinel(
-      masm->isolate()->heap()->undefined_value(),
-      masm->isolate());
-  __ Move(rbx, undefined_sentinel);
+  Handle<Object> megamorphic_sentinel =
+      TypeFeedbackInfo::MegamorphicSentinel(masm->isolate());
+  __ Move(rbx, megamorphic_sentinel);
   ArrayConstructorStub stub(masm->isolate());
   __ TailCallStub(&stub);
 }

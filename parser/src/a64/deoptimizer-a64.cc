@@ -148,21 +148,21 @@ void Deoptimizer::EntryGenerator::Generate() {
   // in the input frame.
 
   // Save all allocatable floating point registers.
-  CPURegList saved_fp_registers(CPURegister::kFPRegister, kDRegSize,
-                                0, FPRegister::NumAllocatableRegisters() - 1);
+  CPURegList saved_fp_registers(CPURegister::kFPRegister, kDRegSizeInBits,
+                                FPRegister::kAllocatableFPRegisters);
   __ PushCPURegList(saved_fp_registers);
 
   // We save all the registers expcept jssp, sp and lr.
-  CPURegList saved_registers(CPURegister::kRegister, kXRegSize, 0, 27);
+  CPURegList saved_registers(CPURegister::kRegister, kXRegSizeInBits, 0, 27);
   saved_registers.Combine(fp);
   __ PushCPURegList(saved_registers);
 
   const int kSavedRegistersAreaSize =
-      (saved_registers.Count() * kXRegSizeInBytes) +
-      (saved_fp_registers.Count() * kDRegSizeInBytes);
+      (saved_registers.Count() * kXRegSize) +
+      (saved_fp_registers.Count() * kDRegSize);
 
   // Floating point registers are saved on the stack above core registers.
-  const int kFPRegistersOffset = saved_registers.Count() * kXRegSizeInBytes;
+  const int kFPRegistersOffset = saved_registers.Count() * kXRegSize;
 
   // Get the bailout id from the stack.
   Register bailout_id = x2;
@@ -221,7 +221,7 @@ void Deoptimizer::EntryGenerator::Generate() {
   }
 
   // Remove the bailout id and the saved registers from the stack.
-  __ Drop(1 + (kSavedRegistersAreaSize / kXRegSizeInBytes));
+  __ Drop(1 + (kSavedRegistersAreaSize / kXRegSize));
 
   // Compute a pointer to the unwinding limit in register x2; that is
   // the first stack slot not part of the input frame.
@@ -340,6 +340,9 @@ const int Deoptimizer::table_entry_size_ = 2 * kInstructionSize;
 
 
 void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
+  UseScratchRegisterScope temps(masm());
+  Register entry_id = temps.AcquireX();
+
   // Create a sequence of deoptimization entries.
   // Note that registers are still live when jumping to an entry.
   Label done;
@@ -354,15 +357,13 @@ void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
     for (int i = 0; i < count(); i++) {
       int start = masm()->pc_offset();
       USE(start);
-      __ movz(masm()->Tmp0(), i);
+      __ movz(entry_id, i);
       __ b(&done);
       ASSERT(masm()->pc_offset() - start == table_entry_size_);
     }
   }
   __ Bind(&done);
-  // TODO(all): We need to add some kind of assertion to verify that Tmp0()
-  // is not clobbered by Push.
-  __ Push(masm()->Tmp0());
+  __ Push(entry_id);
 }
 
 
@@ -373,6 +374,12 @@ void FrameDescription::SetCallerPc(unsigned offset, intptr_t value) {
 
 void FrameDescription::SetCallerFp(unsigned offset, intptr_t value) {
   SetFrameSlot(offset, value);
+}
+
+
+void FrameDescription::SetCallerConstantPool(unsigned offset, intptr_t value) {
+  // No out-of-line constant pool support.
+  UNREACHABLE();
 }
 
 

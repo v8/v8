@@ -1282,7 +1282,7 @@ function ObjectFreeze(obj) {
     throw MakeTypeError("called_on_non_object", ["Object.freeze"]);
   }
   var isProxy = %IsJSProxy(obj);
-  if (isProxy || %HasNonStrictArgumentsElements(obj) || %IsObserved(obj)) {
+  if (isProxy || %HasSloppyArgumentsElements(obj) || %IsObserved(obj)) {
     if (isProxy) {
       ProxyFix(obj);
     }
@@ -1394,7 +1394,7 @@ function ObjectGetProto() {
 function ObjectSetProto(proto) {
   CHECK_OBJECT_COERCIBLE(this, "Object.prototype.__proto__");
 
-  if (IS_SPEC_OBJECT(proto) || IS_NULL(proto) && IS_SPEC_OBJECT(this)) {
+  if ((IS_SPEC_OBJECT(proto) || IS_NULL(proto)) && IS_SPEC_OBJECT(this)) {
     %SetPrototype(this, proto);
   }
 }

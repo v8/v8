@@ -158,12 +158,18 @@ class V8_EXPORT CpuProfiler {
    * |record_samples| parameter controls whether individual samples should
    * be recorded in addition to the aggregated tree.
    */
+  void StartProfiling(Handle<String> title, bool record_samples = false);
+
+  /** Deprecated. Use StartProfiling instead. */
   void StartCpuProfiling(Handle<String> title, bool record_samples = false);
 
   /**
    * Stops collecting CPU profile with a given title and returns it.
    * If the title given is empty, finishes the last profile started.
    */
+  CpuProfile* StopProfiling(Handle<String> title);
+
+  /** Deprecated. Use StopProfiling instead. */
   const CpuProfile* StopCpuProfiling(Handle<String> title);
 
   /**

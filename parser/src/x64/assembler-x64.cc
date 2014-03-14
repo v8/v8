@@ -1065,6 +1065,14 @@ void Assembler::imul(Register dst, Register src, Immediate imm) {
 }
 
 
+void Assembler::imull(Register src) {
+  EnsureSpace ensure_space(this);
+  emit_optional_rex_32(src);
+  emit(0xF7);
+  emit_modrm(0x5, src);
+}
+
+
 void Assembler::imull(Register dst, Register src) {
   EnsureSpace ensure_space(this);
   emit_optional_rex_32(dst, src);
@@ -2798,6 +2806,16 @@ void Assembler::movss(const Operand& src, XMMRegister dst) {
 }
 
 
+void Assembler::psllq(XMMRegister reg, byte imm8) {
+  EnsureSpace ensure_space(this);
+  emit(0x66);
+  emit(0x0F);
+  emit(0x73);
+  emit_sse_operand(rsi, reg);  // rsi == 6
+  emit(imm8);
+}
+
+
 void Assembler::cvttss2si(Register dst, const Operand& src) {
   EnsureSpace ensure_space(this);
   emit(0xF3);
@@ -3193,6 +3211,12 @@ bool RelocInfo::IsCodedSpecially() {
   // by branch instructions.
   return (1 << rmode_) & kApplyMask;
 }
+
+
+bool RelocInfo::IsInConstantPool() {
+  return false;
+}
+
 
 } }  // namespace v8::internal
 

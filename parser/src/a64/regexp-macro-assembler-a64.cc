@@ -199,7 +199,8 @@ void RegExpMacroAssemblerA64::AdvanceRegister(int reg, int by) {
         break;
       case CACHED_MSW:
         to_advance = GetCachedRegister(reg);
-        __ Add(to_advance, to_advance, static_cast<int64_t>(by) << kWRegSize);
+        __ Add(to_advance, to_advance,
+               static_cast<int64_t>(by) << kWRegSizeInBits);
         break;
       default:
         UNREACHABLE();
@@ -296,7 +297,7 @@ void RegExpMacroAssemblerA64::CheckGreedyLoop(Label* on_equal) {
   __ Cmp(current_input_offset(), w10);
   __ Cset(x11, eq);
   __ Add(backtrack_stackpointer(),
-         backtrack_stackpointer(), Operand(x11, LSL, kWRegSizeInBytesLog2));
+         backtrack_stackpointer(), Operand(x11, LSL, kWRegSizeLog2));
   BranchOrBacktrack(eq, on_equal);
 }
 
@@ -315,7 +316,7 @@ void RegExpMacroAssemblerA64::CheckNotBackReferenceIgnoreCase(
   ASSERT((start_reg % 2) == 0);
   if (start_reg < kNumCachedRegisters) {
     __ Mov(capture_start_offset.X(), GetCachedRegister(start_reg));
-    __ Lsr(x11, GetCachedRegister(start_reg), kWRegSize);
+    __ Lsr(x11, GetCachedRegister(start_reg), kWRegSizeInBits);
   } else {
     __ Ldp(w11, capture_start_offset, capture_location(start_reg, x10));
   }
@@ -389,7 +390,7 @@ void RegExpMacroAssemblerA64::CheckNotBackReferenceIgnoreCase(
     int argument_count = 4;
 
     // The cached registers need to be retained.
-    CPURegList cached_registers(CPURegister::kRegister, kXRegSize, 0, 7);
+    CPURegList cached_registers(CPURegister::kRegister, kXRegSizeInBits, 0, 7);
     ASSERT((cached_registers.Count() * 2) == kNumCachedRegisters);
     __ PushCPURegList(cached_registers);
 
@@ -441,7 +442,7 @@ void RegExpMacroAssemblerA64::CheckNotBackReference(
   ASSERT((start_reg % 2) == 0);
   if (start_reg < kNumCachedRegisters) {
     __ Mov(x10, GetCachedRegister(start_reg));
-    __ Lsr(x11, GetCachedRegister(start_reg), kWRegSize);
+    __ Lsr(x11, GetCachedRegister(start_reg), kWRegSizeInBits);
   } else {
     __ Ldp(w11, w10, capture_location(start_reg, x10));
   }
@@ -726,7 +727,7 @@ Handle<HeapObject> RegExpMacroAssemblerA64::GetCode(Handle<String> source) {
   // Make sure the stack alignment will be respected.
   int alignment = masm_->ActivationFrameAlignment();
   ASSERT_EQ(alignment % 16, 0);
-  int align_mask = (alignment / kWRegSizeInBytes) - 1;
+  int align_mask = (alignment / kWRegSize) - 1;
   num_wreg_to_allocate = (num_wreg_to_allocate + align_mask) & ~align_mask;
 
   // Check if we have space on the stack.
@@ -744,7 +745,7 @@ Handle<HeapObject> RegExpMacroAssemblerA64::GetCode(Handle<String> source) {
 
   // Check if there is room for the variable number of registers above
   // the stack limit.
-  __ Cmp(x10, num_wreg_to_allocate * kWRegSizeInBytes);
+  __ Cmp(x10, num_wreg_to_allocate * kWRegSize);
   __ B(hs, &stack_ok);
 
   // Exit with OutOfMemory exception. There is not enough space on the stack
@@ -760,7 +761,7 @@ Handle<HeapObject> RegExpMacroAssemblerA64::GetCode(Handle<String> source) {
   __ Bind(&stack_ok);
 
   // Allocate space on stack.
-  __ Claim(num_wreg_to_allocate, kWRegSizeInBytes);
+  __ Claim(num_wreg_to_allocate, kWRegSize);
 
   // Initialize success_counter with 0.
   __ Str(wzr, MemOperand(frame_pointer(), kSuccessCounter));
@@ -785,7 +786,7 @@ Handle<HeapObject> RegExpMacroAssemblerA64::GetCode(Handle<String> source) {
   // on-stack registers later.
   __ Orr(twice_non_position_value(),
          non_position_value().X(),
-         Operand(non_position_value().X(), LSL, kWRegSize));
+         Operand(non_position_value().X(), LSL, kWRegSizeInBits));
 
   // Initialize code pointer register.
   __ Mov(code_pointer(), Operand(masm_->CodeObject()));
@@ -851,7 +852,7 @@ Handle<HeapObject> RegExpMacroAssemblerA64::GetCode(Handle<String> source) {
            (i < num_saved_registers_) && (i < kNumCachedRegisters);
            i += 2) {
         __ Mov(capture_start.X(), GetCachedRegister(i));
-        __ Lsr(capture_end.X(), capture_start.X(), kWRegSize);
+        __ Lsr(capture_end.X(), capture_start.X(), kWRegSizeInBits);
         if ((i == 0) && global_with_zero_length_check()) {
           // Keep capture start for the zero-length check later.
           __ Mov(first_capture_start, capture_start);
@@ -1006,7 +1007,7 @@ Handle<HeapObject> RegExpMacroAssemblerA64::GetCode(Handle<String> source) {
   Label exit_with_exception;
   // Registers x0 to x7 are used to store the first captures, they need to be
   // retained over calls to C++ code.
-  CPURegList cached_registers(CPURegister::kRegister, kXRegSize, 0, 7);
+  CPURegList cached_registers(CPURegister::kRegister, kXRegSizeInBits, 0, 7);
   ASSERT((cached_registers.Count() * 2) == kNumCachedRegisters);
 
   if (check_preempt_label_.is_linked()) {
@@ -1168,7 +1169,7 @@ void RegExpMacroAssemblerA64::ReadCurrentPositionFromRegister(int reg) {
       break;
     case CACHED_MSW:
       cached_register = GetCachedRegister(reg);
-      __ Lsr(current_input_offset().X(), cached_register, kWRegSize);
+      __ Lsr(current_input_offset().X(), cached_register, kWRegSizeInBits);
       break;
     default:
       UNREACHABLE();
@@ -1263,7 +1264,7 @@ void RegExpMacroAssemblerA64::ClearRegisters(int reg_from, int reg_to) {
     STATIC_ASSERT(kNumRegistersToUnroll > 2);
     // We position the base pointer to (reg_from + 1).
     int base_offset = kFirstRegisterOnStack -
-        kWRegSizeInBytes - (kWRegSizeInBytes * reg_from);
+        kWRegSize - (kWRegSize * reg_from);
     if (num_registers > kNumRegistersToUnroll) {
       Register base = x10;
       __ Add(base, frame_pointer(), base_offset);
@@ -1279,7 +1280,7 @@ void RegExpMacroAssemblerA64::ClearRegisters(int reg_from, int reg_to) {
       for (int i = reg_from; i <= reg_to; i += 2) {
         __ Str(twice_non_position_value(),
                MemOperand(frame_pointer(), base_offset));
-        base_offset -= kWRegSizeInBytes * 2;
+        base_offset -= kWRegSize * 2;
       }
     }
   }
@@ -1429,7 +1430,7 @@ void RegExpMacroAssemblerA64::CallCheckStackGuardState(Register scratch) {
   // AAPCS64 requires the stack to be 16 byte aligned.
   int alignment = masm_->ActivationFrameAlignment();
   ASSERT_EQ(alignment % 16, 0);
-  int align_mask = (alignment / kXRegSizeInBytes) - 1;
+  int align_mask = (alignment / kXRegSize) - 1;
   int xreg_to_claim = (3 + align_mask) & ~align_mask;
 
   ASSERT(csp.Is(__ StackPointer()));
@@ -1541,7 +1542,7 @@ void RegExpMacroAssemblerA64::Push(Register source) {
   ASSERT(!source.is(backtrack_stackpointer()));
   __ Str(source,
          MemOperand(backtrack_stackpointer(),
-                    -static_cast<int>(kWRegSizeInBytes),
+                    -static_cast<int>(kWRegSize),
                     PreIndex));
 }
 
@@ -1550,13 +1551,13 @@ void RegExpMacroAssemblerA64::Pop(Register target) {
   ASSERT(target.Is32Bits());
   ASSERT(!target.is(backtrack_stackpointer()));
   __ Ldr(target,
-         MemOperand(backtrack_stackpointer(), kWRegSizeInBytes, PostIndex));
+         MemOperand(backtrack_stackpointer(), kWRegSize, PostIndex));
 }
 
 
 Register RegExpMacroAssemblerA64::GetCachedRegister(int register_index) {
   ASSERT(register_index < kNumCachedRegisters);
-  return Register::Create(register_index / 2, kXRegSize);
+  return Register::Create(register_index / 2, kXRegSizeInBits);
 }
 
 
@@ -1578,7 +1579,8 @@ Register RegExpMacroAssemblerA64::GetRegister(int register_index,
       result = GetCachedRegister(register_index).W();
       break;
     case CACHED_MSW:
-      __ Lsr(maybe_result.X(), GetCachedRegister(register_index), kWRegSize);
+      __ Lsr(maybe_result.X(), GetCachedRegister(register_index),
+             kWRegSizeInBits);
       result = maybe_result;
       break;
     default:
@@ -1607,12 +1609,12 @@ void RegExpMacroAssemblerA64::StoreRegister(int register_index,
     case CACHED_LSW:
       cached_register = GetCachedRegister(register_index);
       if (!source.Is(cached_register.W())) {
-        __ Bfi(cached_register, source.X(), 0, kWRegSize);
+        __ Bfi(cached_register, source.X(), 0, kWRegSizeInBits);
       }
       break;
     case CACHED_MSW:
       cached_register = GetCachedRegister(register_index);
-      __ Bfi(cached_register, source.X(), kWRegSize, kWRegSize);
+      __ Bfi(cached_register, source.X(), kWRegSizeInBits, kWRegSizeInBits);
       break;
     default:
       UNREACHABLE();
@@ -1650,7 +1652,7 @@ MemOperand RegExpMacroAssemblerA64::register_location(int register_index) {
     num_registers_ = register_index + 1;
   }
   register_index -= kNumCachedRegisters;
-  int offset = kFirstRegisterOnStack - register_index * kWRegSizeInBytes;
+  int offset = kFirstRegisterOnStack - register_index * kWRegSize;
   return MemOperand(frame_pointer(), offset);
 }
 
@@ -1661,7 +1663,7 @@ MemOperand RegExpMacroAssemblerA64::capture_location(int register_index,
   ASSERT(register_index >= kNumCachedRegisters);
   ASSERT_EQ(register_index % 2, 0);
   register_index -= kNumCachedRegisters;
-  int offset = kFirstCaptureOnStack - register_index * kWRegSizeInBytes;
+  int offset = kFirstCaptureOnStack - register_index * kWRegSize;
   // capture_location is used with Stp instructions to load/store 2 registers.
   // The immediate field in the encoding is limited to 7 bits (signed).
   if (is_int7(offset)) {

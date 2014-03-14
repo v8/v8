@@ -163,10 +163,9 @@ void Builtins::Generate_ArrayCode(MacroAssembler* masm) {
 
   // Run the native code for the Array function called as a normal function.
   // Tail call a stub.
-  Handle<Object> undefined_sentinel(
-      masm->isolate()->heap()->undefined_value(),
-      masm->isolate());
-  __ li(a2, Operand(undefined_sentinel));
+  Handle<Object> megamorphic_sentinel =
+      TypeFeedbackInfo::MegamorphicSentinel(masm->isolate());
+  __ li(a2, Operand(megamorphic_sentinel));
   ArrayConstructorStub stub(masm->isolate());
   __ TailCallStub(&stub);
 }
@@ -757,9 +756,9 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     __ mov(a0, a3);
     if (is_construct) {
       // No type feedback cell is available
-      Handle<Object> undefined_sentinel(
-          masm->isolate()->heap()->undefined_value(), masm->isolate());
-      __ li(a2, Operand(undefined_sentinel));
+      Handle<Object> megamorphic_sentinel =
+          TypeFeedbackInfo::MegamorphicSentinel(masm->isolate());
+      __ li(a2, Operand(megamorphic_sentinel));
       CallConstructStub stub(NO_CALL_FUNCTION_FLAGS);
       __ CallStub(&stub);
     } else {
@@ -1067,7 +1066,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ And(t3, a3, Operand(1 << (SharedFunctionInfo::kNative + kSmiTagSize)));
     __ Branch(&shift_arguments, ne, t3, Operand(zero_reg));
 
-    // Compute the receiver in non-strict mode.
+    // Compute the receiver in sloppy mode.
     // Load first argument in a2. a2 = -kPointerSize(sp + n_args << 2).
     __ sll(at, a0, kPointerSizeLog2);
     __ addu(a2, sp, at);
@@ -1270,7 +1269,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
     __ And(t3, a2, Operand(1 << (SharedFunctionInfo::kNative + kSmiTagSize)));
     __ Branch(&push_receiver, ne, t3, Operand(zero_reg));
 
-    // Compute the receiver in non-strict mode.
+    // Compute the receiver in sloppy mode.
     __ JumpIfSmi(a0, &call_to_object);
     __ LoadRoot(a1, Heap::kNullValueRootIndex);
     __ Branch(&use_global_receiver, eq, a0, Operand(a1));

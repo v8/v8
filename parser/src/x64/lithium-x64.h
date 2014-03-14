@@ -80,17 +80,23 @@ class LCodeGen;
   V(ConstantI)                                  \
   V(ConstantS)                                  \
   V(ConstantT)                                  \
+  V(ConstructDouble)                            \
   V(Context)                                    \
   V(DateField)                                  \
   V(DebugBreak)                                 \
   V(DeclareGlobals)                             \
   V(Deoptimize)                                 \
+  V(DivByConstI)                                \
+  V(DivByPowerOf2I)                             \
   V(DivI)                                       \
+  V(DoubleBits)                                 \
   V(DoubleToI)                                  \
   V(DoubleToSmi)                                \
   V(Drop)                                       \
   V(DummyUse)                                   \
   V(Dummy)                                      \
+  V(FlooringDivByConstI)                        \
+  V(FlooringDivByPowerOf2I)                     \
   V(ForInCacheArray)                            \
   V(ForInPrepareMap)                            \
   V(FunctionLiteral)                            \
@@ -103,7 +109,6 @@ class LCodeGen;
   V(InstanceOfKnownGlobal)                      \
   V(InstructionGap)                             \
   V(Integer32ToDouble)                          \
-  V(Integer32ToSmi)                             \
   V(InvokeFunction)                             \
   V(IsConstructCallAndBranch)                   \
   V(IsObjectAndBranch)                          \
@@ -127,12 +132,13 @@ class LCodeGen;
   V(MathClz32)                                  \
   V(MathExp)                                    \
   V(MathFloor)                                  \
-  V(MathFloorOfDiv)                             \
   V(MathLog)                                    \
   V(MathMinMax)                                 \
   V(MathPowHalf)                                \
   V(MathRound)                                  \
   V(MathSqrt)                                   \
+  V(ModByConstI)                                \
+  V(ModByPowerOf2I)                             \
   V(ModI)                                       \
   V(MulI)                                       \
   V(NumberTagD)                                 \
@@ -171,7 +177,6 @@ class LCodeGen;
   V(Typeof)                                     \
   V(TypeofIsAndBranch)                          \
   V(Uint32ToDouble)                             \
-  V(Uint32ToSmi)                                \
   V(UnknownOSRValue)                            \
   V(WrapReceiver)
 
@@ -615,6 +620,49 @@ class LArgumentsElements V8_FINAL : public LTemplateInstruction<1, 0, 0> {
 };
 
 
+class LModByPowerOf2I V8_FINAL : public LTemplateInstruction<1, 1, 0> {
+ public:
+  LModByPowerOf2I(LOperand* dividend, int32_t divisor) {
+    inputs_[0] = dividend;
+    divisor_ = divisor;
+  }
+
+  LOperand* dividend() { return inputs_[0]; }
+  int32_t divisor() const { return divisor_; }
+
+  DECLARE_CONCRETE_INSTRUCTION(ModByPowerOf2I, "mod-by-power-of-2-i")
+  DECLARE_HYDROGEN_ACCESSOR(Mod)
+
+ private:
+  int32_t divisor_;
+};
+
+
+class LModByConstI V8_FINAL : public LTemplateInstruction<1, 1, 2> {
+ public:
+  LModByConstI(LOperand* dividend,
+               int32_t divisor,
+               LOperand* temp1,
+               LOperand* temp2) {
+    inputs_[0] = dividend;
+    divisor_ = divisor;
+    temps_[0] = temp1;
+    temps_[1] = temp2;
+  }
+
+  LOperand* dividend() { return inputs_[0]; }
+  int32_t divisor() const { return divisor_; }
+  LOperand* temp1() { return temps_[0]; }
+  LOperand* temp2() { return temps_[1]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(ModByConstI, "mod-by-const-i")
+  DECLARE_HYDROGEN_ACCESSOR(Mod)
+
+ private:
+  int32_t divisor_;
+};
+
+
 class LModI V8_FINAL : public LTemplateInstruction<1, 2, 1> {
  public:
   LModI(LOperand* left, LOperand* right, LOperand* temp) {
@@ -632,6 +680,49 @@ class LModI V8_FINAL : public LTemplateInstruction<1, 2, 1> {
 };
 
 
+class LDivByPowerOf2I V8_FINAL : public LTemplateInstruction<1, 1, 0> {
+ public:
+  LDivByPowerOf2I(LOperand* dividend, int32_t divisor) {
+    inputs_[0] = dividend;
+    divisor_ = divisor;
+  }
+
+  LOperand* dividend() { return inputs_[0]; }
+  int32_t divisor() const { return divisor_; }
+
+  DECLARE_CONCRETE_INSTRUCTION(DivByPowerOf2I, "div-by-power-of-2-i")
+  DECLARE_HYDROGEN_ACCESSOR(Div)
+
+ private:
+  int32_t divisor_;
+};
+
+
+class LDivByConstI V8_FINAL : public LTemplateInstruction<1, 1, 2> {
+ public:
+  LDivByConstI(LOperand* dividend,
+               int32_t divisor,
+               LOperand* temp1,
+               LOperand* temp2) {
+    inputs_[0] = dividend;
+    divisor_ = divisor;
+    temps_[0] = temp1;
+    temps_[1] = temp2;
+  }
+
+  LOperand* dividend() { return inputs_[0]; }
+  int32_t divisor() const { return divisor_; }
+  LOperand* temp1() { return temps_[0]; }
+  LOperand* temp2() { return temps_[1]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(DivByConstI, "div-by-const-i")
+  DECLARE_HYDROGEN_ACCESSOR(Div)
+
+ private:
+  int32_t divisor_;
+};
+
+
 class LDivI V8_FINAL : public LTemplateInstruction<1, 2, 1> {
  public:
   LDivI(LOperand* left, LOperand* right, LOperand* temp) {
@@ -644,29 +735,52 @@ class LDivI V8_FINAL : public LTemplateInstruction<1, 2, 1> {
   LOperand* right() { return inputs_[1]; }
   LOperand* temp() { return temps_[0]; }
 
-  bool is_flooring() { return hydrogen_value()->IsMathFloorOfDiv(); }
-
   DECLARE_CONCRETE_INSTRUCTION(DivI, "div-i")
-  DECLARE_HYDROGEN_ACCESSOR(Div)
+  DECLARE_HYDROGEN_ACCESSOR(BinaryOperation)
 };
 
 
-class LMathFloorOfDiv V8_FINAL : public LTemplateInstruction<1, 2, 1> {
+class LFlooringDivByPowerOf2I V8_FINAL : public LTemplateInstruction<1, 1, 0> {
  public:
-  LMathFloorOfDiv(LOperand* left,
-                  LOperand* right,
-                  LOperand* temp = NULL) {
-    inputs_[0] = left;
-    inputs_[1] = right;
-    temps_[0] = temp;
+  LFlooringDivByPowerOf2I(LOperand* dividend, int32_t divisor) {
+    inputs_[0] = dividend;
+    divisor_ = divisor;
   }
 
-  LOperand* left() { return inputs_[0]; }
-  LOperand* right() { return inputs_[1]; }
-  LOperand* temp() { return temps_[0]; }
+  LOperand* dividend() { return inputs_[0]; }
+  int32_t divisor() const { return divisor_; }
 
-  DECLARE_CONCRETE_INSTRUCTION(MathFloorOfDiv, "math-floor-of-div")
+  DECLARE_CONCRETE_INSTRUCTION(FlooringDivByPowerOf2I,
+                               "flooring-div-by-power-of-2-i")
   DECLARE_HYDROGEN_ACCESSOR(MathFloorOfDiv)
+
+ private:
+  int32_t divisor_;
+};
+
+
+class LFlooringDivByConstI V8_FINAL : public LTemplateInstruction<1, 1, 2> {
+ public:
+  LFlooringDivByConstI(LOperand* dividend,
+                       int32_t divisor,
+                       LOperand* temp1,
+                       LOperand* temp2) {
+    inputs_[0] = dividend;
+    divisor_ = divisor;
+    temps_[0] = temp1;
+    temps_[1] = temp2;
+  }
+
+  LOperand* dividend() { return inputs_[0]; }
+  int32_t divisor() const { return divisor_; }
+  LOperand* temp1() { return temps_[0]; }
+  LOperand* temp2() { return temps_[0]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(FlooringDivByConstI, "flooring-div-by-const-i")
+  DECLARE_HYDROGEN_ACCESSOR(MathFloorOfDiv)
+
+ private:
+  int32_t divisor_;
 };
 
 
@@ -721,13 +835,15 @@ class LMathFloor V8_FINAL : public LTemplateInstruction<1, 1, 0> {
 };
 
 
-class LMathRound V8_FINAL : public LTemplateInstruction<1, 1, 0> {
+class LMathRound V8_FINAL : public LTemplateInstruction<1, 1, 1> {
  public:
-  explicit LMathRound(LOperand* value) {
+  explicit LMathRound(LOperand* value, LOperand* temp) {
     inputs_[0] = value;
+    temps_[0] = temp;
   }
 
   LOperand* value() { return inputs_[0]; }
+  LOperand* temp() { return temps_[0]; }
 
   DECLARE_CONCRETE_INSTRUCTION(MathRound, "math-round")
   DECLARE_HYDROGEN_ACCESSOR(UnaryMathOperation)
@@ -1840,19 +1956,6 @@ class LInteger32ToDouble V8_FINAL : public LTemplateInstruction<1, 1, 0> {
 };
 
 
-class LInteger32ToSmi V8_FINAL : public LTemplateInstruction<1, 1, 0> {
- public:
-  explicit LInteger32ToSmi(LOperand* value) {
-    inputs_[0] = value;
-  }
-
-  LOperand* value() { return inputs_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(Integer32ToSmi, "int32-to-smi")
-  DECLARE_HYDROGEN_ACCESSOR(Change)
-};
-
-
 class LUint32ToDouble V8_FINAL : public LTemplateInstruction<1, 1, 1> {
  public:
   explicit LUint32ToDouble(LOperand* value, LOperand* temp) {
@@ -1864,19 +1967,6 @@ class LUint32ToDouble V8_FINAL : public LTemplateInstruction<1, 1, 1> {
   LOperand* temp() { return temps_[0]; }
 
   DECLARE_CONCRETE_INSTRUCTION(Uint32ToDouble, "uint32-to-double")
-};
-
-
-class LUint32ToSmi V8_FINAL : public LTemplateInstruction<1, 1, 0> {
- public:
-  explicit LUint32ToSmi(LOperand* value) {
-    inputs_[0] = value;
-  }
-
-  LOperand* value() { return inputs_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(Uint32ToSmi, "uint32-to-smi")
-  DECLARE_HYDROGEN_ACCESSOR(Change)
 };
 
 
@@ -1892,15 +1982,17 @@ class LNumberTagI V8_FINAL : public LTemplateInstruction<1, 1, 0> {
 };
 
 
-class LNumberTagU V8_FINAL : public LTemplateInstruction<1, 1, 1> {
+class LNumberTagU V8_FINAL : public LTemplateInstruction<1, 1, 2> {
  public:
-  explicit LNumberTagU(LOperand* value, LOperand* temp) {
+  LNumberTagU(LOperand* value, LOperand* temp1, LOperand* temp2) {
     inputs_[0] = value;
-    temps_[0] = temp;
+    temps_[0] = temp1;
+    temps_[1] = temp2;
   }
 
   LOperand* value() { return inputs_[0]; }
-  LOperand* temp() { return temps_[0]; }
+  LOperand* temp1() { return temps_[0]; }
+  LOperand* temp2() { return temps_[1]; }
 
   DECLARE_CONCRETE_INSTRUCTION(NumberTagU, "number-tag-u")
 };
@@ -1977,6 +2069,7 @@ class LSmiTag V8_FINAL : public LTemplateInstruction<1, 1, 0> {
   LOperand* value() { return inputs_[0]; }
 
   DECLARE_CONCRETE_INSTRUCTION(SmiTag, "smi-tag")
+  DECLARE_HYDROGEN_ACCESSOR(Change)
 };
 
 
@@ -2052,7 +2145,7 @@ class LStoreNamedGeneric V8_FINAL : public LTemplateInstruction<0, 3, 0> {
   virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
 
   Handle<Object> name() const { return hydrogen()->name(); }
-  StrictModeFlag strict_mode_flag() { return hydrogen()->strict_mode_flag(); }
+  StrictMode strict_mode() { return hydrogen()->strict_mode(); }
 };
 
 
@@ -2107,7 +2200,7 @@ class LStoreKeyedGeneric V8_FINAL : public LTemplateInstruction<0, 4, 0> {
 
   virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
 
-  StrictModeFlag strict_mode_flag() { return hydrogen()->strict_mode_flag(); }
+  StrictMode strict_mode() { return hydrogen()->strict_mode(); }
 };
 
 
@@ -2308,6 +2401,33 @@ class LCheckNonSmi V8_FINAL : public LTemplateInstruction<0, 1, 0> {
 
   DECLARE_CONCRETE_INSTRUCTION(CheckNonSmi, "check-non-smi")
   DECLARE_HYDROGEN_ACCESSOR(CheckHeapObject)
+};
+
+
+class LDoubleBits V8_FINAL : public LTemplateInstruction<1, 1, 0> {
+ public:
+  explicit LDoubleBits(LOperand* value) {
+    inputs_[0] = value;
+  }
+
+  LOperand* value() { return inputs_[0]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(DoubleBits, "double-bits")
+  DECLARE_HYDROGEN_ACCESSOR(DoubleBits)
+};
+
+
+class LConstructDouble V8_FINAL : public LTemplateInstruction<1, 2, 0> {
+ public:
+  LConstructDouble(LOperand* hi, LOperand* lo) {
+    inputs_[0] = hi;
+    inputs_[1] = lo;
+  }
+
+  LOperand* hi() { return inputs_[0]; }
+  LOperand* lo() { return inputs_[1]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(ConstructDouble, "construct-double")
 };
 
 
@@ -2521,9 +2641,7 @@ class LChunkBuilder V8_FINAL : public LChunkBuilderBase {
         current_instruction_(NULL),
         current_block_(NULL),
         next_block_(NULL),
-        allocator_(allocator),
-        instruction_pending_deoptimization_environment_(NULL),
-        pending_deoptimization_ast_id_(BailoutId::None()) { }
+        allocator_(allocator) { }
 
   // Build the sequence for the graph.
   LPlatformChunk* Build();
@@ -2543,6 +2661,14 @@ class LChunkBuilder V8_FINAL : public LChunkBuilderBase {
   LInstruction* DoMathSqrt(HUnaryMathOperation* instr);
   LInstruction* DoMathPowHalf(HUnaryMathOperation* instr);
   LInstruction* DoMathClz32(HUnaryMathOperation* instr);
+  LInstruction* DoDivByPowerOf2I(HDiv* instr);
+  LInstruction* DoDivByConstI(HDiv* instr);
+  LInstruction* DoDivI(HBinaryOperation* instr);
+  LInstruction* DoModByPowerOf2I(HMod* instr);
+  LInstruction* DoModByConstI(HMod* instr);
+  LInstruction* DoModI(HMod* instr);
+  LInstruction* DoFlooringDivByPowerOf2I(HMathFloorOfDiv* instr);
+  LInstruction* DoFlooringDivByConstI(HMathFloorOfDiv* instr);
 
  private:
   enum Status {
@@ -2660,8 +2786,6 @@ class LChunkBuilder V8_FINAL : public LChunkBuilderBase {
   HBasicBlock* current_block_;
   HBasicBlock* next_block_;
   LAllocator* allocator_;
-  LInstruction* instruction_pending_deoptimization_environment_;
-  BailoutId pending_deoptimization_ast_id_;
 
   DISALLOW_COPY_AND_ASSIGN(LChunkBuilder);
 };

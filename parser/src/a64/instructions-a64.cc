@@ -102,7 +102,7 @@ static uint64_t RepeatBitsAcrossReg(unsigned reg_size,
                                     unsigned width) {
   ASSERT((width == 2) || (width == 4) || (width == 8) || (width == 16) ||
          (width == 32));
-  ASSERT((reg_size == kWRegSize) || (reg_size == kXRegSize));
+  ASSERT((reg_size == kWRegSizeInBits) || (reg_size == kXRegSizeInBits));
   uint64_t result = value & ((1UL << width) - 1UL);
   for (unsigned i = width; i < reg_size; i *= 2) {
     result |= (result << i);
@@ -115,7 +115,7 @@ static uint64_t RepeatBitsAcrossReg(unsigned reg_size,
 // indicate a failure case. Specifically, where the constraints on imm_s are not
 // met.
 uint64_t Instruction::ImmLogical() {
-  unsigned reg_size = SixtyFourBits() ? kXRegSize : kWRegSize;
+  unsigned reg_size = SixtyFourBits() ? kXRegSizeInBits : kWRegSizeInBits;
   int64_t n = BitN();
   int64_t imm_s = ImmSetBits();
   int64_t imm_r = ImmRotate();

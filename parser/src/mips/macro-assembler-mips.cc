@@ -5706,6 +5706,28 @@ void CodePatcher::ChangeBranchCondition(Condition cond) {
 }
 
 
+void MacroAssembler::FlooringDiv(Register result,
+                                 Register dividend,
+                                 int32_t divisor) {
+  ASSERT(!dividend.is(result));
+  ASSERT(!dividend.is(at));
+  ASSERT(!result.is(at));
+  MultiplierAndShift ms(divisor);
+  li(at, Operand(ms.multiplier()));
+  Mult(dividend, Operand(at));
+  mfhi(result);
+  if (divisor > 0 && ms.multiplier() < 0) {
+    Addu(result, result, Operand(dividend));
+  }
+  if (divisor < 0 && ms.multiplier() > 0) {
+    Subu(result, result, Operand(dividend));
+  }
+  if (ms.shift() > 0) {
+    sra(result, result, ms.shift());
+  }
+}
+
+
 } }  // namespace v8::internal
 
 #endif  // V8_TARGET_ARCH_MIPS

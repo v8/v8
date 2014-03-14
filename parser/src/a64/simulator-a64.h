@@ -186,8 +186,8 @@ class SimRegisterBase {
  protected:
   uint8_t value_[kSizeInBytes];
 };
-typedef SimRegisterBase<kXRegSizeInBytes> SimRegister;      // r0-r31
-typedef SimRegisterBase<kDRegSizeInBytes> SimFPRegister;    // v0-v31
+typedef SimRegisterBase<kXRegSize> SimRegister;      // r0-r31
+typedef SimRegisterBase<kDRegSize> SimFPRegister;    // v0-v31
 
 
 class Simulator : public DecoderVisitor {
@@ -358,13 +358,14 @@ class Simulator : public DecoderVisitor {
   // Return 'size' bits of the value of an integer register, as the specified
   // type. The value is zero-extended to fill the result.
   //
-  // The only supported values of 'size' are kXRegSize and kWRegSize.
+  // The only supported values of 'size' are kXRegSizeInBits and
+  // kWRegSizeInBits.
   template<typename T>
   T reg(unsigned size, unsigned code,
         Reg31Mode r31mode = Reg31IsZeroRegister) const {
     unsigned size_in_bytes = size / 8;
     ASSERT(size_in_bytes <= sizeof(T));
-    ASSERT((size == kXRegSize) || (size == kWRegSize));
+    ASSERT((size == kXRegSizeInBits) || (size == kWRegSizeInBits));
     ASSERT(code < kNumberOfRegisters);
 
     if ((code == 31) && (r31mode == Reg31IsZeroRegister)) {
@@ -400,13 +401,14 @@ class Simulator : public DecoderVisitor {
   // Write 'size' bits of 'value' into an integer register. The value is
   // zero-extended. This behaviour matches AArch64 register writes.
   //
-  // The only supported values of 'size' are kXRegSize and kWRegSize.
+  // The only supported values of 'size' are kXRegSizeInBits and
+  // kWRegSizeInBits.
   template<typename T>
   void set_reg(unsigned size, unsigned code, T value,
                Reg31Mode r31mode = Reg31IsZeroRegister) {
     unsigned size_in_bytes = size / 8;
     ASSERT(size_in_bytes <= sizeof(T));
-    ASSERT((size == kXRegSize) || (size == kWRegSize));
+    ASSERT((size == kXRegSizeInBits) || (size == kWRegSizeInBits));
     ASSERT(code < kNumberOfRegisters);
 
     if ((code == 31) && (r31mode == Reg31IsZeroRegister)) {
@@ -425,12 +427,12 @@ class Simulator : public DecoderVisitor {
   // Common specialized accessors for the set_reg() template.
   void set_wreg(unsigned code, int32_t value,
                 Reg31Mode r31mode = Reg31IsZeroRegister) {
-    set_reg(kWRegSize, code, value, r31mode);
+    set_reg(kWRegSizeInBits, code, value, r31mode);
   }
 
   void set_xreg(unsigned code, int64_t value,
                 Reg31Mode r31mode = Reg31IsZeroRegister) {
-    set_reg(kXRegSize, code, value, r31mode);
+    set_reg(kXRegSizeInBits, code, value, r31mode);
   }
 
   // Commonly-used special cases.
@@ -458,12 +460,13 @@ class Simulator : public DecoderVisitor {
   // Return 'size' bits of the value of a floating-point register, as the
   // specified type. The value is zero-extended to fill the result.
   //
-  // The only supported values of 'size' are kDRegSize and kSRegSize.
+  // The only supported values of 'size' are kDRegSizeInBits and
+  // kSRegSizeInBits.
   template<typename T>
   T fpreg(unsigned size, unsigned code) const {
     unsigned size_in_bytes = size / 8;
     ASSERT(size_in_bytes <= sizeof(T));
-    ASSERT((size == kDRegSize) || (size == kSRegSize));
+    ASSERT((size == kDRegSizeInBits) || (size == kSRegSizeInBits));
     ASSERT(code < kNumberOfFPRegisters);
     return fpregisters_[code].Get<T>(size_in_bytes);
   }
@@ -493,8 +496,8 @@ class Simulator : public DecoderVisitor {
 
   double fpreg(unsigned size, unsigned code) const {
     switch (size) {
-      case kSRegSize: return sreg(code);
-      case kDRegSize: return dreg(code);
+      case kSRegSizeInBits: return sreg(code);
+      case kDRegSizeInBits: return dreg(code);
       default:
         UNREACHABLE();
         return 0.0;
@@ -505,8 +508,7 @@ class Simulator : public DecoderVisitor {
   // This behaviour matches AArch64 register writes.
   template<typename T>
   void set_fpreg(unsigned code, T value) {
-    ASSERT((sizeof(value) == kDRegSizeInBytes) ||
-           (sizeof(value) == kSRegSizeInBytes));
+    ASSERT((sizeof(value) == kDRegSize) || (sizeof(value) == kSRegSize));
     ASSERT(code < kNumberOfFPRegisters);
     fpregisters_[code].Set(value, sizeof(value));
   }
@@ -535,8 +537,9 @@ class Simulator : public DecoderVisitor {
   SimSystemRegister& nzcv() { return nzcv_; }
 
   // TODO(jbramley): Find a way to make the fpcr_ members return the proper
-  // types, so this accessor is not necessary.
+  // types, so these accessors are not necessary.
   FPRounding RMode() { return static_cast<FPRounding>(fpcr_.RMode()); }
+  bool DN() { return fpcr_.DN() != 0; }
   SimSystemRegister& fpcr() { return fpcr_; }
 
   // Debug helpers
@@ -705,6 +708,9 @@ class Simulator : public DecoderVisitor {
   uint64_t ReverseBits(uint64_t value, unsigned num_bits);
   uint64_t ReverseBytes(uint64_t value, ReverseByteMode mode);
 
+  template <typename T>
+  T FPDefaultNaN() const;
+
   void FPCompare(double val0, double val1);
   double FPRoundInt(double value, FPRounding round_mode);
   double FPToDouble(float value);
@@ -719,16 +725,46 @@ class Simulator : public DecoderVisitor {
   uint64_t FPToUInt64(double value, FPRounding rmode);
 
   template <typename T>
-  T FPMax(T a, T b);
+  T FPAdd(T op1, T op2);
 
   template <typename T>
-  T FPMin(T a, T b);
+  T FPDiv(T op1, T op2);
+
+  template <typename T>
+  T FPMax(T a, T b);
 
   template <typename T>
   T FPMaxNM(T a, T b);
 
   template <typename T>
+  T FPMin(T a, T b);
+
+  template <typename T>
   T FPMinNM(T a, T b);
+
+  template <typename T>
+  T FPMul(T op1, T op2);
+
+  template <typename T>
+  T FPMulAdd(T a, T op1, T op2);
+
+  template <typename T>
+  T FPSqrt(T op);
+
+  template <typename T>
+  T FPSub(T op1, T op2);
+
+  // Standard NaN processing.
+  template <typename T>
+  T FPProcessNaN(T op);
+
+  bool FPProcessNaNs(Instruction* instr);
+
+  template <typename T>
+  T FPProcessNaNs(T op1, T op2);
+
+  template <typename T>
+  T FPProcessNaNs3(T op1, T op2, T op3);
 
   void CheckStackAlignment();
 
@@ -782,7 +818,6 @@ class Simulator : public DecoderVisitor {
   // functions, or to save and restore it when entering and leaving generated
   // code.
   void AssertSupportedFPCR() {
-    ASSERT(fpcr().DN() == 0);             // No default-NaN support.
     ASSERT(fpcr().FZ() == 0);             // No flush-to-zero support.
     ASSERT(fpcr().RMode() == FPTieEven);  // Ties-to-even rounding only.
 

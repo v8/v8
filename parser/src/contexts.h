@@ -135,17 +135,19 @@ enum BindingFlags {
   V(FLOAT64_ARRAY_FUN_INDEX, JSFunction, float64_array_fun) \
   V(UINT8_CLAMPED_ARRAY_FUN_INDEX, JSFunction, uint8_clamped_array_fun) \
   V(DATA_VIEW_FUN_INDEX, JSFunction, data_view_fun) \
-  V(FUNCTION_MAP_INDEX, Map, function_map) \
-  V(STRICT_MODE_FUNCTION_MAP_INDEX, Map, strict_mode_function_map) \
-  V(FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX, Map, function_without_prototype_map) \
-  V(STRICT_MODE_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX, Map, \
-    strict_mode_function_without_prototype_map) \
+  V(SLOPPY_FUNCTION_MAP_INDEX, Map, sloppy_function_map) \
+  V(STRICT_FUNCTION_MAP_INDEX, Map, strict_function_map) \
+  V(SLOPPY_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX, Map, \
+    sloppy_function_without_prototype_map) \
+  V(STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX, Map, \
+    strict_function_without_prototype_map) \
   V(REGEXP_RESULT_MAP_INDEX, Map, regexp_result_map)\
-  V(ARGUMENTS_BOILERPLATE_INDEX, JSObject, arguments_boilerplate) \
+  V(SLOPPY_ARGUMENTS_BOILERPLATE_INDEX, JSObject, \
+    sloppy_arguments_boilerplate) \
   V(ALIASED_ARGUMENTS_BOILERPLATE_INDEX, JSObject, \
     aliased_arguments_boilerplate) \
-  V(STRICT_MODE_ARGUMENTS_BOILERPLATE_INDEX, JSObject, \
-    strict_mode_arguments_boilerplate) \
+  V(STRICT_ARGUMENTS_BOILERPLATE_INDEX, JSObject, \
+    strict_arguments_boilerplate) \
   V(MESSAGE_LISTENERS_INDEX, JSObject, message_listeners) \
   V(MAKE_MESSAGE_FUN_INDEX, JSFunction, make_message_fun) \
   V(GET_STACK_TRACE_LINE_INDEX, JSFunction, get_stack_trace_line_fun) \
@@ -168,6 +170,12 @@ enum BindingFlags {
     error_message_for_code_gen_from_strings) \
   V(RUN_MICROTASKS_INDEX, JSFunction, run_microtasks) \
   V(ENQUEUE_EXTERNAL_MICROTASK_INDEX, JSFunction, enqueue_external_microtask) \
+  V(IS_PROMISE_INDEX, JSFunction, is_promise) \
+  V(PROMISE_CREATE_INDEX, JSFunction, promise_create) \
+  V(PROMISE_RESOLVE_INDEX, JSFunction, promise_resolve) \
+  V(PROMISE_REJECT_INDEX, JSFunction, promise_reject) \
+  V(PROMISE_CHAIN_INDEX, JSFunction, promise_chain) \
+  V(PROMISE_CATCH_INDEX, JSFunction, promise_catch) \
   V(TO_COMPLETE_PROPERTY_DESCRIPTOR_INDEX, JSFunction, \
     to_complete_property_descriptor) \
   V(DERIVED_HAS_TRAP_INDEX, JSFunction, derived_has_trap) \
@@ -180,9 +188,8 @@ enum BindingFlags {
     observers_begin_perform_splice) \
   V(OBSERVERS_END_SPLICE_INDEX, JSFunction, \
     observers_end_perform_splice) \
-  V(GENERATOR_FUNCTION_MAP_INDEX, Map, generator_function_map) \
-  V(STRICT_MODE_GENERATOR_FUNCTION_MAP_INDEX, Map, \
-    strict_mode_generator_function_map) \
+  V(SLOPPY_GENERATOR_FUNCTION_MAP_INDEX, Map, sloppy_generator_function_map) \
+  V(STRICT_GENERATOR_FUNCTION_MAP_INDEX, Map, strict_generator_function_map) \
   V(GENERATOR_OBJECT_PROTOTYPE_MAP_INDEX, Map, \
     generator_object_prototype_map) \
   V(GENERATOR_RESULT_MAP_INDEX, Map, generator_result_map)
@@ -259,14 +266,14 @@ class Context: public FixedArray {
     // These slots are only in native contexts.
     GLOBAL_PROXY_INDEX = MIN_CONTEXT_SLOTS,
     SECURITY_TOKEN_INDEX,
-    ARGUMENTS_BOILERPLATE_INDEX,
+    SLOPPY_ARGUMENTS_BOILERPLATE_INDEX,
     ALIASED_ARGUMENTS_BOILERPLATE_INDEX,
-    STRICT_MODE_ARGUMENTS_BOILERPLATE_INDEX,
+    STRICT_ARGUMENTS_BOILERPLATE_INDEX,
     REGEXP_RESULT_MAP_INDEX,
-    FUNCTION_MAP_INDEX,
-    STRICT_MODE_FUNCTION_MAP_INDEX,
-    FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX,
-    STRICT_MODE_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX,
+    SLOPPY_FUNCTION_MAP_INDEX,
+    STRICT_FUNCTION_MAP_INDEX,
+    SLOPPY_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX,
+    STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX,
     INITIAL_OBJECT_PROTOTYPE_INDEX,
     INITIAL_ARRAY_PROTOTYPE_INDEX,
     BOOLEAN_FUNCTION_INDEX,
@@ -323,6 +330,12 @@ class Context: public FixedArray {
     ERROR_MESSAGE_FOR_CODE_GEN_FROM_STRINGS_INDEX,
     RUN_MICROTASKS_INDEX,
     ENQUEUE_EXTERNAL_MICROTASK_INDEX,
+    IS_PROMISE_INDEX,
+    PROMISE_CREATE_INDEX,
+    PROMISE_RESOLVE_INDEX,
+    PROMISE_REJECT_INDEX,
+    PROMISE_CHAIN_INDEX,
+    PROMISE_CATCH_INDEX,
     TO_COMPLETE_PROPERTY_DESCRIPTOR_INDEX,
     DERIVED_HAS_TRAP_INDEX,
     DERIVED_GET_TRAP_INDEX,
@@ -332,8 +345,8 @@ class Context: public FixedArray {
     OBSERVERS_ENQUEUE_SPLICE_INDEX,
     OBSERVERS_BEGIN_SPLICE_INDEX,
     OBSERVERS_END_SPLICE_INDEX,
-    GENERATOR_FUNCTION_MAP_INDEX,
-    STRICT_MODE_GENERATOR_FUNCTION_MAP_INDEX,
+    SLOPPY_GENERATOR_FUNCTION_MAP_INDEX,
+    STRICT_GENERATOR_FUNCTION_MAP_INDEX,
     GENERATOR_OBJECT_PROTOTYPE_MAP_INDEX,
     GENERATOR_RESULT_MAP_INDEX,
 
@@ -493,14 +506,14 @@ class Context: public FixedArray {
     return kHeaderSize + index * kPointerSize - kHeapObjectTag;
   }
 
-  static int FunctionMapIndex(LanguageMode language_mode, bool is_generator) {
+  static int FunctionMapIndex(StrictMode strict_mode, bool is_generator) {
     return is_generator
-      ? (language_mode == CLASSIC_MODE
-         ? GENERATOR_FUNCTION_MAP_INDEX
-         : STRICT_MODE_GENERATOR_FUNCTION_MAP_INDEX)
-      : (language_mode == CLASSIC_MODE
-         ? FUNCTION_MAP_INDEX
-         : STRICT_MODE_FUNCTION_MAP_INDEX);
+      ? (strict_mode == SLOPPY
+         ? SLOPPY_GENERATOR_FUNCTION_MAP_INDEX
+         : STRICT_GENERATOR_FUNCTION_MAP_INDEX)
+      : (strict_mode == SLOPPY
+         ? SLOPPY_FUNCTION_MAP_INDEX
+         : STRICT_FUNCTION_MAP_INDEX);
   }
 
   static const int kSize = kHeaderSize + NATIVE_CONTEXT_SLOTS * kPointerSize;

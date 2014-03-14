@@ -166,6 +166,26 @@ void KeyedLoadFieldStub::InitializeInterfaceDescriptor(
 }
 
 
+void StringLengthStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  static Register registers[] = { a0, a2 };
+  descriptor->register_param_count_ = 2;
+  descriptor->register_params_ = registers;
+  descriptor->deoptimization_handler_ = NULL;
+}
+
+
+void KeyedStringLengthStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  static Register registers[] = { a1, a0 };
+  descriptor->register_param_count_ = 2;
+  descriptor->register_params_ = registers;
+  descriptor->deoptimization_handler_ = NULL;
+}
+
+
 void KeyedStoreFastElementStub::InitializeInterfaceDescriptor(
     Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
@@ -2204,37 +2224,6 @@ void FunctionPrototypeStub::Generate(MacroAssembler* masm) {
 }
 
 
-void StringLengthStub::Generate(MacroAssembler* masm) {
-  Label miss;
-  Register receiver;
-  if (kind() == Code::KEYED_LOAD_IC) {
-    // ----------- S t a t e -------------
-    //  -- ra    : return address
-    //  -- a0    : key
-    //  -- a1    : receiver
-    // -----------------------------------
-    __ Branch(&miss, ne, a0,
-        Operand(masm->isolate()->factory()->length_string()));
-    receiver = a1;
-  } else {
-    ASSERT(kind() == Code::LOAD_IC);
-    // ----------- S t a t e -------------
-    //  -- a2    : name
-    //  -- ra    : return address
-    //  -- a0    : receiver
-    //  -- sp[0] : receiver
-    // -----------------------------------
-    receiver = a0;
-  }
-
-  StubCompiler::GenerateLoadStringLength(masm, receiver, a3, t0, &miss);
-
-  __ bind(&miss);
-  StubCompiler::TailCallBuiltin(
-      masm, BaseLoadStoreStubCompiler::MissBuiltin(kind()));
-}
-
-
 void StoreArrayLengthStub::Generate(MacroAssembler* masm) {
   // This accepts as a receiver anything JSArray::SetElementsLength accepts
   // (currently anything except for external arrays which means anything with
@@ -2365,7 +2354,7 @@ void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
 }
 
 
-void ArgumentsAccessStub::GenerateNewNonStrictSlow(MacroAssembler* masm) {
+void ArgumentsAccessStub::GenerateNewSloppySlow(MacroAssembler* masm) {
   // sp[0] : number of parameters
   // sp[4] : receiver displacement
   // sp[8] : function
@@ -2391,7 +2380,7 @@ void ArgumentsAccessStub::GenerateNewNonStrictSlow(MacroAssembler* masm) {
 }
 
 
-void ArgumentsAccessStub::GenerateNewNonStrictFast(MacroAssembler* masm) {
+void ArgumentsAccessStub::GenerateNewSloppyFast(MacroAssembler* masm) {
   // Stack layout:
   //  sp[0] : number of parameters (tagged)
   //  sp[4] : address of receiver argument
@@ -2455,7 +2444,7 @@ void ArgumentsAccessStub::GenerateNewNonStrictFast(MacroAssembler* masm) {
   __ Addu(t5, t5, Operand(FixedArray::kHeaderSize));
 
   // 3. Arguments object.
-  __ Addu(t5, t5, Operand(Heap::kArgumentsObjectSize));
+  __ Addu(t5, t5, Operand(Heap::kSloppyArgumentsObjectSize));
 
   // Do the allocation of all three objects in one go.
   __ Allocate(t5, v0, a3, t0, &runtime, TAG_OBJECT);
@@ -2464,7 +2453,7 @@ void ArgumentsAccessStub::GenerateNewNonStrictFast(MacroAssembler* masm) {
   // a2 = argument count (tagged)
   // Get the arguments boilerplate from the current native context into t0.
   const int kNormalOffset =
-      Context::SlotOffset(Context::ARGUMENTS_BOILERPLATE_INDEX);
+      Context::SlotOffset(Context::SLOPPY_ARGUMENTS_BOILERPLATE_INDEX);
   const int kAliasedOffset =
       Context::SlotOffset(Context::ALIASED_ARGUMENTS_BOILERPLATE_INDEX);
 
@@ -2505,7 +2494,7 @@ void ArgumentsAccessStub::GenerateNewNonStrictFast(MacroAssembler* masm) {
   // Set up the elements pointer in the allocated arguments object.
   // If we allocated a parameter map, t0 will point there, otherwise
   // it will point to the backing store.
-  __ Addu(t0, v0, Operand(Heap::kArgumentsObjectSize));
+  __ Addu(t0, v0, Operand(Heap::kSloppyArgumentsObjectSize));
   __ sw(t0, FieldMemOperand(v0, JSObject::kElementsOffset));
 
   // v0 = address of new object (tagged)
@@ -2523,7 +2512,7 @@ void ArgumentsAccessStub::GenerateNewNonStrictFast(MacroAssembler* masm) {
 
   __ Branch(&skip_parameter_map, eq, a1, Operand(Smi::FromInt(0)));
 
-  __ LoadRoot(t2, Heap::kNonStrictArgumentsElementsMapRootIndex);
+  __ LoadRoot(t2, Heap::kSloppyArgumentsElementsMapRootIndex);
   __ sw(t2, FieldMemOperand(t0, FixedArray::kMapOffset));
   __ Addu(t2, a1, Operand(Smi::FromInt(2)));
   __ sw(t2, FieldMemOperand(t0, FixedArray::kLengthOffset));
@@ -2646,7 +2635,7 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
 
   __ Addu(a1, a1, Operand(FixedArray::kHeaderSize / kPointerSize));
   __ bind(&add_arguments_object);
-  __ Addu(a1, a1, Operand(Heap::kArgumentsObjectSizeStrict / kPointerSize));
+  __ Addu(a1, a1, Operand(Heap::kStrictArgumentsObjectSize / kPointerSize));
 
   // Do the allocation of both objects in one go.
   __ Allocate(a1, v0, a2, a3, &runtime,
@@ -2656,7 +2645,7 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
   __ lw(t0, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
   __ lw(t0, FieldMemOperand(t0, GlobalObject::kNativeContextOffset));
   __ lw(t0, MemOperand(t0, Context::SlotOffset(
-      Context::STRICT_MODE_ARGUMENTS_BOILERPLATE_INDEX)));
+      Context::STRICT_ARGUMENTS_BOILERPLATE_INDEX)));
 
   // Copy the JS object part.
   __ CopyFields(v0, t0, a3.bit(), JSObject::kHeaderSize / kPointerSize);
@@ -2675,7 +2664,7 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
 
   // Set up the elements pointer in the allocated arguments object and
   // initialize the header in the elements fixed array.
-  __ Addu(t0, v0, Operand(Heap::kArgumentsObjectSizeStrict));
+  __ Addu(t0, v0, Operand(Heap::kStrictArgumentsObjectSize));
   __ sw(t0, FieldMemOperand(v0, JSObject::kElementsOffset));
   __ LoadRoot(a3, Heap::kFixedArrayMapRootIndex);
   __ sw(a3, FieldMemOperand(t0, FixedArray::kMapOffset));
@@ -3162,9 +3151,9 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   Label initialize, done, miss, megamorphic, not_array_function;
 
   ASSERT_EQ(*TypeFeedbackInfo::MegamorphicSentinel(masm->isolate()),
-            masm->isolate()->heap()->undefined_value());
+            masm->isolate()->heap()->megamorphic_symbol());
   ASSERT_EQ(*TypeFeedbackInfo::UninitializedSentinel(masm->isolate()),
-            masm->isolate()->heap()->the_hole_value());
+            masm->isolate()->heap()->uninitialized_symbol());
 
   // Load the cache state into t0.
   __ sll(t0, a3, kPointerSizeLog2 - kSmiTagSize);
@@ -3192,14 +3181,14 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
 
   // A monomorphic miss (i.e, here the cache is not uninitialized) goes
   // megamorphic.
-  __ LoadRoot(at, Heap::kTheHoleValueRootIndex);
+  __ LoadRoot(at, Heap::kUninitializedSymbolRootIndex);
   __ Branch(&initialize, eq, t0, Operand(at));
   // MegamorphicSentinel is an immortal immovable object (undefined) so no
   // write-barrier is needed.
   __ bind(&megamorphic);
   __ sll(t0, a3, kPointerSizeLog2 - kSmiTagSize);
   __ Addu(t0, a2, Operand(t0));
-  __ LoadRoot(at, Heap::kUndefinedValueRootIndex);
+  __ LoadRoot(at, Heap::kMegamorphicSymbolRootIndex);
   __ sw(at, FieldMemOperand(t0, FixedArray::kHeaderSize));
   __ jmp(&done);
 
@@ -3251,7 +3240,8 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
 void CallFunctionStub::Generate(MacroAssembler* masm) {
   // a1 : the function to call
   // a2 : feedback vector
-  // a3 : (only if a2 is not undefined) slot in feedback vector (Smi)
+  // a3 : (only if a2 is not the megamorphic symbol) slot in feedback
+  //      vector (Smi)
   Label slow, non_function, wrap, cont;
 
   if (NeedsChecks()) {
@@ -3284,7 +3274,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
       __ Branch(&cont, ne, at, Operand(zero_reg));
     }
 
-    // Compute the receiver in non-strict mode.
+    // Compute the receiver in sloppy mode.
     __ lw(a3, MemOperand(sp, argc_ * kPointerSize));
 
     if (NeedsChecks()) {
@@ -3305,12 +3295,12 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
     if (RecordCallTarget()) {
       // If there is a call target cache, mark it megamorphic in the
       // non-function case.  MegamorphicSentinel is an immortal immovable
-      // object (undefined) so no write barrier is needed.
+      // object (megamorphic symbol) so no write barrier is needed.
       ASSERT_EQ(*TypeFeedbackInfo::MegamorphicSentinel(masm->isolate()),
-                masm->isolate()->heap()->undefined_value());
+                masm->isolate()->heap()->megamorphic_symbol());
       __ sll(t1, a3, kPointerSizeLog2 - kSmiTagSize);
       __ Addu(t1, a2, Operand(t1));
-      __ LoadRoot(at, Heap::kUndefinedValueRootIndex);
+      __ LoadRoot(at, Heap::kMegamorphicSymbolRootIndex);
       __ sw(at, FieldMemOperand(t1, FixedArray::kHeaderSize));
     }
     // Check for function proxy.
@@ -5026,7 +5016,7 @@ void RecordWriteStub::GenerateIncremental(MacroAssembler* masm, Mode mode) {
     // remembered set.
     CheckNeedsToInformIncrementalMarker(
         masm, kUpdateRememberedSetOnNoNeedToInformIncrementalMarker, mode);
-    InformIncrementalMarker(masm, mode);
+    InformIncrementalMarker(masm);
     regs_.Restore(masm);
     __ RememberedSetHelper(object_,
                            address_,
@@ -5039,13 +5029,13 @@ void RecordWriteStub::GenerateIncremental(MacroAssembler* masm, Mode mode) {
 
   CheckNeedsToInformIncrementalMarker(
       masm, kReturnOnNoNeedToInformIncrementalMarker, mode);
-  InformIncrementalMarker(masm, mode);
+  InformIncrementalMarker(masm);
   regs_.Restore(masm);
   __ Ret();
 }
 
 
-void RecordWriteStub::InformIncrementalMarker(MacroAssembler* masm, Mode mode) {
+void RecordWriteStub::InformIncrementalMarker(MacroAssembler* masm) {
   regs_.SaveCallerSaveRegisters(masm, save_fp_regs_mode_);
   int argument_count = 3;
   __ PrepareCallCFunction(argument_count, regs_.scratch0());
@@ -5059,18 +5049,10 @@ void RecordWriteStub::InformIncrementalMarker(MacroAssembler* masm, Mode mode) {
   __ li(a2, Operand(ExternalReference::isolate_address(masm->isolate())));
 
   AllowExternalCallThatCantCauseGC scope(masm);
-  if (mode == INCREMENTAL_COMPACTION) {
-    __ CallCFunction(
-        ExternalReference::incremental_evacuation_record_write_function(
-            masm->isolate()),
-        argument_count);
-  } else {
-    ASSERT(mode == INCREMENTAL);
-    __ CallCFunction(
-        ExternalReference::incremental_marking_record_write_function(
-            masm->isolate()),
-        argument_count);
-  }
+  __ CallCFunction(
+      ExternalReference::incremental_marking_record_write_function(
+          masm->isolate()),
+      argument_count);
   regs_.RestoreCallerSaveRegisters(masm, save_fp_regs_mode_);
 }
 
@@ -5486,11 +5468,15 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- a0 : argc (only if argument_count_ == ANY)
   //  -- a1 : constructor
-  //  -- a2 : feedback vector (fixed array or undefined)
+  //  -- a2 : feedback vector (fixed array or megamorphic symbol)
   //  -- a3 : slot index (if a2 is fixed array)
   //  -- sp[0] : return address
   //  -- sp[4] : last argument
   // -----------------------------------
+
+  ASSERT_EQ(*TypeFeedbackInfo::MegamorphicSentinel(masm->isolate()),
+            masm->isolate()->heap()->megamorphic_symbol());
+
   if (FLAG_debug_code) {
     // The array construct code is only set for the global and natives
     // builtin Array functions which always have maps.
@@ -5505,10 +5491,11 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
     __ Assert(eq, kUnexpectedInitialMapForArrayFunction,
         t1, Operand(MAP_TYPE));
 
-    // We should either have undefined in a2 or a valid fixed array.
+    // We should either have the megamorphic symbol in a2 or a valid
+    // fixed array.
     Label okay_here;
     Handle<Map> fixed_array_map = masm->isolate()->factory()->fixed_array_map();
-    __ LoadRoot(at, Heap::kUndefinedValueRootIndex);
+    __ LoadRoot(at, Heap::kMegamorphicSymbolRootIndex);
     __ Branch(&okay_here, eq, a2, Operand(at));
     __ lw(t0, FieldMemOperand(a2, 0));
     __ Assert(eq, kExpectedFixedArrayInRegisterA2,
@@ -5522,7 +5509,7 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
 
   Label no_info;
   // Get the elements kind and case on that.
-  __ LoadRoot(at, Heap::kUndefinedValueRootIndex);
+  __ LoadRoot(at, Heap::kMegamorphicSymbolRootIndex);
   __ Branch(&no_info, eq, a2, Operand(at));
   __ sll(t0, a3, kPointerSizeLog2 - kSmiTagSize);
   __ Addu(a2, a2, Operand(t0));

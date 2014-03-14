@@ -226,6 +226,7 @@ class LCodeGen: public LCodeGenBase {
                   Deoptimizer::BailoutType* override_bailout_type = NULL);
   void DeoptimizeIf(Condition cc, LEnvironment* environment);
   void DeoptimizeIfZero(Register rt, LEnvironment* environment);
+  void DeoptimizeIfNotZero(Register rt, LEnvironment* environment);
   void DeoptimizeIfNegative(Register rt, LEnvironment* environment);
   void DeoptimizeIfSmi(Register rt, LEnvironment* environment);
   void DeoptimizeIfNotSmi(Register rt, LEnvironment* environment);
@@ -275,6 +276,7 @@ class LCodeGen: public LCodeGenBase {
   void RestoreCallerDoubles();
 
   // Code generation steps.  Returns true if code generation should continue.
+  void GenerateBodyInstructionPre(LInstruction* instr) V8_OVERRIDE;
   bool GeneratePrologue();
   bool GenerateDeferredCode();
   bool GenerateDeoptJumpTable();
@@ -345,7 +347,7 @@ class LCodeGen: public LCodeGenBase {
   void EnsureSpaceForLazyDeopt(int space_needed) V8_OVERRIDE;
 
   ZoneList<LEnvironment*> deoptimizations_;
-  ZoneList<Deoptimizer::JumpTableEntry> deopt_jump_table_;
+  ZoneList<Deoptimizer::JumpTableEntry*> deopt_jump_table_;
   ZoneList<Handle<Object> > deoptimization_literals_;
   int inlined_function_count_;
   Scope* const scope_;

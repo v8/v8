@@ -614,6 +614,9 @@ void Heap::GarbageCollectionEpilogue() {
   if (FLAG_code_stats) ReportCodeStatistics("After GC");
 #endif
   if (FLAG_deopt_every_n_garbage_collections > 0) {
+    // TODO(jkummerow/ulan/jarin): This is not safe! We can't assume that
+    // the topmost optimized frame can be deoptimized safely, because it
+    // might not have a lazy bailout point right after its current PC.
     if (++gcs_since_last_deopt_ == FLAG_deopt_every_n_garbage_collections) {
       Deoptimizer::DeoptimizeAll(isolate());
       gcs_since_last_deopt_ = 0;
@@ -2684,7 +2687,6 @@ MaybeObject* Heap::AllocateTypeFeedbackInfo() {
     if (!maybe_info->To(&info)) return maybe_info;
   }
   info->initialize_storage();
-  info->set_feedback_vector(empty_fixed_array(), SKIP_WRITE_BARRIER);
   return info;
 }
 
@@ -2867,7 +2869,7 @@ bool Heap::CreateInitialMaps() {
      TYPED_ARRAYS(ALLOCATE_FIXED_TYPED_ARRAY_MAP)
 #undef ALLOCATE_FIXED_TYPED_ARRAY_MAP
 
-    ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, non_strict_arguments_elements)
+    ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, sloppy_arguments_elements)
 
     ALLOCATE_VARSIZE_MAP(CODE_TYPE, code)
 
@@ -3307,7 +3309,25 @@ bool Heap::CreateInitialObjects() {
     if (!maybe_obj->ToObject(&obj)) return false;
   }
   Symbol::cast(obj)->set_is_private(true);
+  set_nonexistent_symbol(Symbol::cast(obj));
+
+  { MaybeObject* maybe_obj = AllocateSymbol();
+    if (!maybe_obj->ToObject(&obj)) return false;
+  }
+  Symbol::cast(obj)->set_is_private(true);
   set_elements_transition_symbol(Symbol::cast(obj));
+
+  { MaybeObject* maybe_obj = AllocateSymbol();
+    if (!maybe_obj->ToObject(&obj)) return false;
+  }
+  Symbol::cast(obj)->set_is_private(true);
+  set_uninitialized_symbol(Symbol::cast(obj));
+
+  { MaybeObject* maybe_obj = AllocateSymbol();
+    if (!maybe_obj->ToObject(&obj)) return false;
+  }
+  Symbol::cast(obj)->set_is_private(true);
+  set_megamorphic_symbol(Symbol::cast(obj));
 
   { MaybeObject* maybe_obj = SeededNumberDictionary::Allocate(this, 0, TENURED);
     if (!maybe_obj->ToObject(&obj)) return false;
@@ -3327,7 +3347,7 @@ bool Heap::CreateInitialObjects() {
   set_materialized_objects(FixedArray::cast(obj));
 
   // Handling of script id generation is in Factory::NewScript.
-  set_last_script_id(Smi::FromInt(v8::Script::kNoScriptId));
+  set_last_script_id(Smi::FromInt(v8::UnboundScript::kNoScriptId));
 
   { MaybeObject* maybe_obj = AllocateAllocationSitesScratchpad();
     if (!maybe_obj->ToObject(&obj)) return false;
@@ -3648,7 +3668,8 @@ void Heap::InitializeAllocationSitesScratchpad() {
 }
 
 
-void Heap::AddAllocationSiteToScratchpad(AllocationSite* site) {
+void Heap::AddAllocationSiteToScratchpad(AllocationSite* site,
+                                         ScratchpadSlotMode mode) {
   if (allocation_sites_scratchpad_length_ < kAllocationSiteScratchpadSize) {
     // We cannot use the normal write-barrier because slots need to be
     // recorded with non-incremental marking as well. We have to explicitly
@@ -3657,7 +3678,15 @@ void Heap::AddAllocationSiteToScratchpad(AllocationSite* site) {
         allocation_sites_scratchpad_length_, site, SKIP_WRITE_BARRIER);
     Object** slot = allocation_sites_scratchpad()->RawFieldOfElementAt(
         allocation_sites_scratchpad_length_);
-    mark_compact_collector()->RecordSlot(slot, slot, *slot);
+
+    if (mode == RECORD_SCRATCHPAD_SLOT) {
+      // We need to allow slots buffer overflow here since the evacuation
+      // candidates are not part of the global list of old space pages and
+      // releasing an evacuation candidate due to a slots buffer overflow
+      // results in lost pages.
+      mark_compact_collector()->RecordSlot(
+          slot, slot, *slot, SlotsBuffer::IGNORE_OVERFLOW);
+    }
     allocation_sites_scratchpad_length_++;
   }
 }
@@ -3779,6 +3808,7 @@ MaybeObject* Heap::AllocateSharedFunctionInfo(Object* name) {
   share->set_script(undefined_value(), SKIP_WRITE_BARRIER);
   share->set_debug_info(undefined_value(), SKIP_WRITE_BARRIER);
   share->set_inferred_name(empty_string(), SKIP_WRITE_BARRIER);
+  share->set_feedback_vector(empty_fixed_array(), SKIP_WRITE_BARRIER);
   share->set_initial_map(undefined_value(), SKIP_WRITE_BARRIER);
   share->set_ast_node_count(0);
   share->set_counters(0);
@@ -4187,28 +4217,8 @@ void Heap::InitializeAllocationMemento(AllocationMemento* memento,
 }
 
 
-MaybeObject* Heap::AllocateWithAllocationSite(Map* map, AllocationSpace space,
-    Handle<AllocationSite> allocation_site) {
-  ASSERT(gc_state_ == NOT_IN_GC);
-  ASSERT(map->instance_type() != MAP_TYPE);
-  // If allocation failures are disallowed, we may allocate in a different
-  // space when new space is full and the object is not a large object.
-  AllocationSpace retry_space =
-      (space != NEW_SPACE) ? space : TargetSpaceId(map->instance_type());
-  int size = map->instance_size() + AllocationMemento::kSize;
-  Object* result;
-  MaybeObject* maybe_result = AllocateRaw(size, space, retry_space);
-  if (!maybe_result->ToObject(&result)) return maybe_result;
-  // No need for write barrier since object is white and map is in old space.
-  HeapObject::cast(result)->set_map_no_write_barrier(map);
-  AllocationMemento* alloc_memento = reinterpret_cast<AllocationMemento*>(
-      reinterpret_cast<Address>(result) + map->instance_size());
-  InitializeAllocationMemento(alloc_memento, *allocation_site);
-  return result;
-}
-
-
-MaybeObject* Heap::Allocate(Map* map, AllocationSpace space) {
+MaybeObject* Heap::Allocate(Map* map, AllocationSpace space,
+                            AllocationSite* allocation_site) {
   ASSERT(gc_state_ == NOT_IN_GC);
   ASSERT(map->instance_type() != MAP_TYPE);
   // If allocation failures are disallowed, we may allocate in a different
@@ -4216,11 +4226,19 @@ MaybeObject* Heap::Allocate(Map* map, AllocationSpace space) {
   AllocationSpace retry_space =
       (space != NEW_SPACE) ? space : TargetSpaceId(map->instance_type());
   int size = map->instance_size();
+  if (allocation_site != NULL) {
+    size += AllocationMemento::kSize;
+  }
   Object* result;
   MaybeObject* maybe_result = AllocateRaw(size, space, retry_space);
   if (!maybe_result->ToObject(&result)) return maybe_result;
   // No need for write barrier since object is white and map is in old space.
   HeapObject::cast(result)->set_map_no_write_barrier(map);
+  if (allocation_site != NULL) {
+    AllocationMemento* alloc_memento = reinterpret_cast<AllocationMemento*>(
+        reinterpret_cast<Address>(result) + map->instance_size());
+    InitializeAllocationMemento(alloc_memento, allocation_site);
+  }
   return result;
 }
 
@@ -4262,16 +4280,15 @@ MaybeObject* Heap::AllocateArgumentsObject(Object* callee, int length) {
   JSObject* boilerplate;
   int arguments_object_size;
   bool strict_mode_callee = callee->IsJSFunction() &&
-      !JSFunction::cast(callee)->shared()->is_classic_mode();
+      JSFunction::cast(callee)->shared()->strict_mode() == STRICT;
   if (strict_mode_callee) {
     boilerplate =
-        isolate()->context()->native_context()->
-            strict_mode_arguments_boilerplate();
-    arguments_object_size = kArgumentsObjectSizeStrict;
+        isolate()->context()->native_context()->strict_arguments_boilerplate();
+    arguments_object_size = kStrictArgumentsObjectSize;
   } else {
     boilerplate =
-        isolate()->context()->native_context()->arguments_boilerplate();
-    arguments_object_size = kArgumentsObjectSize;
+        isolate()->context()->native_context()->sloppy_arguments_boilerplate();
+    arguments_object_size = kSloppyArgumentsObjectSize;
   }
 
   // Check that the size of the boilerplate matches our
@@ -4297,7 +4314,7 @@ MaybeObject* Heap::AllocateArgumentsObject(Object* callee, int length) {
   JSObject::cast(result)->InObjectPropertyAtPut(kArgumentsLengthIndex,
                                                 Smi::FromInt(length),
                                                 SKIP_WRITE_BARRIER);
-  // Set the callee property for non-strict mode arguments object only.
+  // Set the callee property for sloppy mode arguments object only.
   if (!strict_mode_callee) {
     JSObject::cast(result)->InObjectPropertyAtPut(kArgumentsCalleeIndex,
                                                   callee);
@@ -4344,7 +4361,10 @@ void Heap::InitializeJSObjectFromMap(JSObject* obj,
 
 
 MaybeObject* Heap::AllocateJSObjectFromMap(
-    Map* map, PretenureFlag pretenure, bool allocate_properties) {
+    Map* map,
+    PretenureFlag pretenure,
+    bool allocate_properties,
+    AllocationSite* allocation_site) {
   // JSFunctions should be allocated using AllocateFunction to be
   // properly initialized.
   ASSERT(map->instance_type() != JS_FUNCTION_TYPE);
@@ -4370,7 +4390,7 @@ MaybeObject* Heap::AllocateJSObjectFromMap(
   int size = map->instance_size();
   AllocationSpace space = SelectSpace(size, OLD_POINTER_SPACE, pretenure);
   Object* obj;
-  MaybeObject* maybe_obj = Allocate(map, space);
+  MaybeObject* maybe_obj = Allocate(map, space, allocation_site);
   if (!maybe_obj->To(&obj)) return maybe_obj;
 
   // Initialize the JSObject.
@@ -4381,79 +4401,16 @@ MaybeObject* Heap::AllocateJSObjectFromMap(
 }
 
 
-MaybeObject* Heap::AllocateJSObjectFromMapWithAllocationSite(
-    Map* map, Handle<AllocationSite> allocation_site) {
-  // JSFunctions should be allocated using AllocateFunction to be
-  // properly initialized.
-  ASSERT(map->instance_type() != JS_FUNCTION_TYPE);
-
-  // Both types of global objects should be allocated using
-  // AllocateGlobalObject to be properly initialized.
-  ASSERT(map->instance_type() != JS_GLOBAL_OBJECT_TYPE);
-  ASSERT(map->instance_type() != JS_BUILTINS_OBJECT_TYPE);
-
-  // Allocate the backing storage for the properties.
-  int prop_size = map->InitialPropertiesLength();
-  ASSERT(prop_size >= 0);
-  FixedArray* properties;
-  { MaybeObject* maybe_properties = AllocateFixedArray(prop_size);
-    if (!maybe_properties->To(&properties)) return maybe_properties;
-  }
-
-  // Allocate the JSObject.
-  int size = map->instance_size();
-  AllocationSpace space = SelectSpace(size, OLD_POINTER_SPACE, NOT_TENURED);
-  Object* obj;
-  MaybeObject* maybe_obj =
-      AllocateWithAllocationSite(map, space, allocation_site);
-  if (!maybe_obj->To(&obj)) return maybe_obj;
-
-  // Initialize the JSObject.
-  InitializeJSObjectFromMap(JSObject::cast(obj), properties, map);
-  ASSERT(JSObject::cast(obj)->HasFastElements());
-  return obj;
-}
-
-
 MaybeObject* Heap::AllocateJSObject(JSFunction* constructor,
-                                    PretenureFlag pretenure) {
+                                    PretenureFlag pretenure,
+                                    AllocationSite* allocation_site) {
   ASSERT(constructor->has_initial_map());
+
   // Allocate the object based on the constructors initial map.
-  MaybeObject* result = AllocateJSObjectFromMap(
-      constructor->initial_map(), pretenure);
-#ifdef DEBUG
-  // Make sure result is NOT a global object if valid.
-  Object* non_failure;
-  ASSERT(!result->ToObject(&non_failure) || !non_failure->IsGlobalObject());
-#endif
-  return result;
-}
-
-
-MaybeObject* Heap::AllocateJSObjectWithAllocationSite(JSFunction* constructor,
-    Handle<AllocationSite> allocation_site) {
-  ASSERT(constructor->has_initial_map());
-  // Allocate the object based on the constructors initial map, or the payload
-  // advice
-  Map* initial_map = constructor->initial_map();
-
-  ElementsKind to_kind = allocation_site->GetElementsKind();
-  AllocationSiteMode mode = TRACK_ALLOCATION_SITE;
-  if (to_kind != initial_map->elements_kind()) {
-    MaybeObject* maybe_new_map = initial_map->AsElementsKind(to_kind);
-    if (!maybe_new_map->To(&initial_map)) return maybe_new_map;
-    // Possibly alter the mode, since we found an updated elements kind
-    // in the type info cell.
-    mode = AllocationSite::GetMode(to_kind);
-  }
-
-  MaybeObject* result;
-  if (mode == TRACK_ALLOCATION_SITE) {
-    result = AllocateJSObjectFromMapWithAllocationSite(initial_map,
-        allocation_site);
-  } else {
-    result = AllocateJSObjectFromMap(initial_map, NOT_TENURED);
-  }
+  MaybeObject* result = AllocateJSObjectFromMap(constructor->initial_map(),
+                                                pretenure,
+                                                true,
+                                                allocation_site);
 #ifdef DEBUG
   // Make sure result is NOT a global object if valid.
   Object* non_failure;
@@ -5129,20 +5086,23 @@ MaybeObject* Heap::CopyFixedDoubleArrayWithMap(FixedDoubleArray* src,
 MaybeObject* Heap::CopyConstantPoolArrayWithMap(ConstantPoolArray* src,
                                                 Map* map) {
   int int64_entries = src->count_of_int64_entries();
-  int ptr_entries = src->count_of_ptr_entries();
+  int code_ptr_entries = src->count_of_code_ptr_entries();
+  int heap_ptr_entries = src->count_of_heap_ptr_entries();
   int int32_entries = src->count_of_int32_entries();
   Object* obj;
   { MaybeObject* maybe_obj =
-        AllocateConstantPoolArray(int64_entries, ptr_entries, int32_entries);
+        AllocateConstantPoolArray(int64_entries, code_ptr_entries,
+                                  heap_ptr_entries, int32_entries);
     if (!maybe_obj->ToObject(&obj)) return maybe_obj;
   }
   HeapObject* dst = HeapObject::cast(obj);
   dst->set_map_no_write_barrier(map);
+  int size = ConstantPoolArray::SizeFor(
+        int64_entries, code_ptr_entries, heap_ptr_entries, int32_entries);
   CopyBlock(
       dst->address() + ConstantPoolArray::kLengthOffset,
       src->address() + ConstantPoolArray::kLengthOffset,
-      ConstantPoolArray::SizeFor(int64_entries, ptr_entries, int32_entries)
-          - ConstantPoolArray::kLengthOffset);
+      size - ConstantPoolArray::kLengthOffset);
   return obj;
 }
 
@@ -5279,12 +5239,14 @@ MaybeObject* Heap::AllocateRawFixedDoubleArray(int length,
 
 
 MaybeObject* Heap::AllocateConstantPoolArray(int number_of_int64_entries,
-                                             int number_of_ptr_entries,
+                                             int number_of_code_ptr_entries,
+                                             int number_of_heap_ptr_entries,
                                              int number_of_int32_entries) {
-  ASSERT(number_of_int64_entries > 0 || number_of_ptr_entries > 0 ||
-         number_of_int32_entries > 0);
+  ASSERT(number_of_int64_entries > 0 || number_of_code_ptr_entries > 0 ||
+         number_of_heap_ptr_entries > 0 || number_of_int32_entries > 0);
   int size = ConstantPoolArray::SizeFor(number_of_int64_entries,
-                                        number_of_ptr_entries,
+                                        number_of_code_ptr_entries,
+                                        number_of_heap_ptr_entries,
                                         number_of_int32_entries);
 #ifndef V8_HOST_ARCH_64_BIT
   size += kPointerSize;
@@ -5301,29 +5263,38 @@ MaybeObject* Heap::AllocateConstantPoolArray(int number_of_int64_entries,
   ConstantPoolArray* constant_pool =
       reinterpret_cast<ConstantPoolArray*>(object);
   constant_pool->SetEntryCounts(number_of_int64_entries,
-                                number_of_ptr_entries,
+                                number_of_code_ptr_entries,
+                                number_of_heap_ptr_entries,
                                 number_of_int32_entries);
-  if (number_of_ptr_entries > 0) {
+  if (number_of_code_ptr_entries > 0) {
+    int offset =
+        constant_pool->OffsetOfElementAt(constant_pool->first_code_ptr_index());
     MemsetPointer(
-        HeapObject::RawField(
-            constant_pool,
-            constant_pool->OffsetOfElementAt(constant_pool->first_ptr_index())),
+        reinterpret_cast<Address*>(HeapObject::RawField(constant_pool, offset)),
+        isolate()->builtins()->builtin(Builtins::kIllegal)->entry(),
+        number_of_code_ptr_entries);
+  }
+  if (number_of_heap_ptr_entries > 0) {
+    int offset =
+        constant_pool->OffsetOfElementAt(constant_pool->first_code_ptr_index());
+    MemsetPointer(
+        HeapObject::RawField(constant_pool, offset),
         undefined_value(),
-        number_of_ptr_entries);
+        number_of_heap_ptr_entries);
   }
   return constant_pool;
 }
 
 
 MaybeObject* Heap::AllocateEmptyConstantPoolArray() {
-  int size = ConstantPoolArray::SizeFor(0, 0, 0);
+  int size = ConstantPoolArray::SizeFor(0, 0, 0, 0);
   Object* result;
   { MaybeObject* maybe_result =
         AllocateRaw(size, OLD_DATA_SPACE, OLD_DATA_SPACE);
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
   HeapObject::cast(result)->set_map_no_write_barrier(constant_pool_array_map());
-  ConstantPoolArray::cast(result)->SetEntryCounts(0, 0, 0);
+  ConstantPoolArray::cast(result)->SetEntryCounts(0, 0, 0, 0);
   return result;
 }
 

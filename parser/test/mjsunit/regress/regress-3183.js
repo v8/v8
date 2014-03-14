@@ -1,4 +1,4 @@
-// Copyright 2013 the V8 project authors. All rights reserved.
+// Copyright 2014 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,32 +25,72 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_A64_DEBUGGER_A64_H_
-#define V8_A64_DEBUGGER_A64_H_
+// Flags: --allow-natives-syntax
 
-#if defined(USE_SIMULATOR)
+(function DeoptimizeArgCallFunctionGeneric() {
+  var a = [];
 
-#include "globals.h"
-#include "utils.h"
-#include "a64/constants-a64.h"
-#include "a64/simulator-a64.h"
+  function f1(method, array, elem, deopt) {
+    assertEquals('push', method);
+  }
 
-namespace v8 {
-namespace internal {
+  function f2() { }
+
+  function bar(x, deopt, f) {
+    f('push', a, [x], deopt + 0);
+  }
+
+  function foo() { return bar(arguments[0], arguments[1], arguments[2]); }
+  function baz(f, deopt) { return foo("x", deopt, f); }
+
+  baz(f1, 0);
+  baz(f2, 0);
+  %OptimizeFunctionOnNextCall(baz);
+  baz(f1, "deopt");
+})();
 
 
-class Debugger : public Simulator {
- public:
-  Debugger(Decoder<DispatchingDecoderVisitor>* decoder, FILE* stream = stderr)
-    : Simulator(decoder, NULL, stream) {}
+(function DeoptimizeArgGlobalFunctionGeneric() {
+  var a = [];
 
-  // Functions overloading.
-  void VisitException(Instruction* instr);
-};
+  var f1;
+
+  f1 = function(method, array, elem, deopt) {
+    assertEquals('push', method);
+  }
+
+  function bar(x, deopt, f) {
+    f1('push', a, [x], deopt + 0);
+  }
+
+  function foo() { return bar(arguments[0], arguments[1]); }
+  function baz(deopt) { return foo("x", deopt); }
+
+  baz(0);
+  baz(0);
+  %OptimizeFunctionOnNextCall(baz);
+  baz("deopt");
+})();
 
 
-} }  // namespace v8::internal
+(function DeoptimizeArgCallFunctionRuntime() {
+  var a = [];
 
-#endif  // USE_SIMULATOR
+  var f1;
 
-#endif  // V8_A64_DEBUGGER_A64_H_
+  f1 = function(method, array, elem, deopt) {
+    assertEquals('push', method);
+  }
+
+  function bar(x, deopt) {
+    %_CallFunction(null, 'push', [x][0], ((deopt + 0), 1), f1);
+  }
+
+  function foo() { return bar(arguments[0], arguments[1]); }
+  function baz(deopt) { return foo(0, deopt); }
+
+  baz(0);
+  baz(0);
+  %OptimizeFunctionOnNextCall(baz);
+  baz("deopt");
+})();

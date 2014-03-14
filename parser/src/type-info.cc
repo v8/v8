@@ -43,16 +43,12 @@ namespace internal {
 
 
 TypeFeedbackOracle::TypeFeedbackOracle(Handle<Code> code,
+                                       Handle<FixedArray> feedback_vector,
                                        Handle<Context> native_context,
                                        Zone* zone)
     : native_context_(native_context),
-      zone_(zone) {
-  Object* raw_info = code->type_feedback_info();
-  if (raw_info->IsTypeFeedbackInfo()) {
-    feedback_vector_ = Handle<FixedArray>(TypeFeedbackInfo::cast(raw_info)->
-                                          feedback_vector());
-  }
-
+      zone_(zone),
+      feedback_vector_(feedback_vector) {
   BuildDictionary(code);
   ASSERT(dictionary_->IsDictionary());
 }
@@ -132,9 +128,9 @@ bool TypeFeedbackOracle::CallNewIsMonomorphic(int slot) {
 
 byte TypeFeedbackOracle::ForInType(int feedback_vector_slot) {
   Handle<Object> value = GetInfo(feedback_vector_slot);
-  return value->IsSmi() &&
-      Smi::cast(*value)->value() == TypeFeedbackInfo::kForInFastCaseMarker
-          ? ForInStatement::FAST_FOR_IN : ForInStatement::SLOW_FOR_IN;
+  return value.is_identical_to(
+      TypeFeedbackInfo::UninitializedSentinel(isolate()))
+      ? ForInStatement::FAST_FOR_IN : ForInStatement::SLOW_FOR_IN;
 }
 
 
@@ -438,20 +434,21 @@ void TypeFeedbackOracle::GetRelocInfos(Handle<Code> code,
 void TypeFeedbackOracle::CreateDictionary(Handle<Code> code,
                                           ZoneList<RelocInfo>* infos) {
   AllowHeapAllocation allocation_allowed;
-  byte* old_start = code->instruction_start();
+  Code* old_code = *code;
   dictionary_ =
       isolate()->factory()->NewUnseededNumberDictionary(infos->length());
-  byte* new_start = code->instruction_start();
-  RelocateRelocInfos(infos, old_start, new_start);
+  RelocateRelocInfos(infos, old_code, *code);
 }
 
 
 void TypeFeedbackOracle::RelocateRelocInfos(ZoneList<RelocInfo>* infos,
-                                            byte* old_start,
-                                            byte* new_start) {
+                                            Code* old_code,
+                                            Code* new_code) {
   for (int i = 0; i < infos->length(); i++) {
     RelocInfo* info = &(*infos)[i];
-    info->set_pc(new_start + (info->pc() - old_start));
+    info->set_host(new_code);
+    info->set_pc(new_code->instruction_start() +
+                 (info->pc() - old_code->instruction_start()));
   }
 }
 

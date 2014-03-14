@@ -690,10 +690,14 @@ class MarkCompactCollector {
   void RecordCodeEntrySlot(Address slot, Code* target);
   void RecordCodeTargetPatch(Address pc, Code* target);
 
-  INLINE(void RecordSlot(Object** anchor_slot, Object** slot, Object* object));
+  INLINE(void RecordSlot(Object** anchor_slot,
+                         Object** slot,
+                         Object* object,
+                         SlotsBuffer::AdditionMode mode =
+                             SlotsBuffer::FAIL_ON_OVERFLOW));
 
-  void MigrateObject(Address dst,
-                     Address src,
+  void MigrateObject(HeapObject* dst,
+                     HeapObject* src,
                      int size,
                      AllocationSpace to_old_space);
 

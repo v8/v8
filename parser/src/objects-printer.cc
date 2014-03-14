@@ -378,7 +378,7 @@ void JSObject::PrintElements(FILE* out) {
     case DICTIONARY_ELEMENTS:
       elements()->Print(out);
       break;
-    case NON_STRICT_ARGUMENTS_ELEMENTS: {
+    case SLOPPY_ARGUMENTS_ELEMENTS: {
       FixedArray* p = FixedArray::cast(elements());
       PrintF(out, "   parameter map:");
       for (int i = 2; i < p->length(); i++) {
@@ -566,8 +566,6 @@ void TypeFeedbackInfo::TypeFeedbackInfoPrint(FILE* out) {
   HeapObject::PrintHeader(out, "TypeFeedbackInfo");
   PrintF(out, " - ic_total_count: %d, ic_with_type_info_count: %d\n",
          ic_total_count(), ic_with_type_info_count());
-  PrintF(out, " - feedback_vector: ");
-  feedback_vector()->FixedArrayPrint(out);
 }
 
 
@@ -606,11 +604,14 @@ void ConstantPoolArray::ConstantPoolArrayPrint(FILE* out) {
   HeapObject::PrintHeader(out, "ConstantPoolArray");
   PrintF(out, " - length: %d", length());
   for (int i = 0; i < length(); i++) {
-    if (i < first_ptr_index()) {
+    if (i < first_code_ptr_index()) {
       PrintF(out, "\n  [%d]: double: %g", i, get_int64_entry_as_double(i));
+    } else if (i < first_heap_ptr_index()) {
+      PrintF(out, "\n  [%d]: code target pointer: %p", i,
+             reinterpret_cast<void*>(get_code_ptr_entry(i)));
     } else if (i < first_int32_index()) {
-      PrintF(out, "\n  [%d]: pointer: %p", i,
-             reinterpret_cast<void*>(get_ptr_entry(i)));
+      PrintF(out, "\n  [%d]: heap pointer: %p", i,
+             reinterpret_cast<void*>(get_heap_ptr_entry(i)));
     } else {
       PrintF(out, "\n  [%d]: int32: %d", i, get_int32_entry(i));
     }
@@ -878,6 +879,8 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(FILE* out) {
   PrintF(out, "\n - length = %d", length());
   PrintF(out, "\n - optimized_code_map = ");
   optimized_code_map()->ShortPrint(out);
+  PrintF(out, "\n - feedback_vector = ");
+  feedback_vector()->FixedArrayPrint(out);
   PrintF(out, "\n");
 }
 
@@ -1147,8 +1150,6 @@ void Script::ScriptPrint(FILE* out) {
   type()->ShortPrint(out);
   PrintF(out, "\n - id: ");
   id()->ShortPrint(out);
-  PrintF(out, "\n - data: ");
-  data()->ShortPrint(out);
   PrintF(out, "\n - context data: ");
   context_data()->ShortPrint(out);
   PrintF(out, "\n - wrapper: ");

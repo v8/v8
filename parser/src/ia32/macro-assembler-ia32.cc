@@ -2833,6 +2833,15 @@ void MacroAssembler::Move(Register dst, Register src) {
 }
 
 
+void MacroAssembler::Move(Register dst, Immediate imm) {
+  if (imm.is_zero()) {
+    xor_(dst, dst);
+  } else {
+    mov(dst, imm);
+  }
+}
+
+
 void MacroAssembler::SetCounter(StatsCounter* counter, int value) {
   if (FLAG_native_code_counters && counter->Enabled()) {
     mov(Operand::StaticVariable(ExternalReference(counter)), Immediate(value));
@@ -3602,6 +3611,19 @@ void MacroAssembler::JumpIfDictionaryInPrototypeChain(
   cmp(current, Immediate(factory->null_value()));
   j(not_equal, &loop_again);
 }
+
+
+void MacroAssembler::FlooringDiv(Register dividend, int32_t divisor) {
+  ASSERT(!dividend.is(eax));
+  ASSERT(!dividend.is(edx));
+  MultiplierAndShift ms(divisor);
+  mov(eax, Immediate(ms.multiplier()));
+  imul(dividend);
+  if (divisor > 0 && ms.multiplier() < 0) add(edx, dividend);
+  if (divisor < 0 && ms.multiplier() > 0) sub(edx, dividend);
+  if (ms.shift() > 0) sar(edx, ms.shift());
+}
+
 
 } }  // namespace v8::internal
 

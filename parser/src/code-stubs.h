@@ -51,7 +51,6 @@ namespace internal {
   V(CompareIC)                           \
   V(CompareNilIC)                        \
   V(MathPow)                             \
-  V(StringLength)                        \
   V(FunctionPrototype)                   \
   V(StoreArrayLength)                    \
   V(RecordWrite)                         \
@@ -98,7 +97,9 @@ namespace internal {
   V(CallApiGetter)                       \
   /* IC Handler stubs */                 \
   V(LoadField)                           \
-  V(KeyedLoadField)
+  V(KeyedLoadField)                      \
+  V(StringLength)                        \
+  V(KeyedStringLength)
 
 // List of code stubs only used on ARM platforms.
 #if defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_A64)
@@ -522,8 +523,8 @@ class NumberToStringStub V8_FINAL : public HydrogenCodeStub {
 
 class FastNewClosureStub : public HydrogenCodeStub {
  public:
-  explicit FastNewClosureStub(LanguageMode language_mode, bool is_generator)
-    : language_mode_(language_mode),
+  explicit FastNewClosureStub(StrictMode strict_mode, bool is_generator)
+    : strict_mode_(strict_mode),
       is_generator_(is_generator) { }
 
   virtual Handle<Code> GenerateCode(Isolate* isolate);
@@ -534,7 +535,7 @@ class FastNewClosureStub : public HydrogenCodeStub {
 
   static void InstallDescriptors(Isolate* isolate);
 
-  LanguageMode language_mode() const { return language_mode_; }
+  StrictMode strict_mode() const { return strict_mode_; }
   bool is_generator() const { return is_generator_; }
 
  private:
@@ -543,11 +544,11 @@ class FastNewClosureStub : public HydrogenCodeStub {
 
   Major MajorKey() { return FastNewClosure; }
   int NotMissMinorKey() {
-    return StrictModeBits::encode(language_mode_ != CLASSIC_MODE) |
+    return StrictModeBits::encode(strict_mode_ == STRICT) |
       IsGeneratorBits::encode(is_generator_);
   }
 
-  LanguageMode language_mode_;
+  StrictMode strict_mode_;
   bool is_generator_;
 };
 
@@ -659,8 +660,7 @@ class FastCloneShallowObjectStub : public HydrogenCodeStub {
   // Maximum number of properties in copied object.
   static const int kMaximumClonedProperties = 6;
 
-  explicit FastCloneShallowObjectStub(int length)
-      : length_(length) {
+  explicit FastCloneShallowObjectStub(int length) : length_(length) {
     ASSERT_GE(length_, 0);
     ASSERT_LE(length_, kMaximumClonedProperties);
   }
@@ -834,20 +834,9 @@ class FunctionPrototypeStub: public ICStub {
 };
 
 
-class StringLengthStub: public ICStub {
- public:
-  explicit StringLengthStub(Code::Kind kind) : ICStub(kind) { }
-  virtual void Generate(MacroAssembler* masm);
-
- private:
-  STATIC_ASSERT(KindBits::kSize == 4);
-    virtual CodeStub::Major MajorKey() { return StringLength; }
-};
-
-
 class StoreICStub: public ICStub {
  public:
-  StoreICStub(Code::Kind kind, StrictModeFlag strict_mode)
+  StoreICStub(Code::Kind kind, StrictMode strict_mode)
       : ICStub(kind), strict_mode_(strict_mode) { }
 
  protected:
@@ -862,13 +851,13 @@ class StoreICStub: public ICStub {
     return KindBits::encode(kind()) | StrictModeBits::encode(strict_mode_);
   }
 
-  StrictModeFlag strict_mode_;
+  StrictMode strict_mode_;
 };
 
 
 class StoreArrayLengthStub: public StoreICStub {
  public:
-  explicit StoreArrayLengthStub(Code::Kind kind, StrictModeFlag strict_mode)
+  explicit StoreArrayLengthStub(Code::Kind kind, StrictMode strict_mode)
       : StoreICStub(kind, strict_mode) { }
   virtual void Generate(MacroAssembler* masm);
 
@@ -945,11 +934,10 @@ class LoadFieldStub: public HandlerStub {
                   bool inobject,
                   int index,
                   Representation representation) {
-    bool unboxed_double = FLAG_track_double_fields && representation.IsDouble();
     bit_field_ = KindBits::encode(kind)
         | InobjectBits::encode(inobject)
         | IndexBits::encode(index)
-        | UnboxedDoubleBits::encode(unboxed_double);
+        | UnboxedDoubleBits::encode(representation.IsDouble());
   }
 
  private:
@@ -961,21 +949,67 @@ class LoadFieldStub: public HandlerStub {
 };
 
 
+class StringLengthStub: public HandlerStub {
+ public:
+  explicit StringLengthStub() : HandlerStub() {
+    Initialize(Code::LOAD_IC);
+  }
+  virtual Handle<Code> GenerateCode(Isolate* isolate);
+  virtual void InitializeInterfaceDescriptor(
+      Isolate* isolate,
+      CodeStubInterfaceDescriptor* descriptor);
+
+ protected:
+  virtual Code::Kind kind() const {
+    return KindBits::decode(bit_field_);
+  }
+
+  void Initialize(Code::Kind kind) {
+    bit_field_ = KindBits::encode(kind);
+  }
+
+ private:
+  virtual CodeStub::Major MajorKey() { return StringLength; }
+};
+
+
+class KeyedStringLengthStub: public StringLengthStub {
+ public:
+  explicit KeyedStringLengthStub() : StringLengthStub() {
+    Initialize(Code::KEYED_LOAD_IC);
+  }
+  virtual void InitializeInterfaceDescriptor(
+      Isolate* isolate,
+      CodeStubInterfaceDescriptor* descriptor);
+
+ private:
+  virtual CodeStub::Major MajorKey() { return KeyedStringLength; }
+};
+
+
 class StoreGlobalStub : public HandlerStub {
  public:
-  explicit StoreGlobalStub(bool is_constant) {
-    bit_field_ = IsConstantBits::encode(is_constant);
+  explicit StoreGlobalStub(bool is_constant, bool check_global) {
+    bit_field_ = IsConstantBits::encode(is_constant) |
+        CheckGlobalBits::encode(check_global);
+  }
+
+  static Handle<HeapObject> global_placeholder(Isolate* isolate) {
+    return isolate->factory()->uninitialized_value();
   }
 
   Handle<Code> GetCodeCopyFromTemplate(Isolate* isolate,
-                                       Map* receiver_map,
+                                       GlobalObject* global,
                                        PropertyCell* cell) {
     Handle<Code> code = CodeStub::GetCodeCopyFromTemplate(isolate);
-    // Replace the placeholder cell and global object map with the actual global
-    // cell and receiver map.
+    if (check_global()) {
+      // Replace the placeholder cell and global object map with the actual
+      // global cell and receiver map.
+      code->ReplaceNthObject(1, global_placeholder(isolate)->map(), global);
+      code->ReplaceNthObject(1, isolate->heap()->meta_map(), global->map());
+    }
     Map* cell_map = isolate->heap()->global_property_cell_map();
     code->ReplaceNthObject(1, cell_map, cell);
-    code->ReplaceNthObject(1, isolate->heap()->meta_map(), receiver_map);
     return code;
   }
 
@@ -987,8 +1021,11 @@ class StoreGlobalStub : public HandlerStub {
       Isolate* isolate,
       CodeStubInterfaceDescriptor* descriptor);
 
-  bool is_constant() {
+  bool is_constant() const {
     return IsConstantBits::decode(bit_field_);
+  }
+  bool check_global() const {
+    return CheckGlobalBits::decode(bit_field_);
   }
   void set_is_constant(bool value) {
     bit_field_ = IsConstantBits::update(bit_field_, value);
@@ -1006,6 +1043,7 @@ class StoreGlobalStub : public HandlerStub {
 
   class IsConstantBits: public BitField<bool, 0, 1> {};
   class RepresentationBits: public BitField<Representation::Kind, 1, 8> {};
+  class CheckGlobalBits: public BitField<bool, 9, 1> {};
 
   DISALLOW_COPY_AND_ASSIGN(StoreGlobalStub);
 };
@@ -1061,8 +1099,6 @@ class KeyedLoadFieldStub: public LoadFieldStub {
   virtual void InitializeInterfaceDescriptor(
       Isolate* isolate,
       CodeStubInterfaceDescriptor* descriptor);
-
-  virtual Handle<Code> GenerateCode(Isolate* isolate);
 
  private:
   virtual CodeStub::Major MajorKey() { return KeyedLoadField; }
@@ -1524,8 +1560,8 @@ class ArgumentsAccessStub: public PlatformCodeStub {
  public:
   enum Type {
     READ_ELEMENT,
-    NEW_NON_STRICT_FAST,
-    NEW_NON_STRICT_SLOW,
+    NEW_SLOPPY_FAST,
+    NEW_SLOPPY_SLOW,
     NEW_STRICT
   };
 
@@ -1540,8 +1576,8 @@ class ArgumentsAccessStub: public PlatformCodeStub {
   void Generate(MacroAssembler* masm);
   void GenerateReadElement(MacroAssembler* masm);
   void GenerateNewStrict(MacroAssembler* masm);
-  void GenerateNewNonStrictFast(MacroAssembler* masm);
-  void GenerateNewNonStrictSlow(MacroAssembler* masm);
+  void GenerateNewSloppyFast(MacroAssembler* masm);
+  void GenerateNewSloppySlow(MacroAssembler* masm);
 
   virtual void PrintName(StringStream* stream);
 };

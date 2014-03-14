@@ -559,9 +559,9 @@ function assertAsyncDone(iteration) {
 })();
 
 (function() {
-  Promise.all({get length() { throw 666 }}).chain(
+  Promise.all({}).chain(
     assertUnreachable,
-    function(r) { assertAsync(r === 666, "all/no-array") }
+    function(r) { assertAsync(r instanceof TypeError, "all/no-array") }
   )
   assertAsyncRan()
 })();
@@ -658,9 +658,9 @@ function assertAsyncDone(iteration) {
 })();
 
 (function() {
-  Promise.race({get length() { throw 666 }}).chain(
+  Promise.race({}).chain(
     assertUnreachable,
-    function(r) { assertAsync(r === 666, "one/no-array") }
+    function(r) { assertAsync(r instanceof TypeError, "one/no-array") }
   )
   assertAsyncRan()
 })();

@@ -66,11 +66,7 @@ class CompilationInfo {
   bool is_lazy() const { return IsLazy::decode(flags_); }
   bool is_eval() const { return IsEval::decode(flags_); }
   bool is_global() const { return IsGlobal::decode(flags_); }
-  bool is_classic_mode() const { return language_mode() == CLASSIC_MODE; }
-  bool is_extended_mode() const { return language_mode() == EXTENDED_MODE; }
-  LanguageMode language_mode() const {
-    return LanguageModeField::decode(flags_);
-  }
+  StrictMode strict_mode() const { return StrictModeField::decode(flags_); }
   bool is_in_loop() const { return IsInLoop::decode(flags_); }
   FunctionLiteral* function() const { return function_; }
   Scope* scope() const { return scope_; }
@@ -109,11 +105,9 @@ class CompilationInfo {
   bool this_has_uses() {
     return this_has_uses_;
   }
-  void SetLanguageMode(LanguageMode language_mode) {
-    ASSERT(this->language_mode() == CLASSIC_MODE ||
-           this->language_mode() == language_mode ||
-           language_mode == EXTENDED_MODE);
-    flags_ = LanguageModeField::update(flags_, language_mode);
+  void SetStrictMode(StrictMode strict_mode) {
+    ASSERT(this->strict_mode() == SLOPPY || this->strict_mode() == strict_mode);
+    flags_ = StrictModeField::update(flags_, strict_mode);
   }
   void MarkAsInLoop() {
     ASSERT(is_lazy());
@@ -180,6 +174,9 @@ class CompilationInfo {
   void SetGlobalScope(Scope* global_scope) {
     ASSERT(global_scope_ == NULL);
     global_scope_ = global_scope;
+  }
+  Handle<FixedArray> feedback_vector() const {
+    return feedback_vector_;
   }
   void SetCode(Handle<Code> code) { code_ = code; }
   void SetExtension(v8::Extension* extension) {
@@ -360,26 +357,26 @@ class CompilationInfo {
   // Flags that can be set for lazy compilation.
   class IsInLoop: public BitField<bool, 3, 1> {};
   // Strict mode - used in eager compilation.
-  class LanguageModeField: public BitField<LanguageMode, 4, 2> {};
+  class StrictModeField: public BitField<StrictMode, 4, 1> {};
   // Is this a function from our natives.
-  class IsNative: public BitField<bool, 6, 1> {};
+  class IsNative: public BitField<bool, 5, 1> {};
   // Is this code being compiled with support for deoptimization..
-  class SupportsDeoptimization: public BitField<bool, 7, 1> {};
+  class SupportsDeoptimization: public BitField<bool, 6, 1> {};
   // If compiling for debugging produce just full code matching the
   // initial mode setting.
-  class IsCompilingForDebugging: public BitField<bool, 8, 1> {};
+  class IsCompilingForDebugging: public BitField<bool, 7, 1> {};
   // If the compiled code contains calls that require building a frame
-  class IsCalling: public BitField<bool, 9, 1> {};
+  class IsCalling: public BitField<bool, 8, 1> {};
   // If the compiled code contains calls that require building a frame
-  class IsDeferredCalling: public BitField<bool, 10, 1> {};
+  class IsDeferredCalling: public BitField<bool, 9, 1> {};
   // If the compiled code contains calls that require building a frame
-  class IsNonDeferredCalling: public BitField<bool, 11, 1> {};
+  class IsNonDeferredCalling: public BitField<bool, 10, 1> {};
   // If the compiled code saves double caller registers that it clobbers.
-  class SavesCallerDoubles: public BitField<bool, 12, 1> {};
+  class SavesCallerDoubles: public BitField<bool, 11, 1> {};
   // If the set of valid statements is restricted.
-  class ParseRestricitonField: public BitField<ParseRestriction, 13, 1> {};
+  class ParseRestricitonField: public BitField<ParseRestriction, 12, 1> {};
   // If the function requires a frame (for unspecified reasons)
-  class RequiresFrame: public BitField<bool, 14, 1> {};
+  class RequiresFrame: public BitField<bool, 13, 1> {};
 
   unsigned flags_;
 
@@ -408,6 +405,9 @@ class CompilationInfo {
   // The context of the caller for eval code, and the global context for a
   // global script. Will be a null handle otherwise.
   Handle<Context> context_;
+
+  // Used by codegen, ultimately kept rooted by the SharedFunctionInfo.
+  Handle<FixedArray> feedback_vector_;
 
   // Compilation mode flag and whether deoptimization is allowed.
   Mode mode_;
@@ -618,7 +618,7 @@ class Compiler : public AllStatic {
   // Compile a String source within a context for eval.
   static Handle<JSFunction> GetFunctionFromEval(Handle<String> source,
                                                 Handle<Context> context,
-                                                LanguageMode language_mode,
+                                                StrictMode strict_mode,
                                                 ParseRestriction restriction,
                                                 int scope_position);
 
@@ -631,7 +631,6 @@ class Compiler : public AllStatic {
                                                   Handle<Context> context,
                                                   v8::Extension* extension,
                                                   ScriptDataImpl* pre_data,
-                                                  Handle<Object> script_data,
                                                   NativesFlag is_natives_code);
 
   // Create a shared function info object (the code may be lazily compiled).

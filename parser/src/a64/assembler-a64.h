@@ -227,7 +227,7 @@ struct Register : public CPURegister {
 
   static Register from_code(int code) {
     // Always return an X register.
-    return Register::Create(code, kXRegSize);
+    return Register::Create(code, kXRegSizeInBits);
   }
 
   // End of V8 compatibility section -----------------------
@@ -264,41 +264,65 @@ struct FPRegister : public CPURegister {
   static const int kMaxNumRegisters = kNumberOfFPRegisters;
 
   // Crankshaft can use all the FP registers except:
-  //   - d29 which is used in crankshaft as a double scratch register
-  //   - d30 which is used to keep the 0 double value
+  //   - d15 which is used to keep the 0 double value
+  //   - d30 which is used in crankshaft as a double scratch register
   //   - d31 which is used in the MacroAssembler as a double scratch register
-  static const int kNumReservedRegisters = 3;
-  static const int kMaxNumAllocatableRegisters =
-      kNumberOfFPRegisters - kNumReservedRegisters;
-  static int NumAllocatableRegisters() { return kMaxNumAllocatableRegisters; }
-  static const RegList kAllocatableFPRegisters =
-      (1 << kMaxNumAllocatableRegisters) - 1;
+  static const unsigned kAllocatableLowRangeBegin = 0;
+  static const unsigned kAllocatableLowRangeEnd = 14;
+  static const unsigned kAllocatableHighRangeBegin = 16;
+  static const unsigned kAllocatableHighRangeEnd = 29;
 
-  static FPRegister FromAllocationIndex(int index) {
-    ASSERT((index >= 0) && (index < NumAllocatableRegisters()));
-    return from_code(index);
+  static const RegList kAllocatableFPRegisters = 0x3fff7fff;
+
+  // Gap between low and high ranges.
+  static const int kAllocatableRangeGapSize =
+      (kAllocatableHighRangeBegin - kAllocatableLowRangeEnd) - 1;
+
+  static const int kMaxNumAllocatableRegisters =
+      (kAllocatableLowRangeEnd - kAllocatableLowRangeBegin + 1) +
+      (kAllocatableHighRangeEnd - kAllocatableHighRangeBegin + 1);
+  static int NumAllocatableRegisters() { return kMaxNumAllocatableRegisters; }
+
+  // Return true if the register is one that crankshaft can allocate.
+  bool IsAllocatable() const {
+    return (Bit() & kAllocatableFPRegisters) != 0;
+  }
+
+  static FPRegister FromAllocationIndex(unsigned int index) {
+    ASSERT(index < static_cast<unsigned>(NumAllocatableRegisters()));
+
+    return (index <= kAllocatableLowRangeEnd)
+        ? from_code(index)
+        : from_code(index + kAllocatableRangeGapSize);
   }
 
   static const char* AllocationIndexToString(int index) {
     ASSERT((index >= 0) && (index < NumAllocatableRegisters()));
+    ASSERT((kAllocatableLowRangeBegin == 0) &&
+           (kAllocatableLowRangeEnd == 14) &&
+           (kAllocatableHighRangeBegin == 16) &&
+           (kAllocatableHighRangeEnd == 29));
     const char* const names[] = {
       "d0", "d1", "d2", "d3", "d4", "d5", "d6", "d7",
-      "d8", "d9", "d10", "d11", "d12", "d13", "d14", "d15",
+      "d8", "d9", "d10", "d11", "d12", "d13", "d14",
       "d16", "d17", "d18", "d19", "d20", "d21", "d22", "d23",
-      "d24", "d25", "d26", "d27", "d28",
+      "d24", "d25", "d26", "d27", "d28", "d29"
     };
     return names[index];
   }
 
   static int ToAllocationIndex(FPRegister reg) {
-    int code = reg.code();
-    ASSERT(code < NumAllocatableRegisters());
-    return code;
+    ASSERT(reg.IsAllocatable());
+    unsigned code = reg.code();
+
+    return (code <= kAllocatableLowRangeEnd)
+        ? code
+        : code - kAllocatableRangeGapSize;
   }
 
   static FPRegister from_code(int code) {
     // Always return a D register.
-    return FPRegister::Create(code, kDRegSize);
+    return FPRegister::Create(code, kDRegSizeInBits);
   }
   // End of V8 compatibility section -----------------------
 };
@@ -334,20 +358,23 @@ INITIALIZE_REGISTER(CPURegister, NoCPUReg, 0, 0, CPURegister::kNoRegister);
 INITIALIZE_REGISTER(Register, no_reg, 0, 0, CPURegister::kNoRegister);
 
 #define DEFINE_REGISTERS(N)                                                  \
-  INITIALIZE_REGISTER(Register, w##N, N, kWRegSize, CPURegister::kRegister); \
-  INITIALIZE_REGISTER(Register, x##N, N, kXRegSize, CPURegister::kRegister);
+  INITIALIZE_REGISTER(Register, w##N, N,                                     \
+                      kWRegSizeInBits, CPURegister::kRegister);              \
+  INITIALIZE_REGISTER(Register, x##N, N,                                     \
+                      kXRegSizeInBits, CPURegister::kRegister);
 REGISTER_CODE_LIST(DEFINE_REGISTERS)
 #undef DEFINE_REGISTERS
 
-INITIALIZE_REGISTER(Register, wcsp, kSPRegInternalCode, kWRegSize,
+INITIALIZE_REGISTER(Register, wcsp, kSPRegInternalCode, kWRegSizeInBits,
                     CPURegister::kRegister);
-INITIALIZE_REGISTER(Register, csp, kSPRegInternalCode, kXRegSize,
+INITIALIZE_REGISTER(Register, csp, kSPRegInternalCode, kXRegSizeInBits,
                     CPURegister::kRegister);
 
-#define DEFINE_FPREGISTERS(N)                         \
-  INITIALIZE_REGISTER(FPRegister, s##N, N, kSRegSize, \
-                      CPURegister::kFPRegister);      \
-  INITIALIZE_REGISTER(FPRegister, d##N, N, kDRegSize, CPURegister::kFPRegister);
+#define DEFINE_FPREGISTERS(N)                                                  \
+  INITIALIZE_REGISTER(FPRegister, s##N, N,                                     \
+                      kSRegSizeInBits, CPURegister::kFPRegister);              \
+  INITIALIZE_REGISTER(FPRegister, d##N, N,                                     \
+                      kDRegSizeInBits, CPURegister::kFPRegister);
 REGISTER_CODE_LIST(DEFINE_FPREGISTERS)
 #undef DEFINE_FPREGISTERS
 
@@ -375,10 +402,10 @@ ALIAS_REGISTER(Register, lr, x30);
 ALIAS_REGISTER(Register, xzr, x31);
 ALIAS_REGISTER(Register, wzr, w31);
 
-// Crankshaft double scratch register.
-ALIAS_REGISTER(FPRegister, crankshaft_fp_scratch, d29);
 // Keeps the 0 double value.
-ALIAS_REGISTER(FPRegister, fp_zero, d30);
+ALIAS_REGISTER(FPRegister, fp_zero, d15);
+// Crankshaft double scratch register.
+ALIAS_REGISTER(FPRegister, crankshaft_fp_scratch, d30);
 // MacroAssembler double scratch register.
 ALIAS_REGISTER(FPRegister, fp_scratch, d31);
 
@@ -461,6 +488,11 @@ class CPURegList {
     return list_;
   }
 
+  inline void set_list(RegList new_list) {
+    ASSERT(IsValid());
+    list_ = new_list;
+  }
+
   // Combine another CPURegList into this one. Registers that already exist in
   // this list are left unchanged. The type and size of the registers in the
   // 'other' list must match those in this list.
@@ -471,9 +503,12 @@ class CPURegList {
   // in the 'other' list must match those in this list.
   void Remove(const CPURegList& other);
 
-  // Variants of Combine and Remove which take a single register.
+  // Variants of Combine and Remove which take CPURegisters.
   void Combine(const CPURegister& other);
-  void Remove(const CPURegister& other);
+  void Remove(const CPURegister& other1,
+              const CPURegister& other2 = NoCPUReg,
+              const CPURegister& other3 = NoCPUReg,
+              const CPURegister& other4 = NoCPUReg);
 
   // Variants of Combine and Remove which take a single register by its code;
   // the type and size of the register is inferred from this list.
@@ -488,12 +523,12 @@ class CPURegList {
   CPURegister PopHighestIndex();
 
   // AAPCS64 callee-saved registers.
-  static CPURegList GetCalleeSaved(unsigned size = kXRegSize);
-  static CPURegList GetCalleeSavedFP(unsigned size = kDRegSize);
+  static CPURegList GetCalleeSaved(unsigned size = kXRegSizeInBits);
+  static CPURegList GetCalleeSavedFP(unsigned size = kDRegSizeInBits);
 
   // AAPCS64 caller-saved registers. Note that this includes lr.
-  static CPURegList GetCallerSaved(unsigned size = kXRegSize);
-  static CPURegList GetCallerSavedFP(unsigned size = kDRegSize);
+  static CPURegList GetCallerSaved(unsigned size = kXRegSizeInBits);
+  static CPURegList GetCallerSavedFP(unsigned size = kDRegSizeInBits);
 
   // Registers saved as safepoints.
   static CPURegList GetSafepointSavedRegisters();
@@ -503,9 +538,17 @@ class CPURegList {
     return list_ == 0;
   }
 
-  bool IncludesAliasOf(const CPURegister& other) const {
+  bool IncludesAliasOf(const CPURegister& other1,
+                       const CPURegister& other2 = NoCPUReg,
+                       const CPURegister& other3 = NoCPUReg,
+                       const CPURegister& other4 = NoCPUReg) const {
     ASSERT(IsValid());
-    return (type_ == other.type()) && (other.Bit() & list_);
+    RegList list = 0;
+    if (!other1.IsNone() && (other1.type() == type_)) list |= other1.Bit();
+    if (!other2.IsNone() && (other2.type() == type_)) list |= other2.Bit();
+    if (!other3.IsNone() && (other3.type() == type_)) list |= other3.Bit();
+    if (!other4.IsNone() && (other4.type() == type_)) list |= other4.Bit();
+    return (list_ & list) != 0;
   }
 
   int Count() const {
@@ -730,7 +773,7 @@ class Assembler : public AssemblerBase {
   void bind(Label* label);
 
 
-  // RelocInfo and constant pool ----------------------------------------------
+  // RelocInfo and pools ------------------------------------------------------
 
   // Record relocation information for current pc_.
   void RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data = 0);
@@ -740,8 +783,15 @@ class Assembler : public AssemblerBase {
   inline static Address target_pointer_address_at(Address pc);
 
   // Read/Modify the code target address in the branch/call instruction at pc.
-  inline static Address target_address_at(Address pc);
-  inline static void set_target_address_at(Address pc, Address target);
+  inline static Address target_address_at(Address pc,
+                                          ConstantPoolArray* constant_pool);
+  inline static void set_target_address_at(Address pc,
+                                           ConstantPoolArray* constant_pool,
+                                           Address target);
+  static inline Address target_address_at(Address pc, Code* code);
+  static inline void set_target_address_at(Address pc,
+                                           Code* code,
+                                           Address target);
 
   // Return the code target address at a call site from the return address of
   // that call in the instruction stream.
@@ -754,7 +804,7 @@ class Assembler : public AssemblerBase {
   // This sets the branch destination (which is in the constant pool on ARM).
   // This is for calls and branches within generated code.
   inline static void deserialization_set_special_target_at(
-      Address constant_pool_entry, Address target);
+      Address constant_pool_entry, Code* code, Address target);
 
   // All addresses in the constant pool are the same size as pointers.
   static const int kSpecialTargetSize = kPointerSize;
@@ -806,9 +856,6 @@ class Assembler : public AssemblerBase {
     return SizeOfCodeGeneratedSince(label) / kInstructionSize;
   }
 
-  // TODO(all): Initialize these constants related with code patching.
-  // TODO(all): Set to -1 to hopefully crash if mistakenly used.
-
   // Number of instructions generated for the return sequence in
   // FullCodeGenerator::EmitReturnSequence.
   static const int kJSRetSequenceInstructions = 7;
@@ -839,8 +886,31 @@ class Assembler : public AssemblerBase {
   static int ConstantPoolSizeAt(Instruction* instr);
   // See Assembler::CheckConstPool for more info.
   void ConstantPoolMarker(uint32_t size);
+  void EmitPoolGuard();
   void ConstantPoolGuard();
 
+  // Prevent veneer pool emission until EndBlockVeneerPool is called.
+  // Call to this function can be nested but must be followed by an equal
+  // number of call to EndBlockConstpool.
+  void StartBlockVeneerPool();
+
+  // Resume constant pool emission. Need to be called as many time as
+  // StartBlockVeneerPool to have an effect.
+  void EndBlockVeneerPool();
+
+  bool is_veneer_pool_blocked() const {
+    return veneer_pool_blocked_nesting_ > 0;
+  }
+
+  // Block/resume emission of constant pools and veneer pools.
+  void StartBlockPools() {
+    StartBlockConstPool();
+    StartBlockVeneerPool();
+  }
+  void EndBlockPools() {
+    EndBlockConstPool();
+    EndBlockVeneerPool();
+  }
 
   // Debugging ----------------------------------------------------------------
   PositionsRecorder* positions_recorder() { return &positions_recorder_; }
@@ -855,20 +925,20 @@ class Assembler : public AssemblerBase {
 
   // Record the emission of a constant pool.
   //
-  // The emission of constant pool depends on the size of the code generated and
-  // the number of RelocInfo recorded.
+  // The emission of constant and veneer pools depends on the size of the code
+  // generated and the number of RelocInfo recorded.
   // The Debug mechanism needs to map code offsets between two versions of a
   // function, compiled with and without debugger support (see for example
   // Debug::PrepareForBreakPoints()).
   // Compiling functions with debugger support generates additional code
-  // (Debug::GenerateSlot()). This may affect the emission of the constant
-  // pools and cause the version of the code with debugger support to have
-  // constant pools generated in different places.
-  // Recording the position and size of emitted constant pools allows to
-  // correctly compute the offset mappings between the different versions of a
-  // function in all situations.
+  // (Debug::GenerateSlot()). This may affect the emission of the pools and
+  // cause the version of the code with debugger support to have pools generated
+  // in different places.
+  // Recording the position and size of emitted pools allows to correctly
+  // compute the offset mappings between the different versions of a function in
+  // all situations.
   //
-  // The parameter indicates the size of the constant pool (in bytes), including
+  // The parameter indicates the size of the pool (in bytes), including
   // the marker and branch over the data.
   void RecordConstPool(int size);
 
@@ -1348,6 +1418,7 @@ class Assembler : public AssemblerBase {
 
   // Load literal to FP register.
   void ldr(const FPRegister& ft, double imm);
+  void ldr(const FPRegister& ft, float imm);
 
   // Move instructions. The default shift of -1 indicates that the move
   // instruction will calculate an appropriate 16-bit immediate and left shift
@@ -1426,6 +1497,7 @@ class Assembler : public AssemblerBase {
   // FP instructions.
   // Move immediate to FP register.
   void fmov(FPRegister fd, double imm);
+  void fmov(FPRegister fd, float imm);
 
   // Move FP register to register.
   void fmov(Register rd, FPRegister fn);
@@ -1718,6 +1790,45 @@ class Assembler : public AssemblerBase {
   // Check if is time to emit a constant pool.
   void CheckConstPool(bool force_emit, bool require_jump);
 
+
+  // Returns true if we should emit a veneer as soon as possible for a branch
+  // which can at most reach to specified pc.
+  bool ShouldEmitVeneer(int max_reachable_pc,
+                        int margin = kVeneerDistanceMargin);
+  bool ShouldEmitVeneers(int margin = kVeneerDistanceMargin) {
+    return ShouldEmitVeneer(unresolved_branches_first_limit(), margin);
+  }
+
+  // The maximum code size generated for a veneer. Currently one branch
+  // instruction. This is for code size checking purposes, and can be extended
+  // in the future for example if we decide to add nops between the veneers.
+  static const int kMaxVeneerCodeSize = 1 * kInstructionSize;
+
+  void RecordVeneerPool(int location_offset, int size);
+  // Emits veneers for branches that are approaching their maximum range.
+  // If need_protection is true, the veneers are protected by a branch jumping
+  // over the code.
+  void EmitVeneers(bool need_protection, int margin = kVeneerDistanceMargin);
+  void EmitVeneersGuard() { EmitPoolGuard(); }
+  // Checks whether veneers need to be emitted at this point.
+  void CheckVeneerPool(bool require_jump, int margin = kVeneerDistanceMargin);
+
+
+  class BlockPoolsScope {
+   public:
+    explicit BlockPoolsScope(Assembler* assem) : assem_(assem) {
+      assem_->StartBlockPools();
+    }
+    ~BlockPoolsScope() {
+      assem_->EndBlockPools();
+    }
+
+   private:
+    Assembler* assem_;
+
+    DISALLOW_IMPLICIT_CONSTRUCTORS(BlockPoolsScope);
+  };
+
   // Available for constrained code generation scopes. Prefer
   // MacroAssembler::Mov() when possible.
   inline void LoadRelocated(const CPURegister& rt, const Operand& operand);
@@ -1903,8 +2014,8 @@ class Assembler : public AssemblerBase {
   void GrowBuffer();
   void CheckBuffer();
 
-  // Pc offset of the next buffer check.
-  int next_buffer_check_;
+  // Pc offset of the next constant pool check.
+  int next_constant_pool_check_;
 
   // Constant pool generation
   // Pools are emitted in the instruction stream, preferably after unconditional
@@ -1920,15 +2031,16 @@ class Assembler : public AssemblerBase {
   // expensive. By default we only check again once a number of instructions
   // has been generated. That also means that the sizing of the buffers is not
   // an exact science, and that we rely on some slop to not overrun buffers.
-  static const int kCheckPoolIntervalInst = 128;
-  static const int kCheckPoolInterval =
-    kCheckPoolIntervalInst * kInstructionSize;
+  static const int kCheckConstPoolIntervalInst = 128;
+  static const int kCheckConstPoolInterval =
+    kCheckConstPoolIntervalInst * kInstructionSize;
 
   // Constants in pools are accessed via pc relative addressing, which can
   // reach +/-4KB thereby defining a maximum distance between the instruction
   // and the accessed constant.
-  static const int kMaxDistToPool = 4 * KB;
-  static const int kMaxNumPendingRelocInfo = kMaxDistToPool / kInstructionSize;
+  static const int kMaxDistToConstPool = 4 * KB;
+  static const int kMaxNumPendingRelocInfo =
+    kMaxDistToConstPool / kInstructionSize;
 
 
   // Average distance beetween a constant pool and the first instruction
@@ -1936,7 +2048,8 @@ class Assembler : public AssemblerBase {
   // pollution.
   // In practice the distance will be smaller since constant pool emission is
   // forced after function return and sometimes after unconditional branches.
-  static const int kAvgDistToPool = kMaxDistToPool - kCheckPoolInterval;
+  static const int kAvgDistToConstPool =
+    kMaxDistToConstPool - kCheckConstPoolInterval;
 
   // Emission of the constant pool may be blocked in some code sequences.
   int const_pool_blocked_nesting_;  // Block emission if this is not zero.
@@ -1945,6 +2058,9 @@ class Assembler : public AssemblerBase {
   // Keep track of the first instruction requiring a constant pool entry
   // since the previous constant pool was emitted.
   int first_const_pool_use_;
+
+  // Emission of the veneer pools may be blocked in some code sequences.
+  int veneer_pool_blocked_nesting_;  // Block emission if this is not zero.
 
   // Relocation info generation
   // Each relocation is encoded as a variable size value
@@ -2013,6 +2129,25 @@ class Assembler : public AssemblerBase {
   // pc_offset() for convenience.
   std::multimap<int, FarBranchInfo> unresolved_branches_;
 
+  // We generate a veneer for a branch if we reach within this distance of the
+  // limit of the range.
+  static const int kVeneerDistanceMargin = 1 * KB;
+  // The factor of 2 is a finger in the air guess. With a default margin of
+  // 1KB, that leaves us an addional 256 instructions to avoid generating a
+  // protective branch.
+  static const int kVeneerNoProtectionFactor = 2;
+  static const int kVeneerDistanceCheckMargin =
+    kVeneerNoProtectionFactor * kVeneerDistanceMargin;
+  int unresolved_branches_first_limit() const {
+    ASSERT(!unresolved_branches_.empty());
+    return unresolved_branches_.begin()->first;
+  }
+  // This is similar to next_constant_pool_check_ and helps reduce the overhead
+  // of checking for veneer pools.
+  // It is maintained to the closest unresolved branch limit minus the maximum
+  // veneer margin (or kMaxInt if there are no unresolved branches).
+  int next_veneer_pool_check_;
+
  private:
   // If a veneer is emitted for a branch instruction, that instruction must be
   // removed from the associated label's link chain so that the assembler does
@@ -2021,14 +2156,6 @@ class Assembler : public AssemblerBase {
   void DeleteUnresolvedBranchInfoForLabel(Label* label);
 
  private:
-  // TODO(jbramley): VIXL uses next_literal_pool_check_ and
-  // literal_pool_monitor_ to determine when to consider emitting a literal
-  // pool. V8 doesn't use them, so they should either not be here at all, or
-  // should replace or be merged with next_buffer_check_ and
-  // const_pool_blocked_nesting_.
-  Instruction* next_literal_pool_check_;
-  unsigned literal_pool_monitor_;
-
   PositionsRecorder positions_recorder_;
   friend class PositionsRecorder;
   friend class EnsureSpace;
@@ -2048,20 +2175,19 @@ class PatchingAssembler : public Assembler {
     : Assembler(NULL,
                 reinterpret_cast<byte*>(start),
                 count * kInstructionSize + kGap) {
-    // Block constant pool emission.
-    StartBlockConstPool();
+    StartBlockPools();
   }
 
   PatchingAssembler(byte* start, unsigned count)
     : Assembler(NULL, start, count * kInstructionSize + kGap) {
     // Block constant pool emission.
-    StartBlockConstPool();
+    StartBlockPools();
   }
 
   ~PatchingAssembler() {
     // Const pool should still be blocked.
     ASSERT(is_const_pool_blocked());
-    EndBlockConstPool();
+    EndBlockPools();
     // Verify we have generated the number of instruction we expected.
     ASSERT((pc_offset() + kGap) == buffer_size_);
     // Verify no relocation information has been emitted.

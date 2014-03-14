@@ -120,7 +120,8 @@ CPURegList CPURegList::GetCallerSavedFP(unsigned size) {
 // this mapping.
 CPURegList CPURegList::GetSafepointSavedRegisters() {
   CPURegList list = CPURegList::GetCalleeSaved();
-  list.Combine(CPURegList(CPURegister::kRegister, kXRegSize, kJSCallerSaved));
+  list.Combine(
+      CPURegList(CPURegister::kRegister, kXRegSizeInBits, kJSCallerSaved));
 
   // Note that unfortunately we can't use symbolic names for registers and have
   // to directly use register codes. This is because this function is used to
@@ -157,6 +158,12 @@ bool RelocInfo::IsCodedSpecially() {
   // specially coded on A64 means that it is a movz/movk sequence. We don't
   // generate those for relocatable pointers.
   return false;
+}
+
+
+bool RelocInfo::IsInConstantPool() {
+  Instruction* instr = reinterpret_cast<Instruction*>(pc_);
+  return instr->IsLdrLiteralX();
 }
 
 
@@ -286,6 +293,7 @@ Assembler::Assembler(Isolate* isolate, void* buffer, int buffer_size)
       unresolved_branches_(),
       positions_recorder_(this) {
   const_pool_blocked_nesting_ = 0;
+  veneer_pool_blocked_nesting_ = 0;
   Reset();
 }
 
@@ -293,6 +301,7 @@ Assembler::Assembler(Isolate* isolate, void* buffer, int buffer_size)
 Assembler::~Assembler() {
   ASSERT(num_pending_reloc_info_ == 0);
   ASSERT(const_pool_blocked_nesting_ == 0);
+  ASSERT(veneer_pool_blocked_nesting_ == 0);
 }
 
 
@@ -300,13 +309,16 @@ void Assembler::Reset() {
 #ifdef DEBUG
   ASSERT((pc_ >= buffer_) && (pc_ < buffer_ + buffer_size_));
   ASSERT(const_pool_blocked_nesting_ == 0);
+  ASSERT(veneer_pool_blocked_nesting_ == 0);
+  ASSERT(unresolved_branches_.empty());
   memset(buffer_, 0, pc_ - buffer_);
 #endif
   pc_ = buffer_;
   reloc_info_writer.Reposition(reinterpret_cast<byte*>(buffer_ + buffer_size_),
                                reinterpret_cast<byte*>(pc_));
   num_pending_reloc_info_ = 0;
-  next_buffer_check_ = 0;
+  next_constant_pool_check_ = 0;
+  next_veneer_pool_check_ = kMaxInt;
   no_const_pool_before_ = 0;
   first_const_pool_use_ = -1;
   ClearRecordedAstId();
@@ -534,6 +546,11 @@ int Assembler::LinkAndGetByteOffsetTo(Label* label) {
 
 
 void Assembler::DeleteUnresolvedBranchInfoForLabel(Label* label) {
+  if (unresolved_branches_.empty()) {
+    ASSERT(next_veneer_pool_check_ == kMaxInt);
+    return;
+  }
+
   // Branches to this label will be resolved when the label is bound below.
   std::multimap<int, FarBranchInfo>::iterator it_tmp, it;
   it = unresolved_branches_.begin();
@@ -544,6 +561,12 @@ void Assembler::DeleteUnresolvedBranchInfoForLabel(Label* label) {
       unresolved_branches_.erase(it_tmp);
     }
   }
+  if (unresolved_branches_.empty()) {
+    next_veneer_pool_check_ = kMaxInt;
+  } else {
+    next_veneer_pool_check_ =
+      unresolved_branches_first_limit() - kVeneerDistanceCheckMargin;
+  }
 }
 
 
@@ -551,7 +574,7 @@ void Assembler::StartBlockConstPool() {
   if (const_pool_blocked_nesting_++ == 0) {
     // Prevent constant pool checks happening by setting the next check to
     // the biggest possible offset.
-    next_buffer_check_ = kMaxInt;
+    next_constant_pool_check_ = kMaxInt;
   }
 }
 
@@ -560,13 +583,13 @@ void Assembler::EndBlockConstPool() {
   if (--const_pool_blocked_nesting_ == 0) {
     // Check the constant pool hasn't been blocked for too long.
     ASSERT((num_pending_reloc_info_ == 0) ||
-           (pc_offset() < (first_const_pool_use_ + kMaxDistToPool)));
+           (pc_offset() < (first_const_pool_use_ + kMaxDistToConstPool)));
     // Two cases:
-    //  * no_const_pool_before_ >= next_buffer_check_ and the emission is
+    //  * no_const_pool_before_ >= next_constant_pool_check_ and the emission is
     //    still blocked
-    //  * no_const_pool_before_ < next_buffer_check_ and the next emit will
-    //    trigger a check.
-    next_buffer_check_ = no_const_pool_before_;
+    //  * no_const_pool_before_ < next_constant_pool_check_ and the next emit
+    //    will trigger a check.
+    next_constant_pool_check_ = no_const_pool_before_;
   }
 }
 
@@ -608,6 +631,13 @@ void Assembler::ConstantPoolMarker(uint32_t size) {
 }
 
 
+void Assembler::EmitPoolGuard() {
+  // We must generate only one instruction as this is used in scopes that
+  // control the size of the code generated.
+  Emit(BLR | Rn(xzr));
+}
+
+
 void Assembler::ConstantPoolGuard() {
 #ifdef DEBUG
   // Currently this is only used after a constant pool marker.
@@ -616,9 +646,21 @@ void Assembler::ConstantPoolGuard() {
   ASSERT(instr->preceding()->IsLdrLiteralX() &&
          instr->preceding()->Rt() == xzr.code());
 #endif
+  EmitPoolGuard();
+}
 
-  // We must generate only one instruction.
-  Emit(BLR | Rn(xzr));
+
+void Assembler::StartBlockVeneerPool() {
+  ++veneer_pool_blocked_nesting_;
+}
+
+
+void Assembler::EndBlockVeneerPool() {
+  if (--veneer_pool_blocked_nesting_ == 0) {
+    // Check the veneer pool hasn't been blocked for too long.
+    ASSERT(unresolved_branches_.empty() ||
+           (pc_offset() < unresolved_branches_first_limit()));
+  }
 }
 
 
@@ -712,7 +754,7 @@ void Assembler::tbz(const Register& rt,
                     unsigned bit_pos,
                     int imm14) {
   positions_recorder()->WriteRecordedPositions();
-  ASSERT(rt.Is64Bits() || (rt.Is32Bits() && (bit_pos < kWRegSize)));
+  ASSERT(rt.Is64Bits() || (rt.Is32Bits() && (bit_pos < kWRegSizeInBits)));
   Emit(TBZ | ImmTestBranchBit(bit_pos) | ImmTestBranch(imm14) | Rt(rt));
 }
 
@@ -729,7 +771,7 @@ void Assembler::tbnz(const Register& rt,
                      unsigned bit_pos,
                      int imm14) {
   positions_recorder()->WriteRecordedPositions();
-  ASSERT(rt.Is64Bits() || (rt.Is32Bits() && (bit_pos < kWRegSize)));
+  ASSERT(rt.Is64Bits() || (rt.Is32Bits() && (bit_pos < kWRegSizeInBits)));
   Emit(TBNZ | ImmTestBranchBit(bit_pos) | ImmTestBranch(imm14) | Rt(rt));
 }
 
@@ -1377,16 +1419,24 @@ void Assembler::ldrsw(const Register& rt, const MemOperand& src) {
 
 void Assembler::ldr(const Register& rt, uint64_t imm) {
   // TODO(all): Constant pool may be garbage collected. Hence we cannot store
-  // TODO(all): arbitrary values in them. Manually move it for now.
-  // TODO(all): Fix MacroAssembler::Fmov when this is implemented.
+  // arbitrary values in them. Manually move it for now. Fix
+  // MacroAssembler::Fmov when this is implemented.
   UNIMPLEMENTED();
 }
 
 
 void Assembler::ldr(const FPRegister& ft, double imm) {
   // TODO(all): Constant pool may be garbage collected. Hence we cannot store
-  // TODO(all): arbitrary values in them. Manually move it for now.
-  // TODO(all): Fix MacroAssembler::Fmov when this is implemented.
+  // arbitrary values in them. Manually move it for now. Fix
+  // MacroAssembler::Fmov when this is implemented.
+  UNIMPLEMENTED();
+}
+
+
+void Assembler::ldr(const FPRegister& ft, float imm) {
+  // TODO(all): Constant pool may be garbage collected. Hence we cannot store
+  // arbitrary values in them. Manually move it for now. Fix
+  // MacroAssembler::Fmov when this is implemented.
   UNIMPLEMENTED();
 }
 
@@ -1441,16 +1491,16 @@ void Assembler::isb() {
 
 
 void Assembler::fmov(FPRegister fd, double imm) {
-  if (fd.Is64Bits() && IsImmFP64(imm)) {
-    Emit(FMOV_d_imm | Rd(fd) | ImmFP64(imm));
-  } else if (fd.Is32Bits() && IsImmFP32(imm)) {
-    Emit(FMOV_s_imm | Rd(fd) | ImmFP32(static_cast<float>(imm)));
-  } else if ((imm == 0.0) && (copysign(1.0, imm) == 1.0)) {
-    Register zr = AppropriateZeroRegFor(fd);
-    fmov(fd, zr);
-  } else {
-    ldr(fd, imm);
-  }
+  ASSERT(fd.Is64Bits());
+  ASSERT(IsImmFP64(imm));
+  Emit(FMOV_d_imm | Rd(fd) | ImmFP64(imm));
+}
+
+
+void Assembler::fmov(FPRegister fd, float imm) {
+  ASSERT(fd.Is32Bits());
+  ASSERT(IsImmFP32(imm));
+  Emit(FMOV_s_imm | Rd(fd) | ImmFP32(imm));
 }
 
 
@@ -1870,8 +1920,8 @@ void Assembler::debug(const char* message, uint32_t code, Instr params) {
     Serializer::TooLateToEnableNow();
 #endif
     // The arguments to the debug marker need to be contiguous in memory, so
-    // make sure we don't try to emit a literal pool.
-    BlockConstPoolScope scope(this);
+    // make sure we don't try to emit pools.
+    BlockPoolsScope scope(this);
 
     Label start;
     bind(&start);
@@ -2049,7 +2099,7 @@ void Assembler::EmitExtendShift(const Register& rd,
       case SXTW: sbfm(rd, rn_, non_shift_bits, high_bit); break;
       case UXTX:
       case SXTX: {
-        ASSERT(rn.SizeInBits() == kXRegSize);
+        ASSERT(rn.SizeInBits() == kXRegSizeInBits);
         // Nothing to extend. Just shift.
         lsl(rd, rn_, left_shift);
         break;
@@ -2194,7 +2244,7 @@ bool Assembler::IsImmLogical(uint64_t value,
                              unsigned* imm_s,
                              unsigned* imm_r) {
   ASSERT((n != NULL) && (imm_s != NULL) && (imm_r != NULL));
-  ASSERT((width == kWRegSize) || (width == kXRegSize));
+  ASSERT((width == kWRegSizeInBits) || (width == kXRegSizeInBits));
 
   // Logical immediates are encoded using parameters n, imm_s and imm_r using
   // the following table:
@@ -2221,7 +2271,7 @@ bool Assembler::IsImmLogical(uint64_t value,
 
   // 1. If the value has all set or all clear bits, it can't be encoded.
   if ((value == 0) || (value == 0xffffffffffffffffUL) ||
-      ((width == kWRegSize) && (value == 0xffffffff))) {
+      ((width == kWRegSizeInBits) && (value == 0xffffffff))) {
     return false;
   }
 
@@ -2235,7 +2285,7 @@ bool Assembler::IsImmLogical(uint64_t value,
   // If width == 64 (X reg), start at 0xFFFFFF80.
   // If width == 32 (W reg), start at 0xFFFFFFC0, as the iteration for 64-bit
   // widths won't be executed.
-  int imm_s_fixed = (width == kXRegSize) ? -128 : -64;
+  int imm_s_fixed = (width == kXRegSizeInBits) ? -128 : -64;
   int imm_s_mask = 0x3F;
 
   for (;;) {
@@ -2397,13 +2447,15 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   RelocInfo rinfo(reinterpret_cast<byte*>(pc_), rmode, data, NULL);
   if (((rmode >= RelocInfo::JS_RETURN) &&
        (rmode <= RelocInfo::DEBUG_BREAK_SLOT)) ||
-      (rmode == RelocInfo::CONST_POOL)) {
+      (rmode == RelocInfo::CONST_POOL) ||
+      (rmode == RelocInfo::VENEER_POOL)) {
     // Adjust code for new modes.
     ASSERT(RelocInfo::IsDebugBreakSlot(rmode)
            || RelocInfo::IsJSReturn(rmode)
            || RelocInfo::IsComment(rmode)
            || RelocInfo::IsPosition(rmode)
-           || RelocInfo::IsConstPool(rmode));
+           || RelocInfo::IsConstPool(rmode)
+           || RelocInfo::IsVeneerPool(rmode));
     // These modes do not need an entry in the constant pool.
   } else {
     ASSERT(num_pending_reloc_info_ < kMaxNumPendingRelocInfo);
@@ -2445,14 +2497,14 @@ void Assembler::BlockConstPoolFor(int instructions) {
   int pc_limit = pc_offset() + instructions * kInstructionSize;
   if (no_const_pool_before_ < pc_limit) {
     // If there are some pending entries, the constant pool cannot be blocked
-    // further than first_const_pool_use_ + kMaxDistToPool
+    // further than first_const_pool_use_ + kMaxDistToConstPool
     ASSERT((num_pending_reloc_info_ == 0) ||
-           (pc_limit < (first_const_pool_use_ + kMaxDistToPool)));
+           (pc_limit < (first_const_pool_use_ + kMaxDistToConstPool)));
     no_const_pool_before_ = pc_limit;
   }
 
-  if (next_buffer_check_ < no_const_pool_before_) {
-    next_buffer_check_ = no_const_pool_before_;
+  if (next_constant_pool_check_ < no_const_pool_before_) {
+    next_constant_pool_check_ = no_const_pool_before_;
   }
 }
 
@@ -2470,22 +2522,33 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
   // There is nothing to do if there are no pending constant pool entries.
   if (num_pending_reloc_info_ == 0)  {
     // Calculate the offset of the next check.
-    next_buffer_check_ = pc_offset() + kCheckPoolInterval;
+    next_constant_pool_check_ = pc_offset() + kCheckConstPoolInterval;
     return;
   }
 
   // We emit a constant pool when:
   //  * requested to do so by parameter force_emit (e.g. after each function).
   //  * the distance to the first instruction accessing the constant pool is
-  //    kAvgDistToPool or more.
+  //    kAvgDistToConstPool or more.
   //  * no jump is required and the distance to the first instruction accessing
-  //    the constant pool is at least kMaxDistToPool / 2.
+  //    the constant pool is at least kMaxDistToPConstool / 2.
   ASSERT(first_const_pool_use_ >= 0);
   int dist = pc_offset() - first_const_pool_use_;
-  if (!force_emit && dist < kAvgDistToPool &&
-      (require_jump || (dist < (kMaxDistToPool / 2)))) {
+  if (!force_emit && dist < kAvgDistToConstPool &&
+      (require_jump || (dist < (kMaxDistToConstPool / 2)))) {
     return;
   }
+
+  int jump_instr = require_jump ? kInstructionSize : 0;
+  int size_pool_marker = kInstructionSize;
+  int size_pool_guard = kInstructionSize;
+  int pool_size = jump_instr + size_pool_marker + size_pool_guard +
+    num_pending_reloc_info_ * kPointerSize;
+  int needed_space = pool_size + kGap;
+
+  // Emit veneers for branches that would go out of range during emission of the
+  // constant pool.
+  CheckVeneerPool(require_jump, kVeneerDistanceMargin + pool_size);
 
   Label size_check;
   bind(&size_check);
@@ -2493,19 +2556,13 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
   // Check that the code buffer is large enough before emitting the constant
   // pool (include the jump over the pool, the constant pool marker, the
   // constant pool guard, and the gap to the relocation information).
-  int jump_instr = require_jump ? kInstructionSize : 0;
-  int size_pool_marker = kInstructionSize;
-  int size_pool_guard = kInstructionSize;
-  int pool_size = jump_instr + size_pool_marker + size_pool_guard +
-    num_pending_reloc_info_ * kPointerSize;
-  int needed_space = pool_size + kGap;
   while (buffer_space() <= needed_space) {
     GrowBuffer();
   }
 
   {
-    // Block recursive calls to CheckConstPool.
-    BlockConstPoolScope block_const_pool(this);
+    // Block recursive calls to CheckConstPool and protect from veneer pools.
+    BlockPoolsScope block_pools(this);
     RecordComment("[ Constant Pool");
     RecordConstPool(pool_size);
 
@@ -2535,7 +2592,8 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
       ASSERT(rinfo.rmode() != RelocInfo::COMMENT &&
              rinfo.rmode() != RelocInfo::POSITION &&
              rinfo.rmode() != RelocInfo::STATEMENT_POSITION &&
-             rinfo.rmode() != RelocInfo::CONST_POOL);
+             rinfo.rmode() != RelocInfo::CONST_POOL &&
+             rinfo.rmode() != RelocInfo::VENEER_POOL);
 
       Instruction* instr = reinterpret_cast<Instruction*>(rinfo.pc());
       // Instruction to patch must be 'ldr rd, [pc, #offset]' with offset == 0.
@@ -2558,10 +2616,127 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
 
   // Since a constant pool was just emitted, move the check offset forward by
   // the standard interval.
-  next_buffer_check_ = pc_offset() + kCheckPoolInterval;
+  next_constant_pool_check_ = pc_offset() + kCheckConstPoolInterval;
 
   ASSERT(SizeOfCodeGeneratedSince(&size_check) ==
          static_cast<unsigned>(pool_size));
+}
+
+
+bool Assembler::ShouldEmitVeneer(int max_reachable_pc, int margin) {
+  // Account for the branch around the veneers and the guard.
+  int protection_offset = 2 * kInstructionSize;
+  return pc_offset() > max_reachable_pc - margin - protection_offset -
+    static_cast<int>(unresolved_branches_.size() * kMaxVeneerCodeSize);
+}
+
+
+void Assembler::RecordVeneerPool(int location_offset, int size) {
+#ifdef ENABLE_DEBUGGER_SUPPORT
+  RelocInfo rinfo(buffer_ + location_offset,
+                  RelocInfo::VENEER_POOL, static_cast<intptr_t>(size),
+                  NULL);
+  reloc_info_writer.Write(&rinfo);
+#endif
+}
+
+
+void Assembler::EmitVeneers(bool need_protection, int margin) {
+  BlockPoolsScope scope(this);
+  RecordComment("[ Veneers");
+
+  // The exact size of the veneer pool must be recorded (see the comment at the
+  // declaration site of RecordConstPool()), but computing the number of
+  // veneers that will be generated is not obvious. So instead we remember the
+  // current position and will record the size after the pool has been
+  // generated.
+  Label size_check;
+  bind(&size_check);
+  int veneer_pool_relocinfo_loc = pc_offset();
+
+  Label end;
+  if (need_protection) {
+    b(&end);
+  }
+
+  EmitVeneersGuard();
+
+  Label veneer_size_check;
+
+  std::multimap<int, FarBranchInfo>::iterator it, it_to_delete;
+
+  it = unresolved_branches_.begin();
+  while (it != unresolved_branches_.end()) {
+    if (ShouldEmitVeneer(it->first, margin)) {
+      Instruction* branch = InstructionAt(it->second.pc_offset_);
+      Label* label = it->second.label_;
+
+#ifdef DEBUG
+      bind(&veneer_size_check);
+#endif
+      // Patch the branch to point to the current position, and emit a branch
+      // to the label.
+      Instruction* veneer = reinterpret_cast<Instruction*>(pc_);
+      RemoveBranchFromLabelLinkChain(branch, label, veneer);
+      branch->SetImmPCOffsetTarget(veneer);
+      b(label);
+#ifdef DEBUG
+      ASSERT(SizeOfCodeGeneratedSince(&veneer_size_check) <=
+             static_cast<uint64_t>(kMaxVeneerCodeSize));
+      veneer_size_check.Unuse();
+#endif
+
+      it_to_delete = it++;
+      unresolved_branches_.erase(it_to_delete);
+    } else {
+      ++it;
+    }
+  }
+
+  // Record the veneer pool size.
+  int pool_size = SizeOfCodeGeneratedSince(&size_check);
+  RecordVeneerPool(veneer_pool_relocinfo_loc, pool_size);
+
+  if (unresolved_branches_.empty()) {
+    next_veneer_pool_check_ = kMaxInt;
+  } else {
+    next_veneer_pool_check_ =
+      unresolved_branches_first_limit() - kVeneerDistanceCheckMargin;
+  }
+
+  bind(&end);
+
+  RecordComment("]");
+}
+
+
+void Assembler::CheckVeneerPool(bool require_jump,
+                                int margin) {
+  // There is nothing to do if there are no pending veneer pool entries.
+  if (unresolved_branches_.empty())  {
+    ASSERT(next_veneer_pool_check_ == kMaxInt);
+    return;
+  }
+
+  ASSERT(pc_offset() < unresolved_branches_first_limit());
+
+  // Some short sequence of instruction mustn't be broken up by veneer pool
+  // emission, such sequences are protected by calls to BlockVeneerPoolFor and
+  // BlockVeneerPoolScope.
+  if (is_veneer_pool_blocked()) {
+    return;
+  }
+
+  if (!require_jump) {
+    // Prefer emitting veneers protected by an existing instruction.
+    margin *= kVeneerNoProtectionFactor;
+  }
+  if (ShouldEmitVeneers(margin)) {
+    EmitVeneers(require_jump, margin);
+  } else {
+    next_veneer_pool_check_ =
+      unresolved_branches_first_limit() - kVeneerDistanceCheckMargin;
+  }
 }
 
 

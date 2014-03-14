@@ -1,3 +1,191 @@
+2014-03-14: Version 3.25.12
+
+        PromiseCoerce should deal with an error during accessing "then"
+        (Chromium issue 347095).
+
+        Propagate updated offsets in BoundsCheckBbData (Chromium issue 350863).
+
+        Add regression test for range analysis bug (issue 3204).
+
+        Continued fix for 351257. Reusing the feedback vector is too complex
+        (Chromium issue 351257).
+
+        StopCpuProfiling should return non-const CpuProfile (issue 3213).
+
+        Allow for compiling with xcode 5.1 (which doesn't have gcc anymore).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-03-14: Version 3.25.11
+
+        MIPS: Remove uses of CanBeNegative() in HMod (issue 3204).
+
+        MIPS: Remove uses of RangeCanInclude() in flooring division by power of
+        2 (issue 3204).
+
+        MIPS: Fix uses of range analysis results in HChange (issue 3204).
+
+        Make translation of modulus operation '--stress-opt'-proof (Chromium
+        issue 352059).
+
+        Remove uses of CanBeNegative() in HMod (issue 3204).
+
+        Remove uses of RangeCanInclude() in flooring division by power of 2
+        (issue 3204).
+
+        Fix uses of range analysis results in HChange (issue 3204).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-03-14: Version 3.25.10
+
+        MIPS: Remove uses of CanBeNegative() in HMod (issue 3204).
+
+        MIPS: Remove uses of RangeCanInclude() in flooring division by power of
+        2 (issue 3204).
+
+        MIPS: Fix uses of range analysis results in HChange (issue 3204).
+
+        Make translation of modulus operation '--stress-opt'-proof (Chromium
+        issue 352059).
+
+        Remove uses of CanBeNegative() in HMod (issue 3204).
+
+        Remove uses of RangeCanInclude() in flooring division by power of 2
+        (issue 3204).
+
+        Fix uses of range analysis results in HChange (issue 3204).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-03-13: Version 3.25.9
+
+        Reland "Enable Object.observe by default" again (issue 2409).
+
+        Use intrinsics for builtin ArrayBuffer property accesses (Chromium issue
+        351787).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-03-12: Version 3.25.8
+
+        Fix HIsSmiAndBranch::KnownSuccessorBlock() by deleting it (Chromium
+        issue 351320).
+
+        Fix handling of polymorphic array accesses with constant index (Chromium
+        issue 351319).
+
+        Fix lazy deopt after tagged binary ops (Chromium issue 350434).
+
+        MIPS: Cleanup some of the range uses in ModI/DivI (issue 3204).
+
+        Fix issue with getOwnPropertySymbols and hidden properties (Chromium
+        issue 350864).
+
+        Cleanup some of the range uses in ModI/DivI (issue 3204).
+
+        PromiseCoerce should ignore primitive values (Chromium issue 347095).
+
+        Use a per-isolate cache for the date object JS bits (Chromium issue
+        348856).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-03-11: Version 3.25.7
+
+        Promise.all and Promise.race should reject non-array parameter (Chromium
+        issue 347453).
+
+        Promise.all and Promise race should use "then" rather than "chain"
+        (Chromium issue 347427).
+
+        Merge the "Compute Minus Zero Checks" phase into the range analysis
+        (issue 3204).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-03-10: Version 3.25.6
+
+        Replace the recursion in PropagateMinusZeroChecks() with a loop and a
+        worklist (issue 3204).
+
+        Reland "Enable Object.observe by default" (issue 2409).
+
+        Enable Object.observe by default (issue 2409).
+
+        AllocationTracker now maintains a map from address range to stack trace
+        that allocated the range. When snapshot is generated the map is used to
+        find construction stack trace for an object using its address (Chromium
+        issue 277984).
+
+        Introduce Runtime_GetAllScopesDetails to get all scopes at once for a
+        frame (Chromium issue 340285).
+
+        Reduce heavy runtime calls from debug mirrors (Chromium issue 340285).
+
+        Check and clear date cache in DateCurrentTime, DateLocalTimezone and
+        getTimezoneOffset (Chromium issue 142141).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-03-06: Version 3.25.5
+
+        Fix HConstants with Smi-ranged HeapNumber values (Chromium issue
+        349878).
+
+        Fix issues with JSON stringify replacer array (issues 3200, 3201).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-03-05: Version 3.25.4
+
+        x64: Fix LMathMinMax for constant Smi right-hand operands (Chromium
+        issue 349079).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-03-04: Version 3.25.3
+
+        Clear optimized code cache in shared function info when code gets
+        deoptimized (Chromium issue 343609).
+
+        Fixed constant folding for Math.clz32 (Chromium issue 347906).
+
+        Fix JSObject::PrintTransitions (Chromium issue 347912).
+
+        Fix handling of constant global variable assignments (Chromium issue
+        347904).
+
+        Removed bogus ASSERT (Chromium issue 347542).
+
+        Mark HCompareMap as having Tagged representation (Chromium issue
+        346636).
+
+        Fix crasher in Object.getOwnPropertySymbols (Chromium issue 346141).
+
+        Fix the bit massaging code in CompleteParserRecorder::WriteNumber
+        (Chromium issue 346221).
+
+        Don't eliminate loads with incompatible types or representations
+        (Chromium issue 346343).
+
+        Check that after a weak callback, the handle is either dead or strong
+        (Chromium issue 346061).
+
+        Lazy preparsing vs. lazy parsing fix (Chromium issue 346207).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-02-25: Version 3.25.2
 
         Fix the bit massaging code in CompleteParserRecorder::WriteNumber

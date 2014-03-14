@@ -51,7 +51,7 @@ enum ElementsKind {
 
   // The "slow" kind.
   DICTIONARY_ELEMENTS,
-  NON_STRICT_ARGUMENTS_ELEMENTS,
+  SLOPPY_ARGUMENTS_ELEMENTS,
   // The "fast" kind for external arrays
   EXTERNAL_INT8_ELEMENTS,
   EXTERNAL_UINT8_ELEMENTS,

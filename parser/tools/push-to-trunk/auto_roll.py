@@ -35,8 +35,6 @@ import urllib
 
 from common_includes import *
 import push_to_trunk
-from push_to_trunk import PushToTrunkOptions
-from push_to_trunk import RunPushToTrunk
 
 SETTINGS_LOCATION = "SETTINGS_LOCATION"
 
@@ -45,16 +43,6 @@ CONFIG = {
   DOT_GIT_LOCATION: ".git",
   SETTINGS_LOCATION: "~/.auto-roll",
 }
-
-
-class AutoRollOptions(CommonOptions):
-  def __init__(self, options):
-    super(AutoRollOptions, self).__init__(options)
-    self.requires_editor = False
-    self.status_password = options.status_password
-    self.chromium = options.chromium
-    self.push = getattr(options, 'push', False)
-    self.author = getattr(options, 'author', None)
 
 
 class Preparation(Step):
@@ -94,7 +82,7 @@ class FetchLatestRevision(Step):
 
   def RunStep(self):
     match = re.match(r"^r(\d+) ", self.GitSVNLog())
-    if not match:
+    if not match:  # pragma: no cover
       self.Die("Could not extract current svn revision from log.")
     self["latest"] = match.group(1)
 
@@ -108,7 +96,7 @@ class CheckLastPush(Step):
 
     # TODO(machenbach): This metric counts all revisions. It could be
     # improved by counting only the revisions on bleeding_edge.
-    if int(self["latest"]) - last_push < 10:
+    if int(self["latest"]) - last_push < 10:  # pragma: no cover
       # This makes sure the script doesn't push twice in a row when the cron
       # job retries several times.
       self.Die("Last push too recently: %d" % last_push)
@@ -150,13 +138,13 @@ class PushToTrunk(Step):
       # TODO(machenbach): Update the script before calling it.
       try:
         if self._options.push:
+          P = push_to_trunk.PushToTrunk
           self._side_effect_handler.Call(
-              RunPushToTrunk,
-              push_to_trunk.CONFIG,
-              PushToTrunkOptions.MakeForcedOptions(self._options.author,
-                                                   self._options.reviewer,
-                                                   self._options.chromium),
-              self._side_effect_handler)
+              P(push_to_trunk.CONFIG, self._side_effect_handler).Run,
+              ["-a", self._options.author,
+               "-c", self._options.chromium,
+               "-r", self._options.reviewer,
+               "-f"])
       finally:
         self.PushTreeStatus(self["tree_message"])
     else:
@@ -164,49 +152,35 @@ class PushToTrunk(Step):
             % (latest, lkgr))
 
 
-def RunAutoRoll(config,
-                options,
-                side_effect_handler=DEFAULT_SIDE_EFFECT_HANDLER):
-  step_classes = [
-    Preparation,
-    CheckAutoRollSettings,
-    CheckTreeStatus,
-    FetchLatestRevision,
-    CheckLastPush,
-    FetchLKGR,
-    PushToTrunk,
-  ]
-  RunScript(step_classes, config, options, side_effect_handler)
+class AutoRoll(ScriptsBase):
+  def _PrepareOptions(self, parser):
+    parser.add_argument("-c", "--chromium", required=True,
+                        help=("The path to your Chromium src/ "
+                              "directory to automate the V8 roll."))
+    parser.add_argument("-p", "--push",
+                        help="Push to trunk. Dry run if unspecified.",
+                        default=False, action="store_true")
+    parser.add_argument("--status-password",
+                        help="A file with the password to the status app.")
+
+  def _ProcessOptions(self, options):
+    if not options.author or not options.reviewer:  # pragma: no cover
+      print "You need to specify author and reviewer."
+      return False
+    options.requires_editor = False
+    return True
+
+  def _Steps(self):
+    return [
+      Preparation,
+      CheckAutoRollSettings,
+      CheckTreeStatus,
+      FetchLatestRevision,
+      CheckLastPush,
+      FetchLKGR,
+      PushToTrunk,
+    ]
 
 
-def BuildOptions():
-  parser = argparse.ArgumentParser()
-  parser.add_argument("-a", "--author",
-                      help="The author email used for rietveld.")
-  parser.add_argument("-c", "--chromium",
-                      help=("The path to your Chromium src/ directory to "
-                            "automate the V8 roll."))
-  parser.add_argument("-p", "--push",
-                      help="Push to trunk if possible. Dry run if unspecified.",
-                      default=False, action="store_true")
-  parser.add_argument("-r", "--reviewer",
-                      help="The account name to be used for reviews.")
-  parser.add_argument("-s", "--step",
-                      help="Specify the step where to start work. Default: 0.",
-                      default=0, type=int)
-  parser.add_argument("--status-password",
-                      help="A file with the password to the status app.")
-  return parser
-
-
-def Main():
-  parser = BuildOptions()
-  options = parser.parse_args()
-  if not options.author or not options.chromium or not options.reviewer:
-    print "You need to specify author, chromium src location and reviewer."
-    parser.print_help()
-    return 1
-  RunAutoRoll(CONFIG, AutoRollOptions(options))
-
-if __name__ == "__main__":
-  sys.exit(Main())
+if __name__ == "__main__":  # pragma: no cover
+  sys.exit(AutoRoll(CONFIG).Run())

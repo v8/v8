@@ -50,28 +50,14 @@ CONFIG = {
 }
 
 
-class MergeToBranchOptions(CommonOptions):
-  def __init__(self, options):
-    super(MergeToBranchOptions, self).__init__(options, True)
-    self.requires_editor = True
-    self.wait_for_lgtm = True
-    self.delete_sentinel = options.f
-    self.message = getattr(options, "message", "")
-    self.revert = getattr(options, "r", False)
-    self.revert_bleeding_edge = getattr(options, "revert_bleeding_edge", False)
-    self.patch = getattr(options, "p", "")
-    self.branch = options.branch
-    self.revisions = options.revisions
-
-
 class Preparation(Step):
   MESSAGE = "Preparation."
 
   def RunStep(self):
     if os.path.exists(self.Config(ALREADY_MERGING_SENTINEL_FILE)):
-      if self._options.delete_sentinel:
+      if self._options.force:
         os.remove(self.Config(ALREADY_MERGING_SENTINEL_FILE))
-      elif self._options.step == 0:
+      elif self._options.step == 0:  # pragma: no cover
         self.Die("A merge is already in progress")
     open(self.Config(ALREADY_MERGING_SENTINEL_FILE), "a").close()
 
@@ -80,7 +66,7 @@ class Preparation(Step):
       self["merge_to_branch"] = "bleeding_edge"
     elif self._options.branch:
       self["merge_to_branch"] = self._options.branch
-    else:
+    else:  # pragma: no cover
       self.Die("Please specify a branch to merge to")
 
     self.CommonPrepare()
@@ -109,7 +95,7 @@ class SearchArchitecturePorts(Step):
                                branch="svn/bleeding_edge")
       for git_hash in git_hashes.splitlines():
         svn_revision = self.GitSVNFindSVNRev(git_hash, "svn/bleeding_edge")
-        if not svn_revision:
+        if not svn_revision:  # pragma: no cover
           self.Die("Cannot determine svn revision for %s" % git_hash)
         revision_title = self.GitLog(n=1, format="%s", git_hash=git_hash)
 
@@ -137,7 +123,7 @@ class FindGitRevisions(Step):
     self["patch_commit_hashes"] = []
     for revision in self["full_revision_list"]:
       next_hash = self.GitSVNFindGitHash(revision, "svn/bleeding_edge")
-      if not next_hash:
+      if not next_hash:  # pragma: no cover
         self.Die("Cannot determine git hash for r%s" % revision)
       self["patch_commit_hashes"].append(next_hash)
 
@@ -145,7 +131,7 @@ class FindGitRevisions(Step):
     self["revision_list"] = ", ".join(map(lambda s: "r%s" % s,
                                       self["full_revision_list"]))
 
-    if not self["revision_list"]:
+    if not self["revision_list"]:  # pragma: no cover
       self.Die("Revision list is empty.")
 
     if self._options.revert:
@@ -246,7 +232,7 @@ class PrepareSVN(Step):
     self.GitSVNFetch()
     commit_hash = self.GitLog(n=1, format="%H", grep=self["new_commit_msg"],
                               branch="svn/%s" % self["merge_to_branch"])
-    if not commit_hash:
+    if not commit_hash:  # pragma: no cover
       self.Die("Unable to map git commit to svn revision.")
     self["svn_revision"] = self.GitSVNFindSVNRev(commit_hash)
     print "subversion revision number is r%s" % self["svn_revision"]
@@ -288,76 +274,58 @@ class CleanUp(Step):
         print "patches: %s" % self["revision_list"]
 
 
-def RunMergeToBranch(config,
-                     options,
-                     side_effect_handler=DEFAULT_SIDE_EFFECT_HANDLER):
-  step_classes = [
-    Preparation,
-    CreateBranch,
-    SearchArchitecturePorts,
-    FindGitRevisions,
-    ApplyPatches,
-    PrepareVersion,
-    IncrementVersion,
-    CommitLocal,
-    UploadStep,
-    CommitRepository,
-    PrepareSVN,
-    TagRevision,
-    CleanUp,
-  ]
+class MergeToBranch(ScriptsBase):
+  def _Description(self):
+    return ("Performs the necessary steps to merge revisions from "
+            "bleeding_edge to other branches, including trunk.")
 
-  RunScript(step_classes, config, options, side_effect_handler)
+  def _PrepareOptions(self, parser):
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument("--branch", help="The branch to merge to.")
+    group.add_argument("-R", "--revert-bleeding-edge",
+                       help="Revert specified patches from bleeding edge.",
+                       default=False, action="store_true")
+    parser.add_argument("revisions", nargs="*",
+                        help="The revisions to merge.")
+    parser.add_argument("-f", "--force",
+                        help="Delete sentinel file.",
+                        default=False, action="store_true")
+    parser.add_argument("-m", "--message",
+                        help="A commit message for the patch.")
+    parser.add_argument("--revert",
+                        help="Revert specified patches.",
+                        default=False, action="store_true")
+    parser.add_argument("-p", "--patch",
+                        help="A patch file to apply as part of the merge.")
 
+  def _ProcessOptions(self, options):
+    # TODO(machenbach): Add a test that covers revert from bleeding_edge
+    if len(options.revisions) < 1:
+      if not options.patch:
+        print "Either a patch file or revision numbers must be specified"
+        return False
+      if not options.message:
+        print "You must specify a merge comment if no patches are specified"
+        return False
+    return True
 
-def BuildOptions():
-  parser = argparse.ArgumentParser(
-      description=("Performs the necessary steps to merge revisions from "
-                   "bleeding_edge to other branches, including trunk."))
-  group = parser.add_mutually_exclusive_group(required=True)
-  group.add_argument("--branch", help="The branch to merge to.")
-  group.add_argument("-R", "--revert-bleeding-edge",
-                     help="Revert specified patches from bleeding edge.",
-                     default=False, action="store_true")
-  parser.add_argument("revisions", nargs="*",
-                      help="The revisions to merge.")
-  parser.add_argument("-a", "--author", default="",
-                       help="The author email used for rietveld.")
-  parser.add_argument("-f",
-                      help="Delete sentinel file.",
-                      default=False, action="store_true")
-  parser.add_argument("-m", "--message",
-                      help="A commit message for the patch.")
-  parser.add_argument("-r", "--revert",
-                      help="Revert specified patches.",
-                      default=False, action="store_true")
-  parser.add_argument("-p", "--patch", dest="p",
-                      help="A patch file to apply as part of the merge.")
-  parser.add_argument("-s", "--step",
-                      help="The step where to start work. Default: 0.",
-                      default=0, type=int)
-  return parser
-
-
-def ProcessOptions(options):
-  # TODO(machenbach): Add a test that covers revert from bleeding_edge
-  if len(options.revisions) < 1:
-    if not options.patch:
-      print "Either a patch file or revision numbers must be specified"
-      return False
-    if not options.message:
-      print "You must specify a merge comment if no patches are specified"
-      return False
-  return True
+  def _Steps(self):
+    return [
+      Preparation,
+      CreateBranch,
+      SearchArchitecturePorts,
+      FindGitRevisions,
+      ApplyPatches,
+      PrepareVersion,
+      IncrementVersion,
+      CommitLocal,
+      UploadStep,
+      CommitRepository,
+      PrepareSVN,
+      TagRevision,
+      CleanUp,
+    ]
 
 
-def Main():
-  parser = BuildOptions()
-  options = parser.parse_args()
-  if not ProcessOptions(options):
-    parser.print_help()
-    return 1
-  RunMergeToBranch(CONFIG, MergeToBranchOptions(options))
-
-if __name__ == "__main__":
-  sys.exit(Main())
+if __name__ == "__main__":  # pragma: no cover
+  sys.exit(MergeToBranch(CONFIG).Run())

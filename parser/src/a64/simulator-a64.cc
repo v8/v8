@@ -306,8 +306,8 @@ void Simulator::CorruptAllCallerSavedCPURegisters() {
 // Extending the stack by 2 * 64 bits is required for stack alignment purposes.
 // TODO(all): Insert a marker in the extra space allocated on the stack.
 uintptr_t Simulator::PushAddress(uintptr_t address) {
-  ASSERT(sizeof(uintptr_t) < 2 * kXRegSizeInBytes);
-  intptr_t new_sp = sp() - 2 * kXRegSizeInBytes;
+  ASSERT(sizeof(uintptr_t) < 2 * kXRegSize);
+  intptr_t new_sp = sp() - 2 * kXRegSize;
   uintptr_t* stack_slot = reinterpret_cast<uintptr_t*>(new_sp);
   *stack_slot = address;
   set_sp(new_sp);
@@ -319,8 +319,8 @@ uintptr_t Simulator::PopAddress() {
   intptr_t current_sp = sp();
   uintptr_t* stack_slot = reinterpret_cast<uintptr_t*>(current_sp);
   uintptr_t address = *stack_slot;
-  ASSERT(sizeof(uintptr_t) < 2 * kXRegSizeInBytes);
-  set_sp(current_sp + 2 * kXRegSizeInBytes);
+  ASSERT(sizeof(uintptr_t) < 2 * kXRegSize);
+  set_sp(current_sp + 2 * kXRegSize);
   return address;
 }
 
@@ -614,7 +614,7 @@ int64_t Simulator::AddWithCarry(unsigned reg_size,
                                 int64_t src2,
                                 int64_t carry_in) {
   ASSERT((carry_in == 0) || (carry_in == 1));
-  ASSERT((reg_size == kXRegSize) || (reg_size == kWRegSize));
+  ASSERT((reg_size == kXRegSizeInBits) || (reg_size == kWRegSizeInBits));
 
   uint64_t u1, u2;
   int64_t result;
@@ -622,7 +622,7 @@ int64_t Simulator::AddWithCarry(unsigned reg_size,
 
   uint32_t N, Z, C, V;
 
-  if (reg_size == kWRegSize) {
+  if (reg_size == kWRegSizeInBits) {
     u1 = static_cast<uint64_t>(src1) & kWRegMask;
     u2 = static_cast<uint64_t>(src2) & kWRegMask;
 
@@ -632,9 +632,9 @@ int64_t Simulator::AddWithCarry(unsigned reg_size,
         ((kWMaxUInt - u1 - carry_in) < u2);
     // Overflow iff the sign bit is the same for the two inputs and different
     // for the result.
-    int64_t s_src1 = src1 << (kXRegSize - kWRegSize);
-    int64_t s_src2 = src2 << (kXRegSize - kWRegSize);
-    int64_t s_result = result << (kXRegSize - kWRegSize);
+    int64_t s_src1 = src1 << (kXRegSizeInBits - kWRegSizeInBits);
+    int64_t s_src2 = src2 << (kXRegSizeInBits - kWRegSizeInBits);
+    int64_t s_result = result << (kXRegSizeInBits - kWRegSizeInBits);
     V = ((s_src1 ^ s_src2) >= 0) && ((s_src1 ^ s_result) < 0);
 
   } else {
@@ -670,7 +670,7 @@ int64_t Simulator::ShiftOperand(unsigned reg_size,
   if (amount == 0) {
     return value;
   }
-  int64_t mask = reg_size == kXRegSize ? kXRegMask : kWRegMask;
+  int64_t mask = reg_size == kXRegSizeInBits ? kXRegMask : kWRegMask;
   switch (shift_type) {
     case LSL:
       return (value << amount) & mask;
@@ -678,13 +678,13 @@ int64_t Simulator::ShiftOperand(unsigned reg_size,
       return static_cast<uint64_t>(value) >> amount;
     case ASR: {
       // Shift used to restore the sign.
-      unsigned s_shift = kXRegSize - reg_size;
+      unsigned s_shift = kXRegSizeInBits - reg_size;
       // Value with its sign restored.
       int64_t s_value = (value << s_shift) >> s_shift;
       return (s_value >> amount) & mask;
     }
     case ROR: {
-      if (reg_size == kWRegSize) {
+      if (reg_size == kWRegSizeInBits) {
         value &= kWRegMask;
       }
       return (static_cast<uint64_t>(value) >> amount) |
@@ -726,8 +726,18 @@ int64_t Simulator::ExtendValue(unsigned reg_size,
     default:
       UNREACHABLE();
   }
-  int64_t mask = (reg_size == kXRegSize) ? kXRegMask : kWRegMask;
+  int64_t mask = (reg_size == kXRegSizeInBits) ? kXRegMask : kWRegMask;
   return (value << left_shift) & mask;
+}
+
+
+template<> double Simulator::FPDefaultNaN<double>() const {
+  return kFP64DefaultNaN;
+}
+
+
+template<> float Simulator::FPDefaultNaN<float>() const {
+  return kFP32DefaultNaN;
 }
 
 
@@ -1056,7 +1066,8 @@ void Simulator::VisitCompareBranch(Instruction* instr) {
 
 
 void Simulator::AddSubHelper(Instruction* instr, int64_t op2) {
-  unsigned reg_size = instr->SixtyFourBits() ? kXRegSize : kWRegSize;
+  unsigned reg_size = instr->SixtyFourBits() ? kXRegSizeInBits
+                                             : kWRegSizeInBits;
   bool set_flags = instr->FlagsUpdate();
   int64_t new_val = 0;
   Instr operation = instr->Mask(AddSubOpMask);
@@ -1087,7 +1098,8 @@ void Simulator::AddSubHelper(Instruction* instr, int64_t op2) {
 
 
 void Simulator::VisitAddSubShifted(Instruction* instr) {
-  unsigned reg_size = instr->SixtyFourBits() ? kXRegSize : kWRegSize;
+  unsigned reg_size = instr->SixtyFourBits() ? kXRegSizeInBits
+                                             : kWRegSizeInBits;
   int64_t op2 = ShiftOperand(reg_size,
                              reg(reg_size, instr->Rm()),
                              static_cast<Shift>(instr->ShiftDP()),
@@ -1103,7 +1115,8 @@ void Simulator::VisitAddSubImmediate(Instruction* instr) {
 
 
 void Simulator::VisitAddSubExtended(Instruction* instr) {
-  unsigned reg_size = instr->SixtyFourBits() ? kXRegSize : kWRegSize;
+  unsigned reg_size = instr->SixtyFourBits() ? kXRegSizeInBits
+                                             : kWRegSizeInBits;
   int64_t op2 = ExtendValue(reg_size,
                             reg(reg_size, instr->Rm()),
                             static_cast<Extend>(instr->ExtendMode()),
@@ -1113,7 +1126,8 @@ void Simulator::VisitAddSubExtended(Instruction* instr) {
 
 
 void Simulator::VisitAddSubWithCarry(Instruction* instr) {
-  unsigned reg_size = instr->SixtyFourBits() ? kXRegSize : kWRegSize;
+  unsigned reg_size = instr->SixtyFourBits() ? kXRegSizeInBits
+                                             : kWRegSizeInBits;
   int64_t op2 = reg(reg_size, instr->Rm());
   int64_t new_val;
 
@@ -1132,7 +1146,8 @@ void Simulator::VisitAddSubWithCarry(Instruction* instr) {
 
 
 void Simulator::VisitLogicalShifted(Instruction* instr) {
-  unsigned reg_size = instr->SixtyFourBits() ? kXRegSize : kWRegSize;
+  unsigned reg_size = instr->SixtyFourBits() ? kXRegSizeInBits
+                                             : kWRegSizeInBits;
   Shift shift_type = static_cast<Shift>(instr->ShiftDP());
   unsigned shift_amount = instr->ImmDPShift();
   int64_t op2 = ShiftOperand(reg_size, reg(reg_size, instr->Rm()), shift_type,
@@ -1150,7 +1165,8 @@ void Simulator::VisitLogicalImmediate(Instruction* instr) {
 
 
 void Simulator::LogicalHelper(Instruction* instr, int64_t op2) {
-  unsigned reg_size = instr->SixtyFourBits() ? kXRegSize : kWRegSize;
+  unsigned reg_size = instr->SixtyFourBits() ? kXRegSizeInBits
+                                             : kWRegSizeInBits;
   int64_t op1 = reg(reg_size, instr->Rn());
   int64_t result = 0;
   bool update_flags = false;
@@ -1178,7 +1194,8 @@ void Simulator::LogicalHelper(Instruction* instr, int64_t op2) {
 
 
 void Simulator::VisitConditionalCompareRegister(Instruction* instr) {
-  unsigned reg_size = instr->SixtyFourBits() ? kXRegSize : kWRegSize;
+  unsigned reg_size = instr->SixtyFourBits() ? kXRegSizeInBits
+                                             : kWRegSizeInBits;
   ConditionalCompareHelper(instr, reg(reg_size, instr->Rm()));
 }
 
@@ -1189,7 +1206,8 @@ void Simulator::VisitConditionalCompareImmediate(Instruction* instr) {
 
 
 void Simulator::ConditionalCompareHelper(Instruction* instr, int64_t op2) {
-  unsigned reg_size = instr->SixtyFourBits() ? kXRegSize : kWRegSize;
+  unsigned reg_size = instr->SixtyFourBits() ? kXRegSizeInBits
+                                             : kWRegSizeInBits;
   int64_t op1 = reg(reg_size, instr->Rn());
 
   if (ConditionPassed(static_cast<Condition>(instr->Condition()))) {
@@ -1234,7 +1252,7 @@ void Simulator::VisitLoadStoreRegisterOffset(Instruction* instr) {
   ASSERT((ext == UXTW) || (ext == UXTX) || (ext == SXTW) || (ext == SXTX));
   unsigned shift_amount = instr->ImmShiftLS() * instr->SizeLS();
 
-  int64_t offset = ExtendValue(kXRegSize, xreg(instr->Rm()), ext,
+  int64_t offset = ExtendValue(kXRegSizeInBits, xreg(instr->Rm()), ext,
                                shift_amount);
   LoadStoreHelper(instr, offset, Offset);
 }
@@ -1275,23 +1293,28 @@ void Simulator::LoadStoreHelper(Instruction* instr,
     case STR_w:
     case STR_x: MemoryWrite(address, xreg(srcdst), num_bytes); break;
     case LDRSB_w: {
-      set_wreg(srcdst, ExtendValue(kWRegSize, MemoryRead8(address), SXTB));
+      set_wreg(srcdst,
+               ExtendValue(kWRegSizeInBits, MemoryRead8(address), SXTB));
       break;
     }
     case LDRSB_x: {
-      set_xreg(srcdst, ExtendValue(kXRegSize, MemoryRead8(address), SXTB));
+      set_xreg(srcdst,
+               ExtendValue(kXRegSizeInBits, MemoryRead8(address), SXTB));
       break;
     }
     case LDRSH_w: {
-      set_wreg(srcdst, ExtendValue(kWRegSize, MemoryRead16(address), SXTH));
+      set_wreg(srcdst,
+               ExtendValue(kWRegSizeInBits, MemoryRead16(address), SXTH));
       break;
     }
     case LDRSH_x: {
-      set_xreg(srcdst, ExtendValue(kXRegSize, MemoryRead16(address), SXTH));
+      set_xreg(srcdst,
+               ExtendValue(kXRegSizeInBits, MemoryRead16(address), SXTH));
       break;
     }
     case LDRSW_x: {
-      set_xreg(srcdst, ExtendValue(kXRegSize, MemoryRead32(address), SXTW));
+      set_xreg(srcdst,
+               ExtendValue(kXRegSizeInBits, MemoryRead32(address), SXTW));
       break;
     }
     case LDR_s: set_sreg(srcdst, MemoryReadFP32(address)); break;
@@ -1372,48 +1395,48 @@ void Simulator::LoadStorePairHelper(Instruction* instr,
   switch (op) {
     case LDP_w: {
       set_wreg(rt, MemoryRead32(address));
-      set_wreg(rt2, MemoryRead32(address + kWRegSizeInBytes));
+      set_wreg(rt2, MemoryRead32(address + kWRegSize));
       break;
     }
     case LDP_s: {
       set_sreg(rt, MemoryReadFP32(address));
-      set_sreg(rt2, MemoryReadFP32(address + kSRegSizeInBytes));
+      set_sreg(rt2, MemoryReadFP32(address + kSRegSize));
       break;
     }
     case LDP_x: {
       set_xreg(rt, MemoryRead64(address));
-      set_xreg(rt2, MemoryRead64(address + kXRegSizeInBytes));
+      set_xreg(rt2, MemoryRead64(address + kXRegSize));
       break;
     }
     case LDP_d: {
       set_dreg(rt, MemoryReadFP64(address));
-      set_dreg(rt2, MemoryReadFP64(address + kDRegSizeInBytes));
+      set_dreg(rt2, MemoryReadFP64(address + kDRegSize));
       break;
     }
     case LDPSW_x: {
-      set_xreg(rt, ExtendValue(kXRegSize, MemoryRead32(address), SXTW));
-      set_xreg(rt2, ExtendValue(kXRegSize,
-               MemoryRead32(address + kWRegSizeInBytes), SXTW));
+      set_xreg(rt, ExtendValue(kXRegSizeInBits, MemoryRead32(address), SXTW));
+      set_xreg(rt2, ExtendValue(kXRegSizeInBits,
+               MemoryRead32(address + kWRegSize), SXTW));
       break;
     }
     case STP_w: {
       MemoryWrite32(address, wreg(rt));
-      MemoryWrite32(address + kWRegSizeInBytes, wreg(rt2));
+      MemoryWrite32(address + kWRegSize, wreg(rt2));
       break;
     }
     case STP_s: {
       MemoryWriteFP32(address, sreg(rt));
-      MemoryWriteFP32(address + kSRegSizeInBytes, sreg(rt2));
+      MemoryWriteFP32(address + kSRegSize, sreg(rt2));
       break;
     }
     case STP_x: {
       MemoryWrite64(address, xreg(rt));
-      MemoryWrite64(address + kXRegSizeInBytes, xreg(rt2));
+      MemoryWrite64(address + kXRegSize, xreg(rt2));
       break;
     }
     case STP_d: {
       MemoryWriteFP64(address, dreg(rt));
-      MemoryWriteFP64(address + kDRegSizeInBytes, dreg(rt2));
+      MemoryWriteFP64(address + kDRegSize, dreg(rt2));
       break;
     }
     default: UNREACHABLE();
@@ -1624,7 +1647,8 @@ void Simulator::VisitConditionalSelect(Instruction* instr) {
       default: UNIMPLEMENTED();
     }
   }
-  unsigned reg_size = instr->SixtyFourBits() ? kXRegSize : kWRegSize;
+  unsigned reg_size = instr->SixtyFourBits() ? kXRegSizeInBits
+                                             : kWRegSizeInBits;
   set_reg(reg_size, instr->Rd(), new_val);
 }
 
@@ -1634,21 +1658,23 @@ void Simulator::VisitDataProcessing1Source(Instruction* instr) {
   unsigned src = instr->Rn();
 
   switch (instr->Mask(DataProcessing1SourceMask)) {
-    case RBIT_w: set_wreg(dst, ReverseBits(wreg(src), kWRegSize)); break;
-    case RBIT_x: set_xreg(dst, ReverseBits(xreg(src), kXRegSize)); break;
+    case RBIT_w: set_wreg(dst, ReverseBits(wreg(src), kWRegSizeInBits)); break;
+    case RBIT_x: set_xreg(dst, ReverseBits(xreg(src), kXRegSizeInBits)); break;
     case REV16_w: set_wreg(dst, ReverseBytes(wreg(src), Reverse16)); break;
     case REV16_x: set_xreg(dst, ReverseBytes(xreg(src), Reverse16)); break;
     case REV_w: set_wreg(dst, ReverseBytes(wreg(src), Reverse32)); break;
     case REV32_x: set_xreg(dst, ReverseBytes(xreg(src), Reverse32)); break;
     case REV_x: set_xreg(dst, ReverseBytes(xreg(src), Reverse64)); break;
-    case CLZ_w: set_wreg(dst, CountLeadingZeros(wreg(src), kWRegSize)); break;
-    case CLZ_x: set_xreg(dst, CountLeadingZeros(xreg(src), kXRegSize)); break;
+    case CLZ_w: set_wreg(dst, CountLeadingZeros(wreg(src), kWRegSizeInBits));
+                break;
+    case CLZ_x: set_xreg(dst, CountLeadingZeros(xreg(src), kXRegSizeInBits));
+                break;
     case CLS_w: {
-      set_wreg(dst, CountLeadingSignBits(wreg(src), kWRegSize));
+      set_wreg(dst, CountLeadingSignBits(wreg(src), kWRegSizeInBits));
       break;
     }
     case CLS_x: {
-      set_xreg(dst, CountLeadingSignBits(xreg(src), kXRegSize));
+      set_xreg(dst, CountLeadingSignBits(xreg(src), kXRegSizeInBits));
       break;
     }
     default: UNIMPLEMENTED();
@@ -1657,7 +1683,7 @@ void Simulator::VisitDataProcessing1Source(Instruction* instr) {
 
 
 uint64_t Simulator::ReverseBits(uint64_t value, unsigned num_bits) {
-  ASSERT((num_bits == kWRegSize) || (num_bits == kXRegSize));
+  ASSERT((num_bits == kWRegSizeInBits) || (num_bits == kXRegSizeInBits));
   uint64_t result = 0;
   for (unsigned i = 0; i < num_bits; i++) {
     result = (result << 1) | (value & 1);
@@ -1762,7 +1788,8 @@ void Simulator::VisitDataProcessing2Source(Instruction* instr) {
     default: UNIMPLEMENTED();
   }
 
-  unsigned reg_size = instr->SixtyFourBits() ? kXRegSize : kWRegSize;
+  unsigned reg_size = instr->SixtyFourBits() ? kXRegSizeInBits
+                                             : kWRegSizeInBits;
   if (shift_op != NO_SHIFT) {
     // Shift distance encoded in the least-significant five/six bits of the
     // register.
@@ -1798,7 +1825,8 @@ static int64_t MultiplyHighSigned(int64_t u, int64_t v) {
 
 
 void Simulator::VisitDataProcessing3Source(Instruction* instr) {
-  unsigned reg_size = instr->SixtyFourBits() ? kXRegSize : kWRegSize;
+  unsigned reg_size = instr->SixtyFourBits() ? kXRegSizeInBits
+                                             : kWRegSizeInBits;
 
   int64_t result = 0;
   // Extract and sign- or zero-extend 32-bit arguments for widening operations.
@@ -1830,7 +1858,8 @@ void Simulator::VisitDataProcessing3Source(Instruction* instr) {
 
 
 void Simulator::VisitBitfield(Instruction* instr) {
-  unsigned reg_size = instr->SixtyFourBits() ? kXRegSize : kWRegSize;
+  unsigned reg_size = instr->SixtyFourBits() ? kXRegSizeInBits
+                                             : kWRegSizeInBits;
   int64_t reg_mask = instr->SixtyFourBits() ? kXRegMask : kWRegMask;
   int64_t R = instr->ImmR();
   int64_t S = instr->ImmS();
@@ -1884,8 +1913,8 @@ void Simulator::VisitBitfield(Instruction* instr) {
 
 void Simulator::VisitExtract(Instruction* instr) {
   unsigned lsb = instr->ImmS();
-  unsigned reg_size = (instr->SixtyFourBits() == 1) ? kXRegSize
-                                                    : kWRegSize;
+  unsigned reg_size = (instr->SixtyFourBits() == 1) ? kXRegSizeInBits
+                                                    : kWRegSizeInBits;
   set_reg(reg_size,
           instr->Rd(),
           (static_cast<uint64_t>(reg(reg_size, instr->Rm())) >> lsb) |
@@ -2081,7 +2110,8 @@ uint64_t Simulator::FPToUInt64(double value, FPRounding rmode) {
 void Simulator::VisitFPCompare(Instruction* instr) {
   AssertSupportedFPCR();
 
-  unsigned reg_size = instr->FPType() == FP32 ? kSRegSize : kDRegSize;
+  unsigned reg_size = (instr->Mask(FP64) == FP64) ? kDRegSizeInBits
+                                                  : kSRegSizeInBits;
   double fn_val = fpreg(reg_size, instr->Rn());
 
   switch (instr->Mask(FPCompareMask)) {
@@ -2103,7 +2133,8 @@ void Simulator::VisitFPConditionalCompare(Instruction* instr) {
       if (ConditionPassed(static_cast<Condition>(instr->Condition()))) {
         // If the condition passes, set the status flags to the result of
         // comparing the operands.
-        unsigned reg_size = instr->FPType() == FP32 ? kSRegSize : kDRegSize;
+        unsigned reg_size = (instr->Mask(FP64) == FP64) ? kDRegSizeInBits
+                                                        : kSRegSizeInBits;
         FPCompare(fpreg(reg_size, instr->Rn()), fpreg(reg_size, instr->Rm()));
       } else {
         // If the condition fails, set the status flags to the nzcv immediate.
@@ -2147,8 +2178,8 @@ void Simulator::VisitFPDataProcessing1Source(Instruction* instr) {
     case FABS_d: set_dreg(fd, std::fabs(dreg(fn))); break;
     case FNEG_s: set_sreg(fd, -sreg(fn)); break;
     case FNEG_d: set_dreg(fd, -dreg(fn)); break;
-    case FSQRT_s: set_sreg(fd, std::sqrt(sreg(fn))); break;
-    case FSQRT_d: set_dreg(fd, std::sqrt(dreg(fn))); break;
+    case FSQRT_s: set_sreg(fd, FPSqrt(sreg(fn))); break;
+    case FSQRT_d: set_dreg(fd, FPSqrt(dreg(fn))); break;
     case FRINTA_s: set_sreg(fd, FPRoundInt(sreg(fn), FPTieAway)); break;
     case FRINTA_d: set_dreg(fd, FPRoundInt(dreg(fn), FPTieAway)); break;
     case FRINTN_s: set_sreg(fd, FPRoundInt(sreg(fn), FPTieEven)); break;
@@ -2407,8 +2438,10 @@ float Simulator::UFixedToFloat(uint64_t src, int fbits, FPRounding round) {
 
 double Simulator::FPRoundInt(double value, FPRounding round_mode) {
   if ((value == 0.0) || (value == kFP64PositiveInfinity) ||
-      (value == kFP64NegativeInfinity) || std::isnan(value)) {
+      (value == kFP64NegativeInfinity)) {
     return value;
+  } else if (std::isnan(value)) {
+    return FPProcessNaN(value);
   }
 
   double int_result = floor(value);
@@ -2452,8 +2485,9 @@ double Simulator::FPRoundInt(double value, FPRounding round_mode) {
 double Simulator::FPToDouble(float value) {
   switch (std::fpclassify(value)) {
     case FP_NAN: {
-      // Convert NaNs as the processor would, assuming that FPCR.DN (default
-      // NaN) is not set:
+      if (DN()) return kFP64DefaultNaN;
+
+      // Convert NaNs as the processor would:
       //  - The sign is propagated.
       //  - The payload (mantissa) is transferred entirely, except that the top
       //    bit is forced to '1', making the result a quiet NaN. The unused
@@ -2492,8 +2526,9 @@ float Simulator::FPToFloat(double value, FPRounding round_mode) {
 
   switch (std::fpclassify(value)) {
     case FP_NAN: {
-      // Convert NaNs as the processor would, assuming that FPCR.DN (default
-      // NaN) is not set:
+      if (DN()) return kFP32DefaultNaN;
+
+      // Convert NaNs as the processor would:
       //  - The sign is propagated.
       //  - The payload (mantissa) is transferred as much as possible, except
       //    that the top bit is forced to '1', making the result a quiet NaN.
@@ -2544,23 +2579,37 @@ void Simulator::VisitFPDataProcessing2Source(Instruction* instr) {
   unsigned fn = instr->Rn();
   unsigned fm = instr->Rm();
 
+  // Fmaxnm and Fminnm have special NaN handling.
   switch (instr->Mask(FPDataProcessing2SourceMask)) {
-    case FADD_s: set_sreg(fd, sreg(fn) + sreg(fm)); break;
-    case FADD_d: set_dreg(fd, dreg(fn) + dreg(fm)); break;
-    case FSUB_s: set_sreg(fd, sreg(fn) - sreg(fm)); break;
-    case FSUB_d: set_dreg(fd, dreg(fn) - dreg(fm)); break;
-    case FMUL_s: set_sreg(fd, sreg(fn) * sreg(fm)); break;
-    case FMUL_d: set_dreg(fd, dreg(fn) * dreg(fm)); break;
-    case FDIV_s: set_sreg(fd, sreg(fn) / sreg(fm)); break;
-    case FDIV_d: set_dreg(fd, dreg(fn) / dreg(fm)); break;
+    case FMAXNM_s: set_sreg(fd, FPMaxNM(sreg(fn), sreg(fm))); return;
+    case FMAXNM_d: set_dreg(fd, FPMaxNM(dreg(fn), dreg(fm))); return;
+    case FMINNM_s: set_sreg(fd, FPMinNM(sreg(fn), sreg(fm))); return;
+    case FMINNM_d: set_dreg(fd, FPMinNM(dreg(fn), dreg(fm))); return;
+    default:
+      break;    // Fall through.
+  }
+
+  if (FPProcessNaNs(instr)) return;
+
+  switch (instr->Mask(FPDataProcessing2SourceMask)) {
+    case FADD_s: set_sreg(fd, FPAdd(sreg(fn), sreg(fm))); break;
+    case FADD_d: set_dreg(fd, FPAdd(dreg(fn), dreg(fm))); break;
+    case FSUB_s: set_sreg(fd, FPSub(sreg(fn), sreg(fm))); break;
+    case FSUB_d: set_dreg(fd, FPSub(dreg(fn), dreg(fm))); break;
+    case FMUL_s: set_sreg(fd, FPMul(sreg(fn), sreg(fm))); break;
+    case FMUL_d: set_dreg(fd, FPMul(dreg(fn), dreg(fm))); break;
+    case FDIV_s: set_sreg(fd, FPDiv(sreg(fn), sreg(fm))); break;
+    case FDIV_d: set_dreg(fd, FPDiv(dreg(fn), dreg(fm))); break;
     case FMAX_s: set_sreg(fd, FPMax(sreg(fn), sreg(fm))); break;
     case FMAX_d: set_dreg(fd, FPMax(dreg(fn), dreg(fm))); break;
     case FMIN_s: set_sreg(fd, FPMin(sreg(fn), sreg(fm))); break;
     case FMIN_d: set_dreg(fd, FPMin(dreg(fn), dreg(fm))); break;
-    case FMAXNM_s: set_sreg(fd, FPMaxNM(sreg(fn), sreg(fm))); break;
-    case FMAXNM_d: set_dreg(fd, FPMaxNM(dreg(fn), dreg(fm))); break;
-    case FMINNM_s: set_sreg(fd, FPMinNM(sreg(fn), sreg(fm))); break;
-    case FMINNM_d: set_dreg(fd, FPMinNM(dreg(fn), dreg(fm))); break;
+    case FMAXNM_s:
+    case FMAXNM_d:
+    case FMINNM_s:
+    case FMINNM_d:
+      // These were handled before the standard FPProcessNaNs() stage.
+      UNREACHABLE();
     default: UNIMPLEMENTED();
   }
 }
@@ -2577,33 +2626,62 @@ void Simulator::VisitFPDataProcessing3Source(Instruction* instr) {
   // The C99 (and C++11) fma function performs a fused multiply-accumulate.
   switch (instr->Mask(FPDataProcessing3SourceMask)) {
     // fd = fa +/- (fn * fm)
-    case FMADD_s: set_sreg(fd, fmaf(sreg(fn), sreg(fm), sreg(fa))); break;
-    case FMSUB_s: set_sreg(fd, fmaf(-sreg(fn), sreg(fm), sreg(fa))); break;
-    case FMADD_d: set_dreg(fd, fma(dreg(fn), dreg(fm), dreg(fa))); break;
-    case FMSUB_d: set_dreg(fd, fma(-dreg(fn), dreg(fm), dreg(fa))); break;
-    // Variants of the above where the result is negated.
-    case FNMADD_s: set_sreg(fd, -fmaf(sreg(fn), sreg(fm), sreg(fa))); break;
-    case FNMSUB_s: set_sreg(fd, -fmaf(-sreg(fn), sreg(fm), sreg(fa))); break;
-    case FNMADD_d: set_dreg(fd, -fma(dreg(fn), dreg(fm), dreg(fa))); break;
-    case FNMSUB_d: set_dreg(fd, -fma(-dreg(fn), dreg(fm), dreg(fa))); break;
+    case FMADD_s: set_sreg(fd, FPMulAdd(sreg(fa), sreg(fn), sreg(fm))); break;
+    case FMSUB_s: set_sreg(fd, FPMulAdd(sreg(fa), -sreg(fn), sreg(fm))); break;
+    case FMADD_d: set_dreg(fd, FPMulAdd(dreg(fa), dreg(fn), dreg(fm))); break;
+    case FMSUB_d: set_dreg(fd, FPMulAdd(dreg(fa), -dreg(fn), dreg(fm))); break;
+    // Negated variants of the above.
+    case FNMADD_s:
+      set_sreg(fd, FPMulAdd(-sreg(fa), -sreg(fn), sreg(fm)));
+      break;
+    case FNMSUB_s:
+      set_sreg(fd, FPMulAdd(-sreg(fa), sreg(fn), sreg(fm)));
+      break;
+    case FNMADD_d:
+      set_dreg(fd, FPMulAdd(-dreg(fa), -dreg(fn), dreg(fm)));
+      break;
+    case FNMSUB_d:
+      set_dreg(fd, FPMulAdd(-dreg(fa), dreg(fn), dreg(fm)));
+      break;
     default: UNIMPLEMENTED();
   }
 }
 
 
 template <typename T>
-T Simulator::FPMax(T a, T b) {
-  if (IsSignallingNaN(a)) {
-    return a;
-  } else if (IsSignallingNaN(b)) {
-    return b;
-  } else if (std::isnan(a)) {
-    ASSERT(IsQuietNaN(a));
-    return a;
-  } else if (std::isnan(b)) {
-    ASSERT(IsQuietNaN(b));
-    return b;
+T Simulator::FPAdd(T op1, T op2) {
+  // NaNs should be handled elsewhere.
+  ASSERT(!std::isnan(op1) && !std::isnan(op2));
+
+  if (isinf(op1) && isinf(op2) && (op1 != op2)) {
+    // inf + -inf returns the default NaN.
+    return FPDefaultNaN<T>();
+  } else {
+    // Other cases should be handled by standard arithmetic.
+    return op1 + op2;
   }
+}
+
+
+template <typename T>
+T Simulator::FPDiv(T op1, T op2) {
+  // NaNs should be handled elsewhere.
+  ASSERT(!std::isnan(op1) && !std::isnan(op2));
+
+  if ((isinf(op1) && isinf(op2)) || ((op1 == 0.0) && (op2 == 0.0))) {
+    // inf / inf and 0.0 / 0.0 return the default NaN.
+    return FPDefaultNaN<T>();
+  } else {
+    // Other cases should be handled by standard arithmetic.
+    return op1 / op2;
+  }
+}
+
+
+template <typename T>
+T Simulator::FPMax(T a, T b) {
+  // NaNs should be handled elsewhere.
+  ASSERT(!std::isnan(a) && !std::isnan(b));
 
   if ((a == 0.0) && (b == 0.0) &&
       (copysign(1.0, a) != copysign(1.0, b))) {
@@ -2622,22 +2700,15 @@ T Simulator::FPMaxNM(T a, T b) {
   } else if (!IsQuietNaN(a) && IsQuietNaN(b)) {
     b = kFP64NegativeInfinity;
   }
-  return FPMax(a, b);
+
+  T result = FPProcessNaNs(a, b);
+  return std::isnan(result) ? result : FPMax(a, b);
 }
 
 template <typename T>
 T Simulator::FPMin(T a, T b) {
-  if (IsSignallingNaN(a)) {
-    return a;
-  } else if (IsSignallingNaN(b)) {
-    return b;
-  } else if (std::isnan(a)) {
-    ASSERT(IsQuietNaN(a));
-    return a;
-  } else if (std::isnan(b)) {
-    ASSERT(IsQuietNaN(b));
-    return b;
-  }
+  // NaNs should be handled elsewhere.
+  ASSERT(!isnan(a) && !isnan(b));
 
   if ((a == 0.0) && (b == 0.0) &&
       (copysign(1.0, a) != copysign(1.0, b))) {
@@ -2656,7 +2727,168 @@ T Simulator::FPMinNM(T a, T b) {
   } else if (!IsQuietNaN(a) && IsQuietNaN(b)) {
     b = kFP64PositiveInfinity;
   }
-  return FPMin(a, b);
+
+  T result = FPProcessNaNs(a, b);
+  return isnan(result) ? result : FPMin(a, b);
+}
+
+
+template <typename T>
+T Simulator::FPMul(T op1, T op2) {
+  // NaNs should be handled elsewhere.
+  ASSERT(!std::isnan(op1) && !std::isnan(op2));
+
+  if ((isinf(op1) && (op2 == 0.0)) || (isinf(op2) && (op1 == 0.0))) {
+    // inf * 0.0 returns the default NaN.
+    return FPDefaultNaN<T>();
+  } else {
+    // Other cases should be handled by standard arithmetic.
+    return op1 * op2;
+  }
+}
+
+
+template<typename T>
+T Simulator::FPMulAdd(T a, T op1, T op2) {
+  T result = FPProcessNaNs3(a, op1, op2);
+
+  T sign_a = copysign(1.0, a);
+  T sign_prod = copysign(1.0, op1) * copysign(1.0, op2);
+  bool isinf_prod = std::isinf(op1) || std::isinf(op2);
+  bool operation_generates_nan =
+      (std::isinf(op1) && (op2 == 0.0)) ||                      // inf * 0.0
+      (std::isinf(op2) && (op1 == 0.0)) ||                      // 0.0 * inf
+      (std::isinf(a) && isinf_prod && (sign_a != sign_prod));   // inf - inf
+
+  if (std::isnan(result)) {
+    // Generated NaNs override quiet NaNs propagated from a.
+    if (operation_generates_nan && IsQuietNaN(a)) {
+      return FPDefaultNaN<T>();
+    } else {
+      return result;
+    }
+  }
+
+  // If the operation would produce a NaN, return the default NaN.
+  if (operation_generates_nan) {
+    return FPDefaultNaN<T>();
+  }
+
+  // Work around broken fma implementations for exact zero results: The sign of
+  // exact 0.0 results is positive unless both a and op1 * op2 are negative.
+  if (((op1 == 0.0) || (op2 == 0.0)) && (a == 0.0)) {
+    return ((sign_a < 0) && (sign_prod < 0)) ? -0.0 : 0.0;
+  }
+
+  result = FusedMultiplyAdd(op1, op2, a);
+  ASSERT(!std::isnan(result));
+
+  // Work around broken fma implementations for rounded zero results: If a is
+  // 0.0, the sign of the result is the sign of op1 * op2 before rounding.
+  if ((a == 0.0) && (result == 0.0)) {
+    return copysign(0.0, sign_prod);
+  }
+
+  return result;
+}
+
+
+template <typename T>
+T Simulator::FPSqrt(T op) {
+  if (std::isnan(op)) {
+    return FPProcessNaN(op);
+  } else if (op < 0.0) {
+    return FPDefaultNaN<T>();
+  } else {
+    return std::sqrt(op);
+  }
+}
+
+
+template <typename T>
+T Simulator::FPSub(T op1, T op2) {
+  // NaNs should be handled elsewhere.
+  ASSERT(!std::isnan(op1) && !std::isnan(op2));
+
+  if (isinf(op1) && isinf(op2) && (op1 == op2)) {
+    // inf - inf returns the default NaN.
+    return FPDefaultNaN<T>();
+  } else {
+    // Other cases should be handled by standard arithmetic.
+    return op1 - op2;
+  }
+}
+
+
+template <typename T>
+T Simulator::FPProcessNaN(T op) {
+  ASSERT(std::isnan(op));
+  return DN() ? FPDefaultNaN<T>() : ToQuietNaN(op);
+}
+
+
+template <typename T>
+T Simulator::FPProcessNaNs(T op1, T op2) {
+  if (IsSignallingNaN(op1)) {
+    return FPProcessNaN(op1);
+  } else if (IsSignallingNaN(op2)) {
+    return FPProcessNaN(op2);
+  } else if (std::isnan(op1)) {
+    ASSERT(IsQuietNaN(op1));
+    return FPProcessNaN(op1);
+  } else if (std::isnan(op2)) {
+    ASSERT(IsQuietNaN(op2));
+    return FPProcessNaN(op2);
+  } else {
+    return 0.0;
+  }
+}
+
+
+template <typename T>
+T Simulator::FPProcessNaNs3(T op1, T op2, T op3) {
+  if (IsSignallingNaN(op1)) {
+    return FPProcessNaN(op1);
+  } else if (IsSignallingNaN(op2)) {
+    return FPProcessNaN(op2);
+  } else if (IsSignallingNaN(op3)) {
+    return FPProcessNaN(op3);
+  } else if (std::isnan(op1)) {
+    ASSERT(IsQuietNaN(op1));
+    return FPProcessNaN(op1);
+  } else if (std::isnan(op2)) {
+    ASSERT(IsQuietNaN(op2));
+    return FPProcessNaN(op2);
+  } else if (std::isnan(op3)) {
+    ASSERT(IsQuietNaN(op3));
+    return FPProcessNaN(op3);
+  } else {
+    return 0.0;
+  }
+}
+
+
+bool Simulator::FPProcessNaNs(Instruction* instr) {
+  unsigned fd = instr->Rd();
+  unsigned fn = instr->Rn();
+  unsigned fm = instr->Rm();
+  bool done = false;
+
+  if (instr->Mask(FP64) == FP64) {
+    double result = FPProcessNaNs(dreg(fn), dreg(fm));
+    if (std::isnan(result)) {
+      set_dreg(fd, result);
+      done = true;
+    }
+  } else {
+    float result = FPProcessNaNs(sreg(fn), sreg(fm));
+    if (std::isnan(result)) {
+      set_sreg(fd, result);
+      done = true;
+    }
+  }
+
+  return done;
 }
 
 

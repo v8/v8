@@ -129,10 +129,6 @@ class IncrementalMarking {
                                   Object** slot,
                                   Isolate* isolate);
 
-  static void RecordWriteForEvacuationFromCode(HeapObject* obj,
-                                               Object** slot,
-                                               Isolate* isolate);
-
   // Record a slot for compaction.  Returns false for objects that are
   // guaranteed to be rescanned or not guaranteed to survive.
   //

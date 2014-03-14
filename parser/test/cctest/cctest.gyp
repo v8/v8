@@ -53,6 +53,7 @@
         'test-alloc.cc',
         'test-api.cc',
         'test-ast.cc',
+        'test-atomicops.cc',
         'test-bignum.cc',
         'test-bignum-dtoa.cc',
         'test-circular-queue.cc',
@@ -139,6 +140,7 @@
             'test-code-stubs.cc',
             'test-code-stubs-x64.cc',
             'test-cpu-x64.cc',
+            'test-disasm-x64.cc',
             'test-macro-assembler-x64.cc',
             'test-log-stack-tracer.cc'
           ],

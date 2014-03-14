@@ -164,7 +164,7 @@ namespace internal {
   V(Map, fixed_float32_array_map, FixedFloat32ArrayMap)                        \
   V(Map, fixed_float64_array_map, FixedFloat64ArrayMap)                        \
   V(Map, fixed_uint8_clamped_array_map, FixedUint8ClampedArrayMap)             \
-  V(Map, non_strict_arguments_elements_map, NonStrictArgumentsElementsMap)     \
+  V(Map, sloppy_arguments_elements_map, SloppyArgumentsElementsMap)            \
   V(Map, function_context_map, FunctionContextMap)                             \
   V(Map, catch_context_map, CatchContextMap)                                   \
   V(Map, with_context_map, WithContextMap)                                     \
@@ -191,10 +191,13 @@ namespace internal {
   V(JSObject, observation_state, ObservationState)                             \
   V(Map, external_map, ExternalMap)                                            \
   V(Symbol, frozen_symbol, FrozenSymbol)                                       \
+  V(Symbol, nonexistent_symbol, NonExistentSymbol)                             \
   V(Symbol, elements_transition_symbol, ElementsTransitionSymbol)              \
   V(SeededNumberDictionary, empty_slow_element_dictionary,                     \
       EmptySlowElementDictionary)                                              \
   V(Symbol, observed_symbol, ObservedSymbol)                                   \
+  V(Symbol, uninitialized_symbol, UninitializedSymbol)                         \
+  V(Symbol, megamorphic_symbol, MegamorphicSymbol)                             \
   V(FixedArray, materialized_objects, MaterializedObjects)                     \
   V(FixedArray, allocation_sites_scratchpad, AllocationSitesScratchpad)        \
   V(JSObject, microtask_state, MicrotaskState)
@@ -247,7 +250,7 @@ namespace internal {
   V(empty_constant_pool_array)            \
   V(arguments_marker)                     \
   V(symbol_map)                           \
-  V(non_strict_arguments_elements_map)    \
+  V(sloppy_arguments_elements_map)        \
   V(function_context_map)                 \
   V(catch_context_map)                    \
   V(with_context_map)                     \
@@ -683,14 +686,13 @@ class Heap {
   // constructor.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
+  // If allocation_site is non-null, then a memento is emitted after the object
+  // that points to the site.
   // Please note this does not perform a garbage collection.
   MUST_USE_RESULT MaybeObject* AllocateJSObject(
       JSFunction* constructor,
-      PretenureFlag pretenure = NOT_TENURED);
-
-  MUST_USE_RESULT MaybeObject* AllocateJSObjectWithAllocationSite(
-      JSFunction* constructor,
-      Handle<AllocationSite> allocation_site);
+      PretenureFlag pretenure = NOT_TENURED,
+      AllocationSite* allocation_site = NULL);
 
   MUST_USE_RESULT MaybeObject* AllocateJSModule(Context* context,
                                                 ScopeInfo* scope_info);
@@ -770,21 +772,21 @@ class Heap {
   // Allocates and initializes a new JavaScript object based on a map.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
+  // Passing an allocation site means that a memento will be created that
+  // points to the site.
   // Please note this does not perform a garbage collection.
   MUST_USE_RESULT MaybeObject* AllocateJSObjectFromMap(
-      Map* map, PretenureFlag pretenure = NOT_TENURED, bool alloc_props = true);
-
-  MUST_USE_RESULT MaybeObject* AllocateJSObjectFromMapWithAllocationSite(
-      Map* map, Handle<AllocationSite> allocation_site);
+      Map* map,
+      PretenureFlag pretenure = NOT_TENURED,
+      bool alloc_props = true,
+      AllocationSite* allocation_site = NULL);
 
   // Allocates a heap object based on the map.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this function does not perform a garbage collection.
-  MUST_USE_RESULT MaybeObject* Allocate(Map* map, AllocationSpace space);
-
-  MUST_USE_RESULT MaybeObject* AllocateWithAllocationSite(Map* map,
-      AllocationSpace space, Handle<AllocationSite> allocation_site);
+  MUST_USE_RESULT MaybeObject* Allocate(Map* map, AllocationSpace space,
+                                        AllocationSite* allocation_site = NULL);
 
   // Allocates a JS Map in the heap.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
@@ -1010,9 +1012,10 @@ class Heap {
       PretenureFlag pretenure = NOT_TENURED);
 
   MUST_USE_RESULT MaybeObject* AllocateConstantPoolArray(
-      int first_int64_index,
-      int first_ptr_index,
-      int first_int32_index);
+      int number_of_int64_entries,
+      int number_of_code_ptr_entries,
+      int number_of_heap_ptr_entries,
+      int number_of_int32_entries);
 
   // Allocates a fixed double array with uninitialized values. Returns
   // Failure::RetryAfterGC(requested_bytes, space) if the allocation failed.
@@ -1075,15 +1078,15 @@ class Heap {
       Object* prototype,
       PretenureFlag pretenure = TENURED);
 
-  // Arguments object size.
-  static const int kArgumentsObjectSize =
+  // Sloppy mode arguments object size.
+  static const int kSloppyArgumentsObjectSize =
       JSObject::kHeaderSize + 2 * kPointerSize;
   // Strict mode arguments has no callee so it is smaller.
-  static const int kArgumentsObjectSizeStrict =
+  static const int kStrictArgumentsObjectSize =
       JSObject::kHeaderSize + 1 * kPointerSize;
   // Indicies for direct access into argument objects.
   static const int kArgumentsLengthIndex = 0;
-  // callee is only valid in non-strict mode.
+  // callee is only valid in sloppy mode.
   static const int kArgumentsCalleeIndex = 1;
 
   // Allocates an arguments object - optionally with an elements array.
@@ -1504,10 +1507,16 @@ class Heap {
   static inline void ScavengePointer(HeapObject** p);
   static inline void ScavengeObject(HeapObject** p, HeapObject* object);
 
+  enum ScratchpadSlotMode {
+    IGNORE_SCRATCHPAD_SLOT,
+    RECORD_SCRATCHPAD_SLOT
+  };
+
   // An object may have an AllocationSite associated with it through a trailing
   // AllocationMemento. Its feedback should be updated when objects are found
   // in the heap.
-  static inline void UpdateAllocationSiteFeedback(HeapObject* object);
+  static inline void UpdateAllocationSiteFeedback(
+      HeapObject* object, ScratchpadSlotMode mode);
 
   // Support for partial snapshots.  After calling this we have a linear
   // space to write objects in each space.
@@ -2312,7 +2321,8 @@ class Heap {
   void InitializeAllocationSitesScratchpad();
 
   // Adds an allocation site to the scratchpad if there is space left.
-  void AddAllocationSiteToScratchpad(AllocationSite* site);
+  void AddAllocationSiteToScratchpad(AllocationSite* site,
+                                     ScratchpadSlotMode mode);
 
   void UpdateSurvivalRateTrend(int start_new_space_size);
 

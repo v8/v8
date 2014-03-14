@@ -361,7 +361,7 @@ Handle<Object> JsonParser<seq_ascii>::ParseJsonObject() {
           Handle<Object> value = ParseJsonValue();
           if (value.is_null()) return ReportUnexpectedCharacter();
 
-          JSObject::SetOwnElement(json_object, index, value, kNonStrictMode);
+          JSObject::SetOwnElement(json_object, index, value, SLOPPY);
           continue;
         }
         // Not an index, fallback to the slow path.
@@ -414,9 +414,7 @@ Handle<Object> JsonParser<seq_ascii>::ParseJsonObject() {
           if (value->FitsRepresentation(expected_representation)) {
             // If the target representation is double and the value is already
             // double, use the existing box.
-            if (FLAG_track_double_fields &&
-                value->IsSmi() &&
-                expected_representation.IsDouble()) {
+            if (value->IsSmi() && expected_representation.IsDouble()) {
               value = factory()->NewHeapNumber(
                   Handle<Smi>::cast(value)->value());
             }

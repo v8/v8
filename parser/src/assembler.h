@@ -210,6 +210,12 @@ class Label BASE_EMBEDDED {
   friend class Assembler;
   friend class Displacement;
   friend class RegExpMacroAssemblerIrregexp;
+
+#if V8_TARGET_ARCH_A64
+  // On A64, the Assembler keeps track of pointers to Labels to resolve branches
+  // to distant targets. Copying labels would confuse the Assembler.
+  DISALLOW_COPY_AND_ASSIGN(Label);  // NOLINT
+#endif
 };
 
 
@@ -276,9 +282,10 @@ class RelocInfo BASE_EMBEDDED {
     EXTERNAL_REFERENCE,  // The address of an external C++ function.
     INTERNAL_REFERENCE,  // An address inside the same function.
 
-    // Marks a constant pool. Only used on ARM.
-    // It uses a custom noncompact encoding.
+    // Marks constant and veneer pools. Only used on ARM and A64.
+    // They use a custom noncompact encoding.
     CONST_POOL,
+    VENEER_POOL,
 
     // add more as needed
     // Pseudo-types
@@ -288,7 +295,7 @@ class RelocInfo BASE_EMBEDDED {
     CODE_AGE_SEQUENCE,  // Not stored in RelocInfo array, used explictly by
                         // code aging.
     FIRST_REAL_RELOC_MODE = CODE_TARGET,
-    LAST_REAL_RELOC_MODE = CONST_POOL,
+    LAST_REAL_RELOC_MODE = VENEER_POOL,
     FIRST_PSEUDO_RELOC_MODE = CODE_AGE_SEQUENCE,
     LAST_PSEUDO_RELOC_MODE = CODE_AGE_SEQUENCE,
     LAST_CODE_ENUM = DEBUG_BREAK,
@@ -342,6 +349,9 @@ class RelocInfo BASE_EMBEDDED {
   static inline bool IsConstPool(Mode mode) {
     return mode == CONST_POOL;
   }
+  static inline bool IsVeneerPool(Mode mode) {
+    return mode == VENEER_POOL;
+  }
   static inline bool IsPosition(Mode mode) {
     return mode == POSITION || mode == STATEMENT_POSITION;
   }
@@ -375,6 +385,7 @@ class RelocInfo BASE_EMBEDDED {
     return BitCast<uint64_t>(data64_);
   }
   Code* host() const { return host_; }
+  void set_host(Code* host) { host_ = host; }
 
   // Apply a relocation by delta bytes
   INLINE(void apply(intptr_t delta));
@@ -383,6 +394,10 @@ class RelocInfo BASE_EMBEDDED {
   // or is it strange in some way (e.g. relative or patched into a series of
   // instructions).
   bool IsCodedSpecially();
+
+  // If true, the pointer this relocation info refers to is an entry in the
+  // constant pool, otherwise the pointer is embedded in the instruction stream.
+  bool IsInConstantPool();
 
   // Read/modify the code target in the branch/call instruction
   // this relocation applies to;
@@ -406,6 +421,10 @@ class RelocInfo BASE_EMBEDDED {
   INLINE(Code* code_age_stub());
   INLINE(void set_code_age_stub(Code* stub));
 
+  // Returns the address of the constant pool entry where the target address
+  // is held.  This should only be called if IsInConstantPool returns true.
+  INLINE(Address constant_pool_entry_address());
+
   // Read the address of the word containing the target_address in an
   // instruction stream.  What this means exactly is architecture-independent.
   // The only architecture-independent user of this function is the serializer.
@@ -413,6 +432,7 @@ class RelocInfo BASE_EMBEDDED {
   // output before the next target.  Architecture-independent code shouldn't
   // dereference the pointer it gets back from this.
   INLINE(Address target_address_address());
+
   // This indicates how much space a target takes up when deserializing a code
   // stream.  For most architectures this is just the size of a pointer.  For
   // an instruction like movw/movt where the target bits are mixed into the
@@ -537,7 +557,7 @@ class RelocInfoWriter BASE_EMBEDDED {
   inline void WriteTaggedPC(uint32_t pc_delta, int tag);
   inline void WriteExtraTaggedPC(uint32_t pc_delta, int extra_tag);
   inline void WriteExtraTaggedIntData(int data_delta, int top_tag);
-  inline void WriteExtraTaggedConstPoolData(int data);
+  inline void WriteExtraTaggedPoolData(int data, int pool_type);
   inline void WriteExtraTaggedData(intptr_t data_delta, int top_tag);
   inline void WriteTaggedData(intptr_t data_delta, int tag);
   inline void WriteExtraTag(int extra_tag, int top_tag);
@@ -588,7 +608,7 @@ class RelocIterator: public Malloced {
   void ReadTaggedPC();
   void AdvanceReadPC();
   void AdvanceReadId();
-  void AdvanceReadConstPoolData();
+  void AdvanceReadPoolData();
   void AdvanceReadPosition();
   void AdvanceReadData();
   void AdvanceReadVariableLengthPCJump();
@@ -710,8 +730,6 @@ class ExternalReference BASE_EMBEDDED {
   // ExternalReferenceTable in serialize.cc manually.
 
   static ExternalReference incremental_marking_record_write_function(
-      Isolate* isolate);
-  static ExternalReference incremental_evacuation_record_write_function(
       Isolate* isolate);
   static ExternalReference store_buffer_overflow_function(
       Isolate* isolate);
@@ -1038,6 +1056,21 @@ class NullCallWrapper : public CallWrapper {
   virtual void BeforeCall(int call_size) const { }
   virtual void AfterCall() const { }
 };
+
+
+// The multiplier and shift for signed division via multiplication, see Warren's
+// "Hacker's Delight", chapter 10.
+class MultiplierAndShift {
+ public:
+  explicit MultiplierAndShift(int32_t d);
+  int32_t multiplier() const { return multiplier_; }
+  int32_t shift() const { return shift_; }
+
+ private:
+  int32_t multiplier_;
+  int32_t shift_;
+};
+
 
 } }  // namespace v8::internal
 

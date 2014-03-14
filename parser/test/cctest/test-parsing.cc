@@ -35,6 +35,7 @@
 #include "compiler.h"
 #include "execution.h"
 #include "isolate.h"
+#include "objects.h"
 #include "parser.h"
 #include "preparser.h"
 #include "scanner-character-streams.h"
@@ -212,18 +213,25 @@ TEST(Preparsing) {
   {
     i::FLAG_lazy = true;
     ScriptResource* resource = new ScriptResource(source, source_length);
-    v8::Local<v8::String> script_source =
-        v8::String::NewExternal(isolate, resource);
-    v8::Script::Compile(script_source, NULL, preparse);
+    v8::ScriptCompiler::Source script_source(
+        v8::String::NewExternal(isolate, resource),
+        v8::ScriptCompiler::CachedData(
+            reinterpret_cast<const uint8_t*>(preparse->Data()),
+            preparse->Length()));
+    v8::ScriptCompiler::Compile(isolate,
+                                v8::ScriptCompiler::Source(script_source));
   }
 
   {
     i::FLAG_lazy = false;
 
     ScriptResource* resource = new ScriptResource(source, source_length);
-    v8::Local<v8::String> script_source =
-        v8::String::NewExternal(isolate, resource);
-    v8::Script::New(script_source, NULL, preparse, v8::Local<v8::String>());
+    v8::ScriptCompiler::Source script_source(
+        v8::String::NewExternal(isolate, resource),
+        v8::ScriptCompiler::CachedData(
+            reinterpret_cast<const uint8_t*>(preparse->Data()),
+            preparse->Length()));
+    v8::ScriptCompiler::CompileUnbound(isolate, script_source);
   }
   delete preparse;
   i::FLAG_lazy = lazy_flag;
@@ -363,13 +371,24 @@ TEST(PreparsingObjectLiterals) {
 namespace v8 {
 namespace internal {
 
-void FakeWritingSymbolIdInPreParseData(i::CompleteParserRecorder* log,
-                                       int number) {
-  log->WriteNumber(number);
-  if (log->symbol_id_ < number + 1) {
-    log->symbol_id_ = number + 1;
+struct CompleteParserRecorderFriend {
+  static void FakeWritingSymbolIdInPreParseData(CompleteParserRecorder* log,
+                                                int number) {
+    log->WriteNumber(number);
+    if (log->symbol_id_ < number + 1) {
+      log->symbol_id_ = number + 1;
+    }
   }
-}
+  static int symbol_position(CompleteParserRecorder* log) {
+    return log->symbol_store_.size();
+  }
+  static int symbol_ids(CompleteParserRecorder* log) {
+    return log->symbol_id_;
+  }
+  static int function_position(CompleteParserRecorder* log) {
+    return log->function_store_.size();
+  }
+};
 
 }
 }
@@ -379,15 +398,16 @@ TEST(StoringNumbersInPreParseData) {
   // Symbol IDs are split into chunks of 7 bits for storing. This is a
   // regression test for a bug where a symbol id was incorrectly stored if some
   // of the chunks in the middle were all zeros.
+  typedef i::CompleteParserRecorderFriend F;
   i::CompleteParserRecorder log;
   for (int i = 0; i < 18; ++i) {
-    FakeWritingSymbolIdInPreParseData(&log, 1 << i);
+    F::FakeWritingSymbolIdInPreParseData(&log, 1 << i);
   }
   for (int i = 1; i < 18; ++i) {
-    FakeWritingSymbolIdInPreParseData(&log, (1 << i) + 1);
+    F::FakeWritingSymbolIdInPreParseData(&log, (1 << i) + 1);
   }
   for (int i = 6; i < 18; ++i) {
-    FakeWritingSymbolIdInPreParseData(&log, (3 << i) + (5 << (i - 6)));
+    F::FakeWritingSymbolIdInPreParseData(&log, (3 << i) + (5 << (i - 6)));
   }
   i::Vector<unsigned> store = log.ExtractData();
   i::ScriptDataImpl script_data(store);
@@ -802,6 +822,7 @@ void TestScanRegExp(const char* re_source, const char* expected) {
   i::Utf8ToUtf16CharacterStream stream(
        reinterpret_cast<const i::byte*>(re_source),
        static_cast<unsigned>(strlen(re_source)));
+  i::HandleScope scope(CcTest::i_isolate());
   i::Scanner scanner(CcTest::i_isolate()->unicode_cache());
   scanner.Initialize(&stream);
 
@@ -809,8 +830,12 @@ void TestScanRegExp(const char* re_source, const char* expected) {
   CHECK(start == i::Token::DIV || start == i::Token::ASSIGN_DIV);
   CHECK(scanner.ScanRegExpPattern(start == i::Token::ASSIGN_DIV));
   scanner.Next();  // Current token is now the regexp literal.
-  CHECK(scanner.is_literal_ascii());
-  i::Vector<const char> actual = scanner.literal_ascii_string();
+  i::Handle<i::String> val =
+      scanner.AllocateInternalizedString(CcTest::i_isolate());
+  i::DisallowHeapAllocation no_alloc;
+  i::String::FlatContent content = val->GetFlatContent();
+  CHECK(content.IsAscii());
+  i::Vector<const uint8_t> actual = content.ToOneByteVector();
   for (int i = 0; i < actual.length(); i++) {
     CHECK_NE('\0', expected[i]);
     CHECK_EQ(expected[i], actual[i]);
@@ -917,6 +942,8 @@ static int Utf8LengthHelper(const char* s) {
 
 
 TEST(ScopePositions) {
+  v8::internal::FLAG_harmony_scoping = true;
+
   // Test the parser for correctly setting the start and end positions
   // of a scope. We check the scope positions of exactly one scope
   // nested in the global scope of a program. 'inner source' is the
@@ -928,167 +955,167 @@ TEST(ScopePositions) {
     const char* inner_source;
     const char* outer_suffix;
     i::ScopeType scope_type;
-    i::LanguageMode language_mode;
+    i::StrictMode strict_mode;
   };
 
   const SourceData source_data[] = {
-    { "  with ({}) ", "{ block; }", " more;", i::WITH_SCOPE, i::CLASSIC_MODE },
-    { "  with ({}) ", "{ block; }", "; more;", i::WITH_SCOPE, i::CLASSIC_MODE },
+    { "  with ({}) ", "{ block; }", " more;", i::WITH_SCOPE, i::SLOPPY },
+    { "  with ({}) ", "{ block; }", "; more;", i::WITH_SCOPE, i::SLOPPY },
     { "  with ({}) ", "{\n"
       "    block;\n"
       "  }", "\n"
-      "  more;", i::WITH_SCOPE, i::CLASSIC_MODE },
-    { "  with ({}) ", "statement;", " more;", i::WITH_SCOPE, i::CLASSIC_MODE },
+      "  more;", i::WITH_SCOPE, i::SLOPPY },
+    { "  with ({}) ", "statement;", " more;", i::WITH_SCOPE, i::SLOPPY },
     { "  with ({}) ", "statement", "\n"
-      "  more;", i::WITH_SCOPE, i::CLASSIC_MODE },
+      "  more;", i::WITH_SCOPE, i::SLOPPY },
     { "  with ({})\n"
       "    ", "statement;", "\n"
-      "  more;", i::WITH_SCOPE, i::CLASSIC_MODE },
+      "  more;", i::WITH_SCOPE, i::SLOPPY },
     { "  try {} catch ", "(e) { block; }", " more;",
-      i::CATCH_SCOPE, i::CLASSIC_MODE },
+      i::CATCH_SCOPE, i::SLOPPY },
     { "  try {} catch ", "(e) { block; }", "; more;",
-      i::CATCH_SCOPE, i::CLASSIC_MODE },
+      i::CATCH_SCOPE, i::SLOPPY },
     { "  try {} catch ", "(e) {\n"
       "    block;\n"
       "  }", "\n"
-      "  more;", i::CATCH_SCOPE, i::CLASSIC_MODE },
+      "  more;", i::CATCH_SCOPE, i::SLOPPY },
     { "  try {} catch ", "(e) { block; }", " finally { block; } more;",
-      i::CATCH_SCOPE, i::CLASSIC_MODE },
+      i::CATCH_SCOPE, i::SLOPPY },
     { "  start;\n"
-      "  ", "{ let block; }", " more;", i::BLOCK_SCOPE, i::EXTENDED_MODE },
+      "  ", "{ let block; }", " more;", i::BLOCK_SCOPE, i::STRICT },
     { "  start;\n"
-      "  ", "{ let block; }", "; more;", i::BLOCK_SCOPE, i::EXTENDED_MODE },
+      "  ", "{ let block; }", "; more;", i::BLOCK_SCOPE, i::STRICT },
     { "  start;\n"
       "  ", "{\n"
       "    let block;\n"
       "  }", "\n"
-      "  more;", i::BLOCK_SCOPE, i::EXTENDED_MODE },
+      "  more;", i::BLOCK_SCOPE, i::STRICT },
     { "  start;\n"
       "  function fun", "(a,b) { infunction; }", " more;",
-      i::FUNCTION_SCOPE, i::CLASSIC_MODE },
+      i::FUNCTION_SCOPE, i::SLOPPY },
     { "  start;\n"
       "  function fun", "(a,b) {\n"
       "    infunction;\n"
       "  }", "\n"
-      "  more;", i::FUNCTION_SCOPE, i::CLASSIC_MODE },
+      "  more;", i::FUNCTION_SCOPE, i::SLOPPY },
     { "  (function fun", "(a,b) { infunction; }", ")();",
-      i::FUNCTION_SCOPE, i::CLASSIC_MODE },
+      i::FUNCTION_SCOPE, i::SLOPPY },
     { "  for ", "(let x = 1 ; x < 10; ++ x) { block; }", " more;",
-      i::BLOCK_SCOPE, i::EXTENDED_MODE },
+      i::BLOCK_SCOPE, i::STRICT },
     { "  for ", "(let x = 1 ; x < 10; ++ x) { block; }", "; more;",
-      i::BLOCK_SCOPE, i::EXTENDED_MODE },
+      i::BLOCK_SCOPE, i::STRICT },
     { "  for ", "(let x = 1 ; x < 10; ++ x) {\n"
       "    block;\n"
       "  }", "\n"
-      "  more;", i::BLOCK_SCOPE, i::EXTENDED_MODE },
+      "  more;", i::BLOCK_SCOPE, i::STRICT },
     { "  for ", "(let x = 1 ; x < 10; ++ x) statement;", " more;",
-      i::BLOCK_SCOPE, i::EXTENDED_MODE },
+      i::BLOCK_SCOPE, i::STRICT },
     { "  for ", "(let x = 1 ; x < 10; ++ x) statement", "\n"
-      "  more;", i::BLOCK_SCOPE, i::EXTENDED_MODE },
+      "  more;", i::BLOCK_SCOPE, i::STRICT },
     { "  for ", "(let x = 1 ; x < 10; ++ x)\n"
       "    statement;", "\n"
-      "  more;", i::BLOCK_SCOPE, i::EXTENDED_MODE },
+      "  more;", i::BLOCK_SCOPE, i::STRICT },
     { "  for ", "(let x in {}) { block; }", " more;",
-      i::BLOCK_SCOPE, i::EXTENDED_MODE },
+      i::BLOCK_SCOPE, i::STRICT },
     { "  for ", "(let x in {}) { block; }", "; more;",
-      i::BLOCK_SCOPE, i::EXTENDED_MODE },
+      i::BLOCK_SCOPE, i::STRICT },
     { "  for ", "(let x in {}) {\n"
       "    block;\n"
       "  }", "\n"
-      "  more;", i::BLOCK_SCOPE, i::EXTENDED_MODE },
+      "  more;", i::BLOCK_SCOPE, i::STRICT },
     { "  for ", "(let x in {}) statement;", " more;",
-      i::BLOCK_SCOPE, i::EXTENDED_MODE },
+      i::BLOCK_SCOPE, i::STRICT },
     { "  for ", "(let x in {}) statement", "\n"
-      "  more;", i::BLOCK_SCOPE, i::EXTENDED_MODE },
+      "  more;", i::BLOCK_SCOPE, i::STRICT },
     { "  for ", "(let x in {})\n"
       "    statement;", "\n"
-      "  more;", i::BLOCK_SCOPE, i::EXTENDED_MODE },
+      "  more;", i::BLOCK_SCOPE, i::STRICT },
     // Check that 6-byte and 4-byte encodings of UTF-8 strings do not throw
     // the preparser off in terms of byte offsets.
     // 6 byte encoding.
     { "  'foo\355\240\201\355\260\211';\n"
       "  (function fun", "(a,b) { infunction; }", ")();",
-      i::FUNCTION_SCOPE, i::CLASSIC_MODE },
+      i::FUNCTION_SCOPE, i::SLOPPY },
     // 4 byte encoding.
     { "  'foo\360\220\220\212';\n"
       "  (function fun", "(a,b) { infunction; }", ")();",
-      i::FUNCTION_SCOPE, i::CLASSIC_MODE },
+      i::FUNCTION_SCOPE, i::SLOPPY },
     // 3 byte encoding of \u0fff.
     { "  'foo\340\277\277';\n"
       "  (function fun", "(a,b) { infunction; }", ")();",
-      i::FUNCTION_SCOPE, i::CLASSIC_MODE },
+      i::FUNCTION_SCOPE, i::SLOPPY },
     // Broken 6 byte encoding with missing last byte.
     { "  'foo\355\240\201\355\211';\n"
       "  (function fun", "(a,b) { infunction; }", ")();",
-      i::FUNCTION_SCOPE, i::CLASSIC_MODE },
+      i::FUNCTION_SCOPE, i::SLOPPY },
     // Broken 3 byte encoding of \u0fff with missing last byte.
     { "  'foo\340\277';\n"
       "  (function fun", "(a,b) { infunction; }", ")();",
-      i::FUNCTION_SCOPE, i::CLASSIC_MODE },
+      i::FUNCTION_SCOPE, i::SLOPPY },
     // Broken 3 byte encoding of \u0fff with missing 2 last bytes.
     { "  'foo\340';\n"
       "  (function fun", "(a,b) { infunction; }", ")();",
-      i::FUNCTION_SCOPE, i::CLASSIC_MODE },
+      i::FUNCTION_SCOPE, i::SLOPPY },
     // Broken 3 byte encoding of \u00ff should be a 2 byte encoding.
     { "  'foo\340\203\277';\n"
       "  (function fun", "(a,b) { infunction; }", ")();",
-      i::FUNCTION_SCOPE, i::CLASSIC_MODE },
+      i::FUNCTION_SCOPE, i::SLOPPY },
     // Broken 3 byte encoding of \u007f should be a 2 byte encoding.
     { "  'foo\340\201\277';\n"
       "  (function fun", "(a,b) { infunction; }", ")();",
-      i::FUNCTION_SCOPE, i::CLASSIC_MODE },
+      i::FUNCTION_SCOPE, i::SLOPPY },
     // Unpaired lead surrogate.
     { "  'foo\355\240\201';\n"
       "  (function fun", "(a,b) { infunction; }", ")();",
-      i::FUNCTION_SCOPE, i::CLASSIC_MODE },
+      i::FUNCTION_SCOPE, i::SLOPPY },
     // Unpaired lead surrogate where following code point is a 3 byte sequence.
     { "  'foo\355\240\201\340\277\277';\n"
       "  (function fun", "(a,b) { infunction; }", ")();",
-      i::FUNCTION_SCOPE, i::CLASSIC_MODE },
+      i::FUNCTION_SCOPE, i::SLOPPY },
     // Unpaired lead surrogate where following code point is a 4 byte encoding
     // of a trail surrogate.
     { "  'foo\355\240\201\360\215\260\211';\n"
       "  (function fun", "(a,b) { infunction; }", ")();",
-      i::FUNCTION_SCOPE, i::CLASSIC_MODE },
+      i::FUNCTION_SCOPE, i::SLOPPY },
     // Unpaired trail surrogate.
     { "  'foo\355\260\211';\n"
       "  (function fun", "(a,b) { infunction; }", ")();",
-      i::FUNCTION_SCOPE, i::CLASSIC_MODE },
+      i::FUNCTION_SCOPE, i::SLOPPY },
     // 2 byte encoding of \u00ff.
     { "  'foo\303\277';\n"
       "  (function fun", "(a,b) { infunction; }", ")();",
-      i::FUNCTION_SCOPE, i::CLASSIC_MODE },
+      i::FUNCTION_SCOPE, i::SLOPPY },
     // Broken 2 byte encoding of \u00ff with missing last byte.
     { "  'foo\303';\n"
       "  (function fun", "(a,b) { infunction; }", ")();",
-      i::FUNCTION_SCOPE, i::CLASSIC_MODE },
+      i::FUNCTION_SCOPE, i::SLOPPY },
     // Broken 2 byte encoding of \u007f should be a 1 byte encoding.
     { "  'foo\301\277';\n"
       "  (function fun", "(a,b) { infunction; }", ")();",
-      i::FUNCTION_SCOPE, i::CLASSIC_MODE },
+      i::FUNCTION_SCOPE, i::SLOPPY },
     // Illegal 5 byte encoding.
     { "  'foo\370\277\277\277\277';\n"
       "  (function fun", "(a,b) { infunction; }", ")();",
-      i::FUNCTION_SCOPE, i::CLASSIC_MODE },
+      i::FUNCTION_SCOPE, i::SLOPPY },
     // Illegal 6 byte encoding.
     { "  'foo\374\277\277\277\277\277';\n"
       "  (function fun", "(a,b) { infunction; }", ")();",
-      i::FUNCTION_SCOPE, i::CLASSIC_MODE },
+      i::FUNCTION_SCOPE, i::SLOPPY },
     // Illegal 0xfe byte
     { "  'foo\376\277\277\277\277\277\277';\n"
       "  (function fun", "(a,b) { infunction; }", ")();",
-      i::FUNCTION_SCOPE, i::CLASSIC_MODE },
+      i::FUNCTION_SCOPE, i::SLOPPY },
     // Illegal 0xff byte
     { "  'foo\377\277\277\277\277\277\277\277';\n"
       "  (function fun", "(a,b) { infunction; }", ")();",
-      i::FUNCTION_SCOPE, i::CLASSIC_MODE },
+      i::FUNCTION_SCOPE, i::SLOPPY },
     { "  'foo';\n"
       "  (function fun", "(a,b) { 'bar\355\240\201\355\260\213'; }", ")();",
-      i::FUNCTION_SCOPE, i::CLASSIC_MODE },
+      i::FUNCTION_SCOPE, i::SLOPPY },
     { "  'foo';\n"
       "  (function fun", "(a,b) { 'bar\360\220\220\214'; }", ")();",
-      i::FUNCTION_SCOPE, i::CLASSIC_MODE },
-    { NULL, NULL, NULL, i::EVAL_SCOPE, i::CLASSIC_MODE }
+      i::FUNCTION_SCOPE, i::SLOPPY },
+    { NULL, NULL, NULL, i::EVAL_SCOPE, i::SLOPPY }
   };
 
   i::Isolate* isolate = CcTest::i_isolate();
@@ -1127,7 +1154,7 @@ TEST(ScopePositions) {
     parser.set_allow_lazy(true);
     parser.set_allow_harmony_scoping(true);
     info.MarkAsGlobal();
-    info.SetLanguageMode(source_data[i].language_mode);
+    info.SetStrictMode(source_data[i].strict_mode);
     parser.Parse();
     CHECK(info.function() != NULL);
 
@@ -1160,7 +1187,7 @@ i::Handle<i::String> FormatMessage(i::ScriptDataImpl* data) {
     i::JSArray::SetElement(
         args_array, i, v8::Utils::OpenHandle(*v8::String::NewFromUtf8(
                                                   CcTest::isolate(), args[i])),
-        NONE, i::kNonStrictMode);
+        NONE, i::SLOPPY);
   }
   i::Handle<i::JSObject> builtins(isolate->js_builtins_object());
   i::Handle<i::Object> format_fun =
@@ -1469,7 +1496,9 @@ TEST(PreparserStrictOctal) {
 
 void RunParserSyncTest(const char* context_data[][2],
                        const char* statement_data[],
-                       ParserSyncTestResult result) {
+                       ParserSyncTestResult result,
+                       const ParserFlag* flags = NULL,
+                       int flags_len = 0) {
   v8::HandleScope handles(CcTest::isolate());
   v8::Handle<v8::Context> context = v8::Context::New(CcTest::isolate());
   v8::Context::Scope context_scope(context);
@@ -1478,10 +1507,14 @@ void RunParserSyncTest(const char* context_data[][2],
   CcTest::i_isolate()->stack_guard()->SetStackLimit(
       reinterpret_cast<uintptr_t>(&marker) - 128 * 1024);
 
-  static const ParserFlag flags[] = {
+  static const ParserFlag default_flags[] = {
     kAllowLazy, kAllowHarmonyScoping, kAllowModules, kAllowGenerators,
     kAllowForOf, kAllowNativesSyntax
   };
+  if (!flags) {
+    flags = default_flags;
+    flags_len = ARRAY_SIZE(default_flags);
+  }
   for (int i = 0; context_data[i][0] != NULL; ++i) {
     for (int j = 0; statement_data[j] != NULL; ++j) {
       int kPrefixLen = i::StrLength(context_data[i][0]);
@@ -1499,7 +1532,7 @@ void RunParserSyncTest(const char* context_data[][2],
       CHECK(length == kProgramSize);
       TestParserSync(program.start(),
                      flags,
-                     ARRAY_SIZE(flags),
+                     flags_len,
                      result);
     }
   }
@@ -1545,7 +1578,7 @@ TEST(ErrorsEvalAndArguments) {
 }
 
 
-TEST(NoErrorsEvalAndArgumentsClassic) {
+TEST(NoErrorsEvalAndArgumentsSloppy) {
   // Tests that both preparsing and parsing accept "eval" and "arguments" as
   // identifiers when needed.
   const char* context_data[][2] = {
@@ -1690,8 +1723,8 @@ TEST(ErrorsReservedWords) {
 }
 
 
-TEST(NoErrorsYieldClassic) {
-  // In classic mode, it's okay to use "yield" as identifier, *except* inside a
+TEST(NoErrorsYieldSloppy) {
+  // In sloppy mode, it's okay to use "yield" as identifier, *except* inside a
   // generator (see next test).
   const char* context_data[][2] = {
     { "", "" },
@@ -1717,7 +1750,7 @@ TEST(NoErrorsYieldClassic) {
 }
 
 
-TEST(ErrorsYieldClassicGenerator) {
+TEST(ErrorsYieldSloppyGenerator) {
   const char* context_data[][2] = {
     { "function * is_gen() {", "}" },
     { NULL, NULL }
@@ -1833,7 +1866,7 @@ TEST(NoErrorsNameOfStrictFunction) {
 
 
 
-TEST(ErrorsIllegalWordsAsLabelsClassic) {
+TEST(ErrorsIllegalWordsAsLabelsSloppy) {
   // Using future reserved words as labels is always an error.
   const char* context_data[][2] = {
     { "", ""},
@@ -1970,7 +2003,6 @@ TEST(DontRegressPreParserDataSizes) {
   // These tests make sure that PreParser doesn't start producing less data.
 
   v8::V8::Initialize();
-
   int marker;
   CcTest::i_isolate()->stack_guard()->SetStackLimit(
       reinterpret_cast<uintptr_t>(&marker) - 128 * 1024);
@@ -1980,9 +2012,18 @@ TEST(DontRegressPreParserDataSizes) {
     int symbols;
     int functions;
   } test_cases[] = {
-    // Labels, variables and functions are recorded as symbols.
+    // Labels and variables are recorded as symbols.
     {"{label: 42}", 1, 0}, {"{label: 42; label2: 43}", 2, 0},
     {"var x = 42;", 1, 0}, {"var x = 42, y = 43;", 2, 0},
+    {"var x = {y: 1};", 2, 0},
+    {"var x = {}; x.y = 1", 2, 0},
+    // "get" is recorded as a symbol too.
+    {"var x = {get foo(){} };", 3, 1},
+    // When keywords are used as identifiers, they're logged as symbols, too:
+    {"var x = {if: 1};", 2, 0},
+    {"var x = {}; x.if = 1", 2, 0},
+    {"var x = {get if(){} };", 3, 1},
+    // Functions
     {"function foo() {}", 1, 1}, {"function foo() {} function bar() {}", 2, 2},
     // Labels, variables and functions insize lazy functions are not recorded.
     {"function lazy() { var a, b, c; }", 1, 1},
@@ -1994,6 +2035,7 @@ TEST(DontRegressPreParserDataSizes) {
   // Each function adds 5 elements to the preparse function data.
   const int kDataPerFunction = 5;
 
+  typedef i::CompleteParserRecorderFriend F;
   uintptr_t stack_limit = CcTest::i_isolate()->stack_guard()->real_climit();
   for (int i = 0; test_cases[i].program; i++) {
     const char* program = test_cases[i].program;
@@ -2009,21 +2051,22 @@ TEST(DontRegressPreParserDataSizes) {
     preparser.set_allow_natives_syntax(true);
     i::PreParser::PreParseResult result = preparser.PreParseProgram();
     CHECK_EQ(i::PreParser::kPreParseSuccess, result);
-    if (log.symbol_ids() != test_cases[i].symbols) {
+    if (F::symbol_ids(&log) != test_cases[i].symbols) {
       i::OS::Print(
           "Expected preparse data for program:\n"
           "\t%s\n"
           "to contain %d symbols, however, received %d symbols.\n",
-          program, test_cases[i].symbols, log.symbol_ids());
+          program, test_cases[i].symbols, F::symbol_ids(&log));
       CHECK(false);
     }
-    if (log.function_position() != test_cases[i].functions * kDataPerFunction) {
+    if (F::function_position(&log) !=
+          test_cases[i].functions * kDataPerFunction) {
       i::OS::Print(
           "Expected preparse data for program:\n"
           "\t%s\n"
           "to contain %d functions, however, received %d functions.\n",
           program, test_cases[i].functions,
-          log.function_position() / kDataPerFunction);
+          F::function_position(&log) / kDataPerFunction);
       CHECK(false);
     }
     i::ScriptDataImpl data(log.ExtractData());
@@ -2209,4 +2252,137 @@ TEST(ErrorsNewExpression) {
   };
 
   RunParserSyncTest(context_data, statement_data, kError);
+}
+
+
+TEST(StrictObjectLiteralChecking) {
+  const char* strict_context_data[][2] = {
+    {"\"use strict\"; var myobject = {", "};"},
+    { NULL, NULL }
+  };
+  const char* non_strict_context_data[][2] = {
+    {"var myobject = {", "};"},
+    { NULL, NULL }
+  };
+
+  // These are only errors in strict mode.
+  const char* statement_data[] = {
+    "foo: 1, foo: 2",
+    "\"foo\": 1, \"foo\": 2",
+    "foo: 1, \"foo\": 2",
+    "1: 1, 1: 2",
+    "1: 1, \"1\": 2",
+    "get: 1, get: 2",  // Not a getter for real, just a property called get.
+    "set: 1, set: 2",  // Not a setter for real, just a property called set.
+    NULL
+  };
+
+  RunParserSyncTest(non_strict_context_data, statement_data, kSuccess);
+  RunParserSyncTest(strict_context_data, statement_data, kError);
+}
+
+
+TEST(ErrorsObjectLiteralChecking) {
+  const char* context_data[][2] = {
+    {"\"use strict\"; var myobject = {", "};"},
+    {"var myobject = {", "};"},
+    { NULL, NULL }
+  };
+
+  const char* statement_data[] = {
+    "foo: 1, get foo() {}",
+    "foo: 1, set foo() {}",
+    "\"foo\": 1, get \"foo\"() {}",
+    "\"foo\": 1, set \"foo\"() {}",
+    "1: 1, get 1() {}",
+    "1: 1, set 1() {}",
+    // It's counter-intuitive, but these collide too (even in classic
+    // mode). Note that we can have "foo" and foo as properties in classic mode,
+    // but we cannot have "foo" and get foo, or foo and get "foo".
+    "foo: 1, get \"foo\"() {}",
+    "foo: 1, set \"foo\"() {}",
+    "\"foo\": 1, get foo() {}",
+    "\"foo\": 1, set foo() {}",
+    "1: 1, get \"1\"() {}",
+    "1: 1, set \"1\"() {}",
+    "\"1\": 1, get 1() {}"
+    "\"1\": 1, set 1() {}"
+    // Parsing FunctionLiteral for getter or setter fails
+    "get foo( +",
+    "get foo() \"error\"",
+    NULL
+  };
+
+  RunParserSyncTest(context_data, statement_data, kError);
+}
+
+
+TEST(NoErrorsObjectLiteralChecking) {
+  const char* context_data[][2] = {
+    {"var myobject = {", "};"},
+    {"\"use strict\"; var myobject = {", "};"},
+    { NULL, NULL }
+  };
+
+  const char* statement_data[] = {
+    "foo: 1, bar: 2",
+    "\"foo\": 1, \"bar\": 2",
+    "1: 1, 2: 2",
+    // Syntax: IdentifierName ':' AssignmentExpression
+    "foo: bar = 5 + baz",
+    // Syntax: 'get' (IdentifierName | String | Number) FunctionLiteral
+    "get foo() {}",
+    "get \"foo\"() {}",
+    "get 1() {}",
+    // Syntax: 'set' (IdentifierName | String | Number) FunctionLiteral
+    "set foo() {}",
+    "set \"foo\"() {}",
+    "set 1() {}",
+    // Non-colliding getters and setters -> no errors
+    "foo: 1, get bar() {}",
+    "foo: 1, set bar(b) {}",
+    "\"foo\": 1, get \"bar\"() {}",
+    "\"foo\": 1, set \"bar\"() {}",
+    "1: 1, get 2() {}",
+    "1: 1, set 2() {}",
+    // Weird number of parameters -> no errors
+    "get bar() {}, set bar() {}",
+    "get bar(x) {}, set bar(x) {}",
+    "get bar(x, y) {}, set bar(x, y) {}",
+    // Keywords, future reserved and strict future reserved are also allowed as
+    // property names.
+    "if: 4",
+    "interface: 5",
+    "super: 6",
+    "eval: 7",
+    "arguments: 8",
+    NULL
+  };
+
+  RunParserSyncTest(context_data, statement_data, kSuccess);
+}
+
+
+TEST(TooManyArguments) {
+  const char* context_data[][2] = {
+    {"foo(", "0)"},
+    { NULL, NULL }
+  };
+
+  using v8::internal::Code;
+  char statement[Code::kMaxArguments * 2 + 1];
+  for (int i = 0; i < Code::kMaxArguments; ++i) {
+    statement[2 * i] = '0';
+    statement[2 * i + 1] = ',';
+  }
+  statement[Code::kMaxArguments * 2] = 0;
+
+  const char* statement_data[] = {
+    statement,
+    NULL
+  };
+
+  // The test is quite slow, so run it with a reduced set of flags.
+  static const ParserFlag empty_flags[] = {kAllowLazy};
+  RunParserSyncTest(context_data, statement_data, kError, empty_flags, 1);
 }

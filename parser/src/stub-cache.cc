@@ -179,7 +179,7 @@ Handle<Code> StubCache::ComputeLoadNonexistent(Handle<Name> name,
   // therefore the stub will be specific to the name.
   Handle<Map> current_map = stub_holder;
   Handle<Name> cache_name = current_map->is_dictionary_map()
-      ? name : Handle<Name>::cast(isolate()->factory()->empty_string());
+      ? name : Handle<Name>::cast(isolate()->factory()->nonexistent_symbol());
   Handle<Object> next(current_map->prototype(), isolate());
   Handle<JSObject> last = Handle<JSObject>::null();
   while (!next->IsNull()) {
@@ -222,7 +222,7 @@ Handle<Code> StubCache::ComputeKeyedLoadElement(Handle<Map> receiver_map) {
 
 Handle<Code> StubCache::ComputeKeyedStoreElement(
     Handle<Map> receiver_map,
-    StrictModeFlag strict_mode,
+    StrictMode strict_mode,
     KeyedAccessStoreMode store_mode) {
   ExtraICState extra_state =
       KeyedStoreIC::ComputeExtraICState(strict_mode, store_mode);
@@ -396,7 +396,7 @@ Handle<Code> StubCache::ComputePolymorphicIC(
 Handle<Code> StubCache::ComputeStoreElementPolymorphic(
     MapHandleList* receiver_maps,
     KeyedAccessStoreMode store_mode,
-    StrictModeFlag strict_mode) {
+    StrictMode strict_mode) {
   ASSERT(store_mode == STANDARD_STORE ||
          store_mode == STORE_AND_GROW_NO_TRANSITION ||
          store_mode == STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS ||
@@ -722,7 +722,7 @@ Handle<Code> StubCompiler::CompileStorePreMonomorphic(Code::Flags flags) {
 
 Handle<Code> StubCompiler::CompileStoreGeneric(Code::Flags flags) {
   ExtraICState extra_state = Code::ExtractExtraICStateFromFlags(flags);
-  StrictModeFlag strict_mode = StoreIC::GetStrictMode(extra_state);
+  StrictMode strict_mode = StoreIC::GetStrictMode(extra_state);
   StoreIC::GenerateRuntimeSetProperty(masm(), strict_mode);
   Handle<Code> code = GetCodeWithFlags(flags, "CompileStoreGeneric");
   PROFILE(isolate(),
@@ -1125,7 +1125,7 @@ Handle<Code> StoreStubCompiler::CompileStoreViaSetter(
     Handle<JSFunction> setter) {
   Handle<HeapType> type = IC::CurrentTypeOf(object, isolate());
   HandlerFrontend(type, receiver(), holder, name);
-  GenerateStoreViaSetter(masm(), type, setter);
+  GenerateStoreViaSetter(masm(), type, receiver(), setter);
 
   return GetCode(kind(), Code::FAST, name);
 }

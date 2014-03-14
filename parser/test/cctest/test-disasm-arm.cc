@@ -272,10 +272,10 @@ TEST(Type0) {
     // We only disassemble one instruction so the eor instruction is not here.
     COMPARE(eor(r5, r4, Operand(0x1234), LeaveCC, ne),
             "1301c234       movwne ip, #4660");
-    // Movw can't do setcc so we don't get that here.  Mov immediate with setcc
-    // is pretty strange anyway.
+    // Movw can't do setcc, so first move to ip, then the following instruction
+    // moves to r5.  Mov immediate with setcc is pretty strange anyway.
     COMPARE(mov(r5, Operand(0x01234), SetCC, ne),
-            "159fc000       ldrne ip, [pc, #+0]");
+            "1301c234       movwne ip, #4660");
     // Emit a literal pool now, otherwise this could be dumped later, in the
     // middle of a different test.
     EMIT_PENDING_LITERALS();

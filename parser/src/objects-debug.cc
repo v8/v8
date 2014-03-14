@@ -275,7 +275,7 @@ void JSObject::JSObjectVerify() {
   VerifyHeapPointer(properties());
   VerifyHeapPointer(elements());
 
-  if (GetElementsKind() == NON_STRICT_ARGUMENTS_ELEMENTS) {
+  if (GetElementsKind() == SLOPPY_ARGUMENTS_ELEMENTS) {
     CHECK(this->elements()->IsFixedArray());
     CHECK_GE(this->elements()->length(), 2);
   }
@@ -368,7 +368,6 @@ void PolymorphicCodeCache::PolymorphicCodeCacheVerify() {
 void TypeFeedbackInfo::TypeFeedbackInfoVerify() {
   VerifyObjectField(kStorage1Offset);
   VerifyObjectField(kStorage2Offset);
-  VerifyHeapPointer(feedback_vector());
 }
 
 
@@ -404,6 +403,13 @@ void FixedDoubleArray::FixedDoubleArrayVerify() {
 
 void ConstantPoolArray::ConstantPoolArrayVerify() {
   CHECK(IsConstantPoolArray());
+  for (int i = 0; i < count_of_code_ptr_entries(); i++) {
+    Address code_entry = get_code_ptr_entry(first_code_ptr_index() + i);
+    VerifyPointer(Code::GetCodeFromTargetAddress(code_entry));
+  }
+  for (int i = 0; i < count_of_heap_ptr_entries(); i++) {
+    VerifyObjectField(OffsetOfElementAt(first_heap_ptr_index() + i));
+  }
 }
 
 
@@ -545,6 +551,7 @@ void SharedFunctionInfo::SharedFunctionInfoVerify() {
   VerifyObjectField(kNameOffset);
   VerifyObjectField(kCodeOffset);
   VerifyObjectField(kOptimizedCodeMapOffset);
+  VerifyObjectField(kFeedbackVectorOffset);
   VerifyObjectField(kScopeInfoOffset);
   VerifyObjectField(kInstanceClassNameOffset);
   VerifyObjectField(kFunctionDataOffset);
@@ -931,7 +938,6 @@ void Script::ScriptVerify() {
   VerifyPointer(name());
   line_offset()->SmiVerify();
   column_offset()->SmiVerify();
-  VerifyPointer(data());
   VerifyPointer(wrapper());
   type()->SmiVerify();
   VerifyPointer(line_ends());
@@ -1054,7 +1060,7 @@ void JSObject::IncrementSpillStatistics(SpillInformation* info) {
           dict->Capacity() - dict->NumberOfElements();
       break;
     }
-    case NON_STRICT_ARGUMENTS_ELEMENTS:
+    case SLOPPY_ARGUMENTS_ELEMENTS:
       break;
   }
 }

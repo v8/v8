@@ -51,7 +51,7 @@ static void SetGlobalProperty(const char* name, Object* value) {
       isolate->factory()->InternalizeUtf8String(name);
   Handle<JSObject> global(isolate->context()->global_object());
   Runtime::SetObjectProperty(isolate, global, internalized_name, object, NONE,
-                             kNonStrictMode);
+                             SLOPPY);
 }
 
 
@@ -67,7 +67,6 @@ static Handle<JSFunction> Compile(const char* source) {
                               false,
                               Handle<Context>(isolate->native_context()),
                               NULL, NULL,
-                              Handle<String>::null(),
                               NOT_NATIVES_CODE);
   return isolate->factory()->NewFunctionFromSharedFunctionInfo(
       shared_function, isolate->native_context());
@@ -310,6 +309,43 @@ TEST(GetScriptLineNumber) {
             v8::String::NewFromUtf8(CcTest::isolate(), "f")));
     CHECK_EQ(i, f->GetScriptLineNumber());
   }
+}
+
+
+TEST(FeedbackVectorRecreatedOnScopeChanges) {
+  if (i::FLAG_always_opt || !i::FLAG_lazy) return;
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+
+  CompileRun("function builder() {"
+             "  call_target = function() { return 3; };"
+             "  return (function() {"
+             "    eval('');"
+             "    return function() {"
+             "      'use strict';"
+             "      call_target();"
+             "    }"
+             "  })();"
+             "}"
+             "morphing_call = builder();");
+
+  Handle<JSFunction> f =
+      v8::Utils::OpenHandle(
+          *v8::Handle<v8::Function>::Cast(
+              CcTest::global()->Get(v8_str("morphing_call"))));
+
+  // morphing_call should have one feedback vector slot for the call to
+  // call_target(), scoping analysis having been performed.
+  CHECK_EQ(1, f->shared()->feedback_vector()->length());
+  // And yet it's not compiled.
+  CHECK(!f->shared()->is_compiled());
+
+  CompileRun("morphing_call();");
+
+  // On scoping analysis after lazy compile, the call is now a global
+  // call which needs no feedback vector slot.
+  CHECK_EQ(0, f->shared()->feedback_vector()->length());
+  CHECK(f->shared()->is_compiled());
 }
 
 

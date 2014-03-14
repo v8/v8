@@ -115,6 +115,13 @@
 }],  # 'asan == True'
 
 ##############################################################################
+# This should be 'nosnap == True': issue 3216 to add 'nosnap'.
+[ALWAYS, {
+  # BUG(3215)
+  'test-lockers/MultithreadedParallelIsolates': [PASS, FAIL],
+}],  # 'nosnap == True'
+
+##############################################################################
 ['system == windows', {
 
   # BUG(2999).

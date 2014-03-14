@@ -392,9 +392,33 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(Context* context) {
     element = next;
   }
 
+#ifdef DEBUG
+  // Make sure all activations of optimized code can deopt at their current PC.
+  for (StackFrameIterator it(isolate, isolate->thread_local_top());
+       !it.done(); it.Advance()) {
+    StackFrame::Type type = it.frame()->type();
+    if (type == StackFrame::OPTIMIZED) {
+      Code* code = it.frame()->LookupCode();
+      if (FLAG_trace_deopt) {
+        JSFunction* function =
+            static_cast<OptimizedFrame*>(it.frame())->function();
+        CodeTracer::Scope scope(isolate->GetCodeTracer());
+        PrintF(scope.file(), "[deoptimizer patches for lazy deopt: ");
+        function->PrintName(scope.file());
+        PrintF(scope.file(),
+               " / %" V8PRIxPTR "]\n", reinterpret_cast<intptr_t>(function));
+      }
+      SafepointEntry safepoint = code->GetSafepointEntry(it.frame()->pc());
+      int deopt_index = safepoint.deoptimization_index();
+      CHECK(deopt_index != Safepoint::kNoDeoptimizationIndex);
+    }
+  }
+#endif
+
   // TODO(titzer): we need a handle scope only because of the macro assembler,
   // which is only used in EnsureCodeForDeoptimizationEntry.
   HandleScope scope(isolate);
+
   // Now patch all the codes for deoptimization.
   for (int i = 0; i < codes.length(); i++) {
     // It is finally time to die, code object.
@@ -968,24 +992,19 @@ void Deoptimizer::DoComputeJSFrame(TranslationIterator* iterator,
 
   if (FLAG_enable_ool_constant_pool) {
     // For the bottommost output frame the constant pool pointer can be gotten
-    // from the input frame. For subsequent output frames, it can be gotten from
-    // the function's code.
-    Register constant_pool_reg =
-        JavaScriptFrame::constant_pool_pointer_register();
+    // from the input frame. For subsequent output frames, it can be read from
+    // the previous frame.
     output_offset -= kPointerSize;
     input_offset -= kPointerSize;
     if (is_bottommost) {
       value = input_->GetFrameSlot(input_offset);
     } else {
-      value = reinterpret_cast<intptr_t>(
-                  function->shared()->code()->constant_pool());
+      value = output_[frame_index - 1]->GetConstantPool();
     }
-    output_frame->SetFrameSlot(output_offset, value);
-    output_frame->SetConstantPool(value);
-    if (is_topmost) output_frame->SetRegister(constant_pool_reg.code(), value);
+    output_frame->SetCallerConstantPool(output_offset, value);
     if (trace_scope_) {
       PrintF("    0x%08" V8PRIxPTR ": [top + %d] <- 0x%08"
-             V8PRIxPTR "; constant_pool\n",
+             V8PRIxPTR "; caller's constant_pool\n",
              top_address + output_offset, output_offset, value);
     }
   }
@@ -1042,6 +1061,18 @@ void Deoptimizer::DoComputeJSFrame(TranslationIterator* iterator,
   unsigned pc_offset = FullCodeGenerator::PcField::decode(pc_and_state);
   intptr_t pc_value = reinterpret_cast<intptr_t>(start + pc_offset);
   output_frame->SetPc(pc_value);
+
+  // Update constant pool.
+  if (FLAG_enable_ool_constant_pool) {
+    intptr_t constant_pool_value =
+        reinterpret_cast<intptr_t>(non_optimized_code->constant_pool());
+    output_frame->SetConstantPool(constant_pool_value);
+    if (is_topmost) {
+      Register constant_pool_reg =
+          JavaScriptFrame::constant_pool_pointer_register();
+      output_frame->SetRegister(constant_pool_reg.code(), constant_pool_value);
+    }
+  }
 
   FullCodeGenerator::State state =
       FullCodeGenerator::StateField::decode(pc_and_state);
@@ -1126,15 +1157,14 @@ void Deoptimizer::DoComputeArgumentsAdaptorFrame(TranslationIterator* iterator,
   }
 
   if (FLAG_enable_ool_constant_pool) {
-    // A marker value is used in place of the constant pool.
+    // Read the caller's constant pool from the previous frame.
     output_offset -= kPointerSize;
-    intptr_t constant_pool = reinterpret_cast<intptr_t>(
-        Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
-    output_frame->SetFrameSlot(output_offset, constant_pool);
+    value = output_[frame_index - 1]->GetConstantPool();
+    output_frame->SetCallerConstantPool(output_offset, value);
     if (trace_scope_) {
       PrintF("    0x%08" V8PRIxPTR ": [top + %d] <- 0x%08"
-             V8PRIxPTR " ; constant_pool (adaptor sentinel)\n",
-             top_address + output_offset, output_offset, constant_pool);
+             V8PRIxPTR "; caller's constant_pool\n",
+             top_address + output_offset, output_offset, value);
     }
   }
 
@@ -1181,6 +1211,11 @@ void Deoptimizer::DoComputeArgumentsAdaptorFrame(TranslationIterator* iterator,
       adaptor_trampoline->instruction_start() +
       isolate_->heap()->arguments_adaptor_deopt_pc_offset()->value());
   output_frame->SetPc(pc_value);
+  if (FLAG_enable_ool_constant_pool) {
+    intptr_t constant_pool_value =
+        reinterpret_cast<intptr_t>(adaptor_trampoline->constant_pool());
+    output_frame->SetConstantPool(constant_pool_value);
+  }
 }
 
 
@@ -1256,13 +1291,13 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslationIterator* iterator,
   }
 
   if (FLAG_enable_ool_constant_pool) {
-    // The constant pool pointer can be gotten from the previous frame.
+    // Read the caller's constant pool from the previous frame.
     output_offset -= kPointerSize;
     value = output_[frame_index - 1]->GetConstantPool();
-    output_frame->SetFrameSlot(output_offset, value);
+    output_frame->SetCallerConstantPool(output_offset, value);
     if (trace_scope_) {
       PrintF("    0x%08" V8PRIxPTR ": [top + %d] <- 0x%08"
-             V8PRIxPTR " ; constant pool\n",
+             V8PRIxPTR " ; caller's constant pool\n",
              top_address + output_offset, output_offset, value);
     }
   }
@@ -1343,6 +1378,11 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslationIterator* iterator,
       construct_stub->instruction_start() +
       isolate_->heap()->construct_stub_deopt_pc_offset()->value());
   output_frame->SetPc(pc);
+  if (FLAG_enable_ool_constant_pool) {
+    intptr_t constant_pool_value =
+        reinterpret_cast<intptr_t>(construct_stub->constant_pool());
+    output_frame->SetConstantPool(constant_pool_value);
+  }
 }
 
 
@@ -1414,13 +1454,13 @@ void Deoptimizer::DoComputeAccessorStubFrame(TranslationIterator* iterator,
   }
 
   if (FLAG_enable_ool_constant_pool) {
-    // The constant pool pointer can be gotten from the previous frame.
+    // Read the caller's constant pool from the previous frame.
     output_offset -= kPointerSize;
     value = output_[frame_index - 1]->GetConstantPool();
-    output_frame->SetFrameSlot(output_offset, value);
+    output_frame->SetCallerConstantPool(output_offset, value);
     if (trace_scope_) {
       PrintF("    0x%08" V8PRIxPTR ": [top + %d] <- 0x%08"
-             V8PRIxPTR " ; constant pool\n",
+             V8PRIxPTR " ; caller's constant pool\n",
              top_address + output_offset, output_offset, value);
     }
   }
@@ -1482,6 +1522,11 @@ void Deoptimizer::DoComputeAccessorStubFrame(TranslationIterator* iterator,
   intptr_t pc = reinterpret_cast<intptr_t>(
       accessor_stub->instruction_start() + offset->value());
   output_frame->SetPc(pc);
+  if (FLAG_enable_ool_constant_pool) {
+    intptr_t constant_pool_value =
+        reinterpret_cast<intptr_t>(accessor_stub->constant_pool());
+    output_frame->SetConstantPool(constant_pool_value);
+  }
 }
 
 
@@ -1585,17 +1630,14 @@ void Deoptimizer::DoComputeCompiledStubFrame(TranslationIterator* iterator,
   }
 
   if (FLAG_enable_ool_constant_pool) {
-    // The constant pool pointer can be gotten from the input frame.
-    Register constant_pool_pointer_register =
-        StubFailureTrampolineFrame::constant_pool_pointer_register();
+    // Read the caller's constant pool from the input frame.
     input_frame_offset -= kPointerSize;
     value = input_->GetFrameSlot(input_frame_offset);
-    output_frame->SetRegister(constant_pool_pointer_register.code(), value);
     output_frame_offset -= kPointerSize;
-    output_frame->SetFrameSlot(output_frame_offset, value);
+    output_frame->SetCallerConstantPool(output_frame_offset, value);
     if (trace_scope_) {
       PrintF("    0x%08" V8PRIxPTR ": [top + %d] <- 0x%08"
-             V8PRIxPTR " ; constant_pool_pointer\n",
+             V8PRIxPTR " ; caller's constant_pool\n",
              top_address + output_frame_offset, output_frame_offset, value);
     }
   }
@@ -1729,6 +1771,14 @@ void Deoptimizer::DoComputeCompiledStubFrame(TranslationIterator* iterator,
   ASSERT(trampoline != NULL);
   output_frame->SetPc(reinterpret_cast<intptr_t>(
       trampoline->instruction_start()));
+  if (FLAG_enable_ool_constant_pool) {
+    Register constant_pool_reg =
+        StubFailureTrampolineFrame::constant_pool_pointer_register();
+    intptr_t constant_pool_value =
+        reinterpret_cast<intptr_t>(trampoline->constant_pool());
+    output_frame->SetConstantPool(constant_pool_value);
+    output_frame->SetRegister(constant_pool_reg.code(), constant_pool_value);
+  }
   output_frame->SetState(Smi::FromInt(FullCodeGenerator::NO_REGISTERS));
   Code* notify_failure = NotifyStubFailureBuiltin();
   output_frame->SetContinuation(
@@ -1752,7 +1802,11 @@ Handle<Object> Deoptimizer::MaterializeNextHeapObject() {
     Handle<JSObject> arguments = Handle<JSObject>::cast(
         Accessors::FunctionGetArguments(function));
     materialized_objects_->Add(arguments);
-    materialization_value_index_ += length;
+    // To keep consistent object counters, we still materialize the
+    // nested values (but we throw them away).
+    for (int i = 0; i < length; ++i) {
+      MaterializeNextValue();
+    }
   } else if (desc.is_arguments()) {
     // Construct an arguments object and copy the parameters to a newly
     // allocated arguments object backing store.
@@ -3283,6 +3337,13 @@ Handle<Object> SlotRefValueBuilder::GetNext(Isolate* isolate, int lvl) {
           // tagged and skip materializing the HeapNumber explicitly.
           Handle<Object> object = GetNext(isolate, lvl + 1);
           materialized_objects_.Add(object);
+          // On 32-bit architectures, there is an extra slot there because
+          // the escape analysis calculates the number of slots as
+          // object-size/pointer-size. To account for this, we read out
+          // any extra slots.
+          for (int i = 0; i < length - 2; i++) {
+            GetNext(isolate, lvl + 1);
+          }
           return object;
         }
         case JS_OBJECT_TYPE: {
@@ -3337,7 +3398,7 @@ Handle<Object> SlotRefValueBuilder::GetNext(Isolate* isolate, int lvl) {
 
 
 void SlotRefValueBuilder::Finish(Isolate* isolate) {
-  // We should have processed all slot
+  // We should have processed all the slots
   ASSERT(slot_refs_.length() == current_slot_);
 
   if (materialized_objects_.length() > prev_materialized_count_) {

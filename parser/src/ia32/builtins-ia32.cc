@@ -473,9 +473,9 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     // Invoke the code.
     if (is_construct) {
       // No type feedback cell is available
-      Handle<Object> undefined_sentinel(
-          masm->isolate()->heap()->undefined_value(), masm->isolate());
-      __ mov(ebx, Immediate(undefined_sentinel));
+      Handle<Object> megamorphic_sentinel =
+          TypeFeedbackInfo::MegamorphicSentinel(masm->isolate());
+      __ mov(ebx, Immediate(megamorphic_sentinel));
       CallConstructStub stub(NO_CALL_FUNCTION_FLAGS);
       __ CallStub(&stub);
     } else {
@@ -737,7 +737,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
               1 << SharedFunctionInfo::kNativeBitWithinByte);
     __ j(not_equal, &shift_arguments);
 
-    // Compute the receiver in non-strict mode.
+    // Compute the receiver in sloppy mode.
     __ mov(ebx, Operand(esp, eax, times_4, 0));  // First argument.
 
     // Call ToObject on the receiver if it is not an object, or use the
@@ -923,7 +923,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
               1 << SharedFunctionInfo::kNativeBitWithinByte);
     __ j(not_equal, &push_receiver);
 
-    // Compute the receiver in non-strict mode.
+    // Compute the receiver in sloppy mode.
     // Call ToObject on the receiver if it is not an object, or use the
     // global object if it is null or undefined.
     __ JumpIfSmi(ebx, &call_to_object);
@@ -1057,10 +1057,9 @@ void Builtins::Generate_ArrayCode(MacroAssembler* masm) {
 
   // Run the native code for the Array function called as a normal function.
   // tail call a stub
-  Handle<Object> undefined_sentinel(
-      masm->isolate()->heap()->undefined_value(),
-      masm->isolate());
-  __ mov(ebx, Immediate(undefined_sentinel));
+  Handle<Object> megamorphic_sentinel =
+      TypeFeedbackInfo::MegamorphicSentinel(masm->isolate());
+  __ mov(ebx, Immediate(megamorphic_sentinel));
   ArrayConstructorStub stub(masm->isolate());
   __ TailCallStub(&stub);
 }

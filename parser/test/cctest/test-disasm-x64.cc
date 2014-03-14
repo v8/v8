@@ -34,6 +34,7 @@
 #include "disassembler.h"
 #include "macro-assembler.h"
 #include "serialize.h"
+#include "stub-cache.h"
 #include "cctest.h"
 
 using namespace v8::internal;
@@ -48,9 +49,10 @@ static void DummyStaticFunction(Object* result) {
 
 TEST(DisasmX64) {
   CcTest::InitializeVM();
-  v8::HandleScope scope;
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
   v8::internal::byte buffer[2048];
-  Assembler assm(CcTest::i_isolate(), buffer, sizeof buffer);
+  Assembler assm(isolate, buffer, sizeof buffer);
   DummyStaticFunction(NULL);  // just bloody use it (DELETE; debugging)
 
   // Short immediate instructions
@@ -68,12 +70,23 @@ TEST(DisasmX64) {
   __ addq(rdx, Operand(rbx, 0));
   __ addq(rdx, Operand(rbx, 16));
   __ addq(rdx, Operand(rbx, 1999));
+  __ addq(rdx, Operand(rbx, -4));
+  __ addq(rdx, Operand(rbx, -1999));
   __ addq(rdx, Operand(rsp, 0));
   __ addq(rdx, Operand(rsp, 16));
   __ addq(rdx, Operand(rsp, 1999));
+  __ addq(rdx, Operand(rsp, -4));
+  __ addq(rdx, Operand(rsp, -1999));
+  __ nop();
+  __ addq(rsi, Operand(rcx, times_4, 0));
+  __ addq(rsi, Operand(rcx, times_4, 24));
+  __ addq(rsi, Operand(rcx, times_4, -4));
+  __ addq(rsi, Operand(rcx, times_4, -1999));
   __ nop();
   __ addq(rdi, Operand(rbp, rcx, times_4, 0));
   __ addq(rdi, Operand(rbp, rcx, times_4, 12));
+  __ addq(rdi, Operand(rbp, rcx, times_4, -8));
+  __ addq(rdi, Operand(rbp, rcx, times_4, -3999));
   __ addq(Operand(rbp, rcx, times_4, 12), Immediate(12));
 
   __ nop();
@@ -157,7 +170,8 @@ TEST(DisasmX64) {
   __ incq(Operand(rbx, rcx, times_4, 10000));
   __ push(Operand(rbx, rcx, times_4, 10000));
   __ pop(Operand(rbx, rcx, times_4, 10000));
-  __ jmp(Operand(rbx, rcx, times_4, 10000));
+  // TODO(mstarzinger): The following is protected.
+  // __ jmp(Operand(rbx, rcx, times_4, 10000));
 
   __ lea(rdx, Operand(rbx, rcx, times_4, 10000));
   __ or_(rdx, Immediate(12345));
@@ -233,20 +247,20 @@ TEST(DisasmX64) {
   __ call(&L2);
   __ nop();
   __ bind(&L2);
-  __ call(Operand(rbx, rcx, times_4, 10000));
+  // TODO(mstarzinger): The following is protected.
+  // __ call(Operand(rbx, rcx, times_4, 10000));
   __ nop();
-  Handle<Code> ic(CcTest::i_isolate()->builtins()->builtin(
-      Builtins::kLoadIC_Initialize));
+  Handle<Code> ic(LoadIC::initialize_stub(isolate, NOT_CONTEXTUAL));
   __ call(ic, RelocInfo::CODE_TARGET);
   __ nop();
   __ nop();
 
   __ jmp(&L1);
-  __ jmp(Operand(rbx, rcx, times_4, 10000));
+  // TODO(mstarzinger): The following is protected.
+  // __ jmp(Operand(rbx, rcx, times_4, 10000));
 #ifdef ENABLE_DEBUGGER_SUPPORT
   ExternalReference after_break_target =
-      ExternalReference(Debug_Address::AfterBreakTarget(),
-                        assm.isolate());
+      ExternalReference(Debug_Address::AfterBreakTarget(), isolate);
   USE(after_break_target);
 #endif  // ENABLE_DEBUGGER_SUPPORT
   __ jmp(ic, RelocInfo::CODE_TARGET);
@@ -345,9 +359,9 @@ TEST(DisasmX64) {
     __ andps(xmm0, xmm1);
     __ andps(xmm0, Operand(rbx, rcx, times_4, 10000));
     __ orps(xmm0, xmm1);
-    __ ordps(xmm0, Operand(rbx, rcx, times_4, 10000));
+    __ orps(xmm0, Operand(rbx, rcx, times_4, 10000));
     __ xorps(xmm0, xmm1);
-    __ xordps(xmm0, Operand(rbx, rcx, times_4, 10000));
+    __ xorps(xmm0, Operand(rbx, rcx, times_4, 10000));
 
     // Arithmetic operation
     __ addps(xmm1, xmm0);
@@ -355,7 +369,7 @@ TEST(DisasmX64) {
     __ subps(xmm1, xmm0);
     __ subps(xmm1, Operand(rbx, rcx, times_4, 10000));
     __ mulps(xmm1, xmm0);
-    __ mulps(xmm1, Operand(rbx, ecx, times_4, 10000));
+    __ mulps(xmm1, Operand(rbx, rcx, times_4, 10000));
     __ divps(xmm1, xmm0);
     __ divps(xmm1, Operand(rbx, rcx, times_4, 10000));
   }

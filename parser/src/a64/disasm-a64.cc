@@ -255,8 +255,8 @@ void Disassembler::VisitLogicalImmediate(Instruction* instr) {
     case ORR_w_imm:
     case ORR_x_imm: {
       mnemonic = "orr";
-      unsigned reg_size = (instr->SixtyFourBits() == 1) ? kXRegSize
-                                                        : kWRegSize;
+      unsigned reg_size = (instr->SixtyFourBits() == 1) ? kXRegSizeInBits
+                                                        : kWRegSizeInBits;
       if (rn_is_zr && !IsMovzMovnImm(reg_size, instr->ImmLogical())) {
         mnemonic = "mov";
         form = "'Rds, 'ITri";
@@ -281,8 +281,8 @@ void Disassembler::VisitLogicalImmediate(Instruction* instr) {
 
 
 bool Disassembler::IsMovzMovnImm(unsigned reg_size, uint64_t value) {
-  ASSERT((reg_size == kXRegSize) ||
-         ((reg_size == kWRegSize) && (value <= 0xffffffff)));
+  ASSERT((reg_size == kXRegSizeInBits) ||
+         ((reg_size == kWRegSizeInBits) && (value <= 0xffffffff)));
 
   // Test for movz: 16-bits set at positions 0, 16, 32 or 48.
   if (((value & 0xffffffffffff0000UL) == 0UL) ||
@@ -293,14 +293,14 @@ bool Disassembler::IsMovzMovnImm(unsigned reg_size, uint64_t value) {
   }
 
   // Test for movn: NOT(16-bits set at positions 0, 16, 32 or 48).
-  if ((reg_size == kXRegSize) &&
+  if ((reg_size == kXRegSizeInBits) &&
       (((value & 0xffffffffffff0000UL) == 0xffffffffffff0000UL) ||
        ((value & 0xffffffff0000ffffUL) == 0xffffffff0000ffffUL) ||
        ((value & 0xffff0000ffffffffUL) == 0xffff0000ffffffffUL) ||
        ((value & 0x0000ffffffffffffUL) == 0x0000ffffffffffffUL))) {
     return true;
   }
-  if ((reg_size == kWRegSize) &&
+  if ((reg_size == kWRegSizeInBits) &&
       (((value & 0xffff0000) == 0xffff0000) ||
        ((value & 0x0000ffff) == 0x0000ffff))) {
     return true;
@@ -447,7 +447,7 @@ void Disassembler::VisitBitfield(Instruction* instr) {
   unsigned s = instr->ImmS();
   unsigned r = instr->ImmR();
   unsigned rd_size_minus_1 =
-    ((instr->SixtyFourBits() == 1) ? kXRegSize : kWRegSize) - 1;
+    ((instr->SixtyFourBits() == 1) ? kXRegSizeInBits : kWRegSizeInBits) - 1;
   const char *mnemonic = "";
   const char *form = "";
   const char *form_shift_right = "'Rd, 'Rn, 'IBr";
@@ -1488,7 +1488,7 @@ int Disassembler::SubstituteImmediateField(Instruction* instr,
       return 6;
     }
     default: {
-      UNIMPLEMENTED();
+      UNREACHABLE();
       return 0;
     }
   }
@@ -1518,7 +1518,8 @@ int Disassembler::SubstituteBitfieldImmediateField(Instruction* instr,
     }
     case 'Z': {  // IBZ-r.
       ASSERT((format[3] == '-') && (format[4] == 'r'));
-      unsigned reg_size = (instr->SixtyFourBits() == 1) ? kXRegSize : kWRegSize;
+      unsigned reg_size = (instr->SixtyFourBits() == 1) ? kXRegSizeInBits
+                                                        : kWRegSizeInBits;
       AppendToOutput("#%d", reg_size - r);
       return 5;
     }
@@ -1564,7 +1565,7 @@ int Disassembler::SubstituteShiftField(Instruction* instr, const char* format) {
       return 3;
     }
     default:
-      UNIMPLEMENTED();
+      UNREACHABLE();
       return 0;
   }
 }
@@ -1606,8 +1607,8 @@ int Disassembler::SubstitutePCRelAddressField(Instruction* instr,
     offset = -offset;
     sign = '-';
   }
-  // TODO(jbramley): Can we print the target address here?
-  AppendToOutput("#%c0x%x", sign, offset);
+  STATIC_ASSERT(sizeof(*instr) == 1);
+  AppendToOutput("#%c0x%x (addr %p)", sign, offset, instr + offset);
   return 13;
 }
 
@@ -1626,7 +1627,7 @@ int Disassembler::SubstituteBranchTargetField(Instruction* instr,
     case 'm': offset = instr->ImmCmpBranch(); break;
     // BImmTest - test and branch immediate.
     case 'e': offset = instr->ImmTestBranch(); break;
-    default: UNIMPLEMENTED();
+    default: UNREACHABLE();
   }
   offset <<= kInstructionSizeLog2;
   char sign = '+';
@@ -1634,8 +1635,8 @@ int Disassembler::SubstituteBranchTargetField(Instruction* instr,
     offset = -offset;
     sign = '-';
   }
-  // TODO(mcapewel): look up pc + offset in label table.
-  AppendToOutput("#%c0x%" PRIx64, sign, offset);
+  STATIC_ASSERT(sizeof(*instr) == 1);
+  AppendToOutput("#%c0x%" PRIx64 " (addr %p)", sign, offset, instr + offset);
   return 8;
 }
 

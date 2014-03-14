@@ -526,6 +526,26 @@ class Assembler : public AssemblerBase {
   // Read/Modify the code target address in the branch/call instruction at pc.
   static Address target_address_at(Address pc);
   static void set_target_address_at(Address pc, Address target);
+  // On MIPS there is no Constant Pool so we skip that parameter.
+  INLINE(static Address target_address_at(Address pc,
+                                          ConstantPoolArray* constant_pool)) {
+    return target_address_at(pc);
+  }
+  INLINE(static void set_target_address_at(Address pc,
+                                           ConstantPoolArray* constant_pool,
+                                           Address target)) {
+    set_target_address_at(pc, target);
+  }
+  INLINE(static Address target_address_at(Address pc, Code* code)) {
+    ConstantPoolArray* constant_pool = code ? code->constant_pool() : NULL;
+    return target_address_at(pc, constant_pool);
+  }
+  INLINE(static void set_target_address_at(Address pc,
+                                           Code* code,
+                                           Address target)) {
+    ConstantPoolArray* constant_pool = code ? code->constant_pool() : NULL;
+    set_target_address_at(pc, constant_pool, target);
+  }
 
   // Return the code target address at a call site from the return address
   // of that call in the instruction stream.
@@ -539,9 +559,10 @@ class Assembler : public AssemblerBase {
   // This is for calls and branches within generated code.  The serializer
   // has already deserialized the lui/ori instructions etc.
   inline static void deserialization_set_special_target_at(
-      Address instruction_payload, Address target) {
+      Address instruction_payload, Code* code, Address target) {
     set_target_address_at(
         instruction_payload - kInstructionsFor32BitConstant * kInstrSize,
+        code,
         target);
   }
 
