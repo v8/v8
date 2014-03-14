@@ -1418,6 +1418,7 @@ class Assembler : public AssemblerBase {
 
   // Load literal to FP register.
   void ldr(const FPRegister& ft, double imm);
+  void ldr(const FPRegister& ft, float imm);
 
   // Move instructions. The default shift of -1 indicates that the move
   // instruction will calculate an appropriate 16-bit immediate and left shift
@@ -1496,6 +1497,7 @@ class Assembler : public AssemblerBase {
   // FP instructions.
   // Move immediate to FP register.
   void fmov(FPRegister fd, double imm);
+  void fmov(FPRegister fd, float imm);
 
   // Move FP register to register.
   void fmov(Register rd, FPRegister fn);

@@ -34,6 +34,7 @@
   'variables': {
     'component%': 'static_library',
     'clang%': 0,
+    'asan%': 0,
     'visibility%': 'hidden',
     'v8_enable_backtrace%': 0,
     'v8_enable_i18n_support%': 1,
@@ -169,6 +170,22 @@
     ],
   },
   'conditions': [
+    ['asan==1', {
+      'target_defaults': {
+        'cflags_cc+': [
+          '-fno-omit-frame-pointer',
+          '-gline-tables-only',
+          '-fsanitize=address',
+          '-w',  # http://crbug.com/162783
+        ],
+        'cflags_cc!': [
+          '-fomit-frame-pointer',
+        ],
+        'ldflags': [
+          '-fsanitize=address',
+        ],
+      }
+    }],
     ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris" \
        or OS=="netbsd"', {
       'target_defaults': {

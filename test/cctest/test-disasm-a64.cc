@@ -1273,7 +1273,7 @@ TEST_(load_literal) {
   COMPARE_PREFIX(ldr(x10, 0x1234567890abcdefUL),  "ldr x10, pc+8");
   COMPARE_PREFIX(ldr(w20, 0xfedcba09),  "ldr w20, pc+8");
   COMPARE_PREFIX(ldr(d11, 1.234),  "ldr d11, pc+8");
-  COMPARE_PREFIX(ldr(s22, 2.5),  "ldr s22, pc+8");
+  COMPARE_PREFIX(ldr(s22, 2.5f),  "ldr s22, pc+8");
 
   CLEANUP();
 }
@@ -1361,8 +1361,8 @@ TEST_(cond_cmp_macro) {
 TEST_(fmov_imm) {
   SET_UP();
 
-  COMPARE(fmov(s0, 1.0), "fmov s0, #0x70 (1.0000)");
-  COMPARE(fmov(s31, -13.0), "fmov s31, #0xaa (-13.0000)");
+  COMPARE(fmov(s0, 1.0f), "fmov s0, #0x70 (1.0000)");
+  COMPARE(fmov(s31, -13.0f), "fmov s31, #0xaa (-13.0000)");
   COMPARE(fmov(d1, 1.0), "fmov d1, #0x70 (1.0000)");
   COMPARE(fmov(d29, -13.0), "fmov d29, #0xaa (-13.0000)");
 

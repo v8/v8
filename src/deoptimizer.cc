@@ -3311,6 +3311,13 @@ Handle<Object> SlotRefValueBuilder::GetNext(Isolate* isolate, int lvl) {
           // tagged and skip materializing the HeapNumber explicitly.
           Handle<Object> object = GetNext(isolate, lvl + 1);
           materialized_objects_.Add(object);
+          // On 32-bit architectures, there is an extra slot there because
+          // the escape analysis calculates the number of slots as
+          // object-size/pointer-size. To account for this, we read out
+          // any extra slots.
+          for (int i = 0; i < length - 2; i++) {
+            GetNext(isolate, lvl + 1);
+          }
           return object;
         }
         case JS_OBJECT_TYPE: {
@@ -3365,7 +3372,7 @@ Handle<Object> SlotRefValueBuilder::GetNext(Isolate* isolate, int lvl) {
 
 
 void SlotRefValueBuilder::Finish(Isolate* isolate) {
-  // We should have processed all slot
+  // We should have processed all the slots
   ASSERT(slot_refs_.length() == current_slot_);
 
   if (materialized_objects_.length() > prev_materialized_count_) {

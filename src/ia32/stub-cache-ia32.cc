@@ -306,54 +306,6 @@ void StubCompiler::GenerateLoadArrayLength(MacroAssembler* masm,
 }
 
 
-// Generate code to check if an object is a string.  If the object is
-// a string, the map's instance type is left in the scratch register.
-static void GenerateStringCheck(MacroAssembler* masm,
-                                Register receiver,
-                                Register scratch,
-                                Label* smi,
-                                Label* non_string_object) {
-  // Check that the object isn't a smi.
-  __ JumpIfSmi(receiver, smi);
-
-  // Check that the object is a string.
-  __ mov(scratch, FieldOperand(receiver, HeapObject::kMapOffset));
-  __ movzx_b(scratch, FieldOperand(scratch, Map::kInstanceTypeOffset));
-  STATIC_ASSERT(kNotStringTag != 0);
-  __ test(scratch, Immediate(kNotStringTag));
-  __ j(not_zero, non_string_object);
-}
-
-
-void StubCompiler::GenerateLoadStringLength(MacroAssembler* masm,
-                                            Register receiver,
-                                            Register scratch1,
-                                            Register scratch2,
-                                            Label* miss) {
-  Label check_wrapper;
-
-  // Check if the object is a string leaving the instance type in the
-  // scratch register.
-  GenerateStringCheck(masm, receiver, scratch1, miss, &check_wrapper);
-
-  // Load length from the string and convert to a smi.
-  __ mov(eax, FieldOperand(receiver, String::kLengthOffset));
-  __ ret(0);
-
-  // Check if the object is a JSValue wrapper.
-  __ bind(&check_wrapper);
-  __ cmp(scratch1, JS_VALUE_TYPE);
-  __ j(not_equal, miss);
-
-  // Check if the wrapped value is a string and load the length
-  // directly if it is.
-  __ mov(scratch2, FieldOperand(receiver, JSValue::kValueOffset));
-  GenerateStringCheck(masm, scratch2, scratch1, miss, miss);
-  __ mov(eax, FieldOperand(scratch2, String::kLengthOffset));
-  __ ret(0);
-}
-
-
 void StubCompiler::GenerateLoadFunctionPrototype(MacroAssembler* masm,
                                                  Register receiver,
                                                  Register scratch1,

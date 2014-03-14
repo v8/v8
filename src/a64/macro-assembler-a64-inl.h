@@ -737,26 +737,44 @@ void MacroAssembler::Fmov(FPRegister fd, Register rn) {
 
 void MacroAssembler::Fmov(FPRegister fd, double imm) {
   ASSERT(allow_macro_instructions_);
-  if ((fd.Is64Bits() && IsImmFP64(imm)) ||
-      (fd.Is32Bits() && IsImmFP32(imm)) ||
-      ((imm == 0.0) && (copysign(1.0, imm) == 1.0))) {
-    // These cases can be handled by the Assembler.
+  if (fd.Is32Bits()) {
+    Fmov(fd, static_cast<float>(imm));
+    return;
+  }
+
+  ASSERT(fd.Is64Bits());
+  if (IsImmFP64(imm)) {
     fmov(fd, imm);
+  } else if ((imm == 0.0) && (copysign(1.0, imm) == 1.0)) {
+    fmov(fd, xzr);
   } else {
     UseScratchRegisterScope temps(this);
-    // TODO(all): The Assembler would try to relocate the immediate with
-    // Assembler::ldr(const FPRegister& ft, double imm) but it is not
-    // implemented yet.
-    if (fd.SizeInBits() == kDRegSizeInBits) {
-      Register tmp = temps.AcquireX();
-      Mov(tmp, double_to_rawbits(imm));
-      Fmov(fd, tmp);
-    } else {
-      ASSERT(fd.SizeInBits() == kSRegSizeInBits);
-      Register tmp = temps.AcquireW();
-      Mov(tmp, float_to_rawbits(static_cast<float>(imm)));
-      Fmov(fd, tmp);
-    }
+    Register tmp = temps.AcquireX();
+    // TODO(all): Use Assembler::ldr(const FPRegister& ft, double imm).
+    Mov(tmp, double_to_rawbits(imm));
+    Fmov(fd, tmp);
+  }
+}
+
+
+void MacroAssembler::Fmov(FPRegister fd, float imm) {
+  ASSERT(allow_macro_instructions_);
+  if (fd.Is64Bits()) {
+    Fmov(fd, static_cast<double>(imm));
+    return;
+  }
+
+  ASSERT(fd.Is32Bits());
+  if (IsImmFP32(imm)) {
+    fmov(fd, imm);
+  } else if ((imm == 0.0) && (copysign(1.0, imm) == 1.0)) {
+    fmov(fd, wzr);
+  } else {
+    UseScratchRegisterScope temps(this);
+    Register tmp = temps.AcquireW();
+    // TODO(all): Use Assembler::ldr(const FPRegister& ft, float imm).
+    Mov(tmp, float_to_rawbits(imm));
+    Fmov(fd, tmp);
   }
 }
 

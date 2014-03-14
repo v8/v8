@@ -113,7 +113,6 @@ class LCodeGen;
   V(InstanceOfKnownGlobal)                      \
   V(InstructionGap)                             \
   V(Integer32ToDouble)                          \
-  V(Integer32ToSmi)                             \
   V(InvokeFunction)                             \
   V(IsConstructCallAndBranch)                   \
   V(IsObjectAndBranch)                          \
@@ -191,7 +190,6 @@ class LCodeGen;
   V(Typeof)                                     \
   V(TypeofIsAndBranch)                          \
   V(Uint32ToDouble)                             \
-  V(Uint32ToSmi)                                \
   V(UnknownOSRValue)                            \
   V(WrapReceiver)
 
@@ -614,22 +612,25 @@ class LAddS V8_FINAL : public LTemplateInstruction<1, 2, 0> {
 };
 
 
-class LAllocate V8_FINAL : public LTemplateInstruction<1, 2, 2> {
+class LAllocate V8_FINAL : public LTemplateInstruction<1, 2, 3> {
  public:
   LAllocate(LOperand* context,
             LOperand* size,
             LOperand* temp1,
-            LOperand* temp2) {
+            LOperand* temp2,
+            LOperand* temp3) {
     inputs_[0] = context;
     inputs_[1] = size;
     temps_[0] = temp1;
     temps_[1] = temp2;
+    temps_[2] = temp3;
   }
 
   LOperand* context() { return inputs_[0]; }
   LOperand* size() { return inputs_[1]; }
   LOperand* temp1() { return temps_[0]; }
   LOperand* temp2() { return temps_[1]; }
+  LOperand* temp3() { return temps_[2]; }
 
   DECLARE_CONCRETE_INSTRUCTION(Allocate, "allocate")
   DECLARE_HYDROGEN_ACCESSOR(Allocate)
@@ -1507,19 +1508,6 @@ class LInteger32ToDouble V8_FINAL : public LTemplateInstruction<1, 1, 0> {
 };
 
 
-class LInteger32ToSmi V8_FINAL : public LTemplateInstruction<1, 1, 0> {
- public:
-  explicit LInteger32ToSmi(LOperand* value) {
-    inputs_[0] = value;
-  }
-
-  LOperand* value() { return inputs_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(Integer32ToDouble, "int32-to-smi")
-  DECLARE_HYDROGEN_ACCESSOR(Change)
-};
-
-
 class LCallWithDescriptor V8_FINAL : public LTemplateResultInstruction<1> {
  public:
   LCallWithDescriptor(const CallInterfaceDescriptor* descriptor,
@@ -2334,6 +2322,7 @@ class LSmiTag V8_FINAL : public LTemplateInstruction<1, 1, 0> {
   LOperand* value() { return inputs_[0]; }
 
   DECLARE_CONCRETE_INSTRUCTION(SmiTag, "smi-tag")
+  DECLARE_HYDROGEN_ACCESSOR(Change)
 };
 
 
@@ -2894,19 +2883,6 @@ class LUint32ToDouble V8_FINAL : public LTemplateInstruction<1, 1, 0> {
   LOperand* value() { return inputs_[0]; }
 
   DECLARE_CONCRETE_INSTRUCTION(Uint32ToDouble, "uint32-to-double")
-};
-
-
-class LUint32ToSmi V8_FINAL : public LTemplateInstruction<1, 1, 0> {
- public:
-  explicit LUint32ToSmi(LOperand* value) {
-    inputs_[0] = value;
-  }
-
-  LOperand* value() { return inputs_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(Uint32ToSmi, "uint32-to-smi")
-  DECLARE_HYDROGEN_ACCESSOR(Change)
 };
 
 

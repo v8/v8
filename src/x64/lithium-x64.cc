@@ -1133,8 +1133,9 @@ LInstruction* LChunkBuilder::DoMathFloor(HUnaryMathOperation* instr) {
 
 
 LInstruction* LChunkBuilder::DoMathRound(HUnaryMathOperation* instr) {
-  LOperand* input = UseRegisterAtStart(instr->value());
-  LMathRound* result = new(zone()) LMathRound(input);
+  LOperand* input = UseRegister(instr->value());
+  LOperand* temp = FixedTemp(xmm4);
+  LMathRound* result = new(zone()) LMathRound(input, temp);
   return AssignEnvironment(DefineAsRegister(result));
 }
 
@@ -1330,12 +1331,13 @@ LInstruction* LChunkBuilder::DoDiv(HDiv* instr) {
 LInstruction* LChunkBuilder::DoFlooringDivByPowerOf2I(HMathFloorOfDiv* instr) {
   LOperand* dividend = UseRegisterAtStart(instr->left());
   int32_t divisor = instr->right()->GetInteger32Constant();
-  LInstruction* result =
-      DefineSameAsFirst(new(zone()) LFlooringDivByPowerOf2I(dividend, divisor));
-  bool can_deopt =
-      (instr->CheckFlag(HValue::kBailoutOnMinusZero) && divisor < 0) ||
-      (instr->left()->RangeCanInclude(kMinInt) && divisor == -1);
-  return can_deopt ? AssignEnvironment(result) : result;
+  LInstruction* result = DefineSameAsFirst(new(zone()) LFlooringDivByPowerOf2I(
+          dividend, divisor));
+  if ((instr->CheckFlag(HValue::kBailoutOnMinusZero) && divisor < 0) ||
+      (instr->CheckFlag(HValue::kLeftCanBeMinInt) && divisor == -1)) {
+    result = AssignEnvironment(result);
+  }
+  return result;
 }
 
 
@@ -1837,13 +1839,13 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
     if (to.IsTagged()) {
       HValue* val = instr->value();
       LOperand* value = UseRegister(val);
-      if (val->CheckFlag(HInstruction::kUint32)) {
+      if (!instr->CheckFlag(HValue::kCanOverflow)) {
+        return DefineAsRegister(new(zone()) LSmiTag(value));
+      } else if (val->CheckFlag(HInstruction::kUint32)) {
         LOperand* temp1 = TempRegister();
         LOperand* temp2 = FixedTemp(xmm1);
         LNumberTagU* result = new(zone()) LNumberTagU(value, temp1, temp2);
         return AssignEnvironment(AssignPointerMap(DefineSameAsFirst(result)));
-      } else if (val->HasRange() && val->range()->IsInSmiRange()) {
-        return DefineSameAsFirst(new(zone()) LSmiTag(value));
       } else {
         LNumberTagI* result = new(zone()) LNumberTagI(value);
         return AssignEnvironment(AssignPointerMap(DefineSameAsFirst(result)));
@@ -1851,20 +1853,12 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
     } else if (to.IsSmi()) {
       HValue* val = instr->value();
       LOperand* value = UseRegister(val);
-      LInstruction* result = NULL;
-      if (val->CheckFlag(HInstruction::kUint32)) {
-        result = DefineAsRegister(new(zone()) LUint32ToSmi(value));
-        if (val->HasRange() && val->range()->IsInSmiRange() &&
-            val->range()->upper() != kMaxInt) {
-          return result;
-        }
-      } else {
-        result = DefineAsRegister(new(zone()) LInteger32ToSmi(value));
-        if (val->HasRange() && val->range()->IsInSmiRange()) {
-          return result;
-        }
+      LInstruction* result = DefineAsRegister(new(zone()) LSmiTag(value));
+      if (instr->CheckFlag(HValue::kCanOverflow)) {
+        ASSERT(val->CheckFlag(HValue::kUint32));
+        result = AssignEnvironment(result);
       }
-      return AssignEnvironment(result);
+      return result;
     } else {
       if (instr->value()->CheckFlag(HInstruction::kUint32)) {
         LOperand* temp = FixedTemp(xmm1);

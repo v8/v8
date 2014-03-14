@@ -622,6 +622,8 @@ class HValue : public ZoneObject {
     kCanOverflow,
     kBailoutOnMinusZero,
     kCanBeDivByZero,
+    kLeftCanBeMinInt,
+    kLeftCanBeNegative,
     kAllowUndefinedAsNaN,
     kIsArguments,
     kTruncatingToInt32,
@@ -854,10 +856,6 @@ class HValue : public ZoneObject {
   Range* range() const { return range_; }
   // TODO(svenpanne) We should really use the null object pattern here.
   bool HasRange() const { return range_ != NULL; }
-  bool CanBeNegative() const { return !HasRange() || range()->CanBeNegative(); }
-  bool RangeCanInclude(int value) const {
-    return !HasRange() || range()->Includes(value);
-  }
   void AddNewRange(Range* r, Zone* zone);
   void RemoveLastAddedRange();
   void ComputeInitialRange(Zone* zone);
@@ -1731,6 +1729,7 @@ class HChange V8_FINAL : public HUnaryOperation {
     ASSERT(!value->representation().Equals(to));
     set_representation(to);
     SetFlag(kUseGVN);
+    SetFlag(kCanOverflow);
     if (is_truncating_to_smi) {
       SetFlag(kTruncatingToSmi);
       SetFlag(kTruncatingToInt32);
@@ -3764,9 +3763,6 @@ class HBinaryOperation : public HTemplateInstruction<3> {
 
   DECLARE_ABSTRACT_INSTRUCTION(BinaryOperation)
 
- protected:
-  Range* InferRangeForDiv(Zone* zone);
-
  private:
   bool IgnoreObservedOutputRepresentation(Representation current_rep);
 
@@ -4108,6 +4104,7 @@ class HMathFloorOfDiv V8_FINAL : public HBinaryOperation {
     SetFlag(kUseGVN);
     SetFlag(kCanOverflow);
     SetFlag(kCanBeDivByZero);
+    SetFlag(kLeftCanBeMinInt);
     SetFlag(kAllowUndefinedAsNaN);
   }
 
@@ -4863,6 +4860,7 @@ class HMod V8_FINAL : public HArithmeticBinaryOperation {
        HValue* right) : HArithmeticBinaryOperation(context, left, right) {
     SetFlag(kCanBeDivByZero);
     SetFlag(kCanOverflow);
+    SetFlag(kLeftCanBeNegative);
   }
 };
 

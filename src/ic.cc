@@ -536,31 +536,6 @@ MaybeObject* LoadIC::Load(Handle<Object> object,
   }
 
   if (FLAG_use_ic) {
-    // Use specialized code for getting the length of strings and
-    // string wrapper objects.  The length property of string wrapper
-    // objects is read-only and therefore always returns the length of
-    // the underlying string value.  See ECMA-262 15.5.5.1.
-    if (object->IsStringWrapper() &&
-        name->Equals(isolate()->heap()->length_string())) {
-      Handle<Code> stub;
-      if (state() == UNINITIALIZED) {
-        stub = pre_monomorphic_stub();
-      } else if (state() == PREMONOMORPHIC || state() == MONOMORPHIC) {
-        StringLengthStub string_length_stub(kind());
-        stub = string_length_stub.GetCode(isolate());
-      } else if (state() != MEGAMORPHIC) {
-        ASSERT(state() != GENERIC);
-        stub = megamorphic_stub();
-      }
-      if (!stub.is_null()) {
-        set_target(*stub);
-        if (FLAG_trace_ic) PrintF("[LoadIC : +#length /stringwrapper]\n");
-      }
-      // Get the string if we have a string wrapper object.
-      String* string = String::cast(JSValue::cast(*object)->value());
-      return Smi::FromInt(string->length());
-    }
-
     // Use specialized code for getting prototype of functions.
     if (object->IsJSFunction() &&
         name->Equals(isolate()->heap()->prototype_string()) &&
@@ -908,6 +883,17 @@ Handle<Code> LoadIC::CompileHandler(LookupResult* lookup,
   if (object->IsString() && name->Equals(isolate()->heap()->length_string())) {
     int length_index = String::kLengthOffset / kPointerSize;
     return SimpleFieldLoad(length_index);
+  }
+
+  if (object->IsStringWrapper() &&
+      name->Equals(isolate()->heap()->length_string())) {
+    if (kind() == Code::LOAD_IC) {
+      StringLengthStub string_length_stub;
+      return string_length_stub.GetCode(isolate());
+    } else {
+      KeyedStringLengthStub string_length_stub;
+      return string_length_stub.GetCode(isolate());
+    }
   }
 
   Handle<HeapType> type = CurrentTypeOf(object, isolate());
@@ -1473,22 +1459,22 @@ Handle<Code> KeyedStoreIC::StoreElementStub(Handle<JSObject> receiver,
       KeyedStoreIC::GetKeyedAccessStoreMode(target()->extra_ic_state());
   Handle<Map> previous_receiver_map = target_receiver_maps.at(0);
   if (state() == MONOMORPHIC) {
+    Handle<Map> transitioned_receiver_map = receiver_map;
     if (IsTransitionStoreMode(store_mode)) {
+      transitioned_receiver_map = ComputeTransitionedMap(receiver, store_mode);
+    }
+    if (receiver_map.is_identical_to(previous_receiver_map) ||
+        IsTransitionOfMonomorphicTarget(
+            MapToType<HeapType>(transitioned_receiver_map, isolate()))) {
       // If the "old" and "new" maps are in the same elements map family, or
       // if they at least come from the same origin for a transitioning store,
       // stay MONOMORPHIC and use the map for the most generic ElementsKind.
-      Handle<Map> transitioned_receiver_map =
-          ComputeTransitionedMap(receiver, store_mode);
-      if (*previous_receiver_map == receiver->map() ||
-          IsTransitionOfMonomorphicTarget(
-              MapToType<HeapType>(transitioned_receiver_map, isolate()))) {
-        store_mode = GetNonTransitioningStoreMode(store_mode);
-        return isolate()->stub_cache()->ComputeKeyedStoreElement(
-            transitioned_receiver_map, strict_mode(), store_mode);
-      }
+      store_mode = GetNonTransitioningStoreMode(store_mode);
+      return isolate()->stub_cache()->ComputeKeyedStoreElement(
+          transitioned_receiver_map, strict_mode(), store_mode);
     } else if (*previous_receiver_map == receiver->map() &&
                old_store_mode == STANDARD_STORE &&
-               (IsGrowStoreMode(store_mode) ||
+               (store_mode == STORE_AND_GROW_NO_TRANSITION ||
                 store_mode == STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS ||
                 store_mode == STORE_NO_TRANSITION_HANDLE_COW)) {
       // A "normal" IC that handles stores can switch to a version that can

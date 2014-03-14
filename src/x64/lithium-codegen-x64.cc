@@ -1004,7 +1004,7 @@ void LCodeGen::DoModByPowerOf2I(LModByPowerOf2I* instr) {
   HMod* hmod = instr->hydrogen();
   int32_t mask = divisor < 0 ? -(divisor + 1) : (divisor - 1);
   Label dividend_is_not_negative, done;
-  if (hmod->left()->CanBeNegative()) {
+  if (hmod->CheckFlag(HValue::kLeftCanBeNegative)) {
     __ testl(dividend, dividend);
     __ j(not_sign, &dividend_is_not_negative, Label::kNear);
     // Note that this is correct even for kMinInt operands.
@@ -1129,7 +1129,7 @@ void LCodeGen::DoFlooringDivByPowerOf2I(LFlooringDivByPowerOf2I* instr) {
   if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
     DeoptimizeIf(zero, instr->environment());
   }
-  if (instr->hydrogen()->left()->RangeCanInclude(kMinInt)) {
+  if (instr->hydrogen()->CheckFlag(HValue::kLeftCanBeMinInt)) {
     // Note that we could emit branch-free code, but that would need one more
     // register.
     __ j(no_overflow, &not_kmin_int, Label::kNear);
@@ -3604,10 +3604,11 @@ void LCodeGen::DoMathRound(LMathRound* instr) {
   const XMMRegister xmm_scratch = double_scratch0();
   Register output_reg = ToRegister(instr->result());
   XMMRegister input_reg = ToDoubleRegister(instr->value());
+  XMMRegister input_temp = ToDoubleRegister(instr->temp());
   static int64_t one_half = V8_INT64_C(0x3FE0000000000000);  // 0.5
   static int64_t minus_one_half = V8_INT64_C(0xBFE0000000000000);  // -0.5
 
-  Label done, round_to_zero, below_one_half, do_not_compensate, restore;
+  Label done, round_to_zero, below_one_half;
   Label::Distance dist = DeoptEveryNTimes() ? Label::kFar : Label::kNear;
   __ movq(kScratchRegister, one_half);
   __ movq(xmm_scratch, kScratchRegister);
@@ -3631,21 +3632,19 @@ void LCodeGen::DoMathRound(LMathRound* instr) {
 
   // CVTTSD2SI rounds towards zero, we use ceil(x - (-0.5)) and then
   // compare and compensate.
-  __ movq(kScratchRegister, input_reg);  // Back up input_reg.
-  __ subsd(input_reg, xmm_scratch);
-  __ cvttsd2si(output_reg, input_reg);
+  __ movq(input_temp, input_reg);  // Do not alter input_reg.
+  __ subsd(input_temp, xmm_scratch);
+  __ cvttsd2si(output_reg, input_temp);
   // Catch minint due to overflow, and to prevent overflow when compensating.
   __ cmpl(output_reg, Immediate(0x80000000));
   __ RecordComment("D2I conversion overflow");
   DeoptimizeIf(equal, instr->environment());
 
   __ Cvtlsi2sd(xmm_scratch, output_reg);
-  __ ucomisd(input_reg, xmm_scratch);
-  __ j(equal, &restore, Label::kNear);
+  __ ucomisd(xmm_scratch, input_temp);
+  __ j(equal, &done, dist);
   __ subl(output_reg, Immediate(1));
   // No overflow because we already ruled out minint.
-  __ bind(&restore);
-  __ movq(input_reg, kScratchRegister);  // Restore input_reg.
   __ jmp(&done, dist);
 
   __ bind(&round_to_zero);
@@ -4522,18 +4521,6 @@ void LCodeGen::DoInteger32ToDouble(LInteger32ToDouble* instr) {
 }
 
 
-void LCodeGen::DoInteger32ToSmi(LInteger32ToSmi* instr) {
-  LOperand* input = instr->value();
-  ASSERT(input->IsRegister());
-  LOperand* output = instr->result();
-  __ Integer32ToSmi(ToRegister(output), ToRegister(input));
-  if (!instr->hydrogen()->value()->HasRange() ||
-      !instr->hydrogen()->value()->range()->IsInSmiRange()) {
-    DeoptimizeIf(overflow, instr->environment());
-  }
-}
-
-
 void LCodeGen::DoUint32ToDouble(LUint32ToDouble* instr) {
   LOperand* input = instr->value();
   LOperand* output = instr->result();
@@ -4542,22 +4529,6 @@ void LCodeGen::DoUint32ToDouble(LUint32ToDouble* instr) {
   __ LoadUint32(ToDoubleRegister(output),
                 ToRegister(input),
                 ToDoubleRegister(temp));
-}
-
-
-void LCodeGen::DoUint32ToSmi(LUint32ToSmi* instr) {
-  LOperand* input = instr->value();
-  ASSERT(input->IsRegister());
-  LOperand* output = instr->result();
-  if (!instr->hydrogen()->value()->HasRange() ||
-      !instr->hydrogen()->value()->range()->IsInSmiRange() ||
-      instr->hydrogen()->value()->range()->upper() == kMaxInt) {
-    // The Range class can't express upper bounds in the (kMaxInt, kMaxUint32]
-    // interval, so we treat kMaxInt as a sentinel for this entire interval.
-    __ testl(ToRegister(input), Immediate(0x80000000));
-    DeoptimizeIf(not_zero, instr->environment());
-  }
-  __ Integer32ToSmi(ToRegister(output), ToRegister(input));
 }
 
 
@@ -4695,10 +4666,19 @@ void LCodeGen::DoDeferredNumberTagD(LNumberTagD* instr) {
 
 
 void LCodeGen::DoSmiTag(LSmiTag* instr) {
-  ASSERT(instr->value()->Equals(instr->result()));
+  HChange* hchange = instr->hydrogen();
   Register input = ToRegister(instr->value());
-  ASSERT(!instr->hydrogen_value()->CheckFlag(HValue::kCanOverflow));
-  __ Integer32ToSmi(input, input);
+  Register output = ToRegister(instr->result());
+  if (hchange->CheckFlag(HValue::kCanOverflow) &&
+      hchange->value()->CheckFlag(HValue::kUint32)) {
+    __ testl(input, Immediate(0x80000000));
+    DeoptimizeIf(not_zero, instr->environment());
+  }
+  __ Integer32ToSmi(output, input);
+  if (hchange->CheckFlag(HValue::kCanOverflow) &&
+      !hchange->value()->CheckFlag(HValue::kUint32)) {
+    DeoptimizeIf(overflow, instr->environment());
+  }
 }
 
 

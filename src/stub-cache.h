@@ -360,12 +360,6 @@ class StubCompiler BASE_EMBEDDED {
                                       Register scratch,
                                       Label* miss_label);
 
-  static void GenerateLoadStringLength(MacroAssembler* masm,
-                                       Register receiver,
-                                       Register scratch1,
-                                       Register scratch2,
-                                       Label* miss_label);
-
   static void GenerateLoadFunctionPrototype(MacroAssembler* masm,
                                             Register receiver,
                                             Register scratch1,

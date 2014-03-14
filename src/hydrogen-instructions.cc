@@ -1674,6 +1674,16 @@ Range* HChange::InferRange(Zone* zone) {
     set_type(HType::Smi());
     ClearChangesFlag(kNewSpacePromotion);
   }
+  if (to().IsSmiOrTagged() &&
+      input_range != NULL &&
+      input_range->IsInSmiRange() &&
+      (!SmiValuesAre32Bits() ||
+       !value()->CheckFlag(HValue::kUint32) ||
+       input_range->upper() != kMaxInt)) {
+    // The Range class can't express upper bounds in the (kMaxInt, kMaxUint32]
+    // interval, so we treat kMaxInt as a sentinel for this entire interval.
+    ClearFlag(kCanOverflow);
+  }
   Range* result = (input_range != NULL)
       ? input_range->Copy(zone)
       : HValue::InferRange(zone);
@@ -1789,7 +1799,7 @@ Range* HMul::InferRange(Zone* zone) {
 }
 
 
-Range* HBinaryOperation::InferRangeForDiv(Zone* zone) {
+Range* HDiv::InferRange(Zone* zone) {
   if (representation().IsInteger32()) {
     Range* a = left()->range();
     Range* b = right()->range();
@@ -1811,13 +1821,29 @@ Range* HBinaryOperation::InferRangeForDiv(Zone* zone) {
 }
 
 
-Range* HDiv::InferRange(Zone* zone) {
-  return InferRangeForDiv(zone);
-}
-
-
 Range* HMathFloorOfDiv::InferRange(Zone* zone) {
-  return InferRangeForDiv(zone);
+  if (representation().IsInteger32()) {
+    Range* a = left()->range();
+    Range* b = right()->range();
+    Range* result = new(zone) Range();
+    result->set_can_be_minus_zero(!CheckFlag(kAllUsesTruncatingToInt32) &&
+                                  (a->CanBeMinusZero() ||
+                                   (a->CanBeZero() && b->CanBeNegative())));
+    if (!a->Includes(kMinInt)) {
+      ClearFlag(kLeftCanBeMinInt);
+    }
+
+    if (!a->Includes(kMinInt) || !b->Includes(-1)) {
+      ClearFlag(kCanOverflow);
+    }
+
+    if (!b->CanBeZero()) {
+      ClearFlag(kCanBeDivByZero);
+    }
+    return result;
+  } else {
+    return HValue::InferRange(zone);
+  }
 }
 
 
@@ -1838,6 +1864,10 @@ Range* HMod::InferRange(Zone* zone) {
 
     result->set_can_be_minus_zero(!CheckFlag(kAllUsesTruncatingToInt32) &&
                                   left_can_be_negative);
+
+    if (!a->CanBeNegative()) {
+      ClearFlag(HValue::kLeftCanBeNegative);
+    }
 
     if (!a->Includes(kMinInt) || !b->Includes(-1)) {
       ClearFlag(HValue::kCanOverflow);

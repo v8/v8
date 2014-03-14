@@ -342,61 +342,6 @@ void StubCompiler::GenerateLoadArrayLength(MacroAssembler* masm,
 }
 
 
-// Generate code to check if an object is a string.  If the object is a
-// heap object, its map's instance type is left in the scratch1 register.
-// If this is not needed, scratch1 and scratch2 may be the same register.
-static void GenerateStringCheck(MacroAssembler* masm,
-                                Register receiver,
-                                Register scratch1,
-                                Register scratch2,
-                                Label* smi,
-                                Label* non_string_object) {
-  // Check that the receiver isn't a smi.
-  __ JumpIfSmi(receiver, smi, t0);
-
-  // Check that the object is a string.
-  __ lw(scratch1, FieldMemOperand(receiver, HeapObject::kMapOffset));
-  __ lbu(scratch1, FieldMemOperand(scratch1, Map::kInstanceTypeOffset));
-  __ And(scratch2, scratch1, Operand(kIsNotStringMask));
-  // The cast is to resolve the overload for the argument of 0x0.
-  __ Branch(non_string_object,
-            ne,
-            scratch2,
-            Operand(static_cast<int32_t>(kStringTag)));
-}
-
-
-// Generate code to load the length from a string object and return the length.
-// If the receiver object is not a string or a wrapped string object the
-// execution continues at the miss label. The register containing the
-// receiver is potentially clobbered.
-void StubCompiler::GenerateLoadStringLength(MacroAssembler* masm,
-                                            Register receiver,
-                                            Register scratch1,
-                                            Register scratch2,
-                                            Label* miss) {
-  Label check_wrapper;
-
-  // Check if the object is a string leaving the instance type in the
-  // scratch1 register.
-  GenerateStringCheck(masm, receiver, scratch1, scratch2, miss, &check_wrapper);
-
-  // Load length directly from the string.
-  __ Ret(USE_DELAY_SLOT);
-  __ lw(v0, FieldMemOperand(receiver, String::kLengthOffset));
-
-  // Check if the object is a JSValue wrapper.
-  __ bind(&check_wrapper);
-  __ Branch(miss, ne, scratch1, Operand(JS_VALUE_TYPE));
-
-  // Unwrap the value and check if the wrapped value is a string.
-  __ lw(scratch1, FieldMemOperand(receiver, JSValue::kValueOffset));
-  GenerateStringCheck(masm, scratch1, scratch2, scratch2, miss, miss);
-  __ Ret(USE_DELAY_SLOT);
-  __ lw(v0, FieldMemOperand(scratch1, String::kLengthOffset));
-}
-
-
 void StubCompiler::GenerateLoadFunctionPrototype(MacroAssembler* masm,
                                                  Register receiver,
                                                  Register scratch1,

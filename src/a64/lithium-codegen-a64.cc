@@ -1517,23 +1517,22 @@ void LCodeGen::DoAllocate(LAllocate* instr) {
   __ Bind(deferred->exit());
 
   if (instr->hydrogen()->MustPrefillWithFiller()) {
+    Register filler_count = temp1;
+    Register filler = temp2;
+    Register untagged_result = ToRegister(instr->temp3());
+
     if (instr->size()->IsConstantOperand()) {
       int32_t size = ToInteger32(LConstantOperand::cast(instr->size()));
-      __ Mov(temp1, size - kPointerSize);
+      __ Mov(filler_count, size / kPointerSize);
     } else {
-      __ Sub(temp1.W(), ToRegister32(instr->size()), kPointerSize);
+      __ Lsr(filler_count.W(), ToRegister32(instr->size()), kPointerSizeLog2);
     }
-    __ Sub(result, result, kHeapObjectTag);
 
-    // TODO(jbramley): Optimize this loop using stp.
-    Label loop;
-    __ Bind(&loop);
-    __ Mov(temp2, Operand(isolate()->factory()->one_pointer_filler_map()));
-    __ Str(temp2, MemOperand(result, temp1));
-    __ Subs(temp1, temp1, kPointerSize);
-    __ B(ge, &loop);
-
-    __ Add(result, result, kHeapObjectTag);
+    __ Sub(untagged_result, result, kHeapObjectTag);
+    __ Mov(filler, Operand(isolate()->factory()->one_pointer_filler_map()));
+    __ FillFields(untagged_result, filler_count, filler);
+  } else {
+    ASSERT(instr->temp3() == NULL);
   }
 }
 
@@ -3102,17 +3101,6 @@ void LCodeGen::DoInteger32ToDouble(LInteger32ToDouble* instr) {
 }
 
 
-void LCodeGen::DoInteger32ToSmi(LInteger32ToSmi* instr) {
-  // A64 smis can represent all Integer32 values, so this cannot deoptimize.
-  ASSERT(!instr->hydrogen()->value()->HasRange() ||
-         instr->hydrogen()->value()->range()->IsInSmiRange());
-
-  Register value = ToRegister32(instr->value());
-  Register result = ToRegister(instr->result());
-  __ SmiTag(result, value.X());
-}
-
-
 void LCodeGen::DoInvokeFunction(LInvokeFunction* instr) {
   ASSERT(ToRegister(instr->context()).is(cp));
   // The function is required to be in x1.
@@ -3850,37 +3838,37 @@ void LCodeGen::DoMathFloor(LMathFloor* instr) {
 
 void LCodeGen::DoFlooringDivByPowerOf2I(LFlooringDivByPowerOf2I* instr) {
   Register dividend = ToRegister32(instr->dividend());
+  Register result = ToRegister32(instr->result());
   int32_t divisor = instr->divisor();
-  ASSERT(dividend.is(ToRegister32(instr->result())));
 
   // If the divisor is positive, things are easy: There can be no deopts and we
   // can simply do an arithmetic right shift.
   if (divisor == 1) return;
   int32_t shift = WhichPowerOf2Abs(divisor);
   if (divisor > 1) {
-    __ Mov(dividend, Operand(dividend, ASR, shift));
+    __ Mov(result, Operand(dividend, ASR, shift));
     return;
   }
 
   // If the divisor is negative, we have to negate and handle edge cases.
   Label not_kmin_int, done;
-  __ Negs(dividend, dividend);
+  __ Negs(result, dividend);
   if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
     DeoptimizeIf(eq, instr->environment());
   }
-  if (instr->hydrogen()->left()->RangeCanInclude(kMinInt)) {
+  if (instr->hydrogen()->CheckFlag(HValue::kLeftCanBeMinInt)) {
     // Note that we could emit branch-free code, but that would need one more
     // register.
-    __ B(vc, &not_kmin_int);
     if (divisor == -1) {
-      Deoptimize(instr->environment());
+      DeoptimizeIf(vs, instr->environment());
     } else {
-      __ Mov(dividend, kMinInt / divisor);
+      __ B(vc, &not_kmin_int);
+      __ Mov(result, kMinInt / divisor);
       __ B(&done);
     }
   }
   __ bind(&not_kmin_int);
-  __ Mov(dividend, Operand(dividend, ASR, shift));
+  __ Mov(result, Operand(dividend, ASR, shift));
   __ bind(&done);
 }
 
@@ -4145,7 +4133,7 @@ void LCodeGen::DoModByPowerOf2I(LModByPowerOf2I* instr) {
   HMod* hmod = instr->hydrogen();
   int32_t mask = divisor < 0 ? -(divisor + 1) : (divisor - 1);
   Label dividend_is_not_negative, done;
-  if (hmod->left()->CanBeNegative()) {
+  if (hmod->CheckFlag(HValue::kLeftCanBeNegative)) {
     __ Cmp(dividend, 0);
     __ B(pl, &dividend_is_not_negative);
     // Note that this is correct even for kMinInt operands.
@@ -4654,8 +4642,7 @@ MemOperand LCodeGen::BuildSeqStringOperand(Register string,
     STATIC_ASSERT(kCharSize == 1);
     return FieldMemOperand(string, SeqString::kHeaderSize + offset);
   }
-  ASSERT(!temp.is(string));
-  ASSERT(!temp.is(ToRegister(index)));
+
   if (encoding == String::ONE_BYTE_ENCODING) {
     __ Add(temp, string, Operand(ToRegister32(index), SXTW));
   } else {
@@ -4673,15 +4660,21 @@ void LCodeGen::DoSeqStringGetChar(LSeqStringGetChar* instr) {
   Register temp = ToRegister(instr->temp());
 
   if (FLAG_debug_code) {
-    __ Ldr(temp, FieldMemOperand(string, HeapObject::kMapOffset));
-    __ Ldrb(temp, FieldMemOperand(temp, Map::kInstanceTypeOffset));
+    // Even though this lithium instruction comes with a temp register, we
+    // can't use it here because we want to use "AtStart" constraints on the
+    // inputs and the debug code here needs a scratch register.
+    UseScratchRegisterScope temps(masm());
+    Register dbg_temp = temps.AcquireX();
 
-    __ And(temp, temp,
+    __ Ldr(dbg_temp, FieldMemOperand(string, HeapObject::kMapOffset));
+    __ Ldrb(dbg_temp, FieldMemOperand(dbg_temp, Map::kInstanceTypeOffset));
+
+    __ And(dbg_temp, dbg_temp,
            Operand(kStringRepresentationMask | kStringEncodingMask));
     static const uint32_t one_byte_seq_type = kSeqStringTag | kOneByteStringTag;
     static const uint32_t two_byte_seq_type = kSeqStringTag | kTwoByteStringTag;
-    __ Cmp(temp, Operand(encoding == String::ONE_BYTE_ENCODING
-                         ? one_byte_seq_type : two_byte_seq_type));
+    __ Cmp(dbg_temp, Operand(encoding == String::ONE_BYTE_ENCODING
+                             ? one_byte_seq_type : two_byte_seq_type));
     __ Check(eq, kUnexpectedStringType);
   }
 
@@ -4723,8 +4716,14 @@ void LCodeGen::DoSeqStringSetChar(LSeqStringSetChar* instr) {
 
 
 void LCodeGen::DoSmiTag(LSmiTag* instr) {
-  ASSERT(!instr->hydrogen_value()->CheckFlag(HValue::kCanOverflow));
-  __ SmiTag(ToRegister(instr->result()), ToRegister(instr->value()));
+  HChange* hchange = instr->hydrogen();
+  Register input = ToRegister(instr->value());
+  Register output = ToRegister(instr->result());
+  if (hchange->CheckFlag(HValue::kCanOverflow) &&
+      hchange->value()->CheckFlag(HValue::kUint32)) {
+    DeoptimizeIfNegative(input.W(), instr->environment());
+  }
+  __ SmiTag(output, input);
 }
 
 
@@ -5756,21 +5755,6 @@ void LCodeGen::DoTypeofIsAndBranch(LTypeofIsAndBranch* instr) {
 
 void LCodeGen::DoUint32ToDouble(LUint32ToDouble* instr) {
   __ Ucvtf(ToDoubleRegister(instr->result()), ToRegister32(instr->value()));
-}
-
-
-void LCodeGen::DoUint32ToSmi(LUint32ToSmi* instr) {
-  Register value = ToRegister(instr->value());
-  Register result = ToRegister(instr->result());
-
-  if (!instr->hydrogen()->value()->HasRange() ||
-      !instr->hydrogen()->value()->range()->IsInSmiRange() ||
-      instr->hydrogen()->value()->range()->upper() == kMaxInt) {
-    // The Range class can't express upper bounds in the (kMaxInt, kMaxUint32]
-    // interval, so we treat kMaxInt as a sentinel for this entire interval.
-    DeoptimizeIfNegative(value.W(), instr->environment());
-  }
-  __ SmiTag(result, value);
 }
 
 

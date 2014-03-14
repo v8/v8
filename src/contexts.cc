@@ -131,9 +131,9 @@ Handle<Object> Context::Lookup(Handle<String> name,
       // to only do a local lookup for context extension objects.
       if ((flags & FOLLOW_PROTOTYPE_CHAIN) == 0 ||
           object->IsJSContextExtensionObject()) {
-        *attributes = object->GetLocalPropertyAttribute(*name);
+        *attributes = JSReceiver::GetLocalPropertyAttribute(object, name);
       } else {
-        *attributes = object->GetPropertyAttribute(*name);
+        *attributes = JSReceiver::GetPropertyAttribute(object, name);
       }
       if (isolate->has_pending_exception()) return Handle<Object>();
 

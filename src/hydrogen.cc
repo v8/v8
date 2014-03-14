@@ -7206,7 +7206,6 @@ bool HOptimizedGraphBuilder::TryInline(Handle<JSFunction> target,
       target_shared->set_scope_info(*target_scope_info);
     }
     target_shared->EnableDeoptimizationSupport(*target_info.code());
-    target_shared->set_feedback_vector(*target_info.feedback_vector());
     Compiler::RecordFunctionCompilation(Logger::FUNCTION_TAG,
                                         &target_info,
                                         target_shared);
@@ -8932,13 +8931,7 @@ static bool ShiftAmountsAllowReplaceByRotate(HValue* sa,
   }
   if (!const32_minus_sa->IsSub()) return false;
   HSub* sub = HSub::cast(const32_minus_sa);
-  if (sa != sub->right()) return false;
-  HValue* const32 = sub->left();
-  if (!const32->IsConstant() ||
-      HConstant::cast(const32)->Integer32Value() != 32) {
-    return false;
-  }
-  return (sub->right() == sa);
+  return sub->left()->EqualsInteger32Constant(32) && sub->right() == sa;
 }
 
 
@@ -9225,21 +9218,15 @@ HValue* HGraphBuilder::BuildBinaryOperation(
         instr = AddUncasted<HMul>(left, right);
         break;
       case Token::MOD: {
-        if (fixed_right_arg.has_value) {
-          if (right->IsConstant()) {
-            HConstant* c_right = HConstant::cast(right);
-            if (c_right->HasInteger32Value()) {
-              ASSERT_EQ(fixed_right_arg.value, c_right->Integer32Value());
-            }
-          } else {
-            HConstant* fixed_right = Add<HConstant>(
-                static_cast<int>(fixed_right_arg.value));
-            IfBuilder if_same(this);
-            if_same.If<HCompareNumericAndBranch>(right, fixed_right, Token::EQ);
-            if_same.Then();
-            if_same.ElseDeopt("Unexpected RHS of binary operation");
-            right = fixed_right;
-          }
+        if (fixed_right_arg.has_value &&
+            !right->EqualsInteger32Constant(fixed_right_arg.value)) {
+          HConstant* fixed_right = Add<HConstant>(
+              static_cast<int>(fixed_right_arg.value));
+          IfBuilder if_same(this);
+          if_same.If<HCompareNumericAndBranch>(right, fixed_right, Token::EQ);
+          if_same.Then();
+          if_same.ElseDeopt("Unexpected RHS of binary operation");
+          right = fixed_right;
         }
         instr = AddUncasted<HMod>(left, right);
         break;

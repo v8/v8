@@ -37,6 +37,7 @@ class AllocationTracker;
 class AllocationTraceNode;
 class HeapEntry;
 class HeapSnapshot;
+class SnapshotFiller;
 
 class HeapGraphEdge BASE_EMBEDDED {
  public:
@@ -343,32 +344,6 @@ class HeapObjectsSet {
 };
 
 
-// An interface used to populate a snapshot with nodes and edges.
-class SnapshotFillerInterface {
- public:
-  virtual ~SnapshotFillerInterface() { }
-  virtual HeapEntry* AddEntry(HeapThing ptr,
-                              HeapEntriesAllocator* allocator) = 0;
-  virtual HeapEntry* FindEntry(HeapThing ptr) = 0;
-  virtual HeapEntry* FindOrAddEntry(HeapThing ptr,
-                                    HeapEntriesAllocator* allocator) = 0;
-  virtual void SetIndexedReference(HeapGraphEdge::Type type,
-                                   int parent_entry,
-                                   int index,
-                                   HeapEntry* child_entry) = 0;
-  virtual void SetIndexedAutoIndexReference(HeapGraphEdge::Type type,
-                                            int parent_entry,
-                                            HeapEntry* child_entry) = 0;
-  virtual void SetNamedReference(HeapGraphEdge::Type type,
-                                 int parent_entry,
-                                 const char* reference_name,
-                                 HeapEntry* child_entry) = 0;
-  virtual void SetNamedAutoIndexReference(HeapGraphEdge::Type type,
-                                          int parent_entry,
-                                          HeapEntry* child_entry) = 0;
-};
-
-
 class SnapshottingProgressReportingInterface {
  public:
   virtual ~SnapshottingProgressReportingInterface() { }
@@ -385,9 +360,9 @@ class V8HeapExplorer : public HeapEntriesAllocator {
                  v8::HeapProfiler::ObjectNameResolver* resolver);
   virtual ~V8HeapExplorer();
   virtual HeapEntry* AllocateEntry(HeapThing ptr);
-  void AddRootEntries(SnapshotFillerInterface* filler);
+  void AddRootEntries(SnapshotFiller* filler);
   int EstimateObjectsCount(HeapIterator* iterator);
-  bool IterateAndExtractReferences(SnapshotFillerInterface* filler);
+  bool IterateAndExtractReferences(SnapshotFiller* filler);
   void TagGlobalObjects();
   void TagCodeObject(Code* code);
   void TagBuiltinCodeObject(Code* code, const char* name);
@@ -488,7 +463,7 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   StringsStorage* names_;
   HeapObjectsMap* heap_object_map_;
   SnapshottingProgressReportingInterface* progress_;
-  SnapshotFillerInterface* filler_;
+  SnapshotFiller* filler_;
   HeapObjectsSet objects_tags_;
   HeapObjectsSet strong_gc_subroot_names_;
   HeapObjectsSet user_roots_;
@@ -515,9 +490,9 @@ class NativeObjectsExplorer {
   NativeObjectsExplorer(HeapSnapshot* snapshot,
                         SnapshottingProgressReportingInterface* progress);
   virtual ~NativeObjectsExplorer();
-  void AddRootEntries(SnapshotFillerInterface* filler);
+  void AddRootEntries(SnapshotFiller* filler);
   int EstimateObjectsCount();
-  bool IterateAndExtractReferences(SnapshotFillerInterface* filler);
+  bool IterateAndExtractReferences(SnapshotFiller* filler);
 
  private:
   void FillRetainedObjects();
@@ -557,7 +532,7 @@ class NativeObjectsExplorer {
   HeapEntriesAllocator* synthetic_entries_allocator_;
   HeapEntriesAllocator* native_entries_allocator_;
   // Used during references extraction.
-  SnapshotFillerInterface* filler_;
+  SnapshotFiller* filler_;
 
   static HeapThing const kNativesRootObject;
 

@@ -560,8 +560,8 @@ void V8::MakeWeak(i::Object** object,
 }
 
 
-void V8::ClearWeak(i::Object** obj) {
-  i::GlobalHandles::ClearWeakness(obj);
+void* V8::ClearWeak(i::Object** obj) {
+  return i::GlobalHandles::ClearWeakness(obj);
 }
 
 
@@ -3120,7 +3120,8 @@ PropertyAttribute v8::Object::GetPropertyAttributes(v8::Handle<Value> key) {
     EXCEPTION_BAILOUT_CHECK(isolate, static_cast<PropertyAttribute>(NONE));
   }
   i::Handle<i::Name> key_name = i::Handle<i::Name>::cast(key_obj);
-  PropertyAttributes result = self->GetPropertyAttribute(*key_name);
+  PropertyAttributes result =
+      i::JSReceiver::GetPropertyAttribute(self, key_name);
   if (result == ABSENT) return static_cast<PropertyAttribute>(NONE);
   return static_cast<PropertyAttribute>(result);
 }

@@ -415,15 +415,14 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       Register empty = x5;
       __ LoadRoot(empty, Heap::kEmptyFixedArrayRootIndex);
       __ Str(init_map, MemOperand(new_obj, JSObject::kMapOffset));
-      __ Str(empty, MemOperand(new_obj, JSObject::kPropertiesOffset));
-      __ Str(empty, MemOperand(new_obj, JSObject::kElementsOffset));
+      STATIC_ASSERT(JSObject::kElementsOffset ==
+          (JSObject::kPropertiesOffset + kPointerSize));
+      __ Stp(empty, empty, MemOperand(new_obj, JSObject::kPropertiesOffset));
 
       Register first_prop = x5;
       __ Add(first_prop, new_obj, JSObject::kHeaderSize);
 
       // Fill all of the in-object properties with the appropriate filler.
-      Register obj_end = x6;
-      __ Add(obj_end, new_obj, Operand(obj_size, LSL, kPointerSizeLog2));
       Register undef = x7;
       __ LoadRoot(undef, Heap::kUndefinedValueRootIndex);
 
@@ -439,23 +438,42 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       __ Ubfx(inobject_props, inst_sizes,
               Map::kInObjectPropertiesByte * kBitsPerByte, kBitsPerByte);
 
+      // Calculate number of property fields in the object.
+      Register prop_fields = x6;
+      __ Sub(prop_fields, obj_size, JSObject::kHeaderSize / kPointerSize);
+
       if (count_constructions) {
+        // Fill the pre-allocated fields with undef.
+        __ FillFields(first_prop, prealloc_fields, undef);
+
         // Register first_non_prealloc is the offset of the first field after
         // pre-allocated fields.
         Register first_non_prealloc = x12;
         __ Add(first_non_prealloc, first_prop,
                Operand(prealloc_fields, LSL, kPointerSizeLog2));
 
+        first_prop = NoReg;
+
         if (FLAG_debug_code) {
+          Register obj_end = x5;
+          __ Add(obj_end, new_obj, Operand(obj_size, LSL, kPointerSizeLog2));
           __ Cmp(first_non_prealloc, obj_end);
           __ Assert(le, kUnexpectedNumberOfPreAllocatedPropertyFields);
         }
-        __ InitializeFieldsWithFiller(first_prop, first_non_prealloc, undef);
-        // To allow for truncation.
-        __ LoadRoot(x12, Heap::kOnePointerFillerMapRootIndex);
-        __ InitializeFieldsWithFiller(first_prop, obj_end, x12);
+
+        // Fill the remaining fields with one pointer filler map.
+        Register one_pointer_filler = x5;
+        Register non_prealloc_fields = x6;
+        __ LoadRoot(one_pointer_filler, Heap::kOnePointerFillerMapRootIndex);
+        __ Sub(non_prealloc_fields, prop_fields, prealloc_fields);
+        __ FillFields(first_non_prealloc, non_prealloc_fields,
+                      one_pointer_filler);
+        prop_fields = NoReg;
       } else {
-        __ InitializeFieldsWithFiller(first_prop, obj_end, undef);
+        // Fill all of the property fields with undef.
+        __ FillFields(first_prop, prop_fields, undef);
+        first_prop = NoReg;
+        prop_fields = NoReg;
       }
 
       // Add the object tag to make the JSObject real, so that we can continue
@@ -467,11 +485,12 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       // Check if a non-empty properties array is needed. Continue with
       // allocated object if not, or fall through to runtime call if it is.
       Register element_count = x3;
-      __ Ldrb(x3, FieldMemOperand(init_map, Map::kUnusedPropertyFieldsOffset));
+      __ Ldrb(element_count,
+              FieldMemOperand(init_map, Map::kUnusedPropertyFieldsOffset));
       // The field instance sizes contains both pre-allocated property fields
       // and in-object properties.
-      __ Add(x3, x3, prealloc_fields);
-      __ Subs(element_count, x3, inobject_props);
+      __ Add(element_count, element_count, prealloc_fields);
+      __ Subs(element_count, element_count, inobject_props);
 
       // Done if no extra properties are to be allocated.
       __ B(eq, &allocated);
@@ -494,11 +513,8 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
 
       // Initialize the fields to undefined.
       Register elements = x10;
-      Register elements_end  = x11;
       __ Add(elements, new_array, FixedArray::kHeaderSize);
-      __ Add(elements_end, elements,
-             Operand(element_count, LSL, kPointerSizeLog2));
-      __ InitializeFieldsWithFiller(elements, elements_end, undef);
+      __ FillFields(elements, element_count, undef);
 
       // Store the initialized FixedArray into the properties field of the
       // JSObject.

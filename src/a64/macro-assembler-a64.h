@@ -357,7 +357,18 @@ class MacroAssembler : public Assembler {
                      const FPRegister& fm);
   inline void Fmov(FPRegister fd, FPRegister fn);
   inline void Fmov(FPRegister fd, Register rn);
+  // Provide explicit double and float interfaces for FP immediate moves, rather
+  // than relying on implicit C++ casts. This allows signalling NaNs to be
+  // preserved when the immediate matches the format of fd. Most systems convert
+  // signalling NaNs to quiet NaNs when converting between float and double.
   inline void Fmov(FPRegister fd, double imm);
+  inline void Fmov(FPRegister fd, float imm);
+  // Provide a template to allow other types to be converted automatically.
+  template<typename T>
+  void Fmov(FPRegister fd, T imm) {
+    ASSERT(allow_macro_instructions_);
+    Fmov(fd, static_cast<double>(imm));
+  }
   inline void Fmov(Register rd, FPRegister fn);
   inline void Fmsub(const FPRegister& fd,
                     const FPRegister& fn,
@@ -394,7 +405,12 @@ class MacroAssembler : public Assembler {
   inline void Ldpsw(const Register& rt,
                     const Register& rt2,
                     const MemOperand& src);
+  // Provide both double and float interfaces for FP immediate loads, rather
+  // than relying on implicit C++ casts. This allows signalling NaNs to be
+  // preserved when the immediate matches the format of fd. Most systems convert
+  // signalling NaNs to quiet NaNs when converting between float and double.
   inline void Ldr(const FPRegister& ft, double imm);
+  inline void Ldr(const FPRegister& ft, float imm);
   inline void Ldr(const Register& rt, uint64_t imm);
   inline void Lsl(const Register& rd, const Register& rn, unsigned shift);
   inline void Lsl(const Register& rd, const Register& rn, const Register& rm);
@@ -948,6 +964,12 @@ class MacroAssembler : public Assembler {
   // MacroAssembler::TmpList().
   void CopyFields(Register dst, Register src, CPURegList temps, unsigned count);
 
+  // Starting at address in dst, initialize field_count 64-bit fields with
+  // 64-bit value in register filler. Register dst is corrupted.
+  void FillFields(Register dst,
+                  Register field_count,
+                  Register filler);
+
   // Copies a number of bytes from src to dst. All passed registers are
   // clobbered. On exit src and dst will point to the place just after where the
   // last byte was read or written and length will be zero. Hint may be used to
@@ -957,13 +979,6 @@ class MacroAssembler : public Assembler {
                  Register length,
                  Register scratch,
                  CopyHint hint = kCopyUnknown);
-
-  // Initialize fields with filler values. Fields starting at start_offset not
-  // including end_offset are overwritten with the value in filler. At the end
-  // of the loop, start_offset takes the value of end_offset.
-  void InitializeFieldsWithFiller(Register start_offset,
-                                  Register end_offset,
-                                  Register filler);
 
   // ---- String Utilities ----
 

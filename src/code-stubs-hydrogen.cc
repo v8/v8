@@ -608,15 +608,15 @@ Handle<Code> LoadFieldStub::GenerateCode(Isolate* isolate) {
 
 
 template<>
-HValue* CodeStubGraphBuilder<KeyedLoadFieldStub>::BuildCodeStub() {
-  return BuildLoadNamedField(GetParameter(0),
-                             casted_stub()->representation(),
-                             casted_stub()->offset(),
-                             casted_stub()->is_inobject());
+HValue* CodeStubGraphBuilder<StringLengthStub>::BuildCodeStub() {
+  HValue* string = BuildLoadNamedField(
+      GetParameter(0), Representation::Tagged(), JSValue::kValueOffset, true);
+  return BuildLoadNamedField(
+      string, Representation::Tagged(), String::kLengthOffset, true);
 }
 
 
-Handle<Code> KeyedLoadFieldStub::GenerateCode(Isolate* isolate) {
+Handle<Code> StringLengthStub::GenerateCode(Isolate* isolate) {
   return DoGenerateCode(isolate, this);
 }
 

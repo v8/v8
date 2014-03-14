@@ -878,7 +878,8 @@ LInstruction* LChunkBuilder::DoAllocate(HAllocate* instr) {
   LOperand* size = UseRegisterOrConstant(instr->size());
   LOperand* temp1 = TempRegister();
   LOperand* temp2 = TempRegister();
-  LAllocate* result = new(zone()) LAllocate(context, size, temp1, temp2);
+  LOperand* temp3 = instr->MustPrefillWithFiller() ? TempRegister() : NULL;
+  LAllocate* result = new(zone()) LAllocate(context, size, temp1, temp2, temp3);
   return AssignPointerMap(DefineAsRegister(result));
 }
 
@@ -1152,13 +1153,11 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
       }
     } else if (to.IsSmi()) {
       LOperand* value = UseRegisterAtStart(instr->value());
+      LInstruction* result = DefineAsRegister(new(zone()) LSmiTag(value));
       if (instr->value()->CheckFlag(HInstruction::kUint32)) {
-        LUint32ToSmi* result = new(zone()) LUint32ToSmi(value);
-        return AssignEnvironment(DefineAsRegister(result));
-      } else {
-        // This cannot deoptimize because an A64 smi can represent any int32.
-        return DefineAsRegister(new(zone()) LInteger32ToSmi(value));
+        result = AssignEnvironment(result);
       }
+      return result;
     } else {
       ASSERT(to.IsDouble());
       if (instr->value()->CheckFlag(HInstruction::kUint32)) {
@@ -1751,12 +1750,13 @@ LInstruction* LChunkBuilder::DoFlooringDivByPowerOf2I(HMathFloorOfDiv* instr) {
   ASSERT(instr->right()->representation().Equals(instr->representation()));
   LOperand* dividend = UseRegisterAtStart(instr->left());
   int32_t divisor = instr->right()->GetInteger32Constant();
-  LInstruction* result =
-      DefineSameAsFirst(new(zone()) LFlooringDivByPowerOf2I(dividend, divisor));
-  bool can_deopt =
-      (instr->CheckFlag(HValue::kBailoutOnMinusZero) && divisor < 0) ||
-      (instr->left()->RangeCanInclude(kMinInt) && divisor == -1);
-  return can_deopt ? AssignEnvironment(result) : result;
+  LInstruction* result = DefineAsRegister(new(zone()) LFlooringDivByPowerOf2I(
+          dividend, divisor));
+  if ((instr->CheckFlag(HValue::kBailoutOnMinusZero) && divisor < 0) ||
+      (instr->CheckFlag(HValue::kLeftCanBeMinInt) && divisor == -1)) {
+    result = AssignEnvironment(result);
+  }
+  return result;
 }
 
 
@@ -2015,11 +2015,8 @@ LInstruction* LChunkBuilder::DoReturn(HReturn* instr) {
 
 
 LInstruction* LChunkBuilder::DoSeqStringGetChar(HSeqStringGetChar* instr) {
-  // TODO(all): Use UseRegisterAtStart and UseRegisterOrConstantAtStart here.
-  // We cannot do it now because the debug code in the implementation changes
-  // temp.
-  LOperand* string = UseRegister(instr->string());
-  LOperand* index = UseRegisterOrConstant(instr->index());
+  LOperand* string = UseRegisterAtStart(instr->string());
+  LOperand* index = UseRegisterOrConstantAtStart(instr->index());
   LOperand* temp = TempRegister();
   LSeqStringGetChar* result =
       new(zone()) LSeqStringGetChar(string, index, temp);

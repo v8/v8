@@ -109,7 +109,6 @@ class LCodeGen;
   V(InstanceOfKnownGlobal)                      \
   V(InstructionGap)                             \
   V(Integer32ToDouble)                          \
-  V(Integer32ToSmi)                             \
   V(InvokeFunction)                             \
   V(IsConstructCallAndBranch)                   \
   V(IsObjectAndBranch)                          \
@@ -178,7 +177,6 @@ class LCodeGen;
   V(Typeof)                                     \
   V(TypeofIsAndBranch)                          \
   V(Uint32ToDouble)                             \
-  V(Uint32ToSmi)                                \
   V(UnknownOSRValue)                            \
   V(WrapReceiver)
 
@@ -837,13 +835,15 @@ class LMathFloor V8_FINAL : public LTemplateInstruction<1, 1, 0> {
 };
 
 
-class LMathRound V8_FINAL : public LTemplateInstruction<1, 1, 0> {
+class LMathRound V8_FINAL : public LTemplateInstruction<1, 1, 1> {
  public:
-  explicit LMathRound(LOperand* value) {
+  explicit LMathRound(LOperand* value, LOperand* temp) {
     inputs_[0] = value;
+    temps_[0] = temp;
   }
 
   LOperand* value() { return inputs_[0]; }
+  LOperand* temp() { return temps_[0]; }
 
   DECLARE_CONCRETE_INSTRUCTION(MathRound, "math-round")
   DECLARE_HYDROGEN_ACCESSOR(UnaryMathOperation)
@@ -1956,19 +1956,6 @@ class LInteger32ToDouble V8_FINAL : public LTemplateInstruction<1, 1, 0> {
 };
 
 
-class LInteger32ToSmi V8_FINAL : public LTemplateInstruction<1, 1, 0> {
- public:
-  explicit LInteger32ToSmi(LOperand* value) {
-    inputs_[0] = value;
-  }
-
-  LOperand* value() { return inputs_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(Integer32ToSmi, "int32-to-smi")
-  DECLARE_HYDROGEN_ACCESSOR(Change)
-};
-
-
 class LUint32ToDouble V8_FINAL : public LTemplateInstruction<1, 1, 1> {
  public:
   explicit LUint32ToDouble(LOperand* value, LOperand* temp) {
@@ -1980,19 +1967,6 @@ class LUint32ToDouble V8_FINAL : public LTemplateInstruction<1, 1, 1> {
   LOperand* temp() { return temps_[0]; }
 
   DECLARE_CONCRETE_INSTRUCTION(Uint32ToDouble, "uint32-to-double")
-};
-
-
-class LUint32ToSmi V8_FINAL : public LTemplateInstruction<1, 1, 0> {
- public:
-  explicit LUint32ToSmi(LOperand* value) {
-    inputs_[0] = value;
-  }
-
-  LOperand* value() { return inputs_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(Uint32ToSmi, "uint32-to-smi")
-  DECLARE_HYDROGEN_ACCESSOR(Change)
 };
 
 
@@ -2095,6 +2069,7 @@ class LSmiTag V8_FINAL : public LTemplateInstruction<1, 1, 0> {
   LOperand* value() { return inputs_[0]; }
 
   DECLARE_CONCRETE_INSTRUCTION(SmiTag, "smi-tag")
+  DECLARE_HYDROGEN_ACCESSOR(Change)
 };
 
 

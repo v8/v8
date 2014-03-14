@@ -175,9 +175,6 @@ class CompilationInfo {
     ASSERT(global_scope_ == NULL);
     global_scope_ = global_scope;
   }
-  Handle<FixedArray> feedback_vector() const {
-    return feedback_vector_;
-  }
   void SetCode(Handle<Code> code) { code_ = code; }
   void SetExtension(v8::Extension* extension) {
     ASSERT(!is_lazy());
@@ -405,9 +402,6 @@ class CompilationInfo {
   // The context of the caller for eval code, and the global context for a
   // global script. Will be a null handle otherwise.
   Handle<Context> context_;
-
-  // Used by codegen, ultimately kept rooted by the SharedFunctionInfo.
-  Handle<FixedArray> feedback_vector_;
 
   // Compilation mode flag and whether deoptimization is allowed.
   Mode mode_;

@@ -1082,7 +1082,7 @@ void LCodeGen::DoModByPowerOf2I(LModByPowerOf2I* instr) {
   int32_t mask = divisor < 0 ? -(divisor + 1) : (divisor - 1);
   Label dividend_is_not_negative, done;
 
-  if (hmod->left()->CanBeNegative()) {
+  if (hmod->CheckFlag(HValue::kLeftCanBeNegative)) {
     __ Branch(&dividend_is_not_negative, ge, dividend, Operand(zero_reg));
     // Note: The code below even works when right contains kMinInt.
     __ subu(dividend, zero_reg, dividend);
@@ -1195,39 +1195,48 @@ void LCodeGen::DoMultiplyAddD(LMultiplyAddD* instr) {
 
 void LCodeGen::DoFlooringDivByPowerOf2I(LFlooringDivByPowerOf2I* instr) {
   Register dividend = ToRegister(instr->dividend());
+  Register result = ToRegister(instr->result());
   int32_t divisor = instr->divisor();
-  ASSERT(dividend.is(ToRegister(instr->result())));
   Register scratch = scratch0();
+  ASSERT(!scratch.is(dividend));
 
   // If the divisor is positive, things are easy: There can be no deopts and we
   // can simply do an arithmetic right shift.
   if (divisor == 1) return;
   uint16_t shift = WhichPowerOf2Abs(divisor);
   if (divisor > 1) {
-    __ sra(dividend, dividend, shift);
+    __ sra(result, dividend, shift);
     return;
   }
 
   // If the divisor is negative, we have to negate and handle edge cases.
-  Label not_kmin_int, done;
-  __ Subu(scratch, zero_reg, dividend);
-  if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
-    DeoptimizeIf(eq, instr->environment(), scratch, Operand(zero_reg));
+  if (instr->hydrogen()->CheckFlag(HValue::kLeftCanBeMinInt)) {
+    __ Move(scratch, dividend);
   }
-  if (instr->hydrogen()->left()->RangeCanInclude(kMinInt)) {
+  __ Subu(result, zero_reg, dividend);
+  if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+    DeoptimizeIf(eq, instr->environment(), result, Operand(zero_reg));
+  }
+  if (instr->hydrogen()->CheckFlag(HValue::kLeftCanBeMinInt)) {
     // Note that we could emit branch-free code, but that would need one more
     // register.
-    __ Branch(&not_kmin_int, ne, dividend, Operand(kMinInt));
+
+    __ Xor(at, scratch, result);
     if (divisor == -1) {
-      DeoptimizeIf(al, instr->environment());
+      DeoptimizeIf(ge, instr->environment(), at, Operand(zero_reg));
+      __ sra(result, dividend, shift);
     } else {
-      __ li(dividend, Operand(kMinInt / divisor));
+      Label no_overflow, done;
+      __ Branch(&no_overflow, lt, at, Operand(zero_reg));
+      __ li(result, Operand(kMinInt / divisor));
       __ Branch(&done);
+      __ bind(&no_overflow);
+      __ sra(result, dividend, shift);
+      __ bind(&done);
     }
+  } else {
+    __ sra(result, dividend, shift);
   }
-  __ bind(&not_kmin_int);
-  __ sra(dividend, scratch, shift);
-  __ bind(&done);
 }
 
 
@@ -4456,22 +4465,6 @@ void LCodeGen::DoInteger32ToDouble(LInteger32ToDouble* instr) {
 }
 
 
-void LCodeGen::DoInteger32ToSmi(LInteger32ToSmi* instr) {
-  LOperand* input = instr->value();
-  LOperand* output = instr->result();
-  Register scratch = scratch0();
-
-  ASSERT(output->IsRegister());
-  if (!instr->hydrogen()->value()->HasRange() ||
-      !instr->hydrogen()->value()->range()->IsInSmiRange()) {
-    __ SmiTagCheckOverflow(ToRegister(output), ToRegister(input), scratch);
-    DeoptimizeIf(lt, instr->environment(), scratch, Operand(zero_reg));
-  } else {
-    __ SmiTag(ToRegister(output), ToRegister(input));
-  }
-}
-
-
 void LCodeGen::DoUint32ToDouble(LUint32ToDouble* instr) {
   LOperand* input = instr->value();
   LOperand* output = instr->result();
@@ -4479,19 +4472,6 @@ void LCodeGen::DoUint32ToDouble(LUint32ToDouble* instr) {
   FPURegister dbl_scratch = double_scratch0();
   __ mtc1(ToRegister(input), dbl_scratch);
   __ Cvt_d_uw(ToDoubleRegister(output), dbl_scratch, f22);
-}
-
-
-void LCodeGen::DoUint32ToSmi(LUint32ToSmi* instr) {
-  LOperand* input = instr->value();
-  LOperand* output = instr->result();
-  if (!instr->hydrogen()->value()->HasRange() ||
-      !instr->hydrogen()->value()->range()->IsInSmiRange()) {
-    Register scratch = scratch0();
-    __ And(scratch, ToRegister(input), Operand(0xc0000000));
-    DeoptimizeIf(ne, instr->environment(), scratch, Operand(zero_reg));
-  }
-  __ SmiTag(ToRegister(output), ToRegister(input));
 }
 
 
@@ -4675,8 +4655,21 @@ void LCodeGen::DoDeferredNumberTagD(LNumberTagD* instr) {
 
 
 void LCodeGen::DoSmiTag(LSmiTag* instr) {
-  ASSERT(!instr->hydrogen_value()->CheckFlag(HValue::kCanOverflow));
-  __ SmiTag(ToRegister(instr->result()), ToRegister(instr->value()));
+  HChange* hchange = instr->hydrogen();
+  Register input = ToRegister(instr->value());
+  Register output = ToRegister(instr->result());
+  if (hchange->CheckFlag(HValue::kCanOverflow) &&
+      hchange->value()->CheckFlag(HValue::kUint32)) {
+    __ And(at, input, Operand(0xc0000000));
+    DeoptimizeIf(ne, instr->environment(), at, Operand(zero_reg));
+  }
+  if (hchange->CheckFlag(HValue::kCanOverflow) &&
+      !hchange->value()->CheckFlag(HValue::kUint32)) {
+    __ SmiTagCheckOverflow(output, input, at);
+    DeoptimizeIf(lt, instr->environment(), at, Operand(zero_reg));
+  } else {
+    __ SmiTag(output, input);
+  }
 }
 
 

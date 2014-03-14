@@ -1549,11 +1549,9 @@ void ParserBase<Traits>::ObjectLiteralChecker::CheckProperty(
     bool* ok) {
   int old;
   if (property == Token::NUMBER) {
-    old = finder_.AddNumber(scanner()->literal_one_byte_string(), type);
-  } else if (scanner()->is_literal_one_byte()) {
-    old = finder_.AddAsciiSymbol(scanner()->literal_one_byte_string(), type);
+    old = scanner()->FindNumber(&finder_, type);
   } else {
-    old = finder_.AddUtf16Symbol(scanner()->literal_utf16_string(), type);
+    old = scanner()->FindSymbol(&finder_, type);
   }
   PropertyKind old_type = static_cast<PropertyKind>(old);
   if (HasConflict(old_type, type)) {

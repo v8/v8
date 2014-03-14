@@ -364,13 +364,24 @@ TEST(PreparsingObjectLiterals) {
 namespace v8 {
 namespace internal {
 
-void FakeWritingSymbolIdInPreParseData(i::CompleteParserRecorder* log,
-                                       int number) {
-  log->WriteNumber(number);
-  if (log->symbol_id_ < number + 1) {
-    log->symbol_id_ = number + 1;
+struct CompleteParserRecorderFriend {
+  static void FakeWritingSymbolIdInPreParseData(CompleteParserRecorder* log,
+                                                int number) {
+    log->WriteNumber(number);
+    if (log->symbol_id_ < number + 1) {
+      log->symbol_id_ = number + 1;
+    }
   }
-}
+  static int symbol_position(CompleteParserRecorder* log) {
+    return log->symbol_store_.size();
+  }
+  static int symbol_ids(CompleteParserRecorder* log) {
+    return log->symbol_id_;
+  }
+  static int function_position(CompleteParserRecorder* log) {
+    return log->function_store_.size();
+  }
+};
 
 }
 }
@@ -380,15 +391,16 @@ TEST(StoringNumbersInPreParseData) {
   // Symbol IDs are split into chunks of 7 bits for storing. This is a
   // regression test for a bug where a symbol id was incorrectly stored if some
   // of the chunks in the middle were all zeros.
+  typedef i::CompleteParserRecorderFriend F;
   i::CompleteParserRecorder log;
   for (int i = 0; i < 18; ++i) {
-    FakeWritingSymbolIdInPreParseData(&log, 1 << i);
+    F::FakeWritingSymbolIdInPreParseData(&log, 1 << i);
   }
   for (int i = 1; i < 18; ++i) {
-    FakeWritingSymbolIdInPreParseData(&log, (1 << i) + 1);
+    F::FakeWritingSymbolIdInPreParseData(&log, (1 << i) + 1);
   }
   for (int i = 6; i < 18; ++i) {
-    FakeWritingSymbolIdInPreParseData(&log, (3 << i) + (5 << (i - 6)));
+    F::FakeWritingSymbolIdInPreParseData(&log, (3 << i) + (5 << (i - 6)));
   }
   i::Vector<unsigned> store = log.ExtractData();
   i::ScriptDataImpl script_data(store);
@@ -795,6 +807,7 @@ void TestScanRegExp(const char* re_source, const char* expected) {
   i::Utf8ToUtf16CharacterStream stream(
        reinterpret_cast<const i::byte*>(re_source),
        static_cast<unsigned>(strlen(re_source)));
+  i::HandleScope scope(CcTest::i_isolate());
   i::Scanner scanner(CcTest::i_isolate()->unicode_cache());
   scanner.Initialize(&stream);
 
@@ -802,8 +815,12 @@ void TestScanRegExp(const char* re_source, const char* expected) {
   CHECK(start == i::Token::DIV || start == i::Token::ASSIGN_DIV);
   CHECK(scanner.ScanRegExpPattern(start == i::Token::ASSIGN_DIV));
   scanner.Next();  // Current token is now the regexp literal.
-  CHECK(scanner.is_literal_one_byte());
-  i::Vector<const char> actual = scanner.literal_one_byte_string();
+  i::Handle<i::String> val =
+      scanner.AllocateInternalizedString(CcTest::i_isolate());
+  i::DisallowHeapAllocation no_alloc;
+  i::String::FlatContent content = val->GetFlatContent();
+  CHECK(content.IsAscii());
+  i::Vector<const uint8_t> actual = content.ToOneByteVector();
   for (int i = 0; i < actual.length(); i++) {
     CHECK_NE('\0', expected[i]);
     CHECK_EQ(expected[i], actual[i]);
@@ -2003,6 +2020,7 @@ TEST(DontRegressPreParserDataSizes) {
   // Each function adds 5 elements to the preparse function data.
   const int kDataPerFunction = 5;
 
+  typedef i::CompleteParserRecorderFriend F;
   uintptr_t stack_limit = CcTest::i_isolate()->stack_guard()->real_climit();
   for (int i = 0; test_cases[i].program; i++) {
     const char* program = test_cases[i].program;
@@ -2018,21 +2036,22 @@ TEST(DontRegressPreParserDataSizes) {
     preparser.set_allow_natives_syntax(true);
     i::PreParser::PreParseResult result = preparser.PreParseProgram();
     CHECK_EQ(i::PreParser::kPreParseSuccess, result);
-    if (log.symbol_ids() != test_cases[i].symbols) {
+    if (F::symbol_ids(&log) != test_cases[i].symbols) {
       i::OS::Print(
           "Expected preparse data for program:\n"
           "\t%s\n"
           "to contain %d symbols, however, received %d symbols.\n",
-          program, test_cases[i].symbols, log.symbol_ids());
+          program, test_cases[i].symbols, F::symbol_ids(&log));
       CHECK(false);
     }
-    if (log.function_position() != test_cases[i].functions * kDataPerFunction) {
+    if (F::function_position(&log) !=
+          test_cases[i].functions * kDataPerFunction) {
       i::OS::Print(
           "Expected preparse data for program:\n"
           "\t%s\n"
           "to contain %d functions, however, received %d functions.\n",
           program, test_cases[i].functions,
-          log.function_position() / kDataPerFunction);
+          F::function_position(&log) / kDataPerFunction);
       CHECK(false);
     }
     i::ScriptDataImpl data(log.ExtractData());
@@ -2336,11 +2355,12 @@ TEST(TooManyArguments) {
   };
 
   using v8::internal::Code;
-  char statement[Code::kMaxArguments * 2];
+  char statement[Code::kMaxArguments * 2 + 1];
   for (int i = 0; i < Code::kMaxArguments; ++i) {
     statement[2 * i] = '0';
     statement[2 * i + 1] = ',';
   }
+  statement[Code::kMaxArguments * 2] = 0;
 
   const char* statement_data[] = {
     statement,
