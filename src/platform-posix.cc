@@ -583,6 +583,10 @@ Thread::~Thread() {
 }
 
 
+// Synchronizes thread creation
+static Mutex thread_creation_mutex_;
+
+
 static void SetThreadName(const char* name) {
 #if V8_OS_DRAGONFLYBSD || V8_OS_FREEBSD || V8_OS_OPENBSD
   pthread_set_name_np(pthread_self(), name);
@@ -612,10 +616,10 @@ static void SetThreadName(const char* name) {
 
 static void* ThreadEntry(void* arg) {
   Thread* thread = reinterpret_cast<Thread*>(arg);
-  // This is also initialized by the first argument to pthread_create() but we
-  // don't know which thread will run first (the original thread or the new
-  // one) so we initialize it here too.
-  thread->data()->thread_ = pthread_self();
+  // We take the lock here to make sure that pthread_create finished first since
+  // we don't know which thread will run first (the original thread or the new
+  // one).
+  { LockGuard<Mutex> lock_guard(&thread_creation_mutex_); }
   SetThreadName(thread->name());
   ASSERT(thread->data()->thread_ != kNoThread);
   thread->NotifyStartedAndRun();
@@ -642,7 +646,10 @@ void Thread::Start() {
     ASSERT_EQ(0, result);
   }
 #endif
-  result = pthread_create(&data_->thread_, &attr, ThreadEntry, this);
+  {
+    LockGuard<Mutex> lock_guard(&thread_creation_mutex_);
+    result = pthread_create(&data_->thread_, &attr, ThreadEntry, this);
+  }
   ASSERT_EQ(0, result);
   result = pthread_attr_destroy(&attr);
   ASSERT_EQ(0, result);
