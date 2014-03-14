@@ -1543,6 +1543,11 @@ function FrameMirror(break_id, index) {
 inherits(FrameMirror, Mirror);
 
 
+FrameMirror.prototype.details = function() {
+  return this.details_;
+};
+
+
 FrameMirror.prototype.index = function() {
   return this.index_;
 };
@@ -1962,6 +1967,11 @@ function ScopeMirror(frame, function, index, opt_details) {
   this.details_ = new ScopeDetails(frame, function, index, opt_details);
 }
 inherits(ScopeMirror, Mirror);
+
+
+ScopeMirror.prototype.details = function() {
+  return this.details_;
+};
 
 
 ScopeMirror.prototype.frameIndex = function() {
