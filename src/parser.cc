@@ -638,11 +638,6 @@ FunctionLiteral* ParserTraits::ParseFunctionLiteral(
 }
 
 
-Expression* ParserTraits::ParseYieldExpression(bool* ok) {
-  return parser_->ParseYieldExpression(ok);
-}
-
-
 Expression* ParserTraits::ParseConditionalExpression(bool accept_IN, bool* ok) {
   return parser_->ParseConditionalExpression(accept_IN, ok);
 }
@@ -2932,24 +2927,6 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
     loop->Initialize(init, cond, next, body);
     return loop;
   }
-}
-
-
-Expression* Parser::ParseYieldExpression(bool* ok) {
-  // YieldExpression ::
-  //   'yield' '*'? AssignmentExpression
-  int pos = peek_position();
-  Expect(Token::YIELD, CHECK_OK);
-  Yield::Kind kind =
-      Check(Token::MUL) ? Yield::DELEGATING : Yield::SUSPEND;
-  Expression* generator_object = factory()->NewVariableProxy(
-      function_state_->generator_object_variable());
-  Expression* expression = ParseAssignmentExpression(false, CHECK_OK);
-  Yield* yield = factory()->NewYield(generator_object, expression, kind, pos);
-  if (kind == Yield::DELEGATING) {
-    yield->set_index(function_state_->NextHandlerIndex());
-  }
-  return yield;
 }
 
 

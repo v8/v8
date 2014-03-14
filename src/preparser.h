@@ -384,6 +384,7 @@ class ParserBase : public Traits {
   typename Traits::Type::ExpressionList ParseArguments(bool* ok);
   typename Traits::Type::Expression ParseAssignmentExpression(bool accept_IN,
                                                               bool* ok);
+  typename Traits::Type::Expression ParseYieldExpression(bool* ok);
 
   // Used to detect duplicates in object literals. Each of the values
   // kGetterProperty, kSetterProperty and kValueProperty represents
@@ -574,6 +575,9 @@ class PreParserExpression {
   void* AsCall() const { return NULL; }
   void* AsCallNew() const { return NULL; }
 
+  // More dummy implementations of things PreParser doesn't need to track:
+  void set_index(int index) {}  // For YieldExpressions
+
  private:
   // First two/three bits are used as flags.
   // Bit 0 and 1 represent identifiers or strings literals, and are
@@ -700,6 +704,17 @@ class PreParserFactory {
                                     int pos) {
     return PreParserExpression::Default();
   }
+
+  PreParserExpression NewVariableProxy(void* generator_variable) {
+    return PreParserExpression::Default();
+  }
+
+  PreParserExpression NewYield(PreParserExpression generator_object,
+                               PreParserExpression expression,
+                               Yield::Kind yield_kind,
+                               int pos) {
+    return PreParserExpression::Default();
+  }
 };
 
 
@@ -722,6 +737,7 @@ class PreParserTraits {
     // Return types for traversing functions.
     typedef PreParserIdentifier Identifier;
     typedef PreParserExpression Expression;
+    typedef PreParserExpression YieldExpression;
     typedef PreParserExpression FunctionLiteral;
     typedef PreParserExpression ObjectLiteralProperty;
     typedef PreParserExpression Literal;
@@ -871,7 +887,6 @@ class PreParserTraits {
       int function_token_position,
       FunctionLiteral::FunctionType type,
       bool* ok);
-  PreParserExpression ParseYieldExpression(bool* ok);
   PreParserExpression ParseConditionalExpression(bool accept_IN, bool* ok);
 
  private:
@@ -1037,7 +1052,6 @@ class PreParser : public ParserBase<PreParserTraits> {
   Statement ParseThrowStatement(bool* ok);
   Statement ParseTryStatement(bool* ok);
   Statement ParseDebuggerStatement(bool* ok);
-  Expression ParseYieldExpression(bool* ok);
   Expression ParseConditionalExpression(bool accept_IN, bool* ok);
   Expression ParseBinaryExpression(int prec, bool accept_IN, bool* ok);
   Expression ParseUnaryExpression(bool* ok);
@@ -1652,6 +1666,28 @@ typename Traits::Type::Expression ParserBase<Traits>::ParseAssignmentExpression(
 
   return factory()->NewAssignment(op, expression, right, pos);
 }
+
+template <class Traits>
+typename Traits::Type::Expression ParserBase<Traits>::ParseYieldExpression(
+    bool* ok) {
+  // YieldExpression ::
+  //   'yield' '*'? AssignmentExpression
+  int pos = peek_position();
+  Expect(Token::YIELD, CHECK_OK);
+  Yield::Kind kind =
+      Check(Token::MUL) ? Yield::DELEGATING : Yield::SUSPEND;
+  typename Traits::Type::Expression generator_object =
+      factory()->NewVariableProxy(function_state_->generator_object_variable());
+  typename Traits::Type::Expression expression =
+      ParseAssignmentExpression(false, CHECK_OK);
+  typename Traits::Type::YieldExpression yield =
+      factory()->NewYield(generator_object, expression, kind, pos);
+  if (kind == Yield::DELEGATING) {
+    yield->set_index(function_state_->NextHandlerIndex());
+  }
+  return yield;
+}
+
 
 #undef CHECK_OK
 #undef CHECK_OK_CUSTOM

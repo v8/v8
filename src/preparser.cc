@@ -142,11 +142,6 @@ PreParserExpression PreParserTraits::ParseFunctionLiteral(
 }
 
 
-PreParserExpression PreParserTraits::ParseYieldExpression(bool* ok) {
-  return pre_parser_->ParseYieldExpression(ok);
-}
-
-
 PreParserExpression PreParserTraits::ParseConditionalExpression(bool accept_IN,
                                                                 bool* ok) {
   return pre_parser_->ParseConditionalExpression(accept_IN, ok);
@@ -842,19 +837,6 @@ PreParser::Statement PreParser::ParseDebuggerStatement(bool* ok) {
   ((void)0
 #define DUMMY )  // to make indentation work
 #undef DUMMY
-
-
-// Precedence = 3
-PreParser::Expression PreParser::ParseYieldExpression(bool* ok) {
-  // YieldExpression ::
-  //   'yield' '*'? AssignmentExpression
-  Consume(Token::YIELD);
-  Check(Token::MUL);
-
-  ParseAssignmentExpression(false, CHECK_OK);
-
-  return Expression::Default();
-}
 
 
 // Precedence = 3

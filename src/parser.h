@@ -420,6 +420,7 @@ class ParserTraits {
     // Return types for traversing functions.
     typedef Handle<String> Identifier;
     typedef v8::internal::Expression* Expression;
+    typedef Yield* YieldExpression;
     typedef v8::internal::FunctionLiteral* FunctionLiteral;
     typedef v8::internal::Literal* Literal;
     typedef ObjectLiteral::Property* ObjectLiteralProperty;
@@ -556,7 +557,6 @@ class ParserTraits {
       int function_token_position,
       FunctionLiteral::FunctionType type,
       bool* ok);
-  Expression* ParseYieldExpression(bool* ok);
   Expression* ParseConditionalExpression(bool accept_IN, bool* ok);
 
  private:
@@ -700,7 +700,6 @@ class Parser : public ParserBase<ParserTraits> {
   // Support for hamony block scoped bindings.
   Block* ParseScopedBlock(ZoneStringList* labels, bool* ok);
 
-  Expression* ParseYieldExpression(bool* ok);
   Expression* ParseConditionalExpression(bool accept_IN, bool* ok);
   Expression* ParseBinaryExpression(int prec, bool accept_IN, bool* ok);
   Expression* ParseUnaryExpression(bool* ok);
