@@ -2620,6 +2620,8 @@ Map* Map::FindUpdatedMap(int verbatim,
               current->instance_descriptors()->GetValue(i)) {
         return NULL;
       }
+    } else if (target_details.type() == CALLBACKS) {
+      return NULL;
     }
   }
 
