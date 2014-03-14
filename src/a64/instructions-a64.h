@@ -119,14 +119,12 @@ enum Reg31Mode {
 
 class Instruction {
  public:
-  Instr InstructionBits() const {
-    Instr bits;
-    memcpy(&bits, this, sizeof(bits));
-    return bits;
+  V8_INLINE Instr InstructionBits() const {
+    return *reinterpret_cast<const Instr*>(this);
   }
 
-  void SetInstructionBits(Instr new_instr) {
-    memcpy(this, &new_instr, sizeof(new_instr));
+  V8_INLINE void SetInstructionBits(Instr new_instr) {
+    *reinterpret_cast<Instr*>(this) = new_instr;
   }
 
   int Bit(int pos) const {
@@ -367,28 +365,6 @@ class Instruction {
   uint8_t* LiteralAddress() {
     int offset = ImmLLiteral() << kLiteralEntrySizeLog2;
     return reinterpret_cast<uint8_t*>(this) + offset;
-  }
-
-  uint32_t Literal32() {
-    uint32_t literal;
-    memcpy(&literal, LiteralAddress(), sizeof(literal));
-
-    return literal;
-  }
-
-  uint64_t Literal64() {
-    uint64_t literal;
-    memcpy(&literal, LiteralAddress(), sizeof(literal));
-
-    return literal;
-  }
-
-  float LiteralFP32() {
-    return rawbits_to_float(Literal32());
-  }
-
-  double LiteralFP64() {
-    return rawbits_to_double(Literal64());
   }
 
   Instruction* NextInstruction() {
