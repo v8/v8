@@ -353,8 +353,6 @@ typedef List<HeapObject*> DebugObjectCache;
   V(Relocatable*, relocatable_top, NULL)                                       \
   V(DebugObjectCache*, string_stream_debug_object_cache, NULL)                 \
   V(Object*, string_stream_current_security_token, NULL)                       \
-  /* TODO(isolates): Release this on destruction? */                           \
-  V(int*, irregexp_interpreter_backtrack_stack_cache, NULL)                    \
   /* Serializer state. */                                                      \
   V(ExternalReferenceTable*, external_reference_table, NULL)                   \
   /* AstNode state. */                                                         \

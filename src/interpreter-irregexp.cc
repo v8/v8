@@ -159,24 +159,11 @@ static int32_t Load16Aligned(const byte* pc) {
 class BacktrackStack {
  public:
   explicit BacktrackStack(Isolate* isolate) : isolate_(isolate) {
-    if (isolate->irregexp_interpreter_backtrack_stack_cache() != NULL) {
-      // If the cache is not empty reuse the previously allocated stack.
-      data_ = isolate->irregexp_interpreter_backtrack_stack_cache();
-      isolate->set_irregexp_interpreter_backtrack_stack_cache(NULL);
-    } else {
-      // Cache was empty. Allocate a new backtrack stack.
-      data_ = NewArray<int>(kBacktrackStackSize);
-    }
+    data_ = NewArray<int>(kBacktrackStackSize);
   }
 
   ~BacktrackStack() {
-    if (isolate_->irregexp_interpreter_backtrack_stack_cache() == NULL) {
-      // The cache is empty. Keep this backtrack stack around.
-      isolate_->set_irregexp_interpreter_backtrack_stack_cache(data_);
-    } else {
-      // A backtrack stack was already cached, just release this one.
-      DeleteArray(data_);
-    }
+    DeleteArray(data_);
   }
 
   int* data() const { return data_; }
