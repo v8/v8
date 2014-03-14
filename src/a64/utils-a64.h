@@ -70,7 +70,7 @@ static inline double rawbits_to_double(uint64_t bits) {
 }
 
 
-// Bits counting.
+// Bit counting.
 int CountLeadingZeros(uint64_t value, int width);
 int CountLeadingSignBits(int64_t value, int width);
 int CountTrailingZeros(uint64_t value, int width);
@@ -80,9 +80,8 @@ int MaskToBit(uint64_t mask);
 
 // NaN tests.
 inline bool IsSignallingNaN(double num) {
-  const uint64_t kFP64QuietNaNMask = 0x0008000000000000UL;
   uint64_t raw = double_to_rawbits(num);
-  if (std::isnan(num) && ((raw & kFP64QuietNaNMask) == 0)) {
+  if (std::isnan(num) && ((raw & kDQuietNanMask) == 0)) {
     return true;
   }
   return false;
@@ -90,9 +89,8 @@ inline bool IsSignallingNaN(double num) {
 
 
 inline bool IsSignallingNaN(float num) {
-  const uint64_t kFP32QuietNaNMask = 0x00400000UL;
   uint32_t raw = float_to_rawbits(num);
-  if (std::isnan(num) && ((raw & kFP32QuietNaNMask) == 0)) {
+  if (std::isnan(num) && ((raw & kSQuietNanMask) == 0)) {
     return true;
   }
   return false;
@@ -102,6 +100,30 @@ inline bool IsSignallingNaN(float num) {
 template <typename T>
 inline bool IsQuietNaN(T num) {
   return std::isnan(num) && !IsSignallingNaN(num);
+}
+
+
+// Convert the NaN in 'num' to a quiet NaN.
+inline double ToQuietNaN(double num) {
+  ASSERT(isnan(num));
+  return rawbits_to_double(double_to_rawbits(num) | kDQuietNanMask);
+}
+
+
+inline float ToQuietNaN(float num) {
+  ASSERT(isnan(num));
+  return rawbits_to_float(float_to_rawbits(num) | kSQuietNanMask);
+}
+
+
+// Fused multiply-add.
+inline double FusedMultiplyAdd(double op1, double op2, double a) {
+  return fma(op1, op2, a);
+}
+
+
+inline float FusedMultiplyAdd(float op1, float op2, float a) {
+  return fmaf(op1, op2, a);
 }
 
 } }  // namespace v8::internal

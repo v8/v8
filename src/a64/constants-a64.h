@@ -85,12 +85,18 @@ const int64_t kSRegMask = 0x00000000ffffffffL;
 const int64_t kDRegMask = 0xffffffffffffffffL;
 // TODO(all) check if the expression below works on all compilers or if it
 // triggers an overflow error.
-const int64_t kDSignMask = 0x1L << 63;
 const int64_t kDSignBit = 63;
-const int64_t kXSignMask = 0x1L << 63;
+const int64_t kDSignMask = 0x1L << kDSignBit;
+const int64_t kSSignBit = 31;
+const int64_t kSSignMask = 0x1L << kSSignBit;
 const int64_t kXSignBit = 63;
-const int64_t kWSignMask = 0x1L << 31;
+const int64_t kXSignMask = 0x1L << kXSignBit;
 const int64_t kWSignBit = 31;
+const int64_t kWSignMask = 0x1L << kWSignBit;
+const int64_t kDQuietNanBit = 51;
+const int64_t kDQuietNanMask = 0x1L << kDQuietNanBit;
+const int64_t kSQuietNanBit = 22;
+const int64_t kSQuietNanMask = 0x1L << kSQuietNanBit;
 const int64_t kByteMask = 0xffL;
 const int64_t kHalfWordMask = 0xffffL;
 const int64_t kWordMask = 0xffffffffL;
