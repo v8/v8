@@ -4915,31 +4915,35 @@ TEST(fadd) {
   SETUP();
 
   START();
-  __ Fmov(s13, -0.0);
-  __ Fmov(s14, kFP32PositiveInfinity);
-  __ Fmov(s15, kFP32NegativeInfinity);
-  __ Fmov(s16, 3.25);
-  __ Fmov(s17, 1.0);
-  __ Fmov(s18, 0);
+  __ Fmov(s14, -0.0f);
+  __ Fmov(s15, kFP32PositiveInfinity);
+  __ Fmov(s16, kFP32NegativeInfinity);
+  __ Fmov(s17, 3.25f);
+  __ Fmov(s18, 1.0f);
+  __ Fmov(s19, 0.0f);
 
   __ Fmov(d26, -0.0);
   __ Fmov(d27, kFP64PositiveInfinity);
   __ Fmov(d28, kFP64NegativeInfinity);
-  __ Fmov(d29, 0);
+  __ Fmov(d29, 0.0);
   __ Fmov(d30, -2.0);
   __ Fmov(d31, 2.25);
 
-  __ Fadd(s0, s16, s17);
-  __ Fadd(s1, s17, s18);
-  __ Fadd(s2, s13, s17);
-  __ Fadd(s3, s14, s17);
-  __ Fadd(s4, s15, s17);
+  __ Fadd(s0, s17, s18);
+  __ Fadd(s1, s18, s19);
+  __ Fadd(s2, s14, s18);
+  __ Fadd(s3, s15, s18);
+  __ Fadd(s4, s16, s18);
+  __ Fadd(s5, s15, s16);
+  __ Fadd(s6, s16, s15);
 
-  __ Fadd(d5, d30, d31);
-  __ Fadd(d6, d29, d31);
-  __ Fadd(d7, d26, d31);
-  __ Fadd(d8, d27, d31);
-  __ Fadd(d9, d28, d31);
+  __ Fadd(d7, d30, d31);
+  __ Fadd(d8, d29, d31);
+  __ Fadd(d9, d26, d31);
+  __ Fadd(d10, d27, d31);
+  __ Fadd(d11, d28, d31);
+  __ Fadd(d12, d27, d28);
+  __ Fadd(d13, d28, d27);
   END();
 
   RUN();
@@ -4949,11 +4953,15 @@ TEST(fadd) {
   ASSERT_EQUAL_FP32(1.0, s2);
   ASSERT_EQUAL_FP32(kFP32PositiveInfinity, s3);
   ASSERT_EQUAL_FP32(kFP32NegativeInfinity, s4);
-  ASSERT_EQUAL_FP64(0.25, d5);
-  ASSERT_EQUAL_FP64(2.25, d6);
-  ASSERT_EQUAL_FP64(2.25, d7);
-  ASSERT_EQUAL_FP64(kFP64PositiveInfinity, d8);
-  ASSERT_EQUAL_FP64(kFP64NegativeInfinity, d9);
+  ASSERT_EQUAL_FP32(kFP32DefaultNaN, s5);
+  ASSERT_EQUAL_FP32(kFP32DefaultNaN, s6);
+  ASSERT_EQUAL_FP64(0.25, d7);
+  ASSERT_EQUAL_FP64(2.25, d8);
+  ASSERT_EQUAL_FP64(2.25, d9);
+  ASSERT_EQUAL_FP64(kFP64PositiveInfinity, d10);
+  ASSERT_EQUAL_FP64(kFP64NegativeInfinity, d11);
+  ASSERT_EQUAL_FP64(kFP64DefaultNaN, d12);
+  ASSERT_EQUAL_FP64(kFP64DefaultNaN, d13);
 
   TEARDOWN();
 }
@@ -4964,31 +4972,35 @@ TEST(fsub) {
   SETUP();
 
   START();
-  __ Fmov(s13, -0.0);
-  __ Fmov(s14, kFP32PositiveInfinity);
-  __ Fmov(s15, kFP32NegativeInfinity);
-  __ Fmov(s16, 3.25);
-  __ Fmov(s17, 1.0);
-  __ Fmov(s18, 0);
+  __ Fmov(s14, -0.0f);
+  __ Fmov(s15, kFP32PositiveInfinity);
+  __ Fmov(s16, kFP32NegativeInfinity);
+  __ Fmov(s17, 3.25f);
+  __ Fmov(s18, 1.0f);
+  __ Fmov(s19, 0.0f);
 
   __ Fmov(d26, -0.0);
   __ Fmov(d27, kFP64PositiveInfinity);
   __ Fmov(d28, kFP64NegativeInfinity);
-  __ Fmov(d29, 0);
+  __ Fmov(d29, 0.0);
   __ Fmov(d30, -2.0);
   __ Fmov(d31, 2.25);
 
-  __ Fsub(s0, s16, s17);
-  __ Fsub(s1, s17, s18);
-  __ Fsub(s2, s13, s17);
-  __ Fsub(s3, s17, s14);
-  __ Fsub(s4, s17, s15);
+  __ Fsub(s0, s17, s18);
+  __ Fsub(s1, s18, s19);
+  __ Fsub(s2, s14, s18);
+  __ Fsub(s3, s18, s15);
+  __ Fsub(s4, s18, s16);
+  __ Fsub(s5, s15, s15);
+  __ Fsub(s6, s16, s16);
 
-  __ Fsub(d5, d30, d31);
-  __ Fsub(d6, d29, d31);
-  __ Fsub(d7, d26, d31);
-  __ Fsub(d8, d31, d27);
-  __ Fsub(d9, d31, d28);
+  __ Fsub(d7, d30, d31);
+  __ Fsub(d8, d29, d31);
+  __ Fsub(d9, d26, d31);
+  __ Fsub(d10, d31, d27);
+  __ Fsub(d11, d31, d28);
+  __ Fsub(d12, d27, d27);
+  __ Fsub(d13, d28, d28);
   END();
 
   RUN();
@@ -4998,11 +5010,15 @@ TEST(fsub) {
   ASSERT_EQUAL_FP32(-1.0, s2);
   ASSERT_EQUAL_FP32(kFP32NegativeInfinity, s3);
   ASSERT_EQUAL_FP32(kFP32PositiveInfinity, s4);
-  ASSERT_EQUAL_FP64(-4.25, d5);
-  ASSERT_EQUAL_FP64(-2.25, d6);
-  ASSERT_EQUAL_FP64(-2.25, d7);
-  ASSERT_EQUAL_FP64(kFP64NegativeInfinity, d8);
-  ASSERT_EQUAL_FP64(kFP64PositiveInfinity, d9);
+  ASSERT_EQUAL_FP32(kFP32DefaultNaN, s5);
+  ASSERT_EQUAL_FP32(kFP32DefaultNaN, s6);
+  ASSERT_EQUAL_FP64(-4.25, d7);
+  ASSERT_EQUAL_FP64(-2.25, d8);
+  ASSERT_EQUAL_FP64(-2.25, d9);
+  ASSERT_EQUAL_FP64(kFP64NegativeInfinity, d10);
+  ASSERT_EQUAL_FP64(kFP64PositiveInfinity, d11);
+  ASSERT_EQUAL_FP64(kFP64DefaultNaN, d12);
+  ASSERT_EQUAL_FP64(kFP64DefaultNaN, d13);
 
   TEARDOWN();
 }
@@ -5013,32 +5029,36 @@ TEST(fmul) {
   SETUP();
 
   START();
-  __ Fmov(s13, -0.0);
-  __ Fmov(s14, kFP32PositiveInfinity);
-  __ Fmov(s15, kFP32NegativeInfinity);
-  __ Fmov(s16, 3.25);
-  __ Fmov(s17, 2.0);
-  __ Fmov(s18, 0);
-  __ Fmov(s19, -2.0);
+  __ Fmov(s14, -0.0f);
+  __ Fmov(s15, kFP32PositiveInfinity);
+  __ Fmov(s16, kFP32NegativeInfinity);
+  __ Fmov(s17, 3.25f);
+  __ Fmov(s18, 2.0f);
+  __ Fmov(s19, 0.0f);
+  __ Fmov(s20, -2.0f);
 
   __ Fmov(d26, -0.0);
   __ Fmov(d27, kFP64PositiveInfinity);
   __ Fmov(d28, kFP64NegativeInfinity);
-  __ Fmov(d29, 0);
+  __ Fmov(d29, 0.0);
   __ Fmov(d30, -2.0);
   __ Fmov(d31, 2.25);
 
-  __ Fmul(s0, s16, s17);
-  __ Fmul(s1, s17, s18);
-  __ Fmul(s2, s13, s13);
-  __ Fmul(s3, s14, s19);
-  __ Fmul(s4, s15, s19);
+  __ Fmul(s0, s17, s18);
+  __ Fmul(s1, s18, s19);
+  __ Fmul(s2, s14, s14);
+  __ Fmul(s3, s15, s20);
+  __ Fmul(s4, s16, s20);
+  __ Fmul(s5, s15, s19);
+  __ Fmul(s6, s19, s16);
 
-  __ Fmul(d5, d30, d31);
-  __ Fmul(d6, d29, d31);
-  __ Fmul(d7, d26, d26);
-  __ Fmul(d8, d27, d30);
-  __ Fmul(d9, d28, d30);
+  __ Fmul(d7, d30, d31);
+  __ Fmul(d8, d29, d31);
+  __ Fmul(d9, d26, d26);
+  __ Fmul(d10, d27, d30);
+  __ Fmul(d11, d28, d30);
+  __ Fmul(d12, d27, d29);
+  __ Fmul(d13, d29, d28);
   END();
 
   RUN();
@@ -5048,18 +5068,23 @@ TEST(fmul) {
   ASSERT_EQUAL_FP32(0.0, s2);
   ASSERT_EQUAL_FP32(kFP32NegativeInfinity, s3);
   ASSERT_EQUAL_FP32(kFP32PositiveInfinity, s4);
-  ASSERT_EQUAL_FP64(-4.5, d5);
-  ASSERT_EQUAL_FP64(0.0, d6);
-  ASSERT_EQUAL_FP64(0.0, d7);
-  ASSERT_EQUAL_FP64(kFP64NegativeInfinity, d8);
-  ASSERT_EQUAL_FP64(kFP64PositiveInfinity, d9);
+  ASSERT_EQUAL_FP32(kFP32DefaultNaN, s5);
+  ASSERT_EQUAL_FP32(kFP32DefaultNaN, s6);
+  ASSERT_EQUAL_FP64(-4.5, d7);
+  ASSERT_EQUAL_FP64(0.0, d8);
+  ASSERT_EQUAL_FP64(0.0, d9);
+  ASSERT_EQUAL_FP64(kFP64NegativeInfinity, d10);
+  ASSERT_EQUAL_FP64(kFP64PositiveInfinity, d11);
+  ASSERT_EQUAL_FP64(kFP64DefaultNaN, d12);
+  ASSERT_EQUAL_FP64(kFP64DefaultNaN, d13);
 
   TEARDOWN();
 }
 
 
-static void FmaddFmsubDoubleHelper(double n, double m, double a,
-                                   double fmadd, double fmsub) {
+static void FmaddFmsubHelper(double n, double m, double a,
+                             double fmadd, double fmsub,
+                             double fnmadd, double fnmsub) {
   SETUP();
   START();
 
@@ -5076,8 +5101,8 @@ static void FmaddFmsubDoubleHelper(double n, double m, double a,
 
   ASSERT_EQUAL_FP64(fmadd, d28);
   ASSERT_EQUAL_FP64(fmsub, d29);
-  ASSERT_EQUAL_FP64(-fmadd, d30);
-  ASSERT_EQUAL_FP64(-fmsub, d31);
+  ASSERT_EQUAL_FP64(fnmadd, d30);
+  ASSERT_EQUAL_FP64(fnmsub, d31);
 
   TEARDOWN();
 }
@@ -5085,105 +5110,67 @@ static void FmaddFmsubDoubleHelper(double n, double m, double a,
 
 TEST(fmadd_fmsub_double) {
   INIT_V8();
-  double inputs[] = {
-    // Normal numbers, including -0.0.
-    DBL_MAX, DBL_MIN, 3.25, 2.0, 0.0,
-    -DBL_MAX, -DBL_MIN, -3.25, -2.0, -0.0,
-    // Infinities.
-    kFP64NegativeInfinity, kFP64PositiveInfinity,
-    // Subnormal numbers.
-    rawbits_to_double(0x000fffffffffffff),
-    rawbits_to_double(0x0000000000000001),
-    rawbits_to_double(0x000123456789abcd),
-    -rawbits_to_double(0x000fffffffffffff),
-    -rawbits_to_double(0x0000000000000001),
-    -rawbits_to_double(0x000123456789abcd),
-    // NaN.
-    kFP64QuietNaN,
-    -kFP64QuietNaN,
-  };
-  const int count = sizeof(inputs) / sizeof(inputs[0]);
 
-  for (int in = 0; in < count; in++) {
-    double n = inputs[in];
-    for (int im = 0; im < count; im++) {
-      double m = inputs[im];
-      for (int ia = 0; ia < count; ia++) {
-        double a = inputs[ia];
-        double fmadd = fma(n, m, a);
-        double fmsub = fma(-n, m, a);
+  // It's hard to check the result of fused operations because the only way to
+  // calculate the result is using fma, which is what the simulator uses anyway.
+  // TODO(jbramley): Add tests to check behaviour against a hardware trace.
 
-        FmaddFmsubDoubleHelper(n, m, a, fmadd, fmsub);
-      }
-    }
-  }
+  // Basic operation.
+  FmaddFmsubHelper(1.0, 2.0, 3.0, 5.0, 1.0, -5.0, -1.0);
+  FmaddFmsubHelper(-1.0, 2.0, 3.0, 1.0, 5.0, -1.0, -5.0);
+
+  // Check the sign of exact zeroes.
+  //               n     m     a     fmadd  fmsub  fnmadd fnmsub
+  FmaddFmsubHelper(-0.0, +0.0, -0.0, -0.0,  +0.0,  +0.0,  +0.0);
+  FmaddFmsubHelper(+0.0, +0.0, -0.0, +0.0,  -0.0,  +0.0,  +0.0);
+  FmaddFmsubHelper(+0.0, +0.0, +0.0, +0.0,  +0.0,  -0.0,  +0.0);
+  FmaddFmsubHelper(-0.0, +0.0, +0.0, +0.0,  +0.0,  +0.0,  -0.0);
+  FmaddFmsubHelper(+0.0, -0.0, -0.0, -0.0,  +0.0,  +0.0,  +0.0);
+  FmaddFmsubHelper(-0.0, -0.0, -0.0, +0.0,  -0.0,  +0.0,  +0.0);
+  FmaddFmsubHelper(-0.0, -0.0, +0.0, +0.0,  +0.0,  -0.0,  +0.0);
+  FmaddFmsubHelper(+0.0, -0.0, +0.0, +0.0,  +0.0,  +0.0,  -0.0);
+
+  // Check NaN generation.
+  FmaddFmsubHelper(kFP64PositiveInfinity, 0.0, 42.0,
+                   kFP64DefaultNaN, kFP64DefaultNaN,
+                   kFP64DefaultNaN, kFP64DefaultNaN);
+  FmaddFmsubHelper(0.0, kFP64PositiveInfinity, 42.0,
+                   kFP64DefaultNaN, kFP64DefaultNaN,
+                   kFP64DefaultNaN, kFP64DefaultNaN);
+  FmaddFmsubHelper(kFP64PositiveInfinity, 1.0, kFP64PositiveInfinity,
+                   kFP64PositiveInfinity,   //  inf + ( inf * 1) = inf
+                   kFP64DefaultNaN,         //  inf + (-inf * 1) = NaN
+                   kFP64NegativeInfinity,   // -inf + (-inf * 1) = -inf
+                   kFP64DefaultNaN);        // -inf + ( inf * 1) = NaN
+  FmaddFmsubHelper(kFP64NegativeInfinity, 1.0, kFP64PositiveInfinity,
+                   kFP64DefaultNaN,         //  inf + (-inf * 1) = NaN
+                   kFP64PositiveInfinity,   //  inf + ( inf * 1) = inf
+                   kFP64DefaultNaN,         // -inf + ( inf * 1) = NaN
+                   kFP64NegativeInfinity);  // -inf + (-inf * 1) = -inf
 }
 
 
-TEST(fmadd_fmsub_double_rounding) {
-  INIT_V8();
-  // Make sure we run plenty of tests where an intermediate rounding stage would
-  // produce an incorrect result.
-  const int limit = 1000;
-  int count_fmadd = 0;
-  int count_fmsub = 0;
-
-  uint16_t seed[3] = {42, 43, 44};
-  seed48(seed);
-
-  while ((count_fmadd < limit) || (count_fmsub < limit)) {
-    double n, m, a;
-    uint32_t r[2];
-    ASSERT(sizeof(r) == sizeof(n));
-
-    r[0] = mrand48();
-    r[1] = mrand48();
-    memcpy(&n, r, sizeof(r));
-    r[0] = mrand48();
-    r[1] = mrand48();
-    memcpy(&m, r, sizeof(r));
-    r[0] = mrand48();
-    r[1] = mrand48();
-    memcpy(&a, r, sizeof(r));
-
-    if (!std::isfinite(a) || !std::isfinite(n) || !std::isfinite(m)) {
-      continue;
-    }
-
-    // Calculate the expected results.
-    double fmadd = fma(n, m, a);
-    double fmsub = fma(-n, m, a);
-
-    bool test_fmadd = (fmadd != (a + n * m));
-    bool test_fmsub = (fmsub != (a - n * m));
-
-    // If rounding would produce a different result, increment the test count.
-    count_fmadd += test_fmadd;
-    count_fmsub += test_fmsub;
-
-    if (test_fmadd || test_fmsub) {
-      FmaddFmsubDoubleHelper(n, m, a, fmadd, fmsub);
-    }
-  }
-}
-
-
-static void FmaddFmsubFloatHelper(float n, float m, float a,
-                                  float fmadd, float fmsub) {
+static void FmaddFmsubHelper(float n, float m, float a,
+                             float fmadd, float fmsub,
+                             float fnmadd, float fnmsub) {
   SETUP();
   START();
 
   __ Fmov(s0, n);
   __ Fmov(s1, m);
   __ Fmov(s2, a);
-  __ Fmadd(s30, s0, s1, s2);
-  __ Fmsub(s31, s0, s1, s2);
+  __ Fmadd(s28, s0, s1, s2);
+  __ Fmsub(s29, s0, s1, s2);
+  __ Fnmadd(s30, s0, s1, s2);
+  __ Fnmsub(s31, s0, s1, s2);
 
   END();
   RUN();
 
-  ASSERT_EQUAL_FP32(fmadd, s30);
-  ASSERT_EQUAL_FP32(fmsub, s31);
+  ASSERT_EQUAL_FP32(fmadd, s28);
+  ASSERT_EQUAL_FP32(fmsub, s29);
+  ASSERT_EQUAL_FP32(fnmadd, s30);
+  ASSERT_EQUAL_FP32(fnmsub, s31);
 
   TEARDOWN();
 }
@@ -5191,83 +5178,188 @@ static void FmaddFmsubFloatHelper(float n, float m, float a,
 
 TEST(fmadd_fmsub_float) {
   INIT_V8();
-  float inputs[] = {
-    // Normal numbers, including -0.0f.
-    FLT_MAX, FLT_MIN, 3.25f, 2.0f, 0.0f,
-    -FLT_MAX, -FLT_MIN, -3.25f, -2.0f, -0.0f,
-    // Infinities.
-    kFP32NegativeInfinity, kFP32PositiveInfinity,
-    // Subnormal numbers.
-    rawbits_to_float(0x07ffffff),
-    rawbits_to_float(0x00000001),
-    rawbits_to_float(0x01234567),
-    -rawbits_to_float(0x07ffffff),
-    -rawbits_to_float(0x00000001),
-    -rawbits_to_float(0x01234567),
-    // NaN.
-    kFP32QuietNaN,
-    -kFP32QuietNaN,
-  };
-  const int count = sizeof(inputs) / sizeof(inputs[0]);
+  // It's hard to check the result of fused operations because the only way to
+  // calculate the result is using fma, which is what the simulator uses anyway.
+  // TODO(jbramley): Add tests to check behaviour against a hardware trace.
 
-  for (int in = 0; in < count; in++) {
-    float n = inputs[in];
-    for (int im = 0; im < count; im++) {
-      float m = inputs[im];
-      for (int ia = 0; ia < count; ia++) {
-        float a = inputs[ia];
-        float fmadd = fmaf(n, m, a);
-        float fmsub = fmaf(-n, m, a);
+  // Basic operation.
+  FmaddFmsubHelper(1.0f, 2.0f, 3.0f, 5.0f, 1.0f, -5.0f, -1.0f);
+  FmaddFmsubHelper(-1.0f, 2.0f, 3.0f, 1.0f, 5.0f, -1.0f, -5.0f);
 
-        FmaddFmsubFloatHelper(n, m, a, fmadd, fmsub);
-      }
-    }
-  }
+  // Check the sign of exact zeroes.
+  //               n      m      a      fmadd  fmsub  fnmadd fnmsub
+  FmaddFmsubHelper(-0.0f, +0.0f, -0.0f, -0.0f, +0.0f, +0.0f, +0.0f);
+  FmaddFmsubHelper(+0.0f, +0.0f, -0.0f, +0.0f, -0.0f, +0.0f, +0.0f);
+  FmaddFmsubHelper(+0.0f, +0.0f, +0.0f, +0.0f, +0.0f, -0.0f, +0.0f);
+  FmaddFmsubHelper(-0.0f, +0.0f, +0.0f, +0.0f, +0.0f, +0.0f, -0.0f);
+  FmaddFmsubHelper(+0.0f, -0.0f, -0.0f, -0.0f, +0.0f, +0.0f, +0.0f);
+  FmaddFmsubHelper(-0.0f, -0.0f, -0.0f, +0.0f, -0.0f, +0.0f, +0.0f);
+  FmaddFmsubHelper(-0.0f, -0.0f, +0.0f, +0.0f, +0.0f, -0.0f, +0.0f);
+  FmaddFmsubHelper(+0.0f, -0.0f, +0.0f, +0.0f, +0.0f, +0.0f, -0.0f);
+
+  // Check NaN generation.
+  FmaddFmsubHelper(kFP32PositiveInfinity, 0.0f, 42.0f,
+                   kFP32DefaultNaN, kFP32DefaultNaN,
+                   kFP32DefaultNaN, kFP32DefaultNaN);
+  FmaddFmsubHelper(0.0f, kFP32PositiveInfinity, 42.0f,
+                   kFP32DefaultNaN, kFP32DefaultNaN,
+                   kFP32DefaultNaN, kFP32DefaultNaN);
+  FmaddFmsubHelper(kFP32PositiveInfinity, 1.0f, kFP32PositiveInfinity,
+                   kFP32PositiveInfinity,   //  inf + ( inf * 1) = inf
+                   kFP32DefaultNaN,         //  inf + (-inf * 1) = NaN
+                   kFP32NegativeInfinity,   // -inf + (-inf * 1) = -inf
+                   kFP32DefaultNaN);        // -inf + ( inf * 1) = NaN
+  FmaddFmsubHelper(kFP32NegativeInfinity, 1.0f, kFP32PositiveInfinity,
+                   kFP32DefaultNaN,         //  inf + (-inf * 1) = NaN
+                   kFP32PositiveInfinity,   //  inf + ( inf * 1) = inf
+                   kFP32DefaultNaN,         // -inf + ( inf * 1) = NaN
+                   kFP32NegativeInfinity);  // -inf + (-inf * 1) = -inf
 }
 
 
-TEST(fmadd_fmsub_float_rounding) {
+TEST(fmadd_fmsub_double_nans) {
   INIT_V8();
-  // Make sure we run plenty of tests where an intermediate rounding stage would
-  // produce an incorrect result.
-  const int limit = 1000;
-  int count_fmadd = 0;
-  int count_fmsub = 0;
+  // Make sure that NaN propagation works correctly.
+  double s1 = rawbits_to_double(0x7ff5555511111111);
+  double s2 = rawbits_to_double(0x7ff5555522222222);
+  double sa = rawbits_to_double(0x7ff55555aaaaaaaa);
+  double q1 = rawbits_to_double(0x7ffaaaaa11111111);
+  double q2 = rawbits_to_double(0x7ffaaaaa22222222);
+  double qa = rawbits_to_double(0x7ffaaaaaaaaaaaaa);
+  ASSERT(IsSignallingNaN(s1));
+  ASSERT(IsSignallingNaN(s2));
+  ASSERT(IsSignallingNaN(sa));
+  ASSERT(IsQuietNaN(q1));
+  ASSERT(IsQuietNaN(q2));
+  ASSERT(IsQuietNaN(qa));
 
-  uint16_t seed[3] = {42, 43, 44};
-  seed48(seed);
+  // The input NaNs after passing through ProcessNaN.
+  double s1_proc = rawbits_to_double(0x7ffd555511111111);
+  double s2_proc = rawbits_to_double(0x7ffd555522222222);
+  double sa_proc = rawbits_to_double(0x7ffd5555aaaaaaaa);
+  double q1_proc = q1;
+  double q2_proc = q2;
+  double qa_proc = qa;
+  ASSERT(IsQuietNaN(s1_proc));
+  ASSERT(IsQuietNaN(s2_proc));
+  ASSERT(IsQuietNaN(sa_proc));
+  ASSERT(IsQuietNaN(q1_proc));
+  ASSERT(IsQuietNaN(q2_proc));
+  ASSERT(IsQuietNaN(qa_proc));
 
-  while ((count_fmadd < limit) || (count_fmsub < limit)) {
-    float n, m, a;
-    uint32_t r;
-    ASSERT(sizeof(r) == sizeof(n));
+  // Quiet NaNs are propagated.
+  FmaddFmsubHelper(q1, 0, 0, q1_proc, -q1_proc, -q1_proc, q1_proc);
+  FmaddFmsubHelper(0, q2, 0, q2_proc, q2_proc, q2_proc, q2_proc);
+  FmaddFmsubHelper(0, 0, qa, qa_proc, qa_proc, -qa_proc, -qa_proc);
+  FmaddFmsubHelper(q1, q2, 0, q1_proc, -q1_proc, -q1_proc, q1_proc);
+  FmaddFmsubHelper(0, q2, qa, qa_proc, qa_proc, -qa_proc, -qa_proc);
+  FmaddFmsubHelper(q1, 0, qa, qa_proc, qa_proc, -qa_proc, -qa_proc);
+  FmaddFmsubHelper(q1, q2, qa, qa_proc, qa_proc, -qa_proc, -qa_proc);
 
-    r = mrand48();
-    memcpy(&n, &r, sizeof(r));
-    r = mrand48();
-    memcpy(&m, &r, sizeof(r));
-    r = mrand48();
-    memcpy(&a, &r, sizeof(r));
+  // Signalling NaNs are propagated, and made quiet.
+  FmaddFmsubHelper(s1, 0, 0, s1_proc, -s1_proc, -s1_proc, s1_proc);
+  FmaddFmsubHelper(0, s2, 0, s2_proc, s2_proc, s2_proc, s2_proc);
+  FmaddFmsubHelper(0, 0, sa, sa_proc, sa_proc, -sa_proc, -sa_proc);
+  FmaddFmsubHelper(s1, s2, 0, s1_proc, -s1_proc, -s1_proc, s1_proc);
+  FmaddFmsubHelper(0, s2, sa, sa_proc, sa_proc, -sa_proc, -sa_proc);
+  FmaddFmsubHelper(s1, 0, sa, sa_proc, sa_proc, -sa_proc, -sa_proc);
+  FmaddFmsubHelper(s1, s2, sa, sa_proc, sa_proc, -sa_proc, -sa_proc);
 
-    if (!std::isfinite(a) || !std::isfinite(n) || !std::isfinite(m)) {
-      continue;
-    }
+  // Signalling NaNs take precedence over quiet NaNs.
+  FmaddFmsubHelper(s1, q2, qa, s1_proc, -s1_proc, -s1_proc, s1_proc);
+  FmaddFmsubHelper(q1, s2, qa, s2_proc, s2_proc, s2_proc, s2_proc);
+  FmaddFmsubHelper(q1, q2, sa, sa_proc, sa_proc, -sa_proc, -sa_proc);
+  FmaddFmsubHelper(s1, s2, qa, s1_proc, -s1_proc, -s1_proc, s1_proc);
+  FmaddFmsubHelper(q1, s2, sa, sa_proc, sa_proc, -sa_proc, -sa_proc);
+  FmaddFmsubHelper(s1, q2, sa, sa_proc, sa_proc, -sa_proc, -sa_proc);
+  FmaddFmsubHelper(s1, s2, sa, sa_proc, sa_proc, -sa_proc, -sa_proc);
 
-    // Calculate the expected results.
-    float fmadd = fmaf(n, m, a);
-    float fmsub = fmaf(-n, m, a);
+  // A NaN generated by the intermediate op1 * op2 overrides a quiet NaN in a.
+  FmaddFmsubHelper(0, kFP64PositiveInfinity, qa,
+                   kFP64DefaultNaN, kFP64DefaultNaN,
+                   kFP64DefaultNaN, kFP64DefaultNaN);
+  FmaddFmsubHelper(kFP64PositiveInfinity, 0, qa,
+                   kFP64DefaultNaN, kFP64DefaultNaN,
+                   kFP64DefaultNaN, kFP64DefaultNaN);
+  FmaddFmsubHelper(0, kFP64NegativeInfinity, qa,
+                   kFP64DefaultNaN, kFP64DefaultNaN,
+                   kFP64DefaultNaN, kFP64DefaultNaN);
+  FmaddFmsubHelper(kFP64NegativeInfinity, 0, qa,
+                   kFP64DefaultNaN, kFP64DefaultNaN,
+                   kFP64DefaultNaN, kFP64DefaultNaN);
+}
 
-    bool test_fmadd = (fmadd != (a + n * m));
-    bool test_fmsub = (fmsub != (a - n * m));
 
-    // If rounding would produce a different result, increment the test count.
-    count_fmadd += test_fmadd;
-    count_fmsub += test_fmsub;
+TEST(fmadd_fmsub_float_nans) {
+  INIT_V8();
+  // Make sure that NaN propagation works correctly.
+  float s1 = rawbits_to_float(0x7f951111);
+  float s2 = rawbits_to_float(0x7f952222);
+  float sa = rawbits_to_float(0x7f95aaaa);
+  float q1 = rawbits_to_float(0x7fea1111);
+  float q2 = rawbits_to_float(0x7fea2222);
+  float qa = rawbits_to_float(0x7feaaaaa);
+  ASSERT(IsSignallingNaN(s1));
+  ASSERT(IsSignallingNaN(s2));
+  ASSERT(IsSignallingNaN(sa));
+  ASSERT(IsQuietNaN(q1));
+  ASSERT(IsQuietNaN(q2));
+  ASSERT(IsQuietNaN(qa));
 
-    if (test_fmadd || test_fmsub) {
-      FmaddFmsubFloatHelper(n, m, a, fmadd, fmsub);
-    }
-  }
+  // The input NaNs after passing through ProcessNaN.
+  float s1_proc = rawbits_to_float(0x7fd51111);
+  float s2_proc = rawbits_to_float(0x7fd52222);
+  float sa_proc = rawbits_to_float(0x7fd5aaaa);
+  float q1_proc = q1;
+  float q2_proc = q2;
+  float qa_proc = qa;
+  ASSERT(IsQuietNaN(s1_proc));
+  ASSERT(IsQuietNaN(s2_proc));
+  ASSERT(IsQuietNaN(sa_proc));
+  ASSERT(IsQuietNaN(q1_proc));
+  ASSERT(IsQuietNaN(q2_proc));
+  ASSERT(IsQuietNaN(qa_proc));
+
+  // Quiet NaNs are propagated.
+  FmaddFmsubHelper(q1, 0, 0, q1_proc, -q1_proc, -q1_proc, q1_proc);
+  FmaddFmsubHelper(0, q2, 0, q2_proc, q2_proc, q2_proc, q2_proc);
+  FmaddFmsubHelper(0, 0, qa, qa_proc, qa_proc, -qa_proc, -qa_proc);
+  FmaddFmsubHelper(q1, q2, 0, q1_proc, -q1_proc, -q1_proc, q1_proc);
+  FmaddFmsubHelper(0, q2, qa, qa_proc, qa_proc, -qa_proc, -qa_proc);
+  FmaddFmsubHelper(q1, 0, qa, qa_proc, qa_proc, -qa_proc, -qa_proc);
+  FmaddFmsubHelper(q1, q2, qa, qa_proc, qa_proc, -qa_proc, -qa_proc);
+
+  // Signalling NaNs are propagated, and made quiet.
+  FmaddFmsubHelper(s1, 0, 0, s1_proc, -s1_proc, -s1_proc, s1_proc);
+  FmaddFmsubHelper(0, s2, 0, s2_proc, s2_proc, s2_proc, s2_proc);
+  FmaddFmsubHelper(0, 0, sa, sa_proc, sa_proc, -sa_proc, -sa_proc);
+  FmaddFmsubHelper(s1, s2, 0, s1_proc, -s1_proc, -s1_proc, s1_proc);
+  FmaddFmsubHelper(0, s2, sa, sa_proc, sa_proc, -sa_proc, -sa_proc);
+  FmaddFmsubHelper(s1, 0, sa, sa_proc, sa_proc, -sa_proc, -sa_proc);
+  FmaddFmsubHelper(s1, s2, sa, sa_proc, sa_proc, -sa_proc, -sa_proc);
+
+  // Signalling NaNs take precedence over quiet NaNs.
+  FmaddFmsubHelper(s1, q2, qa, s1_proc, -s1_proc, -s1_proc, s1_proc);
+  FmaddFmsubHelper(q1, s2, qa, s2_proc, s2_proc, s2_proc, s2_proc);
+  FmaddFmsubHelper(q1, q2, sa, sa_proc, sa_proc, -sa_proc, -sa_proc);
+  FmaddFmsubHelper(s1, s2, qa, s1_proc, -s1_proc, -s1_proc, s1_proc);
+  FmaddFmsubHelper(q1, s2, sa, sa_proc, sa_proc, -sa_proc, -sa_proc);
+  FmaddFmsubHelper(s1, q2, sa, sa_proc, sa_proc, -sa_proc, -sa_proc);
+  FmaddFmsubHelper(s1, s2, sa, sa_proc, sa_proc, -sa_proc, -sa_proc);
+
+  // A NaN generated by the intermediate op1 * op2 overrides a quiet NaN in a.
+  FmaddFmsubHelper(0, kFP32PositiveInfinity, qa,
+                   kFP32DefaultNaN, kFP32DefaultNaN,
+                   kFP32DefaultNaN, kFP32DefaultNaN);
+  FmaddFmsubHelper(kFP32PositiveInfinity, 0, qa,
+                   kFP32DefaultNaN, kFP32DefaultNaN,
+                   kFP32DefaultNaN, kFP32DefaultNaN);
+  FmaddFmsubHelper(0, kFP32NegativeInfinity, qa,
+                   kFP32DefaultNaN, kFP32DefaultNaN,
+                   kFP32DefaultNaN, kFP32DefaultNaN);
+  FmaddFmsubHelper(kFP32NegativeInfinity, 0, qa,
+                   kFP32DefaultNaN, kFP32DefaultNaN,
+                   kFP32DefaultNaN, kFP32DefaultNaN);
 }
 
 
@@ -5276,45 +5368,54 @@ TEST(fdiv) {
   SETUP();
 
   START();
-  __ Fmov(s13, -0.0);
-  __ Fmov(s14, kFP32PositiveInfinity);
-  __ Fmov(s15, kFP32NegativeInfinity);
-  __ Fmov(s16, 3.25);
-  __ Fmov(s17, 2.0);
-  __ Fmov(s18, 2.0);
-  __ Fmov(s19, -2.0);
+  __ Fmov(s14, -0.0f);
+  __ Fmov(s15, kFP32PositiveInfinity);
+  __ Fmov(s16, kFP32NegativeInfinity);
+  __ Fmov(s17, 3.25f);
+  __ Fmov(s18, 2.0f);
+  __ Fmov(s19, 2.0f);
+  __ Fmov(s20, -2.0f);
 
   __ Fmov(d26, -0.0);
   __ Fmov(d27, kFP64PositiveInfinity);
   __ Fmov(d28, kFP64NegativeInfinity);
-  __ Fmov(d29, 0);
+  __ Fmov(d29, 0.0);
   __ Fmov(d30, -2.0);
   __ Fmov(d31, 2.25);
 
-  __ Fdiv(s0, s16, s17);
-  __ Fdiv(s1, s17, s18);
-  __ Fdiv(s2, s13, s17);
-  __ Fdiv(s3, s17, s14);
-  __ Fdiv(s4, s17, s15);
-  __ Fdiv(d5, d31, d30);
-  __ Fdiv(d6, d29, d31);
-  __ Fdiv(d7, d26, d31);
-  __ Fdiv(d8, d31, d27);
-  __ Fdiv(d9, d31, d28);
+  __ Fdiv(s0, s17, s18);
+  __ Fdiv(s1, s18, s19);
+  __ Fdiv(s2, s14, s18);
+  __ Fdiv(s3, s18, s15);
+  __ Fdiv(s4, s18, s16);
+  __ Fdiv(s5, s15, s16);
+  __ Fdiv(s6, s14, s14);
+
+  __ Fdiv(d7, d31, d30);
+  __ Fdiv(d8, d29, d31);
+  __ Fdiv(d9, d26, d31);
+  __ Fdiv(d10, d31, d27);
+  __ Fdiv(d11, d31, d28);
+  __ Fdiv(d12, d28, d27);
+  __ Fdiv(d13, d29, d29);
   END();
 
   RUN();
 
-  ASSERT_EQUAL_FP32(1.625, s0);
-  ASSERT_EQUAL_FP32(1.0, s1);
-  ASSERT_EQUAL_FP32(-0.0, s2);
-  ASSERT_EQUAL_FP32(0.0, s3);
-  ASSERT_EQUAL_FP32(-0.0, s4);
-  ASSERT_EQUAL_FP64(-1.125, d5);
-  ASSERT_EQUAL_FP64(0.0, d6);
-  ASSERT_EQUAL_FP64(-0.0, d7);
+  ASSERT_EQUAL_FP32(1.625f, s0);
+  ASSERT_EQUAL_FP32(1.0f, s1);
+  ASSERT_EQUAL_FP32(-0.0f, s2);
+  ASSERT_EQUAL_FP32(0.0f, s3);
+  ASSERT_EQUAL_FP32(-0.0f, s4);
+  ASSERT_EQUAL_FP32(kFP32DefaultNaN, s5);
+  ASSERT_EQUAL_FP32(kFP32DefaultNaN, s6);
+  ASSERT_EQUAL_FP64(-1.125, d7);
   ASSERT_EQUAL_FP64(0.0, d8);
   ASSERT_EQUAL_FP64(-0.0, d9);
+  ASSERT_EQUAL_FP64(0.0, d10);
+  ASSERT_EQUAL_FP64(-0.0, d11);
+  ASSERT_EQUAL_FP64(kFP64DefaultNaN, d12);
+  ASSERT_EQUAL_FP64(kFP64DefaultNaN, d13);
 
   TEARDOWN();
 }
@@ -5324,16 +5425,15 @@ static float MinMaxHelper(float n,
                           float m,
                           bool min,
                           float quiet_nan_substitute = 0.0) {
-  const uint64_t kFP32QuietNaNMask = 0x00400000UL;
   uint32_t raw_n = float_to_rawbits(n);
   uint32_t raw_m = float_to_rawbits(m);
 
-  if (std::isnan(n) && ((raw_n & kFP32QuietNaNMask) == 0)) {
+  if (std::isnan(n) && ((raw_n & kSQuietNanMask) == 0)) {
     // n is signalling NaN.
-    return n;
-  } else if (std::isnan(m) && ((raw_m & kFP32QuietNaNMask) == 0)) {
+    return rawbits_to_float(raw_n | kSQuietNanMask);
+  } else if (std::isnan(m) && ((raw_m & kSQuietNanMask) == 0)) {
     // m is signalling NaN.
-    return m;
+    return rawbits_to_float(raw_m | kSQuietNanMask);
   } else if (quiet_nan_substitute == 0.0) {
     if (std::isnan(n)) {
       // n is quiet NaN.
@@ -5366,16 +5466,15 @@ static double MinMaxHelper(double n,
                            double m,
                            bool min,
                            double quiet_nan_substitute = 0.0) {
-  const uint64_t kFP64QuietNaNMask = 0x0008000000000000UL;
   uint64_t raw_n = double_to_rawbits(n);
   uint64_t raw_m = double_to_rawbits(m);
 
-  if (std::isnan(n) && ((raw_n & kFP64QuietNaNMask) == 0)) {
+  if (std::isnan(n) && ((raw_n & kDQuietNanMask) == 0)) {
     // n is signalling NaN.
-    return n;
-  } else if (std::isnan(m) && ((raw_m & kFP64QuietNaNMask) == 0)) {
+    return rawbits_to_double(raw_n | kDQuietNanMask);
+  } else if (std::isnan(m) && ((raw_m & kDQuietNanMask) == 0)) {
     // m is signalling NaN.
-    return m;
+    return rawbits_to_double(raw_m | kDQuietNanMask);
   } else if (quiet_nan_substitute == 0.0) {
     if (std::isnan(n)) {
       // n is quiet NaN.
@@ -5430,21 +5529,42 @@ static void FminFmaxDoubleHelper(double n, double m, double min, double max,
 
 TEST(fmax_fmin_d) {
   INIT_V8();
+  // Use non-standard NaNs to check that the payload bits are preserved.
+  double snan = rawbits_to_double(0x7ff5555512345678);
+  double qnan = rawbits_to_double(0x7ffaaaaa87654321);
+
+  double snan_processed = rawbits_to_double(0x7ffd555512345678);
+  double qnan_processed = qnan;
+
+  ASSERT(IsSignallingNaN(snan));
+  ASSERT(IsQuietNaN(qnan));
+  ASSERT(IsQuietNaN(snan_processed));
+  ASSERT(IsQuietNaN(qnan_processed));
+
   // Bootstrap tests.
   FminFmaxDoubleHelper(0, 0, 0, 0, 0, 0);
   FminFmaxDoubleHelper(0, 1, 0, 1, 0, 1);
   FminFmaxDoubleHelper(kFP64PositiveInfinity, kFP64NegativeInfinity,
                        kFP64NegativeInfinity, kFP64PositiveInfinity,
                        kFP64NegativeInfinity, kFP64PositiveInfinity);
-  FminFmaxDoubleHelper(kFP64SignallingNaN, 0,
-                       kFP64SignallingNaN, kFP64SignallingNaN,
-                       kFP64SignallingNaN, kFP64SignallingNaN);
-  FminFmaxDoubleHelper(kFP64QuietNaN, 0,
-                       kFP64QuietNaN, kFP64QuietNaN,
+  FminFmaxDoubleHelper(snan, 0,
+                       snan_processed, snan_processed,
+                       snan_processed, snan_processed);
+  FminFmaxDoubleHelper(0, snan,
+                       snan_processed, snan_processed,
+                       snan_processed, snan_processed);
+  FminFmaxDoubleHelper(qnan, 0,
+                       qnan_processed, qnan_processed,
                        0, 0);
-  FminFmaxDoubleHelper(kFP64QuietNaN, kFP64SignallingNaN,
-                       kFP64SignallingNaN, kFP64SignallingNaN,
-                       kFP64SignallingNaN, kFP64SignallingNaN);
+  FminFmaxDoubleHelper(0, qnan,
+                       qnan_processed, qnan_processed,
+                       0, 0);
+  FminFmaxDoubleHelper(qnan, snan,
+                       snan_processed, snan_processed,
+                       snan_processed, snan_processed);
+  FminFmaxDoubleHelper(snan, qnan,
+                       snan_processed, snan_processed,
+                       snan_processed, snan_processed);
 
   // Iterate over all combinations of inputs.
   double inputs[] = { DBL_MAX, DBL_MIN, 1.0, 0.0,
@@ -5494,21 +5614,42 @@ static void FminFmaxFloatHelper(float n, float m, float min, float max,
 
 TEST(fmax_fmin_s) {
   INIT_V8();
+  // Use non-standard NaNs to check that the payload bits are preserved.
+  float snan = rawbits_to_float(0x7f951234);
+  float qnan = rawbits_to_float(0x7fea8765);
+
+  float snan_processed = rawbits_to_float(0x7fd51234);
+  float qnan_processed = qnan;
+
+  ASSERT(IsSignallingNaN(snan));
+  ASSERT(IsQuietNaN(qnan));
+  ASSERT(IsQuietNaN(snan_processed));
+  ASSERT(IsQuietNaN(qnan_processed));
+
   // Bootstrap tests.
   FminFmaxFloatHelper(0, 0, 0, 0, 0, 0);
   FminFmaxFloatHelper(0, 1, 0, 1, 0, 1);
   FminFmaxFloatHelper(kFP32PositiveInfinity, kFP32NegativeInfinity,
                       kFP32NegativeInfinity, kFP32PositiveInfinity,
                       kFP32NegativeInfinity, kFP32PositiveInfinity);
-  FminFmaxFloatHelper(kFP32SignallingNaN, 0,
-                      kFP32SignallingNaN, kFP32SignallingNaN,
-                      kFP32SignallingNaN, kFP32SignallingNaN);
-  FminFmaxFloatHelper(kFP32QuietNaN, 0,
-                      kFP32QuietNaN, kFP32QuietNaN,
+  FminFmaxFloatHelper(snan, 0,
+                      snan_processed, snan_processed,
+                      snan_processed, snan_processed);
+  FminFmaxFloatHelper(0, snan,
+                      snan_processed, snan_processed,
+                      snan_processed, snan_processed);
+  FminFmaxFloatHelper(qnan, 0,
+                      qnan_processed, qnan_processed,
                       0, 0);
-  FminFmaxFloatHelper(kFP32QuietNaN, kFP32SignallingNaN,
-                      kFP32SignallingNaN, kFP32SignallingNaN,
-                      kFP32SignallingNaN, kFP32SignallingNaN);
+  FminFmaxFloatHelper(0, qnan,
+                      qnan_processed, qnan_processed,
+                      0, 0);
+  FminFmaxFloatHelper(qnan, snan,
+                      snan_processed, snan_processed,
+                      snan_processed, snan_processed);
+  FminFmaxFloatHelper(snan, qnan,
+                      snan_processed, snan_processed,
+                      snan_processed, snan_processed);
 
   // Iterate over all combinations of inputs.
   float inputs[] = { FLT_MAX, FLT_MIN, 1.0, 0.0,
@@ -5809,12 +5950,14 @@ TEST(fsqrt) {
   __ Fmov(s19, 65536.0);
   __ Fmov(s20, -0.0);
   __ Fmov(s21, kFP32PositiveInfinity);
-  __ Fmov(d22, 0.0);
-  __ Fmov(d23, 1.0);
-  __ Fmov(d24, 0.25);
-  __ Fmov(d25, 4294967296.0);
-  __ Fmov(d26, -0.0);
-  __ Fmov(d27, kFP64PositiveInfinity);
+  __ Fmov(s22, -1.0);
+  __ Fmov(d23, 0.0);
+  __ Fmov(d24, 1.0);
+  __ Fmov(d25, 0.25);
+  __ Fmov(d26, 4294967296.0);
+  __ Fmov(d27, -0.0);
+  __ Fmov(d28, kFP64PositiveInfinity);
+  __ Fmov(d29, -1.0);
 
   __ Fsqrt(s0, s16);
   __ Fsqrt(s1, s17);
@@ -5822,12 +5965,14 @@ TEST(fsqrt) {
   __ Fsqrt(s3, s19);
   __ Fsqrt(s4, s20);
   __ Fsqrt(s5, s21);
-  __ Fsqrt(d6, d22);
+  __ Fsqrt(s6, s22);
   __ Fsqrt(d7, d23);
   __ Fsqrt(d8, d24);
   __ Fsqrt(d9, d25);
   __ Fsqrt(d10, d26);
   __ Fsqrt(d11, d27);
+  __ Fsqrt(d12, d28);
+  __ Fsqrt(d13, d29);
   END();
 
   RUN();
@@ -5838,12 +5983,14 @@ TEST(fsqrt) {
   ASSERT_EQUAL_FP32(256.0, s3);
   ASSERT_EQUAL_FP32(-0.0, s4);
   ASSERT_EQUAL_FP32(kFP32PositiveInfinity, s5);
-  ASSERT_EQUAL_FP64(0.0, d6);
-  ASSERT_EQUAL_FP64(1.0, d7);
-  ASSERT_EQUAL_FP64(0.5, d8);
-  ASSERT_EQUAL_FP64(65536.0, d9);
-  ASSERT_EQUAL_FP64(-0.0, d10);
-  ASSERT_EQUAL_FP64(kFP32PositiveInfinity, d11);
+  ASSERT_EQUAL_FP32(kFP32DefaultNaN, s6);
+  ASSERT_EQUAL_FP64(0.0, d7);
+  ASSERT_EQUAL_FP64(1.0, d8);
+  ASSERT_EQUAL_FP64(0.5, d9);
+  ASSERT_EQUAL_FP64(65536.0, d10);
+  ASSERT_EQUAL_FP64(-0.0, d11);
+  ASSERT_EQUAL_FP64(kFP32PositiveInfinity, d12);
+  ASSERT_EQUAL_FP64(kFP64DefaultNaN, d13);
 
   TEARDOWN();
 }
@@ -9850,6 +9997,558 @@ TEST(barriers) {
   RUN();
 
   TEARDOWN();
+}
+
+
+TEST(process_nan_double) {
+  INIT_V8();
+  // Make sure that NaN propagation works correctly.
+  double sn = rawbits_to_double(0x7ff5555511111111);
+  double qn = rawbits_to_double(0x7ffaaaaa11111111);
+  ASSERT(IsSignallingNaN(sn));
+  ASSERT(IsQuietNaN(qn));
+
+  // The input NaNs after passing through ProcessNaN.
+  double sn_proc = rawbits_to_double(0x7ffd555511111111);
+  double qn_proc = qn;
+  ASSERT(IsQuietNaN(sn_proc));
+  ASSERT(IsQuietNaN(qn_proc));
+
+  SETUP();
+  START();
+
+  // Execute a number of instructions which all use ProcessNaN, and check that
+  // they all handle the NaN correctly.
+  __ Fmov(d0, sn);
+  __ Fmov(d10, qn);
+
+  // Operations that always propagate NaNs unchanged, even signalling NaNs.
+  //   - Signalling NaN
+  __ Fmov(d1, d0);
+  __ Fabs(d2, d0);
+  __ Fneg(d3, d0);
+  //   - Quiet NaN
+  __ Fmov(d11, d10);
+  __ Fabs(d12, d10);
+  __ Fneg(d13, d10);
+
+  // Operations that use ProcessNaN.
+  //   - Signalling NaN
+  __ Fsqrt(d4, d0);
+  __ Frinta(d5, d0);
+  __ Frintn(d6, d0);
+  __ Frintz(d7, d0);
+  //   - Quiet NaN
+  __ Fsqrt(d14, d10);
+  __ Frinta(d15, d10);
+  __ Frintn(d16, d10);
+  __ Frintz(d17, d10);
+
+  // The behaviour of fcvt is checked in TEST(fcvt_sd).
+
+  END();
+  RUN();
+
+  uint64_t qn_raw = double_to_rawbits(qn);
+  uint64_t sn_raw = double_to_rawbits(sn);
+
+  //   - Signalling NaN
+  ASSERT_EQUAL_FP64(sn, d1);
+  ASSERT_EQUAL_FP64(rawbits_to_double(sn_raw & ~kDSignMask), d2);
+  ASSERT_EQUAL_FP64(rawbits_to_double(sn_raw ^ kDSignMask), d3);
+  //   - Quiet NaN
+  ASSERT_EQUAL_FP64(qn, d11);
+  ASSERT_EQUAL_FP64(rawbits_to_double(qn_raw & ~kDSignMask), d12);
+  ASSERT_EQUAL_FP64(rawbits_to_double(qn_raw ^ kDSignMask), d13);
+
+  //   - Signalling NaN
+  ASSERT_EQUAL_FP64(sn_proc, d4);
+  ASSERT_EQUAL_FP64(sn_proc, d5);
+  ASSERT_EQUAL_FP64(sn_proc, d6);
+  ASSERT_EQUAL_FP64(sn_proc, d7);
+  //   - Quiet NaN
+  ASSERT_EQUAL_FP64(qn_proc, d14);
+  ASSERT_EQUAL_FP64(qn_proc, d15);
+  ASSERT_EQUAL_FP64(qn_proc, d16);
+  ASSERT_EQUAL_FP64(qn_proc, d17);
+
+  TEARDOWN();
+}
+
+
+TEST(process_nan_float) {
+  INIT_V8();
+  // Make sure that NaN propagation works correctly.
+  float sn = rawbits_to_float(0x7f951111);
+  float qn = rawbits_to_float(0x7fea1111);
+  ASSERT(IsSignallingNaN(sn));
+  ASSERT(IsQuietNaN(qn));
+
+  // The input NaNs after passing through ProcessNaN.
+  float sn_proc = rawbits_to_float(0x7fd51111);
+  float qn_proc = qn;
+  ASSERT(IsQuietNaN(sn_proc));
+  ASSERT(IsQuietNaN(qn_proc));
+
+  SETUP();
+  START();
+
+  // Execute a number of instructions which all use ProcessNaN, and check that
+  // they all handle the NaN correctly.
+  __ Fmov(s0, sn);
+  __ Fmov(s10, qn);
+
+  // Operations that always propagate NaNs unchanged, even signalling NaNs.
+  //   - Signalling NaN
+  __ Fmov(s1, s0);
+  __ Fabs(s2, s0);
+  __ Fneg(s3, s0);
+  //   - Quiet NaN
+  __ Fmov(s11, s10);
+  __ Fabs(s12, s10);
+  __ Fneg(s13, s10);
+
+  // Operations that use ProcessNaN.
+  //   - Signalling NaN
+  __ Fsqrt(s4, s0);
+  __ Frinta(s5, s0);
+  __ Frintn(s6, s0);
+  __ Frintz(s7, s0);
+  //   - Quiet NaN
+  __ Fsqrt(s14, s10);
+  __ Frinta(s15, s10);
+  __ Frintn(s16, s10);
+  __ Frintz(s17, s10);
+
+  // The behaviour of fcvt is checked in TEST(fcvt_sd).
+
+  END();
+  RUN();
+
+  uint32_t qn_raw = float_to_rawbits(qn);
+  uint32_t sn_raw = float_to_rawbits(sn);
+
+  //   - Signalling NaN
+  ASSERT_EQUAL_FP32(sn, s1);
+  ASSERT_EQUAL_FP32(rawbits_to_float(sn_raw & ~kSSignMask), s2);
+  ASSERT_EQUAL_FP32(rawbits_to_float(sn_raw ^ kSSignMask), s3);
+  //   - Quiet NaN
+  ASSERT_EQUAL_FP32(qn, s11);
+  ASSERT_EQUAL_FP32(rawbits_to_float(qn_raw & ~kSSignMask), s12);
+  ASSERT_EQUAL_FP32(rawbits_to_float(qn_raw ^ kSSignMask), s13);
+
+  //   - Signalling NaN
+  ASSERT_EQUAL_FP32(sn_proc, s4);
+  ASSERT_EQUAL_FP32(sn_proc, s5);
+  ASSERT_EQUAL_FP32(sn_proc, s6);
+  ASSERT_EQUAL_FP32(sn_proc, s7);
+  //   - Quiet NaN
+  ASSERT_EQUAL_FP32(qn_proc, s14);
+  ASSERT_EQUAL_FP32(qn_proc, s15);
+  ASSERT_EQUAL_FP32(qn_proc, s16);
+  ASSERT_EQUAL_FP32(qn_proc, s17);
+
+  TEARDOWN();
+}
+
+
+static void ProcessNaNsHelper(double n, double m, double expected) {
+  ASSERT(isnan(n) || isnan(m));
+  ASSERT(isnan(expected));
+
+  SETUP();
+  START();
+
+  // Execute a number of instructions which all use ProcessNaNs, and check that
+  // they all propagate NaNs correctly.
+  __ Fmov(d0, n);
+  __ Fmov(d1, m);
+
+  __ Fadd(d2, d0, d1);
+  __ Fsub(d3, d0, d1);
+  __ Fmul(d4, d0, d1);
+  __ Fdiv(d5, d0, d1);
+  __ Fmax(d6, d0, d1);
+  __ Fmin(d7, d0, d1);
+
+  END();
+  RUN();
+
+  ASSERT_EQUAL_FP64(expected, d2);
+  ASSERT_EQUAL_FP64(expected, d3);
+  ASSERT_EQUAL_FP64(expected, d4);
+  ASSERT_EQUAL_FP64(expected, d5);
+  ASSERT_EQUAL_FP64(expected, d6);
+  ASSERT_EQUAL_FP64(expected, d7);
+
+  TEARDOWN();
+}
+
+
+TEST(process_nans_double) {
+  INIT_V8();
+  // Make sure that NaN propagation works correctly.
+  double sn = rawbits_to_double(0x7ff5555511111111);
+  double sm = rawbits_to_double(0x7ff5555522222222);
+  double qn = rawbits_to_double(0x7ffaaaaa11111111);
+  double qm = rawbits_to_double(0x7ffaaaaa22222222);
+  ASSERT(IsSignallingNaN(sn));
+  ASSERT(IsSignallingNaN(sm));
+  ASSERT(IsQuietNaN(qn));
+  ASSERT(IsQuietNaN(qm));
+
+  // The input NaNs after passing through ProcessNaN.
+  double sn_proc = rawbits_to_double(0x7ffd555511111111);
+  double sm_proc = rawbits_to_double(0x7ffd555522222222);
+  double qn_proc = qn;
+  double qm_proc = qm;
+  ASSERT(IsQuietNaN(sn_proc));
+  ASSERT(IsQuietNaN(sm_proc));
+  ASSERT(IsQuietNaN(qn_proc));
+  ASSERT(IsQuietNaN(qm_proc));
+
+  // Quiet NaNs are propagated.
+  ProcessNaNsHelper(qn, 0, qn_proc);
+  ProcessNaNsHelper(0, qm, qm_proc);
+  ProcessNaNsHelper(qn, qm, qn_proc);
+
+  // Signalling NaNs are propagated, and made quiet.
+  ProcessNaNsHelper(sn, 0, sn_proc);
+  ProcessNaNsHelper(0, sm, sm_proc);
+  ProcessNaNsHelper(sn, sm, sn_proc);
+
+  // Signalling NaNs take precedence over quiet NaNs.
+  ProcessNaNsHelper(sn, qm, sn_proc);
+  ProcessNaNsHelper(qn, sm, sm_proc);
+  ProcessNaNsHelper(sn, sm, sn_proc);
+}
+
+
+static void ProcessNaNsHelper(float n, float m, float expected) {
+  ASSERT(isnan(n) || isnan(m));
+  ASSERT(isnan(expected));
+
+  SETUP();
+  START();
+
+  // Execute a number of instructions which all use ProcessNaNs, and check that
+  // they all propagate NaNs correctly.
+  __ Fmov(s0, n);
+  __ Fmov(s1, m);
+
+  __ Fadd(s2, s0, s1);
+  __ Fsub(s3, s0, s1);
+  __ Fmul(s4, s0, s1);
+  __ Fdiv(s5, s0, s1);
+  __ Fmax(s6, s0, s1);
+  __ Fmin(s7, s0, s1);
+
+  END();
+  RUN();
+
+  ASSERT_EQUAL_FP32(expected, s2);
+  ASSERT_EQUAL_FP32(expected, s3);
+  ASSERT_EQUAL_FP32(expected, s4);
+  ASSERT_EQUAL_FP32(expected, s5);
+  ASSERT_EQUAL_FP32(expected, s6);
+  ASSERT_EQUAL_FP32(expected, s7);
+
+  TEARDOWN();
+}
+
+
+TEST(process_nans_float) {
+  INIT_V8();
+  // Make sure that NaN propagation works correctly.
+  float sn = rawbits_to_float(0x7f951111);
+  float sm = rawbits_to_float(0x7f952222);
+  float qn = rawbits_to_float(0x7fea1111);
+  float qm = rawbits_to_float(0x7fea2222);
+  ASSERT(IsSignallingNaN(sn));
+  ASSERT(IsSignallingNaN(sm));
+  ASSERT(IsQuietNaN(qn));
+  ASSERT(IsQuietNaN(qm));
+
+  // The input NaNs after passing through ProcessNaN.
+  float sn_proc = rawbits_to_float(0x7fd51111);
+  float sm_proc = rawbits_to_float(0x7fd52222);
+  float qn_proc = qn;
+  float qm_proc = qm;
+  ASSERT(IsQuietNaN(sn_proc));
+  ASSERT(IsQuietNaN(sm_proc));
+  ASSERT(IsQuietNaN(qn_proc));
+  ASSERT(IsQuietNaN(qm_proc));
+
+  // Quiet NaNs are propagated.
+  ProcessNaNsHelper(qn, 0, qn_proc);
+  ProcessNaNsHelper(0, qm, qm_proc);
+  ProcessNaNsHelper(qn, qm, qn_proc);
+
+  // Signalling NaNs are propagated, and made quiet.
+  ProcessNaNsHelper(sn, 0, sn_proc);
+  ProcessNaNsHelper(0, sm, sm_proc);
+  ProcessNaNsHelper(sn, sm, sn_proc);
+
+  // Signalling NaNs take precedence over quiet NaNs.
+  ProcessNaNsHelper(sn, qm, sn_proc);
+  ProcessNaNsHelper(qn, sm, sm_proc);
+  ProcessNaNsHelper(sn, sm, sn_proc);
+}
+
+
+static void DefaultNaNHelper(float n, float m, float a) {
+  ASSERT(isnan(n) || isnan(m) || isnan(a));
+
+  bool test_1op = isnan(n);
+  bool test_2op = isnan(n) || isnan(m);
+
+  SETUP();
+  START();
+
+  // Enable Default-NaN mode in the FPCR.
+  __ Mrs(x0, FPCR);
+  __ Orr(x1, x0, DN_mask);
+  __ Msr(FPCR, x1);
+
+  // Execute a number of instructions which all use ProcessNaNs, and check that
+  // they all produce the default NaN.
+  __ Fmov(s0, n);
+  __ Fmov(s1, m);
+  __ Fmov(s2, a);
+
+  if (test_1op) {
+    // Operations that always propagate NaNs unchanged, even signalling NaNs.
+    __ Fmov(s10, s0);
+    __ Fabs(s11, s0);
+    __ Fneg(s12, s0);
+
+    // Operations that use ProcessNaN.
+    __ Fsqrt(s13, s0);
+    __ Frinta(s14, s0);
+    __ Frintn(s15, s0);
+    __ Frintz(s16, s0);
+
+    // Fcvt usually has special NaN handling, but it respects default-NaN mode.
+    __ Fcvt(d17, s0);
+  }
+
+  if (test_2op) {
+    __ Fadd(s18, s0, s1);
+    __ Fsub(s19, s0, s1);
+    __ Fmul(s20, s0, s1);
+    __ Fdiv(s21, s0, s1);
+    __ Fmax(s22, s0, s1);
+    __ Fmin(s23, s0, s1);
+  }
+
+  __ Fmadd(s24, s0, s1, s2);
+  __ Fmsub(s25, s0, s1, s2);
+  __ Fnmadd(s26, s0, s1, s2);
+  __ Fnmsub(s27, s0, s1, s2);
+
+  // Restore FPCR.
+  __ Msr(FPCR, x0);
+
+  END();
+  RUN();
+
+  if (test_1op) {
+    uint32_t n_raw = float_to_rawbits(n);
+    ASSERT_EQUAL_FP32(n, s10);
+    ASSERT_EQUAL_FP32(rawbits_to_float(n_raw & ~kSSignMask), s11);
+    ASSERT_EQUAL_FP32(rawbits_to_float(n_raw ^ kSSignMask), s12);
+    ASSERT_EQUAL_FP32(kFP32DefaultNaN, s13);
+    ASSERT_EQUAL_FP32(kFP32DefaultNaN, s14);
+    ASSERT_EQUAL_FP32(kFP32DefaultNaN, s15);
+    ASSERT_EQUAL_FP32(kFP32DefaultNaN, s16);
+    ASSERT_EQUAL_FP64(kFP64DefaultNaN, d17);
+  }
+
+  if (test_2op) {
+    ASSERT_EQUAL_FP32(kFP32DefaultNaN, s18);
+    ASSERT_EQUAL_FP32(kFP32DefaultNaN, s19);
+    ASSERT_EQUAL_FP32(kFP32DefaultNaN, s20);
+    ASSERT_EQUAL_FP32(kFP32DefaultNaN, s21);
+    ASSERT_EQUAL_FP32(kFP32DefaultNaN, s22);
+    ASSERT_EQUAL_FP32(kFP32DefaultNaN, s23);
+  }
+
+  ASSERT_EQUAL_FP32(kFP32DefaultNaN, s24);
+  ASSERT_EQUAL_FP32(kFP32DefaultNaN, s25);
+  ASSERT_EQUAL_FP32(kFP32DefaultNaN, s26);
+  ASSERT_EQUAL_FP32(kFP32DefaultNaN, s27);
+
+  TEARDOWN();
+}
+
+
+TEST(default_nan_float) {
+  INIT_V8();
+  float sn = rawbits_to_float(0x7f951111);
+  float sm = rawbits_to_float(0x7f952222);
+  float sa = rawbits_to_float(0x7f95aaaa);
+  float qn = rawbits_to_float(0x7fea1111);
+  float qm = rawbits_to_float(0x7fea2222);
+  float qa = rawbits_to_float(0x7feaaaaa);
+  ASSERT(IsSignallingNaN(sn));
+  ASSERT(IsSignallingNaN(sm));
+  ASSERT(IsSignallingNaN(sa));
+  ASSERT(IsQuietNaN(qn));
+  ASSERT(IsQuietNaN(qm));
+  ASSERT(IsQuietNaN(qa));
+
+  //   - Signalling NaNs
+  DefaultNaNHelper(sn, 0.0f, 0.0f);
+  DefaultNaNHelper(0.0f, sm, 0.0f);
+  DefaultNaNHelper(0.0f, 0.0f, sa);
+  DefaultNaNHelper(sn, sm, 0.0f);
+  DefaultNaNHelper(0.0f, sm, sa);
+  DefaultNaNHelper(sn, 0.0f, sa);
+  DefaultNaNHelper(sn, sm, sa);
+  //   - Quiet NaNs
+  DefaultNaNHelper(qn, 0.0f, 0.0f);
+  DefaultNaNHelper(0.0f, qm, 0.0f);
+  DefaultNaNHelper(0.0f, 0.0f, qa);
+  DefaultNaNHelper(qn, qm, 0.0f);
+  DefaultNaNHelper(0.0f, qm, qa);
+  DefaultNaNHelper(qn, 0.0f, qa);
+  DefaultNaNHelper(qn, qm, qa);
+  //   - Mixed NaNs
+  DefaultNaNHelper(qn, sm, sa);
+  DefaultNaNHelper(sn, qm, sa);
+  DefaultNaNHelper(sn, sm, qa);
+  DefaultNaNHelper(qn, qm, sa);
+  DefaultNaNHelper(sn, qm, qa);
+  DefaultNaNHelper(qn, sm, qa);
+  DefaultNaNHelper(qn, qm, qa);
+}
+
+
+static void DefaultNaNHelper(double n, double m, double a) {
+  ASSERT(isnan(n) || isnan(m) || isnan(a));
+
+  bool test_1op = isnan(n);
+  bool test_2op = isnan(n) || isnan(m);
+
+  SETUP();
+  START();
+
+  // Enable Default-NaN mode in the FPCR.
+  __ Mrs(x0, FPCR);
+  __ Orr(x1, x0, DN_mask);
+  __ Msr(FPCR, x1);
+
+  // Execute a number of instructions which all use ProcessNaNs, and check that
+  // they all produce the default NaN.
+  __ Fmov(d0, n);
+  __ Fmov(d1, m);
+  __ Fmov(d2, a);
+
+  if (test_1op) {
+    // Operations that always propagate NaNs unchanged, even signalling NaNs.
+    __ Fmov(d10, d0);
+    __ Fabs(d11, d0);
+    __ Fneg(d12, d0);
+
+    // Operations that use ProcessNaN.
+    __ Fsqrt(d13, d0);
+    __ Frinta(d14, d0);
+    __ Frintn(d15, d0);
+    __ Frintz(d16, d0);
+
+    // Fcvt usually has special NaN handling, but it respects default-NaN mode.
+    __ Fcvt(s17, d0);
+  }
+
+  if (test_2op) {
+    __ Fadd(d18, d0, d1);
+    __ Fsub(d19, d0, d1);
+    __ Fmul(d20, d0, d1);
+    __ Fdiv(d21, d0, d1);
+    __ Fmax(d22, d0, d1);
+    __ Fmin(d23, d0, d1);
+  }
+
+  __ Fmadd(d24, d0, d1, d2);
+  __ Fmsub(d25, d0, d1, d2);
+  __ Fnmadd(d26, d0, d1, d2);
+  __ Fnmsub(d27, d0, d1, d2);
+
+  // Restore FPCR.
+  __ Msr(FPCR, x0);
+
+  END();
+  RUN();
+
+  if (test_1op) {
+    uint64_t n_raw = double_to_rawbits(n);
+    ASSERT_EQUAL_FP64(n, d10);
+    ASSERT_EQUAL_FP64(rawbits_to_double(n_raw & ~kDSignMask), d11);
+    ASSERT_EQUAL_FP64(rawbits_to_double(n_raw ^ kDSignMask), d12);
+    ASSERT_EQUAL_FP64(kFP64DefaultNaN, d13);
+    ASSERT_EQUAL_FP64(kFP64DefaultNaN, d14);
+    ASSERT_EQUAL_FP64(kFP64DefaultNaN, d15);
+    ASSERT_EQUAL_FP64(kFP64DefaultNaN, d16);
+    ASSERT_EQUAL_FP32(kFP32DefaultNaN, s17);
+  }
+
+  if (test_2op) {
+    ASSERT_EQUAL_FP64(kFP64DefaultNaN, d18);
+    ASSERT_EQUAL_FP64(kFP64DefaultNaN, d19);
+    ASSERT_EQUAL_FP64(kFP64DefaultNaN, d20);
+    ASSERT_EQUAL_FP64(kFP64DefaultNaN, d21);
+    ASSERT_EQUAL_FP64(kFP64DefaultNaN, d22);
+    ASSERT_EQUAL_FP64(kFP64DefaultNaN, d23);
+  }
+
+  ASSERT_EQUAL_FP64(kFP64DefaultNaN, d24);
+  ASSERT_EQUAL_FP64(kFP64DefaultNaN, d25);
+  ASSERT_EQUAL_FP64(kFP64DefaultNaN, d26);
+  ASSERT_EQUAL_FP64(kFP64DefaultNaN, d27);
+
+  TEARDOWN();
+}
+
+
+TEST(default_nan_double) {
+  INIT_V8();
+  double sn = rawbits_to_double(0x7ff5555511111111);
+  double sm = rawbits_to_double(0x7ff5555522222222);
+  double sa = rawbits_to_double(0x7ff55555aaaaaaaa);
+  double qn = rawbits_to_double(0x7ffaaaaa11111111);
+  double qm = rawbits_to_double(0x7ffaaaaa22222222);
+  double qa = rawbits_to_double(0x7ffaaaaaaaaaaaaa);
+  ASSERT(IsSignallingNaN(sn));
+  ASSERT(IsSignallingNaN(sm));
+  ASSERT(IsSignallingNaN(sa));
+  ASSERT(IsQuietNaN(qn));
+  ASSERT(IsQuietNaN(qm));
+  ASSERT(IsQuietNaN(qa));
+
+  //   - Signalling NaNs
+  DefaultNaNHelper(sn, 0.0, 0.0);
+  DefaultNaNHelper(0.0, sm, 0.0);
+  DefaultNaNHelper(0.0, 0.0, sa);
+  DefaultNaNHelper(sn, sm, 0.0);
+  DefaultNaNHelper(0.0, sm, sa);
+  DefaultNaNHelper(sn, 0.0, sa);
+  DefaultNaNHelper(sn, sm, sa);
+  //   - Quiet NaNs
+  DefaultNaNHelper(qn, 0.0, 0.0);
+  DefaultNaNHelper(0.0, qm, 0.0);
+  DefaultNaNHelper(0.0, 0.0, qa);
+  DefaultNaNHelper(qn, qm, 0.0);
+  DefaultNaNHelper(0.0, qm, qa);
+  DefaultNaNHelper(qn, 0.0, qa);
+  DefaultNaNHelper(qn, qm, qa);
+  //   - Mixed NaNs
+  DefaultNaNHelper(qn, sm, sa);
+  DefaultNaNHelper(sn, qm, sa);
+  DefaultNaNHelper(sn, sm, qa);
+  DefaultNaNHelper(qn, qm, sa);
+  DefaultNaNHelper(sn, qm, qa);
+  DefaultNaNHelper(qn, sm, qa);
+  DefaultNaNHelper(qn, qm, qa);
 }
 
 

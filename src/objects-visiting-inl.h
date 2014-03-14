@@ -427,9 +427,6 @@ void StaticMarkingVisitor<StaticVisitor>::VisitCode(
     Map* map, HeapObject* object) {
   Heap* heap = map->GetHeap();
   Code* code = Code::cast(object);
-  if (FLAG_cleanup_code_caches_at_gc) {
-    code->ClearTypeFeedbackInfo(heap);
-  }
   if (FLAG_age_code && !Serializer::enabled()) {
     code->MakeOlder(heap->mark_compact_collector()->marking_parity());
   }
@@ -444,6 +441,9 @@ void StaticMarkingVisitor<StaticVisitor>::VisitSharedFunctionInfo(
   SharedFunctionInfo* shared = SharedFunctionInfo::cast(object);
   if (shared->ic_age() != heap->global_ic_age()) {
     shared->ResetForNewContext(heap->global_ic_age());
+  }
+  if (FLAG_cleanup_code_caches_at_gc) {
+    shared->ClearTypeFeedbackInfo(heap);
   }
   if (FLAG_cache_optimized_code &&
       FLAG_flush_optimized_code_cache &&

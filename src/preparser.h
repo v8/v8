@@ -382,6 +382,9 @@ class ParserBase : public Traits {
   typename Traits::Type::Expression ParseArrayLiteral(bool* ok);
   typename Traits::Type::Expression ParseObjectLiteral(bool* ok);
   typename Traits::Type::ExpressionList ParseArguments(bool* ok);
+  typename Traits::Type::Expression ParseAssignmentExpression(bool accept_IN,
+                                                              bool* ok);
+  typename Traits::Type::Expression ParseYieldExpression(bool* ok);
 
   // Used to detect duplicates in object literals. Each of the values
   // kGetterProperty, kSetterProperty and kValueProperty represents
@@ -564,6 +567,17 @@ class PreParserExpression {
 
   bool IsStrictFunction() { return code_ == kStrictFunctionExpression; }
 
+  // Dummy implementation for making expression->AsCall() work (see below).
+  PreParserExpression* operator->() { return this; }
+
+  // These are only used when doing function name inferring, and PreParser
+  // doesn't do function name inferring.
+  void* AsCall() const { return NULL; }
+  void* AsCallNew() const { return NULL; }
+
+  // More dummy implementations of things PreParser doesn't need to track:
+  void set_index(int index) {}  // For YieldExpressions
+
  private:
   // First two/three bits are used as flags.
   // Bit 0 and 1 represent identifiers or strings literals, and are
@@ -683,6 +697,24 @@ class PreParserFactory {
                                        int pos) {
     return PreParserExpression::Default();
   }
+
+  PreParserExpression NewAssignment(Token::Value op,
+                                    PreParserExpression left,
+                                    PreParserExpression right,
+                                    int pos) {
+    return PreParserExpression::Default();
+  }
+
+  PreParserExpression NewVariableProxy(void* generator_variable) {
+    return PreParserExpression::Default();
+  }
+
+  PreParserExpression NewYield(PreParserExpression generator_object,
+                               PreParserExpression expression,
+                               Yield::Kind yield_kind,
+                               int pos) {
+    return PreParserExpression::Default();
+  }
 };
 
 
@@ -705,6 +737,7 @@ class PreParserTraits {
     // Return types for traversing functions.
     typedef PreParserIdentifier Identifier;
     typedef PreParserExpression Expression;
+    typedef PreParserExpression YieldExpression;
     typedef PreParserExpression FunctionLiteral;
     typedef PreParserExpression ObjectLiteralProperty;
     typedef PreParserExpression Literal;
@@ -729,6 +762,11 @@ class PreParserTraits {
     return identifier.IsEvalOrArguments();
   }
 
+  // Returns true if the expression is of type "this.foo".
+  static bool IsThisProperty(PreParserExpression expression) {
+    return expression.IsThisProperty();
+  }
+
   static bool IsBoilerplateProperty(PreParserExpression property) {
     // PreParser doesn't count boilerplate properties.
     return false;
@@ -738,6 +776,8 @@ class PreParserTraits {
     return false;
   }
 
+  // Functions for encapsulating the differences between parsing and preparsing;
+  // operations interleaved with the recursive descent.
   static void PushLiteralName(FuncNameInferrer* fni, PreParserIdentifier id) {
     // PreParser should not use FuncNameInferrer.
     ASSERT(false);
@@ -745,6 +785,29 @@ class PreParserTraits {
 
   static void CheckFunctionLiteralInsideTopLevelObjectLiteral(
       PreParserScope* scope, PreParserExpression value, bool* has_function) {}
+
+  static void CheckAssigningFunctionLiteralToProperty(
+      PreParserExpression left, PreParserExpression right) {}
+
+
+  static PreParserExpression ValidateAssignmentLeftHandSide(
+      PreParserExpression expression) {
+    // Parser generates a runtime error here if the left hand side is not valid.
+    // PreParser doesn't have to.
+    return expression;
+  }
+
+  static PreParserExpression MarkExpressionAsLValue(
+      PreParserExpression expression) {
+    // TODO(marja): To be able to produce the same errors, the preparser needs
+    // to start tracking which expressions are variables and which are lvalues.
+    return expression;
+  }
+
+  // Checks LHS expression for assignment and prefix/postfix increment/decrement
+  // in strict mode.
+  void CheckStrictModeLValue(PreParserExpression expression, bool* ok);
+
 
   // Reporting errors.
   void ReportMessageAt(Scanner::Location location,
@@ -815,7 +878,6 @@ class PreParserTraits {
   }
 
   // Temporary glue; these functions will move to ParserBase.
-  PreParserExpression ParseAssignmentExpression(bool accept_IN, bool* ok);
   PreParserExpression ParseV8Intrinsic(bool* ok);
   PreParserExpression ParseFunctionLiteral(
       PreParserIdentifier name,
@@ -825,6 +887,7 @@ class PreParserTraits {
       int function_token_position,
       FunctionLiteral::FunctionType type,
       bool* ok);
+  PreParserExpression ParseConditionalExpression(bool accept_IN, bool* ok);
 
  private:
   PreParser* pre_parser_;
@@ -989,9 +1052,6 @@ class PreParser : public ParserBase<PreParserTraits> {
   Statement ParseThrowStatement(bool* ok);
   Statement ParseTryStatement(bool* ok);
   Statement ParseDebuggerStatement(bool* ok);
-
-  Expression ParseAssignmentExpression(bool accept_IN, bool* ok);
-  Expression ParseYieldExpression(bool* ok);
   Expression ParseConditionalExpression(bool accept_IN, bool* ok);
   Expression ParseBinaryExpression(int prec, bool accept_IN, bool* ok);
   Expression ParseUnaryExpression(bool* ok);
@@ -1535,6 +1595,97 @@ typename Traits::Type::ExpressionList ParserBase<Traits>::ParseArguments(
   }
   Expect(Token::RPAREN, CHECK_OK_CUSTOM(NullExpressionList));
   return result;
+}
+
+// Precedence = 2
+template <class Traits>
+typename Traits::Type::Expression ParserBase<Traits>::ParseAssignmentExpression(
+    bool accept_IN, bool* ok) {
+  // AssignmentExpression ::
+  //   ConditionalExpression
+  //   YieldExpression
+  //   LeftHandSideExpression AssignmentOperator AssignmentExpression
+
+  if (peek() == Token::YIELD && is_generator()) {
+    return this->ParseYieldExpression(ok);
+  }
+
+  if (fni_ != NULL) fni_->Enter();
+  typename Traits::Type::Expression expression =
+      this->ParseConditionalExpression(accept_IN, CHECK_OK);
+
+  if (!Token::IsAssignmentOp(peek())) {
+    if (fni_ != NULL) fni_->Leave();
+    // Parsed conditional expression only (no assignment).
+    return expression;
+  }
+
+  // Signal a reference error if the expression is an invalid left-hand
+  // side expression.  We could report this as a syntax error here but
+  // for compatibility with JSC we choose to report the error at
+  // runtime.
+  // TODO(ES5): Should change parsing for spec conformance.
+  expression = this->ValidateAssignmentLeftHandSide(expression);
+
+  if (strict_mode() == STRICT) {
+    // Assignment to eval or arguments is disallowed in strict mode.
+    this->CheckStrictModeLValue(expression, CHECK_OK);
+  }
+  expression = this->MarkExpressionAsLValue(expression);
+
+  Token::Value op = Next();  // Get assignment operator.
+  int pos = position();
+  typename Traits::Type::Expression right =
+      this->ParseAssignmentExpression(accept_IN, CHECK_OK);
+
+  // TODO(1231235): We try to estimate the set of properties set by
+  // constructors. We define a new property whenever there is an
+  // assignment to a property of 'this'. We should probably only add
+  // properties if we haven't seen them before. Otherwise we'll
+  // probably overestimate the number of properties.
+  if (op == Token::ASSIGN && this->IsThisProperty(expression)) {
+    function_state_->AddProperty();
+  }
+
+  this->CheckAssigningFunctionLiteralToProperty(expression, right);
+
+  if (fni_ != NULL) {
+    // Check if the right hand side is a call to avoid inferring a
+    // name if we're dealing with "a = function(){...}();"-like
+    // expression.
+    if ((op == Token::INIT_VAR
+         || op == Token::INIT_CONST_LEGACY
+         || op == Token::ASSIGN)
+        && (right->AsCall() == NULL && right->AsCallNew() == NULL)) {
+      fni_->Infer();
+    } else {
+      fni_->RemoveLastFunction();
+    }
+    fni_->Leave();
+  }
+
+  return factory()->NewAssignment(op, expression, right, pos);
+}
+
+template <class Traits>
+typename Traits::Type::Expression ParserBase<Traits>::ParseYieldExpression(
+    bool* ok) {
+  // YieldExpression ::
+  //   'yield' '*'? AssignmentExpression
+  int pos = peek_position();
+  Expect(Token::YIELD, CHECK_OK);
+  Yield::Kind kind =
+      Check(Token::MUL) ? Yield::DELEGATING : Yield::SUSPEND;
+  typename Traits::Type::Expression generator_object =
+      factory()->NewVariableProxy(function_state_->generator_object_variable());
+  typename Traits::Type::Expression expression =
+      ParseAssignmentExpression(false, CHECK_OK);
+  typename Traits::Type::YieldExpression yield =
+      factory()->NewYield(generator_object, expression, kind, pos);
+  if (kind == Yield::DELEGATING) {
+    yield->set_index(function_state_->NextHandlerIndex());
+  }
+  return yield;
 }
 
 

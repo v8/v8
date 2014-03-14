@@ -354,16 +354,31 @@ double OS::TimeCurrentMillis() {
 }
 
 
-double OS::DaylightSavingsOffset(double time) {
+class TimezoneCache {};
+
+
+TimezoneCache* OS::CreateTimezoneCache() {
+  return NULL;
+}
+
+
+void OS::DisposeTimezoneCache(TimezoneCache* cache) {
+  ASSERT(cache == NULL);
+}
+
+
+void OS::ClearTimezoneCache(TimezoneCache* cache) {
+  ASSERT(cache == NULL);
+}
+
+
+double OS::DaylightSavingsOffset(double time, TimezoneCache*) {
   if (std::isnan(time)) return nan_value();
   time_t tv = static_cast<time_t>(std::floor(time/msPerSecond));
   struct tm* t = localtime(&tv);
   if (NULL == t) return nan_value();
   return t->tm_isdst > 0 ? 3600 * msPerSecond : 0;
 }
-
-
-void OS::TimeZoneChanged() {}
 
 
 int OS::GetLastError() {
@@ -565,6 +580,8 @@ class Thread::PlatformData : public Malloced {
  public:
   PlatformData() : thread_(kNoThread) {}
   pthread_t thread_;  // Thread handle for pthread.
+  // Synchronizes thread creation
+  Mutex thread_creation_mutex_;
 };
 
 Thread::Thread(const Options& options)
@@ -612,10 +629,10 @@ static void SetThreadName(const char* name) {
 
 static void* ThreadEntry(void* arg) {
   Thread* thread = reinterpret_cast<Thread*>(arg);
-  // This is also initialized by the first argument to pthread_create() but we
-  // don't know which thread will run first (the original thread or the new
-  // one) so we initialize it here too.
-  thread->data()->thread_ = pthread_self();
+  // We take the lock here to make sure that pthread_create finished first since
+  // we don't know which thread will run first (the original thread or the new
+  // one).
+  { LockGuard<Mutex> lock_guard(&thread->data()->thread_creation_mutex_); }
   SetThreadName(thread->name());
   ASSERT(thread->data()->thread_ != kNoThread);
   thread->NotifyStartedAndRun();
@@ -642,7 +659,10 @@ void Thread::Start() {
     ASSERT_EQ(0, result);
   }
 #endif
-  result = pthread_create(&data_->thread_, &attr, ThreadEntry, this);
+  {
+    LockGuard<Mutex> lock_guard(&data_->thread_creation_mutex_);
+    result = pthread_create(&data_->thread_, &attr, ThreadEntry, this);
+  }
   ASSERT_EQ(0, result);
   result = pthread_attr_destroy(&attr);
   ASSERT_EQ(0, result);

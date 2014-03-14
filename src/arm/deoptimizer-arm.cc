@@ -373,6 +373,12 @@ void FrameDescription::SetCallerFp(unsigned offset, intptr_t value) {
 }
 
 
+void FrameDescription::SetCallerConstantPool(unsigned offset, intptr_t value) {
+  ASSERT(FLAG_enable_ool_constant_pool);
+  SetFrameSlot(offset, value);
+}
+
+
 #undef __
 
 } }  // namespace v8::internal

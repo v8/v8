@@ -841,16 +841,16 @@ bool LCodeGen::GenerateDeoptJumpTable() {
   __ bind(&table_start);
   Label needs_frame;
   for (int i = 0; i < deopt_jump_table_.length(); i++) {
-    __ Bind(&deopt_jump_table_[i].label);
-    Address entry = deopt_jump_table_[i].address;
-    Deoptimizer::BailoutType type = deopt_jump_table_[i].bailout_type;
+    __ Bind(&deopt_jump_table_[i]->label);
+    Address entry = deopt_jump_table_[i]->address;
+    Deoptimizer::BailoutType type = deopt_jump_table_[i]->bailout_type;
     int id = Deoptimizer::GetDeoptimizationId(isolate(), entry, type);
     if (id == Deoptimizer::kNotDeoptimizationEntry) {
       Comment(";;; jump table entry %d.", i);
     } else {
       Comment(";;; jump table entry %d: deoptimization bailout %d.", i, id);
     }
-    if (deopt_jump_table_[i].needs_frame) {
+    if (deopt_jump_table_[i]->needs_frame) {
       ASSERT(!info()->saves_caller_doubles());
 
       UseScratchRegisterScope temps(masm());
@@ -1030,24 +1030,23 @@ void LCodeGen::DeoptimizeBranch(
 
   ASSERT(info()->IsStub() || frame_is_built_);
   // Go through jump table if we need to build frame, or restore caller doubles.
-  if (frame_is_built_ && !info()->saves_caller_doubles()) {
-    Label dont_deopt;
-    __ B(&dont_deopt, InvertBranchType(branch_type), reg, bit);
+  if (branch_type == always &&
+      frame_is_built_ && !info()->saves_caller_doubles()) {
     __ Call(entry, RelocInfo::RUNTIME_ENTRY);
-    __ Bind(&dont_deopt);
   } else {
     // We often have several deopts to the same entry, reuse the last
     // jump entry if this is the case.
     if (deopt_jump_table_.is_empty() ||
-        (deopt_jump_table_.last().address != entry) ||
-        (deopt_jump_table_.last().bailout_type != bailout_type) ||
-        (deopt_jump_table_.last().needs_frame != !frame_is_built_)) {
-      Deoptimizer::JumpTableEntry table_entry(entry,
-                                              bailout_type,
-                                              !frame_is_built_);
+        (deopt_jump_table_.last()->address != entry) ||
+        (deopt_jump_table_.last()->bailout_type != bailout_type) ||
+        (deopt_jump_table_.last()->needs_frame != !frame_is_built_)) {
+      Deoptimizer::JumpTableEntry* table_entry =
+        new(zone()) Deoptimizer::JumpTableEntry(entry,
+                                                bailout_type,
+                                                !frame_is_built_);
       deopt_jump_table_.Add(table_entry, zone());
     }
-    __ B(&deopt_jump_table_.last().label,
+    __ B(&deopt_jump_table_.last()->label,
          branch_type, reg, bit);
   }
 }
@@ -1507,7 +1506,11 @@ void LCodeGen::DoAllocate(LAllocate* instr) {
 
   if (instr->size()->IsConstantOperand()) {
     int32_t size = ToInteger32(LConstantOperand::cast(instr->size()));
-    __ Allocate(size, result, temp1, temp2, deferred->entry(), flags);
+    if (size <= Page::kMaxRegularHeapObjectSize) {
+      __ Allocate(size, result, temp1, temp2, deferred->entry(), flags);
+    } else {
+      __ B(deferred->entry());
+    }
   } else {
     Register size = ToRegister32(instr->size());
     __ Sxtw(size.X(), size);
@@ -4139,7 +4142,7 @@ void LCodeGen::DoModByPowerOf2I(LModByPowerOf2I* instr) {
     // Note that this is correct even for kMinInt operands.
     __ Neg(dividend, dividend);
     __ And(dividend, dividend, Operand(mask));
-    __ Neg(dividend, dividend);
+    __ Negs(dividend, dividend);
     if (hmod->CheckFlag(HValue::kBailoutOnMinusZero)) {
       DeoptimizeIf(eq, instr->environment());
     }

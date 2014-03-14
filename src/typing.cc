@@ -40,6 +40,7 @@ AstTyper::AstTyper(CompilationInfo* info)
     : info_(info),
       oracle_(
           Handle<Code>(info->closure()->shared()->code()),
+          Handle<FixedArray>(info->closure()->shared()->feedback_vector()),
           Handle<Context>(info->closure()->context()->native_context()),
           info->zone()),
       store_(info->zone()) {
@@ -561,7 +562,7 @@ void AstTyper::VisitCallNew(CallNew* expr) {
     RECURSE(Visit(arg));
   }
 
-  // We don't know anything about the result type.
+  NarrowType(expr, Bounds(Type::None(zone()), Type::Receiver(zone())));
 }
 
 

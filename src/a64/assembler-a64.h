@@ -2175,20 +2175,19 @@ class PatchingAssembler : public Assembler {
     : Assembler(NULL,
                 reinterpret_cast<byte*>(start),
                 count * kInstructionSize + kGap) {
-    // Block constant pool emission.
-    StartBlockConstPool();
+    StartBlockPools();
   }
 
   PatchingAssembler(byte* start, unsigned count)
     : Assembler(NULL, start, count * kInstructionSize + kGap) {
     // Block constant pool emission.
-    StartBlockConstPool();
+    StartBlockPools();
   }
 
   ~PatchingAssembler() {
     // Const pool should still be blocked.
     ASSERT(is_const_pool_blocked());
-    EndBlockConstPool();
+    EndBlockPools();
     // Verify we have generated the number of instruction we expected.
     ASSERT((pc_offset() + kGap) == buffer_size_);
     // Verify no relocation information has been emitted.

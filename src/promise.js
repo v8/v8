@@ -227,7 +227,15 @@ PromiseCoerce.table = new $WeakMap;
 
 function PromiseCoerce(constructor, x) {
   if (!IsPromise(x) && IS_SPEC_OBJECT(x)) {
-    var then = x.then;
+    var then;
+    try {
+      then = x.then;
+    } catch(e) {
+      var deferred = %_CallFunction(constructor, PromiseDeferred);
+      PromiseCoerce.table.set(x, deferred.promise);
+      deferred.reject(e);
+      return deferred.promise;
+    }
     if (typeof then === 'function') {
       if (PromiseCoerce.table.has(x)) {
         return PromiseCoerce.table.get(x);

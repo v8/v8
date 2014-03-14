@@ -2687,7 +2687,6 @@ MaybeObject* Heap::AllocateTypeFeedbackInfo() {
     if (!maybe_info->To(&info)) return maybe_info;
   }
   info->initialize_storage();
-  info->set_feedback_vector(empty_fixed_array(), SKIP_WRITE_BARRIER);
   return info;
 }
 
@@ -3348,7 +3347,7 @@ bool Heap::CreateInitialObjects() {
   set_materialized_objects(FixedArray::cast(obj));
 
   // Handling of script id generation is in Factory::NewScript.
-  set_last_script_id(Smi::FromInt(v8::Script::kNoScriptId));
+  set_last_script_id(Smi::FromInt(v8::UnboundScript::kNoScriptId));
 
   { MaybeObject* maybe_obj = AllocateAllocationSitesScratchpad();
     if (!maybe_obj->ToObject(&obj)) return false;
@@ -3809,6 +3808,7 @@ MaybeObject* Heap::AllocateSharedFunctionInfo(Object* name) {
   share->set_script(undefined_value(), SKIP_WRITE_BARRIER);
   share->set_debug_info(undefined_value(), SKIP_WRITE_BARRIER);
   share->set_inferred_name(empty_string(), SKIP_WRITE_BARRIER);
+  share->set_feedback_vector(empty_fixed_array(), SKIP_WRITE_BARRIER);
   share->set_initial_map(undefined_value(), SKIP_WRITE_BARRIER);
   share->set_ast_node_count(0);
   share->set_counters(0);

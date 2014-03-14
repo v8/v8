@@ -1,3 +1,22 @@
+2014-03-14: Version 3.25.12
+
+        PromiseCoerce should deal with an error during accessing "then"
+        (Chromium issue 347095).
+
+        Propagate updated offsets in BoundsCheckBbData (Chromium issue 350863).
+
+        Add regression test for range analysis bug (issue 3204).
+
+        Continued fix for 351257. Reusing the feedback vector is too complex
+        (Chromium issue 351257).
+
+        StopCpuProfiling should return non-const CpuProfile (issue 3213).
+
+        Allow for compiling with xcode 5.1 (which doesn't have gcc anymore).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-03-14: Version 3.25.11
 
         MIPS: Remove uses of CanBeNegative() in HMod (issue 3204).

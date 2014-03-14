@@ -377,6 +377,12 @@ void FrameDescription::SetCallerFp(unsigned offset, intptr_t value) {
 }
 
 
+void FrameDescription::SetCallerConstantPool(unsigned offset, intptr_t value) {
+  // No out-of-line constant pool support.
+  UNREACHABLE();
+}
+
+
 #undef __
 
 } }  // namespace v8::internal

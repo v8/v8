@@ -108,6 +108,7 @@ class ObjectTemplate;
 class Platform;
 class Primitive;
 class RawOperationDescriptor;
+class Script;
 class Signature;
 class StackFrame;
 class StackTrace;
@@ -127,6 +128,7 @@ template<class T> class PersistentBase;
 template<class T,
          class M = NonCopyablePersistentTraits<T> > class Persistent;
 template<class T> class UniquePersistent;
+template<class K, class V, class T> class PersistentValueMap;
 template<class T, class P> class WeakCallbackObject;
 class FunctionTemplate;
 class ObjectTemplate;
@@ -809,145 +811,6 @@ class UniquePersistent : public PersistentBase<T> {
 };
 
 
-typedef uintptr_t PersistentContainerValue;
-static const uintptr_t kPersistentContainerNotFound = 0;
-
-/**
- * A map wrapper that allows using UniquePersistent as a mapped value.
- * C++11 embedders don't need this class, as they can use UniquePersistent
- * directly in std containers.
- *
- * The map relies on a backing map, whose type and accessors are described
- * by the Traits class. The backing map will handle values of type
- * PersistentContainerValue, with all conversion into and out of V8
- * handles being transparently handled by this class.
- */
-template<class K, class V, class Traits>
-class PersistentValueMap {
- public:
-  V8_INLINE explicit PersistentValueMap(Isolate* isolate) : isolate_(isolate) {}
-
-  V8_INLINE ~PersistentValueMap() { Clear(); }
-
-  V8_INLINE Isolate* GetIsolate() { return isolate_; }
-
-  /**
-   * Return size of the map.
-   */
-  V8_INLINE size_t Size() { return Traits::Size(&impl_); }
-
-  /**
-   * Get value stored in map.
-   */
-  V8_INLINE Local<V> Get(const K& key) {
-    return Local<V>::New(isolate_, FromVal(Traits::Get(&impl_, key)));
-  }
-
-  /**
-   * Check whether a value is contained in the map.
-   */
-  V8_INLINE bool Contains(const K& key) {
-    return Traits::Get(&impl_, key) != 0;
-  }
-
-  /**
-   * Get value stored in map and set it in returnValue.
-   * Return true if a value was found.
-   */
-  V8_INLINE bool SetReturnValue(const K& key,
-    ReturnValue<Value>& returnValue);
-
-  /**
-   * Call Isolate::SetReference with the given parent and the map value.
-   */
-  V8_INLINE void SetReference(const K& key,
-      const v8::Persistent<v8::Object>& parent) {
-    GetIsolate()->SetReference(
-      reinterpret_cast<internal::Object**>(parent.val_),
-      reinterpret_cast<internal::Object**>(FromVal(Traits::Get(&impl_, key))));
-  }
-
-  /**
-   * Put value into map. Depending on Traits::kIsWeak, the value will be held
-   * by the map strongly or weakly.
-   * Returns old value as UniquePersistent.
-   */
-  UniquePersistent<V> Set(const K& key, Local<V> value) {
-    UniquePersistent<V> persistent(isolate_, value);
-    return SetUnique(key, &persistent);
-  }
-
-  /**
-   * Put value into map, like Set(const K&, Local<V>).
-   */
-  UniquePersistent<V> Set(const K& key, UniquePersistent<V> value) {
-    return SetUnique(key, &value);
-  }
-
-  /**
-   * Return value for key and remove it from the map.
-   */
-  V8_INLINE UniquePersistent<V> Remove(const K& key) {
-    return Release(Traits::Remove(&impl_, key)).Pass();
-  }
-
-  /**
-  * Traverses the map repeatedly,
-  * in case side effects of disposal cause insertions.
-  **/
-  void Clear();
-
- private:
-  PersistentValueMap(PersistentValueMap&);
-  void operator=(PersistentValueMap&);
-
-  /**
-   * Put the value into the map, and set the 'weak' callback when demanded
-   * by the Traits class.
-   */
-  UniquePersistent<V> SetUnique(const K& key, UniquePersistent<V>* persistent) {
-    if (Traits::kIsWeak) {
-      Local<V> value(Local<V>::New(isolate_, *persistent));
-      persistent->template SetWeak<typename Traits::WeakCallbackDataType>(
-        Traits::WeakCallbackParameter(&impl_, key, value), WeakCallback);
-    }
-    PersistentContainerValue old_value =
-        Traits::Set(&impl_, key, ClearAndLeak(persistent));
-    return Release(old_value).Pass();
-  }
-
-  static void WeakCallback(
-      const WeakCallbackData<V, typename Traits::WeakCallbackDataType>& data);
-  V8_INLINE static V* FromVal(PersistentContainerValue v) {
-    return reinterpret_cast<V*>(v);
-  }
-  V8_INLINE static PersistentContainerValue ClearAndLeak(
-      UniquePersistent<V>* persistent) {
-    V* v = persistent->val_;
-    persistent->val_ = 0;
-    return reinterpret_cast<PersistentContainerValue>(v);
-  }
-
-  /**
-   * Return a container value as UniquePersistent and make sure the weak
-   * callback is properly disposed of. All remove functionality should go
-   * through this.
-   */
-  V8_INLINE static UniquePersistent<V> Release(PersistentContainerValue v) {
-    UniquePersistent<V> p;
-    p.val_ = FromVal(v);
-    if (Traits::kIsWeak && !p.IsEmpty()) {
-      Traits::DisposeCallbackData(
-          p.template ClearWeak<typename Traits::WeakCallbackDataType>());
-    }
-    return p.Pass();
-  }
-
-  Isolate* isolate_;
-  typename Traits::Impl impl_;
-};
-
-
  /**
  * A stack-allocated class that governs a number of local handles.
  * After a handle scope has been created, all local handles will be
@@ -1146,86 +1009,16 @@ class ScriptOrigin {
 
 
 /**
- * A compiled JavaScript script.
+ * A compiled JavaScript script, not yet tied to a Context.
  */
-class V8_EXPORT Script {
+class V8_EXPORT UnboundScript {
  public:
   /**
-   * Compiles the specified script (context-independent).
-   *
-   * \param source Script source code.
-   * \param origin Script origin, owned by caller, no references are kept
-   *   when New() returns
-   * \param pre_data Pre-parsing data, as obtained by ScriptData::PreCompile()
-   *   using pre_data speeds compilation if it's done multiple times.
-   *   Owned by caller, no references are kept when New() returns.
-   * \return Compiled script object (context independent; when run it
-   *   will use the currently entered context).
+   * Binds the script to the currently entered context.
    */
-  static Local<Script> New(Handle<String> source,
-                           ScriptOrigin* origin = NULL,
-                           ScriptData* pre_data = NULL);
+  Local<Script> BindToCurrentContext();
 
-  /**
-   * Compiles the specified script using the specified file name
-   * object (typically a string) as the script's origin.
-   *
-   * \param source Script source code.
-   * \param file_name file name object (typically a string) to be used
-   *   as the script's origin.
-   * \return Compiled script object (context independent; when run it
-   *   will use the currently entered context).
-   */
-  static Local<Script> New(Handle<String> source,
-                           Handle<Value> file_name);
-
-  /**
-   * Compiles the specified script (bound to current context).
-   *
-   * \param source Script source code.
-   * \param origin Script origin, owned by caller, no references are kept
-   *   when Compile() returns
-   * \param pre_data Pre-parsing data, as obtained by ScriptData::PreCompile()
-   *   using pre_data speeds compilation if it's done multiple times.
-   *   Owned by caller, no references are kept when Compile() returns.
-   * \return Compiled script object, bound to the context that was active
-   *   when this function was called.  When run it will always use this
-   *   context.
-   */
-  static Local<Script> Compile(Handle<String> source,
-                               ScriptOrigin* origin = NULL,
-                               ScriptData* pre_data = NULL);
-
-  /**
-   * Compiles the specified script using the specified file name
-   * object (typically a string) as the script's origin.
-   *
-   * \param source Script source code.
-   * \param file_name File name to use as script's origin
-   * \return Compiled script object, bound to the context that was active
-   *   when this function was called.  When run it will always use this
-   *   context.
-   */
-  static Local<Script> Compile(Handle<String> source,
-                               Handle<Value> file_name);
-
-  /**
-   * Runs the script returning the resulting value.  If the script is
-   * context independent (created using ::New) it will be run in the
-   * currently entered context.  If it is context specific (created
-   * using ::Compile) it will be run in the context in which it was
-   * compiled.
-   */
-  Local<Value> Run();
-
-  /**
-   * Returns the script id.
-   */
   int GetId();
-
-  /**
-   * Returns the name value of one Script.
-   */
   Handle<Value> GetScriptName();
 
   /**
@@ -1235,6 +1028,137 @@ class V8_EXPORT Script {
   int GetLineNumber(int code_pos);
 
   static const int kNoScriptId = 0;
+};
+
+
+/**
+ * A compiled JavaScript script, tied to a Context which was active when the
+ * script was compiled.
+ */
+class V8_EXPORT Script {
+ public:
+  /**
+   * A shorthand for ScriptCompiler::Compile().
+   * The ScriptData parameter will be deprecated; use ScriptCompiler::Compile if
+   * you want to pass it.
+   */
+  static Local<Script> Compile(Handle<String> source,
+                               ScriptOrigin* origin = NULL,
+                               ScriptData* script_data = NULL);
+
+  // To be decprecated, use the Compile above.
+  static Local<Script> Compile(Handle<String> source,
+                               Handle<String> file_name);
+
+  /**
+   * Runs the script returning the resulting value. It will be run in the
+   * context in which it was created (ScriptCompiler::CompileBound or
+   * UnboundScript::BindToGlobalContext()).
+   */
+  Local<Value> Run();
+
+  /**
+   * Returns the corresponding context-unbound script.
+   */
+  Local<UnboundScript> GetUnboundScript();
+
+  // To be deprecated; use GetUnboundScript()->GetId();
+  int GetId() {
+    return GetUnboundScript()->GetId();
+  }
+
+  // Use GetUnboundScript()->GetId();
+  V8_DEPRECATED("Use GetUnboundScript()->GetId()",
+                Handle<Value> GetScriptName()) {
+    return GetUnboundScript()->GetScriptName();
+  }
+
+  /**
+   * Returns zero based line number of the code_pos location in the script.
+   * -1 will be returned if no information available.
+   */
+  V8_DEPRECATED("Use GetUnboundScript()->GetLineNumber()",
+                int GetLineNumber(int code_pos)) {
+    return GetUnboundScript()->GetLineNumber(code_pos);
+  }
+};
+
+
+/**
+ * For compiling scripts.
+ */
+class V8_EXPORT ScriptCompiler {
+ public:
+  /**
+   * Compilation data that the embedder can cache and pass back to speed up
+   * future compilations. The data is produced if the CompilerOptions passed to
+   * the compilation functions in ScriptCompiler contains produce_data_to_cache
+   * = true. The data to cache can then can be retrieved from
+   * UnboundScript.
+   */
+  struct V8_EXPORT CachedData {
+    CachedData() : data(NULL), length(0) {}
+    // Caller keeps the ownership of data and guarantees that the data stays
+    // alive long enough.
+    CachedData(const uint8_t* data, int length) : data(data), length(length) {}
+    // TODO(marja): Async compilation; add constructors which take a callback
+    // which will be called when V8 no longer needs the data.
+    const uint8_t* data;
+    int length;
+  };
+
+  /**
+   * Source code which can be then compiled to a UnboundScript or
+   * BoundScript.
+   */
+  struct V8_EXPORT Source {
+    Source(Local<String> source_string, const ScriptOrigin& origin,
+           const CachedData& cached_data = CachedData());
+    Source(Local<String> source_string,
+           const CachedData& cached_data = CachedData());
+
+    Local<String> source_string;
+
+    // Origin information
+    Handle<Value> resource_name;
+    Handle<Integer> resource_line_offset;
+    Handle<Integer> resource_column_offset;
+    Handle<Boolean> resource_is_shared_cross_origin;
+
+    // Cached data from previous compilation (if any).
+    CachedData cached_data;
+  };
+
+  enum CompileOptions {
+    kNoCompileOptions,
+    kProduceDataToCache = 1 << 0
+  };
+
+  /**
+   * Compiles the specified script (context-independent).
+   *
+   * \param source Script source code.
+   * \return Compiled script object (context independent; for running it must be
+   *   bound to a context).
+   */
+  static Local<UnboundScript> CompileUnbound(
+      Isolate* isolate, const Source& source,
+      CompileOptions options = kNoCompileOptions);
+
+  /**
+   * Compiles the specified script (bound to current context).
+   *
+   * \param source Script source code.
+   * \param pre_data Pre-parsing data, as obtained by ScriptData::PreCompile()
+   *   using pre_data speeds compilation if it's done multiple times.
+   *   Owned by caller, no references are kept when this function returns.
+   * \return Compiled script object, bound to the context that was active
+   *   when this function was called. When run it will always use this
+   *   context.
+   */
+  static Local<Script> Compile(
+      Isolate* isolate, const Source& source,
+      CompileOptions options = kNoCompileOptions);
 };
 
 
@@ -5946,44 +5870,6 @@ uint16_t PersistentBase<T>::WrapperClassId() const {
   internal::Object** obj = reinterpret_cast<internal::Object**>(this->val_);
   uint8_t* addr = reinterpret_cast<uint8_t*>(obj) + I::kNodeClassIdOffset;
   return *reinterpret_cast<uint16_t*>(addr);
-}
-
-
-template <class K, class V, class Traits>
-bool PersistentValueMap<K, V, Traits>::SetReturnValue(const K& key,
-    ReturnValue<Value>& returnValue) {
-  PersistentContainerValue value = Traits::Get(&impl_, key);
-  bool hasValue = value != 0;
-  if (hasValue) {
-    returnValue.SetInternal(
-        *reinterpret_cast<internal::Object**>(FromVal(value)));
-  }
-  return hasValue;
-}
-
-template <class K, class V, class Traits>
-void PersistentValueMap<K, V, Traits>::Clear() {
-  typedef typename Traits::Iterator It;
-  HandleScope handle_scope(isolate_);
-  // TODO(dcarney): figure out if this swap and loop is necessary.
-  while (!Traits::Empty(&impl_)) {
-    typename Traits::Impl impl;
-    Traits::Swap(impl_, impl);
-    for (It i = Traits::Begin(&impl); i != Traits::End(&impl); ++i) {
-      Traits::Dispose(isolate_, Release(Traits::Value(i)).Pass(), &impl,
-        Traits::Key(i));
-    }
-  }
-}
-
-
-template <class K, class V, class Traits>
-void PersistentValueMap<K, V, Traits>::WeakCallback(
-    const WeakCallbackData<V, typename Traits::WeakCallbackDataType>& data) {
-  typename Traits::Impl* impl = Traits::ImplFromWeakCallbackData(data);
-  K key = Traits::KeyFromWeakCallbackData(data);
-  PersistentContainerValue value = Traits::Remove(impl, key);
-  Traits::Dispose(data.GetIsolate(), Release(value).Pass(), impl, key);
 }
 
 
