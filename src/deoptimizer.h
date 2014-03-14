@@ -508,6 +508,8 @@ class FrameDescription {
 
   void SetCallerFp(unsigned offset, intptr_t value);
 
+  void SetCallerConstantPool(unsigned offset, intptr_t value);
+
   intptr_t GetRegister(unsigned n) const {
 #if DEBUG
     // This convoluted ASSERT is needed to work around a gcc problem that
