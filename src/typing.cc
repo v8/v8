@@ -562,7 +562,7 @@ void AstTyper::VisitCallNew(CallNew* expr) {
     RECURSE(Visit(arg));
   }
 
-  // We don't know anything about the result type.
+  NarrowType(expr, Bounds(Type::None(zone()), Type::Receiver(zone())));
 }
 
 
