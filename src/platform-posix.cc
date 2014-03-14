@@ -565,6 +565,8 @@ class Thread::PlatformData : public Malloced {
  public:
   PlatformData() : thread_(kNoThread) {}
   pthread_t thread_;  // Thread handle for pthread.
+  // Synchronizes thread creation
+  Mutex thread_creation_mutex_;
 };
 
 Thread::Thread(const Options& options)
@@ -581,10 +583,6 @@ Thread::Thread(const Options& options)
 Thread::~Thread() {
   delete data_;
 }
-
-
-// Synchronizes thread creation
-static Mutex thread_creation_mutex_;
 
 
 static void SetThreadName(const char* name) {
@@ -619,7 +617,7 @@ static void* ThreadEntry(void* arg) {
   // We take the lock here to make sure that pthread_create finished first since
   // we don't know which thread will run first (the original thread or the new
   // one).
-  { LockGuard<Mutex> lock_guard(&thread_creation_mutex_); }
+  { LockGuard<Mutex> lock_guard(&thread->data()->thread_creation_mutex_); }
   SetThreadName(thread->name());
   ASSERT(thread->data()->thread_ != kNoThread);
   thread->NotifyStartedAndRun();
@@ -647,7 +645,7 @@ void Thread::Start() {
   }
 #endif
   {
-    LockGuard<Mutex> lock_guard(&thread_creation_mutex_);
+    LockGuard<Mutex> lock_guard(&data_->thread_creation_mutex_);
     result = pthread_create(&data_->thread_, &attr, ThreadEntry, this);
   }
   ASSERT_EQ(0, result);
