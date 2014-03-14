@@ -6956,16 +6956,26 @@ void CpuProfiler::SetSamplingInterval(int us) {
 }
 
 
-void CpuProfiler::StartCpuProfiling(Handle<String> title, bool record_samples) {
+void CpuProfiler::StartProfiling(Handle<String> title, bool record_samples) {
   reinterpret_cast<i::CpuProfiler*>(this)->StartProfiling(
       *Utils::OpenHandle(*title), record_samples);
 }
 
 
-const CpuProfile* CpuProfiler::StopCpuProfiling(Handle<String> title) {
-  return reinterpret_cast<const CpuProfile*>(
+void CpuProfiler::StartCpuProfiling(Handle<String> title, bool record_samples) {
+  StartProfiling(title, record_samples);
+}
+
+
+CpuProfile* CpuProfiler::StopProfiling(Handle<String> title) {
+  return reinterpret_cast<CpuProfile*>(
       reinterpret_cast<i::CpuProfiler*>(this)->StopProfiling(
           *Utils::OpenHandle(*title)));
+}
+
+
+const CpuProfile* CpuProfiler::StopCpuProfiling(Handle<String> title) {
+  return StopProfiling(title);
 }
 
 
