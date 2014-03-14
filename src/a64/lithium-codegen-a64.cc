@@ -1010,7 +1010,7 @@ void LCodeGen::DeoptimizeBranch(
     __ B(gt, &not_zero);
     __ Mov(w1, FLAG_deopt_every_n_times);
     __ Str(w1, MemOperand(x0));
-    __ Pop(x0, x1, x2);
+    __ Pop(x2, x1, x0);
     ASSERT(frame_is_built_);
     __ Call(entry, RelocInfo::RUNTIME_ENTRY);
     __ Unreachable();
@@ -1018,7 +1018,7 @@ void LCodeGen::DeoptimizeBranch(
     __ Bind(&not_zero);
     __ Str(w1, MemOperand(x0));
     __ Msr(NZCV, x2);
-    __ Pop(x0, x1, x2);
+    __ Pop(x2, x1, x0);
   }
 
   if (info()->ShouldTrapOnDeopt()) {
