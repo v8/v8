@@ -29,6 +29,7 @@
 #include "lexer.h"
 #include "char-predicates-inl.h"
 #include "scanner-character-streams.h"
+#include "parser.h"
 
 namespace v8 {
 namespace internal {
@@ -522,6 +523,59 @@ void LexerBase::LiteralDesc::SetStringFromLiteralBuffer() {
     one_byte_string_ = buffer.one_byte_literal();
   } else {
     two_byte_string_ = buffer.two_byte_literal();
+  }
+}
+
+
+Handle<String> LexerBase::AllocateNextLiteralString(Isolate* isolate,
+                                                  PretenureFlag tenured) {
+  if (is_next_literal_one_byte()) {
+    return isolate->factory()->NewStringFromOneByte(
+        Vector<const uint8_t>::cast(next_literal_one_byte_string()), tenured);
+  } else {
+    return isolate->factory()->NewStringFromTwoByte(
+          next_literal_two_byte_string(), tenured);
+  }
+}
+
+
+Handle<String> LexerBase::AllocateInternalizedString(Isolate* isolate) {
+  if (is_literal_one_byte()) {
+    return isolate->factory()->InternalizeOneByteString(
+        literal_one_byte_string());
+  } else {
+    return isolate->factory()->InternalizeTwoByteString(
+        literal_two_byte_string());
+  }
+}
+
+
+double LexerBase::DoubleValue() {
+  ASSERT(is_literal_one_byte());
+  return StringToDouble(
+      unicode_cache_, Vector<const char>::cast(literal_one_byte_string()),
+      ALLOW_HEX | ALLOW_OCTAL | ALLOW_IMPLICIT_OCTAL | ALLOW_BINARY);
+}
+
+
+int LexerBase::FindNumber(DuplicateFinder* finder, int value) {
+  return finder->AddNumber(literal_one_byte_string(), value);
+}
+
+
+int LexerBase::FindSymbol(DuplicateFinder* finder, int value) {
+  if (is_literal_one_byte()) {
+    return finder->AddOneByteSymbol(literal_one_byte_string(), value);
+  }
+  return finder->AddTwoByteSymbol(literal_two_byte_string(), value);
+}
+
+
+void LexerBase::LogSymbol(ParserRecorder* log, int position) {
+  if (is_literal_one_byte()) {
+    log->LogOneByteSymbol(position, literal_one_byte_string());
+  } else {
+    log->LogTwoByteSymbol(position, literal_two_byte_string());
   }
 }
 

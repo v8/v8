@@ -173,6 +173,37 @@ class LexerBase {
         (memcmp(literal.start(), keyword.start(), literal.length()) == 0);
   }
 
+  Handle<String> AllocateNextLiteralString(Isolate* isolate,
+                                           PretenureFlag tenured);
+  Handle<String> AllocateInternalizedString(Isolate* isolate);
+
+  double DoubleValue();
+  bool UnescapedLiteralMatches(const char* data, int length) {
+    if (is_literal_one_byte() &&
+        literal_length() == length &&
+        !literal_contains_escapes()) {
+      const char* token =
+          reinterpret_cast<const char*>(literal_one_byte_string().start());
+      return !strncmp(token, data, length);
+    }
+    return false;
+  }
+  void IsGetOrSet(bool* is_get, bool* is_set) {
+    if (is_literal_one_byte() &&
+        literal_length() == 3 &&
+        !literal_contains_escapes()) {
+      const char* token =
+          reinterpret_cast<const char*>(literal_one_byte_string().start());
+      *is_get = strncmp(token, "get", 3) == 0;
+      *is_set = !*is_get && strncmp(token, "set", 3) == 0;
+    }
+  }
+
+  int FindNumber(DuplicateFinder* finder, int value);
+  int FindSymbol(DuplicateFinder* finder, int value);
+
+  void LogSymbol(ParserRecorder* log, int position);
+
   bool HarmonyScoping() const {
     return harmony_scoping_;
   }
@@ -427,22 +458,6 @@ class Scanner {
     return lexer_->HasAnyLineTerminatorBeforeNext();
   }
 
-  inline Vector<const char> literal_ascii_string() {
-    return Vector<const char>::cast(lexer_->literal_one_byte_string());
-  }
-
-  inline Vector<const uc16> literal_utf16_string() {
-    return lexer_->literal_two_byte_string();
-  }
-
-  inline int literal_length() {
-    return lexer_->literal_length();
-  }
-
-  inline bool is_literal_ascii() {
-    return lexer_->is_literal_one_byte();
-  }
-
   inline bool is_literal_contextual_keyword(
       Vector<const char>& keyword) {  // NOLINT
     return lexer_->is_literal_contextual_keyword(
@@ -453,26 +468,37 @@ class Scanner {
     return lexer_->literal_contains_escapes();
   }
 
-  inline Vector<const char> next_literal_ascii_string() {
-    return Vector<const char>::cast(lexer_->next_literal_one_byte_string());
-  }
-
-  inline Vector<const uc16> next_literal_utf16_string() {
-    return lexer_->next_literal_two_byte_string();
-  }
-
-  inline int next_literal_length() {
-    return lexer_->next_literal_length();
-  }
-
-  inline bool is_next_literal_ascii() {
-    return lexer_->is_next_literal_one_byte();
-  }
-
   inline bool is_next_contextual_keyword(
       Vector<const char>& keyword) {  // NOLINT
     return lexer_->is_next_contextual_keyword(
         Vector<const uint8_t>::cast(keyword));
+  }
+
+  inline Handle<String> AllocateNextLiteralString(Isolate* isolate,
+                                                  PretenureFlag tenured) {
+    return lexer_->AllocateNextLiteralString(isolate, tenured);
+  }
+  inline Handle<String> AllocateInternalizedString(Isolate* isolate) {
+    return lexer_->AllocateInternalizedString(isolate);
+  }
+
+  inline double DoubleValue() { return lexer_->DoubleValue(); }
+  inline bool UnescapedLiteralMatches(const char* data, int length) {
+    return lexer_->UnescapedLiteralMatches(data, length);
+  }
+  inline void IsGetOrSet(bool* is_get, bool* is_set) {
+    lexer_->IsGetOrSet(is_get, is_set);
+  }
+
+  inline int FindNumber(DuplicateFinder* finder, int value) {
+    return lexer_->FindNumber(finder, value);
+  }
+  inline int FindSymbol(DuplicateFinder* finder, int value) {
+    return lexer_->FindSymbol(finder, value);
+  }
+
+  inline void LogSymbol(ParserRecorder* log, int position) {
+    lexer_->LogSymbol(log, position);
   }
 
  private:
