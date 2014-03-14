@@ -1599,7 +1599,10 @@ KeyedAccessStoreMode KeyedStoreIC::GetStoreMode(Handle<JSObject> receiver,
   key->ToSmi()->To(&smi_key);
   int index = smi_key->value();
   bool oob_access = IsOutOfBoundsAccess(receiver, index);
-  bool allow_growth = receiver->IsJSArray() && oob_access;
+  // Don't consider this a growing store if the store would send the receiver to
+  // dictionary mode.
+  bool allow_growth = receiver->IsJSArray() && oob_access &&
+      !receiver->WouldConvertToSlowElements(key);
   if (allow_growth) {
     // Handle growing array in stub if necessary.
     if (receiver->HasFastSmiElements()) {
@@ -1724,12 +1727,7 @@ MaybeObject* KeyedStoreIC::Store(Handle<Object> object,
           if (!(receiver->map()->DictionaryElementsInPrototypeChainOnly())) {
             KeyedAccessStoreMode store_mode =
                 GetStoreMode(receiver, key, value);
-            // Use the generic stub if the store would send the receiver to
-            // dictionary mode.
-            if (!IsGrowStoreMode(store_mode) ||
-                !receiver->WouldConvertToSlowElements(key)) {
-              stub = StoreElementStub(receiver, store_mode);
-            }
+            stub = StoreElementStub(receiver, store_mode);
           }
         }
       }
