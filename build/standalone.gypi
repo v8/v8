@@ -344,6 +344,12 @@
           }, {
             'xcode_settings': {'GCC_TREAT_WARNINGS_AS_ERRORS': 'YES'},
           }],
+          ['clang==1', {
+            'xcode_settings': {
+              'GCC_VERSION': 'com.apple.compilers.llvm.clang.1_0',
+              'CLANG_CXX_LANGUAGE_STANDARD': 'gnu++11',  # -std=gnu++11
+            },
+          }],
         ],
         'target_conditions': [
           ['_type!="static_library"', {
