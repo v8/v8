@@ -311,6 +311,21 @@ class ApplyChanges(Step):
     Command("rm", "-f %s*" % self.Config(PATCH_FILE))
 
 
+class AddChangeLog(Step):
+  MESSAGE = "Add ChangeLog changes to trunk branch."
+
+  def RunStep(self):
+    # The change log has been modified by the patch. Reset it to the version
+    # on trunk and apply the exact changes determined by this PrepareChangeLog
+    # step above.
+    self.GitCheckoutFile(self.Config(CHANGELOG_FILE))
+    changelog_entry = FileToText(self.Config(NEW_CHANGELOG_FILE))
+    old_change_log = FileToText(self.Config(CHANGELOG_FILE))
+    new_change_log = "%s\n\n\n%s" % (changelog_entry, old_change_log)
+    TextToFile(new_change_log, self.Config(CHANGELOG_FILE))
+    os.remove(self.Config(NEW_CHANGELOG_FILE))
+
+
 class SetVersion(Step):
   MESSAGE = "Set correct version for trunk."
 
@@ -529,6 +544,7 @@ class PushToTrunk(ScriptsBase):
       SquashCommits,
       NewBranch,
       ApplyChanges,
+      AddChangeLog,
       SetVersion,
       CommitTrunk,
       SanityCheck,
