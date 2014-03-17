@@ -105,6 +105,26 @@ class ProcessRunner:
     data['buffer'].append(data['process'].stdout.read())
     return ''.join(data['buffer'])
 
+  @staticmethod
+  def analyse_diff(left_data, right_data):
+    left = left_data.split("\n");
+    right = right_data.split("\n");
+    for i in range(min(len(left), len(right))):
+      if left[i] != right[i]:
+        message = "differ at token %d" % i
+        for j in range(i-4, i-1):
+          if j >= 0:
+            message += "\n\n%s\n%s" % (left[j], right[j])
+        message += "\n\n%s\n%s\n" % (left[i], right[i])
+        logging.info(message)
+        return
+    if len(right) > len(left):
+      logging.info("right longer")
+      return
+    if len(left) > len(right):
+      logging.info("left longer")
+      return
+
   def compare_results(self, left, right):
     f = left['file']
     assert f == right['file']
@@ -117,7 +137,7 @@ class ProcessRunner:
     left_data = self.buffer_contents(left)
     right_data = self.buffer_contents(right)
     if left_data != right_data:
-      # TODO(dcarney): analyse differences
+      self.analyse_diff(left_data, right_data)
       print "%s failed" % f
       return
     print "%s succeeded" % f
@@ -184,7 +204,8 @@ if __name__ == '__main__':
   parser.add_argument('-f', '--single-file', default='')
   parser.add_argument('-p', '--parallel-process-count', default=1, type=int)
   parser.add_argument('-e', '--encoding',
-    choices=['latin1', 'utf8', 'utf8to16', 'utf16'], default='utf8')
+    choices=['latin1', 'utf8', 'utf16', 'utf8to16', 'utf8tolatin1'],
+    default='utf8')
   parser.add_argument('--use-harmony', action='store_true')
   parser.add_argument('-v', '--verbose', action='store_true')
   args = parser.parse_args()

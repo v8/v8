@@ -53,7 +53,7 @@ enum Encoding {
   UTF8,
   UTF16,
   UTF8TO16,  // Convert stream via scanner input stream
-  UTF8TO16_PRECONVERT  // Convert stream during file read
+  UTF8TOLATIN1,  // Convert stream via scanner input stream
 };
 
 
@@ -81,12 +81,14 @@ struct LexerShellSettings {
 
 
 static uint16_t* ConvertUtf8ToUtf16(const uint16_t* const data_in,
-                                    unsigned* length) {
+                                    unsigned* length,
+                                    bool* is_one_byte) {
   const unsigned file_size = *length;
   const uint8_t* char_data = reinterpret_cast<const uint8_t*>(data_in);
   const uint32_t kMaxUtf16Character = 0xffff;
   // Get utf8 length.
   unsigned utf16_chars = 0;
+  *is_one_byte = true;
   {
     unsigned position = 0;
     while (position < file_size) {
@@ -94,6 +96,7 @@ static uint16_t* ConvertUtf8ToUtf16(const uint16_t* const data_in,
       if (c <= unibrow::Utf8::kMaxOneByteChar) {
         position++;
       } else {
+        *is_one_byte = false;
         c =  unibrow::Utf8::CalculateValue(char_data + position,
                                            file_size - position,
                                            &position);
@@ -126,6 +129,17 @@ static uint16_t* ConvertUtf8ToUtf16(const uint16_t* const data_in,
     }
   }
   *length = 2 * utf16_chars;
+  return data;
+}
+
+
+static uint16_t* ConvertUtf16ToLatin1(const uint16_t* const data_in,
+                                      unsigned* length) {
+  const unsigned size = *length / 2 + *length % 2;
+  uint16_t* data = new uint16_t[size];
+  uint8_t* char_data = reinterpret_cast<uint8_t*>(data);
+  CopyChars(char_data, data_in, size);
+  *length = size;
   return data;
 }
 
@@ -166,13 +180,29 @@ static uint16_t* ReadFile(const char* name, unsigned* length) {
 
 static uint16_t* ReadFile(const char* name,
                           const LexerShellSettings& settings,
-                          unsigned* length) {
+                          unsigned* length,
+                          Encoding* output_encoding) {
   uint16_t* data = ReadFile(name, length);
   CHECK_GE(*length, 0);
   if (*length == 0) return data;
 
-  if (settings.encoding == UTF8TO16_PRECONVERT) {
-    uint16_t* new_data = ConvertUtf8ToUtf16(data, length);
+  *output_encoding = settings.encoding;
+
+  if (settings.encoding == UTF8TO16 ||
+      settings.encoding == UTF8TOLATIN1) {
+    bool is_one_byte;
+    uint16_t* new_data = ConvertUtf8ToUtf16(data, length, &is_one_byte);
+    if (settings.encoding == UTF8TOLATIN1 && is_one_byte) {
+      *output_encoding = LATIN1;
+    } else {
+      *output_encoding = UTF16;
+    }
+    delete data;
+    data = new_data;
+  }
+
+  if (settings.encoding == UTF8TOLATIN1 && *output_encoding == LATIN1) {
+    uint16_t* new_data = ConvertUtf16ToLatin1(data, length);
     delete data;
     data = new_data;
   }
@@ -265,16 +295,15 @@ class TokenWithLocation {
 static TimeDelta RunLexer(const uint16_t* source,
                           const uint8_t* source_end,
                           Isolate* isolate,
+                          Encoding output_encoding,
                           const LexerShellSettings& settings) {
   SmartPointer<Utf16CharacterStream> stream;
   const uint8_t* one_byte_source = reinterpret_cast<const uint8_t*>(source);
   int bytes = source_end - one_byte_source;
-  switch (settings.encoding) {
-    case UTF8TO16:
+  switch (output_encoding) {
     case UTF8:
       stream.Reset(new Utf8ToUtf16CharacterStream(one_byte_source, bytes));
       break;
-    case UTF8TO16_PRECONVERT:
     case UTF16: {
       CHECK_EQ(0, bytes % 2);
       Handle<String> result = isolate->factory()->NewStringFromTwoByte(
@@ -290,6 +319,9 @@ static TimeDelta RunLexer(const uint16_t* source,
           new GenericStringUtf16CharacterStream(result, 0, result->length()));
       break;
     }
+    case UTF8TO16:
+    case UTF8TOLATIN1:
+      CHECK(false);
   }
   Scanner scanner(isolate->unicode_cache());
   scanner.SetHarmonyNumericLiterals(settings.harmony_numeric_literals);
@@ -340,14 +372,16 @@ static TimeDelta ProcessFile(
   TimeDelta time;
   {
     unsigned length_in_bytes;
-    const uint16_t* buffer = ReadFile(fname, settings, &length_in_bytes);
+    Encoding output_encoding;
+    const uint16_t* buffer =
+        ReadFile(fname, settings, &length_in_bytes, &output_encoding);
     const uint8_t* char_data = reinterpret_cast<const uint8_t*>(buffer);
     const uint8_t* buffer_end = &char_data[length_in_bytes];
     if (truncate_by > buffer_end - char_data) {
       *can_truncate = false;
     } else {
       buffer_end -= truncate_by;
-      time = RunLexer(buffer, buffer_end, isolate, settings);
+      time = RunLexer(buffer, buffer_end, isolate, output_encoding, settings);
     }
     delete[] buffer;
   }
@@ -370,9 +404,15 @@ int main(int argc, char* argv[]) {
       settings.encoding = UTF16;
     } else if (strcmp(argv[i], "--utf8to16") == 0) {
 #ifdef V8_USE_GENERATED_LEXER
-      settings.encoding = UTF8TO16_PRECONVERT;
-#else
       settings.encoding = UTF8TO16;
+#else
+      settings.encoding = UTF8;
+#endif
+    } else if (strcmp(argv[i], "--utf8tolatin1") == 0) {
+#ifdef V8_USE_GENERATED_LEXER
+      settings.encoding = UTF8TOLATIN1;
+#else
+      settings.encoding = UTF8;
 #endif
     } else if (strcmp(argv[i], "--print-tokens") == 0) {
       settings.print_tokens = true;
