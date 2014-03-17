@@ -88,6 +88,10 @@ class HCheckTable : public ZoneObject {
         ReduceCompareMap(HCompareMap::cast(instr));
         break;
       }
+      case HValue::kCompareObjectEqAndBranch: {
+        ReduceCompareObjectEqAndBranch(HCompareObjectEqAndBranch::cast(instr));
+        break;
+      }
       case HValue::kTransitionElementsKind: {
         ReduceTransitionElementsKind(
             HTransitionElementsKind::cast(instr));
@@ -473,6 +477,23 @@ class HCheckTable : public ZoneObject {
     TRACE(("Marking redundant CompareMap #%d for #%d at B%d as %s\n",
         instr->id(), instr->value()->id(), instr->block()->block_id(),
         succ == 0 ? "true" : "false"));
+    instr->set_known_successor_index(succ);
+
+    int unreachable_succ = 1 - succ;
+    instr->block()->MarkSuccEdgeUnreachable(unreachable_succ);
+  }
+
+  void ReduceCompareObjectEqAndBranch(HCompareObjectEqAndBranch* instr) {
+    MapSet maps_left = FindMaps(instr->left()->ActualValue());
+    if (maps_left == NULL) return;
+    MapSet maps_right = FindMaps(instr->right()->ActualValue());
+    if (maps_right == NULL) return;
+    MapSet intersection = maps_left->Intersect(maps_right, phase_->zone());
+    if (intersection->size() > 0) return;
+
+    TRACE(("Marking redundant CompareObjectEqAndBranch #%d at B%d as false\n",
+        instr->id(), instr->block()->block_id()));
+    int succ = 1;
     instr->set_known_successor_index(succ);
 
     int unreachable_succ = 1 - succ;
