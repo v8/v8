@@ -5047,6 +5047,33 @@ MaybeObject* Heap::AllocateEmptyExternalArray(ExternalArrayType array_type) {
 }
 
 
+MaybeObject* Heap::CopyAndTenureFixedCOWArray(FixedArray* src) {
+  if (!InNewSpace(src)) {
+    return src;
+  }
+
+  int len = src->length();
+  Object* obj;
+  { MaybeObject* maybe_obj = AllocateRawFixedArray(len, TENURED);
+    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+  }
+  HeapObject::cast(obj)->set_map_no_write_barrier(fixed_array_map());
+  FixedArray* result = FixedArray::cast(obj);
+  result->set_length(len);
+
+  // Copy the content
+  DisallowHeapAllocation no_gc;
+  WriteBarrierMode mode = result->GetWriteBarrierMode(no_gc);
+  for (int i = 0; i < len; i++) result->set(i, src->get(i), mode);
+
+  // TODO(mvstanton): The map is set twice because of protection against calling
+  // set() on a COW FixedArray. Issue v8:3221 created to track this, and
+  // we might then be able to remove this whole method.
+  HeapObject::cast(obj)->set_map_no_write_barrier(fixed_cow_array_map());
+  return result;
+}
+
+
 MaybeObject* Heap::CopyFixedArrayWithMap(FixedArray* src, Map* map) {
   int len = src->length();
   Object* obj;

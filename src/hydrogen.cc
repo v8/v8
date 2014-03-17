@@ -9757,6 +9757,18 @@ HInstruction* HOptimizedGraphBuilder::BuildFastLiteral(
       elements->map() != isolate()->heap()->fixed_cow_array_map()) ?
           elements->Size() : 0;
 
+  if (pretenure_flag == TENURED &&
+      elements->map() == isolate()->heap()->fixed_cow_array_map() &&
+      isolate()->heap()->InNewSpace(*elements)) {
+    // If we would like to pretenure a fixed cow array, we must ensure that the
+    // array is already in old space, otherwise we'll create too many old-to-
+    // new-space pointers (overflowing the store buffer).
+    elements = Handle<FixedArrayBase>(
+        isolate()->factory()->CopyAndTenureFixedCOWArray(
+            Handle<FixedArray>::cast(elements)));
+    boilerplate_object->set_elements(*elements);
+  }
+
   HInstruction* object_elements = NULL;
   if (elements_size > 0) {
     HValue* object_elements_size = Add<HConstant>(elements_size);

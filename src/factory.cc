@@ -889,6 +889,15 @@ Handle<FixedArray> Factory::CopyFixedArray(Handle<FixedArray> array) {
 }
 
 
+Handle<FixedArray> Factory::CopyAndTenureFixedCOWArray(
+    Handle<FixedArray> array) {
+  ASSERT(isolate()->heap()->InNewSpace(*array));
+  CALL_HEAP_FUNCTION(isolate(),
+                     isolate()->heap()->CopyAndTenureFixedCOWArray(*array),
+                     FixedArray);
+}
+
+
 Handle<FixedArray> Factory::CopySizeFixedArray(Handle<FixedArray> array,
                                                int new_length,
                                                PretenureFlag pretenure) {
