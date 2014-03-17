@@ -4817,6 +4817,23 @@ void MacroAssembler::AssertName(Register object) {
 }
 
 
+void MacroAssembler::AssertUndefinedOrAllocationSite(Register object,
+                                                     Register scratch) {
+  if (emit_debug_code()) {
+    Label done_checking;
+    AssertNotSmi(object);
+    LoadRoot(scratch, Heap::kUndefinedValueRootIndex);
+    Branch(&done_checking, eq, object, Operand(scratch));
+    push(object);
+    lw(object, FieldMemOperand(object, HeapObject::kMapOffset));
+    LoadRoot(scratch, Heap::kAllocationSiteMapRootIndex);
+    Assert(eq, kExpectedUndefinedOrCell, object, Operand(scratch));
+    pop(object);
+    bind(&done_checking);
+  }
+}
+
+
 void MacroAssembler::AssertIsRoot(Register reg, Heap::RootListIndex index) {
   if (emit_debug_code()) {
     ASSERT(!reg.is(at));
