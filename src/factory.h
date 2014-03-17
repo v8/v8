@@ -334,9 +334,11 @@ class Factory {
 
   // JS objects are pretenured when allocated by the bootstrapper and
   // runtime.
-  Handle<JSObject> NewJSObjectFromMap(Handle<Map> map,
-                                      PretenureFlag pretenure = NOT_TENURED,
-                                      bool allocate_properties = true);
+  Handle<JSObject> NewJSObjectFromMap(
+      Handle<Map> map,
+      PretenureFlag pretenure = NOT_TENURED,
+      bool allocate_properties = true,
+      Handle<AllocationSite> allocation_site = Handle<AllocationSite>::null());
 
   Handle<JSObject> NewJSObjectFromMapForDeoptimizer(
       Handle<Map> map, PretenureFlag pretenure = NOT_TENURED);
@@ -355,6 +357,12 @@ class Factory {
       Handle<FixedArrayBase> elements,
       ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND,
       PretenureFlag pretenure = NOT_TENURED);
+
+  void NewJSArrayStorage(
+      Handle<JSArray> array,
+      int length,
+      int capacity,
+      ArrayStorageAllocationMode mode = DONT_INITIALIZE_ARRAY_ELEMENTS);
 
   void SetElementsCapacityAndLength(Handle<JSArray> array,
                                     int capacity,

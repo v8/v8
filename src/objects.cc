@@ -3362,6 +3362,15 @@ MaybeObject* JSObject::GetElementsTransitionMapSlow(ElementsKind to_kind) {
 }
 
 
+// TODO(ishell): Temporary wrapper until handlified.
+// static
+Handle<Map> Map::AsElementsKind(Handle<Map> map, ElementsKind kind) {
+  CALL_HEAP_FUNCTION(map->GetIsolate(),
+                     map->AsElementsKind(kind),
+                     Map);
+}
+
+
 MaybeObject* Map::AsElementsKind(ElementsKind kind) {
   Map* closest_map = FindClosestElementsTransition(this, kind);
 

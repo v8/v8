@@ -6222,6 +6222,7 @@ class Map: public HeapObject {
       Descriptor* descriptor,
       int index,
       TransitionFlag flag);
+  static Handle<Map> AsElementsKind(Handle<Map> map, ElementsKind kind);
   MUST_USE_RESULT MaybeObject* AsElementsKind(ElementsKind kind);
 
   MUST_USE_RESULT MaybeObject* CopyAsElementsKind(ElementsKind kind,

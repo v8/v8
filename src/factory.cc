@@ -1408,12 +1408,18 @@ Handle<GlobalObject> Factory::NewGlobalObject(Handle<JSFunction> constructor) {
 }
 
 
-Handle<JSObject> Factory::NewJSObjectFromMap(Handle<Map> map,
-                                             PretenureFlag pretenure,
-                                             bool alloc_props) {
+Handle<JSObject> Factory::NewJSObjectFromMap(
+    Handle<Map> map,
+    PretenureFlag pretenure,
+    bool alloc_props,
+    Handle<AllocationSite> allocation_site) {
   CALL_HEAP_FUNCTION(
       isolate(),
-      isolate()->heap()->AllocateJSObjectFromMap(*map, pretenure, alloc_props),
+      isolate()->heap()->AllocateJSObjectFromMap(
+          *map,
+          pretenure,
+          alloc_props,
+          allocation_site.is_null() ? NULL : *allocation_site),
       JSObject);
 }
 
@@ -1445,6 +1451,18 @@ Handle<JSArray> Factory::NewJSArrayWithElements(Handle<FixedArrayBase> elements,
                                                      elements->length(),
                                                      pretenure),
       JSArray);
+}
+
+
+void Factory::NewJSArrayStorage(Handle<JSArray> array,
+                                     int length,
+                                     int capacity,
+                                     ArrayStorageAllocationMode mode) {
+  CALL_HEAP_FUNCTION_VOID(isolate(),
+                          isolate()->heap()->AllocateJSArrayStorage(*array,
+                                                                    length,
+                                                                    capacity,
+                                                                    mode));
 }
 
 

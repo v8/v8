@@ -14749,12 +14749,14 @@ static MaybeObject* ArrayConstructorCommon(Isolate* isolate,
                                            Handle<JSFunction> constructor,
                                            Handle<AllocationSite> site,
                                            Arguments* caller_args) {
+  Factory* factory = isolate->factory();
+
   bool holey = false;
   bool can_use_type_feedback = true;
   if (caller_args->length() == 1) {
-    Object* argument_one = (*caller_args)[0];
+    Handle<Object> argument_one = caller_args->at<Object>(0);
     if (argument_one->IsSmi()) {
-      int value = Smi::cast(argument_one)->value();
+      int value = Handle<Smi>::cast(argument_one)->value();
       if (value < 0 || value >= JSObject::kInitialMaxFastElementArray) {
         // the array is a dictionary in this case.
         can_use_type_feedback = false;
@@ -14767,8 +14769,7 @@ static MaybeObject* ArrayConstructorCommon(Isolate* isolate,
     }
   }
 
-  JSArray* array;
-  MaybeObject* maybe_array;
+  Handle<JSArray> array;
   if (!site.is_null() && can_use_type_feedback) {
     ElementsKind to_kind = site->GetElementsKind();
     if (holey && !IsFastHoleyElementsKind(to_kind)) {
@@ -14780,42 +14781,37 @@ static MaybeObject* ArrayConstructorCommon(Isolate* isolate,
     // We should allocate with an initial map that reflects the allocation site
     // advice. Therefore we use AllocateJSObjectFromMap instead of passing
     // the constructor.
-    Map* initial_map = constructor->initial_map();
+    Handle<Map> initial_map(constructor->initial_map(), isolate);
     if (to_kind != initial_map->elements_kind()) {
-      MaybeObject* maybe_new_map = initial_map->AsElementsKind(to_kind);
-      if (!maybe_new_map->To(&initial_map)) return maybe_new_map;
+      initial_map = Map::AsElementsKind(initial_map, to_kind);
+      RETURN_IF_EMPTY_HANDLE(isolate, initial_map);
     }
 
     // If we don't care to track arrays of to_kind ElementsKind, then
     // don't emit a memento for them.
-    AllocationSite* allocation_site =
-        (AllocationSite::GetMode(to_kind) == TRACK_ALLOCATION_SITE)
-        ? *site
-        : NULL;
+    Handle<AllocationSite> allocation_site;
+    if (AllocationSite::GetMode(to_kind) == TRACK_ALLOCATION_SITE) {
+      allocation_site = site;
+    }
 
-    maybe_array = isolate->heap()->AllocateJSObjectFromMap(initial_map,
-                                                           NOT_TENURED,
-                                                           true,
-                                                           allocation_site);
-    if (!maybe_array->To(&array)) return maybe_array;
+    array = Handle<JSArray>::cast(factory->NewJSObjectFromMap(
+        initial_map, NOT_TENURED, true, allocation_site));
   } else {
-    maybe_array = isolate->heap()->AllocateJSObject(*constructor);
-    if (!maybe_array->To(&array)) return maybe_array;
+    array = Handle<JSArray>::cast(factory->NewJSObject(constructor));
+
     // We might need to transition to holey
     ElementsKind kind = constructor->initial_map()->elements_kind();
     if (holey && !IsFastHoleyElementsKind(kind)) {
       kind = GetHoleyElementsKind(kind);
-      maybe_array = array->TransitionElementsKind(kind);
-      if (maybe_array->IsFailure()) return maybe_array;
+      JSObject::TransitionElementsKind(array, kind);
     }
   }
 
-  maybe_array = isolate->heap()->AllocateJSArrayStorage(array, 0, 0,
-      DONT_INITIALIZE_ARRAY_ELEMENTS);
-  if (maybe_array->IsFailure()) return maybe_array;
+  factory->NewJSArrayStorage(array, 0, 0, DONT_INITIALIZE_ARRAY_ELEMENTS);
+
   ElementsKind old_kind = array->GetElementsKind();
-  maybe_array = ArrayConstructInitializeElements(array, caller_args);
-  if (maybe_array->IsFailure()) return maybe_array;
+  RETURN_IF_EMPTY_HANDLE(isolate,
+                         ArrayConstructInitializeElements(array, caller_args));
   if (!site.is_null() &&
       (old_kind != array->GetElementsKind() ||
        !can_use_type_feedback)) {
@@ -14824,7 +14820,7 @@ static MaybeObject* ArrayConstructorCommon(Isolate* isolate,
     // We must mark the allocationsite as un-inlinable.
     site->SetDoNotInlineCall();
   }
-  return array;
+  return *array;
 }
 
 

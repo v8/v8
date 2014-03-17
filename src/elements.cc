@@ -1910,6 +1910,15 @@ MUST_USE_RESULT MaybeObject* ElementsAccessorBase<ElementsAccessorSubclass,
 }
 
 
+// TODO(ishell): Temporary wrapper until handlified.
+Handle<Object> ArrayConstructInitializeElements(Handle<JSArray> array,
+                                                Arguments* args) {
+  CALL_HEAP_FUNCTION(array->GetIsolate(),
+                     ArrayConstructInitializeElements(*array, args),
+                     Object);
+}
+
+
 MUST_USE_RESULT MaybeObject* ArrayConstructInitializeElements(
     JSArray* array, Arguments* args) {
   Heap* heap = array->GetIsolate()->heap();
