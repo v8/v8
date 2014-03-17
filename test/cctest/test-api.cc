@@ -18745,7 +18745,7 @@ void PrologueCallbackAlloc(v8::Isolate* isolate,
   CHECK(!obj.IsEmpty());
 
   CcTest::heap()->CollectAllGarbage(
-      i::Heap::Heap::kAbortIncrementalMarkingMask);
+      i::Heap::kAbortIncrementalMarkingMask);
 }
 
 
@@ -18765,7 +18765,7 @@ void EpilogueCallbackAlloc(v8::Isolate* isolate,
   CHECK(!obj.IsEmpty());
 
   CcTest::heap()->CollectAllGarbage(
-      i::Heap::Heap::kAbortIncrementalMarkingMask);
+      i::Heap::kAbortIncrementalMarkingMask);
 }
 
 
@@ -18841,7 +18841,7 @@ TEST(GCCallbacks) {
   isolate->AddGCPrologueCallback(PrologueCallbackAlloc);
   isolate->AddGCEpilogueCallback(EpilogueCallbackAlloc);
   CcTest::heap()->CollectAllGarbage(
-      i::Heap::Heap::kAbortIncrementalMarkingMask);
+      i::Heap::kAbortIncrementalMarkingMask);
   CHECK_EQ(1, prologue_call_count_alloc);
   CHECK_EQ(1, epilogue_call_count_alloc);
   isolate->RemoveGCPrologueCallback(PrologueCallbackAlloc);
