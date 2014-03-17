@@ -1687,7 +1687,9 @@ MaybeObject* KeyedStoreIC::Store(Handle<Object> object,
                                   JSReceiver::MAY_BE_STORE_FROM_KEYED);
     if (maybe_object->IsFailure()) return maybe_object;
   } else {
-    bool use_ic = FLAG_use_ic && !object->IsAccessCheckNeeded() &&
+    bool use_ic = FLAG_use_ic &&
+        !object->IsAccessCheckNeeded() &&
+        !object->IsJSGlobalProxy() &&
         !(object->IsJSObject() &&
           JSObject::cast(*object)->map()->is_observed());
     if (use_ic && !object->IsSmi()) {
