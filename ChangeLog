@@ -1,3 +1,10 @@
+2014-03-17: Version 3.25.13
+
+        Move profiler callback interfaces from v8.h to v8-profiler.h.
+
+        Performance and stability improvements on all platforms.
+
+
 2014-03-14: Version 3.25.12
 
         PromiseCoerce should deal with an error during accessing "then"
