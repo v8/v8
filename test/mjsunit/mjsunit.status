@@ -221,6 +221,8 @@
   'regexp-global': [SKIP],
   'compiler/alloc-numbers': [SKIP],
   'harmony/symbols': [SKIP],
+  # Issue 3219:
+  'getters-on-elements': [PASS, ['gc_stress == True', FAIL]],
 }],  # 'arch == a64 and mode == debug and simulator_run == True'
 
 ##############################################################################
