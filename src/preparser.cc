@@ -146,10 +146,8 @@ PreParserExpression PreParserTraits::ParseFunctionLiteral(
 }
 
 
-PreParserExpression PreParserTraits::ParseBinaryExpression(int prec,
-                                                           bool accept_IN,
-                                                           bool* ok) {
-  return pre_parser_->ParseBinaryExpression(prec, accept_IN, ok);
+PreParserExpression PreParserTraits::ParseUnaryExpression(bool* ok) {
+  return pre_parser_->ParseUnaryExpression(ok);
 }
 
 
@@ -842,23 +840,6 @@ PreParser::Statement PreParser::ParseDebuggerStatement(bool* ok) {
   ((void)0
 #define DUMMY )  // to make indentation work
 #undef DUMMY
-
-
-// Precedence >= 4
-PreParser::Expression PreParser::ParseBinaryExpression(int prec,
-                                                       bool accept_IN,
-                                                       bool* ok) {
-  Expression result = ParseUnaryExpression(CHECK_OK);
-  for (int prec1 = Precedence(peek(), accept_IN); prec1 >= prec; prec1--) {
-    // prec1 >= 4
-    while (Precedence(peek(), accept_IN) == prec1) {
-      Next();
-      ParseBinaryExpression(prec1 + 1, accept_IN, CHECK_OK);
-      result = Expression::Default();
-    }
-  }
-  return result;
-}
 
 
 PreParser::Expression PreParser::ParseUnaryExpression(bool* ok) {

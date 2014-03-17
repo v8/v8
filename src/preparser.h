@@ -390,6 +390,9 @@ class ParserBase : public Traits {
   typename Traits::Type::Expression ParseYieldExpression(bool* ok);
   typename Traits::Type::Expression ParseConditionalExpression(bool accept_IN,
                                                                bool* ok);
+  typename Traits::Type::Expression ParseBinaryExpression(int prec,
+                                                          bool accept_IN,
+                                                          bool* ok);
 
   // Used to detect duplicates in object literals. Each of the values
   // kGetterProperty, kSetterProperty and kValueProperty represents
@@ -663,9 +666,19 @@ class PreParserFactory {
                                        int pos) {
     return PreParserExpression::Default();
   }
+  PreParserExpression NewUnaryOperation(Token::Value op,
+                                        PreParserExpression expression,
+                                        int pos) {
+    return PreParserExpression::Default();
+  }
   PreParserExpression NewBinaryOperation(Token::Value op,
                                          PreParserExpression left,
                                          PreParserExpression right, int pos) {
+    return PreParserExpression::Default();
+  }
+  PreParserExpression NewCompareOperation(Token::Value op,
+                                          PreParserExpression left,
+                                          PreParserExpression right, int pos) {
     return PreParserExpression::Default();
   }
   PreParserExpression NewArrayLiteral(PreParserExpressionList values,
@@ -818,6 +831,13 @@ class PreParserTraits {
   // in strict mode.
   void CheckStrictModeLValue(PreParserExpression expression, bool* ok);
 
+  bool ShortcutNumericLiteralBinaryExpression(PreParserExpression* x,
+                                              PreParserExpression y,
+                                              Token::Value op,
+                                              int pos,
+                                              PreParserFactory* factory) {
+    return false;
+  }
 
   // Reporting errors.
   void ReportMessageAt(Scanner::Location location,
@@ -900,7 +920,7 @@ class PreParserTraits {
       int function_token_position,
       FunctionLiteral::FunctionType type,
       bool* ok);
-  PreParserExpression ParseBinaryExpression(int prec, bool accept_IN, bool* ok);
+  PreParserExpression ParseUnaryExpression(bool* ok);
 
  private:
   PreParser* pre_parser_;
@@ -1066,7 +1086,6 @@ class PreParser : public ParserBase<PreParserTraits> {
   Statement ParseTryStatement(bool* ok);
   Statement ParseDebuggerStatement(bool* ok);
   Expression ParseConditionalExpression(bool accept_IN, bool* ok);
-  Expression ParseBinaryExpression(int prec, bool accept_IN, bool* ok);
   Expression ParseUnaryExpression(bool* ok);
   Expression ParsePostfixExpression(bool* ok);
   Expression ParseLeftHandSideExpression(bool* ok);
@@ -1726,6 +1745,52 @@ ParserBase<Traits>::ParseConditionalExpression(bool accept_IN, bool* ok) {
   typename Traits::Type::Expression right =
       ParseAssignmentExpression(accept_IN, CHECK_OK);
   return factory()->NewConditional(expression, left, right, pos);
+}
+
+
+// Precedence >= 4
+template <class Traits>
+typename Traits::Type::Expression
+ParserBase<Traits>::ParseBinaryExpression(int prec, bool accept_IN, bool* ok) {
+  ASSERT(prec >= 4);
+  typename Traits::Type::Expression x = this->ParseUnaryExpression(CHECK_OK);
+  for (int prec1 = Precedence(peek(), accept_IN); prec1 >= prec; prec1--) {
+    // prec1 >= 4
+    while (Precedence(peek(), accept_IN) == prec1) {
+      Token::Value op = Next();
+      int pos = position();
+      typename Traits::Type::Expression y =
+          ParseBinaryExpression(prec1 + 1, accept_IN, CHECK_OK);
+
+      if (this->ShortcutNumericLiteralBinaryExpression(&x, y, op, pos,
+                                                       factory())) {
+        continue;
+      }
+
+      // For now we distinguish between comparisons and other binary
+      // operations.  (We could combine the two and get rid of this
+      // code and AST node eventually.)
+      if (Token::IsCompareOp(op)) {
+        // We have a comparison.
+        Token::Value cmp = op;
+        switch (op) {
+          case Token::NE: cmp = Token::EQ; break;
+          case Token::NE_STRICT: cmp = Token::EQ_STRICT; break;
+          default: break;
+        }
+        x = factory()->NewCompareOperation(cmp, x, y, pos);
+        if (cmp != op) {
+          // The comparison was negated - add a NOT.
+          x = factory()->NewUnaryOperation(Token::NOT, x, pos);
+        }
+
+      } else {
+        // We have a "normal" binary operation.
+        x = factory()->NewBinaryOperation(op, x, y, pos);
+      }
+    }
+  }
+  return x;
 }
 
 

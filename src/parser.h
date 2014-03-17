@@ -498,6 +498,13 @@ class ParserTraits {
   // in strict mode.
   void CheckStrictModeLValue(Expression*expression, bool* ok);
 
+  // Returns true if we have a binary expression between two numeric
+  // literals. In that case, *x will be changed to an expression which is the
+  // computed value.
+  bool ShortcutNumericLiteralBinaryExpression(
+      Expression** x, Expression* y, Token::Value op, int pos,
+      AstNodeFactory<AstConstructionVisitor>* factory);
+
   // Reporting errors.
   void ReportMessageAt(Scanner::Location source_location,
                        const char* message,
@@ -561,7 +568,7 @@ class ParserTraits {
       int function_token_position,
       FunctionLiteral::FunctionType type,
       bool* ok);
-  Expression* ParseBinaryExpression(int prec, bool accept_IN, bool* ok);
+  Expression* ParseUnaryExpression(bool* ok);
 
  private:
   Parser* parser_;
@@ -704,7 +711,6 @@ class Parser : public ParserBase<ParserTraits> {
   // Support for hamony block scoped bindings.
   Block* ParseScopedBlock(ZoneStringList* labels, bool* ok);
 
-  Expression* ParseBinaryExpression(int prec, bool accept_IN, bool* ok);
   Expression* ParseUnaryExpression(bool* ok);
   Expression* ParsePostfixExpression(bool* ok);
   Expression* ParseLeftHandSideExpression(bool* ok);

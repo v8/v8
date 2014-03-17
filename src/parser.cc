@@ -478,6 +478,66 @@ void ParserTraits::CheckStrictModeLValue(Expression* expression,
 }
 
 
+bool ParserTraits::ShortcutNumericLiteralBinaryExpression(
+    Expression** x, Expression* y, Token::Value op, int pos,
+    AstNodeFactory<AstConstructionVisitor>* factory) {
+  if ((*x)->AsLiteral() && (*x)->AsLiteral()->value()->IsNumber() &&
+      y->AsLiteral() && y->AsLiteral()->value()->IsNumber()) {
+    double x_val = (*x)->AsLiteral()->value()->Number();
+    double y_val = y->AsLiteral()->value()->Number();
+    switch (op) {
+      case Token::ADD:
+        *x = factory->NewNumberLiteral(x_val + y_val, pos);
+        return true;
+      case Token::SUB:
+        *x = factory->NewNumberLiteral(x_val - y_val, pos);
+        return true;
+      case Token::MUL:
+        *x = factory->NewNumberLiteral(x_val * y_val, pos);
+        return true;
+      case Token::DIV:
+        *x = factory->NewNumberLiteral(x_val / y_val, pos);
+        return true;
+      case Token::BIT_OR: {
+        int value = DoubleToInt32(x_val) | DoubleToInt32(y_val);
+        *x = factory->NewNumberLiteral(value, pos);
+        return true;
+      }
+      case Token::BIT_AND: {
+        int value = DoubleToInt32(x_val) & DoubleToInt32(y_val);
+        *x = factory->NewNumberLiteral(value, pos);
+        return true;
+      }
+      case Token::BIT_XOR: {
+        int value = DoubleToInt32(x_val) ^ DoubleToInt32(y_val);
+        *x = factory->NewNumberLiteral(value, pos);
+        return true;
+      }
+      case Token::SHL: {
+        int value = DoubleToInt32(x_val) << (DoubleToInt32(y_val) & 0x1f);
+        *x = factory->NewNumberLiteral(value, pos);
+        return true;
+      }
+      case Token::SHR: {
+        uint32_t shift = DoubleToInt32(y_val) & 0x1f;
+        uint32_t value = DoubleToUint32(x_val) >> shift;
+        *x = factory->NewNumberLiteral(value, pos);
+        return true;
+      }
+      case Token::SAR: {
+        uint32_t shift = DoubleToInt32(y_val) & 0x1f;
+        int value = ArithmeticShiftRight(DoubleToInt32(x_val), shift);
+        *x = factory->NewNumberLiteral(value, pos);
+        return true;
+      }
+      default:
+        break;
+    }
+  }
+  return false;
+}
+
+
 void ParserTraits::ReportMessageAt(Scanner::Location source_location,
                                    const char* message,
                                    Vector<const char*> args,
@@ -633,9 +693,8 @@ FunctionLiteral* ParserTraits::ParseFunctionLiteral(
 }
 
 
-Expression* ParserTraits::ParseBinaryExpression(int prec, bool accept_IN,
-                                                bool* ok) {
-  return parser_->ParseBinaryExpression(prec, accept_IN, ok);
+Expression* ParserTraits::ParseUnaryExpression(bool* ok) {
+  return parser_->ParseUnaryExpression(ok);
 }
 
 
@@ -2920,100 +2979,6 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
     loop->Initialize(init, cond, next, body);
     return loop;
   }
-}
-
-
-// Precedence >= 4
-Expression* Parser::ParseBinaryExpression(int prec, bool accept_IN, bool* ok) {
-  ASSERT(prec >= 4);
-  Expression* x = ParseUnaryExpression(CHECK_OK);
-  for (int prec1 = Precedence(peek(), accept_IN); prec1 >= prec; prec1--) {
-    // prec1 >= 4
-    while (Precedence(peek(), accept_IN) == prec1) {
-      Token::Value op = Next();
-      int pos = position();
-      Expression* y = ParseBinaryExpression(prec1 + 1, accept_IN, CHECK_OK);
-
-      // Compute some expressions involving only number literals.
-      if (x && x->AsLiteral() && x->AsLiteral()->value()->IsNumber() &&
-          y && y->AsLiteral() && y->AsLiteral()->value()->IsNumber()) {
-        double x_val = x->AsLiteral()->value()->Number();
-        double y_val = y->AsLiteral()->value()->Number();
-
-        switch (op) {
-          case Token::ADD:
-            x = factory()->NewNumberLiteral(x_val + y_val, pos);
-            continue;
-          case Token::SUB:
-            x = factory()->NewNumberLiteral(x_val - y_val, pos);
-            continue;
-          case Token::MUL:
-            x = factory()->NewNumberLiteral(x_val * y_val, pos);
-            continue;
-          case Token::DIV:
-            x = factory()->NewNumberLiteral(x_val / y_val, pos);
-            continue;
-          case Token::BIT_OR: {
-            int value = DoubleToInt32(x_val) | DoubleToInt32(y_val);
-            x = factory()->NewNumberLiteral(value, pos);
-            continue;
-          }
-          case Token::BIT_AND: {
-            int value = DoubleToInt32(x_val) & DoubleToInt32(y_val);
-            x = factory()->NewNumberLiteral(value, pos);
-            continue;
-          }
-          case Token::BIT_XOR: {
-            int value = DoubleToInt32(x_val) ^ DoubleToInt32(y_val);
-            x = factory()->NewNumberLiteral(value, pos);
-            continue;
-          }
-          case Token::SHL: {
-            int value = DoubleToInt32(x_val) << (DoubleToInt32(y_val) & 0x1f);
-            x = factory()->NewNumberLiteral(value, pos);
-            continue;
-          }
-          case Token::SHR: {
-            uint32_t shift = DoubleToInt32(y_val) & 0x1f;
-            uint32_t value = DoubleToUint32(x_val) >> shift;
-            x = factory()->NewNumberLiteral(value, pos);
-            continue;
-          }
-          case Token::SAR: {
-            uint32_t shift = DoubleToInt32(y_val) & 0x1f;
-            int value = ArithmeticShiftRight(DoubleToInt32(x_val), shift);
-            x = factory()->NewNumberLiteral(value, pos);
-            continue;
-          }
-          default:
-            break;
-        }
-      }
-
-      // For now we distinguish between comparisons and other binary
-      // operations.  (We could combine the two and get rid of this
-      // code and AST node eventually.)
-      if (Token::IsCompareOp(op)) {
-        // We have a comparison.
-        Token::Value cmp = op;
-        switch (op) {
-          case Token::NE: cmp = Token::EQ; break;
-          case Token::NE_STRICT: cmp = Token::EQ_STRICT; break;
-          default: break;
-        }
-        x = factory()->NewCompareOperation(cmp, x, y, pos);
-        if (cmp != op) {
-          // The comparison was negated - add a NOT.
-          x = factory()->NewUnaryOperation(Token::NOT, x, pos);
-        }
-
-      } else {
-        // We have a "normal" binary operation.
-        x = factory()->NewBinaryOperation(op, x, y, pos);
-      }
-    }
-  }
-  return x;
 }
 
 
