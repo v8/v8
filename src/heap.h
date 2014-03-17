@@ -2516,6 +2516,8 @@ class Heap {
   bool relocation_mutex_locked_by_optimizer_thread_;
 #endif  // DEBUG;
 
+  int gc_callbacks_depth_;
+
   friend class Factory;
   friend class GCTracer;
   friend class DisallowAllocationFailure;
@@ -2528,6 +2530,7 @@ class Heap {
 #ifdef VERIFY_HEAP
   friend class NoWeakObjectVerificationScope;
 #endif
+  friend class GCCallbacksScope;
 
   DISALLOW_COPY_AND_ASSIGN(Heap);
 };
@@ -2598,6 +2601,18 @@ class NoWeakObjectVerificationScope {
   inline ~NoWeakObjectVerificationScope();
 };
 #endif
+
+
+class GCCallbacksScope {
+ public:
+  explicit inline GCCallbacksScope(Heap* heap);
+  inline ~GCCallbacksScope();
+
+  inline bool CheckReenter();
+
+ private:
+  Heap* heap_;
+};
 
 
 // Visitor class to verify interior pointers in spaces that do not contain
