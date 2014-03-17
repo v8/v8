@@ -318,7 +318,7 @@ class AddChangeLog(Step):
     # The change log has been modified by the patch. Reset it to the version
     # on trunk and apply the exact changes determined by this PrepareChangeLog
     # step above.
-    self.GitCheckoutFile(self.Config(CHANGELOG_FILE))
+    self.GitCheckoutFile(self.Config(CHANGELOG_FILE), "svn/trunk")
     changelog_entry = FileToText(self.Config(NEW_CHANGELOG_FILE))
     old_change_log = FileToText(self.Config(CHANGELOG_FILE))
     new_change_log = "%s\n\n\n%s" % (changelog_entry, old_change_log)

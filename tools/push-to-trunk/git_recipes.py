@@ -63,9 +63,10 @@ class GitRecipesMixin(object):
     assert name
     self.Git(MakeArgs(["checkout -f", name]))
 
-  def GitCheckoutFile(self, name):
+  def GitCheckoutFile(self, name, branch):
     assert name
-    self.Git(MakeArgs(["checkout -f --", name]))
+    assert branch
+    self.Git(MakeArgs(["checkout -f", branch, "--", name]))
 
   @Strip
   def GitCurrentBranch(self):
