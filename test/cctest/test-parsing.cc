@@ -312,12 +312,12 @@ TEST(PreparseSymbolDataIsUsed) {
   CcTest::i_isolate()->stack_guard()->SetStackLimit(
       reinterpret_cast<uintptr_t>(&marker) - 128 * 1024);
 
-  // Note that the ( before function makes the
+  // Note that the ( before function makes the function not lazily compiled.
   const char* good_source =
       "(function weird() { var foo = 26; return foo; })()";
 
   // Insert an undefined identifier. If the preparser data is used, the symbol
-  // stream is used instead, and this identifier resolves correctly to"foo".
+  // stream is used instead, and this identifier resolves to "foo".
   const char* bad_source =
       "(function weird() { var foo = 26; return wut; })()";
 
