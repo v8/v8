@@ -44,7 +44,6 @@ class SmallMapList;
 class TypeFeedbackOracle: public ZoneObject {
  public:
   TypeFeedbackOracle(Handle<Code> code,
-                     Handle<FixedArray> feedback_vector,
                      Handle<Context> native_context,
                      Zone* zone);
 

@@ -566,6 +566,8 @@ void TypeFeedbackInfo::TypeFeedbackInfoPrint(FILE* out) {
   HeapObject::PrintHeader(out, "TypeFeedbackInfo");
   PrintF(out, " - ic_total_count: %d, ic_with_type_info_count: %d\n",
          ic_total_count(), ic_with_type_info_count());
+  PrintF(out, " - feedback_vector: ");
+  feedback_vector()->FixedArrayPrint(out);
 }
 
 
@@ -879,8 +881,6 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(FILE* out) {
   PrintF(out, "\n - length = %d", length());
   PrintF(out, "\n - optimized_code_map = ");
   optimized_code_map()->ShortPrint(out);
-  PrintF(out, "\n - feedback_vector = ");
-  feedback_vector()->FixedArrayPrint(out);
   PrintF(out, "\n");
 }
 

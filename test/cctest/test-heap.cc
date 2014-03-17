@@ -2857,7 +2857,8 @@ TEST(IncrementalMarkingClearsTypeFeedbackInfo) {
           *v8::Handle<v8::Function>::Cast(
               CcTest::global()->Get(v8_str("f"))));
 
-  Handle<FixedArray> feedback_vector(f->shared()->feedback_vector());
+  Handle<FixedArray> feedback_vector(TypeFeedbackInfo::cast(
+      f->shared()->code()->type_feedback_info())->feedback_vector());
 
   CHECK_EQ(2, feedback_vector->length());
   CHECK(feedback_vector->get(0)->IsJSFunction());
