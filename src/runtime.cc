@@ -3089,6 +3089,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ResumeJSGeneratorObject) {
   int offset = generator_object->continuation();
   ASSERT(offset > 0);
   frame->set_pc(pc + offset);
+  if (FLAG_enable_ool_constant_pool) {
+    frame->set_constant_pool(
+        generator_object->function()->code()->constant_pool());
+  }
   generator_object->set_continuation(JSGeneratorObject::kGeneratorExecuting);
 
   FixedArray* operand_stack = generator_object->operand_stack();
