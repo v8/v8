@@ -1100,6 +1100,34 @@ void LCodeGen::DoModByPowerOf2I(LModByPowerOf2I* instr) {
 }
 
 
+void LCodeGen::DoModByConstI(LModByConstI* instr) {
+  Register dividend = ToRegister(instr->dividend());
+  int32_t divisor = instr->divisor();
+  Register result = ToRegister(instr->result());
+  ASSERT(!dividend.is(result));
+
+  if (divisor == 0) {
+    DeoptimizeIf(al, instr->environment());
+    return;
+  }
+
+  __ FlooringDiv(result, dividend, Abs(divisor));
+  __ srl(at, dividend, 31);
+  __ Addu(result, result, at);
+  __ Mul(result, result, Operand(Abs(divisor)));
+  __ Subu(result, dividend, Operand(result));
+
+  // Check for negative zero.
+  HMod* hmod = instr->hydrogen();
+  if (hmod->CheckFlag(HValue::kBailoutOnMinusZero)) {
+    Label remainder_not_zero;
+    __ Branch(&remainder_not_zero, ne, result, Operand(zero_reg));
+    DeoptimizeIf(lt, instr->environment(), dividend, Operand(zero_reg));
+    __ bind(&remainder_not_zero);
+  }
+}
+
+
 void LCodeGen::DoModI(LModI* instr) {
   HMod* hmod = instr->hydrogen();
   const Register left_reg = ToRegister(instr->left());
@@ -1141,6 +1169,80 @@ void LCodeGen::DoModI(LModI* instr) {
 }
 
 
+void LCodeGen::DoDivByPowerOf2I(LDivByPowerOf2I* instr) {
+  Register dividend = ToRegister(instr->dividend());
+  int32_t divisor = instr->divisor();
+  Register result = ToRegister(instr->result());
+  ASSERT(divisor == kMinInt || (divisor != 0 && IsPowerOf2(Abs(divisor))));
+  ASSERT(!result.is(dividend));
+
+  // Check for (0 / -x) that will produce negative zero.
+  HDiv* hdiv = instr->hydrogen();
+  if (hdiv->CheckFlag(HValue::kBailoutOnMinusZero) && divisor < 0) {
+    DeoptimizeIf(eq, instr->environment(), dividend, Operand(zero_reg));
+  }
+  // Check for (kMinInt / -1).
+  if (hdiv->CheckFlag(HValue::kCanOverflow) && divisor == -1) {
+    DeoptimizeIf(eq, instr->environment(), dividend, Operand(kMinInt));
+  }
+  // Deoptimize if remainder will not be 0.
+  if (!hdiv->CheckFlag(HInstruction::kAllUsesTruncatingToInt32) &&
+      divisor != 1 && divisor != -1) {
+    int32_t mask = divisor < 0 ? -(divisor + 1) : (divisor - 1);
+    __ And(at, dividend, Operand(mask));
+    DeoptimizeIf(ne, instr->environment(), at, Operand(zero_reg));
+  }
+
+  if (divisor == -1) {  // Nice shortcut, not needed for correctness.
+    __ Subu(result, zero_reg, dividend);
+    return;
+  }
+  uint16_t shift = WhichPowerOf2Abs(divisor);
+  if (shift == 0) {
+    __ Move(result, dividend);
+  } else if (shift == 1) {
+    __ srl(result, dividend, 31);
+    __ Addu(result, dividend, Operand(result));
+  } else {
+    __ sra(result, dividend, 31);
+    __ srl(result, result, 32 - shift);
+    __ Addu(result, dividend, Operand(result));
+  }
+  if (shift > 0) __ sra(result, result, shift);
+  if (divisor < 0) __ Subu(result, zero_reg, result);
+}
+
+
+void LCodeGen::DoDivByConstI(LDivByConstI* instr) {
+  Register dividend = ToRegister(instr->dividend());
+  int32_t divisor = instr->divisor();
+  Register result = ToRegister(instr->result());
+  ASSERT(!dividend.is(result));
+
+  if (divisor == 0) {
+    DeoptimizeIf(al, instr->environment());
+    return;
+  }
+
+  // Check for (0 / -x) that will produce negative zero.
+  HDiv* hdiv = instr->hydrogen();
+  if (hdiv->CheckFlag(HValue::kBailoutOnMinusZero) && divisor < 0) {
+    DeoptimizeIf(eq, instr->environment(), dividend, Operand(zero_reg));
+  }
+
+  __ FlooringDiv(result, dividend, Abs(divisor));
+  __ srl(at, dividend, 31);
+  __ Addu(result, result, Operand(at));
+  if (divisor < 0) __ Subu(result, zero_reg, result);
+
+  if (!hdiv->CheckFlag(HInstruction::kAllUsesTruncatingToInt32)) {
+    __ Mul(scratch0(), result, Operand(divisor));
+    __ Subu(scratch0(), scratch0(), dividend);
+    DeoptimizeIf(ne, instr->environment(), scratch0(), Operand(zero_reg));
+  }
+}
+
+
 void LCodeGen::DoDivI(LDivI* instr) {
   HBinaryOperation* hdiv = instr->hydrogen();
   const Register left = ToRegister(instr->left());
@@ -1173,11 +1275,24 @@ void LCodeGen::DoDivI(LDivI* instr) {
     __ bind(&left_not_min_int);
   }
 
-  if (!hdiv->CheckFlag(HValue::kAllUsesTruncatingToInt32)) {
+  if (hdiv->IsMathFloorOfDiv()) {
+    // We performed a truncating division. Correct the result if necessary.
+    Label done;
+    Register remainder = scratch0();
+    __ mfhi(remainder);
+    __ mflo(result);
+    __ Branch(&done, eq, remainder, Operand(zero_reg), USE_DELAY_SLOT);
+    __ Xor(remainder, remainder, Operand(right));
+    __ Branch(&done, ge, remainder, Operand(zero_reg));
+    __ Subu(result, result, Operand(1));
+    __ bind(&done);
+  } else if (!hdiv->CheckFlag(HValue::kAllUsesTruncatingToInt32)) {
     __ mfhi(result);
     DeoptimizeIf(ne, instr->environment(), result, Operand(zero_reg));
+    __ mflo(result);
+  } else {
+    __ mflo(result);
   }
-  __ mflo(result);
 }
 
 
@@ -1220,7 +1335,6 @@ void LCodeGen::DoFlooringDivByPowerOf2I(LFlooringDivByPowerOf2I* instr) {
   if (instr->hydrogen()->CheckFlag(HValue::kLeftCanBeMinInt)) {
     // Note that we could emit branch-free code, but that would need one more
     // register.
-
     __ Xor(at, scratch, result);
     if (divisor == -1) {
       DeoptimizeIf(ge, instr->environment(), at, Operand(zero_reg));
@@ -1258,50 +1372,6 @@ void LCodeGen::DoFlooringDivByConstI(LFlooringDivByConstI* instr) {
   }
 
   __ FlooringDiv(result, dividend, divisor);
-}
-
-
-void LCodeGen::DoMathFloorOfDiv(LMathFloorOfDiv* instr) {
-  const Register result = ToRegister(instr->result());
-  const Register left = ToRegister(instr->left());
-  const Register remainder = ToRegister(instr->temp());
-  const Register scratch = scratch0();
-
-  Label done;
-  const Register right = ToRegister(instr->right());
-
-  // On MIPS div is asynchronous - it will run in the background while we
-  // check for special cases.
-  __ div(left, right);
-
-  // Check for x / 0.
-  DeoptimizeIf(eq, instr->environment(), right, Operand(zero_reg));
-
-  // Check for (0 / -x) that will produce negative zero.
-  if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
-    Label left_not_zero;
-    __ Branch(&left_not_zero, ne, left, Operand(zero_reg));
-    DeoptimizeIf(lt, instr->environment(), right, Operand(zero_reg));
-    __ bind(&left_not_zero);
-  }
-
-  // Check for (kMinInt / -1).
-  if (instr->hydrogen()->CheckFlag(HValue::kCanOverflow)) {
-    Label left_not_min_int;
-    __ Branch(&left_not_min_int, ne, left, Operand(kMinInt));
-    DeoptimizeIf(eq, instr->environment(), right, Operand(-1));
-    __ bind(&left_not_min_int);
-  }
-
-  __ mfhi(remainder);
-  __ mflo(result);
-
-  // We performed a truncating division. Correct the result if necessary.
-  __ Branch(&done, eq, remainder, Operand(zero_reg), USE_DELAY_SLOT);
-  __ Xor(scratch , remainder, Operand(right));
-  __ Branch(&done, ge, scratch, Operand(zero_reg));
-  __ Subu(result, result, Operand(1));
-  __ bind(&done);
 }
 
 

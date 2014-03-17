@@ -64,7 +64,6 @@ var kMessages = {
   not_defined:                   ["%0", " is not defined"],
   non_object_property_load:      ["Cannot read property '", "%0", "' of ", "%1"],
   non_object_property_store:     ["Cannot set property '", "%0", "' of ", "%1"],
-  non_object_property_call:      ["Cannot call method '", "%0", "' of ", "%1"],
   with_expression:               ["%0", " has no properties"],
   illegal_invocation:            ["Illegal invocation"],
   no_setter_in_callback:         ["Cannot set property ", "%0", " of ", "%1", " which has only a getter"],

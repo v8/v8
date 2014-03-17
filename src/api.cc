@@ -7182,9 +7182,6 @@ void HeapSnapshot::Serialize(OutputStream* stream,
   Utils::ApiCheck(format == kJSON,
                   "v8::HeapSnapshot::Serialize",
                   "Unknown serialization format");
-  Utils::ApiCheck(stream->GetOutputEncoding() == OutputStream::kAscii,
-                  "v8::HeapSnapshot::Serialize",
-                  "Unsupported output encoding");
   Utils::ApiCheck(stream->GetChunkSize() > 0,
                   "v8::HeapSnapshot::Serialize",
                   "Invalid stream chunk size");

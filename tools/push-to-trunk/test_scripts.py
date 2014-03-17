@@ -642,7 +642,10 @@ Performance and stability improvements on all platforms."""
     TEST_CONFIG[CHANGELOG_FILE] = self.MakeEmptyTempFile()
     if not os.path.exists(TEST_CONFIG[CHROMIUM]):
       os.makedirs(TEST_CONFIG[CHROMIUM])
-    TextToFile("1999-04-05: Version 3.22.4", TEST_CONFIG[CHANGELOG_FILE])
+    bleeding_edge_change_log = """1999-02-03: Version 3.12.2
+
+        Performance and stability improvements on all platforms.\n"""
+    TextToFile(bleeding_edge_change_log, TEST_CONFIG[CHANGELOG_FILE])
     TextToFile("Some line\n   \"v8_revision\": \"123444\",\n  some line",
                  TEST_CONFIG[DEPS_FILE])
     os.environ["EDITOR"] = "vi"
@@ -659,6 +662,14 @@ Performance and stability improvements on all platforms."""
       version = FileToText(TEST_CONFIG[VERSION_FILE])
       self.assertTrue(re.search(r"#define BUILD_NUMBER\s+6", version))
 
+    def ResetChangeLog():
+      """On 'git co -b new_branch svn/trunk', and 'git checkout -- ChangeLog',
+      the ChangLog will be reset to its content on trunk."""
+      trunk_change_log = """1999-04-05: Version 3.22.4
+
+        Performance and stability improvements on all platforms.\n"""
+      TextToFile(trunk_change_log, TEST_CONFIG[CHANGELOG_FILE])
+
     def CheckSVNCommit():
       commit = FileToText(TEST_CONFIG[COMMITMSG_FILE])
       self.assertEquals(
@@ -673,6 +684,21 @@ Performance and stability improvements on all platforms.""", commit)
       self.assertFalse(re.search(r"#define BUILD_NUMBER\s+6", version))
       self.assertTrue(re.search(r"#define PATCH_LEVEL\s+0", version))
       self.assertTrue(re.search(r"#define IS_CANDIDATE_VERSION\s+0", version))
+
+      # Check that the change log on the trunk branch got correctly modified.
+      change_log = FileToText(TEST_CONFIG[CHANGELOG_FILE])
+      self.assertEquals(
+"""1999-07-31: Version 3.22.5
+
+        Log text 1 (issue 321).
+
+        Performance and stability improvements on all platforms.
+
+
+1999-04-05: Version 3.22.4
+
+        Performance and stability improvements on all platforms.\n""",
+          change_log)
 
     force_flag = " -f" if not manual else ""
     review_suffix = "\n\nTBR=reviewer@chromium.org" if not manual else ""
@@ -712,8 +738,11 @@ Performance and stability improvements on all platforms.""", commit)
           "hash1\n"),
       Git("diff svn/trunk hash1", "patch content\n"),
       Git("svn find-rev hash1", "123455\n"),
-      Git("checkout -b %s svn/trunk" % TEST_CONFIG[TRUNKBRANCH], ""),
+      Git("checkout -b %s svn/trunk" % TEST_CONFIG[TRUNKBRANCH], "",
+          cb=ResetChangeLog),
       Git("apply --index --reject \"%s\"" % TEST_CONFIG[PATCH_FILE], ""),
+      Git("checkout -- %s" % TEST_CONFIG[CHANGELOG_FILE], "",
+          cb=ResetChangeLog),
       Git("add \"%s\"" % TEST_CONFIG[VERSION_FILE], ""),
       Git("commit -aF \"%s\"" % TEST_CONFIG[COMMITMSG_FILE], "",
           cb=CheckSVNCommit),
