@@ -18742,7 +18742,7 @@ void PrologueCallbackAlloc(v8::Isolate* isolate,
   SimulateFullSpace(CcTest::heap()->new_space());
 
   Local<Object> obj = Object::New(isolate);
-  ASSERT(!obj.IsEmpty());
+  CHECK(!obj.IsEmpty());
 
   CcTest::heap()->CollectAllGarbage(
       i::Heap::Heap::kAbortIncrementalMarkingMask);
@@ -18762,7 +18762,7 @@ void EpilogueCallbackAlloc(v8::Isolate* isolate,
   SimulateFullSpace(CcTest::heap()->new_space());
 
   Local<Object> obj = Object::New(isolate);
-  ASSERT(!obj.IsEmpty());
+  CHECK(!obj.IsEmpty());
 
   CcTest::heap()->CollectAllGarbage(
       i::Heap::Heap::kAbortIncrementalMarkingMask);
