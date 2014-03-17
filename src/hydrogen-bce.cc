@@ -183,7 +183,7 @@ class BoundsCheckBbData: public ZoneObject {
         lower_check_ = new_check;
       } else {
         TightenCheck(lower_check_, new_check);
-        UpdateLowerOffsets(upper_check_, upper_offset_);
+        UpdateLowerOffsets(lower_check_, lower_offset_);
       }
     } else {
       // Should never have called CoverCheck() in this case.
