@@ -2239,14 +2239,19 @@ void MacroAssembler::TryConvertDoubleToInt(Register as_int,
 }
 
 
-void MacroAssembler::JumpIfMinusZero(DoubleRegister input,
-                                     Label* on_negative_zero) {
+void MacroAssembler::TestForMinusZero(DoubleRegister input) {
   UseScratchRegisterScope temps(this);
   Register temp = temps.AcquireX();
   // Floating point -0.0 is kMinInt as an integer, so subtracting 1 (cmp) will
   // cause overflow.
   Fmov(temp, input);
   Cmp(temp, 1);
+}
+
+
+void MacroAssembler::JumpIfMinusZero(DoubleRegister input,
+                                     Label* on_negative_zero) {
+  TestForMinusZero(input);
   B(vs, on_negative_zero);
 }
 
