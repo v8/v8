@@ -146,9 +146,10 @@ PreParserExpression PreParserTraits::ParseFunctionLiteral(
 }
 
 
-PreParserExpression PreParserTraits::ParseConditionalExpression(bool accept_IN,
-                                                                bool* ok) {
-  return pre_parser_->ParseConditionalExpression(accept_IN, ok);
+PreParserExpression PreParserTraits::ParseBinaryExpression(int prec,
+                                                           bool accept_IN,
+                                                           bool* ok) {
+  return pre_parser_->ParseBinaryExpression(prec, accept_IN, ok);
 }
 
 
@@ -841,27 +842,6 @@ PreParser::Statement PreParser::ParseDebuggerStatement(bool* ok) {
   ((void)0
 #define DUMMY )  // to make indentation work
 #undef DUMMY
-
-
-// Precedence = 3
-PreParser::Expression PreParser::ParseConditionalExpression(bool accept_IN,
-                                                            bool* ok) {
-  // ConditionalExpression ::
-  //   LogicalOrExpression
-  //   LogicalOrExpression '?' AssignmentExpression ':' AssignmentExpression
-
-  // We start using the binary expression parser for prec >= 4 only!
-  Expression expression = ParseBinaryExpression(4, accept_IN, CHECK_OK);
-  if (peek() != Token::CONDITIONAL) return expression;
-  Consume(Token::CONDITIONAL);
-  // In parsing the first assignment expression in conditional
-  // expressions we always accept the 'in' keyword; see ECMA-262,
-  // section 11.12, page 58.
-  ParseAssignmentExpression(true, CHECK_OK);
-  Expect(Token::COLON, CHECK_OK);
-  ParseAssignmentExpression(accept_IN, CHECK_OK);
-  return Expression::Default();
-}
 
 
 // Precedence >= 4

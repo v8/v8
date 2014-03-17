@@ -633,8 +633,9 @@ FunctionLiteral* ParserTraits::ParseFunctionLiteral(
 }
 
 
-Expression* ParserTraits::ParseConditionalExpression(bool accept_IN, bool* ok) {
-  return parser_->ParseConditionalExpression(accept_IN, ok);
+Expression* ParserTraits::ParseBinaryExpression(int prec, bool accept_IN,
+                                                bool* ok) {
+  return parser_->ParseBinaryExpression(prec, accept_IN, ok);
 }
 
 
@@ -2919,27 +2920,6 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
     loop->Initialize(init, cond, next, body);
     return loop;
   }
-}
-
-
-// Precedence = 3
-Expression* Parser::ParseConditionalExpression(bool accept_IN, bool* ok) {
-  // ConditionalExpression ::
-  //   LogicalOrExpression
-  //   LogicalOrExpression '?' AssignmentExpression ':' AssignmentExpression
-
-  int pos = peek_position();
-  // We start using the binary expression parser for prec >= 4 only!
-  Expression* expression = ParseBinaryExpression(4, accept_IN, CHECK_OK);
-  if (peek() != Token::CONDITIONAL) return expression;
-  Consume(Token::CONDITIONAL);
-  // In parsing the first assignment expression in conditional
-  // expressions we always accept the 'in' keyword; see ECMA-262,
-  // section 11.12, page 58.
-  Expression* left = ParseAssignmentExpression(true, CHECK_OK);
-  Expect(Token::COLON, CHECK_OK);
-  Expression* right = ParseAssignmentExpression(accept_IN, CHECK_OK);
-  return factory()->NewConditional(expression, left, right, pos);
 }
 
 

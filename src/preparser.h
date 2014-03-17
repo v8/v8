@@ -388,6 +388,8 @@ class ParserBase : public Traits {
   typename Traits::Type::Expression ParseAssignmentExpression(bool accept_IN,
                                                               bool* ok);
   typename Traits::Type::Expression ParseYieldExpression(bool* ok);
+  typename Traits::Type::Expression ParseConditionalExpression(bool accept_IN,
+                                                               bool* ok);
 
   // Used to detect duplicates in object literals. Each of the values
   // kGetterProperty, kSetterProperty and kValueProperty represents
@@ -718,6 +720,13 @@ class PreParserFactory {
                                int pos) {
     return PreParserExpression::Default();
   }
+
+  PreParserExpression NewConditional(PreParserExpression condition,
+                                     PreParserExpression then_expression,
+                                     PreParserExpression else_expression,
+                                     int pos) {
+    return PreParserExpression::Default();
+  }
 };
 
 
@@ -891,7 +900,7 @@ class PreParserTraits {
       int function_token_position,
       FunctionLiteral::FunctionType type,
       bool* ok);
-  PreParserExpression ParseConditionalExpression(bool accept_IN, bool* ok);
+  PreParserExpression ParseBinaryExpression(int prec, bool accept_IN, bool* ok);
 
  private:
   PreParser* pre_parser_;
@@ -1691,6 +1700,32 @@ typename Traits::Type::Expression ParserBase<Traits>::ParseYieldExpression(
     yield->set_index(function_state_->NextHandlerIndex());
   }
   return yield;
+}
+
+
+// Precedence = 3
+template <class Traits>
+typename Traits::Type::Expression
+ParserBase<Traits>::ParseConditionalExpression(bool accept_IN, bool* ok) {
+  // ConditionalExpression ::
+  //   LogicalOrExpression
+  //   LogicalOrExpression '?' AssignmentExpression ':' AssignmentExpression
+
+  int pos = peek_position();
+  // We start using the binary expression parser for prec >= 4 only!
+  typename Traits::Type::Expression expression =
+      this->ParseBinaryExpression(4, accept_IN, CHECK_OK);
+  if (peek() != Token::CONDITIONAL) return expression;
+  Consume(Token::CONDITIONAL);
+  // In parsing the first assignment expression in conditional
+  // expressions we always accept the 'in' keyword; see ECMA-262,
+  // section 11.12, page 58.
+  typename Traits::Type::Expression left =
+      ParseAssignmentExpression(true, CHECK_OK);
+  Expect(Token::COLON, CHECK_OK);
+  typename Traits::Type::Expression right =
+      ParseAssignmentExpression(accept_IN, CHECK_OK);
+  return factory()->NewConditional(expression, left, right, pos);
 }
 
 

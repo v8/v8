@@ -561,7 +561,7 @@ class ParserTraits {
       int function_token_position,
       FunctionLiteral::FunctionType type,
       bool* ok);
-  Expression* ParseConditionalExpression(bool accept_IN, bool* ok);
+  Expression* ParseBinaryExpression(int prec, bool accept_IN, bool* ok);
 
  private:
   Parser* parser_;
@@ -704,7 +704,6 @@ class Parser : public ParserBase<ParserTraits> {
   // Support for hamony block scoped bindings.
   Block* ParseScopedBlock(ZoneStringList* labels, bool* ok);
 
-  Expression* ParseConditionalExpression(bool accept_IN, bool* ok);
   Expression* ParseBinaryExpression(int prec, bool accept_IN, bool* ok);
   Expression* ParseUnaryExpression(bool* ok);
   Expression* ParsePostfixExpression(bool* ok);
