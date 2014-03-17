@@ -1436,6 +1436,17 @@ Handle<Code> BaseLoadStoreStubCompiler::CompilePolymorphicIC(
 }
 
 
+void StoreStubCompiler::GenerateStoreArrayLength() {
+  // Prepare tail call to StoreIC_ArrayLength.
+  __ Push(receiver(), value());
+
+  ExternalReference ref =
+      ExternalReference(IC_Utility(IC::kStoreIC_ArrayLength),
+                        masm()->isolate());
+  __ TailCallExternalReference(ref, 2, 1);
+}
+
+
 Handle<Code> KeyedStoreStubCompiler::CompileStorePolymorphic(
     MapHandleList* receiver_maps,
     CodeHandleList* handler_stubs,

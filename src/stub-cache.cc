@@ -1118,6 +1118,30 @@ Handle<Code> StoreStubCompiler::CompileStoreField(Handle<JSObject> object,
 }
 
 
+Handle<Code> StoreStubCompiler::CompileStoreArrayLength(Handle<JSObject> object,
+                                                        LookupResult* lookup,
+                                                        Handle<Name> name) {
+  // This accepts as a receiver anything JSArray::SetElementsLength accepts
+  // (currently anything except for external arrays which means anything with
+  // elements of FixedArray type).  Value must be a number, but only smis are
+  // accepted as the most common case.
+  Label miss;
+
+  // Check that value is a smi.
+  __ JumpIfNotSmi(value(), &miss);
+
+  // Generate tail call to StoreIC_ArrayLength.
+  GenerateStoreArrayLength();
+
+  // Handle miss case.
+  __ bind(&miss);
+  TailCallBuiltin(masm(), MissBuiltin(kind()));
+
+  // Return the generated code.
+  return GetCode(kind(), Code::FAST, name);
+}
+
+
 Handle<Code> StoreStubCompiler::CompileStoreViaSetter(
     Handle<JSObject> object,
     Handle<JSObject> holder,

@@ -52,7 +52,6 @@ namespace internal {
   V(CompareNilIC)                        \
   V(MathPow)                             \
   V(FunctionPrototype)                   \
-  V(StoreArrayLength)                    \
   V(RecordWrite)                         \
   V(StoreBufferOverflow)                 \
   V(RegExpExec)                          \
@@ -852,17 +851,6 @@ class StoreICStub: public ICStub {
   }
 
   StrictMode strict_mode_;
-};
-
-
-class StoreArrayLengthStub: public StoreICStub {
- public:
-  explicit StoreArrayLengthStub(Code::Kind kind, StrictMode strict_mode)
-      : StoreICStub(kind, strict_mode) { }
-  virtual void Generate(MacroAssembler* masm);
-
- private:
-  virtual CodeStub::Major MajorKey() { return StoreArrayLength; }
 };
 
 

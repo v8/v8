@@ -679,6 +679,12 @@ class StoreStubCompiler: public BaseLoadStoreStubCompiler {
                                  LookupResult* lookup,
                                  Handle<Name> name);
 
+  Handle<Code> CompileStoreArrayLength(Handle<JSObject> object,
+                                       LookupResult* lookup,
+                                       Handle<Name> name);
+
+  void GenerateStoreArrayLength();
+
   void GenerateNegativeHolderLookup(MacroAssembler* masm,
                                     Handle<JSObject> holder,
                                     Register holder_reg,
