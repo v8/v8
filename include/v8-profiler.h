@@ -36,7 +36,7 @@
 namespace v8 {
 
 class HeapGraphNode;
-class HeapStatsUpdate;
+struct HeapStatsUpdate;
 
 typedef uint32_t SnapshotObjectId;
 
