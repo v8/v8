@@ -164,6 +164,30 @@ Token::Value LexerBase::Next() {
 }
 
 
+static uint32_t Advance(const int8_t** buffer, const int8_t* end) {
+  unsigned bytes_read = 0;
+  uint32_t c = unibrow::Utf8::ValueOf(reinterpret_cast<const uint8_t*>(*buffer),
+                                      end - *buffer,
+                                      &bytes_read);
+  *buffer += bytes_read;
+  return c;
+}
+
+
+static inline uint32_t Advance(const uint8_t** buffer, const uint8_t* end) {
+  uint32_t c = **buffer;
+  (*buffer)++;
+  return c;
+}
+
+
+static inline uint32_t Advance(const uint16_t** buffer, const uint16_t* end) {
+  uint32_t c = **buffer;
+  (*buffer)++;
+  return c;
+}
+
+
 template<typename Char>
 Lexer<Char>::Lexer(UnicodeCache* unicode_cache,
                    const Char* source_ptr,
@@ -654,7 +678,7 @@ bool Lexer<Char>::CopyToLiteralBuffer(const TokenDesc& token,
   if (token.has_escapes) {
     for (const Char* cursor = start; cursor != end;) {
       if (*cursor != '\\') {
-        literal->buffer.AddChar(*cursor++);
+        literal->buffer.AddChar(Advance(&cursor, end));
       } else if (token.token == Token::IDENTIFIER) {
         uc32 c;
         cursor = ScanIdentifierUnicodeEscape(cursor, end, &c);
@@ -668,10 +692,8 @@ bool Lexer<Char>::CopyToLiteralBuffer(const TokenDesc& token,
       }
     }
   } else {
-    // TODO(dcarney): This can only happen for utf8 strings
-    // use a helper function.
     for (const Char* cursor = start; cursor != end;) {
-        literal->buffer.AddChar(*cursor++);
+      literal->buffer.AddChar(Advance(&cursor, end));
     }
   }
   literal->SetStringFromLiteralBuffer();
