@@ -1626,7 +1626,7 @@ typename Traits::Type::Expression ParserBase<Traits>::ParseAssignmentExpression(
     return expression;
   }
 
-  if (!IsValidLeftHandSide(expression)) {
+  if (!this->IsValidLeftHandSide(expression)) {
     this->ReportMessageAt(lhs_location, "invalid_lhs_in_assignment", true);
     *ok = false;
     return this->EmptyExpression();
