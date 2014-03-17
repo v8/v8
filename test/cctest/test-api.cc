@@ -22254,8 +22254,10 @@ TEST(Promises) {
   Handle<Object> global = context->Global();
 
   // Creation.
-  Handle<v8::Promise> p = v8::Promise::New(isolate);
-  Handle<v8::Promise> r = v8::Promise::New(isolate);
+  Handle<v8::Promise::Resolver> pr = v8::Promise::Resolver::New(isolate);
+  Handle<v8::Promise::Resolver> rr = v8::Promise::Resolver::New(isolate);
+  Handle<v8::Promise> p = pr->GetPromise();
+  Handle<v8::Promise> r = rr->GetPromise();
 
   // IsPromise predicate.
   CHECK(p->IsPromise());
@@ -22264,9 +22266,9 @@ TEST(Promises) {
   CHECK(!o->IsPromise());
 
   // Resolution and rejection.
-  p->Resolve(v8::Integer::New(isolate, 1));
+  pr->Resolve(v8::Integer::New(isolate, 1));
   CHECK(p->IsPromise());
-  r->Reject(v8::Integer::New(isolate, 2));
+  rr->Reject(v8::Integer::New(isolate, 2));
   CHECK(r->IsPromise());
 
   // Chaining non-pending promises.
@@ -22298,17 +22300,17 @@ TEST(Promises) {
 
   // Chaining pending promises.
   CompileRun("x1 = x2 = 0;");
-  p = v8::Promise::New(isolate);
-  r = v8::Promise::New(isolate);
+  pr = v8::Promise::Resolver::New(isolate);
+  rr = v8::Promise::Resolver::New(isolate);
 
-  p->Chain(f1);
-  r->Catch(f2);
+  pr->GetPromise()->Chain(f1);
+  rr->GetPromise()->Catch(f2);
   V8::RunMicrotasks(isolate);
   CHECK_EQ(0, global->Get(v8_str("x1"))->Int32Value());
   CHECK_EQ(0, global->Get(v8_str("x2"))->Int32Value());
 
-  p->Resolve(v8::Integer::New(isolate, 1));
-  r->Reject(v8::Integer::New(isolate, 2));
+  pr->Resolve(v8::Integer::New(isolate, 1));
+  rr->Reject(v8::Integer::New(isolate, 2));
   CHECK_EQ(0, global->Get(v8_str("x1"))->Int32Value());
   CHECK_EQ(0, global->Get(v8_str("x2"))->Int32Value());
 
@@ -22318,9 +22320,9 @@ TEST(Promises) {
 
   // Multi-chaining.
   CompileRun("x1 = x2 = 0;");
-  p = v8::Promise::New(isolate);
-  p->Chain(f1)->Chain(f2);
-  p->Resolve(v8::Integer::New(isolate, 3));
+  pr = v8::Promise::Resolver::New(isolate);
+  pr->GetPromise()->Chain(f1)->Chain(f2);
+  pr->Resolve(v8::Integer::New(isolate, 3));
   CHECK_EQ(0, global->Get(v8_str("x1"))->Int32Value());
   CHECK_EQ(0, global->Get(v8_str("x2"))->Int32Value());
   V8::RunMicrotasks(isolate);
@@ -22328,9 +22330,9 @@ TEST(Promises) {
   CHECK_EQ(4, global->Get(v8_str("x2"))->Int32Value());
 
   CompileRun("x1 = x2 = 0;");
-  r = v8::Promise::New(isolate);
-  r->Catch(f1)->Chain(f2);
-  r->Reject(v8::Integer::New(isolate, 3));
+  rr = v8::Promise::Resolver::New(isolate);
+  rr->GetPromise()->Catch(f1)->Chain(f2);
+  rr->Reject(v8::Integer::New(isolate, 3));
   CHECK_EQ(0, global->Get(v8_str("x1"))->Int32Value());
   CHECK_EQ(0, global->Get(v8_str("x2"))->Int32Value());
   V8::RunMicrotasks(isolate);

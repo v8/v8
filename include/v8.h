@@ -2621,17 +2621,31 @@ class V8_EXPORT Function : public Object {
  */
 class V8_EXPORT Promise : public Object {
  public:
-  /**
-   * Create a new Promise in pending state.
-   */
-  static Local<Promise> New(Isolate* isolate);
+  class V8_EXPORT Resolver : public Object {
+   public:
+    /**
+     * Create a new resolver, along with an associated promise in pending state.
+     */
+    static Local<Resolver> New(Isolate* isolate);
 
-  /**
-   * Resolve/reject a promise with a given value.
-   * Ignored if the promise is not unresolved.
-   */
-  void Resolve(Handle<Value> value);
-  void Reject(Handle<Value> value);
+    /**
+     * Extract the associated promise.
+     */
+    Local<Promise> GetPromise();
+
+    /**
+     * Resolve/reject the associated promise with a given value.
+     * Ignored if the promise is no longer pending.
+     */
+    void Resolve(Handle<Value> value);
+    void Reject(Handle<Value> value);
+
+    V8_INLINE static Resolver* Cast(Value* obj);
+
+   private:
+    Resolver();
+    static void CheckCast(Value* obj);
+  };
 
   /**
    * Register a resolution/rejection handler with a promise.
@@ -6251,6 +6265,14 @@ Promise* Promise::Cast(v8::Value* value) {
   CheckCast(value);
 #endif
   return static_cast<Promise*>(value);
+}
+
+
+Promise::Resolver* Promise::Resolver::Cast(v8::Value* value) {
+#ifdef V8_ENABLE_CHECKS
+  CheckCast(value);
+#endif
+  return static_cast<Promise::Resolver*>(value);
 }
 
 
