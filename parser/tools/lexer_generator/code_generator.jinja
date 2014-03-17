@@ -122,8 +122,8 @@
     {{dispatch_match_action('manual_backtrack', ('1', 'ILLEGAL'))}}
   {% elif type == 'skip' %}
     RESET_START();
-    {%- if encoding == 'utf16'-%}
-      next_.is_onebyte = true;
+    {%- if encoding == 'utf16'or encoding == 'utf8' -%}
+      next_.is_in_primary_range = true;
     {%- endif -%}
     goto state_entry_0;
   {% elif type == 'skip_and_terminate' %}
@@ -132,8 +132,8 @@
     {{dispatch_match_action('terminate', None)}}
   {% elif type == 'line_terminator' %}
     RESET_START();
-    {%- if encoding == 'utf16'-%}
-      next_.is_onebyte = true;
+    {%- if encoding == 'utf16'or encoding == 'utf8' -%}
+      next_.is_in_primary_range = true;
     {%- endif -%}
     has_line_terminator_before_next_ = true;
     goto state_entry_0;
@@ -285,7 +285,7 @@
 
   {%- if state['deferred_transitions'] %}
     if ({{long_char_check()}}) {
-      next_.is_onebyte = false;
+      next_.is_in_primary_range = false;
       {{long_char_create()}}
       {%- for key, jump_id in state['deferred_transitions'] %}
         if ({{do_key(key)}}) { // long_char transition
@@ -355,7 +355,7 @@ void Lexer<{{char_type}}>::Scan() {
 
   // Setup environment.
   next_.has_escapes = false;
-  next_.is_onebyte = true;
+  next_.is_in_primary_range = true;
   Token::Value stored_token;
   const {{char_type}} * marker;
   {{char_type}} primary_char;

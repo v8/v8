@@ -464,8 +464,8 @@ const uint16_t* Lexer<uint16_t>::GetNewBufferBasedOnHandle()
 
 template<>
 const int8_t* Lexer<int8_t>::GetNewBufferBasedOnHandle() const {
-  String::FlatContent content = source_handle_->GetFlatContent();
-  return reinterpret_cast<const int8_t*>(content.ToOneByteVector().start());
+  UNREACHABLE();
+  return NULL;
 }
 
 
@@ -527,31 +527,7 @@ void LexerBase::LiteralDesc::SetStringFromLiteralBuffer() {
 }
 
 
-Handle<String> LexerBase::AllocateNextLiteralString(Isolate* isolate,
-                                                  PretenureFlag tenured) {
-  if (is_next_literal_one_byte()) {
-    return isolate->factory()->NewStringFromOneByte(
-        Vector<const uint8_t>::cast(next_literal_one_byte_string()), tenured);
-  } else {
-    return isolate->factory()->NewStringFromTwoByte(
-          next_literal_two_byte_string(), tenured);
-  }
-}
-
-
-Handle<String> LexerBase::AllocateInternalizedString(Isolate* isolate) {
-  if (is_literal_one_byte()) {
-    return isolate->factory()->InternalizeOneByteString(
-        literal_one_byte_string());
-  } else {
-    return isolate->factory()->InternalizeTwoByteString(
-        literal_two_byte_string());
-  }
-}
-
-
 double LexerBase::DoubleValue() {
-  ASSERT(is_literal_one_byte());
   return StringToDouble(
       unicode_cache_, Vector<const char>::cast(literal_one_byte_string()),
       ALLOW_HEX | ALLOW_OCTAL | ALLOW_IMPLICIT_OCTAL | ALLOW_BINARY);
@@ -580,39 +556,12 @@ void LexerBase::LogSymbol(ParserRecorder* log, int position) {
 }
 
 
-static inline bool IsOneByte(const uint8_t* cursor, const uint8_t* end) {
-  return true;
-}
-
-
-static inline bool IsOneByte(const uint16_t* cursor, const uint16_t* end) {
-  uint16_t acc = 0;
-  while (cursor != end) {
-    acc |= *cursor++ >> 8;
-  }
-  return acc == 0;
-}
-
-
-static inline bool IsOneByte(const int8_t* cursor, const int8_t* end) {
-  int8_t acc = 0;
-  while (cursor != end) {
-    acc |= *cursor++ >> 7;
-  }
-  return acc == 0;
-}
-
-
 template<>
 template<>
 inline void Lexer<uint16_t>::SetLiteral<true>(const uint16_t* cursor,
-                                              const uint16_t* end,
                                               LiteralDesc* literal) {
   Vector<uint8_t> vector = Vector<uint8_t>::New(literal->length);
-  uint8_t* data = vector.start();
-  while (cursor < end) {
-    *data++ = *cursor++;
-  }
+  CopyChars(vector.start(), cursor, literal->length);
   literal->SetOneByteString(Vector<const uint8_t>::cast(vector), true);
 }
 
@@ -620,8 +569,7 @@ inline void Lexer<uint16_t>::SetLiteral<true>(const uint16_t* cursor,
 template<>
 template<>
 inline void Lexer<uint16_t>::SetLiteral<false>(const uint16_t* start,
-                                        const uint16_t* end,
-                                        LiteralDesc* literal) {
+                                               LiteralDesc* literal) {
   literal->SetTwoByteString(Vector<const uint16_t>(start, literal->length));
 }
 
@@ -629,7 +577,6 @@ inline void Lexer<uint16_t>::SetLiteral<false>(const uint16_t* start,
 template<>
 template<>
 inline void Lexer<uint8_t>::SetLiteral<true>(const uint8_t* start,
-                                             const uint8_t* end,
                                              LiteralDesc* literal) {
   literal->SetOneByteString(
       Vector<const uint8_t>(start, literal->length), false);
@@ -639,7 +586,6 @@ inline void Lexer<uint8_t>::SetLiteral<true>(const uint8_t* start,
 template<>
 template<>
 inline void Lexer<int8_t>::SetLiteral<true>(const int8_t* start,
-                                            const int8_t* end,
                                             LiteralDesc* literal) {
   const uint8_t* cast = reinterpret_cast<const uint8_t*>(start);
   literal->SetOneByteString(
@@ -648,39 +594,63 @@ inline void Lexer<int8_t>::SetLiteral<true>(const int8_t* start,
 
 
 template<class Char>
-bool Lexer<Char>::FillLiteral(const TokenDesc& token, LiteralDesc* literal) {
-  literal->beg_pos = token.beg_pos;
-  const Char* start = buffer_ + token.beg_pos;
-  const Char* end = buffer_ + token.end_pos;
+static inline void GetStartAndEnd(const Char* buffer,
+                                  const LexerBase::TokenDesc& token,
+                                  const Char** start,
+                                  const Char** end) {
+  *start = buffer + token.beg_pos;
+  *end = buffer + token.end_pos;
   if (token.token == Token::STRING) {
-    ++start;
-    --end;
+    ++(*start);
+    --(*end);
   }
-  if (!token.has_escapes) {
-    bool is_one_byte = IsOneByte(start, end);
-    if (sizeof(Char) == 2 || is_one_byte) {
-      literal->offset = start - buffer_;
-      literal->length = end - start;
-      if (sizeof(Char) == 1) {
-        SetLiteral<true>(start, end, literal);
-      } else if (is_one_byte) {
-        SetLiteral<true>(start, end, literal);
-      } else {
-        SetLiteral<false>(start, end, literal);
-      }
-      return true;
-    }
-  }
-  return CopyToLiteralBuffer(start, end, token, literal);
 }
 
 
 template<class Char>
-bool Lexer<Char>::CopyToLiteralBuffer(const Char* start,
-                                      const Char* end,
-                                      const TokenDesc& token,
+static inline const Char* LiteralOffsetAndLength(
+    const Char* buffer,
+    const LexerBase::TokenDesc& token,
+    int* offset,
+    int* length) {
+  ASSERT(!Lexer<Char>::MustBeInBuffer(token));
+  const Char* start = NULL;
+  const Char* end = NULL;
+  GetStartAndEnd<Char>(buffer, token, &start, &end);
+  *offset = start - buffer;
+  *length = end - start;
+  return start;
+}
+
+
+template<class Char>
+bool Lexer<Char>::FillLiteral(const TokenDesc& token, LiteralDesc* literal) {
+  literal->beg_pos = token.beg_pos;
+  if (!MustBeInBuffer(token)) {
+    const Char* start = LiteralOffsetAndLength<Char>(buffer_,
+                                                     token,
+                                                     &literal->offset,
+                                                     &literal->length);
+    if (sizeof(Char) == 1) {
+      SetLiteral<true>(start, literal);
+    } else if (token.is_in_primary_range) {
+      SetLiteral<true>(start, literal);
+    } else {
+      SetLiteral<false>(start, literal);
+    }
+    return true;
+  }
+  return CopyToLiteralBuffer(token, literal);
+}
+
+
+template<class Char>
+bool Lexer<Char>::CopyToLiteralBuffer(const TokenDesc& token,
                                       LiteralDesc* literal) {
   literal->buffer.Reset();
+  const Char* start = NULL;
+  const Char* end = NULL;
+  GetStartAndEnd<Char>(buffer_, token, &start, &end);
   if (token.has_escapes) {
     for (const Char* cursor = start; cursor != end;) {
       if (*cursor != '\\') {
@@ -710,78 +680,46 @@ bool Lexer<Char>::CopyToLiteralBuffer(const Char* start,
 
 
 template<class Char>
-Handle<String> Lexer<Char>::InternalizeLiteral(
-    LiteralDesc* literal) {
-  // Factory* factory = isolate_->factory();
-  // if (literal->is_in_buffer) {
-  //   return literal->is_one_byte
-  //       ? factory->InternalizeOneByteString(
-  //           Vector<const uint8_t>::cast(literal->one_byte_string))
-  //       : factory->InternalizeTwoByteString(literal->two_byte_string);
-  // }
-  // if (sizeof(Char) == 1) {
-  //   SubStringKey<uint8_t> key(
-  //       source_handle_, literal->offset, literal->length);
-  //   return factory->InternalizeStringWithKey(&key);
-  // } else {
-  //   SubStringKey<uint16_t> key(
-  //       source_handle_, literal->offset, literal->length);
-  //   return factory->InternalizeStringWithKey(&key);
-  // }
-  CHECK(false);
-  return Handle<String>();
+Handle<String> Lexer<Char>::AllocateInternalizedString(
+    Isolate* isolate) {
+  Factory* factory = isolate->factory();
+  LiteralDesc* literal = current_literal_;
+  const TokenDesc& token = current_;
+  // TODO(dcarney): handle utf8 directly.
+  if (source_handle_.is_null()  || MustBeInBuffer(token)) {
+    EnsureLiteralIsValid(token, literal);
+    return literal->is_one_byte() ?
+        factory->InternalizeOneByteString(literal->one_byte_string()) :
+        factory->InternalizeTwoByteString(literal->two_byte_string());
+  }
+  int offset = 0, length = 0;
+  LiteralOffsetAndLength<Char>(buffer_, token, &offset, &length);
+  if (sizeof(Char) == 1) {
+    SubStringKey<uint8_t> key(source_handle_, offset, length);
+    return factory->InternalizeStringWithKey(&key);
+  } else {
+    SubStringKey<uint16_t> key(source_handle_, offset, length);
+    return factory->InternalizeStringWithKey(&key);
+  }
 }
 
 
-template<>
-Handle<String> Lexer<uint8_t>::AllocateLiteral(
-    LiteralDesc* literal, PretenureFlag pretenured) {
-  // Factory* factory = isolate_->factory();
-  // if (literal->is_in_buffer) {
-  //   return literal->is_one_byte
-  //       ? factory->NewStringFromOneByte(literal->one_byte_string, pretenured)
-  //       : factory->NewStringFromTwoByte(literal->two_byte_string, pretenured)
-  // }
-  // int from = literal->offset;
-  // int length = literal->length;
-  // // Save the offset and the length before allocating the string as it may
-  // // cause a GC, invalidate the literal, and move the source.
-  // Handle<String> result = factory->NewRawOneByteString(length, pretenured);
-  // uint8_t* chars = SeqOneByteString::cast(*result)->GetChars();
-  // String::WriteToFlat(*source_handle_, chars, from, from + length);
-  // return result;
-  CHECK(false);
-  return Handle<String>();
-}
-
-
-template<>
-Handle<String> Lexer<uint16_t>::AllocateLiteral(
-    LiteralDesc* literal, PretenureFlag pretenured) {
-  // Factory* factory = isolate_->factory();
-  // if (literal->is_in_buffer) {
-  //   return literal->is_one_byte
-  //       ? factory->NewStringFromOneByte(literal->one_byte_string, pretenured)
-  //       : factory->NewStringFromTwoByte(literal->two_byte_string, pretenured)
-  // }
-  // // Save the offset and the length before allocating the string as it may
-  // // cause a GC, invalidate the literal, and move the source.
-  // int from = literal->offset;
-  // int length = literal->length;
-  // Handle<String> result = factory->NewRawTwoByteString(length, pretenured);
-  // uint16_t* chars = SeqTwoByteString::cast(*result)->GetChars();
-  // String::WriteToFlat(*source_handle_, chars, from, from + length);
-  // return result;
-  CHECK(false);
-  return Handle<String>();
-}
-
-
-template<>
-Handle<String> Lexer<int8_t>::AllocateLiteral(
-    LiteralDesc* literal, PretenureFlag pretenured) {
-  CHECK(false);
-  return Handle<String>();
+template<class Char>
+Handle<String> Lexer<Char>::AllocateNextLiteralString(Isolate* isolate,
+                                                      PretenureFlag tenured) {
+  Factory* factory = isolate->factory();
+  LiteralDesc* literal = next_literal_;
+  const TokenDesc& token = next_;
+  // TODO(dcarney): handle utf8 directly.
+  if (source_handle_.is_null()  || MustBeInBuffer(token)) {
+    EnsureLiteralIsValid(token, literal);
+    return literal->is_one_byte() ?
+        factory->NewStringFromOneByte(literal->one_byte_string(), tenured) :
+        factory->NewStringFromTwoByte(literal->two_byte_string(), tenured);
+  }
+  int offset = 0, length = 0;
+  LiteralOffsetAndLength<Char>(buffer_, token, &offset, &length);
+  return factory->NewSubString(source_handle_, offset, offset + length);
 }
 
 

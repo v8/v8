@@ -173,9 +173,9 @@ class LexerBase {
         (memcmp(literal.start(), keyword.start(), literal.length()) == 0);
   }
 
-  Handle<String> AllocateNextLiteralString(Isolate* isolate,
-                                           PretenureFlag tenured);
-  Handle<String> AllocateInternalizedString(Isolate* isolate);
+  virtual Handle<String> AllocateNextLiteralString(Isolate* isolate,
+                                                   PretenureFlag tenured) = 0;
+  virtual Handle<String> AllocateInternalizedString(Isolate* isolate) = 0;
 
   double DoubleValue();
   bool UnescapedLiteralMatches(const char* data, int length) {
@@ -247,6 +247,7 @@ class LexerBase {
       }
     }
 
+    inline bool is_in_buffer() { return is_in_buffer_; }
     inline bool is_one_byte() { return is_one_byte_; }
     inline Vector<const uint8_t> one_byte_string() {
       ASSERT(is_one_byte_);
@@ -258,7 +259,9 @@ class LexerBase {
     }
 
     inline bool Valid(int pos) { return beg_pos == pos; }
-    inline void Invalidate() { if (is_in_buffer_) beg_pos = -1; }
+    inline void Invalidate() {
+      if (!is_in_buffer_ && !is_one_byte_string_owned_) beg_pos = -1;
+    }
 
     // TODO(dcarney): make private as well.
     int beg_pos;
@@ -280,32 +283,29 @@ class LexerBase {
     DISALLOW_COPY_AND_ASSIGN(LiteralDesc);
   };
 
- protected:
   struct TokenDesc {
     int beg_pos;
     int end_pos;
     Token::Value token;
     bool has_escapes;
-    bool is_onebyte;
+    bool is_in_primary_range;
   };
 
+ protected:
   virtual void Scan() = 0;
   virtual void UpdateBufferBasedOnHandle() = 0;
   virtual bool FillLiteral(const TokenDesc& token, LiteralDesc* literal) = 0;
-  virtual Handle<String> InternalizeLiteral(LiteralDesc* literal) = 0;
-  virtual Handle<String> AllocateLiteral(LiteralDesc* literal,
-                                         PretenureFlag tenured) = 0;
+
+  void EnsureLiteralIsValid(const TokenDesc& token, LiteralDesc* literal) {
+    if (!literal->Valid(token.beg_pos)) FillLiteral(token, literal);
+  }
 
   void EnsureCurrentLiteralIsValid() {
-    if (!current_literal_->Valid(current_.beg_pos)) {
-      FillLiteral(current_, current_literal_);
-    }
+    EnsureLiteralIsValid(current_, current_literal_);
   }
 
   void EnsureNextLiteralIsValid() {
-    if (!next_literal_->Valid(next_.beg_pos)) {
-      FillLiteral(next_, next_literal_);
-    }
+    EnsureLiteralIsValid(next_, next_literal_);
   }
 
   UnicodeCache* unicode_cache_;
@@ -346,6 +346,11 @@ class Lexer : public LexerBase {
   virtual Location octal_position() const;
   virtual void clear_octal_position() { last_octal_end_ = NULL; }
 
+  static inline bool MustBeInBuffer(const TokenDesc& token) {
+    return token.has_escapes ||
+        (sizeof(Char) == 1 && !token.is_in_primary_range);
+  }
+
  protected:
   virtual void Scan();
 
@@ -358,18 +363,16 @@ class Lexer : public LexerBase {
   virtual void UpdateBufferBasedOnHandle();
 
   virtual bool FillLiteral(const TokenDesc& token, LiteralDesc* literal);
-  virtual Handle<String> InternalizeLiteral(LiteralDesc* literal);
-  virtual Handle<String> AllocateLiteral(LiteralDesc* literal,
-                                         PretenureFlag tenured);
+
+  virtual Handle<String> AllocateNextLiteralString(Isolate* isolate,
+                                                   PretenureFlag tenured);
+  virtual Handle<String> AllocateInternalizedString(Isolate* isolate);
 
   // Helper function for FillLiteral.
   template<bool is_one_byte>
-  static void SetLiteral(
-      const Char* start, const Char* end, LiteralDesc* literal);
+  static void SetLiteral(const Char* start, LiteralDesc* literal);
 
-  bool CopyToLiteralBuffer(const Char* start,
-                           const Char* end,
-                           const TokenDesc& token,
+  bool CopyToLiteralBuffer(const TokenDesc& token,
                            LiteralDesc* literal);
 
   // One of source_handle_ or source_ptr_ is set.
