@@ -35,6 +35,9 @@
  */
 namespace v8 {
 
+class HeapGraphNode;
+class HeapStatsUpdate;
+
 typedef uint32_t SnapshotObjectId;
 
 /**
@@ -185,9 +188,6 @@ class V8_EXPORT CpuProfiler {
 };
 
 
-class HeapGraphNode;
-
-
 /**
  * HeapSnapshotEdge represents a directed connection between heap
  * graph nodes: from retainers to retained nodes.
@@ -278,6 +278,37 @@ class V8_EXPORT HeapGraphNode {
 
 
 /**
+ * An interface for exporting data from V8, using "push" model.
+ */
+class V8_EXPORT OutputStream {  // NOLINT
+ public:
+  enum WriteResult {
+    kContinue = 0,
+    kAbort = 1
+  };
+  virtual ~OutputStream() {}
+  /** Notify about the end of stream. */
+  virtual void EndOfStream() = 0;
+  /** Get preferred output chunk size. Called only once. */
+  virtual int GetChunkSize() { return 1024; }
+  /**
+   * Writes the next chunk of snapshot data into the stream. Writing
+   * can be stopped by returning kAbort as function result. EndOfStream
+   * will not be called in case writing was aborted.
+   */
+  virtual WriteResult WriteAsciiChunk(char* data, int size) = 0;
+  /**
+   * Writes the next chunk of heap stats data into the stream. Writing
+   * can be stopped by returning kAbort as function result. EndOfStream
+   * will not be called in case writing was aborted.
+   */
+  virtual WriteResult WriteHeapStatsChunk(HeapStatsUpdate* data, int count) {
+    return kAbort;
+  };
+};
+
+
+/**
  * HeapSnapshots record the state of the JS heap at some moment.
  */
 class V8_EXPORT HeapSnapshot {
@@ -344,7 +375,24 @@ class V8_EXPORT HeapSnapshot {
 };
 
 
-class RetainedObjectInfo;
+/**
+ * An interface for reporting progress and controlling long-running
+ * activities.
+ */
+class V8_EXPORT ActivityControl {  // NOLINT
+ public:
+  enum ControlOption {
+    kContinue = 0,
+    kAbort = 1
+  };
+  virtual ~ActivityControl() {}
+  /**
+   * Notify about current progress. The activity can be stopped by
+   * returning kAbort as the callback result.
+   */
+  virtual ControlOption ReportProgressValue(int done, int total) = 0;
+};
+
 
 /**
  * Interface for controlling heap profiling. Instance of the
