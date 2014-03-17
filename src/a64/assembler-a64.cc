@@ -616,6 +616,24 @@ bool Assembler::IsConstantPoolAt(Instruction* instr) {
 
 
 int Assembler::ConstantPoolSizeAt(Instruction* instr) {
+#ifdef USE_SIMULATOR
+  // Assembler::debug() embeds constants directly into the instruction stream.
+  // Although this is not a genuine constant pool, treat it like one to avoid
+  // disassembling the constants.
+  if ((instr->Mask(ExceptionMask) == HLT) &&
+      (instr->ImmException() == kImmExceptionIsDebug)) {
+    const char* message =
+        reinterpret_cast<const char*>(
+            instr->InstructionAtOffset(kDebugMessageOffset));
+    int size = kDebugMessageOffset + strlen(message) + 1;
+    return RoundUp(size, kInstructionSize) / kInstructionSize;
+  }
+  // Same for printf support, see MacroAssembler::CallPrintf().
+  if ((instr->Mask(ExceptionMask) == HLT) &&
+      (instr->ImmException() == kImmExceptionIsPrintf)) {
+    return kPrintfLength / kInstructionSize;
+  }
+#endif
   if (IsConstantPoolAt(instr)) {
     return instr->ImmLLiteral();
   } else {
