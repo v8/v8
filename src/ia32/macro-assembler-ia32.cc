@@ -1037,6 +1037,20 @@ void MacroAssembler::AssertName(Register object) {
 }
 
 
+void MacroAssembler::AssertUndefinedOrAllocationSite(Register object) {
+  if (emit_debug_code()) {
+    Label done_checking;
+    AssertNotSmi(object);
+    cmp(object, isolate()->factory()->undefined_value());
+    j(equal, &done_checking);
+    cmp(FieldOperand(object, 0),
+        Immediate(isolate()->factory()->allocation_site_map()));
+    Assert(equal, kExpectedUndefinedOrCell);
+    bind(&done_checking);
+  }
+}
+
+
 void MacroAssembler::AssertNotSmi(Register object) {
   if (emit_debug_code()) {
     test(object, Immediate(kSmiTagMask));

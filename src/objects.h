@@ -1171,6 +1171,8 @@ class MaybeObject BASE_EMBEDDED {
   V(kExpectedFixedArrayInRegisterRbx,                                         \
     "Expected fixed array in register rbx")                                   \
   V(kExpectedSmiOrHeapNumber, "Expected smi or HeapNumber")                   \
+  V(kExpectedUndefinedOrCell,                                                 \
+    "Expected undefined or cell in register")                                 \
   V(kExpectingAlignmentForCopyBytes,                                          \
     "Expecting alignment for CopyBytes")                                      \
   V(kExportDeclaration, "Export declaration")                                 \

@@ -1528,6 +1528,20 @@ void MacroAssembler::AssertName(Register object) {
 }
 
 
+void MacroAssembler::AssertUndefinedOrAllocationSite(Register object,
+                                                     Register scratch) {
+  if (emit_debug_code()) {
+    Label done_checking;
+    AssertNotSmi(object);
+    JumpIfRoot(object, Heap::kUndefinedValueRootIndex, &done_checking);
+    Ldr(scratch, FieldMemOperand(object, HeapObject::kMapOffset));
+    CompareRoot(scratch, Heap::kAllocationSiteMapRootIndex);
+    Assert(eq, kExpectedUndefinedOrCell);
+    Bind(&done_checking);
+  }
+}
+
+
 void MacroAssembler::AssertString(Register object) {
   if (emit_debug_code()) {
     UseScratchRegisterScope temps(this);
