@@ -306,8 +306,12 @@ extern bool FLAG_enable_slow_asserts;
 #define SLOW_ASSERT(condition) ((void) 0)
 const bool FLAG_enable_slow_asserts = false;
 #endif
-}  // namespace internal
-}  // namespace v8
+
+// Exposed for making debugging easier (to see where your function is being
+// called, just add a call to DumpBacktrace).
+void DumpBacktrace();
+
+} }  // namespace v8::internal
 
 
 // The ASSERT macro is equivalent to CHECK except that it only
