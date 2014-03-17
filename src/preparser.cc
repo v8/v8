@@ -69,17 +69,20 @@ void PreParserTraits::CheckStrictModeLValue(PreParserExpression expression,
 
 void PreParserTraits::ReportMessageAt(Scanner::Location location,
                                       const char* message,
-                                      Vector<const char*> args) {
+                                      Vector<const char*> args,
+                                      bool is_reference_error) {
   ReportMessageAt(location.beg_pos,
                   location.end_pos,
                   message,
-                  args.length() > 0 ? args[0] : NULL);
+                  args.length() > 0 ? args[0] : NULL,
+                  is_reference_error);
 }
 
 
 void PreParserTraits::ReportMessageAt(Scanner::Location location,
                                       const char* type,
-                                      const char* name_opt) {
+                                      const char* name_opt,
+                                      bool is_reference_error) {
   pre_parser_->log_
       ->LogMessage(location.beg_pos, location.end_pos, type, name_opt);
 }
@@ -88,7 +91,8 @@ void PreParserTraits::ReportMessageAt(Scanner::Location location,
 void PreParserTraits::ReportMessageAt(int start_pos,
                                       int end_pos,
                                       const char* type,
-                                      const char* name_opt) {
+                                      const char* name_opt,
+                                      bool is_reference_error) {
   pre_parser_->log_->LogMessage(start_pos, end_pos, type, name_opt);
 }
 

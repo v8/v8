@@ -436,6 +436,7 @@ class Factory {
 
   Handle<Object> NewReferenceError(const char* message,
                                    Vector< Handle<Object> > args);
+  Handle<Object> NewReferenceError(const char* message, Handle<JSArray> args);
   Handle<Object> NewReferenceError(Handle<String> message);
 
   Handle<Object> NewEvalError(const char* message,

@@ -45,10 +45,6 @@ var kMessages = {
   unterminated_regexp:           ["Invalid regular expression: missing /"],
   regexp_flags:                  ["Cannot supply flags when constructing one RegExp from another"],
   incompatible_method_receiver:  ["Method ", "%0", " called on incompatible receiver ", "%1"],
-  invalid_lhs_in_assignment:     ["Invalid left-hand side in assignment"],
-  invalid_lhs_in_for_in:         ["Invalid left-hand side in for-in"],
-  invalid_lhs_in_postfix_op:     ["Invalid left-hand side expression in postfix operation"],
-  invalid_lhs_in_prefix_op:      ["Invalid left-hand side expression in prefix operation"],
   multiple_defaults_in_switch:   ["More than one default clause in switch statement"],
   newline_after_throw:           ["Illegal newline after throw"],
   redeclaration:                 ["%0", " '", "%1", "' has already been declared"],
@@ -132,6 +128,11 @@ var kMessages = {
   stack_overflow:                ["Maximum call stack size exceeded"],
   invalid_time_value:            ["Invalid time value"],
   invalid_count_value:           ["Invalid count value"],
+  // ReferenceError
+  invalid_lhs_in_assignment:     ["Invalid left-hand side in assignment"],
+  invalid_lhs_in_for:            ["Invalid left-hand side in for-loop"],
+  invalid_lhs_in_postfix_op:     ["Invalid left-hand side expression in postfix operation"],
+  invalid_lhs_in_prefix_op:      ["Invalid left-hand side expression in prefix operation"],
   // SyntaxError
   paren_in_arg_string:           ["Function arg string contains parenthesis"],
   not_isvar:                     ["builtin %IS_VAR: not a variable"],

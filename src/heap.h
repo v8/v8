@@ -333,10 +333,6 @@ namespace internal {
   V(MakeReferenceError_string, "MakeReferenceError")                     \
   V(MakeSyntaxError_string, "MakeSyntaxError")                           \
   V(MakeTypeError_string, "MakeTypeError")                               \
-  V(invalid_lhs_in_assignment_string, "invalid_lhs_in_assignment")       \
-  V(invalid_lhs_in_for_in_string, "invalid_lhs_in_for_in")               \
-  V(invalid_lhs_in_postfix_op_string, "invalid_lhs_in_postfix_op")       \
-  V(invalid_lhs_in_prefix_op_string, "invalid_lhs_in_prefix_op")         \
   V(illegal_return_string, "illegal_return")                             \
   V(illegal_break_string, "illegal_break")                               \
   V(illegal_continue_string, "illegal_continue")                         \

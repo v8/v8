@@ -342,13 +342,16 @@ class ParserBase : public Traits {
   bool is_generator() const { return function_state_->is_generator(); }
 
   // Report syntax errors.
-  void ReportMessage(const char* message, Vector<const char*> args) {
+  void ReportMessage(const char* message, Vector<const char*> args,
+                     bool is_reference_error = false) {
     Scanner::Location source_location = scanner()->location();
-    Traits::ReportMessageAt(source_location, message, args);
+    Traits::ReportMessageAt(source_location, message, args, is_reference_error);
   }
 
-  void ReportMessageAt(Scanner::Location location, const char* message) {
-    Traits::ReportMessageAt(location, message, Vector<const char*>::empty());
+  void ReportMessageAt(Scanner::Location location, const char* message,
+                       bool is_reference_error = false) {
+    Traits::ReportMessageAt(location, message, Vector<const char*>::empty(),
+                            is_reference_error);
   }
 
   void ReportUnexpectedToken(Token::Value token);
@@ -789,12 +792,10 @@ class PreParserTraits {
   static void CheckAssigningFunctionLiteralToProperty(
       PreParserExpression left, PreParserExpression right) {}
 
-
-  static PreParserExpression ValidateAssignmentLeftHandSide(
-      PreParserExpression expression) {
-    // Parser generates a runtime error here if the left hand side is not valid.
-    // PreParser doesn't have to.
-    return expression;
+  // Determine whether the expression is a valid assignment left-hand side.
+  static bool IsValidLeftHandSide(PreParserExpression expression) {
+    // TODO(marja): check properly; for now, leave it to parser.
+    return true;
   }
 
   static PreParserExpression MarkExpressionAsLValue(
@@ -812,14 +813,17 @@ class PreParserTraits {
   // Reporting errors.
   void ReportMessageAt(Scanner::Location location,
                        const char* message,
-                       Vector<const char*> args);
+                       Vector<const char*> args,
+                       bool is_reference_error = false);
   void ReportMessageAt(Scanner::Location location,
                        const char* type,
-                       const char* name_opt);
+                       const char* name_opt,
+                       bool is_reference_error = false);
   void ReportMessageAt(int start_pos,
                        int end_pos,
                        const char* type,
-                       const char* name_opt);
+                       const char* name_opt,
+                       bool is_reference_error = false);
 
   // "null" return type creators.
   static PreParserIdentifier EmptyIdentifier() {
@@ -1606,6 +1610,8 @@ typename Traits::Type::Expression ParserBase<Traits>::ParseAssignmentExpression(
   //   YieldExpression
   //   LeftHandSideExpression AssignmentOperator AssignmentExpression
 
+  Scanner::Location lhs_location = scanner()->peek_location();
+
   if (peek() == Token::YIELD && is_generator()) {
     return this->ParseYieldExpression(ok);
   }
@@ -1620,12 +1626,11 @@ typename Traits::Type::Expression ParserBase<Traits>::ParseAssignmentExpression(
     return expression;
   }
 
-  // Signal a reference error if the expression is an invalid left-hand
-  // side expression.  We could report this as a syntax error here but
-  // for compatibility with JSC we choose to report the error at
-  // runtime.
-  // TODO(ES5): Should change parsing for spec conformance.
-  expression = this->ValidateAssignmentLeftHandSide(expression);
+  if (!IsValidLeftHandSide(expression)) {
+    this->ReportMessageAt(lhs_location, "invalid_lhs_in_assignment", true);
+    *ok = false;
+    return this->EmptyExpression();
+  }
 
   if (strict_mode() == STRICT) {
     // Assignment to eval or arguments is disallowed in strict mode.

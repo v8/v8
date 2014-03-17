@@ -456,18 +456,6 @@ void ParserTraits::CheckAssigningFunctionLiteralToProperty(Expression* left,
 }
 
 
-Expression* ParserTraits::ValidateAssignmentLeftHandSide(
-    Expression* expression) const {
-  ASSERT(expression != NULL);
-  if (!expression->IsValidLeftHandSide()) {
-    Handle<String> message =
-        parser_->isolate()->factory()->invalid_lhs_in_assignment_string();
-    expression = parser_->NewThrowReferenceError(message);
-  }
-  return expression;
-}
-
-
 Expression* ParserTraits::MarkExpressionAsLValue(Expression* expression) {
   VariableProxy* proxy = expression != NULL
       ? expression->AsVariableProxy()
@@ -492,7 +480,8 @@ void ParserTraits::CheckStrictModeLValue(Expression* expression,
 
 void ParserTraits::ReportMessageAt(Scanner::Location source_location,
                                    const char* message,
-                                   Vector<const char*> args) {
+                                   Vector<const char*> args,
+                                   bool is_reference_error) {
   if (parser_->stack_overflow()) {
     // Suppress the error message (syntax error or such) in the presence of a
     // stack overflow. The isolate allows only one pending exception at at time
@@ -509,21 +498,25 @@ void ParserTraits::ReportMessageAt(Scanner::Location source_location,
     elements->set(i, *arg_string);
   }
   Handle<JSArray> array = factory->NewJSArrayWithElements(elements);
-  Handle<Object> result = factory->NewSyntaxError(message, array);
+  Handle<Object> result = is_reference_error
+      ? factory->NewReferenceError(message, array)
+      : factory->NewSyntaxError(message, array);
   parser_->isolate()->Throw(*result, &location);
 }
 
 
 void ParserTraits::ReportMessage(const char* message,
-                                 Vector<Handle<String> > args) {
+                                 Vector<Handle<String> > args,
+                                 bool is_reference_error) {
   Scanner::Location source_location = parser_->scanner()->location();
-  ReportMessageAt(source_location, message, args);
+  ReportMessageAt(source_location, message, args, is_reference_error);
 }
 
 
 void ParserTraits::ReportMessageAt(Scanner::Location source_location,
                                    const char* message,
-                                   Vector<Handle<String> > args) {
+                                   Vector<Handle<String> > args,
+                                   bool is_reference_error) {
   if (parser_->stack_overflow()) {
     // Suppress the error message (syntax error or such) in the presence of a
     // stack overflow. The isolate allows only one pending exception at at time
@@ -539,7 +532,9 @@ void ParserTraits::ReportMessageAt(Scanner::Location source_location,
     elements->set(i, *args[i]);
   }
   Handle<JSArray> array = factory->NewJSArrayWithElements(elements);
-  Handle<Object> result = factory->NewSyntaxError(message, array);
+  Handle<Object> result = is_reference_error
+      ? factory->NewReferenceError(message, array)
+      : factory->NewSyntaxError(message, array);
   parser_->isolate()->Throw(*result, &location);
 }
 
@@ -2844,19 +2839,16 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
         init = variable_statement;
       }
     } else {
+      Scanner::Location lhs_location = scanner()->peek_location();
       Expression* expression = ParseExpression(false, CHECK_OK);
       ForEachStatement::VisitMode mode;
       bool accept_OF = expression->AsVariableProxy();
 
       if (CheckInOrOf(accept_OF, &mode)) {
-        // Signal a reference error if the expression is an invalid
-        // left-hand side expression.  We could report this as a syntax
-        // error here but for compatibility with JSC we choose to report
-        // the error at runtime.
         if (expression == NULL || !expression->IsValidLeftHandSide()) {
-          Handle<String> message =
-              isolate()->factory()->invalid_lhs_in_for_in_string();
-          expression = NewThrowReferenceError(message);
+          ReportMessageAt(lhs_location, "invalid_lhs_in_for", true);
+          *ok = false;
+          return NULL;
         }
         ForEachStatement* loop =
             factory()->NewForEachStatement(mode, labels, pos);
@@ -3125,15 +3117,12 @@ Expression* Parser::ParseUnaryExpression(bool* ok) {
 
   } else if (Token::IsCountOp(op)) {
     op = Next();
+    Scanner::Location lhs_location = scanner()->peek_location();
     Expression* expression = ParseUnaryExpression(CHECK_OK);
-    // Signal a reference error if the expression is an invalid
-    // left-hand side expression.  We could report this as a syntax
-    // error here but for compatibility with JSC we choose to report the
-    // error at runtime.
     if (expression == NULL || !expression->IsValidLeftHandSide()) {
-      Handle<String> message =
-          isolate()->factory()->invalid_lhs_in_prefix_op_string();
-      expression = NewThrowReferenceError(message);
+      ReportMessageAt(lhs_location, "invalid_lhs_in_prefix_op", true);
+      *ok = false;
+      return NULL;
     }
 
     if (strict_mode() == STRICT) {
@@ -3157,17 +3146,14 @@ Expression* Parser::ParsePostfixExpression(bool* ok) {
   // PostfixExpression ::
   //   LeftHandSideExpression ('++' | '--')?
 
+  Scanner::Location lhs_location = scanner()->peek_location();
   Expression* expression = ParseLeftHandSideExpression(CHECK_OK);
   if (!scanner()->HasAnyLineTerminatorBeforeNext() &&
       Token::IsCountOp(peek())) {
-    // Signal a reference error if the expression is an invalid
-    // left-hand side expression.  We could report this as a syntax
-    // error here but for compatibility with JSC we choose to report the
-    // error at runtime.
     if (expression == NULL || !expression->IsValidLeftHandSide()) {
-      Handle<String> message =
-          isolate()->factory()->invalid_lhs_in_postfix_op_string();
-      expression = NewThrowReferenceError(message);
+      ReportMessageAt(lhs_location, "invalid_lhs_in_postfix_op", true);
+      *ok = false;
+      return NULL;
     }
 
     if (strict_mode() == STRICT) {

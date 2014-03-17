@@ -1067,6 +1067,12 @@ Handle<Object> Factory::NewReferenceError(const char* message,
 }
 
 
+Handle<Object> Factory::NewReferenceError(const char* message,
+                                          Handle<JSArray> args) {
+  return NewError("MakeReferenceError", message, args);
+}
+
+
 Handle<Object> Factory::NewReferenceError(Handle<String> message) {
   return NewError("$ReferenceError", message);
 }

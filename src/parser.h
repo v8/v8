@@ -484,10 +484,10 @@ class ParserTraits {
   static void CheckAssigningFunctionLiteralToProperty(Expression* left,
                                                       Expression* right);
 
-  // Signal a reference error if the expression is an invalid left-hand side
-  // expression. We could report this as a syntax error but for compatibility
-  // with JSC we choose to report the error at runtime.
-  Expression* ValidateAssignmentLeftHandSide(Expression* expression) const;
+  // Determine whether the expression is a valid assignment left-hand side.
+  static bool IsValidLeftHandSide(Expression* expression) {
+    return expression->IsValidLeftHandSide();
+  }
 
   // Determine if the expression is a variable proxy and mark it as being used
   // in an assignment or with a increment/decrement operator. This is currently
@@ -501,11 +501,15 @@ class ParserTraits {
   // Reporting errors.
   void ReportMessageAt(Scanner::Location source_location,
                        const char* message,
-                       Vector<const char*> args);
-  void ReportMessage(const char* message, Vector<Handle<String> > args);
+                       Vector<const char*> args,
+                       bool is_reference_error = false);
+  void ReportMessage(const char* message,
+                     Vector<Handle<String> > args,
+                     bool is_reference_error = false);
   void ReportMessageAt(Scanner::Location source_location,
                        const char* message,
-                       Vector<Handle<String> > args);
+                       Vector<Handle<String> > args,
+                       bool is_reference_error = false);
 
   // "null" return type creators.
   static Handle<String> EmptyIdentifier() {

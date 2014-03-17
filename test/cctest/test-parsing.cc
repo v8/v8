@@ -2218,7 +2218,6 @@ TEST(NoErrorsNewExpression) {
     "new foo[bar].baz(baz)()[bar].baz;",
     "new \"foo\"",  // Runtime error
     "new 1",  // Runtime error
-    "new foo++",
     // This even runs:
     "(new new Function(\"this.x = 1\")).x;",
     "new new Test_Two(String, 2).v(0123).length;",
@@ -2240,6 +2239,8 @@ TEST(ErrorsNewExpression) {
     "new foo bar",
     "new ) foo",
     "new ++foo",
+    // TODO(marja): Activate this test once the preparser checks correctly.
+    // "new foo ++",
     NULL
   };
 
