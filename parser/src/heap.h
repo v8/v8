@@ -868,6 +868,7 @@ class Heap {
       PretenureFlag pretenure = NOT_TENURED);
   MUST_USE_RESULT MaybeObject* AllocateStringFromTwoByte(
       Vector<const uc16> str,
+      bool check_for_one_byte,
       PretenureFlag pretenure = NOT_TENURED);
 
   // Allocates an internalized string in old space based on the character

@@ -96,11 +96,11 @@ static uint16_t* ConvertUtf8ToUtf16(const uint16_t* const data_in,
       if (c <= unibrow::Utf8::kMaxOneByteChar) {
         position++;
       } else {
-        *is_one_byte = false;
         c =  unibrow::Utf8::CalculateValue(char_data + position,
                                            file_size - position,
                                            &position);
       }
+      if (c > unibrow::Latin1::kMaxChar) *is_one_byte = false;
       if (c > kMaxUtf16Character) {
         utf16_chars += 2;
       } else {
@@ -224,30 +224,8 @@ static bool HasLiteral(Token::Value token) {
 }
 
 
-template<typename Char>
-static void Copy(const Vector<Char>& literal,
-                 SmartArrayPointer<const uint16_t>* result,
-                 int* literal_length) {
-  uint16_t* data = new uint16_t[literal.length()];
-  result->Reset(data);
-  for (int i = 0; i < literal.length(); i++) {
-    data[i] = literal[i];
-  }
-  *literal_length = literal.length();
-}
-
-
 class TokenWithLocation {
  public:
-  Token::Value value;
-  int beg;
-  int end;
-  bool is_one_byte;
-  SmartArrayPointer<const uint16_t> literal;
-  int literal_length;
-  // The location of the latest octal position when the token was seen.
-  int octal_beg;
-  int octal_end;
   TokenWithLocation(Token::Value token,
                     Scanner* scanner,
                     Handle<String> literal_string)
@@ -261,10 +239,15 @@ class TokenWithLocation {
     if (!literal_string.is_null()) {
       DisallowHeapAllocation no_alloc;
       String::FlatContent content = literal_string->GetFlatContent();
+      literal_length = literal_string->length();
+      literal.Reset(new uint16_t[literal_length]);
       if (content.IsAscii()) {
-        Copy(content.ToOneByteVector(), &literal, &literal_length);
+        is_one_byte = true;
+        CopyChars(
+          literal.get(), content.ToOneByteVector().start(), literal_length);
       } else {
-        Copy(content.ToUC16Vector(), &literal, &literal_length);
+        CopyChars(
+          literal.get(), content.ToUC16Vector().start(), literal_length);
       }
     }
   }
@@ -274,7 +257,7 @@ class TokenWithLocation {
       return;
     }
     printf("%-15s (%d, %d)", Token::Name(value), beg, end);
-    if (literal_length > 0) {
+    if (literal.get() != NULL) {
       // TODO(dcarney): need some sort of checksum.
       for (int i = 0; i < literal_length; i++) {
         printf(is_one_byte ? " %02x" : " %04x", literal[i]);
@@ -288,6 +271,16 @@ class TokenWithLocation {
   }
 
  private:
+  Token::Value value;
+  int beg;
+  int end;
+  bool is_one_byte;
+  SmartArrayPointer<uint16_t> literal;
+  int literal_length;
+  // The location of the latest octal position when the token was seen.
+  int octal_beg;
+  int octal_end;
+
   DISALLOW_COPY_AND_ASSIGN(TokenWithLocation);
 };
 
@@ -307,7 +300,7 @@ static TimeDelta RunLexer(const uint16_t* source,
     case UTF16: {
       CHECK_EQ(0, bytes % 2);
       Handle<String> result = isolate->factory()->NewStringFromTwoByte(
-          Vector<const uint16_t>(source, bytes / 2));
+          Vector<const uint16_t>(source, bytes / 2), false);
       stream.Reset(
           new GenericStringUtf16CharacterStream(result, 0, result->length()));
       break;

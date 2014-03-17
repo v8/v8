@@ -4811,13 +4811,14 @@ MaybeObject* Heap::AllocateStringFromUtf8Slow(Vector<const char> string,
 
 
 MaybeObject* Heap::AllocateStringFromTwoByte(Vector<const uc16> string,
+                                             bool check_for_one_byte,
                                              PretenureFlag pretenure) {
   // Check if the string is an ASCII string.
   Object* result;
   int length = string.length();
   const uc16* start = string.start();
 
-  if (String::IsOneByte(start, length)) {
+  if (check_for_one_byte && String::IsOneByte(start, length)) {
     MaybeObject* maybe_result = AllocateRawOneByteString(length, pretenure);
     if (!maybe_result->ToObject(&result)) return maybe_result;
     CopyChars(SeqOneByteString::cast(result)->GetChars(), start, length);

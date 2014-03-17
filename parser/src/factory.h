@@ -149,6 +149,7 @@ class Factory {
 
   Handle<String> NewStringFromTwoByte(
       Vector<const uc16> str,
+      bool check_for_one_byte = true,
       PretenureFlag pretenure = NOT_TENURED);
 
   // Allocates and partially initializes an ASCII or TwoByte String. The

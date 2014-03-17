@@ -272,10 +272,12 @@ Handle<String> Factory::NewStringFromUtf8(Vector<const char> string,
 
 
 Handle<String> Factory::NewStringFromTwoByte(Vector<const uc16> string,
+                                             bool check_for_one_byte,
                                              PretenureFlag pretenure) {
   CALL_HEAP_FUNCTION(
       isolate(),
-      isolate()->heap()->AllocateStringFromTwoByte(string, pretenure),
+      isolate()->heap()->AllocateStringFromTwoByte(
+          string, check_for_one_byte, pretenure),
       String);
 }
 

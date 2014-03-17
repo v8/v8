@@ -737,7 +737,8 @@ Handle<String> Lexer<Char>::AllocateNextLiteralString(Isolate* isolate,
     EnsureLiteralIsValid(token, literal);
     return literal->is_one_byte() ?
         factory->NewStringFromOneByte(literal->one_byte_string(), tenured) :
-        factory->NewStringFromTwoByte(literal->two_byte_string(), tenured);
+        factory->NewStringFromTwoByte(
+            literal->two_byte_string(), false, tenured);
   }
   int offset = 0, length = 0;
   LiteralOffsetAndLength<Char>(buffer_, token, &offset, &length);
