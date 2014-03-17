@@ -437,8 +437,12 @@ class FullCodeGenerator: public AstVisitor {
   // Feedback slot support. The feedback vector will be cleared during gc and
   // collected by the type-feedback oracle.
   Handle<FixedArray> FeedbackVector() {
-    return info_->feedback_vector();
+    return feedback_vector_;
   }
+  void StoreFeedbackVectorSlot(int slot, Handle<Object> object) {
+    feedback_vector_->set(slot, *object);
+  }
+  void InitializeFeedbackVector();
 
   // Record a call's return site offset, used to rebuild the frame if the
   // called function was inlined at the site.
@@ -840,6 +844,7 @@ class FullCodeGenerator: public AstVisitor {
   ZoneList<BackEdgeEntry> back_edges_;
   int ic_total_count_;
   Handle<FixedArray> handler_table_;
+  Handle<FixedArray> feedback_vector_;
   Handle<Cell> profiling_counter_;
   bool generate_debug_code_;
 

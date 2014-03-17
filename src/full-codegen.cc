@@ -386,6 +386,18 @@ unsigned FullCodeGenerator::EmitBackEdgeTable() {
 }
 
 
+void FullCodeGenerator::InitializeFeedbackVector() {
+  int length = info_->function()->slot_count();
+  feedback_vector_ = isolate()->factory()->NewFixedArray(length, TENURED);
+  Handle<Object> sentinel = TypeFeedbackInfo::UninitializedSentinel(isolate());
+  // Ensure that it's safe to set without using a write barrier.
+  ASSERT_EQ(isolate()->heap()->uninitialized_symbol(), *sentinel);
+  for (int i = 0; i < length; i++) {
+    feedback_vector_->set(i, *sentinel, SKIP_WRITE_BARRIER);
+  }
+}
+
+
 void FullCodeGenerator::PopulateDeoptimizationData(Handle<Code> code) {
   // Fill in the deoptimization information.
   ASSERT(info_->HasDeoptimizationSupport() || bailout_entries_.is_empty());
@@ -404,6 +416,7 @@ void FullCodeGenerator::PopulateDeoptimizationData(Handle<Code> code) {
 void FullCodeGenerator::PopulateTypeFeedbackInfo(Handle<Code> code) {
   Handle<TypeFeedbackInfo> info = isolate()->factory()->NewTypeFeedbackInfo();
   info->set_ic_total_count(ic_total_count_);
+  info->set_feedback_vector(*FeedbackVector());
   ASSERT(!isolate()->heap()->InNewSpace(*info));
   code->set_type_feedback_info(*info);
 }
@@ -1605,8 +1618,7 @@ void FullCodeGenerator::VisitNativeFunctionLiteral(
   bool is_generator = false;
   Handle<SharedFunctionInfo> shared =
       isolate()->factory()->NewSharedFunctionInfo(name, literals, is_generator,
-          code, Handle<ScopeInfo>(fun->shared()->scope_info()),
-          Handle<FixedArray>(fun->shared()->feedback_vector()));
+          code, Handle<ScopeInfo>(fun->shared()->scope_info()));
   shared->set_construct_stub(*construct_stub);
 
   // Copy the function data to the shared function info.

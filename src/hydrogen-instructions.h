@@ -4288,6 +4288,12 @@ class HCompareObjectEqAndBranch : public HTemplateControlInstruction<2, 2> {
 
   virtual bool KnownSuccessorBlock(HBasicBlock** block) V8_OVERRIDE;
 
+  static const int kNoKnownSuccessorIndex = -1;
+  int known_successor_index() const { return known_successor_index_; }
+  void set_known_successor_index(int known_successor_index) {
+    known_successor_index_ = known_successor_index;
+  }
+
   HValue* left() { return OperandAt(0); }
   HValue* right() { return OperandAt(1); }
 
@@ -4307,7 +4313,8 @@ class HCompareObjectEqAndBranch : public HTemplateControlInstruction<2, 2> {
   HCompareObjectEqAndBranch(HValue* left,
                             HValue* right,
                             HBasicBlock* true_target = NULL,
-                            HBasicBlock* false_target = NULL) {
+                            HBasicBlock* false_target = NULL)
+      : known_successor_index_(kNoKnownSuccessorIndex) {
     ASSERT(!left->IsConstant() ||
            (!HConstant::cast(left)->HasInteger32Value() ||
             HConstant::cast(left)->HasSmiValue()));
@@ -4319,6 +4326,8 @@ class HCompareObjectEqAndBranch : public HTemplateControlInstruction<2, 2> {
     SetSuccessorAt(0, true_target);
     SetSuccessorAt(1, false_target);
   }
+
+  int known_successor_index_;
 };
 
 
