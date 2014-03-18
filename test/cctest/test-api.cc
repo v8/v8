@@ -3445,15 +3445,47 @@ THREADED_TEST(UniquePersistent) {
 }
 
 
-template<typename K, typename V>
-class WeakStdMapTraits : public v8::StdMapTraits<K, V> {
+template<typename K, typename V, bool is_weak>
+class StdPersistentValueMapTraits {
  public:
-  typedef typename v8::DefaultPersistentValueMapTraits<K, V>::Impl Impl;
-  static const bool kIsWeak = true;
+  static const bool kIsWeak = is_weak;
+  typedef v8::PersistentContainerValue VInt;
+  typedef std::map<K, VInt> Impl;
   struct WeakCallbackDataType {
     Impl* impl;
     K key;
   };
+  typedef typename Impl::iterator Iterator;
+  static bool Empty(Impl* impl) { return impl->empty(); }
+  static size_t Size(Impl* impl) { return impl->size(); }
+  static void Swap(Impl& a, Impl& b) { std::swap(a, b); }  // NOLINT
+  static Iterator Begin(Impl* impl) { return impl->begin(); }
+  static Iterator End(Impl* impl) { return impl->end(); }
+  static K Key(Iterator it) { return it->first; }
+  static VInt Value(Iterator it) { return it->second; }
+  static VInt Set(Impl* impl, K key, VInt value) {
+    std::pair<Iterator, bool> res = impl->insert(std::make_pair(key, value));
+    VInt old_value = v8::kPersistentContainerNotFound;
+    if (!res.second) {
+      old_value = res.first->second;
+      res.first->second = value;
+    }
+    return old_value;
+  }
+  static VInt Get(Impl* impl, K key) {
+    Iterator it = impl->find(key);
+    if (it == impl->end()) return v8::kPersistentContainerNotFound;
+    return it->second;
+  }
+  static VInt Remove(Impl* impl, K key) {
+    Iterator it = impl->find(key);
+    if (it == impl->end()) return v8::kPersistentContainerNotFound;
+    VInt value = it->second;
+    impl->erase(it);
+    return value;
+  }
+  static void Dispose(v8::Isolate* isolate, v8::UniquePersistent<V> value,
+      Impl* impl, K key) {}
   static WeakCallbackDataType* WeakCallbackParameter(
       Impl* impl, const K& key, Local<V> value) {
     WeakCallbackDataType* data = new WeakCallbackDataType;
@@ -3472,15 +3504,15 @@ class WeakStdMapTraits : public v8::StdMapTraits<K, V> {
   static void DisposeCallbackData(WeakCallbackDataType* data) {
     delete data;
   }
-  static void Dispose(v8::Isolate* isolate, v8::UniquePersistent<V> value,
-      Impl* impl, K key) { }
 };
 
 
-template<typename Map>
+template<bool is_weak>
 static void TestPersistentValueMap() {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
+  typedef v8::PersistentValueMap<int, v8::Object,
+      StdPersistentValueMapTraits<int, v8::Object, is_weak> > Map;
   Map map(isolate);
   v8::internal::GlobalHandles* global_handles =
       reinterpret_cast<v8::internal::Isolate*>(isolate)->global_handles();
@@ -3506,7 +3538,7 @@ static void TestPersistentValueMap() {
     CHECK_EQ(1, static_cast<int>(map.Size()));
   }
   CHECK_EQ(initial_handle_count + 1, global_handles->global_handles_count());
-  if (map.IsWeak()) {
+  if (is_weak) {
     reinterpret_cast<v8::internal::Isolate*>(isolate)->heap()->
         CollectAllGarbage(i::Heap::kAbortIncrementalMarkingMask);
   } else {
@@ -3518,13 +3550,8 @@ static void TestPersistentValueMap() {
 
 
 TEST(PersistentValueMap) {
-  // Default case, w/o weak callbacks:
-  TestPersistentValueMap<v8::StdPersistentValueMap<int, v8::Object> >();
-
-  // Custom traits with weak callbacks:
-  typedef v8::StdPersistentValueMap<int, v8::Object,
-      WeakStdMapTraits<int, v8::Object> > WeakPersistentValueMap;
-  TestPersistentValueMap<WeakPersistentValueMap>();
+  TestPersistentValueMap<false>();
+  TestPersistentValueMap<true>();
 }
 
 
