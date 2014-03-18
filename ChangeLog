@@ -1,3 +1,21 @@
+2014-03-18: Version 3.25.15
+
+        Don't generate keyed store ICs for global proxies (Chromium issue
+        352983).
+
+        MIPS: Make invalid LHSs a parse-time (reference) error (Chromium issue
+        351658).
+
+        Make invalid LHSs a parse-time (reference) error (Chromium issue
+        351658).
+
+        Add Promises/A+ Compliance Test Suite (Chromium issue 347095).
+
+        Split Promise API into Promise/Resolver.
+
+        Performance and stability improvements on all platforms.
+
+
 2014-03-17: Version 3.25.14
 
         Performance and stability improvements on all platforms.
