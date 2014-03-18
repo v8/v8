@@ -81,6 +81,10 @@ namespace internal {
 template <typename Traits>
 class ParserBase : public Traits {
  public:
+  // Shorten type names defined by Traits.
+  typedef typename Traits::Type::Expression ExpressionT;
+  typedef typename Traits::Type::Identifier IdentifierT;
+
   ParserBase(Scanner* scanner, uintptr_t stack_limit,
              v8::Extension* extension,
              typename Traits::Type::Zone* zone,
@@ -363,36 +367,31 @@ class ParserBase : public Traits {
   // allow_eval_or_arguments is kAllowEvalOrArguments, we allow "eval" or
   // "arguments" as identifier even in strict mode (this is needed in cases like
   // "var foo = eval;").
-  typename Traits::Type::Identifier ParseIdentifier(
+  IdentifierT ParseIdentifier(
       AllowEvalOrArgumentsAsIdentifier,
       bool* ok);
   // Parses an identifier or a strict mode future reserved word, and indicate
   // whether it is strict mode future reserved.
-  typename Traits::Type::Identifier ParseIdentifierOrStrictReservedWord(
+  IdentifierT ParseIdentifierOrStrictReservedWord(
       bool* is_strict_reserved,
       bool* ok);
-  typename Traits::Type::Identifier ParseIdentifierName(bool* ok);
+  IdentifierT ParseIdentifierName(bool* ok);
   // Parses an identifier and determines whether or not it is 'get' or 'set'.
-  typename Traits::Type::Identifier ParseIdentifierNameOrGetOrSet(bool* is_get,
-                                                                  bool* is_set,
-                                                                  bool* ok);
+  IdentifierT ParseIdentifierNameOrGetOrSet(bool* is_get,
+                                            bool* is_set,
+                                            bool* ok);
 
-  typename Traits::Type::Expression ParseRegExpLiteral(bool seen_equal,
-                                                       bool* ok);
+  ExpressionT ParseRegExpLiteral(bool seen_equal, bool* ok);
 
-  typename Traits::Type::Expression ParsePrimaryExpression(bool* ok);
-  typename Traits::Type::Expression ParseExpression(bool accept_IN, bool* ok);
-  typename Traits::Type::Expression ParseArrayLiteral(bool* ok);
-  typename Traits::Type::Expression ParseObjectLiteral(bool* ok);
+  ExpressionT ParsePrimaryExpression(bool* ok);
+  ExpressionT ParseExpression(bool accept_IN, bool* ok);
+  ExpressionT ParseArrayLiteral(bool* ok);
+  ExpressionT ParseObjectLiteral(bool* ok);
   typename Traits::Type::ExpressionList ParseArguments(bool* ok);
-  typename Traits::Type::Expression ParseAssignmentExpression(bool accept_IN,
-                                                              bool* ok);
-  typename Traits::Type::Expression ParseYieldExpression(bool* ok);
-  typename Traits::Type::Expression ParseConditionalExpression(bool accept_IN,
-                                                               bool* ok);
-  typename Traits::Type::Expression ParseBinaryExpression(int prec,
-                                                          bool accept_IN,
-                                                          bool* ok);
+  ExpressionT ParseAssignmentExpression(bool accept_IN, bool* ok);
+  ExpressionT ParseYieldExpression(bool* ok);
+  ExpressionT ParseConditionalExpression(bool accept_IN, bool* ok);
+  ExpressionT ParseBinaryExpression(int prec, bool accept_IN, bool* ok);
 
   // Used to detect duplicates in object literals. Each of the values
   // kGetterProperty, kSetterProperty and kValueProperty represents
@@ -1179,12 +1178,12 @@ void ParserBase<Traits>::ReportUnexpectedToken(Token::Value token) {
 
 
 template<class Traits>
-typename Traits::Type::Identifier ParserBase<Traits>::ParseIdentifier(
+typename ParserBase<Traits>::IdentifierT ParserBase<Traits>::ParseIdentifier(
     AllowEvalOrArgumentsAsIdentifier allow_eval_or_arguments,
     bool* ok) {
   Token::Value next = Next();
   if (next == Token::IDENTIFIER) {
-    typename Traits::Type::Identifier name = this->GetSymbol(scanner());
+    IdentifierT name = this->GetSymbol(scanner());
     if (allow_eval_or_arguments == kDontAllowEvalOrArguments &&
         strict_mode() == STRICT && this->IsEvalOrArguments(name)) {
       ReportMessageAt(scanner()->location(), "strict_eval_arguments");
@@ -1204,7 +1203,7 @@ typename Traits::Type::Identifier ParserBase<Traits>::ParseIdentifier(
 
 
 template <class Traits>
-typename Traits::Type::Identifier ParserBase<
+typename ParserBase<Traits>::IdentifierT ParserBase<
     Traits>::ParseIdentifierOrStrictReservedWord(bool* is_strict_reserved,
                                                  bool* ok) {
   Token::Value next = Next();
@@ -1223,8 +1222,8 @@ typename Traits::Type::Identifier ParserBase<
 
 
 template <class Traits>
-typename Traits::Type::Identifier ParserBase<Traits>::ParseIdentifierName(
-    bool* ok) {
+typename ParserBase<Traits>::IdentifierT
+ParserBase<Traits>::ParseIdentifierName(bool* ok) {
   Token::Value next = Next();
   if (next != Token::IDENTIFIER && next != Token::FUTURE_RESERVED_WORD &&
       next != Token::FUTURE_STRICT_RESERVED_WORD && !Token::IsKeyword(next)) {
@@ -1237,11 +1236,11 @@ typename Traits::Type::Identifier ParserBase<Traits>::ParseIdentifierName(
 
 
 template <class Traits>
-typename Traits::Type::Identifier
+typename ParserBase<Traits>::IdentifierT
 ParserBase<Traits>::ParseIdentifierNameOrGetOrSet(bool* is_get,
                                                   bool* is_set,
                                                   bool* ok) {
-  typename Traits::Type::Identifier result = ParseIdentifierName(ok);
+  IdentifierT result = ParseIdentifierName(ok);
   if (!*ok) return Traits::EmptyIdentifier();
   scanner()->IsGetOrSet(is_get, is_set);
   return result;
@@ -1249,8 +1248,8 @@ ParserBase<Traits>::ParseIdentifierNameOrGetOrSet(bool* is_get,
 
 
 template <class Traits>
-typename Traits::Type::Expression
-ParserBase<Traits>::ParseRegExpLiteral(bool seen_equal, bool* ok) {
+typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseRegExpLiteral(
+    bool seen_equal, bool* ok) {
   int pos = peek_position();
   if (!scanner()->ScanRegExpPattern(seen_equal)) {
     Next();
@@ -1261,16 +1260,14 @@ ParserBase<Traits>::ParseRegExpLiteral(bool seen_equal, bool* ok) {
 
   int literal_index = function_state_->NextMaterializedLiteralIndex();
 
-  typename Traits::Type::Identifier js_pattern =
-      this->NextLiteralString(scanner(), TENURED);
+  IdentifierT js_pattern = this->NextLiteralString(scanner(), TENURED);
   if (!scanner()->ScanRegExpFlags()) {
     Next();
     ReportMessageAt(scanner()->location(), "invalid_regexp_flags");
     *ok = false;
     return Traits::EmptyExpression();
   }
-  typename Traits::Type::Identifier js_flags =
-      this->NextLiteralString(scanner(), TENURED);
+  IdentifierT js_flags = this->NextLiteralString(scanner(), TENURED);
   Next();
   return factory()->NewRegExpLiteral(js_pattern, js_flags, literal_index, pos);
 }
@@ -1282,7 +1279,7 @@ ParserBase<Traits>::ParseRegExpLiteral(bool seen_equal, bool* ok) {
 #define DUMMY )  // to make indentation work
 #undef DUMMY
 
-// Used in functions where the return type is not Traits::Type::Expression.
+// Used in functions where the return type is not ExpressionT.
 #define CHECK_OK_CUSTOM(x) ok); \
   if (!*ok) return this->x(); \
   ((void)0
@@ -1290,8 +1287,8 @@ ParserBase<Traits>::ParseRegExpLiteral(bool seen_equal, bool* ok) {
 #undef DUMMY
 
 template <class Traits>
-typename Traits::Type::Expression ParserBase<Traits>::ParsePrimaryExpression(
-    bool* ok) {
+typename ParserBase<Traits>::ExpressionT
+ParserBase<Traits>::ParsePrimaryExpression(bool* ok) {
   // PrimaryExpression ::
   //   'this'
   //   'null'
@@ -1306,7 +1303,7 @@ typename Traits::Type::Expression ParserBase<Traits>::ParsePrimaryExpression(
   //   '(' Expression ')'
 
   int pos = peek_position();
-  typename Traits::Type::Expression result = this->EmptyExpression();
+  ExpressionT result = this->EmptyExpression();
   Token::Value token = peek();
   switch (token) {
     case Token::THIS: {
@@ -1327,10 +1324,8 @@ typename Traits::Type::Expression ParserBase<Traits>::ParsePrimaryExpression(
     case Token::YIELD:
     case Token::FUTURE_STRICT_RESERVED_WORD: {
       // Using eval or arguments in this context is OK even in strict mode.
-      typename Traits::Type::Identifier name =
-          ParseIdentifier(kAllowEvalOrArguments, CHECK_OK);
-      result =
-          this->ExpressionFromIdentifier(name, pos, scope_, factory());
+      IdentifierT name = ParseIdentifier(kAllowEvalOrArguments, CHECK_OK);
+      result = this->ExpressionFromIdentifier(name, pos, scope_, factory());
       break;
     }
 
@@ -1385,19 +1380,17 @@ typename Traits::Type::Expression ParserBase<Traits>::ParsePrimaryExpression(
 
 // Precedence = 1
 template <class Traits>
-typename Traits::Type::Expression ParserBase<Traits>::ParseExpression(
+typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseExpression(
     bool accept_IN, bool* ok) {
   // Expression ::
   //   AssignmentExpression
   //   Expression ',' AssignmentExpression
 
-  typename Traits::Type::Expression result =
-      this->ParseAssignmentExpression(accept_IN, CHECK_OK);
+  ExpressionT result = this->ParseAssignmentExpression(accept_IN, CHECK_OK);
   while (peek() == Token::COMMA) {
     Expect(Token::COMMA, CHECK_OK);
     int pos = position();
-    typename Traits::Type::Expression right =
-        this->ParseAssignmentExpression(accept_IN, CHECK_OK);
+    ExpressionT right = this->ParseAssignmentExpression(accept_IN, CHECK_OK);
     result = factory()->NewBinaryOperation(Token::COMMA, result, right, pos);
   }
   return result;
@@ -1405,7 +1398,7 @@ typename Traits::Type::Expression ParserBase<Traits>::ParseExpression(
 
 
 template <class Traits>
-typename Traits::Type::Expression ParserBase<Traits>::ParseArrayLiteral(
+typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseArrayLiteral(
     bool* ok) {
   // ArrayLiteral ::
   //   '[' Expression? (',' Expression?)* ']'
@@ -1415,7 +1408,7 @@ typename Traits::Type::Expression ParserBase<Traits>::ParseArrayLiteral(
       this->NewExpressionList(4, zone_);
   Expect(Token::LBRACK, CHECK_OK);
   while (peek() != Token::RBRACK) {
-    typename Traits::Type::Expression elem = this->EmptyExpression();
+    ExpressionT elem = this->EmptyExpression();
     if (peek() == Token::COMMA) {
       elem = this->GetLiteralTheHole(peek_position(), factory());
     } else {
@@ -1436,7 +1429,7 @@ typename Traits::Type::Expression ParserBase<Traits>::ParseArrayLiteral(
 
 
 template <class Traits>
-typename Traits::Type::Expression ParserBase<Traits>::ParseObjectLiteral(
+typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseObjectLiteral(
     bool* ok) {
   // ObjectLiteral ::
   // '{' ((
@@ -1468,7 +1461,7 @@ typename Traits::Type::Expression ParserBase<Traits>::ParseObjectLiteral(
       case Token::IDENTIFIER: {
         bool is_getter = false;
         bool is_setter = false;
-        typename Traits::Type::Identifier id =
+        IdentifierT id =
             ParseIdentifierNameOrGetOrSet(&is_getter, &is_setter, CHECK_OK);
         if (fni_ != NULL) this->PushLiteralName(fni_, id);
 
@@ -1490,7 +1483,7 @@ typename Traits::Type::Expression ParserBase<Traits>::ParseObjectLiteral(
           // Validate the property.
           PropertyKind type = is_getter ? kGetterProperty : kSetterProperty;
           checker.CheckProperty(next, type, CHECK_OK);
-          typename Traits::Type::Identifier name = this->GetSymbol(scanner_);
+          IdentifierT name = this->GetSymbol(scanner_);
           typename Traits::Type::FunctionLiteral value =
               this->ParseFunctionLiteral(
                   name, scanner()->location(),
@@ -1524,7 +1517,7 @@ typename Traits::Type::Expression ParserBase<Traits>::ParseObjectLiteral(
       }
       case Token::STRING: {
         Consume(Token::STRING);
-        typename Traits::Type::Identifier string = this->GetSymbol(scanner_);
+        IdentifierT string = this->GetSymbol(scanner_);
         if (fni_ != NULL) this->PushLiteralName(fni_, string);
         uint32_t index;
         if (this->IsArrayIndex(string, &index)) {
@@ -1543,7 +1536,7 @@ typename Traits::Type::Expression ParserBase<Traits>::ParseObjectLiteral(
       default:
         if (Token::IsKeyword(next)) {
           Consume(next);
-          typename Traits::Type::Identifier string = this->GetSymbol(scanner_);
+          IdentifierT string = this->GetSymbol(scanner_);
           key = factory()->NewLiteral(string, next_pos);
         } else {
           Token::Value next = Next();
@@ -1557,8 +1550,7 @@ typename Traits::Type::Expression ParserBase<Traits>::ParseObjectLiteral(
     checker.CheckProperty(next, kValueProperty, CHECK_OK);
 
     Expect(Token::COLON, CHECK_OK);
-    typename Traits::Type::Expression value =
-        this->ParseAssignmentExpression(true, CHECK_OK);
+    ExpressionT value = this->ParseAssignmentExpression(true, CHECK_OK);
 
     typename Traits::Type::ObjectLiteralProperty property =
         factory()->NewObjectLiteralProperty(key, value);
@@ -1610,9 +1602,8 @@ typename Traits::Type::ExpressionList ParserBase<Traits>::ParseArguments(
   Expect(Token::LPAREN, CHECK_OK_CUSTOM(NullExpressionList));
   bool done = (peek() == Token::RPAREN);
   while (!done) {
-    typename Traits::Type::Expression argument =
-        this->ParseAssignmentExpression(true,
-                                        CHECK_OK_CUSTOM(NullExpressionList));
+    ExpressionT argument = this->ParseAssignmentExpression(
+        true, CHECK_OK_CUSTOM(NullExpressionList));
     result->Add(argument, zone_);
     if (result->length() > Code::kMaxArguments) {
       ReportMessageAt(scanner()->location(), "too_many_arguments");
@@ -1631,8 +1622,8 @@ typename Traits::Type::ExpressionList ParserBase<Traits>::ParseArguments(
 
 // Precedence = 2
 template <class Traits>
-typename Traits::Type::Expression ParserBase<Traits>::ParseAssignmentExpression(
-    bool accept_IN, bool* ok) {
+typename ParserBase<Traits>::ExpressionT
+ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN, bool* ok) {
   // AssignmentExpression ::
   //   ConditionalExpression
   //   YieldExpression
@@ -1645,7 +1636,7 @@ typename Traits::Type::Expression ParserBase<Traits>::ParseAssignmentExpression(
   }
 
   if (fni_ != NULL) fni_->Enter();
-  typename Traits::Type::Expression expression =
+  ExpressionT expression =
       this->ParseConditionalExpression(accept_IN, CHECK_OK);
 
   if (!Token::IsAssignmentOp(peek())) {
@@ -1668,8 +1659,7 @@ typename Traits::Type::Expression ParserBase<Traits>::ParseAssignmentExpression(
 
   Token::Value op = Next();  // Get assignment operator.
   int pos = position();
-  typename Traits::Type::Expression right =
-      this->ParseAssignmentExpression(accept_IN, CHECK_OK);
+  ExpressionT right = this->ParseAssignmentExpression(accept_IN, CHECK_OK);
 
   // TODO(1231235): We try to estimate the set of properties set by
   // constructors. We define a new property whenever there is an
@@ -1701,17 +1691,17 @@ typename Traits::Type::Expression ParserBase<Traits>::ParseAssignmentExpression(
 }
 
 template <class Traits>
-typename Traits::Type::Expression ParserBase<Traits>::ParseYieldExpression(
-    bool* ok) {
+typename ParserBase<Traits>::ExpressionT
+ParserBase<Traits>::ParseYieldExpression(bool* ok) {
   // YieldExpression ::
   //   'yield' '*'? AssignmentExpression
   int pos = peek_position();
   Expect(Token::YIELD, CHECK_OK);
   Yield::Kind kind =
       Check(Token::MUL) ? Yield::DELEGATING : Yield::SUSPEND;
-  typename Traits::Type::Expression generator_object =
+  ExpressionT generator_object =
       factory()->NewVariableProxy(function_state_->generator_object_variable());
-  typename Traits::Type::Expression expression =
+  ExpressionT expression =
       ParseAssignmentExpression(false, CHECK_OK);
   typename Traits::Type::YieldExpression yield =
       factory()->NewYield(generator_object, expression, kind, pos);
@@ -1724,7 +1714,7 @@ typename Traits::Type::Expression ParserBase<Traits>::ParseYieldExpression(
 
 // Precedence = 3
 template <class Traits>
-typename Traits::Type::Expression
+typename ParserBase<Traits>::ExpressionT
 ParserBase<Traits>::ParseConditionalExpression(bool accept_IN, bool* ok) {
   // ConditionalExpression ::
   //   LogicalOrExpression
@@ -1732,35 +1722,31 @@ ParserBase<Traits>::ParseConditionalExpression(bool accept_IN, bool* ok) {
 
   int pos = peek_position();
   // We start using the binary expression parser for prec >= 4 only!
-  typename Traits::Type::Expression expression =
-      this->ParseBinaryExpression(4, accept_IN, CHECK_OK);
+  ExpressionT expression = this->ParseBinaryExpression(4, accept_IN, CHECK_OK);
   if (peek() != Token::CONDITIONAL) return expression;
   Consume(Token::CONDITIONAL);
   // In parsing the first assignment expression in conditional
   // expressions we always accept the 'in' keyword; see ECMA-262,
   // section 11.12, page 58.
-  typename Traits::Type::Expression left =
-      ParseAssignmentExpression(true, CHECK_OK);
+  ExpressionT left = ParseAssignmentExpression(true, CHECK_OK);
   Expect(Token::COLON, CHECK_OK);
-  typename Traits::Type::Expression right =
-      ParseAssignmentExpression(accept_IN, CHECK_OK);
+  ExpressionT right = ParseAssignmentExpression(accept_IN, CHECK_OK);
   return factory()->NewConditional(expression, left, right, pos);
 }
 
 
 // Precedence >= 4
 template <class Traits>
-typename Traits::Type::Expression
+typename ParserBase<Traits>::ExpressionT
 ParserBase<Traits>::ParseBinaryExpression(int prec, bool accept_IN, bool* ok) {
   ASSERT(prec >= 4);
-  typename Traits::Type::Expression x = this->ParseUnaryExpression(CHECK_OK);
+  ExpressionT x = this->ParseUnaryExpression(CHECK_OK);
   for (int prec1 = Precedence(peek(), accept_IN); prec1 >= prec; prec1--) {
     // prec1 >= 4
     while (Precedence(peek(), accept_IN) == prec1) {
       Token::Value op = Next();
       int pos = position();
-      typename Traits::Type::Expression y =
-          ParseBinaryExpression(prec1 + 1, accept_IN, CHECK_OK);
+      ExpressionT y = ParseBinaryExpression(prec1 + 1, accept_IN, CHECK_OK);
 
       if (this->ShortcutNumericLiteralBinaryExpression(&x, y, op, pos,
                                                        factory())) {
