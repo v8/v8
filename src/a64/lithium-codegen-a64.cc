@@ -895,6 +895,9 @@ bool LCodeGen::GenerateDeoptJumpTable() {
 
 bool LCodeGen::GenerateSafepointTable() {
   ASSERT(is_done());
+  // We do not know how much data will be emitted for the safepoint table, so
+  // force emission of the veneer pool.
+  masm()->CheckVeneerPool(true, true);
   safepoints_.Emit(masm(), GetStackSlotCount());
   return !is_aborted();
 }

@@ -346,7 +346,7 @@ void MacroAssembler::Asr(const Register& rd,
 
 void MacroAssembler::B(Label* label) {
   b(label);
-  CheckVeneerPool(false);
+  CheckVeneerPool(false, false);
 }
 
 
@@ -1036,7 +1036,7 @@ void MacroAssembler::Ret(const Register& xn) {
   ASSERT(allow_macro_instructions_);
   ASSERT(!xn.IsZero());
   ret(xn);
-  CheckVeneerPool(false);
+  CheckVeneerPool(false, false);
 }
 
 

@@ -314,8 +314,9 @@ void FullCodeGenerator::Generate() {
   }
   EmitReturnSequence();
 
-  // Force emit the constant pool, so it doesn't get emitted in the middle
+  // Force emission of the pools, so they don't get emitted in the middle
   // of the back edge table.
+  masm()->CheckVeneerPool(true, false);
   masm()->CheckConstPool(true, false);
 }
 
