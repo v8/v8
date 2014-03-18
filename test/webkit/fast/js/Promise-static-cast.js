@@ -23,23 +23,23 @@
 
 // Flags: --harmony
 'use strict';
-description('Test Promise.cast');
+description('Test Promise.resolve as cast');
 
 var result = undefined;
 var result2 = undefined;
 
 var resolve;
 var value = new Promise(function (r) { resolve = r;} );
-var promise = Promise.cast(value);
+var promise = Promise.resolve(value);
 
-// If [[IsPromise]] is true, Promise.cast simply returns argument.
+// If [[IsPromise]] is true, Promise.resolve simply returns argument.
 shouldBe('promise', 'value');
 
 promise.then(function(res) {
   result = res;
   shouldBeEqualToString('result', 'hello');
 
-  return Promise.cast(42).then(function (res) {
+  return Promise.resolve(42).then(function (res) {
       result2 = res;
       shouldBe('result2', '42');
   });
