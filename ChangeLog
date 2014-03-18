@@ -1,3 +1,9 @@
+2014-03-18: Sentinel
+
+        The ChangeLog file is no longer maintained on bleeding_edge. This
+        sentinel should stay on top of this list.
+
+
 2014-03-18: Version 3.25.15
 
         Don't generate keyed store ICs for global proxies (Chromium issue

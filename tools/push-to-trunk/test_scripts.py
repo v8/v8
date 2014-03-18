@@ -52,7 +52,6 @@ TEST_CONFIG = {
   VERSION_FILE: None,
   CHANGELOG_FILE: None,
   CHANGELOG_ENTRY_FILE: "/tmp/test-v8-push-to-trunk-tempfile-changelog-entry",
-  NEW_CHANGELOG_FILE: "/tmp/test-v8-push-to-trunk-tempfile-new-changelog",
   PATCH_FILE: "/tmp/test-v8-push-to-trunk-tempfile-patch",
   COMMITMSG_FILE: "/tmp/test-v8-push-to-trunk-tempfile-commitmsg",
   CHROMIUM: "/tmp/test-v8-push-to-trunk-tempfile-chromium",
@@ -538,8 +537,6 @@ class ScriptTest(unittest.TestCase):
 
   def testEditChangeLog(self):
     TEST_CONFIG[CHANGELOG_ENTRY_FILE] = self.MakeEmptyTempFile()
-    TEST_CONFIG[CHANGELOG_FILE] = self.MakeEmptyTempFile()
-    TextToFile("        Original CL", TEST_CONFIG[CHANGELOG_FILE])
     TextToFile("  New  \n\tLines  \n", TEST_CONFIG[CHANGELOG_ENTRY_FILE])
     os.environ["EDITOR"] = "vi"
 
@@ -549,8 +546,8 @@ class ScriptTest(unittest.TestCase):
 
     self.RunStep(PushToTrunk, EditChangeLog)
 
-    self.assertEquals("New\n        Lines\n\n\n        Original CL",
-                      FileToText(TEST_CONFIG[CHANGELOG_FILE]))
+    self.assertEquals("New\n        Lines",
+                      FileToText(TEST_CONFIG[CHANGELOG_ENTRY_FILE]))
 
   def testIncrementVersion(self):
     TEST_CONFIG[VERSION_FILE] = self.MakeTempVersionFile()
@@ -566,22 +563,6 @@ class ScriptTest(unittest.TestCase):
     self.assertEquals("22", self._state["new_minor"])
     self.assertEquals("6", self._state["new_build"])
     self.assertEquals("0", self._state["new_patch"])
-
-  def testLastChangeLogEntries(self):
-    TEST_CONFIG[CHANGELOG_FILE] = self.MakeEmptyTempFile()
-    l = """
-        Fixed something.
-        (issue 1234)\n"""
-    for _ in xrange(10): l = l + l
-
-    cl_chunk = """2013-11-12: Version 3.23.2\n%s
-        Performance and stability improvements on all platforms.\n\n\n""" % l
-
-    cl_chunk_full = cl_chunk + cl_chunk + cl_chunk
-    TextToFile(cl_chunk_full, TEST_CONFIG[CHANGELOG_FILE])
-
-    cl = GetLastChangeLogEntries(TEST_CONFIG[CHANGELOG_FILE])
-    self.assertEquals(cl_chunk, cl)
 
   def _TestSquashCommits(self, change_log, expected_msg):
     TEST_CONFIG[CHANGELOG_ENTRY_FILE] = self.MakeEmptyTempFile()
@@ -642,22 +623,15 @@ Performance and stability improvements on all platforms."""
     TEST_CONFIG[CHANGELOG_FILE] = self.MakeEmptyTempFile()
     if not os.path.exists(TEST_CONFIG[CHROMIUM]):
       os.makedirs(TEST_CONFIG[CHROMIUM])
-    bleeding_edge_change_log = """1999-02-03: Version 3.12.2
-
-        Performance and stability improvements on all platforms.\n"""
+    bleeding_edge_change_log = "2014-03-17: Sentinel\n"
     TextToFile(bleeding_edge_change_log, TEST_CONFIG[CHANGELOG_FILE])
     TextToFile("Some line\n   \"v8_revision\": \"123444\",\n  some line",
                  TEST_CONFIG[DEPS_FILE])
     os.environ["EDITOR"] = "vi"
 
     def CheckPreparePush():
-      cl = FileToText(TEST_CONFIG[CHANGELOG_FILE])
-      self.assertTrue(re.search(r"Version 3.22.5", cl))
-      self.assertTrue(re.search(r"        Log text 1 \(issue 321\).", cl))
-      self.assertFalse(re.search(r"        \(author1@chromium\.org\)", cl))
-
-      # Make sure all comments got stripped.
-      self.assertFalse(re.search(r"^#", cl, flags=re.M))
+      self.assertEquals(bleeding_edge_change_log,
+                        FileToText(TEST_CONFIG[CHANGELOG_FILE]))
 
       version = FileToText(TEST_CONFIG[VERSION_FILE])
       self.assertTrue(re.search(r"#define BUILD_NUMBER\s+6", version))
