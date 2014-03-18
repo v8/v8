@@ -708,7 +708,7 @@ Handle<String> Lexer<Char>::AllocateInternalizedString(
   LiteralDesc* literal = current_literal_;
   const TokenDesc& token = current_;
   // TODO(dcarney): handle utf8 directly.
-  if (source_handle_.is_null()  || MustBeInBuffer(token)) {
+  if (source_handle_.is_null()  || MustBeInBufferForAllocation(token)) {
     EnsureLiteralIsValid(token, literal);
     return literal->is_one_byte() ?
         factory->InternalizeOneByteString(literal->one_byte_string()) :
@@ -733,7 +733,7 @@ Handle<String> Lexer<Char>::AllocateNextLiteralString(Isolate* isolate,
   LiteralDesc* literal = next_literal_;
   const TokenDesc& token = next_;
   // TODO(dcarney): handle utf8 directly.
-  if (source_handle_.is_null()  || MustBeInBuffer(token)) {
+  if (source_handle_.is_null()  || MustBeInBufferForAllocation(token)) {
     EnsureLiteralIsValid(token, literal);
     return literal->is_one_byte() ?
         factory->NewStringFromOneByte(literal->one_byte_string(), tenured) :

@@ -351,6 +351,11 @@ class Lexer : public LexerBase {
         (sizeof(Char) == 1 && !token.is_in_primary_range);
   }
 
+  static inline bool MustBeInBufferForAllocation(const TokenDesc& token) {
+    return MustBeInBuffer(token) ||
+        (sizeof(Char) == 2 && token.is_in_primary_range);
+  }
+
  protected:
   virtual void Scan();
 
