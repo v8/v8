@@ -100,7 +100,12 @@ function assertAsyncDone(iteration) {
 
 (function() {
   Promise.resolve(5).then(undefined, assertUnreachable).chain(
-    function(x) { assertAsync(x === 5, "resolved/then-nohandler") },
+    function(x) { assertAsync(x === 5, "resolved/then-nohandler-undefined") },
+    assertUnreachable
+  )
+  assertAsyncRan()
+  Promise.resolve(6).then(null, assertUnreachable).chain(
+    function(x) { assertAsync(x === 6, "resolved/then-nohandler-null") },
     assertUnreachable
   )
   assertAsyncRan()
@@ -109,7 +114,12 @@ function assertAsyncDone(iteration) {
 (function() {
   Promise.reject(5).then(assertUnreachable, undefined).chain(
     assertUnreachable,
-    function(r) { assertAsync(r === 5, "rejected/then-nohandler") }
+    function(r) { assertAsync(r === 5, "rejected/then-nohandler-undefined") }
+  )
+  assertAsyncRan()
+  Promise.reject(6).then(assertUnreachable, null).chain(
+    assertUnreachable,
+    function(r) { assertAsync(r === 6, "rejected/then-nohandler-null") }
   )
   assertAsyncRan()
 })();

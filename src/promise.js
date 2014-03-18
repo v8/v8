@@ -210,7 +210,10 @@ function PromiseHandle(value, handler, deferred) {
 // Multi-unwrapped chaining with thenable coercion.
 
 function PromiseThen(onResolve, onReject) {
-  onResolve = IS_UNDEFINED(onResolve) ? PromiseIdResolveHandler : onResolve;
+  onResolve =
+    IS_NULL_OR_UNDEFINED(onResolve) ? PromiseIdResolveHandler : onResolve;
+  onReject =
+    IS_NULL_OR_UNDEFINED(onReject) ? PromiseIdRejectHandler : onReject;
   var that = this;
   var constructor = this.constructor;
   return this.chain(
@@ -230,11 +233,10 @@ function PromiseCoerce(constructor, x) {
     var then;
     try {
       then = x.then;
-    } catch(e) {
-      var deferred = %_CallFunction(constructor, PromiseDeferred);
-      PromiseCoerce.table.set(x, deferred.promise);
-      deferred.reject(e);
-      return deferred.promise;
+    } catch(r) {
+      var promise = %_CallFunction(constructor, r, PromiseRejected);
+      PromiseCoerce.table.set(x, promise);
+      return promise;
     }
     if (typeof then === 'function') {
       if (PromiseCoerce.table.has(x)) {
@@ -244,8 +246,8 @@ function PromiseCoerce(constructor, x) {
         PromiseCoerce.table.set(x, deferred.promise);
         try {
           %_CallFunction(x, deferred.resolve, deferred.reject, then);
-        } catch(e) {
-          deferred.reject(e);
+        } catch(r) {
+          deferred.reject(r);
         }
         return deferred.promise;
       }
