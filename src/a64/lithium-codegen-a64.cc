@@ -5627,7 +5627,8 @@ void LCodeGen::DoTransitionElementsKind(LTransitionElementsKind* instr) {
         this, Safepoint::kWithRegistersAndDoubles);
     __ Mov(x0, object);
     __ Mov(x1, Operand(to_map));
-    TransitionElementsKindStub stub(from_kind, to_kind);
+    bool is_js_array = from_map->instance_type() == JS_ARRAY_TYPE;
+    TransitionElementsKindStub stub(from_kind, to_kind, is_js_array);
     __ CallStub(&stub);
     RecordSafepointWithRegistersAndDoubles(
         instr->pointer_map(), 0, Safepoint::kNoLazyDeopt);
