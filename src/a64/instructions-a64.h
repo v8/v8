@@ -144,12 +144,12 @@ class Instruction {
     return InstructionBits() & mask;
   }
 
-  Instruction* following(int count = 1) {
-    return this + count * kInstructionSize;
+  V8_INLINE Instruction* following(int count = 1) {
+    return InstructionAtOffset(count * static_cast<int>(kInstructionSize));
   }
 
-  Instruction* preceding(int count = 1) {
-    return this - count * kInstructionSize;
+  V8_INLINE Instruction* preceding(int count = 1) {
+    return following(-count);
   }
 
   #define DEFINE_GETTER(Name, HighBit, LowBit, Func)             \
@@ -367,18 +367,23 @@ class Instruction {
     return reinterpret_cast<uint8_t*>(this) + offset;
   }
 
-  Instruction* NextInstruction() {
-    return this + kInstructionSize;
+  enum CheckAlignment { NO_CHECK, CHECK_ALIGNMENT };
+
+  V8_INLINE Instruction* InstructionAtOffset(
+      int64_t offset,
+      CheckAlignment check = CHECK_ALIGNMENT) {
+    Address addr = reinterpret_cast<Address>(this) + offset;
+    // The FUZZ_disasm test relies on no check being done.
+    ASSERT(check == NO_CHECK || IsAddressAligned(addr, kInstructionSize));
+    return Cast(addr);
   }
 
-  Instruction* InstructionAtOffset(int64_t offset) {
-    ASSERT(IsAligned(reinterpret_cast<uintptr_t>(this) + offset,
-                     kInstructionSize));
-    return this + offset;
-  }
-
-  template<typename T> static Instruction* Cast(T src) {
+  template<typename T> V8_INLINE static Instruction* Cast(T src) {
     return reinterpret_cast<Instruction*>(src);
+  }
+
+  V8_INLINE ptrdiff_t DistanceTo(Instruction* target) {
+    return reinterpret_cast<Address>(target) - reinterpret_cast<Address>(this);
   }
 
 

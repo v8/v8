@@ -329,7 +329,7 @@ class Simulator : public DecoderVisitor {
 
   void increment_pc() {
     if (!pc_modified_) {
-      pc_ = pc_->NextInstruction();
+      pc_ = pc_->following();
     }
 
     pc_modified_ = false;
