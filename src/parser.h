@@ -484,10 +484,10 @@ class ParserTraits {
   static void CheckAssigningFunctionLiteralToProperty(Expression* left,
                                                       Expression* right);
 
-  // Signal a reference error if the expression is an invalid left-hand side
-  // expression. We could report this as a syntax error but for compatibility
-  // with JSC we choose to report the error at runtime.
-  Expression* ValidateAssignmentLeftHandSide(Expression* expression) const;
+  // Determine whether the expression is a valid assignment left-hand side.
+  static bool IsValidLeftHandSide(Expression* expression) {
+    return expression->IsValidLeftHandSide();
+  }
 
   // Determine if the expression is a variable proxy and mark it as being used
   // in an assignment or with a increment/decrement operator. This is currently
@@ -498,14 +498,25 @@ class ParserTraits {
   // in strict mode.
   void CheckStrictModeLValue(Expression*expression, bool* ok);
 
+  // Returns true if we have a binary expression between two numeric
+  // literals. In that case, *x will be changed to an expression which is the
+  // computed value.
+  bool ShortcutNumericLiteralBinaryExpression(
+      Expression** x, Expression* y, Token::Value op, int pos,
+      AstNodeFactory<AstConstructionVisitor>* factory);
+
   // Reporting errors.
   void ReportMessageAt(Scanner::Location source_location,
                        const char* message,
-                       Vector<const char*> args);
-  void ReportMessage(const char* message, Vector<Handle<String> > args);
+                       Vector<const char*> args,
+                       bool is_reference_error = false);
+  void ReportMessage(const char* message,
+                     Vector<Handle<String> > args,
+                     bool is_reference_error = false);
   void ReportMessageAt(Scanner::Location source_location,
                        const char* message,
-                       Vector<Handle<String> > args);
+                       Vector<Handle<String> > args,
+                       bool is_reference_error = false);
 
   // "null" return type creators.
   static Handle<String> EmptyIdentifier() {
@@ -557,7 +568,7 @@ class ParserTraits {
       int function_token_position,
       FunctionLiteral::FunctionType type,
       bool* ok);
-  Expression* ParseConditionalExpression(bool accept_IN, bool* ok);
+  Expression* ParseUnaryExpression(bool* ok);
 
  private:
   Parser* parser_;
@@ -700,8 +711,6 @@ class Parser : public ParserBase<ParserTraits> {
   // Support for hamony block scoped bindings.
   Block* ParseScopedBlock(ZoneStringList* labels, bool* ok);
 
-  Expression* ParseConditionalExpression(bool accept_IN, bool* ok);
-  Expression* ParseBinaryExpression(int prec, bool accept_IN, bool* ok);
   Expression* ParseUnaryExpression(bool* ok);
   Expression* ParsePostfixExpression(bool* ok);
   Expression* ParseLeftHandSideExpression(bool* ok);

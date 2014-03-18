@@ -290,6 +290,10 @@ class Factory {
 
   Handle<FixedArray> CopyFixedArray(Handle<FixedArray> array);
 
+  // This method expects a COW array in new space, and creates a copy
+  // of it in old space.
+  Handle<FixedArray> CopyAndTenureFixedCOWArray(Handle<FixedArray> array);
+
   Handle<FixedArray> CopySizeFixedArray(Handle<FixedArray> array,
                                         int new_length,
                                         PretenureFlag pretenure = NOT_TENURED);
@@ -330,9 +334,11 @@ class Factory {
 
   // JS objects are pretenured when allocated by the bootstrapper and
   // runtime.
-  Handle<JSObject> NewJSObjectFromMap(Handle<Map> map,
-                                      PretenureFlag pretenure = NOT_TENURED,
-                                      bool allocate_properties = true);
+  Handle<JSObject> NewJSObjectFromMap(
+      Handle<Map> map,
+      PretenureFlag pretenure = NOT_TENURED,
+      bool allocate_properties = true,
+      Handle<AllocationSite> allocation_site = Handle<AllocationSite>::null());
 
   Handle<JSObject> NewJSObjectFromMapForDeoptimizer(
       Handle<Map> map, PretenureFlag pretenure = NOT_TENURED);
@@ -351,6 +357,12 @@ class Factory {
       Handle<FixedArrayBase> elements,
       ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND,
       PretenureFlag pretenure = NOT_TENURED);
+
+  void NewJSArrayStorage(
+      Handle<JSArray> array,
+      int length,
+      int capacity,
+      ArrayStorageAllocationMode mode = DONT_INITIALIZE_ARRAY_ELEMENTS);
 
   void SetElementsCapacityAndLength(Handle<JSArray> array,
                                     int capacity,
@@ -436,6 +448,7 @@ class Factory {
 
   Handle<Object> NewReferenceError(const char* message,
                                    Vector< Handle<Object> > args);
+  Handle<Object> NewReferenceError(const char* message, Handle<JSArray> args);
   Handle<Object> NewReferenceError(Handle<String> message);
 
   Handle<Object> NewEvalError(const char* message,

@@ -1106,6 +1106,13 @@ void LCodeGen::DeoptimizeIfNotRoot(Register rt,
 }
 
 
+void LCodeGen::DeoptimizeIfMinusZero(DoubleRegister input,
+                                     LEnvironment* environment) {
+  __ TestForMinusZero(input);
+  DeoptimizeIf(vs, environment);
+}
+
+
 void LCodeGen::EnsureSpaceForLazyDeopt(int space_needed) {
   if (!info()->IsStub()) {
     // Ensure that we have enough space after the previous lazy-bailout
@@ -2744,16 +2751,13 @@ void LCodeGen::DoDivI(LDivI* instr) {
 void LCodeGen::DoDoubleToIntOrSmi(LDoubleToIntOrSmi* instr) {
   DoubleRegister input = ToDoubleRegister(instr->value());
   Register result = ToRegister32(instr->result());
-  Label done, deopt;
 
   if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
-    __ JumpIfMinusZero(input, &deopt);
+    DeoptimizeIfMinusZero(input, instr->environment());
   }
 
-  __ TryConvertDoubleToInt32(result, input, double_scratch(), &done);
-  __ Bind(&deopt);
-  Deoptimize(instr->environment());
-  __ Bind(&done);
+  __ TryConvertDoubleToInt32(result, input, double_scratch());
+  DeoptimizeIf(ne, instr->environment());
 
   if (instr->tag_result()) {
     __ SmiTag(result.X());
@@ -3816,11 +3820,9 @@ void LCodeGen::DoMathFloor(LMathFloor* instr) {
   // and produce a valid double result in a single instruction.
   DoubleRegister input = ToDoubleRegister(instr->value());
   Register result = ToRegister(instr->result());
-  Label deopt;
-  Label done;
 
   if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
-    __ JumpIfMinusZero(input, &deopt);
+    DeoptimizeIfMinusZero(input, instr->environment());
   }
 
   __ Fcvtms(result, input);
@@ -3830,12 +3832,7 @@ void LCodeGen::DoMathFloor(LMathFloor* instr) {
   __ Cmp(result, Operand(result, SXTW));
   //  - The input was not NaN.
   __ Fccmp(input, input, NoFlag, eq);
-  __ B(&done, eq);
-
-  __ Bind(&deopt);
-  Deoptimize(instr->environment());
-
-  __ Bind(&done);
+  DeoptimizeIf(ne, instr->environment());
 }
 
 
@@ -4526,32 +4523,35 @@ void LCodeGen::DoNumberUntagD(LNumberUntagD* instr) {
   if (mode == NUMBER_CANDIDATE_IS_ANY_TAGGED) {
     __ JumpIfSmi(input, &load_smi);
 
-    Label convert_undefined, deopt;
+    Label convert_undefined;
 
     // Heap number map check.
-    Label* not_heap_number = can_convert_undefined_to_nan ? &convert_undefined
-                                                          : &deopt;
     __ Ldr(scratch, FieldMemOperand(input, HeapObject::kMapOffset));
-    __ JumpIfNotRoot(scratch, Heap::kHeapNumberMapRootIndex, not_heap_number);
+    if (can_convert_undefined_to_nan) {
+      __ JumpIfNotRoot(scratch, Heap::kHeapNumberMapRootIndex,
+                       &convert_undefined);
+    } else {
+      DeoptimizeIfNotRoot(scratch, Heap::kHeapNumberMapRootIndex,
+                          instr->environment());
+    }
 
     // Load heap number.
     __ Ldr(result, FieldMemOperand(input, HeapNumber::kValueOffset));
     if (instr->hydrogen()->deoptimize_on_minus_zero()) {
-      __ JumpIfMinusZero(result, &deopt);
+      DeoptimizeIfMinusZero(result, instr->environment());
     }
     __ B(&done);
 
     if (can_convert_undefined_to_nan) {
       __ Bind(&convert_undefined);
-      __ JumpIfNotRoot(input, Heap::kUndefinedValueRootIndex, &deopt);
+      DeoptimizeIfNotRoot(input, Heap::kUndefinedValueRootIndex,
+                          instr->environment());
 
       __ LoadRoot(scratch, Heap::kNanValueRootIndex);
       __ Ldr(result, FieldMemOperand(scratch, HeapNumber::kValueOffset));
       __ B(&done);
     }
 
-    __ Bind(&deopt);
-    Deoptimize(instr->environment());
   } else {
     ASSERT(mode == NUMBER_CANDIDATE_IS_SMI);
     // Fall through to load_smi.
@@ -5494,7 +5494,6 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr,
     Register output = ToRegister32(instr->result());
 
     DoubleRegister dbl_scratch2 = ToDoubleRegister(temp2);
-    Label converted;
 
     // Deoptimized if it's not a heap number.
     DeoptimizeIfNotRoot(scratch1, Heap::kHeapNumberMapRootIndex,
@@ -5503,10 +5502,8 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr,
     // A heap number: load value and convert to int32 using non-truncating
     // function. If the result is out of range, branch to deoptimize.
     __ Ldr(dbl_scratch1, FieldMemOperand(input, HeapNumber::kValueOffset));
-    __ TryConvertDoubleToInt32(output, dbl_scratch1, dbl_scratch2, &converted);
-    Deoptimize(instr->environment());
-
-    __ Bind(&converted);
+    __ TryConvertDoubleToInt32(output, dbl_scratch1, dbl_scratch2);
+    DeoptimizeIf(ne, instr->environment());
 
     if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
       __ Cmp(output, 0);

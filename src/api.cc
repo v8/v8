@@ -2695,6 +2695,13 @@ void v8::Promise::CheckCast(Value* that) {
 }
 
 
+void v8::Promise::Resolver::CheckCast(Value* that) {
+  Utils::ApiCheck(that->IsPromise(),
+                  "v8::Promise::Resolver::Cast()",
+                  "Could not convert to promise resolver");
+}
+
+
 void v8::ArrayBuffer::CheckCast(Value* that) {
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
   Utils::ApiCheck(obj->IsJSArrayBuffer(),
@@ -5800,9 +5807,9 @@ bool Value::IsPromise() const {
 }
 
 
-Local<Promise> Promise::New(Isolate* v8_isolate) {
+Local<Promise::Resolver> Promise::Resolver::New(Isolate* v8_isolate) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-  LOG_API(isolate, "Promise::New");
+  LOG_API(isolate, "Promise::Resolver::New");
   ENTER_V8(isolate);
   EXCEPTION_PREAMBLE(isolate);
   i::Handle<i::Object> result = i::Execution::Call(
@@ -5813,15 +5820,21 @@ Local<Promise> Promise::New(Isolate* v8_isolate) {
       0, NULL,
       &has_pending_exception,
       false);
-  EXCEPTION_BAILOUT_CHECK(isolate, Local<Promise>());
-  return Local<Promise>::Cast(Utils::ToLocal(result));
+  EXCEPTION_BAILOUT_CHECK(isolate, Local<Promise::Resolver>());
+  return Local<Promise::Resolver>::Cast(Utils::ToLocal(result));
 }
 
 
-void Promise::Resolve(Handle<Value> value) {
+Local<Promise> Promise::Resolver::GetPromise() {
+  i::Handle<i::JSObject> promise = Utils::OpenHandle(this);
+  return Local<Promise>::Cast(Utils::ToLocal(promise));
+}
+
+
+void Promise::Resolver::Resolve(Handle<Value> value) {
   i::Handle<i::JSObject> promise = Utils::OpenHandle(this);
   i::Isolate* isolate = promise->GetIsolate();
-  LOG_API(isolate, "Promise::Resolve");
+  LOG_API(isolate, "Promise::Resolver::Resolve");
   ENTER_V8(isolate);
   EXCEPTION_PREAMBLE(isolate);
   i::Handle<i::Object> argv[] = { promise, Utils::OpenHandle(*value) };
@@ -5837,10 +5850,10 @@ void Promise::Resolve(Handle<Value> value) {
 }
 
 
-void Promise::Reject(Handle<Value> value) {
+void Promise::Resolver::Reject(Handle<Value> value) {
   i::Handle<i::JSObject> promise = Utils::OpenHandle(this);
   i::Isolate* isolate = promise->GetIsolate();
-  LOG_API(isolate, "Promise::Reject");
+  LOG_API(isolate, "Promise::Resolver::Reject");
   ENTER_V8(isolate);
   EXCEPTION_PREAMBLE(isolate);
   i::Handle<i::Object> argv[] = { promise, Utils::OpenHandle(*value) };

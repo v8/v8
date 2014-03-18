@@ -456,18 +456,6 @@ void ParserTraits::CheckAssigningFunctionLiteralToProperty(Expression* left,
 }
 
 
-Expression* ParserTraits::ValidateAssignmentLeftHandSide(
-    Expression* expression) const {
-  ASSERT(expression != NULL);
-  if (!expression->IsValidLeftHandSide()) {
-    Handle<String> message =
-        parser_->isolate()->factory()->invalid_lhs_in_assignment_string();
-    expression = parser_->NewThrowReferenceError(message);
-  }
-  return expression;
-}
-
-
 Expression* ParserTraits::MarkExpressionAsLValue(Expression* expression) {
   VariableProxy* proxy = expression != NULL
       ? expression->AsVariableProxy()
@@ -490,9 +478,70 @@ void ParserTraits::CheckStrictModeLValue(Expression* expression,
 }
 
 
+bool ParserTraits::ShortcutNumericLiteralBinaryExpression(
+    Expression** x, Expression* y, Token::Value op, int pos,
+    AstNodeFactory<AstConstructionVisitor>* factory) {
+  if ((*x)->AsLiteral() && (*x)->AsLiteral()->value()->IsNumber() &&
+      y->AsLiteral() && y->AsLiteral()->value()->IsNumber()) {
+    double x_val = (*x)->AsLiteral()->value()->Number();
+    double y_val = y->AsLiteral()->value()->Number();
+    switch (op) {
+      case Token::ADD:
+        *x = factory->NewNumberLiteral(x_val + y_val, pos);
+        return true;
+      case Token::SUB:
+        *x = factory->NewNumberLiteral(x_val - y_val, pos);
+        return true;
+      case Token::MUL:
+        *x = factory->NewNumberLiteral(x_val * y_val, pos);
+        return true;
+      case Token::DIV:
+        *x = factory->NewNumberLiteral(x_val / y_val, pos);
+        return true;
+      case Token::BIT_OR: {
+        int value = DoubleToInt32(x_val) | DoubleToInt32(y_val);
+        *x = factory->NewNumberLiteral(value, pos);
+        return true;
+      }
+      case Token::BIT_AND: {
+        int value = DoubleToInt32(x_val) & DoubleToInt32(y_val);
+        *x = factory->NewNumberLiteral(value, pos);
+        return true;
+      }
+      case Token::BIT_XOR: {
+        int value = DoubleToInt32(x_val) ^ DoubleToInt32(y_val);
+        *x = factory->NewNumberLiteral(value, pos);
+        return true;
+      }
+      case Token::SHL: {
+        int value = DoubleToInt32(x_val) << (DoubleToInt32(y_val) & 0x1f);
+        *x = factory->NewNumberLiteral(value, pos);
+        return true;
+      }
+      case Token::SHR: {
+        uint32_t shift = DoubleToInt32(y_val) & 0x1f;
+        uint32_t value = DoubleToUint32(x_val) >> shift;
+        *x = factory->NewNumberLiteral(value, pos);
+        return true;
+      }
+      case Token::SAR: {
+        uint32_t shift = DoubleToInt32(y_val) & 0x1f;
+        int value = ArithmeticShiftRight(DoubleToInt32(x_val), shift);
+        *x = factory->NewNumberLiteral(value, pos);
+        return true;
+      }
+      default:
+        break;
+    }
+  }
+  return false;
+}
+
+
 void ParserTraits::ReportMessageAt(Scanner::Location source_location,
                                    const char* message,
-                                   Vector<const char*> args) {
+                                   Vector<const char*> args,
+                                   bool is_reference_error) {
   if (parser_->stack_overflow()) {
     // Suppress the error message (syntax error or such) in the presence of a
     // stack overflow. The isolate allows only one pending exception at at time
@@ -509,21 +558,25 @@ void ParserTraits::ReportMessageAt(Scanner::Location source_location,
     elements->set(i, *arg_string);
   }
   Handle<JSArray> array = factory->NewJSArrayWithElements(elements);
-  Handle<Object> result = factory->NewSyntaxError(message, array);
+  Handle<Object> result = is_reference_error
+      ? factory->NewReferenceError(message, array)
+      : factory->NewSyntaxError(message, array);
   parser_->isolate()->Throw(*result, &location);
 }
 
 
 void ParserTraits::ReportMessage(const char* message,
-                                 Vector<Handle<String> > args) {
+                                 Vector<Handle<String> > args,
+                                 bool is_reference_error) {
   Scanner::Location source_location = parser_->scanner()->location();
-  ReportMessageAt(source_location, message, args);
+  ReportMessageAt(source_location, message, args, is_reference_error);
 }
 
 
 void ParserTraits::ReportMessageAt(Scanner::Location source_location,
                                    const char* message,
-                                   Vector<Handle<String> > args) {
+                                   Vector<Handle<String> > args,
+                                   bool is_reference_error) {
   if (parser_->stack_overflow()) {
     // Suppress the error message (syntax error or such) in the presence of a
     // stack overflow. The isolate allows only one pending exception at at time
@@ -539,7 +592,9 @@ void ParserTraits::ReportMessageAt(Scanner::Location source_location,
     elements->set(i, *args[i]);
   }
   Handle<JSArray> array = factory->NewJSArrayWithElements(elements);
-  Handle<Object> result = factory->NewSyntaxError(message, array);
+  Handle<Object> result = is_reference_error
+      ? factory->NewReferenceError(message, array)
+      : factory->NewSyntaxError(message, array);
   parser_->isolate()->Throw(*result, &location);
 }
 
@@ -638,8 +693,8 @@ FunctionLiteral* ParserTraits::ParseFunctionLiteral(
 }
 
 
-Expression* ParserTraits::ParseConditionalExpression(bool accept_IN, bool* ok) {
-  return parser_->ParseConditionalExpression(accept_IN, ok);
+Expression* ParserTraits::ParseUnaryExpression(bool* ok) {
+  return parser_->ParseUnaryExpression(ok);
 }
 
 
@@ -2844,19 +2899,16 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
         init = variable_statement;
       }
     } else {
+      Scanner::Location lhs_location = scanner()->peek_location();
       Expression* expression = ParseExpression(false, CHECK_OK);
       ForEachStatement::VisitMode mode;
       bool accept_OF = expression->AsVariableProxy();
 
       if (CheckInOrOf(accept_OF, &mode)) {
-        // Signal a reference error if the expression is an invalid
-        // left-hand side expression.  We could report this as a syntax
-        // error here but for compatibility with JSC we choose to report
-        // the error at runtime.
         if (expression == NULL || !expression->IsValidLeftHandSide()) {
-          Handle<String> message =
-              isolate()->factory()->invalid_lhs_in_for_in_string();
-          expression = NewThrowReferenceError(message);
+          ReportMessageAt(lhs_location, "invalid_lhs_in_for", true);
+          *ok = false;
+          return NULL;
         }
         ForEachStatement* loop =
             factory()->NewForEachStatement(mode, labels, pos);
@@ -2927,121 +2979,6 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
     loop->Initialize(init, cond, next, body);
     return loop;
   }
-}
-
-
-// Precedence = 3
-Expression* Parser::ParseConditionalExpression(bool accept_IN, bool* ok) {
-  // ConditionalExpression ::
-  //   LogicalOrExpression
-  //   LogicalOrExpression '?' AssignmentExpression ':' AssignmentExpression
-
-  int pos = peek_position();
-  // We start using the binary expression parser for prec >= 4 only!
-  Expression* expression = ParseBinaryExpression(4, accept_IN, CHECK_OK);
-  if (peek() != Token::CONDITIONAL) return expression;
-  Consume(Token::CONDITIONAL);
-  // In parsing the first assignment expression in conditional
-  // expressions we always accept the 'in' keyword; see ECMA-262,
-  // section 11.12, page 58.
-  Expression* left = ParseAssignmentExpression(true, CHECK_OK);
-  Expect(Token::COLON, CHECK_OK);
-  Expression* right = ParseAssignmentExpression(accept_IN, CHECK_OK);
-  return factory()->NewConditional(expression, left, right, pos);
-}
-
-
-// Precedence >= 4
-Expression* Parser::ParseBinaryExpression(int prec, bool accept_IN, bool* ok) {
-  ASSERT(prec >= 4);
-  Expression* x = ParseUnaryExpression(CHECK_OK);
-  for (int prec1 = Precedence(peek(), accept_IN); prec1 >= prec; prec1--) {
-    // prec1 >= 4
-    while (Precedence(peek(), accept_IN) == prec1) {
-      Token::Value op = Next();
-      int pos = position();
-      Expression* y = ParseBinaryExpression(prec1 + 1, accept_IN, CHECK_OK);
-
-      // Compute some expressions involving only number literals.
-      if (x && x->AsLiteral() && x->AsLiteral()->value()->IsNumber() &&
-          y && y->AsLiteral() && y->AsLiteral()->value()->IsNumber()) {
-        double x_val = x->AsLiteral()->value()->Number();
-        double y_val = y->AsLiteral()->value()->Number();
-
-        switch (op) {
-          case Token::ADD:
-            x = factory()->NewNumberLiteral(x_val + y_val, pos);
-            continue;
-          case Token::SUB:
-            x = factory()->NewNumberLiteral(x_val - y_val, pos);
-            continue;
-          case Token::MUL:
-            x = factory()->NewNumberLiteral(x_val * y_val, pos);
-            continue;
-          case Token::DIV:
-            x = factory()->NewNumberLiteral(x_val / y_val, pos);
-            continue;
-          case Token::BIT_OR: {
-            int value = DoubleToInt32(x_val) | DoubleToInt32(y_val);
-            x = factory()->NewNumberLiteral(value, pos);
-            continue;
-          }
-          case Token::BIT_AND: {
-            int value = DoubleToInt32(x_val) & DoubleToInt32(y_val);
-            x = factory()->NewNumberLiteral(value, pos);
-            continue;
-          }
-          case Token::BIT_XOR: {
-            int value = DoubleToInt32(x_val) ^ DoubleToInt32(y_val);
-            x = factory()->NewNumberLiteral(value, pos);
-            continue;
-          }
-          case Token::SHL: {
-            int value = DoubleToInt32(x_val) << (DoubleToInt32(y_val) & 0x1f);
-            x = factory()->NewNumberLiteral(value, pos);
-            continue;
-          }
-          case Token::SHR: {
-            uint32_t shift = DoubleToInt32(y_val) & 0x1f;
-            uint32_t value = DoubleToUint32(x_val) >> shift;
-            x = factory()->NewNumberLiteral(value, pos);
-            continue;
-          }
-          case Token::SAR: {
-            uint32_t shift = DoubleToInt32(y_val) & 0x1f;
-            int value = ArithmeticShiftRight(DoubleToInt32(x_val), shift);
-            x = factory()->NewNumberLiteral(value, pos);
-            continue;
-          }
-          default:
-            break;
-        }
-      }
-
-      // For now we distinguish between comparisons and other binary
-      // operations.  (We could combine the two and get rid of this
-      // code and AST node eventually.)
-      if (Token::IsCompareOp(op)) {
-        // We have a comparison.
-        Token::Value cmp = op;
-        switch (op) {
-          case Token::NE: cmp = Token::EQ; break;
-          case Token::NE_STRICT: cmp = Token::EQ_STRICT; break;
-          default: break;
-        }
-        x = factory()->NewCompareOperation(cmp, x, y, pos);
-        if (cmp != op) {
-          // The comparison was negated - add a NOT.
-          x = factory()->NewUnaryOperation(Token::NOT, x, pos);
-        }
-
-      } else {
-        // We have a "normal" binary operation.
-        x = factory()->NewBinaryOperation(op, x, y, pos);
-      }
-    }
-  }
-  return x;
 }
 
 
@@ -3125,15 +3062,12 @@ Expression* Parser::ParseUnaryExpression(bool* ok) {
 
   } else if (Token::IsCountOp(op)) {
     op = Next();
+    Scanner::Location lhs_location = scanner()->peek_location();
     Expression* expression = ParseUnaryExpression(CHECK_OK);
-    // Signal a reference error if the expression is an invalid
-    // left-hand side expression.  We could report this as a syntax
-    // error here but for compatibility with JSC we choose to report the
-    // error at runtime.
     if (expression == NULL || !expression->IsValidLeftHandSide()) {
-      Handle<String> message =
-          isolate()->factory()->invalid_lhs_in_prefix_op_string();
-      expression = NewThrowReferenceError(message);
+      ReportMessageAt(lhs_location, "invalid_lhs_in_prefix_op", true);
+      *ok = false;
+      return NULL;
     }
 
     if (strict_mode() == STRICT) {
@@ -3157,17 +3091,14 @@ Expression* Parser::ParsePostfixExpression(bool* ok) {
   // PostfixExpression ::
   //   LeftHandSideExpression ('++' | '--')?
 
+  Scanner::Location lhs_location = scanner()->peek_location();
   Expression* expression = ParseLeftHandSideExpression(CHECK_OK);
   if (!scanner()->HasAnyLineTerminatorBeforeNext() &&
       Token::IsCountOp(peek())) {
-    // Signal a reference error if the expression is an invalid
-    // left-hand side expression.  We could report this as a syntax
-    // error here but for compatibility with JSC we choose to report the
-    // error at runtime.
     if (expression == NULL || !expression->IsValidLeftHandSide()) {
-      Handle<String> message =
-          isolate()->factory()->invalid_lhs_in_postfix_op_string();
-      expression = NewThrowReferenceError(message);
+      ReportMessageAt(lhs_location, "invalid_lhs_in_postfix_op", true);
+      *ok = false;
+      return NULL;
     }
 
     if (strict_mode() == STRICT) {

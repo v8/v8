@@ -333,10 +333,6 @@ namespace internal {
   V(MakeReferenceError_string, "MakeReferenceError")                     \
   V(MakeSyntaxError_string, "MakeSyntaxError")                           \
   V(MakeTypeError_string, "MakeTypeError")                               \
-  V(invalid_lhs_in_assignment_string, "invalid_lhs_in_assignment")       \
-  V(invalid_lhs_in_for_in_string, "invalid_lhs_in_for_in")               \
-  V(invalid_lhs_in_postfix_op_string, "invalid_lhs_in_postfix_op")       \
-  V(invalid_lhs_in_prefix_op_string, "invalid_lhs_in_prefix_op")         \
   V(illegal_return_string, "illegal_return")                             \
   V(illegal_break_string, "illegal_break")                               \
   V(illegal_continue_string, "illegal_continue")                         \
@@ -978,6 +974,10 @@ class Heap {
   // Make a copy of src and return it. Returns
   // Failure::RetryAfterGC(requested_bytes, space) if the allocation failed.
   MUST_USE_RESULT inline MaybeObject* CopyFixedArray(FixedArray* src);
+
+  // Make a copy of src and return it. Returns
+  // Failure::RetryAfterGC(requested_bytes, space) if the allocation failed.
+  MUST_USE_RESULT MaybeObject* CopyAndTenureFixedCOWArray(FixedArray* src);
 
   // Make a copy of src, set the map, and return the copy. Returns
   // Failure::RetryAfterGC(requested_bytes, space) if the allocation failed.
@@ -2520,6 +2520,8 @@ class Heap {
   bool relocation_mutex_locked_by_optimizer_thread_;
 #endif  // DEBUG;
 
+  int gc_callbacks_depth_;
+
   friend class Factory;
   friend class GCTracer;
   friend class DisallowAllocationFailure;
@@ -2532,6 +2534,7 @@ class Heap {
 #ifdef VERIFY_HEAP
   friend class NoWeakObjectVerificationScope;
 #endif
+  friend class GCCallbacksScope;
 
   DISALLOW_COPY_AND_ASSIGN(Heap);
 };
@@ -2602,6 +2605,18 @@ class NoWeakObjectVerificationScope {
   inline ~NoWeakObjectVerificationScope();
 };
 #endif
+
+
+class GCCallbacksScope {
+ public:
+  explicit inline GCCallbacksScope(Heap* heap);
+  inline ~GCCallbacksScope();
+
+  inline bool CheckReenter();
+
+ private:
+  Heap* heap_;
+};
 
 
 // Visitor class to verify interior pointers in spaces that do not contain

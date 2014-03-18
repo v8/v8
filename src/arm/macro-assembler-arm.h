@@ -1290,6 +1290,10 @@ class MacroAssembler: public Assembler {
   // Abort execution if argument is not a name, enabled via --debug-code.
   void AssertName(Register object);
 
+  // Abort execution if argument is not undefined or an AllocationSite, enabled
+  // via --debug-code.
+  void AssertUndefinedOrAllocationSite(Register object, Register scratch);
+
   // Abort execution if reg is not the root value with the given index,
   // enabled via --debug-code.
   void AssertIsRoot(Register reg, Heap::RootListIndex index);

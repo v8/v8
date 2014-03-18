@@ -77,6 +77,12 @@
   # TODO(2018): Temporarily allow timeout in debug mode.
   'js1_5/GC/regress-203278-2': [PASS, ['mode == debug', TIMEOUT, NO_VARIANTS, FAIL]],
 
+  # These tests use invalid LHS expressions in assignments.
+  'js1_5/Regress/regress-319391': [SKIP],
+  'js1_5/Regress/regress-350253': [SKIP],
+  'js1_5/Regress/regress-462292': [SKIP],
+  'js1_5/decompilation/regress-443071-01': [SKIP],
+
   ##################### SLOW TESTS #####################
 
   # This takes a long time to run (~100 seconds). It should only be run

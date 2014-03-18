@@ -342,13 +342,16 @@ class ParserBase : public Traits {
   bool is_generator() const { return function_state_->is_generator(); }
 
   // Report syntax errors.
-  void ReportMessage(const char* message, Vector<const char*> args) {
+  void ReportMessage(const char* message, Vector<const char*> args,
+                     bool is_reference_error = false) {
     Scanner::Location source_location = scanner()->location();
-    Traits::ReportMessageAt(source_location, message, args);
+    Traits::ReportMessageAt(source_location, message, args, is_reference_error);
   }
 
-  void ReportMessageAt(Scanner::Location location, const char* message) {
-    Traits::ReportMessageAt(location, message, Vector<const char*>::empty());
+  void ReportMessageAt(Scanner::Location location, const char* message,
+                       bool is_reference_error = false) {
+    Traits::ReportMessageAt(location, message, Vector<const char*>::empty(),
+                            is_reference_error);
   }
 
   void ReportUnexpectedToken(Token::Value token);
@@ -385,6 +388,11 @@ class ParserBase : public Traits {
   typename Traits::Type::Expression ParseAssignmentExpression(bool accept_IN,
                                                               bool* ok);
   typename Traits::Type::Expression ParseYieldExpression(bool* ok);
+  typename Traits::Type::Expression ParseConditionalExpression(bool accept_IN,
+                                                               bool* ok);
+  typename Traits::Type::Expression ParseBinaryExpression(int prec,
+                                                          bool accept_IN,
+                                                          bool* ok);
 
   // Used to detect duplicates in object literals. Each of the values
   // kGetterProperty, kSetterProperty and kValueProperty represents
@@ -658,9 +666,19 @@ class PreParserFactory {
                                        int pos) {
     return PreParserExpression::Default();
   }
+  PreParserExpression NewUnaryOperation(Token::Value op,
+                                        PreParserExpression expression,
+                                        int pos) {
+    return PreParserExpression::Default();
+  }
   PreParserExpression NewBinaryOperation(Token::Value op,
                                          PreParserExpression left,
                                          PreParserExpression right, int pos) {
+    return PreParserExpression::Default();
+  }
+  PreParserExpression NewCompareOperation(Token::Value op,
+                                          PreParserExpression left,
+                                          PreParserExpression right, int pos) {
     return PreParserExpression::Default();
   }
   PreParserExpression NewArrayLiteral(PreParserExpressionList values,
@@ -713,6 +731,13 @@ class PreParserFactory {
                                PreParserExpression expression,
                                Yield::Kind yield_kind,
                                int pos) {
+    return PreParserExpression::Default();
+  }
+
+  PreParserExpression NewConditional(PreParserExpression condition,
+                                     PreParserExpression then_expression,
+                                     PreParserExpression else_expression,
+                                     int pos) {
     return PreParserExpression::Default();
   }
 };
@@ -789,12 +814,10 @@ class PreParserTraits {
   static void CheckAssigningFunctionLiteralToProperty(
       PreParserExpression left, PreParserExpression right) {}
 
-
-  static PreParserExpression ValidateAssignmentLeftHandSide(
-      PreParserExpression expression) {
-    // Parser generates a runtime error here if the left hand side is not valid.
-    // PreParser doesn't have to.
-    return expression;
+  // Determine whether the expression is a valid assignment left-hand side.
+  static bool IsValidLeftHandSide(PreParserExpression expression) {
+    // TODO(marja): check properly; for now, leave it to parser.
+    return true;
   }
 
   static PreParserExpression MarkExpressionAsLValue(
@@ -808,18 +831,28 @@ class PreParserTraits {
   // in strict mode.
   void CheckStrictModeLValue(PreParserExpression expression, bool* ok);
 
+  bool ShortcutNumericLiteralBinaryExpression(PreParserExpression* x,
+                                              PreParserExpression y,
+                                              Token::Value op,
+                                              int pos,
+                                              PreParserFactory* factory) {
+    return false;
+  }
 
   // Reporting errors.
   void ReportMessageAt(Scanner::Location location,
                        const char* message,
-                       Vector<const char*> args);
+                       Vector<const char*> args,
+                       bool is_reference_error = false);
   void ReportMessageAt(Scanner::Location location,
                        const char* type,
-                       const char* name_opt);
+                       const char* name_opt,
+                       bool is_reference_error = false);
   void ReportMessageAt(int start_pos,
                        int end_pos,
                        const char* type,
-                       const char* name_opt);
+                       const char* name_opt,
+                       bool is_reference_error = false);
 
   // "null" return type creators.
   static PreParserIdentifier EmptyIdentifier() {
@@ -887,7 +920,7 @@ class PreParserTraits {
       int function_token_position,
       FunctionLiteral::FunctionType type,
       bool* ok);
-  PreParserExpression ParseConditionalExpression(bool accept_IN, bool* ok);
+  PreParserExpression ParseUnaryExpression(bool* ok);
 
  private:
   PreParser* pre_parser_;
@@ -1053,7 +1086,6 @@ class PreParser : public ParserBase<PreParserTraits> {
   Statement ParseTryStatement(bool* ok);
   Statement ParseDebuggerStatement(bool* ok);
   Expression ParseConditionalExpression(bool accept_IN, bool* ok);
-  Expression ParseBinaryExpression(int prec, bool accept_IN, bool* ok);
   Expression ParseUnaryExpression(bool* ok);
   Expression ParsePostfixExpression(bool* ok);
   Expression ParseLeftHandSideExpression(bool* ok);
@@ -1606,6 +1638,8 @@ typename Traits::Type::Expression ParserBase<Traits>::ParseAssignmentExpression(
   //   YieldExpression
   //   LeftHandSideExpression AssignmentOperator AssignmentExpression
 
+  Scanner::Location lhs_location = scanner()->peek_location();
+
   if (peek() == Token::YIELD && is_generator()) {
     return this->ParseYieldExpression(ok);
   }
@@ -1620,12 +1654,11 @@ typename Traits::Type::Expression ParserBase<Traits>::ParseAssignmentExpression(
     return expression;
   }
 
-  // Signal a reference error if the expression is an invalid left-hand
-  // side expression.  We could report this as a syntax error here but
-  // for compatibility with JSC we choose to report the error at
-  // runtime.
-  // TODO(ES5): Should change parsing for spec conformance.
-  expression = this->ValidateAssignmentLeftHandSide(expression);
+  if (!this->IsValidLeftHandSide(expression)) {
+    this->ReportMessageAt(lhs_location, "invalid_lhs_in_assignment", true);
+    *ok = false;
+    return this->EmptyExpression();
+  }
 
   if (strict_mode() == STRICT) {
     // Assignment to eval or arguments is disallowed in strict mode.
@@ -1686,6 +1719,78 @@ typename Traits::Type::Expression ParserBase<Traits>::ParseYieldExpression(
     yield->set_index(function_state_->NextHandlerIndex());
   }
   return yield;
+}
+
+
+// Precedence = 3
+template <class Traits>
+typename Traits::Type::Expression
+ParserBase<Traits>::ParseConditionalExpression(bool accept_IN, bool* ok) {
+  // ConditionalExpression ::
+  //   LogicalOrExpression
+  //   LogicalOrExpression '?' AssignmentExpression ':' AssignmentExpression
+
+  int pos = peek_position();
+  // We start using the binary expression parser for prec >= 4 only!
+  typename Traits::Type::Expression expression =
+      this->ParseBinaryExpression(4, accept_IN, CHECK_OK);
+  if (peek() != Token::CONDITIONAL) return expression;
+  Consume(Token::CONDITIONAL);
+  // In parsing the first assignment expression in conditional
+  // expressions we always accept the 'in' keyword; see ECMA-262,
+  // section 11.12, page 58.
+  typename Traits::Type::Expression left =
+      ParseAssignmentExpression(true, CHECK_OK);
+  Expect(Token::COLON, CHECK_OK);
+  typename Traits::Type::Expression right =
+      ParseAssignmentExpression(accept_IN, CHECK_OK);
+  return factory()->NewConditional(expression, left, right, pos);
+}
+
+
+// Precedence >= 4
+template <class Traits>
+typename Traits::Type::Expression
+ParserBase<Traits>::ParseBinaryExpression(int prec, bool accept_IN, bool* ok) {
+  ASSERT(prec >= 4);
+  typename Traits::Type::Expression x = this->ParseUnaryExpression(CHECK_OK);
+  for (int prec1 = Precedence(peek(), accept_IN); prec1 >= prec; prec1--) {
+    // prec1 >= 4
+    while (Precedence(peek(), accept_IN) == prec1) {
+      Token::Value op = Next();
+      int pos = position();
+      typename Traits::Type::Expression y =
+          ParseBinaryExpression(prec1 + 1, accept_IN, CHECK_OK);
+
+      if (this->ShortcutNumericLiteralBinaryExpression(&x, y, op, pos,
+                                                       factory())) {
+        continue;
+      }
+
+      // For now we distinguish between comparisons and other binary
+      // operations.  (We could combine the two and get rid of this
+      // code and AST node eventually.)
+      if (Token::IsCompareOp(op)) {
+        // We have a comparison.
+        Token::Value cmp = op;
+        switch (op) {
+          case Token::NE: cmp = Token::EQ; break;
+          case Token::NE_STRICT: cmp = Token::EQ_STRICT; break;
+          default: break;
+        }
+        x = factory()->NewCompareOperation(cmp, x, y, pos);
+        if (cmp != op) {
+          // The comparison was negated - add a NOT.
+          x = factory()->NewUnaryOperation(Token::NOT, x, pos);
+        }
+
+      } else {
+        // We have a "normal" binary operation.
+        x = factory()->NewBinaryOperation(op, x, y, pos);
+      }
+    }
+  }
+  return x;
 }
 
 

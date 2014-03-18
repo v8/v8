@@ -1843,13 +1843,9 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
 
 
 void FullCodeGenerator::VisitAssignment(Assignment* expr) {
+  ASSERT(expr->target()->IsValidLeftHandSide());
+
   Comment cmnt(masm_, "[ Assignment");
-  // Invalid left-hand sides are rewritten to have a 'throw ReferenceError'
-  // on the left-hand side.
-  if (!expr->target()->IsValidLeftHandSide()) {
-    VisitForEffect(expr->target());
-    return;
-  }
 
   // Left-hand side can only be a property, a global or a (parameter or local)
   // slot.
@@ -2346,12 +2342,7 @@ void FullCodeGenerator::EmitBinaryOp(BinaryOperation* expr,
 
 
 void FullCodeGenerator::EmitAssignment(Expression* expr) {
-  // Invalid left-hand sides are rewritten by the parser to have a 'throw
-  // ReferenceError' on the left-hand side.
-  if (!expr->IsValidLeftHandSide()) {
-    VisitForEffect(expr);
-    return;
-  }
+  ASSERT(expr->IsValidLeftHandSide());
 
   // Left-hand side can only be a property, a global or a (parameter or local)
   // slot.
@@ -4283,15 +4274,10 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
 
 
 void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
+  ASSERT(expr->expression()->IsValidLeftHandSide());
+
   Comment cmnt(masm_, "[ CountOperation");
   SetSourcePosition(expr->position());
-
-  // Invalid left-hand-sides are rewritten to have a 'throw
-  // ReferenceError' as the left-hand side.
-  if (!expr->expression()->IsValidLeftHandSide()) {
-    VisitForEffect(expr->expression());
-    return;
-  }
 
   // Expression can only be a property, a global or a (parameter or local)
   // slot.

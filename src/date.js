@@ -763,9 +763,8 @@ function CheckDateCacheCurrent() {
   timezone_cache_timezone = UNDEFINED;
 
   // Reset the date cache:
-  cache = Date_cache;
-  cache.time = NAN;
-  cache.string = null;
+  Date_cache.time = NAN;
+  Date_cache.string = null;
 }
 
 

@@ -200,6 +200,9 @@ class ElementsAccessor {
 void CheckArrayAbuse(JSObject* obj, const char* op, uint32_t key,
                      bool allow_appending = false);
 
+Handle<Object> ArrayConstructInitializeElements(Handle<JSArray> array,
+                                                Arguments* args);
+
 MUST_USE_RESULT MaybeObject* ArrayConstructInitializeElements(
     JSArray* array, Arguments* args);
 

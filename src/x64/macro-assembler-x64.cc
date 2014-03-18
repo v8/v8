@@ -3352,6 +3352,19 @@ void MacroAssembler::AssertName(Register object) {
 }
 
 
+void MacroAssembler::AssertUndefinedOrAllocationSite(Register object) {
+  if (emit_debug_code()) {
+    Label done_checking;
+    AssertNotSmi(object);
+    Cmp(object, isolate()->factory()->undefined_value());
+    j(equal, &done_checking);
+    Cmp(FieldOperand(object, 0), isolate()->factory()->allocation_site_map());
+    Assert(equal, kExpectedUndefinedOrCell);
+    bind(&done_checking);
+  }
+}
+
+
 void MacroAssembler::AssertRootValue(Register src,
                                      Heap::RootListIndex root_value_index,
                                      BailoutReason reason) {

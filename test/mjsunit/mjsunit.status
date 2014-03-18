@@ -176,9 +176,6 @@
   # BUG(v8:3147). It works on other architectures by accident.
   'regress/regress-conditional-position': [FAIL],
 
-  # BUG(v8:3156): Fails on gc stress bots.
-  'compiler/concurrent-invalidate-transition-map': [PASS, ['gc_stress == True', FAIL]],
-
   # Slow tests.
   'array-concat': [PASS, SLOW],
   'array-constructor': [PASS, SLOW],

@@ -247,6 +247,11 @@ class IC {
     extra_ic_state_ = state;
   }
 
+ protected:
+  void UpdateTarget() {
+    target_ = handle(raw_target(), isolate_);
+  }
+
  private:
   Code* raw_target() const {
     return GetTargetAtAddress(address(), constant_pool());

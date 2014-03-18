@@ -1528,6 +1528,20 @@ void MacroAssembler::AssertName(Register object) {
 }
 
 
+void MacroAssembler::AssertUndefinedOrAllocationSite(Register object,
+                                                     Register scratch) {
+  if (emit_debug_code()) {
+    Label done_checking;
+    AssertNotSmi(object);
+    JumpIfRoot(object, Heap::kUndefinedValueRootIndex, &done_checking);
+    Ldr(scratch, FieldMemOperand(object, HeapObject::kMapOffset));
+    CompareRoot(scratch, Heap::kAllocationSiteMapRootIndex);
+    Assert(eq, kExpectedUndefinedOrCell);
+    Bind(&done_checking);
+  }
+}
+
+
 void MacroAssembler::AssertString(Register object) {
   if (emit_debug_code()) {
     UseScratchRegisterScope temps(this);
@@ -2225,14 +2239,19 @@ void MacroAssembler::TryConvertDoubleToInt(Register as_int,
 }
 
 
-void MacroAssembler::JumpIfMinusZero(DoubleRegister input,
-                                     Label* on_negative_zero) {
+void MacroAssembler::TestForMinusZero(DoubleRegister input) {
   UseScratchRegisterScope temps(this);
   Register temp = temps.AcquireX();
   // Floating point -0.0 is kMinInt as an integer, so subtracting 1 (cmp) will
   // cause overflow.
   Fmov(temp, input);
   Cmp(temp, 1);
+}
+
+
+void MacroAssembler::JumpIfMinusZero(DoubleRegister input,
+                                     Label* on_negative_zero) {
+  TestForMinusZero(input);
   B(vs, on_negative_zero);
 }
 

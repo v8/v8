@@ -236,6 +236,7 @@ class LCodeGen: public LCodeGenBase {
   void DeoptimizeIfNotRoot(Register rt,
                            Heap::RootListIndex index,
                            LEnvironment* environment);
+  void DeoptimizeIfMinusZero(DoubleRegister input, LEnvironment* environment);
   void ApplyCheckIf(Condition cc, LBoundsCheck* check);
 
   MemOperand PrepareKeyedExternalArrayOperand(Register key,

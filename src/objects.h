@@ -1171,6 +1171,8 @@ class MaybeObject BASE_EMBEDDED {
   V(kExpectedFixedArrayInRegisterRbx,                                         \
     "Expected fixed array in register rbx")                                   \
   V(kExpectedSmiOrHeapNumber, "Expected smi or HeapNumber")                   \
+  V(kExpectedUndefinedOrCell,                                                 \
+    "Expected undefined or cell in register")                                 \
   V(kExpectingAlignmentForCopyBytes,                                          \
     "Expecting alignment for CopyBytes")                                      \
   V(kExportDeclaration, "Export declaration")                                 \
@@ -6220,6 +6222,7 @@ class Map: public HeapObject {
       Descriptor* descriptor,
       int index,
       TransitionFlag flag);
+  static Handle<Map> AsElementsKind(Handle<Map> map, ElementsKind kind);
   MUST_USE_RESULT MaybeObject* AsElementsKind(ElementsKind kind);
 
   MUST_USE_RESULT MaybeObject* CopyAsElementsKind(ElementsKind kind,

@@ -1865,13 +1865,9 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
 
 
 void FullCodeGenerator::VisitAssignment(Assignment* expr) {
+  ASSERT(expr->target()->IsValidLeftHandSide());
+
   Comment cmnt(masm_, "[ Assignment");
-  // Invalid left-hand sides are rewritten to have a 'throw ReferenceError'
-  // on the left-hand side.
-  if (!expr->target()->IsValidLeftHandSide()) {
-    VisitForEffect(expr->target());
-    return;
-  }
 
   // Left-hand side can only be a property, a global or a (parameter or local)
   // slot.
@@ -2192,12 +2188,21 @@ void FullCodeGenerator::EmitGeneratorResume(Expression *generator,
     __ cmp(r3, Operand(0));
     __ b(ne, &slow_resume);
     __ ldr(r3, FieldMemOperand(r4, JSFunction::kCodeEntryOffset));
-    __ ldr(r2, FieldMemOperand(r1, JSGeneratorObject::kContinuationOffset));
-    __ SmiUntag(r2);
-    __ add(r3, r3, r2);
-    __ mov(r2, Operand(Smi::FromInt(JSGeneratorObject::kGeneratorExecuting)));
-    __ str(r2, FieldMemOperand(r1, JSGeneratorObject::kContinuationOffset));
-    __ Jump(r3);
+
+    { ConstantPoolUnavailableScope constant_pool_unavailable(masm_);
+      if (FLAG_enable_ool_constant_pool) {
+        // Load the new code object's constant pool pointer.
+        __ ldr(pp,
+               MemOperand(r3, Code::kConstantPoolOffset - Code::kHeaderSize));
+      }
+
+      __ ldr(r2, FieldMemOperand(r1, JSGeneratorObject::kContinuationOffset));
+      __ SmiUntag(r2);
+      __ add(r3, r3, r2);
+      __ mov(r2, Operand(Smi::FromInt(JSGeneratorObject::kGeneratorExecuting)));
+      __ str(r2, FieldMemOperand(r1, JSGeneratorObject::kContinuationOffset));
+      __ Jump(r3);
+    }
     __ bind(&slow_resume);
   }
 
@@ -2402,12 +2407,7 @@ void FullCodeGenerator::EmitBinaryOp(BinaryOperation* expr,
 
 
 void FullCodeGenerator::EmitAssignment(Expression* expr) {
-  // Invalid left-hand sides are rewritten by the parser to have a 'throw
-  // ReferenceError' on the left-hand side.
-  if (!expr->IsValidLeftHandSide()) {
-    VisitForEffect(expr);
-    return;
-  }
+  ASSERT(expr->IsValidLeftHandSide());
 
   // Left-hand side can only be a property, a global or a (parameter or local)
   // slot.
@@ -4282,15 +4282,10 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
 
 
 void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
+  ASSERT(expr->expression()->IsValidLeftHandSide());
+
   Comment cmnt(masm_, "[ CountOperation");
   SetSourcePosition(expr->position());
-
-  // Invalid left-hand sides are rewritten to have a 'throw ReferenceError'
-  // as the left-hand side.
-  if (!expr->expression()->IsValidLeftHandSide()) {
-    VisitForEffect(expr->expression());
-    return;
-  }
 
   // Expression can only be a property, a global or a (parameter or local)
   // slot.

@@ -886,6 +886,10 @@ class MacroAssembler : public Assembler {
   // Abort execution if argument is not a name, enabled via --debug-code.
   void AssertName(Register object);
 
+  // Abort execution if argument is not undefined or an AllocationSite, enabled
+  // via --debug-code.
+  void AssertUndefinedOrAllocationSite(Register object, Register scratch);
+
   // Abort execution if argument is not a string, enabled via --debug-code.
   void AssertString(Register object);
 
@@ -899,6 +903,9 @@ class MacroAssembler : public Assembler {
   void JumpIfNotHeapNumber(Register object,
                            Label* on_not_heap_number,
                            Register heap_number_map = NoReg);
+
+  // Sets the vs flag if the input is -0.0.
+  void TestForMinusZero(DoubleRegister input);
 
   // Jump to label if the input double register contains -0.0.
   void JumpIfMinusZero(DoubleRegister input, Label* on_negative_zero);
@@ -928,10 +935,12 @@ class MacroAssembler : public Assembler {
   // Try to convert a double to a signed 32-bit int.
   // This succeeds if the result compares equal to the input, so inputs of -0.0
   // are converted to 0 and handled as a success.
+  //
+  // On output the Z flag is set if the conversion was successful.
   void TryConvertDoubleToInt32(Register as_int,
                                FPRegister value,
                                FPRegister scratch_d,
-                               Label* on_successful_conversion,
+                               Label* on_successful_conversion = NULL,
                                Label* on_failed_conversion = NULL) {
     ASSERT(as_int.Is32Bits());
     TryConvertDoubleToInt(as_int, value, scratch_d, on_successful_conversion,
@@ -941,10 +950,12 @@ class MacroAssembler : public Assembler {
   // Try to convert a double to a signed 64-bit int.
   // This succeeds if the result compares equal to the input, so inputs of -0.0
   // are converted to 0 and handled as a success.
+  //
+  // On output the Z flag is set if the conversion was successful.
   void TryConvertDoubleToInt64(Register as_int,
                                FPRegister value,
                                FPRegister scratch_d,
-                               Label* on_successful_conversion,
+                               Label* on_successful_conversion = NULL,
                                Label* on_failed_conversion = NULL) {
     ASSERT(as_int.Is64Bits());
     TryConvertDoubleToInt(as_int, value, scratch_d, on_successful_conversion,
@@ -2071,10 +2082,12 @@ class MacroAssembler : public Assembler {
   //
   // This does not distinguish between +0 and -0, so if this distinction is
   // important it must be checked separately.
+  //
+  // On output the Z flag is set if the conversion was successful.
   void TryConvertDoubleToInt(Register as_int,
                              FPRegister value,
                              FPRegister scratch_d,
-                             Label* on_successful_conversion,
+                             Label* on_successful_conversion = NULL,
                              Label* on_failed_conversion = NULL);
 
   bool generating_stub_;

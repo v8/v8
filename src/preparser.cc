@@ -69,17 +69,20 @@ void PreParserTraits::CheckStrictModeLValue(PreParserExpression expression,
 
 void PreParserTraits::ReportMessageAt(Scanner::Location location,
                                       const char* message,
-                                      Vector<const char*> args) {
+                                      Vector<const char*> args,
+                                      bool is_reference_error) {
   ReportMessageAt(location.beg_pos,
                   location.end_pos,
                   message,
-                  args.length() > 0 ? args[0] : NULL);
+                  args.length() > 0 ? args[0] : NULL,
+                  is_reference_error);
 }
 
 
 void PreParserTraits::ReportMessageAt(Scanner::Location location,
                                       const char* type,
-                                      const char* name_opt) {
+                                      const char* name_opt,
+                                      bool is_reference_error) {
   pre_parser_->log_
       ->LogMessage(location.beg_pos, location.end_pos, type, name_opt);
 }
@@ -88,7 +91,8 @@ void PreParserTraits::ReportMessageAt(Scanner::Location location,
 void PreParserTraits::ReportMessageAt(int start_pos,
                                       int end_pos,
                                       const char* type,
-                                      const char* name_opt) {
+                                      const char* name_opt,
+                                      bool is_reference_error) {
   pre_parser_->log_->LogMessage(start_pos, end_pos, type, name_opt);
 }
 
@@ -142,9 +146,8 @@ PreParserExpression PreParserTraits::ParseFunctionLiteral(
 }
 
 
-PreParserExpression PreParserTraits::ParseConditionalExpression(bool accept_IN,
-                                                                bool* ok) {
-  return pre_parser_->ParseConditionalExpression(accept_IN, ok);
+PreParserExpression PreParserTraits::ParseUnaryExpression(bool* ok) {
+  return pre_parser_->ParseUnaryExpression(ok);
 }
 
 
@@ -837,44 +840,6 @@ PreParser::Statement PreParser::ParseDebuggerStatement(bool* ok) {
   ((void)0
 #define DUMMY )  // to make indentation work
 #undef DUMMY
-
-
-// Precedence = 3
-PreParser::Expression PreParser::ParseConditionalExpression(bool accept_IN,
-                                                            bool* ok) {
-  // ConditionalExpression ::
-  //   LogicalOrExpression
-  //   LogicalOrExpression '?' AssignmentExpression ':' AssignmentExpression
-
-  // We start using the binary expression parser for prec >= 4 only!
-  Expression expression = ParseBinaryExpression(4, accept_IN, CHECK_OK);
-  if (peek() != Token::CONDITIONAL) return expression;
-  Consume(Token::CONDITIONAL);
-  // In parsing the first assignment expression in conditional
-  // expressions we always accept the 'in' keyword; see ECMA-262,
-  // section 11.12, page 58.
-  ParseAssignmentExpression(true, CHECK_OK);
-  Expect(Token::COLON, CHECK_OK);
-  ParseAssignmentExpression(accept_IN, CHECK_OK);
-  return Expression::Default();
-}
-
-
-// Precedence >= 4
-PreParser::Expression PreParser::ParseBinaryExpression(int prec,
-                                                       bool accept_IN,
-                                                       bool* ok) {
-  Expression result = ParseUnaryExpression(CHECK_OK);
-  for (int prec1 = Precedence(peek(), accept_IN); prec1 >= prec; prec1--) {
-    // prec1 >= 4
-    while (Precedence(peek(), accept_IN) == prec1) {
-      Next();
-      ParseBinaryExpression(prec1 + 1, accept_IN, CHECK_OK);
-      result = Expression::Default();
-    }
-  }
-  return result;
-}
 
 
 PreParser::Expression PreParser::ParseUnaryExpression(bool* ok) {

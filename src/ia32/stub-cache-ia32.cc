@@ -1274,6 +1274,20 @@ Handle<Code> StoreStubCompiler::CompileStoreInterceptor(
 }
 
 
+void StoreStubCompiler::GenerateStoreArrayLength() {
+  // Prepare tail call to StoreIC_ArrayLength.
+  __ pop(scratch1());  // remove the return address
+  __ push(receiver());
+  __ push(value());
+  __ push(scratch1());  // restore return address
+
+  ExternalReference ref =
+      ExternalReference(IC_Utility(IC::kStoreIC_ArrayLength),
+                        masm()->isolate());
+  __ TailCallExternalReference(ref, 2, 1);
+}
+
+
 Handle<Code> KeyedStoreStubCompiler::CompileStorePolymorphic(
     MapHandleList* receiver_maps,
     CodeHandleList* handler_stubs,

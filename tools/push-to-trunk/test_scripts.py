@@ -741,7 +741,7 @@ Performance and stability improvements on all platforms.""", commit)
       Git("checkout -b %s svn/trunk" % TEST_CONFIG[TRUNKBRANCH], "",
           cb=ResetChangeLog),
       Git("apply --index --reject \"%s\"" % TEST_CONFIG[PATCH_FILE], ""),
-      Git("checkout -f -- %s" % TEST_CONFIG[CHANGELOG_FILE], "",
+      Git("checkout -f svn/trunk -- %s" % TEST_CONFIG[CHANGELOG_FILE], "",
           cb=ResetChangeLog),
       Git("add \"%s\"" % TEST_CONFIG[VERSION_FILE], ""),
       Git("commit -aF \"%s\"" % TEST_CONFIG[COMMITMSG_FILE], "",

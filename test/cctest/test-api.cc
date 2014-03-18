@@ -18666,6 +18666,8 @@ int prologue_call_count = 0;
 int epilogue_call_count = 0;
 int prologue_call_count_second = 0;
 int epilogue_call_count_second = 0;
+int prologue_call_count_alloc = 0;
+int epilogue_call_count_alloc = 0;
 
 void PrologueCallback(v8::GCType, v8::GCCallbackFlags flags) {
   CHECK_EQ(flags, v8::kNoGCCallbackFlags);
@@ -18724,6 +18726,46 @@ void EpilogueCallbackSecond(v8::Isolate* isolate,
   CHECK_EQ(flags, v8::kNoGCCallbackFlags);
   CHECK_EQ(gc_callbacks_isolate, isolate);
   ++epilogue_call_count_second;
+}
+
+
+void PrologueCallbackAlloc(v8::Isolate* isolate,
+                           v8::GCType,
+                           v8::GCCallbackFlags flags) {
+  v8::HandleScope scope(isolate);
+
+  CHECK_EQ(flags, v8::kNoGCCallbackFlags);
+  CHECK_EQ(gc_callbacks_isolate, isolate);
+  ++prologue_call_count_alloc;
+
+  // Simulate full heap to see if we will reenter this callback
+  SimulateFullSpace(CcTest::heap()->new_space());
+
+  Local<Object> obj = Object::New(isolate);
+  CHECK(!obj.IsEmpty());
+
+  CcTest::heap()->CollectAllGarbage(
+      i::Heap::kAbortIncrementalMarkingMask);
+}
+
+
+void EpilogueCallbackAlloc(v8::Isolate* isolate,
+                           v8::GCType,
+                           v8::GCCallbackFlags flags) {
+  v8::HandleScope scope(isolate);
+
+  CHECK_EQ(flags, v8::kNoGCCallbackFlags);
+  CHECK_EQ(gc_callbacks_isolate, isolate);
+  ++epilogue_call_count_alloc;
+
+  // Simulate full heap to see if we will reenter this callback
+  SimulateFullSpace(CcTest::heap()->new_space());
+
+  Local<Object> obj = Object::New(isolate);
+  CHECK(!obj.IsEmpty());
+
+  CcTest::heap()->CollectAllGarbage(
+      i::Heap::kAbortIncrementalMarkingMask);
 }
 
 
@@ -18793,6 +18835,17 @@ TEST(GCCallbacks) {
   CHECK_EQ(2, epilogue_call_count);
   CHECK_EQ(2, prologue_call_count_second);
   CHECK_EQ(2, epilogue_call_count_second);
+
+  CHECK_EQ(0, prologue_call_count_alloc);
+  CHECK_EQ(0, epilogue_call_count_alloc);
+  isolate->AddGCPrologueCallback(PrologueCallbackAlloc);
+  isolate->AddGCEpilogueCallback(EpilogueCallbackAlloc);
+  CcTest::heap()->CollectAllGarbage(
+      i::Heap::kAbortIncrementalMarkingMask);
+  CHECK_EQ(1, prologue_call_count_alloc);
+  CHECK_EQ(1, epilogue_call_count_alloc);
+  isolate->RemoveGCPrologueCallback(PrologueCallbackAlloc);
+  isolate->RemoveGCEpilogueCallback(EpilogueCallbackAlloc);
 }
 
 
@@ -22254,8 +22307,10 @@ TEST(Promises) {
   Handle<Object> global = context->Global();
 
   // Creation.
-  Handle<v8::Promise> p = v8::Promise::New(isolate);
-  Handle<v8::Promise> r = v8::Promise::New(isolate);
+  Handle<v8::Promise::Resolver> pr = v8::Promise::Resolver::New(isolate);
+  Handle<v8::Promise::Resolver> rr = v8::Promise::Resolver::New(isolate);
+  Handle<v8::Promise> p = pr->GetPromise();
+  Handle<v8::Promise> r = rr->GetPromise();
 
   // IsPromise predicate.
   CHECK(p->IsPromise());
@@ -22264,9 +22319,9 @@ TEST(Promises) {
   CHECK(!o->IsPromise());
 
   // Resolution and rejection.
-  p->Resolve(v8::Integer::New(isolate, 1));
+  pr->Resolve(v8::Integer::New(isolate, 1));
   CHECK(p->IsPromise());
-  r->Reject(v8::Integer::New(isolate, 2));
+  rr->Reject(v8::Integer::New(isolate, 2));
   CHECK(r->IsPromise());
 
   // Chaining non-pending promises.
@@ -22298,17 +22353,17 @@ TEST(Promises) {
 
   // Chaining pending promises.
   CompileRun("x1 = x2 = 0;");
-  p = v8::Promise::New(isolate);
-  r = v8::Promise::New(isolate);
+  pr = v8::Promise::Resolver::New(isolate);
+  rr = v8::Promise::Resolver::New(isolate);
 
-  p->Chain(f1);
-  r->Catch(f2);
+  pr->GetPromise()->Chain(f1);
+  rr->GetPromise()->Catch(f2);
   V8::RunMicrotasks(isolate);
   CHECK_EQ(0, global->Get(v8_str("x1"))->Int32Value());
   CHECK_EQ(0, global->Get(v8_str("x2"))->Int32Value());
 
-  p->Resolve(v8::Integer::New(isolate, 1));
-  r->Reject(v8::Integer::New(isolate, 2));
+  pr->Resolve(v8::Integer::New(isolate, 1));
+  rr->Reject(v8::Integer::New(isolate, 2));
   CHECK_EQ(0, global->Get(v8_str("x1"))->Int32Value());
   CHECK_EQ(0, global->Get(v8_str("x2"))->Int32Value());
 
@@ -22318,9 +22373,9 @@ TEST(Promises) {
 
   // Multi-chaining.
   CompileRun("x1 = x2 = 0;");
-  p = v8::Promise::New(isolate);
-  p->Chain(f1)->Chain(f2);
-  p->Resolve(v8::Integer::New(isolate, 3));
+  pr = v8::Promise::Resolver::New(isolate);
+  pr->GetPromise()->Chain(f1)->Chain(f2);
+  pr->Resolve(v8::Integer::New(isolate, 3));
   CHECK_EQ(0, global->Get(v8_str("x1"))->Int32Value());
   CHECK_EQ(0, global->Get(v8_str("x2"))->Int32Value());
   V8::RunMicrotasks(isolate);
@@ -22328,9 +22383,9 @@ TEST(Promises) {
   CHECK_EQ(4, global->Get(v8_str("x2"))->Int32Value());
 
   CompileRun("x1 = x2 = 0;");
-  r = v8::Promise::New(isolate);
-  r->Catch(f1)->Chain(f2);
-  r->Reject(v8::Integer::New(isolate, 3));
+  rr = v8::Promise::Resolver::New(isolate);
+  rr->GetPromise()->Catch(f1)->Chain(f2);
+  rr->Reject(v8::Integer::New(isolate, 3));
   CHECK_EQ(0, global->Get(v8_str("x1"))->Int32Value());
   CHECK_EQ(0, global->Get(v8_str("x2"))->Int32Value());
   V8::RunMicrotasks(isolate);

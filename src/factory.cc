@@ -889,6 +889,15 @@ Handle<FixedArray> Factory::CopyFixedArray(Handle<FixedArray> array) {
 }
 
 
+Handle<FixedArray> Factory::CopyAndTenureFixedCOWArray(
+    Handle<FixedArray> array) {
+  ASSERT(isolate()->heap()->InNewSpace(*array));
+  CALL_HEAP_FUNCTION(isolate(),
+                     isolate()->heap()->CopyAndTenureFixedCOWArray(*array),
+                     FixedArray);
+}
+
+
 Handle<FixedArray> Factory::CopySizeFixedArray(Handle<FixedArray> array,
                                                int new_length,
                                                PretenureFlag pretenure) {
@@ -1063,6 +1072,12 @@ Handle<Object> Factory::NewSyntaxError(Handle<String> message) {
 
 Handle<Object> Factory::NewReferenceError(const char* message,
                                           Vector< Handle<Object> > args) {
+  return NewError("MakeReferenceError", message, args);
+}
+
+
+Handle<Object> Factory::NewReferenceError(const char* message,
+                                          Handle<JSArray> args) {
   return NewError("MakeReferenceError", message, args);
 }
 
@@ -1393,12 +1408,18 @@ Handle<GlobalObject> Factory::NewGlobalObject(Handle<JSFunction> constructor) {
 }
 
 
-Handle<JSObject> Factory::NewJSObjectFromMap(Handle<Map> map,
-                                             PretenureFlag pretenure,
-                                             bool alloc_props) {
+Handle<JSObject> Factory::NewJSObjectFromMap(
+    Handle<Map> map,
+    PretenureFlag pretenure,
+    bool alloc_props,
+    Handle<AllocationSite> allocation_site) {
   CALL_HEAP_FUNCTION(
       isolate(),
-      isolate()->heap()->AllocateJSObjectFromMap(*map, pretenure, alloc_props),
+      isolate()->heap()->AllocateJSObjectFromMap(
+          *map,
+          pretenure,
+          alloc_props,
+          allocation_site.is_null() ? NULL : *allocation_site),
       JSObject);
 }
 
@@ -1430,6 +1451,18 @@ Handle<JSArray> Factory::NewJSArrayWithElements(Handle<FixedArrayBase> elements,
                                                      elements->length(),
                                                      pretenure),
       JSArray);
+}
+
+
+void Factory::NewJSArrayStorage(Handle<JSArray> array,
+                                     int length,
+                                     int capacity,
+                                     ArrayStorageAllocationMode mode) {
+  CALL_HEAP_FUNCTION_VOID(isolate(),
+                          isolate()->heap()->AllocateJSArrayStorage(*array,
+                                                                    length,
+                                                                    capacity,
+                                                                    mode));
 }
 
 

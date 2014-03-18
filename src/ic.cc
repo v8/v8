@@ -1234,26 +1234,6 @@ MaybeObject* StoreIC::Store(Handle<Object> object,
     return *result;
   }
 
-  // Use specialized code for setting the length of arrays with fast
-  // properties. Slow properties might indicate redefinition of the length
-  // property. Note that when redefined using Object.freeze, it's possible
-  // to have fast properties but a read-only length.
-  if (FLAG_use_ic &&
-      receiver->IsJSArray() &&
-      name->Equals(isolate()->heap()->length_string()) &&
-      Handle<JSArray>::cast(receiver)->AllowsSetElementsLength() &&
-      receiver->HasFastProperties() &&
-      !receiver->map()->is_frozen()) {
-    Handle<Code> stub =
-        StoreArrayLengthStub(kind(), strict_mode()).GetCode(isolate());
-    set_target(*stub);
-    TRACE_IC("StoreIC", name);
-    Handle<Object> result = JSReceiver::SetProperty(
-        receiver, name, value, NONE, strict_mode(), store_mode);
-    RETURN_IF_EMPTY_HANDLE(isolate(), result);
-    return *result;
-  }
-
   LookupResult lookup(isolate());
   bool can_store = LookupForWrite(receiver, name, value, &lookup, this);
   if (!can_store &&
@@ -1404,6 +1384,17 @@ Handle<Code> StoreIC::CompileHandler(LookupResult* lookup,
       // TODO(dcarney): Handle correctly.
       if (callback->IsDeclaredAccessorInfo()) break;
       ASSERT(callback->IsForeign());
+
+      // Use specialized code for setting the length of arrays with fast
+      // properties. Slow properties might indicate redefinition of the length
+      // property.
+      if (receiver->IsJSArray() &&
+          name->Equals(isolate()->heap()->length_string()) &&
+          Handle<JSArray>::cast(receiver)->AllowsSetElementsLength() &&
+          receiver->HasFastProperties()) {
+        return compiler.CompileStoreArrayLength(receiver, lookup, name);
+      }
+
       // No IC support for old-style native accessors.
       break;
     }
@@ -1696,7 +1687,9 @@ MaybeObject* KeyedStoreIC::Store(Handle<Object> object,
                                   JSReceiver::MAY_BE_STORE_FROM_KEYED);
     if (maybe_object->IsFailure()) return maybe_object;
   } else {
-    bool use_ic = FLAG_use_ic && !object->IsAccessCheckNeeded() &&
+    bool use_ic = FLAG_use_ic &&
+        !object->IsAccessCheckNeeded() &&
+        !object->IsJSGlobalProxy() &&
         !(object->IsJSObject() &&
           JSObject::cast(*object)->map()->is_observed());
     if (use_ic && !object->IsSmi()) {
@@ -2404,8 +2397,11 @@ MaybeObject* BinaryOpIC::Transition(Handle<AllocationSite> allocation_site,
       isolate(), function, left, 1, &right, &caught_exception);
   if (caught_exception) return Failure::Exception();
 
+  // Execution::Call can execute arbitrary JavaScript, hence potentially
+  // update the state of this very IC, so we must update the stored state.
+  UpdateTarget();
   // Compute the new state.
-  State old_state = state;
+  State old_state(target()->extra_ic_state());
   state.Update(left, right, result);
 
   // Check if we have a string operation here.
