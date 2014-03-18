@@ -1469,9 +1469,9 @@ class MacroAssembler : public Assembler {
   // flags. The object register is preserved.
   void TestMapBitfield(Register object, uint64_t mask);
 
-  // Load the elements kind field of an object, and return it in the result
+  // Load the elements kind field from a map, and return it in the result
   // register.
-  void LoadElementsKind(Register result, Register object);
+  void LoadElementsKindFromMap(Register result, Register map);
 
   // Compare the object in a register to a value from the root list.
   void CompareRoot(const Register& obj, Heap::RootListIndex index);
@@ -1535,19 +1535,11 @@ class MacroAssembler : public Assembler {
 
   // Check if a map for a JSObject indicates that the object has fast elements.
   // Jump to the specified label if it does not.
-  void CheckFastElements(Register map,
-                         Register scratch,
-                         Label* fail);
+  void CheckFastElements(Register map, Register scratch, Label* fail);
 
   // Check if a map for a JSObject indicates that the object can have both smi
   // and HeapObject elements.  Jump to the specified label if it does not.
-  void CheckFastObjectElements(Register map,
-                               Register scratch,
-                               Label* fail);
-
-  // Check if a map for a JSObject indicates that the object has fast smi only
-  // elements. Jump to the specified label if it does not.
-  void CheckFastSmiElements(Register map, Register scratch, Label* fail);
+  void CheckFastObjectElements(Register map, Register scratch, Label* fail);
 
   // Check to see if number can be stored as a double in FastDoubleElements.
   // If it can, store it at the index specified by key_reg in the array,

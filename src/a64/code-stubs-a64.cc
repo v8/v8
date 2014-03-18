@@ -4791,12 +4791,6 @@ void RecordWriteStub::Generate(MacroAssembler* masm) {
 
 
 void StoreArrayLiteralElementStub::Generate(MacroAssembler* masm) {
-  // TODO(all): Possible optimisations in this function:
-  // 1. Merge CheckFastElements and CheckFastSmiElements, so that the map
-  //    bitfield is loaded only once.
-  // 2. Refactor the Ldr/Add sequence at the start of fast_elements and
-  //    smi_element.
-
   // x0     value            element value to store
   // x3     index_smi        element index as smi
   // sp[0]  array_index_smi  array literal index in function as smi
@@ -4812,9 +4806,23 @@ void StoreArrayLiteralElementStub::Generate(MacroAssembler* masm) {
   __ Ldr(array_map, FieldMemOperand(array, JSObject::kMapOffset));
 
   Label double_elements, smi_element, fast_elements, slow_elements;
-  __ CheckFastElements(array_map, x10, &double_elements);
+  Register bitfield2 = x10;
+  __ Ldrb(bitfield2, FieldMemOperand(array_map, Map::kBitField2Offset));
+
+  // Jump if array's ElementsKind is not FAST*_SMI_ELEMENTS, FAST_ELEMENTS or
+  // FAST_HOLEY_ELEMENTS.
+  STATIC_ASSERT(FAST_SMI_ELEMENTS == 0);
+  STATIC_ASSERT(FAST_HOLEY_SMI_ELEMENTS == 1);
+  STATIC_ASSERT(FAST_ELEMENTS == 2);
+  STATIC_ASSERT(FAST_HOLEY_ELEMENTS == 3);
+  __ Cmp(bitfield2, Map::kMaximumBitField2FastHoleyElementValue);
+  __ B(hi, &double_elements);
+
   __ JumpIfSmi(value, &smi_element);
-  __ CheckFastSmiElements(array_map, x10, &fast_elements);
+
+  // Jump if array's ElementsKind is not FAST_ELEMENTS or FAST_HOLEY_ELEMENTS.
+  __ Tbnz(bitfield2, MaskToBit(FAST_ELEMENTS << Map::kElementsKindShift),
+          &fast_elements);
 
   // Store into the array literal requires an elements transition. Call into
   // the runtime.
@@ -5540,12 +5548,8 @@ void InternalArrayConstructorStub::Generate(MacroAssembler* masm) {
   __ Ldr(x10, FieldMemOperand(constructor,
                               JSFunction::kPrototypeOrInitialMapOffset));
 
-  // TODO(jbramley): Add a helper function to read elements kind from an
-  // existing map.
-  // Load the map's "bit field 2" into result.
-  __ Ldr(kind, FieldMemOperand(x10, Map::kBitField2Offset));
-  // Retrieve elements_kind from bit field 2.
-  __ Ubfx(kind, kind, Map::kElementsKindShift, Map::kElementsKindBitCount);
+  // Retrieve elements_kind from map.
+  __ LoadElementsKindFromMap(kind, x10);
 
   if (FLAG_debug_code) {
     Label done;

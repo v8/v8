@@ -3678,11 +3678,9 @@ void MacroAssembler::TestMapBitfield(Register object, uint64_t mask) {
 }
 
 
-void MacroAssembler::LoadElementsKind(Register result, Register object) {
-  // Load map.
-  __ Ldr(result, FieldMemOperand(object, HeapObject::kMapOffset));
+void MacroAssembler::LoadElementsKindFromMap(Register result, Register map) {
   // Load the map's "bit field 2".
-  __ Ldrb(result, FieldMemOperand(result, Map::kBitField2Offset));
+  __ Ldrb(result, FieldMemOperand(map, Map::kBitField2Offset));
   // Retrieve elements_kind from bit field 2.
   __ Ubfx(result, result, Map::kElementsKindShift, Map::kElementsKindBitCount);
 }
@@ -3836,17 +3834,6 @@ void MacroAssembler::CheckFastObjectElements(Register map,
   // If cond==ls, set cond=hi, otherwise compare.
   Ccmp(scratch,
        Operand(Map::kMaximumBitField2FastHoleyElementValue), CFlag, hi);
-  B(hi, fail);
-}
-
-
-void MacroAssembler::CheckFastSmiElements(Register map,
-                                          Register scratch,
-                                          Label* fail) {
-  STATIC_ASSERT(FAST_SMI_ELEMENTS == 0);
-  STATIC_ASSERT(FAST_HOLEY_SMI_ELEMENTS == 1);
-  Ldrb(scratch, FieldMemOperand(map, Map::kBitField2Offset));
-  Cmp(scratch, Map::kMaximumBitField2FastHoleySmiElementValue);
   B(hi, fail);
 }
 

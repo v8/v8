@@ -2538,7 +2538,8 @@ void LCodeGen::DoCheckValue(LCheckValue* instr) {
   Handle<HeapObject> object = instr->hydrogen()->object().handle();
   AllowDeferredHandleDereference smi_check;
   if (isolate()->heap()->InNewSpace(*object)) {
-    Register temp = ToRegister(instr->temp());
+    UseScratchRegisterScope temps(masm());
+    Register temp = temps.AcquireX();
     Handle<Cell> cell = isolate()->factory()->NewCell(object);
     __ Mov(temp, Operand(Handle<Object>(cell)));
     __ Ldr(temp, FieldMemOperand(temp, Cell::kValueOffset));

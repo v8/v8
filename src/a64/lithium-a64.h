@@ -965,15 +965,13 @@ class LCheckSmi V8_FINAL : public LTemplateInstruction<1, 1, 0> {
 };
 
 
-class LCheckValue V8_FINAL : public LTemplateInstruction<0, 1, 1> {
+class LCheckValue V8_FINAL : public LTemplateInstruction<0, 1, 0> {
  public:
-  LCheckValue(LOperand* value, LOperand* temp) {
+  explicit LCheckValue(LOperand* value) {
     inputs_[0] = value;
-    temps_[0] = temp;
   }
 
   LOperand* value() { return inputs_[0]; }
-  LOperand* temp() { return temps_[0]; }
 
   DECLARE_CONCRETE_INSTRUCTION(CheckValue, "check-value")
   DECLARE_HYDROGEN_ACCESSOR(CheckValue)
