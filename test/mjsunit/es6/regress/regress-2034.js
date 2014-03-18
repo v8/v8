@@ -25,15 +25,22 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --harmony-collections
+// Flags: --harmony-weak-collections
 
-var key1 = {};
-var key2 = {};
+var key = {};
 var map = new WeakMap;
+Object.preventExtensions(key);
 
-// Adding hidden properties preserves map sharing. Putting the key into
-// a WeakMap will cause the first hidden property to be added.
-assertTrue(%HaveSameMap(key1, key2));
-map.set(key1, 1);
-map.set(key2, 2);
-assertTrue(%HaveSameMap(key1, key2));
+// Try querying using frozen key.
+assertFalse(map.has(key));
+assertSame(undefined, map.get(key));
+
+// Try adding using frozen key.
+map.set(key, 1);
+assertTrue(map.has(key));
+assertSame(1, map.get(key));
+
+// Try deleting using frozen key.
+map.delete(key, 1);
+assertFalse(map.has(key));
+assertSame(undefined, map.get(key));
