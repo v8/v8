@@ -4841,11 +4841,15 @@ MaybeObject* Runtime::GetElementOrCharAt(Isolate* isolate,
     if (!result->IsUndefined()) return *result;
   }
 
+  Handle<Object> result;
   if (object->IsString() || object->IsNumber() || object->IsBoolean()) {
-    return object->GetPrototype(isolate)->GetElement(isolate, index);
+    Handle<Object> proto(object->GetPrototype(isolate), isolate);
+    result = Object::GetElement(isolate, proto, index);
+  } else {
+    result = Object::GetElement(isolate, object, index);
   }
-
-  return object->GetElement(isolate, index);
+  RETURN_IF_EMPTY_HANDLE(isolate, result);
+  return *result;
 }
 
 
@@ -6023,7 +6027,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetArgumentsProperty) {
     if (index < n) {
       return frame->GetParameter(index);
     } else {
-      return isolate->initial_object_prototype()->GetElement(isolate, index);
+      Handle<Object> initial_prototype(isolate->initial_object_prototype());
+      Handle<Object> result =
+          Object::GetElement(isolate, initial_prototype, index);
+      RETURN_IF_EMPTY_HANDLE(isolate, result);
+      return *result;
     }
   }
 
@@ -8867,6 +8875,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Apply) {
 
   for (int i = 0; i < argc; ++i) {
     argv[i] = Object::GetElement(isolate, arguments, offset + i);
+    RETURN_IF_EMPTY_HANDLE(isolate, argv[i]);
   }
 
   bool threw;
@@ -13730,14 +13739,14 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetLanguageTagVariants) {
   Handle<Name> base =
       isolate->factory()->NewStringFromAscii(CStrVector("base"));
   for (unsigned int i = 0; i < length; ++i) {
-    MaybeObject* maybe_string = input->GetElement(isolate, i);
-    Object* locale_id;
-    if (!maybe_string->ToObject(&locale_id) || !locale_id->IsString()) {
+    Handle<Object> locale_id = Object::GetElement(isolate, input, i);
+    RETURN_IF_EMPTY_HANDLE(isolate, locale_id);
+    if (!locale_id->IsString()) {
       return isolate->Throw(isolate->heap()->illegal_argument_string());
     }
 
     v8::String::Utf8Value utf8_locale_id(
-        v8::Utils::ToLocal(Handle<String>(String::cast(locale_id))));
+        v8::Utils::ToLocal(Handle<String>::cast(locale_id)));
 
     UErrorCode error = U_ZERO_ERROR;
 
@@ -14594,15 +14603,14 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ListNatives) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_Log) {
-  SealHandleScope shs(isolate);
+  HandleScope handle_scope(isolate);
   ASSERT(args.length() == 2);
-  CONVERT_ARG_CHECKED(String, format, 0);
-  CONVERT_ARG_CHECKED(JSArray, elms, 1);
-  DisallowHeapAllocation no_gc;
-  String::FlatContent format_content = format->GetFlatContent();
-  RUNTIME_ASSERT(format_content.IsAscii());
-  Vector<const uint8_t> chars = format_content.ToOneByteVector();
-  isolate->logger()->LogRuntime(Vector<const char>::cast(chars), elms);
+  CONVERT_ARG_HANDLE_CHECKED(String, format, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSArray, elms, 1);
+
+  SmartArrayPointer<char> format_chars = format->ToCString();
+  isolate->logger()->LogRuntime(
+      Vector<const char>(format_chars.get(), format->length()), elms);
   return isolate->heap()->undefined_value();
 }
 

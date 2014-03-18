@@ -146,7 +146,6 @@ typedef ZoneList<Handle<Object> > ZoneObjectList;
   do {                                            \
     ASSERT(!(isolate)->has_pending_exception());  \
     CHECK(!(call).is_null());                     \
-    CHECK(!(isolate)->has_pending_exception());   \
   } while (false)
 
 #define RETURN_IF_EMPTY_HANDLE(isolate, call)                       \

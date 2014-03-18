@@ -493,16 +493,8 @@ Handle<Object> Object::GetProperty(Handle<Object> object,
   // method (or somewhere else entirely). Needs more global clean-up.
   uint32_t index;
   Isolate* isolate = name->GetIsolate();
-  if (name->AsArrayIndex(&index))
-    return GetElement(isolate, object, index);
+  if (name->AsArrayIndex(&index)) return GetElement(isolate, object, index);
   CALL_HEAP_FUNCTION(isolate, object->GetProperty(*name), Object);
-}
-
-
-Handle<Object> Object::GetElement(Isolate* isolate,
-                                  Handle<Object> object,
-                                  uint32_t index) {
-  CALL_HEAP_FUNCTION(isolate, object->GetElement(isolate, index), Object);
 }
 
 
@@ -4085,6 +4077,7 @@ Handle<Object> JSObject::SetPropertyForResult(Handle<JSObject> object,
                      *name != isolate->heap()->hidden_string();
   if (is_observed && lookup->IsDataProperty()) {
     old_value = Object::GetProperty(object, name);
+    CHECK_NOT_EMPTY_HANDLE(isolate, old_value);
   }
 
   // This is a real property that is not read-only, or it is a
@@ -4130,6 +4123,7 @@ Handle<Object> JSObject::SetPropertyForResult(Handle<JSObject> object,
       object->LocalLookup(*name, &new_lookup, true);
       if (new_lookup.IsDataProperty()) {
         Handle<Object> new_value = Object::GetProperty(object, name);
+        CHECK_NOT_EMPTY_HANDLE(isolate, new_value);
         if (!new_value->SameValue(*old_value)) {
           EnqueueChangeRecord(object, "update", name, old_value);
         }
@@ -4206,8 +4200,10 @@ Handle<Object> JSObject::SetLocalPropertyIgnoreAttributes(
   bool is_observed = object->map()->is_observed() &&
                      *name != isolate->heap()->hidden_string();
   if (is_observed && lookup.IsProperty()) {
-    if (lookup.IsDataProperty()) old_value =
-        Object::GetProperty(object, name);
+    if (lookup.IsDataProperty()) {
+      old_value = Object::GetProperty(object, name);
+      CHECK_NOT_EMPTY_HANDLE(isolate, old_value);
+    }
     old_attributes = lookup.GetAttributes();
   }
 
@@ -4252,6 +4248,7 @@ Handle<Object> JSObject::SetLocalPropertyIgnoreAttributes(
       bool value_changed = false;
       if (new_lookup.IsDataProperty()) {
         Handle<Object> new_value = Object::GetProperty(object, name);
+        CHECK_NOT_EMPTY_HANDLE(isolate, new_value);
         value_changed = !old_value->SameValue(*new_value);
       }
       if (new_lookup.GetAttributes() != old_attributes) {
@@ -5206,9 +5203,12 @@ Handle<Object> JSObject::DeleteElement(Handle<JSObject> object,
   if (object->map()->is_observed()) {
     should_enqueue_change_record = HasLocalElement(object, index);
     if (should_enqueue_change_record) {
-      old_value = object->GetLocalElementAccessorPair(index) != NULL
-          ? Handle<Object>::cast(factory->the_hole_value())
-          : Object::GetElement(isolate, object, index);
+      if (object->GetLocalElementAccessorPair(index) != NULL) {
+        old_value = Handle<Object>::cast(factory->the_hole_value());
+      } else {
+        old_value = Object::GetElement(isolate, object, index);
+        CHECK_NOT_EMPTY_HANDLE(isolate, old_value);
+      }
     }
   }
 
@@ -5278,6 +5278,7 @@ Handle<Object> JSObject::DeleteProperty(Handle<JSObject> object,
                      *name != isolate->heap()->hidden_string();
   if (is_observed && lookup.IsDataProperty()) {
     old_value = Object::GetProperty(object, name);
+    CHECK_NOT_EMPTY_HANDLE(isolate, old_value);
   }
   Handle<Object> result;
 
@@ -6376,6 +6377,7 @@ void JSObject::DefineAccessor(Handle<JSObject> object,
       preexists = HasLocalElement(object, index);
       if (preexists && object->GetLocalElementAccessorPair(index) == NULL) {
         old_value = Object::GetElement(isolate, object, index);
+        CHECK_NOT_EMPTY_HANDLE(isolate, old_value);
       }
     } else {
       LookupResult lookup(isolate);
@@ -6383,6 +6385,7 @@ void JSObject::DefineAccessor(Handle<JSObject> object,
       preexists = lookup.IsProperty();
       if (preexists && lookup.IsDataProperty()) {
         old_value = Object::GetProperty(object, name);
+        CHECK_NOT_EMPTY_HANDLE(isolate, old_value);
       }
     }
   }
@@ -11374,9 +11377,14 @@ static bool GetOldValue(Isolate* isolate,
       JSReceiver::GetLocalElementAttribute(object, index);
   ASSERT(attributes != ABSENT);
   if (attributes == DONT_DELETE) return false;
-  old_values->Add(object->GetLocalElementAccessorPair(index) == NULL
-      ? Object::GetElement(isolate, object, index)
-      : Handle<Object>::cast(isolate->factory()->the_hole_value()));
+  Handle<Object> value;
+  if (object->GetLocalElementAccessorPair(index) != NULL) {
+    value = Handle<Object>::cast(isolate->factory()->the_hole_value());
+  } else {
+    value = Object::GetElement(isolate, object, index);
+    CHECK_NOT_EMPTY_HANDLE(isolate, value);
+  }
+  old_values->Add(value);
   indices->Add(index);
   return true;
 }
@@ -12606,8 +12614,10 @@ Handle<Object> JSObject::SetElement(Handle<JSObject> object,
   Handle<Object> new_length_handle;
 
   if (old_attributes != ABSENT) {
-    if (object->GetLocalElementAccessorPair(index) == NULL)
+    if (object->GetLocalElementAccessorPair(index) == NULL) {
       old_value = Object::GetElement(isolate, object, index);
+      CHECK_NOT_EMPTY_HANDLE(isolate, old_value);
+    }
   } else if (object->IsJSArray()) {
     // Store old array length in case adding an element grows the array.
     old_length_handle = handle(Handle<JSArray>::cast(object)->length(),
@@ -12653,6 +12663,7 @@ Handle<Object> JSObject::SetElement(Handle<JSObject> object,
     EnqueueChangeRecord(object, "reconfigure", name, old_value);
   } else {
     Handle<Object> new_value = Object::GetElement(isolate, object, index);
+    CHECK_NOT_EMPTY_HANDLE(isolate, new_value);
     bool value_changed = !old_value->SameValue(*new_value);
     if (old_attributes != new_attributes) {
       if (!value_changed) old_value = isolate->factory()->the_hole_value();

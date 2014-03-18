@@ -1049,12 +1049,16 @@ bool Object::HasSpecificClassOf(String* name) {
 }
 
 
-MaybeObject* Object::GetElement(Isolate* isolate, uint32_t index) {
+Handle<Object> Object::GetElement(Isolate* isolate,
+                                  Handle<Object> object,
+                                  uint32_t index) {
   // GetElement can trigger a getter which can cause allocation.
   // This was not always the case. This ASSERT is here to catch
   // leftover incorrect uses.
   ASSERT(AllowHeapAllocation::IsAllowed());
-  return GetElementWithReceiver(isolate, this, index);
+  CALL_HEAP_FUNCTION(isolate,
+                     object->GetElementWithReceiver(isolate, *object, index),
+                     Object);
 }
 
 

@@ -1949,8 +1949,9 @@ static const char* DropActivationsInActiveThread(
 
   // Replace "blocked on active" with "replaced on active" status.
   for (int i = 0; i < array_len; i++) {
-    if (result->GetElement(result->GetIsolate(), i) ==
-        Smi::FromInt(LiveEdit::FUNCTION_BLOCKED_ON_ACTIVE_STACK)) {
+    Handle<Object> obj = Object::GetElement(isolate, result, i);
+    CHECK_NOT_EMPTY_HANDLE(isolate, obj);
+    if (*obj == Smi::FromInt(LiveEdit::FUNCTION_BLOCKED_ON_ACTIVE_STACK)) {
       Handle<Object> replaced(
           Smi::FromInt(LiveEdit::FUNCTION_REPLACED_ON_ACTIVE_STACK), isolate);
       SetElementSloppy(result, i, replaced);

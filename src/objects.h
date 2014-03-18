@@ -1577,11 +1577,10 @@ class Object : public MaybeObject {
   MUST_USE_RESULT MaybeObject* GetPropertyWithDefinedGetter(Object* receiver,
                                                             JSReceiver* getter);
 
-  static Handle<Object> GetElement(Isolate* isolate,
-                                   Handle<Object> object,
-                                   uint32_t index);
-  MUST_USE_RESULT inline MaybeObject* GetElement(Isolate* isolate,
-                                                 uint32_t index);
+  static inline Handle<Object> GetElement(Isolate* isolate,
+                                          Handle<Object> object,
+                                          uint32_t index);
+
   // For use when we know that no exception can be thrown.
   inline Object* GetElementNoExceptionThrown(Isolate* isolate, uint32_t index);
   MUST_USE_RESULT MaybeObject* GetElementWithReceiver(Isolate* isolate,

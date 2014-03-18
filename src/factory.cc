@@ -1131,8 +1131,9 @@ Handle<String> Factory::EmergencyNewError(const char* message,
       *p++ = ' ';
       space--;
       if (space > 0) {
-        MaybeObject* maybe_arg = args->GetElement(isolate(), i);
-        Handle<String> arg_str(reinterpret_cast<String*>(maybe_arg));
+        Handle<String> arg_str = Handle<String>::cast(
+            Object::GetElement(isolate(), args, i));
+        CHECK_NOT_EMPTY_HANDLE(isolate(), arg_str);
         SmartArrayPointer<char> arg = arg_str->ToCString();
         Vector<char> v2(p, static_cast<int>(space));
         OS::StrNCpy(v2, arg.get(), space);
