@@ -1674,7 +1674,7 @@ HValue* HGraphBuilder::BuildNumberToString(HValue* object, Type* type) {
   }
   if_objectissmi.Else();
   {
-    if (type->Is(Type::Smi())) {
+    if (type->Is(Type::SignedSmall())) {
       if_objectissmi.Deopt("Expected smi");
     } else {
       // Check if the object is a heap number.
@@ -8980,7 +8980,7 @@ bool CanBeZero(HValue* right) {
 
 HValue* HGraphBuilder::EnforceNumberType(HValue* number,
                                          Type* expected) {
-  if (expected->Is(Type::Smi())) {
+  if (expected->Is(Type::SignedSmall())) {
     return AddUncasted<HForceRepresentation>(number, Representation::Smi());
   }
   if (expected->Is(Type::Signed32())) {
@@ -9023,7 +9023,7 @@ HValue* HGraphBuilder::TruncateToNumber(HValue* value, Type** expected) {
 
   if (expected_obj->Is(Type::Undefined(zone()))) {
     // This is already done by HChange.
-    *expected = Type::Union(expected_number, Type::Double(zone()), zone());
+    *expected = Type::Union(expected_number, Type::Float(zone()), zone());
     return value;
   }
 

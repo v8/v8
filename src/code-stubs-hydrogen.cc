@@ -941,7 +941,7 @@ HValue* CodeStubGraphBuilder<BinaryOpICStub>::BuildCodeInitializedStub() {
   // If we encounter a generic argument, the number conversion is
   // observable, thus we cannot afford to bail out after the fact.
   if (!state.HasSideEffects()) {
-    if (result_type->Is(Type::Smi())) {
+    if (result_type->Is(Type::SignedSmall())) {
       if (state.op() == Token::SHR) {
         // TODO(olivf) Replace this by a SmiTagU Instruction.
         // 0x40000000: this number would convert to negative when interpreting

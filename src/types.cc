@@ -152,14 +152,14 @@ int TypeImpl<Config>::LubBitset() {
 
 template<class Config>
 int TypeImpl<Config>::LubBitset(i::Object* value) {
-  if (value->IsSmi()) return kSmi;
+  if (value->IsSmi()) return kSignedSmall & kTaggedInt;
   i::Map* map = i::HeapObject::cast(value)->map();
   if (map->instance_type() == HEAP_NUMBER_TYPE) {
     int32_t i;
     uint32_t u;
-    if (value->ToInt32(&i)) return Smi::IsValid(i) ? kSmi : kOtherSigned32;
-    if (value->ToUint32(&u)) return kUnsigned32;
-    return kDouble;
+    return kTaggedPtr & (
+        value->ToInt32(&i) ? (Smi::IsValid(i) ? kSignedSmall : kOtherSigned32) :
+        value->ToUint32(&u) ? kUnsigned32 : kFloat);
   }
   if (map->instance_type() == ODDBALL_TYPE) {
     if (value->IsUndefined()) return kUndefined;
@@ -204,7 +204,7 @@ int TypeImpl<Config>::LubBitset(i::Map* map) {
     case ODDBALL_TYPE:
       return kOddball;
     case HEAP_NUMBER_TYPE:
-      return kDouble;
+      return kFloat & kTaggedPtr;
     case JS_VALUE_TYPE:
     case JS_DATE_TYPE:
     case JS_OBJECT_TYPE:
@@ -247,7 +247,7 @@ int TypeImpl<Config>::LubBitset(i::Map* map) {
     case EXECUTABLE_ACCESSOR_INFO_TYPE:
     case ACCESSOR_PAIR_TYPE:
     case FIXED_ARRAY_TYPE:
-      return kInternal;
+      return kInternal & kTaggedPtr;
     default:
       UNREACHABLE();
       return kNone;
@@ -273,13 +273,12 @@ int TypeImpl<Config>::GlbBitset() {
 template<class Config>
 typename TypeImpl<Config>::TypeHandle TypeImpl<Config>::OfCurrently(
     i::Handle<i::Object> value, Region* region) {
-  if (value->IsSmi()) return Smi(region);
-  i::Map* map = i::HeapObject::cast(*value)->map();
-  if (map->instance_type() == HEAP_NUMBER_TYPE ||
-      map->instance_type() == ODDBALL_TYPE) {
+  if (value->IsSmi() ||
+      i::HeapObject::cast(*value)->map()->instance_type() == HEAP_NUMBER_TYPE ||
+      i::HeapObject::cast(*value)->map()->instance_type() == ODDBALL_TYPE) {
     return Of(value, region);
   }
-  return Class(i::handle(map), region);
+  return Class(i::handle(i::HeapObject::cast(*value)->map()), region);
 }
 
 
@@ -340,10 +339,10 @@ template<class Config>
 bool TypeImpl<Config>::Maybe(TypeImpl* that) {
   // Fast path for bitsets.
   if (this->IsBitset()) {
-    return (this->AsBitset() & that->LubBitset()) != 0;
+    return IsInhabited(this->AsBitset() & that->LubBitset());
   }
   if (that->IsBitset()) {
-    return (this->LubBitset() & that->AsBitset()) != 0;
+    return IsInhabited(this->LubBitset() & that->AsBitset());
   }
 
   // (T1 \/ ... \/ Tn) overlaps T <=> (T1 overlaps T) \/ ... \/ (Tn overlaps T)
@@ -570,7 +569,7 @@ typename TypeImpl<Config>::TypeHandle TypeImpl<Config>::Convert(
 // TODO(rossberg): this does not belong here.
 Representation Representation::FromType(Type* type) {
   if (type->Is(Type::None())) return Representation::None();
-  if (type->Is(Type::Smi())) return Representation::Smi();
+  if (type->Is(Type::SignedSmall())) return Representation::Smi();
   if (type->Is(Type::Signed32())) return Representation::Integer32();
   if (type->Is(Type::Number())) return Representation::Double();
   return Representation::Tagged();
@@ -579,8 +578,8 @@ Representation Representation::FromType(Type* type) {
 
 #ifdef OBJECT_PRINT
 template<class Config>
-void TypeImpl<Config>::TypePrint() {
-  TypePrint(stdout);
+void TypeImpl<Config>::TypePrint(PrintDimension dim) {
+  TypePrint(stdout, dim);
   PrintF(stdout, "\n");
   Flush(stdout);
 }
@@ -589,9 +588,17 @@ void TypeImpl<Config>::TypePrint() {
 template<class Config>
 const char* TypeImpl<Config>::bitset_name(int bitset) {
   switch (bitset) {
-    #define PRINT_COMPOSED_TYPE(type, value) case k##type: return #type;
-    BITSET_TYPE_LIST(PRINT_COMPOSED_TYPE)
+    case kAny & kRepresentation: return "Any";
+    #define PRINT_COMPOSED_TYPE(type, value) \
+    case k##type & kRepresentation: return #type;
+    REPRESENTATION_BITSET_TYPE_LIST(PRINT_COMPOSED_TYPE)
     #undef PRINT_COMPOSED_TYPE
+
+    #define PRINT_COMPOSED_TYPE(type, value) \
+    case k##type & kSemantic: return #type;
+    SEMANTIC_BITSET_TYPE_LIST(PRINT_COMPOSED_TYPE)
+    #undef PRINT_COMPOSED_TYPE
+
     default:
       return NULL;
   }
@@ -599,23 +606,54 @@ const char* TypeImpl<Config>::bitset_name(int bitset) {
 
 
 template<class Config>
-void TypeImpl<Config>::TypePrint(FILE* out) {
+void TypeImpl<Config>::BitsetTypePrint(FILE* out, int bitset) {
+  const char* name = bitset_name(bitset);
+  if (name != NULL) {
+    PrintF(out, "%s", name);
+  } else {
+    static const int named_bitsets[] = {
+      #define BITSET_CONSTANT(type, value) k##type & kRepresentation,
+      REPRESENTATION_BITSET_TYPE_LIST(BITSET_CONSTANT)
+      #undef BITSET_CONSTANT
+
+      #define BITSET_CONSTANT(type, value) k##type & kSemantic,
+      SEMANTIC_BITSET_TYPE_LIST(BITSET_CONSTANT)
+      #undef BITSET_CONSTANT
+    };
+
+    bool is_first = true;
+    PrintF(out, "(");
+    for (int i(ARRAY_SIZE(named_bitsets) - 1); bitset != 0 && i >= 0; --i) {
+      int subset = named_bitsets[i];
+      if ((bitset & subset) == subset) {
+        if (!is_first) PrintF(out, " | ");
+        is_first = false;
+        PrintF(out, "%s", bitset_name(subset));
+        bitset -= subset;
+      }
+    }
+    ASSERT(bitset == 0);
+    PrintF(out, ")");
+  }
+}
+
+
+template<class Config>
+void TypeImpl<Config>::TypePrint(FILE* out, PrintDimension dim) {
   if (this->IsBitset()) {
     int bitset = this->AsBitset();
-    const char* name = bitset_name(bitset);
-    if (name != NULL) {
-      PrintF(out, "%s", name);
-    } else {
-      bool is_first = true;
-      PrintF(out, "(");
-      for (int mask = 1; mask != 0; mask = mask << 1) {
-        if ((bitset & mask) != 0) {
-          if (!is_first) PrintF(out, " | ");
-          is_first = false;
-          PrintF(out, "%s", bitset_name(mask));
-        }
-      }
-      PrintF(out, ")");
+    switch (dim) {
+      case BOTH_DIMS:
+        BitsetTypePrint(out, bitset & kSemantic);
+        PrintF("/");
+        BitsetTypePrint(out, bitset & kRepresentation);
+        break;
+      case SEMANTIC_DIM:
+        BitsetTypePrint(out, bitset & kSemantic);
+        break;
+      case REPRESENTATION_DIM:
+        BitsetTypePrint(out, bitset & kRepresentation);
+        break;
     }
   } else if (this->IsConstant()) {
     PrintF(out, "Constant(%p : ", static_cast<void*>(*this->AsConstant()));

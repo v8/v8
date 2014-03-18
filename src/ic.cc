@@ -2372,7 +2372,7 @@ const char* BinaryOpIC::State::KindToString(Kind kind) {
 Type* BinaryOpIC::State::KindToType(Kind kind, Zone* zone) {
   switch (kind) {
     case NONE: return Type::None(zone);
-    case SMI: return Type::Smi(zone);
+    case SMI: return Type::SignedSmall(zone);
     case INT32: return Type::Signed32(zone);
     case NUMBER: return Type::Number(zone);
     case STRING: return Type::String(zone);
@@ -2518,7 +2518,7 @@ Type* CompareIC::StateToType(
     Handle<Map> map) {
   switch (state) {
     case CompareIC::UNINITIALIZED: return Type::None(zone);
-    case CompareIC::SMI: return Type::Smi(zone);
+    case CompareIC::SMI: return Type::SignedSmall(zone);
     case CompareIC::NUMBER: return Type::Number(zone);
     case CompareIC::STRING: return Type::String(zone);
     case CompareIC::INTERNALIZED_STRING: return Type::InternalizedString(zone);
