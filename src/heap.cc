@@ -6161,6 +6161,8 @@ void Heap::IterateWeakRoots(ObjectVisitor* v, VisitMode mode) {
 
 
 void Heap::IterateSmiRoots(ObjectVisitor* v) {
+  // Acquire execution access since we are going to read stack limit values.
+  ExecutionAccess access(isolate());
   v->VisitPointers(&roots_[kSmiRootsStart], &roots_[kRootListLength]);
   v->Synchronize(VisitorSynchronization::kSmiRootList);
 }
