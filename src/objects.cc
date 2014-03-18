@@ -10513,21 +10513,20 @@ Map* Code::FindFirstMap() {
 }
 
 
-void Code::ReplaceNthObject(int n,
-                            Map* match_map,
-                            Object* replace_with) {
+void Code::FindAndReplace(const FindAndReplacePattern& pattern) {
   ASSERT(is_inline_cache_stub() || is_handler());
   DisallowHeapAllocation no_allocation;
   int mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
+  STATIC_ASSERT(FindAndReplacePattern::kMaxCount < 32);
+  int current_pattern = 0;
   for (RelocIterator it(this, mask); !it.done(); it.next()) {
     RelocInfo* info = it.rinfo();
     Object* object = info->target_object();
     if (object->IsHeapObject()) {
-      if (HeapObject::cast(object)->map() == match_map) {
-        if (--n == 0) {
-          info->set_target_object(replace_with);
-          return;
-        }
+      Map* map = HeapObject::cast(object)->map();
+      if (map == *pattern.find_[current_pattern]) {
+        info->set_target_object(*pattern.replace_[current_pattern]);
+        if (++current_pattern == pattern.count_) return;
       }
     }
   }
@@ -10559,11 +10558,6 @@ void Code::FindAllTypes(TypeHandleList* types) {
       types->Add(IC::MapToType<HeapType>(map, map->GetIsolate()));
     }
   }
-}
-
-
-void Code::ReplaceFirstMap(Map* replace_with) {
-  ReplaceNthObject(1, GetHeap()->meta_map(), replace_with);
 }
 
 
@@ -10609,21 +10603,6 @@ Name* Code::FindFirstName() {
     if (object->IsName()) return Name::cast(object);
   }
   return NULL;
-}
-
-
-void Code::ReplaceNthCell(int n, Cell* replace_with) {
-  ASSERT(is_inline_cache_stub());
-  DisallowHeapAllocation no_allocation;
-  int mask = RelocInfo::ModeMask(RelocInfo::CELL);
-  for (RelocIterator it(this, mask); !it.done(); it.next()) {
-    RelocInfo* info = it.rinfo();
-    if (--n == 0) {
-      info->set_target_cell(replace_with);
-      return;
-    }
-  }
-  UNREACHABLE();
 }
 
 
