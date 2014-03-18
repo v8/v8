@@ -12755,7 +12755,7 @@ void JSObject::TransitionElementsKind(Handle<JSObject> object,
 }
 
 
-const double AllocationSite::kPretenureRatio = 0.60;
+const double AllocationSite::kPretenureRatio = 0.85;
 
 
 void AllocationSite::ResetPretenureDecision() {
