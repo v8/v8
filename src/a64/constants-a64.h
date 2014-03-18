@@ -225,31 +225,34 @@ V_(CRm, 11, 8, Bits)                                                           \
 
 #define SYSTEM_REGISTER_FIELDS_LIST(V_, M_)                                    \
 /* NZCV */                                                                     \
-V_(Flags, 31, 28, Bits)                                                        \
-V_(N, 31, 31, Bits)                                                            \
-V_(Z, 30, 30, Bits)                                                            \
-V_(C, 29, 29, Bits)                                                            \
-V_(V, 28, 28, Bits)                                                            \
+V_(Flags, 31, 28, Bits, uint32_t)                                              \
+V_(N,     31, 31, Bits, bool)                                                  \
+V_(Z,     30, 30, Bits, bool)                                                  \
+V_(C,     29, 29, Bits, bool)                                                  \
+V_(V,     28, 28, Bits, uint32_t)                                              \
 M_(NZCV, Flags_mask)                                                           \
                                                                                \
 /* FPCR */                                                                     \
-V_(AHP, 26, 26, Bits)                                                          \
-V_(DN, 25, 25, Bits)                                                           \
-V_(FZ, 24, 24, Bits)                                                           \
-V_(RMode, 23, 22, Bits)                                                        \
+V_(AHP,   26, 26, Bits, bool)                                                  \
+V_(DN,    25, 25, Bits, bool)                                                  \
+V_(FZ,    24, 24, Bits, bool)                                                  \
+V_(RMode, 23, 22, Bits, FPRounding)                                            \
 M_(FPCR, AHP_mask | DN_mask | FZ_mask | RMode_mask)
 
 
 // Fields offsets.
-#define DECLARE_FIELDS_OFFSETS(Name, HighBit, LowBit, X)                       \
-const int Name##_offset = LowBit;                                              \
-const int Name##_width = HighBit - LowBit + 1;                                 \
-const uint32_t Name##_mask = ((1 << Name##_width) - 1) << LowBit;
+#define DECLARE_FIELDS_OFFSETS(Name, HighBit, LowBit, unused_1, unused_2)      \
+  const int Name##_offset = LowBit;                                            \
+  const int Name##_width = HighBit - LowBit + 1;                               \
+  const uint32_t Name##_mask = ((1 << Name##_width) - 1) << LowBit;
+#define DECLARE_INSTRUCTION_FIELDS_OFFSETS(Name, HighBit, LowBit, unused_1)    \
+  DECLARE_FIELDS_OFFSETS(Name, HighBit, LowBit, unused_1, unused_2)
 #define NOTHING(A, B)
-INSTRUCTION_FIELDS_LIST(DECLARE_FIELDS_OFFSETS)
+INSTRUCTION_FIELDS_LIST(DECLARE_INSTRUCTION_FIELDS_OFFSETS)
 SYSTEM_REGISTER_FIELDS_LIST(DECLARE_FIELDS_OFFSETS, NOTHING)
 #undef NOTHING
-#undef DECLARE_FIELDS_BITS
+#undef DECLARE_FIELDS_OFFSETS
+#undef DECLARE_INSTRUCTION_FIELDS_OFFSETS
 
 // ImmPCRel is a compound field (not present in INSTRUCTION_FIELDS_LIST), formed
 // from ImmPCRelLo and ImmPCRelHi.

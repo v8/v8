@@ -135,14 +135,14 @@ class SimSystemRegister {
   // Default system register values.
   static SimSystemRegister DefaultValueFor(SystemRegister id);
 
-#define DEFINE_GETTER(Name, HighBit, LowBit, Func)                            \
-  uint32_t Name() const { return Func(HighBit, LowBit); }              \
-  void Set##Name(uint32_t bits) { SetBits(HighBit, LowBit, bits); }
-#define DEFINE_WRITE_IGNORE_MASK(Name, Mask)                                  \
+#define DEFINE_GETTER(Name, HighBit, LowBit, Func, Type)                       \
+  Type Name() const { return static_cast<Type>(Func(HighBit, LowBit)); }       \
+  void Set##Name(Type bits) {                                                  \
+    SetBits(HighBit, LowBit, static_cast<Type>(bits));                         \
+  }
+#define DEFINE_WRITE_IGNORE_MASK(Name, Mask)                                   \
   static const uint32_t Name##WriteIgnoreMask = ~static_cast<uint32_t>(Mask);
-
   SYSTEM_REGISTER_FIELDS_LIST(DEFINE_GETTER, DEFINE_WRITE_IGNORE_MASK)
-
 #undef DEFINE_ZERO_BITS
 #undef DEFINE_GETTER
 
@@ -530,16 +530,7 @@ class Simulator : public DecoderVisitor {
     set_fpreg(code, value);
   }
 
-  bool N() { return nzcv_.N() != 0; }
-  bool Z() { return nzcv_.Z() != 0; }
-  bool C() { return nzcv_.C() != 0; }
-  bool V() { return nzcv_.V() != 0; }
   SimSystemRegister& nzcv() { return nzcv_; }
-
-  // TODO(jbramley): Find a way to make the fpcr_ members return the proper
-  // types, so these accessors are not necessary.
-  FPRounding RMode() { return static_cast<FPRounding>(fpcr_.RMode()); }
-  bool DN() { return fpcr_.DN() != 0; }
   SimSystemRegister& fpcr() { return fpcr_; }
 
   // Debug helpers
@@ -616,35 +607,36 @@ class Simulator : public DecoderVisitor {
  protected:
   // Simulation helpers ------------------------------------
   bool ConditionPassed(Condition cond) {
+    SimSystemRegister& flags = nzcv();
     switch (cond) {
       case eq:
-        return Z();
+        return flags.Z();
       case ne:
-        return !Z();
+        return !flags.Z();
       case hs:
-        return C();
+        return flags.C();
       case lo:
-        return !C();
+        return !flags.C();
       case mi:
-        return N();
+        return flags.N();
       case pl:
-        return !N();
+        return !flags.N();
       case vs:
-        return V();
+        return flags.V();
       case vc:
-        return !V();
+        return !flags.V();
       case hi:
-        return C() && !Z();
+        return flags.C() && !flags.Z();
       case ls:
-        return !(C() && !Z());
+        return !(flags.C() && !flags.Z());
       case ge:
-        return N() == V();
+        return flags.N() == flags.V();
       case lt:
-        return N() != V();
+        return flags.N() != flags.V();
       case gt:
-        return !Z() && (N() == V());
+        return !flags.Z() && (flags.N() == flags.V());
       case le:
-        return !(!Z() && (N() == V()));
+        return !(!flags.Z() && (flags.N() == flags.V()));
       case nv:  // Fall through.
       case al:
         return true;

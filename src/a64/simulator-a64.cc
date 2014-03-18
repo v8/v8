@@ -616,7 +616,7 @@ int64_t Simulator::AddWithCarry(unsigned reg_size,
   int64_t result;
   int64_t signed_sum = src1 + src2 + carry_in;
 
-  uint32_t N, Z, C, V;
+  bool N, Z, C, V;
 
   if (reg_size == kWRegSizeInBits) {
     u1 = static_cast<uint64_t>(src1) & kWRegMask;
@@ -831,7 +831,7 @@ void Simulator::PrintSystemRegisters(bool print_all) {
     fprintf(stream_, "# %sFLAGS: %sN:%d Z:%d C:%d V:%d%s\n",
             clr_flag_name,
             clr_flag_value,
-            N(), Z(), C(), V(),
+            nzcv().N(), nzcv().Z(), nzcv().C(), nzcv().V(),
             clr_normal);
   }
   last_nzcv = nzcv();
@@ -1135,7 +1135,7 @@ void Simulator::VisitAddSubWithCarry(Instruction* instr) {
                          instr->FlagsUpdate(),
                          reg(reg_size, instr->Rn()),
                          op2,
-                         C());
+                         nzcv().C());
 
   set_reg(reg_size, instr->Rd(), new_val);
 }
@@ -1931,7 +1931,7 @@ void Simulator::VisitFPIntegerConvert(Instruction* instr) {
   unsigned dst = instr->Rd();
   unsigned src = instr->Rn();
 
-  FPRounding round = RMode();
+  FPRounding round = fpcr().RMode();
 
   switch (instr->Mask(FPIntegerConvertMask)) {
     case FCVTAS_ws: set_wreg(dst, FPToInt32(sreg(src), FPTieAway)); break;
@@ -2016,7 +2016,7 @@ void Simulator::VisitFPFixedPointConvert(Instruction* instr) {
   unsigned src = instr->Rn();
   int fbits = 64 - instr->FPScale();
 
-  FPRounding round = RMode();
+  FPRounding round = fpcr().RMode();
 
   switch (instr->Mask(FPFixedPointConvertMask)) {
     // A 32-bit input can be handled in the same way as a 64-bit input, since
@@ -2476,7 +2476,7 @@ double Simulator::FPRoundInt(double value, FPRounding round_mode) {
 double Simulator::FPToDouble(float value) {
   switch (std::fpclassify(value)) {
     case FP_NAN: {
-      if (DN()) return kFP64DefaultNaN;
+      if (fpcr().DN()) return kFP64DefaultNaN;
 
       // Convert NaNs as the processor would:
       //  - The sign is propagated.
@@ -2517,7 +2517,7 @@ float Simulator::FPToFloat(double value, FPRounding round_mode) {
 
   switch (std::fpclassify(value)) {
     case FP_NAN: {
-      if (DN()) return kFP32DefaultNaN;
+      if (fpcr().DN()) return kFP32DefaultNaN;
 
       // Convert NaNs as the processor would:
       //  - The sign is propagated.
@@ -2814,7 +2814,7 @@ T Simulator::FPSub(T op1, T op2) {
 template <typename T>
 T Simulator::FPProcessNaN(T op) {
   ASSERT(std::isnan(op));
-  return DN() ? FPDefaultNaN<T>() : ToQuietNaN(op);
+  return fpcr().DN() ? FPDefaultNaN<T>() : ToQuietNaN(op);
 }
 
 
