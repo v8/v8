@@ -1824,10 +1824,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   __ Mov(x11, Operand(ExternalReference(Isolate::kCEntryFPAddress, isolate)));
   __ Ldr(x10, MemOperand(x11));
 
-  // TODO(all): Pushing the marker twice seems unnecessary.
-  // In this case perhaps we could push xzr in the slot for the context
-  // (see MAsm::EnterFrame).
-  __ Push(x13, x12, x12, x10);
+  __ Push(x13, xzr, x12, x10);
   // Set up fp.
   __ Sub(fp, jssp, EntryFrameConstants::kCallerFPOffset);
 
@@ -1873,7 +1870,6 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
     // field in the JSEnv and return a failure sentinel. Coming in here the
     // fp will be invalid because the PushTryHandler below sets it to 0 to
     // signal the existence of the JSEntry frame.
-    // TODO(jbramley): Do this in the Assembler.
     __ Mov(x10, Operand(ExternalReference(Isolate::kPendingExceptionAddress,
            isolate)));
   }
@@ -4070,12 +4066,13 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   __ Bind(&update_instance_type);
   __ Ldr(temp, FieldMemOperand(unpacked_string, HeapObject::kMapOffset));
   __ Ldrb(input_type, FieldMemOperand(temp, Map::kInstanceTypeOffset));
-  // TODO(all): This generates "b #+0x4". Can these be optimised out?
-  __ B(&underlying_unpacked);
+  // Now control must go to &underlying_unpacked. Since the no code is generated
+  // before then we fall through instead of generating a useless branch.
 
   __ Bind(&seq_or_external_string);
   // Sequential or external string. Registers unpacked_string and input_string
   // alias, so there's nothing to do here.
+  // Note that if code is added here, the above code must be updated.
 
   //   x0   result_string    pointer to result string object (uninit)
   //   x1   result_length    length of substring result
@@ -4202,7 +4199,6 @@ void SubStringStub::Generate(MacroAssembler* masm) {
       input_string, from, result_length, x0,
       &runtime, &runtime, &runtime, STRING_INDEX_IS_NUMBER);
   generator.GenerateFast(masm);
-  // TODO(jbramley): Why doesn't this jump to return_x0?
   __ Drop(3);
   __ Ret();
   generator.SkipSlow(masm, &runtime);
@@ -4439,7 +4435,6 @@ void ArrayPushStub::Generate(MacroAssembler* masm) {
            Operand::UntagSmiAndScale(length, kPointerSizeLog2));
     __ Str(value, MemOperand(end_elements, kEndElementsOffset, PreIndex));
   } else {
-    // TODO(all): ARM has a redundant cmp here.
     __ B(gt, &call_builtin);
 
     __ Peek(value, (argc - 1) * kPointerSize);
@@ -5636,7 +5631,6 @@ void CallApiFunctionStub::Generate(MacroAssembler* masm) {
   FrameScope frame_scope(masm, StackFrame::MANUAL);
   __ EnterExitFrame(false, x10, kApiStackSpace + kCallApiFunctionSpillSpace);
 
-  // TODO(all): Optimize this with stp and suchlike.
   ASSERT(!AreAliased(x0, api_function_address));
   // x0 = FunctionCallbackInfo&
   // Arguments is after the return address.

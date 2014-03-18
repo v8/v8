@@ -1273,9 +1273,10 @@ void MacroAssembler::BumpSystemStackPointer(const Operand& space) {
   ASSERT(!csp.Is(sp_));
   // TODO(jbramley): Several callers rely on this not using scratch registers,
   // so we use the assembler directly here. However, this means that large
-  // immediate values of 'space' cannot be handled cleanly. Once we implement
-  // our flexible scratch register idea, we could greatly simplify this
-  // function.
+  // immediate values of 'space' cannot be handled cleanly. (Only 24-bits
+  // immediates or values of 'space' that can be encoded in one instruction are
+  // accepted.) Once we implement our flexible scratch register idea, we could
+  // greatly simplify this function.
   InstructionAccurateScope scope(this);
   if ((space.IsImmediate()) && !is_uint12(space.immediate())) {
     // The subtract instruction supports a 12-bit immediate, shifted left by

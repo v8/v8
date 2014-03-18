@@ -304,12 +304,14 @@ void Simulator::CorruptAllCallerSavedCPURegisters() {
 
 
 // Extending the stack by 2 * 64 bits is required for stack alignment purposes.
-// TODO(all): Insert a marker in the extra space allocated on the stack.
 uintptr_t Simulator::PushAddress(uintptr_t address) {
   ASSERT(sizeof(uintptr_t) < 2 * kXRegSize);
   intptr_t new_sp = sp() - 2 * kXRegSize;
+  uintptr_t* alignment_slot =
+    reinterpret_cast<uintptr_t*>(new_sp + kXRegSize);
+  memcpy(alignment_slot, &kSlotsZapValue, kPointerSize);
   uintptr_t* stack_slot = reinterpret_cast<uintptr_t*>(new_sp);
-  *stack_slot = address;
+  memcpy(stack_slot, &address, kPointerSize);
   set_sp(new_sp);
   return new_sp;
 }
@@ -439,12 +441,6 @@ void Simulator::Run() {
 void Simulator::RunFrom(Instruction* start) {
   set_pc(start);
   Run();
-}
-
-
-void Simulator::CheckStackAlignment() {
-  // TODO(aleram): The sp alignment check to perform depends on the processor
-  // state. Check the specifications for more details.
 }
 
 
@@ -1721,11 +1717,6 @@ uint64_t Simulator::ReverseBytes(uint64_t value, ReverseByteMode mode) {
 
 
 void Simulator::VisitDataProcessing2Source(Instruction* instr) {
-  // TODO(mcapewel) move these to a higher level file, as they are global
-  //                assumptions.
-  ASSERT((static_cast<int32_t>(-1) >> 1) == -1);
-  ASSERT((static_cast<uint32_t>(-1) >> 1) == 0x7FFFFFFF);
-
   Shift shift_op = NO_SHIFT;
   int64_t result = 0;
   switch (instr->Mask(DataProcessing2SourceMask)) {
@@ -3128,7 +3119,6 @@ void Simulator::Debug() {
       } else if ((strcmp(cmd, "print") == 0) || (strcmp(cmd, "p") == 0)) {
         if (argc == 2) {
           if (strcmp(arg1, "all") == 0) {
-            // TODO(all): better support for printing in the debugger.
             PrintRegisters(true);
             PrintFPRegisters(true);
           } else {

@@ -41,6 +41,10 @@ R(24) R(25) R(26) R(27) R(28) R(29) R(30) R(31)
 namespace v8 {
 namespace internal {
 
+// These are global assumptions in v8.
+STATIC_ASSERT((static_cast<int32_t>(-1) >> 1) == -1);
+STATIC_ASSERT((static_cast<uint32_t>(-1) >> 1) == 0x7FFFFFFF);
+
 // Floating point representation.
 static inline uint32_t float_to_rawbits(float value) {
   uint32_t bits = 0;

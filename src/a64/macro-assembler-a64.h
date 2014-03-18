@@ -538,6 +538,10 @@ class MacroAssembler : public Assembler {
   // the system stack pointer, these methods do not modify any other registers.
   void Push(const CPURegister& src0, const CPURegister& src1 = NoReg,
             const CPURegister& src2 = NoReg, const CPURegister& src3 = NoReg);
+  void Push(const CPURegister& src0, const CPURegister& src1,
+            const CPURegister& src2, const CPURegister& src3,
+            const CPURegister& src4, const CPURegister& src5 = NoReg,
+            const CPURegister& src6 = NoReg, const CPURegister& src7 = NoReg);
   void Pop(const CPURegister& dst0, const CPURegister& dst1 = NoReg,
            const CPURegister& dst2 = NoReg, const CPURegister& dst3 = NoReg);
 
@@ -791,10 +795,6 @@ class MacroAssembler : public Assembler {
   //
   // This method asserts that StackPointer() is not csp, since the call does
   // not make sense in that context.
-  //
-  // TODO(jbramley): Currently, this method can only accept values of 'space'
-  // that can be encoded in one instruction. Refer to the implementation for
-  // details.
   inline void BumpSystemStackPointer(const Operand& space);
 
   // Helpers ------------------------------------------------------------------
