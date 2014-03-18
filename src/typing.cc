@@ -612,7 +612,7 @@ void AstTyper::VisitCountOperation(CountOperation* expr) {
 
   RECURSE(Visit(expr->expression()));
 
-  NarrowType(expr, Bounds(Type::Smi(zone()), Type::Number(zone())));
+  NarrowType(expr, Bounds(Type::SignedSmall(zone()), Type::Number(zone())));
 
   VariableProxy* proxy = expr->expression()->AsVariableProxy();
   if (proxy != NULL && proxy->var()->IsStackAllocated()) {
@@ -668,7 +668,7 @@ void AstTyper::VisitBinaryOperation(BinaryOperation* expr) {
       Type* upper = Type::Union(
           expr->left()->bounds().upper, expr->right()->bounds().upper, zone());
       if (!upper->Is(Type::Signed32())) upper = Type::Signed32(zone());
-      Type* lower = Type::Intersect(Type::Smi(zone()), upper, zone());
+      Type* lower = Type::Intersect(Type::SignedSmall(zone()), upper, zone());
       NarrowType(expr, Bounds(lower, upper));
       break;
     }
@@ -677,7 +677,8 @@ void AstTyper::VisitBinaryOperation(BinaryOperation* expr) {
     case Token::SAR:
       RECURSE(Visit(expr->left()));
       RECURSE(Visit(expr->right()));
-      NarrowType(expr, Bounds(Type::Smi(zone()), Type::Signed32(zone())));
+      NarrowType(expr,
+          Bounds(Type::SignedSmall(zone()), Type::Signed32(zone())));
       break;
     case Token::SHR:
       RECURSE(Visit(expr->left()));
@@ -685,7 +686,7 @@ void AstTyper::VisitBinaryOperation(BinaryOperation* expr) {
       // TODO(rossberg): The upper bound would be Unsigned32, but since there
       // is no 'positive Smi' type for the lower bound, we use the smallest
       // union of Smi and Unsigned32 as upper bound instead.
-      NarrowType(expr, Bounds(Type::Smi(zone()), Type::Number(zone())));
+      NarrowType(expr, Bounds(Type::SignedSmall(zone()), Type::Number(zone())));
       break;
     case Token::ADD: {
       RECURSE(Visit(expr->left()));
@@ -698,7 +699,7 @@ void AstTyper::VisitBinaryOperation(BinaryOperation* expr) {
           l.lower->Is(Type::String()) || r.lower->Is(Type::String()) ?
               Type::String(zone()) :
           l.lower->Is(Type::Number()) && r.lower->Is(Type::Number()) ?
-              Type::Smi(zone()) : Type::None(zone());
+              Type::SignedSmall(zone()) : Type::None(zone());
       Type* upper =
           l.upper->Is(Type::String()) || r.upper->Is(Type::String()) ?
               Type::String(zone()) :
@@ -713,7 +714,7 @@ void AstTyper::VisitBinaryOperation(BinaryOperation* expr) {
     case Token::MOD:
       RECURSE(Visit(expr->left()));
       RECURSE(Visit(expr->right()));
-      NarrowType(expr, Bounds(Type::Smi(zone()), Type::Number(zone())));
+      NarrowType(expr, Bounds(Type::SignedSmall(zone()), Type::Number(zone())));
       break;
     default:
       UNREACHABLE();

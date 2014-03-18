@@ -1350,16 +1350,19 @@ void Genesis::InitializeExperimentalGlobal() {
   }
 
   if (FLAG_harmony_collections) {
-    {  // -- S e t
-      InstallFunction(global, "Set", JS_SET_TYPE, JSSet::kSize,
-                      isolate()->initial_object_prototype(),
-                      Builtins::kIllegal, true, true);
-    }
     {  // -- M a p
       InstallFunction(global, "Map", JS_MAP_TYPE, JSMap::kSize,
                       isolate()->initial_object_prototype(),
                       Builtins::kIllegal, true, true);
     }
+    {  // -- S e t
+      InstallFunction(global, "Set", JS_SET_TYPE, JSSet::kSize,
+                      isolate()->initial_object_prototype(),
+                      Builtins::kIllegal, true, true);
+    }
+  }
+
+  if (FLAG_harmony_weak_collections) {
     {  // -- W e a k M a p
       InstallFunction(global, "WeakMap", JS_WEAK_MAP_TYPE, JSWeakMap::kSize,
                       isolate()->initial_object_prototype(),
@@ -2050,6 +2053,7 @@ bool Genesis::InstallExperimentalNatives() {
     INSTALL_EXPERIMENTAL_NATIVE(i, symbols, "symbol.js")
     INSTALL_EXPERIMENTAL_NATIVE(i, proxies, "proxy.js")
     INSTALL_EXPERIMENTAL_NATIVE(i, collections, "collection.js")
+    INSTALL_EXPERIMENTAL_NATIVE(i, weak_collections, "weak_collection.js")
     INSTALL_EXPERIMENTAL_NATIVE(i, promises, "promise.js")
     INSTALL_EXPERIMENTAL_NATIVE(i, generators, "generator.js")
     INSTALL_EXPERIMENTAL_NATIVE(i, iteration, "array-iterator.js")

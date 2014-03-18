@@ -791,6 +791,24 @@ bool Runtime::SetupArrayBufferAllocatingData(
 }
 
 
+void Runtime::NeuterArrayBuffer(Handle<JSArrayBuffer> array_buffer) {
+  Isolate* isolate = array_buffer->GetIsolate();
+  for (Handle<Object> view_obj(array_buffer->weak_first_view(), isolate);
+       !view_obj->IsUndefined();) {
+    Handle<JSArrayBufferView> view(JSArrayBufferView::cast(*view_obj));
+    if (view->IsJSTypedArray()) {
+      JSTypedArray::cast(*view)->Neuter();
+    } else if (view->IsJSDataView()) {
+      JSDataView::cast(*view)->Neuter();
+    } else {
+      UNREACHABLE();
+    }
+    view_obj = handle(view->weak_next(), isolate);
+  }
+  array_buffer->Neuter();
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_ArrayBufferInitialize) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 2);
@@ -844,7 +862,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ArrayBufferSliceImpl) {
 
   if (target_length == 0) return isolate->heap()->undefined_value();
 
-  ASSERT(NumberToSize(isolate, source->byte_length()) - target_length >= start);
+  size_t source_byte_length = NumberToSize(isolate, source->byte_length());
+  CHECK(start <= source_byte_length);
+  CHECK(source_byte_length - start >= target_length);
   uint8_t* source_data = reinterpret_cast<uint8_t*>(source->backing_store());
   uint8_t* target_data = reinterpret_cast<uint8_t*>(target->backing_store());
   CopyBytes(target_data, source_data + start, target_length);
@@ -859,6 +879,19 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ArrayBufferIsView) {
   return object->IsJSArrayBufferView()
     ? isolate->heap()->true_value()
     : isolate->heap()->false_value();
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_ArrayBufferNeuter) {
+  HandleScope scope(isolate);
+  CONVERT_ARG_HANDLE_CHECKED(JSArrayBuffer, array_buffer, 0);
+  ASSERT(!array_buffer->is_external());
+  void* backing_store = array_buffer->backing_store();
+  size_t byte_length = NumberToSize(isolate, array_buffer->byte_length());
+  array_buffer->set_is_external(true);
+  Runtime::NeuterArrayBuffer(array_buffer);
+  V8::ArrayBufferAllocator()->Free(backing_store, byte_length);
+  return isolate->heap()->undefined_value();
 }
 
 
@@ -905,7 +938,12 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_TypedArrayInitialize) {
 
   size_t byte_offset = NumberToSize(isolate, *byte_offset_object);
   size_t byte_length = NumberToSize(isolate, *byte_length_object);
-  ASSERT(byte_length % element_size == 0);
+  size_t array_buffer_byte_length =
+      NumberToSize(isolate, buffer->byte_length());
+  CHECK(byte_offset <= array_buffer_byte_length);
+  CHECK(array_buffer_byte_length - byte_offset >= byte_length);
+
+  CHECK_EQ(0, static_cast<int>(byte_length % element_size));
   size_t length = byte_length / element_size;
 
   if (length > static_cast<unsigned>(Smi::kMaxValue)) {
@@ -4803,11 +4841,15 @@ MaybeObject* Runtime::GetElementOrCharAt(Isolate* isolate,
     if (!result->IsUndefined()) return *result;
   }
 
+  Handle<Object> result;
   if (object->IsString() || object->IsNumber() || object->IsBoolean()) {
-    return object->GetPrototype(isolate)->GetElement(isolate, index);
+    Handle<Object> proto(object->GetPrototype(isolate), isolate);
+    result = Object::GetElement(isolate, proto, index);
+  } else {
+    result = Object::GetElement(isolate, object, index);
   }
-
-  return object->GetElement(isolate, index);
+  RETURN_IF_EMPTY_HANDLE(isolate, result);
+  return *result;
 }
 
 
@@ -5985,7 +6027,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetArgumentsProperty) {
     if (index < n) {
       return frame->GetParameter(index);
     } else {
-      return isolate->initial_object_prototype()->GetElement(isolate, index);
+      Handle<Object> initial_prototype(isolate->initial_object_prototype());
+      Handle<Object> result =
+          Object::GetElement(isolate, initial_prototype, index);
+      RETURN_IF_EMPTY_HANDLE(isolate, result);
+      return *result;
     }
   }
 
@@ -8829,6 +8875,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Apply) {
 
   for (int i = 0; i < argc; ++i) {
     argv[i] = Object::GetElement(isolate, arguments, offset + i);
+    RETURN_IF_EMPTY_HANDLE(isolate, argv[i]);
   }
 
   bool threw;
@@ -13692,14 +13739,14 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetLanguageTagVariants) {
   Handle<Name> base =
       isolate->factory()->NewStringFromAscii(CStrVector("base"));
   for (unsigned int i = 0; i < length; ++i) {
-    MaybeObject* maybe_string = input->GetElement(isolate, i);
-    Object* locale_id;
-    if (!maybe_string->ToObject(&locale_id) || !locale_id->IsString()) {
+    Handle<Object> locale_id = Object::GetElement(isolate, input, i);
+    RETURN_IF_EMPTY_HANDLE(isolate, locale_id);
+    if (!locale_id->IsString()) {
       return isolate->Throw(isolate->heap()->illegal_argument_string());
     }
 
     v8::String::Utf8Value utf8_locale_id(
-        v8::Utils::ToLocal(Handle<String>(String::cast(locale_id))));
+        v8::Utils::ToLocal(Handle<String>::cast(locale_id)));
 
     UErrorCode error = U_ZERO_ERROR;
 
@@ -14556,15 +14603,14 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ListNatives) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_Log) {
-  SealHandleScope shs(isolate);
+  HandleScope handle_scope(isolate);
   ASSERT(args.length() == 2);
-  CONVERT_ARG_CHECKED(String, format, 0);
-  CONVERT_ARG_CHECKED(JSArray, elms, 1);
-  DisallowHeapAllocation no_gc;
-  String::FlatContent format_content = format->GetFlatContent();
-  RUNTIME_ASSERT(format_content.IsAscii());
-  Vector<const uint8_t> chars = format_content.ToOneByteVector();
-  isolate->logger()->LogRuntime(Vector<const char>::cast(chars), elms);
+  CONVERT_ARG_HANDLE_CHECKED(String, format, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSArray, elms, 1);
+
+  SmartArrayPointer<char> format_chars = format->ToCString();
+  isolate->logger()->LogRuntime(
+      Vector<const char>(format_chars.get(), format->length()), elms);
   return isolate->heap()->undefined_value();
 }
 

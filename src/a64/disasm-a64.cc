@@ -1607,8 +1607,8 @@ int Disassembler::SubstitutePCRelAddressField(Instruction* instr,
     offset = -offset;
     sign = '-';
   }
-  STATIC_ASSERT(sizeof(*instr) == 1);
-  AppendToOutput("#%c0x%x (addr %p)", sign, offset, instr + offset);
+  AppendToOutput("#%c0x%x (addr %p)", sign, offset,
+                 instr->InstructionAtOffset(offset, Instruction::NO_CHECK));
   return 13;
 }
 
@@ -1635,8 +1635,8 @@ int Disassembler::SubstituteBranchTargetField(Instruction* instr,
     offset = -offset;
     sign = '-';
   }
-  STATIC_ASSERT(sizeof(*instr) == 1);
-  AppendToOutput("#%c0x%" PRIx64 " (addr %p)", sign, offset, instr + offset);
+  AppendToOutput("#%c0x%" PRIx64 " (addr %p)", sign, offset,
+                 instr->InstructionAtOffset(offset), Instruction::NO_CHECK);
   return 8;
 }
 

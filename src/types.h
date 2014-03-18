@@ -42,7 +42,10 @@ namespace internal {
 // can express class types (a.k.a. specific maps) and singleton types (i.e.,
 // concrete constants).
 //
-// The following equations and inequations hold:
+// Types consist of two dimensions: semantic (value range) and representation.
+// Both are related through subtyping.
+//
+// The following equations and inequations hold for the semantic axis:
 //
 //   None <= T
 //   T <= Any
@@ -54,13 +57,12 @@ namespace internal {
 //   UniqueName = InternalizedString \/ Symbol
 //   InternalizedString < String
 //
-//   Allocated = Receiver \/ Number \/ Name
-//   Detectable = Allocated - Undetectable
-//   Undetectable < Object
 //   Receiver = Object \/ Proxy
 //   Array < Object
 //   Function < Object
 //   RegExp < Object
+//   Undetectable < Object
+//   Detectable = Receiver \/ Number \/ Name - Undetectable
 //
 //   Class(map) < T   iff instance_type(map) < T
 //   Constant(x) < T  iff instance_type(map(x)) < T
@@ -70,20 +72,43 @@ namespace internal {
 // TODO(rossberg): the latter is not currently true for proxies, because of fix,
 // but will hold once we implement direct proxies.
 //
+// For the representation axis, the following holds:
+//
+//   None <= R
+//   R <= Any
+//
+//   UntaggedInt <= UntaggedInt8 \/ UntaggedInt16 \/ UntaggedInt32)
+//   UntaggedFloat <= UntaggedFloat32 \/ UntaggedFloat64
+//   UntaggedNumber <= UntaggedInt \/ UntaggedFloat
+//   Untagged <= UntaggedNumber \/ UntaggedPtr
+//   Tagged <= TaggedInt \/ TaggedPtr
+//
+// Subtyping relates the two dimensions, for example:
+//
+//   Number <= Tagged \/ UntaggedNumber
+//   Object <= TaggedPtr \/ UntaggedPtr
+//
+// That holds because the semantic type constructors defined by the API create
+// types that allow for all possible representations, and dually, the ones for
+// representation types initially include all semantic ranges. Representations
+// can then e.g. be narrowed for a given semantic type using intersection:
+//
+//   SignedSmall /\ TaggedInt       (a 'smi')
+//   Number /\ TaggedPtr            (a heap number)
+//
 // There are two main functions for testing types:
 //
 //   T1->Is(T2)     -- tests whether T1 is included in T2 (i.e., T1 <= T2)
 //   T1->Maybe(T2)  -- tests whether T1 and T2 overlap (i.e., T1 /\ T2 =/= 0)
 //
 // Typically, the former is to be used to select representations (e.g., via
-// T->Is(Integer31())), and the to check whether a specific case needs handling
-// (e.g., via T->Maybe(Number())).
+// T->Is(SignedSmall())), and the latter to check whether a specific case needs
+// handling (e.g., via T->Maybe(Number())).
 //
 // There is no functionality to discover whether a type is a leaf in the
 // lattice. That is intentional. It should always be possible to refine the
 // lattice (e.g., splitting up number types further) without invalidating any
 // existing assumptions or tests.
-//
 // Consequently, do not use pointer equality for type tests, always use Is!
 //
 // Internally, all 'primitive' types, and their unions, are represented as
@@ -100,40 +125,68 @@ namespace internal {
 // them. For zone types, no query method touches the heap, only constructors do.
 
 
-#define BITSET_TYPE_LIST(V)              \
-  V(None,                0)              \
-  V(Null,                1 << 0)         \
-  V(Undefined,           1 << 1)         \
-  V(Boolean,             1 << 2)         \
-  V(Smi,                 1 << 3)         \
-  V(OtherSigned32,       1 << 4)         \
-  V(Unsigned32,          1 << 5)         \
-  V(Double,              1 << 6)         \
-  V(Symbol,              1 << 7)         \
-  V(InternalizedString,  1 << 8)         \
-  V(OtherString,         1 << 9)         \
-  V(Undetectable,        1 << 10)        \
-  V(Array,               1 << 11)        \
-  V(Function,            1 << 12)        \
-  V(RegExp,              1 << 13)        \
-  V(OtherObject,         1 << 14)        \
-  V(Proxy,               1 << 15)        \
-  V(Internal,            1 << 16)        \
+#define MASK_BITSET_TYPE_LIST(V) \
+  V(Representation, static_cast<int>(0xff800000)) \
+  V(Semantic,       static_cast<int>(0x007fffff))
+
+#define REPRESENTATION(k) ((k) & kRepresentation)
+#define SEMANTIC(k)       ((k) & kSemantic)
+
+#define REPRESENTATION_BITSET_TYPE_LIST(V) \
+  V(None,             0)                   \
+  V(UntaggedInt8,     1 << 23 | kSemantic) \
+  V(UntaggedInt16,    1 << 24 | kSemantic) \
+  V(UntaggedInt32,    1 << 25 | kSemantic) \
+  V(UntaggedFloat32,  1 << 26 | kSemantic) \
+  V(UntaggedFloat64,  1 << 27 | kSemantic) \
+  V(UntaggedPtr,      1 << 28 | kSemantic) \
+  V(TaggedInt,        1 << 29 | kSemantic) \
+  V(TaggedPtr,        -1 << 30 | kSemantic)  /* MSB has to be sign-extended */ \
   \
-  V(Oddball,         kBoolean | kNull | kUndefined)                 \
-  V(Signed32,        kSmi | kOtherSigned32)                         \
-  V(Number,          kSigned32 | kUnsigned32 | kDouble)             \
-  V(String,          kInternalizedString | kOtherString)            \
-  V(UniqueName,      kSymbol | kInternalizedString)                 \
-  V(Name,            kSymbol | kString)                             \
-  V(NumberOrString,  kNumber | kString)                             \
-  V(Object,          kUndetectable | kArray | kFunction |           \
-                     kRegExp | kOtherObject)                        \
-  V(Receiver,        kObject | kProxy)                              \
-  V(Allocated,       kDouble | kName | kReceiver)                   \
-  V(Any,             kOddball | kNumber | kAllocated | kInternal)   \
-  V(NonNumber,       kAny - kNumber)                                \
-  V(Detectable,      kAllocated - kUndetectable)
+  V(UntaggedInt,      kUntaggedInt8 | kUntaggedInt16 | kUntaggedInt32) \
+  V(UntaggedFloat,    kUntaggedFloat32 | kUntaggedFloat64)             \
+  V(UntaggedNumber,   kUntaggedInt | kUntaggedFloat)                   \
+  V(Untagged,         kUntaggedNumber | kUntaggedPtr)                  \
+  V(Tagged,           kTaggedInt | kTaggedPtr)
+
+#define SEMANTIC_BITSET_TYPE_LIST(V) \
+  V(Null,                1 << 0  | REPRESENTATION(kTaggedPtr)) \
+  V(Undefined,           1 << 1  | REPRESENTATION(kTaggedPtr)) \
+  V(Boolean,             1 << 2  | REPRESENTATION(kTaggedPtr)) \
+  V(SignedSmall,         1 << 3  | REPRESENTATION(kTagged | kUntaggedNumber)) \
+  V(OtherSigned32,       1 << 4  | REPRESENTATION(kTagged | kUntaggedNumber)) \
+  V(Unsigned32,          1 << 5  | REPRESENTATION(kTagged | kUntaggedNumber)) \
+  V(Float,               1 << 6  | REPRESENTATION(kTagged | kUntaggedNumber)) \
+  V(Symbol,              1 << 7  | REPRESENTATION(kTaggedPtr)) \
+  V(InternalizedString,  1 << 8  | REPRESENTATION(kTaggedPtr)) \
+  V(OtherString,         1 << 9  | REPRESENTATION(kTaggedPtr)) \
+  V(Undetectable,        1 << 10 | REPRESENTATION(kTaggedPtr)) \
+  V(Array,               1 << 11 | REPRESENTATION(kTaggedPtr)) \
+  V(Function,            1 << 12 | REPRESENTATION(kTaggedPtr)) \
+  V(RegExp,              1 << 13 | REPRESENTATION(kTaggedPtr)) \
+  V(OtherObject,         1 << 14 | REPRESENTATION(kTaggedPtr)) \
+  V(Proxy,               1 << 15 | REPRESENTATION(kTaggedPtr)) \
+  V(Internal,            1 << 16 | REPRESENTATION(kTagged | kUntagged)) \
+  \
+  V(Oddball,             kBoolean | kNull | kUndefined)                 \
+  V(Signed32,            kSignedSmall | kOtherSigned32)                 \
+  V(Number,              kSigned32 | kUnsigned32 | kFloat)              \
+  V(String,              kInternalizedString | kOtherString)            \
+  V(UniqueName,          kSymbol | kInternalizedString)                 \
+  V(Name,                kSymbol | kString)                             \
+  V(NumberOrString,      kNumber | kString)                             \
+  V(DetectableObject,    kArray | kFunction | kRegExp | kOtherObject)   \
+  V(DetectableReceiver,  kDetectableObject | kProxy)                    \
+  V(Detectable,          kDetectableReceiver | kNumber | kName)         \
+  V(Object,              kDetectableObject | kUndetectable)             \
+  V(Receiver,            kObject | kProxy)                              \
+  V(NonNumber,           kOddball | kName | kReceiver | kInternal)      \
+  V(Any,                 kNumber | kNonNumber)
+
+#define BITSET_TYPE_LIST(V) \
+  MASK_BITSET_TYPE_LIST(V) \
+  REPRESENTATION_BITSET_TYPE_LIST(V) \
+  SEMANTIC_BITSET_TYPE_LIST(V)
 
 
 // struct Config {
@@ -254,8 +307,9 @@ class TypeImpl : public Config::Base {
       typename OtherTypeImpl::TypeHandle type, Region* region);
 
 #ifdef OBJECT_PRINT
-  void TypePrint();
-  void TypePrint(FILE* out);
+  enum PrintDimension { BOTH_DIMS, SEMANTIC_DIM, REPRESENTATION_DIM };
+  void TypePrint(PrintDimension = BOTH_DIMS);
+  void TypePrint(FILE* out, PrintDimension = BOTH_DIMS);
 #endif
 
  private:
@@ -292,6 +346,10 @@ class TypeImpl : public Config::Base {
 
   bool SlowIs(TypeImpl* that);
 
+  static bool IsInhabited(int bitset) {
+    return (bitset & kRepresentation) && (bitset & kSemantic);
+  }
+
   int LubBitset();  // least upper bound that's a bitset
   int GlbBitset();  // greatest lower bound that's a bitset
 
@@ -306,6 +364,7 @@ class TypeImpl : public Config::Base {
 
 #ifdef OBJECT_PRINT
   static const char* bitset_name(int bitset);
+  static void BitsetTypePrint(FILE* out, int bitset);
 #endif
 };
 

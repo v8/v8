@@ -226,7 +226,7 @@ ptrdiff_t Instruction::ImmPCOffset() {
 
 
 Instruction* Instruction::ImmPCOffsetTarget() {
-  return this + ImmPCOffset();
+  return InstructionAtOffset(ImmPCOffset());
 }
 
 
@@ -237,8 +237,7 @@ bool Instruction::IsValidImmPCOffset(ImmBranchType branch_type,
 
 
 bool Instruction::IsTargetInImmPCOffsetRange(Instruction* target) {
-  int offset = target - this;
-  return IsValidImmPCOffset(BranchType(), offset);
+  return IsValidImmPCOffset(BranchType(), DistanceTo(target));
 }
 
 
@@ -257,17 +256,17 @@ void Instruction::SetPCRelImmTarget(Instruction* target) {
   // ADRP is not supported, so 'this' must point to an ADR instruction.
   ASSERT(Mask(PCRelAddressingMask) == ADR);
 
-  Instr imm = Assembler::ImmPCRelAddress(target - this);
+  Instr imm = Assembler::ImmPCRelAddress(DistanceTo(target));
 
   SetInstructionBits(Mask(~ImmPCRel_mask) | imm);
 }
 
 
 void Instruction::SetBranchImmTarget(Instruction* target) {
-  ASSERT(((target - this) & 3) == 0);
+  ASSERT(IsAligned(DistanceTo(target), kInstructionSize));
   Instr branch_imm = 0;
   uint32_t imm_mask = 0;
-  int offset = (target - this) >> kInstructionSizeLog2;
+  ptrdiff_t offset = DistanceTo(target) >> kInstructionSizeLog2;
   switch (BranchType()) {
     case CondBranchType: {
       branch_imm = Assembler::ImmCondBranch(offset);
@@ -296,8 +295,8 @@ void Instruction::SetBranchImmTarget(Instruction* target) {
 
 
 void Instruction::SetImmLLiteral(Instruction* source) {
-  ASSERT(((source - this) & 3) == 0);
-  int offset = (source - this) >> kLiteralEntrySizeLog2;
+  ASSERT(IsAligned(DistanceTo(source), kInstructionSize));
+  ptrdiff_t offset = DistanceTo(source) >> kLiteralEntrySizeLog2;
   Instr imm = Assembler::ImmLLiteral(offset);
   Instr mask = ImmLLiteral_mask;
 

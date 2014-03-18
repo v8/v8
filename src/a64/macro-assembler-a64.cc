@@ -5135,7 +5135,7 @@ InlineSmiCheckInfo::InlineSmiCheckInfo(Address info)
       reg_ = Register::XRegFromCode(reg_code);
       uint64_t smi_check_delta = DeltaBits::decode(payload);
       ASSERT(smi_check_delta != 0);
-      smi_check_ = inline_data - (smi_check_delta * kInstructionSize);
+      smi_check_ = inline_data->preceding(smi_check_delta);
     }
   }
 }

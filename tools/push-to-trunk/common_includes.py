@@ -84,14 +84,6 @@ def Fill80(line):
                        subsequent_indent="        ")
 
 
-def GetLastChangeLogEntries(change_log_file):
-  result = []
-  for line in LinesInFile(change_log_file):
-    if re.search(r"^\d{4}-\d{2}-\d{2}:", line) and result: break
-    result.append(line)
-  return "".join(result)
-
-
 def MakeComment(text):
   return MSub(r"^( ?)", "#", text)
 

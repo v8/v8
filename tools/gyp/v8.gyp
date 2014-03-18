@@ -1066,6 +1066,7 @@
           '../../src/symbol.js',
           '../../src/proxy.js',
           '../../src/collection.js',
+          '../../src/weak_collection.js',
           '../../src/promise.js',
           '../../src/generator.js',
           '../../src/array-iterator.js',

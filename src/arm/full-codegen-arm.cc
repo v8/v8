@@ -4827,7 +4827,19 @@ FullCodeGenerator::NestedStatement* FullCodeGenerator::TryFinally::Exit(
 #undef __
 
 
-static const int32_t kBranchBeforeInterrupt =  0x5a000004;
+static Address GetInterruptImmediateLoadAddress(Address pc) {
+  Address load_address = pc - 2 * Assembler::kInstrSize;
+  if (!FLAG_enable_ool_constant_pool) {
+    ASSERT(Assembler::IsLdrPcImmediateOffset(Memory::int32_at(load_address)));
+  } else if (Assembler::IsMovT(Memory::int32_at(load_address))) {
+    load_address -= Assembler::kInstrSize;
+    ASSERT(Assembler::IsMovW(Memory::int32_at(load_address)));
+  } else {
+    // TODO(rmcilroy): uncomment when IsLdrPpImmediateOffset lands.
+    // ASSERT(IsLdrPpImmediateOffset(Memory::int32_at(load_address)));
+  }
+  return load_address;
+}
 
 
 void BackEdgeTable::PatchAt(Code* unoptimized_code,
@@ -4835,37 +4847,42 @@ void BackEdgeTable::PatchAt(Code* unoptimized_code,
                             BackEdgeState target_state,
                             Code* replacement_code) {
   static const int kInstrSize = Assembler::kInstrSize;
-  Address branch_address = pc - 3 * kInstrSize;
+  Address pc_immediate_load_address = GetInterruptImmediateLoadAddress(pc);
+  Address branch_address = pc_immediate_load_address - kInstrSize;
   CodePatcher patcher(branch_address, 1);
-
   switch (target_state) {
     case INTERRUPT:
+    {
       //  <decrement profiling counter>
-      //  2a 00 00 01       bpl ok
-      //  e5 9f c? ??       ldr ip, [pc, <interrupt stub address>]
-      //  e1 2f ff 3c       blx ip
+      //   bpl ok
+      //   ; load interrupt stub address into ip - either of:
+      //   ldr ip, [pc/pp, <constant pool offset>]  |   movw ip, <immed low>
+      //                                            |   movt ip, <immed high>
+      //   blx ip
       //  ok-label
-      patcher.masm()->b(4 * kInstrSize, pl);  // Jump offset is 4 instructions.
-      ASSERT_EQ(kBranchBeforeInterrupt, Memory::int32_at(branch_address));
+
+      // Calculate branch offet to the ok-label - this is the difference between
+      // the branch address and |pc| (which points at <blx ip>) plus one instr.
+      int branch_offset = pc + kInstrSize - branch_address;
+      patcher.masm()->b(branch_offset, pl);
       break;
+    }
     case ON_STACK_REPLACEMENT:
     case OSR_AFTER_STACK_CHECK:
       //  <decrement profiling counter>
-      //  e1 a0 00 00       mov r0, r0 (NOP)
-      //  e5 9f c? ??       ldr ip, [pc, <on-stack replacement address>]
-      //  e1 2f ff 3c       blx ip
+      //   mov r0, r0 (NOP)
+      //   ; load on-stack replacement address into ip - either of:
+      //   ldr ip, [pc/pp, <constant pool offset>]  |   movw ip, <immed low>
+      //                                            |   movt ip, <immed high>
+      //   blx ip
       //  ok-label
       patcher.masm()->nop();
       break;
   }
 
-  Address pc_immediate_load_address = pc - 2 * kInstrSize;
   // Replace the call address.
-  uint32_t interrupt_address_offset =
-      Memory::uint16_at(pc_immediate_load_address) & 0xfff;
-  Address interrupt_address_pointer = pc + interrupt_address_offset;
-  Memory::uint32_at(interrupt_address_pointer) =
-      reinterpret_cast<uint32_t>(replacement_code->entry());
+  Assembler::set_target_address_at(pc_immediate_load_address, unoptimized_code,
+      replacement_code->entry());
 
   unoptimized_code->GetHeap()->incremental_marking()->RecordCodeTargetPatch(
       unoptimized_code, pc_immediate_load_address, replacement_code);
@@ -4879,34 +4896,26 @@ BackEdgeTable::BackEdgeState BackEdgeTable::GetBackEdgeState(
   static const int kInstrSize = Assembler::kInstrSize;
   ASSERT(Memory::int32_at(pc - kInstrSize) == kBlxIp);
 
-  Address branch_address = pc - 3 * kInstrSize;
-  Address pc_immediate_load_address = pc - 2 * kInstrSize;
-  uint32_t interrupt_address_offset =
-      Memory::uint16_at(pc_immediate_load_address) & 0xfff;
-  Address interrupt_address_pointer = pc + interrupt_address_offset;
+  Address pc_immediate_load_address = GetInterruptImmediateLoadAddress(pc);
+  Address branch_address = pc_immediate_load_address - kInstrSize;
+  Address interrupt_address = Assembler::target_address_at(
+      pc_immediate_load_address, unoptimized_code);
 
-  if (Memory::int32_at(branch_address) == kBranchBeforeInterrupt) {
-    ASSERT(Memory::uint32_at(interrupt_address_pointer) ==
-           reinterpret_cast<uint32_t>(
-               isolate->builtins()->InterruptCheck()->entry()));
-    ASSERT(Assembler::IsLdrPcImmediateOffset(
-               Assembler::instr_at(pc_immediate_load_address)));
+  if (Assembler::IsBranch(Assembler::instr_at(branch_address))) {
+    ASSERT(interrupt_address ==
+           isolate->builtins()->InterruptCheck()->entry());
     return INTERRUPT;
   }
 
   ASSERT(Assembler::IsNop(Assembler::instr_at(branch_address)));
-  ASSERT(Assembler::IsLdrPcImmediateOffset(
-             Assembler::instr_at(pc_immediate_load_address)));
 
-  if (Memory::uint32_at(interrupt_address_pointer) ==
-      reinterpret_cast<uint32_t>(
-          isolate->builtins()->OnStackReplacement()->entry())) {
+  if (interrupt_address ==
+      isolate->builtins()->OnStackReplacement()->entry()) {
     return ON_STACK_REPLACEMENT;
   }
 
-  ASSERT(Memory::uint32_at(interrupt_address_pointer) ==
-         reinterpret_cast<uint32_t>(
-             isolate->builtins()->OsrAfterStackCheck()->entry()));
+  ASSERT(interrupt_address ==
+         isolate->builtins()->OsrAfterStackCheck()->entry());
   return OSR_AFTER_STACK_CHECK;
 }
 

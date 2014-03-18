@@ -807,7 +807,7 @@ void Simulator::CheckBreakpoints() {
 void Simulator::CheckBreakNext() {
   // If the current instruction is a BL, insert a breakpoint just after it.
   if (break_on_next_ && pc_->IsBranchAndLinkToRegister()) {
-    SetBreakpoint(pc_->NextInstruction());
+    SetBreakpoint(pc_->following());
     break_on_next_ = false;
   }
 }
@@ -815,7 +815,7 @@ void Simulator::CheckBreakNext() {
 
 void Simulator::PrintInstructionsAt(Instruction* start, uint64_t count) {
   Instruction* end = start->InstructionAtOffset(count * kInstructionSize);
-  for (Instruction* pc = start; pc < end; pc = pc->NextInstruction()) {
+  for (Instruction* pc = start; pc < end; pc = pc->following()) {
     disassembler_decoder_->Decode(pc);
   }
 }
@@ -996,7 +996,7 @@ void Simulator::VisitPCRelAddressing(Instruction* instr) {
 void Simulator::VisitUnconditionalBranch(Instruction* instr) {
   switch (instr->Mask(UnconditionalBranchMask)) {
     case BL:
-      set_lr(instr->NextInstruction());
+      set_lr(instr->following());
       // Fall through.
     case B:
       set_pc(instr->ImmPCOffsetTarget());
@@ -1019,7 +1019,7 @@ void Simulator::VisitUnconditionalBranchToRegister(Instruction* instr) {
   Instruction* target = reg<Instruction*>(instr->Rn());
   switch (instr->Mask(UnconditionalBranchToRegisterMask)) {
     case BLR: {
-      set_lr(instr->NextInstruction());
+      set_lr(instr->following());
       if (instr->Rn() == 31) {
         // BLR XZR is used as a guard for the constant pool. We should never hit
         // this, but if we do trap to allow debugging.
@@ -3362,12 +3362,16 @@ void Simulator::VisitException(Instruction* instr) {
         // Read the arguments encoded inline in the instruction stream.
         uint32_t code;
         uint32_t parameters;
-        char const * message;
 
-        ASSERT(sizeof(*pc_) == 1);
-        memcpy(&code, pc_ + kDebugCodeOffset, sizeof(code));
-        memcpy(&parameters, pc_ + kDebugParamsOffset, sizeof(parameters));
-        message = reinterpret_cast<char const *>(pc_ + kDebugMessageOffset);
+        memcpy(&code,
+               pc_->InstructionAtOffset(kDebugCodeOffset),
+               sizeof(code));
+        memcpy(&parameters,
+               pc_->InstructionAtOffset(kDebugParamsOffset),
+               sizeof(parameters));
+        char const *message =
+            reinterpret_cast<char const*>(
+                pc_->InstructionAtOffset(kDebugMessageOffset));
 
         // Always print something when we hit a debug point that breaks.
         // We are going to break, so printing something is not an issue in
@@ -3415,14 +3419,13 @@ void Simulator::VisitException(Instruction* instr) {
 
         // The stop parameters are inlined in the code. Skip them:
         //  - Skip to the end of the message string.
-        pc_ += kDebugMessageOffset + strlen(message) + 1;
-        //  - Advance to the next aligned location.
-        pc_ = AlignUp(pc_, kInstructionSize);
+        size_t size = kDebugMessageOffset + strlen(message) + 1;
+        pc_ = pc_->InstructionAtOffset(RoundUp(size, kInstructionSize));
         //  - Verify that the unreachable marker is present.
         ASSERT(pc_->Mask(ExceptionMask) == HLT);
         ASSERT(pc_->ImmException() ==  kImmExceptionIsUnreachable);
         //  - Skip past the unreachable marker.
-        set_pc(pc_->NextInstruction());
+        set_pc(pc_->following());
 
         // Check if the debugger should break.
         if (parameters & BREAK) Debug();
@@ -3615,8 +3618,9 @@ void Simulator::VisitException(Instruction* instr) {
       } else if (instr->ImmException() == kImmExceptionIsPrintf) {
         // Read the argument encoded inline in the instruction stream.
         uint32_t type;
-        ASSERT(sizeof(*pc_) == 1);
-        memcpy(&type, pc_ + kPrintfTypeOffset, sizeof(type));
+        memcpy(&type,
+               pc_->InstructionAtOffset(kPrintfTypeOffset),
+               sizeof(type));
 
         const char* format = reg<const char*>(0);
 

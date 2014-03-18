@@ -36,7 +36,6 @@ from common_includes import *
 TRUNKBRANCH = "TRUNKBRANCH"
 CHROMIUM = "CHROMIUM"
 DEPS_FILE = "DEPS_FILE"
-NEW_CHANGELOG_FILE = "NEW_CHANGELOG_FILE"
 
 CONFIG = {
   BRANCHNAME: "prepare-push",
@@ -46,7 +45,6 @@ CONFIG = {
   DOT_GIT_LOCATION: ".git",
   VERSION_FILE: "src/version.cc",
   CHANGELOG_FILE: "ChangeLog",
-  NEW_CHANGELOG_FILE: "/tmp/v8-push-to-trunk-tempfile-new-changelog",
   CHANGELOG_ENTRY_FILE: "/tmp/v8-push-to-trunk-tempfile-changelog-entry",
   PATCH_FILE: "/tmp/v8-push-to-trunk-tempfile-patch-file",
   COMMITMSG_FILE: "/tmp/v8-push-to-trunk-tempfile-commitmsg",
@@ -190,11 +188,7 @@ class EditChangeLog(Step):
       self.Die("Empty ChangeLog entry.")
 
     # Safe new change log for adding it later to the trunk patch.
-    TextToFile(changelog_entry, self.Config(NEW_CHANGELOG_FILE))
-
-    old_change_log = FileToText(self.Config(CHANGELOG_FILE))
-    new_change_log = "%s\n\n\n%s" % (changelog_entry, old_change_log)
-    TextToFile(new_change_log, self.Config(CHANGELOG_FILE))
+    TextToFile(changelog_entry, self.Config(CHANGELOG_ENTRY_FILE))
 
 
 class IncrementVersion(Step):
@@ -242,11 +236,6 @@ class CommitRepository(Step):
 
   def RunStep(self):
     self.WaitForLGTM()
-    # Re-read the ChangeLog entry (to pick up possible changes).
-    # FIXME(machenbach): This was hanging once with a broken pipe.
-    TextToFile(GetLastChangeLogEntries(self.Config(CHANGELOG_FILE)),
-               self.Config(CHANGELOG_ENTRY_FILE))
-
     self.GitPresubmit()
     self.GitDCommit()
 
@@ -293,7 +282,6 @@ class SquashCommits(Step):
     if not text:  # pragma: no cover
       self.Die("Commit message editing failed.")
     TextToFile(text, self.Config(COMMITMSG_FILE))
-    os.remove(self.Config(CHANGELOG_ENTRY_FILE))
 
 
 class NewBranch(Step):
@@ -319,11 +307,11 @@ class AddChangeLog(Step):
     # on trunk and apply the exact changes determined by this PrepareChangeLog
     # step above.
     self.GitCheckoutFile(self.Config(CHANGELOG_FILE), "svn/trunk")
-    changelog_entry = FileToText(self.Config(NEW_CHANGELOG_FILE))
+    changelog_entry = FileToText(self.Config(CHANGELOG_ENTRY_FILE))
     old_change_log = FileToText(self.Config(CHANGELOG_FILE))
     new_change_log = "%s\n\n\n%s" % (changelog_entry, old_change_log)
     TextToFile(new_change_log, self.Config(CHANGELOG_FILE))
-    os.remove(self.Config(NEW_CHANGELOG_FILE))
+    os.remove(self.Config(CHANGELOG_ENTRY_FILE))
 
 
 class SetVersion(Step):

@@ -507,6 +507,17 @@ BUILTIN(ArrayPush) {
 }
 
 
+static Handle<Object> ElementsAccessorSetLengthWrapper(
+    Isolate* isolate,
+    ElementsAccessor* accessor,
+    Handle<JSArray> array,
+    int new_length) {
+  CALL_HEAP_FUNCTION(isolate,
+                     accessor->SetLength(*array, Smi::FromInt(new_length)),
+                     Object);
+}
+
+
 BUILTIN(ArrayPop) {
   Heap* heap = isolate->heap();
   Object* receiver = *args.receiver();
@@ -524,17 +535,26 @@ BUILTIN(ArrayPop) {
 
   ElementsAccessor* accessor = array->GetElementsAccessor();
   int new_length = len - 1;
-  MaybeObject* maybe_result;
   if (accessor->HasElement(array, array, new_length, elms_obj)) {
-    maybe_result = accessor->Get(array, array, new_length, elms_obj);
+    MaybeObject* maybe_result =
+        accessor->Get(array, array, new_length, elms_obj);
+    if (maybe_result->IsFailure()) return maybe_result;
+    MaybeObject* maybe_failure =
+        accessor->SetLength(array, Smi::FromInt(new_length));
+    if (maybe_failure->IsFailure()) return maybe_failure;
+    return maybe_result;
   } else {
-    maybe_result = array->GetPrototype()->GetElement(isolate, len - 1);
+    // TODO(yangguo): handlify all once ElementsAccessors are handlified.
+    HandleScope scope(isolate);
+    Handle<Object> proto(array->GetPrototype(), isolate);
+    Handle<Object> element = Object::GetElement(isolate, proto, len - 1);
+    RETURN_IF_EMPTY_HANDLE(isolate, element);
+    Handle<JSArray> array_handle(array, isolate);
+    RETURN_IF_EMPTY_HANDLE(isolate,
+                           ElementsAccessorSetLengthWrapper(
+                               isolate, accessor, array_handle, new_length));
+    return *element;
   }
-  if (maybe_result->IsFailure()) return maybe_result;
-  MaybeObject* maybe_failure =
-      accessor->SetLength(array, Smi::FromInt(new_length));
-  if (maybe_failure->IsFailure()) return maybe_failure;
-  return maybe_result;
 }
 
 

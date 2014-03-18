@@ -25,7 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --harmony-observation --harmony-proxies --harmony-collections
+// Flags: --harmony-observation --harmony-proxies
+// Flags: --harmony-collections --harmony-weak-collections
 // Flags: --harmony-symbols --allow-natives-syntax
 
 var allObservers = [];

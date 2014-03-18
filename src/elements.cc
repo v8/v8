@@ -1910,78 +1910,64 @@ MUST_USE_RESULT MaybeObject* ElementsAccessorBase<ElementsAccessorSubclass,
 }
 
 
-// TODO(ishell): Temporary wrapper until handlified.
 Handle<Object> ArrayConstructInitializeElements(Handle<JSArray> array,
                                                 Arguments* args) {
-  CALL_HEAP_FUNCTION(array->GetIsolate(),
-                     ArrayConstructInitializeElements(*array, args),
-                     Object);
-}
-
-
-MUST_USE_RESULT MaybeObject* ArrayConstructInitializeElements(
-    JSArray* array, Arguments* args) {
-  Heap* heap = array->GetIsolate()->heap();
-
   // Optimize the case where there is one argument and the argument is a
   // small smi.
   if (args->length() == 1) {
-    Object* obj = (*args)[0];
+    Handle<Object> obj = args->at<Object>(0);
     if (obj->IsSmi()) {
-      int len = Smi::cast(obj)->value();
+      int len = Handle<Smi>::cast(obj)->value();
       if (len > 0 && len < JSObject::kInitialMaxFastElementArray) {
         ElementsKind elements_kind = array->GetElementsKind();
-        MaybeObject* maybe_array = array->Initialize(len, len);
-        if (maybe_array->IsFailure()) return maybe_array;
+        JSArray::Initialize(array, len, len);
 
         if (!IsFastHoleyElementsKind(elements_kind)) {
           elements_kind = GetHoleyElementsKind(elements_kind);
-          maybe_array = array->TransitionElementsKind(elements_kind);
-          if (maybe_array->IsFailure()) return maybe_array;
+          JSObject::TransitionElementsKind(array, elements_kind);
         }
-
         return array;
       } else if (len == 0) {
-        return array->Initialize(JSArray::kPreallocatedArrayElements);
+        JSArray::Initialize(array, JSArray::kPreallocatedArrayElements);
+        return array;
       }
     }
 
     // Take the argument as the length.
-    MaybeObject* maybe_obj = array->Initialize(0);
-    if (!maybe_obj->To(&obj)) return maybe_obj;
+    JSArray::Initialize(array, 0);
 
-    return array->SetElementsLength((*args)[0]);
+    return JSArray::SetElementsLength(array, obj);
   }
 
   // Optimize the case where there are no parameters passed.
   if (args->length() == 0) {
-    return array->Initialize(JSArray::kPreallocatedArrayElements);
+    JSArray::Initialize(array, JSArray::kPreallocatedArrayElements);
+    return array;
   }
+
+  Factory* factory = array->GetIsolate()->factory();
 
   // Set length and elements on the array.
   int number_of_elements = args->length();
-  MaybeObject* maybe_object =
-      array->EnsureCanContainElements(args, 0, number_of_elements,
-                                      ALLOW_CONVERTED_DOUBLE_ELEMENTS);
-  if (maybe_object->IsFailure()) return maybe_object;
+  JSObject::EnsureCanContainElements(
+      array, args, 0, number_of_elements, ALLOW_CONVERTED_DOUBLE_ELEMENTS);
 
   // Allocate an appropriately typed elements array.
-  MaybeObject* maybe_elms;
   ElementsKind elements_kind = array->GetElementsKind();
+  Handle<FixedArrayBase> elms;
   if (IsFastDoubleElementsKind(elements_kind)) {
-    maybe_elms = heap->AllocateUninitializedFixedDoubleArray(
-        number_of_elements);
+    elms = Handle<FixedArrayBase>::cast(
+        factory->NewFixedDoubleArray(number_of_elements));
   } else {
-    maybe_elms = heap->AllocateFixedArrayWithHoles(number_of_elements);
+    elms = Handle<FixedArrayBase>::cast(
+        factory->NewFixedArrayWithHoles(number_of_elements));
   }
-  FixedArrayBase* elms;
-  if (!maybe_elms->To(&elms)) return maybe_elms;
 
   // Fill in the content
   switch (array->GetElementsKind()) {
     case FAST_HOLEY_SMI_ELEMENTS:
     case FAST_SMI_ELEMENTS: {
-      FixedArray* smi_elms = FixedArray::cast(elms);
+      Handle<FixedArray> smi_elms = Handle<FixedArray>::cast(elms);
       for (int index = 0; index < number_of_elements; index++) {
         smi_elms->set(index, (*args)[index], SKIP_WRITE_BARRIER);
       }
@@ -1991,7 +1977,7 @@ MUST_USE_RESULT MaybeObject* ArrayConstructInitializeElements(
     case FAST_ELEMENTS: {
       DisallowHeapAllocation no_gc;
       WriteBarrierMode mode = elms->GetWriteBarrierMode(no_gc);
-      FixedArray* object_elms = FixedArray::cast(elms);
+      Handle<FixedArray> object_elms = Handle<FixedArray>::cast(elms);
       for (int index = 0; index < number_of_elements; index++) {
         object_elms->set(index, (*args)[index], mode);
       }
@@ -1999,7 +1985,8 @@ MUST_USE_RESULT MaybeObject* ArrayConstructInitializeElements(
     }
     case FAST_HOLEY_DOUBLE_ELEMENTS:
     case FAST_DOUBLE_ELEMENTS: {
-      FixedDoubleArray* double_elms = FixedDoubleArray::cast(elms);
+      Handle<FixedDoubleArray> double_elms =
+          Handle<FixedDoubleArray>::cast(elms);
       for (int index = 0; index < number_of_elements; index++) {
         double_elms->set(index, (*args)[index]->Number());
       }
@@ -2010,7 +1997,7 @@ MUST_USE_RESULT MaybeObject* ArrayConstructInitializeElements(
       break;
   }
 
-  array->set_elements(elms);
+  array->set_elements(*elms);
   array->set_length(Smi::FromInt(number_of_elements));
   return array;
 }
