@@ -2422,6 +2422,12 @@ class JSObject: public JSReceiver {
       FixedArrayBase* elements,
       uint32_t length,
       EnsureElementsMode mode);
+  static void EnsureCanContainElements(
+      Handle<JSObject> object,
+      Arguments* arguments,
+      uint32_t first_arg,
+      uint32_t arg_count,
+      EnsureElementsMode mode);
   MUST_USE_RESULT MaybeObject* EnsureCanContainElements(
       Arguments* arguments,
       uint32_t first_arg,
@@ -10011,11 +10017,13 @@ class JSArray: public JSObject {
   // Initialize the array with the given capacity. The function may
   // fail due to out-of-memory situations, but only if the requested
   // capacity is non-zero.
-  MUST_USE_RESULT MaybeObject* Initialize(int capacity, int length = 0);
+  static void Initialize(Handle<JSArray> array, int capacity, int length = 0);
 
   // Initializes the array to a certain length.
   inline bool AllowsSetElementsLength();
   // Can cause GC.
+  static Handle<Object> SetElementsLength(Handle<JSArray> array,
+                                          Handle<Object> length);
   MUST_USE_RESULT MaybeObject* SetElementsLength(Object* length);
 
   // Set the content of the array to the content of storage.

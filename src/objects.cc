@@ -11348,10 +11348,11 @@ MaybeObject* JSObject::SetFastDoubleElementsCapacityAndLength(
 }
 
 
-MaybeObject* JSArray::Initialize(int capacity, int length) {
+// static
+void JSArray::Initialize(Handle<JSArray> array, int capacity, int length) {
   ASSERT(capacity >= 0);
-  return GetHeap()->AllocateJSArrayStorage(this, length, capacity,
-                                           INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE);
+  array->GetIsolate()->factory()->NewJSArrayStorage(
+      array, length, capacity, INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE);
 }
 
 
@@ -11427,6 +11428,16 @@ static void EndPerformSplice(Handle<JSArray> object) {
                   isolate->factory()->undefined_value(), ARRAY_SIZE(args), args,
                   &threw);
   ASSERT(!threw);
+}
+
+
+// TODO(ishell): Temporary wrapper until handlified.
+// static
+Handle<Object> JSArray::SetElementsLength(Handle<JSArray> array,
+                                          Handle<Object> length) {
+  CALL_HEAP_FUNCTION(array->GetIsolate(),
+                     array->SetElementsLength(*length),
+                     Object);
 }
 
 
@@ -11890,6 +11901,21 @@ Handle<Object> JSObject::SetPrototype(Handle<JSObject> object,
   heap->ClearInstanceofCache();
   ASSERT(size == object->Size());
   return value;
+}
+
+
+// TODO(ishell): temporary wrapper until handilfied.
+// static
+void JSObject::EnsureCanContainElements(Handle<JSObject> object,
+                                        Arguments* args,
+                                        uint32_t first_arg,
+                                        uint32_t arg_count,
+                                        EnsureElementsMode mode) {
+  CALL_HEAP_FUNCTION_VOID(object->GetIsolate(),
+                          object->EnsureCanContainElements(args,
+                                                           first_arg,
+                                                           arg_count,
+                                                           mode));
 }
 
 

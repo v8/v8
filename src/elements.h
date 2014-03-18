@@ -203,9 +203,6 @@ void CheckArrayAbuse(JSObject* obj, const char* op, uint32_t key,
 Handle<Object> ArrayConstructInitializeElements(Handle<JSArray> array,
                                                 Arguments* args);
 
-MUST_USE_RESULT MaybeObject* ArrayConstructInitializeElements(
-    JSArray* array, Arguments* args);
-
 } }  // namespace v8::internal
 
 #endif  // V8_ELEMENTS_H_

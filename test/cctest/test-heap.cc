@@ -756,7 +756,7 @@ TEST(JSArray) {
   Handle<JSObject> object = factory->NewJSObject(function);
   Handle<JSArray> array = Handle<JSArray>::cast(object);
   // We just initialized the VM, no heap allocation failure yet.
-  array->Initialize(0)->ToObjectChecked();
+  JSArray::Initialize(array, 0);
 
   // Set array length to 0.
   array->SetElementsLength(Smi::FromInt(0))->ToObjectChecked();
