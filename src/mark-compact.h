@@ -110,8 +110,7 @@ class Marking {
     markbit.Next().Set();
   }
 
-  // Returns true if the the object whose mark is transferred is marked black.
-  bool TransferMark(Address old_start, Address new_start);
+  void TransferMark(Address old_start, Address new_start);
 
 #ifdef DEBUG
   enum ObjectColor {

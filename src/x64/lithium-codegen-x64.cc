@@ -3827,9 +3827,7 @@ void LCodeGen::DoCallNew(LCallNew* instr) {
 
   __ Set(rax, instr->arity());
   // No cell in ebx for construct type feedback in optimized code
-  Handle<Object> megamorphic_symbol =
-      TypeFeedbackInfo::MegamorphicSentinel(isolate());
-  __ Move(rbx, megamorphic_symbol);
+  __ LoadRoot(rbx, Heap::kUndefinedValueRootIndex);
   CallConstructStub stub(NO_CALL_FUNCTION_FLAGS);
   CallCode(stub.GetCode(isolate()), RelocInfo::CONSTRUCT_CALL, instr);
 }
@@ -3841,7 +3839,7 @@ void LCodeGen::DoCallNewArray(LCallNewArray* instr) {
   ASSERT(ToRegister(instr->result()).is(rax));
 
   __ Set(rax, instr->arity());
-  __ Move(rbx, TypeFeedbackInfo::MegamorphicSentinel(isolate()));
+  __ LoadRoot(rbx, Heap::kUndefinedValueRootIndex);
   ElementsKind kind = instr->hydrogen()->elements_kind();
   AllocationSiteOverrideMode override_mode =
       (AllocationSite::GetMode(kind) == TRACK_ALLOCATION_SITE)

@@ -105,7 +105,6 @@ Heap::Heap()
       unflattened_strings_length_(0),
 #ifdef DEBUG
       allocation_timeout_(0),
-      disallow_allocation_failure_(false),
 #endif  // DEBUG
       new_space_high_promotion_mode_active_(false),
       old_generation_allocation_limit_(kMinimumOldGenerationAllocationLimit),
@@ -3969,6 +3968,18 @@ void Heap::CreateFillerObjectAt(Address addr, int size) {
 }
 
 
+void Heap::AdjustLiveBytes(Address address, int by, InvocationMode mode) {
+  if (incremental_marking()->IsMarking() &&
+      Marking::IsBlack(Marking::MarkBitFrom(address))) {
+    if (mode == FROM_GC) {
+      MemoryChunk::IncrementLiveBytesFromGC(address, by);
+    } else {
+      MemoryChunk::IncrementLiveBytesFromMutator(address, by);
+    }
+  }
+}
+
+
 MaybeObject* Heap::AllocateExternalArray(int length,
                                          ExternalArrayType array_type,
                                          void* external_pointer,
@@ -7606,7 +7617,7 @@ void DescriptorLookupCache::Clear() {
 void Heap::GarbageCollectionGreedyCheck() {
   ASSERT(FLAG_gc_greedy);
   if (isolate_->bootstrapper()->IsActive()) return;
-  if (disallow_allocation_failure()) return;
+  if (!AllowAllocationFailure::IsAllowed(isolate_)) return;
   CollectGarbage(NEW_SPACE);
 }
 #endif

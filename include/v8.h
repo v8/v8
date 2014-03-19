@@ -4084,6 +4084,47 @@ class V8_EXPORT Isolate {
     Scope& operator=(const Scope&);
   };
 
+
+  /**
+   * Assert that no Javascript code is invoked.
+   */
+  class DisallowJavascriptExecutionScope {
+   public:
+    enum OnFailure { CRASH_ON_FAILURE, THROW_ON_FAILURE };
+
+    explicit DisallowJavascriptExecutionScope(Isolate* isolate,
+                                              OnFailure on_failure);
+    ~DisallowJavascriptExecutionScope();
+
+   private:
+    bool on_failure_;
+    void* internal_;
+
+    // Prevent copying of Scope objects.
+    DisallowJavascriptExecutionScope(const DisallowJavascriptExecutionScope&);
+    DisallowJavascriptExecutionScope& operator=(
+        const DisallowJavascriptExecutionScope&);
+  };
+
+
+  /**
+   * Introduce exception to DisallowJavascriptExecutionScope.
+   */
+  class AllowJavascriptExecutionScope {
+   public:
+    explicit AllowJavascriptExecutionScope(Isolate* isolate);
+    ~AllowJavascriptExecutionScope();
+
+   private:
+    void* internal_throws_;
+    void* internal_assert_;
+
+    // Prevent copying of Scope objects.
+    AllowJavascriptExecutionScope(const AllowJavascriptExecutionScope&);
+    AllowJavascriptExecutionScope& operator=(
+        const AllowJavascriptExecutionScope&);
+  };
+
   /**
    * Types of garbage collections that can be requested via
    * RequestGarbageCollectionForTesting.

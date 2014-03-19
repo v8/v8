@@ -2211,6 +2211,10 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
 
     if (RecordCallTarget()) {
       GenerateRecordCallTarget(masm);
+      // Type information was updated. Because we may call Array, which
+      // expects either undefined or an AllocationSite in rbx we need
+      // to set rbx to undefined.
+      __ LoadRoot(rbx, Heap::kUndefinedValueRootIndex);
     }
   }
 
@@ -2319,7 +2323,17 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
   __ j(not_equal, &slow);
 
   if (RecordCallTarget()) {
+    Label feedback_register_initialized;
     GenerateRecordCallTarget(masm);
+    // Put the AllocationSite from the feedback vector into rbx, or undefined.
+    __ SmiToInteger32(rdx, rdx);
+    __ movp(rbx, FieldOperand(rbx, rdx, times_pointer_size,
+                              FixedArray::kHeaderSize));
+    __ CompareRoot(FieldOperand(rbx, 0), Heap::kAllocationSiteMapRootIndex);
+    __ j(equal, &feedback_register_initialized);
+    __ LoadRoot(rbx, Heap::kUndefinedValueRootIndex);
+    __ bind(&feedback_register_initialized);
+    __ AssertUndefinedOrAllocationSite(rbx);
   }
 
   // Jump to the function-specific construct stub.
@@ -4924,15 +4938,11 @@ void ArrayConstructorStub::GenerateDispatchToArrayStub(
 void ArrayConstructorStub::Generate(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- rax    : argc
-  //  -- rbx    : feedback vector (fixed array or megamorphic symbol)
-  //  -- rdx    : slot index (if ebx is fixed array)
+  //  -- rbx    : AllocationSite or undefined
   //  -- rdi    : constructor
   //  -- rsp[0] : return address
   //  -- rsp[8] : last argument
   // -----------------------------------
-  Handle<Object> megamorphic_sentinel =
-      TypeFeedbackInfo::MegamorphicSentinel(masm->isolate());
-
   if (FLAG_debug_code) {
     // The array construct code is only set for the global and natives
     // builtin Array functions which always have maps.
@@ -4946,34 +4956,16 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
     __ CmpObjectType(rcx, MAP_TYPE, rcx);
     __ Check(equal, kUnexpectedInitialMapForArrayFunction);
 
-    // We should either have the megamorphic symbol in rbx or a valid
-    // fixed array.
-    Label okay_here;
-    Handle<Map> fixed_array_map = masm->isolate()->factory()->fixed_array_map();
-    __ Cmp(rbx, megamorphic_sentinel);
-    __ j(equal, &okay_here);
-    __ Cmp(FieldOperand(rbx, 0), fixed_array_map);
-    __ Assert(equal, kExpectedFixedArrayInRegisterRbx);
-
-    // rdx should be a smi if we don't have the megamorphic symbol in rbx.
-    __ AssertSmi(rdx);
-
-    __ bind(&okay_here);
+    // We should either have undefined in rbx or a valid AllocationSite
+    __ AssertUndefinedOrAllocationSite(rbx);
   }
 
   Label no_info;
   // If the feedback slot is the megamorphic sentinel, or contains anything
   // other than an AllocationSite, call an array constructor that doesn't use
   // AllocationSites.
-  __ Cmp(rbx, megamorphic_sentinel);
+  __ CompareRoot(rbx, Heap::kUndefinedValueRootIndex);
   __ j(equal, &no_info);
-  __ SmiToInteger32(rdx, rdx);
-  __ movp(rbx, FieldOperand(rbx, rdx, times_pointer_size,
-                            FixedArray::kHeaderSize));
-  __ Integer32ToSmi(rdx, rdx);
-  __ Cmp(FieldOperand(rbx, 0),
-         masm->isolate()->factory()->allocation_site_map());
-  __ j(not_equal, &no_info);
 
   // Only look at the lower 16 bits of the transition info.
   __ movp(rdx, FieldOperand(rbx, AllocationSite::kTransitionInfoOffset));

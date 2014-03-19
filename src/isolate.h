@@ -380,6 +380,7 @@ typedef List<HeapObject*> DebugObjectCache;
   V(CodeTracer*, code_tracer, NULL)                                            \
   V(bool, fp_stubs_generated, false)                                           \
   V(int, max_available_threads, 0)                                             \
+  V(uint32_t, per_isolate_assert_data, 0xFFFFFFFFu)                            \
   ISOLATE_INIT_SIMULATOR_LIST(V)                                               \
   ISOLATE_DEBUGGER_INIT_LIST(V)
 

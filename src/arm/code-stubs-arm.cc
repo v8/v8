@@ -3032,6 +3032,10 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
 
     if (RecordCallTarget()) {
       GenerateRecordCallTarget(masm);
+      // Type information was updated. Because we may call Array, which
+      // expects either undefined or an AllocationSite in ebx we need
+      // to set ebx to undefined.
+      __ LoadRoot(r2, Heap::kUndefinedValueRootIndex);
     }
   }
 
@@ -3134,7 +3138,18 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
   __ b(ne, &slow);
 
   if (RecordCallTarget()) {
+    Label feedback_register_initialized;
     GenerateRecordCallTarget(masm);
+
+    // Put the AllocationSite from the feedback vector into r2, or undefined.
+    __ add(r5, r2, Operand::PointerOffsetFromSmiKey(r3));
+    __ ldr(r2, FieldMemOperand(r5, FixedArray::kHeaderSize));
+    __ ldr(r5, FieldMemOperand(r2, AllocationSite::kMapOffset));
+    __ CompareRoot(r5, Heap::kAllocationSiteMapRootIndex);
+    __ b(eq, &feedback_register_initialized);
+    __ LoadRoot(r2, Heap::kUndefinedValueRootIndex);
+    __ bind(&feedback_register_initialized);
+    __ AssertUndefinedOrAllocationSite(r2, r5);
   }
 
   // Jump to the function-specific construct stub.
@@ -5209,14 +5224,10 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- r0 : argc (only if argument_count_ == ANY)
   //  -- r1 : constructor
-  //  -- r2 : feedback vector (fixed array or megamorphic symbol)
-  //  -- r3 : slot index (if r2 is fixed array)
+  //  -- r2 : AllocationSite or undefined
   //  -- sp[0] : return address
   //  -- sp[4] : last argument
   // -----------------------------------
-
-  ASSERT_EQ(*TypeFeedbackInfo::MegamorphicSentinel(masm->isolate()),
-            masm->isolate()->heap()->megamorphic_symbol());
 
   if (FLAG_debug_code) {
     // The array construct code is only set for the global and natives
@@ -5230,34 +5241,14 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
     __ CompareObjectType(r4, r4, r5, MAP_TYPE);
     __ Assert(eq, kUnexpectedInitialMapForArrayFunction);
 
-    // We should either have the megamorphic symbol in ebx or a valid
-    // fixed array.
-    Label okay_here;
-    Handle<Map> fixed_array_map = masm->isolate()->factory()->fixed_array_map();
-    __ CompareRoot(r2, Heap::kMegamorphicSymbolRootIndex);
-    __ b(eq, &okay_here);
-    __ ldr(r4, FieldMemOperand(r2, 0));
-    __ cmp(r4, Operand(fixed_array_map));
-    __ Assert(eq, kExpectedFixedArrayInRegisterR2);
-
-    // r3 should be a smi if we don't have undefined in r2
-    __ AssertSmi(r3);
-
-    __ bind(&okay_here);
+    // We should either have undefined in r2 or a valid AllocationSite
+    __ AssertUndefinedOrAllocationSite(r2, r4);
   }
 
   Label no_info;
   // Get the elements kind and case on that.
-  __ CompareRoot(r2, Heap::kMegamorphicSymbolRootIndex);
+  __ CompareRoot(r2, Heap::kUndefinedValueRootIndex);
   __ b(eq, &no_info);
-  __ add(r2, r2, Operand::PointerOffsetFromSmiKey(r3));
-  __ ldr(r2, FieldMemOperand(r2, FixedArray::kHeaderSize));
-
-  // If the feedback vector is undefined, or contains anything other than an
-  // AllocationSite, call an array constructor that doesn't use AllocationSites.
-  __ ldr(r4, FieldMemOperand(r2, 0));
-  __ CompareRoot(r4, Heap::kAllocationSiteMapRootIndex);
-  __ b(ne, &no_info);
 
   __ ldr(r3, FieldMemOperand(r2, AllocationSite::kTransitionInfoOffset));
   __ SmiUntag(r3);

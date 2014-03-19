@@ -268,13 +268,12 @@ static FixedArrayBase* LeftTrimFixedArray(Heap* heap,
   // Maintain marking consistency for HeapObjectIterator and
   // IncrementalMarking.
   int size_delta = to_trim * entry_size;
-  if (heap->marking()->TransferMark(elms->address(),
-                                    elms->address() + size_delta)) {
-    MemoryChunk::IncrementLiveBytesFromMutator(elms->address(), -size_delta);
-  }
+  Address new_start = elms->address() + size_delta;
+  heap->marking()->TransferMark(elms->address(), new_start);
+  heap->AdjustLiveBytes(new_start, -size_delta, Heap::FROM_MUTATOR);
 
-  FixedArrayBase* new_elms = FixedArrayBase::cast(HeapObject::FromAddress(
-      elms->address() + size_delta));
+  FixedArrayBase* new_elms =
+      FixedArrayBase::cast(HeapObject::FromAddress(new_start));
   HeapProfiler* profiler = heap->isolate()->heap_profiler();
   if (profiler->is_tracking_object_moves()) {
     profiler->ObjectMoveEvent(elms->address(),
@@ -1667,7 +1666,7 @@ void Builtins::SetUp(Isolate* isolate, bool create_heap_objects) {
       {
         // During startup it's OK to always allocate and defer GC to later.
         // This simplifies things because we don't need to retry.
-        AlwaysAllocateScope __scope__;
+        AlwaysAllocateScope __scope__(isolate);
         { MaybeObject* maybe_code =
               heap->CreateCode(desc, flags, masm.CodeObject());
           if (!maybe_code->ToObject(&code)) {
