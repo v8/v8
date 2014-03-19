@@ -1575,9 +1575,9 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   {
     // Prevent literal pool emission before return address.
     Assembler::BlockConstPoolScope block_const_pool(masm);
-    masm->add(lr, pc, Operand(4));
+    __ add(lr, pc, Operand(4));
     __ str(lr, MemOperand(sp, 0));
-    masm->Jump(r5);
+    __ Call(r5);
   }
 
   __ VFPEnsureFPSCRState(r2);
@@ -1865,16 +1865,10 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
     __ mov(ip, Operand(entry));
   }
   __ ldr(ip, MemOperand(ip));  // deref address
+  __ add(ip, ip, Operand(Code::kHeaderSize - kHeapObjectTag));
 
-  // Branch and link to JSEntryTrampoline.  We don't use the double underscore
-  // macro for the add instruction because we don't want the coverage tool
-  // inserting instructions here after we read the pc. We block literal pool
-  // emission for the same reason.
-  {
-    Assembler::BlockConstPoolScope block_const_pool(masm);
-    __ mov(lr, Operand(pc));
-    masm->add(pc, ip, Operand(Code::kHeaderSize - kHeapObjectTag));
-  }
+  // Branch and link to JSEntryTrampoline.
+  __ Call(ip);
 
   // Unlink this frame from the handler chain.
   __ PopTryHandler();
