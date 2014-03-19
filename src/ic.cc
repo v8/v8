@@ -1096,7 +1096,6 @@ MaybeObject* KeyedLoadIC::Load(Handle<Object> object, Handle<Object> key) {
     maybe_object = LoadIC::Load(object, Handle<String>::cast(key));
     if (maybe_object->IsFailure()) return maybe_object;
   } else if (FLAG_use_ic && !object->IsAccessCheckNeeded()) {
-    ASSERT(!object->IsAccessCheckNeeded());
     if (object->IsString() && key->IsNumber()) {
       if (state() == UNINITIALIZED) stub = string_stub();
     } else if (object->IsJSObject()) {
@@ -1117,7 +1116,6 @@ MaybeObject* KeyedLoadIC::Load(Handle<Object> object, Handle<Object> key) {
     if (*stub == *generic_stub()) {
       TRACE_GENERIC_IC(isolate(), "KeyedLoadIC", "set generic");
     }
-    ASSERT(!stub.is_null());
     set_target(*stub);
     TRACE_IC("LoadIC", key);
   }
