@@ -133,6 +133,10 @@ void MacroAssembler::Call(Address target,
     set_predictable_code_size(true);
   }
 
+  // Check the expected size before generating code to ensure we assume the same
+  // constant pool availability (e.g., whether constant pool is full or not).
+  int expected_size = CallSize(target, rmode, cond);
+
   // Call sequence on V7 or later may be :
   //  movw  ip, #... @ call address low 16
   //  movt  ip, #... @ call address high 16
@@ -153,7 +157,7 @@ void MacroAssembler::Call(Address target,
   mov(ip, Operand(reinterpret_cast<int32_t>(target), rmode));
   blx(ip, cond);
 
-  ASSERT_EQ(CallSize(target, rmode, cond), SizeOfCodeGeneratedSince(&start));
+  ASSERT_EQ(expected_size, SizeOfCodeGeneratedSince(&start));
   if (mode == NEVER_INLINE_TARGET_ADDRESS) {
     set_predictable_code_size(old_predictable_code_size);
   }
@@ -1054,6 +1058,8 @@ int MacroAssembler::ActivationFrameAlignment() {
 void MacroAssembler::LeaveExitFrame(bool save_doubles,
                                     Register argument_count,
                                     bool restore_context) {
+  ConstantPoolUnavailableScope constant_pool_unavailable(this);
+
   // Optionally restore all double registers.
   if (save_doubles) {
     // Calculate the stack location of the saved doubles and restore them.
@@ -1067,7 +1073,6 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles,
   mov(r3, Operand::Zero());
   mov(ip, Operand(ExternalReference(Isolate::kCEntryFPAddress, isolate())));
   str(r3, MemOperand(ip));
-
 
   // Restore current context from top and clear it in debug mode.
   if (restore_context) {
@@ -1375,6 +1380,11 @@ void MacroAssembler::JumpToHandlerEntry() {
   // Compute the handler entry address and jump to it.  The handler table is
   // a fixed array of (smi-tagged) code offsets.
   // r0 = exception, r1 = code object, r2 = state.
+
+  ConstantPoolUnavailableScope constant_pool_unavailable(this);
+  if (FLAG_enable_ool_constant_pool) {
+    ldr(pp, FieldMemOperand(r1, Code::kConstantPoolOffset));  // Constant pool.
+  }
   ldr(r3, FieldMemOperand(r1, Code::kHandlerTableOffset));  // Handler table.
   add(r3, r3, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
   mov(r2, Operand(r2, LSR, StackHandler::kKindWidth));  // Handler index.
@@ -3555,22 +3565,31 @@ void MacroAssembler::CallCFunctionHelper(Register function,
 
 
 void MacroAssembler::GetRelocatedValueLocation(Register ldr_location,
-                               Register result) {
+                                               Register result) {
   const uint32_t kLdrOffsetMask = (1 << 12) - 1;
-  const int32_t kPCRegOffset = 2 * kPointerSize;
   ldr(result, MemOperand(ldr_location));
   if (emit_debug_code()) {
-    // Check that the instruction is a ldr reg, [pc + offset] .
-    and_(result, result, Operand(kLdrPCPattern));
-    cmp(result, Operand(kLdrPCPattern));
-    Check(eq, kTheInstructionToPatchShouldBeALoadFromPc);
+    // Check that the instruction is a ldr reg, [<pc or pp> + offset] .
+    if (FLAG_enable_ool_constant_pool) {
+      and_(result, result, Operand(kLdrPpPattern));
+      cmp(result, Operand(kLdrPpPattern));
+      Check(eq, kTheInstructionToPatchShouldBeALoadFromPp);
+    } else {
+      and_(result, result, Operand(kLdrPCPattern));
+      cmp(result, Operand(kLdrPCPattern));
+      Check(eq, kTheInstructionToPatchShouldBeALoadFromPc);
+    }
     // Result was clobbered. Restore it.
     ldr(result, MemOperand(ldr_location));
   }
   // Get the address of the constant.
   and_(result, result, Operand(kLdrOffsetMask));
-  add(result, ldr_location, Operand(result));
-  add(result, result, Operand(kPCRegOffset));
+  if (FLAG_enable_ool_constant_pool) {
+    add(result, pp, Operand(result));
+  } else {
+    add(result, ldr_location, Operand(result));
+    add(result, result, Operand(Instruction::kPCReadOffset));
+  }
 }
 
 

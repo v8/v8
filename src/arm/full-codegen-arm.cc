@@ -4835,8 +4835,7 @@ static Address GetInterruptImmediateLoadAddress(Address pc) {
     load_address -= Assembler::kInstrSize;
     ASSERT(Assembler::IsMovW(Memory::int32_at(load_address)));
   } else {
-    // TODO(rmcilroy): uncomment when IsLdrPpImmediateOffset lands.
-    // ASSERT(IsLdrPpImmediateOffset(Memory::int32_at(load_address)));
+    ASSERT(Assembler::IsLdrPpImmediateOffset(Memory::int32_at(load_address)));
   }
   return load_address;
 }
