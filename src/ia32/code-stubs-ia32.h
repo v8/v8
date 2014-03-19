@@ -29,7 +29,6 @@
 #define V8_IA32_CODE_STUBS_IA32_H_
 
 #include "macro-assembler.h"
-#include "code-stubs.h"
 #include "ic-inl.h"
 
 namespace v8 {
