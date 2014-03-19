@@ -227,6 +227,10 @@ static void VerifyEvacuation(NewSpace* space) {
 
 
 static void VerifyEvacuation(PagedSpace* space) {
+  // TODO(hpayer): Bring back VerifyEvacuation for parallel-concurrently
+  // swept pages.
+  if ((FLAG_concurrent_sweeping || FLAG_parallel_sweeping) &&
+      space->was_swept_conservatively()) return;
   PageIterator it(space);
 
   while (it.has_next()) {
