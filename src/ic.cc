@@ -1746,14 +1746,15 @@ Handle<Code> KeyedStoreIC::StoreElementStub(Handle<JSObject> receiver,
       transitioned_receiver_map =
           ComputeTransitionedMap(receiver, store_mode);
     }
-    if (IsTransitionOfMonomorphicTarget(MapToType(transitioned_receiver_map))) {
+    if (receiver_map.is_identical_to(previous_receiver_map) ||
+        IsTransitionOfMonomorphicTarget(MapToType(transitioned_receiver_map))) {
       // Element family is the same, use the "worst" case map.
       store_mode = GetNonTransitioningStoreMode(store_mode);
       return isolate()->stub_cache()->ComputeKeyedStoreElement(
           transitioned_receiver_map, strict_mode(), store_mode);
     } else if (*previous_receiver_map == receiver->map() &&
                old_store_mode == STANDARD_STORE &&
-               (IsGrowStoreMode(store_mode) ||
+               (store_mode == STORE_AND_GROW_NO_TRANSITION ||
                 store_mode == STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS ||
                 store_mode == STORE_NO_TRANSITION_HANDLE_COW)) {
       // A "normal" IC that handles stores can switch to a version that can
