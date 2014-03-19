@@ -353,6 +353,20 @@ static inline MaybeObject* EnsureJSArrayWithWritableFastElements(
 }
 
 
+// TODO(ishell): Temporary wrapper until handlified.
+MUST_USE_RESULT
+static inline Handle<Object> EnsureJSArrayWithWritableFastElementsWrapper(
+    Isolate* isolate,
+    Handle<Object> receiver,
+    Arguments* args,
+    int first_added_arg) {
+  CALL_HEAP_FUNCTION(isolate,
+                     EnsureJSArrayWithWritableFastElements(
+                         isolate->heap(), *receiver, args, first_added_arg),
+                     Object);
+}
+
+
 static inline bool IsJSArrayFastElementMovingAllowed(Heap* heap,
                                                      JSArray* receiver) {
   if (!FLAG_clever_optimizations) return false;
@@ -506,6 +520,35 @@ BUILTIN(ArrayPush) {
 }
 
 
+// TODO(ishell): Temporary wrapper until handlified.
+static bool ElementsAccessorHasElementWrapper(
+    ElementsAccessor* accessor,
+    Handle<Object> receiver,
+    Handle<JSObject> holder,
+    uint32_t key,
+    Handle<FixedArrayBase> backing_store = Handle<FixedArrayBase>::null()) {
+  return accessor->HasElement(*receiver, *holder, key,
+                              backing_store.is_null() ? *backing_store : NULL);
+}
+
+
+// TODO(ishell): Temporary wrapper until handlified.
+static Handle<Object> ElementsAccessorGetWrapper(
+    Isolate* isolate,
+    ElementsAccessor* accessor,
+    Handle<Object> receiver,
+    Handle<JSObject> holder,
+    uint32_t key,
+    Handle<FixedArrayBase> backing_store = Handle<FixedArrayBase>::null()) {
+  CALL_HEAP_FUNCTION(isolate,
+                     accessor->Get(*receiver, *holder, key,
+                                   backing_store.is_null()
+                                   ? *backing_store : NULL),
+                     Object);
+}
+
+
+// TODO(ishell): Temporary wrapper until handlified.
 static Handle<Object> ElementsAccessorSetLengthWrapper(
     Isolate* isolate,
     ElementsAccessor* accessor,
@@ -518,42 +561,36 @@ static Handle<Object> ElementsAccessorSetLengthWrapper(
 
 
 BUILTIN(ArrayPop) {
-  Heap* heap = isolate->heap();
-  Object* receiver = *args.receiver();
-  FixedArrayBase* elms_obj;
-  MaybeObject* maybe_elms =
-      EnsureJSArrayWithWritableFastElements(heap, receiver, NULL, 0);
-  if (maybe_elms == NULL) return CallJsBuiltin(isolate, "ArrayPop", args);
-  if (!maybe_elms->To(&elms_obj)) return maybe_elms;
+  HandleScope scope(isolate);
+  Handle<Object> receiver = args.receiver();
+  Handle<Object> elms_or_null =
+      EnsureJSArrayWithWritableFastElementsWrapper(isolate, receiver, NULL, 0);
+  RETURN_IF_EMPTY_HANDLE(isolate, elms_or_null);
+  if (*elms_or_null == NULL) return CallJsBuiltin(isolate, "ArrayPop", args);
 
-  JSArray* array = JSArray::cast(receiver);
+  Handle<FixedArrayBase> elms_obj = Handle<FixedArrayBase>::cast(elms_or_null);
+  Handle<JSArray> array = Handle<JSArray>::cast(receiver);
   ASSERT(!array->map()->is_observed());
 
   int len = Smi::cast(array->length())->value();
-  if (len == 0) return heap->undefined_value();
+  if (len == 0) return isolate->heap()->undefined_value();
 
   ElementsAccessor* accessor = array->GetElementsAccessor();
   int new_length = len - 1;
-  if (accessor->HasElement(array, array, new_length, elms_obj)) {
-    MaybeObject* maybe_result =
-        accessor->Get(array, array, new_length, elms_obj);
-    if (maybe_result->IsFailure()) return maybe_result;
-    MaybeObject* maybe_failure =
-        accessor->SetLength(array, Smi::FromInt(new_length));
-    if (maybe_failure->IsFailure()) return maybe_failure;
-    return maybe_result;
+  Handle<Object> element;
+  if (ElementsAccessorHasElementWrapper(
+      accessor, array, array, new_length, elms_obj)) {
+    element = ElementsAccessorGetWrapper(
+        isolate, accessor, array, array, new_length, elms_obj);
   } else {
-    // TODO(yangguo): handlify all once ElementsAccessors are handlified.
-    HandleScope scope(isolate);
     Handle<Object> proto(array->GetPrototype(), isolate);
-    Handle<Object> element = Object::GetElement(isolate, proto, len - 1);
-    RETURN_IF_EMPTY_HANDLE(isolate, element);
-    Handle<JSArray> array_handle(array, isolate);
-    RETURN_IF_EMPTY_HANDLE(isolate,
-                           ElementsAccessorSetLengthWrapper(
-                               isolate, accessor, array_handle, new_length));
-    return *element;
+    element = Object::GetElement(isolate, proto, len - 1);
   }
+  RETURN_IF_EMPTY_HANDLE(isolate, element);
+  RETURN_IF_EMPTY_HANDLE(isolate,
+                         ElementsAccessorSetLengthWrapper(
+                             isolate, accessor, array, new_length));
+  return *element;
 }
 
 

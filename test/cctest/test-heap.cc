@@ -148,6 +148,16 @@ static void CheckFindCodeObject(Isolate* isolate) {
 }
 
 
+TEST(HandleNull) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope outer_scope(isolate);
+  LocalContext context;
+  Handle<Object> n(reinterpret_cast<Object*>(NULL), isolate);
+  CHECK(!n.is_null());
+}
+
+
 TEST(HeapObjects) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
