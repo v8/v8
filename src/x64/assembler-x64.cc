@@ -3199,19 +3199,6 @@ void Assembler::RecordComment(const char* msg, bool force) {
 }
 
 
-MaybeObject* Assembler::AllocateConstantPool(Heap* heap) {
-  // No out-of-line constant pool support.
-  UNREACHABLE();
-  return NULL;
-}
-
-
-void Assembler::PopulateConstantPool(ConstantPoolArray* constant_pool) {
-  // No out-of-line constant pool support.
-  UNREACHABLE();
-}
-
-
 const int RelocInfo::kApplyMask = RelocInfo::kCodeTargetMask |
     1 << RelocInfo::RUNTIME_ENTRY |
     1 << RelocInfo::INTERNAL_REFERENCE |

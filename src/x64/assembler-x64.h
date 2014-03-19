@@ -1462,12 +1462,6 @@ class Assembler : public AssemblerBase {
   // Use --code-comments to enable.
   void RecordComment(const char* msg, bool force = false);
 
-  // Allocate a constant pool of the correct size for the generated code.
-  MaybeObject* AllocateConstantPool(Heap* heap);
-
-  // Generate the constant pool for the generated code.
-  void PopulateConstantPool(ConstantPoolArray* constant_pool);
-
   // Writes a single word of data in the code stream.
   // Used for inline tables, e.g., jump-tables.
   void db(uint8_t data);

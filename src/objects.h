@@ -1326,8 +1326,6 @@ class MaybeObject BASE_EMBEDDED {
   V(kTheInstructionShouldBeAnOri, "The instruction should be an ori")         \
   V(kTheInstructionToPatchShouldBeALoadFromPc,                                \
     "The instruction to patch should be a load from pc")                      \
-  V(kTheInstructionToPatchShouldBeALoadFromPp,                                \
-    "The instruction to patch should be a load from pp")                      \
   V(kTheInstructionToPatchShouldBeAnLdrLiteral,                               \
     "The instruction to patch should be a ldr literal")                       \
   V(kTheInstructionToPatchShouldBeALui,                                       \

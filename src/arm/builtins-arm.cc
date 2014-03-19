@@ -962,26 +962,20 @@ void Builtins::Generate_OnStackReplacement(MacroAssembler* masm) {
 
   // Load deoptimization data from the code object.
   // <deopt_data> = <code>[#deoptimization_data_offset]
-  __ ldr(r1, FieldMemOperand(r0, Code::kDeoptimizationDataOffset));
+  __ ldr(r1, MemOperand(r0, Code::kDeoptimizationDataOffset - kHeapObjectTag));
 
-  { ConstantPoolUnavailableScope constant_pool_unavailable(masm);
-    if (FLAG_enable_ool_constant_pool) {
-      __ ldr(pp, FieldMemOperand(r0, Code::kConstantPoolOffset));
-    }
+  // Load the OSR entrypoint offset from the deoptimization data.
+  // <osr_offset> = <deopt_data>[#header_size + #osr_pc_offset]
+  __ ldr(r1, MemOperand(r1, FixedArray::OffsetOfElementAt(
+      DeoptimizationInputData::kOsrPcOffsetIndex) - kHeapObjectTag));
 
-    // Load the OSR entrypoint offset from the deoptimization data.
-    // <osr_offset> = <deopt_data>[#header_size + #osr_pc_offset]
-    __ ldr(r1, FieldMemOperand(r1, FixedArray::OffsetOfElementAt(
-        DeoptimizationInputData::kOsrPcOffsetIndex)));
+  // Compute the target address = code_obj + header_size + osr_offset
+  // <entry_addr> = <code_obj> + #header_size + <osr_offset>
+  __ add(r0, r0, Operand::SmiUntag(r1));
+  __ add(lr, r0, Operand(Code::kHeaderSize - kHeapObjectTag));
 
-    // Compute the target address = code_obj + header_size + osr_offset
-    // <entry_addr> = <code_obj> + #header_size + <osr_offset>
-    __ add(r0, r0, Operand::SmiUntag(r1));
-    __ add(lr, r0, Operand(Code::kHeaderSize - kHeapObjectTag));
-
-    // And "return" to the OSR entry point of the function.
-    __ Ret();
-  }
+  // And "return" to the OSR entry point of the function.
+  __ Ret();
 }
 
 

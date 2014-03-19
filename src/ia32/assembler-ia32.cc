@@ -2717,19 +2717,6 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
 }
 
 
-MaybeObject* Assembler::AllocateConstantPool(Heap* heap) {
-  // No out-of-line constant pool support.
-  UNREACHABLE();
-  return NULL;
-}
-
-
-void Assembler::PopulateConstantPool(ConstantPoolArray* constant_pool) {
-  // No out-of-line constant pool support.
-  UNREACHABLE();
-}
-
-
 #ifdef GENERATED_CODE_COVERAGE
 static FILE* coverage_log = NULL;
 

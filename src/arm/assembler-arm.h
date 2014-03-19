@@ -39,10 +39,7 @@
 
 #ifndef V8_ARM_ASSEMBLER_ARM_H_
 #define V8_ARM_ASSEMBLER_ARM_H_
-
 #include <stdio.h>
-#include <vector>
-
 #include "assembler.h"
 #include "constants-arm.h"
 #include "serialize.h"
@@ -705,42 +702,9 @@ class NeonListOperand BASE_EMBEDDED {
   NeonListType type_;
 };
 
-
-// Class used to build a constant pool.
-class ConstantPoolBuilder BASE_EMBEDDED {
- public:
-  explicit ConstantPoolBuilder();
-  void AddEntry(Assembler* assm, const RelocInfo& rinfo);
-  void Relocate(int pc_delta);
-  bool IsEmpty();
-  MaybeObject* Allocate(Heap* heap);
-  void Populate(Assembler* assm, ConstantPoolArray* constant_pool);
-
-  inline int count_of_64bit() const { return count_of_64bit_; }
-  inline int count_of_code_ptr() const { return count_of_code_ptr_; }
-  inline int count_of_heap_ptr() const { return count_of_heap_ptr_; }
-  inline int count_of_32bit() const { return count_of_32bit_; }
-
- private:
-  bool Is64BitEntry(RelocInfo::Mode rmode);
-  bool Is32BitEntry(RelocInfo::Mode rmode);
-  bool IsCodePtrEntry(RelocInfo::Mode rmode);
-  bool IsHeapPtrEntry(RelocInfo::Mode rmode);
-
-  std::vector<RelocInfo> entries_;
-  std::vector<int> merged_indexes_;
-  int count_of_64bit_;
-  int count_of_code_ptr_;
-  int count_of_heap_ptr_;
-  int count_of_32bit_;
-};
-
-
 extern const Instr kMovLrPc;
 extern const Instr kLdrPCMask;
 extern const Instr kLdrPCPattern;
-extern const Instr kLdrPpMask;
-extern const Instr kLdrPpPattern;
 extern const Instr kBlxRegMask;
 extern const Instr kBlxRegPattern;
 extern const Instr kBlxIp;
@@ -1449,8 +1413,6 @@ class Assembler : public AssemblerBase {
   static int GetBranchOffset(Instr instr);
   static bool IsLdrRegisterImmediate(Instr instr);
   static bool IsVldrDRegisterImmediate(Instr instr);
-  static bool IsLdrPpImmediateOffset(Instr instr);
-  static bool IsVldrDPpImmediateOffset(Instr instr);
   static int GetLdrRegisterImmediateOffset(Instr instr);
   static int GetVldrDRegisterImmediateOffset(Instr instr);
   static Instr SetLdrRegisterImmediateOffset(Instr instr, int offset);
@@ -1495,12 +1457,6 @@ class Assembler : public AssemblerBase {
 
   // Check if is time to emit a constant pool.
   void CheckConstPool(bool force_emit, bool require_jump);
-
-  // Allocate a constant pool of the correct size for the generated code.
-  MaybeObject* AllocateConstantPool(Heap* heap);
-
-  // Generate the constant pool for the generated code.
-  void PopulateConstantPool(ConstantPoolArray* constant_pool);
 
   bool can_use_constant_pool() const {
     return is_constant_pool_available() && !constant_pool_full_;
@@ -1628,8 +1584,6 @@ class Assembler : public AssemblerBase {
   // Number of pending reloc info entries in the 64 bits buffer.
   int num_pending_64_bit_reloc_info_;
 
-  ConstantPoolBuilder constant_pool_builder_;
-
   // The bound position, before this we cannot do instruction elimination.
   int last_bound_pos_;
 
@@ -1668,9 +1622,10 @@ class Assembler : public AssemblerBase {
   };
 
   // Record reloc info for current pc_
-  void RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data = 0);
-  void RecordRelocInfo(const RelocInfo& rinfo);
-  void ConstantPoolAddEntry(const RelocInfo& rinfo);
+  void RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data = 0,
+                       UseConstantPoolMode mode = USE_CONSTANT_POOL);
+  void RecordRelocInfo(double data);
+  void RecordRelocInfoConstantPoolEntryHelper(const RelocInfo& rinfo);
 
   friend class RelocInfo;
   friend class CodePatcher;

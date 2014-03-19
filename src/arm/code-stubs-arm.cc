@@ -1777,7 +1777,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   Isolate* isolate = masm->isolate();
   int marker = is_construct ? StackFrame::ENTRY_CONSTRUCT : StackFrame::ENTRY;
   if (FLAG_enable_ool_constant_pool) {
-    __ mov(r8, Operand(isolate->factory()->empty_constant_pool_array()));
+    __ mov(r8, Operand(Smi::FromInt(marker)));
   }
   __ mov(r7, Operand(Smi::FromInt(marker)));
   __ mov(r6, Operand(Smi::FromInt(marker)));

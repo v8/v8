@@ -109,28 +109,14 @@ Address RelocInfo::target_address_address() {
   ASSERT(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_)
                               || rmode_ == EMBEDDED_OBJECT
                               || rmode_ == EXTERNAL_REFERENCE);
-  if (FLAG_enable_ool_constant_pool ||
-      Assembler::IsMovW(Memory::int32_at(pc_))) {
-    // We return the PC for ool constant pool since this function is used by the
-    // serializerer and expects the address to reside within the code object.
-    return reinterpret_cast<Address>(pc_);
-  } else {
-    ASSERT(Assembler::IsLdrPcImmediateOffset(Memory::int32_at(pc_)));
-    return Assembler::target_pointer_address_at(pc_);
-  }
+  return Assembler::target_pointer_address_at(pc_);
 }
 
 
 Address RelocInfo::constant_pool_entry_address() {
   ASSERT(IsInConstantPool());
-  if (FLAG_enable_ool_constant_pool) {
-    ASSERT(Assembler::IsLdrPpImmediateOffset(Memory::int32_at(pc_)));
-    return Assembler::target_constant_pool_address_at(pc_,
-                                                      host_->constant_pool());
-  } else {
-    ASSERT(Assembler::IsLdrPcImmediateOffset(Memory::int32_at(pc_)));
-    return Assembler::target_pointer_address_at(pc_);
-  }
+  ASSERT(Assembler::IsLdrPcImmediateOffset(Memory::int32_at(pc_)));
+  return Assembler::target_pointer_address_at(pc_);
 }
 
 
@@ -424,16 +410,6 @@ Address Assembler::target_pointer_address_at(Address pc) {
 }
 
 
-Address Assembler::target_constant_pool_address_at(
-    Address pc, ConstantPoolArray* constant_pool) {
-  ASSERT(constant_pool != NULL);
-  ASSERT(IsLdrPpImmediateOffset(Memory::int32_at(pc)));
-  Instr instr = Memory::int32_at(pc);
-  return reinterpret_cast<Address>(constant_pool) +
-      GetLdrRegisterImmediateOffset(instr);
-}
-
-
 Address Assembler::target_address_at(Address pc,
                                      ConstantPoolArray* constant_pool) {
   if (IsMovW(Memory::int32_at(pc))) {
@@ -443,14 +419,9 @@ Address Assembler::target_address_at(Address pc,
     return reinterpret_cast<Address>(
         (next_instr->ImmedMovwMovtValue() << 16) |
         instr->ImmedMovwMovtValue());
-  } else if (FLAG_enable_ool_constant_pool) {
-    ASSERT(IsLdrPpImmediateOffset(Memory::int32_at(pc)));
-    return Memory::Address_at(
-        target_constant_pool_address_at(pc, constant_pool));
-  } else {
-    ASSERT(IsLdrPcImmediateOffset(Memory::int32_at(pc)));
-    return Memory::Address_at(target_pointer_address_at(pc));
   }
+  ASSERT(IsLdrPcImmediateOffset(Memory::int32_at(pc)));
+  return Memory::Address_at(target_pointer_address_at(pc));
 }
 
 
@@ -468,8 +439,7 @@ Address Assembler::target_address_from_return_address(Address pc) {
   //                      @ return address
   Address candidate = pc - 2 * Assembler::kInstrSize;
   Instr candidate_instr(Memory::int32_at(candidate));
-  if (IsLdrPcImmediateOffset(candidate_instr) |
-      IsLdrPpImmediateOffset(candidate_instr)) {
+  if (IsLdrPcImmediateOffset(candidate_instr)) {
     return candidate;
   }
   candidate = pc - 3 * Assembler::kInstrSize;
@@ -480,8 +450,7 @@ Address Assembler::target_address_from_return_address(Address pc) {
 
 
 Address Assembler::return_address_from_call_start(Address pc) {
-  if (IsLdrPcImmediateOffset(Memory::int32_at(pc)) |
-      IsLdrPpImmediateOffset(Memory::int32_at(pc))) {
+  if (IsLdrPcImmediateOffset(Memory::int32_at(pc))) {
     return pc + kInstrSize * 2;
   } else {
     ASSERT(IsMovW(Memory::int32_at(pc)));
@@ -493,11 +462,7 @@ Address Assembler::return_address_from_call_start(Address pc) {
 
 void Assembler::deserialization_set_special_target_at(
     Address constant_pool_entry, Code* code, Address target) {
-  if (FLAG_enable_ool_constant_pool) {
-    set_target_address_at(constant_pool_entry, code, target);
-  } else {
-    Memory::Address_at(constant_pool_entry) = target;
-  }
+  Memory::Address_at(constant_pool_entry) = target;
 }
 
 
@@ -525,10 +490,6 @@ void Assembler::set_target_address_at(Address pc,
     ASSERT(IsMovW(Memory::int32_at(pc)));
     ASSERT(IsMovT(Memory::int32_at(pc + kInstrSize)));
     CPU::FlushICache(pc, 2 * kInstrSize);
-  } else if (FLAG_enable_ool_constant_pool) {
-    ASSERT(IsLdrPpImmediateOffset(Memory::int32_at(pc)));
-    Memory::Address_at(
-      target_constant_pool_address_at(pc, constant_pool)) = target;
   } else {
     ASSERT(IsLdrPcImmediateOffset(Memory::int32_at(pc)));
     Memory::Address_at(target_pointer_address_at(pc)) = target;
