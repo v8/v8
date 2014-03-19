@@ -375,6 +375,15 @@ class RelocInfo BASE_EMBEDDED {
   }
   static inline int ModeMask(Mode mode) { return 1 << mode; }
 
+  // Returns true if the first RelocInfo has the same mode and raw data as the
+  // second one.
+  static inline bool IsEqual(RelocInfo first, RelocInfo second) {
+    return first.rmode() == second.rmode() &&
+           (first.rmode() == RelocInfo::NONE64 ?
+              first.raw_data64() == second.raw_data64() :
+              first.data() == second.data());
+  }
+
   // Accessors
   byte* pc() const { return pc_; }
   void set_pc(byte* pc) { pc_ = pc; }

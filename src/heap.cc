@@ -4047,11 +4047,19 @@ MaybeObject* Heap::CreateCode(const CodeDesc& desc,
                               bool immovable,
                               bool crankshafted,
                               int prologue_offset) {
-  // Allocate ByteArray before the Code object, so that we do not risk
-  // leaving uninitialized Code object (and breaking the heap).
+  // Allocate ByteArray and ConstantPoolArray before the Code object, so that we
+  // do not risk leaving uninitialized Code object (and breaking the heap).
   ByteArray* reloc_info;
   MaybeObject* maybe_reloc_info = AllocateByteArray(desc.reloc_size, TENURED);
   if (!maybe_reloc_info->To(&reloc_info)) return maybe_reloc_info;
+
+  ConstantPoolArray* constant_pool;
+  if (FLAG_enable_ool_constant_pool) {
+    MaybeObject* maybe_constant_pool = desc.origin->AllocateConstantPool(this);
+    if (!maybe_constant_pool->To(&constant_pool)) return maybe_constant_pool;
+  } else {
+    constant_pool = empty_constant_pool_array();
+  }
 
   // Compute size.
   int body_size = RoundUp(desc.instr_size, kObjectAlignment);
@@ -4099,7 +4107,11 @@ MaybeObject* Heap::CreateCode(const CodeDesc& desc,
   if (code->kind() == Code::OPTIMIZED_FUNCTION) {
     code->set_marked_for_deoptimization(false);
   }
-  code->set_constant_pool(empty_constant_pool_array());
+
+  if (FLAG_enable_ool_constant_pool) {
+    desc.origin->PopulateConstantPool(constant_pool);
+  }
+  code->set_constant_pool(constant_pool);
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   if (code->kind() == Code::FUNCTION) {
@@ -4130,9 +4142,20 @@ MaybeObject* Heap::CreateCode(const CodeDesc& desc,
 
 
 MaybeObject* Heap::CopyCode(Code* code) {
+  MaybeObject* maybe_result;
+  Object* new_constant_pool;
+  if (FLAG_enable_ool_constant_pool &&
+      code->constant_pool() != empty_constant_pool_array()) {
+    // Copy the constant pool, since edits to the copied code may modify
+    // the constant pool.
+    maybe_result = CopyConstantPoolArray(code->constant_pool());
+    if (!maybe_result->ToObject(&new_constant_pool)) return maybe_result;
+  } else {
+    new_constant_pool = empty_constant_pool_array();
+  }
+
   // Allocate an object the same size as the code object.
   int obj_size = code->Size();
-  MaybeObject* maybe_result;
   if (obj_size > code_space()->AreaSize()) {
     maybe_result = lo_space_->AllocateRaw(obj_size, EXECUTABLE);
   } else {
@@ -4146,8 +4169,12 @@ MaybeObject* Heap::CopyCode(Code* code) {
   Address old_addr = code->address();
   Address new_addr = reinterpret_cast<HeapObject*>(result)->address();
   CopyBlock(new_addr, old_addr, obj_size);
-  // Relocate the copy.
   Code* new_code = Code::cast(result);
+
+  // Update the constant pool.
+  new_code->set_constant_pool(new_constant_pool);
+
+  // Relocate the copy.
   ASSERT(!isolate_->code_range()->exists() ||
       isolate_->code_range()->contains(code->address()));
   new_code->Relocate(new_addr - old_addr);
@@ -4156,14 +4183,26 @@ MaybeObject* Heap::CopyCode(Code* code) {
 
 
 MaybeObject* Heap::CopyCode(Code* code, Vector<byte> reloc_info) {
-  // Allocate ByteArray before the Code object, so that we do not risk
-  // leaving uninitialized Code object (and breaking the heap).
+  // Allocate ByteArray and ConstantPoolArray before the Code object, so that we
+  // do not risk leaving uninitialized Code object (and breaking the heap).
   Object* reloc_info_array;
   { MaybeObject* maybe_reloc_info_array =
         AllocateByteArray(reloc_info.length(), TENURED);
     if (!maybe_reloc_info_array->ToObject(&reloc_info_array)) {
       return maybe_reloc_info_array;
     }
+  }
+  Object* new_constant_pool;
+  if (FLAG_enable_ool_constant_pool &&
+      code->constant_pool() != empty_constant_pool_array()) {
+    // Copy the constant pool, since edits to the copied code may modify
+    // the constant pool.
+    MaybeObject* maybe_constant_pool =
+        CopyConstantPoolArray(code->constant_pool());
+    if (!maybe_constant_pool->ToObject(&new_constant_pool))
+      return maybe_constant_pool;
+  } else {
+    new_constant_pool = empty_constant_pool_array();
   }
 
   int new_body_size = RoundUp(code->instruction_size(), kObjectAlignment);
@@ -4193,6 +4232,9 @@ MaybeObject* Heap::CopyCode(Code* code, Vector<byte> reloc_info) {
 
   Code* new_code = Code::cast(result);
   new_code->set_relocation_info(ByteArray::cast(reloc_info_array));
+
+  // Update constant pool.
+  new_code->set_constant_pool(new_constant_pool);
 
   // Copy patched rinfo.
   CopyBytes(new_code->relocation_start(),
@@ -5310,7 +5352,7 @@ MaybeObject* Heap::AllocateConstantPoolArray(int number_of_int64_entries,
   }
   if (number_of_heap_ptr_entries > 0) {
     int offset =
-        constant_pool->OffsetOfElementAt(constant_pool->first_code_ptr_index());
+        constant_pool->OffsetOfElementAt(constant_pool->first_heap_ptr_index());
     MemsetPointer(
         HeapObject::RawField(constant_pool, offset),
         undefined_value(),
