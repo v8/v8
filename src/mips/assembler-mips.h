@@ -37,6 +37,7 @@
 #define V8_MIPS_ASSEMBLER_MIPS_H_
 
 #include <stdio.h>
+
 #include "assembler.h"
 #include "constants-mips.h"
 #include "serialize.h"
@@ -1004,6 +1005,12 @@ class Assembler : public AssemblerBase {
   static bool IsEmittedConstant(Instr instr);
 
   void CheckTrampolinePool();
+
+  // Allocate a constant pool of the correct size for the generated code.
+  MaybeObject* AllocateConstantPool(Heap* heap);
+
+  // Generate the constant pool for the generated code.
+  void PopulateConstantPool(ConstantPoolArray* constant_pool);
 
  protected:
   // Relocation for a type-recording IC has the AST id added to it.  This

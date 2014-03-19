@@ -2327,6 +2327,20 @@ void Assembler::JumpLabelToJumpRegister(Address pc) {
   }
 }
 
+
+MaybeObject* Assembler::AllocateConstantPool(Heap* heap) {
+  // No out-of-line constant pool support.
+  UNREACHABLE();
+  return NULL;
+}
+
+
+void Assembler::PopulateConstantPool(ConstantPoolArray* constant_pool) {
+  // No out-of-line constant pool support.
+  UNREACHABLE();
+}
+
+
 } }  // namespace v8::internal
 
 #endif  // V8_TARGET_ARCH_MIPS
