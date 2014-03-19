@@ -3969,6 +3969,18 @@ void Heap::CreateFillerObjectAt(Address addr, int size) {
 }
 
 
+void Heap::AdjustLiveBytes(Address address, int by, InvocationMode mode) {
+  if (incremental_marking()->IsMarking() &&
+      Marking::IsBlack(Marking::MarkBitFrom(address))) {
+    if (mode == FROM_GC) {
+      MemoryChunk::IncrementLiveBytesFromGC(address, by);
+    } else {
+      MemoryChunk::IncrementLiveBytesFromMutator(address, by);
+    }
+  }
+}
+
+
 MaybeObject* Heap::AllocateExternalArray(int length,
                                          ExternalArrayType array_type,
                                          void* external_pointer,

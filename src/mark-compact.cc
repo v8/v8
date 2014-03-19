@@ -660,15 +660,17 @@ bool MarkCompactCollector::IsConcurrentSweepingInProgress() {
 }
 
 
-bool Marking::TransferMark(Address old_start, Address new_start) {
+void Marking::TransferMark(Address old_start, Address new_start) {
   // This is only used when resizing an object.
   ASSERT(MemoryChunk::FromAddress(old_start) ==
          MemoryChunk::FromAddress(new_start));
 
+  if (!heap_->incremental_marking()->IsMarking()) return;
+
   // If the mark doesn't move, we don't check the color of the object.
   // It doesn't matter whether the object is black, since it hasn't changed
   // size, so the adjustment to the live data count will be zero anyway.
-  if (old_start == new_start) return false;
+  if (old_start == new_start) return;
 
   MarkBit new_mark_bit = MarkBitFrom(new_start);
   MarkBit old_mark_bit = MarkBitFrom(old_start);
@@ -681,9 +683,8 @@ bool Marking::TransferMark(Address old_start, Address new_start) {
     old_mark_bit.Clear();
     ASSERT(IsWhite(old_mark_bit));
     Marking::MarkBlack(new_mark_bit);
-    return true;
+    return;
   } else if (Marking::IsGrey(old_mark_bit)) {
-    ASSERT(heap_->incremental_marking()->IsMarking());
     old_mark_bit.Clear();
     old_mark_bit.Next().Clear();
     ASSERT(IsWhite(old_mark_bit));
@@ -696,8 +697,6 @@ bool Marking::TransferMark(Address old_start, Address new_start) {
   ObjectColor new_color = Color(new_mark_bit);
   ASSERT(new_color == old_color);
 #endif
-
-  return false;
 }
 
 

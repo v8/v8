@@ -1171,6 +1171,11 @@ class Heap {
   // when shortening objects.
   void CreateFillerObjectAt(Address addr, int size);
 
+  enum InvocationMode { FROM_GC, FROM_MUTATOR };
+
+  // Maintain marking consistency for IncrementalMarking.
+  void AdjustLiveBytes(Address address, int by, InvocationMode mode);
+
   // Makes a new native code object
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed. On success, the pointer to the Code object is stored in the

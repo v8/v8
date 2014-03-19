@@ -1301,10 +1301,7 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
   // Fill the remainder of the string with dead wood.
   int new_size = this->Size();  // Byte size of the external String object.
   heap->CreateFillerObjectAt(this->address() + new_size, size - new_size);
-  if (Marking::IsBlack(Marking::MarkBitFrom(this))) {
-    MemoryChunk::IncrementLiveBytesFromMutator(this->address(),
-                                               new_size - size);
-  }
+  heap->AdjustLiveBytes(this->address(), new_size - size, Heap::FROM_MUTATOR);
   return true;
 }
 
@@ -1360,10 +1357,7 @@ bool String::MakeExternal(v8::String::ExternalAsciiStringResource* resource) {
   // Fill the remainder of the string with dead wood.
   int new_size = this->Size();  // Byte size of the external String object.
   heap->CreateFillerObjectAt(this->address() + new_size, size - new_size);
-  if (Marking::IsBlack(Marking::MarkBitFrom(this))) {
-    MemoryChunk::IncrementLiveBytesFromMutator(this->address(),
-                                               new_size - size);
-  }
+  heap->AdjustLiveBytes(this->address(), new_size - size, Heap::FROM_MUTATOR);
   return true;
 }
 
@@ -2262,9 +2256,6 @@ const char* Representation::Mnemonic() const {
 }
 
 
-enum RightTrimMode { FROM_GC, FROM_MUTATOR };
-
-
 static void ZapEndOfFixedArray(Address new_end, int to_trim) {
   // If we are doing a big trim in old space then we zap the space.
   Object** zap = reinterpret_cast<Object**>(new_end);
@@ -2275,7 +2266,7 @@ static void ZapEndOfFixedArray(Address new_end, int to_trim) {
 }
 
 
-template<RightTrimMode trim_mode>
+template<Heap::InvocationMode mode>
 static void RightTrimFixedArray(Heap* heap, FixedArray* elms, int to_trim) {
   ASSERT(elms->map() != heap->fixed_cow_array_map());
   // For now this trick is only applied to fixed arrays in new and paged space.
@@ -2287,7 +2278,7 @@ static void RightTrimFixedArray(Heap* heap, FixedArray* elms, int to_trim) {
 
   Address new_end = elms->address() + FixedArray::SizeFor(len - to_trim);
 
-  if (trim_mode != FROM_GC || Heap::ShouldZapGarbage()) {
+  if (mode != Heap::FROM_GC || Heap::ShouldZapGarbage()) {
     ZapEndOfFixedArray(new_end, to_trim);
   }
 
@@ -2300,14 +2291,7 @@ static void RightTrimFixedArray(Heap* heap, FixedArray* elms, int to_trim) {
 
   elms->set_length(len - to_trim);
 
-  // Maintain marking consistency for IncrementalMarking.
-  if (Marking::IsBlack(Marking::MarkBitFrom(elms))) {
-    if (trim_mode == FROM_GC) {
-      MemoryChunk::IncrementLiveBytesFromGC(elms->address(), -size_delta);
-    } else {
-      MemoryChunk::IncrementLiveBytesFromMutator(elms->address(), -size_delta);
-    }
-  }
+  heap->AdjustLiveBytes(elms->address(), -size_delta, mode);
 
   // The array may not be moved during GC,
   // and size has to be adjusted nevertheless.
@@ -2455,7 +2439,7 @@ void JSObject::MigrateToMap(Handle<JSObject> object, Handle<Map> new_map) {
   // If there are properties in the new backing store, trim it to the correct
   // size and install the backing store into the object.
   if (external > 0) {
-    RightTrimFixedArray<FROM_MUTATOR>(isolate->heap(), *array, inobject);
+    RightTrimFixedArray<Heap::FROM_MUTATOR>(isolate->heap(), *array, inobject);
     object->set_properties(*array);
   }
 
@@ -4643,12 +4627,12 @@ void JSObject::NormalizeProperties(Handle<JSObject> object,
   int new_instance_size = new_map->instance_size();
   int instance_size_delta = map->instance_size() - new_instance_size;
   ASSERT(instance_size_delta >= 0);
-  isolate->heap()->CreateFillerObjectAt(object->address() + new_instance_size,
-                                        instance_size_delta);
-  if (Marking::IsBlack(Marking::MarkBitFrom(*object))) {
-    MemoryChunk::IncrementLiveBytesFromMutator(object->address(),
-                                               -instance_size_delta);
-  }
+  Heap* heap = isolate->heap();
+  heap->CreateFillerObjectAt(object->address() + new_instance_size,
+                             instance_size_delta);
+  heap->AdjustLiveBytes(object->address(),
+                        -instance_size_delta,
+                        Heap::FROM_MUTATOR);
 
   object->set_map(*new_map);
   map->NotifyLeafMapLayoutChange();
@@ -7879,7 +7863,8 @@ MaybeObject* PolymorphicCodeCacheHashTable::Put(MapHandleList* maps,
 void FixedArray::Shrink(int new_length) {
   ASSERT(0 <= new_length && new_length <= length());
   if (new_length < length()) {
-    RightTrimFixedArray<FROM_MUTATOR>(GetHeap(), this, length() - new_length);
+    RightTrimFixedArray<Heap::FROM_MUTATOR>(
+        GetHeap(), this, length() - new_length);
   }
 }
 
@@ -9217,10 +9202,7 @@ Handle<String> SeqString::Truncate(Handle<SeqString> string, int new_length) {
     // that are a multiple of pointer size.
     heap->CreateFillerObjectAt(start_of_string + new_size, delta);
   }
-  if (Marking::IsBlack(Marking::MarkBitFrom(start_of_string))) {
-    MemoryChunk::IncrementLiveBytesFromMutator(start_of_string, -delta);
-  }
-
+  heap->AdjustLiveBytes(start_of_string, -delta, Heap::FROM_MUTATOR);
 
   if (new_length == 0) return heap->isolate()->factory()->empty_string();
   return string;
@@ -9326,11 +9308,12 @@ static void TrimEnumCache(Heap* heap, Map* map, DescriptorArray* descriptors) {
 
   int to_trim = enum_cache->length() - live_enum;
   if (to_trim <= 0) return;
-  RightTrimFixedArray<FROM_GC>(heap, descriptors->GetEnumCache(), to_trim);
+  RightTrimFixedArray<Heap::FROM_GC>(
+      heap, descriptors->GetEnumCache(), to_trim);
 
   if (!descriptors->HasEnumIndicesCache()) return;
   FixedArray* enum_indices_cache = descriptors->GetEnumIndicesCache();
-  RightTrimFixedArray<FROM_GC>(heap, enum_indices_cache, to_trim);
+  RightTrimFixedArray<Heap::FROM_GC>(heap, enum_indices_cache, to_trim);
 }
 
 
@@ -9342,7 +9325,7 @@ static void TrimDescriptorArray(Heap* heap,
   int to_trim = number_of_descriptors - number_of_own_descriptors;
   if (to_trim == 0) return;
 
-  RightTrimFixedArray<FROM_GC>(
+  RightTrimFixedArray<Heap::FROM_GC>(
       heap, descriptors, to_trim * DescriptorArray::kDescriptorSize);
   descriptors->SetNumberOfDescriptors(number_of_own_descriptors);
 
@@ -9416,7 +9399,7 @@ void Map::ClearNonLiveTransitions(Heap* heap) {
 
   int trim = t->number_of_transitions() - transition_index;
   if (trim > 0) {
-    RightTrimFixedArray<FROM_GC>(heap, t, t->IsSimpleTransition()
+    RightTrimFixedArray<Heap::FROM_GC>(heap, t, t->IsSimpleTransition()
         ? trim : trim * TransitionArray::kTransitionSize);
   }
 }
@@ -9674,7 +9657,7 @@ void SharedFunctionInfo::EvictFromOptimizedCodeMap(Code* optimized_code,
   }
   if (dst != length) {
     // Always trim even when array is cleared because of heap verifier.
-    RightTrimFixedArray<FROM_MUTATOR>(GetHeap(), code_map, length - dst);
+    RightTrimFixedArray<Heap::FROM_MUTATOR>(GetHeap(), code_map, length - dst);
     if (code_map->length() == kEntriesStart) ClearOptimizedCodeMap();
   }
 }
@@ -9685,7 +9668,7 @@ void SharedFunctionInfo::TrimOptimizedCodeMap(int shrink_by) {
   ASSERT(shrink_by % kEntryLength == 0);
   ASSERT(shrink_by <= code_map->length() - kEntriesStart);
   // Always trim even when array is cleared because of heap verifier.
-  RightTrimFixedArray<FROM_GC>(GetHeap(), code_map, shrink_by);
+  RightTrimFixedArray<Heap::FROM_GC>(GetHeap(), code_map, shrink_by);
   if (code_map->length() == kEntriesStart) {
     ClearOptimizedCodeMap();
   }

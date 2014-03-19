@@ -4125,11 +4125,9 @@ MUST_USE_RESULT static MaybeObject* StringReplaceGlobalRegExpWithEmptyString(
   if (delta == 0) return *answer;
 
   Address end_of_string = answer->address() + string_size;
-  isolate->heap()->CreateFillerObjectAt(end_of_string, delta);
-  if (Marking::IsBlack(Marking::MarkBitFrom(*answer))) {
-    MemoryChunk::IncrementLiveBytesFromMutator(answer->address(), -delta);
-  }
-
+  Heap* heap = isolate->heap();
+  heap->CreateFillerObjectAt(end_of_string, delta);
+  heap->AdjustLiveBytes(answer->address(), -delta, Heap::FROM_MUTATOR);
   return *answer;
 }
 
