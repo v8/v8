@@ -737,6 +737,15 @@ class ElementsAccessorBase : public ElementsAccessor {
     return NULL;
   }
 
+  // TODO(ishell): Temporary wrapper until handlified.
+  MUST_USE_RESULT virtual Handle<Object> SetLength(
+      Handle<JSArray> array,
+      Handle<Object> length) {
+    CALL_HEAP_FUNCTION(array->GetIsolate(),
+                       SetLength(*array, *length),
+                       Object);
+  }
+
   MUST_USE_RESULT virtual MaybeObject* SetLength(JSArray* array,
                                                  Object* length) {
     return ElementsAccessorSubclass::SetLengthImpl(

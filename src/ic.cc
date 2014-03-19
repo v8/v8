@@ -1813,11 +1813,11 @@ RUNTIME_FUNCTION(MaybeObject*, StoreIC_MissFromStubFailure) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, StoreIC_ArrayLength) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
 
   ASSERT(args.length() == 2);
-  JSArray* receiver = JSArray::cast(args[0]);
-  Object* len = args[1];
+  Handle<JSArray> receiver = args.at<JSArray>(0);
+  Handle<Object> len = args.at<Object>(1);
 
   // The generated code should filter out non-Smis before we get here.
   ASSERT(len->IsSmi());
@@ -1829,11 +1829,9 @@ RUNTIME_FUNCTION(MaybeObject*, StoreIC_ArrayLength) {
   ASSERT(debug_lookup.IsPropertyCallbacks() && !debug_lookup.IsReadOnly());
 #endif
 
-  Object* result;
-  MaybeObject* maybe_result = receiver->SetElementsLength(len);
-  if (!maybe_result->To(&result)) return maybe_result;
-
-  return len;
+  RETURN_IF_EMPTY_HANDLE(isolate,
+                         JSArray::SetElementsLength(receiver, len));
+  return *len;
 }
 
 

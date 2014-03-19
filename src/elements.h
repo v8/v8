@@ -109,6 +109,9 @@ class ElementsAccessor {
   // changing array sizes as defined in EcmaScript 5.1 15.4.5.2, i.e. array that
   // have non-deletable elements can only be shrunk to the size of highest
   // element that is non-deletable.
+  MUST_USE_RESULT virtual Handle<Object> SetLength(
+      Handle<JSArray> holder,
+      Handle<Object> new_length) = 0;
   MUST_USE_RESULT virtual MaybeObject* SetLength(JSArray* holder,
                                                  Object* new_length) = 0;
 

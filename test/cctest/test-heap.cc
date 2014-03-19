@@ -759,7 +759,7 @@ TEST(JSArray) {
   JSArray::Initialize(array, 0);
 
   // Set array length to 0.
-  array->SetElementsLength(Smi::FromInt(0))->ToObjectChecked();
+  *JSArray::SetElementsLength(array, handle(Smi::FromInt(0), isolate));
   CHECK_EQ(Smi::FromInt(0), array->length());
   // Must be in fast mode.
   CHECK(array->HasFastSmiOrObjectElements());
@@ -772,7 +772,7 @@ TEST(JSArray) {
   // Set array length with larger than smi value.
   Handle<Object> length =
       factory->NewNumberFromUint(static_cast<uint32_t>(Smi::kMaxValue) + 1);
-  array->SetElementsLength(*length)->ToObjectChecked();
+  *JSArray::SetElementsLength(array, length);
 
   uint32_t int_length = 0;
   CHECK(length->ToArrayIndex(&int_length));

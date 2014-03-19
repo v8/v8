@@ -10028,7 +10028,6 @@ class JSArray: public JSObject {
   // Can cause GC.
   static Handle<Object> SetElementsLength(Handle<JSArray> array,
                                           Handle<Object> length);
-  MUST_USE_RESULT MaybeObject* SetElementsLength(Object* length);
 
   // Set the content of the array to the content of storage.
   MUST_USE_RESULT inline MaybeObject* SetContent(FixedArrayBase* storage);

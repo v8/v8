@@ -11401,77 +11401,64 @@ static void EndPerformSplice(Handle<JSArray> object) {
 }
 
 
-// TODO(ishell): Temporary wrapper until handlified.
-// static
 Handle<Object> JSArray::SetElementsLength(Handle<JSArray> array,
-                                          Handle<Object> length) {
-  CALL_HEAP_FUNCTION(array->GetIsolate(),
-                     array->SetElementsLength(*length),
-                     Object);
-}
-
-
-MaybeObject* JSArray::SetElementsLength(Object* len) {
+                                          Handle<Object> new_length_handle) {
   // We should never end in here with a pixel or external array.
-  ASSERT(AllowsSetElementsLength());
-  if (!map()->is_observed())
-    return GetElementsAccessor()->SetLength(this, len);
+  ASSERT(array->AllowsSetElementsLength());
+  if (!array->map()->is_observed()) {
+    return array->GetElementsAccessor()->SetLength(array, new_length_handle);
+  }
 
-  Isolate* isolate = GetIsolate();
-  HandleScope scope(isolate);
-  Handle<JSArray> self(this);
+  Isolate* isolate = array->GetIsolate();
   List<uint32_t> indices;
   List<Handle<Object> > old_values;
-  Handle<Object> old_length_handle(self->length(), isolate);
-  Handle<Object> new_length_handle(len, isolate);
+  Handle<Object> old_length_handle(array->length(), isolate);
   uint32_t old_length = 0;
   CHECK(old_length_handle->ToArrayIndex(&old_length));
   uint32_t new_length = 0;
-  if (!new_length_handle->ToArrayIndex(&new_length))
-    return Failure::InternalError();
+  CHECK(new_length_handle->ToArrayIndex(&new_length));
 
   static const PropertyAttributes kNoAttrFilter = NONE;
-  int num_elements = self->NumberOfLocalElements(kNoAttrFilter);
+  int num_elements = array->NumberOfLocalElements(kNoAttrFilter);
   if (num_elements > 0) {
     if (old_length == static_cast<uint32_t>(num_elements)) {
       // Simple case for arrays without holes.
       for (uint32_t i = old_length - 1; i + 1 > new_length; --i) {
-        if (!GetOldValue(isolate, self, i, &old_values, &indices)) break;
+        if (!GetOldValue(isolate, array, i, &old_values, &indices)) break;
       }
     } else {
       // For sparse arrays, only iterate over existing elements.
       // TODO(rafaelw): For fast, sparse arrays, we can avoid iterating over
       // the to-be-removed indices twice.
       Handle<FixedArray> keys = isolate->factory()->NewFixedArray(num_elements);
-      self->GetLocalElementKeys(*keys, kNoAttrFilter);
+      array->GetLocalElementKeys(*keys, kNoAttrFilter);
       while (num_elements-- > 0) {
         uint32_t index = NumberToUint32(keys->get(num_elements));
         if (index < new_length) break;
-        if (!GetOldValue(isolate, self, index, &old_values, &indices)) break;
+        if (!GetOldValue(isolate, array, index, &old_values, &indices)) break;
       }
     }
   }
 
-  MaybeObject* result =
-      self->GetElementsAccessor()->SetLength(*self, *new_length_handle);
-  Handle<Object> hresult;
-  if (!result->ToHandle(&hresult, isolate)) return result;
+  Handle<Object> hresult =
+      array->GetElementsAccessor()->SetLength(array, new_length_handle);
+  RETURN_IF_EMPTY_HANDLE_VALUE(isolate, hresult, hresult);
 
-  CHECK(self->length()->ToArrayIndex(&new_length));
-  if (old_length == new_length) return *hresult;
+  CHECK(array->length()->ToArrayIndex(&new_length));
+  if (old_length == new_length) return hresult;
 
-  BeginPerformSplice(self);
+  BeginPerformSplice(array);
 
   for (int i = 0; i < indices.length(); ++i) {
     JSObject::EnqueueChangeRecord(
-        self, "delete", isolate->factory()->Uint32ToString(indices[i]),
+        array, "delete", isolate->factory()->Uint32ToString(indices[i]),
         old_values[i]);
   }
   JSObject::EnqueueChangeRecord(
-      self, "update", isolate->factory()->length_string(),
+      array, "update", isolate->factory()->length_string(),
       old_length_handle);
 
-  EndPerformSplice(self);
+  EndPerformSplice(array);
 
   uint32_t index = Min(old_length, new_length);
   uint32_t add_count = new_length > old_length ? new_length - old_length : 0;
@@ -11488,9 +11475,9 @@ MaybeObject* JSArray::SetElementsLength(Object* len) {
                 NONE, SLOPPY);
   }
 
-  EnqueueSpliceRecord(self, index, deleted, add_count);
+  EnqueueSpliceRecord(array, index, deleted, add_count);
 
-  return *hresult;
+  return hresult;
 }
 
 
