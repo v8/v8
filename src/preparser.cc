@@ -146,8 +146,8 @@ PreParserExpression PreParserTraits::ParseFunctionLiteral(
 }
 
 
-PreParserExpression PreParserTraits::ParsePostfixExpression(bool* ok) {
-  return pre_parser_->ParsePostfixExpression(ok);
+PreParserExpression PreParserTraits::ParseUnaryExpression(bool* ok) {
+  return pre_parser_->ParseUnaryExpression(ok);
 }
 
 
@@ -840,6 +840,37 @@ PreParser::Statement PreParser::ParseDebuggerStatement(bool* ok) {
   ((void)0
 #define DUMMY )  // to make indentation work
 #undef DUMMY
+
+
+PreParser::Expression PreParser::ParseUnaryExpression(bool* ok) {
+  // UnaryExpression ::
+  //   PostfixExpression
+  //   'delete' UnaryExpression
+  //   'void' UnaryExpression
+  //   'typeof' UnaryExpression
+  //   '++' UnaryExpression
+  //   '--' UnaryExpression
+  //   '+' UnaryExpression
+  //   '-' UnaryExpression
+  //   '~' UnaryExpression
+  //   '!' UnaryExpression
+
+  Token::Value op = peek();
+  if (Token::IsUnaryOp(op)) {
+    op = Next();
+    ParseUnaryExpression(ok);
+    return Expression::Default();
+  } else if (Token::IsCountOp(op)) {
+    op = Next();
+    Expression expression = ParseUnaryExpression(CHECK_OK);
+    if (strict_mode() == STRICT) {
+      CheckStrictModeLValue(expression, CHECK_OK);
+    }
+    return Expression::Default();
+  } else {
+    return ParsePostfixExpression(ok);
+  }
+}
 
 
 PreParser::Expression PreParser::ParsePostfixExpression(bool* ok) {
