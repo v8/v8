@@ -7007,16 +7007,16 @@ TEST(GetMirror) {
   v8::HandleScope scope(isolate);
   v8::Handle<v8::Value> obj =
       v8::Debug::GetMirror(v8::String::NewFromUtf8(isolate, "hodja"));
-  v8::Handle<v8::Function> run_test =
-      v8::Handle<v8::Function>::Cast(
-          v8::ScriptCompiler::CompileUnbound(
-              isolate,
-              v8::ScriptCompiler::Source(v8_str(
-                  "function runTest(mirror) {"
-                  "  return mirror.isString() && (mirror.length() == 5);"
-                  "}"
-                  ""
-                  "runTest;")))->BindToCurrentContext()->Run());
+  v8::ScriptCompiler::Source source(v8_str(
+      "function runTest(mirror) {"
+      "  return mirror.isString() && (mirror.length() == 5);"
+      "}"
+      ""
+      "runTest;"));
+  v8::Handle<v8::Function> run_test = v8::Handle<v8::Function>::Cast(
+      v8::ScriptCompiler::CompileUnbound(isolate, &source)
+          ->BindToCurrentContext()
+          ->Run());
   v8::Handle<v8::Value> result = run_test->Call(env->Global(), 1, &obj);
   CHECK(result->IsTrue());
 }

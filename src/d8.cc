@@ -206,8 +206,9 @@ bool Shell::ExecuteString(Isolate* isolate,
     try_catch.SetVerbose(true);
   }
   ScriptOrigin origin(name);
-  Handle<UnboundScript> script = ScriptCompiler::CompileUnbound(
-      isolate, ScriptCompiler::Source(source, origin));
+  ScriptCompiler::Source script_source(source, origin);
+  Handle<UnboundScript> script =
+      ScriptCompiler::CompileUnbound(isolate, &script_source);
   if (script.IsEmpty()) {
     // Print errors that happened during compilation.
     if (report_exceptions && !FLAG_debugger)
@@ -407,8 +408,9 @@ void Shell::RealmEval(const v8::FunctionCallbackInfo<v8::Value>& args) {
     Throw(args.GetIsolate(), "Invalid argument");
     return;
   }
+  ScriptCompiler::Source script_source(args[1]->ToString());
   Handle<UnboundScript> script = ScriptCompiler::CompileUnbound(
-      isolate, ScriptCompiler::Source(args[1]->ToString()));
+      isolate, &script_source);
   if (script.IsEmpty()) return;
   Local<Context> realm = Local<Context>::New(isolate, data->realms_[index]);
   realm->Enter();

@@ -1097,25 +1097,52 @@ class V8_EXPORT ScriptCompiler {
    * UnboundScript.
    */
   struct V8_EXPORT CachedData {
-    CachedData() : data(NULL), length(0) {}
-    // Caller keeps the ownership of data and guarantees that the data stays
-    // alive long enough.
-    CachedData(const uint8_t* data, int length) : data(data), length(length) {}
+    enum BufferPolicy {
+      BufferNotOwned,
+      BufferOwned
+    };
+
+    CachedData() : data(NULL), length(0), buffer_policy(BufferNotOwned) {}
+
+    // If buffer_policy is BufferNotOwned, the caller keeps the ownership of
+    // data and guarantees that it stays alive until the CachedData object is
+    // destroyed. If the policy is BufferOwned, the given data will be deleted
+    // (with delete[]) when the CachedData object is destroyed.
+    CachedData(const uint8_t* data, int length,
+               BufferPolicy buffer_policy = BufferNotOwned);
+    ~CachedData();
     // TODO(marja): Async compilation; add constructors which take a callback
     // which will be called when V8 no longer needs the data.
     const uint8_t* data;
     int length;
+    BufferPolicy buffer_policy;
+
+  private:
+     // Prevent copying. Not implemented.
+     CachedData(const CachedData&);
   };
 
   /**
    * Source code which can be then compiled to a UnboundScript or
    * BoundScript.
    */
-  struct V8_EXPORT Source {
+  class V8_EXPORT Source {
+   public:
+    // Source takes ownership of CachedData.
     Source(Local<String> source_string, const ScriptOrigin& origin,
-           const CachedData& cached_data = CachedData());
-    Source(Local<String> source_string,
-           const CachedData& cached_data = CachedData());
+           CachedData* cached_data = NULL);
+    Source(Local<String> source_string, CachedData* cached_data = NULL);
+    ~Source();
+
+    // Ownership of the CachedData or its buffers is *not* transferred to the
+    // caller. The CachedData object is alive as long as the Source object is
+    // alive.
+    const CachedData* GetCachedData() const;
+
+   private:
+    friend class ScriptCompiler;
+     // Prevent copying. Not implemented.
+    Source(const Source&);
 
     Local<String> source_string;
 
@@ -1125,8 +1152,10 @@ class V8_EXPORT ScriptCompiler {
     Handle<Integer> resource_column_offset;
     Handle<Boolean> resource_is_shared_cross_origin;
 
-    // Cached data from previous compilation (if any).
-    CachedData cached_data;
+    // Cached data from previous compilation (if any), or generated during
+    // compilation (if the generate_cached_data flag is passed to
+    // ScriptCompiler).
+    CachedData* cached_data;
   };
 
   enum CompileOptions {
@@ -1142,7 +1171,7 @@ class V8_EXPORT ScriptCompiler {
    *   bound to a context).
    */
   static Local<UnboundScript> CompileUnbound(
-      Isolate* isolate, const Source& source,
+      Isolate* isolate, Source* source,
       CompileOptions options = kNoCompileOptions);
 
   /**
@@ -1157,7 +1186,7 @@ class V8_EXPORT ScriptCompiler {
    *   context.
    */
   static Local<Script> Compile(
-      Isolate* isolate, const Source& source,
+      Isolate* isolate, Source* source,
       CompileOptions options = kNoCompileOptions);
 };
 

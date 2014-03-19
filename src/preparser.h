@@ -87,6 +87,7 @@ class ParserBase : public Traits {
 
   ParserBase(Scanner* scanner, uintptr_t stack_limit,
              v8::Extension* extension,
+             ParserRecorder* log,
              typename Traits::Type::Zone* zone,
              typename Traits::Type::Parser this_object)
       : Traits(this_object),
@@ -95,6 +96,7 @@ class ParserBase : public Traits {
         function_state_(NULL),
         extension_(extension),
         fni_(NULL),
+        log_(log),
         scanner_(scanner),
         stack_limit_(stack_limit),
         stack_overflow_(false),
@@ -457,6 +459,7 @@ class ParserBase : public Traits {
   FunctionState* function_state_;  // Function state stack.
   v8::Extension* extension_;
   FuncNameInferrer* fni_;
+  ParserRecorder* log_;
 
  private:
   Scanner* scanner_;
@@ -948,11 +951,9 @@ class PreParser : public ParserBase<PreParserTraits> {
     kPreParseSuccess
   };
 
-  PreParser(Scanner* scanner,
-            ParserRecorder* log,
-            uintptr_t stack_limit)
-      : ParserBase<PreParserTraits>(scanner, stack_limit, NULL, NULL, this),
-        log_(log) {}
+  PreParser(Scanner* scanner, ParserRecorder* log, uintptr_t stack_limit)
+      : ParserBase<PreParserTraits>(scanner, stack_limit, NULL, log, NULL,
+                                    this) {}
 
   // Pre-parse the program from the character stream; returns true on
   // success (even if parsing failed, the pre-parse data successfully
@@ -1111,10 +1112,7 @@ class PreParser : public ParserBase<PreParserTraits> {
   Expression GetStringSymbol();
 
   bool CheckInOrOf(bool accept_OF);
-
-  ParserRecorder* log_;
 };
-
 
 template<class Traits>
 ParserBase<Traits>::FunctionState::FunctionState(

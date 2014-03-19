@@ -1617,8 +1617,20 @@ ScriptData* ScriptData::New(const char* data, int length) {
 // Internally, UnboundScript is a SharedFunctionInfo, and Script is a
 // JSFunction.
 
+ScriptCompiler::CachedData::CachedData(const uint8_t* data_, int length_,
+                                       BufferPolicy buffer_policy_)
+    : data(data_), length(length_), buffer_policy(buffer_policy_) {}
+
+
+ScriptCompiler::CachedData::~CachedData() {
+  if (buffer_policy == BufferOwned) {
+    delete[] data;
+  }
+}
+
+
 ScriptCompiler::Source::Source(Local<String> string, const ScriptOrigin& origin,
-                               const CachedData& data)
+                               CachedData* data)
     : source_string(string),
       resource_name(origin.ResourceName()),
       resource_line_offset(origin.ResourceLineOffset()),
@@ -1628,8 +1640,19 @@ ScriptCompiler::Source::Source(Local<String> string, const ScriptOrigin& origin,
 
 
 ScriptCompiler::Source::Source(Local<String> string,
-                               const CachedData& data)
+                               CachedData* data)
     : source_string(string), cached_data(data) {}
+
+
+ScriptCompiler::Source::~Source() {
+  delete cached_data;
+}
+
+
+const ScriptCompiler::CachedData* ScriptCompiler::Source::GetCachedData()
+    const {
+  return cached_data;
+}
 
 
 Local<Script> UnboundScript::BindToCurrentContext() {
@@ -1730,12 +1753,41 @@ Local<UnboundScript> Script::GetUnboundScript() {
 
 Local<UnboundScript> ScriptCompiler::CompileUnbound(
     Isolate* v8_isolate,
-    const Source& source,
+    Source* source,
     CompileOptions options) {
-  // FIXME(marja): This function cannot yet create cached data (if options |
-  // produce_data_to_cache is true), but the PreCompile function is still there
-  // for doing it.
-  i::Handle<i::String> str = Utils::OpenHandle(*(source.source_string));
+  i::ScriptDataImpl* script_data_impl = NULL;
+  i::CachedDataMode cached_data_mode = i::NO_CACHED_DATA;
+  if (options & kProduceDataToCache) {
+    cached_data_mode = i::PRODUCE_CACHED_DATA;
+    ASSERT(source->cached_data == NULL);
+    if (source->cached_data) {
+      // Asked to produce cached data even though there is some already -> not
+      // good. In release mode, try to do the right thing: Just regenerate the
+      // data.
+      delete source->cached_data;
+      source->cached_data = NULL;
+    }
+  } else if (source->cached_data) {
+    // FIXME(marja): Make compiler use CachedData directly. Aligning needs to be
+    // taken care of.
+    script_data_impl = static_cast<i::ScriptDataImpl*>(ScriptData::New(
+        reinterpret_cast<const char*>(source->cached_data->data),
+        source->cached_data->length));
+    // We assert that the pre-data is sane, even though we can actually
+    // handle it if it turns out not to be in release mode.
+    ASSERT(script_data_impl->SanityCheck());
+    if (script_data_impl->SanityCheck()) {
+      cached_data_mode = i::CONSUME_CACHED_DATA;
+    } else {
+      // If the pre-data isn't sane we simply ignore it.
+      delete script_data_impl;
+      script_data_impl = NULL;
+      delete source->cached_data;
+      source->cached_data = NULL;
+    }
+  }
+
+  i::Handle<i::String> str = Utils::OpenHandle(*(source->source_string));
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   ON_BAILOUT(isolate, "v8::ScriptCompiler::CompileUnbound()",
              return Local<UnboundScript>());
@@ -1747,37 +1799,22 @@ Local<UnboundScript> ScriptCompiler::CompileUnbound(
     int line_offset = 0;
     int column_offset = 0;
     bool is_shared_cross_origin = false;
-    if (!source.resource_name.IsEmpty()) {
-      name_obj = Utils::OpenHandle(*source.resource_name);
+    if (!source->resource_name.IsEmpty()) {
+      name_obj = Utils::OpenHandle(*(source->resource_name));
     }
-    if (!source.resource_line_offset.IsEmpty()) {
-      line_offset = static_cast<int>(source.resource_line_offset->Value());
+    if (!source->resource_line_offset.IsEmpty()) {
+      line_offset = static_cast<int>(source->resource_line_offset->Value());
     }
-    if (!source.resource_column_offset.IsEmpty()) {
+    if (!source->resource_column_offset.IsEmpty()) {
       column_offset =
-          static_cast<int>(source.resource_column_offset->Value());
+          static_cast<int>(source->resource_column_offset->Value());
     }
-    if (!source.resource_is_shared_cross_origin.IsEmpty()) {
+    if (!source->resource_is_shared_cross_origin.IsEmpty()) {
       v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
       is_shared_cross_origin =
-          source.resource_is_shared_cross_origin == v8::True(v8_isolate);
+          source->resource_is_shared_cross_origin == v8::True(v8_isolate);
     }
     EXCEPTION_PREAMBLE(isolate);
-    i::ScriptDataImpl* pre_data_impl = NULL;
-    if (source.cached_data.data) {
-      // FIXME(marja): Make compiler use CachedData directly.
-      pre_data_impl = static_cast<i::ScriptDataImpl*>(ScriptData::New(
-          reinterpret_cast<const char*>(source.cached_data.data),
-          source.cached_data.length));
-    }
-    // We assert that the pre-data is sane, even though we can actually
-    // handle it if it turns out not to be in release mode.
-    ASSERT(pre_data_impl == NULL || pre_data_impl->SanityCheck());
-    // If the pre-data isn't sane we simply ignore it
-    if (pre_data_impl != NULL && !pre_data_impl->SanityCheck()) {
-      delete pre_data_impl;
-      pre_data_impl = NULL;
-    }
     i::Handle<i::SharedFunctionInfo> result =
         i::Compiler::CompileScript(str,
                                    name_obj,
@@ -1786,12 +1823,21 @@ Local<UnboundScript> ScriptCompiler::CompileUnbound(
                                    is_shared_cross_origin,
                                    isolate->global_context(),
                                    NULL,
-                                   pre_data_impl,
+                                   &script_data_impl,
+                                   cached_data_mode,
                                    i::NOT_NATIVES_CODE);
     has_pending_exception = result.is_null();
     EXCEPTION_BAILOUT_CHECK(isolate, Local<UnboundScript>());
     raw_result = *result;
-    delete pre_data_impl;
+    if ((options & kProduceDataToCache) && script_data_impl != NULL) {
+      // script_data_impl now contains the data that was generated. source will
+      // take the ownership.
+      source->cached_data = new CachedData(
+          reinterpret_cast<const uint8_t*>(script_data_impl->Data()),
+          script_data_impl->Length(), CachedData::BufferOwned);
+      script_data_impl->owns_store_ = false;
+    }
+    delete script_data_impl;
   }
   i::Handle<i::SharedFunctionInfo> result(raw_result, isolate);
   return ToApiHandle<UnboundScript>(result);
@@ -1800,7 +1846,7 @@ Local<UnboundScript> ScriptCompiler::CompileUnbound(
 
 Local<Script> ScriptCompiler::Compile(
     Isolate* v8_isolate,
-    const Source& source,
+    Source* source,
     CompileOptions options) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   ON_BAILOUT(isolate, "v8::ScriptCompiler::Compile()",
@@ -1818,20 +1864,22 @@ Local<Script> Script::Compile(v8::Handle<String> source,
                               v8::ScriptOrigin* origin,
                               ScriptData* script_data) {
   i::Handle<i::String> str = Utils::OpenHandle(*source);
-  ScriptCompiler::CachedData cached_data;
+  ScriptCompiler::CachedData* cached_data = NULL;
   if (script_data) {
-    cached_data = ScriptCompiler::CachedData(
+    cached_data = new ScriptCompiler::CachedData(
         reinterpret_cast<const uint8_t*>(script_data->Data()),
         script_data->Length());
   }
   if (origin) {
+    ScriptCompiler::Source script_source(source, *origin, cached_data);
     return ScriptCompiler::Compile(
         reinterpret_cast<v8::Isolate*>(str->GetIsolate()),
-        ScriptCompiler::Source(source, *origin, cached_data));
+        &script_source);
   }
+  ScriptCompiler::Source script_source(source, cached_data);
   return ScriptCompiler::Compile(
       reinterpret_cast<v8::Isolate*>(str->GetIsolate()),
-      ScriptCompiler::Source(source, cached_data));
+      &script_source);
 }
 
 

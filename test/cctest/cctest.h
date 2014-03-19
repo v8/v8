@@ -316,8 +316,9 @@ static inline v8::Local<v8::Script> v8_compile(v8::Local<v8::String> x) {
 static inline v8::Local<v8::Script> CompileWithOrigin(
     v8::Local<v8::String> source, v8::Local<v8::String> origin_url) {
   v8::ScriptOrigin origin(origin_url);
+  v8::ScriptCompiler::Source script_source(source, origin);
   return v8::ScriptCompiler::Compile(
-      v8::Isolate::GetCurrent(), v8::ScriptCompiler::Source(source, origin));
+      v8::Isolate::GetCurrent(), &script_source);
 }
 
 
@@ -350,11 +351,11 @@ static inline v8::Local<v8::Value> PreCompileCompileRun(const char* source) {
       v8::String::NewFromUtf8(isolate, source);
   v8::ScriptData* preparse = v8::ScriptData::PreCompile(source_string);
   v8::ScriptCompiler::Source script_source(
-      source_string, v8::ScriptCompiler::CachedData(
+      source_string, new v8::ScriptCompiler::CachedData(
                          reinterpret_cast<const uint8_t*>(preparse->Data()),
                          preparse->Length()));
-  v8::Local<v8::Script> script = v8::ScriptCompiler::Compile(
-      isolate, v8::ScriptCompiler::Source(script_source));
+  v8::Local<v8::Script> script =
+      v8::ScriptCompiler::Compile(isolate, &script_source);
   v8::Local<v8::Value> result = script->Run();
   delete preparse;
   return result;
@@ -370,18 +371,17 @@ static inline v8::Local<v8::Value> CompileRunWithOrigin(const char* source,
   v8::ScriptOrigin origin(v8_str(origin_url),
                           v8::Integer::New(isolate, line_number),
                           v8::Integer::New(isolate, column_number));
-  return v8::ScriptCompiler::Compile(
-             isolate, v8::ScriptCompiler::Source(v8_str(source), origin))
-      ->Run();
+  v8::ScriptCompiler::Source script_source(v8_str(source), origin);
+  return v8::ScriptCompiler::Compile(isolate, &script_source)->Run();
 }
 
 
 static inline v8::Local<v8::Value> CompileRunWithOrigin(
     v8::Local<v8::String> source, const char* origin_url) {
-  v8::ScriptOrigin origin(v8_str(origin_url));
-  return v8::ScriptCompiler::Compile(
-      v8::Isolate::GetCurrent(),
-      v8::ScriptCompiler::Source(source, origin))->Run();
+  v8::ScriptCompiler::Source script_source(
+      source, v8::ScriptOrigin(v8_str(origin_url)));
+  return v8::ScriptCompiler::Compile(v8::Isolate::GetCurrent(), &script_source)
+      ->Run();
 }
 
 

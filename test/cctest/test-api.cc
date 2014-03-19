@@ -14956,10 +14956,10 @@ TEST(PreCompileInvalidPreparseDataError) {
 
   v8::ScriptCompiler::Source script_source(
       String::NewFromUtf8(isolate, script),
-      v8::ScriptCompiler::CachedData(
+      new v8::ScriptCompiler::CachedData(
           reinterpret_cast<const uint8_t*>(sd->Data()), sd->Length()));
   Local<v8::UnboundScript> compiled_script =
-      v8::ScriptCompiler::CompileUnbound(isolate, script_source);
+      v8::ScriptCompiler::CompileUnbound(isolate, &script_source);
 
   CHECK(try_catch.HasCaught());
   String::Utf8Value exception_value(try_catch.Message()->Get());
@@ -14979,10 +14979,10 @@ TEST(PreCompileInvalidPreparseDataError) {
       200;
   v8::ScriptCompiler::Source script_source2(
       String::NewFromUtf8(isolate, script),
-      v8::ScriptCompiler::CachedData(
+      new v8::ScriptCompiler::CachedData(
           reinterpret_cast<const uint8_t*>(sd->Data()), sd->Length()));
   compiled_script =
-      v8::ScriptCompiler::CompileUnbound(isolate, script_source2);
+      v8::ScriptCompiler::CompileUnbound(isolate, &script_source2);
   CHECK(!try_catch.HasCaught());
 
   delete sd;
@@ -17091,12 +17091,11 @@ THREADED_TEST(ScriptContextDependence) {
   LocalContext c1;
   v8::HandleScope scope(c1->GetIsolate());
   const char *source = "foo";
-  v8::Handle<v8::Script> dep =
-      v8_compile(source);
+  v8::Handle<v8::Script> dep = v8_compile(source);
+  v8::ScriptCompiler::Source script_source(v8::String::NewFromUtf8(
+      c1->GetIsolate(), source));
   v8::Handle<v8::UnboundScript> indep =
-      v8::ScriptCompiler::CompileUnbound(
-          c1->GetIsolate(), v8::ScriptCompiler::Source(v8::String::NewFromUtf8(
-                                c1->GetIsolate(), source)));
+      v8::ScriptCompiler::CompileUnbound(c1->GetIsolate(), &script_source);
   c1->Global()->Set(v8::String::NewFromUtf8(c1->GetIsolate(), "foo"),
                     v8::Integer::New(c1->GetIsolate(), 100));
   CHECK_EQ(dep->Run()->Int32Value(), 100);
@@ -17118,9 +17117,8 @@ THREADED_TEST(StackTrace) {
       v8::String::NewFromUtf8(context->GetIsolate(), source);
   v8::Handle<v8::String> origin =
       v8::String::NewFromUtf8(context->GetIsolate(), "stack-trace-test");
-  v8::ScriptCompiler::CompileUnbound(
-      context->GetIsolate(),
-      v8::ScriptCompiler::Source(src, v8::ScriptOrigin(origin)))
+  v8::ScriptCompiler::Source script_source(src, v8::ScriptOrigin(origin));
+  v8::ScriptCompiler::CompileUnbound(context->GetIsolate(), &script_source)
       ->BindToCurrentContext()
       ->Run();
   CHECK(try_catch.HasCaught());
@@ -17228,10 +17226,10 @@ TEST(CaptureStackTrace) {
     "var x;eval('new foo();');";
   v8::Handle<v8::String> overview_src =
       v8::String::NewFromUtf8(isolate, overview_source);
+  v8::ScriptCompiler::Source script_source(overview_src,
+                                           v8::ScriptOrigin(origin));
   v8::Handle<Value> overview_result(
-      v8::ScriptCompiler::CompileUnbound(
-          isolate,
-          v8::ScriptCompiler::Source(overview_src, v8::ScriptOrigin(origin)))
+      v8::ScriptCompiler::CompileUnbound(isolate, &script_source)
           ->BindToCurrentContext()
           ->Run());
   CHECK(!overview_result.IsEmpty());
@@ -17252,9 +17250,9 @@ TEST(CaptureStackTrace) {
   v8::Handle<v8::Integer> line_offset = v8::Integer::New(isolate, 3);
   v8::Handle<v8::Integer> column_offset = v8::Integer::New(isolate, 5);
   v8::ScriptOrigin detailed_origin(origin, line_offset, column_offset);
+  v8::ScriptCompiler::Source script_source2(detailed_src, detailed_origin);
   v8::Handle<v8::UnboundScript> detailed_script(
-      v8::ScriptCompiler::CompileUnbound(
-          isolate, v8::ScriptCompiler::Source(detailed_src, detailed_origin)));
+      v8::ScriptCompiler::CompileUnbound(isolate, &script_source2));
   v8::Handle<Value> detailed_result(
       detailed_script->BindToCurrentContext()->Run());
   CHECK(!detailed_result.IsEmpty());

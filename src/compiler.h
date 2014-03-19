@@ -45,6 +45,12 @@ enum ParseRestriction {
   ONLY_SINGLE_FUNCTION_LITERAL  // Only a single FunctionLiteral expression.
 };
 
+enum CachedDataMode {
+  NO_CACHED_DATA,
+  CONSUME_CACHED_DATA,
+  PRODUCE_CACHED_DATA
+};
+
 struct OffsetRange {
   OffsetRange(int from, int to) : from(from), to(to) {}
   int from;
@@ -77,7 +83,10 @@ class CompilationInfo {
   Handle<Script> script() const { return script_; }
   HydrogenCodeStub* code_stub() const {return code_stub_; }
   v8::Extension* extension() const { return extension_; }
-  ScriptDataImpl* pre_parse_data() const { return pre_parse_data_; }
+  ScriptDataImpl** cached_data() const { return cached_data_; }
+  CachedDataMode cached_data_mode() const {
+    return cached_data_mode_;
+  }
   Handle<Context> context() const { return context_; }
   BailoutId osr_ast_id() const { return osr_ast_id_; }
   Handle<Code> unoptimized_code() const { return unoptimized_code_; }
@@ -180,9 +189,15 @@ class CompilationInfo {
     ASSERT(!is_lazy());
     extension_ = extension;
   }
-  void SetPreParseData(ScriptDataImpl* pre_parse_data) {
-    ASSERT(!is_lazy());
-    pre_parse_data_ = pre_parse_data;
+  void SetCachedData(ScriptDataImpl** cached_data,
+                     CachedDataMode cached_data_mode) {
+    cached_data_mode_ = cached_data_mode;
+    if (cached_data_mode == NO_CACHED_DATA) {
+      cached_data_ = NULL;
+    } else {
+      ASSERT(!is_lazy());
+      cached_data_ = cached_data;
+    }
   }
   void SetContext(Handle<Context> context) {
     context_ = context;
@@ -397,7 +412,8 @@ class CompilationInfo {
 
   // Fields possibly needed for eager compilation, NULL by default.
   v8::Extension* extension_;
-  ScriptDataImpl* pre_parse_data_;
+  ScriptDataImpl** cached_data_;
+  CachedDataMode cached_data_mode_;
 
   // The context of the caller for eval code, and the global context for a
   // global script. Will be a null handle otherwise.
@@ -617,15 +633,17 @@ class Compiler : public AllStatic {
                                                 int scope_position);
 
   // Compile a String source within a context.
-  static Handle<SharedFunctionInfo> CompileScript(Handle<String> source,
-                                                  Handle<Object> script_name,
-                                                  int line_offset,
-                                                  int column_offset,
-                                                  bool is_shared_cross_origin,
-                                                  Handle<Context> context,
-                                                  v8::Extension* extension,
-                                                  ScriptDataImpl* pre_data,
-                                                  NativesFlag is_natives_code);
+  static Handle<SharedFunctionInfo> CompileScript(
+      Handle<String> source,
+      Handle<Object> script_name,
+      int line_offset,
+      int column_offset,
+      bool is_shared_cross_origin,
+      Handle<Context> context,
+      v8::Extension* extension,
+      ScriptDataImpl** cached_data,
+      CachedDataMode cached_data_mode,
+      NativesFlag is_natives_code);
 
   // Create a shared function info object (the code may be lazily compiled).
   static Handle<SharedFunctionInfo> BuildFunctionInfo(FunctionLiteral* node,
