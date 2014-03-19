@@ -124,18 +124,31 @@ void Builtins::Generate_InOptimizationQueue(MacroAssembler* masm) {
 
 static void Generate_JSConstructStubHelper(MacroAssembler* masm,
                                            bool is_api_function,
-                                           bool count_constructions) {
+                                           bool count_constructions,
+                                           bool create_memento) {
   // ----------- S t a t e -------------
   //  -- rax: number of arguments
   //  -- rdi: constructor function
+  //  -- rbx: allocation site or undefined
   // -----------------------------------
 
   // Should never count constructions for api objects.
-  ASSERT(!is_api_function || !count_constructions);
+  ASSERT(!is_api_function || !count_constructions);\
+
+  // Should never create mementos for api functions.
+  ASSERT(!is_api_function || !create_memento);
+
+  // Should never create mementos before slack tracking is finished.
+  ASSERT(!count_constructions || !create_memento);
 
   // Enter a construct frame.
   {
     FrameScope scope(masm, StackFrame::CONSTRUCT);
+
+    if (create_memento) {
+      __ AssertUndefinedOrAllocationSite(rbx);
+      __ Push(rbx);
+    }
 
     // Store a smi-tagged arguments count on the stack.
     __ Integer32ToSmi(rax, rax);
@@ -202,6 +215,9 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       // Now allocate the JSObject on the heap.
       __ movzxbq(rdi, FieldOperand(rax, Map::kInstanceSizeOffset));
       __ shl(rdi, Immediate(kPointerSizeLog2));
+      if (create_memento) {
+        __ addq(rdi, Immediate(AllocationMemento::kSize));
+      }
       // rdi: size of new object
       __ Allocate(rdi,
                   rbx,
@@ -209,10 +225,11 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
                   no_reg,
                   &rt_call,
                   NO_ALLOCATION_FLAGS);
+      Factory* factory = masm->isolate()->factory();
       // Allocated the JSObject, now initialize the fields.
       // rax: initial map
       // rbx: JSObject (not HeapObject tagged - the actual address).
-      // rdi: start of next object
+      // rdi: start of next object (including memento if create_memento)
       __ movp(Operand(rbx, JSObject::kMapOffset), rax);
       __ LoadRoot(rcx, Heap::kEmptyFixedArrayRootIndex);
       __ movp(Operand(rbx, JSObject::kPropertiesOffset), rcx);
@@ -220,7 +237,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       // Set extra fields in the newly allocated object.
       // rax: initial map
       // rbx: JSObject
-      // rdi: start of next object
+      // rdi: start of next object (including memento if create_memento)
       __ lea(rcx, Operand(rbx, JSObject::kHeaderSize));
       __ LoadRoot(rdx, Heap::kUndefinedValueRootIndex);
       if (count_constructions) {
@@ -236,8 +253,23 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
         }
         __ InitializeFieldsWithFiller(rcx, rsi, rdx);
         __ LoadRoot(rdx, Heap::kOnePointerFillerMapRootIndex);
+        __ InitializeFieldsWithFiller(rcx, rdi, rdx);
+      } else if (create_memento) {
+        __ lea(rsi, Operand(rdi, -AllocationMemento::kSize));
+        __ InitializeFieldsWithFiller(rcx, rsi, rdx);
+
+        // Fill in memento fields if necessary.
+        // rsi: points to the allocated but uninitialized memento.
+        Handle<Map> allocation_memento_map = factory->allocation_memento_map();
+        __ Move(Operand(rsi, AllocationMemento::kMapOffset),
+                allocation_memento_map);
+        // Get the cell or undefined.
+        __ movp(rdx, Operand(rsp, kPointerSize*2));
+        __ movp(Operand(rsi, AllocationMemento::kAllocationSiteOffset),
+                rdx);
+      } else {
+        __ InitializeFieldsWithFiller(rcx, rdi, rdx);
       }
-      __ InitializeFieldsWithFiller(rcx, rdi, rdx);
 
       // Add the object tag to make the JSObject real, so that we can continue
       // and jump into the continuation code at any time from now on. Any
@@ -329,15 +361,48 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // Allocate the new receiver object using the runtime call.
     // rdi: function (constructor)
     __ bind(&rt_call);
+    int offset = 0;
+    if (create_memento) {
+      // Get the cell or allocation site.
+      __ movp(rdi, Operand(rsp, kPointerSize*2));
+      __ Push(rdi);
+      offset = kPointerSize;
+    }
+
     // Must restore rdi (constructor) before calling runtime.
-    __ movp(rdi, Operand(rsp, 0));
+    __ movp(rdi, Operand(rsp, offset));
     __ Push(rdi);
-    __ CallRuntime(Runtime::kNewObject, 1);
+    if (create_memento) {
+      __ CallRuntime(Runtime::kNewObjectWithAllocationSite, 2);
+    } else {
+      __ CallRuntime(Runtime::kNewObject, 1);
+    }
     __ movp(rbx, rax);  // store result in rbx
+
+    // If we ended up using the runtime, and we want a memento, then the
+    // runtime call made it for us, and we shouldn't do create count
+    // increment.
+    Label count_incremented;
+    if (create_memento) {
+      __ jmp(&count_incremented);
+    }
 
     // New object allocated.
     // rbx: newly allocated object
     __ bind(&allocated);
+
+    if (create_memento) {
+      __ movp(rcx, Operand(rsp, kPointerSize*2));
+      __ Cmp(rcx, masm->isolate()->factory()->undefined_value());
+      __ j(equal, &count_incremented);
+      // rcx is an AllocationSite. We are creating a memento from it, so we
+      // need to increment the memento create count.
+      __ SmiAddConstant(
+          FieldOperand(rcx, AllocationSite::kPretenureCreateCountOffset),
+          Smi::FromInt(1));
+      __ bind(&count_incremented);
+    }
+
     // Retrieve the function from the stack.
     __ Pop(rdi);
 
@@ -420,17 +485,17 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
 
 
 void Builtins::Generate_JSConstructStubCountdown(MacroAssembler* masm) {
-  Generate_JSConstructStubHelper(masm, false, true);
+  Generate_JSConstructStubHelper(masm, false, true, false);
 }
 
 
 void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
-  Generate_JSConstructStubHelper(masm, false, false);
+  Generate_JSConstructStubHelper(masm, false, false, FLAG_pretenuring_call_new);
 }
 
 
 void Builtins::Generate_JSConstructStubApi(MacroAssembler* masm) {
-  Generate_JSConstructStubHelper(masm, true, false);
+  Generate_JSConstructStubHelper(masm, true, false, false);
 }
 
 

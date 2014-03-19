@@ -2518,6 +2518,44 @@ TEST(OptimizedPretenuringNestedDoubleLiterals) {
 }
 
 
+// Make sure pretenuring feedback is gathered for constructed objects as well
+// as for literals.
+TEST(OptimizedPretenuringConstructorCalls) {
+  if (!FLAG_allocation_site_pretenuring || !i::FLAG_pretenuring_call_new) {
+    // FLAG_pretenuring_call_new needs to be synced with the snapshot.
+    return;
+  }
+  i::FLAG_allow_natives_syntax = true;
+  i::FLAG_max_new_space_size = 2048;
+  CcTest::InitializeVM();
+  if (!CcTest::i_isolate()->use_crankshaft() || i::FLAG_always_opt) return;
+  if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
+  v8::HandleScope scope(CcTest::isolate());
+
+  v8::Local<v8::Value> res = CompileRun(
+      "var number_elements = 20000;"
+      "var elements = new Array(number_elements);"
+      "function foo() {"
+      "  this.a = 3;"
+      "  this.b = {};"
+      "}"
+      "function f() {"
+      "  for (var i = 0; i < number_elements; i++) {"
+      "    elements[i] = new foo();"
+      "  }"
+      "  return elements[number_elements - 1];"
+      "};"
+      "f(); f(); f();"
+      "%OptimizeFunctionOnNextCall(f);"
+      "f();");
+
+  Handle<JSObject> o =
+      v8::Utils::OpenHandle(*v8::Handle<v8::Object>::Cast(res));
+
+  CHECK(CcTest::heap()->InOldPointerSpace(*o));
+}
+
+
 // Test regular array literals allocation.
 TEST(OptimizedAllocationArrayLiterals) {
   i::FLAG_allow_natives_syntax = true;
@@ -2545,6 +2583,7 @@ TEST(OptimizedAllocationArrayLiterals) {
 }
 
 
+// Test global pretenuring call new.
 TEST(OptimizedPretenuringCallNew) {
   i::FLAG_allow_natives_syntax = true;
   i::FLAG_allocation_site_pretenuring = false;

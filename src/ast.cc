@@ -643,8 +643,11 @@ bool Call::ComputeGlobalTarget(Handle<GlobalObject> global,
 
 
 void CallNew::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
+  int allocation_site_feedback_slot = FLAG_pretenuring_call_new
+      ? AllocationSiteFeedbackSlot()
+      : CallNewFeedbackSlot();
   allocation_site_ =
-      oracle->GetCallNewAllocationSite(CallNewFeedbackSlot());
+      oracle->GetCallNewAllocationSite(allocation_site_feedback_slot);
   is_monomorphic_ = oracle->CallNewIsMonomorphic(CallNewFeedbackSlot());
   if (is_monomorphic_) {
     target_ = oracle->GetCallNewTarget(CallNewFeedbackSlot());

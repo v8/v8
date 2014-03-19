@@ -1031,6 +1031,8 @@ class HAllocationMode V8_FINAL BASE_EMBEDDED {
       : current_site_(current_site), pretenure_flag_(NOT_TENURED) {}
   explicit HAllocationMode(PretenureFlag pretenure_flag)
       : current_site_(NULL), pretenure_flag_(pretenure_flag) {}
+  HAllocationMode()
+      : current_site_(NULL), pretenure_flag_(NOT_TENURED) {}
 
   HValue* current_site() const { return current_site_; }
   Handle<AllocationSite> feedback_site() const { return feedback_site_; }

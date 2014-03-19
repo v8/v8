@@ -1840,7 +1840,9 @@ class CallNew V8_FINAL : public Expression, public FeedbackSlotInterface {
 
   // Type feedback information.
   virtual ComputablePhase GetComputablePhase() { return DURING_PARSE; }
-  virtual int ComputeFeedbackSlotCount(Isolate* isolate) { return 1; }
+  virtual int ComputeFeedbackSlotCount(Isolate* isolate) {
+    return FLAG_pretenuring_call_new ? 2 : 1;
+  }
   virtual void SetFirstFeedbackSlot(int slot) {
     callnew_feedback_slot_ = slot;
   }
@@ -1849,8 +1851,12 @@ class CallNew V8_FINAL : public Expression, public FeedbackSlotInterface {
     ASSERT(callnew_feedback_slot_ != kInvalidFeedbackSlot);
     return callnew_feedback_slot_;
   }
+  int AllocationSiteFeedbackSlot() {
+    ASSERT(callnew_feedback_slot_ != kInvalidFeedbackSlot);
+    ASSERT(FLAG_pretenuring_call_new);
+    return callnew_feedback_slot_ + 1;
+  }
 
-  TypeFeedbackId CallNewFeedbackId() const { return reuse(id()); }
   void RecordTypeFeedback(TypeFeedbackOracle* oracle);
   virtual bool IsMonomorphic() V8_OVERRIDE { return is_monomorphic_; }
   Handle<JSFunction> target() const { return target_; }

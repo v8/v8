@@ -8264,12 +8264,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NewObjectFromBound) {
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_NewObject) {
-  HandleScope scope(isolate);
-  ASSERT(args.length() == 1);
-
-  Handle<Object> constructor = args.at<Object>(0);
-
+static MaybeObject* Runtime_NewObjectHelper(Isolate* isolate,
+                                            Handle<Object> constructor,
+                                            Handle<AllocationSite> site) {
   // If the constructor isn't a proper function we throw a type error.
   if (!constructor->IsJSFunction()) {
     Vector< Handle<Object> > arguments = HandleVector(&constructor, 1);
@@ -8327,13 +8324,46 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NewObject) {
     shared->CompleteInobjectSlackTracking();
   }
 
-  Handle<JSObject> result = isolate->factory()->NewJSObject(function);
+  Handle<JSObject> result;
+  if (site.is_null()) {
+    result = isolate->factory()->NewJSObject(function);
+  } else {
+    result = isolate->factory()->NewJSObjectWithMemento(function, site);
+  }
   RETURN_IF_EMPTY_HANDLE(isolate, result);
 
   isolate->counters()->constructed_objects()->Increment();
   isolate->counters()->constructed_objects_runtime()->Increment();
 
   return *result;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_NewObject) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 1);
+
+  Handle<Object> constructor = args.at<Object>(0);
+  return Runtime_NewObjectHelper(isolate,
+                                 constructor,
+                                 Handle<AllocationSite>::null());
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_NewObjectWithAllocationSite) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 2);
+
+  Handle<Object> constructor = args.at<Object>(1);
+  Handle<Object> feedback = args.at<Object>(0);
+  Handle<AllocationSite> site;
+  if (feedback->IsAllocationSite()) {
+    // The feedback can be an AllocationSite or undefined.
+    site = Handle<AllocationSite>::cast(feedback);
+  }
+  return Runtime_NewObjectHelper(isolate,
+                                 constructor,
+                                 site);
 }
 
 

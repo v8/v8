@@ -328,6 +328,9 @@ class Factory {
   // runtime.
   Handle<JSObject> NewJSObject(Handle<JSFunction> constructor,
                                PretenureFlag pretenure = NOT_TENURED);
+  // JSObject that should have a memento pointing to the allocation site.
+  Handle<JSObject> NewJSObjectWithMemento(Handle<JSFunction> constructor,
+                                          Handle<AllocationSite> site);
 
   // Global objects are pretenured and initialized based on a constructor.
   Handle<GlobalObject> NewGlobalObject(Handle<JSFunction> constructor);
