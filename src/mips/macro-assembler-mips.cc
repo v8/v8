@@ -5723,9 +5723,9 @@ void CodePatcher::ChangeBranchCondition(Condition cond) {
 }
 
 
-void MacroAssembler::FlooringDiv(Register result,
-                                 Register dividend,
-                                 int32_t divisor) {
+void MacroAssembler::TruncatingDiv(Register result,
+                                   Register dividend,
+                                   int32_t divisor) {
   ASSERT(!dividend.is(result));
   ASSERT(!dividend.is(at));
   ASSERT(!result.is(at));
@@ -5739,9 +5739,9 @@ void MacroAssembler::FlooringDiv(Register result,
   if (divisor < 0 && ms.multiplier() > 0) {
     Subu(result, result, Operand(dividend));
   }
-  if (ms.shift() > 0) {
-    sra(result, result, ms.shift());
-  }
+  if (ms.shift() > 0) sra(result, result, ms.shift());
+  srl(at, dividend, 31);
+  Addu(result, result, Operand(at));
 }
 
 
