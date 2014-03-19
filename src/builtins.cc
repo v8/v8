@@ -268,11 +268,12 @@ static FixedArrayBase* LeftTrimFixedArray(Heap* heap,
   // Maintain marking consistency for HeapObjectIterator and
   // IncrementalMarking.
   int size_delta = to_trim * entry_size;
-  heap->marking()->TransferMark(elms->address(), elms->address() + size_delta);
-  heap->AdjustLiveBytes(elms->address(), -size_delta, Heap::FROM_MUTATOR);
+  Address new_start = elms->address() + size_delta;
+  heap->marking()->TransferMark(elms->address(), new_start);
+  heap->AdjustLiveBytes(new_start, -size_delta, Heap::FROM_MUTATOR);
 
-  FixedArrayBase* new_elms = FixedArrayBase::cast(HeapObject::FromAddress(
-      elms->address() + size_delta));
+  FixedArrayBase* new_elms =
+      FixedArrayBase::cast(HeapObject::FromAddress(new_start));
   HeapProfiler* profiler = heap->isolate()->heap_profiler();
   if (profiler->is_tracking_object_moves()) {
     profiler->ObjectMoveEvent(elms->address(),
