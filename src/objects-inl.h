@@ -1031,6 +1031,21 @@ bool Object::IsNaN() {
 }
 
 
+// static
+Handle<Object> Object::ToSmi(Isolate* isolate, Handle<Object> object) {
+  if (object->IsSmi()) return object;
+  if (object->IsHeapNumber()) {
+    double value = Handle<HeapNumber>::cast(object)->value();
+    int int_value = FastD2I(value);
+    if (value == FastI2D(int_value) && Smi::IsValid(int_value)) {
+      return handle(Smi::FromInt(int_value), isolate);
+    }
+  }
+  return Handle<Object>();
+}
+
+
+// TODO(ishell): Use handlified version instead.
 MaybeObject* Object::ToSmi() {
   if (IsSmi()) return this;
   if (IsHeapNumber()) {

@@ -112,8 +112,6 @@ class ElementsAccessor {
   MUST_USE_RESULT virtual Handle<Object> SetLength(
       Handle<JSArray> holder,
       Handle<Object> new_length) = 0;
-  MUST_USE_RESULT virtual MaybeObject* SetLength(JSArray* holder,
-                                                 Object* new_length) = 0;
 
   // Modifies both the length and capacity of a JSArray, resizing the underlying
   // backing store as necessary. This method does NOT honor the semantics of

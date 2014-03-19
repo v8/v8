@@ -160,11 +160,11 @@ static bool HasKey(FixedArray* array, Object* key) {
 }
 
 
-static Failure* ThrowArrayLengthRangeError(Heap* heap) {
-  HandleScope scope(heap->isolate());
-  return heap->isolate()->Throw(
-      *heap->isolate()->factory()->NewRangeError("invalid_array_length",
-          HandleVector<Object>(NULL, 0)));
+static Handle<Object> ThrowArrayLengthRangeError(Isolate* isolate) {
+  isolate->Throw(
+      *isolate->factory()->NewRangeError("invalid_array_length",
+                                         HandleVector<Object>(NULL, 0)));
+  return Handle<Object>();
 }
 
 
@@ -737,25 +737,18 @@ class ElementsAccessorBase : public ElementsAccessor {
     return NULL;
   }
 
-  // TODO(ishell): Temporary wrapper until handlified.
   MUST_USE_RESULT virtual Handle<Object> SetLength(
       Handle<JSArray> array,
       Handle<Object> length) {
-    CALL_HEAP_FUNCTION(array->GetIsolate(),
-                       SetLength(*array, *length),
-                       Object);
-  }
-
-  MUST_USE_RESULT virtual MaybeObject* SetLength(JSArray* array,
-                                                 Object* length) {
+    Isolate* isolate = array->GetIsolate();
     return ElementsAccessorSubclass::SetLengthImpl(
-        array, length, array->elements());
+        array, length, handle(array->elements(), isolate));
   }
 
-  MUST_USE_RESULT static MaybeObject* SetLengthImpl(
-      JSObject* obj,
-      Object* length,
-      FixedArrayBase* backing_store);
+  MUST_USE_RESULT static Handle<Object> SetLengthImpl(
+      Handle<JSObject> obj,
+      Handle<Object> length,
+      Handle<FixedArrayBase> backing_store);
 
   MUST_USE_RESULT virtual MaybeObject* SetCapacityAndLength(
       JSArray* array,
@@ -992,6 +985,18 @@ class FastElementsAccessor
 
     // Request conversion to slow elements.
     return array->GetHeap()->undefined_value();
+  }
+
+  // TODO(ishell): Temporary wrapper until handlified.
+  static Handle<Object> SetLengthWithoutNormalize(
+      Handle<FixedArrayBase> backing_store,
+      Handle<JSArray> array,
+      Handle<Object> length_object,
+      uint32_t length) {
+    CALL_HEAP_FUNCTION(array->GetIsolate(),
+                       SetLengthWithoutNormalize(
+                           *backing_store, *array, *length_object, length),
+                       Object);
   }
 
   static MaybeObject* DeleteCommon(JSObject* obj,
@@ -1382,10 +1387,10 @@ class TypedElementsAccessor
           ? FIELD : NONEXISTENT;
   }
 
-  MUST_USE_RESULT static MaybeObject* SetLengthImpl(
-      JSObject* obj,
-      Object* length,
-      FixedArrayBase* backing_store) {
+  MUST_USE_RESULT static Handle<Object> SetLengthImpl(
+      Handle<JSObject> obj,
+      Handle<Object> length,
+      Handle<FixedArrayBase> backing_store) {
     // External arrays do not support changing their length.
     UNREACHABLE();
     return obj;
@@ -1491,6 +1496,18 @@ class DictionaryElementsAccessor
       dict->ElementsRemoved(removed_entries);
     }
     return length_object;
+  }
+
+  // TODO(ishell): Temporary wrapper until handlified.
+  MUST_USE_RESULT static Handle<Object> SetLengthWithoutNormalize(
+      Handle<FixedArrayBase> store,
+      Handle<JSArray> array,
+      Handle<Object> length_object,
+      uint32_t length) {
+    CALL_HEAP_FUNCTION(array->GetIsolate(),
+                       SetLengthWithoutNormalize(
+                             *store, *array, *length_object, length),
+                       Object);
   }
 
   MUST_USE_RESULT static MaybeObject* DeleteCommon(
@@ -1736,10 +1753,10 @@ class SloppyArgumentsElementsAccessor : public ElementsAccessorBase<
     }
   }
 
-  MUST_USE_RESULT static MaybeObject* SetLengthImpl(
-      JSObject* obj,
-      Object* length,
-      FixedArrayBase* parameter_map) {
+  MUST_USE_RESULT static Handle<Object> SetLengthImpl(
+      Handle<JSObject> obj,
+      Handle<Object> length,
+      Handle<FixedArrayBase> parameter_map) {
     // TODO(mstarzinger): This was never implemented but will be used once we
     // correctly implement [[DefineOwnProperty]] on arrays.
     UNIMPLEMENTED();
@@ -1851,23 +1868,24 @@ void ElementsAccessor::TearDown() {
 
 
 template <typename ElementsAccessorSubclass, typename ElementsKindTraits>
-MUST_USE_RESULT MaybeObject* ElementsAccessorBase<ElementsAccessorSubclass,
-                                                  ElementsKindTraits>::
-    SetLengthImpl(JSObject* obj,
-                  Object* length,
-                  FixedArrayBase* backing_store) {
-  JSArray* array = JSArray::cast(obj);
+MUST_USE_RESULT Handle<Object> ElementsAccessorBase<ElementsAccessorSubclass,
+                                                    ElementsKindTraits>::
+    SetLengthImpl(Handle<JSObject> obj,
+                  Handle<Object> length,
+                  Handle<FixedArrayBase> backing_store) {
+  Isolate* isolate = obj->GetIsolate();
+  Handle<JSArray> array = Handle<JSArray>::cast(obj);
 
   // Fast case: The new length fits into a Smi.
-  MaybeObject* maybe_smi_length = length->ToSmi();
-  Object* smi_length = Smi::FromInt(0);
-  if (maybe_smi_length->ToObject(&smi_length) && smi_length->IsSmi()) {
-    const int value = Smi::cast(smi_length)->value();
+  Handle<Object> smi_length = Object::ToSmi(isolate, length);
+
+  if (!smi_length.is_null() && smi_length->IsSmi()) {
+    const int value = Handle<Smi>::cast(smi_length)->value();
     if (value >= 0) {
-      Object* new_length;
-      MaybeObject* result = ElementsAccessorSubclass::
+      Handle<Object> new_length = ElementsAccessorSubclass::
           SetLengthWithoutNormalize(backing_store, array, smi_length, value);
-      if (!result->ToObject(&new_length)) return result;
+      RETURN_IF_EMPTY_HANDLE_VALUE(isolate, new_length, new_length);
+
       // even though the proposed length was a smi, new_length could
       // still be a heap number because SetLengthWithoutNormalize doesn't
       // allow the array length property to drop below the index of
@@ -1875,14 +1893,14 @@ MUST_USE_RESULT MaybeObject* ElementsAccessorBase<ElementsAccessorSubclass,
       ASSERT(new_length->IsSmi() || new_length->IsHeapNumber() ||
              new_length->IsUndefined());
       if (new_length->IsSmi()) {
-        array->set_length(Smi::cast(new_length));
+        array->set_length(*Handle<Smi>::cast(new_length));
         return array;
       } else if (new_length->IsHeapNumber()) {
-        array->set_length(new_length);
+        array->set_length(*new_length);
         return array;
       }
     } else {
-      return ThrowArrayLengthRangeError(array->GetHeap());
+      return ThrowArrayLengthRangeError(isolate);
     }
   }
 
@@ -1891,30 +1909,28 @@ MUST_USE_RESULT MaybeObject* ElementsAccessorBase<ElementsAccessorSubclass,
   if (length->IsNumber()) {
     uint32_t value;
     if (length->ToArrayIndex(&value)) {
-      SeededNumberDictionary* dictionary;
-      MaybeObject* maybe_object = array->NormalizeElements();
-      if (!maybe_object->To(&dictionary)) return maybe_object;
-      Object* new_length;
-      MaybeObject* result = DictionaryElementsAccessor::
+      Handle<SeededNumberDictionary> dictionary =
+          JSObject::NormalizeElements(array);
+      RETURN_IF_EMPTY_HANDLE_VALUE(isolate, dictionary, dictionary);
+
+      Handle<Object> new_length = DictionaryElementsAccessor::
           SetLengthWithoutNormalize(dictionary, array, length, value);
-      if (!result->ToObject(&new_length)) return result;
+      RETURN_IF_EMPTY_HANDLE_VALUE(isolate, new_length, new_length);
+
       ASSERT(new_length->IsNumber());
-      array->set_length(new_length);
+      array->set_length(*new_length);
       return array;
     } else {
-      return ThrowArrayLengthRangeError(array->GetHeap());
+      return ThrowArrayLengthRangeError(isolate);
     }
   }
 
+  Factory* factory = isolate->factory();
   // Fall-back case: The new length is not a number so make the array
   // size one and set only element to length.
-  FixedArray* new_backing_store;
-  MaybeObject* maybe_obj = array->GetHeap()->AllocateFixedArray(1);
-  if (!maybe_obj->To(&new_backing_store)) return maybe_obj;
-  new_backing_store->set(0, length);
-  { MaybeObject* result = array->SetContent(new_backing_store);
-    if (result->IsFailure()) return result;
-  }
+  Handle<FixedArray> new_backing_store = factory->NewFixedArray(1);
+  new_backing_store->set(0, *length);
+  factory->SetContent(array, new_backing_store);
   return array;
 }
 

@@ -548,18 +548,6 @@ static Handle<Object> ElementsAccessorGetWrapper(
 }
 
 
-// TODO(ishell): Temporary wrapper until handlified.
-static Handle<Object> ElementsAccessorSetLengthWrapper(
-    Isolate* isolate,
-    ElementsAccessor* accessor,
-    Handle<JSArray> array,
-    int new_length) {
-  CALL_HEAP_FUNCTION(isolate,
-                     accessor->SetLength(*array, Smi::FromInt(new_length)),
-                     Object);
-}
-
-
 BUILTIN(ArrayPop) {
   HandleScope scope(isolate);
   Handle<Object> receiver = args.receiver();
@@ -588,8 +576,8 @@ BUILTIN(ArrayPop) {
   }
   RETURN_IF_EMPTY_HANDLE(isolate, element);
   RETURN_IF_EMPTY_HANDLE(isolate,
-                         ElementsAccessorSetLengthWrapper(
-                             isolate, accessor, array, new_length));
+                         accessor->SetLength(
+                             array, handle(Smi::FromInt(new_length), isolate)));
   return *element;
 }
 

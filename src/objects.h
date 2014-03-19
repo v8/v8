@@ -1536,6 +1536,8 @@ class Object : public MaybeObject {
 
   // Converts this to a Smi if possible.
   // Failure is returned otherwise.
+  static MUST_USE_RESULT inline Handle<Object> ToSmi(Isolate* isolate,
+                                                     Handle<Object> object);
   MUST_USE_RESULT inline MaybeObject* ToSmi();
 
   void Lookup(Name* name, LookupResult* result);
