@@ -191,7 +191,7 @@ bool LCodeGen::GeneratePrologue() {
 #ifdef _MSC_VER
       MakeSureStackPagesMapped(slots * kPointerSize);
 #endif
-      __ push(rax);
+      __ Push(rax);
       __ Set(rax, slots);
       __ movq(kScratchRegister, kSlotsZapValue);
       Label loop;
@@ -200,7 +200,7 @@ bool LCodeGen::GeneratePrologue() {
               kScratchRegister);
       __ decl(rax);
       __ j(not_zero, &loop);
-      __ pop(rax);
+      __ Pop(rax);
     } else {
       __ subq(rsp, Immediate(slots * kPointerSize));
 #ifdef _MSC_VER
@@ -222,7 +222,7 @@ bool LCodeGen::GeneratePrologue() {
       FastNewContextStub stub(heap_slots);
       __ CallStub(&stub);
     } else {
-      __ push(rdi);
+      __ Push(rdi);
       __ CallRuntime(Runtime::kNewFunctionContext, 1);
     }
     RecordSafepoint(Safepoint::kNoLazyDeopt);
@@ -303,15 +303,15 @@ bool LCodeGen::GenerateJumpTable() {
       } else {
         __ bind(&needs_frame);
         __ movp(rsi, MemOperand(rbp, StandardFrameConstants::kContextOffset));
-        __ push(rbp);
+        __ pushq(rbp);
         __ movp(rbp, rsp);
-        __ push(rsi);
+        __ Push(rsi);
         // This variant of deopt can only be used with stubs. Since we don't
         // have a function pointer to install in the stack frame that we're
         // building, install a special marker there instead.
         ASSERT(info()->IsStub());
         __ Move(rsi, Smi::FromInt(StackFrame::STUB));
-        __ push(rsi);
+        __ Push(rsi);
         __ movp(rsi, MemOperand(rsp, kPointerSize));
         __ call(kScratchRegister);
       }
@@ -350,8 +350,8 @@ bool LCodeGen::GenerateDeferredCode() {
         ASSERT(info()->IsStub());
         frame_is_built_ = true;
         // Build the frame in such a way that esi isn't trashed.
-        __ push(rbp);  // Caller's frame pointer.
-        __ push(Operand(rbp, StandardFrameConstants::kContextOffset));
+        __ pushq(rbp);  // Caller's frame pointer.
+        __ Push(Operand(rbp, StandardFrameConstants::kContextOffset));
         __ Push(Smi::FromInt(StackFrame::STUB));
         __ lea(rbp, Operand(rsp, 2 * kPointerSize));
         Comment(";;; Deferred code");
@@ -363,7 +363,7 @@ bool LCodeGen::GenerateDeferredCode() {
         ASSERT(frame_is_built_);
         frame_is_built_ = false;
         __ movp(rsp, rbp);
-        __ pop(rbp);
+        __ popq(rbp);
       }
       __ jmp(code->exit());
     }
@@ -722,7 +722,7 @@ void LCodeGen::DeoptimizeIf(Condition cc,
     ExternalReference count = ExternalReference::stress_deopt_count(isolate());
     Label no_deopt;
     __ pushfq();
-    __ push(rax);
+    __ Push(rax);
     Operand count_operand = masm()->ExternalOperand(count, kScratchRegister);
     __ movl(rax, count_operand);
     __ subl(rax, Immediate(1));
@@ -730,13 +730,13 @@ void LCodeGen::DeoptimizeIf(Condition cc,
     if (FLAG_trap_on_deopt) __ int3();
     __ movl(rax, Immediate(FLAG_deopt_every_n_times));
     __ movl(count_operand, rax);
-    __ pop(rax);
+    __ Pop(rax);
     __ popfq();
     ASSERT(frame_is_built_);
     __ call(entry, RelocInfo::RUNTIME_ENTRY);
     __ bind(&no_deopt);
     __ movl(count_operand, rax);
-    __ pop(rax);
+    __ Pop(rax);
     __ popfq();
   }
 
@@ -1667,7 +1667,7 @@ void LCodeGen::DoSeqStringGetChar(LSeqStringGetChar* instr) {
   Register string = ToRegister(instr->string());
 
   if (FLAG_debug_code) {
-    __ push(string);
+    __ Push(string);
     __ movp(string, FieldOperand(string, HeapObject::kMapOffset));
     __ movzxbq(string, FieldOperand(string, Map::kInstanceTypeOffset));
 
@@ -1677,7 +1677,7 @@ void LCodeGen::DoSeqStringGetChar(LSeqStringGetChar* instr) {
     __ cmpq(string, Immediate(encoding == String::ONE_BYTE_ENCODING
                               ? one_byte_seq_type : two_byte_seq_type));
     __ Check(equal, kUnexpectedStringType);
-    __ pop(string);
+    __ Pop(string);
   }
 
   Operand operand = BuildSeqStringOperand(string, instr->index(), encoding);
@@ -2495,8 +2495,8 @@ void LCodeGen::DoCmpMapAndBranch(LCmpMapAndBranch* instr) {
 void LCodeGen::DoInstanceOf(LInstanceOf* instr) {
   ASSERT(ToRegister(instr->context()).is(rsi));
   InstanceofStub stub(InstanceofStub::kNoFlags);
-  __ push(ToRegister(instr->left()));
-  __ push(ToRegister(instr->right()));
+  __ Push(ToRegister(instr->left()));
+  __ Push(ToRegister(instr->right()));
   CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
   Label true_value, done;
   __ testq(rax, rax);
@@ -2582,14 +2582,14 @@ void LCodeGen::DoDeferredInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr,
         InstanceofStub::kNoFlags | InstanceofStub::kCallSiteInlineCheck);
     InstanceofStub stub(flags);
 
-    __ push(ToRegister(instr->value()));
+    __ Push(ToRegister(instr->value()));
     __ Push(instr->function());
 
     static const int kAdditionalDelta = 10;
     int delta =
         masm_->SizeOfCodeGeneratedSince(map_check) + kAdditionalDelta;
     ASSERT(delta >= 0);
-    __ push_imm32(delta);
+    __ PushImm32(delta);
 
     // We are pushing three values on the stack but recording a
     // safepoint with two arguments because stub is going to
@@ -2644,7 +2644,7 @@ void LCodeGen::DoReturn(LReturn* instr) {
     // to return the value in the same register.  We're leaving the code
     // managed by the register allocator and tearing down the frame, it's
     // safe to write to the context register.
-    __ push(rax);
+    __ Push(rax);
     __ movp(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
     __ CallRuntime(Runtime::kTraceExit, 1);
   }
@@ -2654,7 +2654,7 @@ void LCodeGen::DoReturn(LReturn* instr) {
   int no_frame_start = -1;
   if (NeedsEagerFrame()) {
     __ movp(rsp, rbp);
-    __ pop(rbp);
+    __ popq(rbp);
     no_frame_start = masm_->pc_offset();
   }
   if (instr->has_constant_parameter_count()) {
@@ -3266,7 +3266,7 @@ void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
   __ cmpq(length, Immediate(kArgumentsLimit));
   DeoptimizeIf(above, instr->environment());
 
-  __ push(receiver);
+  __ Push(receiver);
   __ movp(receiver, length);
 
   // Loop through the arguments pushing them onto the execution
@@ -3278,7 +3278,7 @@ void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
   __ bind(&loop);
   StackArgumentsAccessor args(elements, length,
                               ARGUMENTS_DONT_CONTAIN_RECEIVER);
-  __ push(args.GetArgumentOperand(0));
+  __ Push(args.GetArgumentOperand(0));
   __ decl(length);
   __ j(not_zero, &loop);
 
@@ -3323,7 +3323,7 @@ void LCodeGen::DoContext(LContext* instr) {
 
 void LCodeGen::DoDeclareGlobals(LDeclareGlobals* instr) {
   ASSERT(ToRegister(instr->context()).is(rsi));
-  __ push(rsi);  // The context is the first argument.
+  __ Push(rsi);  // The context is the first argument.
   __ Push(instr->hydrogen()->pairs());
   __ Push(Smi::FromInt(instr->hydrogen()->flags()));
   CallRuntime(Runtime::kDeclareGlobals, 3, instr);
@@ -4433,7 +4433,7 @@ void LCodeGen::DoDeferredStringCharCodeAt(LStringCharCodeAt* instr) {
   __ Set(result, 0);
 
   PushSafepointRegistersScope scope(this);
-  __ push(string);
+  __ Push(string);
   // Push the index as a smi. This is safe because of the checks in
   // DoStringCharCodeAt above.
   STATIC_ASSERT(String::kMaxLength <= Smi::kMaxValue);
@@ -4443,7 +4443,7 @@ void LCodeGen::DoDeferredStringCharCodeAt(LStringCharCodeAt* instr) {
   } else {
     Register index = ToRegister(instr->index());
     __ Integer32ToSmi(index, index);
-    __ push(index);
+    __ Push(index);
   }
   CallRuntimeFromDeferred(
       Runtime::kStringCharCodeAt, 2, instr, instr->context());
@@ -4498,7 +4498,7 @@ void LCodeGen::DoDeferredStringCharFromCode(LStringCharFromCode* instr) {
 
   PushSafepointRegistersScope scope(this);
   __ Integer32ToSmi(char_code, char_code);
-  __ push(char_code);
+  __ Push(char_code);
   CallRuntimeFromDeferred(Runtime::kCharFromCode, 1, instr, instr->context());
   __ StoreToSafepointRegisterSlot(result, rax);
 }
@@ -4968,7 +4968,7 @@ void LCodeGen::DoCheckValue(LCheckValue* instr) {
 void LCodeGen::DoDeferredInstanceMigration(LCheckMaps* instr, Register object) {
   {
     PushSafepointRegistersScope scope(this);
-    __ push(object);
+    __ Push(object);
     __ Set(rsi, 0);
     __ CallRuntimeSaveDoubles(Runtime::kTryMigrateInstance);
     RecordSafepointWithRegisters(
@@ -5184,7 +5184,7 @@ void LCodeGen::DoDeferredAllocate(LAllocate* instr) {
     Register size = ToRegister(instr->size());
     ASSERT(!size.is(result));
     __ Integer32ToSmi(size, size);
-    __ push(size);
+    __ Push(size);
   } else {
     int32_t size = ToInteger32(LConstantOperand::cast(instr->size()));
     __ Push(Smi::FromInt(size));
@@ -5211,7 +5211,7 @@ void LCodeGen::DoDeferredAllocate(LAllocate* instr) {
 
 void LCodeGen::DoToFastProperties(LToFastProperties* instr) {
   ASSERT(ToRegister(instr->value()).is(rax));
-  __ push(rax);
+  __ Push(rax);
   CallRuntime(Runtime::kToFastProperties, 1, instr);
 }
 
@@ -5232,7 +5232,7 @@ void LCodeGen::DoRegExpLiteral(LRegExpLiteral* instr) {
 
   // Create regexp literal using runtime function
   // Result will be in rax.
-  __ push(rcx);
+  __ Push(rcx);
   __ Push(Smi::FromInt(instr->hydrogen()->literal_index()));
   __ Push(instr->hydrogen()->pattern());
   __ Push(instr->hydrogen()->flags());
@@ -5246,10 +5246,10 @@ void LCodeGen::DoRegExpLiteral(LRegExpLiteral* instr) {
   __ jmp(&allocated, Label::kNear);
 
   __ bind(&runtime_allocate);
-  __ push(rbx);
+  __ Push(rbx);
   __ Push(Smi::FromInt(size));
   CallRuntime(Runtime::kAllocateInNewSpace, 1, instr);
-  __ pop(rbx);
+  __ Pop(rbx);
 
   __ bind(&allocated);
   // Copy the content into the newly allocated memory.
@@ -5278,7 +5278,7 @@ void LCodeGen::DoFunctionLiteral(LFunctionLiteral* instr) {
     __ Move(rbx, instr->hydrogen()->shared_info());
     CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
   } else {
-    __ push(rsi);
+    __ Push(rsi);
     __ Push(instr->hydrogen()->shared_info());
     __ PushRoot(pretenure ? Heap::kTrueValueRootIndex :
                             Heap::kFalseValueRootIndex);
@@ -5300,9 +5300,9 @@ void LCodeGen::EmitPushTaggedOperand(LOperand* operand) {
   if (operand->IsConstantOperand()) {
     __ Push(ToHandle(LConstantOperand::cast(operand)));
   } else if (operand->IsRegister()) {
-    __ push(ToRegister(operand));
+    __ Push(ToRegister(operand));
   } else {
-    __ push(ToOperand(operand));
+    __ Push(ToOperand(operand));
   }
 }
 
@@ -5575,7 +5575,7 @@ void LCodeGen::DoForInPrepareMap(LForInPrepareMap* instr) {
 
   // Get the set of properties to enumerate.
   __ bind(&call_runtime);
-  __ push(rax);
+  __ Push(rax);
   CallRuntime(Runtime::kGetPropertyNamesFast, 1, instr);
 
   __ CompareRoot(FieldOperand(rax, HeapObject::kMapOffset),

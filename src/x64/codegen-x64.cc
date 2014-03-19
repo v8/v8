@@ -66,13 +66,13 @@ UnaryMathFunction CreateExpFunction() {
   // xmm0: raw double input.
   XMMRegister input = xmm0;
   XMMRegister result = xmm1;
-  __ push(rax);
-  __ push(rbx);
+  __ pushq(rax);
+  __ pushq(rbx);
 
   MathExpGenerator::EmitMathExp(&masm, input, result, xmm2, rax, rbx);
 
-  __ pop(rbx);
-  __ pop(rax);
+  __ popq(rbx);
+  __ popq(rax);
   __ movsd(xmm0, result);
   __ Ret();
 
@@ -381,7 +381,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   __ CompareRoot(r8, Heap::kEmptyFixedArrayRootIndex);
   __ j(equal, &only_change_map);
 
-  __ push(rax);
+  __ Push(rax);
 
   __ movp(r8, FieldOperand(rdx, JSObject::kElementsOffset));
   __ SmiToInteger32(r9, FieldOperand(r8, FixedDoubleArray::kLengthOffset));
@@ -404,7 +404,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
 
   // Call into runtime if GC is required.
   __ bind(&gc_required);
-  __ pop(rax);
+  __ Pop(rax);
   __ movp(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
   __ jmp(fail);
 
@@ -458,7 +458,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
                       kDontSaveFPRegs,
                       EMIT_REMEMBERED_SET,
                       OMIT_SMI_CHECK);
-  __ pop(rax);
+  __ Pop(rax);
   __ movp(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
 
   __ bind(&only_change_map);
@@ -640,10 +640,10 @@ static byte* GetNoCodeAgeSequence(uint32_t* length) {
     // following boilerplate stack-building prologue that is found both in
     // FUNCTION and OPTIMIZED_FUNCTION code:
     CodePatcher patcher(sequence, kNoCodeAgeSequenceLength);
-    patcher.masm()->push(rbp);
+    patcher.masm()->pushq(rbp);
     patcher.masm()->movp(rbp, rsp);
-    patcher.masm()->push(rsi);
-    patcher.masm()->push(rdi);
+    patcher.masm()->Push(rsi);
+    patcher.masm()->Push(rdi);
     initialized = true;
   }
   return sequence;

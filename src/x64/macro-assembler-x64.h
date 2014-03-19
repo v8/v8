@@ -837,10 +837,14 @@ class MacroAssembler: public Assembler {
   void Drop(int stack_elements);
 
   void Call(Label* target) { call(target); }
-  void Push(Register src) { push(src); }
-  void Pop(Register dst) { pop(dst); }
-  void PushReturnAddressFrom(Register src) { push(src); }
-  void PopReturnAddressTo(Register dst) { pop(dst); }
+  void Push(Register src);
+  void Push(const Operand& src);
+  void Push(Immediate value);
+  void PushImm32(int32_t imm32);
+  void Pop(Register dst);
+  void Pop(const Operand& dst);
+  void PushReturnAddressFrom(Register src) { pushq(src); }
+  void PopReturnAddressTo(Register dst) { popq(dst); }
   void Move(Register dst, ExternalReference ext) {
     movp(dst, reinterpret_cast<Address>(ext.address()),
          RelocInfo::EXTERNAL_REFERENCE);
@@ -1608,9 +1612,9 @@ extern void LogGeneratedCodeCoverage(const char* file_line);
     Address x64_coverage_function = FUNCTION_ADDR(LogGeneratedCodeCoverage); \
     masm->pushfq();                                                          \
     masm->Pushad();                                                          \
-    masm->push(Immediate(reinterpret_cast<int>(&__FILE_LINE__)));            \
+    masm->Push(Immediate(reinterpret_cast<int>(&__FILE_LINE__)));            \
     masm->Call(x64_coverage_function, RelocInfo::EXTERNAL_REFERENCE);        \
-    masm->pop(rax);                                                          \
+    masm->Pop(rax);                                                          \
     masm->Popad();                                                           \
     masm->popfq();                                                           \
   }                                                                          \

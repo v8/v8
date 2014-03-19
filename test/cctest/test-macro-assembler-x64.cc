@@ -99,8 +99,8 @@ typedef int (*F0)();
 
 static void EntryCode(MacroAssembler* masm) {
   // Smi constant register is callee save.
-  __ push(i::kSmiConstantRegister);
-  __ push(i::kRootRegister);
+  __ pushq(i::kSmiConstantRegister);
+  __ pushq(i::kRootRegister);
   __ InitializeSmiConstantRegister();
   __ InitializeRootRegister();
 }
@@ -112,8 +112,8 @@ static void ExitCode(MacroAssembler* masm) {
   __ cmpq(rdx, i::kSmiConstantRegister);
   __ movq(rdx, Immediate(-1));
   __ cmovq(not_equal, rax, rdx);
-  __ pop(i::kRootRegister);
-  __ pop(i::kSmiConstantRegister);
+  __ popq(i::kRootRegister);
+  __ popq(i::kSmiConstantRegister);
 }
 
 
@@ -1360,8 +1360,8 @@ TEST(SmiDiv) {
   EntryCode(masm);
   Label exit;
 
-  __ push(r14);
-  __ push(r15);
+  __ pushq(r14);
+  __ pushq(r15);
   TestSmiDiv(masm, &exit, 0x10, 1, 1);
   TestSmiDiv(masm, &exit, 0x20, 1, 0);
   TestSmiDiv(masm, &exit, 0x30, -1, 0);
@@ -1386,8 +1386,8 @@ TEST(SmiDiv) {
   __ xor_(r15, r15);  // Success.
   __ bind(&exit);
   __ movq(rax, r15);
-  __ pop(r15);
-  __ pop(r14);
+  __ popq(r15);
+  __ popq(r14);
   ExitCode(masm);
   __ ret(0);
 
@@ -1470,8 +1470,8 @@ TEST(SmiMod) {
   EntryCode(masm);
   Label exit;
 
-  __ push(r14);
-  __ push(r15);
+  __ pushq(r14);
+  __ pushq(r15);
   TestSmiMod(masm, &exit, 0x10, 1, 1);
   TestSmiMod(masm, &exit, 0x20, 1, 0);
   TestSmiMod(masm, &exit, 0x30, -1, 0);
@@ -1496,8 +1496,8 @@ TEST(SmiMod) {
   __ xor_(r15, r15);  // Success.
   __ bind(&exit);
   __ movq(rax, r15);
-  __ pop(r15);
-  __ pop(r14);
+  __ popq(r15);
+  __ popq(r14);
   ExitCode(masm);
   __ ret(0);
 
@@ -2324,21 +2324,21 @@ TEST(OperandOffset) {
   Label exit;
 
   EntryCode(masm);
-  __ push(r13);
-  __ push(r14);
-  __ push(rbx);
-  __ push(rbp);
-  __ push(Immediate(0x100));  // <-- rbp
+  __ pushq(r13);
+  __ pushq(r14);
+  __ pushq(rbx);
+  __ pushq(rbp);
+  __ pushq(Immediate(0x100));  // <-- rbp
   __ movq(rbp, rsp);
-  __ push(Immediate(0x101));
-  __ push(Immediate(0x102));
-  __ push(Immediate(0x103));
-  __ push(Immediate(0x104));
-  __ push(Immediate(0x105));  // <-- rbx
-  __ push(Immediate(0x106));
-  __ push(Immediate(0x107));
-  __ push(Immediate(0x108));
-  __ push(Immediate(0x109));  // <-- rsp
+  __ pushq(Immediate(0x101));
+  __ pushq(Immediate(0x102));
+  __ pushq(Immediate(0x103));
+  __ pushq(Immediate(0x104));
+  __ pushq(Immediate(0x105));  // <-- rbx
+  __ pushq(Immediate(0x106));
+  __ pushq(Immediate(0x107));
+  __ pushq(Immediate(0x108));
+  __ pushq(Immediate(0x109));  // <-- rsp
   // rbp = rsp[9]
   // r15 = rsp[3]
   // rbx = rsp[5]
@@ -2644,10 +2644,10 @@ TEST(OperandOffset) {
   __ movl(rax, Immediate(0));
   __ bind(&exit);
   __ lea(rsp, Operand(rbp, kPointerSize));
-  __ pop(rbp);
-  __ pop(rbx);
-  __ pop(r14);
-  __ pop(r13);
+  __ popq(rbp);
+  __ popq(rbx);
+  __ popq(r14);
+  __ popq(r13);
   ExitCode(masm);
   __ ret(0);
 

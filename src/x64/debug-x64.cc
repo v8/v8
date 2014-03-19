@@ -121,7 +121,7 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
       Register reg = { r };
       ASSERT(!reg.is(kScratchRegister));
       if ((object_regs & (1 << r)) != 0) {
-        __ push(reg);
+        __ Push(reg);
       }
       if ((non_object_regs & (1 << r)) != 0) {
         __ PushInt64AsTwoSmis(reg);
@@ -145,7 +145,7 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
         __ Set(reg, kDebugZapValue);
       }
       if ((object_regs & (1 << r)) != 0) {
-        __ pop(reg);
+        __ Pop(reg);
       }
       // Reconstruct the 64-bit value from two smis.
       if ((non_object_regs & (1 << r)) != 0) {
@@ -154,7 +154,7 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
     }
 
     // Read current padding counter and skip corresponding number of words.
-    __ pop(kScratchRegister);
+    __ Pop(kScratchRegister);
     __ SmiToInteger32(kScratchRegister, kScratchRegister);
     __ lea(rsp, Operand(rsp, kScratchRegister, times_pointer_size, 0));
 
@@ -329,8 +329,8 @@ void Debug::GenerateFrameDropperLiveEdit(MacroAssembler* masm) {
   // We do not know our frame height, but set rsp based on rbp.
   __ lea(rsp, Operand(rbp, -1 * kPointerSize));
 
-  __ pop(rdi);  // Function.
-  __ pop(rbp);
+  __ Pop(rdi);  // Function.
+  __ popq(rbp);
 
   // Load context from the function.
   __ movp(rsi, FieldOperand(rdi, JSFunction::kContextOffset));

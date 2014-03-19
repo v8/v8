@@ -693,15 +693,15 @@ class Assembler : public AssemblerBase {
   void pushfq();
   void popfq();
 
-  void push(Immediate value);
+  void pushq(Immediate value);
   // Push a 32 bit integer, and guarantee that it is actually pushed as a
   // 32 bit value, the normal push will optimize the 8 bit case.
-  void push_imm32(int32_t imm32);
-  void push(Register src);
-  void push(const Operand& src);
+  void pushq_imm32(int32_t imm32);
+  void pushq(Register src);
+  void pushq(const Operand& src);
 
-  void pop(Register dst);
-  void pop(const Operand& dst);
+  void popq(Register dst);
+  void popq(const Operand& dst);
 
   void enter(Immediate size);
   void leave();

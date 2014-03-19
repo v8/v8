@@ -118,17 +118,17 @@ TEST(DisasmX64) {
   __ bts(Operand(rdx, 0), rcx);
   __ bts(Operand(rbx, rcx, times_4, 0), rcx);
   __ nop();
-  __ push(Immediate(12));
-  __ push(Immediate(23456));
-  __ push(rcx);
-  __ push(rsi);
-  __ push(Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
-  __ push(Operand(rbx, rcx, times_4, 0));
-  __ push(Operand(rbx, rcx, times_4, 0));
-  __ push(Operand(rbx, rcx, times_4, 10000));
-  __ pop(rdx);
-  __ pop(rax);
-  __ pop(Operand(rbx, rcx, times_4, 0));
+  __ pushq(Immediate(12));
+  __ pushq(Immediate(23456));
+  __ pushq(rcx);
+  __ pushq(rsi);
+  __ pushq(Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
+  __ pushq(Operand(rbx, rcx, times_4, 0));
+  __ pushq(Operand(rbx, rcx, times_4, 0));
+  __ pushq(Operand(rbx, rcx, times_4, 10000));
+  __ popq(rdx);
+  __ popq(rax);
+  __ popq(Operand(rbx, rcx, times_4, 0));
   __ nop();
 
   __ addq(rdx, Operand(rsp, 16));
@@ -168,8 +168,8 @@ TEST(DisasmX64) {
 
   __ incq(rdx);
   __ incq(Operand(rbx, rcx, times_4, 10000));
-  __ push(Operand(rbx, rcx, times_4, 10000));
-  __ pop(Operand(rbx, rcx, times_4, 10000));
+  __ pushq(Operand(rbx, rcx, times_4, 10000));
+  __ popq(Operand(rbx, rcx, times_4, 10000));
   // TODO(mstarzinger): The following is protected.
   // __ jmp(Operand(rbx, rcx, times_4, 10000));
 
