@@ -34,11 +34,11 @@
 // system so their names cannot be changed without changing the scripts.
 #define MAJOR_VERSION     3
 #define MINOR_VERSION     25
-#define BUILD_NUMBER      19
+#define BUILD_NUMBER      20
 #define PATCH_LEVEL       0
 // Use 1 for candidates and 0 otherwise.
 // (Boolean macro values are not supported by all preprocessors.)
-#define IS_CANDIDATE_VERSION 1
+#define IS_CANDIDATE_VERSION 0
 
 // Define SONAME to have the build system put a specific SONAME into the
 // shared library instead the generic SONAME generated from the V8 version
