@@ -3627,7 +3627,7 @@ void MacroAssembler::JumpIfDictionaryInPrototypeChain(
 }
 
 
-void MacroAssembler::FlooringDiv(Register dividend, int32_t divisor) {
+void MacroAssembler::TruncatingDiv(Register dividend, int32_t divisor) {
   ASSERT(!dividend.is(eax));
   ASSERT(!dividend.is(edx));
   MultiplierAndShift ms(divisor);
@@ -3636,6 +3636,9 @@ void MacroAssembler::FlooringDiv(Register dividend, int32_t divisor) {
   if (divisor > 0 && ms.multiplier() < 0) add(edx, dividend);
   if (divisor < 0 && ms.multiplier() > 0) sub(edx, dividend);
   if (ms.shift() > 0) sar(edx, ms.shift());
+  mov(eax, dividend);
+  shr(eax, 31);
+  add(edx, eax);
 }
 
 

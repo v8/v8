@@ -4055,9 +4055,9 @@ void CodePatcher::EmitCondition(Condition cond) {
 }
 
 
-void MacroAssembler::FlooringDiv(Register result,
-                                 Register dividend,
-                                 int32_t divisor) {
+void MacroAssembler::TruncatingDiv(Register result,
+                                   Register dividend,
+                                   int32_t divisor) {
   ASSERT(!dividend.is(result));
   ASSERT(!dividend.is(ip));
   ASSERT(!result.is(ip));
@@ -4071,6 +4071,7 @@ void MacroAssembler::FlooringDiv(Register result,
     sub(result, result, Operand(dividend));
   }
   if (ms.shift() > 0) mov(result, Operand(result, ASR, ms.shift()));
+  add(result, result, Operand(dividend, LSR, 31));
 }
 
 

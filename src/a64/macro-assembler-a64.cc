@@ -5072,9 +5072,9 @@ bool MacroAssembler::IsCodeAgeSequence(byte* sequence) {
 #endif
 
 
-void MacroAssembler::FlooringDiv(Register result,
-                                 Register dividend,
-                                 int32_t divisor) {
+void MacroAssembler::TruncatingDiv(Register result,
+                                   Register dividend,
+                                   int32_t divisor) {
   ASSERT(!AreAliased(result, dividend));
   ASSERT(result.Is32Bits() && dividend.Is32Bits());
   MultiplierAndShift ms(divisor);
@@ -5084,6 +5084,7 @@ void MacroAssembler::FlooringDiv(Register result,
   if (divisor > 0 && ms.multiplier() < 0) Add(result, result, dividend);
   if (divisor < 0 && ms.multiplier() > 0) Sub(result, result, dividend);
   if (ms.shift() > 0) Asr(result, result, ms.shift());
+  Add(result, result, Operand(dividend, LSR, 31));
 }
 
 
