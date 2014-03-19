@@ -1161,8 +1161,7 @@ void LCodeGen::DoModByConstI(LModByConstI* instr) {
     return;
   }
 
-  __ FlooringDiv(result, dividend, Abs(divisor));
-  __ add(result, result, Operand(dividend, LSR, 31));
+  __ TruncatingDiv(result, dividend, Abs(divisor));
   __ mov(ip, Operand(Abs(divisor)));
   __ smull(result, ip, result, ip);
   __ sub(result, dividend, result, SetCC);
@@ -1349,8 +1348,7 @@ void LCodeGen::DoDivByConstI(LDivByConstI* instr) {
     DeoptimizeIf(eq, instr->environment());
   }
 
-  __ FlooringDiv(result, dividend, Abs(divisor));
-  __ add(result, result, Operand(dividend, LSR, 31));
+  __ TruncatingDiv(result, dividend, Abs(divisor));
   if (divisor < 0) __ rsb(result, result, Operand::Zero());
 
   if (!hdiv->CheckFlag(HInstruction::kAllUsesTruncatingToInt32)) {
@@ -1509,7 +1507,8 @@ void LCodeGen::DoFlooringDivByConstI(LFlooringDivByConstI* instr) {
     DeoptimizeIf(eq, instr->environment());
   }
 
-  __ FlooringDiv(result, dividend, divisor);
+  // TODO(svenpanne) Add correction terms.
+  __ TruncatingDiv(result, dividend, divisor);
 }
 
 

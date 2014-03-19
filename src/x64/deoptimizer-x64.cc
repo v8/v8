@@ -179,7 +179,7 @@ void Deoptimizer::EntryGenerator::Generate() {
   // to restore all later.
   for (int i = 0; i < kNumberOfRegisters; i++) {
     Register r = Register::from_code(i);
-    __ push(r);
+    __ pushq(r);
   }
 
   const int kSavedRegistersAreaSize = kNumberOfRegisters * kRegisterSize +
@@ -230,14 +230,14 @@ void Deoptimizer::EntryGenerator::Generate() {
   // Fill in the input registers.
   for (int i = kNumberOfRegisters -1; i >= 0; i--) {
     int offset = (i * kPointerSize) + FrameDescription::registers_offset();
-    __ pop(Operand(rbx, offset));
+    __ Pop(Operand(rbx, offset));
   }
 
   // Fill in the double input registers.
   int double_regs_offset = FrameDescription::double_registers_offset();
   for (int i = 0; i < XMMRegister::NumAllocatableRegisters(); i++) {
     int dst_offset = i * kDoubleSize + double_regs_offset;
-    __ pop(Operand(rbx, dst_offset));
+    __ popq(Operand(rbx, dst_offset));
   }
 
   // Remove the bailout id and return address from the stack.
@@ -256,14 +256,14 @@ void Deoptimizer::EntryGenerator::Generate() {
   __ jmp(&pop_loop_header);
   Label pop_loop;
   __ bind(&pop_loop);
-  __ pop(Operand(rdx, 0));
+  __ Pop(Operand(rdx, 0));
   __ addq(rdx, Immediate(sizeof(intptr_t)));
   __ bind(&pop_loop_header);
   __ cmpq(rcx, rsp);
   __ j(not_equal, &pop_loop);
 
   // Compute the output frame in the deoptimizer.
-  __ push(rax);
+  __ pushq(rax);
   __ PrepareCallCFunction(2);
   __ movp(arg_reg_1, rax);
   __ LoadAddress(arg_reg_2, ExternalReference::isolate_address(isolate()));
@@ -272,7 +272,7 @@ void Deoptimizer::EntryGenerator::Generate() {
     __ CallCFunction(
         ExternalReference::compute_output_frames_function(isolate()), 2);
   }
-  __ pop(rax);
+  __ popq(rax);
 
   // Replace the current frame with the output frames.
   Label outer_push_loop, inner_push_loop,
@@ -290,7 +290,7 @@ void Deoptimizer::EntryGenerator::Generate() {
   __ jmp(&inner_loop_header);
   __ bind(&inner_push_loop);
   __ subq(rcx, Immediate(sizeof(intptr_t)));
-  __ push(Operand(rbx, rcx, times_1, FrameDescription::frame_content_offset()));
+  __ Push(Operand(rbx, rcx, times_1, FrameDescription::frame_content_offset()));
   __ bind(&inner_loop_header);
   __ testq(rcx, rcx);
   __ j(not_zero, &inner_push_loop);
@@ -306,14 +306,14 @@ void Deoptimizer::EntryGenerator::Generate() {
   }
 
   // Push state, pc, and continuation from the last output frame.
-  __ push(Operand(rbx, FrameDescription::state_offset()));
-  __ push(Operand(rbx, FrameDescription::pc_offset()));
-  __ push(Operand(rbx, FrameDescription::continuation_offset()));
+  __ Push(Operand(rbx, FrameDescription::state_offset()));
+  __ Push(Operand(rbx, FrameDescription::pc_offset()));
+  __ Push(Operand(rbx, FrameDescription::continuation_offset()));
 
   // Push the registers from the last output frame.
   for (int i = 0; i < kNumberOfRegisters; i++) {
     int offset = (i * kPointerSize) + FrameDescription::registers_offset();
-    __ push(Operand(rbx, offset));
+    __ Push(Operand(rbx, offset));
   }
 
   // Restore the registers from the stack.
@@ -325,7 +325,7 @@ void Deoptimizer::EntryGenerator::Generate() {
       ASSERT(i > 0);
       r = Register::from_code(i - 1);
     }
-    __ pop(r);
+    __ popq(r);
   }
 
   // Set up the roots register.
@@ -343,7 +343,7 @@ void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
   for (int i = 0; i < count(); i++) {
     int start = masm()->pc_offset();
     USE(start);
-    __ push_imm32(i);
+    __ pushq_imm32(i);
     __ jmp(&done);
     ASSERT(masm()->pc_offset() - start == table_entry_size_);
   }

@@ -249,6 +249,11 @@ class StragglerCommits(Step):
     self.GitCheckout("svn/bleeding_edge")
     self["prepare_commit_hash"] = self.GitLog(n=1, format="%H",
                                               grep=self["prep_commit_msg"])
+    # TODO(machenbach): Retrieve the push hash from a command-line option or
+    # use ToT. The "prepare_commit_hash" will be deprecated along with the
+    # prepare push commit.
+    self["push_hash"] = self.GitLog(n=1, format="%H",
+                                    parent_hash=self["prepare_commit_hash"])
 
 
 class SquashCommits(Step):
@@ -257,7 +262,7 @@ class SquashCommits(Step):
   def RunStep(self):
     # Instead of relying on "git rebase -i", we'll just create a diff, because
     # that's easier to automate.
-    TextToFile(self.GitDiff("svn/trunk", self["prepare_commit_hash"]),
+    TextToFile(self.GitDiff("svn/trunk", self["push_hash"]),
                self.Config(PATCH_FILE))
 
     # Convert the ChangeLog entry to commit message format.
@@ -268,7 +273,7 @@ class SquashCommits(Step):
 
     # Retrieve svn revision for showing the used bleeding edge revision in the
     # commit message.
-    self["svn_revision"] = self.GitSVNFindSVNRev(self["prepare_commit_hash"])
+    self["svn_revision"] = self.GitSVNFindSVNRev(self["push_hash"])
     suffix = PUSH_MESSAGE_SUFFIX % int(self["svn_revision"])
     text = MSub(r"^(Version \d+\.\d+\.\d+)$", "\\1%s" % suffix, text)
 
@@ -318,6 +323,9 @@ class SetVersion(Step):
   MESSAGE = "Set correct version for trunk."
 
   def RunStep(self):
+    # The version file has been modified by the patch. Reset it to the version
+    # on trunk and apply the correct version.
+    self.GitCheckoutFile(self.Config(VERSION_FILE), "svn/trunk")
     output = ""
     for line in FileToText(self.Config(VERSION_FILE)).splitlines():
       if line.startswith("#define MAJOR_VERSION"):
@@ -338,7 +346,6 @@ class CommitTrunk(Step):
   MESSAGE = "Commit to local trunk branch."
 
   def RunStep(self):
-    self.GitAdd(self.Config(VERSION_FILE))
     self.GitCommit(file_name = self.Config(COMMITMSG_FILE))
     Command("rm", "-f %s*" % self.Config(COMMITMSG_FILE))
 

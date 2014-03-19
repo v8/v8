@@ -571,8 +571,8 @@ void KeyedLoadIC::GenerateIndexedInterceptor(MacroAssembler* masm) {
 
   // Everything is fine, call runtime.
   __ PopReturnAddressTo(rcx);
-  __ push(rdx);  // receiver
-  __ push(rax);  // key
+  __ Push(rdx);  // receiver
+  __ Push(rax);  // key
   __ PushReturnAddressFrom(rcx);
 
   // Perform tail call to the entry.
@@ -1021,8 +1021,8 @@ void LoadIC::GenerateMiss(MacroAssembler* masm) {
   __ IncrementCounter(counters->load_miss(), 1);
 
   __ PopReturnAddressTo(rbx);
-  __ push(rax);  // receiver
-  __ push(rcx);  // name
+  __ Push(rax);  // receiver
+  __ Push(rcx);  // name
   __ PushReturnAddressFrom(rbx);
 
   // Perform tail call to the entry.
@@ -1040,8 +1040,8 @@ void LoadIC::GenerateRuntimeGetProperty(MacroAssembler* masm) {
   // -----------------------------------
 
   __ PopReturnAddressTo(rbx);
-  __ push(rax);  // receiver
-  __ push(rcx);  // name
+  __ Push(rax);  // receiver
+  __ Push(rcx);  // name
   __ PushReturnAddressFrom(rbx);
 
   // Perform tail call to the entry.
@@ -1060,8 +1060,8 @@ void KeyedLoadIC::GenerateMiss(MacroAssembler* masm) {
   __ IncrementCounter(counters->keyed_load_miss(), 1);
 
   __ PopReturnAddressTo(rbx);
-  __ push(rdx);  // receiver
-  __ push(rax);  // name
+  __ Push(rdx);  // receiver
+  __ Push(rax);  // name
   __ PushReturnAddressFrom(rbx);
 
   // Perform tail call to the entry.
@@ -1079,8 +1079,8 @@ void KeyedLoadIC::GenerateRuntimeGetProperty(MacroAssembler* masm) {
   // -----------------------------------
 
   __ PopReturnAddressTo(rbx);
-  __ push(rdx);  // receiver
-  __ push(rax);  // name
+  __ Push(rdx);  // receiver
+  __ Push(rax);  // name
   __ PushReturnAddressFrom(rbx);
 
   // Perform tail call to the entry.
@@ -1115,9 +1115,9 @@ void StoreIC::GenerateMiss(MacroAssembler* masm) {
   // -----------------------------------
 
   __ PopReturnAddressTo(rbx);
-  __ push(rdx);  // receiver
-  __ push(rcx);  // name
-  __ push(rax);  // value
+  __ Push(rdx);  // receiver
+  __ Push(rcx);  // name
+  __ Push(rax);  // value
   __ PushReturnAddressFrom(rbx);
 
   // Perform tail call to the entry.
@@ -1159,9 +1159,9 @@ void StoreIC::GenerateRuntimeSetProperty(MacroAssembler* masm,
   //  -- rsp[0] : return address
   // -----------------------------------
   __ PopReturnAddressTo(rbx);
-  __ push(rdx);
-  __ push(rcx);
-  __ push(rax);
+  __ Push(rdx);
+  __ Push(rcx);
+  __ Push(rax);
   __ Push(Smi::FromInt(NONE));  // PropertyAttributes
   __ Push(Smi::FromInt(strict_mode));
   __ PushReturnAddressFrom(rbx);
@@ -1181,9 +1181,9 @@ void KeyedStoreIC::GenerateRuntimeSetProperty(MacroAssembler* masm,
   // -----------------------------------
 
   __ PopReturnAddressTo(rbx);
-  __ push(rdx);  // receiver
-  __ push(rcx);  // key
-  __ push(rax);  // value
+  __ Push(rdx);  // receiver
+  __ Push(rcx);  // key
+  __ Push(rax);  // value
   __ Push(Smi::FromInt(NONE));          // PropertyAttributes
   __ Push(Smi::FromInt(strict_mode));   // Strict mode.
   __ PushReturnAddressFrom(rbx);
@@ -1202,9 +1202,9 @@ void StoreIC::GenerateSlow(MacroAssembler* masm) {
   // -----------------------------------
 
   __ PopReturnAddressTo(rbx);
-  __ push(rdx);  // receiver
-  __ push(rcx);  // key
-  __ push(rax);  // value
+  __ Push(rdx);  // receiver
+  __ Push(rcx);  // key
+  __ Push(rax);  // value
   __ PushReturnAddressFrom(rbx);
 
   // Do tail-call to runtime routine.
@@ -1222,9 +1222,9 @@ void KeyedStoreIC::GenerateSlow(MacroAssembler* masm) {
   // -----------------------------------
 
   __ PopReturnAddressTo(rbx);
-  __ push(rdx);  // receiver
-  __ push(rcx);  // key
-  __ push(rax);  // value
+  __ Push(rdx);  // receiver
+  __ Push(rcx);  // key
+  __ Push(rax);  // value
   __ PushReturnAddressFrom(rbx);
 
   // Do tail-call to runtime routine.
@@ -1242,9 +1242,9 @@ void KeyedStoreIC::GenerateMiss(MacroAssembler* masm) {
   // -----------------------------------
 
   __ PopReturnAddressTo(rbx);
-  __ push(rdx);  // receiver
-  __ push(rcx);  // key
-  __ push(rax);  // value
+  __ Push(rdx);  // receiver
+  __ Push(rcx);  // key
+  __ Push(rax);  // value
   __ PushReturnAddressFrom(rbx);
 
   // Do tail-call to runtime routine.

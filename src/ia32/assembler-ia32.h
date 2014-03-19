@@ -1189,6 +1189,12 @@ class Assembler : public AssemblerBase {
   byte byte_at(int pos) { return buffer_[pos]; }
   void set_byte_at(int pos, byte value) { buffer_[pos] = value; }
 
+  // Allocate a constant pool of the correct size for the generated code.
+  MaybeObject* AllocateConstantPool(Heap* heap);
+
+  // Generate the constant pool for the generated code.
+  void PopulateConstantPool(ConstantPoolArray* constant_pool);
+
  protected:
   void emit_sse_operand(XMMRegister reg, const Operand& adr);
   void emit_sse_operand(XMMRegister dst, XMMRegister src);

@@ -1769,14 +1769,14 @@ void Assembler::Nop(int n) {
 }
 
 
-void Assembler::pop(Register dst) {
+void Assembler::popq(Register dst) {
   EnsureSpace ensure_space(this);
   emit_optional_rex_32(dst);
   emit(0x58 | dst.low_bits());
 }
 
 
-void Assembler::pop(const Operand& dst) {
+void Assembler::popq(const Operand& dst) {
   EnsureSpace ensure_space(this);
   emit_optional_rex_32(dst);
   emit(0x8F);
@@ -1790,14 +1790,14 @@ void Assembler::popfq() {
 }
 
 
-void Assembler::push(Register src) {
+void Assembler::pushq(Register src) {
   EnsureSpace ensure_space(this);
   emit_optional_rex_32(src);
   emit(0x50 | src.low_bits());
 }
 
 
-void Assembler::push(const Operand& src) {
+void Assembler::pushq(const Operand& src) {
   EnsureSpace ensure_space(this);
   emit_optional_rex_32(src);
   emit(0xFF);
@@ -1805,7 +1805,7 @@ void Assembler::push(const Operand& src) {
 }
 
 
-void Assembler::push(Immediate value) {
+void Assembler::pushq(Immediate value) {
   EnsureSpace ensure_space(this);
   if (is_int8(value.value_)) {
     emit(0x6A);
@@ -1817,7 +1817,7 @@ void Assembler::push(Immediate value) {
 }
 
 
-void Assembler::push_imm32(int32_t imm32) {
+void Assembler::pushq_imm32(int32_t imm32) {
   EnsureSpace ensure_space(this);
   emit(0x68);
   emitl(imm32);
@@ -3196,6 +3196,19 @@ void Assembler::RecordComment(const char* msg, bool force) {
     EnsureSpace ensure_space(this);
     RecordRelocInfo(RelocInfo::COMMENT, reinterpret_cast<intptr_t>(msg));
   }
+}
+
+
+MaybeObject* Assembler::AllocateConstantPool(Heap* heap) {
+  // No out-of-line constant pool support.
+  UNREACHABLE();
+  return NULL;
+}
+
+
+void Assembler::PopulateConstantPool(ConstantPoolArray* constant_pool) {
+  // No out-of-line constant pool support.
+  UNREACHABLE();
 }
 
 

@@ -490,7 +490,7 @@ void HydrogenCodeStub::GenerateLightweightMiss(MacroAssembler* masm) {
            rax.is(descriptor->register_params_[param_count - 1]));
     // Push arguments
     for (int i = 0; i < param_count; ++i) {
-      __ push(descriptor->register_params_[i]);
+      __ Push(descriptor->register_params_[i]);
     }
     ExternalReference miss = descriptor->miss_handler();
     __ CallExternalReference(miss, descriptor->register_param_count_);
@@ -541,7 +541,7 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
     int double_offset = offset();
 
     // Account for return address and saved regs if input is rsp.
-    if (input_reg.is(rsp)) double_offset += 3 * kPointerSize;
+    if (input_reg.is(rsp)) double_offset += 3 * kRegisterSize;
 
     MemOperand mantissa_operand(MemOperand(input_reg, double_offset));
     MemOperand exponent_operand(MemOperand(input_reg,
@@ -561,14 +561,14 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
     // is the return register, then save the temp register we use in its stead
     // for the result.
     Register save_reg = final_result_reg.is(rcx) ? rax : rcx;
-    __ push(scratch1);
-    __ push(save_reg);
+    __ pushq(scratch1);
+    __ pushq(save_reg);
 
     bool stash_exponent_copy = !input_reg.is(rsp);
     __ movl(scratch1, mantissa_operand);
     __ movsd(xmm0, mantissa_operand);
     __ movl(rcx, exponent_operand);
-    if (stash_exponent_copy) __ push(rcx);
+    if (stash_exponent_copy) __ pushq(rcx);
 
     __ andl(rcx, Immediate(HeapNumber::kExponentMask));
     __ shrl(rcx, Immediate(HeapNumber::kExponentShift));
@@ -609,8 +609,8 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
         ASSERT(final_result_reg.is(rcx));
         __ movl(final_result_reg, result_reg);
     }
-    __ pop(save_reg);
-    __ pop(scratch1);
+    __ popq(save_reg);
+    __ popq(scratch1);
     __ ret(0);
 }
 
@@ -983,7 +983,7 @@ void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
   // by calling the runtime system.
   __ bind(&slow);
   __ PopReturnAddressTo(rbx);
-  __ push(rdx);
+  __ Push(rdx);
   __ PushReturnAddressFrom(rbx);
   __ TailCallRuntime(Runtime::kGetArgumentsProperty, 1, 1);
 }
@@ -2064,8 +2064,8 @@ void ICCompareStub::GenerateGeneric(MacroAssembler* masm) {
 
   // Push arguments below the return address to prepare jump to builtin.
   __ PopReturnAddressTo(rcx);
-  __ push(rdx);
-  __ push(rax);
+  __ Push(rdx);
+  __ Push(rax);
 
   // Figure out which native to call and setup the arguments.
   Builtins::JavaScript builtin;
@@ -2154,19 +2154,19 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
 
     // Arguments register must be smi-tagged to call out.
     __ Integer32ToSmi(rax, rax);
-    __ push(rax);
-    __ push(rdi);
+    __ Push(rax);
+    __ Push(rdi);
     __ Integer32ToSmi(rdx, rdx);
-    __ push(rdx);
-    __ push(rbx);
+    __ Push(rdx);
+    __ Push(rbx);
 
     CreateAllocationSiteStub create_stub;
     __ CallStub(&create_stub);
 
-    __ pop(rbx);
-    __ pop(rdx);
-    __ pop(rdi);
-    __ pop(rax);
+    __ Pop(rbx);
+    __ Pop(rdx);
+    __ Pop(rdi);
+    __ Pop(rax);
     __ SmiToInteger32(rax, rax);
   }
   __ jmp(&done_no_smi_convert);
@@ -2176,14 +2176,14 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
           rdi);
 
   // We won't need rdx or rbx anymore, just save rdi
-  __ push(rdi);
-  __ push(rbx);
-  __ push(rdx);
+  __ Push(rdi);
+  __ Push(rbx);
+  __ Push(rdx);
   __ RecordWriteArray(rbx, rdi, rdx, kDontSaveFPRegs,
                       EMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
-  __ pop(rdx);
-  __ pop(rbx);
-  __ pop(rdi);
+  __ Pop(rdx);
+  __ Pop(rbx);
+  __ Pop(rdi);
 
   __ bind(&done);
   __ Integer32ToSmi(rdx, rdx);
@@ -2266,7 +2266,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
     __ CmpInstanceType(rcx, JS_FUNCTION_PROXY_TYPE);
     __ j(not_equal, &non_function);
     __ PopReturnAddressTo(rcx);
-    __ push(rdi);  // put proxy as additional argument under return address
+    __ Push(rdi);  // put proxy as additional argument under return address
     __ PushReturnAddressFrom(rcx);
     __ Set(rax, argc_ + 1);
     __ Set(rbx, 0);
@@ -2293,10 +2293,10 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
     __ bind(&wrap);
     // Wrap the receiver and patch it back onto the stack.
     { FrameScope frame_scope(masm, StackFrame::INTERNAL);
-      __ push(rdi);
-      __ push(rax);
+      __ Push(rdi);
+      __ Push(rax);
       __ InvokeBuiltin(Builtins::TO_OBJECT, CALL_FUNCTION);
-      __ pop(rdi);
+      __ Pop(rdi);
     }
     __ movp(args.GetReceiverOperand(), rax);
     __ jmp(&cont);
@@ -2633,7 +2633,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   {  // NOLINT. Scope block confuses linter.
     MacroAssembler::NoRootArrayScope uninitialized_root_register(masm);
     // Set up frame.
-    __ push(rbp);
+    __ pushq(rbp);
     __ movp(rbp, rsp);
 
     // Push the stack frame type marker twice.
@@ -2642,18 +2642,18 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
     // platform. It's free to use at this point.
     // Cannot use smi-register for loading yet.
     __ Move(kScratchRegister, Smi::FromInt(marker), Assembler::RelocInfoNone());
-    __ push(kScratchRegister);  // context slot
-    __ push(kScratchRegister);  // function slot
-    // Save callee-saved registers (X64/Win64 calling conventions).
-    __ push(r12);
-    __ push(r13);
-    __ push(r14);
-    __ push(r15);
+    __ Push(kScratchRegister);  // context slot
+    __ Push(kScratchRegister);  // function slot
+    // Save callee-saved registers (X64/X32/Win64 calling conventions).
+    __ pushq(r12);
+    __ pushq(r13);
+    __ pushq(r14);
+    __ pushq(r15);
 #ifdef _WIN64
-    __ push(rdi);  // Only callee save in Win64 ABI, argument in AMD64 ABI.
-    __ push(rsi);  // Only callee save in Win64 ABI, argument in AMD64 ABI.
+    __ pushq(rdi);  // Only callee save in Win64 ABI, argument in AMD64 ABI.
+    __ pushq(rsi);  // Only callee save in Win64 ABI, argument in AMD64 ABI.
 #endif
-    __ push(rbx);
+    __ pushq(rbx);
 
 #ifdef _WIN64
     // On Win64 XMM6-XMM15 are callee-save
@@ -2682,7 +2682,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   ExternalReference c_entry_fp(Isolate::kCEntryFPAddress, isolate);
   {
     Operand c_entry_fp_operand = masm->ExternalOperand(c_entry_fp);
-    __ push(c_entry_fp_operand);
+    __ Push(c_entry_fp_operand);
   }
 
   // If this is the outermost JS call, set js_entry_sp value.
@@ -2722,7 +2722,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   __ Store(pending_exception, rax);
 
   // Fake a receiver (NULL).
-  __ push(Immediate(0));  // receiver
+  __ Push(Immediate(0));  // receiver
 
   // Invoke the function by calling through JS entry trampoline builtin and
   // pop the faked function when we return. We load the address from an
@@ -2745,7 +2745,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
 
   __ bind(&exit);
   // Check if the current stack frame is marked as the outermost JS frame.
-  __ pop(rbx);
+  __ Pop(rbx);
   __ Cmp(rbx, Smi::FromInt(StackFrame::OUTERMOST_JSENTRY_FRAME));
   __ j(not_equal, &not_outermost_js_2);
   __ Move(kScratchRegister, js_entry_sp);
@@ -2754,7 +2754,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
 
   // Restore the top frame descriptor from the stack.
   { Operand c_entry_fp_operand = masm->ExternalOperand(c_entry_fp);
-    __ pop(c_entry_fp_operand);
+    __ Pop(c_entry_fp_operand);
   }
 
   // Restore callee-saved registers (X64 conventions).
@@ -2773,20 +2773,20 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   __ addq(rsp, Immediate(EntryFrameConstants::kXMMRegistersBlockSize));
 #endif
 
-  __ pop(rbx);
+  __ popq(rbx);
 #ifdef _WIN64
   // Callee save on in Win64 ABI, arguments/volatile in AMD64 ABI.
-  __ pop(rsi);
-  __ pop(rdi);
+  __ popq(rsi);
+  __ popq(rdi);
 #endif
-  __ pop(r15);
-  __ pop(r14);
-  __ pop(r13);
-  __ pop(r12);
+  __ popq(r15);
+  __ popq(r14);
+  __ popq(r13);
+  __ popq(r12);
   __ addq(rsp, Immediate(2 * kPointerSize));  // remove markers
 
   // Restore frame pointer and return.
-  __ pop(rbp);
+  __ popq(rbp);
   __ ret(0);
 }
 
@@ -2951,7 +2951,7 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   if (HasCallSiteInlineCheck()) {
     // Remove extra value from the stack.
     __ PopReturnAddressTo(rcx);
-    __ pop(rax);
+    __ Pop(rax);
     __ PushReturnAddressFrom(rcx);
   }
   __ InvokeBuiltin(Builtins::INSTANCE_OF, JUMP_FUNCTION);
@@ -3016,8 +3016,8 @@ void StringCharCodeAtGenerator::GenerateSlow(
               index_not_number_,
               DONT_DO_SMI_CHECK);
   call_helper.BeforeCall(masm);
-  __ push(object_);
-  __ push(index_);  // Consumed by runtime conversion function.
+  __ Push(object_);
+  __ Push(index_);  // Consumed by runtime conversion function.
   if (index_flags_ == STRING_INDEX_IS_NUMBER) {
     __ CallRuntime(Runtime::kNumberToIntegerMapMinusZero, 1);
   } else {
@@ -3030,7 +3030,7 @@ void StringCharCodeAtGenerator::GenerateSlow(
     // have a chance to overwrite it.
     __ movp(index_, rax);
   }
-  __ pop(object_);
+  __ Pop(object_);
   // Reload the instance type.
   __ movp(result_, FieldOperand(object_, HeapObject::kMapOffset));
   __ movzxbl(result_, FieldOperand(result_, Map::kInstanceTypeOffset));
@@ -3045,9 +3045,9 @@ void StringCharCodeAtGenerator::GenerateSlow(
   // is too complex (e.g., when the string needs to be flattened).
   __ bind(&call_runtime_);
   call_helper.BeforeCall(masm);
-  __ push(object_);
+  __ Push(object_);
   __ Integer32ToSmi(index_, index_);
-  __ push(index_);
+  __ Push(index_);
   __ CallRuntime(Runtime::kStringCharCodeAt, 2);
   if (!result_.is(rax)) {
     __ movp(result_, rax);
@@ -3085,7 +3085,7 @@ void StringCharFromCodeGenerator::GenerateSlow(
 
   __ bind(&slow_case_);
   call_helper.BeforeCall(masm);
-  __ push(code_);
+  __ Push(code_);
   __ CallRuntime(Runtime::kCharFromCode, 1);
   if (!result_.is(rax)) {
     __ movp(result_, rax);
@@ -4109,8 +4109,8 @@ void ICCompareStub::GenerateStrings(MacroAssembler* masm) {
   // Handle more complex cases in runtime.
   __ bind(&runtime);
   __ PopReturnAddressTo(tmp1);
-  __ push(left);
-  __ push(right);
+  __ Push(left);
+  __ Push(right);
   __ PushReturnAddressFrom(tmp1);
   if (equality) {
     __ TailCallRuntime(Runtime::kStringEquals, 2, 1);
@@ -4170,17 +4170,17 @@ void ICCompareStub::GenerateMiss(MacroAssembler* masm) {
         ExternalReference(IC_Utility(IC::kCompareIC_Miss), masm->isolate());
 
     FrameScope scope(masm, StackFrame::INTERNAL);
-    __ push(rdx);
-    __ push(rax);
-    __ push(rdx);
-    __ push(rax);
+    __ Push(rdx);
+    __ Push(rax);
+    __ Push(rdx);
+    __ Push(rax);
     __ Push(Smi::FromInt(op_));
     __ CallExternalReference(miss, 3);
 
     // Compute the entry point of the rewritten stub.
     __ lea(rdi, FieldOperand(rax, Code::kHeaderSize));
-    __ pop(rax);
-    __ pop(rdx);
+    __ Pop(rax);
+    __ Pop(rdx);
   }
 
   // Do a tail call to the rewritten stub.
@@ -4242,7 +4242,7 @@ void NameDictionaryLookupStub::GenerateNegativeLookup(MacroAssembler* masm,
 
   NameDictionaryLookupStub stub(properties, r0, r0, NEGATIVE_LOOKUP);
   __ Push(Handle<Object>(name));
-  __ push(Immediate(name->Hash()));
+  __ Push(Immediate(name->Hash()));
   __ CallStub(&stub);
   __ testq(r0, r0);
   __ j(not_zero, miss);
@@ -4291,10 +4291,10 @@ void NameDictionaryLookupStub::GeneratePositiveLookup(MacroAssembler* masm,
   }
 
   NameDictionaryLookupStub stub(elements, r0, r1, POSITIVE_LOOKUP);
-  __ push(name);
+  __ Push(name);
   __ movl(r0, FieldOperand(name, Name::kHashFieldOffset));
   __ shrl(r0, Immediate(Name::kHashShift));
-  __ push(r0);
+  __ Push(r0);
   __ CallStub(&stub);
 
   __ testq(r0, r0);
@@ -4324,7 +4324,7 @@ void NameDictionaryLookupStub::Generate(MacroAssembler* masm) {
 
   __ SmiToInteger32(scratch, FieldOperand(dictionary_, kCapacityOffset));
   __ decl(scratch);
-  __ push(scratch);
+  __ Push(scratch);
 
   // If names of slots in range from 1 to kProbes - 1 for the hash value are
   // not equal to the name and kProbes-th slot is not used (its name is the
@@ -4573,13 +4573,13 @@ void RecordWriteStub::CheckNeedsToInformIncrementalMarker(
 
   // We need an extra register for this, so we push the object register
   // temporarily.
-  __ push(regs_.object());
+  __ Push(regs_.object());
   __ EnsureNotWhite(regs_.scratch0(),  // The value.
                     regs_.scratch1(),  // Scratch.
                     regs_.object(),  // Scratch.
                     &need_incremental_pop_object,
                     Label::kNear);
-  __ pop(regs_.object());
+  __ Pop(regs_.object());
 
   regs_.Restore(masm);
   if (on_no_need == kUpdateRememberedSetOnNoNeedToInformIncrementalMarker) {
@@ -4593,7 +4593,7 @@ void RecordWriteStub::CheckNeedsToInformIncrementalMarker(
   }
 
   __ bind(&need_incremental_pop_object);
-  __ pop(regs_.object());
+  __ Pop(regs_.object());
 
   __ bind(&need_incremental);
 
@@ -4634,12 +4634,12 @@ void StoreArrayLiteralElementStub::Generate(MacroAssembler* masm) {
 
   __ bind(&slow_elements);
   __ PopReturnAddressTo(rdi);
-  __ push(rbx);
-  __ push(rcx);
-  __ push(rax);
+  __ Push(rbx);
+  __ Push(rcx);
+  __ Push(rax);
   __ movp(rbx, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
-  __ push(FieldOperand(rbx, JSFunction::kLiteralsOffset));
-  __ push(rdx);
+  __ Push(FieldOperand(rbx, JSFunction::kLiteralsOffset));
+  __ Push(rdx);
   __ PushReturnAddressFrom(rdi);
   __ TailCallRuntime(Runtime::kStoreArrayLiteralElement, 5, 1);
 
@@ -4708,8 +4708,8 @@ void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
   // This stub can be called from essentially anywhere, so it needs to save
   // all volatile and callee-save registers.
   const size_t kNumSavedRegisters = 2;
-  __ push(arg_reg_1);
-  __ push(arg_reg_2);
+  __ pushq(arg_reg_1);
+  __ pushq(arg_reg_2);
 
   // Calculate the original stack pointer and store it in the second arg.
   __ lea(arg_reg_2,
@@ -4734,8 +4734,8 @@ void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
 
   // Restore volatile regs.
   masm->PopCallerSaved(kSaveFPRegs, arg_reg_1, arg_reg_2);
-  __ pop(arg_reg_2);
-  __ pop(arg_reg_1);
+  __ popq(arg_reg_2);
+  __ popq(arg_reg_1);
 
   __ Ret();
 }
@@ -5116,29 +5116,29 @@ void CallApiFunctionStub::Generate(MacroAssembler* masm) {
   __ PopReturnAddressTo(return_address);
 
   // context save
-  __ push(context);
+  __ Push(context);
   // load context from callee
   __ movp(context, FieldOperand(callee, JSFunction::kContextOffset));
 
   // callee
-  __ push(callee);
+  __ Push(callee);
 
   // call data
-  __ push(call_data);
+  __ Push(call_data);
   Register scratch = call_data;
   if (!call_data_undefined) {
     __ LoadRoot(scratch, Heap::kUndefinedValueRootIndex);
   }
   // return value
-  __ push(scratch);
+  __ Push(scratch);
   // return value default
-  __ push(scratch);
+  __ Push(scratch);
   // isolate
   __ Move(scratch,
           ExternalReference::isolate_address(masm->isolate()));
-  __ push(scratch);
+  __ Push(scratch);
   // holder
-  __ push(holder);
+  __ Push(holder);
 
   __ movp(scratch, rsp);
   // Push return address back on stack.

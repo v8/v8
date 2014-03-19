@@ -66,21 +66,21 @@ void generate(MacroAssembler* masm, i::Vector<const uint8_t> string) {
   __ pop(ebx);
   __ Ret();
 #elif V8_TARGET_ARCH_X64
-  __ push(kRootRegister);
+  __ pushq(kRootRegister);
   __ InitializeRootRegister();
-  __ push(rbx);
-  __ push(rcx);
-  __ movq(rax, Immediate(0));
-  __ movq(rbx, Immediate(string.at(0)));
+  __ pushq(rbx);
+  __ pushq(rcx);
+  __ movp(rax, Immediate(0));
+  __ movp(rbx, Immediate(string.at(0)));
   StringHelper::GenerateHashInit(masm, rax, rbx, rcx);
   for (int i = 1; i < string.length(); i++) {
-    __ movq(rbx, Immediate(string.at(i)));
+    __ movp(rbx, Immediate(string.at(i)));
     StringHelper::GenerateHashAddCharacter(masm, rax, rbx, rcx);
   }
   StringHelper::GenerateHashGetHash(masm, rax, rcx);
-  __ pop(rcx);
-  __ pop(rbx);
-  __ pop(kRootRegister);
+  __ popq(rcx);
+  __ popq(rbx);
+  __ popq(kRootRegister);
   __ Ret();
 #elif V8_TARGET_ARCH_ARM
   __ push(kRootRegister);
@@ -143,13 +143,13 @@ void generate(MacroAssembler* masm, uint32_t key) {
   __ pop(ebx);
   __ Ret();
 #elif V8_TARGET_ARCH_X64
-  __ push(kRootRegister);
+  __ pushq(kRootRegister);
   __ InitializeRootRegister();
-  __ push(rbx);
-  __ movq(rax, Immediate(key));
+  __ pushq(rbx);
+  __ movp(rax, Immediate(key));
   __ GetNumberHash(rax, rbx);
-  __ pop(rbx);
-  __ pop(kRootRegister);
+  __ popq(rbx);
+  __ popq(kRootRegister);
   __ Ret();
 #elif V8_TARGET_ARCH_ARM
   __ push(kRootRegister);

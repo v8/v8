@@ -1692,9 +1692,9 @@ class MacroAssembler : public Assembler {
 
   void LoadContext(Register dst, int context_chain_length);
 
-  // Emit code for a flooring division by a constant. The dividend register is
+  // Emit code for a truncating division by a constant. The dividend register is
   // unchanged. Dividend and result must be different.
-  void FlooringDiv(Register result, Register dividend, int32_t divisor);
+  void TruncatingDiv(Register result, Register dividend, int32_t divisor);
 
   // ---------------------------------------------------------------------------
   // StatsCounter support

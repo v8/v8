@@ -4240,20 +4240,22 @@ void MarkCompactCollector::SweepSpaces() {
   // the map space last because freeing non-live maps overwrites them and
   // the other spaces rely on possibly non-live maps to get the sizes for
   // non-live objects.
-  SequentialSweepingScope scope(this);
-  SweepSpace(heap()->old_pointer_space(), how_to_sweep);
-  SweepSpace(heap()->old_data_space(), how_to_sweep);
+  { GCTracer::Scope sweep_scope(tracer_, GCTracer::Scope::MC_SWEEP_OLDSPACE);
+    { SequentialSweepingScope scope(this);
+      SweepSpace(heap()->old_pointer_space(), how_to_sweep);
+      SweepSpace(heap()->old_data_space(), how_to_sweep);
+    }
 
-  if (how_to_sweep == PARALLEL_CONSERVATIVE ||
-      how_to_sweep == CONCURRENT_CONSERVATIVE) {
-    // TODO(hpayer): fix race with concurrent sweeper
-    StartSweeperThreads();
+    if (how_to_sweep == PARALLEL_CONSERVATIVE ||
+        how_to_sweep == CONCURRENT_CONSERVATIVE) {
+      // TODO(hpayer): fix race with concurrent sweeper
+      StartSweeperThreads();
+    }
+
+    if (how_to_sweep == PARALLEL_CONSERVATIVE) {
+      WaitUntilSweepingCompleted();
+    }
   }
-
-  if (how_to_sweep == PARALLEL_CONSERVATIVE) {
-    WaitUntilSweepingCompleted();
-  }
-
   RemoveDeadInvalidatedCode();
   SweepSpace(heap()->code_space(), PRECISE);
 

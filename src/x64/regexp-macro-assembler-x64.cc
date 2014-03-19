@@ -322,10 +322,10 @@ void RegExpMacroAssemblerX64::CheckNotBackReferenceIgnoreCase(
     // Save important/volatile registers before calling C function.
 #ifndef _WIN64
     // Caller save on Linux and callee save in Windows.
-    __ push(rsi);
-    __ push(rdi);
+    __ pushq(rsi);
+    __ pushq(rdi);
 #endif
-    __ push(backtrack_stackpointer());
+    __ pushq(backtrack_stackpointer());
 
     static const int num_arguments = 4;
     __ PrepareCallCFunction(num_arguments);
@@ -367,10 +367,10 @@ void RegExpMacroAssemblerX64::CheckNotBackReferenceIgnoreCase(
 
     // Restore original values before reacting on result value.
     __ Move(code_object_pointer(), masm_.CodeObject());
-    __ pop(backtrack_stackpointer());
+    __ popq(backtrack_stackpointer());
 #ifndef _WIN64
-    __ pop(rdi);
-    __ pop(rsi);
+    __ popq(rdi);
+    __ popq(rsi);
 #endif
 
     // Check if function returned non-zero for success or zero for failure.
@@ -674,7 +674,7 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
   FrameScope scope(&masm_, StackFrame::MANUAL);
 
   // Actually emit code to start a new stack frame.
-  __ push(rbp);
+  __ pushq(rbp);
   __ movp(rbp, rsp);
   // Save parameters and callee-save registers. Order here should correspond
   //  to order of kBackup_ebx etc.
@@ -686,9 +686,9 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
   __ movq(Operand(rbp, kInputStart), r8);
   __ movq(Operand(rbp, kInputEnd), r9);
   // Callee-save on Win64.
-  __ push(rsi);
-  __ push(rdi);
-  __ push(rbx);
+  __ pushq(rsi);
+  __ pushq(rdi);
+  __ pushq(rbx);
 #else
   // GCC passes arguments in rdi, rsi, rdx, rcx, r8, r9 (and then on stack).
   // Push register parameters on stack for reference.
@@ -698,18 +698,18 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
   ASSERT_EQ(kInputEnd, -4 * kPointerSize);
   ASSERT_EQ(kRegisterOutput, -5 * kPointerSize);
   ASSERT_EQ(kNumOutputRegisters, -6 * kPointerSize);
-  __ push(rdi);
-  __ push(rsi);
-  __ push(rdx);
-  __ push(rcx);
-  __ push(r8);
-  __ push(r9);
+  __ pushq(rdi);
+  __ pushq(rsi);
+  __ pushq(rdx);
+  __ pushq(rcx);
+  __ pushq(r8);
+  __ pushq(r9);
 
-  __ push(rbx);  // Callee-save
+  __ pushq(rbx);  // Callee-save
 #endif
 
-  __ push(Immediate(0));  // Number of successful matches in a global regexp.
-  __ push(Immediate(0));  // Make room for "input start - 1" constant.
+  __ Push(Immediate(0));  // Number of successful matches in a global regexp.
+  __ Push(Immediate(0));  // Make room for "input start - 1" constant.
 
   // Check if we have space on the stack for registers.
   Label stack_limit_hit;
@@ -897,9 +897,9 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
 #ifdef _WIN64
   // Restore callee save registers.
   __ lea(rsp, Operand(rbp, kLastCalleeSaveRegister));
-  __ pop(rbx);
-  __ pop(rdi);
-  __ pop(rsi);
+  __ popq(rbx);
+  __ popq(rdi);
+  __ popq(rsi);
   // Stack now at rbp.
 #else
   // Restore callee save register.
@@ -908,7 +908,7 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
   __ movp(rsp, rbp);
 #endif
   // Exit function frame, restore previous one.
-  __ pop(rbp);
+  __ popq(rbp);
   __ ret(0);
 
   // Backtrack code (branch target for conditional backtracks).
@@ -923,8 +923,8 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
   if (check_preempt_label_.is_linked()) {
     SafeCallTarget(&check_preempt_label_);
 
-    __ push(backtrack_stackpointer());
-    __ push(rdi);
+    __ pushq(backtrack_stackpointer());
+    __ pushq(rdi);
 
     CallCheckStackGuardState();
     __ testq(rax, rax);
@@ -934,8 +934,8 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
 
     // Restore registers.
     __ Move(code_object_pointer(), masm_.CodeObject());
-    __ pop(rdi);
-    __ pop(backtrack_stackpointer());
+    __ popq(rdi);
+    __ popq(backtrack_stackpointer());
     // String might have moved: Reload esi from frame.
     __ movp(rsi, Operand(rbp, kInputEnd));
     SafeReturn();
@@ -950,8 +950,8 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
     // Save registers before calling C function
 #ifndef _WIN64
     // Callee-save in Microsoft 64-bit ABI, but not in AMD64 ABI.
-    __ push(rsi);
-    __ push(rdi);
+    __ pushq(rsi);
+    __ pushq(rdi);
 #endif
 
     // Call GrowStack(backtrack_stackpointer())
@@ -980,8 +980,8 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
     // Restore saved registers and continue.
     __ Move(code_object_pointer(), masm_.CodeObject());
 #ifndef _WIN64
-    __ pop(rdi);
-    __ pop(rsi);
+    __ popq(rdi);
+    __ popq(rsi);
 #endif
     SafeReturn();
   }
