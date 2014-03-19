@@ -460,6 +460,8 @@ class ParserTraits {
   // Returns true if the expression is of type "this.foo".
   static bool IsThisProperty(Expression* expression);
 
+  static bool IsIdentifier(Expression* expression);
+
   static bool IsBoilerplateProperty(ObjectLiteral::Property* property) {
     return ObjectLiteral::IsBoilerplateProperty(property);
   }
@@ -507,6 +509,21 @@ class ParserTraits {
   // computed value.
   bool ShortcutNumericLiteralBinaryExpression(
       Expression** x, Expression* y, Token::Value op, int pos,
+      AstNodeFactory<AstConstructionVisitor>* factory);
+
+  // Rewrites the following types of unary expressions:
+  // not <literal> -> true / false
+  // + <numeric literal> -> <numeric literal>
+  // - <numeric literal> -> <numeric literal with value negated>
+  // ! <literal> -> true / false
+  // The following rewriting rules enable the collection of type feedback
+  // without any special stub and the multiplication is removed later in
+  // Crankshaft's canonicalization pass.
+  // + foo -> foo * 1
+  // - foo -> foo * (-1)
+  // ~ foo -> foo ^(~0)
+  Expression* BuildUnaryExpression(
+      Expression* expression, Token::Value op, int pos,
       AstNodeFactory<AstConstructionVisitor>* factory);
 
   // Reporting errors.
@@ -572,7 +589,7 @@ class ParserTraits {
       int function_token_position,
       FunctionLiteral::FunctionType type,
       bool* ok);
-  Expression* ParseUnaryExpression(bool* ok);
+  Expression* ParsePostfixExpression(bool* ok);
 
  private:
   Parser* parser_;
