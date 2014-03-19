@@ -7431,8 +7431,9 @@ GCTracer::~GCTracer() {
 
     PrintF("external=%.1f ", scopes_[Scope::EXTERNAL]);
     PrintF("mark=%.1f ", scopes_[Scope::MC_MARK]);
-    PrintF("sweep=%.1f ", scopes_[Scope::MC_SWEEP]);
-    PrintF("sweepns=%.1f ", scopes_[Scope::MC_SWEEP_NEWSPACE]);
+    PrintF("sweep=%.2f ", scopes_[Scope::MC_SWEEP]);
+    PrintF("sweepns=%.2f ", scopes_[Scope::MC_SWEEP_NEWSPACE]);
+    PrintF("sweepos=%.2f ", scopes_[Scope::MC_SWEEP_OLDSPACE]);
     PrintF("evacuate=%.1f ", scopes_[Scope::MC_EVACUATE_PAGES]);
     PrintF("new_new=%.1f ", scopes_[Scope::MC_UPDATE_NEW_TO_NEW_POINTERS]);
     PrintF("root_new=%.1f ", scopes_[Scope::MC_UPDATE_ROOT_TO_NEW_POINTERS]);
