@@ -163,9 +163,7 @@ void Builtins::Generate_ArrayCode(MacroAssembler* masm) {
 
   // Run the native code for the Array function called as a normal function.
   // Tail call a stub.
-  Handle<Object> megamorphic_sentinel =
-      TypeFeedbackInfo::MegamorphicSentinel(masm->isolate());
-  __ li(a2, Operand(megamorphic_sentinel));
+  __ LoadRoot(a2, Heap::kUndefinedValueRootIndex);
   ArrayConstructorStub stub(masm->isolate());
   __ TailCallStub(&stub);
 }
@@ -756,9 +754,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     __ mov(a0, a3);
     if (is_construct) {
       // No type feedback cell is available
-      Handle<Object> megamorphic_sentinel =
-          TypeFeedbackInfo::MegamorphicSentinel(masm->isolate());
-      __ li(a2, Operand(megamorphic_sentinel));
+      __ LoadRoot(a2, Heap::kUndefinedValueRootIndex);
       CallConstructStub stub(NO_CALL_FUNCTION_FLAGS);
       __ CallStub(&stub);
     } else {
