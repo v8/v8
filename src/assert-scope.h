@@ -49,6 +49,7 @@ enum PerThreadAssertType {
 
 enum PerIsolateAssertType {
   JAVASCRIPT_EXECUTION_ASSERT,
+  JAVASCRIPT_EXECUTION_THROWS,
   ALLOCATION_FAILURE_ASSERT
 };
 
@@ -250,6 +251,14 @@ typedef PerIsolateAssertScope<JAVASCRIPT_EXECUTION_ASSERT, false>
 // Scope to introduce an exception to DisallowJavascriptExecution.
 typedef PerIsolateAssertScope<JAVASCRIPT_EXECUTION_ASSERT, true>
     AllowJavascriptExecution;
+
+// Scope in which javascript execution leads to exception being thrown.
+typedef PerIsolateAssertScope<JAVASCRIPT_EXECUTION_THROWS, false>
+    ThrowOnJavascriptExecution;
+
+// Scope to introduce an exception to ThrowOnJavascriptExecution.
+typedef PerIsolateAssertScope<JAVASCRIPT_EXECUTION_THROWS, true>
+    NoThrowOnJavascriptExecution;
 
 // Scope to document where we do not expect an allocation failure.
 typedef PerIsolateAssertScopeDebugOnly<ALLOCATION_FAILURE_ASSERT, false>

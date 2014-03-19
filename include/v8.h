@@ -4090,10 +4090,14 @@ class V8_EXPORT Isolate {
    */
   class DisallowJavascriptExecutionScope {
    public:
-    explicit DisallowJavascriptExecutionScope(Isolate* isolate);
+    enum OnFailure { CRASH_ON_FAILURE, THROW_ON_FAILURE };
+
+    explicit DisallowJavascriptExecutionScope(Isolate* isolate,
+                                              OnFailure on_failure);
     ~DisallowJavascriptExecutionScope();
 
    private:
+    bool on_failure_;
     void* internal_;
 
     // Prevent copying of Scope objects.
@@ -4112,7 +4116,13 @@ class V8_EXPORT Isolate {
     ~AllowJavascriptExecutionScope();
 
    private:
-    void* internal_;
+    void* internal_throws_;
+    void* internal_assert_;
+
+    // Prevent copying of Scope objects.
+    AllowJavascriptExecutionScope(const AllowJavascriptExecutionScope&);
+    AllowJavascriptExecutionScope& operator=(
+        const AllowJavascriptExecutionScope&);
   };
 
   /**

@@ -6515,28 +6515,43 @@ void Isolate::Exit() {
 
 
 Isolate::DisallowJavascriptExecutionScope::DisallowJavascriptExecutionScope(
-    Isolate* isolate) {
+    Isolate* isolate,
+    Isolate::DisallowJavascriptExecutionScope::OnFailure on_failure)
+    : on_failure_(on_failure) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  internal_ = reinterpret_cast<void*>(
-      new i::DisallowJavascriptExecution(i_isolate));
+  if (on_failure_ == CRASH_ON_FAILURE) {
+    internal_ = reinterpret_cast<void*>(
+        new i::DisallowJavascriptExecution(i_isolate));
+  } else {
+    ASSERT_EQ(THROW_ON_FAILURE, on_failure);
+    internal_ = reinterpret_cast<void*>(
+        new i::ThrowOnJavascriptExecution(i_isolate));
+  }
 }
 
 
 Isolate::DisallowJavascriptExecutionScope::~DisallowJavascriptExecutionScope() {
-  delete reinterpret_cast<i::DisallowJavascriptExecution*>(internal_);
+  if (on_failure_ == CRASH_ON_FAILURE) {
+    delete reinterpret_cast<i::DisallowJavascriptExecution*>(internal_);
+  } else {
+    delete reinterpret_cast<i::ThrowOnJavascriptExecution*>(internal_);
+  }
 }
 
 
 Isolate::AllowJavascriptExecutionScope::AllowJavascriptExecutionScope(
     Isolate* isolate) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  internal_ = reinterpret_cast<void*>(
+  internal_assert_ = reinterpret_cast<void*>(
       new i::AllowJavascriptExecution(i_isolate));
+  internal_throws_ = reinterpret_cast<void*>(
+      new i::NoThrowOnJavascriptExecution(i_isolate));
 }
 
 
 Isolate::AllowJavascriptExecutionScope::~AllowJavascriptExecutionScope() {
-  delete reinterpret_cast<i::AllowJavascriptExecution*>(internal_);
+  delete reinterpret_cast<i::AllowJavascriptExecution*>(internal_assert_);
+  delete reinterpret_cast<i::NoThrowOnJavascriptExecution*>(internal_throws_);
 }
 
 

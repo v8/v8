@@ -22399,7 +22399,8 @@ TEST(DisallowJavascriptExecutionScope) {
   LocalContext context;
   v8::Isolate* isolate = context->GetIsolate();
   v8::HandleScope scope(isolate);
-  v8::Isolate::DisallowJavascriptExecutionScope no_js(isolate);
+  v8::Isolate::DisallowJavascriptExecutionScope no_js(
+      isolate, v8::Isolate::DisallowJavascriptExecutionScope::CRASH_ON_FAILURE);
   CompileRun("2+2");
 }
 
@@ -22408,8 +22409,23 @@ TEST(AllowJavascriptExecutionScope) {
   LocalContext context;
   v8::Isolate* isolate = context->GetIsolate();
   v8::HandleScope scope(isolate);
-  v8::Isolate::DisallowJavascriptExecutionScope no_js(isolate);
+  v8::Isolate::DisallowJavascriptExecutionScope no_js(
+      isolate, v8::Isolate::DisallowJavascriptExecutionScope::CRASH_ON_FAILURE);
+  v8::Isolate::DisallowJavascriptExecutionScope throw_js(
+      isolate, v8::Isolate::DisallowJavascriptExecutionScope::THROW_ON_FAILURE);
   { v8::Isolate::AllowJavascriptExecutionScope yes_js(isolate);
     CompileRun("1+1");
   }
+}
+
+
+TEST(ThrowOnJavascriptExecution) {
+  LocalContext context;
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::HandleScope scope(isolate);
+  v8::TryCatch try_catch;
+  v8::Isolate::DisallowJavascriptExecutionScope throw_js(
+      isolate, v8::Isolate::DisallowJavascriptExecutionScope::THROW_ON_FAILURE);
+  CompileRun("1+1");
+  CHECK(try_catch.HasCaught());
 }

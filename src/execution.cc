@@ -78,6 +78,12 @@ static Handle<Object> Invoke(bool is_construct,
   // Entering JavaScript.
   VMState<JS> state(isolate);
   CHECK(AllowJavascriptExecution::IsAllowed(isolate));
+  if (!ThrowOnJavascriptExecution::IsAllowed(isolate)) {
+    isolate->ThrowIllegalOperation();
+    *has_pending_exception = true;
+    isolate->ReportPendingMessages();
+    return Handle<Object>();
+  }
 
   // Placeholder for return value.
   MaybeObject* value = reinterpret_cast<Object*>(kZapValue);
