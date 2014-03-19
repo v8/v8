@@ -2566,7 +2566,7 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
 
   // Emit veneers for branches that would go out of range during emission of the
   // constant pool.
-  CheckVeneerPool(require_jump, kVeneerDistanceMargin + pool_size);
+  CheckVeneerPool(false, require_jump, kVeneerDistanceMargin + pool_size);
 
   Label size_check;
   bind(&size_check);
@@ -2659,7 +2659,7 @@ void Assembler::RecordVeneerPool(int location_offset, int size) {
 }
 
 
-void Assembler::EmitVeneers(bool need_protection, int margin) {
+void Assembler::EmitVeneers(bool force_emit, bool need_protection, int margin) {
   BlockPoolsScope scope(this);
   RecordComment("[ Veneers");
 
@@ -2685,7 +2685,7 @@ void Assembler::EmitVeneers(bool need_protection, int margin) {
 
   it = unresolved_branches_.begin();
   while (it != unresolved_branches_.end()) {
-    if (ShouldEmitVeneer(it->first, margin)) {
+    if (force_emit || ShouldEmitVeneer(it->first, margin)) {
       Instruction* branch = InstructionAt(it->second.pc_offset_);
       Label* label = it->second.label_;
 
@@ -2728,7 +2728,7 @@ void Assembler::EmitVeneers(bool need_protection, int margin) {
 }
 
 
-void Assembler::CheckVeneerPool(bool require_jump,
+void Assembler::CheckVeneerPool(bool force_emit, bool require_jump,
                                 int margin) {
   // There is nothing to do if there are no pending veneer pool entries.
   if (unresolved_branches_.empty())  {
@@ -2742,6 +2742,7 @@ void Assembler::CheckVeneerPool(bool require_jump,
   // emission, such sequences are protected by calls to BlockVeneerPoolFor and
   // BlockVeneerPoolScope.
   if (is_veneer_pool_blocked()) {
+    ASSERT(!force_emit);
     return;
   }
 
@@ -2749,8 +2750,8 @@ void Assembler::CheckVeneerPool(bool require_jump,
     // Prefer emitting veneers protected by an existing instruction.
     margin *= kVeneerNoProtectionFactor;
   }
-  if (ShouldEmitVeneers(margin)) {
-    EmitVeneers(require_jump, margin);
+  if (force_emit || ShouldEmitVeneers(margin)) {
+    EmitVeneers(force_emit, require_jump, margin);
   } else {
     next_veneer_pool_check_ =
       unresolved_branches_first_limit() - kVeneerDistanceCheckMargin;

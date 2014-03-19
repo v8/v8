@@ -144,7 +144,9 @@ class CodeStub BASE_EMBEDDED {
   Handle<Code> GetCode(Isolate* isolate);
 
   // Retrieve the code for the stub, make and return a copy of the code.
-  Handle<Code> GetCodeCopyFromTemplate(Isolate* isolate);
+  Handle<Code> GetCodeCopy(
+      Isolate* isolate, const Code::FindAndReplacePattern& pattern);
+
   static Major MajorKeyFromKey(uint32_t key) {
     return static_cast<Major>(MajorKeyBits::decode(key));
   }
@@ -987,18 +989,19 @@ class StoreGlobalStub : public HandlerStub {
   }
 
   Handle<Code> GetCodeCopyFromTemplate(Isolate* isolate,
-                                       GlobalObject* global,
-                                       PropertyCell* cell) {
-    Handle<Code> code = CodeStub::GetCodeCopyFromTemplate(isolate);
+                                       Handle<GlobalObject> global,
+                                       Handle<PropertyCell> cell) {
     if (check_global()) {
-      // Replace the placeholder cell and global object map with the actual
-      // global cell and receiver map.
-      code->ReplaceNthObject(1, global_placeholder(isolate)->map(), global);
-      code->ReplaceNthObject(1, isolate->heap()->meta_map(), global->map());
+      Code::FindAndReplacePattern pattern;
+      pattern.Add(Handle<Map>(global_placeholder(isolate)->map()), global);
+      pattern.Add(isolate->factory()->meta_map(), Handle<Map>(global->map()));
+      pattern.Add(isolate->factory()->global_property_cell_map(), cell);
+      return CodeStub::GetCodeCopy(isolate, pattern);
+    } else {
+      Code::FindAndReplacePattern pattern;
+      pattern.Add(isolate->factory()->global_property_cell_map(), cell);
+      return CodeStub::GetCodeCopy(isolate, pattern);
     }
-    Map* cell_map = isolate->heap()->global_property_cell_map();
-    code->ReplaceNthObject(1, cell_map, cell);
-    return code;
   }
 
   virtual Code::Kind kind() const { return Code::STORE_IC; }
@@ -1183,10 +1186,9 @@ class BinaryOpICWithAllocationSiteStub V8_FINAL : public PlatformCodeStub {
 
   Handle<Code> GetCodeCopyFromTemplate(Isolate* isolate,
                                        Handle<AllocationSite> allocation_site) {
-    Handle<Code> code = CodeStub::GetCodeCopyFromTemplate(isolate);
-    // Replace the placeholder oddball with the actual allocation site.
-    code->ReplaceNthObject(1, isolate->heap()->oddball_map(), *allocation_site);
-    return code;
+    Code::FindAndReplacePattern pattern;
+    pattern.Add(isolate->factory()->oddball_map(), allocation_site);
+    return CodeStub::GetCodeCopy(isolate, pattern);
   }
 
   virtual Code::Kind GetCodeKind() const V8_OVERRIDE {
@@ -2035,9 +2037,11 @@ class KeyedStoreFastElementStub : public HydrogenCodeStub {
 class TransitionElementsKindStub : public HydrogenCodeStub {
  public:
   TransitionElementsKindStub(ElementsKind from_kind,
-                             ElementsKind to_kind) {
+                             ElementsKind to_kind,
+                             bool is_js_array) {
     bit_field_ = FromKindBits::encode(from_kind) |
-        ToKindBits::encode(to_kind);
+                 ToKindBits::encode(to_kind) |
+                 IsJSArrayBits::encode(is_js_array);
   }
 
   ElementsKind from_kind() const {
@@ -2046,6 +2050,10 @@ class TransitionElementsKindStub : public HydrogenCodeStub {
 
   ElementsKind to_kind() const {
     return ToKindBits::decode(bit_field_);
+  }
+
+  bool is_js_array() const {
+    return IsJSArrayBits::decode(bit_field_);
   }
 
   virtual Handle<Code> GenerateCode(Isolate* isolate);
@@ -2057,6 +2065,7 @@ class TransitionElementsKindStub : public HydrogenCodeStub {
  private:
   class FromKindBits: public BitField<ElementsKind, 8, 8> {};
   class ToKindBits: public BitField<ElementsKind, 0, 8> {};
+  class IsJSArrayBits: public BitField<bool, 16, 1> {};
   uint32_t bit_field_;
 
   Major MajorKey() { return TransitionElementsKind; }

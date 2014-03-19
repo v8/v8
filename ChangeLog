@@ -1,3 +1,8 @@
+2014-03-19: Version 3.25.17
+
+        Performance and stability improvements on all platforms.
+
+
 2014-03-18: Version 3.25.16
 
         Apply numeric casts correctly in typed arrays and related code (Chromium

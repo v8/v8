@@ -86,9 +86,11 @@ Code::Kind CodeStub::GetCodeKind() const {
 }
 
 
-Handle<Code> CodeStub::GetCodeCopyFromTemplate(Isolate* isolate) {
+Handle<Code> CodeStub::GetCodeCopy(Isolate* isolate,
+                                   const Code::FindAndReplacePattern& pattern) {
   Handle<Code> ic = GetCode(isolate);
   ic = isolate->factory()->CopyCode(ic);
+  ic->FindAndReplace(pattern);
   RecordCodeGeneration(*ic, isolate);
   return ic;
 }

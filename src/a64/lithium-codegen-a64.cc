@@ -895,6 +895,9 @@ bool LCodeGen::GenerateDeoptJumpTable() {
 
 bool LCodeGen::GenerateSafepointTable() {
   ASSERT(is_done());
+  // We do not know how much data will be emitted for the safepoint table, so
+  // force emission of the veneer pool.
+  masm()->CheckVeneerPool(true, true);
   safepoints_.Emit(masm(), GetStackSlotCount());
   return !is_aborted();
 }
@@ -2535,7 +2538,8 @@ void LCodeGen::DoCheckValue(LCheckValue* instr) {
   Handle<HeapObject> object = instr->hydrogen()->object().handle();
   AllowDeferredHandleDereference smi_check;
   if (isolate()->heap()->InNewSpace(*object)) {
-    Register temp = ToRegister(instr->temp());
+    UseScratchRegisterScope temps(masm());
+    Register temp = temps.AcquireX();
     Handle<Cell> cell = isolate()->factory()->NewCell(object);
     __ Mov(temp, Operand(Handle<Object>(cell)));
     __ Ldr(temp, FieldMemOperand(temp, Cell::kValueOffset));
@@ -5627,7 +5631,8 @@ void LCodeGen::DoTransitionElementsKind(LTransitionElementsKind* instr) {
         this, Safepoint::kWithRegistersAndDoubles);
     __ Mov(x0, object);
     __ Mov(x1, Operand(to_map));
-    TransitionElementsKindStub stub(from_kind, to_kind);
+    bool is_js_array = from_map->instance_type() == JS_ARRAY_TYPE;
+    TransitionElementsKindStub stub(from_kind, to_kind, is_js_array);
     __ CallStub(&stub);
     RecordSafepointWithRegistersAndDoubles(
         instr->pointer_map(), 0, Safepoint::kNoLazyDeopt);

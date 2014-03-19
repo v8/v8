@@ -1824,10 +1824,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   __ Mov(x11, Operand(ExternalReference(Isolate::kCEntryFPAddress, isolate)));
   __ Ldr(x10, MemOperand(x11));
 
-  // TODO(all): Pushing the marker twice seems unnecessary.
-  // In this case perhaps we could push xzr in the slot for the context
-  // (see MAsm::EnterFrame).
-  __ Push(x13, x12, x12, x10);
+  __ Push(x13, xzr, x12, x10);
   // Set up fp.
   __ Sub(fp, jssp, EntryFrameConstants::kCallerFPOffset);
 
@@ -1873,7 +1870,6 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
     // field in the JSEnv and return a failure sentinel. Coming in here the
     // fp will be invalid because the PushTryHandler below sets it to 0 to
     // signal the existence of the JSEntry frame.
-    // TODO(jbramley): Do this in the Assembler.
     __ Mov(x10, Operand(ExternalReference(Isolate::kPendingExceptionAddress,
            isolate)));
   }
@@ -4070,12 +4066,13 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   __ Bind(&update_instance_type);
   __ Ldr(temp, FieldMemOperand(unpacked_string, HeapObject::kMapOffset));
   __ Ldrb(input_type, FieldMemOperand(temp, Map::kInstanceTypeOffset));
-  // TODO(all): This generates "b #+0x4". Can these be optimised out?
-  __ B(&underlying_unpacked);
+  // Now control must go to &underlying_unpacked. Since the no code is generated
+  // before then we fall through instead of generating a useless branch.
 
   __ Bind(&seq_or_external_string);
   // Sequential or external string. Registers unpacked_string and input_string
   // alias, so there's nothing to do here.
+  // Note that if code is added here, the above code must be updated.
 
   //   x0   result_string    pointer to result string object (uninit)
   //   x1   result_length    length of substring result
@@ -4202,7 +4199,6 @@ void SubStringStub::Generate(MacroAssembler* masm) {
       input_string, from, result_length, x0,
       &runtime, &runtime, &runtime, STRING_INDEX_IS_NUMBER);
   generator.GenerateFast(masm);
-  // TODO(jbramley): Why doesn't this jump to return_x0?
   __ Drop(3);
   __ Ret();
   generator.SkipSlow(masm, &runtime);
@@ -4439,7 +4435,6 @@ void ArrayPushStub::Generate(MacroAssembler* masm) {
            Operand::UntagSmiAndScale(length, kPointerSizeLog2));
     __ Str(value, MemOperand(end_elements, kEndElementsOffset, PreIndex));
   } else {
-    // TODO(all): ARM has a redundant cmp here.
     __ B(gt, &call_builtin);
 
     __ Peek(value, (argc - 1) * kPointerSize);
@@ -4796,12 +4791,6 @@ void RecordWriteStub::Generate(MacroAssembler* masm) {
 
 
 void StoreArrayLiteralElementStub::Generate(MacroAssembler* masm) {
-  // TODO(all): Possible optimisations in this function:
-  // 1. Merge CheckFastElements and CheckFastSmiElements, so that the map
-  //    bitfield is loaded only once.
-  // 2. Refactor the Ldr/Add sequence at the start of fast_elements and
-  //    smi_element.
-
   // x0     value            element value to store
   // x3     index_smi        element index as smi
   // sp[0]  array_index_smi  array literal index in function as smi
@@ -4817,9 +4806,23 @@ void StoreArrayLiteralElementStub::Generate(MacroAssembler* masm) {
   __ Ldr(array_map, FieldMemOperand(array, JSObject::kMapOffset));
 
   Label double_elements, smi_element, fast_elements, slow_elements;
-  __ CheckFastElements(array_map, x10, &double_elements);
+  Register bitfield2 = x10;
+  __ Ldrb(bitfield2, FieldMemOperand(array_map, Map::kBitField2Offset));
+
+  // Jump if array's ElementsKind is not FAST*_SMI_ELEMENTS, FAST_ELEMENTS or
+  // FAST_HOLEY_ELEMENTS.
+  STATIC_ASSERT(FAST_SMI_ELEMENTS == 0);
+  STATIC_ASSERT(FAST_HOLEY_SMI_ELEMENTS == 1);
+  STATIC_ASSERT(FAST_ELEMENTS == 2);
+  STATIC_ASSERT(FAST_HOLEY_ELEMENTS == 3);
+  __ Cmp(bitfield2, Map::kMaximumBitField2FastHoleyElementValue);
+  __ B(hi, &double_elements);
+
   __ JumpIfSmi(value, &smi_element);
-  __ CheckFastSmiElements(array_map, x10, &fast_elements);
+
+  // Jump if array's ElementsKind is not FAST_ELEMENTS or FAST_HOLEY_ELEMENTS.
+  __ Tbnz(bitfield2, MaskToBit(FAST_ELEMENTS << Map::kElementsKindShift),
+          &fast_elements);
 
   // Store into the array literal requires an elements transition. Call into
   // the runtime.
@@ -5545,12 +5548,8 @@ void InternalArrayConstructorStub::Generate(MacroAssembler* masm) {
   __ Ldr(x10, FieldMemOperand(constructor,
                               JSFunction::kPrototypeOrInitialMapOffset));
 
-  // TODO(jbramley): Add a helper function to read elements kind from an
-  // existing map.
-  // Load the map's "bit field 2" into result.
-  __ Ldr(kind, FieldMemOperand(x10, Map::kBitField2Offset));
-  // Retrieve elements_kind from bit field 2.
-  __ Ubfx(kind, kind, Map::kElementsKindShift, Map::kElementsKindBitCount);
+  // Retrieve elements_kind from map.
+  __ LoadElementsKindFromMap(kind, x10);
 
   if (FLAG_debug_code) {
     Label done;
@@ -5636,7 +5635,6 @@ void CallApiFunctionStub::Generate(MacroAssembler* masm) {
   FrameScope frame_scope(masm, StackFrame::MANUAL);
   __ EnterExitFrame(false, x10, kApiStackSpace + kCallApiFunctionSpillSpace);
 
-  // TODO(all): Optimize this with stp and suchlike.
   ASSERT(!AreAliased(x0, api_function_address));
   // x0 = FunctionCallbackInfo&
   // Arguments is after the return address.

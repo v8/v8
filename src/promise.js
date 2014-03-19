@@ -210,7 +210,10 @@ function PromiseHandle(value, handler, deferred) {
 // Multi-unwrapped chaining with thenable coercion.
 
 function PromiseThen(onResolve, onReject) {
-  onResolve = IS_UNDEFINED(onResolve) ? PromiseIdResolveHandler : onResolve;
+  onResolve =
+    IS_NULL_OR_UNDEFINED(onResolve) ? PromiseIdResolveHandler : onResolve;
+  onReject =
+    IS_NULL_OR_UNDEFINED(onReject) ? PromiseIdRejectHandler : onReject;
   var that = this;
   var constructor = this.constructor;
   return this.chain(
@@ -230,11 +233,10 @@ function PromiseCoerce(constructor, x) {
     var then;
     try {
       then = x.then;
-    } catch(e) {
-      var deferred = %_CallFunction(constructor, PromiseDeferred);
-      PromiseCoerce.table.set(x, deferred.promise);
-      deferred.reject(e);
-      return deferred.promise;
+    } catch(r) {
+      var promise = %_CallFunction(constructor, r, PromiseRejected);
+      PromiseCoerce.table.set(x, promise);
+      return promise;
     }
     if (typeof then === 'function') {
       if (PromiseCoerce.table.has(x)) {
@@ -244,8 +246,8 @@ function PromiseCoerce(constructor, x) {
         PromiseCoerce.table.set(x, deferred.promise);
         try {
           %_CallFunction(x, deferred.resolve, deferred.reject, then);
-        } catch(e) {
-          deferred.reject(e);
+        } catch(r) {
+          deferred.reject(r);
         }
         return deferred.promise;
       }
@@ -259,7 +261,7 @@ function PromiseCoerce(constructor, x) {
 
 function PromiseCast(x) {
   // TODO(rossberg): cannot do better until we support @@create.
-  return IsPromise(x) ? x : this.resolve(x);
+  return IsPromise(x) ? x : new this(function(resolve) { resolve(x) });
 }
 
 function PromiseAll(values) {
@@ -275,7 +277,7 @@ function PromiseAll(values) {
       deferred.resolve(resolutions);
     } else {
       for (var i = 0; i < values.length; ++i) {
-        this.cast(values[i]).then(
+        this.resolve(values[i]).then(
           function(i, x) {
             resolutions[i] = x;
             if (--count === 0) deferred.resolve(resolutions);
@@ -298,7 +300,7 @@ function PromiseOne(values) {
   }
   try {
     for (var i = 0; i < values.length; ++i) {
-      this.cast(values[i]).then(
+      this.resolve(values[i]).then(
         function(x) { deferred.resolve(x) },
         function(r) { deferred.reject(r) }
       );
@@ -317,11 +319,11 @@ function SetUpPromise() {
   global_receiver.Promise = $Promise;
   InstallFunctions($Promise, DONT_ENUM, [
     "defer", PromiseDeferred,
-    "resolve", PromiseResolved,
+    "accept", PromiseResolved,
     "reject", PromiseRejected,
     "all", PromiseAll,
     "race", PromiseOne,
-    "cast", PromiseCast
+    "resolve", PromiseCast
   ]);
   InstallFunctions($Promise.prototype, DONT_ENUM, [
     "chain", PromiseChain,

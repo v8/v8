@@ -1207,7 +1207,7 @@ inline void Assembler::CheckBuffer() {
     GrowBuffer();
   }
   if (pc_offset() >= next_veneer_pool_check_) {
-    CheckVeneerPool(true);
+    CheckVeneerPool(false, true);
   }
   if (pc_offset() >= next_constant_pool_check_) {
     CheckConstPool(false, true);

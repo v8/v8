@@ -1176,12 +1176,8 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
 
 
 LInstruction* LChunkBuilder::DoCheckValue(HCheckValue* instr) {
-  // We only need a temp register if the target is in new space, but we can't
-  // dereference the handle to test that here.
-  // TODO(all): Check these constraints. The temp register is not always used.
-  LOperand* value = UseRegister(instr->value());
-  LOperand* temp = TempRegister();
-  return AssignEnvironment(new(zone()) LCheckValue(value, temp));
+  LOperand* value = UseRegisterAtStart(instr->value());
+  return AssignEnvironment(new(zone()) LCheckValue(value));
 }
 
 
@@ -2292,7 +2288,6 @@ LInstruction* LChunkBuilder::DoStringCharCodeAt(HStringCharCodeAt* instr) {
 
 
 LInstruction* LChunkBuilder::DoStringCharFromCode(HStringCharFromCode* instr) {
-  // TODO(all) use at start and remove assert in codegen
   LOperand* char_code = UseRegister(instr->value());
   LOperand* context = UseAny(instr->context());
   LStringCharFromCode* result =
@@ -2320,7 +2315,7 @@ LInstruction* LChunkBuilder::DoSub(HSub* instr) {
     ASSERT(instr->right()->representation().Equals(instr->representation()));
     LOperand *left;
     if (instr->left()->IsConstant() &&
-       (HConstant::cast(instr->left())->Integer32Value() == 0)) {
+        (HConstant::cast(instr->left())->Integer32Value() == 0)) {
       left = UseConstant(instr->left());
     } else {
       left = UseRegisterAtStart(instr->left());

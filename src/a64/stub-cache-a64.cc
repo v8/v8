@@ -929,16 +929,15 @@ Register LoadStubCompiler::CallbackHandlerFrontend(Handle<HeapType> type,
   Label miss;
 
   Register reg = HandlerFrontendHeader(type, object_reg, holder, name, &miss);
-
-  // TODO(jbramely): HandlerFrontendHeader returns its result in scratch1(), so
-  // we can't use it below, but that isn't very obvious. Is there a better way
-  // of handling this?
+  // HandlerFrontendHeader can return its result into scratch1() so do not
+  // use it.
+  Register scratch2 = this->scratch2();
+  Register scratch3 = this->scratch3();
+  Register dictionary = this->scratch4();
+  ASSERT(!AreAliased(reg, scratch2, scratch3, dictionary));
 
   if (!holder->HasFastProperties() && !holder->IsJSGlobalObject()) {
-    ASSERT(!AreAliased(reg, scratch2(), scratch3(), scratch4()));
-
     // Load the properties dictionary.
-    Register dictionary = scratch4();
     __ Ldr(dictionary, FieldMemOperand(reg, JSObject::kPropertiesOffset));
 
     // Probe the dictionary.
@@ -948,18 +947,18 @@ Register LoadStubCompiler::CallbackHandlerFrontend(Handle<HeapType> type,
                                                      &probe_done,
                                                      dictionary,
                                                      this->name(),
-                                                     scratch2(),
-                                                     scratch3());
+                                                     scratch2,
+                                                     scratch3);
     __ Bind(&probe_done);
 
     // If probing finds an entry in the dictionary, scratch3 contains the
     // pointer into the dictionary. Check that the value is the callback.
-    Register pointer = scratch3();
+    Register pointer = scratch3;
     const int kElementsStartOffset = NameDictionary::kHeaderSize +
         NameDictionary::kElementsStartIndex * kPointerSize;
     const int kValueOffset = kElementsStartOffset + kPointerSize;
-    __ Ldr(scratch2(), FieldMemOperand(pointer, kValueOffset));
-    __ Cmp(scratch2(), Operand(callback));
+    __ Ldr(scratch2, FieldMemOperand(pointer, kValueOffset));
+    __ Cmp(scratch2, Operand(callback));
     __ B(ne, &miss);
   }
 
@@ -1141,12 +1140,15 @@ void LoadStubCompiler::GenerateLoadInterceptor(
 
 
 void StubCompiler::GenerateBooleanCheck(Register object, Label* miss) {
-  Label success;
+  UseScratchRegisterScope temps(masm());
   // Check that the object is a boolean.
-  // TODO(all): Optimize this like LCodeGen::DoDeferredTaggedToI.
-  __ JumpIfRoot(object, Heap::kTrueValueRootIndex, &success);
-  __ JumpIfNotRoot(object, Heap::kFalseValueRootIndex, miss);
-  __ Bind(&success);
+  Register true_root = temps.AcquireX();
+  Register false_root = temps.AcquireX();
+  ASSERT(!AreAliased(object, true_root, false_root));
+  __ LoadTrueFalseRoots(true_root, false_root);
+  __ Cmp(object, true_root);
+  __ Ccmp(object, false_root, ZFlag, ne);
+  __ B(ne, miss);
 }
 
 
@@ -1162,12 +1164,12 @@ Handle<Code> StoreStubCompiler::CompileStoreCallback(
   // Stub never generated for non-global objects that require access checks.
   ASSERT(holder->IsJSGlobalProxy() || !holder->IsAccessCheckNeeded());
 
-  // TODO(jbramley): Make Push take more than four arguments and combine these
-  // two calls.
-  __ Push(receiver(), holder_reg);
+  // receiver() and holder_reg can alias.
+  ASSERT(!AreAliased(receiver(), scratch1(), scratch2(), value()));
+  ASSERT(!AreAliased(holder_reg, scratch1(), scratch2(), value()));
   __ Mov(scratch1(), Operand(callback));
   __ Mov(scratch2(), Operand(name));
-  __ Push(scratch1(), scratch2(), value());
+  __ Push(receiver(), holder_reg, scratch1(), scratch2(), value());
 
   // Do tail-call to the runtime system.
   ExternalReference store_callback_property =

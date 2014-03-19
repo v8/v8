@@ -333,8 +333,9 @@ Handle<Code> StubCache::ComputeCompareNil(Handle<Map> receiver_map,
     if (!cached_ic.is_null()) return cached_ic;
   }
 
-  Handle<Code> ic = stub.GetCodeCopyFromTemplate(isolate_);
-  ic->ReplaceNthObject(1, isolate_->heap()->meta_map(), *receiver_map);
+  Code::FindAndReplacePattern pattern;
+  pattern.Add(isolate_->factory()->meta_map(), receiver_map);
+  Handle<Code> ic = stub.GetCodeCopy(isolate_, pattern);
 
   if (!receiver_map->is_shared()) {
     Map::UpdateCodeCache(receiver_map, name, ic);

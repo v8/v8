@@ -1349,7 +1349,7 @@ Handle<Code> StoreIC::CompileHandler(LookupResult* lookup,
         StoreGlobalStub stub(
             union_type->IsConstant(), receiver->IsJSGlobalProxy());
         Handle<Code> code = stub.GetCodeCopyFromTemplate(
-            isolate(), *global, *cell);
+            isolate(), global, cell);
         // TODO(verwaest): Move caching of these NORMAL stubs outside as well.
         HeapObject::UpdateMapCodeCache(receiver, name, code);
         return code;
