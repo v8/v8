@@ -1918,7 +1918,7 @@ bool Isolate::Init(Deserializer* des) {
   }
 
   // The initialization process does not handle memory exhaustion.
-  DisallowAllocationFailure disallow_allocation_failure;
+  DisallowAllocationFailure disallow_allocation_failure(this);
 
   InitializeLoggingAndCounters();
 

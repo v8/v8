@@ -1496,10 +1496,6 @@ class Heap {
     allocation_timeout_ = timeout;
   }
 
-  bool disallow_allocation_failure() {
-    return disallow_allocation_failure_;
-  }
-
   void TracePathToObjectFrom(Object* target, Object* root);
   void TracePathToObject(Object* target);
   void TracePathToGlobal();
@@ -2009,10 +2005,6 @@ class Heap {
   // variable holds the value indicating the number of allocations
   // remain until the next failure and garbage collection.
   int allocation_timeout_;
-
-  // Do we expect to be able to handle allocation failure at this
-  // time?
-  bool disallow_allocation_failure_;
 #endif  // DEBUG
 
   // Indicates that the new space should be kept small due to high promotion
@@ -2521,15 +2513,11 @@ class Heap {
   MemoryChunk* chunks_queued_for_free_;
 
   Mutex* relocation_mutex_;
-#ifdef DEBUG
-  bool relocation_mutex_locked_by_optimizer_thread_;
-#endif  // DEBUG;
 
   int gc_callbacks_depth_;
 
   friend class Factory;
   friend class GCTracer;
-  friend class DisallowAllocationFailure;
   friend class AlwaysAllocateScope;
   friend class Page;
   friend class Isolate;
@@ -2580,26 +2568,15 @@ class HeapStats {
 };
 
 
-class DisallowAllocationFailure {
- public:
-  inline DisallowAllocationFailure();
-  inline ~DisallowAllocationFailure();
-
-#ifdef DEBUG
- private:
-  bool old_state_;
-#endif
-};
-
-
 class AlwaysAllocateScope {
  public:
-  inline AlwaysAllocateScope();
+  explicit inline AlwaysAllocateScope(Isolate* isolate);
   inline ~AlwaysAllocateScope();
 
  private:
   // Implicitly disable artificial allocation failures.
-  DisallowAllocationFailure disallow_allocation_failure_;
+  Heap* heap_;
+  DisallowAllocationFailure daf_;
 };
 
 

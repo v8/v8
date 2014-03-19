@@ -4084,6 +4084,37 @@ class V8_EXPORT Isolate {
     Scope& operator=(const Scope&);
   };
 
+
+  /**
+   * Assert that no Javascript code is invoked.
+   */
+  class DisallowJavascriptExecutionScope {
+   public:
+    explicit DisallowJavascriptExecutionScope(Isolate* isolate);
+    ~DisallowJavascriptExecutionScope();
+
+   private:
+    void* internal_;
+
+    // Prevent copying of Scope objects.
+    DisallowJavascriptExecutionScope(const DisallowJavascriptExecutionScope&);
+    DisallowJavascriptExecutionScope& operator=(
+        const DisallowJavascriptExecutionScope&);
+  };
+
+
+  /**
+   * Introduce exception to DisallowJavascriptExecutionScope.
+   */
+  class AllowJavascriptExecutionScope {
+   public:
+    explicit AllowJavascriptExecutionScope(Isolate* isolate);
+    ~AllowJavascriptExecutionScope();
+
+   private:
+    void* internal_;
+  };
+
   /**
    * Types of garbage collections that can be requested via
    * RequestGarbageCollectionForTesting.

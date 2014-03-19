@@ -46,6 +46,10 @@
   # This test always fails.  It tests that LiveEdit causes abort when turned off.
   'test-debug/LiveEditDisabled': [FAIL],
 
+  # This test always fails.  It tests that DisallowJavascriptExecutionScope
+  # works as intended.
+  'test-api/DisallowJavascriptExecutionScope': [FAIL],
+
   # TODO(gc): Temporarily disabled in the GC branch.
   'test-log/EquivalenceOfLoggingAndTraversal': [PASS, FAIL],
 

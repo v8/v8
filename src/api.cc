@@ -6514,6 +6514,32 @@ void Isolate::Exit() {
 }
 
 
+Isolate::DisallowJavascriptExecutionScope::DisallowJavascriptExecutionScope(
+    Isolate* isolate) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  internal_ = reinterpret_cast<void*>(
+      new i::DisallowJavascriptExecution(i_isolate));
+}
+
+
+Isolate::DisallowJavascriptExecutionScope::~DisallowJavascriptExecutionScope() {
+  delete reinterpret_cast<i::DisallowJavascriptExecution*>(internal_);
+}
+
+
+Isolate::AllowJavascriptExecutionScope::AllowJavascriptExecutionScope(
+    Isolate* isolate) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  internal_ = reinterpret_cast<void*>(
+      new i::AllowJavascriptExecution(i_isolate));
+}
+
+
+Isolate::AllowJavascriptExecutionScope::~AllowJavascriptExecutionScope() {
+  delete reinterpret_cast<i::AllowJavascriptExecution*>(internal_);
+}
+
+
 void Isolate::GetHeapStatistics(HeapStatistics* heap_statistics) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
   if (!isolate->IsInitialized()) {

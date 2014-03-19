@@ -1665,7 +1665,7 @@ void Builtins::SetUp(Isolate* isolate, bool create_heap_objects) {
       {
         // During startup it's OK to always allocate and defer GC to later.
         // This simplifies things because we don't need to retry.
-        AlwaysAllocateScope __scope__;
+        AlwaysAllocateScope __scope__(isolate);
         { MaybeObject* maybe_code =
               heap->CreateCode(desc, flags, masm.CodeObject());
           if (!maybe_code->ToObject(&code)) {

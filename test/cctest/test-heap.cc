@@ -1025,7 +1025,7 @@ TEST(Regression39128) {
   // Step 4: clone jsobject, but force always allocate first to create a clone
   // in old pointer space.
   Address old_pointer_space_top = heap->old_pointer_space()->top();
-  AlwaysAllocateScope aa_scope;
+  AlwaysAllocateScope aa_scope(isolate);
   Object* clone_obj = heap->CopyJSObject(jsobject)->ToObjectChecked();
   JSObject* clone = JSObject::cast(clone_obj);
   if (clone->address() != old_pointer_space_top) {
@@ -1599,7 +1599,7 @@ TEST(TestSizeOfObjects) {
   {
     // Allocate objects on several different old-space pages so that
     // lazy sweeping kicks in for subsequent GC runs.
-    AlwaysAllocateScope always_allocate;
+    AlwaysAllocateScope always_allocate(CcTest::i_isolate());
     int filler_size = static_cast<int>(FixedArray::SizeFor(8192));
     for (int i = 1; i <= 100; i++) {
       CcTest::heap()->AllocateFixedArray(8192, TENURED)->ToObjectChecked();
@@ -1666,7 +1666,7 @@ static void FillUpNewSpace(NewSpace* new_space) {
   Isolate* isolate = heap->isolate();
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
-  AlwaysAllocateScope always_allocate;
+  AlwaysAllocateScope always_allocate(isolate);
   intptr_t available = new_space->EffectiveCapacity() - new_space->Size();
   intptr_t number_of_fillers = (available / FixedArray::SizeFor(32)) - 1;
   for (intptr_t i = 0; i < number_of_fillers; i++) {
@@ -2045,7 +2045,7 @@ TEST(PrototypeTransitionClearing) {
   Handle<JSObject> prototype;
   PagedSpace* space = CcTest::heap()->old_pointer_space();
   {
-    AlwaysAllocateScope always_allocate;
+    AlwaysAllocateScope always_allocate(isolate);
     SimulateFullSpace(space);
     prototype = factory->NewJSArray(32 * KB, FAST_HOLEY_ELEMENTS, TENURED);
   }
@@ -2173,7 +2173,7 @@ TEST(OptimizedAllocationAlwaysInNewSpace) {
   v8::HandleScope scope(CcTest::isolate());
 
   SimulateFullSpace(CcTest::heap()->new_space());
-  AlwaysAllocateScope always_allocate;
+  AlwaysAllocateScope always_allocate(CcTest::i_isolate());
   v8::Local<v8::Value> res = CompileRun(
       "function c(x) {"
       "  this.x = x;"
@@ -2555,7 +2555,7 @@ TEST(OptimizedPretenuringCallNew) {
   v8::HandleScope scope(CcTest::isolate());
   CcTest::heap()->SetNewSpaceHighPromotionModeActive(true);
 
-  AlwaysAllocateScope always_allocate;
+  AlwaysAllocateScope always_allocate(CcTest::i_isolate());
   v8::Local<v8::Value> res = CompileRun(
       "function g() { this.a = 0; }"
       "function f() {"
@@ -2587,7 +2587,7 @@ TEST(Regress1465) {
   static const int transitions_count = 256;
 
   {
-    AlwaysAllocateScope always_allocate;
+    AlwaysAllocateScope always_allocate(CcTest::i_isolate());
     for (int i = 0; i < transitions_count; i++) {
       EmbeddedVector<char, 64> buffer;
       OS::SNPrintF(buffer, "var o = new Object; o.prop%d = %d;", i, i);
@@ -2717,7 +2717,7 @@ TEST(ReleaseOverReservedPages) {
   PagedSpace* old_pointer_space = heap->old_pointer_space();
   CHECK_EQ(1, old_pointer_space->CountTotalPages());
   for (int i = 0; i < number_of_test_pages; i++) {
-    AlwaysAllocateScope always_allocate;
+    AlwaysAllocateScope always_allocate(isolate);
     SimulateFullSpace(old_pointer_space);
     factory->NewFixedArray(1, TENURED);
   }
@@ -2766,7 +2766,7 @@ TEST(Regress2237) {
     // Generate a sliced string that is based on the above parent and
     // lives in old-space.
     SimulateFullSpace(CcTest::heap()->new_space());
-    AlwaysAllocateScope always_allocate;
+    AlwaysAllocateScope always_allocate(isolate);
     Handle<String> t = factory->NewProperSubString(s, 5, 35);
     CHECK(t->IsSlicedString());
     CHECK(!CcTest::heap()->InNewSpace(*t));
@@ -3359,7 +3359,7 @@ TEST(Regress169928) {
 
   // This should crash with a protection violation if we are running a build
   // with the bug.
-  AlwaysAllocateScope aa_scope;
+  AlwaysAllocateScope aa_scope(isolate);
   v8::Script::Compile(mote_code_string)->Run();
 }
 

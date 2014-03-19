@@ -3045,7 +3045,7 @@ void MarkCompactCollector::EvacuateNewSpace() {
   // There are soft limits in the allocation code, designed trigger a mark
   // sweep collection by failing allocations.  But since we are already in
   // a mark-sweep allocation, there is no sense in trying to trigger one.
-  AlwaysAllocateScope scope;
+  AlwaysAllocateScope scope(isolate());
   heap()->CheckNewSpaceExpansionCriteria();
 
   NewSpace* new_space = heap()->new_space();
@@ -3077,7 +3077,7 @@ void MarkCompactCollector::EvacuateNewSpace() {
 
 
 void MarkCompactCollector::EvacuateLiveObjectsFromPage(Page* p) {
-  AlwaysAllocateScope always_allocate;
+  AlwaysAllocateScope always_allocate(isolate());
   PagedSpace* space = static_cast<PagedSpace*>(p->owner());
   ASSERT(p->IsEvacuationCandidate() && !p->WasSwept());
   p->MarkSweptPrecisely();

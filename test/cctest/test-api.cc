@@ -14218,7 +14218,8 @@ UNINITIALIZED_TEST(SetJitCodeEventHandler) {
   // have remnants of state from other code.
   v8::Isolate* isolate = v8::Isolate::New();
   isolate->Enter();
-  i::Heap* heap = reinterpret_cast<i::Isolate*>(isolate)->heap();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i::Heap* heap = i_isolate->heap();
 
   {
     v8::HandleScope scope(isolate);
@@ -14238,7 +14239,7 @@ UNINITIALIZED_TEST(SetJitCodeEventHandler) {
     const int kIterations = 10;
     for (int i = 0; i < kIterations; ++i) {
       LocalContext env(isolate);
-      i::AlwaysAllocateScope always_allocate;
+      i::AlwaysAllocateScope always_allocate(i_isolate);
       SimulateFullSpace(heap->code_space());
       CompileRun(script);
 
@@ -17649,7 +17650,7 @@ TEST(DynamicWithSourceURLInStackTraceString) {
 static void CreateGarbageInOldSpace() {
   i::Factory* factory = CcTest::i_isolate()->factory();
   v8::HandleScope scope(CcTest::isolate());
-  i::AlwaysAllocateScope always_allocate;
+  i::AlwaysAllocateScope always_allocate(CcTest::i_isolate());
   for (int i = 0; i < 1000; i++) {
     factory->NewFixedArray(1000, i::TENURED);
   }
@@ -22391,4 +22392,24 @@ TEST(Promises) {
   V8::RunMicrotasks(isolate);
   CHECK_EQ(3, global->Get(v8_str("x1"))->Int32Value());
   CHECK_EQ(4, global->Get(v8_str("x2"))->Int32Value());
+}
+
+
+TEST(DisallowJavascriptExecutionScope) {
+  LocalContext context;
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::HandleScope scope(isolate);
+  v8::Isolate::DisallowJavascriptExecutionScope no_js(isolate);
+  CompileRun("2+2");
+}
+
+
+TEST(AllowJavascriptExecutionScope) {
+  LocalContext context;
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::HandleScope scope(isolate);
+  v8::Isolate::DisallowJavascriptExecutionScope no_js(isolate);
+  { v8::Isolate::AllowJavascriptExecutionScope yes_js(isolate);
+    CompileRun("1+1");
+  }
 }
