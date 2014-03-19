@@ -384,6 +384,9 @@ void LCodeGen::GenerateOsrPrologue() {
 
 
 void LCodeGen::GenerateBodyInstructionPre(LInstruction* instr) {
+  if (!instr->IsLazyBailout() && !instr->IsGap()) {
+    safepoints_.BumpLastLazySafepointIndex();
+  }
   if (!CpuFeatures::IsSupported(SSE2)) FlushX87StackIfNecessary(instr);
 }
 
@@ -2358,7 +2361,6 @@ void LCodeGen::DoArithmeticT(LArithmeticT* instr) {
 
   BinaryOpICStub stub(instr->op(), NO_OVERWRITE);
   CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
-  __ nop();  // Signals no inlined code.
 }
 
 

@@ -2436,6 +2436,7 @@ void HSimulate::PrintDataTo(StringStream* stream) {
 
 
 void HSimulate::ReplayEnvironment(HEnvironment* env) {
+  if (done_with_replay_) return;
   ASSERT(env != NULL);
   env->set_ast_id(ast_id());
   env->Drop(pop_count());
@@ -2447,6 +2448,7 @@ void HSimulate::ReplayEnvironment(HEnvironment* env) {
       env->Push(value);
     }
   }
+  done_with_replay_ = true;
 }
 
 
