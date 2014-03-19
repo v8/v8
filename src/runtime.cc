@@ -14897,8 +14897,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ArrayConstructor) {
 
   Handle<AllocationSite> site;
   if (!type_info.is_null() &&
-      !type_info.is_identical_to(
-          TypeFeedbackInfo::MegamorphicSentinel(isolate))) {
+      *type_info != isolate->heap()->undefined_value()) {
     site = Handle<AllocationSite>::cast(type_info);
     ASSERT(!site->SitePointsToLiteral());
   }
