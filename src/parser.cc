@@ -433,6 +433,12 @@ bool ParserTraits::IsThisProperty(Expression* expression) {
 }
 
 
+bool ParserTraits::IsIdentifier(Expression* expression) {
+  VariableProxy* operand = expression->AsVariableProxy();
+  return operand != NULL && !operand->is_this();
+}
+
+
 void ParserTraits::CheckAssigningFunctionLiteralToProperty(Expression* left,
                                                            Expression* right) {
   ASSERT(left != NULL);
@@ -522,6 +528,52 @@ bool ParserTraits::ShortcutNumericLiteralBinaryExpression(
     }
   }
   return false;
+}
+
+
+Expression* ParserTraits::BuildUnaryExpression(
+    Expression* expression, Token::Value op, int pos,
+    AstNodeFactory<AstConstructionVisitor>* factory) {
+  ASSERT(expression != NULL);
+  if (expression->AsLiteral() != NULL) {
+    Handle<Object> literal = expression->AsLiteral()->value();
+    if (op == Token::NOT) {
+      // Convert the literal to a boolean condition and negate it.
+      bool condition = literal->BooleanValue();
+      Handle<Object> result =
+          parser_->isolate()->factory()->ToBoolean(!condition);
+      return factory->NewLiteral(result, pos);
+    } else if (literal->IsNumber()) {
+      // Compute some expressions involving only number literals.
+      double value = literal->Number();
+      switch (op) {
+        case Token::ADD:
+          return expression;
+        case Token::SUB:
+          return factory->NewNumberLiteral(-value, pos);
+        case Token::BIT_NOT:
+          return factory->NewNumberLiteral(~DoubleToInt32(value), pos);
+        default:
+          break;
+      }
+    }
+  }
+  // Desugar '+foo' => 'foo*1'
+  if (op == Token::ADD) {
+    return factory->NewBinaryOperation(
+        Token::MUL, expression, factory->NewNumberLiteral(1, pos), pos);
+  }
+  // The same idea for '-foo' => 'foo*(-1)'.
+  if (op == Token::SUB) {
+    return factory->NewBinaryOperation(
+        Token::MUL, expression, factory->NewNumberLiteral(-1, pos), pos);
+  }
+  // ...and one more time for '~foo' => 'foo^(~0)'.
+  if (op == Token::BIT_NOT) {
+    return factory->NewBinaryOperation(
+        Token::BIT_XOR, expression, factory->NewNumberLiteral(~0, pos), pos);
+  }
+  return factory->NewUnaryOperation(op, expression, pos);
 }
 
 
@@ -688,8 +740,8 @@ FunctionLiteral* ParserTraits::ParseFunctionLiteral(
 }
 
 
-Expression* ParserTraits::ParseUnaryExpression(bool* ok) {
-  return parser_->ParseUnaryExpression(ok);
+Expression* ParserTraits::ParsePostfixExpression(bool* ok) {
+  return parser_->ParsePostfixExpression(ok);
 }
 
 
@@ -2986,111 +3038,6 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
   } else {
     loop->Initialize(init, cond, next, body);
     return loop;
-  }
-}
-
-
-Expression* Parser::ParseUnaryExpression(bool* ok) {
-  // UnaryExpression ::
-  //   PostfixExpression
-  //   'delete' UnaryExpression
-  //   'void' UnaryExpression
-  //   'typeof' UnaryExpression
-  //   '++' UnaryExpression
-  //   '--' UnaryExpression
-  //   '+' UnaryExpression
-  //   '-' UnaryExpression
-  //   '~' UnaryExpression
-  //   '!' UnaryExpression
-
-  Token::Value op = peek();
-  if (Token::IsUnaryOp(op)) {
-    op = Next();
-    int pos = position();
-    Expression* expression = ParseUnaryExpression(CHECK_OK);
-
-    if (expression != NULL && (expression->AsLiteral() != NULL)) {
-      Handle<Object> literal = expression->AsLiteral()->value();
-      if (op == Token::NOT) {
-        // Convert the literal to a boolean condition and negate it.
-        bool condition = literal->BooleanValue();
-        Handle<Object> result = isolate()->factory()->ToBoolean(!condition);
-        return factory()->NewLiteral(result, pos);
-      } else if (literal->IsNumber()) {
-        // Compute some expressions involving only number literals.
-        double value = literal->Number();
-        switch (op) {
-          case Token::ADD:
-            return expression;
-          case Token::SUB:
-            return factory()->NewNumberLiteral(-value, pos);
-          case Token::BIT_NOT:
-            return factory()->NewNumberLiteral(~DoubleToInt32(value), pos);
-          default:
-            break;
-        }
-      }
-    }
-
-    // "delete identifier" is a syntax error in strict mode.
-    if (op == Token::DELETE && strict_mode() == STRICT) {
-      VariableProxy* operand = expression->AsVariableProxy();
-      if (operand != NULL && !operand->is_this()) {
-        ReportMessage("strict_delete", Vector<const char*>::empty());
-        *ok = false;
-        return NULL;
-      }
-    }
-
-    // Desugar '+foo' into 'foo*1', this enables the collection of type feedback
-    // without any special stub and the multiplication is removed later in
-    // Crankshaft's canonicalization pass.
-    if (op == Token::ADD) {
-      return factory()->NewBinaryOperation(Token::MUL,
-                                           expression,
-                                           factory()->NewNumberLiteral(1, pos),
-                                           pos);
-    }
-    // The same idea for '-foo' => 'foo*(-1)'.
-    if (op == Token::SUB) {
-      return factory()->NewBinaryOperation(Token::MUL,
-                                           expression,
-                                           factory()->NewNumberLiteral(-1, pos),
-                                           pos);
-    }
-    // ...and one more time for '~foo' => 'foo^(~0)'.
-    if (op == Token::BIT_NOT) {
-      return factory()->NewBinaryOperation(Token::BIT_XOR,
-                                           expression,
-                                           factory()->NewNumberLiteral(~0, pos),
-                                           pos);
-    }
-
-    return factory()->NewUnaryOperation(op, expression, pos);
-
-  } else if (Token::IsCountOp(op)) {
-    op = Next();
-    Scanner::Location lhs_location = scanner()->peek_location();
-    Expression* expression = ParseUnaryExpression(CHECK_OK);
-    if (expression == NULL || !expression->IsValidLeftHandSide()) {
-      ReportMessageAt(lhs_location, "invalid_lhs_in_prefix_op", true);
-      *ok = false;
-      return NULL;
-    }
-
-    if (strict_mode() == STRICT) {
-      // Prefix expression operand in strict mode may not be eval or arguments.
-      CheckStrictModeLValue(expression, CHECK_OK);
-    }
-    MarkExpressionAsLValue(expression);
-
-    return factory()->NewCountOperation(op,
-                                        true /* prefix */,
-                                        expression,
-                                        position());
-
-  } else {
-    return ParsePostfixExpression(ok);
   }
 }
 

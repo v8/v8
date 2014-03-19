@@ -394,6 +394,7 @@ class ParserBase : public Traits {
   ExpressionT ParseYieldExpression(bool* ok);
   ExpressionT ParseConditionalExpression(bool accept_IN, bool* ok);
   ExpressionT ParseBinaryExpression(int prec, bool accept_IN, bool* ok);
+  ExpressionT ParseUnaryExpression(bool* ok);
 
   // Used to detect duplicates in object literals. Each of the values
   // kGetterProperty, kSetterProperty and kValueProperty represents
@@ -742,6 +743,13 @@ class PreParserFactory {
                                      int pos) {
     return PreParserExpression::Default();
   }
+
+  PreParserExpression NewCountOperation(Token::Value op,
+                                        bool is_prefix,
+                                        PreParserExpression expression,
+                                        int pos) {
+    return PreParserExpression::Default();
+  }
 };
 
 
@@ -794,6 +802,10 @@ class PreParserTraits {
     return expression.IsThisProperty();
   }
 
+  static bool IsIdentifier(PreParserExpression expression) {
+    return expression.IsIdentifier();
+  }
+
   static bool IsBoilerplateProperty(PreParserExpression property) {
     // PreParser doesn't count boilerplate properties.
     return false;
@@ -839,6 +851,12 @@ class PreParserTraits {
                                               int pos,
                                               PreParserFactory* factory) {
     return false;
+  }
+
+  PreParserExpression BuildUnaryExpression(PreParserExpression expression,
+                                           Token::Value op, int pos,
+                                           PreParserFactory* factory) {
+    return PreParserExpression::Default();
   }
 
   // Reporting errors.
@@ -922,7 +940,7 @@ class PreParserTraits {
       int function_token_position,
       FunctionLiteral::FunctionType type,
       bool* ok);
-  PreParserExpression ParseUnaryExpression(bool* ok);
+  PreParserExpression ParsePostfixExpression(bool* ok);
 
  private:
   PreParser* pre_parser_;
@@ -1086,7 +1104,6 @@ class PreParser : public ParserBase<PreParserTraits> {
   Statement ParseTryStatement(bool* ok);
   Statement ParseDebuggerStatement(bool* ok);
   Expression ParseConditionalExpression(bool accept_IN, bool* ok);
-  Expression ParseUnaryExpression(bool* ok);
   Expression ParsePostfixExpression(bool* ok);
   Expression ParseLeftHandSideExpression(bool* ok);
   Expression ParseMemberExpression(bool* ok);
@@ -1775,6 +1792,64 @@ ParserBase<Traits>::ParseBinaryExpression(int prec, bool accept_IN, bool* ok) {
     }
   }
   return x;
+}
+
+
+template <class Traits>
+typename ParserBase<Traits>::ExpressionT
+ParserBase<Traits>::ParseUnaryExpression(bool* ok) {
+  // UnaryExpression ::
+  //   PostfixExpression
+  //   'delete' UnaryExpression
+  //   'void' UnaryExpression
+  //   'typeof' UnaryExpression
+  //   '++' UnaryExpression
+  //   '--' UnaryExpression
+  //   '+' UnaryExpression
+  //   '-' UnaryExpression
+  //   '~' UnaryExpression
+  //   '!' UnaryExpression
+
+  Token::Value op = peek();
+  if (Token::IsUnaryOp(op)) {
+    op = Next();
+    int pos = position();
+    ExpressionT expression = ParseUnaryExpression(CHECK_OK);
+
+    // "delete identifier" is a syntax error in strict mode.
+    if (op == Token::DELETE && strict_mode() == STRICT &&
+        this->IsIdentifier(expression)) {
+      ReportMessage("strict_delete", Vector<const char*>::empty());
+      *ok = false;
+      return this->EmptyExpression();
+    }
+
+    // Allow Traits do rewrite the expression.
+    return BuildUnaryExpression(expression, op, pos, factory());
+  } else if (Token::IsCountOp(op)) {
+    op = Next();
+    Scanner::Location lhs_location = scanner()->peek_location();
+    ExpressionT expression = ParseUnaryExpression(CHECK_OK);
+    if (!this->IsValidLeftHandSide(expression)) {
+      ReportMessageAt(lhs_location, "invalid_lhs_in_prefix_op", true);
+      *ok = false;
+      return this->EmptyExpression();
+    }
+
+    if (strict_mode() == STRICT) {
+      // Prefix expression operand in strict mode may not be eval or arguments.
+      CheckStrictModeLValue(expression, CHECK_OK);
+    }
+    MarkExpressionAsLValue(expression);
+
+    return factory()->NewCountOperation(op,
+                                        true /* prefix */,
+                                        expression,
+                                        position());
+
+  } else {
+    return this->ParsePostfixExpression(ok);
+  }
 }
 
 
