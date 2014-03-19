@@ -294,9 +294,8 @@ class ScriptTest(unittest.TestCase):
     self._tmp_files.append(name)
     return name
 
-  def MakeTempVersionFile(self):
-    name = self.MakeEmptyTempFile()
-    with open(name, "w") as f:
+  def WriteFakeVersionFile(self):
+    with open(TEST_CONFIG[VERSION_FILE], "w") as f:
       f.write("  // Some line...\n")
       f.write("\n")
       f.write("#define MAJOR_VERSION    3\n")
@@ -305,7 +304,6 @@ class ScriptTest(unittest.TestCase):
       f.write("#define PATCH_LEVEL      0\n")
       f.write("  // Some line...\n")
       f.write("#define IS_CANDIDATE_VERSION 0\n")
-    return name
 
   def MakeStep(self):
     """Convenience wrapper."""
@@ -441,7 +439,8 @@ class ScriptTest(unittest.TestCase):
     self.MakeStep().InitialEnvironmentChecks()
 
   def testReadAndPersistVersion(self):
-    TEST_CONFIG[VERSION_FILE] = self.MakeTempVersionFile()
+    TEST_CONFIG[VERSION_FILE] = self.MakeEmptyTempFile()
+    self.WriteFakeVersionFile()
     step = self.MakeStep()
     step.ReadAndPersistVersion()
     self.assertEquals("3", step["major"])
@@ -471,7 +470,8 @@ class ScriptTest(unittest.TestCase):
                           "//\n#define BUILD_NUMBER  321\n"))
 
   def testPrepareChangeLog(self):
-    TEST_CONFIG[VERSION_FILE] = self.MakeTempVersionFile()
+    TEST_CONFIG[VERSION_FILE] = self.MakeEmptyTempFile()
+    self.WriteFakeVersionFile()
     TEST_CONFIG[CHANGELOG_ENTRY_FILE] = self.MakeEmptyTempFile()
 
     self.ExpectGit([
@@ -550,7 +550,8 @@ class ScriptTest(unittest.TestCase):
                       FileToText(TEST_CONFIG[CHANGELOG_ENTRY_FILE]))
 
   def testIncrementVersion(self):
-    TEST_CONFIG[VERSION_FILE] = self.MakeTempVersionFile()
+    TEST_CONFIG[VERSION_FILE] = self.MakeEmptyTempFile()
+    self.WriteFakeVersionFile()
     self._state["build"] = "5"
 
     self.ExpectReadline([
@@ -574,7 +575,7 @@ class ScriptTest(unittest.TestCase):
       Git("svn find-rev hash1", "123455\n"),
     ])
 
-    self._state["prepare_commit_hash"] = "hash1"
+    self._state["push_hash"] = "hash1"
     self._state["date"] = "1999-11-11"
 
     self.RunStep(PushToTrunk, SquashCommits)
@@ -618,7 +619,8 @@ Performance and stability improvements on all platforms."""
 
   def _PushToTrunk(self, force=False, manual=False):
     TEST_CONFIG[DOT_GIT_LOCATION] = self.MakeEmptyTempFile()
-    TEST_CONFIG[VERSION_FILE] = self.MakeTempVersionFile()
+    TEST_CONFIG[VERSION_FILE] = self.MakeEmptyTempFile()
+    self.WriteFakeVersionFile()
     TEST_CONFIG[CHANGELOG_ENTRY_FILE] = self.MakeEmptyTempFile()
     TEST_CONFIG[CHANGELOG_FILE] = self.MakeEmptyTempFile()
     if not os.path.exists(TEST_CONFIG[CHROMIUM]):
@@ -643,6 +645,10 @@ Performance and stability improvements on all platforms."""
 
         Performance and stability improvements on all platforms.\n"""
       TextToFile(trunk_change_log, TEST_CONFIG[CHANGELOG_FILE])
+
+    def ResetToTrunk():
+      ResetChangeLog()
+      self.WriteFakeVersionFile()
 
     def CheckSVNCommit():
       commit = FileToText(TEST_CONFIG[COMMITMSG_FILE])
@@ -709,15 +715,17 @@ Performance and stability improvements on all platforms.""", commit)
       Git("checkout -f svn/bleeding_edge", ""),
       Git(("log -1 --format=%H --grep=\"Prepare push to trunk.  "
            "Now working on version 3.22.6.\""),
-          "hash1\n"),
-      Git("diff svn/trunk hash1", "patch content\n"),
-      Git("svn find-rev hash1", "123455\n"),
+          "prep_hash\n"),
+      Git("log -1 --format=%H prep_hash^", "push_hash\n"),
+      Git("diff svn/trunk push_hash", "patch content\n"),
+      Git("svn find-rev push_hash", "123455\n"),
       Git("checkout -b %s svn/trunk" % TEST_CONFIG[TRUNKBRANCH], "",
-          cb=ResetChangeLog),
+          cb=ResetToTrunk),
       Git("apply --index --reject \"%s\"" % TEST_CONFIG[PATCH_FILE], ""),
       Git("checkout -f svn/trunk -- %s" % TEST_CONFIG[CHANGELOG_FILE], "",
           cb=ResetChangeLog),
-      Git("add \"%s\"" % TEST_CONFIG[VERSION_FILE], ""),
+      Git("checkout -f svn/trunk -- %s" % TEST_CONFIG[VERSION_FILE], "",
+          cb=self.WriteFakeVersionFile),
       Git("commit -aF \"%s\"" % TEST_CONFIG[COMMITMSG_FILE], "",
           cb=CheckSVNCommit),
       Git("svn dcommit 2>&1", "Some output\nCommitted r123456\nSome output\n"),
@@ -877,7 +885,8 @@ Performance and stability improvements on all platforms.""", commit)
   def testMergeToBranch(self):
     TEST_CONFIG[ALREADY_MERGING_SENTINEL_FILE] = self.MakeEmptyTempFile()
     TEST_CONFIG[DOT_GIT_LOCATION] = self.MakeEmptyTempFile()
-    TEST_CONFIG[VERSION_FILE] = self.MakeTempVersionFile()
+    TEST_CONFIG[VERSION_FILE] = self.MakeEmptyTempFile()
+    self.WriteFakeVersionFile()
     os.environ["EDITOR"] = "vi"
     extra_patch = self.MakeEmptyTempFile()
 
