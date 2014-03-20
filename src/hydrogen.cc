@@ -6395,6 +6395,11 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
         elements_kind != GetInitialFastElementsKind()) {
       possible_transitioned_maps.Add(map);
     }
+    if (elements_kind == SLOPPY_ARGUMENTS_ELEMENTS) {
+      HInstruction* result = BuildKeyedGeneric(access_type, object, key, val);
+      *has_side_effects = result->HasObservableSideEffects();
+      return AddInstruction(result);
+    }
   }
   // Get transition target for each map (NULL == no transition).
   for (int i = 0; i < maps->length(); ++i) {
