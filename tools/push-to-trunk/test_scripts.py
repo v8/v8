@@ -469,13 +469,22 @@ class ScriptTest(unittest.TestCase):
                           r"\g<space>3",
                           "//\n#define BUILD_NUMBER  321\n"))
 
+  def testPreparePushRevision(self):
+    # Tests the default push hash used when the --revision option is not set.
+    self.ExpectGit([
+      Git("log -1 --format=%H HEAD", "push_hash")
+    ])
+
+    self.RunStep(PushToTrunk, PreparePushRevision)
+    self.assertEquals("push_hash", self._state["push_hash"])
+
   def testPrepareChangeLog(self):
     TEST_CONFIG[VERSION_FILE] = self.MakeEmptyTempFile()
     self.WriteFakeVersionFile()
     TEST_CONFIG[CHANGELOG_ENTRY_FILE] = self.MakeEmptyTempFile()
 
     self.ExpectGit([
-      Git("log --format=%H 1234..HEAD", "rev1\nrev2\nrev3\nrev4"),
+      Git("log --format=%H 1234..push_hash", "rev1\nrev2\nrev3\nrev4"),
       Git("log -1 --format=%s rev1", "Title text 1"),
       Git("log -1 --format=%B rev1", "Title\n\nBUG=\nLOG=y\n"),
       Git("log -1 --format=%an rev1", "author1@chromium.org"),
@@ -499,6 +508,7 @@ class ScriptTest(unittest.TestCase):
     ])
 
     self._state["last_push_bleeding_edge"] = "1234"
+    self._state["push_hash"] = "push_hash"
     self._state["version"] = "3.22.5"
     self.RunStep(PushToTrunk, PrepareChangeLog)
 
@@ -636,13 +646,6 @@ Performance and stability improvements on all platforms."""
                  TEST_CONFIG[DEPS_FILE])
     os.environ["EDITOR"] = "vi"
 
-    def CheckPreparePush():
-      self.assertEquals(bleeding_edge_change_log,
-                        FileToText(TEST_CONFIG[CHANGELOG_FILE]))
-
-      version = FileToText(TEST_CONFIG[VERSION_FILE])
-      self.assertTrue(re.search(r"#define BUILD_NUMBER\s+6", version))
-
     def ResetChangeLog():
       """On 'git co -b new_branch svn/trunk', and 'git checkout -- ChangeLog',
       the ChangLog will be reset to its content on trunk."""
@@ -696,6 +699,7 @@ Performance and stability improvements on all platforms.""", commit)
       Git("branch", "  branch1\n* branch2\n"),
       Git("branch", "  branch1\n* branch2\n"),
       Git("checkout -b %s svn/bleeding_edge" % TEST_CONFIG[BRANCHNAME], ""),
+      Git("svn find-rev r123455", "push_hash\n"),
       Git(("log -1 --format=%H --grep="
            "\"^Version [[:digit:]]*\.[[:digit:]]*\.[[:digit:]]* (based\" "
            "svn/trunk"), "hash2\n"),
@@ -705,13 +709,12 @@ Performance and stability improvements on all platforms.""", commit)
       Git("svn find-rev r1234", "hash3\n"),
       Git("checkout -f hash2 -- %s" % TEST_CONFIG[VERSION_FILE], "",
           cb=self.WriteFakeVersionFile),
-      Git("log --format=%H hash3..HEAD", "rev1\n"),
+      Git("log --format=%H hash3..push_hash", "rev1\n"),
       Git("log -1 --format=%s rev1", "Log text 1.\n"),
       Git("log -1 --format=%B rev1", "Text\nLOG=YES\nBUG=v8:321\nText\n"),
       Git("log -1 --format=%an rev1", "author1@chromium.org\n"),
       Git("svn fetch", "fetch result\n"),
       Git("checkout -f svn/bleeding_edge", ""),
-      Git("log -1 --format=%H HEAD", "push_hash\n"),
       Git("diff svn/trunk push_hash", "patch content\n"),
       Git("svn find-rev push_hash", "123455\n"),
       Git("checkout -b %s svn/trunk" % TEST_CONFIG[TRUNKBRANCH], "",
@@ -755,7 +758,8 @@ Performance and stability improvements on all platforms.""", commit)
     if not manual:
       self.ExpectReadline([])
 
-    args = ["-a", "author@chromium.org", "-c", TEST_CONFIG[CHROMIUM]]
+    args = ["-a", "author@chromium.org", "-c", TEST_CONFIG[CHROMIUM],
+            "--revision", "123455"]
     if force: args.append("-f")
     if manual: args.append("-m")
     else: args += ["-r", "reviewer@chromium.org"]

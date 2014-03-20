@@ -72,6 +72,18 @@ class FreshBranch(Step):
     self.GitCreateBranch(self.Config(BRANCHNAME), "svn/bleeding_edge")
 
 
+class PreparePushRevision(Step):
+  MESSAGE = "Check which revision to push."
+
+  def RunStep(self):
+    if self._options.revision:
+      self["push_hash"] = self.GitSVNFindGitHash(self._options.revision)
+    else:
+      self["push_hash"] = self.GitLog(n=1, format="%H", git_hash="HEAD")
+    if not self["push_hash"]:  # pragma: no cover
+      self.Die("Could not determine the git hash for the push.")
+
+
 class DetectLastPush(Step):
   MESSAGE = "Detect commit ID of last push to trunk."
 
@@ -105,6 +117,9 @@ class DetectLastPush(Step):
     self["last_push_trunk"] = last_push
     # This points to the last bleeding_edge revision that went into the last
     # push.
+    # TODO(machenbach): Do we need a check to make sure we're not pushing a
+    # revision older than the last push? If we do this, the output of the
+    # current change log preparation won't make much sense.
     self["last_push_bleeding_edge"] = last_push_bleeding_edge
 
 
@@ -161,9 +176,9 @@ class PrepareChangeLog(Step):
     self["date"] = self.GetDate()
     output = "%s: Version %s\n\n" % (self["date"], self["version"])
     TextToFile(output, self.Config(CHANGELOG_ENTRY_FILE))
-    # TODO(machenbach): Retrieve the push hash also from a command-line option.
     commits = self.GitLog(format="%H",
-        git_hash="%s..HEAD" % self["last_push_bleeding_edge"])
+        git_hash="%s..%s" % (self["last_push_bleeding_edge"],
+                             self["push_hash"]))
 
     # Cache raw commit messages.
     commit_messages = [
@@ -219,8 +234,6 @@ class StragglerCommits(Step):
   def RunStep(self):
     self.GitSVNFetch()
     self.GitCheckout("svn/bleeding_edge")
-    # TODO(machenbach): Retrieve the push hash also from a command-line option.
-    self["push_hash"] = self.GitLog(n=1, format="%H", git_hash="HEAD")
 
 
 class SquashCommits(Step):
@@ -478,6 +491,8 @@ class PushToTrunk(ScriptsBase):
                               "directory to automate the V8 roll."))
     parser.add_argument("-l", "--last-push",
                         help="The git commit ID of the last push to trunk.")
+    parser.add_argument("-R", "--revision",
+                        help="The svn revision to push (defaults to HEAD).")
 
   def _ProcessOptions(self, options):  # pragma: no cover
     if not options.manual and not options.reviewer:
@@ -489,6 +504,10 @@ class PushToTrunk(ScriptsBase):
     if not options.manual and not options.author:
       print "Specify your chromium.org email with -a in (semi-)automatic mode."
       return False
+    if options.revision and not int(options.revision) > 0:
+      print("The --revision flag must be a positiv integer pointing to a "
+            "valid svn revision.")
+      return False
 
     options.tbr_commit = not options.manual
     return True
@@ -497,6 +516,7 @@ class PushToTrunk(ScriptsBase):
     return [
       Preparation,
       FreshBranch,
+      PreparePushRevision,
       DetectLastPush,
       IncrementVersion,
       PrepareChangeLog,
