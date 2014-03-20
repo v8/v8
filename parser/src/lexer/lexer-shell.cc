@@ -52,8 +52,8 @@ enum Encoding {
   LATIN1,
   UTF8,
   UTF16,
-  UTF8TO16,  // Convert stream via scanner input stream
-  UTF8TOLATIN1,  // Convert stream via scanner input stream
+  UTF8TO16,
+  UTF8TOLATIN1,
 };
 
 
@@ -296,13 +296,18 @@ class TokenWithLocation {
 };
 
 
+typedef std::vector<TokenWithLocation*> TokenVector;
+
+
 static TimeDelta RunLexer(const uint16_t* source,
                           const uint8_t* source_end,
                           Isolate* isolate,
                           Encoding output_encoding,
-                          const LexerShellSettings& settings) {
+                          const LexerShellSettings& settings,
+                          TokenVector* tokens) {
   SmartPointer<Utf16CharacterStream> stream;
   const uint8_t* one_byte_source = reinterpret_cast<const uint8_t*>(source);
+  CHECK_GE(source_end - one_byte_source, 0);
   int bytes = source_end - one_byte_source;
   switch (output_encoding) {
     case UTF8:
@@ -332,7 +337,6 @@ static TimeDelta RunLexer(const uint16_t* source,
   scanner.SetHarmonyModules(settings.harmony_modules);
   scanner.SetHarmonyScoping(settings.harmony_scoping);
   ElapsedTimer timer;
-  std::vector<TokenWithLocation*> tokens;
   timer.Start();
   scanner.Initialize(stream.get());
   Token::Value token;
@@ -343,49 +347,55 @@ static TimeDelta RunLexer(const uint16_t* source,
       literal = scanner.AllocateInternalizedString(isolate);
     }
     if (settings.print_tokens) {
-      tokens.push_back(new TokenWithLocation(token, &scanner, literal));
+      tokens->push_back(new TokenWithLocation(token, &scanner, literal));
     }
     if (token == Token::ILLEGAL && settings.break_after_illegal) break;
   } while (token != Token::EOS);
-  TimeDelta elapsed = timer.Elapsed();
-  // Dump tokens.
-  if (settings.print_tokens) {
-    if (!settings.print_tokens_for_compare) {
-      printf("No of tokens:\t%d\n", static_cast<int>(tokens.size()));
-    }
-    for (size_t i = 0; i < tokens.size(); ++i) {
-      tokens[i]->Print(settings.print_tokens_for_compare);
-    }
-  }
-  for (size_t i = 0; i < tokens.size(); ++i) {
-    delete tokens[i];
-  }
-  return elapsed;
+  return timer.Elapsed();
 }
 
 
-static TimeDelta ProcessFile(
-    Isolate* isolate,
-    const LexerShellSettings& settings,
-    const FileData& file_data,
-    int truncate_by,
-    bool* can_truncate) {
-  if (settings.print_tokens && !settings.print_tokens_for_compare) {
-    printf("Processing file %s, truncating by %d bytes\n",
-           file_data.file_name, truncate_by);
-  }
+static void Run(const LexerShellSettings& settings,
+                const FileData& file_data) {
+  Isolate* isolate = Isolate::Current();
   HandleScope handle_scope(isolate);
-  const uint16_t* buffer = file_data.data;
-  const uint8_t* char_data = reinterpret_cast<const uint8_t*>(buffer);
-  const uint8_t* buffer_end = &char_data[file_data.length_in_bytes];
-  TimeDelta time;
-  if (truncate_by > buffer_end - char_data) {
-    *can_truncate = false;
-  } else {
-    buffer_end -= truncate_by;
-    time = RunLexer(buffer, buffer_end, isolate, file_data.encoding, settings);
+  v8::Context::Scope scope(v8::Context::New(v8::Isolate::GetCurrent()));
+  double total_time = 0;
+  std::vector<TokenWithLocation*> tokens;
+  const uint16_t* const buffer = file_data.data;
+  const uint8_t* const char_data = reinterpret_cast<const uint8_t*>(buffer);
+  for (unsigned truncate_by = 0;
+       truncate_by <= file_data.length_in_bytes;
+       truncate_by += file_data.encoding == UTF16 ? 2 : 1) {
+    if (settings.print_tokens && !settings.print_tokens_for_compare) {
+      printf("Processing file %s, truncating by %d bytes\n",
+             file_data.file_name, truncate_by);
+    }
+    HandleScope handle_scope(isolate);
+    const uint8_t* buffer_end =
+      &char_data[file_data.length_in_bytes] - truncate_by;
+    TimeDelta delta = RunLexer(
+        buffer, buffer_end, isolate, file_data.encoding, settings, &tokens);
+    total_time += delta.InMillisecondsF();
+    // Dump tokens.
+    if (settings.print_tokens) {
+      if (!settings.print_tokens_for_compare) {
+        printf("No of tokens:\t%d\n", static_cast<int>(tokens.size()));
+      }
+      for (size_t i = 0; i < tokens.size(); ++i) {
+        tokens[i]->Print(settings.print_tokens_for_compare);
+      }
+    }
+    // Destroy tokens.
+    for (size_t i = 0; i < tokens.size(); ++i) {
+      delete tokens[i];
+    }
+    tokens.clear();
+    if (!settings.eos_test) break;
   }
-  return time;
+  if (!settings.print_tokens_for_compare) {
+    printf("RunTime: %.f ms\n", total_time);
+  }
 }
 
 
@@ -418,20 +428,12 @@ int main(int argc, char* argv[]) {
     } else if (strcmp(argv[i], "--print-tokens-for-compare") == 0) {
       settings.print_tokens = true;
       settings.print_tokens_for_compare = true;
-    } else if (strcmp(argv[i], "--no-baseline") == 0) {
-      // Ignore.
-    } else if (strcmp(argv[i], "--no-experimental") == 0) {
-      // Ignore.
-    } else if (strcmp(argv[i], "--no-check") == 0) {
-      // Ignore.
     } else if (strcmp(argv[i], "--break-after-illegal") == 0) {
       settings.break_after_illegal = true;
     } else if (strcmp(argv[i], "--use-harmony") == 0) {
       settings.harmony_numeric_literals = true;
       settings.harmony_modules = true;
       settings.harmony_scoping = true;
-    } else if (strncmp(argv[i], "--benchmark=", 12) == 0) {
-      // Ignore.
     } else if (strncmp(argv[i], "--repeat=", 9) == 0) {
       std::string repeat_str = std::string(argv[i]).substr(9);
       settings.repeat = atoi(repeat_str.c_str());
@@ -443,29 +445,7 @@ int main(int argc, char* argv[]) {
   }
   CHECK_NE(0, file_name.size());
   FileData file_data = ReadFile(file_name.c_str(), settings);
-  {
-    v8::Isolate* isolate = v8::Isolate::GetCurrent();
-    v8::HandleScope handle_scope(isolate);
-    v8::Local<v8::Context> context = v8::Context::New(isolate);
-    CHECK(!context.IsEmpty());
-    v8::Context::Scope scope(context);
-    Isolate* internal_isolate = Isolate::Current();
-    double total_time = 0;
-    bool can_truncate = settings.eos_test;
-    int truncate_by = 0;
-    do {
-      TimeDelta t = ProcessFile(internal_isolate,
-                                settings,
-                                file_data,
-                                truncate_by,
-                                &can_truncate);
-      total_time += t.InMillisecondsF();
-      ++truncate_by;
-    } while (can_truncate);
-    if (!settings.print_tokens_for_compare) {
-      printf("RunTime: %.f ms\n", total_time);
-    }
-  }
+  Run(settings, file_data);
   delete[] file_data.data;
   v8::V8::Dispose();
   return 0;
