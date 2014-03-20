@@ -347,7 +347,7 @@ DEFINE_int(concurrent_recompilation_delay, 0,
            "artificial compilation delay in ms")
 DEFINE_bool(block_concurrent_recompilation, false,
             "block queued jobs until released")
-DEFINE_bool(concurrent_osr, false,
+DEFINE_bool(concurrent_osr, true,
             "concurrent on-stack replacement")
 DEFINE_implication(concurrent_osr, concurrent_recompilation)
 
