@@ -3288,6 +3288,14 @@ bool Heap::CreateInitialObjects() {
   }
   set_undefined_cell(Cell::cast(obj));
 
+  // Allocate objects to hold symbol registry.
+  { MaybeObject* maybe_obj = AllocateMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
+    if (!maybe_obj->ToObject(&obj)) return false;
+    maybe_obj = AllocateJSObjectFromMap(Map::cast(obj));
+    if (!maybe_obj->ToObject(&obj)) return false;
+  }
+  set_symbol_registry(JSObject::cast(obj));
+
   // Allocate object to hold object observation state.
   { MaybeObject* maybe_obj = AllocateMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
     if (!maybe_obj->ToObject(&obj)) return false;
