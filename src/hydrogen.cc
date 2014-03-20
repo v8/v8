@@ -1791,19 +1791,13 @@ HAllocate* HGraphBuilder::BuildAllocate(
 
 HValue* HGraphBuilder::BuildAddStringLengths(HValue* left_length,
                                              HValue* right_length) {
-  // Compute the combined string length. If the result is larger than the max
-  // supported string length, we bailout to the runtime. This is done implicitly
-  // when converting the result back to a smi in case the max string length
-  // equals the max smi value. Otherwise, for platforms with 32-bit smis, we do
+  // Compute the combined string length and check against max string length.
   HValue* length = AddUncasted<HAdd>(left_length, right_length);
-  STATIC_ASSERT(String::kMaxLength <= Smi::kMaxValue);
-  if (String::kMaxLength != Smi::kMaxValue) {
-    IfBuilder if_nooverflow(this);
-    if_nooverflow.If<HCompareNumericAndBranch>(
-        length, Add<HConstant>(String::kMaxLength), Token::LTE);
-    if_nooverflow.Then();
-    if_nooverflow.ElseDeopt("String length exceeds limit");
-  }
+  IfBuilder if_nooverflow(this);
+  if_nooverflow.If<HCompareNumericAndBranch>(
+      length, Add<HConstant>(String::kMaxLength), Token::LTE);
+  if_nooverflow.Then();
+  if_nooverflow.ElseDeopt("String length exceeds limit");
   return length;
 }
 
