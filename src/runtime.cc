@@ -1686,6 +1686,14 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetPrototype) {
   ASSERT(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, obj, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, prototype, 1);
+  if (obj->IsAccessCheckNeeded() &&
+      !isolate->MayNamedAccessWrapper(obj,
+                                      isolate->factory()->proto_string(),
+                                      v8::ACCESS_SET)) {
+    isolate->ReportFailedAccessCheckWrapper(obj, v8::ACCESS_SET);
+    RETURN_IF_SCHEDULED_EXCEPTION(isolate);
+    return isolate->heap()->undefined_value();
+  }
   if (obj->map()->is_observed()) {
     Handle<Object> old_value(
         GetPrototypeSkipHiddenPrototypes(isolate, *obj), isolate);
