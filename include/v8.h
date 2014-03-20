@@ -4121,8 +4121,7 @@ class V8_EXPORT Isolate {
    public:
     enum OnFailure { CRASH_ON_FAILURE, THROW_ON_FAILURE };
 
-    explicit DisallowJavascriptExecutionScope(Isolate* isolate,
-                                              OnFailure on_failure);
+    DisallowJavascriptExecutionScope(Isolate* isolate, OnFailure on_failure);
     ~DisallowJavascriptExecutionScope();
 
    private:
