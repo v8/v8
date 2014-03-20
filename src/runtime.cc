@@ -13042,20 +13042,20 @@ static int DebugReferencedBy(HeapIterator* iterator,
 // args[1]: constructor function for instances to exclude (Mirror)
 // args[2]: the the maximum number of objects to return
 RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugReferencedBy) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 3);
 
   // First perform a full GC in order to avoid references from dead objects.
-  isolate->heap()->CollectAllGarbage(Heap::kMakeHeapIterableMask,
-                                     "%DebugReferencedBy");
+  Heap* heap = isolate->heap();
+  heap->CollectAllGarbage(Heap::kMakeHeapIterableMask, "%DebugReferencedBy");
   // The heap iterator reserves the right to do a GC to make the heap iterable.
   // Due to the GC above we know it won't need to do that, but it seems cleaner
   // to get the heap iterator constructed before we start having unprotected
   // Object* locals that are not protected by handles.
 
   // Check parameters.
-  CONVERT_ARG_CHECKED(JSObject, target, 0);
-  Object* instance_filter = args[1];
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, target, 0);
+  Handle<Object> instance_filter = args.at<Object>(1);
   RUNTIME_ASSERT(instance_filter->IsUndefined() ||
                  instance_filter->IsJSObject());
   CONVERT_NUMBER_CHECKED(int32_t, max_references, Int32, args[2]);
@@ -13063,40 +13063,36 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugReferencedBy) {
 
 
   // Get the constructor function for context extension and arguments array.
-  JSObject* arguments_boilerplate =
-      isolate->context()->native_context()->sloppy_arguments_boilerplate();
-  JSFunction* arguments_function =
-      JSFunction::cast(arguments_boilerplate->map()->constructor());
+  Handle<JSObject> arguments_boilerplate(
+      isolate->context()->native_context()->sloppy_arguments_boilerplate());
+  Handle<JSFunction> arguments_function(
+      JSFunction::cast(arguments_boilerplate->map()->constructor()));
 
   // Get the number of referencing objects.
   int count;
-  Heap* heap = isolate->heap();
   HeapIterator heap_iterator(heap);
   count = DebugReferencedBy(&heap_iterator,
-                            target, instance_filter, max_references,
-                            NULL, 0, arguments_function);
+                            *target, *instance_filter, max_references,
+                            NULL, 0, *arguments_function);
 
   // Allocate an array to hold the result.
-  Object* object;
-  { MaybeObject* maybe_object = heap->AllocateFixedArray(count);
-    if (!maybe_object->ToObject(&object)) return maybe_object;
-  }
-  FixedArray* instances = FixedArray::cast(object);
+  Handle<FixedArray> instances = isolate->factory()->NewFixedArray(count);
 
   // Fill the referencing objects.
   // AllocateFixedArray above does not make the heap non-iterable.
   ASSERT(heap->IsHeapIterable());
   HeapIterator heap_iterator2(heap);
   count = DebugReferencedBy(&heap_iterator2,
-                            target, instance_filter, max_references,
-                            instances, count, arguments_function);
+                            *target, *instance_filter, max_references,
+                            *instances, count, *arguments_function);
 
   // Return result as JS array.
-  Object* result;
-  MaybeObject* maybe_result = heap->AllocateJSObject(
+  Handle<JSFunction> constructor(
       isolate->context()->native_context()->array_function());
-  if (!maybe_result->ToObject(&result)) return maybe_result;
-  return JSArray::cast(result)->SetContent(instances);
+
+  Handle<JSObject> result = isolate->factory()->NewJSObject(constructor);
+  isolate->factory()->SetContent(Handle<JSArray>::cast(result), instances);
+  return *result;
 }
 
 
@@ -13136,7 +13132,7 @@ static int DebugConstructedBy(HeapIterator* iterator,
 // args[0]: the constructor to find instances of
 // args[1]: the the maximum number of objects to return
 RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugConstructedBy) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 2);
 
   // First perform a full GC in order to avoid dead objects.
@@ -13144,7 +13140,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugConstructedBy) {
   heap->CollectAllGarbage(Heap::kMakeHeapIterableMask, "%DebugConstructedBy");
 
   // Check parameters.
-  CONVERT_ARG_CHECKED(JSFunction, constructor, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, constructor, 0);
   CONVERT_NUMBER_CHECKED(int32_t, max_references, Int32, args[1]);
   RUNTIME_ASSERT(max_references >= 0);
 
@@ -13152,34 +13148,29 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugConstructedBy) {
   int count;
   HeapIterator heap_iterator(heap);
   count = DebugConstructedBy(&heap_iterator,
-                             constructor,
+                             *constructor,
                              max_references,
                              NULL,
                              0);
 
   // Allocate an array to hold the result.
-  Object* object;
-  { MaybeObject* maybe_object = heap->AllocateFixedArray(count);
-    if (!maybe_object->ToObject(&object)) return maybe_object;
-  }
-  FixedArray* instances = FixedArray::cast(object);
+  Handle<FixedArray> instances = isolate->factory()->NewFixedArray(count);
 
-  ASSERT(isolate->heap()->IsHeapIterable());
+  ASSERT(heap->IsHeapIterable());
   // Fill the referencing objects.
   HeapIterator heap_iterator2(heap);
   count = DebugConstructedBy(&heap_iterator2,
-                             constructor,
+                             *constructor,
                              max_references,
-                             instances,
+                             *instances,
                              count);
 
   // Return result as JS array.
-  Object* result;
-  { MaybeObject* maybe_result = isolate->heap()->AllocateJSObject(
+  Handle<JSFunction> array_function(
       isolate->context()->native_context()->array_function());
-    if (!maybe_result->ToObject(&result)) return maybe_result;
-  }
-  return JSArray::cast(result)->SetContent(instances);
+  Handle<JSObject> result = isolate->factory()->NewJSObject(array_function);
+  isolate->factory()->SetContent(Handle<JSArray>::cast(result), instances);
+  return *result;
 }
 
 
