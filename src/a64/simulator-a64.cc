@@ -3623,9 +3623,12 @@ void Simulator::VisitException(Instruction* instr) {
           result = fprintf(stream_, "%s", format);
         }
         fputs(clr_normal, stream_);
-        set_xreg(0, result);
 
-        // TODO(jbramley): Consider clobbering all caller-saved registers here.
+#ifdef DEBUG
+        CorruptAllCallerSavedCPURegisters();
+#endif
+
+        set_xreg(0, result);
 
         // The printf parameters are inlined in the code, so skip them.
         set_pc(pc_->InstructionAtOffset(kPrintfLength));
