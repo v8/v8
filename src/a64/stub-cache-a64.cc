@@ -461,16 +461,11 @@ void StoreStubCompiler::GenerateStoreTransition(MacroAssembler* masm,
   // TODO(verwaest): Share this code as a code stub.
   SmiCheck smi_check = representation.IsTagged()
       ? INLINE_SMI_CHECK : OMIT_SMI_CHECK;
+  Register prop_reg = representation.IsDouble() ? storage_reg : value_reg;
   if (index < 0) {
     // Set the property straight into the object.
     int offset = object->map()->instance_size() + (index * kPointerSize);
-    // TODO(jbramley): This construct appears in several places in this
-    // function. Try to clean it up, perhaps using a result_reg.
-    if (representation.IsDouble()) {
-      __ Str(storage_reg, FieldMemOperand(receiver_reg, offset));
-    } else {
-      __ Str(value_reg, FieldMemOperand(receiver_reg, offset));
-    }
+    __ Str(prop_reg, FieldMemOperand(receiver_reg, offset));
 
     if (!representation.IsSmi()) {
       // Update the write barrier for the array address.
@@ -492,11 +487,7 @@ void StoreStubCompiler::GenerateStoreTransition(MacroAssembler* masm,
     // Get the properties array
     __ Ldr(scratch1,
            FieldMemOperand(receiver_reg, JSObject::kPropertiesOffset));
-    if (representation.IsDouble()) {
-      __ Str(storage_reg, FieldMemOperand(scratch1, offset));
-    } else {
-      __ Str(value_reg, FieldMemOperand(scratch1, offset));
-    }
+    __ Str(prop_reg, FieldMemOperand(scratch1, offset));
 
     if (!representation.IsSmi()) {
       // Update the write barrier for the array address.
