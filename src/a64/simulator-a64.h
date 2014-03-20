@@ -833,7 +833,6 @@ class Simulator : public DecoderVisitor {
   static const intptr_t stack_protection_size_ = KB;
   intptr_t stack_size_;
   byte* stack_limit_;
-  // TODO(aleram): protect the stack.
 
   Decoder<DispatchingDecoderVisitor>* decoder_;
   Decoder<DispatchingDecoderVisitor>* disassembler_decoder_;

@@ -359,12 +359,7 @@ uintptr_t Simulator::PopAddress() {
 uintptr_t Simulator::StackLimit() const {
   // Leave a safety margin of 1024 bytes to prevent overrunning the stack when
   // pushing values.
-  // TODO(all): Increase the stack limit protection.
-
-  // The margin was decreased to 256 bytes, because we are intensively using
-  // the stack. The stack usage should decrease when our code improves. Then
-  // we can set it to 1024 again.
-  return reinterpret_cast<uintptr_t>(stack_limit_) + 256;
+  return reinterpret_cast<uintptr_t>(stack_limit_) + 1024;
 }
 
 
