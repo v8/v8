@@ -392,8 +392,11 @@ static MemOperand GenerateMappedArgumentsLookup(MacroAssembler* masm,
   // Load value from context and return it.
   __ Ldr(scratch2, FieldMemOperand(map, FixedArray::kHeaderSize));
   __ SmiUntag(scratch1);
-  __ Add(scratch2, scratch2, Context::kHeaderSize - kHeapObjectTag);
-  return MemOperand(scratch2, scratch1, LSL, kPointerSizeLog2);
+  __ Lsl(scratch1, scratch1, kPointerSizeLog2);
+  __ Add(scratch1, scratch1, Context::kHeaderSize - kHeapObjectTag);
+  // The base of the result (scratch2) is passed to RecordWrite in
+  // KeyedStoreIC::GenerateSloppyArguments and it must be a HeapObject.
+  return MemOperand(scratch2, scratch1);
 }
 
 
