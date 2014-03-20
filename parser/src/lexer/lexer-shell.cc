@@ -80,10 +80,18 @@ struct LexerShellSettings {
 };
 
 
+struct FileData {
+  const char* file_name;
+  unsigned length_in_bytes;
+  Encoding encoding;
+  const uint16_t* data;
+};
+
+
 static uint16_t* ConvertUtf8ToUtf16(const uint16_t* const data_in,
-                                    unsigned* length,
+                                    unsigned* length_in_bytes,
                                     bool* is_one_byte) {
-  const unsigned file_size = *length;
+  const unsigned file_size = *length_in_bytes;
   const uint8_t* char_data = reinterpret_cast<const uint8_t*>(data_in);
   const uint32_t kMaxUtf16Character = 0xffff;
   // Get utf8 length.
@@ -128,38 +136,38 @@ static uint16_t* ConvertUtf8ToUtf16(const uint16_t* const data_in,
       data[i++] = static_cast<uc16>(c);
     }
   }
-  *length = 2 * utf16_chars;
+  *length_in_bytes = 2 * utf16_chars;
   return data;
 }
 
 
 static uint16_t* ConvertUtf16ToLatin1(const uint16_t* const data_in,
-                                      unsigned* length) {
-  const unsigned size = *length / 2 + *length % 2;
+                                      unsigned* length_in_bytes) {
+  const unsigned size = *length_in_bytes / 2 + *length_in_bytes % 2;
   uint16_t* data = new uint16_t[size];
   uint8_t* char_data = reinterpret_cast<uint8_t*>(data);
   CopyChars(char_data, data_in, size);
-  *length = size;
+  *length_in_bytes = size;
   return data;
 }
 
 
 static uint16_t* Repeat(int repeat,
                         const uint16_t* const data_in,
-                        unsigned* length) {
-  const unsigned file_size = *length;
+                        unsigned* length_in_bytes) {
+  const unsigned file_size = *length_in_bytes;
   unsigned size = file_size * repeat;
   uint16_t* data = new uint16_t[size / 2 + size % 2];
   uint8_t* char_data = reinterpret_cast<uint8_t*>(data);
   for (int i = 0; i < repeat; i++) {
     memcpy(&char_data[i * file_size], data_in, file_size);
   }
-  *length = size;
+  *length_in_bytes = size;
   return data;
 }
 
 
-static uint16_t* ReadFile(const char* name, unsigned* length) {
+static uint16_t* ReadFile(const char* name, unsigned* length_in_bytes) {
   FILE* file = fopen(name, "rb");
   CHECK(file != NULL);
   // Get file size.
@@ -173,47 +181,50 @@ static uint16_t* ReadFile(const char* name, unsigned* length) {
     i += fread(&char_data[i], 1, file_size - i, file);
   }
   fclose(file);
-  *length = file_size;
+  *length_in_bytes = file_size;
   return data;
 }
 
 
-static uint16_t* ReadFile(const char* name,
-                          const LexerShellSettings& settings,
-                          unsigned* length,
-                          Encoding* output_encoding) {
-  uint16_t* data = ReadFile(name, length);
-  CHECK_GE(*length, 0);
-  if (*length == 0) return data;
+static FileData ReadFile(const char* file_name,
+                         const LexerShellSettings& settings) {
+  unsigned length_in_bytes;
+  uint16_t* data = ReadFile(file_name, &length_in_bytes);
+  CHECK_GE(length_in_bytes, 0);
 
-  *output_encoding = settings.encoding;
-
-  if (settings.encoding == UTF8TO16 ||
-      settings.encoding == UTF8TOLATIN1) {
+  Encoding encoding = settings.encoding;
+  if (encoding == UTF8TO16 || encoding == UTF8TOLATIN1) {
     bool is_one_byte;
-    uint16_t* new_data = ConvertUtf8ToUtf16(data, length, &is_one_byte);
-    if (settings.encoding == UTF8TOLATIN1 && is_one_byte) {
-      *output_encoding = LATIN1;
+    uint16_t* new_data = ConvertUtf8ToUtf16(
+        data, &length_in_bytes, &is_one_byte);
+    if (encoding == UTF8TOLATIN1 && is_one_byte) {
+      encoding = LATIN1;
     } else {
-      *output_encoding = UTF16;
+      encoding = UTF16;
     }
     delete data;
     data = new_data;
   }
 
-  if (settings.encoding == UTF8TOLATIN1 && *output_encoding == LATIN1) {
-    uint16_t* new_data = ConvertUtf16ToLatin1(data, length);
+  if (settings.encoding == UTF8TOLATIN1 && encoding == LATIN1) {
+    uint16_t* new_data = ConvertUtf16ToLatin1(data, &length_in_bytes);
     delete data;
     data = new_data;
   }
 
   if (settings.repeat > 1) {
-    uint16_t* new_data = Repeat(settings.repeat, data, length);
+    uint16_t* new_data = Repeat(settings.repeat, data, &length_in_bytes);
     delete data;
     data = new_data;
   }
 
-  return data;
+  FileData file_data;
+  file_data.file_name = file_name;
+  file_data.data = data;
+  file_data.length_in_bytes = length_in_bytes;
+  file_data.encoding = encoding;
+
+  return file_data;
 }
 
 
@@ -336,6 +347,7 @@ static TimeDelta RunLexer(const uint16_t* source,
     }
     if (token == Token::ILLEGAL && settings.break_after_illegal) break;
   } while (token != Token::EOS);
+  TimeDelta elapsed = timer.Elapsed();
   // Dump tokens.
   if (settings.print_tokens) {
     if (!settings.print_tokens_for_compare) {
@@ -348,37 +360,31 @@ static TimeDelta RunLexer(const uint16_t* source,
   for (size_t i = 0; i < tokens.size(); ++i) {
     delete tokens[i];
   }
-  return timer.Elapsed();
+  return elapsed;
 }
 
 
 static TimeDelta ProcessFile(
-    const char* fname,
     Isolate* isolate,
     const LexerShellSettings& settings,
+    const FileData& file_data,
     int truncate_by,
     bool* can_truncate) {
   if (settings.print_tokens && !settings.print_tokens_for_compare) {
-    printf("Processing file %s, truncating by %d bytes\n", fname, truncate_by);
+    printf("Processing file %s, truncating by %d bytes\n",
+           file_data.file_name, truncate_by);
   }
   HandleScope handle_scope(isolate);
+  const uint16_t* buffer = file_data.data;
+  const uint8_t* char_data = reinterpret_cast<const uint8_t*>(buffer);
+  const uint8_t* buffer_end = &char_data[file_data.length_in_bytes];
   TimeDelta time;
-  {
-    unsigned length_in_bytes;
-    Encoding output_encoding;
-    const uint16_t* buffer =
-        ReadFile(fname, settings, &length_in_bytes, &output_encoding);
-    const uint8_t* char_data = reinterpret_cast<const uint8_t*>(buffer);
-    const uint8_t* buffer_end = &char_data[length_in_bytes];
-    if (truncate_by > buffer_end - char_data) {
-      *can_truncate = false;
-    } else {
-      buffer_end -= truncate_by;
-      time = RunLexer(buffer, buffer_end, isolate, output_encoding, settings);
-    }
-    delete[] buffer;
+  if (truncate_by > buffer_end - char_data) {
+    *can_truncate = false;
+  } else {
+    buffer_end -= truncate_by;
+    time = RunLexer(buffer, buffer_end, isolate, file_data.encoding, settings);
   }
-
   return time;
 }
 
@@ -386,7 +392,7 @@ static TimeDelta ProcessFile(
 int main(int argc, char* argv[]) {
   v8::V8::InitializeICU();
   v8::V8::SetFlagsFromCommandLine(&argc, argv, true);
-  std::vector<std::string> fnames;
+  std::string file_name;
   LexerShellSettings settings;
   for (int i = 0; i < argc; ++i) {
     if (strcmp(argv[i], "--latin1") == 0) {
@@ -432,9 +438,11 @@ int main(int argc, char* argv[]) {
     } else if (strcmp(argv[i], "--eos-test") == 0) {
       settings.eos_test = true;
     } else if (i > 0 && argv[i][0] != '-') {
-      fnames.push_back(std::string(argv[i]));
+      file_name = std::string(argv[i]);
     }
   }
+  CHECK_NE(0, file_name.size());
+  FileData file_data = ReadFile(file_name.c_str(), settings);
   {
     v8::Isolate* isolate = v8::Isolate::GetCurrent();
     v8::HandleScope handle_scope(isolate);
@@ -443,24 +451,22 @@ int main(int argc, char* argv[]) {
     v8::Context::Scope scope(context);
     Isolate* internal_isolate = Isolate::Current();
     double total_time = 0;
-    for (size_t i = 0; i < fnames.size(); i++) {
-      std::pair<TimeDelta, TimeDelta> times;
-      bool can_truncate = settings.eos_test;
-      int truncate_by = 0;
-      do {
-        TimeDelta t = ProcessFile(fnames[i].c_str(),
-                                  internal_isolate,
-                                  settings,
-                                  truncate_by,
-                                  &can_truncate);
-        total_time += t.InMillisecondsF();
-        ++truncate_by;
-      } while (can_truncate);
-    }
+    bool can_truncate = settings.eos_test;
+    int truncate_by = 0;
+    do {
+      TimeDelta t = ProcessFile(internal_isolate,
+                                settings,
+                                file_data,
+                                truncate_by,
+                                &can_truncate);
+      total_time += t.InMillisecondsF();
+      ++truncate_by;
+    } while (can_truncate);
     if (!settings.print_tokens_for_compare) {
       printf("RunTime: %.f ms\n", total_time);
     }
   }
+  delete[] file_data.data;
   v8::V8::Dispose();
   return 0;
 }
