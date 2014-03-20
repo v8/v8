@@ -1427,24 +1427,30 @@ LInstruction* LChunkBuilder::DoFlooringDivByConstI(HMathFloorOfDiv* instr) {
   int32_t divisor = instr->right()->GetInteger32Constant();
   LOperand* temp1 = FixedTemp(eax);
   LOperand* temp2 = FixedTemp(edx);
+  LOperand* temp3 =
+      ((divisor > 0 && !instr->CheckFlag(HValue::kLeftCanBeNegative)) ||
+       (divisor < 0 && !instr->CheckFlag(HValue::kLeftCanBePositive))) ?
+      NULL : TempRegister();
   LInstruction* result =
       DefineFixed(new(zone()) LFlooringDivByConstI(dividend,
                                                    divisor,
                                                    temp1,
-                                                   temp2),
+                                                   temp2,
+                                                   temp3),
                   edx);
-  bool can_deopt =
-      divisor == 0 ||
-      (instr->CheckFlag(HValue::kBailoutOnMinusZero) && divisor < 0);
-  return can_deopt ? AssignEnvironment(result) : result;
+  if (divisor == 0 ||
+      (instr->CheckFlag(HValue::kBailoutOnMinusZero) && divisor < 0)) {
+    result = AssignEnvironment(result);
+  }
+  return result;
 }
 
 
 LInstruction* LChunkBuilder::DoMathFloorOfDiv(HMathFloorOfDiv* instr) {
   if (instr->RightIsPowerOf2()) {
     return DoFlooringDivByPowerOf2I(instr);
-  } else if (false && instr->right()->IsConstant()) {
-    return DoFlooringDivByConstI(instr);  // TODO(svenpanne) Fix and re-enable.
+  } else if (instr->right()->IsConstant()) {
+    return DoFlooringDivByConstI(instr);
   } else {
     return DoDivI(instr);
   }

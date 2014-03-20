@@ -1833,6 +1833,14 @@ Range* HMathFloorOfDiv::InferRange(Zone* zone) {
       ClearFlag(kLeftCanBeMinInt);
     }
 
+    if (!a->CanBeNegative()) {
+      ClearFlag(HValue::kLeftCanBeNegative);
+    }
+
+    if (!a->CanBePositive()) {
+      ClearFlag(HValue::kLeftCanBePositive);
+    }
+
     if (!a->Includes(kMinInt) || !b->Includes(-1)) {
       ClearFlag(kCanOverflow);
     }

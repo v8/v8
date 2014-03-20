@@ -1665,8 +1665,31 @@ void LCodeGen::DoFlooringDivByConstI(LFlooringDivByConstI* instr) {
     DeoptimizeIf(zero, instr->environment());
   }
 
-  // TODO(svenpanne) Add correction terms.
-  __ TruncatingDiv(dividend, divisor);
+  // Easy case: We need no dynamic check for the dividend and the flooring
+  // division is the same as the truncating division.
+  if ((divisor > 0 && !hdiv->CheckFlag(HValue::kLeftCanBeNegative)) ||
+      (divisor < 0 && !hdiv->CheckFlag(HValue::kLeftCanBePositive))) {
+    __ TruncatingDiv(dividend, Abs(divisor));
+    if (divisor < 0) __ neg(edx);
+    return;
+  }
+
+  // In the general case we may need to adjust before and after the truncating
+  // division to get a flooring division.
+  Register temp = ToRegister(instr->temp3());
+  ASSERT(!temp.is(dividend) && !temp.is(eax) && !temp.is(edx));
+  Label needs_adjustment, done;
+  __ cmp(dividend, Immediate(0));
+  __ j(divisor > 0 ? less : greater, &needs_adjustment, Label::kNear);
+  __ TruncatingDiv(dividend, Abs(divisor));
+  if (divisor < 0) __ neg(edx);
+  __ jmp(&done, Label::kNear);
+  __ bind(&needs_adjustment);
+  __ lea(temp, Operand(dividend, divisor > 0 ? 1 : -1));
+  __ TruncatingDiv(temp, Abs(divisor));
+  if (divisor < 0) __ neg(edx);
+  __ dec(edx);
+  __ bind(&done);
 }
 
 

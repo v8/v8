@@ -778,22 +778,25 @@ class LFlooringDivByPowerOf2I V8_FINAL : public LTemplateInstruction<1, 1, 0> {
 };
 
 
-class LFlooringDivByConstI V8_FINAL : public LTemplateInstruction<1, 1, 2> {
+class LFlooringDivByConstI V8_FINAL : public LTemplateInstruction<1, 1, 3> {
  public:
   LFlooringDivByConstI(LOperand* dividend,
                        int32_t divisor,
                        LOperand* temp1,
-                       LOperand* temp2) {
+                       LOperand* temp2,
+                       LOperand* temp3) {
     inputs_[0] = dividend;
     divisor_ = divisor;
     temps_[0] = temp1;
     temps_[1] = temp2;
+    temps_[2] = temp3;
   }
 
   LOperand* dividend() { return inputs_[0]; }
   int32_t divisor() const { return divisor_; }
   LOperand* temp1() { return temps_[0]; }
   LOperand* temp2() { return temps_[1]; }
+  LOperand* temp3() { return temps_[2]; }
 
   DECLARE_CONCRETE_INSTRUCTION(FlooringDivByConstI, "flooring-div-by-const-i")
   DECLARE_HYDROGEN_ACCESSOR(MathFloorOfDiv)
