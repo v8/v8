@@ -4027,7 +4027,6 @@ void LCodeGen::DoMathRound(LMathRound* instr) {
   DoubleRegister temp1 = ToDoubleRegister(instr->temp1());
   Register result = ToRegister(instr->result());
   Label try_rounding;
-  Label deopt;
   Label done;
 
   // Math.round() rounds to the nearest integer, with ties going towards
@@ -4049,8 +4048,7 @@ void LCodeGen::DoMathRound(LMathRound* instr) {
 
   if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
     __ Fmov(result, input);
-    __ Cmp(result, 0);
-    DeoptimizeIf(mi, instr->environment());  // [-0.5, -0.0].
+    DeoptimizeIfNegative(result, instr->environment());  // [-0.5, -0.0].
   }
   __ Fcmp(input, dot_five);
   __ Mov(result, 1);  // +0.5.
@@ -4058,9 +4056,6 @@ void LCodeGen::DoMathRound(LMathRound* instr) {
   // flag kBailoutOnMinusZero, will return 0 (xzr).
   __ Csel(result, result, xzr, eq);
   __ B(&done);
-
-  __ Bind(&deopt);
-  Deoptimize(instr->environment());
 
   __ Bind(&try_rounding);
   // Since we're providing a 32-bit result, we can implement ties-to-infinity by
@@ -4076,7 +4071,7 @@ void LCodeGen::DoMathRound(LMathRound* instr) {
   //  * the result is not representable using a 32-bit integer.
   __ Fcmp(input, 0.0);
   __ Ccmp(result, Operand(result.W(), SXTW), NoFlag, vc);
-  __ B(ne, &deopt);
+  DeoptimizeIf(ne, instr->environment());
 
   __ Bind(&done);
 }
