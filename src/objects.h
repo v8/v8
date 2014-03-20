@@ -8904,7 +8904,7 @@ class String: public Name {
   static const int kEmptyStringHash = kIsNotArrayIndexMask;
 
   // Maximal string length.
-  static const int kMaxLength = (1 << (32 - 2)) - 1;
+  static const int kMaxLength = (1 << 28) - 16;
 
   // Max length for computing hash. For strings longer than this limit the
   // string length is used as the hash value.
@@ -9066,9 +9066,7 @@ class SeqOneByteString: public SeqString {
 
   // Maximal memory usage for a single sequential ASCII string.
   static const int kMaxSize = 512 * MB - 1;
-  // Maximal length of a single sequential ASCII string.
-  // Q.v. String::kMaxLength which is the maximal size of concatenated strings.
-  static const int kMaxLength = (kMaxSize - kHeaderSize);
+  STATIC_CHECK((kMaxSize - kHeaderSize) >= String::kMaxLength);
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(SeqOneByteString);
@@ -9108,9 +9106,8 @@ class SeqTwoByteString: public SeqString {
 
   // Maximal memory usage for a single sequential two-byte string.
   static const int kMaxSize = 512 * MB - 1;
-  // Maximal length of a single sequential two-byte string.
-  // Q.v. String::kMaxLength which is the maximal size of concatenated strings.
-  static const int kMaxLength = (kMaxSize - kHeaderSize) / sizeof(uint16_t);
+  STATIC_CHECK(static_cast<int>((kMaxSize - kHeaderSize)/sizeof(uint16_t)) >=
+               String::kMaxLength);
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(SeqTwoByteString);

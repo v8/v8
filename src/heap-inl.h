@@ -137,7 +137,7 @@ MaybeObject* Heap::AllocateInternalizedStringImpl(
 
 MaybeObject* Heap::AllocateOneByteInternalizedString(Vector<const uint8_t> str,
                                                      uint32_t hash_field) {
-  if (str.length() > SeqOneByteString::kMaxLength) {
+  if (str.length() > String::kMaxLength) {
     return Failure::OutOfMemoryException(0x2);
   }
   // Compute map and object size.
@@ -170,7 +170,7 @@ MaybeObject* Heap::AllocateOneByteInternalizedString(Vector<const uint8_t> str,
 
 MaybeObject* Heap::AllocateTwoByteInternalizedString(Vector<const uc16> str,
                                                      uint32_t hash_field) {
-  if (str.length() > SeqTwoByteString::kMaxLength) {
+  if (str.length() > String::kMaxLength) {
     return Failure::OutOfMemoryException(0x3);
   }
   // Compute map and object size.

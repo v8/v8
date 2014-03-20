@@ -7315,12 +7315,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SparseJoinWithSeparator) {
   // Find total length of join result.
   int string_length = 0;
   bool is_ascii = separator->IsOneByteRepresentation();
-  int max_string_length;
-  if (is_ascii) {
-    max_string_length = SeqOneByteString::kMaxLength;
-  } else {
-    max_string_length = SeqTwoByteString::kMaxLength;
-  }
   bool overflow = false;
   CONVERT_NUMBER_CHECKED(int, elements_length,
                          Int32, elements_array->length());
@@ -7333,10 +7327,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SparseJoinWithSeparator) {
     int length = string->length();
     if (is_ascii && !string->IsOneByteRepresentation()) {
       is_ascii = false;
-      max_string_length = SeqTwoByteString::kMaxLength;
     }
-    if (length > max_string_length ||
-        max_string_length - length < string_length) {
+    if (length > String::kMaxLength ||
+        String::kMaxLength - length < string_length) {
       overflow = true;
       break;
     }
@@ -7346,7 +7339,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SparseJoinWithSeparator) {
   if (!overflow && separator_length > 0) {
     if (array_length <= 0x7fffffffu) {
       int separator_count = static_cast<int>(array_length) - 1;
-      int remaining_length = max_string_length - string_length;
+      int remaining_length = String::kMaxLength - string_length;
       if ((remaining_length / separator_length) >= separator_count) {
         string_length += separator_length * (array_length - 1);
       } else {

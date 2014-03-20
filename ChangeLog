@@ -1,3 +1,8 @@
+2014-03-20: Version 3.25.21
+
+        Performance and stability improvements on all platforms.
+
+
 2014-03-20: Version 3.25.20
 
         Fix polymorphic keyed loads for SLOPPY_ARGUMENTS_ELEMENTS (Chromium

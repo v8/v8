@@ -4972,16 +4972,13 @@ MaybeObject* Heap::AllocateInternalizedStringImpl(
   int size;
   Map* map;
 
+  if (chars > String::kMaxLength) {
+    return Failure::OutOfMemoryException(0x9);
+  }
   if (is_one_byte) {
-    if (chars > SeqOneByteString::kMaxLength) {
-      return Failure::OutOfMemoryException(0x9);
-    }
     map = ascii_internalized_string_map();
     size = SeqOneByteString::SizeFor(chars);
   } else {
-    if (chars > SeqTwoByteString::kMaxLength) {
-      return Failure::OutOfMemoryException(0xa);
-    }
     map = internalized_string_map();
     size = SeqTwoByteString::SizeFor(chars);
   }
@@ -5023,7 +5020,7 @@ MaybeObject* Heap::AllocateInternalizedStringImpl<false>(
 
 MaybeObject* Heap::AllocateRawOneByteString(int length,
                                             PretenureFlag pretenure) {
-  if (length < 0 || length > SeqOneByteString::kMaxLength) {
+  if (length < 0 || length > String::kMaxLength) {
     return Failure::OutOfMemoryException(0xb);
   }
   int size = SeqOneByteString::SizeFor(length);
@@ -5047,7 +5044,7 @@ MaybeObject* Heap::AllocateRawOneByteString(int length,
 
 MaybeObject* Heap::AllocateRawTwoByteString(int length,
                                             PretenureFlag pretenure) {
-  if (length < 0 || length > SeqTwoByteString::kMaxLength) {
+  if (length < 0 || length > String::kMaxLength) {
     return Failure::OutOfMemoryException(0xc);
   }
   int size = SeqTwoByteString::SizeFor(length);

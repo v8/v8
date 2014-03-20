@@ -709,21 +709,9 @@ Performance and stability improvements on all platforms.""", commit)
       Git("log -1 --format=%s rev1", "Log text 1.\n"),
       Git("log -1 --format=%B rev1", "Text\nLOG=YES\nBUG=v8:321\nText\n"),
       Git("log -1 --format=%an rev1", "author1@chromium.org\n"),
-      Git(("commit -am \"Prepare push to trunk.  "
-           "Now working on version 3.22.6.%s\"" % review_suffix),
-          " 2 files changed\n",
-          cb=CheckPreparePush),
-      Git(("cl upload --send-mail --email \"author@chromium.org\" "
-           "-r \"reviewer@chromium.org\"%s" % force_flag),
-          "done\n"),
-      Git("cl presubmit", "Presubmit successfull\n"),
-      Git("cl dcommit -f --bypass-hooks", "Closing issue\n"),
       Git("svn fetch", "fetch result\n"),
       Git("checkout -f svn/bleeding_edge", ""),
-      Git(("log -1 --format=%H --grep=\"Prepare push to trunk.  "
-           "Now working on version 3.22.6.\""),
-          "prep_hash\n"),
-      Git("log -1 --format=%H prep_hash^", "push_hash\n"),
+      Git("log -1 --format=%H HEAD", "push_hash\n"),
       Git("diff svn/trunk push_hash", "patch content\n"),
       Git("svn find-rev push_hash", "123455\n"),
       Git("checkout -b %s svn/trunk" % TEST_CONFIG[TRUNKBRANCH], "",
@@ -759,21 +747,12 @@ Performance and stability improvements on all platforms.""", commit)
         RL("Y"),  # Confirm last push.
         RL(""),  # Open editor.
         RL("Y"),  # Increment build number.
-        RL("reviewer@chromium.org"),  # V8 reviewer.
-        RL("LGTX"),  # Enter LGTM for V8 CL (wrong).
-        RL("LGTM"),  # Enter LGTM for V8 CL.
         RL("Y"),  # Sanity check.
         RL("reviewer@chromium.org"),  # Chromium reviewer.
       ])
 
-    # Expected keyboard input in semi-automatic mode:
-    if not manual and not force:
-      self.ExpectReadline([
-        RL("LGTM"),  # Enter LGTM for V8 CL.
-      ])
-
-    # No keyboard input in forced mode:
-    if force:
+    # Expected keyboard input in semi-automatic mode and forced mode:
+    if not manual:
       self.ExpectReadline([])
 
     args = ["-a", "author@chromium.org", "-c", TEST_CONFIG[CHROMIUM]]
