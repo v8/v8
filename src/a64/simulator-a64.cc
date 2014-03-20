@@ -51,6 +51,34 @@ namespace internal {
 #define SScanF sscanf  // NOLINT
 
 
+// Helpers for colors.
+// Depending on your terminal configuration, the colour names may not match the
+// observed colours.
+#define COLOUR(colour_code)  "\033[" colour_code "m"
+#define BOLD(colour_code)    "1;" colour_code
+#define NORMAL ""
+#define GREY   "30"
+#define GREEN  "32"
+#define ORANGE "33"
+#define BLUE   "34"
+#define PURPLE "35"
+#define INDIGO "36"
+#define WHITE  "37"
+typedef char const * const TEXT_COLOUR;
+TEXT_COLOUR clr_normal         = FLAG_log_colour ? COLOUR(NORMAL)       : "";
+TEXT_COLOUR clr_flag_name      = FLAG_log_colour ? COLOUR(BOLD(GREY))   : "";
+TEXT_COLOUR clr_flag_value     = FLAG_log_colour ? COLOUR(BOLD(WHITE))  : "";
+TEXT_COLOUR clr_reg_name       = FLAG_log_colour ? COLOUR(BOLD(BLUE))   : "";
+TEXT_COLOUR clr_reg_value      = FLAG_log_colour ? COLOUR(BOLD(INDIGO)) : "";
+TEXT_COLOUR clr_fpreg_name     = FLAG_log_colour ? COLOUR(BOLD(ORANGE)) : "";
+TEXT_COLOUR clr_fpreg_value    = FLAG_log_colour ? COLOUR(BOLD(PURPLE)) : "";
+TEXT_COLOUR clr_memory_value   = FLAG_log_colour ? COLOUR(BOLD(GREEN))  : "";
+TEXT_COLOUR clr_memory_address = FLAG_log_colour ? COLOUR(GREEN)        : "";
+TEXT_COLOUR clr_debug_number   = FLAG_log_colour ? COLOUR(BOLD(ORANGE)) : "";
+TEXT_COLOUR clr_debug_message  = FLAG_log_colour ? COLOUR(ORANGE)       : "";
+TEXT_COLOUR clr_printf         = FLAG_log_colour ? COLOUR(GREEN)        : "";
+
+
 // This is basically the same as PrintF, with a guard for FLAG_trace_sim.
 void PRINTF_CHECKING TraceSim(const char* format, ...) {
   if (FLAG_trace_sim) {
@@ -820,12 +848,6 @@ void Simulator::PrintInstructionsAt(Instruction* start, uint64_t count) {
 void Simulator::PrintSystemRegisters(bool print_all) {
   static bool first_run = true;
 
-  // Define some colour codes to use for the register dump.
-  // TODO(jbramley): Find a more elegant way of defining these.
-  char const * const clr_normal     = (FLAG_log_colour) ? ("\033[m") : ("");
-  char const * const clr_flag_name  = (FLAG_log_colour) ? ("\033[1;30m") : ("");
-  char const * const clr_flag_value = (FLAG_log_colour) ? ("\033[1;37m") : ("");
-
   static SimSystemRegister last_nzcv;
   if (print_all || first_run || (last_nzcv.RawValue() != nzcv().RawValue())) {
     fprintf(stream_, "# %sFLAGS: %sN:%d Z:%d C:%d V:%d%s\n",
@@ -861,12 +883,6 @@ void Simulator::PrintRegisters(bool print_all_regs) {
   static bool first_run = true;
   static int64_t last_regs[kNumberOfRegisters];
 
-  // Define some colour codes to use for the register dump.
-  // TODO(jbramley): Find a more elegant way of defining these.
-  char const * const clr_normal    = (FLAG_log_colour) ? ("\033[m") : ("");
-  char const * const clr_reg_name  = (FLAG_log_colour) ? ("\033[1;34m") : ("");
-  char const * const clr_reg_value = (FLAG_log_colour) ? ("\033[1;36m") : ("");
-
   for (unsigned i = 0; i < kNumberOfRegisters; i++) {
     if (print_all_regs || first_run ||
         (last_regs[i] != xreg(i, Reg31IsStackPointer))) {
@@ -889,12 +905,6 @@ void Simulator::PrintFPRegisters(bool print_all_regs) {
   static bool first_run = true;
   static uint64_t last_regs[kNumberOfFPRegisters];
 
-  // Define some colour codes to use for the register dump.
-  // TODO(jbramley): Find a more elegant way of defining these.
-  char const * const clr_normal    = (FLAG_log_colour) ? ("\033[m") : ("");
-  char const * const clr_reg_name  = (FLAG_log_colour) ? ("\033[1;33m") : ("");
-  char const * const clr_reg_value = (FLAG_log_colour) ? ("\033[1;35m") : ("");
-
   // Print as many rows of registers as necessary, keeping each individual
   // register in the same column each time (to make it easy to visually scan
   // for changes).
@@ -902,18 +912,18 @@ void Simulator::PrintFPRegisters(bool print_all_regs) {
     if (print_all_regs || first_run || (last_regs[i] != dreg_bits(i))) {
       fprintf(stream_,
               "# %s %4s:%s 0x%016" PRIx64 "%s (%s%s:%s %g%s %s:%s %g%s)\n",
-              clr_reg_name,
+              clr_fpreg_name,
               VRegNameForCode(i),
-              clr_reg_value,
+              clr_fpreg_value,
               dreg_bits(i),
               clr_normal,
-              clr_reg_name,
+              clr_fpreg_name,
               DRegNameForCode(i),
-              clr_reg_value,
+              clr_fpreg_value,
               dreg(i),
-              clr_reg_name,
+              clr_fpreg_name,
               SRegNameForCode(i),
-              clr_reg_value,
+              clr_fpreg_value,
               sreg(i),
               clr_normal);
     }
@@ -2949,14 +2959,6 @@ bool Simulator::GetValue(const char* desc, int64_t* value) {
 
 
 bool Simulator::PrintValue(const char* desc) {
-  // Define some colour codes to use for the register dump.
-  // TODO(jbramley): Find a more elegant way of defining these.
-  char const * const clr_normal    = FLAG_log_colour ? "\033[m" : "";
-  char const * const clr_reg_name  = FLAG_log_colour ? "\033[1;34m" : "";
-  char const * const clr_reg_value = FLAG_log_colour ? "\033[1;36m" : "";
-  char const * const clr_fpreg_name  = FLAG_log_colour ? "\033[1;33m" : "";
-  char const * const clr_fpreg_value = FLAG_log_colour ? "\033[1;35m" : "";
-
   if (strcmp(desc, "csp") == 0) {
     ASSERT(CodeFromName(desc) == static_cast<int>(kSPRegInternalCode));
     PrintF("%s csp:%s 0x%016" PRIx64 "%s\n",
@@ -3335,17 +3337,6 @@ typedef void (*SimulatorRuntimeProfilingGetterCall)(int64_t arg0, int64_t arg1,
                                                     void* arg2);
 
 void Simulator::VisitException(Instruction* instr) {
-  // Define some colour codes to use for log messages.
-  // TODO(jbramley): Find a more elegant way of defining these.
-  char const* const clr_normal        = (FLAG_log_colour) ? ("\033[m")
-                                                          : ("");
-  char const* const clr_debug_number  = (FLAG_log_colour) ? ("\033[1;33m")
-                                                          : ("");
-  char const* const clr_debug_message = (FLAG_log_colour) ? ("\033[0;33m")
-                                                          : ("");
-  char const* const clr_printf        = (FLAG_log_colour) ? ("\033[0;32m")
-                                                          : ("");
-
   switch (instr->Mask(ExceptionMask)) {
     case HLT: {
       if (instr->ImmException() == kImmExceptionIsDebug) {
