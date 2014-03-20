@@ -1209,17 +1209,24 @@ TEST(AsciiArrayJoin) {
   // starting with 'bad', followed by 2^14 times the string s. That means the
   // total length of the concatenated strings is 2^31 + 3. So on 32bit systems
   // summing the lengths of the strings (as Smis) overflows and wraps.
-  LocalContext context;
-  v8::HandleScope scope(CcTest::isolate());
-  v8::TryCatch try_catch;
-  CHECK(CompileRun(
+  static const char* join_causing_out_of_memory =
       "var two_14 = Math.pow(2, 14);"
       "var two_17 = Math.pow(2, 17);"
       "var s = Array(two_17 + 1).join('c');"
       "var a = ['bad'];"
       "for (var i = 1; i <= two_14; i++) a.push(s);"
-      "a.join("");").IsEmpty());
-  CHECK(try_catch.HasCaught());
+      "a.join("");";
+
+  v8::HandleScope scope(CcTest::isolate());
+  LocalContext context;
+  v8::V8::IgnoreOutOfMemoryException();
+  v8::Local<v8::Script> script = v8::Script::Compile(
+      v8::String::NewFromUtf8(CcTest::isolate(), join_causing_out_of_memory));
+  v8::Local<v8::Value> result = script->Run();
+
+  // Check for out of memory state.
+  CHECK(result.IsEmpty());
+  CHECK(context->HasOutOfMemoryException());
 }
 
 

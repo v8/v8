@@ -951,12 +951,6 @@ Failure* Isolate::ThrowIllegalOperation() {
 }
 
 
-Failure* Isolate::ThrowInvalidStringLength() {
-  return Throw(*factory()->NewRangeError(
-      "invalid_string_length", HandleVector<Object>(NULL, 0)));
-}
-
-
 void Isolate::ScheduleThrow(Object* exception) {
   // When scheduling a throw we first throw the exception to get the
   // error reporting if it is uncaught before rescheduling it.

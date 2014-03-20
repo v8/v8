@@ -5475,8 +5475,6 @@ Local<String> v8::String::Concat(Handle<String> left, Handle<String> right) {
   i::Handle<i::String> right_string = Utils::OpenHandle(*right);
   i::Handle<i::String> result = isolate->factory()->NewConsString(left_string,
                                                                   right_string);
-  // We do not expect this to throw an exception. Change this if it does.
-  CHECK_NOT_EMPTY_HANDLE(isolate, result);
   return Utils::ToLocal(result);
 }
 
@@ -6968,12 +6966,9 @@ Handle<String> CpuProfileNode::GetFunctionName() const {
     return ToApiHandle<String>(
         isolate->factory()->InternalizeUtf8String(entry->name()));
   } else {
-    i::Handle<i::String> cons = isolate->factory()->NewConsString(
+    return ToApiHandle<String>(isolate->factory()->NewConsString(
         isolate->factory()->InternalizeUtf8String(entry->name_prefix()),
-        isolate->factory()->InternalizeUtf8String(entry->name()));
-    // We do not expect this to throw an exception. Change this if it does.
-    CHECK_NOT_EMPTY_HANDLE(isolate, cons);
-    return ToApiHandle<String>(cons);
+        isolate->factory()->InternalizeUtf8String(entry->name())));
   }
 }
 

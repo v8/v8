@@ -789,7 +789,6 @@ class Isolate {
   // Return pending location if any or unfilled structure.
   MessageLocation GetMessageLocation();
   Failure* ThrowIllegalOperation();
-  Failure* ThrowInvalidStringLength();
 
   // Promote a scheduled exception to pending. Asserts has_scheduled_exception.
   Failure* PromoteScheduledException();
