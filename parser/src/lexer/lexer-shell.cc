@@ -281,6 +281,22 @@ class TokenWithLocation {
     printf("\n");
   }
 
+  bool operator==(const TokenWithLocation& that) {
+    if (this->beg != that.beg ||
+        this->end != that.end ||
+        this->is_one_byte != that.is_one_byte ||
+        this->literal_length != that.literal_length ||
+        this->octal_beg != that.octal_beg ||
+        this->octal_end != that.octal_end
+      ) {
+      return false;
+    }
+    for (int i = 0; i < literal_length; i++) {
+      if (this->literal[i] != that.literal[i]) return false;
+    }
+    return true;
+  }
+
  private:
   Token::Value value;
   int beg;
@@ -355,13 +371,44 @@ static TimeDelta RunLexer(const uint16_t* source,
 }
 
 
+static void DumpTokens(const LexerShellSettings& settings,
+                       TokenVector* first_tokens,
+                       TokenVector* eos_tokens) {
+  if (!settings.print_tokens) return;
+  bool first_run = eos_tokens->size() == 0;
+  if (first_run && !settings.print_tokens_for_compare) {
+    printf("No of tokens:\t%d\n", static_cast<int>(first_tokens->size()));
+  }
+  if (first_run) {
+    for (size_t i = 0; i < first_tokens->size(); ++i) {
+      first_tokens->at(i)->Print(settings.print_tokens_for_compare);
+    }
+    return;
+  }
+  for (size_t i = 0; i < eos_tokens->size(); ++i) {
+    if (i <= first_tokens->size() &&
+        eos_tokens->at(i)->operator==(*first_tokens->at(i))) {
+      continue;
+    }
+    eos_tokens->at(i)->Print(settings.print_tokens_for_compare);
+  }
+}
+
+
+static void Clear(TokenVector* tokens) {
+  for (size_t i = 0; i < tokens->size(); ++i) delete tokens->at(i);
+  tokens->clear();
+}
+
+
 static void Run(const LexerShellSettings& settings,
                 const FileData& file_data) {
   Isolate* isolate = Isolate::Current();
   HandleScope handle_scope(isolate);
   v8::Context::Scope scope(v8::Context::New(v8::Isolate::GetCurrent()));
   double total_time = 0;
-  std::vector<TokenWithLocation*> tokens;
+  TokenVector first_tokens;
+  TokenVector eos_tokens;
   const uint16_t* const buffer = file_data.data;
   const uint8_t* const char_data = reinterpret_cast<const uint8_t*>(buffer);
   for (unsigned truncate_by = 0;
@@ -374,25 +421,18 @@ static void Run(const LexerShellSettings& settings,
     HandleScope handle_scope(isolate);
     const uint8_t* buffer_end =
       &char_data[file_data.length_in_bytes] - truncate_by;
+    TokenVector* tokens = truncate_by == 0 ? &first_tokens : &eos_tokens;
     TimeDelta delta = RunLexer(
-        buffer, buffer_end, isolate, file_data.encoding, settings, &tokens);
+        buffer, buffer_end, isolate, file_data.encoding, settings, tokens);
     total_time += delta.InMillisecondsF();
     // Dump tokens.
-    if (settings.print_tokens) {
-      if (!settings.print_tokens_for_compare) {
-        printf("No of tokens:\t%d\n", static_cast<int>(tokens.size()));
-      }
-      for (size_t i = 0; i < tokens.size(); ++i) {
-        tokens[i]->Print(settings.print_tokens_for_compare);
-      }
-    }
-    // Destroy tokens.
-    for (size_t i = 0; i < tokens.size(); ++i) {
-      delete tokens[i];
-    }
-    tokens.clear();
+    DumpTokens(settings, &first_tokens, &eos_tokens);
     if (!settings.eos_test) break;
+    // Destroy tokens.
+    Clear(&eos_tokens);
   }
+  // Destroy tokens.
+  Clear(&first_tokens);
   if (!settings.print_tokens_for_compare) {
     printf("RunTime: %.f ms\n", total_time);
   }
