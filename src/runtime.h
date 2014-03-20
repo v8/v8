@@ -314,6 +314,7 @@ namespace internal {
   F(CreatePrivateSymbol, 1, 1) \
   F(NewSymbolWrapper, 1, 1) \
   F(SymbolDescription, 1, 1) \
+  F(SymbolRegistry, 0, 1) \
   F(SymbolIsPrivate, 1, 1) \
   \
   /* Harmony proxies */ \

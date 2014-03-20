@@ -2116,6 +2116,7 @@ void Object::VerifyApiCallResultType() {
 #if ENABLE_EXTRA_CHECKS
   if (!(IsSmi() ||
         IsString() ||
+        IsSymbol() ||
         IsSpecObject() ||
         IsHeapNumber() ||
         IsUndefined() ||
