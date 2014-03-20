@@ -4859,6 +4859,12 @@ void BackEdgeTable::PatchAt(Code* unoptimized_code,
   Address branch_address = pc - 3 * kInstructionSize;
   PatchingAssembler patcher(branch_address, 1);
 
+  ASSERT(Instruction::Cast(branch_address)
+             ->IsNop(Assembler::INTERRUPT_CODE_NOP) ||
+         (Instruction::Cast(branch_address)->IsCondBranchImm() &&
+          Instruction::Cast(branch_address)->ImmPCOffset() ==
+              6 * kInstructionSize));
+
   switch (target_state) {
     case INTERRUPT:
       //  <decrement profiling counter>
@@ -4868,8 +4874,6 @@ void BackEdgeTable::PatchAt(Code* unoptimized_code,
       //  ... more instructions.
       //  ok-label
       // Jump offset is 6 instructions.
-      ASSERT(Instruction::Cast(branch_address)
-                 ->IsNop(Assembler::INTERRUPT_CODE_NOP));
       patcher.b(6, pl);
       break;
     case ON_STACK_REPLACEMENT:
@@ -4878,9 +4882,6 @@ void BackEdgeTable::PatchAt(Code* unoptimized_code,
       //  .. .. .. ..       mov x0, x0 (NOP)
       //  .. .. .. ..       ldr x16, pc+<on-stack replacement address>
       //  .. .. .. ..       blr x16
-      ASSERT(Instruction::Cast(branch_address)->IsCondBranchImm());
-      ASSERT(Instruction::Cast(branch_address)->ImmPCOffset() ==
-             6 * kInstructionSize);
       patcher.nop(Assembler::INTERRUPT_CODE_NOP);
       break;
   }
