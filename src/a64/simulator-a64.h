@@ -311,6 +311,7 @@ class Simulator : public DecoderVisitor {
   // Runtime call support.
   static void* RedirectExternalReference(void* external_function,
                                          ExternalReference::Type type);
+  void DoRuntimeCall(Instruction* instr);
 
   // Run the simulator.
   static const Instruction* kEndOfSimAddress;

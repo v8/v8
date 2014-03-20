@@ -497,7 +497,9 @@ class Redirection {
     return reinterpret_cast<void*>(&redirect_call_);
   }
 
-  void* external_function() { return external_function_; }
+  template <typename T>
+  T external_function() { return reinterpret_cast<T>(external_function_); }
+
   ExternalReference::Type type() { return type_; }
 
   static Redirection* Get(void* external_function,
@@ -523,7 +525,7 @@ class Redirection {
   static void* ReverseRedirection(int64_t reg) {
     Redirection* redirection =
         FromHltInstruction(reinterpret_cast<Instruction*>(reg));
-    return redirection->external_function();
+    return redirection->external_function<void*>();
   }
 
  private:
@@ -532,6 +534,223 @@ class Redirection {
   ExternalReference::Type type_;
   Redirection* next_;
 };
+
+
+// Calls into the V8 runtime are based on this very simple interface.
+// Note: To be able to return two values from some calls the code in runtime.cc
+// uses the ObjectPair structure.
+// The simulator assumes all runtime calls return two 64-bits values. If they
+// don't, register x1 is clobbered. This is fine because x1 is caller-saved.
+struct ObjectPair {
+  int64_t res0;
+  int64_t res1;
+};
+
+
+typedef ObjectPair (*SimulatorRuntimeCall)(int64_t arg0,
+                                           int64_t arg1,
+                                           int64_t arg2,
+                                           int64_t arg3,
+                                           int64_t arg4,
+                                           int64_t arg5,
+                                           int64_t arg6,
+                                           int64_t arg7);
+
+typedef int64_t (*SimulatorRuntimeCompareCall)(double arg1, double arg2);
+typedef double (*SimulatorRuntimeFPFPCall)(double arg1, double arg2);
+typedef double (*SimulatorRuntimeFPCall)(double arg1);
+typedef double (*SimulatorRuntimeFPIntCall)(double arg1, int32_t arg2);
+
+// This signature supports direct call in to API function native callback
+// (refer to InvocationCallback in v8.h).
+typedef void (*SimulatorRuntimeDirectApiCall)(int64_t arg0);
+typedef void (*SimulatorRuntimeProfilingApiCall)(int64_t arg0, void* arg1);
+
+// This signature supports direct call to accessor getter callback.
+typedef void (*SimulatorRuntimeDirectGetterCall)(int64_t arg0, int64_t arg1);
+typedef void (*SimulatorRuntimeProfilingGetterCall)(int64_t arg0, int64_t arg1,
+                                                    void* arg2);
+
+void Simulator::DoRuntimeCall(Instruction* instr) {
+  Redirection* redirection = Redirection::FromHltInstruction(instr);
+
+  // The called C code might itself call simulated code, so any
+  // caller-saved registers (including lr) could still be clobbered by a
+  // redirected call.
+  Instruction* return_address = lr();
+
+  int64_t external = redirection->external_function<int64_t>();
+
+  TraceSim("Call to host function at %p\n",
+           redirection->external_function<void*>());
+
+  // SP must be 16-byte-aligned at the call interface.
+  bool stack_alignment_exception = ((sp() & 0xf) != 0);
+  if (stack_alignment_exception) {
+    TraceSim("  with unaligned stack 0x%016" PRIx64 ".\n", sp());
+    FATAL("ALIGNMENT EXCEPTION");
+  }
+
+  switch (redirection->type()) {
+    default:
+      TraceSim("Type: Unknown.\n");
+      UNREACHABLE();
+      break;
+
+    case ExternalReference::BUILTIN_CALL: {
+      // MaybeObject* f(v8::internal::Arguments).
+      TraceSim("Type: BUILTIN_CALL\n");
+      SimulatorRuntimeCall target =
+        reinterpret_cast<SimulatorRuntimeCall>(external);
+
+      // We don't know how many arguments are being passed, but we can
+      // pass 8 without touching the stack. They will be ignored by the
+      // host function if they aren't used.
+      TraceSim("Arguments: "
+               "0x%016" PRIx64 ", 0x%016" PRIx64 ", "
+               "0x%016" PRIx64 ", 0x%016" PRIx64 ", "
+               "0x%016" PRIx64 ", 0x%016" PRIx64 ", "
+               "0x%016" PRIx64 ", 0x%016" PRIx64,
+               xreg(0), xreg(1), xreg(2), xreg(3),
+               xreg(4), xreg(5), xreg(6), xreg(7));
+      ObjectPair result = target(xreg(0), xreg(1), xreg(2), xreg(3),
+                                 xreg(4), xreg(5), xreg(6), xreg(7));
+      TraceSim("Returned: {0x%" PRIx64 ", 0x%" PRIx64 "}\n",
+               result.res0, result.res1);
+#ifdef DEBUG
+      CorruptAllCallerSavedCPURegisters();
+#endif
+      set_xreg(0, result.res0);
+      set_xreg(1, result.res1);
+      break;
+    }
+
+    case ExternalReference::DIRECT_API_CALL: {
+      // void f(v8::FunctionCallbackInfo&)
+      TraceSim("Type: DIRECT_API_CALL\n");
+      SimulatorRuntimeDirectApiCall target =
+        reinterpret_cast<SimulatorRuntimeDirectApiCall>(external);
+      TraceSim("Arguments: 0x%016" PRIx64 "\n", xreg(0));
+      target(xreg(0));
+      TraceSim("No return value.");
+#ifdef DEBUG
+      CorruptAllCallerSavedCPURegisters();
+#endif
+      break;
+    }
+
+    case ExternalReference::BUILTIN_COMPARE_CALL: {
+      // int f(double, double)
+      TraceSim("Type: BUILTIN_COMPARE_CALL\n");
+      SimulatorRuntimeCompareCall target =
+        reinterpret_cast<SimulatorRuntimeCompareCall>(external);
+      TraceSim("Arguments: %f, %f\n", dreg(0), dreg(1));
+      int64_t result = target(dreg(0), dreg(1));
+      TraceSim("Returned: %" PRId64 "\n", result);
+#ifdef DEBUG
+      CorruptAllCallerSavedCPURegisters();
+#endif
+      set_xreg(0, result);
+      break;
+    }
+
+    case ExternalReference::BUILTIN_FP_CALL: {
+      // double f(double)
+      TraceSim("Type: BUILTIN_FP_CALL\n");
+      SimulatorRuntimeFPCall target =
+        reinterpret_cast<SimulatorRuntimeFPCall>(external);
+      TraceSim("Argument: %f\n", dreg(0));
+      double result = target(dreg(0));
+      TraceSim("Returned: %f\n", result);
+#ifdef DEBUG
+      CorruptAllCallerSavedCPURegisters();
+#endif
+      set_dreg(0, result);
+      break;
+    }
+
+    case ExternalReference::BUILTIN_FP_FP_CALL: {
+      // double f(double, double)
+      TraceSim("Type: BUILTIN_FP_FP_CALL\n");
+      SimulatorRuntimeFPFPCall target =
+        reinterpret_cast<SimulatorRuntimeFPFPCall>(external);
+      TraceSim("Arguments: %f, %f\n", dreg(0), dreg(1));
+      double result = target(dreg(0), dreg(1));
+      TraceSim("Returned: %f\n", result);
+#ifdef DEBUG
+      CorruptAllCallerSavedCPURegisters();
+#endif
+      set_dreg(0, result);
+      break;
+    }
+
+    case ExternalReference::BUILTIN_FP_INT_CALL: {
+      // double f(double, int)
+      TraceSim("Type: BUILTIN_FP_INT_CALL\n");
+      SimulatorRuntimeFPIntCall target =
+        reinterpret_cast<SimulatorRuntimeFPIntCall>(external);
+      TraceSim("Arguments: %f, %d\n", dreg(0), wreg(0));
+      double result = target(dreg(0), wreg(0));
+      TraceSim("Returned: %f\n", result);
+#ifdef DEBUG
+      CorruptAllCallerSavedCPURegisters();
+#endif
+      set_dreg(0, result);
+      break;
+    }
+
+    case ExternalReference::DIRECT_GETTER_CALL: {
+      // void f(Local<String> property, PropertyCallbackInfo& info)
+      TraceSim("Type: DIRECT_GETTER_CALL\n");
+      SimulatorRuntimeDirectGetterCall target =
+        reinterpret_cast<SimulatorRuntimeDirectGetterCall>(external);
+      TraceSim("Arguments: 0x%016" PRIx64 ", 0x%016" PRIx64 "\n",
+               xreg(0), xreg(1));
+      target(xreg(0), xreg(1));
+      TraceSim("No return value.");
+#ifdef DEBUG
+      CorruptAllCallerSavedCPURegisters();
+#endif
+      break;
+    }
+
+    case ExternalReference::PROFILING_API_CALL: {
+      // void f(v8::FunctionCallbackInfo&, v8::FunctionCallback)
+      TraceSim("Type: PROFILING_API_CALL\n");
+      SimulatorRuntimeProfilingApiCall target =
+        reinterpret_cast<SimulatorRuntimeProfilingApiCall>(external);
+      void* arg1 = Redirection::ReverseRedirection(xreg(1));
+      TraceSim("Arguments: 0x%016" PRIx64 ", %p\n", xreg(0), arg1);
+      target(xreg(0), arg1);
+      TraceSim("No return value.");
+#ifdef DEBUG
+      CorruptAllCallerSavedCPURegisters();
+#endif
+      break;
+    }
+
+    case ExternalReference::PROFILING_GETTER_CALL: {
+      // void f(Local<String> property, PropertyCallbackInfo& info,
+      //        AccessorGetterCallback callback)
+      TraceSim("Type: PROFILING_GETTER_CALL\n");
+      SimulatorRuntimeProfilingGetterCall target =
+        reinterpret_cast<SimulatorRuntimeProfilingGetterCall>(
+            external);
+      void* arg2 = Redirection::ReverseRedirection(xreg(2));
+      TraceSim("Arguments: 0x%016" PRIx64 ", 0x%016" PRIx64 ", %p\n",
+               xreg(0), xreg(1), arg2);
+      target(xreg(0), xreg(1), arg2);
+      TraceSim("No return value.");
+#ifdef DEBUG
+      CorruptAllCallerSavedCPURegisters();
+#endif
+      break;
+    }
+  }
+
+  set_lr(return_address);
+  set_pc(return_address);
+}
 
 
 void* Simulator::RedirectExternalReference(void* external_function,
@@ -3301,41 +3520,6 @@ void Simulator::Debug() {
 }
 
 
-// Calls into the V8 runtime are based on this very simple interface.
-// Note: To be able to return two values from some calls the code in runtime.cc
-// uses the ObjectPair structure.
-// The simulator assumes all runtime calls return two 64-bits values. If they
-// don't, register x1 is clobbered. This is fine because x1 is caller-saved.
-struct ObjectPair {
-  int64_t res0;
-  int64_t res1;
-};
-
-
-typedef ObjectPair (*SimulatorRuntimeCall)(int64_t arg0,
-                                           int64_t arg1,
-                                           int64_t arg2,
-                                           int64_t arg3,
-                                           int64_t arg4,
-                                           int64_t arg5,
-                                           int64_t arg6,
-                                           int64_t arg7);
-
-typedef int64_t (*SimulatorRuntimeCompareCall)(double arg1, double arg2);
-typedef double (*SimulatorRuntimeFPFPCall)(double arg1, double arg2);
-typedef double (*SimulatorRuntimeFPCall)(double arg1);
-typedef double (*SimulatorRuntimeFPIntCall)(double arg1, int32_t arg2);
-
-// This signature supports direct call in to API function native callback
-// (refer to InvocationCallback in v8.h).
-typedef void (*SimulatorRuntimeDirectApiCall)(int64_t arg0);
-typedef void (*SimulatorRuntimeProfilingApiCall)(int64_t arg0, void* arg1);
-
-// This signature supports direct call to accessor getter callback.
-typedef void (*SimulatorRuntimeDirectGetterCall)(int64_t arg0, int64_t arg1);
-typedef void (*SimulatorRuntimeProfilingGetterCall)(int64_t arg0, int64_t arg1,
-                                                    void* arg2);
-
 void Simulator::VisitException(Instruction* instr) {
   switch (instr->Mask(ExceptionMask)) {
     case HLT: {
@@ -3412,190 +3596,7 @@ void Simulator::VisitException(Instruction* instr) {
         if (parameters & BREAK) Debug();
 
       } else if (instr->ImmException() == kImmExceptionIsRedirectedCall) {
-        // TODO(all): Extract the call redirection code into a separate
-        // function.
-
-        Redirection* redirection = Redirection::FromHltInstruction(instr);
-
-        // The called C code might itself call simulated code, so any
-        // caller-saved registers (including lr) could still be clobbered by a
-        // redirected call.
-        Instruction* return_address = lr();
-
-        // TODO(jbramley): Make external_function() a template so that we don't
-        // have to explicitly cast the result for each redirection type.
-        int64_t external =
-            reinterpret_cast<int64_t>(redirection->external_function());
-
-        TraceSim("Call to host function at %p\n",
-                 reinterpret_cast<void*>(redirection->external_function()));
-
-        // SP must be 16 bytes aligned at the call interface.
-        bool stack_alignment_exception = ((sp() & 0xf) != 0);
-        if (stack_alignment_exception) {
-          TraceSim("  with unaligned stack 0x%016" PRIx64 ".\n", sp());
-          FATAL("ALIGNMENT EXCEPTION");
-        }
-
-        switch (redirection->type()) {
-          default:
-            TraceSim("Type: Unknown.\n");
-            UNREACHABLE();
-            break;
-
-          case ExternalReference::BUILTIN_CALL: {
-            // MaybeObject* f(v8::internal::Arguments).
-            TraceSim("Type: BUILTIN_CALL\n");
-            SimulatorRuntimeCall target =
-                reinterpret_cast<SimulatorRuntimeCall>(external);
-
-            // We don't know how many arguments are being passed, but we can
-            // pass 8 without touching the stack. They will be ignored by the
-            // host function if they aren't used.
-            TraceSim("Arguments: "
-                     "0x%016" PRIx64 ", 0x%016" PRIx64 ", "
-                     "0x%016" PRIx64 ", 0x%016" PRIx64 ", "
-                     "0x%016" PRIx64 ", 0x%016" PRIx64 ", "
-                     "0x%016" PRIx64 ", 0x%016" PRIx64,
-                     xreg(0), xreg(1), xreg(2), xreg(3),
-                     xreg(4), xreg(5), xreg(6), xreg(7));
-            ObjectPair result = target(xreg(0), xreg(1), xreg(2), xreg(3),
-                                       xreg(4), xreg(5), xreg(6), xreg(7));
-            TraceSim("Returned: {0x%" PRIx64 ", 0x%" PRIx64"}\n",
-                     result.res0, result.res1);
-#ifdef DEBUG
-            CorruptAllCallerSavedCPURegisters();
-#endif
-            set_xreg(0, result.res0);
-            set_xreg(1, result.res1);
-            break;
-          }
-
-          case ExternalReference::DIRECT_API_CALL: {
-            // void f(v8::FunctionCallbackInfo&)
-            TraceSim("Type: DIRECT_API_CALL\n");
-            SimulatorRuntimeDirectApiCall target =
-                reinterpret_cast<SimulatorRuntimeDirectApiCall>(external);
-            TraceSim("Arguments: 0x%016" PRIx64 "\n", xreg(0));
-            target(xreg(0));
-            TraceSim("No return value.");
-#ifdef DEBUG
-            CorruptAllCallerSavedCPURegisters();
-#endif
-            break;
-          }
-
-          case ExternalReference::BUILTIN_COMPARE_CALL: {
-            // int f(double, double)
-            TraceSim("Type: BUILTIN_COMPARE_CALL\n");
-            SimulatorRuntimeCompareCall target =
-                reinterpret_cast<SimulatorRuntimeCompareCall>(external);
-            TraceSim("Arguments: %f, %f\n", dreg(0), dreg(1));
-            int64_t result = target(dreg(0), dreg(1));
-            TraceSim("Returned: %" PRId64 "\n", result);
-#ifdef DEBUG
-            CorruptAllCallerSavedCPURegisters();
-#endif
-            set_xreg(0, result);
-            break;
-          }
-
-          case ExternalReference::BUILTIN_FP_CALL: {
-            // double f(double)
-            TraceSim("Type: BUILTIN_FP_CALL\n");
-            SimulatorRuntimeFPCall target =
-                reinterpret_cast<SimulatorRuntimeFPCall>(external);
-            TraceSim("Argument: %f\n", dreg(0));
-            double result = target(dreg(0));
-            TraceSim("Returned: %f\n", result);
-#ifdef DEBUG
-            CorruptAllCallerSavedCPURegisters();
-#endif
-            set_dreg(0, result);
-            break;
-          }
-
-          case ExternalReference::BUILTIN_FP_FP_CALL: {
-            // double f(double, double)
-            TraceSim("Type: BUILTIN_FP_FP_CALL\n");
-            SimulatorRuntimeFPFPCall target =
-                reinterpret_cast<SimulatorRuntimeFPFPCall>(external);
-            TraceSim("Arguments: %f, %f\n", dreg(0), dreg(1));
-            double result = target(dreg(0), dreg(1));
-            TraceSim("Returned: %f\n", result);
-#ifdef DEBUG
-            CorruptAllCallerSavedCPURegisters();
-#endif
-            set_dreg(0, result);
-            break;
-          }
-
-          case ExternalReference::BUILTIN_FP_INT_CALL: {
-            // double f(double, int)
-            TraceSim("Type: BUILTIN_FP_INT_CALL\n");
-            SimulatorRuntimeFPIntCall target =
-                reinterpret_cast<SimulatorRuntimeFPIntCall>(external);
-            TraceSim("Arguments: %f, %d\n", dreg(0), wreg(0));
-            double result = target(dreg(0), wreg(0));
-            TraceSim("Returned: %f\n", result);
-#ifdef DEBUG
-            CorruptAllCallerSavedCPURegisters();
-#endif
-            set_dreg(0, result);
-            break;
-          }
-
-          case ExternalReference::DIRECT_GETTER_CALL: {
-            // void f(Local<String> property, PropertyCallbackInfo& info)
-            TraceSim("Type: DIRECT_GETTER_CALL\n");
-            SimulatorRuntimeDirectGetterCall target =
-                reinterpret_cast<SimulatorRuntimeDirectGetterCall>(external);
-            TraceSim("Arguments: 0x%016" PRIx64 ", 0x%016" PRIx64 "\n",
-                     xreg(0), xreg(1));
-            target(xreg(0), xreg(1));
-            TraceSim("No return value.");
-#ifdef DEBUG
-            CorruptAllCallerSavedCPURegisters();
-#endif
-            break;
-          }
-
-          case ExternalReference::PROFILING_API_CALL: {
-            // void f(v8::FunctionCallbackInfo&, v8::FunctionCallback)
-            TraceSim("Type: PROFILING_API_CALL\n");
-            SimulatorRuntimeProfilingApiCall target =
-                reinterpret_cast<SimulatorRuntimeProfilingApiCall>(external);
-            void* arg1 = Redirection::ReverseRedirection(xreg(1));
-            TraceSim("Arguments: 0x%016" PRIx64 ", %p\n", xreg(0), arg1);
-            target(xreg(0), arg1);
-            TraceSim("No return value.");
-#ifdef DEBUG
-            CorruptAllCallerSavedCPURegisters();
-#endif
-            break;
-          }
-
-          case ExternalReference::PROFILING_GETTER_CALL: {
-            // void f(Local<String> property, PropertyCallbackInfo& info,
-            //        AccessorGetterCallback callback)
-            TraceSim("Type: PROFILING_GETTER_CALL\n");
-            SimulatorRuntimeProfilingGetterCall target =
-                reinterpret_cast<SimulatorRuntimeProfilingGetterCall>(
-                    external);
-            void* arg2 = Redirection::ReverseRedirection(xreg(2));
-            TraceSim("Arguments: 0x%016" PRIx64 ", 0x%016" PRIx64 ", %p\n",
-                     xreg(0), xreg(1), arg2);
-            target(xreg(0), xreg(1), arg2);
-            TraceSim("No return value.");
-#ifdef DEBUG
-            CorruptAllCallerSavedCPURegisters();
-#endif
-            break;
-          }
-        }
-
-        set_lr(return_address);
-        set_pc(return_address);
+        DoRuntimeCall(instr);
       } else if (instr->ImmException() == kImmExceptionIsPrintf) {
         // Read the argument encoded inline in the instruction stream.
         uint32_t type;
