@@ -1,3 +1,15 @@
+2014-03-20: Version 3.25.22
+
+        Increase the "local variables in a function" limit (issue 3205).
+
+        Implement ES6 symbol registry and predefined symbols.
+
+        Throw exception on invalid string length instead of OOM (Chromium issue
+        349329).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-03-20: Version 3.25.21
 
         Performance and stability improvements on all platforms.

@@ -69,6 +69,14 @@ Handle<FixedArray> Factory::NewFixedArrayWithHoles(int size,
 }
 
 
+Handle<FixedArray> Factory::NewUninitializedFixedArray(int size) {
+  CALL_HEAP_FUNCTION(
+      isolate(),
+      isolate()->heap()->AllocateUninitializedFixedArray(size),
+      FixedArray);
+}
+
+
 Handle<FixedDoubleArray> Factory::NewFixedDoubleArray(int size,
                                                       PretenureFlag pretenure) {
   ASSERT(0 <= size);
@@ -377,9 +385,7 @@ Handle<String> Factory::NewConsString(Handle<String> left,
   // Make sure that an out of memory exception is thrown if the length
   // of the new cons string is too large.
   if (length > String::kMaxLength || length < 0) {
-    isolate()->context()->mark_out_of_memory();
-    V8::FatalProcessOutOfMemory("String concatenation result too large.");
-    UNREACHABLE();
+    isolate()->ThrowInvalidStringLength();
     return Handle<String>::null();
   }
 
@@ -1132,8 +1138,7 @@ Handle<String> Factory::EmergencyNewError(const char* message,
       space--;
       if (space > 0) {
         Handle<String> arg_str = Handle<String>::cast(
-            Object::GetElement(isolate(), args, i));
-        CHECK_NOT_EMPTY_HANDLE(isolate(), arg_str);
+            Object::GetElementNoExceptionThrown(isolate(), args, i));
         SmartArrayPointer<char> arg = arg_str->ToCString();
         Vector<char> v2(p, static_cast<int>(space));
         OS::StrNCpy(v2, arg.get(), space);

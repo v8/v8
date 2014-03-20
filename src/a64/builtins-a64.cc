@@ -861,7 +861,7 @@ static void GenerateMakeCodeYoungAgainCommon(MacroAssembler* masm) {
   {
     FrameScope scope(masm, StackFrame::MANUAL);
     __ Push(x0, x1, fp, lr);
-    __ Mov(x1, Operand(ExternalReference::isolate_address(masm->isolate())));
+    __ Mov(x1, ExternalReference::isolate_address(masm->isolate()));
     __ CallCFunction(
         ExternalReference::get_make_code_young_function(masm->isolate()), 2);
     __ Pop(lr, fp, x1, x0);
@@ -901,7 +901,7 @@ void Builtins::Generate_MarkCodeAsExecutedOnce(MacroAssembler* masm) {
   {
     FrameScope scope(masm, StackFrame::MANUAL);
     __ Push(x0, x1, fp, lr);
-    __ Mov(x1, Operand(ExternalReference::isolate_address(masm->isolate())));
+    __ Mov(x1, ExternalReference::isolate_address(masm->isolate()));
     __ CallCFunction(
         ExternalReference::get_mark_code_as_executed_function(
             masm->isolate()), 2);
@@ -963,7 +963,7 @@ static void Generate_NotifyDeoptimizedHelper(MacroAssembler* masm,
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
     // Pass the deoptimization type to the runtime system.
-    __ Mov(x0, Operand(Smi::FromInt(static_cast<int>(type))));
+    __ Mov(x0, Smi::FromInt(static_cast<int>(type)));
     __ Push(x0);
     __ CallRuntime(Runtime::kNotifyDeoptimized, 1);
   }
@@ -1019,7 +1019,7 @@ void Builtins::Generate_OnStackReplacement(MacroAssembler* masm) {
 
   // If the code object is null, just return to the unoptimized code.
   Label skip;
-  __ CompareAndBranch(x0, Operand(Smi::FromInt(0)), ne, &skip);
+  __ CompareAndBranch(x0, Smi::FromInt(0), ne, &skip);
   __ Ret();
 
   __ Bind(&skip);
@@ -1358,7 +1358,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
 
     // Use inline caching to access the arguments.
     __ Ldr(current, MemOperand(fp, kIndexOffset));
-    __ Add(current, current, Operand(Smi::FromInt(1)));
+    __ Add(current, current, Smi::FromInt(1));
     __ Str(current, MemOperand(fp, kIndexOffset));
 
     // Test if the copy loop has finished copying all the elements from the
@@ -1402,7 +1402,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
 
 static void EnterArgumentsAdaptorFrame(MacroAssembler* masm) {
   __ SmiTag(x10, x0);
-  __ Mov(x11, Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
+  __ Mov(x11, Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
   __ Push(lr, fp);
   __ Push(x11, x1, x10);
   __ Add(fp, jssp,

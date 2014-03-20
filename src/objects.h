@@ -1586,7 +1586,10 @@ class Object : public MaybeObject {
                                           uint32_t index);
 
   // For use when we know that no exception can be thrown.
-  inline Object* GetElementNoExceptionThrown(Isolate* isolate, uint32_t index);
+  static inline Handle<Object> GetElementNoExceptionThrown(
+      Isolate* isolate,
+      Handle<Object> object,
+      uint32_t index);
   MUST_USE_RESULT MaybeObject* GetElementWithReceiver(Isolate* isolate,
                                                       Object* receiver,
                                                       uint32_t index);

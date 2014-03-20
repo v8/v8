@@ -1206,9 +1206,9 @@ void Logger::LogRuntime(Vector<const char> format,
     if (c == '%' && i <= format.length() - 2) {
       i++;
       ASSERT('0' <= format[i] && format[i] <= '9');
-      Handle<Object> obj = Object::GetElement(isolate_, args, format[i] - '0');
       // No exception expected when getting an element from an array literal.
-      CHECK_NOT_EMPTY_HANDLE(isolate_, obj);
+      Handle<Object> obj =
+          Object::GetElementNoExceptionThrown(isolate_, args, format[i] - '0');
       i++;
       switch (format[i]) {
         case 's':

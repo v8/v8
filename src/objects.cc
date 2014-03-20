@@ -5103,18 +5103,6 @@ Handle<Object> JSObject::DeletePropertyWithInterceptor(Handle<JSObject> object,
 }
 
 
-// TODO(mstarzinger): Temporary wrapper until handlified.
-static Handle<Object> AccessorDelete(Handle<JSObject> object,
-                                     uint32_t index,
-                                     JSObject::DeleteMode mode) {
-  CALL_HEAP_FUNCTION(object->GetIsolate(),
-                     object->GetElementsAccessor()->Delete(*object,
-                                                           index,
-                                                           mode),
-                     Object);
-}
-
-
 Handle<Object> JSObject::DeleteElementWithInterceptor(Handle<JSObject> object,
                                                       uint32_t index) {
   Isolate* isolate = object->GetIsolate();
@@ -5141,7 +5129,8 @@ Handle<Object> JSObject::DeleteElementWithInterceptor(Handle<JSObject> object,
     // Rebox CustomArguments::kReturnValueOffset before returning.
     return handle(*result_internal, isolate);
   }
-  Handle<Object> delete_result = AccessorDelete(object, index, NORMAL_DELETION);
+  Handle<Object> delete_result = object->GetElementsAccessor()->Delete(
+      object, index, NORMAL_DELETION);
   RETURN_HANDLE_IF_SCHEDULED_EXCEPTION(isolate, Object);
   return delete_result;
 }
@@ -5190,8 +5179,7 @@ Handle<Object> JSObject::DeleteElement(Handle<JSObject> object,
       if (object->GetLocalElementAccessorPair(index) != NULL) {
         old_value = Handle<Object>::cast(factory->the_hole_value());
       } else {
-        old_value = Object::GetElement(isolate, object, index);
-        CHECK_NOT_EMPTY_HANDLE(isolate, old_value);
+        old_value = Object::GetElementNoExceptionThrown(isolate, object, index);
       }
     }
   }
@@ -5201,7 +5189,7 @@ Handle<Object> JSObject::DeleteElement(Handle<JSObject> object,
   if (object->HasIndexedInterceptor() && mode != FORCE_DELETION) {
     result = DeleteElementWithInterceptor(object, index);
   } else {
-    result = AccessorDelete(object, index, mode);
+    result = object->GetElementsAccessor()->Delete(object, index, mode);
   }
 
   if (should_enqueue_change_record && !HasLocalElement(object, index)) {
@@ -6360,8 +6348,7 @@ void JSObject::DefineAccessor(Handle<JSObject> object,
     if (is_element) {
       preexists = HasLocalElement(object, index);
       if (preexists && object->GetLocalElementAccessorPair(index) == NULL) {
-        old_value = Object::GetElement(isolate, object, index);
-        CHECK_NOT_EMPTY_HANDLE(isolate, old_value);
+        old_value = Object::GetElementNoExceptionThrown(isolate, object, index);
       }
     } else {
       LookupResult lookup(isolate);
@@ -11343,8 +11330,7 @@ static bool GetOldValue(Isolate* isolate,
   if (object->GetLocalElementAccessorPair(index) != NULL) {
     value = Handle<Object>::cast(isolate->factory()->the_hole_value());
   } else {
-    value = Object::GetElement(isolate, object, index);
-    CHECK_NOT_EMPTY_HANDLE(isolate, value);
+    value = Object::GetElementNoExceptionThrown(isolate, object, index);
   }
   old_values->Add(value);
   indices->Add(index);
@@ -12564,8 +12550,7 @@ Handle<Object> JSObject::SetElement(Handle<JSObject> object,
 
   if (old_attributes != ABSENT) {
     if (object->GetLocalElementAccessorPair(index) == NULL) {
-      old_value = Object::GetElement(isolate, object, index);
-      CHECK_NOT_EMPTY_HANDLE(isolate, old_value);
+      old_value = Object::GetElementNoExceptionThrown(isolate, object, index);
     }
   } else if (object->IsJSArray()) {
     // Store old array length in case adding an element grows the array.
@@ -12611,8 +12596,8 @@ Handle<Object> JSObject::SetElement(Handle<JSObject> object,
   } else if (old_value->IsTheHole()) {
     EnqueueChangeRecord(object, "reconfigure", name, old_value);
   } else {
-    Handle<Object> new_value = Object::GetElement(isolate, object, index);
-    CHECK_NOT_EMPTY_HANDLE(isolate, new_value);
+    Handle<Object> new_value =
+        Object::GetElementNoExceptionThrown(isolate, object, index);
     bool value_changed = !old_value->SameValue(*new_value);
     if (old_attributes != new_attributes) {
       if (!value_changed) old_value = isolate->factory()->the_hole_value();

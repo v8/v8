@@ -1253,7 +1253,7 @@ void MacroAssembler::EnumLengthUntagged(Register dst, Register map) {
 void MacroAssembler::EnumLengthSmi(Register dst, Register map) {
   STATIC_ASSERT(Map::EnumLengthBits::kShift == 0);
   Ldr(dst, FieldMemOperand(map, Map::kBitField3Offset));
-  And(dst, dst, Operand(Smi::FromInt(Map::EnumLengthBits::kMask)));
+  And(dst, dst, Smi::FromInt(Map::EnumLengthBits::kMask));
 }
 
 
@@ -1326,10 +1326,10 @@ void MacroAssembler::TestJSArrayForAllocationMemento(Register receiver,
 
   Add(scratch1, receiver,
       JSArray::kSize + AllocationMemento::kSize - kHeapObjectTag);
-  Cmp(scratch1, Operand(new_space_start));
+  Cmp(scratch1, new_space_start);
   B(lt, no_memento_found);
 
-  Mov(scratch2, Operand(new_space_allocation_top));
+  Mov(scratch2, new_space_allocation_top);
   Ldr(scratch2, MemOperand(scratch2));
   Cmp(scratch1, scratch2);
   B(gt, no_memento_found);
@@ -1367,8 +1367,8 @@ void MacroAssembler::InNewSpace(Register object,
   ASSERT(cond == eq || cond == ne);
   UseScratchRegisterScope temps(this);
   Register temp = temps.AcquireX();
-  And(temp, object, Operand(ExternalReference::new_space_mask(isolate())));
-  Cmp(temp, Operand(ExternalReference::new_space_start(isolate())));
+  And(temp, object, ExternalReference::new_space_mask(isolate()));
+  Cmp(temp, ExternalReference::new_space_start(isolate()));
   B(cond, branch);
 }
 
@@ -1471,7 +1471,7 @@ void MacroAssembler::Throw(BailoutReason reason) {
   RecordComment((msg != NULL) ? msg : "UNKNOWN");
 #endif
 
-  Mov(x0, Operand(Smi::FromInt(reason)));
+  Mov(x0, Smi::FromInt(reason));
   Push(x0);
 
   // Disable stub call restrictions to always allow calls to throw.
@@ -1600,7 +1600,7 @@ void MacroAssembler::CallRuntime(const Runtime::Function* f,
 
   // Place the necessary arguments.
   Mov(x0, num_arguments);
-  Mov(x1, Operand(ExternalReference(f, isolate())));
+  Mov(x1, ExternalReference(f, isolate()));
 
   CEntryStub stub(1, save_doubles);
   CallStub(&stub);
@@ -1639,7 +1639,7 @@ void MacroAssembler::CallApiFunctionAndReturn(
   Mov(x10, reinterpret_cast<uintptr_t>(is_profiling_flag));
   Ldrb(w10, MemOperand(x10));
   Cbz(w10, &profiler_disabled);
-  Mov(x3, Operand(thunk_ref));
+  Mov(x3, thunk_ref);
   B(&end_profiler_check);
 
   Bind(&profiler_disabled);
@@ -1662,7 +1662,7 @@ void MacroAssembler::CallApiFunctionAndReturn(
   Register limit_reg = x20;
   Register level_reg = w21;
 
-  Mov(handle_scope_base, Operand(next_address));
+  Mov(handle_scope_base, next_address);
   Ldr(next_address_reg, MemOperand(handle_scope_base, kNextOffset));
   Ldr(limit_reg, MemOperand(handle_scope_base, kLimitOffset));
   Ldr(level_reg, MemOperand(handle_scope_base, kLevelOffset));
@@ -1672,7 +1672,7 @@ void MacroAssembler::CallApiFunctionAndReturn(
   if (FLAG_log_timer_events) {
     FrameScope frame(this, StackFrame::MANUAL);
     PushSafepointRegisters();
-    Mov(x0, Operand(ExternalReference::isolate_address(isolate())));
+    Mov(x0, ExternalReference::isolate_address(isolate()));
     CallCFunction(ExternalReference::log_enter_external_function(isolate()), 1);
     PopSafepointRegisters();
   }
@@ -1686,7 +1686,7 @@ void MacroAssembler::CallApiFunctionAndReturn(
   if (FLAG_log_timer_events) {
     FrameScope frame(this, StackFrame::MANUAL);
     PushSafepointRegisters();
-    Mov(x0, Operand(ExternalReference::isolate_address(isolate())));
+    Mov(x0, ExternalReference::isolate_address(isolate()));
     CallCFunction(ExternalReference::log_leave_external_function(isolate()), 1);
     PopSafepointRegisters();
   }
@@ -1722,7 +1722,7 @@ void MacroAssembler::CallApiFunctionAndReturn(
   Peek(x22, (spill_offset + 3) * kXRegSize);
 
   // Check if the function scheduled an exception.
-  Mov(x5, Operand(ExternalReference::scheduled_exception_address(isolate())));
+  Mov(x5, ExternalReference::scheduled_exception_address(isolate()));
   Ldr(x5, MemOperand(x5));
   JumpIfNotRoot(x5, Heap::kTheHoleValueRootIndex, &promote_scheduled_exception);
   Bind(&exception_handled);
@@ -1750,7 +1750,7 @@ void MacroAssembler::CallApiFunctionAndReturn(
   // Save the return value in a callee-save register.
   Register saved_result = x19;
   Mov(saved_result, x0);
-  Mov(x0, Operand(ExternalReference::isolate_address(isolate())));
+  Mov(x0, ExternalReference::isolate_address(isolate()));
   CallCFunction(
       ExternalReference::delete_handle_scope_extensions(isolate()), 1);
   Mov(x0, saved_result);
@@ -1761,7 +1761,7 @@ void MacroAssembler::CallApiFunctionAndReturn(
 void MacroAssembler::CallExternalReference(const ExternalReference& ext,
                                            int num_arguments) {
   Mov(x0, num_arguments);
-  Mov(x1, Operand(ext));
+  Mov(x1, ext);
 
   CEntryStub stub(1);
   CallStub(&stub);
@@ -1769,7 +1769,7 @@ void MacroAssembler::CallExternalReference(const ExternalReference& ext,
 
 
 void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin) {
-  Mov(x1, Operand(builtin));
+  Mov(x1, builtin);
   CEntryStub stub(1);
   Jump(stub.GetCode(isolate()), RelocInfo::CODE_TARGET);
 }
@@ -1881,7 +1881,7 @@ void MacroAssembler::CallCFunction(ExternalReference function,
                                    int num_of_double_args) {
   UseScratchRegisterScope temps(this);
   Register temp = temps.AcquireX();
-  Mov(temp, Operand(function));
+  Mov(temp, function);
   CallCFunction(temp, num_of_reg_args, num_of_double_args);
 }
 
@@ -2912,7 +2912,7 @@ void MacroAssembler::Prologue(PrologueFrameMode frame_mode) {
     ASSERT(StackPointer().Is(jssp));
     UseScratchRegisterScope temps(this);
     Register temp = temps.AcquireX();
-    __ Mov(temp, Operand(Smi::FromInt(StackFrame::STUB)));
+    __ Mov(temp, Smi::FromInt(StackFrame::STUB));
     // Compiled stubs don't age, and so they don't need the predictable code
     // ageing sequence.
     __ Push(lr, fp, cp, temp);
@@ -2935,7 +2935,7 @@ void MacroAssembler::EnterFrame(StackFrame::Type type) {
   Register code_reg = temps.AcquireX();
 
   Push(lr, fp, cp);
-  Mov(type_reg, Operand(Smi::FromInt(type)));
+  Mov(type_reg, Smi::FromInt(type));
   Mov(code_reg, Operand(CodeObject()));
   Push(type_reg, code_reg);
   // jssp[4] : lr
@@ -3092,7 +3092,7 @@ void MacroAssembler::SetCounter(StatsCounter* counter, int value,
                                 Register scratch1, Register scratch2) {
   if (FLAG_native_code_counters && counter->Enabled()) {
     Mov(scratch1, value);
-    Mov(scratch2, Operand(ExternalReference(counter)));
+    Mov(scratch2, ExternalReference(counter));
     Str(scratch1, MemOperand(scratch2));
   }
 }
@@ -3102,7 +3102,7 @@ void MacroAssembler::IncrementCounter(StatsCounter* counter, int value,
                                       Register scratch1, Register scratch2) {
   ASSERT(value != 0);
   if (FLAG_native_code_counters && counter->Enabled()) {
-    Mov(scratch2, Operand(ExternalReference(counter)));
+    Mov(scratch2, ExternalReference(counter));
     Ldr(scratch1, MemOperand(scratch2));
     Add(scratch1, scratch1, value);
     Str(scratch1, MemOperand(scratch2));
@@ -3135,7 +3135,7 @@ void MacroAssembler::LoadContext(Register dst, int context_chain_length) {
 #ifdef ENABLE_DEBUGGER_SUPPORT
 void MacroAssembler::DebugBreak() {
   Mov(x0, 0);
-  Mov(x1, Operand(ExternalReference(Runtime::kDebugBreak, isolate())));
+  Mov(x1, ExternalReference(Runtime::kDebugBreak, isolate()));
   CEntryStub ces(1);
   ASSERT(AllowThisStubCall(&ces));
   Call(ces.GetCode(isolate()), RelocInfo::DEBUG_BREAK);
@@ -3174,7 +3174,7 @@ void MacroAssembler::PushTryHandler(StackHandler::Kind kind,
   }
 
   // Link the current handler as the next handler.
-  Mov(x11, Operand(ExternalReference(Isolate::kHandlerAddress, isolate())));
+  Mov(x11, ExternalReference(Isolate::kHandlerAddress, isolate()));
   Ldr(x10, MemOperand(x11));
   Push(x10);
   // Set this new handler as the current one.
@@ -3185,7 +3185,7 @@ void MacroAssembler::PushTryHandler(StackHandler::Kind kind,
 void MacroAssembler::PopTryHandler() {
   STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
   Pop(x10);
-  Mov(x11, Operand(ExternalReference(Isolate::kHandlerAddress, isolate())));
+  Mov(x11, ExternalReference(Isolate::kHandlerAddress, isolate()));
   Drop(StackHandlerConstants::kSize - kXRegSize, kByteSizeInBytes);
   Str(x10, MemOperand(x11));
 }
@@ -3307,7 +3307,7 @@ void MacroAssembler::Allocate(Register object_size,
   // Set up allocation top address and object size registers.
   Register top_address = scratch1;
   Register allocation_limit = scratch2;
-  Mov(top_address, Operand(heap_allocation_top));
+  Mov(top_address, heap_allocation_top);
 
   if ((flags & RESULT_CONTAINS_TOP) == 0) {
     // Load allocation top into result and the allocation limit.
@@ -3360,13 +3360,13 @@ void MacroAssembler::UndoAllocationInNewSpace(Register object,
   Bic(object, object, kHeapObjectTagMask);
 #ifdef DEBUG
   // Check that the object un-allocated is below the current top.
-  Mov(scratch, Operand(new_space_allocation_top));
+  Mov(scratch, new_space_allocation_top);
   Ldr(scratch, MemOperand(scratch));
   Cmp(object, scratch);
   Check(lt, kUndoAllocationOfNonAllocatedMemory);
 #endif
   // Write the address of the object to un-allocate as the current top.
-  Mov(scratch, Operand(new_space_allocation_top));
+  Mov(scratch, new_space_allocation_top);
   Str(object, MemOperand(scratch));
 }
 
@@ -3459,7 +3459,7 @@ void MacroAssembler::AllocateAsciiConsString(Register result,
 
   ExternalReference high_promotion_mode = ExternalReference::
       new_space_high_promotion_mode_active_address(isolate());
-  Mov(scratch1, Operand(high_promotion_mode));
+  Mov(scratch1, high_promotion_mode);
   Ldr(scratch1, MemOperand(scratch1));
   Cbz(scratch1, &allocate_new_space);
 
@@ -4112,7 +4112,7 @@ void MacroAssembler::RememberedSetHelper(Register object,  // For debug tests.
   Register scratch2 = temps.AcquireX();
 
   // Load store buffer top.
-  Mov(scratch2, Operand(ExternalReference::store_buffer_top(isolate())));
+  Mov(scratch2, ExternalReference::store_buffer_top(isolate()));
   Ldr(scratch1, MemOperand(scratch2));
   // Store pointer to buffer and increment buffer top.
   Str(address, MemOperand(scratch1, kPointerSize, PostIndex));
@@ -4621,7 +4621,7 @@ void MacroAssembler::AssertIsString(const Register& object) {
     UseScratchRegisterScope temps(this);
     Register temp = temps.AcquireX();
     STATIC_ASSERT(kSmiTag == 0);
-    Tst(object, Operand(kSmiTagMask));
+    Tst(object, kSmiTagMask);
     Check(ne, kOperandIsNotAString);
     Ldr(temp, FieldMemOperand(object, HeapObject::kMapOffset));
     CompareInstanceType(temp, temp, FIRST_NONSTRING_TYPE);
@@ -4676,7 +4676,7 @@ void MacroAssembler::Abort(BailoutReason reason) {
     // Avoid infinite recursion; Push contains some assertions that use Abort.
     NoUseRealAbortsScope no_real_aborts(this);
 
-    Mov(x0, Operand(Smi::FromInt(reason)));
+    Mov(x0, Smi::FromInt(reason));
     Push(x0);
 
     if (!has_frame_) {
@@ -5078,7 +5078,7 @@ void MacroAssembler::TruncatingDiv(Register result,
   ASSERT(!AreAliased(result, dividend));
   ASSERT(result.Is32Bits() && dividend.Is32Bits());
   MultiplierAndShift ms(divisor);
-  Mov(result, Operand(ms.multiplier()));
+  Mov(result, ms.multiplier());
   Smull(result.X(), dividend, result);
   Asr(result.X(), result.X(), 32);
   if (divisor > 0 && ms.multiplier() < 0) Add(result, result, dividend);

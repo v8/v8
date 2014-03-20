@@ -2526,3 +2526,73 @@ TEST(StrictDelete) {
   RunParserSyncTest(strict_context_data, bad_statement_data, kError);
   RunParserSyncTest(sloppy_context_data, bad_statement_data, kError);
 }
+
+
+TEST(ErrorInvalidLeftHandSide) {
+  const char* assignment_context_data[][2] = {
+    // {"", " = 1;"},
+    // {"\"use strict\"; ", " = 1;"},
+    { NULL, NULL }
+  };
+
+  const char* prefix_context_data[][2] = {
+    {"++", ";"},
+    {"\"use strict\"; ++", ";"},
+    {NULL, NULL},
+  };
+
+  const char* postfix_context_data[][2] = {
+    {"", "++;"},
+    {"\"use strict\"; ", "++;"},
+    { NULL, NULL }
+  };
+
+  // Good left hand sides for assigment or prefix / postfix operations.
+  const char* good_statement_data[] = {
+    "foo",
+    "foo.bar",
+    "foo[bar]",
+    "foo()[bar]",
+    "foo().bar",
+    "this.foo",
+    "this[foo]",
+    "new foo()[bar]",
+    "new foo().bar",
+    NULL
+  };
+
+  // Bad left hand sides for assigment or prefix / postfix operations.
+  const char* bad_statement_data_common[] = {
+    "2",
+    "foo()",
+    "null",
+    "if",  // Unexpected token
+    "{x: 1}",  // Unexpected token
+    "this",
+    "\"bar\"",
+    "(foo + bar)",
+    "new new foo()[bar]",  // means: new (new foo()[bar])
+    "new new foo().bar",  // means: new (new foo()[bar])
+    NULL
+  };
+
+  // These are not okay for assignment, but okay for prefix / postix.
+  const char* bad_statement_data_for_assignment[] = {
+    "++foo",
+    "foo++",
+    "foo + bar",
+    NULL
+  };
+
+  RunParserSyncTest(assignment_context_data, good_statement_data, kSuccess);
+  RunParserSyncTest(assignment_context_data, bad_statement_data_common, kError);
+  RunParserSyncTest(assignment_context_data, bad_statement_data_for_assignment,
+                    kError);
+
+  RunParserSyncTest(prefix_context_data, good_statement_data, kSuccess);
+  RunParserSyncTest(prefix_context_data, bad_statement_data_common, kError);
+
+  RunParserSyncTest(postfix_context_data, good_statement_data, kSuccess);
+  // TODO(marja): This doesn't work yet.
+  // RunParserSyncTest(postfix_context_data, bad_statement_data_common, kError);
+}

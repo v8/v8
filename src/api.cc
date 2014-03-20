@@ -2203,9 +2203,10 @@ Local<StackFrame> StackTrace::GetFrame(uint32_t index) const {
   ENTER_V8(isolate);
   EscapableHandleScope scope(reinterpret_cast<Isolate*>(isolate));
   i::Handle<i::JSArray> self = Utils::OpenHandle(this);
-  i::Object* raw_object = self->GetElementNoExceptionThrown(isolate, index);
-  i::Handle<i::JSObject> obj(i::JSObject::cast(raw_object));
-  return scope.Escape(Utils::StackFrameToLocal(obj));
+  i::Handle<i::Object> obj =
+      i::Object::GetElementNoExceptionThrown(isolate, self, index);
+  i::Handle<i::JSObject> jsobj = i::Handle<i::JSObject>::cast(obj);
+  return scope.Escape(Utils::StackFrameToLocal(jsobj));
 }
 
 
@@ -5475,6 +5476,8 @@ Local<String> v8::String::Concat(Handle<String> left, Handle<String> right) {
   i::Handle<i::String> right_string = Utils::OpenHandle(*right);
   i::Handle<i::String> result = isolate->factory()->NewConsString(left_string,
                                                                   right_string);
+  // We do not expect this to throw an exception. Change this if it does.
+  CHECK_NOT_EMPTY_HANDLE(isolate, result);
   return Utils::ToLocal(result);
 }
 
@@ -6966,9 +6969,12 @@ Handle<String> CpuProfileNode::GetFunctionName() const {
     return ToApiHandle<String>(
         isolate->factory()->InternalizeUtf8String(entry->name()));
   } else {
-    return ToApiHandle<String>(isolate->factory()->NewConsString(
+    i::Handle<i::String> cons = isolate->factory()->NewConsString(
         isolate->factory()->InternalizeUtf8String(entry->name_prefix()),
-        isolate->factory()->InternalizeUtf8String(entry->name())));
+        isolate->factory()->InternalizeUtf8String(entry->name()));
+    // We do not expect this to throw an exception. Change this if it does.
+    CHECK_NOT_EMPTY_HANDLE(isolate, cons);
+    return ToApiHandle<String>(cons);
   }
 }
 

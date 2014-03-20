@@ -624,6 +624,7 @@ class HValue : public ZoneObject {
     kCanBeDivByZero,
     kLeftCanBeMinInt,
     kLeftCanBeNegative,
+    kLeftCanBePositive,
     kAllowUndefinedAsNaN,
     kIsArguments,
     kTruncatingToInt32,
@@ -4105,6 +4106,8 @@ class HMathFloorOfDiv V8_FINAL : public HBinaryOperation {
     SetFlag(kCanOverflow);
     SetFlag(kCanBeDivByZero);
     SetFlag(kLeftCanBeMinInt);
+    SetFlag(kLeftCanBeNegative);
+    SetFlag(kLeftCanBePositive);
     SetFlag(kAllowUndefinedAsNaN);
   }
 

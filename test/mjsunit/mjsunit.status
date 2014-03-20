@@ -44,6 +44,7 @@
   # When that bug is fixed, revert the expectation to:
   # Skip long running test in debug and allow it to timeout in release mode.
   # regress/regress-524: [PASS, TIMEOUT, ['mode == debug', SKIP]],
+  'string-oom-slow-*': [PASS, SLOW, ['mode == debug', SKIP]],
 
   # This test non-deterministically runs out of memory on Windows ia32.
   'regress/regress-crbug-160010': [SKIP],
@@ -243,7 +244,7 @@
   'unicode-test': [PASS, ['mode == debug', PASS, FAIL]],
 
   # Times out often in release mode on ARM.
-  'compiler/regress-stacktrace-methods': [PASS, PASS, ['mode == release', TIMEOUT]],
+  'compiler/regress-stacktrace-methods': [PASS, ['mode == release', TIMEOUT]],
   'array-splice': [PASS, TIMEOUT],
 
   # Long running test.
@@ -294,7 +295,7 @@
   'array-constructor': [PASS, ['mode == debug', SKIP]],
 
   # Times out often in release mode on MIPS.
-  'compiler/regress-stacktrace-methods': [PASS, PASS, ['mode == release', TIMEOUT]],
+  'compiler/regress-stacktrace-methods': [PASS, ['mode == release', TIMEOUT]],
   'array-splice': [PASS, TIMEOUT],
 
   # Long running test.

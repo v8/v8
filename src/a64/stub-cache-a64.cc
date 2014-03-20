@@ -125,7 +125,7 @@ static void ProbeTable(Isolate* isolate,
   __ Add(scratch3, offset, Operand(offset, LSL, 1));
 
   // Calculate the base address of the entry.
-  __ Mov(scratch, Operand(key_offset));
+  __ Mov(scratch, key_offset);
   __ Add(scratch, scratch, Operand(scratch3, LSL, kPointerSizeLog2));
 
   // Check that the key in the entry matches the name.
@@ -461,16 +461,11 @@ void StoreStubCompiler::GenerateStoreTransition(MacroAssembler* masm,
   // TODO(verwaest): Share this code as a code stub.
   SmiCheck smi_check = representation.IsTagged()
       ? INLINE_SMI_CHECK : OMIT_SMI_CHECK;
+  Register prop_reg = representation.IsDouble() ? storage_reg : value_reg;
   if (index < 0) {
     // Set the property straight into the object.
     int offset = object->map()->instance_size() + (index * kPointerSize);
-    // TODO(jbramley): This construct appears in several places in this
-    // function. Try to clean it up, perhaps using a result_reg.
-    if (representation.IsDouble()) {
-      __ Str(storage_reg, FieldMemOperand(receiver_reg, offset));
-    } else {
-      __ Str(value_reg, FieldMemOperand(receiver_reg, offset));
-    }
+    __ Str(prop_reg, FieldMemOperand(receiver_reg, offset));
 
     if (!representation.IsSmi()) {
       // Update the write barrier for the array address.
@@ -492,11 +487,7 @@ void StoreStubCompiler::GenerateStoreTransition(MacroAssembler* masm,
     // Get the properties array
     __ Ldr(scratch1,
            FieldMemOperand(receiver_reg, JSObject::kPropertiesOffset));
-    if (representation.IsDouble()) {
-      __ Str(storage_reg, FieldMemOperand(scratch1, offset));
-    } else {
-      __ Str(value_reg, FieldMemOperand(scratch1, offset));
-    }
+    __ Str(prop_reg, FieldMemOperand(scratch1, offset));
 
     if (!representation.IsSmi()) {
       // Update the write barrier for the array address.
@@ -761,7 +752,7 @@ void StubCompiler::GenerateFastApiCall(MacroAssembler* masm,
   ExternalReference ref = ExternalReference(&fun,
                                             ExternalReference::DIRECT_API_CALL,
                                             masm->isolate());
-  __ Mov(api_function_address, Operand(ref));
+  __ Mov(api_function_address, ref);
 
   // Jump to stub.
   CallApiFunctionStub stub(is_store, call_data_undefined, argc);
@@ -1022,7 +1013,7 @@ void LoadStubCompiler::GenerateLoadCallback(
   // together. Can we use scratch1() here?
   __ LoadRoot(scratch4(), Heap::kUndefinedValueRootIndex);
   __ Push(scratch3(), scratch4());
-  __ Mov(scratch3(), Operand(ExternalReference::isolate_address(isolate())));
+  __ Mov(scratch3(), ExternalReference::isolate_address(isolate()));
   __ Push(scratch4(), scratch3(), reg, name());
 
   Register args_addr = scratch2();
@@ -1044,7 +1035,7 @@ void LoadStubCompiler::GenerateLoadCallback(
   ApiFunction fun(getter_address);
   ExternalReference::Type type = ExternalReference::DIRECT_GETTER_CALL;
   ExternalReference ref = ExternalReference(&fun, type, isolate());
-  __ Mov(getter_address_reg, Operand(ref));
+  __ Mov(getter_address_reg, ref);
 
   CallApiGetterStub stub;
   __ TailCallStub(&stub);

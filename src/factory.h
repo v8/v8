@@ -44,7 +44,7 @@ class Factory {
       Handle<Object> value,
       PretenureFlag pretenure = NOT_TENURED);
 
-  // Allocate a new uninitialized fixed array.
+  // Allocates a fixed array initialized with undefined values.
   Handle<FixedArray> NewFixedArray(
       int size,
       PretenureFlag pretenure = NOT_TENURED);
@@ -53,6 +53,9 @@ class Factory {
   Handle<FixedArray> NewFixedArrayWithHoles(
       int size,
       PretenureFlag pretenure = NOT_TENURED);
+
+  // Allocates an uninitialized fixed array. It must be filled by the caller.
+  Handle<FixedArray> NewUninitializedFixedArray(int size);
 
   // Allocate a new uninitialized fixed double array.
   Handle<FixedDoubleArray> NewFixedDoubleArray(

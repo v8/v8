@@ -874,7 +874,7 @@ PreParser::Expression PreParser::ParseLeftHandSideExpression(bool* ok) {
         if (result.IsThis()) {
           result = Expression::ThisProperty();
         } else {
-          result = Expression::Default();
+          result = Expression::Property();
         }
         break;
       }
@@ -891,7 +891,7 @@ PreParser::Expression PreParser::ParseLeftHandSideExpression(bool* ok) {
         if (result.IsThis()) {
           result = Expression::ThisProperty();
         } else {
-          result = Expression::Default();
+          result = Expression::Property();
         }
         break;
       }
@@ -913,13 +913,17 @@ PreParser::Expression PreParser::ParseMemberWithNewPrefixesExpression(
   if (peek() == Token::NEW) {
     Consume(Token::NEW);
     ParseMemberWithNewPrefixesExpression(CHECK_OK);
+    Expression expression = Expression::Default();
     if (peek() == Token::LPAREN) {
       // NewExpression with arguments.
       ParseArguments(CHECK_OK);
-      // The expression can still continue with . or [ after the arguments.
-      ParseMemberExpressionContinuation(Expression::Default(), CHECK_OK);
+      // The expression can still continue with . or [ after the arguments. Here
+      // we need to transmit the "is valid left hand side" property of the
+      // expression.
+      expression =
+          ParseMemberExpressionContinuation(Expression::Default(), CHECK_OK);
     }
-    return Expression::Default();
+    return expression;
   }
   // No 'new' keyword.
   return ParseMemberExpression(ok);
@@ -980,7 +984,7 @@ PreParser::Expression PreParser::ParseMemberExpressionContinuation(
         if (expression.IsThis()) {
           expression = Expression::ThisProperty();
         } else {
-          expression = Expression::Default();
+          expression = Expression::Property();
         }
         break;
       }
@@ -990,7 +994,7 @@ PreParser::Expression PreParser::ParseMemberExpressionContinuation(
         if (expression.IsThis()) {
           expression = Expression::ThisProperty();
         } else {
-          expression = Expression::Default();
+          expression = Expression::Property();
         }
         break;
       }
@@ -1102,7 +1106,6 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
 
     int end_position = scanner()->location().end_pos;
     CheckOctalLiteral(start_position, end_position, CHECK_OK);
-    return Expression::StrictFunction();
   }
 
   return Expression::Default();

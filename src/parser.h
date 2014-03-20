@@ -618,7 +618,14 @@ class Parser : public ParserBase<ParserTraits> {
  private:
   friend class ParserTraits;
 
-  static const int kMaxNumFunctionLocals = 131071;  // 2^17-1
+  // Limit the allowed number of local variables in a function. The hard limit
+  // is that offsets computed by FullCodeGenerator::StackOperand and similar
+  // functions are ints, and they should not overflow. In addition, accessing
+  // local variables creates user-controlled constants in the generated code,
+  // and we don't want too much user-controlled memory inside the code (this was
+  // the reason why this limit was introduced in the first place; see
+  // https://codereview.chromium.org/7003030/ ).
+  static const int kMaxNumFunctionLocals = 4194303;  // 2^22-1
 
   enum Mode {
     PARSE_LAZILY,

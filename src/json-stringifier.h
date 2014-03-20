@@ -51,6 +51,8 @@ class BasicJsonStringifier BASE_EMBEDDED {
 
   enum Result { UNCHANGED, SUCCESS, EXCEPTION, CIRCULAR, STACK_OVERFLOW };
 
+  void Accumulate();
+
   void Extend();
 
   void ChangeEncoding();
@@ -178,6 +180,7 @@ class BasicJsonStringifier BASE_EMBEDDED {
   int current_index_;
   int part_length_;
   bool is_ascii_;
+  bool overflowed_;
 
   static const int kJsonEscapeTableEntrySize = 8;
   static const char* const JsonEscapeTable;
@@ -254,7 +257,10 @@ const char* const BasicJsonStringifier::JsonEscapeTable =
 
 
 BasicJsonStringifier::BasicJsonStringifier(Isolate* isolate)
-    : isolate_(isolate), current_index_(0), is_ascii_(true) {
+    : isolate_(isolate),
+      current_index_(0),
+      is_ascii_(true),
+      overflowed_(false) {
   factory_ = isolate_->factory();
   accumulator_store_ = Handle<JSValue>::cast(
                            factory_->ToObject(factory_->empty_string()));
@@ -269,9 +275,12 @@ MaybeObject* BasicJsonStringifier::Stringify(Handle<Object> object) {
   switch (SerializeObject(object)) {
     case UNCHANGED:
       return isolate_->heap()->undefined_value();
-    case SUCCESS:
+    case SUCCESS: {
       ShrinkCurrentPart();
-      return *factory_->NewConsString(accumulator(), current_part_);
+      Accumulate();
+      if (overflowed_) return isolate_->ThrowInvalidStringLength();
+      return *accumulator();
+    }
     case CIRCULAR:
       return isolate_->Throw(*factory_->NewTypeError(
                  "circular_structure", HandleVector<Object>(NULL, 0)));
@@ -486,7 +495,9 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeGeneric(
   part_length_ = kInitialPartLength;  // Allocate conservatively.
   Extend();             // Attach current part and allocate new part.
   // Attach result string to the accumulator.
-  set_accumulator(factory_->NewConsString(accumulator(), result_string));
+  Handle<String> cons = factory_->NewConsString(accumulator(), result_string);
+  RETURN_IF_EMPTY_HANDLE_VALUE(isolate_, cons, EXCEPTION);
+  set_accumulator(cons);
   return SUCCESS;
 }
 
@@ -708,8 +719,20 @@ void BasicJsonStringifier::ShrinkCurrentPart() {
 }
 
 
+void BasicJsonStringifier::Accumulate() {
+  if (accumulator()->length() + current_part_->length() > String::kMaxLength) {
+    // Screw it.  Simply set the flag and carry on.  Throw exception at the end.
+    // We most likely will trigger a real OOM before even reaching this point.
+    set_accumulator(factory_->empty_string());
+    overflowed_ = true;
+  } else {
+    set_accumulator(factory_->NewConsString(accumulator(), current_part_));
+  }
+}
+
+
 void BasicJsonStringifier::Extend() {
-  set_accumulator(factory_->NewConsString(accumulator(), current_part_));
+  Accumulate();
   if (part_length_ <= kMaxPartLength / kPartLengthGrowthFactor) {
     part_length_ *= kPartLengthGrowthFactor;
   }
@@ -724,7 +747,7 @@ void BasicJsonStringifier::Extend() {
 
 void BasicJsonStringifier::ChangeEncoding() {
   ShrinkCurrentPart();
-  set_accumulator(factory_->NewConsString(accumulator(), current_part_));
+  Accumulate();
   current_part_ = factory_->NewRawTwoByteString(part_length_);
   current_index_ = 0;
   is_ascii_ = false;

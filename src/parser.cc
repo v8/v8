@@ -2922,6 +2922,7 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
         Factory* heap_factory = isolate()->factory();
         Handle<String> tempstr =
             heap_factory->NewConsString(heap_factory->dot_for_string(), name);
+        RETURN_IF_EMPTY_HANDLE_VALUE(isolate(), tempstr, 0);
         Handle<String> tempname = heap_factory->InternalizeString(tempstr);
         Variable* temp = scope_->DeclarationScope()->NewTemporary(tempname);
         VariableProxy* temp_proxy = factory()->NewVariableProxy(temp);
