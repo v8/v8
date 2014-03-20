@@ -1132,8 +1132,7 @@ Handle<String> Factory::EmergencyNewError(const char* message,
       space--;
       if (space > 0) {
         Handle<String> arg_str = Handle<String>::cast(
-            Object::GetElement(isolate(), args, i));
-        CHECK_NOT_EMPTY_HANDLE(isolate(), arg_str);
+            Object::GetElementNoExceptionThrown(isolate(), args, i));
         SmartArrayPointer<char> arg = arg_str->ToCString();
         Vector<char> v2(p, static_cast<int>(space));
         OS::StrNCpy(v2, arg.get(), space);

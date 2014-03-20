@@ -2203,9 +2203,10 @@ Local<StackFrame> StackTrace::GetFrame(uint32_t index) const {
   ENTER_V8(isolate);
   EscapableHandleScope scope(reinterpret_cast<Isolate*>(isolate));
   i::Handle<i::JSArray> self = Utils::OpenHandle(this);
-  i::Object* raw_object = self->GetElementNoExceptionThrown(isolate, index);
-  i::Handle<i::JSObject> obj(i::JSObject::cast(raw_object));
-  return scope.Escape(Utils::StackFrameToLocal(obj));
+  i::Handle<i::Object> obj =
+      i::Object::GetElementNoExceptionThrown(isolate, self, index);
+  i::Handle<i::JSObject> jsobj = i::Handle<i::JSObject>::cast(obj);
+  return scope.Escape(Utils::StackFrameToLocal(jsobj));
 }
 
 

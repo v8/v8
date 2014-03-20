@@ -21982,8 +21982,9 @@ THREADED_TEST(FunctionNew) {
       i::Smi::cast(v8::Utils::OpenHandle(*func)
           ->shared()->get_api_func_data()->serial_number())->value();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  i::Object* elm = i_isolate->native_context()->function_cache()
-      ->GetElementNoExceptionThrown(i_isolate, serial_number);
+  i::Handle<i::JSObject> cache(i_isolate->native_context()->function_cache());
+  i::Handle<i::Object> elm =
+      i::Object::GetElementNoExceptionThrown(i_isolate, cache, serial_number);
   CHECK(elm->IsUndefined());
   // Verify that each Function::New creates a new function instance
   Local<Object> data2 = v8::Object::New(isolate);

@@ -1077,11 +1077,20 @@ Handle<Object> Object::GetElement(Isolate* isolate,
 }
 
 
-Object* Object::GetElementNoExceptionThrown(Isolate* isolate, uint32_t index) {
-  MaybeObject* maybe = GetElementWithReceiver(isolate, this, index);
-  ASSERT(!maybe->IsFailure());
-  Object* result = NULL;  // Initialization to please compiler.
-  maybe->ToObject(&result);
+static Handle<Object> GetElementNoExceptionThrownHelper(Isolate* isolate,
+                                                        Handle<Object> object,
+                                                        uint32_t index) {
+  CALL_HEAP_FUNCTION(isolate,
+                     object->GetElementWithReceiver(isolate, *object, index),
+                     Object);
+}
+
+Handle<Object> Object::GetElementNoExceptionThrown(Isolate* isolate,
+                                                   Handle<Object> object,
+                                                   uint32_t index) {
+  Handle<Object> result =
+      GetElementNoExceptionThrownHelper(isolate, object, index);
+  CHECK_NOT_EMPTY_HANDLE(isolate, result);
   return result;
 }
 

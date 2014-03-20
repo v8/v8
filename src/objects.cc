@@ -5179,8 +5179,7 @@ Handle<Object> JSObject::DeleteElement(Handle<JSObject> object,
       if (object->GetLocalElementAccessorPair(index) != NULL) {
         old_value = Handle<Object>::cast(factory->the_hole_value());
       } else {
-        old_value = Object::GetElement(isolate, object, index);
-        CHECK_NOT_EMPTY_HANDLE(isolate, old_value);
+        old_value = Object::GetElementNoExceptionThrown(isolate, object, index);
       }
     }
   }
@@ -6349,8 +6348,7 @@ void JSObject::DefineAccessor(Handle<JSObject> object,
     if (is_element) {
       preexists = HasLocalElement(object, index);
       if (preexists && object->GetLocalElementAccessorPair(index) == NULL) {
-        old_value = Object::GetElement(isolate, object, index);
-        CHECK_NOT_EMPTY_HANDLE(isolate, old_value);
+        old_value = Object::GetElementNoExceptionThrown(isolate, object, index);
       }
     } else {
       LookupResult lookup(isolate);
@@ -11332,8 +11330,7 @@ static bool GetOldValue(Isolate* isolate,
   if (object->GetLocalElementAccessorPair(index) != NULL) {
     value = Handle<Object>::cast(isolate->factory()->the_hole_value());
   } else {
-    value = Object::GetElement(isolate, object, index);
-    CHECK_NOT_EMPTY_HANDLE(isolate, value);
+    value = Object::GetElementNoExceptionThrown(isolate, object, index);
   }
   old_values->Add(value);
   indices->Add(index);
@@ -12553,8 +12550,7 @@ Handle<Object> JSObject::SetElement(Handle<JSObject> object,
 
   if (old_attributes != ABSENT) {
     if (object->GetLocalElementAccessorPair(index) == NULL) {
-      old_value = Object::GetElement(isolate, object, index);
-      CHECK_NOT_EMPTY_HANDLE(isolate, old_value);
+      old_value = Object::GetElementNoExceptionThrown(isolate, object, index);
     }
   } else if (object->IsJSArray()) {
     // Store old array length in case adding an element grows the array.
@@ -12600,8 +12596,8 @@ Handle<Object> JSObject::SetElement(Handle<JSObject> object,
   } else if (old_value->IsTheHole()) {
     EnqueueChangeRecord(object, "reconfigure", name, old_value);
   } else {
-    Handle<Object> new_value = Object::GetElement(isolate, object, index);
-    CHECK_NOT_EMPTY_HANDLE(isolate, new_value);
+    Handle<Object> new_value =
+        Object::GetElementNoExceptionThrown(isolate, object, index);
     bool value_changed = !old_value->SameValue(*new_value);
     if (old_attributes != new_attributes) {
       if (!value_changed) old_value = isolate->factory()->the_hole_value();
