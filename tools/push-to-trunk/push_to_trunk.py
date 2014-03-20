@@ -101,12 +101,10 @@ class DetectLastPush(Step):
         self.Die("Could not retrieve bleeding edge git hash for trunk push %s"
                  % last_push)
 
-    # TODO(machenbach): last_push_trunk points to the svn revision on trunk.
-    # It is not used yet but we'll need it for retrieving the current version.
+    # This points to the svn revision of the last push on trunk.
     self["last_push_trunk"] = last_push
-    # TODO(machenbach): This currently points to the prepare push revision that
-    # will be deprecated soon. After the deprecation it will point to the last
-    # bleeding_edge revision that went into the last push.
+    # This points to the last bleeding_edge revision that went into the last
+    # push.
     self["last_push_bleeding_edge"] = last_push_bleeding_edge
 
 
@@ -137,15 +135,6 @@ class IncrementVersion(Step):
                                     self["new_minor"],
                                     self["new_build"])
 
-    # TODO(machenbach): The following will be deprecated. Increment version
-    # numbers for version.cc on bleeding_edge (new build level on trunk + 1).
-    text = FileToText(self.Config(VERSION_FILE))
-    text = MSub(r"(?<=#define BUILD_NUMBER)(?P<space>\s+)\d*$",
-                r"\g<space>%s" % str(int(self["new_build"]) + 1),
-                text)
-    TextToFile(text, self.Config(VERSION_FILE))
-    self.ReadAndPersistVersion("new_be_")
-
 
 class PrepareChangeLog(Step):
   MESSAGE = "Prepare raw ChangeLog entry."
@@ -172,6 +161,7 @@ class PrepareChangeLog(Step):
     self["date"] = self.GetDate()
     output = "%s: Version %s\n\n" % (self["date"], self["version"])
     TextToFile(output, self.Config(CHANGELOG_ENTRY_FILE))
+    # TODO(machenbach): Retrieve the push hash also from a command-line option.
     commits = self.GitLog(format="%H",
         git_hash="%s..HEAD" % self["last_push_bleeding_edge"])
 
@@ -222,34 +212,6 @@ class EditChangeLog(Step):
     TextToFile(changelog_entry, self.Config(CHANGELOG_ENTRY_FILE))
 
 
-class CommitLocal(Step):
-  MESSAGE = "Commit to local branch."
-
-  def RunStep(self):
-    self["prep_commit_msg"] = ("Prepare push to trunk.  "
-        "Now working on version %s.%s.%s." % (self["new_be_major"],
-                                              self["new_be_minor"],
-                                              self["new_be_build"]))
-
-    # Include optional TBR only in the git command. The persisted commit
-    # message is used for finding the commit again later.
-    if self._options.tbr_commit:
-      message = "%s\n\nTBR=%s" % (self["prep_commit_msg"],
-                                  self._options.reviewer)
-    else:
-      message = "%s" % self["prep_commit_msg"]
-    self.GitCommit(message)
-
-
-class CommitRepository(Step):
-  MESSAGE = "Commit to the repository."
-
-  def RunStep(self):
-    self.WaitForLGTM()
-    self.GitPresubmit()
-    self.GitDCommit()
-
-
 class StragglerCommits(Step):
   MESSAGE = ("Fetch straggler commits that sneaked in since this script was "
              "started.")
@@ -257,13 +219,8 @@ class StragglerCommits(Step):
   def RunStep(self):
     self.GitSVNFetch()
     self.GitCheckout("svn/bleeding_edge")
-    self["prepare_commit_hash"] = self.GitLog(n=1, format="%H",
-                                              grep=self["prep_commit_msg"])
-    # TODO(machenbach): Retrieve the push hash from a command-line option or
-    # use ToT. The "prepare_commit_hash" will be deprecated along with the
-    # prepare push commit.
-    self["push_hash"] = self.GitLog(n=1, format="%H",
-                                    parent_hash=self["prepare_commit_hash"])
+    # TODO(machenbach): Retrieve the push hash also from a command-line option.
+    self["push_hash"] = self.GitLog(n=1, format="%H", git_hash="HEAD")
 
 
 class SquashCommits(Step):
@@ -364,6 +321,8 @@ class SanityCheck(Step):
   MESSAGE = "Sanity check."
 
   def RunStep(self):
+    # TODO(machenbach): Run presubmit script here as it is now missing in the
+    # prepare push process.
     if not self.Confirm("Please check if your local checkout is sane: Inspect "
         "%s, compile, run tests. Do you want to commit this new trunk "
         "revision to the repository?" % self.Config(VERSION_FILE)):
@@ -542,9 +501,6 @@ class PushToTrunk(ScriptsBase):
       IncrementVersion,
       PrepareChangeLog,
       EditChangeLog,
-      CommitLocal,
-      UploadStep,
-      CommitRepository,
       StragglerCommits,
       SquashCommits,
       NewBranch,
