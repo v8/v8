@@ -257,7 +257,7 @@ void LGapResolver::EmitMove(int index) {
     if (destination->IsRegister()) {
       Register dst = cgen_->ToRegister(destination);
       if (cgen_->IsSmi(constant_source)) {
-        __ Mov(dst, Operand(cgen_->ToSmi(constant_source)));
+        __ Mov(dst, cgen_->ToSmi(constant_source));
       } else if (cgen_->IsInteger32Constant(constant_source)) {
         __ Mov(dst, cgen_->ToInteger32(constant_source));
       } else {
@@ -271,7 +271,7 @@ void LGapResolver::EmitMove(int index) {
       ASSERT(!in_cycle_);  // Constant moves happen after all cycles are gone.
       need_to_restore_root_ = true;
       if (cgen_->IsSmi(constant_source)) {
-        __ Mov(kSavedValue, Operand(cgen_->ToSmi(constant_source)));
+        __ Mov(kSavedValue, cgen_->ToSmi(constant_source));
       } else if (cgen_->IsInteger32Constant(constant_source)) {
         __ Mov(kSavedValue, cgen_->ToInteger32(constant_source));
       } else {

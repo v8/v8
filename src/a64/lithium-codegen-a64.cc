@@ -801,7 +801,7 @@ bool LCodeGen::GenerateDeferredCode() {
         ASSERT(info()->IsStub());
         frame_is_built_ = true;
         __ Push(lr, fp, cp);
-        __ Mov(fp, Operand(Smi::FromInt(StackFrame::STUB)));
+        __ Mov(fp, Smi::FromInt(StackFrame::STUB));
         __ Push(fp);
         __ Add(fp, __ StackPointer(),
                StandardFrameConstants::kFixedFrameSizeFromFp);
@@ -855,8 +855,7 @@ bool LCodeGen::GenerateDeoptJumpTable() {
       Register stub_deopt_entry = temps.AcquireX();
       Register stub_marker = temps.AcquireX();
 
-      __ Mov(stub_deopt_entry,
-             Operand(ExternalReference::ForDeoptEntry(entry)));
+      __ Mov(stub_deopt_entry, ExternalReference::ForDeoptEntry(entry));
       if (needs_frame.is_bound()) {
         __ B(&needs_frame);
       } else {
@@ -865,7 +864,7 @@ bool LCodeGen::GenerateDeoptJumpTable() {
         // have a function pointer to install in the stack frame that we're
         // building, install a special marker there instead.
         ASSERT(info()->IsStub());
-        __ Mov(stub_marker, Operand(Smi::FromInt(StackFrame::STUB)));
+        __ Mov(stub_marker, Smi::FromInt(StackFrame::STUB));
         __ Push(lr, fp, cp, stub_marker);
         __ Add(fp, __ StackPointer(), 2 * kPointerSize);
         __ Call(stub_deopt_entry);
@@ -1005,7 +1004,7 @@ void LCodeGen::DeoptimizeBranch(
 
     __ Push(x0, x1, x2);
     __ Mrs(x2, NZCV);
-    __ Mov(x0, Operand(count));
+    __ Mov(x0, count);
     __ Ldr(w1, MemOperand(x0));
     __ Subs(x1, x1, 1);
     __ B(gt, &not_zero);
@@ -1552,13 +1551,13 @@ void LCodeGen::DoDeferredAllocate(LAllocate* instr) {
   // TODO(3095996): Get rid of this. For now, we need to make the
   // result register contain a valid pointer because it is already
   // contained in the register pointer map.
-  __ Mov(ToRegister(instr->result()), Operand(Smi::FromInt(0)));
+  __ Mov(ToRegister(instr->result()), Smi::FromInt(0));
 
   PushSafepointRegistersScope scope(this, Safepoint::kWithRegisters);
   // We're in a SafepointRegistersScope so we can use any scratch registers.
   Register size = x0;
   if (instr->size()->IsConstantOperand()) {
-    __ Mov(size, Operand(ToSmi(LConstantOperand::cast(instr->size()))));
+    __ Mov(size, ToSmi(LConstantOperand::cast(instr->size())));
   } else {
     __ SmiTag(size, ToRegister32(instr->size()).X());
   }
@@ -1574,7 +1573,7 @@ void LCodeGen::DoDeferredAllocate(LAllocate* instr) {
   } else {
     flags = AllocateTargetSpace::update(flags, NEW_SPACE);
   }
-  __ Mov(x10, Operand(Smi::FromInt(flags)));
+  __ Mov(x10, Smi::FromInt(flags));
   __ Push(size, x10);
 
   CallRuntimeFromDeferred(
@@ -1654,7 +1653,7 @@ void LCodeGen::DoArgumentsElements(LArgumentsElements* instr) {
            MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
     __ Ldr(result,
            MemOperand(previous_fp, StandardFrameConstants::kContextOffset));
-    __ Cmp(result, Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
+    __ Cmp(result, Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
     __ Csel(result, fp, previous_fp, ne);
   }
 }
@@ -1779,9 +1778,9 @@ void LCodeGen::DoBoundsCheck(LBoundsCheck *instr) {
         ToInteger32(LConstantOperand::cast(instr->index()));
 
     if (instr->hydrogen()->length()->representation().IsSmi()) {
-      __ Cmp(length, Operand(Smi::FromInt(constant_index)));
+      __ Cmp(length, Smi::FromInt(constant_index));
     } else {
-      __ Cmp(length, Operand(constant_index));
+      __ Cmp(length, constant_index);
     }
   } else {
   ASSERT(instr->hydrogen()->index()->representation().IsInteger32());
@@ -1819,7 +1818,7 @@ void LCodeGen::DoBranch(LBranch* instr) {
       EmitBranch(instr, eq);
     } else if (type.IsSmi()) {
       ASSERT(!info()->IsStub());
-      EmitCompareAndBranch(instr, ne, value, Operand(Smi::FromInt(0)));
+      EmitCompareAndBranch(instr, ne, value, Smi::FromInt(0));
     } else if (type.IsJSArray()) {
       ASSERT(!info()->IsStub());
       EmitGoto(instr->TrueDestination(chunk()));
@@ -3029,7 +3028,7 @@ void LCodeGen::DoInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr) {
     Handle<Cell> cell = factory()->NewCell(factory()->the_hole_value());
     __ LoadRelocated(scratch, Operand(Handle<Object>(cell)));
     __ ldr(scratch, FieldMemOperand(scratch, PropertyCell::kValueOffset));
-    __ cmp(map, Operand(scratch));
+    __ cmp(map, scratch);
     __ b(&cache_miss, ne);
     // The address of this instruction is computed relative to the map check
     // above, so check the size of the code generated.
@@ -3141,7 +3140,7 @@ void LCodeGen::DoIsConstructCallAndBranch(LIsConstructCallAndBranch* instr) {
   // Skip the arguments adaptor frame if it exists.
   Label check_frame_marker;
   __ Ldr(temp2, MemOperand(temp1, StandardFrameConstants::kContextOffset));
-  __ Cmp(temp2, Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
+  __ Cmp(temp2, Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
   __ B(ne, &check_frame_marker);
   __ Ldr(temp1, MemOperand(temp1, StandardFrameConstants::kCallerFPOffset));
 
@@ -4135,7 +4134,7 @@ void LCodeGen::DoModByPowerOf2I(LModByPowerOf2I* instr) {
     __ B(pl, &dividend_is_not_negative);
     // Note that this is correct even for kMinInt operands.
     __ Neg(dividend, dividend);
-    __ And(dividend, dividend, Operand(mask));
+    __ And(dividend, dividend, mask);
     __ Negs(dividend, dividend);
     if (hmod->CheckFlag(HValue::kBailoutOnMinusZero)) {
       DeoptimizeIf(eq, instr->environment());
@@ -4144,7 +4143,7 @@ void LCodeGen::DoModByPowerOf2I(LModByPowerOf2I* instr) {
   }
 
   __ bind(&dividend_is_not_negative);
-  __ And(dividend, dividend, Operand(mask));
+  __ And(dividend, dividend, mask);
   __ bind(&done);
 }
 
@@ -4874,7 +4873,7 @@ void LCodeGen::DoDeclareGlobals(LDeclareGlobals* instr) {
   // TODO(all): if Mov could handle object in new space then it could be used
   // here.
   __ LoadHeapObject(scratch1, instr->hydrogen()->pairs());
-  __ Mov(scratch2, Operand(Smi::FromInt(instr->hydrogen()->flags())));
+  __ Mov(scratch2, Smi::FromInt(instr->hydrogen()->flags()));
   __ Push(cp, scratch1, scratch2);  // The context is the first argument.
   CallRuntime(Runtime::kDeclareGlobals, 3, instr);
 }
@@ -5587,7 +5586,7 @@ void LCodeGen::DoRegExpLiteral(LRegExpLiteral* instr) {
   __ B(&allocated);
 
   __ Bind(&runtime_allocate);
-  __ Mov(x0, Operand(Smi::FromInt(size)));
+  __ Mov(x0, Smi::FromInt(size));
   __ Push(x1, x0);
   CallRuntime(Runtime::kAllocateInNewSpace, 1, instr);
   __ Pop(x1);
@@ -5821,7 +5820,7 @@ void LCodeGen::DoLoadFieldByIndex(LLoadFieldByIndex* instr) {
   __ AssertSmi(index);
 
   Label out_of_object, done;
-  __ Cmp(index, Operand(Smi::FromInt(0)));
+  __ Cmp(index, Smi::FromInt(0));
   __ B(lt, &out_of_object);
 
   STATIC_ASSERT(kPointerSizeLog2 > kSmiTagSize);

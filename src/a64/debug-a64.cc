@@ -202,7 +202,7 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
     __ RecordComment("// Calling from debug break to runtime - come in - over");
 #endif
     __ Mov(x0, 0);  // No arguments.
-    __ Mov(x1, Operand(ExternalReference::debug_break(masm->isolate())));
+    __ Mov(x1, ExternalReference::debug_break(masm->isolate()));
 
     CEntryStub stub(1);
     __ CallStub(&stub);
@@ -234,7 +234,7 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
   // overwritten by the address of DebugBreakXXX.
   ExternalReference after_break_target(Debug_Address::AfterBreakTarget(),
                                        masm->isolate());
-  __ Mov(scratch, Operand(after_break_target));
+  __ Mov(scratch, after_break_target);
   __ Ldr(scratch, MemOperand(scratch));
   __ Br(scratch);
 }

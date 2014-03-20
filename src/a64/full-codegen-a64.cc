@@ -243,7 +243,7 @@ void FullCodeGenerator::Generate() {
     int num_parameters = info->scope()->num_parameters();
     int offset = num_parameters * kPointerSize;
     __ Add(x2, fp, StandardFrameConstants::kCallerSPOffset + offset);
-    __ Mov(x1, Operand(Smi::FromInt(num_parameters)));
+    __ Mov(x1, Smi::FromInt(num_parameters));
     __ Push(x3, x2, x1);
 
     // Arguments to ArgumentsAccessStub:
@@ -322,14 +322,14 @@ void FullCodeGenerator::Generate() {
 
 
 void FullCodeGenerator::ClearAccumulator() {
-  __ Mov(x0, Operand(Smi::FromInt(0)));
+  __ Mov(x0, Smi::FromInt(0));
 }
 
 
 void FullCodeGenerator::EmitProfilingCounterDecrement(int delta) {
   __ Mov(x2, Operand(profiling_counter_));
   __ Ldr(x3, FieldMemOperand(x2, Cell::kValueOffset));
-  __ Subs(x3, x3, Operand(Smi::FromInt(delta)));
+  __ Subs(x3, x3, Smi::FromInt(delta));
   __ Str(x3, FieldMemOperand(x2, Cell::kValueOffset));
 }
 
@@ -341,7 +341,7 @@ void FullCodeGenerator::EmitProfilingCounterReset() {
     reset_value = FLAG_interrupt_budget >> 4;
   }
   __ Mov(x2, Operand(profiling_counter_));
-  __ Mov(x3, Operand(Smi::FromInt(reset_value)));
+  __ Mov(x3, Smi::FromInt(reset_value));
   __ Str(x3, FieldMemOperand(x2, Cell::kValueOffset));
 }
 
@@ -831,7 +831,7 @@ void FullCodeGenerator::VisitVariableDeclaration(
       ASSERT(IsDeclaredVariableMode(mode));
       PropertyAttributes attr = IsImmutableVariableMode(mode) ? READ_ONLY
                                                               : NONE;
-      __ Mov(x1, Operand(Smi::FromInt(attr)));
+      __ Mov(x1, Smi::FromInt(attr));
       // Push initial value, if any.
       // Note: For variables we must not push an initial value (such as
       // 'undefined') because we may have a (legal) redeclaration and we
@@ -895,7 +895,7 @@ void FullCodeGenerator::VisitFunctionDeclaration(
     case Variable::LOOKUP: {
       Comment cmnt(masm_, "[ Function Declaration");
       __ Mov(x2, Operand(variable->name()));
-      __ Mov(x1, Operand(Smi::FromInt(NONE)));
+      __ Mov(x1, Smi::FromInt(NONE));
       __ Push(cp, x2, x1);
       // Push initial value for function declaration.
       VisitForStackValue(declaration->fun());
@@ -971,7 +971,7 @@ void FullCodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
   Register flags = xzr;
   if (Smi::FromInt(DeclareGlobalsFlags())) {
     flags = x10;
-  __ Mov(flags, Operand(Smi::FromInt(DeclareGlobalsFlags())));
+  __ Mov(flags, Smi::FromInt(DeclareGlobalsFlags()));
   }
   __ Push(cp, x11, flags);
   __ CallRuntime(Runtime::kDeclareGlobals, 3);
@@ -1150,7 +1150,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
 
   // Set up the four remaining stack slots.
   __ Push(x0);  // Map.
-  __ Mov(x0, Operand(Smi::FromInt(0)));
+  __ Mov(x0, Smi::FromInt(0));
   // Push enumeration cache, enumeration cache length (as smi) and zero.
   __ SmiTag(x1);
   __ Push(x2, x1, x0);
@@ -1168,10 +1168,10 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
       isolate());
   StoreFeedbackVectorSlot(slot, feedback);
   __ LoadObject(x1, FeedbackVector());
-  __ Mov(x10, Operand(Smi::FromInt(TypeFeedbackInfo::kForInSlowCaseMarker)));
+  __ Mov(x10, Smi::FromInt(TypeFeedbackInfo::kForInSlowCaseMarker));
   __ Str(x10, FieldMemOperand(x1, FixedArray::OffsetOfElementAt(slot)));
 
-  __ Mov(x1, Operand(Smi::FromInt(1)));  // Smi indicates slow check.
+  __ Mov(x1, Smi::FromInt(1));  // Smi indicates slow check.
   __ Peek(x10, 0);  // Get enumerated object.
   STATIC_ASSERT(FIRST_JS_PROXY_TYPE == FIRST_SPEC_OBJECT_TYPE);
   // TODO(all): similar check was done already. Can we avoid it here?
@@ -1237,7 +1237,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ Bind(loop_statement.continue_label());
   // TODO(all): We could use a callee saved register to avoid popping.
   __ Pop(x0);
-  __ Add(x0, x0, Operand(Smi::FromInt(1)));
+  __ Add(x0, x0, Smi::FromInt(1));
   __ Push(x0);
 
   EmitBackEdgeBookkeeping(stmt, &loop);
@@ -1582,7 +1582,7 @@ void FullCodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
 
   // Create regexp literal using runtime function.
   // Result will be in x0.
-  __ Mov(x3, Operand(Smi::FromInt(expr->literal_index())));
+  __ Mov(x3, Smi::FromInt(expr->literal_index()));
   __ Mov(x2, Operand(expr->pattern()));
   __ Mov(x1, Operand(expr->flags()));
   __ Push(x4, x3, x2, x1);
@@ -1596,7 +1596,7 @@ void FullCodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
   __ B(&allocated);
 
   __ Bind(&runtime_allocate);
-  __ Mov(x10, Operand(Smi::FromInt(size)));
+  __ Mov(x10, Smi::FromInt(size));
   __ Push(x5, x10);
   __ CallRuntime(Runtime::kAllocateInNewSpace, 1);
   __ Pop(x5);
@@ -1628,7 +1628,7 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
   Handle<FixedArray> constant_properties = expr->constant_properties();
   __ Ldr(x3, MemOperand(fp,  JavaScriptFrameConstants::kFunctionOffset));
   __ Ldr(x3, FieldMemOperand(x3, JSFunction::kLiteralsOffset));
-  __ Mov(x2, Operand(Smi::FromInt(expr->literal_index())));
+  __ Mov(x2, Smi::FromInt(expr->literal_index()));
   __ Mov(x1, Operand(constant_properties));
   int flags = expr->fast_elements()
       ? ObjectLiteral::kFastElements
@@ -1636,7 +1636,7 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
   flags |= expr->has_function()
       ? ObjectLiteral::kHasFunction
       : ObjectLiteral::kNoFlags;
-  __ Mov(x0, Operand(Smi::FromInt(flags)));
+  __ Mov(x0, Smi::FromInt(flags));
   int properties_count = constant_properties->length() / 2;
   const int max_cloned_properties =
       FastCloneShallowObjectStub::kMaximumClonedProperties;
@@ -1695,7 +1695,7 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
           __ Push(x0);
           VisitForStackValue(key);
           VisitForStackValue(value);
-          __ Mov(x0, Operand(Smi::FromInt(NONE)));  // PropertyAttributes
+          __ Mov(x0, Smi::FromInt(NONE));  // PropertyAttributes
           __ Push(x0);
           __ CallRuntime(Runtime::kSetProperty, 4);
         } else {
@@ -1733,7 +1733,7 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
       VisitForStackValue(it->first);
       EmitAccessor(it->second->getter);
       EmitAccessor(it->second->setter);
-      __ Mov(x10, Operand(Smi::FromInt(NONE)));
+      __ Mov(x10, Smi::FromInt(NONE));
       __ Push(x10);
       __ CallRuntime(Runtime::kDefineOrRedefineAccessorProperty, 5);
   }
@@ -1779,8 +1779,7 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
 
   __ Ldr(x3, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
   __ Ldr(x3, FieldMemOperand(x3, JSFunction::kLiteralsOffset));
-  // TODO(jbramley): Can these Operand constructors be implicit?
-  __ Mov(x2, Operand(Smi::FromInt(expr->literal_index())));
+  __ Mov(x2, Smi::FromInt(expr->literal_index()));
   __ Mov(x1, Operand(constant_elements));
   if (has_fast_elements && constant_elements_values->map() ==
       isolate()->heap()->fixed_cow_array_map()) {
@@ -1793,7 +1792,7 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
         isolate()->counters()->cow_arrays_created_stub(), 1, x10, x11);
   } else if ((expr->depth() > 1) || Serializer::enabled() ||
              length > FastCloneShallowArrayStub::kMaximumClonedLength) {
-    __ Mov(x0, Operand(Smi::FromInt(flags)));
+    __ Mov(x0, Smi::FromInt(flags));
     __ Push(x3, x2, x1, x0);
     __ CallRuntime(Runtime::kCreateArrayLiteral, 4);
   } else {
@@ -1837,7 +1836,7 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
                           kLRHasBeenSaved, kDontSaveFPRegs,
                           EMIT_REMEMBERED_SET, INLINE_SMI_CHECK);
     } else {
-      __ Mov(x3, Operand(Smi::FromInt(i)));
+      __ Mov(x3, Smi::FromInt(i));
       StoreArrayLiteralElementStub stub;
       __ CallStub(&stub);
     }
@@ -2160,7 +2159,7 @@ void FullCodeGenerator::EmitStoreToStackLocalOrContextSlot(
 void FullCodeGenerator::EmitCallStoreContextSlot(
     Handle<String> name, StrictMode strict_mode) {
   __ Mov(x11, Operand(name));
-  __ Mov(x10, Operand(Smi::FromInt(strict_mode)));
+  __ Mov(x10, Smi::FromInt(strict_mode));
   // jssp[0]  : mode.
   // jssp[8]  : name.
   // jssp[16] : context.
@@ -2410,7 +2409,7 @@ void FullCodeGenerator::EmitCallWithStub(Call* expr) {
       TypeFeedbackInfo::UninitializedSentinel(isolate());
   StoreFeedbackVectorSlot(expr->CallFeedbackSlot(), uninitialized);
   __ LoadObject(x2, FeedbackVector());
-  __ Mov(x3, Operand(Smi::FromInt(expr->CallFeedbackSlot())));
+  __ Mov(x3, Smi::FromInt(expr->CallFeedbackSlot()));
 
   // Record call targets in unoptimized code.
   CallFunctionStub stub(arg_count, RECORD_CALL_TARGET);
@@ -2441,9 +2440,9 @@ void FullCodeGenerator::EmitResolvePossiblyDirectEval(int arg_count) {
   __ Push(x10, x11);
 
   // Prepare to push the language mode.
-  __ Mov(x10, Operand(Smi::FromInt(strict_mode())));
+  __ Mov(x10, Smi::FromInt(strict_mode()));
   // Prepare to push the start position of the scope the calls resides in.
-  __ Mov(x11, Operand(Smi::FromInt(scope()->start_position())));
+  __ Mov(x11, Smi::FromInt(scope()->start_position()));
 
   // Push.
   __ Push(x10, x11);
@@ -2616,7 +2615,7 @@ void FullCodeGenerator::VisitCallNew(CallNew* expr) {
   }
 
   __ LoadObject(x2, FeedbackVector());
-  __ Mov(x3, Operand(Smi::FromInt(expr->CallNewFeedbackSlot())));
+  __ Mov(x3, Smi::FromInt(expr->CallNewFeedbackSlot()));
 
   CallConstructStub stub(RECORD_CALL_TARGET);
   __ Call(stub.GetCode(isolate()), RelocInfo::CONSTRUCT_CALL);
@@ -2955,14 +2954,14 @@ void FullCodeGenerator::EmitIsConstructCall(CallRuntime* expr) {
   // Skip the arguments adaptor frame if it exists.
   Label check_frame_marker;
   __ Ldr(x1, MemOperand(x2, StandardFrameConstants::kContextOffset));
-  __ Cmp(x1, Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
+  __ Cmp(x1, Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
   __ B(ne, &check_frame_marker);
   __ Ldr(x2, MemOperand(x2, StandardFrameConstants::kCallerFPOffset));
 
   // Check the marker in the calling frame.
   __ Bind(&check_frame_marker);
   __ Ldr(x1, MemOperand(x2, StandardFrameConstants::kMarkerOffset));
-  __ Cmp(x1, Operand(Smi::FromInt(StackFrame::CONSTRUCT)));
+  __ Cmp(x1, Smi::FromInt(StackFrame::CONSTRUCT));
   PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);
   Split(eq, if_true, if_false, fall_through);
 
@@ -3001,7 +3000,7 @@ void FullCodeGenerator::EmitArguments(CallRuntime* expr) {
   // ArgumentsAccessStub expects the key in x1.
   VisitForAccumulatorValue(args->at(0));
   __ Mov(x1, x0);
-  __ Mov(x0, Operand(Smi::FromInt(info_->scope()->num_parameters())));
+  __ Mov(x0, Smi::FromInt(info_->scope()->num_parameters()));
   ArgumentsAccessStub stub(ArgumentsAccessStub::READ_ELEMENT);
   __ CallStub(&stub);
   context()->Plug(x0);
@@ -3012,12 +3011,12 @@ void FullCodeGenerator::EmitArgumentsLength(CallRuntime* expr) {
   ASSERT(expr->arguments()->length() == 0);
   Label exit;
   // Get the number of formal parameters.
-  __ Mov(x0, Operand(Smi::FromInt(info_->scope()->num_parameters())));
+  __ Mov(x0, Smi::FromInt(info_->scope()->num_parameters()));
 
   // Check if the calling frame is an arguments adaptor frame.
   __ Ldr(x12, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
   __ Ldr(x13, MemOperand(x12, StandardFrameConstants::kContextOffset));
-  __ Cmp(x13, Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
+  __ Cmp(x13, Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
   __ B(ne, &exit);
 
   // Arguments adaptor case: Read the arguments length from the
@@ -3183,7 +3182,7 @@ void FullCodeGenerator::EmitDateField(CallRuntime* expr) {
   } else {
     if (index->value() < JSDate::kFirstUncachedField) {
       ExternalReference stamp = ExternalReference::date_cache_stamp(isolate());
-      __ Mov(x10, Operand(stamp));
+      __ Mov(x10, stamp);
       __ Ldr(stamp_addr, MemOperand(x10));
       __ Ldr(stamp_cache, FieldMemOperand(object, JSDate::kCacheStampOffset));
       __ Cmp(stamp_addr, stamp_cache);
@@ -3194,7 +3193,7 @@ void FullCodeGenerator::EmitDateField(CallRuntime* expr) {
     }
 
     __ Bind(&runtime);
-    __ Mov(x1, Operand(index));
+    __ Mov(x1, index);
     __ CallCFunction(ExternalReference::get_date_field_function(isolate()), 2);
     __ B(&done);
   }
@@ -3422,7 +3421,7 @@ void FullCodeGenerator::EmitStringCharAt(CallRuntime* expr) {
 
   __ Bind(&need_conversion);
   // Move smi zero into the result register, which will trigger conversion.
-  __ Mov(result, Operand(Smi::FromInt(0)));
+  __ Mov(result, Smi::FromInt(0));
   __ B(&done);
 
   NopRuntimeCallHelper call_helper;
@@ -3675,7 +3674,7 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) {
   //   element: Current array element.
   //   elements_end: Array end.
   if (FLAG_debug_code) {
-    __ Cmp(array_length, Operand(0));
+    __ Cmp(array_length, 0);
     __ Assert(gt, kNoEmptyArraysHereInEmitFastAsciiArrayJoin);
   }
   __ Bind(&loop);
@@ -3888,7 +3887,7 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
       if (property != NULL) {
         VisitForStackValue(property->obj());
         VisitForStackValue(property->key());
-        __ Mov(x10, Operand(Smi::FromInt(strict_mode())));
+        __ Mov(x10, Smi::FromInt(strict_mode()));
         __ Push(x10);
         __ InvokeBuiltin(Builtins::DELETE, CALL_FUNCTION);
         context()->Plug(x0);
@@ -3900,7 +3899,7 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
         if (var->IsUnallocated()) {
           __ Ldr(x12, GlobalObjectMemOperand());
           __ Mov(x11, Operand(var->name()));
-          __ Mov(x10, Operand(Smi::FromInt(SLOPPY)));
+          __ Mov(x10, Smi::FromInt(SLOPPY));
           __ Push(x12, x11, x10);
           __ InvokeBuiltin(Builtins::DELETE, CALL_FUNCTION);
           context()->Plug(x0);
@@ -4068,10 +4067,10 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
       }
     }
 
-    __ Adds(x0, x0, Operand(Smi::FromInt(count_value)));
+    __ Adds(x0, x0, Smi::FromInt(count_value));
     __ B(vc, &done);
     // Call stub. Undo operation first.
-    __ Sub(x0, x0, Operand(Smi::FromInt(count_value)));
+    __ Sub(x0, x0, Smi::FromInt(count_value));
     __ B(&stub_call);
     __ Bind(&slow);
   }
@@ -4100,7 +4099,7 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
 
   __ Bind(&stub_call);
   __ Mov(x1, x0);
-  __ Mov(x0, Operand(Smi::FromInt(count_value)));
+  __ Mov(x0, Smi::FromInt(count_value));
 
   // Record position before stub call.
   SetSourcePosition(expr->position());
@@ -4434,7 +4433,7 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       __ Bind(&suspend);
       VisitForAccumulatorValue(expr->generator_object());
       ASSERT((continuation.pos() > 0) && Smi::IsValid(continuation.pos()));
-      __ Mov(x1, Operand(Smi::FromInt(continuation.pos())));
+      __ Mov(x1, Smi::FromInt(continuation.pos()));
       __ Str(x1, FieldMemOperand(x0, JSGeneratorObject::kContinuationOffset));
       __ Str(cp, FieldMemOperand(x0, JSGeneratorObject::kContextOffset));
       __ Mov(x1, cp);
@@ -4457,7 +4456,7 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
 
     case Yield::FINAL: {
       VisitForAccumulatorValue(expr->generator_object());
-      __ Mov(x1, Operand(Smi::FromInt(JSGeneratorObject::kGeneratorClosed)));
+      __ Mov(x1, Smi::FromInt(JSGeneratorObject::kGeneratorClosed));
       __ Str(x1, FieldMemOperand(result_register(),
                                  JSGeneratorObject::kContinuationOffset));
       // Pop value from top-of-stack slot, box result into result register.
@@ -4509,7 +4508,7 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       __ Peek(x0, generator_object_depth);
       __ Push(x0);                                       // g
       ASSERT((l_continuation.pos() > 0) && Smi::IsValid(l_continuation.pos()));
-      __ Mov(x1, Operand(Smi::FromInt(l_continuation.pos())));
+      __ Mov(x1, Smi::FromInt(l_continuation.pos()));
       __ Str(x1, FieldMemOperand(x0, JSGeneratorObject::kContinuationOffset));
       __ Str(cp, FieldMemOperand(x0, JSGeneratorObject::kContextOffset));
       __ Mov(x1, cp);
@@ -4587,8 +4586,8 @@ void FullCodeGenerator::EmitGeneratorResume(Expression *generator,
                               JSGeneratorObject::kContinuationOffset));
   STATIC_ASSERT(JSGeneratorObject::kGeneratorExecuting < 0);
   STATIC_ASSERT(JSGeneratorObject::kGeneratorClosed == 0);
-  __ CompareAndBranch(x10, Operand(Smi::FromInt(0)), eq, &closed_state);
-  __ CompareAndBranch(x10, Operand(Smi::FromInt(0)), lt, &wrong_state);
+  __ CompareAndBranch(x10, Smi::FromInt(0), eq, &closed_state);
+  __ CompareAndBranch(x10, Smi::FromInt(0), lt, &wrong_state);
 
   // Load suspended function and context.
   __ Ldr(cp, FieldMemOperand(generator_object,
@@ -4642,7 +4641,7 @@ void FullCodeGenerator::EmitGeneratorResume(Expression *generator,
              UntagSmiFieldMemOperand(generator_object,
                                      JSGeneratorObject::kContinuationOffset));
     __ Add(x10, x10, x11);
-    __ Mov(x12, Operand(Smi::FromInt(JSGeneratorObject::kGeneratorExecuting)));
+    __ Mov(x12, Smi::FromInt(JSGeneratorObject::kGeneratorExecuting));
     __ Str(x12, FieldMemOperand(generator_object,
                                 JSGeneratorObject::kContinuationOffset));
     __ Br(x10);
@@ -4654,7 +4653,7 @@ void FullCodeGenerator::EmitGeneratorResume(Expression *generator,
   // up the stack and the handlers.
   __ PushMultipleTimes(the_hole, operand_stack_size);
 
-  __ Mov(x10, Operand(Smi::FromInt(resume_mode)));
+  __ Mov(x10, Smi::FromInt(resume_mode));
   __ Push(generator_object, result_register(), x10);
   __ CallRuntime(Runtime::kResumeJSGeneratorObject, 3);
   // Not reached: the runtime call returns elsewhere.
@@ -4798,12 +4797,12 @@ void FullCodeGenerator::EnterFinallyBlock() {
   // Store pending message while executing finally block.
   ExternalReference pending_message_obj =
       ExternalReference::address_of_pending_message_obj(isolate());
-  __ Mov(x10, Operand(pending_message_obj));
+  __ Mov(x10, pending_message_obj);
   __ Ldr(x10, MemOperand(x10));
 
   ExternalReference has_pending_message =
       ExternalReference::address_of_has_pending_message(isolate());
-  __ Mov(x11, Operand(has_pending_message));
+  __ Mov(x11, has_pending_message);
   __ Ldr(x11, MemOperand(x11));
   __ SmiTag(x11);
 
@@ -4811,7 +4810,7 @@ void FullCodeGenerator::EnterFinallyBlock() {
 
   ExternalReference pending_message_script =
       ExternalReference::address_of_pending_message_script(isolate());
-  __ Mov(x10, Operand(pending_message_script));
+  __ Mov(x10, pending_message_script);
   __ Ldr(x10, MemOperand(x10));
   __ Push(x10);
 }
@@ -4825,18 +4824,18 @@ void FullCodeGenerator::ExitFinallyBlock() {
   __ Pop(x10, x11, x12);
   ExternalReference pending_message_script =
       ExternalReference::address_of_pending_message_script(isolate());
-  __ Mov(x13, Operand(pending_message_script));
+  __ Mov(x13, pending_message_script);
   __ Str(x10, MemOperand(x13));
 
   __ SmiUntag(x11);
   ExternalReference has_pending_message =
       ExternalReference::address_of_has_pending_message(isolate());
-  __ Mov(x13, Operand(has_pending_message));
+  __ Mov(x13, has_pending_message);
   __ Str(x11, MemOperand(x13));
 
   ExternalReference pending_message_obj =
       ExternalReference::address_of_pending_message_obj(isolate());
-  __ Mov(x13, Operand(pending_message_obj));
+  __ Mov(x13, pending_message_obj);
   __ Str(x12, MemOperand(x13));
 
   // Restore result register and cooked return address from the stack.

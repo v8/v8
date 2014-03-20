@@ -141,7 +141,7 @@ static void GenerateDictionaryLoad(MacroAssembler* masm,
       NameDictionary::kElementsStartIndex * kPointerSize;
   static const int kDetailsOffset = kElementsStartOffset + 2 * kPointerSize;
   __ Ldr(scratch1, FieldMemOperand(scratch2, kDetailsOffset));
-  __ Tst(scratch1, Operand(Smi::FromInt(PropertyDetails::TypeField::kMask)));
+  __ Tst(scratch1, Smi::FromInt(PropertyDetails::TypeField::kMask));
   __ B(ne, miss);
 
   // Get the value at the masked, scaled index and return.
@@ -376,7 +376,7 @@ static MemOperand GenerateMappedArgumentsLookup(MacroAssembler* masm,
   // Check if element is in the range of mapped arguments. If not, jump
   // to the unmapped lookup.
   __ Ldr(scratch1, FieldMemOperand(map, FixedArray::kLengthOffset));
-  __ Sub(scratch1, scratch1, Operand(Smi::FromInt(2)));
+  __ Sub(scratch1, scratch1, Smi::FromInt(2));
   __ Cmp(key, scratch1);
   __ B(hs, unmapped_case);
 
@@ -702,7 +702,7 @@ static void GenerateKeyedLoadWithNameKey(MacroAssembler* masm,
   ExternalReference cache_keys =
       ExternalReference::keyed_lookup_cache_keys(isolate);
 
-  __ Mov(scratch3, Operand(cache_keys));
+  __ Mov(scratch3, cache_keys);
   __ Add(scratch3, scratch3, Operand(scratch2, LSL, kPointerSizeLog2 + 1));
 
   for (int i = 0; i < kEntriesPerBucket - 1; i++) {
@@ -732,7 +732,7 @@ static void GenerateKeyedLoadWithNameKey(MacroAssembler* masm,
   // Hit on nth entry.
   for (int i = kEntriesPerBucket - 1; i >= 0; i--) {
     __ Bind(&hit_on_nth_entry[i]);
-    __ Mov(scratch3, Operand(cache_field_offsets));
+    __ Mov(scratch3, cache_field_offsets);
     if (i != 0) {
       __ Add(scratch2, scratch2, i);
     }
@@ -939,7 +939,7 @@ void KeyedStoreIC::GenerateRuntimeSetProperty(MacroAssembler* masm,
 
   // Push PropertyAttributes(NONE) and strict_mode for runtime call.
   STATIC_ASSERT(NONE == 0);
-  __ Mov(x10, Operand(Smi::FromInt(strict_mode)));
+  __ Mov(x10, Smi::FromInt(strict_mode));
   __ Push(xzr, x10);
 
   __ TailCallRuntime(Runtime::kSetProperty, 5, 1);
@@ -996,7 +996,7 @@ static void KeyedStoreGenerateGenericHelper(
   __ Bind(&finish_store);
   if (increment_length == kIncrementLength) {
     // Add 1 to receiver->length.
-    __ Add(x10, key, Operand(Smi::FromInt(1)));
+    __ Add(x10, key, Smi::FromInt(1));
     __ Str(x10, FieldMemOperand(receiver, JSArray::kLengthOffset));
   }
 
@@ -1048,7 +1048,7 @@ static void KeyedStoreGenerateGenericHelper(
                                  &transition_double_elements);
   if (increment_length == kIncrementLength) {
     // Add 1 to receiver->length.
-    __ Add(x10, key, Operand(Smi::FromInt(1)));
+    __ Add(x10, key, Smi::FromInt(1));
     __ Str(x10, FieldMemOperand(receiver, JSArray::kLengthOffset));
   }
   __ Ret();
@@ -1285,8 +1285,8 @@ void StoreIC::GenerateRuntimeSetProperty(MacroAssembler* masm,
 
   __ Push(x1, x2, x0);
 
-  __ Mov(x11, Operand(Smi::FromInt(NONE)));  // PropertyAttributes
-  __ Mov(x10, Operand(Smi::FromInt(strict_mode)));
+  __ Mov(x11, Smi::FromInt(NONE));  // PropertyAttributes
+  __ Mov(x10, Smi::FromInt(strict_mode));
   __ Push(x11, x10);
 
   // Do tail-call to runtime routine.

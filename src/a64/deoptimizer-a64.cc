@@ -185,7 +185,7 @@ void Deoptimizer::EntryGenerator::Generate() {
   //  - x2: bailout id
   //  - x3: code object address
   //  - x4: fp-to-sp delta
-  __ Mov(x5, Operand(ExternalReference::isolate_address(isolate())));
+  __ Mov(x5, ExternalReference::isolate_address(isolate()));
 
   {
     // Call Deoptimizer::New().

@@ -408,7 +408,7 @@ void RegExpMacroAssemblerA64::CheckNotBackReferenceIgnoreCase(
     // Address of current input position.
     __ Add(x1, input_end(), Operand(current_input_offset(), SXTW));
     // Isolate.
-    __ Mov(x3, Operand(ExternalReference::isolate_address(isolate())));
+    __ Mov(x3, ExternalReference::isolate_address(isolate()));
 
     {
       AllowExternalCallThatCantCauseGC scope(masm_);
@@ -634,7 +634,7 @@ bool RegExpMacroAssemblerA64::CheckSpecialCharacterClass(uc16 type,
       CompareAndBranchOrBacktrack(current_character(), 'z', hi, on_no_match);
     }
     ExternalReference map = ExternalReference::re_word_character_map();
-    __ Mov(x10, Operand(map));
+    __ Mov(x10, map);
     __ Ldrb(w10, MemOperand(x10, current_character(), UXTW));
     CompareAndBranchOrBacktrack(w10, 0, eq, on_no_match);
     return true;
@@ -647,7 +647,7 @@ bool RegExpMacroAssemblerA64::CheckSpecialCharacterClass(uc16 type,
       __ B(hi, &done);
     }
     ExternalReference map = ExternalReference::re_word_character_map();
-    __ Mov(x10, Operand(map));
+    __ Mov(x10, map);
     __ Ldrb(w10, MemOperand(x10, current_character(), UXTW));
     CompareAndBranchOrBacktrack(w10, 0, ne, on_no_match);
     __ Bind(&done);
@@ -736,7 +736,7 @@ Handle<HeapObject> RegExpMacroAssemblerA64::GetCode(Handle<String> source) {
 
   ExternalReference stack_limit =
       ExternalReference::address_of_stack_limit(isolate());
-  __ Mov(x10, Operand(stack_limit));
+  __ Mov(x10, stack_limit);
   __ Ldr(x10, MemOperand(x10));
   __ Subs(x10, csp, x10);
 
@@ -1031,7 +1031,7 @@ Handle<HeapObject> RegExpMacroAssemblerA64::GetCode(Handle<String> source) {
     // The cached registers need to be retained.
     __ PushCPURegList(cached_registers);
     // Call GrowStack(backtrack_stackpointer(), &stack_base)
-    __ Mov(x2, Operand(ExternalReference::isolate_address(isolate())));
+    __ Mov(x2, ExternalReference::isolate_address(isolate()));
     __ Add(x1, frame_pointer(), kStackBase);
     __ Mov(x0, backtrack_stackpointer());
     ExternalReference grow_stack =
@@ -1455,7 +1455,7 @@ void RegExpMacroAssemblerA64::CallCheckStackGuardState(Register scratch) {
 
   ExternalReference check_stack_guard_state =
       ExternalReference::re_check_stack_guard_state(isolate());
-  __ Mov(scratch, Operand(check_stack_guard_state));
+  __ Mov(scratch, check_stack_guard_state);
   DirectCEntryStub stub;
   stub.GenerateCall(masm_, scratch);
 
@@ -1519,7 +1519,7 @@ void RegExpMacroAssemblerA64::CheckPreemption() {
   // Check for preemption.
   ExternalReference stack_limit =
       ExternalReference::address_of_stack_limit(isolate());
-  __ Mov(x10, Operand(stack_limit));
+  __ Mov(x10, stack_limit);
   __ Ldr(x10, MemOperand(x10));
   ASSERT(csp.Is(__ StackPointer()));
   __ Cmp(csp, x10);
@@ -1530,7 +1530,7 @@ void RegExpMacroAssemblerA64::CheckPreemption() {
 void RegExpMacroAssemblerA64::CheckStackLimit() {
   ExternalReference stack_limit =
       ExternalReference::address_of_regexp_stack_limit(isolate());
-  __ Mov(x10, Operand(stack_limit));
+  __ Mov(x10, stack_limit);
   __ Ldr(x10, MemOperand(x10));
   __ Cmp(backtrack_stackpointer(), x10);
   CallIf(&stack_overflow_label_, ls);

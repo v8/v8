@@ -519,7 +519,7 @@ void MathExpGenerator::EmitMathExp(MacroAssembler* masm,
   // ExternalReference::InitializeMathExpData().
 
   // Load the address of the start of the array.
-  __ Mov(constants, Operand(ExternalReference::math_exp_constants(0)));
+  __ Mov(constants, ExternalReference::math_exp_constants(0));
 
   // We have to do a four-way split here:
   //  - If input <= about -708.4, the output always rounds to zero.
@@ -595,7 +595,7 @@ void MathExpGenerator::EmitMathExp(MacroAssembler* masm,
   __ Add(temp1, temp1, 0x3ff);
 
   // Do the final table lookup.
-  __ Mov(temp3, Operand(ExternalReference::math_exp_log_table()));
+  __ Mov(temp3, ExternalReference::math_exp_log_table());
 
   __ Add(temp3, temp3, Operand(temp2, LSL, kDRegSizeLog2));
   __ Ldp(temp2.W(), temp3.W(), MemOperand(temp3));
