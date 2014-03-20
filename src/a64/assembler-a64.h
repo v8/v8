@@ -743,6 +743,10 @@ class Assembler : public AssemblerBase {
 
   virtual ~Assembler();
 
+  virtual void AbortedCodeGeneration() {
+    num_pending_reloc_info_ = 0;
+  }
+
   // System functions ---------------------------------------------------------
   // Start generating code from the beginning of the buffer, discarding any code
   // and data that has already been emitted into the buffer.

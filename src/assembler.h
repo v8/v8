@@ -82,6 +82,10 @@ class AssemblerBase: public Malloced {
 
   int pc_offset() const { return static_cast<int>(pc_ - buffer_); }
 
+  // This function is called when code generation is aborted, so that
+  // the assembler could clean up internal data structures.
+  virtual void AbortedCodeGeneration() { }
+
   static const int kMinimalBufferSize = 4*KB;
 
  protected:
