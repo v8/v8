@@ -264,7 +264,8 @@ Handle<String> URIEscape::Escape(Isolate* isolate, Handle<String> string) {
       // We don't allow strings that are longer than a maximal length.
       ASSERT(String::kMaxLength < 0x7fffffff - 6);  // Cannot overflow.
       if (escaped_length > String::kMaxLength) {
-        isolate->context()->mark_out_of_memory();
+        AllowHeapAllocation allocate_error_and_return;
+        isolate->ThrowInvalidStringLength();
         return Handle<String>::null();
       }
     }

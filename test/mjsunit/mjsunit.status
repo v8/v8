@@ -44,6 +44,7 @@
   # When that bug is fixed, revert the expectation to:
   # Skip long running test in debug and allow it to timeout in release mode.
   # regress/regress-524: [PASS, TIMEOUT, ['mode == debug', SKIP]],
+  'string-oom-slow-*': [SLOW, ['mode == debug', SKIP]],
 
   # This test non-deterministically runs out of memory on Windows ia32.
   'regress/regress-crbug-160010': [SKIP],
