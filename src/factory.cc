@@ -377,9 +377,7 @@ Handle<String> Factory::NewConsString(Handle<String> left,
   // Make sure that an out of memory exception is thrown if the length
   // of the new cons string is too large.
   if (length > String::kMaxLength || length < 0) {
-    isolate()->context()->mark_out_of_memory();
-    V8::FatalProcessOutOfMemory("String concatenation result too large.");
-    UNREACHABLE();
+    isolate()->ThrowInvalidStringLength();
     return Handle<String>::null();
   }
 

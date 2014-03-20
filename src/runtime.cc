@@ -3337,7 +3337,8 @@ class ReplacementStringBuilder {
         array_builder_(heap->isolate(), estimated_part_count),
         subject_(subject),
         character_count_(0),
-        is_ascii_(subject->IsOneByteRepresentation()) {
+        is_ascii_(subject->IsOneByteRepresentation()),
+        overflowed_(false) {
     // Require a non-zero initial size. Ensures that doubling the size to
     // extend the array will work.
     ASSERT(estimated_part_count > 0);
@@ -3385,6 +3386,11 @@ class ReplacementStringBuilder {
 
 
   Handle<String> ToString() {
+    if (overflowed_) {
+      heap_->isolate()->ThrowInvalidStringLength();
+      return Handle<String>();
+    }
+
     if (array_builder_.length() == 0) {
       return heap_->isolate()->factory()->empty_string();
     }
@@ -3416,7 +3422,7 @@ class ReplacementStringBuilder {
 
   void IncrementCharacterCount(int by) {
     if (character_count_ > String::kMaxLength - by) {
-      V8::FatalProcessOutOfMemory("String.replace result too large.");
+      overflowed_ = true;
     }
     character_count_ += by;
   }
@@ -3443,6 +3449,7 @@ class ReplacementStringBuilder {
   Handle<String> subject_;
   int character_count_;
   bool is_ascii_;
+  bool overflowed_;
 };
 
 
@@ -4041,7 +4048,9 @@ MUST_USE_RESULT static MaybeObject* StringReplaceGlobalRegExpWithString(
                                capture_count,
                                global_cache.LastSuccessfulMatch());
 
-  return *(builder.ToString());
+  Handle<String> result = builder.ToString();
+  RETURN_IF_EMPTY_HANDLE(isolate, result);
+  return *result;
 }
 
 
@@ -4187,8 +4196,8 @@ Handle<String> StringReplaceOneCharWithString(Isolate* isolate,
                                        replace,
                                        found,
                                        recursion_limit - 1);
-    if (*found) return isolate->factory()->NewConsString(new_first, second);
     if (new_first.is_null()) return new_first;
+    if (*found) return isolate->factory()->NewConsString(new_first, second);
 
     Handle<String> new_second =
         StringReplaceOneCharWithString(isolate,
@@ -4197,8 +4206,8 @@ Handle<String> StringReplaceOneCharWithString(Isolate* isolate,
                                        replace,
                                        found,
                                        recursion_limit - 1);
-    if (*found) return isolate->factory()->NewConsString(first, new_second);
     if (new_second.is_null()) return new_second;
+    if (*found) return isolate->factory()->NewConsString(first, new_second);
 
     return subject;
   } else {
@@ -4207,6 +4216,7 @@ Handle<String> StringReplaceOneCharWithString(Isolate* isolate,
     *found = true;
     Handle<String> first = isolate->factory()->NewSubString(subject, 0, index);
     Handle<String> cons1 = isolate->factory()->NewConsString(first, replace);
+    RETURN_IF_EMPTY_HANDLE_VALUE(isolate, cons1, Handle<String>());
     Handle<String> second =
         isolate->factory()->NewSubString(subject, index + 1, subject->length());
     return isolate->factory()->NewConsString(cons1, second);
@@ -4232,6 +4242,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringReplaceOneCharWithString) {
                                                          &found,
                                                          kRecursionLimit);
   if (!result.is_null()) return *result;
+  if (isolate->has_pending_exception()) return Failure::Exception();
   return *StringReplaceOneCharWithString(isolate,
                                          FlattenGetString(subject),
                                          search,
@@ -6232,7 +6243,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_URIEscape) {
   Handle<String> result = string->IsOneByteRepresentationUnderneath()
       ? URIEscape::Escape<uint8_t>(isolate, source)
       : URIEscape::Escape<uc16>(isolate, source);
-  if (result.is_null()) return Failure::OutOfMemoryException(0x12);
+  RETURN_IF_EMPTY_HANDLE(isolate, result);
   return *result;
 }
 
@@ -6366,9 +6377,9 @@ MUST_USE_RESULT static MaybeObject* ConvertCaseHelper(
         int char_length = mapping->get(current, 0, chars);
         if (char_length == 0) char_length = 1;
         current_length += char_length;
-        if (current_length > Smi::kMaxValue) {
-          isolate->context()->mark_out_of_memory();
-          return Failure::OutOfMemoryException(0x13);
+        if (current_length > String::kMaxLength) {
+          AllowHeapAllocation allocate_error_and_return;
+          return isolate->ThrowInvalidStringLength();
         }
       }
       // Try again with the real length.  Return signed if we need
@@ -7023,7 +7034,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringAdd) {
   CONVERT_ARG_HANDLE_CHECKED(String, str1, 0);
   CONVERT_ARG_HANDLE_CHECKED(String, str2, 1);
   isolate->counters()->string_add_runtime()->Increment();
-  return *isolate->factory()->NewConsString(str1, str2);
+  Handle<String> result = isolate->factory()->NewConsString(str1, str2);
+  RETURN_IF_EMPTY_HANDLE(isolate, result);
+  return *result;
 }
 
 
@@ -7070,10 +7083,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringBuilderConcat) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 3);
   CONVERT_ARG_HANDLE_CHECKED(JSArray, array, 0);
-  if (!args[1]->IsSmi()) {
-    isolate->context()->mark_out_of_memory();
-    return Failure::OutOfMemoryException(0x14);
-  }
+  if (!args[1]->IsSmi()) return isolate->ThrowInvalidStringLength();
   int array_length = args.smi_at(1);
   CONVERT_ARG_HANDLE_CHECKED(String, special, 2);
 
@@ -7147,8 +7157,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringBuilderConcat) {
       return isolate->Throw(isolate->heap()->illegal_argument_string());
     }
     if (increment > String::kMaxLength - position) {
-      isolate->context()->mark_out_of_memory();
-      return Failure::OutOfMemoryException(0x15);
+      return isolate->ThrowInvalidStringLength();
     }
     position += increment;
   }
@@ -7183,20 +7192,15 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringBuilderConcat) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_StringBuilderJoin) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 3);
-  CONVERT_ARG_CHECKED(JSArray, array, 0);
-  if (!args[1]->IsSmi()) {
-    isolate->context()->mark_out_of_memory();
-    return Failure::OutOfMemoryException(0x16);
-  }
+  CONVERT_ARG_HANDLE_CHECKED(JSArray, array, 0);
+  if (!args[1]->IsSmi()) return isolate->ThrowInvalidStringLength();
   int array_length = args.smi_at(1);
-  CONVERT_ARG_CHECKED(String, separator, 2);
+  CONVERT_ARG_HANDLE_CHECKED(String, separator, 2);
+  RUNTIME_ASSERT(array->HasFastObjectElements());
 
-  if (!array->HasFastObjectElements()) {
-    return isolate->Throw(isolate->heap()->illegal_argument_string());
-  }
-  FixedArray* fixed_array = FixedArray::cast(array->elements());
+  Handle<FixedArray> fixed_array(FixedArray::cast(array->elements()));
   if (fixed_array->length() < array_length) {
     array_length = fixed_array->length();
   }
@@ -7205,38 +7209,32 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringBuilderJoin) {
     return isolate->heap()->empty_string();
   } else if (array_length == 1) {
     Object* first = fixed_array->get(0);
-    if (first->IsString()) return first;
+    RUNTIME_ASSERT(first->IsString());
+    return first;
   }
 
   int separator_length = separator->length();
   int max_nof_separators =
       (String::kMaxLength + separator_length - 1) / separator_length;
   if (max_nof_separators < (array_length - 1)) {
-      isolate->context()->mark_out_of_memory();
-      return Failure::OutOfMemoryException(0x17);
+    return isolate->ThrowInvalidStringLength();
   }
   int length = (array_length - 1) * separator_length;
   for (int i = 0; i < array_length; i++) {
     Object* element_obj = fixed_array->get(i);
-    if (!element_obj->IsString()) {
-      // TODO(1161): handle this case.
-      return isolate->Throw(isolate->heap()->illegal_argument_string());
-    }
+    RUNTIME_ASSERT(element_obj->IsString());
     String* element = String::cast(element_obj);
     int increment = element->length();
     if (increment > String::kMaxLength - length) {
-      isolate->context()->mark_out_of_memory();
-      return Failure::OutOfMemoryException(0x18);
+      return isolate->ThrowInvalidStringLength();
     }
     length += increment;
   }
 
-  Object* object;
-  { MaybeObject* maybe_object =
-        isolate->heap()->AllocateRawTwoByteString(length);
-    if (!maybe_object->ToObject(&object)) return maybe_object;
-  }
-  SeqTwoByteString* answer = SeqTwoByteString::cast(object);
+  Handle<SeqTwoByteString> answer =
+      isolate->factory()->NewRawTwoByteString(length);
+
+  DisallowHeapAllocation no_gc;
 
   uc16* sink = answer->GetChars();
 #ifdef DEBUG
@@ -7244,13 +7242,14 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringBuilderJoin) {
 #endif
 
   String* first = String::cast(fixed_array->get(0));
+  String* seperator_raw = *separator;
   int first_length = first->length();
   String::WriteToFlat(first, sink, 0, first_length);
   sink += first_length;
 
   for (int i = 1; i < array_length; i++) {
     ASSERT(sink + separator_length <= end);
-    String::WriteToFlat(separator, sink, 0, separator_length);
+    String::WriteToFlat(seperator_raw, sink, 0, separator_length);
     sink += separator_length;
 
     String* element = String::cast(fixed_array->get(i));
@@ -7263,7 +7262,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringBuilderJoin) {
 
   // Use %_FastAsciiArrayJoin instead.
   ASSERT(!answer->IsOneByteRepresentation());
-  return answer;
+  return *answer;
 }
 
 template <typename Char>
@@ -7364,9 +7363,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SparseJoinWithSeparator) {
     // Throw an exception if the resulting string is too large. See
     // https://code.google.com/p/chromium/issues/detail?id=336820
     // for details.
-    return isolate->Throw(*isolate->factory()->
-                          NewRangeError("invalid_string_length",
-                                        HandleVector<Object>(NULL, 0)));
+    return isolate->ThrowInvalidStringLength();
   }
 
   if (is_ascii) {
