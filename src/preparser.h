@@ -554,8 +554,8 @@ class PreParserExpression {
     return PreParserExpression(kThisPropertyExpression);
   }
 
-  static PreParserExpression StrictFunction() {
-    return PreParserExpression(kStrictFunctionExpression);
+  static PreParserExpression Property() {
+    return PreParserExpression(kPropertyExpression);
   }
 
   bool IsIdentifier() { return (code_ & kIdentifierFlag) != 0; }
@@ -576,7 +576,9 @@ class PreParserExpression {
 
   bool IsThisProperty() { return code_ == kThisPropertyExpression; }
 
-  bool IsStrictFunction() { return code_ == kStrictFunctionExpression; }
+  bool IsProperty() {
+    return code_ == kPropertyExpression || code_ == kThisPropertyExpression;
+  }
 
   // Dummy implementation for making expression->AsCall() work (see below).
   PreParserExpression* operator->() { return this; }
@@ -590,9 +592,11 @@ class PreParserExpression {
   void set_index(int index) {}  // For YieldExpressions
 
  private:
-  // First two/three bits are used as flags.
-  // Bit 0 and 1 represent identifiers or strings literals, and are
-  // mutually exclusive, but can both be absent.
+  // Least significant 2 bits are used as flags. Bits 0 and 1 represent
+  // identifiers or strings literals, and are mutually exclusive, but can both
+  // be absent. If the expression is an identifier or a string literal, the
+  // other bits describe the type (see PreParserIdentifier::Type and string
+  // literal constants below).
   enum {
     kUnknownExpression = 0,
     // Identifiers
@@ -604,10 +608,11 @@ class PreParserExpression {
     kUseStrictString = kStringLiteralFlag | 8,
     kStringLiteralMask = kUseStrictString,
 
-    // Below here applies if neither identifier nor string literal.
-    kThisExpression = 4,
-    kThisPropertyExpression = 8,
-    kStrictFunctionExpression = 12
+    // Below here applies if neither identifier nor string literal. Reserve the
+    // 2 least significant bits for flags.
+    kThisExpression = 1 << 2,
+    kThisPropertyExpression = 2 << 2,
+    kPropertyExpression = 3 << 2
   };
 
   explicit PreParserExpression(int expression_code) : code_(expression_code) {}
@@ -830,8 +835,7 @@ class PreParserTraits {
 
   // Determine whether the expression is a valid assignment left-hand side.
   static bool IsValidLeftHandSide(PreParserExpression expression) {
-    // TODO(marja): check properly; for now, leave it to parser.
-    return true;
+    return expression.IsIdentifier() || expression.IsProperty();
   }
 
   static PreParserExpression MarkExpressionAsLValue(
