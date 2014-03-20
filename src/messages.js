@@ -157,7 +157,7 @@ var kMessages = {
   strict_eval_arguments:         ["Unexpected eval or arguments in strict mode"],
   too_many_arguments:            ["Too many arguments in function call (only 65535 allowed)"],
   too_many_parameters:           ["Too many parameters in function definition (only 65535 allowed)"],
-  too_many_variables:            ["Too many variables declared (only 131071 allowed)"],
+  too_many_variables:            ["Too many variables declared (only 4194303 allowed)"],
   strict_param_dupe:             ["Strict mode function may not have duplicate parameter names"],
   strict_octal_literal:          ["Octal literals are not allowed in strict mode."],
   strict_duplicate_property:     ["Duplicate data property in object literal not allowed in strict mode"],
