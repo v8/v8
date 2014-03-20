@@ -328,17 +328,3 @@ function TestCachedKeyAfterScavenge() {
   }
 }
 TestCachedKeyAfterScavenge();
-
-
-function TestGetOwnPropertySymbols() {
-  var privateSymbol = %CreatePrivateSymbol("private")
-  var publicSymbol = Symbol()
-  var publicSymbol2 = Symbol()
-  var obj = {}
-  obj[publicSymbol] = 1
-  obj[privateSymbol] = 2
-  obj[publicSymbol2] = 3
-  var syms = Object.getOwnPropertySymbols(obj)
-  assertEquals(syms, [publicSymbol, publicSymbol2])
-}
-TestGetOwnPropertySymbols()

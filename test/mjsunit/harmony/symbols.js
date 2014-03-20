@@ -410,42 +410,15 @@ function TestGetOwnPropertySymbolsWithProto() {
 TestGetOwnPropertySymbolsWithProto()
 
 
-function TestRegistry() {
-  assertFalse(Symbol.for("@@create") === Symbol.create)
-  assertFalse(Symbol.for("@@iterator") === Symbol.iterator)
-  assertTrue(Symbol.keyFor(Symbol.create) === undefined)
-  assertTrue(Symbol.keyFor(Symbol.iterator) === undefined)
-
-  var symbol1 = Symbol.for("x1")
-  var symbol2 = Symbol.for("x2")
-  assertFalse(symbol1 === symbol2)
-
-  assertSame(symbol1, Symbol.for("x1"))
-  assertSame(symbol2, Symbol.for("x2"))
-  assertSame("x1", Symbol.keyFor(symbol1))
-  assertSame("x2", Symbol.keyFor(symbol2))
-
-  assertSame(Symbol.for("1"), Symbol.for(1))
-  assertThrows(function() { Symbol.keyFor("bla") }, TypeError)
-  assertThrows(function() { Symbol.keyFor({}) }, TypeError)
-
-  var realm = Realm.create()
-  assertFalse(Symbol === Realm.eval(realm, "Symbol"))
-  assertFalse(Symbol.for === Realm.eval(realm, "Symbol.for"))
-  assertFalse(Symbol.keyFor === Realm.eval(realm, "Symbol.keyFor"))
-  assertSame(Symbol.create, Realm.eval(realm, "Symbol.create"))
-  assertSame(Symbol.iterator, Realm.eval(realm, "Symbol.iterator"))
-
-  assertSame(symbol1, Realm.eval(realm, "Symbol.for")("x1"))
-  assertSame(symbol1, Realm.eval(realm, "Symbol.for('x1')"))
-  assertSame("x1", Realm.eval(realm, "Symbol.keyFor")(symbol1))
-  Realm.shared = symbol1
-  assertSame("x1", Realm.eval(realm, "Symbol.keyFor(Realm.shared)"))
-
-  var symbol3 = Realm.eval(realm, "Symbol.for('x3')")
-  assertFalse(symbol1 === symbol3)
-  assertFalse(symbol2 === symbol3)
-  assertSame(symbol3, Symbol.for("x3"))
-  assertSame("x3", Symbol.keyFor(symbol3))
+function TestGetOwnPropertySymbolsWithPrivateSymbols() {
+  var privateSymbol = %CreatePrivateSymbol("private")
+  var publicSymbol = Symbol()
+  var publicSymbol2 = Symbol()
+  var obj = {}
+  obj[publicSymbol] = 1
+  obj[privateSymbol] = 2
+  obj[publicSymbol2] = 3
+  var syms = Object.getOwnPropertySymbols(obj)
+  assertEquals(syms, [publicSymbol, publicSymbol2])
 }
-TestRegistry()
+TestGetOwnPropertySymbolsWithPrivateSymbols()

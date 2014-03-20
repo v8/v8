@@ -636,13 +636,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SymbolDescription) {
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_SymbolRegistry) {
-  SealHandleScope shs(isolate);
-  ASSERT(args.length() == 0);
-  return isolate->heap()->symbol_registry();
-}
-
-
 RUNTIME_FUNCTION(MaybeObject*, Runtime_SymbolIsPrivate) {
   SealHandleScope shs(isolate);
   ASSERT(args.length() == 1);

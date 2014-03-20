@@ -63,46 +63,6 @@ function SymbolValueOf() {
 }
 
 
-function GetSymbolRegistry() {
-  var registry = %SymbolRegistry();
-  if (!('internal' in registry)) {
-    registry.internal = {__proto__: null};
-    registry.for = {__proto__: null};
-    registry.keyFor = {__proto__: null};
-  }
-  return registry;
-}
-
-
-function InternalSymbol(key) {
-  var registry = GetSymbolRegistry();
-  if (!(key in registry.internal)) {
-    registry.internal[key] = %CreateSymbol(key);
-  }
-  return registry.internal[key];
-}
-
-
-function SymbolFor(key) {
-  key = TO_STRING_INLINE(key);
-  var registry = GetSymbolRegistry();
-  if (!(key in registry.for)) {
-    var symbol = %CreateSymbol(key);
-    registry.for[key] = symbol;
-    registry.keyFor[symbol] = key;
-  }
-  return registry.for[key];
-}
-
-
-function SymbolKeyFor(symbol) {
-  if (!IS_SYMBOL(symbol)) {
-    throw MakeTypeError("not_a_symbol", [symbol]);
-  }
-  return GetSymbolRegistry().keyFor[symbol];
-}
-
-
 // ES6 19.1.2.8
 function ObjectGetOwnPropertySymbols(obj) {
   if (!IS_SPEC_OBJECT(obj)) {
@@ -118,35 +78,11 @@ function ObjectGetOwnPropertySymbols(obj) {
 
 //-------------------------------------------------------------------
 
-var symbolCreate = InternalSymbol("@@create");
-var symbolHasInstance = InternalSymbol("@@hasInstance");
-var symbolIsConcatSpreadable = InternalSymbol("@@isConcatSpreadable");
-var symbolIsRegExp = InternalSymbol("@@isRegExp");
-var symbolIterator = InternalSymbol("@@iterator");
-var symbolToStringTag = InternalSymbol("@@toStringTag");
-var symbolUnscopables = InternalSymbol("@@unscopables");
-
-
-//-------------------------------------------------------------------
-
 function SetUpSymbol() {
   %CheckIsBootstrapping();
 
   %SetCode($Symbol, SymbolConstructor);
   %FunctionSetPrototype($Symbol, new $Object());
-
-  %SetProperty($Symbol, "create", symbolCreate, DONT_ENUM);
-  %SetProperty($Symbol, "hasInstance", symbolHasInstance, DONT_ENUM);
-  %SetProperty($Symbol, "isConcatSpreadable",
-      symbolIsConcatSpreadable, DONT_ENUM);
-  %SetProperty($Symbol, "isRegExp", symbolIsRegExp, DONT_ENUM);
-  %SetProperty($Symbol, "iterator", symbolIterator, DONT_ENUM);
-  %SetProperty($Symbol, "toStringTag", symbolToStringTag, DONT_ENUM);
-  %SetProperty($Symbol, "unscopables", symbolUnscopables, DONT_ENUM);
-  InstallFunctions($Symbol, DONT_ENUM, $Array(
-    "for", SymbolFor,
-    "keyFor", SymbolKeyFor
-  ));
 
   %SetProperty($Symbol.prototype, "constructor", $Symbol, DONT_ENUM);
   InstallFunctions($Symbol.prototype, DONT_ENUM, $Array(
