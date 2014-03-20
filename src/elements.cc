@@ -639,6 +639,19 @@ class ElementsAccessorBase : public ElementsAccessor {
         receiver, holder, key, backing_store);
   }
 
+  // TODO(ishell): Temporary wrapper until handlified.
+  MUST_USE_RESULT virtual Handle<Object> Get(
+      Handle<Object> receiver,
+      Handle<JSObject> holder,
+      uint32_t key,
+      Handle<FixedArrayBase> backing_store) {
+    CALL_HEAP_FUNCTION(holder->GetIsolate(),
+                       Get(*receiver, *holder, key,
+                           backing_store.is_null()
+                           ? NULL : *backing_store),
+                       Object);
+  }
+
   MUST_USE_RESULT virtual MaybeObject* Get(Object* receiver,
                                            JSObject* holder,
                                            uint32_t key,

@@ -367,6 +367,7 @@ static inline Handle<Object> EnsureJSArrayWithWritableFastElementsWrapper(
 }
 
 
+// TODO(ishell): Handlify when all Array* builtins are handlified.
 static inline bool IsJSArrayFastElementMovingAllowed(Heap* heap,
                                                      JSArray* receiver) {
   if (!FLAG_clever_optimizations) return false;
@@ -575,19 +576,19 @@ BUILTIN(ArrayPop) {
 
 
 BUILTIN(ArrayShift) {
+  HandleScope scope(isolate);
   Heap* heap = isolate->heap();
-  Object* receiver = *args.receiver();
-  FixedArrayBase* elms_obj;
-  MaybeObject* maybe_elms_obj =
-      EnsureJSArrayWithWritableFastElements(heap, receiver, NULL, 0);
-  if (maybe_elms_obj == NULL)
-      return CallJsBuiltin(isolate, "ArrayShift", args);
-  if (!maybe_elms_obj->To(&elms_obj)) return maybe_elms_obj;
-
-  if (!IsJSArrayFastElementMovingAllowed(heap, JSArray::cast(receiver))) {
+  Handle<Object> receiver = args.receiver();
+  Handle<Object> elms_or_null =
+      EnsureJSArrayWithWritableFastElementsWrapper(isolate, receiver, NULL, 0);
+  RETURN_IF_EMPTY_HANDLE(isolate, elms_or_null);
+  if ((*elms_or_null == NULL) ||
+      !IsJSArrayFastElementMovingAllowed(heap,
+                                         *Handle<JSArray>::cast(receiver))) {
     return CallJsBuiltin(isolate, "ArrayShift", args);
   }
-  JSArray* array = JSArray::cast(receiver);
+  Handle<FixedArrayBase> elms_obj = Handle<FixedArrayBase>::cast(elms_or_null);
+  Handle<JSArray> array = Handle<JSArray>::cast(receiver);
   ASSERT(!array->map()->is_observed());
 
   int len = Smi::cast(array->length())->value();
@@ -595,25 +596,23 @@ BUILTIN(ArrayShift) {
 
   // Get first element
   ElementsAccessor* accessor = array->GetElementsAccessor();
-  Object* first;
-  MaybeObject* maybe_first = accessor->Get(receiver, array, 0, elms_obj);
-  if (!maybe_first->To(&first)) return maybe_first;
+  Handle<Object> first = accessor->Get(receiver, array, 0, elms_obj);
   if (first->IsTheHole()) {
-    first = heap->undefined_value();
+    first = isolate->factory()->undefined_value();
   }
 
-  if (!heap->lo_space()->Contains(elms_obj)) {
-    array->set_elements(LeftTrimFixedArray(heap, elms_obj, 1));
+  if (!heap->lo_space()->Contains(*elms_obj)) {
+    array->set_elements(LeftTrimFixedArray(heap, *elms_obj, 1));
   } else {
     // Shift the elements.
     if (elms_obj->IsFixedArray()) {
-      FixedArray* elms = FixedArray::cast(elms_obj);
+      Handle<FixedArray> elms = Handle<FixedArray>::cast(elms_obj);
       DisallowHeapAllocation no_gc;
-      heap->MoveElements(elms, 0, 1, len - 1);
+      heap->MoveElements(*elms, 0, 1, len - 1);
       elms->set(len - 1, heap->the_hole_value());
     } else {
-      FixedDoubleArray* elms = FixedDoubleArray::cast(elms_obj);
-      MoveDoubleElements(elms, 0, elms, 1, len - 1);
+      Handle<FixedDoubleArray> elms = Handle<FixedDoubleArray>::cast(elms_obj);
+      MoveDoubleElements(*elms, 0, *elms, 1, len - 1);
       elms->set_the_hole(len - 1);
     }
   }
@@ -621,7 +620,7 @@ BUILTIN(ArrayShift) {
   // Set the length.
   array->set_length(Smi::FromInt(len - 1));
 
-  return first;
+  return *first;
 }
 
 

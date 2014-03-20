@@ -65,6 +65,13 @@ class ElementsAccessor {
   // can optionally pass in the backing store to use for the check, which must
   // be compatible with the ElementsKind of the ElementsAccessor. If
   // backing_store is NULL, the holder->elements() is used as the backing store.
+  MUST_USE_RESULT virtual Handle<Object> Get(
+      Handle<Object> receiver,
+      Handle<JSObject> holder,
+      uint32_t key,
+      Handle<FixedArrayBase> backing_store =
+          Handle<FixedArrayBase>::null()) = 0;
+
   MUST_USE_RESULT virtual MaybeObject* Get(
       Object* receiver,
       JSObject* holder,
