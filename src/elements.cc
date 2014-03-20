@@ -784,6 +784,21 @@ class ElementsAccessorBase : public ElementsAccessor {
     return NULL;
   }
 
+  virtual void CopyElements(
+      Handle<JSObject> from_holder,
+      uint32_t from_start,
+      ElementsKind from_kind,
+      Handle<FixedArrayBase> to,
+      uint32_t to_start,
+      int copy_size,
+      Handle<FixedArrayBase> from) {
+    CALL_HEAP_FUNCTION_VOID(from_holder->GetIsolate(),
+                            CopyElements(
+                                from_holder.is_null() ? NULL : *from_holder,
+                                from_start, from_kind, *to, to_start, copy_size,
+                                from.is_null() ? NULL : *from));
+  }
+
   MUST_USE_RESULT virtual MaybeObject* CopyElements(JSObject* from_holder,
                                                     uint32_t from_start,
                                                     ElementsKind from_kind,

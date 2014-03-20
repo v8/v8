@@ -69,6 +69,14 @@ Handle<FixedArray> Factory::NewFixedArrayWithHoles(int size,
 }
 
 
+Handle<FixedArray> Factory::NewUninitializedFixedArray(int size) {
+  CALL_HEAP_FUNCTION(
+      isolate(),
+      isolate()->heap()->AllocateUninitializedFixedArray(size),
+      FixedArray);
+}
+
+
 Handle<FixedDoubleArray> Factory::NewFixedDoubleArray(int size,
                                                       PretenureFlag pretenure) {
   ASSERT(0 <= size);

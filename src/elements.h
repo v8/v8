@@ -142,6 +142,14 @@ class ElementsAccessor {
   // the source JSObject or JSArray in source_holder. If the holder's backing
   // store is available, it can be passed in source and source_holder is
   // ignored.
+  virtual void CopyElements(
+      Handle<JSObject> source_holder,
+      uint32_t source_start,
+      ElementsKind source_kind,
+      Handle<FixedArrayBase> destination,
+      uint32_t destination_start,
+      int copy_size,
+      Handle<FixedArrayBase> source = Handle<FixedArrayBase>::null()) = 0;
   MUST_USE_RESULT virtual MaybeObject* CopyElements(
       JSObject* source_holder,
       uint32_t source_start,

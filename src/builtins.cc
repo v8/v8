@@ -406,23 +406,21 @@ MUST_USE_RESULT static MaybeObject* CallJsBuiltin(
 
 
 BUILTIN(ArrayPush) {
-  Heap* heap = isolate->heap();
-  Object* receiver = *args.receiver();
-  FixedArrayBase* elms_obj;
-  MaybeObject* maybe_elms_obj =
-      EnsureJSArrayWithWritableFastElements(heap, receiver, &args, 1);
-  if (maybe_elms_obj == NULL) {
-    return CallJsBuiltin(isolate, "ArrayPush", args);
-  }
-  if (!maybe_elms_obj->To(&elms_obj)) return maybe_elms_obj;
+  HandleScope scope(isolate);
+  Handle<Object> receiver = args.receiver();
+  Handle<Object> elms_or_null =
+      EnsureJSArrayWithWritableFastElementsWrapper(isolate, receiver, &args, 1);
+  RETURN_IF_EMPTY_HANDLE(isolate, elms_or_null);
+  if (*elms_or_null == NULL) return CallJsBuiltin(isolate, "ArrayPush", args);
 
-  JSArray* array = JSArray::cast(receiver);
+  Handle<FixedArrayBase> elms_obj = Handle<FixedArrayBase>::cast(elms_or_null);
+  Handle<JSArray> array = Handle<JSArray>::cast(receiver);
   ASSERT(!array->map()->is_observed());
 
   ElementsKind kind = array->GetElementsKind();
 
   if (IsFastSmiOrObjectElementsKind(kind)) {
-    FixedArray* elms = FixedArray::cast(elms_obj);
+    Handle<FixedArray> elms = Handle<FixedArray>::cast(elms_obj);
 
     int len = Smi::cast(array->length())->value();
     int to_add = args.length() - 1;
@@ -438,16 +436,13 @@ BUILTIN(ArrayPush) {
     if (new_length > elms->length()) {
       // New backing storage is needed.
       int capacity = new_length + (new_length >> 1) + 16;
-      FixedArray* new_elms;
-      MaybeObject* maybe_obj = heap->AllocateUninitializedFixedArray(capacity);
-      if (!maybe_obj->To(&new_elms)) return maybe_obj;
+      Handle<FixedArray> new_elms =
+          isolate->factory()->NewUninitializedFixedArray(capacity);
 
       ElementsAccessor* accessor = array->GetElementsAccessor();
-      MaybeObject* maybe_failure = accessor->CopyElements(
-           NULL, 0, kind, new_elms, 0,
-           ElementsAccessor::kCopyToEndAndInitializeToHole, elms_obj);
-      ASSERT(!maybe_failure->IsFailure());
-      USE(maybe_failure);
+      accessor->CopyElements(
+          Handle<JSObject>::null(), 0, kind, new_elms, 0,
+          ElementsAccessor::kCopyToEndAndInitializeToHole, elms_obj);
 
       elms = new_elms;
     }
@@ -459,8 +454,8 @@ BUILTIN(ArrayPush) {
       elms->set(index + len, args[index + 1], mode);
     }
 
-    if (elms != array->elements()) {
-      array->set_elements(elms);
+    if (*elms != array->elements()) {
+      array->set_elements(*elms);
     }
 
     // Set the length.
@@ -480,25 +475,22 @@ BUILTIN(ArrayPush) {
 
     int new_length = len + to_add;
 
-    FixedDoubleArray* new_elms;
+    Handle<FixedDoubleArray> new_elms;
 
     if (new_length > elms_len) {
       // New backing storage is needed.
       int capacity = new_length + (new_length >> 1) + 16;
-      MaybeObject* maybe_obj =
-          heap->AllocateUninitializedFixedDoubleArray(capacity);
-      if (!maybe_obj->To(&new_elms)) return maybe_obj;
+      new_elms = isolate->factory()->NewFixedDoubleArray(capacity);
 
       ElementsAccessor* accessor = array->GetElementsAccessor();
-      MaybeObject* maybe_failure = accessor->CopyElements(
-              NULL, 0, kind, new_elms, 0,
-              ElementsAccessor::kCopyToEndAndInitializeToHole, elms_obj);
-      ASSERT(!maybe_failure->IsFailure());
-      USE(maybe_failure);
+      accessor->CopyElements(
+          Handle<JSObject>::null(), 0, kind, new_elms, 0,
+          ElementsAccessor::kCopyToEndAndInitializeToHole, elms_obj);
+
     } else {
       // to_add is > 0 and new_length <= elms_len, so elms_obj cannot be the
       // empty_fixed_array.
-      new_elms = FixedDoubleArray::cast(elms_obj);
+      new_elms = Handle<FixedDoubleArray>::cast(elms_obj);
     }
 
     // Add the provided values.
@@ -509,8 +501,8 @@ BUILTIN(ArrayPush) {
       new_elms->set(index + len, arg->Number());
     }
 
-    if (new_elms != array->elements()) {
-      array->set_elements(new_elms);
+    if (*new_elms != array->elements()) {
+      array->set_elements(*new_elms);
     }
 
     // Set the length.
