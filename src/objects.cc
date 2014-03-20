@@ -5103,18 +5103,6 @@ Handle<Object> JSObject::DeletePropertyWithInterceptor(Handle<JSObject> object,
 }
 
 
-// TODO(mstarzinger): Temporary wrapper until handlified.
-static Handle<Object> AccessorDelete(Handle<JSObject> object,
-                                     uint32_t index,
-                                     JSObject::DeleteMode mode) {
-  CALL_HEAP_FUNCTION(object->GetIsolate(),
-                     object->GetElementsAccessor()->Delete(*object,
-                                                           index,
-                                                           mode),
-                     Object);
-}
-
-
 Handle<Object> JSObject::DeleteElementWithInterceptor(Handle<JSObject> object,
                                                       uint32_t index) {
   Isolate* isolate = object->GetIsolate();
@@ -5141,7 +5129,8 @@ Handle<Object> JSObject::DeleteElementWithInterceptor(Handle<JSObject> object,
     // Rebox CustomArguments::kReturnValueOffset before returning.
     return handle(*result_internal, isolate);
   }
-  Handle<Object> delete_result = AccessorDelete(object, index, NORMAL_DELETION);
+  Handle<Object> delete_result = object->GetElementsAccessor()->Delete(
+      object, index, NORMAL_DELETION);
   RETURN_HANDLE_IF_SCHEDULED_EXCEPTION(isolate, Object);
   return delete_result;
 }
@@ -5201,7 +5190,7 @@ Handle<Object> JSObject::DeleteElement(Handle<JSObject> object,
   if (object->HasIndexedInterceptor() && mode != FORCE_DELETION) {
     result = DeleteElementWithInterceptor(object, index);
   } else {
-    result = AccessorDelete(object, index, mode);
+    result = object->GetElementsAccessor()->Delete(object, index, mode);
   }
 
   if (should_enqueue_change_record && !HasLocalElement(object, index)) {
