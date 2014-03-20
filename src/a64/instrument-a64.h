@@ -32,7 +32,6 @@
 #include "utils.h"
 #include "a64/decoder-a64.h"
 #include "a64/constants-a64.h"
-#include "a64/instrument-a64.h"
 
 namespace v8 {
 namespace internal {

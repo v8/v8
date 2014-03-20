@@ -1327,6 +1327,17 @@ Handle<JSObject> Factory::NewJSObject(Handle<JSFunction> constructor,
 }
 
 
+Handle<JSObject> Factory::NewJSObjectWithMemento(
+    Handle<JSFunction> constructor,
+    Handle<AllocationSite> site) {
+  JSFunction::EnsureHasInitialMap(constructor);
+  CALL_HEAP_FUNCTION(
+      isolate(),
+      isolate()->heap()->AllocateJSObject(*constructor, NOT_TENURED, *site),
+      JSObject);
+}
+
+
 Handle<JSModule> Factory::NewJSModule(Handle<Context> context,
                                       Handle<ScopeInfo> scope_info) {
   CALL_HEAP_FUNCTION(

@@ -2916,6 +2916,13 @@ void FullCodeGenerator::VisitCallNew(CallNew* expr) {
   Handle<Object> uninitialized =
       TypeFeedbackInfo::UninitializedSentinel(isolate());
   StoreFeedbackVectorSlot(expr->CallNewFeedbackSlot(), uninitialized);
+  if (FLAG_pretenuring_call_new) {
+    StoreFeedbackVectorSlot(expr->AllocationSiteFeedbackSlot(),
+                            isolate()->factory()->NewAllocationSite());
+    ASSERT(expr->AllocationSiteFeedbackSlot() ==
+           expr->CallNewFeedbackSlot() + 1);
+  }
+
   __ li(a2, FeedbackVector());
   __ li(a3, Operand(Smi::FromInt(expr->CallNewFeedbackSlot())));
 

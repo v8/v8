@@ -205,19 +205,6 @@ void RegExpBuilder::AddQuantifierToAtom(
 }
 
 
-Handle<String> Parser::LookupSymbol(int symbol_id) {
-  // If there is no preparser symbol data, a negative number will be passed. In
-  // that case, we'll just read the literal from Scanner. This also guards
-  // against corrupt preparse data where the symbol id is larger than the symbol
-  // count.
-  if (symbol_id < 0 ||
-      (pre_parse_data_ && symbol_id >= pre_parse_data_->symbol_count())) {
-    return scanner()->AllocateInternalizedString(isolate_);
-  }
-  return LookupCachedSymbol(symbol_id);
-}
-
-
 Handle<String> Parser::LookupCachedSymbol(int symbol_id) {
   // Make sure the cache is large enough to hold the symbol identifier.
   if (symbol_cache_.length() <= symbol_id) {
@@ -446,6 +433,12 @@ bool ParserTraits::IsThisProperty(Expression* expression) {
 }
 
 
+bool ParserTraits::IsIdentifier(Expression* expression) {
+  VariableProxy* operand = expression->AsVariableProxy();
+  return operand != NULL && !operand->is_this();
+}
+
+
 void ParserTraits::CheckAssigningFunctionLiteralToProperty(Expression* left,
                                                            Expression* right) {
   ASSERT(left != NULL);
@@ -538,6 +531,52 @@ bool ParserTraits::ShortcutNumericLiteralBinaryExpression(
 }
 
 
+Expression* ParserTraits::BuildUnaryExpression(
+    Expression* expression, Token::Value op, int pos,
+    AstNodeFactory<AstConstructionVisitor>* factory) {
+  ASSERT(expression != NULL);
+  if (expression->AsLiteral() != NULL) {
+    Handle<Object> literal = expression->AsLiteral()->value();
+    if (op == Token::NOT) {
+      // Convert the literal to a boolean condition and negate it.
+      bool condition = literal->BooleanValue();
+      Handle<Object> result =
+          parser_->isolate()->factory()->ToBoolean(!condition);
+      return factory->NewLiteral(result, pos);
+    } else if (literal->IsNumber()) {
+      // Compute some expressions involving only number literals.
+      double value = literal->Number();
+      switch (op) {
+        case Token::ADD:
+          return expression;
+        case Token::SUB:
+          return factory->NewNumberLiteral(-value, pos);
+        case Token::BIT_NOT:
+          return factory->NewNumberLiteral(~DoubleToInt32(value), pos);
+        default:
+          break;
+      }
+    }
+  }
+  // Desugar '+foo' => 'foo*1'
+  if (op == Token::ADD) {
+    return factory->NewBinaryOperation(
+        Token::MUL, expression, factory->NewNumberLiteral(1, pos), pos);
+  }
+  // The same idea for '-foo' => 'foo*(-1)'.
+  if (op == Token::SUB) {
+    return factory->NewBinaryOperation(
+        Token::MUL, expression, factory->NewNumberLiteral(-1, pos), pos);
+  }
+  // ...and one more time for '~foo' => 'foo^(~0)'.
+  if (op == Token::BIT_NOT) {
+    return factory->NewBinaryOperation(
+        Token::BIT_XOR, expression, factory->NewNumberLiteral(~0, pos), pos);
+  }
+  return factory->NewUnaryOperation(op, expression, pos);
+}
+
+
 void ParserTraits::ReportMessageAt(Scanner::Location source_location,
                                    const char* message,
                                    Vector<const char*> args,
@@ -600,11 +639,19 @@ void ParserTraits::ReportMessageAt(Scanner::Location source_location,
 
 
 Handle<String> ParserTraits::GetSymbol(Scanner* scanner) {
-  int symbol_id = -1;
-  if (parser_->pre_parse_data() != NULL) {
-    symbol_id = parser_->pre_parse_data()->GetSymbolIdentifier();
+  if (parser_->cached_data_mode() == CONSUME_CACHED_DATA) {
+    int symbol_id = (*parser_->cached_data())->GetSymbolIdentifier();
+    // If there is no symbol data, -1 will be returned.
+    if (symbol_id >= 0 &&
+        symbol_id < (*parser_->cached_data())->symbol_count()) {
+      return parser_->LookupCachedSymbol(symbol_id);
+    }
+  } else if (parser_->cached_data_mode() == PRODUCE_CACHED_DATA) {
+    if (parser_->log_->ShouldLogSymbols()) {
+      parser_->scanner()->LogSymbol(parser_->log_, parser_->position());
+    }
   }
-  return parser_->LookupSymbol(symbol_id);
+  return parser_->scanner()->AllocateInternalizedString(parser_->isolate_);
 }
 
 
@@ -693,8 +740,8 @@ FunctionLiteral* ParserTraits::ParseFunctionLiteral(
 }
 
 
-Expression* ParserTraits::ParseUnaryExpression(bool* ok) {
-  return parser_->ParseUnaryExpression(ok);
+Expression* ParserTraits::ParsePostfixExpression(bool* ok) {
+  return parser_->ParsePostfixExpression(ok);
 }
 
 
@@ -702,6 +749,7 @@ Parser::Parser(CompilationInfo* info)
     : ParserBase<ParserTraits>(&scanner_,
                                info->isolate()->stack_guard()->real_climit(),
                                info->extension(),
+                               NULL,
                                info->zone(),
                                this),
       isolate_(info->isolate()),
@@ -711,7 +759,8 @@ Parser::Parser(CompilationInfo* info)
       reusable_preparser_(NULL),
       original_scope_(NULL),
       target_stack_(NULL),
-      pre_parse_data_(NULL),
+      cached_data_(NULL),
+      cached_data_mode_(NO_CACHED_DATA),
       info_(info) {
   ASSERT(!script_.is_null());
   isolate_->set_ast_node_id(0);
@@ -738,6 +787,13 @@ FunctionLiteral* Parser::ParseProgram() {
   fni_ = new(zone()) FuncNameInferrer(isolate(), zone());
 
   // Initialize parser state.
+  CompleteParserRecorder recorder;
+  if (cached_data_mode_ == PRODUCE_CACHED_DATA) {
+    log_ = &recorder;
+  } else if (cached_data_mode_ == CONSUME_CACHED_DATA) {
+    (*cached_data_)->Initialize();
+  }
+
   source->TryFlatten();
   FunctionLiteral* result;
   if (source->IsExternalTwoByteString()) {
@@ -767,6 +823,11 @@ FunctionLiteral* Parser::ParseProgram() {
     }
     PrintF(" - took %0.3f ms]\n", ms);
   }
+  if (cached_data_mode_ == PRODUCE_CACHED_DATA) {
+    Vector<unsigned> store = recorder.ExtractData();
+    *cached_data_ = new ScriptDataImpl(store);
+    log_ = NULL;
+  }
   return result;
 }
 
@@ -775,7 +836,6 @@ FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info,
                                         Handle<String> source) {
   ASSERT(scope_ == NULL);
   ASSERT(target_stack_ == NULL);
-  if (pre_parse_data_ != NULL) pre_parse_data_->Initialize();
 
   Handle<String> no_name = isolate()->factory()->empty_string();
 
@@ -2982,111 +3042,6 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
 }
 
 
-Expression* Parser::ParseUnaryExpression(bool* ok) {
-  // UnaryExpression ::
-  //   PostfixExpression
-  //   'delete' UnaryExpression
-  //   'void' UnaryExpression
-  //   'typeof' UnaryExpression
-  //   '++' UnaryExpression
-  //   '--' UnaryExpression
-  //   '+' UnaryExpression
-  //   '-' UnaryExpression
-  //   '~' UnaryExpression
-  //   '!' UnaryExpression
-
-  Token::Value op = peek();
-  if (Token::IsUnaryOp(op)) {
-    op = Next();
-    int pos = position();
-    Expression* expression = ParseUnaryExpression(CHECK_OK);
-
-    if (expression != NULL && (expression->AsLiteral() != NULL)) {
-      Handle<Object> literal = expression->AsLiteral()->value();
-      if (op == Token::NOT) {
-        // Convert the literal to a boolean condition and negate it.
-        bool condition = literal->BooleanValue();
-        Handle<Object> result = isolate()->factory()->ToBoolean(!condition);
-        return factory()->NewLiteral(result, pos);
-      } else if (literal->IsNumber()) {
-        // Compute some expressions involving only number literals.
-        double value = literal->Number();
-        switch (op) {
-          case Token::ADD:
-            return expression;
-          case Token::SUB:
-            return factory()->NewNumberLiteral(-value, pos);
-          case Token::BIT_NOT:
-            return factory()->NewNumberLiteral(~DoubleToInt32(value), pos);
-          default:
-            break;
-        }
-      }
-    }
-
-    // "delete identifier" is a syntax error in strict mode.
-    if (op == Token::DELETE && strict_mode() == STRICT) {
-      VariableProxy* operand = expression->AsVariableProxy();
-      if (operand != NULL && !operand->is_this()) {
-        ReportMessage("strict_delete", Vector<const char*>::empty());
-        *ok = false;
-        return NULL;
-      }
-    }
-
-    // Desugar '+foo' into 'foo*1', this enables the collection of type feedback
-    // without any special stub and the multiplication is removed later in
-    // Crankshaft's canonicalization pass.
-    if (op == Token::ADD) {
-      return factory()->NewBinaryOperation(Token::MUL,
-                                           expression,
-                                           factory()->NewNumberLiteral(1, pos),
-                                           pos);
-    }
-    // The same idea for '-foo' => 'foo*(-1)'.
-    if (op == Token::SUB) {
-      return factory()->NewBinaryOperation(Token::MUL,
-                                           expression,
-                                           factory()->NewNumberLiteral(-1, pos),
-                                           pos);
-    }
-    // ...and one more time for '~foo' => 'foo^(~0)'.
-    if (op == Token::BIT_NOT) {
-      return factory()->NewBinaryOperation(Token::BIT_XOR,
-                                           expression,
-                                           factory()->NewNumberLiteral(~0, pos),
-                                           pos);
-    }
-
-    return factory()->NewUnaryOperation(op, expression, pos);
-
-  } else if (Token::IsCountOp(op)) {
-    op = Next();
-    Scanner::Location lhs_location = scanner()->peek_location();
-    Expression* expression = ParseUnaryExpression(CHECK_OK);
-    if (expression == NULL || !expression->IsValidLeftHandSide()) {
-      ReportMessageAt(lhs_location, "invalid_lhs_in_prefix_op", true);
-      *ok = false;
-      return NULL;
-    }
-
-    if (strict_mode() == STRICT) {
-      // Prefix expression operand in strict mode may not be eval or arguments.
-      CheckStrictModeLValue(expression, CHECK_OK);
-    }
-    MarkExpressionAsLValue(expression);
-
-    return factory()->NewCountOperation(op,
-                                        true /* prefix */,
-                                        expression,
-                                        position());
-
-  } else {
-    return ParsePostfixExpression(ok);
-  }
-}
-
-
 Expression* Parser::ParsePostfixExpression(bool* ok) {
   // PostfixExpression ::
   //   LeftHandSideExpression ('++' | '--')?
@@ -3580,11 +3535,11 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     if (is_lazily_parsed) {
       int function_block_pos = position();
       FunctionEntry entry;
-      if (pre_parse_data_ != NULL) {
-        // If we have pre_parse_data_, we use it to skip parsing the function
-        // body.  The preparser data contains the information we need to
-        // construct the lazy function.
-        entry = pre_parse_data()->GetFunctionEntry(function_block_pos);
+      if (cached_data_mode_ == CONSUME_CACHED_DATA) {
+        // If we have cached data, we use it to skip parsing the function body.
+        // The data contains the information we need to construct the lazy
+        // function.
+        entry = (*cached_data())->GetFunctionEntry(function_block_pos);
         if (entry.is_valid()) {
           if (entry.end_pos() <= function_block_pos) {
             // End position greater than end of stream is safe, and hard
@@ -3605,21 +3560,17 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
           // an entry for the function. As a safety net, fall back to eager
           // parsing. It is unclear whether PreParser's laziness analysis can
           // produce different results than the Parser's laziness analysis (see
-          // https://codereview.chromium.org/7565003 ). This safety net is
-          // guarding against the case where Parser thinks a function should be
-          // lazily parsed, but PreParser thinks it should be eagerly parsed --
-          // in that case we fall back to eager parsing in Parser, too. Note
-          // that the opposite case is worse: if PreParser thinks a function
-          // should be lazily parsed, but Parser thinks it should be eagerly
-          // parsed, it will never advance the preparse data beyond that
-          // function and all further laziness will fail (all functions will be
-          // parsed eagerly).
+          // https://codereview.chromium.org/7565003 ). In this case, we must
+          // discard all the preparse data, since the symbol data will be wrong.
           is_lazily_parsed = false;
+          cached_data_mode_ = NO_CACHED_DATA;
         }
       } else {
-        // With no preparser data, we partially parse the function, without
+        // With no cached data, we partially parse the function, without
         // building an AST. This gathers the data needed to build a lazy
         // function.
+        // FIXME(marja): Now the PreParser doesn't need to log functions /
+        // symbols; only errors -> clean that up.
         SingletonLogger logger;
         PreParser::PreParseResult result = LazyParseFunctionLiteral(&logger);
         if (result == PreParser::kPreParseStackOverflow) {
@@ -3648,6 +3599,15 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
         materialized_literal_count = logger.literals();
         expected_property_count = logger.properties();
         scope_->SetStrictMode(logger.strict_mode());
+        if (cached_data_mode_ == PRODUCE_CACHED_DATA) {
+          ASSERT(log_);
+          // Position right after terminal '}'.
+          int body_end = scanner()->location().end_pos;
+          log_->LogFunction(function_block_pos, body_end,
+                            materialized_literal_count,
+                            expected_property_count,
+                            scope_->strict_mode());
+        }
       }
     }
 
@@ -4922,12 +4882,13 @@ bool Parser::Parse() {
       result = ParseProgram();
     }
   } else {
-    ScriptDataImpl* pre_parse_data = info()->pre_parse_data();
-    set_pre_parse_data(pre_parse_data);
-    if (pre_parse_data != NULL && pre_parse_data->has_error()) {
-      Scanner::Location loc = pre_parse_data->MessageLocation();
-      const char* message = pre_parse_data->BuildMessage();
-      Vector<const char*> args = pre_parse_data->BuildArgs();
+    SetCachedData(info()->cached_data(), info()->cached_data_mode());
+    if (info()->cached_data_mode() == CONSUME_CACHED_DATA &&
+        (*info()->cached_data())->has_error()) {
+      ScriptDataImpl* cached_data = *(info()->cached_data());
+      Scanner::Location loc = cached_data->MessageLocation();
+      const char* message = cached_data->BuildMessage();
+      Vector<const char*> args = cached_data->BuildArgs();
       ParserTraits::ReportMessageAt(loc, message, args);
       DeleteArray(message);
       for (int i = 0; i < args.length(); i++) {

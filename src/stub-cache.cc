@@ -1306,6 +1306,8 @@ void KeyedLoadStubCompiler::CompileElementHandlers(MapHandleList* receiver_maps,
         cached_stub =
             KeyedLoadFastElementStub(is_js_array,
                                      elements_kind).GetCode(isolate());
+      } else if (elements_kind == SLOPPY_ARGUMENTS_ELEMENTS) {
+        cached_stub = isolate()->builtins()->KeyedLoadIC_SloppyArguments();
       } else {
         ASSERT(elements_kind == DICTIONARY_ELEMENTS);
         cached_stub = KeyedLoadDictionaryElementStub().GetCode(isolate());

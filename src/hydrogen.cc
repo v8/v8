@@ -8278,12 +8278,25 @@ void HOptimizedGraphBuilder::VisitCallNew(CallNew* expr) {
 
     // Allocate an instance of the implicit receiver object.
     HValue* size_in_bytes = Add<HConstant>(instance_size);
-    PretenureFlag pretenure_flag =
-        (FLAG_pretenuring_call_new && !FLAG_allocation_site_pretenuring) ?
-            isolate()->heap()->GetPretenureMode() : NOT_TENURED;
+    HAllocationMode allocation_mode;
+    if (FLAG_pretenuring_call_new) {
+      if (FLAG_allocation_site_pretenuring) {
+        // Try to use pretenuring feedback.
+        Handle<AllocationSite> allocation_site = expr->allocation_site();
+        allocation_mode = HAllocationMode(allocation_site);
+        // Take a dependency on allocation site.
+        AllocationSite::AddDependentCompilationInfo(allocation_site,
+                                                    AllocationSite::TENURING,
+                                                    top_info());
+      } else {
+        allocation_mode = HAllocationMode(
+            isolate()->heap()->GetPretenureMode());
+      }
+    }
+
     HAllocate* receiver =
-        Add<HAllocate>(size_in_bytes, HType::JSObject(), pretenure_flag,
-        JS_OBJECT_TYPE);
+        BuildAllocate(size_in_bytes, HType::JSObject(), JS_OBJECT_TYPE,
+                      allocation_mode);
     receiver->set_known_initial_map(initial_map);
 
     // Load the initial map from the constructor.

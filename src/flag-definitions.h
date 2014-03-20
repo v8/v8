@@ -302,6 +302,7 @@ DEFINE_bool(polymorphic_inlining, true, "polymorphic inlining")
 DEFINE_bool(use_osr, true, "use on-stack replacement")
 DEFINE_bool(array_bounds_checks_elimination, true,
             "perform array bounds checks elimination")
+DEFINE_bool(trace_bce, false, "trace array bounds check elimination")
 DEFINE_bool(array_bounds_checks_hoisting, false,
             "perform array bounds checks hoisting")
 DEFINE_bool(array_index_dehoisting, true,

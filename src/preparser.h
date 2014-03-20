@@ -87,6 +87,7 @@ class ParserBase : public Traits {
 
   ParserBase(Scanner* scanner, uintptr_t stack_limit,
              v8::Extension* extension,
+             ParserRecorder* log,
              typename Traits::Type::Zone* zone,
              typename Traits::Type::Parser this_object)
       : Traits(this_object),
@@ -95,6 +96,7 @@ class ParserBase : public Traits {
         function_state_(NULL),
         extension_(extension),
         fni_(NULL),
+        log_(log),
         scanner_(scanner),
         stack_limit_(stack_limit),
         stack_overflow_(false),
@@ -392,6 +394,7 @@ class ParserBase : public Traits {
   ExpressionT ParseYieldExpression(bool* ok);
   ExpressionT ParseConditionalExpression(bool accept_IN, bool* ok);
   ExpressionT ParseBinaryExpression(int prec, bool accept_IN, bool* ok);
+  ExpressionT ParseUnaryExpression(bool* ok);
 
   // Used to detect duplicates in object literals. Each of the values
   // kGetterProperty, kSetterProperty and kValueProperty represents
@@ -457,6 +460,7 @@ class ParserBase : public Traits {
   FunctionState* function_state_;  // Function state stack.
   v8::Extension* extension_;
   FuncNameInferrer* fni_;
+  ParserRecorder* log_;
 
  private:
   Scanner* scanner_;
@@ -739,6 +743,13 @@ class PreParserFactory {
                                      int pos) {
     return PreParserExpression::Default();
   }
+
+  PreParserExpression NewCountOperation(Token::Value op,
+                                        bool is_prefix,
+                                        PreParserExpression expression,
+                                        int pos) {
+    return PreParserExpression::Default();
+  }
 };
 
 
@@ -791,6 +802,10 @@ class PreParserTraits {
     return expression.IsThisProperty();
   }
 
+  static bool IsIdentifier(PreParserExpression expression) {
+    return expression.IsIdentifier();
+  }
+
   static bool IsBoilerplateProperty(PreParserExpression property) {
     // PreParser doesn't count boilerplate properties.
     return false;
@@ -836,6 +851,12 @@ class PreParserTraits {
                                               int pos,
                                               PreParserFactory* factory) {
     return false;
+  }
+
+  PreParserExpression BuildUnaryExpression(PreParserExpression expression,
+                                           Token::Value op, int pos,
+                                           PreParserFactory* factory) {
+    return PreParserExpression::Default();
   }
 
   // Reporting errors.
@@ -919,7 +940,7 @@ class PreParserTraits {
       int function_token_position,
       FunctionLiteral::FunctionType type,
       bool* ok);
-  PreParserExpression ParseUnaryExpression(bool* ok);
+  PreParserExpression ParsePostfixExpression(bool* ok);
 
  private:
   PreParser* pre_parser_;
@@ -948,11 +969,9 @@ class PreParser : public ParserBase<PreParserTraits> {
     kPreParseSuccess
   };
 
-  PreParser(Scanner* scanner,
-            ParserRecorder* log,
-            uintptr_t stack_limit)
-      : ParserBase<PreParserTraits>(scanner, stack_limit, NULL, NULL, this),
-        log_(log) {}
+  PreParser(Scanner* scanner, ParserRecorder* log, uintptr_t stack_limit)
+      : ParserBase<PreParserTraits>(scanner, stack_limit, NULL, log, NULL,
+                                    this) {}
 
   // Pre-parse the program from the character stream; returns true on
   // success (even if parsing failed, the pre-parse data successfully
@@ -1085,7 +1104,6 @@ class PreParser : public ParserBase<PreParserTraits> {
   Statement ParseTryStatement(bool* ok);
   Statement ParseDebuggerStatement(bool* ok);
   Expression ParseConditionalExpression(bool accept_IN, bool* ok);
-  Expression ParseUnaryExpression(bool* ok);
   Expression ParsePostfixExpression(bool* ok);
   Expression ParseLeftHandSideExpression(bool* ok);
   Expression ParseMemberExpression(bool* ok);
@@ -1111,10 +1129,7 @@ class PreParser : public ParserBase<PreParserTraits> {
   Expression GetStringSymbol();
 
   bool CheckInOrOf(bool accept_OF);
-
-  ParserRecorder* log_;
 };
-
 
 template<class Traits>
 ParserBase<Traits>::FunctionState::FunctionState(
@@ -1777,6 +1792,64 @@ ParserBase<Traits>::ParseBinaryExpression(int prec, bool accept_IN, bool* ok) {
     }
   }
   return x;
+}
+
+
+template <class Traits>
+typename ParserBase<Traits>::ExpressionT
+ParserBase<Traits>::ParseUnaryExpression(bool* ok) {
+  // UnaryExpression ::
+  //   PostfixExpression
+  //   'delete' UnaryExpression
+  //   'void' UnaryExpression
+  //   'typeof' UnaryExpression
+  //   '++' UnaryExpression
+  //   '--' UnaryExpression
+  //   '+' UnaryExpression
+  //   '-' UnaryExpression
+  //   '~' UnaryExpression
+  //   '!' UnaryExpression
+
+  Token::Value op = peek();
+  if (Token::IsUnaryOp(op)) {
+    op = Next();
+    int pos = position();
+    ExpressionT expression = ParseUnaryExpression(CHECK_OK);
+
+    // "delete identifier" is a syntax error in strict mode.
+    if (op == Token::DELETE && strict_mode() == STRICT &&
+        this->IsIdentifier(expression)) {
+      ReportMessage("strict_delete", Vector<const char*>::empty());
+      *ok = false;
+      return this->EmptyExpression();
+    }
+
+    // Allow Traits do rewrite the expression.
+    return this->BuildUnaryExpression(expression, op, pos, factory());
+  } else if (Token::IsCountOp(op)) {
+    op = Next();
+    Scanner::Location lhs_location = scanner()->peek_location();
+    ExpressionT expression = ParseUnaryExpression(CHECK_OK);
+    if (!this->IsValidLeftHandSide(expression)) {
+      ReportMessageAt(lhs_location, "invalid_lhs_in_prefix_op", true);
+      *ok = false;
+      return this->EmptyExpression();
+    }
+
+    if (strict_mode() == STRICT) {
+      // Prefix expression operand in strict mode may not be eval or arguments.
+      this->CheckStrictModeLValue(expression, CHECK_OK);
+    }
+    this->MarkExpressionAsLValue(expression);
+
+    return factory()->NewCountOperation(op,
+                                        true /* prefix */,
+                                        expression,
+                                        position());
+
+  } else {
+    return this->ParsePostfixExpression(ok);
+  }
 }
 
 

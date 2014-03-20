@@ -762,7 +762,7 @@ bool Debug::CompileDebuggerScript(Isolate* isolate, int index) {
                                           script_name, 0, 0,
                                           false,
                                           context,
-                                          NULL, NULL,
+                                          NULL, NULL, NO_CACHED_DATA,
                                           NATIVES_CODE);
 
   // Silently ignore stack overflows during compilation.

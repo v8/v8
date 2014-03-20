@@ -30,12 +30,15 @@
 
 #include "allocation.h"
 #include "ast.h"
+#include "compiler.h"  // For CachedDataMode
 #include "preparse-data-format.h"
 #include "preparse-data.h"
 #include "scopes.h"
 #include "preparser.h"
 
 namespace v8 {
+class ScriptCompiler;
+
 namespace internal {
 
 class CompilationInfo;
@@ -117,6 +120,7 @@ class ScriptDataImpl : public ScriptData {
   unsigned version() { return store_[PreparseDataConstants::kVersionOffset]; }
 
  private:
+  friend class v8::ScriptCompiler;
   Vector<unsigned> store_;
   unsigned char* symbol_data_;
   unsigned char* symbol_data_end_;
@@ -456,6 +460,8 @@ class ParserTraits {
   // Returns true if the expression is of type "this.foo".
   static bool IsThisProperty(Expression* expression);
 
+  static bool IsIdentifier(Expression* expression);
+
   static bool IsBoilerplateProperty(ObjectLiteral::Property* property) {
     return ObjectLiteral::IsBoilerplateProperty(property);
   }
@@ -503,6 +509,21 @@ class ParserTraits {
   // computed value.
   bool ShortcutNumericLiteralBinaryExpression(
       Expression** x, Expression* y, Token::Value op, int pos,
+      AstNodeFactory<AstConstructionVisitor>* factory);
+
+  // Rewrites the following types of unary expressions:
+  // not <literal> -> true / false
+  // + <numeric literal> -> <numeric literal>
+  // - <numeric literal> -> <numeric literal with value negated>
+  // ! <literal> -> true / false
+  // The following rewriting rules enable the collection of type feedback
+  // without any special stub and the multiplication is removed later in
+  // Crankshaft's canonicalization pass.
+  // + foo -> foo * 1
+  // - foo -> foo * (-1)
+  // ~ foo -> foo ^(~0)
+  Expression* BuildUnaryExpression(
+      Expression* expression, Token::Value op, int pos,
       AstNodeFactory<AstConstructionVisitor>* factory);
 
   // Reporting errors.
@@ -568,7 +589,7 @@ class ParserTraits {
       int function_token_position,
       FunctionLiteral::FunctionType type,
       bool* ok);
-  Expression* ParseUnaryExpression(bool* ok);
+  Expression* ParsePostfixExpression(bool* ok);
 
  private:
   Parser* parser_;
@@ -649,14 +670,22 @@ class Parser : public ParserBase<ParserTraits> {
   // Report syntax error
   void ReportInvalidPreparseData(Handle<String> name, bool* ok);
 
-  void set_pre_parse_data(ScriptDataImpl *data) {
-    pre_parse_data_ = data;
-    symbol_cache_.Initialize(data ? data->symbol_count() : 0, zone());
+  void SetCachedData(ScriptDataImpl** data,
+                     CachedDataMode cached_data_mode) {
+    cached_data_mode_ = cached_data_mode;
+    if (cached_data_mode == NO_CACHED_DATA) {
+      cached_data_ = NULL;
+    } else {
+      ASSERT(data != NULL);
+      cached_data_ = data;
+      symbol_cache_.Initialize(*data ? (*data)->symbol_count() : 0, zone());
+    }
   }
 
   bool inside_with() const { return scope_->inside_with(); }
   Mode mode() const { return mode_; }
-  ScriptDataImpl* pre_parse_data() const { return pre_parse_data_; }
+  ScriptDataImpl** cached_data() const { return cached_data_; }
+  CachedDataMode cached_data_mode() const { return cached_data_mode_; }
   Scope* DeclarationScope(VariableMode mode) {
     return IsLexicalVariableMode(mode)
         ? scope_ : scope_->DeclarationScope();
@@ -770,8 +799,6 @@ class Parser : public ParserBase<ParserTraits> {
 
   Scope* NewScope(Scope* parent, ScopeType type);
 
-  Handle<String> LookupSymbol(int symbol_id);
-
   Handle<String> LookupCachedSymbol(int symbol_id);
 
   // Generate AST node that throw a ReferenceError with the given type.
@@ -804,7 +831,8 @@ class Parser : public ParserBase<ParserTraits> {
   PreParser* reusable_preparser_;
   Scope* original_scope_;  // for ES5 function declarations in sloppy eval
   Target* target_stack_;  // for break, continue statements
-  ScriptDataImpl* pre_parse_data_;
+  ScriptDataImpl** cached_data_;
+  CachedDataMode cached_data_mode_;
 
   Mode mode_;
 

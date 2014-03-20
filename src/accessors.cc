@@ -213,7 +213,9 @@ MaybeObject* Accessors::ArraySetLength(Isolate* isolate,
   if (has_exception) return Failure::Exception();
 
   if (uint32_v->Number() == number_v->Number()) {
-    return array_handle->SetElementsLength(*uint32_v);
+    Handle<Object> result = JSArray::SetElementsLength(array_handle, uint32_v);
+    RETURN_IF_EMPTY_HANDLE(isolate, result);
+    return *result;
   }
   return isolate->Throw(
       *isolate->factory()->NewRangeError("invalid_array_length",

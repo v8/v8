@@ -148,6 +148,16 @@ static void CheckFindCodeObject(Isolate* isolate) {
 }
 
 
+TEST(HandleNull) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope outer_scope(isolate);
+  LocalContext context;
+  Handle<Object> n(reinterpret_cast<Object*>(NULL), isolate);
+  CHECK(!n.is_null());
+}
+
+
 TEST(HeapObjects) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
@@ -759,7 +769,7 @@ TEST(JSArray) {
   JSArray::Initialize(array, 0);
 
   // Set array length to 0.
-  array->SetElementsLength(Smi::FromInt(0))->ToObjectChecked();
+  *JSArray::SetElementsLength(array, handle(Smi::FromInt(0), isolate));
   CHECK_EQ(Smi::FromInt(0), array->length());
   // Must be in fast mode.
   CHECK(array->HasFastSmiOrObjectElements());
@@ -772,7 +782,7 @@ TEST(JSArray) {
   // Set array length with larger than smi value.
   Handle<Object> length =
       factory->NewNumberFromUint(static_cast<uint32_t>(Smi::kMaxValue) + 1);
-  array->SetElementsLength(*length)->ToObjectChecked();
+  *JSArray::SetElementsLength(array, length);
 
   uint32_t int_length = 0;
   CHECK(length->ToArrayIndex(&int_length));
@@ -2518,6 +2528,44 @@ TEST(OptimizedPretenuringNestedDoubleLiterals) {
 }
 
 
+// Make sure pretenuring feedback is gathered for constructed objects as well
+// as for literals.
+TEST(OptimizedPretenuringConstructorCalls) {
+  if (!FLAG_allocation_site_pretenuring || !i::FLAG_pretenuring_call_new) {
+    // FLAG_pretenuring_call_new needs to be synced with the snapshot.
+    return;
+  }
+  i::FLAG_allow_natives_syntax = true;
+  i::FLAG_max_new_space_size = 2048;
+  CcTest::InitializeVM();
+  if (!CcTest::i_isolate()->use_crankshaft() || i::FLAG_always_opt) return;
+  if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
+  v8::HandleScope scope(CcTest::isolate());
+
+  v8::Local<v8::Value> res = CompileRun(
+      "var number_elements = 20000;"
+      "var elements = new Array(number_elements);"
+      "function foo() {"
+      "  this.a = 3;"
+      "  this.b = {};"
+      "}"
+      "function f() {"
+      "  for (var i = 0; i < number_elements; i++) {"
+      "    elements[i] = new foo();"
+      "  }"
+      "  return elements[number_elements - 1];"
+      "};"
+      "f(); f(); f();"
+      "%OptimizeFunctionOnNextCall(f);"
+      "f();");
+
+  Handle<JSObject> o =
+      v8::Utils::OpenHandle(*v8::Handle<v8::Object>::Cast(res));
+
+  CHECK(CcTest::heap()->InOldPointerSpace(*o));
+}
+
+
 // Test regular array literals allocation.
 TEST(OptimizedAllocationArrayLiterals) {
   i::FLAG_allow_natives_syntax = true;
@@ -2545,6 +2593,7 @@ TEST(OptimizedAllocationArrayLiterals) {
 }
 
 
+// Test global pretenuring call new.
 TEST(OptimizedPretenuringCallNew) {
   i::FLAG_allow_natives_syntax = true;
   i::FLAG_allocation_site_pretenuring = false;

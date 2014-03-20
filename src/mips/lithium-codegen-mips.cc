@@ -1111,9 +1111,7 @@ void LCodeGen::DoModByConstI(LModByConstI* instr) {
     return;
   }
 
-  __ FlooringDiv(result, dividend, Abs(divisor));
-  __ srl(at, dividend, 31);
-  __ Addu(result, result, at);
+  __ TruncatingDiv(result, dividend, Abs(divisor));
   __ Mul(result, result, Operand(Abs(divisor)));
   __ Subu(result, dividend, Operand(result));
 
@@ -1230,9 +1228,7 @@ void LCodeGen::DoDivByConstI(LDivByConstI* instr) {
     DeoptimizeIf(eq, instr->environment(), dividend, Operand(zero_reg));
   }
 
-  __ FlooringDiv(result, dividend, Abs(divisor));
-  __ srl(at, dividend, 31);
-  __ Addu(result, result, Operand(at));
+  __ TruncatingDiv(result, dividend, Abs(divisor));
   if (divisor < 0) __ Subu(result, zero_reg, result);
 
   if (!hdiv->CheckFlag(HInstruction::kAllUsesTruncatingToInt32)) {
@@ -1371,7 +1367,8 @@ void LCodeGen::DoFlooringDivByConstI(LFlooringDivByConstI* instr) {
     DeoptimizeIf(eq, instr->environment(), dividend, Operand(zero_reg));
   }
 
-  __ FlooringDiv(result, dividend, divisor);
+  // TODO(svenpanne) Add correction terms.
+  __ TruncatingDiv(result, dividend, divisor);
 }
 
 
@@ -3917,9 +3914,7 @@ void LCodeGen::DoCallNew(LCallNew* instr) {
 
   __ li(a0, Operand(instr->arity()));
   // No cell in a2 for construct type feedback in optimized code
-  Handle<Object> megamorphic_symbol =
-      TypeFeedbackInfo::MegamorphicSentinel(isolate());
-  __ li(a2, Operand(megamorphic_symbol));
+  __ LoadRoot(a2, Heap::kUndefinedValueRootIndex);
   CallConstructStub stub(NO_CALL_FUNCTION_FLAGS);
   CallCode(stub.GetCode(isolate()), RelocInfo::CONSTRUCT_CALL, instr);
 }
@@ -3931,7 +3926,7 @@ void LCodeGen::DoCallNewArray(LCallNewArray* instr) {
   ASSERT(ToRegister(instr->result()).is(v0));
 
   __ li(a0, Operand(instr->arity()));
-  __ li(a2, Operand(TypeFeedbackInfo::MegamorphicSentinel(isolate())));
+  __ LoadRoot(a2, Heap::kUndefinedValueRootIndex);
   ElementsKind kind = instr->hydrogen()->elements_kind();
   AllocationSiteOverrideMode override_mode =
       (AllocationSite::GetMode(kind) == TRACK_ALLOCATION_SITE)

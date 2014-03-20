@@ -3445,47 +3445,15 @@ THREADED_TEST(UniquePersistent) {
 }
 
 
-template<typename K, typename V, bool is_weak>
-class StdPersistentValueMapTraits {
+template<typename K, typename V>
+class WeakStdMapTraits : public v8::StdMapTraits<K, V> {
  public:
-  static const bool kIsWeak = is_weak;
-  typedef v8::PersistentContainerValue VInt;
-  typedef std::map<K, VInt> Impl;
+  typedef typename v8::DefaultPersistentValueMapTraits<K, V>::Impl Impl;
+  static const bool kIsWeak = true;
   struct WeakCallbackDataType {
     Impl* impl;
     K key;
   };
-  typedef typename Impl::iterator Iterator;
-  static bool Empty(Impl* impl) { return impl->empty(); }
-  static size_t Size(Impl* impl) { return impl->size(); }
-  static void Swap(Impl& a, Impl& b) { std::swap(a, b); }  // NOLINT
-  static Iterator Begin(Impl* impl) { return impl->begin(); }
-  static Iterator End(Impl* impl) { return impl->end(); }
-  static K Key(Iterator it) { return it->first; }
-  static VInt Value(Iterator it) { return it->second; }
-  static VInt Set(Impl* impl, K key, VInt value) {
-    std::pair<Iterator, bool> res = impl->insert(std::make_pair(key, value));
-    VInt old_value = v8::kPersistentContainerNotFound;
-    if (!res.second) {
-      old_value = res.first->second;
-      res.first->second = value;
-    }
-    return old_value;
-  }
-  static VInt Get(Impl* impl, K key) {
-    Iterator it = impl->find(key);
-    if (it == impl->end()) return v8::kPersistentContainerNotFound;
-    return it->second;
-  }
-  static VInt Remove(Impl* impl, K key) {
-    Iterator it = impl->find(key);
-    if (it == impl->end()) return v8::kPersistentContainerNotFound;
-    VInt value = it->second;
-    impl->erase(it);
-    return value;
-  }
-  static void Dispose(v8::Isolate* isolate, v8::UniquePersistent<V> value,
-      Impl* impl, K key) {}
   static WeakCallbackDataType* WeakCallbackParameter(
       Impl* impl, const K& key, Local<V> value) {
     WeakCallbackDataType* data = new WeakCallbackDataType;
@@ -3504,15 +3472,15 @@ class StdPersistentValueMapTraits {
   static void DisposeCallbackData(WeakCallbackDataType* data) {
     delete data;
   }
+  static void Dispose(v8::Isolate* isolate, v8::UniquePersistent<V> value,
+      Impl* impl, K key) { }
 };
 
 
-template<bool is_weak>
+template<typename Map>
 static void TestPersistentValueMap() {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
-  typedef v8::PersistentValueMap<int, v8::Object,
-      StdPersistentValueMapTraits<int, v8::Object, is_weak> > Map;
   Map map(isolate);
   v8::internal::GlobalHandles* global_handles =
       reinterpret_cast<v8::internal::Isolate*>(isolate)->global_handles();
@@ -3538,7 +3506,7 @@ static void TestPersistentValueMap() {
     CHECK_EQ(1, static_cast<int>(map.Size()));
   }
   CHECK_EQ(initial_handle_count + 1, global_handles->global_handles_count());
-  if (is_weak) {
+  if (map.IsWeak()) {
     reinterpret_cast<v8::internal::Isolate*>(isolate)->heap()->
         CollectAllGarbage(i::Heap::kAbortIncrementalMarkingMask);
   } else {
@@ -3550,8 +3518,13 @@ static void TestPersistentValueMap() {
 
 
 TEST(PersistentValueMap) {
-  TestPersistentValueMap<false>();
-  TestPersistentValueMap<true>();
+  // Default case, w/o weak callbacks:
+  TestPersistentValueMap<v8::StdPersistentValueMap<int, v8::Object> >();
+
+  // Custom traits with weak callbacks:
+  typedef v8::StdPersistentValueMap<int, v8::Object,
+      WeakStdMapTraits<int, v8::Object> > WeakPersistentValueMap;
+  TestPersistentValueMap<WeakPersistentValueMap>();
 }
 
 
@@ -14956,10 +14929,10 @@ TEST(PreCompileInvalidPreparseDataError) {
 
   v8::ScriptCompiler::Source script_source(
       String::NewFromUtf8(isolate, script),
-      v8::ScriptCompiler::CachedData(
+      new v8::ScriptCompiler::CachedData(
           reinterpret_cast<const uint8_t*>(sd->Data()), sd->Length()));
   Local<v8::UnboundScript> compiled_script =
-      v8::ScriptCompiler::CompileUnbound(isolate, script_source);
+      v8::ScriptCompiler::CompileUnbound(isolate, &script_source);
 
   CHECK(try_catch.HasCaught());
   String::Utf8Value exception_value(try_catch.Message()->Get());
@@ -14979,10 +14952,10 @@ TEST(PreCompileInvalidPreparseDataError) {
       200;
   v8::ScriptCompiler::Source script_source2(
       String::NewFromUtf8(isolate, script),
-      v8::ScriptCompiler::CachedData(
+      new v8::ScriptCompiler::CachedData(
           reinterpret_cast<const uint8_t*>(sd->Data()), sd->Length()));
   compiled_script =
-      v8::ScriptCompiler::CompileUnbound(isolate, script_source2);
+      v8::ScriptCompiler::CompileUnbound(isolate, &script_source2);
   CHECK(!try_catch.HasCaught());
 
   delete sd;
@@ -17091,12 +17064,11 @@ THREADED_TEST(ScriptContextDependence) {
   LocalContext c1;
   v8::HandleScope scope(c1->GetIsolate());
   const char *source = "foo";
-  v8::Handle<v8::Script> dep =
-      v8_compile(source);
+  v8::Handle<v8::Script> dep = v8_compile(source);
+  v8::ScriptCompiler::Source script_source(v8::String::NewFromUtf8(
+      c1->GetIsolate(), source));
   v8::Handle<v8::UnboundScript> indep =
-      v8::ScriptCompiler::CompileUnbound(
-          c1->GetIsolate(), v8::ScriptCompiler::Source(v8::String::NewFromUtf8(
-                                c1->GetIsolate(), source)));
+      v8::ScriptCompiler::CompileUnbound(c1->GetIsolate(), &script_source);
   c1->Global()->Set(v8::String::NewFromUtf8(c1->GetIsolate(), "foo"),
                     v8::Integer::New(c1->GetIsolate(), 100));
   CHECK_EQ(dep->Run()->Int32Value(), 100);
@@ -17118,9 +17090,8 @@ THREADED_TEST(StackTrace) {
       v8::String::NewFromUtf8(context->GetIsolate(), source);
   v8::Handle<v8::String> origin =
       v8::String::NewFromUtf8(context->GetIsolate(), "stack-trace-test");
-  v8::ScriptCompiler::CompileUnbound(
-      context->GetIsolate(),
-      v8::ScriptCompiler::Source(src, v8::ScriptOrigin(origin)))
+  v8::ScriptCompiler::Source script_source(src, v8::ScriptOrigin(origin));
+  v8::ScriptCompiler::CompileUnbound(context->GetIsolate(), &script_source)
       ->BindToCurrentContext()
       ->Run();
   CHECK(try_catch.HasCaught());
@@ -17228,10 +17199,10 @@ TEST(CaptureStackTrace) {
     "var x;eval('new foo();');";
   v8::Handle<v8::String> overview_src =
       v8::String::NewFromUtf8(isolate, overview_source);
+  v8::ScriptCompiler::Source script_source(overview_src,
+                                           v8::ScriptOrigin(origin));
   v8::Handle<Value> overview_result(
-      v8::ScriptCompiler::CompileUnbound(
-          isolate,
-          v8::ScriptCompiler::Source(overview_src, v8::ScriptOrigin(origin)))
+      v8::ScriptCompiler::CompileUnbound(isolate, &script_source)
           ->BindToCurrentContext()
           ->Run());
   CHECK(!overview_result.IsEmpty());
@@ -17252,9 +17223,9 @@ TEST(CaptureStackTrace) {
   v8::Handle<v8::Integer> line_offset = v8::Integer::New(isolate, 3);
   v8::Handle<v8::Integer> column_offset = v8::Integer::New(isolate, 5);
   v8::ScriptOrigin detailed_origin(origin, line_offset, column_offset);
+  v8::ScriptCompiler::Source script_source2(detailed_src, detailed_origin);
   v8::Handle<v8::UnboundScript> detailed_script(
-      v8::ScriptCompiler::CompileUnbound(
-          isolate, v8::ScriptCompiler::Source(detailed_src, detailed_origin)));
+      v8::ScriptCompiler::CompileUnbound(isolate, &script_source2));
   v8::Handle<Value> detailed_result(
       detailed_script->BindToCurrentContext()->Run());
   CHECK(!detailed_result.IsEmpty());

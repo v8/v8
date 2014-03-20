@@ -41,14 +41,6 @@ var $Promise = Promise;
 
 // Core functionality.
 
-// Event queue format: [(value, [(handler, deferred)*])*]
-// I.e., a list of value/tasks pairs, where the value is a resolution value or
-// rejection reason, and the tasks are a respective list of handler/deferred
-// pairs waiting for notification of this value. Each handler is an onResolve or
-// onReject function provided to the same call of 'chain' that produced the
-// associated deferred.
-var promiseEvents = new InternalArray;
-
 // Status values: 0 = pending, +1 = resolved, -1 = rejected
 var promiseStatus = NEW_PRIVATE("Promise#status");
 var promiseValue = NEW_PRIVATE("Promise#value");

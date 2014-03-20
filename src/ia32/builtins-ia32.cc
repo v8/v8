@@ -125,18 +125,31 @@ void Builtins::Generate_InOptimizationQueue(MacroAssembler* masm) {
 
 static void Generate_JSConstructStubHelper(MacroAssembler* masm,
                                            bool is_api_function,
-                                           bool count_constructions) {
+                                           bool count_constructions,
+                                           bool create_memento) {
   // ----------- S t a t e -------------
   //  -- eax: number of arguments
   //  -- edi: constructor function
+  //  -- ebx: allocation site or undefined
   // -----------------------------------
 
   // Should never count constructions for api objects.
   ASSERT(!is_api_function || !count_constructions);
 
+  // Should never create mementos for api functions.
+  ASSERT(!is_api_function || !create_memento);
+
+  // Should never create mementos before slack tracking is finished.
+  ASSERT(!count_constructions || !create_memento);
+
   // Enter a construct frame.
   {
     FrameScope scope(masm, StackFrame::CONSTRUCT);
+
+    if (create_memento) {
+      __ AssertUndefinedOrAllocationSite(ebx);
+      __ push(ebx);
+    }
 
     // Store a smi-tagged arguments count on the stack.
     __ SmiTag(eax);
@@ -202,20 +215,26 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       // eax: initial map
       __ movzx_b(edi, FieldOperand(eax, Map::kInstanceSizeOffset));
       __ shl(edi, kPointerSizeLog2);
+      if (create_memento) {
+        __ add(edi, Immediate(AllocationMemento::kSize));
+      }
+
       __ Allocate(edi, ebx, edi, no_reg, &rt_call, NO_ALLOCATION_FLAGS);
+
+      Factory* factory = masm->isolate()->factory();
+
       // Allocated the JSObject, now initialize the fields.
       // eax: initial map
       // ebx: JSObject
-      // edi: start of next object
+      // edi: start of next object (including memento if create_memento)
       __ mov(Operand(ebx, JSObject::kMapOffset), eax);
-      Factory* factory = masm->isolate()->factory();
       __ mov(ecx, factory->empty_fixed_array());
       __ mov(Operand(ebx, JSObject::kPropertiesOffset), ecx);
       __ mov(Operand(ebx, JSObject::kElementsOffset), ecx);
       // Set extra fields in the newly allocated object.
       // eax: initial map
       // ebx: JSObject
-      // edi: start of next object
+      // edi: start of next object (including memento if create_memento)
       __ lea(ecx, Operand(ebx, JSObject::kHeaderSize));
       __ mov(edx, factory->undefined_value());
       if (count_constructions) {
@@ -231,8 +250,23 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
         }
         __ InitializeFieldsWithFiller(ecx, esi, edx);
         __ mov(edx, factory->one_pointer_filler_map());
+        __ InitializeFieldsWithFiller(ecx, edi, edx);
+      } else if (create_memento) {
+        __ lea(esi, Operand(edi, -AllocationMemento::kSize));
+        __ InitializeFieldsWithFiller(ecx, esi, edx);
+
+        // Fill in memento fields if necessary.
+        // esi: points to the allocated but uninitialized memento.
+        Handle<Map> allocation_memento_map = factory->allocation_memento_map();
+        __ mov(Operand(esi, AllocationMemento::kMapOffset),
+               allocation_memento_map);
+        // Get the cell or undefined.
+        __ mov(edx, Operand(esp, kPointerSize*2));
+        __ mov(Operand(esi, AllocationMemento::kAllocationSiteOffset),
+               edx);
+      } else {
+        __ InitializeFieldsWithFiller(ecx, edi, edx);
       }
-      __ InitializeFieldsWithFiller(ecx, edi, edx);
 
       // Add the object tag to make the JSObject real, so that we can continue
       // and jump into the continuation code at any time from now on. Any
@@ -323,16 +357,48 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
 
     // Allocate the new receiver object using the runtime call.
     __ bind(&rt_call);
+    int offset = 0;
+    if (create_memento) {
+      // Get the cell or allocation site.
+      __ mov(edi, Operand(esp, kPointerSize * 2));
+      __ push(edi);
+      offset = kPointerSize;
+    }
+
     // Must restore edi (constructor) before calling runtime.
-    __ mov(edi, Operand(esp, 0));
+    __ mov(edi, Operand(esp, offset));
     // edi: function (constructor)
     __ push(edi);
-    __ CallRuntime(Runtime::kNewObject, 1);
+    if (create_memento) {
+      __ CallRuntime(Runtime::kNewObjectWithAllocationSite, 2);
+    } else {
+      __ CallRuntime(Runtime::kNewObject, 1);
+    }
     __ mov(ebx, eax);  // store result in ebx
+
+    // If we ended up using the runtime, and we want a memento, then the
+    // runtime call made it for us, and we shouldn't do create count
+    // increment.
+    Label count_incremented;
+    if (create_memento) {
+      __ jmp(&count_incremented);
+    }
 
     // New object allocated.
     // ebx: newly allocated object
     __ bind(&allocated);
+
+    if (create_memento) {
+      __ mov(ecx, Operand(esp, kPointerSize * 2));
+      __ cmp(ecx, masm->isolate()->factory()->undefined_value());
+      __ j(equal, &count_incremented);
+      // ecx is an AllocationSite. We are creating a memento from it, so we
+      // need to increment the memento create count.
+      __ add(FieldOperand(ecx, AllocationSite::kPretenureCreateCountOffset),
+             Immediate(Smi::FromInt(1)));
+      __ bind(&count_incremented);
+    }
+
     // Retrieve the function from the stack.
     __ pop(edi);
 
@@ -415,17 +481,17 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
 
 
 void Builtins::Generate_JSConstructStubCountdown(MacroAssembler* masm) {
-  Generate_JSConstructStubHelper(masm, false, true);
+  Generate_JSConstructStubHelper(masm, false, true, false);
 }
 
 
 void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
-  Generate_JSConstructStubHelper(masm, false, false);
+  Generate_JSConstructStubHelper(masm, false, false, FLAG_pretenuring_call_new);
 }
 
 
 void Builtins::Generate_JSConstructStubApi(MacroAssembler* masm) {
-  Generate_JSConstructStubHelper(masm, true, false);
+  Generate_JSConstructStubHelper(masm, true, false, false);
 }
 
 
