@@ -625,24 +625,24 @@ BUILTIN(ArrayShift) {
 
 
 BUILTIN(ArrayUnshift) {
+  HandleScope scope(isolate);
   Heap* heap = isolate->heap();
-  Object* receiver = *args.receiver();
-  FixedArrayBase* elms_obj;
-  MaybeObject* maybe_elms_obj =
-      EnsureJSArrayWithWritableFastElements(heap, receiver, NULL, 0);
-  if (maybe_elms_obj == NULL)
-      return CallJsBuiltin(isolate, "ArrayUnshift", args);
-  if (!maybe_elms_obj->To(&elms_obj)) return maybe_elms_obj;
-
-  if (!IsJSArrayFastElementMovingAllowed(heap, JSArray::cast(receiver))) {
+  Handle<Object> receiver = args.receiver();
+  Handle<Object> elms_or_null =
+      EnsureJSArrayWithWritableFastElementsWrapper(isolate, receiver, NULL, 0);
+  RETURN_IF_EMPTY_HANDLE(isolate, elms_or_null);
+  if ((*elms_or_null == NULL) ||
+      !IsJSArrayFastElementMovingAllowed(heap,
+                                         *Handle<JSArray>::cast(receiver))) {
     return CallJsBuiltin(isolate, "ArrayUnshift", args);
   }
-  JSArray* array = JSArray::cast(receiver);
+  Handle<FixedArrayBase> elms_obj = Handle<FixedArrayBase>::cast(elms_or_null);
+  Handle<JSArray> array = Handle<JSArray>::cast(receiver);
   ASSERT(!array->map()->is_observed());
   if (!array->HasFastSmiOrObjectElements()) {
     return CallJsBuiltin(isolate, "ArrayUnshift", args);
   }
-  FixedArray* elms = FixedArray::cast(elms_obj);
+  Handle<FixedArray> elms = Handle<FixedArray>::cast(elms_obj);
 
   int len = Smi::cast(array->length())->value();
   int to_add = args.length() - 1;
@@ -651,31 +651,26 @@ BUILTIN(ArrayUnshift) {
   // we should never hit this case.
   ASSERT(to_add <= (Smi::kMaxValue - len));
 
-  MaybeObject* maybe_object =
-      array->EnsureCanContainElements(&args, 1, to_add,
-                                      DONT_ALLOW_DOUBLE_ELEMENTS);
-  if (maybe_object->IsFailure()) return maybe_object;
+  JSObject::EnsureCanContainElements(array, &args, 1, to_add,
+                                     DONT_ALLOW_DOUBLE_ELEMENTS);
 
   if (new_length > elms->length()) {
     // New backing storage is needed.
     int capacity = new_length + (new_length >> 1) + 16;
-    FixedArray* new_elms;
-    MaybeObject* maybe_elms = heap->AllocateUninitializedFixedArray(capacity);
-    if (!maybe_elms->To(&new_elms)) return maybe_elms;
+    Handle<FixedArray> new_elms =
+        isolate->factory()->NewUninitializedFixedArray(capacity);
 
     ElementsKind kind = array->GetElementsKind();
     ElementsAccessor* accessor = array->GetElementsAccessor();
-    MaybeObject* maybe_failure = accessor->CopyElements(
-            NULL, 0, kind, new_elms, to_add,
-            ElementsAccessor::kCopyToEndAndInitializeToHole, elms);
-    ASSERT(!maybe_failure->IsFailure());
-    USE(maybe_failure);
+    accessor->CopyElements(
+        Handle<JSObject>::null(), 0, kind, new_elms, to_add,
+        ElementsAccessor::kCopyToEndAndInitializeToHole, elms);
 
     elms = new_elms;
-    array->set_elements(elms);
+    array->set_elements(*elms);
   } else {
     DisallowHeapAllocation no_gc;
-    heap->MoveElements(elms, to_add, 0, len);
+    heap->MoveElements(*elms, to_add, 0, len);
   }
 
   // Add the provided values.
