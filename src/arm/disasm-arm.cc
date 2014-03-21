@@ -1566,7 +1566,8 @@ void Decoder::DecodeSpecialCondition(Instruction* instr) {
       if ((instr->Bits(18, 16) == 0) && (instr->Bits(11, 6) == 0x28) &&
           (instr->Bit(4) == 1)) {
         // vmovl signed
-        int Vd = (instr->Bit(22) << 4) | instr->VdValue();
+        if ((instr->VdValue() & 1) != 0) Unknown(instr);
+        int Vd = (instr->Bit(22) << 3) | (instr->VdValue() >> 1);
         int Vm = (instr->Bit(5) << 4) | instr->VmValue();
         int imm3 = instr->Bits(21, 19);
         out_buffer_pos_ += OS::SNPrintF(out_buffer_ + out_buffer_pos_,
@@ -1579,7 +1580,8 @@ void Decoder::DecodeSpecialCondition(Instruction* instr) {
       if ((instr->Bits(18, 16) == 0) && (instr->Bits(11, 6) == 0x28) &&
           (instr->Bit(4) == 1)) {
         // vmovl unsigned
-        int Vd = (instr->Bit(22) << 4) | instr->VdValue();
+        if ((instr->VdValue() & 1) != 0) Unknown(instr);
+        int Vd = (instr->Bit(22) << 3) | (instr->VdValue() >> 1);
         int Vm = (instr->Bit(5) << 4) | instr->VmValue();
         int imm3 = instr->Bits(21, 19);
         out_buffer_pos_ += OS::SNPrintF(out_buffer_ + out_buffer_pos_,

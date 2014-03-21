@@ -687,8 +687,10 @@ TEST(Neon) {
               "f421420f       vld1.8 {d4, d5, d6, d7}, [r1]");
       COMPARE(vst1(Neon16, NeonListOperand(d17, 4), NeonMemOperand(r9)),
               "f449124f       vst1.16 {d17, d18, d19, d20}, [r9]");
+      COMPARE(vmovl(NeonU8, q3, d1),
+              "f3886a11       vmovl.u8 q3, d1");
       COMPARE(vmovl(NeonU8, q4, d2),
-              "f3884a12       vmovl.u8 q4, d2");
+              "f3888a12       vmovl.u8 q4, d2");
   }
 
   VERIFY_RUN();
