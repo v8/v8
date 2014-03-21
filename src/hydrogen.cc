@@ -4363,7 +4363,12 @@ void HOptimizedGraphBuilder::VisitReturnStatement(ReturnStatement* stmt) {
       TestContext* test = TestContext::cast(context);
       VisitForControl(stmt->expression(), test->if_true(), test->if_false());
     } else if (context->IsEffect()) {
-      CHECK_ALIVE(VisitForEffect(stmt->expression()));
+      // Visit in value context and ignore the result. This is needed to keep
+      // environment in sync with full-codegen since some visitors (e.g.
+      // VisitCountOperation) use the operand stack differently depending on
+      // context.
+      CHECK_ALIVE(VisitForValue(stmt->expression()));
+      Pop();
       Goto(function_return(), state);
     } else {
       ASSERT(context->IsValue());
