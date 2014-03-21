@@ -2856,6 +2856,23 @@ void MacroAssembler::Move(Register dst, Immediate imm) {
 }
 
 
+void MacroAssembler::Move(XMMRegister dst, double val) {
+  // TODO(titzer): recognize double constants with ExternalReferences.
+  CpuFeatureScope scope(this, SSE2);
+  uint64_t int_val = BitCast<uint64_t, double>(val);
+  if (int_val == 0) {
+    xorps(dst, dst);
+  } else {
+    int32_t lower = static_cast<int32_t>(int_val);
+    int32_t upper = static_cast<int32_t>(int_val >> kBitsPerInt);
+    push(Immediate(upper));
+    push(Immediate(lower));
+    movsd(dst, Operand(esp, 0));
+    add(esp, Immediate(kDoubleSize));
+  }
+}
+
+
 void MacroAssembler::SetCounter(StatsCounter* counter, int value) {
   if (FLAG_native_code_counters && counter->Enabled()) {
     mov(Operand::StaticVariable(ExternalReference(counter)), Immediate(value));

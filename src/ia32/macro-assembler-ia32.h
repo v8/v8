@@ -850,6 +850,9 @@ class MacroAssembler: public Assembler {
   // Move a constant into a register using the most efficient encoding.
   void Move(Register dst, Immediate imm);
 
+  // Move an immediate into an XMM register.
+  void Move(XMMRegister dst, double val);
+
   // Push a handle value.
   void Push(Handle<Object> handle) { push(Immediate(handle)); }
   void Push(Smi* smi) { Push(Handle<Smi>(smi, isolate())); }
