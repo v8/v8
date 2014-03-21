@@ -1061,7 +1061,7 @@ void Decoder::DecodeType3(Instruction* instr) {
                 if (instr->Bits(19, 16) == 0xF) {
                   switch (instr->Bits(11, 10)) {
                     case 0:
-                      Format(instr, "uxtb16'cond 'rd, 'rm, ror #0");
+                      Format(instr, "uxtb16'cond 'rd, 'rm");
                       break;
                     case 1:
                       Format(instr, "uxtb16'cond 'rd, 'rm, ror #8");
@@ -1085,7 +1085,7 @@ void Decoder::DecodeType3(Instruction* instr) {
                 if (instr->Bits(19, 16) == 0xF) {
                   switch (instr->Bits(11, 10)) {
                     case 0:
-                      Format(instr, "uxtb'cond 'rd, 'rm, ror #0");
+                      Format(instr, "uxtb'cond 'rd, 'rm");
                       break;
                     case 1:
                       Format(instr, "uxtb'cond 'rd, 'rm, ror #8");
@@ -1100,7 +1100,7 @@ void Decoder::DecodeType3(Instruction* instr) {
                 } else {
                   switch (instr->Bits(11, 10)) {
                     case 0:
-                      Format(instr, "uxtab'cond 'rd, 'rn, 'rm, ror #0");
+                      Format(instr, "uxtab'cond 'rd, 'rn, 'rm");
                       break;
                     case 1:
                       Format(instr, "uxtab'cond 'rd, 'rn, 'rm, ror #8");

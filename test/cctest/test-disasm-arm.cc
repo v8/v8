@@ -410,6 +410,8 @@ TEST(Type3) {
             "e6843895       pkhbt r3, r4, r5, lsl #17");
     COMPARE(pkhtb(r3, r4, Operand(r5, ASR, 17)),
             "e68438d5       pkhtb r3, r4, r5, asr #17");
+    COMPARE(uxtb(r9, Operand(r10, ROR, 0)),
+            "e6ef907a       uxtb r9, r10");
     COMPARE(uxtb(r3, Operand(r4, ROR, 8)),
             "e6ef3474       uxtb r3, r4, ror #8");
     COMPARE(uxtab(r3, r4, Operand(r5, ROR, 8)),
