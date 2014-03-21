@@ -112,7 +112,7 @@ TEST(DisasmX64) {
   __ movzxwq(rdx, Operand(rcx, 0));
 
   __ nop();
-  __ imul(rdx, rcx);
+  __ imulq(rdx, rcx);
   __ shld(rdx, rcx);
   __ shrd(rdx, rcx);
   __ bts(Operand(rdx, 0), rcx);
@@ -162,9 +162,9 @@ TEST(DisasmX64) {
   __ not_(rdx);
   __ testq(Operand(rbx, rcx, times_4, 10000), rdx);
 
-  __ imul(rdx, Operand(rbx, rcx, times_4, 10000));
-  __ imul(rdx, rcx, Immediate(12));
-  __ imul(rdx, rcx, Immediate(1000));
+  __ imulq(rdx, Operand(rbx, rcx, times_4, 10000));
+  __ imulq(rdx, rcx, Immediate(12));
+  __ imulq(rdx, rcx, Immediate(1000));
 
   __ incq(rdx);
   __ incq(Operand(rbx, rcx, times_4, 10000));
@@ -216,8 +216,8 @@ TEST(DisasmX64) {
 
   __ xor_(rbx, Immediate(12345));
 
-  __ imul(rdx, rcx, Immediate(12));
-  __ imul(rdx, rcx, Immediate(1000));
+  __ imulq(rdx, rcx, Immediate(12));
+  __ imulq(rdx, rcx, Immediate(1000));
 
   __ cld();
 

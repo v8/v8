@@ -603,7 +603,7 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
     // Restore registers
     __ bind(&done);
     if (stash_exponent_copy) {
-        __ addq(rsp, Immediate(kDoubleSize));
+        __ addp(rsp, Immediate(kDoubleSize));
     }
     if (!final_result_reg.is(result_reg)) {
         ASSERT(final_result_reg.is(rcx));
@@ -787,7 +787,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
     __ bind(&fast_power);
     __ fnclex();  // Clear flags to catch exceptions later.
     // Transfer (B)ase and (E)xponent onto the FPU register stack.
-    __ subq(rsp, Immediate(kDoubleSize));
+    __ subp(rsp, Immediate(kDoubleSize));
     __ movsd(Operand(rsp, 0), double_exponent);
     __ fld_d(Operand(rsp, 0));  // E
     __ movsd(Operand(rsp, 0), double_base);
@@ -814,12 +814,12 @@ void MathPowStub::Generate(MacroAssembler* masm) {
     __ j(not_zero, &fast_power_failed, Label::kNear);
     __ fstp_d(Operand(rsp, 0));
     __ movsd(double_result, Operand(rsp, 0));
-    __ addq(rsp, Immediate(kDoubleSize));
+    __ addp(rsp, Immediate(kDoubleSize));
     __ jmp(&done);
 
     __ bind(&fast_power_failed);
     __ fninit();
-    __ addq(rsp, Immediate(kDoubleSize));
+    __ addp(rsp, Immediate(kDoubleSize));
     __ jmp(&call_runtime);
   }
 
@@ -1050,7 +1050,7 @@ void ArgumentsAccessStub::GenerateNewSloppyFast(MacroAssembler* masm) {
   __ lea(r8, Operand(r8, rcx, times_pointer_size, FixedArray::kHeaderSize));
 
   // 3. Arguments object.
-  __ addq(r8, Immediate(Heap::kSloppyArgumentsObjectSize));
+  __ addp(r8, Immediate(Heap::kSloppyArgumentsObjectSize));
 
   // Do the allocation of all three objects in one go.
   __ Allocate(r8, rax, rdx, rdi, &runtime, TAG_OBJECT);
@@ -1136,8 +1136,8 @@ void ArgumentsAccessStub::GenerateNewSloppyFast(MacroAssembler* masm) {
   // Load tagged parameter count into r9.
   __ Integer32ToSmi(r9, rbx);
   __ Move(r8, Smi::FromInt(Context::MIN_CONTEXT_SLOTS));
-  __ addq(r8, args.GetArgumentOperand(2));
-  __ subq(r8, r9);
+  __ addp(r8, args.GetArgumentOperand(2));
+  __ subp(r8, r9);
   __ Move(r11, factory->the_hole_value());
   __ movp(rdx, rdi);
   __ lea(rdi, Operand(rdi, rbx, times_pointer_size, kParameterMapHeaderSize));
@@ -1179,17 +1179,17 @@ void ArgumentsAccessStub::GenerateNewSloppyFast(MacroAssembler* masm) {
   // Untag rcx for the loop below.
   __ SmiToInteger64(rcx, rcx);
   __ lea(kScratchRegister, Operand(r8, times_pointer_size, 0));
-  __ subq(rdx, kScratchRegister);
+  __ subp(rdx, kScratchRegister);
   __ jmp(&arguments_test, Label::kNear);
 
   __ bind(&arguments_loop);
-  __ subq(rdx, Immediate(kPointerSize));
+  __ subp(rdx, Immediate(kPointerSize));
   __ movp(r9, Operand(rdx, 0));
   __ movp(FieldOperand(rdi, r8,
                        times_pointer_size,
                        FixedArray::kHeaderSize),
           r9);
-  __ addq(r8, Immediate(1));
+  __ addp(r8, Immediate(1));
 
   __ bind(&arguments_test);
   __ cmpq(r8, rcx);
@@ -1270,7 +1270,7 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
   __ j(zero, &add_arguments_object, Label::kNear);
   __ lea(rcx, Operand(rcx, times_pointer_size, FixedArray::kHeaderSize));
   __ bind(&add_arguments_object);
-  __ addq(rcx, Immediate(Heap::kStrictArgumentsObjectSize));
+  __ addp(rcx, Immediate(Heap::kStrictArgumentsObjectSize));
 
   // Do the allocation of both objects in one go.
   __ Allocate(rcx, rax, rdx, rbx, &runtime, TAG_OBJECT);
@@ -1320,8 +1320,8 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
   __ bind(&loop);
   __ movp(rbx, Operand(rdx, -1 * kPointerSize));  // Skip receiver.
   __ movp(FieldOperand(rdi, FixedArray::kHeaderSize), rbx);
-  __ addq(rdi, Immediate(kPointerSize));
-  __ subq(rdx, Immediate(kPointerSize));
+  __ addp(rdi, Immediate(kPointerSize));
+  __ subp(rdx, Immediate(kPointerSize));
   __ decq(rcx);
   __ j(not_zero, &loop);
 
@@ -1541,7 +1541,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ Move(kScratchRegister, address_of_regexp_stack_memory_address);
   __ movp(r9, Operand(kScratchRegister, 0));
   __ Move(kScratchRegister, address_of_regexp_stack_memory_size);
-  __ addq(r9, Operand(kScratchRegister, 0));
+  __ addp(r9, Operand(kScratchRegister, 0));
   __ movq(Operand(rsp, (argument_slots_on_stack - 3) * kRegisterSize), r9);
 
   // Argument 6: Set the number of capture registers to zero to force global
@@ -1577,9 +1577,9 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   Label setup_two_byte, setup_rest, got_length, length_not_from_slice;
   // Prepare start and end index of the input.
   // Load the length from the original sliced string if that is the case.
-  __ addq(rbx, r14);
+  __ addp(rbx, r14);
   __ SmiToInteger32(arg_reg_3, FieldOperand(r15, String::kLengthOffset));
-  __ addq(r14, arg_reg_3);  // Using arg3 as scratch.
+  __ addp(r14, arg_reg_3);  // Using arg3 as scratch.
 
   // rbx: start index of the input
   // r14: end index of the input
@@ -1606,7 +1606,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ movp(arg_reg_1, r15);
 
   // Locate the code entry and call it.
-  __ addq(r11, Immediate(Code::kHeaderSize - kHeapObjectTag));
+  __ addp(r11, Immediate(Code::kHeaderSize - kHeapObjectTag));
   __ call(r11);
 
   __ LeaveApiExitFrame(true);
@@ -1691,7 +1691,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // Capture register counter starts from number of capture registers and
   // counts down until wraping after zero.
   __ bind(&next_capture);
-  __ subq(rdx, Immediate(1));
+  __ subp(rdx, Immediate(1));
   __ j(negative, &done, Label::kNear);
   // Read the value from the static offsets vector buffer and make it a smi.
   __ movl(rdi, Operand(rcx, rdx, times_int_size, 0));
@@ -1755,7 +1755,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ movp(rdi, FieldOperand(rdi, ExternalString::kResourceDataOffset));
   // Move the pointer so that offset-wise, it looks like a sequential string.
   STATIC_ASSERT(SeqTwoByteString::kHeaderSize == SeqOneByteString::kHeaderSize);
-  __ subq(rdi, Immediate(SeqTwoByteString::kHeaderSize - kHeapObjectTag));
+  __ subp(rdi, Immediate(SeqTwoByteString::kHeaderSize - kHeapObjectTag));
   STATIC_ASSERT(kTwoByteStringTag == 0);
   // (8a) Is the external string one byte?  If yes, go to (6).
   __ testb(rbx, Immediate(kStringEncodingMask));
@@ -1837,7 +1837,7 @@ void ICCompareStub::GenerateGeneric(MacroAssembler* masm) {
   // Compare two smis.
   Label non_smi, smi_done;
   __ JumpIfNotBothSmi(rax, rdx, &non_smi);
-  __ subq(rdx, rax);
+  __ subp(rdx, rax);
   __ j(no_overflow, &smi_done);
   __ not_(rdx);  // Correct sign in case of overflow. rdx cannot be 0 here.
   __ bind(&smi_done);
@@ -1971,7 +1971,7 @@ void ICCompareStub::GenerateGeneric(MacroAssembler* masm) {
   // Return a result of -1, 0, or 1, based on EFLAGS.
   __ setcc(above, rax);
   __ setcc(below, rcx);
-  __ subq(rax, rcx);
+  __ subp(rax, rcx);
   __ ret(0);
 
   // If one of the numbers was NaN, then the result is always false.
@@ -2685,7 +2685,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
 
 #ifdef _WIN64
     // On Win64 XMM6-XMM15 are callee-save
-    __ subq(rsp, Immediate(EntryFrameConstants::kXMMRegistersBlockSize));
+    __ subp(rsp, Immediate(EntryFrameConstants::kXMMRegistersBlockSize));
     __ movdqu(Operand(rsp, EntryFrameConstants::kXMMRegisterSize * 0), xmm6);
     __ movdqu(Operand(rsp, EntryFrameConstants::kXMMRegisterSize * 1), xmm7);
     __ movdqu(Operand(rsp, EntryFrameConstants::kXMMRegisterSize * 2), xmm8);
@@ -2798,7 +2798,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   __ movdqu(xmm13, Operand(rsp, EntryFrameConstants::kXMMRegisterSize * 7));
   __ movdqu(xmm14, Operand(rsp, EntryFrameConstants::kXMMRegisterSize * 8));
   __ movdqu(xmm15, Operand(rsp, EntryFrameConstants::kXMMRegisterSize * 9));
-  __ addq(rsp, Immediate(EntryFrameConstants::kXMMRegistersBlockSize));
+  __ addp(rsp, Immediate(EntryFrameConstants::kXMMRegistersBlockSize));
 #endif
 
   __ popq(rbx);
@@ -2811,7 +2811,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   __ popq(r14);
   __ popq(r13);
   __ popq(r12);
-  __ addq(rsp, Immediate(2 * kPointerSize));  // remove markers
+  __ addp(rsp, Immediate(2 * kPointerSize));  // remove markers
 
   // Restore frame pointer and return.
   __ popq(rbp);
@@ -2900,7 +2900,7 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   } else {
     // Get return address and delta to inlined map check.
     __ movq(kScratchRegister, StackOperandForReturnAddress(0));
-    __ subq(kScratchRegister, args.GetArgumentOperand(2));
+    __ subp(kScratchRegister, args.GetArgumentOperand(2));
     if (FLAG_debug_code) {
       __ movl(rdi, Immediate(kWordBeforeMapCheckValue));
       __ cmpl(Operand(kScratchRegister, kOffsetToMapCheckValue - 4), rdi);
@@ -2941,7 +2941,7 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
     ASSERT(true_offset >= 0 && true_offset < 0x100);
     __ movl(rax, Immediate(true_offset));
     __ movq(kScratchRegister, StackOperandForReturnAddress(0));
-    __ subq(kScratchRegister, args.GetArgumentOperand(2));
+    __ subp(kScratchRegister, args.GetArgumentOperand(2));
     __ movb(Operand(kScratchRegister, kOffsetToResultValue), rax);
     if (FLAG_debug_code) {
       __ movl(rax, Immediate(kWordBeforeResultValue));
@@ -2964,7 +2964,7 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
     ASSERT(false_offset >= 0 && false_offset < 0x100);
     __ movl(rax, Immediate(false_offset));
     __ movq(kScratchRegister, StackOperandForReturnAddress(0));
-    __ subq(kScratchRegister, args.GetArgumentOperand(2));
+    __ subp(kScratchRegister, args.GetArgumentOperand(2));
     __ movb(Operand(kScratchRegister, kOffsetToResultValue), rax);
     if (FLAG_debug_code) {
       __ movl(rax, Immediate(kWordBeforeResultValue));
@@ -3322,7 +3322,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
 
   __ bind(&sliced_string);
   // Sliced string.  Fetch parent and correct start index by offset.
-  __ addq(rdx, FieldOperand(rax, SlicedString::kOffsetOffset));
+  __ addp(rdx, FieldOperand(rax, SlicedString::kOffsetOffset));
   __ movp(rdi, FieldOperand(rax, SlicedString::kParentOffset));
   // Update instance type.
   __ movp(rbx, FieldOperand(rdi, HeapObject::kMapOffset));
@@ -3393,7 +3393,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   __ movp(rdi, FieldOperand(rdi, ExternalString::kResourceDataOffset));
   // Move the pointer so that offset-wise, it looks like a sequential string.
   STATIC_ASSERT(SeqTwoByteString::kHeaderSize == SeqOneByteString::kHeaderSize);
-  __ subq(rdi, Immediate(SeqTwoByteString::kHeaderSize - kHeapObjectTag));
+  __ subp(rdi, Immediate(SeqTwoByteString::kHeaderSize - kHeapObjectTag));
 
   __ bind(&sequential_string);
   STATIC_ASSERT((kOneByteStringTag & kStringEncodingMask) != 0);
@@ -3641,7 +3641,7 @@ void StringCompareStub::Generate(MacroAssembler* masm) {
   __ IncrementCounter(counters->string_compare_native(), 1);
   // Drop arguments from the stack
   __ PopReturnAddressTo(rcx);
-  __ addq(rsp, Immediate(2 * kPointerSize));
+  __ addp(rsp, Immediate(2 * kPointerSize));
   __ PushReturnAddressFrom(rcx);
   GenerateCompareFlatAsciiStrings(masm, rdx, rax, rcx, rbx, rdi, r8);
 
@@ -3804,7 +3804,7 @@ void ArrayPushStub::Generate(MacroAssembler* masm) {
                            FixedArray::kHeaderSize - argc * kPointerSize));
   __ cmpq(rdx, rcx);
   __ j(not_equal, &call_builtin);
-  __ addq(rcx, Immediate(kAllocationDelta * kPointerSize));
+  __ addp(rcx, Immediate(kAllocationDelta * kPointerSize));
   Operand limit_operand = masm->ExternalOperand(new_space_allocation_limit);
   __ cmpq(rcx, limit_operand);
   __ j(above, &call_builtin);
@@ -3884,10 +3884,10 @@ void ICCompareStub::GenerateSmis(MacroAssembler* masm) {
 
   if (GetCondition() == equal) {
     // For equality we do not care about the sign of the result.
-    __ subq(rax, rdx);
+    __ subp(rax, rdx);
   } else {
     Label done;
-    __ subq(rdx, rax);
+    __ subp(rdx, rax);
     __ j(no_overflow, &done, Label::kNear);
     // Correct sign of result in case of overflow.
     __ not_(rdx);
@@ -4163,7 +4163,7 @@ void ICCompareStub::GenerateObjects(MacroAssembler* masm) {
   __ j(not_equal, &miss, Label::kNear);
 
   ASSERT(GetCondition() == equal);
-  __ subq(rax, rdx);
+  __ subp(rax, rdx);
   __ ret(0);
 
   __ bind(&miss);
@@ -4183,7 +4183,7 @@ void ICCompareStub::GenerateKnownObjects(MacroAssembler* masm) {
   __ Cmp(rbx, known_map_);
   __ j(not_equal, &miss, Label::kNear);
 
-  __ subq(rax, rdx);
+  __ subp(rax, rdx);
   __ ret(0);
 
   __ bind(&miss);
@@ -4550,7 +4550,7 @@ void RecordWriteStub::CheckNeedsToInformIncrementalMarker(
   __ movp(regs_.scratch1(),
          Operand(regs_.scratch0(),
                  MemoryChunk::kWriteBarrierCounterOffset));
-  __ subq(regs_.scratch1(), Immediate(1));
+  __ subp(regs_.scratch1(), Immediate(1));
   __ movp(Operand(regs_.scratch0(),
                  MemoryChunk::kWriteBarrierCounterOffset),
          regs_.scratch1());
@@ -4745,7 +4745,7 @@ void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
 
   // Calculate the function address to the first arg.
   __ movp(arg_reg_1, Operand(rsp, kNumSavedRegisters * kRegisterSize));
-  __ subq(arg_reg_1, Immediate(Assembler::kShortCallInstructionLength));
+  __ subp(arg_reg_1, Immediate(Assembler::kShortCallInstructionLength));
 
   // Save the remainder of the volatile registers.
   masm->PushCallerSaved(kSaveFPRegs, arg_reg_1, arg_reg_2);
@@ -5157,7 +5157,7 @@ void CallApiFunctionStub::Generate(MacroAssembler* masm) {
 
   // FunctionCallbackInfo::implicit_args_.
   __ movp(StackSpaceOperand(0), scratch);
-  __ addq(scratch, Immediate((argc + FCA::kArgsLength - 1) * kPointerSize));
+  __ addp(scratch, Immediate((argc + FCA::kArgsLength - 1) * kPointerSize));
   __ movp(StackSpaceOperand(1), scratch);  // FunctionCallbackInfo::values_.
   __ Set(StackSpaceOperand(2), argc);  // FunctionCallbackInfo::length_.
   // FunctionCallbackInfo::is_construct_call_.

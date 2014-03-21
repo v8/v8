@@ -102,7 +102,7 @@ static void ProbeTable(Isolate* isolate,
 #endif
 
   // Jump to the first instruction in the code stub.
-  __ addq(kScratchRegister, Immediate(Code::kHeaderSize - kHeapObjectTag));
+  __ addp(kScratchRegister, Immediate(Code::kHeaderSize - kHeapObjectTag));
   __ jmp(kScratchRegister);
 
   __ bind(&miss);

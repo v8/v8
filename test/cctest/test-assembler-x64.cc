@@ -153,7 +153,7 @@ TEST(AssemblerX64ImulOperation) {
   // Assemble a simple function that multiplies arguments returning the high
   // word.
   __ movq(rax, arg2);
-  __ imul(arg1);
+  __ imulq(arg1);
   __ movq(rax, rdx);
   __ ret(0);
 

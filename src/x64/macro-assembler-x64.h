@@ -336,7 +336,7 @@ class MacroAssembler: public Assembler {
     ExternalReference roots_array_start =
         ExternalReference::roots_array_start(isolate());
     Move(kRootRegister, roots_array_start);
-    addq(kRootRegister, Immediate(kRootRegisterBias));
+    addp(kRootRegister, Immediate(kRootRegisterBias));
   }
 
   // ---------------------------------------------------------------------------
@@ -846,7 +846,7 @@ class MacroAssembler: public Assembler {
   void PushReturnAddressFrom(Register src) { pushq(src); }
   void PopReturnAddressTo(Register dst) { popq(dst); }
   void Move(Register dst, ExternalReference ext) {
-    movp(dst, reinterpret_cast<Address>(ext.address()),
+    movp(dst, reinterpret_cast<void*>(ext.address()),
          RelocInfo::EXTERNAL_REFERENCE);
   }
 
@@ -863,7 +863,7 @@ class MacroAssembler: public Assembler {
     ASSERT(!RelocInfo::IsNone(rmode));
     ASSERT(value->IsHeapObject());
     ASSERT(!isolate()->heap()->InNewSpace(*value));
-    movp(dst, value.location(), rmode);
+    movp(dst, reinterpret_cast<void*>(value.location()), rmode);
   }
 
   // Control Flow
