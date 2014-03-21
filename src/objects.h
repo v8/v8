@@ -2608,6 +2608,8 @@ class JSObject: public JSReceiver {
   static Handle<SeededNumberDictionary> NormalizeElements(
       Handle<JSObject> object);
 
+  MUST_USE_RESULT MaybeObject* NormalizeElements();
+
   // Transform slow named properties to fast variants.
   static void TransformToFastProperties(Handle<JSObject> object,
                                         int unused_property_fields);
