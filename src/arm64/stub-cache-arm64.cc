@@ -394,22 +394,21 @@ void StoreStubCompiler::GenerateStoreTransition(MacroAssembler* masm,
   } else if (representation.IsHeapObject()) {
     __ JumpIfSmi(value_reg, miss_label);
   } else if (representation.IsDouble()) {
+    UseScratchRegisterScope temps(masm);
+    Register temp_double = temps.AcquireD();
+    __ SmiUntagToDouble(temp_double, value_reg, kSpeculativeUntag);
+
     Label do_store, heap_number;
     __ AllocateHeapNumber(storage_reg, slow, scratch1, scratch2);
 
-    // TODO(jbramley): Is fp_scratch the most appropriate FP scratch register?
-    // It's only used in Fcmp, but it's not really safe to use it like this.
-    __ JumpIfNotSmi(value_reg, &heap_number);
-    __ SmiUntagToDouble(fp_scratch, value_reg);
-    __ B(&do_store);
+    __ JumpIfSmi(value_reg, &do_store);
 
-    __ Bind(&heap_number);
     __ CheckMap(value_reg, scratch1, Heap::kHeapNumberMapRootIndex,
                 miss_label, DONT_DO_SMI_CHECK);
-    __ Ldr(fp_scratch, FieldMemOperand(value_reg, HeapNumber::kValueOffset));
+    __ Ldr(temp_double, FieldMemOperand(value_reg, HeapNumber::kValueOffset));
 
     __ Bind(&do_store);
-    __ Str(fp_scratch, FieldMemOperand(storage_reg, HeapNumber::kValueOffset));
+    __ Str(temp_double, FieldMemOperand(storage_reg, HeapNumber::kValueOffset));
   }
 
   // Stub never generated for non-global objects that require access checks.
@@ -546,6 +545,11 @@ void StoreStubCompiler::GenerateStoreField(MacroAssembler* masm,
   } else if (representation.IsHeapObject()) {
     __ JumpIfSmi(value_reg, miss_label);
   } else if (representation.IsDouble()) {
+    UseScratchRegisterScope temps(masm);
+    Register temp_double = temps.AcquireD();
+
+    __ SmiUntagToDouble(temp_double, value_reg, kSpeculativeUntag);
+
     // Load the double storage.
     if (index < 0) {
       int offset = (index * kPointerSize) + object->map()->instance_size();
@@ -559,19 +563,15 @@ void StoreStubCompiler::GenerateStoreField(MacroAssembler* masm,
 
     // Store the value into the storage.
     Label do_store, heap_number;
-    // TODO(jbramley): Is fp_scratch the most appropriate FP scratch register?
-    // It's only used in Fcmp, but it's not really safe to use it like this.
-    __ JumpIfNotSmi(value_reg, &heap_number);
-    __ SmiUntagToDouble(fp_scratch, value_reg);
-    __ B(&do_store);
 
-    __ Bind(&heap_number);
+    __ JumpIfSmi(value_reg, &do_store);
+
     __ CheckMap(value_reg, scratch2, Heap::kHeapNumberMapRootIndex,
                 miss_label, DONT_DO_SMI_CHECK);
-    __ Ldr(fp_scratch, FieldMemOperand(value_reg, HeapNumber::kValueOffset));
+    __ Ldr(temp_double, FieldMemOperand(value_reg, HeapNumber::kValueOffset));
 
     __ Bind(&do_store);
-    __ Str(fp_scratch, FieldMemOperand(scratch1, HeapNumber::kValueOffset));
+    __ Str(temp_double, FieldMemOperand(scratch1, HeapNumber::kValueOffset));
 
     // Return the value (register x0).
     ASSERT(value_reg.is(x0));
@@ -1009,12 +1009,9 @@ void LoadStubCompiler::GenerateLoadCallback(
   } else {
     __ Mov(scratch3(), Operand(Handle<Object>(callback->data(), isolate())));
   }
-  // TODO(jbramley): Find another scratch register and combine the pushes
-  // together. Can we use scratch1() here?
   __ LoadRoot(scratch4(), Heap::kUndefinedValueRootIndex);
-  __ Push(scratch3(), scratch4());
-  __ Mov(scratch3(), ExternalReference::isolate_address(isolate()));
-  __ Push(scratch4(), scratch3(), reg, name());
+  __ Mov(scratch2(), Operand(ExternalReference::isolate_address(isolate())));
+  __ Push(scratch3(), scratch4(), scratch4(), scratch2(), reg, name());
 
   Register args_addr = scratch2();
   __ Add(args_addr, __ StackPointer(), kPointerSize);
