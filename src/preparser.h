@@ -395,6 +395,7 @@ class ParserBase : public Traits {
   ExpressionT ParseConditionalExpression(bool accept_IN, bool* ok);
   ExpressionT ParseBinaryExpression(int prec, bool accept_IN, bool* ok);
   ExpressionT ParseUnaryExpression(bool* ok);
+  ExpressionT ParsePostfixExpression(bool* ok);
 
   // Used to detect duplicates in object literals. Each of the values
   // kGetterProperty, kSetterProperty and kValueProperty represents
@@ -580,7 +581,12 @@ class PreParserExpression {
     return code_ == kPropertyExpression || code_ == kThisPropertyExpression;
   }
 
-  // Dummy implementation for making expression->AsCall() work (see below).
+  bool IsValidLeftHandSide() {
+    return IsIdentifier() || IsProperty();
+  }
+
+  // Dummy implementation for making expression->somefunc() work in both Parser
+  // and PreParser.
   PreParserExpression* operator->() { return this; }
 
   // These are only used when doing function name inferring, and PreParser
@@ -833,11 +839,6 @@ class PreParserTraits {
   static void CheckAssigningFunctionLiteralToProperty(
       PreParserExpression left, PreParserExpression right) {}
 
-  // Determine whether the expression is a valid assignment left-hand side.
-  static bool IsValidLeftHandSide(PreParserExpression expression) {
-    return expression.IsIdentifier() || expression.IsProperty();
-  }
-
   static PreParserExpression MarkExpressionAsLValue(
       PreParserExpression expression) {
     // TODO(marja): To be able to produce the same errors, the preparser needs
@@ -944,7 +945,7 @@ class PreParserTraits {
       int function_token_position,
       FunctionLiteral::FunctionType type,
       bool* ok);
-  PreParserExpression ParsePostfixExpression(bool* ok);
+  PreParserExpression ParseLeftHandSideExpression(bool* ok);
 
  private:
   PreParser* pre_parser_;
@@ -1108,7 +1109,6 @@ class PreParser : public ParserBase<PreParserTraits> {
   Statement ParseTryStatement(bool* ok);
   Statement ParseDebuggerStatement(bool* ok);
   Expression ParseConditionalExpression(bool accept_IN, bool* ok);
-  Expression ParsePostfixExpression(bool* ok);
   Expression ParseLeftHandSideExpression(bool* ok);
   Expression ParseMemberExpression(bool* ok);
   Expression ParseMemberExpressionContinuation(PreParserExpression expression,
@@ -1664,7 +1664,7 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN, bool* ok) {
     return expression;
   }
 
-  if (!this->IsValidLeftHandSide(expression)) {
+  if (!expression->IsValidLeftHandSide()) {
     this->ReportMessageAt(lhs_location, "invalid_lhs_in_assignment", true);
     *ok = false;
     return this->EmptyExpression();
@@ -1834,7 +1834,7 @@ ParserBase<Traits>::ParseUnaryExpression(bool* ok) {
     op = Next();
     Scanner::Location lhs_location = scanner()->peek_location();
     ExpressionT expression = ParseUnaryExpression(CHECK_OK);
-    if (!this->IsValidLeftHandSide(expression)) {
+    if (!expression->IsValidLeftHandSide()) {
       ReportMessageAt(lhs_location, "invalid_lhs_in_prefix_op", true);
       *ok = false;
       return this->EmptyExpression();
@@ -1854,6 +1854,39 @@ ParserBase<Traits>::ParseUnaryExpression(bool* ok) {
   } else {
     return this->ParsePostfixExpression(ok);
   }
+}
+
+
+template <class Traits>
+typename ParserBase<Traits>::ExpressionT
+ParserBase<Traits>::ParsePostfixExpression(bool* ok) {
+  // PostfixExpression ::
+  //   LeftHandSideExpression ('++' | '--')?
+
+  Scanner::Location lhs_location = scanner()->peek_location();
+  ExpressionT expression = this->ParseLeftHandSideExpression(CHECK_OK);
+  if (!scanner()->HasAnyLineTerminatorBeforeNext() &&
+      Token::IsCountOp(peek())) {
+    if (!expression->IsValidLeftHandSide()) {
+      ReportMessageAt(lhs_location, "invalid_lhs_in_postfix_op", true);
+      *ok = false;
+      return this->EmptyExpression();
+    }
+
+    if (strict_mode() == STRICT) {
+      // Postfix expression operand in strict mode may not be eval or arguments.
+      this->CheckStrictModeLValue(expression, CHECK_OK);
+    }
+    expression = this->MarkExpressionAsLValue(expression);
+
+    Token::Value next = Next();
+    expression =
+        factory()->NewCountOperation(next,
+                                     false /* postfix */,
+                                     expression,
+                                     position());
+  }
+  return expression;
 }
 
 

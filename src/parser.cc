@@ -740,8 +740,8 @@ FunctionLiteral* ParserTraits::ParseFunctionLiteral(
 }
 
 
-Expression* ParserTraits::ParsePostfixExpression(bool* ok) {
-  return parser_->ParsePostfixExpression(ok);
+Expression* ParserTraits::ParseLeftHandSideExpression(bool* ok) {
+  return parser_->ParseLeftHandSideExpression(ok);
 }
 
 
@@ -3040,37 +3040,6 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
     loop->Initialize(init, cond, next, body);
     return loop;
   }
-}
-
-
-Expression* Parser::ParsePostfixExpression(bool* ok) {
-  // PostfixExpression ::
-  //   LeftHandSideExpression ('++' | '--')?
-
-  Scanner::Location lhs_location = scanner()->peek_location();
-  Expression* expression = ParseLeftHandSideExpression(CHECK_OK);
-  if (!scanner()->HasAnyLineTerminatorBeforeNext() &&
-      Token::IsCountOp(peek())) {
-    if (expression == NULL || !expression->IsValidLeftHandSide()) {
-      ReportMessageAt(lhs_location, "invalid_lhs_in_postfix_op", true);
-      *ok = false;
-      return NULL;
-    }
-
-    if (strict_mode() == STRICT) {
-      // Postfix expression operand in strict mode may not be eval or arguments.
-      CheckStrictModeLValue(expression, CHECK_OK);
-    }
-    MarkExpressionAsLValue(expression);
-
-    Token::Value next = Next();
-    expression =
-        factory()->NewCountOperation(next,
-                                     false /* postfix */,
-                                     expression,
-                                     position());
-  }
-  return expression;
 }
 
 

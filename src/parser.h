@@ -490,11 +490,6 @@ class ParserTraits {
   static void CheckAssigningFunctionLiteralToProperty(Expression* left,
                                                       Expression* right);
 
-  // Determine whether the expression is a valid assignment left-hand side.
-  static bool IsValidLeftHandSide(Expression* expression) {
-    return expression->IsValidLeftHandSide();
-  }
-
   // Determine if the expression is a variable proxy and mark it as being used
   // in an assignment or with a increment/decrement operator. This is currently
   // used on for the statically checking assignments to harmony const bindings.
@@ -589,7 +584,7 @@ class ParserTraits {
       int function_token_position,
       FunctionLiteral::FunctionType type,
       bool* ok);
-  Expression* ParsePostfixExpression(bool* ok);
+  Expression* ParseLeftHandSideExpression(bool* ok);
 
  private:
   Parser* parser_;
@@ -748,7 +743,6 @@ class Parser : public ParserBase<ParserTraits> {
   Block* ParseScopedBlock(ZoneStringList* labels, bool* ok);
 
   Expression* ParseUnaryExpression(bool* ok);
-  Expression* ParsePostfixExpression(bool* ok);
   Expression* ParseLeftHandSideExpression(bool* ok);
   Expression* ParseMemberWithNewPrefixesExpression(bool* ok);
   Expression* ParseMemberExpression(bool* ok);

@@ -146,8 +146,8 @@ PreParserExpression PreParserTraits::ParseFunctionLiteral(
 }
 
 
-PreParserExpression PreParserTraits::ParsePostfixExpression(bool* ok) {
-  return pre_parser_->ParsePostfixExpression(ok);
+PreParserExpression PreParserTraits::ParseLeftHandSideExpression(bool* ok) {
+  return pre_parser_->ParseLeftHandSideExpression(ok);
 }
 
 
@@ -840,23 +840,6 @@ PreParser::Statement PreParser::ParseDebuggerStatement(bool* ok) {
   ((void)0
 #define DUMMY )  // to make indentation work
 #undef DUMMY
-
-
-PreParser::Expression PreParser::ParsePostfixExpression(bool* ok) {
-  // PostfixExpression ::
-  //   LeftHandSideExpression ('++' | '--')?
-
-  Expression expression = ParseLeftHandSideExpression(CHECK_OK);
-  if (!scanner()->HasAnyLineTerminatorBeforeNext() &&
-      Token::IsCountOp(peek())) {
-    if (strict_mode() == STRICT) {
-      CheckStrictModeLValue(expression, CHECK_OK);
-    }
-    Next();
-    return Expression::Default();
-  }
-  return expression;
-}
 
 
 PreParser::Expression PreParser::ParseLeftHandSideExpression(bool* ok) {
