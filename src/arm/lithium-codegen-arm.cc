@@ -269,6 +269,9 @@ void LCodeGen::GenerateOsrPrologue() {
 
 
 void LCodeGen::GenerateBodyInstructionPre(LInstruction* instr) {
+  if (instr->IsCall()) {
+    EnsureSpaceForLazyDeopt(Deoptimizer::patch_size());
+  }
   if (!instr->IsLazyBailout() && !instr->IsGap()) {
     safepoints_.BumpLastLazySafepointIndex();
   }
@@ -5533,7 +5536,7 @@ void LCodeGen::EnsureSpaceForLazyDeopt(int space_needed) {
 
 
 void LCodeGen::DoLazyBailout(LLazyBailout* instr) {
-  EnsureSpaceForLazyDeopt(Deoptimizer::patch_size());
+  last_lazy_deopt_pc_ = masm()->pc_offset();
   ASSERT(instr->HasEnvironment());
   LEnvironment* env = instr->environment();
   RegisterEnvironmentForDeoptimization(env, Safepoint::kLazyDeopt);
@@ -5607,10 +5610,7 @@ void LCodeGen::DoStackCheck(LStackCheck* instr) {
     CallCode(isolate()->builtins()->StackCheck(),
               RelocInfo::CODE_TARGET,
               instr);
-    EnsureSpaceForLazyDeopt(Deoptimizer::patch_size());
     __ bind(&done);
-    RegisterEnvironmentForDeoptimization(env, Safepoint::kLazyDeopt);
-    safepoints_.RecordLazyDeoptimizationIndex(env->deoptimization_index());
   } else {
     ASSERT(instr->hydrogen()->is_backwards_branch());
     // Perform stack overflow check if this goto needs it before jumping.
