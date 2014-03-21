@@ -86,6 +86,9 @@
 
   # BUG(v8:3155).
   'test-strings/AsciiArrayJoin': [PASS, ['mode == debug', FAIL]],
+
+  # BUG(v8:3226).
+  'test-assembler-arm64/fmadd_fmsub_float_nans': [PASS, FAIL]
 }],  # 'arch == arm64'
 
 ['arch == arm64 and simulator_run == True', {
