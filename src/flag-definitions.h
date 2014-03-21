@@ -585,13 +585,13 @@ DEFINE_bool(use_verbose_printer, true, "allows verbose printing")
 DEFINE_bool(allow_natives_syntax, false, "allow natives syntax")
 DEFINE_bool(trace_parse, false, "trace parsing and preparsing")
 
-// simulator-arm.cc, simulator-a64.cc and simulator-mips.cc
+// simulator-arm.cc, simulator-arm64.cc and simulator-mips.cc
 DEFINE_bool(trace_sim, false, "Trace simulator execution")
 DEFINE_bool(debug_sim, false, "Enable debugging the simulator")
 DEFINE_bool(check_icache, false,
             "Check icache flushes in ARM and MIPS simulator")
 DEFINE_int(stop_sim_at, 0, "Simulator stop after x number of instructions")
-#ifdef V8_TARGET_ARCH_A64
+#ifdef V8_TARGET_ARCH_ARM64
 DEFINE_int(sim_stack_alignment, 16,
            "Stack alignment in bytes in simulator. This must be a power of two "
            "and it must be at least 16. 16 is default.")
@@ -600,7 +600,7 @@ DEFINE_int(sim_stack_alignment, 8,
            "Stack alingment in bytes in simulator (4 or 8, 8 is default)")
 #endif
 DEFINE_int(sim_stack_size, 2 * MB / KB,
-           "Stack size of the A64 simulator in kBytes (default is 2 MB)")
+           "Stack size of the ARM64 simulator in kBytes (default is 2 MB)")
 DEFINE_bool(log_regs_modified, true,
             "When logging register values, only print modified registers.")
 DEFINE_bool(log_colour, true,
@@ -819,7 +819,7 @@ DEFINE_bool(log_timer_events, false,
 DEFINE_implication(log_timer_events, log_internal_timer_events)
 DEFINE_implication(log_internal_timer_events, prof)
 DEFINE_bool(log_instruction_stats, false, "Log AArch64 instruction statistics.")
-DEFINE_string(log_instruction_file, "a64_inst.csv",
+DEFINE_string(log_instruction_file, "arm64_inst.csv",
               "AArch64 instruction statistics log file.")
 DEFINE_int(log_instruction_period, 1 << 22,
            "AArch64 instruction statistics logging period.")

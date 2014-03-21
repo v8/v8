@@ -215,9 +215,9 @@ class Label BASE_EMBEDDED {
   friend class Displacement;
   friend class RegExpMacroAssemblerIrregexp;
 
-#if V8_TARGET_ARCH_A64
-  // On A64, the Assembler keeps track of pointers to Labels to resolve branches
-  // to distant targets. Copying labels would confuse the Assembler.
+#if V8_TARGET_ARCH_ARM64
+  // On ARM64, the Assembler keeps track of pointers to Labels to resolve
+  // branches to distant targets. Copying labels would confuse the Assembler.
   DISALLOW_COPY_AND_ASSIGN(Label);  // NOLINT
 #endif
 };
@@ -286,7 +286,7 @@ class RelocInfo BASE_EMBEDDED {
     EXTERNAL_REFERENCE,  // The address of an external C++ function.
     INTERNAL_REFERENCE,  // An address inside the same function.
 
-    // Marks constant and veneer pools. Only used on ARM and A64.
+    // Marks constant and veneer pools. Only used on ARM and ARM64.
     // They use a custom noncompact encoding.
     CONST_POOL,
     VENEER_POOL,

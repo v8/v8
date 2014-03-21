@@ -223,11 +223,11 @@ endif
 
 # Architectures and modes to be compiled. Consider these to be internal
 # variables, don't override them (use the targets instead).
-ARCHES = ia32 x64 arm a64 mipsel
+ARCHES = ia32 x64 arm arm64 mipsel
 DEFAULT_ARCHES = ia32 x64 arm
 MODES = release debug optdebug
 DEFAULT_MODES = release debug
-ANDROID_ARCHES = android_ia32 android_arm android_a64 android_mipsel
+ANDROID_ARCHES = android_ia32 android_arm android_arm64 android_mipsel
 NACL_ARCHES = nacl_ia32 nacl_x64
 
 # List of files that trigger Makefile regeneration:
@@ -373,8 +373,8 @@ native.check: native
 	    --arch-and-mode=. $(TESTFLAGS)
 
 SUPERFASTTESTMODES = ia32.release
-FASTTESTMODES = $(SUPERFASTTESTMODES),x64.release,ia32.optdebug,x64.optdebug,arm.optdebug,a64.release
-FASTCOMPILEMODES = $(FASTTESTMODES),a64.optdebug
+FASTTESTMODES = $(SUPERFASTTESTMODES),x64.release,ia32.optdebug,x64.optdebug,arm.optdebug,arm64.release
+FASTCOMPILEMODES = $(FASTTESTMODES),arm64.optdebug
 
 COMMA = ,
 EMPTY =

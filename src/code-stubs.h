@@ -101,7 +101,7 @@ namespace internal {
   V(KeyedStringLength)
 
 // List of code stubs only used on ARM platforms.
-#if defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_A64)
+#if defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_ARM64)
 #define CODE_STUB_LIST_ARM(V)  \
   V(GetProperty)               \
   V(SetProperty)               \
@@ -441,8 +441,8 @@ class RuntimeCallHelper {
 #include "ia32/code-stubs-ia32.h"
 #elif V8_TARGET_ARCH_X64
 #include "x64/code-stubs-x64.h"
-#elif V8_TARGET_ARCH_A64
-#include "a64/code-stubs-a64.h"
+#elif V8_TARGET_ARCH_ARM64
+#include "arm64/code-stubs-arm64.h"
 #elif V8_TARGET_ARCH_ARM
 #include "arm/code-stubs-arm.h"
 #elif V8_TARGET_ARCH_MIPS

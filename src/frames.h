@@ -35,7 +35,7 @@
 namespace v8 {
 namespace internal {
 
-#if V8_TARGET_ARCH_A64
+#if V8_TARGET_ARCH_ARM64
 typedef uint64_t RegList;
 #else
 typedef uint32_t RegList;

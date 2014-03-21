@@ -828,7 +828,7 @@
 }],  # ALWAYS
 
 
-['arch == arm or arch == a64', {
+['arch == arm or arch == arm64', {
 
   # BUG(3251229): Times out when running new crankshaft test script.
   'ecma_3/RegExp/regress-311414': [SKIP],
@@ -845,13 +845,13 @@
 
   # BUG(1040): Allow this test to timeout.
   'js1_5/GC/regress-203278-2': [PASS, TIMEOUT, NO_VARIANTS],
-}],  # 'arch == arm or arch == a64'
+}],  # 'arch == arm or arch == arm64'
 
 
-['arch ==  a64', {
+['arch ==  arm64', {
   # BUG(v8:3152): Runs out of stack in debug mode.
   'js1_5/extensions/regress-355497': [FAIL_OK, ['mode == debug', SKIP]],
-}],  # 'arch ==  a64'
+}],  # 'arch ==  arm64'
 
 
 ['arch == mipsel', {
@@ -873,7 +873,7 @@
   'js1_5/GC/regress-203278-2': [PASS, TIMEOUT, NO_VARIANTS],
 }],  # 'arch == mipsel'
 
-['arch == a64 and simulator_run == True', {
+['arch == arm64 and simulator_run == True', {
 
   'js1_5/GC/regress-203278-2': [SKIP],
 
@@ -892,5 +892,5 @@
   'js1_5/extensions/regress-330569': [SKIP],
   'js1_5/extensions/regress-351448': [SKIP],
   'js1_5/extensions/regress-336410-1': [SKIP],
-}],  # 'arch == a64 and simulator_run == True'
+}],  # 'arch == arm64 and simulator_run == True'
 ]

@@ -160,8 +160,8 @@ Atomic64 Release_Load(volatile const Atomic64* ptr);
 #include "atomicops_internals_x86_msvc.h"
 #elif defined(__APPLE__)
 #include "atomicops_internals_mac.h"
-#elif defined(__GNUC__) && V8_HOST_ARCH_A64
-#include "atomicops_internals_a64_gcc.h"
+#elif defined(__GNUC__) && V8_HOST_ARCH_ARM64
+#include "atomicops_internals_arm64_gcc.h"
 #elif defined(__GNUC__) && V8_HOST_ARCH_ARM
 #include "atomicops_internals_arm_gcc.h"
 #elif defined(__GNUC__) && (V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64)

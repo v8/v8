@@ -127,8 +127,8 @@ class FullCodeGenerator: public AstVisitor {
   static const int kCodeSizeMultiplier = 162;
 #elif V8_TARGET_ARCH_ARM
   static const int kCodeSizeMultiplier = 142;
-#elif V8_TARGET_ARCH_A64
-// TODO(all): Copied ARM value. Check this is sensible for A64.
+#elif V8_TARGET_ARCH_ARM64
+// TODO(all): Copied ARM value. Check this is sensible for ARM64.
   static const int kCodeSizeMultiplier = 142;
 #elif V8_TARGET_ARCH_MIPS
   static const int kCodeSizeMultiplier = 142;

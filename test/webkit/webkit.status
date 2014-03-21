@@ -51,7 +51,7 @@
 ['simulator', {
   'function-apply-aliased': [SKIP],
 }],  # 'simulator'
-['arch == a64 and simulator_run == True', {
+['arch == arm64 and simulator_run == True', {
   'dfg-int-overflow-in-loop': [SKIP],
-}],  # 'arch == a64 and simulator_run == True'
+}],  # 'arch == arm64 and simulator_run == True'
 ]

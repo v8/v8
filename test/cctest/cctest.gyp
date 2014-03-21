@@ -154,16 +154,16 @@
             'test-macro-assembler-arm.cc'
           ],
         }],
-        ['v8_target_arch=="a64" or v8_target_arch=="arm64"', {
+        ['v8_target_arch=="arm64"', {
           'sources': [
-            'test-utils-a64.cc',
-            'test-assembler-a64.cc',
+            'test-utils-arm64.cc',
+            'test-assembler-arm64.cc',
             'test-code-stubs.cc',
-            'test-code-stubs-a64.cc',
-            'test-disasm-a64.cc',
-            'test-fuzz-a64.cc',
-            'test-javascript-a64.cc',
-            'test-js-a64-variables.cc'
+            'test-code-stubs-arm64.cc',
+            'test-disasm-arm64.cc',
+            'test-fuzz-arm64.cc',
+            'test-javascript-arm64.cc',
+            'test-js-arm64-variables.cc'
           ],
         }],
         ['v8_target_arch=="mipsel"', {

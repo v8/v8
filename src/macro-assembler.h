@@ -72,14 +72,14 @@ const int kInvalidProtoDepth = -1;
 #include "x64/assembler-x64-inl.h"
 #include "code.h"  // must be after assembler_*.h
 #include "x64/macro-assembler-x64.h"
-#elif V8_TARGET_ARCH_A64
-#include "a64/constants-a64.h"
+#elif V8_TARGET_ARCH_ARM64
+#include "arm64/constants-arm64.h"
 #include "assembler.h"
-#include "a64/assembler-a64.h"
-#include "a64/assembler-a64-inl.h"
+#include "arm64/assembler-arm64.h"
+#include "arm64/assembler-arm64-inl.h"
 #include "code.h"  // must be after assembler_*.h
-#include "a64/macro-assembler-a64.h"
-#include "a64/macro-assembler-a64-inl.h"
+#include "arm64/macro-assembler-arm64.h"
+#include "arm64/macro-assembler-arm64-inl.h"
 #elif V8_TARGET_ARCH_ARM
 #include "arm/constants-arm.h"
 #include "assembler.h"

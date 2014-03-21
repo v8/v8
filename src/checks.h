@@ -53,7 +53,7 @@ extern "C" void V8_Fatal(const char* file, int line, const char* format, ...);
 #endif
 
 // Simulator specific helpers.
-#if defined(USE_SIMULATOR) && defined(V8_TARGET_ARCH_A64)
+#if defined(USE_SIMULATOR) && defined(V8_TARGET_ARCH_ARM64)
   // TODO(all): If possible automatically prepend an indicator like
   // UNIMPLEMENTED or LOCATION.
   #define ASM_UNIMPLEMENTED(message)                                         \

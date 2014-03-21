@@ -184,7 +184,7 @@
                   '-L<(android_stlport_libs)/x86',
                 ],
               }],
-              ['target_arch=="a64"', {
+              ['target_arch=="arm64"', {
                 'ldflags': [
                   '-L<(android_stlport_libs)/arm64',
                 ],
@@ -214,7 +214,7 @@
         'target_conditions': [
           ['_type=="executable"', {
             'conditions': [
-              ['target_arch=="a64"', {
+              ['target_arch=="arm64"', {
                 'ldflags': [
                   '-Wl,-dynamic-linker,/system/bin/linker64',
                 ],
