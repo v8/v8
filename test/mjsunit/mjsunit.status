@@ -364,6 +364,9 @@
 
   # Bug(v8:2978).
   'lithium/MathExp': [PASS, FAIL],
+
+  # Lead to OOM:
+  'string-oom-*': [SKIP],
 }],  # 'arch == nacl_ia32 or arch == nacl_x64'
 
 ##############################################################################
