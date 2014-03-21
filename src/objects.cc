@@ -11818,31 +11818,16 @@ Handle<Object> JSObject::SetPrototype(Handle<JSObject> object,
 }
 
 
-// TODO(ishell): temporary wrapper until handilfied.
-// static
 void JSObject::EnsureCanContainElements(Handle<JSObject> object,
                                         Arguments* args,
                                         uint32_t first_arg,
                                         uint32_t arg_count,
                                         EnsureElementsMode mode) {
-  CALL_HEAP_FUNCTION_VOID(object->GetIsolate(),
-                          object->EnsureCanContainElements(args,
-                                                           first_arg,
-                                                           arg_count,
-                                                           mode));
-}
-
-
-MaybeObject* JSObject::EnsureCanContainElements(Arguments* args,
-                                                uint32_t first_arg,
-                                                uint32_t arg_count,
-                                                EnsureElementsMode mode) {
   // Elements in |Arguments| are ordered backwards (because they're on the
   // stack), but the method that's called here iterates over them in forward
   // direction.
   return EnsureCanContainElements(
-      args->arguments() - first_arg - (arg_count - 1),
-      arg_count, mode);
+      object, args->arguments() - first_arg - (arg_count - 1), arg_count, mode);
 }
 
 

@@ -1621,85 +1621,79 @@ void JSObject::EnsureCanContainHeapObjectElements(Handle<JSObject> object) {
 }
 
 
-MaybeObject* JSObject::EnsureCanContainElements(Object** objects,
-                                                uint32_t count,
-                                                EnsureElementsMode mode) {
-  ElementsKind current_kind = map()->elements_kind();
+void JSObject::EnsureCanContainElements(Handle<JSObject> object,
+                                        Object** objects,
+                                        uint32_t count,
+                                        EnsureElementsMode mode) {
+  ElementsKind current_kind = object->map()->elements_kind();
   ElementsKind target_kind = current_kind;
-  ASSERT(mode != ALLOW_COPIED_DOUBLE_ELEMENTS);
-  bool is_holey = IsFastHoleyElementsKind(current_kind);
-  if (current_kind == FAST_HOLEY_ELEMENTS) return this;
-  Heap* heap = GetHeap();
-  Object* the_hole = heap->the_hole_value();
-  for (uint32_t i = 0; i < count; ++i) {
-    Object* current = *objects++;
-    if (current == the_hole) {
-      is_holey = true;
-      target_kind = GetHoleyElementsKind(target_kind);
-    } else if (!current->IsSmi()) {
-      if (mode == ALLOW_CONVERTED_DOUBLE_ELEMENTS && current->IsNumber()) {
-        if (IsFastSmiElementsKind(target_kind)) {
-          if (is_holey) {
-            target_kind = FAST_HOLEY_DOUBLE_ELEMENTS;
-          } else {
-            target_kind = FAST_DOUBLE_ELEMENTS;
+  {
+    DisallowHeapAllocation no_allocation;
+    ASSERT(mode != ALLOW_COPIED_DOUBLE_ELEMENTS);
+    bool is_holey = IsFastHoleyElementsKind(current_kind);
+    if (current_kind == FAST_HOLEY_ELEMENTS) return;
+    Heap* heap = object->GetHeap();
+    Object* the_hole = heap->the_hole_value();
+    for (uint32_t i = 0; i < count; ++i) {
+      Object* current = *objects++;
+      if (current == the_hole) {
+        is_holey = true;
+        target_kind = GetHoleyElementsKind(target_kind);
+      } else if (!current->IsSmi()) {
+        if (mode == ALLOW_CONVERTED_DOUBLE_ELEMENTS && current->IsNumber()) {
+          if (IsFastSmiElementsKind(target_kind)) {
+            if (is_holey) {
+              target_kind = FAST_HOLEY_DOUBLE_ELEMENTS;
+            } else {
+              target_kind = FAST_DOUBLE_ELEMENTS;
+            }
           }
+        } else if (is_holey) {
+          target_kind = FAST_HOLEY_ELEMENTS;
+          break;
+        } else {
+          target_kind = FAST_ELEMENTS;
         }
-      } else if (is_holey) {
-        target_kind = FAST_HOLEY_ELEMENTS;
-        break;
-      } else {
-        target_kind = FAST_ELEMENTS;
       }
     }
   }
-
   if (target_kind != current_kind) {
-    return TransitionElementsKind(target_kind);
+    TransitionElementsKind(object, target_kind);
   }
-  return this;
 }
 
 
-// TODO(ishell): Temporary wrapper until handlified.
 void JSObject::EnsureCanContainElements(Handle<JSObject> object,
                                         Handle<FixedArrayBase> elements,
                                         uint32_t length,
                                         EnsureElementsMode mode) {
-  CALL_HEAP_FUNCTION_VOID(object->GetIsolate(),
-                          object->EnsureCanContainElements(*elements,
-                                                           length,
-                                                           mode));
-}
-
-
-MaybeObject* JSObject::EnsureCanContainElements(FixedArrayBase* elements,
-                                                uint32_t length,
-                                                EnsureElementsMode mode) {
-  if (elements->map() != GetHeap()->fixed_double_array_map()) {
-    ASSERT(elements->map() == GetHeap()->fixed_array_map() ||
-           elements->map() == GetHeap()->fixed_cow_array_map());
+  Heap* heap = object->GetHeap();
+  if (elements->map() != heap->fixed_double_array_map()) {
+    ASSERT(elements->map() == heap->fixed_array_map() ||
+           elements->map() == heap->fixed_cow_array_map());
     if (mode == ALLOW_COPIED_DOUBLE_ELEMENTS) {
       mode = DONT_ALLOW_DOUBLE_ELEMENTS;
     }
-    Object** objects = FixedArray::cast(elements)->GetFirstElementAddress();
-    return EnsureCanContainElements(objects, length, mode);
+    Object** objects =
+        Handle<FixedArray>::cast(elements)->GetFirstElementAddress();
+    EnsureCanContainElements(object, objects, length, mode);
+    return;
   }
 
   ASSERT(mode == ALLOW_COPIED_DOUBLE_ELEMENTS);
-  if (GetElementsKind() == FAST_HOLEY_SMI_ELEMENTS) {
-    return TransitionElementsKind(FAST_HOLEY_DOUBLE_ELEMENTS);
-  } else if (GetElementsKind() == FAST_SMI_ELEMENTS) {
-    FixedDoubleArray* double_array = FixedDoubleArray::cast(elements);
+  if (object->GetElementsKind() == FAST_HOLEY_SMI_ELEMENTS) {
+    TransitionElementsKind(object, FAST_HOLEY_DOUBLE_ELEMENTS);
+  } else if (object->GetElementsKind() == FAST_SMI_ELEMENTS) {
+    Handle<FixedDoubleArray> double_array =
+        Handle<FixedDoubleArray>::cast(elements);
     for (uint32_t i = 0; i < length; ++i) {
       if (double_array->is_the_hole(i)) {
-        return TransitionElementsKind(FAST_HOLEY_DOUBLE_ELEMENTS);
+        TransitionElementsKind(object, FAST_HOLEY_DOUBLE_ELEMENTS);
+        return;
       }
     }
-    return TransitionElementsKind(FAST_DOUBLE_ELEMENTS);
+    TransitionElementsKind(object, FAST_DOUBLE_ELEMENTS);
   }
-
-  return this;
 }
 
 

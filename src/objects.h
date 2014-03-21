@@ -2420,7 +2420,8 @@ class JSObject: public JSReceiver {
   static inline void EnsureCanContainHeapObjectElements(Handle<JSObject> obj);
 
   // Makes sure that this object can contain the specified elements.
-  MUST_USE_RESULT inline MaybeObject* EnsureCanContainElements(
+  static inline void EnsureCanContainElements(
+      Handle<JSObject> object,
       Object** elements,
       uint32_t count,
       EnsureElementsMode mode);
@@ -2429,17 +2430,8 @@ class JSObject: public JSReceiver {
       Handle<FixedArrayBase> elements,
       uint32_t length,
       EnsureElementsMode mode);
-  MUST_USE_RESULT inline MaybeObject* EnsureCanContainElements(
-      FixedArrayBase* elements,
-      uint32_t length,
-      EnsureElementsMode mode);
   static void EnsureCanContainElements(
       Handle<JSObject> object,
-      Arguments* arguments,
-      uint32_t first_arg,
-      uint32_t arg_count,
-      EnsureElementsMode mode);
-  MUST_USE_RESULT MaybeObject* EnsureCanContainElements(
       Arguments* arguments,
       uint32_t first_arg,
       uint32_t arg_count,
