@@ -65,6 +65,9 @@
   # are actually 13 * 38 * 5 * 128 = 316160 individual tests hidden here.
   'test-parsing/ParserSync': [PASS, NO_VARIANTS],
 
+  # BUG(2999).
+  'test-cpu-profiler/CollectCpuProfile': [PASS, FLAKY],
+
   ############################################################################
   # Slow tests.
   'test-api/Threading1': [PASS, ['mode == debug', SLOW]],
@@ -158,9 +161,6 @@
   'test-serialize/DeserializeFromSecondSerializationAndRunScript2': [SKIP],
   'test-serialize/DeserializeAndRunScript2': [SKIP],
   'test-serialize/DeserializeFromSecondSerialization': [SKIP],
-
-  # BUG(2999).
-  'test-cpu-profiler/CollectCpuProfile': [PASS, FLAKY],
 
   ############################################################################
   # Slow tests.
