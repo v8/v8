@@ -1493,14 +1493,6 @@ void Factory::SetElementsCapacityAndLength(Handle<JSArray> array,
 }
 
 
-void Factory::SetContent(Handle<JSArray> array,
-                         Handle<FixedArrayBase> elements) {
-  CALL_HEAP_FUNCTION_VOID(
-      isolate(),
-      array->SetContent(*elements));
-}
-
-
 Handle<JSGeneratorObject> Factory::NewJSGeneratorObject(
     Handle<JSFunction> function) {
   ASSERT(function->shared()->is_generator());

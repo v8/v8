@@ -374,8 +374,6 @@ class Factory {
                                     int capacity,
                                     int length);
 
-  void SetContent(Handle<JSArray> array, Handle<FixedArrayBase> elements);
-
   Handle<JSGeneratorObject> NewJSGeneratorObject(Handle<JSFunction> function);
 
   Handle<JSArrayBuffer> NewJSArrayBuffer();

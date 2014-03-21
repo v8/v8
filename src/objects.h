@@ -2424,6 +2424,11 @@ class JSObject: public JSReceiver {
       Object** elements,
       uint32_t count,
       EnsureElementsMode mode);
+  static inline void EnsureCanContainElements(
+      Handle<JSObject> object,
+      Handle<FixedArrayBase> elements,
+      uint32_t length,
+      EnsureElementsMode mode);
   MUST_USE_RESULT inline MaybeObject* EnsureCanContainElements(
       FixedArrayBase* elements,
       uint32_t length,
@@ -10032,7 +10037,8 @@ class JSArray: public JSObject {
                                           Handle<Object> length);
 
   // Set the content of the array to the content of storage.
-  MUST_USE_RESULT inline MaybeObject* SetContent(FixedArrayBase* storage);
+  static inline void SetContent(Handle<JSArray> array,
+                                Handle<FixedArrayBase> storage);
 
   // Casting.
   static inline JSArray* cast(Object* obj);

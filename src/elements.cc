@@ -1975,12 +1975,11 @@ MUST_USE_RESULT Handle<Object> ElementsAccessorBase<ElementsAccessorSubclass,
     }
   }
 
-  Factory* factory = isolate->factory();
   // Fall-back case: The new length is not a number so make the array
   // size one and set only element to length.
-  Handle<FixedArray> new_backing_store = factory->NewFixedArray(1);
+  Handle<FixedArray> new_backing_store = isolate->factory()->NewFixedArray(1);
   new_backing_store->set(0, *length);
-  factory->SetContent(array, new_backing_store);
+  JSArray::SetContent(array, new_backing_store);
   return array;
 }
 
