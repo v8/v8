@@ -1481,12 +1481,7 @@ void RegExpMacroAssemblerARM64::BranchOrBacktrack(Condition condition,
   if (to == NULL) {
     to = &backtrack_label_;
   }
-  // TODO(ulan): do direct jump when jump distance is known and fits in imm19.
-  Condition inverted_condition = InvertCondition(condition);
-  Label no_branch;
-  __ B(inverted_condition, &no_branch);
-  __ B(to);
-  __ Bind(&no_branch);
+  __ B(condition, to);
 }
 
 void RegExpMacroAssemblerARM64::CompareAndBranchOrBacktrack(Register reg,
@@ -1497,15 +1492,11 @@ void RegExpMacroAssemblerARM64::CompareAndBranchOrBacktrack(Register reg,
     if (to == NULL) {
       to = &backtrack_label_;
     }
-    // TODO(ulan): do direct jump when jump distance is known and fits in imm19.
-    Label no_branch;
     if (condition == eq) {
-      __ Cbnz(reg, &no_branch);
+      __ Cbz(reg, to);
     } else {
-      __ Cbz(reg, &no_branch);
+      __ Cbnz(reg, to);
     }
-    __ B(to);
-    __ Bind(&no_branch);
   } else {
     __ Cmp(reg, immediate);
     BranchOrBacktrack(condition, to);
