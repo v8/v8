@@ -146,12 +146,6 @@ PreParserExpression PreParserTraits::ParseFunctionLiteral(
 }
 
 
-PreParserExpression PreParserTraits::ParseMemberWithNewPrefixesExpression(
-    bool* ok) {
-  return pre_parser_->ParseMemberWithNewPrefixesExpression(ok);
-}
-
-
 PreParser::PreParseResult PreParser::PreParseLazyFunction(
     StrictMode strict_mode, bool is_generator, ParserRecorder* log) {
   log_ = log;
@@ -841,110 +835,6 @@ PreParser::Statement PreParser::ParseDebuggerStatement(bool* ok) {
   ((void)0
 #define DUMMY )  // to make indentation work
 #undef DUMMY
-
-
-PreParser::Expression PreParser::ParseMemberWithNewPrefixesExpression(
-    bool* ok) {
-  // NewExpression ::
-  //   ('new')+ MemberExpression
-
-  // See Parser::ParseNewExpression.
-
-  if (peek() == Token::NEW) {
-    Consume(Token::NEW);
-    ParseMemberWithNewPrefixesExpression(CHECK_OK);
-    Expression expression = Expression::Default();
-    if (peek() == Token::LPAREN) {
-      // NewExpression with arguments.
-      ParseArguments(CHECK_OK);
-      // The expression can still continue with . or [ after the arguments. Here
-      // we need to transmit the "is valid left hand side" property of the
-      // expression.
-      expression =
-          ParseMemberExpressionContinuation(Expression::Default(), CHECK_OK);
-    }
-    return expression;
-  }
-  // No 'new' keyword.
-  return ParseMemberExpression(ok);
-}
-
-
-PreParser::Expression PreParser::ParseMemberExpression(bool* ok) {
-  // MemberExpression ::
-  //   (PrimaryExpression | FunctionLiteral)
-  //     ('[' Expression ']' | '.' Identifier | Arguments)*
-
-  // The '[' Expression ']' and '.' Identifier parts are parsed by
-  // ParseMemberExpressionContinuation, and the Arguments part is parsed by the
-  // caller.
-
-  // Parse the initial primary or function expression.
-  Expression result = Expression::Default();
-  if (peek() == Token::FUNCTION) {
-    Consume(Token::FUNCTION);
-    int function_token_position = position();
-    bool is_generator = allow_generators() && Check(Token::MUL);
-    Identifier name = Identifier::Default();
-    bool is_strict_reserved_name = false;
-    Scanner::Location function_name_location = Scanner::Location::invalid();
-    FunctionLiteral::FunctionType function_type =
-        FunctionLiteral::ANONYMOUS_EXPRESSION;
-    if (peek_any_identifier()) {
-      name = ParseIdentifierOrStrictReservedWord(&is_strict_reserved_name,
-                                                 CHECK_OK);
-      function_name_location = scanner()->location();
-      function_type = FunctionLiteral::NAMED_EXPRESSION;
-    }
-    result = ParseFunctionLiteral(name,
-                                  function_name_location,
-                                  is_strict_reserved_name,
-                                  is_generator,
-                                  function_token_position,
-                                  function_type,
-                                  CHECK_OK);
-  } else {
-    result = ParsePrimaryExpression(CHECK_OK);
-  }
-  result = ParseMemberExpressionContinuation(result, CHECK_OK);
-  return result;
-}
-
-
-PreParser::Expression PreParser::ParseMemberExpressionContinuation(
-    PreParserExpression expression, bool* ok) {
-  // Parses this part of MemberExpression:
-  // ('[' Expression ']' | '.' Identifier)*
-  while (true) {
-    switch (peek()) {
-      case Token::LBRACK: {
-        Consume(Token::LBRACK);
-        ParseExpression(true, CHECK_OK);
-        Expect(Token::RBRACK, CHECK_OK);
-        if (expression.IsThis()) {
-          expression = Expression::ThisProperty();
-        } else {
-          expression = Expression::Property();
-        }
-        break;
-      }
-      case Token::PERIOD: {
-        Consume(Token::PERIOD);
-        ParseIdentifierName(CHECK_OK);
-        if (expression.IsThis()) {
-          expression = Expression::ThisProperty();
-        } else {
-          expression = Expression::Property();
-        }
-        break;
-      }
-      default:
-        return expression;
-    }
-  }
-  ASSERT(false);
-  return PreParserExpression::Default();
-}
 
 
 PreParser::Expression PreParser::ParseFunctionLiteral(

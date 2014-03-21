@@ -475,6 +475,7 @@ class ParserTraits {
   static void PushLiteralName(FuncNameInferrer* fni, Handle<String> id) {
     fni->PushLiteralName(id);
   }
+  void PushPropertyName(FuncNameInferrer* fni, Expression* expression);
 
   static void CheckFunctionLiteralInsideTopLevelObjectLiteral(
       Scope* scope, Expression* value, bool* has_function) {
@@ -549,6 +550,7 @@ class ParserTraits {
   static Literal* EmptyLiteral() {
     return NULL;
   }
+  // Used in error return values.
   static ZoneList<Expression*>* NullExpressionList() {
     return NULL;
   }
@@ -589,7 +591,6 @@ class ParserTraits {
       int function_token_position,
       FunctionLiteral::FunctionType type,
       bool* ok);
-  Expression* ParseMemberWithNewPrefixesExpression(bool* ok);
 
  private:
   Parser* parser_;
@@ -725,10 +726,6 @@ class Parser : public ParserBase<ParserTraits> {
   // Support for hamony block scoped bindings.
   Block* ParseScopedBlock(ZoneStringList* labels, bool* ok);
 
-  Expression* ParseMemberWithNewPrefixesExpression(bool* ok);
-  Expression* ParseMemberExpression(bool* ok);
-  Expression* ParseMemberExpressionContinuation(Expression* expression,
-                                                bool* ok);
   // Initialize the components of a for-in / for-of statement.
   void InitializeForEachStatement(ForEachStatement* stmt,
                                   Expression* each,
