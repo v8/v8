@@ -166,18 +166,10 @@ class SimRegisterBase {
   void Set(T new_value, unsigned size = sizeof(T)) {
     ASSERT(size <= kSizeInBytes);
     ASSERT(size <= sizeof(new_value));
-    STATIC_ASSERT(kXRegSize == kDRegSize);
-    STATIC_ASSERT(kWRegSize == kSRegSize);
     // All AArch64 registers are zero-extending; Writing a W register clears the
     // top bits of the corresponding X register.
-    if (size == kXRegSize) {
-      memcpy(value_, &new_value, kXRegSize);
-    } else if (size == kWRegSize) {
-      memset(value_, 0, kSizeInBytes);
-      memcpy(value_, &new_value, kWRegSize);
-    } else {
-      UNREACHABLE();
-    }
+    memset(value_, 0, kSizeInBytes);
+    memcpy(value_, &new_value, size);
   }
 
   // Copy 'size' bytes of the register to the result, and zero-extend to fill
@@ -186,14 +178,8 @@ class SimRegisterBase {
   T Get(unsigned size = sizeof(T)) const {
     ASSERT(size <= kSizeInBytes);
     T result;
-    if (size == kXRegSize) {
-      memcpy(&result, value_, kXRegSize);
-    } else if (size == kWRegSize) {
-      memset(&result, 0, sizeof(result));
-      memcpy(&result, value_, kWRegSize);
-    } else {
-      UNREACHABLE();
-    }
+    memset(&result, 0, sizeof(result));
+    memcpy(&result, value_, size);
     return result;
   }
 
