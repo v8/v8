@@ -1158,14 +1158,6 @@ void Simulator::PrintProcessorState() {
 void Simulator::PrintWrite(uint8_t* address,
                            uint64_t value,
                            unsigned num_bytes) {
-  // Define some color codes to use for memory logging.
-  const char* const clr_normal         = (FLAG_log_colour) ? ("\033[m")
-                                                           : ("");
-  const char* const clr_memory_value   = (FLAG_log_colour) ? ("\033[1;32m")
-                                                           : ("");
-  const char* const clr_memory_address = (FLAG_log_colour) ? ("\033[32m")
-                                                           : ("");
-
   // The template is "# value -> address". The template is not directly used
   // in the printf since compilers tend to struggle with the parametrized
   // width (%0*).
