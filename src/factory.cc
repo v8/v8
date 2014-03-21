@@ -1441,8 +1441,9 @@ Handle<JSObject> Factory::NewJSObjectFromMap(
 }
 
 
-Handle<JSArray> Factory::NewJSArray(int capacity,
-                                    ElementsKind elements_kind,
+Handle<JSArray> Factory::NewJSArray(ElementsKind elements_kind,
+                                    int length,
+                                    int capacity,
                                     PretenureFlag pretenure) {
   if (capacity != 0) {
     elements_kind = GetHoleyElementsKind(elements_kind);
@@ -1450,7 +1451,7 @@ Handle<JSArray> Factory::NewJSArray(int capacity,
   CALL_HEAP_FUNCTION(isolate(),
                      isolate()->heap()->AllocateJSArrayAndStorage(
                          elements_kind,
-                         0,
+                         length,
                          capacity,
                          INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE,
                          pretenure),
@@ -1460,12 +1461,14 @@ Handle<JSArray> Factory::NewJSArray(int capacity,
 
 Handle<JSArray> Factory::NewJSArrayWithElements(Handle<FixedArrayBase> elements,
                                                 ElementsKind elements_kind,
+                                                int length,
                                                 PretenureFlag pretenure) {
+  ASSERT(length <= elements->length());
   CALL_HEAP_FUNCTION(
       isolate(),
       isolate()->heap()->AllocateJSArrayWithElements(*elements,
                                                      elements_kind,
-                                                     elements->length(),
+                                                     length,
                                                      pretenure),
       JSArray);
 }

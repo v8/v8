@@ -355,14 +355,31 @@ class Factory {
 
   // JS arrays are pretenured when allocated by the parser.
   Handle<JSArray> NewJSArray(
+      ElementsKind elements_kind,
+      int length,
+      int capacity,
+      PretenureFlag pretenure = NOT_TENURED);
+
+  Handle<JSArray> NewJSArray(
       int capacity,
       ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND,
+      PretenureFlag pretenure = NOT_TENURED) {
+    return NewJSArray(elements_kind, 0, capacity, pretenure);
+  }
+
+  Handle<JSArray> NewJSArrayWithElements(
+      Handle<FixedArrayBase> elements,
+      ElementsKind elements_kind,
+      int length,
       PretenureFlag pretenure = NOT_TENURED);
 
   Handle<JSArray> NewJSArrayWithElements(
       Handle<FixedArrayBase> elements,
       ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND,
-      PretenureFlag pretenure = NOT_TENURED);
+      PretenureFlag pretenure = NOT_TENURED) {
+    return NewJSArrayWithElements(
+        elements, elements_kind, elements->length(), pretenure);
+  }
 
   void NewJSArrayStorage(
       Handle<JSArray> array,
