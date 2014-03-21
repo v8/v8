@@ -146,8 +146,9 @@ PreParserExpression PreParserTraits::ParseFunctionLiteral(
 }
 
 
-PreParserExpression PreParserTraits::ParseLeftHandSideExpression(bool* ok) {
-  return pre_parser_->ParseLeftHandSideExpression(ok);
+PreParserExpression PreParserTraits::ParseMemberWithNewPrefixesExpression(
+    bool* ok) {
+  return pre_parser_->ParseMemberWithNewPrefixesExpression(ok);
 }
 
 
@@ -840,50 +841,6 @@ PreParser::Statement PreParser::ParseDebuggerStatement(bool* ok) {
   ((void)0
 #define DUMMY )  // to make indentation work
 #undef DUMMY
-
-
-PreParser::Expression PreParser::ParseLeftHandSideExpression(bool* ok) {
-  // LeftHandSideExpression ::
-  //   (NewExpression | MemberExpression) ...
-
-  Expression result = ParseMemberWithNewPrefixesExpression(CHECK_OK);
-
-  while (true) {
-    switch (peek()) {
-      case Token::LBRACK: {
-        Consume(Token::LBRACK);
-        ParseExpression(true, CHECK_OK);
-        Expect(Token::RBRACK, CHECK_OK);
-        if (result.IsThis()) {
-          result = Expression::ThisProperty();
-        } else {
-          result = Expression::Property();
-        }
-        break;
-      }
-
-      case Token::LPAREN: {
-        ParseArguments(CHECK_OK);
-        result = Expression::Default();
-        break;
-      }
-
-      case Token::PERIOD: {
-        Consume(Token::PERIOD);
-        ParseIdentifierName(CHECK_OK);
-        if (result.IsThis()) {
-          result = Expression::ThisProperty();
-        } else {
-          result = Expression::Property();
-        }
-        break;
-      }
-
-      default:
-        return result;
-    }
-  }
-}
 
 
 PreParser::Expression PreParser::ParseMemberWithNewPrefixesExpression(

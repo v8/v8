@@ -449,6 +449,16 @@ void ParserTraits::CheckAssigningFunctionLiteralToProperty(Expression* left,
 }
 
 
+void ParserTraits::CheckPossibleEvalCall(Expression* expression,
+                                         Scope* scope) {
+  VariableProxy* callee = expression->AsVariableProxy();
+  if (callee != NULL &&
+      callee->IsVariable(parser_->isolate()->factory()->eval_string())) {
+    scope->DeclarationScope()->RecordEvalCall();
+  }
+}
+
+
 Expression* ParserTraits::MarkExpressionAsLValue(Expression* expression) {
   VariableProxy* proxy = expression != NULL
       ? expression->AsVariableProxy()
@@ -740,8 +750,8 @@ FunctionLiteral* ParserTraits::ParseFunctionLiteral(
 }
 
 
-Expression* ParserTraits::ParseLeftHandSideExpression(bool* ok) {
-  return parser_->ParseLeftHandSideExpression(ok);
+Expression* ParserTraits::ParseMemberWithNewPrefixesExpression(bool* ok) {
+  return parser_->ParseMemberWithNewPrefixesExpression(ok);
 }
 
 
@@ -3039,79 +3049,6 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
   } else {
     loop->Initialize(init, cond, next, body);
     return loop;
-  }
-}
-
-
-Expression* Parser::ParseLeftHandSideExpression(bool* ok) {
-  // LeftHandSideExpression ::
-  //   (NewExpression | MemberExpression) ...
-
-  Expression* result = ParseMemberWithNewPrefixesExpression(CHECK_OK);
-
-  while (true) {
-    switch (peek()) {
-      case Token::LBRACK: {
-        Consume(Token::LBRACK);
-        int pos = position();
-        Expression* index = ParseExpression(true, CHECK_OK);
-        result = factory()->NewProperty(result, index, pos);
-        Expect(Token::RBRACK, CHECK_OK);
-        break;
-      }
-
-      case Token::LPAREN: {
-        int pos;
-        if (scanner()->current_token() == Token::IDENTIFIER) {
-          // For call of an identifier we want to report position of
-          // the identifier as position of the call in the stack trace.
-          pos = position();
-        } else {
-          // For other kinds of calls we record position of the parenthesis as
-          // position of the call.  Note that this is extremely important for
-          // expressions of the form function(){...}() for which call position
-          // should not point to the closing brace otherwise it will intersect
-          // with positions recorded for function literal and confuse debugger.
-          pos = peek_position();
-          // Also the trailing parenthesis are a hint that the function will
-          // be called immediately. If we happen to have parsed a preceding
-          // function literal eagerly, we can also compile it eagerly.
-          if (result->IsFunctionLiteral() && mode() == PARSE_EAGERLY) {
-            result->AsFunctionLiteral()->set_parenthesized();
-          }
-        }
-        ZoneList<Expression*>* args = ParseArguments(CHECK_OK);
-
-        // Keep track of eval() calls since they disable all local variable
-        // optimizations.
-        // The calls that need special treatment are the
-        // direct eval calls. These calls are all of the form eval(...), with
-        // no explicit receiver.
-        // These calls are marked as potentially direct eval calls. Whether
-        // they are actually direct calls to eval is determined at run time.
-        VariableProxy* callee = result->AsVariableProxy();
-        if (callee != NULL &&
-            callee->IsVariable(isolate()->factory()->eval_string())) {
-          scope_->DeclarationScope()->RecordEvalCall();
-        }
-        result = factory()->NewCall(result, args, pos);
-        if (fni_ != NULL) fni_->RemoveLastFunction();
-        break;
-      }
-
-      case Token::PERIOD: {
-        Consume(Token::PERIOD);
-        int pos = position();
-        Handle<String> name = ParseIdentifierName(CHECK_OK);
-        result = factory()->NewProperty(
-            result, factory()->NewLiteral(name, pos), pos);
-        if (fni_ != NULL) fni_->PushLiteralName(name);
-        break;
-      }
-
-      default:
-        return result;
-    }
   }
 }
 
