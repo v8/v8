@@ -4711,70 +4711,59 @@ static Handle<SeededNumberDictionary> CopyFastElementsToDictionary(
 
 Handle<SeededNumberDictionary> JSObject::NormalizeElements(
     Handle<JSObject> object) {
-  CALL_HEAP_FUNCTION(object->GetIsolate(),
-                     object->NormalizeElements(),
-                     SeededNumberDictionary);
-}
-
-
-MaybeObject* JSObject::NormalizeElements() {
-  ASSERT(!HasExternalArrayElements());
+  ASSERT(!object->HasExternalArrayElements());
+  Isolate* isolate = object->GetIsolate();
+  Factory* factory = isolate->factory();
 
   // Find the backing store.
-  FixedArrayBase* array = FixedArrayBase::cast(elements());
-  Map* old_map = array->map();
+  Handle<FixedArrayBase> array(FixedArrayBase::cast(object->elements()));
   bool is_arguments =
-      (old_map == old_map->GetHeap()->sloppy_arguments_elements_map());
+      (array->map() == isolate->heap()->sloppy_arguments_elements_map());
   if (is_arguments) {
-    array = FixedArrayBase::cast(FixedArray::cast(array)->get(1));
+    array = handle(FixedArrayBase::cast(
+        Handle<FixedArray>::cast(array)->get(1)));
   }
-  if (array->IsDictionary()) return array;
+  if (array->IsDictionary()) return Handle<SeededNumberDictionary>::cast(array);
 
-  ASSERT(HasFastSmiOrObjectElements() ||
-         HasFastDoubleElements() ||
-         HasFastArgumentsElements());
+  ASSERT(object->HasFastSmiOrObjectElements() ||
+         object->HasFastDoubleElements() ||
+         object->HasFastArgumentsElements());
   // Compute the effective length and allocate a new backing store.
-  int length = IsJSArray()
-      ? Smi::cast(JSArray::cast(this)->length())->value()
+  int length = object->IsJSArray()
+      ? Smi::cast(Handle<JSArray>::cast(object)->length())->value()
       : array->length();
   int old_capacity = 0;
   int used_elements = 0;
-  GetElementsCapacityAndUsage(&old_capacity, &used_elements);
-  SeededNumberDictionary* dictionary;
-  MaybeObject* maybe_dictionary =
-      SeededNumberDictionary::Allocate(GetHeap(), used_elements);
-  if (!maybe_dictionary->To(&dictionary)) return maybe_dictionary;
+  object->GetElementsCapacityAndUsage(&old_capacity, &used_elements);
+  Handle<SeededNumberDictionary> dictionary =
+      factory->NewSeededNumberDictionary(used_elements);
 
-  maybe_dictionary = CopyFastElementsToDictionary(
-      GetIsolate(), array, length, dictionary);
-  if (!maybe_dictionary->To(&dictionary)) return maybe_dictionary;
+  dictionary = CopyFastElementsToDictionary(array, length, dictionary);
 
   // Switch to using the dictionary as the backing storage for elements.
   if (is_arguments) {
-    FixedArray::cast(elements())->set(1, dictionary);
+    FixedArray::cast(object->elements())->set(1, *dictionary);
   } else {
     // Set the new map first to satify the elements type assert in
     // set_elements().
-    Map* new_map;
-    MaybeObject* maybe = GetElementsTransitionMap(GetIsolate(),
-                                                  DICTIONARY_ELEMENTS);
-    if (!maybe->To(&new_map)) return maybe;
-    // TODO(verwaest): Replace by MigrateToMap.
-    set_map(new_map);
-    set_elements(dictionary);
+    Handle<Map> new_map =
+        JSObject::GetElementsTransitionMap(object, DICTIONARY_ELEMENTS);
+
+    JSObject::MigrateToMap(object, new_map);
+    object->set_elements(*dictionary);
   }
 
-  old_map->GetHeap()->isolate()->counters()->elements_to_dictionary()->
-      Increment();
+  isolate->counters()->elements_to_dictionary()->Increment();
 
 #ifdef DEBUG
   if (FLAG_trace_normalization) {
     PrintF("Object elements have been normalized:\n");
-    Print();
+    object->Print();
   }
 #endif
 
-  ASSERT(HasDictionaryElements() || HasDictionaryArgumentsElements());
+  ASSERT(object->HasDictionaryElements() ||
+         object->HasDictionaryArgumentsElements());
   return dictionary;
 }
 
