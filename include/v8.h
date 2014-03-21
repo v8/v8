@@ -1126,7 +1126,7 @@ class V8_EXPORT ScriptCompiler {
    * Source code which can be then compiled to a UnboundScript or
    * BoundScript.
    */
-  class V8_EXPORT Source {
+  class Source {
    public:
     // Source takes ownership of CachedData.
     Source(Local<String> source_string, const ScriptOrigin& origin,
