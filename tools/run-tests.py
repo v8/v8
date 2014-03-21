@@ -82,7 +82,8 @@ SUPPORTED_ARCHS = ["android_arm",
                    "nacl_ia32",
                    "nacl_x64",
                    "x64",
-                   "a64"]
+                   "a64",
+                   "arm64"]
 # Double the timeout for these:
 SLOW_ARCHS = ["android_arm",
               "android_ia32",
@@ -352,6 +353,8 @@ def Main():
 
   for (arch, mode) in options.arch_and_mode:
     try:
+      if arch == "arm64":
+        arch = "a64"
       code = Execute(arch, mode, args, options, suites, workspace)
     except KeyboardInterrupt:
       return 2

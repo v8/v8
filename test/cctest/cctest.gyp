@@ -154,7 +154,7 @@
             'test-macro-assembler-arm.cc'
           ],
         }],
-        ['v8_target_arch=="a64"', {
+        ['v8_target_arch=="a64" or v8_target_arch=="arm64"', {
           'sources': [
             'test-utils-a64.cc',
             'test-assembler-a64.cc',

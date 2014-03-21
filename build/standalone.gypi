@@ -103,6 +103,7 @@
     'conditions': [
       ['(v8_target_arch=="arm" and host_arch!="arm") or \
         (v8_target_arch=="a64" and host_arch!="a64") or \
+        (v8_target_arch=="arm64" and host_arch!="arm64") or \
         (v8_target_arch=="mipsel" and host_arch!="mipsel") or \
         (v8_target_arch=="x64" and host_arch!="x64") or \
         (OS=="android" or OS=="qnx")', {

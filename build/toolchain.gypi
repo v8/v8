@@ -268,7 +268,7 @@
           }],  # _toolset=="target"
         ],
       }],  # v8_target_arch=="arm"
-      ['v8_target_arch=="a64"', {
+      ['v8_target_arch=="a64" or v8_target_arch=="arm64"', {
         'defines': [
           'V8_TARGET_ARCH_A64',
         ],
@@ -413,7 +413,8 @@
         ],
       }],
       ['(OS=="linux" or OS=="android") and \
-        (v8_target_arch=="x64" or v8_target_arch=="a64")', {
+        (v8_target_arch=="x64" or v8_target_arch=="a64" or \
+         v8_target_arch=="arm64")', {
         # Check whether the host compiler and target compiler support the
         # '-m64' option and set it if so.
         'target_conditions': [

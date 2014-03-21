@@ -645,7 +645,7 @@
             '../../src/arm/stub-cache-arm.cc',
           ],
         }],
-        ['v8_target_arch=="a64"', {
+        ['v8_target_arch=="a64" or v8_target_arch=="arm64"', {
           'sources': [  ### gcmole(arch:a64) ###
             '../../src/a64/assembler-a64.cc',
             '../../src/a64/assembler-a64.h',
