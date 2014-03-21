@@ -11815,7 +11815,8 @@ class ScopeIterator {
 
   ScopeIterator(Isolate* isolate,
                 JavaScriptFrame* frame,
-                int inlined_jsframe_index)
+                int inlined_jsframe_index,
+                bool ignore_nested_scopes = false)
     : isolate_(isolate),
       frame_(frame),
       inlined_jsframe_index_(inlined_jsframe_index),
@@ -11839,19 +11840,31 @@ class ScopeIterator {
       // Return if ensuring debug info failed.
       return;
     }
-    Handle<DebugInfo> debug_info = Debug::GetDebugInfo(shared_info);
 
-    // Find the break point where execution has stopped.
-    BreakLocationIterator break_location_iterator(debug_info,
-                                                  ALL_BREAK_LOCATIONS);
-    // pc points to the instruction after the current one, possibly a break
-    // location as well. So the "- 1" to exclude it from the search.
-    break_location_iterator.FindBreakLocationFromAddress(frame->pc() - 1);
-    if (break_location_iterator.IsExit()) {
-      // We are within the return sequence. At the momemt it is not possible to
+    // Currently it takes too much time to find nested scopes due to script
+    // parsing. Sometimes we want to run the ScopeIterator as fast as possible
+    // (for example, while collecting async call stacks on every
+    // addEventListener call), even if we drop some nested scopes.
+    // Later we may optimize getting the nested scopes (cache the result?)
+    // and include nested scopes into the "fast" iteration case as well.
+    if (!ignore_nested_scopes) {
+      Handle<DebugInfo> debug_info = Debug::GetDebugInfo(shared_info);
+
+      // Find the break point where execution has stopped.
+      BreakLocationIterator break_location_iterator(debug_info,
+                                                    ALL_BREAK_LOCATIONS);
+      // pc points to the instruction after the current one, possibly a break
+      // location as well. So the "- 1" to exclude it from the search.
+      break_location_iterator.FindBreakLocationFromAddress(frame->pc() - 1);
+
+      // Within the return sequence at the moment it is not possible to
       // get a source position which is consistent with the current scope chain.
       // Thus all nested with, catch and block contexts are skipped and we only
       // provide the function scope.
+      ignore_nested_scopes = break_location_iterator.IsExit();
+    }
+
+    if (ignore_nested_scopes) {
       if (scope_info->HasContext()) {
         context_ = Handle<Context>(context_->declaration_context(), isolate_);
       } else {
@@ -11859,7 +11872,7 @@ class ScopeIterator {
           context_ = Handle<Context>(context_->previous(), isolate_);
         }
       }
-      if (scope_info->scope_type() != EVAL_SCOPE) {
+      if (scope_info->scope_type() == FUNCTION_SCOPE) {
         nested_scope_chain_.Add(scope_info);
       }
     } else {
@@ -12327,13 +12340,14 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetScopeDetails) {
 // args[0]: number: break id
 // args[1]: number: frame index
 // args[2]: number: inlined frame index
+// args[3]: boolean: ignore nested scopes
 //
 // The array returned contains arrays with the following information:
 // 0: Scope type
 // 1: Scope object
 RUNTIME_FUNCTION(MaybeObject*, Runtime_GetAllScopesDetails) {
   HandleScope scope(isolate);
-  ASSERT(args.length() == 3);
+  ASSERT(args.length() == 3 || args.length() == 4);
 
   // Check arguments.
   Object* check;
@@ -12344,13 +12358,19 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetAllScopesDetails) {
   CONVERT_SMI_ARG_CHECKED(wrapped_id, 1);
   CONVERT_NUMBER_CHECKED(int, inlined_jsframe_index, Int32, args[2]);
 
+  bool ignore_nested_scopes = false;
+  if (args.length() == 4) {
+    CONVERT_BOOLEAN_ARG_CHECKED(flag, 3);
+    ignore_nested_scopes = flag;
+  }
+
   // Get the frame where the debugging is performed.
   StackFrame::Id id = UnwrapFrameId(wrapped_id);
   JavaScriptFrameIterator frame_it(isolate, id);
   JavaScriptFrame* frame = frame_it.frame();
 
   List<Handle<JSObject> > result(4);
-  ScopeIterator it(isolate, frame, inlined_jsframe_index);
+  ScopeIterator it(isolate, frame, inlined_jsframe_index, ignore_nested_scopes);
   for (; !it.Done(); it.Next()) {
     Handle<JSObject> details = MaterializeScopeDetails(isolate, &it);
     RETURN_IF_EMPTY_HANDLE(isolate, details);

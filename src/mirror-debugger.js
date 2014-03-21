@@ -1692,10 +1692,11 @@ FrameMirror.prototype.scope = function(index) {
 };
 
 
-FrameMirror.prototype.allScopes = function() {
+FrameMirror.prototype.allScopes = function(opt_ignore_nested_scopes) {
   var scopeDetails = %GetAllScopesDetails(this.break_id_,
                                           this.details_.frameId(),
-                                          this.details_.inlinedFrameIndex());
+                                          this.details_.inlinedFrameIndex(),
+                                          !!opt_ignore_nested_scopes);
   var result = [];
   for (var i = 0; i < scopeDetails.length; ++i) {
     result.push(new ScopeMirror(this, UNDEFINED, i, scopeDetails[i]));

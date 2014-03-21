@@ -71,16 +71,29 @@ function BeginTest(name) {
 // Check result of a test.
 function EndTest() {
   assertTrue(listener_called, "listerner not called for " + test_name);
-  assertNull(exception, test_name);
+  assertNull(exception, test_name + " / " + exception);
   end_test_count++;
 }
 
 
 // Check that two scope are the same.
-function CheckScopeMirrors(scope1, scope2) {
+function assertScopeMirrorEquals(scope1, scope2) {
   assertEquals(scope1.scopeType(), scope2.scopeType());
   assertEquals(scope1.frameIndex(), scope2.frameIndex());
   assertEquals(scope1.scopeIndex(), scope2.scopeIndex());
+  assertPropertiesEqual(scope1.scopeObject().value(), scope2.scopeObject().value());
+}
+
+function CheckFastAllScopes(scopes, exec_state)
+{
+  var fast_all_scopes = exec_state.frame().allScopes(true);
+  var length = fast_all_scopes.length;
+  assertTrue(scopes.length >= length);
+  for (var i = 0; i < scopes.length && i < length; i++) {
+    var scope = fast_all_scopes[length - i - 1];
+    assertTrue(scope.isScope());
+    assertEquals(scopes[scopes.length - i - 1], scope.scopeType());
+  }
 }
 
 
@@ -93,7 +106,7 @@ function CheckScopeChain(scopes, exec_state) {
     var scope = exec_state.frame().scope(i);
     assertTrue(scope.isScope());
     assertEquals(scopes[i], scope.scopeType());
-    CheckScopeMirrors(all_scopes[i], scope);
+    assertScopeMirrorEquals(all_scopes[i], scope);
 
     // Check the global object when hitting the global scope.
     if (scopes[i] == debug.ScopeType.Global) {
@@ -102,6 +115,7 @@ function CheckScopeChain(scopes, exec_state) {
       assertPropertiesEqual(this, scope.scopeObject().value());
     }
   }
+  CheckFastAllScopes(scopes, exec_state);
 
   // Get the debug command processor.
   var dcp = exec_state.debugCommandProcessor("unspecified_running_state");
