@@ -33,7 +33,6 @@ import unittest
 
 import auto_roll
 from auto_roll import CheckLastPush
-from auto_roll import FetchLatestRevision
 from auto_roll import SETTINGS_LOCATION
 import common_includes
 from common_includes import *
@@ -832,11 +831,15 @@ Performance and stability improvements on all platforms.""", commit)
 
   def testCheckLastPushRecently(self):
     self.ExpectGit([
-      Git("svn log -1 --oneline", "r101 | Text"),
-      Git("svn log -1 --oneline ChangeLog", "r99 | Prepare push to trunk..."),
+      Git(("log -1 --format=%H --grep="
+           "\"^Version [[:digit:]]*\.[[:digit:]]*\.[[:digit:]]* (based\" "
+           "svn/trunk"), "hash2\n"),
+      Git("log -1 --format=%s hash2",
+          "Version 3.4.5 (based on bleeding_edge revision r99)\n"),
     ])
 
-    self.RunStep(auto_roll.AutoRoll, FetchLatestRevision, AUTO_ROLL_ARGS)
+    self._state["lkgr"] = "101"
+
     self.assertRaises(Exception, lambda: self.RunStep(auto_roll.AutoRoll,
                                                       CheckLastPush,
                                                       AUTO_ROLL_ARGS))
@@ -864,11 +867,11 @@ Performance and stability improvements on all platforms.""", commit)
       Git("status -s -uno", ""),
       Git("status -s -b -uno", "## some_branch\n"),
       Git("svn fetch", ""),
-      Git("svn log -1 --oneline", "r100 | Text"),
       Git(("log -1 --format=%H --grep=\""
            "^Version [[:digit:]]*\.[[:digit:]]*\.[[:digit:]]* (based\""
            " svn/trunk"), "push_hash\n"),
-      Git("svn find-rev push_hash", "65"),
+      Git("log -1 --format=%s push_hash",
+          "Version 3.4.5 (based on bleeding_edge revision r79)\n"),
     ])
 
     auto_roll.AutoRoll(TEST_CONFIG, self).Run(
@@ -878,7 +881,6 @@ Performance and stability improvements on all platforms.""", commit)
                                   % TEST_CONFIG[PERSISTFILE_BASENAME]))
 
     self.assertEquals("100", state["lkgr"])
-    self.assertEquals("100", state["latest"])
 
   def testAutoRollStoppedBySettings(self):
     TEST_CONFIG[DOT_GIT_LOCATION] = self.MakeEmptyTempFile()
