@@ -133,6 +133,7 @@ template<class T, class P> class WeakCallbackObject;
 class FunctionTemplate;
 class ObjectTemplate;
 class Data;
+template<typename T> class FunctionCallbackInfo;
 template<typename T> class PropertyCallbackInfo;
 class StackTrace;
 class StackFrame;
