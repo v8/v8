@@ -87,28 +87,28 @@ macro TYPED_ARRAY_CONSTRUCTOR(ARRAY_ID, NAME, ELEMENT_SIZE)
       newByteLength = newLength * ELEMENT_SIZE;
     }
     if ((offset + newByteLength > bufferByteLength)
-        || (newLength > %MaxSmi())) {
+        || (newLength > %_MaxSmi())) {
       throw MakeRangeError("invalid_typed_array_length");
     }
-    %TypedArrayInitialize(obj, ARRAY_ID, buffer, offset, newByteLength);
+    %_TypedArrayInitialize(obj, ARRAY_ID, buffer, offset, newByteLength);
   }
 
   function NAMEConstructByLength(obj, length) {
     var l = IS_UNDEFINED(length) ?
       0 : ToPositiveInteger(length, "invalid_typed_array_length");
-    if (l > %MaxSmi()) {
+    if (l > %_MaxSmi()) {
       throw MakeRangeError("invalid_typed_array_length");
     }
     var byteLength = l * ELEMENT_SIZE;
     var buffer = new $ArrayBuffer(byteLength);
-    %TypedArrayInitialize(obj, ARRAY_ID, buffer, 0, byteLength);
+    %_TypedArrayInitialize(obj, ARRAY_ID, buffer, 0, byteLength);
   }
 
   function NAMEConstructByArrayLike(obj, arrayLike) {
     var length = arrayLike.length;
     var l = ToPositiveInteger(length, "invalid_typed_array_length");
 
-    if (l > %MaxSmi()) {
+    if (l > %_MaxSmi()) {
       throw MakeRangeError("invalid_typed_array_length");
     }
     if(!%TypedArrayInitializeFromArrayLike(obj, ARRAY_ID, arrayLike, l)) {
@@ -350,7 +350,7 @@ function DataViewConstructor(buffer, byteOffset, byteLength) { // length = 3
     if (length < 0 || offset + length > bufferByteLength) {
       throw new MakeRangeError('invalid_data_view_length');
     }
-    %DataViewInitialize(this, buffer, offset, length);
+    %_DataViewInitialize(this, buffer, offset, length);
   } else {
     throw MakeTypeError('constructor_not_function', ["DataView"]);
   }

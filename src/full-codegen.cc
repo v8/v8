@@ -980,6 +980,31 @@ void FullCodeGenerator::EmitConstructDouble(CallRuntime* expr) {
 }
 
 
+void FullCodeGenerator::EmitTypedArrayInitialize(CallRuntime* expr) {
+  ZoneList<Expression*>* args = expr->arguments();
+  ASSERT(args->length() == 5);
+  for (int i = 0; i < 5; i++) VisitForStackValue(args->at(i));
+  masm()->CallRuntime(Runtime::kTypedArrayInitialize, 5);
+  context()->Plug(result_register());
+}
+
+
+void FullCodeGenerator::EmitDataViewInitialize(CallRuntime* expr) {
+  ZoneList<Expression*>* args = expr->arguments();
+  ASSERT(args->length() == 4);
+  for (int i = 0; i < 4; i++) VisitForStackValue(args->at(i));
+  masm()->CallRuntime(Runtime::kDataViewInitialize, 4);
+  context()->Plug(result_register());
+}
+
+
+void FullCodeGenerator::EmitMaxSmi(CallRuntime* expr) {
+  ASSERT(expr->arguments()->length() == 0);
+  masm()->CallRuntime(Runtime::kMaxSmi, 0);
+  context()->Plug(result_register());
+}
+
+
 void FullCodeGenerator::VisitBinaryOperation(BinaryOperation* expr) {
   switch (expr->op()) {
     case Token::COMMA:
