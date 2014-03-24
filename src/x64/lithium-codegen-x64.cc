@@ -409,20 +409,12 @@ XMMRegister LCodeGen::ToDoubleRegister(LOperand* op) const {
 
 
 bool LCodeGen::IsInteger32Constant(LConstantOperand* op) const {
-  return op->IsConstantOperand() &&
-      chunk_->LookupLiteralRepresentation(op).IsSmiOrInteger32();
+  return chunk_->LookupLiteralRepresentation(op).IsSmiOrInteger32();
 }
 
 
 bool LCodeGen::IsSmiConstant(LConstantOperand* op) const {
-  return op->IsConstantOperand() &&
-      chunk_->LookupLiteralRepresentation(op).IsSmi();
-}
-
-
-bool LCodeGen::IsTaggedConstant(LConstantOperand* op) const {
-  return op->IsConstantOperand() &&
-      chunk_->LookupLiteralRepresentation(op).IsTagged();
+  return chunk_->LookupLiteralRepresentation(op).IsSmi();
 }
 
 
@@ -3955,15 +3947,10 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
   SmiCheck check_needed = hinstr->value()->IsHeapObject()
                           ? OMIT_SMI_CHECK : INLINE_SMI_CHECK;
 
-  if (representation.IsSmi()) {
-    if (instr->value()->IsConstantOperand()) {
-      LConstantOperand* operand_value = LConstantOperand::cast(instr->value());
-      if (!IsInteger32Constant(operand_value) &&
-          !IsSmiConstant(operand_value)) {
-        DeoptimizeIf(no_condition, instr->environment());
-      }
-    }
-  } else if (representation.IsHeapObject()) {
+  ASSERT(!(representation.IsSmi() &&
+           instr->value()->IsConstantOperand() &&
+           !IsInteger32Constant(LConstantOperand::cast(instr->value()))));
+  if (representation.IsHeapObject()) {
     if (instr->value()->IsConstantOperand()) {
       LConstantOperand* operand_value = LConstantOperand::cast(instr->value());
       if (IsInteger32Constant(operand_value)) {

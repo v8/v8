@@ -4341,14 +4341,10 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
       instr->hydrogen()->value()->IsHeapObject()
           ? OMIT_SMI_CHECK : INLINE_SMI_CHECK;
 
-  if (representation.IsSmi()) {
-    if (instr->value()->IsConstantOperand()) {
-      LConstantOperand* operand_value = LConstantOperand::cast(instr->value());
-      if (!IsSmi(operand_value)) {
-        DeoptimizeIf(no_condition, instr->environment());
-      }
-    }
-  } else if (representation.IsHeapObject()) {
+  ASSERT(!(representation.IsSmi() &&
+           instr->value()->IsConstantOperand() &&
+           !IsSmi(LConstantOperand::cast(instr->value()))));
+  if (representation.IsHeapObject()) {
     if (instr->value()->IsConstantOperand()) {
       LConstantOperand* operand_value = LConstantOperand::cast(instr->value());
       if (IsInteger32(operand_value)) {

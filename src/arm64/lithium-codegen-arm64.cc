@@ -1267,8 +1267,7 @@ bool LCodeGen::IsSmi(LConstantOperand* op) const {
 
 
 bool LCodeGen::IsInteger32Constant(LConstantOperand* op) const {
-  return op->IsConstantOperand() &&
-      chunk_->LookupLiteralRepresentation(op).IsSmiOrInteger32();
+  return chunk_->LookupLiteralRepresentation(op).IsSmiOrInteger32();
 }
 
 
@@ -5241,6 +5240,9 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
   SmiCheck check_needed = instr->hydrogen()->value()->IsHeapObject()
       ? OMIT_SMI_CHECK : INLINE_SMI_CHECK;
 
+  ASSERT(!(representation.IsSmi() &&
+           instr->value()->IsConstantOperand() &&
+           !IsInteger32Constant(LConstantOperand::cast(instr->value()))));
   if (representation.IsHeapObject() &&
       !instr->hydrogen()->value()->type().IsHeapObject()) {
     DeoptimizeIfSmi(value, instr->environment());

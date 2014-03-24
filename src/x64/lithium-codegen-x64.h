@@ -91,7 +91,6 @@ class LCodeGen: public LCodeGenBase {
   Smi* ToSmi(LConstantOperand* op) const;
   double ToDouble(LConstantOperand* op) const;
   ExternalReference ToExternalReference(LConstantOperand* op) const;
-  bool IsTaggedConstant(LConstantOperand* op) const;
   Handle<Object> ToHandle(LConstantOperand* op) const;
   Operand ToOperand(LOperand* op) const;
 
