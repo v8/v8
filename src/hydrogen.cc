@@ -2309,7 +2309,7 @@ HValue* HGraphBuilder::BuildAllocateElements(ElementsKind kind,
   PretenureFlag pretenure_flag = !FLAG_allocation_site_pretenuring ?
       isolate()->heap()->GetPretenureMode() : NOT_TENURED;
 
-  return Add<HAllocate>(total_size, HType::JSArray(), pretenure_flag,
+  return Add<HAllocate>(total_size, HType::Tagged(), pretenure_flag,
       instance_type);
 }
 
@@ -2615,11 +2615,11 @@ HValue* HGraphBuilder::BuildCloneShallowArray(HValue* boilerplate,
     HValue* object_elements;
     if (IsFastDoubleElementsKind(kind)) {
       HValue* elems_size = Add<HConstant>(FixedDoubleArray::SizeFor(length));
-      object_elements = Add<HAllocate>(elems_size, HType::JSArray(),
+      object_elements = Add<HAllocate>(elems_size, HType::Tagged(),
           NOT_TENURED, FIXED_DOUBLE_ARRAY_TYPE);
     } else {
       HValue* elems_size = Add<HConstant>(FixedArray::SizeFor(length));
-      object_elements = Add<HAllocate>(elems_size, HType::JSArray(),
+      object_elements = Add<HAllocate>(elems_size, HType::Tagged(),
           NOT_TENURED, FIXED_ARRAY_TYPE);
     }
     Add<HStoreNamedField>(object, HObjectAccess::ForElementsPointer(),
@@ -8533,7 +8533,7 @@ void HOptimizedGraphBuilder::GenerateTypedArrayInitialize(
     HValue* elements =
         Add<HAllocate>(
             Add<HConstant>(ExternalArray::kAlignedSize),
-            HType::JSArray(),
+            HType::Tagged(),
             NOT_TENURED,
             external_array_map->instance_type());
 
@@ -9788,10 +9788,10 @@ HInstruction* HOptimizedGraphBuilder::BuildFastLiteral(
         Add<HStoreNamedField>(object, HObjectAccess::ForElementsPointer(),
                               empty_fixed_array);
       }
-      object_elements = Add<HAllocate>(object_elements_size, HType::JSObject(),
+      object_elements = Add<HAllocate>(object_elements_size, HType::Tagged(),
           pretenure_flag, FIXED_DOUBLE_ARRAY_TYPE, site_context->current());
     } else {
-      object_elements = Add<HAllocate>(object_elements_size, HType::JSObject(),
+      object_elements = Add<HAllocate>(object_elements_size, HType::Tagged(),
           pretenure_flag, FIXED_ARRAY_TYPE, site_context->current());
     }
   }
