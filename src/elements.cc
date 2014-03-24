@@ -784,16 +784,6 @@ class ElementsAccessorBase : public ElementsAccessor {
     return obj;
   }
 
-  // TODO(ishell): Temporary wrapper until handlified.
-  MUST_USE_RESULT static Handle<FixedArray> SetFastElementsCapacityAndLength(
-      Handle<JSObject> obj,
-      int capacity,
-      int length) {
-    CALL_HEAP_FUNCTION(obj->GetIsolate(),
-                       SetFastElementsCapacityAndLength(*obj, capacity, length),
-                       FixedArray);
-  }
-
   MUST_USE_RESULT virtual Handle<Object> Delete(
       Handle<JSObject> obj,
       uint32_t key,
@@ -988,28 +978,28 @@ class FastElementsAccessor
 
   // Adjusts the length of the fast backing store or returns the new length or
   // undefined in case conversion to a slow backing store should be performed.
-  static Handle<Object> SetLengthWithoutNormalize(
-      Handle<FixedArrayBase> backing_store,
-      Handle<JSArray> array,
-      Handle<Object> length_object,
-      uint32_t length) {
-    Isolate* isolate = array->GetIsolate();
+  static MaybeObject* SetLengthWithoutNormalize(FixedArrayBase* backing_store,
+                                                JSArray* array,
+                                                Object* length_object,
+                                                uint32_t length) {
     uint32_t old_capacity = backing_store->length();
-    Handle<Object> old_length(array->length(), isolate);
+    Object* old_length = array->length();
     bool same_or_smaller_size = old_length->IsSmi() &&
-        static_cast<uint32_t>(Handle<Smi>::cast(old_length)->value()) >= length;
+        static_cast<uint32_t>(Smi::cast(old_length)->value()) >= length;
     ElementsKind kind = array->GetElementsKind();
 
     if (!same_or_smaller_size && IsFastElementsKind(kind) &&
         !IsFastHoleyElementsKind(kind)) {
       kind = GetHoleyElementsKind(kind);
-      JSObject::TransitionElementsKind(array, kind);
+      MaybeObject* maybe_obj = array->TransitionElementsKind(kind);
+      if (maybe_obj->IsFailure()) return maybe_obj;
     }
 
     // Check whether the backing store should be shrunk.
     if (length <= old_capacity) {
       if (array->HasFastSmiOrObjectElements()) {
-        backing_store = JSObject::EnsureWritableFastElements(array);
+        MaybeObject* maybe_obj = array->EnsureWritableFastElements();
+        if (!maybe_obj->To(&backing_store)) return maybe_obj;
       }
       if (2 * length <= old_capacity) {
         // If more than half the elements won't be used, trim the array.
@@ -1026,7 +1016,7 @@ class FastElementsAccessor
         // Otherwise, fill the unused tail with holes.
         int old_length = FastD2IChecked(array->length()->Number());
         for (int i = length; i < old_length; i++) {
-          Handle<BackingStore>::cast(backing_store)->set_the_hole(i);
+          BackingStore::cast(backing_store)->set_the_hole(i);
         }
       }
       return length_object;
@@ -1036,14 +1026,27 @@ class FastElementsAccessor
     uint32_t min = JSObject::NewElementsCapacity(old_capacity);
     uint32_t new_capacity = length > min ? length : min;
     if (!array->ShouldConvertToSlowElements(new_capacity)) {
-      FastElementsAccessorSubclass::
+      MaybeObject* result = FastElementsAccessorSubclass::
           SetFastElementsCapacityAndLength(array, new_capacity, length);
+      if (result->IsFailure()) return result;
       array->ValidateElements();
       return length_object;
     }
 
     // Request conversion to slow elements.
-    return isolate->factory()->undefined_value();
+    return array->GetHeap()->undefined_value();
+  }
+
+  // TODO(ishell): Temporary wrapper until handlified.
+  static Handle<Object> SetLengthWithoutNormalize(
+      Handle<FixedArrayBase> backing_store,
+      Handle<JSArray> array,
+      Handle<Object> length_object,
+      uint32_t length) {
+    CALL_HEAP_FUNCTION(array->GetIsolate(),
+                       SetLengthWithoutNormalize(
+                           *backing_store, *array, *length_object, length),
+                       Object);
   }
 
   static Handle<Object> DeleteCommon(Handle<JSObject> obj,
@@ -1241,16 +1244,6 @@ class FastSmiOrObjectElementsAccessor
                                                  length,
                                                  set_capacity_mode);
   }
-
-  // TODO(ishell): Temporary wrapper until handlified.
-  static Handle<FixedArray> SetFastElementsCapacityAndLength(
-      Handle<JSObject> obj,
-      int capacity,
-      int length) {
-    CALL_HEAP_FUNCTION(obj->GetIsolate(),
-                       SetFastElementsCapacityAndLength(*obj, capacity, length),
-                       FixedArray);
-  }
 };
 
 
@@ -1319,16 +1312,6 @@ class FastDoubleElementsAccessor
                                                        uint32_t length) {
     return obj->SetFastDoubleElementsCapacityAndLength(capacity,
                                                        length);
-  }
-
-  // TODO(ishell): Temporary wrapper until handlified.
-  static Handle<FixedArray> SetFastElementsCapacityAndLength(
-      Handle<JSObject> obj,
-      int capacity,
-      int length) {
-    CALL_HEAP_FUNCTION(obj->GetIsolate(),
-                       SetFastElementsCapacityAndLength(*obj, capacity, length),
-                       FixedArray);
   }
 
  protected:
