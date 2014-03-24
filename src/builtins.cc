@@ -300,33 +300,35 @@ static bool ArrayPrototypeHasNoElements(Heap* heap,
 }
 
 
+// Returns empty handle if not applicable.
 MUST_USE_RESULT
-static inline MaybeObject* EnsureJSArrayWithWritableFastElements(
-    Heap* heap, Object* receiver, Arguments* args, int first_added_arg) {
-  if (!receiver->IsJSArray()) return NULL;
-  JSArray* array = JSArray::cast(receiver);
-  if (array->map()->is_observed()) return NULL;
-  if (!array->map()->is_extensible()) return NULL;
-  HeapObject* elms = array->elements();
+static inline Handle<FixedArrayBase> EnsureJSArrayWithWritableFastElements(
+    Isolate* isolate,
+    Handle<Object> receiver,
+    Arguments* args,
+    int first_added_arg) {
+  if (!receiver->IsJSArray()) return Handle<FixedArrayBase>::null();
+  Handle<JSArray> array = Handle<JSArray>::cast(receiver);
+  if (array->map()->is_observed()) return Handle<FixedArrayBase>::null();
+  if (!array->map()->is_extensible()) return Handle<FixedArrayBase>::null();
+  Handle<FixedArrayBase> elms(array->elements());
+  Heap* heap = isolate->heap();
   Map* map = elms->map();
   if (map == heap->fixed_array_map()) {
     if (args == NULL || array->HasFastObjectElements()) return elms;
   } else if (map == heap->fixed_cow_array_map()) {
-    MaybeObject* maybe_writable_result = array->EnsureWritableFastElements();
-    if (args == NULL || array->HasFastObjectElements() ||
-        !maybe_writable_result->To(&elms)) {
-      return maybe_writable_result;
-    }
+    elms = JSObject::EnsureWritableFastElements(array);
+    if (args == NULL || array->HasFastObjectElements()) return elms;
   } else if (map == heap->fixed_double_array_map()) {
     if (args == NULL) return elms;
   } else {
-    return NULL;
+    return Handle<FixedArrayBase>::null();
   }
 
   // Need to ensure that the arguments passed in args can be contained in
   // the array.
   int args_length = args->length();
-  if (first_added_arg >= args_length) return array->elements();
+  if (first_added_arg >= args_length) return handle(array->elements());
 
   ElementsKind origin_kind = array->map()->elements_kind();
   ASSERT(!IsFastObjectElementsKind(origin_kind));
@@ -345,25 +347,10 @@ static inline MaybeObject* EnsureJSArrayWithWritableFastElements(
     }
   }
   if (target_kind != origin_kind) {
-    MaybeObject* maybe_failure = array->TransitionElementsKind(target_kind);
-    if (maybe_failure->IsFailure()) return maybe_failure;
-    return array->elements();
+    JSObject::TransitionElementsKind(array, target_kind);
+    return handle(array->elements());
   }
   return elms;
-}
-
-
-// TODO(ishell): Temporary wrapper until handlified.
-MUST_USE_RESULT
-static inline Handle<Object> EnsureJSArrayWithWritableFastElementsWrapper(
-    Isolate* isolate,
-    Handle<Object> receiver,
-    Arguments* args,
-    int first_added_arg) {
-  CALL_HEAP_FUNCTION(isolate,
-                     EnsureJSArrayWithWritableFastElements(
-                         isolate->heap(), *receiver, args, first_added_arg),
-                     Object);
 }
 
 
@@ -409,12 +396,10 @@ MUST_USE_RESULT static MaybeObject* CallJsBuiltin(
 BUILTIN(ArrayPush) {
   HandleScope scope(isolate);
   Handle<Object> receiver = args.receiver();
-  Handle<Object> elms_or_null =
-      EnsureJSArrayWithWritableFastElementsWrapper(isolate, receiver, &args, 1);
-  RETURN_IF_EMPTY_HANDLE(isolate, elms_or_null);
-  if (*elms_or_null == NULL) return CallJsBuiltin(isolate, "ArrayPush", args);
+  Handle<FixedArrayBase> elms_obj =
+      EnsureJSArrayWithWritableFastElements(isolate, receiver, &args, 1);
+  if (elms_obj.is_null()) return CallJsBuiltin(isolate, "ArrayPush", args);
 
-  Handle<FixedArrayBase> elms_obj = Handle<FixedArrayBase>::cast(elms_or_null);
   Handle<JSArray> array = Handle<JSArray>::cast(receiver);
   ASSERT(!array->map()->is_observed());
 
@@ -544,12 +529,10 @@ static Handle<Object> ElementsAccessorGetWrapper(
 BUILTIN(ArrayPop) {
   HandleScope scope(isolate);
   Handle<Object> receiver = args.receiver();
-  Handle<Object> elms_or_null =
-      EnsureJSArrayWithWritableFastElementsWrapper(isolate, receiver, NULL, 0);
-  RETURN_IF_EMPTY_HANDLE(isolate, elms_or_null);
-  if (*elms_or_null == NULL) return CallJsBuiltin(isolate, "ArrayPop", args);
+  Handle<FixedArrayBase> elms_obj =
+      EnsureJSArrayWithWritableFastElements(isolate, receiver, NULL, 0);
+  if (elms_obj.is_null()) return CallJsBuiltin(isolate, "ArrayPop", args);
 
-  Handle<FixedArrayBase> elms_obj = Handle<FixedArrayBase>::cast(elms_or_null);
   Handle<JSArray> array = Handle<JSArray>::cast(receiver);
   ASSERT(!array->map()->is_observed());
 
@@ -579,15 +562,13 @@ BUILTIN(ArrayShift) {
   HandleScope scope(isolate);
   Heap* heap = isolate->heap();
   Handle<Object> receiver = args.receiver();
-  Handle<Object> elms_or_null =
-      EnsureJSArrayWithWritableFastElementsWrapper(isolate, receiver, NULL, 0);
-  RETURN_IF_EMPTY_HANDLE(isolate, elms_or_null);
-  if ((*elms_or_null == NULL) ||
+  Handle<FixedArrayBase> elms_obj =
+      EnsureJSArrayWithWritableFastElements(isolate, receiver, NULL, 0);
+  if (elms_obj.is_null() ||
       !IsJSArrayFastElementMovingAllowed(heap,
                                          *Handle<JSArray>::cast(receiver))) {
     return CallJsBuiltin(isolate, "ArrayShift", args);
   }
-  Handle<FixedArrayBase> elms_obj = Handle<FixedArrayBase>::cast(elms_or_null);
   Handle<JSArray> array = Handle<JSArray>::cast(receiver);
   ASSERT(!array->map()->is_observed());
 
@@ -628,15 +609,13 @@ BUILTIN(ArrayUnshift) {
   HandleScope scope(isolate);
   Heap* heap = isolate->heap();
   Handle<Object> receiver = args.receiver();
-  Handle<Object> elms_or_null =
-      EnsureJSArrayWithWritableFastElementsWrapper(isolate, receiver, NULL, 0);
-  RETURN_IF_EMPTY_HANDLE(isolate, elms_or_null);
-  if ((*elms_or_null == NULL) ||
+  Handle<FixedArrayBase> elms_obj =
+      EnsureJSArrayWithWritableFastElements(isolate, receiver, NULL, 0);
+  if (elms_obj.is_null() ||
       !IsJSArrayFastElementMovingAllowed(heap,
                                          *Handle<JSArray>::cast(receiver))) {
     return CallJsBuiltin(isolate, "ArrayUnshift", args);
   }
-  Handle<FixedArrayBase> elms_obj = Handle<FixedArrayBase>::cast(elms_or_null);
   Handle<JSArray> array = Handle<JSArray>::cast(receiver);
   ASSERT(!array->map()->is_observed());
   if (!array->HasFastSmiOrObjectElements()) {
@@ -823,16 +802,13 @@ BUILTIN(ArraySplice) {
   HandleScope scope(isolate);
   Heap* heap = isolate->heap();
   Handle<Object> receiver = args.receiver();
-  Handle<Object> elms_or_null =
-      EnsureJSArrayWithWritableFastElementsWrapper(isolate, receiver, &args, 3);
-  RETURN_IF_EMPTY_HANDLE(isolate, elms_or_null);
-
-  if ((*elms_or_null == NULL) ||
+  Handle<FixedArrayBase> elms_obj =
+      EnsureJSArrayWithWritableFastElements(isolate, receiver, &args, 3);
+  if (elms_obj.is_null() ||
       !IsJSArrayFastElementMovingAllowed(heap,
                                          *Handle<JSArray>::cast(receiver))) {
     return CallJsBuiltin(isolate, "ArraySplice", args);
   }
-  Handle<FixedArrayBase> elms_obj = Handle<FixedArrayBase>::cast(elms_or_null);
   Handle<JSArray> array = Handle<JSArray>::cast(receiver);
   ASSERT(!array->map()->is_observed());
 
