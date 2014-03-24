@@ -589,20 +589,19 @@ Address Assembler::return_address_from_call_start(Address pc) {
   // sequences:
   //
   // Without relocation:
-  //  movz  ip0, #(target & 0x000000000000ffff)
-  //  movk  ip0, #(target & 0x00000000ffff0000)
-  //  movk  ip0, #(target & 0x0000ffff00000000)
-  //  movk  ip0, #(target & 0xffff000000000000)
-  //  blr   ip0
+  //  movz  temp, #(target & 0x000000000000ffff)
+  //  movk  temp, #(target & 0x00000000ffff0000)
+  //  movk  temp, #(target & 0x0000ffff00000000)
+  //  blr   temp
   //
   // With relocation:
-  //  ldr   ip0, =target
-  //  blr   ip0
+  //  ldr   temp, =target
+  //  blr   temp
   //
   // The return address is immediately after the blr instruction in both cases,
   // so it can be found by adding the call size to the address at the start of
   // the call sequence.
-  STATIC_ASSERT(Assembler::kCallSizeWithoutRelocation == 5 * kInstructionSize);
+  STATIC_ASSERT(Assembler::kCallSizeWithoutRelocation == 4 * kInstructionSize);
   STATIC_ASSERT(Assembler::kCallSizeWithRelocation == 2 * kInstructionSize);
 
   Instruction* instr = reinterpret_cast<Instruction*>(pc);
@@ -610,8 +609,7 @@ Address Assembler::return_address_from_call_start(Address pc) {
     // Verify the instruction sequence.
     ASSERT(instr->following(1)->IsMovk());
     ASSERT(instr->following(2)->IsMovk());
-    ASSERT(instr->following(3)->IsMovk());
-    ASSERT(instr->following(4)->IsBranchAndLinkToRegister());
+    ASSERT(instr->following(3)->IsBranchAndLinkToRegister());
     return pc + Assembler::kCallSizeWithoutRelocation;
   } else {
     // Verify the instruction sequence.

@@ -818,16 +818,15 @@ class Assembler : public AssemblerBase {
   // as it will choose the correct value for a given relocation mode.
   //
   // Without relocation:
-  //  movz  ip0, #(target & 0x000000000000ffff)
-  //  movk  ip0, #(target & 0x00000000ffff0000)
-  //  movk  ip0, #(target & 0x0000ffff00000000)
-  //  movk  ip0, #(target & 0xffff000000000000)
-  //  blr   ip0
+  //  movz  temp, #(target & 0x000000000000ffff)
+  //  movk  temp, #(target & 0x00000000ffff0000)
+  //  movk  temp, #(target & 0x0000ffff00000000)
+  //  blr   temp
   //
   // With relocation:
-  //  ldr   ip0, =target
-  //  blr   ip0
-  static const int kCallSizeWithoutRelocation = 5 * kInstructionSize;
+  //  ldr   temp, =target
+  //  blr   temp
+  static const int kCallSizeWithoutRelocation = 4 * kInstructionSize;
   static const int kCallSizeWithRelocation = 2 * kInstructionSize;
 
   // Size of the generated code in bytes

@@ -2024,11 +2024,13 @@ void MacroAssembler::Call(Address target, RelocInfo::Mode rmode) {
   Register temp = temps.AcquireX();
 
   if (rmode == RelocInfo::NONE64) {
+    // Addresses are 48 bits so we never need to load the upper 16 bits.
     uint64_t imm = reinterpret_cast<uint64_t>(target);
+    // If we don't use ARM tagged addresses, the 16 higher bits must be 0.
+    ASSERT(((imm >> 48) & 0xffff) == 0);
     movz(temp, (imm >> 0) & 0xffff, 0);
     movk(temp, (imm >> 16) & 0xffff, 16);
     movk(temp, (imm >> 32) & 0xffff, 32);
-    movk(temp, (imm >> 48) & 0xffff, 48);
   } else {
     LoadRelocated(temp, Operand(reinterpret_cast<intptr_t>(target), rmode));
   }
