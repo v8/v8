@@ -74,6 +74,7 @@
   'test-api/Threading2': [PASS, ['mode == debug', SLOW]],
   'test-api/Threading3': [PASS, ['mode == debug', SLOW]],
   'test-api/Threading4': [PASS, ['mode == debug', SLOW]],
+  'test-strings/StringOOM*': [PASS, ['mode == debug', SLOW]],
 }],  # ALWAYS
 
 ##############################################################################

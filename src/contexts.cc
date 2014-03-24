@@ -368,7 +368,7 @@ Handle<Object> Context::ErrorMessageForCodeGenerationFromStrings() {
   Handle<Object> result(error_message_for_code_gen_from_strings(),
                         GetIsolate());
   if (!result->IsUndefined()) return result;
-  return GetIsolate()->factory()->NewStringFromAscii(i::CStrVector(
+  return GetIsolate()->factory()->NewStringFromOneByte(STATIC_ASCII_VECTOR(
       "Code generation from strings disallowed for this context"));
 }
 
