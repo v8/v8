@@ -214,14 +214,14 @@ void MacroAssembler::ClampDoubleToUint8(XMMRegister input_reg,
                                         Register result_reg) {
   Label done;
   Label conv_failure;
-  pxor(scratch_reg, scratch_reg);
+  xorps(scratch_reg, scratch_reg);
   cvtsd2si(result_reg, input_reg);
   test(result_reg, Immediate(0xFFFFFF00));
   j(zero, &done, Label::kNear);
-  cmp(result_reg, Immediate(0x80000000));
-  j(equal, &conv_failure, Label::kNear);
+  cmp(result_reg, Immediate(0x1));
+  j(overflow, &conv_failure, Label::kNear);
   mov(result_reg, Immediate(0));
-  setcc(above, result_reg);
+  setcc(sign, result_reg);
   sub(result_reg, Immediate(1));
   and_(result_reg, Immediate(255));
   jmp(&done, Label::kNear);
@@ -256,8 +256,8 @@ void MacroAssembler::TruncateDoubleToI(Register result_reg,
                                        XMMRegister input_reg) {
   Label done;
   cvttsd2si(result_reg, Operand(input_reg));
-  cmp(result_reg, 0x80000000u);
-  j(not_equal, &done, Label::kNear);
+  cmp(result_reg, 0x1);
+  j(no_overflow, &done, Label::kNear);
 
   sub(esp, Immediate(kDoubleSize));
   movsd(MemOperand(esp, 0), input_reg);
@@ -374,8 +374,8 @@ void MacroAssembler::TruncateHeapNumberToI(Register result_reg,
     CpuFeatureScope scope(this, SSE2);
     movsd(xmm0, FieldOperand(input_reg, HeapNumber::kValueOffset));
     cvttsd2si(result_reg, Operand(xmm0));
-    cmp(result_reg, 0x80000000u);
-    j(not_equal, &done, Label::kNear);
+    cmp(result_reg, 0x1);
+    j(no_overflow, &done, Label::kNear);
     // Check if the input was 0x8000000 (kMinInt).
     // If no, then we got an overflow and we deoptimize.
     ExternalReference min_int = ExternalReference::address_of_min_int();

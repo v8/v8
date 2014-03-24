@@ -845,8 +845,8 @@ void MathPowStub::Generate(MacroAssembler* masm) {
     __ bind(&try_arithmetic_simplification);
     // Skip to runtime if possibly NaN (indicated by the indefinite integer).
     __ cvttsd2si(exponent, Operand(double_exponent));
-    __ cmp(exponent, Immediate(0x80000000u));
-    __ j(equal, &call_runtime);
+    __ cmp(exponent, Immediate(0x1));
+    __ j(overflow, &call_runtime);
 
     if (exponent_type_ == ON_STACK) {
       // Detect square root case.  Crankshaft detects constant +/-0.5 at

@@ -3154,10 +3154,10 @@ void MacroAssembler::ClampDoubleToUint8(XMMRegister input_reg,
   cvtsd2si(result_reg, input_reg);
   testl(result_reg, Immediate(0xFFFFFF00));
   j(zero, &done, Label::kNear);
-  cmpl(result_reg, Immediate(0x80000000));
-  j(equal, &conv_failure, Label::kNear);
+  cmpl(result_reg, Immediate(1));
+  j(overflow, &conv_failure, Label::kNear);
   movl(result_reg, Immediate(0));
-  setcc(above, result_reg);
+  setcc(sign, result_reg);
   subl(result_reg, Immediate(1));
   andl(result_reg, Immediate(255));
   jmp(&done, Label::kNear);
@@ -3194,9 +3194,8 @@ void MacroAssembler::TruncateHeapNumberToI(Register result_reg,
   Label done;
   movsd(xmm0, FieldOperand(input_reg, HeapNumber::kValueOffset));
   cvttsd2siq(result_reg, xmm0);
-  Set(kScratchRegister, V8_UINT64_C(0x8000000000000000));
-  cmpq(result_reg, kScratchRegister);
-  j(not_equal, &done, Label::kNear);
+  cmpq(result_reg, Immediate(1));
+  j(no_overflow, &done, Label::kNear);
 
   // Slow case.
   if (input_reg.is(result_reg)) {
@@ -3216,9 +3215,8 @@ void MacroAssembler::TruncateDoubleToI(Register result_reg,
                                        XMMRegister input_reg) {
   Label done;
   cvttsd2siq(result_reg, input_reg);
-  movq(kScratchRegister, V8_INT64_C(0x8000000000000000));
-  cmpq(result_reg, kScratchRegister);
-  j(not_equal, &done, Label::kNear);
+  cmpq(result_reg, Immediate(1));
+  j(no_overflow, &done, Label::kNear);
 
   subp(rsp, Immediate(kDoubleSize));
   movsd(MemOperand(rsp, 0), input_reg);

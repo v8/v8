@@ -3116,8 +3116,8 @@ void FullCodeGenerator::EmitIsMinusZero(CallRuntime* expr) {
   Handle<Map> map = masm()->isolate()->factory()->heap_number_map();
   __ CheckMap(rax, map, if_false, DO_SMI_CHECK);
   __ cmpl(FieldOperand(rax, HeapNumber::kExponentOffset),
-          Immediate(0x80000000));
-  __ j(not_equal, if_false);
+          Immediate(0x1));
+  __ j(no_overflow, if_false);
   __ cmpl(FieldOperand(rax, HeapNumber::kMantissaOffset),
           Immediate(0x00000000));
   PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);

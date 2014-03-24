@@ -2261,8 +2261,8 @@ void LCodeGen::DoCompareMinusZeroAndBranch(LCompareMinusZeroAndBranch* instr) {
     Handle<Map> map = masm()->isolate()->factory()->heap_number_map();
     __ CheckMap(value, map, instr->FalseLabel(chunk()), DO_SMI_CHECK);
     __ cmpl(FieldOperand(value, HeapNumber::kExponentOffset),
-            Immediate(0x80000000));
-    EmitFalseBranch(instr, not_equal);
+            Immediate(0x1));
+    EmitFalseBranch(instr, no_overflow);
     __ cmpl(FieldOperand(value, HeapNumber::kMantissaOffset),
             Immediate(0x00000000));
     EmitBranch(instr, equal);
@@ -3577,8 +3577,8 @@ void LCodeGen::DoMathFloor(LMathFloor* instr) {
     }
     __ roundsd(xmm_scratch, input_reg, Assembler::kRoundDown);
     __ cvttsd2si(output_reg, xmm_scratch);
-    __ cmpl(output_reg, Immediate(0x80000000));
-    DeoptimizeIf(equal, instr->environment());
+    __ cmpl(output_reg, Immediate(0x1));
+    DeoptimizeIf(overflow, instr->environment());
   } else {
     Label negative_sign, done;
     // Deoptimize on unordered.
@@ -3602,8 +3602,8 @@ void LCodeGen::DoMathFloor(LMathFloor* instr) {
     // Use truncating instruction (OK because input is positive).
     __ cvttsd2si(output_reg, input_reg);
     // Overflow is signalled with minint.
-    __ cmpl(output_reg, Immediate(0x80000000));
-    DeoptimizeIf(equal, instr->environment());
+    __ cmpl(output_reg, Immediate(0x1));
+    DeoptimizeIf(overflow, instr->environment());
     __ jmp(&done, Label::kNear);
 
     // Non-zero negative reaches here.
@@ -3640,9 +3640,9 @@ void LCodeGen::DoMathRound(LMathRound* instr) {
   __ addsd(xmm_scratch, input_reg);
   __ cvttsd2si(output_reg, xmm_scratch);
   // Overflow is signalled with minint.
-  __ cmpl(output_reg, Immediate(0x80000000));
+  __ cmpl(output_reg, Immediate(0x1));
   __ RecordComment("D2I conversion overflow");
-  DeoptimizeIf(equal, instr->environment());
+  DeoptimizeIf(overflow, instr->environment());
   __ jmp(&done, dist);
 
   __ bind(&below_one_half);
@@ -3657,9 +3657,9 @@ void LCodeGen::DoMathRound(LMathRound* instr) {
   __ subsd(input_temp, xmm_scratch);
   __ cvttsd2si(output_reg, input_temp);
   // Catch minint due to overflow, and to prevent overflow when compensating.
-  __ cmpl(output_reg, Immediate(0x80000000));
+  __ cmpl(output_reg, Immediate(0x1));
   __ RecordComment("D2I conversion overflow");
-  DeoptimizeIf(equal, instr->environment());
+  DeoptimizeIf(overflow, instr->environment());
 
   __ Cvtlsi2sd(xmm_scratch, output_reg);
   __ ucomisd(xmm_scratch, input_temp);
@@ -4691,8 +4691,8 @@ void LCodeGen::DoSmiTag(LSmiTag* instr) {
   Register output = ToRegister(instr->result());
   if (hchange->CheckFlag(HValue::kCanOverflow) &&
       hchange->value()->CheckFlag(HValue::kUint32)) {
-    __ testl(input, Immediate(0x80000000));
-    DeoptimizeIf(not_zero, instr->environment());
+    __ testl(input, input);
+    DeoptimizeIf(sign, instr->environment());
   }
   __ Integer32ToSmi(output, input);
   if (hchange->CheckFlag(HValue::kCanOverflow) &&
@@ -5087,7 +5087,7 @@ void LCodeGen::DoClampTToUint8(LClampTToUint8* instr) {
   // conversions.
   __ Cmp(input_reg, factory()->undefined_value());
   DeoptimizeIf(not_equal, instr->environment());
-  __ movp(input_reg, Immediate(0));
+  __ xorl(input_reg, input_reg);
   __ jmp(&done, Label::kNear);
 
   // Heap number
