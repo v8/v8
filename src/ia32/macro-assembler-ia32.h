@@ -287,7 +287,7 @@ class MacroAssembler: public Assembler {
     if (object->IsHeapObject()) {
       LoadHeapObject(result, Handle<HeapObject>::cast(object));
     } else {
-      Set(result, Immediate(object));
+      Move(result, Immediate(object));
     }
   }
 
@@ -350,9 +350,6 @@ class MacroAssembler: public Assembler {
   void GetBuiltinEntry(Register target, Builtins::JavaScript id);
 
   // Expression support
-  void Set(Register dst, const Immediate& x);
-  void Set(const Operand& dst, const Immediate& x);
-
   // cvtsi2sd instruction only writes to the low 64-bit of dst register, which
   // hinders register renaming and makes dependence chains longer. So we use
   // xorps to clear the dst register before cvtsi2sd to solve this issue.
@@ -361,7 +358,7 @@ class MacroAssembler: public Assembler {
 
   // Support for constant splitting.
   bool IsUnsafeImmediate(const Immediate& x);
-  void SafeSet(Register dst, const Immediate& x);
+  void SafeMove(Register dst, const Immediate& x);
   void SafePush(const Immediate& x);
 
   // Compare object type for heap object.
@@ -847,8 +844,9 @@ class MacroAssembler: public Assembler {
   // Move if the registers are not identical.
   void Move(Register target, Register source);
 
-  // Move a constant into a register using the most efficient encoding.
-  void Move(Register dst, Immediate imm);
+  // Move a constant into a destination using the most efficient encoding.
+  void Move(Register dst, const Immediate& x);
+  void Move(const Operand& dst, const Immediate& x);
 
   // Move an immediate into an XMM register.
   void Move(XMMRegister dst, double val);

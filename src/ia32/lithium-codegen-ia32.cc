@@ -199,7 +199,7 @@ bool LCodeGen::GeneratePrologue() {
 
     if (support_aligned_spilled_doubles_ && dynamic_frame_alignment_) {
       // Move state of dynamic frame alignment into edx.
-      __ Set(edx, Immediate(kNoAlignmentPadding));
+      __ Move(edx, Immediate(kNoAlignmentPadding));
 
       Label do_not_pad, align_loop;
       STATIC_ASSERT(kDoubleSize == 2 * kPointerSize);
@@ -346,7 +346,7 @@ void LCodeGen::GenerateOsrPrologue() {
   osr_pc_offset_ = masm()->pc_offset();
 
     // Move state of dynamic frame alignment into edx.
-  __ Set(edx, Immediate(kNoAlignmentPadding));
+  __ Move(edx, Immediate(kNoAlignmentPadding));
 
   if (support_aligned_spilled_doubles_ && dynamic_frame_alignment_) {
     Label do_not_pad, align_loop;
@@ -1464,7 +1464,7 @@ void LCodeGen::DoModI(LModI* instr) {
       DeoptimizeIf(equal, instr->environment());
     } else {
       __ j(not_equal, &no_overflow_possible, Label::kNear);
-      __ Set(result_reg, Immediate(0));
+      __ Move(result_reg, Immediate(0));
       __ jmp(&done, Label::kNear);
     }
     __ bind(&no_overflow_possible);
@@ -1926,12 +1926,12 @@ void LCodeGen::DoSubI(LSubI* instr) {
 
 
 void LCodeGen::DoConstantI(LConstantI* instr) {
-  __ Set(ToRegister(instr->result()), Immediate(instr->value()));
+  __ Move(ToRegister(instr->result()), Immediate(instr->value()));
 }
 
 
 void LCodeGen::DoConstantS(LConstantS* instr) {
-  __ Set(ToRegister(instr->result()), Immediate(instr->value()));
+  __ Move(ToRegister(instr->result()), Immediate(instr->value()));
 }
 
 
@@ -1958,22 +1958,22 @@ void LCodeGen::DoConstantD(LConstantD* instr) {
       if (CpuFeatures::IsSupported(SSE4_1)) {
         CpuFeatureScope scope2(masm(), SSE4_1);
         if (lower != 0) {
-          __ Set(temp, Immediate(lower));
+          __ Move(temp, Immediate(lower));
           __ movd(res, Operand(temp));
-          __ Set(temp, Immediate(upper));
+          __ Move(temp, Immediate(upper));
           __ pinsrd(res, Operand(temp), 1);
         } else {
           __ xorps(res, res);
-          __ Set(temp, Immediate(upper));
+          __ Move(temp, Immediate(upper));
           __ pinsrd(res, Operand(temp), 1);
         }
       } else {
-        __ Set(temp, Immediate(upper));
+        __ Move(temp, Immediate(upper));
         __ movd(res, Operand(temp));
         __ psllq(res, 32);
         if (lower != 0) {
           XMMRegister xmm_scratch = double_scratch0();
-          __ Set(temp, Immediate(lower));
+          __ Move(temp, Immediate(lower));
           __ movd(xmm_scratch, Operand(temp));
           __ orps(res, xmm_scratch);
         }
@@ -3972,7 +3972,7 @@ void LCodeGen::DoMathFloor(LMathFloor* instr) {
       __ movmskpd(output_reg, input_reg);
       __ test(output_reg, Immediate(1));
       DeoptimizeIf(not_zero, instr->environment());
-      __ Set(output_reg, Immediate(0));
+      __ Move(output_reg, Immediate(0));
       __ jmp(&done, Label::kNear);
       __ bind(&positive_sign);
     }
@@ -4057,7 +4057,7 @@ void LCodeGen::DoMathRound(LMathRound* instr) {
     __ RecordComment("Minus zero");
     DeoptimizeIf(not_zero, instr->environment());
   }
-  __ Set(output_reg, Immediate(0));
+  __ Move(output_reg, Immediate(0));
   __ bind(&done);
 }
 
@@ -4178,7 +4178,7 @@ void LCodeGen::DoMathClz32(LMathClz32* instr) {
   __ bsr(result, input);
 
   __ j(not_zero, &not_zero_input);
-  __ Set(result, Immediate(63));  // 63^31 == 32
+  __ Move(result, Immediate(63));  // 63^31 == 32
 
   __ bind(&not_zero_input);
   __ xor_(result, Immediate(31));  // for x in [0..31], 31^x == 31-x.
@@ -4238,7 +4238,7 @@ void LCodeGen::DoCallNew(LCallNew* instr) {
   // No cell in ebx for construct type feedback in optimized code
   __ mov(ebx, isolate()->factory()->undefined_value());
   CallConstructStub stub(NO_CALL_FUNCTION_FLAGS);
-  __ Set(eax, Immediate(instr->arity()));
+  __ Move(eax, Immediate(instr->arity()));
   CallCode(stub.GetCode(isolate()), RelocInfo::CONSTRUCT_CALL, instr);
 }
 
@@ -4248,7 +4248,7 @@ void LCodeGen::DoCallNewArray(LCallNewArray* instr) {
   ASSERT(ToRegister(instr->constructor()).is(edi));
   ASSERT(ToRegister(instr->result()).is(eax));
 
-  __ Set(eax, Immediate(instr->arity()));
+  __ Move(eax, Immediate(instr->arity()));
   __ mov(ebx, isolate()->factory()->undefined_value());
   ElementsKind kind = instr->hydrogen()->elements_kind();
   AllocationSiteOverrideMode override_mode =
@@ -4790,7 +4790,7 @@ void LCodeGen::DoDeferredStringCharCodeAt(LStringCharCodeAt* instr) {
   // TODO(3095996): Get rid of this. For now, we need to make the
   // result register contain a valid pointer because it is already
   // contained in the register pointer map.
-  __ Set(result, Immediate(0));
+  __ Move(result, Immediate(0));
 
   PushSafepointRegistersScope scope(this);
   __ push(string);
@@ -4839,7 +4839,7 @@ void LCodeGen::DoStringCharFromCode(LStringCharFromCode* instr) {
 
   __ cmp(char_code, String::kMaxOneByteCharCode);
   __ j(above, deferred->entry());
-  __ Set(result, Immediate(factory()->single_character_string_cache()));
+  __ Move(result, Immediate(factory()->single_character_string_cache()));
   __ mov(result, FieldOperand(result,
                               char_code, times_pointer_size,
                               FixedArray::kHeaderSize));
@@ -4856,7 +4856,7 @@ void LCodeGen::DoDeferredStringCharFromCode(LStringCharFromCode* instr) {
   // TODO(3095996): Get rid of this. For now, we need to make the
   // result register contain a valid pointer because it is already
   // contained in the register pointer map.
-  __ Set(result, Immediate(0));
+  __ Move(result, Immediate(0));
 
   PushSafepointRegistersScope scope(this);
   __ SmiTag(char_code);
@@ -5021,7 +5021,7 @@ void LCodeGen::DoDeferredNumberTagIU(LInstruction* instr,
     // TODO(3095996): Put a valid pointer value in the stack slot where the
     // result register is stored, as this register is in the pointer map, but
     // contains an integer value.
-    __ Set(reg, Immediate(0));
+    __ Move(reg, Immediate(0));
 
     // Preserve the value of all registers.
     PushSafepointRegistersScope scope(this);
@@ -5098,7 +5098,7 @@ void LCodeGen::DoDeferredNumberTagD(LNumberTagD* instr) {
   // result register contain a valid pointer because it is already
   // contained in the register pointer map.
   Register reg = ToRegister(instr->result());
-  __ Set(reg, Immediate(0));
+  __ Move(reg, Immediate(0));
 
   PushSafepointRegistersScope scope(this);
   // NumberTagI and NumberTagD use the context from the frame, rather than
@@ -5298,20 +5298,20 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr, Label* done) {
     // for truncating conversions.
     __ cmp(input_reg, factory()->undefined_value());
     __ j(not_equal, &check_bools, Label::kNear);
-    __ Set(input_reg, Immediate(0));
+    __ Move(input_reg, Immediate(0));
     __ jmp(done);
 
     __ bind(&check_bools);
     __ cmp(input_reg, factory()->true_value());
     __ j(not_equal, &check_false, Label::kNear);
-    __ Set(input_reg, Immediate(1));
+    __ Move(input_reg, Immediate(1));
     __ jmp(done);
 
     __ bind(&check_false);
     __ cmp(input_reg, factory()->false_value());
     __ RecordComment("Deferred TaggedToI: cannot truncate");
     DeoptimizeIf(not_equal, instr->environment());
-    __ Set(input_reg, Immediate(0));
+    __ Move(input_reg, Immediate(0));
   } else {
     Label bailout;
     XMMRegister scratch = (instr->temp() != NULL)
@@ -5902,7 +5902,7 @@ void LCodeGen::DoDeferredAllocate(LAllocate* instr) {
   // TODO(3095996): Get rid of this. For now, we need to make the
   // result register contain a valid pointer because it is already
   // contained in the register pointer map.
-  __ Set(result, Immediate(Smi::FromInt(0)));
+  __ Move(result, Immediate(Smi::FromInt(0)));
 
   PushSafepointRegistersScope scope(this);
   if (instr->size()->IsRegister()) {

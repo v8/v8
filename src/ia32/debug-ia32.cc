@@ -138,7 +138,7 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
 #ifdef DEBUG
     __ RecordComment("// Calling from debug break to runtime - come in - over");
 #endif
-    __ Set(eax, Immediate(0));  // No arguments.
+    __ Move(eax, Immediate(0));  // No arguments.
     __ mov(ebx, Immediate(ExternalReference::debug_break(masm->isolate())));
 
     CEntryStub ceb(1);
@@ -154,7 +154,7 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
       int r = JSCallerSavedCode(i);
       Register reg = { r };
       if (FLAG_debug_code) {
-        __ Set(reg, Immediate(kDebugZapValue));
+        __ Move(reg, Immediate(kDebugZapValue));
       }
       bool taken = reg.code() == esi.code();
       if ((object_regs & (1 << r)) != 0) {

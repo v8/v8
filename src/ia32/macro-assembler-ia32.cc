@@ -226,10 +226,10 @@ void MacroAssembler::ClampDoubleToUint8(XMMRegister input_reg,
   and_(result_reg, Immediate(255));
   jmp(&done, Label::kNear);
   bind(&conv_failure);
-  Set(result_reg, Immediate(0));
+  Move(result_reg, Immediate(0));
   ucomisd(input_reg, scratch_reg);
   j(below, &done, Label::kNear);
-  Set(result_reg, Immediate(255));
+  Move(result_reg, Immediate(255));
   bind(&done);
 }
 
@@ -715,7 +715,7 @@ void MacroAssembler::RecordWrite(Register object,
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
 void MacroAssembler::DebugBreak() {
-  Set(eax, Immediate(0));
+  Move(eax, Immediate(0));
   mov(ebx, Immediate(ExternalReference(Runtime::kDebugBreak, isolate())));
   CEntryStub ces(1);
   call(ces.GetCode(isolate()), RelocInfo::DEBUG_BREAK);
@@ -729,20 +729,6 @@ void MacroAssembler::Cvtsi2sd(XMMRegister dst, const Operand& src) {
 }
 
 
-void MacroAssembler::Set(Register dst, const Immediate& x) {
-  if (x.is_zero()) {
-    xor_(dst, dst);  // Shorter than mov.
-  } else {
-    mov(dst, x);
-  }
-}
-
-
-void MacroAssembler::Set(const Operand& dst, const Immediate& x) {
-  mov(dst, x);
-}
-
-
 bool MacroAssembler::IsUnsafeImmediate(const Immediate& x) {
   static const int kMaxImmediateBits = 17;
   if (!RelocInfo::IsNone(x.rmode_)) return false;
@@ -750,12 +736,12 @@ bool MacroAssembler::IsUnsafeImmediate(const Immediate& x) {
 }
 
 
-void MacroAssembler::SafeSet(Register dst, const Immediate& x) {
+void MacroAssembler::SafeMove(Register dst, const Immediate& x) {
   if (IsUnsafeImmediate(x) && jit_cookie() != 0) {
-    Set(dst, Immediate(x.x_ ^ jit_cookie()));
+    Move(dst, Immediate(x.x_ ^ jit_cookie()));
     xor_(dst, jit_cookie());
   } else {
-    Set(dst, x);
+    Move(dst, x);
   }
 }
 
@@ -2258,7 +2244,7 @@ void MacroAssembler::CallRuntime(const Runtime::Function* f,
   // arguments passed in because it is constant. At some point we
   // should remove this need and make the runtime routine entry code
   // smarter.
-  Set(eax, Immediate(num_arguments));
+  Move(eax, Immediate(num_arguments));
   mov(ebx, Immediate(ExternalReference(f, isolate())));
   CEntryStub ces(1, CpuFeatures::IsSupported(SSE2) ? save_doubles
                                                    : kDontSaveFPRegs);
@@ -2283,7 +2269,7 @@ void MacroAssembler::TailCallExternalReference(const ExternalReference& ext,
   // arguments passed in because it is constant. At some point we
   // should remove this need and make the runtime routine entry code
   // smarter.
-  Set(eax, Immediate(num_arguments));
+  Move(eax, Immediate(num_arguments));
   JumpToExternalReference(ext);
 }
 
@@ -2847,12 +2833,17 @@ void MacroAssembler::Move(Register dst, Register src) {
 }
 
 
-void MacroAssembler::Move(Register dst, Immediate imm) {
-  if (imm.is_zero()) {
-    xor_(dst, dst);
+void MacroAssembler::Move(Register dst, const Immediate& x) {
+  if (x.is_zero()) {
+    xor_(dst, dst);  // Shorter than mov of 32-bit immediate 0.
   } else {
-    mov(dst, imm);
+    mov(dst, x);
   }
+}
+
+
+void MacroAssembler::Move(const Operand& dst, const Immediate& x) {
+  mov(dst, x);
 }
 
 
