@@ -592,7 +592,9 @@ class ElementsAccessorBase : public ElementsAccessor {
   typedef ElementsTraitsParam ElementsTraits;
   typedef typename ElementsTraitsParam::BackingStore BackingStore;
 
-  virtual ElementsKind kind() const { return ElementsTraits::Kind; }
+  virtual ElementsKind kind() const V8_FINAL V8_OVERRIDE {
+    return ElementsTraits::Kind;
+  }
 
   static void ValidateContents(JSObject* holder, int length) {
   }
@@ -616,7 +618,7 @@ class ElementsAccessorBase : public ElementsAccessor {
     ElementsAccessorSubclass::ValidateContents(holder, length);
   }
 
-  virtual void Validate(JSObject* holder) {
+  virtual void Validate(JSObject* holder) V8_FINAL V8_OVERRIDE {
     ElementsAccessorSubclass::ValidateImpl(holder);
   }
 
@@ -631,7 +633,7 @@ class ElementsAccessorBase : public ElementsAccessor {
   virtual bool HasElement(Object* receiver,
                           JSObject* holder,
                           uint32_t key,
-                          FixedArrayBase* backing_store) {
+                          FixedArrayBase* backing_store) V8_FINAL V8_OVERRIDE {
     if (backing_store == NULL) {
       backing_store = holder->elements();
     }
@@ -644,7 +646,7 @@ class ElementsAccessorBase : public ElementsAccessor {
       Handle<Object> receiver,
       Handle<JSObject> holder,
       uint32_t key,
-      Handle<FixedArrayBase> backing_store) {
+      Handle<FixedArrayBase> backing_store) V8_FINAL V8_OVERRIDE {
     CALL_HEAP_FUNCTION(holder->GetIsolate(),
                        Get(*receiver, *holder, key,
                            backing_store.is_null()
@@ -652,10 +654,11 @@ class ElementsAccessorBase : public ElementsAccessor {
                        Object);
   }
 
-  MUST_USE_RESULT virtual MaybeObject* Get(Object* receiver,
-                                           JSObject* holder,
-                                           uint32_t key,
-                                           FixedArrayBase* backing_store) {
+  MUST_USE_RESULT virtual MaybeObject* Get(
+      Object* receiver,
+      JSObject* holder,
+      uint32_t key,
+      FixedArrayBase* backing_store) V8_FINAL V8_OVERRIDE {
     if (backing_store == NULL) {
       backing_store = holder->elements();
     }
@@ -687,7 +690,7 @@ class ElementsAccessorBase : public ElementsAccessor {
       Object* receiver,
       JSObject* holder,
       uint32_t key,
-      FixedArrayBase* backing_store) {
+      FixedArrayBase* backing_store) V8_FINAL V8_OVERRIDE {
     if (backing_store == NULL) {
       backing_store = holder->elements();
     }
@@ -710,7 +713,7 @@ class ElementsAccessorBase : public ElementsAccessor {
       Object* receiver,
       JSObject* holder,
       uint32_t key,
-      FixedArrayBase* backing_store) {
+      FixedArrayBase* backing_store) V8_FINAL V8_OVERRIDE {
     if (backing_store == NULL) {
       backing_store = holder->elements();
     }
@@ -734,7 +737,7 @@ class ElementsAccessorBase : public ElementsAccessor {
       Object* receiver,
       JSObject* holder,
       uint32_t key,
-      FixedArrayBase* backing_store) {
+      FixedArrayBase* backing_store) V8_FINAL V8_OVERRIDE {
     if (backing_store == NULL) {
       backing_store = holder->elements();
     }
@@ -752,7 +755,7 @@ class ElementsAccessorBase : public ElementsAccessor {
 
   MUST_USE_RESULT virtual Handle<Object> SetLength(
       Handle<JSArray> array,
-      Handle<Object> length) {
+      Handle<Object> length) V8_FINAL V8_OVERRIDE {
     Isolate* isolate = array->GetIsolate();
     return ElementsAccessorSubclass::SetLengthImpl(
         array, length, handle(array->elements(), isolate));
@@ -766,7 +769,7 @@ class ElementsAccessorBase : public ElementsAccessor {
   MUST_USE_RESULT virtual MaybeObject* SetCapacityAndLength(
       JSArray* array,
       int capacity,
-      int length) {
+      int length) V8_FINAL V8_OVERRIDE {
     return ElementsAccessorSubclass::SetFastElementsCapacityAndLength(
         array,
         capacity,
@@ -784,7 +787,7 @@ class ElementsAccessorBase : public ElementsAccessor {
   MUST_USE_RESULT virtual Handle<Object> Delete(
       Handle<JSObject> obj,
       uint32_t key,
-      JSReceiver::DeleteMode mode) = 0;
+      JSReceiver::DeleteMode mode) V8_OVERRIDE = 0;
 
   MUST_USE_RESULT static MaybeObject* CopyElementsImpl(FixedArrayBase* from,
                                                        uint32_t from_start,
@@ -821,20 +824,21 @@ class ElementsAccessorBase : public ElementsAccessor {
       Handle<FixedArrayBase> to,
       uint32_t to_start,
       int copy_size,
-      Handle<FixedArrayBase> from) {
+      Handle<FixedArrayBase> from) V8_FINAL V8_OVERRIDE {
     Handle<Object> result = CopyElementsHelper(
         from_holder, from_start, from_kind, to, to_start, copy_size, from);
     ASSERT(!result.is_null());
     USE(result);
   }
 
-  MUST_USE_RESULT virtual MaybeObject* CopyElements(JSObject* from_holder,
-                                                    uint32_t from_start,
-                                                    ElementsKind from_kind,
-                                                    FixedArrayBase* to,
-                                                    uint32_t to_start,
-                                                    int copy_size,
-                                                    FixedArrayBase* from) {
+  MUST_USE_RESULT virtual MaybeObject* CopyElements(
+      JSObject* from_holder,
+      uint32_t from_start,
+      ElementsKind from_kind,
+      FixedArrayBase* to,
+      uint32_t to_start,
+      int copy_size,
+      FixedArrayBase* from) V8_FINAL V8_OVERRIDE {
     int packed_size = kPackedSizeNotKnown;
     if (from == NULL) {
       from = from_holder->elements();
@@ -858,7 +862,7 @@ class ElementsAccessorBase : public ElementsAccessor {
       Object* receiver,
       JSObject* holder,
       FixedArray* to,
-      FixedArrayBase* from) {
+      FixedArrayBase* from) V8_FINAL V8_OVERRIDE {
     int len0 = to->length();
 #ifdef ENABLE_SLOW_ASSERTS
     if (FLAG_enable_slow_asserts) {
@@ -936,7 +940,8 @@ class ElementsAccessorBase : public ElementsAccessor {
     return backing_store->length();
   }
 
-  virtual uint32_t GetCapacity(FixedArrayBase* backing_store) {
+  virtual uint32_t GetCapacity(FixedArrayBase* backing_store)
+      V8_FINAL V8_OVERRIDE {
     return ElementsAccessorSubclass::GetCapacityImpl(backing_store);
   }
 
@@ -946,7 +951,7 @@ class ElementsAccessorBase : public ElementsAccessor {
   }
 
   virtual uint32_t GetKeyForIndex(FixedArrayBase* backing_store,
-                                  uint32_t index) {
+                                  uint32_t index) V8_FINAL V8_OVERRIDE {
     return ElementsAccessorSubclass::GetKeyForIndexImpl(backing_store, index);
   }
 
@@ -1102,9 +1107,10 @@ class FastElementsAccessor
     return isolate->factory()->true_value();
   }
 
-  virtual Handle<Object> Delete(Handle<JSObject> obj,
-                                uint32_t key,
-                                JSReceiver::DeleteMode mode) {
+  virtual Handle<Object> Delete(
+      Handle<JSObject> obj,
+      uint32_t key,
+      JSReceiver::DeleteMode mode) V8_FINAL V8_OVERRIDE {
     return DeleteCommon(obj, key, mode);
   }
 
@@ -1436,9 +1442,10 @@ class TypedElementsAccessor
     return obj;
   }
 
-  MUST_USE_RESULT virtual Handle<Object> Delete(Handle<JSObject> obj,
-                                                uint32_t key,
-                                                JSReceiver::DeleteMode mode) {
+  MUST_USE_RESULT virtual Handle<Object> Delete(
+      Handle<JSObject> obj,
+      uint32_t key,
+      JSReceiver::DeleteMode mode) V8_FINAL V8_OVERRIDE {
     // External arrays always ignore deletes.
     return obj->GetIsolate()->factory()->true_value();
   }
@@ -1621,9 +1628,10 @@ class DictionaryElementsAccessor
   friend class ElementsAccessorBase<DictionaryElementsAccessor,
                                     ElementsKindTraits<DICTIONARY_ELEMENTS> >;
 
-  MUST_USE_RESULT virtual Handle<Object> Delete(Handle<JSObject> obj,
-                                                uint32_t key,
-                                                JSReceiver::DeleteMode mode) {
+  MUST_USE_RESULT virtual Handle<Object> Delete(
+      Handle<JSObject> obj,
+      uint32_t key,
+      JSReceiver::DeleteMode mode) V8_FINAL V8_OVERRIDE {
     return DeleteCommon(obj, key, mode);
   }
 
@@ -1813,9 +1821,10 @@ class SloppyArgumentsElementsAccessor : public ElementsAccessorBase<
     return obj;
   }
 
-  MUST_USE_RESULT virtual Handle<Object> Delete(Handle<JSObject> obj,
-                                                uint32_t key,
-                                                JSReceiver::DeleteMode mode) {
+  MUST_USE_RESULT virtual Handle<Object> Delete(
+      Handle<JSObject> obj,
+      uint32_t key,
+      JSReceiver::DeleteMode mode) V8_FINAL V8_OVERRIDE {
     Isolate* isolate = obj->GetIsolate();
     Handle<FixedArray> parameter_map =
         handle(FixedArray::cast(obj->elements()), isolate);
