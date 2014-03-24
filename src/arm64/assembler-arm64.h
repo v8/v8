@@ -115,7 +115,7 @@ struct CPURegister {
 
 struct Register : public CPURegister {
   static Register Create(unsigned code, unsigned size) {
-    return CPURegister::Create(code, size, CPURegister::kRegister);
+    return Register(CPURegister::Create(code, size, CPURegister::kRegister));
   }
 
   Register() {
@@ -124,7 +124,14 @@ struct Register : public CPURegister {
     reg_type = CPURegister::kNoRegister;
   }
 
-  Register(const CPURegister& r) {  // NOLINT(runtime/explicit)
+  explicit Register(const CPURegister& r) {
+    reg_code = r.reg_code;
+    reg_size = r.reg_size;
+    reg_type = r.reg_type;
+    ASSERT(IsValidOrNone());
+  }
+
+  Register(const Register& r) {  // NOLINT(runtime/explicit)
     reg_code = r.reg_code;
     reg_size = r.reg_size;
     reg_type = r.reg_type;
@@ -236,7 +243,8 @@ struct Register : public CPURegister {
 
 struct FPRegister : public CPURegister {
   static FPRegister Create(unsigned code, unsigned size) {
-    return CPURegister::Create(code, size, CPURegister::kFPRegister);
+    return FPRegister(
+        CPURegister::Create(code, size, CPURegister::kFPRegister));
   }
 
   FPRegister() {
@@ -245,7 +253,14 @@ struct FPRegister : public CPURegister {
     reg_type = CPURegister::kNoRegister;
   }
 
-  FPRegister(const CPURegister& r) {  // NOLINT(runtime/explicit)
+  explicit FPRegister(const CPURegister& r) {
+    reg_code = r.reg_code;
+    reg_size = r.reg_size;
+    reg_type = r.reg_type;
+    ASSERT(IsValidOrNone());
+  }
+
+  FPRegister(const FPRegister& r) {  // NOLINT(runtime/explicit)
     reg_code = r.reg_code;
     reg_size = r.reg_size;
     reg_type = r.reg_type;

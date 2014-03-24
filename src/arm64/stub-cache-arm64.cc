@@ -395,7 +395,7 @@ void StoreStubCompiler::GenerateStoreTransition(MacroAssembler* masm,
     __ JumpIfSmi(value_reg, miss_label);
   } else if (representation.IsDouble()) {
     UseScratchRegisterScope temps(masm);
-    Register temp_double = temps.AcquireD();
+    DoubleRegister temp_double = temps.AcquireD();
     __ SmiUntagToDouble(temp_double, value_reg, kSpeculativeUntag);
 
     Label do_store, heap_number;
@@ -546,7 +546,7 @@ void StoreStubCompiler::GenerateStoreField(MacroAssembler* masm,
     __ JumpIfSmi(value_reg, miss_label);
   } else if (representation.IsDouble()) {
     UseScratchRegisterScope temps(masm);
-    Register temp_double = temps.AcquireD();
+    DoubleRegister temp_double = temps.AcquireD();
 
     __ SmiUntagToDouble(temp_double, value_reg, kSpeculativeUntag);
 

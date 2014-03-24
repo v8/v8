@@ -2216,7 +2216,7 @@ class UseScratchRegisterScope {
   FPRegister AcquireD() { return AcquireNextAvailable(availablefp_).D(); }
 
   Register UnsafeAcquire(const Register& reg) {
-    return UnsafeAcquire(available_, reg);
+    return Register(UnsafeAcquire(available_, reg));
   }
 
   Register AcquireSameSizeAs(const Register& reg);
