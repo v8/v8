@@ -1116,6 +1116,9 @@ class Isolate {
     return id;
   }
 
+  // Get (and lazily initialize) the registry for per-isolate symbols.
+  Handle<JSObject> GetSymbolRegistry();
+
  private:
   Isolate();
 

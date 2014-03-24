@@ -788,11 +788,10 @@ function GetStackTraceLine(recv, fun, pos, isGlobal) {
 // ----------------------------------------------------------------------------
 // Error implementation
 
-//TODO(rossberg)
-var CallSiteReceiverKey = NEW_PRIVATE("receiver");
-var CallSiteFunctionKey = NEW_PRIVATE("function");
-var CallSitePositionKey = NEW_PRIVATE("position");
-var CallSiteStrictModeKey = NEW_PRIVATE("strict mode");
+var CallSiteReceiverKey = NEW_PRIVATE("CallSite#receiver");
+var CallSiteFunctionKey = NEW_PRIVATE("CallSite#function");
+var CallSitePositionKey = NEW_PRIVATE("CallSite#position");
+var CallSiteStrictModeKey = NEW_PRIVATE("CallSite#strict_mode");
 
 function CallSite(receiver, fun, pos, strict_mode) {
   SET_PRIVATE(this, CallSiteReceiverKey, receiver);

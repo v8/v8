@@ -42,11 +42,11 @@ var $Promise = Promise;
 // Core functionality.
 
 // Status values: 0 = pending, +1 = resolved, -1 = rejected
-var promiseStatus = NEW_PRIVATE("Promise#status");
-var promiseValue = NEW_PRIVATE("Promise#value");
-var promiseOnResolve = NEW_PRIVATE("Promise#onResolve");
-var promiseOnReject = NEW_PRIVATE("Promise#onReject");
-var promiseRaw = NEW_PRIVATE("Promise#raw");
+var promiseStatus = GLOBAL_PRIVATE("Promise#status");
+var promiseValue = GLOBAL_PRIVATE("Promise#value");
+var promiseOnResolve = GLOBAL_PRIVATE("Promise#onResolve");
+var promiseOnReject = GLOBAL_PRIVATE("Promise#onReject");
+var promiseRaw = GLOBAL_PRIVATE("Promise#raw");
 
 function IsPromise(x) {
   return IS_SPEC_OBJECT(x) && %HasLocalProperty(x, promiseStatus);

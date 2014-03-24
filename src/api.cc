@@ -6120,24 +6120,54 @@ Local<DataView> DataView::New(Handle<ArrayBuffer> array_buffer,
 }
 
 
-Local<Symbol> v8::Symbol::New(Isolate* isolate, const char* data, int length) {
+Local<Symbol> v8::Symbol::New(Isolate* isolate, Local<String> name) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   EnsureInitializedForIsolate(i_isolate, "v8::Symbol::New()");
   LOG_API(i_isolate, "Symbol::New()");
   ENTER_V8(i_isolate);
   i::Handle<i::Symbol> result = i_isolate->factory()->NewSymbol();
-  if (data != NULL) {
-    if (length == -1) length = i::StrLength(data);
-    i::Handle<i::String> name = i_isolate->factory()->NewStringFromUtf8(
-        i::Vector<const char>(data, length));
-    result->set_name(*name);
-  }
+  if (!name.IsEmpty()) result->set_name(*Utils::OpenHandle(*name));
   return Utils::ToLocal(result);
 }
 
 
-Local<Private> v8::Private::New(
-    Isolate* isolate, Local<String> name) {
+Local<Symbol> v8::Symbol::For(Isolate* isolate, Local<String> name) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i::Handle<i::String> i_name = Utils::OpenHandle(*name);
+  i::Handle<i::JSObject> registry = i_isolate->GetSymbolRegistry();
+  i::Handle<i::String> part = i_isolate->factory()->for_string();
+  i::Handle<i::JSObject> symbols =
+      i::Handle<i::JSObject>::cast(i::JSObject::GetProperty(registry, part));
+  i::Handle<i::Object> symbol = i::JSObject::GetProperty(symbols, i_name);
+  if (!symbol->IsSymbol()) {
+    ASSERT(symbol->IsUndefined());
+    symbol = i_isolate->factory()->NewSymbol();
+    i::Handle<i::Symbol>::cast(symbol)->set_name(*i_name);
+    i::JSObject::SetProperty(symbols, i_name, symbol, NONE, i::STRICT);
+  }
+  return Utils::ToLocal(i::Handle<i::Symbol>::cast(symbol));
+}
+
+
+Local<Symbol> v8::Symbol::ForApi(Isolate* isolate, Local<String> name) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i::Handle<i::String> i_name = Utils::OpenHandle(*name);
+  i::Handle<i::JSObject> registry = i_isolate->GetSymbolRegistry();
+  i::Handle<i::String> part = i_isolate->factory()->for_api_string();
+  i::Handle<i::JSObject> symbols =
+      i::Handle<i::JSObject>::cast(i::JSObject::GetProperty(registry, part));
+  i::Handle<i::Object> symbol = i::JSObject::GetProperty(symbols, i_name);
+  if (!symbol->IsSymbol()) {
+    ASSERT(symbol->IsUndefined());
+    symbol = i_isolate->factory()->NewSymbol();
+    i::Handle<i::Symbol>::cast(symbol)->set_name(*i_name);
+    i::JSObject::SetProperty(symbols, i_name, symbol, NONE, i::STRICT);
+  }
+  return Utils::ToLocal(i::Handle<i::Symbol>::cast(symbol));
+}
+
+
+Local<Private> v8::Private::New(Isolate* isolate, Local<String> name) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   EnsureInitializedForIsolate(i_isolate, "v8::Private::New()");
   LOG_API(i_isolate, "Private::New()");
@@ -6145,6 +6175,25 @@ Local<Private> v8::Private::New(
   i::Handle<i::Symbol> symbol = i_isolate->factory()->NewPrivateSymbol();
   if (!name.IsEmpty()) symbol->set_name(*Utils::OpenHandle(*name));
   Local<Symbol> result = Utils::ToLocal(symbol);
+  return v8::Handle<Private>(reinterpret_cast<Private*>(*result));
+}
+
+
+Local<Private> v8::Private::ForApi(Isolate* isolate, Local<String> name) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i::Handle<i::String> i_name = Utils::OpenHandle(*name);
+  i::Handle<i::JSObject> registry = i_isolate->GetSymbolRegistry();
+  i::Handle<i::String> part = i_isolate->factory()->private_api_string();
+  i::Handle<i::JSObject> privates =
+      i::Handle<i::JSObject>::cast(i::JSObject::GetProperty(registry, part));
+  i::Handle<i::Object> symbol = i::JSObject::GetProperty(privates, i_name);
+  if (!symbol->IsSymbol()) {
+    ASSERT(symbol->IsUndefined());
+    symbol = i_isolate->factory()->NewPrivateSymbol();
+    i::Handle<i::Symbol>::cast(symbol)->set_name(*i_name);
+    i::JSObject::SetProperty(privates, i_name, symbol, NONE, i::STRICT);
+  }
+  Local<Symbol> result = Utils::ToLocal(i::Handle<i::Symbol>::cast(symbol));
   return v8::Handle<Private>(reinterpret_cast<Private*>(*result));
 }
 

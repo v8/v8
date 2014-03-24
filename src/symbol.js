@@ -63,29 +63,18 @@ function SymbolValueOf() {
 }
 
 
-function GetSymbolRegistry() {
-  var registry = %SymbolRegistry();
-  if (IS_UNDEFINED(registry.internal)) {
-    registry.internal = {__proto__: null};
-    registry.for = {__proto__: null};
-    registry.keyFor = {__proto__: null};
-  }
-  return registry;
-}
-
-
 function InternalSymbol(key) {
-  var registry = GetSymbolRegistry();
-  if (IS_UNDEFINED(registry.internal[key])) {
-    registry.internal[key] = %CreateSymbol(key);
+  var internal_registry = %SymbolRegistry().for_intern;
+  if (IS_UNDEFINED(internal_registry[key])) {
+    internal_registry[key] = %CreateSymbol(key);
   }
-  return registry.internal[key];
+  return internal_registry[key];
 }
 
 
 function SymbolFor(key) {
   key = TO_STRING_INLINE(key);
-  var registry = GetSymbolRegistry();
+  var registry = %SymbolRegistry();
   if (IS_UNDEFINED(registry.for[key])) {
     var symbol = %CreateSymbol(key);
     registry.for[key] = symbol;
@@ -96,10 +85,8 @@ function SymbolFor(key) {
 
 
 function SymbolKeyFor(symbol) {
-  if (!IS_SYMBOL(symbol)) {
-    throw MakeTypeError("not_a_symbol", [symbol]);
-  }
-  return GetSymbolRegistry().keyFor[symbol];
+  if (!IS_SYMBOL(symbol)) throw MakeTypeError("not_a_symbol", [symbol]);
+  return %SymbolRegistry().keyFor[symbol];
 }
 
 

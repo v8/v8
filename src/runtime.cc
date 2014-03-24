@@ -621,6 +621,25 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreatePrivateSymbol) {
 }
 
 
+RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateGlobalPrivateSymbol) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
+  Handle<JSObject> registry = isolate->GetSymbolRegistry();
+  Handle<String> part = isolate->factory()->private_intern_string();
+  Handle<JSObject> privates =
+      Handle<JSObject>::cast(JSObject::GetProperty(registry, part));
+  Handle<Object> symbol = JSObject::GetProperty(privates, name);
+  if (!symbol->IsSymbol()) {
+    ASSERT(symbol->IsUndefined());
+    symbol = isolate->factory()->NewPrivateSymbol();
+    Handle<Symbol>::cast(symbol)->set_name(*name);
+    JSObject::SetProperty(privates, name, symbol, NONE, STRICT);
+  }
+  return *symbol;
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_NewSymbolWrapper) {
   ASSERT(args.length() == 1);
   CONVERT_ARG_CHECKED(Symbol, symbol, 0);
@@ -637,9 +656,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SymbolDescription) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_SymbolRegistry) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 0);
-  return isolate->heap()->symbol_registry();
+  return *isolate->GetSymbolRegistry();
 }
 
 

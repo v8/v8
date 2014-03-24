@@ -2757,7 +2757,8 @@ THREADED_TEST(SymbolProperties) {
 
   v8::Local<v8::Object> obj = v8::Object::New(isolate);
   v8::Local<v8::Symbol> sym1 = v8::Symbol::New(isolate);
-  v8::Local<v8::Symbol> sym2 = v8::Symbol::New(isolate, "my-symbol");
+  v8::Local<v8::Symbol> sym2 =
+      v8::Symbol::New(isolate, v8_str("my-symbol"));
 
   CcTest::heap()->CollectAllGarbage(i::Heap::kNoGCFlags);
 
@@ -2775,7 +2776,7 @@ THREADED_TEST(SymbolProperties) {
   CHECK(!sym1->StrictEquals(sym2));
   CHECK(!sym2->StrictEquals(sym1));
 
-  CHECK(sym2->Name()->Equals(v8::String::NewFromUtf8(isolate, "my-symbol")));
+  CHECK(sym2->Name()->Equals(v8_str("my-symbol")));
 
   v8::Local<v8::Value> sym_val = sym2;
   CHECK(sym_val->IsSymbol());
@@ -2845,8 +2846,8 @@ THREADED_TEST(PrivateProperties) {
 
   v8::Local<v8::Object> obj = v8::Object::New(isolate);
   v8::Local<v8::Private> priv1 = v8::Private::New(isolate);
-  v8::Local<v8::Private> priv2 = v8::Private::New(isolate,
-                                                  v8_str("my-private"));
+  v8::Local<v8::Private> priv2 =
+      v8::Private::New(isolate, v8_str("my-private"));
 
   CcTest::heap()->CollectAllGarbage(i::Heap::kNoGCFlags);
 
@@ -2894,6 +2895,55 @@ THREADED_TEST(PrivateProperties) {
   CHECK(child->HasPrivate(priv1));
   CHECK_EQ(2002, child->GetPrivate(priv1)->Int32Value());
   CHECK_EQ(0, child->GetOwnPropertyNames()->Length());
+}
+
+
+THREADED_TEST(GlobalSymbols) {
+  i::FLAG_harmony_symbols = true;
+
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+
+  v8::Local<String> name = v8_str("my-symbol");
+  v8::Local<v8::Symbol> glob = v8::Symbol::For(isolate, name);
+  v8::Local<v8::Symbol> glob2 = v8::Symbol::For(isolate, name);
+  CHECK(glob2->SameValue(glob));
+
+  v8::Local<v8::Symbol> glob_api = v8::Symbol::ForApi(isolate, name);
+  v8::Local<v8::Symbol> glob_api2 = v8::Symbol::ForApi(isolate, name);
+  CHECK(glob_api2->SameValue(glob_api));
+  CHECK(!glob_api->SameValue(glob));
+
+  v8::Local<v8::Symbol> sym = v8::Symbol::New(isolate, name);
+  CHECK(!sym->SameValue(glob));
+
+  CompileRun("var sym2 = Symbol.for('my-symbol')");
+  v8::Local<Value> sym2 = env->Global()->Get(v8_str("sym2"));
+  CHECK(sym2->SameValue(glob));
+  CHECK(!sym2->SameValue(glob_api));
+}
+
+
+THREADED_TEST(GlobalPrivates) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+
+  v8::Local<String> name = v8_str("my-private");
+  v8::Local<v8::Private> glob = v8::Private::ForApi(isolate, name);
+  v8::Local<v8::Object> obj = v8::Object::New(isolate);
+  CHECK(obj->SetPrivate(glob, v8::Integer::New(isolate, 3)));
+
+  v8::Local<v8::Private> glob2 = v8::Private::ForApi(isolate, name);
+  CHECK(obj->HasPrivate(glob2));
+
+  v8::Local<v8::Private> priv = v8::Private::New(isolate, name);
+  CHECK(!obj->HasPrivate(priv));
+
+  CompileRun("var intern = %CreateGlobalPrivateSymbol('my-private')");
+  v8::Local<Value> intern = env->Global()->Get(v8_str("intern"));
+  CHECK(!obj->Has(intern));
 }
 
 
@@ -10189,10 +10239,11 @@ THREADED_TEST(Regress269562) {
   Local<v8::Object> o2 = t2->GetFunction()->NewInstance();
   CHECK(o2->SetPrototype(o1));
 
-  v8::Local<v8::Symbol> sym = v8::Symbol::New(context->GetIsolate(), "s1");
+  v8::Local<v8::Symbol> sym =
+      v8::Symbol::New(context->GetIsolate(), v8_str("s1"));
   o1->Set(sym, v8_num(3));
-  o1->SetHiddenValue(v8_str("h1"),
-                     v8::Integer::New(context->GetIsolate(), 2013));
+  o1->SetHiddenValue(
+      v8_str("h1"), v8::Integer::New(context->GetIsolate(), 2013));
 
   // Call the runtime version of GetLocalPropertyNames() on
   // the natively created object through JavaScript.

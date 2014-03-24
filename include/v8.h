@@ -2001,9 +2001,20 @@ class V8_EXPORT Symbol : public Primitive {
   // Returns the print name string of the symbol, or undefined if none.
   Local<Value> Name() const;
 
-  // Create a symbol. If data is not NULL, it will be used as a print name.
+  // Create a symbol. If name is not empty, it will be used as the description.
   static Local<Symbol> New(
-      Isolate *isolate, const char* data = NULL, int length = -1);
+      Isolate *isolate, Local<String> name = Local<String>());
+
+  // Access global symbol registry.
+  // Note that symbols created this way are never collected, so
+  // they should only be used for statically fixed properties.
+  // Also, there is only one global name space for the names used as keys.
+  // To minimize the potential for clashes, use qualified names as keys.
+  static Local<Symbol> For(Isolate *isolate, Local<String> name);
+
+  // Retrieve a global symbol. Similar to |For|, but using a separate
+  // registry that is not accessible by (and cannot clash with) JavaScript code.
+  static Local<Symbol> ForApi(Isolate *isolate, Local<String> name);
 
   V8_INLINE static Symbol* Cast(v8::Value* obj);
  private:
@@ -2022,9 +2033,18 @@ class V8_EXPORT Private : public Data {
   // Returns the print name string of the private symbol, or undefined if none.
   Local<Value> Name() const;
 
-  // Create a private symbol. If data is not NULL, it will be the print name.
-  static Local<Private> New(Isolate *isolate,
-                            Local<String> name = Local<String>());
+  // Create a private symbol. If name is not empty, it will be the description.
+  static Local<Private> New(
+      Isolate *isolate, Local<String> name = Local<String>());
+
+  // Retrieve a global private symbol. If a symbol with this name has not
+  // been retrieved in the same isolate before, it is created.
+  // Note that private symbols created this way are never collected, so
+  // they should only be used for statically fixed properties.
+  // Also, there is only one global name space for the names used as keys.
+  // To minimize the potential for clashes, use qualified names as keys,
+  // e.g., "Class#property".
+  static Local<Private> ForApi(Isolate *isolate, Local<String> name);
 
  private:
   Private();

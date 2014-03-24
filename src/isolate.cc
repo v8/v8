@@ -2296,4 +2296,25 @@ ISOLATE_INIT_ARRAY_LIST(ISOLATE_FIELD_OFFSET)
 #undef ISOLATE_FIELD_OFFSET
 #endif
 
+
+Handle<JSObject> Isolate::GetSymbolRegistry() {
+  if (heap()->symbol_registry()->IsUndefined()) {
+    Handle<Map> map = factory()->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
+    Handle<JSObject> registry = factory()->NewJSObjectFromMap(map);
+    heap()->set_symbol_registry(*registry);
+
+    static const char* nested[] = {
+      "for", "for_api", "for_intern", "keyFor", "private_api", "private_intern"
+    };
+    for (unsigned i = 0; i < ARRAY_SIZE(nested); ++i) {
+      Handle<String> name = factory()->InternalizeUtf8String(nested[i]);
+      Handle<JSObject> obj = factory()->NewJSObjectFromMap(map);
+      JSObject::NormalizeProperties(obj, KEEP_INOBJECT_PROPERTIES, 8);
+      JSObject::SetProperty(registry, name, obj, NONE, STRICT);
+    }
+  }
+  return Handle<JSObject>::cast(factory()->symbol_registry());
+}
+
+
 } }  // namespace v8::internal
