@@ -883,7 +883,7 @@ void FullCodeGenerator::SetExpressionPosition(Expression* expr) {
     }
   }
 #else
-  CodeGenerator::RecordPositions(masm_, pos);
+  CodeGenerator::RecordPositions(masm_, expr->position());
 #endif
 }
 
