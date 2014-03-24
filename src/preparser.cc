@@ -850,7 +850,6 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
 
   // Parse function body.
   ScopeType outer_scope_type = scope_->type();
-  bool inside_with = scope_->inside_with();
   PreParserScope function_scope(scope_, FUNCTION_SCOPE);
   FunctionState function_state(&function_state_, &scope_, &function_scope);
   function_state.set_is_generator(is_generator);
@@ -892,8 +891,7 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
 
   // See Parser::ParseFunctionLiteral for more information about lazy parsing
   // and lazy compilation.
-  bool is_lazily_parsed = (outer_scope_type == GLOBAL_SCOPE &&
-                           !inside_with && allow_lazy() &&
+  bool is_lazily_parsed = (outer_scope_type == GLOBAL_SCOPE && allow_lazy() &&
                            !parenthesized_function_);
   parenthesized_function_ = false;
 
