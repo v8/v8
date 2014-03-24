@@ -245,10 +245,10 @@ class SimulatorHelper {
         Simulator::sp));
     state->fp = reinterpret_cast<Address>(simulator_->get_register(
         Simulator::r11));
-#elif V8_TARGET_ARCH_A64
+#elif V8_TARGET_ARCH_ARM64
     if (simulator_->sp() == 0 || simulator_->fp() == 0) {
       // It possible that the simulator is interrupted while it is updating
-      // the sp or fp register. A64 simulator does this in two steps:
+      // the sp or fp register. ARM64 simulator does this in two steps:
       // first setting it to zero and then setting it to the new value.
       // Bailout if sp/fp doesn't contain the new value.
       return;
@@ -357,7 +357,7 @@ void SignalHandler::HandleProfilerSignal(int signal, siginfo_t* info,
   if (!helper.Init(sampler, isolate)) return;
   helper.FillRegisters(&state);
   // It possible that the simulator is interrupted while it is updating
-  // the sp or fp register. A64 simulator does this in two steps:
+  // the sp or fp register. ARM64 simulator does this in two steps:
   // first setting it to zero and then setting it to the new value.
   // Bailout if sp/fp doesn't contain the new value.
   if (state.sp == 0 || state.fp == 0) return;
@@ -390,7 +390,7 @@ void SignalHandler::HandleProfilerSignal(int signal, siginfo_t* info,
   state.fp = reinterpret_cast<Address>(mcontext.arm_fp);
 #endif  // defined(__GLIBC__) && !defined(__UCLIBC__) &&
         // (__GLIBC__ < 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ <= 3))
-#elif V8_HOST_ARCH_A64
+#elif V8_HOST_ARCH_ARM64
   state.pc = reinterpret_cast<Address>(mcontext.pc);
   state.sp = reinterpret_cast<Address>(mcontext.sp);
   // FP is an alias for x29.

@@ -314,6 +314,7 @@ namespace internal {
   F(CreatePrivateSymbol, 1, 1) \
   F(NewSymbolWrapper, 1, 1) \
   F(SymbolDescription, 1, 1) \
+  F(SymbolRegistry, 0, 1) \
   F(SymbolIsPrivate, 1, 1) \
   \
   /* Harmony proxies */ \
@@ -494,7 +495,7 @@ namespace internal {
   F(GetScopeCount, 2, 1) \
   F(GetStepInPositions, 2, 1) \
   F(GetScopeDetails, 4, 1) \
-  F(GetAllScopesDetails, 3, 1) \
+  F(GetAllScopesDetails, 4, 1) \
   F(GetFunctionScopeCount, 1, 1) \
   F(GetFunctionScopeDetails, 2, 1) \
   F(SetScopeVariableValue, 6, 1) \

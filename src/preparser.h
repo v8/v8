@@ -97,6 +97,7 @@ class ParserBase : public Traits {
         extension_(extension),
         fni_(NULL),
         log_(log),
+        mode_(PARSE_EAGERLY),  // Lazy mode must be set explicitly.
         scanner_(scanner),
         stack_limit_(stack_limit),
         stack_overflow_(false),
@@ -136,6 +137,11 @@ class ParserBase : public Traits {
   enum AllowEvalOrArgumentsAsIdentifier {
     kAllowEvalOrArguments,
     kDontAllowEvalOrArguments
+  };
+
+  enum Mode {
+    PARSE_LAZILY,
+    PARSE_EAGERLY
   };
 
   // ---------------------------------------------------------------------------
@@ -229,11 +235,28 @@ class ParserBase : public Traits {
     friend class ParserTraits;
   };
 
+  class ParsingModeScope BASE_EMBEDDED {
+   public:
+    ParsingModeScope(ParserBase* parser, Mode mode)
+        : parser_(parser),
+          old_mode_(parser->mode()) {
+      parser_->mode_ = mode;
+    }
+    ~ParsingModeScope() {
+      parser_->mode_ = old_mode_;
+    }
+
+   private:
+    ParserBase* parser_;
+    Mode old_mode_;
+  };
+
   Scanner* scanner() const { return scanner_; }
   int position() { return scanner_->location().beg_pos; }
   int peek_position() { return scanner_->peek_location().beg_pos; }
   bool stack_overflow() const { return stack_overflow_; }
   void set_stack_overflow() { stack_overflow_ = true; }
+  Mode mode() const { return mode_; }
   typename Traits::Type::Zone* zone() const { return zone_; }
 
   INLINE(Token::Value peek()) {
@@ -395,6 +418,12 @@ class ParserBase : public Traits {
   ExpressionT ParseConditionalExpression(bool accept_IN, bool* ok);
   ExpressionT ParseBinaryExpression(int prec, bool accept_IN, bool* ok);
   ExpressionT ParseUnaryExpression(bool* ok);
+  ExpressionT ParsePostfixExpression(bool* ok);
+  ExpressionT ParseLeftHandSideExpression(bool* ok);
+  ExpressionT ParseMemberWithNewPrefixesExpression(bool* ok);
+  ExpressionT ParseMemberExpression(bool* ok);
+  ExpressionT ParseMemberExpressionContinuation(ExpressionT expression,
+                                                bool* ok);
 
   // Used to detect duplicates in object literals. Each of the values
   // kGetterProperty, kSetterProperty and kValueProperty represents
@@ -461,6 +490,7 @@ class ParserBase : public Traits {
   v8::Extension* extension_;
   FuncNameInferrer* fni_;
   ParserRecorder* log_;
+  Mode mode_;
 
  private:
   Scanner* scanner_;
@@ -478,6 +508,7 @@ class ParserBase : public Traits {
 
 class PreParserIdentifier {
  public:
+  PreParserIdentifier() : type_(kUnknownIdentifier) {}
   static PreParserIdentifier Default() {
     return PreParserIdentifier(kUnknownIdentifier);
   }
@@ -580,16 +611,24 @@ class PreParserExpression {
     return code_ == kPropertyExpression || code_ == kThisPropertyExpression;
   }
 
-  // Dummy implementation for making expression->AsCall() work (see below).
-  PreParserExpression* operator->() { return this; }
+  bool IsValidLeftHandSide() {
+    return IsIdentifier() || IsProperty();
+  }
 
-  // These are only used when doing function name inferring, and PreParser
-  // doesn't do function name inferring.
-  void* AsCall() const { return NULL; }
-  void* AsCallNew() const { return NULL; }
+  // At the moment PreParser doesn't track these expression types.
+  bool IsFunctionLiteral() const { return false; }
+  bool IsCall() const { return false; }
+  bool IsCallNew() const { return false; }
+
+  PreParserExpression AsFunctionLiteral() { return *this; }
+
+  // Dummy implementation for making expression->somefunc() work in both Parser
+  // and PreParser.
+  PreParserExpression* operator->() { return this; }
 
   // More dummy implementations of things PreParser doesn't need to track:
   void set_index(int index) {}  // For YieldExpressions
+  void set_parenthesized() {}
 
  private:
   // Least significant 2 bits are used as flags. Bits 0 and 1 represent
@@ -667,12 +706,51 @@ class PreParserScope {
 class PreParserFactory {
  public:
   explicit PreParserFactory(void* extra_param) {}
-
+  PreParserExpression NewLiteral(PreParserIdentifier identifier,
+                                 int pos) {
+    return PreParserExpression::Default();
+  }
+  PreParserExpression NewNumberLiteral(double number,
+                                       int pos) {
+    return PreParserExpression::Default();
+  }
   PreParserExpression NewRegExpLiteral(PreParserIdentifier js_pattern,
                                        PreParserIdentifier js_flags,
                                        int literal_index,
                                        int pos) {
     return PreParserExpression::Default();
+  }
+  PreParserExpression NewArrayLiteral(PreParserExpressionList values,
+                                      int literal_index,
+                                      int pos) {
+    return PreParserExpression::Default();
+  }
+  PreParserExpression NewObjectLiteralProperty(bool is_getter,
+                                               PreParserExpression value,
+                                               int pos) {
+    return PreParserExpression::Default();
+  }
+  PreParserExpression NewObjectLiteralProperty(PreParserExpression key,
+                                               PreParserExpression value) {
+    return PreParserExpression::Default();
+  }
+  PreParserExpression NewObjectLiteral(PreParserExpressionList properties,
+                                       int literal_index,
+                                       int boilerplate_properties,
+                                       bool has_function,
+                                       int pos) {
+    return PreParserExpression::Default();
+  }
+  PreParserExpression NewVariableProxy(void* generator_variable) {
+    return PreParserExpression::Default();
+  }
+  PreParserExpression NewProperty(PreParserExpression obj,
+                                  PreParserExpression key,
+                                  int pos) {
+    if (obj.IsThis()) {
+      return PreParserExpression::ThisProperty();
+    }
+    return PreParserExpression::Property();
   }
   PreParserExpression NewUnaryOperation(Token::Value op,
                                         PreParserExpression expression,
@@ -689,70 +767,38 @@ class PreParserFactory {
                                           PreParserExpression right, int pos) {
     return PreParserExpression::Default();
   }
-  PreParserExpression NewArrayLiteral(PreParserExpressionList values,
-                                      int literal_index,
-                                      int pos) {
-    return PreParserExpression::Default();
-  }
-
-  PreParserExpression NewObjectLiteralProperty(bool is_getter,
-                                               PreParserExpression value,
-                                               int pos) {
-    return PreParserExpression::Default();
-  }
-
-  PreParserExpression NewObjectLiteralProperty(PreParserExpression key,
-                                               PreParserExpression value) {
-    return PreParserExpression::Default();
-  }
-
-  PreParserExpression NewObjectLiteral(PreParserExpressionList properties,
-                                       int literal_index,
-                                       int boilerplate_properties,
-                                       bool has_function,
-                                       int pos) {
-    return PreParserExpression::Default();
-  }
-
-  PreParserExpression NewLiteral(PreParserIdentifier identifier,
-                                 int pos) {
-    return PreParserExpression::Default();
-  }
-
-  PreParserExpression NewNumberLiteral(double number,
-                                       int pos) {
-    return PreParserExpression::Default();
-  }
-
   PreParserExpression NewAssignment(Token::Value op,
                                     PreParserExpression left,
                                     PreParserExpression right,
                                     int pos) {
     return PreParserExpression::Default();
   }
-
-  PreParserExpression NewVariableProxy(void* generator_variable) {
-    return PreParserExpression::Default();
-  }
-
   PreParserExpression NewYield(PreParserExpression generator_object,
                                PreParserExpression expression,
                                Yield::Kind yield_kind,
                                int pos) {
     return PreParserExpression::Default();
   }
-
   PreParserExpression NewConditional(PreParserExpression condition,
                                      PreParserExpression then_expression,
                                      PreParserExpression else_expression,
                                      int pos) {
     return PreParserExpression::Default();
   }
-
   PreParserExpression NewCountOperation(Token::Value op,
                                         bool is_prefix,
                                         PreParserExpression expression,
                                         int pos) {
+    return PreParserExpression::Default();
+  }
+  PreParserExpression NewCall(PreParserExpression expression,
+                              PreParserExpressionList arguments,
+                              int pos) {
+    return PreParserExpression::Default();
+  }
+  PreParserExpression NewCallNew(PreParserExpression expression,
+                                 PreParserExpressionList arguments,
+                                 int pos) {
     return PreParserExpression::Default();
   }
 };
@@ -824,7 +870,12 @@ class PreParserTraits {
   // operations interleaved with the recursive descent.
   static void PushLiteralName(FuncNameInferrer* fni, PreParserIdentifier id) {
     // PreParser should not use FuncNameInferrer.
-    ASSERT(false);
+    UNREACHABLE();
+  }
+  static void PushPropertyName(FuncNameInferrer* fni,
+                               PreParserExpression expression) {
+    // PreParser should not use FuncNameInferrer.
+    UNREACHABLE();
   }
 
   static void CheckFunctionLiteralInsideTopLevelObjectLiteral(
@@ -833,10 +884,9 @@ class PreParserTraits {
   static void CheckAssigningFunctionLiteralToProperty(
       PreParserExpression left, PreParserExpression right) {}
 
-  // Determine whether the expression is a valid assignment left-hand side.
-  static bool IsValidLeftHandSide(PreParserExpression expression) {
-    return expression.IsIdentifier() || expression.IsProperty();
-  }
+  // PreParser doesn't need to keep track of eval calls.
+  static void CheckPossibleEvalCall(PreParserExpression expression,
+                                    PreParserScope* scope) {}
 
   static PreParserExpression MarkExpressionAsLValue(
       PreParserExpression expression) {
@@ -944,7 +994,6 @@ class PreParserTraits {
       int function_token_position,
       FunctionLiteral::FunctionType type,
       bool* ok);
-  PreParserExpression ParsePostfixExpression(bool* ok);
 
  private:
   PreParser* pre_parser_;
@@ -1108,12 +1157,6 @@ class PreParser : public ParserBase<PreParserTraits> {
   Statement ParseTryStatement(bool* ok);
   Statement ParseDebuggerStatement(bool* ok);
   Expression ParseConditionalExpression(bool accept_IN, bool* ok);
-  Expression ParsePostfixExpression(bool* ok);
-  Expression ParseLeftHandSideExpression(bool* ok);
-  Expression ParseMemberExpression(bool* ok);
-  Expression ParseMemberExpressionContinuation(PreParserExpression expression,
-                                               bool* ok);
-  Expression ParseMemberWithNewPrefixesExpression(bool* ok);
   Expression ParseObjectLiteral(bool* ok);
   Expression ParseV8Intrinsic(bool* ok);
 
@@ -1664,7 +1707,7 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN, bool* ok) {
     return expression;
   }
 
-  if (!this->IsValidLeftHandSide(expression)) {
+  if (!expression->IsValidLeftHandSide()) {
     this->ReportMessageAt(lhs_location, "invalid_lhs_in_assignment", true);
     *ok = false;
     return this->EmptyExpression();
@@ -1698,7 +1741,7 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN, bool* ok) {
     if ((op == Token::INIT_VAR
          || op == Token::INIT_CONST_LEGACY
          || op == Token::ASSIGN)
-        && (right->AsCall() == NULL && right->AsCallNew() == NULL)) {
+        && (!right->IsCall() && !right->IsCallNew())) {
       fni_->Infer();
     } else {
       fni_->RemoveLastFunction();
@@ -1834,7 +1877,7 @@ ParserBase<Traits>::ParseUnaryExpression(bool* ok) {
     op = Next();
     Scanner::Location lhs_location = scanner()->peek_location();
     ExpressionT expression = ParseUnaryExpression(CHECK_OK);
-    if (!this->IsValidLeftHandSide(expression)) {
+    if (!expression->IsValidLeftHandSide()) {
       ReportMessageAt(lhs_location, "invalid_lhs_in_prefix_op", true);
       *ok = false;
       return this->EmptyExpression();
@@ -1854,6 +1897,235 @@ ParserBase<Traits>::ParseUnaryExpression(bool* ok) {
   } else {
     return this->ParsePostfixExpression(ok);
   }
+}
+
+
+template <class Traits>
+typename ParserBase<Traits>::ExpressionT
+ParserBase<Traits>::ParsePostfixExpression(bool* ok) {
+  // PostfixExpression ::
+  //   LeftHandSideExpression ('++' | '--')?
+
+  Scanner::Location lhs_location = scanner()->peek_location();
+  ExpressionT expression = this->ParseLeftHandSideExpression(CHECK_OK);
+  if (!scanner()->HasAnyLineTerminatorBeforeNext() &&
+      Token::IsCountOp(peek())) {
+    if (!expression->IsValidLeftHandSide()) {
+      ReportMessageAt(lhs_location, "invalid_lhs_in_postfix_op", true);
+      *ok = false;
+      return this->EmptyExpression();
+    }
+
+    if (strict_mode() == STRICT) {
+      // Postfix expression operand in strict mode may not be eval or arguments.
+      this->CheckStrictModeLValue(expression, CHECK_OK);
+    }
+    expression = this->MarkExpressionAsLValue(expression);
+
+    Token::Value next = Next();
+    expression =
+        factory()->NewCountOperation(next,
+                                     false /* postfix */,
+                                     expression,
+                                     position());
+  }
+  return expression;
+}
+
+
+template <class Traits>
+typename ParserBase<Traits>::ExpressionT
+ParserBase<Traits>::ParseLeftHandSideExpression(bool* ok) {
+  // LeftHandSideExpression ::
+  //   (NewExpression | MemberExpression) ...
+
+  ExpressionT result = this->ParseMemberWithNewPrefixesExpression(CHECK_OK);
+
+  while (true) {
+    switch (peek()) {
+      case Token::LBRACK: {
+        Consume(Token::LBRACK);
+        int pos = position();
+        ExpressionT index = ParseExpression(true, CHECK_OK);
+        result = factory()->NewProperty(result, index, pos);
+        Expect(Token::RBRACK, CHECK_OK);
+        break;
+      }
+
+      case Token::LPAREN: {
+        int pos;
+        if (scanner()->current_token() == Token::IDENTIFIER) {
+          // For call of an identifier we want to report position of
+          // the identifier as position of the call in the stack trace.
+          pos = position();
+        } else {
+          // For other kinds of calls we record position of the parenthesis as
+          // position of the call. Note that this is extremely important for
+          // expressions of the form function(){...}() for which call position
+          // should not point to the closing brace otherwise it will intersect
+          // with positions recorded for function literal and confuse debugger.
+          pos = peek_position();
+          // Also the trailing parenthesis are a hint that the function will
+          // be called immediately. If we happen to have parsed a preceding
+          // function literal eagerly, we can also compile it eagerly.
+          if (result->IsFunctionLiteral() && mode() == PARSE_EAGERLY) {
+            result->AsFunctionLiteral()->set_parenthesized();
+          }
+        }
+        typename Traits::Type::ExpressionList args = ParseArguments(CHECK_OK);
+
+        // Keep track of eval() calls since they disable all local variable
+        // optimizations.
+        // The calls that need special treatment are the
+        // direct eval calls. These calls are all of the form eval(...), with
+        // no explicit receiver.
+        // These calls are marked as potentially direct eval calls. Whether
+        // they are actually direct calls to eval is determined at run time.
+        this->CheckPossibleEvalCall(result, scope_);
+        result = factory()->NewCall(result, args, pos);
+        if (fni_ != NULL) fni_->RemoveLastFunction();
+        break;
+      }
+
+      case Token::PERIOD: {
+        Consume(Token::PERIOD);
+        int pos = position();
+        IdentifierT name = ParseIdentifierName(CHECK_OK);
+        result = factory()->NewProperty(
+            result, factory()->NewLiteral(name, pos), pos);
+        if (fni_ != NULL) this->PushLiteralName(fni_, name);
+        break;
+      }
+
+      default:
+        return result;
+    }
+  }
+}
+
+
+template <class Traits>
+typename ParserBase<Traits>::ExpressionT
+ParserBase<Traits>::ParseMemberWithNewPrefixesExpression(bool* ok) {
+  // NewExpression ::
+  //   ('new')+ MemberExpression
+
+  // The grammar for new expressions is pretty warped. We can have several 'new'
+  // keywords following each other, and then a MemberExpression. When we see '('
+  // after the MemberExpression, it's associated with the rightmost unassociated
+  // 'new' to create a NewExpression with arguments. However, a NewExpression
+  // can also occur without arguments.
+
+  // Examples of new expression:
+  // new foo.bar().baz means (new (foo.bar)()).baz
+  // new foo()() means (new foo())()
+  // new new foo()() means (new (new foo())())
+  // new new foo means new (new foo)
+  // new new foo() means new (new foo())
+  // new new foo().bar().baz means (new (new foo()).bar()).baz
+
+  if (peek() == Token::NEW) {
+    Consume(Token::NEW);
+    int new_pos = position();
+    ExpressionT result = this->ParseMemberWithNewPrefixesExpression(CHECK_OK);
+    if (peek() == Token::LPAREN) {
+      // NewExpression with arguments.
+      typename Traits::Type::ExpressionList args =
+          this->ParseArguments(CHECK_OK);
+      result = factory()->NewCallNew(result, args, new_pos);
+      // The expression can still continue with . or [ after the arguments.
+      result = this->ParseMemberExpressionContinuation(result, CHECK_OK);
+      return result;
+    }
+    // NewExpression without arguments.
+    return factory()->NewCallNew(result, this->NewExpressionList(0, zone_),
+                                 new_pos);
+  }
+  // No 'new' keyword.
+  return this->ParseMemberExpression(ok);
+}
+
+
+template <class Traits>
+typename ParserBase<Traits>::ExpressionT
+ParserBase<Traits>::ParseMemberExpression(bool* ok) {
+  // MemberExpression ::
+  //   (PrimaryExpression | FunctionLiteral)
+  //     ('[' Expression ']' | '.' Identifier | Arguments)*
+
+  // The '[' Expression ']' and '.' Identifier parts are parsed by
+  // ParseMemberExpressionContinuation, and the Arguments part is parsed by the
+  // caller.
+
+  // Parse the initial primary or function expression.
+  ExpressionT result = this->EmptyExpression();
+  if (peek() == Token::FUNCTION) {
+    Consume(Token::FUNCTION);
+    int function_token_position = position();
+    bool is_generator = allow_generators() && Check(Token::MUL);
+    IdentifierT name;
+    bool is_strict_reserved_name = false;
+    Scanner::Location function_name_location = Scanner::Location::invalid();
+    FunctionLiteral::FunctionType function_type =
+        FunctionLiteral::ANONYMOUS_EXPRESSION;
+    if (peek_any_identifier()) {
+      name = ParseIdentifierOrStrictReservedWord(&is_strict_reserved_name,
+                                                 CHECK_OK);
+      function_name_location = scanner()->location();
+      function_type = FunctionLiteral::NAMED_EXPRESSION;
+    }
+    result = this->ParseFunctionLiteral(name,
+                                        function_name_location,
+                                        is_strict_reserved_name,
+                                        is_generator,
+                                        function_token_position,
+                                        function_type,
+                                        CHECK_OK);
+  } else {
+    result = ParsePrimaryExpression(CHECK_OK);
+  }
+
+  result = ParseMemberExpressionContinuation(result, CHECK_OK);
+  return result;
+}
+
+
+template <class Traits>
+typename ParserBase<Traits>::ExpressionT
+ParserBase<Traits>::ParseMemberExpressionContinuation(ExpressionT expression,
+                                                      bool* ok) {
+  // Parses this part of MemberExpression:
+  // ('[' Expression ']' | '.' Identifier)*
+  while (true) {
+    switch (peek()) {
+      case Token::LBRACK: {
+        Consume(Token::LBRACK);
+        int pos = position();
+        ExpressionT index = this->ParseExpression(true, CHECK_OK);
+        expression = factory()->NewProperty(expression, index, pos);
+        if (fni_ != NULL) {
+          this->PushPropertyName(fni_, index);
+        }
+        Expect(Token::RBRACK, CHECK_OK);
+        break;
+      }
+      case Token::PERIOD: {
+        Consume(Token::PERIOD);
+        int pos = position();
+        IdentifierT name = ParseIdentifierName(CHECK_OK);
+        expression = factory()->NewProperty(
+            expression, factory()->NewLiteral(name, pos), pos);
+        if (fni_ != NULL) {
+          this->PushLiteralName(fni_, name);
+        }
+        break;
+      }
+      default:
+        return expression;
+    }
+  }
+  ASSERT(false);
+  return this->EmptyExpression();
 }
 
 

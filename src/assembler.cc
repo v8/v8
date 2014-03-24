@@ -59,8 +59,8 @@
 #include "ia32/assembler-ia32-inl.h"
 #elif V8_TARGET_ARCH_X64
 #include "x64/assembler-x64-inl.h"
-#elif V8_TARGET_ARCH_A64
-#include "a64/assembler-a64-inl.h"
+#elif V8_TARGET_ARCH_ARM64
+#include "arm64/assembler-arm64-inl.h"
 #elif V8_TARGET_ARCH_ARM
 #include "arm/assembler-arm-inl.h"
 #elif V8_TARGET_ARCH_MIPS
@@ -75,8 +75,8 @@
 #include "ia32/regexp-macro-assembler-ia32.h"
 #elif V8_TARGET_ARCH_X64
 #include "x64/regexp-macro-assembler-x64.h"
-#elif V8_TARGET_ARCH_A64
-#include "a64/regexp-macro-assembler-a64.h"
+#elif V8_TARGET_ARCH_ARM64
+#include "arm64/regexp-macro-assembler-arm64.h"
 #elif V8_TARGET_ARCH_ARM
 #include "arm/regexp-macro-assembler-arm.h"
 #elif V8_TARGET_ARCH_MIPS
@@ -286,7 +286,7 @@ int Label::pos() const {
 //                              00 [4 bit middle_tag] 11 followed by
 //                              00 [6 bit pc delta]
 //
-//      1101: constant or veneer pool. Used only on ARM and A64 for now.
+//      1101: constant or veneer pool. Used only on ARM and ARM64 for now.
 //        The format is:       [2-bit sub-type] 1101 11
 //                             signed int (size of the pool).
 //          The 2-bit sub-types are:
@@ -1343,8 +1343,8 @@ ExternalReference ExternalReference::re_check_stack_guard_state(
   function = FUNCTION_ADDR(RegExpMacroAssemblerX64::CheckStackGuardState);
 #elif V8_TARGET_ARCH_IA32
   function = FUNCTION_ADDR(RegExpMacroAssemblerIA32::CheckStackGuardState);
-#elif V8_TARGET_ARCH_A64
-  function = FUNCTION_ADDR(RegExpMacroAssemblerA64::CheckStackGuardState);
+#elif V8_TARGET_ARCH_ARM64
+  function = FUNCTION_ADDR(RegExpMacroAssemblerARM64::CheckStackGuardState);
 #elif V8_TARGET_ARCH_ARM
   function = FUNCTION_ADDR(RegExpMacroAssemblerARM::CheckStackGuardState);
 #elif V8_TARGET_ARCH_MIPS

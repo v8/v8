@@ -636,6 +636,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SymbolDescription) {
 }
 
 
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SymbolRegistry) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 0);
+  return isolate->heap()->symbol_registry();
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_SymbolIsPrivate) {
   SealHandleScope shs(isolate);
   ASSERT(args.length() == 1);
@@ -1679,6 +1686,14 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetPrototype) {
   ASSERT(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, obj, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, prototype, 1);
+  if (obj->IsAccessCheckNeeded() &&
+      !isolate->MayNamedAccessWrapper(obj,
+                                      isolate->factory()->proto_string(),
+                                      v8::ACCESS_SET)) {
+    isolate->ReportFailedAccessCheckWrapper(obj, v8::ACCESS_SET);
+    RETURN_IF_SCHEDULED_EXCEPTION(isolate);
+    return isolate->heap()->undefined_value();
+  }
   if (obj->map()->is_observed()) {
     Handle<Object> old_value(
         GetPrototypeSkipHiddenPrototypes(isolate, *obj), isolate);
@@ -3289,8 +3304,7 @@ class FixedArrayBuilder {
   }
 
   Handle<JSArray> ToJSArray(Handle<JSArray> target_array) {
-    Factory* factory = target_array->GetIsolate()->factory();
-    factory->SetContent(target_array, array_);
+    JSArray::SetContent(target_array, array_);
     target_array->set_length(Smi::FromInt(length_));
     return target_array;
   }
@@ -4566,7 +4580,7 @@ static MaybeObject* SearchRegExpMultiple(
       Handle<FixedArray> cached_fixed_array =
           Handle<FixedArray>(FixedArray::cast(*cached_answer));
       // The cache FixedArray is a COW-array and can therefore be reused.
-      isolate->factory()->SetContent(result_array, cached_fixed_array);
+      JSArray::SetContent(result_array, cached_fixed_array);
       // The actual length of the result array is stored in the last element of
       // the backing store (the backing FixedArray may have a larger capacity).
       Object* cached_fixed_array_last_element =
@@ -9684,8 +9698,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DateCacheVersion) {
   // Return result as a JS array.
   Handle<JSObject> result =
       isolate->factory()->NewJSObject(isolate->array_function());
-  isolate->factory()->SetContent(Handle<JSArray>::cast(result),
-                                 date_cache_version);
+  JSArray::SetContent(Handle<JSArray>::cast(result), date_cache_version);
   return *result;
 }
 
@@ -11802,7 +11815,8 @@ class ScopeIterator {
 
   ScopeIterator(Isolate* isolate,
                 JavaScriptFrame* frame,
-                int inlined_jsframe_index)
+                int inlined_jsframe_index,
+                bool ignore_nested_scopes = false)
     : isolate_(isolate),
       frame_(frame),
       inlined_jsframe_index_(inlined_jsframe_index),
@@ -11826,19 +11840,31 @@ class ScopeIterator {
       // Return if ensuring debug info failed.
       return;
     }
-    Handle<DebugInfo> debug_info = Debug::GetDebugInfo(shared_info);
 
-    // Find the break point where execution has stopped.
-    BreakLocationIterator break_location_iterator(debug_info,
-                                                  ALL_BREAK_LOCATIONS);
-    // pc points to the instruction after the current one, possibly a break
-    // location as well. So the "- 1" to exclude it from the search.
-    break_location_iterator.FindBreakLocationFromAddress(frame->pc() - 1);
-    if (break_location_iterator.IsExit()) {
-      // We are within the return sequence. At the momemt it is not possible to
+    // Currently it takes too much time to find nested scopes due to script
+    // parsing. Sometimes we want to run the ScopeIterator as fast as possible
+    // (for example, while collecting async call stacks on every
+    // addEventListener call), even if we drop some nested scopes.
+    // Later we may optimize getting the nested scopes (cache the result?)
+    // and include nested scopes into the "fast" iteration case as well.
+    if (!ignore_nested_scopes) {
+      Handle<DebugInfo> debug_info = Debug::GetDebugInfo(shared_info);
+
+      // Find the break point where execution has stopped.
+      BreakLocationIterator break_location_iterator(debug_info,
+                                                    ALL_BREAK_LOCATIONS);
+      // pc points to the instruction after the current one, possibly a break
+      // location as well. So the "- 1" to exclude it from the search.
+      break_location_iterator.FindBreakLocationFromAddress(frame->pc() - 1);
+
+      // Within the return sequence at the moment it is not possible to
       // get a source position which is consistent with the current scope chain.
       // Thus all nested with, catch and block contexts are skipped and we only
       // provide the function scope.
+      ignore_nested_scopes = break_location_iterator.IsExit();
+    }
+
+    if (ignore_nested_scopes) {
       if (scope_info->HasContext()) {
         context_ = Handle<Context>(context_->declaration_context(), isolate_);
       } else {
@@ -11846,7 +11872,7 @@ class ScopeIterator {
           context_ = Handle<Context>(context_->previous(), isolate_);
         }
       }
-      if (scope_info->scope_type() != EVAL_SCOPE) {
+      if (scope_info->scope_type() == FUNCTION_SCOPE) {
         nested_scope_chain_.Add(scope_info);
       }
     } else {
@@ -12314,13 +12340,14 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetScopeDetails) {
 // args[0]: number: break id
 // args[1]: number: frame index
 // args[2]: number: inlined frame index
+// args[3]: boolean: ignore nested scopes
 //
 // The array returned contains arrays with the following information:
 // 0: Scope type
 // 1: Scope object
 RUNTIME_FUNCTION(MaybeObject*, Runtime_GetAllScopesDetails) {
   HandleScope scope(isolate);
-  ASSERT(args.length() == 3);
+  ASSERT(args.length() == 3 || args.length() == 4);
 
   // Check arguments.
   Object* check;
@@ -12331,13 +12358,19 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetAllScopesDetails) {
   CONVERT_SMI_ARG_CHECKED(wrapped_id, 1);
   CONVERT_NUMBER_CHECKED(int, inlined_jsframe_index, Int32, args[2]);
 
+  bool ignore_nested_scopes = false;
+  if (args.length() == 4) {
+    CONVERT_BOOLEAN_ARG_CHECKED(flag, 3);
+    ignore_nested_scopes = flag;
+  }
+
   // Get the frame where the debugging is performed.
   StackFrame::Id id = UnwrapFrameId(wrapped_id);
   JavaScriptFrameIterator frame_it(isolate, id);
   JavaScriptFrame* frame = frame_it.frame();
 
   List<Handle<JSObject> > result(4);
-  ScopeIterator it(isolate, frame, inlined_jsframe_index);
+  ScopeIterator it(isolate, frame, inlined_jsframe_index, ignore_nested_scopes);
   for (; !it.Done(); it.Next()) {
     Handle<JSObject> details = MaterializeScopeDetails(isolate, &it);
     RETURN_IF_EMPTY_HANDLE(isolate, details);
@@ -12961,7 +12994,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugGetLoadedScripts) {
   // Return result as a JS array.
   Handle<JSObject> result =
       isolate->factory()->NewJSObject(isolate->array_function());
-  isolate->factory()->SetContent(Handle<JSArray>::cast(result), instances);
+  JSArray::SetContent(Handle<JSArray>::cast(result), instances);
   return *result;
 }
 
@@ -13091,7 +13124,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugReferencedBy) {
       isolate->context()->native_context()->array_function());
 
   Handle<JSObject> result = isolate->factory()->NewJSObject(constructor);
-  isolate->factory()->SetContent(Handle<JSArray>::cast(result), instances);
+  JSArray::SetContent(Handle<JSArray>::cast(result), instances);
   return *result;
 }
 
@@ -13169,7 +13202,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugConstructedBy) {
   Handle<JSFunction> array_function(
       isolate->context()->native_context()->array_function());
   Handle<JSObject> result = isolate->factory()->NewJSObject(array_function);
-  isolate->factory()->SetContent(Handle<JSArray>::cast(result), instances);
+  JSArray::SetContent(Handle<JSArray>::cast(result), instances);
   return *result;
 }
 

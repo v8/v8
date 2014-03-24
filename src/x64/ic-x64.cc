@@ -468,7 +468,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
     __ LoadAddress(kScratchRegister, cache_field_offsets);
     __ movl(rdi, Operand(kScratchRegister, rcx, times_4, 0));
     __ movzxbq(rcx, FieldOperand(rbx, Map::kInObjectPropertiesOffset));
-    __ subq(rdi, rcx);
+    __ subp(rdi, rcx);
     __ j(above_equal, &property_array_property);
     if (i != 0) {
       __ jmp(&load_in_object_property);
@@ -478,7 +478,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   // Load in-object property.
   __ bind(&load_in_object_property);
   __ movzxbq(rcx, FieldOperand(rbx, Map::kInstanceSizeOffset));
-  __ addq(rcx, rdi);
+  __ addp(rcx, rdi);
   __ movp(rax, FieldOperand(rdx, rcx, times_pointer_size, 0));
   __ IncrementCounter(counters->keyed_load_generic_lookup_cache(), 1);
   __ ret(0);

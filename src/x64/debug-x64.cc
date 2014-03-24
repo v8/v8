@@ -164,7 +164,7 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
   // If this call did not replace a call but patched other code then there will
   // be an unwanted return address left on the stack. Here we get rid of that.
   if (convert_call_to_jmp) {
-    __ addq(rsp, Immediate(kPCOnStackSize));
+    __ addp(rsp, Immediate(kPCOnStackSize));
   }
 
   // Now that the break point has been handled, resume normal execution by

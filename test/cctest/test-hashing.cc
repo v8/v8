@@ -96,9 +96,9 @@ void generate(MacroAssembler* masm, i::Vector<const uint8_t> string) {
   StringHelper::GenerateHashGetHash(masm, r0);
   __ pop(kRootRegister);
   __ mov(pc, Operand(lr));
-#elif V8_TARGET_ARCH_A64
-  // The A64 assembler usually uses jssp (x28) as a stack pointer, but only csp
-  // is initialized by the calling (C++) code.
+#elif V8_TARGET_ARCH_ARM64
+  // The ARM64 assembler usually uses jssp (x28) as a stack pointer, but only
+  // csp is initialized by the calling (C++) code.
   Register old_stack_pointer = __ StackPointer();
   __ SetStackPointer(csp);
   __ Push(root, xzr);
@@ -158,9 +158,9 @@ void generate(MacroAssembler* masm, uint32_t key) {
   __ GetNumberHash(r0, ip);
   __ pop(kRootRegister);
   __ mov(pc, Operand(lr));
-#elif V8_TARGET_ARCH_A64
-  // The A64 assembler usually uses jssp (x28) as a stack pointer, but only csp
-  // is initialized by the calling (C++) code.
+#elif V8_TARGET_ARCH_ARM64
+  // The ARM64 assembler usually uses jssp (x28) as a stack pointer, but only
+  // csp is initialized by the calling (C++) code.
   Register old_stack_pointer = __ StackPointer();
   __ SetStackPointer(csp);
   __ Push(root, xzr);

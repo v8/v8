@@ -190,6 +190,7 @@ namespace internal {
   V(Cell, undefined_cell, UndefineCell)                                        \
   V(JSObject, observation_state, ObservationState)                             \
   V(Map, external_map, ExternalMap)                                            \
+  V(JSObject, symbol_registry, SymbolRegistry)                                 \
   V(Symbol, frozen_symbol, FrozenSymbol)                                       \
   V(Symbol, nonexistent_symbol, NonExistentSymbol)                             \
   V(Symbol, elements_transition_symbol, ElementsTransitionSymbol)              \

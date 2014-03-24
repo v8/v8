@@ -65,6 +65,9 @@
   # are actually 13 * 38 * 5 * 128 = 316160 individual tests hidden here.
   'test-parsing/ParserSync': [PASS, NO_VARIANTS],
 
+  # BUG(2999).
+  'test-cpu-profiler/CollectCpuProfile': [PASS, FLAKY],
+
   ############################################################################
   # Slow tests.
   'test-api/Threading1': [PASS, ['mode == debug', SLOW]],
@@ -74,7 +77,7 @@
 }],  # ALWAYS
 
 ##############################################################################
-['arch == a64', {
+['arch == arm64', {
 
   'test-api/Bug618': [PASS],
 
@@ -86,16 +89,19 @@
 
   # BUG(v8:3155).
   'test-strings/AsciiArrayJoin': [PASS, ['mode == debug', FAIL]],
-}],  # 'arch == a64'
 
-['arch == a64 and simulator_run == True', {
+  # BUG(v8:3226).
+  'test-assembler-arm64/fmadd_fmsub_float_nans': [PASS, FAIL]
+}],  # 'arch == arm64'
+
+['arch == arm64 and simulator_run == True', {
 
   # Pass but take too long with the simulator.
   'test-api/ExternalArrays': [PASS, TIMEOUT],
   'test-api/Threading1': [SKIP],
-}],  # 'arch == a64 and simulator_run == True'
+}],  # 'arch == arm64 and simulator_run == True'
 
-['arch == a64 and mode == debug and simulator_run == True', {
+['arch == arm64 and mode == debug and simulator_run == True', {
 
   # Pass but take too long with the simulator in debug mode.
   'test-api/ExternalDoubleArray': [SKIP],
@@ -105,7 +111,7 @@
   'test-api/Float32Array': [SKIP],
   'test-api/Float64Array': [SKIP],
   'test-debug/DebugBreakLoop': [SKIP],
-}],  # 'arch == a64 and mode == debug and simulator_run == True'
+}],  # 'arch == arm64 and mode == debug and simulator_run == True'
 
 ##############################################################################
 ['asan == True', {
@@ -155,9 +161,6 @@
   'test-serialize/DeserializeFromSecondSerializationAndRunScript2': [SKIP],
   'test-serialize/DeserializeAndRunScript2': [SKIP],
   'test-serialize/DeserializeFromSecondSerialization': [SKIP],
-
-  # BUG(2999).
-  'test-cpu-profiler/CollectCpuProfile': [PASS, FLAKY],
 
   ############################################################################
   # Slow tests.

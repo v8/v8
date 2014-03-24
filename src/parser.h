@@ -475,6 +475,7 @@ class ParserTraits {
   static void PushLiteralName(FuncNameInferrer* fni, Handle<String> id) {
     fni->PushLiteralName(id);
   }
+  void PushPropertyName(FuncNameInferrer* fni, Expression* expression);
 
   static void CheckFunctionLiteralInsideTopLevelObjectLiteral(
       Scope* scope, Expression* value, bool* has_function) {
@@ -490,10 +491,10 @@ class ParserTraits {
   static void CheckAssigningFunctionLiteralToProperty(Expression* left,
                                                       Expression* right);
 
-  // Determine whether the expression is a valid assignment left-hand side.
-  static bool IsValidLeftHandSide(Expression* expression) {
-    return expression->IsValidLeftHandSide();
-  }
+  // Keep track of eval() calls since they disable all local variable
+  // optimizations. This checks if expression is an eval call, and if yes,
+  // forwards the information to scope.
+  void CheckPossibleEvalCall(Expression* expression, Scope* scope);
 
   // Determine if the expression is a variable proxy and mark it as being used
   // in an assignment or with a increment/decrement operator. This is currently
@@ -502,7 +503,7 @@ class ParserTraits {
 
   // Checks LHS expression for assignment and prefix/postfix increment/decrement
   // in strict mode.
-  void CheckStrictModeLValue(Expression*expression, bool* ok);
+  void CheckStrictModeLValue(Expression* expression, bool* ok);
 
   // Returns true if we have a binary expression between two numeric
   // literals. In that case, *x will be changed to an expression which is the
@@ -549,6 +550,7 @@ class ParserTraits {
   static Literal* EmptyLiteral() {
     return NULL;
   }
+  // Used in error return values.
   static ZoneList<Expression*>* NullExpressionList() {
     return NULL;
   }
@@ -589,7 +591,6 @@ class ParserTraits {
       int function_token_position,
       FunctionLiteral::FunctionType type,
       bool* ok);
-  Expression* ParsePostfixExpression(bool* ok);
 
  private:
   Parser* parser_;
@@ -627,11 +628,6 @@ class Parser : public ParserBase<ParserTraits> {
   // https://codereview.chromium.org/7003030/ ).
   static const int kMaxNumFunctionLocals = 4194303;  // 2^22-1
 
-  enum Mode {
-    PARSE_LAZILY,
-    PARSE_EAGERLY
-  };
-
   enum VariableDeclarationContext {
     kModuleElement,
     kBlockElement,
@@ -643,22 +639,6 @@ class Parser : public ParserBase<ParserTraits> {
   enum VariableDeclarationProperties {
     kHasInitializers,
     kHasNoInitializers
-  };
-
-  class ParsingModeScope BASE_EMBEDDED {
-   public:
-    ParsingModeScope(Parser* parser, Mode mode)
-        : parser_(parser),
-          old_mode_(parser->mode()) {
-      parser_->mode_ = mode;
-    }
-    ~ParsingModeScope() {
-      parser_->mode_ = old_mode_;
-    }
-
-   private:
-    Parser* parser_;
-    Mode old_mode_;
   };
 
   // Returns NULL if parsing failed.
@@ -690,7 +670,6 @@ class Parser : public ParserBase<ParserTraits> {
   }
 
   bool inside_with() const { return scope_->inside_with(); }
-  Mode mode() const { return mode_; }
   ScriptDataImpl** cached_data() const { return cached_data_; }
   CachedDataMode cached_data_mode() const { return cached_data_mode_; }
   Scope* DeclarationScope(VariableMode mode) {
@@ -746,15 +725,6 @@ class Parser : public ParserBase<ParserTraits> {
 
   // Support for hamony block scoped bindings.
   Block* ParseScopedBlock(ZoneStringList* labels, bool* ok);
-
-  Expression* ParseUnaryExpression(bool* ok);
-  Expression* ParsePostfixExpression(bool* ok);
-  Expression* ParseLeftHandSideExpression(bool* ok);
-  Expression* ParseMemberWithNewPrefixesExpression(bool* ok);
-  Expression* ParseMemberExpression(bool* ok);
-  Expression* ParseMemberExpressionContinuation(Expression* expression,
-                                                bool* ok);
-  Expression* ParseObjectLiteral(bool* ok);
 
   // Initialize the components of a for-in / for-of statement.
   void InitializeForEachStatement(ForEachStatement* stmt,
@@ -840,8 +810,6 @@ class Parser : public ParserBase<ParserTraits> {
   Target* target_stack_;  // for break, continue statements
   ScriptDataImpl** cached_data_;
   CachedDataMode cached_data_mode_;
-
-  Mode mode_;
 
   CompilationInfo* info_;
 };

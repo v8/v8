@@ -30,8 +30,8 @@
 # This script reads in CSV formatted instruction data, and draws a stacked
 # graph in png format.
 
-defaultfile=a64_inst.csv
-defaultout=a64_inst.png
+defaultfile=arm64_inst.csv
+defaultout=arm64_inst.png
 gnuplot=/usr/bin/gnuplot
 
 

@@ -142,7 +142,6 @@ class PushToTrunk(Step):
           self._side_effect_handler.Call(
               P(push_to_trunk.CONFIG, self._side_effect_handler).Run,
               ["-a", self._options.author,
-               "-c", self._options.chromium,
                "-r", self._options.reviewer,
                "-f"])
       finally:
@@ -154,9 +153,8 @@ class PushToTrunk(Step):
 
 class AutoRoll(ScriptsBase):
   def _PrepareOptions(self, parser):
-    parser.add_argument("-c", "--chromium", required=True,
-                        help=("The path to your Chromium src/ "
-                              "directory to automate the V8 roll."))
+    parser.add_argument("-c", "--chromium",
+                        help=("Deprecated."))
     parser.add_argument("-p", "--push",
                         help="Push to trunk. Dry run if unspecified.",
                         default=False, action="store_true")

@@ -1120,7 +1120,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ jmp(&loop);
 
   __ bind(&no_descriptors);
-  __ addq(rsp, Immediate(kPointerSize));
+  __ addp(rsp, Immediate(kPointerSize));
   __ jmp(&exit);
 
   // We got a fixed array in register rax. Iterate through that.
@@ -1212,7 +1212,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
 
   // Remove the pointers stored on the stack.
   __ bind(loop_statement.break_label());
-  __ addq(rsp, Immediate(5 * kPointerSize));
+  __ addp(rsp, Immediate(5 * kPointerSize));
 
   // Exit and decrement the loop depth.
   PrepareForBailoutForId(stmt->ExitId(), NO_REGISTERS);
@@ -1834,7 +1834,7 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
   }
 
   if (result_saved) {
-    __ addq(rsp, Immediate(kPointerSize));  // literal index
+    __ addp(rsp, Immediate(kPointerSize));  // literal index
     context()->PlugTOS();
   } else {
     context()->Plug(rax);
@@ -2138,7 +2138,7 @@ void FullCodeGenerator::EmitGeneratorResume(Expression *generator,
   __ LoadRoot(rcx, Heap::kTheHoleValueRootIndex);
   Label push_argument_holes, push_frame;
   __ bind(&push_argument_holes);
-  __ subq(rdx, Immediate(1));
+  __ subp(rdx, Immediate(1));
   __ j(carry, &push_frame);
   __ Push(rcx);
   __ jmp(&push_argument_holes);
@@ -2169,7 +2169,7 @@ void FullCodeGenerator::EmitGeneratorResume(Expression *generator,
     __ movp(rdx, FieldOperand(rdi, JSFunction::kCodeEntryOffset));
     __ SmiToInteger64(rcx,
         FieldOperand(rbx, JSGeneratorObject::kContinuationOffset));
-    __ addq(rdx, rcx);
+    __ addp(rdx, rcx);
     __ Move(FieldOperand(rbx, JSGeneratorObject::kContinuationOffset),
             Smi::FromInt(JSGeneratorObject::kGeneratorExecuting));
     __ jmp(rdx);
@@ -2180,7 +2180,7 @@ void FullCodeGenerator::EmitGeneratorResume(Expression *generator,
   // up the stack and the handlers.
   Label push_operand_holes, call_resume;
   __ bind(&push_operand_holes);
-  __ subq(rdx, Immediate(1));
+  __ subp(rdx, Immediate(1));
   __ j(carry, &call_resume);
   __ Push(rcx);
   __ jmp(&push_operand_holes);
@@ -3002,13 +3002,13 @@ void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
   // rbx: descriptor array.
   // rcx: valid entries in the descriptor array.
   // Calculate the end of the descriptor array.
-  __ imul(rcx, rcx, Immediate(DescriptorArray::kDescriptorSize));
+  __ imulp(rcx, rcx, Immediate(DescriptorArray::kDescriptorSize));
   SmiIndex index = masm_->SmiToIndex(rdx, rcx, kPointerSizeLog2);
   __ lea(rcx,
          Operand(
              r8, index.reg, index.scale, DescriptorArray::kFirstOffset));
   // Calculate location of the first key name.
-  __ addq(r8, Immediate(DescriptorArray::kFirstOffset));
+  __ addp(r8, Immediate(DescriptorArray::kFirstOffset));
   // Loop through all the keys in the descriptor array. If one of these is the
   // internalized string "valueOf" the result is false.
   __ jmp(&entry);
@@ -3016,7 +3016,7 @@ void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
   __ movp(rdx, FieldOperand(r8, 0));
   __ Cmp(rdx, isolate()->factory()->value_of_string());
   __ j(equal, if_false);
-  __ addq(r8, Immediate(DescriptorArray::kDescriptorSize * kPointerSize));
+  __ addp(r8, Immediate(DescriptorArray::kDescriptorSize * kPointerSize));
   __ bind(&entry);
   __ cmpq(r8, rcx);
   __ j(not_equal, &loop);
@@ -3858,7 +3858,7 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) {
   // Separator operand is already pushed. Make room for the two
   // other stack fields, and clear the direction flag in anticipation
   // of calling CopyBytes.
-  __ subq(rsp, Immediate(2 * kPointerSize));
+  __ subp(rsp, Immediate(2 * kPointerSize));
   __ cld();
   // Check that the array is a JSArray
   __ JumpIfSmi(array, &bailout);
@@ -4106,7 +4106,7 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) {
 
   __ bind(&return_result);
   // Drop temp values from the stack, and restore context register.
-  __ addq(rsp, Immediate(3 * kPointerSize));
+  __ addp(rsp, Immediate(3 * kPointerSize));
   __ movp(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
   context()->Plug(rax);
 }
@@ -4737,7 +4737,7 @@ void FullCodeGenerator::EnterFinallyBlock() {
   // Cook return address on top of stack (smi encoded Code* delta)
   __ PopReturnAddressTo(rdx);
   __ Move(rcx, masm_->CodeObject());
-  __ subq(rdx, rcx);
+  __ subp(rdx, rcx);
   __ Integer32ToSmi(rdx, rdx);
   __ Push(rdx);
 
@@ -4790,7 +4790,7 @@ void FullCodeGenerator::ExitFinallyBlock() {
   __ Pop(rdx);
   __ SmiToInteger32(rdx, rdx);
   __ Move(rcx, masm_->CodeObject());
-  __ addq(rdx, rcx);
+  __ addp(rdx, rcx);
   __ jmp(rdx);
 }
 

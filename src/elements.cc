@@ -797,6 +797,23 @@ class ElementsAccessorBase : public ElementsAccessor {
     return NULL;
   }
 
+  // TODO(ishell): Temporary wrapper, remove when CopyElements handlified.
+  Handle<Object> CopyElementsHelper(
+      Handle<JSObject> from_holder,
+      uint32_t from_start,
+      ElementsKind from_kind,
+      Handle<FixedArrayBase> to,
+      uint32_t to_start,
+      int copy_size,
+      Handle<FixedArrayBase> from) {
+    CALL_HEAP_FUNCTION(to->GetIsolate(),
+                       CopyElements(
+                           from_holder.is_null() ? NULL : *from_holder,
+                           from_start, from_kind, *to, to_start, copy_size,
+                           from.is_null() ? NULL : *from),
+                       Object);
+  }
+
   virtual void CopyElements(
       Handle<JSObject> from_holder,
       uint32_t from_start,
@@ -805,11 +822,10 @@ class ElementsAccessorBase : public ElementsAccessor {
       uint32_t to_start,
       int copy_size,
       Handle<FixedArrayBase> from) {
-    CALL_HEAP_FUNCTION_VOID(from_holder->GetIsolate(),
-                            CopyElements(
-                                from_holder.is_null() ? NULL : *from_holder,
-                                from_start, from_kind, *to, to_start, copy_size,
-                                from.is_null() ? NULL : *from));
+    Handle<Object> result = CopyElementsHelper(
+        from_holder, from_start, from_kind, to, to_start, copy_size, from);
+    ASSERT(!result.is_null());
+    USE(result);
   }
 
   MUST_USE_RESULT virtual MaybeObject* CopyElements(JSObject* from_holder,
@@ -1975,12 +1991,11 @@ MUST_USE_RESULT Handle<Object> ElementsAccessorBase<ElementsAccessorSubclass,
     }
   }
 
-  Factory* factory = isolate->factory();
   // Fall-back case: The new length is not a number so make the array
   // size one and set only element to length.
-  Handle<FixedArray> new_backing_store = factory->NewFixedArray(1);
+  Handle<FixedArray> new_backing_store = isolate->factory()->NewFixedArray(1);
   new_backing_store->set(0, *length);
-  factory->SetContent(array, new_backing_store);
+  JSArray::SetContent(array, new_backing_store);
   return array;
 }
 

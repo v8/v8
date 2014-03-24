@@ -2332,8 +2332,7 @@ TEST(ErrorsNewExpression) {
     "new foo bar",
     "new ) foo",
     "new ++foo",
-    // TODO(marja): Activate this test once the preparser checks correctly.
-    // "new foo ++",
+    "new foo ++",
     NULL
   };
 
@@ -2528,7 +2527,7 @@ TEST(StrictDelete) {
 }
 
 
-TEST(ErrorInvalidLeftHandSide) {
+TEST(InvalidLeftHandSide) {
   const char* assignment_context_data[][2] = {
     // {"", " = 1;"},
     // {"\"use strict\"; ", " = 1;"},
@@ -2593,6 +2592,5 @@ TEST(ErrorInvalidLeftHandSide) {
   RunParserSyncTest(prefix_context_data, bad_statement_data_common, kError);
 
   RunParserSyncTest(postfix_context_data, good_statement_data, kSuccess);
-  // TODO(marja): This doesn't work yet.
-  // RunParserSyncTest(postfix_context_data, bad_statement_data_common, kError);
+  RunParserSyncTest(postfix_context_data, bad_statement_data_common, kError);
 }

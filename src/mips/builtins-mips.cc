@@ -473,8 +473,10 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
         __ lw(a0, FieldMemOperand(a2, Map::kInstanceSizesOffset));
         __ Ext(a0, a0, Map::kPreAllocatedPropertyFieldsByte * kBitsPerByte,
                 kBitsPerByte);
-        __ sll(t0, a0, kPointerSizeLog2);
-        __ addu(a0, t5, t0);
+        __ sll(at, a0, kPointerSizeLog2);
+        __ addu(a0, t5, at);
+        __ sll(at, a3, kPointerSizeLog2);
+        __ Addu(t6, t4, Operand(at));   // End of object.
         // a0: offset of first field after pre-allocated fields
         if (FLAG_debug_code) {
           __ Assert(le, kUnexpectedNumberOfPreAllocatedPropertyFields,
@@ -483,9 +485,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
         __ InitializeFieldsWithFiller(t5, a0, t7);
         // To allow for truncation.
         __ LoadRoot(t7, Heap::kOnePointerFillerMapRootIndex);
-        __ sll(at, a3, kPointerSizeLog2);
-        __ Addu(a0, t4, Operand(at));  // End of object.
-        __ InitializeFieldsWithFiller(t5, a0, t7);
+        __ InitializeFieldsWithFiller(t5, t6, t7);
       } else if (create_memento) {
         __ Subu(t7, a3, Operand(AllocationMemento::kSize / kPointerSize));
         __ sll(at, t7, kPointerSizeLog2);

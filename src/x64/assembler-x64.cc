@@ -110,7 +110,8 @@ void RelocInfo::PatchCodeWithCall(Address target, int guard_bytes) {
 #endif
 
   // Patch the code.
-  patcher.masm()->movp(kScratchRegister, target, Assembler::RelocInfoNone());
+  patcher.masm()->movp(kScratchRegister, reinterpret_cast<void*>(target),
+                       Assembler::RelocInfoNone());
   patcher.masm()->call(kScratchRegister);
 
   // Check that the size of the code generated is as expected.
@@ -1008,92 +1009,43 @@ void Assembler::hlt() {
 }
 
 
-void Assembler::idivq(Register src) {
+void Assembler::emit_idiv(Register src, int size) {
   EnsureSpace ensure_space(this);
-  emit_rex_64(src);
+  emit_rex(src, size);
   emit(0xF7);
   emit_modrm(0x7, src);
 }
 
 
-void Assembler::idivl(Register src) {
+void Assembler::emit_imul(Register src, int size) {
   EnsureSpace ensure_space(this);
-  emit_optional_rex_32(src);
-  emit(0xF7);
-  emit_modrm(0x7, src);
-}
-
-
-void Assembler::imul(Register src) {
-  EnsureSpace ensure_space(this);
-  emit_rex_64(src);
+  emit_rex(src, size);
   emit(0xF7);
   emit_modrm(0x5, src);
 }
 
 
-void Assembler::imul(Register dst, Register src) {
+void Assembler::emit_imul(Register dst, Register src, int size) {
   EnsureSpace ensure_space(this);
-  emit_rex_64(dst, src);
+  emit_rex(dst, src, size);
   emit(0x0F);
   emit(0xAF);
   emit_modrm(dst, src);
 }
 
 
-void Assembler::imul(Register dst, const Operand& src) {
+void Assembler::emit_imul(Register dst, const Operand& src, int size) {
   EnsureSpace ensure_space(this);
-  emit_rex_64(dst, src);
+  emit_rex(dst, src, size);
   emit(0x0F);
   emit(0xAF);
   emit_operand(dst, src);
 }
 
 
-void Assembler::imul(Register dst, Register src, Immediate imm) {
+void Assembler::emit_imul(Register dst, Register src, Immediate imm, int size) {
   EnsureSpace ensure_space(this);
-  emit_rex_64(dst, src);
-  if (is_int8(imm.value_)) {
-    emit(0x6B);
-    emit_modrm(dst, src);
-    emit(imm.value_);
-  } else {
-    emit(0x69);
-    emit_modrm(dst, src);
-    emitl(imm.value_);
-  }
-}
-
-
-void Assembler::imull(Register src) {
-  EnsureSpace ensure_space(this);
-  emit_optional_rex_32(src);
-  emit(0xF7);
-  emit_modrm(0x5, src);
-}
-
-
-void Assembler::imull(Register dst, Register src) {
-  EnsureSpace ensure_space(this);
-  emit_optional_rex_32(dst, src);
-  emit(0x0F);
-  emit(0xAF);
-  emit_modrm(dst, src);
-}
-
-
-void Assembler::imull(Register dst, const Operand& src) {
-  EnsureSpace ensure_space(this);
-  emit_optional_rex_32(dst, src);
-  emit(0x0F);
-  emit(0xAF);
-  emit_operand(dst, src);
-}
-
-
-void Assembler::imull(Register dst, Register src, Immediate imm) {
-  EnsureSpace ensure_space(this);
-  emit_optional_rex_32(dst, src);
+  emit_rex(dst, src, size);
   if (is_int8(imm.value_)) {
     emit(0x6B);
     emit_modrm(dst, src);
