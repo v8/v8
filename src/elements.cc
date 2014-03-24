@@ -318,7 +318,7 @@ MUST_USE_RESULT static MaybeObject* CopyDoubleToObjectElements(
       // that no GC is triggered, allocate HeapNumbers from old space if they
       // can't be taken from new space.
       if (!maybe_value->ToObject(&value)) {
-        ASSERT(maybe_value->IsRetryAfterGC() || maybe_value->IsOutOfMemory());
+        ASSERT(maybe_value->IsRetryAfterGC());
         Heap* heap = from->GetHeap();
         MaybeObject* maybe_value_object =
             heap->AllocateHeapNumber(from->get_scalar(i + from_start),

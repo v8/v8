@@ -2407,23 +2407,9 @@ void CEntryStub::GenerateAheadOfTime(Isolate* isolate) {
 }
 
 
-static void JumpIfOOM(MacroAssembler* masm,
-                      Register value,
-                      Register scratch,
-                      Label* oom_label) {
-  __ movp(scratch, value);
-  STATIC_ASSERT(Failure::OUT_OF_MEMORY_EXCEPTION == 3);
-  STATIC_ASSERT(kFailureTag == 3);
-  __ and_(scratch, Immediate(0xf));
-  __ cmpq(scratch, Immediate(0xf));
-  __ j(equal, oom_label);
-}
-
-
 void CEntryStub::GenerateCore(MacroAssembler* masm,
                               Label* throw_normal_exception,
                               Label* throw_termination_exception,
-                              Label* throw_out_of_memory_exception,
                               bool do_gc,
                               bool always_allocate_scope) {
   // rax: result parameter for PerformGC, if any.
@@ -2530,18 +2516,12 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   __ testl(rax, Immediate(((1 << kFailureTypeTagSize) - 1) << kFailureTagSize));
   __ j(zero, &retry, Label::kNear);
 
-  // Special handling of out of memory exceptions.
-  JumpIfOOM(masm, rax, kScratchRegister, throw_out_of_memory_exception);
-
   // Retrieve the pending exception.
   ExternalReference pending_exception_address(
       Isolate::kPendingExceptionAddress, masm->isolate());
   Operand pending_exception_operand =
       masm->ExternalOperand(pending_exception_address);
   __ movp(rax, pending_exception_operand);
-
-  // See if we just retrieved an OOM exception.
-  JumpIfOOM(masm, rax, kScratchRegister, throw_out_of_memory_exception);
 
   // Clear the pending exception.
   pending_exception_operand =
@@ -2598,13 +2578,11 @@ void CEntryStub::Generate(MacroAssembler* masm) {
 
   Label throw_normal_exception;
   Label throw_termination_exception;
-  Label throw_out_of_memory_exception;
 
   // Call into the runtime system.
   GenerateCore(masm,
                &throw_normal_exception,
                &throw_termination_exception,
-               &throw_out_of_memory_exception,
                false,
                false);
 
@@ -2612,7 +2590,6 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   GenerateCore(masm,
                &throw_normal_exception,
                &throw_termination_exception,
-               &throw_out_of_memory_exception,
                true,
                false);
 
@@ -2622,27 +2599,8 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   GenerateCore(masm,
                &throw_normal_exception,
                &throw_termination_exception,
-               &throw_out_of_memory_exception,
                true,
                true);
-
-  __ bind(&throw_out_of_memory_exception);
-  // Set external caught exception to false.
-  Isolate* isolate = masm->isolate();
-  ExternalReference external_caught(Isolate::kExternalCaughtExceptionAddress,
-                                    isolate);
-  __ Set(rax, static_cast<int64_t>(false));
-  __ Store(external_caught, rax);
-
-  // Set pending exception and rax to out of memory exception.
-  ExternalReference pending_exception(Isolate::kPendingExceptionAddress,
-                                      isolate);
-  Label already_have_failure;
-  JumpIfOOM(masm, rax, kScratchRegister, &already_have_failure);
-  __ Move(rax, Failure::OutOfMemoryException(0x1), Assembler::RelocInfoNone());
-  __ bind(&already_have_failure);
-  __ Store(pending_exception, rax);
-  // Fall through to the next label.
 
   __ bind(&throw_termination_exception);
   __ ThrowUncatchable(rax);

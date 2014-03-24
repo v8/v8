@@ -80,10 +80,6 @@ int ThreadId::GetCurrentThreadId() {
 
 ThreadLocalTop::ThreadLocalTop() {
   InitializeInternal();
-  // This flag may be set using v8::V8::IgnoreOutOfMemoryException()
-  // before an isolate is initialized. The initialize methods below do
-  // not touch it to preserve its value.
-  ignore_out_of_memory_ = false;
 }
 
 
@@ -1273,14 +1269,8 @@ void Isolate::ReportPendingMessages() {
   ASSERT(has_pending_exception());
   PropagatePendingExceptionToExternalTryCatch();
 
-  // If the pending exception is OutOfMemoryException set out_of_memory in
-  // the native context.  Note: We have to mark the native context here
-  // since the GenerateThrowOutOfMemory stub cannot make a RuntimeCall to
-  // set it.
   HandleScope scope(this);
-  if (thread_local_top_.pending_exception_->IsOutOfMemory()) {
-    context()->mark_out_of_memory();
-  } else if (thread_local_top_.pending_exception_ ==
+  if (thread_local_top_.pending_exception_ ==
              heap()->termination_exception()) {
     // Do nothing: if needed, the exception has been already propagated to
     // v8::TryCatch.
@@ -1311,8 +1301,7 @@ void Isolate::ReportPendingMessages() {
 MessageLocation Isolate::GetMessageLocation() {
   ASSERT(has_pending_exception());
 
-  if (!thread_local_top_.pending_exception_->IsOutOfMemory() &&
-      thread_local_top_.pending_exception_ != heap()->termination_exception() &&
+  if (thread_local_top_.pending_exception_ != heap()->termination_exception() &&
       thread_local_top_.has_pending_message_ &&
       !thread_local_top_.pending_message_obj_->IsTheHole() &&
       !thread_local_top_.pending_message_obj_->IsTheHole()) {
@@ -1331,39 +1320,36 @@ bool Isolate::OptionalRescheduleException(bool is_bottom_call) {
   ASSERT(has_pending_exception());
   PropagatePendingExceptionToExternalTryCatch();
 
-  // Always reschedule out of memory exceptions.
-  if (!is_out_of_memory()) {
-    bool is_termination_exception =
-        pending_exception() == heap_.termination_exception();
+  bool is_termination_exception =
+      pending_exception() == heap_.termination_exception();
 
-    // Do not reschedule the exception if this is the bottom call.
-    bool clear_exception = is_bottom_call;
+  // Do not reschedule the exception if this is the bottom call.
+  bool clear_exception = is_bottom_call;
 
-    if (is_termination_exception) {
-      if (is_bottom_call) {
-        thread_local_top()->external_caught_exception_ = false;
-        clear_pending_exception();
-        return false;
-      }
-    } else if (thread_local_top()->external_caught_exception_) {
-      // If the exception is externally caught, clear it if there are no
-      // JavaScript frames on the way to the C++ frame that has the
-      // external handler.
-      ASSERT(thread_local_top()->try_catch_handler_address() != NULL);
-      Address external_handler_address =
-          thread_local_top()->try_catch_handler_address();
-      JavaScriptFrameIterator it(this);
-      if (it.done() || (it.frame()->sp() > external_handler_address)) {
-        clear_exception = true;
-      }
-    }
-
-    // Clear the exception if needed.
-    if (clear_exception) {
+  if (is_termination_exception) {
+    if (is_bottom_call) {
       thread_local_top()->external_caught_exception_ = false;
       clear_pending_exception();
       return false;
     }
+  } else if (thread_local_top()->external_caught_exception_) {
+    // If the exception is externally caught, clear it if there are no
+    // JavaScript frames on the way to the C++ frame that has the
+    // external handler.
+    ASSERT(thread_local_top()->try_catch_handler_address() != NULL);
+    Address external_handler_address =
+        thread_local_top()->try_catch_handler_address();
+    JavaScriptFrameIterator it(this);
+    if (it.done() || (it.frame()->sp() > external_handler_address)) {
+      clear_exception = true;
+    }
+  }
+
+  // Clear the exception if needed.
+  if (clear_exception) {
+    thread_local_top()->external_caught_exception_ = false;
+    clear_pending_exception();
+    return false;
   }
 
   // Reschedule the exception.
@@ -1380,23 +1366,6 @@ void Isolate::SetCaptureStackTraceForUncaughtExceptions(
   capture_stack_trace_for_uncaught_exceptions_ = capture;
   stack_trace_for_uncaught_exceptions_frame_limit_ = frame_limit;
   stack_trace_for_uncaught_exceptions_options_ = options;
-}
-
-
-bool Isolate::is_out_of_memory() {
-  if (has_pending_exception()) {
-    MaybeObject* e = pending_exception();
-    if (e->IsFailure() && Failure::cast(e)->IsOutOfMemoryException()) {
-      return true;
-    }
-  }
-  if (has_scheduled_exception()) {
-    MaybeObject* e = scheduled_exception();
-    if (e->IsFailure() && Failure::cast(e)->IsOutOfMemoryException()) {
-      return true;
-    }
-  }
-  return false;
 }
 
 
@@ -1851,9 +1820,7 @@ void Isolate::PropagatePendingExceptionToExternalTryCatch() {
 
   if (!external_caught) return;
 
-  if (thread_local_top_.pending_exception_->IsOutOfMemory()) {
-    // Do not propagate OOM exception: we should kill VM asap.
-  } else if (thread_local_top_.pending_exception_ ==
+  if (thread_local_top_.pending_exception_ ==
              heap()->termination_exception()) {
     try_catch_handler()->can_continue_ = false;
     try_catch_handler()->has_terminated_ = true;
