@@ -2830,7 +2830,6 @@ void Simulator::VisitFPDataProcessing3Source(Instruction* instr) {
   unsigned fm = instr->Rm();
   unsigned fa = instr->Ra();
 
-  // The C99 (and C++11) fma function performs a fused multiply-accumulate.
   switch (instr->Mask(FPDataProcessing3SourceMask)) {
     // fd = fa +/- (fn * fm)
     case FMADD_s: set_sreg(fd, FPMulAdd(sreg(fa), sreg(fn), sreg(fm))); break;
