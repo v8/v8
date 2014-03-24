@@ -138,10 +138,10 @@ class PushToTrunk(Step):
         P = push_to_trunk.PushToTrunk
         self._side_effect_handler.Call(
             P(push_to_trunk.CONFIG, self._side_effect_handler).Run,
-            ["-author", self._options.author,
-             "-reviewer", self._options.reviewer,
-             "-revision", self["lkgr"],
-             "-force"])
+            ["--author", self._options.author,
+             "--reviewer", self._options.reviewer,
+             "--revision", self["lkgr"],
+             "--force"])
     finally:
       self.PushTreeStatus(self["tree_message"])
 
