@@ -1120,6 +1120,7 @@ class V8_EXPORT ScriptCompiler {
   private:
      // Prevent copying. Not implemented.
      CachedData(const CachedData&);
+     CachedData& operator=(const CachedData&);
   };
 
   /**
@@ -1129,20 +1130,22 @@ class V8_EXPORT ScriptCompiler {
   class Source {
    public:
     // Source takes ownership of CachedData.
-    Source(Local<String> source_string, const ScriptOrigin& origin,
+    V8_INLINE Source(Local<String> source_string, const ScriptOrigin& origin,
            CachedData* cached_data = NULL);
-    Source(Local<String> source_string, CachedData* cached_data = NULL);
-    ~Source();
+    V8_INLINE Source(Local<String> source_string,
+                     CachedData* cached_data = NULL);
+    V8_INLINE ~Source();
 
     // Ownership of the CachedData or its buffers is *not* transferred to the
     // caller. The CachedData object is alive as long as the Source object is
     // alive.
-    const CachedData* GetCachedData() const;
+    V8_INLINE const CachedData* GetCachedData() const;
 
    private:
     friend class ScriptCompiler;
      // Prevent copying. Not implemented.
     Source(const Source&);
+    Source& operator=(const Source&);
 
     Local<String> source_string;
 
@@ -6070,6 +6073,32 @@ Handle<Integer> ScriptOrigin::ResourceColumnOffset() const {
 
 Handle<Boolean> ScriptOrigin::ResourceIsSharedCrossOrigin() const {
   return resource_is_shared_cross_origin_;
+}
+
+
+ScriptCompiler::Source::Source(Local<String> string, const ScriptOrigin& origin,
+                               CachedData* data)
+    : source_string(string),
+      resource_name(origin.ResourceName()),
+      resource_line_offset(origin.ResourceLineOffset()),
+      resource_column_offset(origin.ResourceColumnOffset()),
+      resource_is_shared_cross_origin(origin.ResourceIsSharedCrossOrigin()),
+      cached_data(data) {}
+
+
+ScriptCompiler::Source::Source(Local<String> string,
+                               CachedData* data)
+    : source_string(string), cached_data(data) {}
+
+
+ScriptCompiler::Source::~Source() {
+  delete cached_data;
+}
+
+
+const ScriptCompiler::CachedData* ScriptCompiler::Source::GetCachedData()
+    const {
+  return cached_data;
 }
 
 

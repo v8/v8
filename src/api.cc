@@ -1624,32 +1624,6 @@ ScriptCompiler::CachedData::~CachedData() {
 }
 
 
-ScriptCompiler::Source::Source(Local<String> string, const ScriptOrigin& origin,
-                               CachedData* data)
-    : source_string(string),
-      resource_name(origin.ResourceName()),
-      resource_line_offset(origin.ResourceLineOffset()),
-      resource_column_offset(origin.ResourceColumnOffset()),
-      resource_is_shared_cross_origin(origin.ResourceIsSharedCrossOrigin()),
-      cached_data(data) {}
-
-
-ScriptCompiler::Source::Source(Local<String> string,
-                               CachedData* data)
-    : source_string(string), cached_data(data) {}
-
-
-ScriptCompiler::Source::~Source() {
-  delete cached_data;
-}
-
-
-const ScriptCompiler::CachedData* ScriptCompiler::Source::GetCachedData()
-    const {
-  return cached_data;
-}
-
-
 Local<Script> UnboundScript::BindToCurrentContext() {
   i::Handle<i::HeapObject> obj =
       i::Handle<i::HeapObject>::cast(Utils::OpenHandle(this));
