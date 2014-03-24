@@ -2860,7 +2860,7 @@ T Simulator::FPAdd(T op1, T op2) {
   // NaNs should be handled elsewhere.
   ASSERT(!std::isnan(op1) && !std::isnan(op2));
 
-  if (isinf(op1) && isinf(op2) && (op1 != op2)) {
+  if (std::isinf(op1) && std::isinf(op2) && (op1 != op2)) {
     // inf + -inf returns the default NaN.
     return FPDefaultNaN<T>();
   } else {
@@ -2875,7 +2875,7 @@ T Simulator::FPDiv(T op1, T op2) {
   // NaNs should be handled elsewhere.
   ASSERT(!std::isnan(op1) && !std::isnan(op2));
 
-  if ((isinf(op1) && isinf(op2)) || ((op1 == 0.0) && (op2 == 0.0))) {
+  if ((std::isinf(op1) && std::isinf(op2)) || ((op1 == 0.0) && (op2 == 0.0))) {
     // inf / inf and 0.0 / 0.0 return the default NaN.
     return FPDefaultNaN<T>();
   } else {
@@ -2936,7 +2936,7 @@ T Simulator::FPMinNM(T a, T b) {
   }
 
   T result = FPProcessNaNs(a, b);
-  return isnan(result) ? result : FPMin(a, b);
+  return std::isnan(result) ? result : FPMin(a, b);
 }
 
 
@@ -2945,7 +2945,7 @@ T Simulator::FPMul(T op1, T op2) {
   // NaNs should be handled elsewhere.
   ASSERT(!std::isnan(op1) && !std::isnan(op2));
 
-  if ((isinf(op1) && (op2 == 0.0)) || (isinf(op2) && (op1 == 0.0))) {
+  if ((std::isinf(op1) && (op2 == 0.0)) || (std::isinf(op2) && (op1 == 0.0))) {
     // inf * 0.0 returns the default NaN.
     return FPDefaultNaN<T>();
   } else {
@@ -3017,7 +3017,7 @@ T Simulator::FPSub(T op1, T op2) {
   // NaNs should be handled elsewhere.
   ASSERT(!std::isnan(op1) && !std::isnan(op2));
 
-  if (isinf(op1) && isinf(op2) && (op1 == op2)) {
+  if (std::isinf(op1) && std::isinf(op2) && (op1 == op2)) {
     // inf - inf returns the default NaN.
     return FPDefaultNaN<T>();
   } else {

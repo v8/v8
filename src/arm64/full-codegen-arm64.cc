@@ -110,6 +110,25 @@ class JumpPatchSite BASE_EMBEDDED {
 };
 
 
+static void EmitStackCheck(MacroAssembler* masm_,
+                           int pointers = 0,
+                           Register scratch = jssp) {
+  Isolate* isolate = masm_->isolate();
+  Label ok;
+  ASSERT(jssp.Is(__ StackPointer()));
+  ASSERT(scratch.Is(jssp) == (pointers == 0));
+  if (pointers != 0) {
+    __ Sub(scratch, jssp, pointers * kPointerSize);
+  }
+  __ CompareRoot(scratch, Heap::kStackLimitRootIndex);
+  __ B(hs, &ok);
+  PredictableCodeSizeScope predictable(masm_,
+                                       Assembler::kCallSizeWithRelocation);
+  __ Call(isolate->builtins()->StackCheck(), RelocInfo::CODE_TARGET);
+  __ Bind(&ok);
+}
+
+
 // Generate code for a JS function. On entry to the function the receiver
 // and arguments have been pushed on the stack left to right. The actual
 // argument count matches the formal parameter count expected by the
@@ -182,8 +201,28 @@ void FullCodeGenerator::Generate() {
     ASSERT(!info->function()->is_generator() || locals_count == 0);
 
     if (locals_count > 0) {
+      if (locals_count >= 128) {
+        EmitStackCheck(masm_, locals_count, x10);
+      }
       __ LoadRoot(x10, Heap::kUndefinedValueRootIndex);
-      __ PushMultipleTimes(x10, locals_count);
+      if (FLAG_optimize_for_size) {
+        __ PushMultipleTimes(x10 , locals_count);
+      } else {
+        const int kMaxPushes = 32;
+        if (locals_count >= kMaxPushes) {
+          int loop_iterations = locals_count / kMaxPushes;
+          __ Mov(x3, loop_iterations);
+          Label loop_header;
+          __ Bind(&loop_header);
+          // Do pushes.
+          __ PushMultipleTimes(x10 , kMaxPushes);
+          __ Subs(x3, x3, 1);
+          __ B(ne, &loop_header);
+        }
+        int remaining = locals_count % kMaxPushes;
+        // Emit the remaining pushes.
+        __ PushMultipleTimes(x10 , remaining);
+      }
     }
   }
 
@@ -291,14 +330,7 @@ void FullCodeGenerator::Generate() {
 
   { Comment cmnt(masm_, "[ Stack check");
     PrepareForBailoutForId(BailoutId::Declarations(), NO_REGISTERS);
-    Label ok;
-    ASSERT(jssp.Is(__ StackPointer()));
-    __ CompareRoot(jssp, Heap::kStackLimitRootIndex);
-    __ B(hs, &ok);
-    PredictableCodeSizeScope predictable(masm_,
-                                         Assembler::kCallSizeWithRelocation);
-    __ Call(isolate()->builtins()->StackCheck(), RelocInfo::CODE_TARGET);
-    __ Bind(&ok);
+    EmitStackCheck(masm_);
   }
 
   { Comment cmnt(masm_, "[ Body");

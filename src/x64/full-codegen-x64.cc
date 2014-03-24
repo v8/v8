@@ -101,6 +101,23 @@ class JumpPatchSite BASE_EMBEDDED {
 };
 
 
+static void EmitStackCheck(MacroAssembler* masm_,
+                             int pointers = 0,
+                             Register scratch = rsp) {
+    Isolate* isolate = masm_->isolate();
+    Label ok;
+    ASSERT(scratch.is(rsp) == (pointers == 0));
+    if (pointers != 0) {
+      __ movq(scratch, rsp);
+      __ subq(scratch, Immediate(pointers * kPointerSize));
+    }
+    __ CompareRoot(scratch, Heap::kStackLimitRootIndex);
+    __ j(above_equal, &ok, Label::kNear);
+    __ call(isolate->builtins()->StackCheck(), RelocInfo::CODE_TARGET);
+    __ bind(&ok);
+}
+
+
 // Generate code for a JS function.  On entry to the function the receiver
 // and arguments have been pushed on the stack left to right, with the
 // return address on top of them.  The actual argument count matches the
@@ -171,8 +188,27 @@ void FullCodeGenerator::Generate() {
     if (locals_count == 1) {
       __ PushRoot(Heap::kUndefinedValueRootIndex);
     } else if (locals_count > 1) {
+      if (locals_count >= 128) {
+        EmitStackCheck(masm_, locals_count, rcx);
+      }
       __ LoadRoot(rdx, Heap::kUndefinedValueRootIndex);
-      for (int i = 0; i < locals_count; i++) {
+      const int kMaxPushes = 32;
+      if (locals_count >= kMaxPushes) {
+        int loop_iterations = locals_count / kMaxPushes;
+        __ movq(rcx, Immediate(loop_iterations));
+        Label loop_header;
+        __ bind(&loop_header);
+        // Do pushes.
+        for (int i = 0; i < kMaxPushes; i++) {
+          __ Push(rdx);
+        }
+        // Continue loop if not done.
+        __ decq(rcx);
+        __ j(not_zero, &loop_header, Label::kNear);
+      }
+      int remaining = locals_count % kMaxPushes;
+      // Emit the remaining pushes.
+      for (int i  = 0; i < remaining; i++) {
         __ Push(rdx);
       }
     }
@@ -284,11 +320,7 @@ void FullCodeGenerator::Generate() {
 
     { Comment cmnt(masm_, "[ Stack check");
       PrepareForBailoutForId(BailoutId::Declarations(), NO_REGISTERS);
-      Label ok;
-      __ CompareRoot(rsp, Heap::kStackLimitRootIndex);
-      __ j(above_equal, &ok, Label::kNear);
-      __ call(isolate()->builtins()->StackCheck(), RelocInfo::CODE_TARGET);
-      __ bind(&ok);
+      EmitStackCheck(masm_);
     }
 
     { Comment cmnt(masm_, "[ Body");

@@ -101,6 +101,25 @@ class JumpPatchSite BASE_EMBEDDED {
 };
 
 
+static void EmitStackCheck(MacroAssembler* masm_,
+                           int pointers = 0,
+                           Register scratch = esp) {
+    Label ok;
+    Isolate* isolate = masm_->isolate();
+    ExternalReference stack_limit =
+        ExternalReference::address_of_stack_limit(isolate);
+    ASSERT(scratch.is(esp) == (pointers == 0));
+    if (pointers != 0) {
+      __ mov(scratch, esp);
+      __ sub(scratch, Immediate(pointers * kPointerSize));
+    }
+    __ cmp(scratch, Operand::StaticVariable(stack_limit));
+    __ j(above_equal, &ok, Label::kNear);
+    __ call(isolate->builtins()->StackCheck(), RelocInfo::CODE_TARGET);
+    __ bind(&ok);
+}
+
+
 // Generate code for a JS function.  On entry to the function the receiver
 // and arguments have been pushed on the stack left to right, with the
 // return address on top of them.  The actual argument count matches the
@@ -171,8 +190,26 @@ void FullCodeGenerator::Generate() {
     if (locals_count == 1) {
       __ push(Immediate(isolate()->factory()->undefined_value()));
     } else if (locals_count > 1) {
+      if (locals_count >= 128) {
+        EmitStackCheck(masm_, locals_count, ecx);
+      }
       __ mov(eax, Immediate(isolate()->factory()->undefined_value()));
-      for (int i = 0; i < locals_count; i++) {
+      const int kMaxPushes = 32;
+      if (locals_count >= kMaxPushes) {
+        int loop_iterations = locals_count / kMaxPushes;
+        __ mov(ecx, loop_iterations);
+        Label loop_header;
+        __ bind(&loop_header);
+        // Do pushes.
+        for (int i = 0; i < kMaxPushes; i++) {
+          __ push(eax);
+        }
+        __ dec(ecx);
+        __ j(not_zero, &loop_header, Label::kNear);
+      }
+      int remaining = locals_count % kMaxPushes;
+      // Emit the remaining pushes.
+      for (int i  = 0; i < remaining; i++) {
         __ push(eax);
       }
     }
@@ -285,13 +322,7 @@ void FullCodeGenerator::Generate() {
 
     { Comment cmnt(masm_, "[ Stack check");
       PrepareForBailoutForId(BailoutId::Declarations(), NO_REGISTERS);
-      Label ok;
-      ExternalReference stack_limit =
-          ExternalReference::address_of_stack_limit(isolate());
-      __ cmp(esp, Operand::StaticVariable(stack_limit));
-      __ j(above_equal, &ok, Label::kNear);
-      __ call(isolate()->builtins()->StackCheck(), RelocInfo::CODE_TARGET);
-      __ bind(&ok);
+      EmitStackCheck(masm_);
     }
 
     { Comment cmnt(masm_, "[ Body");
