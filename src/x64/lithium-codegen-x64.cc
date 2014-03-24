@@ -2910,14 +2910,9 @@ void LCodeGen::DoAccessArgumentsAt(LAccessArgumentsAt* instr) {
       instr->index()->IsConstantOperand()) {
     int32_t const_index = ToInteger32(LConstantOperand::cast(instr->index()));
     int32_t const_length = ToInteger32(LConstantOperand::cast(instr->length()));
-    if (const_index < const_length) {
-      StackArgumentsAccessor args(arguments, const_length,
-                                  ARGUMENTS_DONT_CONTAIN_RECEIVER);
-      __ movp(result, args.GetArgumentOperand(const_index));
-    } else {
-      // This code should never be executed; just stop here.
-      __ int3();
-    }
+    StackArgumentsAccessor args(arguments, const_length,
+                                ARGUMENTS_DONT_CONTAIN_RECEIVER);
+    __ movp(result, args.GetArgumentOperand(const_index));
   } else {
     Register length = ToRegister(instr->length());
     // There are two words between the frame pointer and the last argument.
