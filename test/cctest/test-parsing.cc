@@ -2529,8 +2529,8 @@ TEST(StrictDelete) {
 
 TEST(InvalidLeftHandSide) {
   const char* assignment_context_data[][2] = {
-    // {"", " = 1;"},
-    // {"\"use strict\"; ", " = 1;"},
+    {"", " = 1;"},
+    {"\"use strict\"; ", " = 1;"},
     { NULL, NULL }
   };
 
