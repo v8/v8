@@ -1405,6 +1405,18 @@ void CodeStub::GenerateFPStubs(Isolate* isolate) {
 }
 
 
+static void JumpIfOOM(MacroAssembler* masm,
+                      Register value,
+                      Register scratch,
+                      Label* oom_label) {
+  STATIC_ASSERT(Failure::OUT_OF_MEMORY_EXCEPTION == 3);
+  STATIC_ASSERT(kFailureTag == 3);
+  __ And(scratch, value, 0xf);
+  __ Cmp(scratch, 0xf);
+  __ B(eq, oom_label);
+}
+
+
 bool CEntryStub::NeedsImmovableCode() {
   // CEntryStub stores the return address on the stack before calling into
   // C++ code. In some cases, the VM accesses this address, but it is not used
@@ -1429,6 +1441,7 @@ void CEntryStub::GenerateAheadOfTime(Isolate* isolate) {
 void CEntryStub::GenerateCore(MacroAssembler* masm,
                               Label* throw_normal,
                               Label* throw_termination,
+                              Label* throw_out_of_memory,
                               bool do_gc,
                               bool always_allocate) {
   // x0  : Result parameter for PerformGC, if do_gc is true.
@@ -1576,6 +1589,10 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   __ Tst(result, kFailureTypeTagMask << kFailureTagSize);
   __ B(eq, &retry);   // RETRY_AFTER_GC
 
+  // Special handling of out-of-memory exceptions: Pass the failure result,
+  // rather than the exception descriptor.
+  JumpIfOOM(masm, result, x10, throw_out_of_memory);
+
   // Retrieve the pending exception.
   const Register& exception = result;
   const Register& exception_address = x11;
@@ -1583,6 +1600,9 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
          Operand(ExternalReference(Isolate::kPendingExceptionAddress,
                                    isolate)));
   __ Ldr(exception, MemOperand(exception_address));
+
+  // See if we just retrieved an OOM exception.
+  JumpIfOOM(masm, exception, x10, throw_out_of_memory);
 
   // Clear the pending exception.
   __ Mov(x10, Operand(isolate->factory()->the_hole_value()));
@@ -1677,11 +1697,13 @@ void CEntryStub::Generate(MacroAssembler* masm) {
 
   Label throw_normal;
   Label throw_termination;
+  Label throw_out_of_memory;
 
   // Call the runtime function.
   GenerateCore(masm,
                &throw_normal,
                &throw_termination,
+               &throw_out_of_memory,
                false,
                false);
 
@@ -1692,6 +1714,7 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   GenerateCore(masm,
                &throw_normal,
                &throw_termination,
+               &throw_out_of_memory,
                true,
                false);
 
@@ -1700,6 +1723,7 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   GenerateCore(masm,
                &throw_normal,
                &throw_termination,
+               &throw_out_of_memory,
                true,
                true);
 
@@ -1716,6 +1740,27 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   // If we throw an exception, we can end up re-entering CEntryStub before we
   // pop the exit frame, so need to ensure that x21-x23 contain GC-safe values
   // here.
+  __ Bind(&throw_out_of_memory);
+  ASM_LOCATION("Throw out of memory");
+  __ Mov(argv, 0);
+  __ Mov(argc, 0);
+  __ Mov(target, 0);
+  // Set external caught exception to false.
+  Isolate* isolate = masm->isolate();
+  __ Mov(x2, Operand(ExternalReference(Isolate::kExternalCaughtExceptionAddress,
+                                       isolate)));
+  __ Str(xzr, MemOperand(x2));
+
+  // Set pending exception and x0 to out of memory exception.
+  Label already_have_failure;
+  JumpIfOOM(masm, x0, x10, &already_have_failure);
+  Failure* out_of_memory = Failure::OutOfMemoryException(0x1);
+  __ Mov(x0, Operand(reinterpret_cast<uint64_t>(out_of_memory)));
+  __ Bind(&already_have_failure);
+  __ Mov(x2, Operand(ExternalReference(Isolate::kPendingExceptionAddress,
+                                       isolate)));
+  __ Str(x0, MemOperand(x2));
+  // Fall through to the next label.
 
   __ Bind(&throw_termination);
   ASM_LOCATION("Throw termination");

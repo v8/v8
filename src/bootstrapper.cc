@@ -1310,6 +1310,9 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     delegate->shared()->DontAdaptArguments();
   }
 
+  // Initialize the out of memory slot.
+  native_context()->set_out_of_memory(heap->false_value());
+
   // Initialize the embedder data slot.
   Handle<FixedArray> embedder_data = factory->NewFixedArray(3);
   native_context()->set_embedder_data(*embedder_data);

@@ -1496,6 +1496,7 @@ class CEntryStub : public PlatformCodeStub {
   void GenerateCore(MacroAssembler* masm,
                     Label* throw_normal_exception,
                     Label* throw_termination_exception,
+                    Label* throw_out_of_memory_exception,
                     bool do_gc,
                     bool always_allocate_scope);
 

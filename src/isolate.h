@@ -288,6 +288,9 @@ class ThreadLocalTop BASE_EMBEDDED {
   // Head of the list of live LookupResults.
   LookupResult* top_lookup_result_;
 
+  // Whether out of memory exceptions should be ignored.
+  bool ignore_out_of_memory_;
+
  private:
   void InitializeInternal();
 
@@ -638,7 +641,8 @@ class Isolate {
   bool IsExternallyCaught();
 
   bool is_catchable_by_javascript(MaybeObject* exception) {
-    return exception != heap()->termination_exception();
+    return (!exception->IsOutOfMemory()) &&
+        (exception != heap()->termination_exception());
   }
 
   // Serializer.
@@ -716,6 +720,12 @@ class Isolate {
       bool capture,
       int frame_limit,
       StackTrace::StackTraceOptions options);
+
+  // Tells whether the current context has experienced an out of memory
+  // exception.
+  bool is_out_of_memory();
+
+  THREAD_LOCAL_TOP_ACCESSOR(bool,  ignore_out_of_memory)
 
   void PrintCurrentStackTrace(FILE* out);
   void PrintStack(StringStream* accumulator);
@@ -1464,6 +1474,17 @@ class PostponeInterruptsScope BASE_EMBEDDED {
   Isolate* isolate_;
 };
 
+
+// Tells whether the native context is marked with out of memory.
+inline bool Context::has_out_of_memory() {
+  return native_context()->out_of_memory()->IsTrue();
+}
+
+
+// Mark the native context with out of memory.
+inline void Context::mark_out_of_memory() {
+  native_context()->set_out_of_memory(GetIsolate()->heap()->true_value());
+}
 
 class CodeTracer V8_FINAL : public Malloced {
  public:

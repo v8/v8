@@ -162,6 +162,7 @@ enum BindingFlags {
   V(SCRIPT_FUNCTION_INDEX, JSFunction, script_function) \
   V(OPAQUE_REFERENCE_FUNCTION_INDEX, JSFunction, opaque_reference_function) \
   V(CONTEXT_EXTENSION_FUNCTION_INDEX, JSFunction, context_extension_function) \
+  V(OUT_OF_MEMORY_INDEX, Object, out_of_memory) \
   V(MAP_CACHE_INDEX, Object, map_cache) \
   V(EMBEDDER_DATA_INDEX, FixedArray, embedder_data) \
   V(ALLOW_CODE_GEN_FROM_STRINGS_INDEX, Object, allow_code_gen_from_strings) \
@@ -438,6 +439,12 @@ class Context: public FixedArray {
     Map* map = this->map();
     return map == map->GetHeap()->global_context_map();
   }
+
+  // Tells whether the native context is marked with out of memory.
+  inline bool has_out_of_memory();
+
+  // Mark the native context with out of memory.
+  inline void mark_out_of_memory();
 
   // A native context holds a list of all functions with optimized code.
   void AddOptimizedFunction(JSFunction* function);

@@ -13921,7 +13921,7 @@ MaybeObject* HashTable<Shape, Key>::Allocate(Heap* heap,
                      ? at_least_space_for
                      : ComputeCapacity(at_least_space_for);
   if (capacity > HashTable::kMaxCapacity) {
-    v8::internal::Heap::FatalProcessOutOfMemory("invalid table size", true);
+    return Failure::OutOfMemoryException(0x10);
   }
 
   Object* obj;

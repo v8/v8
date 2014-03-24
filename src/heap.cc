@@ -3871,7 +3871,8 @@ MaybeObject* Heap::AllocateExternalStringFromAscii(
     const ExternalAsciiString::Resource* resource) {
   size_t length = resource->length();
   if (length > static_cast<size_t>(String::kMaxLength)) {
-    v8::internal::Heap::FatalProcessOutOfMemory("invalid string length", true);
+    isolate()->context()->mark_out_of_memory();
+    return Failure::OutOfMemoryException(0x5);
   }
 
   Map* map = external_ascii_string_map();
@@ -3893,7 +3894,8 @@ MaybeObject* Heap::AllocateExternalStringFromTwoByte(
     const ExternalTwoByteString::Resource* resource) {
   size_t length = resource->length();
   if (length > static_cast<size_t>(String::kMaxLength)) {
-    v8::internal::Heap::FatalProcessOutOfMemory("invalid string length", true);
+    isolate()->context()->mark_out_of_memory();
+    return Failure::OutOfMemoryException(0x6);
   }
 
   // For small strings we check whether the resource contains only
@@ -3944,7 +3946,7 @@ MaybeObject* Heap::LookupSingleCharacterStringFromCode(uint16_t code) {
 
 MaybeObject* Heap::AllocateByteArray(int length, PretenureFlag pretenure) {
   if (length < 0 || length > ByteArray::kMaxLength) {
-    v8::internal::Heap::FatalProcessOutOfMemory("invalid array length", true);
+    return Failure::OutOfMemoryException(0x7);
   }
   int size = ByteArray::SizeFor(length);
   AllocationSpace space = SelectSpace(size, OLD_DATA_SPACE, pretenure);
@@ -4979,7 +4981,7 @@ MaybeObject* Heap::AllocateInternalizedStringImpl(
   Map* map;
 
   if (chars > String::kMaxLength) {
-    v8::internal::Heap::FatalProcessOutOfMemory("invalid string length", true);
+    return Failure::OutOfMemoryException(0x9);
   }
   if (is_one_byte) {
     map = ascii_internalized_string_map();
@@ -5027,7 +5029,7 @@ MaybeObject* Heap::AllocateInternalizedStringImpl<false>(
 MaybeObject* Heap::AllocateRawOneByteString(int length,
                                             PretenureFlag pretenure) {
   if (length < 0 || length > String::kMaxLength) {
-    v8::internal::Heap::FatalProcessOutOfMemory("invalid string length", true);
+    return Failure::OutOfMemoryException(0xb);
   }
   int size = SeqOneByteString::SizeFor(length);
   ASSERT(size <= SeqOneByteString::kMaxSize);
@@ -5051,7 +5053,7 @@ MaybeObject* Heap::AllocateRawOneByteString(int length,
 MaybeObject* Heap::AllocateRawTwoByteString(int length,
                                             PretenureFlag pretenure) {
   if (length < 0 || length > String::kMaxLength) {
-    v8::internal::Heap::FatalProcessOutOfMemory("invalid string length", true);
+    return Failure::OutOfMemoryException(0xc);
   }
   int size = SeqTwoByteString::SizeFor(length);
   ASSERT(size <= SeqTwoByteString::kMaxSize);
@@ -5199,7 +5201,7 @@ MaybeObject* Heap::CopyConstantPoolArrayWithMap(ConstantPoolArray* src,
 
 MaybeObject* Heap::AllocateRawFixedArray(int length, PretenureFlag pretenure) {
   if (length < 0 || length > FixedArray::kMaxLength) {
-    v8::internal::Heap::FatalProcessOutOfMemory("invalid array length", true);
+    return Failure::OutOfMemoryException(0xe);
   }
   int size = FixedArray::SizeFor(length);
   AllocationSpace space = SelectSpace(size, OLD_POINTER_SPACE, pretenure);
@@ -5311,7 +5313,7 @@ MaybeObject* Heap::AllocateFixedDoubleArrayWithHoles(
 MaybeObject* Heap::AllocateRawFixedDoubleArray(int length,
                                                PretenureFlag pretenure) {
   if (length < 0 || length > FixedDoubleArray::kMaxLength) {
-    v8::internal::Heap::FatalProcessOutOfMemory("invalid array length", true);
+    return Failure::OutOfMemoryException(0xf);
   }
   int size = FixedDoubleArray::SizeFor(length);
 #ifndef V8_HOST_ARCH_64_BIT
