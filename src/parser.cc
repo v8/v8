@@ -893,7 +893,7 @@ FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info,
       CheckOctalLiteral(beg_pos, scanner()->location().end_pos, &ok);
     }
 
-    if (ok && FLAG_harmony_scoping && strict_mode() == STRICT) {
+    if (ok && allow_harmony_scoping() && strict_mode() == STRICT) {
       CheckConflictingVarDeclarations(scope_, &ok);
     }
 
@@ -1698,7 +1698,7 @@ void Parser::Declare(Declaration* declaration, bool resolve, bool* ok) {
       // because the var declaration is hoisted to the function scope where 'x'
       // is already bound.
       ASSERT(IsDeclaredVariableMode(var->mode()));
-      if (FLAG_harmony_scoping && strict_mode() == STRICT) {
+      if (allow_harmony_scoping() && strict_mode() == STRICT) {
         // In harmony we treat re-declarations as early errors. See
         // ES5 16 for a definition of early errors.
         SmartArrayPointer<char> c_string = name->ToCString(DISALLOW_NULLS);
@@ -1876,7 +1876,7 @@ Statement* Parser::ParseFunctionDeclaration(ZoneStringList* names, bool* ok) {
   // In extended mode, a function behaves as a lexical binding, except in the
   // global scope.
   VariableMode mode =
-      FLAG_harmony_scoping &&
+      allow_harmony_scoping() &&
       strict_mode() == STRICT && !scope_->is_global_scope() ? LET : VAR;
   VariableProxy* proxy = NewUnresolved(name, mode, Interface::NewValue());
   Declaration* declaration =
@@ -1888,7 +1888,7 @@ Statement* Parser::ParseFunctionDeclaration(ZoneStringList* names, bool* ok) {
 
 
 Block* Parser::ParseBlock(ZoneStringList* labels, bool* ok) {
-  if (FLAG_harmony_scoping && strict_mode() == STRICT) {
+  if (allow_harmony_scoping() && strict_mode() == STRICT) {
     return ParseScopedBlock(labels, ok);
   }
 
@@ -2016,7 +2016,7 @@ Block* Parser::ParseVariableDeclarations(
         init_op = Token::INIT_CONST_LEGACY;
         break;
       case STRICT:
-        if (FLAG_harmony_scoping) {
+        if (allow_harmony_scoping()) {
           if (var_context == kStatement) {
             // In strict mode 'const' declarations are only allowed in source
             // element positions.
@@ -2043,7 +2043,7 @@ Block* Parser::ParseVariableDeclarations(
     //   contained in extended code.
     //
     // TODO(rossberg): make 'let' a legal identifier in sloppy mode.
-    if (!FLAG_harmony_scoping || strict_mode() == SLOPPY) {
+    if (!allow_harmony_scoping() || strict_mode() == SLOPPY) {
       ReportMessage("illegal_let", Vector<const char*>::empty());
       *ok = false;
       return NULL;
@@ -2670,7 +2670,7 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
 
     Target target(&this->target_stack_, &catch_collector);
     VariableMode mode =
-        FLAG_harmony_scoping && strict_mode() == STRICT ? LET : VAR;
+        allow_harmony_scoping() && strict_mode() == STRICT ? LET : VAR;
     catch_variable =
         catch_scope->DeclareLocal(name, mode, kCreatedInitialized);
 
@@ -3181,7 +3181,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   Scope* original_declaration_scope = original_scope_->DeclarationScope();
   Scope* scope =
       function_type == FunctionLiteral::DECLARATION &&
-      (!FLAG_harmony_scoping || strict_mode() == SLOPPY) &&
+      (!allow_harmony_scoping() || strict_mode() == SLOPPY) &&
       (original_scope_ == original_declaration_scope ||
        declaration_scope != original_declaration_scope)
           ? NewScope(declaration_scope, FUNCTION_SCOPE)
@@ -3272,11 +3272,12 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     Variable* fvar = NULL;
     Token::Value fvar_init_op = Token::INIT_CONST_LEGACY;
     if (function_type == FunctionLiteral::NAMED_EXPRESSION) {
-      if (FLAG_harmony_scoping && strict_mode() == STRICT) {
+      if (allow_harmony_scoping() && strict_mode() == STRICT) {
         fvar_init_op = Token::INIT_CONST;
       }
-      VariableMode fvar_mode = FLAG_harmony_scoping && strict_mode() == STRICT
-          ? CONST : CONST_LEGACY;
+      VariableMode fvar_mode =
+          allow_harmony_scoping() && strict_mode() == STRICT ? CONST
+                                                             : CONST_LEGACY;
       fvar = new(zone()) Variable(scope_,
          function_name, fvar_mode, true /* is valid LHS */,
          Variable::NORMAL, kCreatedInitialized, Interface::NewConst());
@@ -3498,7 +3499,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     dont_optimize_reason = factory()->visitor()->dont_optimize_reason();
   }
 
-  if (FLAG_harmony_scoping && strict_mode() == STRICT) {
+  if (allow_harmony_scoping() && strict_mode() == STRICT) {
     CheckConflictingVarDeclarations(scope, CHECK_OK);
   }
 

@@ -379,7 +379,7 @@ PreParser::Statement PreParser::ParseBlock(bool* ok) {
   //
   Expect(Token::LBRACE, CHECK_OK);
   while (peek() != Token::RBRACE) {
-    if (FLAG_harmony_scoping && strict_mode() == STRICT) {
+    if (allow_harmony_scoping() && strict_mode() == STRICT) {
       ParseSourceElement(CHECK_OK);
     } else {
       ParseStatement(CHECK_OK);
@@ -444,7 +444,7 @@ PreParser::Statement PreParser::ParseVariableDeclarations(
     // non-harmony semantics in sloppy mode.
     Consume(Token::CONST);
     if (strict_mode() == STRICT) {
-      if (FLAG_harmony_scoping) {
+      if (allow_harmony_scoping()) {
         if (var_context != kSourceElement && var_context != kForStatement) {
           ReportMessageAt(scanner()->peek_location(), "unprotected_const");
           *ok = false;
@@ -467,7 +467,7 @@ PreParser::Statement PreParser::ParseVariableDeclarations(
     //   contained in extended code.
     //
     // TODO(rossberg): make 'let' a legal identifier in sloppy mode.
-    if (!FLAG_harmony_scoping || strict_mode() == SLOPPY) {
+    if (!allow_harmony_scoping() || strict_mode() == SLOPPY) {
       ReportMessageAt(scanner()->peek_location(), "illegal_let");
       *ok = false;
       return Statement::Default();
