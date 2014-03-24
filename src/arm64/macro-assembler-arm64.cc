@@ -4163,15 +4163,17 @@ void MacroAssembler::PushSafepointRegisters() {
 }
 
 
-void MacroAssembler::PushSafepointFPRegisters() {
+void MacroAssembler::PushSafepointRegistersAndDoubles() {
+  PushSafepointRegisters();
   PushCPURegList(CPURegList(CPURegister::kFPRegister, kDRegSizeInBits,
                             FPRegister::kAllocatableFPRegisters));
 }
 
 
-void MacroAssembler::PopSafepointFPRegisters() {
+void MacroAssembler::PopSafepointRegistersAndDoubles() {
   PopCPURegList(CPURegList(CPURegister::kFPRegister, kDRegSizeInBits,
                            FPRegister::kAllocatableFPRegisters));
+  PopSafepointRegisters();
 }
 
 
@@ -5117,6 +5119,14 @@ CPURegister UseScratchRegisterScope::AcquireNextAvailable(
   CPURegister result = available->PopLowestIndex();
   ASSERT(!AreAliased(result, xzr, csp));
   return result;
+}
+
+
+CPURegister UseScratchRegisterScope::UnsafeAcquire(CPURegList* available,
+                                                   const CPURegister& reg) {
+  ASSERT(available->IncludesAliasOf(reg));
+  available->Remove(reg);
+  return reg;
 }
 
 

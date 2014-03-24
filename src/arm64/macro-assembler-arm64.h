@@ -1728,8 +1728,8 @@ class MacroAssembler : public Assembler {
   void PushSafepointRegisters();
   void PopSafepointRegisters();
 
-  void PushSafepointFPRegisters();
-  void PopSafepointFPRegisters();
+  void PushSafepointRegistersAndDoubles();
+  void PopSafepointRegistersAndDoubles();
 
   // Store value in register src in the safepoint stack slot for register dst.
   void StoreToSafepointRegisterSlot(Register src, Register dst) {
@@ -2215,11 +2215,17 @@ class UseScratchRegisterScope {
   FPRegister AcquireS() { return AcquireNextAvailable(availablefp_).S(); }
   FPRegister AcquireD() { return AcquireNextAvailable(availablefp_).D(); }
 
+  Register UnsafeAcquire(const Register& reg) {
+    return UnsafeAcquire(available_, reg);
+  }
+
   Register AcquireSameSizeAs(const Register& reg);
   FPRegister AcquireSameSizeAs(const FPRegister& reg);
 
  private:
   static CPURegister AcquireNextAvailable(CPURegList* available);
+  static CPURegister UnsafeAcquire(CPURegList* available,
+                                   const CPURegister& reg);
 
   // Available scratch registers.
   CPURegList* available_;     // kRegister

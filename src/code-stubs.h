@@ -100,8 +100,8 @@ namespace internal {
   V(StringLength)                        \
   V(KeyedStringLength)
 
-// List of code stubs only used on ARM platforms.
-#if defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_ARM64)
+// List of code stubs only used on ARM 32 bits platforms.
+#if V8_TARGET_ARCH_ARM
 #define CODE_STUB_LIST_ARM(V)  \
   V(GetProperty)               \
   V(SetProperty)               \
@@ -109,6 +109,19 @@ namespace internal {
   V(DirectCEntry)
 #else
 #define CODE_STUB_LIST_ARM(V)
+#endif
+
+// List of code stubs only used on ARM 64 bits platforms.
+#if V8_TARGET_ARCH_ARM64
+#define CODE_STUB_LIST_ARM64(V)  \
+  V(GetProperty)               \
+  V(SetProperty)               \
+  V(InvokeBuiltin)             \
+  V(DirectCEntry)              \
+  V(StoreRegistersState)       \
+  V(RestoreRegistersState)
+#else
+#define CODE_STUB_LIST_ARM64(V)
 #endif
 
 // List of code stubs only used on MIPS platforms.
@@ -126,6 +139,7 @@ namespace internal {
 #define CODE_STUB_LIST(V)            \
   CODE_STUB_LIST_ALL_PLATFORMS(V)    \
   CODE_STUB_LIST_ARM(V)              \
+  CODE_STUB_LIST_ARM64(V)           \
   CODE_STUB_LIST_MIPS(V)
 
 // Stub is base classes of all stubs.
