@@ -184,6 +184,11 @@
                   '-L<(android_stlport_libs)/x86',
                 ],
               }],
+              ['target_arch=="x64"', {
+                'ldflags': [
+                  '-L<(android_stlport_libs)/x86_64',
+                ],
+              }],
               ['target_arch=="arm64"', {
                 'ldflags': [
                   '-L<(android_stlport_libs)/arm64-v8a',
@@ -252,8 +257,15 @@
       }],  # _toolset=="target"
       # Settings for building host targets using the system toolchain.
       ['_toolset=="host"', {
-        'cflags': [ '-m32', '-pthread' ],
-        'ldflags': [ '-m32', '-pthread' ],
+        'conditions': [
+          ['target_arch=="x64"', {
+            'cflags': [ '-m64', '-pthread' ],
+            'ldflags': [ '-m64', '-pthread' ],
+          }, {
+            'cflags': [ '-m32', '-pthread' ],
+            'ldflags': [ '-m32', '-pthread' ],
+          }],
+        ],
         'ldflags!': [
           '-Wl,-z,noexecstack',
           '-Wl,--gc-sections',
