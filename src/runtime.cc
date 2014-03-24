@@ -11409,6 +11409,14 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFrameDetails) {
 }
 
 
+static bool ParameterIsShadowedByContextLocal(Handle<ScopeInfo> info,
+                                              int index) {
+  VariableMode mode;
+  InitializationFlag flag;
+  return info->ContextSlotIndex(info->ParameterName(index), &mode, &flag) != -1;
+}
+
+
 // Create a plain JSObject which materializes the local scope for the specified
 // frame.
 static Handle<JSObject> MaterializeStackLocalsWithFrameInspector(
@@ -11421,17 +11429,16 @@ static Handle<JSObject> MaterializeStackLocalsWithFrameInspector(
 
   // First fill all parameters.
   for (int i = 0; i < scope_info->ParameterCount(); ++i) {
-    Handle<String> name(scope_info->ParameterName(i));
-    VariableMode mode;
-    InitializationFlag init_flag;
     // Do not materialize the parameter if it is shadowed by a context local.
-    if (scope_info->ContextSlotIndex(*name, &mode, &init_flag) != -1) continue;
+    if (ParameterIsShadowedByContextLocal(scope_info, i)) continue;
 
+    HandleScope scope(isolate);
     Handle<Object> value(i < frame_inspector->GetParametersCount()
                              ? frame_inspector->GetParameter(i)
                              : isolate->heap()->undefined_value(),
                          isolate);
     ASSERT(!value->IsTheHole());
+    Handle<String> name(scope_info->ParameterName(i));
 
     RETURN_IF_EMPTY_HANDLE_VALUE(
         isolate,
@@ -11472,10 +11479,13 @@ static void UpdateStackLocalsFromMaterializedObject(Isolate* isolate,
 
   // Parameters.
   for (int i = 0; i < scope_info->ParameterCount(); ++i) {
+    // Shadowed parameters were not materialized.
+    if (ParameterIsShadowedByContextLocal(scope_info, i)) continue;
+
     ASSERT(!frame->GetParameter(i)->IsTheHole());
     HandleScope scope(isolate);
-    Handle<Object> value = GetProperty(
-        isolate, target, Handle<String>(scope_info->ParameterName(i)));
+    Handle<String> name(scope_info->ParameterName(i));
+    Handle<Object> value = GetProperty(isolate, target, name);
     frame->SetParameterValue(i, *value);
   }
 
