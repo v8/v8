@@ -3488,6 +3488,27 @@ bool Object::SetDeclaredAccessor(Local<String> name,
 }
 
 
+void Object::SetAccessorProperty(Local<String> name,
+                                 Local<Function> getter,
+                                 Handle<Function> setter,
+                                 PropertyAttribute attribute,
+                                 AccessControl settings) {
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  ON_BAILOUT(isolate, "v8::Object::SetAccessorProperty()", return);
+  ENTER_V8(isolate);
+  i::HandleScope scope(isolate);
+  i::Handle<i::Object> getter_i = v8::Utils::OpenHandle(*getter);
+  i::Handle<i::Object> setter_i = v8::Utils::OpenHandle(*setter, true);
+  if (setter_i.is_null()) setter_i = isolate->factory()->null_value();
+  i::JSObject::DefineAccessor(v8::Utils::OpenHandle(this),
+                              v8::Utils::OpenHandle(*name),
+                              getter_i,
+                              setter_i,
+                              static_cast<PropertyAttributes>(attribute),
+                              settings);
+}
+
+
 bool v8::Object::HasOwnProperty(Handle<String> key) {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   ON_BAILOUT(isolate, "v8::Object::HasOwnProperty()",

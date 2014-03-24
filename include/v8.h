@@ -2205,6 +2205,12 @@ class V8_EXPORT Object : public Value {
                            PropertyAttribute attribute = None,
                            AccessControl settings = DEFAULT);
 
+  void SetAccessorProperty(Local<String> name,
+                           Local<Function> getter,
+                           Handle<Function> setter = Handle<Function>(),
+                           PropertyAttribute attribute = None,
+                           AccessControl settings = DEFAULT);
+
   /**
    * Functionality for private properties.
    * This is an experimental feature, use at your own risk.

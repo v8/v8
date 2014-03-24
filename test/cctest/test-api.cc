@@ -21962,25 +21962,6 @@ class ApiCallOptimizationChecker {
     info.GetReturnValue().Set(v8_str("returned"));
   }
 
-  // TODO(dcarney): move this to v8.h
-  static void SetAccessorProperty(Local<Object> object,
-                                  Local<String> name,
-                                  Local<Function> getter,
-                                  Local<Function> setter = Local<Function>()) {
-    i::Isolate* isolate = CcTest::i_isolate();
-    v8::AccessControl settings = v8::DEFAULT;
-    v8::PropertyAttribute attribute = v8::None;
-    i::Handle<i::Object> getter_i = v8::Utils::OpenHandle(*getter);
-    i::Handle<i::Object> setter_i = v8::Utils::OpenHandle(*setter, true);
-    if (setter_i.is_null()) setter_i = isolate->factory()->null_value();
-    i::JSObject::DefineAccessor(v8::Utils::OpenHandle(*object),
-                                v8::Utils::OpenHandle(*name),
-                                getter_i,
-                                setter_i,
-                                static_cast<PropertyAttributes>(attribute),
-                                settings);
-  }
-
   public:
     enum SignatureType {
       kNoSignature,
@@ -22049,9 +22030,9 @@ class ApiCallOptimizationChecker {
         global_holder = Local<Object>::Cast(global_holder->GetPrototype());
       }
       global_holder->Set(v8_str("g_f"), function);
-      SetAccessorProperty(global_holder, v8_str("g_acc"), function, function);
+      global_holder->SetAccessorProperty(v8_str("g_acc"), function, function);
       function_holder->Set(v8_str("f"), function);
-      SetAccessorProperty(function_holder, v8_str("acc"), function, function);
+      function_holder->SetAccessorProperty(v8_str("acc"), function, function);
       // Initialize expected values.
       callee = function;
       count = 0;
