@@ -55,7 +55,7 @@ class Preparation(Step):
     self.CommonPrepare()
 
 
-class CheckAutoRollSettings(Step):
+class CheckAutoPushSettings(Step):
   MESSAGE = "Checking settings file."
 
   def RunStep(self):
@@ -114,47 +114,25 @@ class CheckLastPush(Step):
 class PushToTrunk(Step):
   MESSAGE = "Pushing to trunk if specified."
 
-  def PushTreeStatus(self, message):
-    if not self._options.status_password:
-      print "Skipping tree status update without password file."
-      return
-    params = {
-      "message": message,
-      "username": "v8-auto-roll@chromium.org",
-      "password": FileToText(self._options.status_password).strip(),
-    }
-    params = urllib.urlencode(params)
-    print "Pushing tree status: '%s'" % message
-    self.ReadURL("https://v8-status.appspot.com/status", params,
-                 wait_plan=[5, 20])
-
   def RunStep(self):
     print "Pushing lkgr %s to trunk." % self["lkgr"]
-    self.PushTreeStatus("Tree is closed (preparing to push)")
 
     # TODO(machenbach): Update the script before calling it.
-    try:
-      if self._options.push:
-        P = push_to_trunk.PushToTrunk
-        self._side_effect_handler.Call(
-            P(push_to_trunk.CONFIG, self._side_effect_handler).Run,
-            ["--author", self._options.author,
-             "--reviewer", self._options.reviewer,
-             "--revision", self["lkgr"],
-             "--force"])
-    finally:
-      self.PushTreeStatus(self["tree_message"])
+    if self._options.push:
+      P = push_to_trunk.PushToTrunk
+      self._side_effect_handler.Call(
+          P(push_to_trunk.CONFIG, self._side_effect_handler).Run,
+          ["--author", self._options.author,
+           "--reviewer", self._options.reviewer,
+           "--revision", self["lkgr"],
+           "--force"])
 
 
-class AutoRoll(ScriptsBase):
+class AutoPush(ScriptsBase):
   def _PrepareOptions(self, parser):
-    parser.add_argument("-c", "--chromium",
-                        help=("Deprecated."))
     parser.add_argument("-p", "--push",
                         help="Push to trunk. Dry run if unspecified.",
                         default=False, action="store_true")
-    parser.add_argument("--status-password",
-                        help="A file with the password to the status app.")
 
   def _ProcessOptions(self, options):
     if not options.author or not options.reviewer:  # pragma: no cover
@@ -166,7 +144,7 @@ class AutoRoll(ScriptsBase):
   def _Steps(self):
     return [
       Preparation,
-      CheckAutoRollSettings,
+      CheckAutoPushSettings,
       CheckTreeStatus,
       FetchLKGR,
       CheckLastPush,
@@ -175,4 +153,4 @@ class AutoRoll(ScriptsBase):
 
 
 if __name__ == "__main__":  # pragma: no cover
-  sys.exit(AutoRoll(CONFIG).Run())
+  sys.exit(AutoPush(CONFIG).Run())
