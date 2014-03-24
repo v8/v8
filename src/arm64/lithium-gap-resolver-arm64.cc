@@ -42,6 +42,12 @@ namespace internal {
 //    once we have resolved a cycle.
 #define kSavedValue root
 
+// We use the MacroAssembler floating-point scratch register to break a cycle
+// involving double values as the MacroAssembler will not need it for the
+// operations performed by the gap resolver.
+#define kSavedDoubleValue fp_scratch
+
+
 LGapResolver::LGapResolver(LCodeGen* owner)
     : cgen_(owner), moves_(32, owner->zone()), root_index_(0), in_cycle_(false),
       saved_destination_(NULL), need_to_restore_root_(false) { }
@@ -169,10 +175,10 @@ void LGapResolver::BreakCycle(int index) {
   ASSERT(moves_[index].destination()->Equals(moves_[root_index_].source()));
   ASSERT(!in_cycle_);
 
-  // We use a register which is not allocatable by crankshaft to break the cycle
-  // to be sure it doesn't interfere with the moves we are resolving.
+  // We use registers which are not allocatable by crankshaft to break the cycle
+  // to be sure they don't interfere with the moves we are resolving.
   ASSERT(!kSavedValue.IsAllocatable());
-  need_to_restore_root_ = true;
+  ASSERT(!kSavedDoubleValue.IsAllocatable());
 
   // We save in a register the source of that move and we remember its
   // destination. Then we mark this move as resolved so the cycle is
@@ -182,19 +188,19 @@ void LGapResolver::BreakCycle(int index) {
   saved_destination_ = moves_[index].destination();
 
   if (source->IsRegister()) {
+    need_to_restore_root_ = true;
     __ Mov(kSavedValue, cgen_->ToRegister(source));
   } else if (source->IsStackSlot()) {
+    need_to_restore_root_ = true;
     __ Ldr(kSavedValue, cgen_->ToMemOperand(source));
   } else if (source->IsDoubleRegister()) {
-    // TODO(all): We should use a double register to store the value to avoid
-    // the penalty of the mov across register banks. We are going to reserve
-    // d31 to hold 0.0 value. We could clobber this register while breaking the
-    // cycle and restore it after like we do with the root register.
-    // LGapResolver::RestoreValue() will need to be updated as well when we'll
-    // do that.
-    __ Fmov(kSavedValue, cgen_->ToDoubleRegister(source));
+    ASSERT(cgen_->masm()->FPTmpList()->IncludesAliasOf(kSavedDoubleValue));
+    cgen_->masm()->FPTmpList()->Remove(kSavedDoubleValue);
+    __ Fmov(kSavedDoubleValue, cgen_->ToDoubleRegister(source));
   } else if (source->IsDoubleStackSlot()) {
-    __ Ldr(kSavedValue, cgen_->ToMemOperand(source));
+    ASSERT(cgen_->masm()->FPTmpList()->IncludesAliasOf(kSavedDoubleValue));
+    cgen_->masm()->FPTmpList()->Remove(kSavedDoubleValue);
+    __ Ldr(kSavedDoubleValue, cgen_->ToMemOperand(source));
   } else {
     UNREACHABLE();
   }
@@ -215,9 +221,11 @@ void LGapResolver::RestoreValue() {
   } else if (saved_destination_->IsStackSlot()) {
     __ Str(kSavedValue, cgen_->ToMemOperand(saved_destination_));
   } else if (saved_destination_->IsDoubleRegister()) {
-    __ Fmov(cgen_->ToDoubleRegister(saved_destination_), kSavedValue);
+    __ Fmov(cgen_->ToDoubleRegister(saved_destination_), kSavedDoubleValue);
+    cgen_->masm()->FPTmpList()->Combine(kSavedDoubleValue);
   } else if (saved_destination_->IsDoubleStackSlot()) {
-    __ Str(kSavedValue, cgen_->ToMemOperand(saved_destination_));
+    __ Str(kSavedDoubleValue, cgen_->ToMemOperand(saved_destination_));
+    cgen_->masm()->FPTmpList()->Combine(kSavedDoubleValue);
   } else {
     UNREACHABLE();
   }
