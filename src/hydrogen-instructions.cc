@@ -3923,15 +3923,9 @@ HInstruction* HStringAdd::New(Zone* zone,
     HConstant* c_right = HConstant::cast(right);
     HConstant* c_left = HConstant::cast(left);
     if (c_left->HasStringValue() && c_right->HasStringValue()) {
-      Handle<String> left_string = c_left->StringValue();
-      Handle<String> right_string = c_right->StringValue();
-      // Prevent possible exception by invalid string length.
-      if (left_string->length() + right_string->length() < String::kMaxLength) {
-        Handle<String> concat = zone->isolate()->factory()->NewFlatConcatString(
-            c_left->StringValue(), c_right->StringValue());
-        ASSERT(!concat.is_null());
-        return HConstant::New(zone, context, concat);
-      }
+      Handle<String> concat = zone->isolate()->factory()->NewFlatConcatString(
+          c_left->StringValue(), c_right->StringValue());
+      return HConstant::New(zone, context, concat);
     }
   }
   return new(zone) HStringAdd(

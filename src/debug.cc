@@ -754,7 +754,6 @@ bool Debug::CompileDebuggerScript(Isolate* isolate, int index) {
       isolate->bootstrapper()->NativesSourceLookup(index);
   Vector<const char> name = Natives::GetScriptName(index);
   Handle<String> script_name = factory->NewStringFromAscii(name);
-  ASSERT(!script_name.is_null());
   Handle<Context> context = isolate->native_context();
 
   // Compile the script.
@@ -2600,7 +2599,6 @@ Handle<Object> Debugger::MakeJSObject(Vector<const char> constructor_name,
   // Create the execution state object.
   Handle<String> constructor_str =
       isolate_->factory()->InternalizeUtf8String(constructor_name);
-  ASSERT(!constructor_str.is_null());
   Handle<Object> constructor(
       isolate_->global_object()->GetPropertyNoExceptionThrown(*constructor_str),
       isolate_);

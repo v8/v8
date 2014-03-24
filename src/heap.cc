@@ -3871,7 +3871,7 @@ MaybeObject* Heap::AllocateExternalStringFromAscii(
     const ExternalAsciiString::Resource* resource) {
   size_t length = resource->length();
   if (length > static_cast<size_t>(String::kMaxLength)) {
-    return isolate()->ThrowInvalidStringLength();
+    v8::internal::Heap::FatalProcessOutOfMemory("invalid string length", true);
   }
 
   Map* map = external_ascii_string_map();
@@ -3893,7 +3893,7 @@ MaybeObject* Heap::AllocateExternalStringFromTwoByte(
     const ExternalTwoByteString::Resource* resource) {
   size_t length = resource->length();
   if (length > static_cast<size_t>(String::kMaxLength)) {
-    return isolate()->ThrowInvalidStringLength();
+    v8::internal::Heap::FatalProcessOutOfMemory("invalid string length", true);
   }
 
   // For small strings we check whether the resource contains only
@@ -4978,8 +4978,8 @@ MaybeObject* Heap::AllocateInternalizedStringImpl(
   int size;
   Map* map;
 
-  if (chars < 0 || chars > String::kMaxLength) {
-    return isolate()->ThrowInvalidStringLength();
+  if (chars > String::kMaxLength) {
+    v8::internal::Heap::FatalProcessOutOfMemory("invalid string length", true);
   }
   if (is_one_byte) {
     map = ascii_internalized_string_map();
@@ -5027,7 +5027,7 @@ MaybeObject* Heap::AllocateInternalizedStringImpl<false>(
 MaybeObject* Heap::AllocateRawOneByteString(int length,
                                             PretenureFlag pretenure) {
   if (length < 0 || length > String::kMaxLength) {
-    return isolate()->ThrowInvalidStringLength();
+    v8::internal::Heap::FatalProcessOutOfMemory("invalid string length", true);
   }
   int size = SeqOneByteString::SizeFor(length);
   ASSERT(size <= SeqOneByteString::kMaxSize);
@@ -5051,7 +5051,7 @@ MaybeObject* Heap::AllocateRawOneByteString(int length,
 MaybeObject* Heap::AllocateRawTwoByteString(int length,
                                             PretenureFlag pretenure) {
   if (length < 0 || length > String::kMaxLength) {
-    return isolate()->ThrowInvalidStringLength();
+    v8::internal::Heap::FatalProcessOutOfMemory("invalid string length", true);
   }
   int size = SeqTwoByteString::SizeFor(length);
   ASSERT(size <= SeqTwoByteString::kMaxSize);

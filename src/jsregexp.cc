@@ -466,7 +466,6 @@ bool RegExpImpl::CompileIrregexp(Handle<JSRegExp> re,
     // Unable to compile regexp.
     Handle<String> error_message =
         isolate->factory()->NewStringFromUtf8(CStrVector(result.error_message));
-    ASSERT(!error_message.is_null());
     CreateRegExpErrorObjectAndThrow(re, is_ascii, error_message, isolate);
     return false;
   }

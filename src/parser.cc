@@ -215,7 +215,6 @@ Handle<String> Parser::LookupCachedSymbol(int symbol_id) {
   Handle<String> result = symbol_cache_.at(symbol_id);
   if (result.is_null()) {
     result = scanner()->AllocateInternalizedString(isolate_);
-    ASSERT(!result.is_null());
     symbol_cache_.at(symbol_id) = result;
     return result;
   }
@@ -616,7 +615,6 @@ void ParserTraits::ReportMessageAt(Scanner::Location source_location,
   Handle<FixedArray> elements = factory->NewFixedArray(args.length());
   for (int i = 0; i < args.length(); i++) {
     Handle<String> arg_string = factory->NewStringFromUtf8(CStrVector(args[i]));
-    ASSERT(!arg_string.is_null());
     elements->set(i, *arg_string);
   }
   Handle<JSArray> array = factory->NewJSArrayWithElements(elements);
@@ -674,10 +672,7 @@ Handle<String> ParserTraits::GetSymbol(Scanner* scanner) {
       parser_->scanner()->LogSymbol(parser_->log_, parser_->position());
     }
   }
-  Handle<String> result =
-      parser_->scanner()->AllocateInternalizedString(parser_->isolate_);
-  ASSERT(!result.is_null());
-  return result;
+  return parser_->scanner()->AllocateInternalizedString(parser_->isolate_);
 }
 
 
@@ -1714,8 +1709,8 @@ void Parser::Declare(Declaration* declaration, bool resolve, bool* ok) {
         return;
       }
       Handle<String> message_string =
-          isolate()->factory()->InternalizeOneByteString(
-              STATIC_ASCII_VECTOR("Variable"));
+          isolate()->factory()->NewStringFromUtf8(CStrVector("Variable"),
+                                                  TENURED);
       Expression* expression =
           NewThrowTypeError(isolate()->factory()->redeclaration_string(),
                             message_string, name);
@@ -3821,7 +3816,6 @@ bool RegExpParser::simple() {
 RegExpTree* RegExpParser::ReportError(Vector<const char> message) {
   failed_ = true;
   *error_ = isolate()->factory()->NewStringFromAscii(message, NOT_TENURED);
-  ASSERT(!error_->is_null());
   // Zip to the end to make sure the no more input is read.
   current_ = kEndMarker;
   next_pos_ = in()->length();
