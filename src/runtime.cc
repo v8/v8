@@ -6312,6 +6312,15 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringParseFloat) {
 }
 
 
+static inline bool ToUpperOverflows(uc32 character) {
+  // y with umlauts and the micro sign are the only characters that stop
+  // fitting into one-byte when converting to uppercase.
+  static const uc32 yuml_code = 0xff;
+  static const uc32 micro_code = 0xb5;
+  return (character == yuml_code || character == micro_code);
+}
+
+
 template <class Converter>
 MUST_USE_RESULT static MaybeObject* ConvertCaseHelper(
     Isolate* isolate,
@@ -6339,10 +6348,7 @@ MUST_USE_RESULT static MaybeObject* ConvertCaseHelper(
   unibrow::uchar chars[Converter::kMaxWidth];
   // We can assume that the string is not empty
   uc32 current = stream.GetNext();
-  // y with umlauts is the only character that stops fitting into one-byte
-  // when converting to uppercase.
-  static const uc32 yuml_code = 0xff;
-  bool ignore_yuml = result->IsSeqTwoByteString() || Converter::kIsToLower;
+  bool ignore_overflow = Converter::kIsToLower || result->IsSeqTwoByteString();
   for (int i = 0; i < result_length;) {
     bool has_next = stream.HasMore();
     uc32 next = has_next ? stream.GetNext() : 0;
@@ -6351,14 +6357,15 @@ MUST_USE_RESULT static MaybeObject* ConvertCaseHelper(
       // The case conversion of this character is the character itself.
       result->Set(i, current);
       i++;
-    } else if (char_length == 1 && (ignore_yuml || current != yuml_code)) {
+    } else if (char_length == 1 &&
+               (ignore_overflow || !ToUpperOverflows(current))) {
       // Common case: converting the letter resulted in one character.
       ASSERT(static_cast<uc32>(chars[0]) != current);
       result->Set(i, chars[0]);
       has_changed_character = true;
       i++;
     } else if (result_length == string->length()) {
-      bool found_yuml = (current == yuml_code);
+      bool overflows = ToUpperOverflows(current);
       // We've assumed that the result would be as long as the
       // input but here is a character that converts to several
       // characters.  No matter, we calculate the exact length
@@ -6378,7 +6385,7 @@ MUST_USE_RESULT static MaybeObject* ConvertCaseHelper(
       int current_length = i + char_length + next_length;
       while (stream.HasMore()) {
         current = stream.GetNext();
-        found_yuml |= (current == yuml_code);
+        overflows |= ToUpperOverflows(current);
         // NOTE: we use 0 as the next character here because, while
         // the next character may affect what a character converts to,
         // it does not in any case affect the length of what it convert
@@ -6392,9 +6399,9 @@ MUST_USE_RESULT static MaybeObject* ConvertCaseHelper(
         }
       }
       // Try again with the real length.  Return signed if we need
-      // to allocate a two-byte string for y-umlaut to uppercase.
-      return (found_yuml && !ignore_yuml) ? Smi::FromInt(-current_length)
-                                          : Smi::FromInt(current_length);
+      // to allocate a two-byte string for to uppercase.
+      return (overflows && !ignore_overflow) ? Smi::FromInt(-current_length)
+                                             : Smi::FromInt(current_length);
     } else {
       for (int j = 0; j < char_length; j++) {
         result->Set(i, chars[j]);
