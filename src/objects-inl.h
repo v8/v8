@@ -649,12 +649,6 @@ bool MaybeObject::IsRetryAfterGC() {
 }
 
 
-bool MaybeObject::IsOutOfMemory() {
-  return HAS_FAILURE_TAG(this)
-      && Failure::cast(this)->IsOutOfMemoryException();
-}
-
-
 bool MaybeObject::IsException() {
   return this == Failure::Exception();
 }
@@ -1245,11 +1239,6 @@ bool Failure::IsInternalError() const {
 }
 
 
-bool Failure::IsOutOfMemoryException() const {
-  return type() == OUT_OF_MEMORY_EXCEPTION;
-}
-
-
 AllocationSpace Failure::allocation_space() const {
   ASSERT_EQ(RETRY_AFTER_GC, type());
   return static_cast<AllocationSpace>((value() >> kFailureTypeTagSize)
@@ -1264,11 +1253,6 @@ Failure* Failure::InternalError() {
 
 Failure* Failure::Exception() {
   return Construct(EXCEPTION);
-}
-
-
-Failure* Failure::OutOfMemoryException(intptr_t value) {
-  return Construct(OUT_OF_MEMORY_EXCEPTION, value);
 }
 
 

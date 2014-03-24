@@ -4616,20 +4616,6 @@ class V8_EXPORT V8 {
   static void SetArrayBufferAllocator(ArrayBuffer::Allocator* allocator);
 
   /**
-   * Ignore out-of-memory exceptions.
-   *
-   * V8 running out of memory is treated as a fatal error by default.
-   * This means that the fatal error handler is called and that V8 is
-   * terminated.
-   *
-   * IgnoreOutOfMemoryException can be used to not treat an
-   * out-of-memory situation as a fatal error.  This way, the contexts
-   * that did not cause the out of memory problem might be able to
-   * continue execution.
-   */
-  static void IgnoreOutOfMemoryException();
-
-  /**
    * Check if V8 is dead and therefore unusable.  This is the case after
    * fatal errors such as out-of-memory situations.
    */
@@ -5234,7 +5220,7 @@ class V8_EXPORT Context {
   void Exit();
 
   /** Returns true if the context has experienced an out of memory situation. */
-  bool HasOutOfMemoryException();
+  bool HasOutOfMemoryException() { return false; }
 
   /** Returns an isolate associated with a current context. */
   v8::Isolate* GetIsolate();

@@ -934,7 +934,6 @@ class MaybeObject BASE_EMBEDDED {
  public:
   inline bool IsFailure();
   inline bool IsRetryAfterGC();
-  inline bool IsOutOfMemory();
   inline bool IsException();
   INLINE(bool IsTheHole());
   INLINE(bool IsUninitialized());
@@ -1728,15 +1727,11 @@ class Failure: public MaybeObject {
   inline AllocationSpace allocation_space() const;
 
   inline bool IsInternalError() const;
-  inline bool IsOutOfMemoryException() const;
 
   static inline Failure* RetryAfterGC(AllocationSpace space);
   static inline Failure* RetryAfterGC();  // NEW_SPACE
   static inline Failure* Exception();
   static inline Failure* InternalError();
-  // TODO(jkummerow): The value is temporary instrumentation. Remove it
-  // when it has served its purpose.
-  static inline Failure* OutOfMemoryException(intptr_t value);
   // Casting.
   static inline Failure* cast(MaybeObject* object);
 

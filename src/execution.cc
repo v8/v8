@@ -135,11 +135,6 @@ static Handle<Object> Invoke(bool is_construct,
   ASSERT(*has_pending_exception == isolate->has_pending_exception());
   if (*has_pending_exception) {
     isolate->ReportPendingMessages();
-    if (isolate->pending_exception()->IsOutOfMemory()) {
-      if (!isolate->ignore_out_of_memory()) {
-        V8::FatalProcessOutOfMemory("JS", true);
-      }
-    }
 #ifdef ENABLE_DEBUGGER_SUPPORT
     // Reset stepping state when script exits with uncaught exception.
     if (isolate->debugger()->IsDebuggerActive()) {
@@ -225,9 +220,6 @@ Handle<Object> Execution::TryCall(Handle<JSFunction> func,
     ASSERT(catcher.HasCaught());
     ASSERT(isolate->has_pending_exception());
     ASSERT(isolate->external_caught_exception());
-    if (isolate->is_out_of_memory() && !isolate->ignore_out_of_memory()) {
-      V8::FatalProcessOutOfMemory("OOM during Execution::TryCall");
-    }
     if (isolate->pending_exception() ==
         isolate->heap()->termination_exception()) {
       result = isolate->factory()->termination_exception();
