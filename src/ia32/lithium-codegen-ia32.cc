@@ -4347,7 +4347,7 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
   if (representation.IsHeapObject()) {
     if (instr->value()->IsConstantOperand()) {
       LConstantOperand* operand_value = LConstantOperand::cast(instr->value());
-      if (IsInteger32(operand_value)) {
+      if (chunk_->LookupConstant(operand_value)->HasSmiValue()) {
         DeoptimizeIf(no_condition, instr->environment());
       }
     } else {
