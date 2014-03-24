@@ -186,7 +186,7 @@
               }],
               ['target_arch=="arm64"', {
                 'ldflags': [
-                  '-L<(android_stlport_libs)/arm64',
+                  '-L<(android_stlport_libs)/arm64-v8a',
                 ],
               }],
             ],
