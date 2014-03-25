@@ -911,6 +911,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ArrayBufferIsView) {
 RUNTIME_FUNCTION(MaybeObject*, Runtime_ArrayBufferNeuter) {
   HandleScope scope(isolate);
   CONVERT_ARG_HANDLE_CHECKED(JSArrayBuffer, array_buffer, 0);
+  if (array_buffer->backing_store() == NULL) {
+    CHECK(Smi::FromInt(0) == array_buffer->byte_length());
+    return isolate->heap()->undefined_value();
+  }
   ASSERT(!array_buffer->is_external());
   void* backing_store = array_buffer->backing_store();
   size_t byte_length = NumberToSize(isolate, array_buffer->byte_length());
