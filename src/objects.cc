@@ -11238,6 +11238,7 @@ MaybeObject* JSObject::SetFastDoubleElementsCapacityAndLength(
   }
 
   ElementsKind elements_kind = GetElementsKind();
+  CHECK(elements_kind != SLOPPY_ARGUMENTS_ELEMENTS);
   ElementsKind new_elements_kind = elements_kind;
   if (IsHoleyElementsKind(elements_kind)) {
     new_elements_kind = FAST_HOLEY_DOUBLE_ELEMENTS;
@@ -11257,13 +11258,9 @@ MaybeObject* JSObject::SetFastDoubleElementsCapacityAndLength(
         accessor->CopyElements(this, elems, elements_kind);
     if (maybe_obj->IsFailure()) return maybe_obj;
   }
-  if (elements_kind != SLOPPY_ARGUMENTS_ELEMENTS) {
-    ValidateElements();
-    set_map_and_elements(new_map, elems);
-  } else {
-    FixedArray* parameter_map = FixedArray::cast(old_elements);
-    parameter_map->set(1, elems);
-  }
+
+  ValidateElements();
+  set_map_and_elements(new_map, elems);
 
   if (FLAG_trace_elements_transitions) {
     PrintElementsTransition(stdout, elements_kind, old_elements,
@@ -13124,6 +13121,7 @@ bool JSObject::ShouldConvertToFastElements() {
 bool JSObject::ShouldConvertToFastDoubleElements(
     bool* has_smi_only_elements) {
   *has_smi_only_elements = false;
+  if (HasSloppyArgumentsElements()) return false;
   if (FLAG_unbox_double_arrays) {
     ASSERT(HasDictionaryElements());
     SeededNumberDictionary* dictionary = element_dictionary();
