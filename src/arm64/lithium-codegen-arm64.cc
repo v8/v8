@@ -4238,6 +4238,7 @@ void LCodeGen::DoMulConstIS(LMulConstIS* instr) {
   Register left =
       is_smi ? ToRegister(instr->left()) : ToRegister32(instr->left()) ;
   int32_t right = ToInteger32(instr->right());
+  ASSERT((right > -kMaxInt) || (right < kMaxInt));
 
   bool can_overflow = instr->hydrogen()->CheckFlag(HValue::kCanOverflow);
   bool bailout_on_minus_zero =
@@ -4281,20 +4282,40 @@ void LCodeGen::DoMulConstIS(LMulConstIS* instr) {
       }
       break;
 
-    // All other cases cannot detect overflow, because it would probably be no
-    // faster than using the smull method in LMulI.
-    // TODO(jbramley): Investigate this, and add overflow support if it would
-    // be useful.
     default:
-      ASSERT(!can_overflow);
-
       // Multiplication by constant powers of two (and some related values)
       // can be done efficiently with shifted operands.
-      if (right >= 0) {
-        if (IsPowerOf2(right)) {
+      int32_t right_abs = Abs(right);
+
+      if (IsPowerOf2(right_abs)) {
+        int right_log2 = WhichPowerOf2(right_abs);
+
+        if (can_overflow) {
+          Register scratch = result;
+          ASSERT(!AreAliased(scratch, left));
+          __ Cls(scratch, left);
+          __ Cmp(scratch, right_log2);
+          DeoptimizeIf(lt, instr->environment());
+        }
+
+        if (right >= 0) {
           // result = left << log2(right)
-          __ Lsl(result, left, WhichPowerOf2(right));
-        } else if (IsPowerOf2(right - 1)) {
+          __ Lsl(result, left, right_log2);
+        } else {
+          // result = -left << log2(-right)
+          __ Neg(result, Operand(left, LSL, right_log2));
+        }
+        return;
+      }
+
+
+      // For the following cases, we could perform a conservative overflow check
+      // with CLS as above. However the few cycles saved are likely not worth
+      // the risk of deoptimizing more often than required.
+      ASSERT(!can_overflow);
+
+      if (right >= 0) {
+        if (IsPowerOf2(right - 1)) {
           // result = left + left << log2(right - 1)
           __ Add(result, left, Operand(left, LSL, WhichPowerOf2(right - 1)));
         } else if (IsPowerOf2(right + 1)) {
@@ -4305,10 +4326,7 @@ void LCodeGen::DoMulConstIS(LMulConstIS* instr) {
           UNREACHABLE();
         }
       } else {
-        if (IsPowerOf2(-right)) {
-          // result = -left << log2(-right)
-          __ Neg(result, Operand(left, LSL, WhichPowerOf2(-right)));
-        } else if (IsPowerOf2(-right + 1)) {
+        if (IsPowerOf2(-right + 1)) {
           // result = left - left << log2(-right + 1)
           __ Sub(result, left, Operand(left, LSL, WhichPowerOf2(-right + 1)));
         } else if (IsPowerOf2(-right - 1)) {
@@ -4319,7 +4337,6 @@ void LCodeGen::DoMulConstIS(LMulConstIS* instr) {
           UNREACHABLE();
         }
       }
-      break;
   }
 }
 
