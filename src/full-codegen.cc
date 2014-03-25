@@ -1005,13 +1005,6 @@ void FullCodeGenerator::EmitMaxSmi(CallRuntime* expr) {
 }
 
 
-void FullCodeGenerator::EmitTypedArrayMaxSizeInHeap(CallRuntime* expr) {
-  ASSERT(expr->arguments()->length() == 0);
-  masm()->CallRuntime(Runtime::kTypedArrayMaxSizeInHeap, 0);
-  context()->Plug(result_register());
-}
-
-
 void FullCodeGenerator::VisitBinaryOperation(BinaryOperation* expr) {
   switch (expr->op()) {
     case Token::COMMA:
