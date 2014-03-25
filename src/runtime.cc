@@ -2544,7 +2544,7 @@ RUNTIME_FUNCTION(MaybeObject*,
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_RegExpExec) {
+RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_RegExpExec) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 4);
   CONVERT_ARG_HANDLE_CHECKED(JSRegExp, regexp, 0);
@@ -2565,7 +2565,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_RegExpExec) {
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_RegExpConstructResult) {
+RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_RegExpConstructResult) {
   SealHandleScope shs(isolate);
   ASSERT(args.length() == 3);
   CONVERT_SMI_ARG_CHECKED(elements_count, 0);
@@ -3227,7 +3227,7 @@ MUST_USE_RESULT static MaybeObject* CharFromCode(Isolate* isolate,
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_StringCharCodeAt) {
+RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_StringCharCodeAt) {
   SealHandleScope shs(isolate);
   ASSERT(args.length() == 2);
 
@@ -4497,7 +4497,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringLocaleCompare) {
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_SubString) {
+RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_SubString) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 3);
 
@@ -6861,7 +6861,7 @@ bool Runtime::IsUpperCaseChar(RuntimeState* runtime_state, uint16_t ch) {
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberToString) {
+RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_NumberToString) {
   SealHandleScope shs(isolate);
   ASSERT(args.length() == 1);
 
@@ -7065,7 +7065,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberImul) {
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_StringAdd) {
+RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_StringAdd) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(String, str1, 0);
@@ -7688,7 +7688,7 @@ static Object* FlatStringCompare(String* x, String* y) {
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_StringCompare) {
+RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_StringCompare) {
   SealHandleScope shs(isolate);
   ASSERT(args.length() == 2);
 
@@ -14530,7 +14530,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_TryMigrateInstance) {
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFromCache) {
+RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_GetFromCache) {
   SealHandleScope shs(isolate);
   // This is only called from codegen, so checks might be more lax.
   CONVERT_ARG_CHECKED(JSFunctionResultCache, cache, 0);
@@ -14652,6 +14652,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ListNatives) {
 #define COUNT_ENTRY(Name, argc, ressize) + 1
   int entry_count = 0
       RUNTIME_FUNCTION_LIST(COUNT_ENTRY)
+      RUNTIME_HIDDEN_FUNCTION_LIST(COUNT_ENTRY)
       INLINE_FUNCTION_LIST(COUNT_ENTRY);
 #undef COUNT_ENTRY
   Factory* factory = isolate->factory();
@@ -14678,6 +14679,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ListNatives) {
   }
   inline_runtime_functions = false;
   RUNTIME_FUNCTION_LIST(ADD_ENTRY)
+  // Calling hidden runtime functions should just throw.
+  RUNTIME_HIDDEN_FUNCTION_LIST(ADD_ENTRY)
   inline_runtime_functions = true;
   INLINE_FUNCTION_LIST(ADD_ENTRY)
 #undef ADD_ENTRY
@@ -14688,7 +14691,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ListNatives) {
 #endif
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_Log) {
+RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_Log) {
   HandleScope handle_scope(isolate);
   ASSERT(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(String, format, 0);
@@ -15033,16 +15036,31 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_MaxSmi) {
     FUNCTION_ADDR(Runtime_##name), number_of_args, result_size },
 
 
+#define FH(name, number_of_args, result_size)                             \
+  { Runtime::kHidden##name, Runtime::RUNTIME_HIDDEN, NULL,   \
+    FUNCTION_ADDR(RuntimeHidden_##name), number_of_args, result_size },
+
+
 #define I(name, number_of_args, result_size)                             \
   { Runtime::kInline##name, Runtime::INLINE,     \
     "_" #name, NULL, number_of_args, result_size },
 
+
+#define IO(name, number_of_args, result_size) \
+  { Runtime::kInlineOptimized##name, Runtime::INLINE_OPTIMIZED, \
+    "_" #name, FUNCTION_ADDR(Runtime_##name), number_of_args, result_size },
+
+
 static const Runtime::Function kIntrinsicFunctions[] = {
   RUNTIME_FUNCTION_LIST(F)
+  RUNTIME_HIDDEN_FUNCTION_LIST(FH)
   INLINE_FUNCTION_LIST(I)
+  INLINE_OPTIMIZED_FUNCTION_LIST(IO)
 };
 
+#undef IO
 #undef I
+#undef FH
 #undef F
 
 
@@ -15051,9 +15069,11 @@ MaybeObject* Runtime::InitializeIntrinsicFunctionNames(Heap* heap,
   ASSERT(dictionary != NULL);
   ASSERT(NameDictionary::cast(dictionary)->NumberOfElements() == 0);
   for (int i = 0; i < kNumFunctions; ++i) {
+    const char* name = kIntrinsicFunctions[i].name;
+    if (name == NULL) continue;
     Object* name_string;
     { MaybeObject* maybe_name_string =
-          heap->InternalizeUtf8String(kIntrinsicFunctions[i].name);
+          heap->InternalizeUtf8String(name);
       if (!maybe_name_string->ToObject(&name_string)) return maybe_name_string;
     }
     NameDictionary* name_dictionary = NameDictionary::cast(dictionary);

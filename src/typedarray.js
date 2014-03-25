@@ -257,7 +257,7 @@ function TypedArraySet(obj, offset) {
     throw MakeTypeError("typed_array_set_negative_offset");
   }
 
-  if (intOffset > %MaxSmi()) {
+  if (intOffset > %_MaxSmi()) {
     throw MakeRangeError("typed_array_set_source_too_large");
   }
   switch (%TypedArraySetFastCases(this, obj, intOffset)) {

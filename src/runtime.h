@@ -594,14 +594,28 @@ namespace internal {
 // RUNTIME_FUNCTION_LIST defines all runtime functions accessed
 // either directly by id (via the code generator), or indirectly
 // via a native call by name (from within JS code).
+// Entries have the form F(name, number of arguments, number of return values).
 
 #define RUNTIME_FUNCTION_LIST(F) \
   RUNTIME_FUNCTION_LIST_ALWAYS_1(F) \
   RUNTIME_FUNCTION_LIST_ALWAYS_2(F) \
   RUNTIME_FUNCTION_LIST_DEBUG(F) \
   RUNTIME_FUNCTION_LIST_DEBUGGER_SUPPORT(F) \
-  RUNTIME_FUNCTION_LIST_I18N_SUPPORT(F) \
-  INLINE_RUNTIME_FUNCTION_LIST(F)
+  RUNTIME_FUNCTION_LIST_I18N_SUPPORT(F)
+
+// RUNTIME_HIDDEN_FUNCTION_LIST defines all runtime functions accessed
+// by id from code generator, but not via native call by name.
+// Entries have the form F(name, number of arguments, number of return values).
+#define RUNTIME_HIDDEN_FUNCTION_LIST(F) \
+  F(NumberToString, 1, 1) \
+  F(RegExpConstructResult, 3, 1) \
+  F(RegExpExec, 4, 1) \
+  F(StringAdd, 2, 1)  \
+  F(SubString, 3, 1) \
+  F(StringCompare, 2, 1) \
+  F(StringCharCodeAt, 2, 1) \
+  F(Log, 3, 1) \
+  F(GetFromCache, 2, 1)
 
 // ----------------------------------------------------------------------------
 // INLINE_FUNCTION_LIST defines all inlined functions accessed
@@ -639,15 +653,6 @@ namespace internal {
   F(GeneratorNext, 2, 1)                                                     \
   F(GeneratorThrow, 2, 1)                                                    \
   F(DebugBreakInOptimizedCode, 0, 1)                                         \
-  INLINE_RUNTIME_FUNCTION_LIST(F)
-
-
-// ----------------------------------------------------------------------------
-// INLINE_RUNTIME_FUNCTION_LIST defines all inlined functions accessed
-// with a native call of the form %_name from within JS code that also have
-// a corresponding runtime function, that is called for slow cases.
-// Entries have the form F(name, number of arguments, number of return values).
-#define INLINE_RUNTIME_FUNCTION_LIST(F) \
   F(ClassOf, 1, 1)                                                           \
   F(StringCharCodeAt, 2, 1)                                                  \
   F(Log, 3, 1)                                                               \
@@ -657,7 +662,15 @@ namespace internal {
   F(RegExpExec, 4, 1)                                                        \
   F(RegExpConstructResult, 3, 1)                                             \
   F(GetFromCache, 2, 1)                                                      \
-  F(NumberToString, 1, 1)                                                    \
+  F(NumberToString, 1, 1)
+
+
+// ----------------------------------------------------------------------------
+// INLINE_OPTIMIZED_FUNCTION_LIST defines all inlined functions accessed
+// with a native call of the form %_name from within JS code that also have
+// a corresponding runtime function, that is called from non-optimized code.
+// Entries have the form F(name, number of arguments, number of return values).
+#define INLINE_OPTIMIZED_FUNCTION_LIST(F) \
   F(DoubleHi, 1, 1)                                                          \
   F(DoubleLo, 1, 1)                                                          \
   F(ConstructDouble, 2, 1)                                                   \
@@ -717,8 +730,14 @@ class Runtime : public AllStatic {
 #define F(name, nargs, ressize) k##name,
     RUNTIME_FUNCTION_LIST(F)
 #undef F
+#define F(name, nargs, ressize) kHidden##name,
+    RUNTIME_HIDDEN_FUNCTION_LIST(F)
+#undef F
 #define F(name, nargs, ressize) kInline##name,
     INLINE_FUNCTION_LIST(F)
+#undef F
+#define F(name, nargs, ressize) kInlineOptimized##name,
+    INLINE_OPTIMIZED_FUNCTION_LIST(F)
 #undef F
     kNumFunctions,
     kFirstInlineFunction = kInlineIsSmi
@@ -726,7 +745,9 @@ class Runtime : public AllStatic {
 
   enum IntrinsicType {
     RUNTIME,
-    INLINE
+    RUNTIME_HIDDEN,
+    INLINE,
+    INLINE_OPTIMIZED
   };
 
   // Intrinsic function descriptor.

@@ -3339,7 +3339,7 @@ void FullCodeGenerator::EmitLog(CallRuntime* expr) {
   if (CodeGenerator::ShouldGenerateLog(isolate(), args->at(0))) {
     VisitForStackValue(args->at(1));
     VisitForStackValue(args->at(2));
-    __ CallRuntime(Runtime::kLog, 2);
+    __ CallRuntime(Runtime::kHiddenLog, 2);
   }
   // Finally, we're expected to leave a value on the top of the stack.
   __ LoadRoot(rax, Heap::kUndefinedValueRootIndex);
@@ -3814,7 +3814,7 @@ void FullCodeGenerator::EmitGetFromCache(CallRuntime* expr) {
   // Call runtime to perform the lookup.
   __ Push(cache);
   __ Push(key);
-  __ CallRuntime(Runtime::kGetFromCache, 2);
+  __ CallRuntime(Runtime::kHiddenGetFromCache, 2);
 
   __ bind(&done);
   context()->Plug(rax);
@@ -4145,8 +4145,8 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) {
 
 
 void FullCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
-  Handle<String> name = expr->name();
-  if (name->length() > 0 && name->Get(0) == '_') {
+  if (expr->function() != NULL &&
+      expr->function()->intrinsic_type == Runtime::INLINE) {
     Comment cmnt(masm_, "[ InlineRuntimeCall");
     EmitInlineRuntimeCall(expr);
     return;

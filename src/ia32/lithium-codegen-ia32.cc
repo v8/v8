@@ -4802,7 +4802,7 @@ void LCodeGen::DoDeferredStringCharCodeAt(LStringCharCodeAt* instr) {
     __ SmiTag(index);
     __ push(index);
   }
-  CallRuntimeFromDeferred(Runtime::kStringCharCodeAt, 2,
+  CallRuntimeFromDeferred(Runtime::kHiddenStringCharCodeAt, 2,
                           instr, instr->context());
   __ AssertSmi(eax);
   __ SmiUntag(eax);

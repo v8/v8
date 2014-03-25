@@ -4461,7 +4461,7 @@ void LCodeGen::DoDeferredStringCharCodeAt(LStringCharCodeAt* instr) {
     __ Push(index);
   }
   CallRuntimeFromDeferred(
-      Runtime::kStringCharCodeAt, 2, instr, instr->context());
+      Runtime::kHiddenStringCharCodeAt, 2, instr, instr->context());
   __ AssertSmi(rax);
   __ SmiToInteger32(rax, rax);
   __ StoreToSafepointRegisterSlot(result, rax);
