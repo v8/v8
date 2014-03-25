@@ -567,7 +567,7 @@ BUILTIN(ArrayShift) {
     first = isolate->factory()->undefined_value();
   }
 
-  if (!heap->lo_space()->Contains(*elms_obj)) {
+  if (!heap->CanMoveObjectStart(*elms_obj)) {
     array->set_elements(LeftTrimFixedArray(heap, *elms_obj, 1));
   } else {
     // Shift the elements.
@@ -891,8 +891,24 @@ BUILTIN(ArraySplice) {
         heap->MoveElements(*elms, delta, 0, actual_start);
       }
 
-      elms_obj = handle(LeftTrimFixedArray(heap, *elms_obj, delta));
-
+      if (heap->CanMoveObjectStart(*elms_obj)) {
+        // On the fast path we move the start of the object in memory.
+        elms_obj = handle(LeftTrimFixedArray(heap, *elms_obj, delta));
+      } else {
+        // This is the slow path. We are going to move the elements to the left
+        // by copying them. For trimmed values we store the hole.
+        if (elms_obj->IsFixedDoubleArray()) {
+          Handle<FixedDoubleArray> elms =
+              Handle<FixedDoubleArray>::cast(elms_obj);
+          MoveDoubleElements(*elms, 0, *elms, delta, len - delta);
+          FillWithHoles(*elms, len - delta, len);
+        } else {
+          Handle<FixedArray> elms = Handle<FixedArray>::cast(elms_obj);
+          DisallowHeapAllocation no_gc;
+          heap->MoveElements(*elms, 0, delta, len - delta);
+          FillWithHoles(heap, *elms, len - delta, len);
+        }
+      }
       elms_changed = true;
     } else {
       if (elms_obj->IsFixedDoubleArray()) {

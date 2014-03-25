@@ -3968,6 +3968,21 @@ void Heap::CreateFillerObjectAt(Address addr, int size) {
 }
 
 
+bool Heap::CanMoveObjectStart(HeapObject* object) {
+  Address address = object->address();
+  bool is_in_old_pointer_space = InOldPointerSpace(address);
+  bool is_in_old_data_space = InOldDataSpace(address);
+
+  if (lo_space()->Contains(object)) return false;
+
+  // We cannot move the object start if the given old space page is
+  // concurrently swept.
+  return (!is_in_old_pointer_space && !is_in_old_data_space) ||
+      Page::FromAddress(address)->parallel_sweeping() <=
+          MemoryChunk::PARALLEL_SWEEPING_FINALIZE;
+}
+
+
 void Heap::AdjustLiveBytes(Address address, int by, InvocationMode mode) {
   if (incremental_marking()->IsMarking() &&
       Marking::IsBlack(Marking::MarkBitFrom(address))) {

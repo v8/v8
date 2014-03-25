@@ -468,13 +468,16 @@ class MemoryChunk {
   intptr_t GetFlags() { return flags_; }
 
 
-  // PARALLEL_SWEEPING_PENDING - This page is ready for parallel sweeping.
-  // PARALLEL_SWEEPING_IN_PROGRESS - This page is currently swept or was
-  // swept by a sweeper thread.
   // PARALLEL_SWEEPING_DONE - The page state when sweeping is complete or
   // sweeping must not be performed on that page.
+  // PARALLEL_SWEEPING_FINALIZE - A sweeper thread is done sweeping this
+  // page and will not touch the page memory anymore.
+  // PARALLEL_SWEEPING_IN_PROGRESS - This page is currently swept by a
+  // sweeper thread.
+  // PARALLEL_SWEEPING_PENDING - This page is ready for parallel sweeping.
   enum ParallelSweepingState {
     PARALLEL_SWEEPING_DONE,
+    PARALLEL_SWEEPING_FINALIZE,
     PARALLEL_SWEEPING_IN_PROGRESS,
     PARALLEL_SWEEPING_PENDING
   };

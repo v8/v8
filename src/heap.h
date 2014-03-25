@@ -1177,6 +1177,8 @@ class Heap {
   // when shortening objects.
   void CreateFillerObjectAt(Address addr, int size);
 
+  bool CanMoveObjectStart(HeapObject* object);
+
   enum InvocationMode { FROM_GC, FROM_MUTATOR };
 
   // Maintain marking consistency for IncrementalMarking.
