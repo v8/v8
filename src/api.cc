@@ -5112,8 +5112,8 @@ int v8::V8::ContextDisposedNotification() {
 }
 
 
-bool v8::V8::InitializeICU() {
-  return i::InitializeICU();
+bool v8::V8::InitializeICU(const char* icu_data_file) {
+  return i::InitializeICU(icu_data_file);
 }
 
 
