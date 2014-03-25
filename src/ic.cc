@@ -564,7 +564,10 @@ MaybeObject* LoadIC::Load(Handle<Object> object,
   if (kind() == Code::KEYED_LOAD_IC && name->AsArrayIndex(&index)) {
     // Rewrite to the generic keyed load stub.
     if (FLAG_use_ic) set_target(*generic_stub());
-    return Runtime::GetElementOrCharAtOrFail(isolate(), object, index);
+    Handle<Object> result =
+        Runtime::GetElementOrCharAt(isolate(), object, index);
+    RETURN_IF_EMPTY_HANDLE(isolate(), result);
+    return *result;
   }
 
   bool use_ic = MigrateDeprecated(object) ? false : FLAG_use_ic;

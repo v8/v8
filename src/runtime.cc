@@ -4865,21 +4865,13 @@ static Handle<Object> GetCharAt(Handle<String> string, uint32_t index) {
 }
 
 
-MaybeObject* Runtime::GetElementOrCharAtOrFail(Isolate* isolate,
-                                               Handle<Object> object,
-                                               uint32_t index) {
-  CALL_HEAP_FUNCTION_PASS_EXCEPTION(isolate,
-      GetElementOrCharAt(isolate, object, index));
-}
-
-
-MaybeObject* Runtime::GetElementOrCharAt(Isolate* isolate,
-                                         Handle<Object> object,
-                                         uint32_t index) {
+Handle<Object> Runtime::GetElementOrCharAt(Isolate* isolate,
+                                           Handle<Object> object,
+                                           uint32_t index) {
   // Handle [] indexing on Strings
   if (object->IsString()) {
     Handle<Object> result = GetCharAt(Handle<String>::cast(object), index);
-    if (!result->IsUndefined()) return *result;
+    if (!result->IsUndefined()) return result;
   }
 
   // Handle [] indexing on String objects
@@ -4887,18 +4879,16 @@ MaybeObject* Runtime::GetElementOrCharAt(Isolate* isolate,
     Handle<JSValue> js_value = Handle<JSValue>::cast(object);
     Handle<Object> result =
         GetCharAt(Handle<String>(String::cast(js_value->value())), index);
-    if (!result->IsUndefined()) return *result;
+    if (!result->IsUndefined()) return result;
   }
 
   Handle<Object> result;
   if (object->IsString() || object->IsNumber() || object->IsBoolean()) {
     Handle<Object> proto(object->GetPrototype(isolate), isolate);
-    result = Object::GetElement(isolate, proto, index);
+    return Object::GetElement(isolate, proto, index);
   } else {
-    result = Object::GetElement(isolate, object, index);
+    return Object::GetElement(isolate, object, index);
   }
-  RETURN_IF_EMPTY_HANDLE(isolate, result);
-  return *result;
 }
 
 
@@ -4957,7 +4947,9 @@ MaybeObject* Runtime::GetObjectProperty(Isolate* isolate,
   // Check if the given key is an array index.
   uint32_t index;
   if (key->ToArrayIndex(&index)) {
-    return GetElementOrCharAt(isolate, object, index);
+    Handle<Object> result = GetElementOrCharAt(isolate, object, index);
+    RETURN_IF_EMPTY_HANDLE(isolate, result);
+    return *result;
   }
 
   // Convert the key to a name - possibly by calling back into JavaScript.
@@ -4967,7 +4959,9 @@ MaybeObject* Runtime::GetObjectProperty(Isolate* isolate,
   // Check if the name is trivially convertible to an index and get
   // the element if so.
   if (name->AsArrayIndex(&index)) {
-    return GetElementOrCharAt(isolate, object, index);
+    Handle<Object> result = GetElementOrCharAt(isolate, object, index);
+    RETURN_IF_EMPTY_HANDLE(isolate, result);
+    return *result;
   } else {
     return object->GetProperty(*name);
   }
@@ -10894,14 +10888,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugGetPropertyDetails) {
   uint32_t index;
   if (name->AsArrayIndex(&index)) {
     Handle<FixedArray> details = isolate->factory()->NewFixedArray(2);
-    Object* element_or_char;
-    { MaybeObject* maybe_element_or_char =
-          Runtime::GetElementOrCharAt(isolate, obj, index);
-      if (!maybe_element_or_char->ToObject(&element_or_char)) {
-        return maybe_element_or_char;
-      }
-    }
-    details->set(0, element_or_char);
+    Handle<Object> element_or_char =
+        Runtime::GetElementOrCharAt(isolate, obj, index);
+    RETURN_IF_EMPTY_HANDLE(isolate, element_or_char);
+    details->set(0, *element_or_char);
     details->set(
         1, PropertyDetails(NONE, NORMAL, Representation::None()).AsSmi());
     return *isolate->factory()->NewJSArrayWithElements(details);

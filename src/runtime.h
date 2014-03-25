@@ -775,14 +775,9 @@ class Runtime : public AllStatic {
 
   // Support getting the characters in a string using [] notation as
   // in Firefox/SpiderMonkey, Safari and Opera.
-  MUST_USE_RESULT static MaybeObject* GetElementOrCharAt(Isolate* isolate,
-                                                         Handle<Object> object,
-                                                         uint32_t index);
-
-  MUST_USE_RESULT static MaybeObject* GetElementOrCharAtOrFail(
-      Isolate* isolate,
-      Handle<Object> object,
-      uint32_t index);
+  static Handle<Object> GetElementOrCharAt(Isolate* isolate,
+                                           Handle<Object> object,
+                                           uint32_t index);
 
   static Handle<Object> SetObjectProperty(
       Isolate* isolate,
