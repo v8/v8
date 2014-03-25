@@ -11277,8 +11277,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFrameDetails) {
       VariableMode mode;
       InitializationFlag init_flag;
       locals->set(i * 2, *name);
-      locals->set(i * 2 + 1, context->get(
-          scope_info->ContextSlotIndex(*name, &mode, &init_flag)));
+      int context_slot_index =
+          scope_info->ContextSlotIndex(*name, &mode, &init_flag);
+      Object* value = context->get(context_slot_index);
+      locals->set(i * 2 + 1, value);
     }
   }
 
