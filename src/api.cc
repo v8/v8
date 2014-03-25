@@ -3731,7 +3731,7 @@ void PrepareExternalArrayElements(i::Handle<i::JSObject> object,
       isolate->factory()->NewExternalArray(length, array_type, data);
 
   i::Handle<i::Map> external_array_map =
-      isolate->factory()->GetElementsTransitionMap(
+      i::JSObject::GetElementsTransitionMap(
           object,
           GetElementsKindFromExternalArrayType(array_type));
 

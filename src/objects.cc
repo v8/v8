@@ -1532,17 +1532,18 @@ void JSObject::JSObjectShortPrint(StringStream* accumulator) {
 
 
 void JSObject::PrintElementsTransition(
-    FILE* file, ElementsKind from_kind, FixedArrayBase* from_elements,
-    ElementsKind to_kind, FixedArrayBase* to_elements) {
+    FILE* file, Handle<JSObject> object,
+    ElementsKind from_kind, Handle<FixedArrayBase> from_elements,
+    ElementsKind to_kind, Handle<FixedArrayBase> to_elements) {
   if (from_kind != to_kind) {
     PrintF(file, "elements transition [");
     PrintElementsKind(file, from_kind);
     PrintF(file, " -> ");
     PrintElementsKind(file, to_kind);
     PrintF(file, "] in ");
-    JavaScriptFrame::PrintTop(GetIsolate(), file, false, true);
+    JavaScriptFrame::PrintTop(object->GetIsolate(), file, false, true);
     PrintF(file, " for ");
-    ShortPrint(file);
+    object->ShortPrint(file);
     PrintF(file, " from ");
     from_elements->ShortPrint(file);
     PrintF(file, " to ");
@@ -11139,33 +11140,20 @@ Handle<FixedArray> JSObject::SetFastElementsCapacityAndLength(
     int capacity,
     int length,
     SetFastElementsCapacitySmiMode smi_mode) {
-  CALL_HEAP_FUNCTION(
-      object->GetIsolate(),
-      object->SetFastElementsCapacityAndLength(capacity, length, smi_mode),
-      FixedArray);
-}
-
-
-MaybeObject* JSObject::SetFastElementsCapacityAndLength(
-    int capacity,
-    int length,
-    SetFastElementsCapacitySmiMode smi_mode) {
-  Heap* heap = GetHeap();
   // We should never end in here with a pixel or external array.
-  ASSERT(!HasExternalArrayElements());
+  ASSERT(!object->HasExternalArrayElements());
 
   // Allocate a new fast elements backing store.
-  FixedArray* new_elements;
-  MaybeObject* maybe = heap->AllocateUninitializedFixedArray(capacity);
-  if (!maybe->To(&new_elements)) return maybe;
+  Handle<FixedArray> new_elements =
+      object->GetIsolate()->factory()->NewUninitializedFixedArray(capacity);
 
-  ElementsKind elements_kind = GetElementsKind();
+  ElementsKind elements_kind = object->GetElementsKind();
   ElementsKind new_elements_kind;
   // The resized array has FAST_*_SMI_ELEMENTS if the capacity mode forces it,
   // or if it's allowed and the old elements array contained only SMIs.
   bool has_fast_smi_elements =
       (smi_mode == kForceSmiElements) ||
-      ((smi_mode == kAllowSmiElements) && HasFastSmiElements());
+      ((smi_mode == kAllowSmiElements) && object->HasFastSmiElements());
   if (has_fast_smi_elements) {
     if (IsHoleyElementsKind(elements_kind)) {
       new_elements_kind = FAST_HOLEY_SMI_ELEMENTS;
@@ -11179,37 +11167,31 @@ MaybeObject* JSObject::SetFastElementsCapacityAndLength(
       new_elements_kind = FAST_ELEMENTS;
     }
   }
-  FixedArrayBase* old_elements = elements();
+  Handle<FixedArrayBase> old_elements(object->elements());
   ElementsAccessor* accessor = ElementsAccessor::ForKind(new_elements_kind);
-  MaybeObject* maybe_obj =
-      accessor->CopyElements(this, new_elements, elements_kind);
-  if (maybe_obj->IsFailure()) return maybe_obj;
+  accessor->CopyElements(object, new_elements, elements_kind);
 
   if (elements_kind != SLOPPY_ARGUMENTS_ELEMENTS) {
-    Map* new_map = map();
-    if (new_elements_kind != elements_kind) {
-      MaybeObject* maybe =
-          GetElementsTransitionMap(GetIsolate(), new_elements_kind);
-      if (!maybe->To(&new_map)) return maybe;
-    }
-    ValidateElements();
-    set_map_and_elements(new_map, new_elements);
+    Handle<Map> new_map = (new_elements_kind != elements_kind)
+        ? GetElementsTransitionMap(object, new_elements_kind)
+        : handle(object->map());
+    object->ValidateElements();
+    object->set_map_and_elements(*new_map, *new_elements);
 
     // Transition through the allocation site as well if present.
-    maybe_obj = UpdateAllocationSite(new_elements_kind);
-    if (maybe_obj->IsFailure()) return maybe_obj;
+    JSObject::UpdateAllocationSite(object, new_elements_kind);
   } else {
-    FixedArray* parameter_map = FixedArray::cast(old_elements);
-    parameter_map->set(1, new_elements);
+    Handle<FixedArray> parameter_map = Handle<FixedArray>::cast(old_elements);
+    parameter_map->set(1, *new_elements);
   }
 
   if (FLAG_trace_elements_transitions) {
-    PrintElementsTransition(stdout, elements_kind, old_elements,
-                            GetElementsKind(), new_elements);
+    PrintElementsTransition(stdout, object, elements_kind, old_elements,
+                            object->GetElementsKind(), new_elements);
   }
 
-  if (IsJSArray()) {
-    JSArray::cast(this)->set_length(Smi::FromInt(length));
+  if (object->IsJSArray()) {
+    Handle<JSArray>::cast(object)->set_length(Smi::FromInt(length));
   }
   return new_elements;
 }
@@ -11218,26 +11200,13 @@ MaybeObject* JSObject::SetFastElementsCapacityAndLength(
 void JSObject::SetFastDoubleElementsCapacityAndLength(Handle<JSObject> object,
                                                       int capacity,
                                                       int length) {
-  CALL_HEAP_FUNCTION_VOID(
-      object->GetIsolate(),
-      object->SetFastDoubleElementsCapacityAndLength(capacity, length));
-}
-
-
-MaybeObject* JSObject::SetFastDoubleElementsCapacityAndLength(
-    int capacity,
-    int length) {
-  Heap* heap = GetHeap();
   // We should never end in here with a pixel or external array.
-  ASSERT(!HasExternalArrayElements());
+  ASSERT(!object->HasExternalArrayElements());
 
-  FixedArrayBase* elems;
-  { MaybeObject* maybe_obj =
-        heap->AllocateUninitializedFixedDoubleArray(capacity);
-    if (!maybe_obj->To(&elems)) return maybe_obj;
-  }
+  Handle<FixedArrayBase> elems =
+      object->GetIsolate()->factory()->NewFixedDoubleArray(capacity);
 
-  ElementsKind elements_kind = GetElementsKind();
+  ElementsKind elements_kind = object->GetElementsKind();
   CHECK(elements_kind != SLOPPY_ARGUMENTS_ELEMENTS);
   ElementsKind new_elements_kind = elements_kind;
   if (IsHoleyElementsKind(elements_kind)) {
@@ -11246,32 +11215,23 @@ MaybeObject* JSObject::SetFastDoubleElementsCapacityAndLength(
     new_elements_kind = FAST_DOUBLE_ELEMENTS;
   }
 
-  Map* new_map;
-  { MaybeObject* maybe_obj =
-        GetElementsTransitionMap(heap->isolate(), new_elements_kind);
-    if (!maybe_obj->To(&new_map)) return maybe_obj;
-  }
+  Handle<Map> new_map = GetElementsTransitionMap(object, new_elements_kind);
 
-  FixedArrayBase* old_elements = elements();
+  Handle<FixedArrayBase> old_elements(object->elements());
   ElementsAccessor* accessor = ElementsAccessor::ForKind(FAST_DOUBLE_ELEMENTS);
-  { MaybeObject* maybe_obj =
-        accessor->CopyElements(this, elems, elements_kind);
-    if (maybe_obj->IsFailure()) return maybe_obj;
-  }
+  accessor->CopyElements(object, elems, elements_kind);
 
-  ValidateElements();
-  set_map_and_elements(new_map, elems);
+  object->ValidateElements();
+  object->set_map_and_elements(*new_map, *elems);
 
   if (FLAG_trace_elements_transitions) {
-    PrintElementsTransition(stdout, elements_kind, old_elements,
-                            GetElementsKind(), elems);
+    PrintElementsTransition(stdout, object, elements_kind, old_elements,
+                            object->GetElementsKind(), elems);
   }
 
-  if (IsJSArray()) {
-    JSArray::cast(this)->set_length(Smi::FromInt(length));
+  if (object->IsJSArray()) {
+    Handle<JSArray>::cast(object)->set_length(Smi::FromInt(length));
   }
-
-  return this;
 }
 
 
@@ -12663,13 +12623,6 @@ Handle<Object> JSObject::SetElementWithoutInterceptor(
 }
 
 
-void JSObject::TransitionElementsKind(Handle<JSObject> object,
-                                      ElementsKind to_kind) {
-  CALL_HEAP_FUNCTION_VOID(object->GetIsolate(),
-                          object->TransitionElementsKind(to_kind));
-}
-
-
 const double AllocationSite::kPretenureRatio = 0.85;
 
 
@@ -12701,11 +12654,13 @@ bool AllocationSite::IsNestedSite() {
 }
 
 
-MaybeObject* AllocationSite::DigestTransitionFeedback(ElementsKind to_kind) {
-  Isolate* isolate = GetIsolate();
+void AllocationSite::DigestTransitionFeedback(Handle<AllocationSite> site,
+                                              ElementsKind to_kind) {
+  Isolate* isolate = site->GetIsolate();
 
-  if (SitePointsToLiteral() && transition_info()->IsJSArray()) {
-    JSArray* transition_info = JSArray::cast(this->transition_info());
+  if (site->SitePointsToLiteral() && site->transition_info()->IsJSArray()) {
+    Handle<JSArray> transition_info =
+        handle(JSArray::cast(site->transition_info()));
     ElementsKind kind = transition_info->GetElementsKind();
     // if kind is holey ensure that to_kind is as well.
     if (IsHoleyElementsKind(kind)) {
@@ -12718,22 +12673,21 @@ MaybeObject* AllocationSite::DigestTransitionFeedback(ElementsKind to_kind) {
       CHECK(transition_info->length()->ToArrayIndex(&length));
       if (length <= kMaximumArrayBytesToPretransition) {
         if (FLAG_trace_track_allocation_sites) {
-          bool is_nested = IsNestedSite();
+          bool is_nested = site->IsNestedSite();
           PrintF(
               "AllocationSite: JSArray %p boilerplate %s updated %s->%s\n",
-              reinterpret_cast<void*>(this),
+              reinterpret_cast<void*>(*site),
               is_nested ? "(nested)" : "",
               ElementsKindToString(kind),
               ElementsKindToString(to_kind));
         }
-        MaybeObject* result = transition_info->TransitionElementsKind(to_kind);
-        if (result->IsFailure()) return result;
-        dependent_code()->DeoptimizeDependentCodeGroup(
+        JSObject::TransitionElementsKind(transition_info, to_kind);
+        site->dependent_code()->DeoptimizeDependentCodeGroup(
             isolate, DependentCode::kAllocationSiteTransitionChangedGroup);
       }
     }
   } else {
-    ElementsKind kind = GetElementsKind();
+    ElementsKind kind = site->GetElementsKind();
     // if kind is holey ensure that to_kind is as well.
     if (IsHoleyElementsKind(kind)) {
       to_kind = GetHoleyElementsKind(to_kind);
@@ -12741,16 +12695,15 @@ MaybeObject* AllocationSite::DigestTransitionFeedback(ElementsKind to_kind) {
     if (IsMoreGeneralElementsKindTransition(kind, to_kind)) {
       if (FLAG_trace_track_allocation_sites) {
         PrintF("AllocationSite: JSArray %p site updated %s->%s\n",
-               reinterpret_cast<void*>(this),
+               reinterpret_cast<void*>(*site),
                ElementsKindToString(kind),
                ElementsKindToString(to_kind));
       }
-      SetElementsKind(to_kind);
-      dependent_code()->DeoptimizeDependentCodeGroup(
+      site->SetElementsKind(to_kind);
+      site->dependent_code()->DeoptimizeDependentCodeGroup(
           isolate, DependentCode::kAllocationSiteTransitionChangedGroup);
     }
   }
-  return this;
 }
 
 
@@ -12769,64 +12722,62 @@ void AllocationSite::AddDependentCompilationInfo(Handle<AllocationSite> site,
 
 void JSObject::UpdateAllocationSite(Handle<JSObject> object,
                                     ElementsKind to_kind) {
-  CALL_HEAP_FUNCTION_VOID(object->GetIsolate(),
-      object->UpdateAllocationSite(to_kind));
-}
+  if (!object->IsJSArray()) return;
 
+  Heap* heap = object->GetHeap();
+  if (!heap->InNewSpace(*object)) return;
 
-MaybeObject* JSObject::UpdateAllocationSite(ElementsKind to_kind) {
-  if (!IsJSArray()) return this;
+  Handle<AllocationSite> site;
+  {
+    DisallowHeapAllocation no_allocation;
+    // Check if there is potentially a memento behind the object. If
+    // the last word of the momento is on another page we return
+    // immediatelly.
+    Address object_address = object->address();
+    Address memento_address = object_address + JSArray::kSize;
+    Address last_memento_word_address = memento_address + kPointerSize;
+    if (!NewSpacePage::OnSamePage(object_address,
+                                  last_memento_word_address)) {
+      return;
+    }
 
-  Heap* heap = GetHeap();
-  if (!heap->InNewSpace(this)) return this;
+    // Either object is the last object in the new space, or there is another
+    // object of at least word size (the header map word) following it, so
+    // suffices to compare ptr and top here.
+    Address top = heap->NewSpaceTop();
+    ASSERT(memento_address == top ||
+           memento_address + HeapObject::kHeaderSize <= top);
+    if (memento_address == top) return;
 
-  // Check if there is potentially a memento behind the object. If
-  // the last word of the momento is on another page we return
-  // immediatelly.
-  Address object_address = address();
-  Address memento_address = object_address + JSArray::kSize;
-  Address last_memento_word_address = memento_address + kPointerSize;
-  if (!NewSpacePage::OnSamePage(object_address,
-                                last_memento_word_address)) {
-    return this;
+    HeapObject* candidate = HeapObject::FromAddress(memento_address);
+    if (candidate->map() != heap->allocation_memento_map()) return;
+
+    AllocationMemento* memento = AllocationMemento::cast(candidate);
+    if (!memento->IsValid()) return;
+
+    // Walk through to the Allocation Site
+    site = handle(memento->GetAllocationSite());
   }
-
-  // Either object is the last object in the new space, or there is another
-  // object of at least word size (the header map word) following it, so
-  // suffices to compare ptr and top here.
-  Address top = heap->NewSpaceTop();
-  ASSERT(memento_address == top ||
-         memento_address + HeapObject::kHeaderSize <= top);
-  if (memento_address == top) return this;
-
-  HeapObject* candidate = HeapObject::FromAddress(memento_address);
-  if (candidate->map() != heap->allocation_memento_map()) return this;
-
-  AllocationMemento* memento = AllocationMemento::cast(candidate);
-  if (!memento->IsValid()) return this;
-
-  // Walk through to the Allocation Site
-  AllocationSite* site = memento->GetAllocationSite();
-  return site->DigestTransitionFeedback(to_kind);
+  AllocationSite::DigestTransitionFeedback(site, to_kind);
 }
 
 
-MaybeObject* JSObject::TransitionElementsKind(ElementsKind to_kind) {
-  ElementsKind from_kind = map()->elements_kind();
+void JSObject::TransitionElementsKind(Handle<JSObject> object,
+                                      ElementsKind to_kind) {
+  ElementsKind from_kind = object->map()->elements_kind();
 
   if (IsFastHoleyElementsKind(from_kind)) {
     to_kind = GetHoleyElementsKind(to_kind);
   }
 
-  if (from_kind == to_kind) return this;
+  if (from_kind == to_kind) return;
   // Don't update the site if to_kind isn't fast
   if (IsFastElementsKind(to_kind)) {
-    MaybeObject* maybe_failure = UpdateAllocationSite(to_kind);
-    if (maybe_failure->IsFailure()) return maybe_failure;
+    UpdateAllocationSite(object, to_kind);
   }
 
-  Isolate* isolate = GetIsolate();
-  if (elements() == isolate->heap()->empty_fixed_array() ||
+  Isolate* isolate = object->GetIsolate();
+  if (object->elements() == isolate->heap()->empty_fixed_array() ||
       (IsFastSmiOrObjectElementsKind(from_kind) &&
        IsFastSmiOrObjectElementsKind(to_kind)) ||
       (from_kind == FAST_DOUBLE_ELEMENTS &&
@@ -12834,55 +12785,48 @@ MaybeObject* JSObject::TransitionElementsKind(ElementsKind to_kind) {
     ASSERT(from_kind != TERMINAL_FAST_ELEMENTS_KIND);
     // No change is needed to the elements() buffer, the transition
     // only requires a map change.
-    MaybeObject* maybe_new_map = GetElementsTransitionMap(isolate, to_kind);
-    Map* new_map;
-    if (!maybe_new_map->To(&new_map)) return maybe_new_map;
-    // TODO(verwaest): Replace by MigrateToMap.
-    set_map(new_map);
+    Handle<Map> new_map = GetElementsTransitionMap(object, to_kind);
+    MigrateToMap(object, new_map);
     if (FLAG_trace_elements_transitions) {
-      FixedArrayBase* elms = FixedArrayBase::cast(elements());
-      PrintElementsTransition(stdout, from_kind, elms, to_kind, elms);
+      Handle<FixedArrayBase> elms(object->elements());
+      PrintElementsTransition(stdout, object, from_kind, elms, to_kind, elms);
     }
-    return this;
+    return;
   }
 
-  FixedArrayBase* elms = FixedArrayBase::cast(elements());
+  Handle<FixedArrayBase> elms(object->elements());
   uint32_t capacity = static_cast<uint32_t>(elms->length());
   uint32_t length = capacity;
 
-  if (IsJSArray()) {
-    Object* raw_length = JSArray::cast(this)->length();
+  if (object->IsJSArray()) {
+    Object* raw_length = Handle<JSArray>::cast(object)->length();
     if (raw_length->IsUndefined()) {
       // If length is undefined, then JSArray is being initialized and has no
       // elements, assume a length of zero.
       length = 0;
     } else {
-      CHECK(JSArray::cast(this)->length()->ToArrayIndex(&length));
+      CHECK(raw_length->ToArrayIndex(&length));
     }
   }
 
   if (IsFastSmiElementsKind(from_kind) &&
       IsFastDoubleElementsKind(to_kind)) {
-    MaybeObject* maybe_result =
-        SetFastDoubleElementsCapacityAndLength(capacity, length);
-    if (maybe_result->IsFailure()) return maybe_result;
-    ValidateElements();
-    return this;
+    SetFastDoubleElementsCapacityAndLength(object, capacity, length);
+    object->ValidateElements();
+    return;
   }
 
   if (IsFastDoubleElementsKind(from_kind) &&
       IsFastObjectElementsKind(to_kind)) {
-    MaybeObject* maybe_result = SetFastElementsCapacityAndLength(
-        capacity, length, kDontAllowSmiElements);
-    if (maybe_result->IsFailure()) return maybe_result;
-    ValidateElements();
-    return this;
+    SetFastElementsCapacityAndLength(object, capacity, length,
+                                     kDontAllowSmiElements);
+    object->ValidateElements();
+    return;
   }
 
   // This method should never be called for any other case than the ones
   // handled above.
   UNREACHABLE();
-  return GetIsolate()->heap()->null_value();
 }
 
 

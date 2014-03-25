@@ -770,30 +770,15 @@ class ElementsAccessorBase : public ElementsAccessor {
       Handle<JSArray> array,
       int capacity,
       int length) V8_FINAL V8_OVERRIDE {
-    CALL_HEAP_FUNCTION_VOID(
-        array->GetIsolate(),
-        ElementsAccessorSubclass::SetFastElementsCapacityAndLength(
-            *array,
-            capacity,
-            length));
+    ElementsAccessorSubclass::
+        SetFastElementsCapacityAndLength(array, capacity, length);
   }
 
-  MUST_USE_RESULT static MaybeObject* SetFastElementsCapacityAndLength(
-      JSObject* obj,
-      int capacity,
-      int length) {
-    UNIMPLEMENTED();
-    return obj;
-  }
-
-  // TODO(ishell): Temporary wrapper until handlified.
-  MUST_USE_RESULT static Handle<Object> SetFastElementsCapacityAndLength(
+  static void SetFastElementsCapacityAndLength(
       Handle<JSObject> obj,
       int capacity,
       int length) {
-    CALL_HEAP_FUNCTION(obj->GetIsolate(),
-                       SetFastElementsCapacityAndLength(*obj, capacity, length),
-                       Object);
+    UNIMPLEMENTED();
   }
 
   MUST_USE_RESULT virtual Handle<Object> Delete(
@@ -1232,26 +1217,16 @@ class FastSmiOrObjectElementsAccessor
   }
 
 
-  static MaybeObject* SetFastElementsCapacityAndLength(JSObject* obj,
-                                                       uint32_t capacity,
-                                                       uint32_t length) {
+  static void SetFastElementsCapacityAndLength(
+      Handle<JSObject> obj,
+      uint32_t capacity,
+      uint32_t length) {
     JSObject::SetFastElementsCapacitySmiMode set_capacity_mode =
         obj->HasFastSmiElements()
             ? JSObject::kAllowSmiElements
             : JSObject::kDontAllowSmiElements;
-    return obj->SetFastElementsCapacityAndLength(capacity,
-                                                 length,
-                                                 set_capacity_mode);
-  }
-
-  // TODO(ishell): Temporary wrapper until handlified.
-  static Handle<Object> SetFastElementsCapacityAndLength(
-      Handle<JSObject> obj,
-      int capacity,
-      int length) {
-    CALL_HEAP_FUNCTION(obj->GetIsolate(),
-                       SetFastElementsCapacityAndLength(*obj, capacity, length),
-                       Object);
+    JSObject::SetFastElementsCapacityAndLength(
+        obj, capacity, length, set_capacity_mode);
   }
 };
 
@@ -1316,21 +1291,10 @@ class FastDoubleElementsAccessor
                              KindTraits,
                              kDoubleSize>(name) {}
 
-  static MaybeObject* SetFastElementsCapacityAndLength(JSObject* obj,
-                                                       uint32_t capacity,
-                                                       uint32_t length) {
-    return obj->SetFastDoubleElementsCapacityAndLength(capacity,
-                                                       length);
-  }
-
-  // TODO(ishell): Temporary wrapper until handlified.
-  static Handle<Object> SetFastElementsCapacityAndLength(
-      Handle<JSObject> obj,
-      int capacity,
-      int length) {
-    CALL_HEAP_FUNCTION(obj->GetIsolate(),
-                       SetFastElementsCapacityAndLength(*obj, capacity, length),
-                       Object);
+  static void SetFastElementsCapacityAndLength(Handle<JSObject> obj,
+                                               uint32_t capacity,
+                                               uint32_t length) {
+    JSObject::SetFastDoubleElementsCapacityAndLength(obj, capacity, length);
   }
 
  protected:

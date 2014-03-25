@@ -167,6 +167,15 @@ class ElementsAccessor {
       int copy_size,
       FixedArrayBase* source = NULL) = 0;
 
+  void CopyElements(
+      Handle<JSObject> from_holder,
+      Handle<FixedArrayBase> to,
+      ElementsKind from_kind,
+      Handle<FixedArrayBase> from = Handle<FixedArrayBase>::null()) {
+    CopyElements(from_holder, 0, from_kind, to, 0,
+                 kCopyToEndAndInitializeToHole, from);
+  }
+
   MUST_USE_RESULT MaybeObject* CopyElements(JSObject* from_holder,
                                             FixedArrayBase* to,
                                             ElementsKind from_kind,

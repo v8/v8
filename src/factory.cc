@@ -883,16 +883,6 @@ Handle<Map> Factory::CopyMap(Handle<Map> src) {
 }
 
 
-Handle<Map> Factory::GetElementsTransitionMap(
-    Handle<JSObject> src,
-    ElementsKind elements_kind) {
-  Isolate* i = isolate();
-  CALL_HEAP_FUNCTION(i,
-                     src->GetElementsTransitionMap(i, elements_kind),
-                     Map);
-}
-
-
 Handle<FixedArray> Factory::CopyFixedArray(Handle<FixedArray> array) {
   CALL_HEAP_FUNCTION(isolate(), array->Copy(), FixedArray);
 }

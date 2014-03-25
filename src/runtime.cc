@@ -10025,11 +10025,9 @@ class ArrayConcatVisitor {
         isolate_->factory()->NewNumber(static_cast<double>(index_offset_));
     Handle<Map> map;
     if (fast_elements_) {
-      map = isolate_->factory()->GetElementsTransitionMap(array,
-                                                          FAST_HOLEY_ELEMENTS);
+      map = JSObject::GetElementsTransitionMap(array, FAST_HOLEY_ELEMENTS);
     } else {
-      map = isolate_->factory()->GetElementsTransitionMap(array,
-                                                          DICTIONARY_ELEMENTS);
+      map = JSObject::GetElementsTransitionMap(array, DICTIONARY_ELEMENTS);
     }
     array->set_map(*map);
     array->set_length(*length);
@@ -10563,7 +10561,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ArrayConcat) {
       Handle<JSArray> array = isolate->factory()->NewJSArray(0);
       Smi* length = Smi::FromInt(j);
       Handle<Map> map;
-      map = isolate->factory()->GetElementsTransitionMap(array, kind);
+      map = JSObject::GetElementsTransitionMap(array, kind);
       array->set_map(*map);
       array->set_length(length);
       array->set_elements(*double_storage);
