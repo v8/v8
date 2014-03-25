@@ -1078,18 +1078,18 @@ void LCodeGen::DeoptimizeIfNotZero(Register rt, LEnvironment* environment) {
 
 void LCodeGen::DeoptimizeIfNegative(Register rt, LEnvironment* environment) {
   int sign_bit = rt.Is64Bits() ? kXSignBit : kWSignBit;
-  DeoptimizeBranch(environment, reg_bit_set, rt, sign_bit);
+  DeoptimizeIfBitSet(rt, sign_bit, environment);
 }
 
 
 void LCodeGen::DeoptimizeIfSmi(Register rt,
                                LEnvironment* environment) {
-  DeoptimizeBranch(environment, reg_bit_clear, rt, MaskToBit(kSmiTagMask));
+  DeoptimizeIfBitClear(rt, MaskToBit(kSmiTagMask), environment);
 }
 
 
 void LCodeGen::DeoptimizeIfNotSmi(Register rt, LEnvironment* environment) {
-  DeoptimizeBranch(environment, reg_bit_set, rt, MaskToBit(kSmiTagMask));
+  DeoptimizeIfBitSet(rt, MaskToBit(kSmiTagMask), environment);
 }
 
 
@@ -1113,6 +1113,20 @@ void LCodeGen::DeoptimizeIfMinusZero(DoubleRegister input,
                                      LEnvironment* environment) {
   __ TestForMinusZero(input);
   DeoptimizeIf(vs, environment);
+}
+
+
+void LCodeGen::DeoptimizeIfBitSet(Register rt,
+                                  int bit,
+                                  LEnvironment* environment) {
+  DeoptimizeBranch(environment, reg_bit_set, rt, bit);
+}
+
+
+void LCodeGen::DeoptimizeIfBitClear(Register rt,
+                                    int bit,
+                                    LEnvironment* environment) {
+  DeoptimizeBranch(environment, reg_bit_clear, rt, bit);
 }
 
 
@@ -2184,10 +2198,11 @@ void LCodeGen::DoCheckInstanceType(LCheckInstanceType* instr) {
 
     if (IsPowerOf2(mask)) {
       ASSERT((tag == 0) || (tag == mask));
-      // TODO(all): We might be able to use tbz/tbnz if we can guarantee that
-      // the deopt handler is reachable by a tbz instruction.
-      __ Tst(scratch, mask);
-      DeoptimizeIf(tag == 0 ? ne : eq, instr->environment());
+      if (tag == 0) {
+        DeoptimizeIfBitSet(scratch, MaskToBit(mask), instr->environment());
+      } else {
+        DeoptimizeIfBitClear(scratch, MaskToBit(mask), instr->environment());
+      }
     } else {
       if (tag == 0) {
         __ Tst(scratch, mask);
