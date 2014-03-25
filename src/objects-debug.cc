@@ -774,7 +774,8 @@ void JSArrayBufferView::JSArrayBufferViewVerify() {
   CHECK(IsJSArrayBufferView());
   JSObjectVerify();
   VerifyPointer(buffer());
-  CHECK(buffer()->IsJSArrayBuffer() || buffer()->IsUndefined());
+  CHECK(buffer()->IsJSArrayBuffer() || buffer()->IsUndefined()
+        || buffer() == Smi::FromInt(0));
 
   VerifyPointer(byte_offset());
   CHECK(byte_offset()->IsSmi() || byte_offset()->IsHeapNumber()

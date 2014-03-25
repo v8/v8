@@ -2217,6 +2217,17 @@ class JSObject: public JSReceiver {
 
   inline bool HasFixedTypedArrayElements();
 
+  inline bool HasFixedUint8ClampedElements();
+  inline bool HasFixedArrayElements();
+  inline bool HasFixedInt8Elements();
+  inline bool HasFixedUint8Elements();
+  inline bool HasFixedInt16Elements();
+  inline bool HasFixedUint16Elements();
+  inline bool HasFixedInt32Elements();
+  inline bool HasFixedUint32Elements();
+  inline bool HasFixedFloat32Elements();
+  inline bool HasFixedFloat64Elements();
+
   bool HasFastArgumentsElements();
   bool HasDictionaryArgumentsElements();
   inline SeededNumberDictionary* element_dictionary();  // Gets slow elements.
@@ -4962,6 +4973,11 @@ class FixedTypedArrayBase: public FixedArrayBase {
 
   inline int size();
 
+  // Use with care: returns raw pointer into heap.
+  inline void* DataPtr();
+
+  inline int DataSize();
+
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(FixedTypedArrayBase);
 };
@@ -4988,6 +5004,9 @@ class FixedTypedArray: public FixedTypedArrayBase {
   MUST_USE_RESULT inline MaybeObject* get(int index);
   inline void set(int index, ElementType value);
 
+  static inline ElementType from_int(int value);
+  static inline ElementType from_double(double value);
+
   // This accessor applies the correct conversion from Smi, HeapNumber
   // and undefined.
   MUST_USE_RESULT MaybeObject* SetValue(uint32_t index, Object* value);
@@ -5010,7 +5029,7 @@ class FixedTypedArray: public FixedTypedArrayBase {
       static const InstanceType kInstanceType = FIXED_##TYPE##_ARRAY_TYPE;    \
       static const char* Designator() { return #type " array"; }              \
       static inline MaybeObject* ToObject(Heap* heap, elementType scalar);    \
-      static elementType defaultValue() { return 0; }                         \
+      static inline elementType defaultValue();                               \
   };                                                                          \
                                                                               \
   typedef FixedTypedArray<Type##ArrayTraits> Fixed##Type##Array;
@@ -6230,8 +6249,10 @@ class Map: public HeapObject {
       Descriptor* descriptor,
       int index,
       TransitionFlag flag);
-  static Handle<Map> AsElementsKind(Handle<Map> map, ElementsKind kind);
+
   MUST_USE_RESULT MaybeObject* AsElementsKind(ElementsKind kind);
+
+  static Handle<Map> AsElementsKind(Handle<Map> map, ElementsKind kind);
 
   MUST_USE_RESULT MaybeObject* CopyAsElementsKind(ElementsKind kind,
                                                   TransitionFlag flag);
@@ -9921,6 +9942,8 @@ class JSTypedArray: public JSArrayBufferView {
   ExternalArrayType type();
   size_t element_size();
 
+  Handle<JSArrayBuffer> GetBuffer();
+
   // Dispatched behavior.
   DECLARE_PRINTER(JSTypedArray)
   DECLARE_VERIFIER(JSTypedArray)
@@ -9932,6 +9955,9 @@ class JSTypedArray: public JSArrayBufferView {
       kSize + v8::ArrayBufferView::kInternalFieldCount * kPointerSize;
 
  private:
+  static Handle<JSArrayBuffer> MaterializeArrayBuffer(
+      Handle<JSTypedArray> typed_array);
+
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSTypedArray);
 };
 

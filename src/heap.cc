@@ -2934,6 +2934,16 @@ bool Heap::CreateInitialMaps() {
 
     TYPED_ARRAYS(ALLOCATE_EMPTY_EXTERNAL_ARRAY)
 #undef ALLOCATE_EMPTY_EXTERNAL_ARRAY
+
+#define ALLOCATE_EMPTY_FIXED_TYPED_ARRAY(Type, type, TYPE, ctype, size)        \
+    { FixedTypedArrayBase* obj;                                                \
+      if (!AllocateEmptyFixedTypedArray(kExternal##Type##Array)->To(&obj))     \
+          return false;                                                        \
+      set_empty_fixed_##type##_array(obj);                                     \
+    }
+
+    TYPED_ARRAYS(ALLOCATE_EMPTY_FIXED_TYPED_ARRAY)
+#undef ALLOCATE_EMPTY_FIXED_TYPED_ARRAY
   }
   ASSERT(!InNewSpace(empty_fixed_array()));
   return true;
@@ -3762,9 +3772,31 @@ Heap::RootListIndex Heap::RootIndexForEmptyExternalArray(
 }
 
 
+Heap::RootListIndex Heap::RootIndexForEmptyFixedTypedArray(
+    ElementsKind elementsKind) {
+  switch (elementsKind) {
+#define ELEMENT_KIND_TO_ROOT_INDEX(Type, type, TYPE, ctype, size)             \
+    case TYPE##_ELEMENTS:                                                     \
+      return kEmptyFixed##Type##ArrayRootIndex;
+
+    TYPED_ARRAYS(ELEMENT_KIND_TO_ROOT_INDEX)
+#undef ELEMENT_KIND_TO_ROOT_INDEX
+    default:
+      UNREACHABLE();
+      return kUndefinedValueRootIndex;
+  }
+}
+
+
 ExternalArray* Heap::EmptyExternalArrayForMap(Map* map) {
   return ExternalArray::cast(
       roots_[RootIndexForEmptyExternalArray(map->elements_kind())]);
+}
+
+
+FixedTypedArrayBase* Heap::EmptyFixedTypedArrayForMap(Map* map) {
+  return FixedTypedArrayBase::cast(
+      roots_[RootIndexForEmptyFixedTypedArray(map->elements_kind())]);
 }
 
 
@@ -4063,6 +4095,7 @@ MaybeObject* Heap::AllocateFixedTypedArray(int length,
       reinterpret_cast<FixedTypedArrayBase*>(object);
   elements->set_map(MapForFixedTypedArray(array_type));
   elements->set_length(length);
+  memset(elements->DataPtr(), 0, elements->DataSize());
   return elements;
 }
 
@@ -4471,7 +4504,8 @@ MaybeObject* Heap::AllocateJSObjectFromMap(
   // Initialize the JSObject.
   InitializeJSObjectFromMap(JSObject::cast(obj), properties, map);
   ASSERT(JSObject::cast(obj)->HasFastElements() ||
-         JSObject::cast(obj)->HasExternalArrayElements());
+         JSObject::cast(obj)->HasExternalArrayElements() ||
+         JSObject::cast(obj)->HasFixedTypedArrayElements());
   return obj;
 }
 
@@ -5136,6 +5170,11 @@ MaybeObject* Heap::CopyAndTenureFixedCOWArray(FixedArray* src) {
   // we might then be able to remove this whole method.
   HeapObject::cast(obj)->set_map_no_write_barrier(fixed_cow_array_map());
   return result;
+}
+
+
+MaybeObject* Heap::AllocateEmptyFixedTypedArray(ExternalArrayType array_type) {
+  return AllocateFixedTypedArray(0, array_type, TENURED);
 }
 
 

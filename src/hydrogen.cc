@@ -1904,6 +1904,19 @@ void HGraphBuilder::BuildCopySeqStringChars(HValue* src,
 }
 
 
+HValue* HGraphBuilder::BuildObjectSizeAlignment(
+    HValue* unaligned_size, int header_size) {
+  ASSERT((header_size & kObjectAlignmentMask) == 0);
+  HValue* size = AddUncasted<HAdd>(
+      unaligned_size, Add<HConstant>(static_cast<int32_t>(
+          header_size + kObjectAlignmentMask)));
+  size->ClearFlag(HValue::kCanOverflow);
+  return AddUncasted<HBitwise>(
+      Token::BIT_AND, size, Add<HConstant>(static_cast<int32_t>(
+          ~kObjectAlignmentMask)));
+}
+
+
 HValue* HGraphBuilder::BuildUncheckedStringAdd(
     HValue* left,
     HValue* right,
@@ -2004,13 +2017,7 @@ HValue* HGraphBuilder::BuildUncheckedStringAdd(
       // Calculate the number of bytes needed for the characters in the
       // string while observing object alignment.
       STATIC_ASSERT((SeqString::kHeaderSize & kObjectAlignmentMask) == 0);
-      HValue* size = Pop();
-      size = AddUncasted<HAdd>(size, Add<HConstant>(static_cast<int32_t>(
-                  SeqString::kHeaderSize + kObjectAlignmentMask)));
-      size->ClearFlag(HValue::kCanOverflow);
-      size = AddUncasted<HBitwise>(
-          Token::BIT_AND, size, Add<HConstant>(static_cast<int32_t>(
-                  ~kObjectAlignmentMask)));
+      HValue* size = BuildObjectSizeAlignment(Pop(), SeqString::kHeaderSize);
 
       // Allocate the string object. HAllocate does not care whether we pass
       // STRING_TYPE or ASCII_STRING_TYPE here, so we just use STRING_TYPE here.
@@ -6469,7 +6476,8 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
       access = AddInstruction(BuildKeyedGeneric(access_type, object, key, val));
     } else {
       ASSERT(IsFastElementsKind(elements_kind) ||
-             IsExternalArrayElementsKind(elements_kind));
+             IsExternalArrayElementsKind(elements_kind) ||
+             IsFixedTypedArrayElementsKind(elements_kind));
       LoadKeyedHoleMode load_mode = BuildKeyedHoleMode(map);
       // Happily, mapcompare is a checked object.
       access = BuildUncheckedMonomorphicElementAccess(
@@ -8421,9 +8429,6 @@ void HGraphBuilder::BuildArrayBufferViewInitialization(
 
   Add<HStoreNamedField>(
       obj,
-      HObjectAccess::ForJSArrayBufferViewBuffer(), buffer);
-  Add<HStoreNamedField>(
-      obj,
       HObjectAccess::ForJSArrayBufferViewByteOffset(),
       byte_offset);
   Add<HStoreNamedField>(
@@ -8431,14 +8436,27 @@ void HGraphBuilder::BuildArrayBufferViewInitialization(
       HObjectAccess::ForJSArrayBufferViewByteLength(),
       byte_length);
 
-  HObjectAccess weak_first_view_access =
-      HObjectAccess::ForJSArrayBufferWeakFirstView();
-  Add<HStoreNamedField>(obj,
-      HObjectAccess::ForJSArrayBufferViewWeakNext(),
-      Add<HLoadNamedField>(buffer, static_cast<HValue*>(NULL),
-                           weak_first_view_access));
-  Add<HStoreNamedField>(
-      buffer, weak_first_view_access, obj);
+  if (buffer != NULL) {
+    Add<HStoreNamedField>(
+        obj,
+        HObjectAccess::ForJSArrayBufferViewBuffer(), buffer);
+    HObjectAccess weak_first_view_access =
+        HObjectAccess::ForJSArrayBufferWeakFirstView();
+    Add<HStoreNamedField>(obj,
+        HObjectAccess::ForJSArrayBufferViewWeakNext(),
+        Add<HLoadNamedField>(buffer,
+                             static_cast<HValue*>(NULL),
+                             weak_first_view_access));
+    Add<HStoreNamedField>(buffer, weak_first_view_access, obj);
+  } else {
+    Add<HStoreNamedField>(
+        obj,
+        HObjectAccess::ForJSArrayBufferViewBuffer(),
+        Add<HConstant>(static_cast<int32_t>(0)));
+    Add<HStoreNamedField>(obj,
+        HObjectAccess::ForJSArrayBufferViewWeakNext(),
+        graph()->GetConstantUndefined());
+  }
 }
 
 
@@ -8465,6 +8483,115 @@ void HOptimizedGraphBuilder::GenerateDataViewInitialize(
 }
 
 
+static Handle<Map> TypedArrayMap(Isolate* isolate,
+                                 ExternalArrayType array_type,
+                                 ElementsKind target_kind) {
+  Handle<Context> native_context = isolate->native_context();
+  Handle<JSFunction> fun;
+  switch (array_type) {
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size)                       \
+    case kExternal##Type##Array:                                              \
+      fun = Handle<JSFunction>(native_context->type##_array_fun());           \
+      break;
+
+    TYPED_ARRAYS(TYPED_ARRAY_CASE)
+#undef TYPED_ARRAY_CASE
+  }
+  Handle<Map> map(fun->initial_map());
+  return Map::AsElementsKind(map, target_kind);
+}
+
+
+HValue* HOptimizedGraphBuilder::BuildAllocateExternalElements(
+    ExternalArrayType array_type,
+    bool is_zero_byte_offset,
+    HValue* buffer, HValue* byte_offset, HValue* length) {
+  Handle<Map> external_array_map(
+      isolate()->heap()->MapForExternalArrayType(array_type));
+  HValue* elements =
+      Add<HAllocate>(
+          Add<HConstant>(ExternalArray::kAlignedSize),
+          HType::Tagged(),
+          NOT_TENURED,
+          external_array_map->instance_type());
+
+  AddStoreMapConstant(elements, external_array_map);
+
+  HValue* backing_store = Add<HLoadNamedField>(
+      buffer, static_cast<HValue*>(NULL),
+      HObjectAccess::ForJSArrayBufferBackingStore());
+
+  HValue* typed_array_start;
+  if (is_zero_byte_offset) {
+    typed_array_start = backing_store;
+  } else {
+    HInstruction* external_pointer =
+        AddUncasted<HAdd>(backing_store, byte_offset);
+    // Arguments are checked prior to call to TypedArrayInitialize,
+    // including byte_offset.
+    external_pointer->ClearFlag(HValue::kCanOverflow);
+    typed_array_start = external_pointer;
+  }
+
+
+  Add<HStoreNamedField>(elements,
+      HObjectAccess::ForExternalArrayExternalPointer(),
+      typed_array_start);
+
+  Add<HStoreNamedField>(elements,
+      HObjectAccess::ForFixedArrayLength(), length);
+  return elements;
+}
+
+
+HValue* HOptimizedGraphBuilder::BuildAllocateFixedTypedArray(
+    ExternalArrayType array_type, int element_size,
+    ElementsKind fixed_elements_kind,
+    HValue* byte_length, HValue* length) {
+  STATIC_ASSERT(
+      (FixedTypedArrayBase::kHeaderSize & kObjectAlignmentMask) == 0);
+  HValue* total_size;
+
+  // if fixed array's elements are not aligned to object's alignment,
+  // we need to align the whole array to object alignment.
+  if (element_size % kObjectAlignment != 0) {
+    total_size = BuildObjectSizeAlignment(
+        byte_length, FixedTypedArrayBase::kHeaderSize);
+  } else {
+    total_size = AddUncasted<HAdd>(byte_length,
+        Add<HConstant>(FixedTypedArrayBase::kHeaderSize));
+    total_size->ClearFlag(HValue::kCanOverflow);
+  }
+
+  Handle<Map> fixed_typed_array_map(
+      isolate()->heap()->MapForFixedTypedArray(array_type));
+  HValue* elements =
+      Add<HAllocate>(total_size, HType::Tagged(),
+          NOT_TENURED,
+          fixed_typed_array_map->instance_type());
+  AddStoreMapConstant(elements, fixed_typed_array_map);
+
+  Add<HStoreNamedField>(elements,
+      HObjectAccess::ForFixedArrayLength(),
+      length);
+  HValue* filler = Add<HConstant>(static_cast<int32_t>(0));
+
+  {
+    LoopBuilder builder(this, context(), LoopBuilder::kPostIncrement);
+
+    HValue* key = builder.BeginBody(
+        Add<HConstant>(static_cast<int32_t>(0)),
+        length, Token::LT);
+    Add<HStoreKeyed>(elements, key, filler, fixed_elements_kind);
+
+    builder.EndBody();
+  }
+  Add<HStoreNamedField>(
+      elements, HObjectAccess::ForFixedArrayLength(), length);
+  return elements;
+}
+
+
 void HOptimizedGraphBuilder::GenerateTypedArrayInitialize(
     CallRuntime* expr) {
   ZoneList<Expression*>* arguments = expr->arguments();
@@ -8488,8 +8615,13 @@ void HOptimizedGraphBuilder::GenerateTypedArrayInitialize(
   ASSERT(value->IsSmi());
   int array_id = Smi::cast(*value)->value();
 
-  CHECK_ALIVE(VisitForValue(arguments->at(kBufferArg)));
-  HValue* buffer = Pop();
+  HValue* buffer;
+  if (!arguments->at(kBufferArg)->IsNullLiteral()) {
+    CHECK_ALIVE(VisitForValue(arguments->at(kBufferArg)));
+    buffer = Pop();
+  } else {
+    buffer = NULL;
+  }
 
   HValue* byte_offset;
   bool is_zero_byte_offset;
@@ -8503,6 +8635,7 @@ void HOptimizedGraphBuilder::GenerateTypedArrayInitialize(
     CHECK_ALIVE(VisitForValue(arguments->at(kByteOffsetArg)));
     byte_offset = Pop();
     is_zero_byte_offset = false;
+    ASSERT(buffer != NULL);
   }
 
   CHECK_ALIVE(VisitForValue(arguments->at(kByteLengthArg)));
@@ -8515,13 +8648,24 @@ void HOptimizedGraphBuilder::GenerateTypedArrayInitialize(
     byte_offset_smi.Then();
   }
 
+  ExternalArrayType array_type =
+      kExternalInt8Array;  // Bogus initialization.
+  size_t element_size = 1;  // Bogus initialization.
+  ElementsKind external_elements_kind =  // Bogus initialization.
+      EXTERNAL_INT8_ELEMENTS;
+  ElementsKind fixed_elements_kind =  // Bogus initialization.
+      INT8_ELEMENTS;
+  Runtime::ArrayIdToTypeAndSize(array_id,
+      &array_type,
+      &external_elements_kind,
+      &fixed_elements_kind,
+      &element_size);
+
+
   { //  byte_offset is Smi.
     BuildArrayBufferViewInitialization<JSTypedArray>(
         obj, buffer, byte_offset, byte_length);
 
-    ExternalArrayType array_type = kExternalInt8Array;  // Bogus initialization.
-    size_t element_size = 1;  // Bogus initialization.
-    Runtime::ArrayIdToTypeAndSize(array_id, &array_type, &element_size);
 
     HInstruction* length = AddUncasted<HDiv>(byte_length,
         Add<HConstant>(static_cast<int32_t>(element_size)));
@@ -8530,40 +8674,19 @@ void HOptimizedGraphBuilder::GenerateTypedArrayInitialize(
         HObjectAccess::ForJSTypedArrayLength(),
         length);
 
-    Handle<Map> external_array_map(
-        isolate()->heap()->MapForExternalArrayType(array_type));
-
-    HValue* elements =
-        Add<HAllocate>(
-            Add<HConstant>(ExternalArray::kAlignedSize),
-            HType::Tagged(),
-            NOT_TENURED,
-            external_array_map->instance_type());
-
-    AddStoreMapConstant(elements, external_array_map);
-
-    HValue* backing_store = Add<HLoadNamedField>(
-        buffer, static_cast<HValue*>(NULL),
-        HObjectAccess::ForJSArrayBufferBackingStore());
-
-    HValue* typed_array_start;
-    if (is_zero_byte_offset) {
-      typed_array_start = backing_store;
+    HValue* elements;
+    if (buffer != NULL) {
+      elements = BuildAllocateExternalElements(
+          array_type, is_zero_byte_offset, buffer, byte_offset, length);
+      Handle<Map> obj_map = TypedArrayMap(
+          isolate(), array_type, external_elements_kind);
+      AddStoreMapConstant(obj, obj_map);
     } else {
-      HInstruction* external_pointer =
-          AddUncasted<HAdd>(backing_store, byte_offset);
-      // Arguments are checked prior to call to TypedArrayInitialize,
-      // including byte_offset.
-      external_pointer->ClearFlag(HValue::kCanOverflow);
-      typed_array_start = external_pointer;
+      ASSERT(is_zero_byte_offset);
+      elements = BuildAllocateFixedTypedArray(
+          array_type, element_size, fixed_elements_kind,
+          byte_length, length);
     }
-
-    Add<HStoreNamedField>(elements,
-        HObjectAccess::ForExternalArrayExternalPointer(),
-        typed_array_start);
-    Add<HStoreNamedField>(elements,
-        HObjectAccess::ForFixedArrayLength(),
-        length);
     Add<HStoreNamedField>(
         obj, HObjectAccess::ForElementsPointer(), elements);
   }
@@ -8588,6 +8711,15 @@ void HOptimizedGraphBuilder::GenerateMaxSmi(CallRuntime* expr) {
   ASSERT(expr->arguments()->length() == 0);
   HConstant* max_smi = New<HConstant>(static_cast<int32_t>(Smi::kMaxValue));
   return ast_context()->ReturnInstruction(max_smi, expr->id());
+}
+
+
+void HOptimizedGraphBuilder::GenerateTypedArrayMaxSizeInHeap(
+    CallRuntime* expr) {
+  ASSERT(expr->arguments()->length() == 0);
+  HConstant* result = New<HConstant>(static_cast<int32_t>(
+        FLAG_typed_array_max_size_in_heap));
+  return ast_context()->ReturnInstruction(result, expr->id());
 }
 
 

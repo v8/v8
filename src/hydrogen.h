@@ -1372,6 +1372,10 @@ class HGraphBuilder {
                                HValue* dst_offset,
                                String::Encoding dst_encoding,
                                HValue* length);
+
+  // Align an object size to object alignment boundary
+  HValue* BuildObjectSizeAlignment(HValue* unaligned_size, int header_size);
+
   // Both operands are non-empty strings.
   HValue* BuildUncheckedStringAdd(HValue* left,
                                   HValue* right,
@@ -2320,6 +2324,15 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
                                          HValue* value,
                                          SmallMapList* types,
                                          Handle<String> name);
+
+  HValue* BuildAllocateExternalElements(
+      ExternalArrayType array_type,
+      bool is_zero_byte_offset,
+      HValue* buffer, HValue* byte_offset, HValue* length);
+  HValue* BuildAllocateFixedTypedArray(
+      ExternalArrayType array_type, int element_size,
+      ElementsKind fixed_elements_kind,
+      HValue* byte_length, HValue* length);
 
   bool IsCallNewArrayInlineable(CallNew* expr);
   void BuildInlinedCallNewArray(CallNew* expr);
