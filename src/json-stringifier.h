@@ -393,13 +393,16 @@ BasicJsonStringifier::Result BasicJsonStringifier::StackPush(
   if (check.HasOverflowed()) return STACK_OVERFLOW;
 
   int length = Smi::cast(stack_->length())->value();
-  FixedArray* elements = FixedArray::cast(stack_->elements());
-  for (int i = 0; i < length; i++) {
-    if (elements->get(i) == *object) {
-      return CIRCULAR;
+  {
+    DisallowHeapAllocation no_allocation;
+    FixedArray* elements = FixedArray::cast(stack_->elements());
+    for (int i = 0; i < length; i++) {
+      if (elements->get(i) == *object) {
+        return CIRCULAR;
+      }
     }
   }
-  stack_->EnsureSize(length + 1);
+  JSArray::EnsureSize(stack_, length + 1);
   FixedArray::cast(stack_->elements())->set(length, *object);
   stack_->set_length(Smi::FromInt(length + 1));
   return SUCCESS;

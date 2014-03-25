@@ -766,14 +766,16 @@ class ElementsAccessorBase : public ElementsAccessor {
       Handle<Object> length,
       Handle<FixedArrayBase> backing_store);
 
-  MUST_USE_RESULT virtual MaybeObject* SetCapacityAndLength(
-      JSArray* array,
+  virtual void SetCapacityAndLength(
+      Handle<JSArray> array,
       int capacity,
       int length) V8_FINAL V8_OVERRIDE {
-    return ElementsAccessorSubclass::SetFastElementsCapacityAndLength(
-        array,
-        capacity,
-        length);
+    CALL_HEAP_FUNCTION_VOID(
+        array->GetIsolate(),
+        ElementsAccessorSubclass::SetFastElementsCapacityAndLength(
+            *array,
+            capacity,
+            length));
   }
 
   MUST_USE_RESULT static MaybeObject* SetFastElementsCapacityAndLength(

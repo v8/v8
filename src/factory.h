@@ -387,10 +387,6 @@ class Factory {
       int capacity,
       ArrayStorageAllocationMode mode = DONT_INITIALIZE_ARRAY_ELEMENTS);
 
-  void SetElementsCapacityAndLength(Handle<JSArray> array,
-                                    int capacity,
-                                    int length);
-
   Handle<JSGeneratorObject> NewJSGeneratorObject(Handle<JSFunction> function);
 
   Handle<JSArrayBuffer> NewJSArrayBuffer();

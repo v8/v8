@@ -6527,20 +6527,20 @@ void Map::ClearCodeCache(Heap* heap) {
 }
 
 
-void JSArray::EnsureSize(int required_size) {
-  ASSERT(HasFastSmiOrObjectElements());
-  FixedArray* elts = FixedArray::cast(elements());
+void JSArray::EnsureSize(Handle<JSArray> array, int required_size) {
+  ASSERT(array->HasFastSmiOrObjectElements());
+  Handle<FixedArray> elts = handle(FixedArray::cast(array->elements()));
   const int kArraySizeThatFitsComfortablyInNewSpace = 128;
   if (elts->length() < required_size) {
     // Doubling in size would be overkill, but leave some slack to avoid
     // constantly growing.
-    Expand(required_size + (required_size >> 3));
+    Expand(array, required_size + (required_size >> 3));
     // It's a performance benefit to keep a frequently used array in new-space.
-  } else if (!GetHeap()->new_space()->Contains(elts) &&
+  } else if (!array->GetHeap()->new_space()->Contains(*elts) &&
              required_size < kArraySizeThatFitsComfortablyInNewSpace) {
     // Expand will allocate a new backing store in new space even if the size
     // we asked for isn't larger than what we had before.
-    Expand(required_size);
+    Expand(array, required_size);
   }
 }
 

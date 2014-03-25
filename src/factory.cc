@@ -1489,16 +1489,6 @@ void Factory::NewJSArrayStorage(Handle<JSArray> array,
 }
 
 
-void Factory::SetElementsCapacityAndLength(Handle<JSArray> array,
-                                           int capacity,
-                                           int length) {
-  ElementsAccessor* accessor = array->GetElementsAccessor();
-  CALL_HEAP_FUNCTION_VOID(
-      isolate(),
-      accessor->SetCapacityAndLength(*array, capacity, length));
-}
-
-
 Handle<JSGeneratorObject> Factory::NewJSGeneratorObject(
     Handle<JSFunction> function) {
   ASSERT(function->shared()->is_generator());
