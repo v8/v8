@@ -1352,3 +1352,62 @@ TEST(Latin1IgnoreCase) {
     CHECK_EQ(Min(upper, lower), test);
   }
 }
+
+
+class DummyResource: public v8::String::ExternalStringResource {
+ public:
+  virtual const uint16_t* data() const { return NULL; }
+  virtual size_t length() const { return 1 << 30; }
+};
+
+
+class DummyOneByteResource: public v8::String::ExternalOneByteStringResource {
+ public:
+  virtual const char* data() const { return NULL; }
+  virtual size_t length() const { return 1 << 30; }
+};
+
+
+TEST(InvalidExternalString) {
+  CcTest::InitializeVM();
+  LocalContext context;
+  Isolate* isolate = CcTest::i_isolate();
+  { HandleScope scope(isolate);
+    DummyOneByteResource r;
+    CHECK(isolate->factory()->NewExternalStringFromAscii(&r).is_null());
+    CHECK(isolate->has_pending_exception());
+    isolate->clear_pending_exception();
+  }
+
+  { HandleScope scope(isolate);
+    DummyResource r;
+    CHECK(isolate->factory()->NewExternalStringFromTwoByte(&r).is_null());
+    CHECK(isolate->has_pending_exception());
+    isolate->clear_pending_exception();
+  }
+}
+
+
+#define INVALID_STRING_TEST(FUN, TYPE)                                         \
+  TEST(StringOOM##FUN) {                                                       \
+    CcTest::InitializeVM();                                                    \
+    LocalContext context;                                                      \
+    Isolate* isolate = CcTest::i_isolate();                                    \
+    STATIC_ASSERT(String::kMaxLength < kMaxInt);                               \
+    static const int invalid = String::kMaxLength + 1;                         \
+    HandleScope scope(isolate);                                                \
+    Vector<TYPE> dummy = Vector<TYPE>::New(invalid);                           \
+    CHECK(isolate->factory()->FUN(Vector<const TYPE>::cast(dummy)).is_null()); \
+    memset(dummy.start(), 0x20, dummy.length() * sizeof(TYPE));                \
+    CHECK(isolate->has_pending_exception());                                   \
+    isolate->clear_pending_exception();                                        \
+    dummy.Dispose();                                                           \
+  }
+
+INVALID_STRING_TEST(NewStringFromAscii, char)
+INVALID_STRING_TEST(NewStringFromUtf8, char)
+INVALID_STRING_TEST(NewStringFromOneByte, uint8_t)
+INVALID_STRING_TEST(InternalizeOneByteString, uint8_t)
+INVALID_STRING_TEST(InternalizeUtf8String, char)
+
+#undef INVALID_STRING_TEST

@@ -5403,6 +5403,8 @@ inline Local<String> NewString(Isolate* v8_isolate,
   if (length == -1) length = StringLength(data);
   i::Handle<i::String> result = NewString(
       isolate->factory(), type, i::Vector<const Char>(data, length));
+  // We do not expect this to fail. Change this if it does.
+  CHECK(!result.is_null());
   if (type == String::kUndetectableString) {
     result->MarkAsUndetectable();
   }
@@ -5460,8 +5462,8 @@ Local<String> v8::String::Concat(Handle<String> left, Handle<String> right) {
   i::Handle<i::String> right_string = Utils::OpenHandle(*right);
   i::Handle<i::String> result = isolate->factory()->NewConsString(left_string,
                                                                   right_string);
-  // We do not expect this to throw an exception. Change this if it does.
-  CHECK_NOT_EMPTY_HANDLE(isolate, result);
+  // We do not expect this to fail. Change this if it does.
+  CHECK(!result.is_null());
   return Utils::ToLocal(result);
 }
 
@@ -5469,14 +5471,22 @@ Local<String> v8::String::Concat(Handle<String> left, Handle<String> right) {
 static i::Handle<i::String> NewExternalStringHandle(
     i::Isolate* isolate,
     v8::String::ExternalStringResource* resource) {
-  return isolate->factory()->NewExternalStringFromTwoByte(resource);
+  i::Handle<i::String> result =
+      isolate->factory()->NewExternalStringFromTwoByte(resource);
+  // We do not expect this to fail. Change this if it does.
+  CHECK(!result.is_null());
+  return result;
 }
 
 
 static i::Handle<i::String> NewExternalAsciiStringHandle(
     i::Isolate* isolate,
     v8::String::ExternalAsciiStringResource* resource) {
-  return isolate->factory()->NewExternalStringFromAscii(resource);
+  i::Handle<i::String> result =
+      isolate->factory()->NewExternalStringFromAscii(resource);
+  // We do not expect this to fail. Change this if it does.
+  CHECK(!result.is_null());
+  return result;
 }
 
 
@@ -7000,8 +7010,8 @@ Handle<String> CpuProfileNode::GetFunctionName() const {
     i::Handle<i::String> cons = isolate->factory()->NewConsString(
         isolate->factory()->InternalizeUtf8String(entry->name_prefix()),
         isolate->factory()->InternalizeUtf8String(entry->name()));
-    // We do not expect this to throw an exception. Change this if it does.
-    CHECK_NOT_EMPTY_HANDLE(isolate, cons);
+    // We do not expect this to fail. Change this if it does.
+    CHECK(!cons.is_null());
     return ToApiHandle<String>(cons);
   }
 }

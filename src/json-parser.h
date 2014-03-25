@@ -606,6 +606,7 @@ Handle<String> JsonParser<seq_ascii>::SlowScanJsonString(
   int length = Min(max_length, Max(kInitialSpecialStringLength, 2 * count));
   Handle<StringType> seq_string =
       NewRawString<StringType>(factory(), length, pretenure_);
+  ASSERT(!seq_string.is_null());
   // Copy prefix into seq_str.
   SinkChar* dest = seq_string->GetChars();
   String::WriteToFlat(*prefix, dest, start, end);
@@ -793,6 +794,7 @@ Handle<String> JsonParser<seq_ascii>::ScanJsonString() {
   } while (c0_ != '"');
   int length = position_ - beg_pos;
   Handle<String> result = factory()->NewRawOneByteString(length, pretenure_);
+  ASSERT(!result.is_null());
   uint8_t* dest = SeqOneByteString::cast(*result)->GetChars();
   String::WriteToFlat(*source_, dest, beg_pos, position_);
 

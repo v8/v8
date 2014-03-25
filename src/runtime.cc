@@ -3363,8 +3363,7 @@ class ReplacementStringBuilder {
         array_builder_(heap->isolate(), estimated_part_count),
         subject_(subject),
         character_count_(0),
-        is_ascii_(subject->IsOneByteRepresentation()),
-        overflowed_(false) {
+        is_ascii_(subject->IsOneByteRepresentation()) {
     // Require a non-zero initial size. Ensures that doubling the size to
     // extend the array will work.
     ASSERT(estimated_part_count > 0);
@@ -3412,11 +3411,6 @@ class ReplacementStringBuilder {
 
 
   Handle<String> ToString() {
-    if (overflowed_) {
-      heap_->isolate()->ThrowInvalidStringLength();
-      return Handle<String>();
-    }
-
     if (array_builder_.length() == 0) {
       return heap_->isolate()->factory()->empty_string();
     }
@@ -3424,6 +3418,7 @@ class ReplacementStringBuilder {
     Handle<String> joined_string;
     if (is_ascii_) {
       Handle<SeqOneByteString> seq = NewRawOneByteString(character_count_);
+      RETURN_IF_EMPTY_HANDLE_VALUE(heap_->isolate(), seq, Handle<String>());
       DisallowHeapAllocation no_gc;
       uint8_t* char_buffer = seq->GetChars();
       StringBuilderConcatHelper(*subject_,
@@ -3434,6 +3429,7 @@ class ReplacementStringBuilder {
     } else {
       // Non-ASCII.
       Handle<SeqTwoByteString> seq = NewRawTwoByteString(character_count_);
+      RETURN_IF_EMPTY_HANDLE_VALUE(heap_->isolate(), seq, Handle<String>());
       DisallowHeapAllocation no_gc;
       uc16* char_buffer = seq->GetChars();
       StringBuilderConcatHelper(*subject_,
@@ -3448,9 +3444,11 @@ class ReplacementStringBuilder {
 
   void IncrementCharacterCount(int by) {
     if (character_count_ > String::kMaxLength - by) {
-      overflowed_ = true;
+      STATIC_ASSERT(String::kMaxLength < kMaxInt);
+      character_count_ = kMaxInt;
+    } else {
+      character_count_ += by;
     }
-    character_count_ += by;
   }
 
  private:
@@ -3475,7 +3473,6 @@ class ReplacementStringBuilder {
   Handle<String> subject_;
   int character_count_;
   bool is_ascii_;
-  bool overflowed_;
 };
 
 
@@ -3932,22 +3929,25 @@ MUST_USE_RESULT static MaybeObject* StringReplaceGlobalAtomRegExpWithString(
        static_cast<int64_t>(pattern_len)) *
       static_cast<int64_t>(matches) +
       static_cast<int64_t>(subject_len);
-  if (result_len_64 > INT_MAX) {
-    v8::internal::Heap::FatalProcessOutOfMemory("invalid string length", true);
+  int result_len;
+  if (result_len_64 > static_cast<int64_t>(String::kMaxLength)) {
+    STATIC_ASSERT(String::kMaxLength < kMaxInt);
+    result_len = kMaxInt;  // Provoke exception.
+  } else {
+    result_len = static_cast<int>(result_len_64);
   }
-  int result_len = static_cast<int>(result_len_64);
 
   int subject_pos = 0;
   int result_pos = 0;
 
-  Handle<ResultSeqString> result;
+  Handle<String> result_seq;
   if (ResultSeqString::kHasAsciiEncoding) {
-    result = Handle<ResultSeqString>::cast(
-        isolate->factory()->NewRawOneByteString(result_len));
+    result_seq = isolate->factory()->NewRawOneByteString(result_len);
   } else {
-    result = Handle<ResultSeqString>::cast(
-        isolate->factory()->NewRawTwoByteString(result_len));
+    result_seq = isolate->factory()->NewRawTwoByteString(result_len);
   }
+  RETURN_IF_EMPTY_HANDLE(isolate, result_seq);
+  Handle<ResultSeqString> result = Handle<ResultSeqString>::cast(result_seq);
 
   for (int i = 0; i < matches; i++) {
     // Copy non-matched subject content.
@@ -4127,6 +4127,7 @@ MUST_USE_RESULT static MaybeObject* StringReplaceGlobalRegExpWithEmptyString(
     answer = Handle<ResultSeqString>::cast(
         isolate->factory()->NewRawTwoByteString(new_length));
   }
+  ASSERT(!answer.is_null());
 
   int prev = 0;
   int position = 0;
@@ -6584,7 +6585,7 @@ MUST_USE_RESULT static MaybeObject* ConvertCase(
   if (s->IsOneByteRepresentationUnderneath()) {
     Handle<SeqOneByteString> result =
         isolate->factory()->NewRawOneByteString(length);
-
+    ASSERT(!result.is_null());  // Same length as input.
     DisallowHeapAllocation no_gc;
     String::FlatContent flat_content = s->GetFlatContent();
     ASSERT(flat_content.IsFlat());
@@ -6604,6 +6605,8 @@ MUST_USE_RESULT static MaybeObject* ConvertCase(
   } else {
     result = isolate->factory()->NewRawTwoByteString(length);
   }
+  ASSERT(!result.is_null());  // Same length as input.
+
   MaybeObject* maybe = ConvertCaseHelper(isolate, *s, *result, length, mapping);
   Object* answer;
   if (!maybe->ToObject(&answer)) return maybe;
@@ -6617,6 +6620,7 @@ MUST_USE_RESULT static MaybeObject* ConvertCase(
     if (length < 0) length = -length;
     result = isolate->factory()->NewRawTwoByteString(length);
   }
+  RETURN_IF_EMPTY_HANDLE(isolate, result);
   return ConvertCaseHelper(isolate, *s, *result, length, mapping);
 }
 
@@ -7261,13 +7265,16 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringBuilderJoin) {
     String* element = String::cast(element_obj);
     int increment = element->length();
     if (increment > String::kMaxLength - length) {
-      return isolate->ThrowInvalidStringLength();
+      STATIC_ASSERT(String::kMaxLength < kMaxInt);
+      length = kMaxInt;  // Provoke exception;
+      break;
     }
     length += increment;
   }
 
   Handle<SeqTwoByteString> answer =
       isolate->factory()->NewRawTwoByteString(length);
+  RETURN_IF_EMPTY_HANDLE(isolate, answer);
 
   DisallowHeapAllocation no_gc;
 
@@ -9512,8 +9519,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ThrowMessage) {
   CONVERT_SMI_ARG_CHECKED(message_id, 0);
   const char* message = GetBailoutReason(
       static_cast<BailoutReason>(message_id));
-  Handle<Name> message_handle =
+  Handle<String> message_handle =
       isolate->factory()->NewStringFromAscii(CStrVector(message));
+  RETURN_IF_EMPTY_HANDLE(isolate, message_handle);
   return isolate->Throw(*message_handle);
 }
 
