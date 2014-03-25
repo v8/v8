@@ -425,6 +425,7 @@ class TransitionKey(object):
     components = TransitionKey.__disjoint_components(encoding, components, True)
     if invert:
       components = TransitionKey.__invert_components(encoding, components)
+    components = list(components)  # must materialize for compare below
     return None if not components else TransitionKey(encoding, components)
 
   @staticmethod

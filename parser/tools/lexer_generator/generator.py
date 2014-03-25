@@ -34,6 +34,7 @@ from dfa import Dfa
 from dfa_minimizer import DfaMinimizer
 from rule_parser import RuleParser, RuleParserState, RuleProcessor
 from code_generator import CodeGenerator
+from dfa_path_writer import DfaPathWriter
 
 file_template = '''
 <html>
@@ -141,6 +142,7 @@ if __name__ == '__main__':
   parser.add_argument('--verbose', action='store_true')
   parser.add_argument('--debug-code', action='store_true')
   parser.add_argument('--profile', action='store_true')
+  parser.add_argument('--lexer-shell-test-file')
   parser.add_argument('--rule-html')
   args = parser.parse_args()
 
@@ -168,35 +170,40 @@ if __name__ == '__main__':
         dfa.node_count(), mdfa.node_count()))
     DfaMinimizer.set_verify(True)
 
-  html_file = args.html
-  if html_file:
+  if args.lexer_shell_test_file:
+    dfa = rule_processor.default_automata().dfa()
+    if minimize_default:
+      dfa = rule_processor.default_automata().minimal_dfa()
+    path_writer = DfaPathWriter(dfa)
+    with open(args.lexer_shell_test_file, 'w') as f:
+      path_writer.write_lexer_shell_test_file(f)
+      logging.info("wrote lexer_shell file to %s" % args.lexer_shell_test_file)
+
+  if args.html:
     html = generate_html(
       rule_processor, minimize_default, not args.no_merge_html)
     with open(args.html, 'w') as f:
       f.write(html)
-      logging.info("wrote html to %s" % html_file)
+      logging.info("wrote html to %s" % args.html)
 
-  rule_html_file = args.rule_html
-  if rule_html_file:
+  if args.rule_html:
     html = generate_rule_tree_html(rule_processor)
-    with open(rule_html_file, 'w') as f:
+    with open(args.rule_html, 'w') as f:
       f.write(html)
-      logging.info("wrote html to %s" % rule_html_file)
+      logging.info("wrote rule html to %s" % args.rule_html)
 
-  code_file = args.code
-  if code_file:
+  if args.code:
     code_generator = CodeGenerator(rule_processor,
                                    minimize_default = minimize_default,
                                    inline = not args.no_inline,
                                    debug_print = args.debug_code)
     code = code_generator.process()
-    with open(code_file, 'w') as f:
+    with open(args.code, 'w') as f:
       f.write(code)
-      logging.info("wrote code to %s" % code_file)
+      logging.info("wrote code to %s" % args.code)
 
-  input_file = args.input
-  if input_file:
-    with open(input_file, 'r') as f:
+  if args.input:
+    with open(args.input, 'r') as f:
       lex(rule_processor, f.read())
 
   if args.profile:
