@@ -4086,6 +4086,7 @@ void MarkCompactCollector::SweepInParallel(PagedSpace* space) {
     if (p->TryParallelSweeping()) {
       SweepConservatively<SWEEP_IN_PARALLEL>(space, &private_free_list, p);
       free_list->Concatenate(&private_free_list);
+      p->set_parallel_sweeping(MemoryChunk::PARALLEL_SWEEPING_FINALIZE);
     }
   }
 }
@@ -4284,10 +4285,11 @@ void MarkCompactCollector::ParallelSweepSpaceComplete(PagedSpace* space) {
   PageIterator it(space);
   while (it.has_next()) {
     Page* p = it.next();
-    if (p->parallel_sweeping() == MemoryChunk::PARALLEL_SWEEPING_IN_PROGRESS) {
+    if (p->parallel_sweeping() == MemoryChunk::PARALLEL_SWEEPING_FINALIZE) {
       p->set_parallel_sweeping(MemoryChunk::PARALLEL_SWEEPING_DONE);
       p->MarkSweptConservatively();
     }
+    ASSERT(p->parallel_sweeping() == MemoryChunk::PARALLEL_SWEEPING_DONE);
   }
 }
 

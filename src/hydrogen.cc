@@ -54,6 +54,7 @@
 #include "hydrogen-removable-simulates.h"
 #include "hydrogen-representation-changes.h"
 #include "hydrogen-sce.h"
+#include "hydrogen-store-elimination.h"
 #include "hydrogen-uint32-analysis.h"
 #include "lithium-allocator.h"
 #include "parser.h"
@@ -4038,6 +4039,8 @@ bool HGraph::Optimize(BailoutReason* bailout_reason) {
   if (FLAG_use_gvn) Run<HGlobalValueNumberingPhase>();
 
   if (FLAG_check_elimination) Run<HCheckEliminationPhase>();
+
+  if (FLAG_store_elimination) Run<HStoreEliminationPhase>();
 
   Run<HRangeAnalysisPhase>();
 

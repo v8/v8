@@ -466,6 +466,7 @@ bool RegExpImpl::CompileIrregexp(Handle<JSRegExp> re,
     // Unable to compile regexp.
     Handle<String> error_message =
         isolate->factory()->NewStringFromUtf8(CStrVector(result.error_message));
+    ASSERT(!error_message.is_null());
     CreateRegExpErrorObjectAndThrow(re, is_ascii, error_message, isolate);
     return false;
   }
@@ -690,7 +691,8 @@ Handle<JSArray> RegExpImpl::SetLastMatchInfo(Handle<JSArray> last_match_info,
                                              int32_t* match) {
   ASSERT(last_match_info->HasFastObjectElements());
   int capture_register_count = (capture_count + 1) * 2;
-  last_match_info->EnsureSize(capture_register_count + kLastMatchOverhead);
+  JSArray::EnsureSize(last_match_info,
+                      capture_register_count + kLastMatchOverhead);
   DisallowHeapAllocation no_allocation;
   FixedArray* array = FixedArray::cast(last_match_info->elements());
   if (match != NULL) {

@@ -1064,25 +1064,15 @@ Handle<Object> Object::GetElement(Isolate* isolate,
   // This was not always the case. This ASSERT is here to catch
   // leftover incorrect uses.
   ASSERT(AllowHeapAllocation::IsAllowed());
-  CALL_HEAP_FUNCTION(isolate,
-                     object->GetElementWithReceiver(isolate, *object, index),
-                     Object);
+  return Object::GetElementWithReceiver(isolate, object, object, index);
 }
 
-
-static Handle<Object> GetElementNoExceptionThrownHelper(Isolate* isolate,
-                                                        Handle<Object> object,
-                                                        uint32_t index) {
-  CALL_HEAP_FUNCTION(isolate,
-                     object->GetElementWithReceiver(isolate, *object, index),
-                     Object);
-}
 
 Handle<Object> Object::GetElementNoExceptionThrown(Isolate* isolate,
                                                    Handle<Object> object,
                                                    uint32_t index) {
   Handle<Object> result =
-      GetElementNoExceptionThrownHelper(isolate, object, index);
+      Object::GetElementWithReceiver(isolate, object, object, index);
   CHECK_NOT_EMPTY_HANDLE(isolate, result);
   return result;
 }
@@ -6527,20 +6517,20 @@ void Map::ClearCodeCache(Heap* heap) {
 }
 
 
-void JSArray::EnsureSize(int required_size) {
-  ASSERT(HasFastSmiOrObjectElements());
-  FixedArray* elts = FixedArray::cast(elements());
+void JSArray::EnsureSize(Handle<JSArray> array, int required_size) {
+  ASSERT(array->HasFastSmiOrObjectElements());
+  Handle<FixedArray> elts = handle(FixedArray::cast(array->elements()));
   const int kArraySizeThatFitsComfortablyInNewSpace = 128;
   if (elts->length() < required_size) {
     // Doubling in size would be overkill, but leave some slack to avoid
     // constantly growing.
-    Expand(required_size + (required_size >> 3));
+    Expand(array, required_size + (required_size >> 3));
     // It's a performance benefit to keep a frequently used array in new-space.
-  } else if (!GetHeap()->new_space()->Contains(elts) &&
+  } else if (!array->GetHeap()->new_space()->Contains(*elts) &&
              required_size < kArraySizeThatFitsComfortablyInNewSpace) {
     // Expand will allocate a new backing store in new space even if the size
     // we asked for isn't larger than what we had before.
-    Expand(required_size);
+    Expand(array, required_size);
   }
 }
 

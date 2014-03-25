@@ -1177,6 +1177,8 @@ class Heap {
   // when shortening objects.
   void CreateFillerObjectAt(Address addr, int size);
 
+  bool CanMoveObjectStart(HeapObject* object);
+
   enum InvocationMode { FROM_GC, FROM_MUTATOR };
 
   // Maintain marking consistency for IncrementalMarking.
@@ -1906,16 +1908,12 @@ class Heap {
   class RelocationLock {
    public:
     explicit RelocationLock(Heap* heap) : heap_(heap) {
-      if (FLAG_concurrent_recompilation) {
-        heap_->relocation_mutex_->Lock();
-      }
+      heap_->relocation_mutex_.Lock();
     }
 
 
     ~RelocationLock() {
-      if (FLAG_concurrent_recompilation) {
-        heap_->relocation_mutex_->Unlock();
-      }
+      heap_->relocation_mutex_.Unlock();
     }
 
    private:
@@ -2518,7 +2516,7 @@ class Heap {
 
   MemoryChunk* chunks_queued_for_free_;
 
-  Mutex* relocation_mutex_;
+  Mutex relocation_mutex_;
 
   int gc_callbacks_depth_;
 

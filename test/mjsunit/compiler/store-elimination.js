@@ -25,18 +25,70 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --allow-natives-syntax --store-elimination
 
-#ifndef V8_ICU_UTIL_H_
-#define V8_ICU_UTIL_H_
+// Test local elimination of unobservable stores.
 
-namespace v8 {
+function B(x, y) {
+  this.x = x;
+  this.y = y;
+  return this;
+}
 
-namespace internal {
+function test_store_store() {
+  var a = new B(1, 2);
+  a.x = 3;  // eliminatable.
+  a.x = 4;
+  return a.x;
+}
 
-// Call this function to load ICU's data tables for the current process.  This
-// function should be called before ICU is used.
-bool InitializeICU(const char* icu_data_file);
+function test_store_load_store1() {
+  var a = new B(6, 7);
+  a.x = 3;  // eliminatable.
+  var r = a.y;
+  a.x = 4;
+  return r;
+}
 
-} }  // namespace v8::internal
+function test_store_load_store2() {
+  var a = new B(6, 8);
+  a.x = 3;  // not eliminatable, unless next load is eliminated.
+  var r = a.x;
+  a.x = 4;
+  return r;
+}
 
-#endif  // V8_ICU_UTIL_H_
+function test_store_call_store() {
+  var a = new B(2, 9);
+  a.x = 3;  // not eliminatable.
+  killall();
+  a.x = 4;
+  return a.y;
+}
+
+function test_store_deopt_store() {
+  var a = new B(2, 1);
+  a.x = 3;  // not eliminatable (implicit ValueOf following)
+  var c = a + 2;
+  a.x = 4;
+  return a.y;
+}
+
+function killall() {
+  try { } catch(e) { }
+}
+
+%NeverOptimizeFunction(killall);
+
+function test(x, f) {
+  assertEquals(x, f());
+  assertEquals(x, f());
+  %OptimizeFunctionOnNextCall(f);
+  assertEquals(x, f());
+}
+
+test(4, test_store_store);
+test(7, test_store_load_store1);
+test(3, test_store_load_store2);
+test(9, test_store_call_store);
+test(1, test_store_deopt_store);

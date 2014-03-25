@@ -68,6 +68,7 @@ class BaselineScanner {
             Vector<const uint16_t>(
                 reinterpret_cast<const uint16_t*>(source_),
                 length / 2));
+        CHECK_NOT_EMPTY_HANDLE(isolate, result);
         stream_ =
             new GenericStringUtf16CharacterStream(result, 0, result->length());
         break;
@@ -75,6 +76,7 @@ class BaselineScanner {
       case LATIN1: {
         Handle<String> result = isolate->factory()->NewStringFromOneByte(
             Vector<const uint8_t>(source_, length));
+        CHECK_NOT_EMPTY_HANDLE(isolate, result);
         stream_ =
             new GenericStringUtf16CharacterStream(result, 0, result->length());
         break;

@@ -126,9 +126,10 @@ class ElementsAccessor {
   // elements. This method should only be called for array expansion OR by
   // runtime JavaScript code that use InternalArrays and don't care about
   // EcmaScript 5.1 semantics.
-  MUST_USE_RESULT virtual MaybeObject* SetCapacityAndLength(JSArray* array,
-                                                            int capacity,
-                                                            int length) = 0;
+  virtual void SetCapacityAndLength(
+      Handle<JSArray> array,
+      int capacity,
+      int length) = 0;
 
   // Deletes an element in an object, returning a new elements backing store.
   MUST_USE_RESULT virtual Handle<Object> Delete(

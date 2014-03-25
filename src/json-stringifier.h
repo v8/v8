@@ -266,6 +266,7 @@ BasicJsonStringifier::BasicJsonStringifier(Isolate* isolate)
                            factory_->ToObject(factory_->empty_string()));
   part_length_ = kInitialPartLength;
   current_part_ = factory_->NewRawOneByteString(part_length_);
+  ASSERT(!current_part_.is_null());
   tojson_string_ = factory_->toJSON_string();
   stack_ = factory_->NewJSArray(8);
 }
@@ -309,6 +310,7 @@ MaybeObject* BasicJsonStringifier::StringifyString(Isolate* isolate,
   if (object->IsOneByteRepresentationUnderneath()) {
     Handle<String> result =
         isolate->factory()->NewRawOneByteString(worst_case_length);
+    ASSERT(!result.is_null());
     DisallowHeapAllocation no_gc;
     return StringifyString_<SeqOneByteString>(
         isolate,
@@ -317,6 +319,7 @@ MaybeObject* BasicJsonStringifier::StringifyString(Isolate* isolate,
   } else {
     Handle<String> result =
         isolate->factory()->NewRawTwoByteString(worst_case_length);
+    ASSERT(!result.is_null());
     DisallowHeapAllocation no_gc;
     return StringifyString_<SeqTwoByteString>(
         isolate,
@@ -390,13 +393,16 @@ BasicJsonStringifier::Result BasicJsonStringifier::StackPush(
   if (check.HasOverflowed()) return STACK_OVERFLOW;
 
   int length = Smi::cast(stack_->length())->value();
-  FixedArray* elements = FixedArray::cast(stack_->elements());
-  for (int i = 0; i < length; i++) {
-    if (elements->get(i) == *object) {
-      return CIRCULAR;
+  {
+    DisallowHeapAllocation no_allocation;
+    FixedArray* elements = FixedArray::cast(stack_->elements());
+    for (int i = 0; i < length; i++) {
+      if (elements->get(i) == *object) {
+        return CIRCULAR;
+      }
     }
   }
-  stack_->EnsureSize(length + 1);
+  JSArray::EnsureSize(stack_, length + 1);
   FixedArray::cast(stack_->elements())->set(length, *object);
   stack_->set_length(Smi::FromInt(length + 1));
   return SUCCESS;
@@ -722,7 +728,6 @@ void BasicJsonStringifier::ShrinkCurrentPart() {
 void BasicJsonStringifier::Accumulate() {
   if (accumulator()->length() + current_part_->length() > String::kMaxLength) {
     // Screw it.  Simply set the flag and carry on.  Throw exception at the end.
-    // We most likely will trigger a real OOM before even reaching this point.
     set_accumulator(factory_->empty_string());
     overflowed_ = true;
   } else {
@@ -741,6 +746,7 @@ void BasicJsonStringifier::Extend() {
   } else {
     current_part_ = factory_->NewRawTwoByteString(part_length_);
   }
+  ASSERT(!current_part_.is_null());
   current_index_ = 0;
 }
 
@@ -749,6 +755,7 @@ void BasicJsonStringifier::ChangeEncoding() {
   ShrinkCurrentPart();
   Accumulate();
   current_part_ = factory_->NewRawTwoByteString(part_length_);
+  ASSERT(!current_part_.is_null());
   current_index_ = 0;
   is_ascii_ = false;
 }

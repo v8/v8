@@ -588,22 +588,18 @@ class CPURegList {
   CPURegister::RegisterType type_;
 
   bool IsValid() const {
-    if ((type_ == CPURegister::kRegister) ||
-        (type_ == CPURegister::kFPRegister)) {
-      bool is_valid = true;
-      // Try to create a CPURegister for each element in the list.
-      for (int i = 0; i < kRegListSizeInBits; i++) {
-        if (((list_ >> i) & 1) != 0) {
-          is_valid &= CPURegister::Create(i, size_, type_).IsValid();
-        }
-      }
-      return is_valid;
-    } else if (type_ == CPURegister::kNoRegister) {
-      // The kNoRegister type is valid only for empty lists.
-      // We can't use IsEmpty here because that asserts IsValid().
-      return list_ == 0;
-    } else {
-      return false;
+    const RegList kValidRegisters = 0x8000000ffffffff;
+    const RegList kValidFPRegisters = 0x0000000ffffffff;
+    switch (type_) {
+      case CPURegister::kRegister:
+        return (list_ & kValidRegisters) == list_;
+      case CPURegister::kFPRegister:
+        return (list_ & kValidFPRegisters) == list_;
+      case CPURegister::kNoRegister:
+        return list_ == 0;
+      default:
+        UNREACHABLE();
+        return false;
     }
   }
 };

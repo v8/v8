@@ -1440,6 +1440,9 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     } else if (strcmp(argv[i], "--throws") == 0) {
       options.expected_to_throw = true;
       argv[i] = NULL;
+    } else if (strncmp(argv[i], "--icu-data-file=", 16) == 0) {
+      options.icu_data_file = argv[i] + 16;
+      argv[i] = NULL;
     }
 #ifdef V8_SHARED
     else if (strcmp(argv[i], "--dump-counters") == 0) {
@@ -1674,7 +1677,7 @@ class MockArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
 
 int Shell::Main(int argc, char* argv[]) {
   if (!SetOptions(argc, argv)) return 1;
-  v8::V8::InitializeICU();
+  v8::V8::InitializeICU(options.icu_data_file);
 #ifndef V8_SHARED
   i::FLAG_trace_hydrogen_file = "hydrogen.cfg";
   i::FLAG_redirect_code_traces_to = "code.asm";

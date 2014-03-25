@@ -25,70 +25,33 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "icu_util.h"
+#ifndef V8_HYDROGEN_STORE_ELIMINATION_H_
+#define V8_HYDROGEN_STORE_ELIMINATION_H_
 
-#if defined(_WIN32)
-#include <windows.h>
-#endif
-
-#if defined(V8_I18N_SUPPORT)
-#include <stdio.h>
-
-#include "unicode/putil.h"
-#include "unicode/udata.h"
-
-#define ICU_UTIL_DATA_FILE   0
-#define ICU_UTIL_DATA_SHARED 1
-#define ICU_UTIL_DATA_STATIC 2
-
-#define ICU_UTIL_DATA_SYMBOL "icudt" U_ICU_VERSION_SHORT "_dat"
-#define ICU_UTIL_DATA_SHARED_MODULE_NAME "icudt.dll"
-#endif
+#include "hydrogen.h"
+#include "hydrogen-alias-analysis.h"
 
 namespace v8 {
-
 namespace internal {
 
-bool InitializeICU(const char* icu_data_file) {
-#if !defined(V8_I18N_SUPPORT)
-  return true;
-#else
-#if ICU_UTIL_DATA_IMPL == ICU_UTIL_DATA_SHARED
-  // We expect to find the ICU data module alongside the current module.
-  HMODULE module = LoadLibraryA(ICU_UTIL_DATA_SHARED_MODULE_NAME);
-  if (!module) return false;
+class HStoreEliminationPhase : public HPhase {
+ public:
+  explicit HStoreEliminationPhase(HGraph* graph)
+    : HPhase("H_Store elimination", graph),
+      unobserved_(10, zone()),
+      aliasing_() { }
 
-  FARPROC addr = GetProcAddress(module, ICU_UTIL_DATA_SYMBOL);
-  if (!addr) return false;
+  void Run();
+ private:
+  ZoneList<HStoreNamedField*> unobserved_;
+  HAliasAnalyzer* aliasing_;
 
-  UErrorCode err = U_ZERO_ERROR;
-  udata_setCommonData(reinterpret_cast<void*>(addr), &err);
-  return err == U_ZERO_ERROR;
-#elif ICU_UTIL_DATA_IMPL == ICU_UTIL_DATA_STATIC
-  // Mac/Linux bundle the ICU data in.
-  return true;
-#elif ICU_UTIL_DATA_IMPL == ICU_UTIL_DATA_FILE
-  if (!icu_data_file) return false;
+  void ProcessStore(HStoreNamedField* store);
+  void ProcessLoad(HLoadNamedField* load);
+  void ProcessInstr(HInstruction* instr, GVNFlagSet flags);
+};
 
-  FILE* inf = fopen(icu_data_file, "rb");
-  if (!inf) return false;
-
-  fseek(inf, 0, SEEK_END);
-  size_t size = ftell(inf);
-  rewind(inf);
-
-  char* addr = new char[size];
-  if (fread(addr, 1, size, inf) != size) {
-    delete[] addr;
-    fclose(inf);
-    return false;
-  }
-  fclose(inf);
-  UErrorCode err = U_ZERO_ERROR;
-  udata_setCommonData(reinterpret_cast<void*>(addr), &err);
-  return err == U_ZERO_ERROR;
-#endif
-#endif
-}
 
 } }  // namespace v8::internal
+
+#endif
