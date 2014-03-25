@@ -2157,8 +2157,9 @@ class InstructionAccurateScope BASE_EMBEDDED {
   {
     // Before blocking the const pool, see if it needs to be emitted.
     masm_->CheckConstPool(false, true);
+    masm_->CheckVeneerPool(false, true);
 
-    masm_->StartBlockConstPool();
+    masm_->StartBlockPools();
 #ifdef DEBUG
     if (count != 0) {
       masm_->bind(&start_);
@@ -2169,7 +2170,7 @@ class InstructionAccurateScope BASE_EMBEDDED {
   }
 
   ~InstructionAccurateScope() {
-    masm_->EndBlockConstPool();
+    masm_->EndBlockPools();
 #ifdef DEBUG
     if (start_.is_bound()) {
       ASSERT(masm_->SizeOfCodeGeneratedSince(&start_) == size_);
