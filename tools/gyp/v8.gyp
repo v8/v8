@@ -420,6 +420,8 @@
         '../../src/hydrogen-representation-changes.h',
         '../../src/hydrogen-sce.cc',
         '../../src/hydrogen-sce.h',
+        '../../src/hydrogen-store-elimination.cc',
+        '../../src/hydrogen-store-elimination.h',
         '../../src/hydrogen-uint32-analysis.cc',
         '../../src/hydrogen-uint32-analysis.h',
         '../../src/i18n.cc',

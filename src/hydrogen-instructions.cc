@@ -841,6 +841,107 @@ void HInstruction::Verify() {
 #endif
 
 
+static bool HasPrimitiveRepresentation(HValue* instr) {
+  return instr->representation().IsInteger32() ||
+    instr->representation().IsDouble();
+}
+
+
+bool HInstruction::CanDeoptimize() {
+  // TODO(titzer): make this a virtual method?
+  switch (opcode()) {
+    case HValue::kAccessArgumentsAt:
+    case HValue::kApplyArguments:
+    case HValue::kArgumentsElements:
+    case HValue::kArgumentsLength:
+    case HValue::kArgumentsObject:
+    case HValue::kBoundsCheckBaseIndexInformation:
+    case HValue::kCapturedObject:
+    case HValue::kClampToUint8:
+    case HValue::kConstant:
+    case HValue::kContext:
+    case HValue::kDateField:
+    case HValue::kDebugBreak:
+    case HValue::kDeclareGlobals:
+    case HValue::kDiv:
+    case HValue::kDummyUse:
+    case HValue::kEnterInlined:
+    case HValue::kEnvironmentMarker:
+    case HValue::kForInCacheArray:
+    case HValue::kForInPrepareMap:
+    case HValue::kFunctionLiteral:
+    case HValue::kGetCachedArrayIndex:
+    case HValue::kGoto:
+    case HValue::kInnerAllocatedObject:
+    case HValue::kInstanceOf:
+    case HValue::kInstanceOfKnownGlobal:
+    case HValue::kInvokeFunction:
+    case HValue::kLeaveInlined:
+    case HValue::kLoadContextSlot:
+    case HValue::kLoadFieldByIndex:
+    case HValue::kLoadFunctionPrototype:
+    case HValue::kLoadGlobalCell:
+    case HValue::kLoadGlobalGeneric:
+    case HValue::kLoadKeyed:
+    case HValue::kLoadKeyedGeneric:
+    case HValue::kLoadNamedField:
+    case HValue::kLoadNamedGeneric:
+    case HValue::kLoadRoot:
+    case HValue::kMapEnumLength:
+    case HValue::kMathFloorOfDiv:
+    case HValue::kMathMinMax:
+    case HValue::kMod:
+    case HValue::kMul:
+    case HValue::kOsrEntry:
+    case HValue::kParameter:
+    case HValue::kPower:
+    case HValue::kPushArgument:
+    case HValue::kRor:
+    case HValue::kSar:
+    case HValue::kSeqStringGetChar:
+    case HValue::kSeqStringSetChar:
+    case HValue::kShl:
+    case HValue::kShr:
+    case HValue::kSimulate:
+    case HValue::kStackCheck:
+    case HValue::kStoreCodeEntry:
+    case HValue::kStoreContextSlot:
+    case HValue::kStoreGlobalCell:
+    case HValue::kStoreKeyed:
+    case HValue::kStoreKeyedGeneric:
+    case HValue::kStoreNamedField:
+    case HValue::kStoreNamedGeneric:
+    case HValue::kStringAdd:
+    case HValue::kStringCharCodeAt:
+    case HValue::kStringCharFromCode:
+    case HValue::kSub:
+    case HValue::kThisFunction:
+    case HValue::kToFastProperties:
+    case HValue::kTransitionElementsKind:
+    case HValue::kTrapAllocationMemento:
+    case HValue::kTypeof:
+    case HValue::kUnaryMathOperation:
+    case HValue::kUseConst:
+    case HValue::kWrapReceiver:
+      return false;
+    case HValue::kForceRepresentation:
+    case HValue::kAdd:
+    case HValue::kBitwise:
+    case HValue::kChange:
+    case HValue::kCompareGeneric:
+      // These instructions might deoptimize if they are not primitive.
+      if (!HasPrimitiveRepresentation(this)) return true;
+      for (int i = 0; i < OperandCount(); i++) {
+        HValue* input = OperandAt(i);
+        if (!HasPrimitiveRepresentation(input)) return true;
+      }
+      return false;
+    default:
+      return true;
+  }
+}
+
+
 void HDummyUse::PrintDataTo(StringStream* stream) {
   value()->PrintNameTo(stream);
 }

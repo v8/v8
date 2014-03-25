@@ -1271,6 +1271,8 @@ class HInstruction : public HValue {
   virtual void Verify() V8_OVERRIDE;
 #endif
 
+  bool CanDeoptimize();
+
   virtual bool HasStackCheck() { return false; }
 
   DECLARE_ABSTRACT_INSTRUCTION(Instruction)
