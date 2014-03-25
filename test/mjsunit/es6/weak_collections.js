@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --expose-gc --allow-natives-syntax
+// Flags: --harmony-weak-collections --expose-gc --allow-natives-syntax
 
 
 // Note: this test is superseded by harmony/collections.js.
@@ -225,7 +225,7 @@ function TestPrototype(C) {
   assertTrue(C.prototype instanceof Object);
   assertEquals({
     value: {},
-    writable: false,
+    writable: true,  // TODO(2793): This should be non-writable.
     enumerable: false,
     configurable: false
   }, Object.getOwnPropertyDescriptor(C, "prototype"));

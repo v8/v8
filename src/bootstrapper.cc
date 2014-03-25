@@ -154,7 +154,7 @@ char* Bootstrapper::AllocateAutoDeletedArray(int bytes) {
 void Bootstrapper::TearDown() {
   if (delete_these_non_arrays_on_tear_down_ != NULL) {
     int len = delete_these_non_arrays_on_tear_down_->length();
-    ASSERT(len < 24);  // Don't use this mechanism for unbounded allocations.
+    ASSERT(len < 20);  // Don't use this mechanism for unbounded allocations.
     for (int i = 0; i < len; i++) {
       delete delete_these_non_arrays_on_tear_down_->at(i);
       delete_these_non_arrays_on_tear_down_->at(i) = NULL;
@@ -1114,18 +1114,6 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     native_context()->set_data_view_fun(*data_view_fun);
   }
 
-  {  // -- W e a k M a p
-    InstallFunction(global, "WeakMap", JS_WEAK_MAP_TYPE, JSWeakMap::kSize,
-                    isolate->initial_object_prototype(),
-                    Builtins::kIllegal, true, true);
-  }
-
-  {  // -- W e a k S e t
-    InstallFunction(global, "WeakSet", JS_WEAK_SET_TYPE, JSWeakSet::kSize,
-                    isolate->initial_object_prototype(),
-                    Builtins::kIllegal, true, true);
-  }
-
   {  // --- arguments_boilerplate_
     // Make sure we can recognize argument objects at runtime.
     // This is done by introducing an anonymous function with
@@ -1373,6 +1361,19 @@ void Genesis::InitializeExperimentalGlobal() {
     }
   }
 
+  if (FLAG_harmony_weak_collections) {
+    {  // -- W e a k M a p
+      InstallFunction(global, "WeakMap", JS_WEAK_MAP_TYPE, JSWeakMap::kSize,
+                      isolate()->initial_object_prototype(),
+                      Builtins::kIllegal, true, true);
+    }
+    {  // -- W e a k S e t
+      InstallFunction(global, "WeakSet", JS_WEAK_SET_TYPE, JSWeakSet::kSize,
+                      isolate()->initial_object_prototype(),
+                      Builtins::kIllegal, true, true);
+    }
+  }
+
   if (FLAG_harmony_generators) {
     // Create generator meta-objects and install them on the builtins object.
     Handle<JSObject> builtins(native_context()->builtins());
@@ -1567,7 +1568,6 @@ bool Genesis::CompileScriptCached(Isolate* isolate,
 void Genesis::InstallNativeFunctions() {
   HandleScope scope(isolate());
   INSTALL_NATIVE(JSFunction, "CreateDate", create_date_fun);
-
   INSTALL_NATIVE(JSFunction, "ToNumber", to_number_fun);
   INSTALL_NATIVE(JSFunction, "ToString", to_string_fun);
   INSTALL_NATIVE(JSFunction, "ToDetailString", to_detail_string_fun);
@@ -1575,7 +1575,6 @@ void Genesis::InstallNativeFunctions() {
   INSTALL_NATIVE(JSFunction, "ToInteger", to_integer_fun);
   INSTALL_NATIVE(JSFunction, "ToUint32", to_uint32_fun);
   INSTALL_NATIVE(JSFunction, "ToInt32", to_int32_fun);
-
   INSTALL_NATIVE(JSFunction, "GlobalEval", global_eval_fun);
   INSTALL_NATIVE(JSFunction, "Instantiate", instantiate_fun);
   INSTALL_NATIVE(JSFunction, "ConfigureTemplateInstance",
@@ -1584,14 +1583,6 @@ void Genesis::InstallNativeFunctions() {
   INSTALL_NATIVE(JSObject, "functionCache", function_cache);
   INSTALL_NATIVE(JSFunction, "ToCompletePropertyDescriptor",
                  to_complete_property_descriptor);
-
-  INSTALL_NATIVE(JSFunction, "IsPromise", is_promise);
-  INSTALL_NATIVE(JSFunction, "PromiseCreate", promise_create);
-  INSTALL_NATIVE(JSFunction, "PromiseResolve", promise_resolve);
-  INSTALL_NATIVE(JSFunction, "PromiseReject", promise_reject);
-  INSTALL_NATIVE(JSFunction, "PromiseChain", promise_chain);
-  INSTALL_NATIVE(JSFunction, "PromiseCatch", promise_catch);
-
   INSTALL_NATIVE(JSFunction, "NotifyChange", observers_notify_change);
   INSTALL_NATIVE(JSFunction, "EnqueueSpliceRecord", observers_enqueue_splice);
   INSTALL_NATIVE(JSFunction, "BeginPerformSplice",
@@ -1605,6 +1596,15 @@ void Genesis::InstallExperimentalNativeFunctions() {
   INSTALL_NATIVE(JSFunction, "RunMicrotasks", run_microtasks);
   INSTALL_NATIVE(JSFunction, "EnqueueExternalMicrotask",
                  enqueue_external_microtask);
+
+  if (FLAG_harmony_promises) {
+    INSTALL_NATIVE(JSFunction, "IsPromise", is_promise);
+    INSTALL_NATIVE(JSFunction, "PromiseCreate", promise_create);
+    INSTALL_NATIVE(JSFunction, "PromiseResolve", promise_resolve);
+    INSTALL_NATIVE(JSFunction, "PromiseReject", promise_reject);
+    INSTALL_NATIVE(JSFunction, "PromiseChain", promise_chain);
+    INSTALL_NATIVE(JSFunction, "PromiseCatch", promise_catch);
+  }
 
   if (FLAG_harmony_proxies) {
     INSTALL_NATIVE(JSFunction, "DerivedHasTrap", derived_has_trap);
@@ -2055,6 +2055,8 @@ bool Genesis::InstallExperimentalNatives() {
     INSTALL_EXPERIMENTAL_NATIVE(i, symbols, "symbol.js")
     INSTALL_EXPERIMENTAL_NATIVE(i, proxies, "proxy.js")
     INSTALL_EXPERIMENTAL_NATIVE(i, collections, "collection.js")
+    INSTALL_EXPERIMENTAL_NATIVE(i, weak_collections, "weak_collection.js")
+    INSTALL_EXPERIMENTAL_NATIVE(i, promises, "promise.js")
     INSTALL_EXPERIMENTAL_NATIVE(i, generators, "generator.js")
     INSTALL_EXPERIMENTAL_NATIVE(i, iteration, "array-iterator.js")
     INSTALL_EXPERIMENTAL_NATIVE(i, strings, "harmony-string.js")
