@@ -154,7 +154,6 @@ Heap::Heap()
       configured_(false),
       external_string_table_(this),
       chunks_queued_for_free_(NULL),
-      relocation_mutex_(NULL),
       gc_callbacks_depth_(0) {
   // Allow build-time customization of the max semispace size. Building
   // V8 with snapshots and a non-default max semispace size is much
@@ -6595,8 +6594,6 @@ bool Heap::SetUp() {
 
   mark_compact_collector()->SetUp();
 
-  if (FLAG_concurrent_recompilation) relocation_mutex_ = new Mutex;
-
   return true;
 }
 
@@ -6738,9 +6735,6 @@ void Heap::TearDown() {
   incremental_marking()->TearDown();
 
   isolate_->memory_allocator()->TearDown();
-
-  delete relocation_mutex_;
-  relocation_mutex_ = NULL;
 }
 
 

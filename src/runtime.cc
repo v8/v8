@@ -8701,6 +8701,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetOptimizationStatus) {
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_UnblockConcurrentRecompilation) {
   RUNTIME_ASSERT(FLAG_block_concurrent_recompilation);
+  RUNTIME_ASSERT(isolate->concurrent_recompilation_enabled());
   isolate->optimizing_compiler_thread()->Unblock();
   return isolate->heap()->undefined_value();
 }
