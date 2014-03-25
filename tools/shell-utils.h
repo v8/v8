@@ -1,4 +1,4 @@
-// Copyright 2012 the V8 project authors. All rights reserved.
+// Copyright 2014 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,14 +25,43 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax
-//
-// Test passes if it does not crash.
+// Utility functions used by parser-shell and lexer-shell.
 
-arr = [1.1];
-Object.observe(arr, function(){});
-arr.length = 0;
-// TODO(observe): we currently disallow fast elements for observed object.
-// assertTrue(%HasFastDoubleElements(arr));
-// Should not crash
-arr.push(1.1);
+#include <stdio.h>
+
+namespace v8 {
+namespace internal {
+
+enum Encoding {
+  LATIN1,
+  UTF8,
+  UTF16
+};
+
+const byte* ReadFileAndRepeat(const char* name, int* size, int repeat) {
+  FILE* file = fopen(name, "rb");
+  *size = 0;
+  if (file == NULL) return NULL;
+
+  fseek(file, 0, SEEK_END);
+  int file_size = ftell(file);
+  rewind(file);
+
+  *size = file_size * repeat;
+
+  byte* chars = new byte[*size + 1];
+  for (int i = 0; i < file_size;) {
+    int read = static_cast<int>(fread(&chars[i], 1, file_size - i, file));
+    i += read;
+  }
+  fclose(file);
+
+  for (int i = file_size; i < *size; i++) {
+    chars[i] = chars[i - file_size];
+  }
+  chars[*size] = 0;
+
+  return chars;
+}
+
+} }  // namespace v8::internal

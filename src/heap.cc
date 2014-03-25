@@ -3288,13 +3288,8 @@ bool Heap::CreateInitialObjects() {
   }
   set_undefined_cell(Cell::cast(obj));
 
-  // Allocate objects to hold symbol registry.
-  { MaybeObject* maybe_obj = AllocateMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
-    if (!maybe_obj->ToObject(&obj)) return false;
-    maybe_obj = AllocateJSObjectFromMap(Map::cast(obj));
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  set_symbol_registry(JSObject::cast(obj));
+  // The symbol registry is initialized lazily.
+  set_symbol_registry(undefined_value());
 
   // Allocate object to hold object observation state.
   { MaybeObject* maybe_obj = AllocateMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
@@ -3871,8 +3866,7 @@ MaybeObject* Heap::AllocateExternalStringFromAscii(
     const ExternalAsciiString::Resource* resource) {
   size_t length = resource->length();
   if (length > static_cast<size_t>(String::kMaxLength)) {
-    isolate()->context()->mark_out_of_memory();
-    return Failure::OutOfMemoryException(0x5);
+    v8::internal::Heap::FatalProcessOutOfMemory("invalid string length", true);
   }
 
   Map* map = external_ascii_string_map();
@@ -3894,8 +3888,7 @@ MaybeObject* Heap::AllocateExternalStringFromTwoByte(
     const ExternalTwoByteString::Resource* resource) {
   size_t length = resource->length();
   if (length > static_cast<size_t>(String::kMaxLength)) {
-    isolate()->context()->mark_out_of_memory();
-    return Failure::OutOfMemoryException(0x6);
+    v8::internal::Heap::FatalProcessOutOfMemory("invalid string length", true);
   }
 
   // For small strings we check whether the resource contains only
@@ -3946,7 +3939,7 @@ MaybeObject* Heap::LookupSingleCharacterStringFromCode(uint16_t code) {
 
 MaybeObject* Heap::AllocateByteArray(int length, PretenureFlag pretenure) {
   if (length < 0 || length > ByteArray::kMaxLength) {
-    return Failure::OutOfMemoryException(0x7);
+    v8::internal::Heap::FatalProcessOutOfMemory("invalid array length", true);
   }
   int size = ByteArray::SizeFor(length);
   AllocationSpace space = SelectSpace(size, OLD_DATA_SPACE, pretenure);
@@ -4981,7 +4974,7 @@ MaybeObject* Heap::AllocateInternalizedStringImpl(
   Map* map;
 
   if (chars > String::kMaxLength) {
-    return Failure::OutOfMemoryException(0x9);
+    v8::internal::Heap::FatalProcessOutOfMemory("invalid string length", true);
   }
   if (is_one_byte) {
     map = ascii_internalized_string_map();
@@ -5029,7 +5022,7 @@ MaybeObject* Heap::AllocateInternalizedStringImpl<false>(
 MaybeObject* Heap::AllocateRawOneByteString(int length,
                                             PretenureFlag pretenure) {
   if (length < 0 || length > String::kMaxLength) {
-    return Failure::OutOfMemoryException(0xb);
+    v8::internal::Heap::FatalProcessOutOfMemory("invalid string length", true);
   }
   int size = SeqOneByteString::SizeFor(length);
   ASSERT(size <= SeqOneByteString::kMaxSize);
@@ -5053,7 +5046,7 @@ MaybeObject* Heap::AllocateRawOneByteString(int length,
 MaybeObject* Heap::AllocateRawTwoByteString(int length,
                                             PretenureFlag pretenure) {
   if (length < 0 || length > String::kMaxLength) {
-    return Failure::OutOfMemoryException(0xc);
+    v8::internal::Heap::FatalProcessOutOfMemory("invalid string length", true);
   }
   int size = SeqTwoByteString::SizeFor(length);
   ASSERT(size <= SeqTwoByteString::kMaxSize);
@@ -5201,7 +5194,7 @@ MaybeObject* Heap::CopyConstantPoolArrayWithMap(ConstantPoolArray* src,
 
 MaybeObject* Heap::AllocateRawFixedArray(int length, PretenureFlag pretenure) {
   if (length < 0 || length > FixedArray::kMaxLength) {
-    return Failure::OutOfMemoryException(0xe);
+    v8::internal::Heap::FatalProcessOutOfMemory("invalid array length", true);
   }
   int size = FixedArray::SizeFor(length);
   AllocationSpace space = SelectSpace(size, OLD_POINTER_SPACE, pretenure);
@@ -5313,7 +5306,7 @@ MaybeObject* Heap::AllocateFixedDoubleArrayWithHoles(
 MaybeObject* Heap::AllocateRawFixedDoubleArray(int length,
                                                PretenureFlag pretenure) {
   if (length < 0 || length > FixedDoubleArray::kMaxLength) {
-    return Failure::OutOfMemoryException(0xf);
+    v8::internal::Heap::FatalProcessOutOfMemory("invalid array length", true);
   }
   int size = FixedDoubleArray::SizeFor(length);
 #ifndef V8_HOST_ARCH_64_BIT

@@ -2568,7 +2568,7 @@ void Assembler::RecordComment(const char* msg, bool force) {
 
 
 void Assembler::GrowBuffer() {
-  ASSERT(overflow());
+  ASSERT(buffer_overflow());
   if (!own_buffer_) FATAL("external code buffer is too small");
 
   // Compute new buffer size.
@@ -2627,7 +2627,7 @@ void Assembler::GrowBuffer() {
     }
   }
 
-  ASSERT(!overflow());
+  ASSERT(!buffer_overflow());
 }
 
 

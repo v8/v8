@@ -111,7 +111,6 @@ namespace internal {
   F(FlattenString, 1, 1) \
   F(TryMigrateInstance, 1, 1) \
   F(NotifyContextDisposed, 0, 1) \
-  F(MaxSmi, 0, 1) \
   \
   /* Array join support */ \
   F(PushIfAbsent, 2, 1) \
@@ -312,6 +311,7 @@ namespace internal {
   /* Harmony symbols */ \
   F(CreateSymbol, 1, 1) \
   F(CreatePrivateSymbol, 1, 1) \
+  F(CreateGlobalPrivateSymbol, 1, 1) \
   F(NewSymbolWrapper, 1, 1) \
   F(SymbolDescription, 1, 1) \
   F(SymbolRegistry, 0, 1) \
@@ -368,7 +368,6 @@ namespace internal {
   F(ArrayBufferIsView, 1, 1) \
   F(ArrayBufferNeuter, 1, 1) \
   \
-  F(TypedArrayInitialize, 5, 1) \
   F(TypedArrayInitializeFromArrayLike, 4, 1) \
   F(TypedArrayGetBuffer, 1, 1) \
   F(TypedArrayGetByteLength, 1, 1) \
@@ -376,7 +375,6 @@ namespace internal {
   F(TypedArrayGetLength, 1, 1) \
   F(TypedArraySetFastCases, 3, 1) \
   \
-  F(DataViewInitialize, 4, 1) \
   F(DataViewGetBuffer, 1, 1) \
   F(DataViewGetByteLength, 1, 1) \
   F(DataViewGetByteOffset, 1, 1) \
@@ -662,7 +660,10 @@ namespace internal {
   F(NumberToString, 1, 1)                                                    \
   F(DoubleHi, 1, 1)                                                          \
   F(DoubleLo, 1, 1)                                                          \
-  F(ConstructDouble, 2, 1)
+  F(ConstructDouble, 2, 1)                                                   \
+  F(TypedArrayInitialize, 5, 1)                                              \
+  F(DataViewInitialize, 4, 1)                                                \
+  F(MaxSmi, 0, 1)
 
 
 //---------------------------------------------------------------------------

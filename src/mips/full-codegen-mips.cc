@@ -120,6 +120,24 @@ class JumpPatchSite BASE_EMBEDDED {
 };
 
 
+static void EmitStackCheck(MacroAssembler* masm_,
+                           Register stack_limit_scratch,
+                           int pointers = 0,
+                           Register scratch = sp) {
+  Isolate* isolate = masm_->isolate();
+  Label ok;
+  ASSERT(scratch.is(sp) == (pointers == 0));
+  if (pointers != 0) {
+    __ Subu(scratch, sp, Operand(pointers * kPointerSize));
+  }
+  __ LoadRoot(stack_limit_scratch, Heap::kStackLimitRootIndex);
+  __ Branch(&ok, hs, scratch, Operand(stack_limit_scratch));
+  PredictableCodeSizeScope predictable(masm_, 4 * Assembler::kInstrSize);
+  __ Call(isolate->builtins()->StackCheck(), RelocInfo::CODE_TARGET);
+  __ bind(&ok);
+}
+
+
 // Generate code for a JS function.  On entry to the function the receiver
 // and arguments have been pushed on the stack left to right.  The actual
 // argument count matches the formal parameter count expected by the
@@ -187,22 +205,30 @@ void FullCodeGenerator::Generate() {
     // Generators allocate locals, if any, in context slots.
     ASSERT(!info->function()->is_generator() || locals_count == 0);
     if (locals_count > 0) {
-      // Emit a loop to initialize stack cells for locals when optimizing for
-      // size. Otherwise, unroll the loop for maximum performance.
+      if (locals_count >= 128) {
+        EmitStackCheck(masm_, a2, locals_count, t5);
+      }
       __ LoadRoot(t5, Heap::kUndefinedValueRootIndex);
-      if ((FLAG_optimize_for_size && locals_count > 4) ||
-          !is_int16(locals_count)) {
-        Label loop;
-        __ Subu(a2, sp, Operand(locals_count * kPointerSize));
-        __ bind(&loop);
-        __ Subu(sp, sp, Operand(kPointerSize));
-        __ Branch(&loop, gt, sp, Operand(a2), USE_DELAY_SLOT);
-        __ sw(t5, MemOperand(sp, 0));  // Push in the delay slot.
-      } else {
-        __ Subu(sp, sp, Operand(locals_count * kPointerSize));
-        for (int i = 0; i < locals_count; i++) {
+      int kMaxPushes = FLAG_optimize_for_size ? 4 : 32;
+      if (locals_count >= kMaxPushes) {
+        int loop_iterations = locals_count / kMaxPushes;
+        __ li(a2, Operand(loop_iterations));
+        Label loop_header;
+        __ bind(&loop_header);
+        // Do pushes.
+        __ Subu(sp, sp, Operand(kMaxPushes * kPointerSize));
+        for (int i = 0; i < kMaxPushes; i++) {
           __ sw(t5, MemOperand(sp, i * kPointerSize));
         }
+        // Continue loop if not done.
+        __ Subu(a2, a2, Operand(1));
+        __ Branch(&loop_header, ne, a2, Operand(zero_reg));
+      }
+      int remaining = locals_count % kMaxPushes;
+      // Emit the remaining pushes.
+      __ Subu(sp, sp, Operand(remaining * kPointerSize));
+      for (int i  = 0; i < remaining; i++) {
+        __ sw(t5, MemOperand(sp, i * kPointerSize));
       }
     }
   }
@@ -313,11 +339,7 @@ void FullCodeGenerator::Generate() {
 
     { Comment cmnt(masm_, "[ Stack check");
       PrepareForBailoutForId(BailoutId::Declarations(), NO_REGISTERS);
-      Label ok;
-      __ LoadRoot(t0, Heap::kStackLimitRootIndex);
-      __ Branch(&ok, hs, sp, Operand(t0));
-      __ Call(isolate()->builtins()->StackCheck(), RelocInfo::CODE_TARGET);
-      __ bind(&ok);
+      EmitStackCheck(masm_, at);
     }
 
     { Comment cmnt(masm_, "[ Body");

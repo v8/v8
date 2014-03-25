@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --harmony-symbols --harmony-collections --harmony-weak-collections
+// Flags: --harmony-symbols --harmony-collections
 // Flags: --expose-gc --allow-natives-syntax
 
 var symbols = []
@@ -410,12 +410,29 @@ function TestGetOwnPropertySymbolsWithProto() {
 TestGetOwnPropertySymbolsWithProto()
 
 
-function TestRegistry() {
-  assertFalse(Symbol.for("@@create") === Symbol.create)
-  assertFalse(Symbol.for("@@iterator") === Symbol.iterator)
-  assertTrue(Symbol.keyFor(Symbol.create) === undefined)
-  assertTrue(Symbol.keyFor(Symbol.iterator) === undefined)
+function TestWellKnown() {
+  var symbols = [
+    "create", "hasInstance", "isConcatSpreadable", "isRegExp",
+    "iterator", "toStringTag", "unscopables"
+  ]
 
+  for (var i in symbols) {
+    var name = symbols[i]
+    var desc = Object.getOwnPropertyDescriptor(Symbol, name)
+    assertSame("symbol", typeof desc.value)
+    assertSame("Symbol(Symbol." + name + ")", desc.value.toString())
+    assertFalse(desc.writable)
+    assertFalse(desc.configurable)
+    assertFalse(desc.enumerable)
+
+    assertFalse(Symbol.for("Symbol." + name) === desc.value)
+    assertTrue(Symbol.keyFor(desc.value) === undefined)
+  }
+}
+TestWellKnown()
+
+
+function TestRegistry() {
   var symbol1 = Symbol.for("x1")
   var symbol2 = Symbol.for("x2")
   assertFalse(symbol1 === symbol2)

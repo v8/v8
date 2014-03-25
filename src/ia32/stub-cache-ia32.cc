@@ -283,7 +283,7 @@ void StubCompiler::GenerateDirectLoadGlobalFunctionPrototype(
   __ j(not_equal, miss);
 
   // Load its initial map. The global functions all have initial maps.
-  __ Set(prototype, Immediate(Handle<Map>(function->initial_map())));
+  __ Move(prototype, Immediate(Handle<Map>(function->initial_map())));
   // Load the prototype from the initial map.
   __ mov(prototype, FieldOperand(prototype, Map::kPrototypeOffset));
 }

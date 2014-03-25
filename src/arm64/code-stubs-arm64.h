@@ -77,6 +77,37 @@ class StringHelper : public AllStatic {
 };
 
 
+class StoreRegistersStateStub: public PlatformCodeStub {
+ public:
+  explicit StoreRegistersStateStub(SaveFPRegsMode with_fp)
+      : save_doubles_(with_fp) {}
+
+  static Register to_be_pushed_lr() { return ip0; }
+  static void GenerateAheadOfTime(Isolate* isolate);
+ private:
+  Major MajorKey() { return StoreRegistersState; }
+  int MinorKey() { return (save_doubles_ == kSaveFPRegs) ? 1 : 0; }
+  SaveFPRegsMode save_doubles_;
+
+  void Generate(MacroAssembler* masm);
+};
+
+
+class RestoreRegistersStateStub: public PlatformCodeStub {
+ public:
+  explicit RestoreRegistersStateStub(SaveFPRegsMode with_fp)
+      : save_doubles_(with_fp) {}
+
+  static void GenerateAheadOfTime(Isolate* isolate);
+ private:
+  Major MajorKey() { return RestoreRegistersState; }
+  int MinorKey() { return (save_doubles_ == kSaveFPRegs) ? 1 : 0; }
+  SaveFPRegsMode save_doubles_;
+
+  void Generate(MacroAssembler* masm);
+};
+
+
 class RecordWriteStub: public PlatformCodeStub {
  public:
   // Stub to record the write of 'value' at 'address' in 'object'.

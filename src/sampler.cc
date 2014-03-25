@@ -159,6 +159,23 @@ typedef struct ucontext {
   // Other fields are not used by V8, don't define them here.
 } ucontext_t;
 enum { REG_EBP = 6, REG_ESP = 7, REG_EIP = 14 };
+
+#elif defined(__x86_64__)
+// x64 version for Android.
+typedef struct {
+  uint64_t gregs[23];
+  void* fpregs;
+  uint64_t __reserved1[8];
+} mcontext_t;
+
+typedef struct ucontext {
+  uint64_t uc_flags;
+  struct ucontext *uc_link;
+  stack_t uc_stack;
+  mcontext_t uc_mcontext;
+  // Other fields are not used by V8, don't define them here.
+} ucontext_t;
+enum { REG_RBP = 10, REG_RSP = 15, REG_RIP = 16 };
 #endif
 
 #endif  // V8_OS_ANDROID && !defined(__BIONIC_HAVE_UCONTEXT_T)

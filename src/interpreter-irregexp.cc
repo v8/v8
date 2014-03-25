@@ -158,7 +158,7 @@ static int32_t Load16Aligned(const byte* pc) {
 // matching terminates.
 class BacktrackStack {
  public:
-  explicit BacktrackStack(Isolate* isolate) : isolate_(isolate) {
+  explicit BacktrackStack() {
     data_ = NewArray<int>(kBacktrackStackSize);
   }
 
@@ -174,7 +174,6 @@ class BacktrackStack {
   static const int kBacktrackStackSize = 10000;
 
   int* data_;
-  Isolate* isolate_;
 
   DISALLOW_COPY_AND_ASSIGN(BacktrackStack);
 };
@@ -191,7 +190,7 @@ static RegExpImpl::IrregexpResult RawMatch(Isolate* isolate,
   // BacktrackStack ensures that the memory allocated for the backtracking stack
   // is returned to the system or cached if there is no stack being cached at
   // the moment.
-  BacktrackStack backtrack_stack(isolate);
+  BacktrackStack backtrack_stack;
   int* backtrack_stack_base = backtrack_stack.data();
   int* backtrack_sp = backtrack_stack_base;
   int backtrack_stack_space = backtrack_stack.max_size();

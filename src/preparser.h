@@ -678,18 +678,7 @@ class PreParserScope {
  public:
   explicit PreParserScope(PreParserScope* outer_scope, ScopeType scope_type)
       : scope_type_(scope_type) {
-    if (outer_scope) {
-      scope_inside_with_ = outer_scope->scope_inside_with_ || is_with_scope();
-      strict_mode_ = outer_scope->strict_mode();
-    } else {
-      scope_inside_with_ = is_with_scope();
-      strict_mode_ = SLOPPY;
-    }
-  }
-
-  bool is_with_scope() const { return scope_type_ == WITH_SCOPE; }
-  bool inside_with() const {
-    return scope_inside_with_;
+    strict_mode_ = outer_scope ? outer_scope->strict_mode() : SLOPPY;
   }
 
   ScopeType type() { return scope_type_; }
@@ -698,7 +687,6 @@ class PreParserScope {
 
  private:
   ScopeType scope_type_;
-  bool scope_inside_with_;
   StrictMode strict_mode_;
 };
 

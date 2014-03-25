@@ -2309,7 +2309,7 @@ HValue* HGraphBuilder::BuildAllocateElements(ElementsKind kind,
   PretenureFlag pretenure_flag = !FLAG_allocation_site_pretenuring ?
       isolate()->heap()->GetPretenureMode() : NOT_TENURED;
 
-  return Add<HAllocate>(total_size, HType::JSArray(), pretenure_flag,
+  return Add<HAllocate>(total_size, HType::Tagged(), pretenure_flag,
       instance_type);
 }
 
@@ -2615,11 +2615,11 @@ HValue* HGraphBuilder::BuildCloneShallowArray(HValue* boilerplate,
     HValue* object_elements;
     if (IsFastDoubleElementsKind(kind)) {
       HValue* elems_size = Add<HConstant>(FixedDoubleArray::SizeFor(length));
-      object_elements = Add<HAllocate>(elems_size, HType::JSArray(),
+      object_elements = Add<HAllocate>(elems_size, HType::Tagged(),
           NOT_TENURED, FIXED_DOUBLE_ARRAY_TYPE);
     } else {
       HValue* elems_size = Add<HConstant>(FixedArray::SizeFor(length));
-      object_elements = Add<HAllocate>(elems_size, HType::JSArray(),
+      object_elements = Add<HAllocate>(elems_size, HType::Tagged(),
           NOT_TENURED, FIXED_ARRAY_TYPE);
     }
     Add<HStoreNamedField>(object, HObjectAccess::ForElementsPointer(),
@@ -8439,7 +8439,7 @@ void HGraphBuilder::BuildArrayBufferViewInitialization(
 }
 
 
-void HOptimizedGraphBuilder::VisitDataViewInitialize(
+void HOptimizedGraphBuilder::GenerateDataViewInitialize(
     CallRuntime* expr) {
   ZoneList<Expression*>* arguments = expr->arguments();
 
@@ -8462,7 +8462,7 @@ void HOptimizedGraphBuilder::VisitDataViewInitialize(
 }
 
 
-void HOptimizedGraphBuilder::VisitTypedArrayInitialize(
+void HOptimizedGraphBuilder::GenerateTypedArrayInitialize(
     CallRuntime* expr) {
   ZoneList<Expression*>* arguments = expr->arguments();
 
@@ -8533,7 +8533,7 @@ void HOptimizedGraphBuilder::VisitTypedArrayInitialize(
     HValue* elements =
         Add<HAllocate>(
             Add<HConstant>(ExternalArray::kAlignedSize),
-            HType::JSArray(),
+            HType::Tagged(),
             NOT_TENURED,
             external_array_map->instance_type());
 
@@ -8581,6 +8581,13 @@ void HOptimizedGraphBuilder::VisitTypedArrayInitialize(
 }
 
 
+void HOptimizedGraphBuilder::GenerateMaxSmi(CallRuntime* expr) {
+  ASSERT(expr->arguments()->length() == 0);
+  HConstant* max_smi = New<HConstant>(static_cast<int32_t>(Smi::kMaxValue));
+  return ast_context()->ReturnInstruction(max_smi, expr->id());
+}
+
+
 void HOptimizedGraphBuilder::VisitCallRuntime(CallRuntime* expr) {
   ASSERT(!HasStackOverflow());
   ASSERT(current_block() != NULL);
@@ -8591,20 +8598,6 @@ void HOptimizedGraphBuilder::VisitCallRuntime(CallRuntime* expr) {
 
   const Runtime::Function* function = expr->function();
   ASSERT(function != NULL);
-
-  if (function->function_id == Runtime::kDataViewInitialize) {
-      return VisitDataViewInitialize(expr);
-  }
-
-  if (function->function_id == Runtime::kTypedArrayInitialize) {
-    return VisitTypedArrayInitialize(expr);
-  }
-
-  if (function->function_id == Runtime::kMaxSmi) {
-    ASSERT(expr->arguments()->length() == 0);
-    HConstant* max_smi = New<HConstant>(static_cast<int32_t>(Smi::kMaxValue));
-    return ast_context()->ReturnInstruction(max_smi, expr->id());
-  }
 
   if (function->intrinsic_type == Runtime::INLINE) {
     ASSERT(expr->name()->length() > 0);
@@ -9795,10 +9788,10 @@ HInstruction* HOptimizedGraphBuilder::BuildFastLiteral(
         Add<HStoreNamedField>(object, HObjectAccess::ForElementsPointer(),
                               empty_fixed_array);
       }
-      object_elements = Add<HAllocate>(object_elements_size, HType::JSObject(),
+      object_elements = Add<HAllocate>(object_elements_size, HType::Tagged(),
           pretenure_flag, FIXED_DOUBLE_ARRAY_TYPE, site_context->current());
     } else {
-      object_elements = Add<HAllocate>(object_elements_size, HType::JSObject(),
+      object_elements = Add<HAllocate>(object_elements_size, HType::Tagged(),
           pretenure_flag, FIXED_ARRAY_TYPE, site_context->current());
     }
   }

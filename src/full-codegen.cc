@@ -883,7 +883,7 @@ void FullCodeGenerator::SetExpressionPosition(Expression* expr) {
     }
   }
 #else
-  CodeGenerator::RecordPositions(masm_, pos);
+  CodeGenerator::RecordPositions(masm_, expr->position());
 #endif
 }
 
@@ -976,6 +976,31 @@ void FullCodeGenerator::EmitConstructDouble(CallRuntime* expr) {
   VisitForStackValue(args->at(0));
   VisitForStackValue(args->at(1));
   masm()->CallRuntime(Runtime::kConstructDouble, 2);
+  context()->Plug(result_register());
+}
+
+
+void FullCodeGenerator::EmitTypedArrayInitialize(CallRuntime* expr) {
+  ZoneList<Expression*>* args = expr->arguments();
+  ASSERT(args->length() == 5);
+  for (int i = 0; i < 5; i++) VisitForStackValue(args->at(i));
+  masm()->CallRuntime(Runtime::kTypedArrayInitialize, 5);
+  context()->Plug(result_register());
+}
+
+
+void FullCodeGenerator::EmitDataViewInitialize(CallRuntime* expr) {
+  ZoneList<Expression*>* args = expr->arguments();
+  ASSERT(args->length() == 4);
+  for (int i = 0; i < 4; i++) VisitForStackValue(args->at(i));
+  masm()->CallRuntime(Runtime::kDataViewInitialize, 4);
+  context()->Plug(result_register());
+}
+
+
+void FullCodeGenerator::EmitMaxSmi(CallRuntime* expr) {
+  ASSERT(expr->arguments()->length() == 0);
+  masm()->CallRuntime(Runtime::kMaxSmi, 0);
   context()->Plug(result_register());
 }
 

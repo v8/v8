@@ -190,7 +190,7 @@ namespace internal {
   V(Cell, undefined_cell, UndefineCell)                                        \
   V(JSObject, observation_state, ObservationState)                             \
   V(Map, external_map, ExternalMap)                                            \
-  V(JSObject, symbol_registry, SymbolRegistry)                                 \
+  V(Object, symbol_registry, SymbolRegistry)                                   \
   V(Symbol, frozen_symbol, FrozenSymbol)                                       \
   V(Symbol, nonexistent_symbol, NonExistentSymbol)                             \
   V(Symbol, elements_transition_symbol, ElementsTransitionSymbol)              \
@@ -306,6 +306,11 @@ namespace internal {
   V(String_string, "String")                                             \
   V(symbol_string, "symbol")                                             \
   V(Symbol_string, "Symbol")                                             \
+  V(for_string, "for")                                                   \
+  V(for_api_string, "for_api")                                           \
+  V(for_intern_string, "for_intern")                                     \
+  V(private_api_string, "private_api")                                   \
+  V(private_intern_string, "private_intern")                             \
   V(Date_string, "Date")                                                 \
   V(this_string, "this")                                                 \
   V(to_string_string, "toString")                                        \

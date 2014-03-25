@@ -31,10 +31,9 @@ import tempfile
 import traceback
 import unittest
 
-import auto_roll
-from auto_roll import CheckLastPush
-from auto_roll import FetchLatestRevision
-from auto_roll import SETTINGS_LOCATION
+import auto_push
+from auto_push import CheckLastPush
+from auto_push import SETTINGS_LOCATION
 import common_includes
 from common_includes import *
 import merge_to_branch
@@ -68,9 +67,8 @@ TEST_CONFIG = {
 }
 
 
-AUTO_ROLL_ARGS = [
+AUTO_PUSH_ARGS = [
   "-a", "author@chromium.org",
-  "-c", TEST_CONFIG[CHROMIUM],
   "-r", "reviewer@chromium.org",
 ]
 
@@ -832,18 +830,20 @@ Performance and stability improvements on all platforms.""", commit)
 
   def testCheckLastPushRecently(self):
     self.ExpectGit([
-      Git("svn log -1 --oneline", "r101 | Text"),
-      Git("svn log -1 --oneline ChangeLog", "r99 | Prepare push to trunk..."),
+      Git(("log -1 --format=%H --grep="
+           "\"^Version [[:digit:]]*\.[[:digit:]]*\.[[:digit:]]* (based\" "
+           "svn/trunk"), "hash2\n"),
+      Git("log -1 --format=%s hash2",
+          "Version 3.4.5 (based on bleeding_edge revision r99)\n"),
     ])
 
-    self.RunStep(auto_roll.AutoRoll, FetchLatestRevision, AUTO_ROLL_ARGS)
-    self.assertRaises(Exception, lambda: self.RunStep(auto_roll.AutoRoll,
-                                                      CheckLastPush,
-                                                      AUTO_ROLL_ARGS))
+    self._state["lkgr"] = "101"
 
-  def testAutoRoll(self):
-    password = self.MakeEmptyTempFile()
-    TextToFile("PW", password)
+    self.assertRaises(Exception, lambda: self.RunStep(auto_push.AutoPush,
+                                                      CheckLastPush,
+                                                      AUTO_PUSH_ARGS))
+
+  def testAutoPush(self):
     TEST_CONFIG[DOT_GIT_LOCATION] = self.MakeEmptyTempFile()
     TEST_CONFIG[SETTINGS_LOCATION] = "~/.doesnotexist"
 
@@ -852,38 +852,30 @@ Performance and stability improvements on all platforms.""", commit)
           "{\"message\": \"Tree is throttled\"}"),
       URL("https://v8-status.appspot.com/lkgr", Exception("Network problem")),
       URL("https://v8-status.appspot.com/lkgr", "100"),
-      URL("https://v8-status.appspot.com/status",
-          ("username=v8-auto-roll%40chromium.org&"
-           "message=Tree+is+closed+%28preparing+to+push%29&password=PW"), ""),
-      URL("https://v8-status.appspot.com/status",
-          ("username=v8-auto-roll%40chromium.org&"
-           "message=Tree+is+throttled&password=PW"), ""),
     ])
 
     self.ExpectGit([
       Git("status -s -uno", ""),
       Git("status -s -b -uno", "## some_branch\n"),
       Git("svn fetch", ""),
-      Git("svn log -1 --oneline", "r100 | Text"),
       Git(("log -1 --format=%H --grep=\""
            "^Version [[:digit:]]*\.[[:digit:]]*\.[[:digit:]]* (based\""
            " svn/trunk"), "push_hash\n"),
-      Git("svn find-rev push_hash", "65"),
+      Git("log -1 --format=%s push_hash",
+          "Version 3.4.5 (based on bleeding_edge revision r79)\n"),
     ])
 
-    auto_roll.AutoRoll(TEST_CONFIG, self).Run(
-        AUTO_ROLL_ARGS + ["--status-password", password, "--push"])
+    auto_push.AutoPush(TEST_CONFIG, self).Run(AUTO_PUSH_ARGS + ["--push"])
 
     state = json.loads(FileToText("%s-state.json"
                                   % TEST_CONFIG[PERSISTFILE_BASENAME]))
 
     self.assertEquals("100", state["lkgr"])
-    self.assertEquals("100", state["latest"])
 
-  def testAutoRollStoppedBySettings(self):
+  def testAutoPushStoppedBySettings(self):
     TEST_CONFIG[DOT_GIT_LOCATION] = self.MakeEmptyTempFile()
     TEST_CONFIG[SETTINGS_LOCATION] = self.MakeEmptyTempFile()
-    TextToFile("{\"enable_auto_roll\": false}", TEST_CONFIG[SETTINGS_LOCATION])
+    TextToFile("{\"enable_auto_push\": false}", TEST_CONFIG[SETTINGS_LOCATION])
 
     self.ExpectReadURL([])
 
@@ -893,11 +885,11 @@ Performance and stability improvements on all platforms.""", commit)
       Git("svn fetch", ""),
     ])
 
-    def RunAutoRoll():
-      auto_roll.AutoRoll(TEST_CONFIG, self).Run(AUTO_ROLL_ARGS)
-    self.assertRaises(Exception, RunAutoRoll)
+    def RunAutoPush():
+      auto_push.AutoPush(TEST_CONFIG, self).Run(AUTO_PUSH_ARGS)
+    self.assertRaises(Exception, RunAutoPush)
 
-  def testAutoRollStoppedByTreeStatus(self):
+  def testAutoPushStoppedByTreeStatus(self):
     TEST_CONFIG[DOT_GIT_LOCATION] = self.MakeEmptyTempFile()
     TEST_CONFIG[SETTINGS_LOCATION] = "~/.doesnotexist"
 
@@ -912,9 +904,9 @@ Performance and stability improvements on all platforms.""", commit)
       Git("svn fetch", ""),
     ])
 
-    def RunAutoRoll():
-      auto_roll.AutoRoll(TEST_CONFIG, self).Run(AUTO_ROLL_ARGS)
-    self.assertRaises(Exception, RunAutoRoll)
+    def RunAutoPush():
+      auto_push.AutoPush(TEST_CONFIG, self).Run(AUTO_PUSH_ARGS)
+    self.assertRaises(Exception, RunAutoPush)
 
   def testMergeToBranch(self):
     TEST_CONFIG[ALREADY_MERGING_SENTINEL_FILE] = self.MakeEmptyTempFile()

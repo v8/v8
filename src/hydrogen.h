@@ -2321,12 +2321,8 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
                                          SmallMapList* types,
                                          Handle<String> name);
 
-  void VisitTypedArrayInitialize(CallRuntime* expr);
-
   bool IsCallNewArrayInlineable(CallNew* expr);
   void BuildInlinedCallNewArray(CallNew* expr);
-
-  void VisitDataViewInitialize(CallRuntime* expr);
 
   class PropertyAccessInfo {
    public:

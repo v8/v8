@@ -63,30 +63,19 @@ function SymbolValueOf() {
 }
 
 
-function GetSymbolRegistry() {
-  var registry = %SymbolRegistry();
-  if (!('internal' in registry)) {
-    registry.internal = {__proto__: null};
-    registry.for = {__proto__: null};
-    registry.keyFor = {__proto__: null};
-  }
-  return registry;
-}
-
-
 function InternalSymbol(key) {
-  var registry = GetSymbolRegistry();
-  if (!(key in registry.internal)) {
-    registry.internal[key] = %CreateSymbol(key);
+  var internal_registry = %SymbolRegistry().for_intern;
+  if (IS_UNDEFINED(internal_registry[key])) {
+    internal_registry[key] = %CreateSymbol(key);
   }
-  return registry.internal[key];
+  return internal_registry[key];
 }
 
 
 function SymbolFor(key) {
   key = TO_STRING_INLINE(key);
-  var registry = GetSymbolRegistry();
-  if (!(key in registry.for)) {
+  var registry = %SymbolRegistry();
+  if (IS_UNDEFINED(registry.for[key])) {
     var symbol = %CreateSymbol(key);
     registry.for[key] = symbol;
     registry.keyFor[symbol] = key;
@@ -96,10 +85,8 @@ function SymbolFor(key) {
 
 
 function SymbolKeyFor(symbol) {
-  if (!IS_SYMBOL(symbol)) {
-    throw MakeTypeError("not_a_symbol", [symbol]);
-  }
-  return GetSymbolRegistry().keyFor[symbol];
+  if (!IS_SYMBOL(symbol)) throw MakeTypeError("not_a_symbol", [symbol]);
+  return %SymbolRegistry().keyFor[symbol];
 }
 
 
@@ -118,13 +105,13 @@ function ObjectGetOwnPropertySymbols(obj) {
 
 //-------------------------------------------------------------------
 
-var symbolCreate = InternalSymbol("@@create");
-var symbolHasInstance = InternalSymbol("@@hasInstance");
-var symbolIsConcatSpreadable = InternalSymbol("@@isConcatSpreadable");
-var symbolIsRegExp = InternalSymbol("@@isRegExp");
-var symbolIterator = InternalSymbol("@@iterator");
-var symbolToStringTag = InternalSymbol("@@toStringTag");
-var symbolUnscopables = InternalSymbol("@@unscopables");
+var symbolCreate = InternalSymbol("Symbol.create");
+var symbolHasInstance = InternalSymbol("Symbol.hasInstance");
+var symbolIsConcatSpreadable = InternalSymbol("Symbol.isConcatSpreadable");
+var symbolIsRegExp = InternalSymbol("Symbol.isRegExp");
+var symbolIterator = InternalSymbol("Symbol.iterator");
+var symbolToStringTag = InternalSymbol("Symbol.toStringTag");
+var symbolUnscopables = InternalSymbol("Symbol.unscopables");
 
 
 //-------------------------------------------------------------------
@@ -135,14 +122,15 @@ function SetUpSymbol() {
   %SetCode($Symbol, SymbolConstructor);
   %FunctionSetPrototype($Symbol, new $Object());
 
-  %SetProperty($Symbol, "create", symbolCreate, DONT_ENUM);
-  %SetProperty($Symbol, "hasInstance", symbolHasInstance, DONT_ENUM);
-  %SetProperty($Symbol, "isConcatSpreadable",
-      symbolIsConcatSpreadable, DONT_ENUM);
-  %SetProperty($Symbol, "isRegExp", symbolIsRegExp, DONT_ENUM);
-  %SetProperty($Symbol, "iterator", symbolIterator, DONT_ENUM);
-  %SetProperty($Symbol, "toStringTag", symbolToStringTag, DONT_ENUM);
-  %SetProperty($Symbol, "unscopables", symbolUnscopables, DONT_ENUM);
+  InstallConstants($Symbol, $Array(
+    "create", symbolCreate,
+    "hasInstance", symbolHasInstance,
+    "isConcatSpreadable", symbolIsConcatSpreadable,
+    "isRegExp", symbolIsRegExp,
+    "iterator", symbolIterator,
+    "toStringTag", symbolToStringTag,
+    "unscopables", symbolUnscopables
+  ));
   InstallFunctions($Symbol, DONT_ENUM, $Array(
     "for", SymbolFor,
     "keyFor", SymbolKeyFor

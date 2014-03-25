@@ -357,9 +357,41 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(Context* context) {
   SelectedCodeUnlinker unlinker;
   VisitAllOptimizedFunctionsForContext(context, &unlinker);
 
+  Isolate* isolate = context->GetHeap()->isolate();
+#ifdef DEBUG
+  Code* topmost_optimized_code = NULL;
+  bool safe_to_deopt_topmost_optimized_code = false;
+  // Make sure all activations of optimized code can deopt at their current PC.
+  // The topmost optimized code has special handling because it cannot be
+  // deoptimized due to weak object dependency.
+  for (StackFrameIterator it(isolate, isolate->thread_local_top());
+       !it.done(); it.Advance()) {
+    StackFrame::Type type = it.frame()->type();
+    if (type == StackFrame::OPTIMIZED) {
+      Code* code = it.frame()->LookupCode();
+      if (FLAG_trace_deopt) {
+        JSFunction* function =
+            static_cast<OptimizedFrame*>(it.frame())->function();
+        CodeTracer::Scope scope(isolate->GetCodeTracer());
+        PrintF(scope.file(), "[deoptimizer found activation of function: ");
+        function->PrintName(scope.file());
+        PrintF(scope.file(),
+               " / %" V8PRIxPTR "]\n", reinterpret_cast<intptr_t>(function));
+      }
+      SafepointEntry safepoint = code->GetSafepointEntry(it.frame()->pc());
+      int deopt_index = safepoint.deoptimization_index();
+      bool safe_to_deopt = deopt_index != Safepoint::kNoDeoptimizationIndex;
+      CHECK(topmost_optimized_code == NULL || safe_to_deopt);
+      if (topmost_optimized_code == NULL) {
+        topmost_optimized_code = code;
+        safe_to_deopt_topmost_optimized_code = safe_to_deopt;
+      }
+    }
+  }
+#endif
+
   // Move marked code from the optimized code list to the deoptimized
   // code list, collecting them into a ZoneList.
-  Isolate* isolate = context->GetHeap()->isolate();
   Zone zone(isolate);
   ZoneList<Code*> codes(10, &zone);
 
@@ -392,35 +424,17 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(Context* context) {
     element = next;
   }
 
-#ifdef DEBUG
-  // Make sure all activations of optimized code can deopt at their current PC.
-  for (StackFrameIterator it(isolate, isolate->thread_local_top());
-       !it.done(); it.Advance()) {
-    StackFrame::Type type = it.frame()->type();
-    if (type == StackFrame::OPTIMIZED) {
-      Code* code = it.frame()->LookupCode();
-      if (FLAG_trace_deopt) {
-        JSFunction* function =
-            static_cast<OptimizedFrame*>(it.frame())->function();
-        CodeTracer::Scope scope(isolate->GetCodeTracer());
-        PrintF(scope.file(), "[deoptimizer patches for lazy deopt: ");
-        function->PrintName(scope.file());
-        PrintF(scope.file(),
-               " / %" V8PRIxPTR "]\n", reinterpret_cast<intptr_t>(function));
-      }
-      SafepointEntry safepoint = code->GetSafepointEntry(it.frame()->pc());
-      int deopt_index = safepoint.deoptimization_index();
-      CHECK(deopt_index != Safepoint::kNoDeoptimizationIndex);
-    }
-  }
-#endif
-
   // TODO(titzer): we need a handle scope only because of the macro assembler,
   // which is only used in EnsureCodeForDeoptimizationEntry.
   HandleScope scope(isolate);
 
   // Now patch all the codes for deoptimization.
   for (int i = 0; i < codes.length(); i++) {
+#ifdef DEBUG
+    if (codes[i] == topmost_optimized_code) {
+      ASSERT(safe_to_deopt_topmost_optimized_code);
+    }
+#endif
     // It is finally time to die, code object.
     // Do platform-specific patching to force any activations to lazy deopt.
     PatchCodeForDeoptimization(isolate, codes[i]);

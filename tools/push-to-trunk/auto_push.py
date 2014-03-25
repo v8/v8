@@ -44,6 +44,8 @@ CONFIG = {
   SETTINGS_LOCATION: "~/.auto-roll",
 }
 
+PUSH_MESSAGE_RE = re.compile(r".* \(based on bleeding_edge revision r(\d+)\)$")
+
 
 class Preparation(Step):
   MESSAGE = "Preparation."
@@ -53,7 +55,7 @@ class Preparation(Step):
     self.CommonPrepare()
 
 
-class CheckAutoRollSettings(Step):
+class CheckAutoPushSettings(Step):
   MESSAGE = "Checking settings file."
 
   def RunStep(self):
@@ -77,31 +79,6 @@ class CheckTreeStatus(Step):
                % self["tree_message"])
 
 
-class FetchLatestRevision(Step):
-  MESSAGE = "Fetching latest V8 revision."
-
-  def RunStep(self):
-    match = re.match(r"^r(\d+) ", self.GitSVNLog())
-    if not match:  # pragma: no cover
-      self.Die("Could not extract current svn revision from log.")
-    self["latest"] = match.group(1)
-
-
-class CheckLastPush(Step):
-  MESSAGE = "Checking last V8 push to trunk."
-
-  def RunStep(self):
-    last_push_hash = self.FindLastTrunkPush()
-    last_push = int(self.GitSVNFindSVNRev(last_push_hash))
-
-    # TODO(machenbach): This metric counts all revisions. It could be
-    # improved by counting only the revisions on bleeding_edge.
-    if int(self["latest"]) - last_push < 10:  # pragma: no cover
-      # This makes sure the script doesn't push twice in a row when the cron
-      # job retries several times.
-      self.Die("Last push too recently: %d" % last_push)
-
-
 class FetchLKGR(Step):
   MESSAGE = "Fetching V8 LKGR."
 
@@ -111,55 +88,51 @@ class FetchLKGR(Step):
     self["lkgr"] = self.ReadURL(lkgr_url, wait_plan=[5, 20, 300, 300])
 
 
-class PushToTrunk(Step):
-  MESSAGE = "Pushing to trunk if possible."
-
-  def PushTreeStatus(self, message):
-    if not self._options.status_password:
-      print "Skipping tree status update without password file."
-      return
-    params = {
-      "message": message,
-      "username": "v8-auto-roll@chromium.org",
-      "password": FileToText(self._options.status_password).strip(),
-    }
-    params = urllib.urlencode(params)
-    print "Pushing tree status: '%s'" % message
-    self.ReadURL("https://v8-status.appspot.com/status", params,
-                 wait_plan=[5, 20])
+class CheckLastPush(Step):
+  MESSAGE = "Checking last V8 push to trunk."
 
   def RunStep(self):
-    latest = int(self["latest"])
-    lkgr = int(self["lkgr"])
-    if latest == lkgr:
-      print "ToT (r%d) is clean. Pushing to trunk." % latest
-      self.PushTreeStatus("Tree is closed (preparing to push)")
+    last_push = self.FindLastTrunkPush()
 
-      # TODO(machenbach): Update the script before calling it.
-      try:
-        if self._options.push:
-          P = push_to_trunk.PushToTrunk
-          self._side_effect_handler.Call(
-              P(push_to_trunk.CONFIG, self._side_effect_handler).Run,
-              ["-a", self._options.author,
-               "-r", self._options.reviewer,
-               "-f"])
-      finally:
-        self.PushTreeStatus(self["tree_message"])
-    else:
-      print("ToT (r%d) is ahead of the LKGR (r%d). Skipping push to trunk."
-            % (latest, lkgr))
+    # Retrieve the bleeding edge revision of the last push from the text in
+    # the push commit message.
+    last_push_title = self.GitLog(n=1, format="%s", git_hash=last_push)
+    last_push_be = PUSH_MESSAGE_RE.match(last_push_title).group(1)
+
+    if not last_push_be:  # pragma: no cover
+      self.Die("Could not retrieve bleeding edge revision for trunk push %s"
+               % last_push)
+
+    # TODO(machenbach): This metric counts all revisions. It could be
+    # improved by counting only the revisions on bleeding_edge.
+    if int(self["lkgr"]) - int(last_push_be) < 10:  # pragma: no cover
+      # This makes sure the script doesn't push twice in a row when the cron
+      # job retries several times.
+      self.Die("Last push too recently: %s" % last_push_be)
 
 
-class AutoRoll(ScriptsBase):
+class PushToTrunk(Step):
+  MESSAGE = "Pushing to trunk if specified."
+
+  def RunStep(self):
+    print "Pushing lkgr %s to trunk." % self["lkgr"]
+
+    # TODO(machenbach): Update the script before calling it.
+    if self._options.push:
+      P = push_to_trunk.PushToTrunk
+      self._side_effect_handler.Call(
+          P(push_to_trunk.CONFIG, self._side_effect_handler).Run,
+          ["--author", self._options.author,
+           "--reviewer", self._options.reviewer,
+           "--revision", self["lkgr"],
+           "--force"])
+
+
+class AutoPush(ScriptsBase):
   def _PrepareOptions(self, parser):
-    parser.add_argument("-c", "--chromium",
-                        help=("Deprecated."))
     parser.add_argument("-p", "--push",
                         help="Push to trunk. Dry run if unspecified.",
                         default=False, action="store_true")
-    parser.add_argument("--status-password",
-                        help="A file with the password to the status app.")
 
   def _ProcessOptions(self, options):
     if not options.author or not options.reviewer:  # pragma: no cover
@@ -171,14 +144,13 @@ class AutoRoll(ScriptsBase):
   def _Steps(self):
     return [
       Preparation,
-      CheckAutoRollSettings,
+      CheckAutoPushSettings,
       CheckTreeStatus,
-      FetchLatestRevision,
-      CheckLastPush,
       FetchLKGR,
+      CheckLastPush,
       PushToTrunk,
     ]
 
 
 if __name__ == "__main__":  # pragma: no cover
-  sys.exit(AutoRoll(CONFIG).Run())
+  sys.exit(AutoPush(CONFIG).Run())

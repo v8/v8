@@ -1275,23 +1275,6 @@ TEST(RobustSubStringStub) {
 }
 
 
-TEST(RegExpOverflow) {
-  // Result string has the length 2^32, causing a 32-bit integer overflow.
-  CcTest::InitializeVM();
-  v8::HandleScope scope(CcTest::isolate());
-  LocalContext context;
-  v8::V8::IgnoreOutOfMemoryException();
-  v8::Local<v8::Value> result = CompileRun(
-      "var a = 'a';                     "
-      "for (var i = 0; i < 16; i++) {   "
-      "  a += a;                        "
-      "}                                "
-      "a.replace(/a/g, a);              ");
-  CHECK(result.IsEmpty());
-  CHECK(context->HasOutOfMemoryException());
-}
-
-
 TEST(StringReplaceAtomTwoByteResult) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());

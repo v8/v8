@@ -354,12 +354,17 @@ Operand::Operand(Handle<Object> handle) {
 
 Operand::Operand(Register rm, ShiftOp shift_op, int shift_imm) {
   ASSERT(is_uint5(shift_imm));
-  ASSERT(shift_op != ROR || shift_imm != 0);  // use RRX if you mean it
+
   rm_ = rm;
   rs_ = no_reg;
   shift_op_ = shift_op;
   shift_imm_ = shift_imm & 31;
-  if (shift_op == RRX) {
+
+  if ((shift_op == ROR) && (shift_imm == 0)) {
+    // ROR #0 is functionally equivalent to LSL #0 and this allow us to encode
+    // RRX as ROR #0 (See below).
+    shift_op = LSL;
+  } else if (shift_op == RRX) {
     // encoded as ROR with shift_imm == 0
     ASSERT(shift_imm == 0);
     shift_op_ = ROR;
@@ -1788,7 +1793,9 @@ void Assembler::uxtb(Register dst,
          (src.shift_imm_ == 8) ||
          (src.shift_imm_ == 16) ||
          (src.shift_imm_ == 24));
-  ASSERT(src.shift_op() == ROR);
+  // Operand maps ROR #0 to LSL #0.
+  ASSERT((src.shift_op() == ROR) ||
+         ((src.shift_op() == LSL) && (src.shift_imm_ == 0)));
   emit(cond | 0x6E*B20 | 0xF*B16 | dst.code()*B12 |
        ((src.shift_imm_ >> 1)&0xC)*B8 | 7*B4 | src.rm().code());
 }
@@ -1810,7 +1817,9 @@ void Assembler::uxtab(Register dst,
          (src2.shift_imm_ == 8) ||
          (src2.shift_imm_ == 16) ||
          (src2.shift_imm_ == 24));
-  ASSERT(src2.shift_op() == ROR);
+  // Operand maps ROR #0 to LSL #0.
+  ASSERT((src2.shift_op() == ROR) ||
+         ((src2.shift_op() == LSL) && (src2.shift_imm_ == 0)));
   emit(cond | 0x6E*B20 | src1.code()*B16 | dst.code()*B12 |
        ((src2.shift_imm_ >> 1) &0xC)*B8 | 7*B4 | src2.rm().code());
 }
@@ -1830,7 +1839,9 @@ void Assembler::uxtb16(Register dst,
          (src.shift_imm_ == 8) ||
          (src.shift_imm_ == 16) ||
          (src.shift_imm_ == 24));
-  ASSERT(src.shift_op() == ROR);
+  // Operand maps ROR #0 to LSL #0.
+  ASSERT((src.shift_op() == ROR) ||
+         ((src.shift_op() == LSL) && (src.shift_imm_ == 0)));
   emit(cond | 0x6C*B20 | 0xF*B16 | dst.code()*B12 |
        ((src.shift_imm_ >> 1)&0xC)*B8 | 7*B4 | src.rm().code());
 }

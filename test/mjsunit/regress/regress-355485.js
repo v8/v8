@@ -2,13 +2,4 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-
-var a = '<';
-for (var i = 0; i < 26; i++) a += a;
-a = a + a + a;
-
-function escape_a() {
-  escape(a);
-}
-
-assertThrows(escape_a, RangeError);
+assertEquals("\u039c", "\u00b5".toUpperCase());

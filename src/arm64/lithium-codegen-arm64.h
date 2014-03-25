@@ -377,14 +377,23 @@ class LCodeGen: public LCodeGenBase {
       ASSERT(codegen_->expected_safepoint_kind_ == Safepoint::kSimple);
       codegen_->expected_safepoint_kind_ = kind;
 
+      UseScratchRegisterScope temps(codegen_->masm_);
+      // Preserve the value of lr which must be saved on the stack (the call to
+      // the stub will clobber it).
+      Register to_be_pushed_lr =
+          temps.UnsafeAcquire(StoreRegistersStateStub::to_be_pushed_lr());
+      codegen_->masm_->Mov(to_be_pushed_lr, lr);
       switch (codegen_->expected_safepoint_kind_) {
-        case Safepoint::kWithRegisters:
-          codegen_->masm_->PushSafepointRegisters();
+        case Safepoint::kWithRegisters: {
+          StoreRegistersStateStub stub(kDontSaveFPRegs);
+          codegen_->masm_->CallStub(&stub);
           break;
-        case Safepoint::kWithRegistersAndDoubles:
-          codegen_->masm_->PushSafepointRegisters();
-          codegen_->masm_->PushSafepointFPRegisters();
+        }
+        case Safepoint::kWithRegistersAndDoubles: {
+          StoreRegistersStateStub stub(kSaveFPRegs);
+          codegen_->masm_->CallStub(&stub);
           break;
+        }
         default:
           UNREACHABLE();
       }
@@ -394,13 +403,16 @@ class LCodeGen: public LCodeGenBase {
       Safepoint::Kind kind = codegen_->expected_safepoint_kind_;
       ASSERT((kind & Safepoint::kWithRegisters) != 0);
       switch (kind) {
-        case Safepoint::kWithRegisters:
-          codegen_->masm_->PopSafepointRegisters();
+        case Safepoint::kWithRegisters: {
+          RestoreRegistersStateStub stub(kDontSaveFPRegs);
+          codegen_->masm_->CallStub(&stub);
           break;
-        case Safepoint::kWithRegistersAndDoubles:
-          codegen_->masm_->PopSafepointFPRegisters();
-          codegen_->masm_->PopSafepointRegisters();
+        }
+        case Safepoint::kWithRegistersAndDoubles: {
+          RestoreRegistersStateStub stub(kSaveFPRegs);
+          codegen_->masm_->CallStub(&stub);
           break;
+        }
         default:
           UNREACHABLE();
       }

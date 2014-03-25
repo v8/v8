@@ -621,6 +621,25 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreatePrivateSymbol) {
 }
 
 
+RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateGlobalPrivateSymbol) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
+  Handle<JSObject> registry = isolate->GetSymbolRegistry();
+  Handle<String> part = isolate->factory()->private_intern_string();
+  Handle<JSObject> privates =
+      Handle<JSObject>::cast(JSObject::GetProperty(registry, part));
+  Handle<Object> symbol = JSObject::GetProperty(privates, name);
+  if (!symbol->IsSymbol()) {
+    ASSERT(symbol->IsUndefined());
+    symbol = isolate->factory()->NewPrivateSymbol();
+    Handle<Symbol>::cast(symbol)->set_name(*name);
+    JSObject::SetProperty(privates, name, symbol, NONE, STRICT);
+  }
+  return *symbol;
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_NewSymbolWrapper) {
   ASSERT(args.length() == 1);
   CONVERT_ARG_CHECKED(Symbol, symbol, 0);
@@ -637,9 +656,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SymbolDescription) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_SymbolRegistry) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 0);
-  return isolate->heap()->symbol_registry();
+  return *isolate->GetSymbolRegistry();
 }
 
 
@@ -3913,7 +3932,9 @@ MUST_USE_RESULT static MaybeObject* StringReplaceGlobalAtomRegExpWithString(
        static_cast<int64_t>(pattern_len)) *
       static_cast<int64_t>(matches) +
       static_cast<int64_t>(subject_len);
-  if (result_len_64 > INT_MAX) return Failure::OutOfMemoryException(0x11);
+  if (result_len_64 > INT_MAX) {
+    v8::internal::Heap::FatalProcessOutOfMemory("invalid string length", true);
+  }
   int result_len = static_cast<int>(result_len_64);
 
   int subject_pos = 0;
@@ -6310,6 +6331,15 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringParseFloat) {
 }
 
 
+static inline bool ToUpperOverflows(uc32 character) {
+  // y with umlauts and the micro sign are the only characters that stop
+  // fitting into one-byte when converting to uppercase.
+  static const uc32 yuml_code = 0xff;
+  static const uc32 micro_code = 0xb5;
+  return (character == yuml_code || character == micro_code);
+}
+
+
 template <class Converter>
 MUST_USE_RESULT static MaybeObject* ConvertCaseHelper(
     Isolate* isolate,
@@ -6337,10 +6367,7 @@ MUST_USE_RESULT static MaybeObject* ConvertCaseHelper(
   unibrow::uchar chars[Converter::kMaxWidth];
   // We can assume that the string is not empty
   uc32 current = stream.GetNext();
-  // y with umlauts is the only character that stops fitting into one-byte
-  // when converting to uppercase.
-  static const uc32 yuml_code = 0xff;
-  bool ignore_yuml = result->IsSeqTwoByteString() || Converter::kIsToLower;
+  bool ignore_overflow = Converter::kIsToLower || result->IsSeqTwoByteString();
   for (int i = 0; i < result_length;) {
     bool has_next = stream.HasMore();
     uc32 next = has_next ? stream.GetNext() : 0;
@@ -6349,14 +6376,15 @@ MUST_USE_RESULT static MaybeObject* ConvertCaseHelper(
       // The case conversion of this character is the character itself.
       result->Set(i, current);
       i++;
-    } else if (char_length == 1 && (ignore_yuml || current != yuml_code)) {
+    } else if (char_length == 1 &&
+               (ignore_overflow || !ToUpperOverflows(current))) {
       // Common case: converting the letter resulted in one character.
       ASSERT(static_cast<uc32>(chars[0]) != current);
       result->Set(i, chars[0]);
       has_changed_character = true;
       i++;
     } else if (result_length == string->length()) {
-      bool found_yuml = (current == yuml_code);
+      bool overflows = ToUpperOverflows(current);
       // We've assumed that the result would be as long as the
       // input but here is a character that converts to several
       // characters.  No matter, we calculate the exact length
@@ -6376,7 +6404,7 @@ MUST_USE_RESULT static MaybeObject* ConvertCaseHelper(
       int current_length = i + char_length + next_length;
       while (stream.HasMore()) {
         current = stream.GetNext();
-        found_yuml |= (current == yuml_code);
+        overflows |= ToUpperOverflows(current);
         // NOTE: we use 0 as the next character here because, while
         // the next character may affect what a character converts to,
         // it does not in any case affect the length of what it convert
@@ -6390,9 +6418,9 @@ MUST_USE_RESULT static MaybeObject* ConvertCaseHelper(
         }
       }
       // Try again with the real length.  Return signed if we need
-      // to allocate a two-byte string for y-umlaut to uppercase.
-      return (found_yuml && !ignore_yuml) ? Smi::FromInt(-current_length)
-                                          : Smi::FromInt(current_length);
+      // to allocate a two-byte string for to uppercase.
+      return (overflows && !ignore_overflow) ? Smi::FromInt(-current_length)
+                                             : Smi::FromInt(current_length);
     } else {
       for (int j = 0; j < char_length; j++) {
         result->Set(i, chars[j]);
@@ -11407,6 +11435,14 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFrameDetails) {
 }
 
 
+static bool ParameterIsShadowedByContextLocal(Handle<ScopeInfo> info,
+                                              int index) {
+  VariableMode mode;
+  InitializationFlag flag;
+  return info->ContextSlotIndex(info->ParameterName(index), &mode, &flag) != -1;
+}
+
+
 // Create a plain JSObject which materializes the local scope for the specified
 // frame.
 static Handle<JSObject> MaterializeStackLocalsWithFrameInspector(
@@ -11419,17 +11455,16 @@ static Handle<JSObject> MaterializeStackLocalsWithFrameInspector(
 
   // First fill all parameters.
   for (int i = 0; i < scope_info->ParameterCount(); ++i) {
-    Handle<String> name(scope_info->ParameterName(i));
-    VariableMode mode;
-    InitializationFlag init_flag;
     // Do not materialize the parameter if it is shadowed by a context local.
-    if (scope_info->ContextSlotIndex(*name, &mode, &init_flag) != -1) continue;
+    if (ParameterIsShadowedByContextLocal(scope_info, i)) continue;
 
+    HandleScope scope(isolate);
     Handle<Object> value(i < frame_inspector->GetParametersCount()
                              ? frame_inspector->GetParameter(i)
                              : isolate->heap()->undefined_value(),
                          isolate);
     ASSERT(!value->IsTheHole());
+    Handle<String> name(scope_info->ParameterName(i));
 
     RETURN_IF_EMPTY_HANDLE_VALUE(
         isolate,
@@ -11470,10 +11505,13 @@ static void UpdateStackLocalsFromMaterializedObject(Isolate* isolate,
 
   // Parameters.
   for (int i = 0; i < scope_info->ParameterCount(); ++i) {
+    // Shadowed parameters were not materialized.
+    if (ParameterIsShadowedByContextLocal(scope_info, i)) continue;
+
     ASSERT(!frame->GetParameter(i)->IsTheHole());
     HandleScope scope(isolate);
-    Handle<Object> value = GetProperty(
-        isolate, target, Handle<String>(scope_info->ParameterName(i)));
+    Handle<String> name(scope_info->ParameterName(i));
+    Handle<Object> value = GetProperty(isolate, target, name);
     frame->SetParameterValue(i, *value);
   }
 

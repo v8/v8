@@ -379,8 +379,9 @@ struct QwNeonRegister {
   }
   void split_code(int* vm, int* m) const {
     ASSERT(is_valid());
-    *m = (code_ & 0x10) >> 4;
-    *vm = code_ & 0x0F;
+    int encoded_code = code_ << 1;
+    *m = (encoded_code & 0x10) >> 4;
+    *vm = encoded_code & 0x0F;
   }
 
   int code_;

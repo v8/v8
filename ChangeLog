@@ -1,3 +1,18 @@
+2014-03-25: Version 3.25.24
+
+        Add support for per-isolate private symbols.
+
+        No longer OOM on invalid string length (issue 3060).
+
+        Remove Failure::OutOfMemory propagation and
+        V8::IgnoreOutOfMemoryException (issue 3060).
+
+        Tentative Windows dll build fix: Don't V8_EXPORT ScriptCompiler::Source
+        (issue 3228).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-03-24: Version 3.25.23
 
         Rename A64 port to ARM64 port (Chromium issue 354405).

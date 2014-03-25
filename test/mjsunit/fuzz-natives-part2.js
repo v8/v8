@@ -207,17 +207,14 @@ var knownProblems = {
   "_TwoByteSeqStringSetChar": true,
 
   // Only applicable to TypedArrays.
-  "TypedArrayInitialize": true,
+  "_TypedArrayInitialize": true,
 
   // Only applicable to generators.
   "_GeneratorNext": true,
   "_GeneratorThrow": true,
 
   // Only applicable to DataViews.
-  "DataViewInitialize": true,
-  "DataViewGetBuffer": true,
-  "DataViewGetByteLength": true,
-  "DataViewGetByteOffset": true
+  "_DataViewInitialize": true,
 };
 
 var currentlyUncallable = {
