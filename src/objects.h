@@ -1589,9 +1589,11 @@ class Object : public MaybeObject {
       Isolate* isolate,
       Handle<Object> object,
       uint32_t index);
-  MUST_USE_RESULT MaybeObject* GetElementWithReceiver(Isolate* isolate,
-                                                      Object* receiver,
-                                                      uint32_t index);
+
+  static Handle<Object> GetElementWithReceiver(Isolate* isolate,
+                                               Handle<Object> object,
+                                               Handle<Object> receiver,
+                                               uint32_t index);
 
   // Return the object's prototype (might be Heap::null_value()).
   Object* GetPrototype(Isolate* isolate);
@@ -2480,8 +2482,9 @@ class JSObject: public JSReceiver {
 
   // Returns the index'th element.
   // The undefined object if index is out of bounds.
-  MUST_USE_RESULT MaybeObject* GetElementWithInterceptor(Object* receiver,
-                                                         uint32_t index);
+  static Handle<Object> GetElementWithInterceptor(Handle<JSObject> object,
+                                                  Handle<Object> receiver,
+                                                  uint32_t index);
 
   enum SetFastElementsCapacitySmiMode {
     kAllowSmiElements,

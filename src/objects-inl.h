@@ -1064,25 +1064,15 @@ Handle<Object> Object::GetElement(Isolate* isolate,
   // This was not always the case. This ASSERT is here to catch
   // leftover incorrect uses.
   ASSERT(AllowHeapAllocation::IsAllowed());
-  CALL_HEAP_FUNCTION(isolate,
-                     object->GetElementWithReceiver(isolate, *object, index),
-                     Object);
+  return Object::GetElementWithReceiver(isolate, object, object, index);
 }
 
-
-static Handle<Object> GetElementNoExceptionThrownHelper(Isolate* isolate,
-                                                        Handle<Object> object,
-                                                        uint32_t index) {
-  CALL_HEAP_FUNCTION(isolate,
-                     object->GetElementWithReceiver(isolate, *object, index),
-                     Object);
-}
 
 Handle<Object> Object::GetElementNoExceptionThrown(Isolate* isolate,
                                                    Handle<Object> object,
                                                    uint32_t index) {
   Handle<Object> result =
-      GetElementNoExceptionThrownHelper(isolate, object, index);
+      Object::GetElementWithReceiver(isolate, object, object, index);
   CHECK_NOT_EMPTY_HANDLE(isolate, result);
   return result;
 }

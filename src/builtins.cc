@@ -506,23 +506,7 @@ static bool ElementsAccessorHasElementWrapper(
     uint32_t key,
     Handle<FixedArrayBase> backing_store = Handle<FixedArrayBase>::null()) {
   return accessor->HasElement(*receiver, *holder, key,
-                              backing_store.is_null() ? *backing_store : NULL);
-}
-
-
-// TODO(ishell): Temporary wrapper until handlified.
-static Handle<Object> ElementsAccessorGetWrapper(
-    Isolate* isolate,
-    ElementsAccessor* accessor,
-    Handle<Object> receiver,
-    Handle<JSObject> holder,
-    uint32_t key,
-    Handle<FixedArrayBase> backing_store = Handle<FixedArrayBase>::null()) {
-  CALL_HEAP_FUNCTION(isolate,
-                     accessor->Get(*receiver, *holder, key,
-                                   backing_store.is_null()
-                                   ? *backing_store : NULL),
-                     Object);
+                              backing_store.is_null() ? NULL : *backing_store);
 }
 
 
@@ -544,8 +528,8 @@ BUILTIN(ArrayPop) {
   Handle<Object> element;
   if (ElementsAccessorHasElementWrapper(
       accessor, array, array, new_length, elms_obj)) {
-    element = ElementsAccessorGetWrapper(
-        isolate, accessor, array, array, new_length, elms_obj);
+    element = accessor->Get(
+        array, array, new_length, elms_obj);
   } else {
     Handle<Object> proto(array->GetPrototype(), isolate);
     element = Object::GetElement(isolate, proto, len - 1);
@@ -578,6 +562,7 @@ BUILTIN(ArrayShift) {
   // Get first element
   ElementsAccessor* accessor = array->GetElementsAccessor();
   Handle<Object> first = accessor->Get(receiver, array, 0, elms_obj);
+  RETURN_IF_EMPTY_HANDLE(isolate, first);
   if (first->IsTheHole()) {
     first = isolate->factory()->undefined_value();
   }

@@ -962,63 +962,70 @@ MaybeObject* Object::GetProperty(Object* receiver,
 }
 
 
-MaybeObject* Object::GetElementWithReceiver(Isolate* isolate,
-                                            Object* receiver,
-                                            uint32_t index) {
-  Heap* heap = isolate->heap();
-  Object* holder = this;
+Handle<Object> Object::GetElementWithReceiver(Isolate* isolate,
+                                              Handle<Object> object,
+                                              Handle<Object> receiver,
+                                              uint32_t index) {
+  Handle<Object> holder;
 
   // Iterate up the prototype chain until an element is found or the null
   // prototype is encountered.
-  for (holder = this;
-       holder != heap->null_value();
-       holder = holder->GetPrototype(isolate)) {
+  for (holder = object;
+       !holder->IsNull();
+       holder = Handle<Object>(holder->GetPrototype(isolate), isolate)) {
     if (!holder->IsJSObject()) {
       Context* native_context = isolate->context()->native_context();
       if (holder->IsNumber()) {
-        holder = native_context->number_function()->instance_prototype();
+        holder = Handle<Object>(
+            native_context->number_function()->instance_prototype(), isolate);
       } else if (holder->IsString()) {
-        holder = native_context->string_function()->instance_prototype();
+        holder = Handle<Object>(
+            native_context->string_function()->instance_prototype(), isolate);
       } else if (holder->IsSymbol()) {
-        holder = native_context->symbol_function()->instance_prototype();
+        holder = Handle<Object>(
+            native_context->symbol_function()->instance_prototype(), isolate);
       } else if (holder->IsBoolean()) {
-        holder = native_context->boolean_function()->instance_prototype();
+        holder = Handle<Object>(
+            native_context->boolean_function()->instance_prototype(), isolate);
       } else if (holder->IsJSProxy()) {
-        return JSProxy::cast(holder)->GetElementWithHandler(receiver, index);
+        CALL_HEAP_FUNCTION(isolate,
+            Handle<JSProxy>::cast(holder)->GetElementWithHandler(
+                *receiver, index),
+            Object);
       } else {
         // Undefined and null have no indexed properties.
         ASSERT(holder->IsUndefined() || holder->IsNull());
-        return heap->undefined_value();
+        return isolate->factory()->undefined_value();
       }
     }
 
     // Inline the case for JSObjects. Doing so significantly improves the
     // performance of fetching elements where checking the prototype chain is
     // necessary.
-    JSObject* js_object = JSObject::cast(holder);
+    Handle<JSObject> js_object = Handle<JSObject>::cast(holder);
 
     // Check access rights if needed.
     if (js_object->IsAccessCheckNeeded()) {
-      Isolate* isolate = heap->isolate();
-      if (!isolate->MayIndexedAccess(js_object, index, v8::ACCESS_GET)) {
-        isolate->ReportFailedAccessCheck(js_object, v8::ACCESS_GET);
-        RETURN_IF_SCHEDULED_EXCEPTION(isolate);
-        return heap->undefined_value();
+      if (!isolate->MayIndexedAccessWrapper(js_object, index, v8::ACCESS_GET)) {
+        isolate->ReportFailedAccessCheckWrapper(js_object, v8::ACCESS_GET);
+        RETURN_HANDLE_IF_SCHEDULED_EXCEPTION(isolate, Object);
+        return isolate->factory()->undefined_value();
       }
     }
 
     if (js_object->HasIndexedInterceptor()) {
-      return js_object->GetElementWithInterceptor(receiver, index);
+      return JSObject::GetElementWithInterceptor(js_object, receiver, index);
     }
 
-    if (js_object->elements() != heap->empty_fixed_array()) {
-      MaybeObject* result = js_object->GetElementsAccessor()->Get(
+    if (js_object->elements() != isolate->heap()->empty_fixed_array()) {
+      Handle<Object> result = js_object->GetElementsAccessor()->Get(
           receiver, js_object, index);
-      if (result != heap->the_hole_value()) return result;
+      RETURN_IF_EMPTY_HANDLE_VALUE(isolate, result, Handle<Object>());
+      if (!result->IsTheHole()) return result;
     }
   }
 
-  return heap->undefined_value();
+  return isolate->factory()->undefined_value();
 }
 
 
@@ -12922,46 +12929,41 @@ MaybeObject* JSArray::JSArrayUpdateLengthFromIndex(uint32_t index,
 }
 
 
-MaybeObject* JSObject::GetElementWithInterceptor(Object* receiver,
-                                                 uint32_t index) {
-  Isolate* isolate = GetIsolate();
-  HandleScope scope(isolate);
+Handle<Object> JSObject::GetElementWithInterceptor(Handle<JSObject> object,
+                                                   Handle<Object> receiver,
+                                                   uint32_t index) {
+  Isolate* isolate = object->GetIsolate();
 
   // Make sure that the top context does not change when doing
   // callbacks or interceptor calls.
   AssertNoContextChange ncc(isolate);
 
-  Handle<InterceptorInfo> interceptor(GetIndexedInterceptor(), isolate);
-  Handle<Object> this_handle(receiver, isolate);
-  Handle<JSObject> holder_handle(this, isolate);
+  Handle<InterceptorInfo> interceptor(object->GetIndexedInterceptor(), isolate);
   if (!interceptor->getter()->IsUndefined()) {
     v8::IndexedPropertyGetterCallback getter =
         v8::ToCData<v8::IndexedPropertyGetterCallback>(interceptor->getter());
     LOG(isolate,
-        ApiIndexedPropertyAccess("interceptor-indexed-get", this, index));
+        ApiIndexedPropertyAccess("interceptor-indexed-get", *object, index));
     PropertyCallbackArguments
-        args(isolate, interceptor->data(), receiver, this);
+        args(isolate, interceptor->data(), *receiver, *object);
     v8::Handle<v8::Value> result = args.Call(getter, index);
-    RETURN_IF_SCHEDULED_EXCEPTION(isolate);
+    RETURN_HANDLE_IF_SCHEDULED_EXCEPTION(isolate, Object);
     if (!result.IsEmpty()) {
       Handle<Object> result_internal = v8::Utils::OpenHandle(*result);
       result_internal->VerifyApiCallResultType();
-      return *result_internal;
+      // Rebox handle before return.
+      return Handle<Object>(*result_internal, isolate);
     }
   }
 
-  Heap* heap = holder_handle->GetHeap();
-  ElementsAccessor* handler = holder_handle->GetElementsAccessor();
-  MaybeObject* raw_result = handler->Get(*this_handle,
-                                         *holder_handle,
-                                         index);
-  if (raw_result != heap->the_hole_value()) return raw_result;
+  ElementsAccessor* handler = object->GetElementsAccessor();
+  Handle<Object> result = handler->Get(receiver,  object, index);
+  RETURN_IF_EMPTY_HANDLE_VALUE(isolate, result, Handle<Object>());
+  if (!result->IsTheHole()) return result;
 
-  RETURN_IF_SCHEDULED_EXCEPTION(isolate);
-
-  Object* pt = holder_handle->GetPrototype();
-  if (pt == heap->null_value()) return heap->undefined_value();
-  return pt->GetElementWithReceiver(isolate, *this_handle, index);
+  Handle<Object> proto(object->GetPrototype(), isolate);
+  if (proto->IsNull()) return isolate->factory()->undefined_value();
+  return Object::GetElementWithReceiver(isolate, proto, receiver, index);
 }
 
 
