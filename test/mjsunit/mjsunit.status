@@ -134,6 +134,7 @@
   'osr-elements-kind': [SKIP],
   'regress/regress-165637': [SKIP],
   'regress/regress-2249': [SKIP],
+  'debug-stepout-scope-part8': [PASS, ['arch == arm ', FAIL]],
 }],  # 'gc_stress == True'
 
 ##############################################################################
