@@ -1393,6 +1393,11 @@ void HeapObject::IteratePointer(ObjectVisitor* v, int offset) {
 }
 
 
+void HeapObject::IterateNextCodeLink(ObjectVisitor* v, int offset) {
+  v->VisitNextCodeLink(reinterpret_cast<Object**>(FIELD_ADDR(this, offset)));
+}
+
+
 double HeapNumber::value() {
   return READ_DOUBLE_FIELD(this, kValueOffset);
 }
@@ -5787,6 +5792,7 @@ ACCESSORS(Code, relocation_info, ByteArray, kRelocationInfoOffset)
 ACCESSORS(Code, handler_table, FixedArray, kHandlerTableOffset)
 ACCESSORS(Code, deoptimization_data, FixedArray, kDeoptimizationDataOffset)
 ACCESSORS(Code, raw_type_feedback_info, Object, kTypeFeedbackInfoOffset)
+ACCESSORS(Code, next_code_link, Object, kNextCodeLinkOffset)
 
 
 void Code::WipeOutHeader() {
@@ -5810,20 +5816,6 @@ Object* Code::type_feedback_info() {
 void Code::set_type_feedback_info(Object* value, WriteBarrierMode mode) {
   ASSERT(kind() == FUNCTION);
   set_raw_type_feedback_info(value, mode);
-  CONDITIONAL_WRITE_BARRIER(GetHeap(), this, kTypeFeedbackInfoOffset,
-                            value, mode);
-}
-
-
-Object* Code::next_code_link() {
-  CHECK(kind() == OPTIMIZED_FUNCTION);
-  return raw_type_feedback_info();
-}
-
-
-void Code::set_next_code_link(Object* value, WriteBarrierMode mode) {
-  CHECK(kind() == OPTIMIZED_FUNCTION);
-  set_raw_type_feedback_info(value);
   CONDITIONAL_WRITE_BARRIER(GetHeap(), this, kTypeFeedbackInfoOffset,
                             value, mode);
 }
