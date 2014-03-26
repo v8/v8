@@ -1239,7 +1239,7 @@ void LCodeGen::DoDivByConstI(LDivByConstI* instr) {
   }
 
   __ TruncatingDiv(dividend, Abs(divisor));
-  if (divisor < 0) __ neg(rdx);
+  if (divisor < 0) __ negp(rdx);
 
   if (!hdiv->CheckFlag(HInstruction::kAllUsesTruncatingToInt32)) {
     __ movl(rax, rdx);
@@ -1387,7 +1387,7 @@ void LCodeGen::DoMulI(LMulI* instr) {
     // Bail out if the result is supposed to be negative zero.
     Label done;
     if (instr->hydrogen_value()->representation().IsSmi()) {
-      __ testq(left, left);
+      __ testp(left, left);
     } else {
       __ testl(left, left);
     }
@@ -1644,7 +1644,7 @@ void LCodeGen::DoDateField(LDateField* instr) {
       ExternalReference stamp = ExternalReference::date_cache_stamp(isolate());
       Operand stamp_operand = __ ExternalOperand(stamp);
       __ movp(kScratchRegister, stamp_operand);
-      __ cmpq(kScratchRegister, FieldOperand(object,
+      __ cmpp(kScratchRegister, FieldOperand(object,
                                              JSDate::kCacheStampOffset));
       __ j(not_equal, &runtime, Label::kNear);
       __ movp(result, FieldOperand(object, JSDate::kValueOffset +
@@ -1692,7 +1692,7 @@ void LCodeGen::DoSeqStringGetChar(LSeqStringGetChar* instr) {
     __ andb(string, Immediate(kStringRepresentationMask | kStringEncodingMask));
     static const uint32_t one_byte_seq_type = kSeqStringTag | kOneByteStringTag;
     static const uint32_t two_byte_seq_type = kSeqStringTag | kTwoByteStringTag;
-    __ cmpq(string, Immediate(encoding == String::ONE_BYTE_ENCODING
+    __ cmpp(string, Immediate(encoding == String::ONE_BYTE_ENCODING
                               ? one_byte_seq_type : two_byte_seq_type));
     __ Check(equal, kUnexpectedStringType);
     __ Pop(string);
@@ -1819,7 +1819,7 @@ void LCodeGen::DoMathMinMax(LMathMinMax* instr) {
     } else if (right->IsRegister()) {
       Register right_reg = ToRegister(right);
       if (instr->hydrogen_value()->representation().IsSmi()) {
-        __ cmpq(left_reg, right_reg);
+        __ cmpp(left_reg, right_reg);
       } else {
         __ cmpl(left_reg, right_reg);
       }
@@ -1828,7 +1828,7 @@ void LCodeGen::DoMathMinMax(LMathMinMax* instr) {
     } else {
       Operand right_op = ToOperand(right);
       if (instr->hydrogen_value()->representation().IsSmi()) {
-        __ cmpq(left_reg, right_op);
+        __ cmpp(left_reg, right_op);
       } else {
         __ cmpl(left_reg, right_op);
       }
@@ -1967,7 +1967,7 @@ void LCodeGen::DoBranch(LBranch* instr) {
   } else if (r.IsSmi()) {
     ASSERT(!info()->IsStub());
     Register reg = ToRegister(instr->value());
-    __ testq(reg, reg);
+    __ testp(reg, reg);
     EmitBranch(instr, not_zero);
   } else if (r.IsDouble()) {
     ASSERT(!info()->IsStub());
@@ -1999,7 +1999,7 @@ void LCodeGen::DoBranch(LBranch* instr) {
       EmitBranch(instr, not_equal);
     } else if (type.IsString()) {
       ASSERT(!info()->IsStub());
-      __ cmpq(FieldOperand(reg, String::kLengthOffset), Immediate(0));
+      __ cmpp(FieldOperand(reg, String::kLengthOffset), Immediate(0));
       EmitBranch(instr, not_equal);
     } else {
       ToBooleanStub::Types expected = instr->hydrogen()->expected_input_types();
@@ -2059,7 +2059,7 @@ void LCodeGen::DoBranch(LBranch* instr) {
         Label not_string;
         __ CmpInstanceType(map, FIRST_NONSTRING_TYPE);
         __ j(above_equal, &not_string, Label::kNear);
-        __ cmpq(FieldOperand(reg, String::kLengthOffset), Immediate(0));
+        __ cmpp(FieldOperand(reg, String::kLengthOffset), Immediate(0));
         __ j(not_zero, instr->TrueLabel(chunk_));
         __ jmp(instr->FalseLabel(chunk_));
         __ bind(&not_string);
@@ -2182,9 +2182,9 @@ void LCodeGen::DoCompareNumericAndBranch(LCompareNumericAndBranch* instr) {
         cc = ReverseCondition(cc);
       } else if (instr->hydrogen_value()->representation().IsSmi()) {
         if (right->IsRegister()) {
-          __ cmpq(ToRegister(left), ToRegister(right));
+          __ cmpp(ToRegister(left), ToRegister(right));
         } else {
-          __ cmpq(ToRegister(left), ToOperand(right));
+          __ cmpp(ToRegister(left), ToOperand(right));
         }
       } else {
         if (right->IsRegister()) {
@@ -2207,7 +2207,7 @@ void LCodeGen::DoCmpObjectEqAndBranch(LCmpObjectEqAndBranch* instr) {
     __ Cmp(left, right);
   } else {
     Register right = ToRegister(instr->right());
-    __ cmpq(left, right);
+    __ cmpp(left, right);
   }
   EmitBranch(instr, equal);
 }
@@ -2361,7 +2361,7 @@ void LCodeGen::DoStringCompareAndBranch(LStringCompareAndBranch* instr) {
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
 
   Condition condition = TokenToCondition(op, false);
-  __ testq(rax, rax);
+  __ testp(rax, rax);
 
   EmitBranch(instr, condition);
 }
@@ -2455,7 +2455,7 @@ void LCodeGen::EmitClassOfTest(Label* is_true,
     __ movp(temp, FieldOperand(input, HeapObject::kMapOffset));
     __ movzxbl(temp2, FieldOperand(temp, Map::kInstanceTypeOffset));
     __ subp(temp2, Immediate(FIRST_NONCALLABLE_SPEC_OBJECT_TYPE));
-    __ cmpq(temp2, Immediate(LAST_NONCALLABLE_SPEC_OBJECT_TYPE -
+    __ cmpp(temp2, Immediate(LAST_NONCALLABLE_SPEC_OBJECT_TYPE -
                              FIRST_NONCALLABLE_SPEC_OBJECT_TYPE));
     __ j(above, is_false);
   }
@@ -2517,7 +2517,7 @@ void LCodeGen::DoInstanceOf(LInstanceOf* instr) {
   __ Push(ToRegister(instr->right()));
   CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
   Label true_value, done;
-  __ testq(rax, rax);
+  __ testp(rax, rax);
   __ j(zero, &true_value, Label::kNear);
   __ LoadRoot(ToRegister(instr->result()), Heap::kFalseValueRootIndex);
   __ jmp(&done, Label::kNear);
@@ -2563,7 +2563,7 @@ void LCodeGen::DoInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr) {
   __ bind(deferred->map_check());  // Label for calculating code patching.
   Handle<Cell> cache_cell = factory()->NewCell(factory()->the_hole_value());
   __ Move(kScratchRegister, cache_cell, RelocInfo::CELL);
-  __ cmpq(map, Operand(kScratchRegister, 0));
+  __ cmpp(map, Operand(kScratchRegister, 0));
   __ j(not_equal, &cache_miss, Label::kNear);
   // Patched to load either true or false.
   __ LoadRoot(ToRegister(instr->result()), Heap::kTheHoleValueRootIndex);
@@ -2625,7 +2625,7 @@ void LCodeGen::DoDeferredInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr,
     // PushSafepointRegisterScope.
     __ movp(kScratchRegister, rax);
   }
-  __ testq(kScratchRegister, kScratchRegister);
+  __ testp(kScratchRegister, kScratchRegister);
   Label load_false;
   Label done;
   __ j(not_zero, &load_false, Label::kNear);
@@ -2646,7 +2646,7 @@ void LCodeGen::DoCmpT(LCmpT* instr) {
 
   Condition condition = TokenToCondition(op, false);
   Label true_value, done;
-  __ testq(rax, rax);
+  __ testp(rax, rax);
   __ j(condition, &true_value, Label::kNear);
   __ LoadRoot(ToRegister(instr->result()), Heap::kFalseValueRootIndex);
   __ jmp(&done, Label::kNear);
@@ -3203,9 +3203,9 @@ void LCodeGen::DoArgumentsLength(LArgumentsLength* instr) {
 
   // If no arguments adaptor frame the number of arguments is fixed.
   if (instr->elements()->IsRegister()) {
-    __ cmpq(rbp, ToRegister(instr->elements()));
+    __ cmpp(rbp, ToRegister(instr->elements()));
   } else {
-    __ cmpq(rbp, ToOperand(instr->elements()));
+    __ cmpp(rbp, ToOperand(instr->elements()));
   }
   __ movl(result, Immediate(scope()->num_parameters()));
   __ j(equal, &done, Label::kNear);
@@ -3285,7 +3285,7 @@ void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
   // Copy the arguments to this function possibly from the
   // adaptor frame below it.
   const uint32_t kArgumentsLimit = 1 * KB;
-  __ cmpq(length, Immediate(kArgumentsLimit));
+  __ cmpp(length, Immediate(kArgumentsLimit));
   DeoptimizeIf(above, instr->environment());
 
   __ Push(receiver);
@@ -3510,10 +3510,10 @@ void LCodeGen::EmitIntegerMathAbs(LMathAbs* instr) {
 
 void LCodeGen::EmitSmiMathAbs(LMathAbs* instr) {
   Register input_reg = ToRegister(instr->value());
-  __ testq(input_reg, input_reg);
+  __ testp(input_reg, input_reg);
   Label is_positive;
   __ j(not_sign, &is_positive, Label::kNear);
-  __ neg(input_reg);  // Sets flags.
+  __ negp(input_reg);  // Sets flags.
   DeoptimizeIf(negative, instr->environment());
   __ bind(&is_positive);
 }
@@ -3878,7 +3878,7 @@ void LCodeGen::DoCallNewArray(LCallNewArray* instr) {
       // We might need a change here
       // look at the first argument
       __ movp(rcx, Operand(rsp, 0));
-      __ testq(rcx, rcx);
+      __ testp(rcx, rcx);
       __ j(zero, &packed_case, Label::kNear);
 
       ElementsKind holey_kind = GetHoleyElementsKind(kind);
@@ -4103,7 +4103,7 @@ void LCodeGen::DoBoundsCheck(LBoundsCheck* instr) {
     } else {
       Register reg2 = ToRegister(instr->index());
       if (representation.IsSmi()) {
-        __ cmpq(reg, reg2);
+        __ cmpp(reg, reg2);
       } else {
         __ cmpl(reg, reg2);
       }
@@ -4120,7 +4120,7 @@ void LCodeGen::DoBoundsCheck(LBoundsCheck* instr) {
       }
     } else {
       if (representation.IsSmi()) {
-        __ cmpq(length, ToRegister(instr->index()));
+        __ cmpp(length, ToRegister(instr->index()));
       } else {
         __ cmpl(length, ToRegister(instr->index()));
       }
@@ -4989,7 +4989,7 @@ void LCodeGen::DoDeferredInstanceMigration(LCheckMaps* instr, Register object) {
     RecordSafepointWithRegisters(
         instr->pointer_map(), 1, Safepoint::kNoLazyDeopt);
 
-    __ testq(rax, Immediate(kSmiTagMask));
+    __ testp(rax, Immediate(kSmiTagMask));
   }
   DeoptimizeIf(zero, instr->environment());
 }
@@ -5569,7 +5569,7 @@ void LCodeGen::DoForInPrepareMap(LForInPrepareMap* instr) {
 
   Register null_value = rdi;
   __ LoadRoot(null_value, Heap::kNullValueRootIndex);
-  __ cmpq(rax, null_value);
+  __ cmpp(rax, null_value);
   DeoptimizeIf(equal, instr->environment());
 
   Condition cc = masm()->CheckSmi(rax);
@@ -5620,7 +5620,7 @@ void LCodeGen::DoForInCacheArray(LForInCacheArray* instr) {
 
 void LCodeGen::DoCheckMapValue(LCheckMapValue* instr) {
   Register object = ToRegister(instr->value());
-  __ cmpq(ToRegister(instr->map()),
+  __ cmpp(ToRegister(instr->map()),
           FieldOperand(object, HeapObject::kMapOffset));
   DeoptimizeIf(not_equal, instr->environment());
 }

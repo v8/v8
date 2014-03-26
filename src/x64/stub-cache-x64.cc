@@ -79,7 +79,7 @@ static void ProbeTable(Isolate* isolate,
   // Use key_offset + kPointerSize * 2, rather than loading map_offset.
   __ movp(kScratchRegister,
           Operand(kScratchRegister, offset, scale_factor, kPointerSize * 2));
-  __ cmpq(kScratchRegister, FieldOperand(receiver, HeapObject::kMapOffset));
+  __ cmpp(kScratchRegister, FieldOperand(receiver, HeapObject::kMapOffset));
   __ j(not_equal, &miss);
 
   // Get the code entry from the cache.
@@ -893,7 +893,7 @@ Register LoadStubCompiler::CallbackHandlerFrontend(
             Operand(dictionary, index, times_pointer_size,
                     kValueOffset - kHeapObjectTag));
     __ Move(scratch3(), callback, RelocInfo::EMBEDDED_OBJECT);
-    __ cmpq(scratch2(), scratch3());
+    __ cmpp(scratch2(), scratch3());
     __ j(not_equal, &miss);
   }
 

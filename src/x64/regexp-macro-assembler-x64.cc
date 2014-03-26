@@ -204,7 +204,7 @@ void RegExpMacroAssemblerX64::CheckAtStart(Label* on_at_start) {
   BranchOrBacktrack(not_equal, &not_at_start);
   // If we did, are we still at the start of the input?
   __ lea(rax, Operand(rsi, rdi, times_1, 0));
-  __ cmpq(rax, Operand(rbp, kInputStart));
+  __ cmpp(rax, Operand(rbp, kInputStart));
   BranchOrBacktrack(equal, on_at_start);
   __ bind(&not_at_start);
 }
@@ -216,7 +216,7 @@ void RegExpMacroAssemblerX64::CheckNotAtStart(Label* on_not_at_start) {
   BranchOrBacktrack(not_equal, on_not_at_start);
   // If we did, are we still at the start of the input?
   __ lea(rax, Operand(rsi, rdi, times_1, 0));
-  __ cmpq(rax, Operand(rbp, kInputStart));
+  __ cmpp(rax, Operand(rbp, kInputStart));
   BranchOrBacktrack(not_equal, on_not_at_start);
 }
 
@@ -311,7 +311,7 @@ void RegExpMacroAssemblerX64::CheckNotBackReferenceIgnoreCase(
     __ addp(r11, Immediate(1));
     __ addp(r9, Immediate(1));
     // Compare to end of capture, and loop if not done.
-    __ cmpq(r9, rbx);
+    __ cmpp(r9, rbx);
     __ j(below, &loop);
 
     // Compute new value of character position after the matched part.
@@ -374,7 +374,7 @@ void RegExpMacroAssemblerX64::CheckNotBackReferenceIgnoreCase(
 #endif
 
     // Check if function returned non-zero for success or zero for failure.
-    __ testq(rax, rax);
+    __ testp(rax, rax);
     BranchOrBacktrack(zero, on_no_match);
     // On success, increment position by length of capture.
     // Requires that rbx is callee save (true for both Win64 and AMD64 ABIs).
@@ -436,7 +436,7 @@ void RegExpMacroAssemblerX64::CheckNotBackReference(
   __ addp(rbx, Immediate(char_size()));
   __ addp(rdx, Immediate(char_size()));
   // Check if we have reached end of match area.
-  __ cmpq(rdx, r9);
+  __ cmpp(rdx, r9);
   __ j(below, &loop);
 
   // Success.
@@ -724,7 +724,7 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
   __ j(below_equal, &stack_limit_hit);
   // Check if there is room for the variable number of registers above
   // the stack limit.
-  __ cmpq(rcx, Immediate(num_registers_ * kPointerSize));
+  __ cmpp(rcx, Immediate(num_registers_ * kPointerSize));
   __ j(above_equal, &stack_ok);
   // Exit with OutOfMemory exception. There is not enough space on the stack
   // for our working registers.
@@ -734,7 +734,7 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
   __ bind(&stack_limit_hit);
   __ Move(code_object_pointer(), masm_.CodeObject());
   CallCheckStackGuardState();  // Preserves no registers beside rbp and rsp.
-  __ testq(rax, rax);
+  __ testp(rax, rax);
   // If returned value is non-zero, we exit with the returned value as result.
   __ j(not_zero, &return_rax);
 
@@ -751,7 +751,7 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
   // Set rax to address of char before start of the string
   // (effectively string position -1).
   __ movp(rbx, Operand(rbp, kStartIndex));
-  __ neg(rbx);
+  __ negq(rbx);
   if (mode_ == UC16) {
     __ lea(rax, Operand(rdi, rbx, times_2, -char_size()));
   } else {
@@ -847,13 +847,13 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
     if (global()) {
       // Restart matching if the regular expression is flagged as global.
       // Increment success counter.
-      __ incq(Operand(rbp, kSuccessfulCaptures));
+      __ incp(Operand(rbp, kSuccessfulCaptures));
       // Capture results have been stored, so the number of remaining global
       // output registers is reduced by the number of stored captures.
       __ movsxlq(rcx, Operand(rbp, kNumOutputRegisters));
       __ subp(rcx, Immediate(num_saved_registers_));
       // Check whether we have enough room for another set of capture results.
-      __ cmpq(rcx, Immediate(num_saved_registers_));
+      __ cmpp(rcx, Immediate(num_saved_registers_));
       __ j(less, &exit_label_);
 
       __ movp(Operand(rbp, kNumOutputRegisters), rcx);
@@ -867,11 +867,11 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
       if (global_with_zero_length_check()) {
         // Special case for zero-length matches.
         // rdx: capture start index
-        __ cmpq(rdi, rdx);
+        __ cmpp(rdi, rdx);
         // Not a zero-length match, restart.
         __ j(not_equal, &load_char_start_regexp);
         // rdi (offset from the end) is zero if we already reached the end.
-        __ testq(rdi, rdi);
+        __ testp(rdi, rdi);
         __ j(zero, &exit_label_, Label::kNear);
         // Advance current position after a zero-length match.
         if (mode_ == UC16) {
@@ -927,7 +927,7 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
     __ pushq(rdi);
 
     CallCheckStackGuardState();
-    __ testq(rax, rax);
+    __ testp(rax, rax);
     // If returning non-zero, we should end execution with the given
     // result as return value.
     __ j(not_zero, &return_rax);
@@ -973,7 +973,7 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
     __ CallCFunction(grow_stack, num_arguments);
     // If return NULL, we have failed to grow the stack, and
     // must exit with a stack-overflow exception.
-    __ testq(rax, rax);
+    __ testp(rax, rax);
     __ j(equal, &exit_with_exception);
     // Otherwise use return value as new stack pointer.
     __ movp(backtrack_stackpointer(), rax);
@@ -1015,7 +1015,7 @@ void RegExpMacroAssemblerX64::GoTo(Label* to) {
 void RegExpMacroAssemblerX64::IfRegisterGE(int reg,
                                            int comparand,
                                            Label* if_ge) {
-  __ cmpq(register_location(reg), Immediate(comparand));
+  __ cmpp(register_location(reg), Immediate(comparand));
   BranchOrBacktrack(greater_equal, if_ge);
 }
 
@@ -1023,14 +1023,14 @@ void RegExpMacroAssemblerX64::IfRegisterGE(int reg,
 void RegExpMacroAssemblerX64::IfRegisterLT(int reg,
                                            int comparand,
                                            Label* if_lt) {
-  __ cmpq(register_location(reg), Immediate(comparand));
+  __ cmpp(register_location(reg), Immediate(comparand));
   BranchOrBacktrack(less, if_lt);
 }
 
 
 void RegExpMacroAssemblerX64::IfRegisterEqPos(int reg,
                                               Label* if_eq) {
-  __ cmpq(rdi, register_location(reg));
+  __ cmpp(rdi, register_location(reg));
   BranchOrBacktrack(equal, if_eq);
 }
 
@@ -1097,7 +1097,7 @@ void RegExpMacroAssemblerX64::ReadStackPointerFromRegister(int reg) {
 
 void RegExpMacroAssemblerX64::SetCurrentPositionFromEnd(int by) {
   Label after_position;
-  __ cmpq(rdi, Immediate(-by * char_size()));
+  __ cmpp(rdi, Immediate(-by * char_size()));
   __ j(greater_equal, &after_position, Label::kNear);
   __ movq(rdi, Immediate(-by * char_size()));
   // On RegExp code entry (where this operation is used), the character before
@@ -1392,7 +1392,7 @@ void RegExpMacroAssemblerX64::CheckPreemption() {
   ExternalReference stack_limit =
       ExternalReference::address_of_stack_limit(isolate());
   __ load_rax(stack_limit);
-  __ cmpq(rsp, rax);
+  __ cmpp(rsp, rax);
   __ j(above, &no_preempt);
 
   SafeCall(&check_preempt_label_);
@@ -1406,7 +1406,7 @@ void RegExpMacroAssemblerX64::CheckStackLimit() {
   ExternalReference stack_limit =
       ExternalReference::address_of_regexp_stack_limit(isolate());
   __ load_rax(stack_limit);
-  __ cmpq(backtrack_stackpointer(), rax);
+  __ cmpp(backtrack_stackpointer(), rax);
   __ j(above, &no_stack_overflow);
 
   SafeCall(&stack_overflow_label_);

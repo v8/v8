@@ -200,7 +200,7 @@ void Deoptimizer::EntryGenerator::Generate() {
                             kPCOnStackSize));
 
   __ subp(arg5, rbp);
-  __ neg(arg5);
+  __ negp(arg5);
 
   // Allocate a new deoptimizer object.
   __ PrepareCallCFunction(6);
@@ -259,7 +259,7 @@ void Deoptimizer::EntryGenerator::Generate() {
   __ Pop(Operand(rdx, 0));
   __ addp(rdx, Immediate(sizeof(intptr_t)));
   __ bind(&pop_loop_header);
-  __ cmpq(rcx, rsp);
+  __ cmpp(rcx, rsp);
   __ j(not_equal, &pop_loop);
 
   // Compute the output frame in the deoptimizer.
@@ -292,11 +292,11 @@ void Deoptimizer::EntryGenerator::Generate() {
   __ subp(rcx, Immediate(sizeof(intptr_t)));
   __ Push(Operand(rbx, rcx, times_1, FrameDescription::frame_content_offset()));
   __ bind(&inner_loop_header);
-  __ testq(rcx, rcx);
+  __ testp(rcx, rcx);
   __ j(not_zero, &inner_push_loop);
   __ addp(rax, Immediate(kPointerSize));
   __ bind(&outer_loop_header);
-  __ cmpq(rax, rdx);
+  __ cmpp(rax, rdx);
   __ j(below, &outer_push_loop);
 
   for (int i = 0; i < XMMRegister::NumAllocatableRegisters(); ++i) {

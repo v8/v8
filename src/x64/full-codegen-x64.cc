@@ -674,7 +674,7 @@ void FullCodeGenerator::DoTest(Expression* condition,
                                Label* fall_through) {
   Handle<Code> ic = ToBooleanStub::GetUninitialized(isolate());
   CallIC(ic, condition->test_id());
-  __ testq(result_register(), result_register());
+  __ testp(result_register(), result_register());
   // The stub returns nonzero for true.
   Split(not_zero, if_true, if_false, fall_through);
 }
@@ -1016,7 +1016,7 @@ void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
       __ or_(rcx, rax);
       patch_site.EmitJumpIfNotSmi(rcx, &slow_case, Label::kNear);
 
-      __ cmpq(rdx, rax);
+      __ cmpp(rdx, rax);
       __ j(not_equal, &next_test);
       __ Drop(1);  // Switch value is no longer needed.
       __ jmp(clause->body_target());
@@ -1038,7 +1038,7 @@ void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
     __ jmp(clause->body_target());
     __ bind(&skip);
 
-    __ testq(rax, rax);
+    __ testp(rax, rax);
     __ j(not_equal, &next_test);
     __ Drop(1);  // Switch value is no longer needed.
     __ jmp(clause->body_target());
@@ -1084,7 +1084,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ j(equal, &exit);
   Register null_value = rdi;
   __ LoadRoot(null_value, Heap::kNullValueRootIndex);
-  __ cmpq(rax, null_value);
+  __ cmpp(rax, null_value);
   __ j(equal, &exit);
 
   PrepareForBailoutForId(stmt->PrepareId(), TOS_REG);
@@ -1185,7 +1185,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   PrepareForBailoutForId(stmt->BodyId(), NO_REGISTERS);
   __ bind(&loop);
   __ movp(rax, Operand(rsp, 0 * kPointerSize));  // Get the current index.
-  __ cmpq(rax, Operand(rsp, 1 * kPointerSize));  // Compare to the array length.
+  __ cmpp(rax, Operand(rsp, 1 * kPointerSize));  // Compare to the array length.
   __ j(above_equal, loop_statement.break_label());
 
   // Get the current entry of the array into register rbx.
@@ -1204,7 +1204,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   // If not, we may have to filter the key.
   Label update_each;
   __ movp(rcx, Operand(rsp, 4 * kPointerSize));
-  __ cmpq(rdx, FieldOperand(rcx, HeapObject::kMapOffset));
+  __ cmpp(rdx, FieldOperand(rcx, HeapObject::kMapOffset));
   __ j(equal, &update_each, Label::kNear);
 
   // For proxies, no filtering is done.
@@ -1356,7 +1356,7 @@ void FullCodeGenerator::EmitLoadGlobalCheckExtensions(Variable* var,
     if (s->num_heap_slots() > 0) {
       if (s->calls_sloppy_eval()) {
         // Check that extension is NULL.
-        __ cmpq(ContextOperand(context, Context::EXTENSION_INDEX),
+        __ cmpp(ContextOperand(context, Context::EXTENSION_INDEX),
                 Immediate(0));
         __ j(not_equal, slow);
       }
@@ -1383,10 +1383,10 @@ void FullCodeGenerator::EmitLoadGlobalCheckExtensions(Variable* var,
     __ LoadRoot(kScratchRegister, Heap::kNativeContextMapRootIndex);
     __ bind(&next);
     // Terminate at native context.
-    __ cmpq(kScratchRegister, FieldOperand(temp, HeapObject::kMapOffset));
+    __ cmpp(kScratchRegister, FieldOperand(temp, HeapObject::kMapOffset));
     __ j(equal, &fast, Label::kNear);
     // Check that extension is NULL.
-    __ cmpq(ContextOperand(temp, Context::EXTENSION_INDEX), Immediate(0));
+    __ cmpp(ContextOperand(temp, Context::EXTENSION_INDEX), Immediate(0));
     __ j(not_equal, slow);
     // Load next context in chain.
     __ movp(temp, ContextOperand(temp, Context::PREVIOUS_INDEX));
@@ -1415,7 +1415,7 @@ MemOperand FullCodeGenerator::ContextSlotOperandCheckExtensions(Variable* var,
     if (s->num_heap_slots() > 0) {
       if (s->calls_sloppy_eval()) {
         // Check that extension is NULL.
-        __ cmpq(ContextOperand(context, Context::EXTENSION_INDEX),
+        __ cmpp(ContextOperand(context, Context::EXTENSION_INDEX),
                 Immediate(0));
         __ j(not_equal, slow);
       }
@@ -1425,7 +1425,7 @@ MemOperand FullCodeGenerator::ContextSlotOperandCheckExtensions(Variable* var,
     }
   }
   // Check that last extension is NULL.
-  __ cmpq(ContextOperand(context, Context::EXTENSION_INDEX), Immediate(0));
+  __ cmpp(ContextOperand(context, Context::EXTENSION_INDEX), Immediate(0));
   __ j(not_equal, slow);
 
   // This function is used only for loads, not stores, so it's safe to
@@ -2013,7 +2013,7 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       __ RecordWriteField(rax, JSGeneratorObject::kContextOffset, rcx, rdx,
                           kDontSaveFPRegs);
       __ lea(rbx, Operand(rbp, StandardFrameConstants::kExpressionsOffset));
-      __ cmpq(rsp, rbx);
+      __ cmpp(rsp, rbx);
       __ j(equal, &post_runtime);
       __ Push(rax);  // generator object
       __ CallRuntime(Runtime::kSuspendJSGeneratorObject, 1);
@@ -2121,7 +2121,7 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       CallLoadIC(NOT_CONTEXTUAL);                        // result.done in rax
       Handle<Code> bool_ic = ToBooleanStub::GetUninitialized(isolate());
       CallIC(bool_ic);
-      __ testq(result_register(), result_register());
+      __ testp(result_register(), result_register());
       __ j(zero, &l_try);
 
       // result.value
@@ -2196,7 +2196,7 @@ void FullCodeGenerator::EmitGeneratorResume(Expression *generator,
   // in directly.
   if (resume_mode == JSGeneratorObject::NEXT) {
     Label slow_resume;
-    __ cmpq(rdx, Immediate(0));
+    __ cmpp(rdx, Immediate(0));
     __ j(not_zero, &slow_resume);
     __ movp(rdx, FieldOperand(rdi, JSFunction::kCodeEntryOffset));
     __ SmiToInteger64(rcx,
@@ -2935,9 +2935,9 @@ void FullCodeGenerator::EmitIsObject(CallRuntime* expr) {
            Immediate(1 << Map::kIsUndetectable));
   __ j(not_zero, if_false);
   __ movzxbq(rbx, FieldOperand(rbx, Map::kInstanceTypeOffset));
-  __ cmpq(rbx, Immediate(FIRST_NONCALLABLE_SPEC_OBJECT_TYPE));
+  __ cmpp(rbx, Immediate(FIRST_NONCALLABLE_SPEC_OBJECT_TYPE));
   __ j(below, if_false);
-  __ cmpq(rbx, Immediate(LAST_NONCALLABLE_SPEC_OBJECT_TYPE));
+  __ cmpp(rbx, Immediate(LAST_NONCALLABLE_SPEC_OBJECT_TYPE));
   PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);
   Split(below_equal, if_true, if_false, fall_through);
 
@@ -3027,7 +3027,7 @@ void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
 
   // Skip loop if no descriptors are valid.
   __ NumberOfOwnDescriptors(rcx, rbx);
-  __ cmpq(rcx, Immediate(0));
+  __ cmpp(rcx, Immediate(0));
   __ j(equal, &done);
 
   __ LoadInstanceDescriptors(rbx, r8);
@@ -3050,7 +3050,7 @@ void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
   __ j(equal, if_false);
   __ addp(r8, Immediate(DescriptorArray::kDescriptorSize * kPointerSize));
   __ bind(&entry);
-  __ cmpq(r8, rcx);
+  __ cmpp(r8, rcx);
   __ j(not_equal, &loop);
 
   __ bind(&done);
@@ -3064,12 +3064,12 @@ void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
   // If a valueOf property is not found on the object check that its
   // prototype is the un-modified String prototype. If not result is false.
   __ movp(rcx, FieldOperand(rbx, Map::kPrototypeOffset));
-  __ testq(rcx, Immediate(kSmiTagMask));
+  __ testp(rcx, Immediate(kSmiTagMask));
   __ j(zero, if_false);
   __ movp(rcx, FieldOperand(rcx, HeapObject::kMapOffset));
   __ movp(rdx, Operand(rsi, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
   __ movp(rdx, FieldOperand(rdx, GlobalObject::kNativeContextOffset));
-  __ cmpq(rcx,
+  __ cmpp(rcx,
           ContextOperand(rdx, Context::STRING_FUNCTION_PROTOTYPE_MAP_INDEX));
   PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);
   Split(equal, if_true, if_false, fall_through);
@@ -3219,7 +3219,7 @@ void FullCodeGenerator::EmitObjectEquals(CallRuntime* expr) {
                          &if_true, &if_false, &fall_through);
 
   __ Pop(rbx);
-  __ cmpq(rax, rbx);
+  __ cmpp(rax, rbx);
   PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);
   Split(equal, if_true, if_false, fall_through);
 
@@ -3418,7 +3418,7 @@ void FullCodeGenerator::EmitDateField(CallRuntime* expr) {
       ExternalReference stamp = ExternalReference::date_cache_stamp(isolate());
       Operand stamp_operand = __ ExternalOperand(stamp);
       __ movp(scratch, stamp_operand);
-      __ cmpq(scratch, FieldOperand(object, JSDate::kCacheStampOffset));
+      __ cmpp(scratch, FieldOperand(object, JSDate::kCacheStampOffset));
       __ j(not_equal, &runtime, Label::kNear);
       __ movp(result, FieldOperand(object, JSDate::kValueOffset +
                                            kPointerSize * index->value()));
@@ -3799,7 +3799,7 @@ void FullCodeGenerator::EmitGetFromCache(CallRuntime* expr) {
   // tmp now holds finger offset as a smi.
   SmiIndex index =
       __ SmiToIndex(kScratchRegister, tmp, kPointerSizeLog2);
-  __ cmpq(key, FieldOperand(cache,
+  __ cmpp(key, FieldOperand(cache,
                             index.reg,
                             index.scale,
                             FixedArray::kHeaderSize));
@@ -3928,7 +3928,7 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) {
   // Live loop registers: index(int32), array_length(int32), string(String*),
   //                      scratch, string_length(int32), elements(FixedArray*).
   if (generate_debug_code_) {
-    __ cmpq(index, array_length);
+    __ cmpp(index, array_length);
     __ Assert(below, kNoEmptyArraysHereInEmitFastAsciiArrayJoin);
   }
   __ bind(&loop);
@@ -4067,7 +4067,7 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) {
 
   // Copy the separator character to the result.
   __ movb(Operand(result_pos, 0), scratch);
-  __ incq(result_pos);
+  __ incp(result_pos);
 
   __ bind(&loop_2_entry);
   // Get string = array[index].
@@ -4094,7 +4094,7 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) {
   __ movl(index, array_length_operand);
   __ lea(elements, FieldOperand(elements, index, times_pointer_size,
                                 FixedArray::kHeaderSize));
-  __ neg(index);
+  __ negq(index);
 
   // Replace separator string with pointer to its first character, and
   // make scratch be its length.
@@ -4642,7 +4642,7 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
       InstanceofStub stub(InstanceofStub::kNoFlags);
       __ CallStub(&stub);
       PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);
-      __ testq(rax, rax);
+      __ testp(rax, rax);
        // The stub returns 0 for true.
       Split(zero, if_true, if_false, fall_through);
       break;
@@ -4660,7 +4660,7 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
         __ movp(rcx, rdx);
         __ or_(rcx, rax);
         patch_site.EmitJumpIfNotSmi(rcx, &slow_case, Label::kNear);
-        __ cmpq(rdx, rax);
+        __ cmpp(rdx, rax);
         Split(cc, if_true, if_false, NULL);
         __ bind(&slow_case);
       }
@@ -4672,7 +4672,7 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
       patch_site.EmitPatchInfo();
 
       PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);
-      __ testq(rax, rax);
+      __ testp(rax, rax);
       Split(cc, if_true, if_false, fall_through);
     }
   }
@@ -4704,7 +4704,7 @@ void FullCodeGenerator::EmitLiteralCompareNil(CompareOperation* expr,
   } else {
     Handle<Code> ic = CompareNilICStub::GetUninitialized(isolate(), nil);
     CallIC(ic, expr->CompareOperationFeedbackId());
-    __ testq(rax, rax);
+    __ testp(rax, rax);
     Split(not_zero, if_true, if_false, fall_through);
   }
   context()->Plug(if_true, if_false);

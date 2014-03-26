@@ -511,10 +511,16 @@ class CpuFeatures : public AllStatic {
 
 #define ASSEMBLER_INSTRUCTION_LIST(V)   \
   V(add)                                \
+  V(cmp)                                \
+  V(dec)                                \
   V(idiv)                               \
   V(imul)                               \
+  V(inc)                                \
   V(mov)                                \
-  V(sub)
+  V(neg)                                \
+  V(sbb)                                \
+  V(sub)                                \
+  V(test)
 
 
 class Assembler : public AssemblerBase {
@@ -794,14 +800,6 @@ class Assembler : public AssemblerBase {
   void xchgq(Register dst, Register src);
   void xchgl(Register dst, Register src);
 
-  void sbbl(Register dst, Register src) {
-    arithmetic_op_32(0x1b, dst, src);
-  }
-
-  void sbbq(Register dst, Register src) {
-    arithmetic_op(0x1b, dst, src);
-  }
-
   void cmpb(Register dst, Immediate src) {
     immediate_arithmetic_op_8(0x7, dst, src);
   }
@@ -844,46 +842,6 @@ class Assembler : public AssemblerBase {
     arithmetic_op_16(0x39, src, dst);
   }
 
-  void cmpl(Register dst, Register src) {
-    arithmetic_op_32(0x3B, dst, src);
-  }
-
-  void cmpl(Register dst, const Operand& src) {
-    arithmetic_op_32(0x3B, dst, src);
-  }
-
-  void cmpl(const Operand& dst, Register src) {
-    arithmetic_op_32(0x39, src, dst);
-  }
-
-  void cmpl(Register dst, Immediate src) {
-    immediate_arithmetic_op_32(0x7, dst, src);
-  }
-
-  void cmpl(const Operand& dst, Immediate src) {
-    immediate_arithmetic_op_32(0x7, dst, src);
-  }
-
-  void cmpq(Register dst, Register src) {
-    arithmetic_op(0x3B, dst, src);
-  }
-
-  void cmpq(Register dst, const Operand& src) {
-    arithmetic_op(0x3B, dst, src);
-  }
-
-  void cmpq(const Operand& dst, Register src) {
-    arithmetic_op(0x39, src, dst);
-  }
-
-  void cmpq(Register dst, Immediate src) {
-    immediate_arithmetic_op(0x7, dst, src);
-  }
-
-  void cmpq(const Operand& dst, Immediate src) {
-    immediate_arithmetic_op(0x7, dst, src);
-  }
-
   void and_(Register dst, Register src) {
     arithmetic_op(0x23, dst, src);
   }
@@ -920,10 +878,6 @@ class Assembler : public AssemblerBase {
     immediate_arithmetic_op_8(0x4, dst, src);
   }
 
-  void decq(Register dst);
-  void decq(const Operand& dst);
-  void decl(Register dst);
-  void decl(const Operand& dst);
   void decb(Register dst);
   void decb(const Operand& dst);
 
@@ -932,20 +886,11 @@ class Assembler : public AssemblerBase {
   // Sign-extends eax into edx:eax.
   void cdq();
 
-  void incq(Register dst);
-  void incq(const Operand& dst);
-  void incl(Register dst);
-  void incl(const Operand& dst);
-
   void lea(Register dst, const Operand& src);
   void leal(Register dst, const Operand& src);
 
   // Multiply rax by src, put the result in rdx:rax.
   void mul(Register src);
-
-  void neg(Register dst);
-  void neg(const Operand& dst);
-  void negl(Register dst);
 
   void not_(Register dst);
   void not_(const Operand& dst);
@@ -1090,13 +1035,6 @@ class Assembler : public AssemblerBase {
   void testb(Register reg, Immediate mask);
   void testb(const Operand& op, Immediate mask);
   void testb(const Operand& op, Register reg);
-  void testl(Register dst, Register src);
-  void testl(Register reg, Immediate mask);
-  void testl(const Operand& op, Register reg);
-  void testl(const Operand& op, Immediate mask);
-  void testq(const Operand& op, Register reg);
-  void testq(Register dst, Register src);
-  void testq(Register dst, Immediate mask);
 
   void xor_(Register dst, Register src) {
     if (dst.code() == src.code()) {
@@ -1695,6 +1633,54 @@ class Assembler : public AssemblerBase {
     }
   }
 
+  void emit_cmp(Register dst, Register src, int size) {
+    if (size == kInt64Size) {
+      arithmetic_op(0x3B, dst, src);
+    } else {
+      ASSERT(size == kInt32Size);
+      arithmetic_op_32(0x3B, dst, src);
+    }
+  }
+
+  void emit_cmp(Register dst, const Operand& src, int size) {
+    if (size == kInt64Size) {
+      arithmetic_op(0x3B, dst, src);
+    } else {
+      ASSERT(size == kInt32Size);
+      arithmetic_op_32(0x3B, dst, src);
+    }
+  }
+
+  void emit_cmp(const Operand& dst, Register src, int size) {
+    if (size == kInt64Size) {
+      arithmetic_op(0x39, src, dst);
+    } else {
+      ASSERT(size == kInt32Size);
+      arithmetic_op_32(0x39, src, dst);
+    }
+  }
+
+  void emit_cmp(Register dst, Immediate src, int size) {
+    if (size == kInt64Size) {
+      immediate_arithmetic_op(0x7, dst, src);
+    } else {
+      ASSERT(size == kInt32Size);
+      immediate_arithmetic_op_32(0x7, dst, src);
+    }
+  }
+
+  void emit_cmp(const Operand& dst, Immediate src, int size) {
+    if (size == kInt64Size) {
+      immediate_arithmetic_op(0x7, dst, src);
+    } else {
+      ASSERT(size == kInt32Size);
+      immediate_arithmetic_op_32(0x7, dst, src);
+    }
+  }
+
+  void emit_dec(Register dst, int size);
+  void emit_dec(const Operand& dst, int size);
+
   // Divide rdx:rax by src.  Quotient in rax, remainder in rdx when size is 64.
   // Divide edx:eax by lower 32 bits of src.  Quotient in eax, remainder in edx
   // when size is 32.
@@ -1706,6 +1692,27 @@ class Assembler : public AssemblerBase {
   void emit_imul(Register dst, Register src, int size);
   void emit_imul(Register dst, const Operand& src, int size);
   void emit_imul(Register dst, Register src, Immediate imm, int size);
+
+  void emit_inc(Register dst, int size);
+  void emit_inc(const Operand& dst, int size);
+
+  void emit_mov(Register dst, const Operand& src, int size);
+  void emit_mov(Register dst, Register src, int size);
+  void emit_mov(const Operand& dst, Register src, int size);
+  void emit_mov(Register dst, Immediate value, int size);
+  void emit_mov(const Operand& dst, Immediate value, int size);
+
+  void emit_neg(Register dst, int size);
+  void emit_neg(const Operand& dst, int size);
+
+  void emit_sbb(Register dst, Register src, int size) {
+    if (size == kInt64Size) {
+      arithmetic_op(0x1b, dst, src);
+    } else {
+      ASSERT(size == kInt32Size);
+      arithmetic_op_32(0x1b, dst, src);
+    }
+  }
 
   void emit_sub(Register dst, Register src, int size) {
     if (size == kInt64Size) {
@@ -1752,11 +1759,10 @@ class Assembler : public AssemblerBase {
     }
   }
 
-  void emit_mov(Register dst, const Operand& src, int size);
-  void emit_mov(Register dst, Register src, int size);
-  void emit_mov(const Operand& dst, Register src, int size);
-  void emit_mov(Register dst, Immediate value, int size);
-  void emit_mov(const Operand& dst, Immediate value, int size);
+  void emit_test(Register dst, Register src, int size);
+  void emit_test(Register reg, Immediate mask, int size);
+  void emit_test(const Operand& op, Register reg, int size);
+  void emit_test(const Operand& op, Immediate mask, int size);
 
   friend class CodePatcher;
   friend class EnsureSpace;

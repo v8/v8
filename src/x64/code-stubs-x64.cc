@@ -621,14 +621,14 @@ void FloatingPointHelper::LoadSSE2UnknownOperands(MacroAssembler* masm,
   // Load operand in rdx into xmm0, or branch to not_numbers.
   __ LoadRoot(rcx, Heap::kHeapNumberMapRootIndex);
   __ JumpIfSmi(rdx, &load_smi_rdx);
-  __ cmpq(FieldOperand(rdx, HeapObject::kMapOffset), rcx);
+  __ cmpp(FieldOperand(rdx, HeapObject::kMapOffset), rcx);
   __ j(not_equal, not_numbers);  // Argument in rdx is not a number.
   __ movsd(xmm0, FieldOperand(rdx, HeapNumber::kValueOffset));
   // Load operand in rax into xmm1, or branch to not_numbers.
   __ JumpIfSmi(rax, &load_smi_rax);
 
   __ bind(&load_nonsmi_rax);
-  __ cmpq(FieldOperand(rax, HeapObject::kMapOffset), rcx);
+  __ cmpp(FieldOperand(rax, HeapObject::kMapOffset), rcx);
   __ j(not_equal, not_numbers);
   __ movsd(xmm1, FieldOperand(rax, HeapNumber::kValueOffset));
   __ jmp(&done);
@@ -953,7 +953,7 @@ void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
   // Check index against formal parameters count limit passed in
   // through register rax. Use unsigned comparison to get negative
   // check for free.
-  __ cmpq(rdx, rax);
+  __ cmpp(rdx, rax);
   __ j(above_equal, &slow);
 
   // Read the argument from the stack and return it.
@@ -968,7 +968,7 @@ void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
   // comparison to get negative check for free.
   __ bind(&adaptor);
   __ movp(rcx, Operand(rbx, ArgumentsAdaptorFrameConstants::kLengthOffset));
-  __ cmpq(rdx, rcx);
+  __ cmpp(rdx, rcx);
   __ j(above_equal, &slow);
 
   // Read the argument from the stack and return it.
@@ -1029,7 +1029,7 @@ void ArgumentsAccessStub::GenerateNewSloppyFast(MacroAssembler* masm) {
   // rbx = parameter count (untagged)
   // rcx = argument count (untagged)
   // Compute the mapped parameter count = min(rbx, rcx) in rbx.
-  __ cmpq(rbx, rcx);
+  __ cmpp(rbx, rcx);
   __ j(less_equal, &try_allocate, Label::kNear);
   __ movp(rbx, rcx);
 
@@ -1041,7 +1041,7 @@ void ArgumentsAccessStub::GenerateNewSloppyFast(MacroAssembler* masm) {
       FixedArray::kHeaderSize + 2 * kPointerSize;
   Label no_parameter_map;
   __ xor_(r8, r8);
-  __ testq(rbx, rbx);
+  __ testp(rbx, rbx);
   __ j(zero, &no_parameter_map, Label::kNear);
   __ lea(r8, Operand(rbx, times_pointer_size, kParameterMapHeaderSize));
   __ bind(&no_parameter_map);
@@ -1061,7 +1061,7 @@ void ArgumentsAccessStub::GenerateNewSloppyFast(MacroAssembler* masm) {
   Label has_mapped_parameters, copy;
   __ movp(rdi, Operand(rsi, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
   __ movp(rdi, FieldOperand(rdi, GlobalObject::kNativeContextOffset));
-  __ testq(rbx, rbx);
+  __ testp(rbx, rbx);
   __ j(not_zero, &has_mapped_parameters, Label::kNear);
 
   const int kIndex = Context::SLOPPY_ARGUMENTS_BOILERPLATE_INDEX;
@@ -1111,7 +1111,7 @@ void ArgumentsAccessStub::GenerateNewSloppyFast(MacroAssembler* masm) {
 
   // Initialize parameter map. If there are no mapped arguments, we're done.
   Label skip_parameter_map;
-  __ testq(rbx, rbx);
+  __ testp(rbx, rbx);
   __ j(zero, &skip_parameter_map);
 
   __ LoadRoot(kScratchRegister, Heap::kSloppyArgumentsElementsMapRootIndex);
@@ -1192,7 +1192,7 @@ void ArgumentsAccessStub::GenerateNewSloppyFast(MacroAssembler* masm) {
   __ addp(r8, Immediate(1));
 
   __ bind(&arguments_test);
-  __ cmpq(r8, rcx);
+  __ cmpp(r8, rcx);
   __ j(less, &arguments_loop, Label::kNear);
 
   // Return and remove the on-stack parameters.
@@ -1266,7 +1266,7 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
   // the arguments object and the elements array.
   Label add_arguments_object;
   __ bind(&try_allocate);
-  __ testq(rcx, rcx);
+  __ testp(rcx, rcx);
   __ j(zero, &add_arguments_object, Label::kNear);
   __ lea(rcx, Operand(rcx, times_pointer_size, FixedArray::kHeaderSize));
   __ bind(&add_arguments_object);
@@ -1297,7 +1297,7 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
 
   // If there are no actual arguments, we're done.
   Label done;
-  __ testq(rcx, rcx);
+  __ testp(rcx, rcx);
   __ j(zero, &done);
 
   // Get the parameters pointer from the stack.
@@ -1322,7 +1322,7 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
   __ movp(FieldOperand(rdi, FixedArray::kHeaderSize), rbx);
   __ addp(rdi, Immediate(kPointerSize));
   __ subp(rdx, Immediate(kPointerSize));
-  __ decq(rcx);
+  __ decp(rcx);
   __ j(not_zero, &loop);
 
   // Return and remove the on-stack parameters.
@@ -1368,7 +1368,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   ExternalReference address_of_regexp_stack_memory_size =
       ExternalReference::address_of_regexp_stack_memory_size(isolate);
   __ Load(kScratchRegister, address_of_regexp_stack_memory_size);
-  __ testq(kScratchRegister, kScratchRegister);
+  __ testp(kScratchRegister, kScratchRegister);
   __ j(zero, &runtime);
 
   // Check that the first argument is a JSRegExp object.
@@ -1460,7 +1460,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   STATIC_ASSERT(kSlicedStringTag > kExternalStringTag);
   STATIC_ASSERT(kIsNotStringMask > kExternalStringTag);
   STATIC_ASSERT(kShortExternalStringTag > kExternalStringTag);
-  __ cmpq(rbx, Immediate(kExternalStringTag));
+  __ cmpp(rbx, Immediate(kExternalStringTag));
   __ j(greater_equal, &not_seq_nor_cons);  // Go to (7).
 
   // (4) Cons string.  Check that it's flat.
@@ -1720,7 +1720,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
       masm->ExternalOperand(pending_exception_address, rbx);
   __ movp(rax, pending_exception_operand);
   __ LoadRoot(rdx, Heap::kTheHoleValueRootIndex);
-  __ cmpq(rax, rdx);
+  __ cmpp(rax, rdx);
   __ j(equal, &runtime);
   __ movp(pending_exception_operand, rdx);
 
@@ -1853,7 +1853,7 @@ void ICCompareStub::GenerateGeneric(MacroAssembler* masm) {
   // Two identical objects are equal unless they are both NaN or undefined.
   {
     Label not_identical;
-    __ cmpq(rax, rdx);
+    __ cmpp(rax, rdx);
     __ j(not_equal, &not_identical, Label::kNear);
 
     if (cc != equal) {
@@ -1893,7 +1893,7 @@ void ICCompareStub::GenerateGeneric(MacroAssembler* masm) {
     __ setcc(parity_even, rax);
     // rax is 0 for equal non-NaN heapnumbers, 1 for NaNs.
     if (cc == greater_equal || cc == greater) {
-      __ neg(rax);
+      __ negp(rax);
     }
     __ ret(0);
 
@@ -2106,7 +2106,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
 
   // A monomorphic cache hit or an already megamorphic state: invoke the
   // function without changing the state.
-  __ cmpq(rcx, rdi);
+  __ cmpp(rcx, rdi);
   __ j(equal, &done);
   __ Cmp(rcx, TypeFeedbackInfo::MegamorphicSentinel(isolate));
   __ j(equal, &done);
@@ -2123,7 +2123,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
 
     // Make sure the function is the Array() function
     __ LoadGlobalFunction(Context::ARRAY_FUNCTION_INDEX, rcx);
-    __ cmpq(rdi, rcx);
+    __ cmpp(rdi, rcx);
     __ j(not_equal, &megamorphic);
     __ jmp(&done);
   }
@@ -2148,7 +2148,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   if (!FLAG_pretenuring_call_new) {
     // Make sure the function is the Array() function
     __ LoadGlobalFunction(Context::ARRAY_FUNCTION_INDEX, rcx);
-    __ cmpq(rdi, rcx);
+    __ cmpp(rdi, rcx);
     __ j(not_equal, &not_array_function);
 
     {
@@ -2674,7 +2674,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // If this is the outermost JS call, set js_entry_sp value.
   ExternalReference js_entry_sp(Isolate::kJSEntrySPAddress, isolate);
   __ Load(rax, js_entry_sp);
-  __ testq(rax, rax);
+  __ testp(rax, rax);
   __ j(not_zero, &not_outermost_js);
   __ Push(Smi::FromInt(StackFrame::OUTERMOST_JSENTRY_FRAME));
   __ movp(rax, rbp);
@@ -2875,9 +2875,9 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   Label loop, is_instance, is_not_instance;
   __ LoadRoot(kScratchRegister, Heap::kNullValueRootIndex);
   __ bind(&loop);
-  __ cmpq(rcx, rbx);
+  __ cmpp(rcx, rbx);
   __ j(equal, &is_instance, Label::kNear);
-  __ cmpq(rcx, kScratchRegister);
+  __ cmpp(rcx, kScratchRegister);
   // The code at is_not_instance assumes that kScratchRegister contains a
   // non-zero GCable value (the null object in this case).
   __ j(equal, &is_not_instance, Label::kNear);
@@ -3131,8 +3131,8 @@ void StringHelper::GenerateCopyCharactersREP(MacroAssembler* masm,
   __ bind(&loop);
   __ movb(kScratchRegister, Operand(src, 0));
   __ movb(Operand(dest, 0), kScratchRegister);
-  __ incq(src);
-  __ incq(dest);
+  __ incp(src);
+  __ incp(dest);
   __ decl(count);
   __ j(not_zero, &loop);
 
@@ -3234,7 +3234,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   __ JumpUnlessBothNonNegativeSmi(rcx, rdx, &runtime);
 
   __ SmiSub(rcx, rcx, rdx);  // Overflow doesn't happen.
-  __ cmpq(rcx, FieldOperand(rax, String::kLengthOffset));
+  __ cmpp(rcx, FieldOperand(rax, String::kLengthOffset));
   Label not_original_string;
   // Shorter than original string's length: an actual substring.
   __ j(below, &not_original_string, Label::kNear);
@@ -3301,7 +3301,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
     // rcx: length
     // If coming from the make_two_character_string path, the string
     // is too short to be sliced anyways.
-    __ cmpq(rcx, Immediate(SlicedString::kMinLength));
+    __ cmpp(rcx, Immediate(SlicedString::kMinLength));
     // Short slice.  Copy instead of slicing.
     __ j(less, &copy_routine);
     // Allocate new sliced string.  At this point we do not reload the instance
@@ -3555,7 +3555,7 @@ void StringCompareStub::GenerateAsciiCharsCompareLoop(
          FieldOperand(left, length, times_1, SeqOneByteString::kHeaderSize));
   __ lea(right,
          FieldOperand(right, length, times_1, SeqOneByteString::kHeaderSize));
-  __ neg(length);
+  __ negq(length);
   Register index = length;  // index = -length;
 
   // Compare loop.
@@ -3583,7 +3583,7 @@ void StringCompareStub::Generate(MacroAssembler* masm) {
 
   // Check for identity.
   Label not_same;
-  __ cmpq(rdx, rax);
+  __ cmpp(rdx, rax);
   __ j(not_equal, &not_same, Label::kNear);
   __ Move(rax, Smi::FromInt(EQUAL));
   Counters* counters = masm->isolate()->counters();
@@ -3704,7 +3704,7 @@ void ArrayPushStub::Generate(MacroAssembler* masm) {
     // Verify that the object can be transitioned in place.
     const int origin_offset = header_size + elements_kind() * kPointerSize;
     __ movp(rdi, FieldOperand(rbx, origin_offset));
-    __ cmpq(rdi, FieldOperand(rdx, HeapObject::kMapOffset));
+    __ cmpp(rdi, FieldOperand(rdx, HeapObject::kMapOffset));
     __ j(not_equal, &call_builtin);
 
     const int target_offset = header_size + target_kind * kPointerSize;
@@ -3760,11 +3760,11 @@ void ArrayPushStub::Generate(MacroAssembler* masm) {
   __ lea(rdx, FieldOperand(rdi,
                            rax, times_pointer_size,
                            FixedArray::kHeaderSize - argc * kPointerSize));
-  __ cmpq(rdx, rcx);
+  __ cmpp(rdx, rcx);
   __ j(not_equal, &call_builtin);
   __ addp(rcx, Immediate(kAllocationDelta * kPointerSize));
   Operand limit_operand = masm->ExternalOperand(new_space_allocation_limit);
-  __ cmpq(rcx, limit_operand);
+  __ cmpp(rcx, limit_operand);
   __ j(above, &call_builtin);
 
   // We fit and could grow elements.
@@ -3906,7 +3906,7 @@ void ICCompareStub::GenerateNumbers(MacroAssembler* masm) {
   __ movl(rax, Immediate(0));
   __ movl(rcx, Immediate(0));
   __ setcc(above, rax);  // Add one to zero if carry clear and not equal.
-  __ sbbq(rax, rcx);  // Subtract one if below (aka. carry set).
+  __ sbbp(rax, rcx);  // Subtract one if below (aka. carry set).
   __ ret(0);
 
   __ bind(&unordered);
@@ -3963,7 +3963,7 @@ void ICCompareStub::GenerateInternalizedStrings(MacroAssembler* masm) {
 
   // Internalized strings are compared by identity.
   Label done;
-  __ cmpq(left, right);
+  __ cmpp(left, right);
   // Make sure rax is non-zero. At this point input operands are
   // guaranteed to be non-zero.
   ASSERT(right.is(rax));
@@ -4006,7 +4006,7 @@ void ICCompareStub::GenerateUniqueNames(MacroAssembler* masm) {
 
   // Unique names are compared by identity.
   Label done;
-  __ cmpq(left, right);
+  __ cmpp(left, right);
   // Make sure rax is non-zero. At this point input operands are
   // guaranteed to be non-zero.
   ASSERT(right.is(rax));
@@ -4053,7 +4053,7 @@ void ICCompareStub::GenerateStrings(MacroAssembler* masm) {
 
   // Fast check for identical strings.
   Label not_same;
-  __ cmpq(left, right);
+  __ cmpp(left, right);
   __ j(not_equal, &not_same, Label::kNear);
   STATIC_ASSERT(EQUAL == 0);
   STATIC_ASSERT(kSmiTag == 0);
@@ -4230,7 +4230,7 @@ void NameDictionaryLookupStub::GenerateNegativeLookup(MacroAssembler* masm,
   __ Push(Handle<Object>(name));
   __ Push(Immediate(name->Hash()));
   __ CallStub(&stub);
-  __ testq(r0, r0);
+  __ testp(r0, r0);
   __ j(not_zero, miss);
   __ jmp(done);
 }
@@ -4271,7 +4271,7 @@ void NameDictionaryLookupStub::GeneratePositiveLookup(MacroAssembler* masm,
     __ lea(r1, Operand(r1, r1, times_2, 0));  // r1 = r1 * 3
 
     // Check if the key is identical to the name.
-    __ cmpq(name, Operand(elements, r1, times_pointer_size,
+    __ cmpp(name, Operand(elements, r1, times_pointer_size,
                           kElementsStartOffset - kHeapObjectTag));
     __ j(equal, done);
   }
@@ -4283,7 +4283,7 @@ void NameDictionaryLookupStub::GeneratePositiveLookup(MacroAssembler* masm,
   __ Push(r0);
   __ CallStub(&stub);
 
-  __ testq(r0, r0);
+  __ testp(r0, r0);
   __ j(zero, miss);
   __ jmp(done);
 }
@@ -4341,7 +4341,7 @@ void NameDictionaryLookupStub::Generate(MacroAssembler* masm) {
     __ j(equal, &not_in_dictionary);
 
     // Stop if found the property.
-    __ cmpq(scratch, args.GetArgumentOperand(0));
+    __ cmpp(scratch, args.GetArgumentOperand(0));
     __ j(equal, &in_dictionary);
 
     if (i != kTotalProbes - 1 && mode_ == NEGATIVE_LOOKUP) {
@@ -4783,7 +4783,7 @@ static void CreateArrayDispatchOneArgument(MacroAssembler* masm,
   // look at the first argument
   StackArgumentsAccessor args(rsp, 1, ARGUMENTS_DONT_CONTAIN_RECEIVER);
   __ movp(rcx, args.GetArgumentOperand(0));
-  __ testq(rcx, rcx);
+  __ testp(rcx, rcx);
   __ j(zero, &normal_sequence);
 
   if (mode == DISABLE_ALLOCATION_SITES) {
@@ -4884,7 +4884,7 @@ void ArrayConstructorStub::GenerateDispatchToArrayStub(
     AllocationSiteOverrideMode mode) {
   if (argument_count_ == ANY) {
     Label not_zero_case, not_one_case;
-    __ testq(rax, rax);
+    __ testp(rax, rax);
     __ j(not_zero, &not_zero_case);
     CreateArrayDispatch<ArrayNoArgumentConstructorStub>(masm, mode);
 
@@ -4955,7 +4955,7 @@ void InternalArrayConstructorStub::GenerateCase(
   Label not_zero_case, not_one_case;
   Label normal_sequence;
 
-  __ testq(rax, rax);
+  __ testp(rax, rax);
   __ j(not_zero, &not_zero_case);
   InternalArrayNoArgumentConstructorStub stub0(kind);
   __ TailCallStub(&stub0);
@@ -4969,7 +4969,7 @@ void InternalArrayConstructorStub::GenerateCase(
     // look at the first argument
     StackArgumentsAccessor args(rsp, 1, ARGUMENTS_DONT_CONTAIN_RECEIVER);
     __ movp(rcx, args.GetArgumentOperand(0));
-    __ testq(rcx, rcx);
+    __ testp(rcx, rcx);
     __ j(zero, &normal_sequence);
 
     InternalArraySingleArgumentConstructorStub
