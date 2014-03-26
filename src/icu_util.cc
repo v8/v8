@@ -33,6 +33,7 @@
 
 #if defined(V8_I18N_SUPPORT)
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "unicode/putil.h"
 #include "unicode/udata.h"
@@ -48,6 +49,17 @@
 namespace v8 {
 
 namespace internal {
+
+#if ICU_UTIL_DATA_IMPL == ICU_UTIL_DATA_FILE
+namespace {
+char* g_icu_data_ptr = NULL;
+
+void free_icu_data_ptr() {
+  delete[] g_icu_data_ptr;
+}
+
+}  // namespace
+#endif
 
 bool InitializeICU(const char* icu_data_file) {
 #if !defined(V8_I18N_SUPPORT)
@@ -70,6 +82,8 @@ bool InitializeICU(const char* icu_data_file) {
 #elif ICU_UTIL_DATA_IMPL == ICU_UTIL_DATA_FILE
   if (!icu_data_file) return false;
 
+  if (g_icu_data_ptr) return true;
+
   FILE* inf = fopen(icu_data_file, "rb");
   if (!inf) return false;
 
@@ -77,15 +91,19 @@ bool InitializeICU(const char* icu_data_file) {
   size_t size = ftell(inf);
   rewind(inf);
 
-  char* addr = new char[size];
-  if (fread(addr, 1, size, inf) != size) {
-    delete[] addr;
+  g_icu_data_ptr = new char[size];
+  if (fread(g_icu_data_ptr, 1, size, inf) != size) {
+    delete[] g_icu_data_ptr;
+    g_icu_data_ptr = NULL;
     fclose(inf);
     return false;
   }
   fclose(inf);
+
+  atexit(free_icu_data_ptr);
+
   UErrorCode err = U_ZERO_ERROR;
-  udata_setCommonData(reinterpret_cast<void*>(addr), &err);
+  udata_setCommonData(reinterpret_cast<void*>(g_icu_data_ptr), &err);
   return err == U_ZERO_ERROR;
 #endif
 #endif
