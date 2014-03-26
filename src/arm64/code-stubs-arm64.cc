@@ -4909,14 +4909,23 @@ void StubFailureTrampolineStub::Generate(MacroAssembler* masm) {
 }
 
 
+// The entry hook is a "BumpSystemStackPointer" instruction (sub), followed by
+// a "Push lr" instruction, followed by a call.
+static const unsigned int kProfileEntryHookCallSize =
+    Assembler::kCallSizeWithRelocation + (2 * kInstructionSize);
+
+
 void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) {
   if (masm->isolate()->function_entry_hook() != NULL) {
-    // TODO(all): This needs to be reliably consistent with
-    // kReturnAddressDistanceFromFunctionStart in ::Generate.
-    Assembler::BlockPoolsScope no_pools(masm);
     ProfileEntryHookStub stub;
+    Assembler::BlockConstPoolScope no_const_pools(masm);
+    Label entry_hook_call_start;
+    __ Bind(&entry_hook_call_start);
     __ Push(lr);
     __ CallStub(&stub);
+    ASSERT(masm->SizeOfCodeGeneratedSince(&entry_hook_call_start) ==
+           kProfileEntryHookCallSize);
+
     __ Pop(lr);
   }
 }
@@ -4924,10 +4933,6 @@ void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) {
 
 void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
   MacroAssembler::NoUseRealAbortsScope no_use_real_aborts(masm);
-  // The entry hook is a "BumpSystemStackPointer" instruction (sub), followed by
-  // a "Push lr" instruction, followed by a call.
-  static const int kReturnAddressDistanceFromFunctionStart =
-      Assembler::kCallSizeWithRelocation + (2 * kInstructionSize);
 
   // Save all kCallerSaved registers (including lr), since this can be called
   // from anywhere.
@@ -4937,7 +4942,7 @@ void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
   const int kNumSavedRegs = kCallerSaved.Count();
 
   // Compute the function's address as the first argument.
-  __ Sub(x0, lr, kReturnAddressDistanceFromFunctionStart);
+  __ Sub(x0, lr, kProfileEntryHookCallSize);
 
 #if V8_HOST_ARCH_ARM64
   uintptr_t entry_hook =
