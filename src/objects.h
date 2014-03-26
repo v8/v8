@@ -2492,15 +2492,11 @@ class JSObject: public JSReceiver {
     kDontAllowSmiElements
   };
 
-  static Handle<FixedArray> SetFastElementsCapacityAndLength(
-      Handle<JSObject> object,
-      int capacity,
-      int length,
-      SetFastElementsCapacitySmiMode smi_mode);
   // Replace the elements' backing store with fast elements of the given
   // capacity.  Update the length for JSArrays.  Returns the new backing
   // store.
-  MUST_USE_RESULT MaybeObject* SetFastElementsCapacityAndLength(
+  static Handle<FixedArray> SetFastElementsCapacityAndLength(
+      Handle<JSObject> object,
       int capacity,
       int length,
       SetFastElementsCapacitySmiMode smi_mode);
@@ -2575,8 +2571,6 @@ class JSObject: public JSReceiver {
 
   static void TransitionElementsKind(Handle<JSObject> object,
                                      ElementsKind to_kind);
-
-  MUST_USE_RESULT MaybeObject* TransitionElementsKind(ElementsKind to_kind);
 
   // TODO(mstarzinger): Both public because of ConvertAnsSetLocalProperty().
   static void MigrateToMap(Handle<JSObject> object, Handle<Map> new_map);
@@ -2669,9 +2663,10 @@ class JSObject: public JSReceiver {
   void PrintTransitions(FILE* out = stdout);
 #endif
 
-  void PrintElementsTransition(
-      FILE* file, ElementsKind from_kind, FixedArrayBase* from_elements,
-      ElementsKind to_kind, FixedArrayBase* to_elements);
+  static void PrintElementsTransition(
+      FILE* file, Handle<JSObject> object,
+      ElementsKind from_kind, Handle<FixedArrayBase> from_elements,
+      ElementsKind to_kind, Handle<FixedArrayBase> to_elements);
 
   void PrintInstanceMigration(FILE* file, Map* original_map, Map* new_map);
 
@@ -2768,7 +2763,6 @@ class JSObject: public JSReceiver {
 
   static void UpdateAllocationSite(Handle<JSObject> object,
                                    ElementsKind to_kind);
-  MUST_USE_RESULT MaybeObject* UpdateAllocationSite(ElementsKind to_kind);
 
   // Used from Object::GetProperty().
   static Handle<Object> GetPropertyWithFailedAccessCheck(
@@ -8369,7 +8363,8 @@ class AllocationSite: public Struct {
     return transition_info()->IsJSArray() || transition_info()->IsJSObject();
   }
 
-  MaybeObject* DigestTransitionFeedback(ElementsKind to_kind);
+  static void DigestTransitionFeedback(Handle<AllocationSite> site,
+                                       ElementsKind to_kind);
 
   enum Reason {
     TENURING,

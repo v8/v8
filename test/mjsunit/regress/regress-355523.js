@@ -25,33 +25,13 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --nostress-opt --allow-natives-syntax --mock-arraybuffer-allocator
-var maxSize = %_MaxSmi() + 1;
-var ab;
+// Flags: --allow-natives-syntax
+// This test requires ASAN.
 
-// Allocate the largest ArrayBuffer we can on this architecture.
-for (k = 8; k >= 1 && ab == null; k = k/2) {
-  try {
-    ab = new ArrayBuffer(maxSize * k);
-  } catch (e) {
-    ab = null;
-  }
-}
-
-assertTrue(ab != null);
-
-function TestArray(constr) {
-  assertThrows(function() {
-    new constr(ab, 0, maxSize);
-  }, RangeError);
-}
-
-TestArray(Uint8Array);
-TestArray(Int8Array);
-TestArray(Uint16Array);
-TestArray(Int16Array);
-TestArray(Uint32Array);
-TestArray(Int32Array);
-TestArray(Float32Array);
-TestArray(Float64Array);
-TestArray(Uint8ClampedArray);
+function __f_4(a, b) { }
+function __f_8(n) { return __f_4(arguments[13], arguments[-10]); }
+function __f_6(a) { return __f_8(0, a); }
+__f_8(0);
+__f_8(0);
+%OptimizeFunctionOnNextCall(__f_8);
+__f_8(0);

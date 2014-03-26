@@ -911,6 +911,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ArrayBufferIsView) {
 RUNTIME_FUNCTION(MaybeObject*, Runtime_ArrayBufferNeuter) {
   HandleScope scope(isolate);
   CONVERT_ARG_HANDLE_CHECKED(JSArrayBuffer, array_buffer, 0);
+  if (array_buffer->backing_store() == NULL) {
+    CHECK(Smi::FromInt(0) == array_buffer->byte_length());
+    return isolate->heap()->undefined_value();
+  }
   ASSERT(!array_buffer->is_external());
   void* backing_store = array_buffer->backing_store();
   size_t byte_length = NumberToSize(isolate, array_buffer->byte_length());
@@ -2540,7 +2544,7 @@ RUNTIME_FUNCTION(MaybeObject*,
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_RegExpExec) {
+RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_RegExpExec) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 4);
   CONVERT_ARG_HANDLE_CHECKED(JSRegExp, regexp, 0);
@@ -2561,7 +2565,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_RegExpExec) {
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_RegExpConstructResult) {
+RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_RegExpConstructResult) {
   SealHandleScope shs(isolate);
   ASSERT(args.length() == 3);
   CONVERT_SMI_ARG_CHECKED(elements_count, 0);
@@ -3223,7 +3227,7 @@ MUST_USE_RESULT static MaybeObject* CharFromCode(Isolate* isolate,
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_StringCharCodeAt) {
+RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_StringCharCodeAt) {
   SealHandleScope shs(isolate);
   ASSERT(args.length() == 2);
 
@@ -4493,7 +4497,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringLocaleCompare) {
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_SubString) {
+RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_SubString) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 3);
 
@@ -4861,21 +4865,13 @@ static Handle<Object> GetCharAt(Handle<String> string, uint32_t index) {
 }
 
 
-MaybeObject* Runtime::GetElementOrCharAtOrFail(Isolate* isolate,
-                                               Handle<Object> object,
-                                               uint32_t index) {
-  CALL_HEAP_FUNCTION_PASS_EXCEPTION(isolate,
-      GetElementOrCharAt(isolate, object, index));
-}
-
-
-MaybeObject* Runtime::GetElementOrCharAt(Isolate* isolate,
-                                         Handle<Object> object,
-                                         uint32_t index) {
+Handle<Object> Runtime::GetElementOrCharAt(Isolate* isolate,
+                                           Handle<Object> object,
+                                           uint32_t index) {
   // Handle [] indexing on Strings
   if (object->IsString()) {
     Handle<Object> result = GetCharAt(Handle<String>::cast(object), index);
-    if (!result->IsUndefined()) return *result;
+    if (!result->IsUndefined()) return result;
   }
 
   // Handle [] indexing on String objects
@@ -4883,18 +4879,16 @@ MaybeObject* Runtime::GetElementOrCharAt(Isolate* isolate,
     Handle<JSValue> js_value = Handle<JSValue>::cast(object);
     Handle<Object> result =
         GetCharAt(Handle<String>(String::cast(js_value->value())), index);
-    if (!result->IsUndefined()) return *result;
+    if (!result->IsUndefined()) return result;
   }
 
   Handle<Object> result;
   if (object->IsString() || object->IsNumber() || object->IsBoolean()) {
     Handle<Object> proto(object->GetPrototype(isolate), isolate);
-    result = Object::GetElement(isolate, proto, index);
+    return Object::GetElement(isolate, proto, index);
   } else {
-    result = Object::GetElement(isolate, object, index);
+    return Object::GetElement(isolate, object, index);
   }
-  RETURN_IF_EMPTY_HANDLE(isolate, result);
-  return *result;
 }
 
 
@@ -4953,7 +4947,9 @@ MaybeObject* Runtime::GetObjectProperty(Isolate* isolate,
   // Check if the given key is an array index.
   uint32_t index;
   if (key->ToArrayIndex(&index)) {
-    return GetElementOrCharAt(isolate, object, index);
+    Handle<Object> result = GetElementOrCharAt(isolate, object, index);
+    RETURN_IF_EMPTY_HANDLE(isolate, result);
+    return *result;
   }
 
   // Convert the key to a name - possibly by calling back into JavaScript.
@@ -4963,7 +4959,9 @@ MaybeObject* Runtime::GetObjectProperty(Isolate* isolate,
   // Check if the name is trivially convertible to an index and get
   // the element if so.
   if (name->AsArrayIndex(&index)) {
-    return GetElementOrCharAt(isolate, object, index);
+    Handle<Object> result = GetElementOrCharAt(isolate, object, index);
+    RETURN_IF_EMPTY_HANDLE(isolate, result);
+    return *result;
   } else {
     return object->GetProperty(*name);
   }
@@ -6863,7 +6861,7 @@ bool Runtime::IsUpperCaseChar(RuntimeState* runtime_state, uint16_t ch) {
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberToString) {
+RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_NumberToString) {
   SealHandleScope shs(isolate);
   ASSERT(args.length() == 1);
 
@@ -7067,7 +7065,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberImul) {
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_StringAdd) {
+RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_StringAdd) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(String, str1, 0);
@@ -7690,7 +7688,7 @@ static Object* FlatStringCompare(String* x, String* y) {
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_StringCompare) {
+RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_StringCompare) {
   SealHandleScope shs(isolate);
   ASSERT(args.length() == 2);
 
@@ -10027,11 +10025,9 @@ class ArrayConcatVisitor {
         isolate_->factory()->NewNumber(static_cast<double>(index_offset_));
     Handle<Map> map;
     if (fast_elements_) {
-      map = isolate_->factory()->GetElementsTransitionMap(array,
-                                                          FAST_HOLEY_ELEMENTS);
+      map = JSObject::GetElementsTransitionMap(array, FAST_HOLEY_ELEMENTS);
     } else {
-      map = isolate_->factory()->GetElementsTransitionMap(array,
-                                                          DICTIONARY_ELEMENTS);
+      map = JSObject::GetElementsTransitionMap(array, DICTIONARY_ELEMENTS);
     }
     array->set_map(*map);
     array->set_length(*length);
@@ -10565,7 +10561,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ArrayConcat) {
       Handle<JSArray> array = isolate->factory()->NewJSArray(0);
       Smi* length = Smi::FromInt(j);
       Handle<Map> map;
-      map = isolate->factory()->GetElementsTransitionMap(array, kind);
+      map = JSObject::GetElementsTransitionMap(array, kind);
       array->set_map(*map);
       array->set_length(length);
       array->set_elements(*double_storage);
@@ -10890,14 +10886,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugGetPropertyDetails) {
   uint32_t index;
   if (name->AsArrayIndex(&index)) {
     Handle<FixedArray> details = isolate->factory()->NewFixedArray(2);
-    Object* element_or_char;
-    { MaybeObject* maybe_element_or_char =
-          Runtime::GetElementOrCharAt(isolate, obj, index);
-      if (!maybe_element_or_char->ToObject(&element_or_char)) {
-        return maybe_element_or_char;
-      }
-    }
-    details->set(0, element_or_char);
+    Handle<Object> element_or_char =
+        Runtime::GetElementOrCharAt(isolate, obj, index);
+    RETURN_IF_EMPTY_HANDLE(isolate, element_or_char);
+    details->set(0, *element_or_char);
     details->set(
         1, PropertyDetails(NONE, NORMAL, Representation::None()).AsSmi());
     return *isolate->factory()->NewJSArrayWithElements(details);
@@ -14536,7 +14528,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_TryMigrateInstance) {
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFromCache) {
+RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_GetFromCache) {
   SealHandleScope shs(isolate);
   // This is only called from codegen, so checks might be more lax.
   CONVERT_ARG_CHECKED(JSFunctionResultCache, cache, 0);
@@ -14658,6 +14650,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ListNatives) {
 #define COUNT_ENTRY(Name, argc, ressize) + 1
   int entry_count = 0
       RUNTIME_FUNCTION_LIST(COUNT_ENTRY)
+      RUNTIME_HIDDEN_FUNCTION_LIST(COUNT_ENTRY)
       INLINE_FUNCTION_LIST(COUNT_ENTRY);
 #undef COUNT_ENTRY
   Factory* factory = isolate->factory();
@@ -14684,6 +14677,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ListNatives) {
   }
   inline_runtime_functions = false;
   RUNTIME_FUNCTION_LIST(ADD_ENTRY)
+  // Calling hidden runtime functions should just throw.
+  RUNTIME_HIDDEN_FUNCTION_LIST(ADD_ENTRY)
   inline_runtime_functions = true;
   INLINE_FUNCTION_LIST(ADD_ENTRY)
 #undef ADD_ENTRY
@@ -14694,7 +14689,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ListNatives) {
 #endif
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_Log) {
+RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_Log) {
   HandleScope handle_scope(isolate);
   ASSERT(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(String, format, 0);
@@ -15039,16 +15034,31 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_MaxSmi) {
     FUNCTION_ADDR(Runtime_##name), number_of_args, result_size },
 
 
+#define FH(name, number_of_args, result_size)                             \
+  { Runtime::kHidden##name, Runtime::RUNTIME_HIDDEN, NULL,   \
+    FUNCTION_ADDR(RuntimeHidden_##name), number_of_args, result_size },
+
+
 #define I(name, number_of_args, result_size)                             \
   { Runtime::kInline##name, Runtime::INLINE,     \
     "_" #name, NULL, number_of_args, result_size },
 
+
+#define IO(name, number_of_args, result_size) \
+  { Runtime::kInlineOptimized##name, Runtime::INLINE_OPTIMIZED, \
+    "_" #name, FUNCTION_ADDR(Runtime_##name), number_of_args, result_size },
+
+
 static const Runtime::Function kIntrinsicFunctions[] = {
   RUNTIME_FUNCTION_LIST(F)
+  RUNTIME_HIDDEN_FUNCTION_LIST(FH)
   INLINE_FUNCTION_LIST(I)
+  INLINE_OPTIMIZED_FUNCTION_LIST(IO)
 };
 
+#undef IO
 #undef I
+#undef FH
 #undef F
 
 
@@ -15057,9 +15067,11 @@ MaybeObject* Runtime::InitializeIntrinsicFunctionNames(Heap* heap,
   ASSERT(dictionary != NULL);
   ASSERT(NameDictionary::cast(dictionary)->NumberOfElements() == 0);
   for (int i = 0; i < kNumFunctions; ++i) {
+    const char* name = kIntrinsicFunctions[i].name;
+    if (name == NULL) continue;
     Object* name_string;
     { MaybeObject* maybe_name_string =
-          heap->InternalizeUtf8String(kIntrinsicFunctions[i].name);
+          heap->InternalizeUtf8String(name);
       if (!maybe_name_string->ToObject(&name_string)) return maybe_name_string;
     }
     NameDictionary* name_dictionary = NameDictionary::cast(dictionary);

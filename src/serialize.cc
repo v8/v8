@@ -175,6 +175,22 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
   RUNTIME_FUNCTION_LIST(RUNTIME_ENTRY)
 #undef RUNTIME_ENTRY
 
+#define RUNTIME_HIDDEN_ENTRY(name, nargs, ressize) \
+  { RUNTIME_FUNCTION, \
+    Runtime::kHidden##name, \
+    "Runtime::Hidden" #name },
+
+  RUNTIME_HIDDEN_FUNCTION_LIST(RUNTIME_HIDDEN_ENTRY)
+#undef RUNTIME_HIDDEN_ENTRY
+
+#define INLINE_OPTIMIZED_ENTRY(name, nargs, ressize) \
+  { RUNTIME_FUNCTION, \
+    Runtime::kInlineOptimized##name, \
+    "Runtime::" #name },
+
+  INLINE_OPTIMIZED_FUNCTION_LIST(INLINE_OPTIMIZED_ENTRY)
+#undef INLINE_OPTIMIZED_ENTRY
+
   // IC utilities
 #define IC_ENTRY(name) \
   { IC_UTILITY, \

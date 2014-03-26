@@ -952,59 +952,6 @@ void FullCodeGenerator::EmitDebugBreakInOptimizedCode(CallRuntime* expr) {
 }
 
 
-void FullCodeGenerator::EmitDoubleHi(CallRuntime* expr) {
-  ZoneList<Expression*>* args = expr->arguments();
-  ASSERT(args->length() == 1);
-  VisitForStackValue(args->at(0));
-  masm()->CallRuntime(Runtime::kDoubleHi, 1);
-  context()->Plug(result_register());
-}
-
-
-void FullCodeGenerator::EmitDoubleLo(CallRuntime* expr) {
-  ZoneList<Expression*>* args = expr->arguments();
-  ASSERT(args->length() == 1);
-  VisitForStackValue(args->at(0));
-  masm()->CallRuntime(Runtime::kDoubleLo, 1);
-  context()->Plug(result_register());
-}
-
-
-void FullCodeGenerator::EmitConstructDouble(CallRuntime* expr) {
-  ZoneList<Expression*>* args = expr->arguments();
-  ASSERT(args->length() == 2);
-  VisitForStackValue(args->at(0));
-  VisitForStackValue(args->at(1));
-  masm()->CallRuntime(Runtime::kConstructDouble, 2);
-  context()->Plug(result_register());
-}
-
-
-void FullCodeGenerator::EmitTypedArrayInitialize(CallRuntime* expr) {
-  ZoneList<Expression*>* args = expr->arguments();
-  ASSERT(args->length() == 5);
-  for (int i = 0; i < 5; i++) VisitForStackValue(args->at(i));
-  masm()->CallRuntime(Runtime::kTypedArrayInitialize, 5);
-  context()->Plug(result_register());
-}
-
-
-void FullCodeGenerator::EmitDataViewInitialize(CallRuntime* expr) {
-  ZoneList<Expression*>* args = expr->arguments();
-  ASSERT(args->length() == 4);
-  for (int i = 0; i < 4; i++) VisitForStackValue(args->at(i));
-  masm()->CallRuntime(Runtime::kDataViewInitialize, 4);
-  context()->Plug(result_register());
-}
-
-
-void FullCodeGenerator::EmitMaxSmi(CallRuntime* expr) {
-  ASSERT(expr->arguments()->length() == 0);
-  masm()->CallRuntime(Runtime::kMaxSmi, 0);
-  context()->Plug(result_register());
-}
-
-
 void FullCodeGenerator::VisitBinaryOperation(BinaryOperation* expr) {
   switch (expr->op()) {
     case Token::COMMA:

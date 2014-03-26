@@ -288,9 +288,6 @@ class Factory {
   Handle<Map> CopyMap(Handle<Map> map, int extra_inobject_props);
   Handle<Map> CopyMap(Handle<Map> map);
 
-  Handle<Map> GetElementsTransitionMap(Handle<JSObject> object,
-                                       ElementsKind elements_kind);
-
   Handle<FixedArray> CopyFixedArray(Handle<FixedArray> array);
 
   // This method expects a COW array in new space, and creates a copy

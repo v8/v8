@@ -2910,9 +2910,13 @@ void LCodeGen::DoAccessArgumentsAt(LAccessArgumentsAt* instr) {
       instr->index()->IsConstantOperand()) {
     int32_t const_index = ToInteger32(LConstantOperand::cast(instr->index()));
     int32_t const_length = ToInteger32(LConstantOperand::cast(instr->length()));
-    StackArgumentsAccessor args(arguments, const_length,
-                                ARGUMENTS_DONT_CONTAIN_RECEIVER);
-    __ movp(result, args.GetArgumentOperand(const_index));
+    if (const_index >= 0 && const_index < const_length) {
+      StackArgumentsAccessor args(arguments, const_length,
+                                  ARGUMENTS_DONT_CONTAIN_RECEIVER);
+      __ movp(result, args.GetArgumentOperand(const_index));
+    } else if (FLAG_debug_code) {
+      __ int3();
+    }
   } else {
     Register length = ToRegister(instr->length());
     // There are two words between the frame pointer and the last argument.
@@ -4457,7 +4461,7 @@ void LCodeGen::DoDeferredStringCharCodeAt(LStringCharCodeAt* instr) {
     __ Push(index);
   }
   CallRuntimeFromDeferred(
-      Runtime::kStringCharCodeAt, 2, instr, instr->context());
+      Runtime::kHiddenStringCharCodeAt, 2, instr, instr->context());
   __ AssertSmi(rax);
   __ SmiToInteger32(rax, rax);
   __ StoreToSafepointRegisterSlot(result, rax);

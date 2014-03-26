@@ -3620,7 +3620,8 @@ void HLoadGlobalGeneric::PrintDataTo(StringStream* stream) {
 
 void HInnerAllocatedObject::PrintDataTo(StringStream* stream) {
   base_object()->PrintNameTo(stream);
-  stream->Add(" offset %d", offset());
+  stream->Add(" offset ");
+  offset()->PrintTo(stream);
 }
 
 

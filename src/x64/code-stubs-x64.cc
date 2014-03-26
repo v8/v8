@@ -77,7 +77,7 @@ void NumberToStringStub::InitializeInterfaceDescriptor(
   descriptor->register_param_count_ = 1;
   descriptor->register_params_ = registers;
   descriptor->deoptimization_handler_ =
-      Runtime::FunctionForId(Runtime::kNumberToString)->entry;
+      Runtime::FunctionForId(Runtime::kHiddenNumberToString)->entry;
 }
 
 
@@ -142,7 +142,7 @@ void RegExpConstructResultStub::InitializeInterfaceDescriptor(
   descriptor->register_param_count_ = 3;
   descriptor->register_params_ = registers;
   descriptor->deoptimization_handler_ =
-      Runtime::FunctionForId(Runtime::kRegExpConstructResult)->entry;
+      Runtime::FunctionForId(Runtime::kHiddenRegExpConstructResult)->entry;
 }
 
 
@@ -385,7 +385,7 @@ void StringAddStub::InitializeInterfaceDescriptor(
   descriptor->register_param_count_ = 2;
   descriptor->register_params_ = registers;
   descriptor->deoptimization_handler_ =
-      Runtime::FunctionForId(Runtime::kStringAdd)->entry;
+      Runtime::FunctionForId(Runtime::kHiddenStringAdd)->entry;
 }
 
 
@@ -1734,7 +1734,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 
   // Do the runtime call to execute the regexp.
   __ bind(&runtime);
-  __ TailCallRuntime(Runtime::kRegExpExec, 4, 1);
+  __ TailCallRuntime(Runtime::kHiddenRegExpExec, 4, 1);
 
   // Deferred code for string handling.
   // (7) Not a long external string?  If yes, go to (10).
@@ -3034,7 +3034,7 @@ void StringCharCodeAtGenerator::GenerateSlow(
   __ Push(object_);
   __ Integer32ToSmi(index_, index_);
   __ Push(index_);
-  __ CallRuntime(Runtime::kStringCharCodeAt, 2);
+  __ CallRuntime(Runtime::kHiddenStringCharCodeAt, 2);
   if (!result_.is(rax)) {
     __ movp(result_, rax);
   }
@@ -3409,7 +3409,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
 
   // Just jump to runtime to create the sub string.
   __ bind(&runtime);
-  __ TailCallRuntime(Runtime::kSubString, 3, 1);
+  __ TailCallRuntime(Runtime::kHiddenSubString, 3, 1);
 
   __ bind(&single_char);
   // rax: string
@@ -3606,7 +3606,7 @@ void StringCompareStub::Generate(MacroAssembler* masm) {
   // Call the runtime; it returns -1 (less), 0 (equal), or 1 (greater)
   // tagged as a small integer.
   __ bind(&runtime);
-  __ TailCallRuntime(Runtime::kStringCompare, 2, 1);
+  __ TailCallRuntime(Runtime::kHiddenStringCompare, 2, 1);
 }
 
 
@@ -4101,7 +4101,7 @@ void ICCompareStub::GenerateStrings(MacroAssembler* masm) {
   if (equality) {
     __ TailCallRuntime(Runtime::kStringEquals, 2, 1);
   } else {
-    __ TailCallRuntime(Runtime::kStringCompare, 2, 1);
+    __ TailCallRuntime(Runtime::kHiddenStringCompare, 2, 1);
   }
 
   __ bind(&miss);

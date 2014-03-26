@@ -237,6 +237,8 @@ class LCodeGen: public LCodeGenBase {
                            Heap::RootListIndex index,
                            LEnvironment* environment);
   void DeoptimizeIfMinusZero(DoubleRegister input, LEnvironment* environment);
+  void DeoptimizeIfBitSet(Register rt, int bit, LEnvironment* environment);
+  void DeoptimizeIfBitClear(Register rt, int bit, LEnvironment* environment);
   void ApplyCheckIf(Condition cc, LBoundsCheck* check);
 
   MemOperand PrepareKeyedExternalArrayOperand(Register key,
