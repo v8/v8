@@ -50,7 +50,7 @@ namespace v8 {
 
 namespace internal {
 
-#if ICU_UTIL_DATA_IMPL == ICU_UTIL_DATA_FILE
+#if defined(V8_I18N_SUPPORT) && (ICU_UTIL_DATA_IMPL == ICU_UTIL_DATA_FILE)
 namespace {
 char* g_icu_data_ptr = NULL;
 
