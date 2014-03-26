@@ -1754,7 +1754,7 @@ HValue* HGraphBuilder::BuildNumberToString(HValue* object, Type* type) {
     Add<HPushArgument>(object);
     Push(Add<HCallRuntime>(
             isolate()->factory()->empty_string(),
-            Runtime::FunctionForId(Runtime::kNumberToStringSkipCache),
+            Runtime::FunctionForId(Runtime::kHiddenNumberToStringSkipCache),
             1));
   }
   if_found.End();
@@ -5115,7 +5115,7 @@ void HOptimizedGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
     // TODO(mvstanton): Add a flag to turn off creation of any
     // AllocationMementos for this call: we are in crankshaft and should have
     // learned enough about transition behavior to stop emitting mementos.
-    Runtime::FunctionId function_id = Runtime::kCreateObjectLiteral;
+    Runtime::FunctionId function_id = Runtime::kHiddenCreateObjectLiteral;
     literal = Add<HCallRuntime>(isolate()->factory()->empty_string(),
                                 Runtime::FunctionForId(function_id),
                                 4);
@@ -5272,7 +5272,7 @@ void HOptimizedGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
     // TODO(mvstanton): Consider a flag to turn off creation of any
     // AllocationMementos for this call: we are in crankshaft and should have
     // learned enough about transition behavior to stop emitting mementos.
-    Runtime::FunctionId function_id = Runtime::kCreateArrayLiteral;
+    Runtime::FunctionId function_id = Runtime::kHiddenCreateArrayLiteral;
     literal = Add<HCallRuntime>(isolate()->factory()->empty_string(),
                                 Runtime::FunctionForId(function_id),
                                 4);
@@ -6190,7 +6190,7 @@ void HOptimizedGraphBuilder::VisitThrow(Throw* expr) {
   if (!FLAG_hydrogen_track_positions) SetSourcePosition(expr->position());
   Add<HPushArgument>(value);
   Add<HCallRuntime>(isolate()->factory()->empty_string(),
-                    Runtime::FunctionForId(Runtime::kThrow), 1);
+                    Runtime::FunctionForId(Runtime::kHiddenThrow), 1);
   Add<HSimulate>(expr->id());
 
   // If the throw definitely exits the function, we can finish with a dummy

@@ -223,7 +223,7 @@ bool LCodeGen::GeneratePrologue() {
       __ CallStub(&stub);
     } else {
       __ Push(rdi);
-      __ CallRuntime(Runtime::kNewFunctionContext, 1);
+      __ CallRuntime(Runtime::kHiddenNewFunctionContext, 1);
     }
     RecordSafepoint(Safepoint::kNoLazyDeopt);
     // Context is returned in rax.  It replaces the context passed to us.
@@ -3330,7 +3330,7 @@ void LCodeGen::DoDeclareGlobals(LDeclareGlobals* instr) {
   __ Push(rsi);  // The context is the first argument.
   __ Push(instr->hydrogen()->pairs());
   __ Push(Smi::FromInt(instr->hydrogen()->flags()));
-  CallRuntime(Runtime::kDeclareGlobals, 3, instr);
+  CallRuntime(Runtime::kHiddenDeclareGlobals, 3, instr);
 }
 
 
@@ -3462,7 +3462,7 @@ void LCodeGen::DoDeferredMathAbsTaggedHeapNumber(LMathAbs* instr) {
   // Slow case: Call the runtime system to do the number allocation.
   __ bind(&slow);
   CallRuntimeFromDeferred(
-      Runtime::kAllocateHeapNumber, 0, instr, instr->context());
+      Runtime::kHiddenAllocateHeapNumber, 0, instr, instr->context());
   // Set the pointer to the new heap number in tmp.
   if (!tmp.is(rax)) __ movp(tmp, rax);
   // Restore input_reg after call to runtime.
@@ -4548,11 +4548,11 @@ void LCodeGen::DoDeferredNumberTagU(LNumberTagU* instr) {
 
     // NumberTagU uses the context from the frame, rather than
     // the environment's HContext or HInlinedContext value.
-    // They only call Runtime::kAllocateHeapNumber.
+    // They only call Runtime::kHiddenAllocateHeapNumber.
     // The corresponding HChange instructions are added in a phase that does
     // not have easy access to the local context.
     __ movp(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
-    __ CallRuntimeSaveDoubles(Runtime::kAllocateHeapNumber);
+    __ CallRuntimeSaveDoubles(Runtime::kHiddenAllocateHeapNumber);
     RecordSafepointWithRegisters(
         instr->pointer_map(), 0, Safepoint::kNoLazyDeopt);
     __ StoreToSafepointRegisterSlot(reg, rax);
@@ -4604,11 +4604,11 @@ void LCodeGen::DoDeferredNumberTagD(LNumberTagD* instr) {
     PushSafepointRegistersScope scope(this);
     // NumberTagD uses the context from the frame, rather than
     // the environment's HContext or HInlinedContext value.
-    // They only call Runtime::kAllocateHeapNumber.
+    // They only call Runtime::kHiddenAllocateHeapNumber.
     // The corresponding HChange instructions are added in a phase that does
     // not have easy access to the local context.
     __ movp(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
-    __ CallRuntimeSaveDoubles(Runtime::kAllocateHeapNumber);
+    __ CallRuntimeSaveDoubles(Runtime::kHiddenAllocateHeapNumber);
     RecordSafepointWithRegisters(
         instr->pointer_map(), 0, Safepoint::kNoLazyDeopt);
     __ movp(kScratchRegister, rax);
@@ -5160,7 +5160,7 @@ void LCodeGen::DoDeferredAllocate(LAllocate* instr) {
   __ Push(Smi::FromInt(flags));
 
   CallRuntimeFromDeferred(
-      Runtime::kAllocateInTargetSpace, 2, instr, instr->context());
+      Runtime::kHiddenAllocateInTargetSpace, 2, instr, instr->context());
   __ StoreToSafepointRegisterSlot(result, rax);
 }
 
@@ -5192,7 +5192,7 @@ void LCodeGen::DoRegExpLiteral(LRegExpLiteral* instr) {
   __ Push(Smi::FromInt(instr->hydrogen()->literal_index()));
   __ Push(instr->hydrogen()->pattern());
   __ Push(instr->hydrogen()->flags());
-  CallRuntime(Runtime::kMaterializeRegExpLiteral, 4, instr);
+  CallRuntime(Runtime::kHiddenMaterializeRegExpLiteral, 4, instr);
   __ movp(rbx, rax);
 
   __ bind(&materialized);
@@ -5204,7 +5204,7 @@ void LCodeGen::DoRegExpLiteral(LRegExpLiteral* instr) {
   __ bind(&runtime_allocate);
   __ Push(rbx);
   __ Push(Smi::FromInt(size));
-  CallRuntime(Runtime::kAllocateInNewSpace, 1, instr);
+  CallRuntime(Runtime::kHiddenAllocateInNewSpace, 1, instr);
   __ Pop(rbx);
 
   __ bind(&allocated);
@@ -5238,7 +5238,7 @@ void LCodeGen::DoFunctionLiteral(LFunctionLiteral* instr) {
     __ Push(instr->hydrogen()->shared_info());
     __ PushRoot(pretenure ? Heap::kTrueValueRootIndex :
                             Heap::kFalseValueRootIndex);
-    CallRuntime(Runtime::kNewClosure, 3, instr);
+    CallRuntime(Runtime::kHiddenNewClosure, 3, instr);
   }
 }
 
@@ -5433,7 +5433,7 @@ void LCodeGen::DoDummyUse(LDummyUse* instr) {
 void LCodeGen::DoDeferredStackCheck(LStackCheck* instr) {
   PushSafepointRegistersScope scope(this);
   __ movp(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
-  __ CallRuntimeSaveDoubles(Runtime::kStackGuard);
+  __ CallRuntimeSaveDoubles(Runtime::kHiddenStackGuard);
   RecordSafepointWithLazyDeopt(instr, RECORD_SAFEPOINT_WITH_REGISTERS, 0);
   ASSERT(instr->HasEnvironment());
   LEnvironment* env = instr->environment();

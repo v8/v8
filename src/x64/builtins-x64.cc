@@ -114,7 +114,7 @@ void Builtins::Generate_InOptimizationQueue(MacroAssembler* masm) {
   __ CompareRoot(rsp, Heap::kStackLimitRootIndex);
   __ j(above_equal, &ok);
 
-  CallRuntimePassFunction(masm, Runtime::kTryInstallOptimizedCode);
+  CallRuntimePassFunction(masm, Runtime::kHiddenTryInstallOptimizedCode);
   GenerateTailCallToReturnedCode(masm);
 
   __ bind(&ok);
@@ -204,7 +204,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
 
         __ Push(rdi);  // constructor
         // The call will replace the stub, so the countdown is only done once.
-        __ CallRuntime(Runtime::kFinalizeInstanceSize, 1);
+        __ CallRuntime(Runtime::kHiddenFinalizeInstanceSize, 1);
 
         __ Pop(rdi);
         __ Pop(rax);
@@ -373,9 +373,9 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     __ movp(rdi, Operand(rsp, offset));
     __ Push(rdi);
     if (create_memento) {
-      __ CallRuntime(Runtime::kNewObjectWithAllocationSite, 2);
+      __ CallRuntime(Runtime::kHiddenNewObjectWithAllocationSite, 2);
     } else {
-      __ CallRuntime(Runtime::kNewObject, 1);
+      __ CallRuntime(Runtime::kHiddenNewObject, 1);
     }
     __ movp(rbx, rax);  // store result in rbx
 
@@ -628,7 +628,7 @@ void Builtins::Generate_JSConstructEntryTrampoline(MacroAssembler* masm) {
 
 
 void Builtins::Generate_CompileUnoptimized(MacroAssembler* masm) {
-  CallRuntimePassFunction(masm, Runtime::kCompileUnoptimized);
+  CallRuntimePassFunction(masm, Runtime::kHiddenCompileUnoptimized);
   GenerateTailCallToReturnedCode(masm);
 }
 
@@ -643,7 +643,7 @@ static void CallCompileOptimized(MacroAssembler* masm,
   // Whether to compile in a background thread.
   __ Push(masm->isolate()->factory()->ToBoolean(concurrent));
 
-  __ CallRuntime(Runtime::kCompileOptimized, 2);
+  __ CallRuntime(Runtime::kHiddenCompileOptimized, 2);
   // Restore receiver.
   __ Pop(rdi);
 }
@@ -744,7 +744,7 @@ static void Generate_NotifyStubFailureHelper(MacroAssembler* masm,
     // stubs that tail call the runtime on deopts passing their parameters in
     // registers.
     __ Pushad();
-    __ CallRuntime(Runtime::kNotifyStubFailure, 0, save_doubles);
+    __ CallRuntime(Runtime::kHiddenNotifyStubFailure, 0, save_doubles);
     __ Popad();
     // Tear down internal frame.
   }
@@ -773,7 +773,7 @@ static void Generate_NotifyDeoptimizedHelper(MacroAssembler* masm,
     // Pass the deoptimization type to the runtime system.
     __ Push(Smi::FromInt(static_cast<int>(type)));
 
-    __ CallRuntime(Runtime::kNotifyDeoptimized, 1);
+    __ CallRuntime(Runtime::kHiddenNotifyDeoptimized, 1);
     // Tear down internal frame.
   }
 
@@ -1486,7 +1486,7 @@ void Builtins::Generate_OsrAfterStackCheck(MacroAssembler* masm) {
   __ j(above_equal, &ok);
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
-    __ CallRuntime(Runtime::kStackGuard, 0);
+    __ CallRuntime(Runtime::kHiddenStackGuard, 0);
   }
   __ jmp(masm->isolate()->builtins()->OnStackReplacement(),
          RelocInfo::CODE_TARGET);

@@ -224,13 +224,13 @@ void FullCodeGenerator::Generate() {
     if (FLAG_harmony_scoping && info->scope()->is_global_scope()) {
       __ Push(rdi);
       __ Push(info->scope()->GetScopeInfo());
-      __ CallRuntime(Runtime::kNewGlobalContext, 2);
+      __ CallRuntime(Runtime::kHiddenNewGlobalContext, 2);
     } else if (heap_slots <= FastNewContextStub::kMaximumSlots) {
       FastNewContextStub stub(heap_slots);
       __ CallStub(&stub);
     } else {
       __ Push(rdi);
-      __ CallRuntime(Runtime::kNewFunctionContext, 1);
+      __ CallRuntime(Runtime::kHiddenNewFunctionContext, 1);
     }
     function_in_register = false;
     // Context is returned in rax.  It replaces the context passed to us.
@@ -838,7 +838,7 @@ void FullCodeGenerator::VisitVariableDeclaration(
       } else {
         __ Push(Smi::FromInt(0));  // Indicates no initial value.
       }
-      __ CallRuntime(Runtime::kDeclareContextSlot, 4);
+      __ CallRuntime(Runtime::kHiddenDeclareContextSlot, 4);
       break;
     }
   }
@@ -892,7 +892,7 @@ void FullCodeGenerator::VisitFunctionDeclaration(
       __ Push(variable->name());
       __ Push(Smi::FromInt(NONE));
       VisitForStackValue(declaration->fun());
-      __ CallRuntime(Runtime::kDeclareContextSlot, 4);
+      __ CallRuntime(Runtime::kHiddenDeclareContextSlot, 4);
       break;
     }
   }
@@ -962,7 +962,7 @@ void FullCodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
   __ Push(rsi);  // The context is the first argument.
   __ Push(pairs);
   __ Push(Smi::FromInt(DeclareGlobalsFlags()));
-  __ CallRuntime(Runtime::kDeclareGlobals, 3);
+  __ CallRuntime(Runtime::kHiddenDeclareGlobals, 3);
   // Return value is ignored.
 }
 
@@ -970,7 +970,7 @@ void FullCodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
 void FullCodeGenerator::DeclareModules(Handle<FixedArray> descriptions) {
   // Call the runtime to declare the modules.
   __ Push(descriptions);
-  __ CallRuntime(Runtime::kDeclareModules, 1);
+  __ CallRuntime(Runtime::kHiddenDeclareModules, 1);
   // Return value is ignored.
 }
 
@@ -1333,7 +1333,7 @@ void FullCodeGenerator::EmitNewClosure(Handle<SharedFunctionInfo> info,
     __ Push(pretenure
             ? isolate()->factory()->true_value()
             : isolate()->factory()->false_value());
-    __ CallRuntime(Runtime::kNewClosure, 3);
+    __ CallRuntime(Runtime::kHiddenNewClosure, 3);
   }
   context()->Plug(rax);
 }
@@ -1458,7 +1458,7 @@ void FullCodeGenerator::EmitDynamicLookupFastCase(Variable* var,
         __ LoadRoot(rax, Heap::kUndefinedValueRootIndex);
       } else {  // LET || CONST
         __ Push(var->name());
-        __ CallRuntime(Runtime::kThrowReferenceError, 1);
+        __ CallRuntime(Runtime::kHiddenThrowReferenceError, 1);
       }
     }
     __ jmp(done);
@@ -1535,7 +1535,7 @@ void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy) {
             // Throw a reference error when using an uninitialized let/const
             // binding in harmony mode.
             __ Push(var->name());
-            __ CallRuntime(Runtime::kThrowReferenceError, 1);
+            __ CallRuntime(Runtime::kHiddenThrowReferenceError, 1);
           } else {
             // Uninitalized const bindings outside of harmony mode are unholed.
             ASSERT(var->mode() == CONST_LEGACY);
@@ -1559,7 +1559,7 @@ void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy) {
       __ bind(&slow);
       __ Push(rsi);  // Context.
       __ Push(var->name());
-      __ CallRuntime(Runtime::kLoadContextSlot, 2);
+      __ CallRuntime(Runtime::kHiddenLoadContextSlot, 2);
       __ bind(&done);
       context()->Plug(rax);
       break;
@@ -1590,7 +1590,7 @@ void FullCodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
   __ Push(Smi::FromInt(expr->literal_index()));
   __ Push(expr->pattern());
   __ Push(expr->flags());
-  __ CallRuntime(Runtime::kMaterializeRegExpLiteral, 4);
+  __ CallRuntime(Runtime::kHiddenMaterializeRegExpLiteral, 4);
   __ movp(rbx, rax);
 
   __ bind(&materialized);
@@ -1602,7 +1602,7 @@ void FullCodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
   __ bind(&runtime_allocate);
   __ Push(rbx);
   __ Push(Smi::FromInt(size));
-  __ CallRuntime(Runtime::kAllocateInNewSpace, 1);
+  __ CallRuntime(Runtime::kHiddenAllocateInNewSpace, 1);
   __ Pop(rbx);
 
   __ bind(&allocated);
@@ -1651,7 +1651,7 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
     __ Push(Smi::FromInt(expr->literal_index()));
     __ Push(constant_properties);
     __ Push(Smi::FromInt(flags));
-    __ CallRuntime(Runtime::kCreateObjectLiteral, 4);
+    __ CallRuntime(Runtime::kHiddenCreateObjectLiteral, 4);
   } else {
     __ movp(rdi, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
     __ movp(rax, FieldOperand(rdi, JSFunction::kLiteralsOffset));
@@ -1804,7 +1804,7 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
     __ Push(Smi::FromInt(expr->literal_index()));
     __ Push(constant_elements);
     __ Push(Smi::FromInt(flags));
-    __ CallRuntime(Runtime::kCreateArrayLiteral, 4);
+    __ CallRuntime(Runtime::kHiddenCreateArrayLiteral, 4);
   } else {
     ASSERT(IsFastSmiOrObjectElementsKind(constant_elements_kind) ||
            FLAG_smi_only_arrays);
@@ -2016,7 +2016,7 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       __ cmpp(rsp, rbx);
       __ j(equal, &post_runtime);
       __ Push(rax);  // generator object
-      __ CallRuntime(Runtime::kSuspendJSGeneratorObject, 1);
+      __ CallRuntime(Runtime::kHiddenSuspendJSGeneratorObject, 1);
       __ movp(context_register(),
               Operand(rbp, StandardFrameConstants::kContextOffset));
       __ bind(&post_runtime);
@@ -2085,7 +2085,7 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       __ movp(rcx, rsi);
       __ RecordWriteField(rax, JSGeneratorObject::kContextOffset, rcx, rdx,
                           kDontSaveFPRegs);
-      __ CallRuntime(Runtime::kSuspendJSGeneratorObject, 1);
+      __ CallRuntime(Runtime::kHiddenSuspendJSGeneratorObject, 1);
       __ movp(context_register(),
               Operand(rbp, StandardFrameConstants::kContextOffset));
       __ Pop(rax);                                       // result
@@ -2139,7 +2139,7 @@ void FullCodeGenerator::EmitGeneratorResume(Expression *generator,
     Expression *value,
     JSGeneratorObject::ResumeMode resume_mode) {
   // The value stays in rax, and is ultimately read by the resumed generator, as
-  // if the CallRuntime(Runtime::kSuspendJSGeneratorObject) returned it. Or it
+  // if CallRuntime(Runtime::kHiddenSuspendJSGeneratorObject) returned it. Or it
   // is read to throw the value when the resumed generator is already closed.
   // rbx will hold the generator object until the activation has been resumed.
   VisitForStackValue(generator);
@@ -2220,7 +2220,7 @@ void FullCodeGenerator::EmitGeneratorResume(Expression *generator,
   __ Push(rbx);
   __ Push(result_register());
   __ Push(Smi::FromInt(resume_mode));
-  __ CallRuntime(Runtime::kResumeJSGeneratorObject, 3);
+  __ CallRuntime(Runtime::kHiddenResumeJSGeneratorObject, 3);
   // Not reached: the runtime call returns elsewhere.
   __ Abort(kGeneratorFailedToResume);
 
@@ -2234,14 +2234,14 @@ void FullCodeGenerator::EmitGeneratorResume(Expression *generator,
   } else {
     // Throw the provided value.
     __ Push(rax);
-    __ CallRuntime(Runtime::kThrow, 1);
+    __ CallRuntime(Runtime::kHiddenThrow, 1);
   }
   __ jmp(&done);
 
   // Throw error if we attempt to operate on a running generator.
   __ bind(&wrong_state);
   __ Push(rbx);
-  __ CallRuntime(Runtime::kThrowGeneratorStateError, 1);
+  __ CallRuntime(Runtime::kHiddenThrowGeneratorStateError, 1);
 
   __ bind(&done);
   context()->Plug(result_register());
@@ -2259,7 +2259,7 @@ void FullCodeGenerator::EmitCreateIteratorResult(bool done) {
 
   __ bind(&gc_required);
   __ Push(Smi::FromInt(map->instance_size()));
-  __ CallRuntime(Runtime::kAllocateInNewSpace, 1);
+  __ CallRuntime(Runtime::kHiddenAllocateInNewSpace, 1);
   __ movp(context_register(),
           Operand(rbp, StandardFrameConstants::kContextOffset));
 
@@ -2438,7 +2438,7 @@ void FullCodeGenerator::EmitCallStoreContextSlot(
   __ Push(rsi);  // Context.
   __ Push(name);
   __ Push(Smi::FromInt(strict_mode));
-  __ CallRuntime(Runtime::kStoreContextSlot, 4);
+  __ CallRuntime(Runtime::kHiddenStoreContextSlot, 4);
 }
 
 
@@ -2457,7 +2457,7 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
       __ Push(rax);
       __ Push(rsi);
       __ Push(var->name());
-      __ CallRuntime(Runtime::kInitializeConstContextSlot, 3);
+      __ CallRuntime(Runtime::kHiddenInitializeConstContextSlot, 3);
     } else {
       ASSERT(var->IsStackLocal() || var->IsContextSlot());
       Label skip;
@@ -2481,7 +2481,7 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
       __ CompareRoot(rdx, Heap::kTheHoleValueRootIndex);
       __ j(not_equal, &assign, Label::kNear);
       __ Push(var->name());
-      __ CallRuntime(Runtime::kThrowReferenceError, 1);
+      __ CallRuntime(Runtime::kHiddenThrowReferenceError, 1);
       __ bind(&assign);
       EmitStoreToStackLocalOrContextSlot(var, location);
     }
@@ -2708,7 +2708,7 @@ void FullCodeGenerator::EmitResolvePossiblyDirectEval(int arg_count) {
   __ Push(Smi::FromInt(scope()->start_position()));
 
   // Do the runtime call.
-  __ CallRuntime(Runtime::kResolvePossiblyDirectEval, 5);
+  __ CallRuntime(Runtime::kHiddenResolvePossiblyDirectEval, 5);
 }
 
 
@@ -2724,8 +2724,8 @@ void FullCodeGenerator::VisitCall(Call* expr) {
   Call::CallType call_type = expr->GetCallType(isolate());
 
   if (call_type == Call::POSSIBLY_EVAL_CALL) {
-    // In a call to eval, we first call %ResolvePossiblyDirectEval to
-    // resolve the function we need to call and the receiver of the call.
+    // In a call to eval, we first call RuntimeHidden_ResolvePossiblyDirectEval
+    // to resolve the function we need to call and the receiver of the call.
     // Then we call the resolved function using the given arguments.
     ZoneList<Expression*>* args = expr->arguments();
     int arg_count = args->length();
@@ -2775,7 +2775,7 @@ void FullCodeGenerator::VisitCall(Call* expr) {
     // the object holding it (returned in rdx).
     __ Push(context_register());
     __ Push(proxy->name());
-    __ CallRuntime(Runtime::kLoadContextSlot, 2);
+    __ CallRuntime(Runtime::kHiddenLoadContextSlot, 2);
     __ Push(rax);  // Function.
     __ Push(rdx);  // Receiver.
 
@@ -3434,7 +3434,7 @@ void FullCodeGenerator::EmitDateField(CallRuntime* expr) {
   }
 
   __ bind(&not_date_object);
-  __ CallRuntime(Runtime::kThrowNotDateError, 0);
+  __ CallRuntime(Runtime::kHiddenThrowNotDateError, 0);
   __ bind(&done);
   context()->Plug(rax);
 }
@@ -4232,7 +4232,7 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
           // context where the variable was introduced.
           __ Push(context_register());
           __ Push(var->name());
-          __ CallRuntime(Runtime::kDeleteContextSlot, 2);
+          __ CallRuntime(Runtime::kHiddenDeleteContextSlot, 2);
           context()->Plug(rax);
         }
       } else {
@@ -4519,7 +4519,7 @@ void FullCodeGenerator::VisitForTypeofValue(Expression* expr) {
     __ bind(&slow);
     __ Push(rsi);
     __ Push(proxy->name());
-    __ CallRuntime(Runtime::kLoadContextSlotNoReferenceError, 2);
+    __ CallRuntime(Runtime::kHiddenLoadContextSlotNoReferenceError, 2);
     PrepareForBailout(expr, TOS_REG);
     __ bind(&done);
 

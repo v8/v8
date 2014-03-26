@@ -116,7 +116,6 @@ function testArgumentTypes(name, argc) {
 
 var knownProblems = {
   "Abort": true,
-  "ThrowMessage": true,
 
   // Avoid calling the concat operation, because weird lengths
   // may lead to out-of-memory.  Ditto for StringBuilderJoin.
@@ -141,33 +140,8 @@ var knownProblems = {
   "DisableAccessChecks": true,
   "EnableAccessChecks": true,
 
-  // These functions should not be callable as runtime functions.
-  "NewFunctionContext": true,
-  "NewArgumentsFast": true,
-  "NewStrictArgumentsFast": true,
-  "PushWithContext": true,
-  "PushCatchContext": true,
-  "PushBlockContext": true,
-  "PushModuleContext": true,
-  "CompileUnoptimized": true,
-  "CompileOptimized": true,
-  "CompileOptimizedConcurrent": true,
-  "NotifyDeoptimized": true,
-  "NotifyStubFailure": true,
-  "NotifyOSR": true,
-  "CreateObjectLiteralBoilerplate": true,
-  "CloneLiteralBoilerplate": true,
-  "CloneShallowLiteralBoilerplate": true,
-  "CreateArrayLiteralBoilerplate": true,
+  // IS_VAR is special.
   "IS_VAR": true,
-  "ResolvePossiblyDirectEval": true,
-  "DeclareGlobals": true,
-  "ArrayConstructor": true,
-  "InternalArrayConstructor": true,
-  "SetAccessorProperty": true,
-
-  "PromoteScheduledException": true,
-  "DeleteHandleScopeExtensions": true,
 
   // Vararg with minimum number > 0.
   "Call": true,

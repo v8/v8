@@ -326,7 +326,7 @@ void Builtins::Generate_InOptimizationQueue(MacroAssembler* masm) {
   __ cmp(sp, Operand(ip));
   __ b(hs, &ok);
 
-  CallRuntimePassFunction(masm, Runtime::kTryInstallOptimizedCode);
+  CallRuntimePassFunction(masm, Runtime::kHiddenTryInstallOptimizedCode);
   GenerateTailCallToReturnedCode(masm);
 
   __ bind(&ok);
@@ -415,7 +415,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
 
         __ Push(r2, r1);  // r1 = constructor
         // The call will replace the stub, so the countdown is only done once.
-        __ CallRuntime(Runtime::kFinalizeInstanceSize, 1);
+        __ CallRuntime(Runtime::kHiddenFinalizeInstanceSize, 1);
 
         __ pop(r2);
         __ pop(r1);
@@ -598,9 +598,9 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
 
     __ push(r1);  // argument for Runtime_NewObject
     if (create_memento) {
-      __ CallRuntime(Runtime::kNewObjectWithAllocationSite, 2);
+      __ CallRuntime(Runtime::kHiddenNewObjectWithAllocationSite, 2);
     } else {
-      __ CallRuntime(Runtime::kNewObject, 1);
+      __ CallRuntime(Runtime::kHiddenNewObject, 1);
     }
     __ mov(r4, r0);
 
@@ -834,7 +834,7 @@ void Builtins::Generate_JSConstructEntryTrampoline(MacroAssembler* masm) {
 
 
 void Builtins::Generate_CompileUnoptimized(MacroAssembler* masm) {
-  CallRuntimePassFunction(masm, Runtime::kCompileUnoptimized);
+  CallRuntimePassFunction(masm, Runtime::kHiddenCompileUnoptimized);
   GenerateTailCallToReturnedCode(masm);
 }
 
@@ -848,7 +848,7 @@ static void CallCompileOptimized(MacroAssembler* masm, bool concurrent) {
   // Whether to compile in a background thread.
   __ Push(masm->isolate()->factory()->ToBoolean(concurrent));
 
-  __ CallRuntime(Runtime::kCompileOptimized, 2);
+  __ CallRuntime(Runtime::kHiddenCompileOptimized, 2);
   // Restore receiver.
   __ pop(r1);
 }
@@ -943,7 +943,7 @@ static void Generate_NotifyStubFailureHelper(MacroAssembler* masm,
     // registers.
     __ stm(db_w, sp, kJSCallerSaved | kCalleeSaved);
     // Pass the function and deoptimization type to the runtime system.
-    __ CallRuntime(Runtime::kNotifyStubFailure, 0, save_doubles);
+    __ CallRuntime(Runtime::kHiddenNotifyStubFailure, 0, save_doubles);
     __ ldm(ia_w, sp, kJSCallerSaved | kCalleeSaved);
   }
 
@@ -969,7 +969,7 @@ static void Generate_NotifyDeoptimizedHelper(MacroAssembler* masm,
     // Pass the function and deoptimization type to the runtime system.
     __ mov(r0, Operand(Smi::FromInt(static_cast<int>(type))));
     __ push(r0);
-    __ CallRuntime(Runtime::kNotifyDeoptimized, 1);
+    __ CallRuntime(Runtime::kHiddenNotifyDeoptimized, 1);
   }
 
   // Get the full codegen state from the stack and untag it -> r6.
@@ -1060,7 +1060,7 @@ void Builtins::Generate_OsrAfterStackCheck(MacroAssembler* masm) {
   __ b(hs, &ok);
   {
     FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
-    __ CallRuntime(Runtime::kStackGuard, 0);
+    __ CallRuntime(Runtime::kHiddenStackGuard, 0);
   }
   __ Jump(masm->isolate()->builtins()->OnStackReplacement(),
           RelocInfo::CODE_TARGET);

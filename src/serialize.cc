@@ -508,11 +508,12 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
       UNCLASSIFIED,
       52,
       "cpu_features");
-  Add(ExternalReference(Runtime::kAllocateInNewSpace, isolate).address(),
+  Add(ExternalReference(Runtime::kHiddenAllocateInNewSpace, isolate).address(),
       UNCLASSIFIED,
       53,
       "Runtime::AllocateInNewSpace");
-  Add(ExternalReference(Runtime::kAllocateInTargetSpace, isolate).address(),
+  Add(ExternalReference(
+          Runtime::kHiddenAllocateInTargetSpace, isolate).address(),
       UNCLASSIFIED,
       54,
       "Runtime::AllocateInTargetSpace");

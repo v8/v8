@@ -800,7 +800,7 @@ void MacroAssembler::CallApiFunctionAndReturn(
   bind(&promote_scheduled_exception);
   {
     FrameScope frame(this, StackFrame::INTERNAL);
-    CallRuntime(Runtime::kPromoteScheduledException, 0);
+    CallRuntime(Runtime::kHiddenPromoteScheduledException, 0);
   }
   jmp(&exception_handled);
 
@@ -3307,9 +3307,9 @@ void MacroAssembler::Throw(BailoutReason reason) {
     // We don't actually want to generate a pile of code for this, so just
     // claim there is a stack frame, without generating one.
     FrameScope scope(this, StackFrame::NONE);
-    CallRuntime(Runtime::kThrowMessage, 1);
+    CallRuntime(Runtime::kHiddenThrowMessage, 1);
   } else {
-    CallRuntime(Runtime::kThrowMessage, 1);
+    CallRuntime(Runtime::kHiddenThrowMessage, 1);
   }
   // Control will not return here.
   int3();
