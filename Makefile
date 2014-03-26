@@ -136,7 +136,16 @@ endif
 # deprecation_warnings=on
 ifeq ($(deprecationwarnings), on)
   GYPFLAGS += -Dv8_deprecation_warnings=1
-endif 
+endif
+# asan=/path/to/clang++
+ifneq ($(strip $(asan)),)
+  GYPFLAGS += -Dasan=1
+  export CXX="$(asan)"
+  export CXX_host="$(asan)"
+  export LINK="$(asan)"
+  export ASAN_SYMBOLIZER_PATH="$(dir $(asan))llvm-symbolizer"
+endif
+
 # arm specific flags.
 # arm_version=<number | "default">
 ifneq ($(strip $(arm_version)),)
