@@ -1891,29 +1891,36 @@ LInstruction* LChunkBuilder::DoMul(HMul* instr) {
     HValue* least_const = instr->BetterLeftOperand();
     HValue* most_const = instr->BetterRightOperand();
 
-    LOperand* left = UseRegisterAtStart(least_const);
+    LOperand* left;
 
     // LMulConstI can handle a subset of constants:
     //  With support for overflow detection:
     //    -1, 0, 1, 2
-    //  Without support for overflow detection:
     //    2^n, -(2^n)
+    //  Without support for overflow detection:
     //    2^n + 1, -(2^n - 1)
     if (most_const->IsConstant()) {
       int32_t constant = HConstant::cast(most_const)->Integer32Value();
-      int32_t constant_abs = (constant >= 0) ? constant : -constant;
+      bool small_constant = (constant >= -1) && (constant <= 2);
+      bool end_range_constant = (constant <= -kMaxInt) || (constant == kMaxInt);
+      int32_t constant_abs = Abs(constant);
 
-      if (((constant >= -1) && (constant <= 2)) ||
-          (!can_overflow && (IsPowerOf2(constant_abs) ||
-                             IsPowerOf2(constant_abs + 1) ||
-                             IsPowerOf2(constant_abs - 1)))) {
+      if (!end_range_constant &&
+          (small_constant ||
+           (IsPowerOf2(constant_abs)) ||
+           (!can_overflow && (IsPowerOf2(constant_abs + 1) ||
+                              IsPowerOf2(constant_abs - 1))))) {
         LConstantOperand* right = UseConstant(most_const);
+        bool need_register = IsPowerOf2(constant_abs) && !small_constant;
+        left = need_register ? UseRegister(least_const)
+                             : UseRegisterAtStart(least_const);
         LMulConstIS* mul = new(zone()) LMulConstIS(left, right);
         if (needs_environment) AssignEnvironment(mul);
         return DefineAsRegister(mul);
       }
     }
 
+    left = UseRegisterAtStart(least_const);
     // LMulI/S can handle all cases, but it requires that a register is
     // allocated for the second operand.
     LInstruction* result;
