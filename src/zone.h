@@ -38,6 +38,11 @@
 namespace v8 {
 namespace internal {
 
+#if defined(__has_feature)
+  #if __has_feature(address_sanitizer)
+    #define V8_USE_ADDRESS_SANITIZER
+  #endif
+#endif
 
 class Segment;
 class Isolate;
@@ -90,7 +95,7 @@ class Zone {
   // All pointers returned from New() have this alignment.  In addition, if the
   // object being allocated has a size that is divisible by 8 then its alignment
   // will be 8. ASan requires 8-byte alignment.
-#ifdef ADDRESS_SANITIZER
+#ifdef V8_USE_ADDRESS_SANITIZER
   static const int kAlignment = 8;
   STATIC_ASSERT(kPointerSize <= 8);
 #else

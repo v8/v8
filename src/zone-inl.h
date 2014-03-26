@@ -30,7 +30,7 @@
 
 #include "zone.h"
 
-#ifdef ADDRESS_SANITIZER
+#ifdef V8_USE_ADDRESS_SANITIZER
   #include <sanitizer/asan_interface.h>
 #else
   #define ASAN_UNPOISON_MEMORY_REGION(start, size) ((void) 0)
@@ -64,7 +64,7 @@ inline void* Zone::New(int size) {
   Address result = position_;
 
   int size_with_redzone =
-#ifdef ADDRESS_SANITIZER
+#ifdef V8_USE_ADDRESS_SANITIZER
       size + kASanRedzoneBytes;
 #else
       size;
@@ -76,7 +76,7 @@ inline void* Zone::New(int size) {
      position_ += size_with_redzone;
   }
 
-#ifdef ADDRESS_SANITIZER
+#ifdef V8_USE_ADDRESS_SANITIZER
   Address redzone_position = result + size;
   ASSERT(redzone_position + kASanRedzoneBytes == position_);
   ASAN_POISON_MEMORY_REGION(redzone_position, kASanRedzoneBytes);

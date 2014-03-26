@@ -184,9 +184,6 @@
         'ldflags': [
           '-fsanitize=address',
         ],
-        'defines': [
-          'ADDRESS_SANITIZER',
-        ],
       },
     }],
     ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris" \
