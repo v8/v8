@@ -1027,7 +1027,7 @@ class MacroAssembler: public Assembler {
     static const int shift = Field::kShift + kSmiShift;
     static const int mask = Field::kMask >> Field::kShift;
     shr(reg, Immediate(shift));
-    and_(reg, Immediate(mask));
+    andp(reg, Immediate(mask));
     shl(reg, Immediate(kSmiShift));
   }
 

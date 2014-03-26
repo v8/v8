@@ -607,12 +607,12 @@ void MathExpGenerator::EmitMathExp(MacroAssembler* masm,
   __ subsd(double_scratch, result);
   __ movsd(result, Operand(kScratchRegister, 6 * kDoubleSize));
   __ leaq(temp1, Operand(temp2, 0x1ff800));
-  __ and_(temp2, Immediate(0x7ff));
+  __ andq(temp2, Immediate(0x7ff));
   __ shr(temp1, Immediate(11));
   __ mulsd(double_scratch, Operand(kScratchRegister, 5 * kDoubleSize));
   __ Move(kScratchRegister, ExternalReference::math_exp_log_table());
   __ shl(temp1, Immediate(52));
-  __ or_(temp1, Operand(kScratchRegister, temp2, times_8, 0));
+  __ orq(temp1, Operand(kScratchRegister, temp2, times_8, 0));
   __ Move(kScratchRegister, ExternalReference::math_exp_constants(0));
   __ subsd(double_scratch, input);
   __ movsd(input, double_scratch);

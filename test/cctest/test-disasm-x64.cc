@@ -57,10 +57,10 @@ TEST(DisasmX64) {
 
   // Short immediate instructions
   __ addq(rax, Immediate(12345678));
-  __ or_(rax, Immediate(12345678));
+  __ orq(rax, Immediate(12345678));
   __ subq(rax, Immediate(12345678));
-  __ xor_(rax, Immediate(12345678));
-  __ and_(rax, Immediate(12345678));
+  __ xorq(rax, Immediate(12345678));
+  __ andq(rax, Immediate(12345678));
 
   // ---- This one caused crash
   __ movq(rbx,  Operand(rsp, rcx, times_2, 0));  // [rsp+rcx*4]
@@ -93,15 +93,15 @@ TEST(DisasmX64) {
   __ addq(rbx, Immediate(12));
   __ nop();
   __ nop();
-  __ and_(rdx, Immediate(3));
-  __ and_(rdx, Operand(rsp, 4));
+  __ andq(rdx, Immediate(3));
+  __ andq(rdx, Operand(rsp, 4));
   __ cmpq(rdx, Immediate(3));
   __ cmpq(rdx, Operand(rsp, 4));
   __ cmpq(Operand(rbp, rcx, times_4, 0), Immediate(1000));
   __ cmpb(rbx, Operand(rbp, rcx, times_2, 0));
   __ cmpb(Operand(rbp, rcx, times_2, 0), rbx);
-  __ or_(rdx, Immediate(3));
-  __ xor_(rdx, Immediate(3));
+  __ orq(rdx, Immediate(3));
+  __ xorq(rdx, Immediate(3));
   __ nop();
   __ cpuid();
   __ movsxbq(rdx, Operand(rcx, 0));
@@ -159,7 +159,7 @@ TEST(DisasmX64) {
   __ idivq(rdx);
   __ mul(rdx);
   __ negq(rdx);
-  __ not_(rdx);
+  __ notq(rdx);
   __ testq(Operand(rbx, rcx, times_4, 10000), rdx);
 
   __ imulq(rdx, Operand(rbx, rcx, times_4, 10000));
@@ -174,8 +174,8 @@ TEST(DisasmX64) {
   // __ jmp(Operand(rbx, rcx, times_4, 10000));
 
   __ leaq(rdx, Operand(rbx, rcx, times_4, 10000));
-  __ or_(rdx, Immediate(12345));
-  __ or_(rdx, Operand(rbx, rcx, times_4, 10000));
+  __ orq(rdx, Immediate(12345));
+  __ orq(rdx, Operand(rbx, rcx, times_4, 10000));
 
   __ nop();
 
@@ -202,19 +202,19 @@ TEST(DisasmX64) {
   __ addq(rbx, Immediate(12));
   __ addq(Operand(rdx, rcx, times_4, 10000), Immediate(12));
 
-  __ and_(rbx, Immediate(12345));
+  __ andq(rbx, Immediate(12345));
 
   __ cmpq(rbx, Immediate(12345));
   __ cmpq(rbx, Immediate(12));
   __ cmpq(Operand(rdx, rcx, times_4, 10000), Immediate(12));
   __ cmpb(rax, Immediate(100));
 
-  __ or_(rbx, Immediate(12345));
+  __ orq(rbx, Immediate(12345));
 
   __ subq(rbx, Immediate(12));
   __ subq(Operand(rdx, rcx, times_4, 10000), Immediate(12));
 
-  __ xor_(rbx, Immediate(12345));
+  __ xorq(rbx, Immediate(12345));
 
   __ imulq(rdx, rcx, Immediate(12));
   __ imulq(rdx, rcx, Immediate(1000));
@@ -230,8 +230,8 @@ TEST(DisasmX64) {
   __ testb(Operand(rax, -20), Immediate(0x9A));
   __ nop();
 
-  __ xor_(rdx, Immediate(12345));
-  __ xor_(rdx, Operand(rbx, rcx, times_8, 10000));
+  __ xorq(rdx, Immediate(12345));
+  __ xorq(rdx, Operand(rbx, rcx, times_8, 10000));
   __ bts(Operand(rbx, rcx, times_8, 10000), rdx);
   __ hlt();
   __ int3();

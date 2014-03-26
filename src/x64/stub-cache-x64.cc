@@ -89,7 +89,7 @@ static void ProbeTable(Isolate* isolate,
 
   // Check that the flags match what we're looking for.
   __ movl(offset, FieldOperand(kScratchRegister, Code::kFlagsOffset));
-  __ and_(offset, Immediate(~Code::kFlagsNotUsedInLookup));
+  __ andp(offset, Immediate(~Code::kFlagsNotUsedInLookup));
   __ cmpl(offset, Immediate(flags));
   __ j(not_equal, &miss);
 
@@ -195,10 +195,10 @@ void StubCache::GenerateProbe(MacroAssembler* masm,
   __ movl(scratch, FieldOperand(name, Name::kHashFieldOffset));
   // Use only the low 32 bits of the map pointer.
   __ addl(scratch, FieldOperand(receiver, HeapObject::kMapOffset));
-  __ xor_(scratch, Immediate(flags));
+  __ xorp(scratch, Immediate(flags));
   // We mask out the last two bits because they are not part of the hash and
   // they are always 01 for maps.  Also in the two 'and' instructions below.
-  __ and_(scratch, Immediate((kPrimaryTableSize - 1) << kHeapObjectTagSize));
+  __ andp(scratch, Immediate((kPrimaryTableSize - 1) << kHeapObjectTagSize));
 
   // Probe the primary table.
   ProbeTable(isolate, masm, flags, kPrimary, receiver, name, scratch);
@@ -206,11 +206,11 @@ void StubCache::GenerateProbe(MacroAssembler* masm,
   // Primary miss: Compute hash for secondary probe.
   __ movl(scratch, FieldOperand(name, Name::kHashFieldOffset));
   __ addl(scratch, FieldOperand(receiver, HeapObject::kMapOffset));
-  __ xor_(scratch, Immediate(flags));
-  __ and_(scratch, Immediate((kPrimaryTableSize - 1) << kHeapObjectTagSize));
+  __ xorp(scratch, Immediate(flags));
+  __ andp(scratch, Immediate((kPrimaryTableSize - 1) << kHeapObjectTagSize));
   __ subl(scratch, name);
   __ addl(scratch, Immediate(flags));
-  __ and_(scratch, Immediate((kSecondaryTableSize - 1) << kHeapObjectTagSize));
+  __ andp(scratch, Immediate((kSecondaryTableSize - 1) << kHeapObjectTagSize));
 
   // Probe the secondary table.
   ProbeTable(isolate, masm, flags, kSecondary, receiver, name, scratch);

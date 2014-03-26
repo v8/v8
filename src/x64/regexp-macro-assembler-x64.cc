@@ -293,8 +293,8 @@ void RegExpMacroAssemblerX64::CheckNotBackReferenceIgnoreCase(
     // Mismatch, try case-insensitive match (converting letters to lower-case).
     // I.e., if or-ing with 0x20 makes values equal and in range 'a'-'z', it's
     // a match.
-    __ or_(rax, Immediate(0x20));  // Convert match character to lower-case.
-    __ or_(rdx, Immediate(0x20));  // Convert capture character to lower-case.
+    __ orp(rax, Immediate(0x20));  // Convert match character to lower-case.
+    __ orp(rdx, Immediate(0x20));  // Convert capture character to lower-case.
     __ cmpb(rax, rdx);
     __ j(not_equal, on_no_match);  // Definitely not equal.
     __ subb(rax, Immediate('a'));
@@ -462,7 +462,7 @@ void RegExpMacroAssemblerX64::CheckCharacterAfterAnd(uint32_t c,
     __ testl(current_character(), Immediate(mask));
   } else {
     __ movl(rax, Immediate(mask));
-    __ and_(rax, current_character());
+    __ andp(rax, current_character());
     __ cmpl(rax, Immediate(c));
   }
   BranchOrBacktrack(equal, on_equal);
@@ -476,7 +476,7 @@ void RegExpMacroAssemblerX64::CheckNotCharacterAfterAnd(uint32_t c,
     __ testl(current_character(), Immediate(mask));
   } else {
     __ movl(rax, Immediate(mask));
-    __ and_(rax, current_character());
+    __ andp(rax, current_character());
     __ cmpl(rax, Immediate(c));
   }
   BranchOrBacktrack(not_equal, on_not_equal);
@@ -490,7 +490,7 @@ void RegExpMacroAssemblerX64::CheckNotCharacterAfterMinusAnd(
     Label* on_not_equal) {
   ASSERT(minus < String::kMaxUtf16CodeUnit);
   __ leap(rax, Operand(current_character(), -minus));
-  __ and_(rax, Immediate(mask));
+  __ andp(rax, Immediate(mask));
   __ cmpl(rax, Immediate(c));
   BranchOrBacktrack(not_equal, on_not_equal);
 }
@@ -523,7 +523,7 @@ void RegExpMacroAssemblerX64::CheckBitInTable(
   Register index = current_character();
   if (mode_ != ASCII || kTableMask != String::kMaxOneByteCharCode) {
     __ movp(rbx, current_character());
-    __ and_(rbx, Immediate(kTableMask));
+    __ andp(rbx, Immediate(kTableMask));
     index = rbx;
   }
   __ cmpb(FieldOperand(rax, index, times_1, ByteArray::kHeaderSize),
@@ -575,7 +575,7 @@ bool RegExpMacroAssemblerX64::CheckSpecialCharacterClass(uc16 type,
   case '.': {
     // Match non-newlines (not 0x0a('\n'), 0x0d('\r'), 0x2028 and 0x2029)
     __ movl(rax, current_character());
-    __ xor_(rax, Immediate(0x01));
+    __ xorp(rax, Immediate(0x01));
     // See if current character is '\n'^1 or '\r'^1, i.e., 0x0b or 0x0c
     __ subl(rax, Immediate(0x0b));
     __ cmpl(rax, Immediate(0x0c - 0x0b));
@@ -593,7 +593,7 @@ bool RegExpMacroAssemblerX64::CheckSpecialCharacterClass(uc16 type,
   case 'n': {
     // Match newlines (0x0a('\n'), 0x0d('\r'), 0x2028 and 0x2029)
     __ movl(rax, current_character());
-    __ xor_(rax, Immediate(0x01));
+    __ xorp(rax, Immediate(0x01));
     // See if current character is '\n'^1 or '\r'^1, i.e., 0x0b or 0x0c
     __ subl(rax, Immediate(0x0b));
     __ cmpl(rax, Immediate(0x0c - 0x0b));

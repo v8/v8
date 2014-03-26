@@ -181,7 +181,7 @@ TEST(SmiMove) {
   TestMoveSmi(masm, &exit, 11, Smi::FromInt(-257));
   TestMoveSmi(masm, &exit, 12, Smi::FromInt(Smi::kMinValue));
 
-  __ xor_(rax, rax);  // Success.
+  __ xorq(rax, rax);  // Success.
   __ bind(&exit);
   ExitCode(masm);
   __ ret(0);
@@ -277,7 +277,7 @@ TEST(SmiCompare) {
   TestSmiCompare(masm, &exit, 0x120, Smi::kMaxValue, Smi::kMinValue);
   TestSmiCompare(masm, &exit, 0x130, Smi::kMaxValue, Smi::kMaxValue);
 
-  __ xor_(rax, rax);  // Success.
+  __ xorq(rax, rax);  // Success.
   __ bind(&exit);
   ExitCode(masm);
   __ ret(0);
@@ -380,7 +380,7 @@ TEST(Integer32ToSmi) {
   __ j(not_equal, &exit);
 
 
-  __ xor_(rax, rax);  // Success.
+  __ xorq(rax, rax);  // Success.
   __ bind(&exit);
   ExitCode(masm);
   __ ret(0);
@@ -450,7 +450,7 @@ TEST(Integer64PlusConstantToSmi) {
   TestI64PlusConstantToSmi(masm, &exit, 0xB0, Smi::kMaxValue, 0);
   TestI64PlusConstantToSmi(masm, &exit, 0xC0, twice_max, Smi::kMinValue);
 
-  __ xor_(rax, rax);  // Success.
+  __ xorq(rax, rax);  // Success.
   __ bind(&exit);
   ExitCode(masm);
   __ ret(0);
@@ -490,7 +490,7 @@ TEST(SmiCheck) {
   __ j(NegateCondition(cond), &exit);
 
   __ incq(rax);
-  __ xor_(rcx, Immediate(kSmiTagMask));
+  __ xorq(rcx, Immediate(kSmiTagMask));
   cond = masm->CheckSmi(rcx);
   __ j(cond, &exit);
 
@@ -501,7 +501,7 @@ TEST(SmiCheck) {
   __ j(NegateCondition(cond), &exit);
 
   __ incq(rax);
-  __ xor_(rcx, Immediate(kSmiTagMask));
+  __ xorq(rcx, Immediate(kSmiTagMask));
   cond = masm->CheckSmi(rcx);
   __ j(cond, &exit);
 
@@ -512,7 +512,7 @@ TEST(SmiCheck) {
   __ j(NegateCondition(cond), &exit);
 
   __ incq(rax);
-  __ xor_(rcx, Immediate(kSmiTagMask));
+  __ xorq(rcx, Immediate(kSmiTagMask));
   cond = masm->CheckSmi(rcx);
   __ j(cond, &exit);
 
@@ -523,7 +523,7 @@ TEST(SmiCheck) {
   __ j(NegateCondition(cond), &exit);
 
   __ incq(rax);
-  __ xor_(rcx, Immediate(kSmiTagMask));
+  __ xorq(rcx, Immediate(kSmiTagMask));
   cond = masm->CheckSmi(rcx);
   __ j(cond, &exit);
 
@@ -536,7 +536,7 @@ TEST(SmiCheck) {
   __ j(NegateCondition(cond), &exit);
 
   __ incq(rax);
-  __ xor_(rcx, Immediate(kSmiTagMask));
+  __ xorq(rcx, Immediate(kSmiTagMask));
   cond = masm->CheckNonNegativeSmi(rcx);  // "zero" non-smi.
   __ j(cond, &exit);
 
@@ -553,7 +553,7 @@ TEST(SmiCheck) {
   __ j(cond, &exit);
 
   __ incq(rax);
-  __ xor_(rcx, Immediate(kSmiTagMask));
+  __ xorq(rcx, Immediate(kSmiTagMask));
   cond = masm->CheckNonNegativeSmi(rcx);  // "Negative" non-smi.
   __ j(cond, &exit);
 
@@ -564,7 +564,7 @@ TEST(SmiCheck) {
   __ j(NegateCondition(cond), &exit);
 
   __ incq(rax);
-  __ xor_(rcx, Immediate(kSmiTagMask));
+  __ xorq(rcx, Immediate(kSmiTagMask));
   cond = masm->CheckNonNegativeSmi(rcx);  // "Positive" non-smi.
   __ j(cond, &exit);
 
@@ -605,17 +605,17 @@ TEST(SmiCheck) {
   __ j(NegateCondition(cond), &exit);
 
   __ incq(rax);
-  __ xor_(rcx, Immediate(kSmiTagMask));
+  __ xorq(rcx, Immediate(kSmiTagMask));
   cond = masm->CheckBothSmi(rcx, rdx);
   __ j(cond, &exit);
 
   __ incq(rax);
-  __ xor_(rdx, Immediate(kSmiTagMask));
+  __ xorq(rdx, Immediate(kSmiTagMask));
   cond = masm->CheckBothSmi(rcx, rdx);
   __ j(cond, &exit);
 
   __ incq(rax);
-  __ xor_(rcx, Immediate(kSmiTagMask));
+  __ xorq(rcx, Immediate(kSmiTagMask));
   cond = masm->CheckBothSmi(rcx, rdx);
   __ j(cond, &exit);
 
@@ -649,7 +649,7 @@ TEST(SmiCheck) {
   __ j(NegateCondition(cond), &exit);
 
   // Success
-  __ xor_(rax, rax);
+  __ xorq(rax, rax);
 
   __ bind(&exit);
   ExitCode(masm);
@@ -736,7 +736,7 @@ TEST(SmiNeg) {
   TestSmiNeg(masm, &exit, 0x70, Smi::kMaxValue);
   TestSmiNeg(masm, &exit, 0x80, -Smi::kMaxValue);
 
-  __ xor_(rax, rax);  // Success.
+  __ xorq(rax, rax);  // Success.
   __ bind(&exit);
   ExitCode(masm);
   __ ret(0);
@@ -961,7 +961,7 @@ TEST(SmiAdd) {
   SmiAddOverflowTest(masm, &exit, 0xE0, -42000);
   SmiAddOverflowTest(masm, &exit, 0xF0, Smi::kMinValue);
 
-  __ xor_(rax, rax);  // Success.
+  __ xorq(rax, rax);  // Success.
   __ bind(&exit);
   ExitCode(masm);
   __ ret(0);
@@ -1182,7 +1182,7 @@ TEST(SmiSub) {
   SmiSubOverflowTest(masm, &exit, 0xF0, Smi::kMinValue);
   SmiSubOverflowTest(masm, &exit, 0x100, 0);
 
-  __ xor_(rax, rax);  // Success.
+  __ xorq(rax, rax);  // Success.
   __ bind(&exit);
   ExitCode(masm);
   __ ret(0);
@@ -1269,7 +1269,7 @@ TEST(SmiMul) {
   TestSmiMul(masm, &exit, 0xd0, (Smi::kMinValue / 2), 2);
   TestSmiMul(masm, &exit, 0xe0, (Smi::kMinValue / 2) - 1, 2);
 
-  __ xor_(rax, rax);  // Success.
+  __ xorq(rax, rax);  // Success.
   __ bind(&exit);
   ExitCode(masm);
   __ ret(0);
@@ -1383,7 +1383,7 @@ TEST(SmiDiv) {
   TestSmiDiv(masm, &exit, 0x130, Smi::kMinValue, Smi::kMinValue);
   TestSmiDiv(masm, &exit, 0x140, Smi::kMinValue, -1);
 
-  __ xor_(r15, r15);  // Success.
+  __ xorq(r15, r15);  // Success.
   __ bind(&exit);
   __ movq(rax, r15);
   __ popq(r15);
@@ -1493,7 +1493,7 @@ TEST(SmiMod) {
   TestSmiMod(masm, &exit, 0x130, Smi::kMinValue, Smi::kMinValue);
   TestSmiMod(masm, &exit, 0x140, Smi::kMinValue, -1);
 
-  __ xor_(r15, r15);  // Success.
+  __ xorq(r15, r15);  // Success.
   __ bind(&exit);
   __ movq(rax, r15);
   __ popq(r15);
@@ -1573,7 +1573,7 @@ TEST(SmiIndex) {
   TestSmiIndex(masm, &exit, 0x40, 1000);
   TestSmiIndex(masm, &exit, 0x50, Smi::kMaxValue);
 
-  __ xor_(rax, rax);  // Success.
+  __ xorq(rax, rax);  // Success.
   __ bind(&exit);
   ExitCode(masm);
   __ ret(0);
@@ -1590,7 +1590,7 @@ void TestSelectNonSmi(MacroAssembler* masm, Label* exit, int id, int x, int y) {
   __ movl(rax, Immediate(id));
   __ Move(rcx, Smi::FromInt(x));
   __ Move(rdx, Smi::FromInt(y));
-  __ xor_(rdx, Immediate(kSmiTagMask));
+  __ xorq(rdx, Immediate(kSmiTagMask));
   __ SelectNonSmi(r9, rcx, rdx, exit);
 
   __ incq(rax);
@@ -1600,7 +1600,7 @@ void TestSelectNonSmi(MacroAssembler* masm, Label* exit, int id, int x, int y) {
   __ incq(rax);
   __ Move(rcx, Smi::FromInt(x));
   __ Move(rdx, Smi::FromInt(y));
-  __ xor_(rcx, Immediate(kSmiTagMask));
+  __ xorq(rcx, Immediate(kSmiTagMask));
   __ SelectNonSmi(r9, rcx, rdx, exit);
 
   __ incq(rax);
@@ -1611,8 +1611,8 @@ void TestSelectNonSmi(MacroAssembler* masm, Label* exit, int id, int x, int y) {
   Label fail_ok;
   __ Move(rcx, Smi::FromInt(x));
   __ Move(rdx, Smi::FromInt(y));
-  __ xor_(rcx, Immediate(kSmiTagMask));
-  __ xor_(rdx, Immediate(kSmiTagMask));
+  __ xorq(rcx, Immediate(kSmiTagMask));
+  __ xorq(rdx, Immediate(kSmiTagMask));
   __ SelectNonSmi(r9, rcx, rdx, &fail_ok);
   __ jmp(exit);
   __ bind(&fail_ok);
@@ -1646,7 +1646,7 @@ TEST(SmiSelectNonSmi) {
   TestSelectNonSmi(masm, &exit, 0x80, Smi::kMinValue, Smi::kMaxValue);
   TestSelectNonSmi(masm, &exit, 0x90, Smi::kMinValue, Smi::kMinValue);
 
-  __ xor_(rax, rax);  // Success.
+  __ xorq(rax, rax);  // Success.
   __ bind(&exit);
   ExitCode(masm);
   __ ret(0);
@@ -1727,7 +1727,7 @@ TEST(SmiAnd) {
   TestSmiAnd(masm, &exit, 0xA0, Smi::kMinValue, -1);
   TestSmiAnd(masm, &exit, 0xB0, Smi::kMinValue, -1);
 
-  __ xor_(rax, rax);  // Success.
+  __ xorq(rax, rax);  // Success.
   __ bind(&exit);
   ExitCode(masm);
   __ ret(0);
@@ -1810,7 +1810,7 @@ TEST(SmiOr) {
   TestSmiOr(masm, &exit, 0xC0, 0x05555555, 0x0fedcba9);
   TestSmiOr(masm, &exit, 0xD0, Smi::kMinValue, -1);
 
-  __ xor_(rax, rax);  // Success.
+  __ xorq(rax, rax);  // Success.
   __ bind(&exit);
   ExitCode(masm);
   __ ret(0);
@@ -1893,7 +1893,7 @@ TEST(SmiXor) {
   TestSmiXor(masm, &exit, 0xC0, 0x5555555, 0x0fedcba9);
   TestSmiXor(masm, &exit, 0xD0, Smi::kMinValue, -1);
 
-  __ xor_(rax, rax);  // Success.
+  __ xorq(rax, rax);  // Success.
   __ bind(&exit);
   ExitCode(masm);
   __ ret(0);
@@ -1955,7 +1955,7 @@ TEST(SmiNot) {
   TestSmiNot(masm, &exit, 0x70, Smi::kMaxValue);
   TestSmiNot(masm, &exit, 0x80, 0x05555555);
 
-  __ xor_(rax, rax);  // Success.
+  __ xorq(rax, rax);  // Success.
   __ bind(&exit);
   ExitCode(masm);
   __ ret(0);
@@ -2050,7 +2050,7 @@ TEST(SmiShiftLeft) {
   TestSmiShiftLeft(masm, &exit, 0x150, Smi::kMinValue);
   TestSmiShiftLeft(masm, &exit, 0x190, -1);
 
-  __ xor_(rax, rax);  // Success.
+  __ xorq(rax, rax);  // Success.
   __ bind(&exit);
   ExitCode(masm);
   __ ret(0);
@@ -2156,7 +2156,7 @@ TEST(SmiShiftLogicalRight) {
   TestSmiShiftLogicalRight(masm, &exit, 0xB0, Smi::kMinValue);
   TestSmiShiftLogicalRight(masm, &exit, 0xD0, -1);
 
-  __ xor_(rax, rax);  // Success.
+  __ xorq(rax, rax);  // Success.
   __ bind(&exit);
   ExitCode(masm);
   __ ret(0);
@@ -2225,7 +2225,7 @@ TEST(SmiShiftArithmeticRight) {
   TestSmiShiftArithmeticRight(masm, &exit, 0x60, Smi::kMinValue);
   TestSmiShiftArithmeticRight(masm, &exit, 0x70, -1);
 
-  __ xor_(rax, rax);  // Success.
+  __ xorq(rax, rax);  // Success.
   __ bind(&exit);
   ExitCode(masm);
   __ ret(0);
@@ -2291,7 +2291,7 @@ TEST(PositiveSmiTimesPowerOfTwoToInteger64) {
   TestPositiveSmiPowerUp(masm, &exit, 0x120, 65536);
   TestPositiveSmiPowerUp(masm, &exit, 0x140, Smi::kMaxValue);
 
-  __ xor_(rax, rax);  // Success.
+  __ xorq(rax, rax);  // Success.
   __ bind(&exit);
   ExitCode(masm);
   __ ret(0);
@@ -2796,7 +2796,7 @@ TEST(LoadAndStoreWithRepresentation) {
   __ cmpq(rcx, rdx);
   __ j(not_equal, &exit);
 
-  __ xor_(rax, rax);  // Success.
+  __ xorq(rax, rax);  // Success.
   __ bind(&exit);
   __ addq(rsp, Immediate(1 * kPointerSize));
   ExitCode(masm);

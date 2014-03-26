@@ -1013,7 +1013,7 @@ void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
     if (inline_smi_code) {
       Label slow_case;
       __ movp(rcx, rdx);
-      __ or_(rcx, rax);
+      __ orp(rcx, rax);
       patch_site.EmitJumpIfNotSmi(rcx, &slow_case, Label::kNear);
 
       __ cmpp(rdx, rax);
@@ -2311,7 +2311,7 @@ void FullCodeGenerator::EmitInlineSmiBinaryOp(BinaryOperation* expr,
   Label done, stub_call, smi_case;
   __ Pop(rdx);
   __ movp(rcx, rax);
-  __ or_(rax, rdx);
+  __ orp(rax, rdx);
   JumpPatchSite patch_site(masm_);
   patch_site.EmitJumpIfSmi(rax, &smi_case, Label::kNear);
 
@@ -3056,7 +3056,7 @@ void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
   __ bind(&done);
 
   // Set the bit in the map to indicate that there is no local valueOf field.
-  __ or_(FieldOperand(rbx, Map::kBitField2Offset),
+  __ orp(FieldOperand(rbx, Map::kBitField2Offset),
          Immediate(1 << Map::kStringWrapperSafeForDefaultValueOf));
 
   __ bind(&skip_lookup);
@@ -4658,7 +4658,7 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
       if (inline_smi_code) {
         Label slow_case;
         __ movp(rcx, rdx);
-        __ or_(rcx, rax);
+        __ orp(rcx, rax);
         patch_site.EmitJumpIfNotSmi(rcx, &slow_case, Label::kNear);
         __ cmpp(rdx, rax);
         Split(cc, if_true, if_false, NULL);

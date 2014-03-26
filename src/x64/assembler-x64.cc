@@ -1551,27 +1551,19 @@ void Assembler::nop() {
 }
 
 
-void Assembler::not_(Register dst) {
+void Assembler::emit_not(Register dst, int size) {
   EnsureSpace ensure_space(this);
-  emit_rex_64(dst);
+  emit_rex(dst, size);
   emit(0xF7);
   emit_modrm(0x2, dst);
 }
 
 
-void Assembler::not_(const Operand& dst) {
+void Assembler::emit_not(const Operand& dst, int size) {
   EnsureSpace ensure_space(this);
-  emit_rex_64(dst);
+  emit_rex(dst, size);
   emit(0xF7);
   emit_operand(2, dst);
-}
-
-
-void Assembler::notl(Register dst) {
-  EnsureSpace ensure_space(this);
-  emit_optional_rex_32(dst);
-  emit(0xF7);
-  emit_modrm(0x2, dst);
 }
 
 
