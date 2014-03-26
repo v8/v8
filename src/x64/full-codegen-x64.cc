@@ -271,7 +271,7 @@ void FullCodeGenerator::Generate() {
     // The receiver is just before the parameters on the caller's stack.
     int num_parameters = info->scope()->num_parameters();
     int offset = num_parameters * kPointerSize;
-    __ lea(rdx,
+    __ leap(rdx,
            Operand(rbp, StandardFrameConstants::kCallerSPOffset + offset));
     __ Push(rdx);
     __ Push(Smi::FromInt(num_parameters));
@@ -2012,7 +2012,7 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       __ movp(rcx, rsi);
       __ RecordWriteField(rax, JSGeneratorObject::kContextOffset, rcx, rdx,
                           kDontSaveFPRegs);
-      __ lea(rbx, Operand(rbp, StandardFrameConstants::kExpressionsOffset));
+      __ leap(rbx, Operand(rbp, StandardFrameConstants::kExpressionsOffset));
       __ cmpp(rsp, rbx);
       __ j(equal, &post_runtime);
       __ Push(rax);  // generator object
@@ -2934,7 +2934,7 @@ void FullCodeGenerator::EmitIsObject(CallRuntime* expr) {
   __ testb(FieldOperand(rbx, Map::kBitFieldOffset),
            Immediate(1 << Map::kIsUndetectable));
   __ j(not_zero, if_false);
-  __ movzxbq(rbx, FieldOperand(rbx, Map::kInstanceTypeOffset));
+  __ movzxbp(rbx, FieldOperand(rbx, Map::kInstanceTypeOffset));
   __ cmpp(rbx, Immediate(FIRST_NONCALLABLE_SPEC_OBJECT_TYPE));
   __ j(below, if_false);
   __ cmpp(rbx, Immediate(LAST_NONCALLABLE_SPEC_OBJECT_TYPE));
@@ -3036,7 +3036,7 @@ void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
   // Calculate the end of the descriptor array.
   __ imulp(rcx, rcx, Immediate(DescriptorArray::kDescriptorSize));
   SmiIndex index = masm_->SmiToIndex(rdx, rcx, kPointerSizeLog2);
-  __ lea(rcx,
+  __ leap(rcx,
          Operand(
              r8, index.reg, index.scale, DescriptorArray::kFirstOffset));
   // Calculate location of the first key name.
@@ -4004,7 +4004,7 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) {
   __ AllocateAsciiString(result_pos, string_length, scratch,
                          index, string, &bailout);
   __ movp(result_operand, result_pos);
-  __ lea(result_pos, FieldOperand(result_pos, SeqOneByteString::kHeaderSize));
+  __ leap(result_pos, FieldOperand(result_pos, SeqOneByteString::kHeaderSize));
 
   __ movp(string, separator_operand);
   __ SmiCompare(FieldOperand(string, SeqOneByteString::kLengthOffset),
@@ -4032,7 +4032,7 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) {
                                FixedArray::kHeaderSize));
   __ SmiToInteger32(string_length,
                     FieldOperand(string, String::kLengthOffset));
-  __ lea(string,
+  __ leap(string,
          FieldOperand(string, SeqOneByteString::kHeaderSize));
   __ CopyBytes(result_pos, string, string_length);
   __ incl(index);
@@ -4076,7 +4076,7 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) {
                                FixedArray::kHeaderSize));
   __ SmiToInteger32(string_length,
                     FieldOperand(string, String::kLengthOffset));
-  __ lea(string,
+  __ leap(string,
          FieldOperand(string, SeqOneByteString::kHeaderSize));
   __ CopyBytes(result_pos, string, string_length);
   __ incl(index);
@@ -4092,7 +4092,7 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) {
   // count from -array_length to zero, so we don't need to maintain
   // a loop limit.
   __ movl(index, array_length_operand);
-  __ lea(elements, FieldOperand(elements, index, times_pointer_size,
+  __ leap(elements, FieldOperand(elements, index, times_pointer_size,
                                 FixedArray::kHeaderSize));
   __ negq(index);
 
@@ -4101,7 +4101,7 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) {
   __ movp(string, separator_operand);
   __ SmiToInteger32(scratch,
                     FieldOperand(string, String::kLengthOffset));
-  __ lea(string,
+  __ leap(string,
          FieldOperand(string, SeqOneByteString::kHeaderSize));
   __ movp(separator_operand, string);
 
@@ -4127,7 +4127,7 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) {
   __ movp(string, Operand(elements, index, times_pointer_size, 0));
   __ SmiToInteger32(string_length,
                     FieldOperand(string, String::kLengthOffset));
-  __ lea(string,
+  __ leap(string,
          FieldOperand(string, SeqOneByteString::kHeaderSize));
   __ CopyBytes(result_pos, string, string_length);
   __ incq(index);

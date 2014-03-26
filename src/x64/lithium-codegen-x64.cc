@@ -356,7 +356,7 @@ bool LCodeGen::GenerateDeferredCode() {
         __ pushq(rbp);  // Caller's frame pointer.
         __ Push(Operand(rbp, StandardFrameConstants::kContextOffset));
         __ Push(Smi::FromInt(StackFrame::STUB));
-        __ lea(rbp, Operand(rsp, 2 * kPointerSize));
+        __ leap(rbp, Operand(rsp, 2 * kPointerSize));
         Comment(";;; Deferred code");
       }
       code->Generate();
@@ -1687,7 +1687,7 @@ void LCodeGen::DoSeqStringGetChar(LSeqStringGetChar* instr) {
   if (FLAG_debug_code) {
     __ Push(string);
     __ movp(string, FieldOperand(string, HeapObject::kMapOffset));
-    __ movzxbq(string, FieldOperand(string, Map::kInstanceTypeOffset));
+    __ movzxbp(string, FieldOperand(string, Map::kInstanceTypeOffset));
 
     __ andb(string, Immediate(kStringRepresentationMask | kStringEncodingMask));
     static const uint32_t one_byte_seq_type = kSeqStringTag | kOneByteStringTag;
@@ -1755,8 +1755,8 @@ void LCodeGen::DoAddI(LAddI* instr) {
     if (right->IsConstantOperand()) {
       int32_t offset = ToInteger32(LConstantOperand::cast(right));
       if (is_p) {
-        __ lea(ToRegister(instr->result()),
-               MemOperand(ToRegister(left), offset));
+        __ leap(ToRegister(instr->result()),
+                MemOperand(ToRegister(left), offset));
       } else {
         __ leal(ToRegister(instr->result()),
                 MemOperand(ToRegister(left), offset));
@@ -1764,7 +1764,7 @@ void LCodeGen::DoAddI(LAddI* instr) {
     } else {
       Operand address(ToRegister(left), ToRegister(right), times_1, 0);
       if (is_p) {
-        __ lea(ToRegister(instr->result()), address);
+        __ leap(ToRegister(instr->result()), address);
       } else {
         __ leal(ToRegister(instr->result()), address);
       }
@@ -2978,7 +2978,7 @@ void LCodeGen::DoLoadKeyedExternalArray(LLoadKeyed* instr) {
       case EXTERNAL_UINT8_CLAMPED_ELEMENTS:
       case UINT8_ELEMENTS:
       case UINT8_CLAMPED_ELEMENTS:
-        __ movzxbq(result, operand);
+        __ movzxbp(result, operand);
         break;
       case EXTERNAL_INT16_ELEMENTS:
       case INT16_ELEMENTS:
@@ -2986,7 +2986,7 @@ void LCodeGen::DoLoadKeyedExternalArray(LLoadKeyed* instr) {
         break;
       case EXTERNAL_UINT16_ELEMENTS:
       case UINT16_ELEMENTS:
-        __ movzxwq(result, operand);
+        __ movzxwp(result, operand);
         break;
       case EXTERNAL_INT32_ELEMENTS:
       case INT32_ELEMENTS:
@@ -3172,7 +3172,7 @@ void LCodeGen::DoArgumentsElements(LArgumentsElements* instr) {
   Register result = ToRegister(instr->result());
 
   if (instr->hydrogen()->from_inlined()) {
-    __ lea(result, Operand(rsp, -kFPOnStackSize + -kPCOnStackSize));
+    __ leap(result, Operand(rsp, -kFPOnStackSize + -kPCOnStackSize));
   } else {
     // Check for arguments adapter frame.
     Label done, adapted;
@@ -3907,7 +3907,7 @@ void LCodeGen::DoCallRuntime(LCallRuntime* instr) {
 void LCodeGen::DoStoreCodeEntry(LStoreCodeEntry* instr) {
   Register function = ToRegister(instr->function());
   Register code_object = ToRegister(instr->code_object());
-  __ lea(code_object, FieldOperand(code_object, Code::kHeaderSize));
+  __ leap(code_object, FieldOperand(code_object, Code::kHeaderSize));
   __ movp(FieldOperand(function, JSFunction::kCodeEntryOffset), code_object);
 }
 
@@ -3917,10 +3917,10 @@ void LCodeGen::DoInnerAllocatedObject(LInnerAllocatedObject* instr) {
   Register base = ToRegister(instr->base_object());
   if (instr->offset()->IsConstantOperand()) {
     LConstantOperand* offset = LConstantOperand::cast(instr->offset());
-    __ lea(result, Operand(base, ToInteger32(offset)));
+    __ leap(result, Operand(base, ToInteger32(offset)));
   } else {
     Register offset = ToRegister(instr->offset());
-    __ lea(result, Operand(base, offset, times_1, 0));
+    __ leap(result, Operand(base, offset, times_1, 0));
   }
 }
 
@@ -4322,7 +4322,7 @@ void LCodeGen::DoStoreKeyedFixedArray(LStoreKeyed* instr) {
             ? OMIT_SMI_CHECK : INLINE_SMI_CHECK;
     // Compute address of modified element and store it into key register.
     Register key_reg(ToRegister(key));
-    __ lea(key_reg, operand);
+    __ leap(key_reg, operand);
     __ RecordWrite(elements,
                    key_reg,
                    value,

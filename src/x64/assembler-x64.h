@@ -516,11 +516,16 @@ class CpuFeatures : public AllStatic {
   V(idiv)                               \
   V(imul)                               \
   V(inc)                                \
+  V(lea)                                \
   V(mov)                                \
+  V(movzxb)                             \
+  V(movzxw)                             \
   V(neg)                                \
+  V(repmovs)                            \
   V(sbb)                                \
   V(sub)                                \
-  V(test)
+  V(test)                               \
+  V(xchg)
 
 
 class Assembler : public AssemblerBase {
@@ -773,18 +778,14 @@ class Assembler : public AssemblerBase {
   void movsxwq(Register dst, const Operand& src);
   void movsxlq(Register dst, Register src);
   void movsxlq(Register dst, const Operand& src);
-  void movzxbq(Register dst, const Operand& src);
-  void movzxbl(Register dst, const Operand& src);
-  void movzxwq(Register dst, const Operand& src);
-  void movzxwl(Register dst, const Operand& src);
-  void movzxwl(Register dst, Register src);
 
   // Repeated moves.
 
   void repmovsb();
   void repmovsw();
-  void repmovsl();
-  void repmovsq();
+  void repmovsp() { emit_repmovs(kPointerSize); }
+  void repmovsl() { emit_repmovs(kInt32Size); }
+  void repmovsq() { emit_repmovs(kInt64Size); }
 
   // Instruction to load from an immediate 64-bit pointer into RAX.
   void load_rax(void* ptr, RelocInfo::Mode rmode);
@@ -795,10 +796,6 @@ class Assembler : public AssemblerBase {
   void cmovq(Condition cc, Register dst, const Operand& src);
   void cmovl(Condition cc, Register dst, Register src);
   void cmovl(Condition cc, Register dst, const Operand& src);
-
-  // Exchange two registers
-  void xchgq(Register dst, Register src);
-  void xchgl(Register dst, Register src);
 
   void cmpb(Register dst, Immediate src) {
     immediate_arithmetic_op_8(0x7, dst, src);
@@ -885,9 +882,6 @@ class Assembler : public AssemblerBase {
   void cqo();
   // Sign-extends eax into edx:eax.
   void cdq();
-
-  void lea(Register dst, const Operand& src);
-  void leal(Register dst, const Operand& src);
 
   // Multiply rax by src, put the result in rdx:rax.
   void mul(Register src);
@@ -1483,6 +1477,14 @@ class Assembler : public AssemblerBase {
   // numbers have a high bit set.
   inline void emit_optional_rex_32(const Operand& op);
 
+  void emit_rex(int size) {
+    if (size == kInt64Size) {
+      emit_rex_64();
+    } else {
+      ASSERT(size == kInt32Size);
+    }
+  }
+
   template<class P1>
   void emit_rex(P1 p1, int size) {
     if (size == kInt64Size) {
@@ -1696,14 +1698,22 @@ class Assembler : public AssemblerBase {
   void emit_inc(Register dst, int size);
   void emit_inc(const Operand& dst, int size);
 
+  void emit_lea(Register dst, const Operand& src, int size);
+
   void emit_mov(Register dst, const Operand& src, int size);
   void emit_mov(Register dst, Register src, int size);
   void emit_mov(const Operand& dst, Register src, int size);
   void emit_mov(Register dst, Immediate value, int size);
   void emit_mov(const Operand& dst, Immediate value, int size);
 
+  void emit_movzxb(Register dst, const Operand& src, int size);
+  void emit_movzxw(Register dst, const Operand& src, int size);
+  void emit_movzxw(Register dst, Register src, int size);
+
   void emit_neg(Register dst, int size);
   void emit_neg(const Operand& dst, int size);
+
+  void emit_repmovs(int size);
 
   void emit_sbb(Register dst, Register src, int size) {
     if (size == kInt64Size) {
@@ -1763,6 +1773,9 @@ class Assembler : public AssemblerBase {
   void emit_test(Register reg, Immediate mask, int size);
   void emit_test(const Operand& op, Register reg, int size);
   void emit_test(const Operand& op, Immediate mask, int size);
+
+  // Exchange two registers
+  void emit_xchg(Register dst, Register src, int size);
 
   friend class CodePatcher;
   friend class EnsureSpace;

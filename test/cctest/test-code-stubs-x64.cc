@@ -70,7 +70,7 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
     // registers.
     int double_argument_slot =
         (Register::NumAllocatableRegisters() - 1) * kPointerSize + kDoubleSize;
-    __ lea(source_reg, MemOperand(rsp, -double_argument_slot - offset));
+    __ leaq(source_reg, MemOperand(rsp, -double_argument_slot - offset));
   }
 
   // Save registers make sure they don't get clobbered.

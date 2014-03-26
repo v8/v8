@@ -2343,9 +2343,9 @@ TEST(OperandOffset) {
   // r15 = rsp[3]
   // rbx = rsp[5]
   // r13 = rsp[7]
-  __ lea(r14, Operand(rsp, 3 * kPointerSize));
-  __ lea(r13, Operand(rbp, -3 * kPointerSize));
-  __ lea(rbx, Operand(rbp, -5 * kPointerSize));
+  __ leaq(r14, Operand(rsp, 3 * kPointerSize));
+  __ leaq(r13, Operand(rbp, -3 * kPointerSize));
+  __ leaq(rbx, Operand(rbp, -5 * kPointerSize));
   __ movl(rcx, Immediate(2));
   __ Move(r8, reinterpret_cast<Address>(&data[128]), RelocInfo::NONE64);
   __ movl(rax, Immediate(1));
@@ -2643,7 +2643,7 @@ TEST(OperandOffset) {
 
   __ movl(rax, Immediate(0));
   __ bind(&exit);
-  __ lea(rsp, Operand(rbp, kPointerSize));
+  __ leaq(rsp, Operand(rbp, kPointerSize));
   __ popq(rbp);
   __ popq(rbx);
   __ popq(r14);

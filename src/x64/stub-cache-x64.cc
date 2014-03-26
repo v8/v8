@@ -64,7 +64,7 @@ static void ProbeTable(Isolate* isolate,
   Label miss;
 
   // Multiply by 3 because there are 3 fields per entry (name, code, map).
-  __ lea(offset, Operand(offset, offset, times_2, 0));
+  __ leap(offset, Operand(offset, offset, times_2, 0));
 
   __ LoadAddress(kScratchRegister, key_offset);
 

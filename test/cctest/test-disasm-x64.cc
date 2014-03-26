@@ -173,7 +173,7 @@ TEST(DisasmX64) {
   // TODO(mstarzinger): The following is protected.
   // __ jmp(Operand(rbx, rcx, times_4, 10000));
 
-  __ lea(rdx, Operand(rbx, rcx, times_4, 10000));
+  __ leaq(rdx, Operand(rbx, rcx, times_4, 10000));
   __ or_(rdx, Immediate(12345));
   __ or_(rdx, Operand(rbx, rcx, times_4, 10000));
 

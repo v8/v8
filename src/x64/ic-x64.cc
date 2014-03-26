@@ -212,7 +212,7 @@ static void GenerateDictionaryStore(MacroAssembler* masm,
 
   // Store the value at the masked, scaled index.
   const int kValueOffset = kElementsStartOffset + kPointerSize;
-  __ lea(scratch1, Operand(elements,
+  __ leap(scratch1, Operand(elements,
                            scratch1,
                            times_pointer_size,
                            kValueOffset - kHeapObjectTag));
@@ -467,7 +467,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
     }
     __ LoadAddress(kScratchRegister, cache_field_offsets);
     __ movl(rdi, Operand(kScratchRegister, rcx, times_4, 0));
-    __ movzxbq(rcx, FieldOperand(rbx, Map::kInObjectPropertiesOffset));
+    __ movzxbp(rcx, FieldOperand(rbx, Map::kInObjectPropertiesOffset));
     __ subp(rdi, rcx);
     __ j(above_equal, &property_array_property);
     if (i != 0) {
@@ -477,7 +477,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
 
   // Load in-object property.
   __ bind(&load_in_object_property);
-  __ movzxbq(rcx, FieldOperand(rbx, Map::kInstanceSizeOffset));
+  __ movzxbp(rcx, FieldOperand(rbx, Map::kInstanceSizeOffset));
   __ addp(rcx, rdi);
   __ movp(rax, FieldOperand(rdx, rcx, times_pointer_size, 0));
   __ IncrementCounter(counters->keyed_load_generic_lookup_cache(), 1);
@@ -945,7 +945,7 @@ void KeyedStoreIC::GenerateSloppyArguments(MacroAssembler* masm) {
   Operand mapped_location = GenerateMappedArgumentsLookup(
       masm, rdx, rcx, rbx, rdi, r8, &notin, &slow);
   __ movp(mapped_location, rax);
-  __ lea(r9, mapped_location);
+  __ leap(r9, mapped_location);
   __ movp(r8, rax);
   __ RecordWrite(rbx,
                  r9,
@@ -959,7 +959,7 @@ void KeyedStoreIC::GenerateSloppyArguments(MacroAssembler* masm) {
   Operand unmapped_location =
       GenerateUnmappedArgumentsLookup(masm, rcx, rbx, rdi, &slow);
   __ movp(unmapped_location, rax);
-  __ lea(r9, unmapped_location);
+  __ leap(r9, unmapped_location);
   __ movp(r8, rax);
   __ RecordWrite(rbx,
                  r9,

@@ -93,13 +93,13 @@ static void GenerateTailCallToSharedCode(MacroAssembler* masm) {
           FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
   __ movp(kScratchRegister,
           FieldOperand(kScratchRegister, SharedFunctionInfo::kCodeOffset));
-  __ lea(kScratchRegister, FieldOperand(kScratchRegister, Code::kHeaderSize));
+  __ leap(kScratchRegister, FieldOperand(kScratchRegister, Code::kHeaderSize));
   __ jmp(kScratchRegister);
 }
 
 
 static void GenerateTailCallToReturnedCode(MacroAssembler* masm) {
-  __ lea(rax, FieldOperand(rax, Code::kHeaderSize));
+  __ leap(rax, FieldOperand(rax, Code::kHeaderSize));
   __ jmp(rax);
 }
 
@@ -213,7 +213,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       }
 
       // Now allocate the JSObject on the heap.
-      __ movzxbq(rdi, FieldOperand(rax, Map::kInstanceSizeOffset));
+      __ movzxbp(rdi, FieldOperand(rax, Map::kInstanceSizeOffset));
       __ shl(rdi, Immediate(kPointerSizeLog2));
       if (create_memento) {
         __ addp(rdi, Immediate(AllocationMemento::kSize));
@@ -238,12 +238,12 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       // rax: initial map
       // rbx: JSObject
       // rdi: start of next object (including memento if create_memento)
-      __ lea(rcx, Operand(rbx, JSObject::kHeaderSize));
+      __ leap(rcx, Operand(rbx, JSObject::kHeaderSize));
       __ LoadRoot(rdx, Heap::kUndefinedValueRootIndex);
       if (count_constructions) {
-        __ movzxbq(rsi,
+        __ movzxbp(rsi,
                    FieldOperand(rax, Map::kPreAllocatedPropertyFieldsOffset));
-        __ lea(rsi,
+        __ leap(rsi,
                Operand(rbx, rsi, times_pointer_size, JSObject::kHeaderSize));
         // rsi: offset of first field after pre-allocated fields
         if (FLAG_debug_code) {
@@ -255,7 +255,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
         __ LoadRoot(rdx, Heap::kOnePointerFillerMapRootIndex);
         __ InitializeFieldsWithFiller(rcx, rdi, rdx);
       } else if (create_memento) {
-        __ lea(rsi, Operand(rdi, -AllocationMemento::kSize));
+        __ leap(rsi, Operand(rdi, -AllocationMemento::kSize));
         __ InitializeFieldsWithFiller(rcx, rsi, rdx);
 
         // Fill in memento fields if necessary.
@@ -286,12 +286,12 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       // rbx: JSObject
       // rdi: start of next object
       // Calculate total properties described map.
-      __ movzxbq(rdx, FieldOperand(rax, Map::kUnusedPropertyFieldsOffset));
-      __ movzxbq(rcx,
+      __ movzxbp(rdx, FieldOperand(rax, Map::kUnusedPropertyFieldsOffset));
+      __ movzxbp(rcx,
                  FieldOperand(rax, Map::kPreAllocatedPropertyFieldsOffset));
       __ addp(rdx, rcx);
       // Calculate unused properties past the end of the in-object properties.
-      __ movzxbq(rcx, FieldOperand(rax, Map::kInObjectPropertiesOffset));
+      __ movzxbp(rcx, FieldOperand(rax, Map::kInObjectPropertiesOffset));
       __ subp(rdx, rcx);
       // Done if no extra properties are to be allocated.
       __ j(zero, &allocated);
@@ -328,7 +328,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       // rdx: number of elements
       { Label loop, entry;
         __ LoadRoot(rdx, Heap::kUndefinedValueRootIndex);
-        __ lea(rcx, Operand(rdi, FixedArray::kHeaderSize));
+        __ leap(rcx, Operand(rdi, FixedArray::kHeaderSize));
         __ jmp(&entry);
         __ bind(&loop);
         __ movp(Operand(rcx, 0), rdx);
@@ -417,7 +417,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     __ Push(rbx);
 
     // Set up pointer to last argument.
-    __ lea(rbx, Operand(rbp, StandardFrameConstants::kCallerSPOffset));
+    __ leap(rbx, Operand(rbp, StandardFrameConstants::kCallerSPOffset));
 
     // Copy arguments and receiver to the expression stack.
     Label loop, entry;
@@ -476,7 +476,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
   // Remove caller arguments from the stack and return.
   __ PopReturnAddressTo(rcx);
   SmiIndex index = masm->SmiToIndex(rbx, rbx, kPointerSizeLog2);
-  __ lea(rsp, Operand(rsp, index.reg, index.scale, 1 * kPointerSize));
+  __ leap(rsp, Operand(rsp, index.reg, index.scale, 1 * kPointerSize));
   __ PushReturnAddressFrom(rcx);
   Counters* counters = masm->isolate()->counters();
   __ IncrementCounter(counters->constructed_objects(), 1);
@@ -1222,7 +1222,7 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
   __ j(zero, &no_arguments);
   __ movp(rbx, args.GetArgumentOperand(1));
   __ PopReturnAddressTo(rcx);
-  __ lea(rsp, Operand(rsp, rax, times_pointer_size, kPointerSize));
+  __ leap(rsp, Operand(rsp, rax, times_pointer_size, kPointerSize));
   __ PushReturnAddressFrom(rcx);
   __ movp(rax, rbx);
 
@@ -1306,7 +1306,7 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
   __ bind(&no_arguments);
   __ LoadRoot(rbx, Heap::kempty_stringRootIndex);
   __ PopReturnAddressTo(rcx);
-  __ lea(rsp, Operand(rsp, kPointerSize));
+  __ leap(rsp, Operand(rsp, kPointerSize));
   __ PushReturnAddressFrom(rcx);
   __ jmp(&argument_is_string);
 
@@ -1352,7 +1352,7 @@ static void LeaveArgumentsAdaptorFrame(MacroAssembler* masm) {
   // Remove caller arguments from the stack.
   __ PopReturnAddressTo(rcx);
   SmiIndex index = masm->SmiToIndex(rbx, rbx, kPointerSizeLog2);
-  __ lea(rsp, Operand(rsp, index.reg, index.scale, 1 * kPointerSize));
+  __ leap(rsp, Operand(rsp, index.reg, index.scale, 1 * kPointerSize));
   __ PushReturnAddressFrom(rcx);
 }
 
@@ -1381,7 +1381,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
 
     // Copy receiver and all expected arguments.
     const int offset = StandardFrameConstants::kCallerSPOffset;
-    __ lea(rax, Operand(rbp, rax, times_pointer_size, offset));
+    __ leap(rax, Operand(rbp, rax, times_pointer_size, offset));
     __ Set(r8, -1);  // account for receiver
 
     Label copy;
@@ -1400,7 +1400,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
 
     // Copy receiver and all actual arguments.
     const int offset = StandardFrameConstants::kCallerSPOffset;
-    __ lea(rdi, Operand(rbp, rax, times_pointer_size, offset));
+    __ leap(rdi, Operand(rbp, rax, times_pointer_size, offset));
     __ Set(r8, -1);  // account for receiver
 
     Label copy;
@@ -1469,7 +1469,7 @@ void Builtins::Generate_OnStackReplacement(MacroAssembler* masm) {
       DeoptimizationInputData::kOsrPcOffsetIndex) - kHeapObjectTag));
 
   // Compute the target address = code_obj + header_size + osr_offset
-  __ lea(rax, Operand(rax, rbx, times_1, Code::kHeaderSize - kHeapObjectTag));
+  __ leap(rax, Operand(rax, rbx, times_1, Code::kHeaderSize - kHeapObjectTag));
 
   // Overwrite the return address on the stack.
   __ movq(StackOperandForReturnAddress(0), rax);
