@@ -1106,8 +1106,7 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
       } else {
         LOperand* value = UseRegister(instr->value());
         LOperand* temp1 = TempRegister();
-        LOperand* temp2 =
-            instr->CanTruncateToInt32() ? TempRegister() : FixedTemp(d24);
+        LOperand* temp2 = instr->CanTruncateToInt32() ? NULL : FixedTemp(d24);
         res = DefineAsRegister(new(zone()) LTaggedToI(value, temp1, temp2));
         res = AssignEnvironment(res);
       }

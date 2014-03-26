@@ -5522,7 +5522,6 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr,
 
   if (instr->truncating()) {
     Register output = ToRegister(instr->result());
-    Register scratch2 = ToRegister(temp2);
     Label check_bools;
 
     // If it's not a heap number, jump to undefined check.
@@ -5535,11 +5534,11 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr,
     __ Bind(&check_bools);
 
     Register true_root = output;
-    Register false_root = scratch2;
+    Register false_root = scratch1;
     __ LoadTrueFalseRoots(true_root, false_root);
-    __ Cmp(scratch1, true_root);
+    __ Cmp(input, true_root);
     __ Cset(output, eq);
-    __ Ccmp(scratch1, false_root, ZFlag, ne);
+    __ Ccmp(input, false_root, ZFlag, ne);
     __ B(eq, &done);
 
     // Output contains zero, undefined is converted to zero for truncating
