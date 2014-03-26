@@ -89,8 +89,13 @@ class Zone {
 
   // All pointers returned from New() have this alignment.  In addition, if the
   // object being allocated has a size that is divisible by 8 then its alignment
-  // will be 8.
+  // will be 8. ASan requires 8-byte alignment.
+#ifdef ADDRESS_SANITIZER
+  static const int kAlignment = 8;
+  STATIC_ASSERT(kPointerSize <= 8);
+#else
   static const int kAlignment = kPointerSize;
+#endif
 
   // Never allocate segments smaller than this size in bytes.
   static const int kMinimumSegmentSize = 8 * KB;

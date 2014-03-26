@@ -442,17 +442,17 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
     __ shl(rdi, Immediate(kPointerSizeLog2 + 1));
     __ LoadAddress(kScratchRegister, cache_keys);
     int off = kPointerSize * i * 2;
-    __ cmpq(rbx, Operand(kScratchRegister, rdi, times_1, off));
+    __ cmpp(rbx, Operand(kScratchRegister, rdi, times_1, off));
     __ j(not_equal, &try_next_entry);
-    __ cmpq(rax, Operand(kScratchRegister, rdi, times_1, off + kPointerSize));
+    __ cmpp(rax, Operand(kScratchRegister, rdi, times_1, off + kPointerSize));
     __ j(equal, &hit_on_nth_entry[i]);
     __ bind(&try_next_entry);
   }
 
   int off = kPointerSize * (kEntriesPerBucket - 1) * 2;
-  __ cmpq(rbx, Operand(kScratchRegister, rdi, times_1, off));
+  __ cmpp(rbx, Operand(kScratchRegister, rdi, times_1, off));
   __ j(not_equal, &slow);
-  __ cmpq(rax, Operand(kScratchRegister, rdi, times_1, off + kPointerSize));
+  __ cmpp(rax, Operand(kScratchRegister, rdi, times_1, off + kPointerSize));
   __ j(not_equal, &slow);
 
   // Get field offset, which is a 32-bit integer.
@@ -859,7 +859,7 @@ static Operand GenerateMappedArgumentsLookup(MacroAssembler* masm,
   // Check if element is in the range of mapped arguments.
   __ movp(scratch2, FieldOperand(scratch1, FixedArray::kLengthOffset));
   __ SmiSubConstant(scratch2, scratch2, Smi::FromInt(2));
-  __ cmpq(key, scratch2);
+  __ cmpp(key, scratch2);
   __ j(greater_equal, unmapped_case);
 
   // Load element index and check whether it is the hole.
@@ -899,7 +899,7 @@ static Operand GenerateUnmappedArgumentsLookup(MacroAssembler* masm,
   Handle<Map> fixed_array_map(masm->isolate()->heap()->fixed_array_map());
   __ CheckMap(backing_store, fixed_array_map, slow_case, DONT_DO_SMI_CHECK);
   __ movp(scratch, FieldOperand(backing_store, FixedArray::kLengthOffset));
-  __ cmpq(key, scratch);
+  __ cmpp(key, scratch);
   __ j(greater_equal, slow_case);
   __ SmiToInteger64(scratch, key);
   return FieldOperand(backing_store,
