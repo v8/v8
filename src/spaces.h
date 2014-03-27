@@ -484,18 +484,18 @@ class MemoryChunk {
 
   ParallelSweepingState parallel_sweeping() {
     return static_cast<ParallelSweepingState>(
-        NoBarrier_Load(&parallel_sweeping_));
+        Acquire_Load(&parallel_sweeping_));
   }
 
   void set_parallel_sweeping(ParallelSweepingState state) {
-    NoBarrier_Store(&parallel_sweeping_, state);
+    Release_Store(&parallel_sweeping_, state);
   }
 
   bool TryParallelSweeping() {
-    return NoBarrier_CompareAndSwap(&parallel_sweeping_,
-                                    PARALLEL_SWEEPING_PENDING,
-                                    PARALLEL_SWEEPING_IN_PROGRESS) ==
-                                        PARALLEL_SWEEPING_PENDING;
+    return Acquire_CompareAndSwap(&parallel_sweeping_,
+                                  PARALLEL_SWEEPING_PENDING,
+                                  PARALLEL_SWEEPING_IN_PROGRESS) ==
+                                      PARALLEL_SWEEPING_PENDING;
   }
 
   // Manage live byte count (count of bytes known to be live,
