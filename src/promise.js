@@ -170,7 +170,7 @@ function PromiseChain(onResolve, onReject) {  // a.k.a.  flatMap
 }
 
 function PromiseCatch(onReject) {
-  return this.chain(UNDEFINED, onReject);
+  return this.then(UNDEFINED, onReject);
 }
 
 function PromiseEnqueue(value, tasks) {
@@ -189,7 +189,7 @@ function PromiseHandle(value, handler, deferred) {
     if (result === deferred.promise)
       throw MakeTypeError('promise_cyclic', [result]);
     else if (IsPromise(result))
-      result.chain(deferred.resolve, deferred.reject);
+      %_CallFunction(result, deferred.resolve, deferred.reject, PromiseChain);
     else
       deferred.resolve(result);
   } catch(e) {
@@ -208,13 +208,15 @@ function PromiseThen(onResolve, onReject) {
     IS_NULL_OR_UNDEFINED(onReject) ? PromiseIdRejectHandler : onReject;
   var that = this;
   var constructor = this.constructor;
-  return this.chain(
+  return %_CallFunction(
+    this,
     function(x) {
       x = PromiseCoerce(constructor, x);
       return x === that ? onReject(MakeTypeError('promise_cyclic', [x])) :
              IsPromise(x) ? x.then(onResolve, onReject) : onResolve(x);
     },
-    onReject
+    onReject,
+    PromiseChain
   );
 }
 
