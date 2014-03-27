@@ -7759,19 +7759,19 @@ RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_StringCompare) {
 }
 
 
-#define RUNTIME_UNARY_MATH(Name, name)                                         \
-RUNTIME_FUNCTION(MaybeObject*, Runtime_Math##Name) {                           \
+#define RUNTIME_UNARY_MATH(NAME)                                               \
+RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_##NAME) {                          \
   SealHandleScope shs(isolate);                                                \
   ASSERT(args.length() == 1);                                                  \
-  isolate->counters()->math_##name()->Increment();                             \
+  isolate->counters()->math_##NAME()->Increment();                             \
   CONVERT_DOUBLE_ARG_CHECKED(x, 0);                                            \
-  return isolate->heap()->AllocateHeapNumber(std::name(x));                    \
+  return isolate->heap()->AllocateHeapNumber(std::NAME(x));                    \
 }
 
-RUNTIME_UNARY_MATH(Acos, acos)
-RUNTIME_UNARY_MATH(Asin, asin)
-RUNTIME_UNARY_MATH(Atan, atan)
-RUNTIME_UNARY_MATH(Log, log)
+RUNTIME_UNARY_MATH(acos)
+RUNTIME_UNARY_MATH(asin)
+RUNTIME_UNARY_MATH(atan)
+RUNTIME_UNARY_MATH(log)
 #undef RUNTIME_UNARY_MATH
 
 
@@ -7807,7 +7807,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ConstructDouble) {
 static const double kPiDividedBy4 = 0.78539816339744830962;
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_MathAtan2) {
+RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_atan2) {
   SealHandleScope shs(isolate);
   ASSERT(args.length() == 2);
   isolate->counters()->math_atan2()->Increment();
@@ -7830,7 +7830,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_MathAtan2) {
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_MathExp) {
+RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_exp) {
   SealHandleScope shs(isolate);
   ASSERT(args.length() == 1);
   isolate->counters()->math_exp()->Increment();
@@ -7841,7 +7841,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_MathExp) {
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_MathFloor) {
+RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_floor) {
   SealHandleScope shs(isolate);
   ASSERT(args.length() == 1);
   isolate->counters()->math_floor()->Increment();
@@ -7853,7 +7853,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_MathFloor) {
 
 // Slow version of Math.pow.  We check for fast paths for special cases.
 // Used if SSE2/VFP3 is not available.
-RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_MathPowSlow) {
+RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_pow) {
   SealHandleScope shs(isolate);
   ASSERT(args.length() == 2);
   isolate->counters()->math_pow()->Increment();
@@ -7876,7 +7876,7 @@ RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_MathPowSlow) {
 
 // Fast version of Math.pow if we know that y is not an integer and y is not
 // -0.5 or 0.5.  Used as slow case from full codegen.
-RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_MathPow) {
+RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_pow_cfunction) {
   SealHandleScope shs(isolate);
   ASSERT(args.length() == 2);
   isolate->counters()->math_pow()->Increment();
@@ -7936,7 +7936,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_RoundNumber) {
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_MathSqrt) {
+RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_sqrt) {
   SealHandleScope shs(isolate);
   ASSERT(args.length() == 1);
   isolate->counters()->math_sqrt()->Increment();
@@ -7946,7 +7946,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_MathSqrt) {
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_MathFround) {
+RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_fround) {
   SealHandleScope shs(isolate);
   ASSERT(args.length() == 1);
 

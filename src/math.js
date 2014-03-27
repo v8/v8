@@ -52,24 +52,24 @@ function MathAbs(x) {
 
 // ECMA 262 - 15.8.2.2
 function MathAcos(x) {
-  return %MathAcos(TO_NUMBER_INLINE(x));
+  return %Math_acos(TO_NUMBER_INLINE(x));
 }
 
 // ECMA 262 - 15.8.2.3
 function MathAsin(x) {
-  return %MathAsin(TO_NUMBER_INLINE(x));
+  return %Math_asin(TO_NUMBER_INLINE(x));
 }
 
 // ECMA 262 - 15.8.2.4
 function MathAtan(x) {
-  return %MathAtan(TO_NUMBER_INLINE(x));
+  return %Math_atan(TO_NUMBER_INLINE(x));
 }
 
 // ECMA 262 - 15.8.2.5
 // The naming of y and x matches the spec, as does the order in which
 // ToNumber (valueOf) is called.
 function MathAtan2(y, x) {
-  return %MathAtan2(TO_NUMBER_INLINE(y), TO_NUMBER_INLINE(x));
+  return %Math_atan2(TO_NUMBER_INLINE(y), TO_NUMBER_INLINE(x));
 }
 
 // ECMA 262 - 15.8.2.6
@@ -85,7 +85,7 @@ function MathCos(x) {
 
 // ECMA 262 - 15.8.2.8
 function MathExp(x) {
-  return %_MathExp(TO_NUMBER_INLINE(x));
+  return %Math_exp(TO_NUMBER_INLINE(x));
 }
 
 // ECMA 262 - 15.8.2.9
@@ -100,7 +100,7 @@ function MathFloor(x) {
     // has to be -0, which wouldn't be the case with the shift.
     return TO_UINT32(x);
   } else {
-    return %MathFloor(x);
+    return %Math_floor(x);
   }
 }
 

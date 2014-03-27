@@ -10785,15 +10785,6 @@ void HOptimizedGraphBuilder::GenerateMathSqrt(CallRuntime* call) {
 }
 
 
-void HOptimizedGraphBuilder::GenerateMathExp(CallRuntime* call) {
-  ASSERT(call->arguments()->length() == 1);
-  CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
-  HValue* value = Pop();
-  HInstruction* result = NewUncasted<HUnaryMathOperation>(value, kMathExp);
-  return ast_context()->ReturnInstruction(result, call->id());
-}
-
-
 void HOptimizedGraphBuilder::GenerateGetCachedArrayIndex(CallRuntime* call) {
   ASSERT(call->arguments()->length() == 1);
   CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
