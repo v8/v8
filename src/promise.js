@@ -34,7 +34,19 @@
 // var $WeakMap = global.WeakMap
 
 
-var $Promise = Promise;
+var $Promise = function Promise(resolver) {
+  if (resolver === promiseRaw) return;
+  if (!%_IsConstructCall()) throw MakeTypeError('not_a_promise', [this]);
+  if (typeof resolver !== 'function')
+    throw MakeTypeError('resolver_not_a_function', [resolver]);
+  var promise = PromiseInit(this);
+  try {
+    resolver(function(x) { PromiseResolve(promise, x) },
+             function(r) { PromiseReject(promise, r) });
+  } catch (e) {
+    PromiseReject(promise, e);
+  }
+}
 
 
 //-------------------------------------------------------------------
@@ -50,20 +62,6 @@ var promiseRaw = GLOBAL_PRIVATE("Promise#raw");
 
 function IsPromise(x) {
   return IS_SPEC_OBJECT(x) && %HasLocalProperty(x, promiseStatus);
-}
-
-function Promise(resolver) {
-  if (resolver === promiseRaw) return;
-  if (!%_IsConstructCall()) throw MakeTypeError('not_a_promise', [this]);
-  if (typeof resolver !== 'function')
-    throw MakeTypeError('resolver_not_a_function', [resolver]);
-  var promise = PromiseInit(this);
-  try {
-    resolver(function(x) { PromiseResolve(promise, x) },
-             function(r) { PromiseReject(promise, r) });
-  } catch (e) {
-    PromiseReject(promise, e);
-  }
 }
 
 function PromiseSet(promise, status, value, onResolve, onReject) {
@@ -99,7 +97,7 @@ function PromiseReject(promise, r) {
 function PromiseNopResolver() {}
 
 function PromiseCreate() {
-  return new Promise(PromiseNopResolver)
+  return new $Promise(PromiseNopResolver)
 }
 
 
@@ -108,7 +106,7 @@ function PromiseCreate() {
 function PromiseDeferred() {
   if (this === $Promise) {
     // Optimized case, avoid extra closure.
-    var promise = PromiseInit(new Promise(promiseRaw));
+    var promise = PromiseInit(new $Promise(promiseRaw));
     return {
       promise: promise,
       resolve: function(x) { PromiseResolve(promise, x) },
@@ -127,7 +125,7 @@ function PromiseDeferred() {
 function PromiseResolved(x) {
   if (this === $Promise) {
     // Optimized case, avoid extra closure.
-    return PromiseSet(new Promise(promiseRaw), +1, x);
+    return PromiseSet(new $Promise(promiseRaw), +1, x);
   } else {
     return new this(function(resolve, reject) { resolve(x) });
   }
@@ -136,7 +134,7 @@ function PromiseResolved(x) {
 function PromiseRejected(r) {
   if (this === $Promise) {
     // Optimized case, avoid extra closure.
-    return PromiseSet(new Promise(promiseRaw), -1, r);
+    return PromiseSet(new $Promise(promiseRaw), -1, r);
   } else {
     return new this(function(resolve, reject) { reject(r) });
   }
