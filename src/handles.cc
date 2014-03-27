@@ -627,21 +627,20 @@ Handle<FixedArray> GetEnumPropertyKeys(Handle<JSObject> object,
                                        bool cache_result) {
   Isolate* isolate = object->GetIsolate();
   if (object->HasFastProperties()) {
-    int own_property_count = object->map()->EnumLength();
-    // If the enum length of the given map is set to kInvalidEnumCache, this
-    // means that the map itself has never used the present enum cache. The
-    // first step to using the cache is to set the enum length of the map by
-    // counting the number of own descriptors that are not DONT_ENUM or
-    // SYMBOLIC.
-    if (own_property_count == kInvalidEnumCacheSentinel) {
-      own_property_count = object->map()->NumberOfDescribedProperties(
-          OWN_DESCRIPTORS, DONT_SHOW);
-    } else {
-      ASSERT(own_property_count == object->map()->NumberOfDescribedProperties(
-          OWN_DESCRIPTORS, DONT_SHOW));
-    }
-
     if (object->map()->instance_descriptors()->HasEnumCache()) {
+      int own_property_count = object->map()->EnumLength();
+      // If we have an enum cache, but the enum length of the given map is set
+      // to kInvalidEnumCache, this means that the map itself has never used the
+      // present enum cache. The first step to using the cache is to set the
+      // enum length of the map by counting the number of own descriptors that
+      // are not DONT_ENUM or SYMBOLIC.
+      if (own_property_count == kInvalidEnumCacheSentinel) {
+        own_property_count = object->map()->NumberOfDescribedProperties(
+            OWN_DESCRIPTORS, DONT_SHOW);
+
+        if (cache_result) object->map()->SetEnumLength(own_property_count);
+      }
+
       DescriptorArray* desc = object->map()->instance_descriptors();
       Handle<FixedArray> keys(desc->GetEnumCache(), isolate);
 
@@ -650,7 +649,6 @@ Handle<FixedArray> GetEnumPropertyKeys(Handle<JSObject> object,
       // enum cache was generated for a previous (smaller) version of the
       // Descriptor Array. In that case we regenerate the enum cache.
       if (own_property_count <= keys->length()) {
-        if (cache_result) object->map()->SetEnumLength(own_property_count);
         isolate->counters()->enum_cache_hits()->Increment();
         return ReduceFixedArrayTo(keys, own_property_count);
       }
@@ -665,22 +663,23 @@ Handle<FixedArray> GetEnumPropertyKeys(Handle<JSObject> object,
     }
 
     isolate->counters()->enum_cache_misses()->Increment();
+    int num_enum = map->NumberOfDescribedProperties(ALL_DESCRIPTORS, DONT_SHOW);
 
-    Handle<FixedArray> storage = isolate->factory()->NewFixedArray(
-        own_property_count);
-    Handle<FixedArray> indices = isolate->factory()->NewFixedArray(
-        own_property_count);
+    Handle<FixedArray> storage = isolate->factory()->NewFixedArray(num_enum);
+    Handle<FixedArray> indices = isolate->factory()->NewFixedArray(num_enum);
 
     Handle<DescriptorArray> descs =
         Handle<DescriptorArray>(object->map()->instance_descriptors(), isolate);
 
-    int size = map->NumberOfOwnDescriptors();
+    int real_size = map->NumberOfOwnDescriptors();
+    int enum_size = 0;
     int index = 0;
 
-    for (int i = 0; i < size; i++) {
+    for (int i = 0; i < descs->number_of_descriptors(); i++) {
       PropertyDetails details = descs->GetDetails(i);
       Object* key = descs->GetKey(i);
       if (!(details.IsDontEnum() || key->IsSymbol())) {
+        if (i < real_size) ++enum_size;
         storage->set(index, key);
         if (!indices.is_null()) {
           if (details.type() != FIELD) {
@@ -707,9 +706,10 @@ Handle<FixedArray> GetEnumPropertyKeys(Handle<JSObject> object,
                        indices.is_null() ? Object::cast(Smi::FromInt(0))
                                          : Object::cast(*indices));
     if (cache_result) {
-      object->map()->SetEnumLength(own_property_count);
+      object->map()->SetEnumLength(enum_size);
     }
-    return storage;
+
+    return ReduceFixedArrayTo(storage, enum_size);
   } else {
     Handle<NameDictionary> dictionary(object->property_dictionary());
     int length = dictionary->NumberOfEnumElements();
