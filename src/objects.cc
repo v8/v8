@@ -12410,7 +12410,8 @@ Handle<Object> JSObject::SetElement(Handle<JSObject> object,
                                     SetPropertyMode set_mode) {
   Isolate* isolate = object->GetIsolate();
 
-  if (object->HasExternalArrayElements()) {
+  if (object->HasExternalArrayElements() ||
+      object->HasFixedTypedArrayElements()) {
     if (!value->IsNumber() && !value->IsUndefined()) {
       bool has_exception;
       Handle<Object> number =
