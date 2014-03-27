@@ -135,9 +135,10 @@
   'ecma/Date/15.9.2.2-5': [PASS, FAIL],
   'ecma/Date/15.9.2.2-6': [PASS, FAIL],
 
-  # 1026139: These date tests fail on arm and mips
-  'ecma/Date/15.9.5.29-1': [PASS, ['arch == arm or arch == mipsel', FAIL]],
-  'ecma/Date/15.9.5.28-1': [PASS, ['arch == arm or arch == mipsel', FAIL]],
+  # 1026139: These date tests fail on arm and mips.
+  # These date tests also fail in a time zone without daylight saving time.
+  'ecma/Date/15.9.5.29-1': [PASS, FAIL],
+  'ecma/Date/15.9.5.28-1': [PASS, FAIL],
 
   # 1050186: Arm/MIPS vm is broken; probably unrelated to dates
   'ecma/Array/15.4.4.5-3': [PASS, ['arch == arm or arch == mipsel', FAIL]],
