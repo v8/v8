@@ -70,15 +70,15 @@
   ##############################################################################
   # These use a built-in that's only present in debug mode. They take
   # too long to run in debug mode on ARM and MIPS.
-  'fuzz-natives-part*': [PASS, ['mode == release or arch == arm or arch == android_arm or arch == mipsel', SKIP]],
+  'fuzz-natives-part*': [PASS, ['mode == release or arch == arm or arch == android_arm or arch == android_arm64 or arch == mipsel', SKIP]],
 
-  'big-object-literal': [PASS, ['arch == arm or arch == android_arm', SKIP]],
+  'big-object-literal': [PASS, ['arch == arm or arch == android_arm or arch == android_arm64', SKIP]],
 
   # Issue 488: this test sometimes times out.
   'array-constructor': [PASS, TIMEOUT],
 
   # Very slow on ARM and MIPS, contains no architecture dependent code.
-  'unicode-case-overoptimization': [PASS, NO_VARIANTS, ['arch == arm or arch == android_arm or arch == mipsel', TIMEOUT]],
+  'unicode-case-overoptimization': [PASS, NO_VARIANTS, ['arch == arm or arch == android_arm or arch == android_arm64 or arch == mipsel', TIMEOUT]],
 
   ##############################################################################
   # This test expects to reach a certain recursion depth, which may not work
@@ -93,8 +93,8 @@
   # This test sets the umask on a per-process basis and hence cannot be
   # used in multi-threaded runs.
   # On android there is no /tmp directory.
-  'd8-os': [PASS, ['isolates or arch == android_arm or arch == android_ia32', SKIP]],
-  'tools/tickprocessor': [PASS, ['arch == android_arm or arch == android_ia32', SKIP]],
+  'd8-os': [PASS, ['isolates or arch == android_arm or arch == android_arm64 or arch == android_ia32', SKIP]],
+  'tools/tickprocessor': [PASS, ['arch == android_arm or arch == android_arm64 or arch == android_ia32', SKIP]],
 
   ##############################################################################
   # Long running test that reproduces memory leak and should be run manually.
@@ -138,7 +138,7 @@
 }],  # 'gc_stress == True'
 
 ##############################################################################
-['arch == arm64', {
+['arch == arm64 or arch == android_arm64', {
 
   # Requires bigger stack size in the Genesis and if stack size is increased,
   # the test requires too much time to run.  However, the problem test covers

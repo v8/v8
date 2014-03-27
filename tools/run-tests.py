@@ -75,6 +75,7 @@ GC_STRESS_FLAGS = ["--gc-interval=500", "--stress-compaction",
                    "--concurrent-recompilation"]
 
 SUPPORTED_ARCHS = ["android_arm",
+                   "android_arm64",
                    "android_ia32",
                    "arm",
                    "ia32",
@@ -85,6 +86,7 @@ SUPPORTED_ARCHS = ["android_arm",
                    "arm64"]
 # Double the timeout for these:
 SLOW_ARCHS = ["android_arm",
+              "android_arm64",
               "android_ia32",
               "arm",
               "mipsel",
