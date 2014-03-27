@@ -1278,7 +1278,8 @@ void V8HeapExplorer::ExtractContextReferences(int entry, Context* context) {
   }
 
 #define EXTRACT_CONTEXT_FIELD(index, type, name) \
-  if (Context::index < Context::FIRST_WEAK_SLOT) { \
+  if (Context::index < Context::FIRST_WEAK_SLOT || \
+      Context::index == Context::MAP_CACHE_INDEX) { \
     SetInternalReference(context, entry, #name, context->get(Context::index), \
         FixedArray::OffsetOfElementAt(Context::index)); \
   } else { \
