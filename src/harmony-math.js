@@ -156,7 +156,7 @@ function MathHypot(x, y) {  // Function length is 2.
 
 // ES6 draft 09-27-13, section 20.2.2.16.
 function MathFround(x) {
-  return %Math_fround(TO_NUMBER_INLINE(x));
+  return %MathFround(TO_NUMBER_INLINE(x));
 }
 
 

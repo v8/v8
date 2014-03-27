@@ -3539,7 +3539,7 @@ void FullCodeGenerator::EmitMathPow(CallRuntime* expr) {
     MathPowStub stub(MathPowStub::ON_STACK);
     __ CallStub(&stub);
   } else {
-    __ CallRuntime(Runtime::kMath_pow, 2);
+    __ CallRuntime(Runtime::kHiddenMathPowSlow, 2);
   }
   context()->Plug(eax);
 }
@@ -3722,26 +3722,6 @@ void FullCodeGenerator::EmitStringCompare(CallRuntime* expr) {
 
   StringCompareStub stub;
   __ CallStub(&stub);
-  context()->Plug(eax);
-}
-
-
-void FullCodeGenerator::EmitMathLog(CallRuntime* expr) {
-  // Load the argument on the stack and call the runtime function.
-  ZoneList<Expression*>* args = expr->arguments();
-  ASSERT(args->length() == 1);
-  VisitForStackValue(args->at(0));
-  __ CallRuntime(Runtime::kMath_log, 1);
-  context()->Plug(eax);
-}
-
-
-void FullCodeGenerator::EmitMathSqrt(CallRuntime* expr) {
-  // Load the argument on the stack and call the runtime function.
-  ZoneList<Expression*>* args = expr->arguments();
-  ASSERT(args->length() == 1);
-  VisitForStackValue(args->at(0));
-  __ CallRuntime(Runtime::kMath_sqrt, 1);
   context()->Plug(eax);
 }
 
