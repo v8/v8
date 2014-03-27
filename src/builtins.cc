@@ -651,18 +651,19 @@ BUILTIN(ArrayUnshift) {
 
 
 BUILTIN(ArraySlice) {
+  HandleScope scope(isolate);
   Heap* heap = isolate->heap();
-  Object* receiver = *args.receiver();
-  FixedArrayBase* elms;
+  Handle<Object> receiver = args.receiver();
+  Handle<FixedArrayBase> elms;
   int len = -1;
   if (receiver->IsJSArray()) {
-    JSArray* array = JSArray::cast(receiver);
-    if (!IsJSArrayFastElementMovingAllowed(heap, array)) {
+    Handle<JSArray> array = Handle<JSArray>::cast(receiver);
+    if (!IsJSArrayFastElementMovingAllowed(heap, *array)) {
       return CallJsBuiltin(isolate, "ArraySlice", args);
     }
 
     if (array->HasFastElements()) {
-      elms = array->elements();
+      elms = handle(array->elements());
     } else {
       return CallJsBuiltin(isolate, "ArraySlice", args);
     }
@@ -671,33 +672,34 @@ BUILTIN(ArraySlice) {
   } else {
     // Array.slice(arguments, ...) is quite a common idiom (notably more
     // than 50% of invocations in Web apps).  Treat it in C++ as well.
-    Map* arguments_map = isolate->context()->native_context()->
-        sloppy_arguments_boilerplate()->map();
+    Handle<Map> arguments_map(isolate->context()->native_context()->
+        sloppy_arguments_boilerplate()->map());
 
     bool is_arguments_object_with_fast_elements =
         receiver->IsJSObject() &&
-        JSObject::cast(receiver)->map() == arguments_map;
+        Handle<JSObject>::cast(receiver)->map() == *arguments_map;
     if (!is_arguments_object_with_fast_elements) {
       return CallJsBuiltin(isolate, "ArraySlice", args);
     }
-    JSObject* object = JSObject::cast(receiver);
+    Handle<JSObject> object = Handle<JSObject>::cast(receiver);
 
     if (object->HasFastElements()) {
-      elms = object->elements();
+      elms = handle(object->elements());
     } else {
       return CallJsBuiltin(isolate, "ArraySlice", args);
     }
-    Object* len_obj = object->InObjectPropertyAt(Heap::kArgumentsLengthIndex);
+    Handle<Object> len_obj(
+        object->InObjectPropertyAt(Heap::kArgumentsLengthIndex), isolate);
     if (!len_obj->IsSmi()) {
       return CallJsBuiltin(isolate, "ArraySlice", args);
     }
-    len = Smi::cast(len_obj)->value();
+    len = Handle<Smi>::cast(len_obj)->value();
     if (len > elms->length()) {
       return CallJsBuiltin(isolate, "ArraySlice", args);
     }
   }
 
-  JSObject* object = JSObject::cast(receiver);
+  Handle<JSObject> object = Handle<JSObject>::cast(receiver);
 
   ASSERT(len >= 0);
   int n_arguments = args.length() - 1;
@@ -708,11 +710,11 @@ BUILTIN(ArraySlice) {
   int relative_start = 0;
   int relative_end = len;
   if (n_arguments > 0) {
-    Object* arg1 = args[1];
+    Handle<Object> arg1 = args.at<Object>(1);
     if (arg1->IsSmi()) {
-      relative_start = Smi::cast(arg1)->value();
+      relative_start = Handle<Smi>::cast(arg1)->value();
     } else if (arg1->IsHeapNumber()) {
-      double start = HeapNumber::cast(arg1)->value();
+      double start = Handle<HeapNumber>::cast(arg1)->value();
       if (start < kMinInt || start > kMaxInt) {
         return CallJsBuiltin(isolate, "ArraySlice", args);
       }
@@ -721,11 +723,11 @@ BUILTIN(ArraySlice) {
       return CallJsBuiltin(isolate, "ArraySlice", args);
     }
     if (n_arguments > 1) {
-      Object* arg2 = args[2];
+      Handle<Object> arg2 = args.at<Object>(2);
       if (arg2->IsSmi()) {
-        relative_end = Smi::cast(arg2)->value();
+        relative_end = Handle<Smi>::cast(arg2)->value();
       } else if (arg2->IsHeapNumber()) {
-        double end = HeapNumber::cast(arg2)->value();
+        double end = Handle<HeapNumber>::cast(arg2)->value();
         if (end < kMinInt || end > kMaxInt) {
           return CallJsBuiltin(isolate, "ArraySlice", args);
         }
@@ -752,7 +754,8 @@ BUILTIN(ArraySlice) {
     bool packed = true;
     ElementsAccessor* accessor = ElementsAccessor::ForKind(kind);
     for (int i = k; i < final; i++) {
-      if (!accessor->HasElement(object, object, i, elms)) {
+      if (!ElementsAccessorHasElementWrapper(
+          accessor, object, object, i, elms)) {
         packed = false;
         break;
       }
@@ -764,22 +767,16 @@ BUILTIN(ArraySlice) {
     }
   }
 
-  JSArray* result_array;
-  MaybeObject* maybe_array = heap->AllocateJSArrayAndStorage(kind,
-                                                             result_len,
-                                                             result_len);
+  Handle<JSArray> result_array =
+      isolate->factory()->NewJSArray(kind, result_len, result_len);
 
   DisallowHeapAllocation no_gc;
-  if (result_len == 0) return maybe_array;
-  if (!maybe_array->To(&result_array)) return maybe_array;
+  if (result_len == 0) return *result_array;
 
   ElementsAccessor* accessor = object->GetElementsAccessor();
-  MaybeObject* maybe_failure = accessor->CopyElements(
-      NULL, k, kind, result_array->elements(), 0, result_len, elms);
-  ASSERT(!maybe_failure->IsFailure());
-  USE(maybe_failure);
-
-  return result_array;
+  accessor->CopyElements(Handle<JSObject>::null(), k, kind,
+                         handle(result_array->elements()), 0, result_len, elms);
+  return *result_array;
 }
 
 
@@ -994,11 +991,12 @@ BUILTIN(ArraySplice) {
 
 
 BUILTIN(ArrayConcat) {
+  HandleScope scope(isolate);
   Heap* heap = isolate->heap();
-  Context* native_context = isolate->context()->native_context();
-  JSObject* array_proto =
-      JSObject::cast(native_context->array_function()->prototype());
-  if (!ArrayPrototypeHasNoElements(heap, native_context, array_proto)) {
+  Handle<Context> native_context(isolate->context()->native_context());
+  Handle<JSObject> array_proto(
+      JSObject::cast(native_context->array_function()->prototype()));
+  if (!ArrayPrototypeHasNoElements(heap, *native_context, *array_proto)) {
     return CallJsBuiltin(isolate, "ArrayConcat", args);
   }
 
@@ -1010,13 +1008,13 @@ BUILTIN(ArrayConcat) {
   bool has_double = false;
   bool is_holey = false;
   for (int i = 0; i < n_arguments; i++) {
-    Object* arg = args[i];
+    Handle<Object> arg = args.at<Object>(i);
     if (!arg->IsJSArray() ||
-        !JSArray::cast(arg)->HasFastElements() ||
-        JSArray::cast(arg)->GetPrototype() != array_proto) {
+        !Handle<JSArray>::cast(arg)->HasFastElements() ||
+        Handle<JSArray>::cast(arg)->GetPrototype() != *array_proto) {
       return CallJsBuiltin(isolate, "ArrayConcat", args);
     }
-    int len = Smi::cast(JSArray::cast(arg)->length())->value();
+    int len = Smi::cast(Handle<JSArray>::cast(arg)->length())->value();
 
     // We shouldn't overflow when adding another len.
     const int kHalfOfMaxInt = 1 << (kBitsPerInt - 2);
@@ -1029,7 +1027,7 @@ BUILTIN(ArrayConcat) {
       return CallJsBuiltin(isolate, "ArrayConcat", args);
     }
 
-    ElementsKind arg_kind = JSArray::cast(arg)->map()->elements_kind();
+    ElementsKind arg_kind = Handle<JSArray>::cast(arg)->map()->elements_kind();
     has_double = has_double || IsFastDoubleElementsKind(arg_kind);
     is_holey = is_holey || IsFastHoleyElementsKind(arg_kind);
     if (IsMoreGeneralElementsKindTransition(elements_kind, arg_kind)) {
@@ -1045,34 +1043,29 @@ BUILTIN(ArrayConcat) {
   ArrayStorageAllocationMode mode =
       has_double && IsFastObjectElementsKind(elements_kind)
       ? INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE : DONT_INITIALIZE_ARRAY_ELEMENTS;
-  JSArray* result_array;
-  // Allocate result.
-  MaybeObject* maybe_array =
-      heap->AllocateJSArrayAndStorage(elements_kind,
-                                      result_len,
-                                      result_len,
-                                      mode);
-  if (!maybe_array->To(&result_array)) return maybe_array;
-  if (result_len == 0) return result_array;
+  Handle<JSArray> result_array =
+      isolate->factory()->NewJSArray(elements_kind,
+                                     result_len,
+                                     result_len,
+                                     mode);
+  if (result_len == 0) return *result_array;
 
   int j = 0;
-  FixedArrayBase* storage = result_array->elements();
+  Handle<FixedArrayBase> storage(result_array->elements());
   ElementsAccessor* accessor = ElementsAccessor::ForKind(elements_kind);
   for (int i = 0; i < n_arguments; i++) {
-    JSArray* array = JSArray::cast(args[i]);
+    Handle<JSArray> array = args.at<JSArray>(i);
     int len = Smi::cast(array->length())->value();
     ElementsKind from_kind = array->GetElementsKind();
     if (len > 0) {
-      MaybeObject* maybe_failure =
-          accessor->CopyElements(array, 0, from_kind, storage, j, len);
-      if (maybe_failure->IsFailure()) return maybe_failure;
+      accessor->CopyElements(array, 0, from_kind, storage, j, len);
       j += len;
     }
   }
 
   ASSERT(j == result_len);
 
-  return result_array;
+  return *result_array;
 }
 
 

@@ -2195,6 +2195,15 @@ MaybeObject* FixedDoubleArray::get(int index) {
 }
 
 
+Handle<Object> FixedDoubleArray::get_as_handle(int index) {
+  if (is_the_hole(index)) {
+    return GetIsolate()->factory()->the_hole_value();
+  } else {
+    return GetIsolate()->factory()->NewNumber(get_scalar(index));
+  }
+}
+
+
 void FixedDoubleArray::set(int index, double value) {
   ASSERT(map() != GetHeap()->fixed_cow_array_map() &&
          map() != GetHeap()->fixed_array_map());
