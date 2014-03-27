@@ -1059,12 +1059,6 @@ ExternalReference ExternalReference::perform_gc_function(Isolate* isolate) {
 }
 
 
-ExternalReference ExternalReference::out_of_memory_function(Isolate* isolate) {
-  return
-      ExternalReference(Redirect(isolate, FUNCTION_ADDR(Runtime::OutOfMemory)));
-}
-
-
 ExternalReference ExternalReference::delete_handle_scope_extensions(
     Isolate* isolate) {
   return ExternalReference(Redirect(

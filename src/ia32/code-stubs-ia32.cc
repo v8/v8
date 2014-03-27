@@ -2751,12 +2751,6 @@ void CEntryStub::Generate(MacroAssembler* masm) {
                true,
                true);
 
-  { FrameScope scope(masm, StackFrame::MANUAL);
-    __ PrepareCallCFunction(0, eax);
-    __ CallCFunction(
-        ExternalReference::out_of_memory_function(masm->isolate()), 0);
-  }
-
   __ bind(&throw_termination_exception);
   __ ThrowUncatchable(eax);
 

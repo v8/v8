@@ -3889,28 +3889,4 @@ TEST(AddInstructionChangesNewSpacePromotion) {
   g->Call(global, 1, args1);
   heap->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
 }
-
-
-void OnFatalErrorExpectOOM(const char* location, const char* message) {
-  // Exit with 0 if the location matches our expectation.
-  exit(strcmp(location, "CALL_AND_RETRY_LAST"));
-}
-
-
-TEST(CEntryStubOOM) {
-  i::FLAG_allow_natives_syntax = true;
-  CcTest::InitializeVM();
-  v8::HandleScope scope(CcTest::isolate());
-  v8::V8::SetFatalErrorHandler(OnFatalErrorExpectOOM);
-
-  CompileRun(
-      "%SetFlags('--gc-interval=1');"
-      "var a = [];"
-      "a.__proto__ = [];"
-      "a.unshift(1)");
-
-  // We should have run into an out of memory.
-  UNREACHABLE();
-}
-
-#endif  // DEBUG
+#endif
