@@ -1,3 +1,8 @@
+2014-03-27: Version 3.25.28
+
+        Performance and stability improvements on all platforms.
+
+
 2014-03-26: Version 3.25.27
 
         Promise constructor should not be enumerable (Chromium issue 352597).

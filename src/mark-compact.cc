@@ -1863,6 +1863,10 @@ class RootMarkingVisitor : public ObjectVisitor {
     for (Object** p = start; p < end; p++) MarkObjectByPointer(p);
   }
 
+  // Skip the weak next code link in a code object, which is visited in
+  // ProcessTopOptimizedFrame.
+  void VisitNextCodeLink(Object** p) { }
+
  private:
   void MarkObjectByPointer(Object** p) {
     if (!(*p)->IsHeapObject()) return;

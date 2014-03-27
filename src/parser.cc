@@ -1738,7 +1738,7 @@ void Parser::Declare(Declaration* declaration, bool resolve, bool* ok) {
   // same variable if it is declared several times. This is not a
   // semantic issue as long as we keep the source order, but it may be
   // a performance issue since it may lead to repeated
-  // Runtime::DeclareContextSlot() calls.
+  // RuntimeHidden_DeclareContextSlot calls.
   declaration_scope->AddDeclaration(declaration);
 
   if (mode == CONST_LEGACY && declaration_scope->is_global_scope()) {
@@ -2216,7 +2216,7 @@ Block* Parser::ParseVariableDeclarations(
         // the number of arguments (1 or 2).
         initialize = factory()->NewCallRuntime(
             isolate()->factory()->InitializeConstGlobal_string(),
-            Runtime::FunctionForId(Runtime::kInitializeConstGlobal),
+            Runtime::FunctionForId(Runtime::kHiddenInitializeConstGlobal),
             arguments, pos);
       } else {
         // Add strict mode.
@@ -3432,7 +3432,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
             new(zone()) ZoneList<Expression*>(0, zone());
         CallRuntime* allocation = factory()->NewCallRuntime(
             isolate()->factory()->empty_string(),
-            Runtime::FunctionForId(Runtime::kCreateJSGeneratorObject),
+            Runtime::FunctionForId(Runtime::kHiddenCreateJSGeneratorObject),
             arguments, pos);
         VariableProxy* init_proxy = factory()->NewVariableProxy(
             function_state_->generator_object_variable());

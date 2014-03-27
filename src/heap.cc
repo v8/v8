@@ -1775,6 +1775,18 @@ static Object* VisitWeakList(Heap* heap,
 }
 
 
+template <class T>
+static void ClearWeakList(Heap* heap,
+                          Object* list) {
+  Object* undefined = heap->undefined_value();
+  while (list != undefined) {
+    T* candidate = reinterpret_cast<T*>(list);
+    list = WeakListVisitor<T>::WeakNext(candidate);
+    WeakListVisitor<T>::SetWeakNext(candidate, undefined);
+  }
+}
+
+
 template<>
 struct WeakListVisitor<JSFunction> {
   static void SetWeakNext(JSFunction* function, Object* next) {
@@ -1868,7 +1880,11 @@ struct WeakListVisitor<Context> {
     }
   }
 
-  static void VisitPhantomObject(Heap*, Context*) {
+  static void VisitPhantomObject(Heap* heap, Context* context) {
+    ClearWeakList<JSFunction>(heap,
+        context->get(Context::OPTIMIZED_FUNCTIONS_LIST));
+    ClearWeakList<Code>(heap, context->get(Context::OPTIMIZED_CODE_LIST));
+    ClearWeakList<Code>(heap, context->get(Context::DEOPTIMIZED_CODE_LIST));
   }
 
   static int WeakNextOffset() {
@@ -2934,6 +2950,16 @@ bool Heap::CreateInitialMaps() {
 
     TYPED_ARRAYS(ALLOCATE_EMPTY_EXTERNAL_ARRAY)
 #undef ALLOCATE_EMPTY_EXTERNAL_ARRAY
+
+#define ALLOCATE_EMPTY_FIXED_TYPED_ARRAY(Type, type, TYPE, ctype, size)        \
+    { FixedTypedArrayBase* obj;                                                \
+      if (!AllocateEmptyFixedTypedArray(kExternal##Type##Array)->To(&obj))     \
+          return false;                                                        \
+      set_empty_fixed_##type##_array(obj);                                     \
+    }
+
+    TYPED_ARRAYS(ALLOCATE_EMPTY_FIXED_TYPED_ARRAY)
+#undef ALLOCATE_EMPTY_FIXED_TYPED_ARRAY
   }
   ASSERT(!InNewSpace(empty_fixed_array()));
   return true;
@@ -3762,9 +3788,31 @@ Heap::RootListIndex Heap::RootIndexForEmptyExternalArray(
 }
 
 
+Heap::RootListIndex Heap::RootIndexForEmptyFixedTypedArray(
+    ElementsKind elementsKind) {
+  switch (elementsKind) {
+#define ELEMENT_KIND_TO_ROOT_INDEX(Type, type, TYPE, ctype, size)             \
+    case TYPE##_ELEMENTS:                                                     \
+      return kEmptyFixed##Type##ArrayRootIndex;
+
+    TYPED_ARRAYS(ELEMENT_KIND_TO_ROOT_INDEX)
+#undef ELEMENT_KIND_TO_ROOT_INDEX
+    default:
+      UNREACHABLE();
+      return kUndefinedValueRootIndex;
+  }
+}
+
+
 ExternalArray* Heap::EmptyExternalArrayForMap(Map* map) {
   return ExternalArray::cast(
       roots_[RootIndexForEmptyExternalArray(map->elements_kind())]);
+}
+
+
+FixedTypedArrayBase* Heap::EmptyFixedTypedArrayForMap(Map* map) {
+  return FixedTypedArrayBase::cast(
+      roots_[RootIndexForEmptyFixedTypedArray(map->elements_kind())]);
 }
 
 
@@ -4063,6 +4111,7 @@ MaybeObject* Heap::AllocateFixedTypedArray(int length,
       reinterpret_cast<FixedTypedArrayBase*>(object);
   elements->set_map(MapForFixedTypedArray(array_type));
   elements->set_length(length);
+  memset(elements->DataPtr(), 0, elements->DataSize());
   return elements;
 }
 
@@ -4126,6 +4175,7 @@ MaybeObject* Heap::CreateCode(const CodeDesc& desc,
   code->set_is_crankshafted(crankshafted);
   code->set_deoptimization_data(empty_fixed_array(), SKIP_WRITE_BARRIER);
   code->set_raw_type_feedback_info(undefined_value());
+  code->set_next_code_link(undefined_value());
   code->set_handler_table(empty_fixed_array(), SKIP_WRITE_BARRIER);
   code->set_gc_metadata(Smi::FromInt(0));
   code->set_ic_age(global_ic_age_);
@@ -4471,7 +4521,8 @@ MaybeObject* Heap::AllocateJSObjectFromMap(
   // Initialize the JSObject.
   InitializeJSObjectFromMap(JSObject::cast(obj), properties, map);
   ASSERT(JSObject::cast(obj)->HasFastElements() ||
-         JSObject::cast(obj)->HasExternalArrayElements());
+         JSObject::cast(obj)->HasExternalArrayElements() ||
+         JSObject::cast(obj)->HasFixedTypedArrayElements());
   return obj;
 }
 
@@ -5136,6 +5187,11 @@ MaybeObject* Heap::CopyAndTenureFixedCOWArray(FixedArray* src) {
   // we might then be able to remove this whole method.
   HeapObject::cast(obj)->set_map_no_write_barrier(fixed_cow_array_map());
   return result;
+}
+
+
+MaybeObject* Heap::AllocateEmptyFixedTypedArray(ExternalArrayType array_type) {
+  return AllocateFixedTypedArray(0, array_type, TENURED);
 }
 
 

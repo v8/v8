@@ -1898,6 +1898,8 @@ class HeapObject: public Object {
   inline void IteratePointers(ObjectVisitor* v, int start, int end);
   // as above, for the single element at "offset"
   inline void IteratePointer(ObjectVisitor* v, int offset);
+  // as above, for the next code link of a code object.
+  inline void IterateNextCodeLink(ObjectVisitor* v, int offset);
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(HeapObject);
@@ -2216,6 +2218,17 @@ class JSObject: public JSReceiver {
   inline bool HasExternalFloat64Elements();
 
   inline bool HasFixedTypedArrayElements();
+
+  inline bool HasFixedUint8ClampedElements();
+  inline bool HasFixedArrayElements();
+  inline bool HasFixedInt8Elements();
+  inline bool HasFixedUint8Elements();
+  inline bool HasFixedInt16Elements();
+  inline bool HasFixedUint16Elements();
+  inline bool HasFixedInt32Elements();
+  inline bool HasFixedUint32Elements();
+  inline bool HasFixedFloat32Elements();
+  inline bool HasFixedFloat64Elements();
 
   bool HasFastArgumentsElements();
   bool HasDictionaryArgumentsElements();
@@ -4956,6 +4969,11 @@ class FixedTypedArrayBase: public FixedArrayBase {
 
   inline int size();
 
+  // Use with care: returns raw pointer into heap.
+  inline void* DataPtr();
+
+  inline int DataSize();
+
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(FixedTypedArrayBase);
 };
@@ -4982,6 +5000,9 @@ class FixedTypedArray: public FixedTypedArrayBase {
   MUST_USE_RESULT inline MaybeObject* get(int index);
   inline void set(int index, ElementType value);
 
+  static inline ElementType from_int(int value);
+  static inline ElementType from_double(double value);
+
   // This accessor applies the correct conversion from Smi, HeapNumber
   // and undefined.
   MUST_USE_RESULT MaybeObject* SetValue(uint32_t index, Object* value);
@@ -5004,7 +5025,7 @@ class FixedTypedArray: public FixedTypedArrayBase {
       static const InstanceType kInstanceType = FIXED_##TYPE##_ARRAY_TYPE;    \
       static const char* Designator() { return #type " array"; }              \
       static inline MaybeObject* ToObject(Heap* heap, elementType scalar);    \
-      static elementType defaultValue() { return 0; }                         \
+      static inline elementType defaultValue();                               \
   };                                                                          \
                                                                               \
   typedef FixedTypedArray<Type##ArrayTraits> Fixed##Type##Array;
@@ -5230,7 +5251,6 @@ class Code: public HeapObject {
   // the kind of the code object.
   //   FUNCTION           => type feedback information.
   //   STUB               => various things, e.g. a SMI
-  //   OPTIMIZED_FUNCTION => the next_code_link for optimized code list.
   DECL_ACCESSORS(raw_type_feedback_info, Object)
   inline Object* type_feedback_info();
   inline void set_type_feedback_info(
@@ -5563,8 +5583,8 @@ class Code: public HeapObject {
       kHandlerTableOffset + kPointerSize;
   static const int kTypeFeedbackInfoOffset =
       kDeoptimizationDataOffset + kPointerSize;
-  static const int kNextCodeLinkOffset = kTypeFeedbackInfoOffset;  // Shared.
-  static const int kGCMetadataOffset = kTypeFeedbackInfoOffset + kPointerSize;
+  static const int kNextCodeLinkOffset = kTypeFeedbackInfoOffset + kPointerSize;
+  static const int kGCMetadataOffset = kNextCodeLinkOffset + kPointerSize;
   static const int kICAgeOffset =
       kGCMetadataOffset + kPointerSize;
   static const int kFlagsOffset = kICAgeOffset + kIntSize;
@@ -6224,8 +6244,10 @@ class Map: public HeapObject {
       Descriptor* descriptor,
       int index,
       TransitionFlag flag);
-  static Handle<Map> AsElementsKind(Handle<Map> map, ElementsKind kind);
+
   MUST_USE_RESULT MaybeObject* AsElementsKind(ElementsKind kind);
+
+  static Handle<Map> AsElementsKind(Handle<Map> map, ElementsKind kind);
 
   MUST_USE_RESULT MaybeObject* CopyAsElementsKind(ElementsKind kind,
                                                   TransitionFlag flag);
@@ -9916,6 +9938,8 @@ class JSTypedArray: public JSArrayBufferView {
   ExternalArrayType type();
   size_t element_size();
 
+  Handle<JSArrayBuffer> GetBuffer();
+
   // Dispatched behavior.
   DECLARE_PRINTER(JSTypedArray)
   DECLARE_VERIFIER(JSTypedArray)
@@ -9927,6 +9951,9 @@ class JSTypedArray: public JSArrayBufferView {
       kSize + v8::ArrayBufferView::kInternalFieldCount * kPointerSize;
 
  private:
+  static Handle<JSArrayBuffer> MaterializeArrayBuffer(
+      Handle<JSTypedArray> typed_array);
+
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSTypedArray);
 };
 
@@ -10707,6 +10734,9 @@ class ObjectVisitor BASE_EMBEDDED {
 
   // Handy shorthand for visiting a single pointer.
   virtual void VisitPointer(Object** p) { VisitPointers(p, p + 1); }
+
+  // Visit weak next_code_link in Code object.
+  virtual void VisitNextCodeLink(Object** p) { VisitPointers(p, p + 1); }
 
   // To allow lazy clearing of inline caches the visitor has
   // a rich interface for iterating over Code objects..

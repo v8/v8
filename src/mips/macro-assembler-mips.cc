@@ -3986,7 +3986,7 @@ void MacroAssembler::CallApiFunctionAndReturn(
   {
     FrameScope frame(this, StackFrame::INTERNAL);
     CallExternalReference(
-        ExternalReference(Runtime::kPromoteScheduledException, isolate()),
+        ExternalReference(Runtime::kHiddenPromoteScheduledException, isolate()),
         0);
   }
   jmp(&exception_handled);
@@ -5451,9 +5451,9 @@ void MacroAssembler::Throw(BailoutReason reason) {
     // We don't actually want to generate a pile of code for this, so just
     // claim there is a stack frame, without generating one.
     FrameScope scope(this, StackFrame::NONE);
-    CallRuntime(Runtime::kThrowMessage, 1);
+    CallRuntime(Runtime::kHiddenThrowMessage, 1);
   } else {
-    CallRuntime(Runtime::kThrowMessage, 1);
+    CallRuntime(Runtime::kHiddenThrowMessage, 1);
   }
   // will not return here
   if (is_trampoline_pool_blocked()) {

@@ -713,7 +713,7 @@ bool LCodeGen::GeneratePrologue() {
       __ CallStub(&stub);
     } else {
       __ Push(x1);
-      __ CallRuntime(Runtime::kNewFunctionContext, 1);
+      __ CallRuntime(Runtime::kHiddenNewFunctionContext, 1);
     }
     RecordSafepoint(Safepoint::kNoLazyDeopt);
     // Context is returned in x0. It replaces the context passed to us. It's
@@ -1593,7 +1593,7 @@ void LCodeGen::DoDeferredAllocate(LAllocate* instr) {
   __ Push(size, x10);
 
   CallRuntimeFromDeferred(
-      Runtime::kAllocateInTargetSpace, 2, instr, instr->context());
+      Runtime::kHiddenAllocateInTargetSpace, 2, instr, instr->context());
   __ StoreToSafepointRegisterSlot(x0, ToRegister(instr->result()));
 }
 
@@ -2815,7 +2815,7 @@ void LCodeGen::DoFunctionLiteral(LFunctionLiteral* instr) {
     __ Mov(x1, Operand(pretenure ? factory()->true_value()
                                  : factory()->false_value()));
     __ Push(cp, x2, x1);
-    CallRuntime(Runtime::kNewClosure, 3, instr);
+    CallRuntime(Runtime::kHiddenNewClosure, 3, instr);
   }
 }
 
@@ -3756,7 +3756,7 @@ void LCodeGen::DoDeferredMathAbsTagged(LMathAbsTagged* instr,
   }
 
   { PushSafepointRegistersScope scope(this, Safepoint::kWithRegisters);
-    CallRuntimeFromDeferred(Runtime::kAllocateHeapNumber, 0, instr,
+    CallRuntimeFromDeferred(Runtime::kHiddenAllocateHeapNumber, 0, instr,
                             instr->context());
     __ StoreToSafepointRegisterSlot(x0, result);
   }
@@ -4451,11 +4451,11 @@ void LCodeGen::DoDeferredNumberTagD(LNumberTagD* instr) {
   PushSafepointRegistersScope scope(this, Safepoint::kWithRegisters);
   // NumberTagU and NumberTagD use the context from the frame, rather than
   // the environment's HContext or HInlinedContext value.
-  // They only call Runtime::kAllocateHeapNumber.
+  // They only call Runtime::kHiddenAllocateHeapNumber.
   // The corresponding HChange instructions are added in a phase that does
   // not have easy access to the local context.
   __ Ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
-  __ CallRuntimeSaveDoubles(Runtime::kAllocateHeapNumber);
+  __ CallRuntimeSaveDoubles(Runtime::kHiddenAllocateHeapNumber);
   RecordSafepointWithRegisters(
       instr->pointer_map(), 0, Safepoint::kNoLazyDeopt);
   __ StoreToSafepointRegisterSlot(x0, result);
@@ -4517,11 +4517,11 @@ void LCodeGen::DoDeferredNumberTagU(LInstruction* instr,
 
     // NumberTagU and NumberTagD use the context from the frame, rather than
     // the environment's HContext or HInlinedContext value.
-    // They only call Runtime::kAllocateHeapNumber.
+    // They only call Runtime::kHiddenAllocateHeapNumber.
     // The corresponding HChange instructions are added in a phase that does
     // not have easy access to the local context.
     __ Ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
-    __ CallRuntimeSaveDoubles(Runtime::kAllocateHeapNumber);
+    __ CallRuntimeSaveDoubles(Runtime::kHiddenAllocateHeapNumber);
     RecordSafepointWithRegisters(
       instr->pointer_map(), 0, Safepoint::kNoLazyDeopt);
     __ StoreToSafepointRegisterSlot(x0, dst);
@@ -4937,14 +4937,14 @@ void LCodeGen::DoDeclareGlobals(LDeclareGlobals* instr) {
   __ LoadHeapObject(scratch1, instr->hydrogen()->pairs());
   __ Mov(scratch2, Smi::FromInt(instr->hydrogen()->flags()));
   __ Push(cp, scratch1, scratch2);  // The context is the first argument.
-  CallRuntime(Runtime::kDeclareGlobals, 3, instr);
+  CallRuntime(Runtime::kHiddenDeclareGlobals, 3, instr);
 }
 
 
 void LCodeGen::DoDeferredStackCheck(LStackCheck* instr) {
   PushSafepointRegistersScope scope(this, Safepoint::kWithRegisters);
   LoadContextFromDeferred(instr->context());
-  __ CallRuntimeSaveDoubles(Runtime::kStackGuard);
+  __ CallRuntimeSaveDoubles(Runtime::kHiddenStackGuard);
   RecordSafepointWithLazyDeopt(
       instr, RECORD_SAFEPOINT_WITH_REGISTERS_AND_NO_ARGUMENTS);
   ASSERT(instr->HasEnvironment());
@@ -5635,7 +5635,7 @@ void LCodeGen::DoRegExpLiteral(LRegExpLiteral* instr) {
   __ Mov(x11, Operand(instr->hydrogen()->pattern()));
   __ Mov(x10, Operand(instr->hydrogen()->flags()));
   __ Push(x7, x12, x11, x10);
-  CallRuntime(Runtime::kMaterializeRegExpLiteral, 4, instr);
+  CallRuntime(Runtime::kHiddenMaterializeRegExpLiteral, 4, instr);
   __ Mov(x1, x0);
 
   __ Bind(&materialized);
@@ -5648,7 +5648,7 @@ void LCodeGen::DoRegExpLiteral(LRegExpLiteral* instr) {
   __ Bind(&runtime_allocate);
   __ Mov(x0, Smi::FromInt(size));
   __ Push(x1, x0);
-  CallRuntime(Runtime::kAllocateInNewSpace, 1, instr);
+  CallRuntime(Runtime::kHiddenAllocateInNewSpace, 1, instr);
   __ Pop(x1);
 
   __ Bind(&allocated);

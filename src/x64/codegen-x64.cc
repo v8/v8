@@ -300,7 +300,7 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
 
   // Allocate new backing store.
   __ bind(&new_backing_store);
-  __ lea(rdi, Operand(r9, times_8, FixedArray::kHeaderSize));
+  __ leap(rdi, Operand(r9, times_8, FixedArray::kHeaderSize));
   __ Allocate(rdi, r14, r11, r15, fail, TAG_OBJECT);
   // Set backing store's map
   __ LoadRoot(rdi, Heap::kFixedDoubleArrayMapRootIndex);
@@ -387,7 +387,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   __ SmiToInteger32(r9, FieldOperand(r8, FixedDoubleArray::kLengthOffset));
   // r8 : source FixedDoubleArray
   // r9 : number of elements
-  __ lea(rdi, Operand(r9, times_pointer_size, FixedArray::kHeaderSize));
+  __ leap(rdi, Operand(r9, times_pointer_size, FixedArray::kHeaderSize));
   __ Allocate(rdi, r11, r14, r15, &gc_required, TAG_OBJECT);
   // r11: destination FixedArray
   __ LoadRoot(rdi, Heap::kFixedArrayMapRootIndex);
@@ -606,13 +606,13 @@ void MathExpGenerator::EmitMathExp(MacroAssembler* masm,
   __ movq(temp2, double_scratch);
   __ subsd(double_scratch, result);
   __ movsd(result, Operand(kScratchRegister, 6 * kDoubleSize));
-  __ lea(temp1, Operand(temp2, 0x1ff800));
-  __ and_(temp2, Immediate(0x7ff));
+  __ leaq(temp1, Operand(temp2, 0x1ff800));
+  __ andq(temp2, Immediate(0x7ff));
   __ shr(temp1, Immediate(11));
   __ mulsd(double_scratch, Operand(kScratchRegister, 5 * kDoubleSize));
   __ Move(kScratchRegister, ExternalReference::math_exp_log_table());
   __ shl(temp1, Immediate(52));
-  __ or_(temp1, Operand(kScratchRegister, temp2, times_8, 0));
+  __ orq(temp1, Operand(kScratchRegister, temp2, times_8, 0));
   __ Move(kScratchRegister, ExternalReference::math_exp_constants(0));
   __ subsd(double_scratch, input);
   __ movsd(input, double_scratch);

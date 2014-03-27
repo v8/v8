@@ -271,6 +271,10 @@ class LInstruction : public ZoneObject {
 
   virtual bool HasInterestingComment(LCodeGen* gen) const { return true; }
 
+  virtual bool MustSignExtendResult(LPlatformChunk* chunk) const {
+    return false;
+  }
+
 #ifdef DEBUG
   void VerifyCall();
 #endif
@@ -305,6 +309,9 @@ class LTemplateResultInstruction : public LInstruction {
   }
   void set_result(LOperand* operand) { results_[0] = operand; }
   LOperand* result() const { return results_[0]; }
+
+  virtual bool MustSignExtendResult(
+      LPlatformChunk* chunk) const V8_FINAL V8_OVERRIDE;
 
  protected:
   EmbeddedContainer<LOperand*, R> results_;
@@ -2626,10 +2633,18 @@ class LChunkBuilder;
 class LPlatformChunk V8_FINAL : public LChunk {
  public:
   LPlatformChunk(CompilationInfo* info, HGraph* graph)
-      : LChunk(info, graph) { }
+      : LChunk(info, graph),
+        dehoisted_key_ids_(graph->GetMaximumValueID(), graph->zone()) { }
 
   int GetNextSpillIndex(RegisterKind kind);
   LOperand* GetNextSpillSlot(RegisterKind kind);
+  BitVector* GetDehoistedKeyIds() { return &dehoisted_key_ids_; }
+  bool IsDehoistedKey(HValue* value) {
+    return dehoisted_key_ids_.Contains(value->id());
+  }
+
+ private:
+  BitVector dehoisted_key_ids_;
 };
 
 
@@ -2780,6 +2795,7 @@ class LChunkBuilder V8_FINAL : public LChunkBuilderBase {
                               HArithmeticBinaryOperation* instr);
   LInstruction* DoArithmeticT(Token::Value op,
                               HBinaryOperation* instr);
+  void FindDehoistedKeyDefinitions(HValue* candidate);
 
   LPlatformChunk* chunk_;
   CompilationInfo* info_;

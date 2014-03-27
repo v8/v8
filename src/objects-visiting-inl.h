@@ -899,6 +899,7 @@ void Code::CodeIterateBody(ObjectVisitor* v) {
   IteratePointer(v, kHandlerTableOffset);
   IteratePointer(v, kDeoptimizationDataOffset);
   IteratePointer(v, kTypeFeedbackInfoOffset);
+  IterateNextCodeLink(v, kNextCodeLinkOffset);
   IteratePointer(v, kConstantPoolOffset);
 
   RelocIterator it(this, mode_mask);
@@ -933,6 +934,9 @@ void Code::CodeIterateBody(Heap* heap) {
   StaticVisitor::VisitPointer(
       heap,
       reinterpret_cast<Object**>(this->address() + kTypeFeedbackInfoOffset));
+  StaticVisitor::VisitNextCodeLink(
+      heap,
+      reinterpret_cast<Object**>(this->address() + kNextCodeLinkOffset));
   StaticVisitor::VisitPointer(
       heap,
       reinterpret_cast<Object**>(this->address() + kConstantPoolOffset));

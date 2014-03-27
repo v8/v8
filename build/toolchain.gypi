@@ -428,8 +428,12 @@
             'variables': {
               'm64flag': '<!(($(echo ${CXX_target:-<(CXX)}) -m64 -E - > /dev/null 2>&1 < /dev/null) && echo "-m64" || true)',
             },
-            'cflags': [ '<(m64flag)' ],
-            'ldflags': [ '<(m64flag)' ],
+            'conditions': [
+              ['((OS!="android" and OS!="qnx") or clang==1)', {
+                'cflags': [ '<(m64flag)' ],
+                'ldflags': [ '<(m64flag)' ],
+              }],
+            ],
           }]
         ],
       }],

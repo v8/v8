@@ -4403,7 +4403,9 @@ class HIsSmiAndBranch V8_FINAL : public HUnaryControlInstruction {
   HIsSmiAndBranch(HValue* value,
                   HBasicBlock* true_target = NULL,
                   HBasicBlock* false_target = NULL)
-      : HUnaryControlInstruction(value, true_target, false_target) {}
+      : HUnaryControlInstruction(value, true_target, false_target) {
+    set_representation(Representation::Tagged());
+  }
 };
 
 
@@ -7263,7 +7265,7 @@ class HToFastProperties V8_FINAL : public HUnaryOperation {
     ASSERT(value->IsCallRuntime());
 #ifdef DEBUG
     const Runtime::Function* function = HCallRuntime::cast(value)->function();
-    ASSERT(function->function_id == Runtime::kCreateObjectLiteral);
+    ASSERT(function->function_id == Runtime::kHiddenCreateObjectLiteral);
 #endif
   }
 

@@ -577,7 +577,7 @@ void DoSSE2(const v8::FunctionCallbackInfo<v8::Value>& args) {
   for (int i = 0; i < ELEMENT_COUNT; i++) {
     __ movl(rax, Immediate(vec->Get(i)->Int32Value()));
     __ shl(rax, Immediate(0x20));
-    __ or_(rax, Immediate(vec->Get(++i)->Int32Value()));
+    __ orq(rax, Immediate(vec->Get(++i)->Int32Value()));
     __ pushq(rax);
   }
 
