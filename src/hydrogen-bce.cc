@@ -136,7 +136,7 @@ class BoundsCheckBbData: public ZoneObject {
   void UpdateUpperOffsets(HBoundsCheck* check, int32_t offset) {
     BoundsCheckBbData* data = FatherInDominatorTree();
     while (data != NULL && data->UpperCheck() == check) {
-      ASSERT(data->upper_offset_ <= offset);
+      ASSERT(data->upper_offset_ < offset);
       data->upper_offset_ = offset;
       data = data->FatherInDominatorTree();
     }

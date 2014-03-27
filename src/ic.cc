@@ -624,27 +624,32 @@ bool IC::UpdatePolymorphicIC(Handle<HeapType> type,
   TypeHandleList types;
   CodeHandleList handlers;
 
-  int number_of_valid_types;
-  int handler_to_overwrite = -1;
-
   target()->FindAllTypes(&types);
   int number_of_types = types.length();
-  number_of_valid_types = number_of_types;
+  int deprecated_types = 0;
+  int handler_to_overwrite = -1;
 
   for (int i = 0; i < number_of_types; i++) {
     Handle<HeapType> current_type = types.at(i);
-    // Filter out deprecated maps to ensure their instances get migrated.
     if (current_type->IsClass() && current_type->AsClass()->is_deprecated()) {
-      number_of_valid_types--;
-    // If the receiver type is already in the polymorphic IC, this indicates
-    // there was a prototoype chain failure. In that case, just overwrite the
-    // handler.
+      // Filter out deprecated maps to ensure their instances get migrated.
+      ++deprecated_types;
     } else if (type->IsCurrently(current_type)) {
-      ASSERT(handler_to_overwrite == -1);
-      number_of_valid_types--;
+      // If the receiver type is already in the polymorphic IC, this indicates
+      // there was a prototoype chain failure. In that case, just overwrite the
+      // handler.
+      handler_to_overwrite = i;
+    } else if (handler_to_overwrite == -1 &&
+               current_type->IsClass() &&
+               type->IsClass() &&
+               IsTransitionOfMonomorphicTarget(*current_type->AsClass(),
+                                               *type->AsClass())) {
       handler_to_overwrite = i;
     }
   }
+
+  int number_of_valid_types =
+    number_of_types - deprecated_types - (handler_to_overwrite != -1);
 
   if (number_of_valid_types >= 4) return false;
   if (number_of_types == 0) return false;
@@ -653,6 +658,9 @@ bool IC::UpdatePolymorphicIC(Handle<HeapType> type,
   number_of_valid_types++;
   if (handler_to_overwrite >= 0) {
     handlers.Set(handler_to_overwrite, code);
+    if (!type->IsCurrently(types.at(handler_to_overwrite))) {
+      types.Set(handler_to_overwrite, type);
+    }
   } else {
     types.Add(type);
     handlers.Add(code);
@@ -727,19 +735,18 @@ void IC::CopyICToMegamorphicCache(Handle<String> name) {
 }
 
 
-bool IC::IsTransitionOfMonomorphicTarget(Handle<HeapType> type) {
-  if (!type->IsClass()) return false;
-  Map* receiver_map = *type->AsClass();
-  Map* current_map = target()->FindFirstMap();
-  ElementsKind receiver_elements_kind = receiver_map->elements_kind();
+bool IC::IsTransitionOfMonomorphicTarget(Map* source_map, Map* target_map) {
+  if (source_map == NULL) return true;
+  if (target_map == NULL) return false;
+  ElementsKind target_elements_kind = target_map->elements_kind();
   bool more_general_transition =
       IsMoreGeneralElementsKindTransition(
-        current_map->elements_kind(), receiver_elements_kind);
+        source_map->elements_kind(), target_elements_kind);
   Map* transitioned_map = more_general_transition
-      ? current_map->LookupElementsTransitionMap(receiver_elements_kind)
+      ? source_map->LookupElementsTransitionMap(target_elements_kind)
       : NULL;
 
-  return transitioned_map == receiver_map;
+  return transitioned_map == target_map;
 }
 
 
@@ -752,17 +759,7 @@ void IC::PatchCache(Handle<HeapType> type,
     case MONOMORPHIC_PROTOTYPE_FAILURE:
       UpdateMonomorphicIC(type, code, name);
       break;
-    case MONOMORPHIC: {
-      // For now, call stubs are allowed to rewrite to the same stub. This
-      // happens e.g., when the field does not contain a function.
-      ASSERT(!target().is_identical_to(code));
-      Code* old_handler = target()->FindFirstHandler();
-      if (old_handler == *code && IsTransitionOfMonomorphicTarget(type)) {
-        UpdateMonomorphicIC(type, code, name);
-        break;
-      }
-      // Fall through.
-    }
+    case MONOMORPHIC:  // Fall through.
     case POLYMORPHIC:
       if (!target()->is_keyed_stub()) {
         if (UpdatePolymorphicIC(type, name, code)) break;
@@ -1457,8 +1454,8 @@ Handle<Code> KeyedStoreIC::StoreElementStub(Handle<JSObject> receiver,
     }
     if ((receiver_map.is_identical_to(previous_receiver_map) &&
          IsTransitionStoreMode(store_mode)) ||
-        IsTransitionOfMonomorphicTarget(
-            MapToType<HeapType>(transitioned_receiver_map, isolate()))) {
+        IsTransitionOfMonomorphicTarget(*previous_receiver_map,
+                                        *transitioned_receiver_map)) {
       // If the "old" and "new" maps are in the same elements map family, or
       // if they at least come from the same origin for a transitioning store,
       // stay MONOMORPHIC and use the map for the most generic ElementsKind.
