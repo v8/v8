@@ -217,7 +217,7 @@ class IC {
   virtual void UpdateMegamorphicCache(HeapType* type, Name* name, Code* code);
 
   void CopyICToMegamorphicCache(Handle<String> name);
-  bool IsTransitionOfMonomorphicTarget(Handle<HeapType> type);
+  bool IsTransitionOfMonomorphicTarget(Map* source_map, Map* target_map);
   void PatchCache(Handle<HeapType> type,
                   Handle<String> name,
                   Handle<Code> code);
