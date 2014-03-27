@@ -133,6 +133,7 @@ class Heap;
 class HeapObject;
 class IC;
 class InterceptorInfo;
+class Isolate;
 class JSReceiver;
 class JSArray;
 class JSFunction;
