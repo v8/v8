@@ -1764,6 +1764,11 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   }
   __ SetStackPointer(jssp);
 
+  { FrameScope scope(masm, StackFrame::MANUAL);
+    __ CallCFunction(
+        ExternalReference::out_of_memory_function(masm->isolate()), 0, 0);
+  }
+
   // Throw exceptions.
   // If we throw an exception, we can end up re-entering CEntryStub before we
   // pop the exit frame, so need to ensure that x21-x23 contain GC-safe values

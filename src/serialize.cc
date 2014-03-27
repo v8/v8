@@ -313,6 +313,11 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
       RUNTIME_ENTRY,
       1,
       "Runtime::PerformGC");
+  // Runtime entries
+  Add(ExternalReference::out_of_memory_function(isolate).address(),
+      RUNTIME_ENTRY,
+      2,
+      "Runtime::OutOfMemory");
   Add(ExternalReference::delete_handle_scope_extensions(isolate).address(),
       RUNTIME_ENTRY,
       4,
