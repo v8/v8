@@ -895,6 +895,7 @@ class Runtime : public AllStatic {
 
   // Helper functions used stubs.
   static void PerformGC(Object* result, Isolate* isolate);
+  static void OutOfMemory();
 
   // Used in runtime.cc and hydrogen's VisitArrayLiteral.
   static Handle<Object> CreateArrayLiteralBoilerplate(
