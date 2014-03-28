@@ -6025,11 +6025,6 @@ class HObjectAccess V8_FINAL {
         JSArrayBuffer::kBackingStoreOffset, Representation::External());
   }
 
-  static HObjectAccess ForJSArrayBufferByteLength() {
-    return HObjectAccess::ForObservableJSObjectOffset(
-        JSArrayBuffer::kByteLengthOffset, Representation::Tagged());
-  }
-
   static HObjectAccess ForExternalArrayExternalPointer() {
     return HObjectAccess::ForObservableJSObjectOffset(
         ExternalArray::kExternalPointerOffset, Representation::External());

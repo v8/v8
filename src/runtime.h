@@ -328,15 +328,21 @@ namespace internal {
   \
   /* Harmony typed arrays */ \
   F(ArrayBufferInitialize, 2, 1)\
+  F(ArrayBufferGetByteLength, 1, 1)\
   F(ArrayBufferSliceImpl, 3, 1) \
   F(ArrayBufferIsView, 1, 1) \
   F(ArrayBufferNeuter, 1, 1) \
   \
   F(TypedArrayInitializeFromArrayLike, 4, 1) \
   F(TypedArrayGetBuffer, 1, 1) \
+  F(TypedArrayGetByteLength, 1, 1) \
+  F(TypedArrayGetByteOffset, 1, 1) \
+  F(TypedArrayGetLength, 1, 1) \
   F(TypedArraySetFastCases, 3, 1) \
   \
   F(DataViewGetBuffer, 1, 1) \
+  F(DataViewGetByteLength, 1, 1) \
+  F(DataViewGetByteOffset, 1, 1) \
   F(DataViewGetInt8, 3, 1) \
   F(DataViewGetUint8, 3, 1) \
   F(DataViewGetInt16, 3, 1) \
@@ -684,17 +690,13 @@ namespace internal {
 // Entries have the form F(name, number of arguments, number of return values).
 #define INLINE_OPTIMIZED_FUNCTION_LIST(F) \
   /* Typed Arrays */                                                         \
+  F(ConstructDouble, 2, 1)                                                   \
   F(TypedArrayInitialize, 5, 1)                                              \
   F(DataViewInitialize, 4, 1)                                                \
   F(MaxSmi, 0, 1)                                                            \
   F(TypedArrayMaxSizeInHeap, 0, 1)                                           \
-  F(ArrayBufferViewGetByteLength, 1, 1)                                      \
-  F(ArrayBufferViewGetByteOffset, 1, 1)                                      \
-  F(TypedArrayGetLength, 1, 1)                                               \
-  /* ArrayBuffer */                                                          \
-  F(ArrayBufferGetByteLength, 1, 1)                                          \
+  \
   /* Maths */                                                                \
-  F(ConstructDouble, 2, 1)                                                   \
   F(DoubleHi, 1, 1)                                                          \
   F(DoubleLo, 1, 1)                                                          \
   F(MathSqrt, 1, 1)                                                          \
