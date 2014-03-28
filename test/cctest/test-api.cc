@@ -5023,67 +5023,6 @@ TEST(APIStackOverflowAndVerboseTryCatch) {
   v8::V8::RemoveMessageListeners(receive_message);
 }
 
-void APIStackOverflowNestedContextsHelper(bool is_bottom_call);
-
-void APIStackOverflowNestedContextsCallback(
-  const v8::FunctionCallbackInfo<Value>& args) {
-  APIStackOverflowNestedContextsHelper(false);
-}
-
-
-void APIStackOverflowNestedContextsHelper(bool is_bottom_call) {
-  v8::Isolate* isolate = CcTest::isolate();
-  TryCatch try_catch;
-
-  Local<ObjectTemplate> global = ObjectTemplate::New();
-  global->Set(String::NewFromUtf8(isolate, "recur"),
-  FunctionTemplate::New(isolate, APIStackOverflowNestedContextsCallback));
-
-  Local<Context> innerContext = Context::New(isolate, NULL, global);
-  if (try_catch.HasCaught()) {
-    try_catch.ReThrow();
-    return;
-  }
-  if (innerContext.IsEmpty()) return;
-
-  Context::Scope context_scope(innerContext);
-  Local<Script> script = v8::Script::Compile(v8::String::NewFromUtf8(
-      isolate,
-      "function f() {                             "
-      "  try { recur(); } catch(e) { throw e; }   "
-      "  return 'bad';                            "
-      "} f();                                     "));
-
-  Local<Value> result = script->Run();
-  CHECK(result.IsEmpty());
-  if (try_catch.HasCaught()) {
-    if (is_bottom_call) {
-      String::Utf8Value ex_value(try_catch.Exception());
-      CHECK_EQ("RangeError: Maximum call stack size exceeded", *ex_value);
-    }
-    try_catch.ReThrow();
-  }
-}
-
-
-void APIStackOverflowNestedContexts(int extra_stack_bytes) {
-  if (extra_stack_bytes) alloca(extra_stack_bytes);
-  LocalContext context;
-  v8::HandleScope scope(context->GetIsolate());
-  v8::TryCatch try_catch;
-  APIStackOverflowNestedContextsHelper(true);
-  CHECK(try_catch.HasCaught());
-}
-
-
-TEST(APIStackOverflowNestedContexts) {
-  // The place where a stack overflow can occur is not completely deterministic
-  // so probe a few different depths
-  APIStackOverflowNestedContexts(2500);
-  APIStackOverflowNestedContexts(2800);
-  APIStackOverflowNestedContexts(30000);
-}
-
 
 THREADED_TEST(ExternalScriptException) {
   v8::Isolate* isolate = CcTest::isolate();
