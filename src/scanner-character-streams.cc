@@ -126,8 +126,6 @@ GenericStringUtf16CharacterStream::GenericStringUtf16CharacterStream(
     : string_(data),
       length_(end_position) {
   ASSERT(end_position >= start_position);
-  buffer_cursor_ = buffer_;
-  buffer_end_ = buffer_;
   pos_ = start_position;
 }
 
