@@ -52,14 +52,15 @@ Handle<T>::Handle(T* obj, Isolate* isolate) {
 
 
 template <typename T>
-inline bool Handle<T>::is_identical_to(const Handle<T> other) const {
+inline bool Handle<T>::is_identical_to(const Handle<T> o) const {
   ASSERT(location_ == NULL || !(*location_)->IsFailure());
-  if (location_ == other.location_) return true;
-  if (location_ == NULL || other.location_ == NULL) return false;
   // Dereferencing deferred handles to check object equality is safe.
-  SLOW_ASSERT(IsDereferenceAllowed(NO_DEFERRED_CHECK) &&
-              other.IsDereferenceAllowed(NO_DEFERRED_CHECK));
-  return *location_ == *other.location_;
+  SLOW_ASSERT(
+      (location_ == NULL || IsDereferenceAllowed(NO_DEFERRED_CHECK)) &&
+      (o.location_ == NULL || o.IsDereferenceAllowed(NO_DEFERRED_CHECK)));
+  if (location_ == o.location_) return true;
+  if (location_ == NULL || o.location_ == NULL) return false;
+  return *location_ == *o.location_;
 }
 
 

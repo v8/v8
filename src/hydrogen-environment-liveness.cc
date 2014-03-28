@@ -84,8 +84,8 @@ void HEnvironmentLivenessAnalysisPhase::ZapEnvironmentSlotsInSuccessors(
       }
       HSimulate* simulate = first_simulate_.at(successor_id);
       if (simulate == NULL) continue;
-      ASSERT(simulate->closure().is_identical_to(
-                 block->last_environment()->closure()));
+      ASSERT(VerifyClosures(simulate->closure(),
+          block->last_environment()->closure()));
       ZapEnvironmentSlot(i, simulate);
     }
   }
@@ -97,7 +97,7 @@ void HEnvironmentLivenessAnalysisPhase::ZapEnvironmentSlotsForInstruction(
   if (!marker->CheckFlag(HValue::kEndsLiveRange)) return;
   HSimulate* simulate = marker->next_simulate();
   if (simulate != NULL) {
-    ASSERT(simulate->closure().is_identical_to(marker->closure()));
+    ASSERT(VerifyClosures(simulate->closure(), marker->closure()));
     ZapEnvironmentSlot(marker->index(), simulate);
   }
 }
@@ -240,5 +240,15 @@ void HEnvironmentLivenessAnalysisPhase::Run() {
     markers_[i]->DeleteAndReplaceWith(NULL);
   }
 }
+
+
+#ifdef DEBUG
+bool HEnvironmentLivenessAnalysisPhase::VerifyClosures(
+    Handle<JSFunction> a, Handle<JSFunction> b) {
+  Heap::RelocationLock for_heap_access(isolate()->heap());
+  AllowHandleDereference for_verification;
+  return a.is_identical_to(b);
+}
+#endif
 
 } }  // namespace v8::internal
