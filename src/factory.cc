@@ -1437,6 +1437,7 @@ Handle<JSObject> Factory::NewJSObjectFromMap(
 Handle<JSArray> Factory::NewJSArray(ElementsKind elements_kind,
                                     int length,
                                     int capacity,
+                                    ArrayStorageAllocationMode mode,
                                     PretenureFlag pretenure) {
   if (capacity != 0) {
     elements_kind = GetHoleyElementsKind(elements_kind);
@@ -1446,7 +1447,7 @@ Handle<JSArray> Factory::NewJSArray(ElementsKind elements_kind,
                          elements_kind,
                          length,
                          capacity,
-                         INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE,
+                         mode,
                          pretenure),
                      JSArray);
 }

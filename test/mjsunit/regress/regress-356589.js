@@ -1,4 +1,4 @@
-// Copyright 2012 the V8 project authors. All rights reserved.
+// Copyright 2014 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,14 +25,10 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax
-//
-// Test passes if it does not crash.
+// This test passes if it does not crash in debug mode
 
-arr = [1.1];
-Object.observe(arr, function(){});
-arr.length = 0;
-// TODO(observe): we currently disallow fast elements for observed object.
-// assertTrue(%HasFastDoubleElements(arr));
-// Should not crash
-arr.push(1.1);
+arr = ['a', 'b', 'c', 'd'];
+Object.defineProperty(arr.__proto__, '0', { get: function(){} });
+Object.defineProperty(arr, '2', {get: function(){} });
+Object.observe(arr, function() {});
+arr.length = 2;

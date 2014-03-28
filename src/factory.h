@@ -355,13 +355,15 @@ class Factory {
       ElementsKind elements_kind,
       int length,
       int capacity,
+      ArrayStorageAllocationMode mode = INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE,
       PretenureFlag pretenure = NOT_TENURED);
 
   Handle<JSArray> NewJSArray(
       int capacity,
       ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND,
       PretenureFlag pretenure = NOT_TENURED) {
-    return NewJSArray(elements_kind, 0, capacity, pretenure);
+    return NewJSArray(elements_kind, 0, capacity,
+                      INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE, pretenure);
   }
 
   Handle<JSArray> NewJSArrayWithElements(

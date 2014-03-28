@@ -1,3 +1,11 @@
+2014-03-28: Version 3.25.30
+
+        NativeContext::map_cache reference should be strong in heap snapshots
+        (Chromium issue 357060).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-03-27: Version 3.25.29
 
         Performance and stability improvements on all platforms.

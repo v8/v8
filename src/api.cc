@@ -5832,7 +5832,7 @@ Local<Object> Array::CloneElementAt(uint32_t index) {
 
 bool Value::IsPromise() const {
   i::Handle<i::Object> val = Utils::OpenHandle(this);
-  if (!i::FLAG_harmony_promises || !val->IsJSObject()) return false;
+  if (!val->IsJSObject()) return false;
   i::Handle<i::JSObject> obj = i::Handle<i::JSObject>::cast(val);
   i::Isolate* isolate = obj->GetIsolate();
   LOG_API(isolate, "IsPromise");

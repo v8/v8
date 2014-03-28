@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --harmony-promises --allow-natives-syntax
+// Flags: --allow-natives-syntax
 
 var asyncAssertsExpected = 0;
 
@@ -790,11 +790,11 @@ function assertAsyncDone(iteration) {
 
   log = ""
   Promise.all([11, Promise.accept(12), 13, MyPromise.accept(14), 15, 16])
-  assertTrue(log === "nx14cn", "subclass/all/arg")
+  assertTrue(log === "nx14n", "subclass/all/arg")
 
   log = ""
   MyPromise.all([21, Promise.accept(22), 23, MyPromise.accept(24), 25, 26])
-  assertTrue(log === "nx24nnx21cnnx23cncnnx25cnnx26cn", "subclass/all/self")
+  assertTrue(log === "nx24nnx21nnx23nnnx25nnx26n", "subclass/all/self")
 })();
 
 

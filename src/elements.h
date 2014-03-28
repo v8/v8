@@ -158,14 +158,6 @@ class ElementsAccessor {
       uint32_t destination_start,
       int copy_size,
       Handle<FixedArrayBase> source = Handle<FixedArrayBase>::null()) = 0;
-  MUST_USE_RESULT virtual MaybeObject* CopyElements(
-      JSObject* source_holder,
-      uint32_t source_start,
-      ElementsKind source_kind,
-      FixedArrayBase* destination,
-      uint32_t destination_start,
-      int copy_size,
-      FixedArrayBase* source = NULL) = 0;
 
   void CopyElements(
       Handle<JSObject> from_holder,
@@ -174,14 +166,6 @@ class ElementsAccessor {
       Handle<FixedArrayBase> from = Handle<FixedArrayBase>::null()) {
     CopyElements(from_holder, 0, from_kind, to, 0,
                  kCopyToEndAndInitializeToHole, from);
-  }
-
-  MUST_USE_RESULT MaybeObject* CopyElements(JSObject* from_holder,
-                                            FixedArrayBase* to,
-                                            ElementsKind from_kind,
-                                            FixedArrayBase* from = NULL) {
-    return CopyElements(from_holder, 0, from_kind, to, 0,
-                        kCopyToEndAndInitializeToHole, from);
   }
 
   MUST_USE_RESULT virtual MaybeObject* AddElementsToFixedArray(
