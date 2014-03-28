@@ -5710,6 +5710,7 @@ double v8::Date::ValueOf() const {
 
 void v8::Date::DateTimeConfigurationChangeNotification(Isolate* isolate) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  if (!i_isolate->IsInitialized()) return;
   ON_BAILOUT(i_isolate, "v8::Date::DateTimeConfigurationChangeNotification()",
              return);
   LOG_API(i_isolate, "Date::DateTimeConfigurationChangeNotification");
