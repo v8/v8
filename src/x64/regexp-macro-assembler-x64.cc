@@ -692,12 +692,12 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
 #else
   // GCC passes arguments in rdi, rsi, rdx, rcx, r8, r9 (and then on stack).
   // Push register parameters on stack for reference.
-  ASSERT_EQ(kInputString, -1 * kPointerSize);
-  ASSERT_EQ(kStartIndex, -2 * kPointerSize);
-  ASSERT_EQ(kInputStart, -3 * kPointerSize);
-  ASSERT_EQ(kInputEnd, -4 * kPointerSize);
-  ASSERT_EQ(kRegisterOutput, -5 * kPointerSize);
-  ASSERT_EQ(kNumOutputRegisters, -6 * kPointerSize);
+  ASSERT_EQ(kInputString, -1 * kRegisterSize);
+  ASSERT_EQ(kStartIndex, -2 * kRegisterSize);
+  ASSERT_EQ(kInputStart, -3 * kRegisterSize);
+  ASSERT_EQ(kInputEnd, -4 * kRegisterSize);
+  ASSERT_EQ(kRegisterOutput, -5 * kRegisterSize);
+  ASSERT_EQ(kNumOutputRegisters, -6 * kRegisterSize);
   __ pushq(rdi);
   __ pushq(rsi);
   __ pushq(rdx);
