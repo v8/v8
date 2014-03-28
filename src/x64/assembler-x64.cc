@@ -467,24 +467,30 @@ void Assembler::emit_operand(int code, const Operand& adr) {
 
 // Assembler Instruction implementations.
 
-void Assembler::arithmetic_op(byte opcode, Register reg, const Operand& op) {
+void Assembler::arithmetic_op(byte opcode,
+                              Register reg,
+                              const Operand& op,
+                              int size) {
   EnsureSpace ensure_space(this);
-  emit_rex_64(reg, op);
+  emit_rex(reg, op, size);
   emit(opcode);
   emit_operand(reg, op);
 }
 
 
-void Assembler::arithmetic_op(byte opcode, Register reg, Register rm_reg) {
+void Assembler::arithmetic_op(byte opcode,
+                              Register reg,
+                              Register rm_reg,
+                              int size) {
   EnsureSpace ensure_space(this);
   ASSERT((opcode & 0xC6) == 2);
   if (rm_reg.low_bits() == 4)  {  // Forces SIB byte.
     // Swap reg and rm_reg and change opcode operand order.
-    emit_rex_64(rm_reg, reg);
+    emit_rex(rm_reg, reg, size);
     emit(opcode ^ 0x02);
     emit_modrm(rm_reg, reg);
   } else {
-    emit_rex_64(reg, rm_reg);
+    emit_rex(reg, rm_reg, size);
     emit(opcode);
     emit_modrm(reg, rm_reg);
   }
@@ -520,37 +526,45 @@ void Assembler::arithmetic_op_16(byte opcode,
 }
 
 
-void Assembler::arithmetic_op_32(byte opcode, Register reg, Register rm_reg) {
+void Assembler::arithmetic_op_8(byte opcode, Register reg, const Operand& op) {
+  EnsureSpace ensure_space(this);
+  if (!reg.is_byte_register()) {
+    // Register is not one of al, bl, cl, dl.  Its encoding needs REX.
+    emit_rex_32(reg);
+  }
+  emit(opcode);
+  emit_operand(reg, op);
+}
+
+
+void Assembler::arithmetic_op_8(byte opcode, Register reg, Register rm_reg) {
   EnsureSpace ensure_space(this);
   ASSERT((opcode & 0xC6) == 2);
-  if (rm_reg.low_bits() == 4) {  // Forces SIB byte.
+  if (rm_reg.low_bits() == 4)  {  // Forces SIB byte.
     // Swap reg and rm_reg and change opcode operand order.
-    emit_optional_rex_32(rm_reg, reg);
-    emit(opcode ^ 0x02);  // E.g. 0x03 -> 0x01 for ADD.
+    if (!rm_reg.is_byte_register() || !reg.is_byte_register()) {
+      // Register is not one of al, bl, cl, dl.  Its encoding needs REX.
+      emit_rex_32(rm_reg, reg);
+    }
+    emit(opcode ^ 0x02);
     emit_modrm(rm_reg, reg);
   } else {
-    emit_optional_rex_32(reg, rm_reg);
+    if (!reg.is_byte_register() || !rm_reg.is_byte_register()) {
+      // Register is not one of al, bl, cl, dl.  Its encoding needs REX.
+      emit_rex_32(reg, rm_reg);
+    }
     emit(opcode);
     emit_modrm(reg, rm_reg);
   }
 }
 
 
-void Assembler::arithmetic_op_32(byte opcode,
-                                 Register reg,
-                                 const Operand& rm_reg) {
-  EnsureSpace ensure_space(this);
-  emit_optional_rex_32(reg, rm_reg);
-  emit(opcode);
-  emit_operand(reg, rm_reg);
-}
-
-
 void Assembler::immediate_arithmetic_op(byte subcode,
                                         Register dst,
-                                        Immediate src) {
+                                        Immediate src,
+                                        int size) {
   EnsureSpace ensure_space(this);
-  emit_rex_64(dst);
+  emit_rex(dst, size);
   if (is_int8(src.value_)) {
     emit(0x83);
     emit_modrm(subcode, dst);
@@ -567,9 +581,10 @@ void Assembler::immediate_arithmetic_op(byte subcode,
 
 void Assembler::immediate_arithmetic_op(byte subcode,
                                         const Operand& dst,
-                                        Immediate src) {
+                                        Immediate src,
+                                        int size) {
   EnsureSpace ensure_space(this);
-  emit_rex_64(dst);
+  emit_rex(dst, size);
   if (is_int8(src.value_)) {
     emit(0x83);
     emit_operand(subcode, dst);
@@ -617,43 +632,6 @@ void Assembler::immediate_arithmetic_op_16(byte subcode,
     emit(0x81);
     emit_operand(subcode, dst);
     emitw(src.value_);
-  }
-}
-
-
-void Assembler::immediate_arithmetic_op_32(byte subcode,
-                                           Register dst,
-                                           Immediate src) {
-  EnsureSpace ensure_space(this);
-  emit_optional_rex_32(dst);
-  if (is_int8(src.value_)) {
-    emit(0x83);
-    emit_modrm(subcode, dst);
-    emit(src.value_);
-  } else if (dst.is(rax)) {
-    emit(0x05 | (subcode << 3));
-    emitl(src.value_);
-  } else {
-    emit(0x81);
-    emit_modrm(subcode, dst);
-    emitl(src.value_);
-  }
-}
-
-
-void Assembler::immediate_arithmetic_op_32(byte subcode,
-                                           const Operand& dst,
-                                           Immediate src) {
-  EnsureSpace ensure_space(this);
-  emit_optional_rex_32(dst);
-  if (is_int8(src.value_)) {
-    emit(0x83);
-    emit_operand(subcode, dst);
-    emit(src.value_);
-  } else {
-    emit(0x81);
-    emit_operand(subcode, dst);
-    emitl(src.value_);
   }
 }
 
@@ -675,8 +653,8 @@ void Assembler::immediate_arithmetic_op_8(byte subcode,
                                           Immediate src) {
   EnsureSpace ensure_space(this);
   if (!dst.is_byte_register()) {
-    // Use 64-bit mode byte registers.
-    emit_rex_64(dst);
+    // Register is not one of al, bl, cl, dl.  Its encoding needs REX.
+    emit_rex_32(dst);
   }
   ASSERT(is_int8(src.value_) || is_uint8(src.value_));
   emit(0x80);
