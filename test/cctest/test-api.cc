@@ -4052,7 +4052,7 @@ TEST(ApiObjectGroupsCycleForScavenger) {
 
   v8::internal::Heap* heap = reinterpret_cast<v8::internal::Isolate*>(
       iso)->heap();
-  heap->CollectGarbage(i::NEW_SPACE);
+  heap->CollectAllGarbage(i::Heap::kNoGCFlags);
 
   // All objects should be alive.
   CHECK_EQ(0, counter.NumberOfWeakCalls());
@@ -4084,7 +4084,7 @@ TEST(ApiObjectGroupsCycleForScavenger) {
         v8_str("x"), Local<Value>::New(iso, g1s1.handle));
   }
 
-  heap->CollectGarbage(i::NEW_SPACE);
+  heap->CollectAllGarbage(i::Heap::kNoGCFlags);
 
   // All objects should be gone. 7 global handles in total.
   CHECK_EQ(7, counter.NumberOfWeakCalls());

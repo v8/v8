@@ -1132,33 +1132,26 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_TypedArrayInitializeFromArrayLike) {
 }
 
 
-#define TYPED_ARRAY_GETTER(getter, accessor) \
-  RUNTIME_FUNCTION(MaybeObject*, Runtime_TypedArrayGet##getter) {             \
+#define BUFFER_VIEW_GETTER(Type, getter, accessor) \
+  RUNTIME_FUNCTION(MaybeObject*, Runtime_##Type##Get##getter) {               \
     HandleScope scope(isolate);                                               \
     ASSERT(args.length() == 1);                                               \
-    CONVERT_ARG_HANDLE_CHECKED(Object, holder, 0);                            \
-    if (!holder->IsJSTypedArray())                                            \
-      return isolate->Throw(*isolate->factory()->NewTypeError(                \
-          "not_typed_array", HandleVector<Object>(NULL, 0)));                 \
-    Handle<JSTypedArray> typed_array(JSTypedArray::cast(*holder));            \
-    return typed_array->accessor();                                           \
+    CONVERT_ARG_HANDLE_CHECKED(JS##Type, holder, 0);                          \
+    return holder->accessor();                                                \
   }
 
-TYPED_ARRAY_GETTER(ByteLength, byte_length)
-TYPED_ARRAY_GETTER(ByteOffset, byte_offset)
-TYPED_ARRAY_GETTER(Length, length)
+BUFFER_VIEW_GETTER(ArrayBufferView, ByteLength, byte_length)
+BUFFER_VIEW_GETTER(ArrayBufferView, ByteOffset, byte_offset)
+BUFFER_VIEW_GETTER(TypedArray, Length, length)
+BUFFER_VIEW_GETTER(DataView, Buffer, buffer)
 
-#undef TYPED_ARRAY_GETTER
+#undef BUFFER_VIEW_GETTER
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_TypedArrayGetBuffer) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(Object, holder, 0);
-  if (!holder->IsJSTypedArray())
-    return isolate->Throw(*isolate->factory()->NewTypeError(
-        "not_typed_array", HandleVector<Object>(NULL, 0)));
-  Handle<JSTypedArray> typed_array(JSTypedArray::cast(*holder));
-  return *typed_array->GetBuffer();
+  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, holder, 0);
+  return *holder->GetBuffer();
 }
 
 
@@ -1270,30 +1263,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DataViewInitialize) {
   buffer->set_weak_first_view(*holder);
 
   return isolate->heap()->undefined_value();
-}
-
-
-RUNTIME_FUNCTION(MaybeObject*, Runtime_DataViewGetBuffer) {
-  HandleScope scope(isolate);
-  ASSERT(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSDataView, data_view, 0);
-  return data_view->buffer();
-}
-
-
-RUNTIME_FUNCTION(MaybeObject*, Runtime_DataViewGetByteOffset) {
-  HandleScope scope(isolate);
-  ASSERT(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSDataView, data_view, 0);
-  return data_view->byte_offset();
-}
-
-
-RUNTIME_FUNCTION(MaybeObject*, Runtime_DataViewGetByteLength) {
-  HandleScope scope(isolate);
-  ASSERT(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSDataView, data_view, 0);
-  return data_view->byte_length();
 }
 
 
