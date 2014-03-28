@@ -1014,7 +1014,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   if (exponent_type_ == ON_STACK) {
     // The arguments are still on the stack.
     __ bind(&call_runtime);
-    __ TailCallRuntime(Runtime::kMath_pow_cfunction, 2, 1);
+    __ TailCallRuntime(Runtime::kHiddenMathPow, 2, 1);
 
     // The stub is called from non-optimized code, which expects the result
     // as heap number in exponent.

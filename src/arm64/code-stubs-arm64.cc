@@ -1389,7 +1389,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
     __ Bind(&call_runtime);
     // Put the arguments back on the stack.
     __ Push(base_tagged, exponent_tagged);
-    __ TailCallRuntime(Runtime::kMath_pow_cfunction, 2, 1);
+    __ TailCallRuntime(Runtime::kHiddenMathPow, 2, 1);
 
     // Return.
     __ Bind(&done);

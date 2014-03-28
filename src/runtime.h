@@ -157,18 +157,14 @@ namespace internal {
   F(SmiLexicographicCompare, 2, 1) \
   \
   /* Math */ \
-  F(Math_acos, 1, 1) \
-  F(Math_asin, 1, 1) \
-  F(Math_atan, 1, 1) \
-  F(Math_log, 1, 1) \
-  F(Math_sqrt, 1, 1) \
-  F(Math_exp, 1, 1) \
-  F(Math_floor, 1, 1) \
-  F(Math_pow, 2, 1) \
-  F(Math_pow_cfunction, 2, 1) \
-  F(Math_atan2, 2, 1) \
+  F(MathAcos, 1, 1) \
+  F(MathAsin, 1, 1) \
+  F(MathAtan, 1, 1) \
+  F(MathFloor, 1, 1) \
+  F(MathAtan2, 2, 1) \
+  F(MathExp, 1, 1) \
   F(RoundNumber, 1, 1) \
-  F(Math_fround, 1, 1) \
+  F(MathFround, 1, 1) \
   \
   /* Regular expressions */ \
   F(RegExpCompile, 3, 1) \
@@ -556,6 +552,7 @@ namespace internal {
 // by id from code generator, but not via native call by name.
 // Entries have the form F(name, number of arguments, number of return values).
 #define RUNTIME_HIDDEN_FUNCTION_LIST(F) \
+  /* String and Regexp */ \
   F(NumberToString, 1, 1) \
   F(RegExpConstructResult, 3, 1) \
   F(RegExpExec, 4, 1) \
@@ -634,7 +631,11 @@ namespace internal {
   F(InitializeConstContextSlot, 3, 1) \
   \
   /* Eval */ \
-  F(ResolvePossiblyDirectEval, 5, 2)
+  F(ResolvePossiblyDirectEval, 5, 2) \
+  \
+  /* Maths */ \
+  F(MathPowSlow, 2, 1) \
+  F(MathPow, 2, 1)
 
 // ----------------------------------------------------------------------------
 // INLINE_FUNCTION_LIST defines all inlined functions accessed
@@ -663,8 +664,6 @@ namespace internal {
   F(IsSpecObject, 1, 1)                                                      \
   F(IsStringWrapperSafeForDefaultValueOf, 1, 1)                              \
   F(MathPow, 2, 1)                                                           \
-  F(MathSqrt, 1, 1)                                                          \
-  F(MathLog, 1, 1)                                                           \
   F(IsMinusZero, 1, 1)                                                       \
   F(HasCachedArrayIndex, 1, 1)                                               \
   F(GetCachedArrayIndex, 1, 1)                                               \
@@ -690,13 +689,18 @@ namespace internal {
 // a corresponding runtime function, that is called from non-optimized code.
 // Entries have the form F(name, number of arguments, number of return values).
 #define INLINE_OPTIMIZED_FUNCTION_LIST(F) \
-  F(DoubleHi, 1, 1)                                                          \
-  F(DoubleLo, 1, 1)                                                          \
+  /* Typed Arrays */                                                         \
   F(ConstructDouble, 2, 1)                                                   \
   F(TypedArrayInitialize, 5, 1)                                              \
   F(DataViewInitialize, 4, 1)                                                \
   F(MaxSmi, 0, 1)                                                            \
-  F(TypedArrayMaxSizeInHeap, 0, 1)
+  F(TypedArrayMaxSizeInHeap, 0, 1)                                           \
+  \
+  /* Maths */                                                                \
+  F(DoubleHi, 1, 1)                                                          \
+  F(DoubleLo, 1, 1)                                                          \
+  F(MathSqrt, 1, 1)                                                          \
+  F(MathLog, 1, 1)
 
 
 //---------------------------------------------------------------------------
