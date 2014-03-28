@@ -8730,6 +8730,58 @@ void HOptimizedGraphBuilder::GenerateTypedArrayMaxSizeInHeap(
 }
 
 
+void HOptimizedGraphBuilder::GenerateArrayBufferGetByteLength(
+    CallRuntime* expr) {
+  ASSERT(expr->arguments()->length() == 1);
+  CHECK_ALIVE(VisitForValue(expr->arguments()->at(0)));
+  HValue* buffer = Pop();
+  HInstruction* result = New<HLoadNamedField>(
+    buffer,
+    static_cast<HValue*>(NULL),
+    HObjectAccess::ForJSArrayBufferByteLength());
+  return ast_context()->ReturnInstruction(result, expr->id());
+}
+
+
+void HOptimizedGraphBuilder::GenerateArrayBufferViewGetByteLength(
+    CallRuntime* expr) {
+  ASSERT(expr->arguments()->length() == 1);
+  CHECK_ALIVE(VisitForValue(expr->arguments()->at(0)));
+  HValue* buffer = Pop();
+  HInstruction* result = New<HLoadNamedField>(
+    buffer,
+    static_cast<HValue*>(NULL),
+    HObjectAccess::ForJSArrayBufferViewByteLength());
+  return ast_context()->ReturnInstruction(result, expr->id());
+}
+
+
+void HOptimizedGraphBuilder::GenerateArrayBufferViewGetByteOffset(
+    CallRuntime* expr) {
+  ASSERT(expr->arguments()->length() == 1);
+  CHECK_ALIVE(VisitForValue(expr->arguments()->at(0)));
+  HValue* buffer = Pop();
+  HInstruction* result = New<HLoadNamedField>(
+    buffer,
+    static_cast<HValue*>(NULL),
+    HObjectAccess::ForJSArrayBufferViewByteOffset());
+  return ast_context()->ReturnInstruction(result, expr->id());
+}
+
+
+void HOptimizedGraphBuilder::GenerateTypedArrayGetLength(
+    CallRuntime* expr) {
+  ASSERT(expr->arguments()->length() == 1);
+  CHECK_ALIVE(VisitForValue(expr->arguments()->at(0)));
+  HValue* buffer = Pop();
+  HInstruction* result = New<HLoadNamedField>(
+    buffer,
+    static_cast<HValue*>(NULL),
+    HObjectAccess::ForJSTypedArrayLength());
+  return ast_context()->ReturnInstruction(result, expr->id());
+}
+
+
 void HOptimizedGraphBuilder::VisitCallRuntime(CallRuntime* expr) {
   ASSERT(!HasStackOverflow());
   ASSERT(current_block() != NULL);

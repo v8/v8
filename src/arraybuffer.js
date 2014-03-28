@@ -45,7 +45,7 @@ function ArrayBufferGetByteLength() {
     throw MakeTypeError('incompatible_method_receiver',
                         ['ArrayBuffer.prototype.byteLength', this]);
   }
-  return %ArrayBufferGetByteLength(this);
+  return %_ArrayBufferGetByteLength(this);
 }
 
 // ES6 Draft 15.13.5.5.3
@@ -60,7 +60,7 @@ function ArrayBufferSlice(start, end) {
     end = TO_INTEGER(end);
   }
   var first;
-  var byte_length = %ArrayBufferGetByteLength(this);
+  var byte_length = %_ArrayBufferGetByteLength(this);
   if (relativeStart < 0) {
     first = MathMax(byte_length + relativeStart, 0);
   } else {
