@@ -93,7 +93,7 @@ void RunWithProfiler(void (*test)()) {
       v8::String::NewFromUtf8(env->GetIsolate(), "my_profile1");
   v8::CpuProfiler* cpu_profiler = env->GetIsolate()->GetCpuProfiler();
 
-  cpu_profiler->StartCpuProfiling(profile_name);
+  cpu_profiler->StartProfiling(profile_name);
   (*test)();
   reinterpret_cast<i::CpuProfiler*>(cpu_profiler)->DeleteAllProfiles();
 }

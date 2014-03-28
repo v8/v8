@@ -164,7 +164,9 @@ class V8_EXPORT CpuProfiler {
   void StartProfiling(Handle<String> title, bool record_samples = false);
 
   /** Deprecated. Use StartProfiling instead. */
-  void StartCpuProfiling(Handle<String> title, bool record_samples = false);
+  V8_DEPRECATED("Use StartProfiling",
+      void StartCpuProfiling(Handle<String> title,
+                             bool record_samples = false));
 
   /**
    * Stops collecting CPU profile with a given title and returns it.
@@ -173,7 +175,8 @@ class V8_EXPORT CpuProfiler {
   CpuProfile* StopProfiling(Handle<String> title);
 
   /** Deprecated. Use StopProfiling instead. */
-  const CpuProfile* StopCpuProfiling(Handle<String> title);
+  V8_DEPRECATED("Use StopProfiling",
+      const CpuProfile* StopCpuProfiling(Handle<String> title));
 
   /**
    * Tells the profiler whether the embedder is idle.
