@@ -8510,6 +8510,10 @@ HValue* HOptimizedGraphBuilder::BuildAllocateExternalElements(
     HValue* buffer, HValue* byte_offset, HValue* length) {
   Handle<Map> external_array_map(
       isolate()->heap()->MapForExternalArrayType(array_type));
+
+  // The HForceRepresentation is to prevent possible deopt on int-smi
+  // conversion after allocation but before the new object fields are set.
+  length = AddUncasted<HForceRepresentation>(length, Representation::Smi());
   HValue* elements =
       Add<HAllocate>(
           Add<HConstant>(ExternalArray::kAlignedSize),
@@ -8518,6 +8522,8 @@ HValue* HOptimizedGraphBuilder::BuildAllocateExternalElements(
           external_array_map->instance_type());
 
   AddStoreMapConstant(elements, external_array_map);
+  Add<HStoreNamedField>(elements,
+      HObjectAccess::ForFixedArrayLength(), length);
 
   HValue* backing_store = Add<HLoadNamedField>(
       buffer, static_cast<HValue*>(NULL),
@@ -8535,13 +8541,10 @@ HValue* HOptimizedGraphBuilder::BuildAllocateExternalElements(
     typed_array_start = external_pointer;
   }
 
-
   Add<HStoreNamedField>(elements,
       HObjectAccess::ForExternalArrayExternalPointer(),
       typed_array_start);
 
-  Add<HStoreNamedField>(elements,
-      HObjectAccess::ForFixedArrayLength(), length);
   return elements;
 }
 
@@ -8565,6 +8568,9 @@ HValue* HOptimizedGraphBuilder::BuildAllocateFixedTypedArray(
     total_size->ClearFlag(HValue::kCanOverflow);
   }
 
+  // The HForceRepresentation is to prevent possible deopt on int-smi
+  // conversion after allocation but before the new object fields are set.
+  length = AddUncasted<HForceRepresentation>(length, Representation::Smi());
   Handle<Map> fixed_typed_array_map(
       isolate()->heap()->MapForFixedTypedArray(array_type));
   HValue* elements =
@@ -8576,6 +8582,7 @@ HValue* HOptimizedGraphBuilder::BuildAllocateFixedTypedArray(
   Add<HStoreNamedField>(elements,
       HObjectAccess::ForFixedArrayLength(),
       length);
+
   HValue* filler = Add<HConstant>(static_cast<int32_t>(0));
 
   {
@@ -8588,8 +8595,6 @@ HValue* HOptimizedGraphBuilder::BuildAllocateFixedTypedArray(
 
     builder.EndBody();
   }
-  Add<HStoreNamedField>(
-      elements, HObjectAccess::ForFixedArrayLength(), length);
   return elements;
 }
 

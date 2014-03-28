@@ -1236,7 +1236,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_TypedArraySetFastCases) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_TypedArrayMaxSizeInHeap) {
-  ASSERT_OBJECT_SIZE(FLAG_typed_array_max_size_in_heap);
+  ASSERT_OBJECT_SIZE(
+      FLAG_typed_array_max_size_in_heap + FixedTypedArrayBase::kDataOffset);
   return Smi::FromInt(FLAG_typed_array_max_size_in_heap);
 }
 
