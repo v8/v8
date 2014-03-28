@@ -421,9 +421,9 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   // based on 32 bits of the map pointer and the string hash.
   __ movp(rbx, FieldOperand(rdx, HeapObject::kMapOffset));
   __ movl(rcx, rbx);
-  __ shr(rcx, Immediate(KeyedLookupCache::kMapHashShift));
+  __ shrl(rcx, Immediate(KeyedLookupCache::kMapHashShift));
   __ movl(rdi, FieldOperand(rax, String::kHashFieldOffset));
-  __ shr(rdi, Immediate(String::kHashShift));
+  __ shrl(rdi, Immediate(String::kHashShift));
   __ xorp(rcx, rdi);
   int mask = (KeyedLookupCache::kCapacityMask & KeyedLookupCache::kHashMask);
   __ andp(rcx, Immediate(mask));
@@ -439,7 +439,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   for (int i = 0; i < kEntriesPerBucket - 1; i++) {
     Label try_next_entry;
     __ movp(rdi, rcx);
-    __ shl(rdi, Immediate(kPointerSizeLog2 + 1));
+    __ shlp(rdi, Immediate(kPointerSizeLog2 + 1));
     __ LoadAddress(kScratchRegister, cache_keys);
     int off = kPointerSize * i * 2;
     __ cmpp(rbx, Operand(kScratchRegister, rdi, times_1, off));

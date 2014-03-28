@@ -214,7 +214,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
 
       // Now allocate the JSObject on the heap.
       __ movzxbp(rdi, FieldOperand(rax, Map::kInstanceSizeOffset));
-      __ shl(rdi, Immediate(kPointerSizeLog2));
+      __ shlp(rdi, Immediate(kPointerSizeLog2));
       if (create_memento) {
         __ addp(rdi, Immediate(AllocationMemento::kSize));
       }

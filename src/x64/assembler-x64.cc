@@ -685,15 +685,19 @@ void Assembler::immediate_arithmetic_op_8(byte subcode,
 }
 
 
-void Assembler::shift(Register dst, Immediate shift_amount, int subcode) {
+void Assembler::shift(Register dst,
+                      Immediate shift_amount,
+                      int subcode,
+                      int size) {
   EnsureSpace ensure_space(this);
-  ASSERT(is_uint6(shift_amount.value_));  // illegal shift count
+  ASSERT(size == kInt64Size ? is_uint6(shift_amount.value_)
+                            : is_uint5(shift_amount.value_));
   if (shift_amount.value_ == 1) {
-    emit_rex_64(dst);
+    emit_rex(dst, size);
     emit(0xD1);
     emit_modrm(subcode, dst);
   } else {
-    emit_rex_64(dst);
+    emit_rex(dst, size);
     emit(0xC1);
     emit_modrm(subcode, dst);
     emit(shift_amount.value_);
@@ -701,35 +705,11 @@ void Assembler::shift(Register dst, Immediate shift_amount, int subcode) {
 }
 
 
-void Assembler::shift(Register dst, int subcode) {
+void Assembler::shift(Register dst, int subcode, int size) {
   EnsureSpace ensure_space(this);
-  emit_rex_64(dst);
+  emit_rex(dst, size);
   emit(0xD3);
   emit_modrm(subcode, dst);
-}
-
-
-void Assembler::shift_32(Register dst, int subcode) {
-  EnsureSpace ensure_space(this);
-  emit_optional_rex_32(dst);
-  emit(0xD3);
-  emit_modrm(subcode, dst);
-}
-
-
-void Assembler::shift_32(Register dst, Immediate shift_amount, int subcode) {
-  EnsureSpace ensure_space(this);
-  ASSERT(is_uint5(shift_amount.value_));  // illegal shift count
-  if (shift_amount.value_ == 1) {
-    emit_optional_rex_32(dst);
-    emit(0xD1);
-    emit_modrm(subcode, dst);
-  } else {
-    emit_optional_rex_32(dst);
-    emit(0xC1);
-    emit_modrm(subcode, dst);
-    emit(shift_amount.value_);
-  }
 }
 
 

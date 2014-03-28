@@ -577,7 +577,7 @@ void MacroAssembler::IndexFromHash(Register hash, Register index) {
   // key: string key
   // hash: key's hash field, including its array index value.
   andp(hash, Immediate(String::kArrayIndexValueMask));
-  shr(hash, Immediate(String::kHashShift));
+  shrp(hash, Immediate(String::kHashShift));
   // Here we actually clobber the key which will be used if calling into
   // runtime later. However as the new key is the numeric value of a string key
   // there is no difference in using either key.
@@ -1096,7 +1096,7 @@ void MacroAssembler::Integer32ToSmi(Register dst, Register src) {
   if (!dst.is(src)) {
     movl(dst, src);
   }
-  shl(dst, Immediate(kSmiShift));
+  shlp(dst, Immediate(kSmiShift));
 }
 
 
@@ -1121,7 +1121,7 @@ void MacroAssembler::Integer64PlusConstantToSmi(Register dst,
   } else {
     leal(dst, Operand(src, constant));
   }
-  shl(dst, Immediate(kSmiShift));
+  shlp(dst, Immediate(kSmiShift));
 }
 
 
@@ -1130,7 +1130,7 @@ void MacroAssembler::SmiToInteger32(Register dst, Register src) {
   if (!dst.is(src)) {
     movp(dst, src);
   }
-  shr(dst, Immediate(kSmiShift));
+  shrq(dst, Immediate(kSmiShift));
 }
 
 
@@ -1144,7 +1144,7 @@ void MacroAssembler::SmiToInteger64(Register dst, Register src) {
   if (!dst.is(src)) {
     movp(dst, src);
   }
-  sar(dst, Immediate(kSmiShift));
+  sarq(dst, Immediate(kSmiShift));
 }
 
 
@@ -1229,9 +1229,9 @@ void MacroAssembler::PositiveSmiTimesPowerOfTwoToInteger64(Register dst,
     movp(dst, src);
   }
   if (power < kSmiShift) {
-    sar(dst, Immediate(kSmiShift - power));
+    sarp(dst, Immediate(kSmiShift - power));
   } else if (power > kSmiShift) {
-    shl(dst, Immediate(power - kSmiShift));
+    shlp(dst, Immediate(power - kSmiShift));
   }
 }
 
@@ -1241,7 +1241,7 @@ void MacroAssembler::PositiveSmiDivPowerOfTwoToInteger32(Register dst,
                                                          int power) {
   ASSERT((0 <= power) && (power < 32));
   if (dst.is(src)) {
-    shr(dst, Immediate(power + kSmiShift));
+    shrp(dst, Immediate(power + kSmiShift));
   } else {
     UNIMPLEMENTED();  // Not used.
   }
@@ -1284,7 +1284,7 @@ Condition MacroAssembler::CheckNonNegativeSmi(Register src) {
   STATIC_ASSERT(kSmiTag == 0);
   // Test that both bits of the mask 0x8000000000000001 are zero.
   movp(kScratchRegister, src);
-  rol(kScratchRegister, Immediate(1));
+  rolp(kScratchRegister, Immediate(1));
   testb(kScratchRegister, Immediate(3));
   return zero;
 }
@@ -1308,7 +1308,7 @@ Condition MacroAssembler::CheckBothNonNegativeSmi(Register first,
   }
   movp(kScratchRegister, first);
   orp(kScratchRegister, second);
-  rol(kScratchRegister, Immediate(1));
+  rolp(kScratchRegister, Immediate(1));
   testl(kScratchRegister, Immediate(3));
   return zero;
 }
@@ -2034,8 +2034,8 @@ void MacroAssembler::SmiShiftArithmeticRightConstant(Register dst,
   ASSERT(is_uint5(shift_value));
   if (shift_value > 0) {
     if (dst.is(src)) {
-      sar(dst, Immediate(shift_value + kSmiShift));
-      shl(dst, Immediate(kSmiShift));
+      sarp(dst, Immediate(shift_value + kSmiShift));
+      shlp(dst, Immediate(kSmiShift));
     } else {
       UNIMPLEMENTED();  // Not used.
     }
@@ -2050,7 +2050,7 @@ void MacroAssembler::SmiShiftLeftConstant(Register dst,
     movp(dst, src);
   }
   if (shift_value > 0) {
-    shl(dst, Immediate(shift_value));
+    shlp(dst, Immediate(shift_value));
   }
 }
 
@@ -2067,8 +2067,8 @@ void MacroAssembler::SmiShiftLogicalRightConstant(
       testp(dst, dst);
       j(negative, on_not_smi_result, near_jump);
     }
-    shr(dst, Immediate(shift_value + kSmiShift));
-    shl(dst, Immediate(kSmiShift));
+    shrq(dst, Immediate(shift_value + kSmiShift));
+    shlq(dst, Immediate(kSmiShift));
   }
 }
 
@@ -2084,7 +2084,7 @@ void MacroAssembler::SmiShiftLeft(Register dst,
   SmiToInteger32(rcx, src2);
   // Shift amount specified by lower 5 bits, not six as the shl opcode.
   andq(rcx, Immediate(0x1f));
-  shl_cl(dst);
+  shlq_cl(dst);
 }
 
 
@@ -2107,8 +2107,8 @@ void MacroAssembler::SmiShiftLogicalRight(Register dst,
   }
   SmiToInteger32(rcx, src2);
   orl(rcx, Immediate(kSmiShift));
-  shr_cl(dst);  // Shift is rcx modulo 0x1f + 32.
-  shl(dst, Immediate(kSmiShift));
+  shrq_cl(dst);  // Shift is rcx modulo 0x1f + 32.
+  shlq(dst, Immediate(kSmiShift));
   testq(dst, dst);
   if (src1.is(rcx) || src2.is(rcx)) {
     Label positive_result;
@@ -2144,8 +2144,8 @@ void MacroAssembler::SmiShiftArithmeticRight(Register dst,
   }
   SmiToInteger32(rcx, src2);
   orl(rcx, Immediate(kSmiShift));
-  sar_cl(dst);  // Shift 32 + original rcx & 0x1f.
-  shl(dst, Immediate(kSmiShift));
+  sarp_cl(dst);  // Shift 32 + original rcx & 0x1f.
+  shlp(dst, Immediate(kSmiShift));
   if (src1.is(rcx)) {
     movp(src1, kScratchRegister);
   } else if (src2.is(rcx)) {
@@ -2201,9 +2201,9 @@ SmiIndex MacroAssembler::SmiToIndex(Register dst,
     movq(dst, src);
   }
   if (shift < kSmiShift) {
-    sar(dst, Immediate(kSmiShift - shift));
+    sarq(dst, Immediate(kSmiShift - shift));
   } else {
-    shl(dst, Immediate(shift - kSmiShift));
+    shlq(dst, Immediate(shift - kSmiShift));
   }
   return SmiIndex(dst, times_1);
 }
@@ -2218,9 +2218,9 @@ SmiIndex MacroAssembler::SmiToNegativeIndex(Register dst,
   }
   negq(dst);
   if (shift < kSmiShift) {
-    sar(dst, Immediate(kSmiShift - shift));
+    sarq(dst, Immediate(kSmiShift - shift));
   } else {
-    shl(dst, Immediate(shift - kSmiShift));
+    shlq(dst, Immediate(shift - kSmiShift));
   }
   return SmiIndex(dst, times_1);
 }
@@ -2246,11 +2246,11 @@ void MacroAssembler::Push(Smi* source) {
 void MacroAssembler::PushInt64AsTwoSmis(Register src, Register scratch) {
   movp(scratch, src);
   // High bits.
-  shr(src, Immediate(64 - kSmiShift));
-  shl(src, Immediate(kSmiShift));
+  shrp(src, Immediate(64 - kSmiShift));
+  shlp(src, Immediate(kSmiShift));
   Push(src);
   // Low bits.
-  shl(scratch, Immediate(kSmiShift));
+  shlp(scratch, Immediate(kSmiShift));
   Push(scratch);
 }
 
@@ -2258,11 +2258,11 @@ void MacroAssembler::PushInt64AsTwoSmis(Register src, Register scratch) {
 void MacroAssembler::PopInt64AsTwoSmis(Register dst, Register scratch) {
   Pop(scratch);
   // Low bits.
-  shr(scratch, Immediate(kSmiShift));
+  shrp(scratch, Immediate(kSmiShift));
   Pop(dst);
-  shr(dst, Immediate(kSmiShift));
+  shrp(dst, Immediate(kSmiShift));
   // High bits.
-  shl(dst, Immediate(64 - kSmiShift));
+  shlp(dst, Immediate(64 - kSmiShift));
   orp(dst, scratch);
 }
 
@@ -2315,7 +2315,7 @@ void MacroAssembler::LookupNumberStringCache(Register object,
   // but times_twice_pointer_size (multiplication by 16) scale factor
   // is not supported by addrmode on x64 platform.
   // So we have to premultiply entry index before lookup.
-  shl(scratch, Immediate(kPointerSizeLog2 + 1));
+  shlp(scratch, Immediate(kPointerSizeLog2 + 1));
 
   Register index = scratch;
   Register probe = mask;
@@ -2338,7 +2338,7 @@ void MacroAssembler::LookupNumberStringCache(Register object,
   // but times_twice_pointer_size (multiplication by 16) scale factor
   // is not supported by addrmode on x64 platform.
   // So we have to premultiply entry index before lookup.
-  shl(scratch, Immediate(kPointerSizeLog2 + 1));
+  shlp(scratch, Immediate(kPointerSizeLog2 + 1));
 
   // Check if the entry is the smi we are looking for.
   cmpp(object,
@@ -2893,7 +2893,7 @@ void MacroAssembler::JumpToHandlerEntry() {
   // a fixed array of (smi-tagged) code offsets.
   // rax = exception, rdi = code object, rdx = state.
   movp(rbx, FieldOperand(rdi, Code::kHandlerTableOffset));
-  shr(rdx, Immediate(StackHandler::kKindWidth));
+  shrp(rdx, Immediate(StackHandler::kKindWidth));
   movp(rdx,
        FieldOperand(rbx, rdx, times_pointer_size, FixedArray::kHeaderSize));
   SmiToInteger64(rdx, rdx);
@@ -4882,7 +4882,7 @@ void MacroAssembler::GetMarkBits(Register addr_reg,
   shrl(rcx, Immediate(kPointerSizeLog2));
   andp(rcx, Immediate((1 << Bitmap::kBitsPerCellLog2) - 1));
   movl(mask_reg, Immediate(1));
-  shl_cl(mask_reg);
+  shlp_cl(mask_reg);
 }
 
 
@@ -4966,7 +4966,7 @@ void MacroAssembler::EnsureNotWhite(
   addp(length, Immediate(0x04));
   // Value now either 4 (if ASCII) or 8 (if UC16), i.e. char-size shifted by 2.
   imulp(length, FieldOperand(value, String::kLengthOffset));
-  shr(length, Immediate(2 + kSmiTagSize + kSmiShiftSize));
+  shrp(length, Immediate(2 + kSmiTagSize + kSmiShiftSize));
   addp(length, Immediate(SeqString::kHeaderSize + kObjectAlignmentMask));
   andp(length, Immediate(~kObjectAlignmentMask));
 
@@ -5065,7 +5065,7 @@ void MacroAssembler::JumpIfDictionaryInPrototypeChain(
   movp(current, FieldOperand(current, HeapObject::kMapOffset));
   movp(scratch1, FieldOperand(current, Map::kBitField2Offset));
   andp(scratch1, Immediate(Map::kElementsKindMask));
-  shr(scratch1, Immediate(Map::kElementsKindShift));
+  shrp(scratch1, Immediate(Map::kElementsKindShift));
   cmpp(scratch1, Immediate(DICTIONARY_ELEMENTS));
   j(equal, found);
   movp(current, FieldOperand(current, Map::kPrototypeOffset));

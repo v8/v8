@@ -838,7 +838,7 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
         }
         __ addp(rax, rcx);  // Convert to index from start, not end.
         if (mode_ == UC16) {
-          __ sar(rax, Immediate(1));  // Convert byte index to character index.
+          __ sarp(rax, Immediate(1));  // Convert byte index to character index.
         }
         __ movl(Operand(rbx, i * kIntSize), rax);
       }

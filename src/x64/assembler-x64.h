@@ -532,6 +532,18 @@ class CpuFeatures : public AllStatic {
   V(xor)
 
 
+// Shift instructions on operands/registers with kPointerSize, kInt32Size and
+// kInt64Size.
+#define SHIFT_INSTRUCTION_LIST(V)       \
+  V(rol, 0x0)                           \
+  V(ror, 0x1)                           \
+  V(rcl, 0x2)                           \
+  V(rcr, 0x3)                           \
+  V(shl, 0x4)                           \
+  V(shr, 0x5)                           \
+  V(sar, 0x7)                           \
+
+
 class Assembler : public AssemblerBase {
  private:
   // We check before assembling an instruction that there is sufficient
@@ -856,93 +868,38 @@ class Assembler : public AssemblerBase {
   // Multiply rax by src, put the result in rdx:rax.
   void mul(Register src);
 
-  void rcl(Register dst, Immediate imm8) {
-    shift(dst, imm8, 0x2);
+#define DECLARE_SHIFT_INSTRUCTION(instruction, subcode)     \
+  void instruction##p(Register dst, Immediate imm8) {       \
+    shift(dst, imm8, subcode, kPointerSize);                \
+  }                                                         \
+                                                            \
+  void instruction##l(Register dst, Immediate imm8) {       \
+    shift(dst, imm8, subcode, kInt32Size);                  \
+  }                                                         \
+                                                            \
+  void instruction##q(Register dst, Immediate imm8) {       \
+    shift(dst, imm8, subcode, kInt64Size);                  \
+  }                                                         \
+                                                            \
+  void instruction##p_cl(Register dst) {                    \
+    shift(dst, subcode, kPointerSize);                      \
+  }                                                         \
+                                                            \
+  void instruction##l_cl(Register dst) {                    \
+    shift(dst, subcode, kInt32Size);                        \
+  }                                                         \
+                                                            \
+  void instruction##q_cl(Register dst) {                    \
+    shift(dst, subcode, kInt64Size);                        \
   }
-
-  void rol(Register dst, Immediate imm8) {
-    shift(dst, imm8, 0x0);
-  }
-
-  void roll(Register dst, Immediate imm8) {
-    shift_32(dst, imm8, 0x0);
-  }
-
-  void rcr(Register dst, Immediate imm8) {
-    shift(dst, imm8, 0x3);
-  }
-
-  void ror(Register dst, Immediate imm8) {
-    shift(dst, imm8, 0x1);
-  }
-
-  void rorl(Register dst, Immediate imm8) {
-    shift_32(dst, imm8, 0x1);
-  }
-
-  void rorl_cl(Register dst) {
-    shift_32(dst, 0x1);
-  }
+  SHIFT_INSTRUCTION_LIST(DECLARE_SHIFT_INSTRUCTION)
+#undef DECLARE_SHIFT_INSTRUCTION
 
   // Shifts dst:src left by cl bits, affecting only dst.
   void shld(Register dst, Register src);
 
   // Shifts src:dst right by cl bits, affecting only dst.
   void shrd(Register dst, Register src);
-
-  // Shifts dst right, duplicating sign bit, by shift_amount bits.
-  // Shifting by 1 is handled efficiently.
-  void sar(Register dst, Immediate shift_amount) {
-    shift(dst, shift_amount, 0x7);
-  }
-
-  // Shifts dst right, duplicating sign bit, by shift_amount bits.
-  // Shifting by 1 is handled efficiently.
-  void sarl(Register dst, Immediate shift_amount) {
-    shift_32(dst, shift_amount, 0x7);
-  }
-
-  // Shifts dst right, duplicating sign bit, by cl % 64 bits.
-  void sar_cl(Register dst) {
-    shift(dst, 0x7);
-  }
-
-  // Shifts dst right, duplicating sign bit, by cl % 64 bits.
-  void sarl_cl(Register dst) {
-    shift_32(dst, 0x7);
-  }
-
-  void shl(Register dst, Immediate shift_amount) {
-    shift(dst, shift_amount, 0x4);
-  }
-
-  void shl_cl(Register dst) {
-    shift(dst, 0x4);
-  }
-
-  void shll_cl(Register dst) {
-    shift_32(dst, 0x4);
-  }
-
-  void shll(Register dst, Immediate shift_amount) {
-    shift_32(dst, shift_amount, 0x4);
-  }
-
-  void shr(Register dst, Immediate shift_amount) {
-    shift(dst, shift_amount, 0x5);
-  }
-
-  void shr_cl(Register dst) {
-    shift(dst, 0x5);
-  }
-
-  void shrl_cl(Register dst) {
-    shift_32(dst, 0x5);
-  }
-
-  void shrl(Register dst, Immediate shift_amount) {
-    shift_32(dst, shift_amount, 0x5);
-  }
 
   void store_rax(void* dst, RelocInfo::Mode mode);
   void store_rax(ExternalReference ref);
@@ -1456,11 +1413,9 @@ class Assembler : public AssemblerBase {
                                   Immediate src);
 
   // Emit machine code for a shift operation.
-  void shift(Register dst, Immediate shift_amount, int subcode);
-  void shift_32(Register dst, Immediate shift_amount, int subcode);
+  void shift(Register dst, Immediate shift_amount, int subcode, int size);
   // Shift dst by cl % 64 bits.
-  void shift(Register dst, int subcode);
-  void shift_32(Register dst, int subcode);
+  void shift(Register dst, int subcode, int size);
 
   void emit_farith(int b1, int b2, int i);
 
