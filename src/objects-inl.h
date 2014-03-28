@@ -2227,6 +2227,18 @@ bool FixedDoubleArray::is_the_hole(int index) {
 }
 
 
+double* FixedDoubleArray::data_start() {
+  return reinterpret_cast<double*>(FIELD_ADDR(this, kHeaderSize));
+}
+
+
+void FixedDoubleArray::FillWithHoles(int from, int to) {
+  for (int i = from; i < to; i++) {
+    set_the_hole(i);
+  }
+}
+
+
 SMI_ACCESSORS(
     ConstantPoolArray, first_code_ptr_index, kFirstCodePointerIndexOffset)
 SMI_ACCESSORS(
@@ -2420,8 +2432,10 @@ void FixedArray::set_the_hole(int index) {
 }
 
 
-double* FixedDoubleArray::data_start() {
-  return reinterpret_cast<double*>(FIELD_ADDR(this, kHeaderSize));
+void FixedArray::FillWithHoles(int from, int to) {
+  for (int i = from; i < to; i++) {
+    set_the_hole(i);
+  }
 }
 
 

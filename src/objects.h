@@ -3049,6 +3049,8 @@ class FixedArray: public FixedArrayBase {
   // Gives access to raw memory which stores the array's data.
   inline Object** data_start();
 
+  inline void FillWithHoles(int from, int to);
+
   // Shrink length and insert filler objects.
   void Shrink(int length);
 
@@ -3158,6 +3160,8 @@ class FixedDoubleArray: public FixedArrayBase {
 
   // Gives access to raw memory which stores the array's data.
   inline double* data_start();
+
+  inline void FillWithHoles(int from, int to);
 
   // Code Generation support.
   static int OffsetOfElementAt(int index) { return SizeFor(index); }
