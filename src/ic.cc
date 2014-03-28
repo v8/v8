@@ -1082,7 +1082,9 @@ Handle<Code> KeyedLoadIC::LoadElementStub(Handle<JSObject> receiver) {
 
 MaybeObject* KeyedLoadIC::Load(Handle<Object> object, Handle<Object> key) {
   if (MigrateDeprecated(object)) {
-    return Runtime::GetObjectPropertyOrFail(isolate(), object, key);
+    Handle<Object> result = Runtime::GetObjectProperty(isolate(), object, key);
+    RETURN_IF_EMPTY_HANDLE(isolate(), result);
+    return *result;
   }
 
   MaybeObject* maybe_object = NULL;
@@ -1121,7 +1123,9 @@ MaybeObject* KeyedLoadIC::Load(Handle<Object> object, Handle<Object> key) {
   }
 
   if (maybe_object != NULL) return maybe_object;
-  return Runtime::GetObjectPropertyOrFail(isolate(), object, key);
+  Handle<Object> result = Runtime::GetObjectProperty(isolate(), object, key);
+  RETURN_IF_EMPTY_HANDLE(isolate(), result);
+  return *result;
 }
 
 

@@ -628,8 +628,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateGlobalPrivateSymbol) {
   Handle<JSObject> registry = isolate->GetSymbolRegistry();
   Handle<String> part = isolate->factory()->private_intern_string();
   Handle<JSObject> privates =
-      Handle<JSObject>::cast(JSObject::GetProperty(registry, part));
-  Handle<Object> symbol = JSObject::GetProperty(privates, name);
+      Handle<JSObject>::cast(Object::GetPropertyOrElement(registry, part));
+  Handle<Object> symbol = Object::GetPropertyOrElement(privates, name);
   if (!symbol->IsSymbol()) {
     ASSERT(symbol->IsUndefined());
     symbol = isolate->factory()->NewPrivateSymbol();
@@ -1959,8 +1959,8 @@ static Handle<Object> GetOwnProperty(Isolate* isolate,
 
   if (raw_accessors == NULL) {
     elms->set(WRITABLE_INDEX, heap->ToBoolean((attrs & READ_ONLY) == 0));
-    // GetProperty does access check.
-    Handle<Object> value = GetProperty(isolate, obj, name);
+    // Runtime::GetObjectProperty does access check.
+    Handle<Object> value = Runtime::GetObjectProperty(isolate, obj, name);
     RETURN_IF_EMPTY_HANDLE_VALUE(isolate, value, Handle<Object>::null());
     elms->set(VALUE_INDEX, *value);
   } else {
@@ -4980,59 +4980,46 @@ MaybeObject* Runtime::HasObjectProperty(Isolate* isolate,
   return isolate->heap()->ToBoolean(JSReceiver::HasProperty(object, name));
 }
 
-MaybeObject* Runtime::GetObjectPropertyOrFail(
-    Isolate* isolate,
-    Handle<Object> object,
-    Handle<Object> key) {
-  CALL_HEAP_FUNCTION_PASS_EXCEPTION(isolate,
-      GetObjectProperty(isolate, object, key));
-}
 
-MaybeObject* Runtime::GetObjectProperty(Isolate* isolate,
-                                        Handle<Object> object,
-                                        Handle<Object> key) {
-  HandleScope scope(isolate);
-
+Handle<Object> Runtime::GetObjectProperty(Isolate* isolate,
+                                          Handle<Object> object,
+                                          Handle<Object> key) {
   if (object->IsUndefined() || object->IsNull()) {
     Handle<Object> args[2] = { key, object };
-    Handle<Object> error =
-        isolate->factory()->NewTypeError("non_object_property_load",
-                                         HandleVector(args, 2));
-    return isolate->Throw(*error);
+    isolate->Throw(*isolate->factory()->NewTypeError("non_object_property_load",
+                                                     HandleVector(args, 2)));
+    return Handle<Object>();
   }
 
   // Check if the given key is an array index.
   uint32_t index;
   if (key->ToArrayIndex(&index)) {
-    Handle<Object> result = GetElementOrCharAt(isolate, object, index);
-    RETURN_IF_EMPTY_HANDLE(isolate, result);
-    return *result;
+    return GetElementOrCharAt(isolate, object, index);
   }
 
   // Convert the key to a name - possibly by calling back into JavaScript.
   Handle<Name> name = ToName(isolate, key);
-  RETURN_IF_EMPTY_HANDLE(isolate, name);
+  RETURN_IF_EMPTY_HANDLE_VALUE(isolate, name, Handle<Object>());
 
   // Check if the name is trivially convertible to an index and get
   // the element if so.
   if (name->AsArrayIndex(&index)) {
-    Handle<Object> result = GetElementOrCharAt(isolate, object, index);
-    RETURN_IF_EMPTY_HANDLE(isolate, result);
-    return *result;
+    return GetElementOrCharAt(isolate, object, index);
   } else {
-    return object->GetProperty(*name);
+    return Object::GetProperty(object, name);
   }
 }
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_GetProperty) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 2);
 
   Handle<Object> object = args.at<Object>(0);
   Handle<Object> key = args.at<Object>(1);
-
-  return Runtime::GetObjectProperty(isolate, object, key);
+  Handle<Object> result = Runtime::GetObjectProperty(isolate, object, key);
+  RETURN_IF_EMPTY_HANDLE(isolate, result);
+  return *result;
 }
 
 
@@ -5135,9 +5122,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_KeyedGetProperty) {
   }
 
   // Fall back to GetObjectProperty.
-  return Runtime::GetObjectProperty(isolate,
-                                    args.at<Object>(0),
-                                    args.at<Object>(1));
+  HandleScope scope(isolate);
+  Handle<Object> result = Runtime::GetObjectProperty(
+      isolate, args.at<Object>(0), args.at<Object>(1));
+  RETURN_IF_EMPTY_HANDLE(isolate, result);
+  return *result;
 }
 
 
@@ -11554,7 +11543,7 @@ static void UpdateStackLocalsFromMaterializedObject(Isolate* isolate,
     ASSERT(!frame->GetParameter(i)->IsTheHole());
     HandleScope scope(isolate);
     Handle<String> name(scope_info->ParameterName(i));
-    Handle<Object> value = GetProperty(isolate, target, name);
+    Handle<Object> value = Object::GetPropertyOrElement(target, name);
     frame->SetParameterValue(i, *value);
   }
 
@@ -11562,8 +11551,8 @@ static void UpdateStackLocalsFromMaterializedObject(Isolate* isolate,
   for (int i = 0; i < scope_info->StackLocalCount(); ++i) {
     if (frame->GetExpression(i)->IsTheHole()) continue;
     HandleScope scope(isolate);
-    Handle<Object> value = GetProperty(
-        isolate, target, Handle<String>(scope_info->StackLocalName(i)));
+    Handle<Object> value = Object::GetPropertyOrElement(
+        target, Handle<String>(scope_info->StackLocalName(i)));
     frame->SetExpression(i, *value);
   }
 }
@@ -11607,7 +11596,7 @@ static Handle<JSObject> MaterializeLocalContext(Isolate* isolate,
             Runtime::SetObjectProperty(isolate,
                                        target,
                                        key,
-                                       GetProperty(isolate, ext, key),
+                                       Object::GetPropertyOrElement(ext, key),
                                        NONE,
                                        SLOPPY),
             Handle<JSObject>());
@@ -11757,7 +11746,7 @@ static Handle<JSObject> MaterializeClosure(Isolate* isolate,
        RETURN_IF_EMPTY_HANDLE_VALUE(
           isolate,
           Runtime::SetObjectProperty(isolate, closure_scope, key,
-                                     GetProperty(isolate, ext, key),
+                                     Object::GetPropertyOrElement(ext, key),
                                      NONE, SLOPPY),
           Handle<JSObject>());
     }

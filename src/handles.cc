@@ -197,15 +197,8 @@ Handle<Object> GetProperty(Handle<JSReceiver> obj,
                            const char* name) {
   Isolate* isolate = obj->GetIsolate();
   Handle<String> str = isolate->factory()->InternalizeUtf8String(name);
-  CALL_HEAP_FUNCTION(isolate, obj->GetProperty(*str), Object);
-}
-
-
-Handle<Object> GetProperty(Isolate* isolate,
-                           Handle<Object> obj,
-                           Handle<Object> key) {
-  CALL_HEAP_FUNCTION(isolate,
-                     Runtime::GetObjectProperty(isolate, obj, key), Object);
+  ASSERT(!str.is_null());
+  return Object::GetPropertyOrElement(obj, str);
 }
 
 
@@ -477,9 +470,8 @@ Handle<Object> GetScriptNameOrSourceURL(Handle<Script> script) {
       isolate->factory()->InternalizeOneByteString(
           STATIC_ASCII_VECTOR("nameOrSourceURL"));
   Handle<JSValue> script_wrapper = GetScriptWrapper(script);
-  Handle<Object> property = GetProperty(isolate,
-                                        script_wrapper,
-                                        name_or_source_url_key);
+  Handle<Object> property =
+      Object::GetProperty(script_wrapper, name_or_source_url_key);
   ASSERT(property->IsJSFunction());
   Handle<JSFunction> method = Handle<JSFunction>::cast(property);
   bool caught_exception;

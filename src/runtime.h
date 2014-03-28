@@ -846,15 +846,9 @@ class Runtime : public AllStatic {
       Handle<JSReceiver> object,
       Handle<Object> key);
 
-  MUST_USE_RESULT static MaybeObject* GetObjectProperty(
-      Isolate* isolate,
-      Handle<Object> object,
-      Handle<Object> key);
-
-  MUST_USE_RESULT static MaybeObject* GetObjectPropertyOrFail(
-      Isolate* isolate,
-      Handle<Object> object,
-      Handle<Object> key);
+  static Handle<Object> GetObjectProperty(Isolate* isolate,
+                                          Handle<Object> object,
+                                          Handle<Object> key);
 
   static void SetupArrayBuffer(Isolate* isolate,
                                Handle<JSArrayBuffer> array_buffer,

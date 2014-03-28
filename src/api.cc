@@ -1941,7 +1941,7 @@ v8::Local<Value> v8::TryCatch::StackTrace() const {
     i::Handle<i::JSObject> obj(i::JSObject::cast(raw_obj), isolate_);
     i::Handle<i::String> name = isolate_->factory()->stack_string();
     if (!i::JSReceiver::HasProperty(obj, name)) return v8::Local<Value>();
-    i::Handle<i::Object> value = i::GetProperty(isolate_, obj, name);
+    i::Handle<i::Object> value = i::Object::GetProperty(obj, name);
     if (value.is_null()) return v8::Local<Value>();
     return v8::Utils::ToLocal(scope.CloseAndEscape(value));
   } else {
@@ -3143,7 +3143,8 @@ Local<Value> v8::Object::Get(v8::Handle<Value> key) {
   i::Handle<i::Object> self = Utils::OpenHandle(this);
   i::Handle<i::Object> key_obj = Utils::OpenHandle(*key);
   EXCEPTION_PREAMBLE(isolate);
-  i::Handle<i::Object> result = i::GetProperty(isolate, self, key_obj);
+  i::Handle<i::Object> result =
+      i::Runtime::GetObjectProperty(isolate, self, key_obj);
   has_pending_exception = result.is_null();
   EXCEPTION_BAILOUT_CHECK(isolate, Local<Value>());
   return Utils::ToLocal(result);
@@ -6157,8 +6158,10 @@ Local<Symbol> v8::Symbol::For(Isolate* isolate, Local<String> name) {
   i::Handle<i::JSObject> registry = i_isolate->GetSymbolRegistry();
   i::Handle<i::String> part = i_isolate->factory()->for_string();
   i::Handle<i::JSObject> symbols =
-      i::Handle<i::JSObject>::cast(i::JSObject::GetProperty(registry, part));
-  i::Handle<i::Object> symbol = i::JSObject::GetProperty(symbols, i_name);
+      i::Handle<i::JSObject>::cast(
+          i::Object::GetPropertyOrElement(registry, part));
+  i::Handle<i::Object> symbol =
+      i::Object::GetPropertyOrElement(symbols, i_name);
   if (!symbol->IsSymbol()) {
     ASSERT(symbol->IsUndefined());
     symbol = i_isolate->factory()->NewSymbol();
@@ -6175,8 +6178,10 @@ Local<Symbol> v8::Symbol::ForApi(Isolate* isolate, Local<String> name) {
   i::Handle<i::JSObject> registry = i_isolate->GetSymbolRegistry();
   i::Handle<i::String> part = i_isolate->factory()->for_api_string();
   i::Handle<i::JSObject> symbols =
-      i::Handle<i::JSObject>::cast(i::JSObject::GetProperty(registry, part));
-  i::Handle<i::Object> symbol = i::JSObject::GetProperty(symbols, i_name);
+      i::Handle<i::JSObject>::cast(
+          i::Object::GetPropertyOrElement(registry, part));
+  i::Handle<i::Object> symbol =
+      i::Object::GetPropertyOrElement(symbols, i_name);
   if (!symbol->IsSymbol()) {
     ASSERT(symbol->IsUndefined());
     symbol = i_isolate->factory()->NewSymbol();
@@ -6205,8 +6210,10 @@ Local<Private> v8::Private::ForApi(Isolate* isolate, Local<String> name) {
   i::Handle<i::JSObject> registry = i_isolate->GetSymbolRegistry();
   i::Handle<i::String> part = i_isolate->factory()->private_api_string();
   i::Handle<i::JSObject> privates =
-      i::Handle<i::JSObject>::cast(i::JSObject::GetProperty(registry, part));
-  i::Handle<i::Object> symbol = i::JSObject::GetProperty(privates, i_name);
+      i::Handle<i::JSObject>::cast(
+          i::Object::GetPropertyOrElement(registry, part));
+  i::Handle<i::Object> symbol =
+      i::Object::GetPropertyOrElement(privates, i_name);
   if (!symbol->IsSymbol()) {
     ASSERT(symbol->IsUndefined());
     symbol = i_isolate->factory()->NewPrivateSymbol();
@@ -6956,7 +6963,8 @@ Local<Value> Debug::GetMirror(v8::Handle<v8::Value> obj) {
   i::Handle<i::JSObject> debug(isolate_debug->debug_context()->global_object());
   i::Handle<i::String> name = isolate->factory()->InternalizeOneByteString(
       STATIC_ASCII_VECTOR("MakeMirror"));
-  i::Handle<i::Object> fun_obj = i::GetProperty(isolate, debug, name);
+  i::Handle<i::Object> fun_obj = i::Object::GetProperty(debug, name);
+  ASSERT(!fun_obj.is_null());
   i::Handle<i::JSFunction> fun = i::Handle<i::JSFunction>::cast(fun_obj);
   v8::Handle<v8::Function> v8_fun = Utils::ToLocal(fun);
   const int kArgc = 1;

@@ -1938,8 +1938,8 @@ bool Genesis::InstallNatives() {
   // Install Function.prototype.call and apply.
   { Handle<String> key = factory()->function_class_string();
     Handle<JSFunction> function =
-        Handle<JSFunction>::cast(
-            GetProperty(isolate(), isolate()->global_object(), key));
+        Handle<JSFunction>::cast(Object::GetProperty(
+            isolate()->global_object(), key));
     Handle<JSObject> proto =
         Handle<JSObject>(JSObject::cast(function->instance_prototype()));
 
@@ -2076,8 +2076,8 @@ static Handle<JSObject> ResolveBuiltinIdHolder(
   Handle<GlobalObject> global(native_context->global_object());
   const char* period_pos = strchr(holder_expr, '.');
   if (period_pos == NULL) {
-    return Handle<JSObject>::cast(GetProperty(
-        isolate, global, factory->InternalizeUtf8String(holder_expr)));
+    return Handle<JSObject>::cast(Object::GetPropertyOrElement(
+        global, factory->InternalizeUtf8String(holder_expr)));
   }
   ASSERT_EQ(".prototype", period_pos);
   Vector<const char> property(holder_expr,
@@ -2085,7 +2085,7 @@ static Handle<JSObject> ResolveBuiltinIdHolder(
   Handle<String> property_string = factory->InternalizeUtf8String(property);
   ASSERT(!property_string.is_null());
   Handle<JSFunction> function = Handle<JSFunction>::cast(
-      GetProperty(isolate, global, property_string));
+      Object::GetProperty(global, property_string));
   return Handle<JSObject>(JSObject::cast(function->prototype()));
 }
 

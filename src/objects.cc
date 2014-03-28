@@ -487,14 +487,18 @@ MaybeObject* JSProxy::GetPropertyWithHandler(Object* receiver_raw,
 }
 
 
-Handle<Object> Object::GetProperty(Handle<Object> object,
-                                   Handle<Name> name) {
-  // TODO(rossberg): The index test should not be here but in the GetProperty
-  // method (or somewhere else entirely). Needs more global clean-up.
+Handle<Object> Object::GetPropertyOrElement(Handle<Object> object,
+                                            Handle<Name> name) {
   uint32_t index;
   Isolate* isolate = name->GetIsolate();
   if (name->AsArrayIndex(&index)) return GetElement(isolate, object, index);
-  CALL_HEAP_FUNCTION(isolate, object->GetProperty(*name), Object);
+  return GetProperty(object, name);
+}
+
+
+Handle<Object> Object::GetProperty(Handle<Object> object,
+                                   Handle<Name> name) {
+  CALL_HEAP_FUNCTION(name->GetIsolate(), object->GetProperty(*name), Object);
 }
 
 
@@ -3602,9 +3606,8 @@ Handle<Object> JSProxy::SetPropertyViaPrototypesWithHandler(
   Handle<String> configurable_name =
       isolate->factory()->InternalizeOneByteString(
           STATIC_ASCII_VECTOR("configurable_"));
-  Handle<Object> configurable(
-      v8::internal::GetProperty(isolate, desc, configurable_name));
-  ASSERT(!isolate->has_pending_exception());
+  Handle<Object> configurable = Object::GetProperty(desc, configurable_name);
+  ASSERT(!configurable.is_null());
   ASSERT(configurable->IsTrue() || configurable->IsFalse());
   if (configurable->IsFalse()) {
     Handle<String> trap =
@@ -3622,17 +3625,15 @@ Handle<Object> JSProxy::SetPropertyViaPrototypesWithHandler(
   Handle<String> hasWritable_name =
       isolate->factory()->InternalizeOneByteString(
           STATIC_ASCII_VECTOR("hasWritable_"));
-  Handle<Object> hasWritable(
-      v8::internal::GetProperty(isolate, desc, hasWritable_name));
-  ASSERT(!isolate->has_pending_exception());
+  Handle<Object> hasWritable = Object::GetProperty(desc, hasWritable_name);
+  ASSERT(!hasWritable.is_null());
   ASSERT(hasWritable->IsTrue() || hasWritable->IsFalse());
   if (hasWritable->IsTrue()) {
     Handle<String> writable_name =
         isolate->factory()->InternalizeOneByteString(
             STATIC_ASCII_VECTOR("writable_"));
-    Handle<Object> writable(
-        v8::internal::GetProperty(isolate, desc, writable_name));
-    ASSERT(!isolate->has_pending_exception());
+    Handle<Object> writable = Object::GetProperty(desc, writable_name);
+    ASSERT(!writable.is_null());
     ASSERT(writable->IsTrue() || writable->IsFalse());
     *done = writable->IsFalse();
     if (!*done) return isolate->factory()->the_hole_value();
@@ -3647,8 +3648,8 @@ Handle<Object> JSProxy::SetPropertyViaPrototypesWithHandler(
   // We have an AccessorDescriptor.
   Handle<String> set_name = isolate->factory()->InternalizeOneByteString(
       STATIC_ASCII_VECTOR("set_"));
-  Handle<Object> setter(v8::internal::GetProperty(isolate, desc, set_name));
-  ASSERT(!isolate->has_pending_exception());
+  Handle<Object> setter = Object::GetProperty(desc, set_name);
+  ASSERT(!setter.is_null());
   if (!setter->IsUndefined()) {
     // TODO(rossberg): nicer would be to cast to some JSCallable here...
     return SetPropertyWithDefinedSetter(
@@ -3726,21 +3727,21 @@ PropertyAttributes JSProxy::GetPropertyAttributeWithHandler(
   // Convert result to PropertyAttributes.
   Handle<String> enum_n = isolate->factory()->InternalizeOneByteString(
       STATIC_ASCII_VECTOR("enumerable_"));
-  Handle<Object> enumerable(v8::internal::GetProperty(isolate, desc, enum_n));
-  if (isolate->has_pending_exception()) return NONE;
+  Handle<Object> enumerable = Object::GetProperty(desc, enum_n);
+  RETURN_IF_EMPTY_HANDLE_VALUE(isolate, enumerable, NONE);
   Handle<String> conf_n = isolate->factory()->InternalizeOneByteString(
       STATIC_ASCII_VECTOR("configurable_"));
-  Handle<Object> configurable(v8::internal::GetProperty(isolate, desc, conf_n));
-  if (isolate->has_pending_exception()) return NONE;
+  Handle<Object> configurable = Object::GetProperty(desc, conf_n);
+  RETURN_IF_EMPTY_HANDLE_VALUE(isolate, configurable, NONE);
   Handle<String> writ_n = isolate->factory()->InternalizeOneByteString(
       STATIC_ASCII_VECTOR("writable_"));
-  Handle<Object> writable(v8::internal::GetProperty(isolate, desc, writ_n));
-  if (isolate->has_pending_exception()) return NONE;
+  Handle<Object> writable = Object::GetProperty(desc, writ_n);
+  RETURN_IF_EMPTY_HANDLE_VALUE(isolate, writable, NONE);
   if (!writable->BooleanValue()) {
     Handle<String> set_n = isolate->factory()->InternalizeOneByteString(
         STATIC_ASCII_VECTOR("set_"));
-    Handle<Object> setter(v8::internal::GetProperty(isolate, desc, set_n));
-    if (isolate->has_pending_exception()) return NONE;
+    Handle<Object> setter = Object::GetProperty(desc, set_n);
+    RETURN_IF_EMPTY_HANDLE_VALUE(isolate, setter, NONE);
     writable = isolate->factory()->ToBoolean(!setter->IsUndefined());
   }
 
@@ -3803,8 +3804,8 @@ MUST_USE_RESULT Handle<Object> JSProxy::CallTrap(const char* name,
   Handle<Object> handler(this->handler(), isolate);
 
   Handle<String> trap_name = isolate->factory()->InternalizeUtf8String(name);
-  Handle<Object> trap(v8::internal::GetProperty(isolate, handler, trap_name));
-  if (isolate->has_pending_exception()) return trap;
+  Handle<Object> trap = Object::GetPropertyOrElement(handler, trap_name);
+  RETURN_IF_EMPTY_HANDLE_VALUE(isolate, trap, Handle<Object>());
 
   if (trap->IsUndefined()) {
     if (derived.is_null()) {
@@ -4070,7 +4071,7 @@ Handle<Object> JSObject::SetPropertyForResult(Handle<JSObject> object,
   bool is_observed = object->map()->is_observed() &&
                      *name != isolate->heap()->hidden_string();
   if (is_observed && lookup->IsDataProperty()) {
-    old_value = Object::GetProperty(object, name);
+    old_value = Object::GetPropertyOrElement(object, name);
     CHECK_NOT_EMPTY_HANDLE(isolate, old_value);
   }
 
@@ -4116,7 +4117,7 @@ Handle<Object> JSObject::SetPropertyForResult(Handle<JSObject> object,
       LookupResult new_lookup(isolate);
       object->LocalLookup(*name, &new_lookup, true);
       if (new_lookup.IsDataProperty()) {
-        Handle<Object> new_value = Object::GetProperty(object, name);
+        Handle<Object> new_value = Object::GetPropertyOrElement(object, name);
         CHECK_NOT_EMPTY_HANDLE(isolate, new_value);
         if (!new_value->SameValue(*old_value)) {
           EnqueueChangeRecord(object, "update", name, old_value);
@@ -4195,7 +4196,7 @@ Handle<Object> JSObject::SetLocalPropertyIgnoreAttributes(
                      *name != isolate->heap()->hidden_string();
   if (is_observed && lookup.IsProperty()) {
     if (lookup.IsDataProperty()) {
-      old_value = Object::GetProperty(object, name);
+      old_value = Object::GetPropertyOrElement(object, name);
       CHECK_NOT_EMPTY_HANDLE(isolate, old_value);
     }
     old_attributes = lookup.GetAttributes();
@@ -4241,7 +4242,7 @@ Handle<Object> JSObject::SetLocalPropertyIgnoreAttributes(
       object->LocalLookup(*name, &new_lookup, true);
       bool value_changed = false;
       if (new_lookup.IsDataProperty()) {
-        Handle<Object> new_value = Object::GetProperty(object, name);
+        Handle<Object> new_value = Object::GetPropertyOrElement(object, name);
         CHECK_NOT_EMPTY_HANDLE(isolate, new_value);
         value_changed = !old_value->SameValue(*new_value);
       }
@@ -5231,7 +5232,7 @@ Handle<Object> JSObject::DeleteProperty(Handle<JSObject> object,
   bool is_observed = object->map()->is_observed() &&
                      *name != isolate->heap()->hidden_string();
   if (is_observed && lookup.IsDataProperty()) {
-    old_value = Object::GetProperty(object, name);
+    old_value = Object::GetPropertyOrElement(object, name);
     CHECK_NOT_EMPTY_HANDLE(isolate, old_value);
   }
   Handle<Object> result;
@@ -6339,7 +6340,7 @@ void JSObject::DefineAccessor(Handle<JSObject> object,
       object->LocalLookup(*name, &lookup, true);
       preexists = lookup.IsProperty();
       if (preexists && lookup.IsDataProperty()) {
-        old_value = Object::GetProperty(object, name);
+        old_value = Object::GetPropertyOrElement(object, name);
         CHECK_NOT_EMPTY_HANDLE(isolate, old_value);
       }
     }

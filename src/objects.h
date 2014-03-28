@@ -1557,6 +1557,9 @@ class Object : public MaybeObject {
       Name* key,
       PropertyAttributes* attributes);
 
+  static Handle<Object> GetPropertyOrElement(Handle<Object> object,
+                                             Handle<Name> key);
+
   static Handle<Object> GetProperty(Handle<Object> object,
                                     Handle<Name> key);
   static Handle<Object> GetProperty(Handle<Object> object,

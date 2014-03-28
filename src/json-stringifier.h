@@ -671,7 +671,7 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSObject(
                            map->instance_descriptors()->GetFieldIndex(i)),
                        isolate_);
       } else {
-        property = GetProperty(isolate_, object, key);
+        property = Object::GetPropertyOrElement(object, key);
         RETURN_IF_EMPTY_HANDLE_VALUE(isolate_, property, EXCEPTION);
       }
       Result result = SerializeProperty(property, comma, key);
@@ -690,7 +690,7 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSObject(
       Handle<Object> property;
       if (key->IsString()) {
         key_handle = Handle<String>(String::cast(key), isolate_);
-        property = GetProperty(isolate_, object, key_handle);
+        property = Object::GetPropertyOrElement(object, key_handle);
       } else {
         ASSERT(key->IsNumber());
         key_handle = factory_->NumberToString(Handle<Object>(key, isolate_));
@@ -701,7 +701,7 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSObject(
         } else if (key_handle->AsArrayIndex(&index)) {
           property = Object::GetElement(isolate_, object, index);
         } else {
-          property = GetProperty(isolate_, object, key_handle);
+          property = Object::GetPropertyOrElement(object, key_handle);
         }
       }
       RETURN_IF_EMPTY_HANDLE_VALUE(isolate_, property, EXCEPTION);
