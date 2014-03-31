@@ -182,9 +182,6 @@ var knownProblems = {
   // Only applicable to TypedArrays.
   "_TypedArrayInitialize": true,
 
-  // Only applicable to loading mutable doubles.
-  "LoadMutableDouble": true,
-
   // Only applicable to generators.
   "_GeneratorNext": true,
   "_GeneratorThrow": true,

@@ -163,9 +163,6 @@ class LCodeGen: public LCodeGenBase {
   void DoDeferredInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr,
                                        Label* map_check);
   void DoDeferredInstanceMigration(LCheckMaps* instr, Register object);
-  void DoDeferredLoadMutableDouble(LLoadFieldByIndex* instr,
-                                   Register object,
-                                   Register index);
 
   // Parallel move support.
   void DoParallelMove(LParallelMove* move);

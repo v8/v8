@@ -7504,7 +7504,6 @@ class HLoadFieldByIndex V8_FINAL : public HTemplateInstruction<2> {
                     HValue* index) {
     SetOperandAt(0, object);
     SetOperandAt(1, index);
-    SetChangesFlag(kNewSpacePromotion);
     set_representation(Representation::Tagged());
   }
 

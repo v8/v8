@@ -2562,9 +2562,7 @@ LInstruction* LChunkBuilder::DoCheckMapValue(HCheckMapValue* instr) {
 LInstruction* LChunkBuilder::DoLoadFieldByIndex(HLoadFieldByIndex* instr) {
   LOperand* object = UseRegisterAtStart(instr->object());
   LOperand* index = UseRegister(instr->index());
-  LLoadFieldByIndex* load = new(zone()) LLoadFieldByIndex(object, index);
-  LInstruction* result = DefineSameAsFirst(load);
-  return AssignPointerMap(result);
+  return DefineAsRegister(new(zone()) LLoadFieldByIndex(object, index));
 }
 
 
