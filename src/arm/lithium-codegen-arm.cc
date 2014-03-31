@@ -3309,7 +3309,8 @@ MemOperand LCodeGen::PrepareKeyedOperand(Register key,
       __ add(scratch0(), scratch0(), Operand(key, LSL, shift_size));
     } else {
       ASSERT_EQ(-1, shift_size);
-      __ add(scratch0(), scratch0(), Operand(key, LSR, 1));
+      // key can be negative, so using ASR here.
+      __ add(scratch0(), scratch0(), Operand(key, ASR, 1));
     }
     return MemOperand(base, scratch0());
   }
