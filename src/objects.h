@@ -2199,6 +2199,10 @@ class JSObject: public JSReceiver {
   DECL_ACCESSORS(elements, FixedArrayBase)
   inline void initialize_elements();
   MUST_USE_RESULT inline MaybeObject* ResetElements();
+  static void ResetElements(Handle<JSObject> object);
+  static inline void SetMapAndElements(Handle<JSObject> object,
+                                       Handle<Map> map,
+                                       Handle<FixedArrayBase> elements);
   inline ElementsKind GetElementsKind();
   inline ElementsAccessor* GetElementsAccessor();
   // Returns true if an object has elements of FAST_SMI_ELEMENTS ElementsKind.
@@ -2246,11 +2250,6 @@ class JSObject: public JSReceiver {
   bool HasFastArgumentsElements();
   bool HasDictionaryArgumentsElements();
   inline SeededNumberDictionary* element_dictionary();  // Gets slow elements.
-
-  inline void set_map_and_elements(
-      Map* map,
-      FixedArrayBase* value,
-      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // Requires: HasFastElements().
   static Handle<FixedArray> EnsureWritableFastElements(

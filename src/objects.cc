@@ -4700,6 +4700,13 @@ void JSObject::TransformToFastProperties(Handle<JSObject> object,
 }
 
 
+void JSObject::ResetElements(Handle<JSObject> object) {
+  CALL_HEAP_FUNCTION_VOID(
+      object->GetIsolate(),
+      object->ResetElements());
+}
+
+
 static Handle<SeededNumberDictionary> CopyFastElementsToDictionary(
     Handle<FixedArrayBase> array,
     int length,
@@ -11214,7 +11221,7 @@ Handle<FixedArray> JSObject::SetFastElementsCapacityAndLength(
         ? GetElementsTransitionMap(object, new_elements_kind)
         : handle(object->map());
     object->ValidateElements();
-    object->set_map_and_elements(*new_map, *new_elements);
+    JSObject::SetMapAndElements(object, new_map, new_elements);
 
     // Transition through the allocation site as well if present.
     JSObject::UpdateAllocationSite(object, new_elements_kind);
@@ -11260,7 +11267,7 @@ void JSObject::SetFastDoubleElementsCapacityAndLength(Handle<JSObject> object,
   accessor->CopyElements(object, elems, elements_kind);
 
   object->ValidateElements();
-  object->set_map_and_elements(*new_map, *elems);
+  JSObject::SetMapAndElements(object, new_map, elems);
 
   if (FLAG_trace_elements_transitions) {
     PrintElementsTransition(stdout, object, elements_kind, old_elements,
@@ -14400,7 +14407,7 @@ Handle<Object> JSObject::PrepareElementsForSort(Handle<JSObject> object,
     dict->CopyValuesTo(*fast_elements);
     object->ValidateElements();
 
-    object->set_map_and_elements(*new_map, *fast_elements);
+    JSObject::SetMapAndElements(object, new_map, fast_elements);
   } else if (object->HasExternalArrayElements() ||
              object->HasFixedTypedArrayElements()) {
     // Typed arrays cannot have holes or undefined elements.
@@ -16394,7 +16401,7 @@ Handle<JSArrayBuffer> JSTypedArray::MaterializeArrayBuffer(
   buffer->set_weak_first_view(*typed_array);
   ASSERT(typed_array->weak_next() == isolate->heap()->undefined_value());
   typed_array->set_buffer(*buffer);
-  typed_array->set_map_and_elements(*new_map, *new_elements);
+  JSObject::SetMapAndElements(typed_array, new_map, new_elements);
 
   return buffer;
 }

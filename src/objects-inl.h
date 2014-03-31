@@ -1750,31 +1750,24 @@ MaybeObject* JSObject::GetElementsTransitionMap(Isolate* isolate,
 }
 
 
-void JSObject::set_map_and_elements(Map* new_map,
-                                    FixedArrayBase* value,
-                                    WriteBarrierMode mode) {
-  ASSERT(value->HasValidElements());
-  if (new_map != NULL) {
-    if (mode == UPDATE_WRITE_BARRIER) {
-      set_map(new_map);
-    } else {
-      ASSERT(mode == SKIP_WRITE_BARRIER);
-      set_map_no_write_barrier(new_map);
-    }
-  }
-  ASSERT((map()->has_fast_smi_or_object_elements() ||
-          (value == GetHeap()->empty_fixed_array())) ==
-         (value->map() == GetHeap()->fixed_array_map() ||
-          value->map() == GetHeap()->fixed_cow_array_map()));
-  ASSERT((value == GetHeap()->empty_fixed_array()) ||
-         (map()->has_fast_double_elements() == value->IsFixedDoubleArray()));
-  WRITE_FIELD(this, kElementsOffset, value);
-  CONDITIONAL_WRITE_BARRIER(GetHeap(), this, kElementsOffset, value, mode);
+void JSObject::SetMapAndElements(Handle<JSObject> object,
+                                 Handle<Map> new_map,
+                                 Handle<FixedArrayBase> value) {
+  JSObject::MigrateToMap(object, new_map);
+  ASSERT((object->map()->has_fast_smi_or_object_elements() ||
+          (*value == object->GetHeap()->empty_fixed_array())) ==
+         (value->map() == object->GetHeap()->fixed_array_map() ||
+          value->map() == object->GetHeap()->fixed_cow_array_map()));
+  ASSERT((*value == object->GetHeap()->empty_fixed_array()) ||
+         (object->map()->has_fast_double_elements() ==
+          value->IsFixedDoubleArray()));
+  object->set_elements(*value);
 }
 
 
 void JSObject::set_elements(FixedArrayBase* value, WriteBarrierMode mode) {
-  set_map_and_elements(NULL, value, mode);
+  WRITE_FIELD(this, kElementsOffset, value);
+  CONDITIONAL_WRITE_BARRIER(GetHeap(), this, kElementsOffset, value, mode);
 }
 
 
