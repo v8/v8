@@ -5608,10 +5608,10 @@ void LCodeGen::DoLoadFieldByIndex(LLoadFieldByIndex* instr) {
 
   Label out_of_object, done;
   __ Move(kScratchRegister, Smi::FromInt(1));
-  __ testq(index, kScratchRegister);
+  __ testp(index, kScratchRegister);
   __ j(not_zero, deferred->entry());
 
-  __ sar(index, Immediate(1));
+  __ sarp(index, Immediate(1));
 
   __ SmiToInteger32(index, index);
   __ cmpl(index, Immediate(0));
