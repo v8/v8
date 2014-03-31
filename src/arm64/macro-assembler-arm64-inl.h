@@ -1409,6 +1409,30 @@ void MacroAssembler::JumpIfBothNotSmi(Register value1,
 }
 
 
+void MacroAssembler::ObjectTag(Register tagged_obj, Register obj) {
+  STATIC_ASSERT(kHeapObjectTag == 1);
+  if (emit_debug_code()) {
+    Label ok;
+    Tbz(obj, 0, &ok);
+    Abort(kObjectTagged);
+    Bind(&ok);
+  }
+  Orr(tagged_obj, obj, kHeapObjectTag);
+}
+
+
+void MacroAssembler::ObjectUntag(Register untagged_obj, Register obj) {
+  STATIC_ASSERT(kHeapObjectTag == 1);
+  if (emit_debug_code()) {
+    Label ok;
+    Tbnz(obj, 0, &ok);
+    Abort(kObjectNotTagged);
+    Bind(&ok);
+  }
+  Bic(untagged_obj, obj, kHeapObjectTag);
+}
+
+
 void MacroAssembler::IsObjectNameType(Register object,
                                       Register type,
                                       Label* fail) {

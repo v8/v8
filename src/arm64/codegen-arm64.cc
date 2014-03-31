@@ -339,8 +339,8 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
 
     // Non-hole double, copy value into a heap number.
     Register heap_num = x5;
-    __ AllocateHeapNumber(heap_num, &gc_required, x6, x4, heap_num_map);
-    __ Str(x13, FieldMemOperand(heap_num, HeapNumber::kValueOffset));
+    __ AllocateHeapNumber(heap_num, &gc_required, x6, x4,
+                          x13, heap_num_map);
     __ Mov(x13, dst_elements);
     __ Str(heap_num, MemOperand(dst_elements, kPointerSize, PostIndex));
     __ RecordWrite(array, x13, heap_num, kLRHasBeenSaved, kDontSaveFPRegs,

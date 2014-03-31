@@ -4720,22 +4720,23 @@ void FullCodeGenerator::EmitCreateIteratorResult(bool done) {
   Register result_value = x2;
   Register boolean_done = x3;
   Register empty_fixed_array = x4;
+  Register untagged_result = x5;
   __ Mov(map_reg, Operand(map));
   __ Pop(result_value);
   __ Mov(boolean_done, Operand(isolate()->factory()->ToBoolean(done)));
   __ Mov(empty_fixed_array, Operand(isolate()->factory()->empty_fixed_array()));
   ASSERT_EQ(map->instance_size(), 5 * kPointerSize);
-  // TODO(jbramley): Use Stp if possible.
-  __ Str(map_reg, FieldMemOperand(result, HeapObject::kMapOffset));
-  __ Str(empty_fixed_array,
-         FieldMemOperand(result, JSObject::kPropertiesOffset));
-  __ Str(empty_fixed_array, FieldMemOperand(result, JSObject::kElementsOffset));
-  __ Str(result_value,
-         FieldMemOperand(result,
-                         JSGeneratorObject::kResultValuePropertyOffset));
-  __ Str(boolean_done,
-         FieldMemOperand(result,
-                         JSGeneratorObject::kResultDonePropertyOffset));
+  STATIC_ASSERT(JSObject::kPropertiesOffset + kPointerSize ==
+                JSObject::kElementsOffset);
+  STATIC_ASSERT(JSGeneratorObject::kResultValuePropertyOffset + kPointerSize ==
+                JSGeneratorObject::kResultDonePropertyOffset);
+  __ ObjectUntag(untagged_result, result);
+  __ Str(map_reg, MemOperand(untagged_result, HeapObject::kMapOffset));
+  __ Stp(empty_fixed_array, empty_fixed_array,
+         MemOperand(untagged_result, JSObject::kPropertiesOffset));
+  __ Stp(result_value, boolean_done,
+         MemOperand(untagged_result,
+                    JSGeneratorObject::kResultValuePropertyOffset));
 
   // Only the value field needs a write barrier, as the other values are in the
   // root set.

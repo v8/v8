@@ -53,7 +53,7 @@ MacroAssembler::MacroAssembler(Isolate* arg_isolate,
 #endif
       has_frame_(false),
       use_real_aborts_(true),
-      sp_(jssp), tmp_list_(ip0, ip1), fptmp_list_(fp_scratch) {
+      sp_(jssp), tmp_list_(ip0, ip1), fptmp_list_(fp_scratch1, fp_scratch2) {
   if (isolate() != NULL) {
     code_object_ = Handle<Object>(isolate()->heap()->undefined_value(),
                                   isolate());
@@ -1196,7 +1196,7 @@ void MacroAssembler::AssertStackConsistency() {
 }
 
 
-void MacroAssembler::LoadRoot(Register destination,
+void MacroAssembler::LoadRoot(CPURegister destination,
                               Heap::RootListIndex index) {
   // TODO(jbramley): Most root values are constants, and can be synthesized
   // without a load. Refer to the ARM back end for details.
@@ -3267,7 +3267,7 @@ void MacroAssembler::Allocate(int object_size,
 
   // Tag the object if requested.
   if ((flags & TAG_OBJECT) != 0) {
-    Orr(result, result, kHeapObjectTag);
+    ObjectTag(result, result);
   }
 }
 
@@ -3349,7 +3349,7 @@ void MacroAssembler::Allocate(Register object_size,
 
   // Tag the object if requested.
   if ((flags & TAG_OBJECT) != 0) {
-    Orr(result, result, kHeapObjectTag);
+    ObjectTag(result, result);
   }
 }
 
@@ -3533,32 +3533,50 @@ void MacroAssembler::AllocateHeapNumber(Register result,
                                         Label* gc_required,
                                         Register scratch1,
                                         Register scratch2,
-                                        Register heap_number_map) {
+                                        CPURegister value,
+                                        CPURegister heap_number_map) {
+  ASSERT(!value.IsValid() || value.Is64Bits());
+  UseScratchRegisterScope temps(this);
+
   // Allocate an object in the heap for the heap number and tag it as a heap
   // object.
   Allocate(HeapNumber::kSize, result, scratch1, scratch2, gc_required,
-           TAG_OBJECT);
+           NO_ALLOCATION_FLAGS);
 
-  // Store heap number map in the allocated object.
-  if (heap_number_map.Is(NoReg)) {
-    heap_number_map = scratch1;
+  // Prepare the heap number map.
+  if (!heap_number_map.IsValid()) {
+    // If we have a valid value register, use the same type of register to store
+    // the map so we can use STP to store both in one instruction.
+    if (value.IsValid() && value.IsFPRegister()) {
+      heap_number_map = temps.AcquireD();
+    } else {
+      heap_number_map = scratch1;
+    }
     LoadRoot(heap_number_map, Heap::kHeapNumberMapRootIndex);
   }
-  AssertRegisterIsRoot(heap_number_map, Heap::kHeapNumberMapRootIndex);
-  Str(heap_number_map, FieldMemOperand(result, HeapObject::kMapOffset));
-}
+  if (emit_debug_code()) {
+    Register map;
+    if (heap_number_map.IsFPRegister()) {
+      map = scratch1;
+      Fmov(map, DoubleRegister(heap_number_map));
+    } else {
+      map = Register(heap_number_map);
+    }
+    AssertRegisterIsRoot(map, Heap::kHeapNumberMapRootIndex);
+  }
 
-
-void MacroAssembler::AllocateHeapNumberWithValue(Register result,
-                                                 DoubleRegister value,
-                                                 Label* gc_required,
-                                                 Register scratch1,
-                                                 Register scratch2,
-                                                 Register heap_number_map) {
-  // TODO(all): Check if it would be more efficient to use STP to store both
-  // the map and the value.
-  AllocateHeapNumber(result, gc_required, scratch1, scratch2, heap_number_map);
-  Str(value, FieldMemOperand(result, HeapNumber::kValueOffset));
+  // Store the heap number map and the value in the allocated object.
+  if (value.IsSameSizeAndType(heap_number_map)) {
+    STATIC_ASSERT(HeapObject::kMapOffset + kPointerSize ==
+                  HeapNumber::kValueOffset);
+    Stp(heap_number_map, value, MemOperand(result, HeapObject::kMapOffset));
+  } else {
+    Str(heap_number_map, MemOperand(result, HeapObject::kMapOffset));
+    if (value.IsValid()) {
+      Str(value, MemOperand(result, HeapNumber::kValueOffset));
+    }
+  }
+  ObjectTag(result, result);
 }
 
 
