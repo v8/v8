@@ -1284,34 +1284,39 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
   // In either case we resort to a short external string instead, omitting
   // the field caching the address of the backing store.  When we encounter
   // short external strings in generated code, we need to bailout to runtime.
+  Map* new_map;
   if (size < ExternalString::kSize ||
       heap->old_pointer_space()->Contains(this)) {
-    this->set_map_no_write_barrier(
-        is_internalized
-            ? (is_ascii
-                ? heap->
-                    short_external_internalized_string_with_one_byte_data_map()
-                : heap->short_external_internalized_string_map())
-            : (is_ascii
-                ? heap->short_external_string_with_one_byte_data_map()
-                : heap->short_external_string_map()));
+    new_map = is_internalized
+        ? (is_ascii
+            ? heap->
+                short_external_internalized_string_with_one_byte_data_map()
+            : heap->short_external_internalized_string_map())
+        : (is_ascii
+            ? heap->short_external_string_with_one_byte_data_map()
+            : heap->short_external_string_map());
   } else {
-    this->set_map_no_write_barrier(
-        is_internalized
-            ? (is_ascii
-                ? heap->external_internalized_string_with_one_byte_data_map()
-                : heap->external_internalized_string_map())
-            : (is_ascii
-                ? heap->external_string_with_one_byte_data_map()
-                : heap->external_string_map()));
+    new_map = is_internalized
+        ? (is_ascii
+            ? heap->external_internalized_string_with_one_byte_data_map()
+            : heap->external_internalized_string_map())
+        : (is_ascii
+            ? heap->external_string_with_one_byte_data_map()
+            : heap->external_string_map());
   }
+
+  // Byte size of the external String object.
+  int new_size = this->SizeFromMap(new_map);
+  heap->CreateFillerObjectAt(this->address() + new_size, size - new_size);
+
+  // We are storing the new map using release store after creating a filler for
+  // the left-over space to avoid races with the sweeper thread.
+  this->synchronized_set_map(new_map);
+
   ExternalTwoByteString* self = ExternalTwoByteString::cast(this);
   self->set_resource(resource);
   if (is_internalized) self->Hash();  // Force regeneration of the hash value.
 
-  // Fill the remainder of the string with dead wood.
-  int new_size = this->Size();  // Byte size of the external String object.
-  heap->CreateFillerObjectAt(this->address() + new_size, size - new_size);
   heap->AdjustLiveBytes(this->address(), new_size - size, Heap::FROM_MUTATOR);
   return true;
 }
@@ -1351,23 +1356,30 @@ bool String::MakeExternal(v8::String::ExternalAsciiStringResource* resource) {
   // In either case we resort to a short external string instead, omitting
   // the field caching the address of the backing store.  When we encounter
   // short external strings in generated code, we need to bailout to runtime.
+  Map* new_map;
   if (size < ExternalString::kSize ||
       heap->old_pointer_space()->Contains(this)) {
-    this->set_map_no_write_barrier(
-        is_internalized ? heap->short_external_ascii_internalized_string_map()
-                        : heap->short_external_ascii_string_map());
+    new_map = is_internalized
+        ? heap->short_external_ascii_internalized_string_map()
+        : heap->short_external_ascii_string_map();
   } else {
-    this->set_map_no_write_barrier(
-        is_internalized ? heap->external_ascii_internalized_string_map()
-                        : heap->external_ascii_string_map());
+    new_map = is_internalized
+        ? heap->external_ascii_internalized_string_map()
+        : heap->external_ascii_string_map();
   }
+
+  // Byte size of the external String object.
+  int new_size = this->SizeFromMap(new_map);
+  heap->CreateFillerObjectAt(this->address() + new_size, size - new_size);
+
+  // We are storing the new map using release store after creating a filler for
+  // the left-over space to avoid races with the sweeper thread.
+  this->synchronized_set_map(new_map);
+
   ExternalAsciiString* self = ExternalAsciiString::cast(this);
   self->set_resource(resource);
   if (is_internalized) self->Hash();  // Force regeneration of the hash value.
 
-  // Fill the remainder of the string with dead wood.
-  int new_size = this->Size();  // Byte size of the external String object.
-  heap->CreateFillerObjectAt(this->address() + new_size, size - new_size);
   heap->AdjustLiveBytes(this->address(), new_size - size, Heap::FROM_MUTATOR);
   return true;
 }
@@ -2301,7 +2313,9 @@ static void RightTrimFixedArray(Heap* heap, FixedArray* elms, int to_trim) {
   // we still do it.
   heap->CreateFillerObjectAt(new_end, size_delta);
 
-  elms->set_length(len - to_trim);
+  // We are storing the new length using release store after creating a filler
+  // for the left-over space to avoid races with the sweeper thread.
+  elms->synchronized_set_length(len - to_trim);
 
   heap->AdjustLiveBytes(elms->address(), -size_delta, mode);
 
@@ -2376,7 +2390,9 @@ void JSObject::MigrateToMap(Handle<JSObject> object, Handle<Map> new_map) {
   // converted to doubles.
   if (!old_map->InstancesNeedRewriting(
           *new_map, number_of_fields, inobject, unused)) {
-    object->set_map(*new_map);
+    // Writing the new map here does not require synchronization since it does
+    // not change the actual object size.
+    object->synchronized_set_map(*new_map);
     return;
   }
 
@@ -2446,6 +2462,11 @@ void JSObject::MigrateToMap(Handle<JSObject> object, Handle<Map> new_map) {
   int instance_size_delta = old_map->instance_size() - new_instance_size;
   ASSERT(instance_size_delta >= 0);
   Address address = object->address() + new_instance_size;
+
+  // The trimming is performed on a newly allocated object, which is on a
+  // fresly allocated page or on an already swept page. Hence, the sweeper
+  // thread can not get confused with the filler creation. No synchronization
+  // needed.
   isolate->heap()->CreateFillerObjectAt(address, instance_size_delta);
 
   // If there are properties in the new backing store, trim it to the correct
@@ -2455,6 +2476,10 @@ void JSObject::MigrateToMap(Handle<JSObject> object, Handle<Map> new_map) {
     object->set_properties(*array);
   }
 
+  // The trimming is performed on a newly allocated object, which is on a
+  // fresly allocated page or on an already swept page. Hence, the sweeper
+  // thread can not get confused with the filler creation. No synchronization
+  // needed.
   object->set_map(*new_map);
 }
 
@@ -4645,7 +4670,10 @@ void JSObject::NormalizeProperties(Handle<JSObject> object,
                         -instance_size_delta,
                         Heap::FROM_MUTATOR);
 
-  object->set_map(*new_map);
+  // We are storing the new map using release store after creating a filler for
+  // the left-over space to avoid races with the sweeper thread.
+  object->synchronized_set_map(*new_map);
+
   map->NotifyLeafMapLayoutChange();
 
   object->set_properties(*dictionary);
@@ -9158,7 +9186,6 @@ Handle<String> SeqString::Truncate(Handle<SeqString> string, int new_length) {
   }
 
   int delta = old_size - new_size;
-  string->set_length(new_length);
 
   Address start_of_string = string->address();
   ASSERT_OBJECT_ALIGNED(start_of_string);
@@ -9176,6 +9203,10 @@ Handle<String> SeqString::Truncate(Handle<SeqString> string, int new_length) {
     heap->CreateFillerObjectAt(start_of_string + new_size, delta);
   }
   heap->AdjustLiveBytes(start_of_string, -delta, Heap::FROM_MUTATOR);
+
+  // We are storing the new length using release store after creating a filler
+  // for the left-over space to avoid races with the sweeper thread.
+  string->synchronized_set_length(new_length);
 
   if (new_length == 0) return heap->isolate()->factory()->empty_string();
   return string;

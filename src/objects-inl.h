@@ -125,6 +125,15 @@ PropertyDetails PropertyDetails::AsDeleted() const {
     WRITE_FIELD(this, offset, Smi::FromInt(value));     \
   }
 
+#define SYNCHRONIZED_SMI_ACCESSORS(holder, name, offset)    \
+  int holder::synchronized_##name() {                       \
+    Object* value = ACQUIRE_READ_FIELD(this, offset);       \
+    return Smi::cast(value)->value();                       \
+  }                                                         \
+  void holder::synchronized_set_##name(int value) {         \
+    RELEASE_WRITE_FIELD(this, offset, Smi::FromInt(value)); \
+  }
+
 
 #define BOOL_GETTER(holder, field, name, offset)           \
   bool holder::name() {                                    \
@@ -1095,8 +1104,24 @@ MaybeObject* Object::GetProperty(Name* key, PropertyAttributes* attributes) {
 #define READ_FIELD(p, offset) \
   (*reinterpret_cast<Object**>(FIELD_ADDR(p, offset)))
 
+#define ACQUIRE_READ_FIELD(p, offset)                                    \
+  reinterpret_cast<Object*>(                                             \
+      Acquire_Load(reinterpret_cast<AtomicWord*>(FIELD_ADDR(p, offset))))
+
+#define NO_BARRIER_READ_FIELD(p, offset)                                    \
+  reinterpret_cast<Object*>(                                                \
+      NoBarrier_Load(reinterpret_cast<AtomicWord*>(FIELD_ADDR(p, offset))))
+
 #define WRITE_FIELD(p, offset, value) \
   (*reinterpret_cast<Object**>(FIELD_ADDR(p, offset)) = value)
+
+#define RELEASE_WRITE_FIELD(p, offset, value)                           \
+  Release_Store(reinterpret_cast<AtomicWord*>(FIELD_ADDR(p, offset)),   \
+                reinterpret_cast<AtomicWord>(value));
+
+#define NO_BARRIER_WRITE_FIELD(p, offset, value)                           \
+  NoBarrier_Store(reinterpret_cast<AtomicWord*>(FIELD_ADDR(p, offset)),    \
+                  reinterpret_cast<AtomicWord>(value));
 
 #define WRITE_BARRIER(heap, object, offset, value)                      \
   heap->incremental_marking()->RecordWrite(                             \
@@ -1348,6 +1373,21 @@ void HeapObject::set_map(Map* value) {
 }
 
 
+Map* HeapObject::synchronized_map() {
+  return synchronized_map_word().ToMap();
+}
+
+
+void HeapObject::synchronized_set_map(Map* value) {
+  synchronized_set_map_word(MapWord::FromMap(value));
+  if (value != NULL) {
+    // TODO(1600) We are passing NULL as a slot because maps can never be on
+    // evacuation candidate.
+    value->GetHeap()->incremental_marking()->RecordWrite(this, NULL, value);
+  }
+}
+
+
 // Unsafe accessor omitting write barrier.
 void HeapObject::set_map_no_write_barrier(Map* value) {
   set_map_word(MapWord::FromMap(value));
@@ -1355,14 +1395,26 @@ void HeapObject::set_map_no_write_barrier(Map* value) {
 
 
 MapWord HeapObject::map_word() {
-  return MapWord(reinterpret_cast<uintptr_t>(READ_FIELD(this, kMapOffset)));
+  return MapWord(
+      reinterpret_cast<uintptr_t>(NO_BARRIER_READ_FIELD(this, kMapOffset)));
 }
 
 
 void HeapObject::set_map_word(MapWord map_word) {
-  // WRITE_FIELD does not invoke write barrier, but there is no need
-  // here.
-  WRITE_FIELD(this, kMapOffset, reinterpret_cast<Object*>(map_word.value_));
+  NO_BARRIER_WRITE_FIELD(
+      this, kMapOffset, reinterpret_cast<Object*>(map_word.value_));
+}
+
+
+MapWord HeapObject::synchronized_map_word() {
+  return MapWord(
+      reinterpret_cast<uintptr_t>(ACQUIRE_READ_FIELD(this, kMapOffset)));
+}
+
+
+void HeapObject::synchronized_set_map_word(MapWord map_word) {
+  RELEASE_WRITE_FIELD(
+      this, kMapOffset, reinterpret_cast<Object*>(map_word.value_));
 }
 
 
@@ -2947,9 +2999,12 @@ HashTable<Shape, Key>* HashTable<Shape, Key>::cast(Object* obj) {
 
 
 SMI_ACCESSORS(FixedArrayBase, length, kLengthOffset)
+SYNCHRONIZED_SMI_ACCESSORS(FixedArrayBase, length, kLengthOffset)
+
 SMI_ACCESSORS(FreeSpace, size, kSizeOffset)
 
 SMI_ACCESSORS(String, length, kLengthOffset)
+SYNCHRONIZED_SMI_ACCESSORS(String, length, kLengthOffset)
 
 
 uint32_t Name::hash_field() {

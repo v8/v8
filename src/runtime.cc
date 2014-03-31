@@ -4201,6 +4201,11 @@ MUST_USE_RESULT static MaybeObject* StringReplaceGlobalRegExpWithEmptyString(
 
   Address end_of_string = answer->address() + string_size;
   Heap* heap = isolate->heap();
+
+  // The trimming is performed on a newly allocated object, which is on a
+  // fresly allocated page or on an already swept page. Hence, the sweeper
+  // thread can not get confused with the filler creation. No synchronization
+  // needed.
   heap->CreateFillerObjectAt(end_of_string, delta);
   heap->AdjustLiveBytes(answer->address(), -delta, Heap::FROM_MUTATOR);
   return *answer;

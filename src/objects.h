@@ -1816,6 +1816,14 @@ class HeapObject: public Object {
   // of primitive (non-JS) objects like strings, heap numbers etc.
   inline void set_map_no_write_barrier(Map* value);
 
+  // Get the map using acquire load.
+  inline Map* synchronized_map();
+  inline MapWord synchronized_map_word();
+
+  // Set the map using release store
+  inline void synchronized_set_map(Map* value);
+  inline void synchronized_set_map_word(MapWord map_word);
+
   // During garbage collection, the map word of a heap object does not
   // necessarily contain a map pointer.
   inline MapWord map_word();
@@ -3015,6 +3023,10 @@ class FixedArrayBase: public HeapObject {
   // [length]: length of the array.
   inline int length();
   inline void set_length(int value);
+
+  // Get and set the length using acquire loads and release stores.
+  inline int synchronized_length();
+  inline void synchronized_set_length(int value);
 
   inline static FixedArrayBase* cast(Object* object);
 
@@ -8787,6 +8799,11 @@ class String: public Name {
   // Get and set the length of the string.
   inline int length();
   inline void set_length(int value);
+
+  // Get and set the length of the string using acquire loads and release
+  // stores.
+  inline int synchronized_length();
+  inline void synchronized_set_length(int value);
 
   // Returns whether this string has only ASCII chars, i.e. all of them can
   // be ASCII encoded.  This might be the case even if the string is

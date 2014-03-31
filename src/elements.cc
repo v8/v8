@@ -962,11 +962,15 @@ class FastElementsAccessor
         if (length == 0) {
           array->initialize_elements();
         } else {
-          backing_store->set_length(length);
+          int filler_size = (old_capacity - length) * ElementSize;
           Address filler_start = backing_store->address() +
               BackingStore::OffsetOfElementAt(length);
-          int filler_size = (old_capacity - length) * ElementSize;
           array->GetHeap()->CreateFillerObjectAt(filler_start, filler_size);
+
+          // We are storing the new length using release store after creating a
+          // filler for the left-over space to avoid races with the sweeper
+          // thread.
+          backing_store->synchronized_set_length(length);
         }
       } else {
         // Otherwise, fill the unused tail with holes.

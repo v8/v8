@@ -210,6 +210,8 @@ static void MoveDoubleElements(FixedDoubleArray* dst,
 static FixedArrayBase* LeftTrimFixedArray(Heap* heap,
                                           FixedArrayBase* elms,
                                           int to_trim) {
+  ASSERT(heap->CanMoveObjectStart(elms));
+
   Map* map = elms->map();
   int entry_size;
   if (elms->IsFixedArray()) {
@@ -246,6 +248,8 @@ static FixedArrayBase* LeftTrimFixedArray(Heap* heap,
   // Technically in new space this write might be omitted (except for
   // debug mode which iterates through the heap), but to play safer
   // we still do it.
+  // Since left trimming is only performed on pages which are not concurrently
+  // swept creating a filler object does not require synchronization.
   heap->CreateFillerObjectAt(elms->address(), to_trim * entry_size);
 
   int new_start_index = to_trim * (entry_size / kPointerSize);
