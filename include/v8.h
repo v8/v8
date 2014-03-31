@@ -524,6 +524,13 @@ template <class T> class PersistentBase {
     return !operator==(that);
   }
 
+  /**
+   *  Install a finalization callback on this object.
+   *  NOTE: There is no guarantee as to *when* or even *if* the callback is
+   *  invoked. The invocation is performed solely on a best effort basis.
+   *  As always, GC-based finalization should *not* be relied upon for any
+   *  critical form of resource management!
+   */
   template<typename P>
   V8_INLINE void SetWeak(
       P* parameter,
