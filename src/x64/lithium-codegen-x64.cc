@@ -5564,11 +5564,55 @@ void LCodeGen::DoCheckMapValue(LCheckMapValue* instr) {
 }
 
 
+void LCodeGen::DoDeferredLoadMutableDouble(LLoadFieldByIndex* instr,
+                                           Register object,
+                                           Register index) {
+  PushSafepointRegistersScope scope(this);
+  __ Push(object);
+  __ Push(index);
+  __ xorp(rsi, rsi);
+  __ CallRuntimeSaveDoubles(Runtime::kLoadMutableDouble);
+  RecordSafepointWithRegisters(
+      instr->pointer_map(), 2, Safepoint::kNoLazyDeopt);
+  __ StoreToSafepointRegisterSlot(object, rax);
+}
+
+
 void LCodeGen::DoLoadFieldByIndex(LLoadFieldByIndex* instr) {
+  class DeferredLoadMutableDouble V8_FINAL : public LDeferredCode {
+   public:
+    DeferredLoadMutableDouble(LCodeGen* codegen,
+                              LLoadFieldByIndex* instr,
+                              Register object,
+                              Register index)
+        : LDeferredCode(codegen),
+          instr_(instr),
+          object_(object),
+          index_(index) {
+    }
+    virtual void Generate() V8_OVERRIDE {
+      codegen()->DoDeferredLoadMutableDouble(instr_, object_, index_);
+    }
+    virtual LInstruction* instr() V8_OVERRIDE { return instr_; }
+   private:
+    LLoadFieldByIndex* instr_;
+    Register object_;
+    Register index_;
+  };
+
   Register object = ToRegister(instr->object());
   Register index = ToRegister(instr->index());
 
+  DeferredLoadMutableDouble* deferred;
+  deferred = new(zone()) DeferredLoadMutableDouble(this, instr, object, index);
+
   Label out_of_object, done;
+  __ Move(kScratchRegister, Smi::FromInt(1));
+  __ testp(index, kScratchRegister);
+  __ j(not_zero, deferred->entry());
+
+  __ sarp(index, Immediate(1));
+
   __ SmiToInteger32(index, index);
   __ cmpl(index, Immediate(0));
   __ j(less, &out_of_object, Label::kNear);
@@ -5586,6 +5630,7 @@ void LCodeGen::DoLoadFieldByIndex(LLoadFieldByIndex* instr) {
                                index,
                                times_pointer_size,
                                FixedArray::kHeaderSize - kPointerSize));
+  __ bind(deferred->exit());
   __ bind(&done);
 }
 
