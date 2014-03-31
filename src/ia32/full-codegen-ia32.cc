@@ -106,12 +106,14 @@ static void EmitStackCheck(MacroAssembler* masm_,
                            Register scratch = esp) {
     Label ok;
     Isolate* isolate = masm_->isolate();
-    ExternalReference stack_limit =
-        ExternalReference::address_of_stack_limit(isolate);
     ASSERT(scratch.is(esp) == (pointers == 0));
+    ExternalReference stack_limit;
     if (pointers != 0) {
       __ mov(scratch, esp);
       __ sub(scratch, Immediate(pointers * kPointerSize));
+      stack_limit = ExternalReference::address_of_real_stack_limit(isolate);
+    } else {
+      stack_limit = ExternalReference::address_of_stack_limit(isolate);
     }
     __ cmp(scratch, Operand::StaticVariable(stack_limit));
     __ j(above_equal, &ok, Label::kNear);
