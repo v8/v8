@@ -3736,8 +3736,7 @@ void PrepareExternalArrayElements(i::Handle<i::JSObject> object,
           object,
           GetElementsKindFromExternalArrayType(array_type));
 
-  object->set_map(*external_array_map);
-  object->set_elements(*array);
+  i::JSObject::SetMapAndElements(object, external_array_map, array);
 }
 
 }  // namespace
