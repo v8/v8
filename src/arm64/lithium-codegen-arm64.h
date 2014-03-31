@@ -149,6 +149,10 @@ class LCodeGen: public LCodeGenBase {
   void DoDeferredAllocate(LAllocate* instr);
   void DoDeferredInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr);
   void DoDeferredInstanceMigration(LCheckMaps* instr, Register object);
+  void DoDeferredLoadMutableDouble(LLoadFieldByIndex* instr,
+                                   Register result,
+                                   Register object,
+                                   Register index);
 
   Operand ToOperand32(LOperand* op, IntegerSignedness signedness);
 

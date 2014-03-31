@@ -5641,6 +5641,15 @@ Handle<JSObject> JSObject::Copy(Handle<JSObject> object) {
 }
 
 
+Handle<Object> JSObject::FastPropertyAt(Handle<JSObject> object,
+                                        Representation representation,
+                                        int index) {
+  Isolate* isolate = object->GetIsolate();
+  CALL_HEAP_FUNCTION(isolate,
+                     object->FastPropertyAt(representation, index), Object);
+}
+
+
 template<class ContextObject>
 class JSObjectWalkVisitor {
  public:

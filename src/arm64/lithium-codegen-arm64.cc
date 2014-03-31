@@ -5879,14 +5879,61 @@ void LCodeGen::DoWrapReceiver(LWrapReceiver* instr) {
 }
 
 
+void LCodeGen::DoDeferredLoadMutableDouble(LLoadFieldByIndex* instr,
+                                           Register result,
+                                           Register object,
+                                           Register index) {
+  PushSafepointRegistersScope scope(this, Safepoint::kWithRegisters);
+  __ Push(object);
+  __ Push(index);
+  __ Mov(cp, 0);
+  __ CallRuntimeSaveDoubles(Runtime::kLoadMutableDouble);
+  RecordSafepointWithRegisters(
+      instr->pointer_map(), 1, Safepoint::kNoLazyDeopt);
+  __ StoreToSafepointRegisterSlot(x0, result);
+}
+
+
 void LCodeGen::DoLoadFieldByIndex(LLoadFieldByIndex* instr) {
+  class DeferredLoadMutableDouble V8_FINAL : public LDeferredCode {
+   public:
+    DeferredLoadMutableDouble(LCodeGen* codegen,
+                              LLoadFieldByIndex* instr,
+                              Register result,
+                              Register object,
+                              Register index)
+        : LDeferredCode(codegen),
+          instr_(instr),
+          result_(result),
+          object_(object),
+          index_(index) {
+    }
+    virtual void Generate() V8_OVERRIDE {
+      codegen()->DoDeferredLoadMutableDouble(instr_, result_, object_, index_);
+    }
+    virtual LInstruction* instr() V8_OVERRIDE { return instr_; }
+   private:
+    LLoadFieldByIndex* instr_;
+    Register result_;
+    Register object_;
+    Register index_;
+  };
   Register object = ToRegister(instr->object());
   Register index = ToRegister(instr->index());
   Register result = ToRegister(instr->result());
 
   __ AssertSmi(index);
 
+  DeferredLoadMutableDouble* deferred;
+  deferred = new(zone()) DeferredLoadMutableDouble(
+      this, instr, result, object, index);
+
   Label out_of_object, done;
+
+  __ TestAndBranchIfAnySet(
+      index, reinterpret_cast<uint64_t>(Smi::FromInt(1)), deferred->entry());
+  __ Mov(index, Operand(index, ASR, 1));
+
   __ Cmp(index, Smi::FromInt(0));
   __ B(lt, &out_of_object);
 
@@ -5902,6 +5949,7 @@ void LCodeGen::DoLoadFieldByIndex(LLoadFieldByIndex* instr) {
   __ Sub(result, result, Operand::UntagSmiAndScale(index, kPointerSizeLog2));
   __ Ldr(result, FieldMemOperand(result,
                                  FixedArray::kHeaderSize - kPointerSize));
+  __ Bind(deferred->exit());
   __ Bind(&done);
 }
 

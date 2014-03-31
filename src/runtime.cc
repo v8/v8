@@ -14508,6 +14508,19 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NotifyContextDisposed) {
 }
 
 
+RUNTIME_FUNCTION(MaybeObject*, Runtime_LoadMutableDouble) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 2);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Smi, index, 1);
+  int idx = index->value() >> 1;
+  if (idx < 0) {
+    idx = -idx + object->map()->inobject_properties() - 1;
+  }
+  return *JSObject::FastPropertyAt(object, Representation::Double(), idx);
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_TryMigrateInstance) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);

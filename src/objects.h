@@ -2616,6 +2616,9 @@ class JSObject: public JSReceiver {
   MUST_USE_RESULT inline MaybeObject* FastPropertyAt(
       Representation representation,
       int index);
+  static Handle<Object> FastPropertyAt(Handle<JSObject> object,
+                                       Representation representation,
+                                       int index);
   inline Object* RawFastPropertyAt(int index);
   inline void FastPropertyAtPut(int index, Object* value);
 
