@@ -367,6 +367,10 @@
 
   # Lead to OOM:
   'string-oom-*': [SKIP],
+
+  # Crashes.
+  'harmony/private': [SKIP],
+  'harmony/symbols': [SKIP],
 }],  # 'arch == nacl_ia32 or arch == nacl_x64'
 
 ##############################################################################
