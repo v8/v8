@@ -179,22 +179,22 @@ TEST(DisasmX64) {
 
   __ nop();
 
-  __ rcl(rdx, Immediate(1));
-  __ rcl(rdx, Immediate(7));
-  __ rcr(rdx, Immediate(1));
-  __ rcr(rdx, Immediate(7));
-  __ sar(rdx, Immediate(1));
-  __ sar(rdx, Immediate(6));
-  __ sar_cl(rdx);
+  __ rclq(rdx, Immediate(1));
+  __ rclq(rdx, Immediate(7));
+  __ rcrq(rdx, Immediate(1));
+  __ rcrq(rdx, Immediate(7));
+  __ sarq(rdx, Immediate(1));
+  __ sarq(rdx, Immediate(6));
+  __ sarq_cl(rdx);
   __ sbbq(rdx, rbx);
   __ shld(rdx, rbx);
-  __ shl(rdx, Immediate(1));
-  __ shl(rdx, Immediate(6));
-  __ shl_cl(rdx);
+  __ shlq(rdx, Immediate(1));
+  __ shlq(rdx, Immediate(6));
+  __ shlq_cl(rdx);
   __ shrd(rdx, rbx);
-  __ shr(rdx, Immediate(1));
-  __ shr(rdx, Immediate(7));
-  __ shr_cl(rdx);
+  __ shrq(rdx, Immediate(1));
+  __ shrq(rdx, Immediate(7));
+  __ shrq_cl(rdx);
 
 
   // Immediates

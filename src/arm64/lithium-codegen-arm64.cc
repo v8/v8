@@ -5659,7 +5659,6 @@ void LCodeGen::DoRegExpLiteral(LRegExpLiteral* instr) {
 
 void LCodeGen::DoTransitionElementsKind(LTransitionElementsKind* instr) {
   Register object = ToRegister(instr->object());
-  Register temp1 = ToRegister(instr->temp1());
 
   Handle<Map> from_map = instr->original_map();
   Handle<Map> to_map = instr->transitioned_map();
@@ -5667,26 +5666,34 @@ void LCodeGen::DoTransitionElementsKind(LTransitionElementsKind* instr) {
   ElementsKind to_kind = instr->to_kind();
 
   Label not_applicable;
-  __ CheckMap(object, temp1, from_map, &not_applicable, DONT_DO_SMI_CHECK);
 
   if (IsSimpleMapChangeTransition(from_kind, to_kind)) {
+    Register temp1 = ToRegister(instr->temp1());
     Register new_map = ToRegister(instr->temp2());
+    __ CheckMap(object, temp1, from_map, &not_applicable, DONT_DO_SMI_CHECK);
     __ Mov(new_map, Operand(to_map));
     __ Str(new_map, FieldMemOperand(object, HeapObject::kMapOffset));
     // Write barrier.
     __ RecordWriteField(object, HeapObject::kMapOffset, new_map, temp1,
                         GetLinkRegisterState(), kDontSaveFPRegs);
   } else {
+    {
+      UseScratchRegisterScope temps(masm());
+      // Use the temp register only in a restricted scope - the codegen checks
+      // that we do not use any register across a call.
+      __ CheckMap(object, temps.AcquireX(), from_map, &not_applicable,
+                  DONT_DO_SMI_CHECK);
+    }
+    ASSERT(object.is(x0));
     ASSERT(ToRegister(instr->context()).is(cp));
     PushSafepointRegistersScope scope(
         this, Safepoint::kWithRegistersAndDoubles);
-    __ Mov(x0, object);
     __ Mov(x1, Operand(to_map));
     bool is_js_array = from_map->instance_type() == JS_ARRAY_TYPE;
     TransitionElementsKindStub stub(from_kind, to_kind, is_js_array);
     __ CallStub(&stub);
     RecordSafepointWithRegistersAndDoubles(
-        instr->pointer_map(), 0, Safepoint::kNoLazyDeopt);
+        instr->pointer_map(), 0, Safepoint::kLazyDeopt);
   }
   __ Bind(&not_applicable);
 }

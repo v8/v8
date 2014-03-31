@@ -93,7 +93,7 @@ void RunWithProfiler(void (*test)()) {
       v8::String::NewFromUtf8(env->GetIsolate(), "my_profile1");
   v8::CpuProfiler* cpu_profiler = env->GetIsolate()->GetCpuProfiler();
 
-  cpu_profiler->StartCpuProfiling(profile_name);
+  cpu_profiler->StartProfiling(profile_name);
   (*test)();
   reinterpret_cast<i::CpuProfiler*>(cpu_profiler)->DeleteAllProfiles();
 }
@@ -3498,22 +3498,23 @@ THREADED_TEST(UniquePersistent) {
 template<typename K, typename V>
 class WeakStdMapTraits : public v8::StdMapTraits<K, V> {
  public:
-  typedef typename v8::DefaultPersistentValueMapTraits<K, V>::Impl Impl;
-  static const bool kIsWeak = true;
+  typedef typename v8::PersistentValueMap<K, V, WeakStdMapTraits<K, V> >
+      MapType;
+  static const v8::PersistentContainerCallbackType kCallbackType = v8::kWeak;
   struct WeakCallbackDataType {
-    Impl* impl;
+    MapType* map;
     K key;
   };
   static WeakCallbackDataType* WeakCallbackParameter(
-      Impl* impl, const K& key, Local<V> value) {
+      MapType* map, const K& key, Local<V> value) {
     WeakCallbackDataType* data = new WeakCallbackDataType;
-    data->impl = impl;
+    data->map = map;
     data->key = key;
     return data;
   }
-  static Impl* ImplFromWeakCallbackData(
+  static MapType* MapFromWeakCallbackData(
       const v8::WeakCallbackData<V, WeakCallbackDataType>& data) {
-    return data.GetParameter()->impl;
+    return data.GetParameter()->map;
   }
   static K KeyFromWeakCallbackData(
       const v8::WeakCallbackData<V, WeakCallbackDataType>& data) {
@@ -3523,7 +3524,7 @@ class WeakStdMapTraits : public v8::StdMapTraits<K, V> {
     delete data;
   }
   static void Dispose(v8::Isolate* isolate, v8::UniquePersistent<V> value,
-      Impl* impl, K key) { }
+      K key) { }
 };
 
 
@@ -3545,6 +3546,10 @@ static void TestPersistentValueMap() {
     CHECK_EQ(1, static_cast<int>(map.Size()));
     obj = map.Get(7);
     CHECK_EQ(expected, obj);
+    {
+      typename Map::PersistentValueReference ref = map.GetReference(7);
+      CHECK_EQ(expected, ref.NewLocal(isolate));
+    }
     v8::UniquePersistent<v8::Object> removed = map.Remove(7);
     CHECK_EQ(0, static_cast<int>(map.Size()));
     CHECK(expected == removed);
@@ -3554,6 +3559,15 @@ static void TestPersistentValueMap() {
     CHECK_EQ(1, static_cast<int>(map.Size()));
     map.Set(8, expected);
     CHECK_EQ(1, static_cast<int>(map.Size()));
+    {
+      typename Map::PersistentValueReference ref;
+      Local<v8::Object> expected2 = v8::Object::New(isolate);
+      removed = map.Set(8,
+          v8::UniquePersistent<v8::Object>(isolate, expected2), &ref);
+      CHECK_EQ(1, static_cast<int>(map.Size()));
+      CHECK(expected == removed);
+      CHECK_EQ(expected2, ref.NewLocal(isolate));
+    }
   }
   CHECK_EQ(initial_handle_count + 1, global_handles->global_handles_count());
   if (map.IsWeak()) {
@@ -3572,9 +3586,52 @@ TEST(PersistentValueMap) {
   TestPersistentValueMap<v8::StdPersistentValueMap<int, v8::Object> >();
 
   // Custom traits with weak callbacks:
-  typedef v8::StdPersistentValueMap<int, v8::Object,
+  typedef v8::PersistentValueMap<int, v8::Object,
       WeakStdMapTraits<int, v8::Object> > WeakPersistentValueMap;
   TestPersistentValueMap<WeakPersistentValueMap>();
+}
+
+
+TEST(PersistentValueVector) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::internal::GlobalHandles* global_handles =
+      reinterpret_cast<v8::internal::Isolate*>(isolate)->global_handles();
+  int handle_count = global_handles->global_handles_count();
+  HandleScope scope(isolate);
+
+  v8::PersistentValueVector<v8::Object> vector(isolate);
+
+  Local<v8::Object> obj1 = v8::Object::New(isolate);
+  Local<v8::Object> obj2 = v8::Object::New(isolate);
+  v8::UniquePersistent<v8::Object> obj3(isolate, v8::Object::New(isolate));
+
+  CHECK(vector.IsEmpty());
+  CHECK_EQ(0, static_cast<int>(vector.Size()));
+
+  vector.ReserveCapacity(3);
+  CHECK(vector.IsEmpty());
+
+  vector.Append(obj1);
+  vector.Append(obj2);
+  vector.Append(obj1);
+  vector.Append(obj3.Pass());
+  vector.Append(obj1);
+
+  CHECK(!vector.IsEmpty());
+  CHECK_EQ(5, static_cast<int>(vector.Size()));
+  CHECK(obj3.IsEmpty());
+  CHECK_EQ(obj1, vector.Get(0));
+  CHECK_EQ(obj1, vector.Get(2));
+  CHECK_EQ(obj1, vector.Get(4));
+  CHECK_EQ(obj2, vector.Get(1));
+
+  CHECK_EQ(5 + handle_count, global_handles->global_handles_count());
+
+  vector.Clear();
+  CHECK(vector.IsEmpty());
+  CHECK_EQ(0, static_cast<int>(vector.Size()));
+  CHECK_EQ(handle_count, global_handles->global_handles_count());
 }
 
 
@@ -4038,7 +4095,7 @@ TEST(ApiObjectGroupsCycleForScavenger) {
 
   v8::internal::Heap* heap = reinterpret_cast<v8::internal::Isolate*>(
       iso)->heap();
-  heap->CollectGarbage(i::NEW_SPACE);
+  heap->CollectAllGarbage(i::Heap::kNoGCFlags);
 
   // All objects should be alive.
   CHECK_EQ(0, counter.NumberOfWeakCalls());
@@ -4070,7 +4127,7 @@ TEST(ApiObjectGroupsCycleForScavenger) {
         v8_str("x"), Local<Value>::New(iso, g1s1.handle));
   }
 
-  heap->CollectGarbage(i::NEW_SPACE);
+  heap->CollectAllGarbage(i::Heap::kNoGCFlags);
 
   // All objects should be gone. 7 global handles in total.
   CHECK_EQ(7, counter.NumberOfWeakCalls());
@@ -22191,6 +22248,8 @@ TEST(EventLogging) {
 
 
 TEST(Promises) {
+  i::FLAG_harmony_promises = true;
+
   LocalContext context;
   v8::Isolate* isolate = context->GetIsolate();
   v8::HandleScope scope(isolate);

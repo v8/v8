@@ -3492,26 +3492,6 @@ void FullCodeGenerator::EmitStringCompare(CallRuntime* expr) {
 }
 
 
-void FullCodeGenerator::EmitMathLog(CallRuntime* expr) {
-  // Load the argument on the stack and call the runtime function.
-  ZoneList<Expression*>* args = expr->arguments();
-  ASSERT(args->length() == 1);
-  VisitForStackValue(args->at(0));
-  __ CallRuntime(Runtime::kMath_log, 1);
-  context()->Plug(x0);
-}
-
-
-void FullCodeGenerator::EmitMathSqrt(CallRuntime* expr) {
-  // Load the argument on the stack and call the runtime function.
-  ZoneList<Expression*>* args = expr->arguments();
-  ASSERT(args->length() == 1);
-  VisitForStackValue(args->at(0));
-  __ CallRuntime(Runtime::kMath_sqrt, 1);
-  context()->Plug(x0);
-}
-
-
 void FullCodeGenerator::EmitCallFunction(CallRuntime* expr) {
   ASM_LOCATION("FullCodeGenerator::EmitCallFunction");
   ZoneList<Expression*>* args = expr->arguments();

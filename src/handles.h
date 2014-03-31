@@ -240,10 +240,6 @@ Handle<Object> HasProperty(Handle<JSReceiver> obj, Handle<Object> key);
 
 Handle<Object> GetProperty(Handle<JSReceiver> obj, const char* name);
 
-Handle<Object> GetProperty(Isolate* isolate,
-                           Handle<Object> obj,
-                           Handle<Object> key);
-
 Handle<String> LookupSingleCharacterStringFromCode(Isolate* isolate,
                                                    uint32_t index);
 

@@ -72,7 +72,6 @@ class GenericStringUtf16CharacterStream: public BufferedUtf16CharacterStream {
   virtual unsigned FillBuffer(unsigned position, unsigned length);
 
   Handle<String> string_;
-  unsigned start_position_;
   unsigned length_;
 };
 

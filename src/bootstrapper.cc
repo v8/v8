@@ -1,44 +1,12 @@
-// Copyright 2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Copyright 2014 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
-#include "v8.h"
+#include "bootstrapper.h"
 
 #include "accessors.h"
-#include "api.h"
-#include "bootstrapper.h"
-#include "compiler.h"
-#include "debug.h"
-#include "execution.h"
-#include "global-handles.h"
 #include "isolate-inl.h"
-#include "macro-assembler.h"
 #include "natives.h"
-#include "objects-visiting.h"
-#include "platform.h"
 #include "snapshot.h"
 #include "trig-table.h"
 #include "extensions/externalize-string-extension.h"
@@ -50,7 +18,6 @@
 
 namespace v8 {
 namespace internal {
-
 
 NativesExternalStringResource::NativesExternalStringResource(
     Bootstrapper* bootstrapper,
@@ -154,7 +121,7 @@ char* Bootstrapper::AllocateAutoDeletedArray(int bytes) {
 void Bootstrapper::TearDown() {
   if (delete_these_non_arrays_on_tear_down_ != NULL) {
     int len = delete_these_non_arrays_on_tear_down_->length();
-    ASSERT(len < 24);  // Don't use this mechanism for unbounded allocations.
+    ASSERT(len < 20);  // Don't use this mechanism for unbounded allocations.
     for (int i = 0; i < len; i++) {
       delete delete_these_non_arrays_on_tear_down_->at(i);
       delete_these_non_arrays_on_tear_down_->at(i) = NULL;
@@ -1114,18 +1081,6 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     native_context()->set_data_view_fun(*data_view_fun);
   }
 
-  {  // -- W e a k M a p
-    InstallFunction(global, "WeakMap", JS_WEAK_MAP_TYPE, JSWeakMap::kSize,
-                    isolate->initial_object_prototype(),
-                    Builtins::kIllegal, true, true);
-  }
-
-  {  // -- W e a k S e t
-    InstallFunction(global, "WeakSet", JS_WEAK_SET_TYPE, JSWeakSet::kSize,
-                    isolate->initial_object_prototype(),
-                    Builtins::kIllegal, true, true);
-  }
-
   {  // --- arguments_boilerplate_
     // Make sure we can recognize argument objects at runtime.
     // This is done by introducing an anonymous function with
@@ -1373,6 +1328,19 @@ void Genesis::InitializeExperimentalGlobal() {
     }
   }
 
+  if (FLAG_harmony_weak_collections) {
+    {  // -- W e a k M a p
+      InstallFunction(global, "WeakMap", JS_WEAK_MAP_TYPE, JSWeakMap::kSize,
+                      isolate()->initial_object_prototype(),
+                      Builtins::kIllegal, true, true);
+    }
+    {  // -- W e a k S e t
+      InstallFunction(global, "WeakSet", JS_WEAK_SET_TYPE, JSWeakSet::kSize,
+                      isolate()->initial_object_prototype(),
+                      Builtins::kIllegal, true, true);
+    }
+  }
+
   if (FLAG_harmony_generators) {
     // Create generator meta-objects and install them on the builtins object.
     Handle<JSObject> builtins(native_context()->builtins());
@@ -1567,7 +1535,6 @@ bool Genesis::CompileScriptCached(Isolate* isolate,
 void Genesis::InstallNativeFunctions() {
   HandleScope scope(isolate());
   INSTALL_NATIVE(JSFunction, "CreateDate", create_date_fun);
-
   INSTALL_NATIVE(JSFunction, "ToNumber", to_number_fun);
   INSTALL_NATIVE(JSFunction, "ToString", to_string_fun);
   INSTALL_NATIVE(JSFunction, "ToDetailString", to_detail_string_fun);
@@ -1575,7 +1542,6 @@ void Genesis::InstallNativeFunctions() {
   INSTALL_NATIVE(JSFunction, "ToInteger", to_integer_fun);
   INSTALL_NATIVE(JSFunction, "ToUint32", to_uint32_fun);
   INSTALL_NATIVE(JSFunction, "ToInt32", to_int32_fun);
-
   INSTALL_NATIVE(JSFunction, "GlobalEval", global_eval_fun);
   INSTALL_NATIVE(JSFunction, "Instantiate", instantiate_fun);
   INSTALL_NATIVE(JSFunction, "ConfigureTemplateInstance",
@@ -1584,14 +1550,6 @@ void Genesis::InstallNativeFunctions() {
   INSTALL_NATIVE(JSObject, "functionCache", function_cache);
   INSTALL_NATIVE(JSFunction, "ToCompletePropertyDescriptor",
                  to_complete_property_descriptor);
-
-  INSTALL_NATIVE(JSFunction, "IsPromise", is_promise);
-  INSTALL_NATIVE(JSFunction, "PromiseCreate", promise_create);
-  INSTALL_NATIVE(JSFunction, "PromiseResolve", promise_resolve);
-  INSTALL_NATIVE(JSFunction, "PromiseReject", promise_reject);
-  INSTALL_NATIVE(JSFunction, "PromiseChain", promise_chain);
-  INSTALL_NATIVE(JSFunction, "PromiseCatch", promise_catch);
-
   INSTALL_NATIVE(JSFunction, "NotifyChange", observers_notify_change);
   INSTALL_NATIVE(JSFunction, "EnqueueSpliceRecord", observers_enqueue_splice);
   INSTALL_NATIVE(JSFunction, "BeginPerformSplice",
@@ -1605,6 +1563,15 @@ void Genesis::InstallExperimentalNativeFunctions() {
   INSTALL_NATIVE(JSFunction, "RunMicrotasks", run_microtasks);
   INSTALL_NATIVE(JSFunction, "EnqueueExternalMicrotask",
                  enqueue_external_microtask);
+
+  if (FLAG_harmony_promises) {
+    INSTALL_NATIVE(JSFunction, "IsPromise", is_promise);
+    INSTALL_NATIVE(JSFunction, "PromiseCreate", promise_create);
+    INSTALL_NATIVE(JSFunction, "PromiseResolve", promise_resolve);
+    INSTALL_NATIVE(JSFunction, "PromiseReject", promise_reject);
+    INSTALL_NATIVE(JSFunction, "PromiseChain", promise_chain);
+    INSTALL_NATIVE(JSFunction, "PromiseCatch", promise_catch);
+  }
 
   if (FLAG_harmony_proxies) {
     INSTALL_NATIVE(JSFunction, "DerivedHasTrap", derived_has_trap);
@@ -1938,8 +1905,8 @@ bool Genesis::InstallNatives() {
   // Install Function.prototype.call and apply.
   { Handle<String> key = factory()->function_class_string();
     Handle<JSFunction> function =
-        Handle<JSFunction>::cast(
-            GetProperty(isolate(), isolate()->global_object(), key));
+        Handle<JSFunction>::cast(Object::GetProperty(
+            isolate()->global_object(), key));
     Handle<JSObject> proto =
         Handle<JSObject>(JSObject::cast(function->instance_prototype()));
 
@@ -2055,6 +2022,8 @@ bool Genesis::InstallExperimentalNatives() {
     INSTALL_EXPERIMENTAL_NATIVE(i, symbols, "symbol.js")
     INSTALL_EXPERIMENTAL_NATIVE(i, proxies, "proxy.js")
     INSTALL_EXPERIMENTAL_NATIVE(i, collections, "collection.js")
+    INSTALL_EXPERIMENTAL_NATIVE(i, weak_collections, "weak_collection.js")
+    INSTALL_EXPERIMENTAL_NATIVE(i, promises, "promise.js")
     INSTALL_EXPERIMENTAL_NATIVE(i, generators, "generator.js")
     INSTALL_EXPERIMENTAL_NATIVE(i, iteration, "array-iterator.js")
     INSTALL_EXPERIMENTAL_NATIVE(i, strings, "harmony-string.js")
@@ -2076,8 +2045,8 @@ static Handle<JSObject> ResolveBuiltinIdHolder(
   Handle<GlobalObject> global(native_context->global_object());
   const char* period_pos = strchr(holder_expr, '.');
   if (period_pos == NULL) {
-    return Handle<JSObject>::cast(GetProperty(
-        isolate, global, factory->InternalizeUtf8String(holder_expr)));
+    return Handle<JSObject>::cast(Object::GetPropertyOrElement(
+        global, factory->InternalizeUtf8String(holder_expr)));
   }
   ASSERT_EQ(".prototype", period_pos);
   Vector<const char> property(holder_expr,
@@ -2085,7 +2054,7 @@ static Handle<JSObject> ResolveBuiltinIdHolder(
   Handle<String> property_string = factory->InternalizeUtf8String(property);
   ASSERT(!property_string.is_null());
   Handle<JSFunction> function = Handle<JSFunction>::cast(
-      GetProperty(isolate, global, property_string));
+      Object::GetProperty(global, property_string));
   return Handle<JSObject>(JSObject::cast(function->prototype()));
 }
 

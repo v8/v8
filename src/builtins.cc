@@ -207,19 +207,6 @@ static void MoveDoubleElements(FixedDoubleArray* dst,
 }
 
 
-static void FillWithHoles(Heap* heap, FixedArray* dst, int from, int to) {
-  ASSERT(dst->map() != heap->fixed_cow_array_map());
-  MemsetPointer(dst->data_start() + from, heap->the_hole_value(), to - from);
-}
-
-
-static void FillWithHoles(FixedDoubleArray* dst, int from, int to) {
-  for (int i = from; i < to; i++) {
-    dst->set_the_hole(i);
-  }
-}
-
-
 static FixedArrayBase* LeftTrimFixedArray(Heap* heap,
                                           FixedArrayBase* elms,
                                           int to_trim) {
@@ -898,12 +885,12 @@ BUILTIN(ArraySplice) {
           Handle<FixedDoubleArray> elms =
               Handle<FixedDoubleArray>::cast(elms_obj);
           MoveDoubleElements(*elms, 0, *elms, delta, len - delta);
-          FillWithHoles(*elms, len - delta, len);
+          elms->FillWithHoles(len - delta, len);
         } else {
           Handle<FixedArray> elms = Handle<FixedArray>::cast(elms_obj);
           DisallowHeapAllocation no_gc;
           heap->MoveElements(*elms, 0, delta, len - delta);
-          FillWithHoles(heap, *elms, len - delta, len);
+          elms->FillWithHoles(len - delta, len);
         }
       }
       elms_changed = true;
@@ -914,14 +901,14 @@ BUILTIN(ArraySplice) {
         MoveDoubleElements(*elms, actual_start + item_count,
                            *elms, actual_start + actual_delete_count,
                            (len - actual_delete_count - actual_start));
-        FillWithHoles(*elms, new_length, len);
+        elms->FillWithHoles(new_length, len);
       } else {
         Handle<FixedArray> elms = Handle<FixedArray>::cast(elms_obj);
         DisallowHeapAllocation no_gc;
         heap->MoveElements(*elms, actual_start + item_count,
                            actual_start + actual_delete_count,
                            (len - actual_delete_count - actual_start));
-        FillWithHoles(heap, *elms, new_length, len);
+        elms->FillWithHoles(new_length, len);
       }
     }
   } else if (item_count > actual_delete_count) {

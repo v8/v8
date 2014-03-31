@@ -1,3 +1,13 @@
+2014-03-31: Version 3.26.0
+
+        Deprecate Start/StopCpuProfiling methods (issue 3213).
+
+        Don't crash if we get a timezone change notification on an uninitialized
+        isolate (Chromium issue 357362).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-03-28: Version 3.25.30
 
         NativeContext::map_cache reference should be strong in heap snapshots

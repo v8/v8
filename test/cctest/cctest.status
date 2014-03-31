@@ -90,6 +90,9 @@
 
   # BUG(v8:3155).
   'test-strings/AsciiArrayJoin': [PASS, ['mode == debug', FAIL]],
+
+  # BUG(v8:3247).
+  'test-mark-compact/NoPromotion': [SKIP],
 }],  # 'arch == arm64'
 
 ['arch == arm64 and simulator_run == True', {

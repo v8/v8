@@ -49,9 +49,10 @@ static const char kDaysInMonths[] =
 
 void DateCache::ResetDateCache() {
   static const int kMaxStamp = Smi::kMaxValue;
-  stamp_ = Smi::FromInt(stamp_->value() + 1);
-  if (stamp_->value() > kMaxStamp) {
+  if (stamp_->value() >= kMaxStamp) {
     stamp_ = Smi::FromInt(0);
+  } else {
+    stamp_ = Smi::FromInt(stamp_->value() + 1);
   }
   ASSERT(stamp_ != Smi::FromInt(kInvalidStamp));
   for (int i = 0; i < kDSTSize; ++i) {

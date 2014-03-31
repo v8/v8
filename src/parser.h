@@ -441,16 +441,14 @@ class ParserTraits {
   template<typename FunctionState>
   static void SetUpFunctionState(FunctionState* function_state, Zone* zone) {
     Isolate* isolate = zone->isolate();
-    function_state->isolate_ = isolate;
     function_state->saved_ast_node_id_ = isolate->ast_node_id();
     isolate->set_ast_node_id(BailoutId::FirstUsable().ToInt());
   }
 
   template<typename FunctionState>
-  static void TearDownFunctionState(FunctionState* function_state) {
+  static void TearDownFunctionState(FunctionState* function_state, Zone* zone) {
     if (function_state->outer_function_state_ != NULL) {
-      function_state->isolate_->set_ast_node_id(
-          function_state->saved_ast_node_id_);
+      zone->isolate()->set_ast_node_id(function_state->saved_ast_node_id_);
     }
   }
 

@@ -129,6 +129,7 @@ template<class T,
          class M = NonCopyablePersistentTraits<T> > class Persistent;
 template<class T> class UniquePersistent;
 template<class K, class V, class T> class PersistentValueMap;
+template<class V, class T> class PersistentValueVector;
 template<class T, class P> class WeakCallbackObject;
 class FunctionTemplate;
 class ObjectTemplate;
@@ -417,6 +418,7 @@ template <class T> class Local : public Handle<T> {
   friend class HandleScope;
   friend class EscapableHandleScope;
   template<class F1, class F2, class F3> friend class PersistentValueMap;
+  template<class F1, class F2> friend class PersistentValueVector;
 
   V8_INLINE static Local<T> New(Isolate* isolate, T* that);
 };
@@ -586,6 +588,7 @@ template <class T> class PersistentBase {
   template<class F> friend class PersistentBase;
   template<class F> friend class ReturnValue;
   template<class F1, class F2, class F3> friend class PersistentValueMap;
+  template<class F1, class F2> friend class PersistentValueVector;
   friend class Object;
 
   explicit V8_INLINE PersistentBase(T* val) : val_(val) {}

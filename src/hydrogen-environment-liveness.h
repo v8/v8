@@ -55,6 +55,9 @@ class HEnvironmentLivenessAnalysisPhase : public HPhase {
   void ZapEnvironmentSlotsForInstruction(HEnvironmentMarker* marker);
   void UpdateLivenessAtBlockEnd(HBasicBlock* block, BitVector* live);
   void UpdateLivenessAtInstruction(HInstruction* instr, BitVector* live);
+#ifdef DEBUG
+  bool VerifyClosures(Handle<JSFunction> a, Handle<JSFunction> b);
+#endif
 
   int block_count_;
 

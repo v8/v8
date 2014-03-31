@@ -875,7 +875,7 @@ Failure* Isolate::StackOverflow() {
   // attach the stack trace as a hidden property.
   Handle<String> key = factory()->stack_overflow_string();
   Handle<JSObject> boilerplate =
-      Handle<JSObject>::cast(GetProperty(this, js_builtins_object(), key));
+      Handle<JSObject>::cast(Object::GetProperty(js_builtins_object(), key));
   Handle<JSObject> exception = JSObject::Copy(boilerplate);
   DoThrow(*exception, NULL);
 

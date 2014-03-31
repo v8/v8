@@ -875,7 +875,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   if (exponent_type_ == ON_STACK) {
     // The arguments are still on the stack.
     __ bind(&call_runtime);
-    __ TailCallRuntime(Runtime::kMath_pow_cfunction, 2, 1);
+    __ TailCallRuntime(Runtime::kHiddenMathPow, 2, 1);
 
     // The stub is called from non-optimized code, which expects the result
     // as heap number in rax.
@@ -3121,7 +3121,8 @@ void StringHelper::GenerateCopyCharactersREP(MacroAssembler* masm,
 
   // Copy from edi to esi using rep movs instruction.
   __ movl(kScratchRegister, count);
-  __ shr(count, Immediate(kPointerSizeLog2));  // Number of doublewords to copy.
+  // Number of doublewords to copy.
+  __ shrl(count, Immediate(kPointerSizeLog2));
   __ repmovsp();
 
   // Find number of bytes left.
@@ -5024,7 +5025,7 @@ void InternalArrayConstructorStub::Generate(MacroAssembler* masm) {
   __ movzxbp(rcx, FieldOperand(rcx, Map::kBitField2Offset));
   // Retrieve elements_kind from bit field 2.
   __ andp(rcx, Immediate(Map::kElementsKindMask));
-  __ shr(rcx, Immediate(Map::kElementsKindShift));
+  __ shrp(rcx, Immediate(Map::kElementsKindShift));
 
   if (FLAG_debug_code) {
     Label done;

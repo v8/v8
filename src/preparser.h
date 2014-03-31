@@ -228,8 +228,8 @@ class ParserBase : public Traits {
     FunctionState* outer_function_state_;
     typename Traits::Type::Scope** scope_stack_;
     typename Traits::Type::Scope* outer_scope_;
-    Isolate* isolate_;   // Only used by ParserTraits.
     int saved_ast_node_id_;  // Only used by ParserTraits.
+    typename Traits::Type::Zone* extra_param_;
     typename Traits::Type::Factory factory_;
 
     friend class ParserTraits;
@@ -829,7 +829,7 @@ class PreParserTraits {
   template<typename FunctionState>
   static void SetUpFunctionState(FunctionState* function_state, void*) {}
   template<typename FunctionState>
-  static void TearDownFunctionState(FunctionState* function_state) {}
+  static void TearDownFunctionState(FunctionState* function_state, void*) {}
 
   // Helper functions for recursive descent.
   static bool IsEvalOrArguments(PreParserIdentifier identifier) {
@@ -1181,8 +1181,8 @@ ParserBase<Traits>::FunctionState::FunctionState(
       outer_function_state_(*function_state_stack),
       scope_stack_(scope_stack),
       outer_scope_(*scope_stack),
-      isolate_(NULL),
       saved_ast_node_id_(0),
+      extra_param_(extra_param),
       factory_(extra_param) {
   *scope_stack_ = scope;
   *function_state_stack = this;
@@ -1194,7 +1194,7 @@ template<class Traits>
 ParserBase<Traits>::FunctionState::~FunctionState() {
   *scope_stack_ = outer_scope_;
   *function_state_stack_ = outer_function_state_;
-  Traits::TearDownFunctionState(this);
+  Traits::TearDownFunctionState(this, extra_param_);
 }
 
 

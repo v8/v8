@@ -108,8 +108,8 @@ static void EmitStackCheck(MacroAssembler* masm_,
     Label ok;
     ASSERT(scratch.is(rsp) == (pointers == 0));
     if (pointers != 0) {
-      __ movq(scratch, rsp);
-      __ subq(scratch, Immediate(pointers * kPointerSize));
+      __ movp(scratch, rsp);
+      __ subp(scratch, Immediate(pointers * kPointerSize));
     }
     __ CompareRoot(scratch, Heap::kStackLimitRootIndex);
     __ j(above_equal, &ok, Label::kNear);
@@ -195,7 +195,7 @@ void FullCodeGenerator::Generate() {
       const int kMaxPushes = 32;
       if (locals_count >= kMaxPushes) {
         int loop_iterations = locals_count / kMaxPushes;
-        __ movq(rcx, Immediate(loop_iterations));
+        __ movp(rcx, Immediate(loop_iterations));
         Label loop_header;
         __ bind(&loop_header);
         // Do pushes.
@@ -203,7 +203,7 @@ void FullCodeGenerator::Generate() {
           __ Push(rdx);
         }
         // Continue loop if not done.
-        __ decq(rcx);
+        __ decp(rcx);
         __ j(not_zero, &loop_header, Label::kNear);
       }
       int remaining = locals_count % kMaxPushes;
@@ -3694,26 +3694,6 @@ void FullCodeGenerator::EmitStringCompare(CallRuntime* expr) {
 
   StringCompareStub stub;
   __ CallStub(&stub);
-  context()->Plug(rax);
-}
-
-
-void FullCodeGenerator::EmitMathLog(CallRuntime* expr) {
-  // Load the argument on the stack and call the runtime function.
-  ZoneList<Expression*>* args = expr->arguments();
-  ASSERT(args->length() == 1);
-  VisitForStackValue(args->at(0));
-  __ CallRuntime(Runtime::kMath_log, 1);
-  context()->Plug(rax);
-}
-
-
-void FullCodeGenerator::EmitMathSqrt(CallRuntime* expr) {
-  // Load the argument on the stack and call the runtime function.
-  ZoneList<Expression*>* args = expr->arguments();
-  ASSERT(args->length() == 1);
-  VisitForStackValue(args->at(0));
-  __ CallRuntime(Runtime::kMath_sqrt, 1);
   context()->Plug(rax);
 }
 

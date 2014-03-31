@@ -1559,7 +1559,7 @@ void LCodeGen::DoShiftI(LShiftI* instr) {
       case Token::SHL:
         if (shift_count != 0) {
           if (instr->hydrogen_value()->representation().IsSmi()) {
-            __ shl(ToRegister(left), Immediate(shift_count));
+            __ shlp(ToRegister(left), Immediate(shift_count));
           } else {
             __ shll(ToRegister(left), Immediate(shift_count));
           }
@@ -2706,7 +2706,7 @@ void LCodeGen::DoReturn(LReturn* instr) {
     __ SmiToInteger32(reg, reg);
     Register return_addr_reg = reg.is(rcx) ? rbx : rcx;
     __ PopReturnAddressTo(return_addr_reg);
-    __ shl(reg, Immediate(kPointerSizeLog2));
+    __ shlp(reg, Immediate(kPointerSizeLog2));
     __ addp(rsp, reg);
     __ jmp(return_addr_reg);
   }
@@ -3470,8 +3470,8 @@ void LCodeGen::DoDeferredMathAbsTaggedHeapNumber(LMathAbs* instr) {
 
   __ bind(&allocated);
   __ movq(tmp2, FieldOperand(input_reg, HeapNumber::kValueOffset));
-  __ shl(tmp2, Immediate(1));
-  __ shr(tmp2, Immediate(1));
+  __ shlq(tmp2, Immediate(1));
+  __ shrq(tmp2, Immediate(1));
   __ movq(FieldOperand(tmp, HeapNumber::kValueOffset), tmp2);
   __ StoreToSafepointRegisterSlot(input_reg, tmp);
 
@@ -4318,17 +4318,14 @@ void LCodeGen::DoTransitionElementsKind(LTransitionElementsKind* instr) {
     __ RecordWriteField(object_reg, HeapObject::kMapOffset, new_map_reg,
                         ToRegister(instr->temp()), kDontSaveFPRegs);
   } else {
+    ASSERT(object_reg.is(rax));
     ASSERT(ToRegister(instr->context()).is(rsi));
     PushSafepointRegistersScope scope(this);
-    if (!object_reg.is(rax)) {
-      __ movp(rax, object_reg);
-    }
     __ Move(rbx, to_map);
     bool is_js_array = from_map->instance_type() == JS_ARRAY_TYPE;
     TransitionElementsKindStub stub(from_kind, to_kind, is_js_array);
     __ CallStub(&stub);
-    RecordSafepointWithRegisters(
-        instr->pointer_map(), 0, Safepoint::kNoLazyDeopt);
+    RecordSafepointWithLazyDeopt(instr, RECORD_SAFEPOINT_WITH_REGISTERS, 0);
   }
   __ bind(&not_applicable);
 }
@@ -5042,7 +5039,7 @@ void LCodeGen::DoDoubleBits(LDoubleBits* instr) {
   Register result_reg = ToRegister(instr->result());
   if (instr->hydrogen()->bits() == HDoubleBits::HIGH) {
     __ movq(result_reg, value_reg);
-    __ shr(result_reg, Immediate(32));
+    __ shrq(result_reg, Immediate(32));
   } else {
     __ movd(result_reg, value_reg);
   }
@@ -5114,7 +5111,7 @@ void LCodeGen::DoAllocate(LAllocate* instr) {
       __ movl(temp, Immediate((size / kPointerSize) - 1));
     } else {
       temp = ToRegister(instr->size());
-      __ sar(temp, Immediate(kPointerSizeLog2));
+      __ sarp(temp, Immediate(kPointerSizeLog2));
       __ decl(temp);
     }
     Label loop;

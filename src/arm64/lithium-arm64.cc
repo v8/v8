@@ -2365,17 +2365,18 @@ LInstruction* LChunkBuilder::DoToFastProperties(HToFastProperties* instr) {
 
 LInstruction* LChunkBuilder::DoTransitionElementsKind(
     HTransitionElementsKind* instr) {
-  LOperand* object = UseRegister(instr->object());
   if (IsSimpleMapChangeTransition(instr->from_kind(), instr->to_kind())) {
+    LOperand* object = UseRegister(instr->object());
     LTransitionElementsKind* result =
         new(zone()) LTransitionElementsKind(object, NULL,
                                             TempRegister(), TempRegister());
     return result;
   } else {
+    LOperand* object = UseFixed(instr->object(), x0);
     LOperand* context = UseFixed(instr->context(), cp);
     LTransitionElementsKind* result =
-        new(zone()) LTransitionElementsKind(object, context, TempRegister());
-    return AssignPointerMap(result);
+        new(zone()) LTransitionElementsKind(object, context, NULL, NULL);
+    return MarkAsCall(result, instr);
   }
 }
 
