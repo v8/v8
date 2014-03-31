@@ -3439,19 +3439,14 @@ class DescriptorArray: public FixedArray {
                 DescriptorArray* src,
                 int src_index,
                 const WhitenessWitness&);
-  static Handle<DescriptorArray> Merge(Handle<DescriptorArray> desc,
+  static Handle<DescriptorArray> Merge(Handle<Map> left_map,
                                        int verbatim,
                                        int valid,
                                        int new_size,
                                        int modify_index,
                                        StoreMode store_mode,
-                                       Handle<DescriptorArray> other);
-  MUST_USE_RESULT MaybeObject* Merge(int verbatim,
-                                     int valid,
-                                     int new_size,
-                                     int modify_index,
-                                     StoreMode store_mode,
-                                     DescriptorArray* other);
+                                       Handle<Map> right_map)
+      V8_WARN_UNUSED_RESULT;
 
   bool IsMoreGeneralThan(int verbatim,
                          int valid,
