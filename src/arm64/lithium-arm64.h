@@ -2778,7 +2778,7 @@ class LTransitionElementsKind V8_FINAL : public LTemplateInstruction<0, 2, 2> {
   LTransitionElementsKind(LOperand* object,
                           LOperand* context,
                           LOperand* temp1,
-                          LOperand* temp2 = NULL) {
+                          LOperand* temp2) {
     inputs_[0] = object;
     inputs_[1] = context;
     temps_[0] = temp1;

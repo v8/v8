@@ -4736,16 +4736,14 @@ void LCodeGen::DoTransitionElementsKind(LTransitionElementsKind* instr) {
                          kDontSaveFPRegs);
   } else {
     ASSERT(ToRegister(instr->context()).is(esi));
+    ASSERT(object_reg.is(eax));
     PushSafepointRegistersScope scope(this);
-    if (!object_reg.is(eax)) {
-      __ mov(eax, object_reg);
-    }
     __ mov(ebx, to_map);
     bool is_js_array = from_map->instance_type() == JS_ARRAY_TYPE;
     TransitionElementsKindStub stub(from_kind, to_kind, is_js_array);
     __ CallStub(&stub);
-    RecordSafepointWithRegisters(
-        instr->pointer_map(), 0, Safepoint::kNoLazyDeopt);
+    RecordSafepointWithLazyDeopt(instr,
+        RECORD_SAFEPOINT_WITH_REGISTERS_AND_NO_ARGUMENTS);
   }
   __ bind(&not_applicable);
 }

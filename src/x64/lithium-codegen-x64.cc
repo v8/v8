@@ -4318,17 +4318,14 @@ void LCodeGen::DoTransitionElementsKind(LTransitionElementsKind* instr) {
     __ RecordWriteField(object_reg, HeapObject::kMapOffset, new_map_reg,
                         ToRegister(instr->temp()), kDontSaveFPRegs);
   } else {
+    ASSERT(object_reg.is(rax));
     ASSERT(ToRegister(instr->context()).is(rsi));
     PushSafepointRegistersScope scope(this);
-    if (!object_reg.is(rax)) {
-      __ movp(rax, object_reg);
-    }
     __ Move(rbx, to_map);
     bool is_js_array = from_map->instance_type() == JS_ARRAY_TYPE;
     TransitionElementsKindStub stub(from_kind, to_kind, is_js_array);
     __ CallStub(&stub);
-    RecordSafepointWithRegisters(
-        instr->pointer_map(), 0, Safepoint::kNoLazyDeopt);
+    RecordSafepointWithLazyDeopt(instr, RECORD_SAFEPOINT_WITH_REGISTERS, 0);
   }
   __ bind(&not_applicable);
 }
