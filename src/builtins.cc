@@ -558,7 +558,7 @@ BUILTIN(ArrayShift) {
     first = isolate->factory()->undefined_value();
   }
 
-  if (!heap->CanMoveObjectStart(*elms_obj)) {
+  if (heap->CanMoveObjectStart(*elms_obj)) {
     array->set_elements(LeftTrimFixedArray(heap, *elms_obj, 1));
   } else {
     // Shift the elements.
