@@ -3592,6 +3592,49 @@ TEST(PersistentValueMap) {
 }
 
 
+TEST(PersistentValueVector) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::internal::GlobalHandles* global_handles =
+      reinterpret_cast<v8::internal::Isolate*>(isolate)->global_handles();
+  int handle_count = global_handles->global_handles_count();
+  HandleScope scope(isolate);
+
+  v8::PersistentValueVector<v8::Object> vector(isolate);
+
+  Local<v8::Object> obj1 = v8::Object::New(isolate);
+  Local<v8::Object> obj2 = v8::Object::New(isolate);
+  v8::UniquePersistent<v8::Object> obj3(isolate, v8::Object::New(isolate));
+
+  CHECK(vector.IsEmpty());
+  CHECK_EQ(0, static_cast<int>(vector.Size()));
+
+  vector.ReserveCapacity(3);
+  CHECK(vector.IsEmpty());
+
+  vector.Append(obj1);
+  vector.Append(obj2);
+  vector.Append(obj1);
+  vector.Append(obj3.Pass());
+  vector.Append(obj1);
+
+  CHECK(!vector.IsEmpty());
+  CHECK_EQ(5, static_cast<int>(vector.Size()));
+  CHECK(obj3.IsEmpty());
+  CHECK_EQ(obj1, vector.Get(0));
+  CHECK_EQ(obj1, vector.Get(2));
+  CHECK_EQ(obj1, vector.Get(4));
+  CHECK_EQ(obj2, vector.Get(1));
+
+  CHECK_EQ(5 + handle_count, global_handles->global_handles_count());
+
+  vector.Clear();
+  CHECK(vector.IsEmpty());
+  CHECK_EQ(0, static_cast<int>(vector.Size()));
+  CHECK_EQ(handle_count, global_handles->global_handles_count());
+}
+
+
 THREADED_TEST(GlobalHandleUpcast) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);

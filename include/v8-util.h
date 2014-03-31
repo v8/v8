@@ -30,6 +30,7 @@
 
 #include "v8.h"
 #include <map>
+#include <vector>
 
 /**
  * Support for Persistent containers.
@@ -384,6 +385,123 @@ class StdPersistentValueMap : public PersistentValueMap<K, V, Traits> {
  public:
   explicit StdPersistentValueMap(Isolate* isolate)
       : PersistentValueMap<K, V, Traits>(isolate) {}
+};
+
+
+class DefaultPersistentValueVectorTraits {
+ public:
+  typedef std::vector<PersistentContainerValue> Impl;
+
+  static void Append(Impl* impl, PersistentContainerValue value) {
+    impl->push_back(value);
+  }
+  static bool IsEmpty(const Impl* impl) {
+    return impl->empty();
+  }
+  static size_t Size(const Impl* impl) {
+    return impl->size();
+  }
+  static PersistentContainerValue Get(const Impl* impl, size_t i) {
+    return (i < impl->size()) ? impl->at(i) : kPersistentContainerNotFound;
+  }
+  static void ReserveCapacity(Impl* impl, size_t capacity) {
+    impl->reserve(capacity);
+  }
+  static void Clear(Impl* impl) {
+    impl->clear();
+  }
+};
+
+
+/**
+ * A vector wrapper that safely stores UniquePersistent values.
+ * C++11 embedders don't need this class, as they can use UniquePersistent
+ * directly in std containers.
+ *
+ * This class relies on a backing vector implementation, whose type and methods
+ * are described by the Traits class. The backing map will handle values of type
+ * PersistentContainerValue, with all conversion into and out of V8
+ * handles being transparently handled by this class.
+ */
+template<typename V, typename Traits = DefaultPersistentValueVectorTraits>
+class PersistentValueVector {
+ public:
+  explicit PersistentValueVector(Isolate* isolate) : isolate_(isolate) { }
+
+  ~PersistentValueVector() {
+    Clear();
+  }
+
+  /**
+   * Append a value to the vector.
+   */
+  void Append(Local<V> value) {
+    UniquePersistent<V> persistent(isolate_, value);
+    Traits::Append(&impl_, ClearAndLeak(&persistent));
+  }
+
+  /**
+   * Append a persistent's value to the vector.
+   */
+  void Append(UniquePersistent<V> persistent) {
+    Traits::Append(&impl_, ClearAndLeak(&persistent));
+  };
+
+  /**
+   * Are there any values in the vector?
+   */
+  bool IsEmpty() const {
+    return Traits::IsEmpty(&impl_);
+  }
+
+  /**
+   * How many elements are in the vector?
+   */
+  size_t Size() const {
+    return Traits::Size(&impl_);
+  }
+
+  /**
+   * Retrieve the i-th value in the vector.
+   */
+  Local<V> Get(size_t index) const {
+    return Local<V>::New(isolate_, FromVal(Traits::Get(&impl_, index)));
+  }
+
+  /**
+   * Remove all elements from the vector.
+   */
+  void Clear() {
+    size_t length = Traits::Size(&impl_);
+    for (size_t i = 0; i < length; i++) {
+      UniquePersistent<V> p;
+      p.val_ = FromVal(Traits::Get(&impl_, i));
+    }
+    Traits::Clear(&impl_);
+  }
+
+  /**
+   * Reserve capacity in the vector.
+   * (Efficiency gains depend on the backing implementation.)
+   */
+  void ReserveCapacity(size_t capacity) {
+    Traits::ReserveCapacity(&impl_, capacity);
+  }
+
+ private:
+  static PersistentContainerValue ClearAndLeak(
+      UniquePersistent<V>* persistent) {
+    V* v = persistent->val_;
+    persistent->val_ = 0;
+    return reinterpret_cast<PersistentContainerValue>(v);
+  }
+
+  static V* FromVal(PersistentContainerValue v) {
+    return reinterpret_cast<V*>(v);
+  }
+
+  Isolate* isolate_;
+  typename Traits::Impl impl_;
 };
 
 }  // namespace v8
