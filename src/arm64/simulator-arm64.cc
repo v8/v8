@@ -2108,8 +2108,9 @@ void Simulator::VisitBitfield(Instruction* instr) {
   // Rotate source bitfield into place.
   int64_t result = (static_cast<uint64_t>(src) >> R) | (src << (reg_size - R));
   // Determine the sign extension.
-  int64_t topbits = ((1L << (reg_size - diff - 1)) - 1) << (diff + 1);
-  int64_t signbits = extend && ((src >> S) & 1) ? topbits : 0;
+  int64_t topbits_preshift = (1L << (reg_size - diff - 1)) - 1;
+  int64_t signbits = (extend && ((src >> S) & 1) ? topbits_preshift : 0)
+                     << (diff + 1);
 
   // Merge sign extension, dest/zero and bitfield.
   result = signbits | (result & mask) | (dst & ~mask);
