@@ -55,7 +55,8 @@ class ParserRecorder {
   virtual void LogMessage(int start,
                           int end,
                           const char* message,
-                          const char* argument_opt) = 0;
+                          const char* argument_opt,
+                          bool is_reference_error) = 0;
 
   // Logs a symbol creation of a literal or identifier.
   bool ShouldLogSymbols() { return should_log_symbols_; }
@@ -80,8 +81,9 @@ class ParserRecorder {
 
 class SingletonLogger : public ParserRecorder {
  public:
-  SingletonLogger() : has_error_(false), start_(-1), end_(-1) { }
-  virtual ~SingletonLogger() { }
+  SingletonLogger()
+      : has_error_(false), start_(-1), end_(-1), is_reference_error_(false) {}
+  virtual ~SingletonLogger() {}
 
   void Reset() { has_error_ = false; }
 
@@ -104,36 +106,39 @@ class SingletonLogger : public ParserRecorder {
   virtual void LogMessage(int start,
                           int end,
                           const char* message,
-                          const char* argument_opt) {
+                          const char* argument_opt,
+                          bool is_reference_error) {
     if (has_error_) return;
     has_error_ = true;
     start_ = start;
     end_ = end;
     message_ = message;
     argument_opt_ = argument_opt;
+    is_reference_error_ = is_reference_error;
   }
 
-  bool has_error() { return has_error_; }
+  bool has_error() const { return has_error_; }
 
-  int start() { return start_; }
-  int end() { return end_; }
-  int literals() {
+  int start() const { return start_; }
+  int end() const { return end_; }
+  int literals() const {
     ASSERT(!has_error_);
     return literals_;
   }
-  int properties() {
+  int properties() const {
     ASSERT(!has_error_);
     return properties_;
   }
-  StrictMode strict_mode() {
+  StrictMode strict_mode() const {
     ASSERT(!has_error_);
     return strict_mode_;
   }
+  int is_reference_error() const { return is_reference_error_; }
   const char* message() {
     ASSERT(has_error_);
     return message_;
   }
-  const char* argument_opt() {
+  const char* argument_opt() const {
     ASSERT(has_error_);
     return argument_opt_;
   }
@@ -149,6 +154,7 @@ class SingletonLogger : public ParserRecorder {
   // For error messages.
   const char* message_;
   const char* argument_opt_;
+  bool is_reference_error_;
 };
 
 
@@ -180,7 +186,8 @@ class CompleteParserRecorder : public ParserRecorder {
   virtual void LogMessage(int start,
                           int end,
                           const char* message,
-                          const char* argument_opt);
+                          const char* argument_opt,
+                          bool is_reference_error_);
 
   virtual void PauseRecording() {
     ASSERT(should_log_symbols_);

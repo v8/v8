@@ -88,9 +88,10 @@ CompleteParserRecorder::CompleteParserRecorder()
 
 
 void CompleteParserRecorder::LogMessage(int start_pos,
-                                               int end_pos,
-                                               const char* message,
-                                               const char* arg_opt) {
+                                        int end_pos,
+                                        const char* message,
+                                        const char* arg_opt,
+                                        bool is_reference_error) {
   if (has_error()) return;
   preamble_[PreparseDataConstants::kHasErrorOffset] = true;
   function_store_.Reset();
@@ -100,7 +101,9 @@ void CompleteParserRecorder::LogMessage(int start_pos,
   function_store_.Add(end_pos);
   STATIC_ASSERT(PreparseDataConstants::kMessageArgCountPos == 2);
   function_store_.Add((arg_opt == NULL) ? 0 : 1);
-  STATIC_ASSERT(PreparseDataConstants::kMessageTextPos == 3);
+  STATIC_ASSERT(PreparseDataConstants::kIsReferenceErrorPos == 3);
+  function_store_.Add(is_reference_error ? 1 : 0);
+  STATIC_ASSERT(PreparseDataConstants::kMessageTextPos == 4);
   WriteString(CStrVector(message));
   if (arg_opt != NULL) WriteString(CStrVector(arg_opt));
   should_log_symbols_ = false;
