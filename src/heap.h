@@ -376,9 +376,7 @@ namespace internal {
   V(next_string, "next")                                                 \
   V(byte_length_string, "byteLength")                                    \
   V(byte_offset_string, "byteOffset")                                    \
-  V(buffer_string, "buffer")                                             \
-  V(intl_initialized_marker_string, "v8::intl_initialized_marker")       \
-  V(intl_impl_object_string, "v8::intl_object")
+  V(buffer_string, "buffer")
 
 // Forward declarations.
 class GCTracer;
