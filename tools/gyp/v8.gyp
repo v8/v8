@@ -474,6 +474,7 @@
         '../../src/mark-compact.h',
         '../../src/messages.cc',
         '../../src/messages.h',
+        '../../src/msan.h',
         '../../src/natives.h',
         '../../src/objects-debug.cc',
         '../../src/objects-inl.h',
