@@ -634,7 +634,7 @@ bool IC::UpdatePolymorphicIC(Handle<HeapType> type,
     if (current_type->IsClass() && current_type->AsClass()->is_deprecated()) {
       // Filter out deprecated maps to ensure their instances get migrated.
       ++deprecated_types;
-    } else if (type->IsCurrently(current_type)) {
+    } else if (type->NowIs(current_type)) {
       // If the receiver type is already in the polymorphic IC, this indicates
       // there was a prototoype chain failure. In that case, just overwrite the
       // handler.
@@ -658,7 +658,7 @@ bool IC::UpdatePolymorphicIC(Handle<HeapType> type,
   number_of_valid_types++;
   if (handler_to_overwrite >= 0) {
     handlers.Set(handler_to_overwrite, code);
-    if (!type->IsCurrently(types.at(handler_to_overwrite))) {
+    if (!type->NowIs(types.at(handler_to_overwrite))) {
       types.Set(handler_to_overwrite, type);
     }
   } else {
@@ -676,7 +676,7 @@ bool IC::UpdatePolymorphicIC(Handle<HeapType> type,
 Handle<HeapType> IC::CurrentTypeOf(Handle<Object> object, Isolate* isolate) {
   return object->IsJSGlobalObject()
       ? HeapType::Constant(Handle<JSGlobalObject>::cast(object), isolate)
-      : HeapType::OfCurrently(object, isolate);
+      : HeapType::NowOf(object, isolate);
 }
 
 

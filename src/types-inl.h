@@ -5,9 +5,10 @@
 #ifndef V8_TYPES_INL_H_
 #define V8_TYPES_INL_H_
 
+#include "types.h"
+
 #include "factory.h"
 #include "handles-inl.h"
-#include "types.h"
 
 namespace v8 {
 namespace internal {
@@ -233,6 +234,7 @@ int ZoneTypeConfig::lub_bitset(Type* type) {
   return static_cast<int>(tagged_get<intptr_t>(as_tagged(type), 0));
 }
 
+// -------------------------------------------------------------------------- //
 
 // static
 i::Handle<HeapTypeConfig::Type> HeapTypeConfig::handle(Type* type) {

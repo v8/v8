@@ -83,7 +83,7 @@ void AstTyper::Run(CompilationInfo* info) {
 
 
 Effect AstTyper::ObservedOnStack(Object* value) {
-  Type* lower = Type::OfCurrently(handle(value, isolate()), zone());
+  Type* lower = Type::NowOf(handle(value, isolate()), zone());
   return Effect(Bounds(lower, Type::Any(zone())));
 }
 

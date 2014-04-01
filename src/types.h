@@ -220,16 +220,23 @@ class TypeImpl : public Config::Base {
   bool Is(TypeImpl* that) { return this == that || this->SlowIs(that); }
   template<class TypeHandle>
   bool Is(TypeHandle that) { return this->Is(*that); }
+
   bool Maybe(TypeImpl* that);
   template<class TypeHandle>
   bool Maybe(TypeHandle that) { return this->Maybe(*that); }
 
+  // Equivalent to Constant(value)->Is(this), but avoiding allocation.
+  bool Contains(i::Object* val);
+  bool Contains(i::Handle<i::Object> val) { return this->Contains(*val); }
+
   // State-dependent versions of Of and Is that consider subtyping between
   // a constant and its map class.
-  static TypeHandle OfCurrently(i::Handle<i::Object> value, Region* region);
-  bool IsCurrently(TypeImpl* that);
+  static TypeHandle NowOf(i::Handle<i::Object> value, Region* region);
+  bool NowIs(TypeImpl* that);
   template<class TypeHandle>
-  bool IsCurrently(TypeHandle that)  { return this->IsCurrently(*that); }
+  bool NowIs(TypeHandle that)  { return this->NowIs(*that); }
+  bool NowContains(i::Object* val);
+  bool NowContains(i::Handle<i::Object> val) { return this->NowContains(*val); }
 
   bool IsClass() { return Config::is_class(this); }
   bool IsConstant() { return Config::is_constant(this); }
@@ -359,10 +366,8 @@ struct ZoneTypeConfig {
   static inline Tagged* tagged_create(Tag tag, int size, Zone* zone);
   static inline void tagged_shrink(Tagged* tagged, int size);
   static inline Tag tagged_tag(Tagged* tagged);
-  template<class T>
-  static inline T tagged_get(Tagged* tagged, int i);
-  template<class T>
-  static inline void tagged_set(Tagged* tagged, int i, T value);
+  template<class T> static inline T tagged_get(Tagged* tagged, int i);
+  template<class T> static inline void tagged_set(Tagged* tagged, int i, T val);
   static inline int tagged_length(Tagged* tagged);
 
  public:
@@ -402,6 +407,8 @@ struct ZoneTypeConfig {
   static inline int lub_bitset(Type* type);
 };
 
+typedef TypeImpl<ZoneTypeConfig> Type;
+
 
 // Heap-allocated types are either smis for bitsets, maps for classes, boxes for
 // constants, or fixed arrays for unions.
@@ -437,7 +444,6 @@ struct HeapTypeConfig {
   static inline int lub_bitset(Type* type);
 };
 
-typedef TypeImpl<ZoneTypeConfig> Type;
 typedef TypeImpl<HeapTypeConfig> HeapType;
 
 

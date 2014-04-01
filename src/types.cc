@@ -248,7 +248,7 @@ int TypeImpl<Config>::GlbBitset() {
 
 // Most precise _current_ type of a value (usually its class).
 template<class Config>
-typename TypeImpl<Config>::TypeHandle TypeImpl<Config>::OfCurrently(
+typename TypeImpl<Config>::TypeHandle TypeImpl<Config>::NowOf(
     i::Handle<i::Object> value, Region* region) {
   if (value->IsSmi() ||
       i::HeapObject::cast(*value)->map()->instance_type() == HEAP_NUMBER_TYPE ||
@@ -303,7 +303,7 @@ bool TypeImpl<Config>::SlowIs(TypeImpl* that) {
 
 
 template<class Config>
-bool TypeImpl<Config>::IsCurrently(TypeImpl* that) {
+bool TypeImpl<Config>::NowIs(TypeImpl* that) {
   return this->Is(that) ||
       (this->IsConstant() && that->IsClass() &&
        this->AsConstant()->IsHeapObject() &&
@@ -351,6 +351,23 @@ bool TypeImpl<Config>::Maybe(TypeImpl* that) {
   }
 
   return false;
+}
+
+
+template<class Config>
+bool TypeImpl<Config>::Contains(i::Object* value) {
+  if (this->IsConstant()) {
+    return *this->AsConstant() == value;
+  }
+  return Config::from_bitset(LubBitset(value))->Is(this);
+}
+
+
+template<class Config>
+bool TypeImpl<Config>::NowContains(i::Object* value) {
+  return this->Contains(value) ||
+      (this->IsClass() && value->IsHeapObject() &&
+       *this->AsClass() == i::HeapObject::cast(value)->map());
 }
 
 
