@@ -1513,11 +1513,8 @@ void MacroAssembler::Claim(uint64_t count, uint64_t unit_size) {
 
 
 void MacroAssembler::Claim(const Register& count, uint64_t unit_size) {
+  if (unit_size == 0) return;
   ASSERT(IsPowerOf2(unit_size));
-
-  if (unit_size == 0) {
-    return;
-  }
 
   const int shift = CountTrailingZeros(unit_size, kXRegSizeInBits);
   const Operand size(count, LSL, shift);
@@ -1574,11 +1571,8 @@ void MacroAssembler::Drop(uint64_t count, uint64_t unit_size) {
 
 
 void MacroAssembler::Drop(const Register& count, uint64_t unit_size) {
+  if (unit_size == 0) return;
   ASSERT(IsPowerOf2(unit_size));
-
-  if (unit_size == 0) {
-    return;
-  }
 
   const int shift = CountTrailingZeros(unit_size, kXRegSizeInBits);
   const Operand size(count, LSL, shift);

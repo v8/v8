@@ -13914,7 +13914,7 @@ MaybeObject* HashTable<Shape, Key>::Allocate(Heap* heap,
                                              int at_least_space_for,
                                              MinimumCapacity capacity_option,
                                              PretenureFlag pretenure) {
-  ASSERT(!capacity_option || IS_POWER_OF_TWO(at_least_space_for));
+  ASSERT(!capacity_option || IsPowerOf2(at_least_space_for));
   int capacity = (capacity_option == USE_CUSTOM_MINIMUM_CAPACITY)
                      ? at_least_space_for
                      : ComputeCapacity(at_least_space_for);
