@@ -1524,11 +1524,12 @@ class FrameAndConstantPoolScope {
         type_(type),
         old_has_frame_(masm->has_frame()),
         old_constant_pool_available_(masm->is_constant_pool_available())  {
+    // We only want to enable constant pool access for non-manual frame scopes
+    // to ensure the constant pool pointer is valid throughout the scope.
+    ASSERT(type_ != StackFrame::MANUAL && type_ != StackFrame::NONE);
     masm->set_has_frame(true);
     masm->set_constant_pool_available(true);
-    if (type_ != StackFrame::MANUAL && type_ != StackFrame::NONE) {
-      masm->EnterFrame(type, !old_constant_pool_available_);
-    }
+    masm->EnterFrame(type, !old_constant_pool_available_);
   }
 
   ~FrameAndConstantPoolScope() {
