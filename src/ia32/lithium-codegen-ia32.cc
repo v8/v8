@@ -1556,10 +1556,11 @@ void LCodeGen::DoDivByConstI(LDivByConstI* instr) {
 }
 
 
+// TODO(svenpanne) Refactor this to avoid code duplication with DoFlooringDivI.
 void LCodeGen::DoDivI(LDivI* instr) {
   HBinaryOperation* hdiv = instr->hydrogen();
-  Register dividend = ToRegister(instr->left());
-  Register divisor = ToRegister(instr->right());
+  Register dividend = ToRegister(instr->dividend());
+  Register divisor = ToRegister(instr->divisor());
   Register remainder = ToRegister(instr->temp());
   Register result = ToRegister(instr->result());
   ASSERT(dividend.is(eax));
@@ -1598,15 +1599,7 @@ void LCodeGen::DoDivI(LDivI* instr) {
   __ cdq();
   __ idiv(divisor);
 
-  if (hdiv->IsMathFloorOfDiv()) {
-    Label done;
-    __ test(remainder, remainder);
-    __ j(zero, &done, Label::kNear);
-    __ xor_(remainder, divisor);
-    __ sar(remainder, 31);
-    __ add(result, remainder);
-    __ bind(&done);
-  } else if (!hdiv->CheckFlag(HValue::kAllUsesTruncatingToInt32)) {
+  if (!hdiv->CheckFlag(HValue::kAllUsesTruncatingToInt32)) {
     // Deoptimize if remainder is not 0.
     __ test(remainder, remainder);
     DeoptimizeIf(not_zero, instr->environment());
@@ -1692,6 +1685,59 @@ void LCodeGen::DoFlooringDivByConstI(LFlooringDivByConstI* instr) {
   __ TruncatingDiv(temp, Abs(divisor));
   if (divisor < 0) __ neg(edx);
   __ dec(edx);
+  __ bind(&done);
+}
+
+
+// TODO(svenpanne) Refactor this to avoid code duplication with DoDivI.
+void LCodeGen::DoFlooringDivI(LFlooringDivI* instr) {
+  HBinaryOperation* hdiv = instr->hydrogen();
+  Register dividend = ToRegister(instr->dividend());
+  Register divisor = ToRegister(instr->divisor());
+  Register remainder = ToRegister(instr->temp());
+  Register result = ToRegister(instr->result());
+  ASSERT(dividend.is(eax));
+  ASSERT(remainder.is(edx));
+  ASSERT(result.is(eax));
+  ASSERT(!divisor.is(eax));
+  ASSERT(!divisor.is(edx));
+
+  // Check for x / 0.
+  if (hdiv->CheckFlag(HValue::kCanBeDivByZero)) {
+    __ test(divisor, divisor);
+    DeoptimizeIf(zero, instr->environment());
+  }
+
+  // Check for (0 / -x) that will produce negative zero.
+  if (hdiv->CheckFlag(HValue::kBailoutOnMinusZero)) {
+    Label dividend_not_zero;
+    __ test(dividend, dividend);
+    __ j(not_zero, &dividend_not_zero, Label::kNear);
+    __ test(divisor, divisor);
+    DeoptimizeIf(sign, instr->environment());
+    __ bind(&dividend_not_zero);
+  }
+
+  // Check for (kMinInt / -1).
+  if (hdiv->CheckFlag(HValue::kCanOverflow)) {
+    Label dividend_not_min_int;
+    __ cmp(dividend, kMinInt);
+    __ j(not_zero, &dividend_not_min_int, Label::kNear);
+    __ cmp(divisor, -1);
+    DeoptimizeIf(zero, instr->environment());
+    __ bind(&dividend_not_min_int);
+  }
+
+  // Sign extend to edx (= remainder).
+  __ cdq();
+  __ idiv(divisor);
+
+  Label done;
+  __ test(remainder, remainder);
+  __ j(zero, &done, Label::kNear);
+  __ xor_(remainder, divisor);
+  __ sar(remainder, 31);
+  __ add(result, remainder);
   __ bind(&done);
 }
 

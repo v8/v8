@@ -1324,14 +1324,14 @@ class LDivByConstI V8_FINAL : public LTemplateInstruction<1, 1, 1> {
 
 class LDivI V8_FINAL : public LTemplateInstruction<1, 2, 1> {
  public:
-  LDivI(LOperand* left, LOperand* right, LOperand* temp) {
-    inputs_[0] = left;
-    inputs_[1] = right;
+  LDivI(LOperand* dividend, LOperand* divisor, LOperand* temp) {
+    inputs_[0] = dividend;
+    inputs_[1] = divisor;
     temps_[0] = temp;
   }
 
-  LOperand* left() { return inputs_[0]; }
-  LOperand* right() { return inputs_[1]; }
+  LOperand* dividend() { return inputs_[0]; }
+  LOperand* divisor() { return inputs_[1]; }
   LOperand* temp() { return temps_[0]; }
 
   DECLARE_CONCRETE_INSTRUCTION(DivI, "div-i")

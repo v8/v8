@@ -1365,7 +1365,7 @@ LInstruction* LChunkBuilder::DoDivByConstI(HDiv* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoDivI(HBinaryOperation* instr) {
+LInstruction* LChunkBuilder::DoDivI(HDiv* instr) {
   ASSERT(instr->representation().IsSmiOrInteger32());
   ASSERT(instr->left()->representation().Equals(instr->representation()));
   ASSERT(instr->right()->representation().Equals(instr->representation()));
@@ -1377,8 +1377,7 @@ LInstruction* LChunkBuilder::DoDivI(HBinaryOperation* instr) {
   if (instr->CheckFlag(HValue::kCanBeDivByZero) ||
       instr->CheckFlag(HValue::kBailoutOnMinusZero) ||
       instr->CheckFlag(HValue::kCanOverflow) ||
-      (!instr->IsMathFloorOfDiv() &&
-       !instr->CheckFlag(HValue::kAllUsesTruncatingToInt32))) {
+      !instr->CheckFlag(HValue::kAllUsesTruncatingToInt32)) {
     result = AssignEnvironment(result);
   }
   return result;
@@ -1442,13 +1441,31 @@ LInstruction* LChunkBuilder::DoFlooringDivByConstI(HMathFloorOfDiv* instr) {
 }
 
 
+LInstruction* LChunkBuilder::DoFlooringDivI(HMathFloorOfDiv* instr) {
+  ASSERT(instr->representation().IsSmiOrInteger32());
+  ASSERT(instr->left()->representation().Equals(instr->representation()));
+  ASSERT(instr->right()->representation().Equals(instr->representation()));
+  LOperand* dividend = UseFixed(instr->left(), eax);
+  LOperand* divisor = UseRegister(instr->right());
+  LOperand* temp = FixedTemp(edx);
+  LInstruction* result = DefineFixed(new(zone()) LFlooringDivI(
+          dividend, divisor, temp), eax);
+  if (instr->CheckFlag(HValue::kCanBeDivByZero) ||
+      instr->CheckFlag(HValue::kBailoutOnMinusZero) ||
+      instr->CheckFlag(HValue::kCanOverflow)) {
+    result = AssignEnvironment(result);
+  }
+  return result;
+}
+
+
 LInstruction* LChunkBuilder::DoMathFloorOfDiv(HMathFloorOfDiv* instr) {
   if (instr->RightIsPowerOf2()) {
     return DoFlooringDivByPowerOf2I(instr);
   } else if (instr->right()->IsConstant()) {
     return DoFlooringDivByConstI(instr);
   } else {
-    return DoDivI(instr);
+    return DoFlooringDivI(instr);
   }
 }
 

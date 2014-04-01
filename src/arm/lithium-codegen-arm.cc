@@ -1363,15 +1363,16 @@ void LCodeGen::DoDivByConstI(LDivByConstI* instr) {
 }
 
 
+// TODO(svenpanne) Refactor this to avoid code duplication with DoFlooringDivI.
 void LCodeGen::DoDivI(LDivI* instr) {
   HBinaryOperation* hdiv = instr->hydrogen();
-  Register left = ToRegister(instr->left());
-  Register right = ToRegister(instr->right());
+  Register dividend = ToRegister(instr->dividend());
+  Register divisor = ToRegister(instr->divisor());
   Register result = ToRegister(instr->result());
 
   // Check for x / 0.
   if (hdiv->CheckFlag(HValue::kCanBeDivByZero)) {
-    __ cmp(right, Operand::Zero());
+    __ cmp(divisor, Operand::Zero());
     DeoptimizeIf(eq, instr->environment());
   }
 
@@ -1380,10 +1381,10 @@ void LCodeGen::DoDivI(LDivI* instr) {
     Label positive;
     if (!instr->hydrogen_value()->CheckFlag(HValue::kCanBeDivByZero)) {
       // Do the test only if it hadn't be done above.
-      __ cmp(right, Operand::Zero());
+      __ cmp(divisor, Operand::Zero());
     }
     __ b(pl, &positive);
-    __ cmp(left, Operand::Zero());
+    __ cmp(dividend, Operand::Zero());
     DeoptimizeIf(eq, instr->environment());
     __ bind(&positive);
   }
@@ -1394,39 +1395,30 @@ void LCodeGen::DoDivI(LDivI* instr) {
        !hdiv->CheckFlag(HValue::kAllUsesTruncatingToInt32))) {
     // We don't need to check for overflow when truncating with sdiv
     // support because, on ARM, sdiv kMinInt, -1 -> kMinInt.
-    __ cmp(left, Operand(kMinInt));
-    __ cmp(right, Operand(-1), eq);
+    __ cmp(dividend, Operand(kMinInt));
+    __ cmp(divisor, Operand(-1), eq);
     DeoptimizeIf(eq, instr->environment());
   }
 
   if (CpuFeatures::IsSupported(SUDIV)) {
     CpuFeatureScope scope(masm(), SUDIV);
-    __ sdiv(result, left, right);
+    __ sdiv(result, dividend, divisor);
   } else {
     DoubleRegister vleft = ToDoubleRegister(instr->temp());
     DoubleRegister vright = double_scratch0();
-    __ vmov(double_scratch0().low(), left);
+    __ vmov(double_scratch0().low(), dividend);
     __ vcvt_f64_s32(vleft, double_scratch0().low());
-    __ vmov(double_scratch0().low(), right);
+    __ vmov(double_scratch0().low(), divisor);
     __ vcvt_f64_s32(vright, double_scratch0().low());
     __ vdiv(vleft, vleft, vright);  // vleft now contains the result.
     __ vcvt_s32_f64(double_scratch0().low(), vleft);
     __ vmov(result, double_scratch0().low());
   }
 
-  if (hdiv->IsMathFloorOfDiv()) {
-    Label done;
-    Register remainder = scratch0();
-    __ mls(remainder, result, right, left);
-    __ cmp(remainder, Operand::Zero());
-    __ b(eq, &done);
-    __ eor(remainder, remainder, Operand(right));
-    __ add(result, result, Operand(remainder, ASR, 31));
-    __ bind(&done);
-  } else if (!hdiv->CheckFlag(HValue::kAllUsesTruncatingToInt32)) {
+  if (!hdiv->CheckFlag(HValue::kAllUsesTruncatingToInt32)) {
     // Compute remainder and deopt if it's not zero.
     Register remainder = scratch0();
-    __ mls(remainder, result, right, left);
+    __ mls(remainder, result, divisor, dividend);
     __ cmp(remainder, Operand::Zero());
     DeoptimizeIf(ne, instr->environment());
   }
@@ -1534,6 +1526,69 @@ void LCodeGen::DoFlooringDivByConstI(LFlooringDivByConstI* instr) {
   __ TruncatingDiv(result, temp, Abs(divisor));
   if (divisor < 0) __ rsb(result, result, Operand::Zero());
   __ sub(result, result, Operand(1));
+  __ bind(&done);
+}
+
+
+// TODO(svenpanne) Refactor this to avoid code duplication with DoDivI.
+void LCodeGen::DoFlooringDivI(LFlooringDivI* instr) {
+  HBinaryOperation* hdiv = instr->hydrogen();
+  Register left = ToRegister(instr->dividend());
+  Register right = ToRegister(instr->divisor());
+  Register result = ToRegister(instr->result());
+
+  // Check for x / 0.
+  if (hdiv->CheckFlag(HValue::kCanBeDivByZero)) {
+    __ cmp(right, Operand::Zero());
+    DeoptimizeIf(eq, instr->environment());
+  }
+
+  // Check for (0 / -x) that will produce negative zero.
+  if (hdiv->CheckFlag(HValue::kBailoutOnMinusZero)) {
+    Label positive;
+    if (!instr->hydrogen_value()->CheckFlag(HValue::kCanBeDivByZero)) {
+      // Do the test only if it hadn't be done above.
+      __ cmp(right, Operand::Zero());
+    }
+    __ b(pl, &positive);
+    __ cmp(left, Operand::Zero());
+    DeoptimizeIf(eq, instr->environment());
+    __ bind(&positive);
+  }
+
+  // Check for (kMinInt / -1).
+  if (hdiv->CheckFlag(HValue::kCanOverflow) &&
+      (!CpuFeatures::IsSupported(SUDIV) ||
+       !hdiv->CheckFlag(HValue::kAllUsesTruncatingToInt32))) {
+    // We don't need to check for overflow when truncating with sdiv
+    // support because, on ARM, sdiv kMinInt, -1 -> kMinInt.
+    __ cmp(left, Operand(kMinInt));
+    __ cmp(right, Operand(-1), eq);
+    DeoptimizeIf(eq, instr->environment());
+  }
+
+  if (CpuFeatures::IsSupported(SUDIV)) {
+    CpuFeatureScope scope(masm(), SUDIV);
+    __ sdiv(result, left, right);
+  } else {
+    DoubleRegister vleft = ToDoubleRegister(instr->temp());
+    DoubleRegister vright = double_scratch0();
+    __ vmov(double_scratch0().low(), left);
+    __ vcvt_f64_s32(vleft, double_scratch0().low());
+    __ vmov(double_scratch0().low(), right);
+    __ vcvt_f64_s32(vright, double_scratch0().low());
+    __ vdiv(vleft, vleft, vright);  // vleft now contains the result.
+    __ vcvt_s32_f64(double_scratch0().low(), vleft);
+    __ vmov(result, double_scratch0().low());
+  }
+
+  Label done;
+  Register remainder = scratch0();
+  __ mls(remainder, result, right, left);
+  __ cmp(remainder, Operand::Zero());
+  __ b(eq, &done);
+  __ eor(remainder, remainder, Operand(right));
+  __ add(result, result, Operand(remainder, ASR, 31));
   __ bind(&done);
 }
 

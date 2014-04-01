@@ -2707,10 +2707,11 @@ void LCodeGen::DoDivByConstI(LDivByConstI* instr) {
 }
 
 
+// TODO(svenpanne) Refactor this to avoid code duplication with DoFlooringDivI.
 void LCodeGen::DoDivI(LDivI* instr) {
   HBinaryOperation* hdiv = instr->hydrogen();
-  Register dividend = ToRegister32(instr->left());
-  Register divisor = ToRegister32(instr->right());
+  Register dividend = ToRegister32(instr->dividend());
+  Register divisor = ToRegister32(instr->divisor());
   Register result = ToRegister32(instr->result());
 
   // Issue the division first, and then check for any deopt cases whilst the
@@ -3936,6 +3937,7 @@ void LCodeGen::DoFlooringDivByConstI(LFlooringDivByConstI* instr) {
 }
 
 
+// TODO(svenpanne) Refactor this to avoid code duplication with DoDivI.
 void LCodeGen::DoFlooringDivI(LFlooringDivI* instr) {
   Register dividend = ToRegister32(instr->dividend());
   Register divisor = ToRegister32(instr->divisor());

@@ -1289,7 +1289,7 @@ LInstruction* LChunkBuilder::DoDivByConstI(HDiv* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoDivI(HBinaryOperation* instr) {
+LInstruction* LChunkBuilder::DoDivI(HDiv* instr) {
   ASSERT(instr->representation().IsSmiOrInteger32());
   ASSERT(instr->left()->representation().Equals(instr->representation()));
   ASSERT(instr->right()->representation().Equals(instr->representation()));
@@ -1361,13 +1361,25 @@ LInstruction* LChunkBuilder::DoFlooringDivByConstI(HMathFloorOfDiv* instr) {
 }
 
 
+LInstruction* LChunkBuilder::DoFlooringDivI(HMathFloorOfDiv* instr) {
+  ASSERT(instr->representation().IsSmiOrInteger32());
+  ASSERT(instr->left()->representation().Equals(instr->representation()));
+  ASSERT(instr->right()->representation().Equals(instr->representation()));
+  LOperand* dividend = UseRegister(instr->left());
+  LOperand* divisor = UseRegister(instr->right());
+  LOperand* temp = CpuFeatures::IsSupported(SUDIV) ? NULL : FixedTemp(d4);
+  LFlooringDivI* div = new(zone()) LFlooringDivI(dividend, divisor, temp);
+  return AssignEnvironment(DefineAsRegister(div));
+}
+
+
 LInstruction* LChunkBuilder::DoMathFloorOfDiv(HMathFloorOfDiv* instr) {
   if (instr->RightIsPowerOf2()) {
     return DoFlooringDivByPowerOf2I(instr);
   } else if (instr->right()->IsConstant()) {
     return DoFlooringDivByConstI(instr);
   } else {
-    return DoDivI(instr);
+    return DoFlooringDivI(instr);
   }
 }
 
