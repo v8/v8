@@ -1629,6 +1629,7 @@ class Object : public MaybeObject {
   // < the length of the string.  Used to implement [] on strings.
   inline bool IsStringObjectWithCharacterAt(uint32_t index);
 
+  DECLARE_VERIFIER(Object)
 #ifdef VERIFY_HEAP
   // Verify a pointer is a valid object pointer.
   static void VerifyPointer(Object* p);

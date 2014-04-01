@@ -2000,7 +2000,7 @@ bool Genesis::InstallNatives() {
   }
 
 #ifdef VERIFY_HEAP
-  builtins->Verify();
+  builtins->ObjectVerify();
 #endif
 
   return true;

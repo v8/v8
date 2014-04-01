@@ -1195,7 +1195,7 @@ void PagedSpace::Verify(ObjectVisitor* visitor) {
       VerifyObject(object);
 
       // The object itself should look OK.
-      object->Verify();
+      object->ObjectVerify();
 
       // All the interior pointers should be contained in the heap.
       int size = object->Size();
@@ -1478,7 +1478,7 @@ void NewSpace::Verify() {
       CHECK(!object->IsCode());
 
       // The object itself should look OK.
-      object->Verify();
+      object->ObjectVerify();
 
       // All the interior pointers should be contained in the heap.
       VerifyPointersVisitor visitor;
@@ -3119,7 +3119,7 @@ void LargeObjectSpace::Verify() {
            object->IsFixedDoubleArray() || object->IsByteArray());
 
     // The object itself should look OK.
-    object->Verify();
+    object->ObjectVerify();
 
     // Byte arrays and strings don't have interior pointers.
     if (object->IsCode()) {
