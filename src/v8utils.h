@@ -215,6 +215,11 @@ inline void MemsetPointer(T** dest, U* value, int counter) {
 #undef STOS
 #endif
 
+#if defined(MEMORY_SANITIZER)
+  // MemorySanitizer does not understand inline assembly.
+#undef STOS
+#endif
+
 #if defined(__GNUC__) && defined(STOS)
   asm volatile(
       "cld;"

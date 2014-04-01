@@ -77,10 +77,10 @@ namespace {
 void AtomicOps_Internalx86CPUFeaturesInit() {
   using v8::internal::AtomicOps_Internalx86CPUFeatures;
 
-  uint32_t eax;
-  uint32_t ebx;
-  uint32_t ecx;
-  uint32_t edx;
+  uint32_t eax = 0;
+  uint32_t ebx = 0;
+  uint32_t ecx = 0;
+  uint32_t edx = 0;
 
   // Get vendor string (issue CPUID with eax = 0)
   cpuid(eax, ebx, ecx, edx, 0);
