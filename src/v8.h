@@ -66,6 +66,7 @@
 #include "mark-compact-inl.h"
 #include "log-inl.h"
 #include "handles-inl.h"
+#include "types-inl.h"
 #include "zone-inl.h"
 
 namespace v8 {
@@ -134,7 +135,5 @@ enum NilValue { kNullValue, kUndefinedValue };
 
 
 } }  // namespace v8::internal
-
-namespace i = v8::internal;
 
 #endif  // V8_V8_H_

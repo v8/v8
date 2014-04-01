@@ -1,40 +1,14 @@
-// Copyright 2013 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Copyright 2014 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #ifndef V8_TYPES_H_
 #define V8_TYPES_H_
 
-#include "v8.h"
-
-#include "objects.h"
+#include "handles.h"
 
 namespace v8 {
 namespace internal {
-
 
 // A simple type system for compiler-internal use. It is based entirely on
 // union types, and all subtyping hence amounts to set inclusion. Besides the
@@ -382,29 +356,14 @@ struct ZoneTypeConfig {
     kUnionTag
   };
 
-  static Tagged* tagged_create(Tag tag, int size, Zone* zone) {
-    Tagged* tagged = new(zone) Tagged(size + 1, zone);
-    tagged->Add(reinterpret_cast<void*>(tag), zone);
-    tagged->AddBlock(NULL, size, zone);
-    return tagged;
-  }
-  static void tagged_shrink(Tagged* tagged, int size) {
-    tagged->Rewind(size + 1);
-  }
-  static Tag tagged_tag(Tagged* tagged) {
-    return static_cast<Tag>(reinterpret_cast<intptr_t>(tagged->at(0)));
-  }
+  static inline Tagged* tagged_create(Tag tag, int size, Zone* zone);
+  static inline void tagged_shrink(Tagged* tagged, int size);
+  static inline Tag tagged_tag(Tagged* tagged);
   template<class T>
-  static T tagged_get(Tagged* tagged, int i) {
-    return reinterpret_cast<T>(tagged->at(i + 1));
-  }
+  static inline T tagged_get(Tagged* tagged, int i);
   template<class T>
-  static void tagged_set(Tagged* tagged, int i, T value) {
-    tagged->at(i + 1) = reinterpret_cast<void*>(value);
-  }
-  static int tagged_length(Tagged* tagged) {
-    return tagged->length() - 1;
-  }
+  static inline void tagged_set(Tagged* tagged, int i, T value);
+  static inline int tagged_length(Tagged* tagged);
 
  public:
   typedef TypeImpl<ZoneTypeConfig> Type;
@@ -413,98 +372,34 @@ struct ZoneTypeConfig {
   typedef i::Zone Region;
   template<class T> struct Handle { typedef T* type; };
 
-  static Type* handle(Type* type) { return type; }
-
-  static bool is(Type* type, Tag tag) {
-    return is_tagged(type) && tagged_tag(as_tagged(type)) == tag;
-  }
-
-  static bool is_bitset(Type* type) {
-    return reinterpret_cast<intptr_t>(type) & 1;
-  }
-  static bool is_tagged(Type* type) { return !is_bitset(type); }
-  static bool is_class(Type* type) { return is(type, kClassTag); }
-  static bool is_constant(Type* type) { return is(type, kConstantTag); }
-  static bool is_union(Type* type) { return is(type, kUnionTag); }
-  static bool tagged_is_union(Tagged* tagged) {
-    return is(from_tagged(tagged), kUnionTag);
-  }
-
-  static int as_bitset(Type* type) {
-    ASSERT(is_bitset(type));
-    return static_cast<int>(reinterpret_cast<intptr_t>(type) >> 1);
-  }
-  static Tagged* as_tagged(Type* type) {
-    ASSERT(is_tagged(type));
-    return reinterpret_cast<Tagged*>(type);
-  }
-  static i::Handle<i::Map> as_class(Type* type) {
-    ASSERT(is_class(type));
-    return i::Handle<i::Map>(tagged_get<i::Map**>(as_tagged(type), 1));
-  }
-  static i::Handle<i::Object> as_constant(Type* type) {
-    ASSERT(is_constant(type));
-    return i::Handle<i::Object>(tagged_get<i::Object**>(as_tagged(type), 1));
-  }
-  static Unioned* as_union(Type* type) {
-    ASSERT(is_union(type));
-    return tagged_as_union(as_tagged(type));
-  }
-  static Unioned* tagged_as_union(Tagged* tagged) {
-    ASSERT(tagged_is_union(tagged));
-    return reinterpret_cast<Unioned*>(tagged);
-  }
-
-  static Type* from_bitset(int bitset) {
-    return reinterpret_cast<Type*>((bitset << 1) | 1);
-  }
-  static Type* from_bitset(int bitset, Zone* Zone) {
-    return from_bitset(bitset);
-  }
-  static Type* from_tagged(Tagged* tagged) {
-    return reinterpret_cast<Type*>(tagged);
-  }
-  static Type* from_class(i::Handle<i::Map> map, int lub, Zone* zone) {
-    Tagged* tagged = tagged_create(kClassTag, 2, zone);
-    tagged_set(tagged, 0, lub);
-    tagged_set(tagged, 1, map.location());
-    return from_tagged(tagged);
-  }
-  static Type* from_constant(i::Handle<i::Object> value, int lub, Zone* zone) {
-    Tagged* tagged = tagged_create(kConstantTag, 2, zone);
-    tagged_set(tagged, 0, lub);
-    tagged_set(tagged, 1, value.location());
-    return from_tagged(tagged);
-  }
-  static Type* from_union(Unioned* unioned) {
-    return from_tagged(tagged_from_union(unioned));
-  }
-  static Tagged* tagged_from_union(Unioned* unioned) {
-    return reinterpret_cast<Tagged*>(unioned);
-  }
-
-  static Unioned* union_create(int size, Zone* zone) {
-    return tagged_as_union(tagged_create(kUnionTag, size, zone));
-  }
-  static void union_shrink(Unioned* unioned, int size) {
-    tagged_shrink(tagged_from_union(unioned), size);
-  }
-  static Type* union_get(Unioned* unioned, int i) {
-    Type* type = tagged_get<Type*>(tagged_from_union(unioned), i);
-    ASSERT(!is_union(type));
-    return type;
-  }
-  static void union_set(Unioned* unioned, int i, Type* type) {
-    ASSERT(!is_union(type));
-    tagged_set(tagged_from_union(unioned), i, type);
-  }
-  static int union_length(Unioned* unioned) {
-    return tagged_length(tagged_from_union(unioned));
-  }
-  static int lub_bitset(Type* type) {
-    ASSERT(is_class(type) || is_constant(type));
-    return static_cast<int>(tagged_get<intptr_t>(as_tagged(type), 0));
-  }
+  static inline Type* handle(Type* type);
+  static inline bool is(Type* type, Tag tag);
+  static inline bool is_bitset(Type* type);
+  static inline bool is_tagged(Type* type);
+  static inline bool is_class(Type* type);
+  static inline bool is_constant(Type* type);
+  static inline bool is_union(Type* type);
+  static inline bool tagged_is_union(Tagged* tagged);
+  static inline int as_bitset(Type* type);
+  static inline Tagged* as_tagged(Type* type);
+  static inline i::Handle<i::Map> as_class(Type* type);
+  static inline i::Handle<i::Object> as_constant(Type* type);
+  static inline Unioned* as_union(Type* type);
+  static inline Unioned* tagged_as_union(Tagged* tagged);
+  static inline Type* from_bitset(int bitset);
+  static inline Type* from_bitset(int bitset, Zone* zone);
+  static inline Type* from_tagged(Tagged* tagged);
+  static inline Type* from_class(i::Handle<i::Map> map, int lub, Zone* zone);
+  static inline Type* from_constant(
+      i::Handle<i::Object> value, int lub, Zone* zone);
+  static inline Type* from_union(Unioned* unioned);
+  static inline Tagged* tagged_from_union(Unioned* unioned);
+  static inline Unioned* union_create(int size, Zone* zone);
+  static inline void union_shrink(Unioned* unioned, int size);
+  static inline Type* union_get(Unioned* unioned, int i);
+  static inline void union_set(Unioned* unioned, int i, Type* type);
+  static inline int union_length(Unioned* unioned);
+  static inline int lub_bitset(Type* type);
 };
 
 
@@ -517,70 +412,29 @@ struct HeapTypeConfig {
   typedef i::Isolate Region;
   template<class T> struct Handle { typedef i::Handle<T> type; };
 
-  static i::Handle<Type> handle(Type* type) {
-    return i::handle(type, i::HeapObject::cast(type)->GetIsolate());
-  }
-
-  static bool is_bitset(Type* type) { return type->IsSmi(); }
-  static bool is_class(Type* type) { return type->IsMap(); }
-  static bool is_constant(Type* type) { return type->IsBox(); }
-  static bool is_union(Type* type) { return type->IsFixedArray(); }
-
-  static int as_bitset(Type* type) {
-    return Smi::cast(type)->value();
-  }
-  static i::Handle<i::Map> as_class(Type* type) {
-    return i::handle(i::Map::cast(type));
-  }
-  static i::Handle<i::Object> as_constant(Type* type) {
-    i::Box* box = i::Box::cast(type);
-    return i::handle(box->value(), box->GetIsolate());
-  }
-  static i::Handle<Unioned> as_union(Type* type) {
-    return i::handle(i::FixedArray::cast(type));
-  }
-
-  static Type* from_bitset(int bitset) {
-    return Type::cast(i::Smi::FromInt(bitset));
-  }
-  static i::Handle<Type> from_bitset(int bitset, Isolate* isolate) {
-    return i::handle(from_bitset(bitset), isolate);
-  }
-  static i::Handle<Type> from_class(
-      i::Handle<i::Map> map, int lub, Isolate* isolate) {
-    return i::Handle<Type>::cast(i::Handle<Object>::cast(map));
-  }
-  static i::Handle<Type> from_constant(
-      i::Handle<i::Object> value, int lub, Isolate* isolate) {
-    i::Handle<Box> box = isolate->factory()->NewBox(value);
-    return i::Handle<Type>::cast(i::Handle<Object>::cast(box));
-  }
-  static i::Handle<Type> from_union(i::Handle<Unioned> unioned) {
-    return i::Handle<Type>::cast(i::Handle<Object>::cast(unioned));
-  }
-
-  static i::Handle<Unioned> union_create(int size, Isolate* isolate) {
-    return isolate->factory()->NewFixedArray(size);
-  }
-  static void union_shrink(i::Handle<Unioned> unioned, int size) {
-    unioned->Shrink(size);
-  }
-  static i::Handle<Type> union_get(i::Handle<Unioned> unioned, int i) {
-    Type* type = static_cast<Type*>(unioned->get(i));
-    ASSERT(!is_union(type));
-    return i::handle(type, unioned->GetIsolate());
-  }
-  static void union_set(
-      i::Handle<Unioned> unioned, int i, i::Handle<Type> type) {
-    ASSERT(!is_union(*type));
-    unioned->set(i, *type);
-  }
-  static int union_length(i::Handle<Unioned> unioned) {
-    return unioned->length();
-  }
-  static int lub_bitset(Type* type) {
-    return 0;  // kNone, which causes recomputation.
-  }
+  static inline i::Handle<Type> handle(Type* type);
+  static inline bool is_bitset(Type* type);
+  static inline bool is_class(Type* type);
+  static inline bool is_constant(Type* type);
+  static inline bool is_union(Type* type);
+  static inline int as_bitset(Type* type);
+  static inline i::Handle<i::Map> as_class(Type* type);
+  static inline i::Handle<i::Object> as_constant(Type* type);
+  static inline i::Handle<Unioned> as_union(Type* type);
+  static inline Type* from_bitset(int bitset);
+  static inline i::Handle<Type> from_bitset(int bitset, Isolate* isolate);
+  static inline i::Handle<Type> from_class(
+      i::Handle<i::Map> map, int lub, Isolate* isolate);
+  static inline i::Handle<Type> from_constant(
+      i::Handle<i::Object> value, int lub, Isolate* isolate);
+  static inline i::Handle<Type> from_union(i::Handle<Unioned> unioned);
+  static inline i::Handle<Unioned> union_create(int size, Isolate* isolate);
+  static inline void union_shrink(i::Handle<Unioned> unioned, int size);
+  static inline i::Handle<Type> union_get(i::Handle<Unioned> unioned, int i);
+  static inline void union_set(
+      i::Handle<Unioned> unioned, int i, i::Handle<Type> type);
+  static inline int union_length(i::Handle<Unioned> unioned);
+  static inline int lub_bitset(Type* type);
 };
 
 typedef TypeImpl<ZoneTypeConfig> Type;
@@ -642,7 +496,6 @@ struct BoundsImpl {
 };
 
 typedef BoundsImpl<ZoneTypeConfig> Bounds;
-
 
 } }  // namespace v8::internal
 
