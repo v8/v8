@@ -109,8 +109,6 @@ namespace internal {
     ShortExternalStringWithOneByteDataMap)                                     \
   V(Map, internalized_string_map, InternalizedStringMap)                       \
   V(Map, ascii_internalized_string_map, AsciiInternalizedStringMap)            \
-  V(Map, cons_internalized_string_map, ConsInternalizedStringMap)              \
-  V(Map, cons_ascii_internalized_string_map, ConsAsciiInternalizedStringMap)   \
   V(Map,                                                                       \
     external_internalized_string_map,                                          \
     ExternalInternalizedStringMap)                                             \
