@@ -1,47 +1,20 @@
-// Copyright 2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Copyright 2014 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #ifndef V8_PROPERTY_H_
 #define V8_PROPERTY_H_
 
-#include "allocation.h"
-#include "transitions.h"
+#include "isolate.h"
 
 namespace v8 {
 namespace internal {
-
 
 // Abstraction for elements in instance-descriptor arrays.
 //
 // Each descriptor has a key, property attributes, property type,
 // property index (in the actual instance-descriptor array) and
 // optionally a piece of data.
-//
-
 class Descriptor BASE_EMBEDDED {
  public:
   MUST_USE_RESULT MaybeObject* KeyToUniqueName() {
@@ -96,7 +69,7 @@ class Descriptor BASE_EMBEDDED {
 };
 
 
-class FieldDescriptor: public Descriptor {
+class FieldDescriptor V8_FINAL : public Descriptor {
  public:
   FieldDescriptor(Name* key,
                   int field_index,
@@ -107,7 +80,7 @@ class FieldDescriptor: public Descriptor {
 };
 
 
-class ConstantDescriptor: public Descriptor {
+class ConstantDescriptor V8_FINAL : public Descriptor {
  public:
   ConstantDescriptor(Name* key,
                      Object* value,
@@ -117,7 +90,7 @@ class ConstantDescriptor: public Descriptor {
 };
 
 
-class CallbacksDescriptor:  public Descriptor {
+class CallbacksDescriptor V8_FINAL : public Descriptor {
  public:
   CallbacksDescriptor(Name* key,
                       Object* foreign,
@@ -129,7 +102,7 @@ class CallbacksDescriptor:  public Descriptor {
 
 // Holds a property index value distinguishing if it is a field index or an
 // index inside the object header.
-class PropertyIndex {
+class PropertyIndex V8_FINAL {
  public:
   static PropertyIndex NewFieldIndex(int index) {
     return PropertyIndex(index, false);
@@ -177,7 +150,7 @@ class PropertyIndex {
 };
 
 
-class LookupResult BASE_EMBEDDED {
+class LookupResult V8_FINAL BASE_EMBEDDED {
  public:
   explicit LookupResult(Isolate* isolate)
       : isolate_(isolate),
@@ -487,7 +460,6 @@ class LookupResult BASE_EMBEDDED {
   bool cacheable_;
   PropertyDetails details_;
 };
-
 
 } }  // namespace v8::internal
 
