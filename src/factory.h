@@ -261,7 +261,6 @@ class Factory V8_FINAL {
   // Copy the map adding more inobject properties if possible without
   // overflowing the instance size.
   Handle<Map> CopyMap(Handle<Map> map, int extra_inobject_props);
-  Handle<Map> CopyMap(Handle<Map> map);
 
   Handle<FixedArray> CopyFixedArray(Handle<FixedArray> array);
 

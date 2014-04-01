@@ -328,9 +328,8 @@ Handle<Context> Bootstrapper::CreateEnvironment(
 
 static void SetObjectPrototype(Handle<JSObject> object, Handle<Object> proto) {
   // object.__proto__ = proto;
-  Factory* factory = object->GetIsolate()->factory();
   Handle<Map> old_to_map = Handle<Map>(object->map());
-  Handle<Map> new_to_map = factory->CopyMap(old_to_map);
+  Handle<Map> new_to_map = Map::Copy(old_to_map);
   new_to_map->set_prototype(*proto);
   object->set_map(*new_to_map);
 }
@@ -1017,7 +1016,7 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     initial_map->set_visitor_id(StaticVisitorBase::GetVisitorId(*initial_map));
 
     // RegExp prototype object is itself a RegExp.
-    Handle<Map> proto_map = factory->CopyMap(initial_map);
+    Handle<Map> proto_map = Map::Copy(initial_map);
     proto_map->set_prototype(native_context()->initial_object_prototype());
     Handle<JSObject> proto = factory->NewJSObjectFromMap(proto_map);
     proto->InObjectPropertyAtPut(JSRegExp::kSourceFieldIndex,
@@ -1150,7 +1149,7 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
 
     Handle<Map> old_map(
         native_context()->sloppy_arguments_boilerplate()->map());
-    Handle<Map> new_map = factory->CopyMap(old_map);
+    Handle<Map> new_map = Map::Copy(old_map);
     new_map->set_pre_allocated_property_fields(2);
     Handle<JSObject> result = factory->NewJSObjectFromMap(new_map);
     // Set elements kind after allocating the object because
@@ -1359,15 +1358,15 @@ void Genesis::InitializeExperimentalGlobal() {
     // Create maps for generator functions and their prototypes.  Store those
     // maps in the native context.
     Handle<Map> function_map(native_context()->sloppy_function_map());
-    Handle<Map> generator_function_map = factory()->CopyMap(function_map);
+    Handle<Map> generator_function_map = Map::Copy(function_map);
     generator_function_map->set_prototype(*generator_function_prototype);
     native_context()->set_sloppy_generator_function_map(
         *generator_function_map);
 
     Handle<Map> strict_mode_function_map(
         native_context()->strict_function_map());
-    Handle<Map> strict_mode_generator_function_map = factory()->CopyMap(
-        strict_mode_function_map);
+    Handle<Map> strict_mode_generator_function_map =
+        Map::Copy(strict_mode_function_map);
     strict_mode_generator_function_map->set_prototype(
         *generator_function_prototype);
     native_context()->set_strict_generator_function_map(
@@ -1612,7 +1611,7 @@ Handle<JSFunction> Genesis::InstallInternalArray(
   array_function->shared()->DontAdaptArguments();
 
   Handle<Map> original_map(array_function->initial_map());
-  Handle<Map> initial_map = factory()->CopyMap(original_map);
+  Handle<Map> initial_map = Map::Copy(original_map);
   initial_map->set_elements_kind(elements_kind);
   array_function->set_initial_map(*initial_map);
 
@@ -2524,7 +2523,7 @@ void Genesis::TransferObject(Handle<JSObject> from, Handle<JSObject> to) {
 
   // Transfer the prototype (new map is needed).
   Handle<Map> old_to_map = Handle<Map>(to->map());
-  Handle<Map> new_to_map = factory()->CopyMap(old_to_map);
+  Handle<Map> new_to_map = Map::Copy(old_to_map);
   new_to_map->set_prototype(from->map()->prototype());
   to->set_map(*new_to_map);
 }

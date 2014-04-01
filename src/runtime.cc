@@ -3087,9 +3087,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetExpectedNumberOfProperties) {
   if (!func->shared()->live_objects_may_exist()) {
     func->shared()->set_expected_nof_properties(num);
     if (func->has_initial_map()) {
-      Handle<Map> new_initial_map =
-          func->GetIsolate()->factory()->CopyMap(
-              Handle<Map>(func->initial_map()));
+      Handle<Map> new_initial_map = Map::Copy(handle(func->initial_map()));
       new_initial_map->set_unused_property_fields(num);
       func->set_initial_map(*new_initial_map);
     }
@@ -7993,11 +7991,10 @@ RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_NewArgumentsFast) {
       parameter_map->set_map(
           isolate->heap()->sloppy_arguments_elements_map());
 
-      Handle<Map> old_map(result->map());
-      Handle<Map> new_map = isolate->factory()->CopyMap(old_map);
-      new_map->set_elements_kind(SLOPPY_ARGUMENTS_ELEMENTS);
+      Handle<Map> map = Map::Copy(handle(result->map()));
+      map->set_elements_kind(SLOPPY_ARGUMENTS_ELEMENTS);
 
-      result->set_map(*new_map);
+      result->set_map(*map);
       result->set_elements(*parameter_map);
 
       // Store the context and the arguments array at the beginning of the
