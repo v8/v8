@@ -1562,10 +1562,9 @@ void LCodeGen::DoDivI(LDivI* instr) {
   Register dividend = ToRegister(instr->dividend());
   Register divisor = ToRegister(instr->divisor());
   Register remainder = ToRegister(instr->temp());
-  Register result = ToRegister(instr->result());
   ASSERT(dividend.is(eax));
   ASSERT(remainder.is(edx));
-  ASSERT(result.is(eax));
+  ASSERT(ToRegister(instr->result()).is(eax));
   ASSERT(!divisor.is(eax));
   ASSERT(!divisor.is(edx));
 
