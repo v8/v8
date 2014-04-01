@@ -2048,37 +2048,39 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetTemplateField) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_DisableAccessChecks) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 1);
-  CONVERT_ARG_CHECKED(HeapObject, object, 0);
-  Map* old_map = object->map();
+  CONVERT_ARG_HANDLE_CHECKED(HeapObject, object, 0);
+  Handle<Map> old_map(object->map());
   bool needs_access_checks = old_map->is_access_check_needed();
   if (needs_access_checks) {
     // Copy map so it won't interfere constructor's initial map.
-    Map* new_map;
-    MaybeObject* maybe_new_map = old_map->Copy();
-    if (!maybe_new_map->To(&new_map)) return maybe_new_map;
-
+    Handle<Map> new_map = Map::Copy(old_map);
     new_map->set_is_access_check_needed(false);
-    object->set_map(new_map);
+    if (object->IsJSObject()) {
+      JSObject::MigrateToMap(Handle<JSObject>::cast(object), new_map);
+    } else {
+      object->set_map(*new_map);
+    }
   }
   return isolate->heap()->ToBoolean(needs_access_checks);
 }
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_EnableAccessChecks) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 1);
-  CONVERT_ARG_CHECKED(HeapObject, object, 0);
-  Map* old_map = object->map();
+  CONVERT_ARG_HANDLE_CHECKED(HeapObject, object, 0);
+  Handle<Map> old_map(object->map());
   if (!old_map->is_access_check_needed()) {
     // Copy map so it won't interfere constructor's initial map.
-    Map* new_map;
-    MaybeObject* maybe_new_map = old_map->Copy();
-    if (!maybe_new_map->To(&new_map)) return maybe_new_map;
-
+    Handle<Map> new_map = Map::Copy(old_map);
     new_map->set_is_access_check_needed(true);
-    object->set_map(new_map);
+    if (object->IsJSObject()) {
+      JSObject::MigrateToMap(Handle<JSObject>::cast(object), new_map);
+    } else {
+      object->set_map(*new_map);
+    }
   }
   return isolate->heap()->undefined_value();
 }
@@ -2945,9 +2947,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_FunctionSetPrototype) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_FunctionSetReadOnlyPrototype) {
-  SealHandleScope shs(isolate);
+  HandleScope shs(isolate);
   RUNTIME_ASSERT(args.length() == 1);
-  CONVERT_ARG_CHECKED(JSFunction, function, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
 
   String* name = isolate->heap()->prototype_string();
 
@@ -2970,9 +2972,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_FunctionSetReadOnlyPrototype) {
             instance_desc, &new_desc, index, OMIT_TRANSITION);
     if (!maybe_map->To(&new_map)) return maybe_map;
 
-    function->set_map(new_map);
+    JSObject::MigrateToMap(function, handle(new_map));
   } else {  // Dictionary properties.
     // Directly manipulate the property details.
+    DisallowHeapAllocation no_gc;
     int entry = function->property_dictionary()->FindEntry(name);
     ASSERT(entry != NameDictionary::kNotFound);
     PropertyDetails details = function->property_dictionary()->DetailsAt(entry);
@@ -2982,7 +2985,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_FunctionSetReadOnlyPrototype) {
         details.dictionary_index());
     function->property_dictionary()->DetailsAtPut(entry, new_details);
   }
-  return function;
+  return *function;
 }
 
 
