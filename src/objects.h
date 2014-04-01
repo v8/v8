@@ -355,8 +355,6 @@ const int kStubMinorKeyBits = kBitsPerInt - kSmiTagSize - kStubMajorKeyBits;
                                                                                \
   V(INTERNALIZED_STRING_TYPE)                                                  \
   V(ASCII_INTERNALIZED_STRING_TYPE)                                            \
-  V(CONS_INTERNALIZED_STRING_TYPE)                                             \
-  V(CONS_ASCII_INTERNALIZED_STRING_TYPE)                                       \
   V(EXTERNAL_INTERNALIZED_STRING_TYPE)                                         \
   V(EXTERNAL_ASCII_INTERNALIZED_STRING_TYPE)                                   \
   V(EXTERNAL_INTERNALIZED_STRING_WITH_ONE_BYTE_DATA_TYPE)                      \
@@ -514,14 +512,6 @@ const int kStubMinorKeyBits = kBitsPerInt - kSmiTagSize - kStubMajorKeyBits;
     kVariableSizeSentinel,                                                     \
     ascii_internalized_string,                                                 \
     AsciiInternalizedString)                                                   \
-  V(CONS_INTERNALIZED_STRING_TYPE,                                             \
-    ConsString::kSize,                                                         \
-    cons_internalized_string,                                                  \
-    ConsInternalizedString)                                                    \
-  V(CONS_ASCII_INTERNALIZED_STRING_TYPE,                                       \
-    ConsString::kSize,                                                         \
-    cons_ascii_internalized_string,                                            \
-    ConsAsciiInternalizedString)                                               \
   V(EXTERNAL_INTERNALIZED_STRING_TYPE,                                         \
     ExternalTwoByteString::kSize,                                              \
     external_internalized_string,                                              \
@@ -662,10 +652,6 @@ enum InstanceType {
       | kInternalizedTag,
   ASCII_INTERNALIZED_STRING_TYPE = kOneByteStringTag | kSeqStringTag
       | kInternalizedTag,
-  CONS_INTERNALIZED_STRING_TYPE = kTwoByteStringTag | kConsStringTag
-      | kInternalizedTag,
-  CONS_ASCII_INTERNALIZED_STRING_TYPE = kOneByteStringTag | kConsStringTag
-      | kInternalizedTag,
   EXTERNAL_INTERNALIZED_STRING_TYPE = kTwoByteStringTag | kExternalStringTag
       | kInternalizedTag,
   EXTERNAL_ASCII_INTERNALIZED_STRING_TYPE = kOneByteStringTag
@@ -685,9 +671,9 @@ enum InstanceType {
 
   STRING_TYPE = INTERNALIZED_STRING_TYPE | kNotInternalizedTag,
   ASCII_STRING_TYPE = ASCII_INTERNALIZED_STRING_TYPE | kNotInternalizedTag,
-  CONS_STRING_TYPE = CONS_INTERNALIZED_STRING_TYPE | kNotInternalizedTag,
+  CONS_STRING_TYPE = kTwoByteStringTag | kConsStringTag | kNotInternalizedTag,
   CONS_ASCII_STRING_TYPE =
-      CONS_ASCII_INTERNALIZED_STRING_TYPE | kNotInternalizedTag,
+      kOneByteStringTag | kConsStringTag | kNotInternalizedTag,
 
   SLICED_STRING_TYPE =
       kTwoByteStringTag | kSlicedStringTag | kNotInternalizedTag,

@@ -4964,8 +4964,6 @@ Map* Heap::InternalizedStringMapForString(String* string) {
   switch (string->map()->instance_type()) {
     case STRING_TYPE: return internalized_string_map();
     case ASCII_STRING_TYPE: return ascii_internalized_string_map();
-    case CONS_STRING_TYPE: return cons_internalized_string_map();
-    case CONS_ASCII_STRING_TYPE: return cons_ascii_internalized_string_map();
     case EXTERNAL_STRING_TYPE: return external_internalized_string_map();
     case EXTERNAL_ASCII_STRING_TYPE:
       return external_ascii_internalized_string_map();

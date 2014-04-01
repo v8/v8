@@ -13872,9 +13872,6 @@ class InternalizedStringKey : public HashTableKey {
   }
 
   MaybeObject* AsObject(Heap* heap) {
-    // Attempt to flatten the string, so that internalized strings will most
-    // often be flat strings.
-    string_ = string_->TryFlattenGetString();
     // Internalize the string if possible.
     Map* map = heap->InternalizedStringMapForString(string_);
     if (map != NULL) {
