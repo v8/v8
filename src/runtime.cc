@@ -13899,6 +13899,87 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetLanguageTagVariants) {
 }
 
 
+RUNTIME_FUNCTION(MaybeObject*, Runtime_IsInitializedIntlObject) {
+  HandleScope scope(isolate);
+
+  ASSERT(args.length() == 1);
+
+  CONVERT_ARG_HANDLE_CHECKED(Object, input, 0);
+
+  if (!input->IsJSObject()) return isolate->heap()->ToBoolean(false);
+  Handle<JSObject> obj = Handle<JSObject>::cast(input);
+
+  Handle<String> marker = isolate->factory()->intl_initialized_marker_string();
+  Handle<Object> tag(obj->GetHiddenProperty(*marker), isolate);
+  return isolate->heap()->ToBoolean(!tag->IsTheHole());
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_IsInitializedIntlObjectOfType) {
+  HandleScope scope(isolate);
+
+  ASSERT(args.length() == 2);
+
+  CONVERT_ARG_HANDLE_CHECKED(Object, input, 0);
+  CONVERT_ARG_HANDLE_CHECKED(String, expected_type, 1);
+
+  if (!input->IsJSObject()) return isolate->heap()->ToBoolean(false);
+  Handle<JSObject> obj = Handle<JSObject>::cast(input);
+
+  Handle<String> marker = isolate->factory()->intl_initialized_marker_string();
+  Handle<Object> tag(obj->GetHiddenProperty(*marker), isolate);
+  return isolate->heap()->ToBoolean(
+      tag->IsString() && String::cast(*tag)->Equals(*expected_type));
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_MarkAsInitializedIntlObjectOfType) {
+  HandleScope scope(isolate);
+
+  ASSERT(args.length() == 3);
+
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, input, 0);
+  CONVERT_ARG_HANDLE_CHECKED(String, type, 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, impl, 2);
+
+  Handle<String> marker = isolate->factory()->intl_initialized_marker_string();
+  JSObject::SetHiddenProperty(input, marker, type);
+
+  marker = isolate->factory()->intl_impl_object_string();
+  JSObject::SetHiddenProperty(input, marker, impl);
+
+  return isolate->heap()->undefined_value();
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_GetImplFromInitializedIntlObject) {
+  HandleScope scope(isolate);
+
+  ASSERT(args.length() == 1);
+
+  CONVERT_ARG_HANDLE_CHECKED(Object, input, 0);
+
+  if (!input->IsJSObject()) {
+    Vector< Handle<Object> > arguments = HandleVector(&input, 1);
+    Handle<Object> type_error =
+        isolate->factory()->NewTypeError("not_intl_object", arguments);
+    return isolate->Throw(*type_error);
+  }
+
+  Handle<JSObject> obj = Handle<JSObject>::cast(input);
+
+  Handle<String> marker = isolate->factory()->intl_impl_object_string();
+  Handle<Object> impl(obj->GetHiddenProperty(*marker), isolate);
+  if (impl->IsTheHole()) {
+    Vector< Handle<Object> > arguments = HandleVector(&obj, 1);
+    Handle<Object> type_error =
+        isolate->factory()->NewTypeError("not_intl_object", arguments);
+    return isolate->Throw(*type_error);
+  }
+  return *impl;
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateDateTimeFormat) {
   HandleScope scope(isolate);
 
