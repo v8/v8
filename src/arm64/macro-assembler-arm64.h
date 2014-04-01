@@ -802,7 +802,7 @@ class MacroAssembler : public Assembler {
   inline void InitializeRootRegister();
 
   // Load an object from the root table.
-  void LoadRoot(Register destination,
+  void LoadRoot(CPURegister destination,
                 Heap::RootListIndex index);
   // Store an object to the root table.
   void StoreRoot(Register source,
@@ -882,6 +882,9 @@ class MacroAssembler : public Assembler {
   // Abort execution if argument is a smi, enabled via --debug-code.
   void AssertNotSmi(Register object, BailoutReason reason = kOperandIsASmi);
   void AssertSmi(Register object, BailoutReason reason = kOperandIsNotASmi);
+
+  inline void ObjectTag(Register tagged_obj, Register obj);
+  inline void ObjectUntag(Register untagged_obj, Register obj);
 
   // Abort execution if argument is not a name, enabled via --debug-code.
   void AssertName(Register object);
@@ -1354,13 +1357,8 @@ class MacroAssembler : public Assembler {
                           Label* gc_required,
                           Register scratch1,
                           Register scratch2,
-                          Register heap_number_map = NoReg);
-  void AllocateHeapNumberWithValue(Register result,
-                                   DoubleRegister value,
-                                   Label* gc_required,
-                                   Register scratch1,
-                                   Register scratch2,
-                                   Register heap_number_map = NoReg);
+                          CPURegister value = NoFPReg,
+                          CPURegister heap_number_map = NoReg);
 
   // ---------------------------------------------------------------------------
   // Support functions.

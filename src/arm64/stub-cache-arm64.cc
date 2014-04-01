@@ -398,9 +398,7 @@ void StoreStubCompiler::GenerateStoreTransition(MacroAssembler* masm,
     DoubleRegister temp_double = temps.AcquireD();
     __ SmiUntagToDouble(temp_double, value_reg, kSpeculativeUntag);
 
-    Label do_store, heap_number;
-    __ AllocateHeapNumber(storage_reg, slow, scratch1, scratch2);
-
+    Label do_store;
     __ JumpIfSmi(value_reg, &do_store);
 
     __ CheckMap(value_reg, scratch1, Heap::kHeapNumberMapRootIndex,
@@ -408,7 +406,7 @@ void StoreStubCompiler::GenerateStoreTransition(MacroAssembler* masm,
     __ Ldr(temp_double, FieldMemOperand(value_reg, HeapNumber::kValueOffset));
 
     __ Bind(&do_store);
-    __ Str(temp_double, FieldMemOperand(storage_reg, HeapNumber::kValueOffset));
+    __ AllocateHeapNumber(storage_reg, slow, scratch1, scratch2, temp_double);
   }
 
   // Stub never generated for non-global objects that require access checks.

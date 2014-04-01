@@ -3736,8 +3736,7 @@ void PrepareExternalArrayElements(i::Handle<i::JSObject> object,
           object,
           GetElementsKindFromExternalArrayType(array_type));
 
-  object->set_map(*external_array_map);
-  object->set_elements(*array);
+  i::JSObject::SetMapAndElements(object, external_array_map, array);
 }
 
 }  // namespace
@@ -6101,7 +6100,7 @@ i::Handle<i::JSTypedArray> NewTypedArray(
           static_cast<uint8_t*>(buffer->backing_store()) + byte_offset);
   i::Handle<i::Map> map =
       i::JSObject::GetElementsTransitionMap(obj, elements_kind);
-  obj->set_map_and_elements(*map, *elements);
+  i::JSObject::SetMapAndElements(obj, map, elements);
   return obj;
 }
 

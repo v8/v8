@@ -682,6 +682,10 @@ Handle<FixedArray> GetEnumPropertyKeys(Handle<JSObject> object,
             if (field_index >= map->inobject_properties()) {
               field_index = -(field_index - map->inobject_properties() + 1);
             }
+            field_index = field_index << 1;
+            if (details.representation().IsDouble()) {
+              field_index |= 1;
+            }
             indices->set(index, Smi::FromInt(field_index));
           }
         }

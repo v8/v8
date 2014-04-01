@@ -1393,9 +1393,8 @@ void MathPowStub::Generate(MacroAssembler* masm) {
 
     // Return.
     __ Bind(&done);
-    __ AllocateHeapNumber(result_tagged, &call_runtime, scratch0, scratch1);
-    __ Str(result_double,
-        FieldMemOperand(result_tagged, HeapNumber::kValueOffset));
+    __ AllocateHeapNumber(result_tagged, &call_runtime, scratch0, scratch1,
+                          result_double);
     ASSERT(result_tagged.is(x0));
     __ IncrementCounter(
         masm->isolate()->counters()->math_pow(), 1, scratch0, scratch1);

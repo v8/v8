@@ -1010,7 +1010,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_TypedArrayInitialize) {
             static_cast<uint8_t*>(buffer->backing_store()) + byte_offset);
     Handle<Map> map =
         JSObject::GetElementsTransitionMap(holder, external_elements_kind);
-    holder->set_map_and_elements(*map, *elements);
+    JSObject::SetMapAndElements(holder, map, elements);
     ASSERT(IsExternalArrayElementsKind(holder->map()->elements_kind()));
   } else {
     holder->set_buffer(Smi::FromInt(0));
@@ -1107,7 +1107,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_TypedArrayInitializeFromArrayLike) {
           static_cast<uint8_t*>(buffer->backing_store()));
   Handle<Map> map = JSObject::GetElementsTransitionMap(
       holder, external_elements_kind);
-  holder->set_map_and_elements(*map, *elements);
+  JSObject::SetMapAndElements(holder, map, elements);
 
   if (source->IsJSTypedArray()) {
     Handle<JSTypedArray> typed_array(JSTypedArray::cast(*source));
@@ -4201,6 +4201,11 @@ MUST_USE_RESULT static MaybeObject* StringReplaceGlobalRegExpWithEmptyString(
 
   Address end_of_string = answer->address() + string_size;
   Heap* heap = isolate->heap();
+
+  // The trimming is performed on a newly allocated object, which is on a
+  // fresly allocated page or on an already swept page. Hence, the sweeper
+  // thread can not get confused with the filler creation. No synchronization
+  // needed.
   heap->CreateFillerObjectAt(end_of_string, delta);
   heap->AdjustLiveBytes(answer->address(), -delta, Heap::FROM_MUTATOR);
   return *answer;
@@ -10634,27 +10639,24 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_RemoveArrayHoles) {
 
 // Move contents of argument 0 (an array) to argument 1 (an array)
 RUNTIME_FUNCTION(MaybeObject*, Runtime_MoveArrayContents) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 2);
-  CONVERT_ARG_CHECKED(JSArray, from, 0);
-  CONVERT_ARG_CHECKED(JSArray, to, 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSArray, from, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSArray, to, 1);
   from->ValidateElements();
   to->ValidateElements();
-  FixedArrayBase* new_elements = from->elements();
+
+  Handle<FixedArrayBase> new_elements(from->elements());
   ElementsKind from_kind = from->GetElementsKind();
-  MaybeObject* maybe_new_map;
-  maybe_new_map = to->GetElementsTransitionMap(isolate, from_kind);
-  Object* new_map;
-  if (!maybe_new_map->ToObject(&new_map)) return maybe_new_map;
-  to->set_map_and_elements(Map::cast(new_map), new_elements);
+  Handle<Map> new_map = JSObject::GetElementsTransitionMap(to, from_kind);
+  JSObject::SetMapAndElements(to, new_map, new_elements);
   to->set_length(from->length());
-  Object* obj;
-  { MaybeObject* maybe_obj = from->ResetElements();
-    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-  }
+
+  JSObject::ResetElements(from);
   from->set_length(Smi::FromInt(0));
+
   to->ValidateElements();
-  return to;
+  return *to;
 }
 
 
@@ -14505,6 +14507,19 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NotifyContextDisposed) {
   ASSERT(args.length() == 0);
   isolate->heap()->NotifyContextDisposed();
   return isolate->heap()->undefined_value();
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_LoadMutableDouble) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 2);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Smi, index, 1);
+  int idx = index->value() >> 1;
+  if (idx < 0) {
+    idx = -idx + object->map()->inobject_properties() - 1;
+  }
+  return *JSObject::FastPropertyAt(object, Representation::Double(), idx);
 }
 
 

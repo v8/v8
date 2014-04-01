@@ -354,6 +354,10 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
     return AbortAndDisableOptimization(kTooManyParametersLocals);
   }
 
+  if (scope->HasIllegalRedeclaration()) {
+    return AbortAndDisableOptimization(kFunctionWithIllegalRedeclaration);
+  }
+
   // Take --hydrogen-filter into account.
   if (!info()->closure()->PassesFilter(FLAG_hydrogen_filter)) {
     return AbortOptimization(kHydrogenFilter);

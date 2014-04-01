@@ -285,9 +285,9 @@ struct FPRegister : public CPURegister {
   static const unsigned kAllocatableLowRangeBegin = 0;
   static const unsigned kAllocatableLowRangeEnd = 14;
   static const unsigned kAllocatableHighRangeBegin = 16;
-  static const unsigned kAllocatableHighRangeEnd = 29;
+  static const unsigned kAllocatableHighRangeEnd = 28;
 
-  static const RegList kAllocatableFPRegisters = 0x3fff7fff;
+  static const RegList kAllocatableFPRegisters = 0x1fff7fff;
 
   // Gap between low and high ranges.
   static const int kAllocatableRangeGapSize =
@@ -316,12 +316,12 @@ struct FPRegister : public CPURegister {
     ASSERT((kAllocatableLowRangeBegin == 0) &&
            (kAllocatableLowRangeEnd == 14) &&
            (kAllocatableHighRangeBegin == 16) &&
-           (kAllocatableHighRangeEnd == 29));
+           (kAllocatableHighRangeEnd == 28));
     const char* const names[] = {
       "d0", "d1", "d2", "d3", "d4", "d5", "d6", "d7",
       "d8", "d9", "d10", "d11", "d12", "d13", "d14",
       "d16", "d17", "d18", "d19", "d20", "d21", "d22", "d23",
-      "d24", "d25", "d26", "d27", "d28", "d29"
+      "d24", "d25", "d26", "d27", "d28"
     };
     return names[index];
   }
@@ -420,9 +420,11 @@ ALIAS_REGISTER(Register, wzr, w31);
 // Keeps the 0 double value.
 ALIAS_REGISTER(FPRegister, fp_zero, d15);
 // Crankshaft double scratch register.
-ALIAS_REGISTER(FPRegister, crankshaft_fp_scratch, d30);
-// MacroAssembler double scratch register.
-ALIAS_REGISTER(FPRegister, fp_scratch, d31);
+ALIAS_REGISTER(FPRegister, crankshaft_fp_scratch, d29);
+// MacroAssembler double scratch registers.
+ALIAS_REGISTER(FPRegister, fp_scratch, d30);
+ALIAS_REGISTER(FPRegister, fp_scratch1, d30);
+ALIAS_REGISTER(FPRegister, fp_scratch2, d31);
 
 #undef ALIAS_REGISTER
 

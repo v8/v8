@@ -107,11 +107,15 @@ static void EmitStackCheck(MacroAssembler* masm_,
     Isolate* isolate = masm_->isolate();
     Label ok;
     ASSERT(scratch.is(rsp) == (pointers == 0));
+    Heap::RootListIndex index;
     if (pointers != 0) {
       __ movp(scratch, rsp);
       __ subp(scratch, Immediate(pointers * kPointerSize));
+      index = Heap::kRealStackLimitRootIndex;
+    } else {
+      index = Heap::kStackLimitRootIndex;
     }
-    __ CompareRoot(scratch, Heap::kStackLimitRootIndex);
+    __ CompareRoot(scratch, index);
     __ j(above_equal, &ok, Label::kNear);
     __ call(isolate->builtins()->StackCheck(), RelocInfo::CODE_TARGET);
     __ bind(&ok);

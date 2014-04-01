@@ -3913,3 +3913,32 @@ TEST(CEntryStubOOM) {
 }
 
 #endif  // DEBUG
+
+
+static void InterruptCallback357137(v8::Isolate* isolate, void* data) { }
+
+
+static void RequestInterrupt(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  CcTest::isolate()->RequestInterrupt(&InterruptCallback357137, NULL);
+}
+
+
+TEST(Regress357137) {
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope hscope(isolate);
+  v8::Handle<v8::ObjectTemplate> global =v8::ObjectTemplate::New(isolate);
+  global->Set(v8::String::NewFromUtf8(isolate, "interrupt"),
+              v8::FunctionTemplate::New(isolate, RequestInterrupt));
+  v8::Local<v8::Context> context = v8::Context::New(isolate, NULL, global);
+  ASSERT(!context.IsEmpty());
+  v8::Context::Scope cscope(context);
+
+  v8::Local<v8::Value> result = CompileRun(
+      "var locals = '';"
+      "for (var i = 0; i < 512; i++) locals += 'var v' + i + '= 42;';"
+      "eval('function f() {' + locals + 'return function() { return v0; }; }');"
+      "interrupt();"  // This triggers a fake stack overflow in f.
+      "f()()");
+  CHECK_EQ(42.0, result->ToNumber()->Value());
+}
