@@ -290,7 +290,7 @@ class V8_EXPORT Debug {
    *
    * Generally when message arrives V8 may be in one of 3 states:
    * 1. V8 is running script; V8 will automatically interrupt and process all
-   * pending messages (however auto_break flag should be enabled);
+   * pending messages;
    * 2. V8 is suspended on debug breakpoint; in this state V8 is dedicated
    * to reading and processing debug messages;
    * 3. V8 is not running at all or has called some long-working C++ function;

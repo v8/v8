@@ -519,11 +519,9 @@ bool StackGuard::IsDebugCommand() {
 
 
 void StackGuard::DebugCommand() {
-  if (FLAG_debugger_auto_break) {
-    ExecutionAccess access(isolate_);
-    thread_local_.interrupt_flags_ |= DEBUGCOMMAND;
-    set_interrupt_limits(access);
-  }
+  ExecutionAccess access(isolate_);
+  thread_local_.interrupt_flags_ |= DEBUGCOMMAND;
+  set_interrupt_limits(access);
 }
 #endif
 
