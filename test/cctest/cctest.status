@@ -140,6 +140,9 @@
 
   # BUG(3005).
   'test-alloc/CodeRange': [PASS, FAIL],
+
+  # BUG(3215). Crashes on windows.
+  'test-lockers/MultithreadedParallelIsolates': [SKIP],
 }],  # 'system == windows'
 
 ##############################################################################
