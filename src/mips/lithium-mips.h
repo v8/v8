@@ -97,6 +97,7 @@ class LCodeGen;
   V(DummyUse)                                   \
   V(FlooringDivByConstI)                        \
   V(FlooringDivByPowerOf2I)                     \
+  V(FlooringDivI)                               \
   V(ForInCacheArray)                            \
   V(ForInPrepareMap)                            \
   V(FunctionLiteral)                            \
@@ -709,13 +710,13 @@ class LDivByConstI V8_FINAL : public LTemplateInstruction<1, 1, 0> {
 
 class LDivI V8_FINAL : public LTemplateInstruction<1, 2, 0> {
  public:
-  LDivI(LOperand* left, LOperand* right) {
-    inputs_[0] = left;
-    inputs_[1] = right;
+  LDivI(LOperand* dividend, LOperand* divisor) {
+    inputs_[0] = dividend;
+    inputs_[1] = divisor;
   }
 
-  LOperand* left() { return inputs_[0]; }
-  LOperand* right() { return inputs_[1]; }
+  LOperand* dividend() { return inputs_[0]; }
+  LOperand* divisor() { return inputs_[1]; }
 
   DECLARE_CONCRETE_INSTRUCTION(DivI, "div-i")
   DECLARE_HYDROGEN_ACCESSOR(BinaryOperation)
@@ -758,6 +759,21 @@ class LFlooringDivByConstI V8_FINAL : public LTemplateInstruction<1, 1, 2> {
 
  private:
   int32_t divisor_;
+};
+
+
+class LFlooringDivI V8_FINAL : public LTemplateInstruction<1, 2, 0> {
+ public:
+  LFlooringDivI(LOperand* dividend, LOperand* divisor) {
+    inputs_[0] = dividend;
+    inputs_[1] = divisor;
+  }
+
+  LOperand* dividend() { return inputs_[0]; }
+  LOperand* divisor() { return inputs_[1]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(FlooringDivI, "flooring-div-i")
+  DECLARE_HYDROGEN_ACCESSOR(MathFloorOfDiv)
 };
 
 
@@ -2679,12 +2695,13 @@ class LChunkBuilder V8_FINAL : public LChunkBuilderBase {
   LInstruction* DoMathClz32(HUnaryMathOperation* instr);
   LInstruction* DoDivByPowerOf2I(HDiv* instr);
   LInstruction* DoDivByConstI(HDiv* instr);
-  LInstruction* DoDivI(HBinaryOperation* instr);
+  LInstruction* DoDivI(HDiv* instr);
   LInstruction* DoModByPowerOf2I(HMod* instr);
   LInstruction* DoModByConstI(HMod* instr);
   LInstruction* DoModI(HMod* instr);
   LInstruction* DoFlooringDivByPowerOf2I(HMathFloorOfDiv* instr);
   LInstruction* DoFlooringDivByConstI(HMathFloorOfDiv* instr);
+  LInstruction* DoFlooringDivI(HMathFloorOfDiv* instr);
 
  private:
   enum Status {
