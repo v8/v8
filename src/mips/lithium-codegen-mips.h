@@ -140,6 +140,10 @@ class LCodeGen: public LCodeGenBase {
                                        Label* map_check);
 
   void DoDeferredInstanceMigration(LCheckMaps* instr, Register object);
+  void DoDeferredLoadMutableDouble(LLoadFieldByIndex* instr,
+                                   Register result,
+                                   Register object,
+                                   Register index);
 
   // Parallel move support.
   void DoParallelMove(LParallelMove* move);
