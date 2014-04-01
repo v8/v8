@@ -1561,6 +1561,7 @@ void HChange::PrintDataTo(StringStream* stream) {
   HUnaryOperation::PrintDataTo(stream);
   stream->Add(" %s to %s", from().Mnemonic(), to().Mnemonic());
 
+  if (CanTruncateToSmi()) stream->Add(" truncating-smi");
   if (CanTruncateToInt32()) stream->Add(" truncating-int32");
   if (CheckFlag(kBailoutOnMinusZero)) stream->Add(" -0?");
   if (CheckFlag(kAllowUndefinedAsNaN)) stream->Add(" allow-undefined-as-nan");
