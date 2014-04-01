@@ -13899,6 +13899,68 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetLanguageTagVariants) {
 }
 
 
+RUNTIME_FUNCTION(MaybeObject*, Runtime_IsInitializedIntlObject) {
+  HandleScope scope(isolate);
+
+  ASSERT(args.length() == 1);
+
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, input, 0);
+
+  Handle<String> marker = isolate->factory()->intl_initialized_marker_string();
+  Handle<Object> tag(input->GetHiddenProperty(*marker), isolate);
+  return isolate->heap()->ToBoolean(!tag->IsTheHole());
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_IsInitializedIntlObjectOfType) {
+  HandleScope scope(isolate);
+
+  ASSERT(args.length() == 2);
+
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, input, 0);
+  CONVERT_ARG_HANDLE_CHECKED(String, expected_type, 1);
+
+
+  Handle<String> marker = isolate->factory()->intl_initialized_marker_string();
+  Handle<Object> tag(input->GetHiddenProperty(*marker), isolate);
+  return isolate->heap()->ToBoolean(
+      tag->IsString() && String::cast(*tag)->Equals(*expected_type));
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_MarkAsInitializedIntlObjectOfType) {
+  HandleScope scope(isolate);
+
+  ASSERT(args.length() == 3);
+
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, input, 0);
+  CONVERT_ARG_HANDLE_CHECKED(String, type, 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, impl, 2);
+
+  Handle<String> marker = isolate->factory()->intl_initialized_marker_string();
+  JSObject::SetHiddenProperty(input, marker, type);
+
+  marker = isolate->factory()->intl_impl_object_string();
+  JSObject::SetHiddenProperty(input, marker, impl);
+
+  return isolate->heap()->undefined_value();
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_GetImplFromInitializedIntlObject) {
+  HandleScope scope(isolate);
+
+  ASSERT(args.length() == 1);
+
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, input, 0);
+
+  Handle<String> marker = isolate->factory()->intl_impl_object_string();
+  Handle<Object> impl(input->GetHiddenProperty(*marker), isolate);
+  if (impl->IsTheHole()) return isolate->heap()->undefined_value();
+  return *impl;
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateDateTimeFormat) {
   HandleScope scope(isolate);
 

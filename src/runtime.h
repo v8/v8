@@ -491,6 +491,10 @@ namespace internal {
   F(AvailableLocalesOf, 1, 1) \
   F(GetDefaultICULocale, 0, 1) \
   F(GetLanguageTagVariants, 1, 1) \
+  F(IsInitializedIntlObject, 1, 1) \
+  F(IsInitializedIntlObjectOfType, 2, 1) \
+  F(MarkAsInitializedIntlObjectOfType, 3, 1) \
+  F(GetImplFromInitializedIntlObject, 1, 1) \
   \
   /* Date format and parse. */ \
   F(CreateDateTimeFormat, 3, 1) \
