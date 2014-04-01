@@ -1532,14 +1532,19 @@ LInstruction* LChunkBuilder::DoAdd(HAdd* instr) {
     ASSERT(instr->right()->representation().Equals(instr->representation()));
     LOperand* left = UseRegisterAtStart(instr->BetterLeftOperand());
     HValue* right_candidate = instr->BetterRightOperand();
-    LOperand* right = use_lea
-        ? UseRegisterOrConstantAtStart(right_candidate)
-        : UseOrConstantAtStart(right_candidate);
+    LOperand* right;
+    if (instr->representation().IsSmi()) {
+      // We cannot add a tagged immediate to a tagged value,
+      // so we request it in a register.
+      right = UseRegisterAtStart(right_candidate);
+    } else {
+      right = use_lea ? UseRegisterOrConstantAtStart(right_candidate)
+                      : UseOrConstantAtStart(right_candidate);
+    }
     LAddI* add = new(zone()) LAddI(left, right);
     bool can_overflow = instr->CheckFlag(HValue::kCanOverflow);
-    LInstruction* result = use_lea
-        ? DefineAsRegister(add)
-        : DefineSameAsFirst(add);
+    LInstruction* result = use_lea ? DefineAsRegister(add)
+                                   : DefineSameAsFirst(add);
     if (can_overflow) {
       result = AssignEnvironment(result);
     }

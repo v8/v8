@@ -1820,6 +1820,7 @@ void LCodeGen::DoAddI(LAddI* instr) {
 
   if (LAddI::UseLea(instr->hydrogen()) && !left->Equals(instr->result())) {
     if (right->IsConstantOperand()) {
+      ASSERT(!target_rep.IsSmi());  // No support for smi-immediates.
       int32_t offset = ToInteger32(LConstantOperand::cast(right));
       if (is_p) {
         __ leap(ToRegister(instr->result()),
@@ -1838,6 +1839,7 @@ void LCodeGen::DoAddI(LAddI* instr) {
     }
   } else {
     if (right->IsConstantOperand()) {
+      ASSERT(!target_rep.IsSmi());  // No support for smi-immediates.
       if (is_p) {
         __ addp(ToRegister(left),
                 Immediate(ToInteger32(LConstantOperand::cast(right))));
