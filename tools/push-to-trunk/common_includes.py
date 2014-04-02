@@ -257,10 +257,11 @@ class Step(GitRecipesMixin):
       return
 
     print ">>> Step %d: %s" % (self._number, self._text)
-    self.RunStep()
-
-    # Persist state.
-    TextToFile(json.dumps(self._state), state_file)
+    try:
+      return self.RunStep()
+    finally:
+      # Persist state.
+      TextToFile(json.dumps(self._state), state_file)
 
   def RunStep(self):  # pragma: no cover
     raise NotImplementedError
@@ -555,7 +556,8 @@ class ScriptsBase(object):
       steps.append(MakeStep(step_class, number, self._state, self._config,
                             options, self._side_effect_handler))
     for step in steps[options.step:]:
-      step.Run()
+      if step.Run():
+        return 1
     return 0
 
   def Run(self, args=None):
