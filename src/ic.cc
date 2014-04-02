@@ -121,7 +121,8 @@ void IC::TraceIC(const char* type,
 
 IC::IC(FrameDepth depth, Isolate* isolate)
     : isolate_(isolate),
-      target_set_(false) {
+      target_set_(false),
+      target_maps_set_(false) {
   // To improve the performance of the (much used) IC code, we unfold a few
   // levels of the stack frame iteration code. This yields a ~35% speedup when
   // running DeltaBlue and a ~25% speedup of gbemu with the '--nouse-ic' flag.
@@ -293,7 +294,7 @@ bool IC::TryRemoveInvalidPrototypeDependentStub(Handle<Object> receiver,
   // If the IC is shared between multiple receivers (slow dictionary mode), then
   // the map cannot be deprecated and the stub invalidated.
   if (cache_holder == OWN_MAP) {
-    Map* old_map = target()->FindFirstMap();
+    Map* old_map = FirstTargetMap();
     if (old_map == *map) return true;
     if (old_map != NULL) {
       if (old_map->is_deprecated()) return true;
@@ -632,7 +633,7 @@ bool IC::UpdatePolymorphicIC(Handle<HeapType> type,
   TypeHandleList types;
   CodeHandleList handlers;
 
-  target()->FindAllTypes(&types);
+  TargetTypes(&types);
   int number_of_types = types.length();
   int deprecated_types = 0;
   int handler_to_overwrite = -1;
@@ -735,7 +736,7 @@ void IC::UpdateMonomorphicIC(Handle<HeapType> type,
 void IC::CopyICToMegamorphicCache(Handle<String> name) {
   TypeHandleList types;
   CodeHandleList handlers;
-  target()->FindAllTypes(&types);
+  TargetTypes(&types);
   if (!target()->FindHandlers(&handlers, types.length())) return;
   for (int i = 0; i < types.length(); i++) {
     UpdateMegamorphicCache(*types.at(i), *name, *handlers.at(i));
@@ -1036,19 +1037,13 @@ Handle<Code> KeyedLoadIC::LoadElementStub(Handle<JSObject> receiver) {
 
   Handle<Map> receiver_map(receiver->map(), isolate());
   MapHandleList target_receiver_maps;
-  if (state() == UNINITIALIZED || state() == PREMONOMORPHIC) {
-    // Optimistically assume that ICs that haven't reached the MONOMORPHIC state
-    // yet will do so and stay there.
-    return isolate()->stub_cache()->ComputeKeyedLoadElement(receiver_map);
-  }
-
   if (target().is_identical_to(string_stub())) {
     target_receiver_maps.Add(isolate()->factory()->string_map());
   } else {
-    target()->FindAllMaps(&target_receiver_maps);
-    if (target_receiver_maps.length() == 0) {
-      return isolate()->stub_cache()->ComputeKeyedLoadElement(receiver_map);
-    }
+    TargetMaps(&target_receiver_maps);
+  }
+  if (target_receiver_maps.length() == 0) {
+    return isolate()->stub_cache()->ComputeKeyedLoadElement(receiver_map);
   }
 
   // The first time a receiver is seen that is a transitioned version of the
@@ -1435,22 +1430,13 @@ Handle<Code> KeyedStoreIC::StoreElementStub(Handle<JSObject> receiver,
   }
 
   Handle<Map> receiver_map(receiver->map(), isolate());
-  if (state() == UNINITIALIZED || state() == PREMONOMORPHIC) {
-    // Optimistically assume that ICs that haven't reached the MONOMORPHIC state
-    // yet will do so and stay there.
+  MapHandleList target_receiver_maps;
+  TargetMaps(&target_receiver_maps);
+  if (target_receiver_maps.length() == 0) {
     Handle<Map> monomorphic_map = ComputeTransitionedMap(receiver, store_mode);
     store_mode = GetNonTransitioningStoreMode(store_mode);
     return isolate()->stub_cache()->ComputeKeyedStoreElement(
         monomorphic_map, strict_mode(), store_mode);
-  }
-
-  MapHandleList target_receiver_maps;
-  target()->FindAllMaps(&target_receiver_maps);
-  if (target_receiver_maps.length() == 0) {
-    // In the case that there is a non-map-specific IC is installed (e.g. keyed
-    // stores into properties in dictionary mode), then there will be not
-    // receiver maps in the target.
-    return generic_stub();
   }
 
   // There are several special cases where an IC that is MONOMORPHIC can still
@@ -2754,8 +2740,8 @@ MaybeObject* CompareNilIC::CompareNil(Handle<Object> object) {
   // Find or create the specialized stub to support the new set of types.
   Handle<Code> code;
   if (stub.IsMonomorphic()) {
-    Handle<Map> monomorphic_map(already_monomorphic
-                                ? target()->FindFirstMap()
+    Handle<Map> monomorphic_map(already_monomorphic && FirstTargetMap() != NULL
+                                ? FirstTargetMap()
                                 : HeapObject::cast(*object)->map());
     code = isolate()->stub_cache()->ComputeCompareNil(monomorphic_map, stub);
   } else {

@@ -10540,21 +10540,6 @@ void Code::FindAllMaps(MapHandleList* maps) {
 }
 
 
-void Code::FindAllTypes(TypeHandleList* types) {
-  ASSERT(is_inline_cache_stub());
-  DisallowHeapAllocation no_allocation;
-  int mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
-  for (RelocIterator it(this, mask); !it.done(); it.next()) {
-    RelocInfo* info = it.rinfo();
-    Object* object = info->target_object();
-    if (object->IsMap()) {
-      Handle<Map> map(Map::cast(object));
-      types->Add(IC::MapToType<HeapType>(map, map->GetIsolate()));
-    }
-  }
-}
-
-
 Code* Code::FindFirstHandler() {
   ASSERT(is_inline_cache_stub());
   DisallowHeapAllocation no_allocation;

@@ -5407,7 +5407,6 @@ class Code: public HeapObject {
   // Find the first map in an IC stub.
   Map* FindFirstMap();
   void FindAllMaps(MapHandleList* maps);
-  void FindAllTypes(TypeHandleList* types);
 
   // Find the first handler in an IC stub.
   Code* FindFirstHandler();
