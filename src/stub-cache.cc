@@ -1265,6 +1265,8 @@ void KeyedLoadStubCompiler::CompileElementHandlers(MapHandleList* receiver_maps,
         cached_stub =
             KeyedLoadFastElementStub(is_js_array,
                                      elements_kind).GetCode(isolate());
+      } else if (elements_kind == NON_STRICT_ARGUMENTS_ELEMENTS) {
+        cached_stub = isolate()->builtins()->KeyedLoadIC_NonStrictArguments();
       } else {
         ASSERT(elements_kind == DICTIONARY_ELEMENTS);
         cached_stub = KeyedLoadDictionaryElementStub().GetCode(isolate());

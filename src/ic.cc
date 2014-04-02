@@ -1092,7 +1092,6 @@ MaybeObject* KeyedLoadIC::Load(Handle<Object> object, Handle<Object> key) {
     if (*stub == *generic_stub()) {
       TRACE_GENERIC_IC(isolate(), "KeyedLoadIC", "set generic");
     }
-    ASSERT(!stub.is_null());
     set_target(*stub);
     TRACE_IC("LoadIC", key);
   }

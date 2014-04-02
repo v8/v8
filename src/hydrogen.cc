@@ -4304,7 +4304,12 @@ void HOptimizedGraphBuilder::VisitReturnStatement(ReturnStatement* stmt) {
       TestContext* test = TestContext::cast(context);
       VisitForControl(stmt->expression(), test->if_true(), test->if_false());
     } else if (context->IsEffect()) {
-      CHECK_ALIVE(VisitForEffect(stmt->expression()));
+      // Visit in value context and ignore the result. This is needed to keep
+      // environment in sync with full-codegen since some visitors (e.g.
+      // VisitCountOperation) use the operand stack differently depending on
+      // context.
+      CHECK_ALIVE(VisitForValue(stmt->expression()));
+      Pop();
       Goto(function_return(), state);
     } else {
       ASSERT(context->IsValue());
@@ -6359,6 +6364,13 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
     if (IsFastElementsKind(elements_kind) &&
         elements_kind != GetInitialFastElementsKind()) {
       possible_transitioned_maps.Add(map);
+    }
+    if (elements_kind == NON_STRICT_ARGUMENTS_ELEMENTS) {
+      HInstruction* result =
+          is_store ? BuildStoreKeyedGeneric(object, key, val)
+                   : BuildLoadKeyedGeneric(object, key);
+      *has_side_effects = result->HasObservableSideEffects();
+      return AddInstruction(result);
     }
   }
   // Get transition target for each map (NULL == no transition).
