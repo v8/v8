@@ -5645,10 +5645,8 @@ Handle<Object> JSObject::Freeze(Handle<JSObject> object) {
 
 
 void JSObject::SetObserved(Handle<JSObject> object) {
+  ASSERT(!object->map()->is_observed());
   Isolate* isolate = object->GetIsolate();
-
-  if (object->map()->is_observed())
-    return;
 
   LookupResult result(isolate);
   object->map()->LookupTransition(*object,

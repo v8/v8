@@ -14882,8 +14882,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetIsObserved) {
   if (obj->IsJSProxy())
     return isolate->heap()->undefined_value();
 
-  ASSERT(!(obj->map()->is_observed() && obj->IsJSObject() &&
-           Handle<JSObject>::cast(obj)->HasFastElements()));
   ASSERT(obj->IsJSObject());
   JSObject::SetObserved(Handle<JSObject>::cast(obj));
   return isolate->heap()->undefined_value();
