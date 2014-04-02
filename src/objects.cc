@@ -14456,7 +14456,7 @@ MaybeObject* JSObject::PrepareSlowElementsForSort(uint32_t limit) {
 Handle<Object> JSObject::PrepareElementsForSort(Handle<JSObject> object,
                                                 uint32_t limit) {
   Isolate* isolate = object->GetIsolate();
-  if (object->HasSloppyArgumentsElements() ||
+  if (object->HasNonStrictArgumentsElements() ||
       object->map()->is_observed()) {
     return handle(Smi::FromInt(-1), isolate);
   }
