@@ -12,6 +12,10 @@ import urllib
 from common_includes import *
 import chromium_roll
 
+CONFIG = {
+  PERSISTFILE_BASENAME: "/tmp/v8-auto-roll-tempfile",
+}
+
 CR_DEPS_URL = 'http://src.chromium.org/svn/trunk/src/DEPS'
 
 class CheckActiveRoll(Step):
