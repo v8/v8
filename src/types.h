@@ -213,8 +213,11 @@ class TypeImpl : public Config::Base {
   static TypeHandle Union(TypeHandle type1, TypeHandle type2, Region* reg);
   static TypeHandle Intersect(TypeHandle type1, TypeHandle type2, Region* reg);
 
+  static TypeHandle Of(i::Object* value, Region* region) {
+    return Config::from_bitset(LubBitset(value), region);
+  }
   static TypeHandle Of(i::Handle<i::Object> value, Region* region) {
-    return Config::from_bitset(LubBitset(*value), region);
+    return Of(*value, region);
   }
 
   bool Is(TypeImpl* that) { return this == that || this->SlowIs(that); }
@@ -231,7 +234,10 @@ class TypeImpl : public Config::Base {
 
   // State-dependent versions of Of and Is that consider subtyping between
   // a constant and its map class.
-  static TypeHandle NowOf(i::Handle<i::Object> value, Region* region);
+  static TypeHandle NowOf(i::Object* value, Region* region);
+  static TypeHandle NowOf(i::Handle<i::Object> value, Region* region) {
+    return NowOf(*value, region);
+  }
   bool NowIs(TypeImpl* that);
   template<class TypeHandle>
   bool NowIs(TypeHandle that)  { return this->NowIs(*that); }
