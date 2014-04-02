@@ -456,6 +456,8 @@ void Assembler::bind(Label* label) {
   ASSERT(!label->is_near_linked());
   ASSERT(!label->is_bound());
 
+  DeleteUnresolvedBranchInfoForLabel(label);
+
   // If the label is linked, the link chain looks something like this:
   //
   // |--I----I-------I-------L
@@ -497,8 +499,6 @@ void Assembler::bind(Label* label) {
 
   ASSERT(label->is_bound());
   ASSERT(!label->is_linked());
-
-  DeleteUnresolvedBranchInfoForLabel(label);
 }
 
 
@@ -551,14 +551,16 @@ void Assembler::DeleteUnresolvedBranchInfoForLabel(Label* label) {
     return;
   }
 
-  // Branches to this label will be resolved when the label is bound below.
-  std::multimap<int, FarBranchInfo>::iterator it_tmp, it;
-  it = unresolved_branches_.begin();
-  while (it != unresolved_branches_.end()) {
-    it_tmp = it++;
-    if (it_tmp->second.label_ == label) {
-      CHECK(it_tmp->first >= pc_offset());
-      unresolved_branches_.erase(it_tmp);
+  if (label->is_linked()) {
+    // Branches to this label will be resolved when the label is bound below.
+    std::multimap<int, FarBranchInfo>::iterator it_tmp, it;
+    it = unresolved_branches_.begin();
+    while (it != unresolved_branches_.end()) {
+      it_tmp = it++;
+      if (it_tmp->second.label_ == label) {
+        CHECK(it_tmp->first >= pc_offset());
+        unresolved_branches_.erase(it_tmp);
+      }
     }
   }
   if (unresolved_branches_.empty()) {
