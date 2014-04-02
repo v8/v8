@@ -43,7 +43,8 @@ namespace internal {
 
 
 static const byte kCallOpcode = 0xE8;
-static const int kNoCodeAgeSequenceLength = 6;
+// The length of pushq(rbp), movp(rbp, rsp), Push(rsi) and Push(rdi).
+static const int kNoCodeAgeSequenceLength = kPointerSize == kInt64Size ? 6 : 17;
 
 
 void Assembler::emitl(uint32_t x) {
