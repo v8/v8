@@ -256,12 +256,6 @@ class Factory V8_FINAL {
 
   Handle<JSObject> NewFunctionPrototype(Handle<JSFunction> function);
 
-  Handle<Map> CopyWithPreallocatedFieldDescriptors(Handle<Map> map);
-
-  // Copy the map adding more inobject properties if possible without
-  // overflowing the instance size.
-  Handle<Map> CopyMap(Handle<Map> map, int extra_inobject_props);
-
   Handle<FixedArray> CopyFixedArray(Handle<FixedArray> array);
 
   // This method expects a COW array in new space, and creates a copy

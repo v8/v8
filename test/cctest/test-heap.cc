@@ -972,7 +972,6 @@ TEST(Regression39128) {
   // Test case for crbug.com/39128.
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
-  Factory* factory = isolate->factory();
   Heap* heap = isolate->heap();
 
   // Increase the chance of 'bump-the-pointer' allocation in old space.
@@ -988,9 +987,8 @@ TEST(Regression39128) {
   Handle<JSFunction> object_ctor(
       CcTest::i_isolate()->native_context()->object_function());
   CHECK(object_ctor->has_initial_map());
-  Handle<Map> object_map(object_ctor->initial_map());
   // Create a map with single inobject property.
-  Handle<Map> my_map = factory->CopyMap(object_map, 1);
+  Handle<Map> my_map = Map::Create(object_ctor, 1);
   int n_properties = my_map->inobject_properties();
   CHECK_GT(n_properties, 0);
 

@@ -1372,19 +1372,19 @@ void Genesis::InitializeExperimentalGlobal() {
     native_context()->set_strict_generator_function_map(
         *strict_mode_generator_function_map);
 
-    Handle<Map> object_map(native_context()->object_function()->initial_map());
-    Handle<Map> generator_object_prototype_map = factory()->CopyMap(
-        object_map, 0);
+    Handle<JSFunction> object_function(native_context()->object_function());
+    Handle<Map> generator_object_prototype_map = Map::Create(
+        object_function, 0);
     generator_object_prototype_map->set_prototype(
         *generator_object_prototype);
     native_context()->set_generator_object_prototype_map(
         *generator_object_prototype_map);
 
     // Create a map for generator result objects.
-    ASSERT(object_map->inobject_properties() == 0);
+    ASSERT(object_function->initial_map()->inobject_properties() == 0);
     STATIC_ASSERT(JSGeneratorObject::kResultPropertyCount == 2);
-    Handle<Map> generator_result_map = factory()->CopyMap(object_map,
-        JSGeneratorObject::kResultPropertyCount);
+    Handle<Map> generator_result_map = Map::Create(
+        object_function, JSGeneratorObject::kResultPropertyCount);
     ASSERT(generator_result_map->inobject_properties() ==
         JSGeneratorObject::kResultPropertyCount);
 

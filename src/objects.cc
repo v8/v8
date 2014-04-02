@@ -7007,26 +7007,6 @@ Handle<Map> Map::CopyForObserved(Handle<Map> map) {
 }
 
 
-MaybeObject* Map::CopyWithPreallocatedFieldDescriptors() {
-  if (pre_allocated_property_fields() == 0) return CopyDropDescriptors();
-
-  // If the map has pre-allocated properties always start out with a descriptor
-  // array describing these properties.
-  ASSERT(constructor()->IsJSFunction());
-  JSFunction* ctor = JSFunction::cast(constructor());
-  Map* map = ctor->initial_map();
-  DescriptorArray* descriptors = map->instance_descriptors();
-
-  int number_of_own_descriptors = map->NumberOfOwnDescriptors();
-  DescriptorArray* new_descriptors;
-  MaybeObject* maybe_descriptors =
-      descriptors->CopyUpTo(number_of_own_descriptors);
-  if (!maybe_descriptors->To(&new_descriptors)) return maybe_descriptors;
-
-  return CopyReplaceDescriptors(new_descriptors, OMIT_TRANSITION);
-}
-
-
 Handle<Map> Map::Copy(Handle<Map> map) {
   CALL_HEAP_FUNCTION(map->GetIsolate(), map->Copy(), Map);
 }
@@ -7041,6 +7021,35 @@ MaybeObject* Map::Copy() {
   if (!maybe_descriptors->To(&new_descriptors)) return maybe_descriptors;
 
   return CopyReplaceDescriptors(new_descriptors, OMIT_TRANSITION);
+}
+
+
+Handle<Map> Map::Create(Handle<JSFunction> constructor,
+                        int extra_inobject_properties) {
+  Handle<Map> copy = Copy(handle(constructor->initial_map()));
+
+  // Check that we do not overflow the instance size when adding the
+  // extra inobject properties.
+  int instance_size_delta = extra_inobject_properties * kPointerSize;
+  int max_instance_size_delta =
+      JSObject::kMaxInstanceSize - copy->instance_size();
+  int max_extra_properties = max_instance_size_delta >> kPointerSizeLog2;
+
+  // If the instance size overflows, we allocate as many properties as we can as
+  // inobject properties.
+  if (extra_inobject_properties > max_extra_properties) {
+    instance_size_delta = max_instance_size_delta;
+    extra_inobject_properties = max_extra_properties;
+  }
+
+  // Adjust the map with the extra inobject properties.
+  int inobject_properties =
+      copy->inobject_properties() + extra_inobject_properties;
+  copy->set_inobject_properties(inobject_properties);
+  copy->set_unused_property_fields(inobject_properties);
+  copy->set_instance_size(copy->instance_size() + instance_size_delta);
+  copy->set_visitor_id(StaticVisitorBase::GetVisitorId(*copy));
+  return copy;
 }
 
 
