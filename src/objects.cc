@@ -843,18 +843,6 @@ Handle<Object> Object::GetProperty(Handle<Object> object,
 }
 
 
-MaybeObject* Object::GetPropertyOrFail(Handle<Object> object,
-                                       Handle<Object> receiver,
-                                       LookupResult* result,
-                                       Handle<Name> key,
-                                       PropertyAttributes* attributes) {
-  Isolate* isolate = result->isolate();
-  CALL_HEAP_FUNCTION_PASS_EXCEPTION(
-      isolate,
-      object->GetProperty(*receiver, result, *key, attributes));
-}
-
-
 // TODO(yangguo): handlify this and get rid of.
 MaybeObject* Object::GetProperty(Object* receiver,
                                  LookupResult* result,

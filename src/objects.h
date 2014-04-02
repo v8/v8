@@ -1556,13 +1556,6 @@ class Object : public MaybeObject {
                                     Handle<Name> key,
                                     PropertyAttributes* attributes);
 
-  MUST_USE_RESULT static MaybeObject* GetPropertyOrFail(
-      Handle<Object> object,
-      Handle<Object> receiver,
-      LookupResult* result,
-      Handle<Name> key,
-      PropertyAttributes* attributes);
-
   MUST_USE_RESULT MaybeObject* GetProperty(Object* receiver,
                                            LookupResult* result,
                                            Name* key,
