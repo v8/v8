@@ -515,6 +515,8 @@ LInstruction* LChunkBuilder::MarkAsCall(LInstruction* instr,
       !hinstr->HasObservableSideEffects();
   if (needs_environment && !instr->HasEnvironment()) {
     instr = AssignEnvironment(instr);
+    // We can't really figure out if the environment is needed or not.
+    instr->environment()->set_has_been_used();
   }
 
   return instr;
@@ -1107,10 +1109,7 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
         LOperand* temp2 = instr->CanTruncateToInt32() ? NULL : FixedTemp(d24);
         LInstruction* result =
             DefineAsRegister(new(zone()) LTaggedToI(value, temp1, temp2));
-        if (!val->representation().IsSmi()) {
-          // Note: Only deopts in deferred code.
-          result = AssignEnvironment(result);
-        }
+        if (!val->representation().IsSmi()) result = AssignEnvironment(result);
         return result;
       }
     }
@@ -1194,9 +1193,8 @@ LInstruction* LChunkBuilder::DoCheckMaps(HCheckMaps* instr) {
   }
   LInstruction* result = new(zone()) LCheckMaps(value, temp);
   if (!instr->CanOmitMapChecks()) {
-    // Note: Only deopts in deferred code.
     result = AssignEnvironment(result);
-    if (instr->has_migration_target()) return AssignPointerMap(result);
+    if (instr->has_migration_target()) result = AssignPointerMap(result);
   }
   return result;
 }
@@ -2432,7 +2430,6 @@ LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
         LOperand* temp3 = TempRegister();
         LInstruction* result = DefineAsRegister(
             new(zone()) LMathAbsTagged(context, input, temp1, temp2, temp3));
-        // Note: Only deopts in deferred code.
         return AssignEnvironment(AssignPointerMap(result));
       } else {
         LOperand* input = UseRegisterAtStart(instr->value());
