@@ -1480,9 +1480,10 @@ TEST(ParserSync) {
     "break",
     "break label",
     "break\nlabel",
-    "return",
-    "return  12",
-    "return\n12",
+    // TODO(marja): activate once parsing 'return' is merged into ParserBase.
+    // "return",
+    // "return  12",
+    // "return\n12",
     "with ({}) ;",
     "with ({}) {}",
     "with ({}) 12",

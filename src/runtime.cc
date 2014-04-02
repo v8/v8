@@ -2117,15 +2117,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetAccessorProperty) {
 }
 
 
-static Failure* ThrowRedeclarationError(Isolate* isolate,
-                                        const char* type,
-                                        Handle<String> name) {
+static Failure* ThrowRedeclarationError(Isolate* isolate, Handle<String> name) {
   HandleScope scope(isolate);
-  Handle<Object> type_handle =
-      isolate->factory()->NewStringFromAscii(CStrVector(type));
-  Handle<Object> args[2] = { type_handle, name };
-  Handle<Object> error =
-      isolate->factory()->NewTypeError("redeclaration", HandleVector(args, 2));
+  Handle<Object> args[1] = { name };
+  Handle<Object> error = isolate->factory()->NewTypeError(
+      "var_redeclaration", HandleVector(args, 1));
   return isolate->Throw(*error);
 }
 
@@ -2202,7 +2198,7 @@ RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_DeclareGlobals) {
       if (lookup.IsFound() && lookup.IsDontDelete()) {
         if (lookup.IsReadOnly() || lookup.IsDontEnum() ||
             lookup.IsPropertyCallbacks()) {
-          return ThrowRedeclarationError(isolate, "function", name);
+          return ThrowRedeclarationError(isolate, name);
         }
         // If the existing property is not configurable, keep its attributes.
         attr = lookup.GetAttributes();
@@ -2254,8 +2250,7 @@ RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_DeclareContextSlot) {
     if (((attributes & READ_ONLY) != 0) || (mode == READ_ONLY)) {
       // Functions are not read-only.
       ASSERT(mode != READ_ONLY || initial_value->IsTheHole());
-      const char* type = ((attributes & READ_ONLY) != 0) ? "const" : "var";
-      return ThrowRedeclarationError(isolate, type, name);
+      return ThrowRedeclarationError(isolate, name);
     }
 
     // Initialize it if necessary.
@@ -2309,7 +2304,7 @@ RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_DeclareContextSlot) {
       LookupResult lookup(isolate);
       object->Lookup(*name, &lookup);
       if (lookup.IsPropertyCallbacks()) {
-        return ThrowRedeclarationError(isolate, "const", name);
+        return ThrowRedeclarationError(isolate, name);
       }
     }
     if (object->IsJSGlobalObject()) {

@@ -922,7 +922,7 @@ class PreParserTraits {
     return PreParserExpression::Default();
   }
   PreParserExpression NewThrowTypeError(
-      const char* type, Handle<Object> arg1, Handle<Object> arg2, int pos) {
+      const char* type, Handle<Object> arg, int pos) {
     return PreParserExpression::Default();
   }
 

@@ -590,8 +590,7 @@ Expression* ParserTraits::BuildUnaryExpression(
 }
 
 
-Expression* ParserTraits::NewThrowReferenceError(
-    const char* message, int pos) {
+Expression* ParserTraits::NewThrowReferenceError(const char* message, int pos) {
   return NewThrowError(
       parser_->isolate()->factory()->MakeReferenceError_string(),
       message, HandleVector<Object>(NULL, 0), pos);
@@ -609,11 +608,9 @@ Expression* ParserTraits::NewThrowSyntaxError(
 
 
 Expression* ParserTraits::NewThrowTypeError(
-    const char* message, Handle<Object> arg1, Handle<Object> arg2, int pos) {
-  ASSERT(!arg1.is_null() && !arg2.is_null());
-  Handle<Object> elements[] = { arg1, arg2 };
-  Vector< Handle<Object> > arguments =
-      HandleVector<Object>(elements, ARRAY_SIZE(elements));
+    const char* message, Handle<Object> arg, int pos) {
+  int argc = arg.is_null() ? 0 : 1;
+  Vector< Handle<Object> > arguments = HandleVector<Object>(&arg, argc);
   return NewThrowError(
       parser_->isolate()->factory()->MakeTypeError_string(),
       message, arguments, pos);
@@ -1754,18 +1751,14 @@ void Parser::Declare(Declaration* declaration, bool resolve, bool* ok) {
         // In harmony we treat re-declarations as early errors. See
         // ES5 16 for a definition of early errors.
         SmartArrayPointer<char> c_string = name->ToCString(DISALLOW_NULLS);
-        const char* elms[2] = { "Variable", c_string.get() };
-        Vector<const char*> args(elms, 2);
-        ReportMessage("redeclaration", args);
+        const char* elms[1] = { c_string.get() };
+        Vector<const char*> args(elms, 1);
+        ReportMessage("var_redeclaration", args);
         *ok = false;
         return;
       }
-      Handle<String> message_string =
-          isolate()->factory()->InternalizeOneByteString(
-              STATIC_ASCII_VECTOR("Variable"));
-      Expression* expression =
-          NewThrowTypeError("redeclaration",
-                            message_string, name, declaration->position());
+      Expression* expression = NewThrowTypeError(
+          "var_redeclaration", name, declaration->position());
       declaration_scope->SetIllegalRedeclaration(expression);
     }
   }
@@ -2374,9 +2367,9 @@ Statement* Parser::ParseExpressionOrLabelledStatement(ZoneStringList* labels,
     // make later anyway so we should go back and fix this then.
     if (ContainsLabel(labels, label) || TargetStackContainsLabel(label)) {
       SmartArrayPointer<char> c_string = label->ToCString(DISALLOW_NULLS);
-      const char* elms[2] = { "Label", c_string.get() };
-      Vector<const char*> args(elms, 2);
-      ReportMessage("redeclaration", args);
+      const char* elms[1] = { c_string.get() };
+      Vector<const char*> args(elms, 1);
+      ReportMessage("label_redeclaration", args);
       *ok = false;
       return NULL;
     }
@@ -2521,7 +2514,7 @@ Statement* Parser::ParseReturnStatement(bool* ok) {
   // reporting any errors on it, because of the way errors are
   // reported (underlining).
   Expect(Token::RETURN, CHECK_OK);
-  int pos = position();
+  Scanner::Location loc = scanner()->location();
 
   Token::Value tok = peek();
   Statement* result;
@@ -2539,23 +2532,17 @@ Statement* Parser::ParseReturnStatement(bool* ok) {
     Expression* generator = factory()->NewVariableProxy(
         function_state_->generator_object_variable());
     Expression* yield = factory()->NewYield(
-        generator, return_value, Yield::FINAL, pos);
-    result = factory()->NewExpressionStatement(yield, pos);
+        generator, return_value, Yield::FINAL, loc.beg_pos);
+    result = factory()->NewExpressionStatement(yield, loc.beg_pos);
   } else {
-    result = factory()->NewReturnStatement(return_value, pos);
+    result = factory()->NewReturnStatement(return_value, loc.beg_pos);
   }
 
-  // An ECMAScript program is considered syntactically incorrect if it
-  // contains a return statement that is not within the body of a
-  // function. See ECMA-262, section 12.9, page 67.
-  //
-  // To be consistent with KJS we report the syntax error at runtime.
-  Scope* declaration_scope = scope_->DeclarationScope();
-  if (declaration_scope->is_global_scope() ||
-      declaration_scope->is_eval_scope()) {
-    Expression* throw_error =
-        NewThrowSyntaxError("illegal_return", Handle<Object>::null(), pos);
-    return factory()->NewExpressionStatement(throw_error, pos);
+  Scope* decl_scope = scope_->DeclarationScope();
+  if (decl_scope->is_global_scope() || decl_scope->is_eval_scope()) {
+    ReportMessageAt(loc, "illegal_return");
+    *ok = false;
+    return NULL;
   }
   return result;
 }
@@ -3669,13 +3656,13 @@ void Parser::CheckConflictingVarDeclarations(Scope* scope, bool* ok) {
     // errors. See ES5 16 for a definition of early errors.
     Handle<String> name = decl->proxy()->name();
     SmartArrayPointer<char> c_string = name->ToCString(DISALLOW_NULLS);
-    const char* elms[2] = { "Variable", c_string.get() };
-    Vector<const char*> args(elms, 2);
+    const char* elms[1] = { c_string.get() };
+    Vector<const char*> args(elms, 1);
     int position = decl->proxy()->position();
     Scanner::Location location = position == RelocInfo::kNoPosition
         ? Scanner::Location::invalid()
         : Scanner::Location(position, position + 1);
-    ParserTraits::ReportMessageAt(location, "redeclaration", args);
+    ParserTraits::ReportMessageAt(location, "var_redeclaration", args);
     *ok = false;
   }
 }

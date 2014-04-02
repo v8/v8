@@ -582,7 +582,7 @@ PreParser::Statement PreParser::ParseReturnStatement(bool* ok) {
   // ReturnStatement ::
   //   'return' [no line terminator] Expression? ';'
 
-  // Consume the return token. It is necessary to do the before
+  // Consume the return token. It is necessary to do before
   // reporting any errors on it, because of the way errors are
   // reported (underlining).
   Expect(Token::RETURN, CHECK_OK);

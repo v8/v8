@@ -538,8 +538,7 @@ class ParserTraits {
 
   // Generate AST node that throws a TypeError with the given
   // type. Both arguments must be non-null (in the handle sense).
-  Expression* NewThrowTypeError(
-      const char* type, Handle<Object> arg1, Handle<Object> arg2, int pos);
+  Expression* NewThrowTypeError(const char* type, Handle<Object> arg, int pos);
 
   // Generic AST generator for throwing errors from compiled code.
   Expression* NewThrowError(
